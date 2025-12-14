@@ -11,7 +11,7 @@
 #include <memory>
 #include <string>
 #include "common/tools_common.h"
-#include "config/aom_config.h"
+#include "config/avm_config.h"
 #include "test/codec_factory.h"
 #include "test/decode_test_driver.h"
 #include "test/ivf_video_source.h"
@@ -58,9 +58,9 @@ class ExternalFrameBufferList {
 
   // Searches the frame buffer list for a free frame buffer. Makes sure
   // that the frame buffer is at least |min_size| in bytes. Marks that the
-  // frame buffer is in use by libaom. Finally sets |fb| to point to the
+  // frame buffer is in use by libavm. Finally sets |fb| to point to the
   // external frame buffer. Returns < 0 on an error.
-  int GetFreeFrameBuffer(size_t min_size, aom_codec_frame_buffer_t *fb) {
+  int GetFreeFrameBuffer(size_t min_size, avm_codec_frame_buffer_t *fb) {
     EXPECT_TRUE(fb != NULL);
     const int idx = FindFreeBufferIndex();
     if (idx == num_buffers_) return -1;
@@ -80,7 +80,7 @@ class ExternalFrameBufferList {
 
   // Test function that will not allocate any data for the frame buffer.
   // Returns < 0 on an error.
-  int GetZeroFrameBuffer(size_t min_size, aom_codec_frame_buffer_t *fb) {
+  int GetZeroFrameBuffer(size_t min_size, avm_codec_frame_buffer_t *fb) {
     EXPECT_TRUE(fb != NULL);
     const int idx = FindFreeBufferIndex();
     if (idx == num_buffers_) return -1;
@@ -97,7 +97,7 @@ class ExternalFrameBufferList {
 
   // Marks the external frame buffer that |fb| is pointing to as free.
   // Returns < 0 on an error.
-  int ReturnFrameBuffer(aom_codec_frame_buffer_t *fb) {
+  int ReturnFrameBuffer(avm_codec_frame_buffer_t *fb) {
     if (fb == NULL) {
       EXPECT_TRUE(fb != NULL);
       return -1;
@@ -114,9 +114,9 @@ class ExternalFrameBufferList {
     return 0;
   }
 
-  // Checks that the aom_image_t data is contained within the external frame
-  // buffer private data passed back in the aom_image_t.
-  void CheckImageFrameBuffer(const aom_image_t *img) {
+  // Checks that the avm_image_t data is contained within the external frame
+  // buffer private data passed back in the avm_image_t.
+  void CheckImageFrameBuffer(const avm_image_t *img) {
     const struct ExternalFrameBuffer *const ext_fb =
         reinterpret_cast<ExternalFrameBuffer *>(img->fb_priv);
 
@@ -140,7 +140,7 @@ class ExternalFrameBufferList {
 
   // Sets |fb| to an external frame buffer. idx is the index into the frame
   // buffer list.
-  void SetFrameBuffer(int idx, aom_codec_frame_buffer_t *fb) {
+  void SetFrameBuffer(int idx, avm_codec_frame_buffer_t *fb) {
     ASSERT_TRUE(fb != NULL);
     fb->data = ext_fb_list_[idx].data;
     fb->size = ext_fb_list_[idx].size;
@@ -156,42 +156,42 @@ class ExternalFrameBufferList {
 
 #if CONFIG_WEBM_IO
 
-// Callback used by libaom to request the application to return a frame
+// Callback used by libavm to request the application to return a frame
 // buffer of at least |min_size| in bytes.
-int get_aom_frame_buffer(void *user_priv, size_t min_size,
-                         aom_codec_frame_buffer_t *fb) {
+int get_avm_frame_buffer(void *user_priv, size_t min_size,
+                         avm_codec_frame_buffer_t *fb) {
   ExternalFrameBufferList *const fb_list =
       reinterpret_cast<ExternalFrameBufferList *>(user_priv);
   return fb_list->GetFreeFrameBuffer(min_size, fb);
 }
 
-// Callback used by libaom to tell the application that |fb| is not needed
+// Callback used by libavm to tell the application that |fb| is not needed
 // anymore.
-int release_aom_frame_buffer(void *user_priv, aom_codec_frame_buffer_t *fb) {
+int release_avm_frame_buffer(void *user_priv, avm_codec_frame_buffer_t *fb) {
   ExternalFrameBufferList *const fb_list =
       reinterpret_cast<ExternalFrameBufferList *>(user_priv);
   return fb_list->ReturnFrameBuffer(fb);
 }
 
 // Callback will not allocate data for frame buffer.
-int get_aom_zero_frame_buffer(void *user_priv, size_t min_size,
-                              aom_codec_frame_buffer_t *fb) {
+int get_avm_zero_frame_buffer(void *user_priv, size_t min_size,
+                              avm_codec_frame_buffer_t *fb) {
   ExternalFrameBufferList *const fb_list =
       reinterpret_cast<ExternalFrameBufferList *>(user_priv);
   return fb_list->GetZeroFrameBuffer(min_size, fb);
 }
 
 // Callback will allocate one less byte than |min_size|.
-int get_aom_one_less_byte_frame_buffer(void *user_priv, size_t min_size,
-                                       aom_codec_frame_buffer_t *fb) {
+int get_avm_one_less_byte_frame_buffer(void *user_priv, size_t min_size,
+                                       avm_codec_frame_buffer_t *fb) {
   ExternalFrameBufferList *const fb_list =
       reinterpret_cast<ExternalFrameBufferList *>(user_priv);
   return fb_list->GetFreeFrameBuffer(min_size - 1, fb);
 }
 
 // Callback will not release the external frame buffer.
-int do_not_release_aom_frame_buffer(void *user_priv,
-                                    aom_codec_frame_buffer_t *fb) {
+int do_not_release_avm_frame_buffer(void *user_priv,
+                                    avm_codec_frame_buffer_t *fb) {
   (void)user_priv;
   (void)fb;
   return 0;
@@ -199,13 +199,13 @@ int do_not_release_aom_frame_buffer(void *user_priv,
 
 #endif  // CONFIG_WEBM_IO
 
-// Class for testing passing in external frame buffers to libaom.
+// Class for testing passing in external frame buffers to libavm.
 class ExternalFrameBufferMD5Test
-    : public ::libaom_test::DecoderTest,
-      public ::libaom_test::CodecTestWithParam<const char *> {
+    : public ::libavm_test::DecoderTest,
+      public ::libavm_test::CodecTestWithParam<const char *> {
  protected:
   ExternalFrameBufferMD5Test()
-      : DecoderTest(GET_PARAM(::libaom_test::kCodecFactoryParam)),
+      : DecoderTest(GET_PARAM(::libavm_test::kCodecFactoryParam)),
         md5_file_(NULL), num_buffers_(0) {}
 
   virtual ~ExternalFrameBufferMD5Test() {
@@ -213,24 +213,24 @@ class ExternalFrameBufferMD5Test
   }
 
   virtual void PreDecodeFrameHook(
-      const libaom_test::CompressedVideoSource &video,
-      libaom_test::Decoder *decoder) {
+      const libavm_test::CompressedVideoSource &video,
+      libavm_test::Decoder *decoder) {
     if (num_buffers_ > 0 && video.frame_number() == 0) {
-      // Have libaom use frame buffers we create.
+      // Have libavm use frame buffers we create.
       ASSERT_TRUE(fb_list_.CreateBufferList(num_buffers_));
-      ASSERT_EQ(AOM_CODEC_OK,
-                decoder->SetFrameBufferFunctions(GetAV1FrameBuffer,
-                                                 ReleaseAV1FrameBuffer, this));
+      ASSERT_EQ(AVM_CODEC_OK,
+                decoder->SetFrameBufferFunctions(GetAV2FrameBuffer,
+                                                 ReleaseAV2FrameBuffer, this));
     }
   }
 
   void OpenMD5File(const std::string &md5_file_name_) {
-    md5_file_ = libaom_test::OpenTestDataFile(md5_file_name_);
+    md5_file_ = libavm_test::OpenTestDataFile(md5_file_name_);
     ASSERT_TRUE(md5_file_ != NULL)
         << "Md5 file open failed. Filename: " << md5_file_name_;
   }
 
-  virtual void DecompressedFrameHook(const aom_image_t &img,
+  virtual void DecompressedFrameHook(const avm_image_t &img,
                                      const unsigned int frame_number) {
     ASSERT_TRUE(md5_file_ != NULL);
     char expected_md5[33];
@@ -241,18 +241,18 @@ class ExternalFrameBufferMD5Test
     ASSERT_NE(EOF, res) << "Read md5 data failed";
     expected_md5[32] = '\0';
 
-    ::libaom_test::MD5 md5_res;
+    ::libavm_test::MD5 md5_res;
 
-    const aom_img_fmt_t shifted_fmt =
-        (aom_img_fmt)(img.fmt & ~AOM_IMG_FMT_HIGHBITDEPTH);
+    const avm_img_fmt_t shifted_fmt =
+        (avm_img_fmt)(img.fmt & ~AVM_IMG_FMT_HIGHBITDEPTH);
     if (img.bit_depth == 8 && shifted_fmt != img.fmt) {
-      aom_image_t *img_shifted =
-          aom_img_alloc(NULL, shifted_fmt, img.d_w, img.d_h, 16);
+      avm_image_t *img_shifted =
+          avm_img_alloc(NULL, shifted_fmt, img.d_w, img.d_h, 16);
       img_shifted->bit_depth = img.bit_depth;
       img_shifted->monochrome = img.monochrome;
-      aom_img_downshift(img_shifted, &img, 0, 8);
+      avm_img_downshift(img_shifted, &img, 0, 8);
       md5_res.Add(img_shifted);
-      aom_img_free(img_shifted);
+      avm_img_free(img_shifted);
     } else {
       md5_res.Add(&img);
     }
@@ -271,8 +271,8 @@ class ExternalFrameBufferMD5Test
 
   // Callback to get a free external frame buffer. Return value < 0 is an
   // error.
-  static int GetAV1FrameBuffer(void *user_priv, size_t min_size,
-                               aom_codec_frame_buffer_t *fb) {
+  static int GetAV2FrameBuffer(void *user_priv, size_t min_size,
+                               avm_codec_frame_buffer_t *fb) {
     ExternalFrameBufferMD5Test *const md5Test =
         reinterpret_cast<ExternalFrameBufferMD5Test *>(user_priv);
     return md5Test->fb_list_.GetFreeFrameBuffer(min_size, fb);
@@ -280,8 +280,8 @@ class ExternalFrameBufferMD5Test
 
   // Callback to release an external frame buffer. Return value < 0 is an
   // error.
-  static int ReleaseAV1FrameBuffer(void *user_priv,
-                                   aom_codec_frame_buffer_t *fb) {
+  static int ReleaseAV2FrameBuffer(void *user_priv,
+                                   avm_codec_frame_buffer_t *fb) {
     ExternalFrameBufferMD5Test *const md5Test =
         reinterpret_cast<ExternalFrameBufferMD5Test *>(user_priv);
     return md5Test->fb_list_.ReturnFrameBuffer(fb);
@@ -297,22 +297,22 @@ class ExternalFrameBufferMD5Test
 };
 
 #if CONFIG_WEBM_IO
-const char kAV1TestFile[] = "av1-1-b8-03-sizeup.mkv";
-const char kAV1NonRefTestFile[] = "av1-1-b8-01-size-226x226.ivf";
+const char kAV2TestFile[] = "av1-1-b8-03-sizeup.mkv";
+const char kAV2NonRefTestFile[] = "av1-1-b8-01-size-226x226.ivf";
 
-// Class for testing passing in external frame buffers to libaom.
+// Class for testing passing in external frame buffers to libavm.
 class ExternalFrameBufferTest : public ::testing::Test {
  protected:
   ExternalFrameBufferTest() : video_(NULL), decoder_(NULL), num_buffers_(0) {}
 
   virtual void SetUp() {
-    video_ = new libaom_test::WebMVideoSource(kAV1TestFile);
+    video_ = new libavm_test::WebMVideoSource(kAV2TestFile);
     ASSERT_TRUE(video_ != NULL);
     video_->Init();
     video_->Begin();
 
-    aom_codec_dec_cfg_t cfg = aom_codec_dec_cfg_t();
-    decoder_ = new libaom_test::AV1Decoder(cfg, 0);
+    avm_codec_dec_cfg_t cfg = avm_codec_dec_cfg_t();
+    decoder_ = new libavm_test::AV2Decoder(cfg, 0);
     ASSERT_TRUE(decoder_ != NULL);
   }
 
@@ -323,10 +323,10 @@ class ExternalFrameBufferTest : public ::testing::Test {
     video_ = NULL;
   }
 
-  // Passes the external frame buffer information to libaom.
-  aom_codec_err_t SetFrameBufferFunctions(
-      int num_buffers, aom_get_frame_buffer_cb_fn_t cb_get,
-      aom_release_frame_buffer_cb_fn_t cb_release) {
+  // Passes the external frame buffer information to libavm.
+  avm_codec_err_t SetFrameBufferFunctions(
+      int num_buffers, avm_get_frame_buffer_cb_fn_t cb_get,
+      avm_release_frame_buffer_cb_fn_t cb_release) {
     if (num_buffers > 0) {
       num_buffers_ = num_buffers;
       EXPECT_TRUE(fb_list_.CreateBufferList(num_buffers_));
@@ -335,28 +335,28 @@ class ExternalFrameBufferTest : public ::testing::Test {
     return decoder_->SetFrameBufferFunctions(cb_get, cb_release, &fb_list_);
   }
 
-  aom_codec_err_t DecodeOneFrame() {
-    const aom_codec_err_t res =
+  avm_codec_err_t DecodeOneFrame() {
+    const avm_codec_err_t res =
         decoder_->DecodeFrame(video_->cxdata(), video_->frame_size());
     CheckDecodedFrames();
-    if (res == AOM_CODEC_OK) video_->Next();
+    if (res == AVM_CODEC_OK) video_->Next();
     return res;
   }
 
-  aom_codec_err_t DecodeRemainingFrames() {
+  avm_codec_err_t DecodeRemainingFrames() {
     for (; video_->cxdata() != NULL; video_->Next()) {
-      const aom_codec_err_t res =
+      const avm_codec_err_t res =
           decoder_->DecodeFrame(video_->cxdata(), video_->frame_size());
-      if (res != AOM_CODEC_OK) return res;
+      if (res != AVM_CODEC_OK) return res;
       CheckDecodedFrames();
     }
-    return AOM_CODEC_OK;
+    return AVM_CODEC_OK;
   }
 
  protected:
   void CheckDecodedFrames() {
-    libaom_test::DxDataIterator dec_iter = decoder_->GetDxData();
-    const aom_image_t *img = NULL;
+    libavm_test::DxDataIterator dec_iter = decoder_->GetDxData();
+    const avm_image_t *img = NULL;
 
     // Get decompressed data
     while ((img = dec_iter.Next()) != NULL) {
@@ -364,8 +364,8 @@ class ExternalFrameBufferTest : public ::testing::Test {
     }
   }
 
-  libaom_test::CompressedVideoSource *video_;
-  libaom_test::AV1Decoder *decoder_;
+  libavm_test::CompressedVideoSource *video_;
+  libavm_test::AV2Decoder *decoder_;
   int num_buffers_;
   ExternalFrameBufferList fb_list_;
 };
@@ -373,13 +373,13 @@ class ExternalFrameBufferTest : public ::testing::Test {
 class ExternalFrameBufferNonRefTest : public ExternalFrameBufferTest {
  protected:
   virtual void SetUp() {
-    video_ = new libaom_test::IVFVideoSource(kAV1NonRefTestFile);
+    video_ = new libavm_test::IVFVideoSource(kAV2NonRefTestFile);
     ASSERT_TRUE(video_ != NULL);
     video_->Init();
     video_->Begin();
 
-    aom_codec_dec_cfg_t cfg = aom_codec_dec_cfg_t();
-    decoder_ = new libaom_test::AV1Decoder(cfg, 0);
+    avm_codec_dec_cfg_t cfg = avm_codec_dec_cfg_t();
+    decoder_ = new libavm_test::AV2Decoder(cfg, 0);
     ASSERT_TRUE(decoder_ != NULL);
   }
 
@@ -391,28 +391,28 @@ class ExternalFrameBufferNonRefTest : public ExternalFrameBufferTest {
 #endif  // CONFIG_WEBM_IO
 
 // This test runs through the set of test vectors, and decodes them.
-// Libaom will call into the application to allocate a frame buffer when
+// Libavm will call into the application to allocate a frame buffer when
 // needed. The md5 checksums are computed for each frame in the video file.
 // If md5 checksums match the correct md5 data, then the test is passed.
 // Otherwise, the test failed.
 TEST_P(ExternalFrameBufferMD5Test, DISABLED_ExtFBMD5Match) {
   const std::string filename = GET_PARAM(kVideoNameParam);
-  aom_codec_dec_cfg_t cfg = aom_codec_dec_cfg_t();
+  avm_codec_dec_cfg_t cfg = avm_codec_dec_cfg_t();
 
-  // Number of buffers equals #AOM_MAXIMUM_REF_BUFFERS +
-  // #AOM_MAXIMUM_WORK_BUFFERS + four jitter buffers.
+  // Number of buffers equals #AVM_MAXIMUM_REF_BUFFERS +
+  // #AVM_MAXIMUM_WORK_BUFFERS + four jitter buffers.
   const int jitter_buffers = 4;
   const int num_buffers =
-      AOM_MAXIMUM_REF_BUFFERS + AOM_MAXIMUM_WORK_BUFFERS + jitter_buffers;
+      AVM_MAXIMUM_REF_BUFFERS + AVM_MAXIMUM_WORK_BUFFERS + jitter_buffers;
   set_num_buffers(num_buffers);
 
   // Open compressed video file.
-  std::unique_ptr<libaom_test::CompressedVideoSource> video;
+  std::unique_ptr<libavm_test::CompressedVideoSource> video;
   if (filename.substr(filename.length() - 3, 3) == "ivf") {
-    video.reset(new libaom_test::IVFVideoSource(filename));
+    video.reset(new libavm_test::IVFVideoSource(filename));
   } else {
 #if CONFIG_WEBM_IO
-    video.reset(new libaom_test::WebMVideoSource(filename));
+    video.reset(new libavm_test::WebMVideoSource(filename));
 #else
     fprintf(stderr, "WebM IO is disabled, skipping test vector %s\n",
             filename.c_str());
@@ -435,100 +435,100 @@ TEST_P(ExternalFrameBufferMD5Test, DISABLED_ExtFBMD5Match) {
 
 #if CONFIG_WEBM_IO
 TEST_F(ExternalFrameBufferTest, DISABLED_MinFrameBuffers) {
-  // Minimum number of external frame buffers for AV1 is
-  // #AOM_MAXIMUM_REF_BUFFERS + #AOM_MAXIMUM_WORK_BUFFERS.
-  const int num_buffers = AOM_MAXIMUM_REF_BUFFERS + AOM_MAXIMUM_WORK_BUFFERS;
-  ASSERT_EQ(AOM_CODEC_OK,
-            SetFrameBufferFunctions(num_buffers, get_aom_frame_buffer,
-                                    release_aom_frame_buffer));
-  ASSERT_EQ(AOM_CODEC_OK, DecodeRemainingFrames());
+  // Minimum number of external frame buffers for AV2 is
+  // #AVM_MAXIMUM_REF_BUFFERS + #AVM_MAXIMUM_WORK_BUFFERS.
+  const int num_buffers = AVM_MAXIMUM_REF_BUFFERS + AVM_MAXIMUM_WORK_BUFFERS;
+  ASSERT_EQ(AVM_CODEC_OK,
+            SetFrameBufferFunctions(num_buffers, get_avm_frame_buffer,
+                                    release_avm_frame_buffer));
+  ASSERT_EQ(AVM_CODEC_OK, DecodeRemainingFrames());
 }
 
 TEST_F(ExternalFrameBufferTest, DISABLED_EightJitterBuffers) {
-  // Number of buffers equals #AOM_MAXIMUM_REF_BUFFERS +
-  // #AOM_MAXIMUM_WORK_BUFFERS + eight jitter buffers.
+  // Number of buffers equals #AVM_MAXIMUM_REF_BUFFERS +
+  // #AVM_MAXIMUM_WORK_BUFFERS + eight jitter buffers.
   const int jitter_buffers = 8;
   const int num_buffers =
-      AOM_MAXIMUM_REF_BUFFERS + AOM_MAXIMUM_WORK_BUFFERS + jitter_buffers;
-  ASSERT_EQ(AOM_CODEC_OK,
-            SetFrameBufferFunctions(num_buffers, get_aom_frame_buffer,
-                                    release_aom_frame_buffer));
-  ASSERT_EQ(AOM_CODEC_OK, DecodeRemainingFrames());
+      AVM_MAXIMUM_REF_BUFFERS + AVM_MAXIMUM_WORK_BUFFERS + jitter_buffers;
+  ASSERT_EQ(AVM_CODEC_OK,
+            SetFrameBufferFunctions(num_buffers, get_avm_frame_buffer,
+                                    release_avm_frame_buffer));
+  ASSERT_EQ(AVM_CODEC_OK, DecodeRemainingFrames());
 }
 
 TEST_F(ExternalFrameBufferTest, DISABLED_NotEnoughBuffers) {
-  // Minimum number of external frame buffers for AV1 is
-  // #AOM_MAXIMUM_REF_BUFFERS + #AOM_MAXIMUM_WORK_BUFFERS. Most files will
+  // Minimum number of external frame buffers for AV2 is
+  // #AVM_MAXIMUM_REF_BUFFERS + #AVM_MAXIMUM_WORK_BUFFERS. Most files will
   // only use 5 frame buffers at one time.
   const int num_buffers = 2;
-  ASSERT_EQ(AOM_CODEC_OK,
-            SetFrameBufferFunctions(num_buffers, get_aom_frame_buffer,
-                                    release_aom_frame_buffer));
-  ASSERT_EQ(AOM_CODEC_OK, DecodeOneFrame());
+  ASSERT_EQ(AVM_CODEC_OK,
+            SetFrameBufferFunctions(num_buffers, get_avm_frame_buffer,
+                                    release_avm_frame_buffer));
+  ASSERT_EQ(AVM_CODEC_OK, DecodeOneFrame());
   // Only run this on long clips. Decoding a very short clip will return
-  // AOM_CODEC_OK even with only 2 buffers.
-  ASSERT_EQ(AOM_CODEC_MEM_ERROR, DecodeRemainingFrames());
+  // AVM_CODEC_OK even with only 2 buffers.
+  ASSERT_EQ(AVM_CODEC_MEM_ERROR, DecodeRemainingFrames());
 }
 
 TEST_F(ExternalFrameBufferTest, DISABLED_NoRelease) {
-  const int num_buffers = AOM_MAXIMUM_REF_BUFFERS + AOM_MAXIMUM_WORK_BUFFERS;
-  ASSERT_EQ(AOM_CODEC_OK,
-            SetFrameBufferFunctions(num_buffers, get_aom_frame_buffer,
-                                    do_not_release_aom_frame_buffer));
-  ASSERT_EQ(AOM_CODEC_OK, DecodeOneFrame());
-  ASSERT_EQ(AOM_CODEC_MEM_ERROR, DecodeRemainingFrames());
+  const int num_buffers = AVM_MAXIMUM_REF_BUFFERS + AVM_MAXIMUM_WORK_BUFFERS;
+  ASSERT_EQ(AVM_CODEC_OK,
+            SetFrameBufferFunctions(num_buffers, get_avm_frame_buffer,
+                                    do_not_release_avm_frame_buffer));
+  ASSERT_EQ(AVM_CODEC_OK, DecodeOneFrame());
+  ASSERT_EQ(AVM_CODEC_MEM_ERROR, DecodeRemainingFrames());
 }
 
 TEST_F(ExternalFrameBufferTest, DISABLED_NullRealloc) {
-  const int num_buffers = AOM_MAXIMUM_REF_BUFFERS + AOM_MAXIMUM_WORK_BUFFERS;
-  ASSERT_EQ(AOM_CODEC_OK,
-            SetFrameBufferFunctions(num_buffers, get_aom_zero_frame_buffer,
-                                    release_aom_frame_buffer));
-  ASSERT_EQ(AOM_CODEC_MEM_ERROR, DecodeOneFrame());
+  const int num_buffers = AVM_MAXIMUM_REF_BUFFERS + AVM_MAXIMUM_WORK_BUFFERS;
+  ASSERT_EQ(AVM_CODEC_OK,
+            SetFrameBufferFunctions(num_buffers, get_avm_zero_frame_buffer,
+                                    release_avm_frame_buffer));
+  ASSERT_EQ(AVM_CODEC_MEM_ERROR, DecodeOneFrame());
 }
 
 TEST_F(ExternalFrameBufferTest, DISABLED_ReallocOneLessByte) {
-  const int num_buffers = AOM_MAXIMUM_REF_BUFFERS + AOM_MAXIMUM_WORK_BUFFERS;
-  ASSERT_EQ(AOM_CODEC_OK, SetFrameBufferFunctions(
-                              num_buffers, get_aom_one_less_byte_frame_buffer,
-                              release_aom_frame_buffer));
-  ASSERT_EQ(AOM_CODEC_MEM_ERROR, DecodeOneFrame());
+  const int num_buffers = AVM_MAXIMUM_REF_BUFFERS + AVM_MAXIMUM_WORK_BUFFERS;
+  ASSERT_EQ(AVM_CODEC_OK, SetFrameBufferFunctions(
+                              num_buffers, get_avm_one_less_byte_frame_buffer,
+                              release_avm_frame_buffer));
+  ASSERT_EQ(AVM_CODEC_MEM_ERROR, DecodeOneFrame());
 }
 
 TEST_F(ExternalFrameBufferTest, NullGetFunction) {
-  const int num_buffers = AOM_MAXIMUM_REF_BUFFERS + AOM_MAXIMUM_WORK_BUFFERS;
+  const int num_buffers = AVM_MAXIMUM_REF_BUFFERS + AVM_MAXIMUM_WORK_BUFFERS;
   ASSERT_EQ(
-      AOM_CODEC_INVALID_PARAM,
-      SetFrameBufferFunctions(num_buffers, NULL, release_aom_frame_buffer));
+      AVM_CODEC_INVALID_PARAM,
+      SetFrameBufferFunctions(num_buffers, NULL, release_avm_frame_buffer));
 }
 
 TEST_F(ExternalFrameBufferTest, NullReleaseFunction) {
-  const int num_buffers = AOM_MAXIMUM_REF_BUFFERS + AOM_MAXIMUM_WORK_BUFFERS;
-  ASSERT_EQ(AOM_CODEC_INVALID_PARAM,
-            SetFrameBufferFunctions(num_buffers, get_aom_frame_buffer, NULL));
+  const int num_buffers = AVM_MAXIMUM_REF_BUFFERS + AVM_MAXIMUM_WORK_BUFFERS;
+  ASSERT_EQ(AVM_CODEC_INVALID_PARAM,
+            SetFrameBufferFunctions(num_buffers, get_avm_frame_buffer, NULL));
 }
 
 TEST_F(ExternalFrameBufferTest, DISABLED_SetAfterDecode) {
-  const int num_buffers = AOM_MAXIMUM_REF_BUFFERS + AOM_MAXIMUM_WORK_BUFFERS;
-  ASSERT_EQ(AOM_CODEC_OK, DecodeOneFrame());
-  ASSERT_EQ(AOM_CODEC_ERROR,
-            SetFrameBufferFunctions(num_buffers, get_aom_frame_buffer,
-                                    release_aom_frame_buffer));
+  const int num_buffers = AVM_MAXIMUM_REF_BUFFERS + AVM_MAXIMUM_WORK_BUFFERS;
+  ASSERT_EQ(AVM_CODEC_OK, DecodeOneFrame());
+  ASSERT_EQ(AVM_CODEC_ERROR,
+            SetFrameBufferFunctions(num_buffers, get_avm_frame_buffer,
+                                    release_avm_frame_buffer));
 }
 
 TEST_F(ExternalFrameBufferNonRefTest, DISABLED_ReleaseNonRefFrameBuffer) {
-  const int num_buffers = AOM_MAXIMUM_REF_BUFFERS + AOM_MAXIMUM_WORK_BUFFERS;
-  ASSERT_EQ(AOM_CODEC_OK,
-            SetFrameBufferFunctions(num_buffers, get_aom_frame_buffer,
-                                    release_aom_frame_buffer));
-  ASSERT_EQ(AOM_CODEC_OK, DecodeRemainingFrames());
+  const int num_buffers = AVM_MAXIMUM_REF_BUFFERS + AVM_MAXIMUM_WORK_BUFFERS;
+  ASSERT_EQ(AVM_CODEC_OK,
+            SetFrameBufferFunctions(num_buffers, get_avm_frame_buffer,
+                                    release_avm_frame_buffer));
+  ASSERT_EQ(AVM_CODEC_OK, DecodeRemainingFrames());
   CheckFrameBufferRelease();
 }
 #endif  // CONFIG_WEBM_IO
 
-AV1_INSTANTIATE_TEST_SUITE(
+AV2_INSTANTIATE_TEST_SUITE(
     ExternalFrameBufferMD5Test,
-    ::testing::ValuesIn(libaom_test::kAV1TestVectors,
-                        libaom_test::kAV1TestVectors +
-                            libaom_test::kNumAV1TestVectors));
+    ::testing::ValuesIn(libavm_test::kAV2TestVectors,
+                        libavm_test::kAV2TestVectors +
+                            libavm_test::kNumAV2TestVectors));
 }  // namespace

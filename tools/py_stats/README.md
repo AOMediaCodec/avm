@@ -23,15 +23,15 @@ git submodule update --init
 3. Build avm with `extract_proto` enabled.
 For convenience, first define a few environment variables for paths that will be used repeatedly:
 ```bash
-export AOM_ROOT=/path/to/avm/git/root
-export AOM_BUILD_DIR=/path/to/avm/build/dir
-export LIBAOM_TEST_DATA_PATH=/path/to/avm/testdata
+export AVM_ROOT=/path/to/avm/git/root
+export AVM_BUILD_DIR=/path/to/avm/build/dir
+export LIBAVM_TEST_DATA_PATH=/path/to/avm/testdata
 ```
 
 Then build:
 ```bash
-cmake -B ${AOM_BUILD_DIR} -S ${AOM_ROOT} -DCONFIG_ACCOUNTING=1 -DCONFIG_INSPECTION=1 -DCONFIG_EXTRACT_PROTO=1 -DENABLE_TESTDATA=1
-make -C ${AOM_BUILD_DIR} -j all testdata
+cmake -B ${AVM_BUILD_DIR} -S ${AVM_ROOT} -DCONFIG_ACCOUNTING=1 -DCONFIG_INSPECTION=1 -DCONFIG_EXTRACT_PROTO=1 -DENABLE_TESTDATA=1
+make -C ${AVM_BUILD_DIR} -j all testdata
 ```
 Note that `CONFIG_EXTRACT_PROTO` depends on both `CONFIG_INSPECTION` and `CONFIG_ACCOUNTING`.
 
@@ -43,41 +43,41 @@ source /tmp/my_venv/bin/activate
 
 5. Generate the Python bindings for the protobuf:
 ```bash
-protoc --python_out=${AOM_ROOT}/tools/py_stats/avm_stats --proto_path=${AOM_ROOT}/tools/extract_proto avm_frame.proto
+protoc --python_out=${AVM_ROOT}/tools/py_stats/avm_stats --proto_path=${AVM_ROOT}/tools/extract_proto avm_frame.proto
 ```
 
 6. Install the avm_stats library and dependencies:
 ```bash
-pip install -r ${AOM_ROOT}/tools/py_stats/requirements.txt
-pip install ${AOM_ROOT}/tools/py_stats
+pip install -r ${AVM_ROOT}/tools/py_stats/requirements.txt
+pip install ${AVM_ROOT}/tools/py_stats
 ```
 
 ## Unit Tests
 1. Generate pytest test data. Note that this depends on AVM being built with `-DENABLE_TESTDATA=1`, and assumes `make -j testdata` has already been run.
 
-Note that by default, `make -j testdata` will place the downloaded test data into `${AOM_BUILD_DIR}`, but it is recommended to set `LIBAOM_TEST_DATA_PATH` to explicitly set the test data path. See the testing section in the root level README file for more details.
+Note that by default, `make -j testdata` will place the downloaded test data into `${AVM_BUILD_DIR}`, but it is recommended to set `LIBAVM_TEST_DATA_PATH` to explicitly set the test data path. See the testing section in the root level README file for more details.
 
 ```bash
-${AOM_ROOT}/tools/py_stats/tests/generate_testdata.sh ${AOM_ROOT} ${AOM_BUILD_DIR} ${LIBAOM_TEST_DATA_PATH}
+${AVM_ROOT}/tools/py_stats/tests/generate_testdata.sh ${AVM_ROOT} ${AVM_BUILD_DIR} ${LIBAVM_TEST_DATA_PATH}
 ```
 
 2. Run unit tests:
 ```bash
-cd ${AOM_ROOT}/tools/py_stats && python3 -m pytest
+cd ${AVM_ROOT}/tools/py_stats && python3 -m pytest
 ```
 
 ## Examples
 The examples folder contains multiple scripts that show some sample visualizations that can be built with this library.
 All of the examples have two required arguments: `--stream` and `--extract_proto_bin`:
 ```bash
-python3 ${AOM_ROOT}/tools/py_stats/examples/${script_name}.py --stream /path/to/some/stream --extract_proto_bin /path/to/extract_proto/bin
+python3 ${AVM_ROOT}/tools/py_stats/examples/${script_name}.py --stream /path/to/some/stream --extract_proto_bin /path/to/extract_proto/bin
 ```
 Some of the examples may also optionally take a `--source` argument, which should be the path to the source file (i.e. pre-encoding) if available.
 Note that both .yuv and .y4m files are supported. For a .yuv file, it is not necessary to provide an explicit width and height, since the AVM stream itself has that info.
 
 All following example commands will assume that:
- - The extract_proto binary is available in `${AOM_BUILD_DIR}`
- - The test stream "park_joy_90_8_420.ivf" and its original YUV "park_joy_90_8_420.y4m" are available in `${LIBAOM_TEST_DATA_PATH}`
+ - The extract_proto binary is available in `${AVM_BUILD_DIR}`
+ - The test stream "park_joy_90_8_420.ivf" and its original YUV "park_joy_90_8_420.y4m" are available in `${LIBAVM_TEST_DATA_PATH}`
 
 If you get an error like "UserWarning: FigureCanvasAgg is non-interactive, and thus cannot be shown" when trying to run an example script, you may also need to install pyqt5:
 ```bash
@@ -88,10 +88,10 @@ pip install PyQt5
 This example shows the state of the pixels are various stages in the codec pipeline, including the original (source) pixels, the prediction, the residual, the reconstruction before and after filtering, and the distortion.
 
 ```bash
-python3 ${AOM_ROOT}/tools/py_stats/examples/pixel_pipeline.py \
-    --stream ${LIBAOM_TEST_DATA_PATH}/park_joy_90p_8_420.ivf \
-    --source ${LIBAOM_TEST_DATA_PATH}/park_joy_90p_8_420.y4m \
-    --extract_proto_bin ${AOM_BUILD_DIR}/extract_proto \
+python3 ${AVM_ROOT}/tools/py_stats/examples/pixel_pipeline.py \
+    --stream ${LIBAVM_TEST_DATA_PATH}/park_joy_90p_8_420.ivf \
+    --source ${LIBAVM_TEST_DATA_PATH}/park_joy_90p_8_420.y4m \
+    --extract_proto_bin ${AVM_BUILD_DIR}/extract_proto \
     --frame 0 \
     --plane y
 ```
@@ -109,9 +109,9 @@ This example shows the partition tree with the following annotations:
  - Motion vectors, for inter frames
 
 ```bash
-python3 ${AOM_ROOT}/tools/py_stats/examples/partition_tree.py \
-    --stream ${LIBAOM_TEST_DATA_PATH}/park_joy_90p_8_420.ivf \
-    --extract_proto_bin ${AOM_BUILD_DIR}/extract_proto \
+python3 ${AVM_ROOT}/tools/py_stats/examples/partition_tree.py \
+    --stream ${LIBAVM_TEST_DATA_PATH}/park_joy_90p_8_420.ivf \
+    --extract_proto_bin ${AVM_BUILD_DIR}/extract_proto \
     --frame 0 \
     --plane y
 ```
@@ -119,9 +119,9 @@ python3 ${AOM_ROOT}/tools/py_stats/examples/partition_tree.py \
 
 To see motion vectors as well, use `--frame 1` to visualize an inter frame:
 ```bash
-python3 ${AOM_ROOT}/tools/py_stats/examples/partition_tree.py \
-    --stream ${LIBAOM_TEST_DATA_PATH}/park_joy_90p_8_420.ivf \
-    --extract_proto_bin ${AOM_BUILD_DIR}/extract_proto \
+python3 ${AVM_ROOT}/tools/py_stats/examples/partition_tree.py \
+    --stream ${LIBAVM_TEST_DATA_PATH}/park_joy_90p_8_420.ivf \
+    --extract_proto_bin ${AVM_BUILD_DIR}/extract_proto \
     --frame 1 \
     --plane y
 ```
@@ -131,9 +131,9 @@ python3 ${AOM_ROOT}/tools/py_stats/examples/partition_tree.py \
 This example plots a pie chart showing the distribution of prediction mode decisions in the given frame.
 
 ```bash
-python3 ${AOM_ROOT}/tools/py_stats/examples/prediction_modes.py \
-    --stream ${LIBAOM_TEST_DATA_PATH}/park_joy_90p_8_420.ivf \
-    --extract_proto_bin ${AOM_BUILD_DIR}/extract_proto \
+python3 ${AVM_ROOT}/tools/py_stats/examples/prediction_modes.py \
+    --stream ${LIBAVM_TEST_DATA_PATH}/park_joy_90p_8_420.ivf \
+    --extract_proto_bin ${AVM_BUILD_DIR}/extract_proto \
     --frame 0 \
     --plane y
 ```
@@ -143,9 +143,9 @@ python3 ${AOM_ROOT}/tools/py_stats/examples/prediction_modes.py \
 This example plots a heatmap showing where bits are spent in each frame.
 
 ```bash
-python3 ${AOM_ROOT}/tools/py_stats/examples/bits_heatmap.py \
-    --stream ${LIBAOM_TEST_DATA_PATH}/park_joy_90p_8_420.ivf \
-    --extract_proto_bin ${AOM_BUILD_DIR}/extract_proto \
+python3 ${AVM_ROOT}/tools/py_stats/examples/bits_heatmap.py \
+    --stream ${LIBAVM_TEST_DATA_PATH}/park_joy_90p_8_420.ivf \
+    --extract_proto_bin ${AVM_BUILD_DIR}/extract_proto \
     --frame 0 \
     --plane y
 ```
@@ -153,10 +153,10 @@ python3 ${AOM_ROOT}/tools/py_stats/examples/bits_heatmap.py \
 
 This script takes an optional `--filter` argument to filter out only a specific type of bitstream symbols. Filtering is applied based on the name of the C function each particular symbol is read in. For example, to see where bits are spent on the intra luma prediction mode:
 ```bash
-python3 ${AOM_ROOT}/tools/py_stats/examples/bits_heatmap.py \
-    --stream ${LIBAOM_TEST_DATA_PATH}/park_joy_90p_8_420.ivf \
-    --source ${LIBAOM_TEST_DATA_PATH}/park_joy_90p_8_420.y4m \
-    --extract_proto_bin ${AOM_BUILD_DIR}/extract_proto \
+python3 ${AVM_ROOT}/tools/py_stats/examples/bits_heatmap.py \
+    --stream ${LIBAVM_TEST_DATA_PATH}/park_joy_90p_8_420.ivf \
+    --source ${LIBAVM_TEST_DATA_PATH}/park_joy_90p_8_420.y4m \
+    --extract_proto_bin ${AVM_BUILD_DIR}/extract_proto \
     --frame 0 \
     --plane y \
     --filter read_intra_luma_mode
@@ -166,12 +166,12 @@ python3 ${AOM_ROOT}/tools/py_stats/examples/bits_heatmap.py \
 To see available symbol types, refer to the stdout of the script, e.g.:
 ```
 Available symbol functions:
-av1_read_cctx_type
-av1_read_coeffs_txb
-av1_read_coeffs_txb_skip
-av1_read_sec_tx_type
-av1_read_sig_txtype
-av1_read_tx_type
+av2_read_cctx_type
+av2_read_coeffs_txb
+av2_read_coeffs_txb_skip
+av2_read_sec_tx_type
+av2_read_sig_txtype
+av2_read_tx_type
 decode_eob
 read_ccso
 read_cdef
@@ -203,8 +203,8 @@ Each of the following examples uses the `aggregate_from_extractor.py` script to 
 
 ### Block size distribution (A5, QP=235, 10 frames); Plot Intra vs Inter
 ```bash
-python3 ${AOM_ROOT}/tools/py_stats/examples/aggregate_from_extractor.py \
-  --extract_proto_bin ${AOM_BUILD_DIR}/extract_proto \
+python3 ${AVM_ROOT}/tools/py_stats/examples/aggregate_from_extractor.py \
+  --extract_proto_bin ${AVM_BUILD_DIR}/extract_proto \
   --stream_glob "${CTC_STREAMS}/A5_Natural_270p/LowDelay/*_QP_235.bin" \
   --threads 32 \
   --frame_limit 10 \
@@ -219,8 +219,8 @@ python3 ${AOM_ROOT}/tools/py_stats/examples/aggregate_from_extractor.py \
 
 ### Prediction mode distribution (A5, QP=235, 10 frames); Plot Intra vs Inter
 ```bash
-python3 ${AOM_ROOT}/tools/py_stats/examples/aggregate_from_extractor.py \
-  --extract_proto_bin ${AOM_BUILD_DIR}/extract_proto \
+python3 ${AVM_ROOT}/tools/py_stats/examples/aggregate_from_extractor.py \
+  --extract_proto_bin ${AVM_BUILD_DIR}/extract_proto \
   --stream_glob "${CTC_STREAMS}/A5_Natural_270p/LowDelay/*_QP_235.bin" \
   --threads 32 \
   --frame_limit 10 \
@@ -235,8 +235,8 @@ python3 ${AOM_ROOT}/tools/py_stats/examples/aggregate_from_extractor.py \
 
 ### Prediction modes weighted by bits used (A5, QP=235, 10 frames); Plot Intra vs Inter
 ```bash
-python3 ${AOM_ROOT}/tools/py_stats/examples/aggregate_from_extractor.py \
-  --extract_proto_bin ${AOM_BUILD_DIR}/extract_proto \
+python3 ${AVM_ROOT}/tools/py_stats/examples/aggregate_from_extractor.py \
+  --extract_proto_bin ${AVM_BUILD_DIR}/extract_proto \
   --stream_glob "${CTC_STREAMS}/A5_Natural_270p/LowDelay/*_QP_235.bin" \
   --threads 32 \
   --frame_limit 10 \
@@ -251,8 +251,8 @@ python3 ${AOM_ROOT}/tools/py_stats/examples/aggregate_from_extractor.py \
 
 ### TX types (A5, QP=235, 10 frames); Plot Intra vs Inter
 ```bash
-python3 ${AOM_ROOT}/tools/py_stats/examples/aggregate_from_extractor.py \
-  --extract_proto_bin ${AOM_BUILD_DIR}/extract_proto \
+python3 ${AVM_ROOT}/tools/py_stats/examples/aggregate_from_extractor.py \
+  --extract_proto_bin ${AVM_BUILD_DIR}/extract_proto \
   --stream_glob "${CTC_STREAMS}/A5_Natural_270p/LowDelay/*_QP_235.bin" \
   --threads 32 \
   --frame_limit 10 \
@@ -266,8 +266,8 @@ python3 ${AOM_ROOT}/tools/py_stats/examples/aggregate_from_extractor.py \
 
 ### Intra partition types (A5, QP=210, 10 frames); Block sizes 64x64 vs 32x32
 ```bash
-python3 ${AOM_ROOT}/tools/py_stats/examples/aggregate_from_extractor.py \
-  --extract_proto_bin ${AOM_BUILD_DIR}/extract_proto \
+python3 ${AVM_ROOT}/tools/py_stats/examples/aggregate_from_extractor.py \
+  --extract_proto_bin ${AVM_BUILD_DIR}/extract_proto \
   --stream_glob "${CTC_STREAMS}/A5_Natural_270p/AllIntra/*_QP_210.bin" \
   --threads 32 \
   --frame_limit 10 \
@@ -281,8 +281,8 @@ python3 ${AOM_ROOT}/tools/py_stats/examples/aggregate_from_extractor.py \
 
 ### Top 10 symbols types weighted by bits used (A5, QP=235, 10 frames); Intra vs Inter frames
 ```bash
-python3 ${AOM_ROOT}/tools/py_stats/examples/aggregate_from_extractor.py \
-  --extract_proto_bin ${AOM_BUILD_DIR}/extract_proto \
+python3 ${AVM_ROOT}/tools/py_stats/examples/aggregate_from_extractor.py \
+  --extract_proto_bin ${AVM_BUILD_DIR}/extract_proto \
   --stream_glob "${CTC_STREAMS}/A5_Natural_270p/LowDelay/*_QP_210.bin" \
   --threads 32 \
   --frame_limit 10 \
@@ -298,10 +298,10 @@ python3 ${AOM_ROOT}/tools/py_stats/examples/aggregate_from_extractor.py \
 
 ### Launch an example Jupyter notebook
 This demonstrates many of the same visualizations listed above, but in a single Jupyter notebook.
-Before launching, ensure the `AOM_BUILD_DIR` and `LIBAOM_TEST_DATA_PATH` environment variables are set.
+Before launching, ensure the `AVM_BUILD_DIR` and `LIBAVM_TEST_DATA_PATH` environment variables are set.
 
 ```bash
-jupyter lab ${AOM_ROOT}/tools/py_stats/examples/frame_vis.ipynb
+jupyter lab ${AVM_ROOT}/tools/py_stats/examples/frame_vis.ipynb
 ```
 
 You can also optionally set `JUPYTER_WORKING_DIR` to change where temporary files get stored. By default, the notebook will use `/tmp/frame_vis_notebook`.

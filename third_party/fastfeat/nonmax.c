@@ -36,7 +36,7 @@
 
 #define Compare(X, Y) ((X)>=(Y))
 
-xy* aom_nonmax_suppression(const xy* corners, const int* scores, int num_corners,
+xy* avm_nonmax_suppression(const xy* corners, const int* scores, int num_corners,
                            int** ret_scores, int* ret_num_nonmax)
 {
   int num_nonmax=0;

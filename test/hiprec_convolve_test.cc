@@ -15,30 +15,30 @@
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 #include "test/hiprec_convolve_test_util.h"
 
-using libaom_test::ACMRandom;
-using libaom_test::AV1HighbdHiprecConvolve::AV1HighbdHiprecConvolveTest;
-GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1HighbdHiprecConvolveTest);
+using libavm_test::ACMRandom;
+using libavm_test::AV2HighbdHiprecConvolve::AV2HighbdHiprecConvolveTest;
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV2HighbdHiprecConvolveTest);
 using std::make_tuple;
 using std::tuple;
 
 namespace {
 
 #if HAVE_SSSE3 || HAVE_AVX2
-TEST_P(AV1HighbdHiprecConvolveTest, CheckOutput) {
+TEST_P(AV2HighbdHiprecConvolveTest, CheckOutput) {
   RunCheckOutput(GET_PARAM(4));
 }
-TEST_P(AV1HighbdHiprecConvolveTest, DISABLED_SpeedTest) {
+TEST_P(AV2HighbdHiprecConvolveTest, DISABLED_SpeedTest) {
   RunSpeedTest(GET_PARAM(4));
 }
 #if HAVE_SSSE3
-INSTANTIATE_TEST_SUITE_P(SSSE3, AV1HighbdHiprecConvolveTest,
-                         libaom_test::AV1HighbdHiprecConvolve::BuildParams(
-                             av1_highbd_wiener_convolve_add_src_ssse3));
+INSTANTIATE_TEST_SUITE_P(SSSE3, AV2HighbdHiprecConvolveTest,
+                         libavm_test::AV2HighbdHiprecConvolve::BuildParams(
+                             av2_highbd_wiener_convolve_add_src_ssse3));
 #endif
 #if HAVE_AVX2
-INSTANTIATE_TEST_SUITE_P(AVX2, AV1HighbdHiprecConvolveTest,
-                         libaom_test::AV1HighbdHiprecConvolve::BuildParams(
-                             av1_highbd_wiener_convolve_add_src_avx2));
+INSTANTIATE_TEST_SUITE_P(AVX2, AV2HighbdHiprecConvolveTest,
+                         libavm_test::AV2HighbdHiprecConvolve::BuildParams(
+                             av2_highbd_wiener_convolve_add_src_avx2));
 #endif
 #endif
 

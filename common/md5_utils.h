@@ -20,8 +20,8 @@
  * Still in the public domain.
  */
 
-#ifndef AOM_COMMON_MD5_UTILS_H_
-#define AOM_COMMON_MD5_UTILS_H_
+#ifndef AVM_COMMON_MD5_UTILS_H_
+#define AVM_COMMON_MD5_UTILS_H_
 
 #ifdef __cplusplus
 extern "C" {
@@ -46,4 +46,4 @@ void MD5Transform(UWORD32 buf[4], UWORD32 const in[16]);
 }  // extern "C"
 #endif
 
-#endif  // AOM_COMMON_MD5_UTILS_H_
+#endif  // AVM_COMMON_MD5_UTILS_H_

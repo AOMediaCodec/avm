@@ -18,7 +18,7 @@ namespace {
 
 // Dummy class that increments the width field in the image, which is used
 // as a placeholder for the frame number. Stops iterating after N frames.
-int dummy_reader(StreamIter *iter, aom_image_t *raw) {
+int dummy_reader(StreamIter *iter, avm_image_t *raw) {
   if (iter->current >= iter->n) {
     return 0;
   }
@@ -42,7 +42,7 @@ TEST_F(StreamIterTest, Skip0) {
   StreamIter skip;
   skip_stream_iter_init(&skip, &input, 0);
 
-  aom_image_t img;
+  avm_image_t img;
   EXPECT_TRUE(read_stream_iter(&skip, &img));
   EXPECT_EQ(1U, img.w);
 
@@ -62,7 +62,7 @@ TEST_F(StreamIterTest, Skip1) {
   StreamIter skip;
   skip_stream_iter_init(&skip, &input, 1);
 
-  aom_image_t img;
+  avm_image_t img;
   EXPECT_TRUE(read_stream_iter(&skip, &img));
   EXPECT_EQ(2U, img.w);
 
@@ -79,7 +79,7 @@ TEST_F(StreamIterTest, Skip2) {
   StreamIter skip;
   skip_stream_iter_init(&skip, &input, 2);
 
-  aom_image_t img;
+  avm_image_t img;
   EXPECT_TRUE(read_stream_iter(&skip, &img));
   EXPECT_EQ(3U, img.w);
 
@@ -93,7 +93,7 @@ TEST_F(StreamIterTest, Skip3) {
   StreamIter skip;
   skip_stream_iter_init(&skip, &input, 3);
 
-  aom_image_t img;
+  avm_image_t img;
   EXPECT_FALSE(read_stream_iter(&skip, &img));
 }
 
@@ -104,7 +104,7 @@ TEST_F(StreamIterTest, Skip4) {
   StreamIter skip;
   skip_stream_iter_init(&skip, &input, 4);
 
-  aom_image_t img;
+  avm_image_t img;
   EXPECT_FALSE(read_stream_iter(&skip, &img));
 }
 
@@ -116,7 +116,7 @@ TEST_F(StreamIterTest, Limit0) {
   StreamIter limit;
   limit_stream_iter_init(&limit, &input, 0);
 
-  aom_image_t img;
+  avm_image_t img;
   EXPECT_TRUE(read_stream_iter(&limit, &img));
   EXPECT_EQ(1U, img.w);
 
@@ -136,7 +136,7 @@ TEST_F(StreamIterTest, Limit1) {
   StreamIter limit;
   limit_stream_iter_init(&limit, &input, 1);
 
-  aom_image_t img;
+  avm_image_t img;
   EXPECT_TRUE(read_stream_iter(&limit, &img));
   EXPECT_EQ(1U, img.w);
 
@@ -150,7 +150,7 @@ TEST_F(StreamIterTest, Limit2) {
   StreamIter limit;
   limit_stream_iter_init(&limit, &input, 2);
 
-  aom_image_t img;
+  avm_image_t img;
   EXPECT_TRUE(read_stream_iter(&limit, &img));
   EXPECT_EQ(1U, img.w);
 
@@ -167,7 +167,7 @@ TEST_F(StreamIterTest, Limit3) {
   StreamIter limit;
   limit_stream_iter_init(&limit, &input, 3);
 
-  aom_image_t img;
+  avm_image_t img;
   EXPECT_TRUE(read_stream_iter(&limit, &img));
   EXPECT_EQ(1U, img.w);
 
@@ -187,7 +187,7 @@ TEST_F(StreamIterTest, Limit4) {
   StreamIter limit;
   limit_stream_iter_init(&limit, &input, 4);
 
-  aom_image_t img;
+  avm_image_t img;
   EXPECT_TRUE(read_stream_iter(&limit, &img));
   EXPECT_EQ(1U, img.w);
 
@@ -207,7 +207,7 @@ TEST_F(StreamIterTest, Step1) {
   StreamIter step;
   step_stream_iter_init(&step, &input, 1);
 
-  aom_image_t img;
+  avm_image_t img;
   EXPECT_TRUE(read_stream_iter(&step, &img));
   EXPECT_EQ(1U, img.w);
 
@@ -227,7 +227,7 @@ TEST_F(StreamIterTest, Step2) {
   StreamIter step;
   step_stream_iter_init(&step, &input, 2);
 
-  aom_image_t img;
+  avm_image_t img;
   EXPECT_TRUE(read_stream_iter(&step, &img));
   EXPECT_EQ(1U, img.w);
 
@@ -244,7 +244,7 @@ TEST_F(StreamIterTest, Step3) {
   StreamIter step;
   step_stream_iter_init(&step, &input, 3);
 
-  aom_image_t img;
+  avm_image_t img;
   EXPECT_TRUE(read_stream_iter(&step, &img));
   EXPECT_EQ(1U, img.w);
 
@@ -258,7 +258,7 @@ TEST_F(StreamIterTest, Step4) {
   StreamIter step;
   step_stream_iter_init(&step, &input, 4);
 
-  aom_image_t img;
+  avm_image_t img;
   EXPECT_TRUE(read_stream_iter(&step, &img));
   EXPECT_EQ(1U, img.w);
 
@@ -273,7 +273,7 @@ TEST_F(StreamIterTest, Step5) {
   StreamIter step;
   step_stream_iter_init(&step, &input, 5);
 
-  aom_image_t img;
+  avm_image_t img;
   EXPECT_TRUE(read_stream_iter(&step, &img));
   EXPECT_EQ(1U, img.w);
 

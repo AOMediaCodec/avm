@@ -12,7 +12,7 @@
 
 #include <ostream>
 
-#include "aom/aom_codec.h"
+#include "avm/avm_codec.h"
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 #include "test/codec_factory.h"
 #include "test/encode_test_driver.h"
@@ -36,9 +36,9 @@ std::ostream &operator<<(std::ostream &os, const kfIntervalParam &test_arg) {
 
 // This class is used to test the presence of forward key frame.
 class KeyFrameIntervalTestLarge
-    : public ::libaom_test::CodecTestWith3Params<libaom_test::TestMode,
-                                                 kfIntervalParam, aom_rc_mode>,
-      public ::libaom_test::EncoderTest {
+    : public ::libavm_test::CodecTestWith3Params<libavm_test::TestMode,
+                                                 kfIntervalParam, avm_rc_mode>,
+      public ::libavm_test::EncoderTest {
  protected:
   KeyFrameIntervalTestLarge()
       : EncoderTest(GET_PARAM(0)), encoding_mode_(GET_PARAM(1)),
@@ -51,7 +51,7 @@ class KeyFrameIntervalTestLarge
   virtual void SetUp() {
     InitializeConfig();
     SetMode(encoding_mode_);
-    const aom_rational timebase = { 1, 30 };
+    const avm_rational timebase = { 1, 30 };
     cfg_.g_timebase = timebase;
     cfg_.rc_end_usage = end_usage_check_;
     cfg_.g_threads = 1;
@@ -62,19 +62,19 @@ class KeyFrameIntervalTestLarge
 
   virtual bool DoDecode() const { return 1; }
 
-  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
-                                  ::libaom_test::Encoder *encoder) {
+  virtual void PreEncodeFrameHook(::libavm_test::VideoSource *video,
+                                  ::libavm_test::Encoder *encoder) {
     if (video->frame() == 0) {
-      encoder->Control(AOME_SET_CPUUSED, 5);
-      if (end_usage_check_ == AOM_Q || end_usage_check_ == AOM_CQ) {
-        encoder->Control(AOME_SET_QP, 210);
+      encoder->Control(AVME_SET_CPUUSED, 5);
+      if (end_usage_check_ == AVM_Q || end_usage_check_ == AVM_CQ) {
+        encoder->Control(AVME_SET_QP, 210);
       }
-      encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
+      encoder->Control(AVME_SET_ENABLEAUTOALTREF, 1);
     }
   }
 
-  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt,
-                            ::libaom_test::DxDataIterator *dec_iter) {
+  virtual void FramePktHook(const avm_codec_cx_pkt_t *pkt,
+                            ::libavm_test::DxDataIterator *dec_iter) {
     (void)dec_iter;
     if (kf_dist_ != -1) {
       (void)pkt;
@@ -85,34 +85,34 @@ class KeyFrameIntervalTestLarge
     }
   }
 
-  virtual bool HandleDecodeResult(const aom_codec_err_t res_dec,
-                                  libaom_test::Decoder *decoder) {
-    EXPECT_EQ(AOM_CODEC_OK, res_dec) << decoder->DecodeError();
-    if (AOM_CODEC_OK == res_dec) {
-      aom_codec_ctx_t *ctx_dec = decoder->GetDecoder();
+  virtual bool HandleDecodeResult(const avm_codec_err_t res_dec,
+                                  libavm_test::Decoder *decoder) {
+    EXPECT_EQ(AVM_CODEC_OK, res_dec) << decoder->DecodeError();
+    if (AVM_CODEC_OK == res_dec) {
+      avm_codec_ctx_t *ctx_dec = decoder->GetDecoder();
       int frame_flags = 0;
-      AOM_CODEC_CONTROL_TYPECHECKED(ctx_dec, AOMD_GET_FRAME_FLAGS,
+      AVM_CODEC_CONTROL_TYPECHECKED(ctx_dec, AVMD_GET_FRAME_FLAGS,
                                     &frame_flags);
-      if ((frame_flags & AOM_FRAME_IS_KEY) ==
-          static_cast<aom_codec_frame_flags_t>(AOM_FRAME_IS_KEY)) {
+      if ((frame_flags & AVM_FRAME_IS_KEY) ==
+          static_cast<avm_codec_frame_flags_t>(AVM_FRAME_IS_KEY)) {
         if (kf_dist_ != -1 && kf_dist_ < (int)kf_dist_param_.min_kf_dist) {
           is_kf_interval_violated_ = true;
         }
         kf_dist_ = 0;
       }
     }
-    return AOM_CODEC_OK == res_dec;
+    return AVM_CODEC_OK == res_dec;
   }
 
-  ::libaom_test::TestMode encoding_mode_;
+  ::libavm_test::TestMode encoding_mode_;
   const kfIntervalParam kf_dist_param_;
   int kf_dist_;
   bool is_kf_interval_violated_;
-  aom_rc_mode end_usage_check_;
+  avm_rc_mode end_usage_check_;
 };
 
 TEST_P(KeyFrameIntervalTestLarge, KeyFrameIntervalTest) {
-  libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
+  libavm_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                      cfg_.g_timebase.den, cfg_.g_timebase.num,
                                      0, 75);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
@@ -121,15 +121,15 @@ TEST_P(KeyFrameIntervalTestLarge, KeyFrameIntervalTest) {
 
 // This class tests for presence and placement of application forced key frames.
 class ForcedKeyTestLarge
-    : public ::libaom_test::CodecTestWith5Params<int, int, int, int,
-                                                 aom_rc_mode>,
-      public ::libaom_test::EncoderTest {
+    : public ::libavm_test::CodecTestWith5Params<int, int, int, int,
+                                                 avm_rc_mode>,
+      public ::libavm_test::EncoderTest {
  protected:
   ForcedKeyTestLarge()
       : EncoderTest(GET_PARAM(0)), lag_or_kf_index_(GET_PARAM(1)),
         auto_alt_ref_(GET_PARAM(2)), fwd_kf_enabled_(GET_PARAM(3)),
         cpu_used_(GET_PARAM(4)), rc_end_usage_(GET_PARAM(5)) {
-    encoding_mode_ = ::libaom_test::kOnePassGood;
+    encoding_mode_ = ::libavm_test::kOnePassGood;
     forced_kf_frame_num_ = 1;
     frame_num_ = 0;
     is_kf_placement_violated_ = false;
@@ -146,56 +146,56 @@ class ForcedKeyTestLarge
     cfg_.fwd_kf_enabled = fwd_kf_enabled_;
   }
 
-  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
-                                  ::libaom_test::Encoder *encoder) {
+  virtual void PreEncodeFrameHook(::libavm_test::VideoSource *video,
+                                  ::libavm_test::Encoder *encoder) {
     if (video->frame() == 0) {
-      encoder->Control(AOME_SET_CPUUSED, cpu_used_);
-      if (rc_end_usage_ == AOM_Q || rc_end_usage_ == AOM_CQ) {
-        encoder->Control(AOME_SET_QP, 210);
+      encoder->Control(AVME_SET_CPUUSED, cpu_used_);
+      if (rc_end_usage_ == AVM_Q || rc_end_usage_ == AVM_CQ) {
+        encoder->Control(AVME_SET_QP, 210);
       }
-      encoder->Control(AOME_SET_ENABLEAUTOALTREF, auto_alt_ref_);
-#if CONFIG_AV1_ENCODER
+      encoder->Control(AVME_SET_ENABLEAUTOALTREF, auto_alt_ref_);
+#if CONFIG_AV2_ENCODER
       // override test default for tile columns if necessary.
-      if (GET_PARAM(0) == &libaom_test::kAV1) {
-        encoder->Control(AV1E_SET_TILE_COLUMNS, 6);
+      if (GET_PARAM(0) == &libavm_test::kAV2) {
+        encoder->Control(AV2E_SET_TILE_COLUMNS, 6);
       }
 #endif
     }
     frame_flags_ =
-        ((int)video->frame() == forced_kf_frame_num_) ? AOM_EFLAG_FORCE_KF : 0;
+        ((int)video->frame() == forced_kf_frame_num_) ? AVM_EFLAG_FORCE_KF : 0;
   }
 
-  virtual bool HandleDecodeResult(const aom_codec_err_t res_dec,
-                                  libaom_test::Decoder *decoder) {
-    EXPECT_EQ(AOM_CODEC_OK, res_dec) << decoder->DecodeError();
-    if (AOM_CODEC_OK == res_dec) {
+  virtual bool HandleDecodeResult(const avm_codec_err_t res_dec,
+                                  libavm_test::Decoder *decoder) {
+    EXPECT_EQ(AVM_CODEC_OK, res_dec) << decoder->DecodeError();
+    if (AVM_CODEC_OK == res_dec) {
       if ((int)frame_num_ == forced_kf_frame_num_) {
-        aom_codec_ctx_t *ctx_dec = decoder->GetDecoder();
+        avm_codec_ctx_t *ctx_dec = decoder->GetDecoder();
         int frame_flags = 0;
-        AOM_CODEC_CONTROL_TYPECHECKED(ctx_dec, AOMD_GET_FRAME_FLAGS,
+        AVM_CODEC_CONTROL_TYPECHECKED(ctx_dec, AVMD_GET_FRAME_FLAGS,
                                       &frame_flags);
-        if ((frame_flags & AOM_FRAME_IS_KEY) !=
-            static_cast<aom_codec_frame_flags_t>(AOM_FRAME_IS_KEY)) {
+        if ((frame_flags & AVM_FRAME_IS_KEY) !=
+            static_cast<avm_codec_frame_flags_t>(AVM_FRAME_IS_KEY)) {
           is_kf_placement_violated_ = true;
         }
       }
     }
-    return AOM_CODEC_OK == res_dec;
+    return AVM_CODEC_OK == res_dec;
   }
 
   int lag_or_kf_index_;
   int auto_alt_ref_;
   int fwd_kf_enabled_;
   int cpu_used_;
-  aom_rc_mode rc_end_usage_;
-  ::libaom_test::TestMode encoding_mode_;
+  avm_rc_mode rc_end_usage_;
+  ::libavm_test::TestMode encoding_mode_;
   int forced_kf_frame_num_;
   unsigned int frame_num_;
   bool is_kf_placement_violated_;
 };
 
 TEST_P(ForcedKeyTestLarge, Frame1IsKey) {
-  const aom_rational timebase = { 1, 30 };
+  const avm_rational timebase = { 1, 30 };
   const int lag_values[] = { 3, 15, 25 };
   if (lag_or_kf_index_ > 2) return;
 
@@ -205,7 +205,7 @@ TEST_P(ForcedKeyTestLarge, Frame1IsKey) {
   is_kf_placement_violated_ = false;
   const int lag_mult = fwd_kf_enabled_ ? 2 : 1;
   const int num_frames = lag_values[lag_or_kf_index_] * lag_mult + 2;
-  libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
+  libavm_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                      timebase.den, timebase.num, 0, num_frames);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   ASSERT_EQ(is_kf_placement_violated_, false)
@@ -215,7 +215,7 @@ TEST_P(ForcedKeyTestLarge, Frame1IsKey) {
 // This class checks the presence and placement of application
 // forced key frames.
 TEST_P(ForcedKeyTestLarge, ForcedFrameIsKey) {
-  const aom_rational timebase = { 1, 30 };
+  const avm_rational timebase = { 1, 30 };
   const int lag_values[] = { 3, 15, 25 };
   if (lag_or_kf_index_ > 2) return;
 
@@ -225,7 +225,7 @@ TEST_P(ForcedKeyTestLarge, ForcedFrameIsKey) {
   is_kf_placement_violated_ = false;
   const int lag_mult = fwd_kf_enabled_ ? 2 : 1;
   const int num_frames = lag_values[lag_or_kf_index_] * lag_mult + 2;
-  libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
+  libavm_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                      timebase.den, timebase.num, 0, num_frames);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   ASSERT_EQ(is_kf_placement_violated_, false)
@@ -244,7 +244,7 @@ TEST_P(ForcedKeyTestLarge, ForcedFrameIsKey) {
 }
 
 TEST_P(ForcedKeyTestLarge, ForcedFrameIsKeyCornerCases) {
-  const aom_rational timebase = { 1, 30 };
+  const avm_rational timebase = { 1, 30 };
   const int kf_offsets[] = { -2, -1, 1, 2 };
   ASSERT_LT(lag_or_kf_index_, 4);
   cfg_.g_lag_in_frames = 35;
@@ -253,7 +253,7 @@ TEST_P(ForcedKeyTestLarge, ForcedFrameIsKeyCornerCases) {
   forced_kf_frame_num_ = (int)cfg_.kf_max_dist + kf_offsets[lag_or_kf_index_];
   forced_kf_frame_num_ = forced_kf_frame_num_ > 0 ? forced_kf_frame_num_ : 1;
   is_kf_placement_violated_ = false;
-  libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
+  libavm_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                      timebase.den, timebase.num, 0,
                                      fwd_kf_enabled_ ? 60 : 30);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
@@ -261,14 +261,14 @@ TEST_P(ForcedKeyTestLarge, ForcedFrameIsKeyCornerCases) {
       << "Frame #" << frame_num_ << " isn't a keyframe!";
 }
 
-AV1_INSTANTIATE_TEST_SUITE(KeyFrameIntervalTestLarge, GOODQUALITY_TEST_MODES,
+AV2_INSTANTIATE_TEST_SUITE(KeyFrameIntervalTestLarge, GOODQUALITY_TEST_MODES,
                            ::testing::ValuesIn(kfTestParams),
-                           ::testing::Values(AOM_Q, AOM_VBR, AOM_CBR, AOM_CQ));
+                           ::testing::Values(AVM_Q, AVM_VBR, AVM_CBR, AVM_CQ));
 
 // TODO(anyone): Add CBR to list of rc_modes once forced kf placement after
 // lag in frames bug is fixed.
-AV1_INSTANTIATE_TEST_SUITE(ForcedKeyTestLarge, ::testing::Range(0, 4),
+AV2_INSTANTIATE_TEST_SUITE(ForcedKeyTestLarge, ::testing::Range(0, 4),
                            ::testing::Values(0, 1), ::testing::Values(0, 1),
                            ::testing::Values(5),
-                           ::testing::Values(AOM_Q, AOM_VBR, AOM_CQ));
+                           ::testing::Values(AVM_Q, AVM_VBR, AVM_CQ));
 }  // namespace

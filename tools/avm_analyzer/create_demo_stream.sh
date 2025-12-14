@@ -22,7 +22,7 @@ fi
 
 ASSETS_FOLDER=${GIT_ROOT}/tools/avm_analyzer/avm_analyzer_app/assets
 
-${avm_build_dir}/aomenc -w 176 -h 144 --limit=3 ${ASSETS_FOLDER}/leo_qcif.yuv \
+${avm_build_dir}/avmenc -w 176 -h 144 --limit=3 ${ASSETS_FOLDER}/leo_qcif.yuv \
   -o ${ASSETS_FOLDER}/leo_qcif.ivf --tile-columns=0 --threads=1 --cpu-used=1  \
    --passes=1 --lag-in-frames=0 --min-gf-interval=16 --max-gf-interval=16     \
    --gf-min-pyr-height=4 --gf-max-pyr-height=4 --kf-min-dist=9999             \

@@ -11,8 +11,8 @@
 cmake_minimum_required(VERSION 3.16)
 
 set(REQUIRED_ARGS
-    "AOM_ROOT"
-    "AOM_CONFIG_DIR"
+    "AVM_ROOT"
+    "AVM_CONFIG_DIR"
     "CMAKE_INSTALL_PREFIX"
     "CMAKE_INSTALL_BINDIR"
     "CMAKE_INSTALL_INCLUDEDIR"
@@ -27,17 +27,17 @@ foreach(arg ${REQUIRED_ARGS})
   endif()
 endforeach()
 
-include("${AOM_ROOT}/build/cmake/util.cmake")
+include("${AVM_ROOT}/build/cmake/util.cmake")
 
-extract_version_string("${AOM_CONFIG_DIR}/config/aom_version.h" aom_version)
+extract_version_string("${AVM_CONFIG_DIR}/config/avm_version.h" avm_version)
 
 # Create a version string suitable for comparison using the RPM version compare
 # algorithm: strip out everything after the number.
-string(FIND "${aom_version}" "-" dash_pos)
+string(FIND "${avm_version}" "-" dash_pos)
 if(${dash_pos} EQUAL -1)
-  set(package_version "${aom_version}")
+  set(package_version "${avm_version}")
 else()
-  string(SUBSTRING "${aom_version}" 0 ${dash_pos} package_version)
+  string(SUBSTRING "${avm_version}" 0 ${dash_pos} package_version)
 endif()
 
 # Write pkg-config info.
@@ -45,9 +45,9 @@ set(prefix "${CMAKE_INSTALL_PREFIX}")
 set(bindir "${CMAKE_INSTALL_BINDIR}")
 set(includedir "${CMAKE_INSTALL_INCLUDEDIR}")
 set(libdir "${CMAKE_INSTALL_LIBDIR}")
-set(pkgconfig_file "${AOM_CONFIG_DIR}/aom.pc")
+set(pkgconfig_file "${AVM_CONFIG_DIR}/avm.pc")
 string(TOLOWER ${CMAKE_PROJECT_NAME} pkg_name)
-file(WRITE "${pkgconfig_file}" "# libaom pkg-config.\n")
+file(WRITE "${pkgconfig_file}" "# libavm pkg-config.\n")
 file(APPEND "${pkgconfig_file}" "prefix=${prefix}\n")
 file(APPEND "${pkgconfig_file}" "exec_prefix=\${prefix}\n")
 file(APPEND "${pkgconfig_file}" "includedir=\${prefix}/${includedir}\n")
@@ -55,7 +55,7 @@ file(APPEND "${pkgconfig_file}" "libdir=\${exec_prefix}/${libdir}\n\n")
 file(APPEND "${pkgconfig_file}" "Name: ${pkg_name}\n")
 file(
   APPEND "${pkgconfig_file}"
-  "Description: Alliance for Open Media AV1 codec library v${aom_version}.\n")
+  "Description: Alliance for Open Media AV2 codec library v${avm_version}.\n")
 file(APPEND "${pkgconfig_file}" "Version: ${package_version}\n")
 file(APPEND "${pkgconfig_file}" "Requires:\n")
 file(APPEND "${pkgconfig_file}" "Conflicts:\n")

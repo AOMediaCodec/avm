@@ -15,7 +15,7 @@ from termcolor import cprint
 
 import parakit.config.user as user
 import parakit.entropy.model as model
-from parakit.entropy.codec_default_cdf import CDF_INIT_TOP, av1_default_cdf_parameters
+from parakit.entropy.codec_default_cdf import CDF_INIT_TOP, av2_default_cdf_parameters
 
 DEFAULT_PROB_INITIALIZER = False
 DEFAULT_RATE_PARAMETER = False
@@ -67,7 +67,7 @@ def run(
                 ]
 
             if DEFAULT_PROB_INITIALIZER:
-                cdf_list = av1_default_cdf_parameters(num_symb).tolist()
+                cdf_list = av2_default_cdf_parameters(num_symb).tolist()
                 cdf_list.append(CDF_INIT_TOP)
                 result_ctx_group[key]["initializer"] = cdf_list
 

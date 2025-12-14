@@ -16,6 +16,6 @@ MIN_NUM_DATA_SAMPLES_NEEDED = 10
 DESIRED_RATE_IDX = "best_rate_idx"
 
 REGULAR_CTX_GROUP_MAPPING = {
-    "eob_flag_cdf16": "av1_default_eob_multi16_cdfs",
-    "eob_flag_cdf32": "av1_default_eob_multi32_cdfs",
+    "eob_flag_cdf16": "av2_default_eob_multi16_cdfs",
+    "eob_flag_cdf32": "av2_default_eob_multi32_cdfs",
 }

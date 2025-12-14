@@ -1,20 +1,20 @@
-/*!\mainpage AOMedia AV1 Codec
+/*!\mainpage AOMedia AV2 Codec
 
   \tableofcontents
 
-  \section aom_sdk AOMedia Codec SDK
+  \section avm_sdk AOMedia Codec SDK
 
   \subsection main_intro Introduction
   Welcome to the AOMedia Codec SDK. This SDK allows you to integrate your
-  applications with the AOM and AV1 video codecs.
+  applications with the AVM and AV2 video codecs.
 
   This distribution of the AOMedia Codec SDK includes the following support:
 
-  \if av1_encoder
-  - \ref aom_encoder
+  \if av2_encoder
+  - \ref avm_encoder
   \endif
-  \if av1_decoder
-  - \ref aom_decoder
+  \if av2_decoder
+  - \ref avm_decoder
   \endif
 
 
@@ -34,13 +34,13 @@
   \endif
   <br>
 
-  \section av1_guide AV1 Developer's Guide
+  \section av2_guide AV2 Developer's Guide
 
-  \if av1_encoder
+  \if av2_encoder
   - \ref encoder_guide
   \endif
 
-  \if av1_decoder
+  \if av2_decoder
   - \ref decoder_guide
   \endif
   <br>
@@ -55,7 +55,7 @@
    \verbinclude CHANGELOG
 */
 
-\ifnot av1_md_support
+\ifnot av2_md_support
 /*!\page readme README.md
    \include README.md
 */

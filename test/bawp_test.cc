@@ -10,7 +10,7 @@
  * aomedia.org/license/patent-license/.
  */
 
-#include "config/av1_rtcd.h"
+#include "config/av2_rtcd.h"
 
 #include "test/acm_random.h"
 #include "test/util.h"
@@ -56,7 +56,7 @@ class BAWPTest : public ::testing::TestWithParam<BAWPParam> {
     return true;
   }
 
-  libaom_test::ACMRandom rnd_;
+  libavm_test::ACMRandom rnd_;
   uint16_t *pred1_;
   uint16_t *pred2_;
 };
@@ -65,12 +65,12 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(BAWPTest);
 BAWPTest::~BAWPTest() {}
 
 void BAWPTest::SetUp() {
-  rnd_.Reset(libaom_test::ACMRandom::DeterministicSeed());
+  rnd_.Reset(libavm_test::ACMRandom::DeterministicSeed());
 
-  pred1_ = (uint16_t *)aom_memalign(
+  pred1_ = (uint16_t *)avm_memalign(
       16, MAX_SB_SIZE * MAX_SB_SIZE * sizeof(uint16_t));
   ASSERT_NE(pred1_, nullptr);
-  pred2_ = (uint16_t *)aom_memalign(
+  pred2_ = (uint16_t *)avm_memalign(
       16, MAX_SB_SIZE * MAX_SB_SIZE * sizeof(uint16_t));
   ASSERT_NE(pred2_, nullptr);
   for (int i = 0; i < (MAX_SB_SIZE * MAX_SB_SIZE); ++i) {
@@ -80,8 +80,8 @@ void BAWPTest::SetUp() {
 }
 
 void BAWPTest::TearDown() {
-  aom_free(pred1_);
-  aom_free(pred2_);
+  avm_free(pred1_);
+  avm_free(pred2_);
 }
 
 void BAWPTest::RunCheckOutput(make_bawp_func test_impl, BLOCK_SIZE bsize) {
@@ -92,7 +92,7 @@ void BAWPTest::RunCheckOutput(make_bawp_func test_impl, BLOCK_SIZE bsize) {
   const int shift = 8;
   int bd[3] = { 8, 10, 12 };
   for (int i = 0; i < 3; ++i) {
-    av1_make_bawp_block_c(pred1_, MAX_SB_SIZE, alpha, beta, shift, w, h, bd[i]);
+    av2_make_bawp_block_c(pred1_, MAX_SB_SIZE, alpha, beta, shift, w, h, bd[i]);
     test_impl(pred2_, MAX_SB_SIZE, alpha, beta, shift, w, h, bd[i]);
 
     ASSERT_EQ(CheckResult(w, h), true);
@@ -108,17 +108,17 @@ void BAWPTest::RunSpeedTest(make_bawp_func test_impl, BLOCK_SIZE bsize) {
   const int shift = 8;
   int bd = 8;
 
-  make_bawp_func functions[2] = { av1_make_bawp_block_c, test_impl };
+  make_bawp_func functions[2] = { av2_make_bawp_block_c, test_impl };
   double elapsed_time[2] = { 0.0 };
   for (int i = 0; i < 2; ++i) {
-    aom_usec_timer timer;
-    aom_usec_timer_start(&timer);
+    avm_usec_timer timer;
+    avm_usec_timer_start(&timer);
     make_bawp_func func = functions[i];
     for (int j = 0; j < num_loops; ++j) {
       func(pred1_, MAX_SB_SIZE, alpha, beta, shift, w, h, bd);
     }
-    aom_usec_timer_mark(&timer);
-    const double time = static_cast<double>(aom_usec_timer_elapsed(&timer));
+    avm_usec_timer_mark(&timer);
+    const double time = static_cast<double>(avm_usec_timer_elapsed(&timer));
     elapsed_time[i] = 1000.0 * time;
   }
   printf("BAWP %3dx%-3d: c_time=%7.2fs, simd_time=%7.2fs, scaling=%3.2f\n", w,
@@ -133,7 +133,7 @@ TEST_P(BAWPTest, DISABLED_Speed) { RunSpeedTest(GET_PARAM(0), GET_PARAM(1)); }
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
     AVX2, BAWPTest,
-    ::testing::Combine(::testing::Values(&av1_make_bawp_block_avx2),
+    ::testing::Combine(::testing::Values(&av2_make_bawp_block_avx2),
                        ::testing::ValuesIn(kValidBlockSize)));
 #endif  // HAVE_AVX2
 }  // namespace

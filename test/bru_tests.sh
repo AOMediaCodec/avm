@@ -8,41 +8,41 @@
 ## License 1.0 was not distributed with this source code in the PATENTS file, you
 ## can obtain it at aomedia.org/license/patent-license/.
 ##
-## This file tests the libaom bru_encoder_decoder example. To add new tests to this
+## This file tests the libavm bru_encoder_decoder example. To add new tests to this
 ## file, do the following:
 ##   1. Write a shell function (this is your test).
 ##   2. Add the function to bru_tests (on a new line).
 ##
 . $(dirname $0)/tools_common.sh
 BRU_RAW_INPUT="Debugging_480x270p3000_yuv420p_20frames.yuv"
-BRU_RAW_INPUT="${LIBAOM_TEST_DATA_PATH}/${BRU_RAW_INPUT}"
+BRU_RAW_INPUT="${LIBAVM_TEST_DATA_PATH}/${BRU_RAW_INPUT}"
 BRU_RAW_INPUT_WIDTH=480
 BRU_RAW_INPUT_HEIGHT=270
 
 #Environment check : $BRU_RAW_INPUT is required.
 bru_tests_verify_environment() {
   if [ ! -e "${BRU_RAW_INPUT}" ]; then
-    echo "Libaom test data must exist in LIBAOM_TEST_DATA_PATH."
+    echo "Libavm test data must exist in LIBAVM_TEST_DATA_PATH."
     return 1
   fi
 }
 
 #Runs BRU tests using the codec with a frame limit of 100.
 bru_tests() {
-  local encoder_decoder="${LIBAOM_BIN_PATH}/bru_encoder_decoder${AOM_TEST_EXE_SUFFIX}"
-  local output_md5_1_opt="${AOM_TEST_OUTPUT_DIR}/bru_encoder_decoder_1_opt.md5"
-  local output_md5_1_reg="${AOM_TEST_OUTPUT_DIR}/bru_encoder_decoder_1_reg.md5"
-  local output_bin_1="${AOM_TEST_OUTPUT_DIR}/bru_encoder_decoder_1.bin"
-  local output_md5_0_opt="${AOM_TEST_OUTPUT_DIR}/bru_encoder_decoder_0_opt.md5"
-  local output_md5_0_reg="${AOM_TEST_OUTPUT_DIR}/bru_encoder_decoder_0_reg.md5"
-  local output_bin_0="${AOM_TEST_OUTPUT_DIR}/bru_encoder_decoder_0.bin"
+  local encoder_decoder="${LIBAVM_BIN_PATH}/bru_encoder_decoder${AVM_TEST_EXE_SUFFIX}"
+  local output_md5_1_opt="${AVM_TEST_OUTPUT_DIR}/bru_encoder_decoder_1_opt.md5"
+  local output_md5_1_reg="${AVM_TEST_OUTPUT_DIR}/bru_encoder_decoder_1_reg.md5"
+  local output_bin_1="${AVM_TEST_OUTPUT_DIR}/bru_encoder_decoder_1.bin"
+  local output_md5_0_opt="${AVM_TEST_OUTPUT_DIR}/bru_encoder_decoder_0_opt.md5"
+  local output_md5_0_reg="${AVM_TEST_OUTPUT_DIR}/bru_encoder_decoder_0_reg.md5"
+  local output_bin_0="${AVM_TEST_OUTPUT_DIR}/bru_encoder_decoder_0.bin"
 
   if [ ! -x "${encoder_decoder}" ]; then
     elog "${encoder_decoder} does not exist or is not executable."
     return 1
   fi
 
-  eval "${AOM_TEST_PREFIX}" "${encoder_decoder}" "${BRU_RAW_INPUT_WIDTH}" \
+  eval "${AVM_TEST_PREFIX}" "${encoder_decoder}" "${BRU_RAW_INPUT_WIDTH}" \
     "${BRU_RAW_INPUT_HEIGHT}" 8 1 "${BRU_RAW_INPUT}" "${output_bin_1}" \
     "${output_md5_1_opt}" "${output_md5_1_reg}" \
     ${devnull} || return 1
@@ -54,7 +54,7 @@ bru_tests() {
     return 1
   fi
 
-  eval "${AOM_TEST_PREFIX}" "${encoder_decoder}" "${BRU_RAW_INPUT_WIDTH}" \
+  eval "${AVM_TEST_PREFIX}" "${encoder_decoder}" "${BRU_RAW_INPUT_WIDTH}" \
     "${BRU_RAW_INPUT_HEIGHT}" 8 0 "${BRU_RAW_INPUT}" "${output_bin_0}" \
     "${output_md5_0_opt}" "${output_md5_0_reg}" \
     ${devnull} || return 1
@@ -69,8 +69,8 @@ bru_tests() {
 }
 
 bru_tests_av2() {
-  if [ "$(av1_decode_available)" = "yes" ] && \
-     [ "$(av1_encode_available)" = "yes" ]; then
+  if [ "$(av2_decode_available)" = "yes" ] && \
+     [ "$(av2_encode_available)" = "yes" ]; then
     bru_tests || return 1
   fi
 }

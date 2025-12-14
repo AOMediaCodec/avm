@@ -36,9 +36,9 @@ std::ostream &operator<<(std::ostream &os, const FwdKfTestParam &test_arg) {
 }
 
 class ForwardKeyTestLarge
-    : public ::libaom_test::CodecTestWith2Params<libaom_test::TestMode,
+    : public ::libavm_test::CodecTestWith2Params<libavm_test::TestMode,
                                                  FwdKfTestParam>,
-      public ::libaom_test::EncoderTest {
+      public ::libavm_test::EncoderTest {
  protected:
   ForwardKeyTestLarge()
       : EncoderTest(GET_PARAM(0)), encoding_mode_(GET_PARAM(1)),
@@ -48,16 +48,16 @@ class ForwardKeyTestLarge
   virtual void SetUp() {
     InitializeConfig();
     SetMode(encoding_mode_);
-    const aom_rational timebase = { 1, 30 };
+    const avm_rational timebase = { 1, 30 };
     cfg_.g_timebase = timebase;
     kf_max_dist_ = kf_max_dist_param_.max_kf_dist;
     psnr_threshold_ = kf_max_dist_param_.psnr_thresh;
-    cfg_.rc_end_usage = AOM_Q;
+    cfg_.rc_end_usage = AVM_Q;
     cfg_.g_lag_in_frames = 10;
     cfg_.fwd_kf_enabled = 1;
     cfg_.kf_max_dist = kf_max_dist_;
     cfg_.g_threads = 0;
-    init_flags_ = AOM_CODEC_USE_PSNR;
+    init_flags_ = AVM_CODEC_USE_PSNR;
   }
 
   virtual void BeginPassHook(unsigned int) {
@@ -65,19 +65,19 @@ class ForwardKeyTestLarge
     nframes_ = 0;
   }
 
-  virtual void PSNRPktHook(const aom_codec_cx_pkt_t *pkt) {
+  virtual void PSNRPktHook(const avm_codec_cx_pkt_t *pkt) {
     psnr_ += pkt->data.psnr.psnr[0];
     nframes_++;
   }
 
-  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
-                                  ::libaom_test::Encoder *encoder) {
+  virtual void PreEncodeFrameHook(::libavm_test::VideoSource *video,
+                                  ::libavm_test::Encoder *encoder) {
     if (video->frame() == 0) {
-      encoder->Control(AOME_SET_CPUUSED, 5);
-      encoder->Control(AOME_SET_QP, 235);
-      encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
-      encoder->Control(AOME_SET_ARNR_MAXFRAMES, 7);
-      encoder->Control(AOME_SET_ARNR_STRENGTH, 5);
+      encoder->Control(AVME_SET_CPUUSED, 5);
+      encoder->Control(AVME_SET_QP, 235);
+      encoder->Control(AVME_SET_ENABLEAUTOALTREF, 1);
+      encoder->Control(AVME_SET_ARNR_MAXFRAMES, 7);
+      encoder->Control(AVME_SET_ARNR_STRENGTH, 5);
     }
   }
 
@@ -88,7 +88,7 @@ class ForwardKeyTestLarge
 
   double GetPsnrThreshold() { return psnr_threshold_; }
 
-  ::libaom_test::TestMode encoding_mode_;
+  ::libavm_test::TestMode encoding_mode_;
   const FwdKfTestParam kf_max_dist_param_;
   double psnr_threshold_;
   int kf_max_dist_;
@@ -97,7 +97,7 @@ class ForwardKeyTestLarge
 };
 
 TEST_P(ForwardKeyTestLarge, ForwardKeyEncodeTest) {
-  libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
+  libavm_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                      cfg_.g_timebase.den, cfg_.g_timebase.num,
                                      0, 20);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
@@ -107,7 +107,7 @@ TEST_P(ForwardKeyTestLarge, ForwardKeyEncodeTest) {
       << "kf max dist = " << kf_max_dist_;
 }
 
-AV1_INSTANTIATE_TEST_SUITE(ForwardKeyTestLarge, GOODQUALITY_TEST_MODES,
+AV2_INSTANTIATE_TEST_SUITE(ForwardKeyTestLarge, GOODQUALITY_TEST_MODES,
                            ::testing::ValuesIn(kTestParams));
 
 typedef struct {
@@ -126,9 +126,9 @@ std::ostream &operator<<(std::ostream &os, const kfIntervalParam &test_arg) {
 
 // This class is used to test the presence of forward key frame.
 class ForwardKeyPresenceTestLarge
-    : public ::libaom_test::CodecTestWith3Params<libaom_test::TestMode,
-                                                 kfIntervalParam, aom_rc_mode>,
-      public ::libaom_test::EncoderTest {
+    : public ::libavm_test::CodecTestWith3Params<libavm_test::TestMode,
+                                                 kfIntervalParam, avm_rc_mode>,
+      public ::libavm_test::EncoderTest {
  protected:
   ForwardKeyPresenceTestLarge()
       : EncoderTest(GET_PARAM(0)), encoding_mode_(GET_PARAM(1)),
@@ -138,10 +138,10 @@ class ForwardKeyPresenceTestLarge
   virtual void SetUp() {
     InitializeConfig();
     SetMode(encoding_mode_);
-    const aom_rational timebase = { 1, 30 };
+    const avm_rational timebase = { 1, 30 };
     cfg_.g_timebase = timebase;
     cfg_.rc_end_usage = end_usage_check_;
-    if (end_usage_check_ == AOM_VBR) {
+    if (end_usage_check_ == AVM_VBR) {
       cfg_.rc_target_bitrate = 200;
     }
     cfg_.g_threads = 1;
@@ -154,44 +154,44 @@ class ForwardKeyPresenceTestLarge
 
   virtual bool DoDecode() const { return 1; }
 
-  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
-                                  ::libaom_test::Encoder *encoder) {
+  virtual void PreEncodeFrameHook(::libavm_test::VideoSource *video,
+                                  ::libavm_test::Encoder *encoder) {
     if (video->frame() == 0) {
-      encoder->Control(AOME_SET_CPUUSED, 5);
-      encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
-      if (cfg_.rc_end_usage == AOM_Q || cfg_.rc_end_usage == AOM_CQ) {
-        encoder->Control(AOME_SET_QP, 210);
+      encoder->Control(AVME_SET_CPUUSED, 5);
+      encoder->Control(AVME_SET_ENABLEAUTOALTREF, 1);
+      if (cfg_.rc_end_usage == AVM_Q || cfg_.rc_end_usage == AVM_CQ) {
+        encoder->Control(AVME_SET_QP, 210);
       }
     }
   }
 
-  virtual bool HandleDecodeResult(const aom_codec_err_t res_dec,
-                                  libaom_test::Decoder *decoder) {
-    EXPECT_EQ(AOM_CODEC_OK, res_dec) << decoder->DecodeError();
-    if (is_fwd_kf_present_ != 1 && AOM_CODEC_OK == res_dec) {
-      aom_codec_ctx_t *ctx_dec = decoder->GetDecoder();
-      AOM_CODEC_CONTROL_TYPECHECKED(ctx_dec, AOMD_GET_FWD_KF_PRESENT,
+  virtual bool HandleDecodeResult(const avm_codec_err_t res_dec,
+                                  libavm_test::Decoder *decoder) {
+    EXPECT_EQ(AVM_CODEC_OK, res_dec) << decoder->DecodeError();
+    if (is_fwd_kf_present_ != 1 && AVM_CODEC_OK == res_dec) {
+      avm_codec_ctx_t *ctx_dec = decoder->GetDecoder();
+      AVM_CODEC_CONTROL_TYPECHECKED(ctx_dec, AVMD_GET_FWD_KF_PRESENT,
                                     &is_fwd_kf_present_);
     }
-    return AOM_CODEC_OK == res_dec;
+    return AVM_CODEC_OK == res_dec;
   }
 
-  ::libaom_test::TestMode encoding_mode_;
+  ::libavm_test::TestMode encoding_mode_;
   const kfIntervalParam kf_dist_param_;
   int is_fwd_kf_present_;
-  aom_rc_mode end_usage_check_;
+  avm_rc_mode end_usage_check_;
 };
 
 TEST_P(ForwardKeyPresenceTestLarge, ForwardKeyEncodePresenceTest) {
   is_fwd_kf_present_ = 0;
-  libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
+  libavm_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                      cfg_.g_timebase.den, cfg_.g_timebase.num,
                                      0, 20);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   ASSERT_EQ(is_fwd_kf_present_, 1);
 }
 
-AV1_INSTANTIATE_TEST_SUITE(ForwardKeyPresenceTestLarge, GOODQUALITY_TEST_MODES,
+AV2_INSTANTIATE_TEST_SUITE(ForwardKeyPresenceTestLarge, GOODQUALITY_TEST_MODES,
                            ::testing::ValuesIn(kfTestParams),
-                           ::testing::Values(AOM_Q, AOM_VBR, AOM_CBR, AOM_CQ));
+                           ::testing::Values(AVM_Q, AVM_VBR, AVM_CBR, AVM_CQ));
 }  // namespace

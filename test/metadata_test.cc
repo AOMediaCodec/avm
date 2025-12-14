@@ -12,11 +12,11 @@
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
-#include "aom/aom_codec.h"
-#include "aom/aom_image.h"
-#include "aom/internal/aom_image_internal.h"
-#include "aom_scale/yv12config.h"
-#include "av1/encoder/bitstream.h"
+#include "avm/avm_codec.h"
+#include "avm/avm_image.h"
+#include "avm/internal/avm_image_internal.h"
+#include "avm_scale/yv12config.h"
+#include "av2/encoder/bitstream.h"
 #include "test/codec_factory.h"
 #include "test/encode_test_driver.h"
 #include "test/i420_video_source.h"
@@ -27,7 +27,7 @@ namespace {
 const size_t kMetadataPayloadSizeT35 = 24;
 #if CONFIG_METADATA || CONFIG_F024_KEYOBU
 // itu_t_t35_country_code = 0xB5 (USA)
-// itu_t_t35_terminal_provider_code = 0x5890 (AOM)
+// itu_t_t35_terminal_provider_code = 0x5890 (AVM)
 // itu_t_t35_terminal_provider_oriented_code = 0xFE (not specified, for testing
 // purposes only)
 const uint8_t kMetadataPayloadT35[kMetadataPayloadSizeT35] = {
@@ -64,7 +64,7 @@ const uint8_t kMetadataPayloadCll[kMetadataPayloadSizeCll] = { 0xB5, 0x01, 0x02,
                                                                0x03 };
 #endif  // CONFIG_METADATA || CONFIG_F024_KEYOBU
 
-#if CONFIG_AV1_ENCODER
+#if CONFIG_AV2_ENCODER
 #if CONFIG_METADATA || CONFIG_F024_KEYOBU
 const size_t kMetadataObuSizeT35 = 29;
 const uint8_t kMetadataObuT35[kMetadataObuSizeT35] = {
@@ -114,8 +114,8 @@ const uint8_t kMetadataObuCll[kMetadataObuSizeCll] = { 0x08, 0x14, 0x00,
 #endif  // CONFIG_METADATA || CONFIG_F024_KEYOBU
 
 class MetadataEncodeTest
-    : public ::libaom_test::CodecTestWithParam<libaom_test::TestMode>,
-      public ::libaom_test::EncoderTest {
+    : public ::libavm_test::CodecTestWithParam<libavm_test::TestMode>,
+      public ::libavm_test::EncoderTest {
  protected:
   MetadataEncodeTest() : EncoderTest(GET_PARAM(0)) {}
 
@@ -128,57 +128,57 @@ class MetadataEncodeTest
     max_partition_size_ = 16;
   }
 
-  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
-                                  ::libaom_test::Encoder *encoder) {
+  virtual void PreEncodeFrameHook(::libavm_test::VideoSource *video,
+                                  ::libavm_test::Encoder *encoder) {
     if (video->frame() == 0) {
-      encoder->Control(AOME_SET_CPUUSED, set_cpu_used_);
-      encoder->Control(AV1E_SET_MAX_PARTITION_SIZE, max_partition_size_);
-      encoder->Control(AV1E_SET_ENABLE_KEYFRAME_FILTERING, 0);
+      encoder->Control(AVME_SET_CPUUSED, set_cpu_used_);
+      encoder->Control(AV2E_SET_MAX_PARTITION_SIZE, max_partition_size_);
+      encoder->Control(AV2E_SET_ENABLE_KEYFRAME_FILTERING, 0);
     }
 
-    aom_image_t *current_frame = video->img();
+    avm_image_t *current_frame = video->img();
     if (current_frame) {
-      if (current_frame->metadata) aom_img_remove_metadata(current_frame);
-      ASSERT_EQ(aom_img_add_metadata(current_frame, OBU_METADATA_TYPE_ITUT_T35,
-                                     kMetadataPayloadT35, 0, AOM_MIF_ANY_FRAME),
+      if (current_frame->metadata) avm_img_remove_metadata(current_frame);
+      ASSERT_EQ(avm_img_add_metadata(current_frame, OBU_METADATA_TYPE_ITUT_T35,
+                                     kMetadataPayloadT35, 0, AVM_MIF_ANY_FRAME),
                 -1);
       ASSERT_EQ(
-          aom_img_add_metadata(current_frame, OBU_METADATA_TYPE_ITUT_T35, NULL,
-                               kMetadataPayloadSizeT35, AOM_MIF_ANY_FRAME),
+          avm_img_add_metadata(current_frame, OBU_METADATA_TYPE_ITUT_T35, NULL,
+                               kMetadataPayloadSizeT35, AVM_MIF_ANY_FRAME),
           -1);
-      ASSERT_EQ(aom_img_add_metadata(current_frame, OBU_METADATA_TYPE_ITUT_T35,
-                                     NULL, 0, AOM_MIF_ANY_FRAME),
+      ASSERT_EQ(avm_img_add_metadata(current_frame, OBU_METADATA_TYPE_ITUT_T35,
+                                     NULL, 0, AVM_MIF_ANY_FRAME),
                 -1);
       ASSERT_EQ(
-          aom_img_add_metadata(current_frame, OBU_METADATA_TYPE_ITUT_T35,
+          avm_img_add_metadata(current_frame, OBU_METADATA_TYPE_ITUT_T35,
                                kMetadataPayloadT35, kMetadataPayloadSizeT35,
-                               AOM_MIF_ANY_FRAME),
+                               AVM_MIF_ANY_FRAME),
           0);
 
       ASSERT_EQ(
-          aom_img_add_metadata(current_frame, OBU_METADATA_TYPE_HDR_MDCV,
+          avm_img_add_metadata(current_frame, OBU_METADATA_TYPE_HDR_MDCV,
                                kMetadataPayloadMdcv, kMetadataPayloadSizeMdcv,
-                               AOM_MIF_KEY_FRAME),
+                               AVM_MIF_KEY_FRAME),
           0);
 
       ASSERT_EQ(
-          aom_img_add_metadata(current_frame, OBU_METADATA_TYPE_HDR_CLL,
+          avm_img_add_metadata(current_frame, OBU_METADATA_TYPE_HDR_CLL,
                                kMetadataPayloadCll, kMetadataPayloadSizeCll,
-                               AOM_MIF_KEY_FRAME),
+                               AVM_MIF_KEY_FRAME),
           0);
     }
   }
 
-  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt,
-                            ::libaom_test::DxDataIterator *dec_iter) {
+  virtual void FramePktHook(const avm_codec_cx_pkt_t *pkt,
+                            ::libavm_test::DxDataIterator *dec_iter) {
     (void)dec_iter;
-    if (pkt->kind == AOM_CODEC_CX_FRAME_PKT ||
-        pkt->kind == AOM_CODEC_CX_FRAME_NULL_PKT) {
+    if (pkt->kind == AVM_CODEC_CX_FRAME_PKT ||
+        pkt->kind == AVM_CODEC_CX_FRAME_NULL_PKT) {
       const size_t bitstream_size = pkt->data.frame.sz;
       const uint8_t *bitstream =
           static_cast<const uint8_t *>(pkt->data.frame.buf);
       bool is_keyframe =
-          (pkt->data.frame.flags & AOM_FRAME_IS_KEY) ? true : false;
+          (pkt->data.frame.flags & AVM_FRAME_IS_KEY) ? true : false;
 
       // look for valid metadatas in bitstream
       bool itut_t35_metadata_found = false;
@@ -275,8 +275,8 @@ class MetadataEncodeTest
     }
   }
 
-  virtual void DecompressedFrameHook(const aom_image_t &img,
-                                     aom_codec_pts_t pts) {
+  virtual void DecompressedFrameHook(const avm_image_t &img,
+                                     avm_codec_pts_t pts) {
     ASSERT_TRUE(img.metadata != nullptr);
     unsigned n_meta = pts == 0 ? 3 : 1;
 
@@ -309,9 +309,9 @@ class MetadataEncodeTest
 };
 
 TEST_P(MetadataEncodeTest, TestMetadataEncoding) {
-  ::libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
+  ::libavm_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                        30, 1, 0, 5);
-  init_flags_ = AOM_CODEC_USE_PSNR;
+  init_flags_ = AVM_CODEC_USE_PSNR;
 
   cfg_.g_w = 352;
   cfg_.g_h = 288;
@@ -323,8 +323,8 @@ TEST_P(MetadataEncodeTest, TestMetadataEncoding) {
   cfg_.rc_max_quantizer = 164;
   cfg_.rc_undershoot_pct = 50;
   cfg_.rc_overshoot_pct = 50;
-  cfg_.rc_end_usage = AOM_CBR;
-  cfg_.kf_mode = AOM_KF_AUTO;
+  cfg_.rc_end_usage = AVM_CBR;
+  cfg_.kf_mode = AVM_KF_AUTO;
   cfg_.g_lag_in_frames = 1;
   cfg_.kf_min_dist = cfg_.kf_max_dist = 3000;
   // Disable error_resilience mode.
@@ -335,118 +335,118 @@ TEST_P(MetadataEncodeTest, TestMetadataEncoding) {
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 }
 
-AV1_INSTANTIATE_TEST_SUITE(MetadataEncodeTest,
-                           ::testing::Values(::libaom_test::kOnePassGood));
+AV2_INSTANTIATE_TEST_SUITE(MetadataEncodeTest,
+                           ::testing::Values(::libavm_test::kOnePassGood));
 
-#endif  // CONFIG_AV1_ENCODER
+#endif  // CONFIG_AV2_ENCODER
 }  // namespace
 
 TEST(MetadataTest, MetadataAllocation) {
-  aom_metadata_t *metadata =
-      aom_img_metadata_alloc(OBU_METADATA_TYPE_ITUT_T35, kMetadataPayloadT35,
-                             kMetadataPayloadSizeT35, AOM_MIF_ANY_FRAME);
+  avm_metadata_t *metadata =
+      avm_img_metadata_alloc(OBU_METADATA_TYPE_ITUT_T35, kMetadataPayloadT35,
+                             kMetadataPayloadSizeT35, AVM_MIF_ANY_FRAME);
   ASSERT_NE(metadata, nullptr);
-  aom_img_metadata_free(metadata);
+  avm_img_metadata_free(metadata);
 }
 
 TEST(MetadataTest, MetadataArrayAllocation) {
-  aom_metadata_array_t *metadata_array = aom_img_metadata_array_alloc(2);
+  avm_metadata_array_t *metadata_array = avm_img_metadata_array_alloc(2);
   ASSERT_NE(metadata_array, nullptr);
 
   metadata_array->metadata_array[0] =
-      aom_img_metadata_alloc(OBU_METADATA_TYPE_ITUT_T35, kMetadataPayloadT35,
-                             kMetadataPayloadSizeT35, AOM_MIF_ANY_FRAME);
+      avm_img_metadata_alloc(OBU_METADATA_TYPE_ITUT_T35, kMetadataPayloadT35,
+                             kMetadataPayloadSizeT35, AVM_MIF_ANY_FRAME);
   metadata_array->metadata_array[1] =
-      aom_img_metadata_alloc(OBU_METADATA_TYPE_ITUT_T35, kMetadataPayloadT35,
-                             kMetadataPayloadSizeT35, AOM_MIF_ANY_FRAME);
+      avm_img_metadata_alloc(OBU_METADATA_TYPE_ITUT_T35, kMetadataPayloadT35,
+                             kMetadataPayloadSizeT35, AVM_MIF_ANY_FRAME);
 
-  aom_img_metadata_array_free(metadata_array);
+  avm_img_metadata_array_free(metadata_array);
 }
 
 TEST(MetadataTest, AddMetadataToImage) {
-  aom_image_t image;
+  avm_image_t image;
   image.metadata = NULL;
 
-  ASSERT_EQ(aom_img_add_metadata(&image, OBU_METADATA_TYPE_ITUT_T35,
+  ASSERT_EQ(avm_img_add_metadata(&image, OBU_METADATA_TYPE_ITUT_T35,
                                  kMetadataPayloadT35, kMetadataPayloadSizeT35,
-                                 AOM_MIF_ANY_FRAME),
+                                 AVM_MIF_ANY_FRAME),
             0);
-  aom_img_metadata_array_free(image.metadata);
-  EXPECT_EQ(aom_img_add_metadata(NULL, OBU_METADATA_TYPE_ITUT_T35,
+  avm_img_metadata_array_free(image.metadata);
+  EXPECT_EQ(avm_img_add_metadata(NULL, OBU_METADATA_TYPE_ITUT_T35,
                                  kMetadataPayloadT35, kMetadataPayloadSizeT35,
-                                 AOM_MIF_ANY_FRAME),
+                                 AVM_MIF_ANY_FRAME),
             -1);
 }
 
 TEST(MetadataTest, RemoveMetadataFromImage) {
-  aom_image_t image;
+  avm_image_t image;
   image.metadata = NULL;
 
-  ASSERT_EQ(aom_img_add_metadata(&image, OBU_METADATA_TYPE_ITUT_T35,
+  ASSERT_EQ(avm_img_add_metadata(&image, OBU_METADATA_TYPE_ITUT_T35,
                                  kMetadataPayloadT35, kMetadataPayloadSizeT35,
-                                 AOM_MIF_ANY_FRAME),
+                                 AVM_MIF_ANY_FRAME),
             0);
-  aom_img_remove_metadata(&image);
-  aom_img_remove_metadata(NULL);
+  avm_img_remove_metadata(&image);
+  avm_img_remove_metadata(NULL);
 }
 
 TEST(MetadataTest, CopyMetadataToFrameBuffer) {
   YV12_BUFFER_CONFIG yvBuf;
   yvBuf.metadata = NULL;
 
-  aom_metadata_array_t *metadata_array = aom_img_metadata_array_alloc(1);
+  avm_metadata_array_t *metadata_array = avm_img_metadata_array_alloc(1);
   ASSERT_NE(metadata_array, nullptr);
 
   metadata_array->metadata_array[0] =
-      aom_img_metadata_alloc(OBU_METADATA_TYPE_ITUT_T35, kMetadataPayloadT35,
-                             kMetadataPayloadSizeT35, AOM_MIF_ANY_FRAME);
+      avm_img_metadata_alloc(OBU_METADATA_TYPE_ITUT_T35, kMetadataPayloadT35,
+                             kMetadataPayloadSizeT35, AVM_MIF_ANY_FRAME);
 
   // Metadata_array
-  int status = aom_copy_metadata_to_frame_buffer(&yvBuf, metadata_array);
+  int status = avm_copy_metadata_to_frame_buffer(&yvBuf, metadata_array);
   EXPECT_EQ(status, 0);
-  status = aom_copy_metadata_to_frame_buffer(NULL, metadata_array);
+  status = avm_copy_metadata_to_frame_buffer(NULL, metadata_array);
   EXPECT_EQ(status, -1);
-  aom_img_metadata_array_free(metadata_array);
+  avm_img_metadata_array_free(metadata_array);
 
   // Metadata_array_2
-  aom_metadata_array_t *metadata_array_2 = aom_img_metadata_array_alloc(0);
+  avm_metadata_array_t *metadata_array_2 = avm_img_metadata_array_alloc(0);
   ASSERT_NE(metadata_array_2, nullptr);
-  status = aom_copy_metadata_to_frame_buffer(&yvBuf, metadata_array_2);
+  status = avm_copy_metadata_to_frame_buffer(&yvBuf, metadata_array_2);
   EXPECT_EQ(status, -1);
-  aom_img_metadata_array_free(metadata_array_2);
+  avm_img_metadata_array_free(metadata_array_2);
 
   // YV12_BUFFER_CONFIG
-  status = aom_copy_metadata_to_frame_buffer(&yvBuf, NULL);
+  status = avm_copy_metadata_to_frame_buffer(&yvBuf, NULL);
   EXPECT_EQ(status, -1);
-  aom_remove_metadata_from_frame_buffer(&yvBuf);
-  aom_remove_metadata_from_frame_buffer(NULL);
+  avm_remove_metadata_from_frame_buffer(&yvBuf);
+  avm_remove_metadata_from_frame_buffer(NULL);
 }
 
 TEST(MetadataTest, GetMetadataFromImage) {
-  aom_image_t image;
+  avm_image_t image;
   image.metadata = NULL;
 
-  ASSERT_EQ(aom_img_add_metadata(&image, OBU_METADATA_TYPE_ITUT_T35,
+  ASSERT_EQ(avm_img_add_metadata(&image, OBU_METADATA_TYPE_ITUT_T35,
                                  kMetadataPayloadT35, kMetadataPayloadSizeT35,
-                                 AOM_MIF_ANY_FRAME),
+                                 AVM_MIF_ANY_FRAME),
             0);
 
-  EXPECT_TRUE(aom_img_get_metadata(NULL, 0) == NULL);
-  EXPECT_TRUE(aom_img_get_metadata(&image, 1u) == NULL);
-  EXPECT_TRUE(aom_img_get_metadata(&image, 10u) == NULL);
+  EXPECT_TRUE(avm_img_get_metadata(NULL, 0) == NULL);
+  EXPECT_TRUE(avm_img_get_metadata(&image, 1u) == NULL);
+  EXPECT_TRUE(avm_img_get_metadata(&image, 10u) == NULL);
 
-  const aom_metadata_t *metadata = aom_img_get_metadata(&image, 0);
+  const avm_metadata_t *metadata = avm_img_get_metadata(&image, 0);
   ASSERT_TRUE(metadata != NULL);
   ASSERT_EQ(metadata->sz, kMetadataPayloadSizeT35);
   EXPECT_EQ(
       memcmp(kMetadataPayloadT35, metadata->payload, kMetadataPayloadSizeT35),
       0);
 
-  aom_img_metadata_array_free(image.metadata);
+  avm_img_metadata_array_free(image.metadata);
 }
 
 TEST(MetadataTest, ReadMetadatasFromImage) {
-  aom_image_t image;
+  avm_image_t image;
   image.metadata = NULL;
 
   uint32_t types[3];
@@ -454,20 +454,20 @@ TEST(MetadataTest, ReadMetadatasFromImage) {
   types[1] = OBU_METADATA_TYPE_HDR_CLL;
   types[2] = OBU_METADATA_TYPE_HDR_MDCV;
 
-  ASSERT_EQ(aom_img_add_metadata(&image, types[0], kMetadataPayloadT35,
-                                 kMetadataPayloadSizeT35, AOM_MIF_ANY_FRAME),
+  ASSERT_EQ(avm_img_add_metadata(&image, types[0], kMetadataPayloadT35,
+                                 kMetadataPayloadSizeT35, AVM_MIF_ANY_FRAME),
             0);
-  ASSERT_EQ(aom_img_add_metadata(&image, types[1], kMetadataPayloadT35,
-                                 kMetadataPayloadSizeT35, AOM_MIF_KEY_FRAME),
+  ASSERT_EQ(avm_img_add_metadata(&image, types[1], kMetadataPayloadT35,
+                                 kMetadataPayloadSizeT35, AVM_MIF_KEY_FRAME),
             0);
-  ASSERT_EQ(aom_img_add_metadata(&image, types[2], kMetadataPayloadT35,
-                                 kMetadataPayloadSizeT35, AOM_MIF_KEY_FRAME),
+  ASSERT_EQ(avm_img_add_metadata(&image, types[2], kMetadataPayloadT35,
+                                 kMetadataPayloadSizeT35, AVM_MIF_KEY_FRAME),
             0);
 
-  size_t number_metadata = aom_img_num_metadata(&image);
+  size_t number_metadata = avm_img_num_metadata(&image);
   ASSERT_EQ(number_metadata, 3u);
   for (size_t i = 0; i < number_metadata; ++i) {
-    const aom_metadata_t *metadata = aom_img_get_metadata(&image, i);
+    const avm_metadata_t *metadata = avm_img_get_metadata(&image, i);
     ASSERT_TRUE(metadata != NULL);
     ASSERT_EQ(metadata->type, types[i]);
     ASSERT_EQ(metadata->sz, kMetadataPayloadSizeT35);
@@ -475,15 +475,14 @@ TEST(MetadataTest, ReadMetadatasFromImage) {
         memcmp(kMetadataPayloadT35, metadata->payload, kMetadataPayloadSizeT35),
         0);
   }
-  aom_img_metadata_array_free(image.metadata);
+  avm_img_metadata_array_free(image.metadata);
 }
 
-#if CONFIG_BAND_METADATA
-#include "av1/common/banding_metadata.h"
+#include "av2/common/banding_metadata.h"
 
 TEST(MetadataTest, BandingHintsMetadata) {
   // Create a test banding metadata structure for encoding
-  aom_banding_hints_metadata_t encode_metadata;
+  avm_banding_hints_metadata_t encode_metadata;
   memset(&encode_metadata, 0, sizeof(encode_metadata));
 
   // Set up test values
@@ -524,14 +523,14 @@ TEST(MetadataTest, BandingHintsMetadata) {
   // Test encoding to payload
   uint8_t payload[256];
   size_t payload_size = sizeof(payload);
-  ASSERT_EQ(aom_encode_banding_hints_metadata(&encode_metadata, payload,
+  ASSERT_EQ(avm_encode_banding_hints_metadata(&encode_metadata, payload,
                                               &payload_size),
             0);
   ASSERT_GT(payload_size, 0u);
 
   // Test decoding from payload (using separate instance of same structure type)
-  aom_banding_hints_metadata_t decode_metadata;
-  ASSERT_EQ(aom_decode_banding_hints_metadata(payload, payload_size,
+  avm_banding_hints_metadata_t decode_metadata;
+  ASSERT_EQ(avm_decode_banding_hints_metadata(payload, payload_size,
                                               &decode_metadata),
             0);
 
@@ -587,11 +586,11 @@ TEST(MetadataTest, BandingHintsMetadata) {
 }
 
 TEST(MetadataTest, BandingHintsImageMetadata) {
-  aom_image_t image;
+  avm_image_t image;
   image.metadata = NULL;
 
   // Create test banding metadata
-  aom_banding_hints_metadata_t banding_metadata;
+  avm_banding_hints_metadata_t banding_metadata;
   memset(&banding_metadata, 0, sizeof(banding_metadata));
   banding_metadata.coding_banding_present_flag = 1;
   banding_metadata.source_banding_present_flag = 1;
@@ -603,8 +602,8 @@ TEST(MetadataTest, BandingHintsImageMetadata) {
   banding_metadata.band_units_information_present_flag = 0;
 
   // Add banding metadata to image
-  ASSERT_EQ(aom_img_add_banding_hints_metadata(&image, &banding_metadata,
-                                               AOM_MIF_ANY_FRAME),
+  ASSERT_EQ(avm_img_add_banding_hints_metadata(&image, &banding_metadata,
+                                               AVM_MIF_ANY_FRAME),
             0);
 
   // Verify metadata was added
@@ -616,8 +615,8 @@ TEST(MetadataTest, BandingHintsImageMetadata) {
 
   // Test decoding the metadata from the image (using separate instance of same
   // structure type)
-  aom_banding_hints_metadata_t decoded_metadata;
-  ASSERT_EQ(aom_decode_banding_hints_metadata(
+  avm_banding_hints_metadata_t decoded_metadata;
+  ASSERT_EQ(avm_decode_banding_hints_metadata(
                 image.metadata->metadata_array[0]->payload,
                 image.metadata->metadata_array[0]->sz, &decoded_metadata),
             0);
@@ -640,6 +639,5 @@ TEST(MetadataTest, BandingHintsImageMetadata) {
   EXPECT_EQ(decoded_metadata.band_units_information_present_flag,
             banding_metadata.band_units_information_present_flag);
 
-  aom_img_metadata_array_free(image.metadata);
+  avm_img_metadata_array_free(image.metadata);
 }
-#endif  // CONFIG_BAND_METADATA

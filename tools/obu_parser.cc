@@ -14,13 +14,13 @@
 #include <cstdio>
 #include <string>
 
-#include "aom/aom_codec.h"
-#include "aom/aom_integer.h"
-#include "aom_ports/mem_ops.h"
-#include "av1/common/obu_util.h"
+#include "avm/avm_codec.h"
+#include "avm/avm_integer.h"
+#include "avm_ports/mem_ops.h"
+#include "av2/common/obu_util.h"
 #include "tools/obu_parser.h"
 
-namespace aom_tools {
+namespace avm_tools {
 
 // Basic OBU syntax
 // 8 bits: Header
@@ -52,9 +52,7 @@ bool ValidObuType(int obu_type) {
   switch (obu_type) {
     case OBU_SEQUENCE_HEADER:
     case OBU_TEMPORAL_DELIMITER:
-#if CONFIG_MULTI_FRAME_HEADER
     case OBU_MULTI_FRAME_HEADER:
-#endif  // CONFIG_MULTI_FRAME_HEADER
 #if CONFIG_F024_KEYOBU
     case OBU_CLK:
     case OBU_OLK:
@@ -82,9 +80,7 @@ bool ValidObuType(int obu_type) {
     case OBU_ATLAS_SEGMENT:
     case OBU_OPERATING_POINT_SET:
     case OBU_MSDO:
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     case OBU_RAS_FRAME:
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 #if CONFIG_F255_QMOBU
     case OBU_QM:
 #endif
@@ -129,7 +125,7 @@ void PrintObuHeader(const ObuHeader *header, bool first_tile_group_in_frame) {
       "      type:      %s%s\n"
       "      tlayer_id: %d\n",
       header->obu_extension_flag ? "yes" : "no",
-      aom_obu_type_to_string(static_cast<OBU_TYPE>(header->type)),
+      avm_obu_type_to_string(static_cast<OBU_TYPE>(header->type)),
       first_tile_group_in_frame ? " (new frame)" : "", header->obu_tlayer_id);
   if (header->obu_extension_flag) {
     printf(
@@ -156,7 +152,7 @@ bool DumpObu(const uint8_t *data, int length, int *obu_overhead_bytes) {
 
     uint64_t obu_size = 0;
     size_t length_field_size = 0;
-    if (aom_uleb_decode(data + consumed, remaining, &obu_size,
+    if (avm_uleb_decode(data + consumed, remaining, &obu_size,
                         &length_field_size) != 0) {
       fprintf(stderr, "OBU size parsing failed at offset %d.\n", consumed);
       return false;
@@ -230,4 +226,4 @@ bool DumpObu(const uint8_t *data, int length, int *obu_overhead_bytes) {
   return true;
 }
 
-}  // namespace aom_tools
+}  // namespace avm_tools

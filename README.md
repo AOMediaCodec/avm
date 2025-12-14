@@ -63,7 +63,7 @@ enables ccache and disables the AVM encoder:
 The available configuration options are too numerous to list here. Build system
 configuration options can be found at the top of the CMakeLists.txt file found
 in the root of the AVM repository, and AVM codec configuration options can
-currently be found in the file `build/cmake/aom_config_defaults.cmake`.
+currently be found in the file `build/cmake/avm_config_defaults.cmake`.
 
 ### Dylib builds
 
@@ -99,11 +99,11 @@ For Visual Studio the in-IDE configuration controls should be used. Simply set
 the IDE project configuration to Debug to allow for stepping through the code.
 
 In addition to the above it can sometimes be useful to debug only C and C++
-code. To disable all assembly code and intrinsics set `AOM_TARGET_CPU` to
+code. To disable all assembly code and intrinsics set `AVM_TARGET_CPU` to
 generic at generation time:
 
 ~~~
-    $ cmake path/to/avm -DAOM_TARGET_CPU=generic
+    $ cmake path/to/avm -DAVM_TARGET_CPU=generic
 ~~~
 
 ### Cross compiling
@@ -195,7 +195,7 @@ applications.
 The unit tests can be run at build time:
 
 ~~~
-    # Before running the make command the LIBAOM_TEST_DATA_PATH environment
+    # Before running the make command the LIBAVM_TEST_DATA_PATH environment
     # variable should be set to avoid downloading the test files to the
     # cmake build configuration directory.
     $ cmake path/to/avm
@@ -209,7 +209,7 @@ The unit tests can be run at build time:
 The example tests require a bash shell and can be run in the following manner:
 
 ~~~
-    # See the note above about LIBAOM_TEST_DATA_PATH above.
+    # See the note above about LIBAVM_TEST_DATA_PATH above.
     $ cmake path/to/avm
     $ make
     # It's best to build the testdata target using many make jobs.
@@ -234,7 +234,7 @@ rule:
 The above make command will only download and verify the test data.
 
 Additional input data for testing the encoder can be obtained from:
-[AV2 - CTC](https://media.xiph.org/video/aomctc/test_set/)
+[AV2 - CTC](https://media.xiph.org/video/avmctc/test_set/)
 
 ### Sharded testing
 
@@ -247,7 +247,7 @@ Sharded tests can be achieved as follows for example:
    $ export GTEST_TOTAL_SHARDS=10
    # (GTEST shard indexing is 0 based).
    $ seq 0 $(( $GTEST_TOTAL_SHARDS - 1 )) \
-       | xargs -n 1 -P 0 -I{} env GTEST_SHARD_INDEX={} ./test_libaom
+       | xargs -n 1 -P 0 -I{} env GTEST_SHARD_INDEX={} ./test_libavm
 ~~~
 
 To create a test shard for each CPU core available on the current system set

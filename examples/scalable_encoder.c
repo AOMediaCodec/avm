@@ -47,36 +47,36 @@
 
 // Forced Keyframes
 // ----------------
-// Keyframes can be forced by setting the AOM_EFLAG_FORCE_KF bit of the
-// flags passed to `aom_codec_control()`. In this example, we force a
+// Keyframes can be forced by setting the AVM_EFLAG_FORCE_KF bit of the
+// flags passed to `avm_codec_control()`. In this example, we force a
 // keyframe every <keyframe-interval> frames. Note, the output stream can
 // contain additional keyframes beyond those that have been forced using the
-// AOM_EFLAG_FORCE_KF flag because of automatic keyframe placement by the
+// AVM_EFLAG_FORCE_KF flag because of automatic keyframe placement by the
 // encoder.
 //
 // Processing The Encoded Data
 // ---------------------------
-// Each packet of type `AOM_CODEC_CX_FRAME_PKT` contains the encoded data
+// Each packet of type `AVM_CODEC_CX_FRAME_PKT` contains the encoded data
 // for this frame. We write a IVF frame header, followed by the raw data.
 //
 // Cleanup
 // -------
-// The `aom_codec_destroy` call frees any memory allocated by the codec.
+// The `avm_codec_destroy` call frees any memory allocated by the codec.
 //
 // Error Handling
 // --------------
 // This example does not special case any error return codes. If there was
 // an error, a descriptive message is printed and the program exits. With
-// few exeptions, aom_codec functions return an enumerated error status,
+// few exeptions, avm_codec functions return an enumerated error status,
 // with the value `0` indicating success.
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "aom/aom_encoder.h"
-#include "aom/aomcx.h"
-#include "av1/common/enums.h"
+#include "avm/avm_encoder.h"
+#include "avm/avmcx.h"
+#include "av2/common/enums.h"
 #include "common/tools_common.h"
 #include "common/video_writer.h"
 
@@ -91,21 +91,21 @@ void usage_exit(void) {
   exit(EXIT_FAILURE);
 }
 
-static int encode_frame(aom_codec_ctx_t *codec, aom_image_t *img,
+static int encode_frame(avm_codec_ctx_t *codec, avm_image_t *img,
                         int frame_index, int flags, FILE *outfile) {
   int got_pkts = 0;
-  aom_codec_iter_t iter = NULL;
-  const aom_codec_cx_pkt_t *pkt = NULL;
-  const aom_codec_err_t res =
-      aom_codec_encode(codec, img, frame_index, 1, flags);
-  if (res != AOM_CODEC_OK) die_codec(codec, "Failed to encode frame");
+  avm_codec_iter_t iter = NULL;
+  const avm_codec_cx_pkt_t *pkt = NULL;
+  const avm_codec_err_t res =
+      avm_codec_encode(codec, img, frame_index, 1, flags);
+  if (res != AVM_CODEC_OK) die_codec(codec, "Failed to encode frame");
 
-  while ((pkt = aom_codec_get_cx_data(codec, &iter)) != NULL) {
+  while ((pkt = avm_codec_get_cx_data(codec, &iter)) != NULL) {
     got_pkts = 1;
 
-    if (pkt->kind == AOM_CODEC_CX_FRAME_PKT ||
-        pkt->kind == AOM_CODEC_CX_FRAME_NULL_PKT) {
-      const int keyframe = (pkt->data.frame.flags & AOM_FRAME_IS_KEY) != 0;
+    if (pkt->kind == AVM_CODEC_CX_FRAME_PKT ||
+        pkt->kind == AVM_CODEC_CX_FRAME_NULL_PKT) {
+      const int keyframe = (pkt->data.frame.flags & AVM_FRAME_IS_KEY) != 0;
       if (fwrite(pkt->data.frame.buf, 1, pkt->data.frame.sz, outfile) !=
           pkt->data.frame.sz) {
         die_codec(codec, "Failed to write compressed frame");
@@ -122,10 +122,10 @@ static int encode_frame(aom_codec_ctx_t *codec, aom_image_t *img,
 int main(int argc, char **argv) {
   FILE *infile0 = NULL;
   FILE *infile1 = NULL;
-  aom_codec_enc_cfg_t cfg;
+  avm_codec_enc_cfg_t cfg;
   int frame_count = 0;
-  aom_image_t raw0, raw1;
-  aom_codec_err_t res;
+  avm_image_t raw0, raw1;
+  avm_codec_err_t res;
   AvxVideoInfo info;
   const int fps = 30;
   const int bitrate = 200;
@@ -157,10 +157,10 @@ int main(int argc, char **argv) {
   outfile_arg = argv[6];
   max_frames = (int)strtol(argv[7], NULL, 0);
 
-  aom_codec_iface_t *encoder = get_aom_encoder_by_short_name(codec_arg);
+  avm_codec_iface_t *encoder = get_avm_encoder_by_short_name(codec_arg);
   if (!encoder) die("Unsupported codec.");
 
-  info.codec_fourcc = get_fourcc_by_aom_encoder(encoder);
+  info.codec_fourcc = get_fourcc_by_avm_encoder(encoder);
   info.frame_width = (int)strtol(width_arg, NULL, 0);
   info.frame_height = (int)strtol(height_arg, NULL, 0);
   info.time_base.numerator = 1;
@@ -171,11 +171,11 @@ int main(int argc, char **argv) {
     die("Invalid frame size: %dx%d", info.frame_width, info.frame_height);
   }
 
-  if (!aom_img_alloc(&raw0, AOM_IMG_FMT_I420, info.frame_width,
+  if (!avm_img_alloc(&raw0, AVM_IMG_FMT_I420, info.frame_width,
                      info.frame_height, 1)) {
     die("Failed to allocate image for layer 0.");
   }
-  if (!aom_img_alloc(&raw1, AOM_IMG_FMT_I420, info.frame_width,
+  if (!avm_img_alloc(&raw1, AVM_IMG_FMT_I420, info.frame_width,
                      info.frame_height, 1)) {
     die("Failed to allocate image for layer 1.");
   }
@@ -184,10 +184,10 @@ int main(int argc, char **argv) {
   keyframe_interval = 100;
   if (keyframe_interval < 0) die("Invalid keyframe interval value.");
 
-  printf("Using %s\n", aom_codec_iface_name(encoder));
+  printf("Using %s\n", avm_codec_iface_name(encoder));
 
-  aom_codec_ctx_t codec;
-  res = aom_codec_enc_config_default(encoder, &cfg, 0);
+  avm_codec_ctx_t codec;
+  res = avm_codec_enc_config_default(encoder, &cfg, 0);
   if (res) die_codec(&codec, "Failed to get default codec config.");
 
   cfg.g_w = info.frame_width;
@@ -197,7 +197,7 @@ int main(int argc, char **argv) {
   cfg.rc_target_bitrate = bitrate;
   cfg.g_error_resilient = 0;
   cfg.g_lag_in_frames = 0;
-  cfg.rc_end_usage = AOM_Q;
+  cfg.rc_end_usage = AVM_Q;
   cfg.signal_td = 0;
   outfile = fopen(outfile_arg, "wb");
   if (!outfile) die("Failed to open %s for writing.", outfile_arg);
@@ -207,66 +207,66 @@ int main(int argc, char **argv) {
   if (!(infile1 = fopen(infile1_arg, "rb")))
     die("Failed to open %s for reading.", infile0_arg);
 
-  if (aom_codec_enc_init(&codec, encoder, &cfg, 0))
+  if (avm_codec_enc_init(&codec, encoder, &cfg, 0))
     die("Failed to initialize encoder");
-  if (aom_codec_control(&codec, AOME_SET_CPUUSED, 8))
+  if (avm_codec_control(&codec, AVME_SET_CPUUSED, 8))
     die_codec(&codec, "Failed to set cpu to 8");
 
-  if (aom_codec_control(&codec, AV1E_SET_TILE_COLUMNS, 2))
+  if (avm_codec_control(&codec, AV2E_SET_TILE_COLUMNS, 2))
     die_codec(&codec, "Failed to set tile columns to 2");
-  if (aom_codec_control(&codec, AV1E_SET_NUM_TG, 3))
+  if (avm_codec_control(&codec, AV2E_SET_NUM_TG, 3))
     die_codec(&codec, "Failed to set num of tile groups to 3");
 
-  if (aom_codec_control(&codec, AOME_SET_NUMBER_MLAYERS, 2))
+  if (avm_codec_control(&codec, AVME_SET_NUMBER_MLAYERS, 2))
     die_codec(&codec, "Failed to set number of spatial layers to 2");
 
   // Encode frames.
-  while (aom_img_read(&raw0, infile0)) {
+  while (avm_img_read(&raw0, infile0)) {
     int flags = 0;
 
     // configure and encode base layer
 
     if (keyframe_interval > 0 && frames_encoded % keyframe_interval == 0)
-      flags |= AOM_EFLAG_FORCE_KF;
+      flags |= AVM_EFLAG_FORCE_KF;
     else
       // use previous base layer (LAST) as sole reference
       // save this frame as LAST to be used as reference by enhanmcent layer
       // and next base layer
-      flags |= AOM_EFLAG_NO_REF_LAST2 | AOM_EFLAG_NO_REF_LAST3 |
-               AOM_EFLAG_NO_REF_GF | AOM_EFLAG_NO_REF_ARF |
-               AOM_EFLAG_NO_REF_BWD | AOM_EFLAG_NO_REF_ARF2
+      flags |= AVM_EFLAG_NO_REF_LAST2 | AVM_EFLAG_NO_REF_LAST3 |
+               AVM_EFLAG_NO_REF_GF | AVM_EFLAG_NO_REF_ARF |
+               AVM_EFLAG_NO_REF_BWD | AVM_EFLAG_NO_REF_ARF2
 #if !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
-               | AOM_EFLAG_NO_UPD_ENTROPY
+               | AVM_EFLAG_NO_UPD_ENTROPY
 #endif  // !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
           ;
     cfg.g_w = info.frame_width;
     cfg.g_h = info.frame_height;
-    if (aom_codec_enc_config_set(&codec, &cfg))
+    if (avm_codec_enc_config_set(&codec, &cfg))
       die_codec(&codec, "Failed to set enc cfg for layer 0");
-    if (aom_codec_control(&codec, AOME_SET_MLAYER_ID, 0))
+    if (avm_codec_control(&codec, AVME_SET_MLAYER_ID, 0))
       die_codec(&codec, "Failed to set layer id to 0");
-    if (aom_codec_control(&codec, AOME_SET_QP, 62))
+    if (avm_codec_control(&codec, AVME_SET_QP, 62))
       die_codec(&codec, "Failed to set cq level");
     encode_frame(&codec, &raw0, frame_count++, flags, outfile);
 
     // configure and encode enhancement layer
 
     //  use LAST (base layer) as sole reference
-    flags = AOM_EFLAG_NO_REF_LAST2 | AOM_EFLAG_NO_REF_LAST3 |
-            AOM_EFLAG_NO_REF_GF | AOM_EFLAG_NO_REF_ARF | AOM_EFLAG_NO_REF_BWD |
-            AOM_EFLAG_NO_REF_ARF2 | AOM_EFLAG_NO_UPD_ALL
+    flags = AVM_EFLAG_NO_REF_LAST2 | AVM_EFLAG_NO_REF_LAST3 |
+            AVM_EFLAG_NO_REF_GF | AVM_EFLAG_NO_REF_ARF | AVM_EFLAG_NO_REF_BWD |
+            AVM_EFLAG_NO_REF_ARF2 | AVM_EFLAG_NO_UPD_ALL
 #if !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
-            | AOM_EFLAG_NO_UPD_ENTROPY
+            | AVM_EFLAG_NO_UPD_ENTROPY
 #endif  // !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
         ;
     cfg.g_w = info.frame_width;
     cfg.g_h = info.frame_height;
-    aom_img_read(&raw1, infile1);
-    if (aom_codec_enc_config_set(&codec, &cfg))
+    avm_img_read(&raw1, infile1);
+    if (avm_codec_enc_config_set(&codec, &cfg))
       die_codec(&codec, "Failed to set enc cfg for layer 1");
-    if (aom_codec_control(&codec, AOME_SET_MLAYER_ID, 1))
+    if (avm_codec_control(&codec, AVME_SET_MLAYER_ID, 1))
       die_codec(&codec, "Failed to set layer id to 1");
-    if (aom_codec_control(&codec, AOME_SET_QP, 10))
+    if (avm_codec_control(&codec, AVME_SET_QP, 10))
       die_codec(&codec, "Failed to set cq level");
     encode_frame(&codec, &raw1, frame_count++, flags, outfile);
 
@@ -283,9 +283,9 @@ int main(int argc, char **argv) {
   fclose(infile1);
   printf("Processed %d frames.\n", frame_count / 2);
 
-  aom_img_free(&raw0);
-  aom_img_free(&raw1);
-  if (aom_codec_destroy(&codec)) die_codec(&codec, "Failed to destroy codec.");
+  avm_img_free(&raw0);
+  avm_img_free(&raw1);
+  if (avm_codec_destroy(&codec)) die_codec(&codec, "Failed to destroy codec.");
 
   fclose(outfile);
 

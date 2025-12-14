@@ -35,20 +35,20 @@
 typedef struct { int x, y; } xy;
 typedef unsigned char byte;
 
-int aom_fast9_corner_score(const byte* p, const int pixel[], int bstart);
+int avm_fast9_corner_score(const byte* p, const int pixel[], int bstart);
 
 // Returns NULL on memory allocation failure.
-xy* aom_fast9_detect(const byte* im, int xsize, int ysize, int stride, int b, int* ret_num_corners);
+xy* avm_fast9_detect(const byte* im, int xsize, int ysize, int stride, int b, int* ret_num_corners);
 
 // If num_corners > 0, returns NULL on memory allocation failure.
-int* aom_fast9_score(const byte* i, int stride, const xy* corners, int num_corners, int b);
+int* avm_fast9_score(const byte* i, int stride, const xy* corners, int num_corners, int b);
 
 // Sets *ret_num_corners to -1 (and returns NULL) on memory allocation failure.
 // Sets *ret_num_corners to 0 if nothing went wrong but no corners were found.
-xy* aom_fast9_detect_nonmax(const byte* im, int xsize, int ysize, int stride, int b,
+xy* avm_fast9_detect_nonmax(const byte* im, int xsize, int ysize, int stride, int b,
                             int** ret_scores, int* ret_num_corners);
 
-xy* aom_nonmax_suppression(const xy* corners, const int* scores, int num_corners,
+xy* avm_nonmax_suppression(const xy* corners, const int* scores, int num_corners,
                            int** ret_scores, int* ret_num_nonmax);
 
 

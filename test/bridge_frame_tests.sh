@@ -8,29 +8,29 @@
 ## License 1.0 was not distributed with this source code in the PATENTS file, you
 ## can obtain it at aomedia.org/license/patent-license/.
 ##
-## This file tests the libaom bridge frame.
+## This file tests the libavm bridge frame.
 ##
 . $(dirname $0)/tools_common.sh
 
 Y4M_720P_INPUT_FILE="niklas_1280_720_30.y4m"
-Y4M_720P_INPUT="${LIBAOM_TEST_DATA_PATH}/${Y4M_720P_INPUT_FILE}"
+Y4M_720P_INPUT="${LIBAVM_TEST_DATA_PATH}/${Y4M_720P_INPUT_FILE}"
 
 #Environment check : $bridge_frame_RAW_INPUT is required.
 bridge_frame_tests_verify_environment() {
   if [ ! -e "${Y4M_720P_INPUT}" ]; then
-    elog "Libaom test data must exist in LIBAOM_TEST_DATA_PATH."
+    elog "Libavm test data must exist in LIBAVM_TEST_DATA_PATH."
     return 1
   fi
 }
 
 #Runs bridge_frame tests using the codec with a frame limit 3
 bridge_frame_tests() {
-  local encoder="$(aom_tool_path aomenc)"
-  local decoder="$(aom_tool_path aomdec)"
+  local encoder="$(avm_tool_path avmenc)"
+  local decoder="$(avm_tool_path avmdec)"
   local bridge_frame_total_frames=3
-  local output_binary="${AOM_TEST_OUTPUT_DIR}/bridge_frame.bin"
-  local encoder_log="${AOM_TEST_OUTPUT_DIR}/bridge_frame_encoder.log"
-  local decoder_log="${AOM_TEST_OUTPUT_DIR}/bridge_frame_decoder.log"
+  local output_binary="${AVM_TEST_OUTPUT_DIR}/bridge_frame.bin"
+  local encoder_log="${AVM_TEST_OUTPUT_DIR}/bridge_frame_encoder.log"
+  local decoder_log="${AVM_TEST_OUTPUT_DIR}/bridge_frame_decoder.log"
   local resizemode=5
   local qp=160
 
@@ -76,7 +76,7 @@ bridge_frame_tests() {
     return 1
   fi
 
-  eval "${decoder}" --codec=av1 \
+  eval "${decoder}" --codec=av2 \
 	  --summary -o /dev/null \
 	  "${output_binary}" > "${decoder_log}" 2>&1 || return 1
 
@@ -101,8 +101,8 @@ bridge_frame_tests() {
 
 
 bridge_frame_tests_av2() {
-  if [ "$(av1_decode_available)" = "yes" ] && \
-     [ "$(av1_encode_available)" = "yes" ]; then
+  if [ "$(av2_decode_available)" = "yes" ] && \
+     [ "$(av2_encode_available)" = "yes" ]; then
     bridge_frame_tests || return 1
   fi
 }

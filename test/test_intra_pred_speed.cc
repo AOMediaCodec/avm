@@ -10,22 +10,22 @@
  * aomedia.org/license/patent-license/.
  */
 
-//  Test and time AOM intra-predictor functions
+//  Test and time AVM intra-predictor functions
 
 #include <stdio.h>
 #include <string>
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
-#include "config/aom_dsp_rtcd.h"
+#include "config/avm_dsp_rtcd.h"
 
 #include "test/acm_random.h"
 #include "test/clear_system_state.h"
 #include "test/md5_helper.h"
-#include "aom/aom_integer.h"
-#include "aom_ports/mem.h"
-#include "aom_ports/aom_timer.h"
-#include "av1/common/common_data.h"
+#include "avm/avm_integer.h"
+#include "avm_ports/mem.h"
+#include "avm_ports/avm_timer.h"
+#include "av2/common/common_data.h"
 
 // -----------------------------------------------------------------------------
 
@@ -40,10 +40,10 @@ namespace {
 const int kBPS = 64;
 const int kTotalPixels = kBPS * kBPS;
 // 4 DC variants, V, H, PAETH, SMOOTH, SMOOTH_V, SMOOTH_H
-const int kNumAv1IntraFuncs = 10;
+const int kNumAv2IntraFuncs = 10;
 
 #if APPLY_UNIT_TESTS
-const char *kAv1IntraPredNames[kNumAv1IntraFuncs] = {
+const char *kAv2IntraPredNames[kNumAv2IntraFuncs] = {
   "DC_PRED", "DC_LEFT_PRED", "DC_TOP_PRED", "DC_128_PRED",   "V_PRED",
   "H_PRED",  "PAETH_PRED",   "SMOOTH_PRED", "SMOOTH_V_PRED", "SMOOTH_H_PRED",
 };
@@ -59,7 +59,7 @@ struct IntraPredTestMem {
     const int block_size_upto_32 = (block_width <= 32) && (block_height <= 32);
     stride = block_size_upto_32 ? 32 : kBPS;
     num_pixels = stride * stride;
-    libaom_test::ACMRandom rnd(libaom_test::ACMRandom::DeterministicSeed());
+    libavm_test::ACMRandom rnd(libavm_test::ACMRandom::DeterministicSeed());
     above = above_mem + 16;
     const int mask = (1 << bd) - 1;
     for (int i = 0; i < num_pixels; ++i) ref_src[i] = rnd.Rand16() & mask;
@@ -94,11 +94,11 @@ void CheckMd5Signature(TX_SIZE tx_size, const char *const signatures[],
                        int idx) {
   const std::string hbd_str = "Hbd ";
   const std::string name_str = hbd_str + "Intra" + kTxSizeStrings[tx_size];
-  libaom_test::MD5 md5;
+  libavm_test::MD5 md5;
   md5.Add(reinterpret_cast<const uint8_t *>(data), data_size);
 #if APPLY_UNIT_TESTS
   printf("Mode %s[%13s]: %5d ms     MD5: %s\n", name_str.c_str(),
-         kAv1IntraPredNames[idx], elapsed_time, md5.Get());
+         kAv2IntraPredNames[idx], elapsed_time, md5.Get());
   EXPECT_STREQ(signatures[idx], md5.Get());
 #else
   (void)signatures;
@@ -118,33 +118,33 @@ typedef void (*AvxHighbdPredFunc)(uint16_t *dst, ptrdiff_t y_stride,
                                   const uint16_t *above, const uint16_t *left,
                                   int bd);
 
-typedef IntraPredTestMem<uint16_t> Av1HighbdIntraPredTestMem;
+typedef IntraPredTestMem<uint16_t> Av2HighbdIntraPredTestMem;
 
 void TestHighbdIntraPred(TX_SIZE tx_size, AvxHighbdPredFunc const *pred_funcs,
                          const char *const signatures[]) {
   const int block_width = tx_size_wide[tx_size];
   const int block_height = tx_size_high[tx_size];
   const int num_pixels_per_test =
-      block_width * block_height * kNumAv1IntraFuncs;
+      block_width * block_height * kNumAv2IntraFuncs;
   const int kNumTests = static_cast<int>(2.e10 / num_pixels_per_test);
-  Av1HighbdIntraPredTestMem intra_pred_test_mem;
+  Av2HighbdIntraPredTestMem intra_pred_test_mem;
   const int bd = 12;
   intra_pred_test_mem.Init(block_width, block_height, bd);
 
-  for (int k = 0; k < kNumAv1IntraFuncs; ++k) {
+  for (int k = 0; k < kNumAv2IntraFuncs; ++k) {
     if (pred_funcs[k] == NULL) continue;
     memcpy(intra_pred_test_mem.src, intra_pred_test_mem.ref_src,
            sizeof(intra_pred_test_mem.src));
-    aom_usec_timer timer;
-    aom_usec_timer_start(&timer);
+    avm_usec_timer timer;
+    avm_usec_timer_start(&timer);
     for (int num_tests = 0; num_tests < kNumTests; ++num_tests) {
       pred_funcs[k](intra_pred_test_mem.src, intra_pred_test_mem.stride,
                     intra_pred_test_mem.above, intra_pred_test_mem.left, bd);
     }
-    libaom_test::ClearSystemState();
-    aom_usec_timer_mark(&timer);
+    libavm_test::ClearSystemState();
+    avm_usec_timer_mark(&timer);
     const int elapsed_time =
-        static_cast<int>(aom_usec_timer_elapsed(&timer) / 1000);
+        static_cast<int>(avm_usec_timer_elapsed(&timer) / 1000);
     CheckMd5Signature(
         tx_size, signatures, intra_pred_test_mem.src,
         intra_pred_test_mem.num_pixels * sizeof(*intra_pred_test_mem.src),
@@ -152,7 +152,7 @@ void TestHighbdIntraPred(TX_SIZE tx_size, AvxHighbdPredFunc const *pred_funcs,
   }
 }
 
-static const char *const kHighbdSignatures[TX_SIZES_ALL][kNumAv1IntraFuncs] = {
+static const char *const kHighbdSignatures[TX_SIZES_ALL][kNumAv2IntraFuncs] = {
   {
       // 4X4
       "11f74af6c5737df472f3275cbde062fa",
@@ -485,133 +485,133 @@ static const char *const kHighbdSignatures[TX_SIZES_ALL][kNumAv1IntraFuncs] = {
 #define HIGHBD_INTRA_PRED_TEST(arch, tx_size, dc, dc_left, dc_top, dc_128, v, \
                                h, paeth, smooth, smooth_v, smooth_h)          \
   TEST(arch, DISABLED_##TestHighbdIntraPred_##tx_size) {                      \
-    static const AvxHighbdPredFunc aom_intra_pred[] = {                       \
+    static const AvxHighbdPredFunc avm_intra_pred[] = {                       \
       dc, dc_left, dc_top, dc_128, v, h, paeth, smooth, smooth_v, smooth_h    \
     };                                                                        \
-    TestHighbdIntraPred(tx_size, aom_intra_pred, kHighbdSignatures[tx_size]); \
+    TestHighbdIntraPred(tx_size, avm_intra_pred, kHighbdSignatures[tx_size]); \
   }
 
 // -----------------------------------------------------------------------------
 // 4x4, 4x8, 4x16
 
 HIGHBD_INTRA_PRED_TEST(
-    C_1, TX_4X4, aom_highbd_dc_predictor_4x4_c,
-    aom_highbd_dc_left_predictor_4x4_c, aom_highbd_dc_top_predictor_4x4_c,
-    aom_highbd_dc_128_predictor_4x4_c, aom_highbd_v_predictor_4x4_c,
-    aom_highbd_h_predictor_4x4_c, aom_highbd_paeth_predictor_4x4_c,
-    aom_highbd_smooth_predictor_4x4_c, aom_highbd_smooth_v_predictor_4x4_c,
-    aom_highbd_smooth_h_predictor_4x4_c)
+    C_1, TX_4X4, avm_highbd_dc_predictor_4x4_c,
+    avm_highbd_dc_left_predictor_4x4_c, avm_highbd_dc_top_predictor_4x4_c,
+    avm_highbd_dc_128_predictor_4x4_c, avm_highbd_v_predictor_4x4_c,
+    avm_highbd_h_predictor_4x4_c, avm_highbd_paeth_predictor_4x4_c,
+    avm_highbd_smooth_predictor_4x4_c, avm_highbd_smooth_v_predictor_4x4_c,
+    avm_highbd_smooth_h_predictor_4x4_c)
 
 HIGHBD_INTRA_PRED_TEST(
-    C_2, TX_4X8, aom_highbd_dc_predictor_4x8_c,
-    aom_highbd_dc_left_predictor_4x8_c, aom_highbd_dc_top_predictor_4x8_c,
-    aom_highbd_dc_128_predictor_4x8_c, aom_highbd_v_predictor_4x8_c,
-    aom_highbd_h_predictor_4x8_c, aom_highbd_paeth_predictor_4x8_c,
-    aom_highbd_smooth_predictor_4x8_c, aom_highbd_smooth_v_predictor_4x8_c,
-    aom_highbd_smooth_h_predictor_4x8_c)
+    C_2, TX_4X8, avm_highbd_dc_predictor_4x8_c,
+    avm_highbd_dc_left_predictor_4x8_c, avm_highbd_dc_top_predictor_4x8_c,
+    avm_highbd_dc_128_predictor_4x8_c, avm_highbd_v_predictor_4x8_c,
+    avm_highbd_h_predictor_4x8_c, avm_highbd_paeth_predictor_4x8_c,
+    avm_highbd_smooth_predictor_4x8_c, avm_highbd_smooth_v_predictor_4x8_c,
+    avm_highbd_smooth_h_predictor_4x8_c)
 
 HIGHBD_INTRA_PRED_TEST(
-    C_3, TX_4X16, aom_highbd_dc_predictor_4x16_c,
-    aom_highbd_dc_left_predictor_4x16_c, aom_highbd_dc_top_predictor_4x16_c,
-    aom_highbd_dc_128_predictor_4x16_c, aom_highbd_v_predictor_4x16_c,
-    aom_highbd_h_predictor_4x16_c, aom_highbd_paeth_predictor_4x16_c,
-    aom_highbd_smooth_predictor_4x16_c, aom_highbd_smooth_v_predictor_4x16_c,
-    aom_highbd_smooth_h_predictor_4x16_c)
+    C_3, TX_4X16, avm_highbd_dc_predictor_4x16_c,
+    avm_highbd_dc_left_predictor_4x16_c, avm_highbd_dc_top_predictor_4x16_c,
+    avm_highbd_dc_128_predictor_4x16_c, avm_highbd_v_predictor_4x16_c,
+    avm_highbd_h_predictor_4x16_c, avm_highbd_paeth_predictor_4x16_c,
+    avm_highbd_smooth_predictor_4x16_c, avm_highbd_smooth_v_predictor_4x16_c,
+    avm_highbd_smooth_h_predictor_4x16_c)
 
 HIGHBD_INTRA_PRED_TEST(
-    C_4, TX_4X32, aom_highbd_dc_predictor_4x32_c,
-    aom_highbd_dc_left_predictor_4x32_c, aom_highbd_dc_top_predictor_4x32_c,
-    aom_highbd_dc_128_predictor_4x32_c, aom_highbd_v_predictor_4x32_c,
-    aom_highbd_h_predictor_4x32_c, aom_highbd_paeth_predictor_4x32_c,
-    aom_highbd_smooth_predictor_4x32_c, aom_highbd_smooth_v_predictor_4x32_c,
-    aom_highbd_smooth_h_predictor_4x32_c)
+    C_4, TX_4X32, avm_highbd_dc_predictor_4x32_c,
+    avm_highbd_dc_left_predictor_4x32_c, avm_highbd_dc_top_predictor_4x32_c,
+    avm_highbd_dc_128_predictor_4x32_c, avm_highbd_v_predictor_4x32_c,
+    avm_highbd_h_predictor_4x32_c, avm_highbd_paeth_predictor_4x32_c,
+    avm_highbd_smooth_predictor_4x32_c, avm_highbd_smooth_v_predictor_4x32_c,
+    avm_highbd_smooth_h_predictor_4x32_c)
 
 HIGHBD_INTRA_PRED_TEST(
-    C_5, TX_4X64, aom_highbd_dc_predictor_4x64_c,
-    aom_highbd_dc_left_predictor_4x64_c, aom_highbd_dc_top_predictor_4x64_c,
-    aom_highbd_dc_128_predictor_4x64_c, aom_highbd_v_predictor_4x64_c,
-    aom_highbd_h_predictor_4x64_c, aom_highbd_paeth_predictor_4x64_c,
-    aom_highbd_smooth_predictor_4x64_c, aom_highbd_smooth_v_predictor_4x64_c,
-    aom_highbd_smooth_h_predictor_4x64_c)
+    C_5, TX_4X64, avm_highbd_dc_predictor_4x64_c,
+    avm_highbd_dc_left_predictor_4x64_c, avm_highbd_dc_top_predictor_4x64_c,
+    avm_highbd_dc_128_predictor_4x64_c, avm_highbd_v_predictor_4x64_c,
+    avm_highbd_h_predictor_4x64_c, avm_highbd_paeth_predictor_4x64_c,
+    avm_highbd_smooth_predictor_4x64_c, avm_highbd_smooth_v_predictor_4x64_c,
+    avm_highbd_smooth_h_predictor_4x64_c)
 
 #if HAVE_SSE2
-HIGHBD_INTRA_PRED_TEST(SSE2_1, TX_4X4, aom_highbd_dc_predictor_4x4_sse2,
-                       aom_highbd_dc_left_predictor_4x4_sse2,
-                       aom_highbd_dc_top_predictor_4x4_sse2,
-                       aom_highbd_dc_128_predictor_4x4_sse2,
-                       aom_highbd_v_predictor_4x4_sse2,
-                       aom_highbd_h_predictor_4x4_sse2, NULL, NULL, NULL, NULL)
+HIGHBD_INTRA_PRED_TEST(SSE2_1, TX_4X4, avm_highbd_dc_predictor_4x4_sse2,
+                       avm_highbd_dc_left_predictor_4x4_sse2,
+                       avm_highbd_dc_top_predictor_4x4_sse2,
+                       avm_highbd_dc_128_predictor_4x4_sse2,
+                       avm_highbd_v_predictor_4x4_sse2,
+                       avm_highbd_h_predictor_4x4_sse2, NULL, NULL, NULL, NULL)
 
-HIGHBD_INTRA_PRED_TEST(SSE2_2, TX_4X8, aom_highbd_dc_predictor_4x8_sse2,
-                       aom_highbd_dc_left_predictor_4x8_sse2,
-                       aom_highbd_dc_top_predictor_4x8_sse2,
-                       aom_highbd_dc_128_predictor_4x8_sse2,
-                       aom_highbd_v_predictor_4x8_sse2,
-                       aom_highbd_h_predictor_4x8_sse2, NULL, NULL, NULL, NULL)
+HIGHBD_INTRA_PRED_TEST(SSE2_2, TX_4X8, avm_highbd_dc_predictor_4x8_sse2,
+                       avm_highbd_dc_left_predictor_4x8_sse2,
+                       avm_highbd_dc_top_predictor_4x8_sse2,
+                       avm_highbd_dc_128_predictor_4x8_sse2,
+                       avm_highbd_v_predictor_4x8_sse2,
+                       avm_highbd_h_predictor_4x8_sse2, NULL, NULL, NULL, NULL)
 #endif
 
 // -----------------------------------------------------------------------------
 // 8x8, 8x4, 8x16, 8x32
 
 HIGHBD_INTRA_PRED_TEST(
-    C_1, TX_8X8, aom_highbd_dc_predictor_8x8_c,
-    aom_highbd_dc_left_predictor_8x8_c, aom_highbd_dc_top_predictor_8x8_c,
-    aom_highbd_dc_128_predictor_8x8_c, aom_highbd_v_predictor_8x8_c,
-    aom_highbd_h_predictor_8x8_c, aom_highbd_paeth_predictor_8x8_c,
-    aom_highbd_smooth_predictor_8x8_c, aom_highbd_smooth_v_predictor_8x8_c,
-    aom_highbd_smooth_h_predictor_8x8_c)
+    C_1, TX_8X8, avm_highbd_dc_predictor_8x8_c,
+    avm_highbd_dc_left_predictor_8x8_c, avm_highbd_dc_top_predictor_8x8_c,
+    avm_highbd_dc_128_predictor_8x8_c, avm_highbd_v_predictor_8x8_c,
+    avm_highbd_h_predictor_8x8_c, avm_highbd_paeth_predictor_8x8_c,
+    avm_highbd_smooth_predictor_8x8_c, avm_highbd_smooth_v_predictor_8x8_c,
+    avm_highbd_smooth_h_predictor_8x8_c)
 
 HIGHBD_INTRA_PRED_TEST(
-    C_2, TX_8X4, aom_highbd_dc_predictor_8x4_c,
-    aom_highbd_dc_left_predictor_8x4_c, aom_highbd_dc_top_predictor_8x4_c,
-    aom_highbd_dc_128_predictor_8x4_c, aom_highbd_v_predictor_8x4_c,
-    aom_highbd_h_predictor_8x4_c, aom_highbd_paeth_predictor_8x4_c,
-    aom_highbd_smooth_predictor_8x4_c, aom_highbd_smooth_v_predictor_8x4_c,
-    aom_highbd_smooth_h_predictor_8x4_c)
+    C_2, TX_8X4, avm_highbd_dc_predictor_8x4_c,
+    avm_highbd_dc_left_predictor_8x4_c, avm_highbd_dc_top_predictor_8x4_c,
+    avm_highbd_dc_128_predictor_8x4_c, avm_highbd_v_predictor_8x4_c,
+    avm_highbd_h_predictor_8x4_c, avm_highbd_paeth_predictor_8x4_c,
+    avm_highbd_smooth_predictor_8x4_c, avm_highbd_smooth_v_predictor_8x4_c,
+    avm_highbd_smooth_h_predictor_8x4_c)
 
 HIGHBD_INTRA_PRED_TEST(
-    C_3, TX_8X16, aom_highbd_dc_predictor_8x16_c,
-    aom_highbd_dc_left_predictor_8x16_c, aom_highbd_dc_top_predictor_8x16_c,
-    aom_highbd_dc_128_predictor_8x16_c, aom_highbd_v_predictor_8x16_c,
-    aom_highbd_h_predictor_8x16_c, aom_highbd_paeth_predictor_8x16_c,
-    aom_highbd_smooth_predictor_8x16_c, aom_highbd_smooth_v_predictor_8x16_c,
-    aom_highbd_smooth_h_predictor_8x16_c)
+    C_3, TX_8X16, avm_highbd_dc_predictor_8x16_c,
+    avm_highbd_dc_left_predictor_8x16_c, avm_highbd_dc_top_predictor_8x16_c,
+    avm_highbd_dc_128_predictor_8x16_c, avm_highbd_v_predictor_8x16_c,
+    avm_highbd_h_predictor_8x16_c, avm_highbd_paeth_predictor_8x16_c,
+    avm_highbd_smooth_predictor_8x16_c, avm_highbd_smooth_v_predictor_8x16_c,
+    avm_highbd_smooth_h_predictor_8x16_c)
 
 HIGHBD_INTRA_PRED_TEST(
-    C_4, TX_8X32, aom_highbd_dc_predictor_8x32_c,
-    aom_highbd_dc_left_predictor_8x32_c, aom_highbd_dc_top_predictor_8x32_c,
-    aom_highbd_dc_128_predictor_8x32_c, aom_highbd_v_predictor_8x32_c,
-    aom_highbd_h_predictor_8x32_c, aom_highbd_paeth_predictor_8x32_c,
-    aom_highbd_smooth_predictor_8x32_c, aom_highbd_smooth_v_predictor_8x32_c,
-    aom_highbd_smooth_h_predictor_8x32_c)
+    C_4, TX_8X32, avm_highbd_dc_predictor_8x32_c,
+    avm_highbd_dc_left_predictor_8x32_c, avm_highbd_dc_top_predictor_8x32_c,
+    avm_highbd_dc_128_predictor_8x32_c, avm_highbd_v_predictor_8x32_c,
+    avm_highbd_h_predictor_8x32_c, avm_highbd_paeth_predictor_8x32_c,
+    avm_highbd_smooth_predictor_8x32_c, avm_highbd_smooth_v_predictor_8x32_c,
+    avm_highbd_smooth_h_predictor_8x32_c)
 
 HIGHBD_INTRA_PRED_TEST(
-    C_5, TX_8X64, aom_highbd_dc_predictor_8x64_c,
-    aom_highbd_dc_left_predictor_8x64_c, aom_highbd_dc_top_predictor_8x64_c,
-    aom_highbd_dc_128_predictor_8x64_c, aom_highbd_v_predictor_8x64_c,
-    aom_highbd_h_predictor_8x64_c, aom_highbd_paeth_predictor_8x64_c,
-    aom_highbd_smooth_predictor_8x64_c, aom_highbd_smooth_v_predictor_8x64_c,
-    aom_highbd_smooth_h_predictor_8x64_c)
+    C_5, TX_8X64, avm_highbd_dc_predictor_8x64_c,
+    avm_highbd_dc_left_predictor_8x64_c, avm_highbd_dc_top_predictor_8x64_c,
+    avm_highbd_dc_128_predictor_8x64_c, avm_highbd_v_predictor_8x64_c,
+    avm_highbd_h_predictor_8x64_c, avm_highbd_paeth_predictor_8x64_c,
+    avm_highbd_smooth_predictor_8x64_c, avm_highbd_smooth_v_predictor_8x64_c,
+    avm_highbd_smooth_h_predictor_8x64_c)
 
 #if HAVE_SSE2
-HIGHBD_INTRA_PRED_TEST(SSE2_1, TX_8X8, aom_highbd_dc_predictor_8x8_sse2,
-                       aom_highbd_dc_left_predictor_8x8_sse2,
-                       aom_highbd_dc_top_predictor_8x8_sse2,
-                       aom_highbd_dc_128_predictor_8x8_sse2,
-                       aom_highbd_v_predictor_8x8_sse2,
-                       aom_highbd_h_predictor_8x8_sse2, NULL, NULL, NULL, NULL)
-HIGHBD_INTRA_PRED_TEST(SSE2_2, TX_8X4, aom_highbd_dc_predictor_8x4_sse2,
-                       aom_highbd_dc_left_predictor_8x4_sse2,
-                       aom_highbd_dc_top_predictor_8x4_sse2,
-                       aom_highbd_dc_128_predictor_8x4_sse2,
-                       aom_highbd_v_predictor_8x4_sse2,
-                       aom_highbd_h_predictor_8x4_sse2, NULL, NULL, NULL, NULL)
-HIGHBD_INTRA_PRED_TEST(SSE2_3, TX_8X16, aom_highbd_dc_predictor_8x16_sse2,
-                       aom_highbd_dc_left_predictor_8x16_sse2,
-                       aom_highbd_dc_top_predictor_8x16_sse2,
-                       aom_highbd_dc_128_predictor_8x16_sse2,
-                       aom_highbd_v_predictor_8x16_sse2,
-                       aom_highbd_h_predictor_8x16_sse2, NULL, NULL, NULL, NULL)
+HIGHBD_INTRA_PRED_TEST(SSE2_1, TX_8X8, avm_highbd_dc_predictor_8x8_sse2,
+                       avm_highbd_dc_left_predictor_8x8_sse2,
+                       avm_highbd_dc_top_predictor_8x8_sse2,
+                       avm_highbd_dc_128_predictor_8x8_sse2,
+                       avm_highbd_v_predictor_8x8_sse2,
+                       avm_highbd_h_predictor_8x8_sse2, NULL, NULL, NULL, NULL)
+HIGHBD_INTRA_PRED_TEST(SSE2_2, TX_8X4, avm_highbd_dc_predictor_8x4_sse2,
+                       avm_highbd_dc_left_predictor_8x4_sse2,
+                       avm_highbd_dc_top_predictor_8x4_sse2,
+                       avm_highbd_dc_128_predictor_8x4_sse2,
+                       avm_highbd_v_predictor_8x4_sse2,
+                       avm_highbd_h_predictor_8x4_sse2, NULL, NULL, NULL, NULL)
+HIGHBD_INTRA_PRED_TEST(SSE2_3, TX_8X16, avm_highbd_dc_predictor_8x16_sse2,
+                       avm_highbd_dc_left_predictor_8x16_sse2,
+                       avm_highbd_dc_top_predictor_8x16_sse2,
+                       avm_highbd_dc_128_predictor_8x16_sse2,
+                       avm_highbd_v_predictor_8x16_sse2,
+                       avm_highbd_h_predictor_8x16_sse2, NULL, NULL, NULL, NULL)
 #endif
 
 #if HAVE_SSSE3
@@ -623,65 +623,65 @@ HIGHBD_INTRA_PRED_TEST(SSSE3, TX_8X8, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 // 16x16, 16x8, 16x32, 16x4, 16x64
 
 HIGHBD_INTRA_PRED_TEST(
-    C_1, TX_16X16, aom_highbd_dc_predictor_16x16_c,
-    aom_highbd_dc_left_predictor_16x16_c, aom_highbd_dc_top_predictor_16x16_c,
-    aom_highbd_dc_128_predictor_16x16_c, aom_highbd_v_predictor_16x16_c,
-    aom_highbd_h_predictor_16x16_c, aom_highbd_paeth_predictor_16x16_c,
-    aom_highbd_smooth_predictor_16x16_c, aom_highbd_smooth_v_predictor_16x16_c,
-    aom_highbd_smooth_h_predictor_16x16_c)
+    C_1, TX_16X16, avm_highbd_dc_predictor_16x16_c,
+    avm_highbd_dc_left_predictor_16x16_c, avm_highbd_dc_top_predictor_16x16_c,
+    avm_highbd_dc_128_predictor_16x16_c, avm_highbd_v_predictor_16x16_c,
+    avm_highbd_h_predictor_16x16_c, avm_highbd_paeth_predictor_16x16_c,
+    avm_highbd_smooth_predictor_16x16_c, avm_highbd_smooth_v_predictor_16x16_c,
+    avm_highbd_smooth_h_predictor_16x16_c)
 
 HIGHBD_INTRA_PRED_TEST(
-    C_2, TX_16X8, aom_highbd_dc_predictor_16x8_c,
-    aom_highbd_dc_left_predictor_16x8_c, aom_highbd_dc_top_predictor_16x8_c,
-    aom_highbd_dc_128_predictor_16x8_c, aom_highbd_v_predictor_16x8_c,
-    aom_highbd_h_predictor_16x8_c, aom_highbd_paeth_predictor_16x8_c,
-    aom_highbd_smooth_predictor_16x8_c, aom_highbd_smooth_v_predictor_16x8_c,
-    aom_highbd_smooth_h_predictor_16x8_c)
+    C_2, TX_16X8, avm_highbd_dc_predictor_16x8_c,
+    avm_highbd_dc_left_predictor_16x8_c, avm_highbd_dc_top_predictor_16x8_c,
+    avm_highbd_dc_128_predictor_16x8_c, avm_highbd_v_predictor_16x8_c,
+    avm_highbd_h_predictor_16x8_c, avm_highbd_paeth_predictor_16x8_c,
+    avm_highbd_smooth_predictor_16x8_c, avm_highbd_smooth_v_predictor_16x8_c,
+    avm_highbd_smooth_h_predictor_16x8_c)
 
 HIGHBD_INTRA_PRED_TEST(
-    C_3, TX_16X32, aom_highbd_dc_predictor_16x32_c,
-    aom_highbd_dc_left_predictor_16x32_c, aom_highbd_dc_top_predictor_16x32_c,
-    aom_highbd_dc_128_predictor_16x32_c, aom_highbd_v_predictor_16x32_c,
-    aom_highbd_h_predictor_16x32_c, aom_highbd_paeth_predictor_16x32_c,
-    aom_highbd_smooth_predictor_16x32_c, aom_highbd_smooth_v_predictor_16x32_c,
-    aom_highbd_smooth_h_predictor_16x32_c)
+    C_3, TX_16X32, avm_highbd_dc_predictor_16x32_c,
+    avm_highbd_dc_left_predictor_16x32_c, avm_highbd_dc_top_predictor_16x32_c,
+    avm_highbd_dc_128_predictor_16x32_c, avm_highbd_v_predictor_16x32_c,
+    avm_highbd_h_predictor_16x32_c, avm_highbd_paeth_predictor_16x32_c,
+    avm_highbd_smooth_predictor_16x32_c, avm_highbd_smooth_v_predictor_16x32_c,
+    avm_highbd_smooth_h_predictor_16x32_c)
 
 HIGHBD_INTRA_PRED_TEST(
-    C_4, TX_16X4, aom_highbd_dc_predictor_16x4_c,
-    aom_highbd_dc_left_predictor_16x4_c, aom_highbd_dc_top_predictor_16x4_c,
-    aom_highbd_dc_128_predictor_16x4_c, aom_highbd_v_predictor_16x4_c,
-    aom_highbd_h_predictor_16x4_c, aom_highbd_paeth_predictor_16x4_c,
-    aom_highbd_smooth_predictor_16x4_c, aom_highbd_smooth_v_predictor_16x4_c,
-    aom_highbd_smooth_h_predictor_16x4_c)
+    C_4, TX_16X4, avm_highbd_dc_predictor_16x4_c,
+    avm_highbd_dc_left_predictor_16x4_c, avm_highbd_dc_top_predictor_16x4_c,
+    avm_highbd_dc_128_predictor_16x4_c, avm_highbd_v_predictor_16x4_c,
+    avm_highbd_h_predictor_16x4_c, avm_highbd_paeth_predictor_16x4_c,
+    avm_highbd_smooth_predictor_16x4_c, avm_highbd_smooth_v_predictor_16x4_c,
+    avm_highbd_smooth_h_predictor_16x4_c)
 
 HIGHBD_INTRA_PRED_TEST(
-    C_5, TX_16X64, aom_highbd_dc_predictor_16x64_c,
-    aom_highbd_dc_left_predictor_16x64_c, aom_highbd_dc_top_predictor_16x64_c,
-    aom_highbd_dc_128_predictor_16x64_c, aom_highbd_v_predictor_16x64_c,
-    aom_highbd_h_predictor_16x64_c, aom_highbd_paeth_predictor_16x64_c,
-    aom_highbd_smooth_predictor_16x64_c, aom_highbd_smooth_v_predictor_16x64_c,
-    aom_highbd_smooth_h_predictor_16x64_c)
+    C_5, TX_16X64, avm_highbd_dc_predictor_16x64_c,
+    avm_highbd_dc_left_predictor_16x64_c, avm_highbd_dc_top_predictor_16x64_c,
+    avm_highbd_dc_128_predictor_16x64_c, avm_highbd_v_predictor_16x64_c,
+    avm_highbd_h_predictor_16x64_c, avm_highbd_paeth_predictor_16x64_c,
+    avm_highbd_smooth_predictor_16x64_c, avm_highbd_smooth_v_predictor_16x64_c,
+    avm_highbd_smooth_h_predictor_16x64_c)
 
 #if HAVE_SSE2
-HIGHBD_INTRA_PRED_TEST(SSE2_1, TX_16X16, aom_highbd_dc_predictor_16x16_sse2,
-                       aom_highbd_dc_left_predictor_16x16_sse2,
-                       aom_highbd_dc_top_predictor_16x16_sse2,
-                       aom_highbd_dc_128_predictor_16x16_sse2,
-                       aom_highbd_v_predictor_16x16_sse2,
-                       aom_highbd_h_predictor_16x16_sse2, NULL, NULL, NULL,
+HIGHBD_INTRA_PRED_TEST(SSE2_1, TX_16X16, avm_highbd_dc_predictor_16x16_sse2,
+                       avm_highbd_dc_left_predictor_16x16_sse2,
+                       avm_highbd_dc_top_predictor_16x16_sse2,
+                       avm_highbd_dc_128_predictor_16x16_sse2,
+                       avm_highbd_v_predictor_16x16_sse2,
+                       avm_highbd_h_predictor_16x16_sse2, NULL, NULL, NULL,
                        NULL)
-HIGHBD_INTRA_PRED_TEST(SSE2_2, TX_16X8, aom_highbd_dc_predictor_16x8_sse2,
-                       aom_highbd_dc_left_predictor_16x8_sse2,
-                       aom_highbd_dc_top_predictor_16x8_sse2,
-                       aom_highbd_dc_128_predictor_16x8_sse2,
-                       aom_highbd_v_predictor_16x8_sse2,
-                       aom_highbd_h_predictor_16x8_sse2, NULL, NULL, NULL, NULL)
-HIGHBD_INTRA_PRED_TEST(SSE2_3, TX_16X32, aom_highbd_dc_predictor_16x32_sse2,
-                       aom_highbd_dc_left_predictor_16x32_sse2,
-                       aom_highbd_dc_top_predictor_16x32_sse2,
-                       aom_highbd_dc_128_predictor_16x32_sse2,
-                       aom_highbd_v_predictor_16x32_sse2,
-                       aom_highbd_h_predictor_16x32_sse2, NULL, NULL, NULL,
+HIGHBD_INTRA_PRED_TEST(SSE2_2, TX_16X8, avm_highbd_dc_predictor_16x8_sse2,
+                       avm_highbd_dc_left_predictor_16x8_sse2,
+                       avm_highbd_dc_top_predictor_16x8_sse2,
+                       avm_highbd_dc_128_predictor_16x8_sse2,
+                       avm_highbd_v_predictor_16x8_sse2,
+                       avm_highbd_h_predictor_16x8_sse2, NULL, NULL, NULL, NULL)
+HIGHBD_INTRA_PRED_TEST(SSE2_3, TX_16X32, avm_highbd_dc_predictor_16x32_sse2,
+                       avm_highbd_dc_left_predictor_16x32_sse2,
+                       avm_highbd_dc_top_predictor_16x32_sse2,
+                       avm_highbd_dc_128_predictor_16x32_sse2,
+                       avm_highbd_v_predictor_16x32_sse2,
+                       avm_highbd_h_predictor_16x32_sse2, NULL, NULL, NULL,
                        NULL)
 #endif
 
@@ -705,59 +705,59 @@ HIGHBD_INTRA_PRED_TEST(AVX2_3, TX_16X32, NULL, NULL, NULL, NULL, NULL, NULL,
 // 32x32, 32x16, 32x64, 32x8
 
 HIGHBD_INTRA_PRED_TEST(
-    C_1, TX_32X32, aom_highbd_dc_predictor_32x32_c,
-    aom_highbd_dc_left_predictor_32x32_c, aom_highbd_dc_top_predictor_32x32_c,
-    aom_highbd_dc_128_predictor_32x32_c, aom_highbd_v_predictor_32x32_c,
-    aom_highbd_h_predictor_32x32_c, aom_highbd_paeth_predictor_32x32_c,
-    aom_highbd_smooth_predictor_32x32_c, aom_highbd_smooth_v_predictor_32x32_c,
-    aom_highbd_smooth_h_predictor_32x32_c)
+    C_1, TX_32X32, avm_highbd_dc_predictor_32x32_c,
+    avm_highbd_dc_left_predictor_32x32_c, avm_highbd_dc_top_predictor_32x32_c,
+    avm_highbd_dc_128_predictor_32x32_c, avm_highbd_v_predictor_32x32_c,
+    avm_highbd_h_predictor_32x32_c, avm_highbd_paeth_predictor_32x32_c,
+    avm_highbd_smooth_predictor_32x32_c, avm_highbd_smooth_v_predictor_32x32_c,
+    avm_highbd_smooth_h_predictor_32x32_c)
 
 HIGHBD_INTRA_PRED_TEST(
-    C_2, TX_32X16, aom_highbd_dc_predictor_32x16_c,
-    aom_highbd_dc_left_predictor_32x16_c, aom_highbd_dc_top_predictor_32x16_c,
-    aom_highbd_dc_128_predictor_32x16_c, aom_highbd_v_predictor_32x16_c,
-    aom_highbd_h_predictor_32x16_c, aom_highbd_paeth_predictor_32x16_c,
-    aom_highbd_smooth_predictor_32x16_c, aom_highbd_smooth_v_predictor_32x16_c,
-    aom_highbd_smooth_h_predictor_32x16_c)
+    C_2, TX_32X16, avm_highbd_dc_predictor_32x16_c,
+    avm_highbd_dc_left_predictor_32x16_c, avm_highbd_dc_top_predictor_32x16_c,
+    avm_highbd_dc_128_predictor_32x16_c, avm_highbd_v_predictor_32x16_c,
+    avm_highbd_h_predictor_32x16_c, avm_highbd_paeth_predictor_32x16_c,
+    avm_highbd_smooth_predictor_32x16_c, avm_highbd_smooth_v_predictor_32x16_c,
+    avm_highbd_smooth_h_predictor_32x16_c)
 
 HIGHBD_INTRA_PRED_TEST(
-    C_3, TX_32X64, aom_highbd_dc_predictor_32x64_c,
-    aom_highbd_dc_left_predictor_32x64_c, aom_highbd_dc_top_predictor_32x64_c,
-    aom_highbd_dc_128_predictor_32x64_c, aom_highbd_v_predictor_32x64_c,
-    aom_highbd_h_predictor_32x64_c, aom_highbd_paeth_predictor_32x64_c,
-    aom_highbd_smooth_predictor_32x64_c, aom_highbd_smooth_v_predictor_32x64_c,
-    aom_highbd_smooth_h_predictor_32x64_c)
+    C_3, TX_32X64, avm_highbd_dc_predictor_32x64_c,
+    avm_highbd_dc_left_predictor_32x64_c, avm_highbd_dc_top_predictor_32x64_c,
+    avm_highbd_dc_128_predictor_32x64_c, avm_highbd_v_predictor_32x64_c,
+    avm_highbd_h_predictor_32x64_c, avm_highbd_paeth_predictor_32x64_c,
+    avm_highbd_smooth_predictor_32x64_c, avm_highbd_smooth_v_predictor_32x64_c,
+    avm_highbd_smooth_h_predictor_32x64_c)
 
 HIGHBD_INTRA_PRED_TEST(
-    C_4, TX_32X8, aom_highbd_dc_predictor_32x8_c,
-    aom_highbd_dc_left_predictor_32x8_c, aom_highbd_dc_top_predictor_32x8_c,
-    aom_highbd_dc_128_predictor_32x8_c, aom_highbd_v_predictor_32x8_c,
-    aom_highbd_h_predictor_32x8_c, aom_highbd_paeth_predictor_32x8_c,
-    aom_highbd_smooth_predictor_32x8_c, aom_highbd_smooth_v_predictor_32x8_c,
-    aom_highbd_smooth_h_predictor_32x8_c)
+    C_4, TX_32X8, avm_highbd_dc_predictor_32x8_c,
+    avm_highbd_dc_left_predictor_32x8_c, avm_highbd_dc_top_predictor_32x8_c,
+    avm_highbd_dc_128_predictor_32x8_c, avm_highbd_v_predictor_32x8_c,
+    avm_highbd_h_predictor_32x8_c, avm_highbd_paeth_predictor_32x8_c,
+    avm_highbd_smooth_predictor_32x8_c, avm_highbd_smooth_v_predictor_32x8_c,
+    avm_highbd_smooth_h_predictor_32x8_c)
 
 HIGHBD_INTRA_PRED_TEST(
-    C_5, TX_32X4, aom_highbd_dc_predictor_32x4_c,
-    aom_highbd_dc_left_predictor_32x4_c, aom_highbd_dc_top_predictor_32x4_c,
-    aom_highbd_dc_128_predictor_32x4_c, aom_highbd_v_predictor_32x4_c,
-    aom_highbd_h_predictor_32x4_c, aom_highbd_paeth_predictor_32x4_c,
-    aom_highbd_smooth_predictor_32x4_c, aom_highbd_smooth_v_predictor_32x4_c,
-    aom_highbd_smooth_h_predictor_32x4_c)
+    C_5, TX_32X4, avm_highbd_dc_predictor_32x4_c,
+    avm_highbd_dc_left_predictor_32x4_c, avm_highbd_dc_top_predictor_32x4_c,
+    avm_highbd_dc_128_predictor_32x4_c, avm_highbd_v_predictor_32x4_c,
+    avm_highbd_h_predictor_32x4_c, avm_highbd_paeth_predictor_32x4_c,
+    avm_highbd_smooth_predictor_32x4_c, avm_highbd_smooth_v_predictor_32x4_c,
+    avm_highbd_smooth_h_predictor_32x4_c)
 
 #if HAVE_SSE2
-HIGHBD_INTRA_PRED_TEST(SSE2_1, TX_32X32, aom_highbd_dc_predictor_32x32_sse2,
-                       aom_highbd_dc_left_predictor_32x32_sse2,
-                       aom_highbd_dc_top_predictor_32x32_sse2,
-                       aom_highbd_dc_128_predictor_32x32_sse2,
-                       aom_highbd_v_predictor_32x32_sse2,
-                       aom_highbd_h_predictor_32x32_sse2, NULL, NULL, NULL,
+HIGHBD_INTRA_PRED_TEST(SSE2_1, TX_32X32, avm_highbd_dc_predictor_32x32_sse2,
+                       avm_highbd_dc_left_predictor_32x32_sse2,
+                       avm_highbd_dc_top_predictor_32x32_sse2,
+                       avm_highbd_dc_128_predictor_32x32_sse2,
+                       avm_highbd_v_predictor_32x32_sse2,
+                       avm_highbd_h_predictor_32x32_sse2, NULL, NULL, NULL,
                        NULL)
-HIGHBD_INTRA_PRED_TEST(SSE2_2, TX_32X16, aom_highbd_dc_predictor_32x16_sse2,
-                       aom_highbd_dc_left_predictor_32x16_sse2,
-                       aom_highbd_dc_top_predictor_32x16_sse2,
-                       aom_highbd_dc_128_predictor_32x16_sse2,
-                       aom_highbd_v_predictor_32x16_sse2,
-                       aom_highbd_h_predictor_32x16_sse2, NULL, NULL, NULL,
+HIGHBD_INTRA_PRED_TEST(SSE2_2, TX_32X16, avm_highbd_dc_predictor_32x16_sse2,
+                       avm_highbd_dc_left_predictor_32x16_sse2,
+                       avm_highbd_dc_top_predictor_32x16_sse2,
+                       avm_highbd_dc_128_predictor_32x16_sse2,
+                       avm_highbd_v_predictor_32x16_sse2,
+                       avm_highbd_h_predictor_32x16_sse2, NULL, NULL, NULL,
                        NULL)
 #endif
 
@@ -778,44 +778,44 @@ HIGHBD_INTRA_PRED_TEST(AVX2_2, TX_32X16, NULL, NULL, NULL, NULL, NULL, NULL,
 // 64x64, 64x32, 64x16
 
 HIGHBD_INTRA_PRED_TEST(
-    C_1, TX_64X64, aom_highbd_dc_predictor_64x64_c,
-    aom_highbd_dc_left_predictor_64x64_c, aom_highbd_dc_top_predictor_64x64_c,
-    aom_highbd_dc_128_predictor_64x64_c, aom_highbd_v_predictor_64x64_c,
-    aom_highbd_h_predictor_64x64_c, aom_highbd_paeth_predictor_64x64_c,
-    aom_highbd_smooth_predictor_64x64_c, aom_highbd_smooth_v_predictor_64x64_c,
-    aom_highbd_smooth_h_predictor_64x64_c)
+    C_1, TX_64X64, avm_highbd_dc_predictor_64x64_c,
+    avm_highbd_dc_left_predictor_64x64_c, avm_highbd_dc_top_predictor_64x64_c,
+    avm_highbd_dc_128_predictor_64x64_c, avm_highbd_v_predictor_64x64_c,
+    avm_highbd_h_predictor_64x64_c, avm_highbd_paeth_predictor_64x64_c,
+    avm_highbd_smooth_predictor_64x64_c, avm_highbd_smooth_v_predictor_64x64_c,
+    avm_highbd_smooth_h_predictor_64x64_c)
 
 HIGHBD_INTRA_PRED_TEST(
-    C_2, TX_64X32, aom_highbd_dc_predictor_64x32_c,
-    aom_highbd_dc_left_predictor_64x32_c, aom_highbd_dc_top_predictor_64x32_c,
-    aom_highbd_dc_128_predictor_64x32_c, aom_highbd_v_predictor_64x32_c,
-    aom_highbd_h_predictor_64x32_c, aom_highbd_paeth_predictor_64x32_c,
-    aom_highbd_smooth_predictor_64x32_c, aom_highbd_smooth_v_predictor_64x32_c,
-    aom_highbd_smooth_h_predictor_64x32_c)
+    C_2, TX_64X32, avm_highbd_dc_predictor_64x32_c,
+    avm_highbd_dc_left_predictor_64x32_c, avm_highbd_dc_top_predictor_64x32_c,
+    avm_highbd_dc_128_predictor_64x32_c, avm_highbd_v_predictor_64x32_c,
+    avm_highbd_h_predictor_64x32_c, avm_highbd_paeth_predictor_64x32_c,
+    avm_highbd_smooth_predictor_64x32_c, avm_highbd_smooth_v_predictor_64x32_c,
+    avm_highbd_smooth_h_predictor_64x32_c)
 
 HIGHBD_INTRA_PRED_TEST(
-    C_3, TX_64X16, aom_highbd_dc_predictor_64x16_c,
-    aom_highbd_dc_left_predictor_64x16_c, aom_highbd_dc_top_predictor_64x16_c,
-    aom_highbd_dc_128_predictor_64x16_c, aom_highbd_v_predictor_64x16_c,
-    aom_highbd_h_predictor_64x16_c, aom_highbd_paeth_predictor_64x16_c,
-    aom_highbd_smooth_predictor_64x16_c, aom_highbd_smooth_v_predictor_64x16_c,
-    aom_highbd_smooth_h_predictor_64x16_c)
+    C_3, TX_64X16, avm_highbd_dc_predictor_64x16_c,
+    avm_highbd_dc_left_predictor_64x16_c, avm_highbd_dc_top_predictor_64x16_c,
+    avm_highbd_dc_128_predictor_64x16_c, avm_highbd_v_predictor_64x16_c,
+    avm_highbd_h_predictor_64x16_c, avm_highbd_paeth_predictor_64x16_c,
+    avm_highbd_smooth_predictor_64x16_c, avm_highbd_smooth_v_predictor_64x16_c,
+    avm_highbd_smooth_h_predictor_64x16_c)
 
 HIGHBD_INTRA_PRED_TEST(
-    C_4, TX_64X4, aom_highbd_dc_predictor_64x4_c,
-    aom_highbd_dc_left_predictor_64x4_c, aom_highbd_dc_top_predictor_64x4_c,
-    aom_highbd_dc_128_predictor_64x4_c, aom_highbd_v_predictor_64x4_c,
-    aom_highbd_h_predictor_64x4_c, aom_highbd_paeth_predictor_64x4_c,
-    aom_highbd_smooth_predictor_64x4_c, aom_highbd_smooth_v_predictor_64x4_c,
-    aom_highbd_smooth_h_predictor_64x4_c)
+    C_4, TX_64X4, avm_highbd_dc_predictor_64x4_c,
+    avm_highbd_dc_left_predictor_64x4_c, avm_highbd_dc_top_predictor_64x4_c,
+    avm_highbd_dc_128_predictor_64x4_c, avm_highbd_v_predictor_64x4_c,
+    avm_highbd_h_predictor_64x4_c, avm_highbd_paeth_predictor_64x4_c,
+    avm_highbd_smooth_predictor_64x4_c, avm_highbd_smooth_v_predictor_64x4_c,
+    avm_highbd_smooth_h_predictor_64x4_c)
 
 HIGHBD_INTRA_PRED_TEST(
-    C_5, TX_64X8, aom_highbd_dc_predictor_64x8_c,
-    aom_highbd_dc_left_predictor_64x8_c, aom_highbd_dc_top_predictor_64x8_c,
-    aom_highbd_dc_128_predictor_64x8_c, aom_highbd_v_predictor_64x8_c,
-    aom_highbd_h_predictor_64x8_c, aom_highbd_paeth_predictor_64x8_c,
-    aom_highbd_smooth_predictor_64x8_c, aom_highbd_smooth_v_predictor_64x8_c,
-    aom_highbd_smooth_h_predictor_64x8_c)
+    C_5, TX_64X8, avm_highbd_dc_predictor_64x8_c,
+    avm_highbd_dc_left_predictor_64x8_c, avm_highbd_dc_top_predictor_64x8_c,
+    avm_highbd_dc_128_predictor_64x8_c, avm_highbd_v_predictor_64x8_c,
+    avm_highbd_h_predictor_64x8_c, avm_highbd_paeth_predictor_64x8_c,
+    avm_highbd_smooth_predictor_64x8_c, avm_highbd_smooth_v_predictor_64x8_c,
+    avm_highbd_smooth_h_predictor_64x8_c)
 // -----------------------------------------------------------------------------
 
-#include "test/test_libaom.cc"
+#include "test/test_libavm.cc"

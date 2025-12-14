@@ -8,44 +8,44 @@
 # Input video file
 
 # Generated bitstream files
-readonly BITSTREAM_0="${AOM_TEST_OUTPUT_DIR}/bitstream_0.bin"
-readonly BITSTREAM_1="${AOM_TEST_OUTPUT_DIR}/bitstream_1.bin"
+readonly BITSTREAM_0="${AVM_TEST_OUTPUT_DIR}/bitstream_0.bin"
+readonly BITSTREAM_1="${AVM_TEST_OUTPUT_DIR}/bitstream_1.bin"
 
 # Muxed/Demuxed bitstream files
-readonly MUXED_OUTPUT="${AOM_TEST_OUTPUT_DIR}/bitstream_muxed_01.bin"
-readonly DEMUXED_OUTPUT="${AOM_TEST_OUTPUT_DIR}/bitstream_demuxed.bin"
-readonly DEMUXED_OUTPUT_0="${AOM_TEST_OUTPUT_DIR}/bitstream_demuxed_0.bin"
-readonly DEMUXED_OUTPUT_1="${AOM_TEST_OUTPUT_DIR}/bitstream_demuxed_1.bin"
+readonly MUXED_OUTPUT="${AVM_TEST_OUTPUT_DIR}/bitstream_muxed_01.bin"
+readonly DEMUXED_OUTPUT="${AVM_TEST_OUTPUT_DIR}/bitstream_demuxed.bin"
+readonly DEMUXED_OUTPUT_0="${AVM_TEST_OUTPUT_DIR}/bitstream_demuxed_0.bin"
+readonly DEMUXED_OUTPUT_1="${AVM_TEST_OUTPUT_DIR}/bitstream_demuxed_1.bin"
 
 # Verify environment and prerequisites
 mux_demux_verify_environment() {
   if [ ! -e "${YUV_RAW_INPUT}" ]; then
-    elog "The file ${YUV_RAW_INPUT##*/} must exist in LIBAOM_TEST_DATA_PATH."
+    elog "The file ${YUV_RAW_INPUT##*/} must exist in LIBAVM_TEST_DATA_PATH."
     return 1
   fi
 
-  if [ -z "$(aom_tool_path aomenc)" ]; then
-    elog "aomenc not found in LIBAOM_BIN_PATH or tools/."
+  if [ -z "$(avm_tool_path avmenc)" ]; then
+    elog "avmenc not found in LIBAVM_BIN_PATH or tools/."
     return 1
   fi
 
-  if [ -z "$(aom_tool_path stream_multiplexer)" ]; then
-    elog "stream_multiplexer not found in LIBAOM_BIN_PATH or tools/."
+  if [ -z "$(avm_tool_path stream_multiplexer)" ]; then
+    elog "stream_multiplexer not found in LIBAVM_BIN_PATH or tools/."
     return 1
   fi
 
-  if [ -z "$(aom_tool_path stream_demuxer)" ]; then
-    elog "stream_demuxer not found in LIBAOM_BIN_PATH or tools/."
+  if [ -z "$(avm_tool_path stream_demuxer)" ]; then
+    elog "stream_demuxer not found in LIBAVM_BIN_PATH or tools/."
     return 1
   fi
 }
 
 # Encode first bitstream
 encode_bitstream_0() {
-  local encoder="$(aom_tool_path aomenc)"
+  local encoder="$(avm_tool_path avmenc)"
 
   eval "${encoder}" \
-    $(aomenc_encode_test_fast_params) \
+    $(avmenc_encode_test_fast_params) \
     $(yuv_raw_input) \
     --obu \
     --output=${BITSTREAM_0} \
@@ -61,10 +61,10 @@ encode_bitstream_0() {
 
 # Encode second bitstream
 encode_bitstream_1() {
-  local encoder="$(aom_tool_path aomenc)"
+  local encoder="$(avm_tool_path avmenc)"
 
   eval "${encoder}" \
-    $(aomenc_encode_test_fast_params) \
+    $(avmenc_encode_test_fast_params) \
     $(yuv_raw_input) \
     --obu \
     --output=${BITSTREAM_1} \
@@ -80,8 +80,8 @@ encode_bitstream_1() {
 
 # Decode the first bitstream
 decode_bitstream_0() {
-  local decoder="$(aom_tool_path aomdec)"
-  local output_file="${AOM_TEST_OUTPUT_DIR}/decoded_seq_0"
+  local decoder="$(avm_tool_path avmdec)"
+  local output_file="${AVM_TEST_OUTPUT_DIR}/decoded_seq_0"
 
   eval "${decoder}" -o "${output_file}" \
     "${BITSTREAM_0}" --md5 || return 1
@@ -96,8 +96,8 @@ decode_bitstream_0() {
 
 # Decode the second bitstream
 decode_bitstream_1() {
-  local decoder="$(aom_tool_path aomdec)"
-  local output_file="${AOM_TEST_OUTPUT_DIR}/decoded_seq_1"
+  local decoder="$(avm_tool_path avmdec)"
+  local output_file="${AVM_TEST_OUTPUT_DIR}/decoded_seq_1"
 
   eval "${decoder}" -o "${output_file}" \
     "${BITSTREAM_1}" --md5 || return 1
@@ -112,10 +112,10 @@ decode_bitstream_1() {
 
 # Decode the muxed bitstream
 decode_muxed_bitstream() {
-  local decoder="$(aom_tool_path aomdec)"
-  local output_file="${AOM_TEST_OUTPUT_DIR}/decoded_seq_demuxed"
-  local output_file_0="${AOM_TEST_OUTPUT_DIR}/decoded_seq_demuxed_0"
-  local output_file_1="${AOM_TEST_OUTPUT_DIR}/decoded_seq_demuxed_1"
+  local decoder="$(avm_tool_path avmdec)"
+  local output_file="${AVM_TEST_OUTPUT_DIR}/decoded_seq_demuxed"
+  local output_file_0="${AVM_TEST_OUTPUT_DIR}/decoded_seq_demuxed_0"
+  local output_file_1="${AVM_TEST_OUTPUT_DIR}/decoded_seq_demuxed_1"
 
   eval "${decoder}" -o "${output_file}" \
     "${MUXED_OUTPUT}" --num-streams=2 --md5 || return 1
@@ -135,7 +135,7 @@ decode_muxed_bitstream() {
 
 # Mux the bitstreams
 mux_bitstreams() {
-  local multiplexer="$(aom_tool_path stream_multiplexer)"
+  local multiplexer="$(avm_tool_path stream_multiplexer)"
 
   eval "${multiplexer}" \
     "${BITSTREAM_0}" 0 1 \
@@ -153,7 +153,7 @@ mux_bitstreams() {
 
 # Demux the muxed bitstream
 demux_bitstream() {
-  local demultiplexer="$(aom_tool_path stream_demuxer)"
+  local demultiplexer="$(avm_tool_path stream_demuxer)"
 
   # Demux to first output
   eval "${demultiplexer}" \
@@ -201,10 +201,10 @@ compare_bitstreams() {
 
 # Compare demuxed bitstreams with original bitstreams
 compare_md5() {
-  local output_file_0="${AOM_TEST_OUTPUT_DIR}/decoded_seq_0"
-  local output_file_1="${AOM_TEST_OUTPUT_DIR}/decoded_seq_1"
-  local output_file_demuxed_0="${AOM_TEST_OUTPUT_DIR}/decoded_seq_demuxed_0"
-  local output_file_demuxed_1="${AOM_TEST_OUTPUT_DIR}/decoded_seq_demuxed_1"
+  local output_file_0="${AVM_TEST_OUTPUT_DIR}/decoded_seq_0"
+  local output_file_1="${AVM_TEST_OUTPUT_DIR}/decoded_seq_1"
+  local output_file_demuxed_0="${AVM_TEST_OUTPUT_DIR}/decoded_seq_demuxed_0"
+  local output_file_demuxed_1="${AVM_TEST_OUTPUT_DIR}/decoded_seq_demuxed_1"
 
   echo "Comparing demuxed decoded sequences with original decoded sequences..."
 

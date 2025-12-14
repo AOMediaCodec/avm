@@ -21,8 +21,8 @@
 namespace {
 
 class BordersTestLarge
-    : public ::libaom_test::CodecTestWithParam<libaom_test::TestMode>,
-      public ::libaom_test::EncoderTest {
+    : public ::libavm_test::CodecTestWithParam<libavm_test::TestMode>,
+      public ::libavm_test::EncoderTest {
  protected:
   BordersTestLarge() : EncoderTest(GET_PARAM(0)) {}
   virtual ~BordersTestLarge() {}
@@ -32,20 +32,20 @@ class BordersTestLarge
     SetMode(GET_PARAM(1));
   }
 
-  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
-                                  ::libaom_test::Encoder *encoder) {
+  virtual void PreEncodeFrameHook(::libavm_test::VideoSource *video,
+                                  ::libavm_test::Encoder *encoder) {
     if (video->frame() == 0) {
-      encoder->Control(AOME_SET_CPUUSED, 1);
-      encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
-      encoder->Control(AOME_SET_ARNR_MAXFRAMES, 7);
-      encoder->Control(AOME_SET_ARNR_STRENGTH, 5);
+      encoder->Control(AVME_SET_CPUUSED, 1);
+      encoder->Control(AVME_SET_ENABLEAUTOALTREF, 1);
+      encoder->Control(AVME_SET_ARNR_MAXFRAMES, 7);
+      encoder->Control(AVME_SET_ARNR_STRENGTH, 5);
     }
   }
 
-  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt,
-                            ::libaom_test::DxDataIterator *dec_iter) {
+  virtual void FramePktHook(const avm_codec_cx_pkt_t *pkt,
+                            ::libavm_test::DxDataIterator *dec_iter) {
     (void)dec_iter;
-    if (pkt->data.frame.flags & AOM_FRAME_IS_KEY) {
+    if (pkt->data.frame.flags & AVM_FRAME_IS_KEY) {
     }
   }
 };
@@ -59,7 +59,7 @@ TEST_P(BordersTestLarge, TestEncodeHighBitrate) {
   cfg_.rc_target_bitrate = 2000;
   cfg_.rc_max_quantizer = 40;
 
-  ::libaom_test::I420VideoSource video("hantro_odd.yuv", 208, 144, 30, 1, 0, 5);
+  ::libavm_test::I420VideoSource video("hantro_odd.yuv", 208, 144, 30, 1, 0, 5);
 
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 }
@@ -72,12 +72,12 @@ TEST_P(BordersTestLarge, TestLowBitrate) {
   cfg_.rc_target_bitrate = 200;
   cfg_.rc_min_quantizer = 160;
 
-  ::libaom_test::I420VideoSource video("hantro_odd.yuv", 208, 144, 30, 1, 0,
+  ::libavm_test::I420VideoSource video("hantro_odd.yuv", 208, 144, 30, 1, 0,
                                        10);
 
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 }
 
-AV1_INSTANTIATE_TEST_SUITE(BordersTestLarge,
-                           ::testing::Values(::libaom_test::kOnePassGood));
+AV2_INSTANTIATE_TEST_SUITE(BordersTestLarge,
+                           ::testing::Values(::libavm_test::kOnePassGood));
 }  // namespace

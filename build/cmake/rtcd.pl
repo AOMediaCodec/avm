@@ -73,7 +73,7 @@ close CONFIG_FILE;
 #
 # Routines for the RTCD DSL to call
 #
-sub aom_config($) {
+sub avm_config($) {
   return (defined $config{$_[0]}) ? $config{$_[0]} : "";
 }
 
@@ -142,7 +142,7 @@ sub process_forward_decls() {
 }
 
 sub determine_indirection {
-  aom_config("CONFIG_RUNTIME_CPU_DETECT") eq "yes" or &require(@ALL_ARCHS);
+  avm_config("CONFIG_RUNTIME_CPU_DETECT") eq "yes" or &require(@ALL_ARCHS);
   foreach my $fn (keys %ALL_FUNCS) {
     my $n = "";
     my @val = @{$ALL_FUNCS{$fn}};
@@ -271,7 +271,7 @@ sub x86() {
   common_top;
   print <<EOF;
 #ifdef RTCD_C
-#include "aom_ports/x86.h"
+#include "avm_ports/x86.h"
 static void setup_rtcd_internal(void)
 {
     int flags = x86_simd_caps();
@@ -300,13 +300,13 @@ sub arm() {
 
   common_top;
   print <<EOF;
-#include "config/aom_config.h"
+#include "config/avm_config.h"
 
 #ifdef RTCD_C
-#include "aom_ports/arm.h"
+#include "avm_ports/arm.h"
 static void setup_rtcd_internal(void)
 {
-    int flags = aom_arm_cpu_caps();
+    int flags = avm_arm_cpu_caps();
 
     (void)flags;
 
@@ -333,7 +333,7 @@ sub mips() {
   common_top;
 
   print <<EOF;
-#include "config/aom_config.h"
+#include "config/avm_config.h"
 
 #ifdef RTCD_C
 static void setup_rtcd_internal(void)
@@ -344,8 +344,8 @@ EOF
 
   print <<EOF;
 #if HAVE_DSPR2
-void aom_dsputil_static_init();
-aom_dsputil_static_init();
+void avm_dsputil_static_init();
+avm_dsputil_static_init();
 #endif
 }
 #endif
@@ -365,10 +365,10 @@ sub ppc() {
   common_top;
 
   print <<EOF;
-#include "config/aom_config.h"
+#include "config/avm_config.h"
 
 #ifdef RTCD_C
-#include "aom_ports/ppc.h"
+#include "avm_ports/ppc.h"
 static void setup_rtcd_internal(void)
 {
   int flags = ppc_simd_caps();
@@ -390,7 +390,7 @@ sub unoptimized() {
   determine_indirection "c";
   common_top;
   print <<EOF;
-#include "config/aom_config.h"
+#include "config/avm_config.h"
 
 #ifdef RTCD_C
 static void setup_rtcd_internal(void)
@@ -438,9 +438,9 @@ if ($opts{arch} eq 'x86') {
   x86;
 } elsif ($opts{arch} eq 'mips32' || $opts{arch} eq 'mips64') {
   @ALL_ARCHS = filter("$opts{arch}");
-  if (aom_config("HAVE_DSPR2") eq "yes") {
+  if (avm_config("HAVE_DSPR2") eq "yes") {
     @ALL_ARCHS = filter("$opts{arch}", qw/dspr2/);
-  } elsif (aom_config("HAVE_MSA") eq "yes") {
+  } elsif (avm_config("HAVE_MSA") eq "yes") {
     @ALL_ARCHS = filter("$opts{arch}", qw/msa/);
   }
   mips;

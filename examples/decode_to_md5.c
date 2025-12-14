@@ -35,13 +35,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "aom/aom_decoder.h"
-#include "aom/aomdx.h"
+#include "avm/avm_decoder.h"
+#include "avm/avmdx.h"
 #include "common/md5_utils.h"
 #include "common/tools_common.h"
 #include "common/video_reader.h"
 
-static void get_image_md5(const aom_image_t *img, unsigned char digest[16]) {
+static void get_image_md5(const avm_image_t *img, unsigned char digest[16]) {
   int plane, y;
   MD5Context md5;
 
@@ -85,33 +85,33 @@ int main(int argc, char **argv) {
 
   if (argc != 3) die("Invalid number of arguments.");
 
-  reader = aom_video_reader_open(argv[1]);
+  reader = avm_video_reader_open(argv[1]);
   if (!reader) die("Failed to open %s for reading.", argv[1]);
 
   if (!(outfile = fopen(argv[2], "wb")))
     die("Failed to open %s for writing.", argv[2]);
 
-  info = aom_video_reader_get_info(reader);
+  info = avm_video_reader_get_info(reader);
 
-  aom_codec_iface_t *decoder = get_aom_decoder_by_fourcc(info->codec_fourcc);
+  avm_codec_iface_t *decoder = get_avm_decoder_by_fourcc(info->codec_fourcc);
   if (!decoder) die("Unknown input codec.");
 
-  printf("Using %s\n", aom_codec_iface_name(decoder));
+  printf("Using %s\n", avm_codec_iface_name(decoder));
 
-  aom_codec_ctx_t codec;
-  if (aom_codec_dec_init(&codec, decoder, NULL, 0))
+  avm_codec_ctx_t codec;
+  if (avm_codec_dec_init(&codec, decoder, NULL, 0))
     die("Failed to initialize decoder");
 
-  while (aom_video_reader_read_frame(reader)) {
-    aom_codec_iter_t iter = NULL;
-    aom_image_t *img = NULL;
+  while (avm_video_reader_read_frame(reader)) {
+    avm_codec_iter_t iter = NULL;
+    avm_image_t *img = NULL;
     size_t frame_size = 0;
     const unsigned char *frame =
-        aom_video_reader_get_frame(reader, &frame_size);
-    if (aom_codec_decode(&codec, frame, frame_size, NULL))
+        avm_video_reader_get_frame(reader, &frame_size);
+    if (avm_codec_decode(&codec, frame, frame_size, NULL))
       die_codec(&codec, "Failed to decode frame");
 
-    while ((img = aom_codec_get_frame(&codec, &iter)) != NULL) {
+    while ((img = avm_codec_get_frame(&codec, &iter)) != NULL) {
       unsigned char digest[16];
 
       get_image_md5(img, digest);
@@ -122,9 +122,9 @@ int main(int argc, char **argv) {
   }
 
   printf("Processed %d frames.\n", frame_cnt);
-  if (aom_codec_destroy(&codec)) die_codec(&codec, "Failed to destroy codec.");
+  if (avm_codec_destroy(&codec)) die_codec(&codec, "Failed to destroy codec.");
 
-  aom_video_reader_close(reader);
+  avm_video_reader_close(reader);
 
   fclose(outfile);
   return EXIT_SUCCESS;

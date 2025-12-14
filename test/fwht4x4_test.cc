@@ -15,46 +15,46 @@
 #include <string.h>
 #include <tuple>
 
-#include "aom_dsp/aom_dsp_common.h"
+#include "avm_dsp/avm_dsp_common.h"
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
-#include "config/av1_rtcd.h"
-#include "config/aom_dsp_rtcd.h"
+#include "config/av2_rtcd.h"
+#include "config/avm_dsp_rtcd.h"
 #include "test/acm_random.h"
 #include "test/clear_system_state.h"
 #include "test/register_state_check.h"
 #include "test/transform_test_base.h"
 #include "test/util.h"
-#include "av1/common/entropy.h"
-#include "aom/aom_codec.h"
-#include "aom/aom_integer.h"
-#include "aom_ports/mem.h"
+#include "av2/common/entropy.h"
+#include "avm/avm_codec.h"
+#include "avm/avm_integer.h"
+#include "avm_ports/mem.h"
 
-using libaom_test::ACMRandom;
+using libavm_test::ACMRandom;
 
 namespace {
 typedef void (*FdctFunc)(const int16_t *in, tran_low_t *out, int stride);
 typedef void (*IdctFunc)(const tran_low_t *in, uint16_t *out, int stride);
 
-using libaom_test::FhtFunc;
+using libavm_test::FhtFunc;
 
-typedef std::tuple<FdctFunc, IdctFunc, TX_TYPE, aom_bit_depth_t, int, FdctFunc>
+typedef std::tuple<FdctFunc, IdctFunc, TX_TYPE, avm_bit_depth_t, int, FdctFunc>
     Dct4x4Param;
 
 void fwht4x4_ref(const int16_t *in, tran_low_t *out, int stride,
                  TxfmParam * /*txfm_param*/) {
-  av1_fwht4x4_c(in, out, stride);
+  av2_fwht4x4_c(in, out, stride);
 }
 
 void iwht4x4_10(const tran_low_t *in, uint16_t *out, int stride) {
-  av1_highbd_iwht4x4_16_add_c(in, out, stride, 10);
+  av2_highbd_iwht4x4_16_add_c(in, out, stride, 10);
 }
 
 void iwht4x4_12(const tran_low_t *in, uint16_t *out, int stride) {
-  av1_highbd_iwht4x4_16_add_c(in, out, stride, 12);
+  av2_highbd_iwht4x4_16_add_c(in, out, stride, 12);
 }
 
-class Trans4x4WHT : public libaom_test::TransformTestBase<tran_low_t>,
+class Trans4x4WHT : public libavm_test::TransformTestBase<tran_low_t>,
                     public ::testing::TestWithParam<Dct4x4Param> {
  public:
   virtual ~Trans4x4WHT() {}
@@ -70,7 +70,7 @@ class Trans4x4WHT : public libaom_test::TransformTestBase<tran_low_t>,
     num_coeffs_ = GET_PARAM(4);
     fwd_txfm_c_ = GET_PARAM(5);
   }
-  virtual void TearDown() { libaom_test::ClearSystemState(); }
+  virtual void TearDown() { libavm_test::ClearSystemState(); }
 
  protected:
   void RunFwdTxfm(const int16_t *in, tran_low_t *out, int stride) {
@@ -93,11 +93,11 @@ class Trans4x4WHT : public libaom_test::TransformTestBase<tran_low_t>,
       int stride = 96;
 
       int16_t *input_block = reinterpret_cast<int16_t *>(
-          aom_memalign(16, sizeof(int16_t) * stride * height_));
+          avm_memalign(16, sizeof(int16_t) * stride * height_));
       tran_low_t *output_ref_block = reinterpret_cast<tran_low_t *>(
-          aom_memalign(16, sizeof(output_ref_block[0]) * num_coeffs_));
+          avm_memalign(16, sizeof(output_ref_block[0]) * num_coeffs_));
       tran_low_t *output_block = reinterpret_cast<tran_low_t *>(
-          aom_memalign(16, sizeof(output_block[0]) * num_coeffs_));
+          avm_memalign(16, sizeof(output_block[0]) * num_coeffs_));
 
       for (int i = 0; i < count_test_block; ++i) {
         int j, k;
@@ -112,25 +112,25 @@ class Trans4x4WHT : public libaom_test::TransformTestBase<tran_low_t>,
           }
         }
 
-        aom_usec_timer c_timer_;
-        aom_usec_timer_start(&c_timer_);
+        avm_usec_timer c_timer_;
+        avm_usec_timer_start(&c_timer_);
         for (int i = 0; i < numIter; i++) {
           ASM_REGISTER_STATE_CHECK(
               fwd_txfm_c_(input_block, output_ref_block, stride));
         }
-        aom_usec_timer_mark(&c_timer_);
+        avm_usec_timer_mark(&c_timer_);
 
-        aom_usec_timer simd_timer_;
-        aom_usec_timer_start(&simd_timer_);
+        avm_usec_timer simd_timer_;
+        avm_usec_timer_start(&simd_timer_);
 
         for (int i = 0; i < numIter; i++) {
           ASM_REGISTER_STATE_CHECK(
               fwd_txfm_(input_block, output_block, stride));
         }
-        aom_usec_timer_mark(&simd_timer_);
+        avm_usec_timer_mark(&simd_timer_);
 
-        c_sum_time += static_cast<int>(aom_usec_timer_elapsed(&c_timer_));
-        simd_sum_time += static_cast<int>(aom_usec_timer_elapsed(&simd_timer_));
+        c_sum_time += static_cast<int>(avm_usec_timer_elapsed(&c_timer_));
+        simd_sum_time += static_cast<int>(avm_usec_timer_elapsed(&simd_timer_));
 
         // The minimum quant value is 4.
         for (j = 0; j < height_; ++j) {
@@ -148,9 +148,9 @@ class Trans4x4WHT : public libaom_test::TransformTestBase<tran_low_t>,
           simd_sum_time,
           (static_cast<float>(c_sum_time) / static_cast<float>(simd_sum_time)));
 
-      aom_free(input_block);
-      aom_free(output_ref_block);
-      aom_free(output_block);
+      avm_free(input_block);
+      avm_free(output_ref_block);
+      avm_free(output_block);
     }
   }
 
@@ -174,19 +174,19 @@ using std::make_tuple;
 
 INSTANTIATE_TEST_SUITE_P(
     C, Trans4x4WHT,
-    ::testing::Values(make_tuple(&av1_highbd_fwht4x4_c, &iwht4x4_10, DCT_DCT,
-                                 AOM_BITS_10, 16, static_cast<FdctFunc>(NULL)),
-                      make_tuple(&av1_highbd_fwht4x4_c, &iwht4x4_12, DCT_DCT,
-                                 AOM_BITS_12, 16,
+    ::testing::Values(make_tuple(&av2_highbd_fwht4x4_c, &iwht4x4_10, DCT_DCT,
+                                 AVM_BITS_10, 16, static_cast<FdctFunc>(NULL)),
+                      make_tuple(&av2_highbd_fwht4x4_c, &iwht4x4_12, DCT_DCT,
+                                 AVM_BITS_12, 16,
                                  static_cast<FdctFunc>(NULL))));
 #if HAVE_NEON
 
 INSTANTIATE_TEST_SUITE_P(
     NEON, Trans4x4WHT,
-    ::testing::Values(make_tuple(&av1_highbd_fwht4x4_neon, &iwht4x4_10, DCT_DCT,
-                                 AOM_BITS_10, 16, &av1_highbd_fwht4x4_c),
-                      make_tuple(&av1_highbd_fwht4x4_neon, &iwht4x4_12, DCT_DCT,
-                                 AOM_BITS_12, 16, &av1_highbd_fwht4x4_c)));
+    ::testing::Values(make_tuple(&av2_highbd_fwht4x4_neon, &iwht4x4_10, DCT_DCT,
+                                 AVM_BITS_10, 16, &av2_highbd_fwht4x4_c),
+                      make_tuple(&av2_highbd_fwht4x4_neon, &iwht4x4_12, DCT_DCT,
+                                 AVM_BITS_12, 16, &av2_highbd_fwht4x4_c)));
 
 #endif  // HAVE_NEON
 

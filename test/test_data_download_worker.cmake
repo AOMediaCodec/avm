@@ -8,39 +8,39 @@
 # for Open Media Patent License 1.0 was not distributed with this source code in
 # the PATENTS file, you can obtain it at aomedia.org/license/patent-license/.
 #
-include("${AOM_ROOT}/test/test_data_util.cmake")
+include("${AVM_ROOT}/test/test_data_util.cmake")
 
 # https://github.com/cheshirekow/cmake_format/issues/34
 # cmake-format: off
-if (NOT AOM_ROOT OR NOT AOM_CONFIG_DIR OR NOT AOM_TEST_FILE
-    OR NOT AOM_TEST_CHECKSUM)
+if (NOT AVM_ROOT OR NOT AVM_CONFIG_DIR OR NOT AVM_TEST_FILE
+    OR NOT AVM_TEST_CHECKSUM)
   message(FATAL_ERROR
-          "AOM_ROOT, AOM_CONFIG_DIR, AOM_TEST_FILE and AOM_TEST_CHECKSUM must be
+          "AVM_ROOT, AVM_CONFIG_DIR, AVM_TEST_FILE and AVM_TEST_CHECKSUM must be
           defined.")
 endif ()
 # cmake-format: on
 
-set(AOM_TEST_DATA_URL "https://storage.googleapis.com/aom-test-data")
+set(AVM_TEST_DATA_URL "https://storage.googleapis.com/aom-test-data")
 
-if(NOT AOM_TEST_DATA_PATH)
-  set(AOM_TEST_DATA_PATH "$ENV{LIBAOM_TEST_DATA_PATH}")
+if(NOT AVM_TEST_DATA_PATH)
+  set(AVM_TEST_DATA_PATH "$ENV{LIBAVM_TEST_DATA_PATH}")
 endif()
 
-if("${AOM_TEST_DATA_PATH}" STREQUAL "")
+if("${AVM_TEST_DATA_PATH}" STREQUAL "")
   message(
-    WARNING "Writing test data to ${AOM_CONFIG_DIR}, set "
-            "$LIBAOM_TEST_DATA_PATH in your environment to avoid this warning.")
-  set(AOM_TEST_DATA_PATH "${AOM_CONFIG_DIR}")
+    WARNING "Writing test data to ${AVM_CONFIG_DIR}, set "
+            "$LIBAVM_TEST_DATA_PATH in your environment to avoid this warning.")
+  set(AVM_TEST_DATA_PATH "${AVM_CONFIG_DIR}")
 endif()
 
-if(NOT EXISTS "${AOM_TEST_DATA_PATH}")
-  file(MAKE_DIRECTORY "${AOM_TEST_DATA_PATH}")
+if(NOT EXISTS "${AVM_TEST_DATA_PATH}")
+  file(MAKE_DIRECTORY "${AVM_TEST_DATA_PATH}")
 endif()
 
-expand_test_file_paths("AOM_TEST_FILE" "${AOM_TEST_DATA_PATH}" "filepath")
-expand_test_file_paths("AOM_TEST_FILE" "${AOM_TEST_DATA_URL}" "url")
+expand_test_file_paths("AVM_TEST_FILE" "${AVM_TEST_DATA_PATH}" "filepath")
+expand_test_file_paths("AVM_TEST_FILE" "${AVM_TEST_DATA_URL}" "url")
 
-check_file("${filepath}" "${AOM_TEST_CHECKSUM}" "needs_download")
+check_file("${filepath}" "${AVM_TEST_CHECKSUM}" "needs_download")
 if(needs_download)
-  download_test_file("${url}" "${AOM_TEST_CHECKSUM}" "${filepath}")
+  download_test_file("${url}" "${AVM_TEST_CHECKSUM}" "${filepath}")
 endif()

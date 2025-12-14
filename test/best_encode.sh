@@ -23,9 +23,9 @@ b=$2  # bitrate is second parameter
 
 if [[ -e $f.fpf ]]; then
   # First-pass file found, do second pass only
-  aomenc \
+  avmenc \
     $f \
-    -o $f-$b.av1.webm \
+    -o $f-$b.av2.webm \
     -p 2 \
     --pass=2 \
     --fpf=$f.fpf \
@@ -52,9 +52,9 @@ if [[ -e $f.fpf ]]; then
     --arnr-type=3
 else
   # No first-pass file found, do 2-pass encode
-  aomenc \
+  avmenc \
     $f \
-    -o $f-$b.av1.webm \
+    -o $f-$b.av2.webm \
     -p 2 \
     --pass=1 \
     --fpf=$f.fpf \
@@ -73,9 +73,9 @@ else
     --max-qp=255 \
     --drop-frame=0
 
-  aomenc \
+  avmenc \
     $f \
-    -o $f-$b.av1.webm \
+    -o $f-$b.av2.webm \
     -p 2 \
     --pass=2 \
     --fpf=$f.fpf \

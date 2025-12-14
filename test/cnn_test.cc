@@ -16,9 +16,9 @@
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
-#include "config/av1_rtcd.h"
+#include "config/av2_rtcd.h"
 
-#include "av1/encoder/cnn.h"
+#include "av2/encoder/cnn.h"
 
 #define SQR(x) ((x) * (x))
 
@@ -38,14 +38,14 @@ class CNNTest : public ::testing::Test {
                          int in_stride, CNN_THREAD_DATA *thread_data,
                          double tolerance) {
     int out_width, out_height, out_channels;
-    av1_find_cnn_output_size(image_width, image_height, cnn_config, &out_width,
+    av2_find_cnn_output_size(image_width, image_height, cnn_config, &out_width,
                              &out_height, &out_channels);
 
     const int out_size = out_width * out_height;
     const int out_stride = out_width;
 
     float *output_ =
-        (float *)aom_malloc(sizeof(*output_) * out_size * out_channels);
+        (float *)avm_malloc(sizeof(*output_) * out_size * out_channels);
     float *output[CNN_MAX_CHANNELS] = { nullptr };
     for (int channel = 0; channel < out_channels; ++channel) {
       output[channel] = output_ + (channel * out_size);
@@ -59,7 +59,7 @@ class CNNTest : public ::testing::Test {
     RunMultiOutCNNTest(&input, image_width, image_height, in_stride, cnn_config,
                        thread_data, &output_struct, &expected, tolerance);
 
-    aom_free(output_);
+    avm_free(output_);
   }
 
   static void RunMultiOutCNNTest(const float **input, int image_width,
@@ -71,13 +71,13 @@ class CNNTest : public ::testing::Test {
     const int num_outputs = output->num_outputs;
     const int *output_chs = output->output_channels;
 
-    int *out_widths = (int *)aom_calloc(num_outputs, sizeof(*out_widths));
-    int *out_heights = (int *)aom_calloc(num_outputs, sizeof(*out_heights));
-    int *not_used = (int *)aom_calloc(num_outputs, sizeof(*not_used));
+    int *out_widths = (int *)avm_calloc(num_outputs, sizeof(*out_widths));
+    int *out_heights = (int *)avm_calloc(num_outputs, sizeof(*out_heights));
+    int *not_used = (int *)avm_calloc(num_outputs, sizeof(*not_used));
 
-    av1_find_cnn_output_size(image_width, image_height, cnn_config, out_widths,
+    av2_find_cnn_output_size(image_width, image_height, cnn_config, out_widths,
                              out_heights, not_used);
-    av1_cnn_predict(input, image_width, image_height, in_stride, cnn_config,
+    av2_cnn_predict(input, image_width, image_height, in_stride, cnn_config,
                     thread_data, output);
 
     int channel_offset = 0;
@@ -107,9 +107,9 @@ class CNNTest : public ::testing::Test {
       EXPECT_LE(mse, tolerance) << " output " << output_idx << std::endl;
     }
 
-    aom_free(out_widths);
-    aom_free(out_heights);
-    aom_free(not_used);
+    avm_free(out_widths);
+    avm_free(out_heights);
+    avm_free(not_used);
   }
 
   static void AssignLayerWeightsBiases(CNN_CONFIG *cnn_config, float *weights,
@@ -2221,7 +2221,7 @@ TEST_F(CNNTest, TestMultithreading) {
   RunCNNTest(image_width, image_height, input, expected, &cnn_config,
              image_width, &thread_data, MSE_FLOAT_TOL);
 
-  const AVxWorkerInterface *const winterface = aom_get_worker_interface();
+  const AVxWorkerInterface *const winterface = avm_get_worker_interface();
   AVxWorker workers[4];
 
   for (int i = 0; i < 4; ++i) {
@@ -2475,7 +2475,7 @@ TEST_F(CNNTest, TestMultiOutput) {
     output_chs[2] * output_dims[2] * output_dims[2],
     output_chs[3] * output_dims[3] * output_dims[3],
   };
-  float *const output_ = (float *)aom_malloc(
+  float *const output_ = (float *)avm_malloc(
       sizeof(*output_) *
       (output_sizes[0] + output_sizes[1] + output_sizes[2] + output_sizes[3]));
   float *output[CNN_MAX_CHANNELS] = { nullptr };
@@ -2493,5 +2493,5 @@ TEST_F(CNNTest, TestMultiOutput) {
   RunMultiOutCNNTest(input, image_dim, image_dim, image_dim, &cnn_config,
                      &thread_data, &output_struct, expected, MSE_FLOAT_TOL);
 
-  aom_free(output_);
+  avm_free(output_);
 }

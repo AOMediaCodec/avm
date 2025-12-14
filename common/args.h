@@ -10,12 +10,12 @@
  * aomedia.org/license/patent-license/.
  */
 
-#ifndef AOM_COMMON_ARGS_H_
-#define AOM_COMMON_ARGS_H_
+#ifndef AVM_COMMON_ARGS_H_
+#define AVM_COMMON_ARGS_H_
 #include <stdio.h>
 
-#include "aom/aom_codec.h"
-#include "aom/aom_encoder.h"
+#include "avm/avm_codec.h"
+#include "avm/avm_encoder.h"
 #include "common/args_helper.h"
 
 #ifdef __cplusplus
@@ -30,7 +30,7 @@ char **argv_dup(int argc, const char **argv);
 
 unsigned int arg_parse_uint(const struct arg *arg);
 int arg_parse_int(const struct arg *arg);
-struct aom_rational arg_parse_rational(const struct arg *arg);
+struct avm_rational arg_parse_rational(const struct arg *arg);
 int arg_parse_enum(const struct arg *arg);
 int arg_parse_enum_or_int(const struct arg *arg);
 int arg_parse_list(const struct arg *arg, int *list, int n);
@@ -38,4 +38,4 @@ int arg_parse_list(const struct arg *arg, int *list, int n);
 }  // extern "C"
 #endif
 
-#endif  // AOM_COMMON_ARGS_H_
+#endif  // AVM_COMMON_ARGS_H_

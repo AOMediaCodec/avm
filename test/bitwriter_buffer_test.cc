@@ -12,7 +12,7 @@
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
-#include "aom_dsp/bitwriter_buffer.h"
+#include "avm_dsp/bitwriter_buffer.h"
 
 namespace {
 
@@ -58,8 +58,8 @@ TEST(BitwriterBufferTest, UvlcOneByte) {
   uint8_t dst[1];
 
   for (int i = 0; i < 15; i++) {
-    struct aom_write_bit_buffer wb = { dst, 0 };
-    aom_wb_write_uvlc(&wb, i);
+    struct avm_write_bit_buffer wb = { dst, 0 };
+    avm_wb_write_uvlc(&wb, i);
     ASSERT_EQ(wb.bit_offset, kExpected[i].bit_offset);
     EXPECT_EQ(wb.bit_buffer[0], kExpected[i].byte);
   }
@@ -71,8 +71,8 @@ TEST(BitwriterBufferTest, Uvlc31LeadingZeros) {
 
   // 2^31 - 1
   {
-    struct aom_write_bit_buffer wb = { dst, 0 };
-    aom_wb_write_uvlc(&wb, 0x7fffffff);
+    struct avm_write_bit_buffer wb = { dst, 0 };
+    avm_wb_write_uvlc(&wb, 0x7fffffff);
     ASSERT_EQ(wb.bit_offset, 63u);
     EXPECT_EQ(wb.bit_buffer[0], 0x00);
     EXPECT_EQ(wb.bit_buffer[1], 0x00);
@@ -86,8 +86,8 @@ TEST(BitwriterBufferTest, Uvlc31LeadingZeros) {
 
   // 2^32 - 2
   {
-    struct aom_write_bit_buffer wb = { dst, 0 };
-    aom_wb_write_uvlc(&wb, 0xfffffffe);
+    struct avm_write_bit_buffer wb = { dst, 0 };
+    avm_wb_write_uvlc(&wb, 0xfffffffe);
     ASSERT_EQ(wb.bit_offset, 63u);
     EXPECT_EQ(wb.bit_buffer[0], 0x00);
     EXPECT_EQ(wb.bit_buffer[1], 0x00);
@@ -147,8 +147,8 @@ TEST(BitwriterBufferTest, SvlcOneByte) {
     // input = (-1)^(i + 1) * Ceil( i / 2.0 )
     sign *= -1;
     const int32_t input = sign * ((i + 1) / 2);
-    struct aom_write_bit_buffer wb = { dst, 0 };
-    aom_wb_write_svlc(&wb, input);
+    struct avm_write_bit_buffer wb = { dst, 0 };
+    avm_wb_write_svlc(&wb, input);
     ASSERT_EQ(wb.bit_offset, kExpected[i].bit_offset);
     EXPECT_EQ(wb.bit_buffer[0], kExpected[i].byte);
   }
@@ -160,8 +160,8 @@ TEST(BitwriterBufferTest, Svlc31LeadingZeros) {
 
   // 2^30
   {
-    struct aom_write_bit_buffer wb = { dst, 0 };
-    aom_wb_write_svlc(&wb, 1 << 30);
+    struct avm_write_bit_buffer wb = { dst, 0 };
+    avm_wb_write_svlc(&wb, 1 << 30);
     ASSERT_EQ(wb.bit_offset, 63u);
     EXPECT_EQ(wb.bit_buffer[0], 0x00);
     EXPECT_EQ(wb.bit_buffer[1], 0x00);
@@ -175,8 +175,8 @@ TEST(BitwriterBufferTest, Svlc31LeadingZeros) {
 
   // -2^30
   {
-    struct aom_write_bit_buffer wb = { dst, 0 };
-    aom_wb_write_svlc(&wb, -(1 << 30));
+    struct avm_write_bit_buffer wb = { dst, 0 };
+    avm_wb_write_svlc(&wb, -(1 << 30));
     ASSERT_EQ(wb.bit_offset, 63u);
     EXPECT_EQ(wb.bit_buffer[0], 0x00);
     EXPECT_EQ(wb.bit_buffer[1], 0x00);
@@ -190,8 +190,8 @@ TEST(BitwriterBufferTest, Svlc31LeadingZeros) {
 
   // 2^31 - 1
   {
-    struct aom_write_bit_buffer wb = { dst, 0 };
-    aom_wb_write_svlc(&wb, INT32_MAX);
+    struct avm_write_bit_buffer wb = { dst, 0 };
+    avm_wb_write_svlc(&wb, INT32_MAX);
     ASSERT_EQ(wb.bit_offset, 63u);
     EXPECT_EQ(wb.bit_buffer[0], 0x00);
     EXPECT_EQ(wb.bit_buffer[1], 0x00);
@@ -205,8 +205,8 @@ TEST(BitwriterBufferTest, Svlc31LeadingZeros) {
 
   // -2^31 + 1
   {
-    struct aom_write_bit_buffer wb = { dst, 0 };
-    aom_wb_write_svlc(&wb, INT32_MIN + 1);
+    struct avm_write_bit_buffer wb = { dst, 0 };
+    avm_wb_write_svlc(&wb, INT32_MIN + 1);
     ASSERT_EQ(wb.bit_offset, 63u);
     EXPECT_EQ(wb.bit_buffer[0], 0x00);
     EXPECT_EQ(wb.bit_buffer[1], 0x00);
@@ -285,8 +285,8 @@ TEST(BitwriterBufferTest, Rg2OneByte) {
   uint8_t dst[1];
 
   for (uint32_t i = 0; i < 24; i++) {
-    struct aom_write_bit_buffer wb = { dst, 0 };
-    aom_wb_write_rice_golomb(&wb, i, 2);
+    struct avm_write_bit_buffer wb = { dst, 0 };
+    avm_wb_write_rice_golomb(&wb, i, 2);
     ASSERT_EQ(wb.bit_offset, kExpected[i].bit_offset);
     EXPECT_EQ(wb.bit_buffer[0], kExpected[i].byte);
   }

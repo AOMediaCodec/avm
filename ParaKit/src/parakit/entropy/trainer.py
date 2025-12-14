@@ -17,11 +17,11 @@ import pandas as pd
 
 import parakit.entropy.model as model
 from parakit.entropy.codec_cdf_functions import (
-    cdf2pmf_av1,
-    cdfinv2pmf_av1,
-    cost_symbol_av1,
-    pmf2cdfinv_av1,
-    update_cdfinv_av1,
+    cdf2pmf_av2,
+    cdfinv2pmf_av2,
+    cost_symbol_av2,
+    pmf2cdfinv_av2,
+    update_cdfinv_av2,
 )
 from parakit.entropy.data_collector import DataCollector
 
@@ -60,7 +60,7 @@ class Trainer:
         self._initial_model = dc.get_context_model()
         self.dataframe = dc.collect_dataframe(max_rows=self._max_rows)
         self._output_filename = self._get_output_filename()
-        self._max_cost_regularization = cost_symbol_av1(self._cost_regularization)
+        self._max_cost_regularization = cost_symbol_av2(self._cost_regularization)
 
     def prepare_dataframe(self, df, ctx_idx_list):
         dims = self._initial_model.num_dims
@@ -103,14 +103,14 @@ class Trainer:
         for r, rates_tuple in enumerate(rate_offset_list):
             roffset = self.map_rate_from_counter(rates_tuple, counter)
             # cost
-            cost = cost_symbol_av1(pmf_list[r][val])
+            cost = cost_symbol_av2(pmf_list[r][val])
             if cost > self._max_cost_regularization:
                 cost = self._max_cost_regularization
             cost_list[r] += cost
             # update
-            cdf_inv = pmf2cdfinv_av1(pmf_list[r])
-            cdf_inv_updated = update_cdfinv_av1(cdf_inv, val, counter, nsymb, roffset)
-            pmf_list[r] = cdfinv2pmf_av1(cdf_inv_updated)
+            cdf_inv = pmf2cdfinv_av2(pmf_list[r])
+            cdf_inv_updated = update_cdfinv_av2(cdf_inv, val, counter, nsymb, roffset)
+            pmf_list[r] = cdfinv2pmf_av2(cdf_inv_updated)
         return (pmf_list, cost_list)
 
     def estimate_cost_multiple(self, df_filtered, pmf_init, rateidx_init=0):
@@ -142,14 +142,14 @@ class Trainer:
             success = False
             if len(cdf_cols) == nsymb:
                 cdf_init = np.array(df_sub.iloc[0][cdf_cols], dtype=int)
-                prev_pmf_buffer = [[cdf2pmf_av1(cdf_init)] * num_rates]
+                prev_pmf_buffer = [[cdf2pmf_av2(cdf_init)] * num_rates]
             for _, prev_pmf in enumerate(prev_pmf_buffer):
                 rateidx_init = df_sub.iloc[0]["rate"]
                 pmf_default = prev_pmf[rateidx_init]  # default one
                 # initial values
                 val_init = df_sub.iloc[0]["Value"]
                 cost = df_sub.iloc[0]["Cost"]
-                calculated_cost = cost_symbol_av1(pmf_default[val_init])
+                calculated_cost = cost_symbol_av2(pmf_default[val_init])
                 if calculated_cost > self._max_cost_regularization:
                     calculated_cost = self._max_cost_regularization
 
@@ -165,7 +165,7 @@ class Trainer:
                     val = df_sub.iloc[i]["Value"]
                     counter = df_sub.iloc[i]["Counter"]
                     cost = df_sub.iloc[i]["Cost"]
-                    calculated_cost = cost_symbol_av1(pmf_list[rateidx_init][val])
+                    calculated_cost = cost_symbol_av2(pmf_list[rateidx_init][val])
                     if calculated_cost > self._max_cost_regularization:
                         calculated_cost = self._max_cost_regularization
                     df_sub.iloc[i]["CalcCost"] = calculated_cost
@@ -250,7 +250,7 @@ class Trainer:
 
             # estimate cost
             default_cdf = np.array(prob_dict[ctx_name]["initializer"])
-            default_pmf = cdf2pmf_av1(default_cdf)
+            default_pmf = cdf2pmf_av2(default_cdf)
             default_rateidx = int(prob_dict[ctx_name]["init_rateidx"])
             # default_rate = RATE_LIST[default_rateidx]
 

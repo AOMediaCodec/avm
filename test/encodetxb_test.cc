@@ -17,22 +17,22 @@
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
-#include "config/aom_config.h"
-#include "config/av1_rtcd.h"
+#include "config/avm_config.h"
+#include "config/av2_rtcd.h"
 
-#include "aom_ports/aom_timer.h"
-#include "aom_ports/mem.h"
-#include "av1/common/av1_common_int.h"
-#include "av1/common/idct.h"
-#include "av1/common/scan.h"
-#include "av1/common/txb_common.h"
+#include "avm_ports/avm_timer.h"
+#include "avm_ports/mem.h"
+#include "av2/common/av2_common_int.h"
+#include "av2/common/idct.h"
+#include "av2/common/scan.h"
+#include "av2/common/txb_common.h"
 #include "test/acm_random.h"
 #include "test/clear_system_state.h"
 #include "test/register_state_check.h"
 #include "test/util.h"
 
 namespace {
-using libaom_test::ACMRandom;
+using libavm_test::ACMRandom;
 
 typedef void (*GetNzMapContextsFunc)(const uint8_t *const levels,
                                      const int16_t *const scan,
@@ -49,17 +49,17 @@ class EncodeTxbTest : public ::testing::TestWithParam<GetNzMapContextsFunc> {
 
   virtual void SetUp() {
     coeff_contexts_ref_ = reinterpret_cast<int8_t *>(
-        aom_memalign(16, sizeof(*coeff_contexts_ref_) * MAX_TX_SQUARE));
+        avm_memalign(16, sizeof(*coeff_contexts_ref_) * MAX_TX_SQUARE));
     ASSERT_TRUE(coeff_contexts_ref_ != NULL);
     coeff_contexts_ = reinterpret_cast<int8_t *>(
-        aom_memalign(16, sizeof(*coeff_contexts_) * MAX_TX_SQUARE));
+        avm_memalign(16, sizeof(*coeff_contexts_) * MAX_TX_SQUARE));
     ASSERT_TRUE(coeff_contexts_ != NULL);
   }
 
   virtual void TearDown() {
-    aom_free(coeff_contexts_ref_);
-    aom_free(coeff_contexts_);
-    libaom_test::ClearSystemState();
+    avm_free(coeff_contexts_ref_);
+    avm_free(coeff_contexts_);
+    libavm_test::ClearSystemState();
   }
 
   void GetNzMapContextsRun() {
@@ -75,14 +75,14 @@ class EncodeTxbTest : public ::testing::TestWithParam<GetNzMapContextsFunc> {
             const int height = get_txb_high((TX_SIZE)tx_size);
             const int real_width = tx_size_wide[tx_size];
             const int real_height = tx_size_high[tx_size];
-            const int16_t *const scan = av1_scan_orders[tx_size][tx_type].scan;
+            const int16_t *const scan = av2_scan_orders[tx_size][tx_type].scan;
 
             levels_ = set_levels(levels_buf_, width);
             for (int i = 0; i < kNumTests && !result; ++i) {
               for (int eob = 1; eob <= width * height && !result; ++eob) {
                 InitDataWithEob(scan, bwl, eob);
 
-                av1_get_nz_map_contexts_c(levels_, scan, eob, (TX_SIZE)tx_size,
+                av2_get_nz_map_contexts_c(levels_, scan, eob, (TX_SIZE)tx_size,
                                           tx_class, coeff_contexts_ref_, plane);
                 get_nz_map_contexts_func_(levels_, scan, eob, (TX_SIZE)tx_size,
                                           tx_class, coeff_contexts_, plane);
@@ -102,8 +102,8 @@ class EncodeTxbTest : public ::testing::TestWithParam<GetNzMapContextsFunc> {
 
   void SpeedTestGetNzMapContextsRun() {
     const int kNumTests = 20000000;
-    aom_usec_timer timer;
-    aom_usec_timer timer_ref;
+    avm_usec_timer timer;
+    avm_usec_timer timer_ref;
 
     printf("Note: Only test the largest possible eob case!\n");
     for (int tx_size = TX_4X4; tx_size < TX_SIZES_ALL; ++tx_size) {
@@ -114,33 +114,33 @@ class EncodeTxbTest : public ::testing::TestWithParam<GetNzMapContextsFunc> {
       const int real_height = tx_size_high[tx_size];
       const TX_TYPE tx_type = DCT_DCT;
       const TX_CLASS tx_class = tx_type_to_class[tx_type];
-      const int16_t *const scan = av1_scan_orders[tx_size][tx_type].scan;
+      const int16_t *const scan = av2_scan_orders[tx_size][tx_type].scan;
       const int eob = width * height;
       const int numTests = kNumTests;
 
       levels_ = set_levels(levels_buf_, width);
       InitDataWithEob(scan, bwl, eob);
 
-      aom_usec_timer_start(&timer_ref);
+      avm_usec_timer_start(&timer_ref);
       for (int i = 0; i < numTests; ++i) {
-        av1_get_nz_map_contexts_c(levels_, scan, eob, (TX_SIZE)tx_size,
+        av2_get_nz_map_contexts_c(levels_, scan, eob, (TX_SIZE)tx_size,
                                   tx_class, coeff_contexts_ref_, 0);
       }
-      aom_usec_timer_mark(&timer_ref);
+      avm_usec_timer_mark(&timer_ref);
 
       levels_ = set_levels(levels_buf_, width);
       InitDataWithEob(scan, bwl, eob);
 
-      aom_usec_timer_start(&timer);
+      avm_usec_timer_start(&timer);
       for (int i = 0; i < numTests; ++i) {
         get_nz_map_contexts_func_(levels_, scan, eob, (TX_SIZE)tx_size,
                                   tx_class, coeff_contexts_, 0);
       }
-      aom_usec_timer_mark(&timer);
+      avm_usec_timer_mark(&timer);
 
       const int elapsed_time_ref =
-          static_cast<int>(aom_usec_timer_elapsed(&timer_ref));
-      const int elapsed_time = static_cast<int>(aom_usec_timer_elapsed(&timer));
+          static_cast<int>(avm_usec_timer_elapsed(&timer_ref));
+      const int elapsed_time = static_cast<int>(avm_usec_timer_elapsed(&timer));
 
       printf("get_nz_map_contexts_%2dx%2d: %7.1f ms ref %7.1f ms gain %4.2f\n",
              real_width, real_height, elapsed_time / 1000.0,
@@ -199,25 +199,25 @@ TEST_P(EncodeTxbTest, DISABLED_SpeedTestGetNzMapContexts) {
 
 #if HAVE_SSE2
 INSTANTIATE_TEST_SUITE_P(SSE2, EncodeTxbTest,
-                         ::testing::Values(av1_get_nz_map_contexts_sse2));
+                         ::testing::Values(av2_get_nz_map_contexts_sse2));
 #endif
 
-typedef void (*av1_txb_init_levels_func)(const tran_low_t *const coeff,
+typedef void (*av2_txb_init_levels_func)(const tran_low_t *const coeff,
                                          const int width, const int height,
                                          uint8_t *const levels);
 
-typedef std::tuple<av1_txb_init_levels_func, int> TxbInitLevelParam;
+typedef std::tuple<av2_txb_init_levels_func, int> TxbInitLevelParam;
 
 class EncodeTxbInitLevelTest
     : public ::testing::TestWithParam<TxbInitLevelParam> {
  public:
   virtual ~EncodeTxbInitLevelTest() {}
-  virtual void TearDown() { libaom_test::ClearSystemState(); }
-  void RunTest(av1_txb_init_levels_func test_func, int tx_size, int is_speed);
+  virtual void TearDown() { libavm_test::ClearSystemState(); }
+  void RunTest(av2_txb_init_levels_func test_func, int tx_size, int is_speed);
 };
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(EncodeTxbInitLevelTest);
 
-void EncodeTxbInitLevelTest::RunTest(av1_txb_init_levels_func test_func,
+void EncodeTxbInitLevelTest::RunTest(av2_txb_init_levels_func test_func,
                                      int tx_size, int is_speed) {
   const int width = get_txb_wide((TX_SIZE)tx_size);
   const int height = get_txb_high((TX_SIZE)tx_size);
@@ -236,13 +236,13 @@ void EncodeTxbInitLevelTest::RunTest(av1_txb_init_levels_func test_func,
     levels_buf[1][i] = rnd.Rand8();
   }
   const int run_times = is_speed ? (width * height) * 10000 : 1;
-  aom_usec_timer timer;
-  aom_usec_timer_start(&timer);
+  avm_usec_timer timer;
+  avm_usec_timer_start(&timer);
   for (int i = 0; i < run_times; ++i) {
-    av1_txb_init_levels_c(coeff, width, height, levels0);
+    av2_txb_init_levels_c(coeff, width, height, levels0);
   }
   const double t1 = get_time_mark(&timer);
-  aom_usec_timer_start(&timer);
+  avm_usec_timer_start(&timer);
   for (int i = 0; i < run_times; ++i) {
     test_func(coeff, width, height, levels1);
   }
@@ -272,42 +272,42 @@ TEST_P(EncodeTxbInitLevelTest, DISABLED_Speed) {
 #if HAVE_SSE4_1
 INSTANTIATE_TEST_SUITE_P(
     SSE4_1, EncodeTxbInitLevelTest,
-    ::testing::Combine(::testing::Values(&av1_txb_init_levels_sse4_1),
+    ::testing::Combine(::testing::Values(&av2_txb_init_levels_sse4_1),
                        ::testing::Range(0, static_cast<int>(TX_SIZES_ALL), 1)));
 #endif
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
     AVX2, EncodeTxbInitLevelTest,
-    ::testing::Combine(::testing::Values(&av1_txb_init_levels_avx2),
+    ::testing::Combine(::testing::Values(&av2_txb_init_levels_avx2),
                        ::testing::Range(0, static_cast<int>(TX_SIZES_ALL), 1)));
 #endif
 #if HAVE_NEON
 INSTANTIATE_TEST_SUITE_P(
     NEON, EncodeTxbInitLevelTest,
-    ::testing::Combine(::testing::Values(&av1_txb_init_levels_neon),
+    ::testing::Combine(::testing::Values(&av2_txb_init_levels_neon),
                        ::testing::Range(0, static_cast<int>(TX_SIZES_ALL), 1)));
 #endif
 
-typedef void (*av1_txb_init_levels_signs_func)(const tran_low_t *const coeff,
+typedef void (*av2_txb_init_levels_signs_func)(const tran_low_t *const coeff,
                                                const int width,
                                                const int height,
                                                uint8_t *const levels,
                                                int8_t *const signs);
 
-typedef std::tuple<av1_txb_init_levels_signs_func, int> TxbInitLevelSignsParam;
+typedef std::tuple<av2_txb_init_levels_signs_func, int> TxbInitLevelSignsParam;
 
 class EncodeTxbInitLevelSignsTest
     : public ::testing::TestWithParam<TxbInitLevelSignsParam> {
  public:
   virtual ~EncodeTxbInitLevelSignsTest() {}
-  virtual void TearDown() { libaom_test::ClearSystemState(); }
-  void RunTest(av1_txb_init_levels_signs_func test_func, int tx_size,
+  virtual void TearDown() { libavm_test::ClearSystemState(); }
+  void RunTest(av2_txb_init_levels_signs_func test_func, int tx_size,
                int is_speed);
 };
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(EncodeTxbInitLevelSignsTest);
 
 void EncodeTxbInitLevelSignsTest::RunTest(
-    av1_txb_init_levels_signs_func test_func, int tx_size, int is_speed) {
+    av2_txb_init_levels_signs_func test_func, int tx_size, int is_speed) {
   const int width = get_txb_wide((TX_SIZE)tx_size);
   const int height = get_txb_high((TX_SIZE)tx_size);
   tran_low_t coeff[MAX_TX_SQUARE];
@@ -321,14 +321,14 @@ void EncodeTxbInitLevelSignsTest::RunTest(
   for (int i = 0; i < width * height; i++) {
     coeff[i] = rnd.Rand15Signed() + rnd.Rand15Signed();
   }
-  aom_usec_timer timer;
-  aom_usec_timer_start(&timer);
+  avm_usec_timer timer;
+  avm_usec_timer_start(&timer);
   for (int i = 0; i < run_times; ++i) {
-    av1_txb_init_levels_signs_c(coeff, width, height, levels_buf[0],
+    av2_txb_init_levels_signs_c(coeff, width, height, levels_buf[0],
                                 signs_buf[0]);
   }
   const double t1 = get_time_mark(&timer);
-  aom_usec_timer_start(&timer);
+  avm_usec_timer_start(&timer);
   for (int i = 0; i < run_times; ++i) {
     test_func(coeff, width, height, levels_buf[1], signs_buf[1]);
   }
@@ -362,13 +362,13 @@ TEST_P(EncodeTxbInitLevelSignsTest, DISABLED_Speed) {
 #if HAVE_SSE4_1
 INSTANTIATE_TEST_SUITE_P(
     SSE4_1, EncodeTxbInitLevelSignsTest,
-    ::testing::Combine(::testing::Values(&av1_txb_init_levels_signs_sse4_1),
+    ::testing::Combine(::testing::Values(&av2_txb_init_levels_signs_sse4_1),
                        ::testing::Range(0, static_cast<int>(TX_SIZES_ALL), 1)));
 #endif
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
     AVX2, EncodeTxbInitLevelSignsTest,
-    ::testing::Combine(::testing::Values(&av1_txb_init_levels_signs_avx2),
+    ::testing::Combine(::testing::Values(&av2_txb_init_levels_signs_avx2),
                        ::testing::Range(0, static_cast<int>(TX_SIZES_ALL), 1)));
 #endif
 

@@ -18,17 +18,17 @@
 #include "test/register_state_check.h"
 #include "test/function_equivalence_test.h"
 
-#include "config/aom_config.h"
-#include "config/aom_dsp_rtcd.h"
-#include "config/av1_rtcd.h"
+#include "config/avm_config.h"
+#include "config/avm_dsp_rtcd.h"
+#include "config/av2_rtcd.h"
 
-#include "aom/aom_integer.h"
+#include "avm/avm_integer.h"
 
-#include "av1/common/enums.h"
+#include "av2/common/enums.h"
 
-#include "aom_dsp/blend.h"
+#include "avm_dsp/blend.h"
 
-using libaom_test::FunctionEquivalenceTest;
+using libavm_test::FunctionEquivalenceTest;
 
 namespace {
 
@@ -118,7 +118,7 @@ typedef void (*FHBD)(uint16_t *dst, uint32_t dst_stride, const uint16_t *src0,
                      uint32_t src0_stride, const uint16_t *src1,
                      uint32_t src1_stride, const uint8_t *mask, int w, int h,
                      int bd);
-typedef libaom_test::FuncParam<FHBD> TestFuncsHBD;
+typedef libavm_test::FuncParam<FHBD> TestFuncsHBD;
 
 class BlendA64Mask1DTestHBD : public BlendA64Mask1DTest<FHBD, uint16_t> {
  protected:
@@ -153,7 +153,7 @@ TEST_P(BlendA64Mask1DTestHBD, RandomValues) {
     }
 
     for (int i = 0; i < kMaxMaskSize; ++i)
-      mask_[i] = rng_(AOM_BLEND_A64_MAX_ALPHA + 1);
+      mask_[i] = rng_(AVM_BLEND_A64_MAX_ALPHA + 1);
 
     Common();
   }
@@ -178,7 +178,7 @@ TEST_P(BlendA64Mask1DTestHBD, ExtremeValues) {
     }
 
     for (int i = 0; i < kMaxMaskSize; ++i)
-      mask_[i] = rng_(2) + AOM_BLEND_A64_MAX_ALPHA - 1;
+      mask_[i] = rng_(2) + AVM_BLEND_A64_MAX_ALPHA - 1;
 
     Common();
   }
@@ -194,7 +194,7 @@ static void highbd_blend_a64_hmask_ref(
   for (int row = 0; row < h; ++row)
     for (int col = 0; col < w; ++col) mask2d[row][col] = mask[col];
 
-  aom_highbd_blend_a64_mask_c(
+  avm_highbd_blend_a64_mask_c(
       dst, dst_stride, src0, src0_stride, src1, src1_stride, &mask2d[0][0],
       BlendA64Mask1DTestHBD::kMaxMaskSize, w, h, 0, 0, bd);
 }
@@ -209,7 +209,7 @@ static void highbd_blend_a64_vmask_ref(
   for (int row = 0; row < h; ++row)
     for (int col = 0; col < w; ++col) mask2d[row][col] = mask[row];
 
-  aom_highbd_blend_a64_mask_c(
+  avm_highbd_blend_a64_mask_c(
       dst, dst_stride, src0, src0_stride, src1, src1_stride, &mask2d[0][0],
       BlendA64Mask1DTestHBD::kMaxMaskSize, w, h, 0, 0, bd);
 }
@@ -217,16 +217,16 @@ static void highbd_blend_a64_vmask_ref(
 INSTANTIATE_TEST_SUITE_P(
     C, BlendA64Mask1DTestHBD,
     ::testing::Values(TestFuncsHBD(highbd_blend_a64_hmask_ref,
-                                   aom_highbd_blend_a64_hmask_c),
+                                   avm_highbd_blend_a64_hmask_c),
                       TestFuncsHBD(highbd_blend_a64_vmask_ref,
-                                   aom_highbd_blend_a64_vmask_c)));
+                                   avm_highbd_blend_a64_vmask_c)));
 
 #if HAVE_SSE4_1
 INSTANTIATE_TEST_SUITE_P(
     SSE4_1, BlendA64Mask1DTestHBD,
     ::testing::Values(TestFuncsHBD(highbd_blend_a64_hmask_ref,
-                                   aom_highbd_blend_a64_hmask_sse4_1),
+                                   avm_highbd_blend_a64_hmask_sse4_1),
                       TestFuncsHBD(highbd_blend_a64_vmask_ref,
-                                   aom_highbd_blend_a64_vmask_sse4_1)));
+                                   avm_highbd_blend_a64_vmask_sse4_1)));
 #endif  // HAVE_SSE4_1
 }  // namespace

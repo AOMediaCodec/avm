@@ -20,25 +20,25 @@ Linux Nightly Build:
     CMAKE_FLAGS: >-
       -DCMAKE_POLICY_VERSION_MINIMUM=3.5
       -DCMAKE_BUILD_TYPE=RelWithDebInfo
-      -DAOM_EXTRA_C_FLAGS="--coverage"
-      -DAOM_EXTRA_CXX_FLAGS="--coverage"
-      -DAOM_EXTRA_EXE_LINKER_FLAGS="--coverage"
+      -DAVM_EXTRA_C_FLAGS="--coverage"
+      -DAVM_EXTRA_CXX_FLAGS="--coverage"
+      -DAVM_EXTRA_EXE_LINKER_FLAGS="--coverage"
   script:
     - 'echo "CMake Flags: $CMAKE_FLAGS"'
-    - cmake -B "aom_nightly_build" -GNinja $CMAKE_FLAGS
-    - cmake --build "aom_nightly_build" --target aomenc
-    - cmake --build "aom_nightly_build" --target test_libaom
+    - cmake -B "avm_nightly_build" -GNinja $CMAKE_FLAGS
+    - cmake --build "avm_nightly_build" --target avmenc
+    - cmake --build "avm_nightly_build" --target test_libavm
   needs: []
   artifacts:
     expire_in: 1 day
     paths:
-      - 'aom_nightly_build/aomenc'
-      - 'aom_nightly_build/test_libaom'
-      - 'aom_nightly_build/**/*.gcno'
-      - 'aom_nightly_build/**/*.[hc]'
-      - 'aom_nightly_build/**/*.[hc]pp'
-      - 'aom_nightly_build/**/*.cc'
-      - 'aom_nightly_build/**/*.inc'
+      - 'avm_nightly_build/avmenc'
+      - 'avm_nightly_build/test_libavm'
+      - 'avm_nightly_build/**/*.gcno'
+      - 'avm_nightly_build/**/*.[hc]'
+      - 'avm_nightly_build/**/*.[hc]pp'
+      - 'avm_nightly_build/**/*.cc'
+      - 'avm_nightly_build/**/*.inc'
 
 # Full unit tests run (with coverage report)
 Linux All Unit Test:
@@ -46,14 +46,14 @@ Linux All Unit Test:
   interruptible: true
   parallel: 24
   variables:
-    LIBAOM_TEST_DATA_PATH: ${CI_PROJECT_DIR}/libaom-test-data
+    LIBAVM_TEST_DATA_PATH: ${CI_PROJECT_DIR}/libaom-test-data
     GTEST_TOTAL_SHARDS: ${CI_NODE_TOTAL}
     GTEST_OUTPUT: "xml:report.xml"
   before_script:
     - export GTEST_SHARD_INDEX=$((CI_NODE_INDEX - 1))
   script:
-    - cd aom_nightly_build
-    - ./test_libaom
+    - cd avm_nightly_build
+    - ./test_libavm
     # Ignore parse errors due to a bug in `gcovr 7.0`:
     # https://github.com/gcovr/gcovr/issues/882
     # Change behavior when to avoid aborting on 'Got function on multiple lines'
@@ -75,7 +75,7 @@ Linux All Unit Test:
       pthreadpool-source --exclude ruy --exclude xnnpack --exclude XNNPACK
       --exclude gemmlowp  --exclude googletest
       --exclude-directories "third_party"
-      --exclude-directories "aom_nightly_build/third_party"
+      --exclude-directories "avm_nightly_build/third_party"
       --json -o "coverage_${CI_NODE_INDEX}.json"
       -r ../ . >  "coverage_${CI_NODE_INDEX}.log" 2>&1
   needs:
@@ -84,10 +84,10 @@ Linux All Unit Test:
   artifacts:
     when: always
     reports:
-      junit: ./aom_nightly_build/report.xml
+      junit: ./avm_nightly_build/report.xml
     paths:
-      - aom_nightly_build/coverage_*.json
-      - aom_nightly_build/coverage_*.log
+      - avm_nightly_build/coverage_*.json
+      - avm_nightly_build/coverage_*.log
 
 # Produce actual coverage report from the
 # "Linux All Unit Test" job that ran in the
@@ -97,7 +97,7 @@ Coverage Report:
   interruptible: true
   script:
     - mkdir -p coverage-html
-    - cd aom_nightly_build
+    - cd avm_nightly_build
     - >-
       gcovr
       --gcov-executable gcov-14
@@ -144,50 +144,50 @@ Coverage Report:
   interruptible: true
   parallel: 10
   variables:
-    LIBAOM_TEST_DATA_PATH: ${CI_PROJECT_DIR}/libaom-test-data
+    LIBAVM_TEST_DATA_PATH: ${CI_PROJECT_DIR}/libaom-test-data
     GTEST_TOTAL_SHARDS: ${CI_NODE_TOTAL}
     GTEST_OUTPUT: "xml:report.xml"
   script:
-    - cd aom_nightly_build
+    - cd avm_nightly_build
     - |
-      case "${AOM_OPTIM_LEVEL}" in
-        sse) export AOM_SIMD_CAPS_MASK=0x3 ;;
-        sse2) export AOM_SIMD_CAPS_MASK=0x7 ;;
-        sse3) export AOM_SIMD_CAPS_MASK=0xf ;;
-        ssse3) export AOM_SIMD_CAPS_MASK=0x1f ;;
-        sse4_1) export AOM_SIMD_CAPS_MASK=0x3f ;;
+      case "${AVM_OPTIM_LEVEL}" in
+        sse) export AVM_SIMD_CAPS_MASK=0x3 ;;
+        sse2) export AVM_SIMD_CAPS_MASK=0x7 ;;
+        sse3) export AVM_SIMD_CAPS_MASK=0xf ;;
+        ssse3) export AVM_SIMD_CAPS_MASK=0x1f ;;
+        sse4_1) export AVM_SIMD_CAPS_MASK=0x3f ;;
         # sse4_2 was added *after* avx2 so the mask is a little weird
-        sse4_2) export AOM_SIMD_CAPS_MASK=0x13f ;;
-        avx2) export AOM_SIMD_CAPS_MASK=0x1ff ;;
+        sse4_2) export AVM_SIMD_CAPS_MASK=0x13f ;;
+        avx2) export AVM_SIMD_CAPS_MASK=0x1ff ;;
       esac
 
       test_filter="-C*:MMX*:SSE*:SSSE*:AVX*:*Large*"
 
-    - ./test_libaom --gtest_filter=${test_filter}
+    - ./test_libavm --gtest_filter=${test_filter}
   needs:
     - 'Test Data'
     - 'Linux Nightly Build'
   artifacts:
     when: always
     reports:
-      junit: ./aom_nightly_build/report.xml
+      junit: ./avm_nightly_build/report.xml
   before_script:
     - export GTEST_SHARD_INDEX=$((CI_NODE_INDEX - 1))
 
 Linux Unit (x86_64, sse2):
   extends: .common-linux-unit-optim
   variables:
-    AOM_OPTIM_LEVEL: sse2
+    AVM_OPTIM_LEVEL: sse2
 
 Linux Unit (x86_64, ssse3):
   extends: .common-linux-unit-optim
   variables:
-    AOM_OPTIM_LEVEL: ssse3
+    AVM_OPTIM_LEVEL: ssse3
 
 Linux Unit (x86_64, sse4_2):
   extends: .common-linux-unit-optim
   variables:
-    AOM_OPTIM_LEVEL: sse4_2
+    AVM_OPTIM_LEVEL: sse4_2
 
 #
 # Sanitizer jobs
@@ -208,7 +208,7 @@ Linux Unit (x86_64, sse4_2):
   interruptible: true
   parallel: 24
   variables:
-    LIBAOM_TEST_DATA_PATH: ${CI_PROJECT_DIR}/libaom-test-data
+    LIBAVM_TEST_DATA_PATH: ${CI_PROJECT_DIR}/libaom-test-data
     GTEST_TOTAL_SHARDS: ${CI_NODE_TOTAL}
     GTEST_OUTPUT: "xml:report.xml"
     SANITIZER_OPTIONS: "\
@@ -222,7 +222,7 @@ Linux Unit (x86_64, sse4_2):
     - export GTEST_SHARD_INDEX=$((CI_NODE_INDEX - 1))
   script:
     - |
-      case $AOM_SANITIZER_TYPE in
+      case $AVM_SANITIZER_TYPE in
         address)
           SANITIZER_OPTIONS="${SANITIZER_OPTIONS}:detect_stack_use_after_return=1"
           SANITIZER_OPTIONS="${SANITIZER_OPTIONS}:max_uar_stack_size_log=17"
@@ -243,8 +243,8 @@ Linux Unit (x86_64, sse4_2):
     - |
       filter="*Large*"
       # As of 17 May 2018 there are no large threading tests.
-      [ "${AOM_SANITIZER_TYPE}" = "thread" ] && filter="*Thread*Large*" || :
-    - ./aom_build/${AOM_SANITIZER_TYPE}/test_libaom --gtest_filter="${filter}" 2> >(tee -a sanitizer.log >&2)
+      [ "${AVM_SANITIZER_TYPE}" = "thread" ] && filter="*Thread*Large*" || :
+    - ./avm_build/${AVM_SANITIZER_TYPE}/test_libavm --gtest_filter="${filter}" 2> >(tee -a sanitizer.log >&2)
     - |
       # Looking for sanitizer output in log...
       grep -q "\(ERROR\|WARNING\): \(Address\|Thread\|Memory\|Leak\)Sanitizer:" sanitizer.log && {
@@ -270,7 +270,7 @@ Linux Sanitizer (address) Test Nightly:
   extends: .sanitizer-common-nigtly
   parallel: 24
   variables:
-    AOM_SANITIZER_TYPE: address
+    AVM_SANITIZER_TYPE: address
   needs:
     - 'Test Data'
     - 'Linux Sanitizers (x86_64-clang): [address]'
@@ -279,7 +279,7 @@ Linux Sanitizer (undefined) Test Nightly:
   extends: .sanitizer-common-nigtly
   parallel: 24
   variables:
-    AOM_SANITIZER_TYPE: undefined
+    AVM_SANITIZER_TYPE: undefined
   needs:
     - 'Test Data'
     - 'Linux Sanitizers (x86_64-clang): [undefined]'
@@ -287,7 +287,7 @@ Linux Sanitizer (undefined) Test Nightly:
 Linux Sanitizer (integer) Test Nightly:
   extends: .sanitizer-common-nigtly
   variables:
-    AOM_SANITIZER_TYPE: integer
+    AVM_SANITIZER_TYPE: integer
   needs:
     - 'Test Data'
     - 'Linux Sanitizers (x86_64-clang): [integer]'
@@ -296,7 +296,7 @@ Linux Sanitizer (thread) Test Nightly:
   extends: .sanitizer-common-nigtly
   parallel: 10
   variables:
-    AOM_SANITIZER_TYPE: thread
+    AVM_SANITIZER_TYPE: thread
   needs:
     - 'Test Data'
     - 'Linux Sanitizers (x86_64-clang): [thread]'
@@ -324,7 +324,7 @@ Linux Sanitizers (x86_64-clang) (Memory):
         -DLIBCXXABI_USE_LLVM_UNWINDER=OFF
     - cmake --build "${LLVM_MSAN_BUILD_DIR}" --config Release -- cxx cxxabi unwind
     # Build AVM with msan.
-    - AVM_MSAN_BUILD_DIR="aom_build/memory"
+    - AVM_MSAN_BUILD_DIR="avm_build/memory"
     - |
       MSAN_CFLAGS="-fsanitize=memory -fsanitize-memory-track-origins=2"
       MSAN_CFLAGS="${MSAN_CFLAGS} -fno-omit-frame-pointer -g -O2"
@@ -341,7 +341,7 @@ Linux Sanitizers (x86_64-clang) (Memory):
     - echo "CXXFLAGS = ${CXXFLAGS}"
     - echo "LDFLAGS = ${LDFLAGS}"
     - cmake -B "${AVM_MSAN_BUILD_DIR}" -G Ninja
-        -DAOM_TARGET_CPU=generic
+        -DAVM_TARGET_CPU=generic
         -DCMAKE_C_COMPILER=clang
         -DCMAKE_CXX_COMPILER=clang++
         -DCMAKE_POLICY_VERSION_MINIMUM=3.5
@@ -349,7 +349,7 @@ Linux Sanitizers (x86_64-clang) (Memory):
         -DENABLE_EXAMPLES=0
     # Special handling for a transient clang compiler crash.
     - exit_code=0
-    - cmake --build "${AVM_MSAN_BUILD_DIR}" --target test_libaom 2>&1 | tee build.log || exit_code=$?
+    - cmake --build "${AVM_MSAN_BUILD_DIR}" --target test_libavm 2>&1 | tee build.log || exit_code=$?
     - |
       COMPILER_CRASH_EXIT_CODE=135
       # Looking for clang compiler crash in log
@@ -357,7 +357,7 @@ Linux Sanitizers (x86_64-clang) (Memory):
         echo "Compiler crashed with exit code ${COMPILER_CRASH_EXIT_CODE}"
         echo "Saving diagnostic files and asking gitlab to retry..."
         mkdir clang_diagnostic_files
-        cp /tmp/av1_config* clang_diagnostic_files/
+        cp /tmp/av2_config* clang_diagnostic_files/
         exit ${COMPILER_CRASH_EXIT_CODE}
       }
       exit ${exit_code}
@@ -365,7 +365,7 @@ Linux Sanitizers (x86_64-clang) (Memory):
   artifacts:
     expire_in: 1 day
     paths:
-      - aom_build/*/test_libaom
+      - avm_build/*/test_libavm
       - llvm-project/msan_out/lib/
       # Generated when clang crashes.
       - clang_diagnostic_files/*
@@ -376,7 +376,7 @@ Linux Sanitizer (memory) Test Nightly:
   interruptible: true
   parallel: 20
   variables:
-    LIBAOM_TEST_DATA_PATH: ${CI_PROJECT_DIR}/libaom-test-data
+    LIBAVM_TEST_DATA_PATH: ${CI_PROJECT_DIR}/libaom-test-data
     GTEST_TOTAL_SHARDS: ${CI_NODE_TOTAL}
     GTEST_OUTPUT: "xml:report.xml"
     SANITIZER_OPTIONS: "\
@@ -392,7 +392,7 @@ Linux Sanitizer (memory) Test Nightly:
     - export MSAN_OPTIONS="${SANITIZER_OPTIONS}"
     - export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:${PWD}/llvm-project/msan_out/lib"
     - filter="-*Large*:*MD5Test*:*TestVectorTest*:*InvalidFile*:*ExternalFrameBuffer*:*UninstantiatedParameterizedTestSuite*"
-    - ./aom_build/memory/test_libaom --gtest_filter="${filter}"
+    - ./avm_build/memory/test_libavm --gtest_filter="${filter}"
   needs:
     - 'Test Data'
     - 'Linux Sanitizers (x86_64-clang) (Memory)'
@@ -403,16 +403,16 @@ Linux Sanitizer (memory) Test Nightly:
   stage: test
   interruptible: true
   variables:
-    AOMENC_LIMIT: 130
-    AOMENC_SKIP: 0
-    AOMENC_QP: 160
-    AOMENC_INPUT: Vertical_Bayshore_270x480_2997.y4m
-    AOMENC_OUTPUT: serial_2gops
+    AVMENC_LIMIT: 130
+    AVMENC_SKIP: 0
+    AVMENC_QP: 160
+    AVMENC_INPUT: Vertical_Bayshore_270x480_2997.y4m
+    AVMENC_OUTPUT: serial_2gops
   before_script:
-    - curl -s -S -f -O https://gitlab.com/AOMediaCodec/aom-testing/-/raw/master/test-files/${AOMENC_INPUT}.xz
-    - unxz ${AOMENC_INPUT}.xz
+    - curl -s -S -f -O https://gitlab.com/AOMediaCodec/aom-testing/-/raw/master/test-files/${AVMENC_INPUT}.xz
+    - unxz ${AVMENC_INPUT}.xz
   script:
-    - aom_nightly_build/aomenc
+    - avm_nightly_build/avmenc
         --debug
         --cpu-used=0
         --passes=1
@@ -428,18 +428,18 @@ Linux Sanitizer (memory) Test Nightly:
         --deltaq-mode=0
         --enable-tpl-model=0
         --end-usage=q
-        --qp=${AOMENC_QP}
+        --qp=${AVMENC_QP}
         --enable-keyframe-filtering=0
         --obu
-        --limit=${AOMENC_LIMIT}
-        --skip=${AOMENC_SKIP}
-        -o "${AOMENC_OUTPUT}.obu"
-        "${AOMENC_INPUT}" 2>&1 | tee "${AOMENC_OUTPUT}.psnr.log"
-    - '[ -f "${AOMENC_OUTPUT}.obu" ] || exit 1'
+        --limit=${AVMENC_LIMIT}
+        --skip=${AVMENC_SKIP}
+        -o "${AVMENC_OUTPUT}.obu"
+        "${AVMENC_INPUT}" 2>&1 | tee "${AVMENC_OUTPUT}.psnr.log"
+    - '[ -f "${AVMENC_OUTPUT}.obu" ] || exit 1'
   artifacts:
     when: always
     paths:
-      - ${AOMENC_OUTPUT}.*
+      - ${AVMENC_OUTPUT}.*
   needs:
     - 'Linux Nightly Build'
 
@@ -451,17 +451,17 @@ Serial Encode (2 GOPs):
 Parallel Encode (1st GOP):
   extends: .gop-enc-common
   variables:
-    AOMENC_LIMIT: 65
-    AOMENC_SKIP: 0
-    AOMENC_OUTPUT: parallel_gop1
+    AVMENC_LIMIT: 65
+    AVMENC_SKIP: 0
+    AVMENC_OUTPUT: parallel_gop1
 
 
 Parallel Encode (2nd GOP):
   extends: .gop-enc-common
   variables:
-    AOMENC_LIMIT: 130
-    AOMENC_SKIP: 65
-    AOMENC_OUTPUT: parallel_gop2
+    AVMENC_LIMIT: 130
+    AVMENC_SKIP: 65
+    AVMENC_OUTPUT: parallel_gop2
 
 
 Serial Parallel compare:

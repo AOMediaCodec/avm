@@ -9,36 +9,36 @@
  * source code in the PATENTS file, you can obtain it at
  * aomedia.org/license/patent-license/.
  */
-#ifndef AOM_TEST_YUV_VIDEO_SOURCE_H_
-#define AOM_TEST_YUV_VIDEO_SOURCE_H_
+#ifndef AVM_TEST_YUV_VIDEO_SOURCE_H_
+#define AVM_TEST_YUV_VIDEO_SOURCE_H_
 
 #include <cstdio>
 #include <cstdlib>
 #include <string>
 
 #include "test/video_source.h"
-#include "aom/aom_image.h"
+#include "avm/avm_image.h"
 
-namespace libaom_test {
+namespace libavm_test {
 
 // This class extends VideoSource to allow parsing of raw YUV
 // formats of various color sampling and bit-depths so that we can
 // do actual file encodes.
 class YUVVideoSource : public VideoSource {
  public:
-  YUVVideoSource(const std::string &file_name, aom_img_fmt format,
+  YUVVideoSource(const std::string &file_name, avm_img_fmt format,
                  unsigned int width, unsigned int height, int rate_numerator,
                  int rate_denominator, unsigned int start, int limit)
       : file_name_(file_name), input_file_(NULL), img_(NULL), start_(start),
         limit_(limit), frame_(0), width_(0), height_(0),
-        format_(AOM_IMG_FMT_NONE), framerate_numerator_(rate_numerator),
+        format_(AVM_IMG_FMT_NONE), framerate_numerator_(rate_numerator),
         framerate_denominator_(rate_denominator) {
     // This initializes format_, raw_size_, width_, height_ and allocates img.
     SetSize(width, height, format);
   }
 
   virtual ~YUVVideoSource() {
-    aom_img_free(img_);
+    avm_img_free(img_);
     if (input_file_) fclose(input_file_);
   }
 
@@ -59,15 +59,15 @@ class YUVVideoSource : public VideoSource {
     FillFrame();
   }
 
-  virtual aom_image_t *img() const { return (frame_ < limit_) ? img_ : NULL; }
+  virtual avm_image_t *img() const { return (frame_ < limit_) ? img_ : NULL; }
 
   // Models a stream where Timebase = 1/FPS, so pts == frame.
-  virtual aom_codec_pts_t pts() const { return frame_; }
+  virtual avm_codec_pts_t pts() const { return frame_; }
 
   virtual unsigned long duration() const { return 1; }
 
-  virtual aom_rational_t timebase() const {
-    const aom_rational_t t = { framerate_denominator_, framerate_numerator_ };
+  virtual avm_rational_t timebase() const {
+    const avm_rational_t t = { framerate_denominator_, framerate_numerator_ };
     return t;
   }
 
@@ -76,21 +76,21 @@ class YUVVideoSource : public VideoSource {
   virtual unsigned int limit() const { return limit_; }
 
   virtual void SetSize(unsigned int width, unsigned int height,
-                       aom_img_fmt format) {
+                       avm_img_fmt format) {
     if (width != width_ || height != height_ || format != format_) {
-      aom_img_free(img_);
-      img_ = aom_img_alloc(NULL, format, width, height, 1);
+      avm_img_free(img_);
+      img_ = avm_img_alloc(NULL, format, width, height, 1);
       ASSERT_TRUE(img_ != NULL);
       width_ = width;
       height_ = height;
       format_ = format;
       switch (format) {
-        case AOM_IMG_FMT_I420: raw_size_ = width * height * 3 / 2; break;
-        case AOM_IMG_FMT_I422: raw_size_ = width * height * 2; break;
-        case AOM_IMG_FMT_I444: raw_size_ = width * height * 3; break;
-        case AOM_IMG_FMT_I42016: raw_size_ = width * height * 3; break;
-        case AOM_IMG_FMT_I42216: raw_size_ = width * height * 4; break;
-        case AOM_IMG_FMT_I44416: raw_size_ = width * height * 6; break;
+        case AVM_IMG_FMT_I420: raw_size_ = width * height * 3 / 2; break;
+        case AVM_IMG_FMT_I422: raw_size_ = width * height * 2; break;
+        case AVM_IMG_FMT_I444: raw_size_ = width * height * 3; break;
+        case AVM_IMG_FMT_I42016: raw_size_ = width * height * 3; break;
+        case AVM_IMG_FMT_I42216: raw_size_ = width * height * 4; break;
+        case AVM_IMG_FMT_I44416: raw_size_ = width * height * 6; break;
         default: ASSERT_TRUE(0);
       }
     }
@@ -107,18 +107,18 @@ class YUVVideoSource : public VideoSource {
  protected:
   std::string file_name_;
   FILE *input_file_;
-  aom_image_t *img_;
+  avm_image_t *img_;
   size_t raw_size_;
   unsigned int start_;
   unsigned int limit_;
   unsigned int frame_;
   unsigned int width_;
   unsigned int height_;
-  aom_img_fmt format_;
+  avm_img_fmt format_;
   int framerate_numerator_;
   int framerate_denominator_;
 };
 
-}  // namespace libaom_test
+}  // namespace libavm_test
 
-#endif  // AOM_TEST_YUV_VIDEO_SOURCE_H_
+#endif  // AVM_TEST_YUV_VIDEO_SOURCE_H_

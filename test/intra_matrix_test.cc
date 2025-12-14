@@ -18,17 +18,17 @@
 #include "test/register_state_check.h"
 #include "test/function_equivalence_test.h"
 
-#include "config/aom_config.h"
-#include "config/aom_dsp_rtcd.h"
-#include "config/av1_rtcd.h"
+#include "config/avm_config.h"
+#include "config/avm_dsp_rtcd.h"
+#include "config/av2_rtcd.h"
 
-#include "aom/aom_integer.h"
-#include "aom_ports/aom_timer.h"
-#include "av1/common/enums.h"
-#include "av1/common/intra_dip.h"
-#include "av1/common/intra_matrix.h"
+#include "avm/avm_integer.h"
+#include "avm_ports/avm_timer.h"
+#include "av2/common/enums.h"
+#include "av2/common/intra_dip.h"
+#include "av2/common/intra_matrix.h"
 
-using libaom_test::FunctionEquivalenceTest;
+using libavm_test::FunctionEquivalenceTest;
 
 namespace {
 
@@ -68,7 +68,7 @@ class IntraMatrixTest : public FunctionEquivalenceTest<F> {
 //////////////////////////////////////////////////////////////////////////////
 
 typedef void (*IMHB)(const uint16_t *A, const uint16_t *B, uint16_t *C, int bd);
-typedef libaom_test::FuncParam<IMHB> IntraMatrixTestFuncsHBD;
+typedef libavm_test::FuncParam<IMHB> IntraMatrixTestFuncsHBD;
 
 class IntraMatrixTestHB : public IntraMatrixTest<IMHB, uint16_t> {
  protected:
@@ -95,7 +95,7 @@ TEST_P(IntraMatrixTestHB, RandomValues) {
     int mode = iter % INTRA_DIP_MODE_CNT;
     for (int r = 0; r < DIP_ROWS; ++r) {
       for (int c = 0; c < DIP_FEATURES; ++c) {
-        dip_arr_[r * DIP_COLS + c] = av1_intra_matrix_weights[mode][r][c];
+        dip_arr_[r * DIP_COLS + c] = av2_intra_matrix_weights[mode][r][c];
       }
     }
 
@@ -106,8 +106,8 @@ TEST_P(IntraMatrixTestHB, RandomValues) {
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(AVX2, IntraMatrixTestHB,
                          ::testing::Values(IntraMatrixTestFuncsHBD(
-                             av1_dip_matrix_multiplication_c,
-                             av1_dip_matrix_multiplication_avx2)));
+                             av2_dip_matrix_multiplication_c,
+                             av2_dip_matrix_multiplication_avx2)));
 #endif  // HAVE_AVX2
 
 // Speed tests
@@ -121,7 +121,7 @@ TEST_P(IntraMatrixTestHB, DISABLED_Speed) {
   }
   for (int r = 0; r < 64; ++r) {
     for (int c = 0; c < 11; ++c) {
-      dip_arr_[r * 16 + c] = av1_intra_matrix_weights[0][r][c];
+      dip_arr_[r * 16 + c] = av2_intra_matrix_weights[0][r][c];
     }
   }
   dip_tst_ = &dip_tst_data_[0];
@@ -143,7 +143,7 @@ typedef void (*ResampleOutputFunc)(uint16_t *dst, int dst_stride,
                                    uint16_t *ml_output, int bw_log2,
                                    int bh_log2, int transpose);
 
-typedef libaom_test::FuncParam<ResampleOutputFunc> ResampleOutputTestFuncs;
+typedef libavm_test::FuncParam<ResampleOutputFunc> ResampleOutputTestFuncs;
 
 class ResampleOutputTest : public FunctionEquivalenceTest<ResampleOutputFunc> {
  protected:
@@ -193,7 +193,7 @@ class ResampleOutputTest : public FunctionEquivalenceTest<ResampleOutputFunc> {
           for (int i = 0; i < kMlOutputSize; ++i) {
             // The range of ml_output is clipped to the corresponding bitdepth.
             // i.e. v = clip_pixel_highbd(v, bit_depth);
-            // See av1_dip_matrix_mulplication.
+            // See av2_dip_matrix_mulplication.
             ml_output_data_[i] = rng_(hi);
           }
           // The top-left corner is shared between above_row[-1] and
@@ -240,31 +240,31 @@ class ResampleOutputTest : public FunctionEquivalenceTest<ResampleOutputFunc> {
           for (int i = 0; i < kMlOutputSize; ++i) {
             // The range of ml_output is clipped to the corresponding bitdepth.
             // i.e. v = clip_pixel_highbd(v, bit_depth);
-            // See av1_dip_matrix_mulplication.
+            // See av2_dip_matrix_mulplication.
             ml_output_data_[i] = rng_(hi);
           }
           above_row_[-1] = context_data_[0];
           left_col_[-1] = context_data_[0];
 
-          aom_usec_timer ref_timer, tst_timer;
+          avm_usec_timer ref_timer, tst_timer;
 
-          aom_usec_timer_start(&ref_timer);
+          avm_usec_timer_start(&ref_timer);
           for (int i = 0; i < kIterations; ++i) {
             params_.ref_func(dst_ref_, dst_stride, above_row_, left_col_,
                              ml_output_, bw_log2, bh_log2, transpose);
           }
-          aom_usec_timer_mark(&ref_timer);
+          avm_usec_timer_mark(&ref_timer);
           const double ref_time =
-              static_cast<double>(aom_usec_timer_elapsed(&ref_timer));
+              static_cast<double>(avm_usec_timer_elapsed(&ref_timer));
 
-          aom_usec_timer_start(&tst_timer);
+          avm_usec_timer_start(&tst_timer);
           for (int i = 0; i < kIterations; ++i) {
             params_.tst_func(dst_tst_, dst_stride, above_row_, left_col_,
                              ml_output_, bw_log2, bh_log2, transpose);
           }
-          aom_usec_timer_mark(&tst_timer);
+          avm_usec_timer_mark(&tst_timer);
           const double tst_time =
-              static_cast<double>(aom_usec_timer_elapsed(&tst_timer));
+              static_cast<double>(avm_usec_timer_elapsed(&tst_timer));
 
           printf(
               "Block %2dx%2d (T=%d): C time = %7.2f us, SIMD time = %7.2f us, "

@@ -17,7 +17,7 @@
 #include "common/stream_iter.h"
 #include "common/y4minput.h"
 
-static int copy_reader(StreamIter *iter, aom_image_t *img) {
+static int copy_reader(StreamIter *iter, avm_image_t *img) {
   struct AvxInputContext *input_ctx = iter->input.avx;
   FILE *f = input_ctx->file;
   y4m_input *y4m = &input_ctx->y4m;
@@ -36,7 +36,7 @@ void copy_stream_iter_init(StreamIter *iter, struct AvxInputContext *input) {
   iter->reader = copy_reader;
 }
 
-static int skip_reader(StreamIter *iter, aom_image_t *raw) {
+static int skip_reader(StreamIter *iter, avm_image_t *raw) {
   // While we haven't skipped enough frames, read from the underlying
   // stream and throw the result away. If no frame is available, early
   // exit.
@@ -59,7 +59,7 @@ void skip_stream_iter_init(StreamIter *iter, StreamIter *input, int num_skip) {
   iter->reader = skip_reader;
 }
 
-static int step_reader(StreamIter *iter, aom_image_t *raw) {
+static int step_reader(StreamIter *iter, avm_image_t *raw) {
   while (true) {
     int frame_avail = read_stream_iter(iter->input.stream, raw);
     // If at end of stream, no need to read further.
@@ -83,7 +83,7 @@ void step_stream_iter_init(StreamIter *iter, StreamIter *input, int step_size) {
   iter->reader = step_reader;
 }
 
-static int limit_reader(StreamIter *iter, aom_image_t *raw) {
+static int limit_reader(StreamIter *iter, avm_image_t *raw) {
   // limit of 0 is a special case meaning "no limit".
   if (iter->n != 0 && iter->current >= iter->n) {
     return 0;
@@ -100,6 +100,6 @@ void limit_stream_iter_init(StreamIter *iter, StreamIter *input, int limit) {
   iter->reader = limit_reader;
 }
 
-int read_stream_iter(StreamIter *iter, aom_image_t *raw) {
+int read_stream_iter(StreamIter *iter, avm_image_t *raw) {
   return iter->reader(iter, raw);
 }

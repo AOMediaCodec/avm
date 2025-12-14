@@ -20,12 +20,12 @@
 #include "test/register_state_check.h"
 #include "test/util.h"
 
-#include "config/aom_config.h"
-#include "config/aom_dsp_rtcd.h"
+#include "config/avm_config.h"
+#include "config/avm_dsp_rtcd.h"
 
-#include "aom/aom_integer.h"
+#include "avm/avm_integer.h"
 
-using libaom_test::ACMRandom;
+using libavm_test::ACMRandom;
 
 namespace {
 const int number_of_iterations = 200;
@@ -47,7 +47,7 @@ class HighbdMaskedSADTest
     ref_maskedSAD_op_ = GET_PARAM(1);
   }
 
-  virtual void TearDown() { libaom_test::ClearSystemState(); }
+  virtual void TearDown() { libavm_test::ClearSystemState(); }
   void runHighbdMaskedSADTest(int run_times);
 
  protected:
@@ -78,16 +78,16 @@ void HighbdMaskedSADTest::runHighbdMaskedSADTest(int run_times) {
     }
 
     for (int invert_mask = 0; invert_mask < 2; ++invert_mask) {
-      aom_usec_timer timer;
-      aom_usec_timer_start(&timer);
+      avm_usec_timer timer;
+      avm_usec_timer_start(&timer);
       for (int repeat = 0; repeat < run_times; ++repeat) {
         ref_ret = ref_maskedSAD_op_(src_ptr, src_stride, ref_ptr, ref_stride,
                                     second_pred_ptr, msk_ptr, msk_stride,
                                     invert_mask);
       }
-      aom_usec_timer_mark(&timer);
-      const double time1 = static_cast<double>(aom_usec_timer_elapsed(&timer));
-      aom_usec_timer_start(&timer);
+      avm_usec_timer_mark(&timer);
+      const double time1 = static_cast<double>(avm_usec_timer_elapsed(&timer));
+      avm_usec_timer_start(&timer);
       if (run_times == 1) {
         ASM_REGISTER_STATE_CHECK(ret = maskedSAD_op_(src_ptr, src_stride,
                                                      ref_ptr, ref_stride,
@@ -100,8 +100,8 @@ void HighbdMaskedSADTest::runHighbdMaskedSADTest(int run_times) {
                             second_pred_ptr, msk_ptr, msk_stride, invert_mask);
         }
       }
-      aom_usec_timer_mark(&timer);
-      const double time2 = static_cast<double>(aom_usec_timer_elapsed(&timer));
+      avm_usec_timer_mark(&timer);
+      const double time2 = static_cast<double>(avm_usec_timer_elapsed(&timer));
       if (run_times > 10) {
         printf("%7.2f/%7.2fns", time1, time2);
         printf("(%3.2f)\n", time1 / time2);
@@ -125,37 +125,37 @@ using std::make_tuple;
 
 #if HAVE_SSSE3
 const HighbdMaskedSADParam hbd_msad_test[] = {
-  make_tuple(&aom_highbd_masked_sad4x4_ssse3, &aom_highbd_masked_sad4x4_c),
-  make_tuple(&aom_highbd_masked_sad4x8_ssse3, &aom_highbd_masked_sad4x8_c),
-  make_tuple(&aom_highbd_masked_sad8x4_ssse3, &aom_highbd_masked_sad8x4_c),
-  make_tuple(&aom_highbd_masked_sad8x8_ssse3, &aom_highbd_masked_sad8x8_c),
-  make_tuple(&aom_highbd_masked_sad8x16_ssse3, &aom_highbd_masked_sad8x16_c),
-  make_tuple(&aom_highbd_masked_sad16x8_ssse3, &aom_highbd_masked_sad16x8_c),
-  make_tuple(&aom_highbd_masked_sad16x16_ssse3, &aom_highbd_masked_sad16x16_c),
-  make_tuple(&aom_highbd_masked_sad16x32_ssse3, &aom_highbd_masked_sad16x32_c),
-  make_tuple(&aom_highbd_masked_sad32x16_ssse3, &aom_highbd_masked_sad32x16_c),
-  make_tuple(&aom_highbd_masked_sad32x32_ssse3, &aom_highbd_masked_sad32x32_c),
-  make_tuple(&aom_highbd_masked_sad32x64_ssse3, &aom_highbd_masked_sad32x64_c),
-  make_tuple(&aom_highbd_masked_sad64x32_ssse3, &aom_highbd_masked_sad64x32_c),
-  make_tuple(&aom_highbd_masked_sad64x64_ssse3, &aom_highbd_masked_sad64x64_c),
-  make_tuple(&aom_highbd_masked_sad64x128_ssse3,
-             &aom_highbd_masked_sad64x128_c),
-  make_tuple(&aom_highbd_masked_sad128x64_ssse3,
-             &aom_highbd_masked_sad128x64_c),
-  make_tuple(&aom_highbd_masked_sad128x128_ssse3,
-             &aom_highbd_masked_sad128x128_c),
-  make_tuple(&aom_highbd_masked_sad4x16_ssse3, &aom_highbd_masked_sad4x16_c),
-  make_tuple(&aom_highbd_masked_sad16x4_ssse3, &aom_highbd_masked_sad16x4_c),
-  make_tuple(&aom_highbd_masked_sad8x32_ssse3, &aom_highbd_masked_sad8x32_c),
-  make_tuple(&aom_highbd_masked_sad32x8_ssse3, &aom_highbd_masked_sad32x8_c),
-  make_tuple(&aom_highbd_masked_sad16x64_ssse3, &aom_highbd_masked_sad16x64_c),
-  make_tuple(&aom_highbd_masked_sad64x16_ssse3, &aom_highbd_masked_sad64x16_c),
-  make_tuple(&aom_highbd_masked_sad4x32_ssse3, &aom_highbd_masked_sad4x32_c),
-  make_tuple(&aom_highbd_masked_sad32x4_ssse3, &aom_highbd_masked_sad32x4_c),
-  make_tuple(&aom_highbd_masked_sad8x64_ssse3, &aom_highbd_masked_sad8x64_c),
-  make_tuple(&aom_highbd_masked_sad64x8_ssse3, &aom_highbd_masked_sad64x8_c),
-  make_tuple(&aom_highbd_masked_sad4x64_ssse3, &aom_highbd_masked_sad4x64_c),
-  make_tuple(&aom_highbd_masked_sad64x4_ssse3, &aom_highbd_masked_sad64x4_c),
+  make_tuple(&avm_highbd_masked_sad4x4_ssse3, &avm_highbd_masked_sad4x4_c),
+  make_tuple(&avm_highbd_masked_sad4x8_ssse3, &avm_highbd_masked_sad4x8_c),
+  make_tuple(&avm_highbd_masked_sad8x4_ssse3, &avm_highbd_masked_sad8x4_c),
+  make_tuple(&avm_highbd_masked_sad8x8_ssse3, &avm_highbd_masked_sad8x8_c),
+  make_tuple(&avm_highbd_masked_sad8x16_ssse3, &avm_highbd_masked_sad8x16_c),
+  make_tuple(&avm_highbd_masked_sad16x8_ssse3, &avm_highbd_masked_sad16x8_c),
+  make_tuple(&avm_highbd_masked_sad16x16_ssse3, &avm_highbd_masked_sad16x16_c),
+  make_tuple(&avm_highbd_masked_sad16x32_ssse3, &avm_highbd_masked_sad16x32_c),
+  make_tuple(&avm_highbd_masked_sad32x16_ssse3, &avm_highbd_masked_sad32x16_c),
+  make_tuple(&avm_highbd_masked_sad32x32_ssse3, &avm_highbd_masked_sad32x32_c),
+  make_tuple(&avm_highbd_masked_sad32x64_ssse3, &avm_highbd_masked_sad32x64_c),
+  make_tuple(&avm_highbd_masked_sad64x32_ssse3, &avm_highbd_masked_sad64x32_c),
+  make_tuple(&avm_highbd_masked_sad64x64_ssse3, &avm_highbd_masked_sad64x64_c),
+  make_tuple(&avm_highbd_masked_sad64x128_ssse3,
+             &avm_highbd_masked_sad64x128_c),
+  make_tuple(&avm_highbd_masked_sad128x64_ssse3,
+             &avm_highbd_masked_sad128x64_c),
+  make_tuple(&avm_highbd_masked_sad128x128_ssse3,
+             &avm_highbd_masked_sad128x128_c),
+  make_tuple(&avm_highbd_masked_sad4x16_ssse3, &avm_highbd_masked_sad4x16_c),
+  make_tuple(&avm_highbd_masked_sad16x4_ssse3, &avm_highbd_masked_sad16x4_c),
+  make_tuple(&avm_highbd_masked_sad8x32_ssse3, &avm_highbd_masked_sad8x32_c),
+  make_tuple(&avm_highbd_masked_sad32x8_ssse3, &avm_highbd_masked_sad32x8_c),
+  make_tuple(&avm_highbd_masked_sad16x64_ssse3, &avm_highbd_masked_sad16x64_c),
+  make_tuple(&avm_highbd_masked_sad64x16_ssse3, &avm_highbd_masked_sad64x16_c),
+  make_tuple(&avm_highbd_masked_sad4x32_ssse3, &avm_highbd_masked_sad4x32_c),
+  make_tuple(&avm_highbd_masked_sad32x4_ssse3, &avm_highbd_masked_sad32x4_c),
+  make_tuple(&avm_highbd_masked_sad8x64_ssse3, &avm_highbd_masked_sad8x64_c),
+  make_tuple(&avm_highbd_masked_sad64x8_ssse3, &avm_highbd_masked_sad64x8_c),
+  make_tuple(&avm_highbd_masked_sad4x64_ssse3, &avm_highbd_masked_sad4x64_c),
+  make_tuple(&avm_highbd_masked_sad64x4_ssse3, &avm_highbd_masked_sad64x4_c),
 };
 
 INSTANTIATE_TEST_SUITE_P(SSSE3, HighbdMaskedSADTest,
@@ -164,54 +164,54 @@ INSTANTIATE_TEST_SUITE_P(SSSE3, HighbdMaskedSADTest,
 
 #if HAVE_AVX2
 const HighbdMaskedSADParam hbd_msad_avx2_test[] = {
-  make_tuple(&aom_highbd_masked_sad4x4_avx2, &aom_highbd_masked_sad4x4_ssse3),
-  make_tuple(&aom_highbd_masked_sad4x8_avx2, &aom_highbd_masked_sad4x8_ssse3),
-  make_tuple(&aom_highbd_masked_sad8x4_avx2, &aom_highbd_masked_sad8x4_ssse3),
-  make_tuple(&aom_highbd_masked_sad8x8_avx2, &aom_highbd_masked_sad8x8_ssse3),
-  make_tuple(&aom_highbd_masked_sad8x16_avx2, &aom_highbd_masked_sad8x16_ssse3),
-  make_tuple(&aom_highbd_masked_sad16x8_avx2, &aom_highbd_masked_sad16x8_ssse3),
-  make_tuple(&aom_highbd_masked_sad16x16_avx2,
-             &aom_highbd_masked_sad16x16_ssse3),
-  make_tuple(&aom_highbd_masked_sad16x32_avx2,
-             &aom_highbd_masked_sad16x32_ssse3),
-  make_tuple(&aom_highbd_masked_sad32x16_avx2,
-             &aom_highbd_masked_sad32x16_ssse3),
-  make_tuple(&aom_highbd_masked_sad32x32_avx2,
-             &aom_highbd_masked_sad32x32_ssse3),
-  make_tuple(&aom_highbd_masked_sad32x64_avx2,
-             &aom_highbd_masked_sad32x64_ssse3),
-  make_tuple(&aom_highbd_masked_sad64x32_avx2,
-             &aom_highbd_masked_sad64x32_ssse3),
-  make_tuple(&aom_highbd_masked_sad64x64_avx2,
-             &aom_highbd_masked_sad64x64_ssse3),
-  make_tuple(&aom_highbd_masked_sad64x128_avx2,
-             &aom_highbd_masked_sad64x128_ssse3),
-  make_tuple(&aom_highbd_masked_sad128x64_avx2,
-             &aom_highbd_masked_sad128x64_ssse3),
-  make_tuple(&aom_highbd_masked_sad128x128_avx2,
-             &aom_highbd_masked_sad128x128_ssse3),
+  make_tuple(&avm_highbd_masked_sad4x4_avx2, &avm_highbd_masked_sad4x4_ssse3),
+  make_tuple(&avm_highbd_masked_sad4x8_avx2, &avm_highbd_masked_sad4x8_ssse3),
+  make_tuple(&avm_highbd_masked_sad8x4_avx2, &avm_highbd_masked_sad8x4_ssse3),
+  make_tuple(&avm_highbd_masked_sad8x8_avx2, &avm_highbd_masked_sad8x8_ssse3),
+  make_tuple(&avm_highbd_masked_sad8x16_avx2, &avm_highbd_masked_sad8x16_ssse3),
+  make_tuple(&avm_highbd_masked_sad16x8_avx2, &avm_highbd_masked_sad16x8_ssse3),
+  make_tuple(&avm_highbd_masked_sad16x16_avx2,
+             &avm_highbd_masked_sad16x16_ssse3),
+  make_tuple(&avm_highbd_masked_sad16x32_avx2,
+             &avm_highbd_masked_sad16x32_ssse3),
+  make_tuple(&avm_highbd_masked_sad32x16_avx2,
+             &avm_highbd_masked_sad32x16_ssse3),
+  make_tuple(&avm_highbd_masked_sad32x32_avx2,
+             &avm_highbd_masked_sad32x32_ssse3),
+  make_tuple(&avm_highbd_masked_sad32x64_avx2,
+             &avm_highbd_masked_sad32x64_ssse3),
+  make_tuple(&avm_highbd_masked_sad64x32_avx2,
+             &avm_highbd_masked_sad64x32_ssse3),
+  make_tuple(&avm_highbd_masked_sad64x64_avx2,
+             &avm_highbd_masked_sad64x64_ssse3),
+  make_tuple(&avm_highbd_masked_sad64x128_avx2,
+             &avm_highbd_masked_sad64x128_ssse3),
+  make_tuple(&avm_highbd_masked_sad128x64_avx2,
+             &avm_highbd_masked_sad128x64_ssse3),
+  make_tuple(&avm_highbd_masked_sad128x128_avx2,
+             &avm_highbd_masked_sad128x128_ssse3),
 
-  make_tuple(&aom_highbd_masked_sad128x256_avx2,
-             &aom_highbd_masked_sad128x256_c),
-  make_tuple(&aom_highbd_masked_sad256x128_avx2,
-             &aom_highbd_masked_sad256x128_c),
-  make_tuple(&aom_highbd_masked_sad256x256_avx2,
-             &aom_highbd_masked_sad256x256_c),
+  make_tuple(&avm_highbd_masked_sad128x256_avx2,
+             &avm_highbd_masked_sad128x256_c),
+  make_tuple(&avm_highbd_masked_sad256x128_avx2,
+             &avm_highbd_masked_sad256x128_c),
+  make_tuple(&avm_highbd_masked_sad256x256_avx2,
+             &avm_highbd_masked_sad256x256_c),
 
-  make_tuple(&aom_highbd_masked_sad4x16_avx2, &aom_highbd_masked_sad4x16_ssse3),
-  make_tuple(&aom_highbd_masked_sad16x4_avx2, &aom_highbd_masked_sad16x4_ssse3),
-  make_tuple(&aom_highbd_masked_sad8x32_avx2, &aom_highbd_masked_sad8x32_ssse3),
-  make_tuple(&aom_highbd_masked_sad32x8_avx2, &aom_highbd_masked_sad32x8_ssse3),
-  make_tuple(&aom_highbd_masked_sad16x64_avx2,
-             &aom_highbd_masked_sad16x64_ssse3),
-  make_tuple(&aom_highbd_masked_sad64x16_avx2,
-             &aom_highbd_masked_sad64x16_ssse3),
-  make_tuple(&aom_highbd_masked_sad4x32_avx2, &aom_highbd_masked_sad4x32_ssse3),
-  make_tuple(&aom_highbd_masked_sad32x4_avx2, &aom_highbd_masked_sad32x4_ssse3),
-  make_tuple(&aom_highbd_masked_sad8x64_avx2, &aom_highbd_masked_sad8x64_ssse3),
-  make_tuple(&aom_highbd_masked_sad64x8_avx2, &aom_highbd_masked_sad64x8_ssse3),
-  make_tuple(&aom_highbd_masked_sad4x64_avx2, &aom_highbd_masked_sad4x64_ssse3),
-  make_tuple(&aom_highbd_masked_sad64x4_avx2, &aom_highbd_masked_sad64x4_ssse3),
+  make_tuple(&avm_highbd_masked_sad4x16_avx2, &avm_highbd_masked_sad4x16_ssse3),
+  make_tuple(&avm_highbd_masked_sad16x4_avx2, &avm_highbd_masked_sad16x4_ssse3),
+  make_tuple(&avm_highbd_masked_sad8x32_avx2, &avm_highbd_masked_sad8x32_ssse3),
+  make_tuple(&avm_highbd_masked_sad32x8_avx2, &avm_highbd_masked_sad32x8_ssse3),
+  make_tuple(&avm_highbd_masked_sad16x64_avx2,
+             &avm_highbd_masked_sad16x64_ssse3),
+  make_tuple(&avm_highbd_masked_sad64x16_avx2,
+             &avm_highbd_masked_sad64x16_ssse3),
+  make_tuple(&avm_highbd_masked_sad4x32_avx2, &avm_highbd_masked_sad4x32_ssse3),
+  make_tuple(&avm_highbd_masked_sad32x4_avx2, &avm_highbd_masked_sad32x4_ssse3),
+  make_tuple(&avm_highbd_masked_sad8x64_avx2, &avm_highbd_masked_sad8x64_ssse3),
+  make_tuple(&avm_highbd_masked_sad64x8_avx2, &avm_highbd_masked_sad64x8_ssse3),
+  make_tuple(&avm_highbd_masked_sad4x64_avx2, &avm_highbd_masked_sad4x64_ssse3),
+  make_tuple(&avm_highbd_masked_sad64x4_avx2, &avm_highbd_masked_sad64x4_ssse3),
 };
 
 INSTANTIATE_TEST_SUITE_P(AVX2, HighbdMaskedSADTest,

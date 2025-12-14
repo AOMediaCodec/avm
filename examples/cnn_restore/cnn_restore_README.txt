@@ -27,7 +27,7 @@ BUILD
 Configure cmake with -DCONFIG_TENSORFLOW_LITE=1 and make. From a clean build
 directory run:
 
-cmake -DCONFIG_TENSORFLOW_LITE=1 path/to/aom && make -j32
+cmake -DCONFIG_TENSORFLOW_LITE=1 path/to/avm && make -j32
 
 This will produce the cnn_restore_y4m utility binary in the build directory.
 
@@ -76,7 +76,7 @@ Examples:
 
 
 Note, the utility lanczos_resample_y4m built from source in tools/lanczos
-can be conveniently combined with this utility and aomenc/aomdec to produce
+can be conveniently combined with this utility and avmenc/avmdec to produce
 a full out of loop down-compress-up-superresolution pipeline.
 See the sample scripts:
 

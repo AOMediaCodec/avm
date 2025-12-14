@@ -26,7 +26,7 @@ dec_path = os.path.join(test_path, 'decodedYUVs')
 dec_log_path = os.path.join(test_path, 'decLogs')
 ra_cmd_log_file = os.path.join(test_path, "AV2CTC_TestCmd_RA.log")
 as_cmd_log_file = os.path.join(test_path, "AV2CTC_TestCmd_AS.log")
-decoder = "%s/bin/aomdec-v9.0.0-rc1" % root_path
+decoder = "%s/bin/avmdec-v9.0.0-rc1" % root_path
 ra_dec_error_log = os.path.join(test_path, "ra_decode_error.log")
 as_dec_error_log = os.path.join(test_path, "as_decode_error.log")
 updated_ra_cmd_log = os.path.join(test_path, "AV2CTC_TestCmd_Update_RA.log")
@@ -76,7 +76,7 @@ def run_decode(cmd_log_file):
             dec_output = os.path.join(dec_path, video + ".y4m")
             #print("bitstrams file is %s\n" % output_file)
             #print("decoding log file is %s\n" % dec_log)
-            args = " --codec=av1 --summary -o %s %s" % (dec_output, output_file)
+            args = " --codec=av2 --summary -o %s %s" % (dec_output, output_file)
             dec_cmd = decoder + args + "> %s 2>&1"%dec_log
             #print("=== decoding %s \n" %video)
             #print(dec_cmd)

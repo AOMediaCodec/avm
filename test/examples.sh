@@ -8,7 +8,7 @@
 ## License 1.0 was not distributed with this source code in the PATENTS file, you
 ## can obtain it at aomedia.org/license/patent-license/.
 ##
-## This file runs all of the tests for the libaom examples.
+## This file runs all of the tests for the libavm examples.
 ##
 . $(dirname $0)/tools_common.sh
 
@@ -18,7 +18,7 @@ example_tests=$(ls -r $(dirname $0)/*.sh)
 exclude_list="best_encode examples run_encodes tools_common"
 exclude_list="$exclude_list twopass_encoder"
 exclude_list="$exclude_list extract_proto_test"
-exclude_list="$exclude_list aomcx_set_ref"
+exclude_list="$exclude_list avmcx_set_ref"
 
 # Filter out the scripts in $exclude_list.
 for word in ${exclude_list}; do
@@ -27,6 +27,6 @@ done
 
 for test in ${example_tests}; do
   # Source each test script so that exporting variables can be avoided.
-  AOM_TEST_NAME="$(basename ${test%.*})"
+  AVM_TEST_NAME="$(basename ${test%.*})"
   . "${test}"
 done

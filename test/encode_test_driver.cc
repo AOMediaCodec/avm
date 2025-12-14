@@ -15,27 +15,27 @@
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
-#include "config/aom_config.h"
+#include "config/avm_config.h"
 
-#include "aom_ports/mem.h"
+#include "avm_ports/mem.h"
 #include "test/codec_factory.h"
 #include "test/decode_test_driver.h"
 #include "test/encode_test_driver.h"
 #include "test/register_state_check.h"
 #include "test/video_source.h"
 
-namespace libaom_test {
+namespace libavm_test {
 void Encoder::InitEncoder(VideoSource *video) {
-  aom_codec_err_t res;
-  const aom_image_t *img = video->img();
+  avm_codec_err_t res;
+  const avm_image_t *img = video->img();
 
   if (video->img() && !encoder_.priv) {
     cfg_.g_w = img->d_w;
     cfg_.g_h = img->d_h;
     cfg_.g_timebase = video->timebase();
 
-    res = aom_codec_enc_init(&encoder_, CodecInterface(), &cfg_, init_flags_);
-    ASSERT_EQ(AOM_CODEC_OK, res) << EncoderError();
+    res = avm_codec_enc_init(&encoder_, CodecInterface(), &cfg_, init_flags_);
+    ASSERT_EQ(AVM_CODEC_OK, res) << EncoderError();
   }
 }
 
@@ -48,35 +48,35 @@ void Encoder::EncodeFrame(VideoSource *video, const unsigned long frame_flags) {
 
 void Encoder::EncodeFrameInternal(const VideoSource &video,
                                   const unsigned long frame_flags) {
-  aom_codec_err_t res;
-  const aom_image_t *img = video.img();
+  avm_codec_err_t res;
+  const avm_image_t *img = video.img();
 
   // Handle frame resizing
   if (cfg_.g_w != img->d_w || cfg_.g_h != img->d_h) {
     cfg_.g_w = img->d_w;
     cfg_.g_h = img->d_h;
-    res = aom_codec_enc_config_set(&encoder_, &cfg_);
-    ASSERT_EQ(AOM_CODEC_OK, res) << EncoderError();
+    res = avm_codec_enc_config_set(&encoder_, &cfg_);
+    ASSERT_EQ(AVM_CODEC_OK, res) << EncoderError();
   }
 
   // Encode the frame
   API_REGISTER_STATE_CHECK(res =
-                               aom_codec_encode(&encoder_, img, video.pts(),
+                               avm_codec_encode(&encoder_, img, video.pts(),
                                                 video.duration(), frame_flags));
-  ASSERT_EQ(AOM_CODEC_OK, res) << EncoderError();
+  ASSERT_EQ(AVM_CODEC_OK, res) << EncoderError();
 }
 
 void Encoder::Flush() {
-  const aom_codec_err_t res = aom_codec_encode(&encoder_, NULL, 0, 0, 0);
+  const avm_codec_err_t res = avm_codec_encode(&encoder_, NULL, 0, 0, 0);
   if (!encoder_.priv)
-    ASSERT_EQ(AOM_CODEC_ERROR, res) << EncoderError();
+    ASSERT_EQ(AVM_CODEC_ERROR, res) << EncoderError();
   else
-    ASSERT_EQ(AOM_CODEC_OK, res) << EncoderError();
+    ASSERT_EQ(AVM_CODEC_OK, res) << EncoderError();
 }
 
 void EncoderTest::InitializeConfig() {
-  const aom_codec_err_t res = codec_->DefaultEncoderConfig(&cfg_, 0);
-  ASSERT_EQ(AOM_CODEC_OK, res);
+  const avm_codec_err_t res = codec_->DefaultEncoderConfig(&cfg_, 0);
+  ASSERT_EQ(AVM_CODEC_OK, res);
 }
 
 void EncoderTest::SetMode(TestMode mode) {
@@ -116,7 +116,7 @@ static bool compare_plane(const uint8_t *const _buf1, int stride1,
 
 // The function should return "true" most of the time, therefore no early
 // break-out is implemented within the match checking process.
-static bool compare_img(const aom_image_t *img1, const aom_image_t *img2,
+static bool compare_img(const avm_image_t *img1, const avm_image_t *img2,
                         int *const mismatch_row, int *const mismatch_col,
                         int *const mismatch_plane, int *const mismatch_pix1,
                         int *const mismatch_pix2) {
@@ -132,8 +132,8 @@ static bool compare_img(const aom_image_t *img1, const aom_image_t *img2,
   for (int plane = 0; plane < num_planes; plane++) {
     if (!compare_plane(img1->planes[plane], img1->stride[plane],
                        img2->planes[plane], img2->stride[plane],
-                       aom_img_plane_width(img1, plane),
-                       aom_img_plane_height(img1, plane), mismatch_row,
+                       avm_img_plane_width(img1, plane),
+                       avm_img_plane_height(img1, plane), mismatch_row,
                        mismatch_col, mismatch_pix1, mismatch_pix2)) {
       if (mismatch_plane != NULL) *mismatch_plane = plane;
       return false;
@@ -143,8 +143,8 @@ static bool compare_img(const aom_image_t *img1, const aom_image_t *img2,
   return true;
 }
 
-void EncoderTest::MismatchHook(const aom_image_t *img_enc,
-                               const aom_image_t *img_dec) {
+void EncoderTest::MismatchHook(const avm_image_t *img_enc,
+                               const avm_image_t *img_dec) {
   int mismatch_row = 0;
   int mismatch_col = 0;
   int mismatch_plane = 0;
@@ -164,18 +164,18 @@ void EncoderTest::MismatchHook(const aom_image_t *img_enc,
 }
 
 void EncoderTest::RunLoop(VideoSource *video) {
-  aom_codec_dec_cfg_t dec_cfg = aom_codec_dec_cfg_t();
+  avm_codec_dec_cfg_t dec_cfg = avm_codec_dec_cfg_t();
 
   ASSERT_EQ(1, (int)passes_);
   for (unsigned int pass = 0; pass < passes_; pass++) {
     last_pts_ = 0;
 
     if (passes_ == 1)
-      cfg_.g_pass = AOM_RC_ONE_PASS;
+      cfg_.g_pass = AVM_RC_ONE_PASS;
     else if (pass == 0)
-      cfg_.g_pass = AOM_RC_FIRST_PASS;
+      cfg_.g_pass = AVM_RC_FIRST_PASS;
     else
-      cfg_.g_pass = AOM_RC_LAST_PASS;
+      cfg_.g_pass = AVM_RC_LAST_PASS;
 
     BeginPassHook(pass);
     std::unique_ptr<Encoder> encoder(codec_->CreateEncoder(cfg_, init_flags_));
@@ -206,13 +206,13 @@ void EncoderTest::RunLoop(VideoSource *video) {
         if (!HandleEncodeResult(video, encoder.get())) break;
         bool has_cxdata = false;
         bool has_dxdata = false;
-        aom_codec_err_t res_dec = AOM_CODEC_OK;
+        avm_codec_err_t res_dec = AVM_CODEC_OK;
         bool pkt_decoded = false;
-        while (const aom_codec_cx_pkt_t *pkt = iter.Next()) {
+        while (const avm_codec_cx_pkt_t *pkt = iter.Next()) {
           pkt = MutateEncoderOutputHook(pkt);
           again = true;
           switch (pkt->kind) {
-            case AOM_CODEC_CX_FRAME_NULL_PKT:
+            case AVM_CODEC_CX_FRAME_NULL_PKT:
               has_cxdata = true;
               if (decoder.get() != NULL && DoDecode()) {
                 if (!HandleDecodeResult(res_dec, decoder.get())) break;
@@ -222,7 +222,7 @@ void EncoderTest::RunLoop(VideoSource *video) {
               if (sl == number_spatial_layers_) last_pts_ = pkt->data.frame.pts;
               FramePktHook(pkt, &dec_iter);
               break;
-            case AOM_CODEC_CX_FRAME_PKT:
+            case AVM_CODEC_CX_FRAME_PKT:
               has_cxdata = true;
               if (decoder.get() != NULL && DoDecode()) {
                 if (DoDecodeInvisible()) {
@@ -245,20 +245,20 @@ void EncoderTest::RunLoop(VideoSource *video) {
               FramePktHook(pkt, NULL);
               break;
 
-            case AOM_CODEC_PSNR_PKT: PSNRPktHook(pkt); break;
+            case AVM_CODEC_PSNR_PKT: PSNRPktHook(pkt); break;
 
             default: break;
           }
         }
 
         if (has_dxdata && has_cxdata) {
-          const aom_image_t *img_enc = encoder->GetPreviewFrame();
+          const avm_image_t *img_enc = encoder->GetPreviewFrame();
           if (pkt_decoded) {
             // reset iterator only if a pkt was decoded, else continue
             // with the previous iterator to get the next frame.
             dec_iter = decoder->GetDxData();
           }
-          const aom_image_t *img_dec = dec_iter.Next();
+          const avm_image_t *img_dec = dec_iter.Next();
           if (img_enc && img_dec) {
             const bool res =
                 compare_img(img_enc, img_dec, NULL, NULL, NULL, NULL, NULL);
@@ -278,4 +278,4 @@ void EncoderTest::RunLoop(VideoSource *video) {
   }
 }
 
-}  // namespace libaom_test
+}  // namespace libavm_test

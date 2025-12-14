@@ -15,25 +15,25 @@
 
 #include <stdio.h>
 
-#include "aom/aomcx.h"
-#include "aom/aom_codec.h"
-#include "aom/aom_encoder.h"
+#include "avm/avmcx.h"
+#include "avm/avm_codec.h"
+#include "avm/avm_encoder.h"
 
 int main(void) {
-  aom_codec_iface_t *iface = aom_codec_av1_cx();
-  aom_codec_enc_cfg_t cfg;
-  if (aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_GOOD_QUALITY) !=
-      AOM_CODEC_OK) {
-    fprintf(stderr, "aom_codec_enc_config_default() failed\n");
+  avm_codec_iface_t *iface = avm_codec_av2_cx();
+  avm_codec_enc_cfg_t cfg;
+  if (avm_codec_enc_config_default(iface, &cfg, AVM_USAGE_GOOD_QUALITY) !=
+      AVM_CODEC_OK) {
+    fprintf(stderr, "avm_codec_enc_config_default() failed\n");
     return 1;
   }
-  aom_codec_ctx_t ctx;
-  if (aom_codec_enc_init(&ctx, iface, &cfg, 0) != AOM_CODEC_OK) {
-    fprintf(stderr, "aom_codec_enc_init() failed\n");
+  avm_codec_ctx_t ctx;
+  if (avm_codec_enc_init(&ctx, iface, &cfg, 0) != AVM_CODEC_OK) {
+    fprintf(stderr, "avm_codec_enc_init() failed\n");
     return 1;
   }
-  if (aom_codec_destroy(&ctx) != AOM_CODEC_OK) {
-    fprintf(stderr, "aom_codec_destroy() failed\n");
+  if (avm_codec_destroy(&ctx) != AVM_CODEC_OK) {
+    fprintf(stderr, "avm_codec_destroy() failed\n");
     return 1;
   }
 

@@ -9,7 +9,7 @@ from avm_stats import proto_helpers
 from avm_stats import yuv_tools
 import numpy as np
 
-TESTDATA_ENV_VAR = "LIBAOM_TEST_DATA_PATH"
+TESTDATA_ENV_VAR = "LIBAVM_TEST_DATA_PATH"
 TEST_SEQUENCE_NAME = "park_joy_90p_8_420"
 STREAM_FILENAME = f"{TEST_SEQUENCE_NAME}.ivf"
 PROTO_FILENAME = f"{TEST_SEQUENCE_NAME}_frame_0000.pb"

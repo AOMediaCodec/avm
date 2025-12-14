@@ -9,14 +9,14 @@
  * source code in the PATENTS file, you can obtain it at
  * aomedia.org/license/patent-license/.
  */
-#ifndef AOM_COMMON_WARNINGS_H_
-#define AOM_COMMON_WARNINGS_H_
+#ifndef AVM_COMMON_WARNINGS_H_
+#define AVM_COMMON_WARNINGS_H_
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-struct aom_codec_enc_cfg;
+struct avm_codec_enc_cfg;
 struct AvxEncoderConfig;
 
 /*
@@ -26,10 +26,10 @@ struct AvxEncoderConfig;
  */
 void check_encoder_config(int disable_prompt,
                           const struct AvxEncoderConfig *global_config,
-                          const struct aom_codec_enc_cfg *stream_config);
+                          const struct avm_codec_enc_cfg *stream_config);
 
 #ifdef __cplusplus
 }  // extern "C"
 #endif
 
-#endif  // AOM_COMMON_WARNINGS_H_
+#endif  // AVM_COMMON_WARNINGS_H_

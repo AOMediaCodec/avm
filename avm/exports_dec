@@ -1,0 +1,8 @@
+text avm_codec_dec_init_ver
+text avm_codec_decode
+text avm_codec_get_frame
+text avm_codec_get_stream_info
+text avm_codec_peek_stream_info
+text avm_codec_set_frame_buffer_functions
+text avm_obu_type_to_string
+text avm_read_obu_header

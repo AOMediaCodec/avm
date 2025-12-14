@@ -10,24 +10,24 @@
  * aomedia.org/license/patent-license/.
  */
 
-#ifndef AOM_TEST_TRANSFORM_TEST_BASE_H_
-#define AOM_TEST_TRANSFORM_TEST_BASE_H_
+#ifndef AVM_TEST_TRANSFORM_TEST_BASE_H_
+#define AVM_TEST_TRANSFORM_TEST_BASE_H_
 
-#include "config/aom_config.h"
+#include "config/avm_config.h"
 
-#include "aom_mem/aom_mem.h"
-#include "aom/aom_codec.h"
-#include "aom_dsp/txfm_common.h"
+#include "avm_mem/avm_mem.h"
+#include "avm/avm_codec.h"
+#include "avm_dsp/txfm_common.h"
 
-namespace libaom_test {
+namespace libavm_test {
 
 //  Note:
-//   Same constant are defined in av1/common/av1_entropy.h and
-//   av1/common/entropy.h.  Goal is to make this base class
+//   Same constant are defined in av2/common/av2_entropy.h and
+//   av2/common/entropy.h.  Goal is to make this base class
 //   to use for future codec transform testing.  But including
 //   either of them would lead to compiling error when we do
 //   unit test for another codec. Suggest to move the definition
-//   to a aom header file.
+//   to a avm header file.
 const int kDctMaxValue = 16384;
 
 template <typename OutputType>
@@ -55,13 +55,13 @@ class TransformTestBase {
     const int count_test_block = 10000;
 
     int16_t *test_input_block = reinterpret_cast<int16_t *>(
-        aom_memalign(16, sizeof(int16_t) * num_coeffs_));
+        avm_memalign(16, sizeof(int16_t) * num_coeffs_));
     OutType *test_temp_block = reinterpret_cast<OutType *>(
-        aom_memalign(16, sizeof(test_temp_block[0]) * num_coeffs_));
+        avm_memalign(16, sizeof(test_temp_block[0]) * num_coeffs_));
     uint16_t *dst16 = reinterpret_cast<uint16_t *>(
-        aom_memalign(16, sizeof(uint16_t) * num_coeffs_));
+        avm_memalign(16, sizeof(uint16_t) * num_coeffs_));
     uint16_t *src16 = reinterpret_cast<uint16_t *>(
-        aom_memalign(16, sizeof(uint16_t) * num_coeffs_));
+        avm_memalign(16, sizeof(uint16_t) * num_coeffs_));
 
     for (int i = 0; i < count_test_block; ++i) {
       // Initialize a test block with input range [-255, 255].
@@ -93,10 +93,10 @@ class TransformTestBase {
         << "Error: FHT/IHT has average round trip error > " << ref_avg_error
         << " per block";
 
-    aom_free(test_input_block);
-    aom_free(test_temp_block);
-    aom_free(dst16);
-    aom_free(src16);
+    avm_free(test_input_block);
+    avm_free(test_temp_block);
+    avm_free(dst16);
+    avm_free(src16);
   }
 
   void RunCoeffCheck() {
@@ -108,11 +108,11 @@ class TransformTestBase {
     int stride = 96;
 
     int16_t *input_block = reinterpret_cast<int16_t *>(
-        aom_memalign(16, sizeof(int16_t) * stride * height_));
+        avm_memalign(16, sizeof(int16_t) * stride * height_));
     OutType *output_ref_block = reinterpret_cast<OutType *>(
-        aom_memalign(16, sizeof(output_ref_block[0]) * num_coeffs_));
+        avm_memalign(16, sizeof(output_ref_block[0]) * num_coeffs_));
     OutType *output_block = reinterpret_cast<OutType *>(
-        aom_memalign(16, sizeof(output_block[0]) * num_coeffs_));
+        avm_memalign(16, sizeof(output_block[0]) * num_coeffs_));
 
     for (int i = 0; i < count_test_block; ++i) {
       int j, k;
@@ -121,7 +121,7 @@ class TransformTestBase {
           int in_idx = j * stride + k;
           int out_idx = j * pitch_ + k;
           input_block[in_idx] = (rnd.Rand16() & mask_) - (rnd.Rand16() & mask_);
-          if (bit_depth_ == AOM_BITS_8) {
+          if (bit_depth_ == AVM_BITS_8) {
             output_block[out_idx] = output_ref_block[out_idx] = rnd.Rand8();
           } else {
             output_block[out_idx] = output_ref_block[out_idx] =
@@ -143,9 +143,9 @@ class TransformTestBase {
         }
       }
     }
-    aom_free(input_block);
-    aom_free(output_ref_block);
-    aom_free(output_block);
+    avm_free(input_block);
+    avm_free(output_ref_block);
+    avm_free(output_block);
   }
 
   void RunMemCheck() {
@@ -153,11 +153,11 @@ class TransformTestBase {
     const int count_test_block = 5000;
 
     int16_t *input_extreme_block = reinterpret_cast<int16_t *>(
-        aom_memalign(16, sizeof(int16_t) * num_coeffs_));
+        avm_memalign(16, sizeof(int16_t) * num_coeffs_));
     OutType *output_ref_block = reinterpret_cast<OutType *>(
-        aom_memalign(16, sizeof(output_ref_block[0]) * num_coeffs_));
+        avm_memalign(16, sizeof(output_ref_block[0]) * num_coeffs_));
     OutType *output_block = reinterpret_cast<OutType *>(
-        aom_memalign(16, sizeof(output_block[0]) * num_coeffs_));
+        avm_memalign(16, sizeof(output_block[0]) * num_coeffs_));
 
     for (int i = 0; i < count_test_block; ++i) {
       // Initialize a test block with input range [-mask_, mask_].
@@ -185,9 +185,9 @@ class TransformTestBase {
             << "Error: NxN FDCT has coefficient larger than N*DCT_MAX_VALUE";
       }
     }
-    aom_free(input_extreme_block);
-    aom_free(output_ref_block);
-    aom_free(output_block);
+    avm_free(input_extreme_block);
+    avm_free(output_ref_block);
+    avm_free(output_block);
   }
 
   void RunInvAccuracyCheck(int limit) {
@@ -195,13 +195,13 @@ class TransformTestBase {
     const int count_test_block = 1000;
 
     int16_t *in = reinterpret_cast<int16_t *>(
-        aom_memalign(16, sizeof(int16_t) * num_coeffs_));
+        avm_memalign(16, sizeof(int16_t) * num_coeffs_));
     OutType *coeff = reinterpret_cast<OutType *>(
-        aom_memalign(16, sizeof(coeff[0]) * num_coeffs_));
+        avm_memalign(16, sizeof(coeff[0]) * num_coeffs_));
     uint16_t *dst16 = reinterpret_cast<uint16_t *>(
-        aom_memalign(16, sizeof(uint16_t) * num_coeffs_));
+        avm_memalign(16, sizeof(uint16_t) * num_coeffs_));
     uint16_t *src16 = reinterpret_cast<uint16_t *>(
-        aom_memalign(16, sizeof(uint16_t) * num_coeffs_));
+        avm_memalign(16, sizeof(uint16_t) * num_coeffs_));
 
     for (int i = 0; i < count_test_block; ++i) {
       // Initialize a test block with input range [-mask_, mask_].
@@ -222,17 +222,17 @@ class TransformTestBase {
             << "Error: 4x4 IDCT has error " << error << " at index " << j;
       }
     }
-    aom_free(in);
-    aom_free(coeff);
-    aom_free(src16);
-    aom_free(dst16);
+    avm_free(in);
+    avm_free(coeff);
+    avm_free(src16);
+    avm_free(dst16);
   }
 
   int pitch_;
   int height_;
   FhtFunc<OutType> fwd_txfm_ref;
   IhtFunc<OutType> inv_txfm_ref;
-  aom_bit_depth_t bit_depth_;
+  avm_bit_depth_t bit_depth_;
   int mask_;
   int num_coeffs_;
   TxfmParam txfm_param_;
@@ -254,6 +254,6 @@ class TransformTestBase {
   }
 };
 
-}  // namespace libaom_test
+}  // namespace libavm_test
 
-#endif  // AOM_TEST_TRANSFORM_TEST_BASE_H_
+#endif  // AVM_TEST_TRANSFORM_TEST_BASE_H_

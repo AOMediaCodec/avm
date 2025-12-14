@@ -20,15 +20,15 @@
 #define MAX_RATIONAL_FACTOR 16
 #define MAX_FILTER_LEN 320
 
-void av1_derive_scale_factor(int width_scaled, int width, int *p, int *q);
+void av2_derive_scale_factor(int width_scaled, int width, int *p, int *q);
 
-void av1_resample_plane_2d_lanczos(const uint16_t *const input, int height,
+void av2_resample_plane_2d_lanczos(const uint16_t *const input, int height,
                                    int width, int in_stride, uint16_t *output,
                                    int height2, int width2, int out_stride,
                                    int subx, int suby, int bd, int denom,
                                    int num, int lanczos_a_hor,
                                    int lanczos_a_ver);
-void av1_resample_plane_2d_8b_lanczos(const uint8_t *const input, int height,
+void av2_resample_plane_2d_8b_lanczos(const uint8_t *const input, int height,
                                       int width, int in_stride, uint8_t *output,
                                       int height2, int width2, int out_stride,
                                       int subx, int suby, int bd, int denom,

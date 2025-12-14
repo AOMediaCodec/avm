@@ -20,36 +20,36 @@
 namespace {
 
 class CpuSpeedTest
-    : public ::libaom_test::CodecTestWith2Params<libaom_test::TestMode, int>,
-      public ::libaom_test::EncoderTest {
+    : public ::libavm_test::CodecTestWith2Params<libavm_test::TestMode, int>,
+      public ::libavm_test::EncoderTest {
  protected:
   CpuSpeedTest()
       : EncoderTest(GET_PARAM(0)), encoding_mode_(GET_PARAM(1)),
         set_cpu_used_(GET_PARAM(2)), min_psnr_(DBL_MAX),
-        tune_content_(AOM_CONTENT_DEFAULT) {}
+        tune_content_(AVM_CONTENT_DEFAULT) {}
   virtual ~CpuSpeedTest() {}
 
   virtual void SetUp() {
     InitializeConfig();
     SetMode(encoding_mode_);
     cfg_.g_lag_in_frames = 25;
-    cfg_.rc_end_usage = AOM_VBR;
+    cfg_.rc_end_usage = AVM_VBR;
   }
 
   virtual void BeginPassHook(unsigned int /*pass*/) { min_psnr_ = DBL_MAX; }
 
-  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
-                                  ::libaom_test::Encoder *encoder) {
+  virtual void PreEncodeFrameHook(::libavm_test::VideoSource *video,
+                                  ::libavm_test::Encoder *encoder) {
     if (video->frame() == 0) {
-      encoder->Control(AOME_SET_CPUUSED, set_cpu_used_);
-      encoder->Control(AV1E_SET_TUNE_CONTENT, tune_content_);
-      encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
-      encoder->Control(AOME_SET_ARNR_MAXFRAMES, 7);
-      encoder->Control(AOME_SET_ARNR_STRENGTH, 5);
+      encoder->Control(AVME_SET_CPUUSED, set_cpu_used_);
+      encoder->Control(AV2E_SET_TUNE_CONTENT, tune_content_);
+      encoder->Control(AVME_SET_ENABLEAUTOALTREF, 1);
+      encoder->Control(AVME_SET_ARNR_MAXFRAMES, 7);
+      encoder->Control(AVME_SET_ARNR_STRENGTH, 5);
     }
   }
 
-  virtual void PSNRPktHook(const aom_codec_cx_pkt_t *pkt) {
+  virtual void PSNRPktHook(const avm_codec_cx_pkt_t *pkt) {
     if (pkt->data.psnr.psnr[0] < min_psnr_) min_psnr_ = pkt->data.psnr.psnr[0];
   }
 
@@ -59,7 +59,7 @@ class CpuSpeedTest
   void TestEncodeHighBitrate();
   void TestLowBitrate();
 
-  ::libaom_test::TestMode encoding_mode_;
+  ::libavm_test::TestMode encoding_mode_;
   int set_cpu_used_;
   double min_psnr_;
   int tune_content_;
@@ -77,10 +77,10 @@ void CpuSpeedTest::TestQ0() {
   const unsigned int height = 144;
   const unsigned int bit_depth = 8;
 
-  ::libaom_test::I420VideoSource video("hantro_odd.yuv", width, height, 30, 1,
+  ::libavm_test::I420VideoSource video("hantro_odd.yuv", width, height, 30, 1,
                                        0, 5);
 
-  init_flags_ = AOM_CODEC_USE_PSNR;
+  init_flags_ = AVM_CODEC_USE_PSNR;
 
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   const double lossless_psnr =
@@ -89,7 +89,7 @@ void CpuSpeedTest::TestQ0() {
 }
 
 void CpuSpeedTest::TestScreencastQ0() {
-  ::libaom_test::Y4mVideoSource video("screendata.y4m", 0, 3);
+  ::libavm_test::Y4mVideoSource video("screendata.y4m", 0, 3);
   cfg_.g_timebase = video.timebase();
   cfg_.rc_target_bitrate = 400;
   cfg_.rc_max_quantizer = 0;
@@ -98,7 +98,7 @@ void CpuSpeedTest::TestScreencastQ0() {
   const unsigned int height = 480;
   const unsigned int bit_depth = 8;
 
-  init_flags_ = AOM_CODEC_USE_PSNR;
+  init_flags_ = AVM_CODEC_USE_PSNR;
 
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 
@@ -108,14 +108,14 @@ void CpuSpeedTest::TestScreencastQ0() {
 }
 
 void CpuSpeedTest::TestTuneScreen() {
-  ::libaom_test::Y4mVideoSource video("screendata.y4m", 0, 3);
+  ::libavm_test::Y4mVideoSource video("screendata.y4m", 0, 3);
   cfg_.g_timebase = video.timebase();
   cfg_.rc_target_bitrate = 2000;
   cfg_.rc_max_quantizer = 255;
   cfg_.rc_min_quantizer = 0;
-  tune_content_ = AOM_CONTENT_SCREEN;
+  tune_content_ = AVM_CONTENT_SCREEN;
 
-  init_flags_ = AOM_CODEC_USE_PSNR;
+  init_flags_ = AVM_CODEC_USE_PSNR;
 
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 }
@@ -129,7 +129,7 @@ void CpuSpeedTest::TestEncodeHighBitrate() {
   cfg_.rc_max_quantizer = 40;
   cfg_.rc_min_quantizer = 0;
 
-  ::libaom_test::I420VideoSource video("hantro_odd.yuv", 208, 144, 30, 1, 0, 5);
+  ::libavm_test::I420VideoSource video("hantro_odd.yuv", 208, 144, 30, 1, 0, 5);
 
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 }
@@ -141,7 +141,7 @@ void CpuSpeedTest::TestLowBitrate() {
   cfg_.rc_target_bitrate = 200;
   cfg_.rc_min_quantizer = 160;
 
-  ::libaom_test::I420VideoSource video("hantro_odd.yuv", 208, 144, 30, 1, 0,
+  ::libavm_test::I420VideoSource video("hantro_odd.yuv", 208, 144, 30, 1, 0,
                                        10);
 
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
@@ -161,8 +161,8 @@ TEST_P(CpuSpeedTestLarge, TestTuneScreen) { TestTuneScreen(); }
 TEST_P(CpuSpeedTestLarge, TestEncodeHighBitrate) { TestEncodeHighBitrate(); }
 TEST_P(CpuSpeedTestLarge, TestLowBitrate) { TestLowBitrate(); }
 
-AV1_INSTANTIATE_TEST_SUITE(CpuSpeedTest, GOODQUALITY_TEST_MODES,
+AV2_INSTANTIATE_TEST_SUITE(CpuSpeedTest, GOODQUALITY_TEST_MODES,
                            ::testing::Values(5));
-AV1_INSTANTIATE_TEST_SUITE(CpuSpeedTestLarge, GOODQUALITY_TEST_MODES,
+AV2_INSTANTIATE_TEST_SUITE(CpuSpeedTestLarge, GOODQUALITY_TEST_MODES,
                            ::testing::Values(1));
 }  // namespace

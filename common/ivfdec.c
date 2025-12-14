@@ -16,8 +16,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "aom_ports/mem_ops.h"
-#include "aom_ports/sanitizer.h"
+#include "avm_ports/mem_ops.h"
+#include "avm_ports/sanitizer.h"
 
 static const char *IVF_SIGNATURE = "DKIF";
 
@@ -63,7 +63,7 @@ int file_is_ivf(struct AvxInputContext *input_ctx) {
 }
 
 int ivf_read_frame(FILE *infile, uint8_t **buffer, size_t *bytes_read,
-                   size_t *buffer_size, aom_codec_pts_t *pts) {
+                   size_t *buffer_size, avm_codec_pts_t *pts) {
   char raw_header[IVF_FRAME_HDR_SZ] = { 0 };
   size_t frame_size = 0;
 
@@ -91,7 +91,7 @@ int ivf_read_frame(FILE *infile, uint8_t **buffer, size_t *bytes_read,
 
     if (pts) {
       *pts = mem_get_le32(&raw_header[4]);
-      *pts += ((aom_codec_pts_t)mem_get_le32(&raw_header[8]) << 32);
+      *pts += ((avm_codec_pts_t)mem_get_le32(&raw_header[8]) << 32);
     }
   }
 

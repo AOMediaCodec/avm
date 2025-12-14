@@ -13,7 +13,7 @@
 #include <string.h>
 #include <assert.h>
 
-#include "aom_ports/mem_ops.h"
+#include "avm_ports/mem_ops.h"
 #include "common/ivfdec.h"
 #include "common/obudec.h"
 #include "common/tools_common.h"
@@ -28,10 +28,10 @@ struct AvxVideoReaderStruct {
   uint8_t *buffer;
   size_t buffer_size;
   size_t frame_size;
-  aom_codec_pts_t pts;
+  avm_codec_pts_t pts;
 };
 
-AvxVideoReader *aom_video_reader_open(const char *filename) {
+AvxVideoReader *avm_video_reader_open(const char *filename) {
   AvxVideoReader *reader = NULL;
   FILE *const file = fopen(filename, "rb");
   if (!file) return NULL;  // Can't open file
@@ -59,8 +59,8 @@ AvxVideoReader *aom_video_reader_open(const char *filename) {
 #endif
   } else if (file_is_obu(&reader->obu_ctx)) {
     reader->input_ctx.file_type = FILE_TYPE_OBU;
-    // assume AV1
-    reader->info.codec_fourcc = AV1_FOURCC;
+    // assume AV2
+    reader->info.codec_fourcc = AV2_FOURCC;
   } else {
     fclose(file);
     free(reader);
@@ -70,7 +70,7 @@ AvxVideoReader *aom_video_reader_open(const char *filename) {
   return reader;
 }
 
-void aom_video_reader_close(AvxVideoReader *reader) {
+void avm_video_reader_close(AvxVideoReader *reader) {
   if (reader) {
     fclose(reader->input_ctx.file);
     if (reader->input_ctx.file_type == FILE_TYPE_OBU) {
@@ -81,7 +81,7 @@ void aom_video_reader_close(AvxVideoReader *reader) {
   }
 }
 
-int aom_video_reader_read_frame(AvxVideoReader *reader) {
+int avm_video_reader_read_frame(AvxVideoReader *reader) {
   if (reader->input_ctx.file_type == FILE_TYPE_IVF) {
     return !ivf_read_frame(reader->input_ctx.file, &reader->buffer,
                            &reader->frame_size, &reader->buffer_size,
@@ -101,25 +101,25 @@ int aom_video_reader_read_frame(AvxVideoReader *reader) {
   }
 }
 
-const uint8_t *aom_video_reader_get_frame(AvxVideoReader *reader,
+const uint8_t *avm_video_reader_get_frame(AvxVideoReader *reader,
                                           size_t *size) {
   if (size) *size = reader->frame_size;
 
   return reader->buffer;
 }
 
-int64_t aom_video_reader_get_frame_pts(AvxVideoReader *reader) {
+int64_t avm_video_reader_get_frame_pts(AvxVideoReader *reader) {
   return (int64_t)reader->pts;
 }
 
-FILE *aom_video_reader_get_file(AvxVideoReader *reader) {
+FILE *avm_video_reader_get_file(AvxVideoReader *reader) {
   return reader->input_ctx.file;
 }
 
-const AvxVideoInfo *aom_video_reader_get_info(AvxVideoReader *reader) {
+const AvxVideoInfo *avm_video_reader_get_info(AvxVideoReader *reader) {
   return &reader->info;
 }
 
-void aom_video_reader_set_fourcc(AvxVideoReader *reader, uint32_t fourcc) {
+void avm_video_reader_set_fourcc(AvxVideoReader *reader, uint32_t fourcc) {
   reader->info.codec_fourcc = fourcc;
 }

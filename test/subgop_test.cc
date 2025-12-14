@@ -16,20 +16,20 @@
 #include "test/y4m_video_source.h"
 #include "test/i420_video_source.h"
 #include "test/util.h"
-#include "aom/aom_codec.h"
+#include "avm/avm_codec.h"
 
-#include "av1/encoder/encoder.h"
-#include "av1/encoder/subgop.h"
+#include "av2/encoder/encoder.h"
+#include "av2/encoder/subgop.h"
 
 // Silence compiler warning for unused static functions
-static void yuvconfig2image(aom_image_t *img, const YV12_BUFFER_CONFIG *yv12,
-                            void *user_priv) AOM_UNUSED;
-static aom_codec_err_t image2yuvconfig(const aom_image_t *img,
-                                       YV12_BUFFER_CONFIG *yv12) AOM_UNUSED;
-static void image2yuvconfig_upshift(aom_image_t *hbd_img,
-                                    const aom_image_t *img,
-                                    YV12_BUFFER_CONFIG *yv12) AOM_UNUSED;
-#include "av1/av1_iface_common.h"
+static void yuvconfig2image(avm_image_t *img, const YV12_BUFFER_CONFIG *yv12,
+                            void *user_priv) AVM_UNUSED;
+static avm_codec_err_t image2yuvconfig(const avm_image_t *img,
+                                       YV12_BUFFER_CONFIG *yv12) AVM_UNUSED;
+static void image2yuvconfig_upshift(avm_image_t *hbd_img,
+                                    const avm_image_t *img,
+                                    YV12_BUFFER_CONFIG *yv12) AVM_UNUSED;
+#include "av2/av2_iface_common.h"
 
 #define MAX_SUBGOP_CODES 3
 
@@ -183,8 +183,8 @@ std::ostream &operator<<(std::ostream &os, const SubgopTestParams &test_arg) {
 }
 // This class is used to validate the subgop config in a gop.
 class SubGopTestLarge
-    : public ::libaom_test::CodecTestWith2Params<SubgopTestParams, aom_rc_mode>,
-      public ::libaom_test::EncoderTest {
+    : public ::libavm_test::CodecTestWith2Params<SubgopTestParams, avm_rc_mode>,
+      public ::libavm_test::EncoderTest {
  protected:
   SubGopTestLarge()
       : EncoderTest(GET_PARAM(0)), subgop_test_params_(GET_PARAM(1)),
@@ -195,15 +195,15 @@ class SubGopTestLarge
 
   virtual void SetUp() {
     InitializeConfig();
-    SetMode(::libaom_test::kOnePassGood);
-    const aom_rational timebase = { 1, 30 };
+    SetMode(::libavm_test::kOnePassGood);
+    const avm_rational timebase = { 1, 30 };
     cfg_.g_timebase = timebase;
     cfg_.g_threads = 1;
     cfg_.rc_end_usage = rc_end_usage_;
     cfg_.rc_target_bitrate = 40;
     cfg_.rc_undershoot_pct = 100;
     cfg_.rc_overshoot_pct = 100;
-    if (rc_end_usage_ == AOM_Q) {
+    if (rc_end_usage_ == AVM_Q) {
       cfg_.use_fixed_qp_offsets = subgop_test_params_.use_fixed_qp_offsets;
     }
     // Note: kf_min_dist, kf_max_dist, g_lag_in_frames are configurable
@@ -212,7 +212,7 @@ class SubGopTestLarge
     cfg_.kf_max_dist = 65;
     cfg_.g_lag_in_frames = subgop_test_params_.lag_in_frames;
     // Note: Uncomment the following line for verbose output, to aid debugging.
-    // init_flags_ = AOM_CODEC_USE_PER_FRAME_STATS;
+    // init_flags_ = AVM_CODEC_USE_PER_FRAME_STATS;
   }
 
   // check if subgop_config_str is a preset tag
@@ -229,33 +229,33 @@ class SubGopTestLarge
     }
   }
 
-  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
-                                  ::libaom_test::Encoder *encoder) {
+  virtual void PreEncodeFrameHook(::libavm_test::VideoSource *video,
+                                  ::libavm_test::Encoder *encoder) {
     if (video->frame() == 0) {
-      encoder->Control(AOME_SET_CPUUSED, kCpuUsed);
-      if (rc_end_usage_ == AOM_Q || rc_end_usage_ == AOM_CQ) {
-        encoder->Control(AOME_SET_QP, 210);
+      encoder->Control(AVME_SET_CPUUSED, kCpuUsed);
+      if (rc_end_usage_ == AVM_Q || rc_end_usage_ == AVM_CQ) {
+        encoder->Control(AVME_SET_QP, 210);
       }
-      encoder->Control(AV1E_ENABLE_SUBGOP_STATS, enable_subgop_stats_);
+      encoder->Control(AV2E_ENABLE_SUBGOP_STATS, enable_subgop_stats_);
       GetSubGOPConfigStr();
-      encoder->Control(AV1E_SET_SUBGOP_CONFIG_STR,
+      encoder->Control(AV2E_SET_SUBGOP_CONFIG_STR,
                        subgop_test_params_.subgop_str);
-      av1_process_subgop_config_set(subgop_test_params_.subgop_str,
+      av2_process_subgop_config_set(subgop_test_params_.subgop_str,
                                     &user_cfg_set_);
-      encoder->Control(AV1E_SET_MIN_GF_INTERVAL,
+      encoder->Control(AV2E_SET_MIN_GF_INTERVAL,
                        subgop_test_params_.min_gf_interval);
-      encoder->Control(AV1E_SET_MAX_GF_INTERVAL,
+      encoder->Control(AV2E_SET_MAX_GF_INTERVAL,
                        subgop_test_params_.max_gf_interval);
     }
   }
 
   virtual bool DoDecode() const { return 1; }
 
-  virtual void PreDecodeFrameHook(::libaom_test::VideoSource *video,
-                                  ::libaom_test::Decoder *decoder) {
-    aom_codec_ctx_t *ctx_dec = decoder->GetDecoder();
+  virtual void PreDecodeFrameHook(::libavm_test::VideoSource *video,
+                                  ::libavm_test::Decoder *decoder) {
+    avm_codec_ctx_t *ctx_dec = decoder->GetDecoder();
     if (video->frame() == 0)
-      AOM_CODEC_CONTROL_TYPECHECKED(ctx_dec, AV1D_ENABLE_SUBGOP_STATS,
+      AVM_CODEC_CONTROL_TYPECHECKED(ctx_dec, AV2D_ENABLE_SUBGOP_STATS,
                                     enable_subgop_stats_);
   }
 
@@ -312,8 +312,8 @@ class SubGopTestLarge
     return frame_type_test_ == KEY_FRAME || subgop_info_.has_key_overlay;
   }
 
-  void DetermineSubgopCode(libaom_test::Encoder *encoder) {
-    encoder->Control(AV1E_GET_FRAME_TYPE, &frame_type_test_);
+  void DetermineSubgopCode(libavm_test::Encoder *encoder) {
+    encoder->Control(AV2E_GET_FRAME_TYPE, &frame_type_test_);
     if (is_key_frame()) {
       is_first_frame_in_subgop_key_ = 1;
       return;
@@ -330,19 +330,19 @@ class SubGopTestLarge
     subgop_size_ = subgop_info_.gf_interval;
   }
 
-  virtual bool HandleEncodeResult(::libaom_test::VideoSource *video,
-                                  libaom_test::Encoder *encoder) {
+  virtual bool HandleEncodeResult(::libavm_test::VideoSource *video,
+                                  libavm_test::Encoder *encoder) {
     (void)video;
     // Capturing the subgop info at the start of subgop.
     if (!frame_num_in_subgop_) {
-      encoder->Control(AV1E_GET_SUB_GOP_CONFIG, &subgop_info_);
+      encoder->Control(AV2E_GET_SUB_GOP_CONFIG, &subgop_info_);
       DetermineSubgopCode(encoder);
       // Validation of user specified subgop structure adoption in encoder path.
       ValidateSubgopConfig();
       subgop_data_.num_steps = subgop_info_.num_steps;
     }
     if (subgop_info_.is_user_specified)
-      encoder->Control(AV1E_GET_FRAME_INFO, &subgop_data_);
+      encoder->Control(AV2E_GET_FRAME_INFO, &subgop_data_);
     return 1;
   }
 
@@ -592,25 +592,25 @@ class SubGopTestLarge
     }
   }
 
-  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt,
-                            ::libaom_test::DxDataIterator *dec_iter) {
+  virtual void FramePktHook(const avm_codec_cx_pkt_t *pkt,
+                            ::libavm_test::DxDataIterator *dec_iter) {
     (void)dec_iter;
     (void)pkt;
     ++frame_num_in_subgop_;
   }
 
-  virtual bool HandleDecodeResult(const aom_codec_err_t res_dec,
-                                  libaom_test::Decoder *decoder) {
-    EXPECT_EQ(AOM_CODEC_OK, res_dec) << decoder->DecodeError();
-    if (AOM_CODEC_OK != res_dec) return 0;
-    aom_codec_ctx_t *ctx_dec = decoder->GetDecoder();
+  virtual bool HandleDecodeResult(const avm_codec_err_t res_dec,
+                                  libavm_test::Decoder *decoder) {
+    EXPECT_EQ(AVM_CODEC_OK, res_dec) << decoder->DecodeError();
+    if (AVM_CODEC_OK != res_dec) return 0;
+    avm_codec_ctx_t *ctx_dec = decoder->GetDecoder();
 
     int is_last_frame_in_subgop = (frame_num_in_subgop_ == subgop_info_.size);
 
     if (subgop_info_.is_user_specified ||
         is_last_frame_in_subgop)  // To collect last step info of subgop in
                                   // encoder defined config
-      AOM_CODEC_CONTROL_TYPECHECKED(ctx_dec, AOMD_GET_FRAME_INFO,
+      AVM_CODEC_CONTROL_TYPECHECKED(ctx_dec, AVMD_GET_FRAME_INFO,
                                     &subgop_data_);
     if (is_last_frame_in_subgop) {
       // Validation of sub-gop structure propagation to decoder.
@@ -621,7 +621,7 @@ class SubGopTestLarge
               << "Error:subgop code doesn't match";
           ValidateSubgopFrametype();
           ValidatePyramidLevel();
-          if (rc_end_usage_ == AOM_Q) ValidatePyramidLevelQIndex();
+          if (rc_end_usage_ == AVM_Q) ValidatePyramidLevelQIndex();
           ValidateRefBufRefresh();
           ValidateRefFrames();
         }
@@ -639,7 +639,7 @@ class SubGopTestLarge
       }
       ResetSubgop();
     }
-    return AOM_CODEC_OK == res_dec;
+    return AVM_CODEC_OK == res_dec;
   }
 
   SubgopTestParams subgop_test_params_;
@@ -651,7 +651,7 @@ class SubGopTestLarge
   SubGOPStepData subgop_last_step_;
   SUBGOP_IN_GOP_CODE subgop_code_test_;
   FRAME_TYPE frame_type_test_;
-  aom_rc_mode rc_end_usage_;
+  avm_rc_mode rc_end_usage_;
   int display_order_test_[MAX_SUBGOP_SIZE][REF_FRAMES];
   int subgop_size_;
   bool is_first_frame_in_subgop_key_;
@@ -663,23 +663,23 @@ class SubGopTestLarge
 
 TEST_P(SubGopTestLarge, SubGopTest) {
   if (!is_extension_y4m(subgop_test_params_.input_file)) {
-    libaom_test::I420VideoSource video(
+    libavm_test::I420VideoSource video(
         subgop_test_params_.input_file, subgop_test_params_.frame_w,
         subgop_test_params_.frame_h, cfg_.g_timebase.den, cfg_.g_timebase.num,
         0, kFrames);
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   } else {
-    ::libaom_test::Y4mVideoSource video(subgop_test_params_.input_file, 0,
+    ::libavm_test::Y4mVideoSource video(subgop_test_params_.input_file, 0,
                                         kFrames);
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   }
 }
 
-AV1_INSTANTIATE_TEST_SUITE(SubGopTestLarge,
+AV2_INSTANTIATE_TEST_SUITE(SubGopTestLarge,
                            ::testing::ValuesIn(SubGopTestVectors),
-                           ::testing::Values(AOM_Q, AOM_VBR
+                           ::testing::Values(AVM_Q, AVM_VBR
                                              // Disabled to reduce combinations.
-                                             //, AOM_CQ, AOM_CBR
+                                             //, AVM_CQ, AVM_CBR
                                              ));
 
 typedef struct {
@@ -734,9 +734,9 @@ std::ostream &operator<<(std::ostream &os,
 }
 
 class SubGopPSNRCheckTestLarge
-    : public ::libaom_test::CodecTestWith2Params<SubgopPsnrTestParams,
-                                                 aom_rc_mode>,
-      public ::libaom_test::EncoderTest {
+    : public ::libavm_test::CodecTestWith2Params<SubgopPsnrTestParams,
+                                                 avm_rc_mode>,
+      public ::libavm_test::EncoderTest {
  protected:
   SubGopPSNRCheckTestLarge()
       : EncoderTest(GET_PARAM(0)), test_params_(GET_PARAM(1)),
@@ -753,17 +753,17 @@ class SubGopPSNRCheckTestLarge
 
   virtual void SetUp() {
     InitializeConfig();
-    SetMode(::libaom_test::kOnePassGood);
+    SetMode(::libavm_test::kOnePassGood);
     cfg_.g_threads = 1;
     cfg_.g_lag_in_frames = test_params_.lag_in_frames;
     cfg_.rc_end_usage = rc_end_usage_;
     cfg_.rc_target_bitrate = 40;
     cfg_.rc_undershoot_pct = 100;
     cfg_.rc_overshoot_pct = 100;
-    init_flags_ = AOM_CODEC_USE_PSNR;
+    init_flags_ = AVM_CODEC_USE_PSNR;
   }
 
-  virtual void PSNRPktHook(const aom_codec_cx_pkt_t *pkt) {
+  virtual void PSNRPktHook(const avm_codec_cx_pkt_t *pkt) {
     // Accumulate total psnr
     total_psnr_ += pkt->data.psnr.psnr[0];
     frame_num_++;
@@ -774,35 +774,35 @@ class SubGopPSNRCheckTestLarge
     return 0.0;
   }
 
-  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
-                                  ::libaom_test::Encoder *encoder) {
+  virtual void PreEncodeFrameHook(::libavm_test::VideoSource *video,
+                                  ::libavm_test::Encoder *encoder) {
     if (video->frame() == 0) {
-      encoder->Control(AOME_SET_CPUUSED, kCpuUsed);
-      if (rc_end_usage_ == AOM_Q || rc_end_usage_ == AOM_CQ) {
-        encoder->Control(AOME_SET_QP, 210);
+      encoder->Control(AVME_SET_CPUUSED, kCpuUsed);
+      if (rc_end_usage_ == AVM_Q || rc_end_usage_ == AVM_CQ) {
+        encoder->Control(AVME_SET_QP, 210);
       }
       if (enable_subgop_)
-        encoder->Control(AV1E_SET_SUBGOP_CONFIG_STR, test_params_.subgop_str);
+        encoder->Control(AV2E_SET_SUBGOP_CONFIG_STR, test_params_.subgop_str);
     }
   }
   unsigned int enable_subgop_;
   SubgopPsnrTestParams test_params_;
 
  private:
-  aom_rc_mode rc_end_usage_;
+  avm_rc_mode rc_end_usage_;
   double total_psnr_;
   unsigned int frame_num_;
 };
 
 TEST_P(SubGopPSNRCheckTestLarge, SubGopPSNRCheck) {
-  std::unique_ptr<libaom_test::VideoSource> video;
+  std::unique_ptr<libavm_test::VideoSource> video;
   const double psnr_diff_thresh = 0.5;
   if (is_extension_y4m(test_params_.input_file)) {
     video.reset(
-        new libaom_test::Y4mVideoSource(test_params_.input_file, 0, kFrames));
+        new libavm_test::Y4mVideoSource(test_params_.input_file, 0, kFrames));
   } else {
-    video.reset(new libaom_test::YUVVideoSource(
-        test_params_.input_file, AOM_IMG_FMT_I420, test_params_.frame_w,
+    video.reset(new libavm_test::YUVVideoSource(
+        test_params_.input_file, AVM_IMG_FMT_I420, test_params_.frame_w,
         test_params_.frame_h, 30, 1, 0, kFrames));
   }
 
@@ -820,11 +820,11 @@ TEST_P(SubGopPSNRCheckTestLarge, SubGopPSNRCheck) {
   EXPECT_LE(fabs(psnr_diff), psnr_diff_thresh);
 }
 
-// TODO(any) : Enable AOM_CBR after fix
-AV1_INSTANTIATE_TEST_SUITE(SubGopPSNRCheckTestLarge,
+// TODO(any) : Enable AVM_CBR after fix
+AV2_INSTANTIATE_TEST_SUITE(SubGopPSNRCheckTestLarge,
                            ::testing::ValuesIn(SubGopPsnrTestVectors),
-                           ::testing::Values(AOM_Q, AOM_VBR,
-                                             AOM_CQ /*, AOM_CBR*/));
+                           ::testing::Values(AVM_Q, AVM_VBR,
+                                             AVM_CQ /*, AVM_CBR*/));
 
 typedef struct {
   const char *subgop_str;
@@ -865,11 +865,11 @@ static const SubGopSwitchTestParams SubgopSwitchTestVectors[] = {
     64, 64, 0, 32 },
 };
 
-using libaom_test::ACMRandom;
+using libavm_test::ACMRandom;
 class SubGopSwitchingTestLarge
-    : public ::libaom_test::CodecTestWith2Params<SubGopSwitchTestParams,
-                                                 aom_rc_mode>,
-      public ::libaom_test::EncoderTest {
+    : public ::libavm_test::CodecTestWith2Params<SubGopSwitchTestParams,
+                                                 avm_rc_mode>,
+      public ::libavm_test::EncoderTest {
  protected:
   SubGopSwitchingTestLarge()
       : EncoderTest(GET_PARAM(0)), test_params_(GET_PARAM(1)),
@@ -883,7 +883,7 @@ class SubGopSwitchingTestLarge
 
   virtual void SetUp() {
     InitializeConfig();
-    SetMode(::libaom_test::kOnePassGood);
+    SetMode(::libavm_test::kOnePassGood);
     cfg_.g_threads = 1;
     cfg_.rc_end_usage = rc_end_usage_;
     cfg_.rc_target_bitrate = 50;
@@ -911,7 +911,7 @@ class SubGopSwitchingTestLarge
     return subgop_size_enh[idx];
   }
 
-  void set_subgop_config(::libaom_test::Encoder *encoder) {
+  void set_subgop_config(::libavm_test::Encoder *encoder) {
     const bool switch_subgop_cfg = GetRandSwitch();
     if (!switch_subgop_cfg) return;
 
@@ -924,10 +924,10 @@ class SubGopSwitchingTestLarge
       max_gf_interval = GetRandGFIntervalEnh();
 
     // Set subgop config string
-    encoder->Control(AV1E_SET_SUBGOP_CONFIG_STR, subgop_str);
+    encoder->Control(AV2E_SET_SUBGOP_CONFIG_STR, subgop_str);
 
     // Set max gf interval
-    if (subgop_str) encoder->Control(AV1E_SET_MAX_GF_INTERVAL, max_gf_interval);
+    if (subgop_str) encoder->Control(AV2E_SET_MAX_GF_INTERVAL, max_gf_interval);
 
     // Keep min gf interval same as max gf interval in most cases, to ensure
     // that user-provided subgop config is used.
@@ -937,17 +937,17 @@ class SubGopSwitchingTestLarge
     if (!subgop_str || !strcmp(subgop_str, "enh")) min_gf_interval = 6;
 
     // Set min gf interval
-    encoder->Control(AV1E_SET_MIN_GF_INTERVAL, min_gf_interval);
+    encoder->Control(AV2E_SET_MIN_GF_INTERVAL, min_gf_interval);
 
     last_subgop_str_ = subgop_str;
   }
 
-  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
-                                  ::libaom_test::Encoder *encoder) {
+  virtual void PreEncodeFrameHook(::libavm_test::VideoSource *video,
+                                  ::libavm_test::Encoder *encoder) {
     if (video->frame() == 0) {
-      encoder->Control(AOME_SET_CPUUSED, kCpuUsed);
-      if (rc_end_usage_ == AOM_Q || rc_end_usage_ == AOM_CQ) {
-        encoder->Control(AOME_SET_QP, 210);
+      encoder->Control(AVME_SET_CPUUSED, kCpuUsed);
+      if (rc_end_usage_ == AVM_Q || rc_end_usage_ == AVM_CQ) {
+        encoder->Control(AVME_SET_QP, 210);
       }
       set_subgop_config(encoder);
     }
@@ -959,18 +959,18 @@ class SubGopSwitchingTestLarge
     }
   }
 
-  virtual bool HandleEncodeResult(::libaom_test::VideoSource *video,
-                                  libaom_test::Encoder *encoder) {
+  virtual bool HandleEncodeResult(::libavm_test::VideoSource *video,
+                                  libavm_test::Encoder *encoder) {
     (void)video;
     // Get sub-gop info at beginning of the sub-gop
     if (!frame_num_in_subgop_) {
       FRAME_TYPE frame_type = FRAME_TYPES;
 
       // Get current frame type
-      encoder->Control(AV1E_GET_FRAME_TYPE, &frame_type);
+      encoder->Control(AV2E_GET_FRAME_TYPE, &frame_type);
       assert(frame_type != FRAME_TYPES);
       // Get subgop config
-      encoder->Control(AV1E_GET_SUB_GOP_CONFIG, &subgop_info_);
+      encoder->Control(AV2E_GET_SUB_GOP_CONFIG, &subgop_info_);
 
       // Compute sub-gop size
       subgop_size_ = subgop_info_.gf_interval;
@@ -984,26 +984,26 @@ class SubGopSwitchingTestLarge
     return 1;
   }
 
-  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt,
-                            ::libaom_test::DxDataIterator *dec_iter) {
+  virtual void FramePktHook(const avm_codec_cx_pkt_t *pkt,
+                            ::libavm_test::DxDataIterator *dec_iter) {
     (void)dec_iter;
     (void)pkt;
     ++frame_num_in_subgop_;
   }
 
-  virtual bool HandleDecodeResult(const aom_codec_err_t res_dec,
-                                  libaom_test::Decoder *decoder) {
-    EXPECT_EQ(AOM_CODEC_OK, res_dec) << decoder->DecodeError();
-    if (AOM_CODEC_OK != res_dec) return 0;
+  virtual bool HandleDecodeResult(const avm_codec_err_t res_dec,
+                                  libavm_test::Decoder *decoder) {
+    EXPECT_EQ(AVM_CODEC_OK, res_dec) << decoder->DecodeError();
+    if (AVM_CODEC_OK != res_dec) return 0;
 
-    return AOM_CODEC_OK == res_dec;
+    return AVM_CODEC_OK == res_dec;
   }
   SubGopSwitchTestParams test_params_;
   unsigned int num_subgop_cfg_used_;
 
  private:
   ACMRandom rnd_;
-  aom_rc_mode rc_end_usage_;
+  avm_rc_mode rc_end_usage_;
   SubGOPInfo subgop_info_;
   unsigned int frame_num_in_subgop_;
   unsigned int subgop_size_;
@@ -1011,13 +1011,13 @@ class SubGopSwitchingTestLarge
 };
 
 TEST_P(SubGopSwitchingTestLarge, SubGopSwitching) {
-  std::unique_ptr<libaom_test::VideoSource> video;
+  std::unique_ptr<libavm_test::VideoSource> video;
   if (is_extension_y4m(test_params_.input_file)) {
     video.reset(
-        new libaom_test::Y4mVideoSource(test_params_.input_file, 0, kFrames));
+        new libavm_test::Y4mVideoSource(test_params_.input_file, 0, kFrames));
   } else {
-    video.reset(new libaom_test::YUVVideoSource(
-        test_params_.input_file, AOM_IMG_FMT_I420, test_params_.frame_w,
+    video.reset(new libavm_test::YUVVideoSource(
+        test_params_.input_file, AVM_IMG_FMT_I420, test_params_.frame_w,
         test_params_.frame_h, 30, 1, 0, kFrames));
   }
 
@@ -1027,7 +1027,7 @@ TEST_P(SubGopSwitchingTestLarge, SubGopSwitching) {
   EXPECT_TRUE(num_subgop_cfg_used_);
 }
 
-AV1_INSTANTIATE_TEST_SUITE(SubGopSwitchingTestLarge,
+AV2_INSTANTIATE_TEST_SUITE(SubGopSwitchingTestLarge,
                            ::testing::ValuesIn(SubgopSwitchTestVectors),
-                           ::testing::Values(AOM_Q, AOM_VBR, AOM_CQ, AOM_CBR));
+                           ::testing::Values(AVM_Q, AVM_VBR, AVM_CQ, AVM_CBR));
 }  // namespace

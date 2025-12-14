@@ -18,14 +18,14 @@
 #include "test/register_state_check.h"
 #include "test/function_equivalence_test.h"
 
-#include "config/aom_config.h"
-#include "config/aom_dsp_rtcd.h"
-#include "config/av1_rtcd.h"
+#include "config/avm_config.h"
+#include "config/avm_dsp_rtcd.h"
+#include "config/av2_rtcd.h"
 
-#include "aom/aom_integer.h"
-#include "av1/common/enums.h"
+#include "avm/avm_integer.h"
+#include "av2/common/enums.h"
 
-using libaom_test::FunctionEquivalenceTest;
+using libavm_test::FunctionEquivalenceTest;
 
 namespace {
 
@@ -67,7 +67,7 @@ class FilterEdgeTest : public FunctionEquivalenceTest<F> {
 //////////////////////////////////////////////////////////////////////////////
 
 typedef void (*FEHB)(uint16_t *p, int size, int strength);
-typedef libaom_test::FuncParam<FEHB> FilterEdgeTestFuncsHBD;
+typedef libavm_test::FuncParam<FEHB> FilterEdgeTestFuncsHBD;
 
 class FilterEdgeTestHB : public FilterEdgeTest<FEHB, uint16_t> {
  protected:
@@ -103,8 +103,8 @@ TEST_P(FilterEdgeTestHB, RandomValues) {
 #if HAVE_SSE4_1
 INSTANTIATE_TEST_SUITE_P(SSE4_1, FilterEdgeTestHB,
                          ::testing::Values(FilterEdgeTestFuncsHBD(
-                             av1_filter_intra_edge_high_c,
-                             av1_filter_intra_edge_high_sse4_1)));
+                             av2_filter_intra_edge_high_c,
+                             av2_filter_intra_edge_high_sse4_1)));
 #endif  // HAVE_SSE4_1
 
 // Speed tests

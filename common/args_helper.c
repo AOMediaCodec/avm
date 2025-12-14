@@ -118,11 +118,11 @@ int arg_parse_int_helper(const struct arg *arg, char *err_msg) {
   return 0;
 }
 
-struct aom_rational arg_parse_rational_helper(const struct arg *arg,
+struct avm_rational arg_parse_rational_helper(const struct arg *arg,
                                               char *err_msg) {
   long rawval;  // NOLINT
   char *endptr;
-  struct aom_rational rat = { 0, 1 };
+  struct avm_rational rat = { 0, 1 };
 
   if (err_msg) err_msg[0] = '\0';
 

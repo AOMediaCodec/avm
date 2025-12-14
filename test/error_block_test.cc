@@ -17,18 +17,18 @@
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
-#include "config/aom_config.h"
-#include "config/av1_rtcd.h"
+#include "config/avm_config.h"
+#include "config/av2_rtcd.h"
 
 #include "test/acm_random.h"
 #include "test/clear_system_state.h"
 #include "test/register_state_check.h"
 #include "test/util.h"
-#include "av1/common/entropy.h"
-#include "aom/aom_codec.h"
-#include "aom/aom_integer.h"
+#include "av2/common/entropy.h"
+#include "avm/avm_codec.h"
+#include "avm/avm_integer.h"
 
-using libaom_test::ACMRandom;
+using libavm_test::ACMRandom;
 
 namespace {
 const int kNumIterations = 1000;
@@ -37,7 +37,7 @@ typedef int64_t (*ErrorBlockFunc)(const tran_low_t *coeff,
                                   const tran_low_t *dqcoeff,
                                   intptr_t block_size, int64_t *ssz, int bps);
 
-typedef std::tuple<ErrorBlockFunc, ErrorBlockFunc, aom_bit_depth_t>
+typedef std::tuple<ErrorBlockFunc, ErrorBlockFunc, avm_bit_depth_t>
     ErrorBlockParam;
 
 class ErrorBlockTest : public ::testing::TestWithParam<ErrorBlockParam> {
@@ -49,10 +49,10 @@ class ErrorBlockTest : public ::testing::TestWithParam<ErrorBlockParam> {
     bit_depth_ = GET_PARAM(2);
   }
 
-  virtual void TearDown() { libaom_test::ClearSystemState(); }
+  virtual void TearDown() { libavm_test::ClearSystemState(); }
 
  protected:
-  aom_bit_depth_t bit_depth_;
+  avm_bit_depth_t bit_depth_;
   ErrorBlockFunc error_block_op_;
   ErrorBlockFunc ref_error_block_op_;
 };
@@ -195,24 +195,24 @@ TEST_P(ErrorBlockTest, DISABLED_Speed) {
           }
         }
       }
-      aom_usec_timer ref_timer, test_timer;
+      avm_usec_timer ref_timer, test_timer;
 
-      aom_usec_timer_start(&ref_timer);
+      avm_usec_timer_start(&ref_timer);
       for (int i = 0; i < num_iters; ++i) {
         ref_error_block_op_(coeff, dqcoeff, block_size, &ref_ssz, bit_depth_);
       }
-      aom_usec_timer_mark(&ref_timer);
+      avm_usec_timer_mark(&ref_timer);
       const int elapsed_time_c =
-          static_cast<int>(aom_usec_timer_elapsed(&ref_timer));
+          static_cast<int>(avm_usec_timer_elapsed(&ref_timer));
 
-      aom_usec_timer_start(&test_timer);
+      avm_usec_timer_start(&test_timer);
       for (int i = 0; i < num_iters; ++i) {
         error_block_op_(coeff, dqcoeff, block_size, &ssz, bit_depth_);
       }
-      aom_usec_timer_mark(&test_timer);
+      avm_usec_timer_mark(&test_timer);
 
       const int elapsed_time_simd =
-          static_cast<int>(aom_usec_timer_elapsed(&test_timer));
+          static_cast<int>(avm_usec_timer_elapsed(&test_timer));
 
       printf(
           " c_time=%d \t simd_time=%d \t "
@@ -227,12 +227,12 @@ using std::make_tuple;
 
 #if (HAVE_SSE2)
 const ErrorBlockParam kErrorBlockTestParamsSse2[] = {
-  make_tuple(&av1_highbd_block_error_sse2, &av1_highbd_block_error_c,
-             AOM_BITS_10),
-  make_tuple(&av1_highbd_block_error_sse2, &av1_highbd_block_error_c,
-             AOM_BITS_12),
-  make_tuple(&av1_highbd_block_error_sse2, &av1_highbd_block_error_c,
-             AOM_BITS_8),
+  make_tuple(&av2_highbd_block_error_sse2, &av2_highbd_block_error_c,
+             AVM_BITS_10),
+  make_tuple(&av2_highbd_block_error_sse2, &av2_highbd_block_error_c,
+             AVM_BITS_12),
+  make_tuple(&av2_highbd_block_error_sse2, &av2_highbd_block_error_c,
+             AVM_BITS_8),
 };
 
 INSTANTIATE_TEST_SUITE_P(SSE2, ErrorBlockTest,
@@ -241,12 +241,12 @@ INSTANTIATE_TEST_SUITE_P(SSE2, ErrorBlockTest,
 
 #if (HAVE_AVX2)
 const ErrorBlockParam kErrorBlockTestParamsAvx2[] = {
-  make_tuple(&av1_highbd_block_error_avx2, &av1_highbd_block_error_c,
-             AOM_BITS_10),
-  make_tuple(&av1_highbd_block_error_avx2, &av1_highbd_block_error_c,
-             AOM_BITS_12),
-  make_tuple(&av1_highbd_block_error_avx2, &av1_highbd_block_error_c,
-             AOM_BITS_8),
+  make_tuple(&av2_highbd_block_error_avx2, &av2_highbd_block_error_c,
+             AVM_BITS_10),
+  make_tuple(&av2_highbd_block_error_avx2, &av2_highbd_block_error_c,
+             AVM_BITS_12),
+  make_tuple(&av2_highbd_block_error_avx2, &av2_highbd_block_error_c,
+             AVM_BITS_8),
 };
 
 INSTANTIATE_TEST_SUITE_P(AVX2, ErrorBlockTest,

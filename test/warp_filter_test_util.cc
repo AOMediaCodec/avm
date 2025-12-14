@@ -9,15 +9,15 @@
  * source code in the PATENTS file, you can obtain it at
  * aomedia.org/license/patent-license/.
  */
-#include "aom_ports/aom_timer.h"
+#include "avm_ports/avm_timer.h"
 #include "test/warp_filter_test_util.h"
 
 using std::make_tuple;
 using std::tuple;
 
-namespace libaom_test {
+namespace libavm_test {
 
-int32_t random_warped_param(libaom_test::ACMRandom *rnd, int bits) {
+int32_t random_warped_param(libavm_test::ACMRandom *rnd, int bits) {
   // 1 in 32 chance of generating zero (arbitrarily chosen)
   if (((rnd->Rand8()) & 0x1f) == 0) return 0;
   // Otherwise, enerate uniform values in the range
@@ -27,7 +27,7 @@ int32_t random_warped_param(libaom_test::ACMRandom *rnd, int bits) {
   return v;
 }
 
-void generate_warped_model(libaom_test::ACMRandom *rnd, int32_t *mat,
+void generate_warped_model(libavm_test::ACMRandom *rnd, int32_t *mat,
                            int16_t *alpha, int16_t *beta, int16_t *gamma,
                            int16_t *delta, const int is_alpha_zero,
                            const int is_beta_zero, const int is_gamma_zero,
@@ -94,7 +94,7 @@ void generate_warped_model(libaom_test::ACMRandom *rnd, int32_t *mat,
   }
 }
 
-namespace AV1HighbdWarpFilter {
+namespace AV2HighbdWarpFilter {
 ::testing::internal::ParamGenerator<HighbdWarpTestParams> BuildParams(
     highbd_warp_affine_func filter) {
   const HighbdWarpTestParam params[] = {
@@ -112,14 +112,14 @@ namespace AV1HighbdWarpFilter {
                             ::testing::Values(0, 1), ::testing::Values(0, 1));
 }
 
-AV1HighbdWarpFilterTest::~AV1HighbdWarpFilterTest() {}
-void AV1HighbdWarpFilterTest::SetUp() {
+AV2HighbdWarpFilterTest::~AV2HighbdWarpFilterTest() {}
+void AV2HighbdWarpFilterTest::SetUp() {
   rnd_.Reset(ACMRandom::DeterministicSeed());
 }
 
-void AV1HighbdWarpFilterTest::TearDown() { libaom_test::ClearSystemState(); }
+void AV2HighbdWarpFilterTest::TearDown() { libavm_test::ClearSystemState(); }
 
-void AV1HighbdWarpFilterTest::RunSpeedTest(highbd_warp_affine_func test_impl) {
+void AV2HighbdWarpFilterTest::RunSpeedTest(highbd_warp_affine_func test_impl) {
   const int w = 128, h = 128;
   const int border = 16;
   const int stride = w + 2 * border;
@@ -165,15 +165,15 @@ void AV1HighbdWarpFilterTest::RunSpeedTest(highbd_warp_affine_func test_impl) {
   conv_params = get_conv_params_no_round(do_average, 0, dsta, out_w, 1, bd);
 
   const int num_loops = 1000000000 / (out_w + out_h);
-  aom_usec_timer timer;
-  aom_usec_timer_start(&timer);
+  avm_usec_timer timer;
+  avm_usec_timer_start(&timer);
 
   for (int i = 0; i < num_loops; ++i)
     test_impl(mat, input, w, h, stride, output, p_col, p_row, out_w, out_h,
               out_w, sub_x, sub_y, bd, &conv_params, alpha, beta, gamma, delta);
 
-  aom_usec_timer_mark(&timer);
-  const int elapsed_time1 = static_cast<int>(aom_usec_timer_elapsed(&timer));
+  avm_usec_timer_mark(&timer);
+  const int elapsed_time1 = static_cast<int>(avm_usec_timer_elapsed(&timer));
 
   printf("highbd warp %3dx%-3d: %7.2f ns\n", out_w, out_h,
          1000.0 * elapsed_time1 / num_loops);
@@ -183,7 +183,7 @@ void AV1HighbdWarpFilterTest::RunSpeedTest(highbd_warp_affine_func test_impl) {
   delete[] dsta;
 }
 
-void AV1HighbdWarpFilterTest::RunCheckOutput(
+void AV2HighbdWarpFilterTest::RunCheckOutput(
     highbd_warp_affine_func test_impl) {
   const int w = 128, h = 128;
   const int p_row = 32, p_col = 32;
@@ -245,7 +245,7 @@ void AV1HighbdWarpFilterTest::RunCheckOutput(
                 conv_params.bck_offset = quant_dist_lookup_table[jj][1 - ii];
               }
 
-              av1_highbd_warp_affine_c(mat, input, w, h, stride, output, p_col,
+              av2_highbd_warp_affine_c(mat, input, w, h, stride, output, p_col,
                                        p_row, out_w, out_h, out_w, sub_x, sub_y,
                                        bd, &conv_params, alpha, beta, gamma,
                                        delta);
@@ -294,9 +294,9 @@ void AV1HighbdWarpFilterTest::RunCheckOutput(
   delete[] dsta;
   delete[] dstb;
 }
-}  // namespace AV1HighbdWarpFilter
+}  // namespace AV2HighbdWarpFilter
 
-namespace AV1ExtHighbdWarpFilter {
+namespace AV2ExtHighbdWarpFilter {
 ::testing::internal::ParamGenerator<ExtHighbdWarpTestParams> BuildParams(
     ext_highbd_warp_affine_func filter) {
   const ExtHighbdWarpTestParam params[] = {
@@ -314,14 +314,14 @@ namespace AV1ExtHighbdWarpFilter {
                             ::testing::Values(0, 1), ::testing::Values(0, 1));
 }
 
-AV1ExtHighbdWarpFilterTest::~AV1ExtHighbdWarpFilterTest() {}
-void AV1ExtHighbdWarpFilterTest::SetUp() {
+AV2ExtHighbdWarpFilterTest::~AV2ExtHighbdWarpFilterTest() {}
+void AV2ExtHighbdWarpFilterTest::SetUp() {
   rnd_.Reset(ACMRandom::DeterministicSeed());
 }
 
-void AV1ExtHighbdWarpFilterTest::TearDown() { libaom_test::ClearSystemState(); }
+void AV2ExtHighbdWarpFilterTest::TearDown() { libavm_test::ClearSystemState(); }
 
-void AV1ExtHighbdWarpFilterTest::RunSpeedTest(
+void AV2ExtHighbdWarpFilterTest::RunSpeedTest(
     ext_highbd_warp_affine_func test_impl) {
   const int w = 128, h = 128;
   const int border = 16;
@@ -366,15 +366,15 @@ void AV1ExtHighbdWarpFilterTest::RunSpeedTest(
   conv_params = get_conv_params_no_round(do_average, 0, dsta, out_w, 1, bd);
 
   const int num_loops = 1000000000 / (out_w + out_h);
-  aom_usec_timer timer;
-  aom_usec_timer_start(&timer);
+  avm_usec_timer timer;
+  avm_usec_timer_start(&timer);
 
   for (int i = 0; i < num_loops; ++i)
     test_impl(mat, input, w, h, stride, output, 32, 32, out_w, out_h, out_w,
               sub_x, sub_y, bd, &conv_params, 0, NULL);
 
-  aom_usec_timer_mark(&timer);
-  const int elapsed_time = static_cast<int>(aom_usec_timer_elapsed(&timer));
+  avm_usec_timer_mark(&timer);
+  const int elapsed_time = static_cast<int>(avm_usec_timer_elapsed(&timer));
   printf("highbd warp %3dx%-3d: %7.2f ns\n", out_w, out_h,
          1000.0 * elapsed_time / num_loops);
 
@@ -383,7 +383,7 @@ void AV1ExtHighbdWarpFilterTest::RunSpeedTest(
   delete[] dsta;
 }
 
-void AV1ExtHighbdWarpFilterTest::RunCheckOutput(
+void AV2ExtHighbdWarpFilterTest::RunCheckOutput(
     ext_highbd_warp_affine_func test_impl) {
   const int w = 128, h = 128;
   const int border = 16;
@@ -440,7 +440,7 @@ void AV1ExtHighbdWarpFilterTest::RunCheckOutput(
             conv_params.fwd_offset = quant_dist_lookup_table[ii][0];
             conv_params.bck_offset = quant_dist_lookup_table[ii][1];
 
-            av1_ext_highbd_warp_affine_c(mat, input, w, h, stride, output, 32,
+            av2_ext_highbd_warp_affine_c(mat, input, w, h, stride, output, 32,
                                          32, out_w, out_h, out_w, sub_x, sub_y,
                                          bd, &conv_params, 0, NULL);
             if (use_no_round) {
@@ -480,5 +480,5 @@ void AV1ExtHighbdWarpFilterTest::RunCheckOutput(
   delete[] dsta;
   delete[] dstb;
 }
-}  // namespace AV1ExtHighbdWarpFilter
-}  // namespace libaom_test
+}  // namespace AV2ExtHighbdWarpFilter
+}  // namespace libavm_test

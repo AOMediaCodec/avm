@@ -10,10 +10,10 @@
  * aomedia.org/license/patent-license/.
  */
 
-#ifndef AOM_STATS_RATE_HIST_H_
-#define AOM_STATS_RATE_HIST_H_
+#ifndef AVM_STATS_RATE_HIST_H_
+#define AVM_STATS_RATE_HIST_H_
 
-#include "aom/aom_encoder.h"
+#include "avm/avm_encoder.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -21,22 +21,22 @@ extern "C" {
 
 struct rate_hist;
 
-struct rate_hist *init_rate_histogram(const aom_codec_enc_cfg_t *cfg,
-                                      const aom_rational_t *fps);
+struct rate_hist *init_rate_histogram(const avm_codec_enc_cfg_t *cfg,
+                                      const avm_rational_t *fps);
 
 void destroy_rate_histogram(struct rate_hist *hist);
 
 void update_rate_histogram(struct rate_hist *hist,
-                           const aom_codec_enc_cfg_t *cfg,
-                           const aom_codec_cx_pkt_t *pkt);
+                           const avm_codec_enc_cfg_t *cfg,
+                           const avm_codec_cx_pkt_t *pkt);
 
 void show_q_histogram(const int counts[64], int max_buckets);
 
-void show_rate_histogram(struct rate_hist *hist, const aom_codec_enc_cfg_t *cfg,
+void show_rate_histogram(struct rate_hist *hist, const avm_codec_enc_cfg_t *cfg,
                          int max_buckets);
 
 #ifdef __cplusplus
 }  // extern "C"
 #endif
 
-#endif  // AOM_STATS_RATE_HIST_H_
+#endif  // AVM_STATS_RATE_HIST_H_

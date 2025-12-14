@@ -8,10 +8,10 @@
 ## License 1.0 was not distributed with this source code in the PATENTS file, you
 ## can obtain it at aomedia.org/license/patent-license/.
 ##
-## This script generates 'AOM.framework'. An iOS app can encode and decode AVx
-## video by including 'AOM.framework'.
+## This script generates 'AVM.framework'. An iOS app can encode and decode AVx
+## video by including 'AVM.framework'.
 ##
-## Run iosbuild.sh to create 'AOM.framework' in the current directory.
+## Run iosbuild.sh to create 'AVM.framework' in the current directory.
 ##
 set -e
 devnull='> /dev/null 2>&1'
@@ -22,11 +22,11 @@ CONFIGURE_ARGS="--disable-docs
                 --disable-libyuv
                 --disable-unit-tests"
 DIST_DIR="_dist"
-FRAMEWORK_DIR="AOM.framework"
-FRAMEWORK_LIB="AOM.framework/AOM"
-HEADER_DIR="${FRAMEWORK_DIR}/Headers/aom"
+FRAMEWORK_DIR="AVM.framework"
+FRAMEWORK_LIB="AVM.framework/AVM"
+HEADER_DIR="${FRAMEWORK_DIR}/Headers/avm"
 SCRIPT_DIR=$(dirname "$0")
-LIBAOM_SOURCE_DIR=$(cd ${SCRIPT_DIR}/../..; pwd)
+LIBAVM_SOURCE_DIR=$(cd ${SCRIPT_DIR}/../..; pwd)
 LIPO=$(xcrun -sdk iphoneos${SDK} -find lipo)
 ORIG_PWD="$(pwd)"
 ARM_TARGETS="arm64-darwin-gcc
@@ -57,7 +57,7 @@ build_target() {
   mkdir "${target}"
   cd "${target}"
   # TODO(tomfinegan@google.com): switch to cmake.
-  eval "${LIBAOM_SOURCE_DIR}/configure" --target="${target}" \
+  eval "${LIBAVM_SOURCE_DIR}/configure" --target="${target}" \
     ${CONFIGURE_ARGS} ${EXTRA_CONFIGURE_ARGS} ${target_specific_flags} \
     ${devnull}
   export DIST_DIR
@@ -93,15 +93,15 @@ target_to_preproc_symbol() {
   esac
 }
 
-# Create a aom_config.h shim that, based on preprocessor settings for the
-# current target CPU, includes the real aom_config.h for the current target.
+# Create a avm_config.h shim that, based on preprocessor settings for the
+# current target CPU, includes the real avm_config.h for the current target.
 # $1 is the list of targets.
-create_aom_framework_config_shim() {
+create_avm_framework_config_shim() {
   local targets="$1"
-  local config_file="${HEADER_DIR}/aom_config.h"
+  local config_file="${HEADER_DIR}/avm_config.h"
   local preproc_symbol=""
   local target=""
-  local include_guard="AOM_FRAMEWORK_HEADERS_AOM_AOM_CONFIG_H_"
+  local include_guard="AVM_FRAMEWORK_HEADERS_AVM_AVM_CONFIG_H_"
 
   local file_header="/*
  *  Copyright (c) $(date +%Y), Alliance for Open Media. All rights reserved.
@@ -125,11 +125,11 @@ create_aom_framework_config_shim() {
   for target in ${targets}; do
     preproc_symbol=$(target_to_preproc_symbol "${target}")
     printf " ${preproc_symbol}\n" >> "${config_file}"
-    printf "#define AOM_FRAMEWORK_TARGET \"${target}\"\n" >> "${config_file}"
-    printf "#include \"AOM/aom/${target}/aom_config.h\"\n" >> "${config_file}"
+    printf "#define AVM_FRAMEWORK_TARGET \"${target}\"\n" >> "${config_file}"
+    printf "#include \"AVM/avm/${target}/avm_config.h\"\n" >> "${config_file}"
     printf "#elif defined" >> "${config_file}"
     mkdir "${HEADER_DIR}/${target}"
-    cp -p "${BUILD_ROOT}/${target}/aom_config.h" "${HEADER_DIR}/${target}"
+    cp -p "${BUILD_ROOT}/${target}/avm_config.h" "${HEADER_DIR}/${target}"
   done
 
   # Consume the last line of output from the loop: We don't want it.
@@ -148,7 +148,7 @@ verify_framework_targets() {
   for target; do
     cpu="${target%%-*}"
     if [ "${cpu}" = "x86" ]; then
-      # lipo -info outputs i386 for libaom x86 targets.
+      # lipo -info outputs i386 for libavm x86 targets.
       cpu="i386"
     fi
     requested_cpus="${requested_cpus}${cpu} "
@@ -178,7 +178,7 @@ verify_framework_targets() {
 }
 
 # Configures and builds each target specified by $1, and then builds
-# AOM.framework.
+# AVM.framework.
 build_framework() {
   local lib_list=""
   local targets="$1"
@@ -202,28 +202,28 @@ build_framework() {
     else
       local suffix="a"
     fi
-    lib_list="${lib_list} ${target_dist_dir}/lib/libaom.${suffix}"
+    lib_list="${lib_list} ${target_dist_dir}/lib/libavm.${suffix}"
   done
 
   cd "${ORIG_PWD}"
 
-  # The basic libaom API includes are all the same; just grab the most recent
+  # The basic libavm API includes are all the same; just grab the most recent
   # set.
-  cp -p "${target_dist_dir}"/include/aom/* "${HEADER_DIR}"
+  cp -p "${target_dist_dir}"/include/avm/* "${HEADER_DIR}"
 
   # Build the fat library.
-  ${LIPO} -create ${lib_list} -output ${FRAMEWORK_DIR}/AOM
+  ${LIPO} -create ${lib_list} -output ${FRAMEWORK_DIR}/AVM
 
-  # Create the aom_config.h shim that allows usage of aom_config.h from
-  # within AOM.framework.
-  create_aom_framework_config_shim "${targets}"
+  # Create the avm_config.h shim that allows usage of avm_config.h from
+  # within AVM.framework.
+  create_avm_framework_config_shim "${targets}"
 
-  # Copy in aom_version.h.
-  cp -p "${BUILD_ROOT}/${target}/aom_version.h" "${HEADER_DIR}"
+  # Copy in avm_version.h.
+  cp -p "${BUILD_ROOT}/${target}/avm_version.h" "${HEADER_DIR}"
 
   if [ "${ENABLE_SHARED}" = "yes" ]; then
     # Adjust the dylib's name so dynamic linking in apps works as expected.
-    install_name_tool -id '@rpath/AOM.framework/AOM' ${FRAMEWORK_DIR}/AOM
+    install_name_tool -id '@rpath/AVM.framework/AVM' ${FRAMEWORK_DIR}/AVM
 
     # Copy in Info.plist.
     cat "${SCRIPT_DIR}/ios-Info.plist" \
@@ -233,7 +233,7 @@ build_framework() {
       > "${FRAMEWORK_DIR}/Info.plist"
   fi
 
-  # Confirm AOM.framework/AOM contains the targets requested.
+  # Confirm AVM.framework/AVM contains the targets requested.
   verify_framework_targets ${targets}
 
   vlog "Created fat library ${FRAMEWORK_LIB} containing:"
@@ -271,7 +271,7 @@ cat << EOF
   Usage: ${0##*/} [arguments]
     --help: Display this message and exit.
     --enable-shared: Build a dynamic framework for use on iOS 8 or later.
-    --extra-configure-args <args>: Extra args to pass when configuring libaom.
+    --extra-configure-args <args>: Extra args to pass when configuring libavm.
     --macosx: Uses darwin16 targets instead of iphonesimulator targets for x86
               and x86_64. Allows linking to framework when builds target MacOSX
               instead of iOS.
@@ -343,7 +343,7 @@ if [ "${ENABLE_SHARED}" = "yes" ]; then
   CONFIGURE_ARGS="--enable-shared ${CONFIGURE_ARGS}"
 fi
 
-FULLVERSION=$("${SCRIPT_DIR}"/version.sh --bare "${LIBAOM_SOURCE_DIR}")
+FULLVERSION=$("${SCRIPT_DIR}"/version.sh --bare "${LIBAVM_SOURCE_DIR}")
 VERSION=$(echo "${FULLVERSION}" | sed -E 's/^v([0-9]+\.[0-9]+\.[0-9]+).*$/\1/')
 
 if [ "$ENABLE_SHARED" = "yes" ]; then
@@ -363,7 +363,7 @@ cat << EOF
   FRAMEWORK_DIR=${FRAMEWORK_DIR}
   FRAMEWORK_LIB=${FRAMEWORK_LIB}
   HEADER_DIR=${HEADER_DIR}
-  LIBAOM_SOURCE_DIR=${LIBAOM_SOURCE_DIR}
+  LIBAVM_SOURCE_DIR=${LIBAVM_SOURCE_DIR}
   LIPO=${LIPO}
   MAKEFLAGS=${MAKEFLAGS}
   ORIG_PWD=${ORIG_PWD}

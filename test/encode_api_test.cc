@@ -14,84 +14,84 @@
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
-#include "config/aom_config.h"
+#include "config/avm_config.h"
 
-#include "aom/aomcx.h"
-#include "aom/aom_encoder.h"
+#include "avm/avmcx.h"
+#include "avm/avm_encoder.h"
 
 namespace {
 
 TEST(EncodeAPI, InvalidParams) {
   uint8_t buf[1] = { 0 };
-  aom_image_t img;
-  aom_codec_ctx_t enc;
-  aom_codec_enc_cfg_t cfg;
+  avm_image_t img;
+  avm_codec_ctx_t enc;
+  avm_codec_enc_cfg_t cfg;
 
-  EXPECT_EQ(&img, aom_img_wrap(&img, AOM_IMG_FMT_I420, 1, 1, 1, buf));
+  EXPECT_EQ(&img, avm_img_wrap(&img, AVM_IMG_FMT_I420, 1, 1, 1, buf));
 
-  EXPECT_EQ(AOM_CODEC_INVALID_PARAM, aom_codec_enc_init(NULL, NULL, NULL, 0));
-  EXPECT_EQ(AOM_CODEC_INVALID_PARAM, aom_codec_enc_init(&enc, NULL, NULL, 0));
-  EXPECT_EQ(AOM_CODEC_INVALID_PARAM, aom_codec_encode(NULL, NULL, 0, 0, 0));
-  EXPECT_EQ(AOM_CODEC_INVALID_PARAM, aom_codec_encode(NULL, &img, 0, 0, 0));
-  EXPECT_EQ(AOM_CODEC_INVALID_PARAM, aom_codec_destroy(NULL));
-  EXPECT_EQ(AOM_CODEC_INVALID_PARAM,
-            aom_codec_enc_config_default(NULL, NULL, 0));
-  EXPECT_EQ(AOM_CODEC_INVALID_PARAM,
-            aom_codec_enc_config_default(NULL, &cfg, 0));
-  EXPECT_TRUE(aom_codec_error(NULL) != NULL);
+  EXPECT_EQ(AVM_CODEC_INVALID_PARAM, avm_codec_enc_init(NULL, NULL, NULL, 0));
+  EXPECT_EQ(AVM_CODEC_INVALID_PARAM, avm_codec_enc_init(&enc, NULL, NULL, 0));
+  EXPECT_EQ(AVM_CODEC_INVALID_PARAM, avm_codec_encode(NULL, NULL, 0, 0, 0));
+  EXPECT_EQ(AVM_CODEC_INVALID_PARAM, avm_codec_encode(NULL, &img, 0, 0, 0));
+  EXPECT_EQ(AVM_CODEC_INVALID_PARAM, avm_codec_destroy(NULL));
+  EXPECT_EQ(AVM_CODEC_INVALID_PARAM,
+            avm_codec_enc_config_default(NULL, NULL, 0));
+  EXPECT_EQ(AVM_CODEC_INVALID_PARAM,
+            avm_codec_enc_config_default(NULL, &cfg, 0));
+  EXPECT_TRUE(avm_codec_error(NULL) != NULL);
 
-  aom_codec_iface_t *iface = aom_codec_av1_cx();
-  SCOPED_TRACE(aom_codec_iface_name(iface));
-  EXPECT_EQ(AOM_CODEC_INVALID_PARAM, aom_codec_enc_init(NULL, iface, NULL, 0));
-  EXPECT_EQ(AOM_CODEC_INVALID_PARAM, aom_codec_enc_init(&enc, iface, NULL, 0));
-  EXPECT_EQ(AOM_CODEC_INVALID_PARAM,
-            aom_codec_enc_config_default(iface, &cfg, 2));
-  EXPECT_EQ(AOM_CODEC_OK, aom_codec_enc_config_default(iface, &cfg, 0));
-  EXPECT_EQ(AOM_CODEC_OK, aom_codec_enc_init(&enc, iface, &cfg, 0));
-  EXPECT_EQ(NULL, aom_codec_get_global_headers(NULL));
+  avm_codec_iface_t *iface = avm_codec_av2_cx();
+  SCOPED_TRACE(avm_codec_iface_name(iface));
+  EXPECT_EQ(AVM_CODEC_INVALID_PARAM, avm_codec_enc_init(NULL, iface, NULL, 0));
+  EXPECT_EQ(AVM_CODEC_INVALID_PARAM, avm_codec_enc_init(&enc, iface, NULL, 0));
+  EXPECT_EQ(AVM_CODEC_INVALID_PARAM,
+            avm_codec_enc_config_default(iface, &cfg, 2));
+  EXPECT_EQ(AVM_CODEC_OK, avm_codec_enc_config_default(iface, &cfg, 0));
+  EXPECT_EQ(AVM_CODEC_OK, avm_codec_enc_init(&enc, iface, &cfg, 0));
+  EXPECT_EQ(NULL, avm_codec_get_global_headers(NULL));
 
-  aom_fixed_buf_t *glob_headers = aom_codec_get_global_headers(&enc);
+  avm_fixed_buf_t *glob_headers = avm_codec_get_global_headers(&enc);
   EXPECT_TRUE(glob_headers->buf != NULL);
   if (glob_headers) {
     free(glob_headers->buf);
     free(glob_headers);
   }
-  EXPECT_EQ(AOM_CODEC_OK, aom_codec_encode(&enc, NULL, 0, 0, 0));
-  EXPECT_EQ(AOM_CODEC_OK, aom_codec_destroy(&enc));
+  EXPECT_EQ(AVM_CODEC_OK, avm_codec_encode(&enc, NULL, 0, 0, 0));
+  EXPECT_EQ(AVM_CODEC_OK, avm_codec_destroy(&enc));
 }
 
 TEST(EncodeAPI, InvalidControlId) {
-  aom_codec_iface_t *iface = aom_codec_av1_cx();
-  aom_codec_ctx_t enc;
-  aom_codec_enc_cfg_t cfg;
-  EXPECT_EQ(AOM_CODEC_OK, aom_codec_enc_config_default(iface, &cfg, 0));
-  EXPECT_EQ(AOM_CODEC_OK, aom_codec_enc_init(&enc, iface, &cfg, 0));
-  EXPECT_EQ(AOM_CODEC_ERROR, aom_codec_control(&enc, -1, 0));
-  EXPECT_EQ(AOM_CODEC_INVALID_PARAM, aom_codec_control(&enc, 0, 0));
-  EXPECT_EQ(AOM_CODEC_OK, aom_codec_destroy(&enc));
+  avm_codec_iface_t *iface = avm_codec_av2_cx();
+  avm_codec_ctx_t enc;
+  avm_codec_enc_cfg_t cfg;
+  EXPECT_EQ(AVM_CODEC_OK, avm_codec_enc_config_default(iface, &cfg, 0));
+  EXPECT_EQ(AVM_CODEC_OK, avm_codec_enc_init(&enc, iface, &cfg, 0));
+  EXPECT_EQ(AVM_CODEC_ERROR, avm_codec_control(&enc, -1, 0));
+  EXPECT_EQ(AVM_CODEC_INVALID_PARAM, avm_codec_control(&enc, 0, 0));
+  EXPECT_EQ(AVM_CODEC_OK, avm_codec_destroy(&enc));
 }
 
 TEST(EncodeAPI, EncodeOddWidthHeight420) {
   constexpr unsigned int kWidth = 9;
   constexpr unsigned kHeight = 9;
   uint8_t buf[3 * (kWidth + 1) * (kHeight + 1)] = { 0 };
-  aom_image_t img;
+  avm_image_t img;
   EXPECT_EQ(&img,
-            aom_img_wrap(&img, AOM_IMG_FMT_I420, kWidth, kHeight, 1, buf));
-  aom_codec_iface_t *iface = aom_codec_av1_cx();
-  aom_codec_enc_cfg_t cfg;
-  EXPECT_EQ(AOM_CODEC_OK,
-            aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_GOOD_QUALITY));
+            avm_img_wrap(&img, AVM_IMG_FMT_I420, kWidth, kHeight, 1, buf));
+  avm_codec_iface_t *iface = avm_codec_av2_cx();
+  avm_codec_enc_cfg_t cfg;
+  EXPECT_EQ(AVM_CODEC_OK,
+            avm_codec_enc_config_default(iface, &cfg, AVM_USAGE_GOOD_QUALITY));
   cfg.g_profile = 0;
-  cfg.g_bit_depth = AOM_BITS_8;
+  cfg.g_bit_depth = AVM_BITS_8;
   cfg.g_input_bit_depth = 8;
   cfg.g_w = kWidth;
   cfg.g_h = kHeight;
   cfg.g_lag_in_frames = 0;
-  aom_codec_ctx_t enc;
-  EXPECT_EQ(aom_codec_enc_init(&enc, iface, &cfg, 0), AOM_CODEC_OK);
-  EXPECT_EQ(aom_codec_encode(&enc, &img, 0, 1, 0), AOM_CODEC_OK);
-  EXPECT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+  avm_codec_ctx_t enc;
+  EXPECT_EQ(avm_codec_enc_init(&enc, iface, &cfg, 0), AVM_CODEC_OK);
+  EXPECT_EQ(avm_codec_encode(&enc, &img, 0, 1, 0), AVM_CODEC_OK);
+  EXPECT_EQ(avm_codec_destroy(&enc), AVM_CODEC_OK);
 }
 
 // A test that reproduces https://gitlab.com/AOMediaCodec/avm/-/issues/717.
@@ -120,51 +120,51 @@ TEST(EncodeAPI, AvmIssue717Width2) {
     511, 575, 639, 703, 767, 831, 895, 959,  //
     1023,                                    //
   };
-  aom_image_t img;
-  EXPECT_EQ(&img, aom_img_wrap(&img, AOM_IMG_FMT_I42016, kWidth, kHeight, 1,
+  avm_image_t img;
+  EXPECT_EQ(&img, avm_img_wrap(&img, AVM_IMG_FMT_I42016, kWidth, kHeight, 1,
                                reinterpret_cast<uint8_t *>(buf)));
-  aom_codec_iface_t *iface = aom_codec_av1_cx();
-  aom_codec_enc_cfg_t cfg;
-  EXPECT_EQ(AOM_CODEC_OK,
-            aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_GOOD_QUALITY));
-  cfg.rc_end_usage = AOM_Q;
+  avm_codec_iface_t *iface = avm_codec_av2_cx();
+  avm_codec_enc_cfg_t cfg;
+  EXPECT_EQ(AVM_CODEC_OK,
+            avm_codec_enc_config_default(iface, &cfg, AVM_USAGE_GOOD_QUALITY));
+  cfg.rc_end_usage = AVM_Q;
   cfg.g_profile = 0;
-  cfg.g_bit_depth = AOM_BITS_10;
+  cfg.g_bit_depth = AVM_BITS_10;
   cfg.g_input_bit_depth = 10;
   cfg.g_w = kWidth;
   cfg.g_h = kHeight;
   cfg.g_limit = 1;
   cfg.g_lag_in_frames = 0;
-  cfg.kf_mode = AOM_KF_DISABLED;
+  cfg.kf_mode = AVM_KF_DISABLED;
   cfg.kf_max_dist = 0;
   cfg.rc_min_quantizer = -48;
   cfg.rc_max_quantizer = 255;
-  aom_codec_ctx_t enc;
-  EXPECT_EQ(aom_codec_enc_init(&enc, iface, &cfg, AOM_CODEC_USE_PSNR),
-            AOM_CODEC_OK);
-  EXPECT_EQ(aom_codec_control(&enc, AOME_SET_QP, 101), AOM_CODEC_OK);
-  EXPECT_EQ(aom_codec_control(&enc, AV1E_SET_COLOR_RANGE, AOM_CR_FULL_RANGE),
-            AOM_CODEC_OK);
-  EXPECT_EQ(aom_codec_set_option(&enc, "enable-ext-partitions", "0"),
-            AOM_CODEC_OK);
-  EXPECT_EQ(aom_codec_set_option(&enc, "enable-uneven-4way-partitions", "0"),
-            AOM_CODEC_OK);
-  EXPECT_EQ(aom_codec_control(&enc, AOME_SET_TUNING, AOM_TUNE_SSIM),
-            AOM_CODEC_OK);
-  EXPECT_EQ(aom_codec_encode(&enc, &img, 0, 1, 0), AOM_CODEC_OK);
-  const aom_codec_cx_pkt_t *pkt;
-  aom_codec_iter_t iter = nullptr;
-  while ((pkt = aom_codec_get_cx_data(&enc, &iter)) != nullptr) {
-    if (pkt->kind == AOM_CODEC_PSNR_PKT) {
+  avm_codec_ctx_t enc;
+  EXPECT_EQ(avm_codec_enc_init(&enc, iface, &cfg, AVM_CODEC_USE_PSNR),
+            AVM_CODEC_OK);
+  EXPECT_EQ(avm_codec_control(&enc, AVME_SET_QP, 101), AVM_CODEC_OK);
+  EXPECT_EQ(avm_codec_control(&enc, AV2E_SET_COLOR_RANGE, AVM_CR_FULL_RANGE),
+            AVM_CODEC_OK);
+  EXPECT_EQ(avm_codec_set_option(&enc, "enable-ext-partitions", "0"),
+            AVM_CODEC_OK);
+  EXPECT_EQ(avm_codec_set_option(&enc, "enable-uneven-4way-partitions", "0"),
+            AVM_CODEC_OK);
+  EXPECT_EQ(avm_codec_control(&enc, AVME_SET_TUNING, AVM_TUNE_SSIM),
+            AVM_CODEC_OK);
+  EXPECT_EQ(avm_codec_encode(&enc, &img, 0, 1, 0), AVM_CODEC_OK);
+  const avm_codec_cx_pkt_t *pkt;
+  avm_codec_iter_t iter = nullptr;
+  while ((pkt = avm_codec_get_cx_data(&enc, &iter)) != nullptr) {
+    if (pkt->kind == AVM_CODEC_PSNR_PKT) {
       // In commit 2f829d09, PSNR is 39.31. But in the next commit (d7372c17),
       // PSNR drops to 20.88.
       EXPECT_GE(pkt->data.psnr.psnr[0], 39.0);
     }
   }
-  EXPECT_EQ(aom_codec_encode(&enc, nullptr, 0, 1, 0), AOM_CODEC_OK);
+  EXPECT_EQ(avm_codec_encode(&enc, nullptr, 0, 1, 0), AVM_CODEC_OK);
   iter = nullptr;
-  EXPECT_EQ(aom_codec_get_cx_data(&enc, &iter), nullptr);
-  EXPECT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+  EXPECT_EQ(avm_codec_get_cx_data(&enc, &iter), nullptr);
+  EXPECT_EQ(avm_codec_destroy(&enc), AVM_CODEC_OK);
 }
 
 // A test that reproduces https://gitlab.com/AOMediaCodec/avm/-/issues/717.
@@ -205,74 +205,74 @@ TEST(EncodeAPI, AvmIssue717Width4) {
     722, 782, 782, 842, 842, 902, 902, 962,  //
     962, 1023,                               //
   };
-  aom_image_t img;
-  EXPECT_EQ(&img, aom_img_wrap(&img, AOM_IMG_FMT_I42016, kWidth, kHeight, 1,
+  avm_image_t img;
+  EXPECT_EQ(&img, avm_img_wrap(&img, AVM_IMG_FMT_I42016, kWidth, kHeight, 1,
                                reinterpret_cast<uint8_t *>(buf)));
-  aom_codec_iface_t *iface = aom_codec_av1_cx();
-  aom_codec_enc_cfg_t cfg;
-  EXPECT_EQ(AOM_CODEC_OK,
-            aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_GOOD_QUALITY));
-  cfg.rc_end_usage = AOM_Q;
+  avm_codec_iface_t *iface = avm_codec_av2_cx();
+  avm_codec_enc_cfg_t cfg;
+  EXPECT_EQ(AVM_CODEC_OK,
+            avm_codec_enc_config_default(iface, &cfg, AVM_USAGE_GOOD_QUALITY));
+  cfg.rc_end_usage = AVM_Q;
   cfg.g_profile = 0;
-  cfg.g_bit_depth = AOM_BITS_10;
+  cfg.g_bit_depth = AVM_BITS_10;
   cfg.g_input_bit_depth = 10;
   cfg.g_w = kWidth;
   cfg.g_h = kHeight;
   cfg.g_limit = 1;
   cfg.g_lag_in_frames = 0;
-  cfg.kf_mode = AOM_KF_DISABLED;
+  cfg.kf_mode = AVM_KF_DISABLED;
   cfg.kf_max_dist = 0;
   cfg.rc_min_quantizer = -48;
   cfg.rc_max_quantizer = 255;
-  aom_codec_ctx_t enc;
-  EXPECT_EQ(aom_codec_enc_init(&enc, iface, &cfg, AOM_CODEC_USE_PSNR),
-            AOM_CODEC_OK);
-  EXPECT_EQ(aom_codec_control(&enc, AOME_SET_QP, 101), AOM_CODEC_OK);
-  EXPECT_EQ(aom_codec_control(&enc, AV1E_SET_COLOR_RANGE, AOM_CR_FULL_RANGE),
-            AOM_CODEC_OK);
-  EXPECT_EQ(aom_codec_set_option(&enc, "enable-ext-partitions", "0"),
-            AOM_CODEC_OK);
-  EXPECT_EQ(aom_codec_set_option(&enc, "enable-uneven-4way-partitions", "0"),
-            AOM_CODEC_OK);
-  EXPECT_EQ(aom_codec_control(&enc, AOME_SET_TUNING, AOM_TUNE_SSIM),
-            AOM_CODEC_OK);
-  EXPECT_EQ(aom_codec_encode(&enc, &img, 0, 1, 0), AOM_CODEC_OK);
-  const aom_codec_cx_pkt_t *pkt;
-  aom_codec_iter_t iter = nullptr;
-  while ((pkt = aom_codec_get_cx_data(&enc, &iter)) != nullptr) {
-    if (pkt->kind == AOM_CODEC_PSNR_PKT) {
+  avm_codec_ctx_t enc;
+  EXPECT_EQ(avm_codec_enc_init(&enc, iface, &cfg, AVM_CODEC_USE_PSNR),
+            AVM_CODEC_OK);
+  EXPECT_EQ(avm_codec_control(&enc, AVME_SET_QP, 101), AVM_CODEC_OK);
+  EXPECT_EQ(avm_codec_control(&enc, AV2E_SET_COLOR_RANGE, AVM_CR_FULL_RANGE),
+            AVM_CODEC_OK);
+  EXPECT_EQ(avm_codec_set_option(&enc, "enable-ext-partitions", "0"),
+            AVM_CODEC_OK);
+  EXPECT_EQ(avm_codec_set_option(&enc, "enable-uneven-4way-partitions", "0"),
+            AVM_CODEC_OK);
+  EXPECT_EQ(avm_codec_control(&enc, AVME_SET_TUNING, AVM_TUNE_SSIM),
+            AVM_CODEC_OK);
+  EXPECT_EQ(avm_codec_encode(&enc, &img, 0, 1, 0), AVM_CODEC_OK);
+  const avm_codec_cx_pkt_t *pkt;
+  avm_codec_iter_t iter = nullptr;
+  while ((pkt = avm_codec_get_cx_data(&enc, &iter)) != nullptr) {
+    if (pkt->kind == AVM_CODEC_PSNR_PKT) {
       // In commit 2f829d09, PSNR is 39.26. But in the next commit (d7372c17),
       // PSNR drops to 28.96.
       EXPECT_GE(pkt->data.psnr.psnr[0], 39.0);
     }
   }
-  EXPECT_EQ(aom_codec_encode(&enc, nullptr, 0, 1, 0), AOM_CODEC_OK);
+  EXPECT_EQ(avm_codec_encode(&enc, nullptr, 0, 1, 0), AVM_CODEC_OK);
   iter = nullptr;
-  EXPECT_EQ(aom_codec_get_cx_data(&enc, &iter), nullptr);
-  EXPECT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+  EXPECT_EQ(avm_codec_get_cx_data(&enc, &iter), nullptr);
+  EXPECT_EQ(avm_codec_destroy(&enc), AVM_CODEC_OK);
 }
 
 TEST(EncodeAPI, GdfOptimizer8x8) {
   constexpr unsigned int kWidth = 8;
   constexpr unsigned kHeight = 8;
   uint8_t buf[3 * kWidth * kHeight] = { 0 };
-  aom_image_t img;
+  avm_image_t img;
   EXPECT_EQ(&img,
-            aom_img_wrap(&img, AOM_IMG_FMT_I444, kWidth, kHeight, 1, buf));
-  aom_codec_iface_t *iface = aom_codec_av1_cx();
-  aom_codec_enc_cfg_t cfg;
-  EXPECT_EQ(AOM_CODEC_OK,
-            aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_GOOD_QUALITY));
+            avm_img_wrap(&img, AVM_IMG_FMT_I444, kWidth, kHeight, 1, buf));
+  avm_codec_iface_t *iface = avm_codec_av2_cx();
+  avm_codec_enc_cfg_t cfg;
+  EXPECT_EQ(AVM_CODEC_OK,
+            avm_codec_enc_config_default(iface, &cfg, AVM_USAGE_GOOD_QUALITY));
   cfg.g_profile = 1;
-  cfg.g_bit_depth = AOM_BITS_8;
+  cfg.g_bit_depth = AVM_BITS_8;
   cfg.g_input_bit_depth = 8;
   cfg.g_w = kWidth;
   cfg.g_h = kHeight;
   cfg.g_lag_in_frames = 0;
-  aom_codec_ctx_t enc;
-  EXPECT_EQ(aom_codec_enc_init(&enc, iface, &cfg, 0), AOM_CODEC_OK);
-  EXPECT_EQ(aom_codec_encode(&enc, &img, 0, 1, 0), AOM_CODEC_OK);
-  EXPECT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+  avm_codec_ctx_t enc;
+  EXPECT_EQ(avm_codec_enc_init(&enc, iface, &cfg, 0), AVM_CODEC_OK);
+  EXPECT_EQ(avm_codec_encode(&enc, &img, 0, 1, 0), AVM_CODEC_OK);
+  EXPECT_EQ(avm_codec_destroy(&enc), AVM_CODEC_OK);
 }
 
 // A test that reproduces https://gitlab.com/AOMediaCodec/avm/-/issues/749.
@@ -338,49 +338,49 @@ TEST(EncodeAPI, AvmIssue749) {
     0xaa, 0xb6, 0xc2, 0xce, 0xda, 0xe6, 0xb6, 0xc2, 0xce, 0xda, 0xe6, 0xf2,
     0xc2, 0xce, 0xda, 0xe6, 0xf2, 0xff
   };
-  aom_image_t img;
+  avm_image_t img;
   EXPECT_EQ(&img,
-            aom_img_wrap(&img, AOM_IMG_FMT_I420, kWidth, kHeight, 1, buf));
-  aom_codec_iface_t *iface = aom_codec_av1_cx();
-  aom_codec_enc_cfg_t cfg;
-  EXPECT_EQ(AOM_CODEC_OK,
-            aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_GOOD_QUALITY));
-  cfg.rc_end_usage = AOM_Q;
+            avm_img_wrap(&img, AVM_IMG_FMT_I420, kWidth, kHeight, 1, buf));
+  avm_codec_iface_t *iface = avm_codec_av2_cx();
+  avm_codec_enc_cfg_t cfg;
+  EXPECT_EQ(AVM_CODEC_OK,
+            avm_codec_enc_config_default(iface, &cfg, AVM_USAGE_GOOD_QUALITY));
+  cfg.rc_end_usage = AVM_Q;
   cfg.g_profile = 0;
-  cfg.g_bit_depth = AOM_BITS_8;
+  cfg.g_bit_depth = AVM_BITS_8;
   cfg.g_input_bit_depth = 8;
   cfg.g_w = kWidth;
   cfg.g_h = kHeight;
   cfg.g_limit = 1;
   cfg.g_lag_in_frames = 0;
-  cfg.kf_mode = AOM_KF_DISABLED;
+  cfg.kf_mode = AVM_KF_DISABLED;
   cfg.kf_max_dist = 0;
   cfg.rc_min_quantizer = 0;
   cfg.rc_max_quantizer = 255;
-  aom_codec_ctx_t enc;
-  EXPECT_EQ(aom_codec_enc_init(&enc, iface, &cfg, AOM_CODEC_USE_PSNR),
-            AOM_CODEC_OK);
-  EXPECT_EQ(aom_codec_control(&enc, AOME_SET_QP, 127), AOM_CODEC_OK);
-  EXPECT_EQ(aom_codec_control(&enc, AV1E_SET_COLOR_RANGE, AOM_CR_FULL_RANGE),
-            AOM_CODEC_OK);
-  EXPECT_EQ(aom_codec_set_option(&enc, "enable-ext-partitions", "0"),
-            AOM_CODEC_OK);
-  EXPECT_EQ(aom_codec_set_option(&enc, "enable-uneven-4way-partitions", "0"),
-            AOM_CODEC_OK);
-  EXPECT_EQ(aom_codec_control(&enc, AOME_SET_TUNING, AOM_TUNE_SSIM),
-            AOM_CODEC_OK);
-  EXPECT_EQ(aom_codec_encode(&enc, &img, 0, 1, 0), AOM_CODEC_OK);
-  const aom_codec_cx_pkt_t *pkt;
-  aom_codec_iter_t iter = nullptr;
-  while ((pkt = aom_codec_get_cx_data(&enc, &iter)) != nullptr) {
-    if (pkt->kind == AOM_CODEC_PSNR_PKT) {
+  avm_codec_ctx_t enc;
+  EXPECT_EQ(avm_codec_enc_init(&enc, iface, &cfg, AVM_CODEC_USE_PSNR),
+            AVM_CODEC_OK);
+  EXPECT_EQ(avm_codec_control(&enc, AVME_SET_QP, 127), AVM_CODEC_OK);
+  EXPECT_EQ(avm_codec_control(&enc, AV2E_SET_COLOR_RANGE, AVM_CR_FULL_RANGE),
+            AVM_CODEC_OK);
+  EXPECT_EQ(avm_codec_set_option(&enc, "enable-ext-partitions", "0"),
+            AVM_CODEC_OK);
+  EXPECT_EQ(avm_codec_set_option(&enc, "enable-uneven-4way-partitions", "0"),
+            AVM_CODEC_OK);
+  EXPECT_EQ(avm_codec_control(&enc, AVME_SET_TUNING, AVM_TUNE_SSIM),
+            AVM_CODEC_OK);
+  EXPECT_EQ(avm_codec_encode(&enc, &img, 0, 1, 0), AVM_CODEC_OK);
+  const avm_codec_cx_pkt_t *pkt;
+  avm_codec_iter_t iter = nullptr;
+  while ((pkt = avm_codec_get_cx_data(&enc, &iter)) != nullptr) {
+    if (pkt->kind == AVM_CODEC_PSNR_PKT) {
       EXPECT_GE(pkt->data.psnr.psnr[0], 41.3);
     }
   }
-  EXPECT_EQ(aom_codec_encode(&enc, nullptr, 0, 1, 0), AOM_CODEC_OK);
+  EXPECT_EQ(avm_codec_encode(&enc, nullptr, 0, 1, 0), AVM_CODEC_OK);
   iter = nullptr;
-  EXPECT_EQ(aom_codec_get_cx_data(&enc, &iter), nullptr);
-  EXPECT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+  EXPECT_EQ(avm_codec_get_cx_data(&enc, &iter), nullptr);
+  EXPECT_EQ(avm_codec_destroy(&enc), AVM_CODEC_OK);
 }
 
 }  // namespace

@@ -21,21 +21,21 @@
 #include <memory>
 #include <string>
 
-#include "config/aom_config.h"
+#include "config/avm_config.h"
 #include "common/ivfdec.h"
 #include "common/obudec.h"
 #include "common/tools_common.h"
 #include "common/webmdec.h"
-#include "av1/common/obu_util.h"
-#include "av1/common/blockd.h"
-#include "aom_dsp/bitwriter_buffer.h"
-#include "aom_dsp/bitreader_buffer.h"
-#include "aom/aom_codec.h"
-#include "av1/encoder/bitstream.h"
+#include "av2/common/obu_util.h"
+#include "av2/common/blockd.h"
+#include "avm_dsp/bitwriter_buffer.h"
+#include "avm_dsp/bitreader_buffer.h"
+#include "avm/avm_codec.h"
+#include "av2/encoder/bitstream.h"
 
 #define PRINT_TU_INFO 0
 
-#define AOM_MAX_NUM_STREAMS 4
+#define AVM_MAX_NUM_STREAMS 4
 
 const size_t kInitialBufferSize = 100 * 1024;
 
@@ -132,9 +132,7 @@ bool ValidObuType(int obu_type) {
   switch (obu_type) {
     case OBU_SEQUENCE_HEADER:
     case OBU_TEMPORAL_DELIMITER:
-#if CONFIG_MULTI_FRAME_HEADER
     case OBU_MULTI_FRAME_HEADER:
-#endif  // CONFIG_MULTI_FRAME_HEADER
 #if CONFIG_F024_KEYOBU
     case OBU_CLK:
     case OBU_OLK:
@@ -182,12 +180,12 @@ void PrintObuHeader(const ObuHeader *header) {
       "      obu_tlayer_id: %d\n"
       "      obu_mlayer_id: %d\n"
       "      obu_xlayer_id:  %d\n",
-      aom_obu_type_to_string(static_cast<OBU_TYPE>(header->type)),
+      avm_obu_type_to_string(static_cast<OBU_TYPE>(header->type)),
       header->obu_tlayer_id, header->obu_mlayer_id, header->obu_xlayer_id);
 }
 
 // Initialize a read bit buffer
-struct aom_read_bit_buffer *init_read_bit_buffer(struct aom_read_bit_buffer *rb,
+struct avm_read_bit_buffer *init_read_bit_buffer(struct avm_read_bit_buffer *rb,
                                                  const uint8_t *data,
                                                  const uint8_t *data_end) {
   rb->bit_offset = 0;

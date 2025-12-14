@@ -1,0 +1,17 @@
+text avm_codec_enc_config_default
+text avm_codec_enc_config_set
+text avm_codec_enc_init_ver
+text avm_codec_encode
+text avm_codec_get_cx_data
+text avm_codec_get_global_headers
+text avm_codec_get_preview_frame
+text avm_codec_set_cx_data_buf
+text avm_film_grain_table_append
+text avm_film_grain_table_free
+text avm_film_grain_table_write
+text avm_flat_block_finder_init
+text avm_flat_block_finder_run
+text avm_noise_model_init
+text avm_noise_model_get_grain_parameters
+text avm_noise_model_save_latest
+text avm_noise_model_update

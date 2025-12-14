@@ -10,10 +10,10 @@
  * aomedia.org/license/patent-license/.
  */
 
-#ifndef AOM_COMMON_RAWENC_H_
-#define AOM_COMMON_RAWENC_H_
+#ifndef AVM_COMMON_RAWENC_H_
+#define AVM_COMMON_RAWENC_H_
 
-#include "aom/aom_decoder.h"
+#include "avm/avm_decoder.h"
 #include "common/md5_utils.h"
 #include "common/tools_common.h"
 
@@ -21,13 +21,13 @@
 extern "C" {
 #endif
 
-void raw_write_image_file(const aom_image_t *img, const int *planes,
+void raw_write_image_file(const avm_image_t *img, const int *planes,
                           const int num_planes, FILE *file);
-void raw_update_image_md5(const aom_image_t *img, const int *planes,
+void raw_update_image_md5(const avm_image_t *img, const int *planes,
                           const int num_planes, MD5Context *md5);
 
 #ifdef __cplusplus
 }  // extern "C"
 #endif
 
-#endif  // AOM_COMMON_RAWENC_H_
+#endif  // AVM_COMMON_RAWENC_H_

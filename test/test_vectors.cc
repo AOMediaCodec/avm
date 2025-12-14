@@ -12,13 +12,13 @@
 
 #include "test/test_vectors.h"
 
-namespace libaom_test {
+namespace libavm_test {
 
 #define NELEMENTS(x) static_cast<int>(sizeof(x) / sizeof(x[0]))
 
-#if CONFIG_AV1_DECODER
+#if CONFIG_AV2_DECODER
 /* clang-format off */
-const char *const kAV1TestVectors[] = { "av1-1-b8-00-quantizer-00.ivf",
+const char *const kAV2TestVectors[] = { "av1-1-b8-00-quantizer-00.ivf",
                                         "av1-1-b8-00-quantizer-01.ivf",
                                         "av1-1-b8-00-quantizer-02.ivf",
                                         "av1-1-b8-00-quantizer-03.ivf",
@@ -258,7 +258,7 @@ const char *const kAV1TestVectors[] = { "av1-1-b8-00-quantizer-00.ivf",
                                         "av1-1-b8-22-svc-L2T2.ivf",
                                         "av1-1-b8-23-film_grain-50.ivf" };
 /* clang-format on */
-const int kNumAV1TestVectors = NELEMENTS(kAV1TestVectors);
-#endif  // CONFIG_AV1_DECODER
+const int kNumAV2TestVectors = NELEMENTS(kAV2TestVectors);
+#endif  // CONFIG_AV2_DECODER
 
-}  // namespace libaom_test
+}  // namespace libavm_test

@@ -10,12 +10,12 @@
  * aomedia.org/license/patent-license/.
  */
 
-#ifndef AOM_TOOLS_OBU_PARSER_H_
-#define AOM_TOOLS_OBU_PARSER_H_
+#ifndef AVM_TOOLS_OBU_PARSER_H_
+#define AVM_TOOLS_OBU_PARSER_H_
 
 #include <cstdint>
 
-namespace aom_tools {
+namespace avm_tools {
 
 // Print information obtained from OBU(s) in data until data is exhausted or an
 // error occurs. Returns true when all data is consumed successfully, and
@@ -23,6 +23,6 @@ namespace aom_tools {
 // pointer is non-null.
 bool DumpObu(const uint8_t *data, int length, int *obu_overhead_bytes);
 
-}  // namespace aom_tools
+}  // namespace avm_tools
 
-#endif  // AOM_TOOLS_OBU_PARSER_H_
+#endif  // AVM_TOOLS_OBU_PARSER_H_

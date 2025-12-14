@@ -10,7 +10,7 @@
  * aomedia.org/license/patent-license/.
  */
 
-//  Test AOM timestamp handling
+//  Test AVM timestamp handling
 
 #include "test/codec_factory.h"
 #include "test/encode_test_driver.h"
@@ -26,7 +26,7 @@ const int kFramesToEncode = 3;
 
 // A video source that exposes functions to set the timebase, framerate and
 // starting pts.
-class DummyTimebaseVideoSource : public ::libaom_test::DummyVideoSource {
+class DummyTimebaseVideoSource : public ::libavm_test::DummyVideoSource {
  public:
   // Parameters num and den set the timebase for the video source.
   DummyTimebaseVideoSource(int num, int den)
@@ -48,8 +48,8 @@ class DummyTimebaseVideoSource : public ::libaom_test::DummyVideoSource {
            (static_cast<double>(framerate_numerator_) / framerate_denominator_);
   }
 
-  virtual aom_codec_pts_t pts() const {
-    return static_cast<aom_codec_pts_t>(frame_ * FrameDuration() +
+  virtual avm_codec_pts_t pts() const {
+    return static_cast<avm_codec_pts_t>(frame_ * FrameDuration() +
                                         starting_pts_ + 0.5);
   }
 
@@ -57,20 +57,20 @@ class DummyTimebaseVideoSource : public ::libaom_test::DummyVideoSource {
     return static_cast<unsigned long>(FrameDuration() + 0.5);
   }
 
-  virtual aom_rational_t timebase() const { return timebase_; }
+  virtual avm_rational_t timebase() const { return timebase_; }
 
   void set_starting_pts(int64_t starting_pts) { starting_pts_ = starting_pts; }
 
  private:
-  aom_rational_t timebase_;
+  avm_rational_t timebase_;
   int framerate_numerator_;
   int framerate_denominator_;
   int64_t starting_pts_;
 };
 
 class TimestampTest
-    : public ::libaom_test::EncoderTest,
-      public ::libaom_test::CodecTestWithParam<libaom_test::TestMode> {
+    : public ::libavm_test::EncoderTest,
+      public ::libavm_test::CodecTestWithParam<libavm_test::TestMode> {
  protected:
   TimestampTest() : EncoderTest(GET_PARAM(0)) {}
   virtual ~TimestampTest() {}
@@ -94,13 +94,13 @@ TEST_P(TimestampTest, TestMicrosecondTimebase) {
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 }
 
-TEST_P(TimestampTest, TestAv1Rollover) {
+TEST_P(TimestampTest, TestAv2Rollover) {
   DummyTimebaseVideoSource video(1, 1000);
   video.set_starting_pts(922337170351ll);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 }
 
-AV1_INSTANTIATE_TEST_SUITE(TimestampTest,
-                           ::testing::Values(::libaom_test::kOnePassGood));
+AV2_INSTANTIATE_TEST_SUITE(TimestampTest,
+                           ::testing::Values(::libavm_test::kOnePassGood));
 
 }  // namespace

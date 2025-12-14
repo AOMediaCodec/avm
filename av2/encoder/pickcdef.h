@@ -1,0 +1,58 @@
+/*
+ * Copyright (c) 2021, Alliance for Open Media. All rights reserved
+ *
+ * This source code is subject to the terms of the BSD 3-Clause Clear License
+ * and the Alliance for Open Media Patent License 1.0. If the BSD 3-Clause Clear
+ * License was not distributed with this source code in the LICENSE file, you
+ * can obtain it at aomedia.org/license/software-license/bsd-3-c-c/.  If the
+ * Alliance for Open Media Patent License 1.0 was not distributed with this
+ * source code in the PATENTS file, you can obtain it at
+ * aomedia.org/license/patent-license/.
+ */
+#ifndef AVM_AV2_ENCODER_PICKCDEF_H_
+#define AVM_AV2_ENCODER_PICKCDEF_H_
+
+#include "av2/common/av2_common_int.h"
+#include "av2/common/cdef.h"
+#include "av2/encoder/speed_features.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/*!\brief AV2 CDEF parameter search
+ *
+ * \ingroup in_loop_cdef
+ *
+ * Searches for optimal CDEF parameters for frame
+ *
+ * \param[in]      frame        Compressed frame buffer
+ * \param[in]      ref          Source frame buffer
+ * \param[in,out]  cm           Pointer to top level common structure
+ * \param[in]      xd           Pointer to common current coding block structure
+ * \param[in]      pick_method  The method used to select params
+ * \param[in]      rdmult       rd multiplier to use in making param choices
+ *
+ * Nothing is returned. Instead, optimal CDEF parameters are stored
+ * in the \c cdef_info structure of type \ref CdefInfo inside \c cm:
+ * \arg \c cdef_bits: Bits of strength parameters
+ * \arg \c nb_cdef_strengths: Number of strength parameters
+ * \arg \c cdef_strengths: list of \c nb_cdef_strengths strength parameters
+ * for the luma plane.
+ * \arg \c uv_cdef_strengths: list of \c nb_cdef_strengths strength parameters
+ * for the chroma planes.
+ * \arg \c damping_factor: CDEF damping factor.
+ *
+ */
+void av2_cdef_search(const YV12_BUFFER_CONFIG *frame,
+                     const YV12_BUFFER_CONFIG *ref, AV2_COMMON *cm,
+                     MACROBLOCKD *xd,
+#if CONFIG_ENTROPY_STATS
+                     ThreadData *td,
+#endif  // CONFIG_ENTROPY_STATS
+                     CDEF_PICK_METHOD pick_method, int rdmult);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
+#endif  // AVM_AV2_ENCODER_PICKCDEF_H_

@@ -22,8 +22,8 @@
 namespace {
 
 class MonochromeTestLarge
-    : public ::libaom_test::CodecTestWithParam<libaom_test::TestMode>,
-      public ::libaom_test::EncoderTest {
+    : public ::libavm_test::CodecTestWithParam<libavm_test::TestMode>,
+      public ::libavm_test::EncoderTest {
  protected:
   MonochromeTestLarge() : EncoderTest(GET_PARAM(0)), frame0_psnr_y_(0.) {}
 
@@ -34,17 +34,17 @@ class MonochromeTestLarge
     SetMode(GET_PARAM(1));
   }
 
-  virtual void DecompressedFrameHook(const aom_image_t &img,
-                                     aom_codec_pts_t pts) {
+  virtual void DecompressedFrameHook(const avm_image_t &img,
+                                     avm_codec_pts_t pts) {
     (void)pts;
 
-    const uint16_t *const u_plane = (const uint16_t *)img.planes[AOM_PLANE_U];
+    const uint16_t *const u_plane = (const uint16_t *)img.planes[AVM_PLANE_U];
     // Get value of top-left corner pixel of U plane
     int chroma_value = u_plane[0];
 
     bool is_chroma_constant =
-        ComparePlaneToValue(img, AOM_PLANE_U, chroma_value) &&
-        ComparePlaneToValue(img, AOM_PLANE_V, chroma_value);
+        ComparePlaneToValue(img, AVM_PLANE_U, chroma_value) &&
+        ComparePlaneToValue(img, AVM_PLANE_V, chroma_value);
 
     // Chroma planes should be constant
     EXPECT_TRUE(is_chroma_constant);
@@ -57,10 +57,10 @@ class MonochromeTestLarge
 
   // Returns true if all pixels on the plane are equal to value, and returns
   // false otherwise.
-  bool ComparePlaneToValue(const aom_image_t &img, const int plane,
+  bool ComparePlaneToValue(const avm_image_t &img, const int plane,
                            const int value) {
-    const int w = aom_img_plane_width(&img, plane);
-    const int h = aom_img_plane_height(&img, plane);
+    const int w = avm_img_plane_width(&img, plane);
+    const int h = avm_img_plane_height(&img, plane);
     const int stride = img.stride[plane];
 
     for (int r = 0; r < h; ++r) {
@@ -73,7 +73,7 @@ class MonochromeTestLarge
     return true;
   }
 
-  virtual void PSNRPktHook(const aom_codec_cx_pkt_t *pkt) {
+  virtual void PSNRPktHook(const avm_codec_cx_pkt_t *pkt) {
     // Check that the initial Y PSNR value is 'high enough', and check that
     // subsequent Y PSNR values are 'close' to this initial value.
     if (frame0_psnr_y_ == 0.) {
@@ -89,10 +89,10 @@ class MonochromeTestLarge
 };
 
 TEST_P(MonochromeTestLarge, TestMonochromeEncoding) {
-  ::libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
+  ::libavm_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                        30, 1, 0, 5);
 
-  init_flags_ = AOM_CODEC_USE_PSNR;
+  init_flags_ = AVM_CODEC_USE_PSNR;
 
   cfg_.g_w = 352;
   cfg_.g_h = 288;
@@ -104,8 +104,8 @@ TEST_P(MonochromeTestLarge, TestMonochromeEncoding) {
   cfg_.rc_max_quantizer = 164;
   cfg_.rc_undershoot_pct = 50;
   cfg_.rc_overshoot_pct = 50;
-  cfg_.rc_end_usage = AOM_CBR;
-  cfg_.kf_mode = AOM_KF_AUTO;
+  cfg_.rc_end_usage = AVM_CBR;
+  cfg_.kf_mode = AVM_KF_AUTO;
   cfg_.g_lag_in_frames = 1;
   cfg_.kf_min_dist = cfg_.kf_max_dist = 3000;
   // Enable dropped frames.
@@ -128,6 +128,6 @@ TEST_P(MonochromeTestLarge, TestMonochromeEncoding) {
   }
 }
 
-AV1_INSTANTIATE_TEST_SUITE(MonochromeTestLarge, GOODQUALITY_TEST_MODES);
+AV2_INSTANTIATE_TEST_SUITE(MonochromeTestLarge, GOODQUALITY_TEST_MODES);
 
 }  // namespace

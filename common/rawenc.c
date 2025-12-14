@@ -64,19 +64,19 @@ static void write_greyscale(const bool high_bitdepth, int n, WRITER writer_func,
 
 // Encapsulates the logic for writing raw data to either an image file or
 // to an MD5 context.
-static void raw_write_image_file_or_md5(const aom_image_t *img,
+static void raw_write_image_file_or_md5(const avm_image_t *img,
                                         const int *planes, const int num_planes,
                                         void *file_or_md5, WRITER writer_func) {
-  const bool high_bitdepth = img->fmt & AOM_IMG_FMT_HIGHBITDEPTH;
+  const bool high_bitdepth = img->fmt & AVM_IMG_FMT_HIGHBITDEPTH;
   const int bytes_per_sample = high_bitdepth ? 2 : 1;
   for (int i = 0; i < num_planes; ++i) {
     const int plane = planes[i];
-    const int w = aom_img_plane_width(img, plane);
-    const int h = aom_img_plane_height(img, plane);
+    const int w = avm_img_plane_width(img, plane);
+    const int h = avm_img_plane_height(img, plane);
 
     // If we're on a color plane and the output is monochrome, write a
     // greyscale value. Since there are only YUV planes, compare against Y.
-    if (img->monochrome && plane != AOM_PLANE_Y) {
+    if (img->monochrome && plane != AVM_PLANE_Y) {
       write_greyscale(high_bitdepth, w * h, writer_func, file_or_md5);
       continue;
     }
@@ -104,12 +104,12 @@ static void raw_write_image_file_or_md5(const aom_image_t *img,
   }
 }
 
-void raw_write_image_file(const aom_image_t *img, const int *planes,
+void raw_write_image_file(const avm_image_t *img, const int *planes,
                           const int num_planes, FILE *file) {
   raw_write_image_file_or_md5(img, planes, num_planes, file, write_file);
 }
 
-void raw_update_image_md5(const aom_image_t *img, const int *planes,
+void raw_update_image_md5(const avm_image_t *img, const int *planes,
                           const int num_planes, MD5Context *md5) {
   raw_write_image_file_or_md5(img, planes, num_planes, md5, write_md5);
 }

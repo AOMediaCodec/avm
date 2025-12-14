@@ -19,25 +19,25 @@
 #include "test/i420_video_source.h"
 #include "test/util.h"
 #include "test/md5_helper.h"
-#include "aom_mem/aom_mem.h"
+#include "avm_mem/avm_mem.h"
 
 namespace {
 class TileIndependenceTest
-    : public ::libaom_test::CodecTestWith3Params<int, int, int>,
-      public ::libaom_test::EncoderTest {
+    : public ::libavm_test::CodecTestWith3Params<int, int, int>,
+      public ::libavm_test::EncoderTest {
  protected:
   TileIndependenceTest()
       : EncoderTest(GET_PARAM(0)), md5_fw_order_(), md5_inv_order_(),
         n_tile_cols_(GET_PARAM(1)), n_tile_rows_(GET_PARAM(2)),
         n_tile_groups_(GET_PARAM(3)) {
-    init_flags_ = AOM_CODEC_USE_PSNR;
-    aom_codec_dec_cfg_t cfg = aom_codec_dec_cfg_t();
+    init_flags_ = AVM_CODEC_USE_PSNR;
+    avm_codec_dec_cfg_t cfg = avm_codec_dec_cfg_t();
     cfg.w = 352;
     cfg.h = 288;
     cfg.threads = 1;
     fw_dec_ = codec_->CreateDecoder(cfg, 0);
     inv_dec_ = codec_->CreateDecoder(cfg, 0);
-    inv_dec_->Control(AV1_INVERT_TILE_DECODE_ORDER, 1);
+    inv_dec_->Control(AV2_INVERT_TILE_DECODE_ORDER, 1);
   }
 
   virtual ~TileIndependenceTest() {
@@ -47,34 +47,34 @@ class TileIndependenceTest
 
   virtual void SetUp() {
     InitializeConfig();
-    SetMode(libaom_test::kOnePassGood);
+    SetMode(libavm_test::kOnePassGood);
   }
 
-  virtual void PreEncodeFrameHook(libaom_test::VideoSource *video,
-                                  libaom_test::Encoder *encoder) {
+  virtual void PreEncodeFrameHook(libavm_test::VideoSource *video,
+                                  libavm_test::Encoder *encoder) {
     if (video->frame() == 0) {
-      encoder->Control(AV1E_SET_TILE_COLUMNS, n_tile_cols_);
-      encoder->Control(AV1E_SET_TILE_ROWS, n_tile_rows_);
+      encoder->Control(AV2E_SET_TILE_COLUMNS, n_tile_cols_);
+      encoder->Control(AV2E_SET_TILE_ROWS, n_tile_rows_);
       SetCpuUsed(encoder);
     } else if (video->frame() == 3) {
-      encoder->Control(AV1E_SET_NUM_TG, n_tile_groups_);
+      encoder->Control(AV2E_SET_NUM_TG, n_tile_groups_);
     }
   }
 
-  virtual void SetCpuUsed(libaom_test::Encoder *encoder) {
-    encoder->Control(AOME_SET_CPUUSED, 5);
+  virtual void SetCpuUsed(libavm_test::Encoder *encoder) {
+    encoder->Control(AVME_SET_CPUUSED, 5);
   }
 
-  void UpdateMD5(::libaom_test::Decoder *dec, const aom_codec_cx_pkt_t *pkt,
-                 ::libaom_test::MD5 *md5,
-                 ::libaom_test::DxDataIterator *dec_iter) {
-    const aom_image_t *img;
-    if (pkt->kind == AOM_CODEC_CX_FRAME_PKT) {
-      const aom_codec_err_t res = dec->DecodeFrame(
+  void UpdateMD5(::libavm_test::Decoder *dec, const avm_codec_cx_pkt_t *pkt,
+                 ::libavm_test::MD5 *md5,
+                 ::libavm_test::DxDataIterator *dec_iter) {
+    const avm_image_t *img;
+    if (pkt->kind == AVM_CODEC_CX_FRAME_PKT) {
+      const avm_codec_err_t res = dec->DecodeFrame(
           reinterpret_cast<uint8_t *>(pkt->data.frame.buf), pkt->data.frame.sz);
-      if (res != AOM_CODEC_OK) {
+      if (res != AVM_CODEC_OK) {
         abort_ = true;
-        ASSERT_EQ(AOM_CODEC_OK, res);
+        ASSERT_EQ(AVM_CODEC_OK, res);
       }
       img = dec->GetDxData().Next();
     } else {
@@ -84,20 +84,20 @@ class TileIndependenceTest
     md5->Add(img);
   }
 
-  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt,
-                            ::libaom_test::DxDataIterator *dec_iter) {
+  virtual void FramePktHook(const avm_codec_cx_pkt_t *pkt,
+                            ::libavm_test::DxDataIterator *dec_iter) {
     UpdateMD5(fw_dec_, pkt, &md5_fw_order_, dec_iter);
     UpdateMD5(inv_dec_, pkt, &md5_inv_order_, dec_iter);
   }
 
   void DoTest() {
-    const aom_rational timebase = { 33333333, 1000000000 };
+    const avm_rational timebase = { 33333333, 1000000000 };
     cfg_.g_timebase = timebase;
     cfg_.rc_target_bitrate = 500;
     cfg_.g_lag_in_frames = 12;
-    cfg_.rc_end_usage = AOM_VBR;
+    cfg_.rc_end_usage = AVM_VBR;
 
-    libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
+    libavm_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                        timebase.den, timebase.num, 0, 5);
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 
@@ -106,8 +106,8 @@ class TileIndependenceTest
     ASSERT_STREQ(md5_fw_str, md5_inv_str);
   }
 
-  ::libaom_test::MD5 md5_fw_order_, md5_inv_order_;
-  ::libaom_test::Decoder *fw_dec_, *inv_dec_;
+  ::libavm_test::MD5 md5_fw_order_, md5_inv_order_;
+  ::libavm_test::Decoder *fw_dec_, *inv_dec_;
 
  private:
   int n_tile_cols_;
@@ -121,15 +121,15 @@ class TileIndependenceTest
 TEST_P(TileIndependenceTest, MD5Match) { DoTest(); }
 
 class TileIndependenceTestLarge : public TileIndependenceTest {
-  virtual void SetCpuUsed(libaom_test::Encoder *encoder) {
-    encoder->Control(AOME_SET_CPUUSED, 1);
+  virtual void SetCpuUsed(libavm_test::Encoder *encoder) {
+    encoder->Control(AVME_SET_CPUUSED, 1);
   }
 };
 
 TEST_P(TileIndependenceTestLarge, MD5Match) { DoTest(); }
 
-AV1_INSTANTIATE_TEST_SUITE(TileIndependenceTest, ::testing::Values(0, 1),
+AV2_INSTANTIATE_TEST_SUITE(TileIndependenceTest, ::testing::Values(0, 1),
                            ::testing::Values(0, 1), ::testing::Values(1, 2, 4));
-AV1_INSTANTIATE_TEST_SUITE(TileIndependenceTestLarge, ::testing::Values(0, 1),
+AV2_INSTANTIATE_TEST_SUITE(TileIndependenceTestLarge, ::testing::Values(0, 1),
                            ::testing::Values(0, 1), ::testing::Values(1, 2, 4));
 }  // namespace

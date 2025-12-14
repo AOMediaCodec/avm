@@ -14,8 +14,8 @@ Prerequisites
    the pre-build binaries or source code for the following tools that are needed:
    vmaf tools: https://github.com/Netflix/vmaf/releases/tag/v3.0.0
    HDRConvert: https://gitlab.com/standards/HDRTools 0.22 branch
-   libaom research branch encoder/decoder: https://gitlab.com/AOMediaCodec/avm
-   SVT AV1 encoder: https://github.com/OpenVisualCloud/SVT-AV1
+   libavm research branch encoder/decoder: https://gitlab.com/AOMediaCodec/avm
+   SVT AV2 encoder: https://github.com/OpenVisualCloud/SVT-AV2
    Please always follow the manual of these tools to update the command
    parameters used in the script.
    when EnableTimingInfo is enabled, ptime utility is used on Windows to capture
@@ -23,7 +23,7 @@ Prerequisites
    Linux system is used to capture run time information.
 
 2. AV2 CTC has adopted VMAF tool as the reference implementation of all quality
-   metrics required. Using the versioned '--aom_ctc v6.0' at the command line
+   metrics required. Using the versioned '--avm_ctc v6.0' at the command line
    will generate all quality metrics for AV2 CTC.
 
 3. HDRConvert is used to perform downscale and upscale operation. It requires
@@ -63,7 +63,7 @@ Things you need to update to configure the test.
 
 6. Update QPs list in ./src/Config.py to specify the list of QPs you want to
    test for different test configurations. QPs must be in the valid QP range for
-   different coding standards. For example, [0, 63] for AV1, and [0, 255] for AV2.
+   different coding standards. For example, [0, 63] for AV2, and [0, 255] for AV2.
 
 7. Update QualityList in ./src/Config.py to specify quality metrics you want to
    calculate. Currently, only VMAF is supported for quality metrics calculation.
@@ -87,9 +87,9 @@ below is the full command line options in help message:
                                actually run it. It is false by default
   -l, --LoggingLevel           logging level: 0:No Logging, 1: Critical, 2: Error,
                                3:Warning, 4: Info, 5: Debug
-  -c, --CodecName              CodecName: av1, av2
-  -m, --EncodeMethod           EncodeMethod: aom, svt
-  -p, --EncodePreset           EncodePreset: 0,1,2... for aom and svt
+  -c, --CodecName              CodecName: av2, av2
+  -m, --EncodeMethod           EncodeMethod: avm, svt
+  -p, --EncodePreset           EncodePreset: 0,1,2... for avm and svt
 
 when LogCmdOnly is set to True, the test framework will only capture all process
 command sequences into a log file (under ./test/testLogs folder with time stamp)
@@ -117,17 +117,17 @@ Sample command for typical operations:
     each individual test sequence and also excel file that summarizes quality
     result for all test sequences based on classes.
 
-4.  python ConvexHullTest.py -f encode -c av2 -m aom -p 1
+4.  python ConvexHullTest.py -f encode -c av2 -m avm -p 1
     This command will run the encoding test. It actually contains downscale
     (optional), encode, decode, upscale, quality metrics steps. Right now, only
-    av2 encoding/decoding with libaom is supported. Downscale step will be skipped
+    av2 encoding/decoding with libavm is supported. Downscale step will be skipped
     if downscaled yuv files already generated in ./test/downscaledYUVs. Encoded
     bitstreams are stored under ./test/bitstreams folder. Decoded YUV files are
     stored under ./test/decodedYUVs folder. Decoded and then upscaled YUV files
     are stored under ./test/decUpscaledYUVs folder. Quality logs are stored under
     ./test/qualityLogs folder.
 
-5.  python ConvexHullTest.py -f convexhull -c av2 -m aom -p 1
+5.  python ConvexHullTest.py -f convexhull -c av2 -m avm -p 1
     This command will summarize the per sequence quality result based on
     different scaling ratios and scaling filter types.
     Please make sure the same encoding method/codec name/preset are used as the
@@ -143,7 +143,7 @@ Sample command for typical operations:
     calculate bdrate between two encoding runs to evaluate the quality impact on
     overall convex hull from a coding tool.
 
-6.  python ConvexHullTest.py -f summary -c av2 -m aom -p 1
+6.  python ConvexHullTest.py -f summary -c av2 -m avm -p 1
     This command will summarize the quality metrics across all test sequences
     into an excel file stored under the ./analysis/summary folder. BDRATE between
     different resolutions will be calculated. Average result based on content
@@ -186,7 +186,7 @@ below is the full command line options in help message:
                                actually run it. It is false by default
   -l, --LoggingLevel           logging level: 0:No Logging, 1: Critical, 2: Error,
                                3:Warning, 4: Info, 5: Debug
-  -p, --EncodePreset           EncodePreset: 0,1,2... for aom
+  -p, --EncodePreset           EncodePreset: 0,1,2... for avm
 
 Sample command for typical operations:
 1.  python AV2CTCTest.py -f clean
@@ -194,7 +194,7 @@ Sample command for typical operations:
 
 2.  python AV2CTCTest.py -f encode -p 1
     This command will run the encoding test. It actually contains encode, decode,
-    and quality metrics steps. Right now, only av2 encoding/decoding with libaom
+    and quality metrics steps. Right now, only av2 encoding/decoding with libavm
     is supported. Encoded bitstreams are stored under ./test/bitstreams folder.
     Decoded YUV files are stored under ./test/decodedYUVs folder. Quality logs
     are stored under ./test/qualityLogs folder. Timing information logs are stored

@@ -10,12 +10,12 @@
  * aomedia.org/license/patent-license/.
  */
 
-#ifndef AOM_TEST_HIPREC_CONVOLVE_TEST_UTIL_H_
-#define AOM_TEST_HIPREC_CONVOLVE_TEST_UTIL_H_
+#ifndef AVM_TEST_HIPREC_CONVOLVE_TEST_UTIL_H_
+#define AVM_TEST_HIPREC_CONVOLVE_TEST_UTIL_H_
 
 #include <tuple>
 
-#include "config/av1_rtcd.h"
+#include "config/av2_rtcd.h"
 
 #include "test/acm_random.h"
 #include "test/util.h"
@@ -23,13 +23,13 @@
 #include "test/register_state_check.h"
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
-#include "aom_ports/aom_timer.h"
-#include "av1/common/convolve.h"
-#include "av1/common/mv.h"
+#include "avm_ports/avm_timer.h"
+#include "av2/common/convolve.h"
+#include "av2/common/mv.h"
 
-namespace libaom_test {
+namespace libavm_test {
 
-namespace AV1HighbdHiprecConvolve {
+namespace AV2HighbdHiprecConvolve {
 typedef void (*highbd_hiprec_convolve_func)(
     const uint16_t *src, ptrdiff_t src_stride, uint16_t *dst,
     ptrdiff_t dst_stride, const int16_t *filter_x, int x_step_q4,
@@ -42,10 +42,10 @@ typedef std::tuple<int, int, int, int, highbd_hiprec_convolve_func>
 ::testing::internal::ParamGenerator<HighbdHiprecConvolveParam> BuildParams(
     highbd_hiprec_convolve_func filter);
 
-class AV1HighbdHiprecConvolveTest
+class AV2HighbdHiprecConvolveTest
     : public ::testing::TestWithParam<HighbdHiprecConvolveParam> {
  public:
-  virtual ~AV1HighbdHiprecConvolveTest();
+  virtual ~AV2HighbdHiprecConvolveTest();
   virtual void SetUp();
 
   virtual void TearDown();
@@ -54,10 +54,10 @@ class AV1HighbdHiprecConvolveTest
   void RunCheckOutput(highbd_hiprec_convolve_func test_impl);
   void RunSpeedTest(highbd_hiprec_convolve_func test_impl);
 
-  libaom_test::ACMRandom rnd_;
+  libavm_test::ACMRandom rnd_;
 };
 
-}  // namespace AV1HighbdHiprecConvolve
-}  // namespace libaom_test
+}  // namespace AV2HighbdHiprecConvolve
+}  // namespace libavm_test
 
-#endif  // AOM_TEST_HIPREC_CONVOLVE_TEST_UTIL_H_
+#endif  // AVM_TEST_HIPREC_CONVOLVE_TEST_UTIL_H_

@@ -12,15 +12,15 @@
 
 #include <set>
 #include <vector>
-#include "config/av1_rtcd.h"
-#include "config/aom_dsp_rtcd.h"
+#include "config/av2_rtcd.h"
+#include "config/avm_dsp_rtcd.h"
 #include "test/acm_random.h"
 #include "test/clear_system_state.h"
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
-#include "aom_ports/aom_timer.h"
-#include "av1/common/reconinter.h"
-#include "av1/common/mvref_common.h"
+#include "avm_ports/avm_timer.h"
+#include "av2/common/reconinter.h"
+#include "av2/common/mvref_common.h"
 
 namespace {
 
@@ -80,18 +80,18 @@ std::ostream &operator<<(std::ostream &os, const TestParam<T> &test_arg) {
             << " bd:" << test_arg.BitDepth() << " }";
 }
 
-// AV1OptFlowTest is the base class that all optical flow tests should derive
+// AV2OptFlowTest is the base class that all optical flow tests should derive
 // from.
 template <typename T>
-class AV1OptFlowTest : public ::testing::TestWithParam<TestParam<T>> {
+class AV2OptFlowTest : public ::testing::TestWithParam<TestParam<T>> {
  public:
-  virtual ~AV1OptFlowTest() { TearDown(); }
+  virtual ~AV2OptFlowTest() { TearDown(); }
 
   virtual void SetUp() override {
-    rnd_.Reset(libaom_test::ACMRandom::DeterministicSeed());
+    rnd_.Reset(libavm_test::ACMRandom::DeterministicSeed());
   }
 
-  virtual void TearDown() override { libaom_test::ClearSystemState(); }
+  virtual void TearDown() override { libavm_test::ClearSystemState(); }
 
   // Check that two 8-bit output buffers are identical.
   void AssertOutputEq(const int *ref, const int *test, int n) {
@@ -282,7 +282,7 @@ class AV1OptFlowTest : public ::testing::TestWithParam<TestParam<T>> {
     }
   }
 
-  libaom_test::ACMRandom rnd_;
+  libavm_test::ACMRandom rnd_;
 };
 
 // a function to generate test parameters for just luma block sizes.
@@ -323,19 +323,19 @@ typedef void (*bicubic_grad_interp_highbd)(const int16_t *pred_src,
                                            const int blk_width,
                                            const int blk_height);
 
-class AV1OptFlowBiCubicGradHighbdTest
-    : public AV1OptFlowTest<bicubic_grad_interp_highbd> {
+class AV2OptFlowBiCubicGradHighbdTest
+    : public AV2OptFlowTest<bicubic_grad_interp_highbd> {
  public:
-  AV1OptFlowBiCubicGradHighbdTest() {
+  AV2OptFlowBiCubicGradHighbdTest() {
     const BlockSize &block = GetParam().Block();
     const int bw = block.Width();
     const int bh = block.Height();
 
-    pred_src_ = (int16_t *)aom_memalign(16, bw * bh * sizeof(int16_t));
-    x_grad_ref_ = (int16_t *)aom_memalign(16, bw * bh * sizeof(int16_t));
-    y_grad_ref_ = (int16_t *)aom_memalign(16, bw * bh * sizeof(int16_t));
-    x_grad_test_ = (int16_t *)aom_memalign(16, bw * bh * sizeof(int16_t));
-    y_grad_test_ = (int16_t *)aom_memalign(16, bw * bh * sizeof(int16_t));
+    pred_src_ = (int16_t *)avm_memalign(16, bw * bh * sizeof(int16_t));
+    x_grad_ref_ = (int16_t *)avm_memalign(16, bw * bh * sizeof(int16_t));
+    y_grad_ref_ = (int16_t *)avm_memalign(16, bw * bh * sizeof(int16_t));
+    x_grad_test_ = (int16_t *)avm_memalign(16, bw * bh * sizeof(int16_t));
+    y_grad_test_ = (int16_t *)avm_memalign(16, bw * bh * sizeof(int16_t));
 
     memset(x_grad_ref_, 0, bw * bh * sizeof(int16_t));
     memset(y_grad_ref_, 0, bw * bh * sizeof(int16_t));
@@ -343,12 +343,12 @@ class AV1OptFlowBiCubicGradHighbdTest
     memset(y_grad_test_, 0, bw * bh * sizeof(int16_t));
   }
 
-  ~AV1OptFlowBiCubicGradHighbdTest() {
-    aom_free(pred_src_);
-    aom_free(x_grad_ref_);
-    aom_free(y_grad_ref_);
-    aom_free(x_grad_test_);
-    aom_free(y_grad_test_);
+  ~AV2OptFlowBiCubicGradHighbdTest() {
+    avm_free(pred_src_);
+    avm_free(x_grad_ref_);
+    avm_free(y_grad_ref_);
+    avm_free(x_grad_test_);
+    avm_free(y_grad_test_);
   }
 
   void Run(const int is_speed) {
@@ -381,7 +381,7 @@ class AV1OptFlowBiCubicGradHighbdTest
     const int bh = block.Height();
 
     bicubic_grad_interp_highbd ref_func =
-        av1_bicubic_grad_interpolation_highbd_c;
+        av2_bicubic_grad_interpolation_highbd_c;
     bicubic_grad_interp_highbd test_func = GetParam().TestFunction();
     if (is_speed)
       BicubicGradHighbdSpeed(ref_func, test_func, pred_src, x_grad_ref,
@@ -413,23 +413,23 @@ class AV1OptFlowBiCubicGradHighbdTest
     const int bh_log2 = bh >> MI_SIZE_LOG2;
 
     const int numIter = 2097152 / (bw_log2 * bh_log2);
-    aom_usec_timer timer_ref;
-    aom_usec_timer timer_test;
+    avm_usec_timer timer_ref;
+    avm_usec_timer timer_test;
 
-    aom_usec_timer_start(&timer_ref);
+    avm_usec_timer_start(&timer_ref);
     for (int count = 0; count < numIter; count++)
       ref_func(pred_src, x_grad_ref, y_grad_ref, bw, bw, bh);
-    aom_usec_timer_mark(&timer_ref);
+    avm_usec_timer_mark(&timer_ref);
 
-    aom_usec_timer_start(&timer_test);
+    avm_usec_timer_start(&timer_test);
     for (int count = 0; count < numIter; count++)
       test_func(pred_src, x_grad_test, y_grad_test, bw, bw, bh);
-    aom_usec_timer_mark(&timer_test);
+    avm_usec_timer_mark(&timer_test);
 
     const int total_time_ref =
-        static_cast<int>(aom_usec_timer_elapsed(&timer_ref));
+        static_cast<int>(avm_usec_timer_elapsed(&timer_ref));
     const int total_time_test =
-        static_cast<int>(aom_usec_timer_elapsed(&timer_test));
+        static_cast<int>(avm_usec_timer_elapsed(&timer_test));
 
     printf("ref_time = %d \t simd_time = %d \t Gain = %4.2f \n", total_time_ref,
            total_time_test,
@@ -443,23 +443,23 @@ class AV1OptFlowBiCubicGradHighbdTest
   int16_t *x_grad_test_;
   int16_t *y_grad_test_;
 };
-TEST_P(AV1OptFlowBiCubicGradHighbdTest, CheckOutput) { Run(0); }
-TEST_P(AV1OptFlowBiCubicGradHighbdTest, DISABLED_Speed) { Run(1); }
+TEST_P(AV2OptFlowBiCubicGradHighbdTest, CheckOutput) { Run(0); }
+TEST_P(AV2OptFlowBiCubicGradHighbdTest, DISABLED_Speed) { Run(1); }
 
 INSTANTIATE_TEST_SUITE_P(
-    C, AV1OptFlowBiCubicGradHighbdTest,
-    BuildOptFlowHighbdParams(av1_bicubic_grad_interpolation_highbd_c));
+    C, AV2OptFlowBiCubicGradHighbdTest,
+    BuildOptFlowHighbdParams(av2_bicubic_grad_interpolation_highbd_c));
 
 #if HAVE_SSE4_1
 INSTANTIATE_TEST_SUITE_P(
-    SSE4_1, AV1OptFlowBiCubicGradHighbdTest,
-    BuildOptFlowHighbdParams(av1_bicubic_grad_interpolation_highbd_sse4_1));
+    SSE4_1, AV2OptFlowBiCubicGradHighbdTest,
+    BuildOptFlowHighbdParams(av2_bicubic_grad_interpolation_highbd_sse4_1));
 #endif
 
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
-    AVX2, AV1OptFlowBiCubicGradHighbdTest,
-    BuildOptFlowHighbdParams(av1_bicubic_grad_interpolation_highbd_avx2));
+    AVX2, AV2OptFlowBiCubicGradHighbdTest,
+    BuildOptFlowHighbdParams(av2_bicubic_grad_interpolation_highbd_avx2));
 #endif
 #endif  // OPFL_BICUBIC_GRAD
 
@@ -471,22 +471,22 @@ typedef int (*opfl_mv_refinement)(const int16_t *pdiff, int pstride,
                                   int build_for_decode, int *vx0, int *vy0,
                                   int *vx1, int *vy1);
 
-class AV1OptFlowRefineTest : public AV1OptFlowTest<opfl_mv_refinement> {
+class AV2OptFlowRefineTest : public AV2OptFlowTest<opfl_mv_refinement> {
  public:
-  AV1OptFlowRefineTest() {
+  AV2OptFlowRefineTest() {
     const BlockSize &block = GetParam().Block();
     const int bw = block.Width();
     const int bh = block.Height();
 
-    input_ = (int16_t *)aom_memalign(16, bw * bh * sizeof(*input_));
-    gx_ = (int16_t *)aom_memalign(16, bw * bh * sizeof(*gx_));
-    gy_ = (int16_t *)aom_memalign(16, bw * bh * sizeof(*gy_));
+    input_ = (int16_t *)avm_memalign(16, bw * bh * sizeof(*input_));
+    gx_ = (int16_t *)avm_memalign(16, bw * bh * sizeof(*gx_));
+    gy_ = (int16_t *)avm_memalign(16, bw * bh * sizeof(*gy_));
   }
 
-  ~AV1OptFlowRefineTest() {
-    aom_free(input_);
-    aom_free(gx_);
-    aom_free(gy_);
+  ~AV2OptFlowRefineTest() {
+    avm_free(input_);
+    avm_free(gx_);
+    avm_free(gy_);
   }
 
   void RunTest(const int is_speed) {
@@ -517,11 +517,11 @@ class AV1OptFlowRefineTest : public AV1OptFlowTest<opfl_mv_refinement> {
         // OPFL_GRAD_CLAMP_VAL ((1 << ((MAX_OPFL_AUTOCORR_BITS - 6) >> 1)) - 1),
         // testing of the same is required. Hence, populating the input_, gx_
         // and gy_ buffers as per the requirement.
-        RandomInput16(input_, GetParam(), AOMMIN(16, bd + 1));
+        RandomInput16(input_, GetParam(), AVMMIN(16, bd + 1));
         RandomInput16(gx_, GetParam(),
-                      AOMMIN(16, (MAX_OPFL_AUTOCORR_BITS - 6) >> 1));
+                      AVMMIN(16, (MAX_OPFL_AUTOCORR_BITS - 6) >> 1));
         RandomInput16(gy_, GetParam(),
-                      AOMMIN(16, (MAX_OPFL_AUTOCORR_BITS - 6) >> 1));
+                      AVMMIN(16, (MAX_OPFL_AUTOCORR_BITS - 6) >> 1));
 
         TestOptFlowRefine(input_, gx_, gy_, is_speed, d0, d1);
         count++;
@@ -538,11 +538,11 @@ class AV1OptFlowRefineTest : public AV1OptFlowTest<opfl_mv_refinement> {
         if (!d0 || !d1) continue;
         reduce_temporal_dist(&d0, &d1);
 
-        RandomInput16Extreme(input_, GetParam(), AOMMIN(16, bd + 1));
+        RandomInput16Extreme(input_, GetParam(), AVMMIN(16, bd + 1));
         RandomInput16Extreme(gx_, GetParam(),
-                             AOMMIN(16, (MAX_OPFL_AUTOCORR_BITS - 6) >> 1));
+                             AVMMIN(16, (MAX_OPFL_AUTOCORR_BITS - 6) >> 1));
         RandomInput16Extreme(gy_, GetParam(),
-                             AOMMIN(16, (MAX_OPFL_AUTOCORR_BITS - 6) >> 1));
+                             AVMMIN(16, (MAX_OPFL_AUTOCORR_BITS - 6) >> 1));
 
         TestOptFlowRefine(input_, gx_, gy_, 0, d0, d1);
         count++;
@@ -558,7 +558,7 @@ class AV1OptFlowRefineTest : public AV1OptFlowTest<opfl_mv_refinement> {
     const int bh = block.Height();
     const int n = block.OptFlowBlkSize();
 
-    opfl_mv_refinement ref_func = av1_opfl_mv_refinement_nxn_c;
+    opfl_mv_refinement ref_func = av2_opfl_mv_refinement_nxn_c;
     opfl_mv_refinement test_func = GetParam().TestFunction();
 
     if (is_speed)
@@ -613,19 +613,19 @@ class AV1OptFlowRefineTest : public AV1OptFlowTest<opfl_mv_refinement> {
     int gstride = bw;
 
     const int numIter = 2097152 / (bw_log2 * bh_log2);
-    aom_usec_timer timer_ref;
-    aom_usec_timer timer_test;
+    avm_usec_timer timer_ref;
+    avm_usec_timer timer_test;
 
-    aom_usec_timer_start(&timer_ref);
+    avm_usec_timer_start(&timer_ref);
     for (int count = 0; count < numIter; count++) {
       ref_func(input, stride, gx, gy, gstride, bw, bh, n, d0, d1,
                grad_prec_bits, mv_prec_bits, 0, 0, 0, 0, 0,
                &ref_out[kVX_0 * N_OF_OFFSETS], &ref_out[kVY_0 * N_OF_OFFSETS],
                &ref_out[kVX_1 * N_OF_OFFSETS], &ref_out[kVY_1 * N_OF_OFFSETS]);
     }
-    aom_usec_timer_mark(&timer_ref);
+    avm_usec_timer_mark(&timer_ref);
 
-    aom_usec_timer_start(&timer_test);
+    avm_usec_timer_start(&timer_test);
     for (int count = 0; count < numIter; count++) {
       test_func(
           input, stride, gx, gy, gstride, bw, bh, n, d0, d1, grad_prec_bits,
@@ -633,12 +633,12 @@ class AV1OptFlowRefineTest : public AV1OptFlowTest<opfl_mv_refinement> {
           &test_out[kVY_0 * N_OF_OFFSETS], &test_out[kVX_1 * N_OF_OFFSETS],
           &test_out[kVY_1 * N_OF_OFFSETS]);
     }
-    aom_usec_timer_mark(&timer_test);
+    avm_usec_timer_mark(&timer_test);
 
     const int total_time_ref =
-        static_cast<int>(aom_usec_timer_elapsed(&timer_ref));
+        static_cast<int>(avm_usec_timer_elapsed(&timer_ref));
     const int total_time_test =
-        static_cast<int>(aom_usec_timer_elapsed(&timer_test));
+        static_cast<int>(avm_usec_timer_elapsed(&timer_test));
 
     printf(
         "Block size: %dx%d \t ref_time = %d \t simd_time = %d \t Gain = %4.2f "
@@ -658,23 +658,23 @@ class AV1OptFlowRefineTest : public AV1OptFlowTest<opfl_mv_refinement> {
   int16_t *gx_;
   int16_t *gy_;
 };
-TEST_P(AV1OptFlowRefineTest, CheckOutput) { RunTest(0); }
-TEST_P(AV1OptFlowRefineTest, DISABLED_Speed) { RunTest(1); }
+TEST_P(AV2OptFlowRefineTest, CheckOutput) { RunTest(0); }
+TEST_P(AV2OptFlowRefineTest, DISABLED_Speed) { RunTest(1); }
 
 INSTANTIATE_TEST_SUITE_P(
-    C, AV1OptFlowRefineTest,
-    BuildOptFlowHighbdParams(av1_opfl_mv_refinement_nxn_c));
+    C, AV2OptFlowRefineTest,
+    BuildOptFlowHighbdParams(av2_opfl_mv_refinement_nxn_c));
 
 #if HAVE_SSE4_1
 INSTANTIATE_TEST_SUITE_P(
-    SSE4_1, AV1OptFlowRefineTest,
-    BuildOptFlowHighbdParams(av1_opfl_mv_refinement_nxn_sse4_1));
+    SSE4_1, AV2OptFlowRefineTest,
+    BuildOptFlowHighbdParams(av2_opfl_mv_refinement_nxn_sse4_1));
 #endif
 
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
-    AVX2, AV1OptFlowRefineTest,
-    BuildOptFlowHighbdParams(av1_opfl_mv_refinement_nxn_avx2));
+    AVX2, AV2OptFlowRefineTest,
+    BuildOptFlowHighbdParams(av2_opfl_mv_refinement_nxn_avx2));
 #endif
 
 #if OPFL_BILINEAR_GRAD || OPFL_BICUBIC_GRAD
@@ -684,36 +684,36 @@ typedef void (*pred_buffer_copy_highbd)(const uint16_t *src1,
                                         int bh, int d0, int d1, int bd,
                                         int centered);
 
-class AV1OptFlowCopyPredHighbdTest
-    : public AV1OptFlowTest<pred_buffer_copy_highbd> {
+class AV2OptFlowCopyPredHighbdTest
+    : public AV2OptFlowTest<pred_buffer_copy_highbd> {
  public:
-  AV1OptFlowCopyPredHighbdTest() {
+  AV2OptFlowCopyPredHighbdTest() {
     const BlockSize &block = GetParam().Block();
     const int bw = block.Width();
     const int bh = block.Height();
 
-    src_buf1_ = (uint16_t *)aom_memalign(16, bw * bh * sizeof(*src_buf1_));
-    src_buf2_ = (uint16_t *)aom_memalign(16, bw * bh * sizeof(*src_buf2_));
+    src_buf1_ = (uint16_t *)avm_memalign(16, bw * bh * sizeof(*src_buf1_));
+    src_buf2_ = (uint16_t *)avm_memalign(16, bw * bh * sizeof(*src_buf2_));
     dst_buf1_ref_ =
-        (int16_t *)aom_memalign(16, bw * bh * sizeof(*dst_buf1_ref_));
+        (int16_t *)avm_memalign(16, bw * bh * sizeof(*dst_buf1_ref_));
     dst_buf2_ref_ =
-        (int16_t *)aom_memalign(16, bw * bh * sizeof(*dst_buf2_ref_));
+        (int16_t *)avm_memalign(16, bw * bh * sizeof(*dst_buf2_ref_));
     dst_buf1_test_ =
-        (int16_t *)aom_memalign(16, bw * bh * sizeof(*dst_buf1_test_));
+        (int16_t *)avm_memalign(16, bw * bh * sizeof(*dst_buf1_test_));
     dst_buf2_test_ =
-        (int16_t *)aom_memalign(16, bw * bh * sizeof(*dst_buf2_test_));
+        (int16_t *)avm_memalign(16, bw * bh * sizeof(*dst_buf2_test_));
 
     memset(dst_buf2_ref_, 0, bw * bh * sizeof(*dst_buf2_ref_));
     memset(dst_buf2_test_, 0, bw * bh * sizeof(*dst_buf2_test_));
   }
 
-  ~AV1OptFlowCopyPredHighbdTest() {
-    aom_free(src_buf1_);
-    aom_free(src_buf2_);
-    aom_free(dst_buf1_ref_);
-    aom_free(dst_buf2_ref_);
-    aom_free(dst_buf1_test_);
-    aom_free(dst_buf2_test_);
+  ~AV2OptFlowCopyPredHighbdTest() {
+    avm_free(src_buf1_);
+    avm_free(src_buf2_);
+    avm_free(dst_buf1_ref_);
+    avm_free(dst_buf2_ref_);
+    avm_free(dst_buf1_test_);
+    avm_free(dst_buf2_test_);
   }
 
   void Run(const int is_speed) {
@@ -773,7 +773,7 @@ class AV1OptFlowCopyPredHighbdTest
     const int bw = block.Width();
     const int bh = block.Height();
 
-    pred_buffer_copy_highbd ref_func = av1_copy_pred_array_highbd_c;
+    pred_buffer_copy_highbd ref_func = av2_copy_pred_array_highbd_c;
     pred_buffer_copy_highbd test_func = GetParam().TestFunction();
     if (is_speed)
       CopyPredArraySpeed(ref_func, test_func, src_buf1, src_buf2, dst_buf1_ref,
@@ -811,25 +811,25 @@ class AV1OptFlowCopyPredHighbdTest
     printf("bw=%d, bh=%d\n", bw, bh);
     const int numIter = 2097152 / (bw_log2 * bh_log2);
     const int bd = GetParam().BitDepth();
-    aom_usec_timer timer_ref;
-    aom_usec_timer timer_test;
+    avm_usec_timer timer_ref;
+    avm_usec_timer timer_test;
 
-    aom_usec_timer_start(&timer_ref);
+    avm_usec_timer_start(&timer_ref);
     for (int count = 0; count < numIter; count++)
       ref_func(src_buf1, src_buf2, bw, dst_buf1_ref, dst_buf2_ref, bw, bh, d0,
                d1, bd, 0);
-    aom_usec_timer_mark(&timer_ref);
+    avm_usec_timer_mark(&timer_ref);
 
-    aom_usec_timer_start(&timer_test);
+    avm_usec_timer_start(&timer_test);
     for (int count = 0; count < numIter; count++)
       test_func(src_buf1, src_buf2, bw, dst_buf1_test, dst_buf2_test, bw, bh,
                 d0, d1, bd, 0);
-    aom_usec_timer_mark(&timer_test);
+    avm_usec_timer_mark(&timer_test);
 
     const int total_time_ref =
-        static_cast<int>(aom_usec_timer_elapsed(&timer_ref));
+        static_cast<int>(avm_usec_timer_elapsed(&timer_ref));
     const int total_time_test =
-        static_cast<int>(aom_usec_timer_elapsed(&timer_test));
+        static_cast<int>(avm_usec_timer_elapsed(&timer_test));
 
     printf("ref_time = %d \t simd_time = %d \t Gain = %4.2f \n", total_time_ref,
            total_time_test,
@@ -846,17 +846,17 @@ class AV1OptFlowCopyPredHighbdTest
   static constexpr int kMaxOrderHintBits = 8;
 };
 
-TEST_P(AV1OptFlowCopyPredHighbdTest, CheckOutput) { Run(0); }
-TEST_P(AV1OptFlowCopyPredHighbdTest, DISABLED_Speed) { Run(1); }
+TEST_P(AV2OptFlowCopyPredHighbdTest, CheckOutput) { Run(0); }
+TEST_P(AV2OptFlowCopyPredHighbdTest, DISABLED_Speed) { Run(1); }
 
 INSTANTIATE_TEST_SUITE_P(
-    C, AV1OptFlowCopyPredHighbdTest,
-    BuildOptFlowHighbdParams(av1_copy_pred_array_highbd_c));
+    C, AV2OptFlowCopyPredHighbdTest,
+    BuildOptFlowHighbdParams(av2_copy_pred_array_highbd_c));
 
 #if HAVE_SSE4_1
 INSTANTIATE_TEST_SUITE_P(
-    SSE4_1, AV1OptFlowCopyPredHighbdTest,
-    BuildOptFlowHighbdParams(av1_copy_pred_array_highbd_sse4_1));
+    SSE4_1, AV2OptFlowCopyPredHighbdTest,
+    BuildOptFlowHighbdParams(av2_copy_pred_array_highbd_sse4_1));
 #endif
 #endif  // OPFL_BILINEAR_GRAD || OPFL_BICUBIC_GRAD
 }  // namespace

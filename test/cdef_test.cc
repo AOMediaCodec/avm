@@ -17,17 +17,17 @@
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
-#include "config/aom_config.h"
-#include "config/av1_rtcd.h"
+#include "config/avm_config.h"
+#include "config/av2_rtcd.h"
 
-#include "aom_ports/aom_timer.h"
-#include "av1/common/cdef_block.h"
+#include "avm_ports/avm_timer.h"
+#include "av2/common/cdef_block.h"
 #include "test/acm_random.h"
 #include "test/clear_system_state.h"
 #include "test/register_state_check.h"
 #include "test/util.h"
 
-using libaom_test::ACMRandom;
+using libavm_test::ACMRandom;
 
 namespace {
 
@@ -48,7 +48,7 @@ class CDEFBlockTest : public ::testing::TestWithParam<cdef_dir_param_t> {
     depth = GET_PARAM(4);
   }
 
-  virtual void TearDown() { libaom_test::ClearSystemState(); }
+  virtual void TearDown() { libavm_test::ClearSystemState(); }
 
  protected:
   BLOCK_SIZE bsize;
@@ -182,18 +182,18 @@ void test_cdef_speed(BLOCK_SIZE bsize, int iterations,
                      CdefFilterBlockFunctions cdef,
                      CdefFilterBlockFunctions ref_cdef, int boundary,
                      int depth) {
-  aom_usec_timer ref_timer;
-  aom_usec_timer timer;
+  avm_usec_timer ref_timer;
+  avm_usec_timer timer;
 
-  aom_usec_timer_start(&ref_timer);
+  avm_usec_timer_start(&ref_timer);
   test_cdef(bsize, iterations, ref_cdef, ref_cdef, boundary, depth);
-  aom_usec_timer_mark(&ref_timer);
-  int ref_elapsed_time = (int)aom_usec_timer_elapsed(&ref_timer);
+  avm_usec_timer_mark(&ref_timer);
+  int ref_elapsed_time = (int)avm_usec_timer_elapsed(&ref_timer);
 
-  aom_usec_timer_start(&timer);
+  avm_usec_timer_start(&timer);
   test_cdef(bsize, iterations, cdef, cdef, boundary, depth);
-  aom_usec_timer_mark(&timer);
-  int elapsed_time = (int)aom_usec_timer_elapsed(&timer);
+  avm_usec_timer_mark(&timer);
+  int elapsed_time = (int)avm_usec_timer_elapsed(&timer);
 
   EXPECT_GT(ref_elapsed_time, elapsed_time)
       << "Error: CDEFSpeedTest, SIMD slower than C." << std::endl
@@ -214,7 +214,7 @@ class CDEFFindDirTest : public ::testing::TestWithParam<find_dir_param_t> {
     ref_finddir = GET_PARAM(1);
   }
 
-  virtual void TearDown() { libaom_test::ClearSystemState(); }
+  virtual void TearDown() { libavm_test::ClearSystemState(); }
 
  protected:
   find_dir_t finddir;
@@ -271,18 +271,18 @@ void test_finddir_speed(int (*finddir)(const uint16_t *img, int stride,
                                        int32_t *var, int coeff_shift),
                         int (*ref_finddir)(const uint16_t *img, int stride,
                                            int32_t *var, int coeff_shift)) {
-  aom_usec_timer ref_timer;
-  aom_usec_timer timer;
+  avm_usec_timer ref_timer;
+  avm_usec_timer timer;
 
-  aom_usec_timer_start(&ref_timer);
+  avm_usec_timer_start(&ref_timer);
   test_finddir(ref_finddir, ref_finddir);
-  aom_usec_timer_mark(&ref_timer);
-  int ref_elapsed_time = (int)aom_usec_timer_elapsed(&ref_timer);
+  avm_usec_timer_mark(&ref_timer);
+  int ref_elapsed_time = (int)avm_usec_timer_elapsed(&ref_timer);
 
-  aom_usec_timer_start(&timer);
+  avm_usec_timer_start(&timer);
   test_finddir(finddir, finddir);
-  aom_usec_timer_mark(&timer);
-  int elapsed_time = (int)aom_usec_timer_elapsed(&timer);
+  avm_usec_timer_mark(&timer);
+  int elapsed_time = (int)avm_usec_timer_elapsed(&timer);
 
   EXPECT_GT(ref_elapsed_time, elapsed_time)
       << "Error: CDEFFindDirSpeedTest, SIMD slower than C." << std::endl
@@ -379,20 +379,20 @@ void test_finddir_dual_speed(
     void (*ref_finddir)(const uint16_t *img1, const uint16_t *img2, int stride,
                         int32_t *var1, int32_t *var2, int coeff_shift,
                         int *out1, int *out2)) {
-  aom_usec_timer ref_timer;
-  aom_usec_timer timer;
+  avm_usec_timer ref_timer;
+  avm_usec_timer timer;
 
-  aom_usec_timer_start(&ref_timer);
+  avm_usec_timer_start(&ref_timer);
   test_finddir_dual(ref_finddir, ref_finddir);
-  aom_usec_timer_mark(&ref_timer);
+  avm_usec_timer_mark(&ref_timer);
   const double ref_elapsed_time =
-      static_cast<double>(aom_usec_timer_elapsed(&ref_timer));
+      static_cast<double>(avm_usec_timer_elapsed(&ref_timer));
 
-  aom_usec_timer_start(&timer);
+  avm_usec_timer_start(&timer);
   test_finddir_dual(finddir, finddir);
-  aom_usec_timer_mark(&timer);
+  avm_usec_timer_mark(&timer);
   const double elapsed_time =
-      static_cast<double>(aom_usec_timer_elapsed(&timer));
+      static_cast<double>(avm_usec_timer_elapsed(&timer));
 
   printf(
       "ref_time=%lf \t simd_time=%lf \t "

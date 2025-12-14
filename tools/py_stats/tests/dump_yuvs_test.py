@@ -7,7 +7,7 @@ import unittest
 
 from avm_stats import dump_yuvs
 
-TESTDATA_ENV_VAR = "LIBAOM_TEST_DATA_PATH"
+TESTDATA_ENV_VAR = "LIBAVM_TEST_DATA_PATH"
 TESTDATA_PATH = pathlib.Path(__file__).parent.resolve() / "testdata"
 PROTO_FILENAME = "park_joy_90p_8_420_frame_0000.pb"
 TEST_STREAM_WIDTH = 160

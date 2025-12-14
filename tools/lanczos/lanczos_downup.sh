@@ -36,14 +36,14 @@
 set -e
 
 tmpdir="/tmp"
-AOMENC="${tmpdir}/aomenc_$$"
-AOMDEC="${tmpdir}/aomdec_$$"
+AVMENC="${tmpdir}/avmenc_$$"
+AVMDEC="${tmpdir}/avmdec_$$"
 RESAMPLE="${tmpdir}/lanczos_resample_y4m_$$"
-cp ./aomenc $AOMENC
-cp ./aomdec $AOMDEC
+cp ./avmenc $AVMENC
+cp ./avmdec $AVMDEC
 cp ./lanczos_resample_y4m $RESAMPLE
 
-trap 'echo "Exiting..."; rm -f ${AOMENC} ${AOMDEC} ${RESAMPLE}' EXIT
+trap 'echo "Exiting..."; rm -f ${AVMENC} ${AVMDEC} ${RESAMPLE}' EXIT
 
 opts=0
 options=""

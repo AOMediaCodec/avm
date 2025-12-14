@@ -13,9 +13,9 @@
 #include <string>
 #include <tuple>
 
-#include "config/aom_version.h"
+#include "config/avm_version.h"
 
-#include "aom_ports/aom_timer.h"
+#include "avm_ports/avm_timer.h"
 #include "common/ivfenc.h"
 #include "test/codec_factory.h"
 #include "test/decode_test_driver.h"
@@ -42,7 +42,7 @@ const char kNewEncodeOutputFile[] = "new_encode.ivf";
 typedef std::tuple<const char *, unsigned> DecodePerfParam;
 
 // TODO(jimbankoski): Add actual test vectors here when available.
-// const DecodePerfParam kAV1DecodePerfVectors[] = {};
+// const DecodePerfParam kAV2DecodePerfVectors[] = {};
 
 /*
  In order to reflect real world performance as much as possible, Perf tests
@@ -61,22 +61,22 @@ TEST_P(DecodePerfTest, PerfTest) {
   const char *const video_name = GET_PARAM(VIDEO_NAME);
   const unsigned threads = GET_PARAM(THREADS);
 
-  libaom_test::WebMVideoSource video(video_name);
+  libavm_test::WebMVideoSource video(video_name);
   video.Init();
 
-  aom_codec_dec_cfg_t cfg = aom_codec_dec_cfg_t();
+  avm_codec_dec_cfg_t cfg = avm_codec_dec_cfg_t();
   cfg.threads = threads;
-  libaom_test::AV1Decoder decoder(cfg, 0);
+  libavm_test::AV2Decoder decoder(cfg, 0);
 
-  aom_usec_timer t;
-  aom_usec_timer_start(&t);
+  avm_usec_timer t;
+  avm_usec_timer_start(&t);
 
   for (video.Begin(); video.cxdata() != NULL; video.Next()) {
     decoder.DecodeFrame(video.cxdata(), video.frame_size());
   }
 
-  aom_usec_timer_mark(&t);
-  const double elapsed_secs = double(aom_usec_timer_elapsed(&t)) / kUsecsInSec;
+  avm_usec_timer_mark(&t);
+  const double elapsed_secs = double(avm_usec_timer_elapsed(&t)) / kUsecsInSec;
   const unsigned frames = video.frame_number();
   const double fps = double(frames) / elapsed_secs;
 
@@ -91,19 +91,19 @@ TEST_P(DecodePerfTest, PerfTest) {
   printf("}\n");
 }
 
-// TODO(jimbankoski): Enabled when we have actual AV1 Decode vectors.
-// INSTANTIATE_TEST_SUITE_P(AV1, DecodePerfTest,
-//                        ::testing::ValuesIn(kAV1DecodePerfVectors));
+// TODO(jimbankoski): Enabled when we have actual AV2 Decode vectors.
+// INSTANTIATE_TEST_SUITE_P(AV2, DecodePerfTest,
+//                        ::testing::ValuesIn(kAV2DecodePerfVectors));
 
-class AV1NewEncodeDecodePerfTest
-    : public ::libaom_test::CodecTestWithParam<libaom_test::TestMode>,
-      public ::libaom_test::EncoderTest {
+class AV2NewEncodeDecodePerfTest
+    : public ::libavm_test::CodecTestWithParam<libavm_test::TestMode>,
+      public ::libavm_test::EncoderTest {
  protected:
-  AV1NewEncodeDecodePerfTest()
+  AV2NewEncodeDecodePerfTest()
       : EncoderTest(GET_PARAM(0)), encoding_mode_(GET_PARAM(1)), speed_(0),
         outfile_(0), out_frames_(0) {}
 
-  virtual ~AV1NewEncodeDecodePerfTest() {}
+  virtual ~AV2NewEncodeDecodePerfTest() {}
 
   virtual void SetUp() {
     InitializeConfig();
@@ -118,20 +118,20 @@ class AV1NewEncodeDecodePerfTest
     cfg_.rc_buf_sz = 1000;
     cfg_.rc_buf_initial_sz = 500;
     cfg_.rc_buf_optimal_sz = 600;
-    cfg_.rc_end_usage = AOM_VBR;
+    cfg_.rc_end_usage = AVM_VBR;
   }
 
-  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
-                                  ::libaom_test::Encoder *encoder) {
+  virtual void PreEncodeFrameHook(::libavm_test::VideoSource *video,
+                                  ::libavm_test::Encoder *encoder) {
     if (video->frame() == 0) {
-      encoder->Control(AOME_SET_CPUUSED, speed_);
-      encoder->Control(AV1E_SET_FRAME_PARALLEL_DECODING, 1);
-      encoder->Control(AV1E_SET_TILE_COLUMNS, 2);
+      encoder->Control(AVME_SET_CPUUSED, speed_);
+      encoder->Control(AV2E_SET_FRAME_PARALLEL_DECODING, 1);
+      encoder->Control(AV2E_SET_TILE_COLUMNS, 2);
     }
   }
 
   virtual void BeginPassHook(unsigned int /*pass*/) {
-    const char *const env = getenv("LIBAOM_TEST_DATA_PATH");
+    const char *const env = getenv("LIBAVM_TEST_DATA_PATH");
     const std::string data_path(env ? env : ".");
     const std::string path_to_source = data_path + "/" + kNewEncodeOutputFile;
     outfile_ = fopen(path_to_source.c_str(), "wb");
@@ -141,20 +141,20 @@ class AV1NewEncodeDecodePerfTest
   virtual void EndPassHook() {
     if (outfile_ != NULL) {
       if (!fseek(outfile_, 0, SEEK_SET))
-        ivf_write_file_header(outfile_, &cfg_, AV1_FOURCC, out_frames_);
+        ivf_write_file_header(outfile_, &cfg_, AV2_FOURCC, out_frames_);
       fclose(outfile_);
       outfile_ = NULL;
     }
   }
 
-  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt,
-                            ::libaom_test::DxDataIterator *dec_iter) {
+  virtual void FramePktHook(const avm_codec_cx_pkt_t *pkt,
+                            ::libavm_test::DxDataIterator *dec_iter) {
     (void)dec_iter;
     ++out_frames_;
-    if (pkt->kind != AOM_CODEC_CX_FRAME_PKT) return;
+    if (pkt->kind != AVM_CODEC_CX_FRAME_PKT) return;
     // Write initial file header if first frame.
     if (pkt->data.frame.pts == 0)
-      ivf_write_file_header(outfile_, &cfg_, AV1_FOURCC, out_frames_);
+      ivf_write_file_header(outfile_, &cfg_, AV2_FOURCC, out_frames_);
 
     // Write frame header and data.
     ivf_write_frame_header(outfile_, out_frames_, pkt->data.frame.sz);
@@ -167,7 +167,7 @@ class AV1NewEncodeDecodePerfTest
   void set_speed(unsigned int speed) { speed_ = speed; }
 
  private:
-  libaom_test::TestMode encoding_mode_;
+  libavm_test::TestMode encoding_mode_;
   uint32_t speed_;
   FILE *outfile_;
   uint32_t out_frames_;
@@ -185,50 +185,50 @@ struct EncodePerfTestVideo {
   int frames;
 };
 
-const EncodePerfTestVideo kAV1EncodePerfTestVectors[] = {
+const EncodePerfTestVideo kAV2EncodePerfTestVectors[] = {
   EncodePerfTestVideo("niklas_1280_720_30.yuv", 1280, 720, 600, 470),
 };
 
-TEST_P(AV1NewEncodeDecodePerfTest, PerfTest) {
+TEST_P(AV2NewEncodeDecodePerfTest, PerfTest) {
   SetUp();
 
   // TODO(JBB): Make this work by going through the set of given files.
   const int i = 0;
-  const aom_rational timebase = { 33333333, 1000000000 };
+  const avm_rational timebase = { 33333333, 1000000000 };
   cfg_.g_timebase = timebase;
-  cfg_.rc_target_bitrate = kAV1EncodePerfTestVectors[i].bitrate;
+  cfg_.rc_target_bitrate = kAV2EncodePerfTestVectors[i].bitrate;
 
-  init_flags_ = AOM_CODEC_USE_PSNR;
+  init_flags_ = AVM_CODEC_USE_PSNR;
 
-  const char *video_name = kAV1EncodePerfTestVectors[i].name;
-  libaom_test::I420VideoSource video(
-      video_name, kAV1EncodePerfTestVectors[i].width,
-      kAV1EncodePerfTestVectors[i].height, timebase.den, timebase.num, 0,
-      kAV1EncodePerfTestVectors[i].frames);
+  const char *video_name = kAV2EncodePerfTestVectors[i].name;
+  libavm_test::I420VideoSource video(
+      video_name, kAV2EncodePerfTestVectors[i].width,
+      kAV2EncodePerfTestVectors[i].height, timebase.den, timebase.num, 0,
+      kAV2EncodePerfTestVectors[i].frames);
   set_speed(2);
 
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 
   const uint32_t threads = 4;
 
-  libaom_test::IVFVideoSource decode_video(kNewEncodeOutputFile);
+  libavm_test::IVFVideoSource decode_video(kNewEncodeOutputFile);
   decode_video.Init();
 
-  aom_codec_dec_cfg_t cfg = aom_codec_dec_cfg_t();
+  avm_codec_dec_cfg_t cfg = avm_codec_dec_cfg_t();
   cfg.threads = threads;
-  libaom_test::AV1Decoder decoder(cfg, 0);
+  libavm_test::AV2Decoder decoder(cfg, 0);
 
-  aom_usec_timer t;
-  aom_usec_timer_start(&t);
+  avm_usec_timer t;
+  avm_usec_timer_start(&t);
 
   for (decode_video.Begin(); decode_video.cxdata() != NULL;
        decode_video.Next()) {
     decoder.DecodeFrame(decode_video.cxdata(), decode_video.frame_size());
   }
 
-  aom_usec_timer_mark(&t);
+  avm_usec_timer_mark(&t);
   const double elapsed_secs =
-      static_cast<double>(aom_usec_timer_elapsed(&t)) / kUsecsInSec;
+      static_cast<double>(avm_usec_timer_elapsed(&t)) / kUsecsInSec;
   const unsigned decode_frames = decode_video.frame_number();
   const double fps = static_cast<double>(decode_frames) / elapsed_secs;
 
@@ -243,6 +243,6 @@ TEST_P(AV1NewEncodeDecodePerfTest, PerfTest) {
   printf("}\n");
 }
 
-AV1_INSTANTIATE_TEST_SUITE(AV1NewEncodeDecodePerfTest,
-                           ::testing::Values(::libaom_test::kTwoPassGood));
+AV2_INSTANTIATE_TEST_SUITE(AV2NewEncodeDecodePerfTest,
+                           ::testing::Values(::libavm_test::kTwoPassGood));
 }  // namespace

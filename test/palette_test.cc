@@ -4,14 +4,14 @@
 #include <cstdio>
 #include <cassert>
 
-#include "config/aom_config.h"
+#include "config/avm_config.h"
 
 #define PALETTE_MAX_SIZE 8
 #define NUM_PALETTE_NEIGHBORS 3
 #define MAX_COLOR_CONTEXT_HASH 8
 #define PALETTE_COLOR_INDEX_CONTEXTS 6
-#define AOMMIN(x, y) (((x) < (y)) ? (x) : (y))
-#define AOMMAX(x, y) (((x) > (y)) ? (x) : (y))
+#define AVMMIN(x, y) (((x) < (y)) ? (x) : (y))
+#define AVMMAX(x, y) (((x) > (y)) ? (x) : (y))
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
 static void swap_color_order(uint8_t *color_order, uint8_t *color_order_status,
@@ -70,8 +70,8 @@ int derive_color_index_ctx(uint8_t *color_order, int *color_idx,
                        &color_cnt);
     } else {
       color_index_ctx = 1;
-      int min_color = AOMMIN(color_neighbors[0], color_neighbors[2]);
-      int max_color = AOMMAX(color_neighbors[0], color_neighbors[2]);
+      int min_color = AVMMIN(color_neighbors[0], color_neighbors[2]);
+      int max_color = AVMMAX(color_neighbors[0], color_neighbors[2]);
       swap_color_order(color_order, color_status, 0, min_color, &color_cnt);
       swap_color_order(color_order, color_status, 1, max_color, &color_cnt);
       swap_color_order(color_order, color_status, 2, color_neighbors[1],
@@ -110,7 +110,7 @@ int derive_color_index_ctx(uint8_t *color_order, int *color_idx,
   return color_index_ctx;
 }
 
-int new_av1_get_palette_color_index_context(
+int new_av2_get_palette_color_index_context(
     const uint8_t *color_map, int stride, int r, int c, int palette_size,
     uint8_t *color_order, int *color_idx, int row_flag, int prev_row_flag) {
   assert(palette_size <= PALETTE_MAX_SIZE);
@@ -126,7 +126,7 @@ int new_av1_get_palette_color_index_context(
   return color_index_ctx;
 }
 
-int old_av1_get_palette_color_index_context(
+int old_av2_get_palette_color_index_context(
     const uint8_t *color_map, int stride, int r, int c, int palette_size,
     uint8_t *color_order, int *color_idx, int row_flag, int prev_row_flag) {
   assert(palette_size <= PALETTE_MAX_SIZE);
@@ -226,10 +226,10 @@ TEST(PaletteContextTest, TestTopAndLeftNeighbor) {
         color_map[0] = i;
         color_map[1] = j;
         color_map[2] = k;
-        const int old_ctx = old_av1_get_palette_color_index_context(
+        const int old_ctx = old_av2_get_palette_color_index_context(
             color_map, stride, r, c, palette_size, color_order, NULL, row_flag,
             prev_row_flag);
-        const int new_ctx = new_av1_get_palette_color_index_context(
+        const int new_ctx = new_av2_get_palette_color_index_context(
             color_map, stride, r, c, palette_size, color_order, NULL, row_flag,
             prev_row_flag);
         GTEST_ASSERT_EQ(old_ctx, new_ctx);
@@ -251,10 +251,10 @@ TEST(PaletteContextTest, TestLeftNeighbor) {
         color_map[0] = i;
         color_map[1] = j;
         color_map[2] = k;
-        const int old_ctx = old_av1_get_palette_color_index_context(
+        const int old_ctx = old_av2_get_palette_color_index_context(
             color_map, stride, r, c, palette_size, color_order, NULL, row_flag,
             prev_row_flag);
-        const int new_ctx = new_av1_get_palette_color_index_context(
+        const int new_ctx = new_av2_get_palette_color_index_context(
             color_map, stride, r, c, palette_size, color_order, NULL, row_flag,
             prev_row_flag);
         GTEST_ASSERT_EQ(old_ctx, new_ctx);
@@ -276,10 +276,10 @@ TEST(PaletteContextTest, TestTopNeighbor) {
         color_map[0] = i;
         color_map[1] = j;
         color_map[2] = k;
-        const int old_ctx = old_av1_get_palette_color_index_context(
+        const int old_ctx = old_av2_get_palette_color_index_context(
             color_map, stride, r, c, palette_size, color_order, NULL, row_flag,
             prev_row_flag);
-        const int new_ctx = new_av1_get_palette_color_index_context(
+        const int new_ctx = new_av2_get_palette_color_index_context(
             color_map, stride, r, c, palette_size, color_order, NULL, row_flag,
             prev_row_flag);
         GTEST_ASSERT_EQ(old_ctx, new_ctx);

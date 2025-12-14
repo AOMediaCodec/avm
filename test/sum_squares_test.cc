@@ -17,18 +17,18 @@
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
-#include "config/aom_config.h"
-#include "config/aom_dsp_rtcd.h"
+#include "config/avm_config.h"
+#include "config/avm_dsp_rtcd.h"
 
-#include "aom_ports/mem.h"
+#include "avm_ports/mem.h"
 #include "test/acm_random.h"
 #include "test/clear_system_state.h"
 #include "test/register_state_check.h"
 #include "test/util.h"
 #include "test/function_equivalence_test.h"
 
-using libaom_test::ACMRandom;
-using libaom_test::FunctionEquivalenceTest;
+using libavm_test::ACMRandom;
+using libavm_test::FunctionEquivalenceTest;
 using ::testing::Combine;
 using ::testing::Range;
 using ::testing::Values;
@@ -41,7 +41,7 @@ static const int16_t kInt13Max = (1 << 12) - 1;
 
 typedef uint64_t (*SSI16Func)(const int16_t *src, int stride, int width,
                               int height);
-typedef libaom_test::FuncParam<SSI16Func> TestFuncs;
+typedef libavm_test::FuncParam<SSI16Func> TestFuncs;
 
 class SumSquaresTest : public ::testing::TestWithParam<TestFuncs> {
  public:
@@ -49,13 +49,13 @@ class SumSquaresTest : public ::testing::TestWithParam<TestFuncs> {
   virtual void SetUp() {
     params_ = this->GetParam();
     rnd_.Reset(ACMRandom::DeterministicSeed());
-    src_ = reinterpret_cast<int16_t *>(aom_memalign(16, 256 * 256 * 2));
+    src_ = reinterpret_cast<int16_t *>(avm_memalign(16, 256 * 256 * 2));
     ASSERT_TRUE(src_ != NULL);
   }
 
   virtual void TearDown() {
-    libaom_test::ClearSystemState();
-    aom_free(src_);
+    libavm_test::ClearSystemState();
+    avm_free(src_);
   }
   void RunTest(int isRandom);
   void RunSpeedTest();
@@ -126,23 +126,23 @@ void SumSquaresTest::RunSpeedTest() {
     }
     GenExtremeData(width, height, stride);
     const int num_loops = 1000000000 / (width + height);
-    aom_usec_timer timer;
-    aom_usec_timer_start(&timer);
+    avm_usec_timer timer;
+    avm_usec_timer_start(&timer);
 
     for (int i = 0; i < num_loops; ++i)
       params_.ref_func(src_, stride, width, height);
 
-    aom_usec_timer_mark(&timer);
-    const int elapsed_time = static_cast<int>(aom_usec_timer_elapsed(&timer));
+    avm_usec_timer_mark(&timer);
+    const int elapsed_time = static_cast<int>(avm_usec_timer_elapsed(&timer));
     printf("SumSquaresTest C %3dx%-3d: %7.2f ns\n", width, height,
            1000.0 * elapsed_time / num_loops);
 
-    aom_usec_timer timer1;
-    aom_usec_timer_start(&timer1);
+    avm_usec_timer timer1;
+    avm_usec_timer_start(&timer1);
     for (int i = 0; i < num_loops; ++i)
       params_.tst_func(src_, stride, width, height);
-    aom_usec_timer_mark(&timer1);
-    const int elapsed_time1 = static_cast<int>(aom_usec_timer_elapsed(&timer1));
+    avm_usec_timer_mark(&timer1);
+    const int elapsed_time1 = static_cast<int>(avm_usec_timer_elapsed(&timer1));
     printf("SumSquaresTest Test %3dx%-3d: %7.2f ns\n", width, height,
            1000.0 * elapsed_time1 / num_loops);
   }
@@ -162,8 +162,8 @@ TEST_P(SumSquaresTest, DISABLED_Speed) { RunSpeedTest(); }
 
 INSTANTIATE_TEST_SUITE_P(
     SSE2, SumSquaresTest,
-    ::testing::Values(TestFuncs(&aom_sum_squares_2d_i16_c,
-                                &aom_sum_squares_2d_i16_sse2)));
+    ::testing::Values(TestFuncs(&avm_sum_squares_2d_i16_c,
+                                &avm_sum_squares_2d_i16_sse2)));
 
 #endif  // HAVE_SSE2
 
@@ -171,16 +171,16 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
     NEON, SumSquaresTest,
-    ::testing::Values(TestFuncs(&aom_sum_squares_2d_i16_c,
-                                &aom_sum_squares_2d_i16_neon)));
+    ::testing::Values(TestFuncs(&avm_sum_squares_2d_i16_c,
+                                &avm_sum_squares_2d_i16_neon)));
 
 #endif  // HAVE_NEON
 
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
     AVX2, SumSquaresTest,
-    ::testing::Values(TestFuncs(&aom_sum_squares_2d_i16_c,
-                                &aom_sum_squares_2d_i16_avx2)));
+    ::testing::Values(TestFuncs(&avm_sum_squares_2d_i16_c,
+                                &avm_sum_squares_2d_i16_avx2)));
 #endif  // HAVE_AVX2
 
 //////////////////////////////////////////////////////////////////////////////
@@ -188,7 +188,7 @@ INSTANTIATE_TEST_SUITE_P(
 //////////////////////////////////////////////////////////////////////////////
 
 typedef uint64_t (*F1D)(const int16_t *src, uint32_t N);
-typedef libaom_test::FuncParam<F1D> TestFuncs1D;
+typedef libavm_test::FuncParam<F1D> TestFuncs1D;
 
 class SumSquares1DTest : public FunctionEquivalenceTest<F1D> {
  protected:
@@ -239,12 +239,12 @@ TEST_P(SumSquares1DTest, ExtremeValues) {
 #if HAVE_SSE2
 INSTANTIATE_TEST_SUITE_P(SSE2, SumSquares1DTest,
                          ::testing::Values(TestFuncs1D(
-                             aom_sum_squares_i16_c, aom_sum_squares_i16_sse2)));
+                             avm_sum_squares_i16_c, avm_sum_squares_i16_sse2)));
 
 #endif  // HAVE_SSE2
 
 typedef uint64_t (*F1DI32)(const int32_t *src, int32_t n);
-typedef libaom_test::FuncParam<F1DI32> TestFuncs1DI32;
+typedef libavm_test::FuncParam<F1DI32> TestFuncs1DI32;
 
 class SumSquares1DI32Test : public FunctionEquivalenceTest<F1DI32> {
  public:
@@ -253,7 +253,7 @@ class SumSquares1DI32Test : public FunctionEquivalenceTest<F1DI32> {
     params_ = this->GetParam();
     rnd_.Reset(ACMRandom::DeterministicSeed());
     src = reinterpret_cast<int32_t *>(
-        aom_memalign(32, kMaxSize * kMaxSize * sizeof(src[0])));
+        avm_memalign(32, kMaxSize * kMaxSize * sizeof(src[0])));
     ASSERT_TRUE(src != NULL);
   }
 
@@ -271,8 +271,8 @@ class SumSquares1DI32Test : public FunctionEquivalenceTest<F1DI32> {
   }
 
   virtual void TearDown() {
-    libaom_test::ClearSystemState();
-    aom_free(src);
+    libavm_test::ClearSystemState();
+    avm_free(src);
   }
 
  protected:
@@ -292,7 +292,7 @@ TEST_P(SumSquares1DI32Test, RandomValues) {
     const int msb = bd + 8;  // bit-depth + 8
     const int coeffRange = (1 << msb) - 1;
     for (TX_SIZE tx_size = 0; tx_size < TX_SIZES_ALL; tx_size++) {
-      const int ncoeffs = av1_get_max_eob(tx_size);
+      const int ncoeffs = av2_get_max_eob(tx_size);
       for (int k = 0; k < kNumIterations; k++) {
         GenRandomData(ncoeffs, coeffRange);
         const uint64_t ref_res = params_.ref_func(src, ncoeffs);
@@ -313,7 +313,7 @@ TEST_P(SumSquares1DI32Test, ExtremeValues) {
     const int msb = bd + 8;  // bit-depth + 8
     const int coeffRange = (1 << msb) - 1;
     for (TX_SIZE tx_size = 0; tx_size < TX_SIZES_ALL; tx_size++) {
-      const int ncoeffs = av1_get_max_eob(tx_size);
+      const int ncoeffs = av2_get_max_eob(tx_size);
       GenExtremeData(ncoeffs, coeffRange);
       const uint64_t ref_res = params_.ref_func(src, ncoeffs);
       uint64_t tst_res;
@@ -334,23 +334,23 @@ TEST_P(SumSquares1DI32Test, DISABLED_Speed) {
     const int ncoeffs = N[i];
     GenRandomData(ncoeffs, (1 << 16) - 1);
 
-    aom_usec_timer timer_c;
-    aom_usec_timer_start(&timer_c);
+    avm_usec_timer timer_c;
+    avm_usec_timer_start(&timer_c);
 
     for (int i = 0; i < knum_loops; ++i) params_.ref_func(src, ncoeffs);
 
-    aom_usec_timer_mark(&timer_c);
+    avm_usec_timer_mark(&timer_c);
     const int elapsed_time_c =
-        static_cast<int>(aom_usec_timer_elapsed(&timer_c));
+        static_cast<int>(avm_usec_timer_elapsed(&timer_c));
 
-    aom_usec_timer timer_simd;
-    aom_usec_timer_start(&timer_simd);
+    avm_usec_timer timer_simd;
+    avm_usec_timer_start(&timer_simd);
 
     for (int i = 0; i < knum_loops; ++i) params_.tst_func(src, ncoeffs);
 
-    aom_usec_timer_mark(&timer_simd);
+    avm_usec_timer_mark(&timer_simd);
     const int elapsed_time_simd =
-        static_cast<int>(aom_usec_timer_elapsed(&timer_simd));
+        static_cast<int>(avm_usec_timer_elapsed(&timer_simd));
 
     printf("SumSquaresI32Test N %3d: \tScaling%7.2f ns\n", ncoeffs,
            1.0 * elapsed_time_c / elapsed_time_simd);
@@ -360,12 +360,12 @@ TEST_P(SumSquares1DI32Test, DISABLED_Speed) {
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(AVX2, SumSquares1DI32Test,
                          ::testing::Values(TestFuncs1DI32(
-                             aom_sum_squares_i32_c, aom_sum_squares_i32_avx2)));
+                             avm_sum_squares_i32_c, avm_sum_squares_i32_avx2)));
 #endif  // HAVE_AVX2
 
 typedef int64_t (*sse_func)(const uint16_t *a, int a_stride, const uint16_t *b,
                             int b_stride, int width, int height);
-typedef libaom_test::FuncParam<sse_func> TestSSEFuncs;
+typedef libavm_test::FuncParam<sse_func> TestSSEFuncs;
 
 typedef std::tuple<TestSSEFuncs, int> SSETestParam;
 
@@ -377,16 +377,16 @@ class SSETest : public ::testing::TestWithParam<SSETestParam> {
     width_ = GET_PARAM(1);
 
     rnd_.Reset(ACMRandom::DeterministicSeed());
-    src_ = reinterpret_cast<uint16_t *>(aom_memalign(32, 256 * 256 * 2));
-    ref_ = reinterpret_cast<uint16_t *>(aom_memalign(32, 256 * 256 * 2));
+    src_ = reinterpret_cast<uint16_t *>(avm_memalign(32, 256 * 256 * 2));
+    ref_ = reinterpret_cast<uint16_t *>(avm_memalign(32, 256 * 256 * 2));
     ASSERT_TRUE(src_ != NULL);
     ASSERT_TRUE(ref_ != NULL);
   }
 
   virtual void TearDown() {
-    libaom_test::ClearSystemState();
-    aom_free(src_);
-    aom_free(ref_);
+    libavm_test::ClearSystemState();
+    avm_free(src_);
+    avm_free(ref_);
   }
   void RunTest(int isRandom, int width, int height, int run_times);
 
@@ -424,7 +424,7 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(SSETest);
 
 void SSETest::RunTest(int isRandom, int width, int height, int run_times) {
   int failed = 0;
-  aom_usec_timer ref_timer, test_timer;
+  avm_usec_timer ref_timer, test_timer;
   for (int k = 0; k < 3; k++) {
     int stride = 4 << rnd_(7);  // Up to 256 stride
     while (stride < width) {    // Make sure it's valid
@@ -449,21 +449,21 @@ void SSETest::RunTest(int isRandom, int width, int height, int run_times) {
     res_ref = params_.ref_func(pSrc, stride, pRef, stride, width, height);
     res_tst = params_.tst_func(pSrc, stride, pRef, stride, width, height);
     if (run_times > 1) {
-      aom_usec_timer_start(&ref_timer);
+      avm_usec_timer_start(&ref_timer);
       for (int j = 0; j < run_times; j++) {
         params_.ref_func(pSrc, stride, pRef, stride, width, height);
       }
-      aom_usec_timer_mark(&ref_timer);
+      avm_usec_timer_mark(&ref_timer);
       const int elapsed_time_c =
-          static_cast<int>(aom_usec_timer_elapsed(&ref_timer));
+          static_cast<int>(avm_usec_timer_elapsed(&ref_timer));
 
-      aom_usec_timer_start(&test_timer);
+      avm_usec_timer_start(&test_timer);
       for (int j = 0; j < run_times; j++) {
         params_.tst_func(pSrc, stride, pRef, stride, width, height);
       }
-      aom_usec_timer_mark(&test_timer);
+      avm_usec_timer_mark(&test_timer);
       const int elapsed_time_simd =
-          static_cast<int>(aom_usec_timer_elapsed(&test_timer));
+          static_cast<int>(avm_usec_timer_elapsed(&test_timer));
 
       printf(
           "c_time=%d \t simd_time=%d \t "
@@ -500,23 +500,23 @@ TEST_P(SSETest, DISABLED_Speed) {
 }
 
 #if HAVE_NEON
-TestSSEFuncs sse_neon[] = { TestSSEFuncs(&aom_highbd_sse_c,
-                                         &aom_highbd_sse_neon) };
+TestSSEFuncs sse_neon[] = { TestSSEFuncs(&avm_highbd_sse_c,
+                                         &avm_highbd_sse_neon) };
 INSTANTIATE_TEST_SUITE_P(NEON, SSETest,
                          Combine(ValuesIn(sse_neon), Range(4, 129, 4)));
 #endif  // HAVE_NEON
 
 #if HAVE_SSE4_1
-TestSSEFuncs sse_sse4[] = { TestSSEFuncs(&aom_highbd_sse_c,
-                                         &aom_highbd_sse_sse4_1) };
+TestSSEFuncs sse_sse4[] = { TestSSEFuncs(&avm_highbd_sse_c,
+                                         &avm_highbd_sse_sse4_1) };
 INSTANTIATE_TEST_SUITE_P(SSE4_1, SSETest,
                          Combine(ValuesIn(sse_sse4), Range(4, 129, 4)));
 #endif  // HAVE_SSE4_1
 
 #if HAVE_AVX2
 
-TestSSEFuncs sse_avx2[] = { TestSSEFuncs(&aom_highbd_sse_c,
-                                         &aom_highbd_sse_avx2) };
+TestSSEFuncs sse_avx2[] = { TestSSEFuncs(&avm_highbd_sse_c,
+                                         &avm_highbd_sse_avx2) };
 INSTANTIATE_TEST_SUITE_P(AVX2, SSETest,
                          Combine(ValuesIn(sse_avx2), Range(4, 129, 4)));
 #endif  // HAVE_AVX2
@@ -527,7 +527,7 @@ INSTANTIATE_TEST_SUITE_P(AVX2, SSETest,
 
 typedef void (*sse_sum_func)(const int16_t *data, int stride, int bw, int bh,
                              int *x_sum, int64_t *x2_sum);
-typedef libaom_test::FuncParam<sse_sum_func> TestSSE_SumFuncs;
+typedef libavm_test::FuncParam<sse_sum_func> TestSSE_SumFuncs;
 
 typedef std::tuple<TestSSE_SumFuncs, int> SSE_SumTestParam;
 
@@ -538,13 +538,13 @@ class SSE_Sum_Test : public ::testing::TestWithParam<SSE_SumTestParam> {
     params_ = GET_PARAM(0);
     width_ = GET_PARAM(1);
     rnd_.Reset(ACMRandom::DeterministicSeed());
-    src_ = reinterpret_cast<int16_t *>(aom_memalign(32, 256 * 256 * 2));
+    src_ = reinterpret_cast<int16_t *>(avm_memalign(32, 256 * 256 * 2));
     ASSERT_TRUE(src_ != NULL);
   }
 
   virtual void TearDown() {
-    libaom_test::ClearSystemState();
-    aom_free(src_);
+    libavm_test::ClearSystemState();
+    avm_free(src_);
   }
   void RunTest(int isRandom, int width, int height, int run_times);
 
@@ -576,7 +576,7 @@ class SSE_Sum_Test : public ::testing::TestWithParam<SSE_SumTestParam> {
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(SSE_Sum_Test);
 
 void SSE_Sum_Test::RunTest(int isRandom, int width, int height, int run_times) {
-  aom_usec_timer ref_timer, test_timer;
+  avm_usec_timer ref_timer, test_timer;
   for (int k = 0; k < 3; k++) {
     int stride = 4 << rnd_(7);  // Up to 256 stride
     while (stride < width) {    // Make sure it's valid
@@ -602,21 +602,21 @@ void SSE_Sum_Test::RunTest(int isRandom, int width, int height, int run_times) {
     params_.tst_func(src_, stride, width, height, &sum_intr, &sse_intr);
 
     if (run_times > 1) {
-      aom_usec_timer_start(&ref_timer);
+      avm_usec_timer_start(&ref_timer);
       for (int j = 0; j < run_times; j++) {
         params_.ref_func(src_, stride, width, height, &sum_c, &sse_c);
       }
-      aom_usec_timer_mark(&ref_timer);
+      avm_usec_timer_mark(&ref_timer);
       const int elapsed_time_c =
-          static_cast<int>(aom_usec_timer_elapsed(&ref_timer));
+          static_cast<int>(avm_usec_timer_elapsed(&ref_timer));
 
-      aom_usec_timer_start(&test_timer);
+      avm_usec_timer_start(&test_timer);
       for (int j = 0; j < run_times; j++) {
         params_.tst_func(src_, stride, width, height, &sum_intr, &sse_intr);
       }
-      aom_usec_timer_mark(&test_timer);
+      avm_usec_timer_mark(&test_timer);
       const int elapsed_time_simd =
-          static_cast<int>(aom_usec_timer_elapsed(&test_timer));
+          static_cast<int>(avm_usec_timer_elapsed(&test_timer));
 
       printf(
           "c_time=%d \t simd_time=%d \t "
@@ -656,14 +656,14 @@ TEST_P(SSE_Sum_Test, DISABLED_Speed) {
 
 #if HAVE_SSE2
 TestSSE_SumFuncs sse_sum_sse2[] = { TestSSE_SumFuncs(
-    &aom_get_blk_sse_sum_c, &aom_get_blk_sse_sum_sse2) };
+    &avm_get_blk_sse_sum_c, &avm_get_blk_sse_sum_sse2) };
 INSTANTIATE_TEST_SUITE_P(SSE2, SSE_Sum_Test,
                          Combine(ValuesIn(sse_sum_sse2), Range(4, 65, 4)));
 #endif  // HAVE_SSE2
 
 #if HAVE_AVX2
 TestSSE_SumFuncs sse_sum_avx2[] = { TestSSE_SumFuncs(
-    &aom_get_blk_sse_sum_c, &aom_get_blk_sse_sum_avx2) };
+    &avm_get_blk_sse_sum_c, &avm_get_blk_sse_sum_avx2) };
 INSTANTIATE_TEST_SUITE_P(AVX2, SSE_Sum_Test,
                          Combine(ValuesIn(sse_sum_avx2), Range(4, 65, 4)));
 #endif  // HAVE_AVX2
@@ -673,7 +673,7 @@ INSTANTIATE_TEST_SUITE_P(AVX2, SSE_Sum_Test,
 //////////////////////////////////////////////////////////////////////////////
 
 typedef uint64_t (*Var2DFunc)(uint16_t *src, int stride, int width, int height);
-typedef libaom_test::FuncParam<Var2DFunc> TestFuncVar2D;
+typedef libavm_test::FuncParam<Var2DFunc> TestFuncVar2D;
 
 const uint16_t test_block_size[2] = { 128, 256 };
 
@@ -684,13 +684,13 @@ class Highbd2dVarTest : public ::testing::TestWithParam<TestFuncVar2D> {
     params_ = this->GetParam();
     rnd_.Reset(ACMRandom::DeterministicSeed());
     src_ = reinterpret_cast<uint16_t *>(
-        aom_memalign(16, 512 * 512 * sizeof(uint16_t)));
+        avm_memalign(16, 512 * 512 * sizeof(uint16_t)));
     ASSERT_TRUE(src_ != NULL);
   }
 
   virtual void TearDown() {
-    libaom_test::ClearSystemState();
-    aom_free(src_);
+    libavm_test::ClearSystemState();
+    avm_free(src_);
   }
   void RunTest(int isRandom);
   void RunSpeedTest();
@@ -762,21 +762,21 @@ void Highbd2dVarTest::RunSpeedTest() {
     }
     GenExtremeData(width, height, stride);
     const int num_loops = 1000000000 / (width + height);
-    aom_usec_timer timer;
-    aom_usec_timer_start(&timer);
+    avm_usec_timer timer;
+    avm_usec_timer_start(&timer);
 
     for (int i = 0; i < num_loops; ++i)
       params_.ref_func(src_, stride, width, height);
 
-    aom_usec_timer_mark(&timer);
-    const int elapsed_time = static_cast<int>(aom_usec_timer_elapsed(&timer));
+    avm_usec_timer_mark(&timer);
+    const int elapsed_time = static_cast<int>(avm_usec_timer_elapsed(&timer));
 
-    aom_usec_timer timer1;
-    aom_usec_timer_start(&timer1);
+    avm_usec_timer timer1;
+    avm_usec_timer_start(&timer1);
     for (int i = 0; i < num_loops; ++i)
       params_.tst_func(src_, stride, width, height);
-    aom_usec_timer_mark(&timer1);
-    const int elapsed_time1 = static_cast<int>(aom_usec_timer_elapsed(&timer1));
+    avm_usec_timer_mark(&timer1);
+    const int elapsed_time1 = static_cast<int>(avm_usec_timer_elapsed(&timer1));
     printf("%3dx%-3d: Scaling = %.2f\n", width, height,
            (double)elapsed_time / elapsed_time1);
   }
@@ -796,7 +796,7 @@ TEST_P(Highbd2dVarTest, DISABLED_Speed) { RunSpeedTest(); }
 
 INSTANTIATE_TEST_SUITE_P(
     SSE2, Highbd2dVarTest,
-    ::testing::Values(TestFuncVar2D(&aom_var_2d_u16_c, &aom_var_2d_u16_sse2)));
+    ::testing::Values(TestFuncVar2D(&avm_var_2d_u16_c, &avm_var_2d_u16_sse2)));
 
 #endif  // HAVE_SSE2
 
@@ -804,7 +804,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
     AVX2, Highbd2dVarTest,
-    ::testing::Values(TestFuncVar2D(&aom_var_2d_u16_c, &aom_var_2d_u16_avx2)));
+    ::testing::Values(TestFuncVar2D(&avm_var_2d_u16_c, &avm_var_2d_u16_avx2)));
 
 #endif  // HAVE_SSE2
 }  // namespace

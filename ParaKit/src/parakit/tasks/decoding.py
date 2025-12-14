@@ -55,7 +55,7 @@ def run(
         suffix = os.path.splitext(bitstream)[0] + "_" + test_output_tag
         decode_info.append(
             (
-                f"binaries/aomdec {path_bitstream}/{bitstream} --path-ctxdata={path_ctx_data} --suffix-ctxdata={suffix} -o /dev/null",
+                f"binaries/avmdec {path_bitstream}/{bitstream} --path-ctxdata={path_ctx_data} --suffix-ctxdata={suffix} -o /dev/null",
                 idx,
                 bitstream,
             )

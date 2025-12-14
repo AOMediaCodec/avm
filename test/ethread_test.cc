@@ -14,7 +14,7 @@
 #include <vector>
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
-#include "config/aom_config.h"
+#include "config/avm_config.h"
 
 #include "test/codec_factory.h"
 #include "test/encode_test_driver.h"
@@ -22,20 +22,20 @@
 #include "test/util.h"
 #include "test/y4m_video_source.h"
 #include "test/yuv_video_source.h"
-#include "av1/encoder/firstpass.h"
+#include "av2/encoder/firstpass.h"
 
 namespace {
 const size_t kFirstPassStatsSz = sizeof(FIRSTPASS_STATS);
 class AVxFirstPassEncoderThreadTest
-    : public ::libaom_test::CodecTestWith4Params<libaom_test::TestMode, int,
+    : public ::libavm_test::CodecTestWith4Params<libavm_test::TestMode, int,
                                                  int, int>,
-      public ::libaom_test::EncoderTest {
+      public ::libavm_test::EncoderTest {
  protected:
   AVxFirstPassEncoderThreadTest()
       : EncoderTest(GET_PARAM(0)), encoder_initialized_(false),
         encoding_mode_(GET_PARAM(1)), set_cpu_used_(GET_PARAM(2)),
         tile_rows_(GET_PARAM(3)), tile_cols_(GET_PARAM(4)) {
-    init_flags_ = AOM_CODEC_USE_PSNR;
+    init_flags_ = AVM_CODEC_USE_PSNR;
 
     row_mt_ = 1;
     firstpass_stats_.buf = NULL;
@@ -48,7 +48,7 @@ class AVxFirstPassEncoderThreadTest
     SetMode(encoding_mode_);
 
     cfg_.g_lag_in_frames = 35;
-    cfg_.rc_end_usage = AOM_Q;
+    cfg_.rc_end_usage = AVM_Q;
   }
 
   virtual void BeginPassHook(unsigned int /*pass*/) {
@@ -58,32 +58,32 @@ class AVxFirstPassEncoderThreadTest
 
   virtual void EndPassHook() {
     // For first pass stats test, only run first pass encoder.
-    if (cfg_.g_pass == AOM_RC_FIRST_PASS) abort_ = true;
+    if (cfg_.g_pass == AVM_RC_FIRST_PASS) abort_ = true;
   }
 
-  virtual void PreEncodeFrameHook(::libaom_test::VideoSource * /*video*/,
-                                  ::libaom_test::Encoder *encoder) {
+  virtual void PreEncodeFrameHook(::libavm_test::VideoSource * /*video*/,
+                                  ::libavm_test::Encoder *encoder) {
     if (!encoder_initialized_) {
       // Encode in 2-pass mode.
       SetTileSize(encoder);
-      encoder->Control(AV1E_SET_ROW_MT, row_mt_);
-      encoder->Control(AOME_SET_CPUUSED, set_cpu_used_);
-      encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
-      encoder->Control(AOME_SET_ARNR_MAXFRAMES, 7);
-      encoder->Control(AOME_SET_ARNR_STRENGTH, 5);
-      encoder->Control(AV1E_SET_FRAME_PARALLEL_DECODING, 0);
-      encoder->Control(AOME_SET_QP, 210);
+      encoder->Control(AV2E_SET_ROW_MT, row_mt_);
+      encoder->Control(AVME_SET_CPUUSED, set_cpu_used_);
+      encoder->Control(AVME_SET_ENABLEAUTOALTREF, 1);
+      encoder->Control(AVME_SET_ARNR_MAXFRAMES, 7);
+      encoder->Control(AVME_SET_ARNR_STRENGTH, 5);
+      encoder->Control(AV2E_SET_FRAME_PARALLEL_DECODING, 0);
+      encoder->Control(AVME_SET_QP, 210);
 
       encoder_initialized_ = true;
     }
   }
 
-  virtual void SetTileSize(libaom_test::Encoder *encoder) {
-    encoder->Control(AV1E_SET_TILE_COLUMNS, tile_cols_);
-    encoder->Control(AV1E_SET_TILE_ROWS, tile_rows_);
+  virtual void SetTileSize(libavm_test::Encoder *encoder) {
+    encoder->Control(AV2E_SET_TILE_COLUMNS, tile_cols_);
+    encoder->Control(AV2E_SET_TILE_ROWS, tile_rows_);
   }
 
-  virtual void StatsPktHook(const aom_codec_cx_pkt_t *pkt) {
+  virtual void StatsPktHook(const avm_codec_cx_pkt_t *pkt) {
     const uint8_t *const pkt_buf =
         reinterpret_cast<uint8_t *>(pkt->data.twopass_stats.buf);
     const size_t pkt_size = pkt->data.twopass_stats.sz;
@@ -100,20 +100,20 @@ class AVxFirstPassEncoderThreadTest
   }
 
   bool encoder_initialized_;
-  ::libaom_test::TestMode encoding_mode_;
+  ::libavm_test::TestMode encoding_mode_;
   int set_cpu_used_;
   int tile_rows_;
   int tile_cols_;
   int row_mt_;
-  aom_fixed_buf_t firstpass_stats_;
+  avm_fixed_buf_t firstpass_stats_;
 };
 
-static void compare_fp_stats_md5(aom_fixed_buf_t *fp_stats) {
+static void compare_fp_stats_md5(avm_fixed_buf_t *fp_stats) {
   // fp_stats consists of 2 set of first pass encoding stats. These 2 set of
   // stats are compared to check if the stats match.
   uint8_t *stats1 = reinterpret_cast<uint8_t *>(fp_stats->buf);
   uint8_t *stats2 = stats1 + fp_stats->sz / 2;
-  ::libaom_test::MD5 md5_row_mt_0, md5_row_mt_1;
+  ::libavm_test::MD5 md5_row_mt_0, md5_row_mt_1;
 
   md5_row_mt_0.Add(stats1, fp_stats->sz / 2);
   const char *md5_row_mt_0_str = md5_row_mt_0.Get();
@@ -127,8 +127,8 @@ static void compare_fp_stats_md5(aom_fixed_buf_t *fp_stats) {
 }
 
 TEST_P(AVxFirstPassEncoderThreadTest, FirstPassStatsTest) {
-  ::libaom_test::Y4mVideoSource video("niklas_1280_720_30.y4m", 0, 60);
-  aom_fixed_buf_t firstpass_stats;
+  ::libavm_test::Y4mVideoSource video("niklas_1280_720_30.y4m", 0, 60);
+  avm_fixed_buf_t firstpass_stats;
   size_t single_run_sz;
 
   // 5 encodes will be run:
@@ -148,7 +148,7 @@ TEST_P(AVxFirstPassEncoderThreadTest, FirstPassStatsTest) {
   cfg_.g_threads = 1;
 
   row_mt_ = 0;
-  init_flags_ = AOM_CODEC_USE_PSNR;
+  init_flags_ = AVM_CODEC_USE_PSNR;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 
   row_mt_ = 1;
@@ -198,17 +198,17 @@ TEST_P(AVxFirstPassEncoderThreadTest, FirstPassStatsTest) {
 }
 
 class AVxEncoderThreadTest
-    : public ::libaom_test::CodecTestWith5Params<libaom_test::TestMode, int,
+    : public ::libavm_test::CodecTestWith5Params<libavm_test::TestMode, int,
                                                  int, int, int>,
-      public ::libaom_test::EncoderTest {
+      public ::libavm_test::EncoderTest {
  protected:
   AVxEncoderThreadTest()
       : EncoderTest(GET_PARAM(0)), encoder_initialized_(false),
         encoding_mode_(GET_PARAM(1)), set_cpu_used_(GET_PARAM(2)),
         tile_cols_(GET_PARAM(3)), tile_rows_(GET_PARAM(4)),
         row_mt_(GET_PARAM(5)) {
-    init_flags_ = AOM_CODEC_USE_PSNR;
-    aom_codec_dec_cfg_t cfg = aom_codec_dec_cfg_t();
+    init_flags_ = AVM_CODEC_USE_PSNR;
+    avm_codec_dec_cfg_t cfg = avm_codec_dec_cfg_t();
     cfg.w = 1280;
     cfg.h = 720;
     decoder_ = codec_->CreateDecoder(cfg, 0);
@@ -224,49 +224,49 @@ class AVxEncoderThreadTest
     SetMode(encoding_mode_);
 
     cfg_.g_lag_in_frames = 5;
-    cfg_.rc_end_usage = AOM_Q;
+    cfg_.rc_end_usage = AVM_Q;
   }
 
   virtual void BeginPassHook(unsigned int /*pass*/) {
     encoder_initialized_ = false;
   }
 
-  virtual void PreEncodeFrameHook(::libaom_test::VideoSource * /*video*/,
-                                  ::libaom_test::Encoder *encoder) {
+  virtual void PreEncodeFrameHook(::libavm_test::VideoSource * /*video*/,
+                                  ::libavm_test::Encoder *encoder) {
     if (!encoder_initialized_) {
       SetTileSize(encoder);
-      encoder->Control(AOME_SET_CPUUSED, set_cpu_used_);
-      encoder->Control(AV1E_SET_ROW_MT, row_mt_);
-      encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
-      encoder->Control(AOME_SET_ARNR_MAXFRAMES, 7);
-      encoder->Control(AOME_SET_ARNR_STRENGTH, 5);
-      encoder->Control(AV1E_SET_FRAME_PARALLEL_DECODING, 0);
-      encoder->Control(AOME_SET_QP, 210);
+      encoder->Control(AVME_SET_CPUUSED, set_cpu_used_);
+      encoder->Control(AV2E_SET_ROW_MT, row_mt_);
+      encoder->Control(AVME_SET_ENABLEAUTOALTREF, 1);
+      encoder->Control(AVME_SET_ARNR_MAXFRAMES, 7);
+      encoder->Control(AVME_SET_ARNR_STRENGTH, 5);
+      encoder->Control(AV2E_SET_FRAME_PARALLEL_DECODING, 0);
+      encoder->Control(AVME_SET_QP, 210);
       encoder_initialized_ = true;
     }
   }
 
-  virtual void SetTileSize(libaom_test::Encoder *encoder) {
-    encoder->Control(AV1E_SET_TILE_COLUMNS, tile_cols_);
-    encoder->Control(AV1E_SET_TILE_ROWS, tile_rows_);
+  virtual void SetTileSize(libavm_test::Encoder *encoder) {
+    encoder->Control(AV2E_SET_TILE_COLUMNS, tile_cols_);
+    encoder->Control(AV2E_SET_TILE_ROWS, tile_rows_);
   }
 
-  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt,
-                            ::libaom_test::DxDataIterator *dec_iter) {
+  virtual void FramePktHook(const avm_codec_cx_pkt_t *pkt,
+                            ::libavm_test::DxDataIterator *dec_iter) {
     size_enc_.push_back(pkt->data.frame.sz);
 
-    ::libaom_test::MD5 md5_enc;
+    ::libavm_test::MD5 md5_enc;
     md5_enc.Add(reinterpret_cast<uint8_t *>(pkt->data.frame.buf),
                 pkt->data.frame.sz);
     md5_enc_.push_back(md5_enc.Get());
 
-    const aom_image_t *img;
-    if (pkt->kind == AOM_CODEC_CX_FRAME_PKT) {
-      const aom_codec_err_t res = decoder_->DecodeFrame(
+    const avm_image_t *img;
+    if (pkt->kind == AVM_CODEC_CX_FRAME_PKT) {
+      const avm_codec_err_t res = decoder_->DecodeFrame(
           reinterpret_cast<uint8_t *>(pkt->data.frame.buf), pkt->data.frame.sz);
-      if (res != AOM_CODEC_OK) {
+      if (res != AVM_CODEC_OK) {
         abort_ = true;
-        ASSERT_EQ(AOM_CODEC_OK, res);
+        ASSERT_EQ(AVM_CODEC_OK, res);
       }
       img = decoder_->GetDxData().Next();
     } else {
@@ -275,20 +275,20 @@ class AVxEncoderThreadTest
     }
 
     if (img) {
-      ::libaom_test::MD5 md5_res;
+      ::libavm_test::MD5 md5_res;
       md5_res.Add(img);
       md5_dec_.push_back(md5_res.Get());
     }
   }
 
   void DoTest() {
-    ::libaom_test::YUVVideoSource video(
-        "niklas_640_480_30.yuv", AOM_IMG_FMT_I420, 640, 480, 30, 1, 15, 21);
+    ::libavm_test::YUVVideoSource video(
+        "niklas_640_480_30.yuv", AVM_IMG_FMT_I420, 640, 480, 30, 1, 15, 21);
 
     if (row_mt_ == 0) {
       // Encode using single thread.
       cfg_.g_threads = 1;
-      init_flags_ = AOM_CODEC_USE_PSNR;
+      init_flags_ = AVM_CODEC_USE_PSNR;
       ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
       std::vector<size_t> single_thr_size_enc;
       std::vector<std::string> single_thr_md5_enc;
@@ -374,12 +374,12 @@ class AVxEncoderThreadTest
     }
   }
 
-  virtual void DoTestMaxThreads(::libaom_test::YUVVideoSource *video,
+  virtual void DoTestMaxThreads(::libavm_test::YUVVideoSource *video,
                                 const std::vector<size_t> ref_size_enc,
                                 const std::vector<std::string> ref_md5_enc,
                                 const std::vector<std::string> ref_md5_dec) {
     // This value should be kept the same as MAX_NUM_THREADS
-    // in aom_thread.h
+    // in avm_thread.h
     cfg_.g_threads = 64;
     ASSERT_NO_FATAL_FAILURE(RunLoop(video));
     std::vector<size_t> multi_thr_max_row_mt_size_enc;
@@ -399,12 +399,12 @@ class AVxEncoderThreadTest
   }
 
   bool encoder_initialized_;
-  ::libaom_test::TestMode encoding_mode_;
+  ::libavm_test::TestMode encoding_mode_;
   int set_cpu_used_;
   int tile_cols_;
   int tile_rows_;
   int row_mt_;
-  ::libaom_test::Decoder *decoder_;
+  ::libavm_test::Decoder *decoder_;
   std::vector<size_t> size_enc_;
   std::vector<std::string> md5_enc_;
   std::vector<std::string> md5_dec_;
@@ -422,8 +422,8 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AVxEncoderThreadTest);
 // Test cpu_used 0, 1, 3 and 5.
 // TODO(urvang): Once https://gitlab.com/AOMediaCodec/avm/-/issues/79 is fixed,
 // change last parameter back to (0, 1) to re-enable unit tests with row-mt = 1.
-AV1_INSTANTIATE_TEST_SUITE(AVxEncoderThreadTestLarge,
-                           ::testing::Values(::libaom_test::kOnePassGood),
+AV2_INSTANTIATE_TEST_SUITE(AVxEncoderThreadTestLarge,
+                           ::testing::Values(::libavm_test::kOnePassGood),
                            ::testing::Values(0, 1, 3, 5),
                            ::testing::Values(1, 6), ::testing::Values(1, 6),
                            ::testing::Values(0));

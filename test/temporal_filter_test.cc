@@ -17,19 +17,19 @@
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
-#include "config/aom_config.h"
-#include "config/aom_dsp_rtcd.h"
-#include "config/av1_rtcd.h"
+#include "config/avm_config.h"
+#include "config/avm_dsp_rtcd.h"
+#include "config/av2_rtcd.h"
 
-#include "aom_ports/mem.h"
+#include "avm_ports/mem.h"
 #include "test/acm_random.h"
 #include "test/clear_system_state.h"
 #include "test/register_state_check.h"
 #include "test/util.h"
 #include "test/function_equivalence_test.h"
 
-using libaom_test::ACMRandom;
-using libaom_test::FunctionEquivalenceTest;
+using libavm_test::ACMRandom;
+using libavm_test::FunctionEquivalenceTest;
 using ::testing::Combine;
 using ::testing::Range;
 using ::testing::Values;
@@ -43,7 +43,7 @@ typedef void (*HBDTemporalFilterFunc)(
     const int num_planes, const double *noise_level, const MV *subblock_mvs,
     const int *subblock_mses, const int q_factor, const int filter_strenght,
     const uint16_t *pred, uint32_t *accum, uint16_t *count);
-typedef libaom_test::FuncParam<HBDTemporalFilterFunc>
+typedef libavm_test::FuncParam<HBDTemporalFilterFunc>
     HBDTemporalFilterFuncParam;
 
 typedef std::tuple<HBDTemporalFilterFuncParam, int> HBDTemporalFilterWithParam;
@@ -55,17 +55,17 @@ class HBDTemporalFilterTest
   virtual void SetUp() {
     params_ = GET_PARAM(0);
     rnd_.Reset(ACMRandom::DeterministicSeed());
-    src1_ = reinterpret_cast<uint16_t *>(aom_memalign(16, 256 * 256));
-    src2_ = reinterpret_cast<uint16_t *>(aom_memalign(16, 256 * 256));
+    src1_ = reinterpret_cast<uint16_t *>(avm_memalign(16, 256 * 256));
+    src2_ = reinterpret_cast<uint16_t *>(avm_memalign(16, 256 * 256));
 
     ASSERT_TRUE(src1_ != NULL);
     ASSERT_TRUE(src2_ != NULL);
   }
 
   virtual void TearDown() {
-    libaom_test::ClearSystemState();
-    aom_free(src1_);
-    aom_free(src2_);
+    libavm_test::ClearSystemState();
+    avm_free(src1_);
+    avm_free(src2_);
   }
   void RunTest(int isRandom, int width, int height, int run_times, int bd);
 
@@ -117,7 +117,7 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(HBDTemporalFilterTest);
 
 void HBDTemporalFilterTest::RunTest(int isRandom, int width, int height,
                                     int run_times, int BD) {
-  aom_usec_timer ref_timer, test_timer;
+  avm_usec_timer ref_timer, test_timer;
   for (int k = 0; k < 3; k++) {
     const int stride = width;
     const int stride2 = width;
@@ -175,25 +175,25 @@ void HBDTemporalFilterTest::RunTest(int isRandom, int width, int height,
                      filter_strength, src2_, accumulator_mod, count_mod);
 
     if (run_times > 1) {
-      aom_usec_timer_start(&ref_timer);
+      avm_usec_timer_start(&ref_timer);
       for (int j = 0; j < run_times; j++) {
         params_.ref_func(ref_frame, mbd, block_size, mb_row, mb_col, num_planes,
                          sigma, subblock_mvs, subblock_mses, q_factor,
                          filter_strength, src2_, accumulator_ref, count_ref);
       }
-      aom_usec_timer_mark(&ref_timer);
+      avm_usec_timer_mark(&ref_timer);
       const int elapsed_time_c =
-          static_cast<int>(aom_usec_timer_elapsed(&ref_timer));
+          static_cast<int>(avm_usec_timer_elapsed(&ref_timer));
 
-      aom_usec_timer_start(&test_timer);
+      avm_usec_timer_start(&test_timer);
       for (int j = 0; j < run_times; j++) {
         params_.tst_func(ref_frame, mbd, block_size, mb_row, mb_col, num_planes,
                          sigma, subblock_mvs, subblock_mses, q_factor,
                          filter_strength, src2_, accumulator_mod, count_mod);
       }
-      aom_usec_timer_mark(&test_timer);
+      avm_usec_timer_mark(&test_timer);
       const int elapsed_time_simd =
-          static_cast<int>(aom_usec_timer_elapsed(&test_timer));
+          static_cast<int>(avm_usec_timer_elapsed(&test_timer));
 
       printf(
           "c_time=%d \t simd_time=%d \t "

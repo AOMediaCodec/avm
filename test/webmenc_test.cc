@@ -22,7 +22,7 @@ class WebmencTest : public ::testing::Test {};
 
 // All of these variations on output should be identical.
 TEST(WebmencTest, ExtractEncoderSettingsOutput1) {
-  const char *argv[] = { "aomenc", "-o", "output", "input",
+  const char *argv[] = { "avmenc", "-o", "output", "input",
                          "--target-bitrate=300" };
   int argc = 5;
   const std::string expected("version:1.2.3 --target-bitrate=300");
@@ -32,7 +32,7 @@ TEST(WebmencTest, ExtractEncoderSettingsOutput1) {
 }
 
 TEST(WebmencTest, ExtractEncoderSettingsOutput2) {
-  const char *argv[] = { "aomenc", "--output", "bar", "foo", "--cpu-used=3" };
+  const char *argv[] = { "avmenc", "--output", "bar", "foo", "--cpu-used=3" };
   int argc = 5;
   const std::string expected("version:abc --cpu-used=3");
   char *result = extract_encoder_settings("abc", argv, argc, "foo");
@@ -41,7 +41,7 @@ TEST(WebmencTest, ExtractEncoderSettingsOutput2) {
 }
 
 TEST(WebmencTest, ExtractEncoderSettingsOutput3) {
-  const char *argv[] = { "aomenc", "--qp=255", "--end-usage=q", "--output=foo",
+  const char *argv[] = { "avmenc", "--qp=255", "--end-usage=q", "--output=foo",
                          "baz" };
   int argc = 5;
   const std::string expected("version:23 --qp=255 --end-usage=q");
@@ -52,7 +52,7 @@ TEST(WebmencTest, ExtractEncoderSettingsOutput3) {
 
 TEST(WebmencTest, ExtractEncoderSettingsInput) {
   // Check that input filename is filtered regardless of position.
-  const char *argv[] = { "aomenc", "-o", "out", "input", "-p", "2" };
+  const char *argv[] = { "avmenc", "-o", "out", "input", "-p", "2" };
   int argc = 6;
   const char version[] = "1.0.0";
   const std::string expected("version:1.0.0 -p 2");
@@ -60,7 +60,7 @@ TEST(WebmencTest, ExtractEncoderSettingsInput) {
   ASSERT_EQ(expected, std::string(result));
   free(result);
 
-  const char *argv2[] = { "aomenc", "input", "-o", "out", "-p", "2" };
+  const char *argv2[] = { "avmenc", "input", "-o", "out", "-p", "2" };
   result = extract_encoder_settings(version, argv2, argc, "input");
   ASSERT_EQ(expected, std::string(result));
   free(result);

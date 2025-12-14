@@ -773,12 +773,12 @@ bool Track::Write(IMkvWriter* writer) const {
   if (!type_ || !codec_id_)
     return false;
 
-  // AV1 tracks require a CodecPrivate. See
-  // https://github.com/Matroska-Org/matroska-specification/blob/av1-mappin/codec/av1.md
-  // TODO(tomfinegan): Update the above link to the AV1 Matroska mappings to
+  // AV2 tracks require a CodecPrivate. See
+  // https://github.com/Matroska-Org/matroska-specification/blob/av2-mappin/codec/av2.md
+  // TODO(tomfinegan): Update the above link to the AV2 Matroska mappings to
   // point to a stable version once it is finalized, or our own WebM mappings
   // page on webmproject.org should we decide to release them.
-  if (!strcmp(codec_id_, Tracks::kAv1CodecId) && !codec_private_)
+  if (!strcmp(codec_id_, Tracks::kAv2CodecId) && !codec_private_)
     return false;
 
   // |size| may be bigger than what is written out in this function because
@@ -1730,7 +1730,7 @@ bool AudioTrack::Write(IMkvWriter* writer) const {
 
 const char Tracks::kOpusCodecId[] = "A_OPUS";
 const char Tracks::kVorbisCodecId[] = "A_VORBIS";
-const char Tracks::kAv1CodecId[] = "V_AV1";
+const char Tracks::kAv2CodecId[] = "V_AV2";
 const char Tracks::kVp8CodecId[] = "V_VP8";
 const char Tracks::kVp9CodecId[] = "V_VP9";
 const char Tracks::kWebVttCaptionsId[] = "D_WEBVTT/CAPTIONS";
@@ -4193,7 +4193,7 @@ bool Segment::DocTypeIsWebm() const {
   // TODO(vigneshv): Tweak .clang-format.
   const char* kWebmCodecIds[kNumCodecIds] = {
       Tracks::kOpusCodecId,          Tracks::kVorbisCodecId,
-      Tracks::kAv1CodecId,           Tracks::kVp8CodecId,
+      Tracks::kAv2CodecId,           Tracks::kVp8CodecId,
       Tracks::kVp9CodecId,           Tracks::kWebVttCaptionsId,
       Tracks::kWebVttDescriptionsId, Tracks::kWebVttMetadataId,
       Tracks::kWebVttSubtitlesId};

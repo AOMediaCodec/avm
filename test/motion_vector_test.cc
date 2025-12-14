@@ -24,8 +24,8 @@ namespace {
 #define MIN_EXTREME_MV 2
 
 // Encoding modes
-const libaom_test::TestMode kEncodingModeVectors[] = {
-  ::libaom_test::kOnePassGood,
+const libavm_test::TestMode kEncodingModeVectors[] = {
+  ::libavm_test::kOnePassGood,
 };
 
 // Encoding speeds
@@ -35,9 +35,9 @@ const int kCpuUsedVectors[] = { 5 };
 const int kMVTestModes[] = { MAX_EXTREME_MV, MIN_EXTREME_MV };
 
 class MotionVectorTestLarge
-    : public ::libaom_test::CodecTestWith3Params<libaom_test::TestMode, int,
+    : public ::libavm_test::CodecTestWith3Params<libavm_test::TestMode, int,
                                                  int>,
-      public ::libaom_test::EncoderTest {
+      public ::libavm_test::EncoderTest {
  protected:
   MotionVectorTestLarge()
       : EncoderTest(GET_PARAM(0)), encoding_mode_(GET_PARAM(1)),
@@ -49,21 +49,21 @@ class MotionVectorTestLarge
     InitializeConfig();
     SetMode(encoding_mode_);
     cfg_.g_lag_in_frames = 3;
-    cfg_.rc_end_usage = AOM_VBR;
+    cfg_.rc_end_usage = AVM_VBR;
   }
 
-  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
-                                  ::libaom_test::Encoder *encoder) {
+  virtual void PreEncodeFrameHook(::libavm_test::VideoSource *video,
+                                  ::libavm_test::Encoder *encoder) {
     if (video->frame() == 0) {
-      encoder->Control(AOME_SET_CPUUSED, cpu_used_);
-      encoder->Control(AV1E_ENABLE_MOTION_VECTOR_UNIT_TEST, mv_test_mode_);
-      encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
-      encoder->Control(AOME_SET_ARNR_MAXFRAMES, 7);
-      encoder->Control(AOME_SET_ARNR_STRENGTH, 5);
+      encoder->Control(AVME_SET_CPUUSED, cpu_used_);
+      encoder->Control(AV2E_ENABLE_MOTION_VECTOR_UNIT_TEST, mv_test_mode_);
+      encoder->Control(AVME_SET_ENABLEAUTOALTREF, 1);
+      encoder->Control(AVME_SET_ARNR_MAXFRAMES, 7);
+      encoder->Control(AVME_SET_ARNR_STRENGTH, 5);
     }
   }
 
-  libaom_test::TestMode encoding_mode_;
+  libavm_test::TestMode encoding_mode_;
   int cpu_used_;
   int mv_test_mode_;
 };
@@ -80,17 +80,17 @@ TEST_P(MotionVectorTestLarge, OverallTest) {
 
   cfg_.rc_target_bitrate = 24000;
   cfg_.g_profile = 0;
-  init_flags_ = AOM_CODEC_USE_PSNR;
+  init_flags_ = AVM_CODEC_USE_PSNR;
 
-  std::unique_ptr<libaom_test::VideoSource> video;
-  video.reset(new libaom_test::YUVVideoSource(
-      "niklas_640_480_30.yuv", AOM_IMG_FMT_I420, width, height, 30, 1, 0, 3));
+  std::unique_ptr<libavm_test::VideoSource> video;
+  video.reset(new libavm_test::YUVVideoSource(
+      "niklas_640_480_30.yuv", AVM_IMG_FMT_I420, width, height, 30, 1, 0, 3));
 
   ASSERT_TRUE(video.get() != NULL);
   ASSERT_NO_FATAL_FAILURE(RunLoop(video.get()));
 }
 
-AV1_INSTANTIATE_TEST_SUITE(MotionVectorTestLarge,
+AV2_INSTANTIATE_TEST_SUITE(MotionVectorTestLarge,
                            ::testing::ValuesIn(kEncodingModeVectors),
                            ::testing::ValuesIn(kCpuUsedVectors),
                            ::testing::ValuesIn(kMVTestModes));

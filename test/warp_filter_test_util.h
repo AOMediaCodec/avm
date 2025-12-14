@@ -10,13 +10,13 @@
  * aomedia.org/license/patent-license/.
  */
 
-#ifndef AOM_TEST_WARP_FILTER_TEST_UTIL_H_
-#define AOM_TEST_WARP_FILTER_TEST_UTIL_H_
+#ifndef AVM_TEST_WARP_FILTER_TEST_UTIL_H_
+#define AVM_TEST_WARP_FILTER_TEST_UTIL_H_
 
 #include <tuple>
 
-#include "config/av1_rtcd.h"
-#include "config/aom_dsp_rtcd.h"
+#include "config/av2_rtcd.h"
+#include "config/avm_dsp_rtcd.h"
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 #include "test/acm_random.h"
@@ -24,22 +24,22 @@
 #include "test/clear_system_state.h"
 #include "test/register_state_check.h"
 
-#include "av1/common/mv.h"
-#include "av1/common/common_data.h"
-#include "av1/common/reconinter.h"
+#include "av2/common/mv.h"
+#include "av2/common/common_data.h"
+#include "av2/common/reconinter.h"
 
-namespace libaom_test {
+namespace libavm_test {
 
-void generate_warped_model(libaom_test::ACMRandom *rnd, int32_t *mat,
+void generate_warped_model(libavm_test::ACMRandom *rnd, int32_t *mat,
                            int16_t *alpha, int16_t *beta, int16_t *gamma,
                            int16_t *delta, int is_alpha_zero, int is_beta_zero,
                            int is_gamma_zero, int is_delta_zero);
-void generate_ref_area_limits(libaom_test::ACMRandom *rnd,
+void generate_ref_area_limits(libavm_test::ACMRandom *rnd,
                               ReferenceArea *ref_area, int w, int h, int out_w,
                               int out_h, int p_row, int p_col, int *mat,
                               int use_ref_area_pad);
 
-namespace AV1WarpFilter {
+namespace AV2WarpFilter {
 
 typedef void (*warp_affine_func)(const int32_t *mat, const uint8_t *ref,
                                  int width, int height, int stride,
@@ -55,9 +55,9 @@ typedef std::tuple<WarpTestParam, int, int, int, int> WarpTestParams;
 ::testing::internal::ParamGenerator<WarpTestParams> BuildParams(
     warp_affine_func filter);
 
-class AV1WarpFilterTest : public ::testing::TestWithParam<WarpTestParams> {
+class AV2WarpFilterTest : public ::testing::TestWithParam<WarpTestParams> {
  public:
-  virtual ~AV1WarpFilterTest();
+  virtual ~AV2WarpFilterTest();
   virtual void SetUp();
 
   virtual void TearDown();
@@ -66,12 +66,12 @@ class AV1WarpFilterTest : public ::testing::TestWithParam<WarpTestParams> {
   void RunCheckOutput(warp_affine_func test_impl);
   void RunSpeedTest(warp_affine_func test_impl);
 
-  libaom_test::ACMRandom rnd_;
+  libavm_test::ACMRandom rnd_;
 };
 
-}  // namespace AV1WarpFilter
+}  // namespace AV2WarpFilter
 
-namespace AV1HighbdWarpFilter {
+namespace AV2HighbdWarpFilter {
 typedef void (*highbd_warp_affine_func)(const int32_t *mat, const uint16_t *ref,
                                         int width, int height, int stride,
                                         uint16_t *pred, int p_col, int p_row,
@@ -89,10 +89,10 @@ typedef std::tuple<HighbdWarpTestParam, int, int, int, int>
 ::testing::internal::ParamGenerator<HighbdWarpTestParams> BuildParams(
     highbd_warp_affine_func filter);
 
-class AV1HighbdWarpFilterTest
+class AV2HighbdWarpFilterTest
     : public ::testing::TestWithParam<HighbdWarpTestParams> {
  public:
-  virtual ~AV1HighbdWarpFilterTest();
+  virtual ~AV2HighbdWarpFilterTest();
   virtual void SetUp();
 
   virtual void TearDown();
@@ -101,12 +101,12 @@ class AV1HighbdWarpFilterTest
   void RunCheckOutput(highbd_warp_affine_func test_impl);
   void RunSpeedTest(highbd_warp_affine_func test_impl);
 
-  libaom_test::ACMRandom rnd_;
+  libavm_test::ACMRandom rnd_;
 };
 
-}  // namespace AV1HighbdWarpFilter
+}  // namespace AV2HighbdWarpFilter
 
-namespace AV1ExtHighbdWarpFilter {
+namespace AV2ExtHighbdWarpFilter {
 typedef void (*ext_highbd_warp_affine_func)(
     const int32_t *mat, const uint16_t *ref, int width, int height, int stride,
     uint16_t *pred, int p_col, int p_row, int p_width, int p_height,
@@ -121,10 +121,10 @@ typedef ::testing::tuple<ExtHighbdWarpTestParam, int, int, int, int>
 ::testing::internal::ParamGenerator<ExtHighbdWarpTestParams> BuildParams(
     ext_highbd_warp_affine_func filter);
 
-class AV1ExtHighbdWarpFilterTest
+class AV2ExtHighbdWarpFilterTest
     : public ::testing::TestWithParam<ExtHighbdWarpTestParams> {
  public:
-  virtual ~AV1ExtHighbdWarpFilterTest();
+  virtual ~AV2ExtHighbdWarpFilterTest();
   virtual void SetUp();
 
   virtual void TearDown();
@@ -133,10 +133,10 @@ class AV1ExtHighbdWarpFilterTest
   void RunCheckOutput(ext_highbd_warp_affine_func test_impl);
   void RunSpeedTest(ext_highbd_warp_affine_func test_impl);
 
-  libaom_test::ACMRandom rnd_;
+  libavm_test::ACMRandom rnd_;
 };
 
-}  // namespace AV1ExtHighbdWarpFilter
-}  // namespace libaom_test
+}  // namespace AV2ExtHighbdWarpFilter
+}  // namespace libavm_test
 
-#endif  // AOM_TEST_WARP_FILTER_TEST_UTIL_H_
+#endif  // AVM_TEST_WARP_FILTER_TEST_UTIL_H_

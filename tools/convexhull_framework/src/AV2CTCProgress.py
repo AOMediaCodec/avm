@@ -65,83 +65,83 @@ csv_paths = {
     "v01.0.0": [
         "v1.0.0",
         "av2",
-        "aom",
+        "avm",
         "0",
         os.path.join(CTC_RESULT_PATH, "AV2-CTC-v1.0.0-alt-anchor-r3.0"),
     ],
-    # "libaom-v3.12.0": [
+    # "libavm-v3.12.0": [
     #    "v3.12.0",
-    #    "av1",
-    #    "aom",
+    #    "av2",
+    #    "avm",
     #    "0",
-    #    os.path.join(CTC_RESULT_PATH, "AV1-CTC-v3.12.0-constrained"),
+    #    os.path.join(CTC_RESULT_PATH, "AV2-CTC-v3.12.0-constrained"),
     # ],
-    # "libaom-v3.12.0-unconstrained": [
-    #    "av1",
-    #    "aom",
+    # "libavm-v3.12.0-unconstrained": [
+    #    "av2",
+    #    "avm",
     #    "0",
-    #    os.path.join(CTC_RESULT_PATH, "AV1-CTC-v3.12.0-unconstrained"),
+    #    os.path.join(CTC_RESULT_PATH, "AV2-CTC-v3.12.0-unconstrained"),
     # ],
     "v02.0.0": [
         "v2.0.0",
         "av2",
-        "aom",
+        "avm",
         "0",
         os.path.join(CTC_RESULT_PATH, "AV2-CTC-v2.0.0"),
     ],
     "v03.0.0": [
         "v3.0.0",
         "av2",
-        "aom",
+        "avm",
         "0",
         os.path.join(CTC_RESULT_PATH, "AV2-CTC-v3.0.0"),
     ],
     "v04.0.0": [
         "v4.0.0",
         "av2",
-        "aom",
+        "avm",
         "0",
         os.path.join(CTC_RESULT_PATH, "AV2-CTC-v4.0.0"),
     ],
     "v05.0.0": [
         "v5.0.0",
         "av2",
-        "aom",
+        "avm",
         "0",
         os.path.join(CTC_RESULT_PATH, "AV2-CTC-v5.0.0"),
     ],
     "v06.0.0": [
         "v6.0.0",
         "av2",
-        "aom",
+        "avm",
         "0",
         os.path.join(CTC_RESULT_PATH, "AV2-CTC-v6.0.0"),
     ],
     "v07.0.0": [
         "v7.0.0",
         "av2",
-        "aom",
+        "avm",
         "0",
         os.path.join(CTC_RESULT_PATH, "AV2-CTC-v7.0.0"),
     ],
     "v08.0.0": [
         "v8.0.0",
         "av2",
-        "aom",
+        "avm",
         "0",
         os.path.join(CTC_RESULT_PATH, "AV2-CTC-v8.0.0"),
     ],
     "v09.0.0": [
         "v9.0.0",
         "av2",
-        "aom",
+        "avm",
         "0",
         os.path.join(CTC_RESULT_PATH, "AV2-CTC-v9.0.0"),
     ],
     "v10.0.0": [
         "v10.0.0",
         "av2",
-        "aom",
+        "avm",
         "0",
         os.path.join(CTC_RESULT_PATH, "AV2-CTC-v10.0.0"),
     ],
@@ -166,8 +166,8 @@ formats = {
     "v06.0.0": ["y", "-.", "o"],
     "v07.0.0": ["k", ":", "+"],
     "v08.0.0": ["w", ":", "^"],
-    # "libaom-v3.12.0": ["r", "--", "<"],
-    # "libaom-v3.12.0-unconstrained": ["g", "--", "<"],
+    # "libavm-v3.12.0": ["r", "--", "<"],
+    # "libavm-v3.12.0-unconstrained": ["g", "--", "<"],
     "v09.0.0": ["b", "-.", "^"],
     "v10.0.0": ["c", "-.", "+"],
 }
@@ -185,24 +185,24 @@ anchor = "v01.0.0"
 rd_curve_pdf = os.path.join(CTC_RESULT_PATH, "rdcurve.pdf")
 combined_rd_curve_pdf = os.path.join(CTC_RESULT_PATH, "combined_rdcurve.pdf")
 combined_runtime_pdf = os.path.join(CTC_RESULT_PATH, "combined_runtime.pdf")
-bdrate_summary = os.path.join(CTC_RESULT_PATH, "Bdrate-Summary-AV1-vs-AV2.csv")
+bdrate_summary = os.path.join(CTC_RESULT_PATH, "Bdrate-Summary-AV2-vs-AV2.csv")
 avg_bdrate_by_tag_class = os.path.join(
-    CTC_RESULT_PATH, "AverageBdrateByTagClass-Summary-AV1-vs-AV2.csv"
+    CTC_RESULT_PATH, "AverageBdrateByTagClass-Summary-AV2-vs-AV2.csv"
 )
 avg_bdrate_by_tag = os.path.join(
-    CTC_RESULT_PATH, "AverageBdrateByTag-Summary-AV1-vs-AV2.csv"
+    CTC_RESULT_PATH, "AverageBdrateByTag-Summary-AV2-vs-AV2.csv"
 )
 per_video_bdrate = os.path.join(
-    CTC_RESULT_PATH, "PerVideoBdrate-Summary-AV1-vs-AV2.csv"
+    CTC_RESULT_PATH, "PerVideoBdrate-Summary-AV2-vs-AV2.csv"
 )
 avg_bdrate_by_tag_pdf = os.path.join(
-    CTC_RESULT_PATH, "AverageBdrateByTag-Summary-AV1-vs-AV2.pdf"
+    CTC_RESULT_PATH, "AverageBdrateByTag-Summary-AV2-vs-AV2.pdf"
 )
 avg_bdrate_by_tag_class_pdf = os.path.join(
-    CTC_RESULT_PATH, "AverageBdrateByTagClass-Summary-AV1-vs-AV2.pdf"
+    CTC_RESULT_PATH, "AverageBdrateByTagClass-Summary-AV2-vs-AV2.pdf"
 )
 per_video_bdrate_by_tag_class_pdf = os.path.join(
-    CTC_RESULT_PATH, "PerVideoBdrate-Summary-AV1-vs-AV2.pdf"
+    CTC_RESULT_PATH, "PerVideoBdrate-Summary-AV2-vs-AV2.pdf"
 )
 colors = cycle("bgrycmkw")
 markers = cycle("o*^+<x>.")

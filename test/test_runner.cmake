@@ -10,16 +10,16 @@
 #
 if(NOT GTEST_TOTAL_SHARDS
    OR "${GTEST_SHARD_INDEX}" STREQUAL ""
-   OR NOT TEST_LIBAOM)
+   OR NOT TEST_LIBAVM)
   message(
     FATAL_ERROR
-      "The variables GTEST_SHARD_INDEX, GTEST_TOTAL_SHARDS and TEST_LIBAOM
+      "The variables GTEST_SHARD_INDEX, GTEST_TOTAL_SHARDS and TEST_LIBAVM
           must be defined.")
 endif()
 
 set($ENV{GTEST_SHARD_INDEX} ${GTEST_SHARD_INDEX})
 set($ENV{GTEST_TOTAL_SHARDS} ${GTEST_TOTAL_SHARDS})
-execute_process(COMMAND ${TEST_LIBAOM} RESULT_VARIABLE test_result)
+execute_process(COMMAND ${TEST_LIBAVM} RESULT_VARIABLE test_result)
 set(test_message "Test shard ${GTEST_SHARD_INDEX}/${GTEST_TOTAL_SHARDS} result")
 message("${test_message}: ${test_result}")
 

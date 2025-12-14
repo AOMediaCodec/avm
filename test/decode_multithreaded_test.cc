@@ -14,7 +14,7 @@
 #include <cstdlib>
 #include <string>
 
-#include "aom_mem/aom_mem.h"
+#include "avm_mem/avm_mem.h"
 #include "test/codec_factory.h"
 #include "test/encode_test_driver.h"
 #include "test/i420_video_source.h"
@@ -26,17 +26,17 @@ namespace {
 
 static const int kNumMultiThreadDecoders = 3;
 
-class AV1DecodeMultiThreadedTest
-    : public ::libaom_test::CodecTestWith5Params<int, int, int, int, int>,
-      public ::libaom_test::EncoderTest {
+class AV2DecodeMultiThreadedTest
+    : public ::libavm_test::CodecTestWith5Params<int, int, int, int, int>,
+      public ::libavm_test::EncoderTest {
  protected:
-  AV1DecodeMultiThreadedTest()
+  AV2DecodeMultiThreadedTest()
       : EncoderTest(GET_PARAM(0)), md5_single_thread_(), md5_multi_thread_(),
         n_tile_cols_(GET_PARAM(1)), n_tile_rows_(GET_PARAM(2)),
         n_tile_groups_(GET_PARAM(3)), set_cpu_used_(GET_PARAM(4)),
         row_mt_(GET_PARAM(5)) {
-    init_flags_ = AOM_CODEC_USE_PSNR;
-    aom_codec_dec_cfg_t cfg = aom_codec_dec_cfg_t();
+    init_flags_ = AVM_CODEC_USE_PSNR;
+    avm_codec_dec_cfg_t cfg = avm_codec_dec_cfg_t();
     cfg.w = 352;
     cfg.h = 288;
     cfg.threads = 1;
@@ -46,11 +46,11 @@ class AV1DecodeMultiThreadedTest
     for (int i = 0; i < kNumMultiThreadDecoders; ++i) {
       cfg.threads <<= 1;
       multi_thread_dec_[i] = codec_->CreateDecoder(cfg, 0);
-      multi_thread_dec_[i]->Control(AV1D_SET_ROW_MT, row_mt_);
+      multi_thread_dec_[i]->Control(AV2D_SET_ROW_MT, row_mt_);
     }
   }
 
-  virtual ~AV1DecodeMultiThreadedTest() {
+  virtual ~AV2DecodeMultiThreadedTest() {
     delete single_thread_dec_;
     for (int i = 0; i < kNumMultiThreadDecoders; ++i)
       delete multi_thread_dec_[i];
@@ -58,30 +58,30 @@ class AV1DecodeMultiThreadedTest
 
   virtual void SetUp() {
     InitializeConfig();
-    SetMode(libaom_test::kOnePassGood);
+    SetMode(libavm_test::kOnePassGood);
   }
 
-  virtual void PreEncodeFrameHook(libaom_test::VideoSource *video,
-                                  libaom_test::Encoder *encoder) {
+  virtual void PreEncodeFrameHook(libavm_test::VideoSource *video,
+                                  libavm_test::Encoder *encoder) {
     if (video->frame() == 0) {
-      encoder->Control(AV1E_SET_TILE_COLUMNS, n_tile_cols_);
-      encoder->Control(AV1E_SET_TILE_ROWS, n_tile_rows_);
-      encoder->Control(AV1E_SET_NUM_TG, n_tile_groups_);
-      encoder->Control(AOME_SET_CPUUSED, set_cpu_used_);
-      encoder->Control(AOME_SET_QP, 210);
+      encoder->Control(AV2E_SET_TILE_COLUMNS, n_tile_cols_);
+      encoder->Control(AV2E_SET_TILE_ROWS, n_tile_rows_);
+      encoder->Control(AV2E_SET_NUM_TG, n_tile_groups_);
+      encoder->Control(AVME_SET_CPUUSED, set_cpu_used_);
+      encoder->Control(AVME_SET_QP, 210);
     }
   }
 
-  void UpdateMD5(::libaom_test::Decoder *dec, const aom_codec_cx_pkt_t *pkt,
-                 ::libaom_test::MD5 *md5,
-                 ::libaom_test::DxDataIterator *dec_iter) {
-    const aom_image_t *img;
-    if (pkt->kind == AOM_CODEC_CX_FRAME_PKT) {
-      const aom_codec_err_t res = dec->DecodeFrame(
+  void UpdateMD5(::libavm_test::Decoder *dec, const avm_codec_cx_pkt_t *pkt,
+                 ::libavm_test::MD5 *md5,
+                 ::libavm_test::DxDataIterator *dec_iter) {
+    const avm_image_t *img;
+    if (pkt->kind == AVM_CODEC_CX_FRAME_PKT) {
+      const avm_codec_err_t res = dec->DecodeFrame(
           reinterpret_cast<uint8_t *>(pkt->data.frame.buf), pkt->data.frame.sz);
-      if (res != AOM_CODEC_OK) {
+      if (res != AVM_CODEC_OK) {
         abort_ = true;
-        ASSERT_EQ(AOM_CODEC_OK, res);
+        ASSERT_EQ(AVM_CODEC_OK, res);
       }
       img = dec->GetDxData().Next();
     } else {
@@ -91,8 +91,8 @@ class AV1DecodeMultiThreadedTest
     md5->Add(img);
   }
 
-  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt,
-                            ::libaom_test::DxDataIterator *dec_iter) {
+  virtual void FramePktHook(const avm_codec_cx_pkt_t *pkt,
+                            ::libavm_test::DxDataIterator *dec_iter) {
     UpdateMD5(single_thread_dec_, pkt, &md5_single_thread_, dec_iter);
 
     for (int i = 0; i < kNumMultiThreadDecoders; ++i)
@@ -100,12 +100,12 @@ class AV1DecodeMultiThreadedTest
   }
 
   void DoTest() {
-    const aom_rational timebase = { 33333333, 1000000000 };
+    const avm_rational timebase = { 33333333, 1000000000 };
     cfg_.g_timebase = timebase;
     cfg_.g_lag_in_frames = 12;
-    cfg_.rc_end_usage = AOM_Q;
+    cfg_.rc_end_usage = AVM_Q;
 
-    libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
+    libavm_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                        timebase.den, timebase.num, 0, 2);
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 
@@ -117,10 +117,10 @@ class AV1DecodeMultiThreadedTest
     }
   }
 
-  ::libaom_test::MD5 md5_single_thread_;
-  ::libaom_test::MD5 md5_multi_thread_[kNumMultiThreadDecoders];
-  ::libaom_test::Decoder *single_thread_dec_;
-  ::libaom_test::Decoder *multi_thread_dec_[kNumMultiThreadDecoders];
+  ::libavm_test::MD5 md5_single_thread_;
+  ::libavm_test::MD5 md5_multi_thread_[kNumMultiThreadDecoders];
+  ::libavm_test::Decoder *single_thread_dec_;
+  ::libavm_test::Decoder *multi_thread_dec_[kNumMultiThreadDecoders];
 
  private:
   int n_tile_cols_;
@@ -133,17 +133,17 @@ class AV1DecodeMultiThreadedTest
 // run an encode and do the decode both in single thread
 // and multi thread. Ensure that the MD5 of the output in both cases
 // is identical. If so, the test passes.
-TEST_P(AV1DecodeMultiThreadedTest, MD5Match) { DoTest(); }
+TEST_P(AV2DecodeMultiThreadedTest, MD5Match) { DoTest(); }
 
-class AV1DecodeMultiThreadedTestLarge : public AV1DecodeMultiThreadedTest {};
+class AV2DecodeMultiThreadedTestLarge : public AV2DecodeMultiThreadedTest {};
 
-TEST_P(AV1DecodeMultiThreadedTestLarge, MD5Match) { DoTest(); }
+TEST_P(AV2DecodeMultiThreadedTestLarge, MD5Match) { DoTest(); }
 
 // TODO(ranjit): More tests have to be added using pre-generated MD5.
-AV1_INSTANTIATE_TEST_SUITE(AV1DecodeMultiThreadedTest, ::testing::Values(1, 2),
+AV2_INSTANTIATE_TEST_SUITE(AV2DecodeMultiThreadedTest, ::testing::Values(1, 2),
                            ::testing::Values(1, 2), ::testing::Values(1),
                            ::testing::Values(3), ::testing::Values(0, 1));
-AV1_INSTANTIATE_TEST_SUITE(AV1DecodeMultiThreadedTestLarge,
+AV2_INSTANTIATE_TEST_SUITE(AV2DecodeMultiThreadedTestLarge,
                            ::testing::Values(0, 1, 2, 6),
                            ::testing::Values(0, 1, 2, 6),
                            ::testing::Values(1, 4), ::testing::Values(1),

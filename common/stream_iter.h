@@ -9,10 +9,10 @@
  * source code in the PATENTS file, you can obtain it at
  * aomedia.org/license/patent-license/.
  */
-#ifndef AOM_COMMON_STREAM_ITER_H_
-#define AOM_COMMON_STREAM_ITER_H_
+#ifndef AVM_COMMON_STREAM_ITER_H_
+#define AVM_COMMON_STREAM_ITER_H_
 
-#include "aom/aom_image.h"
+#include "avm/avm_image.h"
 #include "common/tools_common.h"
 
 #ifdef __cplusplus
@@ -38,7 +38,7 @@ typedef struct StreamIter {
   int n;
   // Pointer to the function that performs the read. Returns whether a frame
   // is available. If a frame is returned, it is written into *raw.
-  int (*reader)(struct StreamIter *iter, aom_image_t *raw);
+  int (*reader)(struct StreamIter *iter, avm_image_t *raw);
 } StreamIter;
 
 // Iterator that simply copies the data from the AvxInputContext.
@@ -56,10 +56,10 @@ void limit_stream_iter_init(StreamIter *iter, StreamIter *input, int limit);
 
 // Invokes the iterator's specialized read function to read data from the
 // stream. Returns if a frame was read. If so, writes the data into *raw.
-int read_stream_iter(StreamIter *iter, aom_image_t *raw);
+int read_stream_iter(StreamIter *iter, avm_image_t *raw);
 
 #ifdef __cplusplus
 }  // extern "C"
 #endif
 
-#endif  // AOM_COMMON_STREAM_ITER_H_
+#endif  // AVM_COMMON_STREAM_ITER_H_

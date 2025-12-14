@@ -17,18 +17,18 @@
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
-#include "config/aom_config.h"
-#include "config/aom_dsp_rtcd.h"
+#include "config/avm_config.h"
+#include "config/avm_dsp_rtcd.h"
 
-#include "aom_ports/mem.h"
+#include "avm_ports/mem.h"
 #include "test/acm_random.h"
 #include "test/clear_system_state.h"
 #include "test/register_state_check.h"
 #include "test/util.h"
 #include "test/function_equivalence_test.h"
 
-using libaom_test::ACMRandom;
-using libaom_test::FunctionEquivalenceTest;
+using libavm_test::ACMRandom;
+using libavm_test::FunctionEquivalenceTest;
 using ::testing::Combine;
 using ::testing::Range;
 using ::testing::Values;
@@ -39,7 +39,7 @@ const int kNumIterations = 10000;
 
 typedef uint64_t (*SSI16Func)(const int16_t *src, int src_stride, int width,
                               int height, int *sum);
-typedef libaom_test::FuncParam<SSI16Func> TestFuncs;
+typedef libavm_test::FuncParam<SSI16Func> TestFuncs;
 
 class SumSSETest : public ::testing::TestWithParam<TestFuncs> {
  public:
@@ -47,13 +47,13 @@ class SumSSETest : public ::testing::TestWithParam<TestFuncs> {
   virtual void SetUp() {
     params_ = this->GetParam();
     rnd_.Reset(ACMRandom::DeterministicSeed());
-    src_ = reinterpret_cast<int16_t *>(aom_memalign(16, 256 * 256 * 2));
+    src_ = reinterpret_cast<int16_t *>(avm_memalign(16, 256 * 256 * 2));
     ASSERT_TRUE(src_ != NULL);
   }
 
   virtual void TearDown() {
-    libaom_test::ClearSystemState();
-    aom_free(src_);
+    libavm_test::ClearSystemState();
+    avm_free(src_);
   }
   void RunTest(int isRandom);
   void RunSpeedTest();
@@ -127,23 +127,23 @@ void SumSSETest::RunSpeedTest() {
     const int num_loops = 1000000000 / (width + height);
     int sum_ref = 0, sum_tst = 0;
 
-    aom_usec_timer timer;
-    aom_usec_timer_start(&timer);
+    avm_usec_timer timer;
+    avm_usec_timer_start(&timer);
 
     for (int i = 0; i < num_loops; ++i)
       params_.ref_func(src_, stride, width, height, &sum_ref);
 
-    aom_usec_timer_mark(&timer);
-    const int elapsed_time = static_cast<int>(aom_usec_timer_elapsed(&timer));
+    avm_usec_timer_mark(&timer);
+    const int elapsed_time = static_cast<int>(avm_usec_timer_elapsed(&timer));
     printf("SumSquaresTest C %3dx%-3d: %7.2f ns\n", width, height,
            1000.0 * elapsed_time / num_loops);
 
-    aom_usec_timer timer1;
-    aom_usec_timer_start(&timer1);
+    avm_usec_timer timer1;
+    avm_usec_timer_start(&timer1);
     for (int i = 0; i < num_loops; ++i)
       params_.tst_func(src_, stride, width, height, &sum_tst);
-    aom_usec_timer_mark(&timer1);
-    const int elapsed_time1 = static_cast<int>(aom_usec_timer_elapsed(&timer1));
+    avm_usec_timer_mark(&timer1);
+    const int elapsed_time1 = static_cast<int>(avm_usec_timer_elapsed(&timer1));
     printf("SumSquaresTest Test %3dx%-3d: %7.2f ns\n", width, height,
            1000.0 * elapsed_time1 / num_loops);
   }
@@ -162,13 +162,13 @@ TEST_P(SumSSETest, DISABLED_Speed) { RunSpeedTest(); }
 #if HAVE_SSE2
 INSTANTIATE_TEST_SUITE_P(SSE2, SumSSETest,
                          ::testing::Values(TestFuncs(
-                             &aom_sum_sse_2d_i16_c, &aom_sum_sse_2d_i16_sse2)));
+                             &avm_sum_sse_2d_i16_c, &avm_sum_sse_2d_i16_sse2)));
 
 #endif  // HAVE_SSE2
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(AVX2, SumSSETest,
                          ::testing::Values(TestFuncs(
-                             &aom_sum_sse_2d_i16_c, &aom_sum_sse_2d_i16_avx2)));
+                             &avm_sum_sse_2d_i16_c, &avm_sum_sse_2d_i16_avx2)));
 #endif  // HAVE_AVX2
 
 }  // namespace

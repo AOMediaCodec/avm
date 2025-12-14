@@ -1,0 +1,11 @@
+/*!\page decoder_guide AV2 DECODER GUIDE
+
+  Describe AV2 decoding techniques here.
+
+  \cond
+  \if av2_md_support
+  [AV2 Algorithm Description](\ref LALGORITHMDESCRIPTION)
+  \endif
+  \endcond
+
+*/

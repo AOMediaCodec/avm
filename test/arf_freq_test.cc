@@ -19,7 +19,7 @@
 #include "test/util.h"
 #include "test/y4m_video_source.h"
 #include "test/yuv_video_source.h"
-#include "av1/encoder/ratectrl.h"
+#include "av2/encoder/ratectrl.h"
 
 namespace {
 
@@ -36,34 +36,34 @@ typedef struct {
   unsigned int framerate_num;
   unsigned int framerate_den;
   unsigned int input_bit_depth;
-  aom_img_fmt fmt;
-  aom_bit_depth_t bit_depth;
+  avm_img_fmt fmt;
+  avm_bit_depth_t bit_depth;
   unsigned int profile;
 } TestVideoParam;
 
 typedef struct {
-  libaom_test::TestMode mode;
+  libavm_test::TestMode mode;
   int cpu_used;
 } TestEncodeParam;
 
 const TestVideoParam kTestVectors[] = {
   // artificially increase framerate to trigger default check
-  { "hantro_collage_w352h288.yuv", 352, 288, 5000, 1, 8, AOM_IMG_FMT_I420,
-    AOM_BITS_8, 0 },
-  { "hantro_collage_w352h288.yuv", 352, 288, 30, 1, 8, AOM_IMG_FMT_I420,
-    AOM_BITS_8, 0 },
-  { "rush_hour_444.y4m", 352, 288, 30, 1, 8, AOM_IMG_FMT_I444, AOM_BITS_8, 1 },
+  { "hantro_collage_w352h288.yuv", 352, 288, 5000, 1, 8, AVM_IMG_FMT_I420,
+    AVM_BITS_8, 0 },
+  { "hantro_collage_w352h288.yuv", 352, 288, 30, 1, 8, AVM_IMG_FMT_I420,
+    AVM_BITS_8, 0 },
+  { "rush_hour_444.y4m", 352, 288, 30, 1, 8, AVM_IMG_FMT_I444, AVM_BITS_8, 1 },
   // Add list of profile 2/3 test videos here ...
 };
 
 const TestEncodeParam kEncodeVectors[] = {
-  { ::libaom_test::kOnePassGood, 2 },
-  { ::libaom_test::kOnePassGood, 5 },
+  { ::libavm_test::kOnePassGood, 2 },
+  { ::libavm_test::kOnePassGood, 5 },
 };
 
 const int kMinArfVectors[] = {
   // NOTE: 0 refers to the default built-in logic in:
-  //       av1_rc_get_default_min_gf_interval(...)
+  //       av2_rc_get_default_min_gf_interval(...)
   0, 4, 8, 12, 15
 };
 
@@ -76,9 +76,9 @@ int is_extension_y4m(const char *filename) {
 }
 
 class ArfFreqTestLarge
-    : public ::libaom_test::CodecTestWith3Params<TestVideoParam,
+    : public ::libavm_test::CodecTestWith3Params<TestVideoParam,
                                                  TestEncodeParam, int>,
-      public ::libaom_test::EncoderTest {
+      public ::libavm_test::EncoderTest {
  protected:
   ArfFreqTestLarge()
       : EncoderTest(GET_PARAM(0)), test_video_param_(GET_PARAM(1)),
@@ -90,7 +90,7 @@ class ArfFreqTestLarge
     InitializeConfig();
     SetMode(test_encode_param_.mode);
     cfg_.g_lag_in_frames = 25;
-    cfg_.rc_end_usage = AOM_VBR;
+    cfg_.rc_end_usage = AVM_VBR;
   }
 
   virtual void BeginPassHook(unsigned int) {
@@ -98,7 +98,7 @@ class ArfFreqTestLarge
     run_of_visible_frames_ = 0;
   }
 
-  int GetNumFramesInPkt(const aom_codec_cx_pkt_t *pkt) {
+  int GetNumFramesInPkt(const avm_codec_cx_pkt_t *pkt) {
     const uint8_t *buffer = reinterpret_cast<uint8_t *>(pkt->data.frame.buf);
     const uint8_t marker = buffer[pkt->data.frame.sz - 1];
     const int mag = ((marker >> 3) & 3) + 1;
@@ -115,11 +115,11 @@ class ArfFreqTestLarge
     return frames;
   }
 
-  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt,
-                            ::libaom_test::DxDataIterator *dec_iter) {
+  virtual void FramePktHook(const avm_codec_cx_pkt_t *pkt,
+                            ::libavm_test::DxDataIterator *dec_iter) {
     (void)dec_iter;
-    if (pkt->kind != AOM_CODEC_CX_FRAME_PKT &&
-        pkt->kind != AOM_CODEC_CX_FRAME_NULL_PKT)
+    if (pkt->kind != AVM_CODEC_CX_FRAME_PKT &&
+        pkt->kind != AVM_CODEC_CX_FRAME_NULL_PKT)
       return;
     const int frames = GetNumFramesInPkt(pkt);
     if (frames == 1) {
@@ -138,16 +138,16 @@ class ArfFreqTestLarge
     }
   }
 
-  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
-                                  ::libaom_test::Encoder *encoder) {
+  virtual void PreEncodeFrameHook(::libavm_test::VideoSource *video,
+                                  ::libavm_test::Encoder *encoder) {
     if (video->frame() == 0) {
-      encoder->Control(AV1E_SET_FRAME_PARALLEL_DECODING, 1);
-      encoder->Control(AV1E_SET_TILE_COLUMNS, 4);
-      encoder->Control(AOME_SET_CPUUSED, test_encode_param_.cpu_used);
-      encoder->Control(AV1E_SET_MIN_GF_INTERVAL, min_arf_requested_);
-      encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
-      encoder->Control(AOME_SET_ARNR_MAXFRAMES, 7);
-      encoder->Control(AOME_SET_ARNR_STRENGTH, 5);
+      encoder->Control(AV2E_SET_FRAME_PARALLEL_DECODING, 1);
+      encoder->Control(AV2E_SET_TILE_COLUMNS, 4);
+      encoder->Control(AVME_SET_CPUUSED, test_encode_param_.cpu_used);
+      encoder->Control(AV2E_SET_MIN_GF_INTERVAL, min_arf_requested_);
+      encoder->Control(AVME_SET_ENABLEAUTOALTREF, 1);
+      encoder->Control(AVME_SET_ARNR_MAXFRAMES, 7);
+      encoder->Control(AVME_SET_ARNR_STRENGTH, 5);
     }
   }
 
@@ -157,7 +157,7 @@ class ArfFreqTestLarge
     if (min_arf_requested_)
       return min_arf_requested_;
     else
-      return av1_rc_get_default_min_gf_interval(
+      return av2_rc_get_default_min_gf_interval(
           test_video_param_.width, test_video_param_.height,
           (double)test_video_param_.framerate_num /
               test_video_param_.framerate_den);
@@ -178,14 +178,14 @@ TEST_P(ArfFreqTestLarge, MinArfFreqTest) {
   cfg_.g_profile = test_video_param_.profile;
   cfg_.g_input_bit_depth = test_video_param_.input_bit_depth;
   cfg_.g_bit_depth = test_video_param_.bit_depth;
-  init_flags_ = AOM_CODEC_USE_PSNR;
+  init_flags_ = AVM_CODEC_USE_PSNR;
 
-  std::unique_ptr<libaom_test::VideoSource> video;
+  std::unique_ptr<libavm_test::VideoSource> video;
   if (is_extension_y4m(test_video_param_.filename)) {
-    video.reset(new libaom_test::Y4mVideoSource(test_video_param_.filename, 0,
+    video.reset(new libavm_test::Y4mVideoSource(test_video_param_.filename, 0,
                                                 kFrames));
   } else {
-    video.reset(new libaom_test::YUVVideoSource(
+    video.reset(new libavm_test::YUVVideoSource(
         test_video_param_.filename, test_video_param_.fmt,
         test_video_param_.width, test_video_param_.height,
         test_video_param_.framerate_num, test_video_param_.framerate_den, 0,
@@ -201,18 +201,18 @@ TEST_P(ArfFreqTestLarge, MinArfFreqTest) {
   }
 }
 
-#if CONFIG_AV1_ENCODER
+#if CONFIG_AV2_ENCODER
 // TODO(angiebird): 25-29 fail in high bitdepth mode.
 // TODO(zoeliu): This ArfFreqTest does not work with BWDREF_FRAME, as
 // BWDREF_FRAME is also a non-show frame, and the minimum run between two
 // consecutive BWDREF_FRAME's may vary between 1 and any arbitrary positive
 // number as long as it does not exceed the gf_group interval.
 INSTANTIATE_TEST_SUITE_P(
-    DISABLED_AV1, ArfFreqTestLarge,
+    DISABLED_AV2, ArfFreqTestLarge,
     ::testing::Combine(
         ::testing::Values(
-            static_cast<const libaom_test::CodecFactory *>(&libaom_test::kAV1)),
+            static_cast<const libavm_test::CodecFactory *>(&libavm_test::kAV2)),
         ::testing::ValuesIn(kTestVectors), ::testing::ValuesIn(kEncodeVectors),
         ::testing::ValuesIn(kMinArfVectors)));
-#endif  // CONFIG_AV1_ENCODER
+#endif  // CONFIG_AV2_ENCODER
 }  // namespace

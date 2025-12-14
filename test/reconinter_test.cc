@@ -15,13 +15,13 @@
 #include <string.h>
 #include <tuple>
 
-#include "config/aom_config.h"
-#include "config/av1_rtcd.h"
+#include "config/avm_config.h"
+#include "config/av2_rtcd.h"
 
-#include "aom_ports/mem.h"
-#include "av1/common/reconinter.h"
-#include "av1/common/scan.h"
-#include "av1/common/txb_common.h"
+#include "avm_ports/mem.h"
+#include "av2/common/reconinter.h"
+#include "av2/common/scan.h"
+#include "av2/common/txb_common.h"
 #include "test/acm_random.h"
 #include "test/clear_system_state.h"
 #include "test/register_state_check.h"
@@ -29,7 +29,7 @@
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
 namespace {
-using libaom_test::ACMRandom;
+using libavm_test::ACMRandom;
 
 typedef void (*buildcompdiffwtdmaskd16_func)(
     uint8_t *mask, DIFFWTD_MASK_TYPE mask_type, const CONV_BUF_TYPE *src0,
@@ -51,14 +51,14 @@ class BuildCompDiffwtdMaskD16Test
     : public ::testing::TestWithParam<BuildCompDiffwtdMaskD16Param> {
  public:
   ~BuildCompDiffwtdMaskD16Test() {}
-  virtual void TearDown() { libaom_test::ClearSystemState(); }
+  virtual void TearDown() { libavm_test::ClearSystemState(); }
   void SetUp() { rnd_.Reset(ACMRandom::DeterministicSeed()); }
 
  protected:
   void RunCheckOutput(buildcompdiffwtdmaskd16_func test_impl);
   void RunSpeedTest(buildcompdiffwtdmaskd16_func test_impl,
                     DIFFWTD_MASK_TYPE mask_type);
-  libaom_test::ACMRandom rnd_;
+  libavm_test::ACMRandom rnd_;
 };  // class BuildCompDiffwtdMaskD16Test
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(BuildCompDiffwtdMaskD16Test);
 
@@ -86,7 +86,7 @@ void BuildCompDiffwtdMaskD16Test::RunCheckOutput(
   }
 
   for (int mask_type = 0; mask_type < DIFFWTD_MASK_TYPES; mask_type++) {
-    av1_build_compound_diffwtd_mask_d16_c(
+    av2_build_compound_diffwtd_mask_d16_c(
         mask_ref, (DIFFWTD_MASK_TYPE)mask_type, src0, width, src1, width,
         height, width, &conv_params, bd);
 
@@ -127,27 +127,27 @@ void BuildCompDiffwtdMaskD16Test::RunSpeedTest(
   }
 
   const int num_loops = 10000000 / (width + height);
-  aom_usec_timer timer;
-  aom_usec_timer_start(&timer);
+  avm_usec_timer timer;
+  avm_usec_timer_start(&timer);
 
   for (int i = 0; i < num_loops; ++i)
-    av1_build_compound_diffwtd_mask_d16_c(mask, mask_type, src0, width, src1,
+    av2_build_compound_diffwtd_mask_d16_c(mask, mask_type, src0, width, src1,
                                           width, height, width, &conv_params,
                                           bd);
 
-  aom_usec_timer_mark(&timer);
-  const int elapsed_time = static_cast<int>(aom_usec_timer_elapsed(&timer));
+  avm_usec_timer_mark(&timer);
+  const int elapsed_time = static_cast<int>(avm_usec_timer_elapsed(&timer));
 
-  aom_usec_timer timer1;
-  aom_usec_timer_start(&timer1);
+  avm_usec_timer timer1;
+  avm_usec_timer_start(&timer1);
 
   for (int i = 0; i < num_loops; ++i)
     test_impl(mask, mask_type, src0, width, src1, width, height, width,
               &conv_params, bd);
 
-  aom_usec_timer_mark(&timer1);
-  const int elapsed_time1 = static_cast<int>(aom_usec_timer_elapsed(&timer1));
-  printf("av1_build_compound_diffwtd_mask_d16  %3dx%-3d: %7.2f \n", width,
+  avm_usec_timer_mark(&timer1);
+  const int elapsed_time1 = static_cast<int>(avm_usec_timer_elapsed(&timer1));
+  printf("av2_build_compound_diffwtd_mask_d16  %3dx%-3d: %7.2f \n", width,
          height, elapsed_time / double(elapsed_time1));
 }
 TEST_P(BuildCompDiffwtdMaskD16Test, CheckOutput) {
@@ -162,17 +162,17 @@ TEST_P(BuildCompDiffwtdMaskD16Test, DISABLED_Speed) {
 #if HAVE_SSE4_1
 INSTANTIATE_TEST_SUITE_P(
     SSE4_1, BuildCompDiffwtdMaskD16Test,
-    BuildParams(av1_build_compound_diffwtd_mask_d16_sse4_1));
+    BuildParams(av2_build_compound_diffwtd_mask_d16_sse4_1));
 #endif
 
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(AVX2, BuildCompDiffwtdMaskD16Test,
-                         BuildParams(av1_build_compound_diffwtd_mask_d16_avx2));
+                         BuildParams(av2_build_compound_diffwtd_mask_d16_avx2));
 #endif
 
 #if HAVE_NEON
 INSTANTIATE_TEST_SUITE_P(NEON, BuildCompDiffwtdMaskD16Test,
-                         BuildParams(av1_build_compound_diffwtd_mask_d16_neon));
+                         BuildParams(av2_build_compound_diffwtd_mask_d16_neon));
 #endif
 
 typedef void (*RefinemvPadMCBorderFunc)(const uint16_t *src, int src_stride,
@@ -193,8 +193,8 @@ typedef tuple<int, int, int, RefinemvPadMCBorderFunc> Params;
 class RefinemvPadMCBorderTest : public ::testing::TestWithParam<Params> {
  public:
   virtual void SetUp() {
-    block_width_ = GET_PARAM(0) + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND;
-    block_height_ = GET_PARAM(1) + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND;
+    block_width_ = GET_PARAM(0) + (AVM_INTERP_EXTEND - 1) + AVM_INTERP_EXTEND;
+    block_height_ = GET_PARAM(1) + (AVM_INTERP_EXTEND - 1) + AVM_INTERP_EXTEND;
     int ref_area_width = (GET_PARAM(0) == 4)
                              ? GET_PARAM(0) + FOUR_TAPS_REF_LEFT_BORDER +
                                    FOUR_TAPS_REF_RIGHT_BORDER
@@ -212,13 +212,13 @@ class RefinemvPadMCBorderTest : public ::testing::TestWithParam<Params> {
     const size_t max_width = REF_BUFFER_WIDTH + 1;
     const size_t max_block_size = max_width * max_width;
     src_ = reinterpret_cast<uint16_t *>(
-        aom_memalign(16, kMaxDimension * kMaxDimension * sizeof(uint16_t)));
+        avm_memalign(16, kMaxDimension * kMaxDimension * sizeof(uint16_t)));
     dst_ref_ = reinterpret_cast<uint16_t *>(
-        aom_memalign(16, max_block_size * sizeof(uint16_t)));
+        avm_memalign(16, max_block_size * sizeof(uint16_t)));
     dst_test_ = reinterpret_cast<uint16_t *>(
-        aom_memalign(16, max_block_size * sizeof(uint16_t)));
+        avm_memalign(16, max_block_size * sizeof(uint16_t)));
 
-    aom_bit_depth_t bit_depth = static_cast<aom_bit_depth_t>(GET_PARAM(2));
+    avm_bit_depth_t bit_depth = static_cast<avm_bit_depth_t>(GET_PARAM(2));
     const int mask = (1 << bit_depth) - 1;
     ref_area_ = { { 0, ref_area_width, 0, ref_area_height }, { 0 }, 0 };
 
@@ -238,9 +238,9 @@ class RefinemvPadMCBorderTest : public ::testing::TestWithParam<Params> {
   }
 
   virtual void TearDown() {
-    aom_free(src_);
-    aom_free(dst_ref_);
-    aom_free(dst_test_);
+    avm_free(src_);
+    avm_free(dst_ref_);
+    avm_free(dst_test_);
   }
 
   void AssertOutputBufferEq(const uint16_t *p1, const uint16_t *p2, int width,
@@ -304,23 +304,23 @@ void RefinemvPadMCBorderTest::RunSpeedTest() {
   for (int k = 0; k <= 2; k++) {
     for (int l = 0; l <= 2; l++) {
       const uint16_t *const buf_ptr = in + y0[k] * src_stride_ + x0[l];
-      aom_usec_timer timer;
-      aom_usec_timer_start(&timer);
+      avm_usec_timer timer;
+      avm_usec_timer_start(&timer);
       for (int i = 0; i < kSpeedIterations; ++i) {
         refinemv_highbd_pad_mc_border_c(buf_ptr, src_stride_, dst_ref_,
                                         dst_stride_, x0[l], y0[k], block_width_,
                                         block_height_, &ref_area_);
       }
-      aom_usec_timer_mark(&timer);
-      auto elapsed_time_c = aom_usec_timer_elapsed(&timer);
+      avm_usec_timer_mark(&timer);
+      auto elapsed_time_c = avm_usec_timer_elapsed(&timer);
 
-      aom_usec_timer_start(&timer);
+      avm_usec_timer_start(&timer);
       for (int i = 0; i < kSpeedIterations; ++i) {
         func_(buf_ptr, src_stride_, dst_test_, dst_stride_, x0[l], y0[k],
               block_width_, block_height_, &ref_area_);
       }
-      aom_usec_timer_mark(&timer);
-      auto elapsed_time_opt = aom_usec_timer_elapsed(&timer);
+      avm_usec_timer_mark(&timer);
+      auto elapsed_time_opt = avm_usec_timer_elapsed(&timer);
 
       float c_time_per_pixel =
           (float)1000.0 * elapsed_time_c /

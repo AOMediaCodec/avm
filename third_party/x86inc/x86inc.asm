@@ -34,10 +34,10 @@
 ; as this feature might be useful for others as well.  Send patches or ideas
 ; to x264-devel@videolan.org .
 
-%include "config/aom_config.asm"
+%include "config/avm_config.asm"
 
 %ifndef private_prefix
-    %define private_prefix aom
+    %define private_prefix avm
 %endif
 
 %ifndef public_prefix
@@ -82,7 +82,7 @@
     %define FORMAT_MACHO 1
 %endif
 
-; Set PREFIX for libaom builds.
+; Set PREFIX for libavm builds.
 %if FORMAT_ELF
     %undef PREFIX
 %elif WIN64
@@ -100,7 +100,7 @@
 ; In some instances macho32 tables get misaligned when using .rodata.
 ; When looking at the disassembly it appears that the offset is either
 ; correct or consistently off by 90. Placing them in the .text section
-; works around the issue. It appears to be specific to the way libaom
+; works around the issue. It appears to be specific to the way libavm
 ; handles the tables.
 %macro SECTION_RODATA 0-1 16
     %ifidn __OUTPUT_FORMAT__,win32
@@ -117,7 +117,7 @@
     %endif
 %endmacro
 
-; PIC macros from aom_ports/x86_abi_support.asm.
+; PIC macros from avm_ports/x86_abi_support.asm.
 %ifidn __OUTPUT_FORMAT__,elf32
 %define ABI_IS_32BIT 1
 %elifidn __OUTPUT_FORMAT__,macho32
@@ -206,9 +206,9 @@
 %ifndef GET_GOT_DEFINED
     %define GET_GOT_DEFINED 0
 %endif
-; End PIC macros from aom_ports/x86_abi_support.asm.
+; End PIC macros from avm_ports/x86_abi_support.asm.
 
-; libaom explicitly sets visibilty in shared object builds. Avoid setting
+; libavm explicitly sets visibilty in shared object builds. Avoid setting
 ; visibility to hidden as it may break builds that split sources on e.g.,
 ; directory boundaries.
 %ifdef CHROMIUM

@@ -9,8 +9,8 @@
  * source code in the PATENTS file, you can obtain it at
  * aomedia.org/license/patent-license/.
  */
-#ifndef AOM_COMMON_OBUDEC_H_
-#define AOM_COMMON_OBUDEC_H_
+#ifndef AVM_COMMON_OBUDEC_H_
+#define AVM_COMMON_OBUDEC_H_
 
 #include "common/tools_common.h"
 
@@ -28,7 +28,7 @@ struct ObuDecInputContext {
 
 // Returns 1 when file data starts (if Annex B stream, after reading the
 // size of the OBU) with what appears to be a Temporal Delimiter
-// OBU as defined by Section 5 of the AV1 bitstream specification.
+// OBU as defined by Section 5 of the AV2 bitstream specification.
 int file_is_obu(struct ObuDecInputContext *obu_ctx);
 
 // Reads one Temporal Unit from the input file. Returns 0 when a TU is
@@ -46,4 +46,4 @@ void obudec_free(struct ObuDecInputContext *obu_ctx);
 } /* extern "C" */
 #endif
 
-#endif  // AOM_COMMON_OBUDEC_H_
+#endif  // AVM_COMMON_OBUDEC_H_

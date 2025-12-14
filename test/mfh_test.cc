@@ -44,9 +44,9 @@ std::ostream &operator<<(std::ostream &os, const MFHTestParam &p) {
 
 // Params: encoding mode, rate control mode and MFHTestParam object.
 class MFHTestLarge
-    : public ::libaom_test::CodecTestWith3Params<libaom_test::TestMode,
-                                                 aom_rc_mode, MFHTestParam>,
-      public ::libaom_test::EncoderTest {
+    : public ::libavm_test::CodecTestWith3Params<libavm_test::TestMode,
+                                                 avm_rc_mode, MFHTestParam>,
+      public ::libavm_test::EncoderTest {
  protected:
   MFHTestLarge()
       : EncoderTest(GET_PARAM(0)), encoding_mode_(GET_PARAM(1)),
@@ -59,13 +59,13 @@ class MFHTestLarge
   virtual void SetUp() {
     InitializeConfig();
     SetMode(encoding_mode_);
-    const aom_rational timebase = { 1, 30 };
+    const avm_rational timebase = { 1, 30 };
     cfg_.g_timebase = timebase;
     cpu_used_ = 4;
     cfg_.rc_end_usage = rc_mode_;
     cfg_.g_lag_in_frames = 19;
     cfg_.g_threads = 0;
-    init_flags_ = AOM_CODEC_USE_PSNR;
+    init_flags_ = AVM_CODEC_USE_PSNR;
   }
 
   virtual void BeginPassHook(unsigned int) {
@@ -73,25 +73,23 @@ class MFHTestLarge
     nframes_ = 0;
   }
 
-  virtual void PSNRPktHook(const aom_codec_cx_pkt_t *pkt) {
+  virtual void PSNRPktHook(const avm_codec_cx_pkt_t *pkt) {
     psnr_ += pkt->data.psnr.psnr[0];
     nframes_++;
   }
 
-  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
-                                  ::libaom_test::Encoder *encoder) {
+  virtual void PreEncodeFrameHook(::libavm_test::VideoSource *video,
+                                  ::libavm_test::Encoder *encoder) {
     if (video->frame() == 0) {
-      encoder->Control(AOME_SET_CPUUSED, cpu_used_);
-      if (rc_mode_ == AOM_Q) {
-        encoder->Control(AOME_SET_QP, 210);
+      encoder->Control(AVME_SET_CPUUSED, cpu_used_);
+      if (rc_mode_ == AVM_Q) {
+        encoder->Control(AVME_SET_QP, 210);
       }
-      encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
-      encoder->Control(AOME_SET_ARNR_MAXFRAMES, 7);
-      encoder->Control(AOME_SET_ARNR_STRENGTH, 5);
-#if CONFIG_MULTI_FRAME_HEADER
+      encoder->Control(AVME_SET_ENABLEAUTOALTREF, 1);
+      encoder->Control(AVME_SET_ARNR_MAXFRAMES, 7);
+      encoder->Control(AVME_SET_ARNR_STRENGTH, 5);
       encoder->SetOption("enable-mfh-obu-signaling",
                          enable_mfh_obu_signaling_ ? "1" : "0");
-#endif  // CONFIG_MULTI_FRAME_HEADER
     }
   }
 
@@ -102,8 +100,8 @@ class MFHTestLarge
 
   double GetPsnrThreshold() { return psnr_threshold_; }
 
-  ::libaom_test::TestMode encoding_mode_;
-  aom_rc_mode rc_mode_;
+  ::libavm_test::TestMode encoding_mode_;
+  avm_rc_mode rc_mode_;
   int enable_mfh_obu_signaling_;
   double psnr_threshold_;
   int cpu_used_;
@@ -112,7 +110,7 @@ class MFHTestLarge
 };
 
 TEST_P(MFHTestLarge, TestMultiFrameHeader) {
-  libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
+  libavm_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                      cfg_.g_timebase.den, cfg_.g_timebase.num,
                                      0, 32);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
@@ -120,7 +118,7 @@ TEST_P(MFHTestLarge, TestMultiFrameHeader) {
       << "enable_mfh_obu_signaling = " << enable_mfh_obu_signaling_ << ", ";
 }
 
-AV1_INSTANTIATE_TEST_SUITE(MFHTestLarge, GOODQUALITY_TEST_MODES,
-                           ::testing::Values(AOM_Q),
+AV2_INSTANTIATE_TEST_SUITE(MFHTestLarge, GOODQUALITY_TEST_MODES,
+                           ::testing::Values(AVM_Q),
                            ::testing::ValuesIn(mfhTestParams));
 }  // namespace

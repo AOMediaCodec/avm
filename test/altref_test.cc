@@ -22,16 +22,16 @@ typedef struct {
   const unsigned int min_gf_interval;
   const unsigned int max_gf_interval;
   const unsigned int lag_in_frames;
-  libaom_test::TestMode encoding_mode;
+  libavm_test::TestMode encoding_mode;
 } AltRefTestParams;
 
 static const AltRefTestParams TestParams[] = {
-  { 0, 10, 4, 8, 10, ::libaom_test::kOnePassGood },
-  { 0, 30, 8, 12, 16, ::libaom_test::kOnePassGood },
-  { 30, 30, 12, 16, 25, ::libaom_test::kOnePassGood },
-  { 0, 60, 12, 20, 25, ::libaom_test::kOnePassGood },
-  { 60, 60, 16, 28, 30, ::libaom_test::kOnePassGood },
-  { 0, 65, 16, 32, 35, ::libaom_test::kOnePassGood },
+  { 0, 10, 4, 8, 10, ::libavm_test::kOnePassGood },
+  { 0, 30, 8, 12, 16, ::libavm_test::kOnePassGood },
+  { 30, 30, 12, 16, 25, ::libavm_test::kOnePassGood },
+  { 0, 60, 12, 20, 25, ::libavm_test::kOnePassGood },
+  { 60, 60, 16, 28, 30, ::libavm_test::kOnePassGood },
+  { 0, 65, 16, 32, 35, ::libavm_test::kOnePassGood },
 };
 
 std::ostream &operator<<(std::ostream &os, const AltRefTestParams &test_arg) {
@@ -45,8 +45,8 @@ std::ostream &operator<<(std::ostream &os, const AltRefTestParams &test_arg) {
 
 // This class is used to check the presence of altref frame.
 class AltRefFramePresenceTestLarge
-    : public ::libaom_test::CodecTestWith2Params<AltRefTestParams, aom_rc_mode>,
-      public ::libaom_test::EncoderTest {
+    : public ::libavm_test::CodecTestWith2Params<AltRefTestParams, avm_rc_mode>,
+      public ::libavm_test::EncoderTest {
  protected:
   AltRefFramePresenceTestLarge()
       : EncoderTest(GET_PARAM(0)), altref_test_params_(GET_PARAM(1)),
@@ -58,7 +58,7 @@ class AltRefFramePresenceTestLarge
   virtual void SetUp() {
     InitializeConfig();
     SetMode(altref_test_params_.encoding_mode);
-    const aom_rational timebase = { 1, 30 };
+    const avm_rational timebase = { 1, 30 };
     cfg_.g_timebase = timebase;
     cfg_.rc_end_usage = rc_end_usage_;
     cfg_.g_threads = 1;
@@ -72,69 +72,69 @@ class AltRefFramePresenceTestLarge
 
   virtual bool DoDecode() const { return 1; }
 
-  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
-                                  ::libaom_test::Encoder *encoder) {
+  virtual void PreEncodeFrameHook(::libavm_test::VideoSource *video,
+                                  ::libavm_test::Encoder *encoder) {
     if (video->frame() == 0) {
-      encoder->Control(AOME_SET_CPUUSED, 5);
-      if (rc_end_usage_ == AOM_Q || rc_end_usage_ == AOM_CQ) {
-        encoder->Control(AOME_SET_QP, 210);
+      encoder->Control(AVME_SET_CPUUSED, 5);
+      if (rc_end_usage_ == AVM_Q || rc_end_usage_ == AVM_CQ) {
+        encoder->Control(AVME_SET_QP, 210);
       }
-      encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
-      encoder->Control(AV1E_SET_MIN_GF_INTERVAL,
+      encoder->Control(AVME_SET_ENABLEAUTOALTREF, 1);
+      encoder->Control(AV2E_SET_MIN_GF_INTERVAL,
                        altref_test_params_.min_gf_interval);
-      encoder->Control(AV1E_SET_MAX_GF_INTERVAL,
+      encoder->Control(AV2E_SET_MAX_GF_INTERVAL,
                        altref_test_params_.max_gf_interval);
     }
   }
 
-  virtual bool HandleDecodeResult(const aom_codec_err_t res_dec,
-                                  libaom_test::Decoder *decoder) {
-    EXPECT_EQ(AOM_CODEC_OK, res_dec) << decoder->DecodeError();
-    if (is_arf_frame_present_ != 1 && AOM_CODEC_OK == res_dec) {
-      aom_codec_ctx_t *ctx_dec = decoder->GetDecoder();
-      AOM_CODEC_CONTROL_TYPECHECKED(ctx_dec, AOMD_GET_ALTREF_PRESENT,
+  virtual bool HandleDecodeResult(const avm_codec_err_t res_dec,
+                                  libavm_test::Decoder *decoder) {
+    EXPECT_EQ(AVM_CODEC_OK, res_dec) << decoder->DecodeError();
+    if (is_arf_frame_present_ != 1 && AVM_CODEC_OK == res_dec) {
+      avm_codec_ctx_t *ctx_dec = decoder->GetDecoder();
+      AVM_CODEC_CONTROL_TYPECHECKED(ctx_dec, AVMD_GET_ALTREF_PRESENT,
                                     &is_arf_frame_present_);
     }
-    return AOM_CODEC_OK == res_dec;
+    return AVM_CODEC_OK == res_dec;
   }
 
   const AltRefTestParams altref_test_params_;
   int is_arf_frame_present_;
-  aom_rc_mode rc_end_usage_;
+  avm_rc_mode rc_end_usage_;
 };
 
 TEST_P(AltRefFramePresenceTestLarge, AltRefFrameEncodePresenceTest) {
-  libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
+  libavm_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                      cfg_.g_timebase.den, cfg_.g_timebase.num,
                                      0, 65);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   ASSERT_EQ(is_arf_frame_present_, 1);
 }
 
-AV1_INSTANTIATE_TEST_SUITE(AltRefFramePresenceTestLarge,
+AV2_INSTANTIATE_TEST_SUITE(AltRefFramePresenceTestLarge,
                            ::testing::ValuesIn(TestParams),
-                           ::testing::Values(AOM_Q, AOM_VBR, AOM_CBR, AOM_CQ));
+                           ::testing::Values(AVM_Q, AVM_VBR, AVM_CBR, AVM_CQ));
 
 typedef struct {
-  const ::libaom_test::TestMode encoding_mode;
+  const ::libavm_test::TestMode encoding_mode;
   const unsigned int min_gf_interval;
   const unsigned int max_gf_interval;
 } gfIntervalParam;
 
 const gfIntervalParam gfTestParams[] = {
   // single pass
-  { ::libaom_test::kOnePassGood, 0, 6 },
-  { ::libaom_test::kOnePassGood, 0, 8 },
-  { ::libaom_test::kOnePassGood, 5, 10 },
-  { ::libaom_test::kOnePassGood, 8, 16 },
-  { ::libaom_test::kOnePassGood, 16, 16 },
+  { ::libavm_test::kOnePassGood, 0, 6 },
+  { ::libavm_test::kOnePassGood, 0, 8 },
+  { ::libavm_test::kOnePassGood, 5, 10 },
+  { ::libavm_test::kOnePassGood, 8, 16 },
+  { ::libavm_test::kOnePassGood, 16, 16 },
 };
 
 // This class is used to test if the gf interval bounds configured by the user
 // are respected by the encoder.
 class GoldenFrameIntervalTestLarge
-    : public ::libaom_test::CodecTestWith2Params<gfIntervalParam, aom_rc_mode>,
-      public ::libaom_test::EncoderTest {
+    : public ::libavm_test::CodecTestWith2Params<gfIntervalParam, avm_rc_mode>,
+      public ::libavm_test::EncoderTest {
  protected:
   GoldenFrameIntervalTestLarge()
       : EncoderTest(GET_PARAM(0)), gf_interval_param_(GET_PARAM(1)),
@@ -148,7 +148,7 @@ class GoldenFrameIntervalTestLarge
   virtual void SetUp() {
     InitializeConfig();
     SetMode(gf_interval_param_.encoding_mode);
-    const aom_rational timebase = { 1, 30 };
+    const avm_rational timebase = { 1, 30 };
     cfg_.g_timebase = timebase;
     cfg_.rc_end_usage = rc_end_usage_;
     cfg_.rc_undershoot_pct = 100;
@@ -165,21 +165,21 @@ class GoldenFrameIntervalTestLarge
 
   virtual bool DoDecode() const { return 1; }
 
-  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
-                                  ::libaom_test::Encoder *encoder) {
+  virtual void PreEncodeFrameHook(::libavm_test::VideoSource *video,
+                                  ::libavm_test::Encoder *encoder) {
     if (video->frame() == 0) {
-      encoder->Control(AOME_SET_CPUUSED, 5);
-      if (rc_end_usage_ == AOM_Q || rc_end_usage_ == AOM_CQ) {
-        encoder->Control(AOME_SET_QP, 210);
+      encoder->Control(AVME_SET_CPUUSED, 5);
+      if (rc_end_usage_ == AVM_Q || rc_end_usage_ == AVM_CQ) {
+        encoder->Control(AVME_SET_QP, 210);
       }
-      encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
-      encoder->Control(AV1E_SET_MIN_GF_INTERVAL,
+      encoder->Control(AVME_SET_ENABLEAUTOALTREF, 1);
+      encoder->Control(AV2E_SET_MIN_GF_INTERVAL,
                        gf_interval_param_.min_gf_interval);
-      encoder->Control(AV1E_SET_MAX_GF_INTERVAL,
+      encoder->Control(AV2E_SET_MAX_GF_INTERVAL,
                        gf_interval_param_.max_gf_interval);
     }
     if (frame_num_ > 0) {
-      encoder->Control(AV1E_GET_BASELINE_GF_INTERVAL, &baseline_gf_interval_);
+      encoder->Control(AV2E_GET_BASELINE_GF_INTERVAL, &baseline_gf_interval_);
       ASSERT_LE(baseline_gf_interval_, (int)gf_interval_param_.max_gf_interval);
       if ((frame_num_ + (int)gf_interval_param_.min_gf_interval) <= limit_) {
         ASSERT_GE(baseline_gf_interval_,
@@ -188,8 +188,8 @@ class GoldenFrameIntervalTestLarge
     }
   }
 
-  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt,
-                            ::libaom_test::DxDataIterator *dec_iter) {
+  virtual void FramePktHook(const avm_codec_cx_pkt_t *pkt,
+                            ::libavm_test::DxDataIterator *dec_iter) {
     (void)dec_iter;
     (void)pkt;
     ++frame_num_;
@@ -199,18 +199,18 @@ class GoldenFrameIntervalTestLarge
   int baseline_gf_interval_;
   int limit_;
   int frame_num_;
-  aom_rc_mode rc_end_usage_;
+  avm_rc_mode rc_end_usage_;
 };
 
 TEST_P(GoldenFrameIntervalTestLarge, GoldenFrameIntervalTest) {
-  libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
+  libavm_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                      cfg_.g_timebase.den, cfg_.g_timebase.num,
                                      0, limit_);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 }
 
-AV1_INSTANTIATE_TEST_SUITE(GoldenFrameIntervalTestLarge,
+AV2_INSTANTIATE_TEST_SUITE(GoldenFrameIntervalTestLarge,
                            ::testing::ValuesIn(gfTestParams),
-                           ::testing::Values(AOM_Q, AOM_VBR, AOM_CQ, AOM_CBR));
+                           ::testing::Values(AVM_Q, AVM_VBR, AVM_CQ, AVM_CBR));
 
 }  // namespace

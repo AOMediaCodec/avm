@@ -13,13 +13,13 @@
 #include <assert.h>
 #include <string>
 
-#include "config/aom_dsp_rtcd.h"
+#include "config/avm_dsp_rtcd.h"
 
 #include "test/acm_random.h"
-#include "aom_dsp/aom_simd.h"
+#include "avm_dsp/avm_simd.h"
 #undef SIMD_INLINE
 #define SIMD_INLINE static  // Don't enforce inlining
-#include "aom_dsp/simd/v256_intrinsics_c.h"
+#include "avm_dsp/simd/v256_intrinsics_c.h"
 
 // Machine tuned code goes into this file. This file is included from
 // simd_cmp_sse2.cc, simd_cmp_ssse3.cc etc which define the macros
@@ -33,7 +33,7 @@
 #pragma warning(disable : 4556)
 #endif
 
-using libaom_test::ACMRandom;
+using libavm_test::ACMRandom;
 
 namespace SIMD_NAMESPACE {
 

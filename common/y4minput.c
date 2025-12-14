@@ -17,8 +17,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "aom/aom_integer.h"
-#include "aom_ports/msvc.h"
+#include "avm/avm_integer.h"
+#include "avm_ports/msvc.h"
 #include "y4minput.h"
 
 // Reads 'size' bytes from 'file' into 'buf' with some fault tolerance.
@@ -63,7 +63,7 @@ static int parse_color_range(y4m_input *y4m_ctx, const char *buf) {
     return 1;
   }
   if (strcmp(buf, "FULL") == 0) {
-    y4m_ctx->color_range = AOM_CR_FULL_RANGE;
+    y4m_ctx->color_range = AVM_CR_FULL_RANGE;
     return 1;
   }
   fprintf(stderr, "Unknown color range value: %s\n", buf);
@@ -173,7 +173,7 @@ static int parse_tags(y4m_input *y4m_ctx, FILE *file) {
   y4m_ctx->par_n = 0;
   y4m_ctx->par_d = 0;
   y4m_ctx->interlace = '?';
-  y4m_ctx->color_range = AOM_CR_STUDIO_RANGE;
+  y4m_ctx->color_range = AVM_CR_STUDIO_RANGE;
   snprintf(y4m_ctx->chroma_type, sizeof(y4m_ctx->chroma_type), "420");
 
   // Find one tag at a time.
@@ -850,7 +850,7 @@ static void y4m_convert_null(y4m_input *_y4m, unsigned char *_dst,
 static const char TAG[] = "YUV4MPEG2";
 
 int y4m_input_open(y4m_input *y4m_ctx, FILE *file, char *skip_buffer,
-                   int num_skip, aom_chroma_sample_position_t csp,
+                   int num_skip, avm_chroma_sample_position_t csp,
                    int only_420) {
   // File must start with |TAG|.
   char tag_buffer[9];  // 9 == strlen(TAG)
@@ -890,17 +890,17 @@ int y4m_input_open(y4m_input *y4m_ctx, FILE *file, char *skip_buffer,
   /* Only support vertical chroma sample position if the input format is
    * already 420mpeg2. Colocated is not supported in Y4M.
    */
-  if (csp == AOM_CSP_LEFT && strcmp(y4m_ctx->chroma_type, "420mpeg2") != 0) {
+  if (csp == AVM_CSP_LEFT && strcmp(y4m_ctx->chroma_type, "420mpeg2") != 0) {
     fprintf(stderr,
             "Left chroma sample position only supported for 420mpeg2 input\n");
     return -1;
   }
-  if (csp == AOM_CSP_TOPLEFT) {
+  if (csp == AVM_CSP_TOPLEFT) {
     // TODO(any): check the right way to handle this in Y4M
     fprintf(stderr,
             "Ignoring topleft chroma sample position for reading in Y4M\n");
   }
-  y4m_ctx->aom_fmt = AOM_IMG_FMT_I420;
+  y4m_ctx->avm_fmt = AVM_IMG_FMT_I420;
   y4m_ctx->bps = 12;
   y4m_ctx->bit_depth = 8;
   y4m_ctx->aux_buf = NULL;
@@ -929,7 +929,7 @@ int y4m_input_open(y4m_input *y4m_ctx, FILE *file, char *skip_buffer,
     y4m_ctx->convert = y4m_convert_null;
     y4m_ctx->bit_depth = 10;
     y4m_ctx->bps = 15;
-    y4m_ctx->aom_fmt = AOM_IMG_FMT_I42016;
+    y4m_ctx->avm_fmt = AVM_IMG_FMT_I42016;
     if (only_420) {
       fprintf(stderr, "Unsupported conversion from 420p10 to 420jpeg\n");
       return -1;
@@ -947,7 +947,7 @@ int y4m_input_open(y4m_input *y4m_ctx, FILE *file, char *skip_buffer,
     y4m_ctx->convert = y4m_convert_null;
     y4m_ctx->bit_depth = 12;
     y4m_ctx->bps = 18;
-    y4m_ctx->aom_fmt = AOM_IMG_FMT_I42016;
+    y4m_ctx->avm_fmt = AVM_IMG_FMT_I42016;
     if (only_420) {
       fprintf(stderr, "Unsupported conversion from 420p12 to 420jpeg\n");
       return -1;
@@ -989,7 +989,7 @@ int y4m_input_open(y4m_input *y4m_ctx, FILE *file, char *skip_buffer,
                             ((y4m_ctx->pic_w + 1) / 2) * y4m_ctx->pic_h;
       y4m_ctx->convert = y4m_convert_422_420jpeg;
     } else {
-      y4m_ctx->aom_fmt = AOM_IMG_FMT_I422;
+      y4m_ctx->avm_fmt = AVM_IMG_FMT_I422;
       y4m_ctx->bps = 16;
       y4m_ctx->dst_c_dec_h = y4m_ctx->src_c_dec_h;
       y4m_ctx->dst_c_dec_v = y4m_ctx->src_c_dec_v;
@@ -1003,7 +1003,7 @@ int y4m_input_open(y4m_input *y4m_ctx, FILE *file, char *skip_buffer,
   } else if (strcmp(y4m_ctx->chroma_type, "422p10") == 0) {
     y4m_ctx->src_c_dec_h = 2;
     y4m_ctx->src_c_dec_v = 1;
-    y4m_ctx->aom_fmt = AOM_IMG_FMT_I42216;
+    y4m_ctx->avm_fmt = AVM_IMG_FMT_I42216;
     y4m_ctx->bps = 20;
     y4m_ctx->bit_depth = 10;
     y4m_ctx->dst_c_dec_h = y4m_ctx->src_c_dec_h;
@@ -1020,7 +1020,7 @@ int y4m_input_open(y4m_input *y4m_ctx, FILE *file, char *skip_buffer,
   } else if (strcmp(y4m_ctx->chroma_type, "422p12") == 0) {
     y4m_ctx->src_c_dec_h = 2;
     y4m_ctx->src_c_dec_v = 1;
-    y4m_ctx->aom_fmt = AOM_IMG_FMT_I42216;
+    y4m_ctx->avm_fmt = AVM_IMG_FMT_I42216;
     y4m_ctx->bps = 24;
     y4m_ctx->bit_depth = 12;
     y4m_ctx->dst_c_dec_h = y4m_ctx->src_c_dec_h;
@@ -1062,7 +1062,7 @@ int y4m_input_open(y4m_input *y4m_ctx, FILE *file, char *skip_buffer,
                             ((y4m_ctx->pic_w + 1) / 2) * y4m_ctx->pic_h;
       y4m_ctx->convert = y4m_convert_444_420jpeg;
     } else {
-      y4m_ctx->aom_fmt = AOM_IMG_FMT_I444;
+      y4m_ctx->avm_fmt = AVM_IMG_FMT_I444;
       y4m_ctx->bps = 24;
       y4m_ctx->dst_c_dec_h = y4m_ctx->src_c_dec_h;
       y4m_ctx->dst_c_dec_v = y4m_ctx->src_c_dec_v;
@@ -1074,7 +1074,7 @@ int y4m_input_open(y4m_input *y4m_ctx, FILE *file, char *skip_buffer,
   } else if (strcmp(y4m_ctx->chroma_type, "444p10") == 0) {
     y4m_ctx->src_c_dec_h = 1;
     y4m_ctx->src_c_dec_v = 1;
-    y4m_ctx->aom_fmt = AOM_IMG_FMT_I44416;
+    y4m_ctx->avm_fmt = AVM_IMG_FMT_I44416;
     y4m_ctx->bps = 30;
     y4m_ctx->bit_depth = 10;
     y4m_ctx->dst_c_dec_h = y4m_ctx->src_c_dec_h;
@@ -1089,7 +1089,7 @@ int y4m_input_open(y4m_input *y4m_ctx, FILE *file, char *skip_buffer,
   } else if (strcmp(y4m_ctx->chroma_type, "444p12") == 0) {
     y4m_ctx->src_c_dec_h = 1;
     y4m_ctx->src_c_dec_v = 1;
-    y4m_ctx->aom_fmt = AOM_IMG_FMT_I44416;
+    y4m_ctx->avm_fmt = AVM_IMG_FMT_I44416;
     y4m_ctx->bps = 36;
     y4m_ctx->bit_depth = 12;
     y4m_ctx->dst_c_dec_h = y4m_ctx->src_c_dec_h;
@@ -1158,7 +1158,7 @@ void y4m_input_close(y4m_input *_y4m) {
   free(_y4m->aux_buf);
 }
 
-int y4m_input_fetch_frame(y4m_input *_y4m, FILE *_fin, aom_image_t *_img) {
+int y4m_input_fetch_frame(y4m_input *_y4m, FILE *_fin, avm_image_t *_img) {
   char frame[6];
   int pic_sz;
   int c_w;
@@ -1194,11 +1194,11 @@ int y4m_input_fetch_frame(y4m_input *_y4m, FILE *_fin, aom_image_t *_img) {
   /*Now convert the just read frame.*/
   (*_y4m->convert)(_y4m, _y4m->dst_buf, _y4m->aux_buf);
   /*Fill in the frame buffer pointers.
-    We don't use aom_img_wrap() because it forces padding for odd picture
+    We don't use avm_img_wrap() because it forces padding for odd picture
      sizes, which would require a separate fread call for every row.*/
   memset(_img, 0, sizeof(*_img));
-  /*Y4M has the planes in Y'CbCr order, which libaom calls Y, U, and V.*/
-  _img->fmt = _y4m->aom_fmt;
+  /*Y4M has the planes in Y'CbCr order, which libavm calls Y, U, and V.*/
+  _img->fmt = _y4m->avm_fmt;
   _img->w = _img->d_w = _y4m->pic_w;
   _img->h = _img->d_h = _y4m->pic_h;
   _img->x_chroma_shift = _y4m->dst_c_dec_h >> 1;
@@ -1211,10 +1211,10 @@ int y4m_input_fetch_frame(y4m_input *_y4m, FILE *_fin, aom_image_t *_img) {
   c_w *= bytes_per_sample;
   c_h = (_y4m->pic_h + _y4m->dst_c_dec_v - 1) / _y4m->dst_c_dec_v;
   c_sz = c_w * c_h;
-  _img->stride[AOM_PLANE_Y] = _y4m->pic_w * bytes_per_sample;
-  _img->stride[AOM_PLANE_U] = _img->stride[AOM_PLANE_V] = c_w;
-  _img->planes[AOM_PLANE_Y] = _y4m->dst_buf;
-  _img->planes[AOM_PLANE_U] = _y4m->dst_buf + pic_sz;
-  _img->planes[AOM_PLANE_V] = _y4m->dst_buf + pic_sz + c_sz;
+  _img->stride[AVM_PLANE_Y] = _y4m->pic_w * bytes_per_sample;
+  _img->stride[AVM_PLANE_U] = _img->stride[AVM_PLANE_V] = c_w;
+  _img->planes[AVM_PLANE_Y] = _y4m->dst_buf;
+  _img->planes[AVM_PLANE_U] = _y4m->dst_buf + pic_sz;
+  _img->planes[AVM_PLANE_V] = _y4m->dst_buf + pic_sz + c_sz;
   return 1;
 }

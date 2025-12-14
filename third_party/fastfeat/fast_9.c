@@ -33,7 +33,7 @@
 #include <stdlib.h>
 #include "fast.h"
 
-int aom_fast9_corner_score(const byte* p, const int pixel[], int bstart)
+int avm_fast9_corner_score(const byte* p, const int pixel[], int bstart)
 {
   int bmin = bstart;
   int bmax = 255;
@@ -2986,7 +2986,7 @@ static void make_offsets(int pixel[], int row_stride)
 
 
 
-int* aom_fast9_score(const byte* i, int stride, const xy* corners, int num_corners, int b)
+int* avm_fast9_score(const byte* i, int stride, const xy* corners, int num_corners, int b)
 {
   int* scores = (int*)malloc(sizeof(int)* num_corners);
   int n;
@@ -2996,13 +2996,13 @@ int* aom_fast9_score(const byte* i, int stride, const xy* corners, int num_corne
   make_offsets(pixel, stride);
 
   for(n=0; n < num_corners; n++)
-    scores[n] = aom_fast9_corner_score(i + corners[n].y*stride + corners[n].x, pixel, b);
+    scores[n] = avm_fast9_corner_score(i + corners[n].y*stride + corners[n].x, pixel, b);
 
   return scores;
 }
 
 
-xy* aom_fast9_detect(const byte* im, int xsize, int ysize, int stride, int b, int* ret_num_corners)
+xy* avm_fast9_detect(const byte* im, int xsize, int ysize, int stride, int b, int* ret_num_corners)
 {
   int num_corners=0;
   xy* ret_corners;

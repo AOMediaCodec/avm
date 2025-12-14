@@ -58,20 +58,20 @@ APSNR_U_WEIGHT = 1.0
 APSNR_V_WEIGHT = 1.0
 
 if CTC_VERSION in ["5.0", "6.0", "7.0", "8.0"]:
-    CTC_RegularXLSTemplate = os.path.join(BinPath, "AOM_CWG_Regular_CTCv5_v7.4.5.xlsm")
-    CTC_ASXLSTemplate = os.path.join(BinPath, "AOM_CWG_AS_CTC_v10.0.xlsm")
+    CTC_RegularXLSTemplate = os.path.join(BinPath, "AVM_CWG_Regular_CTCv5_v7.4.5.xlsm")
+    CTC_ASXLSTemplate = os.path.join(BinPath, "AVM_CWG_AS_CTC_v10.0.xlsm")
 elif CTC_VERSION == "4.0":
-    CTC_RegularXLSTemplate = os.path.join(BinPath, "AOM_CWG_Regular_CTCv4_v7.3.2.xlsm")
-    CTC_ASXLSTemplate = os.path.join(BinPath, "AOM_CWG_AS_CTC_v9.7.1.xlsm")
+    CTC_RegularXLSTemplate = os.path.join(BinPath, "AVM_CWG_Regular_CTCv4_v7.3.2.xlsm")
+    CTC_ASXLSTemplate = os.path.join(BinPath, "AVM_CWG_AS_CTC_v9.7.1.xlsm")
 elif CTC_VERSION == "3.0":
-    CTC_RegularXLSTemplate = os.path.join(BinPath, "AOM_CWG_Regular_CTC_v7.2.xlsm")
-    CTC_ASXLSTemplate = os.path.join(BinPath, "AOM_CWG_AS_CTC_v9.7.xlsm")
+    CTC_RegularXLSTemplate = os.path.join(BinPath, "AVM_CWG_Regular_CTC_v7.2.xlsm")
+    CTC_ASXLSTemplate = os.path.join(BinPath, "AVM_CWG_AS_CTC_v9.7.xlsm")
 elif CTC_VERSION == "2.0":
-    CTC_RegularXLSTemplate = os.path.join(BinPath, "AOM_CWG_Regular_CTC_v7.1.xlsm")
-    CTC_ASXLSTemplate = os.path.join(BinPath, "AOM_CWG_AS_CTC_v9.7.xlsm")
+    CTC_RegularXLSTemplate = os.path.join(BinPath, "AVM_CWG_Regular_CTC_v7.1.xlsm")
+    CTC_ASXLSTemplate = os.path.join(BinPath, "AVM_CWG_AS_CTC_v9.7.xlsm")
 else:
-    CTC_RegularXLSTemplate = os.path.join(BinPath, "AOM_CWG_Regular_CTC_v6.1.xlsm")
-    CTC_ASXLSTemplate = os.path.join(BinPath, "AOM_CWG_AS_CTC_v9.6.xlsm")
+    CTC_RegularXLSTemplate = os.path.join(BinPath, "AVM_CWG_Regular_CTC_v6.1.xlsm")
+    CTC_ASXLSTemplate = os.path.join(BinPath, "AVM_CWG_AS_CTC_v9.6.xlsm")
 
 ############## Scaling settings ############################################
 # down scaling ratio
@@ -80,22 +80,22 @@ DnScaleRatio = [1.0, 1.5, 2.0, 3.0, 4.0, 6.0]  # downscale ratio
 DnScalingAlgos = ["lanczos"]  # ['bicubic', 'bilinear', 'gauss', 'lanczos', 'sinc']
 UpScalingAlgos = ["lanczos"]  # ['bicubic', 'bilinear', 'gauss', 'lanczos', 'sinc']
 
-ScaleMethods = ["hdrtool", "ffmpeg", "aom"]
+ScaleMethods = ["hdrtool", "ffmpeg", "avm"]
 
 HDRToolsConfigFileTemplate = os.path.join(BinPath, "HDRConvScalerY4MFile.cfg")
 HDRConvert = os.path.join(BinPath, "HDRConvert")
-AOMScaler = os.path.join(BinPath, "lanczos_resample_y4m")
+AVMScaler = os.path.join(BinPath, "lanczos_resample_y4m")
 
 ##################### Encode Config ########################################
-EncodeMethods = ["aom", "svt", "hm"]
-CodecNames = ["av1", "av2", "hevc"]
-SUFFIX = {"av1": ".obu", "av2": ".obu", "hevc": ".265"}
+EncodeMethods = ["avm", "svt", "hm"]
+CodecNames = ["av2", "av2", "hevc"]
+SUFFIX = {"av2": ".obu", "av2": ".obu", "hevc": ".265"}
 FFMPEG = os.path.join(BinPath, "ffmpeg")
-AOMENC = os.path.join(BinPath, "aomenc-v8.0.0")
-SVTAV1 = os.path.join(BinPath, "SvtAv1EncApp")
-AOMDEC = os.path.join(BinPath, "aomdec-v8.0.0")
-AV1ENC = os.path.join(BinPath, "av1enc")
-AV1DEC = os.path.join(BinPath, "av1dec")
+AVMENC = os.path.join(BinPath, "avmenc-v8.0.0")
+SVTAV2 = os.path.join(BinPath, "SvtAv2EncApp")
+AVMDEC = os.path.join(BinPath, "avmdec-v8.0.0")
+AV2ENC = os.path.join(BinPath, "av2enc")
+AV2DEC = os.path.join(BinPath, "av2dec")
 HMENC = os.path.join(BinPath, "TAppEncoderStatic")
 VMAF = os.path.join(BinPath, "vmaf")
 HEVCCfgFile = os.path.join(BinPath, "s2-hm-01.cfg")
@@ -180,7 +180,7 @@ if EnableSubjectiveTest:
             "GregoryCactus_fr216_515_1080x1920_30p_420_10b_SDR.y4m": 300,
             "GregoryFence_fr0_299_1080x1920_30p_420_10b_SDR.y4m": 300,
             "Marathon2_3840x2160_30fps_10bit_420pf.y4m": 300,
-            "meridian_aom_sdr_11872-12263.y4m": 392,
+            "meridian_avm_sdr_11872-12263.y4m": 392,
             "Metro_1920x1080_60fps_10bit_420.y4m": 600,
             "MountainBay2_3840x2160_30fps_420_10bit.y4m": 300,
             "TallBuildings2_3840x2160_30fps_10bit_420pf.y4m": 300,

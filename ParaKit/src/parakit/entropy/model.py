@@ -10,7 +10,7 @@ source code in the PATENTS file, you can obtain it at
 aomedia.org/license/patent-license/.
 """
 import parakit.config.user as user
-from parakit.entropy.codec_default_cdf import get_aom_cdf_string
+from parakit.entropy.codec_default_cdf import get_avm_cdf_string
 
 ADD_COMMENTS = False
 
@@ -50,7 +50,7 @@ class EntropyContext:
         cdf_list = model["initializer"]
         num_symb = len(cdf_list)
         cdf = cdf_list[: num_symb - 1]
-        cdf_str = get_aom_cdf_string(cdf)
+        cdf_str = get_avm_cdf_string(cdf)
         return cdf_str
 
     def get_frequency_string(self, index_list):
@@ -104,7 +104,7 @@ class EntropyContext:
         return array_name
 
     def _get_avm_variable_name(self):
-        array_name = "static const aom_cdf_prob " + user.read_config_context(
+        array_name = "static const avm_cdf_prob " + user.read_config_context(
             self.user_cfg, self.ctx_group_name
         )
         for size in self.size_list:

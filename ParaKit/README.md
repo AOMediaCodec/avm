@@ -3,9 +3,9 @@
 </p>
 
 # ParaKit
-ParaKit is a Python toolkit for training <u>P</u>robability and <u>A</u>daptation <u>R</u>ate <u>A</u>djustment (PARA) parameters used to define context model initializations for the AV2 video coding standard, currently under development by the Alliance for Open Media (AOM).
+ParaKit is a Python toolkit for training <u>P</u>robability and <u>A</u>daptation <u>R</u>ate <u>A</u>djustment (PARA) parameters used to define context model initializations for the AV2 video coding standard, currently under development by the Alliance for Open Media (AVM).
 
-ParaKit is named after Apple's CWG-D115 proposal to the AOM's Coding Working Group, entitled "<u>PARA</u>: Probability Adaptation Rate Adjustment for Entropy Coding", where the "<u>Kit</u>" comes from the word toolkit, often referring to a collection of software tools.
+ParaKit is named after Apple's CWG-D115 proposal to the AVM's Coding Working Group, entitled "<u>PARA</u>: Probability Adaptation Rate Adjustment for Entropy Coding", where the "<u>Kit</u>" comes from the word toolkit, often referring to a collection of software tools.
 
 ---
 
@@ -20,10 +20,10 @@ ParaKit's training is data-driven, so it requires collecting data from AVM coded
 
 After making necessary modifications to the AVM for data collection, ParaKit has the following two requirements to be able to run training:
 
-1. a binary `aomdec`*, compiled from a version of AVM for data collection, and
-2. compatible AVM bitstreams, from which the data will be collected using `aomdec`.
+1. a binary `avmdec`*, compiled from a version of AVM for data collection, and
+2. compatible AVM bitstreams, from which the data will be collected using `avmdec`.
 
-*Note: `aomdec` needs to be compiled on the same platform that the developer will run ParaKit.
+*Note: `avmdec` needs to be compiled on the same platform that the developer will run ParaKit.
 
 ---
 
@@ -40,15 +40,15 @@ cd ParaKit
 source setup.sh
 ```
 
-<b>Step 3:</b> compile the AVM decoder by running the following command which will build `aomdec` under ./binaries directory.
+<b>Step 3:</b> compile the AVM decoder by running the following command which will build `avmdec` under ./binaries directory.
 ```
 source setup_decoder.sh
 ```
-Note that `setup_decoder.sh` script is provided for convenience. The user can always copy a valid `aomdec` binary compiled from the AVM codebase by enabling the `CONFIG_PARAKIT_COLLECT_DATA` macro.
+Note that `setup_decoder.sh` script is provided for convenience. The user can always copy a valid `avmdec` binary compiled from the AVM codebase by enabling the `CONFIG_PARAKIT_COLLECT_DATA` macro.
 
-Also, make sure that `aomdec` binary under `binaries/` is executable, if not, run the following command.
+Also, make sure that `avmdec` binary under `binaries/` is executable, if not, run the following command.
 ```
-sudo chmod +x ./binaries/aomdec
+sudo chmod +x ./binaries/avmdec
 ```
 <b>Important note:</b> The sample AVM implementation under the `CONFIG_PARAKIT_COLLECT_DATA` macro can collect data only for `eob_flag_cdf16` and `eob_flag_cdf32` contexts. To support other contexts, the developer needs to replace the binary compiled with the necessary changes to AVM. Please refer to [Section 5](#5-data-collection-guidelines-for-modifying-avm) for more details on modifying the AVM codebase.
 
@@ -61,7 +61,7 @@ python run_unit_test.py
 The unit test uses the two sample bitstreams under `unit_test/bitstreams` compatible with the AVM version, tag research-v8.0.0. Developers will need to switch to `research-v8.0.0-parakit` branch or replace the bitstreams with the compatible ones to reproduce this step.
 
 ## 3. Usage: running training via ParaKit
-<b>Step 1:</b> replace `aomdec` under `binaries/` with a new decoder binary (based on to collect data for desired contexts). The `setup_decoder.sh` script can be used to compile new binaries from modified AVM. Make sure that `aomdec` is executable (see Step 3 in [Section 2](#2-installation)).
+<b>Step 1:</b> replace `avmdec` under `binaries/` with a new decoder binary (based on to collect data for desired contexts). The `setup_decoder.sh` script can be used to compile new binaries from modified AVM. Make sure that `avmdec` is executable (see Step 3 in [Section 2](#2-installation)).
 
 <b>Step 2:</b> copy compatible AVM bitstreams under `bitstreams/` directory. The only requirement is that each bitstream's filename should start with `Bin_`.
 
@@ -89,27 +89,27 @@ ParaKit requires the `parameters.yaml` file present in the main directory.
 The sample `./parameters.yaml` provided in the repository is configured to train for `eob_flag_cdf16` and `eob_flag_cdf32` contexts as follows:
 ```
 TEST_OUTPUT_TAG: "Test-Tag"
-BITSTREAM_EXTENSION: "av1"
+BITSTREAM_EXTENSION: "av2"
 DESIRED_CTX_LIST:
  - eob_flag_cdf16
  - eob_flag_cdf32
-eob_flag_cdf16: "av1_default_eob_multi16_cdfs"
-eob_flag_cdf32: "av1_default_eob_multi32_cdfs"
+eob_flag_cdf16: "av2_default_eob_multi16_cdfs"
+eob_flag_cdf32: "av2_default_eob_multi32_cdfs"
 ```
 where the mandatory fields are:
 
 - `TEST_OUTPUT_TAG` is the tag used to identify a test (this tag appears in the resulting generated context table `results/Context-Table_*.h`),
 - `BITSTREAM_EXTENSION` specifies the extension of bitstreams copied under `bitstreams/`,
 - `DESIRED_CTX_LIST` specifies the context(s) to be trained,
-- `eob_flag_cdf16: "av1_default_eob_multi16_cdfs"` and `eob_flag_cdf32: "av1_default_eob_multi32_cdfs"` define the context name to context table mapping.
+- `eob_flag_cdf16: "av2_default_eob_multi16_cdfs"` and `eob_flag_cdf32: "av2_default_eob_multi32_cdfs"` define the context name to context table mapping.
 
-<b>Important note:</b> The developer needs to make sure that the context names (e.g., `eob_flag_cdf16` or `eob_flag_cdf32`) follow the same convention in the ParaKit's AVM decoder (`aomdec`).
-The csv data files obtained from `aomdec` are in `Stat_context_name_*.csv` format, where in the above example, `context_name` is replaced by `eob_flag_cdf16` or `eob_flag_cdf32`.
+<b>Important note:</b> The developer needs to make sure that the context names (e.g., `eob_flag_cdf16` or `eob_flag_cdf32`) follow the same convention in the ParaKit's AVM decoder (`avmdec`).
+The csv data files obtained from `avmdec` are in `Stat_context_name_*.csv` format, where in the above example, `context_name` is replaced by `eob_flag_cdf16` or `eob_flag_cdf32`.
 
 ---
 
 ## 5. Data collection: guidelines for modifying AVM
-The data collection requires some modifications to AVM decoder implementation. For this purpose, a sample implementation is provided under the `CONFIG_PARAKIT_COLLECT_DATA` macro (disabled by default) as a reference, where the basic data collection module is implemented in `aom_read_symbol_probdata` function by extending the existing `aom_read_symbol` function in AVM. The comments including `@ParaKit` text provides additional information to guide developers on how to extend data collection for different contexts.
+The data collection requires some modifications to AVM decoder implementation. For this purpose, a sample implementation is provided under the `CONFIG_PARAKIT_COLLECT_DATA` macro (disabled by default) as a reference, where the basic data collection module is implemented in `avm_read_symbol_probdata` function by extending the existing `avm_read_symbol` function in AVM. The comments including `@ParaKit` text provides additional information to guide developers on how to extend data collection for different contexts.
 
 The current implementation in AVM only supports data collection from `eob_flag_cdf16` and `eob_flag_cdf32` context groups. Developers can extend this to add support for new (or any other) contexts on by following the changes under `CONFIG_PARAKIT_COLLECT_DATA` macro and instructions in the comments by searching the text `@ParaKit` on their local AVM version.
 

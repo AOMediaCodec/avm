@@ -12,13 +12,13 @@
 
 #include <string>
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
-#include "aom_dsp/grain_table.h"
-#include "aom/internal/aom_codec_internal.h"
-#include "av1/encoder/grain_test_vectors.h"
+#include "avm_dsp/grain_table.h"
+#include "avm/internal/avm_codec_internal.h"
+#include "av2/encoder/grain_test_vectors.h"
 #include "test/video_source.h"
 
-void grain_equal(const aom_film_grain_t *expected,
-                 const aom_film_grain_t *actual) {
+void grain_equal(const avm_film_grain_t *expected,
+                 const avm_film_grain_t *actual) {
   EXPECT_EQ(expected->apply_grain, actual->apply_grain);
   EXPECT_EQ(expected->update_parameters, actual->update_parameters);
   if (!expected->update_parameters) return;
@@ -74,57 +74,57 @@ void grain_equal(const aom_film_grain_t *expected,
 }
 
 TEST(FilmGrainTableTest, AddAndLookupSingleSegment) {
-  aom_film_grain_table_t table;
+  avm_film_grain_table_t table;
   memset(&table, 0, sizeof(table));
 
-  aom_film_grain_t grain;
-  EXPECT_FALSE(aom_film_grain_table_lookup(&table, 0, 1000, false, &grain));
+  avm_film_grain_t grain;
+  EXPECT_FALSE(avm_film_grain_table_lookup(&table, 0, 1000, false, &grain));
 
-  aom_film_grain_table_append(&table, 1000, 2000, film_grain_test_vectors + 0);
-  EXPECT_FALSE(aom_film_grain_table_lookup(&table, 0, 1000, false, &grain));
-  EXPECT_FALSE(aom_film_grain_table_lookup(&table, 2000, 3000, false, &grain));
+  avm_film_grain_table_append(&table, 1000, 2000, film_grain_test_vectors + 0);
+  EXPECT_FALSE(avm_film_grain_table_lookup(&table, 0, 1000, false, &grain));
+  EXPECT_FALSE(avm_film_grain_table_lookup(&table, 2000, 3000, false, &grain));
 
-  EXPECT_TRUE(aom_film_grain_table_lookup(&table, 1000, 2000, false, &grain));
+  EXPECT_TRUE(avm_film_grain_table_lookup(&table, 1000, 2000, false, &grain));
 
   grain.bit_depth = film_grain_test_vectors[0].bit_depth;
   EXPECT_EQ(0, memcmp(&grain, film_grain_test_vectors + 0, sizeof(table)));
 
   // Extend the existing segment
-  aom_film_grain_table_append(&table, 2000, 3000, film_grain_test_vectors + 0);
+  avm_film_grain_table_append(&table, 2000, 3000, film_grain_test_vectors + 0);
   EXPECT_EQ(0, table.head->next);
 
   // Lookup and remove and check that the entry is no longer there
-  EXPECT_TRUE(aom_film_grain_table_lookup(&table, 1000, 2000, true, &grain));
-  EXPECT_FALSE(aom_film_grain_table_lookup(&table, 1000, 2000, false, &grain));
+  EXPECT_TRUE(avm_film_grain_table_lookup(&table, 1000, 2000, true, &grain));
+  EXPECT_FALSE(avm_film_grain_table_lookup(&table, 1000, 2000, false, &grain));
 
-  EXPECT_TRUE(aom_film_grain_table_lookup(&table, 2000, 3000, true, &grain));
-  EXPECT_FALSE(aom_film_grain_table_lookup(&table, 2000, 3000, false, &grain));
+  EXPECT_TRUE(avm_film_grain_table_lookup(&table, 2000, 3000, true, &grain));
+  EXPECT_FALSE(avm_film_grain_table_lookup(&table, 2000, 3000, false, &grain));
 
   EXPECT_EQ(0, table.head);
   EXPECT_EQ(0, table.tail);
-  aom_film_grain_table_free(&table);
+  avm_film_grain_table_free(&table);
 }
 
 TEST(FilmGrainTableTest, SplitSingleSegment) {
-  aom_film_grain_table_t table;
-  aom_film_grain_t grain;
+  avm_film_grain_table_t table;
+  avm_film_grain_t grain;
   memset(&table, 0, sizeof(table));
 
-  aom_film_grain_table_append(&table, 0, 1000, film_grain_test_vectors + 0);
+  avm_film_grain_table_append(&table, 0, 1000, film_grain_test_vectors + 0);
 
   // Test lookup and remove that adjusts start time
-  EXPECT_TRUE(aom_film_grain_table_lookup(&table, 0, 100, true, &grain));
+  EXPECT_TRUE(avm_film_grain_table_lookup(&table, 0, 100, true, &grain));
   EXPECT_EQ(NULL, table.head->next);
   EXPECT_EQ(100, table.head->start_time);
 
   // Test lookup and remove that adjusts end time
-  EXPECT_TRUE(aom_film_grain_table_lookup(&table, 900, 1000, true, &grain));
+  EXPECT_TRUE(avm_film_grain_table_lookup(&table, 900, 1000, true, &grain));
   EXPECT_EQ(NULL, table.head->next);
   EXPECT_EQ(100, table.head->start_time);
   EXPECT_EQ(900, table.head->end_time);
 
   // Test lookup and remove that splits the first entry
-  EXPECT_TRUE(aom_film_grain_table_lookup(&table, 400, 600, true, &grain));
+  EXPECT_TRUE(avm_film_grain_table_lookup(&table, 400, 600, true, &grain));
   EXPECT_EQ(100, table.head->start_time);
   EXPECT_EQ(400, table.head->end_time);
 
@@ -133,68 +133,68 @@ TEST(FilmGrainTableTest, SplitSingleSegment) {
   EXPECT_EQ(600, table.head->next->start_time);
   EXPECT_EQ(900, table.head->next->end_time);
 
-  aom_film_grain_table_free(&table);
+  avm_film_grain_table_free(&table);
 }
 
 TEST(FilmGrainTableTest, AddAndLookupMultipleSegments) {
-  aom_film_grain_table_t table;
+  avm_film_grain_table_t table;
   memset(&table, 0, sizeof(table));
 
-  aom_film_grain_t grain;
+  avm_film_grain_t grain;
   const int kNumTestVectors =
       sizeof(film_grain_test_vectors) / sizeof(film_grain_test_vectors[0]);
   for (int i = 0; i < kNumTestVectors; ++i) {
-    aom_film_grain_table_append(&table, i * 1000, (i + 1) * 1000,
+    avm_film_grain_table_append(&table, i * 1000, (i + 1) * 1000,
                                 film_grain_test_vectors + i);
   }
 
   for (int i = kNumTestVectors - 1; i >= 0; --i) {
-    EXPECT_TRUE(aom_film_grain_table_lookup(&table, i * 1000, (i + 1) * 1000,
+    EXPECT_TRUE(avm_film_grain_table_lookup(&table, i * 1000, (i + 1) * 1000,
                                             true, &grain));
     grain_equal(film_grain_test_vectors + i, &grain);
-    EXPECT_FALSE(aom_film_grain_table_lookup(&table, i * 1000, (i + 1) * 1000,
+    EXPECT_FALSE(avm_film_grain_table_lookup(&table, i * 1000, (i + 1) * 1000,
                                              true, &grain));
   }
 
   // Verify that all the data has been removed
   for (int i = 0; i < kNumTestVectors; ++i) {
-    EXPECT_FALSE(aom_film_grain_table_lookup(&table, i * 1000, (i + 1) * 1000,
+    EXPECT_FALSE(avm_film_grain_table_lookup(&table, i * 1000, (i + 1) * 1000,
                                              true, &grain));
   }
-  aom_film_grain_table_free(&table);
+  avm_film_grain_table_free(&table);
 }
 
 class FilmGrainTableIOTest : public ::testing::Test {
  protected:
   void SetUp() { memset(&error_, 0, sizeof(error_)); }
-  struct aom_internal_error_info error_;
+  struct avm_internal_error_info error_;
 };
 
 TEST_F(FilmGrainTableIOTest, ReadMissingFile) {
-  aom_film_grain_table_t table;
+  avm_film_grain_table_t table;
   memset(&table, 0, sizeof(table));
-  ASSERT_EQ(AOM_CODEC_ERROR, aom_film_grain_table_read(
+  ASSERT_EQ(AVM_CODEC_ERROR, avm_film_grain_table_read(
                                  &table, "/path/to/missing/file", &error_));
 }
 
 TEST_F(FilmGrainTableIOTest, ReadTruncatedFile) {
-  aom_film_grain_table_t table;
+  avm_film_grain_table_t table;
   memset(&table, 0, sizeof(table));
 
   std::string grain_file;
-  FILE *file = libaom_test::GetTempOutFile(&grain_file);
+  FILE *file = libavm_test::GetTempOutFile(&grain_file);
   fwrite("deadbeef", 8, 1, file);
   fclose(file);
-  ASSERT_EQ(AOM_CODEC_ERROR,
-            aom_film_grain_table_read(&table, grain_file.c_str(), &error_));
+  ASSERT_EQ(AVM_CODEC_ERROR,
+            avm_film_grain_table_read(&table, grain_file.c_str(), &error_));
   EXPECT_EQ(0, remove(grain_file.c_str()));
 }
 
 TEST_F(FilmGrainTableIOTest, RoundTripReadWrite) {
-  aom_film_grain_table_t table;
+  avm_film_grain_table_t table;
   memset(&table, 0, sizeof(table));
 
-  aom_film_grain_t expected_grain[16];
+  avm_film_grain_t expected_grain[16];
   const int kNumTestVectors =
       sizeof(film_grain_test_vectors) / sizeof(film_grain_test_vectors[0]);
   for (int i = 0; i < kNumTestVectors; ++i) {
@@ -203,52 +203,52 @@ TEST_F(FilmGrainTableIOTest, RoundTripReadWrite) {
     expected_grain[i].update_parameters = i % 2;
     expected_grain[i].apply_grain = (i + 1) % 2;
     expected_grain[i].bit_depth = 0;
-    aom_film_grain_table_append(&table, i * 1000, (i + 1) * 1000,
+    avm_film_grain_table_append(&table, i * 1000, (i + 1) * 1000,
                                 expected_grain + i);
   }
   std::string grain_file;
-  fclose(libaom_test::GetTempOutFile(&grain_file));
-  ASSERT_EQ(AOM_CODEC_OK,
-            aom_film_grain_table_write(&table, grain_file.c_str(), &error_));
-  aom_film_grain_table_free(&table);
+  fclose(libavm_test::GetTempOutFile(&grain_file));
+  ASSERT_EQ(AVM_CODEC_OK,
+            avm_film_grain_table_write(&table, grain_file.c_str(), &error_));
+  avm_film_grain_table_free(&table);
 
   memset(&table, 0, sizeof(table));
-  ASSERT_EQ(AOM_CODEC_OK,
-            aom_film_grain_table_read(&table, grain_file.c_str(), &error_));
+  ASSERT_EQ(AVM_CODEC_OK,
+            avm_film_grain_table_read(&table, grain_file.c_str(), &error_));
   for (int i = 0; i < kNumTestVectors; ++i) {
-    aom_film_grain_t grain;
-    EXPECT_TRUE(aom_film_grain_table_lookup(&table, i * 1000, (i + 1) * 1000,
+    avm_film_grain_t grain;
+    EXPECT_TRUE(avm_film_grain_table_lookup(&table, i * 1000, (i + 1) * 1000,
                                             true, &grain));
     grain_equal(expected_grain + i, &grain);
   }
-  aom_film_grain_table_free(&table);
+  avm_film_grain_table_free(&table);
   EXPECT_EQ(0, remove(grain_file.c_str()));
 }
 
 TEST_F(FilmGrainTableIOTest, RoundTripSplit) {
   std::string grain_file;
-  fclose(libaom_test::GetTempOutFile(&grain_file));
+  fclose(libavm_test::GetTempOutFile(&grain_file));
 
-  aom_film_grain_table_t table;
+  avm_film_grain_table_t table;
   memset(&table, 0, sizeof(table));
 
-  aom_film_grain_t grain = film_grain_test_vectors[0];
-  aom_film_grain_table_append(&table, 0, 3000, &grain);
-  ASSERT_TRUE(aom_film_grain_table_lookup(&table, 1000, 2000, true, &grain));
-  ASSERT_TRUE(aom_film_grain_table_lookup(&table, 0, 1000, false, &grain));
-  EXPECT_FALSE(aom_film_grain_table_lookup(&table, 1000, 2000, false, &grain));
-  ASSERT_TRUE(aom_film_grain_table_lookup(&table, 2000, 3000, false, &grain));
-  ASSERT_EQ(AOM_CODEC_OK,
-            aom_film_grain_table_write(&table, grain_file.c_str(), &error_));
-  aom_film_grain_table_free(&table);
+  avm_film_grain_t grain = film_grain_test_vectors[0];
+  avm_film_grain_table_append(&table, 0, 3000, &grain);
+  ASSERT_TRUE(avm_film_grain_table_lookup(&table, 1000, 2000, true, &grain));
+  ASSERT_TRUE(avm_film_grain_table_lookup(&table, 0, 1000, false, &grain));
+  EXPECT_FALSE(avm_film_grain_table_lookup(&table, 1000, 2000, false, &grain));
+  ASSERT_TRUE(avm_film_grain_table_lookup(&table, 2000, 3000, false, &grain));
+  ASSERT_EQ(AVM_CODEC_OK,
+            avm_film_grain_table_write(&table, grain_file.c_str(), &error_));
+  avm_film_grain_table_free(&table);
 
   memset(&table, 0, sizeof(table));
-  ASSERT_EQ(AOM_CODEC_OK,
-            aom_film_grain_table_read(&table, grain_file.c_str(), &error_));
-  ASSERT_TRUE(aom_film_grain_table_lookup(&table, 0, 1000, false, &grain));
-  ASSERT_FALSE(aom_film_grain_table_lookup(&table, 1000, 2000, false, &grain));
-  ASSERT_TRUE(aom_film_grain_table_lookup(&table, 2000, 3000, false, &grain));
-  aom_film_grain_table_free(&table);
+  ASSERT_EQ(AVM_CODEC_OK,
+            avm_film_grain_table_read(&table, grain_file.c_str(), &error_));
+  ASSERT_TRUE(avm_film_grain_table_lookup(&table, 0, 1000, false, &grain));
+  ASSERT_FALSE(avm_film_grain_table_lookup(&table, 1000, 2000, false, &grain));
+  ASSERT_TRUE(avm_film_grain_table_lookup(&table, 2000, 3000, false, &grain));
+  avm_film_grain_table_free(&table);
 
   EXPECT_EQ(0, remove(grain_file.c_str()));
 }

@@ -14,17 +14,17 @@
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
-#include "config/av1_rtcd.h"
+#include "config/av2_rtcd.h"
 
-#include "av1/common/cfl.h"
+#include "av2/common/cfl.h"
 
-#include "aom_ports/aom_timer.h"
+#include "avm_ports/avm_timer.h"
 #include "test/util.h"
 #include "test/acm_random.h"
 
 using std::make_tuple;
 
-using libaom_test::ACMRandom;
+using libavm_test::ACMRandom;
 
 #define NUM_ITERATIONS (100)
 #define NUM_ITERATIONS_SPEED (INT16_MAX)
@@ -142,23 +142,23 @@ class CFLTestWithAlignedData : public CFLTest {
  public:
   CFLTestWithAlignedData() {
     chroma_pels_ref =
-        reinterpret_cast<I *>(aom_memalign(32, sizeof(I) * CFL_BUF_SQUARE));
+        reinterpret_cast<I *>(avm_memalign(32, sizeof(I) * CFL_BUF_SQUARE));
     chroma_pels =
-        reinterpret_cast<I *>(aom_memalign(32, sizeof(I) * CFL_BUF_SQUARE));
+        reinterpret_cast<I *>(avm_memalign(32, sizeof(I) * CFL_BUF_SQUARE));
     sub_luma_pels_ref = reinterpret_cast<int16_t *>(
-        aom_memalign(32, sizeof(int16_t) * CFL_BUF_SQUARE));
+        avm_memalign(32, sizeof(int16_t) * CFL_BUF_SQUARE));
     sub_luma_pels = reinterpret_cast<int16_t *>(
-        aom_memalign(32, sizeof(int16_t) * CFL_BUF_SQUARE));
+        avm_memalign(32, sizeof(int16_t) * CFL_BUF_SQUARE));
     memset(chroma_pels_ref, 0, sizeof(I) * CFL_BUF_SQUARE);
     memset(chroma_pels, 0, sizeof(I) * CFL_BUF_SQUARE);
     memset(sub_luma_pels_ref, 0, sizeof(int16_t) * CFL_BUF_SQUARE);
     memset(sub_luma_pels, 0, sizeof(int16_t) * CFL_BUF_SQUARE);
   }
   ~CFLTestWithAlignedData() {
-    aom_free(chroma_pels_ref);
-    aom_free(sub_luma_pels_ref);
-    aom_free(chroma_pels);
-    aom_free(sub_luma_pels);
+    avm_free(chroma_pels_ref);
+    avm_free(sub_luma_pels_ref);
+    avm_free(chroma_pels);
+    avm_free(sub_luma_pels);
   }
 
  protected:
@@ -210,21 +210,21 @@ TEST_P(CFLSubAvgTest, SubAvgTest) {
 }
 
 TEST_P(CFLSubAvgTest, DISABLED_SubAvgSpeedTest) {
-  aom_usec_timer ref_timer;
-  aom_usec_timer timer;
+  avm_usec_timer ref_timer;
+  avm_usec_timer timer;
   randData(&ACMRandom::Rand15Signed);
-  aom_usec_timer_start(&ref_timer);
+  avm_usec_timer_start(&ref_timer);
   for (int k = 0; k < NUM_ITERATIONS_SPEED; k++) {
     sub_avg_ref((uint16_t *)data_ref, data_ref);
   }
-  aom_usec_timer_mark(&ref_timer);
-  int ref_elapsed_time = (int)aom_usec_timer_elapsed(&ref_timer);
-  aom_usec_timer_start(&timer);
+  avm_usec_timer_mark(&ref_timer);
+  int ref_elapsed_time = (int)avm_usec_timer_elapsed(&ref_timer);
+  avm_usec_timer_start(&timer);
   for (int k = 0; k < NUM_ITERATIONS_SPEED; k++) {
     sub_avg((uint16_t *)data, data);
   }
-  aom_usec_timer_mark(&timer);
-  int elapsed_time = (int)aom_usec_timer_elapsed(&timer);
+  avm_usec_timer_mark(&timer);
+  int elapsed_time = (int)avm_usec_timer_elapsed(&timer);
   printSpeed(ref_elapsed_time, elapsed_time, width, height);
   assertFaster(ref_elapsed_time, elapsed_time);
 }
@@ -265,22 +265,22 @@ class CFLSubsampleTest : public ::testing::TestWithParam<S>,
   void subsampleSpeedTest(T fun, T fun_ref, I (ACMRandom::*random)()) {
     uint16_t sub_luma_pels[CFL_BUF_SQUARE];
     uint16_t sub_luma_pels_ref[CFL_BUF_SQUARE];
-    aom_usec_timer ref_timer;
-    aom_usec_timer timer;
+    avm_usec_timer ref_timer;
+    avm_usec_timer timer;
 
     CFLTestWithData<I>::randData(random);
-    aom_usec_timer_start(&ref_timer);
+    avm_usec_timer_start(&ref_timer);
     for (int k = 0; k < NUM_ITERATIONS_SPEED; k++) {
       fun_ref(this->data_ref, CFL_BUF_LINE, sub_luma_pels);
     }
-    aom_usec_timer_mark(&ref_timer);
-    int ref_elapsed_time = (int)aom_usec_timer_elapsed(&ref_timer);
-    aom_usec_timer_start(&timer);
+    avm_usec_timer_mark(&ref_timer);
+    int ref_elapsed_time = (int)avm_usec_timer_elapsed(&ref_timer);
+    avm_usec_timer_start(&timer);
     for (int k = 0; k < NUM_ITERATIONS_SPEED; k++) {
       fun(this->data, CFL_BUF_LINE, sub_luma_pels_ref);
     }
-    aom_usec_timer_mark(&timer);
-    int elapsed_time = (int)aom_usec_timer_elapsed(&timer);
+    avm_usec_timer_mark(&timer);
+    int elapsed_time = (int)avm_usec_timer_elapsed(&timer);
     printSpeed(ref_elapsed_time, elapsed_time, this->width, this->height);
     assertFaster(ref_elapsed_time, elapsed_time);
   }
@@ -357,23 +357,23 @@ TEST_P(CFLPredictHBDTest, PredictHBDTest) {
   }
 }
 TEST_P(CFLPredictHBDTest, DISABLED_PredictHBDSpeedTest) {
-  aom_usec_timer ref_timer;
-  aom_usec_timer timer;
+  avm_usec_timer ref_timer;
+  avm_usec_timer timer;
   const int bd = 12;
   randData(bd);
-  aom_usec_timer_start(&ref_timer);
+  avm_usec_timer_start(&ref_timer);
   for (int k = 0; k < NUM_ITERATIONS_SPEED; k++) {
     predict_ref(sub_luma_pels_ref, chroma_pels_ref, CFL_BUF_LINE, alpha_q3, bd);
   }
-  aom_usec_timer_mark(&ref_timer);
-  int ref_elapsed_time = (int)aom_usec_timer_elapsed(&ref_timer);
+  avm_usec_timer_mark(&ref_timer);
+  int ref_elapsed_time = (int)avm_usec_timer_elapsed(&ref_timer);
 
-  aom_usec_timer_start(&timer);
+  avm_usec_timer_start(&timer);
   for (int k = 0; k < NUM_ITERATIONS_SPEED; k++) {
     predict(sub_luma_pels, chroma_pels, CFL_BUF_LINE, alpha_q3, bd);
   }
-  aom_usec_timer_mark(&timer);
-  int elapsed_time = (int)aom_usec_timer_elapsed(&timer);
+  avm_usec_timer_mark(&timer);
+  int elapsed_time = (int)avm_usec_timer_elapsed(&timer);
   printSpeed(ref_elapsed_time, elapsed_time, width, height);
   assertFaster(ref_elapsed_time, elapsed_time);
 }
@@ -439,24 +439,24 @@ TEST_P(CflSubsample121HBDTest, Match) {
 TEST_P(CflSubsample121HBDTest, DISABLED_Speed) {
   uint16_t ref_output[CFL_BUF_SQUARE];
   uint16_t tgt_output[CFL_BUF_SQUARE];
-  aom_usec_timer ref_timer;
-  aom_usec_timer timer;
+  avm_usec_timer ref_timer;
+  avm_usec_timer timer;
 
   randData(&ACMRandom::Rand12);
 
-  aom_usec_timer_start(&ref_timer);
+  avm_usec_timer_start(&ref_timer);
   for (int k = 0; k < NUM_ITERATIONS_SPEED; k++) {
     ref_fn_(data_ref, CFL_BUF_LINE, ref_output);
   }
-  aom_usec_timer_mark(&ref_timer);
-  const int ref_elapsed_time = (int)aom_usec_timer_elapsed(&ref_timer);
+  avm_usec_timer_mark(&ref_timer);
+  const int ref_elapsed_time = (int)avm_usec_timer_elapsed(&ref_timer);
 
-  aom_usec_timer_start(&timer);
+  avm_usec_timer_start(&timer);
   for (int k = 0; k < NUM_ITERATIONS_SPEED; k++) {
     tgt_fn_(data, CFL_BUF_LINE, tgt_output);
   }
-  aom_usec_timer_mark(&timer);
-  const int elapsed_time = (int)aom_usec_timer_elapsed(&timer);
+  avm_usec_timer_mark(&timer);
+  const int elapsed_time = (int)avm_usec_timer_elapsed(&timer);
 
   printSpeed(ref_elapsed_time, elapsed_time, width, height);
   assertFaster(ref_elapsed_time, elapsed_time);
@@ -533,24 +533,24 @@ TEST_P(CflSubsampleColocatedHBDTest, Match) {
 TEST_P(CflSubsampleColocatedHBDTest, DISABLED_Speed) {
   uint16_t ref_output[CFL_BUF_SQUARE];
   uint16_t tgt_output[CFL_BUF_SQUARE];
-  aom_usec_timer ref_timer;
-  aom_usec_timer timer;
+  avm_usec_timer ref_timer;
+  avm_usec_timer timer;
 
   randData(&ACMRandom::Rand12);
 
-  aom_usec_timer_start(&ref_timer);
+  avm_usec_timer_start(&ref_timer);
   for (int k = 0; k < NUM_ITERATIONS_SPEED; k++) {
     ref_fn_(data_ref, CFL_BUF_LINE, ref_output);
   }
-  aom_usec_timer_mark(&ref_timer);
-  const int ref_elapsed_time = (int)aom_usec_timer_elapsed(&ref_timer);
+  avm_usec_timer_mark(&ref_timer);
+  const int ref_elapsed_time = (int)avm_usec_timer_elapsed(&ref_timer);
 
-  aom_usec_timer_start(&timer);
+  avm_usec_timer_start(&timer);
   for (int k = 0; k < NUM_ITERATIONS_SPEED; k++) {
     tgt_fn_(data, CFL_BUF_LINE, tgt_output);
   }
-  aom_usec_timer_mark(&timer);
-  const int elapsed_time = (int)aom_usec_timer_elapsed(&timer);
+  avm_usec_timer_mark(&timer);
+  const int elapsed_time = (int)avm_usec_timer_elapsed(&timer);
 
   printSpeed(ref_elapsed_time, elapsed_time, width, height);
   assertFaster(ref_elapsed_time, elapsed_time);
@@ -635,25 +635,25 @@ TEST_P(MhccpPredictHVHBDTest, PredictTest) {
 }
 
 TEST_P(MhccpPredictHVHBDTest, DISABLED_PredictSpeedTest) {
-  aom_usec_timer ref_timer;
-  aom_usec_timer timer;
+  avm_usec_timer ref_timer;
+  avm_usec_timer timer;
   randData();
-  aom_usec_timer_start(&ref_timer);
+  avm_usec_timer_start(&ref_timer);
   const int input_stride = 2 * CFL_BUF_LINE;
   const int offset = LINE_NUM * input_stride + LINE_NUM;
   for (int k = 0; k < NUM_ITERATIONS_SPEED; k++) {
     ref_fn_(input_buffer_ + offset, tgt_buffer_, have_top_, have_left_,
             CFL_BUF_LINE, alpha_q3_, bit_depth_, width_, height_, dir_);
   }
-  aom_usec_timer_mark(&ref_timer);
-  const int ref_elapsed_time = (int)aom_usec_timer_elapsed(&ref_timer);
-  aom_usec_timer_start(&timer);
+  avm_usec_timer_mark(&ref_timer);
+  const int ref_elapsed_time = (int)avm_usec_timer_elapsed(&ref_timer);
+  avm_usec_timer_start(&timer);
   for (int k = 0; k < NUM_ITERATIONS_SPEED; k++) {
     tgt_fn_(input_buffer_ + offset, tgt_buffer_, have_top_, have_left_,
             CFL_BUF_LINE, alpha_q3_, bit_depth_, width_, height_, dir_);
   }
-  aom_usec_timer_mark(&timer);
-  const int elapsed_time = (int)aom_usec_timer_elapsed(&timer);
+  avm_usec_timer_mark(&timer);
+  const int elapsed_time = (int)avm_usec_timer_elapsed(&timer);
   printSpeed(ref_elapsed_time, elapsed_time, width_, height_);
   assertFaster(ref_elapsed_time, elapsed_time);
 }
@@ -670,12 +670,12 @@ INSTANTIATE_TEST_SUITE_P(
 #endif  // HAVE_AVX2
 #endif  // CONFIG_MHCCP_SOLVER_BITS
 
-typedef void (*av1_mhccp_derive_multi_param_hv_fn)(
+typedef void (*av2_mhccp_derive_multi_param_hv_fn)(
     MACROBLOCKD *const xd, int plane, int above_lines, int left_lines,
     int ref_width, int ref_height, int dir, int is_top_sb_boundary);
 
 typedef std::tuple<int, int, int, int, int, int, int,
-                   av1_mhccp_derive_multi_param_hv_fn>
+                   av2_mhccp_derive_multi_param_hv_fn>
     mhccp_derive_param;
 
 class MhccpDeriveMultiParamHVTest
@@ -691,7 +691,7 @@ class MhccpDeriveMultiParamHVTest
     bd_ = std::get<6>(GetParam());
 
     tgt_fn_ = std::get<7>(GetParam());
-    ref_fn_ = av1_mhccp_derive_multi_param_hv_c;
+    ref_fn_ = av2_mhccp_derive_multi_param_hv_c;
 
     memset(&xd_ref_, 0, sizeof(xd_ref_));
     memset(&xd_tgt_, 0, sizeof(xd_tgt_));
@@ -701,8 +701,8 @@ class MhccpDeriveMultiParamHVTest
   }
 
  protected:
-  av1_mhccp_derive_multi_param_hv_fn tgt_fn_;
-  av1_mhccp_derive_multi_param_hv_fn ref_fn_;
+  av2_mhccp_derive_multi_param_hv_fn tgt_fn_;
+  av2_mhccp_derive_multi_param_hv_fn ref_fn_;
   MACROBLOCKD xd_ref_;
   MACROBLOCKD xd_tgt_;
   int plane_, above_lines_, left_lines_, ref_width_, ref_height_, dir_, bd_;
@@ -767,23 +767,23 @@ TEST_P(MhccpDeriveMultiParamHVTest, CompareCAndAVX2) {
 
 TEST_P(MhccpDeriveMultiParamHVTest, DISABLED_SpeedTest) {
   const int is_top_sb_boundary = 0;
-  aom_usec_timer ref_timer, tgt_timer;
+  avm_usec_timer ref_timer, tgt_timer;
 
-  aom_usec_timer_start(&ref_timer);
+  avm_usec_timer_start(&ref_timer);
   for (int i = 0; i < NUM_ITERATIONS_SPEED; ++i) {
     ref_fn_(&xd_ref_, plane_, above_lines_, left_lines_, ref_width_,
             ref_height_, dir_, is_top_sb_boundary);
   }
-  aom_usec_timer_mark(&ref_timer);
-  const int ref_time = (int)aom_usec_timer_elapsed(&ref_timer);
+  avm_usec_timer_mark(&ref_timer);
+  const int ref_time = (int)avm_usec_timer_elapsed(&ref_timer);
 
-  aom_usec_timer_start(&tgt_timer);
+  avm_usec_timer_start(&tgt_timer);
   for (int i = 0; i < NUM_ITERATIONS_SPEED; ++i) {
     tgt_fn_(&xd_tgt_, plane_, above_lines_, left_lines_, ref_width_,
             ref_height_, dir_, is_top_sb_boundary);
   }
-  aom_usec_timer_mark(&tgt_timer);
-  const int tgt_time = (int)aom_usec_timer_elapsed(&tgt_timer);
+  avm_usec_timer_mark(&tgt_timer);
+  const int tgt_time = (int)avm_usec_timer_elapsed(&tgt_timer);
 
   printSpeed(ref_time, tgt_time, ref_width_, ref_height_);
   // This assertion ensures that intrinsic function time is less than C function
@@ -806,7 +806,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(8, 16, 32, 64),    // ref_height
         ::testing::Values(0, 1, 2),          // dir
         ::testing::Values(8, 10, 12),        // bd
-        ::testing::Values(av1_mhccp_derive_multi_param_hv_avx2)));
+        ::testing::Values(av2_mhccp_derive_multi_param_hv_avx2)));
 #endif  // HAVE_AVX2
 
 #if HAVE_SSE2

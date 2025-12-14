@@ -10,7 +10,7 @@
  * aomedia.org/license/patent-license/.
  */
 
-#include "config/aom_config.h"
+#include "config/avm_config.h"
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 #include "test/codec_factory.h"
@@ -21,9 +21,9 @@
 namespace {
 
 class AqSegmentTest
-    : public ::libaom_test::CodecTestWith3Params<libaom_test::TestMode, int,
+    : public ::libavm_test::CodecTestWith3Params<libavm_test::TestMode, int,
                                                  int>,
-      public ::libaom_test::EncoderTest {
+      public ::libavm_test::EncoderTest {
  protected:
   AqSegmentTest() : EncoderTest(GET_PARAM(0)) {}
   virtual ~AqSegmentTest() {}
@@ -35,13 +35,13 @@ class AqSegmentTest
     aq_mode_ = 0;
   }
 
-  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
-                                  ::libaom_test::Encoder *encoder) {
+  virtual void PreEncodeFrameHook(::libavm_test::VideoSource *video,
+                                  ::libavm_test::Encoder *encoder) {
     if (video->frame() == 0) {
-      encoder->Control(AOME_SET_CPUUSED, set_cpu_used_);
-      encoder->Control(AV1E_SET_AQ_MODE, aq_mode_);
-      encoder->Control(AV1E_SET_DELTAQ_MODE, deltaq_mode_);
-      encoder->Control(AOME_SET_MAX_INTRA_BITRATE_PCT, 100);
+      encoder->Control(AVME_SET_CPUUSED, set_cpu_used_);
+      encoder->Control(AV2E_SET_AQ_MODE, aq_mode_);
+      encoder->Control(AV2E_SET_DELTAQ_MODE, deltaq_mode_);
+      encoder->Control(AVME_SET_MAX_INTRA_BITRATE_PCT, 100);
     }
   }
 
@@ -51,13 +51,13 @@ class AqSegmentTest
     cfg_.kf_max_dist = 12;
     cfg_.rc_min_quantizer = 200;
     cfg_.rc_max_quantizer = 224;
-    cfg_.rc_end_usage = AOM_CBR;
+    cfg_.rc_end_usage = AVM_CBR;
     cfg_.g_lag_in_frames = 6;
     cfg_.rc_buf_initial_sz = 500;
     cfg_.rc_buf_optimal_sz = 500;
     cfg_.rc_buf_sz = 1000;
     cfg_.rc_target_bitrate = 300;
-    ::libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352,
+    ::libavm_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352,
                                          288, 30, 1, 0, 15);
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   }
@@ -81,20 +81,20 @@ TEST_P(AqSegmentTest, TestNoMisMatchExtDeltaQ) {
   if (aq_mode_ != 0) {
     return;  // Combination not valid.
   }
-  cfg_.rc_end_usage = AOM_CQ;
+  cfg_.rc_end_usage = AVM_CQ;
   deltaq_mode_ = 2;
   cfg_.rc_min_quantizer = 200;
   cfg_.rc_max_quantizer = 224;
-  ::libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
+  ::libavm_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                        30, 1, 0, 15);
 
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 }
 
-AV1_INSTANTIATE_TEST_SUITE(AqSegmentTest,
-                           ::testing::Values(::libaom_test::kOnePassGood),
+AV2_INSTANTIATE_TEST_SUITE(AqSegmentTest,
+                           ::testing::Values(::libavm_test::kOnePassGood),
                            ::testing::Values(5), ::testing::Range(0, 4));
-AV1_INSTANTIATE_TEST_SUITE(AqSegmentTestLarge,
-                           ::testing::Values(::libaom_test::kOnePassGood),
+AV2_INSTANTIATE_TEST_SUITE(AqSegmentTestLarge,
+                           ::testing::Values(::libavm_test::kOnePassGood),
                            ::testing::Values(3), ::testing::Range(0, 4));
 }  // namespace

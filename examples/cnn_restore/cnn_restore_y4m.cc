@@ -10,7 +10,7 @@
  * aomedia.org/license/patent-license/.
  */
 
-// NOTE: To build this utility in libaom please configure and build with
+// NOTE: To build this utility in libavm please configure and build with
 // -DCONFIG_TENSORFLOW_LITE=1 cmake flag.
 
 #include <cstdio>

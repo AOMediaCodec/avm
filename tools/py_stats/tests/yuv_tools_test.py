@@ -8,7 +8,7 @@ import unittest
 from avm_stats import yuv_tools
 import numpy as np
 
-TESTDATA_ENV_VAR = "LIBAOM_TEST_DATA_PATH"
+TESTDATA_ENV_VAR = "LIBAVM_TEST_DATA_PATH"
 TEST_STREAM_WIDTH = 160
 TEST_STREAM_HEIGHT = 90
 

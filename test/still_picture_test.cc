@@ -20,22 +20,22 @@ namespace {
 
 // This class is used to test the presence of still picture feature.
 class StillPicturePresenceTestLarge
-    : public ::libaom_test::CodecTestWith2Params<libaom_test::TestMode, int>,
-      public ::libaom_test::EncoderTest {
+    : public ::libavm_test::CodecTestWith3Params<libavm_test::TestMode, int,
+                                                 avm_rc_mode>,
+      public ::libavm_test::EncoderTest {
  protected:
   StillPicturePresenceTestLarge()
       : EncoderTest(GET_PARAM(0)), encoding_mode_(GET_PARAM(1)),
-        enable_full_header_(GET_PARAM(2)) {
-    still_picture_coding_violated_ = false;
-  }
+        still_picture_coding_violated_(false),
+        enable_full_header_(GET_PARAM(2)), end_usage_(GET_PARAM(3)) {}
   virtual ~StillPicturePresenceTestLarge() {}
 
   virtual void SetUp() {
     InitializeConfig();
     SetMode(encoding_mode_);
-    const aom_rational timebase = { 1, 30 };
+    const avm_rational timebase = { 1, 30 };
     cfg_.g_timebase = timebase;
-    cfg_.rc_end_usage = AOM_Q;
+    cfg_.rc_end_usage = end_usage_;
     cfg_.g_threads = 1;
     cfg_.full_still_picture_hdr = enable_full_header_;
     cfg_.g_limit = 1;
@@ -43,26 +43,26 @@ class StillPicturePresenceTestLarge
 
   virtual bool DoDecode() const { return 1; }
 
-  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
-                                  ::libaom_test::Encoder *encoder) {
+  virtual void PreEncodeFrameHook(::libavm_test::VideoSource *video,
+                                  ::libavm_test::Encoder *encoder) {
     if (video->frame() == 0) {
-      encoder->Control(AOME_SET_CPUUSED, 5);
-      encoder->Control(AV1E_SET_FORCE_VIDEO_MODE, 0);
+      encoder->Control(AVME_SET_CPUUSED, 5);
+      encoder->Control(AV2E_SET_FORCE_VIDEO_MODE, 0);
     }
   }
 
-  virtual bool HandleDecodeResult(const aom_codec_err_t res_dec,
-                                  libaom_test::Decoder *decoder) {
-    EXPECT_EQ(AOM_CODEC_OK, res_dec) << decoder->DecodeError();
-    if (AOM_CODEC_OK == res_dec) {
-      aom_codec_ctx_t *ctx_dec = decoder->GetDecoder();
-      AOM_CODEC_CONTROL_TYPECHECKED(ctx_dec, AOMD_GET_STILL_PICTURE,
-                                    &still_pic_info_);
-      if (still_pic_info_.is_still_picture != 1) {
+  virtual bool HandleDecodeResult(const avm_codec_err_t res_dec,
+                                  libavm_test::Decoder *decoder) {
+    EXPECT_EQ(AVM_CODEC_OK, res_dec) << decoder->DecodeError();
+    if (AVM_CODEC_OK == res_dec) {
+      avm_codec_ctx_t *ctx_dec = decoder->GetDecoder();
+      avm_still_picture_info still_pic_info;
+      AVM_CODEC_CONTROL_TYPECHECKED(ctx_dec, AVMD_GET_STILL_PICTURE,
+                                    &still_pic_info);
+      if (still_pic_info.is_still_picture != 1) {
         still_picture_coding_violated_ = true;
       }
-      if (still_pic_info_.is_single_picture_header_flag ==
-          enable_full_header_) {
+      if (still_pic_info.is_single_picture_header_flag == enable_full_header_) {
         /* If full_still_picture_header is enabled in encoder config but
          * bitstream contains single_picture_header_flag set, then set
          * still_picture_coding_violated_ to true.
@@ -73,24 +73,24 @@ class StillPicturePresenceTestLarge
         still_picture_coding_violated_ = true;
       }
     }
-    return AOM_CODEC_OK == res_dec;
+    return AVM_CODEC_OK == res_dec;
   }
 
-  ::libaom_test::TestMode encoding_mode_;
+  ::libavm_test::TestMode encoding_mode_;
   bool still_picture_coding_violated_;
   int enable_full_header_;
-  aom_still_picture_info still_pic_info_;
-  aom_rc_mode end_usage_check_;
+  avm_rc_mode end_usage_;
 };
 
 TEST_P(StillPicturePresenceTestLarge, StillPictureEncodePresenceTest) {
-  libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
+  libavm_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                      cfg_.g_timebase.den, cfg_.g_timebase.num,
                                      0, 1);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   ASSERT_EQ(still_picture_coding_violated_, false);
 }
 
-AV1_INSTANTIATE_TEST_SUITE(StillPicturePresenceTestLarge,
-                           GOODQUALITY_TEST_MODES, ::testing::Values(1, 0));
+AV2_INSTANTIATE_TEST_SUITE(StillPicturePresenceTestLarge,
+                           GOODQUALITY_TEST_MODES, ::testing::Values(1, 0),
+                           ::testing::Values(AVM_VBR, AVM_Q));
 }  // namespace

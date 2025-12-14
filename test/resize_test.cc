@@ -12,9 +12,9 @@
 
 #include <climits>
 #include <vector>
-#include "aom_dsp/aom_dsp_common.h"
+#include "avm_dsp/avm_dsp_common.h"
 #include "common/tools_common.h"
-#include "av1/encoder/encoder.h"
+#include "av2/encoder/encoder.h"
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 #include "test/codec_factory.h"
 #include "test/encode_test_driver.h"
@@ -41,7 +41,7 @@ static void mem_put_le32(char *const mem, unsigned int val) {
   mem[3] = val >> 24;
 }
 
-static void write_ivf_file_header(const aom_codec_enc_cfg_t *const cfg,
+static void write_ivf_file_header(const avm_codec_enc_cfg_t *const cfg,
                                   int frame_cnt, FILE *const outfile) {
   char header[32];
 
@@ -51,7 +51,7 @@ static void write_ivf_file_header(const aom_codec_enc_cfg_t *const cfg,
   header[3] = 'F';
   mem_put_le16(header + 4, 0);                    /* version */
   mem_put_le16(header + 6, 32);                   /* headersize */
-  mem_put_le32(header + 8, AV1_FOURCC);           /* fourcc (av1) */
+  mem_put_le32(header + 8, AV2_FOURCC);           /* fourcc (av2) */
   mem_put_le16(header + 12, cfg->g_w);            /* width */
   mem_put_le16(header + 14, cfg->g_h);            /* height */
   mem_put_le32(header + 16, cfg->g_timebase.den); /* rate */
@@ -68,13 +68,13 @@ static void write_ivf_frame_size(FILE *const outfile, const size_t size) {
   (void)fwrite(header, 1, 4, outfile);
 }
 
-static void write_ivf_frame_header(const aom_codec_cx_pkt_t *const pkt,
+static void write_ivf_frame_header(const avm_codec_cx_pkt_t *const pkt,
                                    FILE *const outfile) {
   char header[12];
-  aom_codec_pts_t pts;
+  avm_codec_pts_t pts;
 
-  if (pkt->kind != AOM_CODEC_CX_FRAME_PKT &&
-      pkt->kind != AOM_CODEC_CX_FRAME_NULL_PKT)
+  if (pkt->kind != AVM_CODEC_CX_FRAME_PKT &&
+      pkt->kind != AVM_CODEC_CX_FRAME_NULL_PKT)
     return;
 
   pts = pkt->data.frame.pts;
@@ -90,10 +90,10 @@ const unsigned int kInitialWidth = 320;
 const unsigned int kInitialHeight = 240;
 
 struct FrameInfo {
-  FrameInfo(aom_codec_pts_t _pts, unsigned int _w, unsigned int _h)
+  FrameInfo(avm_codec_pts_t _pts, unsigned int _w, unsigned int _h)
       : pts(_pts), w(_w), h(_h) {}
 
-  aom_codec_pts_t pts;
+  avm_codec_pts_t pts;
   unsigned int w;
   unsigned int h;
 };
@@ -163,8 +163,8 @@ void ScaleForFrameNumber(unsigned int frame, unsigned int initial_w,
     return;
   }
   if (flag_codec == 1) {
-    // Cases that only works for AV1.
-    // For AV1: Swap width and height of original.
+    // Cases that only works for AV2.
+    // For AV2: Swap width and height of original.
     if (frame < 140) {
       *w = initial_h;
       *h = initial_w;
@@ -175,7 +175,7 @@ void ScaleForFrameNumber(unsigned int frame, unsigned int initial_w,
   *h = initial_h;
 }
 
-class ResizingVideoSource : public ::libaom_test::DummyVideoSource {
+class ResizingVideoSource : public ::libavm_test::DummyVideoSource {
  public:
   ResizingVideoSource() {
     SetSize(kInitialWidth, kInitialHeight);
@@ -197,8 +197,8 @@ class ResizingVideoSource : public ::libaom_test::DummyVideoSource {
 };
 
 class ResizeTest
-    : public ::libaom_test::CodecTestWithParam<libaom_test::TestMode>,
-      public ::libaom_test::EncoderTest {
+    : public ::libavm_test::CodecTestWithParam<libavm_test::TestMode>,
+      public ::libavm_test::EncoderTest {
  protected:
   ResizeTest() : EncoderTest(GET_PARAM(0)) {}
 
@@ -209,8 +209,8 @@ class ResizeTest
     SetMode(GET_PARAM(1));
   }
 
-  virtual void DecompressedFrameHook(const aom_image_t &img,
-                                     aom_codec_pts_t pts) {
+  virtual void DecompressedFrameHook(const avm_image_t &img,
+                                     avm_codec_pts_t pts) {
     frame_info_list_.push_back(FrameInfo(pts, img.d_w, img.d_h));
   }
 
@@ -248,42 +248,42 @@ class ResizeInternalTestLarge : public ResizeTest {
 #endif
   }
 
-  virtual void PreEncodeFrameHook(libaom_test::VideoSource *video,
-                                  libaom_test::Encoder *encoder) {
+  virtual void PreEncodeFrameHook(libavm_test::VideoSource *video,
+                                  libavm_test::Encoder *encoder) {
     if (change_config_) {
       if (video->frame() == 0) {
-        struct aom_scaling_mode mode = { AOME_ONETWO, AOME_ONETWO };
-        encoder->Control(AOME_SET_SCALEMODE, &mode);
+        struct avm_scaling_mode mode = { AVME_ONETWO, AVME_ONETWO };
+        encoder->Control(AVME_SET_SCALEMODE, &mode);
       }
       if (video->frame() == 1) {
-        struct aom_scaling_mode mode = { AOME_NORMAL, AOME_NORMAL };
-        encoder->Control(AOME_SET_SCALEMODE, &mode);
+        struct avm_scaling_mode mode = { AVME_NORMAL, AVME_NORMAL };
+        encoder->Control(AVME_SET_SCALEMODE, &mode);
         cfg_.rc_min_quantizer = cfg_.rc_max_quantizer = 240;
         encoder->Config(&cfg_);
       }
     } else {
       if (video->frame() >= kStepDownFrame && video->frame() < kStepUpFrame) {
-        struct aom_scaling_mode mode = { AOME_FOURFIVE, AOME_THREEFIVE };
-        encoder->Control(AOME_SET_SCALEMODE, &mode);
+        struct avm_scaling_mode mode = { AVME_FOURFIVE, AVME_THREEFIVE };
+        encoder->Control(AVME_SET_SCALEMODE, &mode);
       }
       if (video->frame() >= kStepUpFrame) {
-        struct aom_scaling_mode mode = { AOME_NORMAL, AOME_NORMAL };
-        encoder->Control(AOME_SET_SCALEMODE, &mode);
+        struct avm_scaling_mode mode = { AVME_NORMAL, AVME_NORMAL };
+        encoder->Control(AVME_SET_SCALEMODE, &mode);
       }
     }
   }
 
-  virtual void PSNRPktHook(const aom_codec_cx_pkt_t *pkt) {
+  virtual void PSNRPktHook(const avm_codec_cx_pkt_t *pkt) {
     if (frame0_psnr_ == 0.) frame0_psnr_ = pkt->data.psnr.psnr[0];
     EXPECT_NEAR(pkt->data.psnr.psnr[0], frame0_psnr_, 4.1);
   }
 
 #if WRITE_COMPRESSED_STREAM
-  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt,
-                            ::libaom_test::DxDataIterator *dec_iter) {
+  virtual void FramePktHook(const avm_codec_cx_pkt_t *pkt,
+                            ::libavm_test::DxDataIterator *dec_iter) {
     (void)dec_iter;
     ++out_frames_;
-    if (pkt->kind != AOM_CODEC_CX_FRAME_PKT) return;
+    if (pkt->kind != AVM_CODEC_CX_FRAME_PKT) return;
     // Write initial file header if first frame.
     if (pkt->data.frame.pts == 0) write_ivf_file_header(&cfg_, 0, outfile_);
 
@@ -302,9 +302,9 @@ class ResizeInternalTestLarge : public ResizeTest {
 };
 
 TEST_P(ResizeInternalTestLarge, TestInternalResizeWorks) {
-  ::libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
+  ::libavm_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                        30, 1, 0, 10);
-  init_flags_ = AOM_CODEC_USE_PSNR;
+  init_flags_ = AVM_CODEC_USE_PSNR;
   change_config_ = false;
 
   // q picked such that initial keyframe on this clip is ~30dB PSNR
@@ -322,7 +322,7 @@ TEST_P(ResizeInternalTestLarge, TestInternalResizeWorks) {
   }
   for (std::vector<FrameInfo>::const_iterator info = frame_info_list_.begin();
        info != frame_info_list_.end(); ++info) {
-    const aom_codec_pts_t pts = info->pts;
+    const avm_codec_pts_t pts = info->pts;
     if (pts >= kStepDownFrame && pts < kStepUpFrame) {
       ASSERT_EQ(282U, info->w) << "Frame " << pts << " had unexpected width";
       ASSERT_EQ(173U, info->h) << "Frame " << pts << " had unexpected height";
@@ -334,7 +334,7 @@ TEST_P(ResizeInternalTestLarge, TestInternalResizeWorks) {
 }
 
 TEST_P(ResizeInternalTestLarge, TestInternalResizeChangeConfig) {
-  ::libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
+  ::libavm_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                        30, 1, 0, 10);
   cfg_.g_w = 352;
   cfg_.g_h = 288;
@@ -345,9 +345,9 @@ TEST_P(ResizeInternalTestLarge, TestInternalResizeChangeConfig) {
 // This class is used to check if there are any fatal
 // failures while encoding with resize-mode > 0
 class ResizeModeTestLarge
-    : public ::libaom_test::CodecTestWith5Params<libaom_test::TestMode, int,
+    : public ::libavm_test::CodecTestWith5Params<libavm_test::TestMode, int,
                                                  int, int, int>,
-      public ::libaom_test::EncoderTest {
+      public ::libavm_test::EncoderTest {
  protected:
   ResizeModeTestLarge()
       : EncoderTest(GET_PARAM(0)), encoding_mode_(GET_PARAM(1)),
@@ -358,27 +358,27 @@ class ResizeModeTestLarge
   virtual void SetUp() {
     InitializeConfig();
     SetMode(encoding_mode_);
-    const aom_rational timebase = { 1, 30 };
+    const avm_rational timebase = { 1, 30 };
     cfg_.g_timebase = timebase;
-    cfg_.rc_end_usage = AOM_VBR;
+    cfg_.rc_end_usage = AVM_VBR;
     cfg_.g_threads = 1;
     cfg_.g_lag_in_frames = 35;
     cfg_.rc_target_bitrate = 1000;
     cfg_.rc_resize_mode = resize_mode_;
     cfg_.rc_resize_denominator = resize_denominator_;
     cfg_.rc_resize_kf_denominator = resize_kf_denominator_;
-    init_flags_ = AOM_CODEC_USE_PSNR;
+    init_flags_ = AVM_CODEC_USE_PSNR;
   }
 
-  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
-                                  ::libaom_test::Encoder *encoder) {
+  virtual void PreEncodeFrameHook(::libavm_test::VideoSource *video,
+                                  ::libavm_test::Encoder *encoder) {
     if (video->frame() == 0) {
-      encoder->Control(AOME_SET_CPUUSED, cpu_used_);
-      encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
+      encoder->Control(AVME_SET_CPUUSED, cpu_used_);
+      encoder->Control(AVME_SET_ENABLEAUTOALTREF, 1);
     }
   }
 
-  ::libaom_test::TestMode encoding_mode_;
+  ::libavm_test::TestMode encoding_mode_;
   int resize_mode_;
   int resize_denominator_;
   int resize_kf_denominator_;
@@ -386,18 +386,18 @@ class ResizeModeTestLarge
 };
 
 TEST_P(ResizeModeTestLarge, ResizeModeTest) {
-  ::libaom_test::Y4mVideoSource video("niklas_1280_720_30.y4m", 0, 30);
+  ::libavm_test::Y4mVideoSource video("niklas_1280_720_30.y4m", 0, 30);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 }
 
-AV1_INSTANTIATE_TEST_SUITE(ResizeInternalTestLarge,
-                           ::testing::Values(::libaom_test::kOnePassGood));
+AV2_INSTANTIATE_TEST_SUITE(ResizeInternalTestLarge,
+                           ::testing::Values(::libavm_test::kOnePassGood));
 // TODO(anyone): Enable below test once resize issues are fixed
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(ResizeModeTestLarge);
-// AV1_INSTANTIATE_TEST_SUITE(
+// AV2_INSTANTIATE_TEST_SUITE(
 //    ResizeModeTestLarge,
-//    ::testing::Values(::libaom_test::kOnePassGood,
-//    ::libaom_test::kTwoPassGood),
+//    ::testing::Values(::libavm_test::kOnePassGood,
+//    ::libavm_test::kTwoPassGood),
 //    ::testing::Values(1, 2), ::testing::Values(8, 12, 16),
 //    ::testing::Values(8, 12, 16), ::testing::Range(2, 7));
 

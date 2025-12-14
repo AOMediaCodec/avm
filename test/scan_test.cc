@@ -11,9 +11,9 @@
  */
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
-#include "av1/common/scan.h"
-#include "av1/common/txb_common.h"
-#include "test/av1_txfm_test.h"
+#include "av2/common/scan.h"
+#include "av2/common/txb_common.h"
+#include "test/av2_txfm_test.h"
 
 static int scan_test(const int16_t *scan, const int16_t *iscan, int si, int r,
                      int c, int w) {
@@ -95,14 +95,14 @@ int scan_order_test(const SCAN_ORDER *scan_order, int w, int h,
   return 0;
 }
 
-TEST(Av1ScanTest, Dependency) {
+TEST(Av2ScanTest, Dependency) {
   for (int tx_size = TX_4X4; tx_size < TX_SIZES_ALL; ++tx_size) {
     const int org_rows = tx_size_high[(TX_SIZE)tx_size];
     const int org_cols = tx_size_wide[(TX_SIZE)tx_size];
     const int rows = get_txb_high((TX_SIZE)tx_size);
     const int cols = get_txb_wide((TX_SIZE)tx_size);
     for (int tx_type = 0; tx_type < TX_TYPES; ++tx_type) {
-      if (libaom_test::IsTxSizeTypeValid(static_cast<TX_SIZE>(tx_size),
+      if (libavm_test::IsTxSizeTypeValid(static_cast<TX_SIZE>(tx_size),
                                          static_cast<TX_TYPE>(tx_type)) ==
           false) {
         continue;

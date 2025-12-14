@@ -17,10 +17,10 @@
 #include <ostream>
 #include <vector>
 
-#include "aom_dsp/fft_common.h"
-#include "aom_mem/aom_mem.h"
-#include "av1/common/common.h"
-#include "config/aom_dsp_rtcd.h"
+#include "avm_dsp/fft_common.h"
+#include "avm_mem/avm_mem.h"
+#include "av2/common/common.h"
+#include "config/avm_dsp_rtcd.h"
 #include "test/acm_random.h"
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
@@ -91,17 +91,17 @@ class FFT2DTest : public ::testing::TestWithParam<FFTTestArg> {
  protected:
   void SetUp() {
     int n = GetParam().n;
-    input_ = (float *)aom_memalign(32, sizeof(*input_) * n * n);
-    temp_ = (float *)aom_memalign(32, sizeof(*temp_) * n * n);
-    output_ = (float *)aom_memalign(32, sizeof(*output_) * n * n * 2);
+    input_ = (float *)avm_memalign(32, sizeof(*input_) * n * n);
+    temp_ = (float *)avm_memalign(32, sizeof(*temp_) * n * n);
+    output_ = (float *)avm_memalign(32, sizeof(*output_) * n * n * 2);
     memset(input_, 0, sizeof(*input_) * n * n);
     memset(temp_, 0, sizeof(*temp_) * n * n);
     memset(output_, 0, sizeof(*output_) * n * n * 2);
   }
   void TearDown() {
-    aom_free(input_);
-    aom_free(temp_);
-    aom_free(output_);
+    avm_free(input_);
+    avm_free(temp_);
+    avm_free(output_);
   }
   float *input_;
   float *temp_;
@@ -139,27 +139,27 @@ TEST_P(FFT2DTest, Benchmark) {
 }
 
 INSTANTIATE_TEST_SUITE_P(C, FFT2DTest,
-                         ::testing::Values(FFTTestArg(2, aom_fft2x2_float_c),
-                                           FFTTestArg(4, aom_fft4x4_float_c),
-                                           FFTTestArg(8, aom_fft8x8_float_c),
-                                           FFTTestArg(16, aom_fft16x16_float_c),
+                         ::testing::Values(FFTTestArg(2, avm_fft2x2_float_c),
+                                           FFTTestArg(4, avm_fft4x4_float_c),
+                                           FFTTestArg(8, avm_fft8x8_float_c),
+                                           FFTTestArg(16, avm_fft16x16_float_c),
                                            FFTTestArg(32,
-                                                      aom_fft32x32_float_c)));
+                                                      avm_fft32x32_float_c)));
 #if ARCH_X86 || ARCH_X86_64
 #if HAVE_SSE2
 INSTANTIATE_TEST_SUITE_P(
     SSE2, FFT2DTest,
-    ::testing::Values(FFTTestArg(4, aom_fft4x4_float_sse2),
-                      FFTTestArg(8, aom_fft8x8_float_sse2),
-                      FFTTestArg(16, aom_fft16x16_float_sse2),
-                      FFTTestArg(32, aom_fft32x32_float_sse2)));
+    ::testing::Values(FFTTestArg(4, avm_fft4x4_float_sse2),
+                      FFTTestArg(8, avm_fft8x8_float_sse2),
+                      FFTTestArg(16, avm_fft16x16_float_sse2),
+                      FFTTestArg(32, avm_fft32x32_float_sse2)));
 #endif  // HAVE_SSE2
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
     AVX2, FFT2DTest,
-    ::testing::Values(FFTTestArg(8, aom_fft8x8_float_avx2),
-                      FFTTestArg(16, aom_fft16x16_float_avx2),
-                      FFTTestArg(32, aom_fft32x32_float_avx2)));
+    ::testing::Values(FFTTestArg(8, avm_fft8x8_float_avx2),
+                      FFTTestArg(16, avm_fft16x16_float_avx2),
+                      FFTTestArg(32, avm_fft32x32_float_avx2)));
 #endif  // HAVE_AVX2
 #endif  // ARCH_X86 || ARCH_X86_64
 
@@ -178,17 +178,17 @@ class IFFT2DTest : public ::testing::TestWithParam<IFFTTestArg> {
  protected:
   void SetUp() {
     int n = GetParam().n;
-    input_ = (float *)aom_memalign(32, sizeof(*input_) * n * n * 2);
-    temp_ = (float *)aom_memalign(32, sizeof(*temp_) * n * n * 2);
-    output_ = (float *)aom_memalign(32, sizeof(*output_) * n * n);
+    input_ = (float *)avm_memalign(32, sizeof(*input_) * n * n * 2);
+    temp_ = (float *)avm_memalign(32, sizeof(*temp_) * n * n * 2);
+    output_ = (float *)avm_memalign(32, sizeof(*output_) * n * n);
     memset(input_, 0, sizeof(*input_) * n * n * 2);
     memset(temp_, 0, sizeof(*temp_) * n * n * 2);
     memset(output_, 0, sizeof(*output_) * n * n);
   }
   void TearDown() {
-    aom_free(input_);
-    aom_free(temp_);
-    aom_free(output_);
+    avm_free(input_);
+    avm_free(temp_);
+    avm_free(output_);
   }
   float *input_;
   float *temp_;
@@ -236,27 +236,27 @@ TEST_P(IFFT2DTest, Benchmark) {
 }
 INSTANTIATE_TEST_SUITE_P(
     C, IFFT2DTest,
-    ::testing::Values(IFFTTestArg(2, aom_ifft2x2_float_c),
-                      IFFTTestArg(4, aom_ifft4x4_float_c),
-                      IFFTTestArg(8, aom_ifft8x8_float_c),
-                      IFFTTestArg(16, aom_ifft16x16_float_c),
-                      IFFTTestArg(32, aom_ifft32x32_float_c)));
+    ::testing::Values(IFFTTestArg(2, avm_ifft2x2_float_c),
+                      IFFTTestArg(4, avm_ifft4x4_float_c),
+                      IFFTTestArg(8, avm_ifft8x8_float_c),
+                      IFFTTestArg(16, avm_ifft16x16_float_c),
+                      IFFTTestArg(32, avm_ifft32x32_float_c)));
 #if ARCH_X86 || ARCH_X86_64
 #if HAVE_SSE2
 INSTANTIATE_TEST_SUITE_P(
     SSE2, IFFT2DTest,
-    ::testing::Values(IFFTTestArg(4, aom_ifft4x4_float_sse2),
-                      IFFTTestArg(8, aom_ifft8x8_float_sse2),
-                      IFFTTestArg(16, aom_ifft16x16_float_sse2),
-                      IFFTTestArg(32, aom_ifft32x32_float_sse2)));
+    ::testing::Values(IFFTTestArg(4, avm_ifft4x4_float_sse2),
+                      IFFTTestArg(8, avm_ifft8x8_float_sse2),
+                      IFFTTestArg(16, avm_ifft16x16_float_sse2),
+                      IFFTTestArg(32, avm_ifft32x32_float_sse2)));
 #endif  // HAVE_SSE2
 
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
     AVX2, IFFT2DTest,
-    ::testing::Values(IFFTTestArg(8, aom_ifft8x8_float_avx2),
-                      IFFTTestArg(16, aom_ifft16x16_float_avx2),
-                      IFFTTestArg(32, aom_ifft32x32_float_avx2)));
+    ::testing::Values(IFFTTestArg(8, avm_ifft8x8_float_avx2),
+                      IFFTTestArg(16, avm_ifft16x16_float_avx2),
+                      IFFTTestArg(32, avm_ifft32x32_float_avx2)));
 #endif  // HAVE_AVX2
 #endif  // ARCH_X86 || ARCH_X86_64
 

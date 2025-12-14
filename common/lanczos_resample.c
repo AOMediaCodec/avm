@@ -457,7 +457,7 @@ void resample_1d(const int16_t *x, int inlen, RationalResampleFilter *rf,
   free(xext_);
 }
 
-void av1_resample_2d(const int16_t *x, int inwidth, int inheight, int instride,
+void av2_resample_2d(const int16_t *x, int inwidth, int inheight, int instride,
                      RationalResampleFilter *rfh, RationalResampleFilter *rfv,
                      int int_extra_bits, ClipProfile *clip, int16_t *y,
                      int outwidth, int outheight, int outstride) {
@@ -699,7 +699,7 @@ void resample_1d_8b(const uint8_t *x, int inlen, RationalResampleFilter *rf,
   free(xext_);
 }
 
-void av1_resample_2d_8b(const uint8_t *x, int inwidth, int inheight,
+void av2_resample_2d_8b(const uint8_t *x, int inwidth, int inheight,
                         int instride, RationalResampleFilter *rfh,
                         RationalResampleFilter *rfv, int int_extra_bits,
                         ClipProfile *clip, uint8_t *y, int outwidth,
@@ -784,7 +784,7 @@ int get_resampled_output_length(int inlen, int p, int q, int force_even) {
     return outlen_floor;
 }
 
-void av1_derive_scale_factor(int width_scaled, int width, int *p, int *q) {
+void av2_derive_scale_factor(int width_scaled, int width, int *p, int *q) {
   assert(width > 0);
   assert(width_scaled > 0);
 
@@ -819,7 +819,7 @@ void av1_derive_scale_factor(int width_scaled, int width, int *p, int *q) {
   return;
 }
 
-void av1_resample_plane_2d_lanczos(const uint16_t *const input, int height,
+void av2_resample_plane_2d_lanczos(const uint16_t *const input, int height,
                                    int width, int in_stride, uint16_t *output,
                                    int height2, int width2, int out_stride,
                                    int subx, int suby, int bd, int denom,
@@ -851,12 +851,12 @@ void av1_resample_plane_2d_lanczos(const uint16_t *const input, int height,
     exit(1);
   }
 
-  av1_resample_2d((const int16_t *)input, width, height, in_stride, &horz_rf,
+  av2_resample_2d((const int16_t *)input, width, height, in_stride, &horz_rf,
                   &vert_rf, extra_prec_bits, &clip, (int16_t *)output, width2,
                   height2, out_stride);
 }
 
-void av1_resample_plane_2d_8b_lanczos(const uint8_t *const input, int height,
+void av2_resample_plane_2d_8b_lanczos(const uint8_t *const input, int height,
                                       int width, int in_stride, uint8_t *output,
                                       int height2, int width2, int out_stride,
                                       int subx, int suby, int bd, int denom,
@@ -888,7 +888,7 @@ void av1_resample_plane_2d_8b_lanczos(const uint8_t *const input, int height,
     exit(1);
   }
 
-  av1_resample_2d_8b(input, width, height, in_stride, &horz_rf, &vert_rf,
+  av2_resample_2d_8b(input, width, height, in_stride, &horz_rf, &vert_rf,
                      extra_prec_bits, &clip, output, width2, height2,
                      out_stride);
 }

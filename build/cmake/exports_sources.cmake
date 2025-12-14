@@ -8,28 +8,28 @@
 # for Open Media Patent License 1.0 was not distributed with this source code in
 # the PATENTS file, you can obtain it at aomedia.org/license/patent-license/.
 #
-if(AOM_BUILD_CMAKE_EXPORTS_SOURCES_CMAKE_)
+if(AVM_BUILD_CMAKE_EXPORTS_SOURCES_CMAKE_)
   return()
-endif() # AOM_BUILD_CMAKE_EXPORTS_SOURCES_CMAKE_
-set(AOM_BUILD_CMAKE_EXPORTS_SOURCES_CMAKE_ 1)
+endif() # AVM_BUILD_CMAKE_EXPORTS_SOURCES_CMAKE_
+set(AVM_BUILD_CMAKE_EXPORTS_SOURCES_CMAKE_ 1)
 
-list(APPEND AOM_EXPORTS_SOURCES "${AOM_ROOT}/aom/exports_com"
-     "${AOM_ROOT}/av1/exports_com")
+list(APPEND AVM_EXPORTS_SOURCES "${AVM_ROOT}/avm/exports_com"
+     "${AVM_ROOT}/av2/exports_com")
 
-if(CONFIG_AV1_DECODER)
-  list(APPEND AOM_EXPORTS_SOURCES "${AOM_ROOT}/aom/exports_dec"
-       "${AOM_ROOT}/av1/exports_dec")
+if(CONFIG_AV2_DECODER)
+  list(APPEND AVM_EXPORTS_SOURCES "${AVM_ROOT}/avm/exports_dec"
+       "${AVM_ROOT}/av2/exports_dec")
   if(CONFIG_INSPECTION)
-    list(APPEND AOM_EXPORTS_SOURCES "${AOM_ROOT}/av1/exports_ident")
+    list(APPEND AVM_EXPORTS_SOURCES "${AVM_ROOT}/av2/exports_ident")
   endif()
 endif()
 
-if(CONFIG_AV1_ENCODER)
-  list(APPEND AOM_EXPORTS_SOURCES "${AOM_ROOT}/aom/exports_enc"
-       "${AOM_ROOT}/av1/exports_enc")
+if(CONFIG_AV2_ENCODER)
+  list(APPEND AVM_EXPORTS_SOURCES "${AVM_ROOT}/avm/exports_enc"
+       "${AVM_ROOT}/av2/exports_enc")
 endif()
 
 if(ENABLE_TESTS)
-  list(APPEND AOM_EXPORTS_SOURCES "${AOM_ROOT}/aom/exports_test"
-       "${AOM_ROOT}/av1/exports_test")
+  list(APPEND AVM_EXPORTS_SOURCES "${AVM_ROOT}/avm/exports_test"
+       "${AVM_ROOT}/av2/exports_test")
 endif()

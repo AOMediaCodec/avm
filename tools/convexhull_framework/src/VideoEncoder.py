@@ -15,8 +15,8 @@ import os
 
 import Utils
 from Config import (
-    AOMENC,
-    AV1ENC,
+    AVMENC,
+    AV2ENC,
     CTC_VERSION,
     EnableOpenGOP,
     EnableTemporalFilter,
@@ -27,7 +27,7 @@ from Config import (
     HMENC,
     Platform,
     SUB_GOP_SIZE,
-    SVTAV1,
+    SVTAV2,
     UsePerfUtil,
 )
 from Utils import ConvertY4MToYUV, DeleteFile, ExecuteCmd, GetShortContentName
@@ -106,7 +106,7 @@ def get_qindex_from_QP(QP):
     return quantizer_to_qindex[QP]
 
 
-def EncodeWithAOM_AV2(
+def EncodeWithAVM_AV2(
     clip,
     test_cfg,
     QP,
@@ -119,7 +119,7 @@ def EncodeWithAOM_AV2(
     LogCmdOnly=False,
 ):
     args = (
-        " --verbose --codec=av1 -v --psnr --obu --frame-parallel=0"
+        " --verbose --codec=av2 -v --psnr --obu --frame-parallel=0"
         " --cpu-used=%s --limit=%d --skip=%d --passes=1 --end-usage=q --i%s "
         " --use-fixed-qp-offsets=1 --deltaq-mode=0 "
         " --enable-tpl-model=0 --fps=%d/%d -w %d -h %d"
@@ -282,7 +282,7 @@ def EncodeWithAOM_AV2(
             args += " --chroma-sample-position=colocated "
 
     args += " -o %s %s" % (outfile, clip.file_path)
-    cmd = AOMENC + args + "> %s 2>&1" % enc_log
+    cmd = AVMENC + args + "> %s 2>&1" % enc_log
     if EnableTimingInfo:
         if Platform == "Windows":
             cmd = "ptime " + cmd + " >%s" % enc_perf
@@ -296,8 +296,8 @@ def EncodeWithAOM_AV2(
     ExecuteCmd(cmd, LogCmdOnly)
 
 
-# encode with libaom to achieve highest coding gain
-def EncodeWithAOM_AV1_Unconstrained(
+# encode with libavm to achieve highest coding gain
+def EncodeWithAVM_AV2_Unconstrained(
     clip,
     test_cfg,
     QP,
@@ -310,7 +310,7 @@ def EncodeWithAOM_AV1_Unconstrained(
     LogCmdOnly=False,
 ):
     args = (
-        " --verbose --codec=av1 --profile=0 -v --psnr --obu --frame-parallel=0"
+        " --verbose --codec=av2 --profile=0 -v --psnr --obu --frame-parallel=0"
         " --cpu-used=%s --limit=%d --skip=%d --passes=1 --end-usage=q --min-q=0 --max-q=63 --i%s "
         "  --cq-level=%d --enable-tpl-model=1 --fps=%d/%d -w %d -h %d"
         % (
@@ -453,7 +453,7 @@ def EncodeWithAOM_AV1_Unconstrained(
         )
 
     args += " -o %s %s" % (outfile, clip.file_path)
-    cmd = AV1ENC + args + "> %s 2>&1" % enc_log
+    cmd = AV2ENC + args + "> %s 2>&1" % enc_log
     if EnableTimingInfo:
         if Platform == "Windows":
             cmd = "ptime " + cmd + " >%s" % enc_perf
@@ -467,8 +467,8 @@ def EncodeWithAOM_AV1_Unconstrained(
     ExecuteCmd(cmd, LogCmdOnly)
 
 
-# encode with libaom to compliant with CTC configuration
-def EncodeWithAOM_AV1_Constrained(
+# encode with libavm to compliant with CTC configuration
+def EncodeWithAVM_AV2_Constrained(
     clip,
     test_cfg,
     QP,
@@ -481,7 +481,7 @@ def EncodeWithAOM_AV1_Constrained(
     LogCmdOnly=False,
 ):
     args = (
-        " --verbose --codec=av1 -v --psnr --obu --frame-parallel=0"
+        " --verbose --codec=av2 -v --psnr --obu --frame-parallel=0"
         " --cpu-used=%s --limit=%d --skip=%d --passes=1 --end-usage=q --i%s "
         " --use-fixed-qp-offsets=1 --deltaq-mode=0 --cq-level=%d"
         " --enable-tpl-model=0 --fps=%d/%d -w %d -h %d"
@@ -625,7 +625,7 @@ def EncodeWithAOM_AV1_Constrained(
         )
 
     args += " -o %s %s" % (outfile, clip.file_path)
-    cmd = AV1ENC + args + "> %s 2>&1" % enc_log
+    cmd = AV2ENC + args + "> %s 2>&1" % enc_log
     if EnableTimingInfo:
         if Platform == "Windows":
             cmd = "ptime " + cmd + " >%s" % enc_perf
@@ -639,7 +639,7 @@ def EncodeWithAOM_AV1_Constrained(
     ExecuteCmd(cmd, LogCmdOnly)
 
 
-def EncodeWithSVT_AV1(
+def EncodeWithSVT_AV2(
     clip,
     test_cfg,
     QP,
@@ -651,7 +651,7 @@ def EncodeWithSVT_AV1(
     start_frame=0,
     LogCmdOnly=False,
 ):
-    # encode with SVT-AV1 with the best possible quality without constraint
+    # encode with SVT-AV2 with the best possible quality without constraint
     args = (
         " --preset %s --lp 2 -n %d  -q %d -w %d -h %d  --fps-num %d --fps-denom %d --input-depth %d "
         % (
@@ -688,7 +688,7 @@ def EncodeWithSVT_AV1(
         args += "--enable-hdr 1 "
 
     args += "-i %s -b %s" % (clip.file_path, outfile)
-    cmd = SVTAV1 + args + "> %s 2>&1" % enc_log
+    cmd = SVTAV2 + args + "> %s 2>&1" % enc_log
     if EnableTimingInfo:
         if Platform == "Windows":
             cmd = "ptime " + cmd + " >%s" % enc_perf
@@ -791,8 +791,8 @@ def VideoEncode(
 ):
     Utils.CmdLogger.write("::Encode\n")
     if CodecName == "av2":
-        if EncodeMethod == "aom":
-            EncodeWithAOM_AV2(
+        if EncodeMethod == "avm":
+            EncodeWithAVM_AV2(
                 clip,
                 test_cfg,
                 QP,
@@ -804,9 +804,9 @@ def VideoEncode(
                 start_frame,
                 LogCmdOnly,
             )
-    elif CodecName == "av1":
-        if EncodeMethod == "aom":
-            EncodeWithAOM_AV1_Constrained(
+    elif CodecName == "av2":
+        if EncodeMethod == "avm":
+            EncodeWithAVM_AV2_Constrained(
                 clip,
                 test_cfg,
                 QP,
@@ -819,7 +819,7 @@ def VideoEncode(
                 LogCmdOnly,
             )
         elif EncodeMethod == "svt":
-            EncodeWithSVT_AV1(
+            EncodeWithSVT_AV2(
                 clip,
                 test_cfg,
                 QP,

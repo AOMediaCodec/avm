@@ -16,9 +16,9 @@
 #include <string.h>
 #include <limits.h>
 
-#include "aom/aom_integer.h"
-#include "aom_ports/msvc.h"
-#include "aom/aom_codec.h"
+#include "avm/avm_integer.h"
+#include "avm_ports/msvc.h"
+#include "avm/avm_codec.h"
 
 static const char kSbSizeWarningString[] =
     "super_block_size has to be one of: 64, 128 or 256.";
@@ -274,9 +274,9 @@ int arg_parse_int(const struct arg *arg) {
   return ret;
 }
 
-struct aom_rational arg_parse_rational(const struct arg *arg) {
+struct avm_rational arg_parse_rational(const struct arg *arg) {
   char err_msg[ARG_ERR_MSG_MAX_LEN];
-  struct aom_rational ret = arg_parse_rational_helper(arg, err_msg);
+  struct avm_rational ret = arg_parse_rational_helper(arg, err_msg);
   if (err_msg[0] != '\0') {
     die(err_msg);
   }

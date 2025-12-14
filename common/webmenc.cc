@@ -19,7 +19,7 @@
 #include <new>
 #include <string>
 
-#include "common/av1_config.h"
+#include "common/av2_config.h"
 #include "third_party/libwebm/mkvmuxer/mkvmuxer.h"
 #include "third_party/libwebm/mkvmuxer/mkvmuxerutil.h"
 #include "third_party/libwebm/mkvmuxer/mkvwriter.h"
@@ -79,8 +79,8 @@ char *extract_encoder_settings(const char *version, const char **argv, int argc,
 }
 
 int write_webm_file_header(struct WebmOutputContext *webm_ctx,
-                           aom_codec_ctx_t *encoder_ctx,
-                           const aom_codec_enc_cfg_t *cfg,
+                           avm_codec_ctx_t *encoder_ctx,
+                           const avm_codec_enc_cfg_t *cfg,
                            stereo_format_t stereo_fmt, unsigned int fourcc,
                            const struct AvxRational *par,
                            const char *encoder_settings) {
@@ -110,9 +110,9 @@ int write_webm_file_header(struct WebmOutputContext *webm_ctx,
 
   const uint64_t kTimecodeScale = 1000000;
   info->set_timecode_scale(kTimecodeScale);
-  std::string version = "aomenc";
+  std::string version = "avmenc";
   if (!webm_ctx->debug) {
-    version.append(std::string(" ") + aom_codec_version_str());
+    version.append(std::string(" ") + avm_codec_version_str());
   }
   info->set_writing_app(version.c_str());
 
@@ -128,26 +128,26 @@ int write_webm_file_header(struct WebmOutputContext *webm_ctx,
   }
 
   ok = false;
-  aom_fixed_buf_t *obu_sequence_header =
-      aom_codec_get_global_headers(encoder_ctx);
+  avm_fixed_buf_t *obu_sequence_header =
+      avm_codec_get_global_headers(encoder_ctx);
   if (obu_sequence_header) {
-    Av1Config av1_config;
-    if (get_av1config_from_obu(
+    Av2Config av2_config;
+    if (get_av2config_from_obu(
             reinterpret_cast<const uint8_t *>(obu_sequence_header->buf),
-            obu_sequence_header->sz, &av1_config) == 0) {
-      uint8_t av1_config_buffer[4] = { 0 };
+            obu_sequence_header->sz, &av2_config) == 0) {
+      uint8_t av2_config_buffer[4] = { 0 };
       size_t bytes_written = 0;
-      if (write_av1config(&av1_config, sizeof(av1_config_buffer),
-                          &bytes_written, av1_config_buffer) == 0) {
-        ok = video_track->SetCodecPrivate(av1_config_buffer,
-                                          sizeof(av1_config_buffer));
+      if (write_av2config(&av2_config, sizeof(av2_config_buffer),
+                          &bytes_written, av2_config_buffer) == 0) {
+        ok = video_track->SetCodecPrivate(av2_config_buffer,
+                                          sizeof(av2_config_buffer));
       }
     }
     free(obu_sequence_header->buf);
     free(obu_sequence_header);
   }
   if (!ok) {
-    fprintf(stderr, "webmenc> Unable to set AV1 config.\n");
+    fprintf(stderr, "webmenc> Unable to set AV2 config.\n");
     return -1;
   }
 
@@ -157,11 +157,11 @@ int write_webm_file_header(struct WebmOutputContext *webm_ctx,
     return -1;
   }
 
-  if (fourcc != AV1_FOURCC) {
+  if (fourcc != AV2_FOURCC) {
     fprintf(stderr, "webmenc> Unsupported codec (unknown 4 CC).\n");
     return -1;
   }
-  video_track->set_codec_id("V_AV1");
+  video_track->set_codec_id("V_AV2");
 
   if (par->numerator > 1 || par->denominator > 1) {
     // TODO(fgalligan): Add support of DisplayUnit, Display Aspect Ratio type
@@ -197,8 +197,8 @@ int write_webm_file_header(struct WebmOutputContext *webm_ctx,
 }
 
 int write_webm_block(struct WebmOutputContext *webm_ctx,
-                     const aom_codec_enc_cfg_t *cfg,
-                     const aom_codec_cx_pkt_t *pkt) {
+                     const avm_codec_enc_cfg_t *cfg,
+                     const avm_codec_cx_pkt_t *pkt) {
   if (!webm_ctx->segment) {
     fprintf(stderr, "webmenc> segment is NULL.\n");
     return -1;
@@ -212,7 +212,7 @@ int write_webm_block(struct WebmOutputContext *webm_ctx,
 
   if (!segment->AddFrame(static_cast<uint8_t *>(pkt->data.frame.buf),
                          pkt->data.frame.sz, kVideoTrackNumber, pts_ns,
-                         pkt->data.frame.flags & AOM_FRAME_IS_KEY)) {
+                         pkt->data.frame.flags & AVM_FRAME_IS_KEY)) {
     fprintf(stderr, "webmenc> AddFrame failed.\n");
     return -1;
   }

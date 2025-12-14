@@ -14,11 +14,11 @@
 #include <wx/cmdline.h>
 #include <wx/dcbuffer.h>
 
-#include "aom/aom_decoder.h"
-#include "aom/aomdx.h"
-#include "av1/common/av1_common_int.h"
-#include "av1/decoder/accounting.h"
-#include "av1/decoder/inspection.h"
+#include "avm/avm_decoder.h"
+#include "avm/avmdx.h"
+#include "av2/common/av2_common_int.h"
+#include "av2/decoder/accounting.h"
+#include "av2/decoder/inspection.h"
 #include "common/tools_common.h"
 #include "common/video_reader.h"
 
@@ -33,7 +33,7 @@ enum {
   OD_ALL_MASK = OD_LUMA_MASK | OD_CB_MASK | OD_CR_MASK
 };
 
-class AV1Decoder {
+class AV2Decoder {
  private:
   FILE *input;
   wxString path;
@@ -43,17 +43,17 @@ class AV1Decoder {
 
   insp_frame_data frame_data;
 
-  aom_codec_ctx_t codec;
+  avm_codec_ctx_t codec;
   bool show_padding;
 
  public:
-  aom_image_t *image;
+  avm_image_t *image;
   int frame;
 
   int plane_mask;
 
-  AV1Decoder();
-  ~AV1Decoder();
+  AV2Decoder();
+  ~AV2Decoder();
 
   bool open(const wxString &path);
   void close();
@@ -71,29 +71,29 @@ class AV1Decoder {
   static void inspect(void *decoder, void *data);
 };
 
-AV1Decoder::AV1Decoder()
+AV2Decoder::AV2Decoder()
     : reader(NULL), info(NULL), decoder(NULL), show_padding(false), image(NULL),
       frame(0) {}
 
-AV1Decoder::~AV1Decoder() {}
+AV2Decoder::~AV2Decoder() {}
 
-void AV1Decoder::togglePadding() { show_padding = !show_padding; }
+void AV2Decoder::togglePadding() { show_padding = !show_padding; }
 
-bool AV1Decoder::open(const wxString &path) {
-  reader = aom_video_reader_open(path.mb_str());
+bool AV2Decoder::open(const wxString &path) {
+  reader = avm_video_reader_open(path.mb_str());
   if (!reader) {
     fprintf(stderr, "Failed to open %s for reading.", path.mb_str().data());
     return false;
   }
   this->path = path;
-  info = aom_video_reader_get_info(reader);
-  decoder = get_aom_decoder_by_fourcc(info->codec_fourcc);
+  info = avm_video_reader_get_info(reader);
+  decoder = get_avm_decoder_by_fourcc(info->codec_fourcc);
   if (!decoder) {
     fprintf(stderr, "Unknown input codec.");
     return false;
   }
-  printf("Using %s\n", aom_codec_iface_name(decoder));
-  if (aom_codec_dec_init(&codec, decoder, NULL, 0)) {
+  printf("Using %s\n", avm_codec_iface_name(decoder));
+  if (avm_codec_dec_init(&codec, decoder, NULL, 0)) {
     fprintf(stderr, "Failed to initialize decoder.");
     return false;
   }
@@ -102,19 +102,19 @@ bool AV1Decoder::open(const wxString &path) {
   return true;
 }
 
-void AV1Decoder::close() {}
+void AV2Decoder::close() {}
 
-bool AV1Decoder::step() {
-  if (aom_video_reader_read_frame(reader)) {
+bool AV2Decoder::step() {
+  if (avm_video_reader_read_frame(reader)) {
     size_t frame_size;
     const unsigned char *frame_data;
-    frame_data = aom_video_reader_get_frame(reader, &frame_size);
-    if (aom_codec_decode(&codec, frame_data, frame_size, NULL)) {
+    frame_data = avm_video_reader_get_frame(reader, &frame_size);
+    if (avm_codec_decode(&codec, frame_data, frame_size, NULL)) {
       fprintf(stderr, "Failed to decode frame.");
       return false;
     } else {
-      aom_codec_iter_t iter = NULL;
-      image = aom_codec_get_frame(&codec, &iter);
+      avm_codec_iter_t iter = NULL;
+      image = avm_codec_get_frame(&codec, &iter);
       if (image != NULL) {
         frame++;
         return true;
@@ -125,43 +125,43 @@ bool AV1Decoder::step() {
   return false;
 }
 
-int AV1Decoder::getWidth() const {
+int AV2Decoder::getWidth() const {
   return info->frame_width + 2 * getWidthPadding();
 }
 
-int AV1Decoder::getWidthPadding() const {
-  return show_padding ? AOMMAX(info->frame_width + 16,
+int AV2Decoder::getWidthPadding() const {
+  return show_padding ? AVMMAX(info->frame_width + 16,
                                ALIGN_POWER_OF_TWO(info->frame_width, 6)) -
                             info->frame_width
                       : 0;
 }
 
-int AV1Decoder::getHeight() const {
+int AV2Decoder::getHeight() const {
   return info->frame_height + 2 * getHeightPadding();
 }
 
-int AV1Decoder::getHeightPadding() const {
-  return show_padding ? AOMMAX(info->frame_height + 16,
+int AV2Decoder::getHeightPadding() const {
+  return show_padding ? AVMMAX(info->frame_height + 16,
                                ALIGN_POWER_OF_TWO(info->frame_height, 6)) -
                             info->frame_height
                       : 0;
 }
 
-bool AV1Decoder::getAccountingStruct(Accounting **accounting) {
-  return aom_codec_control(&codec, AV1_GET_ACCOUNTING, accounting) ==
-         AOM_CODEC_OK;
+bool AV2Decoder::getAccountingStruct(Accounting **accounting) {
+  return avm_codec_control(&codec, AV2_GET_ACCOUNTING, accounting) ==
+         AVM_CODEC_OK;
 }
 
-bool AV1Decoder::setInspectionCallback() {
-  aom_inspect_init ii;
-  ii.inspect_cb = AV1Decoder::inspect;
+bool AV2Decoder::setInspectionCallback() {
+  avm_inspect_init ii;
+  ii.inspect_cb = AV2Decoder::inspect;
   ii.inspect_ctx = (void *)this;
-  return aom_codec_control(&codec, AV1_SET_INSPECTION_CALLBACK, &ii) ==
-         AOM_CODEC_OK;
+  return avm_codec_control(&codec, AV2_SET_INSPECTION_CALLBACK, &ii) ==
+         AVM_CODEC_OK;
 }
 
-void AV1Decoder::inspect(void *pbi, void *data) {
-  AV1Decoder *decoder = (AV1Decoder *)data;
+void AV2Decoder::inspect(void *pbi, void *data) {
+  AV2Decoder *decoder = (AV2Decoder *)data;
   ifd_inspect(&decoder->frame_data, pbi, 0);
 }
 
@@ -172,7 +172,7 @@ class AnalyzerPanel : public wxPanel {
   DECLARE_EVENT_TABLE()
 
  private:
-  AV1Decoder decoder;
+  AV2Decoder decoder;
   const wxString path;
 
   int zoom;
@@ -231,8 +231,8 @@ void AnalyzerPanel::setShowPlane(bool show_plane, int mask) {
 }
 
 void AnalyzerPanel::render() {
-  aom_image_t *img = decoder.image;
-  const int hbd = !!(img->fmt & AOM_IMG_FMT_HIGHBITDEPTH);
+  avm_image_t *img = decoder.image;
+  const int hbd = !!(img->fmt & AVM_IMG_FMT_HIGHBITDEPTH);
   int y_stride = img->stride[0] >> hbd;
   int cb_stride = img->stride[1] >> hbd;
   int cr_stride = img->stride[2] >> hbd;
@@ -522,14 +522,14 @@ EVT_MENU(wxID_ABOUT, AnalyzerFrame::onAbout)
 END_EVENT_TABLE()
 
 AnalyzerFrame::AnalyzerFrame(const bool bit_accounting)
-    : wxFrame(NULL, wxID_ANY, _("AV1 Stream Analyzer"), wxDefaultPosition,
+    : wxFrame(NULL, wxID_ANY, _("AV2 Stream Analyzer"), wxDefaultPosition,
               wxDefaultSize, wxDEFAULT_FRAME_STYLE),
       panel(NULL), bit_accounting(bit_accounting) {
   wxMenuBar *mb = new wxMenuBar();
 
   fileMenu = new wxMenu();
-  fileMenu->Append(wxID_OPEN, _("&Open...\tCtrl-O"), _("Open AV1 file"));
-  fileMenu->Append(wxID_CLOSE, _("&Close\tCtrl-W"), _("Close AV1 file"));
+  fileMenu->Append(wxID_OPEN, _("&Open...\tCtrl-O"), _("Open AV2 file"));
+  fileMenu->Append(wxID_CLOSE, _("&Close\tCtrl-W"), _("Close AV2 file"));
   fileMenu->Enable(wxID_CLOSE, false);
   fileMenu->Append(wxID_EXIT, _("E&xit\tCtrl-Q"), _("Quit this program"));
   mb->Append(fileMenu, _("&File"));
@@ -576,7 +576,7 @@ AnalyzerFrame::AnalyzerFrame(const bool bit_accounting)
 
 void AnalyzerFrame::onOpen(wxCommandEvent &WXUNUSED(event)) {
   wxFileDialog openFileDialog(this, _("Open file"), wxEmptyString,
-                              wxEmptyString, _("AV1 files (*.ivf)|*.ivf"),
+                              wxEmptyString, _("AV2 files (*.ivf)|*.ivf"),
                               wxFD_OPEN | wxFD_FILE_MUST_EXIST);
   if (openFileDialog.ShowModal() != wxID_CANCEL) {
     open(openFileDialog.GetPath());
@@ -633,10 +633,10 @@ void AnalyzerFrame::onRestart(wxCommandEvent &WXUNUSED(event)) {}
 
 void AnalyzerFrame::onAbout(wxCommandEvent &WXUNUSED(event)) {
   wxAboutDialogInfo info;
-  info.SetName(_("AV1 Bitstream Analyzer"));
+  info.SetName(_("AV2 Bitstream Analyzer"));
   info.SetVersion(_("0.1-beta"));
   info.SetDescription(
-      _("This program implements a bitstream analyzer for AV1"));
+      _("This program implements a bitstream analyzer for AV2"));
   info.SetCopyright(
       wxT("(C) 2017 Alliance for Open Media <negge@mozilla.com>"));
   wxAboutBox(info);

@@ -14,11 +14,11 @@ import numpy as np
 CDF_PROB_BITS = 15
 CDF_INIT_TOP = 32768
 CDF_PROB_TOP = 2**CDF_PROB_BITS
-AV1_PROB_COST_SHIFT = 9
+AV2_PROB_COST_SHIFT = 9
 
 MAX_CTX_DIM = 4  # maximum dimension in context tables
 
-AV1_PROB_COST = (
+AV2_PROB_COST = (
     512,
     506,
     501,
@@ -150,26 +150,26 @@ AV1_PROB_COST = (
 )
 
 
-def av1_default_cdf_parameters(n_taps):
+def av2_default_cdf_parameters(n_taps):
     arr = np.arange(1, n_taps)
     cdf = (2**15) / n_taps * arr
     cdf = cdf.round().astype(int)
     return cdf
 
 
-def av1_default_pmf(n_taps):
-    cdf = av1_default_cdf_parameters(n_taps)
+def av2_default_pmf(n_taps):
+    cdf = av2_default_cdf_parameters(n_taps)
     cdf = np.append(cdf, CDF_INIT_TOP)
     pmf = np.diff(cdf)
     return pmf
 
 
 def print_default_cdf_parameters(n_taps):
-    print(get_default_aom_cdf_string(n_taps))
+    print(get_default_avm_cdf_string(n_taps))
 
 
-def get_aom_cdf_entry(n_taps, cdf):
-    str_cdf = f"AOM_CDF{n_taps}("
+def get_avm_cdf_entry(n_taps, cdf):
+    str_cdf = f"AVM_CDF{n_taps}("
     for i, p in enumerate(cdf):
         if i < n_taps - 2:
             str_cdf += str(p).rjust(5) + ", "
@@ -178,14 +178,14 @@ def get_aom_cdf_entry(n_taps, cdf):
     return str_cdf
 
 
-def get_default_aom_cdf_string(n_taps):
-    cdf = av1_default_cdf_parameters(n_taps)
-    return get_aom_cdf_entry(n_taps, cdf)
+def get_default_avm_cdf_string(n_taps):
+    cdf = av2_default_cdf_parameters(n_taps)
+    return get_avm_cdf_entry(n_taps, cdf)
 
 
-def get_aom_cdf_string(cdf):
+def get_avm_cdf_string(cdf):
     n_taps = len(cdf) + 1
-    return get_aom_cdf_entry(n_taps, cdf)
+    return get_avm_cdf_entry(n_taps, cdf)
 
 
 if __name__ == "__main__":

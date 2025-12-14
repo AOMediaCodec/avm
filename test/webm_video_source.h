@@ -9,8 +9,8 @@
  * source code in the PATENTS file, you can obtain it at
  * aomedia.org/license/patent-license/.
  */
-#ifndef AOM_TEST_WEBM_VIDEO_SOURCE_H_
-#define AOM_TEST_WEBM_VIDEO_SOURCE_H_
+#ifndef AVM_TEST_WEBM_VIDEO_SOURCE_H_
+#define AVM_TEST_WEBM_VIDEO_SOURCE_H_
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
@@ -20,32 +20,32 @@
 #include "common/webmdec.h"
 #include "test/video_source.h"
 
-namespace libaom_test {
+namespace libavm_test {
 
 // This class extends VideoSource to allow parsing of WebM files,
 // so that we can do actual file decodes.
 class WebMVideoSource : public CompressedVideoSource {
  public:
   explicit WebMVideoSource(const std::string &file_name)
-      : file_name_(file_name), aom_ctx_(new AvxInputContext()),
+      : file_name_(file_name), avm_ctx_(new AvxInputContext()),
         webm_ctx_(new WebmInputContext()), buf_(NULL), buf_sz_(0), frame_sz_(0),
         frame_number_(0), end_of_file_(false) {}
 
   virtual ~WebMVideoSource() {
-    if (aom_ctx_->file != NULL) fclose(aom_ctx_->file);
+    if (avm_ctx_->file != NULL) fclose(avm_ctx_->file);
     webm_free(webm_ctx_);
-    delete aom_ctx_;
+    delete avm_ctx_;
     delete webm_ctx_;
   }
 
   virtual void Init() {}
 
   virtual void Begin() {
-    aom_ctx_->file = OpenTestDataFile(file_name_);
-    ASSERT_TRUE(aom_ctx_->file != NULL)
+    avm_ctx_->file = OpenTestDataFile(file_name_);
+    ASSERT_TRUE(avm_ctx_->file != NULL)
         << "Input file open failed. Filename: " << file_name_;
 
-    ASSERT_EQ(file_is_webm(webm_ctx_, aom_ctx_), 1) << "file is not WebM";
+    ASSERT_EQ(file_is_webm(webm_ctx_, avm_ctx_), 1) << "file is not WebM";
 
     FillFrame();
   }
@@ -56,7 +56,7 @@ class WebMVideoSource : public CompressedVideoSource {
   }
 
   void FillFrame() {
-    ASSERT_TRUE(aom_ctx_->file != NULL);
+    ASSERT_TRUE(avm_ctx_->file != NULL);
     const int status = webm_read_frame(webm_ctx_, &buf_, &frame_sz_, &buf_sz_);
     ASSERT_GE(status, 0) << "webm_read_frame failed";
     if (status == 1) {
@@ -65,7 +65,7 @@ class WebMVideoSource : public CompressedVideoSource {
   }
 
   void SeekToNextKeyFrame() {
-    ASSERT_TRUE(aom_ctx_->file != NULL);
+    ASSERT_TRUE(avm_ctx_->file != NULL);
     do {
       const int status =
           webm_read_frame(webm_ctx_, &buf_, &frame_sz_, &buf_sz_);
@@ -83,7 +83,7 @@ class WebMVideoSource : public CompressedVideoSource {
 
  protected:
   std::string file_name_;
-  AvxInputContext *aom_ctx_;
+  AvxInputContext *avm_ctx_;
   WebmInputContext *webm_ctx_;
   uint8_t *buf_;  // Owned by webm_ctx_ and freed when webm_ctx_ is freed.
   size_t buf_sz_;
@@ -92,6 +92,6 @@ class WebMVideoSource : public CompressedVideoSource {
   bool end_of_file_;
 };
 
-}  // namespace libaom_test
+}  // namespace libavm_test
 
-#endif  // AOM_TEST_WEBM_VIDEO_SOURCE_H_
+#endif  // AVM_TEST_WEBM_VIDEO_SOURCE_H_

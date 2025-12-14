@@ -13,11 +13,11 @@
  * Copyright (C) 2002-2010 The Xiph.Org Foundation and contributors.
  */
 
-#ifndef AOM_COMMON_Y4MINPUT_H_
-#define AOM_COMMON_Y4MINPUT_H_
+#ifndef AVM_COMMON_Y4MINPUT_H_
+#define AVM_COMMON_Y4MINPUT_H_
 
 #include <stdio.h>
-#include "aom/aom_image.h"
+#include "avm/avm_image.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -53,10 +53,10 @@ struct y4m_input {
   y4m_convert_func convert;
   unsigned char *dst_buf;
   unsigned char *aux_buf;
-  enum aom_img_fmt aom_fmt;
+  enum avm_img_fmt avm_fmt;
   int bps;
   unsigned int bit_depth;
-  aom_color_range_t color_range;
+  avm_color_range_t color_range;
 };
 
 /**
@@ -71,13 +71,13 @@ struct y4m_input {
  * Returns 0 on success, -1 on failure.
  */
 int y4m_input_open(y4m_input *y4m_ctx, FILE *file, char *skip_buffer,
-                   int num_skip, aom_chroma_sample_position_t csp,
+                   int num_skip, avm_chroma_sample_position_t csp,
                    int only_420);
 void y4m_input_close(y4m_input *_y4m);
-int y4m_input_fetch_frame(y4m_input *_y4m, FILE *_fin, aom_image_t *img);
+int y4m_input_fetch_frame(y4m_input *_y4m, FILE *_fin, avm_image_t *img);
 
 #ifdef __cplusplus
 }  // extern "C"
 #endif
 
-#endif  // AOM_COMMON_Y4MINPUT_H_
+#endif  // AVM_COMMON_Y4MINPUT_H_

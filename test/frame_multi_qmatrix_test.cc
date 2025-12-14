@@ -20,8 +20,8 @@
 namespace {
 
 // Encoding modes
-constexpr libaom_test::TestMode kEncodingModeVectors[] = {
-  ::libaom_test::kOnePassGood,
+constexpr libavm_test::TestMode kEncodingModeVectors[] = {
+  ::libavm_test::kOnePassGood,
 };
 
 // Encoding speeds
@@ -31,9 +31,9 @@ constexpr int kCpuUsedVectors[] = { 5 };
 constexpr int kFrameQmNumVectors[] = { 1, 2, 3, 4 };
 
 class FrameMultiQmatrixTest
-    : public ::libaom_test::CodecTestWith3Params<libaom_test::TestMode, int,
+    : public ::libavm_test::CodecTestWith3Params<libavm_test::TestMode, int,
                                                  int>,
-      public ::libaom_test::EncoderTest {
+      public ::libavm_test::EncoderTest {
  protected:
   FrameMultiQmatrixTest()
       : EncoderTest(GET_PARAM(0)), encoding_mode_(GET_PARAM(1)),
@@ -44,25 +44,25 @@ class FrameMultiQmatrixTest
   void SetUp() override {
     InitializeConfig();
     SetMode(encoding_mode_);
-    cfg_.rc_end_usage = AOM_Q;
+    cfg_.rc_end_usage = AVM_Q;
   }
 
-  void PreEncodeFrameHook(::libaom_test::VideoSource *video,
-                          ::libaom_test::Encoder *encoder) override {
+  void PreEncodeFrameHook(::libavm_test::VideoSource *video,
+                          ::libavm_test::Encoder *encoder) override {
     if (video->frame() == 0) {
-      encoder->Control(AOME_SET_CPUUSED, cpu_used_);
+      encoder->Control(AVME_SET_CPUUSED, cpu_used_);
       // Enable AQ mode based on segmentation
-      encoder->Control(AV1E_SET_AQ_MODE, 1);
+      encoder->Control(AV2E_SET_AQ_MODE, 1);
       // Enable quantization matrices
-      encoder->Control(AV1E_SET_ENABLE_QM, 1);
+      encoder->Control(AV2E_SET_ENABLE_QM, 1);
       // Utilize full min and max QM range
-      encoder->Control(AV1E_SET_QM_MIN, 0);
-      encoder->Control(AV1E_SET_QM_MAX, 15);
-      encoder->Control(AV1E_SET_FRAME_MULTI_QMATRIX_UNIT_TEST, frame_qm_num_);
+      encoder->Control(AV2E_SET_QM_MIN, 0);
+      encoder->Control(AV2E_SET_QM_MAX, 15);
+      encoder->Control(AV2E_SET_FRAME_MULTI_QMATRIX_UNIT_TEST, frame_qm_num_);
     }
   }
 
-  libaom_test::TestMode encoding_mode_;
+  libavm_test::TestMode encoding_mode_;
   int cpu_used_;
   int frame_qm_num_;
 };
@@ -70,15 +70,15 @@ class FrameMultiQmatrixTest
 TEST_P(FrameMultiQmatrixTest, OverallTest) {
   cfg_.g_profile = 0;
 
-  std::unique_ptr<libaom_test::VideoSource> video;
-  video.reset(new libaom_test::YUVVideoSource(
-      "park_joy_90p_8_420.y4m", AOM_IMG_FMT_I420, 160, 90, 30, 1, 0, 3));
+  std::unique_ptr<libavm_test::VideoSource> video;
+  video.reset(new libavm_test::YUVVideoSource(
+      "park_joy_90p_8_420.y4m", AVM_IMG_FMT_I420, 160, 90, 30, 1, 0, 3));
 
   ASSERT_TRUE(video.get() != NULL);
   ASSERT_NO_FATAL_FAILURE(RunLoop(video.get()));
 }
 
-AV1_INSTANTIATE_TEST_SUITE(FrameMultiQmatrixTest,
+AV2_INSTANTIATE_TEST_SUITE(FrameMultiQmatrixTest,
                            ::testing::ValuesIn(kEncodingModeVectors),
                            ::testing::ValuesIn(kCpuUsedVectors),
                            ::testing::ValuesIn(kFrameQmNumVectors));

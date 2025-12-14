@@ -10,13 +10,13 @@
  * aomedia.org/license/patent-license/.
  */
 
-#ifndef AOM_COMMON_TF_LITE_INCLUDES_H_
-#define AOM_COMMON_TF_LITE_INCLUDES_H_
+#ifndef AVM_COMMON_TF_LITE_INCLUDES_H_
+#define AVM_COMMON_TF_LITE_INCLUDES_H_
 
 #include <assert.h>
 
 // TensorFlow Lite has several unused parameters that are
-// exposed as part of the API. In the AOM build process, this
+// exposed as part of the API. In the AVM build process, this
 // will cause failures when -Wunused-parameter is set.
 // Since TF Lite is external code, instruct the compiler to
 // ignore this warning when including it.
@@ -45,4 +45,4 @@
 #pragma clang diagnostic pop
 #endif
 
-#endif  // AOM_COMMON_TF_LITE_INCLUDES_H_
+#endif  // AVM_COMMON_TF_LITE_INCLUDES_H_

@@ -8,10 +8,10 @@
 # for Open Media Patent License 1.0 was not distributed with this source code in
 # the PATENTS file, you can obtain it at aomedia.org/license/patent-license/.
 #
-if(AOM_BUILD_CMAKE_TOOLCHAINS_MIPS32_LINUX_GCC_CMAKE_)
+if(AVM_BUILD_CMAKE_TOOLCHAINS_MIPS32_LINUX_GCC_CMAKE_)
   return()
-endif() # AOM_BUILD_CMAKE_TOOLCHAINS_MIPS32_LINUX_GCC_CMAKE_
-set(AOM_BUILD_CMAKE_TOOLCHAINS_MIPS32_LINUX_GCC_CMAKE_ 1)
+endif() # AVM_BUILD_CMAKE_TOOLCHAINS_MIPS32_LINUX_GCC_CMAKE_
+set(AVM_BUILD_CMAKE_TOOLCHAINS_MIPS32_LINUX_GCC_CMAKE_ 1)
 
 set(CMAKE_SYSTEM_NAME "Linux")
 

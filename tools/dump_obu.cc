@@ -16,7 +16,7 @@
 #include <memory>
 #include <string>
 
-#include "config/aom_config.h"
+#include "config/avm_config.h"
 
 #include "common/ivfdec.h"
 #include "common/obudec.h"
@@ -51,7 +51,7 @@ struct InputContext {
 };
 
 void PrintUsage() {
-  printf("Libaom OBU dump.\nUsage: dump_obu <input_file>\n");
+  printf("Libavm OBU dump.\nUsage: dump_obu <input_file>\n");
 }
 
 VideoFileType GetFileType(InputContext *ctx) {
@@ -90,7 +90,7 @@ bool ReadTemporalUnit(InputContext *ctx, size_t *unit_size) {
     }
 #endif
     default:
-      // TODO(tomfinegan): Abuse FILE_TYPE_RAW for AV1/OBU elementary streams?
+      // TODO(tomfinegan): Abuse FILE_TYPE_RAW for AV2/OBU elementary streams?
       fprintf(stderr, "Error: Unsupported file type.\n");
       return false;
   }
@@ -151,7 +151,7 @@ int main(int argc, const char *argv[]) {
     printf("Temporal unit %d\n", unit_number);
 
     int obu_overhead_current_unit = 0;
-    if (!aom_tools::DumpObu(input_ctx.unit_buffer, static_cast<int>(unit_size),
+    if (!avm_tools::DumpObu(input_ctx.unit_buffer, static_cast<int>(unit_size),
                             &obu_overhead_current_unit)) {
       fprintf(stderr, "Error: Temporal Unit parse failed on unit number %d.\n",
               unit_number);

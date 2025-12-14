@@ -8,25 +8,25 @@
 # for Open Media Patent License 1.0 was not distributed with this source code in
 # the PATENTS file, you can obtain it at aomedia.org/license/patent-license/.
 #
-if(AOM_BUILD_CMAKE_UTIL_CMAKE_)
+if(AVM_BUILD_CMAKE_UTIL_CMAKE_)
   return()
-endif() # AOM_BUILD_CMAKE_UTIL_CMAKE_
-set(AOM_BUILD_CMAKE_UTIL_CMAKE_ 1)
+endif() # AVM_BUILD_CMAKE_UTIL_CMAKE_
+set(AVM_BUILD_CMAKE_UTIL_CMAKE_ 1)
 
 # Directory where generated sources will be written.
-set(AOM_GEN_SRC_DIR "${AOM_CONFIG_DIR}/gen_src")
+set(AVM_GEN_SRC_DIR "${AVM_CONFIG_DIR}/gen_src")
 
-# Creates dummy source file in $AOM_GEN_SRC_DIR named $basename.$extension and
+# Creates dummy source file in $AVM_GEN_SRC_DIR named $basename.$extension and
 # returns the full path to the dummy source file via appending it to the list
 # variable referred to by $out_file_list_var parameter.
 macro(create_dummy_source_file basename extension out_file_list_var)
-  set(dummy_source_file "${AOM_GEN_SRC_DIR}/${basename}_dummy.${extension}")
+  set(dummy_source_file "${AVM_GEN_SRC_DIR}/${basename}_dummy.${extension}")
   file(
     WRITE "${dummy_source_file}"
     "// Generated file. DO NOT EDIT!\n"
     "// ${target_name} needs a ${extension} file to force link language, \n"
     "// or to silence a harmless CMake warning: Ignore me.\n"
-    "void aom_${target_name}_dummy_function(void) {}\n")
+    "void avm_${target_name}_dummy_function(void) {}\n")
   list(APPEND "${out_file_list_var}" "${dummy_source_file}")
 endmacro()
 
@@ -66,16 +66,16 @@ endfunction()
 # variable is removed. Quotes and the leading 'v' are stripped from the returned
 # string.
 function(extract_version_string version_file version_string_out_var)
-  file(STRINGS "${version_file}" aom_version REGEX "VERSION_STRING_NOSP")
-  string(REPLACE "#define VERSION_STRING_NOSP " "" aom_version "${aom_version}")
-  string(REPLACE "\"" "" aom_version "${aom_version}")
-  string(REPLACE " " "" aom_version "${aom_version}")
-  string(FIND "${aom_version}" "v" v_pos)
+  file(STRINGS "${version_file}" avm_version REGEX "VERSION_STRING_NOSP")
+  string(REPLACE "#define VERSION_STRING_NOSP " "" avm_version "${avm_version}")
+  string(REPLACE "\"" "" avm_version "${avm_version}")
+  string(REPLACE " " "" avm_version "${avm_version}")
+  string(FIND "${avm_version}" "v" v_pos)
   if(${v_pos} EQUAL 0)
-    string(SUBSTRING "${aom_version}" 1 -1 aom_version)
+    string(SUBSTRING "${avm_version}" 1 -1 avm_version)
   endif()
   set("${version_string_out_var}"
-      "${aom_version}"
+      "${avm_version}"
       PARENT_SCOPE)
 endfunction()
 
@@ -109,12 +109,12 @@ set(cmake_cmdline_helpstring "No help, variable specified on the command line.")
 # already been set via the CMake command line.
 #
 # The names of variables defaulted through this macro are added to
-# $AOM_CONFIG_VARS to facilitate build logging and diagnostics.
-macro(set_aom_detect_var name value helpstring)
+# $AVM_CONFIG_VARS to facilitate build logging and diagnostics.
+macro(set_avm_detect_var name value helpstring)
   unset(list_index)
-  list(FIND AOM_DETECT_VARS ${name} list_index)
+  list(FIND AVM_DETECT_VARS ${name} list_index)
   if(${list_index} EQUAL -1)
-    list(APPEND AOM_DETECT_VARS ${name})
+    list(APPEND AVM_DETECT_VARS ${name})
   endif()
 
   # Update the variable only when it does not carry the CMake assigned help
@@ -144,12 +144,12 @@ endmacro()
 # already been set via the CMake command line.
 #
 # The names of variables defaulted through this macro are added to
-# $AOM_CONFIG_VARS to facilitate build logging and diagnostics.
-macro(set_aom_config_var name value helpstring)
+# $AVM_CONFIG_VARS to facilitate build logging and diagnostics.
+macro(set_avm_config_var name value helpstring)
   unset(list_index)
-  list(FIND AOM_CONFIG_VARS ${name} list_index)
+  list(FIND AVM_CONFIG_VARS ${name} list_index)
   if(${list_index} EQUAL -1)
-    list(APPEND AOM_CONFIG_VARS ${name})
+    list(APPEND AVM_CONFIG_VARS ${name})
   endif()
 
   # Update the variable only when it does not carry the CMake assigned help
@@ -173,12 +173,12 @@ endmacro()
 # already been set via the CMake command line.
 #
 # The names of variables defaulted through this macro are added to
-# $AOM_OPTION_VARS to facilitate build logging and diagnostics.
-macro(set_aom_option_var name helpstring value)
+# $AVM_OPTION_VARS to facilitate build logging and diagnostics.
+macro(set_avm_option_var name helpstring value)
   unset(list_index)
-  list(FIND AOM_OPTION_VARS ${name} list_index)
+  list(FIND AVM_OPTION_VARS ${name} list_index)
   if(${list_index} EQUAL -1)
-    list(APPEND AOM_OPTION_VARS ${name})
+    list(APPEND AVM_OPTION_VARS ${name})
   endif()
 
   # Update the variable only when it does not carry the CMake assigned help

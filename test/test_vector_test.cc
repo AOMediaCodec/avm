@@ -18,7 +18,7 @@
 #include <tuple>
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 #include "common/tools_common.h"
-#include "config/aom_config.h"
+#include "config/avm_config.h"
 #include "test/codec_factory.h"
 #include "test/decode_test_driver.h"
 #include "test/ivf_video_source.h"
@@ -37,8 +37,8 @@ const int kRowMT = 2;
 
 typedef std::tuple<int, const char *, int> DecodeParam;
 
-class TestVectorTest : public ::libaom_test::DecoderTest,
-                       public ::libaom_test::CodecTestWithParam<DecodeParam> {
+class TestVectorTest : public ::libavm_test::DecoderTest,
+                       public ::libavm_test::CodecTestWithParam<DecodeParam> {
  protected:
   TestVectorTest() : DecoderTest(GET_PARAM(0)), md5_file_(NULL) {}
 
@@ -47,18 +47,18 @@ class TestVectorTest : public ::libaom_test::DecoderTest,
   }
 
   void OpenMD5File(const std::string &md5_file_name_) {
-    md5_file_ = libaom_test::OpenTestDataFile(md5_file_name_);
+    md5_file_ = libavm_test::OpenTestDataFile(md5_file_name_);
     ASSERT_TRUE(md5_file_ != NULL)
         << "Md5 file open failed. Filename: " << md5_file_name_;
   }
 
   virtual void PreDecodeFrameHook(
-      const libaom_test::CompressedVideoSource &video,
-      libaom_test::Decoder *decoder) {
-    if (video.frame_number() == 0) decoder->Control(AV1D_SET_ROW_MT, row_mt_);
+      const libavm_test::CompressedVideoSource &video,
+      libavm_test::Decoder *decoder) {
+    if (video.frame_number() == 0) decoder->Control(AV2D_SET_ROW_MT, row_mt_);
   }
 
-  virtual void DecompressedFrameHook(const aom_image_t &img,
+  virtual void DecompressedFrameHook(const avm_image_t &img,
                                      const unsigned int frame_number) {
     ASSERT_TRUE(md5_file_ != NULL);
     char expected_md5[33];
@@ -69,17 +69,17 @@ class TestVectorTest : public ::libaom_test::DecoderTest,
     ASSERT_NE(res, EOF) << "Read md5 data failed";
     expected_md5[32] = '\0';
 
-    ::libaom_test::MD5 md5_res;
-    const aom_img_fmt_t shifted_fmt =
-        (aom_img_fmt)(img.fmt & ~AOM_IMG_FMT_HIGHBITDEPTH);
+    ::libavm_test::MD5 md5_res;
+    const avm_img_fmt_t shifted_fmt =
+        (avm_img_fmt)(img.fmt & ~AVM_IMG_FMT_HIGHBITDEPTH);
     if (img.bit_depth == 8 && shifted_fmt != img.fmt) {
-      aom_image_t *img_shifted =
-          aom_img_alloc(NULL, shifted_fmt, img.d_w, img.d_h, 16);
+      avm_image_t *img_shifted =
+          avm_img_alloc(NULL, shifted_fmt, img.d_w, img.d_h, 16);
       img_shifted->bit_depth = img.bit_depth;
       img_shifted->monochrome = img.monochrome;
-      aom_img_downshift(img_shifted, &img, 0, 8);
+      avm_img_downshift(img_shifted, &img, 0, 8);
       md5_res.Add(img_shifted);
-      aom_img_free(img_shifted);
+      avm_img_free(img_shifted);
     } else {
       md5_res.Add(&img);
     }
@@ -103,8 +103,8 @@ class TestVectorTest : public ::libaom_test::DecoderTest,
 TEST_P(TestVectorTest, DISABLED_MD5Match) {
   const DecodeParam input = GET_PARAM(1);
   const std::string filename = std::get<kFileName>(input);
-  aom_codec_flags_t flags = 0;
-  aom_codec_dec_cfg_t cfg = aom_codec_dec_cfg_t();
+  avm_codec_flags_t flags = 0;
+  avm_codec_dec_cfg_t cfg = avm_codec_dec_cfg_t();
   char str[256];
 
   cfg.threads = std::get<kThreads>(input);
@@ -115,13 +115,13 @@ TEST_P(TestVectorTest, DISABLED_MD5Match) {
   SCOPED_TRACE(str);
 
   // Open compressed video file.
-  std::unique_ptr<libaom_test::CompressedVideoSource> video;
+  std::unique_ptr<libavm_test::CompressedVideoSource> video;
   if (filename.substr(filename.length() - 3, 3) == "ivf") {
-    video.reset(new libaom_test::IVFVideoSource(filename));
+    video.reset(new libavm_test::IVFVideoSource(filename));
   } else if (filename.substr(filename.length() - 4, 4) == "webm" ||
              filename.substr(filename.length() - 3, 3) == "mkv") {
 #if CONFIG_WEBM_IO
-    video.reset(new libaom_test::WebMVideoSource(filename));
+    video.reset(new libavm_test::WebMVideoSource(filename));
 #else
     fprintf(stderr, "WebM IO is disabled, skipping test vector %s\n",
             filename.c_str());
@@ -143,28 +143,28 @@ TEST_P(TestVectorTest, DISABLED_MD5Match) {
   ASSERT_NO_FATAL_FAILURE(RunLoop(video.get(), cfg));
 }
 
-#if CONFIG_AV1_DECODER
-AV1_INSTANTIATE_TEST_SUITE(
+#if CONFIG_AV2_DECODER
+AV2_INSTANTIATE_TEST_SUITE(
     TestVectorTest,
     ::testing::Combine(::testing::Values(1),  // Single thread.
-                       ::testing::ValuesIn(libaom_test::kAV1TestVectors,
-                                           libaom_test::kAV1TestVectors +
-                                               libaom_test::kNumAV1TestVectors),
+                       ::testing::ValuesIn(libavm_test::kAV2TestVectors,
+                                           libavm_test::kAV2TestVectors +
+                                               libavm_test::kNumAV2TestVectors),
                        ::testing::Values(0)));
 
-// Test AV1 decode in with different numbers of threads.
+// Test AV2 decode in with different numbers of threads.
 INSTANTIATE_TEST_SUITE_P(
-    AV1MultiThreaded, TestVectorTest,
+    AV2MultiThreaded, TestVectorTest,
     ::testing::Combine(
         ::testing::Values(
-            static_cast<const libaom_test::CodecFactory *>(&libaom_test::kAV1)),
+            static_cast<const libavm_test::CodecFactory *>(&libavm_test::kAV2)),
         ::testing::Combine(
             ::testing::Range(2, 9),  // With 2 ~ 8 threads.
-            ::testing::ValuesIn(libaom_test::kAV1TestVectors,
-                                libaom_test::kAV1TestVectors +
-                                    libaom_test::kNumAV1TestVectors),
+            ::testing::ValuesIn(libavm_test::kAV2TestVectors,
+                                libavm_test::kAV2TestVectors +
+                                    libavm_test::kNumAV2TestVectors),
             ::testing::Range(0, 2))));
 
-#endif  // CONFIG_AV1_DECODER
+#endif  // CONFIG_AV2_DECODER
 
 }  // namespace

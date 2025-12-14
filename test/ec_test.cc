@@ -14,12 +14,12 @@
 
 #include <cstdlib>
 
-#include "config/aom_config.h"
-#include "config/aom_dsp_rtcd.h"
+#include "config/avm_config.h"
+#include "config/avm_dsp_rtcd.h"
 
-#include "aom_dsp/entenc.h"
-#include "aom_dsp/entdec.h"
-#include "aom_dsp/prob.h"
+#include "avm_dsp/entenc.h"
+#include "avm_dsp/entdec.h"
+#include "avm_dsp/prob.h"
 
 TEST(EC_TEST, random_ec_test_Large) {
   od_ec_enc enc;

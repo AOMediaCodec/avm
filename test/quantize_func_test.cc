@@ -14,21 +14,21 @@
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
-#include "config/aom_config.h"
-#include "config/aom_dsp_rtcd.h"
-#include "config/av1_rtcd.h"
+#include "config/avm_config.h"
+#include "config/avm_dsp_rtcd.h"
+#include "config/av2_rtcd.h"
 
-#include "aom/aom_codec.h"
-#include "aom_ports/aom_timer.h"
-#include "av1/encoder/encoder.h"
-#include "av1/common/scan.h"
+#include "avm/avm_codec.h"
+#include "avm_ports/avm_timer.h"
+#include "av2/encoder/encoder.h"
+#include "av2/common/scan.h"
 #include "test/acm_random.h"
 #include "test/clear_system_state.h"
 #include "test/register_state_check.h"
 #include "test/util.h"
 
 namespace {
-using libaom_test::ACMRandom;
+using libavm_test::ACMRandom;
 
 typedef void (*QuantizeFuncHbd)(
     const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,
@@ -47,7 +47,7 @@ enum LogScale {
 
 using std::tuple;
 typedef tuple<QuantizeFuncHbd, QuantizeFuncHbd, TX_SIZE, QuantType,
-              aom_bit_depth_t, LogScale>
+              avm_bit_depth_t, LogScale>
     QuantizeParam;
 
 typedef struct {
@@ -66,23 +66,23 @@ class QuantizeTest : public ::testing::TestWithParam<QuantizeParam> {
   virtual ~QuantizeTest() {}
 
   virtual void SetUp() {
-    qtab_ = reinterpret_cast<QuanTable *>(aom_memalign(32, sizeof(*qtab_)));
+    qtab_ = reinterpret_cast<QuanTable *>(avm_memalign(32, sizeof(*qtab_)));
     const int n_coeffs = coeff_num();
     coeff_ = reinterpret_cast<tran_low_t *>(
-        aom_memalign(32, 6 * n_coeffs * sizeof(tran_low_t)));
+        avm_memalign(32, 6 * n_coeffs * sizeof(tran_low_t)));
     InitQuantizer();
   }
 
   virtual void TearDown() {
-    aom_free(qtab_);
+    avm_free(qtab_);
     qtab_ = NULL;
-    aom_free(coeff_);
+    avm_free(coeff_);
     coeff_ = NULL;
-    libaom_test::ClearSystemState();
+    libavm_test::ClearSystemState();
   }
 
   void InitQuantizer() {
-    av1_build_quantizer(bd_, 0, 0, 0, 0, 0, 0, 0, 0, &qtab_->quant,
+    av2_build_quantizer(bd_, 0, 0, 0, 0, 0, 0, 0, 0, &qtab_->quant,
                         &qtab_->dequant);
   }
 
@@ -156,7 +156,7 @@ class QuantizeTest : public ::testing::TestWithParam<QuantizeParam> {
     }
   }
 
-  int coeff_num() const { return av1_get_max_eob(tx_size_); }
+  int coeff_num() const { return av2_get_max_eob(tx_size_); }
 
   void FillCoeff(tran_low_t c) {
     const int n_coeffs = coeff_num();
@@ -203,7 +203,7 @@ class QuantizeTest : public ::testing::TestWithParam<QuantizeParam> {
 
   tran_low_t GetRandomCoeff() {
     tran_low_t coeff;
-    if (bd_ == AOM_BITS_8) {
+    if (bd_ == AVM_BITS_8) {
       coeff =
           clamp(static_cast<int16_t>(rnd_.Rand16()), INT16_MIN + 1, INT16_MAX);
     } else {
@@ -221,7 +221,7 @@ class QuantizeTest : public ::testing::TestWithParam<QuantizeParam> {
   QuantizeFuncHbd quant_;
   TX_SIZE tx_size_;
   QuantType type_;
-  aom_bit_depth_t bd_;
+  avm_bit_depth_t bd_;
   LogScale LogScale_;
 };
 
@@ -243,7 +243,7 @@ TEST_P(QuantizeTest, DcOnlyInput) {
 TEST_P(QuantizeTest, RandomInput) { QuantizeRun(true, 0, kTestNum); }
 
 TEST_P(QuantizeTest, MultipleQ) {
-  for (int q = 0; q < (QINDEX_RANGE_8_BITS + (bd_ - AOM_BITS_8) * MAXQ_OFFSET);
+  for (int q = 0; q < (QINDEX_RANGE_8_BITS + (bd_ - AVM_BITS_8) * MAXQ_OFFSET);
        ++q) {
     QuantizeRun(true, q, kTestNum);
   }
@@ -279,31 +279,31 @@ TEST_P(QuantizeTest, DISABLED_Speed) {
   const int log_scale = LogScale_;
 
   const int kNumTests = 5000000;
-  aom_usec_timer timer, simd_timer;
+  avm_usec_timer timer, simd_timer;
   int rows = tx_size_high[tx_size_];
   int cols = tx_size_wide[tx_size_];
-  rows = AOMMIN(32, rows);
-  cols = AOMMIN(32, cols);
+  rows = AVMMIN(32, rows);
+  cols = AVMMIN(32, cols);
   for (int cnt = 0; cnt <= rows; cnt++) {
     FillCoeffRandomRows(cnt * cols);
 
-    aom_usec_timer_start(&timer);
+    avm_usec_timer_start(&timer);
     for (int n = 0; n < kNumTests; ++n) {
       quant_ref_(coeff_ptr, n_coeffs, zbin, round_fp, quant_fp, quant_shift,
                  qcoeff, dqcoeff, dequant, eob, sc->scan, sc->iscan, log_scale);
     }
-    aom_usec_timer_mark(&timer);
+    avm_usec_timer_mark(&timer);
 
-    aom_usec_timer_start(&simd_timer);
+    avm_usec_timer_start(&simd_timer);
     for (int n = 0; n < kNumTests; ++n) {
       quant_(coeff_ptr, n_coeffs, zbin, round_fp, quant_fp, quant_shift, qcoeff,
              dqcoeff, dequant, eob, sc->scan, sc->iscan, log_scale);
     }
-    aom_usec_timer_mark(&simd_timer);
+    avm_usec_timer_mark(&simd_timer);
 
-    const int elapsed_time = static_cast<int>(aom_usec_timer_elapsed(&timer));
+    const int elapsed_time = static_cast<int>(avm_usec_timer_elapsed(&timer));
     const int simd_elapsed_time =
-        static_cast<int>(aom_usec_timer_elapsed(&simd_timer));
+        static_cast<int>(avm_usec_timer_elapsed(&simd_timer));
     printf("c_time = %d \t simd_time = %d \t Gain = %f \n", elapsed_time,
            simd_elapsed_time, ((float)elapsed_time / simd_elapsed_time));
   }
@@ -313,42 +313,42 @@ using std::make_tuple;
 
 #if HAVE_AVX2
 const QuantizeParam kQParamArrayAvx2[] = {
-  make_tuple(&aom_highbd_quantize_b_c, &aom_highbd_quantize_b_avx2,
-             static_cast<TX_SIZE>(TX_16X16), TYPE_B, AOM_BITS_8, LOGSCALE_0),
-  make_tuple(&aom_highbd_quantize_b_c, &aom_highbd_quantize_b_avx2,
-             static_cast<TX_SIZE>(TX_16X16), TYPE_B, AOM_BITS_10, LOGSCALE_0),
-  make_tuple(&aom_highbd_quantize_b_c, &aom_highbd_quantize_b_avx2,
-             static_cast<TX_SIZE>(TX_16X16), TYPE_B, AOM_BITS_12, LOGSCALE_0),
-  make_tuple(&aom_highbd_quantize_b_c, &aom_highbd_quantize_b_avx2,
-             static_cast<TX_SIZE>(TX_32X32), TYPE_B, AOM_BITS_8, LOGSCALE_1),
-  make_tuple(&aom_highbd_quantize_b_c, &aom_highbd_quantize_b_avx2,
-             static_cast<TX_SIZE>(TX_32X32), TYPE_B, AOM_BITS_10, LOGSCALE_1),
-  make_tuple(&aom_highbd_quantize_b_c, &aom_highbd_quantize_b_avx2,
-             static_cast<TX_SIZE>(TX_32X32), TYPE_B, AOM_BITS_12, LOGSCALE_1),
-  make_tuple(&aom_highbd_quantize_b_c, &aom_highbd_quantize_b_avx2,
-             static_cast<TX_SIZE>(TX_64X64), TYPE_B, AOM_BITS_8, LOGSCALE_2),
-  make_tuple(&aom_highbd_quantize_b_c, &aom_highbd_quantize_b_avx2,
-             static_cast<TX_SIZE>(TX_64X64), TYPE_B, AOM_BITS_10, LOGSCALE_2),
-  make_tuple(&aom_highbd_quantize_b_c, &aom_highbd_quantize_b_avx2,
-             static_cast<TX_SIZE>(TX_64X64), TYPE_B, AOM_BITS_12, LOGSCALE_2),
-  make_tuple(&av1_highbd_quantize_fp_c, &av1_highbd_quantize_fp_avx2,
-             static_cast<TX_SIZE>(TX_16X16), TYPE_FP, AOM_BITS_8, LOGSCALE_0),
-  make_tuple(&av1_highbd_quantize_fp_c, &av1_highbd_quantize_fp_avx2,
-             static_cast<TX_SIZE>(TX_16X16), TYPE_FP, AOM_BITS_10, LOGSCALE_0),
-  make_tuple(&av1_highbd_quantize_fp_c, &av1_highbd_quantize_fp_avx2,
-             static_cast<TX_SIZE>(TX_16X16), TYPE_FP, AOM_BITS_12, LOGSCALE_0),
-  make_tuple(&av1_highbd_quantize_fp_c, &av1_highbd_quantize_fp_avx2,
-             static_cast<TX_SIZE>(TX_32X32), TYPE_FP, AOM_BITS_8, LOGSCALE_1),
-  make_tuple(&av1_highbd_quantize_fp_c, &av1_highbd_quantize_fp_avx2,
-             static_cast<TX_SIZE>(TX_32X32), TYPE_FP, AOM_BITS_10, LOGSCALE_1),
-  make_tuple(&av1_highbd_quantize_fp_c, &av1_highbd_quantize_fp_avx2,
-             static_cast<TX_SIZE>(TX_32X32), TYPE_FP, AOM_BITS_12, LOGSCALE_1),
-  make_tuple(&av1_highbd_quantize_fp_c, &av1_highbd_quantize_fp_avx2,
-             static_cast<TX_SIZE>(TX_64X64), TYPE_FP, AOM_BITS_8, LOGSCALE_2),
-  make_tuple(&av1_highbd_quantize_fp_c, &av1_highbd_quantize_fp_avx2,
-             static_cast<TX_SIZE>(TX_64X64), TYPE_FP, AOM_BITS_10, LOGSCALE_2),
-  make_tuple(&av1_highbd_quantize_fp_c, &av1_highbd_quantize_fp_avx2,
-             static_cast<TX_SIZE>(TX_64X64), TYPE_FP, AOM_BITS_12, LOGSCALE_2),
+  make_tuple(&avm_highbd_quantize_b_c, &avm_highbd_quantize_b_avx2,
+             static_cast<TX_SIZE>(TX_16X16), TYPE_B, AVM_BITS_8, LOGSCALE_0),
+  make_tuple(&avm_highbd_quantize_b_c, &avm_highbd_quantize_b_avx2,
+             static_cast<TX_SIZE>(TX_16X16), TYPE_B, AVM_BITS_10, LOGSCALE_0),
+  make_tuple(&avm_highbd_quantize_b_c, &avm_highbd_quantize_b_avx2,
+             static_cast<TX_SIZE>(TX_16X16), TYPE_B, AVM_BITS_12, LOGSCALE_0),
+  make_tuple(&avm_highbd_quantize_b_c, &avm_highbd_quantize_b_avx2,
+             static_cast<TX_SIZE>(TX_32X32), TYPE_B, AVM_BITS_8, LOGSCALE_1),
+  make_tuple(&avm_highbd_quantize_b_c, &avm_highbd_quantize_b_avx2,
+             static_cast<TX_SIZE>(TX_32X32), TYPE_B, AVM_BITS_10, LOGSCALE_1),
+  make_tuple(&avm_highbd_quantize_b_c, &avm_highbd_quantize_b_avx2,
+             static_cast<TX_SIZE>(TX_32X32), TYPE_B, AVM_BITS_12, LOGSCALE_1),
+  make_tuple(&avm_highbd_quantize_b_c, &avm_highbd_quantize_b_avx2,
+             static_cast<TX_SIZE>(TX_64X64), TYPE_B, AVM_BITS_8, LOGSCALE_2),
+  make_tuple(&avm_highbd_quantize_b_c, &avm_highbd_quantize_b_avx2,
+             static_cast<TX_SIZE>(TX_64X64), TYPE_B, AVM_BITS_10, LOGSCALE_2),
+  make_tuple(&avm_highbd_quantize_b_c, &avm_highbd_quantize_b_avx2,
+             static_cast<TX_SIZE>(TX_64X64), TYPE_B, AVM_BITS_12, LOGSCALE_2),
+  make_tuple(&av2_highbd_quantize_fp_c, &av2_highbd_quantize_fp_avx2,
+             static_cast<TX_SIZE>(TX_16X16), TYPE_FP, AVM_BITS_8, LOGSCALE_0),
+  make_tuple(&av2_highbd_quantize_fp_c, &av2_highbd_quantize_fp_avx2,
+             static_cast<TX_SIZE>(TX_16X16), TYPE_FP, AVM_BITS_10, LOGSCALE_0),
+  make_tuple(&av2_highbd_quantize_fp_c, &av2_highbd_quantize_fp_avx2,
+             static_cast<TX_SIZE>(TX_16X16), TYPE_FP, AVM_BITS_12, LOGSCALE_0),
+  make_tuple(&av2_highbd_quantize_fp_c, &av2_highbd_quantize_fp_avx2,
+             static_cast<TX_SIZE>(TX_32X32), TYPE_FP, AVM_BITS_8, LOGSCALE_1),
+  make_tuple(&av2_highbd_quantize_fp_c, &av2_highbd_quantize_fp_avx2,
+             static_cast<TX_SIZE>(TX_32X32), TYPE_FP, AVM_BITS_10, LOGSCALE_1),
+  make_tuple(&av2_highbd_quantize_fp_c, &av2_highbd_quantize_fp_avx2,
+             static_cast<TX_SIZE>(TX_32X32), TYPE_FP, AVM_BITS_12, LOGSCALE_1),
+  make_tuple(&av2_highbd_quantize_fp_c, &av2_highbd_quantize_fp_avx2,
+             static_cast<TX_SIZE>(TX_64X64), TYPE_FP, AVM_BITS_8, LOGSCALE_2),
+  make_tuple(&av2_highbd_quantize_fp_c, &av2_highbd_quantize_fp_avx2,
+             static_cast<TX_SIZE>(TX_64X64), TYPE_FP, AVM_BITS_10, LOGSCALE_2),
+  make_tuple(&av2_highbd_quantize_fp_c, &av2_highbd_quantize_fp_avx2,
+             static_cast<TX_SIZE>(TX_64X64), TYPE_FP, AVM_BITS_12, LOGSCALE_2),
 };
 
 INSTANTIATE_TEST_SUITE_P(AVX2, QuantizeTest,
@@ -357,24 +357,24 @@ INSTANTIATE_TEST_SUITE_P(AVX2, QuantizeTest,
 
 #if HAVE_SSE2
 const QuantizeParam kQParamArraySSE2[] = {
-  make_tuple(&aom_highbd_quantize_b_c, &aom_highbd_quantize_b_sse2,
-             static_cast<TX_SIZE>(TX_16X16), TYPE_B, AOM_BITS_8, LOGSCALE_0),
-  make_tuple(&aom_highbd_quantize_b_c, &aom_highbd_quantize_b_sse2,
-             static_cast<TX_SIZE>(TX_16X16), TYPE_B, AOM_BITS_10, LOGSCALE_0),
-  make_tuple(&aom_highbd_quantize_b_c, &aom_highbd_quantize_b_sse2,
-             static_cast<TX_SIZE>(TX_16X16), TYPE_B, AOM_BITS_12, LOGSCALE_0),
-  make_tuple(&aom_highbd_quantize_b_c, &aom_highbd_quantize_b_sse2,
-             static_cast<TX_SIZE>(TX_32X32), TYPE_B, AOM_BITS_8, LOGSCALE_1),
-  make_tuple(&aom_highbd_quantize_b_c, &aom_highbd_quantize_b_sse2,
-             static_cast<TX_SIZE>(TX_32X32), TYPE_B, AOM_BITS_10, LOGSCALE_1),
-  make_tuple(&aom_highbd_quantize_b_c, &aom_highbd_quantize_b_sse2,
-             static_cast<TX_SIZE>(TX_32X32), TYPE_B, AOM_BITS_12, LOGSCALE_1),
-  make_tuple(&aom_highbd_quantize_b_c, &aom_highbd_quantize_b_sse2,
-             static_cast<TX_SIZE>(TX_64X64), TYPE_B, AOM_BITS_8, LOGSCALE_2),
-  make_tuple(&aom_highbd_quantize_b_c, &aom_highbd_quantize_b_sse2,
-             static_cast<TX_SIZE>(TX_64X64), TYPE_B, AOM_BITS_10, LOGSCALE_2),
-  make_tuple(&aom_highbd_quantize_b_c, &aom_highbd_quantize_b_sse2,
-             static_cast<TX_SIZE>(TX_64X64), TYPE_B, AOM_BITS_12, LOGSCALE_2),
+  make_tuple(&avm_highbd_quantize_b_c, &avm_highbd_quantize_b_sse2,
+             static_cast<TX_SIZE>(TX_16X16), TYPE_B, AVM_BITS_8, LOGSCALE_0),
+  make_tuple(&avm_highbd_quantize_b_c, &avm_highbd_quantize_b_sse2,
+             static_cast<TX_SIZE>(TX_16X16), TYPE_B, AVM_BITS_10, LOGSCALE_0),
+  make_tuple(&avm_highbd_quantize_b_c, &avm_highbd_quantize_b_sse2,
+             static_cast<TX_SIZE>(TX_16X16), TYPE_B, AVM_BITS_12, LOGSCALE_0),
+  make_tuple(&avm_highbd_quantize_b_c, &avm_highbd_quantize_b_sse2,
+             static_cast<TX_SIZE>(TX_32X32), TYPE_B, AVM_BITS_8, LOGSCALE_1),
+  make_tuple(&avm_highbd_quantize_b_c, &avm_highbd_quantize_b_sse2,
+             static_cast<TX_SIZE>(TX_32X32), TYPE_B, AVM_BITS_10, LOGSCALE_1),
+  make_tuple(&avm_highbd_quantize_b_c, &avm_highbd_quantize_b_sse2,
+             static_cast<TX_SIZE>(TX_32X32), TYPE_B, AVM_BITS_12, LOGSCALE_1),
+  make_tuple(&avm_highbd_quantize_b_c, &avm_highbd_quantize_b_sse2,
+             static_cast<TX_SIZE>(TX_64X64), TYPE_B, AVM_BITS_8, LOGSCALE_2),
+  make_tuple(&avm_highbd_quantize_b_c, &avm_highbd_quantize_b_sse2,
+             static_cast<TX_SIZE>(TX_64X64), TYPE_B, AVM_BITS_10, LOGSCALE_2),
+  make_tuple(&avm_highbd_quantize_b_c, &avm_highbd_quantize_b_sse2,
+             static_cast<TX_SIZE>(TX_64X64), TYPE_B, AVM_BITS_12, LOGSCALE_2),
 };
 
 INSTANTIATE_TEST_SUITE_P(SSE2, QuantizeTest,

@@ -14,23 +14,23 @@
 #include <new>
 #include <tuple>
 
-#include "config/aom_config.h"
-#include "config/aom_dsp_rtcd.h"
+#include "config/avm_config.h"
+#include "config/avm_dsp_rtcd.h"
 
-#include "aom/aom_codec.h"
-#include "aom/aom_integer.h"
-#include "aom_dsp/variance.h"
-#include "aom_mem/aom_mem.h"
-#include "aom_ports/aom_timer.h"
-#include "aom_ports/mem.h"
-#include "av1/common/reconinter.h"
+#include "avm/avm_codec.h"
+#include "avm/avm_integer.h"
+#include "avm_dsp/variance.h"
+#include "avm_mem/avm_mem.h"
+#include "avm_ports/avm_timer.h"
+#include "avm_ports/mem.h"
+#include "av2/common/reconinter.h"
 #include "test/acm_random.h"
 #include "test/clear_system_state.h"
 #include "test/register_state_check.h"
 #include "test/util.h"
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
-namespace AV1CompMaskVariance {
+namespace AV2CompMaskVariance {
 #if (HAVE_SSSE3 || HAVE_SSE2 || HAVE_AVX2)
 const BLOCK_SIZE kValidBlockSize[] = {
   BLOCK_8X8,   BLOCK_8X16,  BLOCK_8X32,   BLOCK_16X8,   BLOCK_16X16,
@@ -49,10 +49,10 @@ typedef void (*highbd_comp_mask_pred_func)(uint16_t *comp_pred8,
 typedef std::tuple<highbd_comp_mask_pred_func, BLOCK_SIZE, int>
     HighbdCompMaskPredParam;
 
-class AV1HighbdCompMaskVarianceTest
+class AV2HighbdCompMaskVarianceTest
     : public ::testing::TestWithParam<HighbdCompMaskPredParam> {
  public:
-  ~AV1HighbdCompMaskVarianceTest();
+  ~AV2HighbdCompMaskVarianceTest();
   void SetUp();
 
   void TearDown();
@@ -75,40 +75,40 @@ class AV1HighbdCompMaskVarianceTest
     return true;
   }
 
-  libaom_test::ACMRandom rnd_;
+  libavm_test::ACMRandom rnd_;
   uint16_t *comp_pred1_;
   uint16_t *comp_pred2_;
   uint16_t *pred_;
   uint16_t *ref_buffer_;
   uint16_t *ref_;
 };
-GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1HighbdCompMaskVarianceTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV2HighbdCompMaskVarianceTest);
 
-AV1HighbdCompMaskVarianceTest::~AV1HighbdCompMaskVarianceTest() { ; }
+AV2HighbdCompMaskVarianceTest::~AV2HighbdCompMaskVarianceTest() { ; }
 
-void AV1HighbdCompMaskVarianceTest::SetUp() {
-  rnd_.Reset(libaom_test::ACMRandom::DeterministicSeed());
-  av1_init_wedge_masks();
+void AV2HighbdCompMaskVarianceTest::SetUp() {
+  rnd_.Reset(libavm_test::ACMRandom::DeterministicSeed());
+  av2_init_wedge_masks();
 
   comp_pred1_ =
-      (uint16_t *)aom_memalign(16, MAX_SB_SQUARE * sizeof(*comp_pred1_));
+      (uint16_t *)avm_memalign(16, MAX_SB_SQUARE * sizeof(*comp_pred1_));
   comp_pred2_ =
-      (uint16_t *)aom_memalign(16, MAX_SB_SQUARE * sizeof(*comp_pred2_));
-  pred_ = (uint16_t *)aom_memalign(16, MAX_SB_SQUARE * sizeof(*pred_));
-  ref_buffer_ = (uint16_t *)aom_memalign(
+      (uint16_t *)avm_memalign(16, MAX_SB_SQUARE * sizeof(*comp_pred2_));
+  pred_ = (uint16_t *)avm_memalign(16, MAX_SB_SQUARE * sizeof(*pred_));
+  ref_buffer_ = (uint16_t *)avm_memalign(
       16, (MAX_SB_SQUARE + (8 * MAX_SB_SIZE)) * sizeof(*ref_buffer_));
   ref_ = ref_buffer_ + (8 * MAX_SB_SIZE);
 }
 
-void AV1HighbdCompMaskVarianceTest::TearDown() {
-  aom_free(comp_pred1_);
-  aom_free(comp_pred2_);
-  aom_free(pred_);
-  aom_free(ref_buffer_);
-  libaom_test::ClearSystemState();
+void AV2HighbdCompMaskVarianceTest::TearDown() {
+  avm_free(comp_pred1_);
+  avm_free(comp_pred2_);
+  avm_free(pred_);
+  avm_free(ref_buffer_);
+  libavm_test::ClearSystemState();
 }
 
-void AV1HighbdCompMaskVarianceTest::RunCheckOutput(
+void AV2HighbdCompMaskVarianceTest::RunCheckOutput(
     highbd_comp_mask_pred_func test_impl, BLOCK_SIZE bsize, int inv) {
   int bd_ = GET_PARAM(2);
   const int w = block_size_wide[bsize];
@@ -125,9 +125,9 @@ void AV1HighbdCompMaskVarianceTest::RunCheckOutput(
   for (int wedge_index = 0; wedge_index < wedge_types; ++wedge_index) {
     for (int k = 0; k < MAX_WEDGE_BOUNDARY_TYPES; k++) {
       const uint8_t *mask =
-          av1_get_all_contiguous_soft_mask(wedge_index, 1, bsize, k);
+          av2_get_all_contiguous_soft_mask(wedge_index, 1, bsize, k);
 
-      aom_highbd_comp_mask_pred_c(comp_pred1_, pred_, w, h, ref_, MAX_SB_SIZE,
+      avm_highbd_comp_mask_pred_c(comp_pred1_, pred_, w, h, ref_, MAX_SB_SIZE,
                                   mask, w, inv);
 
       test_impl(comp_pred2_, pred_, w, h, ref_, MAX_SB_SIZE, mask, w, inv);
@@ -138,7 +138,7 @@ void AV1HighbdCompMaskVarianceTest::RunCheckOutput(
   }
 }
 
-void AV1HighbdCompMaskVarianceTest::RunSpeedTest(
+void AV2HighbdCompMaskVarianceTest::RunSpeedTest(
     highbd_comp_mask_pred_func test_impl, BLOCK_SIZE bsize) {
   int bd_ = GET_PARAM(2);
 
@@ -155,21 +155,21 @@ void AV1HighbdCompMaskVarianceTest::RunSpeedTest(
   }
   int boundary_index = 0;
   const uint8_t *mask =
-      av1_get_all_contiguous_soft_mask(wedge_index, 1, bsize, boundary_index);
+      av2_get_all_contiguous_soft_mask(wedge_index, 1, bsize, boundary_index);
   const int num_loops = 1000000000 / (w + h);
 
-  highbd_comp_mask_pred_func funcs[2] = { aom_highbd_comp_mask_pred_c,
+  highbd_comp_mask_pred_func funcs[2] = { avm_highbd_comp_mask_pred_c,
                                           test_impl };
   double elapsed_time[2] = { 0 };
   for (int i = 0; i < 2; ++i) {
-    aom_usec_timer timer;
-    aom_usec_timer_start(&timer);
+    avm_usec_timer timer;
+    avm_usec_timer_start(&timer);
     highbd_comp_mask_pred_func func = funcs[i];
     for (int j = 0; j < num_loops; ++j) {
       func(comp_pred1_, pred_, w, h, ref_, MAX_SB_SIZE, mask, w, 0);
     }
-    aom_usec_timer_mark(&timer);
-    double time = static_cast<double>(aom_usec_timer_elapsed(&timer));
+    avm_usec_timer_mark(&timer);
+    double time = static_cast<double>(avm_usec_timer_elapsed(&timer));
     elapsed_time[i] = 1000.0 * time / num_loops;
   }
   printf("compMask %3dx%-3d: %7.2f/%7.2fns", w, h, elapsed_time[0],
@@ -177,38 +177,38 @@ void AV1HighbdCompMaskVarianceTest::RunSpeedTest(
   printf("(%3.2f)\n", elapsed_time[0] / elapsed_time[1]);
 }
 
-TEST_P(AV1HighbdCompMaskVarianceTest, CheckOutput) {
+TEST_P(AV2HighbdCompMaskVarianceTest, CheckOutput) {
   // inv = 0, 1
   RunCheckOutput(GET_PARAM(0), GET_PARAM(1), 0);
   RunCheckOutput(GET_PARAM(0), GET_PARAM(1), 1);
 }
 
-TEST_P(AV1HighbdCompMaskVarianceTest, DISABLED_Speed) {
+TEST_P(AV2HighbdCompMaskVarianceTest, DISABLED_Speed) {
   RunSpeedTest(GET_PARAM(0), GET_PARAM(1));
 }
 
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
-    AVX2, AV1HighbdCompMaskVarianceTest,
-    ::testing::Combine(::testing::Values(&aom_highbd_comp_mask_pred_avx2),
+    AVX2, AV2HighbdCompMaskVarianceTest,
+    ::testing::Combine(::testing::Values(&avm_highbd_comp_mask_pred_avx2),
                        ::testing::ValuesIn(kValidBlockSize),
                        ::testing::Range(8, 13, 2)));
 #endif
 
 #if HAVE_SSE2
 INSTANTIATE_TEST_SUITE_P(
-    SSE2, AV1HighbdCompMaskVarianceTest,
-    ::testing::Combine(::testing::Values(&aom_highbd_comp_mask_pred_sse2),
+    SSE2, AV2HighbdCompMaskVarianceTest,
+    ::testing::Combine(::testing::Values(&avm_highbd_comp_mask_pred_sse2),
                        ::testing::ValuesIn(kValidBlockSize),
                        ::testing::Range(8, 13, 2)));
 #endif
 
-#ifndef aom_highbd_comp_mask_pred
-// can't run this test if aom_highbd_comp_mask_pred is defined to
-// aom_highbd_comp_mask_pred_c
-class AV1HighbdCompMaskUpVarianceTest : public AV1HighbdCompMaskVarianceTest {
+#ifndef avm_highbd_comp_mask_pred
+// can't run this test if avm_highbd_comp_mask_pred is defined to
+// avm_highbd_comp_mask_pred_c
+class AV2HighbdCompMaskUpVarianceTest : public AV2HighbdCompMaskVarianceTest {
  public:
-  ~AV1HighbdCompMaskUpVarianceTest();
+  ~AV2HighbdCompMaskUpVarianceTest();
 
  protected:
   void RunCheckOutput(highbd_comp_mask_pred_func test_impl, BLOCK_SIZE bsize,
@@ -217,9 +217,9 @@ class AV1HighbdCompMaskUpVarianceTest : public AV1HighbdCompMaskVarianceTest {
                     int havSub);
 };
 
-AV1HighbdCompMaskUpVarianceTest::~AV1HighbdCompMaskUpVarianceTest() { ; }
+AV2HighbdCompMaskUpVarianceTest::~AV2HighbdCompMaskUpVarianceTest() { ; }
 
-void AV1HighbdCompMaskUpVarianceTest::RunCheckOutput(
+void AV2HighbdCompMaskUpVarianceTest::RunCheckOutput(
     highbd_comp_mask_pred_func test_impl, BLOCK_SIZE bsize, int inv) {
   int bd_ = GET_PARAM(2);
   const int w = block_size_wide[bsize];
@@ -242,18 +242,18 @@ void AV1HighbdCompMaskUpVarianceTest::RunCheckOutput(
       for (int wedge_index = 0; wedge_index < wedge_types; ++wedge_index) {
         for (int k = 0; k < MAX_WEDGE_BOUNDARY_TYPES; k++) {
           const uint8_t *mask =
-              av1_get_all_contiguous_soft_mask(wedge_index, 1, bsize, k);
+              av2_get_all_contiguous_soft_mask(wedge_index, 1, bsize, k);
 
           // ref
-          aom_highbd_upsampled_pred_c(NULL, NULL, 0, 0, NULL, comp_pred1_, w, h,
+          avm_highbd_upsampled_pred_c(NULL, NULL, 0, 0, NULL, comp_pred1_, w, h,
                                       subx, suby, ref_, MAX_SB_SIZE, bd_,
                                       subpel_search, 0);
 
-          aom_highbd_comp_mask_pred_c(comp_pred1_, pred_, w, h, comp_pred1_, w,
+          avm_highbd_comp_mask_pred_c(comp_pred1_, pred_, w, h, comp_pred1_, w,
                                       mask, w, inv);
 
           // test
-          aom_highbd_upsampled_pred(NULL, NULL, 0, 0, NULL, comp_pred2_, w, h,
+          avm_highbd_upsampled_pred(NULL, NULL, 0, 0, NULL, comp_pred2_, w, h,
                                     subx, suby, ref_, MAX_SB_SIZE, bd_,
                                     subpel_search, 0);
 
@@ -268,7 +268,7 @@ void AV1HighbdCompMaskUpVarianceTest::RunCheckOutput(
   }
 }
 
-void AV1HighbdCompMaskUpVarianceTest::RunSpeedTest(
+void AV2HighbdCompMaskUpVarianceTest::RunSpeedTest(
     highbd_comp_mask_pred_func test_impl, BLOCK_SIZE bsize, int havSub) {
   int bd_ = GET_PARAM(2);
   const int w = block_size_wide[bsize];
@@ -279,7 +279,7 @@ void AV1HighbdCompMaskUpVarianceTest::RunSpeedTest(
   int wedge_index = wedge_types / 2;
   int boundary_index = 0;
   const uint8_t *mask =
-      av1_get_all_contiguous_soft_mask(wedge_index, 1, bsize, boundary_index);
+      av2_get_all_contiguous_soft_mask(wedge_index, 1, bsize, boundary_index);
 
   for (int i = 0; i < MAX_SB_SQUARE; ++i) {
     pred_[i] = rnd_.Rand16() & ((1 << bd_) - 1);
@@ -289,21 +289,21 @@ void AV1HighbdCompMaskUpVarianceTest::RunSpeedTest(
   }
 
   const int num_loops = 1000000000 / (w + h);
-  highbd_comp_mask_pred_func funcs[2] = { &aom_highbd_comp_mask_pred_c,
+  highbd_comp_mask_pred_func funcs[2] = { &avm_highbd_comp_mask_pred_c,
                                           test_impl };
   double elapsed_time[2] = { 0 };
   for (int i = 0; i < 2; ++i) {
-    aom_usec_timer timer;
-    aom_usec_timer_start(&timer);
-    aom_highbd_comp_mask_pred = funcs[i];
+    avm_usec_timer timer;
+    avm_usec_timer_start(&timer);
+    avm_highbd_comp_mask_pred = funcs[i];
     int subpel_search = 2;  // set to 1 to test 4-tap filter.
     for (int j = 0; j < num_loops; ++j) {
-      aom_highbd_comp_mask_upsampled_pred(
+      avm_highbd_comp_mask_upsampled_pred(
           NULL, NULL, 0, 0, NULL, comp_pred1_, pred_, w, h, subx, suby, ref_,
           MAX_SB_SIZE, mask, w, 0, bd_, subpel_search, 0);
     }
-    aom_usec_timer_mark(&timer);
-    double time = static_cast<double>(aom_usec_timer_elapsed(&timer));
+    avm_usec_timer_mark(&timer);
+    double time = static_cast<double>(avm_usec_timer_elapsed(&timer));
     elapsed_time[i] = 1000.0 * time / num_loops;
   }
   printf("CompMaskUp[%d] %3dx%-3d:%7.2f/%7.2fns", havSub, w, h, elapsed_time[0],
@@ -311,28 +311,28 @@ void AV1HighbdCompMaskUpVarianceTest::RunSpeedTest(
   printf("(%3.2f)\n", elapsed_time[0] / elapsed_time[1]);
 }
 
-TEST_P(AV1HighbdCompMaskUpVarianceTest, CheckOutput) {
+TEST_P(AV2HighbdCompMaskUpVarianceTest, CheckOutput) {
   // inv mask = 0, 1
   RunCheckOutput(GET_PARAM(0), GET_PARAM(1), 0);
   RunCheckOutput(GET_PARAM(0), GET_PARAM(1), 1);
 }
 
-TEST_P(AV1HighbdCompMaskUpVarianceTest, DISABLED_Speed) {
+TEST_P(AV2HighbdCompMaskUpVarianceTest, DISABLED_Speed) {
   RunSpeedTest(GET_PARAM(0), GET_PARAM(1), 1);
 }
 
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
-    AVX2, AV1HighbdCompMaskUpVarianceTest,
-    ::testing::Combine(::testing::Values(&aom_highbd_comp_mask_pred_avx2),
+    AVX2, AV2HighbdCompMaskUpVarianceTest,
+    ::testing::Combine(::testing::Values(&avm_highbd_comp_mask_pred_avx2),
                        ::testing::ValuesIn(kValidBlockSize),
                        ::testing::Range(8, 13, 2)));
 #endif
 
 #if HAVE_SSE2
 INSTANTIATE_TEST_SUITE_P(
-    SSE2, AV1HighbdCompMaskUpVarianceTest,
-    ::testing::Combine(::testing::Values(&aom_highbd_comp_mask_pred_sse2),
+    SSE2, AV2HighbdCompMaskUpVarianceTest,
+    ::testing::Combine(::testing::Values(&avm_highbd_comp_mask_pred_sse2),
                        ::testing::ValuesIn(kValidBlockSize),
                        ::testing::Range(8, 13, 2)));
 #endif
@@ -345,10 +345,10 @@ typedef void (*highbd_convolve8_func)(const uint16_t *src, ptrdiff_t src_stride,
 
 typedef std::tuple<highbd_convolve8_func, BLOCK_SIZE, int> HighbdConvolve8Param;
 
-class AV1HighbdSubPelConv8HorizTest
+class AV2HighbdSubPelConv8HorizTest
     : public ::testing::TestWithParam<HighbdConvolve8Param> {
  public:
-  ~AV1HighbdSubPelConv8HorizTest();
+  ~AV2HighbdSubPelConv8HorizTest();
   void SetUp();
   void TearDown();
 
@@ -369,34 +369,34 @@ class AV1HighbdSubPelConv8HorizTest
     return true;
   }
 
-  libaom_test::ACMRandom rnd_;
+  libavm_test::ACMRandom rnd_;
   uint16_t *comp_pred1_;
   uint16_t *comp_pred2_;
   uint16_t *ref_buffer_;
   uint16_t *ref_;
 };
 
-AV1HighbdSubPelConv8HorizTest::~AV1HighbdSubPelConv8HorizTest() { ; }
+AV2HighbdSubPelConv8HorizTest::~AV2HighbdSubPelConv8HorizTest() { ; }
 
-void AV1HighbdSubPelConv8HorizTest::SetUp() {
-  rnd_.Reset(libaom_test::ACMRandom::DeterministicSeed());
+void AV2HighbdSubPelConv8HorizTest::SetUp() {
+  rnd_.Reset(libavm_test::ACMRandom::DeterministicSeed());
   comp_pred1_ =
-      (uint16_t *)aom_memalign(16, MAX_SB_SQUARE * sizeof(*comp_pred1_));
+      (uint16_t *)avm_memalign(16, MAX_SB_SQUARE * sizeof(*comp_pred1_));
   comp_pred2_ =
-      (uint16_t *)aom_memalign(16, MAX_SB_SQUARE * sizeof(*comp_pred2_));
-  ref_buffer_ = (uint16_t *)aom_memalign(
+      (uint16_t *)avm_memalign(16, MAX_SB_SQUARE * sizeof(*comp_pred2_));
+  ref_buffer_ = (uint16_t *)avm_memalign(
       16, (MAX_SB_SQUARE + (8 * MAX_SB_SIZE)) * sizeof(*ref_buffer_));
   ref_ = ref_buffer_ + (8 * MAX_SB_SIZE);
 }
 
-void AV1HighbdSubPelConv8HorizTest::TearDown() {
-  aom_free(comp_pred1_);
-  aom_free(comp_pred2_);
-  aom_free(ref_buffer_);
-  libaom_test::ClearSystemState();
+void AV2HighbdSubPelConv8HorizTest::TearDown() {
+  avm_free(comp_pred1_);
+  avm_free(comp_pred2_);
+  avm_free(ref_buffer_);
+  libavm_test::ClearSystemState();
 }
 
-void AV1HighbdSubPelConv8HorizTest::RunCheckOutput(
+void AV2HighbdSubPelConv8HorizTest::RunCheckOutput(
     highbd_convolve8_func test_impl, BLOCK_SIZE bsize) {
   const int bd = GET_PARAM(2);
   const int w = block_size_wide[bsize];
@@ -407,12 +407,12 @@ void AV1HighbdSubPelConv8HorizTest::RunCheckOutput(
   }
 
   for (int subpel_search = 1; subpel_search <= 3; ++subpel_search) {
-    const InterpFilterParams *filter = av1_get_filter(subpel_search);
+    const InterpFilterParams *filter = av2_get_filter(subpel_search);
     for (int subpel = 0; subpel < 16; ++subpel) {
       const int16_t *const kernel =
-          av1_get_interp_filter_subpel_kernel(filter, subpel);
+          av2_get_interp_filter_subpel_kernel(filter, subpel);
 
-      aom_highbd_convolve8_horiz_c(ref_, MAX_SB_SIZE, comp_pred1_, w, kernel,
+      avm_highbd_convolve8_horiz_c(ref_, MAX_SB_SIZE, comp_pred1_, w, kernel,
                                    16, NULL, -1, w, h, bd);
       test_impl(ref_, MAX_SB_SIZE, comp_pred2_, w, kernel, 16, NULL, -1, w, h,
                 bd);
@@ -422,7 +422,7 @@ void AV1HighbdSubPelConv8HorizTest::RunCheckOutput(
   }
 }
 
-void AV1HighbdSubPelConv8HorizTest::RunSpeedTest(
+void AV2HighbdSubPelConv8HorizTest::RunSpeedTest(
     highbd_convolve8_func test_impl, BLOCK_SIZE bsize) {
   const int bd = GET_PARAM(2);
   const int w = block_size_wide[bsize];
@@ -433,70 +433,70 @@ void AV1HighbdSubPelConv8HorizTest::RunSpeedTest(
   }
 
   const int num_loops = 1000000000 / (w + h);
-  aom_usec_timer timer;
+  avm_usec_timer timer;
 
   for (int subpel_search = 1; subpel_search <= 3; ++subpel_search) {
-    const InterpFilterParams *filter = av1_get_filter(subpel_search);
+    const InterpFilterParams *filter = av2_get_filter(subpel_search);
     const int16_t *const kernel =
-        av1_get_interp_filter_subpel_kernel(filter, 8);
+        av2_get_interp_filter_subpel_kernel(filter, 8);
 
-    aom_usec_timer_start(&timer);
+    avm_usec_timer_start(&timer);
     for (int j = 0; j < num_loops; ++j) {
-      aom_highbd_convolve8_horiz_c(ref_, MAX_SB_SIZE, comp_pred1_, w, kernel,
+      avm_highbd_convolve8_horiz_c(ref_, MAX_SB_SIZE, comp_pred1_, w, kernel,
                                    16, NULL, -1, w, h, bd);
     }
-    aom_usec_timer_mark(&timer);
-    const int time1 = static_cast<int>(aom_usec_timer_elapsed(&timer));
+    avm_usec_timer_mark(&timer);
+    const int time1 = static_cast<int>(avm_usec_timer_elapsed(&timer));
 
-    aom_usec_timer_start(&timer);
+    avm_usec_timer_start(&timer);
     for (int j = 0; j < num_loops; ++j) {
       test_impl(ref_, MAX_SB_SIZE, comp_pred2_, w, kernel, 16, NULL, -1, w, h,
                 bd);
     }
-    aom_usec_timer_mark(&timer);
-    const int time2 = static_cast<int>(aom_usec_timer_elapsed(&timer));
+    avm_usec_timer_mark(&timer);
+    const int time2 = static_cast<int>(avm_usec_timer_elapsed(&timer));
 
     printf("%3dx%-3d: bd:%d ref: %d mod: %d (%3.2f)\n", w, h, bd, time1, time2,
            (double)time1 / time2);
   }
 }
 
-TEST_P(AV1HighbdSubPelConv8HorizTest, CheckOutput) {
+TEST_P(AV2HighbdSubPelConv8HorizTest, CheckOutput) {
   RunCheckOutput(GET_PARAM(0), GET_PARAM(1));
 }
 
-TEST_P(AV1HighbdSubPelConv8HorizTest, DISABLED_Speed) {
+TEST_P(AV2HighbdSubPelConv8HorizTest, DISABLED_Speed) {
   RunSpeedTest(GET_PARAM(0), GET_PARAM(1));
 }
 
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
-    AVX2, AV1HighbdSubPelConv8HorizTest,
-    ::testing::Combine(::testing::Values(&aom_highbd_convolve8_horiz_avx2),
+    AVX2, AV2HighbdSubPelConv8HorizTest,
+    ::testing::Combine(::testing::Values(&avm_highbd_convolve8_horiz_avx2),
                        ::testing::ValuesIn(kValidBlockSize),
                        ::testing::Range(8, 13, 2)));
 #endif
 
 #if HAVE_SSE2
 INSTANTIATE_TEST_SUITE_P(
-    SSE2, AV1HighbdSubPelConv8HorizTest,
-    ::testing::Combine(::testing::Values(&aom_highbd_convolve8_horiz_sse2),
+    SSE2, AV2HighbdSubPelConv8HorizTest,
+    ::testing::Combine(::testing::Values(&avm_highbd_convolve8_horiz_sse2),
                        ::testing::ValuesIn(kValidBlockSize),
                        ::testing::Range(8, 13, 2)));
 #endif
 
-class AV1HighbdSubPelConv8VertTest : public AV1HighbdSubPelConv8HorizTest {
+class AV2HighbdSubPelConv8VertTest : public AV2HighbdSubPelConv8HorizTest {
  public:
-  ~AV1HighbdSubPelConv8VertTest();
+  ~AV2HighbdSubPelConv8VertTest();
 
  protected:
   void RunCheckOutput(highbd_convolve8_func test_impl, BLOCK_SIZE bsize);
   void RunSpeedTest(highbd_convolve8_func test_impl, BLOCK_SIZE bsize);
 };
 
-AV1HighbdSubPelConv8VertTest::~AV1HighbdSubPelConv8VertTest() { ; }
+AV2HighbdSubPelConv8VertTest::~AV2HighbdSubPelConv8VertTest() { ; }
 
-void AV1HighbdSubPelConv8VertTest::RunCheckOutput(
+void AV2HighbdSubPelConv8VertTest::RunCheckOutput(
     highbd_convolve8_func test_impl, BLOCK_SIZE bsize) {
   const int bd = GET_PARAM(2);
   const int w = block_size_wide[bsize];
@@ -507,12 +507,12 @@ void AV1HighbdSubPelConv8VertTest::RunCheckOutput(
   }
 
   for (int subpel_search = 1; subpel_search <= 3; ++subpel_search) {
-    const InterpFilterParams *filter = av1_get_filter(subpel_search);
+    const InterpFilterParams *filter = av2_get_filter(subpel_search);
     for (int subpel = 0; subpel < 8; ++subpel) {
       const int16_t *const kernel =
-          av1_get_interp_filter_subpel_kernel(filter, subpel << 1);
+          av2_get_interp_filter_subpel_kernel(filter, subpel << 1);
 
-      aom_highbd_convolve8_vert_c(ref_, MAX_SB_SIZE, comp_pred1_, w, NULL, -1,
+      avm_highbd_convolve8_vert_c(ref_, MAX_SB_SIZE, comp_pred1_, w, NULL, -1,
                                   kernel, 16, w, h, bd);
       test_impl(ref_, MAX_SB_SIZE, comp_pred2_, w, NULL, -1, kernel, 16, w, h,
                 bd);
@@ -522,7 +522,7 @@ void AV1HighbdSubPelConv8VertTest::RunCheckOutput(
   }
 }
 
-void AV1HighbdSubPelConv8VertTest::RunSpeedTest(highbd_convolve8_func test_impl,
+void AV2HighbdSubPelConv8VertTest::RunSpeedTest(highbd_convolve8_func test_impl,
                                                 BLOCK_SIZE bsize) {
   const int bd = GET_PARAM(2);
   const int w = block_size_wide[bsize];
@@ -533,57 +533,57 @@ void AV1HighbdSubPelConv8VertTest::RunSpeedTest(highbd_convolve8_func test_impl,
   }
 
   const int num_loops = 1000000000 / (w + h);
-  aom_usec_timer timer;
+  avm_usec_timer timer;
 
   for (int subpel_search = 1; subpel_search <= 3; ++subpel_search) {
-    const InterpFilterParams *filter = av1_get_filter(subpel_search);
+    const InterpFilterParams *filter = av2_get_filter(subpel_search);
     const int16_t *const kernel =
-        av1_get_interp_filter_subpel_kernel(filter, 8);
+        av2_get_interp_filter_subpel_kernel(filter, 8);
 
-    aom_usec_timer_start(&timer);
+    avm_usec_timer_start(&timer);
     for (int j = 0; j < num_loops; ++j) {
-      aom_highbd_convolve8_vert_c(ref_, MAX_SB_SIZE, comp_pred1_, w, NULL, -1,
+      avm_highbd_convolve8_vert_c(ref_, MAX_SB_SIZE, comp_pred1_, w, NULL, -1,
                                   kernel, 16, w, h, bd);
     }
-    aom_usec_timer_mark(&timer);
-    const int time1 = static_cast<int>(aom_usec_timer_elapsed(&timer));
+    avm_usec_timer_mark(&timer);
+    const int time1 = static_cast<int>(avm_usec_timer_elapsed(&timer));
 
-    aom_usec_timer_start(&timer);
+    avm_usec_timer_start(&timer);
     for (int j = 0; j < num_loops; ++j) {
       test_impl(ref_, MAX_SB_SIZE, comp_pred2_, w, NULL, -1, kernel, 16, w, h,
                 bd);
     }
-    aom_usec_timer_mark(&timer);
-    const int time2 = static_cast<int>(aom_usec_timer_elapsed(&timer));
+    avm_usec_timer_mark(&timer);
+    const int time2 = static_cast<int>(avm_usec_timer_elapsed(&timer));
 
     printf("%3dx%-3d: bd:%d ref: %d mod: %d (%3.2f)\n", w, h, bd, time1, time2,
            (double)time1 / time2);
   }
 }
 
-TEST_P(AV1HighbdSubPelConv8VertTest, CheckOutput) {
+TEST_P(AV2HighbdSubPelConv8VertTest, CheckOutput) {
   RunCheckOutput(GET_PARAM(0), GET_PARAM(1));
 }
 
-TEST_P(AV1HighbdSubPelConv8VertTest, DISABLED_Speed) {
+TEST_P(AV2HighbdSubPelConv8VertTest, DISABLED_Speed) {
   RunSpeedTest(GET_PARAM(0), GET_PARAM(1));
 }
 
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
-    AVX2, AV1HighbdSubPelConv8VertTest,
-    ::testing::Combine(::testing::Values(&aom_highbd_convolve8_vert_avx2),
+    AVX2, AV2HighbdSubPelConv8VertTest,
+    ::testing::Combine(::testing::Values(&avm_highbd_convolve8_vert_avx2),
                        ::testing::ValuesIn(kValidBlockSize),
                        ::testing::Range(8, 13, 2)));
 #endif
 
 #if HAVE_SSE2
 INSTANTIATE_TEST_SUITE_P(
-    SSE2, AV1HighbdSubPelConv8VertTest,
-    ::testing::Combine(::testing::Values(&aom_highbd_convolve8_vert_sse2),
+    SSE2, AV2HighbdSubPelConv8VertTest,
+    ::testing::Combine(::testing::Values(&avm_highbd_convolve8_vert_sse2),
                        ::testing::ValuesIn(kValidBlockSize),
                        ::testing::Range(8, 13, 2)));
 #endif
 
-#endif  // ifndef aom_highbd_comp_mask_pred
-}  // namespace AV1CompMaskVariance
+#endif  // ifndef avm_highbd_comp_mask_pred
+}  // namespace AV2CompMaskVariance

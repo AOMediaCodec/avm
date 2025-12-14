@@ -14,20 +14,20 @@
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
-#include "config/aom_config.h"
-#include "config/aom_dsp_rtcd.h"
+#include "config/avm_config.h"
+#include "config/avm_dsp_rtcd.h"
 
 #include "test/acm_random.h"
 #include "test/clear_system_state.h"
 #include "test/register_state_check.h"
 #include "test/util.h"
-#include "av1/common/blockd.h"
-#include "aom_mem/aom_mem.h"
-#include "aom_ports/mem.h"
+#include "av2/common/blockd.h"
+#include "avm_mem/avm_mem.h"
+#include "avm_ports/mem.h"
 
 namespace {
 
-using libaom_test::ACMRandom;
+using libavm_test::ACMRandom;
 
 typedef void (*HBDSubtractFunc)(int rows, int cols, int16_t *diff_ptr,
                                 ptrdiff_t diff_stride, const uint16_t *src_ptr,
@@ -41,12 +41,12 @@ using std::tuple;
 // <width, height, bit_dpeth, subtract>
 typedef tuple<int, int, int, HBDSubtractFunc> Params;
 
-class AV1HBDSubtractBlockTest : public ::testing::TestWithParam<Params> {
+class AV2HBDSubtractBlockTest : public ::testing::TestWithParam<Params> {
  public:
   virtual void SetUp() {
     block_width_ = GET_PARAM(0);
     block_height_ = GET_PARAM(1);
-    bit_depth_ = static_cast<aom_bit_depth_t>(GET_PARAM(2));
+    bit_depth_ = static_cast<avm_bit_depth_t>(GET_PARAM(2));
     func_ = GET_PARAM(3);
 
     rnd_.Reset(ACMRandom::DeterministicSeed());
@@ -54,17 +54,17 @@ class AV1HBDSubtractBlockTest : public ::testing::TestWithParam<Params> {
     const size_t max_width = 128;
     const size_t max_block_size = max_width * max_width;
     src_ = reinterpret_cast<uint16_t *>(
-        aom_memalign(16, max_block_size * sizeof(uint16_t)));
+        avm_memalign(16, max_block_size * sizeof(uint16_t)));
     pred_ = reinterpret_cast<uint16_t *>(
-        aom_memalign(16, max_block_size * sizeof(uint16_t)));
+        avm_memalign(16, max_block_size * sizeof(uint16_t)));
     diff_ = reinterpret_cast<int16_t *>(
-        aom_memalign(16, max_block_size * sizeof(int16_t)));
+        avm_memalign(16, max_block_size * sizeof(int16_t)));
   }
 
   virtual void TearDown() {
-    aom_free(src_);
-    aom_free(pred_);
-    aom_free(diff_);
+    avm_free(src_);
+    avm_free(pred_);
+    avm_free(diff_);
   }
 
  protected:
@@ -75,15 +75,15 @@ class AV1HBDSubtractBlockTest : public ::testing::TestWithParam<Params> {
   ACMRandom rnd_;
   int block_height_;
   int block_width_;
-  aom_bit_depth_t bit_depth_;
+  avm_bit_depth_t bit_depth_;
   HBDSubtractFunc func_;
   uint16_t *src_;
   uint16_t *pred_;
   int16_t *diff_;
 };
-GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1HBDSubtractBlockTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV2HBDSubtractBlockTest);
 
-void AV1HBDSubtractBlockTest::CheckResult() {
+void AV2HBDSubtractBlockTest::CheckResult() {
   const int test_num = 100;
   const size_t max_width = 128;
   const int max_block_size = max_width * max_width;
@@ -109,9 +109,9 @@ void AV1HBDSubtractBlockTest::CheckResult() {
   }
 }
 
-TEST_P(AV1HBDSubtractBlockTest, CheckResult) { CheckResult(); }
+TEST_P(AV2HBDSubtractBlockTest, CheckResult) { CheckResult(); }
 
-void AV1HBDSubtractBlockTest::RunForSpeed() {
+void AV2HBDSubtractBlockTest::RunForSpeed() {
   const int test_num = 200000;
   const size_t max_width = 128;
   const int max_block_size = max_width * max_width;
@@ -129,45 +129,45 @@ void AV1HBDSubtractBlockTest::RunForSpeed() {
   }
 }
 
-TEST_P(AV1HBDSubtractBlockTest, DISABLED_Speed) { RunForSpeed(); }
+TEST_P(AV2HBDSubtractBlockTest, DISABLED_Speed) { RunForSpeed(); }
 
 #if HAVE_SSE2
-const Params kAV1HBDSubtractBlock_sse2[] = {
-  make_tuple(4, 4, 12, &aom_highbd_subtract_block_sse2),
-  make_tuple(4, 4, 12, &aom_highbd_subtract_block_c),
-  make_tuple(4, 8, 12, &aom_highbd_subtract_block_sse2),
-  make_tuple(4, 8, 12, &aom_highbd_subtract_block_c),
-  make_tuple(8, 4, 12, &aom_highbd_subtract_block_sse2),
-  make_tuple(8, 4, 12, &aom_highbd_subtract_block_c),
-  make_tuple(8, 8, 12, &aom_highbd_subtract_block_sse2),
-  make_tuple(8, 8, 12, &aom_highbd_subtract_block_c),
-  make_tuple(8, 16, 12, &aom_highbd_subtract_block_sse2),
-  make_tuple(8, 16, 12, &aom_highbd_subtract_block_c),
-  make_tuple(16, 8, 12, &aom_highbd_subtract_block_sse2),
-  make_tuple(16, 8, 12, &aom_highbd_subtract_block_c),
-  make_tuple(16, 16, 12, &aom_highbd_subtract_block_sse2),
-  make_tuple(16, 16, 12, &aom_highbd_subtract_block_c),
-  make_tuple(16, 32, 12, &aom_highbd_subtract_block_sse2),
-  make_tuple(16, 32, 12, &aom_highbd_subtract_block_c),
-  make_tuple(32, 16, 12, &aom_highbd_subtract_block_sse2),
-  make_tuple(32, 16, 12, &aom_highbd_subtract_block_c),
-  make_tuple(32, 32, 12, &aom_highbd_subtract_block_sse2),
-  make_tuple(32, 32, 12, &aom_highbd_subtract_block_c),
-  make_tuple(32, 64, 12, &aom_highbd_subtract_block_sse2),
-  make_tuple(32, 64, 12, &aom_highbd_subtract_block_c),
-  make_tuple(64, 32, 12, &aom_highbd_subtract_block_sse2),
-  make_tuple(64, 32, 12, &aom_highbd_subtract_block_c),
-  make_tuple(64, 64, 12, &aom_highbd_subtract_block_sse2),
-  make_tuple(64, 64, 12, &aom_highbd_subtract_block_c),
-  make_tuple(64, 128, 12, &aom_highbd_subtract_block_sse2),
-  make_tuple(64, 128, 12, &aom_highbd_subtract_block_c),
-  make_tuple(128, 64, 12, &aom_highbd_subtract_block_sse2),
-  make_tuple(128, 64, 12, &aom_highbd_subtract_block_c),
-  make_tuple(128, 128, 12, &aom_highbd_subtract_block_sse2),
-  make_tuple(128, 128, 12, &aom_highbd_subtract_block_c)
+const Params kAV2HBDSubtractBlock_sse2[] = {
+  make_tuple(4, 4, 12, &avm_highbd_subtract_block_sse2),
+  make_tuple(4, 4, 12, &avm_highbd_subtract_block_c),
+  make_tuple(4, 8, 12, &avm_highbd_subtract_block_sse2),
+  make_tuple(4, 8, 12, &avm_highbd_subtract_block_c),
+  make_tuple(8, 4, 12, &avm_highbd_subtract_block_sse2),
+  make_tuple(8, 4, 12, &avm_highbd_subtract_block_c),
+  make_tuple(8, 8, 12, &avm_highbd_subtract_block_sse2),
+  make_tuple(8, 8, 12, &avm_highbd_subtract_block_c),
+  make_tuple(8, 16, 12, &avm_highbd_subtract_block_sse2),
+  make_tuple(8, 16, 12, &avm_highbd_subtract_block_c),
+  make_tuple(16, 8, 12, &avm_highbd_subtract_block_sse2),
+  make_tuple(16, 8, 12, &avm_highbd_subtract_block_c),
+  make_tuple(16, 16, 12, &avm_highbd_subtract_block_sse2),
+  make_tuple(16, 16, 12, &avm_highbd_subtract_block_c),
+  make_tuple(16, 32, 12, &avm_highbd_subtract_block_sse2),
+  make_tuple(16, 32, 12, &avm_highbd_subtract_block_c),
+  make_tuple(32, 16, 12, &avm_highbd_subtract_block_sse2),
+  make_tuple(32, 16, 12, &avm_highbd_subtract_block_c),
+  make_tuple(32, 32, 12, &avm_highbd_subtract_block_sse2),
+  make_tuple(32, 32, 12, &avm_highbd_subtract_block_c),
+  make_tuple(32, 64, 12, &avm_highbd_subtract_block_sse2),
+  make_tuple(32, 64, 12, &avm_highbd_subtract_block_c),
+  make_tuple(64, 32, 12, &avm_highbd_subtract_block_sse2),
+  make_tuple(64, 32, 12, &avm_highbd_subtract_block_c),
+  make_tuple(64, 64, 12, &avm_highbd_subtract_block_sse2),
+  make_tuple(64, 64, 12, &avm_highbd_subtract_block_c),
+  make_tuple(64, 128, 12, &avm_highbd_subtract_block_sse2),
+  make_tuple(64, 128, 12, &avm_highbd_subtract_block_c),
+  make_tuple(128, 64, 12, &avm_highbd_subtract_block_sse2),
+  make_tuple(128, 64, 12, &avm_highbd_subtract_block_c),
+  make_tuple(128, 128, 12, &avm_highbd_subtract_block_sse2),
+  make_tuple(128, 128, 12, &avm_highbd_subtract_block_c)
 };
 
-INSTANTIATE_TEST_SUITE_P(SSE2, AV1HBDSubtractBlockTest,
-                         ::testing::ValuesIn(kAV1HBDSubtractBlock_sse2));
+INSTANTIATE_TEST_SUITE_P(SSE2, AV2HBDSubtractBlockTest,
+                         ::testing::ValuesIn(kAV2HBDSubtractBlock_sse2));
 #endif  // HAVE_SSE2
 }  // namespace

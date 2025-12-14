@@ -121,7 +121,7 @@ int TestOsSaveYmm() {
 }
 #endif  // defined(_M_IX86) || defined(_M_X64) ..
 
-// based on libaom arm_cpudetect.c
+// based on libavm arm_cpudetect.c
 // For Arm, but public to allow testing on any CPU
 LIBYUV_API SAFEBUFFERS
 int ArmCpuCaps(const char* cpuinfo_name) {

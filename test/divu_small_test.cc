@@ -15,9 +15,9 @@
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
 #include "test/acm_random.h"
-#include "av1/common/odintrin.h"
+#include "av2/common/odintrin.h"
 
-using libaom_test::ACMRandom;
+using libavm_test::ACMRandom;
 
 TEST(DivuSmallTest, TestDIVUuptoMAX) {
   for (int d = 1; d <= OD_DIVU_DMAX; d++) {

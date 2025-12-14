@@ -14,8 +14,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "aom/aom_encoder.h"
-#include "aom/aomcx.h"
+#include "avm/avm_encoder.h"
+#include "avm/avmcx.h"
 #include "common/tools_common.h"
 #include "common/video_writer.h"
 
@@ -29,22 +29,22 @@ void usage_exit(void) {
   exit(EXIT_FAILURE);
 }
 
-static int encode_frame(aom_codec_ctx_t *codec, aom_image_t *img,
+static int encode_frame(avm_codec_ctx_t *codec, avm_image_t *img,
                         int frame_index, int flags, AvxVideoWriter *writer) {
   int got_pkts = 0;
-  aom_codec_iter_t iter = NULL;
-  const aom_codec_cx_pkt_t *pkt = NULL;
-  const aom_codec_err_t res =
-      aom_codec_encode(codec, img, frame_index, 1, flags);
-  if (res != AOM_CODEC_OK) die_codec(codec, "Failed to encode frame");
+  avm_codec_iter_t iter = NULL;
+  const avm_codec_cx_pkt_t *pkt = NULL;
+  const avm_codec_err_t res =
+      avm_codec_encode(codec, img, frame_index, 1, flags);
+  if (res != AVM_CODEC_OK) die_codec(codec, "Failed to encode frame");
 
-  while ((pkt = aom_codec_get_cx_data(codec, &iter)) != NULL) {
+  while ((pkt = avm_codec_get_cx_data(codec, &iter)) != NULL) {
     got_pkts = 1;
 
-    if (pkt->kind == AOM_CODEC_CX_FRAME_PKT ||
-        pkt->kind == AOM_CODEC_CX_FRAME_NULL_PKT) {
-      const int keyframe = (pkt->data.frame.flags & AOM_FRAME_IS_KEY) != 0;
-      if (!aom_video_writer_write_frame(writer, pkt->data.frame.buf,
+    if (pkt->kind == AVM_CODEC_CX_FRAME_PKT ||
+        pkt->kind == AVM_CODEC_CX_FRAME_NULL_PKT) {
+      const int keyframe = (pkt->data.frame.flags & AVM_FRAME_IS_KEY) != 0;
+      if (!avm_video_writer_write_frame(writer, pkt->data.frame.buf,
                                         pkt->data.frame.sz,
                                         pkt->data.frame.pts)) {
         die_codec(codec, "Failed to write compressed frame");
@@ -59,10 +59,10 @@ static int encode_frame(aom_codec_ctx_t *codec, aom_image_t *img,
 
 int main(int argc, char **argv) {
   FILE *infile = NULL;
-  aom_codec_enc_cfg_t cfg;
+  avm_codec_enc_cfg_t cfg;
   int frame_count = 0;
-  aom_image_t raw;
-  aom_codec_err_t res;
+  avm_image_t raw;
+  avm_codec_err_t res;
   AvxVideoInfo info;
   AvxVideoWriter *writer = NULL;
   const int fps = 30;
@@ -75,10 +75,10 @@ int main(int argc, char **argv) {
 
   if (argc < 5) die("Invalid number of arguments");
 
-  aom_codec_iface_t *encoder = get_aom_encoder_by_short_name("av1");
+  avm_codec_iface_t *encoder = get_avm_encoder_by_short_name("av2");
   if (!encoder) die("Unsupported codec.");
 
-  info.codec_fourcc = get_fourcc_by_aom_encoder(encoder);
+  info.codec_fourcc = get_fourcc_by_avm_encoder(encoder);
   info.frame_width = (int)strtol(argv[1], NULL, 0);
   info.frame_height = (int)strtol(argv[2], NULL, 0);
   info.time_base.numerator = 1;
@@ -89,15 +89,15 @@ int main(int argc, char **argv) {
     die("Invalid frame size: %dx%d", info.frame_width, info.frame_height);
   }
 
-  if (!aom_img_alloc(&raw, AOM_IMG_FMT_I420, info.frame_width,
+  if (!avm_img_alloc(&raw, AVM_IMG_FMT_I420, info.frame_width,
                      info.frame_height, 1)) {
     die("Failed to allocate image.");
   }
 
-  printf("Using %s\n", aom_codec_iface_name(encoder));
+  printf("Using %s\n", avm_codec_iface_name(encoder));
 
-  aom_codec_ctx_t codec;
-  res = aom_codec_enc_config_default(encoder, &cfg, 0);
+  avm_codec_ctx_t codec;
+  res = avm_codec_enc_config_default(encoder, &cfg, 0);
   if (res) die_codec(&codec, "Failed to get default codec config.");
 
   cfg.g_w = info.frame_width;
@@ -105,20 +105,20 @@ int main(int argc, char **argv) {
   cfg.g_timebase.num = info.time_base.numerator;
   cfg.g_timebase.den = info.time_base.denominator;
 
-  writer = aom_video_writer_open(argv[4], kContainerIVF, &info);
+  writer = avm_video_writer_open(argv[4], kContainerIVF, &info);
   if (!writer) die("Failed to open %s for writing.", argv[4]);
 
   if (!(infile = fopen(argv[3], "rb")))
     die("Failed to open %s for reading.", argv[3]);
 
-  if (aom_codec_enc_init(&codec, encoder, &cfg, 0))
+  if (avm_codec_enc_init(&codec, encoder, &cfg, 0))
     die("Failed to initialize encoder");
 
-  if (AOM_CODEC_CONTROL_TYPECHECKED(&codec, AV1E_SET_LOSSLESS, 1))
+  if (AVM_CODEC_CONTROL_TYPECHECKED(&codec, AV2E_SET_LOSSLESS, 1))
     die_codec(&codec, "Failed to use lossless mode");
 
   // Encode frames.
-  while (aom_img_read(&raw, infile)) {
+  while (avm_img_read(&raw, infile)) {
     encode_frame(&codec, &raw, frame_count++, 0, writer);
   }
 
@@ -130,10 +130,10 @@ int main(int argc, char **argv) {
   fclose(infile);
   printf("Processed %d frames.\n", frame_count);
 
-  aom_img_free(&raw);
-  if (aom_codec_destroy(&codec)) die_codec(&codec, "Failed to destroy codec.");
+  avm_img_free(&raw);
+  if (avm_codec_destroy(&codec)) die_codec(&codec, "Failed to destroy codec.");
 
-  aom_video_writer_close(writer);
+  avm_video_writer_close(writer);
 
   return EXIT_SUCCESS;
 }

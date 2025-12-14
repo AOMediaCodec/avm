@@ -34,8 +34,8 @@ static const int kCpuUsedVectors[] = {
 };
 
 class LevelTestLarge
-    : public ::libaom_test::CodecTestWith2Params<libaom_test::TestMode, int>,
-      public ::libaom_test::EncoderTest {
+    : public ::libavm_test::CodecTestWith2Params<libavm_test::TestMode, int>,
+      public ::libavm_test::EncoderTest {
  protected:
   LevelTestLarge()
       : EncoderTest(GET_PARAM(0)), encoding_mode_(GET_PARAM(1)),
@@ -47,36 +47,36 @@ class LevelTestLarge
     InitializeConfig();
     SetMode(encoding_mode_);
     cfg_.g_lag_in_frames = 5;
-    cfg_.rc_end_usage = AOM_VBR;
+    cfg_.rc_end_usage = AVM_VBR;
   }
 
-  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
-                                  ::libaom_test::Encoder *encoder) {
+  virtual void PreEncodeFrameHook(::libavm_test::VideoSource *video,
+                                  ::libavm_test::Encoder *encoder) {
     if (video->frame() == 0) {
-      encoder->Control(AOME_SET_CPUUSED, cpu_used_);
-      encoder->Control(AV1E_SET_TARGET_SEQ_LEVEL_IDX, target_level_);
-      encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
-      encoder->Control(AOME_SET_ARNR_MAXFRAMES, 7);
-      encoder->Control(AOME_SET_ARNR_STRENGTH, 5);
+      encoder->Control(AVME_SET_CPUUSED, cpu_used_);
+      encoder->Control(AV2E_SET_TARGET_SEQ_LEVEL_IDX, target_level_);
+      encoder->Control(AVME_SET_ENABLEAUTOALTREF, 1);
+      encoder->Control(AVME_SET_ARNR_MAXFRAMES, 7);
+      encoder->Control(AVME_SET_ARNR_STRENGTH, 5);
     }
 
-    encoder->Control(AV1E_GET_SEQ_LEVEL_IDX, level_);
+    encoder->Control(AV2E_GET_SEQ_LEVEL_IDX, level_);
     ASSERT_LE(level_[0], kLevelMax);
     ASSERT_GE(level_[0], kLevelMin);
   }
 
-  libaom_test::TestMode encoding_mode_;
+  libavm_test::TestMode encoding_mode_;
   int cpu_used_;
   int target_level_;
   int level_[32];
 };
 
 TEST_P(LevelTestLarge, TestTargetLevelApi) {
-  static aom_codec_iface_t *codec = &aom_codec_av1_cx_algo;
-  aom_codec_ctx_t enc;
-  aom_codec_enc_cfg_t cfg;
-  EXPECT_EQ(AOM_CODEC_OK, aom_codec_enc_config_default(codec, &cfg, 0));
-  EXPECT_EQ(AOM_CODEC_OK, aom_codec_enc_init(&enc, codec, &cfg, 0));
+  static avm_codec_iface_t *codec = &avm_codec_av2_cx_algo;
+  avm_codec_ctx_t enc;
+  avm_codec_enc_cfg_t cfg;
+  EXPECT_EQ(AVM_CODEC_OK, avm_codec_enc_config_default(codec, &cfg, 0));
+  EXPECT_EQ(AVM_CODEC_OK, avm_codec_enc_init(&enc, codec, &cfg, 0));
   for (int operating_point = 0; operating_point <= kOperatingPointMax + 1;
        ++operating_point) {
     for (int level = 0; level <= 32; ++level) {
@@ -85,22 +85,22 @@ TEST_P(LevelTestLarge, TestTargetLevelApi) {
            level != 7 && level != 10 && level != 11 && level != 20 &&
            level != 21 && level != 22 && level != 23) ||
           level == 31 || operating_point > kOperatingPointMax) {
-        EXPECT_EQ(AOM_CODEC_OK,
-                  AOM_CODEC_CONTROL_TYPECHECKED(
-                      &enc, AV1E_SET_TARGET_SEQ_LEVEL_IDX, target_level));
+        EXPECT_EQ(AVM_CODEC_OK,
+                  AVM_CODEC_CONTROL_TYPECHECKED(
+                      &enc, AV2E_SET_TARGET_SEQ_LEVEL_IDX, target_level));
       } else {
-        EXPECT_EQ(AOM_CODEC_INVALID_PARAM,
-                  AOM_CODEC_CONTROL_TYPECHECKED(
-                      &enc, AV1E_SET_TARGET_SEQ_LEVEL_IDX, target_level));
+        EXPECT_EQ(AVM_CODEC_INVALID_PARAM,
+                  AVM_CODEC_CONTROL_TYPECHECKED(
+                      &enc, AV2E_SET_TARGET_SEQ_LEVEL_IDX, target_level));
       }
     }
   }
-  EXPECT_EQ(AOM_CODEC_OK, aom_codec_destroy(&enc));
+  EXPECT_EQ(AVM_CODEC_OK, avm_codec_destroy(&enc));
 }
 
 TEST_P(LevelTestLarge, TestTargetLevel19) {
-  std::unique_ptr<libaom_test::VideoSource> video;
-  video.reset(new libaom_test::Y4mVideoSource("park_joy_90p_8_420.y4m", 0, 10));
+  std::unique_ptr<libavm_test::VideoSource> video;
+  video.reset(new libavm_test::Y4mVideoSource("park_joy_90p_8_420.y4m", 0, 10));
   ASSERT_TRUE(video.get() != NULL);
   // Level index 19 corresponding to level 6.3.
   target_level_ = 19;
@@ -110,7 +110,7 @@ TEST_P(LevelTestLarge, TestTargetLevel19) {
 TEST_P(LevelTestLarge, TestLevelMonitoringLowBitrate) {
   // To save run time, we only test speed 4.
   if (cpu_used_ == 5) {
-    libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
+    libavm_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                        30, 1, 0, 40);
     target_level_ = kLevelKeepStats;
     cfg_.rc_target_bitrate = 1000;
@@ -124,7 +124,7 @@ TEST_P(LevelTestLarge, TestLevelMonitoringHighBitrate) {
   // To save run time, we only test speed 4.
   if (cpu_used_ == 5) {
     const int num_frames = 17;
-    libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
+    libavm_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                        30, 1, 0, num_frames);
     target_level_ = kLevelKeepStats;
     cfg_.rc_target_bitrate = 4000;
@@ -137,7 +137,7 @@ TEST_P(LevelTestLarge, TestLevelMonitoringHighBitrate) {
 TEST_P(LevelTestLarge, TestTargetLevel0) {
   // To save run time, we only test speed 4.
   if (cpu_used_ == 5) {
-    libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
+    libavm_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                        30, 1, 0, 17);
     const int target_level = 0;
     target_level_ = target_level;
@@ -147,7 +147,7 @@ TEST_P(LevelTestLarge, TestTargetLevel0) {
   }
 }
 
-AV1_INSTANTIATE_TEST_SUITE(LevelTestLarge,
-                           ::testing::Values(::libaom_test::kOnePassGood),
+AV2_INSTANTIATE_TEST_SUITE(LevelTestLarge,
+                           ::testing::Values(::libavm_test::kOnePassGood),
                            ::testing::ValuesIn(kCpuUsedVectors));
 }  // namespace

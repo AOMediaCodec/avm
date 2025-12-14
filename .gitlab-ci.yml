@@ -130,12 +130,12 @@ Test Data:
   stage: check
   interruptible: true
   variables:
-    LIBAOM_TEST_DATA_PATH: ${CI_PROJECT_DIR}/libaom-test-data
+    LIBAVM_TEST_DATA_PATH: ${CI_PROJECT_DIR}/libaom-test-data
   script:
     # CMake 4.0.0 removed compatibility with CMake < 3.5. Add
     # -DCMAKE_POLICY_VERSION_MINIMUM=3.5 to try configuring anyway.
-    - cmake -B aom_testdata -GNinja -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-    - cmake --build aom_testdata --target testdata
+    - cmake -B avm_testdata -GNinja -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+    - cmake --build avm_testdata --target testdata
   artifacts:
     expire_in: 1 day
     paths:
@@ -193,7 +193,7 @@ Test Data Check:
     INSTALLROOT_FOLDER: installroot
   parallel:
     matrix:
-      - AOM_BUILD_CONFIG:
+      - AVM_BUILD_CONFIG:
           - shared
           - no-rtcd
           - rtcd
@@ -208,7 +208,7 @@ Test Data Check:
   script:
     - export PATH="/usr/lib/llvm-18/bin:${PATH}"
     - |
-      case $AOM_BUILD_CONFIG in
+      case $AVM_BUILD_CONFIG in
         internal-stats)
           CMAKE_FLAGS="$CMAKE_FLAGS -DCONFIG_INTERNAL_STATS=1"
           ;;
@@ -222,10 +222,10 @@ Test Data Check:
           CMAKE_FLAGS="$CMAKE_FLAGS -DCONFIG_RUNTIME_CPU_DETECT=1"
           ;;
         encode-only)
-          CMAKE_FLAGS="$CMAKE_FLAGS -DCONFIG_AV1_DECODER=0"
+          CMAKE_FLAGS="$CMAKE_FLAGS -DCONFIG_AV2_DECODER=0"
           ;;
         decode-only)
-          CMAKE_FLAGS="$CMAKE_FLAGS -DCONFIG_AV1_ENCODER=0"
+          CMAKE_FLAGS="$CMAKE_FLAGS -DCONFIG_AV2_ENCODER=0"
           ;;
         no-thread)
           CMAKE_FLAGS="$CMAKE_FLAGS -DCONFIG_MULTITHREAD=0"
@@ -255,17 +255,17 @@ Test Data Check:
           CMAKE_FLAGS="$CMAKE_FLAGS -DCMAKE_BUILD_TYPE=Release"
           ;;
         *)
-          echo -n "Unknown configuration: '$AOM_BUILD_CONFIG'"
+          echo -n "Unknown configuration: '$AVM_BUILD_CONFIG'"
           exit 1
           ;;
       esac
       cmake --version
       echo "CMake Flags:       $CMAKE_FLAGS"
       echo "Extra CMake Flags: $EXTRA_CMAKE_FLAGS"
-      echo "Configuration:     $AOM_BUILD_CONFIG"
+      echo "Configuration:     $AVM_BUILD_CONFIG"
     - exit_code=0
-    - cmake -B aom_build -S . -GNinja -DCMAKE_BUILD_TYPE=Release $CMAKE_FLAGS $EXTRA_CMAKE_FLAGS
-    - cmake --build aom_build -j 2 || exit_code=$?
+    - cmake -B avm_build -S . -GNinja -DCMAKE_BUILD_TYPE=Release $CMAKE_FLAGS $EXTRA_CMAKE_FLAGS
+    - cmake --build avm_build -j 2 || exit_code=$?
     - |
       if [ ${exit_code} -ne 0 ]; then
         echo -e "\e[31mYou may reproduce the compile failure by following instructions here:\e[0m"
@@ -275,15 +275,15 @@ Test Data Check:
         echo -e "\e[31mEXTRA_CMAKE_FLAGS = ${EXTRA_CMAKE_FLAGS}\e[0m"
         exit 1
       fi
-    - cmake --build aom_build --target dist
-    - DESTDIR="${CI_PROJECT_DIR}/${INSTALLROOT_FOLDER}" cmake --build aom_build --target install/strip
+    - cmake --build avm_build --target dist
+    - DESTDIR="${CI_PROJECT_DIR}/${INSTALLROOT_FOLDER}" cmake --build avm_build --target install/strip
   needs: []
 
 Build (generic-gnu):
   extends: .build-common
   parallel:
     matrix:
-      - AOM_BUILD_CONFIG:
+      - AVM_BUILD_CONFIG:
           - internal-stats
           - no-rtcd
           - rtcd
@@ -294,7 +294,7 @@ Build (generic-gnu):
           - inspection-accounting
           - no-examples
   variables:
-    EXTRA_CMAKE_FLAGS: -DAOM_TARGET_CPU=generic
+    EXTRA_CMAKE_FLAGS: -DAVM_TARGET_CPU=generic
 
 Build (x86_64-linux-gcc):
   extends: .build-common
@@ -311,7 +311,7 @@ Previous Build (x86_64-linux-gcc):
     - git checkout "$DIFF_REF"
   parallel:
     matrix:
-      - AOM_BUILD_CONFIG:
+      - AVM_BUILD_CONFIG:
           - encode-only
   artifacts:
     expire_in: 1 day
@@ -327,14 +327,14 @@ Build (entropy-stats):
     EXTRA_CMAKE_FLAGS: -DENABLE_WERROR=0
   parallel:
     matrix:
-      - AOM_BUILD_CONFIG:
+      - AVM_BUILD_CONFIG:
           - entropy-stats
 
 Build (bitstream-mismatch-debug):
   extends: .build-common
   parallel:
     matrix:
-      - AOM_BUILD_CONFIG:
+      - AVM_BUILD_CONFIG:
           - bitstream-mismatch-debug
 
 Build (x86-linux-gcc):
@@ -348,7 +348,7 @@ Build (aarch64-linux-gcc):
   extends: .build-common
   parallel:
     matrix:
-      - AOM_BUILD_CONFIG:
+      - AVM_BUILD_CONFIG:
           - shared
           - no-rtcd
           - rtcd
@@ -371,7 +371,7 @@ Build (armv7-linux-gcc):
   extends: .build-common
   parallel:
     matrix:
-      - AOM_BUILD_CONFIG:
+      - AVM_BUILD_CONFIG:
           - shared
           - no-rtcd
           - rtcd
@@ -403,7 +403,7 @@ Build (x86-mingw-gcc):
   extends: .build-common
   parallel:
     matrix:
-      - AOM_BUILD_CONFIG:
+      - AVM_BUILD_CONFIG:
           - no-rtcd
           - rtcd
           - encode-only
@@ -423,7 +423,7 @@ Build (x86_64-mingw-gcc):
   extends: .build-common
   parallel:
     matrix:
-      - AOM_BUILD_CONFIG:
+      - AVM_BUILD_CONFIG:
           - no-rtcd
           - rtcd
           - encode-only
@@ -448,23 +448,23 @@ Build Documentation:
     - cmake --version
     # CMake 4.0.0 removed compatibility with CMake < 3.5. Add
     # -DCMAKE_POLICY_VERSION_MINIMUM=3.5 to try configuring anyway.
-    - cmake -B aom_docs_build -GNinja
+    - cmake -B avm_docs_build -GNinja
         -DCMAKE_POLICY_VERSION_MINIMUM=3.5
         -DENABLE_DOCS=1
         -DENABLE_EXAMPLES=0
         -DBUILD_SHARED_LIBS=0
         -DCMAKE_BUILD_TYPE=Debug
-    - cmake --build aom_docs_build --target docs
+    - cmake --build avm_docs_build --target docs
   artifacts:
     expire_in: 1 week
     paths:
-      - aom_docs_build/docs/
+      - avm_docs_build/docs/
 
 Build (x86_64-clang):
   extends: .build-common
   parallel:
     matrix:
-      - AOM_BUILD_CONFIG:
+      - AVM_BUILD_CONFIG:
           - debug
           - release
   variables:
@@ -481,21 +481,21 @@ Example Build (x86_64-gcc):
     - cmake --version
     # CMake 4.0.0 removed compatibility with CMake < 3.5. Add
     # -DCMAKE_POLICY_VERSION_MINIMUM=3.5 to try configuring anyway.
-    - cmake -B aom_example_build
+    - cmake -B avm_example_build
         -DCMAKE_POLICY_VERSION_MINIMUM=3.5
         -DENABLE_ASSERTS=1
         -DENABLE_EXAMPLES=1
         -DBUILD_SHARED_LIBS=0
-    - cmake --build aom_example_build
+    - cmake --build avm_example_build
   needs: []
   artifacts:
     expire_in: 1 day
     paths:
-      - aom_example_build/aomenc
-      - aom_example_build/aomdec
-      - aom_example_build/config
-      - aom_example_build/examples
-      - aom_example_build/tools
+      - avm_example_build/avmenc
+      - avm_example_build/avmdec
+      - avm_example_build/config
+      - avm_example_build/examples
+      - avm_example_build/tools
 
 Linux Sanitizers (x86_64-clang):
   stage: build
@@ -512,7 +512,7 @@ Linux Sanitizers (x86_64-clang):
       -DENABLE_EXAMPLES=0
   parallel:
     matrix:
-      - AOM_SANITIZER_TYPE:
+      - AVM_SANITIZER_TYPE:
           - address
           - undefined
           - integer
@@ -524,15 +524,15 @@ Linux Sanitizers (x86_64-clang):
     - |
       SANITIZER_BLACKLIST_FLAG="-fsanitize-blacklist=${PWD}/${SANITIZER_IGNORES_FILE}"
 
-      CMAKE_FLAGS="$CMAKE_FLAGS -DSANITIZE=${AOM_SANITIZER_TYPE}"
+      CMAKE_FLAGS="$CMAKE_FLAGS -DSANITIZE=${AVM_SANITIZER_TYPE}"
       CMAKE_FLAGS="$CMAKE_FLAGS -DENABLE_ASSERTS=1"
-      CMAKE_FLAGS="$CMAKE_FLAGS -DAOM_EXTRA_C_FLAGS=${SANITIZER_BLACKLIST_FLAG}"
-      CMAKE_FLAGS="$CMAKE_FLAGS -DAOM_EXTRA_CXX_FLAGS=${SANITIZER_BLACKLIST_FLAG}"
+      CMAKE_FLAGS="$CMAKE_FLAGS -DAVM_EXTRA_C_FLAGS=${SANITIZER_BLACKLIST_FLAG}"
+      CMAKE_FLAGS="$CMAKE_FLAGS -DAVM_EXTRA_CXX_FLAGS=${SANITIZER_BLACKLIST_FLAG}"
       echo "CMake Flags: $CMAKE_FLAGS"
-    - cmake -B "aom_build/$AOM_SANITIZER_TYPE" -GNinja -DCMAKE_BUILD_TYPE=RelWithDebInfo $CMAKE_FLAGS
+    - cmake -B "avm_build/$AVM_SANITIZER_TYPE" -GNinja -DCMAKE_BUILD_TYPE=RelWithDebInfo $CMAKE_FLAGS
     # Special handling for a transient clang compiler crash.
     - exit_code=0
-    - cmake --build "aom_build/$AOM_SANITIZER_TYPE" --target test_libaom 2>&1 | tee build.log || exit_code=$?
+    - cmake --build "avm_build/$AVM_SANITIZER_TYPE" --target test_libavm 2>&1 | tee build.log || exit_code=$?
     - |
       COMPILER_CRASH_EXIT_CODE=135
       # Looking for clang compiler crash in log
@@ -540,7 +540,7 @@ Linux Sanitizers (x86_64-clang):
         echo "Compiler crashed with exit code ${COMPILER_CRASH_EXIT_CODE}"
         echo "Saving diagnostic files and asking gitlab to retry..."
         mkdir clang_diagnostic_files
-        cp /tmp/av1_config* clang_diagnostic_files/
+        cp /tmp/av2_config* clang_diagnostic_files/
         exit ${COMPILER_CRASH_EXIT_CODE}
       }
       exit ${exit_code}
@@ -548,7 +548,7 @@ Linux Sanitizers (x86_64-clang):
   artifacts:
     expire_in: 1 day
     paths:
-      - aom_build/*/test_libaom
+      - avm_build/*/test_libavm
       # Generated when clang crashes.
       - clang_diagnostic_files/*
     when: always
@@ -559,12 +559,12 @@ Example Test (x86_64):
   parallel: 5
   variables:
     GIT_FETCH_EXTRA_FLAGS: --tags
-    LIBAOM_TEST_DATA_PATH: ${CI_PROJECT_DIR}/libaom-test-data
+    LIBAVM_TEST_DATA_PATH: ${CI_PROJECT_DIR}/libaom-test-data
   before_script:
     - export SHARD_INDEX=$((CI_NODE_INDEX - 1))
   script:
     - git fetch --unshallow
-    - cd aom_example_build
+    - cd avm_example_build
     - |
       for t in $(../test/examples.sh --list-tests | awk "{ if ((NR-1) % ${CI_NODE_TOTAL} == ${SHARD_INDEX}) print }"); do
         sh ../test/examples.sh \
@@ -591,7 +591,7 @@ Example Test (x86_64):
   interruptible: true
   parallel: 20
   variables:
-    LIBAOM_TEST_DATA_PATH: ${CI_PROJECT_DIR}/libaom-test-data
+    LIBAVM_TEST_DATA_PATH: ${CI_PROJECT_DIR}/libaom-test-data
     GTEST_TOTAL_SHARDS: ${CI_NODE_TOTAL}
     GTEST_OUTPUT: "xml:report.xml"
     SANITIZER_OPTIONS: "\
@@ -605,7 +605,7 @@ Example Test (x86_64):
     - export GTEST_SHARD_INDEX=$((CI_NODE_INDEX - 1))
   script:
     - |
-      case $AOM_SANITIZER_TYPE in
+      case $AVM_SANITIZER_TYPE in
         address)
           SANITIZER_OPTIONS="${SANITIZER_OPTIONS}:detect_stack_use_after_return=1"
           SANITIZER_OPTIONS="${SANITIZER_OPTIONS}:max_uar_stack_size_log=17"
@@ -627,11 +627,11 @@ Example Test (x86_64):
       esac
     - |
       filter="-*Large*:*MD5Test*:*TestVectorTest*:*InvalidFile*:*ExternalFrameBuffer*"
-      case $AOM_SANITIZER_TYPE in
+      case $AVM_SANITIZER_TYPE in
         thread)
           filter="*Thread*:${filter}"
       esac
-    - ./aom_build/${AOM_SANITIZER_TYPE}/test_libaom --gtest_filter="${filter}" 2> >(tee -a sanitizer.log >&2)
+    - ./avm_build/${AVM_SANITIZER_TYPE}/test_libavm --gtest_filter="${filter}" 2> >(tee -a sanitizer.log >&2)
     - |
       # Looking for sanitizer output in log...
       grep -q "\(ERROR\|WARNING\): \(Address\|Thread\|Memory\|Leak\)Sanitizer:" sanitizer.log && {
@@ -666,7 +666,7 @@ Example Test (x86_64):
 Linux Sanitizer (address) Test:
   extends: .sanitizer-common
   variables:
-    AOM_SANITIZER_TYPE: address
+    AVM_SANITIZER_TYPE: address
   needs:
     - 'Test Data'
     - 'Linux Sanitizers (x86_64-clang): [address]'
@@ -674,7 +674,7 @@ Linux Sanitizer (address) Test:
 Linux Sanitizer (undefined) Test:
   extends: .sanitizer-common
   variables:
-    AOM_SANITIZER_TYPE: undefined
+    AVM_SANITIZER_TYPE: undefined
   needs:
     - 'Test Data'
     - 'Linux Sanitizers (x86_64-clang): [undefined]'
@@ -682,7 +682,7 @@ Linux Sanitizer (undefined) Test:
 Linux Sanitizer (integer) Test:
   extends: .sanitizer-common
   variables:
-    AOM_SANITIZER_TYPE: integer
+    AVM_SANITIZER_TYPE: integer
   needs:
     - 'Test Data'
     - 'Linux Sanitizers (x86_64-clang): [integer]'
@@ -692,7 +692,7 @@ Linux Sanitizer (integer) Test:
 # Linux Sanitizer (cfi) Test:
 #   extends: .sanitizer-common
 #   variables:
-#     AOM_SANITIZER_TYPE: cfi
+#     AVM_SANITIZER_TYPE: cfi
 #   needs:
 #     - 'Test Data'
 #     - 'Linux Sanitizers (x86_64-clang): [cfi]'
@@ -702,7 +702,7 @@ Linux Sanitizer (thread) Test:
   # Very few tests, so minimum parallelism.
   parallel: 2
   variables:
-    AOM_SANITIZER_TYPE: thread
+    AVM_SANITIZER_TYPE: thread
   needs:
     - 'Test Data'
     - 'Linux Sanitizers (x86_64-clang): [thread]'
@@ -712,13 +712,13 @@ Linux Sanitizer (thread) Test:
   stage: test
   interruptible: true
   variables:
-    AOMENC_LIMIT: 30
-    AOMENC_QP: 210
-    AOMENC_INPUT: Vertical_Bayshore_270x480_2997.y4m
-    AOMENC: aom_example_build/aomenc
+    AVMENC_LIMIT: 30
+    AVMENC_QP: 210
+    AVMENC_INPUT: Vertical_Bayshore_270x480_2997.y4m
+    AVMENC: avm_example_build/avmenc
   before_script:
-    - curl -s -S -f -O https://gitlab.com/AOMediaCodec/aom-testing/-/raw/master/test-files/${AOMENC_INPUT}.xz
-    - unxz ${AOMENC_INPUT}.xz
+    - curl -s -S -f -O https://gitlab.com/AOMediaCodec/aom-testing/-/raw/master/test-files/${AVMENC_INPUT}.xz
+    - unxz ${AVMENC_INPUT}.xz
   needs:
     - 'Example Build (x86_64-gcc)'
   rules:
@@ -730,15 +730,15 @@ Linux Sanitizer (thread) Test:
 Enc Run (All-intra):
   extends: .enc-run-common
   variables:
-    AOMENC_OUTPUT: all-intra
-    AOMENC_LIMIT: 15
+    AVMENC_OUTPUT: all-intra
+    AVMENC_LIMIT: 15
   script:
-    - ${AOMENC}
+    - ${AVMENC}
         --debug
         --cpu-used=0
         --passes=1
         --end-usage=q
-        --qp=${AOMENC_QP}
+        --qp=${AVMENC_QP}
         --kf-min-dist=0
         --kf-max-dist=0
         --use-fixed-qp-offsets=1
@@ -747,21 +747,21 @@ Enc Run (All-intra):
         --enable-keyframe-filtering=0
         --psnr
         --obu
-        --limit=${AOMENC_LIMIT}
-        -o "${AOMENC_OUTPUT}.obu"
-        "${AOMENC_INPUT}" 2>&1 | tee "${AOMENC_OUTPUT}.psnr.log"
-    - '[ -f "${AOMENC_OUTPUT}.obu" ] || exit 1'
-    - md5sum -b "${AOMENC_OUTPUT}.obu" | cut -d' ' -f1 > "${AOMENC_OUTPUT}.md5"
+        --limit=${AVMENC_LIMIT}
+        -o "${AVMENC_OUTPUT}.obu"
+        "${AVMENC_INPUT}" 2>&1 | tee "${AVMENC_OUTPUT}.psnr.log"
+    - '[ -f "${AVMENC_OUTPUT}.obu" ] || exit 1'
+    - md5sum -b "${AVMENC_OUTPUT}.obu" | cut -d' ' -f1 > "${AVMENC_OUTPUT}.md5"
   artifacts:
     when: always
     paths:
-      - ${AOMENC_OUTPUT}.*
+      - ${AVMENC_OUTPUT}.*
 
 Previous Enc Run (All-intra):
   extends: 'Enc Run (All-intra)'
   variables:
-    AOMENC: installroot_old/usr/local/bin/aomenc
-    AOMENC_OUTPUT: previous-all-intra
+    AVMENC: installroot_old/usr/local/bin/avmenc
+    AVMENC_OUTPUT: previous-all-intra
   needs:
     - 'Previous Build (x86_64-linux-gcc): [encode-only]'
 
@@ -769,9 +769,9 @@ Previous Enc Run (All-intra):
 Enc Run (Random Access):
   extends: .enc-run-common
   variables:
-    AOMENC_OUTPUT: random-access
+    AVMENC_OUTPUT: random-access
   script:
-    - ${AOMENC}
+    - ${AVMENC}
         --debug
         --cpu-used=0
         --passes=1
@@ -787,34 +787,34 @@ Enc Run (Random Access):
         --deltaq-mode=0
         --enable-tpl-model=0
         --end-usage=q
-        --qp=${AOMENC_QP}
+        --qp=${AVMENC_QP}
         --enable-keyframe-filtering=0
         --psnr
         --obu
-        --limit=${AOMENC_LIMIT}
-        -o "${AOMENC_OUTPUT}.obu"
-        "${AOMENC_INPUT}" 2>&1 | tee "${AOMENC_OUTPUT}.psnr.log"
-    - '[ -f "${AOMENC_OUTPUT}.obu" ] || exit 1'
-    - md5sum -b "${AOMENC_OUTPUT}.obu" | cut -d' ' -f1 > "${AOMENC_OUTPUT}.md5"
+        --limit=${AVMENC_LIMIT}
+        -o "${AVMENC_OUTPUT}.obu"
+        "${AVMENC_INPUT}" 2>&1 | tee "${AVMENC_OUTPUT}.psnr.log"
+    - '[ -f "${AVMENC_OUTPUT}.obu" ] || exit 1'
+    - md5sum -b "${AVMENC_OUTPUT}.obu" | cut -d' ' -f1 > "${AVMENC_OUTPUT}.md5"
   artifacts:
     when: always
     paths:
-      - ${AOMENC_OUTPUT}.*
+      - ${AVMENC_OUTPUT}.*
 
 Previous Enc Run (Random Access):
   extends: 'Enc Run (Random Access)'
   variables:
-    AOMENC: installroot_old/usr/local/bin/aomenc
-    AOMENC_OUTPUT: previous-random-access
+    AVMENC: installroot_old/usr/local/bin/avmenc
+    AVMENC_OUTPUT: previous-random-access
   needs:
     - 'Previous Build (x86_64-linux-gcc): [encode-only]'
 
 Enc Run (Low-delay):
   extends: .enc-run-common
   variables:
-    AOMENC_OUTPUT: low-delay
+    AVMENC_OUTPUT: low-delay
   script:
-    - ${AOMENC}
+    - ${AVMENC}
         --debug
         --cpu-used=0
         --passes=1
@@ -829,26 +829,26 @@ Enc Run (Low-delay):
         --deltaq-mode=0
         --enable-tpl-model=0
         --end-usage=q
-        --qp=${AOMENC_QP}
+        --qp=${AVMENC_QP}
         --subgop-config-str=ld
         --enable-keyframe-filtering=0
         --psnr
         --obu
-        --limit=${AOMENC_LIMIT}
-        -o "${AOMENC_OUTPUT}.obu"
-        "${AOMENC_INPUT}" 2>&1 | tee "${AOMENC_OUTPUT}.psnr.log"
-    - '[ -f "${AOMENC_OUTPUT}.obu" ] || exit 1'
-    - md5sum -b "${AOMENC_OUTPUT}.obu" | cut -d' ' -f1 > "${AOMENC_OUTPUT}.md5"
+        --limit=${AVMENC_LIMIT}
+        -o "${AVMENC_OUTPUT}.obu"
+        "${AVMENC_INPUT}" 2>&1 | tee "${AVMENC_OUTPUT}.psnr.log"
+    - '[ -f "${AVMENC_OUTPUT}.obu" ] || exit 1'
+    - md5sum -b "${AVMENC_OUTPUT}.obu" | cut -d' ' -f1 > "${AVMENC_OUTPUT}.md5"
   artifacts:
     when: always
     paths:
-      - ${AOMENC_OUTPUT}.*
+      - ${AVMENC_OUTPUT}.*
 
 Previous Enc Run (Low-delay):
   extends: 'Enc Run (Low-delay)'
   variables:
-    AOMENC: installroot_old/usr/local/bin/aomenc
-    AOMENC_OUTPUT: previous-low-delay
+    AVMENC: installroot_old/usr/local/bin/avmenc
+    AVMENC_OUTPUT: previous-low-delay
   needs:
     - 'Previous Build (x86_64-linux-gcc): [encode-only]'
 
@@ -857,26 +857,26 @@ Previous Enc Run (Low-delay):
   stage: test
   interruptible: true
   variables:
-    AOMENC_LIMIT: 30  # Should match the same variable in `.enc-run-common`
-    AOMDEC: aom_example_build/aomdec
+    AVMENC_LIMIT: 30  # Should match the same variable in `.enc-run-common`
+    AVMDEC: avm_example_build/avmdec
   script:
-    - ${AOMDEC} ${AOMENC_OUTPUT}.obu -o ${AOMDEC_OUTPUT}.decoded.y4m --summary
-       2>&1 | tee "${AOMDEC_OUTPUT}.summary.log"
-    - '[ -f "${AOMDEC_OUTPUT}.decoded.y4m" ] || exit 1'
-    - '[ -f "${AOMDEC_OUTPUT}.summary.log" ] || exit 1'
+    - ${AVMDEC} ${AVMENC_OUTPUT}.obu -o ${AVMDEC_OUTPUT}.decoded.y4m --summary
+       2>&1 | tee "${AVMDEC_OUTPUT}.summary.log"
+    - '[ -f "${AVMDEC_OUTPUT}.decoded.y4m" ] || exit 1'
+    - '[ -f "${AVMDEC_OUTPUT}.summary.log" ] || exit 1'
     - |
       for str in 'decoded frames' 'showed frames'; do
-        frame_count=$(grep -E -o "[0-9]+ ${str}" "${AOMDEC_OUTPUT}.summary.log" | sed -E "s/([0-9]+) ${str}/\1/g")
+        frame_count=$(grep -E -o "[0-9]+ ${str}" "${AVMDEC_OUTPUT}.summary.log" | sed -E "s/([0-9]+) ${str}/\1/g")
         echo "${str} = ${frame_count}"
-        if [[ ${frame_count} -ne ${AOMENC_LIMIT} ]]; then
-          echo "ERROR: Unexpected number of ${str}. Got ${frame_count}, expected ${AOMENC_LIMIT}"
+        if [[ ${frame_count} -ne ${AVMENC_LIMIT} ]]; then
+          echo "ERROR: Unexpected number of ${str}. Got ${frame_count}, expected ${AVMENC_LIMIT}"
           exit 1
         fi
       done
   artifacts:
     when: always
     paths:
-      - ${AOMDEC_OUTPUT}.*
+      - ${AVMDEC_OUTPUT}.*
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
@@ -886,9 +886,9 @@ Previous Enc Run (Low-delay):
 Dec Run (All-intra):
   extends: .dec-run-common
   variables:
-    AOMENC_LIMIT: 15  # Should match the same variable in 'Enc Run (All-intra)'
-    AOMENC_OUTPUT: all-intra
-    AOMDEC_OUTPUT: dec-all-intra
+    AVMENC_LIMIT: 15  # Should match the same variable in 'Enc Run (All-intra)'
+    AVMENC_OUTPUT: all-intra
+    AVMDEC_OUTPUT: dec-all-intra
   needs:
     - 'Enc Run (All-intra)'
     - 'Example Build (x86_64-gcc)'
@@ -897,8 +897,8 @@ Dec Run (All-intra):
 Dec Run (Random Access):
   extends: .dec-run-common
   variables:
-    AOMENC_OUTPUT: random-access
-    AOMDEC_OUTPUT: dec-random-access
+    AVMENC_OUTPUT: random-access
+    AVMDEC_OUTPUT: dec-random-access
   needs:
     - 'Enc Run (Random Access)'
     - 'Example Build (x86_64-gcc)'
@@ -907,8 +907,8 @@ Dec Run (Random Access):
 Dec Run (Low-delay):
   extends: .dec-run-common
   variables:
-    AOMENC_OUTPUT: low-delay
-    AOMDEC_OUTPUT: dec-low-delay
+    AVMENC_OUTPUT: low-delay
+    AVMDEC_OUTPUT: dec-low-delay
   needs:
     - 'Enc Run (Low-delay)'
     - 'Example Build (x86_64-gcc)'
@@ -983,9 +983,9 @@ Static Analyzer:
     - |
       # CMake 4.0.0 removed compatibility with CMake < 3.5. Add
       # -DCMAKE_POLICY_VERSION_MINIMUM=3.5 to try configuring anyway.
-      scan_build cmake -B aom_build -GNinja -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_BUILD_TYPE=Debug
+      scan_build cmake -B avm_build -GNinja -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_BUILD_TYPE=Debug
       exit_code=0
-      scan_build --status-bugs cmake --build aom_build || exit_code=$?
+      scan_build --status-bugs cmake --build avm_build || exit_code=$?
       if [ ${exit_code} -ne 0 ]; then
         echo -e "\e[31mstatic analyzer HTML warning report can be browsed by following this wiki page:\e[0m"
         echo -e "\e[31mhttps://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#viewing-static-analysis-report-from-gitlab-ci\e[0m"

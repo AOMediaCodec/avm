@@ -9,18 +9,18 @@
  * source code in the PATENTS file, you can obtain it at
  * aomedia.org/license/patent-license/.
  */
-#ifndef AOM_TEST_IVF_VIDEO_SOURCE_H_
-#define AOM_TEST_IVF_VIDEO_SOURCE_H_
+#ifndef AVM_TEST_IVF_VIDEO_SOURCE_H_
+#define AVM_TEST_IVF_VIDEO_SOURCE_H_
 
 #include <cstdio>
 #include <cstdlib>
 #include <new>
 #include <string>
 
-#include "aom_ports/sanitizer.h"
+#include "avm_ports/sanitizer.h"
 #include "test/video_source.h"
 
-namespace libaom_test {
+namespace libavm_test {
 const unsigned int kCodeBufferSize = 256 * 1024 * 1024;
 const unsigned int kIvfFileHdrSize = 32;
 const unsigned int kIvfFrameHdrSize = 12;
@@ -110,6 +110,6 @@ class IVFVideoSource : public CompressedVideoSource {
   bool end_of_file_;
 };
 
-}  // namespace libaom_test
+}  // namespace libavm_test
 
-#endif  // AOM_TEST_IVF_VIDEO_SOURCE_H_
+#endif  // AVM_TEST_IVF_VIDEO_SOURCE_H_

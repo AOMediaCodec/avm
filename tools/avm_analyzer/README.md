@@ -25,14 +25,14 @@ rustup target add wasm32-unknown-unknown
 
 2. Build AVM
 ```
-export AOM_ROOT=/path/to/git/root
-export AOM_BUILD_DIR=/path/to/avm/build
-./build_avm.sh --avm_source_dir ${AOM_ROOT} --avm_build_dir ${AOM_BUILD_DIR}
+export AVM_ROOT=/path/to/git/root
+export AVM_BUILD_DIR=/path/to/avm/build
+./build_avm.sh --avm_source_dir ${AVM_ROOT} --avm_build_dir ${AVM_BUILD_DIR}
 ```
 
 3. Build and launch AVM Analyzer
 ```
-./launch_server_local.sh --streams_dir <STREAMS_PATH> --avm_build_dir ${AOM_BUILD_DIR} [--port <PORT>]
+./launch_server_local.sh --streams_dir <STREAMS_PATH> --avm_build_dir ${AVM_BUILD_DIR} [--port <PORT>]
 ```
 
 ## Troubleshooting

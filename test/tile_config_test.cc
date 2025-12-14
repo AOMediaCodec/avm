@@ -10,9 +10,9 @@
  * aomedia.org/license/patent-license/.
  */
 
-#include "aom/aom_codec.h"
-#include "aom_dsp/aom_dsp_common.h"
-#include "av1/common/tile_common.h"
+#include "avm/avm_codec.h"
+#include "avm_dsp/avm_dsp_common.h"
+#include "av2/common/tile_common.h"
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 #include "test/codec_factory.h"
 #include "test/encode_test_driver.h"
@@ -42,11 +42,11 @@ typedef struct {
   // number of tile widths
   const unsigned int tile_width_count;
   // list of tile widths
-  int tile_widths[AOM_MAX_TILE_COLS];
+  int tile_widths[AVM_MAX_TILE_COLS];
   // number of tile heights
   const unsigned int tile_height_count;
   // list of tile heights
-  int tile_heights[AOM_MAX_TILE_ROWS];
+  int tile_heights[AVM_MAX_TILE_ROWS];
 } nonUniformTileConfigParam;
 
 const nonUniformTileConfigParam nonUniformTileConfigParams[] = {
@@ -59,23 +59,23 @@ const nonUniformTileConfigParam nonUniformTileConfigParams[] = {
 
 // This class is used to validate tile configuration for uniform spacing.
 class UniformTileConfigTestLarge
-    : public ::libaom_test::CodecTestWith3Params<
-          libaom_test::TestMode, uniformTileConfigParam, aom_rc_mode>,
-      public ::libaom_test::EncoderTest {
+    : public ::libavm_test::CodecTestWith3Params<
+          libavm_test::TestMode, uniformTileConfigParam, avm_rc_mode>,
+      public ::libavm_test::EncoderTest {
  protected:
   UniformTileConfigTestLarge()
       : EncoderTest(GET_PARAM(0)), encoding_mode_(GET_PARAM(1)),
         tile_config_param_(GET_PARAM(2)), end_usage_check_(GET_PARAM(3)) {
     tile_config_violated_ = false;
-    max_tile_cols_log2_ = tile_log2(1, AOM_MAX_TILE_COLS);
-    max_tile_rows_log2_ = tile_log2(1, AOM_MAX_TILE_ROWS);
+    max_tile_cols_log2_ = tile_log2(1, AVM_MAX_TILE_COLS);
+    max_tile_rows_log2_ = tile_log2(1, AVM_MAX_TILE_ROWS);
   }
   virtual ~UniformTileConfigTestLarge() {}
 
   virtual void SetUp() {
     InitializeConfig();
     SetMode(encoding_mode_);
-    const aom_rational timebase = { 1, 30 };
+    const avm_rational timebase = { 1, 30 };
     cfg_.g_timebase = timebase;
     cfg_.rc_end_usage = end_usage_check_;
     cfg_.g_threads = 1;
@@ -84,57 +84,57 @@ class UniformTileConfigTestLarge
 
   virtual bool DoDecode() const { return 1; }
 
-  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
-                                  ::libaom_test::Encoder *encoder) {
+  virtual void PreEncodeFrameHook(::libavm_test::VideoSource *video,
+                                  ::libavm_test::Encoder *encoder) {
     if (video->frame() == 0) {
-      encoder->Control(AV1E_SET_TILE_COLUMNS, tile_config_param_.tile_cols);
-      encoder->Control(AV1E_SET_TILE_ROWS, tile_config_param_.tile_rows);
-      encoder->Control(AOME_SET_CPUUSED, 5);
-      if (end_usage_check_ == AOM_Q) {
-        encoder->Control(AOME_SET_QP, 210);
+      encoder->Control(AV2E_SET_TILE_COLUMNS, tile_config_param_.tile_cols);
+      encoder->Control(AV2E_SET_TILE_ROWS, tile_config_param_.tile_rows);
+      encoder->Control(AVME_SET_CPUUSED, 5);
+      if (end_usage_check_ == AVM_Q) {
+        encoder->Control(AVME_SET_QP, 210);
       }
-      encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
+      encoder->Control(AVME_SET_ENABLEAUTOALTREF, 1);
       encoder->Control(
-          AV1E_SET_SUPERBLOCK_SIZE,
-          tile_config_param_.sb_size == 64    ? AOM_SUPERBLOCK_SIZE_64X64
-          : tile_config_param_.sb_size == 128 ? AOM_SUPERBLOCK_SIZE_128X128
-                                              : AOM_SUPERBLOCK_SIZE_256X256);
+          AV2E_SET_SUPERBLOCK_SIZE,
+          tile_config_param_.sb_size == 64    ? AVM_SUPERBLOCK_SIZE_64X64
+          : tile_config_param_.sb_size == 128 ? AVM_SUPERBLOCK_SIZE_128X128
+                                              : AVM_SUPERBLOCK_SIZE_256X256);
     }
   }
 
-  virtual bool HandleDecodeResult(const aom_codec_err_t res_dec,
-                                  libaom_test::Decoder *decoder) {
-    EXPECT_EQ(AOM_CODEC_OK, res_dec) << decoder->DecodeError();
-    if (AOM_CODEC_OK == res_dec) {
-      aom_codec_ctx_t *ctx_dec = decoder->GetDecoder();
-      aom_tile_info tile_info;
-      int config_tile_columns = AOMMIN(1 << (int)tile_config_param_.tile_cols,
+  virtual bool HandleDecodeResult(const avm_codec_err_t res_dec,
+                                  libavm_test::Decoder *decoder) {
+    EXPECT_EQ(AVM_CODEC_OK, res_dec) << decoder->DecodeError();
+    if (AVM_CODEC_OK == res_dec) {
+      avm_codec_ctx_t *ctx_dec = decoder->GetDecoder();
+      avm_tile_info tile_info;
+      int config_tile_columns = AVMMIN(1 << (int)tile_config_param_.tile_cols,
                                        1 << max_tile_cols_log2_);
-      int config_tile_rows = AOMMIN(1 << (int)tile_config_param_.tile_rows,
+      int config_tile_rows = AVMMIN(1 << (int)tile_config_param_.tile_rows,
                                     1 << max_tile_rows_log2_);
 
-      AOM_CODEC_CONTROL_TYPECHECKED(ctx_dec, AOMD_GET_TILE_INFO, &tile_info);
+      AVM_CODEC_CONTROL_TYPECHECKED(ctx_dec, AVMD_GET_TILE_INFO, &tile_info);
       if (tile_info.tile_columns != config_tile_columns ||
           tile_info.tile_rows != config_tile_rows) {
         tile_config_violated_ = true;
       }
     }
-    return AOM_CODEC_OK == res_dec;
+    return AVM_CODEC_OK == res_dec;
   }
 
-  ::libaom_test::TestMode encoding_mode_;
+  ::libavm_test::TestMode encoding_mode_;
   const uniformTileConfigParam tile_config_param_;
   int max_tile_cols_log2_;
   int max_tile_rows_log2_;
   bool tile_config_violated_;
-  aom_rc_mode end_usage_check_;
+  avm_rc_mode end_usage_check_;
 };
 
 // This class is used to validate tile configuration for non uniform spacing.
 class NonUniformTileConfigTestLarge
-    : public ::libaom_test::CodecTestWith3Params<
-          libaom_test::TestMode, nonUniformTileConfigParam, aom_rc_mode>,
-      public ::libaom_test::EncoderTest {
+    : public ::libavm_test::CodecTestWith3Params<
+          libavm_test::TestMode, nonUniformTileConfigParam, avm_rc_mode>,
+      public ::libavm_test::EncoderTest {
  protected:
   NonUniformTileConfigTestLarge()
       : EncoderTest(GET_PARAM(0)), encoding_mode_(GET_PARAM(1)),
@@ -146,7 +146,7 @@ class NonUniformTileConfigTestLarge
   virtual void SetUp() {
     InitializeConfig();
     SetMode(encoding_mode_);
-    const aom_rational timebase = { 1, 30 };
+    const avm_rational timebase = { 1, 30 };
     cfg_.g_timebase = timebase;
     cfg_.rc_end_usage = rc_end_usage_;
     cfg_.g_threads = 1;
@@ -164,39 +164,39 @@ class NonUniformTileConfigTestLarge
 
   virtual bool DoDecode() const { return 1; }
 
-  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
-                                  ::libaom_test::Encoder *encoder) {
+  virtual void PreEncodeFrameHook(::libavm_test::VideoSource *video,
+                                  ::libavm_test::Encoder *encoder) {
     if (video->frame() == 0) {
-      encoder->Control(AOME_SET_CPUUSED, 5);
-      if (rc_end_usage_ == AOM_Q) {
-        encoder->Control(AOME_SET_QP, 210);
+      encoder->Control(AVME_SET_CPUUSED, 5);
+      if (rc_end_usage_ == AVM_Q) {
+        encoder->Control(AVME_SET_QP, 210);
       }
-      encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
+      encoder->Control(AVME_SET_ENABLEAUTOALTREF, 1);
       encoder->Control(
-          AV1E_SET_SUPERBLOCK_SIZE,
-          tile_config_param_.sb_size == 64    ? AOM_SUPERBLOCK_SIZE_64X64
-          : tile_config_param_.sb_size == 128 ? AOM_SUPERBLOCK_SIZE_128X128
-                                              : AOM_SUPERBLOCK_SIZE_256X256);
+          AV2E_SET_SUPERBLOCK_SIZE,
+          tile_config_param_.sb_size == 64    ? AVM_SUPERBLOCK_SIZE_64X64
+          : tile_config_param_.sb_size == 128 ? AVM_SUPERBLOCK_SIZE_128X128
+                                              : AVM_SUPERBLOCK_SIZE_256X256);
     }
   }
 
-  virtual bool HandleDecodeResult(const aom_codec_err_t res_dec,
-                                  libaom_test::Decoder *decoder) {
-    EXPECT_EQ(AOM_CODEC_OK, res_dec) << decoder->DecodeError();
-    if (AOM_CODEC_OK == res_dec) {
-      aom_codec_ctx_t *ctx_dec = decoder->GetDecoder();
-      aom_tile_info tile_info;
-      AOM_CODEC_CONTROL_TYPECHECKED(ctx_dec, AOMD_GET_TILE_INFO, &tile_info);
+  virtual bool HandleDecodeResult(const avm_codec_err_t res_dec,
+                                  libavm_test::Decoder *decoder) {
+    EXPECT_EQ(AVM_CODEC_OK, res_dec) << decoder->DecodeError();
+    if (AVM_CODEC_OK == res_dec) {
+      avm_codec_ctx_t *ctx_dec = decoder->GetDecoder();
+      avm_tile_info tile_info;
+      AVM_CODEC_CONTROL_TYPECHECKED(ctx_dec, AVMD_GET_TILE_INFO, &tile_info);
 
       // check validity of tile cols
       int tile_col_idx, tile_col = 0;
       int frame_flags = 0;
       // Get frame flags
-      AOM_CODEC_CONTROL_TYPECHECKED(ctx_dec, AOMD_GET_FRAME_FLAGS,
+      AVM_CODEC_CONTROL_TYPECHECKED(ctx_dec, AVMD_GET_FRAME_FLAGS,
                                     &frame_flags);
       const bool is_intra_frame =
-          (frame_flags & AOM_FRAME_IS_INTRAONLY) ==
-          static_cast<aom_codec_frame_flags_t>(AOM_FRAME_IS_INTRAONLY);
+          (frame_flags & AVM_FRAME_IS_INTRAONLY) ==
+          static_cast<avm_codec_frame_flags_t>(AVM_FRAME_IS_INTRAONLY);
 
       // Intra frame force to use SB size as 128x128 when encoder is configured
       // with max SB size as 256x256. Hence, adjust the tile size with a scale
@@ -232,55 +232,55 @@ class NonUniformTileConfigTestLarge
           tile_info.tile_heights[tile_row_idx])
         tile_config_violated_ = true;
     }
-    return AOM_CODEC_OK == res_dec;
+    return AVM_CODEC_OK == res_dec;
   }
 
-  ::libaom_test::TestMode encoding_mode_;
+  ::libavm_test::TestMode encoding_mode_;
   const nonUniformTileConfigParam tile_config_param_;
   bool tile_config_violated_;
-  aom_rc_mode rc_end_usage_;
+  avm_rc_mode rc_end_usage_;
 };
 
 TEST_P(UniformTileConfigTestLarge, UniformTileConfigTest) {
-  ::libaom_test::Y4mVideoSource video("niklas_1280_720_30.y4m", 0, 1);
+  ::libavm_test::Y4mVideoSource video("niklas_1280_720_30.y4m", 0, 1);
   ASSERT_NO_FATAL_FAILURE(video.Begin());
 
   int max_tiles_cols = video.img()->w / (int)tile_config_param_.sb_size;
   int max_tiles_rows = video.img()->h / (int)tile_config_param_.sb_size;
-  max_tile_cols_log2_ = tile_log2(1, AOMMIN(max_tiles_cols, AOM_MAX_TILE_COLS));
-  max_tile_rows_log2_ = tile_log2(1, AOMMIN(max_tiles_rows, AOM_MAX_TILE_ROWS));
+  max_tile_cols_log2_ = tile_log2(1, AVMMIN(max_tiles_cols, AVM_MAX_TILE_COLS));
+  max_tile_rows_log2_ = tile_log2(1, AVMMIN(max_tiles_rows, AVM_MAX_TILE_ROWS));
 
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   ASSERT_EQ(tile_config_violated_, false);
 }
 
 TEST_P(UniformTileConfigTestLarge, UniformTileConfigTestLowRes) {
-  ::libaom_test::Y4mVideoSource video("screendata.y4m", 0, 1);
+  ::libavm_test::Y4mVideoSource video("screendata.y4m", 0, 1);
   ASSERT_NO_FATAL_FAILURE(video.Begin());
 
   int max_tiles_cols = video.img()->w / (int)tile_config_param_.sb_size;
   int max_tiles_rows = video.img()->h / (int)tile_config_param_.sb_size;
-  max_tile_cols_log2_ = tile_log2(1, AOMMIN(max_tiles_cols, AOM_MAX_TILE_COLS));
-  max_tile_rows_log2_ = tile_log2(1, AOMMIN(max_tiles_rows, AOM_MAX_TILE_ROWS));
+  max_tile_cols_log2_ = tile_log2(1, AVMMIN(max_tiles_cols, AVM_MAX_TILE_COLS));
+  max_tile_rows_log2_ = tile_log2(1, AVMMIN(max_tiles_rows, AVM_MAX_TILE_ROWS));
 
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   ASSERT_EQ(tile_config_violated_, false);
 }
 
 TEST_P(NonUniformTileConfigTestLarge, NonUniformTileConfigTest) {
-  ::libaom_test::Y4mVideoSource video("niklas_1280_720_30.y4m", 0, 2);
+  ::libavm_test::Y4mVideoSource video("niklas_1280_720_30.y4m", 0, 2);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   ASSERT_EQ(tile_config_violated_, false);
 }
 
-AV1_INSTANTIATE_TEST_SUITE(UniformTileConfigTestLarge, GOODQUALITY_TEST_MODES,
+AV2_INSTANTIATE_TEST_SUITE(UniformTileConfigTestLarge, GOODQUALITY_TEST_MODES,
                            ::testing::ValuesIn(uniformTileConfigParams),
-                           ::testing::Values(AOM_Q, AOM_VBR, AOM_CBR, AOM_CQ));
+                           ::testing::Values(AVM_Q, AVM_VBR, AVM_CBR, AVM_CQ));
 
-AV1_INSTANTIATE_TEST_SUITE(NonUniformTileConfigTestLarge,
+AV2_INSTANTIATE_TEST_SUITE(NonUniformTileConfigTestLarge,
                            GOODQUALITY_TEST_MODES,
                            ::testing::ValuesIn(nonUniformTileConfigParams),
-                           ::testing::Values(AOM_Q, AOM_VBR, AOM_CBR, AOM_CQ));
+                           ::testing::Values(AVM_Q, AVM_VBR, AVM_CBR, AVM_CQ));
 
 typedef struct {
   // Number of tile groups to set.
@@ -304,9 +304,9 @@ std::ostream &operator<<(std::ostream &os,
 
 // This class is used to test number of tile groups present in header.
 class TileGroupTestLarge
-    : public ::libaom_test::CodecTestWith2Params<libaom_test::TestMode,
+    : public ::libavm_test::CodecTestWith2Params<libavm_test::TestMode,
                                                  TileGroupConfigParams>,
-      public ::libaom_test::EncoderTest {
+      public ::libavm_test::EncoderTest {
  protected:
   TileGroupTestLarge()
       : EncoderTest(GET_PARAM(0)), encoding_mode_(GET_PARAM(1)),
@@ -318,58 +318,58 @@ class TileGroupTestLarge
   virtual void SetUp() {
     InitializeConfig();
     SetMode(encoding_mode_);
-    const aom_rational timebase = { 1, 30 };
+    const avm_rational timebase = { 1, 30 };
     cfg_.g_timebase = timebase;
-    cfg_.rc_end_usage = AOM_Q;
+    cfg_.rc_end_usage = AVM_Q;
     cfg_.g_threads = 1;
   }
 
   virtual bool DoDecode() const { return 1; }
 
-  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
-                                  ::libaom_test::Encoder *encoder) {
+  virtual void PreEncodeFrameHook(::libavm_test::VideoSource *video,
+                                  ::libavm_test::Encoder *encoder) {
     if (video->frame() == 0) {
-      encoder->Control(AOME_SET_CPUUSED, 5);
-      encoder->Control(AOME_SET_QP, 210);
-      encoder->Control(AV1E_SET_NUM_TG, tile_group_config_params_.num_tg);
-      encoder->Control(AV1E_SET_TILE_COLUMNS,
+      encoder->Control(AVME_SET_CPUUSED, 5);
+      encoder->Control(AVME_SET_QP, 210);
+      encoder->Control(AV2E_SET_NUM_TG, tile_group_config_params_.num_tg);
+      encoder->Control(AV2E_SET_TILE_COLUMNS,
                        tile_group_config_params_.num_tile_cols);
-      encoder->Control(AV1E_SET_TILE_ROWS,
+      encoder->Control(AV2E_SET_TILE_ROWS,
                        tile_group_config_params_.num_tile_rows);
       encoder->SetOption("enable-tip", "0");
     }
   }
 
-  virtual bool HandleDecodeResult(const aom_codec_err_t res_dec,
-                                  libaom_test::Decoder *decoder) {
-    EXPECT_EQ(AOM_CODEC_OK, res_dec) << decoder->DecodeError();
-    if (AOM_CODEC_OK == res_dec) {
-      aom_tile_info tile_info;
-      aom_codec_ctx_t *ctx_dec = decoder->GetDecoder();
-      AOM_CODEC_CONTROL_TYPECHECKED(ctx_dec, AOMD_GET_TILE_INFO, &tile_info);
-      AOM_CODEC_CONTROL_TYPECHECKED(ctx_dec, AOMD_GET_SHOW_EXISTING_FRAME_FLAG,
+  virtual bool HandleDecodeResult(const avm_codec_err_t res_dec,
+                                  libavm_test::Decoder *decoder) {
+    EXPECT_EQ(AVM_CODEC_OK, res_dec) << decoder->DecodeError();
+    if (AVM_CODEC_OK == res_dec) {
+      avm_tile_info tile_info;
+      avm_codec_ctx_t *ctx_dec = decoder->GetDecoder();
+      AVM_CODEC_CONTROL_TYPECHECKED(ctx_dec, AVMD_GET_TILE_INFO, &tile_info);
+      AVM_CODEC_CONTROL_TYPECHECKED(ctx_dec, AVMD_GET_SHOW_EXISTING_FRAME_FLAG,
                                     &show_existing_frame_);
       if (tile_info.num_tile_groups != tile_group_config_params_.num_tg &&
           !show_existing_frame_)
         tile_group_config_violated_ = true;
       EXPECT_EQ(tile_group_config_violated_, false);
     }
-    return AOM_CODEC_OK == res_dec;
+    return AVM_CODEC_OK == res_dec;
   }
 
   int show_existing_frame_;
   bool tile_group_config_violated_;
-  ::libaom_test::TestMode encoding_mode_;
+  ::libavm_test::TestMode encoding_mode_;
   const TileGroupConfigParams tile_group_config_params_;
 };
 
 TEST_P(TileGroupTestLarge, TileGroupCountTest) {
-  libaom_test::I420VideoSource video("niklas_640_480_30.yuv", 640, 480,
+  libavm_test::I420VideoSource video("niklas_640_480_30.yuv", 640, 480,
                                      cfg_.g_timebase.den, cfg_.g_timebase.num,
                                      0, 5);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 }
 
-AV1_INSTANTIATE_TEST_SUITE(TileGroupTestLarge, GOODQUALITY_TEST_MODES,
+AV2_INSTANTIATE_TEST_SUITE(TileGroupTestLarge, GOODQUALITY_TEST_MODES,
                            ::testing::ValuesIn(tileGroupTestParams));
 }  // namespace

@@ -41,16 +41,16 @@
 set -e
 
 tmpdir="/tmp"
-AOMENC="${tmpdir}/aomenc_$$"
-AOMDEC="${tmpdir}/aomdec_$$"
+AVMENC="${tmpdir}/avmenc_$$"
+AVMDEC="${tmpdir}/avmdec_$$"
 RESAMPLE="${tmpdir}/lanczos_resample_y4m_$$"
 SUPERRES="${tmpdir}/cnn_restore_y4m_$$"
-cp ./aomenc $AOMENC
-cp ./aomdec $AOMDEC
+cp ./avmenc $AVMENC
+cp ./avmdec $AVMDEC
 cp ./lanczos_resample_y4m $RESAMPLE
 cp ./cnn_restore_y4m $SUPERRES
 
-trap 'echo "Exiting..."; rm -f ${AOMENC} ${AOMDEC} ${RESAMPLE} ${SUPERRES}' EXIT
+trap 'echo "Exiting..."; rm -f ${AVMENC} ${AVMDEC} ${RESAMPLE} ${SUPERRES}' EXIT
 
 opts=0
 options=""

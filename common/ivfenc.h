@@ -9,19 +9,19 @@
  * source code in the PATENTS file, you can obtain it at
  * aomedia.org/license/patent-license/.
  */
-#ifndef AOM_COMMON_IVFENC_H_
-#define AOM_COMMON_IVFENC_H_
+#ifndef AVM_COMMON_IVFENC_H_
+#define AVM_COMMON_IVFENC_H_
 
 #include "common/tools_common.h"
 
-struct aom_codec_enc_cfg;
-struct aom_codec_cx_pkt;
+struct avm_codec_enc_cfg;
+struct avm_codec_cx_pkt;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void ivf_write_file_header(FILE *outfile, const struct aom_codec_enc_cfg *cfg,
+void ivf_write_file_header(FILE *outfile, const struct avm_codec_enc_cfg *cfg,
                            uint32_t fourcc, int frame_cnt);
 
 void ivf_write_frame_header(FILE *outfile, int64_t pts, size_t frame_size);
@@ -32,4 +32,4 @@ void ivf_write_frame_size(FILE *outfile, size_t frame_size);
 } /* extern "C" */
 #endif
 
-#endif  // AOM_COMMON_IVFENC_H_
+#endif  // AVM_COMMON_IVFENC_H_

@@ -33,7 +33,7 @@
 #include "fast.h"
 
 
-xy* aom_fast9_detect_nonmax(const byte* im, int xsize, int ysize, int stride, int b,
+xy* avm_fast9_detect_nonmax(const byte* im, int xsize, int ysize, int stride, int b,
                             int** ret_scores, int* ret_num_corners)
 {
   xy* corners;
@@ -41,7 +41,7 @@ xy* aom_fast9_detect_nonmax(const byte* im, int xsize, int ysize, int stride, in
   int* scores;
   xy* nonmax;
 
-  corners = aom_fast9_detect(im, xsize, ysize, stride, b, &num_corners);
+  corners = avm_fast9_detect(im, xsize, ysize, stride, b, &num_corners);
   if(!corners)
   {
     // Memory allocation failure
@@ -49,7 +49,7 @@ xy* aom_fast9_detect_nonmax(const byte* im, int xsize, int ysize, int stride, in
     return NULL;
   }
   // num_corners may be zero.
-  scores = aom_fast9_score(im, stride, corners, num_corners, b);
+  scores = avm_fast9_score(im, stride, corners, num_corners, b);
   if(!scores && num_corners > 0)
   {
     // Memory allocation failure
@@ -57,7 +57,7 @@ xy* aom_fast9_detect_nonmax(const byte* im, int xsize, int ysize, int stride, in
     *ret_num_corners = -1;
     return NULL;
   }
-  nonmax = aom_nonmax_suppression(corners, scores, num_corners, ret_scores, ret_num_corners);
+  nonmax = avm_nonmax_suppression(corners, scores, num_corners, ret_scores, ret_num_corners);
 
   free(corners);
   free(scores);

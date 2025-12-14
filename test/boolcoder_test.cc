@@ -17,17 +17,17 @@
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
 #include "test/acm_random.h"
-#include "aom/aom_integer.h"
-#include "aom_dsp/bitreader.h"
-#include "aom_dsp/bitwriter.h"
+#include "avm/avm_integer.h"
+#include "avm_dsp/bitreader.h"
+#include "avm_dsp/bitwriter.h"
 
-using libaom_test::ACMRandom;
+using libavm_test::ACMRandom;
 
 namespace {
 const int num_tests = 10;
 }  // namespace
 
-TEST(AV1, TestBitIO) {
+TEST(AV2, TestBitIO) {
   ACMRandom rnd(ACMRandom::DeterministicSeed());
   for (int n = 0; n < num_tests; ++n) {
     for (int method = 0; method <= 7; ++method) {  // we generate various proba
@@ -53,9 +53,9 @@ TEST(AV1, TestBitIO) {
         const int random_seed = 6432;
         const int kBufferSize = 10000;
         ACMRandom bit_rnd(random_seed);
-        aom_writer bw;
+        avm_writer bw;
         uint8_t bw_buffer[kBufferSize];
-        aom_start_encode(&bw, bw_buffer);
+        avm_start_encode(&bw, bw_buffer);
 
         int bit = (bit_method == 0) ? 0 : (bit_method == 1) ? 1 : 0;
         for (int i = 0; i < kBitsToTest; ++i) {
@@ -64,13 +64,13 @@ TEST(AV1, TestBitIO) {
           } else if (bit_method == 3) {
             bit = bit_rnd(2);
           }
-          aom_write(&bw, bit, static_cast<int>(probas[i]));
+          avm_write(&bw, bit, static_cast<int>(probas[i]));
         }
 
-        aom_stop_encode(&bw);
+        avm_stop_encode(&bw);
 
-        aom_reader br;
-        aom_reader_init(&br, bw_buffer, bw.pos);
+        avm_reader br;
+        avm_reader_init(&br, bw_buffer, bw.pos);
         bit_rnd.Reset(random_seed);
         for (int i = 0; i < kBitsToTest; ++i) {
           if (bit_method == 2) {
@@ -78,7 +78,7 @@ TEST(AV1, TestBitIO) {
           } else if (bit_method == 3) {
             bit = bit_rnd(2);
           }
-          GTEST_ASSERT_EQ(aom_read(&br, probas[i], {}), bit)
+          GTEST_ASSERT_EQ(avm_read(&br, probas[i], {}), bit)
               << "pos: " << i << " / " << kBitsToTest
               << " bit_method: " << bit_method << " method: " << method;
         }
@@ -89,9 +89,9 @@ TEST(AV1, TestBitIO) {
 
 #define FRAC_DIFF_TOTAL_ERROR 0.18
 
-TEST(AV1, TestTell) {
+TEST(AV2, TestTell) {
   const int kBufferSize = 10000;
-  aom_writer bw;
+  avm_writer bw;
   uint8_t bw_buffer[kBufferSize];
   const int kSymbols = 1024;
   // Coders are noisier at low probabilities, so we start at p = 4.
@@ -99,23 +99,23 @@ TEST(AV1, TestTell) {
     int cdf0 = 32768 - (p << 7);
     int adj_prob = get_adjusted_prob(cdf0, 0, 2);
     double probability = (32768 - adj_prob) / 32768.0;
-    aom_start_encode(&bw, bw_buffer);
+    avm_start_encode(&bw, bw_buffer);
     for (int i = 0; i < kSymbols; i++) {
-      aom_write(&bw, 0, p);
+      avm_write(&bw, 0, p);
     }
-    aom_stop_encode(&bw);
-    aom_reader br;
-    aom_reader_init(&br, bw_buffer, bw.pos);
-    uint32_t last_tell = aom_reader_tell(&br);
-    uint64_t last_tell_frac = aom_reader_tell_frac(&br);
+    avm_stop_encode(&bw);
+    avm_reader br;
+    avm_reader_init(&br, bw_buffer, bw.pos);
+    uint32_t last_tell = avm_reader_tell(&br);
+    uint64_t last_tell_frac = avm_reader_tell_frac(&br);
     double frac_diff_total = 0;
-    GTEST_ASSERT_GE(aom_reader_tell(&br), 0u);
-    GTEST_ASSERT_LE(aom_reader_tell(&br), 1u);
-    ASSERT_FALSE(aom_reader_has_overflowed(&br));
+    GTEST_ASSERT_GE(avm_reader_tell(&br), 0u);
+    GTEST_ASSERT_LE(avm_reader_tell(&br), 1u);
+    ASSERT_FALSE(avm_reader_has_overflowed(&br));
     for (int i = 0; i < kSymbols; i++) {
-      aom_read(&br, p, {});
-      uint32_t tell = aom_reader_tell(&br);
-      uint64_t tell_frac = aom_reader_tell_frac(&br);
+      avm_read(&br, p, {});
+      uint32_t tell = avm_reader_tell(&br);
+      uint64_t tell_frac = avm_reader_tell_frac(&br);
       GTEST_ASSERT_GE(tell, last_tell)
           << "tell: " << tell << ", last_tell: " << last_tell;
       GTEST_ASSERT_GE(tell_frac, last_tell_frac)
@@ -135,35 +135,35 @@ TEST(AV1, TestTell) {
     // The average frac_diff error should be pretty small.
     GTEST_ASSERT_LE(frac_diff_total / kSymbols, FRAC_DIFF_TOTAL_ERROR)
         << " frac_diff_total: " << frac_diff_total;
-    ASSERT_FALSE(aom_reader_has_overflowed(&br));
+    ASSERT_FALSE(avm_reader_has_overflowed(&br));
   }
 }
 
-TEST(AV1, TestHasOverflowedLarge) {
+TEST(AV2, TestHasOverflowedLarge) {
   const int kBufferSize = 10000;
-  aom_writer bw;
+  avm_writer bw;
   uint8_t bw_buffer[kBufferSize];
   const int kSymbols = 1024;
   // Coders are noisier at low probabilities, so we start at p = 4.
   for (int p = 4; p < 256; p++) {
-    aom_start_encode(&bw, bw_buffer);
+    avm_start_encode(&bw, bw_buffer);
     for (int i = 0; i < kSymbols; i++) {
-      aom_write(&bw, 1, p);
+      avm_write(&bw, 1, p);
     }
-    aom_stop_encode(&bw);
-    aom_reader br;
-    aom_reader_init(&br, bw_buffer, bw.pos);
-    ASSERT_FALSE(aom_reader_has_overflowed(&br));
+    avm_stop_encode(&bw);
+    avm_reader br;
+    avm_reader_init(&br, bw_buffer, bw.pos);
+    ASSERT_FALSE(avm_reader_has_overflowed(&br));
     for (int i = 0; i < kSymbols; i++) {
-      GTEST_ASSERT_EQ(aom_read(&br, p, {}), 1);
-      ASSERT_FALSE(aom_reader_has_overflowed(&br));
+      GTEST_ASSERT_EQ(avm_read(&br, p, {}), 1);
+      ASSERT_FALSE(avm_reader_has_overflowed(&br));
     }
     // In the worst case, the encoder uses just a tiny fraction of the last
-    // byte in the buffer. So to guarantee that aom_reader_has_overflowed()
+    // byte in the buffer. So to guarantee that avm_reader_has_overflowed()
     // returns true, we have to consume very nearly 8 additional bits of data.
     // In the worse case, one of the bits in that byte will be 1, and the rest
     // will be zero. Once we are past that 1 bit, when the probability of
-    // reading zero symbol from aom_read() is high, each additional symbol read
+    // reading zero symbol from avm_read() is high, each additional symbol read
     // will consume very little additional data (in the case that p == 255,
     // approximately -log_2(255/256) ~= 0.0056 bits). In that case it would
     // take around 178 calls to consume more than 8 bits. That is only an upper
@@ -173,8 +173,8 @@ TEST(AV1, TestHasOverflowedLarge) {
     // additional bits; therefore the number of reads should be increased;
     // 174 * 8 will be enough to consume more than this number of bits.
     for (int i = 0; i < 174 * 8; i++) {
-      aom_read(&br, p, {});
+      avm_read(&br, p, {});
     }
-    ASSERT_TRUE(aom_reader_has_overflowed(&br));
+    ASSERT_TRUE(avm_reader_has_overflowed(&br));
   }
 }

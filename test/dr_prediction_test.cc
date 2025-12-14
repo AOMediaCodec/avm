@@ -14,14 +14,14 @@
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
-#include "config/aom_config.h"
-#include "config/aom_dsp_rtcd.h"
+#include "config/avm_config.h"
+#include "config/avm_dsp_rtcd.h"
 
-#include "aom_mem/aom_mem.h"
-#include "aom_ports/aom_timer.h"
-#include "av1/common/blockd.h"
-#include "av1/common/pred_common.h"
-#include "av1/common/reconintra.h"
+#include "avm_mem/avm_mem.h"
+#include "avm_ports/avm_timer.h"
+#include "av2/common/blockd.h"
+#include "av2/common/pred_common.h"
+#include "av2/common/reconintra.h"
 #include "test/acm_random.h"
 #include "test/clear_system_state.h"
 #include "test/register_state_check.h"
@@ -48,7 +48,7 @@ const char *const kTxSizeStrings[] = {
   "TX_32X4",  "TX_8X64",  "TX_64X8",  "TX_4X64",  "TX_64X4",
 };
 
-using libaom_test::ACMRandom;
+using libavm_test::ACMRandom;
 
 typedef void (*DrPred_Hbd)(uint16_t *dst, ptrdiff_t stride, int bw, int bh,
                            const uint16_t *above, const uint16_t *left, int dx,
@@ -179,12 +179,12 @@ class DrPredTest : public ::testing::TestWithParam<DrPredFunc<FuncType> > {
 
   void Predict(bool speedtest, int tx) {
     const int kNumTests = speedtest ? kMaxNumTests : 1;
-    aom_usec_timer timer;
+    avm_usec_timer timer;
     int tst_time = 0;
 
     bd_ = params_.bit_depth;
 
-    aom_usec_timer_start(&timer);
+    avm_usec_timer_start(&timer);
     for (int mrl_index_ = 0; mrl_index_ < MRL_LINE_NUMBER; ++mrl_index_) {
       for (int k = 0; k < kNumTests; ++k) {
         params_.ref_fn(dst_ref_, dst_stride_, bw_, bh_, above_, left_, dx_, dy_,
@@ -192,11 +192,11 @@ class DrPredTest : public ::testing::TestWithParam<DrPredFunc<FuncType> > {
       }
     }
 
-    aom_usec_timer_mark(&timer);
-    const int ref_time = static_cast<int>(aom_usec_timer_elapsed(&timer));
+    avm_usec_timer_mark(&timer);
+    const int ref_time = static_cast<int>(avm_usec_timer_elapsed(&timer));
 
     if (params_.tst_fn) {
-      aom_usec_timer_start(&timer);
+      avm_usec_timer_start(&timer);
       for (int mrl_index_ = 0; mrl_index_ < MRL_LINE_NUMBER; ++mrl_index_) {
         for (int k = 0; k < kNumTests; ++k) {
           ASM_REGISTER_STATE_CHECK(params_.tst_fn(dst_tst_, dst_stride_, bw_,
@@ -204,8 +204,8 @@ class DrPredTest : public ::testing::TestWithParam<DrPredFunc<FuncType> > {
                                                   bd_, mrl_index_));
         }
       }
-      aom_usec_timer_mark(&timer);
-      tst_time = static_cast<int>(aom_usec_timer_elapsed(&timer));
+      avm_usec_timer_mark(&timer);
+      tst_time = static_cast<int>(avm_usec_timer_elapsed(&timer));
     } else {
       for (int i = 0; i < kDstSize; ++i) {
         dst_ref_[i] = dst_tst_[i];
@@ -299,8 +299,8 @@ class HighbdDrPredTest : public DrPredTest<uint16_t, DrPred_Hbd> {};
 
 TEST_P(HighbdDrPredTest, SaturatedValues) {
   for (int angle = start_angle_; angle < stop_angle_; ++angle) {
-    dx_ = av1_get_dx(angle);
-    dy_ = av1_get_dy(angle);
+    dx_ = av2_get_dx(angle);
+    dy_ = av2_get_dy(angle);
     if (dx_ && dy_) RunTest(false, true);
   }
 }
@@ -308,93 +308,93 @@ TEST_P(HighbdDrPredTest, SaturatedValues) {
 INSTANTIATE_TEST_SUITE_P(
     C, HighbdDrPredTest,
     ::testing::Values(
-        DrPredFunc<DrPred_Hbd>(&z1_wrapper_hbd<av1_highbd_dr_prediction_z1_c>,
-                               NULL, AOM_BITS_8, kZ1Start),
-        DrPredFunc<DrPred_Hbd>(&z1_wrapper_hbd<av1_highbd_dr_prediction_z1_c>,
-                               NULL, AOM_BITS_10, kZ1Start),
-        DrPredFunc<DrPred_Hbd>(&z1_wrapper_hbd<av1_highbd_dr_prediction_z1_c>,
-                               NULL, AOM_BITS_12, kZ1Start),
-        DrPredFunc<DrPred_Hbd>(&z2_wrapper_hbd<av1_highbd_dr_prediction_z2_c>,
-                               NULL, AOM_BITS_8, kZ2Start),
-        DrPredFunc<DrPred_Hbd>(&z2_wrapper_hbd<av1_highbd_dr_prediction_z2_c>,
-                               NULL, AOM_BITS_10, kZ2Start),
-        DrPredFunc<DrPred_Hbd>(&z2_wrapper_hbd<av1_highbd_dr_prediction_z2_c>,
-                               NULL, AOM_BITS_12, kZ2Start),
-        DrPredFunc<DrPred_Hbd>(&z3_wrapper_hbd<av1_highbd_dr_prediction_z3_c>,
-                               NULL, AOM_BITS_8, kZ3Start),
-        DrPredFunc<DrPred_Hbd>(&z3_wrapper_hbd<av1_highbd_dr_prediction_z3_c>,
-                               NULL, AOM_BITS_10, kZ3Start),
-        DrPredFunc<DrPred_Hbd>(&z3_wrapper_hbd<av1_highbd_dr_prediction_z3_c>,
-                               NULL, AOM_BITS_12, kZ3Start),
+        DrPredFunc<DrPred_Hbd>(&z1_wrapper_hbd<av2_highbd_dr_prediction_z1_c>,
+                               NULL, AVM_BITS_8, kZ1Start),
+        DrPredFunc<DrPred_Hbd>(&z1_wrapper_hbd<av2_highbd_dr_prediction_z1_c>,
+                               NULL, AVM_BITS_10, kZ1Start),
+        DrPredFunc<DrPred_Hbd>(&z1_wrapper_hbd<av2_highbd_dr_prediction_z1_c>,
+                               NULL, AVM_BITS_12, kZ1Start),
+        DrPredFunc<DrPred_Hbd>(&z2_wrapper_hbd<av2_highbd_dr_prediction_z2_c>,
+                               NULL, AVM_BITS_8, kZ2Start),
+        DrPredFunc<DrPred_Hbd>(&z2_wrapper_hbd<av2_highbd_dr_prediction_z2_c>,
+                               NULL, AVM_BITS_10, kZ2Start),
+        DrPredFunc<DrPred_Hbd>(&z2_wrapper_hbd<av2_highbd_dr_prediction_z2_c>,
+                               NULL, AVM_BITS_12, kZ2Start),
+        DrPredFunc<DrPred_Hbd>(&z3_wrapper_hbd<av2_highbd_dr_prediction_z3_c>,
+                               NULL, AVM_BITS_8, kZ3Start),
+        DrPredFunc<DrPred_Hbd>(&z3_wrapper_hbd<av2_highbd_dr_prediction_z3_c>,
+                               NULL, AVM_BITS_10, kZ3Start),
+        DrPredFunc<DrPred_Hbd>(&z3_wrapper_hbd<av2_highbd_dr_prediction_z3_c>,
+                               NULL, AVM_BITS_12, kZ3Start),
         DrPredFunc<DrPred_Hbd>(
-            &z3_idif_wrapper_hbd<av1_highbd_dr_prediction_z3_idif_c>, NULL,
-            AOM_BITS_8, kZ3Start),
+            &z3_idif_wrapper_hbd<av2_highbd_dr_prediction_z3_idif_c>, NULL,
+            AVM_BITS_8, kZ3Start),
         DrPredFunc<DrPred_Hbd>(
-            &z3_idif_wrapper_hbd<av1_highbd_dr_prediction_z3_idif_c>, NULL,
-            AOM_BITS_10, kZ3Start),
+            &z3_idif_wrapper_hbd<av2_highbd_dr_prediction_z3_idif_c>, NULL,
+            AVM_BITS_10, kZ3Start),
         DrPredFunc<DrPred_Hbd>(
-            &z3_idif_wrapper_hbd<av1_highbd_dr_prediction_z3_idif_c>, NULL,
-            AOM_BITS_12, kZ3Start)));
+            &z3_idif_wrapper_hbd<av2_highbd_dr_prediction_z3_idif_c>, NULL,
+            AVM_BITS_12, kZ3Start)));
 
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
     AVX2, HighbdDrPredTest,
     ::testing::Values(
         DrPredFunc<DrPred_Hbd>(
-            &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_c>,
-            &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_avx2>, AOM_BITS_8,
+            &z1_wrapper_hbd<av2_highbd_dr_prediction_z1_c>,
+            &z1_wrapper_hbd<av2_highbd_dr_prediction_z1_avx2>, AVM_BITS_8,
             kZ1Start),
         DrPredFunc<DrPred_Hbd>(
-            &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_c>,
-            &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_avx2>, AOM_BITS_10,
+            &z1_wrapper_hbd<av2_highbd_dr_prediction_z1_c>,
+            &z1_wrapper_hbd<av2_highbd_dr_prediction_z1_avx2>, AVM_BITS_10,
             kZ1Start),
         DrPredFunc<DrPred_Hbd>(
-            &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_c>,
-            &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_avx2>, AOM_BITS_12,
+            &z1_wrapper_hbd<av2_highbd_dr_prediction_z1_c>,
+            &z1_wrapper_hbd<av2_highbd_dr_prediction_z1_avx2>, AVM_BITS_12,
             kZ1Start),
         DrPredFunc<DrPred_Hbd>(
-            &z2_wrapper_hbd<av1_highbd_dr_prediction_z2_c>,
-            &z2_wrapper_hbd<av1_highbd_dr_prediction_z2_avx2>, AOM_BITS_8,
+            &z2_wrapper_hbd<av2_highbd_dr_prediction_z2_c>,
+            &z2_wrapper_hbd<av2_highbd_dr_prediction_z2_avx2>, AVM_BITS_8,
             kZ2Start),
         DrPredFunc<DrPred_Hbd>(
-            &z2_wrapper_hbd<av1_highbd_dr_prediction_z2_c>,
-            &z2_wrapper_hbd<av1_highbd_dr_prediction_z2_avx2>, AOM_BITS_10,
+            &z2_wrapper_hbd<av2_highbd_dr_prediction_z2_c>,
+            &z2_wrapper_hbd<av2_highbd_dr_prediction_z2_avx2>, AVM_BITS_10,
             kZ2Start),
         DrPredFunc<DrPred_Hbd>(
-            &z2_wrapper_hbd<av1_highbd_dr_prediction_z2_c>,
-            &z2_wrapper_hbd<av1_highbd_dr_prediction_z2_avx2>, AOM_BITS_12,
+            &z2_wrapper_hbd<av2_highbd_dr_prediction_z2_c>,
+            &z2_wrapper_hbd<av2_highbd_dr_prediction_z2_avx2>, AVM_BITS_12,
             kZ2Start),
         DrPredFunc<DrPred_Hbd>(
-            &z3_wrapper_hbd<av1_highbd_dr_prediction_z3_c>,
-            &z3_wrapper_hbd<av1_highbd_dr_prediction_z3_avx2>, AOM_BITS_8,
+            &z3_wrapper_hbd<av2_highbd_dr_prediction_z3_c>,
+            &z3_wrapper_hbd<av2_highbd_dr_prediction_z3_avx2>, AVM_BITS_8,
             kZ3Start),
         DrPredFunc<DrPred_Hbd>(
-            &z3_wrapper_hbd<av1_highbd_dr_prediction_z3_c>,
-            &z3_wrapper_hbd<av1_highbd_dr_prediction_z3_avx2>, AOM_BITS_10,
+            &z3_wrapper_hbd<av2_highbd_dr_prediction_z3_c>,
+            &z3_wrapper_hbd<av2_highbd_dr_prediction_z3_avx2>, AVM_BITS_10,
             kZ3Start),
         DrPredFunc<DrPred_Hbd>(
-            &z3_wrapper_hbd<av1_highbd_dr_prediction_z3_c>,
-            &z3_wrapper_hbd<av1_highbd_dr_prediction_z3_avx2>, AOM_BITS_12,
+            &z3_wrapper_hbd<av2_highbd_dr_prediction_z3_c>,
+            &z3_wrapper_hbd<av2_highbd_dr_prediction_z3_avx2>, AVM_BITS_12,
             kZ3Start),
         DrPredFunc<DrPred_Hbd>(
-            &z3_idif_wrapper_hbd<av1_highbd_dr_prediction_z3_idif_c>,
-            &z3_idif_wrapper_hbd<av1_highbd_dr_prediction_z3_idif_avx2>,
-            AOM_BITS_8, kZ3Start),
+            &z3_idif_wrapper_hbd<av2_highbd_dr_prediction_z3_idif_c>,
+            &z3_idif_wrapper_hbd<av2_highbd_dr_prediction_z3_idif_avx2>,
+            AVM_BITS_8, kZ3Start),
         DrPredFunc<DrPred_Hbd>(
-            &z3_idif_wrapper_hbd<av1_highbd_dr_prediction_z3_idif_c>,
-            &z3_idif_wrapper_hbd<av1_highbd_dr_prediction_z3_idif_avx2>,
-            AOM_BITS_10, kZ3Start),
+            &z3_idif_wrapper_hbd<av2_highbd_dr_prediction_z3_idif_c>,
+            &z3_idif_wrapper_hbd<av2_highbd_dr_prediction_z3_idif_avx2>,
+            AVM_BITS_10, kZ3Start),
         DrPredFunc<DrPred_Hbd>(
-            &z3_idif_wrapper_hbd<av1_highbd_dr_prediction_z3_idif_c>,
-            &z3_idif_wrapper_hbd<av1_highbd_dr_prediction_z3_idif_avx2>,
-            AOM_BITS_12, kZ3Start)));
+            &z3_idif_wrapper_hbd<av2_highbd_dr_prediction_z3_idif_c>,
+            &z3_idif_wrapper_hbd<av2_highbd_dr_prediction_z3_idif_avx2>,
+            AVM_BITS_12, kZ3Start)));
 
 TEST_P(HighbdDrPredTest, DISABLED_Speed) {
   const int angles[] = { 3, 45, 87 };
   for (int i = 0; i < 3; ++i) {
     int angle = angles[i] + start_angle_;
-    dx_ = av1_get_dx(angle);
-    dy_ = av1_get_dy(angle);
+    dx_ = av2_get_dx(angle);
+    dy_ = av2_get_dy(angle);
     printf("angle: %d ~~~~~~~~~~~~~~~\n", angle);
     if (dx_ && dy_) RunTest(true, false);
   }
@@ -404,8 +404,8 @@ TEST_P(HighbdDrPredTest, OperationCheck) {
   if (params_.tst_fn == NULL) return;
   // const int angles[] = { 3, 45, 81, 87, 93, 100, 145, 187, 199, 260 };
   for (int angle = start_angle_; angle < stop_angle_; angle++) {
-    dx_ = av1_get_dx(angle);
-    dy_ = av1_get_dy(angle);
+    dx_ = av2_get_dx(angle);
+    dy_ = av2_get_dy(angle);
     if (dx_ && dy_) RunTest(false, false);
   }
 }

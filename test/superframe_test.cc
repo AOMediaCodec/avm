@@ -25,11 +25,11 @@ const int kTestMode = 0;
 const int kTileCols = 1;
 const int kTileRows = 2;
 
-typedef std::tuple<libaom_test::TestMode, int, int> SuperframeTestParam;
+typedef std::tuple<libavm_test::TestMode, int, int> SuperframeTestParam;
 
 class SuperframeTest
-    : public ::libaom_test::CodecTestWithParam<SuperframeTestParam>,
-      public ::libaom_test::EncoderTest {
+    : public ::libavm_test::CodecTestWithParam<SuperframeTestParam>,
+      public ::libavm_test::EncoderTest {
  protected:
   SuperframeTest() : EncoderTest(GET_PARAM(0)), last_sf_pts_(0) {}
   virtual ~SuperframeTest() {}
@@ -37,7 +37,7 @@ class SuperframeTest
   virtual void SetUp() {
     InitializeConfig();
     const SuperframeTestParam input = GET_PARAM(1);
-    const libaom_test::TestMode mode = std::get<kTestMode>(input);
+    const libavm_test::TestMode mode = std::get<kTestMode>(input);
     SetMode(mode);
     sf_count_ = 0;
     sf_count_max_ = INT_MAX;
@@ -45,20 +45,20 @@ class SuperframeTest
     n_tile_rows_ = std::get<kTileRows>(input);
   }
 
-  virtual void PreEncodeFrameHook(libaom_test::VideoSource *video,
-                                  libaom_test::Encoder *encoder) {
+  virtual void PreEncodeFrameHook(libavm_test::VideoSource *video,
+                                  libavm_test::Encoder *encoder) {
     if (video->frame() == 0) {
-      encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
-      encoder->Control(AOME_SET_CPUUSED, 2);
-      encoder->Control(AV1E_SET_TILE_COLUMNS, n_tile_cols_);
-      encoder->Control(AV1E_SET_TILE_ROWS, n_tile_rows_);
+      encoder->Control(AVME_SET_ENABLEAUTOALTREF, 1);
+      encoder->Control(AVME_SET_CPUUSED, 2);
+      encoder->Control(AV2E_SET_TILE_COLUMNS, n_tile_cols_);
+      encoder->Control(AV2E_SET_TILE_ROWS, n_tile_rows_);
     }
   }
 
-  virtual const aom_codec_cx_pkt_t *MutateEncoderOutputHook(
-      const aom_codec_cx_pkt_t *pkt) {
-    if (pkt->kind != AOM_CODEC_CX_FRAME_PKT &&
-        pkt->kind != AOM_CODEC_CX_FRAME_NULL_PKT) {
+  virtual const avm_codec_cx_pkt_t *MutateEncoderOutputHook(
+      const avm_codec_cx_pkt_t *pkt) {
+    if (pkt->kind != AVM_CODEC_CX_FRAME_PKT &&
+        pkt->kind != AVM_CODEC_CX_FRAME_NULL_PKT) {
       return pkt;
     }
 
@@ -90,9 +90,9 @@ class SuperframeTest
 
   int sf_count_;
   int sf_count_max_;
-  aom_codec_cx_pkt_t modified_pkt_;
+  avm_codec_cx_pkt_t modified_pkt_;
   std::vector<uint8_t> modified_buf_;
-  aom_codec_pts_t last_sf_pts_;
+  avm_codec_pts_t last_sf_pts_;
 
  private:
   int n_tile_cols_;
@@ -103,7 +103,7 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(SuperframeTest);
 TEST_P(SuperframeTest, TestSuperframeIndexIsOptional) {
   sf_count_max_ = 0;  // early exit on successful test.
   cfg_.g_lag_in_frames = 25;
-  ::libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
+  ::libavm_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                        30, 1, 0, 40);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   // NOTE: The use of BWDREF_FRAME will enable the coding of more non-show

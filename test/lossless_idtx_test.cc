@@ -15,20 +15,20 @@
 #include <string.h>
 #include <tuple>
 
-#include "aom_dsp/aom_dsp_common.h"
+#include "avm_dsp/avm_dsp_common.h"
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
-#include "config/av1_rtcd.h"
-#include "config/aom_dsp_rtcd.h"
+#include "config/av2_rtcd.h"
+#include "config/avm_dsp_rtcd.h"
 #include "test/acm_random.h"
 #include "test/clear_system_state.h"
 #include "test/register_state_check.h"
 #include "test/transform_test_base.h"
 #include "test/util.h"
-#include "aom/aom_integer.h"
-#include "aom_ports/mem.h"
+#include "avm/avm_integer.h"
+#include "avm_ports/mem.h"
 
-using libaom_test::ACMRandom;
+using libavm_test::ACMRandom;
 
 namespace {
 
@@ -37,9 +37,9 @@ typedef void (*FwdFunc)(const int16_t *in, tran_low_t *out, int stride,
 typedef void (*InvFunc)(const tran_low_t *in, uint16_t *out, int stride,
                         const TxfmParam *);
 
-typedef std::tuple<FwdFunc, InvFunc, TX_SIZE, aom_bit_depth_t> LosslessParam;
+typedef std::tuple<FwdFunc, InvFunc, TX_SIZE, avm_bit_depth_t> LosslessParam;
 
-class LosslessIdtxTest : public libaom_test::TransformTestBase<tran_low_t>,
+class LosslessIdtxTest : public libavm_test::TransformTestBase<tran_low_t>,
                          public ::testing::TestWithParam<LosslessParam> {
  public:
   virtual ~LosslessIdtxTest() {}
@@ -50,8 +50,8 @@ class LosslessIdtxTest : public libaom_test::TransformTestBase<tran_low_t>,
     TX_SIZE tx_size = GET_PARAM(2);
     bit_depth_ = GET_PARAM(3);
 
-    fwd_txfm_ref = av1_lossless_fwd_idtx_c;
-    inv_txfm_ref = av1_lossless_inv_idtx_add_c;
+    fwd_txfm_ref = av2_lossless_fwd_idtx_c;
+    inv_txfm_ref = av2_lossless_inv_idtx_add_c;
 
     mask_ = (1 << bit_depth_) - 1;
     const int txw = tx_size_wide[tx_size];
@@ -62,7 +62,7 @@ class LosslessIdtxTest : public libaom_test::TransformTestBase<tran_low_t>,
     txfm_param_.bd = bit_depth_;
     txfm_param_.tx_size = tx_size;
   }
-  virtual void TearDown() { libaom_test::ClearSystemState(); }
+  virtual void TearDown() { libavm_test::ClearSystemState(); }
 
  protected:
   void RunFwdTxfm(const int16_t *in, tran_low_t *out, int stride) {
@@ -88,19 +88,19 @@ constexpr TX_SIZE kTxSizes[] = { TX_4X4, TX_8X8 };
 
 INSTANTIATE_TEST_SUITE_P(
     C, LosslessIdtxTest,
-    ::testing::Combine(::testing::Values(&av1_lossless_fwd_idtx_c),
-                       ::testing::Values(&av1_lossless_inv_idtx_add_c),
+    ::testing::Combine(::testing::Values(&av2_lossless_fwd_idtx_c),
+                       ::testing::Values(&av2_lossless_inv_idtx_add_c),
                        ::testing::ValuesIn(kTxSizes),
-                       ::testing::Values(AOM_BITS_8, AOM_BITS_10,
-                                         AOM_BITS_12)));
+                       ::testing::Values(AVM_BITS_8, AVM_BITS_10,
+                                         AVM_BITS_12)));
 
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
     AVX2, LosslessIdtxTest,
-    ::testing::Combine(::testing::Values(&av1_lossless_fwd_idtx_avx2),
-                       ::testing::Values(&av1_lossless_inv_idtx_add_avx2),
+    ::testing::Combine(::testing::Values(&av2_lossless_fwd_idtx_avx2),
+                       ::testing::Values(&av2_lossless_inv_idtx_add_avx2),
                        ::testing::ValuesIn(kTxSizes),
-                       ::testing::Values(AOM_BITS_8, AOM_BITS_10,
-                                         AOM_BITS_12)));
+                       ::testing::Values(AVM_BITS_8, AVM_BITS_10,
+                                         AVM_BITS_12)));
 #endif  // HAVE_AVX2
 }  // namespace

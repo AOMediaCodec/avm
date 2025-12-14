@@ -13,8 +13,8 @@ import json
 
 import numpy as np
 
-from parakit.entropy.codec_cdf_functions import count2cdf_av1
-from parakit.entropy.codec_default_cdf import CDF_INIT_TOP, av1_default_cdf_parameters
+from parakit.entropy.codec_cdf_functions import count2cdf_av2
+from parakit.entropy.codec_default_cdf import CDF_INIT_TOP, av2_default_cdf_parameters
 
 
 class ResultCollector:
@@ -127,12 +127,12 @@ class ResultCollector:
                 data[key]["initializer"] = scaled_cdf.tolist()
         return data
 
-    def update_probability_initialzer_av1_style(self, data):
+    def update_probability_initialzer_av2_style(self, data):
         keys = list(data.keys())
         keys.remove("information")  # skip information key
         for key in keys:
             value_count = data[key]["value_count"]
-            scaled_cdf = count2cdf_av1(value_count)
+            scaled_cdf = count2cdf_av2(value_count)
             data[key]["initializer"] = scaled_cdf.tolist()
         return data
 
@@ -141,7 +141,7 @@ class ResultCollector:
         keys.remove("information")  # skip information key
         for key in keys:
             num_symb = data[key]["header"]["num_symb"]
-            cdf_list = av1_default_cdf_parameters(num_symb).tolist()
+            cdf_list = av2_default_cdf_parameters(num_symb).tolist()
             cdf_list.append(CDF_INIT_TOP)
             data[key]["initializer"] = cdf_list
         return data

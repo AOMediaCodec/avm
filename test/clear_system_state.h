@@ -9,24 +9,24 @@
  * source code in the PATENTS file, you can obtain it at
  * aomedia.org/license/patent-license/.
  */
-#ifndef AOM_TEST_CLEAR_SYSTEM_STATE_H_
-#define AOM_TEST_CLEAR_SYSTEM_STATE_H_
+#ifndef AVM_TEST_CLEAR_SYSTEM_STATE_H_
+#define AVM_TEST_CLEAR_SYSTEM_STATE_H_
 
-#include "config/aom_config.h"
+#include "config/avm_config.h"
 
 #if ARCH_X86 || ARCH_X86_64
-#include "aom_ports/x86.h"
+#include "avm_ports/x86.h"
 #endif
 
-namespace libaom_test {
+namespace libavm_test {
 
 // Reset system to a known state. This function should be used for all non-API
 // test cases.
 inline void ClearSystemState() {
 #if ARCH_X86 || ARCH_X86_64
-  aom_reset_mmx_state();
+  avm_reset_mmx_state();
 #endif
 }
 
-}  // namespace libaom_test
-#endif  // AOM_TEST_CLEAR_SYSTEM_STATE_H_
+}  // namespace libavm_test
+#endif  // AVM_TEST_CLEAR_SYSTEM_STATE_H_

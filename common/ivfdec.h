@@ -9,10 +9,10 @@
  * source code in the PATENTS file, you can obtain it at
  * aomedia.org/license/patent-license/.
  */
-#ifndef AOM_COMMON_IVFDEC_H_
-#define AOM_COMMON_IVFDEC_H_
+#ifndef AVM_COMMON_IVFDEC_H_
+#define AVM_COMMON_IVFDEC_H_
 
-#include "aom/aom_codec.h"
+#include "avm/avm_codec.h"
 #include "common/tools_common.h"
 
 #ifdef __cplusplus
@@ -21,10 +21,10 @@ extern "C" {
 
 int file_is_ivf(struct AvxInputContext *input);
 int ivf_read_frame(FILE *infile, uint8_t **buffer, size_t *bytes_read,
-                   size_t *buffer_size, aom_codec_pts_t *pts);
+                   size_t *buffer_size, avm_codec_pts_t *pts);
 
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
 
-#endif  // AOM_COMMON_IVFDEC_H_
+#endif  // AVM_COMMON_IVFDEC_H_

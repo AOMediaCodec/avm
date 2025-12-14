@@ -12,7 +12,7 @@
 
 /*!\file
  * \brief This binary demonstrates how to build an executable with TensorFlow
- * Lite. A library for aomenc/aomdec is almost identical in structure,
+ * Lite. A library for avmenc/avmdec is almost identical in structure,
  * except that "main" will not be present, and a header file will be added.
  */
 

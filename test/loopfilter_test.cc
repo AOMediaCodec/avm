@@ -15,15 +15,15 @@
 #include <string.h>
 #include <tuple>
 
-#include "config/aom_config.h"
-#include "config/aom_dsp_rtcd.h"
+#include "config/avm_config.h"
+#include "config/avm_dsp_rtcd.h"
 
 #include "test/acm_random.h"
 #include "test/util.h"
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
 namespace {
-using libaom_test::ACMRandom;
+using libavm_test::ACMRandom;
 using std::make_tuple;
 using std::tuple;
 
@@ -46,7 +46,7 @@ class LoopFilterTest : public ::testing::TestWithParam<Params> {
   virtual void SetUp() {
     func_test_ = GET_PARAM(0);
     func_ref_ = GET_PARAM(1);
-    bit_depth_ = static_cast<aom_bit_depth_t>(GET_PARAM(2));
+    bit_depth_ = static_cast<avm_bit_depth_t>(GET_PARAM(2));
     mask_ = (1 << bit_depth_) - 1;
     filt_width_neg_ = GET_PARAM(3);
     filt_width_pos_ = GET_PARAM(4);
@@ -122,7 +122,7 @@ class LoopFilterTest : public ::testing::TestWithParam<Params> {
   void RunSpeedTest();
 
  private:
-  aom_bit_depth_t bit_depth_;
+  avm_bit_depth_t bit_depth_;
   LoopFilterFunc func_ref_;
   LoopFilterFunc func_test_;
   int filt_width_neg_;
@@ -180,22 +180,22 @@ void LoopFilterTest::RunSpeedTest() {
   // filt_generic_asym_highbd_ver_4px_sse4_1().
   InitInput(s, ref_s, &rnd, 1, mask_, pitch_, 0, 0xff);
 
-  aom_usec_timer timer;
-  aom_usec_timer_start(&timer);
+  avm_usec_timer timer;
+  avm_usec_timer_start(&timer);
   for (int i = 0; i < kSpeedIterations; ++i) {
     func_ref_(ref_s + 8 + pitch_ * 8, pitch_, filt_width_neg_, filt_width_pos_,
               &q_thr, &side_thr, bit_depth_, 0, 0);
   }
-  aom_usec_timer_mark(&timer);
-  auto elapsed_time_c = aom_usec_timer_elapsed(&timer);
+  avm_usec_timer_mark(&timer);
+  auto elapsed_time_c = avm_usec_timer_elapsed(&timer);
 
-  aom_usec_timer_start(&timer);
+  avm_usec_timer_start(&timer);
   for (int i = 0; i < kSpeedIterations; ++i) {
     func_test_(s + 8 + pitch_ * 8, pitch_, filt_width_neg_, filt_width_pos_,
                &q_thr, &side_thr, bit_depth_, 0, 0);
   }
-  aom_usec_timer_mark(&timer);
-  auto elapsed_time_opt = aom_usec_timer_elapsed(&timer);
+  avm_usec_timer_mark(&timer);
+  auto elapsed_time_opt = avm_usec_timer_elapsed(&timer);
 
   float c_time_per_filter_block =
       (float)1000.0 * elapsed_time_c / (kSpeedIterations);
@@ -213,102 +213,102 @@ TEST_P(LoopFilterTest, DISABLED_RunSpeedTest) { RunSpeedTest(); }
 
 #if HAVE_SSE4_1
 const Params kLoopFilterTest[] = {
-  make_tuple(&aom_highbd_lpf_horizontal_generic_sse4_1,
-             &aom_highbd_lpf_horizontal_generic_c, 8, 4, 4),
-  make_tuple(&aom_highbd_lpf_horizontal_generic_sse4_1,
-             &aom_highbd_lpf_horizontal_generic_c, 8, 6, 8),
-  make_tuple(&aom_highbd_lpf_horizontal_generic_sse4_1,
-             &aom_highbd_lpf_horizontal_generic_c, 8, 8, 8),
-  make_tuple(&aom_highbd_lpf_horizontal_generic_sse4_1,
-             &aom_highbd_lpf_horizontal_generic_c, 8, 6, 10),
-  make_tuple(&aom_highbd_lpf_horizontal_generic_sse4_1,
-             &aom_highbd_lpf_horizontal_generic_c, 8, 10, 10),
-  make_tuple(&aom_highbd_lpf_horizontal_generic_sse4_1,
-             &aom_highbd_lpf_horizontal_generic_c, 8, 14, 14),
-  make_tuple(&aom_highbd_lpf_horizontal_generic_sse4_1,
-             &aom_highbd_lpf_horizontal_generic_c, 8, 14, 18),
-  make_tuple(&aom_highbd_lpf_horizontal_generic_sse4_1,
-             &aom_highbd_lpf_horizontal_generic_c, 8, 18, 18),
-  make_tuple(&aom_highbd_lpf_horizontal_generic_sse4_1,
-             &aom_highbd_lpf_horizontal_generic_c, 10, 4, 4),
-  make_tuple(&aom_highbd_lpf_horizontal_generic_sse4_1,
-             &aom_highbd_lpf_horizontal_generic_c, 10, 6, 8),
-  make_tuple(&aom_highbd_lpf_horizontal_generic_sse4_1,
-             &aom_highbd_lpf_horizontal_generic_c, 10, 8, 8),
-  make_tuple(&aom_highbd_lpf_horizontal_generic_sse4_1,
-             &aom_highbd_lpf_horizontal_generic_c, 10, 6, 10),
-  make_tuple(&aom_highbd_lpf_horizontal_generic_sse4_1,
-             &aom_highbd_lpf_horizontal_generic_c, 10, 10, 10),
-  make_tuple(&aom_highbd_lpf_horizontal_generic_sse4_1,
-             &aom_highbd_lpf_horizontal_generic_c, 10, 14, 14),
-  make_tuple(&aom_highbd_lpf_horizontal_generic_sse4_1,
-             &aom_highbd_lpf_horizontal_generic_c, 10, 14, 18),
-  make_tuple(&aom_highbd_lpf_horizontal_generic_sse4_1,
-             &aom_highbd_lpf_horizontal_generic_c, 10, 18, 18),
-  make_tuple(&aom_highbd_lpf_horizontal_generic_sse4_1,
-             &aom_highbd_lpf_horizontal_generic_c, 12, 4, 4),
-  make_tuple(&aom_highbd_lpf_horizontal_generic_sse4_1,
-             &aom_highbd_lpf_horizontal_generic_c, 12, 6, 8),
-  make_tuple(&aom_highbd_lpf_horizontal_generic_sse4_1,
-             &aom_highbd_lpf_horizontal_generic_c, 12, 8, 8),
-  make_tuple(&aom_highbd_lpf_horizontal_generic_sse4_1,
-             &aom_highbd_lpf_horizontal_generic_c, 12, 6, 10),
-  make_tuple(&aom_highbd_lpf_horizontal_generic_sse4_1,
-             &aom_highbd_lpf_horizontal_generic_c, 12, 10, 10),
-  make_tuple(&aom_highbd_lpf_horizontal_generic_sse4_1,
-             &aom_highbd_lpf_horizontal_generic_c, 12, 14, 14),
-  make_tuple(&aom_highbd_lpf_horizontal_generic_sse4_1,
-             &aom_highbd_lpf_horizontal_generic_c, 12, 14, 18),
-  make_tuple(&aom_highbd_lpf_horizontal_generic_sse4_1,
-             &aom_highbd_lpf_horizontal_generic_c, 12, 18, 18),
-  make_tuple(&aom_highbd_lpf_vertical_generic_sse4_1,
-             &aom_highbd_lpf_vertical_generic_c, 8, 4, 4),
-  make_tuple(&aom_highbd_lpf_vertical_generic_sse4_1,
-             &aom_highbd_lpf_vertical_generic_c, 8, 6, 8),
-  make_tuple(&aom_highbd_lpf_vertical_generic_sse4_1,
-             &aom_highbd_lpf_vertical_generic_c, 8, 8, 8),
-  make_tuple(&aom_highbd_lpf_vertical_generic_sse4_1,
-             &aom_highbd_lpf_vertical_generic_c, 8, 6, 10),
-  make_tuple(&aom_highbd_lpf_vertical_generic_sse4_1,
-             &aom_highbd_lpf_vertical_generic_c, 8, 10, 10),
-  make_tuple(&aom_highbd_lpf_vertical_generic_sse4_1,
-             &aom_highbd_lpf_vertical_generic_c, 8, 14, 14),
-  make_tuple(&aom_highbd_lpf_vertical_generic_sse4_1,
-             &aom_highbd_lpf_vertical_generic_c, 8, 14, 18),
-  make_tuple(&aom_highbd_lpf_vertical_generic_sse4_1,
-             &aom_highbd_lpf_vertical_generic_c, 8, 18, 18),
-  make_tuple(&aom_highbd_lpf_vertical_generic_sse4_1,
-             &aom_highbd_lpf_vertical_generic_c, 10, 4, 4),
-  make_tuple(&aom_highbd_lpf_vertical_generic_sse4_1,
-             &aom_highbd_lpf_vertical_generic_c, 10, 6, 8),
-  make_tuple(&aom_highbd_lpf_vertical_generic_sse4_1,
-             &aom_highbd_lpf_vertical_generic_c, 10, 8, 8),
-  make_tuple(&aom_highbd_lpf_vertical_generic_sse4_1,
-             &aom_highbd_lpf_vertical_generic_c, 10, 6, 10),
-  make_tuple(&aom_highbd_lpf_vertical_generic_sse4_1,
-             &aom_highbd_lpf_vertical_generic_c, 10, 10, 10),
-  make_tuple(&aom_highbd_lpf_vertical_generic_sse4_1,
-             &aom_highbd_lpf_vertical_generic_c, 10, 14, 14),
-  make_tuple(&aom_highbd_lpf_vertical_generic_sse4_1,
-             &aom_highbd_lpf_vertical_generic_c, 10, 14, 18),
-  make_tuple(&aom_highbd_lpf_vertical_generic_sse4_1,
-             &aom_highbd_lpf_vertical_generic_c, 10, 18, 18),
-  make_tuple(&aom_highbd_lpf_vertical_generic_sse4_1,
-             &aom_highbd_lpf_vertical_generic_c, 12, 4, 4),
-  make_tuple(&aom_highbd_lpf_vertical_generic_sse4_1,
-             &aom_highbd_lpf_vertical_generic_c, 12, 6, 8),
-  make_tuple(&aom_highbd_lpf_vertical_generic_sse4_1,
-             &aom_highbd_lpf_vertical_generic_c, 12, 8, 8),
-  make_tuple(&aom_highbd_lpf_vertical_generic_sse4_1,
-             &aom_highbd_lpf_vertical_generic_c, 12, 6, 10),
-  make_tuple(&aom_highbd_lpf_vertical_generic_sse4_1,
-             &aom_highbd_lpf_vertical_generic_c, 12, 10, 10),
-  make_tuple(&aom_highbd_lpf_vertical_generic_sse4_1,
-             &aom_highbd_lpf_vertical_generic_c, 12, 14, 14),
-  make_tuple(&aom_highbd_lpf_vertical_generic_sse4_1,
-             &aom_highbd_lpf_vertical_generic_c, 12, 14, 18),
-  make_tuple(&aom_highbd_lpf_vertical_generic_sse4_1,
-             &aom_highbd_lpf_vertical_generic_c, 12, 18, 18),
+  make_tuple(&avm_highbd_lpf_horizontal_generic_sse4_1,
+             &avm_highbd_lpf_horizontal_generic_c, 8, 4, 4),
+  make_tuple(&avm_highbd_lpf_horizontal_generic_sse4_1,
+             &avm_highbd_lpf_horizontal_generic_c, 8, 6, 8),
+  make_tuple(&avm_highbd_lpf_horizontal_generic_sse4_1,
+             &avm_highbd_lpf_horizontal_generic_c, 8, 8, 8),
+  make_tuple(&avm_highbd_lpf_horizontal_generic_sse4_1,
+             &avm_highbd_lpf_horizontal_generic_c, 8, 6, 10),
+  make_tuple(&avm_highbd_lpf_horizontal_generic_sse4_1,
+             &avm_highbd_lpf_horizontal_generic_c, 8, 10, 10),
+  make_tuple(&avm_highbd_lpf_horizontal_generic_sse4_1,
+             &avm_highbd_lpf_horizontal_generic_c, 8, 14, 14),
+  make_tuple(&avm_highbd_lpf_horizontal_generic_sse4_1,
+             &avm_highbd_lpf_horizontal_generic_c, 8, 14, 18),
+  make_tuple(&avm_highbd_lpf_horizontal_generic_sse4_1,
+             &avm_highbd_lpf_horizontal_generic_c, 8, 18, 18),
+  make_tuple(&avm_highbd_lpf_horizontal_generic_sse4_1,
+             &avm_highbd_lpf_horizontal_generic_c, 10, 4, 4),
+  make_tuple(&avm_highbd_lpf_horizontal_generic_sse4_1,
+             &avm_highbd_lpf_horizontal_generic_c, 10, 6, 8),
+  make_tuple(&avm_highbd_lpf_horizontal_generic_sse4_1,
+             &avm_highbd_lpf_horizontal_generic_c, 10, 8, 8),
+  make_tuple(&avm_highbd_lpf_horizontal_generic_sse4_1,
+             &avm_highbd_lpf_horizontal_generic_c, 10, 6, 10),
+  make_tuple(&avm_highbd_lpf_horizontal_generic_sse4_1,
+             &avm_highbd_lpf_horizontal_generic_c, 10, 10, 10),
+  make_tuple(&avm_highbd_lpf_horizontal_generic_sse4_1,
+             &avm_highbd_lpf_horizontal_generic_c, 10, 14, 14),
+  make_tuple(&avm_highbd_lpf_horizontal_generic_sse4_1,
+             &avm_highbd_lpf_horizontal_generic_c, 10, 14, 18),
+  make_tuple(&avm_highbd_lpf_horizontal_generic_sse4_1,
+             &avm_highbd_lpf_horizontal_generic_c, 10, 18, 18),
+  make_tuple(&avm_highbd_lpf_horizontal_generic_sse4_1,
+             &avm_highbd_lpf_horizontal_generic_c, 12, 4, 4),
+  make_tuple(&avm_highbd_lpf_horizontal_generic_sse4_1,
+             &avm_highbd_lpf_horizontal_generic_c, 12, 6, 8),
+  make_tuple(&avm_highbd_lpf_horizontal_generic_sse4_1,
+             &avm_highbd_lpf_horizontal_generic_c, 12, 8, 8),
+  make_tuple(&avm_highbd_lpf_horizontal_generic_sse4_1,
+             &avm_highbd_lpf_horizontal_generic_c, 12, 6, 10),
+  make_tuple(&avm_highbd_lpf_horizontal_generic_sse4_1,
+             &avm_highbd_lpf_horizontal_generic_c, 12, 10, 10),
+  make_tuple(&avm_highbd_lpf_horizontal_generic_sse4_1,
+             &avm_highbd_lpf_horizontal_generic_c, 12, 14, 14),
+  make_tuple(&avm_highbd_lpf_horizontal_generic_sse4_1,
+             &avm_highbd_lpf_horizontal_generic_c, 12, 14, 18),
+  make_tuple(&avm_highbd_lpf_horizontal_generic_sse4_1,
+             &avm_highbd_lpf_horizontal_generic_c, 12, 18, 18),
+  make_tuple(&avm_highbd_lpf_vertical_generic_sse4_1,
+             &avm_highbd_lpf_vertical_generic_c, 8, 4, 4),
+  make_tuple(&avm_highbd_lpf_vertical_generic_sse4_1,
+             &avm_highbd_lpf_vertical_generic_c, 8, 6, 8),
+  make_tuple(&avm_highbd_lpf_vertical_generic_sse4_1,
+             &avm_highbd_lpf_vertical_generic_c, 8, 8, 8),
+  make_tuple(&avm_highbd_lpf_vertical_generic_sse4_1,
+             &avm_highbd_lpf_vertical_generic_c, 8, 6, 10),
+  make_tuple(&avm_highbd_lpf_vertical_generic_sse4_1,
+             &avm_highbd_lpf_vertical_generic_c, 8, 10, 10),
+  make_tuple(&avm_highbd_lpf_vertical_generic_sse4_1,
+             &avm_highbd_lpf_vertical_generic_c, 8, 14, 14),
+  make_tuple(&avm_highbd_lpf_vertical_generic_sse4_1,
+             &avm_highbd_lpf_vertical_generic_c, 8, 14, 18),
+  make_tuple(&avm_highbd_lpf_vertical_generic_sse4_1,
+             &avm_highbd_lpf_vertical_generic_c, 8, 18, 18),
+  make_tuple(&avm_highbd_lpf_vertical_generic_sse4_1,
+             &avm_highbd_lpf_vertical_generic_c, 10, 4, 4),
+  make_tuple(&avm_highbd_lpf_vertical_generic_sse4_1,
+             &avm_highbd_lpf_vertical_generic_c, 10, 6, 8),
+  make_tuple(&avm_highbd_lpf_vertical_generic_sse4_1,
+             &avm_highbd_lpf_vertical_generic_c, 10, 8, 8),
+  make_tuple(&avm_highbd_lpf_vertical_generic_sse4_1,
+             &avm_highbd_lpf_vertical_generic_c, 10, 6, 10),
+  make_tuple(&avm_highbd_lpf_vertical_generic_sse4_1,
+             &avm_highbd_lpf_vertical_generic_c, 10, 10, 10),
+  make_tuple(&avm_highbd_lpf_vertical_generic_sse4_1,
+             &avm_highbd_lpf_vertical_generic_c, 10, 14, 14),
+  make_tuple(&avm_highbd_lpf_vertical_generic_sse4_1,
+             &avm_highbd_lpf_vertical_generic_c, 10, 14, 18),
+  make_tuple(&avm_highbd_lpf_vertical_generic_sse4_1,
+             &avm_highbd_lpf_vertical_generic_c, 10, 18, 18),
+  make_tuple(&avm_highbd_lpf_vertical_generic_sse4_1,
+             &avm_highbd_lpf_vertical_generic_c, 12, 4, 4),
+  make_tuple(&avm_highbd_lpf_vertical_generic_sse4_1,
+             &avm_highbd_lpf_vertical_generic_c, 12, 6, 8),
+  make_tuple(&avm_highbd_lpf_vertical_generic_sse4_1,
+             &avm_highbd_lpf_vertical_generic_c, 12, 8, 8),
+  make_tuple(&avm_highbd_lpf_vertical_generic_sse4_1,
+             &avm_highbd_lpf_vertical_generic_c, 12, 6, 10),
+  make_tuple(&avm_highbd_lpf_vertical_generic_sse4_1,
+             &avm_highbd_lpf_vertical_generic_c, 12, 10, 10),
+  make_tuple(&avm_highbd_lpf_vertical_generic_sse4_1,
+             &avm_highbd_lpf_vertical_generic_c, 12, 14, 14),
+  make_tuple(&avm_highbd_lpf_vertical_generic_sse4_1,
+             &avm_highbd_lpf_vertical_generic_c, 12, 14, 18),
+  make_tuple(&avm_highbd_lpf_vertical_generic_sse4_1,
+             &avm_highbd_lpf_vertical_generic_c, 12, 18, 18),
 };
 
 INSTANTIATE_TEST_SUITE_P(SSE4_1, LoopFilterTest,

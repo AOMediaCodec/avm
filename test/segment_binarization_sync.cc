@@ -13,11 +13,11 @@
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 #include "test/acm_random.h"
 
-using libaom_test::ACMRandom;
+using libavm_test::ACMRandom;
 
 extern "C" {
-int av1_neg_interleave(int x, int ref, int max);
-int av1_neg_deinterleave(int diff, int ref, int max);
+int av2_neg_interleave(int x, int ref, int max);
+int av2_neg_deinterleave(int diff, int ref, int max);
 }
 
 namespace {
@@ -51,9 +51,9 @@ TEST(SegmentBinarizationSync, SearchForBinarizationMismatch) {
     const Segment seg = GenerateSegment(seed_init + i);
 
     const int max_segid = seg.last_id + 1;
-    const int seg_diff = av1_neg_interleave(seg.id, seg.pred, max_segid);
+    const int seg_diff = av2_neg_interleave(seg.id, seg.pred, max_segid);
     const int decoded_segid =
-        av1_neg_deinterleave(seg_diff, seg.pred, max_segid);
+        av2_neg_deinterleave(seg_diff, seg.pred, max_segid);
 
     ASSERT_EQ(decoded_segid, seg.id);
   }

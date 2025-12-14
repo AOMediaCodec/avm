@@ -26,17 +26,17 @@
 #define EMSCRIPTEN_KEEPALIVE
 #endif
 
-#include "config/aom_config.h"
+#include "config/avm_config.h"
 
-#include "aom/aom_decoder.h"
-#include "aom/aomdx.h"
-#include "av1/common/av1_common_int.h"
+#include "avm/avm_decoder.h"
+#include "avm/avmdx.h"
+#include "av2/common/av2_common_int.h"
 
 #if CONFIG_ACCOUNTING
-#include "av1/decoder/accounting.h"
+#include "av2/decoder/accounting.h"
 #endif
 
-#include "av1/decoder/inspection.h"
+#include "av2/decoder/inspection.h"
 #include "common/args.h"
 #include "common/tools_common.h"
 #include "common/video_common.h"
@@ -312,10 +312,10 @@ int convert_to_indices(char *str, int *indices, int maxCount, int *count) {
 insp_frame_data frame_data;
 int frame_count = 0;
 int decoded_frame_count = 0;
-aom_codec_ctx_t codec;
+avm_codec_ctx_t codec;
 AvxVideoReader *reader = NULL;
 const AvxVideoInfo *info = NULL;
-aom_image_t *img = NULL;
+avm_image_t *img = NULL;
 
 void on_frame_decoded_dump(char *json) {
 #ifdef __EMSCRIPTEN__
@@ -609,7 +609,7 @@ int put_accounting(char *buffer) {
   buf += put_str(buf, "  \"symbolsTagsMap\": [");
   for (i = 0; i < num_strs; i++) {
     buf += put_str(buf, "[");
-    for (int j = 0; j < AOM_ACCOUNTING_MAX_TAGS; j++) {
+    for (int j = 0; j < AVM_ACCOUNTING_MAX_TAGS; j++) {
       if (accounting->syms.dictionary.acct_infos[i].tags[j] == NULL) break;
       if (j > 0) {
         *(buf++) = ',';
@@ -659,7 +659,7 @@ void inspect(void *pbi, void *data) {
   (void)data;
   // We allocate enough space and hope we don't write out of bounds. Totally
   // unsafe but this speeds things up, especially when compiled to Javascript.
-  char *buffer = aom_malloc(MAX_BUFFER);
+  char *buffer = avm_malloc(MAX_BUFFER);
   char *buf = buffer;
   buf += put_str(buf, "{\n");
   if (layers & BLOCK_SIZE_LAYER) {
@@ -765,21 +765,21 @@ void inspect(void *pbi, void *data) {
   buf += put_map(buf, config_map);
   buf += put_str(buf, "},\n");
   buf += put_str(buf, "  \"configString\": \"");
-  buf += put_str_with_escape(buf, aom_codec_build_config());
+  buf += put_str_with_escape(buf, avm_codec_build_config());
   buf += put_str(buf, "\"\n");
   decoded_frame_count++;
   buf += put_str(buf, "},\n");
   *(buf++) = 0;
   on_frame_decoded_dump(buffer);
-  aom_free(buffer);
+  avm_free(buffer);
 }
 
 void ifd_init_cb() {
-  aom_inspect_init ii;
+  avm_inspect_init ii;
   ii.inspect_cb = inspect;
   ii.inspect_sb_cb = NULL;
   ii.inspect_ctx = NULL;
-  aom_codec_control(&codec, AV1_SET_INSPECTION_CALLBACK, &ii);
+  avm_codec_control(&codec, AV2_SET_INSPECTION_CALLBACK, &ii);
 }
 
 EMSCRIPTEN_KEEPALIVE
@@ -788,25 +788,25 @@ int open_file(char *file) {
     // The JS analyzer puts the .ivf file at this location.
     file = "/tmp/input.ivf";
   }
-  reader = aom_video_reader_open(file);
+  reader = avm_video_reader_open(file);
   if (!reader) die("Failed to open %s for reading.", file);
-  info = aom_video_reader_get_info(reader);
-  aom_codec_iface_t *decoder = get_aom_decoder_by_fourcc(info->codec_fourcc);
+  info = avm_video_reader_get_info(reader);
+  avm_codec_iface_t *decoder = get_avm_decoder_by_fourcc(info->codec_fourcc);
   if (!decoder) die("Unknown input codec.");
-  fprintf(stderr, "Using %s\n", aom_codec_iface_name(decoder));
-  if (aom_codec_dec_init(&codec, decoder, NULL, 0))
+  fprintf(stderr, "Using %s\n", avm_codec_iface_name(decoder));
+  if (avm_codec_dec_init(&codec, decoder, NULL, 0))
     die("Failed to initialize decoder.");
   ifd_init(&frame_data, info->frame_width, info->frame_height);
   ifd_init_cb();
   return EXIT_SUCCESS;
 }
 
-Av1DecodeReturn adr;
+Av2DecodeReturn adr;
 int have_frame = 0;
 const unsigned char *frame;
 const unsigned char *end_frame;
 size_t frame_size = 0;
-struct av1_ref_frame ref_dec;
+struct av2_ref_frame ref_dec;
 
 EMSCRIPTEN_KEEPALIVE
 int read_frame() {
@@ -816,15 +816,15 @@ int read_frame() {
   // there is nothing to analyze.
   do {
     if (!have_frame) {
-      if (!aom_video_reader_read_frame(reader)) return EXIT_FAILURE;
-      frame = aom_video_reader_get_frame(reader, &frame_size);
+      if (!avm_video_reader_read_frame(reader)) return EXIT_FAILURE;
+      frame = avm_video_reader_get_frame(reader, &frame_size);
 
       have_frame = 1;
       end_frame = frame + frame_size;
     }
 
-    if (aom_codec_decode(&codec, frame, (unsigned int)frame_size, &adr) !=
-        AOM_CODEC_OK) {
+    if (avm_codec_decode(&codec, frame, (unsigned int)frame_size, &adr) !=
+        AVM_CODEC_OK) {
       die_codec(&codec, "Failed to decode frame.");
     }
 
@@ -834,18 +834,18 @@ int read_frame() {
   } while (adr.show_existing);
 #endif
   int got_any_frames = 0;
-  aom_image_t *frame_img;
+  avm_image_t *frame_img;
   ref_dec.idx = adr.idx;
 
-  // ref_dec.idx is the index to the reference buffer idx to AV1_GET_REFERENCE
+  // ref_dec.idx is the index to the reference buffer idx to AV2_GET_REFERENCE
   // if its -1 the decoder didn't update any reference buffer and the only
-  // way to see the frame is aom_codec_get_frame.
+  // way to see the frame is avm_codec_get_frame.
   if (ref_dec.idx == -1) {
-    aom_codec_iter_t iter = NULL;
-    img = frame_img = aom_codec_get_frame(&codec, &iter);
+    avm_codec_iter_t iter = NULL;
+    img = frame_img = avm_codec_get_frame(&codec, &iter);
     ++frame_count;
     got_any_frames = 1;
-  } else if (!aom_codec_control(&codec, AV1_GET_REFERENCE, &ref_dec)) {
+  } else if (!avm_codec_control(&codec, AV2_GET_REFERENCE, &ref_dec)) {
     img = frame_img = &ref_dec.img;
     ++frame_count;
     got_any_frames = 1;
@@ -857,7 +857,7 @@ int read_frame() {
 }
 
 EMSCRIPTEN_KEEPALIVE
-const char *get_aom_codec_build_config() { return aom_codec_build_config(); }
+const char *get_avm_codec_build_config() { return avm_codec_build_config(); }
 
 EMSCRIPTEN_KEEPALIVE
 int get_bit_depth() { return img->bit_depth; }
@@ -875,10 +875,10 @@ EMSCRIPTEN_KEEPALIVE
 int get_plane_stride(int plane) { return img->stride[plane]; }
 
 EMSCRIPTEN_KEEPALIVE
-int get_plane_width(int plane) { return aom_img_plane_width(img, plane); }
+int get_plane_width(int plane) { return avm_img_plane_width(img, plane); }
 
 EMSCRIPTEN_KEEPALIVE
-int get_plane_height(int plane) { return aom_img_plane_height(img, plane); }
+int get_plane_height(int plane) { return avm_img_plane_height(img, plane); }
 
 EMSCRIPTEN_KEEPALIVE
 int get_frame_width() { return info->frame_width; }
@@ -983,8 +983,8 @@ int main(int argc, char **argv) {
 
 EMSCRIPTEN_KEEPALIVE
 void quit() {
-  if (aom_codec_destroy(&codec)) die_codec(&codec, "Failed to destroy codec");
-  aom_video_reader_close(reader);
+  if (avm_codec_destroy(&codec)) die_codec(&codec, "Failed to destroy codec");
+  avm_video_reader_close(reader);
 }
 
 EMSCRIPTEN_KEEPALIVE

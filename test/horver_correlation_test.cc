@@ -18,13 +18,13 @@
 #include "test/register_state_check.h"
 #include "test/util.h"
 
-#include "config/aom_config.h"
-#include "config/aom_dsp_rtcd.h"
-#include "config/av1_rtcd.h"
+#include "config/avm_config.h"
+#include "config/avm_dsp_rtcd.h"
+#include "config/av2_rtcd.h"
 
-#include "aom/aom_integer.h"
+#include "avm/avm_integer.h"
 
-using libaom_test::ACMRandom;
+using libavm_test::ACMRandom;
 
 namespace {
 typedef void (*HorverFunc)(const int16_t *diff, int stride, int w, int h,
@@ -35,11 +35,11 @@ typedef std::tuple<const HorverFunc> HorverTestParam;
 class HorverTest : public ::testing::TestWithParam<HorverTestParam> {
  public:
   virtual void SetUp() {
-    data_buf_ = (int16_t *)aom_malloc(MAX_SB_SQUARE * sizeof(int16_t));
+    data_buf_ = (int16_t *)avm_malloc(MAX_SB_SQUARE * sizeof(int16_t));
     ASSERT_NE(data_buf_, nullptr);
     target_func_ = GET_PARAM(0);
   }
-  virtual void TearDown() { aom_free(data_buf_); }
+  virtual void TearDown() { avm_free(data_buf_); }
   void RunHorverTest(void);
   void RunHorverTest_ExtremeValues(void);
   void RunHorverSpeedTest(int run_times);
@@ -63,7 +63,7 @@ void HorverTest::RunHorverTest(void) {
         data_buf_[i] = (rng_.Rand16() % (1 << 12)) - (1 << 11);
       }
 
-      av1_get_horver_correlation_full_c(data_buf_, MAX_SB_SIZE, w, h,
+      av2_get_horver_correlation_full_c(data_buf_, MAX_SB_SIZE, w, h,
                                         &hcorr_ref, &vcorr_ref);
 
       target_func_(data_buf_, MAX_SB_SIZE, w, h, &hcorr_test, &vcorr_test);
@@ -88,20 +88,20 @@ void HorverTest::RunHorverSpeedTest(int run_times) {
     float hcorr_ref = 0.0, vcorr_ref = 0.0;
     float hcorr_test = 0.0, vcorr_test = 0.0;
 
-    aom_usec_timer timer;
-    aom_usec_timer_start(&timer);
+    avm_usec_timer timer;
+    avm_usec_timer_start(&timer);
     for (int i = 0; i < run_times; ++i) {
-      av1_get_horver_correlation_full_c(data_buf_, MAX_SB_SIZE, w, h,
+      av2_get_horver_correlation_full_c(data_buf_, MAX_SB_SIZE, w, h,
                                         &hcorr_ref, &vcorr_ref);
     }
-    aom_usec_timer_mark(&timer);
-    const double time1 = static_cast<double>(aom_usec_timer_elapsed(&timer));
-    aom_usec_timer_start(&timer);
+    avm_usec_timer_mark(&timer);
+    const double time1 = static_cast<double>(avm_usec_timer_elapsed(&timer));
+    avm_usec_timer_start(&timer);
     for (int i = 0; i < run_times; ++i) {
       target_func_(data_buf_, MAX_SB_SIZE, w, h, &hcorr_test, &vcorr_test);
     }
-    aom_usec_timer_mark(&timer);
-    const double time2 = static_cast<double>(aom_usec_timer_elapsed(&timer));
+    avm_usec_timer_mark(&timer);
+    const double time2 = static_cast<double>(avm_usec_timer_elapsed(&timer));
 
     printf("%3dx%-3d:%7.2f/%7.2fns (%3.2f)\n", w, h, time1, time2,
            time1 / time2);
@@ -121,7 +121,7 @@ void HorverTest::RunHorverTest_ExtremeValues(void) {
     float hcorr_ref = 0.0, vcorr_ref = 0.0;
     float hcorr_test = 0.0, vcorr_test = 0.0;
 
-    av1_get_horver_correlation_full_c(data_buf_, MAX_SB_SIZE, w, h, &hcorr_ref,
+    av2_get_horver_correlation_full_c(data_buf_, MAX_SB_SIZE, w, h, &hcorr_ref,
                                       &vcorr_ref);
     target_func_(data_buf_, MAX_SB_SIZE, w, h, &hcorr_test, &vcorr_test);
 
@@ -139,17 +139,17 @@ TEST_P(HorverTest, DISABLED_Speed) { RunHorverSpeedTest(100000); }
 #if HAVE_SSE4_1
 INSTANTIATE_TEST_SUITE_P(
     SSE4_1, HorverTest,
-    ::testing::Values(av1_get_horver_correlation_full_sse4_1));
+    ::testing::Values(av2_get_horver_correlation_full_sse4_1));
 #endif  // HAVE_SSE4_1
 
 #if HAVE_NEON
 INSTANTIATE_TEST_SUITE_P(
-    NEON, HorverTest, ::testing::Values(av1_get_horver_correlation_full_neon));
+    NEON, HorverTest, ::testing::Values(av2_get_horver_correlation_full_neon));
 #endif  // HAVE_NEON
 
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
-    AVX2, HorverTest, ::testing::Values(av1_get_horver_correlation_full_avx2));
+    AVX2, HorverTest, ::testing::Values(av2_get_horver_correlation_full_avx2));
 #endif  // HAVE_AVX2
 
 }  // namespace

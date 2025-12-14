@@ -10,18 +10,18 @@
  * aomedia.org/license/patent-license/.
  */
 
-#ifndef AOM_TEST_TEST_VECTORS_H_
-#define AOM_TEST_TEST_VECTORS_H_
+#ifndef AVM_TEST_TEST_VECTORS_H_
+#define AVM_TEST_TEST_VECTORS_H_
 
-#include "config/aom_config.h"
+#include "config/avm_config.h"
 
-namespace libaom_test {
+namespace libavm_test {
 
-#if CONFIG_AV1_DECODER
-extern const int kNumAV1TestVectors;
-extern const char *const kAV1TestVectors[];
+#if CONFIG_AV2_DECODER
+extern const int kNumAV2TestVectors;
+extern const char *const kAV2TestVectors[];
 #endif
 
-}  // namespace libaom_test
+}  // namespace libavm_test
 
-#endif  // AOM_TEST_TEST_VECTORS_H_
+#endif  // AVM_TEST_TEST_VECTORS_H_

@@ -236,7 +236,7 @@ In addition to these utilities, two convenience scripts are provided:
 lanczos_downup.sh
 lanczos_downcompup.sh
 They can be invoked from the build directory directly after a build that
-produces lanczos_resample_y4m, aomenc and aomdec applications.
+produces lanczos_resample_y4m, avmenc and avmdec applications.
 
 lanczos_downup.sh
 -----------------
@@ -308,8 +308,8 @@ down and inverse up steps.
 lanczos_downcompup.sh
 ---------------------
 The script lanczos_downcompup.sh resamples a video with specified parameters
-using lanczos_resample_y4m, then comprsses and decompresses using aomenc and
-aomdec respectively, and finally reverse resamples the decompressed video to
+using lanczos_resample_y4m, then comprsses and decompresses using avmenc and
+avmdec respectively, and finally reverse resamples the decompressed video to
 the source resolution using another lanczos_resample_y4m command.
 The usage for the script is:
 

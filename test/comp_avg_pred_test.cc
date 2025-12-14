@@ -12,43 +12,43 @@
 
 #include "test/comp_avg_pred_test.h"
 
-using libaom_test::ACMRandom;
-using libaom_test::AV1DISTWTDCOMPAVG::AV1HighBDDISTWTDCOMPAVGTest;
-GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1HighBDDISTWTDCOMPAVGTest);
-using libaom_test::AV1DISTWTDCOMPAVG::AV1HighBDDISTWTDCOMPAVGUPSAMPLEDTest;
+using libavm_test::ACMRandom;
+using libavm_test::AV2DISTWTDCOMPAVG::AV2HighBDDISTWTDCOMPAVGTest;
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV2HighBDDISTWTDCOMPAVGTest);
+using libavm_test::AV2DISTWTDCOMPAVG::AV2HighBDDISTWTDCOMPAVGUPSAMPLEDTest;
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(
-    AV1HighBDDISTWTDCOMPAVGUPSAMPLEDTest);
+    AV2HighBDDISTWTDCOMPAVGUPSAMPLEDTest);
 using std::make_tuple;
 using std::tuple;
 
 namespace {
 
-TEST_P(AV1HighBDDISTWTDCOMPAVGTest, DISABLED_Speed) {
+TEST_P(AV2HighBDDISTWTDCOMPAVGTest, DISABLED_Speed) {
   RunSpeedTest(GET_PARAM(1));
 }
 
-TEST_P(AV1HighBDDISTWTDCOMPAVGTest, CheckOutput) {
+TEST_P(AV2HighBDDISTWTDCOMPAVGTest, CheckOutput) {
   RunCheckOutput(GET_PARAM(1));
 }
 
 #if HAVE_SSE2
-INSTANTIATE_TEST_SUITE_P(SSE2, AV1HighBDDISTWTDCOMPAVGTest,
-                         libaom_test::AV1DISTWTDCOMPAVG::BuildParams(
-                             aom_highbd_dist_wtd_comp_avg_pred_sse2, 1));
+INSTANTIATE_TEST_SUITE_P(SSE2, AV2HighBDDISTWTDCOMPAVGTest,
+                         libavm_test::AV2DISTWTDCOMPAVG::BuildParams(
+                             avm_highbd_dist_wtd_comp_avg_pred_sse2, 1));
 #endif
 
-TEST_P(AV1HighBDDISTWTDCOMPAVGUPSAMPLEDTest, DISABLED_Speed) {
+TEST_P(AV2HighBDDISTWTDCOMPAVGUPSAMPLEDTest, DISABLED_Speed) {
   RunSpeedTest(GET_PARAM(1));
 }
 
-TEST_P(AV1HighBDDISTWTDCOMPAVGUPSAMPLEDTest, CheckOutput) {
+TEST_P(AV2HighBDDISTWTDCOMPAVGUPSAMPLEDTest, CheckOutput) {
   RunCheckOutput(GET_PARAM(1));
 }
 
 #if HAVE_SSE2
-INSTANTIATE_TEST_SUITE_P(SSE2, AV1HighBDDISTWTDCOMPAVGUPSAMPLEDTest,
-                         libaom_test::AV1DISTWTDCOMPAVG::BuildParams(
-                             aom_highbd_dist_wtd_comp_avg_upsampled_pred_sse2));
+INSTANTIATE_TEST_SUITE_P(SSE2, AV2HighBDDISTWTDCOMPAVGUPSAMPLEDTest,
+                         libavm_test::AV2DISTWTDCOMPAVG::BuildParams(
+                             avm_highbd_dist_wtd_comp_avg_upsampled_pred_sse2));
 #endif
 
 }  // namespace

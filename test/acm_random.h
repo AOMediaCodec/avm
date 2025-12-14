@@ -10,14 +10,14 @@
  * aomedia.org/license/patent-license/.
  */
 
-#ifndef AOM_TEST_ACM_RANDOM_H_
-#define AOM_TEST_ACM_RANDOM_H_
+#ifndef AVM_TEST_ACM_RANDOM_H_
+#define AVM_TEST_ACM_RANDOM_H_
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
-#include "aom/aom_integer.h"
+#include "avm/avm_integer.h"
 
-namespace libaom_test {
+namespace libavm_test {
 
 class ACMRandom {
  public:
@@ -81,6 +81,6 @@ class ACMRandom {
   testing::internal::Random random_;
 };
 
-}  // namespace libaom_test
+}  // namespace libavm_test
 
-#endif  // AOM_TEST_ACM_RANDOM_H_
+#endif  // AVM_TEST_ACM_RANDOM_H_

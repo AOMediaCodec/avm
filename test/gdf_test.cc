@@ -16,19 +16,19 @@
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
-#include "config/aom_config.h"
-#include "config/av1_rtcd.h"
+#include "config/avm_config.h"
+#include "config/av2_rtcd.h"
 
-#include "av1/common/av1_common_int.h"
-#include "aom_ports/aom_timer.h"
+#include "av2/common/av2_common_int.h"
+#include "avm_ports/avm_timer.h"
 
-#include "av1/common/gdf_block.h"
-#include "av1/common/gdf.h"
+#include "av2/common/gdf_block.h"
+#include "av2/common/gdf.h"
 #include "test/acm_random.h"
 #include "test/clear_system_state.h"
 #include "test/util.h"
 
-using libaom_test::ACMRandom;
+using libavm_test::ACMRandom;
 
 namespace {
 typedef void (*gdf_set_lap_and_cls_unit_func)(
@@ -73,7 +73,7 @@ class GDFTest : public ::testing::TestWithParam<gdf_param_t> {
     ref_dst = GET_PARAM(10);
     mib_size = GET_PARAM(11);
   }
-  virtual void TearDown() { libaom_test::ClearSystemState(); }
+  virtual void TearDown() { libavm_test::ClearSystemState(); }
 
  protected:
   gdf_set_lap_and_cls_unit_func lapgdf;
@@ -126,7 +126,7 @@ void test_gdf(int iterations, int height, int width, int depth, int qp_idx,
       (max_test_tile_size + GDF_TEST_FRAME_BOUNDARY_SIZE * 2 +
        GDF_ERR_STRIDE_MARGIN);
   const int pxl_max = (1 << depth) - 1;
-  const int pxl_shift = GDF_TEST_INP_PREC - AOMMIN(depth, GDF_TEST_INP_PREC);
+  const int pxl_shift = GDF_TEST_INP_PREC - AVMMIN(depth, GDF_TEST_INP_PREC);
   const int err_shift = GDF_RDO_SCALE_NUM_LOG2 + GDF_TEST_INP_PREC - depth;
   for (int iter = 0; iter < iterations && !err; iter++) {
     memset(rec, 0, sizeof(rec));
@@ -146,7 +146,7 @@ void test_gdf(int iterations, int height, int width, int depth, int qp_idx,
     gi.inp_stride = input_stride;
 
     gi.inp_pad_ptr =
-        (uint16_t *)aom_memalign(32, (top_buf + rec_height + bot_buf + 4) *
+        (uint16_t *)avm_memalign(32, (top_buf + rec_height + bot_buf + 4) *
                                          input_stride * sizeof(uint16_t));
     for (int i = top_buf; i < top_buf + rec_height; i++) {
       memcpy(gi.inp_pad_ptr + i * input_stride + GDF_TEST_EXTRA_HOR_BORDER,
@@ -175,11 +175,11 @@ void test_gdf(int iterations, int height, int width, int depth, int qp_idx,
           for (int u_pos = x_pos;
                u_pos < x_pos + gi.gdf_block_size && u_pos < width;
                u_pos += gi.gdf_unit_size) {
-            int i_min = AOMMAX(v_pos, GDF_TEST_FRAME_BOUNDARY_SIZE);
-            int i_max = AOMMIN(v_pos + gi.gdf_unit_size,
+            int i_min = AVMMAX(v_pos, GDF_TEST_FRAME_BOUNDARY_SIZE);
+            int i_max = AVMMIN(v_pos + gi.gdf_unit_size,
                                height - GDF_TEST_FRAME_BOUNDARY_SIZE);
-            int j_min = AOMMAX(u_pos, GDF_TEST_FRAME_BOUNDARY_SIZE);
-            int j_max = AOMMIN(u_pos + gi.gdf_unit_size,
+            int j_min = AVMMAX(u_pos, GDF_TEST_FRAME_BOUNDARY_SIZE);
+            int j_max = AVMMIN(u_pos + gi.gdf_unit_size,
                                width - GDF_TEST_FRAME_BOUNDARY_SIZE);
             const uint16_t *inp_ptr =
                 gi.inp_ptr + gi.inp_stride * i_min + j_min;
@@ -250,7 +250,7 @@ void test_gdf(int iterations, int height, int width, int depth, int qp_idx,
         }
       }
     }
-    aom_free(gi.inp_pad_ptr);
+    avm_free(gi.inp_pad_ptr);
   }
   free_gdf_buffers(&gi);
   free_gdf_buffers(&ref_gi);

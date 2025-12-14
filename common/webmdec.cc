@@ -55,34 +55,34 @@ void get_first_cluster(struct WebmInputContext *const webm_ctx) {
 }
 
 void rewind_and_reset(struct WebmInputContext *const webm_ctx,
-                      struct AvxInputContext *const aom_ctx) {
-  rewind(aom_ctx->file);
+                      struct AvxInputContext *const avm_ctx) {
+  rewind(avm_ctx->file);
   reset(webm_ctx);
 }
 
 }  // namespace
 
 int file_is_webm(struct WebmInputContext *webm_ctx,
-                 struct AvxInputContext *aom_ctx) {
-  mkvparser::MkvReader *const reader = new mkvparser::MkvReader(aom_ctx->file);
+                 struct AvxInputContext *avm_ctx) {
+  mkvparser::MkvReader *const reader = new mkvparser::MkvReader(avm_ctx->file);
   webm_ctx->reader = reader;
   webm_ctx->reached_eos = 0;
 
   mkvparser::EBMLHeader header;
   long long pos = 0;
   if (header.Parse(reader, pos) < 0) {
-    rewind_and_reset(webm_ctx, aom_ctx);
+    rewind_and_reset(webm_ctx, avm_ctx);
     return 0;
   }
 
   mkvparser::Segment *segment;
   if (mkvparser::Segment::CreateInstance(reader, pos, segment)) {
-    rewind_and_reset(webm_ctx, aom_ctx);
+    rewind_and_reset(webm_ctx, avm_ctx);
     return 0;
   }
   webm_ctx->segment = segment;
   if (segment->Load() < 0) {
-    rewind_and_reset(webm_ctx, aom_ctx);
+    rewind_and_reset(webm_ctx, avm_ctx);
     return 0;
   }
 
@@ -98,21 +98,21 @@ int file_is_webm(struct WebmInputContext *webm_ctx,
   }
 
   if (video_track == NULL || video_track->GetCodecId() == NULL) {
-    rewind_and_reset(webm_ctx, aom_ctx);
+    rewind_and_reset(webm_ctx, avm_ctx);
     return 0;
   }
 
-  if (!strncmp(video_track->GetCodecId(), "V_AV1", 5)) {
-    aom_ctx->fourcc = AV1_FOURCC;
+  if (!strncmp(video_track->GetCodecId(), "V_AV2", 5)) {
+    avm_ctx->fourcc = AV2_FOURCC;
   } else {
-    rewind_and_reset(webm_ctx, aom_ctx);
+    rewind_and_reset(webm_ctx, avm_ctx);
     return 0;
   }
 
-  aom_ctx->framerate.denominator = 0;
-  aom_ctx->framerate.numerator = 0;
-  aom_ctx->width = static_cast<uint32_t>(video_track->GetWidth());
-  aom_ctx->height = static_cast<uint32_t>(video_track->GetHeight());
+  avm_ctx->framerate.denominator = 0;
+  avm_ctx->framerate.numerator = 0;
+  avm_ctx->width = static_cast<uint32_t>(video_track->GetWidth());
+  avm_ctx->height = static_cast<uint32_t>(video_track->GetHeight());
 
   get_first_cluster(webm_ctx);
 
@@ -210,7 +210,7 @@ static int gcd(int a, int b) {
 }
 
 int webm_guess_framerate(struct WebmInputContext *webm_ctx,
-                         struct AvxInputContext *aom_ctx) {
+                         struct AvxInputContext *avm_ctx) {
   uint32_t i = 0;
   uint8_t *buffer = NULL;
   size_t buffer_size = 0;
@@ -222,15 +222,15 @@ int webm_guess_framerate(struct WebmInputContext *webm_ctx,
     }
     ++i;
   }
-  aom_ctx->framerate.numerator = (i - 1) * 1000000;
-  aom_ctx->framerate.denominator =
+  avm_ctx->framerate.numerator = (i - 1) * 1000000;
+  avm_ctx->framerate.denominator =
       static_cast<int>(webm_ctx->timestamp_ns / 1000);
   // Fraction might be represented in large numbers, like 49000000/980000
   // for 50fps. Simplify as much as possible.
-  int g = gcd(aom_ctx->framerate.numerator, aom_ctx->framerate.denominator);
+  int g = gcd(avm_ctx->framerate.numerator, avm_ctx->framerate.denominator);
   if (g != 0) {
-    aom_ctx->framerate.numerator /= g;
-    aom_ctx->framerate.denominator /= g;
+    avm_ctx->framerate.numerator /= g;
+    avm_ctx->framerate.denominator /= g;
   }
 
   delete[] buffer;

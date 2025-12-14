@@ -18,17 +18,17 @@
 #include "test/register_state_check.h"
 #include "test/function_equivalence_test.h"
 
-#include "config/aom_config.h"
-#include "config/aom_dsp_rtcd.h"
-#include "config/av1_rtcd.h"
+#include "config/avm_config.h"
+#include "config/avm_dsp_rtcd.h"
+#include "config/av2_rtcd.h"
 
-#include "aom/aom_integer.h"
+#include "avm/avm_integer.h"
 
-#include "av1/common/enums.h"
+#include "av2/common/enums.h"
 
-#include "aom_dsp/blend.h"
+#include "avm_dsp/blend.h"
 
-using libaom_test::FunctionEquivalenceTest;
+using libavm_test::FunctionEquivalenceTest;
 
 namespace {
 
@@ -160,30 +160,30 @@ typedef void (*FHBD)(uint16_t *dst, uint32_t dst_stride, const uint16_t *src0,
                      uint32_t src1_stride, const uint8_t *mask,
                      uint32_t mask_stride, int w, int h, int subx, int suby,
                      int bd);
-typedef libaom_test::FuncParam<FHBD> TestFuncsHBD;
+typedef libavm_test::FuncParam<FHBD> TestFuncsHBD;
 
 class BlendA64MaskTestHBD : public BlendA64MaskTest<FHBD, uint16_t, uint16_t> {
  protected:
   void Execute(const uint16_t *p_src0, const uint16_t *p_src1, int run_times) {
-    aom_usec_timer timer;
-    aom_usec_timer_start(&timer);
+    avm_usec_timer timer;
+    avm_usec_timer_start(&timer);
     for (int i = 0; i < run_times; ++i) {
       params_.ref_func(dst_ref_ + dst_offset_, dst_stride_,
                        p_src0 + src0_offset_, src0_stride_,
                        p_src1 + src1_offset_, src1_stride_, mask_,
                        kMaxMaskWidth, w_, h_, subx_, suby_, bit_depth_);
     }
-    aom_usec_timer_mark(&timer);
-    const double time1 = static_cast<double>(aom_usec_timer_elapsed(&timer));
-    aom_usec_timer_start(&timer);
+    avm_usec_timer_mark(&timer);
+    const double time1 = static_cast<double>(avm_usec_timer_elapsed(&timer));
+    avm_usec_timer_start(&timer);
     for (int i = 0; i < run_times; ++i) {
       params_.tst_func(dst_tst_ + dst_offset_, dst_stride_,
                        p_src0 + src0_offset_, src0_stride_,
                        p_src1 + src1_offset_, src1_stride_, mask_,
                        kMaxMaskWidth, w_, h_, subx_, suby_, bit_depth_);
     }
-    aom_usec_timer_mark(&timer);
-    const double time2 = static_cast<double>(aom_usec_timer_elapsed(&timer));
+    avm_usec_timer_mark(&timer);
+    const double time2 = static_cast<double>(avm_usec_timer_elapsed(&timer));
     if (run_times > 1) {
       printf("%3dx%-3d subx %d suby %d :%7.2f/%7.2fns", w_, h_, subx_, suby_,
              time1, time2);
@@ -214,7 +214,7 @@ TEST_P(BlendA64MaskTestHBD, RandomValues) {
     }
 
     for (int i = 0; i < kMaxMaskSize; ++i)
-      mask_[i] = rng_(AOM_BLEND_A64_MAX_ALPHA + 1);
+      mask_[i] = rng_(AVM_BLEND_A64_MAX_ALPHA + 1);
 
     RunTest(bsize, 1);
   }
@@ -240,7 +240,7 @@ TEST_P(BlendA64MaskTestHBD, ExtremeValues) {
     }
 
     for (int i = 0; i < kMaxMaskSize; ++i)
-      mask_[i] = rng_(2) + AOM_BLEND_A64_MAX_ALPHA - 1;
+      mask_[i] = rng_(2) + AVM_BLEND_A64_MAX_ALPHA - 1;
 
     RunTest(bsize, 1);
   }
@@ -249,8 +249,8 @@ TEST_P(BlendA64MaskTestHBD, ExtremeValues) {
 #if HAVE_SSE4_1
 INSTANTIATE_TEST_SUITE_P(
     SSE4_1, BlendA64MaskTestHBD,
-    ::testing::Values(TestFuncsHBD(aom_highbd_blend_a64_mask_c,
-                                   aom_highbd_blend_a64_mask_sse4_1)));
+    ::testing::Values(TestFuncsHBD(avm_highbd_blend_a64_mask_c,
+                                   avm_highbd_blend_a64_mask_sse4_1)));
 #endif  // HAVE_SSE4_1
 
 //////////////////////////////////////////////////////////////////////////////
@@ -263,7 +263,7 @@ typedef void (*FHBD_D16)(uint16_t *dst, uint32_t dst_stride,
                          const uint8_t *mask, uint32_t mask_stride, int w,
                          int h, int subx, int suby, ConvolveParams *conv_params,
                          const int bd);
-typedef libaom_test::FuncParam<FHBD_D16> TestFuncsHBD_d16;
+typedef libavm_test::FuncParam<FHBD_D16> TestFuncsHBD_d16;
 
 class BlendA64MaskTestHBD_d16
     : public BlendA64MaskTest<FHBD_D16, uint16_t, uint16_t> {
@@ -277,8 +277,8 @@ class BlendA64MaskTestHBD_d16
     ConvolveParams conv_params;
     conv_params.round_0 = (bit_depth_ == 12) ? ROUND0_BITS + 2 : ROUND0_BITS;
     conv_params.round_1 = COMPOUND_ROUND1_BITS;
-    aom_usec_timer timer;
-    aom_usec_timer_start(&timer);
+    avm_usec_timer timer;
+    avm_usec_timer_start(&timer);
     for (int i = 0; i < run_times; ++i) {
       params_.ref_func(
           dst_ref_ + dst_offset_, dst_stride_, p_src0 + src0_offset_,
@@ -286,17 +286,17 @@ class BlendA64MaskTestHBD_d16
           kMaxMaskWidth, w_, h_, subx_, suby_, &conv_params, bit_depth_);
     }
     if (params_.tst_func) {
-      aom_usec_timer_mark(&timer);
-      const double time1 = static_cast<double>(aom_usec_timer_elapsed(&timer));
-      aom_usec_timer_start(&timer);
+      avm_usec_timer_mark(&timer);
+      const double time1 = static_cast<double>(avm_usec_timer_elapsed(&timer));
+      avm_usec_timer_start(&timer);
       for (int i = 0; i < run_times; ++i) {
         params_.tst_func(
             dst_tst_ + dst_offset_, dst_stride_, p_src0 + src0_offset_,
             src0_stride_, p_src1 + src1_offset_, src1_stride_, mask_,
             kMaxMaskWidth, w_, h_, subx_, suby_, &conv_params, bit_depth_);
       }
-      aom_usec_timer_mark(&timer);
-      const double time2 = static_cast<double>(aom_usec_timer_elapsed(&timer));
+      avm_usec_timer_mark(&timer);
+      const double time2 = static_cast<double>(avm_usec_timer_elapsed(&timer));
       if (run_times > 1) {
         printf("%3dx%-3d subx %d suby %d :%7.2f/%7.2fns", w_, h_, subx_, suby_,
                time1, time2);
@@ -330,7 +330,7 @@ TEST_P(BlendA64MaskTestHBD_d16, RandomValues) {
     }
 
     for (int i = 0; i < kMaxMaskSize; ++i)
-      mask_[i] = rng_(AOM_BLEND_A64_MAX_ALPHA + 1);
+      mask_[i] = rng_(AVM_BLEND_A64_MAX_ALPHA + 1);
 
     RunTest(bsize, 1);
   }
@@ -350,7 +350,7 @@ TEST_P(BlendA64MaskTestHBD_d16, DISABLED_SaturatedValues) {
         src1_[i] = src_max_bits_mask_;
       }
 
-      for (int i = 0; i < kMaxMaskSize; ++i) mask_[i] = AOM_BLEND_A64_MAX_ALPHA;
+      for (int i = 0; i < kMaxMaskSize; ++i) mask_[i] = AVM_BLEND_A64_MAX_ALPHA;
 
       RunTest(bsize, 1);
     }
@@ -369,7 +369,7 @@ TEST_P(BlendA64MaskTestHBD_d16, DISABLED_Speed) {
       }
 
       for (int i = 0; i < kMaxMaskSize; ++i)
-        mask_[i] = rng_(AOM_BLEND_A64_MAX_ALPHA + 1);
+        mask_[i] = rng_(AVM_BLEND_A64_MAX_ALPHA + 1);
 
       RunOneTest(bsize, 1, 1, kRunTimes);
       RunOneTest(bsize, 0, 0, kRunTimes);
@@ -379,19 +379,19 @@ TEST_P(BlendA64MaskTestHBD_d16, DISABLED_Speed) {
 
 INSTANTIATE_TEST_SUITE_P(
     C, BlendA64MaskTestHBD_d16,
-    ::testing::Values(TestFuncsHBD_d16(aom_highbd_blend_a64_d16_mask_c, NULL)));
+    ::testing::Values(TestFuncsHBD_d16(avm_highbd_blend_a64_d16_mask_c, NULL)));
 
 #if HAVE_SSE4_1
 INSTANTIATE_TEST_SUITE_P(
     SSE4_1, BlendA64MaskTestHBD_d16,
-    ::testing::Values(TestFuncsHBD_d16(aom_highbd_blend_a64_d16_mask_c,
-                                       aom_highbd_blend_a64_d16_mask_sse4_1)));
+    ::testing::Values(TestFuncsHBD_d16(avm_highbd_blend_a64_d16_mask_c,
+                                       avm_highbd_blend_a64_d16_mask_sse4_1)));
 #endif  // HAVE_SSE4_1
 
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
     AVX2, BlendA64MaskTestHBD_d16,
-    ::testing::Values(TestFuncsHBD_d16(aom_highbd_blend_a64_d16_mask_c,
-                                       aom_highbd_blend_a64_d16_mask_avx2)));
+    ::testing::Values(TestFuncsHBD_d16(avm_highbd_blend_a64_d16_mask_c,
+                                       avm_highbd_blend_a64_d16_mask_avx2)));
 #endif  // HAVE_AVX2
 }  // namespace

@@ -174,7 +174,7 @@ def FillForm(string_for_substitution, dictionary_of_vars):
 
 def HasMetrics(line):
   """
-  The metrics files produced by aomenc are started with a B for headers.
+  The metrics files produced by avmenc are started with a B for headers.
   """
   # If the first char of the first word on the line is a digit
   if len(line) == 0:
@@ -286,7 +286,7 @@ def FileBetter(file_name_1, file_name_2, metric_column, method):
 def HandleFiles(variables):
   """
   This script creates html for displaying metric data produced from data
-  in a video stats file,  as created by the AOM project when enable_psnr
+  in a video stats file,  as created by the AVM project when enable_psnr
   is turned on:
 
   Usage: visual_metrics.py template.html pattern base_dir sub_dir [ sub_dir2 ..]
@@ -326,7 +326,7 @@ def HandleFiles(variables):
   399.773   48.032   47.971   48.013   47.946   94.362    36203
 
   sample use:
-  visual_metrics.py template.html "*stt" aom aom_b aom_c > metrics.html
+  visual_metrics.py template.html "*stt" avm avm_b avm_c > metrics.html
   """
 
   # The template file is the html file into which we will write the

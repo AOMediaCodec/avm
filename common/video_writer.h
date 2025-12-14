@@ -10,8 +10,8 @@
  * aomedia.org/license/patent-license/.
  */
 
-#ifndef AOM_COMMON_VIDEO_WRITER_H_
-#define AOM_COMMON_VIDEO_WRITER_H_
+#ifndef AVM_COMMON_VIDEO_WRITER_H_
+#define AVM_COMMON_VIDEO_WRITER_H_
 
 #include "common/video_common.h"
 
@@ -27,22 +27,22 @@ extern "C" {
 // Finds and opens writer for specified container format.
 // Returns an opaque AvxVideoWriter* upon success, or NULL upon failure.
 // Right now only IVF format is supported.
-AvxVideoWriter *aom_video_writer_open(const char *filename,
+AvxVideoWriter *avm_video_writer_open(const char *filename,
                                       AvxContainer container,
                                       const AvxVideoInfo *info);
 
 // Frees all resources associated with AvxVideoWriter* returned from
-// aom_video_writer_open() call.
-void aom_video_writer_close(AvxVideoWriter *writer);
+// avm_video_writer_open() call.
+void avm_video_writer_close(AvxVideoWriter *writer);
 
 // Writes frame bytes to the file.
-int aom_video_writer_write_frame(AvxVideoWriter *writer, const uint8_t *buffer,
+int avm_video_writer_write_frame(AvxVideoWriter *writer, const uint8_t *buffer,
                                  size_t size, int64_t pts);
 // Set fourcc.
-void aom_video_writer_set_fourcc(AvxVideoWriter *writer, uint32_t fourcc);
+void avm_video_writer_set_fourcc(AvxVideoWriter *writer, uint32_t fourcc);
 
 #ifdef __cplusplus
 }  // extern "C"
 #endif
 
-#endif  // AOM_COMMON_VIDEO_WRITER_H_
+#endif  // AVM_COMMON_VIDEO_WRITER_H_

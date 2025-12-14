@@ -14,21 +14,21 @@
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
-#include "config/aom_config.h"
-#include "config/aom_dsp_rtcd.h"
+#include "config/avm_config.h"
+#include "config/avm_dsp_rtcd.h"
 
 #include "test/acm_random.h"
 #include "test/clear_system_state.h"
 #include "test/register_state_check.h"
 #include "test/util.h"
-#include "av1/common/blockd.h"
-#include "av1/common/common.h"
-#include "av1/common/pred_common.h"
-#include "aom_mem/aom_mem.h"
+#include "av2/common/blockd.h"
+#include "av2/common/common.h"
+#include "av2/common/pred_common.h"
+#include "avm_mem/avm_mem.h"
 
 namespace {
 
-using libaom_test::ACMRandom;
+using libavm_test::ACMRandom;
 
 const int count_test_block = 100000;
 
@@ -62,7 +62,7 @@ struct IntraPredFunc {
 namespace {
 
 template <typename FuncType, typename Pixel>
-class AV1IntraPredTest
+class AV2IntraPredTest
     : public ::testing::TestWithParam<IntraPredFunc<FuncType> > {
  public:
   void RunTest(Pixel *left_col, Pixel *above_data, Pixel *dst, Pixel *ref_dst) {
@@ -126,22 +126,22 @@ class AV1IntraPredTest
         }
       }
 
-      aom_usec_timer c_timer_;
-      aom_usec_timer_start(&c_timer_);
+      avm_usec_timer c_timer_;
+      avm_usec_timer_start(&c_timer_);
 
       PredictRefSpeedTest(numIter);
 
-      aom_usec_timer_mark(&c_timer_);
+      avm_usec_timer_mark(&c_timer_);
 
-      aom_usec_timer simd_timer_;
-      aom_usec_timer_start(&simd_timer_);
+      avm_usec_timer simd_timer_;
+      avm_usec_timer_start(&simd_timer_);
 
       PredictFncSpeedTest(numIter);
 
-      aom_usec_timer_mark(&simd_timer_);
+      avm_usec_timer_mark(&simd_timer_);
 
-      c_sum_time += static_cast<int>(aom_usec_timer_elapsed(&c_timer_));
-      simd_sum_time += static_cast<int>(aom_usec_timer_elapsed(&simd_timer_));
+      c_sum_time += static_cast<int>(avm_usec_timer_elapsed(&c_timer_));
+      simd_sum_time += static_cast<int>(avm_usec_timer_elapsed(&simd_timer_));
 
       CheckPrediction(i, &error_count);
     }
@@ -191,7 +191,7 @@ class AV1IntraPredTest
   IntraPredFunc<FuncType> params_;
 };
 
-class HighbdIntraPredTest : public AV1IntraPredTest<HighbdIntraPred, uint16_t> {
+class HighbdIntraPredTest : public AV2IntraPredTest<HighbdIntraPred, uint16_t> {
  protected:
   void Predict() {
     const int bit_depth = params_.bit_depth;
@@ -222,8 +222,8 @@ TEST_P(HighbdIntraPredTest, Bitexact) {
   DECLARE_ALIGNED(16, uint16_t, above_data[2 * 64 + 64]);
   DECLARE_ALIGNED(16, uint16_t, dst[3 * 64 * 64]);
   DECLARE_ALIGNED(16, uint16_t, ref_dst[3 * 64 * 64]);
-  av1_zero(left_col);
-  av1_zero(above_data);
+  av2_zero(left_col);
+  av2_zero(above_data);
   RunTest(left_col, above_data, dst, ref_dst);
 }
 
@@ -233,8 +233,8 @@ TEST_P(HighbdIntraPredTest, DISABLED_Speed) {
   DECLARE_ALIGNED(16, uint16_t, above_data[2 * 64 + 64]);
   DECLARE_ALIGNED(16, uint16_t, dst[3 * 64 * 64]);
   DECLARE_ALIGNED(16, uint16_t, ref_dst[3 * 64 * 64]);
-  av1_zero(left_col);
-  av1_zero(above_data);
+  av2_zero(left_col);
+  av2_zero(above_data);
   RunSpeedTest(left_col, above_data, dst, ref_dst);
 }
 
@@ -242,8 +242,8 @@ TEST_P(HighbdIntraPredTest, DISABLED_Speed) {
 // High Bit Depth Tests
 #define highbd_entry(type, width, height, opt, bd)                          \
   IntraPredFunc<HighbdIntraPred>(                                           \
-      &aom_highbd_##type##_predictor_##width##x##height##_##opt,            \
-      &aom_highbd_##type##_predictor_##width##x##height##_c, width, height, \
+      &avm_highbd_##type##_predictor_##width##x##height##_##opt,            \
+      &avm_highbd_##type##_predictor_##width##x##height##_c, width, height, \
       bd)
 
 #define highbd_intrapred(type, opt, bd)                                       \

@@ -14,16 +14,16 @@
 #include <algorithm>
 #include <vector>
 
-#include "aom_dsp/noise_model.h"
-#include "aom_dsp/noise_util.h"
-#include "config/aom_dsp_rtcd.h"
+#include "avm_dsp/noise_model.h"
+#include "avm_dsp/noise_util.h"
+#include "config/avm_dsp_rtcd.h"
 #include "test/acm_random.h"
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
 namespace {
 
 // Return normally distrbuted values with standard deviation of sigma.
-double randn(libaom_test::ACMRandom *random, double sigma) {
+double randn(libavm_test::ACMRandom *random, double sigma) {
   while (1) {
     const double u = 2.0 * ((double)random->Rand31() /
                             testing::internal::Random::kMaxRange) -
@@ -41,7 +41,7 @@ double randn(libaom_test::ACMRandom *random, double sigma) {
 
 // Synthesizes noise using the auto-regressive filter of the given lag,
 // with the provided n coefficients sampled at the given coords.
-void noise_synth(libaom_test::ACMRandom *random, int lag, int n,
+void noise_synth(libavm_test::ACMRandom *random, int lag, int n,
                  const int (*coords)[2], const double *coeffs, double *data,
                  int w, int h) {
   const int pad_size = 3 * lag;
@@ -76,10 +76,10 @@ void noise_synth(libaom_test::ACMRandom *random, int lag, int n,
 std::vector<float> get_noise_psd(double *noise, int width, int height,
                                  int block_size) {
   float *block =
-      (float *)aom_memalign(32, block_size * block_size * sizeof(block));
+      (float *)avm_memalign(32, block_size * block_size * sizeof(block));
   std::vector<float> psd(block_size * block_size);
   int num_blocks = 0;
-  struct aom_noise_tx_t *tx = aom_noise_tx_malloc(block_size);
+  struct avm_noise_tx_t *tx = avm_noise_tx_malloc(block_size);
   for (int y = 0; y <= height - block_size; y += block_size / 2) {
     for (int x = 0; x <= width - block_size; x += block_size / 2) {
       for (int yy = 0; yy < block_size; ++yy) {
@@ -87,8 +87,8 @@ std::vector<float> get_noise_psd(double *noise, int width, int height,
           block[yy * block_size + xx] = (float)noise[(y + yy) * width + x + xx];
         }
       }
-      aom_noise_tx_forward(tx, &block[0]);
-      aom_noise_tx_add_energy(tx, &psd[0]);
+      avm_noise_tx_forward(tx, &block[0]);
+      avm_noise_tx_add_energy(tx, &psd[0]);
       num_blocks++;
     }
   }
@@ -107,63 +107,63 @@ std::vector<float> get_noise_psd(double *noise, int width, int height,
           psd[yy * block_size + xx];
     }
   }
-  aom_noise_tx_free(tx);
-  aom_free(block);
+  avm_noise_tx_free(tx);
+  avm_free(block);
   return psd;
 }
 
 }  // namespace
 
 TEST(NoiseStrengthSolver, GetCentersTwoBins) {
-  aom_noise_strength_solver_t solver;
-  aom_noise_strength_solver_init(&solver, 2, 8);
-  EXPECT_NEAR(0, aom_noise_strength_solver_get_center(&solver, 0), 1e-5);
-  EXPECT_NEAR(255, aom_noise_strength_solver_get_center(&solver, 1), 1e-5);
-  aom_noise_strength_solver_free(&solver);
+  avm_noise_strength_solver_t solver;
+  avm_noise_strength_solver_init(&solver, 2, 8);
+  EXPECT_NEAR(0, avm_noise_strength_solver_get_center(&solver, 0), 1e-5);
+  EXPECT_NEAR(255, avm_noise_strength_solver_get_center(&solver, 1), 1e-5);
+  avm_noise_strength_solver_free(&solver);
 }
 
 TEST(NoiseStrengthSolver, GetCentersTwoBins10bit) {
-  aom_noise_strength_solver_t solver;
-  aom_noise_strength_solver_init(&solver, 2, 10);
-  EXPECT_NEAR(0, aom_noise_strength_solver_get_center(&solver, 0), 1e-5);
-  EXPECT_NEAR(1023, aom_noise_strength_solver_get_center(&solver, 1), 1e-5);
-  aom_noise_strength_solver_free(&solver);
+  avm_noise_strength_solver_t solver;
+  avm_noise_strength_solver_init(&solver, 2, 10);
+  EXPECT_NEAR(0, avm_noise_strength_solver_get_center(&solver, 0), 1e-5);
+  EXPECT_NEAR(1023, avm_noise_strength_solver_get_center(&solver, 1), 1e-5);
+  avm_noise_strength_solver_free(&solver);
 }
 
 TEST(NoiseStrengthSolver, GetCenters256Bins) {
   const int num_bins = 256;
-  aom_noise_strength_solver_t solver;
-  aom_noise_strength_solver_init(&solver, num_bins, 8);
+  avm_noise_strength_solver_t solver;
+  avm_noise_strength_solver_init(&solver, num_bins, 8);
 
   for (int i = 0; i < 256; ++i) {
-    EXPECT_NEAR(i, aom_noise_strength_solver_get_center(&solver, i), 1e-5);
+    EXPECT_NEAR(i, avm_noise_strength_solver_get_center(&solver, i), 1e-5);
   }
-  aom_noise_strength_solver_free(&solver);
+  avm_noise_strength_solver_free(&solver);
 }
 
 // Tests that the noise strength solver returns the identity transform when
 // given identity-like constraints.
 TEST(NoiseStrengthSolver, ObserveIdentity) {
   const int num_bins = 256;
-  aom_noise_strength_solver_t solver;
-  EXPECT_EQ(1, aom_noise_strength_solver_init(&solver, num_bins, 8));
+  avm_noise_strength_solver_t solver;
+  EXPECT_EQ(1, avm_noise_strength_solver_init(&solver, num_bins, 8));
 
   // We have to add a big more strength to constraints at the boundary to
   // overcome any regularization.
   for (int j = 0; j < 5; ++j) {
-    aom_noise_strength_solver_add_measurement(&solver, 0, 0);
-    aom_noise_strength_solver_add_measurement(&solver, 255, 255);
+    avm_noise_strength_solver_add_measurement(&solver, 0, 0);
+    avm_noise_strength_solver_add_measurement(&solver, 255, 255);
   }
   for (int i = 0; i < 256; ++i) {
-    aom_noise_strength_solver_add_measurement(&solver, i, i);
+    avm_noise_strength_solver_add_measurement(&solver, i, i);
   }
-  EXPECT_EQ(1, aom_noise_strength_solver_solve(&solver));
+  EXPECT_EQ(1, avm_noise_strength_solver_solve(&solver));
   for (int i = 2; i < num_bins - 2; ++i) {
     EXPECT_NEAR(i, solver.eqns.x[i], 0.1);
   }
 
-  aom_noise_strength_lut_t lut;
-  EXPECT_EQ(1, aom_noise_strength_solver_fit_piecewise(&solver, 2, &lut));
+  avm_noise_strength_lut_t lut;
+  EXPECT_EQ(1, avm_noise_strength_solver_fit_piecewise(&solver, 2, &lut));
 
   ASSERT_EQ(2, lut.num_points);
   EXPECT_NEAR(0.0, lut.points[0][0], 1e-5);
@@ -171,32 +171,32 @@ TEST(NoiseStrengthSolver, ObserveIdentity) {
   EXPECT_NEAR(255.0, lut.points[1][0], 1e-5);
   EXPECT_NEAR(255.0, lut.points[1][1], 0.5);
 
-  aom_noise_strength_lut_free(&lut);
-  aom_noise_strength_solver_free(&solver);
+  avm_noise_strength_lut_free(&lut);
+  avm_noise_strength_solver_free(&solver);
 }
 
 TEST(NoiseStrengthSolver, SimplifiesCurve) {
   const int num_bins = 256;
-  aom_noise_strength_solver_t solver;
-  EXPECT_EQ(1, aom_noise_strength_solver_init(&solver, num_bins, 8));
+  avm_noise_strength_solver_t solver;
+  EXPECT_EQ(1, avm_noise_strength_solver_init(&solver, num_bins, 8));
 
   // Create a parabolic input
   for (int i = 0; i < 256; ++i) {
     const double x = (i - 127.5) / 63.5;
-    aom_noise_strength_solver_add_measurement(&solver, i, x * x);
+    avm_noise_strength_solver_add_measurement(&solver, i, x * x);
   }
-  EXPECT_EQ(1, aom_noise_strength_solver_solve(&solver));
+  EXPECT_EQ(1, avm_noise_strength_solver_solve(&solver));
 
   // First try to fit an unconstrained lut
-  aom_noise_strength_lut_t lut;
-  EXPECT_EQ(1, aom_noise_strength_solver_fit_piecewise(&solver, -1, &lut));
+  avm_noise_strength_lut_t lut;
+  EXPECT_EQ(1, avm_noise_strength_solver_fit_piecewise(&solver, -1, &lut));
   ASSERT_LE(20, lut.num_points);
-  aom_noise_strength_lut_free(&lut);
+  avm_noise_strength_lut_free(&lut);
 
   // Now constrain the maximum number of points
   const int kMaxPoints = 9;
   EXPECT_EQ(1,
-            aom_noise_strength_solver_fit_piecewise(&solver, kMaxPoints, &lut));
+            avm_noise_strength_solver_fit_piecewise(&solver, kMaxPoints, &lut));
   ASSERT_EQ(kMaxPoints, lut.num_points);
 
   // Check that the input parabola is still well represented
@@ -209,26 +209,26 @@ TEST(NoiseStrengthSolver, SimplifiesCurve) {
   EXPECT_NEAR(255.0, lut.points[kMaxPoints - 1][0], 1e-5);
 
   EXPECT_NEAR(4.0, lut.points[kMaxPoints - 1][1], 0.1);
-  aom_noise_strength_lut_free(&lut);
-  aom_noise_strength_solver_free(&solver);
+  avm_noise_strength_lut_free(&lut);
+  avm_noise_strength_solver_free(&solver);
 }
 
 TEST(NoiseStrengthLut, LutEvalSinglePoint) {
-  aom_noise_strength_lut_t lut;
-  ASSERT_TRUE(aom_noise_strength_lut_init(&lut, 1));
+  avm_noise_strength_lut_t lut;
+  ASSERT_TRUE(avm_noise_strength_lut_init(&lut, 1));
   ASSERT_EQ(1, lut.num_points);
   lut.points[0][0] = 0;
   lut.points[0][1] = 1;
-  EXPECT_EQ(1, aom_noise_strength_lut_eval(&lut, -1));
-  EXPECT_EQ(1, aom_noise_strength_lut_eval(&lut, 0));
-  EXPECT_EQ(1, aom_noise_strength_lut_eval(&lut, 1));
-  aom_noise_strength_lut_free(&lut);
+  EXPECT_EQ(1, avm_noise_strength_lut_eval(&lut, -1));
+  EXPECT_EQ(1, avm_noise_strength_lut_eval(&lut, 0));
+  EXPECT_EQ(1, avm_noise_strength_lut_eval(&lut, 1));
+  avm_noise_strength_lut_free(&lut);
 }
 
 TEST(NoiseStrengthLut, LutEvalMultiPointInterp) {
   const double kEps = 1e-5;
-  aom_noise_strength_lut_t lut;
-  ASSERT_TRUE(aom_noise_strength_lut_init(&lut, 4));
+  avm_noise_strength_lut_t lut;
+  ASSERT_TRUE(avm_noise_strength_lut_init(&lut, 4));
   ASSERT_EQ(4, lut.num_points);
 
   lut.points[0][0] = 0;
@@ -244,34 +244,34 @@ TEST(NoiseStrengthLut, LutEvalMultiPointInterp) {
   lut.points[3][1] = 1001;
 
   // Test lower boundary
-  EXPECT_EQ(0, aom_noise_strength_lut_eval(&lut, -1));
-  EXPECT_EQ(0, aom_noise_strength_lut_eval(&lut, 0));
+  EXPECT_EQ(0, avm_noise_strength_lut_eval(&lut, -1));
+  EXPECT_EQ(0, avm_noise_strength_lut_eval(&lut, 0));
 
   // Test first part that should be identity
-  EXPECT_NEAR(0.25, aom_noise_strength_lut_eval(&lut, 0.25), kEps);
-  EXPECT_NEAR(0.75, aom_noise_strength_lut_eval(&lut, 0.75), kEps);
+  EXPECT_NEAR(0.25, avm_noise_strength_lut_eval(&lut, 0.25), kEps);
+  EXPECT_NEAR(0.75, avm_noise_strength_lut_eval(&lut, 0.75), kEps);
 
   // This is a constant section (should evaluate to 1)
-  EXPECT_NEAR(1.0, aom_noise_strength_lut_eval(&lut, 1.25), kEps);
-  EXPECT_NEAR(1.0, aom_noise_strength_lut_eval(&lut, 1.75), kEps);
+  EXPECT_NEAR(1.0, avm_noise_strength_lut_eval(&lut, 1.25), kEps);
+  EXPECT_NEAR(1.0, avm_noise_strength_lut_eval(&lut, 1.75), kEps);
 
   // Test interpolation between to non-zero y coords.
-  EXPECT_NEAR(1, aom_noise_strength_lut_eval(&lut, 2), kEps);
-  EXPECT_NEAR(251, aom_noise_strength_lut_eval(&lut, 26.5), kEps);
-  EXPECT_NEAR(751, aom_noise_strength_lut_eval(&lut, 75.5), kEps);
+  EXPECT_NEAR(1, avm_noise_strength_lut_eval(&lut, 2), kEps);
+  EXPECT_NEAR(251, avm_noise_strength_lut_eval(&lut, 26.5), kEps);
+  EXPECT_NEAR(751, avm_noise_strength_lut_eval(&lut, 75.5), kEps);
 
   // Test upper boundary
-  EXPECT_EQ(1001, aom_noise_strength_lut_eval(&lut, 100));
-  EXPECT_EQ(1001, aom_noise_strength_lut_eval(&lut, 101));
+  EXPECT_EQ(1001, avm_noise_strength_lut_eval(&lut, 100));
+  EXPECT_EQ(1001, avm_noise_strength_lut_eval(&lut, 101));
 
-  aom_noise_strength_lut_free(&lut);
+  avm_noise_strength_lut_free(&lut);
 }
 
 TEST(NoiseModel, InitSuccessWithValidSquareShape) {
-  aom_noise_model_params_t params = { AOM_NOISE_SHAPE_SQUARE, 2, 8 };
-  aom_noise_model_t model;
+  avm_noise_model_params_t params = { AVM_NOISE_SHAPE_SQUARE, 2, 8 };
+  avm_noise_model_t model;
 
-  EXPECT_TRUE(aom_noise_model_init(&model, params));
+  EXPECT_TRUE(avm_noise_model_init(&model, params));
 
   const int kNumCoords = 12;
   const int kCoords[][2] = { { -2, -2 }, { -1, -2 }, { 0, -2 },  { 1, -2 },
@@ -283,13 +283,13 @@ TEST(NoiseModel, InitSuccessWithValidSquareShape) {
     EXPECT_EQ(coord[0], model.coords[i][0]);
     EXPECT_EQ(coord[1], model.coords[i][1]);
   }
-  aom_noise_model_free(&model);
+  avm_noise_model_free(&model);
 }
 
 TEST(NoiseModel, InitSuccessWithValidDiamondShape) {
-  aom_noise_model_t model;
-  aom_noise_model_params_t params = { AOM_NOISE_SHAPE_DIAMOND, 2, 8 };
-  EXPECT_TRUE(aom_noise_model_init(&model, params));
+  avm_noise_model_t model;
+  avm_noise_model_params_t params = { AVM_NOISE_SHAPE_DIAMOND, 2, 8 };
+  EXPECT_TRUE(avm_noise_model_init(&model, params));
   EXPECT_EQ(6, model.n);
   const int kNumCoords = 6;
   const int kCoords[][2] = { { 0, -2 }, { -1, -1 }, { 0, -1 },
@@ -300,28 +300,28 @@ TEST(NoiseModel, InitSuccessWithValidDiamondShape) {
     EXPECT_EQ(coord[0], model.coords[i][0]);
     EXPECT_EQ(coord[1], model.coords[i][1]);
   }
-  aom_noise_model_free(&model);
+  avm_noise_model_free(&model);
 }
 
 TEST(NoiseModel, InitFailsWithTooLargeLag) {
-  aom_noise_model_t model;
-  aom_noise_model_params_t params = { AOM_NOISE_SHAPE_SQUARE, 10, 8 };
-  EXPECT_FALSE(aom_noise_model_init(&model, params));
-  aom_noise_model_free(&model);
+  avm_noise_model_t model;
+  avm_noise_model_params_t params = { AVM_NOISE_SHAPE_SQUARE, 10, 8 };
+  EXPECT_FALSE(avm_noise_model_init(&model, params));
+  avm_noise_model_free(&model);
 }
 
 TEST(NoiseModel, InitFailsWithTooSmallLag) {
-  aom_noise_model_t model;
-  aom_noise_model_params_t params = { AOM_NOISE_SHAPE_SQUARE, 0, 8 };
-  EXPECT_FALSE(aom_noise_model_init(&model, params));
-  aom_noise_model_free(&model);
+  avm_noise_model_t model;
+  avm_noise_model_params_t params = { AVM_NOISE_SHAPE_SQUARE, 0, 8 };
+  EXPECT_FALSE(avm_noise_model_init(&model, params));
+  avm_noise_model_free(&model);
 }
 
 TEST(NoiseModel, InitFailsWithInvalidShape) {
-  aom_noise_model_t model;
-  aom_noise_model_params_t params = { aom_noise_shape(100), 3, 8 };
-  EXPECT_FALSE(aom_noise_model_init(&model, params));
-  aom_noise_model_free(&model);
+  avm_noise_model_t model;
+  avm_noise_model_params_t params = { avm_noise_shape(100), 3, 8 };
+  EXPECT_FALSE(avm_noise_model_init(&model, params));
+  avm_noise_model_free(&model);
 }
 
 // A container template class to hold a data type and extra arguments.
@@ -340,15 +340,15 @@ class FlatBlockEstimatorTest : public ::testing::Test, public T {
   virtual void SetUp() { random_.Reset(171); }
   typedef std::vector<typename T::data_type_t> VecType;
   VecType data_;
-  libaom_test::ACMRandom random_;
+  libavm_test::ACMRandom random_;
 };
 
 TYPED_TEST_SUITE_P(FlatBlockEstimatorTest);
 
 TYPED_TEST_P(FlatBlockEstimatorTest, ExtractBlock) {
   const int kBlockSize = 16;
-  aom_flat_block_finder_t flat_block_finder;
-  ASSERT_EQ(1, aom_flat_block_finder_init(&flat_block_finder, kBlockSize,
+  avm_flat_block_finder_t flat_block_finder;
+  ASSERT_EQ(1, avm_flat_block_finder_init(&flat_block_finder, kBlockSize,
                                           this->kBitDepth));
   const double normalization = flat_block_finder.normalization;
 
@@ -373,7 +373,7 @@ TYPED_TEST_P(FlatBlockEstimatorTest, ExtractBlock) {
 
   // The block data should be a constant (zero) and the rest of the plane
   // trend is covered in the plane data.
-  aom_flat_block_finder_extract_block(&flat_block_finder,
+  avm_flat_block_finder_extract_block(&flat_block_finder,
                                       (uint8_t *)&this->data_[0], w, h, stride,
                                       0, 0, &plane[0], &block[0]);
   for (int y = 0; y < kBlockSize; ++y) {
@@ -385,7 +385,7 @@ TYPED_TEST_P(FlatBlockEstimatorTest, ExtractBlock) {
   }
 
   // The plane trend is a constant, and the block is a zero mean checkerboard.
-  aom_flat_block_finder_extract_block(&flat_block_finder,
+  avm_flat_block_finder_extract_block(&flat_block_finder,
                                       (uint8_t *)&this->data_[0], w, h, stride,
                                       kBlockSize, 0, &plane[0], &block[0]);
   const int mid = 128 << shift;
@@ -397,13 +397,13 @@ TYPED_TEST_P(FlatBlockEstimatorTest, ExtractBlock) {
       EXPECT_NEAR(mid / normalization, plane[y * kBlockSize + x], 1e-5);
     }
   }
-  aom_flat_block_finder_free(&flat_block_finder);
+  avm_flat_block_finder_free(&flat_block_finder);
 }
 
 TYPED_TEST_P(FlatBlockEstimatorTest, FindFlatBlocks) {
   const int kBlockSize = 32;
-  aom_flat_block_finder_t flat_block_finder;
-  ASSERT_EQ(1, aom_flat_block_finder_init(&flat_block_finder, kBlockSize,
+  avm_flat_block_finder_t flat_block_finder;
+  ASSERT_EQ(1, avm_flat_block_finder_init(&flat_block_finder, kBlockSize,
                                           this->kBitDepth));
 
   const int num_blocks_w = 8;
@@ -451,7 +451,7 @@ TYPED_TEST_P(FlatBlockEstimatorTest, FindFlatBlocks) {
     }
   }
 
-  EXPECT_EQ(4, aom_flat_block_finder_run(&flat_block_finder,
+  EXPECT_EQ(4, avm_flat_block_finder_run(&flat_block_finder,
                                          (uint8_t *)&this->data_[0], w, h,
                                          stride, &flat_blocks[0]));
 
@@ -479,7 +479,7 @@ TYPED_TEST_P(FlatBlockEstimatorTest, FindFlatBlocks) {
   }
   // Now the scored selection will pick the one that is most likely flat (block
   // 0)
-  EXPECT_EQ(1, aom_flat_block_finder_run(&flat_block_finder,
+  EXPECT_EQ(1, avm_flat_block_finder_run(&flat_block_finder,
                                          (uint8_t *)&this->data_[0], w, h,
                                          stride, &flat_blocks[0]));
   EXPECT_EQ(1, flat_blocks[0]);
@@ -491,7 +491,7 @@ TYPED_TEST_P(FlatBlockEstimatorTest, FindFlatBlocks) {
   EXPECT_EQ(0, flat_blocks[6]);
   EXPECT_EQ(0, flat_blocks[7]);
 
-  aom_flat_block_finder_free(&flat_block_finder);
+  avm_flat_block_finder_free(&flat_block_finder);
 }
 
 REGISTER_TYPED_TEST_SUITE_P(FlatBlockEstimatorTest, ExtractBlock,
@@ -514,9 +514,9 @@ class NoiseModelUpdateTest : public ::testing::Test, public T {
   static const int kNumBlocksY = kHeight / kBlockSize;
 
   virtual void SetUp() {
-    const aom_noise_model_params_t params = { AOM_NOISE_SHAPE_SQUARE, 3,
+    const avm_noise_model_params_t params = { AVM_NOISE_SHAPE_SQUARE, 3,
                                               T::kBitDepth };
-    ASSERT_TRUE(aom_noise_model_init(&model_, params));
+    ASSERT_TRUE(avm_noise_model_init(&model_, params));
 
     random_.Reset(100171);
 
@@ -540,15 +540,15 @@ class NoiseModelUpdateTest : public ::testing::Test, public T {
   }
 
   int NoiseModelUpdate(int block_size = kBlockSize) {
-    return aom_noise_model_update(&model_, data_ptr_raw_, denoised_ptr_raw_,
+    return avm_noise_model_update(&model_, data_ptr_raw_, denoised_ptr_raw_,
                                   kWidth, kHeight, strides_, chroma_sub_,
                                   &flat_blocks_[0], block_size);
   }
 
-  void TearDown() { aom_noise_model_free(&model_); }
+  void TearDown() { avm_noise_model_free(&model_); }
 
  protected:
-  aom_noise_model_t model_;
+  avm_noise_model_t model_;
   std::vector<typename T::data_type_t> data_;
   std::vector<typename T::data_type_t> denoised_;
 
@@ -562,7 +562,7 @@ class NoiseModelUpdateTest : public ::testing::Test, public T {
   double *noise_ptr_[3];
   int strides_[3];
   int chroma_sub_[2];
-  libaom_test::ACMRandom random_;
+  libavm_test::ACMRandom random_;
 
  private:
   uint8_t *data_ptr_raw_[3];
@@ -572,7 +572,7 @@ class NoiseModelUpdateTest : public ::testing::Test, public T {
 TYPED_TEST_SUITE_P(NoiseModelUpdateTest);
 
 TYPED_TEST_P(NoiseModelUpdateTest, UpdateFailsNoFlatBlocks) {
-  EXPECT_EQ(AOM_NOISE_STATUS_INSUFFICIENT_FLAT_BLOCKS,
+  EXPECT_EQ(AVM_NOISE_STATUS_INSUFFICIENT_FLAT_BLOCKS,
             this->NoiseModelUpdate());
 }
 
@@ -580,19 +580,19 @@ TYPED_TEST_P(NoiseModelUpdateTest, UpdateSuccessForZeroNoiseAllFlat) {
   this->flat_blocks_.assign(this->flat_blocks_.size(), 1);
   this->denoised_.assign(this->denoised_.size(), 128);
   this->data_.assign(this->denoised_.size(), 128);
-  EXPECT_EQ(AOM_NOISE_STATUS_INTERNAL_ERROR, this->NoiseModelUpdate());
+  EXPECT_EQ(AVM_NOISE_STATUS_INTERNAL_ERROR, this->NoiseModelUpdate());
 }
 
 TYPED_TEST_P(NoiseModelUpdateTest, UpdateFailsBlockSizeTooSmall) {
   this->flat_blocks_.assign(this->flat_blocks_.size(), 1);
   this->denoised_.assign(this->denoised_.size(), 128);
   this->data_.assign(this->denoised_.size(), 128);
-  EXPECT_EQ(AOM_NOISE_STATUS_INVALID_ARGUMENT,
+  EXPECT_EQ(AVM_NOISE_STATUS_INVALID_ARGUMENT,
             this->NoiseModelUpdate(6 /* block_size=6 is too small*/));
 }
 
 TYPED_TEST_P(NoiseModelUpdateTest, UpdateSuccessForWhiteRandomNoise) {
-  aom_noise_model_t &model = this->model_;
+  avm_noise_model_t &model = this->model_;
   const int kWidth = this->kWidth;
   const int kHeight = this->kHeight;
 
@@ -611,7 +611,7 @@ TYPED_TEST_P(NoiseModelUpdateTest, UpdateSuccessForWhiteRandomNoise) {
     }
   }
   this->flat_blocks_.assign(this->flat_blocks_.size(), 1);
-  EXPECT_EQ(AOM_NOISE_STATUS_OK, this->NoiseModelUpdate());
+  EXPECT_EQ(AVM_NOISE_STATUS_OK, this->NoiseModelUpdate());
 
   const double kCoeffEps = 0.075;
   const int n = model.n;
@@ -644,19 +644,19 @@ TYPED_TEST_P(NoiseModelUpdateTest, UpdateSuccessForWhiteRandomNoise) {
                 kStdEps);
   }
 
-  aom_noise_strength_lut_t lut;
-  aom_noise_strength_solver_fit_piecewise(
+  avm_noise_strength_lut_t lut;
+  avm_noise_strength_solver_fit_piecewise(
       &model.latest_state[0].strength_solver, -1, &lut);
   ASSERT_EQ(2, lut.num_points);
   EXPECT_NEAR(0.0, lut.points[0][0], 1e-5);
   EXPECT_NEAR(1.0, lut.points[0][1] / normalize, kStdEps);
   EXPECT_NEAR((1 << this->kBitDepth) - 1, lut.points[1][0], 1e-5);
   EXPECT_NEAR(1.0, lut.points[1][1] / normalize, kStdEps);
-  aom_noise_strength_lut_free(&lut);
+  avm_noise_strength_lut_free(&lut);
 }
 
 TYPED_TEST_P(NoiseModelUpdateTest, UpdateSuccessForScaledWhiteNoise) {
-  aom_noise_model_t &model = this->model_;
+  avm_noise_model_t &model = this->model_;
   const int kWidth = this->kWidth;
   const int kHeight = this->kHeight;
 
@@ -682,7 +682,7 @@ TYPED_TEST_P(NoiseModelUpdateTest, UpdateSuccessForScaledWhiteNoise) {
   }
   // Label all blocks as flat for the update
   this->flat_blocks_.assign(this->flat_blocks_.size(), 1);
-  EXPECT_EQ(AOM_NOISE_STATUS_OK, this->NoiseModelUpdate());
+  EXPECT_EQ(AVM_NOISE_STATUS_OK, this->NoiseModelUpdate());
 
   const int n = model.n;
   // The noise is uncorrelated spatially and with the y channel.
@@ -721,19 +721,19 @@ TYPED_TEST_P(NoiseModelUpdateTest, UpdateSuccessForScaledWhiteNoise) {
 
   // If we fit a piecewise linear model, there should be two points:
   // one near kLowStd at 0, and the other near kHighStd and 255.
-  aom_noise_strength_lut_t lut;
-  aom_noise_strength_solver_fit_piecewise(
+  avm_noise_strength_lut_t lut;
+  avm_noise_strength_solver_fit_piecewise(
       &model.latest_state[0].strength_solver, 2, &lut);
   ASSERT_EQ(2, lut.num_points);
   EXPECT_NEAR(0, lut.points[0][0], 1e-4);
   EXPECT_NEAR(kLowStd, lut.points[0][1] / normalize, kStdEps);
   EXPECT_NEAR((1 << this->kBitDepth) - 1, lut.points[1][0], 1e-5);
   EXPECT_NEAR(kHighStd, lut.points[1][1] / normalize, kStdEps);
-  aom_noise_strength_lut_free(&lut);
+  avm_noise_strength_lut_free(&lut);
 }
 
 TYPED_TEST_P(NoiseModelUpdateTest, UpdateSuccessForCorrelatedNoise) {
-  aom_noise_model_t &model = this->model_;
+  avm_noise_model_t &model = this->model_;
   const int kWidth = this->kWidth;
   const int kHeight = this->kHeight;
   const int kNumCoeffs = 24;
@@ -778,7 +778,7 @@ TYPED_TEST_P(NoiseModelUpdateTest, UpdateSuccessForCorrelatedNoise) {
       }
     }
   }
-  EXPECT_EQ(AOM_NOISE_STATUS_OK, this->NoiseModelUpdate());
+  EXPECT_EQ(AVM_NOISE_STATUS_OK, this->NoiseModelUpdate());
 
   // For the Y plane, the solved coefficients should be close to the original
   const int n = model.n;
@@ -794,14 +794,14 @@ TYPED_TEST_P(NoiseModelUpdateTest, UpdateSuccessForCorrelatedNoise) {
     }
     // Correlation between the coefficient vector and the fitted coefficients
     // should be close to 1.
-    EXPECT_LT(0.98, aom_normalized_cross_correlation(
+    EXPECT_LT(0.98, avm_normalized_cross_correlation(
                         model.latest_state[c].eqns.x, kCoeffs[c], kNumCoeffs));
 
     noise_synth(&this->random_, model.params.lag, model.n, model.coords,
                 model.latest_state[c].eqns.x, &this->renoise_[0], kWidth,
                 kHeight);
 
-    EXPECT_TRUE(aom_noise_data_validate(&this->renoise_[0], kWidth, kHeight));
+    EXPECT_TRUE(avm_noise_data_validate(&this->renoise_[0], kWidth, kHeight));
   }
 
   // Check fitted noise strength
@@ -817,7 +817,7 @@ TYPED_TEST_P(NoiseModelUpdateTest, UpdateSuccessForCorrelatedNoise) {
 
 TYPED_TEST_P(NoiseModelUpdateTest,
              NoiseStrengthChangeSignalsDifferentNoiseType) {
-  aom_noise_model_t &model = this->model_;
+  avm_noise_model_t &model = this->model_;
   const int kWidth = this->kWidth;
   const int kHeight = this->kHeight;
   const int kBlockSize = this->kBlockSize;
@@ -835,7 +835,7 @@ TYPED_TEST_P(NoiseModelUpdateTest,
     }
   }
   this->flat_blocks_.assign(this->flat_blocks_.size(), 1);
-  EXPECT_EQ(AOM_NOISE_STATUS_OK, this->NoiseModelUpdate());
+  EXPECT_EQ(AVM_NOISE_STATUS_OK, this->NoiseModelUpdate());
 
   const int kNumBlocks = kWidth * kHeight / kBlockSize / kBlockSize;
   EXPECT_EQ(kNumBlocks, model.latest_state[0].strength_solver.num_equations);
@@ -851,7 +851,7 @@ TYPED_TEST_P(NoiseModelUpdateTest,
     this->data_ptr_[0][i] =
         ((uint8_t)(this->noise_ptr_[0][i] * (kStd + 0.085) + val)) << shift;
   }
-  EXPECT_EQ(AOM_NOISE_STATUS_OK, this->NoiseModelUpdate());
+  EXPECT_EQ(AVM_NOISE_STATUS_OK, this->NoiseModelUpdate());
 
   const double kARGainTolerance = 0.02;
   for (int c = 0; c < 3; ++c) {
@@ -874,7 +874,7 @@ TYPED_TEST_P(NoiseModelUpdateTest,
           ((uint8_t)(randn(&this->random_, kStd + 0.5) + val)) << shift;
     }
   }
-  EXPECT_EQ(AOM_NOISE_STATUS_DIFFERENT_NOISE_TYPE, this->NoiseModelUpdate());
+  EXPECT_EQ(AVM_NOISE_STATUS_DIFFERENT_NOISE_TYPE, this->NoiseModelUpdate());
 
   // Since we didn't update the combined state, it should still be at 2 *
   // num_blocks
@@ -884,7 +884,7 @@ TYPED_TEST_P(NoiseModelUpdateTest,
 
   // In normal operation, the "latest" estimate can be saved to the "combined"
   // state for continued updates.
-  aom_noise_model_save_latest(&model);
+  avm_noise_model_save_latest(&model);
   for (int c = 0; c < 3; ++c) {
     EXPECT_EQ(kNumBlocks, model.latest_state[c].strength_solver.num_equations);
     EXPECT_EQ(15250, model.latest_state[c].num_observations);
@@ -898,7 +898,7 @@ TYPED_TEST_P(NoiseModelUpdateTest,
 }
 
 TYPED_TEST_P(NoiseModelUpdateTest, NoiseCoeffsSignalsDifferentNoiseType) {
-  aom_noise_model_t &model = this->model_;
+  avm_noise_model_t &model = this->model_;
   const int kWidth = this->kWidth;
   const int kHeight = this->kHeight;
   const double kCoeffs[2][24] = {
@@ -918,7 +918,7 @@ TYPED_TEST_P(NoiseModelUpdateTest, NoiseCoeffsSignalsDifferentNoiseType) {
     this->data_ptr_[0][i] = (uint8_t)(128 + this->noise_ptr_[0][i]);
   }
   this->flat_blocks_.assign(this->flat_blocks_.size(), 1);
-  EXPECT_EQ(AOM_NOISE_STATUS_OK, this->NoiseModelUpdate());
+  EXPECT_EQ(AVM_NOISE_STATUS_OK, this->NoiseModelUpdate());
 
   // Now try with the second set of AR coefficients
   noise_synth(&this->random_, model.params.lag, model.n, model.coords,
@@ -926,7 +926,7 @@ TYPED_TEST_P(NoiseModelUpdateTest, NoiseCoeffsSignalsDifferentNoiseType) {
   for (int i = 0; i < kWidth * kHeight; ++i) {
     this->data_ptr_[0][i] = (uint8_t)(128 + this->noise_ptr_[0][i]);
   }
-  EXPECT_EQ(AOM_NOISE_STATUS_DIFFERENT_NOISE_TYPE, this->NoiseModelUpdate());
+  EXPECT_EQ(AVM_NOISE_STATUS_DIFFERENT_NOISE_TYPE, this->NoiseModelUpdate());
 }
 REGISTER_TYPED_TEST_SUITE_P(NoiseModelUpdateTest, UpdateFailsNoFlatBlocks,
                             UpdateSuccessForZeroNoiseAllFlat,
@@ -941,21 +941,21 @@ INSTANTIATE_TYPED_TEST_SUITE_P(NoiseModelUpdateTestInstatiation,
                                NoiseModelUpdateTest, AllBitDepthParams);
 
 TEST(NoiseModelGetGrainParameters, TestLagSize) {
-  aom_film_grain_t film_grain;
+  avm_film_grain_t film_grain;
   for (int lag = 1; lag <= 3; ++lag) {
-    aom_noise_model_params_t params = { AOM_NOISE_SHAPE_SQUARE, lag, 8 };
-    aom_noise_model_t model;
-    EXPECT_TRUE(aom_noise_model_init(&model, params));
-    EXPECT_TRUE(aom_noise_model_get_grain_parameters(&model, &film_grain));
+    avm_noise_model_params_t params = { AVM_NOISE_SHAPE_SQUARE, lag, 8 };
+    avm_noise_model_t model;
+    EXPECT_TRUE(avm_noise_model_init(&model, params));
+    EXPECT_TRUE(avm_noise_model_get_grain_parameters(&model, &film_grain));
     EXPECT_EQ(lag, film_grain.ar_coeff_lag);
-    aom_noise_model_free(&model);
+    avm_noise_model_free(&model);
   }
 
-  aom_noise_model_params_t params = { AOM_NOISE_SHAPE_SQUARE, 4, 8 };
-  aom_noise_model_t model;
-  EXPECT_TRUE(aom_noise_model_init(&model, params));
-  EXPECT_FALSE(aom_noise_model_get_grain_parameters(&model, &film_grain));
-  aom_noise_model_free(&model);
+  avm_noise_model_params_t params = { AVM_NOISE_SHAPE_SQUARE, 4, 8 };
+  avm_noise_model_t model;
+  EXPECT_TRUE(avm_noise_model_init(&model, params));
+  EXPECT_FALSE(avm_noise_model_get_grain_parameters(&model, &film_grain));
+  avm_noise_model_free(&model);
 }
 
 TEST(NoiseModelGetGrainParameters, TestARCoeffShiftBounds) {
@@ -991,21 +991,21 @@ TEST(NoiseModelGetGrainParameters, TestARCoeffShiftBounds) {
     { 4, 6, 127 },
     { -4, 6, -128 },
   };
-  aom_noise_model_params_t params = { AOM_NOISE_SHAPE_SQUARE, lag, 8 };
-  aom_noise_model_t model;
-  EXPECT_TRUE(aom_noise_model_init(&model, params));
+  avm_noise_model_params_t params = { AVM_NOISE_SHAPE_SQUARE, lag, 8 };
+  avm_noise_model_t model;
+  EXPECT_TRUE(avm_noise_model_init(&model, params));
 
   for (int i = 0; i < kNumTestCases; ++i) {
     const TestCase &test_case = test_cases[i];
     model.combined_state[0].eqns.x[0] = test_case.max_input_value;
 
-    aom_film_grain_t film_grain;
-    EXPECT_TRUE(aom_noise_model_get_grain_parameters(&model, &film_grain));
+    avm_film_grain_t film_grain;
+    EXPECT_TRUE(avm_noise_model_get_grain_parameters(&model, &film_grain));
     EXPECT_EQ(1, film_grain.ar_coeff_lag);
     EXPECT_EQ(test_case.expected_ar_coeff_shift, film_grain.ar_coeff_shift);
     EXPECT_EQ(test_case.expected_value, film_grain.ar_coeffs_y[0]);
   }
-  aom_noise_model_free(&model);
+  avm_noise_model_free(&model);
 }
 
 TEST(NoiseModelGetGrainParameters, TestNoiseStrengthShiftBounds) {
@@ -1021,25 +1021,25 @@ TEST(NoiseModelGetGrainParameters, TestNoiseStrengthShiftBounds) {
     { 31.99, 8, 255 }, { 64, 8, 255 },  // clipped
   };
   const int lag = 1;
-  aom_noise_model_params_t params = { AOM_NOISE_SHAPE_SQUARE, lag, 8 };
-  aom_noise_model_t model;
-  EXPECT_TRUE(aom_noise_model_init(&model, params));
+  avm_noise_model_params_t params = { AVM_NOISE_SHAPE_SQUARE, lag, 8 };
+  avm_noise_model_t model;
+  EXPECT_TRUE(avm_noise_model_init(&model, params));
 
   for (int i = 0; i < kNumTestCases; ++i) {
     const TestCase &test_case = test_cases[i];
-    aom_equation_system_t &eqns = model.combined_state[0].strength_solver.eqns;
+    avm_equation_system_t &eqns = model.combined_state[0].strength_solver.eqns;
     // Set the fitted scale parameters to be a constant value.
     for (int j = 0; j < eqns.n; ++j) {
       eqns.x[j] = test_case.max_input_value;
     }
-    aom_film_grain_t film_grain;
-    EXPECT_TRUE(aom_noise_model_get_grain_parameters(&model, &film_grain));
+    avm_film_grain_t film_grain;
+    EXPECT_TRUE(avm_noise_model_get_grain_parameters(&model, &film_grain));
     // We expect a single constant segemnt
     EXPECT_EQ(test_case.expected_scaling_shift, film_grain.scaling_shift);
     EXPECT_EQ(test_case.expected_value, film_grain.fgm_scaling_points_0[0][1]);
     EXPECT_EQ(test_case.expected_value, film_grain.fgm_scaling_points_0[1][1]);
   }
-  aom_noise_model_free(&model);
+  avm_noise_model_free(&model);
 }
 
 // The AR coefficients are the same inputs used to generate "Test 2" in the test
@@ -1070,9 +1070,9 @@ TEST(NoiseModelGetGrainParameters, GetGrainParametersReal) {
   };
 
   const int lag = 3;
-  aom_noise_model_params_t params = { AOM_NOISE_SHAPE_SQUARE, lag, 8 };
-  aom_noise_model_t model;
-  EXPECT_TRUE(aom_noise_model_init(&model, params));
+  avm_noise_model_params_t params = { AVM_NOISE_SHAPE_SQUARE, lag, 8 };
+  avm_noise_model_t model;
+  EXPECT_TRUE(avm_noise_model_init(&model, params));
 
   // Setup the AR coeffs
   memcpy(model.combined_state[0].eqns.x, kInputCoeffsY, sizeof(kInputCoeffsY));
@@ -1098,8 +1098,8 @@ TEST(NoiseModelGetGrainParameters, GetGrainParametersReal) {
     }
   }
 
-  aom_film_grain_t film_grain;
-  EXPECT_TRUE(aom_noise_model_get_grain_parameters(&model, &film_grain));
+  avm_film_grain_t film_grain;
+  EXPECT_TRUE(avm_noise_model_get_grain_parameters(&model, &film_grain));
   EXPECT_EQ(lag, film_grain.ar_coeff_lag);
   EXPECT_EQ(3, film_grain.ar_coeff_lag);
   EXPECT_EQ(7, film_grain.ar_coeff_shift);
@@ -1148,13 +1148,13 @@ TEST(NoiseModelGetGrainParameters, GetGrainParametersReal) {
   EXPECT_EQ(0, film_grain.fgm_scale_from_channel0_flag);
   EXPECT_EQ(0, film_grain.grain_scale_shift);
 
-  aom_noise_model_free(&model);
+  avm_noise_model_free(&model);
 }
 
 template <typename T>
 class WienerDenoiseTest : public ::testing::Test, public T {
  public:
-  static void SetUpTestSuite() { aom_dsp_rtcd(); }
+  static void SetUpTestSuite() { avm_dsp_rtcd(); }
 
  protected:
   void SetUp() {
@@ -1181,7 +1181,7 @@ class WienerDenoiseTest : public ::testing::Test, public T {
     };
     const int kLag = 2;
     const int kLength = 12;
-    libaom_test::ACMRandom random;
+    libavm_test::ACMRandom random;
     std::vector<double> noise(kWidth * kHeight);
     noise_synth(&random, kLag, kLength, kCoords, kCoeffsY, &noise[0], kWidth,
                 kHeight);
@@ -1192,7 +1192,7 @@ class WienerDenoiseTest : public ::testing::Test, public T {
     }
 
     float psd_value =
-        aom_noise_psd_get_default_value(kBlockSizeChroma, kNoiseLevel);
+        avm_noise_psd_get_default_value(kBlockSizeChroma, kNoiseLevel);
     for (int i = 0; i < kBlockSizeChroma * kBlockSizeChroma; ++i) {
       noise_psd_[1][i] = psd_value;
       noise_psd_[2][i] = psd_value;
@@ -1244,15 +1244,15 @@ TYPED_TEST_P(WienerDenoiseTest, InvalidBlockSize) {
     reinterpret_cast<uint8_t *>(&this->denoised_[2][0]),
   };
   EXPECT_EQ(
-      0, aom_wiener_denoise_2d(data_ptrs, denoised_ptrs, this->kWidth,
+      0, avm_wiener_denoise_2d(data_ptrs, denoised_ptrs, this->kWidth,
                                this->kHeight, this->stride_, this->chroma_sub_,
                                this->noise_psd_ptrs_, 18, this->kBitDepth));
   EXPECT_EQ(
-      0, aom_wiener_denoise_2d(data_ptrs, denoised_ptrs, this->kWidth,
+      0, avm_wiener_denoise_2d(data_ptrs, denoised_ptrs, this->kWidth,
                                this->kHeight, this->stride_, this->chroma_sub_,
                                this->noise_psd_ptrs_, 48, this->kBitDepth));
   EXPECT_EQ(
-      0, aom_wiener_denoise_2d(data_ptrs, denoised_ptrs, this->kWidth,
+      0, avm_wiener_denoise_2d(data_ptrs, denoised_ptrs, this->kWidth,
                                this->kHeight, this->stride_, this->chroma_sub_,
                                this->noise_psd_ptrs_, 64, this->kBitDepth));
 }
@@ -1270,14 +1270,14 @@ TYPED_TEST_P(WienerDenoiseTest, InvalidChromaSubsampling) {
   };
   int chroma_sub[2] = { 1, 0 };
   EXPECT_EQ(0,
-            aom_wiener_denoise_2d(data_ptrs, denoised_ptrs, this->kWidth,
+            avm_wiener_denoise_2d(data_ptrs, denoised_ptrs, this->kWidth,
                                   this->kHeight, this->stride_, chroma_sub,
                                   this->noise_psd_ptrs_, 32, this->kBitDepth));
 
   chroma_sub[0] = 0;
   chroma_sub[1] = 1;
   EXPECT_EQ(0,
-            aom_wiener_denoise_2d(data_ptrs, denoised_ptrs, this->kWidth,
+            avm_wiener_denoise_2d(data_ptrs, denoised_ptrs, this->kWidth,
                                   this->kHeight, this->stride_, chroma_sub,
                                   this->noise_psd_ptrs_, 32, this->kBitDepth));
 }
@@ -1296,7 +1296,7 @@ TYPED_TEST_P(WienerDenoiseTest, GradientTest) {
     reinterpret_cast<uint8_t *>(&this->denoised_[1][0]),
     reinterpret_cast<uint8_t *>(&this->denoised_[2][0]),
   };
-  const int ret = aom_wiener_denoise_2d(
+  const int ret = avm_wiener_denoise_2d(
       data_ptrs, denoised_ptrs, kWidth, kHeight, this->stride_,
       this->chroma_sub_, this->noise_psd_ptrs_, this->kBlockSize,
       this->kBitDepth);
@@ -1330,7 +1330,7 @@ TYPED_TEST_P(WienerDenoiseTest, GradientTest) {
       std::copy(this->noise_psd_[0].begin(), this->noise_psd_[0].end(),
                 noise_psd_d.begin());
       EXPECT_LT(
-          aom_normalized_cross_correlation(&measured_psd_d[0], &noise_psd_d[0],
+          avm_normalized_cross_correlation(&measured_psd_d[0], &noise_psd_d[0],
                                            (int)(noise_psd_d.size())),
           0.35);
     }

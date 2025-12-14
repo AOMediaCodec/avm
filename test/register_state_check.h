@@ -10,14 +10,14 @@
  * aomedia.org/license/patent-license/.
  */
 
-#ifndef AOM_TEST_REGISTER_STATE_CHECK_H_
-#define AOM_TEST_REGISTER_STATE_CHECK_H_
+#ifndef AVM_TEST_REGISTER_STATE_CHECK_H_
+#define AVM_TEST_REGISTER_STATE_CHECK_H_
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
-#include "config/aom_config.h"
+#include "config/avm_config.h"
 
-#include "aom/aom_integer.h"
+#include "avm/avm_integer.h"
 
 // ASM_REGISTER_STATE_CHECK(asm_function)
 //   Minimally validates the environment pre & post function execution. This
@@ -44,7 +44,7 @@ inline bool operator==(const M128A &lhs, const M128A &rhs) {
   return (lhs.Low == rhs.Low && lhs.High == rhs.High);
 }
 
-namespace libaom_test {
+namespace libavm_test {
 
 // Compares the state of xmm[6-15] at construction with their state at
 // destruction. These registers should be preserved by the callee on
@@ -85,27 +85,27 @@ class RegisterStateCheck {
 
 #define ASM_REGISTER_STATE_CHECK(statement)    \
   do {                                         \
-    libaom_test::RegisterStateCheck reg_check; \
+    libavm_test::RegisterStateCheck reg_check; \
     statement;                                 \
   } while (false)
 
-}  // namespace libaom_test
+}  // namespace libavm_test
 
 #else
 
-namespace libaom_test {
+namespace libavm_test {
 
 class RegisterStateCheck {};
 #define ASM_REGISTER_STATE_CHECK(statement) statement
 
-}  // namespace libaom_test
+}  // namespace libavm_test
 
 #endif  // _WIN64 && ARCH_X86_64
 
 #if ARCH_X86 || ARCH_X86_64
 #if defined(__GNUC__)
 
-namespace libaom_test {
+namespace libavm_test {
 
 // Checks the FPU tag word pre/post execution to ensure emms has been called.
 class RegisterStateCheckMMX {
@@ -133,11 +133,11 @@ class RegisterStateCheckMMX {
 
 #define API_REGISTER_STATE_CHECK(statement)       \
   do {                                            \
-    libaom_test::RegisterStateCheckMMX reg_check; \
+    libavm_test::RegisterStateCheckMMX reg_check; \
     ASM_REGISTER_STATE_CHECK(statement);          \
   } while (false)
 
-}  // namespace libaom_test
+}  // namespace libavm_test
 
 #endif  // __GNUC__
 #endif  // ARCH_X86 || ARCH_X86_64
@@ -146,4 +146,4 @@ class RegisterStateCheckMMX {
 #define API_REGISTER_STATE_CHECK ASM_REGISTER_STATE_CHECK
 #endif
 
-#endif  // AOM_TEST_REGISTER_STATE_CHECK_H_
+#endif  // AVM_TEST_REGISTER_STATE_CHECK_H_

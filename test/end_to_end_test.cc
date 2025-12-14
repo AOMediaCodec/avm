@@ -31,10 +31,10 @@ const int kBitrate = 500;
 // List of psnr thresholds for speed settings 0-7 and 5 encoding modes
 const double kPsnrThreshold[][5] = {
 // Note:
-// AV1 HBD average PSNR is slightly lower than AV1.
+// AV2 HBD average PSNR is slightly lower than AV2.
 // We make two cases here to enable the testing and
 // guard picture quality.
-#if CONFIG_AV1_ENCODER
+#if CONFIG_AV2_ENCODER
   { 36.0, 37.0, 37.0, 37.0, 37.0 }, { 31.0, 36.0, 36.0, 36.0, 36.0 },
   { 31.0, 35.0, 35.0, 35.0, 35.0 }, { 31.0, 34.0, 34.0, 34.0, 34.0 },
   { 31.0, 33.0, 33.0, 33.0, 33.0 }, { 31.0, 32.0, 32.0, 32.0, 32.0 },
@@ -44,14 +44,14 @@ const double kPsnrThreshold[][5] = {
   { 34.0, 35.0, 35.0, 35.0, 35.0 }, { 33.0, 34.0, 34.0, 34.0, 34.0 },
   { 32.0, 33.0, 33.0, 33.0, 33.0 }, { 31.0, 32.0, 32.0, 32.0, 32.0 },
   { 30.0, 31.0, 31.0, 31.0, 31.0 }, { 29.0, 30.0, 30.0, 30.0, 30.0 },
-#endif  // CONFIG_AV1_ENCODER
+#endif  // CONFIG_AV2_ENCODER
 };
 
 typedef struct {
   const char *filename;
   unsigned int input_bit_depth;
-  aom_img_fmt fmt;
-  aom_bit_depth_t bit_depth;
+  avm_img_fmt fmt;
+  avm_bit_depth_t bit_depth;
   unsigned int profile;
 } TestVideoParam;
 
@@ -63,20 +63,20 @@ std::ostream &operator<<(std::ostream &os, const TestVideoParam &test_arg) {
 }
 
 const TestVideoParam kTestVectors[] = {
-  { "park_joy_90p_8_420.y4m", 8, AOM_IMG_FMT_I420, AOM_BITS_8, 0 },
-  { "park_joy_90p_8_422.y4m", 8, AOM_IMG_FMT_I422, AOM_BITS_8, 2 },
-  { "park_joy_90p_8_444.y4m", 8, AOM_IMG_FMT_I444, AOM_BITS_8, 1 },
-  { "park_joy_90p_10_420.y4m", 10, AOM_IMG_FMT_I42016, AOM_BITS_10, 0 },
-  { "park_joy_90p_10_422.y4m", 10, AOM_IMG_FMT_I42216, AOM_BITS_10, 2 },
-  { "park_joy_90p_10_444.y4m", 10, AOM_IMG_FMT_I44416, AOM_BITS_10, 1 },
-  { "park_joy_90p_12_420.y4m", 12, AOM_IMG_FMT_I42016, AOM_BITS_12, 2 },
-  { "park_joy_90p_12_422.y4m", 12, AOM_IMG_FMT_I42216, AOM_BITS_12, 2 },
-  { "park_joy_90p_12_444.y4m", 12, AOM_IMG_FMT_I44416, AOM_BITS_12, 2 },
+  { "park_joy_90p_8_420.y4m", 8, AVM_IMG_FMT_I420, AVM_BITS_8, 0 },
+  { "park_joy_90p_8_422.y4m", 8, AVM_IMG_FMT_I422, AVM_BITS_8, 2 },
+  { "park_joy_90p_8_444.y4m", 8, AVM_IMG_FMT_I444, AVM_BITS_8, 1 },
+  { "park_joy_90p_10_420.y4m", 10, AVM_IMG_FMT_I42016, AVM_BITS_10, 0 },
+  { "park_joy_90p_10_422.y4m", 10, AVM_IMG_FMT_I42216, AVM_BITS_10, 2 },
+  { "park_joy_90p_10_444.y4m", 10, AVM_IMG_FMT_I44416, AVM_BITS_10, 1 },
+  { "park_joy_90p_12_420.y4m", 12, AVM_IMG_FMT_I42016, AVM_BITS_12, 2 },
+  { "park_joy_90p_12_422.y4m", 12, AVM_IMG_FMT_I42216, AVM_BITS_12, 2 },
+  { "park_joy_90p_12_444.y4m", 12, AVM_IMG_FMT_I44416, AVM_BITS_12, 2 },
 };
 
 // Encoding modes tested
-const libaom_test::TestMode kEncodingModeVectors[] = {
-  ::libaom_test::kOnePassGood,
+const libavm_test::TestMode kEncodingModeVectors[] = {
+  ::libavm_test::kOnePassGood,
 };
 
 // Speed settings tested
@@ -91,9 +91,9 @@ int is_extension_y4m(const char *filename) {
 }
 
 class EndToEndTest
-    : public ::libaom_test::CodecTestWith3Params<libaom_test::TestMode,
+    : public ::libavm_test::CodecTestWith3Params<libavm_test::TestMode,
                                                  TestVideoParam, int>,
-      public ::libaom_test::EncoderTest {
+      public ::libavm_test::EncoderTest {
  protected:
   EndToEndTest()
       : EncoderTest(GET_PARAM(0)), test_video_param_(GET_PARAM(2)),
@@ -106,7 +106,7 @@ class EndToEndTest
     InitializeConfig();
     SetMode(encoding_mode_);
     cfg_.g_lag_in_frames = 5;
-    cfg_.rc_end_usage = AOM_VBR;
+    cfg_.rc_end_usage = AVM_VBR;
     cfg_.rc_max_quantizer = 224;
   }
 
@@ -115,21 +115,21 @@ class EndToEndTest
     nframes_ = 0;
   }
 
-  virtual void PSNRPktHook(const aom_codec_cx_pkt_t *pkt) {
+  virtual void PSNRPktHook(const avm_codec_cx_pkt_t *pkt) {
     psnr_ += pkt->data.psnr.psnr[0];
     nframes_++;
   }
 
-  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
-                                  ::libaom_test::Encoder *encoder) {
+  virtual void PreEncodeFrameHook(::libavm_test::VideoSource *video,
+                                  ::libavm_test::Encoder *encoder) {
     if (video->frame() == 0) {
-      encoder->Control(AV1E_SET_FRAME_PARALLEL_DECODING, 1);
-      encoder->Control(AV1E_SET_TILE_COLUMNS, 4);
-      encoder->Control(AOME_SET_CPUUSED, cpu_used_);
-      encoder->Control(AV1E_SET_TUNE_CONTENT, AOM_CONTENT_DEFAULT);
-      encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
-      encoder->Control(AOME_SET_ARNR_MAXFRAMES, 7);
-      encoder->Control(AOME_SET_ARNR_STRENGTH, 5);
+      encoder->Control(AV2E_SET_FRAME_PARALLEL_DECODING, 1);
+      encoder->Control(AV2E_SET_TILE_COLUMNS, 4);
+      encoder->Control(AVME_SET_CPUUSED, cpu_used_);
+      encoder->Control(AV2E_SET_TUNE_CONTENT, AVM_CONTENT_DEFAULT);
+      encoder->Control(AVME_SET_ENABLEAUTOALTREF, 1);
+      encoder->Control(AVME_SET_ARNR_MAXFRAMES, 7);
+      encoder->Control(AVME_SET_ARNR_STRENGTH, 5);
     }
   }
 
@@ -148,14 +148,14 @@ class EndToEndTest
     cfg_.g_profile = test_video_param_.profile;
     cfg_.g_input_bit_depth = test_video_param_.input_bit_depth;
     cfg_.g_bit_depth = test_video_param_.bit_depth;
-    init_flags_ = AOM_CODEC_USE_PSNR;
+    init_flags_ = AVM_CODEC_USE_PSNR;
 
-    std::unique_ptr<libaom_test::VideoSource> video;
+    std::unique_ptr<libavm_test::VideoSource> video;
     if (is_extension_y4m(test_video_param_.filename)) {
-      video.reset(new libaom_test::Y4mVideoSource(test_video_param_.filename, 0,
+      video.reset(new libavm_test::Y4mVideoSource(test_video_param_.filename, 0,
                                                   kFrames));
     } else {
-      video.reset(new libaom_test::YUVVideoSource(
+      video.reset(new libavm_test::YUVVideoSource(
           test_video_param_.filename, test_video_param_.fmt, kWidth, kHeight,
           kFramerate, 1, 0, kFrames));
     }
@@ -173,7 +173,7 @@ class EndToEndTest
  private:
   double psnr_;
   unsigned int nframes_;
-  libaom_test::TestMode encoding_mode_;
+  libavm_test::TestMode encoding_mode_;
 };
 
 class EndToEndTestLarge : public EndToEndTest {};
@@ -182,12 +182,12 @@ TEST_P(EndToEndTestLarge, EndtoEndPSNRTest) { DoTest(); }
 
 TEST_P(EndToEndTest, EndtoEndPSNRTest) { DoTest(); }
 
-AV1_INSTANTIATE_TEST_SUITE(EndToEndTestLarge,
+AV2_INSTANTIATE_TEST_SUITE(EndToEndTestLarge,
                            ::testing::ValuesIn(kEncodingModeVectors),
                            ::testing::ValuesIn(kTestVectors),
                            ::testing::ValuesIn(kCpuUsedVectors));
 
-AV1_INSTANTIATE_TEST_SUITE(EndToEndTest,
+AV2_INSTANTIATE_TEST_SUITE(EndToEndTest,
                            ::testing::Values(kEncodingModeVectors[0]),
                            ::testing::Values(kTestVectors[2]),  // 444
                            ::testing::Values(kCpuUsedVectors[2]));

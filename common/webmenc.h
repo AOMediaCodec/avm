@@ -9,14 +9,14 @@
  * source code in the PATENTS file, you can obtain it at
  * aomedia.org/license/patent-license/.
  */
-#ifndef AOM_COMMON_WEBMENC_H_
-#define AOM_COMMON_WEBMENC_H_
+#ifndef AVM_COMMON_WEBMENC_H_
+#define AVM_COMMON_WEBMENC_H_
 
 #include <stdio.h>
 #include <stdlib.h>
 
 #include "tools_common.h"
-#include "aom/aom_encoder.h"
+#include "avm/avm_encoder.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -53,15 +53,15 @@ char *extract_encoder_settings(const char *version, const char **argv, int argc,
 // success, or -1 upon failure.
 
 int write_webm_file_header(struct WebmOutputContext *webm_ctx,
-                           aom_codec_ctx_t *encoder_ctx,
-                           const aom_codec_enc_cfg_t *cfg,
+                           avm_codec_ctx_t *encoder_ctx,
+                           const avm_codec_enc_cfg_t *cfg,
                            stereo_format_t stereo_fmt, unsigned int fourcc,
                            const struct AvxRational *par,
                            const char *encoder_settings);
 
 int write_webm_block(struct WebmOutputContext *webm_ctx,
-                     const aom_codec_enc_cfg_t *cfg,
-                     const aom_codec_cx_pkt_t *pkt);
+                     const avm_codec_enc_cfg_t *cfg,
+                     const avm_codec_cx_pkt_t *pkt);
 
 int write_webm_file_footer(struct WebmOutputContext *webm_ctx);
 
@@ -69,4 +69,4 @@ int write_webm_file_footer(struct WebmOutputContext *webm_ctx);
 }  // extern "C"
 #endif
 
-#endif  // AOM_COMMON_WEBMENC_H_
+#endif  // AVM_COMMON_WEBMENC_H_

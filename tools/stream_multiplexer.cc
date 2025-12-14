@@ -24,21 +24,21 @@ static int write_multi_stream_decoder_operation_obu(uint8_t *const dst,
                                                     int num_streams,
                                                     int *stream_ids,
                                                     int *stream_buffer_units) {
-  struct aom_write_bit_buffer wb = { dst, 0 };
+  struct avm_write_bit_buffer wb = { dst, 0 };
   int obu_type = OBU_MSDO;
   uint32_t size = 0;
 
-  aom_wb_write_literal(&wb, 1, 1);              // obu_extension_flag
-  aom_wb_write_literal(&wb, (int)obu_type, 5);  // obu_type
-  aom_wb_write_literal(&wb, 0, 2);              // obu_tlayer
-  aom_wb_write_literal(&wb, 0, 3);              // obu_mlayer
-  aom_wb_write_literal(&wb, 31, 5);             // obu_xlayer
+  avm_wb_write_literal(&wb, 1, 1);              // obu_extension_flag
+  avm_wb_write_literal(&wb, (int)obu_type, 5);  // obu_type
+  avm_wb_write_literal(&wb, 0, 2);              // obu_tlayer
+  avm_wb_write_literal(&wb, 0, 3);              // obu_mlayer
+  avm_wb_write_literal(&wb, 31, 5);             // obu_xlayer
 
-  aom_wb_write_literal(&wb, num_streams - 2, 3);  // signal number of streams
-  aom_wb_write_literal(&wb, 0, PROFILE_BITS);     // multistream_profile_idx
-  aom_wb_write_literal(&wb, SEQ_LEVEL_4_0,
+  avm_wb_write_literal(&wb, num_streams - 2, 3);  // signal number of streams
+  avm_wb_write_literal(&wb, 0, PROFILE_BITS);     // multistream_profile_idx
+  avm_wb_write_literal(&wb, SEQ_LEVEL_4_0,
                        LEVEL_BITS);  // multistream_level_idx
-  aom_wb_write_bit(&wb, 0);          // multistream_tier_idx
+  avm_wb_write_bit(&wb, 0);          // multistream_tier_idx
 
   int multistream_even_allocation_flag = 1;
   int multistream_large_picture_idc = 0;
@@ -53,41 +53,41 @@ static int write_multi_stream_decoder_operation_obu(uint8_t *const dst,
     }
   }
 
-  aom_wb_write_bit(
+  avm_wb_write_bit(
       &wb,
       multistream_even_allocation_flag);  // multistream_even_allocation_flag
   if (!multistream_even_allocation_flag)
-    aom_wb_write_literal(&wb, multistream_large_picture_idc,
+    avm_wb_write_literal(&wb, multistream_large_picture_idc,
                          3);  // multistream_large_picture_idc
 
   for (int i = 0; i < num_streams; i++) {
-    aom_wb_write_literal(&wb, stream_ids[i], XLAYER_BITS);  // signal stream IDs
-    aom_wb_write_literal(&wb, 0, PROFILE_BITS);  // substream profile_idx
-    aom_wb_write_literal(&wb, SEQ_LEVEL_4_0,
+    avm_wb_write_literal(&wb, stream_ids[i], XLAYER_BITS);  // signal stream IDs
+    avm_wb_write_literal(&wb, 0, PROFILE_BITS);  // substream profile_idx
+    avm_wb_write_literal(&wb, SEQ_LEVEL_4_0,
                          LEVEL_BITS);  // substream level_idx
-    aom_wb_write_bit(&wb, 0);          // substream tier_idx
+    avm_wb_write_bit(&wb, 0);          // substream tier_idx
   }
 
   if ((wb.bit_offset % CHAR_BIT == 0)) {
-    aom_wb_write_literal(&wb, 0x80, 8);
+    avm_wb_write_literal(&wb, 0x80, 8);
   } else {
     // assumes that the other bits are already 0s
-    aom_wb_write_bit(&wb, 1);
+    avm_wb_write_bit(&wb, 1);
   }
 
-  size = aom_wb_bytes_written(&wb);
+  size = avm_wb_bytes_written(&wb);
   return size;
 }
 
 static void write_obu_header_with_stream_id(uint8_t *const dst,
                                             ObuHeader *obu_header,
                                             int stream_id) {
-  struct aom_write_bit_buffer wb = { dst, 0 };
-  aom_wb_write_bit(&wb, 1);                                 // extention flag
-  aom_wb_write_literal(&wb, obu_header->type, 5);           // obu_type
-  aom_wb_write_literal(&wb, obu_header->obu_tlayer_id, 2);  // obu_temporal
-  aom_wb_write_literal(&wb, obu_header->obu_mlayer_id, 3);  // obu_mlayer
-  aom_wb_write_literal(&wb, stream_id, 5);                  // obu_xlayer
+  struct avm_write_bit_buffer wb = { dst, 0 };
+  avm_wb_write_bit(&wb, 1);                                 // extention flag
+  avm_wb_write_literal(&wb, obu_header->type, 5);           // obu_type
+  avm_wb_write_literal(&wb, obu_header->obu_tlayer_id, 2);  // obu_temporal
+  avm_wb_write_literal(&wb, obu_header->obu_mlayer_id, 3);  // obu_mlayer
+  avm_wb_write_literal(&wb, stream_id, 5);                  // obu_xlayer
 }
 
 // This function read a temporal unit from a sub-stream,
@@ -119,7 +119,7 @@ std::vector<uint8_t> WriteTU(const uint8_t *data, int length,
 
     memset(&obu_header, 0, sizeof(obu_header));
 
-    if (aom_uleb_decode(data + consumed, remaining, &obu_total_size,
+    if (avm_uleb_decode(data + consumed, remaining, &obu_total_size,
                         &length_field_size) != 0) {
       fprintf(stderr, "OBU size parsing failed at offset %d.\n", consumed);
     }
@@ -168,7 +168,7 @@ std::vector<uint8_t> WriteTU(const uint8_t *data, int length,
           stream_buffer_units);
       std::vector<uint8_t> multi_header_obu_size_data(length_field_size);
       size_t multi_header_length_field_size = 0;
-      aom_uleb_encode(multi_header_obu_size, sizeof(multi_header_obu_size),
+      avm_uleb_encode(multi_header_obu_size, sizeof(multi_header_obu_size),
                       multi_header_obu_size_data.data(),
                       &multi_header_length_field_size);
       tu_obus.insert(
@@ -182,7 +182,7 @@ std::vector<uint8_t> WriteTU(const uint8_t *data, int length,
     if (obu_header.type == OBU_TEMPORAL_DELIMITER) {
       std::vector<uint8_t> obu_size_data(length_field_size);
       size_t coded_obu_size;
-      aom_uleb_encode(obu_total_size, sizeof(obu_total_size),
+      avm_uleb_encode(obu_total_size, sizeof(obu_total_size),
                       obu_size_data.data(), &coded_obu_size);
       if (length_field_size != coded_obu_size)
         fprintf(stderr, "\nError: length_field_size != coded_obu_size\n");
@@ -191,7 +191,7 @@ std::vector<uint8_t> WriteTU(const uint8_t *data, int length,
     } else {
       std::vector<uint8_t> obu_size_data(length_field_size);
       size_t coded_obu_size;
-      aom_uleb_encode(obu_total_size + 1, sizeof(obu_total_size),
+      avm_uleb_encode(obu_total_size + 1, sizeof(obu_total_size),
                       obu_size_data.data(), &coded_obu_size);
       if (length_field_size != coded_obu_size)
         fprintf(stderr, "\nError: length_field_size != coded_obu_size\n");
@@ -221,7 +221,7 @@ int main(int argc, const char *argv[]) {
             "file2], [stream ID 2], [unit size 2], ... [outfile]\n",
             argv[0]);
     return -1;
-  } else if (argc > (AOM_MAX_NUM_STREAMS * 3 + 2)) {
+  } else if (argc > (AVM_MAX_NUM_STREAMS * 3 + 2)) {
     fprintf(stderr,
             "The number of input files cannot exceed the maximum number of "
             "streams (8)\n");
@@ -256,14 +256,14 @@ int main(int argc, const char *argv[]) {
     exit(1);
   }
 
-  InputContext input_ctx[AOM_MAX_NUM_STREAMS];
-  AvxInputContext avx_ctx[AOM_MAX_NUM_STREAMS];
-  ObuDecInputContext obu_ctx[AOM_MAX_NUM_STREAMS];
+  InputContext input_ctx[AVM_MAX_NUM_STREAMS];
+  AvxInputContext avx_ctx[AVM_MAX_NUM_STREAMS];
+  ObuDecInputContext obu_ctx[AVM_MAX_NUM_STREAMS];
 #if CONFIG_WEBM_IO
-  WebmInputContext webm_ctx[AOM_MAX_NUM_STREAMS];
+  WebmInputContext webm_ctx[AVM_MAX_NUM_STREAMS];
 #endif
   std::vector<uint8_t> segments;
-  FILE *fin[AOM_MAX_NUM_STREAMS];
+  FILE *fin[AVM_MAX_NUM_STREAMS];
 
   // Initialize file read for each stream
   for (int i = 0; i < num_streams; ++i) {
@@ -297,7 +297,7 @@ int main(int argc, const char *argv[]) {
 #endif  // PRINT_TU_INFO
 
   // Set the values of unit sizes of streams
-  int stream_ids[AOM_MAX_NUM_STREAMS];
+  int stream_ids[AVM_MAX_NUM_STREAMS];
 #if PRINT_TU_INFO
   printf("  Stream IDs: ");
 #endif  // PRINT_TU_INFO
@@ -312,7 +312,7 @@ int main(int argc, const char *argv[]) {
   printf("\n  Stream_buffer_units: ");
 #endif  // PRINT_TU_INFO
   // Set the values of unit sizes of streams
-  int stream_buffer_units[AOM_MAX_NUM_STREAMS];
+  int stream_buffer_units[AVM_MAX_NUM_STREAMS];
   for (int i = 0; i < num_streams; ++i) {
     stream_buffer_units[i] = atoi(argv[i * 3 + 3]);
 #if PRINT_TU_INFO
@@ -326,7 +326,7 @@ int main(int argc, const char *argv[]) {
   // Multiplex TUs of multi-streams
   int num_tu_read = 1;
   int num_total_tus = 0;
-  int unit_number[AOM_MAX_NUM_STREAMS];
+  int unit_number[AVM_MAX_NUM_STREAMS];
   for (int i = 0; i < num_streams; ++i) unit_number[i] = 0;
 
   while (num_tu_read) {

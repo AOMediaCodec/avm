@@ -13,17 +13,17 @@
 #include <assert.h>
 #include <tuple>
 
-#include "config/av1_rtcd.h"
+#include "config/av2_rtcd.h"
 
-#include "aom/aom_integer.h"
-#include "aom_ports/aom_timer.h"
+#include "avm/avm_integer.h"
+#include "avm_ports/avm_timer.h"
 #include "test/acm_random.h"
 #include "test/clear_system_state.h"
 #include "test/register_state_check.h"
 #include "test/util.h"
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
-using libaom_test::ACMRandom;
+using libavm_test::ACMRandom;
 
 namespace {
 #define CONVOLVE_ROUNDING_PARAM                                             \
@@ -71,17 +71,17 @@ class ConvolveRoundTest : public ::testing::TestWithParam<ConvolveRoundParam> {
   virtual void SetUp() {
     const size_t block_size = 128 * 128;
     src_ = reinterpret_cast<int32_t *>(
-        aom_memalign(16, block_size * sizeof(*src_)));
+        avm_memalign(16, block_size * sizeof(*src_)));
     dst_ref_ = reinterpret_cast<uint16_t *>(
-        aom_memalign(16, block_size * sizeof(*dst_ref_)));
+        avm_memalign(16, block_size * sizeof(*dst_ref_)));
     dst_ = reinterpret_cast<uint16_t *>(
-        aom_memalign(16, block_size * sizeof(*dst_)));
+        avm_memalign(16, block_size * sizeof(*dst_)));
   }
 
   virtual void TearDown() {
-    aom_free(src_);
-    aom_free(dst_ref_);
-    aom_free(dst_);
+    avm_free(src_);
+    avm_free(dst_ref_);
+    avm_free(dst_);
   }
 
   void ConvolveRoundingRun() {
@@ -157,14 +157,14 @@ TEST_P(ConvolveRoundTest, BitExactCheck) { ConvolveRoundingRun(); }
 using std::make_tuple;
 #if HAVE_AVX2
 const ConvolveRoundParam kConvRndParamArray[] = {
-  make_tuple(&highbd_convolve_rounding_8<av1_highbd_convolve_rounding_c>,
-             &highbd_convolve_rounding_8<av1_highbd_convolve_rounding_avx2>,
+  make_tuple(&highbd_convolve_rounding_8<av2_highbd_convolve_rounding_c>,
+             &highbd_convolve_rounding_8<av2_highbd_convolve_rounding_avx2>,
              HIGHBITDEPTH_TEST),
-  make_tuple(&highbd_convolve_rounding_10<av1_highbd_convolve_rounding_c>,
-             &highbd_convolve_rounding_10<av1_highbd_convolve_rounding_avx2>,
+  make_tuple(&highbd_convolve_rounding_10<av2_highbd_convolve_rounding_c>,
+             &highbd_convolve_rounding_10<av2_highbd_convolve_rounding_avx2>,
              HIGHBITDEPTH_TEST),
-  make_tuple(&highbd_convolve_rounding_12<av1_highbd_convolve_rounding_c>,
-             &highbd_convolve_rounding_12<av1_highbd_convolve_rounding_avx2>,
+  make_tuple(&highbd_convolve_rounding_12<av2_highbd_convolve_rounding_c>,
+             &highbd_convolve_rounding_12<av2_highbd_convolve_rounding_avx2>,
              HIGHBITDEPTH_TEST)
 };
 INSTANTIATE_TEST_SUITE_P(AVX2, ConvolveRoundTest,

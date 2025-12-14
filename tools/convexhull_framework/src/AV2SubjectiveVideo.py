@@ -23,7 +23,7 @@ SUBJECTIVE_CLIPS = {
             "GregoryCactus_fr216_515_1080x1920_30p_420_10b_SDR.y4m",
             "GregoryFence_fr0_299_1080x1920_30p_420_10b_SDR.y4m",
             "Marathon2_3840x2160_30fps_10bit_420pf.y4m",
-            "meridian_aom_sdr_11872-12263.y4m",
+            "meridian_avm_sdr_11872-12263.y4m",
             "Metro_1920x1080_60fps_10bit_420.y4m",
             "MountainBay2_3840x2160_30fps_420_10bit.y4m",
             "TallBuildings2_3840x2160_30fps_10bit_420pf.y4m",

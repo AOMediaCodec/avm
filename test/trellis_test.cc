@@ -18,15 +18,15 @@
 #include "test/register_state_check.h"
 #include "test/function_equivalence_test.h"
 
-#include "config/aom_config.h"
-#include "config/aom_dsp_rtcd.h"
-#include "config/av1_rtcd.h"
+#include "config/avm_config.h"
+#include "config/avm_dsp_rtcd.h"
+#include "config/av2_rtcd.h"
 
-#include "aom/aom_integer.h"
-#include "av1/common/enums.h"
-#include "av1/encoder/trellis_quant.h"
+#include "avm/avm_integer.h"
+#include "av2/common/enums.h"
+#include "av2/encoder/trellis_quant.h"
 
-using libaom_test::FunctionEquivalenceTest;
+using libavm_test::FunctionEquivalenceTest;
 
 namespace {
 
@@ -64,7 +64,7 @@ typedef void (*TcqRateLuma)(const struct tcq_param_t *p,
                             const struct tcq_coeff_ctx_t *coeff_ctx,
                             int blk_pos, int diag_ctx, int eob_rate,
                             struct tcq_rate_t *rd);
-typedef libaom_test::FuncParam<TcqRateLuma> TcqRateLumaTestFuncs;
+typedef libavm_test::FuncParam<TcqRateLuma> TcqRateLumaTestFuncs;
 
 class TcqRateLumaTest : public TcqRateTest<TcqRateLuma, tcq_rate_t> {
  protected:
@@ -89,7 +89,7 @@ typedef void (*TcqRateLfLuma)(const struct tcq_param_t *p,
                               const struct tcq_coeff_ctx_t *coeff_ctx,
                               int blk_pos, int diag_ctx, int eob_rate,
                               int coeff_sign, struct tcq_rate_t *rd);
-typedef libaom_test::FuncParam<TcqRateLfLuma> TcqRateLfLumaTestFuncs;
+typedef libavm_test::FuncParam<TcqRateLfLuma> TcqRateLfLumaTestFuncs;
 
 class TcqRateLfLumaTest : public TcqRateTest<TcqRateLfLuma, tcq_rate_t> {
  protected:
@@ -111,7 +111,7 @@ class TcqRateLfLumaTest : public TcqRateTest<TcqRateLfLuma, tcq_rate_t> {
   int tmp_sign_[1024];
 };
 
-static int generate_random_q_idx(libaom_test::ACMRandom *rng) {
+static int generate_random_q_idx(libavm_test::ACMRandom *rng) {
   int r1 = rng->Rand8() & 15;
   int r2 = (r1 == 15) ? rng->Rand8() & 15 : 0;
   int r3 = (r2 == 15) ? rng->Rand16() & 8191 : 0;
@@ -122,7 +122,7 @@ static int generate_random_q_idx(libaom_test::ACMRandom *rng) {
 // Init coeff syntax costs randomly
 // - base_cost[], lps_cost[], base_eob_cost[]
 // - base_cost_zero[], base_cost_low_tbl[], base_eob_cost_tbl[], mid_cost_tbl[]
-static void generate_random_cost_tables(libaom_test::ACMRandom *rng,
+static void generate_random_cost_tables(libavm_test::ACMRandom *rng,
                                         LV_MAP_COEFF_COST *txb_costs) {
   int max = 2048 - 1;
   int n;
@@ -174,7 +174,7 @@ static void generate_random_cost_tables(libaom_test::ACMRandom *rng,
   }
 
   // Rearrange costs into base_cost_zero[] array for quicker access.
-  // (from av1/encoder/rd.c)
+  // (from av2/encoder/rd.c)
   for (int q_i = 0; q_i < TCQ_CTXS; q_i++) {
     for (int ctx = 0; ctx < SIG_COEF_CONTEXTS; ++ctx) {
       txb_costs->base_cost_zero[q_i][ctx] = txb_costs->base_cost[ctx][q_i][0];
@@ -207,54 +207,54 @@ static void generate_random_cost_tables(libaom_test::ACMRandom *rng,
     { 8, 9, 9, 8 },  // qidx=15
   };
   for (int idx = 0; idx < 5; idx++) {
-    int a0 = AOMMIN(trel_abslev[idx][0], 3);
-    int a1 = AOMMIN(trel_abslev[idx][1], 3);
-    int a2 = AOMMIN(trel_abslev[idx][2], 3);
-    int a3 = AOMMIN(trel_abslev[idx][3], 3);
+    int a0 = AVMMIN(trel_abslev[idx][0], 3);
+    int a1 = AVMMIN(trel_abslev[idx][1], 3);
+    int a2 = AVMMIN(trel_abslev[idx][2], 3);
+    int a3 = AVMMIN(trel_abslev[idx][3], 3);
     for (int ctx = 0; ctx < SIG_COEF_CONTEXTS; ++ctx) {
       // Q0, absLev 0 / 2
       txb_costs->base_cost_low_tbl[idx][ctx][0][0] =
-          txb_costs->base_cost[ctx][0][a0] + av1_cost_literal(1);
+          txb_costs->base_cost[ctx][0][a0] + av2_cost_literal(1);
       txb_costs->base_cost_low_tbl[idx][ctx][0][1] =
-          txb_costs->base_cost[ctx][0][a2] + av1_cost_literal(1);
+          txb_costs->base_cost[ctx][0][a2] + av2_cost_literal(1);
       // Q1, absLev 1 / 3
       txb_costs->base_cost_low_tbl[idx][ctx][1][0] =
-          txb_costs->base_cost[ctx][1][a1] + av1_cost_literal(1);
+          txb_costs->base_cost[ctx][1][a1] + av2_cost_literal(1);
       txb_costs->base_cost_low_tbl[idx][ctx][1][1] =
-          txb_costs->base_cost[ctx][1][a3] + av1_cost_literal(1);
+          txb_costs->base_cost[ctx][1][a3] + av2_cost_literal(1);
     }
     for (int ctx = 0; ctx < SIG_COEF_CONTEXTS_EOB; ++ctx) {
       // EOB coeff, absLev 0 / 2
       txb_costs->base_eob_cost_tbl[idx][ctx][0] =
-          txb_costs->base_eob_cost[ctx][a0 - 1] + av1_cost_literal(1);
+          txb_costs->base_eob_cost[ctx][a0 - 1] + av2_cost_literal(1);
       txb_costs->base_eob_cost_tbl[idx][ctx][1] =
-          txb_costs->base_eob_cost[ctx][a2 - 1] + av1_cost_literal(1);
+          txb_costs->base_eob_cost[ctx][a2 - 1] + av2_cost_literal(1);
     }
   }
   for (int idx = 0; idx < 9; idx++) {
     int max = LF_BASE_SYMBOLS - 1;
-    int a0 = AOMMIN(trel_abslev[idx][0], max);
-    int a1 = AOMMIN(trel_abslev[idx][1], max);
-    int a2 = AOMMIN(trel_abslev[idx][2], max);
-    int a3 = AOMMIN(trel_abslev[idx][3], max);
+    int a0 = AVMMIN(trel_abslev[idx][0], max);
+    int a1 = AVMMIN(trel_abslev[idx][1], max);
+    int a2 = AVMMIN(trel_abslev[idx][2], max);
+    int a3 = AVMMIN(trel_abslev[idx][3], max);
     for (int ctx = 0; ctx < LF_SIG_COEF_CONTEXTS; ++ctx) {
       // Q0, absLev 0 / 2
       txb_costs->base_lf_cost_low_tbl[idx][ctx][0][0] =
-          txb_costs->base_lf_cost[ctx][0][a0] + av1_cost_literal(1);
+          txb_costs->base_lf_cost[ctx][0][a0] + av2_cost_literal(1);
       txb_costs->base_lf_cost_low_tbl[idx][ctx][0][1] =
-          txb_costs->base_lf_cost[ctx][0][a2] + av1_cost_literal(1);
+          txb_costs->base_lf_cost[ctx][0][a2] + av2_cost_literal(1);
       // Q1, absLev 1 / 3
       txb_costs->base_lf_cost_low_tbl[idx][ctx][1][0] =
-          txb_costs->base_lf_cost[ctx][1][a1] + av1_cost_literal(1);
+          txb_costs->base_lf_cost[ctx][1][a1] + av2_cost_literal(1);
       txb_costs->base_lf_cost_low_tbl[idx][ctx][1][1] =
-          txb_costs->base_lf_cost[ctx][1][a3] + av1_cost_literal(1);
+          txb_costs->base_lf_cost[ctx][1][a3] + av2_cost_literal(1);
     }
     for (int ctx = 0; ctx < SIG_COEF_CONTEXTS_EOB; ++ctx) {
       // EOB coeff, absLev 0 / 2
       txb_costs->base_lf_eob_cost_tbl[idx][ctx][0] =
-          txb_costs->base_lf_eob_cost[ctx][a0 - 1] + av1_cost_literal(1);
+          txb_costs->base_lf_eob_cost[ctx][a0 - 1] + av2_cost_literal(1);
       txb_costs->base_lf_eob_cost_tbl[idx][ctx][1] =
-          txb_costs->base_lf_eob_cost[ctx][a2 - 1] + av1_cost_literal(1);
+          txb_costs->base_lf_eob_cost[ctx][a2 - 1] + av2_cost_literal(1);
     }
   }
   // Precalc mid costs for default region.
@@ -311,8 +311,8 @@ TEST_P(TcqRateLumaTest, RandomValues) {
     int max = (1 << bwl) - 1;
     int row = rng_.Rand8() & max;
     int col = rng_.Rand8() & max;
-    row = AOMMAX(row, 4);
-    col = AOMMAX(col, 4);
+    row = AVMMAX(row, 4);
+    col = AVMMAX(col, 4);
     int blk_pos = (row << bwl) + col;
     int scan_pos = blk_pos;
     int diag_ctx = get_nz_map_ctx_from_stats(0, blk_pos, bwl, TX_CLASS_2D, 0);
@@ -328,7 +328,7 @@ TEST_P(TcqRateLumaTest, RandomValues) {
     generate_random_cost_tables(&rng_, &txb_costs_);
 
     // Generate pre_quant info with random coeff.
-    av1_pre_quant_c(tqc, &pre_quant_, quant, dqv, log_scale, scan_pos);
+    av2_pre_quant_c(tqc, &pre_quant_, quant, dqv, log_scale, scan_pos);
     eob_rate_ = rng_(512 * 4);
 
     // Generate random coeff_ctx
@@ -380,7 +380,7 @@ TEST_P(TcqRateLfLumaTest, RandomValues) {
     generate_random_cost_tables(&rng_, &txb_costs_);
 
     // Generate pre_quant info with random coeff.
-    av1_pre_quant_c(tqc, &pre_quant_, quant, dqv, log_scale, scan_pos);
+    av2_pre_quant_c(tqc, &pre_quant_, quant, dqv, log_scale, scan_pos);
     eob_rate_ = rng_(512 * 4);
 
     // Generate random coeff_ctx
@@ -399,13 +399,13 @@ TEST_P(TcqRateLfLumaTest, RandomValues) {
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
     AVX2, TcqRateLumaTest,
-    ::testing::Values(TcqRateLumaTestFuncs(av1_get_rate_dist_def_luma_c,
-                                           av1_get_rate_dist_def_luma_avx2)));
+    ::testing::Values(TcqRateLumaTestFuncs(av2_get_rate_dist_def_luma_c,
+                                           av2_get_rate_dist_def_luma_avx2)));
 
 INSTANTIATE_TEST_SUITE_P(
     AVX2, TcqRateLfLumaTest,
-    ::testing::Values(TcqRateLfLumaTestFuncs(av1_get_rate_dist_lf_luma_c,
-                                             av1_get_rate_dist_lf_luma_avx2)));
+    ::testing::Values(TcqRateLfLumaTestFuncs(av2_get_rate_dist_lf_luma_c,
+                                             av2_get_rate_dist_lf_luma_avx2)));
 #endif  // HAVE_AVX2
 
 }  // namespace

@@ -12,15 +12,15 @@
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
-#include "config/aom_config.h"
+#include "config/avm_config.h"
 
-#include "aom_mem/aom_mem.h"
-#include "av1/common/av1_common_int.h"
-#include "av1/common/blockd.h"
-#include "av1/common/enums.h"
-#include "av1/common/mv.h"
-#include "av1/common/mvref_common.h"
-#include "av1/common/tile_common.h"
+#include "avm_mem/avm_mem.h"
+#include "av2/common/av2_common_int.h"
+#include "av2/common/blockd.h"
+#include "av2/common/enums.h"
+#include "av2/common/mv.h"
+#include "av2/common/mvref_common.h"
+#include "av2/common/tile_common.h"
 
 namespace {
 TEST(IntrabcTest, DvValidation) {
@@ -145,7 +145,7 @@ TEST(IntrabcTest, DvValidation) {
   };
 
   auto xd = reinterpret_cast<MACROBLOCKD *>(
-      aom_memalign(alignof(MACROBLOCKD), sizeof(MACROBLOCKD)));
+      avm_memalign(alignof(MACROBLOCKD), sizeof(MACROBLOCKD)));
   ASSERT_NE(xd, nullptr);
   memset(xd, 0, sizeof(*xd));
   xd->tile.mi_row_start = 8 * MAX_MIB_SIZE;
@@ -158,8 +158,8 @@ TEST(IntrabcTest, DvValidation) {
   xd->plane[2].subsampling_y = 1;
   xd->mi = NULL;
 
-  auto cm = reinterpret_cast<AV1_COMMON *>(
-      aom_memalign(alignof(AV1_COMMON), sizeof(AV1_COMMON)));
+  auto cm = reinterpret_cast<AV2_COMMON *>(
+      avm_memalign(alignof(AV2_COMMON), sizeof(AV2_COMMON)));
   ASSERT_NE(cm, nullptr);
   memset(cm, 0, sizeof(*cm));
   cm->features.allow_global_intrabc = 1;
@@ -169,11 +169,11 @@ TEST(IntrabcTest, DvValidation) {
     const int mi_col = xd->tile.mi_col_start + dv_case.mi_col_offset;
     xd->is_chroma_ref = 1;
     EXPECT_EQ(static_cast<int>(dv_case.valid),
-              av1_is_dv_valid(dv_case.dv, cm, xd, mi_row, mi_col, dv_case.bsize,
+              av2_is_dv_valid(dv_case.dv, cm, xd, mi_row, mi_col, dv_case.bsize,
                               MAX_MIB_SIZE_LOG2));
   }
 
-  aom_free(xd);
-  aom_free(cm);
+  avm_free(xd);
+  avm_free(cm);
 }
 }  // namespace

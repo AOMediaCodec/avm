@@ -3,55 +3,55 @@
 # For documentation of the format, see:
 # https://clang.llvm.org/docs/UndefinedBehaviorSanitizer.html#issue-suppression
 
-# av1/encoder/x86/pickrst_sse4.c
+# av2/encoder/x86/pickrst_sse4.c
 alignment:acc_stat_highbd_win7_one_line_sse4_1
 alignment:acc_stat_highbd_win5_one_line_sse4_1
 alignment:acc_stat_win7_one_line_sse4_1
 alignment:acc_stat_win5_one_line_sse4_1
 
-# av1/encoder/x86/rdopt_sse4.c
+# av2/encoder/x86/rdopt_sse4.c
 alignment:horver_correlation_4x4
 
-# av1/common/x86/convolve_sse2.c
-alignment:av1_convolve_y_sr_sse2
+# av2/common/x86/convolve_sse2.c
+alignment:av2_convolve_y_sr_sse2
 
-# aom_dsp/x86/blend_a64_mask_sse4.c
+# avm_dsp/x86/blend_a64_mask_sse4.c
 alignment:highbd_blend_a64_d16_mask_w4_sse4_1
 
-# aom_dsp/x86/blend_a64_mask_avx2.c
+# avm_dsp/x86/blend_a64_mask_avx2.c
 alignment:highbd_blend_a64_d16_mask_w4_avx2
 
-# av1/common/reconintra.c
+# av2/common/reconintra.c
 implicit-signed-integer-truncation:get_y_intra_mode_set
 implicit-signed-integer-truncation:get_uv_intra_mode_set
 
 # A few similar errors in this file.
-implicit-signed-integer-truncation:av1/common/x86/optflow_refine_sse4.c
+implicit-signed-integer-truncation:av2/common/x86/optflow_refine_sse4.c
 
-# av1/common/mvref_common.h
-implicit-signed-integer-truncation:av1_collect_neighbors_ref_counts
+# av2/common/mvref_common.h
+implicit-signed-integer-truncation:av2_collect_neighbors_ref_counts
 
-# av1/encoder/x86/av1_fwd_txfm_sse2.c
-implicit-signed-integer-truncation:av1_fdct8x64_new_sse2
+# av2/encoder/x86/av2_fwd_txfm_sse2.c
+implicit-signed-integer-truncation:av2_fdct8x64_new_sse2
 
 # nullptr-with-offset warnings.
 pointer-overflow:vfilter8
 pointer-overflow:highbd_vfilter8
 
 # nullptr-with-nonzero-offset warning.
-pointer-overflow:av1_set_mv_search_method
+pointer-overflow:av2_set_mv_search_method
 
 # Files with 'invalid-shift-base' warnings.
-shift-base:aom_dsp/simd/*_intrinsics_c.h
-shift-base:aom_dsp/x86/txfm_common_avx2.h
-shift-base:av1/common/x86/av1_inv_txfm_ssse3.c
-shift-base:av1/encoder/hash.c
-shift-base:av1/encoder/rdopt_utils.h
-shift-base:av1/encoder/tx_search.c
-shift-base:av1/encoder/x86/av1_fwd_txfm2d_avx2.c
-shift-base:av1/encoder/x86/av1_fwd_txfm_sse2.c
-shift-base:av1/encoder/x86/pickrst_avx2.c
-shift-base:av1/encoder/x86/pickrst_sse4.c
+shift-base:avm_dsp/simd/*_intrinsics_c.h
+shift-base:avm_dsp/x86/txfm_common_avx2.h
+shift-base:av2/common/x86/av2_inv_txfm_ssse3.c
+shift-base:av2/encoder/hash.c
+shift-base:av2/encoder/rdopt_utils.h
+shift-base:av2/encoder/tx_search.c
+shift-base:av2/encoder/x86/av2_fwd_txfm2d_avx2.c
+shift-base:av2/encoder/x86/av2_fwd_txfm_sse2.c
+shift-base:av2/encoder/x86/pickrst_avx2.c
+shift-base:av2/encoder/x86/pickrst_sse4.c
 shift-base:common/md5_utils.c
 shift-base:test/simd_cmp_impl.h
 

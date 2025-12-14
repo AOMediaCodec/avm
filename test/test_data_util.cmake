@@ -11,7 +11,7 @@
 
 list(
   APPEND
-  AOM_TEST_DATA_FILE_NAMES
+  AVM_TEST_DATA_FILE_NAMES
   "Debugging_480x270p3000_yuv420p_20frames.yuv"
   "desktop1.320_180.yuv"
   "hantro_collage_w352h288.yuv"
@@ -38,14 +38,14 @@ list(
   "vase10x10.yuv"
   "vase10x10_tiles.txt")
 
-if(ENABLE_DECODE_PERF_TESTS AND CONFIG_AV1_ENCODER)
-  list(APPEND AOM_TEST_DATA_FILE_NAMES "niklas_1280_720_30.yuv")
+if(ENABLE_DECODE_PERF_TESTS AND CONFIG_AV2_ENCODER)
+  list(APPEND AVM_TEST_DATA_FILE_NAMES "niklas_1280_720_30.yuv")
 endif()
 
-if(CONFIG_AV1_DECODER)
+if(CONFIG_AV2_DECODER)
   list(
     APPEND
-    AOM_TEST_DATA_FILE_NAMES
+    AVM_TEST_DATA_FILE_NAMES
     "av1-1-b8-00-quantizer-00.ivf"
     "av1-1-b8-00-quantizer-00.ivf.md5"
     "av1-1-b8-00-quantizer-01.ivf"
@@ -573,10 +573,10 @@ if(CONFIG_AV1_DECODER)
     "invalid-oss-fuzz-9720.ivf.res")
 endif()
 
-if(ENABLE_ENCODE_PERF_TESTS AND CONFIG_AV1_ENCODER)
+if(ENABLE_ENCODE_PERF_TESTS AND CONFIG_AV2_ENCODER)
   list(
     APPEND
-    AOM_TEST_DATA_FILE_NAMES
+    AVM_TEST_DATA_FILE_NAMES
     "desktop_640_360_30.yuv"
     "kirland_640_480_30.yuv"
     "macmarcomoving_640_480_30.yuv"
@@ -606,7 +606,7 @@ function(make_test_data_lists test_data_file out_files out_checksums)
     string(SUBSTRING "${line}" 0 ${delim_pos} checksum)
     string(SUBSTRING "${line}" ${filename_pos} -1 filename)
 
-    list(FIND AOM_TEST_DATA_FILE_NAMES ${filename} list_index)
+    list(FIND AVM_TEST_DATA_FILE_NAMES ${filename} list_index)
     if(NOT ${list_index} EQUAL -1)
 
       # Include the name and checksum in output only when the file is needed.

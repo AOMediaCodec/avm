@@ -12,8 +12,8 @@ aomedia.org/license/patent-license/.
 import numpy as np
 
 from parakit.entropy.codec_default_cdf import (
-    AV1_PROB_COST,
-    AV1_PROB_COST_SHIFT,
+    AV2_PROB_COST,
+    AV2_PROB_COST_SHIFT,
     CDF_INIT_TOP,
     CDF_PROB_BITS,
     CDF_PROB_TOP,
@@ -34,10 +34,10 @@ def flog2(x):
     return x.bit_length() - 1
 
 
-def update_cdfinv_av1(cdf, val, counter, nsymb, roffset=0):
+def update_cdfinv_av2(cdf, val, counter, nsymb, roffset=0):
     """Python implementation of the following C code from AVM codec:
     --------------------------------------------------------------
-    static INLINE void update_cdf(aom_cdf_prob *cdf, int8_t val, int nsymbs) {
+    static INLINE void update_cdf(avm_cdf_prob *cdf, int8_t val, int nsymbs) {
     int rate;
     int i, tmp;
     static const int nsymbs2speed[17] = { 0, 0, 1, 1, 2, 2, 2, 2, 2,
@@ -45,7 +45,7 @@ def update_cdfinv_av1(cdf, val, counter, nsymb, roffset=0):
     assert(nsymbs < 17);
     rate = 3 + (cdf[nsymbs] > 15) + (cdf[nsymbs] > 31) +
             nsymbs2speed[nsymbs];  // + get_msb(nsymbs);
-    tmp = AOM_ICDF(0);
+    tmp = AVM_ICDF(0);
     // Single loop (faster)
     for (i = 0; i < nsymbs - 1; ++i) {
         tmp = (i == val) ? 0 : tmp;
@@ -99,28 +99,28 @@ def get_prob(num, den):
     return p
 
 
-def cost_literal_av1(n):
+def cost_literal_av2(n):
     """Python implementation of the following C code from AVM codec:
     --------------------------------------------------------------
-    define av1_cost_literal(n) ((n) * (1 << AV1_PROB_COST_SHIFT))
+    define av2_cost_literal(n) ((n) * (1 << AV2_PROB_COST_SHIFT))
     --------------------------------------------------------------
     """
-    return n * (2**AV1_PROB_COST_SHIFT)
+    return n * (2**AV2_PROB_COST_SHIFT)
 
 
-def cost_symbol_av1(p15):
+def cost_symbol_av2(p15):
     """Python implementation of the following C code from AVM codec:
     --------------------------------------------------------------
-    static INLINE int av1_cost_symbol(aom_cdf_prob p15) {
+    static INLINE int av2_cost_symbol(avm_cdf_prob p15) {
       // p15 can be out of range [1, CDF_PROB_TOP - 1]. Clamping it, so that the
       // following cost calculation works correctly. Otherwise, if p15 =
       // CDF_PROB_TOP, shift would be -1, and "p15 << shift" would be wrong.
-      p15 = (aom_cdf_prob)clamp(p15, 1, CDF_PROB_TOP - 1);
+      p15 = (avm_cdf_prob)clamp(p15, 1, CDF_PROB_TOP - 1);
       assert(0 < p15 && p15 < CDF_PROB_TOP);
       const int shift = CDF_PROB_BITS - 1 - get_msb(p15);
       const int prob = get_prob(p15 << shift, CDF_PROB_TOP);
       assert(prob >= 128);
-      return av1_prob_cost[prob - 128] + av1_cost_literal(shift);
+      return av2_prob_cost[prob - 128] + av2_cost_literal(shift);
     }
     --------------------------------------------------------------
     """
@@ -136,38 +136,38 @@ def cost_symbol_av1(p15):
         raise ValueError(
             f"Normalized probability value is less than 128 (prob={prob},msb={msb},prob_scaled={prob_scaled})"
         )
-    return AV1_PROB_COST[prob - 128] + cost_literal_av1(shift)
+    return AV2_PROB_COST[prob - 128] + cost_literal_av2(shift)
 
 
-def pmf2cdfinv_av1(pmf):
+def pmf2cdfinv_av2(pmf):
     """converts pmf to cdf-inverse"""
     cdf = CDF_INIT_TOP - np.cumsum(pmf)
     return cdf
 
 
-def cdfinv2pmf_av1(cdf_inv):
+def cdfinv2pmf_av2(cdf_inv):
     """converts cdf-inverse to pmf"""
     cdf = np.insert(cdf_inv, 0, CDF_INIT_TOP)
     pmf = np.diff(CDF_INIT_TOP - cdf)
     return pmf
 
 
-def pmf2cdf_av1(pmf):
+def pmf2cdf_av2(pmf):
     """converts pmf to cdf"""
-    return CDF_INIT_TOP - pmf2cdfinv_av1(pmf)
+    return CDF_INIT_TOP - pmf2cdfinv_av2(pmf)
 
 
-def cdf2pmf_av1(cdf):
+def cdf2pmf_av2(cdf):
     """converts cdf to pmf"""
     cdf_ext = np.insert(cdf, 0, 0)
     pmf = np.diff(cdf_ext)
     return pmf
 
 
-def count2cdf_av1(value_count):
+def count2cdf_av2(value_count):
     """Python implementation of the following C code from AVM codec:
     --------------------------------------------------------------
-    static void counts_to_cdf(const aom_count_type *counts, aom_cdf_prob *cdf, int modes) {
+    static void counts_to_cdf(const avm_count_type *counts, avm_cdf_prob *cdf, int modes) {
         int64_t csum[CDF_MAX_SIZE];
         assert(modes <= CDF_MAX_SIZE);
 
@@ -181,8 +181,8 @@ def count2cdf_av1(value_count):
         const int64_t round_shift = sum >> 1;
         for (int i = 0; i < modes; ++i) {
             cdf[i] = (csum[i] * CDF_PROB_TOP + round_shift) / sum;
-            cdf[i] = AOMMIN(cdf[i], CDF_PROB_TOP - (modes - 1 + i) * 4);
-            cdf[i] = (i == 0) ? AOMMAX(cdf[i], 4) : AOMMAX(cdf[i], cdf[i - 1] + 4);
+            cdf[i] = AVMMIN(cdf[i], CDF_PROB_TOP - (modes - 1 + i) * 4);
+            cdf[i] = (i == 0) ? AVMMAX(cdf[i], 4) : AVMMAX(cdf[i], cdf[i - 1] + 4);
         }
     }
     --------------------------------------------------------------

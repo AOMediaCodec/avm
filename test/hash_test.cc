@@ -14,11 +14,11 @@
 #include <new>
 #include <tuple>
 
-#include "config/aom_config.h"
-#include "config/av1_rtcd.h"
+#include "config/avm_config.h"
+#include "config/av2_rtcd.h"
 
-#include "aom_ports/aom_timer.h"
-#include "av1/encoder/hash.h"
+#include "avm_ports/avm_timer.h"
+#include "av2/encoder/hash.h"
 #include "test/acm_random.h"
 #include "test/util.h"
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
@@ -30,9 +30,9 @@ typedef uint32_t (*get_crc32c_value_func)(void *calculator, uint8_t *p,
 
 typedef std::tuple<get_crc32c_value_func, int> HashParam;
 
-class AV1Crc32cHashTest : public ::testing::TestWithParam<HashParam> {
+class AV2Crc32cHashTest : public ::testing::TestWithParam<HashParam> {
  public:
-  ~AV1Crc32cHashTest();
+  ~AV2Crc32cHashTest();
   void SetUp();
 
   void TearDown();
@@ -43,18 +43,18 @@ class AV1Crc32cHashTest : public ::testing::TestWithParam<HashParam> {
 
   void RunZeroTest(get_crc32c_value_func test_impl);
 
-  libaom_test::ACMRandom rnd_;
+  libavm_test::ACMRandom rnd_;
   CRC32C calc_;
   uint8_t *buffer_;
   int bsize_;
   size_t length_;
 };
 
-AV1Crc32cHashTest::~AV1Crc32cHashTest() { ; }
+AV2Crc32cHashTest::~AV2Crc32cHashTest() { ; }
 
-void AV1Crc32cHashTest::SetUp() {
-  rnd_.Reset(libaom_test::ACMRandom::DeterministicSeed());
-  av1_crc32c_calculator_init(&calc_);
+void AV2Crc32cHashTest::SetUp() {
+  rnd_.Reset(libavm_test::ACMRandom::DeterministicSeed());
+  av2_crc32c_calculator_init(&calc_);
 
   bsize_ = GET_PARAM(1);
   length_ = bsize_ * bsize_ * sizeof(uint16_t);
@@ -65,10 +65,10 @@ void AV1Crc32cHashTest::SetUp() {
   }
 }
 
-void AV1Crc32cHashTest::TearDown() { delete[] buffer_; }
+void AV2Crc32cHashTest::TearDown() { delete[] buffer_; }
 
-void AV1Crc32cHashTest::RunCheckOutput(get_crc32c_value_func test_impl) {
-  get_crc32c_value_func ref_impl = av1_get_crc32c_value_c;
+void AV2Crc32cHashTest::RunCheckOutput(get_crc32c_value_func test_impl) {
+  get_crc32c_value_func ref_impl = av2_get_crc32c_value_c;
   // for the same buffer crc should be the same
   uint32_t crc0 = test_impl(&calc_, buffer_, length_);
   uint32_t crc1 = test_impl(&calc_, buffer_, length_);
@@ -83,25 +83,25 @@ void AV1Crc32cHashTest::RunCheckOutput(get_crc32c_value_func test_impl) {
   ASSERT_EQ(crc3, crc4);
 }
 
-void AV1Crc32cHashTest::RunSpeedTest(get_crc32c_value_func test_impl) {
-  get_crc32c_value_func impls[] = { av1_get_crc32c_value_c, test_impl };
+void AV2Crc32cHashTest::RunSpeedTest(get_crc32c_value_func test_impl) {
+  get_crc32c_value_func impls[] = { av2_get_crc32c_value_c, test_impl };
   const int repeat = 10000000 / (bsize_ + bsize_);
 
-  aom_usec_timer timer;
+  avm_usec_timer timer;
   double time[2];
   for (int i = 0; i < 2; ++i) {
-    aom_usec_timer_start(&timer);
+    avm_usec_timer_start(&timer);
     for (int j = 0; j < repeat; ++j) {
       impls[i](&calc_, buffer_, length_);
     }
-    aom_usec_timer_mark(&timer);
-    time[i] = static_cast<double>(aom_usec_timer_elapsed(&timer));
+    avm_usec_timer_mark(&timer);
+    time[i] = static_cast<double>(avm_usec_timer_elapsed(&timer));
   }
   printf("hash %3dx%-3d:%7.2f/%7.2fus", bsize_, bsize_, time[0], time[1]);
   printf("(%3.2f)\n", time[0] / time[1]);
 }
 
-void AV1Crc32cHashTest::RunZeroTest(get_crc32c_value_func test_impl) {
+void AV2Crc32cHashTest::RunZeroTest(get_crc32c_value_func test_impl) {
   uint8_t buffer0[1024] = { 0 };
   // for buffer with different size the crc should not be the same
   const uint32_t crc0 = test_impl(&calc_, buffer0, 32);
@@ -112,23 +112,23 @@ void AV1Crc32cHashTest::RunZeroTest(get_crc32c_value_func test_impl) {
   ASSERT_NE(crc1, crc2);
 }
 
-TEST_P(AV1Crc32cHashTest, CheckOutput) { RunCheckOutput(GET_PARAM(0)); }
+TEST_P(AV2Crc32cHashTest, CheckOutput) { RunCheckOutput(GET_PARAM(0)); }
 
-TEST_P(AV1Crc32cHashTest, CheckZero) { RunZeroTest(GET_PARAM(0)); }
+TEST_P(AV2Crc32cHashTest, CheckZero) { RunZeroTest(GET_PARAM(0)); }
 
-TEST_P(AV1Crc32cHashTest, DISABLED_Speed) { RunSpeedTest(GET_PARAM(0)); }
+TEST_P(AV2Crc32cHashTest, DISABLED_Speed) { RunSpeedTest(GET_PARAM(0)); }
 
 const int kValidBlockSize[] = { 64, 32, 8, 4 };
 
 INSTANTIATE_TEST_SUITE_P(
-    C, AV1Crc32cHashTest,
-    ::testing::Combine(::testing::Values(&av1_get_crc32c_value_c),
+    C, AV2Crc32cHashTest,
+    ::testing::Combine(::testing::Values(&av2_get_crc32c_value_c),
                        ::testing::ValuesIn(kValidBlockSize)));
 
 #if HAVE_SSE4_2
 INSTANTIATE_TEST_SUITE_P(
-    SSE4_2, AV1Crc32cHashTest,
-    ::testing::Combine(::testing::Values(&av1_get_crc32c_value_sse4_2),
+    SSE4_2, AV2Crc32cHashTest,
+    ::testing::Combine(::testing::Values(&av2_get_crc32c_value_sse4_2),
                        ::testing::ValuesIn(kValidBlockSize)));
 #endif
 

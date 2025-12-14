@@ -51,7 +51,7 @@ def run(path_ctxdata="./results/data", user_config_file="parameters.yaml"):
             combined_results = rc.combine_data(combined_results, result_dict)
 
         if CHANGE_INITIALIZERS:  # change initializer
-            combined_results = rc.update_probability_initialzer_av1_style(
+            combined_results = rc.update_probability_initialzer_av2_style(
                 combined_results
             )
 

@@ -12,72 +12,72 @@
 
 #include "tools/stream_mux.h"
 // This function read a multi-stream decoder operation OBU.
-static int read_multi_stream_decoder_operation(struct aom_read_bit_buffer *rb,
+static int read_multi_stream_decoder_operation(struct avm_read_bit_buffer *rb,
                                                int *stream_ids) {
 #if PRINT_TU_INFO
   printf("\n==Parse mutl-stream header==\n");
 #endif  // PRINT_TU_INFO
   const int num_streams =
-      aom_rb_read_literal(rb, 3) + 2;  // read number of streams
+      avm_rb_read_literal(rb, 3) + 2;  // read number of streams
 #if PRINT_TU_INFO
   printf("--num_streams: %d\n", num_streams);
 #endif  // PRINT_TU_INFO
-  if (num_streams > AOM_MAX_NUM_STREAMS) {
+  if (num_streams > AVM_MAX_NUM_STREAMS) {
     fprintf(stderr, "The number of streams cannot exceed the max value (4).\n");
     return -1;
   }
 
   const int multistream_profile_idx =
-      aom_rb_read_literal(rb, PROFILE_BITS);  // read profile of multistream
+      avm_rb_read_literal(rb, PROFILE_BITS);  // read profile of multistream
 #if PRINT_TU_INFO
   printf("--multistream_profile_idx: %d\n", multistream_profile_idx);
 #endif  // PRINT_TU_INFO
   (void)multistream_profile_idx;
 
   const int multistream_level_idx =
-      aom_rb_read_literal(rb, LEVEL_BITS);  // read level of multistream
+      avm_rb_read_literal(rb, LEVEL_BITS);  // read level of multistream
 #if PRINT_TU_INFO
   printf("--multistream_level_idx: %d\n", multistream_level_idx);
 #endif  // PRINT_TU_INFO
   (void)multistream_level_idx;
 
   const int multistream_tier_idx =
-      aom_rb_read_bit(rb);  // read tier of multistream
+      avm_rb_read_bit(rb);  // read tier of multistream
 #if PRINT_TU_INFO
   printf("--multistream_tier_idx: %d\n", multistream_tier_idx);
 #endif  // PRINT_TU_INFO
   (void)multistream_tier_idx;
 
   const int multistream_even_allocation_flag =
-      aom_rb_read_bit(rb);  // read multistream_even_allocation_flag
+      avm_rb_read_bit(rb);  // read multistream_even_allocation_flag
 
   if (!multistream_even_allocation_flag) {
     const int multistream_large_picture_idc =
-        aom_rb_read_literal(rb, 3);  // read multistream_large_picture_idc
+        avm_rb_read_literal(rb, 3);  // read multistream_large_picture_idc
     (void)multistream_large_picture_idc;
   }
 
   for (int i = 0; i < num_streams; i++) {
-    stream_ids[i] = aom_rb_read_literal(rb, 5);  // read stream ID
+    stream_ids[i] = avm_rb_read_literal(rb, 5);  // read stream ID
 #if PRINT_TU_INFO
     printf("--stream_ids[%d]: %d\n", i, stream_ids[i]);
 #endif  // PRINT_TU_INFO
     const int substream_profile_idx =
-        aom_rb_read_literal(rb, PROFILE_BITS);  // read profile of multistream
+        avm_rb_read_literal(rb, PROFILE_BITS);  // read profile of multistream
 #if PRINT_TU_INFO
     printf("--sub-stream_profile_idx[%d]: %d\n", stream_ids[i],
            substream_profile_idx);
 #endif  // PRINT_TU_INFO
     (void)substream_profile_idx;
     const int substream_level_idx =
-        aom_rb_read_literal(rb, LEVEL_BITS);  // read level of multistream
+        avm_rb_read_literal(rb, LEVEL_BITS);  // read level of multistream
 #if PRINT_TU_INFO
     printf("--sub-stream_level_idx[%d]: %d\n", stream_ids[i],
            substream_level_idx);
 #endif  // PRINT_TU_INFO
     (void)substream_level_idx;
     const int substream_tier_idx =
-        aom_rb_read_bit(rb);  // read tier of multistream
+        avm_rb_read_bit(rb);  // read tier of multistream
 #if PRINT_TU_INFO
     printf("--sub-stream_tier_idx[%d]: %d\n", stream_ids[i],
            substream_tier_idx);
@@ -90,10 +90,10 @@ static int read_multi_stream_decoder_operation(struct aom_read_bit_buffer *rb,
 
 static void write_obu_header_without_stream_id(uint8_t *const dst,
                                                ObuHeader *obu_header) {
-  struct aom_write_bit_buffer wb = { dst, 0 };
-  aom_wb_write_bit(&wb, 0);                                 // extention flag
-  aom_wb_write_literal(&wb, obu_header->type, 5);           // obu_type
-  aom_wb_write_literal(&wb, obu_header->obu_tlayer_id, 2);  // obu_temporal
+  struct avm_write_bit_buffer wb = { dst, 0 };
+  avm_wb_write_bit(&wb, 0);                                 // extention flag
+  avm_wb_write_literal(&wb, obu_header->type, 5);           // obu_type
+  avm_wb_write_literal(&wb, obu_header->obu_tlayer_id, 2);  // obu_temporal
 }
 
 // This function read a temporal unit from a merged bitstream,
@@ -104,7 +104,7 @@ std::vector<uint8_t> ExtractTU(const uint8_t *data, int length,
   std::vector<uint8_t> tu_obus;
   const uint8_t *data_ptr = data;
 
-  struct aom_read_bit_buffer rb;
+  struct avm_read_bit_buffer rb;
 
   const int kObuHeaderSizeBytes = 1;
   const int kMinimumBytesRequired = 1 + kObuHeaderSizeBytes;
@@ -125,7 +125,7 @@ std::vector<uint8_t> ExtractTU(const uint8_t *data, int length,
 
     memset(&obu_header, 0, sizeof(obu_header));
 
-    if (aom_uleb_decode(data + consumed, remaining, &obu_total_size,
+    if (avm_uleb_decode(data + consumed, remaining, &obu_total_size,
                         &length_field_size) != 0) {
       fprintf(stderr, "OBU size parsing failed at offset %d.\n", consumed);
     }
@@ -179,7 +179,7 @@ std::vector<uint8_t> ExtractTU(const uint8_t *data, int length,
     if (obu_header.type == OBU_TEMPORAL_DELIMITER) {
       std::vector<uint8_t> obu_size_data(length_field_size);
       size_t coded_obu_size;
-      aom_uleb_encode(obu_total_size, sizeof(obu_total_size),
+      avm_uleb_encode(obu_total_size, sizeof(obu_total_size),
                       obu_size_data.data(), &coded_obu_size);
       if (length_field_size != coded_obu_size)
         fprintf(stderr, "\nError: length_field_size != coded_obu_size\n");
@@ -193,7 +193,7 @@ std::vector<uint8_t> ExtractTU(const uint8_t *data, int length,
     } else {
       std::vector<uint8_t> obu_size_data(length_field_size);
       size_t coded_obu_size;
-      aom_uleb_encode(obu_total_size - 1, sizeof(obu_total_size),
+      avm_uleb_encode(obu_total_size - 1, sizeof(obu_total_size),
                       obu_size_data.data(), &coded_obu_size);
       if (length_field_size != coded_obu_size)
         fprintf(stderr, "\nError: length_field_size != coded_obu_size\n");
@@ -257,7 +257,7 @@ int main(int argc, const char *argv[]) {
   }
 
   int num_streams = 1;
-  int stream_ids[AOM_MAX_NUM_STREAMS] = { -1, -1, -1, -1 };
+  int stream_ids[AVM_MAX_NUM_STREAMS] = { -1, -1, -1, -1 };
   char base_filename[100];
   strcpy(base_filename, argv[2]);
 
@@ -299,8 +299,8 @@ int main(int argc, const char *argv[]) {
   input_ctx.unit_buffer_size = kInitialBufferSize;
 
   // Initialize file write for each stream
-  char *output_file_names[AOM_MAX_NUM_STREAMS];
-  for (int i = 0; i < AOM_MAX_NUM_STREAMS; ++i) {
+  char *output_file_names[AVM_MAX_NUM_STREAMS];
+  for (int i = 0; i < AVM_MAX_NUM_STREAMS; ++i) {
     output_file_names[i] = (char *)malloc(100 * sizeof(char));
     if (output_file_names[i] == NULL) {
       fprintf(stderr, "Error: No memory, can't alloc output_file_names.\n");
@@ -308,9 +308,9 @@ int main(int argc, const char *argv[]) {
     }
   }
 
-  FILE *fout[AOM_MAX_NUM_STREAMS];
+  FILE *fout[AVM_MAX_NUM_STREAMS];
 
-  generate_filenames(base_filename, AOM_MAX_NUM_STREAMS, output_file_names);
+  generate_filenames(base_filename, AVM_MAX_NUM_STREAMS, output_file_names);
 
   for (int i = 0; i < num_streams; ++i) {
     fout[i] = fopen(output_file_names[i], "wb");
@@ -328,8 +328,8 @@ int main(int argc, const char *argv[]) {
   // Multiplex TUs of multi-streams
   int num_tu_read = 1;
   int num_total_tus = 0;
-  int unit_number[AOM_MAX_NUM_STREAMS];
-  for (int i = 0; i < AOM_MAX_NUM_STREAMS; ++i) unit_number[i] = 0;
+  int unit_number[AVM_MAX_NUM_STREAMS];
+  for (int i = 0; i < AVM_MAX_NUM_STREAMS; ++i) unit_number[i] = 0;
 
   while (num_tu_read) {
     int idx = 0;
@@ -400,7 +400,7 @@ int main(int argc, const char *argv[]) {
 #endif  // PRINT_TU_INFO
   for (int i = 0; i < num_streams; ++i) fclose(fout[i]);
 
-  for (int i = 0; i < AOM_MAX_NUM_STREAMS; ++i) {
+  for (int i = 0; i < AVM_MAX_NUM_STREAMS; ++i) {
     free(output_file_names[i]);
   }
 

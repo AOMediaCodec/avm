@@ -8,21 +8,21 @@
 # for Open Media Patent License 1.0 was not distributed with this source code in
 # the PATENTS file, you can obtain it at aomedia.org/license/patent-license/.
 #
-if(AOM_BUILD_CMAKE_COMPILER_FLAGS_CMAKE_)
+if(AVM_BUILD_CMAKE_COMPILER_FLAGS_CMAKE_)
   return()
-endif() # AOM_BUILD_CMAKE_COMPILER_FLAGS_CMAKE_
-set(AOM_BUILD_CMAKE_COMPILER_FLAGS_CMAKE_ 1)
+endif() # AVM_BUILD_CMAKE_COMPILER_FLAGS_CMAKE_
+set(AVM_BUILD_CMAKE_COMPILER_FLAGS_CMAKE_ 1)
 
 include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)
-include("${AOM_ROOT}/build/cmake/compiler_tests.cmake")
+include("${AVM_ROOT}/build/cmake/compiler_tests.cmake")
 
 # Strings used to cache flags.
-set(AOM_C_FLAGS)
-set(AOM_CXX_FLAGS)
-set(AOM_EXE_LINKER_FLAGS)
-set(AOM_FAILED_C_FLAGS)
-set(AOM_FAILED_CXX_FLAGS)
+set(AVM_C_FLAGS)
+set(AVM_CXX_FLAGS)
+set(AVM_EXE_LINKER_FLAGS)
+set(AVM_FAILED_C_FLAGS)
+set(AVM_FAILED_CXX_FLAGS)
 
 # Sets variable named by $out_is_present to YES in the caller's scope when $flag
 # is found in the string variable named by $flag_cache. Sets the var to NO
@@ -51,16 +51,16 @@ function(append_flag flags flag)
 endfunction()
 
 # Checks C compiler for support of $c_flag. Adds $c_flag to all
-# $CMAKE_C_FLAGS_<CONFIG>s stored in AOM_C_CONFIGS when the compile test passes.
-# Caches $c_flag in $AOM_C_FLAGS or $AOM_FAILED_C_FLAGS depending on test
+# $CMAKE_C_FLAGS_<CONFIG>s stored in AVM_C_CONFIGS when the compile test passes.
+# Caches $c_flag in $AVM_C_FLAGS or $AVM_FAILED_C_FLAGS depending on test
 # outcome.
 function(add_c_flag_if_supported c_flag)
   if(DEBUG_CMAKE_DISABLE_COMPILER_TESTS)
     return()
   endif()
 
-  is_flag_present(AOM_C_FLAGS "${c_flag}" flag_ok)
-  is_flag_present(AOM_FAILED_C_FLAGS "${c_flag}" flag_failed)
+  is_flag_present(AVM_C_FLAGS "${c_flag}" flag_ok)
+  is_flag_present(AVM_FAILED_C_FLAGS "${c_flag}" flag_failed)
   if(${flag_ok} OR ${flag_failed})
     return()
   endif()
@@ -70,27 +70,27 @@ function(add_c_flag_if_supported c_flag)
   check_c_compiler_flag("${c_flag}" C_FLAG_SUPPORTED)
 
   if(${C_FLAG_SUPPORTED})
-    append_flag(AOM_C_FLAGS "${c_flag}")
-    foreach(config ${AOM_C_CONFIGS})
+    append_flag(AVM_C_FLAGS "${c_flag}")
+    foreach(config ${AVM_C_CONFIGS})
       unset(C_FLAG_FOUND)
       append_flag("${config}" "${c_flag}")
     endforeach()
   else()
-    append_flag(AOM_FAILED_C_FLAGS "${c_flag}")
+    append_flag(AVM_FAILED_C_FLAGS "${c_flag}")
   endif()
 endfunction()
 
 # Checks C++ compiler for support of $cxx_flag. Adds $cxx_flag to all
-# $CMAKE_CXX_FLAGS_<CONFIG>s stored in AOM_CXX_CONFIGS when the compile test
-# passes. Caches $cxx_flag in $AOM_CXX_FLAGS or $AOM_FAILED_CXX_FLAGS depending
+# $CMAKE_CXX_FLAGS_<CONFIG>s stored in AVM_CXX_CONFIGS when the compile test
+# passes. Caches $cxx_flag in $AVM_CXX_FLAGS or $AVM_FAILED_CXX_FLAGS depending
 # on test outcome.
 function(add_cxx_flag_if_supported cxx_flag)
   if(DEBUG_CMAKE_DISABLE_COMPILER_TESTS)
     return()
   endif()
 
-  is_flag_present(AOM_CXX_FLAGS "${cxx_flag}" flag_ok)
-  is_flag_present(AOM_FAILED_CXX_FLAGS "${cxx_flag}" flag_failed)
+  is_flag_present(AVM_CXX_FLAGS "${cxx_flag}" flag_ok)
+  is_flag_present(AVM_FAILED_CXX_FLAGS "${cxx_flag}" flag_failed)
   if(${flag_ok} OR ${flag_failed})
     return()
   endif()
@@ -100,13 +100,13 @@ function(add_cxx_flag_if_supported cxx_flag)
   check_cxx_compiler_flag("${cxx_flag}" CXX_FLAG_SUPPORTED)
 
   if(${CXX_FLAG_SUPPORTED})
-    append_flag(AOM_CXX_FLAGS "${cxx_flag}")
-    foreach(config ${AOM_CXX_CONFIGS})
+    append_flag(AVM_CXX_FLAGS "${cxx_flag}")
+    foreach(config ${AVM_CXX_CONFIGS})
       unset(CXX_FLAG_FOUND)
       append_flag("${config}" "${cxx_flag}")
     endforeach()
   else()
-    append_flag(AOM_FAILED_CXX_FLAGS "${cxx_flag}")
+    append_flag(AVM_FAILED_CXX_FLAGS "${cxx_flag}")
   endif()
 endfunction()
 
@@ -124,13 +124,13 @@ function(require_c_flag c_flag update_c_flags)
     return()
   endif()
 
-  is_flag_present(AOM_C_FLAGS "${c_flag}" flag_ok)
+  is_flag_present(AVM_C_FLAGS "${c_flag}" flag_ok)
   if(${flag_ok})
     return()
   endif()
 
-  if(NOT "${AOM_EXE_LINKER_FLAGS}" STREQUAL "")
-    aom_push_var(CMAKE_EXE_LINKER_FLAGS "${AOM_EXE_LINKER_FLAGS}")
+  if(NOT "${AVM_EXE_LINKER_FLAGS}" STREQUAL "")
+    avm_push_var(CMAKE_EXE_LINKER_FLAGS "${AVM_EXE_LINKER_FLAGS}")
   endif()
 
   unset(HAVE_C_FLAG CACHE)
@@ -141,13 +141,13 @@ function(require_c_flag c_flag update_c_flags)
       FATAL_ERROR "${PROJECT_NAME} requires support for C flag: ${c_flag}.")
   endif()
 
-  if(NOT "${AOM_EXE_LINKER_FLAGS}" STREQUAL "")
-    aom_pop_var(CMAKE_EXE_LINKER_FLAGS)
+  if(NOT "${AVM_EXE_LINKER_FLAGS}" STREQUAL "")
+    avm_pop_var(CMAKE_EXE_LINKER_FLAGS)
   endif()
 
-  append_flag(AOM_C_FLAGS "${c_flag}")
+  append_flag(AVM_C_FLAGS "${c_flag}")
   if(update_c_flags)
-    foreach(config ${AOM_C_CONFIGS})
+    foreach(config ${AVM_C_CONFIGS})
       set(${config}
           "${${config}} ${c_flag}"
           CACHE STRING "" FORCE)
@@ -162,13 +162,13 @@ function(require_cxx_flag cxx_flag update_cxx_flags)
     return()
   endif()
 
-  is_flag_present(AOM_CXX_FLAGS "${cxx_flag}" flag_ok)
+  is_flag_present(AVM_CXX_FLAGS "${cxx_flag}" flag_ok)
   if(${flag_ok})
     return()
   endif()
 
-  if(NOT "${AOM_EXE_LINKER_FLAGS}" STREQUAL "")
-    aom_push_var(CMAKE_EXE_LINKER_FLAGS "${AOM_EXE_LINKER_FLAGS}")
+  if(NOT "${AVM_EXE_LINKER_FLAGS}" STREQUAL "")
+    avm_push_var(CMAKE_EXE_LINKER_FLAGS "${AVM_EXE_LINKER_FLAGS}")
   endif()
 
   unset(HAVE_CXX_FLAG CACHE)
@@ -179,13 +179,13 @@ function(require_cxx_flag cxx_flag update_cxx_flags)
       FATAL_ERROR "${PROJECT_NAME} requires support for C flag: ${cxx_flag}.")
   endif()
 
-  if(NOT "${AOM_EXE_LINKER_FLAGS}" STREQUAL "")
-    aom_pop_var(CMAKE_EXE_LINKER_FLAGS)
+  if(NOT "${AVM_EXE_LINKER_FLAGS}" STREQUAL "")
+    avm_pop_var(CMAKE_EXE_LINKER_FLAGS)
   endif()
 
-  append_flag(AOM_CXX_FLAGS "${cxx_flag}")
+  append_flag(AVM_CXX_FLAGS "${cxx_flag}")
   if(update_cxx_flags)
-    foreach(config ${AOM_CXX_CONFIGS})
+    foreach(config ${AVM_CXX_CONFIGS})
       set(${config}
           "${${config}} ${cxx_flag}"
           CACHE STRING "" FORCE)
@@ -228,12 +228,12 @@ endfunction()
 # already present.
 function(add_c_preproc_definition preproc_def)
   set(preproc_def "-D${preproc_def}")
-  is_flag_present(AOM_C_FLAGS "${preproc_def}" flag_cached)
+  is_flag_present(AVM_C_FLAGS "${preproc_def}" flag_cached)
   if(${flag_cached})
     return()
   endif()
 
-  foreach(config ${AOM_C_CONFIGS})
+  foreach(config ${AVM_C_CONFIGS})
     set(${config}
         "${${config}} ${preproc_def}"
         CACHE STRING "" FORCE)
@@ -244,12 +244,12 @@ endfunction()
 # already present.
 function(add_cxx_preproc_definition preproc_def)
   set(preproc_def "-D${preproc_def}")
-  is_flag_present(AOM_CXX_FLAGS "${preproc_def}" flag_cached)
+  is_flag_present(AVM_CXX_FLAGS "${preproc_def}" flag_cached)
   if(${flag_cached})
     return()
   endif()
 
-  foreach(config ${AOM_CXX_CONFIGS})
+  foreach(config ${AVM_CXX_CONFIGS})
     set(${config}
         "${${config}} ${preproc_def}"
         CACHE STRING "" FORCE)
@@ -265,33 +265,33 @@ endfunction()
 
 # Adds $flag to assembler command line.
 function(append_as_flag flag)
-  is_flag_present(AOM_AS_FLAGS "${flag}" flag_cached)
+  is_flag_present(AVM_AS_FLAGS "${flag}" flag_cached)
   if(${flag_cached})
     return()
   endif()
-  append_flag(AOM_AS_FLAGS "${flag}")
+  append_flag(AVM_AS_FLAGS "${flag}")
 endfunction()
 
 # Adds $flag to the C compiler command line.
 function(append_c_flag flag)
-  is_flag_present(AOM_C_FLAGS "${flag}" flag_cached)
+  is_flag_present(AVM_C_FLAGS "${flag}" flag_cached)
   if(${flag_cached})
     return()
   endif()
 
-  foreach(config ${AOM_C_CONFIGS})
+  foreach(config ${AVM_C_CONFIGS})
     append_flag(${config} "${flag}")
   endforeach()
 endfunction()
 
 # Adds $flag to the CXX compiler command line.
 function(append_cxx_flag flag)
-  is_flag_present(AOM_CXX_FLAGS "${flag}" flag_cached)
+  is_flag_present(AVM_CXX_FLAGS "${flag}" flag_cached)
   if(${flag_cached})
     return()
   endif()
 
-  foreach(config ${AOM_CXX_CONFIGS})
+  foreach(config ${AVM_CXX_CONFIGS})
     append_flag(${config} "${flag}")
   endforeach()
 endfunction()
@@ -304,13 +304,13 @@ endfunction()
 
 # Adds $flag to the executable linker command line when not present.
 function(append_exe_linker_flag flag)
-  is_flag_present(AOM_EXE_LINKER_FLAGS "${flag}" flag_cached)
+  is_flag_present(AVM_EXE_LINKER_FLAGS "${flag}" flag_cached)
   if(${flag_cached})
     return()
   endif()
 
-  append_flag(AOM_EXE_LINKER_FLAGS "${flag}")
-  foreach(config ${AOM_EXE_LINKER_CONFIGS})
+  append_flag(AVM_EXE_LINKER_FLAGS "${flag}")
+  foreach(config ${AVM_EXE_LINKER_CONFIGS})
     append_flag(${config} "${flag}")
   endforeach()
 endfunction()
@@ -342,46 +342,46 @@ function(require_linker_flag flag)
   append_exe_linker_flag(${flag})
 
   unset(c_passed)
-  aom_check_c_compiles("LINKER_FLAG_C_TEST(${flag})" "" c_passed)
+  avm_check_c_compiles("LINKER_FLAG_C_TEST(${flag})" "" c_passed)
   unset(cxx_passed)
-  aom_check_cxx_compiles("LINKER_FLAG_CXX_TEST(${flag})" "" cxx_passed)
+  avm_check_cxx_compiles("LINKER_FLAG_CXX_TEST(${flag})" "" cxx_passed)
 
   if(NOT c_passed OR NOT cxx_passed)
     message(FATAL_ERROR "Linker flag test for ${flag} failed.")
   endif()
 endfunction()
 
-# Appends flags in $AOM_EXTRA_<TYPE>_FLAGS variables to the flags used at build
+# Appends flags in $AVM_EXTRA_<TYPE>_FLAGS variables to the flags used at build
 # time.
 function(set_user_flags)
 
   # Linker flags are handled first because some C/CXX flags require that a
   # linker flag is present at link time.
-  if(AOM_EXTRA_EXE_LINKER_FLAGS)
-    is_flag_present(AOM_EXE_LINKER_FLAGS "${AOM_EXTRA_EXE_LINKER_FLAGS}"
+  if(AVM_EXTRA_EXE_LINKER_FLAGS)
+    is_flag_present(AVM_EXE_LINKER_FLAGS "${AVM_EXTRA_EXE_LINKER_FLAGS}"
                     extra_present)
     if(NOT ${extra_present})
-      require_linker_flag("${AOM_EXTRA_EXE_LINKER_FLAGS}")
+      require_linker_flag("${AVM_EXTRA_EXE_LINKER_FLAGS}")
     endif()
   endif()
-  if(AOM_EXTRA_AS_FLAGS)
+  if(AVM_EXTRA_AS_FLAGS)
 
     # TODO(tomfinegan): assembler flag testing would be a good thing to have.
-    is_flag_present(AOM_AS_FLAGS "${AOM_EXTRA_AS_FLAGS}" extra_present)
+    is_flag_present(AVM_AS_FLAGS "${AVM_EXTRA_AS_FLAGS}" extra_present)
     if(NOT ${extra_present})
-      append_flag(AOM_AS_FLAGS "${AOM_EXTRA_AS_FLAGS}")
+      append_flag(AVM_AS_FLAGS "${AVM_EXTRA_AS_FLAGS}")
     endif()
   endif()
-  if(AOM_EXTRA_C_FLAGS)
-    is_flag_present(AOM_C_FLAGS "${AOM_EXTRA_C_FLAGS}" extra_present)
+  if(AVM_EXTRA_C_FLAGS)
+    is_flag_present(AVM_C_FLAGS "${AVM_EXTRA_C_FLAGS}" extra_present)
     if(NOT ${extra_present})
-      require_c_flag("${AOM_EXTRA_C_FLAGS}" YES)
+      require_c_flag("${AVM_EXTRA_C_FLAGS}" YES)
     endif()
   endif()
-  if(AOM_EXTRA_CXX_FLAGS)
-    is_flag_present(AOM_CXX_FLAGS "${AOM_EXTRA_CXX_FLAGS}" extra_present)
+  if(AVM_EXTRA_CXX_FLAGS)
+    is_flag_present(AVM_CXX_FLAGS "${AVM_EXTRA_CXX_FLAGS}" extra_present)
     if(NOT ${extra_present})
-      require_cxx_flag("${AOM_EXTRA_CXX_FLAGS}" YES)
+      require_cxx_flag("${AVM_EXTRA_CXX_FLAGS}" YES)
     endif()
   endif()
 endfunction()

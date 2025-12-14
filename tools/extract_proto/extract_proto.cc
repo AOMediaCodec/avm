@@ -32,14 +32,14 @@
 #include <utility>
 #include <vector>
 
-#include "config/aom_config.h"
+#include "config/avm_config.h"
 
-#include "aom/aom_decoder.h"
-#include "aom/aomdx.h"
-#include "av1/common/av1_common_int.h"
-#include "av1/decoder/decoder.h"
-#include "av1/decoder/accounting.h"
-#include "av1/decoder/inspection.h"
+#include "avm/avm_decoder.h"
+#include "avm/avmdx.h"
+#include "av2/common/av2_common_int.h"
+#include "av2/decoder/decoder.h"
+#include "av2/decoder/accounting.h"
+#include "av2/decoder/inspection.h"
 #include "common/args.h"
 #include "common/tools_common.h"
 #include "common/video_common.h"
@@ -125,7 +125,7 @@ static absl::flat_hash_map<std::string_view, int> kSupportedColorspaces = {
 
 struct ExtractProtoContext {
   insp_frame_data frame_data;
-  aom_codec_ctx_t codec;
+  avm_codec_ctx_t codec;
   AvxVideoReader *reader;
   const AvxVideoInfo *info;
   StreamParams *stream_params;
@@ -441,7 +441,7 @@ void WriteProto(const ExtractProtoContext *ctx, const Frame &frame) {
 }
 
 // See:
-// https://gitlab.com/AOMediaCodec/avm/-/blob/4664aa8a08dce15e914093d2c85bcc25d2c8026f/av1/decoder/decodeframe.c#L6899
+// https://gitlab.com/AOMediaCodec/avm/-/blob/4664aa8a08dce15e914093d2c85bcc25d2c8026f/av2/decoder/decodeframe.c#L6899
 const int kMaxLagInFrames = 35;
 int GetAbsoluteDisplayIndex(ExtractProtoContext *ctx, int raw_display_index,
                             FRAME_TYPE frame_type) {
@@ -640,8 +640,8 @@ void CopyFromYuvFile(PixelBuffer *pixel_buffer, const std::string &orig_yuv,
 
 void InspectTipFrame(void *pbi, void *data) {
   auto *ctx = static_cast<ExtractProtoContext *>(data);
-  AV1Decoder *decoder = (AV1Decoder *)pbi;
-  AV1_COMMON *const cm = &decoder->common;
+  AV2Decoder *decoder = (AV2Decoder *)pbi;
+  AV2_COMMON *const cm = &decoder->common;
   StreamParams *stream_params = ctx->stream_params;
   Frame frame;
   *frame.mutable_stream_params() = *stream_params;
@@ -717,8 +717,8 @@ void InspectFrame(void *pbi, void *data) {
     return;
   }
 
-  AV1Decoder *decoder = (AV1Decoder *)pbi;
-  AV1_COMMON *const cm = &decoder->common;
+  AV2Decoder *decoder = (AV2Decoder *)pbi;
+  AV2_COMMON *const cm = &decoder->common;
   StreamParams *stream_params = ctx->stream_params;
   Frame frame;
   *frame.mutable_stream_params() = *stream_params;
@@ -771,7 +771,7 @@ void InspectFrame(void *pbi, void *data) {
     info.set_source_file(accounting->syms.dictionary.acct_infos[i].c_file);
     info.set_source_line(accounting->syms.dictionary.acct_infos[i].c_line);
     info.set_source_function(accounting->syms.dictionary.acct_infos[i].c_func);
-    for (int tag = 0; tag < AOM_ACCOUNTING_MAX_TAGS; tag++) {
+    for (int tag = 0; tag < AVM_ACCOUNTING_MAX_TAGS; tag++) {
       if (accounting->syms.dictionary.acct_infos[i].tags[tag] != nullptr) {
         info.add_tags(accounting->syms.dictionary.acct_infos[i].tags[tag]);
       }
@@ -898,7 +898,7 @@ void InspectFrame(void *pbi, void *data) {
     UpdateSymbolRangesSb(sb, relative_index, symbol->context.x * MI_SIZE,
                          symbol->context.y * MI_SIZE, is_chroma);
     auto *sym = sb->add_symbols();
-    sym->set_bits(symbol->bits / (float)(1 << AOM_ACCT_BITRES));
+    sym->set_bits(symbol->bits / (float)(1 << AVM_ACCT_BITRES));
     sym->set_value(symbol->value);
     sym->set_info_id(symbol->id);
     prev_sb_i = sb_i;
@@ -908,12 +908,12 @@ void InspectFrame(void *pbi, void *data) {
 }
 
 void SetupInspectCallbacks(ExtractProtoContext *ctx) {
-  aom_inspect_init ii;
+  avm_inspect_init ii;
   ii.inspect_cb = InspectFrame;
   ii.inspect_sb_cb = InspectSuperblock;
   ii.inspect_tip_cb = InspectTipFrame;
   ii.inspect_ctx = static_cast<void *>(ctx);
-  aom_codec_control(&ctx->codec, AV1_SET_INSPECTION_CALLBACK, &ii);
+  avm_codec_control(&ctx->codec, AV2_SET_INSPECTION_CALLBACK, &ii);
 }
 
 void PopulateStreamPath(ExtractProtoContext *ctx) {
@@ -934,22 +934,22 @@ void PopulateStreamPath(ExtractProtoContext *ctx) {
 }
 
 absl::Status OpenStream(ExtractProtoContext *ctx) {
-  ctx->reader = aom_video_reader_open(ctx->stream_path.c_str());
+  ctx->reader = avm_video_reader_open(ctx->stream_path.c_str());
   if (ctx->reader == nullptr) {
     return absl::NotFoundError(
         absl::StrFormat("Failed to open %s for reading.", ctx->stream_path));
   }
-  ctx->info = aom_video_reader_get_info(ctx->reader);
-  aom_codec_iface_t *decoder =
-      get_aom_decoder_by_fourcc(ctx->info->codec_fourcc);
+  ctx->info = avm_video_reader_get_info(ctx->reader);
+  avm_codec_iface_t *decoder =
+      get_avm_decoder_by_fourcc(ctx->info->codec_fourcc);
   if (decoder == nullptr) {
     return absl::UnimplementedError("Unknown input codec.");
   }
-  LOG(INFO) << "Using " << aom_codec_iface_name(decoder);
-  ctx->stream_params->set_avm_version(aom_codec_iface_name(decoder));
+  LOG(INFO) << "Using " << avm_codec_iface_name(decoder);
+  ctx->stream_params->set_avm_version(avm_codec_iface_name(decoder));
   ctx->stream_params->set_stream_name(ctx->stream_path.filename());
   PopulateStreamPath(ctx);
-  if (aom_codec_dec_init(&ctx->codec, decoder, nullptr, 0)) {
+  if (avm_codec_dec_init(&ctx->codec, decoder, nullptr, 0)) {
     return absl::InternalError("Failed to initialize decoder.");
   }
   ifd_init(&ctx->frame_data, ctx->info->frame_width, ctx->info->frame_height);
@@ -964,34 +964,34 @@ absl::Status ReadFrames(ExtractProtoContext *ctx) {
   size_t frame_size = 0;
   int frame_count = 0;
   while (true) {
-    if (!aom_video_reader_read_frame(ctx->reader)) {
+    if (!avm_video_reader_read_frame(ctx->reader)) {
       return absl::OkStatus();
     }
-    frame = aom_video_reader_get_frame(ctx->reader, &frame_size);
+    frame = avm_video_reader_get_frame(ctx->reader, &frame_size);
     // TODO(comc): Check handling of non-display frames; user_priv=nullptr
-    // bypasses the custom decoder_inspect logic in av1_dx_iface.c.
-    if (aom_codec_decode(&ctx->codec, frame, (unsigned int)frame_size,
-                         nullptr) != AOM_CODEC_OK) {
+    // bypasses the custom decoder_inspect logic in av2_dx_iface.c.
+    if (avm_codec_decode(&ctx->codec, frame, (unsigned int)frame_size,
+                         nullptr) != AVM_CODEC_OK) {
       return absl::InternalError(absl::StrFormat("Failed to decode frame: %s",
-                                                 aom_codec_error(&ctx->codec)));
+                                                 avm_codec_error(&ctx->codec)));
     }
 
     bool got_any_frames = false;
-    av1_ref_frame ref_dec;
+    av2_ref_frame ref_dec;
     ref_dec.idx = -1;
 
-    aom_image_t *img = nullptr;
+    avm_image_t *img = nullptr;
     (void)img;
-    // ref_dec.idx is the index to the reference buffer idx to AV1_GET_REFERENCE
+    // ref_dec.idx is the index to the reference buffer idx to AV2_GET_REFERENCE
     // if its -1 the decoder didn't update any reference buffer and the only
-    // way to see the frame is aom_codec_get_frame.
+    // way to see the frame is avm_codec_get_frame.
     if (ref_dec.idx == -1) {
-      aom_codec_iter_t iter = nullptr;
-      while ((img = aom_codec_get_frame(&ctx->codec, &iter)) != nullptr) {
+      avm_codec_iter_t iter = nullptr;
+      while ((img = avm_codec_get_frame(&ctx->codec, &iter)) != nullptr) {
         ++frame_count;
       }
       got_any_frames = true;
-    } else if (!aom_codec_control(&ctx->codec, AV1_GET_REFERENCE, &ref_dec)) {
+    } else if (!avm_codec_control(&ctx->codec, AV2_GET_REFERENCE, &ref_dec)) {
       img = &ref_dec.img;
       ++frame_count;
       got_any_frames = true;

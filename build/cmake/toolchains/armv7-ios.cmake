@@ -8,10 +8,10 @@
 # for Open Media Patent License 1.0 was not distributed with this source code in
 # the PATENTS file, you can obtain it at aomedia.org/license/patent-license/.
 #
-if(AOM_BUILD_CMAKE_TOOLCHAINS_ARMV7_IOS_CMAKE_)
+if(AVM_BUILD_CMAKE_TOOLCHAINS_ARMV7_IOS_CMAKE_)
   return()
-endif() # AOM_BUILD_CMAKE_TOOLCHAINS_ARMV7_IOS_CMAKE_
-set(AOM_BUILD_CMAKE_TOOLCHAINS_ARMV7_IOS_CMAKE_ 1)
+endif() # AVM_BUILD_CMAKE_TOOLCHAINS_ARMV7_IOS_CMAKE_
+set(AVM_BUILD_CMAKE_TOOLCHAINS_ARMV7_IOS_CMAKE_ 1)
 
 if(XCODE)
 
@@ -25,7 +25,7 @@ set(CMAKE_OSX_ARCHITECTURES "armv7")
 include("${CMAKE_CURRENT_LIST_DIR}/arm-ios-common.cmake")
 
 # No intrinsics flag required for armv7s-ios.
-set(AOM_NEON_INTRIN_FLAG "")
+set(AVM_NEON_INTRIN_FLAG "")
 
 # No runtime cpu detect for armv7s-ios.
 set(CONFIG_RUNTIME_CPU_DETECT

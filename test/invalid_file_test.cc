@@ -41,8 +41,8 @@ std::ostream &operator<<(std::ostream &os, const DecodeParam &dp) {
             << " result file: " << GetResFilename(dp);
 }
 
-class InvalidFileTest : public ::libaom_test::DecoderTest,
-                        public ::libaom_test::CodecTestWithParam<DecodeParam> {
+class InvalidFileTest : public ::libavm_test::DecoderTest,
+                        public ::libavm_test::CodecTestWithParam<DecodeParam> {
  protected:
   InvalidFileTest() : DecoderTest(GET_PARAM(0)), res_file_(NULL) {}
 
@@ -51,20 +51,20 @@ class InvalidFileTest : public ::libaom_test::DecoderTest,
   }
 
   void OpenResFile(const std::string &res_file_name) {
-    res_file_ = libaom_test::OpenTestDataFile(res_file_name);
+    res_file_ = libavm_test::OpenTestDataFile(res_file_name);
     ASSERT_TRUE(res_file_ != NULL)
         << "Result file open failed. Filename: " << res_file_name;
   }
 
-  virtual void DecompressedFrameHook(const aom_image_t &img,
+  virtual void DecompressedFrameHook(const avm_image_t &img,
                                      const unsigned int /*frame_number*/) {
     EXPECT_NE(img.fb_priv, nullptr);
   }
 
   virtual bool HandleDecodeResult(
-      const aom_codec_err_t res_dec,
-      const libaom_test::CompressedVideoSource &video,
-      libaom_test::Decoder *decoder) {
+      const avm_codec_err_t res_dec,
+      const libavm_test::CompressedVideoSource &video,
+      libavm_test::Decoder *decoder) {
     EXPECT_TRUE(res_file_ != NULL);
     int expected_res_dec = -1;
 
@@ -81,11 +81,11 @@ class InvalidFileTest : public ::libaom_test::DecoderTest,
         // will take precedence. Currently a tile-level error is not forwarded
         // so the frame will simply be marked corrupt.
         EXPECT_TRUE(res_dec == expected_res_dec ||
-                    res_dec == AOM_CODEC_CORRUPT_FRAME)
+                    res_dec == AVM_CODEC_CORRUPT_FRAME)
             << "Results don't match: frame number = " << video.frame_number()
             << ". (" << decoder->DecodeError()
             << "). Expected: " << expected_res_dec << " or "
-            << AOM_CODEC_CORRUPT_FRAME;
+            << AVM_CODEC_CORRUPT_FRAME;
       } else {
         EXPECT_EQ(expected_res_dec, res_dec)
             << "Results don't match: frame number = " << video.frame_number()
@@ -96,16 +96,16 @@ class InvalidFileTest : public ::libaom_test::DecoderTest,
     return !HasFailure();
   }
 
-  virtual void HandlePeekResult(libaom_test::Decoder *const /*decoder*/,
-                                libaom_test::CompressedVideoSource * /*video*/,
-                                const aom_codec_err_t /*res_peek*/) {}
+  virtual void HandlePeekResult(libavm_test::Decoder *const /*decoder*/,
+                                libavm_test::CompressedVideoSource * /*video*/,
+                                const avm_codec_err_t /*res_peek*/) {}
 
   void RunTest() {
     const DecodeParam input = GET_PARAM(1);
-    aom_codec_dec_cfg_t cfg = { 0, 0, 0, NULL, NULL };
+    avm_codec_dec_cfg_t cfg = { 0, 0, 0, NULL, NULL };
     cfg.threads = input.threads;
     const std::string filename = input.filename;
-    libaom_test::IVFVideoSource decode_video(filename);
+    libavm_test::IVFVideoSource decode_video(filename);
     decode_video.Init();
 
     // The result file holds a list of expected integer results, one for each
@@ -126,7 +126,7 @@ TEST_P(InvalidFileTest, DISABLED_ReturnCode) { RunTest(); }
 // If res_filename (the third field) is NULL, then the result filename is
 // filename + ".res" by default. Set res_filename to a string if the result
 // filename differs from the default.
-const DecodeParam kAV1InvalidFileTests[] = {
+const DecodeParam kAV2InvalidFileTests[] = {
   // { threads, filename, res_filename }
   { 1, "invalid-bug-1814.ivf", NULL },
   { 1, "invalid-chromium-906381.ivf", NULL },
@@ -152,7 +152,7 @@ const DecodeParam kAV1InvalidFileTests[] = {
   { 1, "invalid-oss-fuzz-11479.ivf", "invalid-oss-fuzz-11479.ivf.res.2" },
 };
 
-AV1_INSTANTIATE_TEST_SUITE(InvalidFileTest,
-                           ::testing::ValuesIn(kAV1InvalidFileTests));
+AV2_INSTANTIATE_TEST_SUITE(InvalidFileTest,
+                           ::testing::ValuesIn(kAV2InvalidFileTests));
 
 }  // namespace

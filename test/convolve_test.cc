@@ -15,15 +15,15 @@
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
-#include "config/aom_config.h"
-#include "config/aom_dsp_rtcd.h"
+#include "config/avm_config.h"
+#include "config/avm_dsp_rtcd.h"
 
-#include "aom_dsp/aom_dsp_common.h"
-#include "aom_dsp/aom_filter.h"
-#include "aom_mem/aom_mem.h"
-#include "aom_ports/aom_timer.h"
-#include "aom_ports/mem.h"
-#include "av1/common/filter.h"
+#include "avm_dsp/avm_dsp_common.h"
+#include "avm_dsp/avm_filter.h"
+#include "avm_mem/avm_mem.h"
+#include "avm_ports/avm_timer.h"
+#include "avm_ports/mem.h"
+#include "av2/common/filter.h"
 #include "test/acm_random.h"
 #include "test/clear_system_state.h"
 #include "test/register_state_check.h"
@@ -64,8 +64,8 @@ typedef std::tuple<int, int, const ConvolveFunctions *> ConvolveParam;
       make_tuple(128, 128, &convolve_fn), ALL_SIZES_64(convolve_fn)
 
 // Reference 8-tap subpixel filter, slightly modified to fit into this test.
-#define AV1_FILTER_WEIGHT 128
-#define AV1_FILTER_SHIFT 7
+#define AV2_FILTER_WEIGHT 128
+#define AV2_FILTER_SHIFT 7
 
 void highbd_filter_block2d_8_c(const uint16_t *src_ptr,
                                const unsigned int src_stride,
@@ -105,10 +105,10 @@ void highbd_filter_block2d_8_c(const uint16_t *src_ptr,
                          (src_ptr[2] * HFilter[2]) + (src_ptr[3] * HFilter[3]) +
                          (src_ptr[4] * HFilter[4]) + (src_ptr[5] * HFilter[5]) +
                          (src_ptr[6] * HFilter[6]) + (src_ptr[7] * HFilter[7]) +
-                         (AV1_FILTER_WEIGHT >> 1);  // Rounding
+                         (AV2_FILTER_WEIGHT >> 1);  // Rounding
 
         // Normalize back to 0-255...
-        *output_ptr = clip_pixel_highbd(temp >> AV1_FILTER_SHIFT, bd);
+        *output_ptr = clip_pixel_highbd(temp >> AV2_FILTER_SHIFT, bd);
         ++src_ptr;
         output_ptr += intermediate_height;
       }
@@ -130,10 +130,10 @@ void highbd_filter_block2d_8_c(const uint16_t *src_ptr,
             (interm_ptr[2] * VFilter[2]) + (interm_ptr[3] * VFilter[3]) +
             (interm_ptr[4] * VFilter[4]) + (interm_ptr[5] * VFilter[5]) +
             (interm_ptr[6] * VFilter[6]) + (interm_ptr[7] * VFilter[7]) +
-            (AV1_FILTER_WEIGHT >> 1);  // Rounding
+            (AV2_FILTER_WEIGHT >> 1);  // Rounding
 
         // Normalize back to 0-255...
-        *dst_ptr++ = clip_pixel_highbd(temp >> AV1_FILTER_SHIFT, bd);
+        *dst_ptr++ = clip_pixel_highbd(temp >> AV2_FILTER_SHIFT, bd);
         interm_ptr += intermediate_height;
       }
       interm_ptr += intermediate_next_stride;
@@ -173,27 +173,27 @@ class ConvolveTest : public ::testing::TestWithParam<ConvolveParam> {
  public:
   static void SetUpTestSuite() {
     // Force input_ to be unaligned, output to be 16 byte aligned.
-    input16_ = reinterpret_cast<uint16_t *>(aom_memalign(
+    input16_ = reinterpret_cast<uint16_t *>(avm_memalign(
                    kDataAlignment, (kInputBufferSize + 1) * sizeof(uint16_t))) +
                1;
-    ref16_ = reinterpret_cast<uint16_t *>(aom_memalign(
+    ref16_ = reinterpret_cast<uint16_t *>(avm_memalign(
         kDataAlignment, kOutputStride * kMaxDimension * sizeof(uint16_t)));
     output16_ = reinterpret_cast<uint16_t *>(
-        aom_memalign(kDataAlignment, (kOutputBufferSize) * sizeof(uint16_t)));
+        avm_memalign(kDataAlignment, (kOutputBufferSize) * sizeof(uint16_t)));
     output16_ref_ = reinterpret_cast<uint16_t *>(
-        aom_memalign(kDataAlignment, (kOutputBufferSize) * sizeof(uint16_t)));
+        avm_memalign(kDataAlignment, (kOutputBufferSize) * sizeof(uint16_t)));
   }
 
-  virtual void TearDown() { libaom_test::ClearSystemState(); }
+  virtual void TearDown() { libavm_test::ClearSystemState(); }
 
   static void TearDownTestSuite() {
-    aom_free(input16_ - 1);
+    avm_free(input16_ - 1);
     input16_ = NULL;
-    aom_free(ref16_);
+    avm_free(ref16_);
     ref16_ = NULL;
-    aom_free(output16_);
+    avm_free(output16_);
     output16_ = NULL;
-    aom_free(output16_ref_);
+    avm_free(output16_ref_);
     output16_ref_ = NULL;
   }
 
@@ -232,7 +232,7 @@ class ConvolveTest : public ::testing::TestWithParam<ConvolveParam> {
       }
     }
 
-    ::libaom_test::ACMRandom prng;
+    ::libavm_test::ACMRandom prng;
     for (int i = 0; i < kInputBufferSize; ++i) {
       if (i & 1) {
         input16_[i] = mask_;
@@ -243,7 +243,7 @@ class ConvolveTest : public ::testing::TestWithParam<ConvolveParam> {
   }
 
   void SetConstantInput(int value) {
-    aom_memset16(input16_, value, kInputBufferSize);
+    avm_memset16(input16_, value, kInputBufferSize);
   }
 
   void CopyOutputToRef() {
@@ -323,7 +323,7 @@ TEST(ConvolveTest, FiltersWontSaturateWhenAddedPairwise) {
     for (int filter_bank = 0; filter_bank < kNumFilterBanks; ++filter_bank) {
       const InterpFilter filter = (InterpFilter)filter_bank;
       const InterpKernel *filters =
-          (const InterpKernel *)av1_get_interp_filter_kernel(filter,
+          (const InterpKernel *)av2_get_interp_filter_kernel(filter,
                                                              subpel_search);
       for (int i = 0; i < kNumFilters; i++) {
         const int p0 = filters[i][0] + filters[i][1];
@@ -356,7 +356,7 @@ TEST_P(ConvolveTest, MatchesReferenceSubpixelFilter) {
     for (int filter_bank = 0; filter_bank < kNumFilterBanks; ++filter_bank) {
       const InterpFilter filter = (InterpFilter)filter_bank;
       const InterpKernel *filters =
-          (const InterpKernel *)av1_get_interp_filter_kernel(filter,
+          (const InterpKernel *)av2_get_interp_filter_kernel(filter,
                                                              subpel_search);
       for (int filter_x = 0; filter_x < kNumFilters; ++filter_x) {
         for (int filter_y = 0; filter_y < kNumFilters; ++filter_y) {
@@ -397,7 +397,7 @@ TEST_P(ConvolveTest, FilterExtremes) {
   uint16_t *ref = ref16_;
 
   // Populate ref and out with some random data
-  ::libaom_test::ACMRandom prng;
+  ::libavm_test::ACMRandom prng;
   for (int y = 0; y < Height(); ++y) {
     for (int x = 0; x < Width(); ++x) {
       uint16_t r;
@@ -433,7 +433,7 @@ TEST_P(ConvolveTest, FilterExtremes) {
              ++filter_bank) {
           const InterpFilter filter = (InterpFilter)filter_bank;
           const InterpKernel *filters =
-              (const InterpKernel *)av1_get_interp_filter_kernel(filter,
+              (const InterpKernel *)av2_get_interp_filter_kernel(filter,
                                                                  subpel_search);
           for (int filter_x = 0; filter_x < kNumFilters; ++filter_x) {
             for (int filter_y = 0; filter_y < kNumFilters; ++filter_y) {
@@ -474,7 +474,7 @@ TEST_P(ConvolveTest, DISABLED_Speed) {
   uint16_t *ref = ref16_;
 
   // Populate ref and out with some random data
-  ::libaom_test::ACMRandom prng;
+  ::libavm_test::ACMRandom prng;
   for (int y = 0; y < Height(); ++y) {
     for (int x = 0; x < Width(); ++x) {
       uint16_t r;
@@ -490,19 +490,19 @@ TEST_P(ConvolveTest, DISABLED_Speed) {
 
   const InterpFilter filter = (InterpFilter)1;
   const InterpKernel *filters =
-      (const InterpKernel *)av1_get_interp_filter_kernel(filter, USE_8_TAPS);
+      (const InterpKernel *)av2_get_interp_filter_kernel(filter, USE_8_TAPS);
   wrapper_filter_average_block2d_8_c(in, kInputStride, filters[1], filters[1],
                                      out, kOutputStride, Width(), Height());
 
-  aom_usec_timer timer;
+  avm_usec_timer timer;
   int tests_num = 1000;
 
-  aom_usec_timer_start(&timer);
+  avm_usec_timer_start(&timer);
   while (tests_num > 0) {
     for (int filter_bank = 0; filter_bank < kNumFilterBanks; ++filter_bank) {
       const InterpFilter filter = (InterpFilter)filter_bank;
       const InterpKernel *filters =
-          (const InterpKernel *)av1_get_interp_filter_kernel(filter,
+          (const InterpKernel *)av2_get_interp_filter_kernel(filter,
                                                              USE_8_TAPS);
       for (int filter_x = 0; filter_x < kNumFilters; ++filter_x) {
         for (int filter_y = 0; filter_y < kNumFilters; ++filter_y) {
@@ -520,10 +520,10 @@ TEST_P(ConvolveTest, DISABLED_Speed) {
     }
     tests_num--;
   }
-  aom_usec_timer_mark(&timer);
+  avm_usec_timer_mark(&timer);
 
   const int elapsed_time =
-      static_cast<int>(aom_usec_timer_elapsed(&timer) / 1000);
+      static_cast<int>(avm_usec_timer_elapsed(&timer) / 1000);
   printf("%dx%d (bitdepth %d) time: %5d ms\n", Width(), Height(),
          UUT_->use_highbd_, elapsed_time);
 }
@@ -536,7 +536,7 @@ using std::make_tuple;
       const uint16_t *src, ptrdiff_t src_stride, uint16_t *dst,              \
       ptrdiff_t dst_stride, const int16_t *filter_x, int filter_x_stride,    \
       const int16_t *filter_y, int filter_y_stride, int w, int h) {          \
-    aom_highbd_##func(src, src_stride, dst, dst_stride, filter_x,            \
+    avm_highbd_##func(src, src_stride, dst, dst_stride, filter_x,            \
                       filter_x_stride, filter_y, filter_y_stride, w, h, bd); \
   }
 #if HAVE_SSE2 && ARCH_X86_64

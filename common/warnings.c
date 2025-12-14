@@ -17,8 +17,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "aom/aom_encoder.h"
-#include "apps/aomenc.h"
+#include "avm/avm_encoder.h"
+#include "apps/avmenc.h"
 #include "common/tools_common.h"
 
 static const char quantizer_warning_string[] =
@@ -76,7 +76,7 @@ static void check_quantizer(int min_qp, int max_qp,
 
 void check_encoder_config(int disable_prompt,
                           const struct AvxEncoderConfig *global_config,
-                          const struct aom_codec_enc_cfg *stream_config) {
+                          const struct avm_codec_enc_cfg *stream_config) {
   int num_warnings = 0;
   struct WarningListNode *warning = NULL;
   struct WarningList warning_list = { 0 };

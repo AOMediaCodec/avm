@@ -16,8 +16,8 @@
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 #include "test/clear_system_state.h"
 #include "test/register_state_check.h"
-#include "aom_dsp/aom_simd_inline.h"
-#include "aom_dsp/simd/v256_intrinsics_c.h"
+#include "avm_dsp/avm_simd_inline.h"
+#include "avm_dsp/simd/v256_intrinsics_c.h"
 
 namespace SIMD_NAMESPACE {
 
@@ -31,7 +31,7 @@ class TestIntrinsic : public ::testing::TestWithParam<param_signature> {
     name = std::get<2>(this->GetParam());
   }
 
-  virtual void TearDown() { libaom_test::ClearSystemState(); }
+  virtual void TearDown() { libavm_test::ClearSystemState(); }
 
  protected:
   uint32_t mask, maskwidth;

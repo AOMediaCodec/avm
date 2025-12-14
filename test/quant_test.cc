@@ -9,14 +9,14 @@
  * source code in the PATENTS file, you can obtain it at
  * aomedia.org/license/patent-license/.
  */
-#include "config/aom_config.h"
+#include "config/avm_config.h"
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 #include "test/codec_factory.h"
 #include "test/encode_test_driver.h"
 #include "test/i420_video_source.h"
 #include "test/util.h"
-#include "av1/encoder/av1_quantize.h"
+#include "av2/encoder/av2_quantize.h"
 #include "test/y4m_video_source.h"
 
 namespace {
@@ -148,8 +148,8 @@ constexpr uint8_t jpeg_chroma_qm_8x8_almost[8 * 8] = {
 // clang-format off
 
 class QMTest
-    : public ::libaom_test::CodecTestWith2Params<libaom_test::TestMode, int>,
-      public ::libaom_test::EncoderTest {
+    : public ::libavm_test::CodecTestWith2Params<libavm_test::TestMode, int>,
+      public ::libavm_test::EncoderTest {
  protected:
   QMTest() : EncoderTest(GET_PARAM(0)) {}
   virtual ~QMTest() {}
@@ -160,16 +160,16 @@ class QMTest
     set_cpu_used_ = GET_PARAM(2);
   }
 
-  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
-                                  ::libaom_test::Encoder *encoder) {
+  virtual void PreEncodeFrameHook(::libavm_test::VideoSource *video,
+                                  ::libavm_test::Encoder *encoder) {
     if (video->frame() == 0) {
-      encoder->Control(AOME_SET_CPUUSED, set_cpu_used_);
-      encoder->Control(AV1E_SET_ENABLE_QM, 1);
-      encoder->Control(AV1E_SET_QM_MIN, qm_min_);
-      encoder->Control(AV1E_SET_QM_MAX, qm_max_);
+      encoder->Control(AVME_SET_CPUUSED, set_cpu_used_);
+      encoder->Control(AV2E_SET_ENABLE_QM, 1);
+      encoder->Control(AV2E_SET_QM_MIN, qm_min_);
+      encoder->Control(AV2E_SET_QM_MAX, qm_max_);
       if (user_defined_qmatrix_ == 1) {
         ASSERT_EQ(qm_min_, qm_max_);
-        aom_user_defined_qm_t qm;
+        avm_user_defined_qm_t qm;
         qm.level = qm_min_;
         qm.num_planes = monochrome_ ? 1 : 3;
         if (monochrome_) {
@@ -187,10 +187,10 @@ class QMTest
           qm.qm_4x8[1] = user_defined_qm_4x8[1];
           qm.qm_4x8[2] = user_defined_qm_4x8[1];
         }
-        encoder->Control(AV1E_SET_USER_DEFINED_QMATRIX, &qm);
+        encoder->Control(AV2E_SET_USER_DEFINED_QMATRIX, &qm);
       } else if (user_defined_qmatrix_ == 2) {
         ASSERT_EQ(qm_min_, qm_max_);
-        aom_user_defined_qm_t qm;
+        avm_user_defined_qm_t qm;
         qm.level = qm_min_;
         qm.num_planes = monochrome_ ? 1 : 3;
         if (monochrome_) {
@@ -208,10 +208,10 @@ class QMTest
           qm.qm_4x8[1] = flat_qm_4x8;
           qm.qm_4x8[2] = flat_qm_4x8;
         }
-        encoder->Control(AV1E_SET_USER_DEFINED_QMATRIX, &qm);
+        encoder->Control(AV2E_SET_USER_DEFINED_QMATRIX, &qm);
       } else if (user_defined_qmatrix_ == 3) {
         ASSERT_EQ(qm_min_, qm_max_);
-        aom_user_defined_qm_t qm;
+        avm_user_defined_qm_t qm;
         qm.level = qm_min_;
         qm.num_planes = monochrome_ ? 1 : 3;
         if (monochrome_) {
@@ -229,10 +229,10 @@ class QMTest
           qm.qm_4x8[1] = flat_qm_4x8;
           qm.qm_4x8[2] = flat_qm_4x8;
         }
-        encoder->Control(AV1E_SET_USER_DEFINED_QMATRIX, &qm);
+        encoder->Control(AV2E_SET_USER_DEFINED_QMATRIX, &qm);
       } else if (user_defined_qmatrix_ == 4) {
         ASSERT_EQ(qm_min_, qm_max_);
-        aom_user_defined_qm_t qm;
+        avm_user_defined_qm_t qm;
         qm.level = qm_min_;
         ASSERT_FALSE(monochrome_);
         qm.num_planes = 3;
@@ -245,10 +245,10 @@ class QMTest
         qm.qm_4x8[0] = flat_qm_4x8;
         qm.qm_4x8[1] = flat_qm_4x8;
         qm.qm_4x8[2] = flat_qm_4x8;
-        encoder->Control(AV1E_SET_USER_DEFINED_QMATRIX, &qm);
+        encoder->Control(AV2E_SET_USER_DEFINED_QMATRIX, &qm);
       }
 
-      encoder->Control(AOME_SET_MAX_INTRA_BITRATE_PCT, 100);
+      encoder->Control(AVME_SET_MAX_INTRA_BITRATE_PCT, 100);
     }
   }
 
@@ -261,13 +261,13 @@ class QMTest
     cfg_.kf_max_dist = 12;
     cfg_.rc_min_quantizer = 32;
     cfg_.rc_max_quantizer = 224;
-    cfg_.rc_end_usage = AOM_CBR;
+    cfg_.rc_end_usage = AVM_CBR;
     cfg_.g_lag_in_frames = 6;
     cfg_.rc_buf_initial_sz = 500;
     cfg_.rc_buf_optimal_sz = 500;
     cfg_.rc_buf_sz = 1000;
     cfg_.rc_target_bitrate = 300;
-    ::libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352,
+    ::libavm_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352,
                                          288, 30, 1, 0, 15);
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   }
@@ -344,8 +344,8 @@ TEST_P(QMTest, TestNoMisMatchQM12) {
   DoTest(15, 15);
 }
 
-AV1_INSTANTIATE_TEST_SUITE(QMTest,
-                           ::testing::Values(::libaom_test::kOnePassGood),
+AV2_INSTANTIATE_TEST_SUITE(QMTest,
+                           ::testing::Values(::libavm_test::kOnePassGood),
                            ::testing::Range(5, 7));
 
 typedef struct {
@@ -367,9 +367,9 @@ std::ostream &operator<<(std::ostream &os, const QuantParam &test_arg) {
  * and max quantizer range configured by user.
  */
 class QuantizerBoundsCheckTestLarge
-    : public ::libaom_test::CodecTestWith3Params<libaom_test::TestMode,
-                                                 QuantParam, aom_rc_mode>,
-      public ::libaom_test::EncoderTest {
+    : public ::libavm_test::CodecTestWith3Params<libavm_test::TestMode,
+                                                 QuantParam, avm_rc_mode>,
+      public ::libavm_test::EncoderTest {
  protected:
   QuantizerBoundsCheckTestLarge()
       : EncoderTest(GET_PARAM(0)), encoding_mode_(GET_PARAM(1)),
@@ -381,33 +381,33 @@ class QuantizerBoundsCheckTestLarge
   virtual void SetUp() {
     InitializeConfig();
     SetMode(encoding_mode_);
-    const aom_rational timebase = { 1, 30 };
+    const avm_rational timebase = { 1, 30 };
     cfg_.g_timebase = timebase;
     cfg_.rc_end_usage = rc_end_usage_;
     cfg_.g_threads = 1;
     cfg_.rc_min_quantizer = quant_param_.min_q;
     cfg_.rc_max_quantizer = quant_param_.max_q;
     cfg_.g_lag_in_frames = 35;
-    if (rc_end_usage_ != AOM_Q) {
+    if (rc_end_usage_ != AVM_Q) {
       cfg_.rc_target_bitrate = 400;
     }
   }
 
   virtual bool DoDecode() const { return 1; }
 
-  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
-                                  ::libaom_test::Encoder *encoder) {
+  virtual void PreEncodeFrameHook(::libavm_test::VideoSource *video,
+                                  ::libavm_test::Encoder *encoder) {
     if (video->frame() == 0) {
-      encoder->Control(AOME_SET_CPUUSED, 5);
+      encoder->Control(AVME_SET_CPUUSED, 5);
     }
   }
 
-  virtual bool HandleDecodeResult(const aom_codec_err_t res_dec,
-                                  libaom_test::Decoder *decoder) {
-    EXPECT_EQ(AOM_CODEC_OK, res_dec) << decoder->DecodeError();
-    if (AOM_CODEC_OK == res_dec) {
-      aom_codec_ctx_t *ctx_dec = decoder->GetDecoder();
-      AOM_CODEC_CONTROL_TYPECHECKED(ctx_dec, AOMD_GET_LAST_QUANTIZER,
+  virtual bool HandleDecodeResult(const avm_codec_err_t res_dec,
+                                  libavm_test::Decoder *decoder) {
+    EXPECT_EQ(AVM_CODEC_OK, res_dec) << decoder->DecodeError();
+    if (AVM_CODEC_OK == res_dec) {
+      avm_codec_ctx_t *ctx_dec = decoder->GetDecoder();
+      AVM_CODEC_CONTROL_TYPECHECKED(ctx_dec, AVMD_GET_LAST_QUANTIZER,
                                     &base_qindex_);
       min_bound_qindex_ = cfg_.rc_min_quantizer;
       max_bound_qindex_ = cfg_.rc_max_quantizer;
@@ -417,28 +417,28 @@ class QuantizerBoundsCheckTestLarge
         quant_bound_violated_ = true;
       }
     }
-    return AOM_CODEC_OK == res_dec;
+    return AVM_CODEC_OK == res_dec;
   }
 
-  ::libaom_test::TestMode encoding_mode_;
+  ::libavm_test::TestMode encoding_mode_;
   const QuantParam quant_param_;
   int base_qindex_;
   int min_bound_qindex_;
   int max_bound_qindex_;
   bool quant_bound_violated_;
-  aom_rc_mode rc_end_usage_;
+  avm_rc_mode rc_end_usage_;
 };
 
 TEST_P(QuantizerBoundsCheckTestLarge, QuantizerBoundsCheckEncodeTest) {
-  libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
+  libavm_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                      cfg_.g_timebase.den, cfg_.g_timebase.num,
                                      0, 50);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   ASSERT_EQ(quant_bound_violated_, false);
 }
 
-AV1_INSTANTIATE_TEST_SUITE(QuantizerBoundsCheckTestLarge,
+AV2_INSTANTIATE_TEST_SUITE(QuantizerBoundsCheckTestLarge,
                            GOODQUALITY_TEST_MODES,
                            ::testing::ValuesIn(QuantTestParams),
-                           ::testing::Values(AOM_Q, AOM_VBR, AOM_CBR, AOM_CQ));
+                           ::testing::Values(AVM_Q, AVM_VBR, AVM_CBR, AVM_CQ));
 }  // namespace

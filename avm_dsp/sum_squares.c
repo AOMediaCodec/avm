@@ -1,0 +1,102 @@
+/*
+ * Copyright (c) 2021, Alliance for Open Media. All rights reserved
+ *
+ * This source code is subject to the terms of the BSD 3-Clause Clear License
+ * and the Alliance for Open Media Patent License 1.0. If the BSD 3-Clause Clear
+ * License was not distributed with this source code in the LICENSE file, you
+ * can obtain it at aomedia.org/license/software-license/bsd-3-c-c/.  If the
+ * Alliance for Open Media Patent License 1.0 was not distributed with this
+ * source code in the PATENTS file, you can obtain it at
+ * aomedia.org/license/patent-license/.
+ */
+
+#include <assert.h>
+
+#include "config/avm_dsp_rtcd.h"
+
+uint64_t avm_sum_squares_2d_i16_c(const int16_t *src, int src_stride, int width,
+                                  int height) {
+  assert(width > 0 && height > 0);
+  int r, c;
+  uint64_t ss = 0;
+
+  for (r = 0; r < height; r++) {
+    for (c = 0; c < width; c++) {
+      const int16_t v = src[c];
+      ss += v * v;
+    }
+    src += src_stride;
+  }
+
+  return ss;
+}
+
+uint64_t avm_sum_squares_i16_c(const int16_t *src, uint32_t n) {
+  uint64_t ss = 0;
+  do {
+    const int16_t v = *src++;
+    ss += v * v;
+  } while (--n);
+
+  return ss;
+}
+
+uint64_t avm_sum_squares_i32_c(const int32_t *src, int32_t n) {
+  uint64_t ss = 0;
+  do {
+    const int32_t v = *src++;
+    ss += ((int64_t)v) * v;
+  } while (--n);
+
+  return ss;
+}
+
+uint64_t avm_var_2d_u8_c(uint8_t *src, int src_stride, int width, int height) {
+  int r, c;
+  uint64_t ss = 0, s = 0;
+
+  for (r = 0; r < height; r++) {
+    for (c = 0; c < width; c++) {
+      const uint8_t v = src[c];
+      ss += v * v;
+      s += v;
+    }
+    src += src_stride;
+  }
+
+  return (ss - s * s / (width * height));
+}
+
+uint64_t avm_var_2d_u16_c(uint16_t *srcp, int src_stride, int width,
+                          int height) {
+  int r, c;
+  uint64_t ss = 0, s = 0;
+
+  for (r = 0; r < height; r++) {
+    for (c = 0; c < width; c++) {
+      const uint16_t v = srcp[c];
+      ss += v * v;
+      s += v;
+    }
+    srcp += src_stride;
+  }
+
+  return (ss - s * s / (width * height));
+}
+
+uint64_t avm_sum_sse_2d_i16_c(const int16_t *src, int src_stride, int width,
+                              int height, int *sum) {
+  int r, c;
+  int16_t *srcp = (int16_t *)src;
+  int64_t ss = 0;
+
+  for (r = 0; r < height; r++) {
+    for (c = 0; c < width; c++) {
+      const int16_t v = srcp[c];
+      ss += v * v;
+      *sum += v;
+    }
+    srcp += src_stride;
+  }
+  return ss;
+}

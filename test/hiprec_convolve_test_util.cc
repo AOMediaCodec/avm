@@ -12,12 +12,12 @@
 
 #include "test/hiprec_convolve_test_util.h"
 
-#include "av1/common/restoration.h"
+#include "av2/common/restoration.h"
 
 using std::make_tuple;
 using std::tuple;
 
-namespace libaom_test {
+namespace libavm_test {
 
 // Generate a random pair of filter kernels, using the ranges
 // of possible values from the loop-restoration experiment
@@ -65,7 +65,7 @@ static void generate_kernels(ACMRandom *rnd, InterpKernel hkernel,
   }
 }
 
-namespace AV1HighbdHiprecConvolve {
+namespace AV2HighbdHiprecConvolve {
 
 ::testing::internal::ParamGenerator<HighbdHiprecConvolveParam> BuildParams(
     highbd_hiprec_convolve_func filter) {
@@ -79,16 +79,16 @@ namespace AV1HighbdHiprecConvolve {
   return ::testing::ValuesIn(params);
 }
 
-AV1HighbdHiprecConvolveTest::~AV1HighbdHiprecConvolveTest() {}
-void AV1HighbdHiprecConvolveTest::SetUp() {
+AV2HighbdHiprecConvolveTest::~AV2HighbdHiprecConvolveTest() {}
+void AV2HighbdHiprecConvolveTest::SetUp() {
   rnd_.Reset(ACMRandom::DeterministicSeed());
 }
 
-void AV1HighbdHiprecConvolveTest::TearDown() {
-  libaom_test::ClearSystemState();
+void AV2HighbdHiprecConvolveTest::TearDown() {
+  libavm_test::ClearSystemState();
 }
 
-void AV1HighbdHiprecConvolveTest::RunCheckOutput(
+void AV2HighbdHiprecConvolveTest::RunCheckOutput(
     highbd_hiprec_convolve_func test_impl) {
   const int w = 128, h = 128;
   const int out_w = GET_PARAM(0), out_h = GET_PARAM(1);
@@ -120,7 +120,7 @@ void AV1HighbdHiprecConvolveTest::RunCheckOutput(
       // Choose random locations within the source block
       int offset_r = 3 + rnd_.PseudoUniform(h - out_h - 7);
       int offset_c = 3 + rnd_.PseudoUniform(w - out_w - 7);
-      av1_highbd_wiener_convolve_add_src_c(input + offset_r * w + offset_c, w,
+      av2_highbd_wiener_convolve_add_src_c(input + offset_r * w + offset_c, w,
                                            output, out_w, hkernel, 16, vkernel,
                                            16, out_w, out_h, &conv_params, bd);
       test_impl(input + offset_r * w + offset_c, w, output2, out_w, hkernel, 16,
@@ -137,7 +137,7 @@ void AV1HighbdHiprecConvolveTest::RunCheckOutput(
   delete[] output2;
 }
 
-void AV1HighbdHiprecConvolveTest::RunSpeedTest(
+void AV2HighbdHiprecConvolveTest::RunSpeedTest(
     highbd_hiprec_convolve_func test_impl) {
   const int w = 128, h = 128;
   const int out_w = GET_PARAM(0), out_h = GET_PARAM(1);
@@ -165,22 +165,22 @@ void AV1HighbdHiprecConvolveTest::RunSpeedTest(
   for (i = 0; i < h; ++i)
     for (j = 0; j < w; ++j) input[i * w + j] = rnd_.Rand16() & ((1 << bd) - 1);
 
-  aom_usec_timer ref_timer;
-  aom_usec_timer_start(&ref_timer);
+  avm_usec_timer ref_timer;
+  avm_usec_timer_start(&ref_timer);
   for (i = 0; i < num_iters; ++i) {
     for (j = 3; j < h - out_h - 4; j++) {
       for (k = 3; k < w - out_w - 4; k++) {
-        av1_highbd_wiener_convolve_add_src_c(input + j * w + k, w, output,
+        av2_highbd_wiener_convolve_add_src_c(input + j * w + k, w, output,
                                              out_w, hkernel, 16, vkernel, 16,
                                              out_w, out_h, &conv_params, bd);
       }
     }
   }
-  aom_usec_timer_mark(&ref_timer);
-  const int64_t ref_time = aom_usec_timer_elapsed(&ref_timer);
+  avm_usec_timer_mark(&ref_timer);
+  const int64_t ref_time = avm_usec_timer_elapsed(&ref_timer);
 
-  aom_usec_timer tst_timer;
-  aom_usec_timer_start(&tst_timer);
+  avm_usec_timer tst_timer;
+  avm_usec_timer_start(&tst_timer);
   for (i = 0; i < num_iters; ++i) {
     for (j = 3; j < h - out_h - 4; j++) {
       for (k = 3; k < w - out_w - 4; k++) {
@@ -189,14 +189,14 @@ void AV1HighbdHiprecConvolveTest::RunSpeedTest(
       }
     }
   }
-  aom_usec_timer_mark(&tst_timer);
-  const int64_t tst_time = aom_usec_timer_elapsed(&tst_timer);
+  avm_usec_timer_mark(&tst_timer);
+  const int64_t tst_time = avm_usec_timer_elapsed(&tst_timer);
 
   std::cout << "[          ] C time = " << ref_time / 1000
             << " ms, SIMD time = " << tst_time / 1000 << " ms\n";
 
   EXPECT_GT(ref_time, tst_time)
-      << "Error: AV1HighbdHiprecConvolveTest.SpeedTest, SIMD slower than C.\n"
+      << "Error: AV2HighbdHiprecConvolveTest.SpeedTest, SIMD slower than C.\n"
       << "C time: " << ref_time << " us\n"
       << "SIMD time: " << tst_time << " us\n";
 
@@ -204,5 +204,5 @@ void AV1HighbdHiprecConvolveTest::RunSpeedTest(
   delete[] output;
   delete[] output2;
 }
-}  // namespace AV1HighbdHiprecConvolve
-}  // namespace libaom_test
+}  // namespace AV2HighbdHiprecConvolve
+}  // namespace libavm_test

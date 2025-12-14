@@ -48,16 +48,16 @@
 set -e
 
 tmpdir="/tmp"
-AOMENC="${tmpdir}/aomenc_$$"
-AOMDEC="${tmpdir}/aomdec_$$"
+AVMENC="${tmpdir}/avmenc_$$"
+AVMDEC="${tmpdir}/avmdec_$$"
 RESAMPLE="${tmpdir}/lanczos_resample_y4m_$$"
 SUPERRES="${tmpdir}/cnn_restore_y4m_$$"
-cp ./aomenc $AOMENC
-cp ./aomdec $AOMDEC
+cp ./avmenc $AVMENC
+cp ./avmdec $AVMDEC
 cp ./lanczos_resample_y4m $RESAMPLE
 cp ./cnn_restore_y4m $SUPERRES
 
-trap 'echo "Exiting..."; rm -f ${AOMENC} ${AOMDEC} ${RESAMPLE} ${SUPERRES}' EXIT
+trap 'echo "Exiting..."; rm -f ${AVMENC} ${AVMDEC} ${RESAMPLE} ${SUPERRES}' EXIT
 
 extra=""
 
@@ -156,15 +156,15 @@ fi
 $RESAMPLE $options $input_y4m $nframes $hdconfig $vdconfig $down_y4m
 
 #Compress
-$AOMENC -o $downcomp_bit $down_y4m \
-        --codec=av1 --good --threads=0 --passes=1 --lag-in-frames=19 \
+$AVMENC -o $downcomp_bit $down_y4m \
+        --codec=av2 --good --threads=0 --passes=1 --lag-in-frames=19 \
         --kf-max-dist=65 --kf-min-dist=0 --test-decode=warn -v --psnr \
         --end-usage=q \
         --cq-level=${cq_level} \
         --cpu-used=${cpu_used} \
         --limit=${nframes} \
         ${extra}
-$AOMDEC --progress -S --codec=av1 -o $downcomp_y4m $downcomp_bit
+$AVMDEC --progress -S --codec=av2 -o $downcomp_y4m $downcomp_bit
 
 #Upsample
 $RESAMPLE $options $downcomp_y4m $nframes $huconfig $vuconfig $downcompup_y4m \

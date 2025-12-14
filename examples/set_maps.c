@@ -10,10 +10,10 @@
  * aomedia.org/license/patent-license/.
  */
 
-// AOM Set Active and ROI Maps
+// AVM Set Active and ROI Maps
 // ===========================
 //
-// This is an example demonstrating how to control the AOM encoder's
+// This is an example demonstrating how to control the AVM encoder's
 // ROI and Active maps.
 //
 // ROI (Reigon of Interest) maps are a way for the application to assign
@@ -48,8 +48,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "aom/aom_encoder.h"
-#include "aom/aomcx.h"
+#include "avm/avm_encoder.h"
+#include "avm/avmcx.h"
 #include "common/tools_common.h"
 #include "common/video_writer.h"
 
@@ -61,10 +61,10 @@ void usage_exit(void) {
   exit(EXIT_FAILURE);
 }
 
-static void set_active_map(const aom_codec_enc_cfg_t *cfg,
-                           aom_codec_ctx_t *codec) {
+static void set_active_map(const avm_codec_enc_cfg_t *cfg,
+                           avm_codec_ctx_t *codec) {
   unsigned int i;
-  aom_active_map_t map = { 0, 0, 0 };
+  avm_active_map_t map = { 0, 0, 0 };
 
   map.rows = (cfg->g_h + 15) / 16;
   map.cols = (cfg->g_w + 15) / 16;
@@ -72,39 +72,39 @@ static void set_active_map(const aom_codec_enc_cfg_t *cfg,
   map.active_map = (uint8_t *)malloc(map.rows * map.cols);
   for (i = 0; i < map.rows * map.cols; ++i) map.active_map[i] = i % 2;
 
-  if (aom_codec_control(codec, AOME_SET_ACTIVEMAP, &map))
+  if (avm_codec_control(codec, AVME_SET_ACTIVEMAP, &map))
     die_codec(codec, "Failed to set active map");
 
   free(map.active_map);
 }
 
-static void unset_active_map(const aom_codec_enc_cfg_t *cfg,
-                             aom_codec_ctx_t *codec) {
-  aom_active_map_t map = { 0, 0, 0 };
+static void unset_active_map(const avm_codec_enc_cfg_t *cfg,
+                             avm_codec_ctx_t *codec) {
+  avm_active_map_t map = { 0, 0, 0 };
 
   map.rows = (cfg->g_h + 15) / 16;
   map.cols = (cfg->g_w + 15) / 16;
   map.active_map = NULL;
 
-  if (aom_codec_control(codec, AOME_SET_ACTIVEMAP, &map))
+  if (avm_codec_control(codec, AVME_SET_ACTIVEMAP, &map))
     die_codec(codec, "Failed to set active map");
 }
 
-static int encode_frame(aom_codec_ctx_t *codec, aom_image_t *img,
+static int encode_frame(avm_codec_ctx_t *codec, avm_image_t *img,
                         int frame_index, AvxVideoWriter *writer) {
   int got_pkts = 0;
-  aom_codec_iter_t iter = NULL;
-  const aom_codec_cx_pkt_t *pkt = NULL;
-  const aom_codec_err_t res = aom_codec_encode(codec, img, frame_index, 1, 0);
-  if (res != AOM_CODEC_OK) die_codec(codec, "Failed to encode frame");
+  avm_codec_iter_t iter = NULL;
+  const avm_codec_cx_pkt_t *pkt = NULL;
+  const avm_codec_err_t res = avm_codec_encode(codec, img, frame_index, 1, 0);
+  if (res != AVM_CODEC_OK) die_codec(codec, "Failed to encode frame");
 
-  while ((pkt = aom_codec_get_cx_data(codec, &iter)) != NULL) {
+  while ((pkt = avm_codec_get_cx_data(codec, &iter)) != NULL) {
     got_pkts = 1;
 
-    if (pkt->kind == AOM_CODEC_CX_FRAME_PKT ||
-        pkt->kind == AOM_CODEC_CX_FRAME_NULL_PKT) {
-      const int keyframe = (pkt->data.frame.flags & AOM_FRAME_IS_KEY) != 0;
-      if (!aom_video_writer_write_frame(writer, pkt->data.frame.buf,
+    if (pkt->kind == AVM_CODEC_CX_FRAME_PKT ||
+        pkt->kind == AVM_CODEC_CX_FRAME_NULL_PKT) {
+      const int keyframe = (pkt->data.frame.flags & AVM_FRAME_IS_KEY) != 0;
+      if (!avm_video_writer_write_frame(writer, pkt->data.frame.buf,
                                         pkt->data.frame.sz,
                                         pkt->data.frame.pts)) {
         die_codec(codec, "Failed to write compressed frame");
@@ -120,12 +120,12 @@ static int encode_frame(aom_codec_ctx_t *codec, aom_image_t *img,
 
 int main(int argc, char **argv) {
   FILE *infile = NULL;
-  aom_codec_ctx_t codec;
-  aom_codec_enc_cfg_t cfg;
+  avm_codec_ctx_t codec;
+  avm_codec_enc_cfg_t cfg;
   int frame_count = 0;
   const int limit = 10;
-  aom_image_t raw;
-  aom_codec_err_t res;
+  avm_image_t raw;
+  avm_codec_err_t res;
   AvxVideoInfo info;
   AvxVideoWriter *writer = NULL;
   const int fps = 2;  // TODO(dkovalev) add command line argument
@@ -136,12 +136,12 @@ int main(int argc, char **argv) {
 
   memset(&info, 0, sizeof(info));
 
-  aom_codec_iface_t *encoder = get_aom_encoder_by_short_name(argv[1]);
+  avm_codec_iface_t *encoder = get_avm_encoder_by_short_name(argv[1]);
   if (encoder == NULL) {
     die("Unsupported codec.");
   }
   assert(encoder != NULL);
-  info.codec_fourcc = get_fourcc_by_aom_encoder(encoder);
+  info.codec_fourcc = get_fourcc_by_avm_encoder(encoder);
   info.frame_width = (int)strtol(argv[2], NULL, 0);
   info.frame_height = (int)strtol(argv[3], NULL, 0);
   info.time_base.numerator = 1;
@@ -152,14 +152,14 @@ int main(int argc, char **argv) {
     die("Invalid frame size: %dx%d", info.frame_width, info.frame_height);
   }
 
-  if (!aom_img_alloc(&raw, AOM_IMG_FMT_I420, info.frame_width,
+  if (!avm_img_alloc(&raw, AVM_IMG_FMT_I420, info.frame_width,
                      info.frame_height, 1)) {
     die("Failed to allocate image.");
   }
 
-  printf("Using %s\n", aom_codec_iface_name(encoder));
+  printf("Using %s\n", avm_codec_iface_name(encoder));
 
-  res = aom_codec_enc_config_default(encoder, &cfg, 0);
+  res = avm_codec_enc_config_default(encoder, &cfg, 0);
   if (res) die_codec(&codec, "Failed to get default codec config.");
 
   cfg.g_w = info.frame_width;
@@ -170,20 +170,20 @@ int main(int argc, char **argv) {
       (unsigned int)(bits_per_pixel_per_frame * cfg.g_w * cfg.g_h * fps / 1000);
   cfg.g_lag_in_frames = 0;
 
-  writer = aom_video_writer_open(argv[5], kContainerIVF, &info);
+  writer = avm_video_writer_open(argv[5], kContainerIVF, &info);
   if (!writer) die("Failed to open %s for writing.", argv[5]);
 
   if (!(infile = fopen(argv[4], "rb")))
     die("Failed to open %s for reading.", argv[4]);
 
-  if (aom_codec_enc_init(&codec, encoder, &cfg, 0))
+  if (avm_codec_enc_init(&codec, encoder, &cfg, 0))
     die("Failed to initialize encoder");
 
-  if (aom_codec_control(&codec, AOME_SET_CPUUSED, 2))
+  if (avm_codec_control(&codec, AVME_SET_CPUUSED, 2))
     die_codec(&codec, "Failed to set cpu-used");
 
   // Encode frames.
-  while (aom_img_read(&raw, infile) && frame_count < limit) {
+  while (avm_img_read(&raw, infile) && frame_count < limit) {
     ++frame_count;
 
     if (frame_count == 5) {
@@ -203,10 +203,10 @@ int main(int argc, char **argv) {
   fclose(infile);
   printf("Processed %d frames.\n", frame_count);
 
-  aom_img_free(&raw);
-  if (aom_codec_destroy(&codec)) die_codec(&codec, "Failed to destroy codec.");
+  avm_img_free(&raw);
+  if (avm_codec_destroy(&codec)) die_codec(&codec, "Failed to destroy codec.");
 
-  aom_video_writer_close(writer);
+  avm_video_writer_close(writer);
 
   return EXIT_SUCCESS;
 }

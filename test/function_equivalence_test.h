@@ -10,8 +10,8 @@
  * aomedia.org/license/patent-license/.
  */
 
-#ifndef AOM_TEST_FUNCTION_EQUIVALENCE_TEST_H_
-#define AOM_TEST_FUNCTION_EQUIVALENCE_TEST_H_
+#ifndef AVM_TEST_FUNCTION_EQUIVALENCE_TEST_H_
+#define AVM_TEST_FUNCTION_EQUIVALENCE_TEST_H_
 
 #include <ostream>
 
@@ -20,9 +20,9 @@
 #include "test/clear_system_state.h"
 #include "test/util.h"
 
-using libaom_test::ACMRandom;
+using libavm_test::ACMRandom;
 
-namespace libaom_test {
+namespace libavm_test {
 // Base class for tests that compare 2 implementations of the same function
 // for equivalence. The template parameter should be pointer to a function
 // that is being tested.
@@ -61,12 +61,12 @@ class FunctionEquivalenceTest : public ::testing::TestWithParam<FuncParam<T> > {
 
   virtual void SetUp() { params_ = this->GetParam(); }
 
-  virtual void TearDown() { libaom_test::ClearSystemState(); }
+  virtual void TearDown() { libavm_test::ClearSystemState(); }
 
  protected:
   ACMRandom rng_;
   FuncParam<T> params_;
 };
 
-}  // namespace libaom_test
-#endif  // AOM_TEST_FUNCTION_EQUIVALENCE_TEST_H_
+}  // namespace libavm_test
+#endif  // AVM_TEST_FUNCTION_EQUIVALENCE_TEST_H_

@@ -8,10 +8,10 @@
 # for Open Media Patent License 1.0 was not distributed with this source code in
 # the PATENTS file, you can obtain it at aomedia.org/license/patent-license/.
 #
-if(AOM_BUILD_CMAKE_TOOLCHAINS_ARM64_ANDROID_CLANG_CMAKE_)
+if(AVM_BUILD_CMAKE_TOOLCHAINS_ARM64_ANDROID_CLANG_CMAKE_)
   return()
-endif() # AOM_BUILD_CMAKE_TOOLCHAINS_ARM64_ANDROID_CLANG_CMAKE_
-set(AOM_BUILD_CMAKE_TOOLCHAINS_ARM64_ANDROID_CLANG_CMAKE_ 1)
+endif() # AVM_BUILD_CMAKE_TOOLCHAINS_ARM64_ANDROID_CLANG_CMAKE_
+set(AVM_BUILD_CMAKE_TOOLCHAINS_ARM64_ANDROID_CLANG_CMAKE_ 1)
 
 if(NOT ANDROID_PLATFORM)
   set(ANDROID_PLATFORM android-21)
@@ -26,21 +26,21 @@ set(AS_EXECUTABLE as)
 # Toolchain files don't have access to cached variables:
 # https://gitlab.kitware.com/cmake/cmake/issues/16170. Set an intermediate
 # environment variable when loaded the first time.
-if(AOM_ANDROID_NDK_PATH)
-  set(ENV{_AOM_ANDROID_NDK_PATH} "${AOM_ANDROID_NDK_PATH}")
+if(AVM_ANDROID_NDK_PATH)
+  set(ENV{_AVM_ANDROID_NDK_PATH} "${AVM_ANDROID_NDK_PATH}")
 else()
-  set(AOM_ANDROID_NDK_PATH "$ENV{_AOM_ANDROID_NDK_PATH}")
+  set(AVM_ANDROID_NDK_PATH "$ENV{_AVM_ANDROID_NDK_PATH}")
 endif()
 
-if("${AOM_ANDROID_NDK_PATH}" STREQUAL "")
-  message(FATAL_ERROR "AOM_ANDROID_NDK_PATH not set.")
+if("${AVM_ANDROID_NDK_PATH}" STREQUAL "")
+  message(FATAL_ERROR "AVM_ANDROID_NDK_PATH not set.")
   return()
 endif()
 
-include("${AOM_ANDROID_NDK_PATH}/build/cmake/android.toolchain.cmake")
+include("${AVM_ANDROID_NDK_PATH}/build/cmake/android.toolchain.cmake")
 
 # No intrinsics flag required for arm64-android-clang.
-set(AOM_NEON_INTRIN_FLAG "")
+set(AVM_NEON_INTRIN_FLAG "")
 
 # No runtime cpu detect for arm64-android-clang.
 set(CONFIG_RUNTIME_CPU_DETECT

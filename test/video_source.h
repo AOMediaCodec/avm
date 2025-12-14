@@ -9,8 +9,8 @@
  * source code in the PATENTS file, you can obtain it at
  * aomedia.org/license/patent-license/.
  */
-#ifndef AOM_TEST_VIDEO_SOURCE_H_
-#define AOM_TEST_VIDEO_SOURCE_H_
+#ifndef AVM_TEST_VIDEO_SOURCE_H_
+#define AVM_TEST_VIDEO_SOURCE_H_
 
 #if defined(_WIN32)
 #undef NOMINMAX
@@ -22,26 +22,26 @@
 #include <cstdlib>
 #include <string>
 #include "test/acm_random.h"
-#include "aom/aom_encoder.h"
+#include "avm/avm_encoder.h"
 
-namespace libaom_test {
+namespace libavm_test {
 
-// Helper macros to ensure LIBAOM_TEST_DATA_PATH is a quoted string.
+// Helper macros to ensure LIBAVM_TEST_DATA_PATH is a quoted string.
 // These are undefined right below GetDataPath
-// NOTE: LIBAOM_TEST_DATA_PATH MUST NOT be a quoted string before
+// NOTE: LIBAVM_TEST_DATA_PATH MUST NOT be a quoted string before
 // Stringification or the GetDataPath will fail at runtime
 #define TO_STRING(S) #S
 #define STRINGIFY(S) TO_STRING(S)
 
 // A simple function to encapsulate cross platform retrieval of test data path
 static std::string GetDataPath() {
-  const char *const data_path = getenv("LIBAOM_TEST_DATA_PATH");
+  const char *const data_path = getenv("LIBAVM_TEST_DATA_PATH");
   if (data_path == NULL) {
-#ifdef LIBAOM_TEST_DATA_PATH
+#ifdef LIBAVM_TEST_DATA_PATH
     // In some environments, we cannot set environment variables
     // Instead, we set the data path by using a preprocessor symbol
     // which can be set from make files
-    return STRINGIFY(LIBAOM_TEST_DATA_PATH);
+    return STRINGIFY(LIBAVM_TEST_DATA_PATH);
 #else
     return ".";
 #endif
@@ -72,7 +72,7 @@ static FILE *GetTempOutFile(std::string *file_name) {
   }
   return NULL;
 #else
-  char name_template[] = "/tmp/libaomtest.XXXXXX";
+  char name_template[] = "/tmp/libavmtest.XXXXXX";
   const int fd = mkstemp(name_template);
   *file_name = name_template;
   return fdopen(fd, "wb+");
@@ -103,7 +103,7 @@ class TempOutFile {
 };
 
 // Abstract base class for test video sources, which provide a stream of
-// aom_image_t images with associated timestamps and duration.
+// avm_image_t images with associated timestamps and duration.
 class VideoSource {
  public:
   virtual ~VideoSource() {}
@@ -115,16 +115,16 @@ class VideoSource {
   virtual void Next() = 0;
 
   // Get the current video frame, or NULL on End-Of-Stream.
-  virtual aom_image_t *img() const = 0;
+  virtual avm_image_t *img() const = 0;
 
   // Get the presentation timestamp of the current frame.
-  virtual aom_codec_pts_t pts() const = 0;
+  virtual avm_codec_pts_t pts() const = 0;
 
   // Get the current frame's duration
   virtual unsigned long duration() const = 0;
 
   // Get the timebase for the stream
-  virtual aom_rational_t timebase() const = 0;
+  virtual avm_rational_t timebase() const = 0;
 
   // Get the current frame counter, starting at 0.
   virtual unsigned int frame() const = 0;
@@ -137,11 +137,11 @@ class DummyVideoSource : public VideoSource {
  public:
   DummyVideoSource()
       : img_(NULL), limit_(100), width_(80), height_(64),
-        format_(AOM_IMG_FMT_I420) {
+        format_(AVM_IMG_FMT_I420) {
     ReallocImage();
   }
 
-  virtual ~DummyVideoSource() { aom_img_free(img_); }
+  virtual ~DummyVideoSource() { avm_img_free(img_); }
 
   virtual void Begin() {
     frame_ = 0;
@@ -153,15 +153,15 @@ class DummyVideoSource : public VideoSource {
     FillFrame();
   }
 
-  virtual aom_image_t *img() const { return (frame_ < limit_) ? img_ : NULL; }
+  virtual avm_image_t *img() const { return (frame_ < limit_) ? img_ : NULL; }
 
   // Models a stream where Timebase = 1/FPS, so pts == frame.
-  virtual aom_codec_pts_t pts() const { return frame_; }
+  virtual avm_codec_pts_t pts() const { return frame_; }
 
   virtual unsigned long duration() const { return 1; }
 
-  virtual aom_rational_t timebase() const {
-    const aom_rational_t t = { 1, 30 };
+  virtual avm_rational_t timebase() const {
+    const avm_rational_t t = { 1, 30 };
     return t;
   }
 
@@ -179,7 +179,7 @@ class DummyVideoSource : public VideoSource {
     }
   }
 
-  void SetImageFormat(aom_img_fmt_t format) {
+  void SetImageFormat(avm_img_fmt_t format) {
     if (format_ != format) {
       format_ = format;
       ReallocImage();
@@ -192,18 +192,18 @@ class DummyVideoSource : public VideoSource {
   }
 
   void ReallocImage() {
-    aom_img_free(img_);
-    img_ = aom_img_alloc(NULL, format_, width_, height_, 32);
+    avm_img_free(img_);
+    img_ = avm_img_alloc(NULL, format_, width_, height_, 32);
     raw_sz_ = ((img_->w + 31) & ~31) * img_->h * img_->bps / 8;
   }
 
-  aom_image_t *img_;
+  avm_image_t *img_;
   size_t raw_sz_;
   unsigned int limit_;
   unsigned int frame_;
   unsigned int width_;
   unsigned int height_;
-  aom_img_fmt_t format_;
+  avm_img_fmt_t format_;
 };
 
 class RandomVideoSource : public DummyVideoSource {
@@ -255,6 +255,6 @@ class CompressedVideoSource {
   virtual unsigned int frame_number() const = 0;
 };
 
-}  // namespace libaom_test
+}  // namespace libavm_test
 
-#endif  // AOM_TEST_VIDEO_SOURCE_H_
+#endif  // AVM_TEST_VIDEO_SOURCE_H_

@@ -10,8 +10,8 @@
  * aomedia.org/license/patent-license/.
  */
 
-#ifndef AOM_COMMON_VIDEO_COMMON_H_
-#define AOM_COMMON_VIDEO_COMMON_H_
+#ifndef AVM_COMMON_VIDEO_COMMON_H_
+#define AVM_COMMON_VIDEO_COMMON_H_
 
 #include "common/tools_common.h"
 
@@ -22,4 +22,4 @@ typedef struct {
   struct AvxRational time_base;
 } AvxVideoInfo;
 
-#endif  // AOM_COMMON_VIDEO_COMMON_H_
+#endif  // AVM_COMMON_VIDEO_COMMON_H_

@@ -9,61 +9,61 @@
  * source code in the PATENTS file, you can obtain it at
  * aomedia.org/license/patent-license/.
  */
-#ifndef AOM_TEST_ENCODE_TEST_DRIVER_H_
-#define AOM_TEST_ENCODE_TEST_DRIVER_H_
+#ifndef AVM_TEST_ENCODE_TEST_DRIVER_H_
+#define AVM_TEST_ENCODE_TEST_DRIVER_H_
 
 #include <string>
 #include <vector>
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
-#include "config/aom_config.h"
+#include "config/avm_config.h"
 
-#if CONFIG_AV1_ENCODER
-#include "aom/aomcx.h"
+#if CONFIG_AV2_ENCODER
+#include "avm/avmcx.h"
 #endif
-#include "aom/aom_encoder.h"
+#include "avm/avm_encoder.h"
 
-namespace libaom_test {
+namespace libavm_test {
 
 class CodecFactory;
 class VideoSource;
 class DxDataIterator;
 
 enum TestMode { kOnePassGood };
-#define ALL_TEST_MODES ::testing::Values(::libaom_test::kOnePassGood)
+#define ALL_TEST_MODES ::testing::Values(::libavm_test::kOnePassGood)
 
-#define ONE_PASS_TEST_MODES ::testing::Values(::libaom_test::kOnePassGood)
+#define ONE_PASS_TEST_MODES ::testing::Values(::libavm_test::kOnePassGood)
 
 #define TWO_PASS_TEST_MODES ::testing::Values()
 
-#define GOODQUALITY_TEST_MODES ::testing::Values(::libaom_test::kOnePassGood)
+#define GOODQUALITY_TEST_MODES ::testing::Values(::libavm_test::kOnePassGood)
 
-// Provides an object to handle the libaom get_cx_data() iteration pattern
+// Provides an object to handle the libavm get_cx_data() iteration pattern
 class CxDataIterator {
  public:
-  explicit CxDataIterator(aom_codec_ctx_t *encoder)
+  explicit CxDataIterator(avm_codec_ctx_t *encoder)
       : encoder_(encoder), iter_(NULL) {}
 
-  const aom_codec_cx_pkt_t *Next() {
-    return aom_codec_get_cx_data(encoder_, &iter_);
+  const avm_codec_cx_pkt_t *Next() {
+    return avm_codec_get_cx_data(encoder_, &iter_);
   }
 
  private:
-  aom_codec_ctx_t *encoder_;
-  aom_codec_iter_t iter_;
+  avm_codec_ctx_t *encoder_;
+  avm_codec_iter_t iter_;
 };
 
-// Implements an in-memory store for libaom twopass statistics
+// Implements an in-memory store for libavm twopass statistics
 class TwopassStatsStore {
  public:
-  void Append(const aom_codec_cx_pkt_t &pkt) {
+  void Append(const avm_codec_cx_pkt_t &pkt) {
     buffer_.append(reinterpret_cast<char *>(pkt.data.twopass_stats.buf),
                    pkt.data.twopass_stats.sz);
   }
 
-  aom_fixed_buf_t buf() {
-    const aom_fixed_buf_t buf = { &buffer_[0], buffer_.size() };
+  avm_fixed_buf_t buf() {
+    const avm_fixed_buf_t buf = { &buffer_[0], buffer_.size() };
     return buf;
   }
 
@@ -80,81 +80,81 @@ class TwopassStatsStore {
 // level of abstraction will be fleshed out as more tests are written.
 class Encoder {
  public:
-  Encoder(aom_codec_enc_cfg_t cfg, const aom_codec_flags_t init_flags)
+  Encoder(avm_codec_enc_cfg_t cfg, const avm_codec_flags_t init_flags)
       : cfg_(cfg), init_flags_(init_flags) {
     memset(&encoder_, 0, sizeof(encoder_));
   }
 
-  virtual ~Encoder() { aom_codec_destroy(&encoder_); }
+  virtual ~Encoder() { avm_codec_destroy(&encoder_); }
 
   CxDataIterator GetCxData() { return CxDataIterator(&encoder_); }
 
   void InitEncoder(VideoSource *video);
 
-  const aom_image_t *GetPreviewFrame() {
-    return aom_codec_get_preview_frame(&encoder_);
+  const avm_image_t *GetPreviewFrame() {
+    return avm_codec_get_preview_frame(&encoder_);
   }
-  // This is a thin wrapper around aom_codec_encode(), so refer to
-  // aom_encoder.h for its semantics.
+  // This is a thin wrapper around avm_codec_encode(), so refer to
+  // avm_encoder.h for its semantics.
   void EncodeFrame(VideoSource *video, const unsigned long frame_flags);
 
   // Convenience wrapper for EncodeFrame()
   void EncodeFrame(VideoSource *video) { EncodeFrame(video, 0); }
 
   void Control(int ctrl_id, int arg) {
-    const aom_codec_err_t res = aom_codec_control(&encoder_, ctrl_id, arg);
-    ASSERT_EQ(AOM_CODEC_OK, res) << EncoderError();
+    const avm_codec_err_t res = avm_codec_control(&encoder_, ctrl_id, arg);
+    ASSERT_EQ(AVM_CODEC_OK, res) << EncoderError();
   }
 
   void Control(int ctrl_id, int *arg) {
-    const aom_codec_err_t res = aom_codec_control(&encoder_, ctrl_id, arg);
-    ASSERT_EQ(AOM_CODEC_OK, res) << EncoderError();
+    const avm_codec_err_t res = avm_codec_control(&encoder_, ctrl_id, arg);
+    ASSERT_EQ(AVM_CODEC_OK, res) << EncoderError();
   }
 
-  void Control(int ctrl_id, struct aom_scaling_mode *arg) {
-    const aom_codec_err_t res = aom_codec_control(&encoder_, ctrl_id, arg);
-    ASSERT_EQ(AOM_CODEC_OK, res) << EncoderError();
+  void Control(int ctrl_id, struct avm_scaling_mode *arg) {
+    const avm_codec_err_t res = avm_codec_control(&encoder_, ctrl_id, arg);
+    ASSERT_EQ(AVM_CODEC_OK, res) << EncoderError();
   }
 
   void Control(int ctrl_id, const char *arg) {
-    const aom_codec_err_t res = aom_codec_control(&encoder_, ctrl_id, arg);
-    ASSERT_EQ(AOM_CODEC_OK, res) << EncoderError();
+    const avm_codec_err_t res = avm_codec_control(&encoder_, ctrl_id, arg);
+    ASSERT_EQ(AVM_CODEC_OK, res) << EncoderError();
   }
 
   void Control(int ctrl_id, const void *arg) {
-    const aom_codec_err_t res = aom_codec_control(&encoder_, ctrl_id, arg);
-    ASSERT_EQ(AOM_CODEC_OK, res) << EncoderError();
+    const avm_codec_err_t res = avm_codec_control(&encoder_, ctrl_id, arg);
+    ASSERT_EQ(AVM_CODEC_OK, res) << EncoderError();
   }
 
-#if CONFIG_AV1_ENCODER
-  void Control(int ctrl_id, aom_active_map_t *arg) {
-    const aom_codec_err_t res = aom_codec_control(&encoder_, ctrl_id, arg);
-    ASSERT_EQ(AOM_CODEC_OK, res) << EncoderError();
+#if CONFIG_AV2_ENCODER
+  void Control(int ctrl_id, avm_active_map_t *arg) {
+    const avm_codec_err_t res = avm_codec_control(&encoder_, ctrl_id, arg);
+    ASSERT_EQ(AVM_CODEC_OK, res) << EncoderError();
   }
 
-  void Control(int ctrl_id, const aom_user_defined_qm_t *arg) {
-    const aom_codec_err_t res = aom_codec_control(&encoder_, ctrl_id, arg);
-    ASSERT_EQ(AOM_CODEC_OK, res) << EncoderError();
+  void Control(int ctrl_id, const avm_user_defined_qm_t *arg) {
+    const avm_codec_err_t res = avm_codec_control(&encoder_, ctrl_id, arg);
+    ASSERT_EQ(AVM_CODEC_OK, res) << EncoderError();
   }
 
   void SetOption(const char *key, const char *value) {
-    const aom_codec_err_t res = aom_codec_set_option(&encoder_, key, value);
-    ASSERT_EQ(AOM_CODEC_OK, res) << EncoderError();
+    const avm_codec_err_t res = avm_codec_set_option(&encoder_, key, value);
+    ASSERT_EQ(AVM_CODEC_OK, res) << EncoderError();
   }
 #endif
 
-  void Config(const aom_codec_enc_cfg_t *cfg) {
-    const aom_codec_err_t res = aom_codec_enc_config_set(&encoder_, cfg);
-    ASSERT_EQ(AOM_CODEC_OK, res) << EncoderError();
+  void Config(const avm_codec_enc_cfg_t *cfg) {
+    const avm_codec_err_t res = avm_codec_enc_config_set(&encoder_, cfg);
+    ASSERT_EQ(AVM_CODEC_OK, res) << EncoderError();
     cfg_ = *cfg;
   }
 
  protected:
-  virtual aom_codec_iface_t *CodecInterface() const = 0;
+  virtual avm_codec_iface_t *CodecInterface() const = 0;
 
   const char *EncoderError() {
-    const char *detail = aom_codec_error_detail(&encoder_);
-    return detail ? detail : aom_codec_error(&encoder_);
+    const char *detail = avm_codec_error_detail(&encoder_);
+    return detail ? detail : avm_codec_error(&encoder_);
   }
 
   // Encode an image
@@ -164,9 +164,9 @@ class Encoder {
   // Flush the encoder on EOS
   void Flush();
 
-  aom_codec_ctx_t encoder_;
-  aom_codec_enc_cfg_t cfg_;
-  aom_codec_flags_t init_flags_;
+  avm_codec_ctx_t encoder_;
+  avm_codec_enc_cfg_t cfg_;
+  avm_codec_flags_t init_flags_;
 };
 
 // Common test functionality for all Encoder tests.
@@ -194,7 +194,7 @@ class EncoderTest {
   void SetMode(TestMode mode);
 
   // Set encoder flag.
-  void set_init_flags(aom_codec_flags_t flag) { init_flags_ = flag; }
+  void set_init_flags(avm_codec_flags_t flag) { init_flags_ = flag; }
 
   // Main loop
   virtual void RunLoop(VideoSource *video);
@@ -211,16 +211,16 @@ class EncoderTest {
                                   Encoder * /*encoder*/) {}
 
   // Hook to be called on every compressed data packet.
-  virtual void FramePktHook(const aom_codec_cx_pkt_t * /*pkt*/
+  virtual void FramePktHook(const avm_codec_cx_pkt_t * /*pkt*/
                             ,
                             DxDataIterator * /*dec_iter*/
   ) {}
 
   // Hook to be called on every PSNR packet.
-  virtual void PSNRPktHook(const aom_codec_cx_pkt_t * /*pkt*/) {}
+  virtual void PSNRPktHook(const avm_codec_cx_pkt_t * /*pkt*/) {}
 
   // Hook to be called on every first pass stats packet.
-  virtual void StatsPktHook(const aom_codec_cx_pkt_t * /*pkt*/) {}
+  virtual void StatsPktHook(const avm_codec_cx_pkt_t * /*pkt*/) {}
 
   // Hook to determine whether the encode loop should continue.
   virtual bool Continue() const {
@@ -238,17 +238,17 @@ class EncoderTest {
   virtual bool DoDecodeInvisible() const { return true; }
 
   // Hook to handle encode/decode mismatch
-  virtual void MismatchHook(const aom_image_t *img1, const aom_image_t *img2);
+  virtual void MismatchHook(const avm_image_t *img1, const avm_image_t *img2);
 
   // Hook to be called on every decompressed frame.
-  virtual void DecompressedFrameHook(const aom_image_t & /*img*/,
-                                     aom_codec_pts_t /*pts*/) {}
+  virtual void DecompressedFrameHook(const avm_image_t & /*img*/,
+                                     avm_codec_pts_t /*pts*/) {}
 
   // Hook to be called to handle decode result. Return true to continue.
-  virtual bool HandleDecodeResult(const aom_codec_err_t res_dec,
+  virtual bool HandleDecodeResult(const avm_codec_err_t res_dec,
                                   Decoder *decoder) {
-    EXPECT_EQ(AOM_CODEC_OK, res_dec) << decoder->DecodeError();
-    return AOM_CODEC_OK == res_dec;
+    EXPECT_EQ(AVM_CODEC_OK, res_dec) << decoder->DecodeError();
+    return AVM_CODEC_OK == res_dec;
   }
 
   // Hook to be called to handle encode result. Return true to continue.
@@ -260,22 +260,22 @@ class EncoderTest {
   virtual int GetNumSpatialLayers() { return 1; }
 
   // Hook that can modify the encoder's output data
-  virtual const aom_codec_cx_pkt_t *MutateEncoderOutputHook(
-      const aom_codec_cx_pkt_t *pkt) {
+  virtual const avm_codec_cx_pkt_t *MutateEncoderOutputHook(
+      const avm_codec_cx_pkt_t *pkt) {
     return pkt;
   }
 
   const CodecFactory *codec_;
   bool abort_;
-  aom_codec_enc_cfg_t cfg_;
+  avm_codec_enc_cfg_t cfg_;
   unsigned int passes_;
-  aom_codec_flags_t init_flags_;
+  avm_codec_flags_t init_flags_;
   unsigned long frame_flags_;
-  aom_codec_pts_t last_pts_;
+  avm_codec_pts_t last_pts_;
   TestMode mode_;
   int number_spatial_layers_;
 };
 
-}  // namespace libaom_test
+}  // namespace libavm_test
 
-#endif  // AOM_TEST_ENCODE_TEST_DRIVER_H_
+#endif  // AVM_TEST_ENCODE_TEST_DRIVER_H_

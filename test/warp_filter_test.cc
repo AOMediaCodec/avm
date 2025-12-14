@@ -13,42 +13,42 @@
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 #include "test/warp_filter_test_util.h"
-using libaom_test::ACMRandom;
-using libaom_test::AV1ExtHighbdWarpFilter::AV1ExtHighbdWarpFilterTest;
-using libaom_test::AV1HighbdWarpFilter::AV1HighbdWarpFilterTest;
+using libavm_test::ACMRandom;
+using libavm_test::AV2ExtHighbdWarpFilter::AV2ExtHighbdWarpFilterTest;
+using libavm_test::AV2HighbdWarpFilter::AV2HighbdWarpFilterTest;
 using std::make_tuple;
 using std::tuple;
 
 namespace {
 
 #if HAVE_SSE4_1
-TEST_P(AV1HighbdWarpFilterTest, CheckOutput) {
+TEST_P(AV2HighbdWarpFilterTest, CheckOutput) {
   RunCheckOutput(std::get<4>(GET_PARAM(0)));
 }
-TEST_P(AV1HighbdWarpFilterTest, DISABLED_Speed) {
+TEST_P(AV2HighbdWarpFilterTest, DISABLED_Speed) {
   RunSpeedTest(std::get<4>(GET_PARAM(0)));
 }
 
-INSTANTIATE_TEST_SUITE_P(SSE4_1, AV1HighbdWarpFilterTest,
-                         libaom_test::AV1HighbdWarpFilter::BuildParams(
-                             av1_highbd_warp_affine_sse4_1));
+INSTANTIATE_TEST_SUITE_P(SSE4_1, AV2HighbdWarpFilterTest,
+                         libavm_test::AV2HighbdWarpFilter::BuildParams(
+                             av2_highbd_warp_affine_sse4_1));
 #endif  // HAVE_SSE4_1
-TEST_P(AV1ExtHighbdWarpFilterTest, CheckOutput) {
+TEST_P(AV2ExtHighbdWarpFilterTest, CheckOutput) {
   RunCheckOutput(::testing::get<4>(GET_PARAM(0)));
 }
-TEST_P(AV1ExtHighbdWarpFilterTest, DISABLED_Speed) {
+TEST_P(AV2ExtHighbdWarpFilterTest, DISABLED_Speed) {
   RunSpeedTest(::testing::get<4>(GET_PARAM(0)));
 }
 #if HAVE_SSE4_1
-INSTANTIATE_TEST_SUITE_P(SSE4_1, AV1ExtHighbdWarpFilterTest,
-                         libaom_test::AV1ExtHighbdWarpFilter::BuildParams(
-                             av1_ext_highbd_warp_affine_sse4_1));
+INSTANTIATE_TEST_SUITE_P(SSE4_1, AV2ExtHighbdWarpFilterTest,
+                         libavm_test::AV2ExtHighbdWarpFilter::BuildParams(
+                             av2_ext_highbd_warp_affine_sse4_1));
 #endif  // HAVE_SSE4_1
 
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
-    AVX2, AV1HighbdWarpFilterTest,
-    libaom_test::AV1HighbdWarpFilter::BuildParams(av1_highbd_warp_affine_avx2));
+    AVX2, AV2HighbdWarpFilterTest,
+    libavm_test::AV2HighbdWarpFilter::BuildParams(av2_highbd_warp_affine_avx2));
 #endif  // HAVE_AVX2
 
 }  // namespace
