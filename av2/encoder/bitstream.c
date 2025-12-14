@@ -4399,7 +4399,6 @@ static AVM_INLINE void write_tile_info(AV2_COMMON *const cm,
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
   const TileInfoSyntax *const tile_params = find_effective_tile_params(cm);
   int reuse = 0;
-#if CONFIG_CWG_F349_SIGNAL_TILE_INFO
   if (tile_params &&
       is_frame_tile_config_reuse_eligible(tile_params, &cm->tiles)) {
     if (tile_params->allow_tile_info_change) {
@@ -4410,13 +4409,6 @@ static AVM_INLINE void write_tile_info(AV2_COMMON *const cm,
     }
     assert(IMPLIES(reuse, check_tile_equivalence(tile_params, &cm->tiles)));
   }
-#else
-  if (tile_params) {
-    reuse = check_tile_equivalence(tile_params, &cm->tiles);
-  }
-  bool tile_info_present_in_frame_header = !reuse;
-  avm_wb_write_bit(wb, tile_info_present_in_frame_header);
-#endif  // CONFIG_CWG_F349_SIGNAL_TILE_INFO
   if (!reuse) write_tile_info_max_tile(&cm->tiles, wb);
 #else
   write_tile_info_max_tile(&cm->tiles, wb);
@@ -4735,9 +4727,7 @@ static AVM_INLINE void write_tu_pts_info(AV2_COMMON *const cm,
 // Writes tile syntax
 void write_tile_syntax_info(const TileInfoSyntax *tile_params,
                             struct avm_write_bit_buffer *wb) {
-#if CONFIG_CWG_F349_SIGNAL_TILE_INFO
   avm_wb_write_bit(wb, tile_params->allow_tile_info_change);
-#endif  // CONFIG_CWG_F349_SIGNAL_TILE_INFO
   const CommonTileParams *tiles = &tile_params->tile_info;
   int size_sb, i;
   int tile_width_sb = tiles->sb_cols;

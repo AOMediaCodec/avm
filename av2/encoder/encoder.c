@@ -431,9 +431,7 @@ void av2_init_seq_coding_tools(
                               ? frm_dim_cfg->forced_max_frame_height
                               : frm_dim_cfg->height;
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
-#if CONFIG_CWG_F349_SIGNAL_TILE_INFO
   seq->tile_params.allow_tile_info_change = 0;
-#endif  // CONFIG_CWG_F349_SIGNAL_TILE_INFO
   if (!seq->still_picture && oxcf->kf_cfg.key_freq_max > 0) {
     av2_set_seq_tile_info(seq, oxcf);
     seq->seq_tile_info_present_flag = 1;

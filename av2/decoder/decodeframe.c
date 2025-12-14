@@ -4416,7 +4416,6 @@ static AVM_INLINE void read_tile_info(AV2Decoder *const pbi,
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
   const TileInfoSyntax *const tile_params = find_effective_tile_params(cm);
   int reuse = 0;
-#if CONFIG_CWG_F349_SIGNAL_TILE_INFO
   if (tile_params &&
       is_frame_tile_config_reuse_eligible(tile_params, &cm->tiles)) {
     if (tile_params->allow_tile_info_change)
@@ -4424,14 +4423,6 @@ static AVM_INLINE void read_tile_info(AV2Decoder *const pbi,
     else
       reuse = 1;
   }
-#else
-  cm->current_frame.tile_info_present_in_frame_header = avm_rb_read_bit(rb);
-  reuse = !cm->current_frame.tile_info_present_in_frame_header;
-  if (reuse && !tile_params) {
-    avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
-                       "No tile information present");
-  }
-#endif  // CONFIG_CWG_F349_SIGNAL_TILE_INFO
   if (reuse) {
     reconstruct_tile_info_max_tile(cm, tile_params);
   } else {
@@ -6486,9 +6477,7 @@ void av2_read_conformance_window(struct avm_read_bit_buffer *rb,
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
 void read_tile_syntax_info(TileInfoSyntax *tile_params,
                            struct avm_read_bit_buffer *rb) {
-#if CONFIG_CWG_F349_SIGNAL_TILE_INFO
   tile_params->allow_tile_info_change = avm_rb_read_bit(rb);
-#endif  // CONFIG_CWG_F349_SIGNAL_TILE_INFO
   CommonTileParams *tile_info = &tile_params->tile_info;
   tile_info->uniform_spacing = avm_rb_read_bit(rb);
 
@@ -7219,9 +7208,7 @@ void av2_read_sequence_header(struct avm_read_bit_buffer *rb,
 #endif  //! CONFIG_IMPROVED_REORDER_SEQ_FLAGS
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
   seq_params->seq_tile_info_present_flag = 0;
-#if CONFIG_CWG_F349_SIGNAL_TILE_INFO
   seq_params->tile_params.allow_tile_info_change = 0;
-#endif  // CONFIG_CWG_F349_SIGNAL_TILE_INFO
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 #if CONFIG_REORDER_SEQ_FLAGS
 #if CONFIG_IMPROVED_REORDER_SEQ_FLAGS

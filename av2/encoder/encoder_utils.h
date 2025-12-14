@@ -1009,7 +1009,6 @@ static AVM_INLINE void av2_set_seq_tile_info(SequenceHeader *const seq_params,
   const TileConfig *const tile_cfg = &oxcf->tile_cfg;
   TileInfoSyntax *tile_params = &seq_params->tile_params;
   CommonTileParams *tiles = &seq_params->tile_params.tile_info;
-#if CONFIG_CWG_F349_SIGNAL_TILE_INFO
   // For uniform tile spacing or if resize is disabled we currently do not
   // need to change tiling config per frame. This is an encoder side choice
   // and can be changed later.
@@ -1017,7 +1016,6 @@ static AVM_INLINE void av2_set_seq_tile_info(SequenceHeader *const seq_params,
       !(oxcf->resize_cfg.resize_mode == RESIZE_NONE ||
         oxcf->tile_cfg.tile_width_count == 0 ||
         oxcf->tile_cfg.tile_height_count == 0);
-#endif  // CONFIG_CWG_F349_SIGNAL_TILE_INFO
   int i, start_sb;
   av2_get_seqmfh_tile_limits(
       tile_params, seq_params->max_frame_height, seq_params->max_frame_width,
