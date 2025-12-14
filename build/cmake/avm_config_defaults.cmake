@@ -123,6 +123,7 @@ set_avm_config_var(DECODE_HEIGHT_LIMIT 0 "Set limit for decode height.")
 set_avm_config_var(DECODE_WIDTH_LIMIT 0 "Set limit for decode width.")
 set_avm_config_var(CONFIG_TUNE_VMAF 0 "Enable encoding tuning for VMAF.")
 set_avm_config_var(CONFIG_USE_VMAF_RC 0 "Use libvmaf_rc tune for VMAF_NEG.")
+set_avm_config_var(CONFIG_METADATA_ALIGNMENT 1 "Add byte alignment.")
 
 # AV2 experiment flags.
 set_avm_config_var(CONFIG_SPEED_STATS 0 "AV2 experiment flag.")
