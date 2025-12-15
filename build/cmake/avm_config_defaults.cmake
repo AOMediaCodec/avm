@@ -157,6 +157,9 @@ set_avm_config_var(CONFIG_CWG_E242_SIGNAL_TILE_INFO 1
 set_avm_config_var(CONFIG_MULTI_LEVEL_SEGMENTATION 1
                    "Segmentation information in the multi frame header")
 
+set_avm_config_var(CONFIG_CWG_E242_PARSING_INDEP 1
+                   "Parsing independence of MFH.")
+
 set_avm_config_var(CONFIG_CWG_E242_BITDEPTH 1 "Signal Bitdepth using a LUT.")
 
 set_avm_config_var(CONFIG_CWG_E242_SEQ_HDR_ID 1 "Signal sequence header id.")
@@ -184,9 +187,8 @@ set_avm_config_var(CONFIG_CWG_F270_OPS 1 "Add OPS and SH related changes")
 # Source of throughput analysis : CWG-B065
 set_avm_config_var(CONFIG_THROUGHPUT_ANALYSIS 0
                    "AV2 experiment flag to measure throughput.")
-set_avm_config_var(CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID 1
-                   "Enable frame output order derivation with layer ID")
-set_avm_config_var(OBU_ORDER_IN_TU 1 "Check OBU order in TU")
+set_avm_config_var(CONFIG_CWG_E242_MFH_ID_UVLC 1
+                   "Signaling multi-frame header ID in UVLC")
 
 set_avm_config_var(
   CONFIG_QM_DEBUG 0
