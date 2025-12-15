@@ -31,12 +31,7 @@ extern "C" {
 #define COMP_TYPE_RD_THRESH_SCALE 11
 #define COMP_TYPE_RD_THRESH_SHIFT 4
 #define MAX_WINNER_MOTION_MODES 10
-
-#if CONFIG_FAST_INTER_RDO
 #define TOP_MOTION_MODE_MODEL_COUNT 10
-#else
-#define TOP_MOTION_MODE_MODEL_COUNT 8
-#endif  // CONFIG_FAST_INTER_RDO
 
 struct TileInfo;
 struct macroblock;

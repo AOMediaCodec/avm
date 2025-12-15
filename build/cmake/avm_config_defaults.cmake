@@ -216,8 +216,6 @@ set_avm_config_var(CONFIG_FIX_BW_CHROMA_REFINED_MV 1
 set_avm_config_var(CONFIG_F421_BAWP_CHECKS 1 "Adjust BAWP condition checks")
 
 # This is an encode-only change.
-set_avm_config_var(CONFIG_FAST_INTER_RDO 1 "Fast inter mode selection")
-
 set_avm_config_var(CONFIG_QM_REVERT 1
                    "Enable QMs based on original AV2 Quantization Matrices.")
 

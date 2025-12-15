@@ -527,11 +527,7 @@ typedef struct {
 
 /*! \brief Number of mbmi stored in cache for fast inter mode decision
  */
-#if CONFIG_FAST_INTER_RDO
 #define NUMBER_OF_CACHED_MODES 2
-#else
-#define NUMBER_OF_CACHED_MODES 1
-#endif  // CONFIG_FAST_INTER_RDO
 
 /*! \brief Contains data for simple motion
  */
