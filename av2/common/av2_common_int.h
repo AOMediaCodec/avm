@@ -318,6 +318,22 @@ typedef struct RefCntBuffer {
   WarpedMotionParams global_motion[INTER_REFS_PER_FRAME];
 #if CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
   /*!
+   * TODO: rename this variable to "immediate_output_picture"
+   *
+   * Specifies whether the current picture is immediately queued for output
+   * or not after decoding.
+   *
+   * immediate_output_picture equal to 1 specifies that the current picture
+   * shall be immediately queued for output once decoded. This picture can
+   * also be additionally output using the show_existing_frame mechanism.
+   *
+   * immediate_output_picture equal to 0 specifies that the current picture
+   * should not be immediately queued for output and that the output of this
+   * picture depends on additional syntax elements in the bitstream.
+   */
+  int show_frame;
+
+  /*!
    * TODO: rename this variable to "implicit_output_picture"
    *
    * Specifies whether the current picture will be output according to the
@@ -333,8 +349,9 @@ typedef struct RefCntBuffer {
    */
   int showable_frame;
 #else
-  int showable_frame;      // frame can be used as show existing frame in future
-#endif
+  int showable_frame;  // frame can be used as show existing frame in future
+#endif / CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
+
   bool frame_output_done;  // 0: frame is not yet output 1: frame is already
                            // output
   int fgm_id;
@@ -2404,7 +2421,7 @@ typedef struct AV2Common {
    * If false, this frame is coded in the bitstream, but not shown. It is only
    * used as a reference for other frames coded later.
    */
-#endif
+#endif  // CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
   int show_frame;
 
 #if CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
@@ -2429,7 +2446,7 @@ typedef struct AV2Common {
    * When 'show_frame' is true, this is always true for all non-keyframes.
    * When 'show_frame' is false, this value is transmitted in the bitstream.
    */
-#endif
+#endif  // CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
   int showable_frame;
 #if CONFIG_F024_KEYOBU
   /*!

@@ -6944,7 +6944,11 @@ static INLINE int get_disp_order_hint(AV2_COMMON *const cm)
     const RefCntBuffer *const buf = cm->ref_frame_map[map_idx];
     if (buf == NULL ||
 #if CONFIG_F024_KEYOBU
+#if CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
+        (!buf->showable_frame && !buf->show_frame) ||
+#else
         !buf->showable_frame ||
+#endif  // CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
 #endif  // CONFIG_F024_KEYOBU
 #if CONFIG_F322_OBUER_REFRESTRICT
         buf->is_restricted ||
@@ -7297,7 +7301,11 @@ static int read_show_existing_frame(AV2Decoder *pbi,
     cm->cur_frame->order_hint = current_frame->order_hint;
     cm->cur_frame->display_order_hint = current_frame->display_order_hint;
   } else {
+#if CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
+    if (frame_to_show->showable_frame || frame_to_show->show_frame) {
+#else
     if (frame_to_show->showable_frame) {
+#endif  // CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
       avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
                          "the reference frame should be a hidden frame when "
                          "derive_sef_order_hint is true");
@@ -7799,6 +7807,10 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   if (seq_params->single_picture_header_flag) {
     cm->show_existing_frame = 0;
     cm->show_frame = 1;
+#if CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
+    cm->showable_frame = 0;
+    cm->cur_frame->show_frame = 1;
+#endif  // CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
     cm->cur_frame->showable_frame = 0;
     current_frame->frame_type = KEY_FRAME;
     if (pbi->stream_switched) {
@@ -7954,13 +7966,13 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       } else {
 #if !CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
         // See if this frame can be used as show_existing_frame in future
-#endif
+#endif  // !CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
         cm->showable_frame = avm_rb_read_bit(rb);
       }
 #if CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
     } else {
       cm->showable_frame = 0;
-#endif
+#endif  // CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
     }
 
 #if !CONFIG_F024_KEYOBU
@@ -7971,6 +7983,9 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
                          "type is KEY_FRAME.");
     }
 #endif  // !CONFIG_F024_KEYOBU
+#if CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
+    cm->cur_frame->show_frame = cm->show_frame;
+#endif  // CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
     cm->cur_frame->showable_frame = cm->showable_frame;
     cm->cur_frame->frame_output_done = 0;
   }

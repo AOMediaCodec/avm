@@ -5444,7 +5444,7 @@ static AVM_INLINE void write_uncompressed_header(
 #if CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
     } else {
       cm->showable_frame = 0;
-#endif
+#endif  // CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
     }
 
   }  // if(!seq_params->single_picture_header_flag)
