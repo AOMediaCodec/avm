@@ -155,17 +155,9 @@ int write_qm_data(AV2_COMP *cpi, struct quantization_matrix_set *qm_list,
   cpi->common.error.error_code = AVM_CODEC_OK;
   const TX_SIZE fund_tsize[3] = { TX_8X8, TX_8X4, TX_4X8 };
 
-#if CONFIG_QM_REVERT
   const bool qm_is_predefined_flag = !qm_list[qm_pos].is_user_defined_qm;
-#else
-  const bool qm_is_predefined_flag = qm_list[qm_pos].qm_default_index != -1;
-#endif
   avm_wb_write_bit(wb, qm_is_predefined_flag);
   if (qm_is_predefined_flag) {
-#if !CONFIG_QM_REVERT
-    assert(qm_list[qm_pos].qm_default_index < NUM_CUSTOM_QMS);
-    avm_wb_write_literal(wb, qm_list[qm_pos].qm_default_index, 4);
-#endif  // !CONFIG_QM_REVERT
     return wb->bit_offset - size;
   }
 
@@ -280,12 +272,6 @@ uint32_t write_qm_obu(AV2_COMP *cpi, int signalled_obu_pos,
       &wb, cpi->qmobu_list[signalled_obu_pos].qm_chroma_info_present_flag);
   for (int j = 0; j < NUM_CUSTOM_QMS; j++) {
     if (qm_bit_map & (1 << j)) {
-#if !CONFIG_QM_REVERT
-      check_qm_is_predefined(
-          cpi, signalled_obu_pos,
-          (cpi->qmobu_list[signalled_obu_pos].qm_chroma_info_present_flag ? 3
-                                                                          : 1));
-#endif  // !CONFIG_QM_REVERT
       write_qm_data(
           cpi, cpi->qmobu_list[signalled_obu_pos].qm_list, j,
           (cpi->qmobu_list[signalled_obu_pos].qm_chroma_info_present_flag ? 3
@@ -316,9 +302,7 @@ bool add_userqm_in_qmobulist(AV2_COMP *cpi) {
       qm_bit_map |= 1 << qm_id;
       struct quantization_matrix_set *qm_inobu =
           &cpi->qmobu_list[qmobu_pos].qm_list[qm_id];
-#if CONFIG_QM_REVERT
       qm_inobu->is_user_defined_qm = true;
-#endif  // CONFIG_QM_REVERT
       if (qm_inobu->quantizer_matrix == NULL) {
         qm_inobu->quantizer_matrix = av2_alloc_qmset();
       }
@@ -339,41 +323,4 @@ bool add_userqm_in_qmobulist(AV2_COMP *cpi) {
   if (obu_added) cpi->total_signalled_qmobu_count++;
   return obu_added;
 }
-
-#if !CONFIG_QM_REVERT
-void check_qm_is_predefined(AV2_COMP *cpi, int qmobu_pos, int num_planes) {
-  int qm_bit_map = cpi->qmobu_list[qmobu_pos].qm_bit_map;
-  for (int qm_id = 0; qm_id < NUM_CUSTOM_QMS; qm_id++) {
-    if (qm_bit_map & (1 << qm_id)) {
-      struct quantization_matrix_set *qm_inobu =
-          &cpi->qmobu_list[qmobu_pos].qm_list[qm_id];
-      qm_inobu->qm_default_index = -1;
-      for (int predefined_id = 0; predefined_id < NUM_CUSTOM_QMS;
-           predefined_id++) {
-        bool same = true;
-        for (int plane = 0; plane < num_planes; plane++) {
-          int c = plane == 0 ? 0 : 1;
-          const qm_val_t *qvalues8x8 =
-              predefined_8x8_iwt_base_matrix[predefined_id][c];
-          const qm_val_t *qvalues8x4 =
-              predefined_8x4_iwt_base_matrix[predefined_id][c];
-          const qm_val_t *qvalues4x8 =
-              predefined_4x8_iwt_base_matrix[predefined_id][c];
-          same &= memcmp(qm_inobu->quantizer_matrix[0][plane], qvalues8x8,
-                         sizeof(qm_val_t) * 8 * 8) == 0;
-          same &= memcmp(qm_inobu->quantizer_matrix[1][plane], qvalues8x4,
-                         sizeof(qm_val_t) * 32) == 0;
-          same &= memcmp(qm_inobu->quantizer_matrix[2][plane], qvalues4x8,
-                         sizeof(qm_val_t) * 32) == 0;
-          if (!same) break;
-        }
-        if (same) {
-          qm_inobu->qm_default_index = predefined_id;
-          break;
-        }
-      }
-    }  // if(qm_bit_map & (1<<qm_id))
-  }  // qm_id
-}
-#endif  // !CONFIG_QM_REVERT
 #endif  // CONFIG_F255_QMOBU

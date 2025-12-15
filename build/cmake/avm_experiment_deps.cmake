@@ -54,10 +54,6 @@ macro(fix_experiment_configs)
     change_config_and_warn(CONFIG_TENSORFLOW_LITE 1 CONFIG_DIP_EXT_PRUNING)
   endif()
 
-  if(CONFIG_QM_REVERT)
-    change_config_and_warn(CONFIG_F255_QMOBU 1 CONFIG_QM_REVERT)
-  endif()
-
   if(CONFIG_SCAN_TYPE_METADATA)
     change_config_and_warn(CONFIG_METADATA 1 CONFIG_SCAN_TYPE_METADATA)
   endif()

@@ -3582,9 +3582,7 @@ void setup_quant_matrices(AV2Decoder *pbi, CommonQuantParams *quant_params,
 
   // Generate matrices for each tx size
   int current = 0;
-#if CONFIG_QM_REVERT
   const bool is_user_defined_qm = qmset->is_user_defined_qm;
-#endif
   for (int t = 0; t < TX_SIZES_ALL; ++t) {
     const int size = tx_size_2d[t];
     const int qm_tx_size = av2_get_adjusted_tx_size(t);
@@ -3592,7 +3590,6 @@ void setup_quant_matrices(AV2Decoder *pbi, CommonQuantParams *quant_params,
       assert(t > qm_tx_size);
       quant_params->giqmatrix[qmlevel][plane][t] =
           quant_params->giqmatrix[qmlevel][plane][qm_tx_size];
-#if CONFIG_QM_REVERT
     } else if (is_user_defined_qm &&
                (t <= TX_8X8 || t == TX_4X8 || t == TX_8X4)) {
       assert(current + size <= QM_TOTAL_SIZE);
@@ -3609,17 +3606,6 @@ void setup_quant_matrices(AV2Decoder *pbi, CommonQuantParams *quant_params,
           &predefined_iwt_matrix_ref[qmlevel][plane >= 1][current];
       current += size;
     }
-#else
-    } else {
-      assert(current + size <= QM_TOTAL_SIZE);
-      // Generate the iwt matrices from the base matrices.
-      scale_tx(t, plane, &quant_params->iwt_matrix_ref[qmlevel][plane][current],
-               qmset->quantizer_matrix);
-      quant_params->giqmatrix[qmlevel][plane][t] =
-          &quant_params->iwt_matrix_ref[qmlevel][plane][current];
-      current += size;
-    }
-#endif  // CONFIG_QM_REVERT
   }
 }
 #endif  // CONFIG_F255_QMOBU
@@ -3769,18 +3755,14 @@ static AVM_INLINE void setup_segmentation_dequant(
     const int qm_index = quant_params->qm_index[i];
     const int qmlevel_y =
         use_qmatrix ? quant_params->qm_y[qm_index] : NUM_QM_LEVELS - 1;
-#if CONFIG_QM_REVERT
     const int qmlevel_y0 =
         use_qmatrix ? quant_params->qm_y[0] : NUM_QM_LEVELS - 1;
-#endif  // CONFIG_QM_REVERT
 
     for (int j = 0; j < TX_SIZES_ALL; ++j) {
-#if CONFIG_QM_REVERT
       if (j > TX_8X8 && j != TX_4X8 && j != TX_8X4)
         quant_params->y_iqmatrix[i][j] =
             av2_iqmatrix(quant_params, qmlevel_y0, AVM_PLANE_Y, j);
       else
-#endif  // CONFIG_QM_REVERT
         quant_params->y_iqmatrix[i][j] =
             av2_iqmatrix(quant_params, qmlevel_y, AVM_PLANE_Y, j);
     }
@@ -3788,33 +3770,25 @@ static AVM_INLINE void setup_segmentation_dequant(
     if (num_planes > 1) {
       const int qmlevel_u =
           use_qmatrix ? quant_params->qm_u[qm_index] : NUM_QM_LEVELS - 1;
-#if CONFIG_QM_REVERT
       const int qmlevel_u0 =
           use_qmatrix ? quant_params->qm_u[0] : NUM_QM_LEVELS - 1;
-#endif  // CONFIG_QM_REVERT
       for (int j = 0; j < TX_SIZES_ALL; ++j) {
-#if CONFIG_QM_REVERT
         if (j > TX_8X8 && j != TX_4X8 && j != TX_8X4)
           quant_params->u_iqmatrix[i][j] =
               av2_iqmatrix(quant_params, qmlevel_u0, AVM_PLANE_U, j);
         else
-#endif  // CONFIG_QM_REVERT
           quant_params->u_iqmatrix[i][j] =
               av2_iqmatrix(quant_params, qmlevel_u, AVM_PLANE_U, j);
       }
       const int qmlevel_v =
           use_qmatrix ? quant_params->qm_v[qm_index] : NUM_QM_LEVELS - 1;
-#if CONFIG_QM_REVERT
       const int qmlevel_v0 =
           use_qmatrix ? quant_params->qm_v[0] : NUM_QM_LEVELS - 1;
-#endif  // CONFIG_QM_REVERT
       for (int j = 0; j < TX_SIZES_ALL; ++j) {
-#if CONFIG_QM_REVERT
         if (j > TX_8X8 && j != TX_4X8 && j != TX_8X4)
           quant_params->v_iqmatrix[i][j] =
               av2_iqmatrix(quant_params, qmlevel_v0, AVM_PLANE_V, j);
         else
-#endif  // CONFIG_QM_REVERT
           quant_params->v_iqmatrix[i][j] =
               av2_iqmatrix(quant_params, qmlevel_v, AVM_PLANE_V, j);
       }
@@ -8800,29 +8774,7 @@ static void handle_sequence_header(AV2Decoder *pbi,
     qmset->qm_mlayer_id = -1;
     qmset->qm_tlayer_id = -1;
     qmset->quantizer_matrix_num_planes = num_planes;
-#if CONFIG_QM_REVERT
     qmset->is_user_defined_qm = false;
-#else
-    int qm_default_index = qm_pos;
-    qmset->qm_default_index = qm_pos;
-    if (!qmset->quantizer_matrix_allocated) {
-      alloc_qmatrix(qmset);
-    }
-    // copy predefined[qm_default_index] to qmset
-    for (int c = 0; c < num_planes; ++c) {
-      // plane_type: 0:luma, 1:chroma
-      const int plane_type = (c >= 1);
-      memcpy(qmset->quantizer_matrix[0][c],
-             predefined_8x8_iwt_base_matrix[qm_default_index][plane_type],
-             8 * 8 * sizeof(qm_val_t));
-      memcpy(qmset->quantizer_matrix[1][c],
-             predefined_8x4_iwt_base_matrix[qm_default_index][plane_type],
-             8 * 4 * sizeof(qm_val_t));
-      memcpy(qmset->quantizer_matrix[2][c],
-             predefined_4x8_iwt_base_matrix[qm_default_index][plane_type],
-             4 * 8 * sizeof(qm_val_t));
-    }
-#endif  // CONFIG_QM_REVERT
   }  // qm_pos
 #endif  // CONFIG_F255_QMOBU
 }

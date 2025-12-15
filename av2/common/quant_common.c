@@ -387,37 +387,6 @@ static void downsample(const int input_w, const int input_h, const int output_w,
   }
 }
 
-#if !CONFIG_QM_REVERT
-#if CONFIG_F255_QMOBU
-// Given output tx size and QM level, output the correctly scaled matrix based
-// on the predefined matrices.
-// plane: 0:Y, 1:U, 2:V
-static void scale_tx_init(const int txsize, const int level, const int plane,
-                          qm_val_t *output) {
-  int c = plane;
-  if (plane > 1) c = 1;
-  int height = tx_size_high[txsize];
-  int width = tx_size_wide[txsize];
-
-  if (width == 4 && height == 4) {
-    // TX4X4 is the only case using downsampling
-    const qm_val_t *input = predefined_8x8_iwt_base_matrix[level][c];
-    downsample(8, 8, 4, 4, 0, 0, input, output);
-  } else if (width == height) {
-    const qm_val_t *input = predefined_8x8_iwt_base_matrix[level][c];
-    upsample(8, 8, width, height, input, output);
-  } else if (width > height) {
-    const qm_val_t *input = predefined_8x4_iwt_base_matrix[level][c];
-    upsample(8, 4, width, height, input, output);
-  } else {
-    // width < height
-    const qm_val_t *input = predefined_4x8_iwt_base_matrix[level][c];
-    upsample(4, 8, width, height, input, output);
-  }
-}
-#endif  // CONFIG_F255_QMOBU
-#endif  // !CONFIG_QM_REVERT
-
 // Given output tx size and QM level, output the correctly scaled matrix based
 // on the source matrices.
 // plane: 0:Y, 1:U, 2:V
@@ -531,11 +500,7 @@ void av2_qm_frame_update(struct CommonQuantParams *quant_params, int num_planes,
             quant_params->gqmatrix[qm_id][c][qm_tx_size];
         quant_params->giqmatrix[qm_id][c][t] =
             quant_params->giqmatrix[qm_id][c][qm_tx_size];
-#if CONFIG_QM_REVERT
       } else if (t <= TX_8X8 || t == TX_4X8 || t == TX_8X4) {
-#else
-      } else {
-#endif  // CONFIG_QM_REVERT
         assert(current + size <= QM_TOTAL_SIZE);
         // Generate the iwt and wt matrices from the base matrices.
         scale_tx(t, c, &quant_params->iwt_matrix_ref[qm_id][c][current],
@@ -548,9 +513,7 @@ void av2_qm_frame_update(struct CommonQuantParams *quant_params, int num_planes,
         quant_params->giqmatrix[qm_id][c][t] =
             &quant_params->iwt_matrix_ref[qm_id][c][current];
         current += size;
-      }
-#if CONFIG_QM_REVERT
-      else {
+      } else {
         // Fill with reference matrices.
         assert(current + size <= QM_TOTAL_SIZE);
         quant_params->gqmatrix[qm_id][c][t] =
@@ -559,7 +522,6 @@ void av2_qm_frame_update(struct CommonQuantParams *quant_params, int num_planes,
             &predefined_iwt_matrix_ref[qm_id][c >= 1][current];
         current += size;
       }
-#endif  // CONFIG_QM_REVERT
     }  // t
   }  // c
 }
@@ -630,7 +592,6 @@ void av2_qm_init(CommonQuantParams *quant_params, int num_planes
               quant_params->gqmatrix[q][c][qm_tx_size];
           quant_params->giqmatrix[q][c][t] =
               quant_params->giqmatrix[q][c][qm_tx_size];
-#if CONFIG_QM_REVERT
         } else {
           // Fill with reference matrices.
           assert(current + size <= QM_TOTAL_SIZE);
@@ -640,29 +601,6 @@ void av2_qm_init(CommonQuantParams *quant_params, int num_planes
               &predefined_iwt_matrix_ref[q][c >= 1][current];
           current += size;
         }
-#else  // CONFIG_QM_REVERT
-        } else {
-          assert(current + size <= QM_TOTAL_SIZE);
-          // Generate the iwt and wt matrices from the base matrices.
-          const int plane = c;
-#if CONFIG_F255_QMOBU
-          scale_tx_init(t, q, plane,
-                        &quant_params->iwt_matrix_ref[q][plane][current]);
-#else
-          scale_tx(t, q, plane,
-                   &quant_params->iwt_matrix_ref[q][plane][current],
-                   fund_matrices);
-#endif  // CONFIG_F255_QMOBU
-          calc_wt_matrix(t, &quant_params->iwt_matrix_ref[q][plane][current],
-                         &quant_params->wt_matrix_ref[q][plane][current]);
-
-          quant_params->gqmatrix[q][c][t] =
-              &quant_params->wt_matrix_ref[q][plane][current];
-          quant_params->giqmatrix[q][c][t] =
-              &quant_params->iwt_matrix_ref[q][plane][current];
-          current += size;
-        }
-#endif  // CONFIG_QM_REVERT
       }
     }
   }
@@ -683,11 +621,7 @@ void av2_qm_init_dequant_only(CommonQuantParams *quant_params, int num_planes,
           assert(t > qm_tx_size);
           quant_params->giqmatrix[q][c][t] =
               quant_params->giqmatrix[q][c][qm_tx_size];
-#if CONFIG_QM_REVERT
         } else if (t <= TX_8X8 || t == TX_4X8 || t == TX_8X4) {
-#else
-        } else {
-#endif  // CONFIG_QM_REVERT
           assert(current + size <= QM_TOTAL_SIZE);
           // Generate the iwt matrices from the base matrices.
           const int plane = c;
@@ -698,9 +632,7 @@ void av2_qm_init_dequant_only(CommonQuantParams *quant_params, int num_planes,
           quant_params->giqmatrix[q][c][t] =
               &quant_params->iwt_matrix_ref[q][plane][current];
           current += size;
-        }
-#if CONFIG_QM_REVERT
-        else {
+        } else {
           // Sizes larger than 8x8 use the pre-defined matrices.
           assert(current + size <= QM_TOTAL_SIZE);
           quant_params->gqmatrix[q][c][t] =
@@ -709,7 +641,6 @@ void av2_qm_init_dequant_only(CommonQuantParams *quant_params, int num_planes,
               &predefined_iwt_matrix_ref[q][c >= 1][current];
           current += size;
         }
-#endif  // CONFIG_QM_REVERT
       }
     }
   }
@@ -739,13 +670,9 @@ void av2_qm_replace_level(CommonQuantParams *quant_params, int level,
                quant_params->gqmatrix[q][c][qm_tx_size]);
         assert(quant_params->giqmatrix[q][c][t] ==
                quant_params->giqmatrix[q][c][qm_tx_size]);
-#if CONFIG_QM_REVERT
       } else if (t <= TX_8X8 || t == TX_4X8 || t == TX_8X4) {
         // Use user-defined matrix for 8x8/4x8/8x4.
         // Downscale 8x8 to 4x4 in the case of user-defined matrices.
-#else
-      } else {
-#endif  // CONFIG_QM_REVERT
         assert(current + size <= QM_TOTAL_SIZE);
         // Generate the iwt and wt matrices from the base matrices.
         const int plane = c;
@@ -763,9 +690,7 @@ void av2_qm_replace_level(CommonQuantParams *quant_params, int level,
         assert(quant_params->giqmatrix[q][c][t] ==
                &quant_params->iwt_matrix_ref[q][plane][current]);
         current += size;
-      }
-#if CONFIG_QM_REVERT
-      else {
+      } else {
         // Sizes larger than 8x8 use the pre-defined matrices.
         assert(current + size <= QM_TOTAL_SIZE);
         quant_params->gqmatrix[q][c][t] =
@@ -774,189 +699,10 @@ void av2_qm_replace_level(CommonQuantParams *quant_params, int level,
             &predefined_iwt_matrix_ref[q][c >= 1][current];
         current += size;
       }
-#endif  // CONFIG_QM_REVERT
     }
   }
 }
 
-#if !CONFIG_QM_REVERT
-/*
-  Base matrices for QM levels 0-13 can be generated from a parametric
-  equation. With the parameters below.
-  QM indices 14 and 15 use the original AV2 8x8 matrices as a base due
-  to those being a step functions.
-
-  // Generate base matrices
-  if(q < 13){
-    generate_base_matrix(
-        8, 8, iwt_matrix_para[BASE_TX_8X8][c][q],
-        iwt_matrix_para_fp[BASE_TX_8X8],
-        &gen_source_8x8_iwt_base_matrix[q][c][0]);
-
-    // 8x4
-    generate_base_matrix(
-        8, 4, iwt_matrix_para[BASE_TX_8X4][c][q],
-        iwt_matrix_para_fp[BASE_TX_8X4],
-        &gen_source_8x4_iwt_base_matrix[q][c][0]);
-    // 4x8
-    generate_base_matrix(
-        4, 8, iwt_matrix_para[BASE_TX_4X8][c][q],
-        iwt_matrix_para_fp[BASE_TX_4X8],
-        &gen_source_4x8_iwt_base_matrix[q][c][0]);
-  } else {
-    // Copy index 13 and 14 from table
-  }
-
-
-enum {
-  BASE_TX_8X8 = 0,        // 8x8 transform
-  BASE_TX_4X8 = 1,        // 4x8 transform
-  BASE_TX_8X4 = 2,        // 8x4 transform
-  BASE_TX_SIZES_ALL = 3,  // Includes rectangular transforms
-} UENUM1BYTE(BASE_TX_SIZE);
-
-void generate_base_matrix(const int outw, const int outh, const int* para,
-                          const int* para_fp, qm_val_t* output) {
-  for (int y = 0; y < outh; ++y) {
-    for (int x = 0; x < outw; ++x) {
-      // The model is fitted in 32x32 domain so 8x8 idx has to be multiplied
-by 4. int y_idx_in_model = y * 4; int x_idx_in_model = x * 4;
-
-      int val = (para[0] * x_idx_in_model * x_idx_in_model * y_idx_in_model *
-                     y_idx_in_model >>
-                 para_fp[0]) +
-                (para[1] * x_idx_in_model * x_idx_in_model * y_idx_in_model >>
-                 para_fp[1]) +
-                (para[2] * x_idx_in_model * y_idx_in_model * y_idx_in_model >>
-                 para_fp[2]) +
-                (para[3] * x_idx_in_model * x_idx_in_model >> para_fp[3]) +
-                (para[4] * x_idx_in_model * y_idx_in_model >> para_fp[4]) +
-                (para[5] * y_idx_in_model * y_idx_in_model >> para_fp[5]) +
-                (para[6] * x_idx_in_model >> para_fp[6]) +
-                (para[7] * y_idx_in_model >> para_fp[7]) + para[8];
-
-      output[y * outw + x] = val;
-    }
-  }
-  // DC Coefficient is always 32.
-  output[0] = 32;
-}
-
-
-// [8x8/8x4/4x8]
-static const int iwt_matrix_para_fp[BASE_TX_SIZES_ALL][9] = {
-  {18, 13, 13, 9, 9, 9, 6, 6, 1},
-  {16, 11, 11, 9, 9, 9, 6, 6, 1},
-  {16, 11, 11, 9, 9, 9, 6, 6, 1}
-};
-
-// [8x8/4x8/8x4][color idx][QM idx]
-static const int iwt_matrix_para[BASE_TX_SIZES_ALL][2][13][9] = {
-    {
-        {
-            // 8x8 luma
-            {167, -128, -128, 49, 217, 49, 0, 0, 26},
-            {142, -111, -111, 48, 193, 48, -11, -11, 27},
-            {117, -93, -93, 46, 166, 46, -22, -22, 29},
-            {94, -76, -76, 44, 138, 44, -32, -32, 30},
-            {76, -61, -61, 43, 114, 43, -43, -43, 31},
-            {67, -54, -54, 42, 101, 42, -55, -55, 33},
-            {60, -49, -49, 39, 92, 39, -62, -62, 34},
-            {51, -41, -41, 32, 78, 32, -57, -57, 34},
-            {41, -33, -33, 25, 64, 25, -50, -50, 34},
-            {31, -24, -24, 18, 45, 18, -38, -38, 34},
-            {25, -18, -18, 12, 32, 12, -28, -28, 33},
-            {18, -12, -12, 6, 19, 6, -12, -12, 32},
-            {6, -4, -4, 2, 7, 2, -4, -4, 32}
-        },
-        {
-            // 8x8 chroma
-            {71, -49, -49, 4, 71, 4, 68, 68, 30},
-            {56, -36, -36, 2, 48, 2, 70, 70, 30},
-            {43, -25, -25, 1, 27, 1, 72, 72, 29},
-            {30, -12, -12, -1, 3, -1, 75, 75, 29},
-            {20, -2, -2, -3, -17, -3, 79, 79, 28},
-            {17, 2, 2, -5, -31, -5, 84, 84, 27},
-            {18, 2, 2, -7, -34, -7, 88, 88, 26},
-            {22, -1, -1, -9, -30, -9, 91, 91, 25},
-            {29, -9, -9, -8, -18, -8, 88, 88, 24},
-            {39, -22, -22, -3, 10, -3, 68, 68, 24},
-            {49, -40, -40, 8, 55, 8, 22, 22, 27},
-            {33, -35, -35, 18, 66, 18, -26, -26, 31},
-            {0, -5, -5, 10, 17, 10, -20, -20, 32}
-        }
-    },
-    {
-        {
-            // 4x8 luma
-            {196, -72, -149, 46, 470, 165, 17, 37, 25},
-            {169, -63, -130, 45, 423, 175, 3, -1, 27},
-            {142, -54, -111, 44, 368, 187, -12, -42, 28},
-            {113, -43, -88, 43, 299, 196, -23, -80, 30},
-            {92, -35, -72, 42, 248, 199, -37, -111, 31},
-            {81, -30, -63, 40, 218, 197, -49, -139, 33},
-            {72, -27, -57, 37, 197, 178, -56, -142, 34},
-            {61, -23, -48, 31, 169, 144, -53, -126, 34},
-            {50, -19, -40, 25, 140, 117, -47, -112, 34},
-            {40, -15, -31, 18, 108, 93, -37, -98, 34},
-            {31, -10, -22, 11, 70, 60, -25, -66, 33},
-            {25, -8, -18, 5, 53, 29, -12, -32, 32},
-            {5, -1, -3, 2, 9, 5, -2, -3, 31},
-        },
-        {
-            // 4x8 chroma
-            {83, -27, -53, 2, 142, -10, 75, 165, 31},
-            {69, -21, -42, 1, 103, -8, 77, 159, 30},
-            {51, -14, -26, 0, 52, -13, 77, 165, 30},
-            {33, -6, -10, -2, -6, -19, 80, 169, 29},
-            {23, -1, 1, -4, -50, -25, 83, 179, 28},
-            {17, 2, 9, -6, -85, -37, 88, 193, 28},
-            {21, 1, 6, -7, -80, -43, 89, 198, 27},
-            {23, 0, 3, -9, -77, -54, 94, 210, 25},
-            {32, -5, -7, -9, -47, -50, 92, 202, 24},
-            {46, -12, -25, -5, 20, -21, 73, 150, 24},
-            {58, -21, -47, 5, 115, 35, 31, 46, 27},
-            {41, -19, -43, 16, 142, 78, -19, -51, 31},
-            {3, -4, -8, 11, 43, 42, -19, -33, 31},
-        }
-    },
-    {
-        {
-            // 8x4 luma
-            {196, -149, -72, 165, 470, 46, 37, 17, 25},
-            {169, -130, -63, 175, 423, 45, -1, 3, 27},
-            {142, -111, -54, 187, 368, 44, -42, -12, 28},
-            {113, -88, -43, 196, 299, 43, -80, -23, 30},
-            {92, -72, -35, 199, 248, 42, -111, -37, 31},
-            {81, -63, -30, 197, 218, 40, -139, -49, 33},
-            {72, -57, -27, 178, 197, 37, -142, -56, 34},
-            {61, -48, -23, 144, 169, 31, -126, -53, 34},
-            {50, -40, -19, 117, 140, 25, -112, -47, 34},
-            {40, -31, -15, 93, 108, 18, -98, -37, 34},
-            {31, -22, -10, 60, 70, 11, -66, -25, 33},
-            {25, -18, -8, 29, 53, 5, -32, -12, 32},
-            {5, -3, -1, 5, 9, 2, -3, -2, 31},
-        },
-        {
-            // 8x4 chroma
-            {83, -53, -27, -10, 142, 2, 165, 75, 31},
-            {69, -42, -21, -8, 103, 1, 159, 77, 30},
-            {51, -26, -14, -13, 52, 0, 165, 77, 30},
-            {33, -10, -6, -19, -6, -2, 169, 80, 29},
-            {23, 1, -1, -25, -50, -4, 179, 83, 28},
-            {17, 9, 2, -37, -85, -6, 193, 88, 28},
-            {21, 6, 1, -43, -80, -7, 198, 89, 27},
-            {23, 3, 0, -54, -77, -9, 210, 94, 25},
-            {32, -7, -5, -50, -47, -9, 202, 92, 24},
-            {46, -25, -12, -21, 20, -5, 150, 73, 24},
-            {58, -47, -21, 35, 115, 5, 46, 31, 27},
-            {41, -43, -19, 78, 142, 16, -51, -19, 31},
-            {3, -8, -4, 42, 43, 11, -33, -19, 31},
-        }
-    }
-};
-
-*/
 /* Provide 15 sets of base quantization matrices for chroma and luma
    and each TX size. Matrices for different TX sizes are in fact
    scaled from the 8x8, 8x4, and 4x8 sizes using indexing.
@@ -1946,4 +1692,3 @@ static const qm_val_t default_4x8_iwt_base_matrix[NUM_QM_LEVELS - 1][2][4 * 8] =
     },
 };
 /* clang-format on */
-#endif  // CONFIG_QM_REVERT
