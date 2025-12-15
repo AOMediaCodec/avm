@@ -191,7 +191,6 @@ set_avm_config_var(CONFIG_THROUGHPUT_ANALYSIS 0
                    "AV2 experiment flag to measure throughput.")
 set_avm_config_var(CONFIG_CWG_E242_MFH_ID_UVLC 1
                    "Signaling multi-frame header ID in UVLC")
-set_avm_config_var(OBU_ORDER_IN_TU 1 "Check OBU order in TU")
 
 set_avm_config_var(
   CONFIG_QM_DEBUG 0

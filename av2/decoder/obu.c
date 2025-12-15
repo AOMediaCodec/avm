@@ -1536,7 +1536,6 @@ static int is_coded_frame(OBU_TYPE obu_type) {
 // Check the obu type ordering within a temporal unit
 // as a part of checking bitstream conformance.
 // On success, return 0. If failed return 1.
-#if OBU_ORDER_IN_TU
 static int check_obu_order(OBU_TYPE prev_obu_type, OBU_TYPE curr_obu_type) {
   // TODO: avm#1115 - Rewrite check_obu_order() to better express all OBU
   // ordering constraints.
@@ -1647,7 +1646,6 @@ static int check_obu_order(OBU_TYPE prev_obu_type, OBU_TYPE curr_obu_type) {
   }
   return 1;
 }
-#endif  // OBU_ORDER_IN_TU
 
 #if CONFIG_F024_KEYOBU
 int av2_ci_keyframe_in_temporal_unit(struct AV2Decoder *pbi,
@@ -1737,11 +1735,9 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
     return -1;
   }
 
-#if OBU_ORDER_IN_TU
   OBU_TYPE prev_obu_type = 0;
   OBU_TYPE curr_obu_type = 0;
   int prev_obu_type_initialized = 0;
-#endif  // OBU_ORDER_IN_TU
 
 #if CONFIG_F255_QMOBU
   uint32_t acc_qm_id_bitmap = 0;
@@ -1816,7 +1812,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
     }
 #endif
 
-#if OBU_ORDER_IN_TU
     curr_obu_type = obu_header.type;
     if (prev_obu_type_initialized &&
         check_obu_order(prev_obu_type, curr_obu_type)) {
@@ -1827,7 +1822,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
     }
     prev_obu_type = curr_obu_type;
     prev_obu_type_initialized = 1;
-#endif  // OBU_ORDER_IN_TU
 
     if (obu_header.type == OBU_MSDO) {
       if (obu_header.obu_tlayer_id != 0)
