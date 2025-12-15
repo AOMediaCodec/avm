@@ -118,14 +118,12 @@ static INLINE MHCCP_ALLOWED_TYPE is_mhccp_allowed(const AV2_COMMON *const cm,
     return (MHCCP_ALLOWED_TYPE)(plane_bsize == BLOCK_4X4);
   }
 
-#if CONFIG_MHCCP_BLK_SIZE
   const int block_height = block_size_high[plane_bsize];
   const int block_width = block_size_wide[plane_bsize];
 
   if (block_height == 4 && block_width == 4) {
     return MHCCP_DISALLOWED;
   }
-#endif  // CONFIG_MHCCP_BLK_SIZE
 
   // Ensure that plane_bsize doesn't go beyond allowed max chroma tx size (which
   // is 32x32 currently as per `av2_get_max_uv_txsize`). Specifically,
@@ -172,34 +170,17 @@ static INLINE CFL_ALLOWED_TYPE store_cfl_required(const AV2_COMMON *cm,
 }
 
 // Apply the back substitution process to generate the MHCCP parameters
-#if CONFIG_MHCCP_SOLVER_BITS
 void gauss_back_substitute(int32_t *x,
                            int32_t C[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS + 1],
                            int numEq, int col, int round, int bits);
-#else
-void gauss_back_substitute(int64_t *x,
-                           int64_t C[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS + 1],
-                           int numEq, int col, int round, int bits);
-#endif  // CONFIG_MHCCP_SOLVER_BITS
 // Use gaussian elimination approach to derive the parameters for MHCCP mode
-#if CONFIG_MHCCP_SOLVER_BITS
 void gauss_elimination_mhccp(int32_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
                              int32_t C[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS + 1],
                              int32_t *y0, int32_t *x0, int numEq, int bd);
-#else
-void gauss_elimination_mhccp(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
-                             int64_t C[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS + 1],
-                             int64_t *y0, int64_t *x0, int numEq, int bd);
-#endif  // CONFIG_MHCCP_SOLVER_BITS
 // Get the number of shifted bits for denominator and the scaling factors
 
-#if CONFIG_MHCCP_SOLVER_BITS
 void get_division_scale_shift(uint32_t denom, int *scale, int32_t *round,
                               int *shift);
-#else
-void get_division_scale_shift(uint64_t denom, int *scale, int64_t *round,
-                              int *shift);
-#endif  // CONFIG_MHCCP_SOLVER_BITS
 
 static INLINE int get_scaled_luma_q0(int alpha_q3, int16_t pred_buf_q3) {
   int scaled_luma_q6 = alpha_q3 * pred_buf_q3;

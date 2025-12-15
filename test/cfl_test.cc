@@ -565,7 +565,6 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::ValuesIn(cfl_subsample_colocated_hbd_avx2_params));
 #endif
 
-#if CONFIG_MHCCP_SOLVER_BITS
 typedef void (*mhccp_predict_hv_hbd_fn)(const uint16_t *input, uint16_t *dst,
                                         bool have_top, bool have_left,
                                         int dst_stride, int32_t *alpha_q3,
@@ -668,7 +667,6 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(0, 1, 2),
                        ::testing::Values(mhccp_predict_hv_hbd_avx2)));
 #endif  // HAVE_AVX2
-#endif  // CONFIG_MHCCP_SOLVER_BITS
 
 typedef void (*av2_mhccp_derive_multi_param_hv_fn)(
     MACROBLOCKD *const xd, int plane, int above_lines, int left_lines,

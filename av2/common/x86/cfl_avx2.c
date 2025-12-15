@@ -1430,7 +1430,6 @@ static INLINE __m256i non_linear_avx2(__m256i v, __m256i mid, int bit_depth) {
   return v2;
 }
 
-#if CONFIG_MHCCP_SOLVER_BITS
 static INLINE __m256i convert_int64_to_int32_avx2(__m256i a, __m256i b) {
   // Extract low 32-bit  of each 64-bit element from a and b
   const __m256 low32 = _mm256_shuffle_ps(
@@ -1609,24 +1608,15 @@ void mhccp_predict_hv_hbd_avx2(const uint16_t *input, uint16_t *dst,
     }
   }
 }
-#endif  // CONFIG_MHCCP_SOLVER_BITS
 
 // Horizontal sum of 4x 64-bit integers
-#if CONFIG_MHCCP_SOLVER_BITS
 static INLINE int32_t hsum_epi64_to_i32_avx2(__m256i v) {
-#else
-static INLINE int64_t hsum_epi64_to_i32_avx2(__m256i v) {
-#endif  // CONFIG_MHCCP_SOLVER_BITS
   __m128i lo128 = _mm256_castsi256_si128(v);
   __m128i hi128 = _mm256_extracti128_si256(v, 1);
   __m128i sum128 = _mm_add_epi64(lo128, hi128);
   __m128i shuf = _mm_shuffle_epi32(sum128, _MM_SHUFFLE(1, 0, 3, 2));
   sum128 = _mm_add_epi64(sum128, shuf);
-#if CONFIG_MHCCP_SOLVER_BITS
   return _mm_cvtsi128_si32(sum128);
-#else
-  return _mm_cvtsi128_si64(sum128);
-#endif  // CONFIG_MHCCP_SOLVER_BITS
 }
 
 #define NON_LINEAR(V, M, BD) ((V * V + M) >> BD)
@@ -1725,17 +1715,10 @@ void av2_mhccp_derive_multi_param_hv_avx2(MACROBLOCKD *const xd, int plane,
   }
 
   if (count > 0) {
-#if CONFIG_MHCCP_SOLVER_BITS
     int32_t ATA[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS];
     int32_t Ty[MHCCP_NUM_PARAMS];
     // One more column is added to store the derived parameters
     int32_t C[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS + 1];
-#else
-    int64_t ATA[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS];
-    int64_t Ty[MHCCP_NUM_PARAMS];
-    // One more column is added to store the derived parameters
-    int64_t C[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS + 1];
-#endif  // CONFIG_MHCCP_SOLVER_BITS
 
     __m256i sum00_lo = _mm256_setzero_si256(), sum00_hi = sum00_lo;
     __m256i sum01_lo = sum00_lo, sum01_hi = sum00_lo;

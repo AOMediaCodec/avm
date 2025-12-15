@@ -929,7 +929,6 @@ void av2_mhccp_derive_multi_param_hv_c(MACROBLOCKD *const xd, int plane,
   }
 
   if (count > 0) {
-#if CONFIG_MHCCP_SOLVER_BITS
     int32_t ATA[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS];
     // One more column is added to store the derived parameters
     int32_t C[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS + 1];
@@ -938,16 +937,6 @@ void av2_mhccp_derive_multi_param_hv_c(MACROBLOCKD *const xd, int plane,
            sizeof(int32_t) * (MHCCP_NUM_PARAMS) * (MHCCP_NUM_PARAMS));
     memset(Ty, 0x00, sizeof(int32_t) * (MHCCP_NUM_PARAMS));
     memset(C, 0x00, sizeof(C));
-#else
-    int64_t ATA[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS];
-    // One more column is added to store the derived parameters
-    int64_t C[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS + 1];
-    int64_t Ty[MHCCP_NUM_PARAMS];
-    memset(ATA, 0x00,
-           sizeof(int64_t) * (MHCCP_NUM_PARAMS) * (MHCCP_NUM_PARAMS));
-    memset(Ty, 0x00, sizeof(int64_t) * (MHCCP_NUM_PARAMS));
-    memset(C, 0x00, sizeof(C));
-#endif  // CONFIG_MHCCP_SOLVER_BITS
     for (int coli0 = 0; coli0 < (MHCCP_NUM_PARAMS); ++coli0) {
       for (int coli1 = coli0; coli1 < (MHCCP_NUM_PARAMS); ++coli1) {
         int16_t *col0 = A[coli0];
@@ -1036,13 +1025,8 @@ static INLINE int floorLog2Uint64(uint64_t x) {
   return result;
 }
 
-#if CONFIG_MHCCP_SOLVER_BITS
 void get_division_scale_shift(uint32_t denom, int32_t *scale, int32_t *round,
                               int32_t *shift) {
-#else
-void get_division_scale_shift(uint64_t denom, int *scale, int64_t *round,
-                              int *shift) {
-#endif  // CONFIG_MHCCP_SOLVER_BITS
   // This array stores the coefficients for the quadratic
   // (squared) term in the polynomial for each of the 8 regions.
   static const int pow2W[DIV_PREC_BITS_POW2] = { 214, 153, 113, 86,
@@ -1063,11 +1047,7 @@ void get_division_scale_shift(uint64_t denom, int *scale, int64_t *round,
   if (*shift == 0) {
     *round = 0;
   } else {
-#if CONFIG_MHCCP_SOLVER_BITS
     *round = (int32_t)(1U << (*shift) >> 1);
-#else
-    *round = (int64_t)(1ULL << (*shift) >> 1);
-#endif  // CONFIG_MHCCP_SOLVER_BITS
   }
   // Consider the division approximation: y = (x + D/2) / D,
   // where x is the numerator and D is the denominator.
@@ -1079,7 +1059,6 @@ void get_division_scale_shift(uint64_t denom, int *scale, int64_t *round,
   //         The expression below computes a scaled version of D:
   //         normDiff_tmp = ((D << DIV_PREC_BITS) + round) >> shift
   //         This ensures fixed-point precision and rounding.
-#if CONFIG_MHCCP_SOLVER_BITS
   int delta = *shift - DIV_PREC_BITS;
   int32_t normDiff_tmp;
   if (delta >= 0) {
@@ -1093,10 +1072,6 @@ void get_division_scale_shift(uint64_t denom, int *scale, int64_t *round,
     int32_t s = -delta;  // = DIV_PREC_BITS - *shift
     normDiff_tmp = denom << s;
   }
-#else
-  const int normDiff_tmp =
-      (int)(((denom << DIV_PREC_BITS) + *round) >> (*shift));
-#endif  // CONFIG_MHCCP_SOLVER_BITS
 
   // Step 2: Clip the scaled value to make sure it's within the valid range.
   //         The valid range is [1, 2), represented as：
@@ -1114,21 +1089,12 @@ void get_division_scale_shift(uint64_t denom, int *scale, int64_t *round,
   int32_t index = normDiff >> DIV_INTR_BITS;
   int32_t normDiff2 = normDiff - pow2O[index];
 
-#if CONFIG_MHCCP_SOLVER_BITS
   *scale = (((pow2W[index] * ((normDiff2 * normDiff2) >> DIV_PREC_BITS)) >>
              DIV_PREC_BITS_POW2) -
             ((pow2Q[index] * normDiff2) >> DIV_PREC_BITS_POW2) + pow2B[index]);
-#else
-  *scale = (int)((((int64_t)pow2W[index] *
-                   ((normDiff2 * normDiff2) >> DIV_PREC_BITS)) >>
-                  DIV_PREC_BITS_POW2) -
-                 (((int64_t)pow2Q[index] * normDiff2) >> DIV_PREC_BITS_POW2) +
-                 (int64_t)pow2B[index]);
-#endif  // CONFIG_MHCCP_SOLVER_BITS
   *scale <<= MHCCP_DECIM_BITS - DIV_PREC_BITS;
 }
 
-#if CONFIG_MHCCP_SOLVER_BITS
 void gauss_back_substitute(int32_t *x,
                            int32_t C[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS + 1],
                            int numEq, int col, int round, int bits) {
@@ -1143,32 +1109,10 @@ void gauss_back_substitute(int32_t *x,
     }
   }
 }
-#else
-void gauss_back_substitute(int64_t *x,
-                           int64_t C[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS + 1],
-                           int numEq, int col, int round, int bits) {
-  x[numEq - 1] = C[numEq - 1][col];
 
-  for (int i = numEq - 2; i >= 0; i--) {
-    x[i] = C[i][col];
-
-    for (int j = i + 1; j < numEq; j++) {
-      x[i] -= (int32_t)LOCAL_FIXED_MULT((int64_t)C[i][j], (int64_t)x[j], round,
-                                        bits);
-    }
-  }
-}
-#endif  // CONFIG_MHCCP_SOLVER_BITS
-
-#if CONFIG_MHCCP_SOLVER_BITS
 void gauss_elimination_mhccp(int32_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
                              int32_t C[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS + 1],
                              int32_t *y0, int32_t *x0, int numEq, int bd) {
-#else
-void gauss_elimination_mhccp(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
-                             int64_t C[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS + 1],
-                             int64_t *y0, int64_t *x0, int numEq, int bd) {
-#endif  // CONFIG_MHCCP_SOLVER_BITS
   int colChr0 = numEq;
 
   int reg = 2 << (bd - 8);
@@ -1186,47 +1130,27 @@ void gauss_elimination_mhccp(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
   }
 
   for (int i = 0; i < numEq; i++) {
-#if CONFIG_MHCCP_SOLVER_BITS
     int32_t *src = C[i];
     uint32_t diag = abs(src[i]) < 1 ? 1 : abs(src[i]);
     int32_t round;
-#else
-    int64_t *src = C[i];
-    uint64_t diag = llabs(src[i]) < 1 ? 1 : llabs(src[i]);
-    int64_t round;
-#endif  // CONFIG_MHCCP_SOLVER_BITS
     int32_t scale, shift;
     get_division_scale_shift(diag, &scale, &round, &shift);
 
     for (int j = i + 1; j < numEq + 1; j++) {
-#if CONFIG_MHCCP_SOLVER_BITS
       int32_t tmp = mul_fixed32_adapt(src[j], scale, shift);
       src[j] = tmp;
-#else
-      src[j] = (src[j] * scale + round) >> shift;
-#endif  // CONFIG_MHCCP_SOLVER_BITS
     }
 
     for (int j = i + 1; j < numEq; j++) {
-#if CONFIG_MHCCP_SOLVER_BITS
       int32_t *dst = C[j];
       int32_t scale_factor = dst[i];
-#else
-      int64_t *dst = C[j];
-      int64_t scale_factor = dst[i];
-#endif  // CONFIG_MHCCP_SOLVER_BITS
 
       // On row j all elements with k < i+1 are now zero (not zeroing those here
       // as backsubstitution does not need them)
       for (int k = i + 1; k < numEq + 1; k++) {
-#if CONFIG_MHCCP_SOLVER_BITS
         const int32_t delta =
             mul_fixed32_adapt(scale_factor, src[k], decimBits);
         dst[k] -= delta;
-#else
-        dst[k] -= (int32_t)LOCAL_FIXED_MULT(scale_factor, (int64_t)src[k],
-                                            decimRound, decimBits);
-#endif  // CONFIG_MHCCP_SOLVER_BITS
       }
     }
   }
@@ -1235,7 +1159,6 @@ void gauss_elimination_mhccp(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
   gauss_back_substitute(x0, C, numEq, colChr0, decimRound, decimBits);
 }
 
-#if CONFIG_MHCCP_SOLVER_BITS
 static int16_t convolve(int32_t *params, uint16_t *vector, int16_t numParams) {
   int32_t sum = 0;
   const int decimBits = MHCCP_DECIM_BITS;
@@ -1244,27 +1167,10 @@ static int16_t convolve(int32_t *params, uint16_t *vector, int16_t numParams) {
   }
   return (int16_t)clamp(sum, INT16_MIN, INT16_MAX);
 }
-#else
-static int16_t convolve(int64_t *params, uint16_t *vector, int16_t numParams) {
-  int64_t sum = 0;
-  const int decimBits = MHCCP_DECIM_BITS;
-  const int decimRound = (1 << (decimBits - 1));
-  for (int i = 0; i < numParams; i++) {
-    sum += LOCAL_FIXED_MULT(params[i], vector[i], decimRound, decimBits);
-  }
-  return (int16_t)clamp64(sum, INT16_MIN, INT16_MAX);
-}
-#endif  // CONFIG_MHCCP_SOLVER_BITS
 
-#if CONFIG_MHCCP_SOLVER_BITS
 void mhccp_predict_hv_hbd_c(const uint16_t *input, uint16_t *dst, bool have_top,
                             bool have_left, int dst_stride, int32_t *alpha_q3,
                             int bit_depth, int width, int height, int dir) {
-#else
-void mhccp_predict_hv_hbd_c(const uint16_t *input, uint16_t *dst, bool have_top,
-                            bool have_left, int dst_stride, int64_t *alpha_q3,
-                            int bit_depth, int width, int height, int dir) {
-#endif  // CONFIG_MHCCP_SOLVER_BITS
   const uint16_t mid = (1 << (bit_depth - 1));
 
   for (int j = 0; j < height; j++) {

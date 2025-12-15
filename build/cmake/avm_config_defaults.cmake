@@ -196,12 +196,6 @@ set_avm_config_var(
   CONFIG_QM_DEBUG 0
   "Enable debug information for extension to AV2 quantization matrices.")
 
-set_avm_config_var(CONFIG_MHCCP_BLK_SIZE 1
-                   "Add block size constraint for MHCCP")
-
-set_avm_config_var(CONFIG_MHCCP_SOLVER_BITS 1
-                   "Reduce the number of bits for MHCCP solver")
-
 set_avm_config_var(CONFIG_FIX_OPFL_AUTO 1
                    "Fix optical flow auto mode, option 3")
 set_avm_config_var(CONFIG_FIX_BW_CHROMA_REFINED_MV 1
