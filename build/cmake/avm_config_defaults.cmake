@@ -218,9 +218,6 @@ set_avm_config_var(CONFIG_F421_BAWP_CHECKS 1 "Adjust BAWP condition checks")
 # This is an encode-only change.
 set_avm_config_var(CONFIG_ML_PART_SPLIT 1
                    "Partition SPLIT pruning/forcing as predicted by ML.")
-set_avm_config_var(
-  CONFIG_ADJ_PYR_Q_OFFSET_LD 1
-  "Encoder-only config to adjust pyr qp offsets for LD from nominal.")
 
 set_avm_config_var(
   CONFIG_CWG_F377_STILL_PICTURE 1
