@@ -90,6 +90,34 @@ static void write_ops_decoder_model_info(
       ops_decoder_model_info->ops_low_delay_mode_flag[obuXLId][opsID][opIndex]);
 }
 
+#if CONFIG_CWG_F429_INTEROP
+static void write_ops_aggregate_profile_tier_level_info(
+    struct OperatingPointSet *ops_params, int opsID, int opIndex,
+    struct avm_write_bit_buffer *wb) {
+  avm_wb_write_literal(wb, ops_params->ops_config_idc[opsID][opIndex],
+                       CONFIG_BITS);
+  avm_wb_write_literal(wb, ops_params->ops_aggregate_level_idx[opsID][opIndex],
+                       LEVEL_BITS);
+  avm_wb_write_bit(wb, ops_params->ops_max_tier_flag[opsID][opIndex]);
+  avm_wb_write_literal(wb, ops_params->ops_max_interop[opsID][opIndex],
+                       INTEROP_BITS);
+}
+
+static void write_ops_seq_profile_tier_level_info(
+    struct OperatingPointSet *ops_params, int xId, int opsID, int opIndex,
+    int j, struct avm_write_bit_buffer *wb) {
+  avm_wb_write_literal(wb,
+                       ops_params->ops_seq_profile_idc[xId][opsID][opIndex][j],
+                       PROFILE_BITS);
+  avm_wb_write_literal(wb, ops_params->ops_level_idx[xId][opsID][opIndex][j],
+                       LEVEL_BITS);
+  avm_wb_write_bit(wb, ops_params->ops_tier_flag[xId][opsID][opIndex][j]);
+  avm_wb_write_literal(wb, ops_params->ops_mlayer_count[xId][opsID][opIndex][j],
+                       3);
+  (void)avm_wb_write_literal(wb, 0, 2);
+}
+#endif  // CONFIG_CWG_F429_INTEROP
+
 // Compute the size required
 static uint32_t calculate_ops_data_size(AV2_COMP *cpi, int obu_xlayer_id,
                                         int ops_id, int op_index) {
@@ -99,11 +127,22 @@ static uint32_t calculate_ops_data_size(AV2_COMP *cpi, int obu_xlayer_id,
   // Write ops_intent_op if present
   if (ops->ops_intent_present_flag[obu_xlayer_id][ops_id]) {
     avm_wb_write_literal(
-        &temp_wb, ops->ops_intent_op[obu_xlayer_id][ops_id][op_index], 4);
+        &temp_wb, ops->ops_intent_op[obu_xlayer_id][ops_id][op_index], 7);
   }
 
   // Write operational PTL fields if present
-  if (ops->ops_operational_ptl_present_flag[obu_xlayer_id][ops_id]) {
+  if (ops->ops_ptl_present_flag[obu_xlayer_id][ops_id]) {
+#if CONFIG_CWG_F429_INTEROP
+    if (obu_xlayer_id == GLOBAL_XLAYER_ID) {
+      // Write aggregate PTL info
+      write_ops_aggregate_profile_tier_level_info(ops, ops_id, op_index,
+                                                  &temp_wb);
+    } else {
+      // Write seq PTL info for this xlayer
+      write_ops_seq_profile_tier_level_info(ops, obu_xlayer_id, ops_id,
+                                            op_index, obu_xlayer_id, &temp_wb);
+    }
+#else
     avm_wb_write_literal(
         &temp_wb,
         ops->ops_operational_profile_id[obu_xlayer_id][ops_id][op_index], 6);
@@ -113,6 +152,7 @@ static uint32_t calculate_ops_data_size(AV2_COMP *cpi, int obu_xlayer_id,
     avm_wb_write_bit(
         &temp_wb,
         ops->ops_operational_tier_id[obu_xlayer_id][ops_id][op_index]);
+#endif  // CONFIG_CWG_F429_INTEROP
   }
 
   // Write color info if present (using actual values)
@@ -289,10 +329,13 @@ uint32_t av2_write_operating_point_set_obu(AV2_COMP *cpi, int obu_xlayer_id,
 
   if (ops->ops_cnt[obu_xlayer_id][ops_id] > 0) {
     avm_wb_write_literal(&wb, ops->ops_priority[obu_xlayer_id][ops_id], 4);
+#if CONFIG_CWG_F429_INTEROP
+    avm_wb_write_literal(&wb, ops->ops_intent[obu_xlayer_id][ops_id], 7);
+#else
     avm_wb_write_literal(&wb, ops->ops_intent[obu_xlayer_id][ops_id], 4);
+#endif  // CONFIG_CWG_F429_INTEROP
     avm_wb_write_bit(&wb, ops->ops_intent_present_flag[obu_xlayer_id][ops_id]);
-    avm_wb_write_bit(
-        &wb, ops->ops_operational_ptl_present_flag[obu_xlayer_id][ops_id]);
+    avm_wb_write_bit(&wb, ops->ops_ptl_present_flag[obu_xlayer_id][ops_id]);
     avm_wb_write_bit(&wb,
                      ops->ops_color_info_present_flag[obu_xlayer_id][ops_id]);
     avm_wb_write_bit(
@@ -301,9 +344,17 @@ uint32_t av2_write_operating_point_set_obu(AV2_COMP *cpi, int obu_xlayer_id,
     if (obu_xlayer_id == GLOBAL_XLAYER_ID) {
       avm_wb_write_literal(&wb, ops->ops_mlayer_info_idc[obu_xlayer_id][ops_id],
                            2);
+#if CONFIG_CWG_F429_INTEROP
+      avm_wb_write_literal(&wb, 0, 7);
+#else
       avm_wb_write_literal(&wb, 0, 2);  // ops_reserved_2bits
+#endif  // CONFIG_CWG_F429_INTEROP
     } else {
+#if CONFIG_CWG_F429_INTEROP
+      avm_wb_write_literal(&wb, 0, 9);
+#else
       avm_wb_write_literal(&wb, 0, 3);  // ops_reserved_3bits
+#endif  // CONFIG_CWG_F429_INTEROP
     }
 
     // Byte alignment before writing operating point data
@@ -319,16 +370,32 @@ uint32_t av2_write_operating_point_set_obu(AV2_COMP *cpi, int obu_xlayer_id,
 
       avm_wb_write_uleb(&wb, ops->ops_data_size[obu_xlayer_id][ops_id][i]);
       if (ops->ops_intent_present_flag[obu_xlayer_id][ops_id])
+#if CONFIG_CWG_F429_INTEROP
+        avm_wb_write_literal(&wb, ops->ops_intent_op[obu_xlayer_id][ops_id][i],
+                             7);
+#else
         avm_wb_write_literal(&wb, ops->ops_intent_op[obu_xlayer_id][ops_id][i],
                              4);
+#endif  // CONFIG_CWG_F429_INTEROP
 
-      if (ops->ops_operational_ptl_present_flag[obu_xlayer_id][ops_id]) {
+      if (ops->ops_ptl_present_flag[obu_xlayer_id][ops_id]) {
+#if CONFIG_CWG_F429_INTEROP
+        if (obu_xlayer_id == GLOBAL_XLAYER_ID) {
+          write_ops_aggregate_profile_tier_level_info(ops, ops_id, i, &wb);
+        } else {
+          // Write seq PTL info for this xlayer
+          write_ops_seq_profile_tier_level_info(ops, obu_xlayer_id, ops_id, i,
+                                                obu_xlayer_id, &wb);
+        }
+#else
         avm_wb_write_literal(
             &wb, ops->ops_operational_profile_id[obu_xlayer_id][ops_id][i], 6);
         avm_wb_write_literal(
-            &wb, ops->ops_operational_level_id[obu_xlayer_id][ops_id][i], 5);
+            &wb, ops->ops_operational_level_id[obu_xlayer_id][ops_id][i],
+            LEVEL_BITS);
         avm_wb_write_bit(
             &wb, ops->ops_operational_tier_id[obu_xlayer_id][ops_id][i]);
+#endif  // CONFIG_CWG_F429_INTEROP
       }
       if (ops->ops_color_info_present_flag[obu_xlayer_id][ops_id])
         write_ops_color_info(opsColInfo, obu_xlayer_id, ops_id, i, &wb);
@@ -337,21 +404,48 @@ uint32_t av2_write_operating_point_set_obu(AV2_COMP *cpi, int obu_xlayer_id,
                                      ops_id, i, &wb);
       }
       avm_wb_write_bit(
-          &wb,
-          ops->ops_initial_display_delay_present_flag[obu_xlayer_id][ops_id]);
-      if (ops->ops_initial_display_delay_present_flag[obu_xlayer_id][ops_id]) {
+          &wb, ops->ops_initial_display_delay_present_flag[obu_xlayer_id]
+                                                          [ops_id][i]);
+      if (ops->ops_initial_display_delay_present_flag[obu_xlayer_id][ops_id]
+                                                     [i]) {
         avm_wb_write_literal(
-            &wb, ops->ops_initial_display_delay_minus_1[obu_xlayer_id][ops_id],
+            &wb,
+            ops->ops_initial_display_delay_minus_1[obu_xlayer_id][ops_id][i],
             4);
       }
       if (obu_xlayer_id == GLOBAL_XLAYER_ID) {
         avm_wb_write_literal(&wb, ops->ops_xlayer_map[obu_xlayer_id][ops_id][i],
                              MAX_NUM_XLAYERS - 1);
         for (int j = 0; j < MAX_NUM_XLAYERS - 1; j++) {
+#if CONFIG_CWG_F429_INTEROP
+          if (ops->ops_xlayer_map[obu_xlayer_id][ops_id][i] & (1 << j)) {
+            // Write seq PTL info for this xlayer if PTL is present
+            if (ops->ops_ptl_present_flag[obu_xlayer_id][ops_id]) {
+              write_ops_seq_profile_tier_level_info(ops, obu_xlayer_id, ops_id,
+                                                    i, j, &wb);
+            }
+          }
+#endif  // CONFIG_CWG_F429_INTEROP
           if (ops->ops_mlayer_info_idc[obu_xlayer_id][ops_id] == 1)
             write_ops_mlayer_info(obu_xlayer_id, ops_id, i, j,
                                   ops->ops_mlayer_info, &wb);
           else if (ops->ops_mlayer_info_idc[obu_xlayer_id][ops_id] == 2) {
+#if CONFIG_CWG_F429_INTEROP
+            avm_wb_write_bit(&wb,
+                             ops->ops_mlayer_explicit_info_flag[ops_id][i][j]);
+            if (ops->ops_mlayer_explicit_info_flag[ops_id][i][j]) {
+              // if flag is set, write mlayer info directly
+              write_ops_mlayer_info(obu_xlayer_id, ops_id, i, j,
+                                    ops->ops_mlayer_info, &wb);
+            } else {
+              // Otherwise write embedded ops reference
+              avm_wb_write_literal(
+                  &wb, ops->ops_embedded_mapping[obu_xlayer_id][ops_id][i][j],
+                  4);
+              avm_wb_write_literal(
+                  &wb, ops->ops_embedded_op_id[obu_xlayer_id][ops_id][i][j], 3);
+            }
+#else
             avm_wb_write_literal(
                 &wb, ops->ops_embedded_mapping[obu_xlayer_id][ops_id][i][j], 4);
             avm_wb_write_literal(
@@ -363,6 +457,7 @@ uint32_t av2_write_operating_point_set_obu(AV2_COMP *cpi, int obu_xlayer_id,
             write_ops_mlayer_info(obu_xlayer_id, embedded_ops_id,
                                   embedded_op_index, j, ops->ops_mlayer_info,
                                   &wb);
+#endif  // CONFIG_CWG_F429_INTEROP
           }
         }
       } else {

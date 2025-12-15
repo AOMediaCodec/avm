@@ -5954,7 +5954,11 @@ uint32_t av2_write_sequence_header_obu(const SequenceHeader *seq_params,
 
   avm_wb_write_uvlc(&wb, seq_params->seq_header_id);
 
+#if CONFIG_CWG_F429_INTEROP
+  write_profile(seq_params->seq_profile_idc, &wb);
+#else
   write_profile(seq_params->profile, &wb);
+#endif  // CONFIG_CWG_F429_INTEROP
   avm_wb_write_bit(&wb, seq_params->single_picture_header_flag);
   if (!seq_params->single_picture_header_flag) {
     avm_wb_write_literal(&wb, seq_params->seq_lcr_id, 3);
@@ -6002,6 +6006,12 @@ uint32_t av2_write_sequence_header_obu(const SequenceHeader *seq_params,
   if (!seq_params->single_picture_header_flag) {
     avm_wb_write_literal(&wb, seq_params->max_tlayer_id, TLAYER_BITS);
     avm_wb_write_literal(&wb, seq_params->max_mlayer_id, MLAYER_BITS);
+#if CONFIG_CWG_F429_INTEROP
+    if (seq_params->max_mlayer_id > 0) {
+      int n = avm_ceil_log2(seq_params->max_mlayer_id + 1);
+      avm_wb_write_literal(&wb, seq_params->seq_max_mcount, n);
+    }
+#endif  // CONFIG_CWG_F429_INTEROP
   }
 
   // mlayer dependency description
@@ -6861,6 +6871,31 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
     // Operating Point Set
     if (layer_cfg->enable_ops) {
       int xlayer_id = 0;
+#if CONFIG_CWG_F429_INTEROP
+      const int num_ops = layer_cfg->num_ops > 0 ? layer_cfg->num_ops : 1;
+      // Write multiple OPS OBUs, one for each OPS
+      for (int ops_idx = 0; ops_idx < num_ops && ops_idx < MAX_NUM_OPS_ID;
+           ops_idx++) {
+        // Update cm->ops to the current OPS before calling av2_set_ops_params
+        cm->ops = &cpi->ops_list[ops_idx];
+        struct OperatingPointSet *ops = &cpi->ops_list[ops_idx];
+        av2_set_ops_params(cpi, ops, xlayer_id);
+        obu_header_size = av2_write_obu_header(
+            level_params, OBU_OPERATING_POINT_SET, 0, 0, data);
+        obu_payload_size = av2_write_operating_point_set_obu(
+            cpi, xlayer_id, data + obu_header_size);
+        const size_t length_field_size =
+            obu_memmove(obu_header_size, obu_payload_size, data);
+        if (av2_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
+            AVM_CODEC_OK) {
+          return AVM_CODEC_ERROR;
+        }
+        data += obu_header_size + obu_payload_size + length_field_size;
+      }
+      // point to the first OPS because the assumption is that this is a
+      // default/primary one
+      cm->ops = &cpi->ops_list[0];
+#else
       struct OperatingPointSet *ops = &cpi->ops_list[0];
       av2_set_ops_params(cpi, ops, xlayer_id);
       obu_header_size = av2_write_obu_header(
@@ -6874,6 +6909,7 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
         return AVM_CODEC_ERROR;
       }
       data += obu_header_size + obu_payload_size + length_field_size;
+#endif  // CONFIG_CWG_F429_INTEROP
     }
 
     // Atlas Segment

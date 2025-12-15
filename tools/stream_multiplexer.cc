@@ -39,6 +39,9 @@ static int write_multi_stream_decoder_operation_obu(uint8_t *const dst,
   avm_wb_write_literal(&wb, SEQ_LEVEL_4_0,
                        LEVEL_BITS);  // multistream_level_idx
   avm_wb_write_bit(&wb, 0);          // multistream_tier_idx
+#if CONFIG_CWG_F429_INTEROP
+  avm_wb_write_literal(&wb, 0, INTEROP_BITS);
+#endif  // CONFIG_CWG_F429_INTEROP
 
   int multistream_even_allocation_flag = 1;
   int multistream_large_picture_idc = 0;
@@ -62,10 +65,17 @@ static int write_multi_stream_decoder_operation_obu(uint8_t *const dst,
 
   for (int i = 0; i < num_streams; i++) {
     avm_wb_write_literal(&wb, stream_ids[i], XLAYER_BITS);  // signal stream IDs
+#if CONFIG_CWG_F429_INTEROP
+    avm_wb_write_literal(&wb, 0, 5);
+#else
     avm_wb_write_literal(&wb, 0, PROFILE_BITS);  // substream profile_idx
+#endif  // CONFIG_CWG_F429_INTEROP
     avm_wb_write_literal(&wb, SEQ_LEVEL_4_0,
                          LEVEL_BITS);  // substream level_idx
     avm_wb_write_bit(&wb, 0);          // substream tier_idx
+#if CONFIG_CWG_F429_INTEROP
+    avm_wb_write_literal(&wb, 0, INTEROP_BITS);
+#endif  // CONFIG_CWG_F429_INTEROP
   }
 
   if ((wb.bit_offset % CHAR_BIT == 0)) {

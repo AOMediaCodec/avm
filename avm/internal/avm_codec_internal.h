@@ -242,7 +242,7 @@ typedef avm_image_t *(*avm_codec_get_frame_fn_t)(avm_codec_alg_priv_t *ctx,
  * avm_codec_decode.
  *
  * \param[in]     ctx      Pointer to this instance's context
- * \param[in out] iter     Iterator storage, initialized to NULL
+ * \param[in out] iter     Iterator storate, initialized to NULL
  *
  * \return Returns a pointer to an image, if one is ready for display. Frames
  *         produced will always be in PTS (presentation time stamp) order.

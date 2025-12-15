@@ -15,6 +15,7 @@
 
 #include "avm/avm_codec.h"
 #include "av2/decoder/decoder.h"
+#include "av2/common/annexA.h"
 
 // Try to decode one frame from a buffer.
 // Returns 1 if we decoded a frame,
@@ -28,6 +29,12 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
 uint32_t read_fgm_obu(AV2Decoder *pbi, const int obu_tlayer_id,
                       const int obu_mlayer_id, uint32_t *acc_fgm_id_bitmap,
                       struct avm_read_bit_buffer *rb);
+
+#if CONFIG_CWG_F429_INTEROP
+avm_codec_err_t avm_get_num_layers_from_operating_point_idc(
+    int operating_point_idc, unsigned int *number_spatial_layers,
+    unsigned int *number_temporal_layers);
+#endif  // CONFIG_CWG_F429_INTEROP
 
 uint32_t read_qm_obu(AV2Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
                      uint32_t *acc_qm_id_bitmap,

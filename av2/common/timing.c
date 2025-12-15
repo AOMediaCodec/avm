@@ -11,6 +11,8 @@
  */
 
 #include "av2/common/timing.h"
+#include "av2/common/blockd.h"
+#include "av2/common/annexA.h"
 
 /* Tables for AV2 max bitrates for different levels of main and high tier.
  * The tables are in Kbps instead of Mbps in the specification.
@@ -47,19 +49,113 @@ static int32_t high_kbps[1 << LEVEL_BITS] = {
   UNDEFINED_RATE, UNDEFINED_RATE, UNDEFINED_RATE, UNDEFINED_RATE
 };
 
+#if CONFIG_CWG_F429_INTEROP
+
+// TODO: verify that this table is correct and then make the change
+// Get ProfileScalingFactor per AV2 Spec Table A.5
+// It depends on seq_profile_idc, bit_depth_idc and chroma_format
+
+/* Table A.5: Definition of ProfileScalingFactor
+ * seq_profile_idc    | bit_depth_idc |chroma_format_idc  | ProfileScalingFactor
+ * ----------------------------------------------------------------------------
+ * (0, 1, 2, 3, 4, 5)      (0, 1)      CHROMA_FORMAT_400        0
+                                       CHROMA_FORMAT_420
+ * ----------------------------------------------------------------------------
+ *      4                  (0, 1)      CHROMA_FORMAT_422        1
+ * ----------------------------------------------------------------------------
+ *      5                  (0, 1)      CHROMA_FORMAT_444        2
+ * ----------------------------------------------------------------------------
+ */
+/*
+static int get_profile_scaling_factor(int seq_profile_idc,
+                                      int chroma_format_idc) {
+ // Table A.5: Definition of ProfileScalingFactor
+  // Note that the bit_depth_idx must be 0 or 1 for all valid combinations
+
+  // All profiles (0-5) with 400 or 420 chroma format
+  if (chroma_format_idc == CHROMA_FORMAT_400 ||
+      chroma_format_idc == CHROMA_FORMAT_420) {
+    return 0;
+  }
+
+  // Profile 4 with 422 chroma format
+  if (seq_profile_idc == 4 && chroma_format_idc == CHROMA_FORMAT_422) {
+    return 1;
+  }
+
+  // Profile 5 with 444 chroma format
+  if (seq_profile_idc == 5 && chroma_format_idc == CHROMA_FORMAT_444) {
+    return 2;
+  }
+
+  // Default for invalid combinations
+  return 0;
+}
+
+// Get BitrateProfileFactor from ProfileScalingFactor per AV2 spec
+static int get_bitrate_profile_factor(int profile_scaling_factor) {
+  // Per spec:
+  // If ProfileScalingFactor == 0, BitrateProfileFactor = 1.0
+  // If ProfileScalingFactor == 1, BitrateProfileFactor = 2.0
+  // If ProfileScalingFactor == 2, BitrateProfileFactor = 3.0
+  if (profile_scaling_factor == 0) return 1;
+  if (profile_scaling_factor == 1) return 2;
+  if (profile_scaling_factor == 2) return 3;
+  return 1;  // Default
+}
+ */
+// get chroma subsampling values
+static int get_chroma_format_from_subsampling(int monochrome, int subsampling_x,
+                                              int subsampling_y) {
+  if (monochrome) return CHROMA_FORMAT_400;
+  if (subsampling_x == 1 && subsampling_y == 1) return CHROMA_FORMAT_420;
+  if (subsampling_x == 1 && subsampling_y == 0) return CHROMA_FORMAT_422;
+  if (subsampling_x == 0 && subsampling_y == 0) return CHROMA_FORMAT_444;
+  return CHROMA_FORMAT_420;  // Default
+}
+#else
 /* BitrateProfileFactor */
 static int bitrate_profile_factor[1 << PROFILE_BITS] = {
   1, 2, 3, 0, 0, 0, 0, 0
 };
+#endif  // CONFIG_CWG_F429_INTEROP
 
+#if CONFIG_CWG_F429_INTEROP
+int64_t av2_max_level_bitrate(BITSTREAM_PROFILE seq_profile_idc,
+                              int seq_level_idx,
+#else
 int64_t av2_max_level_bitrate(BITSTREAM_PROFILE seq_profile, int seq_level_idx,
-                              int seq_tier) {
+#endif  // CONFIG_CWG_F429_INTEROP
+                              int seq_tier
+#if CONFIG_CWG_F429_INTEROP
+                              ,
+                              int monochrome, int subsampling_x,
+                              int subsampling_y
+#endif  // CONFIG_CWG_F429_INTEROP
+) {
   int64_t bitrate;
 
+#if CONFIG_CWG_F429_INTEROP
+  int chroma_format_idc = get_chroma_format_from_subsampling(
+      monochrome, subsampling_x, subsampling_y);
+  int profile_scaling_factor =
+      get_profile_scaling_factor(seq_profile_idc, chroma_format_idc);
+  int bitrate_profile_factor =
+      get_bitrate_profile_factor(profile_scaling_factor);
+#endif  // CONFIG_CWG_F429_INTEROP
+
   if (seq_tier) {
+#if CONFIG_CWG_F429_INTEROP
+    bitrate = high_kbps[seq_level_idx] * bitrate_profile_factor;
+#else
     bitrate = high_kbps[seq_level_idx] * bitrate_profile_factor[seq_profile];
+#endif  // CONFIG_CWG_F429_INTEROP
   } else {
+#if CONFIG_CWG_F429_INTEROP
+    bitrate = main_kbps[seq_level_idx] * bitrate_profile_factor;
+#else
     bitrate = main_kbps[seq_level_idx] * bitrate_profile_factor[seq_profile];
+#endif  // CONFIG_CWG_F429_INTEROP
   }
 
   return bitrate * 1000;

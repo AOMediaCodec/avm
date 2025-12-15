@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "av2/common/annexA.h"
 #include "av2/common/av2_common_int.h"
 #include "av2/common/bru.h"
 #include "config/avm_config.h"
@@ -328,7 +329,13 @@ static void set_bitstream_level_tier(AV2_COMP *cpi, AV2_COMMON *cm, int width,
     // Set the maximum parameters for bitrate and buffer size for this profile,
     // level, and tier
     seq_params->op_params[i].bitrate = av2_max_level_bitrate(
+#if CONFIG_CWG_F429_INTEROP
+        cm->seq_params.seq_profile_idc, cpi->level_idx[i], cpi->tier[i],
+        cm->seq_params.monochrome, cm->seq_params.subsampling_x,
+        cm->seq_params.subsampling_y);
+#else
         cm->seq_params.profile, cpi->level_idx[i], cpi->tier[i]);
+#endif  // CONFIG_CWG_F429_INTEROP
 
     // Level with seq_level_idx = 31 returns a high "dummy" bitrate to pass the
     // check
@@ -531,6 +538,9 @@ void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
   seq->mlayer_dependency_present_flag = 0;
   setup_default_temporal_layer_dependency_structure(seq);
   setup_default_embedded_layer_dependency_structure(seq);
+#if CONFIG_CWG_F429_INTEROP
+  seq->seq_max_mcount = 1;
+#endif  // CONFIG_CWG_F429_INTEROP
 
   // delta_q
   seq->base_y_dc_delta_q = 0;
@@ -776,6 +786,67 @@ static void set_content_interpreation_params(struct AV2_COMP *cpi,
     cpi->write_ci_obu_flag = 0;
 }
 
+#if CONFIG_CWG_F429_INTEROP
+// Set LCR aggregate profile
+static void av2_set_profile_info_for_obus(AV2_COMP *cpi, int num_mlayers) {
+  AV2_COMMON *const cm = &cpi->common;
+  SequenceHeader *const seq_params = &cm->seq_params;
+
+  const int profile = seq_params->seq_profile_idc;
+  const int level_idx = seq_params->seq_max_level_idx;
+  const int tier = seq_params->seq_tier;
+  const int interop = seq_params->seq_max_mcount;
+  const int mlayer_count = num_mlayers;
+
+  // Set LCR profile/tier/level indo
+  LayerConfigurationRecord *lcr = &cm->lcr_params;
+
+  // Set aggregate PTL info for global LCR
+  lcr->lcr_config_idc = profile;
+  lcr->lcr_aggregate_level_idx = level_idx;
+  lcr->lcr_max_tier_flag = tier;
+  lcr->lcr_max_interop = interop;
+
+  // Seet per-xlayer PTL info
+  for (int i = 0; i < MAX_NUM_XLAYERS; i++) {
+    lcr->lcr_seq_profile_idc[i] = profile;
+    lcr->lcr_max_level_idx[i] = level_idx;
+    lcr->lcr_tier_flag[i] = tier;
+    lcr->lcr_max_mlayer_count[i] = mlayer_count;
+  }
+
+  // Set OPS profile/tier/level/info
+  OperatingPointSet *ops = &cpi->common.ops_params;
+
+  // Set aggregate PTL info for all OPS IDs
+  for (int ops_id = 0; ops_id < MAX_NUM_OPS_ID; ops_id++) {
+    for (int op_index = 0; op_index < MAX_OPS_COUNT; op_index++) {
+      ops->ops_config_idc[ops_id][op_index] = profile;
+      ops->ops_aggregate_level_idx[ops_id][op_index] = level_idx;
+      ops->ops_max_tier_flag[ops_id][op_index] = tier;
+      ops->ops_max_interop[ops_id][op_index] = interop;
+    }
+  }
+
+  // Set per=xlayer PTL info for OPS
+  for (int xlayer = 0; xlayer < MAX_NUM_XLAYERS; xlayer++) {
+    for (int op_id = 0; op_id < MAX_NUM_OPS_ID; op_id++) {
+      for (int op_index = 0; op_index < MAX_OPS_COUNT; op_index++) {
+        for (int j = 0; j < MAX_NUM_MLAYERS; j++) {
+          ops->ops_seq_profile_idc[xlayer][op_id][op_index][j] = profile;
+          ops->ops_level_idx[xlayer][op_id][op_index][j] = level_idx;
+          ops->ops_tier_flag[xlayer][op_id][op_index][j] = tier;
+          ops->ops_mlayer_count[xlayer][op_id][op_index][j] = mlayer_count;
+        }
+      }
+    }
+  }
+
+  // Set MSO profile/tier/level info
+}
+
+#endif  // CONFIG_CWG_F429_INTEROP
+
 static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
   AV2_COMMON *const cm = &cpi->common;
   SequenceHeader *const seq_params = &cm->seq_params;
@@ -803,11 +874,27 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
     memset(&cpi->ops_list[i], 0, sizeof(struct OperatingPointSet));
   cm->ops = &cpi->ops_list[0];
 
+#if CONFIG_CWG_F429_INTEROP
+  // Initialize multiple OPS structures based on the num of ops (num_ops)
+  // This will help using --select-op option at the decoder
+  const int num_ops = oxcf->layer_cfg.num_ops > 0 ? oxcf->layer_cfg.num_ops : 1;
+  for (int ops_idx = 0; ops_idx < num_ops && ops_idx < MAX_NUM_OPS_ID;
+       ops_idx++) {
+    struct OperatingPointSet *ops = &cpi->ops_list[ops_idx];
+    // Set unique OPS ids for each one.
+    for (int xlayer = 0; xlayer < MAX_NUM_XLAYERS; xlayer++) {
+      ops->ops_id[xlayer] = ops_idx;
+      // Set operating point count for this OPS ID
+      ops->ops_cnt[xlayer][ops_idx] = oxcf->tool_cfg.operating_points_count;
+    }
+  }
+#else
   for (int i = 0; i < MAX_NUM_XLAYERS; i++) {
     for (int j = 0; j < MAX_NUM_OPS_ID; j++) {
       cm->ops->ops_cnt[i][j] = oxcf->tool_cfg.operating_points_count;
     }
   }
+#endif  // CONFIG_CWG_F429_INTEROP
 
   // Initialize Atlas Segment information
   for (int i = 0; i < MAX_NUM_ATLAS_SEG_ID; i++)
@@ -824,7 +911,11 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
     seq_params->seq_lcr_id = LCR_ID_UNSPECIFIED;
   }
 
+#if CONFIG_CWG_F429_INTEROP
+  seq_params->seq_profile_idc = oxcf->profile;
+#else
   seq_params->profile = oxcf->profile;
+#endif  // CONFIG_CWG_F429_INTEROP
   seq_params->bit_depth = oxcf->tool_cfg.bit_depth;
   seq_params->monochrome = oxcf->tool_cfg.enable_monochrome;
   seq_params->display_model_info_present_flag =
@@ -867,10 +958,18 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
     seq_params->subsampling_x = 0;
     seq_params->subsampling_y = 0;
   } else {
+#if CONFIG_CWG_F429_INTEROP
+    if (seq_params->seq_profile_idc == 0) {
+#else
     if (seq_params->profile == 0) {
+#endif  // CONFIG_CWG_F429_INTEROP
       seq_params->subsampling_x = 1;
       seq_params->subsampling_y = 1;
+#if CONFIG_CWG_F429_INTEROP
+    } else if (seq_params->seq_profile_idc == 1) {
+#else
     } else if (seq_params->profile == 1) {
+#endif  // CONFIG_CWG_F429_INTEROP
       seq_params->subsampling_x = 0;
       seq_params->subsampling_y = 0;
     } else {
@@ -894,6 +993,30 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
   }
 
   set_content_interpreation_params(cpi, oxcf, seq_chroma_format_idc);
+
+#if CONFIG_CWG_F429_INTEROP
+  // Code snippet to set profile for LCR/OPS if 0 is not the default one to be
+  // used
+  if (oxcf->profile == 0 &&
+      (oxcf->layer_cfg.enable_lcr || oxcf->layer_cfg.enable_ops)) {
+    // Since the profile is not the default 0, figure out based on the other
+    // settings what the profile needs to be
+    const int num_mlayers = (cm->number_mlayers > 0) ? cm->number_mlayers : 1;
+    av2_set_profile_info_for_obus(cpi, num_mlayers);
+  }
+  // Validate profile conformance for chroma format, bitdepth, and mcount
+  // This is the equivalent to the decoder's
+  // av2_check_profile_interop_conformance()
+  if (!av2_check_profile_interop_conformance(
+          seq_params->seq_profile_idc, seq_params->bit_depth,
+          seq_params->subsampling_x, seq_params->subsampling_y,
+          seq_params->monochrome, seq_params->seq_max_mcount, &cm->error, 0)) {
+    // The conformance check has failed
+    avm_internal_error(
+        &cm->error, AVM_CODEC_INVALID_PARAM,
+        "Profile conformance validation failed during tencoder init.");
+  }
+#endif  // CONFIG_CWG_F429_INTEROP
 
   cm->width = oxcf->frm_dim_cfg.width;
   cm->height = oxcf->frm_dim_cfg.height;
@@ -1022,7 +1145,12 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
 
   memset(brt_info, 0, sizeof(BufferRemovalTimingInfo));
 
+#if CONFIG_CWG_F429_INTEROP
+  if (seq_params->seq_profile_idc != oxcf->profile)
+    seq_params->seq_profile_idc = oxcf->profile;
+#else
   if (seq_params->profile != oxcf->profile) seq_params->profile = oxcf->profile;
+#endif  // CONFIG_CWG_F429_INTEROP
   seq_params->bit_depth = oxcf->tool_cfg.bit_depth;
   uint32_t chroma_format_idc = 0;
   avm_codec_err_t err =
@@ -1034,8 +1162,27 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
   }
   set_content_interpreation_params(cpi, oxcf, chroma_format_idc);
 
+#if CONFIG_CWG_F429_INTEROP
+  assert(IMPLIES(seq_params->seq_profile_idc <= PROFILE_1,
+#else
   assert(IMPLIES(seq_params->profile <= PROFILE_1,
+#endif  // CONFIG_CWG_F429_INTEROP
                  seq_params->bit_depth <= AVM_BITS_10));
+
+#if CONFIG_CWG_F429_INTEROP
+  // Validate profile conformance for chroma format, bitdepth, and mcount
+  // This is the equivalent to the decoder's
+  // av2_check_profile_interop_conformance()
+  if (!av2_check_profile_interop_conformance(
+          seq_params->seq_profile_idc, seq_params->bit_depth,
+          seq_params->subsampling_x, seq_params->subsampling_y,
+          seq_params->monochrome, seq_params->seq_max_mcount, &cm->error, 0)) {
+    // The conformance check has failed
+    avm_internal_error(
+        &cm->error, AVM_CODEC_INVALID_PARAM,
+        "Profile conformance validation failed during tencoder init.");
+  }
+#endif  // CONFIG_CWG_F429_INTEROP
 
   seq_params->display_model_info_present_flag =
       dec_model_cfg->display_model_info_present_flag;
@@ -4882,19 +5029,31 @@ int av2_receive_raw_frame(AV2_COMP *cpi, avm_enc_frame_flags_t frame_flags,
   // Profile in the seq header, and likewise a bitstream that contains 4:2:2
   // bitstream must be designated as Professional Profile in the sequence
   // header.
+#if CONFIG_CWG_F429_INTEROP
+  if ((seq_params->seq_profile_idc == PROFILE_0) && !seq_params->monochrome &&
+#else
   if ((seq_params->profile == PROFILE_0) && !seq_params->monochrome &&
+#endif
       (subsampling_x != 1 || subsampling_y != 1)) {
     avm_internal_error(&cm->error, AVM_CODEC_INVALID_PARAM,
                        "Non-4:2:0 color format requires profile 1 or 2");
     res = -1;
   }
+#if CONFIG_CWG_F429_INTEROP
+  if ((seq_params->seq_profile_idc == PROFILE_1) &&
+#else
   if ((seq_params->profile == PROFILE_1) &&
+#endif  // CONFIG_CWG_F429_INTEROP
       !(subsampling_x == 0 && subsampling_y == 0)) {
     avm_internal_error(&cm->error, AVM_CODEC_INVALID_PARAM,
                        "Profile 1 requires 4:4:4 color format");
     res = -1;
   }
+#if CONFIG_CWG_F429_INTEROP
+  if ((seq_params->seq_profile_idc == PROFILE_2) &&
+#else
   if ((seq_params->profile == PROFILE_2) &&
+#endif  // CONFIG_CWG_F429_INTEROP
       (seq_params->bit_depth <= AVM_BITS_10) &&
       !(subsampling_x == 1 && subsampling_y == 0)) {
     avm_internal_error(&cm->error, AVM_CODEC_INVALID_PARAM,

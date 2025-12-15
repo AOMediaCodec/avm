@@ -34,6 +34,16 @@
 #include "av2/encoder/bitstream.h"
 #include "av2/encoder/tokenize.h"
 
+#if CONFIG_CWG_F429_INTEROP
+static int write_lcr_seq_profile_tier_level_info(
+    AV2_COMP *cpi, int xId, struct avm_write_bit_buffer *wb) {
+  struct LayerConfigurationRecord *lcr_params = &cpi->common.lcr_params;
+  avm_wb_write_literal(wb, lcr_params->lcr_seq_profile_idc[xId], PROFILE_BITS);
+  avm_wb_write_literal(wb, lcr_params->lcr_max_level_idx[xId], LEVEL_BITS);
+  avm_wb_write_bit(wb, lcr_params->lcr_tier_flag[xId]);
+  avm_wb_write_literal(wb, lcr_params->lcr_max_mlayer_count[xId], 3);
+  avm_wb_write_literal(wb, 0, 2);  // reserved_zero_2bits
+#else
 // TODO(hegilmez) to be specified, depending on profile, tier definitions
 static int write_lcr_profile_tier_level(int isGlobal, int xId) {
 #if MULTILAYER_HLS_REMOVE_LOGS
@@ -45,8 +55,20 @@ static int write_lcr_profile_tier_level(int isGlobal, int xId) {
       "definitions are not defined yet\n",
       isGlobal, xId);
 #endif  // MULTILAYER_HLS_REMOVE_LOGS
+#endif  // CONFIG_CWG_F429_INTEROP
   return 0;
 }
+
+#if CONFIG_CWG_F429_INTEROP
+static void write_lcr_aggregate_profile_tier_level_info(
+    struct AV2_COMP *cpi, struct avm_write_bit_buffer *wb) {
+  struct LayerConfigurationRecord *lcr_params = &cpi->common.lcr_params;
+  avm_wb_write_literal(wb, lcr_params->lcr_config_idc, CONFIG_BITS);
+  avm_wb_write_literal(wb, lcr_params->lcr_aggregate_level_idx, LEVEL_BITS);
+  avm_wb_write_bit(wb, lcr_params->lcr_max_tier_flag);
+  avm_wb_write_literal(wb, lcr_params->lcr_max_interop, INTEROP_BITS);
+}
+#endif  // CONFIG_CWG_F429_INTEROP
 
 static int write_lcr_xlayer_color_info(struct AV2_COMP *cpi, int isGlobal,
                                        int xId,
@@ -158,7 +180,10 @@ static int write_lcr_xlayer_info(AV2_COMP *cpi, int isGlobal, int xId,
       wb, lcr_params->lcr_xlayer_color_info_present_flag[isGlobal][xId]);
   avm_wb_write_bit(
       wb, lcr_params->lcr_embedded_layer_info_present_flag[isGlobal][xId]);
+
+#if !CONFIG_CWG_F429_INTEROP
   write_lcr_profile_tier_level(isGlobal, xId);
+#endif  // !CONFIG_CWG_F429_INTEROP
 
   if (lcr_params->lcr_rep_info_present_flag[isGlobal][xId])
     write_lcr_rep_info(lcr_params, isGlobal, xId, wb);
@@ -208,6 +233,53 @@ static int write_lcr_global_info(AV2_COMP *cpi,
 
   avm_wb_write_literal(wb, lcr_params.lcr_global_config_record_id, 3);
 
+#if CONFIG_CWG_F429_INTEROP
+  avm_wb_write_literal(wb, lcr_params.lcr_xlayer_map, 31);
+
+  // Calculate LcrMaxXLayerCount from the bit map
+  int LcrMaxNumXLayerCount = 0;
+  int LcrXLayerID[MAX_NUM_XLAYERS];
+  for (int i = 0; i < 31; i++) {
+    if ((lcr_params.lcr_xlayer_map >> i & 1)) {
+      LcrXLayerID[LcrMaxNumXLayerCount] = i;
+      LcrMaxNumXLayerCount++;
+    }
+  }
+  avm_wb_write_bit(
+      wb, lcr_params.lcr_aggregate_profile_tier_level_info_present_flag);
+  avm_wb_write_bit(wb, lcr_params.lcr_seq_profile_tier_level_info_present_flag);
+  avm_wb_write_bit(wb, lcr_params.lcr_global_payload_present_flag);
+  avm_wb_write_bit(wb, lcr_params.lcr_dependent_xlayers_flag);
+  avm_wb_write_bit(wb, lcr_params.lcr_global_atlas_id_present_flag);
+  avm_wb_write_literal(wb, lcr_params.lcr_global_purpose_id, 7);
+
+  if (lcr_params.lcr_global_atlas_id_present_flag)
+    avm_wb_write_literal(wb, lcr_params.lcr_global_atlas_id, 3);
+  else
+    avm_wb_write_literal(wb, lcr_params.lcr_reserved_zero_3bits, 3);
+
+  avm_wb_write_literal(wb, lcr_params.lcr_reserved_zero_7bits, 7);
+
+  // Write aggregate profile tier level info if present
+  if (lcr_params.lcr_aggregate_profile_tier_level_info_present_flag) {
+    write_lcr_aggregate_profile_tier_level_info(cpi, wb);
+  }
+
+  if (lcr_params.lcr_seq_profile_tier_level_info_present_flag) {
+    for (int i = 0; i < LcrMaxNumXLayerCount; i++) {
+      write_lcr_seq_profile_tier_level_info(cpi, LcrXLayerID[i], wb);
+    }
+  }
+
+  // Write seq profile tier level info if present
+  if (lcr_params.lcr_global_payload_present_flag) {
+    for (int i = 0; i < LcrMaxNumXLayerCount; i++) {
+      avm_wb_write_uleb(wb, lcr_params.lcr_data_size[i]);
+      write_lcr_global_payload(cpi, i, lcr_params.lcr_data_size_present_flag,
+                               wb);
+    }
+  }
+#else
   avm_wb_write_literal(wb, lcr_params.lcr_max_num_extended_layers_minus_1, 5);
 
   avm_wb_write_bit(wb, lcr_params.lcr_max_profile_tier_level_info_present_flag);
@@ -235,6 +307,8 @@ static int write_lcr_global_info(AV2_COMP *cpi,
       avm_wb_write_uleb(wb, lcr_params.lcr_data_size[i]);
     write_lcr_global_payload(cpi, i, lcr_params.lcr_data_size_present_flag, wb);
   }
+#endif  // CONFIG_CWG_F429_INTEROP
+
   return 0;
 }
 
@@ -245,6 +319,19 @@ static int write_lcr_local_info(AV2_COMP *cpi, int xlayerId,
 
   avm_wb_write_literal(wb, lcr_params.lcr_global_id[xlayerId], 3);
   avm_wb_write_literal(wb, lcr_params.lcr_local_id[xlayerId], 3);
+#if CONFIG_CWG_F429_INTEROP
+  avm_wb_write_bit(
+      wb, lcr_params.lcr_profile_tier_level_info_present_flag[xlayerId]);
+  avm_wb_write_bit(wb, lcr_params.lcr_local_atlas_id_present_flag[xlayerId]);
+  if (lcr_params.lcr_profile_tier_level_info_present_flag[xlayerId]) {
+    write_lcr_seq_profile_tier_level_info(cpi, xlayerId, wb);
+  }
+  if (lcr_params.lcr_local_atlas_id_present_flag[xlayerId])
+    avm_wb_write_literal(wb, lcr_params.lcr_local_atlas_id[xlayerId], 3);
+  else
+    avm_wb_write_literal(wb, lcr_params.lcr_reserved_zero_3bits, 3);
+  avm_wb_write_literal(wb, 0, 5);
+#else
   avm_wb_write_bit(wb, lcr_params.lcr_local_atlas_id_present_flag[xlayerId]);
 
   if (lcr_params.lcr_local_atlas_id_present_flag[xlayerId])
@@ -253,6 +340,7 @@ static int write_lcr_local_info(AV2_COMP *cpi, int xlayerId,
     avm_wb_write_literal(wb, lcr_params.lcr_reserved_zero_3bits, 3);
 
   avm_wb_write_literal(wb, lcr_params.lcr_reserved_zero_6bits, 6);
+#endif  // CONFIG_CWG_F429_INTEROP
 
   write_lcr_xlayer_info(cpi, 0, xlayerId, wb);
 
