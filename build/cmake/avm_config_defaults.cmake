@@ -147,8 +147,6 @@ set_avm_config_var(CONFIG_PARAKIT_COLLECT_DATA 0
                    "enables data collection for ParaKit training.")
 
 # AV2 experiment flags.
-set_avm_config_var(CONFIG_F356_SEF_DOH 1 "Signl order hint for SEF.")
-
 set_avm_config_var(CONFIG_METADATA 1 "F161 metadata syntax")
 set_avm_config_var(CONFIG_ICC_METADATA 1 "ICC metadata syntax")
 
@@ -200,8 +198,6 @@ set_avm_config_var(CONFIG_FIX_OPFL_AUTO 1
                    "Fix optical flow auto mode, option 3")
 set_avm_config_var(CONFIG_FIX_BW_CHROMA_REFINED_MV 1
                    "Fix bandwidth issue for the refined MVs reused by chroma")
-
-set_avm_config_var(CONFIG_F421_BAWP_CHECKS 1 "Adjust BAWP condition checks")
 
 # This is an encode-only change.
 set_avm_config_var(CONFIG_ML_PART_SPLIT 1

@@ -185,14 +185,8 @@ void av2_enc_build_inter_predictor(const AV2_COMMON *cm, MACROBLOCKD *xd,
       if ((mi_y_p + bh) >= height_p) ref_h = height_p - mi_y_p;
       if ((mi_x_p + x_off_p - BAWP_REF_LINES) < 0 ||
           (mi_y_p + y_off_p - BAWP_REF_LINES) < 0 || ref_w <= 0 || ref_h <= 0 ||
-#if CONFIG_F421_BAWP_CHECKS
           (mi_x_p + ref_w + x_off_p) > width_p ||
-          (mi_y_p + ref_h + y_off_p) > height_p
-#else
-          (mi_x_p + ref_w + x_off_p) >= width_p ||
-          (mi_y_p + ref_h + y_off_p) >= height_p
-#endif  // CONFIG_F421_BAWP_CHECKS
-      ) {
+          (mi_y_p + ref_h + y_off_p) > height_p) {
         mbmi->bawp_flag[plane ? 1 : 0] = 0;
       }
     }

@@ -6347,16 +6347,12 @@ static AVM_INLINE void write_show_existing_frame(
                        cpi->existing_fb_idx_to_show,
 #endif
                        cm->seq_params.ref_frames_log2);
-#if CONFIG_F356_SEF_DOH
   avm_wb_write_bit(wb, cm->derive_sef_order_hint);
-#endif  // CONFIG_F356_SEF_DOH
-#if CONFIG_F356_SEF_DOH
   if (!cm->derive_sef_order_hint) {
     avm_wb_write_literal(
         wb, cm->current_frame.order_hint,
         seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
   }
-#endif  // CONFIG_F356_SEF_DOH
 #if !CONFIG_CWG_F430
   if (seq_params->decoder_model_info_present_flag &&
 #if CONFIG_CWG_F270_CI_OBU
@@ -8835,13 +8831,11 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
 
   if (cm->bridge_frame_info.is_bridge_frame) obu_type = OBU_BRIDGE_FRAME;
 
-#if CONFIG_F356_SEF_DOH
   if (cm->show_existing_frame) {
     obu_type =
         (cm->is_leading_picture == 1 ? OBU_LEADING_SEF : OBU_REGULAR_SEF);
     cm->derive_sef_order_hint = 0;
   }
-#endif  // CONFIG_F356_SEF_DOH
   const int num_tiles = cm->tiles.cols * cm->tiles.rows;
   const int max_tg_num = AVMMIN(cpi->num_tg, num_tiles);
   const int num_tiles_per_tg = num_tiles / max_tg_num;

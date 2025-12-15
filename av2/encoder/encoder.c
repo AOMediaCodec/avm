@@ -2083,19 +2083,11 @@ static void generate_psnr_packet(AV2_COMP *cpi) {
   PSNR_STATS psnr;
   const uint32_t in_bit_depth = cpi->oxcf.input_cfg.input_bit_depth;
   const uint32_t bit_depth = cpi->td.mb.e_mbd.bd;
-#if CONFIG_F356_SEF_DOH
   const YV12_BUFFER_CONFIG *b =
       cpi->common.show_existing_frame
           ? &cpi->common.ref_frame_map[cpi->common.sef_ref_fb_idx]->buf
           : &cpi->common.cur_frame->buf;
-#endif
-  avm_calc_highbd_psnr(cpi->source,
-#if CONFIG_F356_SEF_DOH
-                       b,
-#else
-                       &cpi->common.cur_frame->buf,
-#endif  // CONFIG_F356_SEF_DOH
-                       &psnr, bit_depth, in_bit_depth,
+  avm_calc_highbd_psnr(cpi->source, b, &psnr, bit_depth, in_bit_depth,
                        is_lossless_requested(&cpi->oxcf.rc_cfg));
 
   for (i = 0; i < 4; ++i) {
@@ -4589,8 +4581,6 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
     return AVM_CODEC_OK;
   }  // if(cpi->update_type_was_overlay)
 
-#if CONFIG_F356_SEF_DOH
-
   if (cpi->oxcf.ref_frm_cfg.enable_generation_sef_obu &&
       cm->show_existing_frame) {
     av2_finalize_encoded_frame(cpi);
@@ -4648,16 +4638,11 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
 
     return AVM_CODEC_OK;
   }
-#endif  // CONFIG_F356_SEF_DOH
-#else   // CONFIG_F024_KEYOBU
+#else                    // CONFIG_F024_KEYOBU
   const int encode_show_existing = encode_show_existing_frame(cm);
   if (encode_show_existing || cm->show_existing_frame) {
     av2_finalize_encoded_frame(cpi);
-    if (encode_show_existing
-#if CONFIG_F356_SEF_DOH
-        || !cm->derive_sef_order_hint
-#endif                   // CONFIG_F356_SEF_DOH
-    ) {
+    if (encode_show_existing || !cm->derive_sef_order_hint) {
       // Build the bitstream
       int largest_tile_id = 0;  // Output from bitstream: unused here
       if (av2_pack_bitstream(cpi, dest, size, &largest_tile_id) != AVM_CODEC_OK)
@@ -4685,12 +4670,10 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
     // NOTE: Save the new show frame buffer index for --test-code=warn, i.e.,
     //       for the purpose to verify no mismatch between encoder and decoder.
     if (cm->show_frame) cpi->last_show_frame_buf = cm->cur_frame;
-#if CONFIG_F356_SEF_DOH
     if (cm->show_frame && !cm->derive_sef_order_hint) {
       cpi->last_show_frame_buf =
           cm->ref_frame_map[cpi->existing_fb_idx_to_show];
     }
-#endif  // CONFIG_F356_SEF_DOH
     refresh_reference_frames(cpi);
 
     // Since we allocate a spot for the OVERLAY frame in the gf group, we need
@@ -4701,7 +4684,6 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
     }
 
     if (is_psnr_calc_enabled(cpi)) {
-#if CONFIG_F356_SEF_DOH
       int y_crop_width = !cm->derive_sef_order_hint
                              ? cm->ref_frame_map[cpi->existing_fb_idx_to_show]
                                    ->buf.y_crop_width
@@ -4710,22 +4692,14 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
                               ? cm->ref_frame_map[cpi->existing_fb_idx_to_show]
                                     ->buf.y_crop_height
                               : cm->cur_frame->buf.y_crop_height;
-#endif  // CONFIG_F356_SEF_DOH
-      cpi->source = realloc_and_scale_source(cpi,
-#if CONFIG_F356_SEF_DOH
-                                             y_crop_width, y_crop_height
-#else
-                                             cm->cur_frame->buf.y_crop_width,
-                                             cm->cur_frame->buf.y_crop_height
-#endif  // CONFIG_F356_SEF_DOH
-      );
+      cpi->source = realloc_and_scale_source(cpi, y_crop_width, y_crop_height);
     }
 
     ++current_frame->frame_number;
 
     return AVM_CODEC_OK;
   }
-#endif  // CONFIG_F024_KEYOBU
+#endif                   // CONFIG_F024_KEYOBU
 
 #if CONFIG_F024_KEYOBU
   if (current_frame->frame_type == KEY_FRAME) {
@@ -5017,8 +4991,6 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
   current_frame->order_hint =
       current_frame->frame_number + frame_params->order_offset;
   current_frame->display_order_hint = current_frame->order_hint;
-#if CONFIG_F356_SEF_DOH
-
   if (cpi->oxcf.ref_frm_cfg.enable_generation_sef_obu) {
     cm->show_existing_frame =
         frame_params->frame_params_update_type_was_overlay;
@@ -5056,7 +5028,6 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
       cm->show_existing_frame) {
     cm->sef_ref_fb_idx = 1;
   }
-#endif  // CONFIG_F356_SEF_DOH
 
 #if CONFIG_F322_OBUER_REFRESTRICT
   current_frame->display_order_hint_restricted = current_frame->order_hint;
@@ -5379,14 +5350,10 @@ static void compute_internal_stats(AV2_COMP *cpi, int frame_bytes) {
   cpi->bytes += frame_bytes;
   if (cm->show_frame) {
     const YV12_BUFFER_CONFIG *orig = cpi->source;
-#if CONFIG_F356_SEF_DOH
     const YV12_BUFFER_CONFIG *recon =
         cpi->common.show_existing_frame
             ? &cpi->common.ref_frame_map[cpi->common.sef_ref_fb_idx]->buf
             : &cpi->common.cur_frame->buf;
-#else
-    const YV12_BUFFER_CONFIG *recon = &cpi->common.cur_frame->buf;
-#endif  // CONFIG_F356_SEF_DOH
     double y, u, v, frame_all;
 
     cpi->count[0]++;

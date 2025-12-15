@@ -809,11 +809,9 @@ typedef struct AtlasBasicInfo {
                        [MAX_NUM_ATLAS_SEGMENTS];
   int ats_segment_height[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID]
                         [MAX_NUM_ATLAS_SEGMENTS];
-#if CONFIG_ATLAS_ALPHA_SEGMENT
   int ats_alpha_segments_present_flag[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
   int ats_alpha_segment_flag[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID]
                             [MAX_NUM_ATLAS_SEGMENTS];
-#endif  // CONFIG_ATLAS_ALPHA_SEGMENT
   int ats_background_info_present_flag[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
   int ats_background_red_value[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
   int ats_background_green_value[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
@@ -2479,14 +2477,10 @@ typedef struct AV2Common {
    */
 #endif  // CONFIG_F024_KEYOBU
   int show_existing_frame;
-
-#if CONFIG_F356_SEF_DOH
   /*!
    * If true, order_hint of the SEF OBU is derived from the reference frame
    */
   int derive_sef_order_hint;
-#endif
-
   /*!
    * Whether some features are allowed or not.
    */

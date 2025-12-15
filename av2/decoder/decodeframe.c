@@ -8052,7 +8052,7 @@ static AVM_INLINE void validate_refereces(AV2Decoder *const pbi) {
     }
   }
 }
-#if !CONFIG_F024_KEYOBU || !CONFIG_F356_SEF_DOH
+#if !CONFIG_F024_KEYOBU
 static AVM_INLINE void show_existing_frame_reset(AV2Decoder *const pbi) {
   AV2_COMMON *const cm = &pbi->common;
 
@@ -8080,7 +8080,7 @@ static AVM_INLINE void show_existing_frame_reset(AV2Decoder *const pbi) {
   cm->features.refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
 #endif  // !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 }
-#endif  // !CONFIG_F024_KEYOBU || !CONFIG_F356_SEF_DOH
+#endif  // !CONFIG_F024_KEYOBU
 static INLINE void reset_frame_buffers(AV2_COMMON *cm) {
   RefCntBuffer *const frame_bufs = cm->buffer_pool->frame_bufs;
   int i;
@@ -8130,10 +8130,6 @@ static INLINE int get_disp_order_hint(AV2_COMMON *const cm)
     if (random_accessed) return current_frame->order_hint;
   }
 #else
-#if !CONFIG_F356_SEF_DOH
-  if (current_frame->frame_type == KEY_FRAME && cm->show_existing_frame)
-    return 0;
-#endif  // !CONFIG_F356_SEF_DOH
   // For key frames, the implicit derivation of display_order_hit is not
   // applied.
   if (current_frame->frame_type == KEY_FRAME) return current_frame->order_hint;
@@ -8408,7 +8404,6 @@ static int read_show_existing_frame(AV2Decoder *pbi,
                        "Invalid SEF Ref: restricted reference buffer");
   }
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
-#if CONFIG_F356_SEF_DOH
   cm->sef_ref_fb_idx = existing_frame_idx;
   cm->derive_sef_order_hint = avm_rb_read_bit(rb);
   if (!cm->derive_sef_order_hint) {
@@ -8484,7 +8479,6 @@ static int read_show_existing_frame(AV2Decoder *pbi,
     cm->cur_frame->order_hint = frame_to_show->order_hint;
     cm->cur_frame->display_order_hint = frame_to_show->display_order_hint;
   }
-#endif  // CONFIG_F356_SEF_DOH
 #if !CONFIG_CWG_F430
   if (seq_params->decoder_model_info_present_flag &&
 #if CONFIG_CWG_F270_CI_OBU
@@ -8513,12 +8507,10 @@ static int read_show_existing_frame(AV2Decoder *pbi,
 
   FrameHash raw_frame_hash = cm->cur_frame->raw_frame_hash;
   FrameHash grain_frame_hash = cm->cur_frame->grain_frame_hash;
-#if CONFIG_F356_SEF_DOH
   if (cm->derive_sef_order_hint)
-#endif  // CONFIG_F356_SEF_DOH
     assign_frame_buffer_p(&cm->cur_frame, frame_to_show);
 
-#if !CONFIG_F024_KEYOBU || !CONFIG_F356_SEF_DOH
+#if !CONFIG_F024_KEYOBU
   pbi->reset_decoder_state = frame_to_show->frame_type == KEY_FRAME;
 #endif  // !CONFIG_F024_KEYOBU
   // Combine any Decoded Frame Header metadata that was parsed before
@@ -8534,21 +8526,11 @@ static int read_show_existing_frame(AV2Decoder *pbi,
   cm->lf.apply_deblocking_filter[0] = 0;
   cm->lf.apply_deblocking_filter[1] = 0;
   cm->show_frame = 1;
-#if CONFIG_F356_SEF_DOH
   // It is a requirement of bitstream conformance that when
   // show_existing_frame is used to show a previous frame with derived display
   // order hint, the frame is output via the show_existing_frame mechanism at
   // most once.
-  if (cm->derive_sef_order_hint && frame_to_show->frame_output_done)
-#else
-  // It is a requirement of bitstream conformance that when
-  // show_existing_frame is used to show a previous frame with
-  // RefFrameType[ frame_to_show_map_idx ] equal to KEY_FRAME, that the
-  // frame is output via the show_existing_frame mechanism at most once.
-  if ((frame_to_show->frame_type == KEY_FRAME &&
-       !frame_to_show->showable_frame && frame_to_show->frame_output_done))
-#endif  // CONFIG_F356_SEF_DOH
-  {
+  if (cm->derive_sef_order_hint && frame_to_show->frame_output_done) {
     avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
                        "Buffer does not contain a showable frame");
   }
@@ -8556,13 +8538,13 @@ static int read_show_existing_frame(AV2Decoder *pbi,
   if (pbi->reset_decoder_state) frame_to_show->showable_frame = 0;
 #endif  // !CONFIG_F024_KEYOBU
   cm->film_grain_params = frame_to_show->film_grain_params;
-#if !CONFIG_F024_KEYOBU || !CONFIG_F356_SEF_DOH
+#if !CONFIG_F024_KEYOBU
   if (pbi->reset_decoder_state) {
     show_existing_frame_reset(pbi);
   } else {
 #endif  // !CONFIG_F024_KEYOBU
     current_frame->refresh_frame_flags = 0;
-#if !CONFIG_F024_KEYOBU || !CONFIG_F356_SEF_DOH
+#if !CONFIG_F024_KEYOBU
   }
 #endif  // !CONFIG_F024_KEYOBU
 
@@ -10655,14 +10637,10 @@ int32_t av2_read_tilegroup_header(
     // avm_rb_bytes_read()= (rb->bit_offset + 7) >> 3;
     const uint32_t uncomp_hdr_size =
         (uint32_t)avm_rb_bytes_read(rb);  // Size of the uncompressed header
-#if CONFIG_F356_SEF_DOH
     const YV12_BUFFER_CONFIG *new_fb =
         (cm->show_existing_frame && !cm->derive_sef_order_hint)
             ? &cm->ref_frame_map[cm->sef_ref_fb_idx]->buf
             : &cm->cur_frame->buf;
-#else
-    YV12_BUFFER_CONFIG *new_fb = &cm->cur_frame->buf;
-#endif  // CONFIG_F356_SEF_DOH
     xd->cur_buf = new_fb;
     if (av2_allow_intrabc(cm, xd, BLOCK_4X4) && xd->tree_type != CHROMA_PART) {
       av2_setup_scale_factors_for_frame(

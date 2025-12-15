@@ -742,11 +742,9 @@ int av2_get_refresh_frame_flags(
   }
 #endif
 
-#if CONFIG_F356_SEF_DOH
   if (frame_params->duplicate_existing_frame) {
     return 0;
   }
-#endif
 
   const int refresh_mask = 0;
   const ExtRefreshFrameFlagsInfo *const ext_refresh_frame_flags =
@@ -1051,14 +1049,12 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
   if (!is_stat_generation_stage(cpi)) {
     av2_get_second_pass_params(cpi, &frame_params);
   }
-#if CONFIG_F356_SEF_DOH
   frame_params.duplicate_existing_frame = 0;
   if (cpi->oxcf.unit_test_cfg.sef_with_order_hint_test) {
     frame_params.duplicate_existing_frame =
         (gf_group->update_type[gf_group->index] == LF_UPDATE &&
          oxcf->gf_cfg.lag_in_frames != 0);
   }
-#endif  // CONFIG_F356_SEF_DOH
   struct lookahead_entry *source = NULL;
   struct lookahead_entry *last_source = NULL;
   struct lookahead_entry *bru_ref_source = NULL;
@@ -1119,9 +1115,7 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
   // Shown frames and arf-overlay frames need frame-rate considering
   if (frame_params.show_frame)
     adjust_frame_rate(cpi, source->ts_start, source->ts_end);
-#if CONFIG_F356_SEF_DOH
   if (!frame_params.duplicate_existing_frame) {
-#endif
 #if !CONFIG_F024_KEYOBU
     if (!frame_params.show_existing_frame) {
 #endif
@@ -1132,14 +1126,14 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
             &cm->film_grain_params);
       }
 #else
-  if (cpi->film_grain_table) {
-    cm->cur_frame->film_grain_params_present = avm_film_grain_table_lookup(
-        cpi->film_grain_table, *time_stamp, *time_end, 0 /* =erase */,
-        &cm->film_grain_params);
-  } else {
-    cm->cur_frame->film_grain_params_present =
-        cm->seq_params.film_grain_params_present;
-  }
+    if (cpi->film_grain_table) {
+      cm->cur_frame->film_grain_params_present = avm_film_grain_table_lookup(
+          cpi->film_grain_table, *time_stamp, *time_end, 0 /* =erase */,
+          &cm->film_grain_params);
+    } else {
+      cm->cur_frame->film_grain_params_present =
+          cm->seq_params.film_grain_params_present;
+    }
 #endif  // CONFIG_F153_FGM_OBU
       // only one operating point supported now
       const int64_t pts64 =
@@ -1151,9 +1145,7 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
 #if !CONFIG_F024_KEYOBU
     }
 #endif
-#if CONFIG_F356_SEF_DOH
   }
-#endif  // CONFIG_F356_SEF_DOH
   FRAME_UPDATE_TYPE frame_update_type = get_frame_update_type(gf_group);
 #if !CONFIG_F024_KEYOBU
   if (frame_params.show_existing_frame &&
@@ -1444,10 +1436,7 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
   init_bru_frame(cm);
 
   cpi->td.mb.delta_qindex = 0;
-#if CONFIG_F356_SEF_DOH
   if (!frame_params.duplicate_existing_frame) {
-#endif
-
 #if !CONFIG_F024_KEYOBU
     if (!frame_params.show_existing_frame) {
 #endif
@@ -1461,9 +1450,7 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
 #if !CONFIG_F024_KEYOBU
     }
 #endif  // !CONFIG_F024_KEYOBU
-#if CONFIG_F356_SEF_DOH
   }
-#endif  // CONFIG_F356_SEF_DOH
 #if CONFIG_F255_QMOBU
   if (cm->quant_params.using_qmatrix) {
     if (oxcf->q_cfg.using_qm && oxcf->q_cfg.user_defined_qmatrix) {

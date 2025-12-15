@@ -87,9 +87,7 @@ struct av2_extracfg {
   unsigned int qm_data_present[NUM_CUSTOM_QMS];
 #endif  // !CONFIG_F255_QMOBU
   unsigned int frame_multi_qmatrix_unit_test;
-#if CONFIG_F356_SEF_DOH
   unsigned int sef_with_order_hint_test;
-#endif  // CONFIG_F356_SEF_DOH
   unsigned int multi_seq_header_test;
   unsigned int num_tg;
   unsigned int mtu_size;
@@ -427,9 +425,7 @@ static struct av2_extracfg default_extra_cfg = {
   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },  // qm_data_present
 #endif  // !CONFIG_F255_QMOBU
   0,                            // enable frame multi qmatrix unit test
-#if CONFIG_F356_SEF_DOH
   0,                            // enable show existing frame with order hint test;
-#endif // CONFIG_F356_SEF_DOH
   0,                            // multi_seq_header_test
   1,                            // max number of tile groups
   0,                            // mtu_size
@@ -843,9 +839,7 @@ static avm_codec_err_t validate_config(avm_codec_alg_priv_t *ctx,
 
   RANGE_CHECK_HI(extra_cfg, enable_trellis_quant, 3);
   RANGE_CHECK_HI(extra_cfg, frame_multi_qmatrix_unit_test, 4);
-#if CONFIG_F356_SEF_DOH
   RANGE_CHECK_HI(extra_cfg, sef_with_order_hint_test, 2);
-#endif  // CONFIG_F356_SEF_DOH
   RANGE_CHECK_HI(extra_cfg, multi_seq_header_test, 2);
   RANGE_CHECK(extra_cfg, coeff_cost_upd_freq, 0, 2);
   RANGE_CHECK(extra_cfg, mode_cost_upd_freq, 0, 2);
@@ -1756,10 +1750,8 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   oxcf->unit_test_cfg.enable_subgop_stats = extra_cfg->enable_subgop_stats;
   oxcf->unit_test_cfg.frame_multi_qmatrix_unit_test =
       extra_cfg->frame_multi_qmatrix_unit_test;
-#if CONFIG_F356_SEF_DOH
   oxcf->unit_test_cfg.sef_with_order_hint_test =
       extra_cfg->sef_with_order_hint_test;
-#endif  // CONFIG_F356_SEF_DOH
   oxcf->unit_test_cfg.multi_seq_header_test = extra_cfg->multi_seq_header_test;
   oxcf->border_in_pixels =
       resize_cfg->resize_mode ? AVM_BORDER_IN_PIXELS : AVM_ENC_NO_SCALE_BORDER;
@@ -2263,7 +2255,6 @@ static avm_codec_err_t ctrl_set_frame_multi_qmatrix_unit_test(
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
-#if CONFIG_F356_SEF_DOH
 static avm_codec_err_t ctrl_set_sef_with_order_hint_test(
     avm_codec_alg_priv_t *ctx, va_list args) {
   struct av2_extracfg extra_cfg = ctx->extra_cfg;
@@ -2271,7 +2262,6 @@ static avm_codec_err_t ctrl_set_sef_with_order_hint_test(
       CAST(AV2E_SET_SEF_WITH_ORDER_HINT_TEST, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
-#endif  // CONFIG_F356_SEF_DOH
 
 static avm_codec_err_t ctrl_set_multi_seq_header_test(avm_codec_alg_priv_t *ctx,
                                                       va_list args) {
@@ -2950,19 +2940,11 @@ static void calculate_psnr(AV2_COMP *cpi, PSNR_STATS *psnr) {
   const int resize_mode = cpi->oxcf.resize_cfg.resize_mode;
   const YV12_BUFFER_CONFIG *source =
       resize_mode == RESIZE_NONE ? cpi->unfiltered_source : cpi->source;
-#if CONFIG_F356_SEF_DOH
   const YV12_BUFFER_CONFIG *b =
       cpi->common.show_existing_frame
           ? &cpi->common.ref_frame_map[cpi->common.sef_ref_fb_idx]->buf
           : &cpi->common.cur_frame->buf;
-#endif  // CONFIG_F356_SEF_DOH
-  avm_calc_highbd_psnr(source,
-#if CONFIG_F356_SEF_DOH
-                       b,
-#else
-                       &cpi->common.cur_frame->buf,
-#endif  // CONFIG_F356_SEF_DOH
-                       psnr, bit_depth, in_bit_depth,
+  avm_calc_highbd_psnr(source, b, psnr, bit_depth, in_bit_depth,
                        is_lossless_requested(&cpi->oxcf.rc_cfg));
 }
 
@@ -4445,9 +4427,7 @@ static avm_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV2E_SET_USER_DEFINED_QMATRIX, ctrl_set_user_defined_qmatrix },
   { AV2E_SET_FRAME_MULTI_QMATRIX_UNIT_TEST,
     ctrl_set_frame_multi_qmatrix_unit_test },
-#if CONFIG_F356_SEF_DOH
   { AV2E_SET_SEF_WITH_ORDER_HINT_TEST, ctrl_set_sef_with_order_hint_test },
-#endif  // CONFIG_F356_SEF_DOH
   { AV2E_SET_MULTI_SEQ_HEADER_TEST, ctrl_set_multi_seq_header_test },
   { AV2E_SET_NUM_TG, ctrl_set_num_tg },
   { AV2E_SET_MTU, ctrl_set_mtu },

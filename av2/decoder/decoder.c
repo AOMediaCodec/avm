@@ -689,21 +689,17 @@ void output_frame_buffers(AV2Decoder *pbi, int ref_idx) {
     }
   } while (output_candidate != trigger_frame);
 
-#if CONFIG_F356_SEF_DOH
   if (cm->show_existing_frame && !cm->derive_sef_order_hint) {
     int trigger_frame_output_done = trigger_frame->frame_output_done;
     assign_output_frame_buffer_p(&pbi->output_frames[pbi->num_output_frames++],
                                  cm->ref_frame_map[cm->sef_ref_fb_idx]);
     trigger_frame->frame_output_done = trigger_frame_output_done;
   } else {
-#endif  // CONFIG_F356_SEF_DOH
     // Add the output triggering frame into the output queue.
     assign_output_frame_buffer_p(&pbi->output_frames[pbi->num_output_frames++],
                                  trigger_frame);
     trigger_frame->frame_output_done = 1;
-#if CONFIG_F356_SEF_DOH
   }
-#endif  // CONFIG_F356_SEF_DOH
 
 #if CONFIG_BITSTREAM_DEBUG
   if (trigger_frame->order_hint != cm->cur_frame->order_hint) {
