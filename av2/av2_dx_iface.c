@@ -335,14 +335,7 @@ static avm_codec_err_t parse_decoder_model_info(
   *buffer_delay_length_minus_1 = avm_rb_read_literal(rb, 5);
   const uint32_t num_units_in_decoding_tick =
       avm_rb_read_unsigned_literal(rb, 32);
-#if !CONFIG_CWG_F430
-  const uint8_t frame_presentation_time_length_minus_1 =
-      avm_rb_read_literal(rb, 5);
-#endif  // !CONFIG_CWG_F430
   (void)num_units_in_decoding_tick;
-#if !CONFIG_CWG_F430
-  (void)frame_presentation_time_length_minus_1;
-#endif  // !CONFIG_CWG_F430
   return AVM_CODEC_OK;
 }
 
@@ -486,7 +479,6 @@ static avm_codec_err_t decoder_peek_si_internal(const uint8_t *data,
       si->w = max_frame_width;
       si->h = max_frame_height;
 
-#if CONFIG_CROP_WIN_CWG_F220
       bool conf_win_flag = avm_rb_read_bit(&rb);
       if (conf_win_flag) {
         si->conf_win_left_offset = avm_rb_read_uvlc(&rb);
@@ -494,7 +486,6 @@ static avm_codec_err_t decoder_peek_si_internal(const uint8_t *data,
         si->conf_win_top_offset = avm_rb_read_uvlc(&rb);
         si->conf_win_bottom_offset = avm_rb_read_uvlc(&rb);
       }
-#endif  // CONFIG_CROP_WIN_CWG_F220
 
 #if CONFIG_CWG_F270_CI_OBU
       status = parse_chroma_format_bitdepth(&rb, profile);

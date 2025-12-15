@@ -53,8 +53,4 @@ macro(fix_experiment_configs)
   if(CONFIG_DIP_EXT_PRUNING)
     change_config_and_warn(CONFIG_TENSORFLOW_LITE 1 CONFIG_DIP_EXT_PRUNING)
   endif()
-
-  if(CONFIG_SCAN_TYPE_METADATA)
-    change_config_and_warn(CONFIG_METADATA 1 CONFIG_SCAN_TYPE_METADATA)
-  endif()
 endmacro()

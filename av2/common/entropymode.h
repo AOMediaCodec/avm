@@ -536,9 +536,7 @@ static INLINE int av2_tx_idx_to_type(int tx_idx, int tx_set_type,
 
 void av2_setup_frame_contexts(struct AV2Common *cm);
 void av2_setup_past_independence(struct AV2Common *cm);
-#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 void av2_set_default_frame_contexts(struct AV2Common *cm);
-#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 
 static INLINE int16_t inter_single_mode_ctx(int16_t mode_ctx) {
   return mode_ctx;

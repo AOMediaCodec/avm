@@ -387,16 +387,11 @@ void av2_init_seq_coding_tools(
   else
     seq->order_hint_info.order_hint_bits_minus_1 =
         DEFAULT_EXPLICIT_ORDER_HINT_BITS - 1;
-#if CONFIG_CWG_F377_STILL_PICTURE
   seq->enable_bru = seq->single_picture_header_flag ? 0 : tool_cfg->enable_bru;
   seq->enable_explicit_ref_frame_map =
       seq->single_picture_header_flag
           ? 0
           : oxcf->ref_frm_cfg.explicit_ref_frame_map;
-#else
-  seq->enable_bru = tool_cfg->enable_bru;
-  seq->explicit_ref_frame_map = oxcf->ref_frm_cfg.explicit_ref_frame_map;
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
   if (oxcf->tool_cfg.max_drl_refmvs == 0) {
     seq->def_max_drl_bits = DEF_MAX_DRL_REFMVS - 1;
   } else {
@@ -404,12 +399,10 @@ void av2_init_seq_coding_tools(
   }
   // Disable frame by frame update for now. Can be changed later.
   seq->allow_frame_max_drl_bits = 0;
-#if CONFIG_CWG_F377_STILL_PICTURE
   if (seq->single_picture_header_flag) {
     seq->def_max_drl_bits = MIN_MAX_DRL_BITS;
     seq->allow_frame_max_drl_bits = 0;
   }
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
   if (oxcf->tool_cfg.max_drl_refbvs == 0) {
     seq->def_max_bvp_drl_bits = DEF_MAX_DRL_REFBVS - 1;
   } else {
@@ -417,12 +410,8 @@ void av2_init_seq_coding_tools(
   }
   // Disable frame by frame update for now. Can be changed later.
   seq->allow_frame_max_bvp_drl_bits = 0;
-#if CONFIG_CWG_F377_STILL_PICTURE
   seq->num_same_ref_compound =
       seq->single_picture_header_flag ? 0 : SAME_REF_COMPOUND_PRUNE;
-#else
-  seq->num_same_ref_compound = SAME_REF_COMPOUND_PRUNE;
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
 
   seq->max_frame_width = frm_dim_cfg->forced_max_frame_width
                              ? frm_dim_cfg->forced_max_frame_width
@@ -438,7 +427,6 @@ void av2_init_seq_coding_tools(
     seq->seq_tile_info_present_flag = 0;
   }
 
-#if CONFIG_MULTI_LEVEL_SEGMENTATION
   seq->seg_params.allow_seg_info_change = 1;
   if (!seq->still_picture && oxcf->kf_cfg.key_freq_max > 0) {
     seq->seq_seg_info_present_flag = 1;
@@ -446,7 +434,6 @@ void av2_init_seq_coding_tools(
     // For image coding turn seq level seg features off
     seq->seq_seg_info_present_flag = 0;
   }
-#endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
 
   seq->num_bits_width =
       (seq->max_frame_width > 1) ? get_msb(seq->max_frame_width - 1) + 1 : 1;
@@ -464,36 +451,21 @@ void av2_init_seq_coding_tools(
   seq->enable_gdf = tool_cfg->enable_gdf;
   seq->enable_restoration = tool_cfg->enable_restoration;
   seq->enable_ccso = tool_cfg->enable_ccso;
-#if CONFIG_CWG_F377_STILL_PICTURE
   seq->enable_lf_sub_pu =
       seq->single_picture_header_flag ? 0 : tool_cfg->enable_lf_sub_pu;
   seq->enable_opfl_refine = seq->single_picture_header_flag
                                 ? AVM_OPFL_REFINE_NONE
                                 : tool_cfg->enable_opfl_refine;
   seq->enable_tip = seq->single_picture_header_flag ? 0 : tool_cfg->enable_tip;
-#else
-  seq->enable_lf_sub_pu = tool_cfg->enable_lf_sub_pu;
-  seq->enable_opfl_refine = tool_cfg->enable_opfl_refine;
-  seq->enable_tip = tool_cfg->enable_tip;
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
   seq->enable_tip_refinemv = tool_cfg->enable_tip_refinemv;
   seq->enable_tip_hole_fill = seq->enable_tip != 0;
   seq->enable_tip_explicit_qp = 0;
-#if CONFIG_CWG_F377_STILL_PICTURE
   seq->enable_mv_traj =
       seq->single_picture_header_flag ? 0 : tool_cfg->enable_mv_traj;
-#else
-  seq->enable_mv_traj = tool_cfg->enable_mv_traj;
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
   seq->enable_bawp = tool_cfg->enable_bawp;
-#if CONFIG_CWG_F377_STILL_PICTURE
   seq->enable_cwp = seq->single_picture_header_flag ? 0 : tool_cfg->enable_cwp;
   seq->enable_imp_msk_bld =
       seq->single_picture_header_flag ? 0 : tool_cfg->enable_imp_msk_bld;
-#else
-  seq->enable_cwp = tool_cfg->enable_cwp;
-  seq->enable_imp_msk_bld = tool_cfg->enable_imp_msk_bld;
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
   seq->seq_enabled_motion_modes =
       oxcf->motion_mode_cfg.seq_enabled_motion_modes;
 
@@ -516,12 +488,8 @@ void av2_init_seq_coding_tools(
   seq->enable_intra_dip = oxcf->intra_mode_cfg.enable_intra_dip;
 
   seq->enable_sdp = oxcf->part_cfg.enable_sdp;
-#if CONFIG_CWG_F377_STILL_PICTURE
   seq->enable_extended_sdp =
       seq->single_picture_header_flag ? 0 : oxcf->part_cfg.enable_extended_sdp;
-#else
-  seq->enable_extended_sdp = oxcf->part_cfg.enable_extended_sdp;
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
   seq->enable_mrls = oxcf->intra_mode_cfg.enable_mrls;
   seq->enable_fsc = oxcf->intra_mode_cfg.enable_fsc;
   if (!seq->enable_fsc) {
@@ -534,35 +502,21 @@ void av2_init_seq_coding_tools(
   seq->enable_chroma_dctonly = oxcf->txfm_cfg.enable_chroma_dctonly;
   seq->enable_cfl_intra = oxcf->intra_mode_cfg.enable_cfl_intra;
   seq->enable_mhccp = oxcf->intra_mode_cfg.enable_mhccp;
-#if CONFIG_CWG_F377_STILL_PICTURE
   seq->enable_inter_ddt =
       seq->single_picture_header_flag ? 0 : oxcf->txfm_cfg.enable_inter_ddt;
-#else
-  seq->enable_inter_ddt = oxcf->txfm_cfg.enable_inter_ddt;
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
   seq->reduced_tx_part_set = oxcf->txfm_cfg.reduced_tx_part_set;
   seq->enable_cctx = oxcf->txfm_cfg.enable_cctx;
   seq->enable_ibp = oxcf->intra_mode_cfg.enable_ibp;
-#if CONFIG_CWG_F377_STILL_PICTURE
   seq->enable_adaptive_mvd =
       seq->single_picture_header_flag ? 0 : tool_cfg->enable_adaptive_mvd;
   seq->enable_flex_mvres =
       seq->single_picture_header_flag ? 0 : tool_cfg->enable_flex_mvres;
-#else
-  seq->enable_adaptive_mvd = tool_cfg->enable_adaptive_mvd;
-  seq->enable_flex_mvres = tool_cfg->enable_flex_mvres;
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
   seq->cfl_ds_filter_index = tool_cfg->select_cfl_ds_filter;
   seq->enable_joint_mvd = tool_cfg->enable_joint_mvd;
-#if CONFIG_CWG_F377_STILL_PICTURE
   seq->enable_refinemv =
       seq->single_picture_header_flag ? 0 : tool_cfg->enable_refinemv;
   seq->enable_mvd_sign_derive =
       seq->single_picture_header_flag ? 0 : tool_cfg->enable_mvd_sign_derive;
-#else
-  seq->enable_refinemv = tool_cfg->enable_refinemv;
-  seq->enable_mvd_sign_derive = tool_cfg->enable_mvd_sign_derive;
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
 
   set_bitstream_level_tier(
 #if CONFIG_CWG_F270_OPS
@@ -644,7 +598,6 @@ void av2_init_seq_coding_tools(
   seq->enable_refmvbank = tool_cfg->enable_refmvbank;
   seq->enable_drl_reorder = tool_cfg->enable_drl_reorder;
 
-#if CONFIG_CROP_WIN_CWG_F220
   seq->conf.conf_win_enabled_flag = oxcf->tool_cfg.enable_cropping_window;
   if (seq->conf.conf_win_enabled_flag) {
     seq->conf.conf_win_left_offset = oxcf->tool_cfg.crop_win_left_offset;
@@ -657,9 +610,7 @@ void av2_init_seq_coding_tools(
     seq->conf.conf_win_right_offset = 0;
     seq->conf.conf_win_bottom_offset = 0;
   }
-#endif  // CONFIG_CROP_WIN_CWG_F220
 
-#if CONFIG_SCAN_TYPE_METADATA
 #if !CONFIG_CWG_F270_CI_OBU
   seq->scan_type_info_present_flag = oxcf->tool_cfg.scan_type_info_present_flag;
   if (seq->scan_type_info_present_flag) {
@@ -668,9 +619,7 @@ void av2_init_seq_coding_tools(
     seq->elemental_ct_duration_minus_1 = -1;
   }
 #endif  // !CONFIG_CWG_F270_CI_OBU
-#endif  // CONFIG_SCAN_TYPE_METADATA
 
-#if CONFIG_CWG_F377_STILL_PICTURE
   seq->enable_cdef_on_skip_txfm = seq->single_picture_header_flag
                                       ? CDEF_ON_SKIP_TXFM_ADAPTIVE
                                       : tool_cfg->enable_cdef_on_skip_txfm;
@@ -682,18 +631,11 @@ void av2_init_seq_coding_tools(
       seq->single_picture_header_flag ? 1 : tool_cfg->enable_avg_cdf;
   seq->avg_cdf_type =
       seq->single_picture_header_flag ? 1 : tool_cfg->avg_cdf_type;
-#else
-  seq->enable_cdef_on_skip_txfm = tool_cfg->enable_cdef_on_skip_txfm;
-  seq->enable_avg_cdf = tool_cfg->enable_avg_cdf;
-  seq->avg_cdf_type = tool_cfg->avg_cdf_type;
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
   seq->enable_tcq =
       is_lossless_requested(&oxcf->rc_cfg) ? 0 : tool_cfg->enable_tcq;
-#if CONFIG_CWG_F377_STILL_PICTURE
   if (seq->enable_tcq != TCQ_DISABLE && seq->single_picture_header_flag) {
     seq->enable_tcq = TCQ_8ST;
   }
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
   if (seq->enable_tcq == TCQ_DISABLE || seq->enable_tcq >= TCQ_8ST_FR) {
     seq->enable_parity_hiding = is_lossless_requested(&oxcf->rc_cfg)
                                     ? 0
@@ -706,23 +648,13 @@ void av2_init_seq_coding_tools(
   // if possible
   seq->enable_global_motion =
       tool_cfg->enable_global_motion && !seq->single_picture_header_flag;
-#if CONFIG_CWG_F377_STILL_PICTURE
   seq->enable_short_refresh_frame_flags =
       seq->single_picture_header_flag
           ? 0
           : tool_cfg->enable_short_refresh_frame_flags;
   seq->number_of_bits_for_lt_frame_id = seq->single_picture_header_flag ? 0 : 3;
-#else
-  seq->enable_short_refresh_frame_flags =
-      tool_cfg->enable_short_refresh_frame_flags;
-  seq->number_of_bits_for_lt_frame_id = 3;
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
   seq->enable_ext_seg = tool_cfg->enable_ext_seg;
-#if CONFIG_CWG_F377_STILL_PICTURE
   seq->ref_frames = seq->single_picture_header_flag ? 2 : tool_cfg->dpb_size;
-#else
-  seq->ref_frames = tool_cfg->dpb_size;
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
   seq->ref_frames_log2 = avm_ceil_log2(seq->ref_frames);
 #if !CONFIG_F255_QMOBU
   const QuantizationCfg *const q_cfg = &oxcf->q_cfg;
@@ -1073,12 +1005,10 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
   // Single thread case: use counts in common.
   cpi->td.counts = &cpi->counts;
 
-#if CONFIG_SCAN_TYPE_METADATA
   cm->pic_struct_metadata_params.mps_pic_struct_type = AVM_PIC_FRAME;
   cm->pic_struct_metadata_params.mps_source_scan_type_idc =
       AVM_SCAN_TYPE_PROGRESSIVE;
   cm->pic_struct_metadata_params.mps_duplicate_flag = 0;
-#endif  // CONFIG_SCAN_TYPE_METADATA
 
   // Set init SVC parameters.
   cm->number_tlayers = 1;
@@ -1289,17 +1219,10 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
   av2_rc_init(&cpi->oxcf, 0, rc);
   rc->baseline_gf_interval = (MIN_GF_INTERVAL + MAX_GF_INTERVAL) / 2;
 
-#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   cm->features.cross_frame_context =
       (oxcf->tool_cfg.frame_parallel_decoding_mode)
           ? CROSS_FRAME_CONTEXT_DISABLED
           : CROSS_FRAME_CONTEXT_FORWARD;
-#else
-  cm->features.refresh_frame_context =
-      (oxcf->tool_cfg.frame_parallel_decoding_mode)
-          ? REFRESH_FRAME_CONTEXT_DISABLED
-          : REFRESH_FRAME_CONTEXT_BACKWARD;
-#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 
   if (x->palette_buffer == NULL) {
     CHECK_MEM_ERROR(cm, x->palette_buffer,
@@ -1438,9 +1361,6 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
   av2_set_tile_info(cm, &cpi->oxcf.tile_cfg);
 
   cpi->ext_flags.refresh_frame.update_pending = 0;
-#if !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
-  cpi->ext_flags.refresh_frame_context_pending = 0;
-#endif  // !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   cpi->ext_flags.refresh_frame.all_ref_frames = 1;
 
   highbd_set_var_fns(cpi);
@@ -4007,9 +3927,6 @@ static INLINE int finalize_tip_mode(AV2_COMP *cpi, uint8_t *dest, size_t *size,
     for (int plane = 0; plane < av2_num_planes(cm); plane++) {
       cm->cur_frame->ccso_info.ccso_enable[plane] = 0;
     }
-#if !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
-    cm->features.refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
-#endif  // !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
     const int cur_order_hint = cm->current_frame.display_order_hint;
     if (!cm->has_both_sides_refs && cur_order_hint < INTER_REFS_PER_FRAME) {
       const int mvs_rows = cm->mi_params.mi_rows;
@@ -4038,15 +3955,9 @@ static INLINE int finalize_tip_mode(AV2_COMP *cpi, uint8_t *dest, size_t *size,
           avg_base_qindex;
     }
 
-#if !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
-    cm->features.refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
-#endif  // !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
     set_primary_ref_frame(cpi);
-    if (cm->features.primary_ref_frame == PRIMARY_REF_NONE
-#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
-        || cm->features.cross_frame_context == CROSS_FRAME_CONTEXT_DISABLED
-#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
-    ) {
+    if (cm->features.primary_ref_frame == PRIMARY_REF_NONE ||
+        cm->features.cross_frame_context == CROSS_FRAME_CONTEXT_DISABLED) {
       // use the default frame context values
       *cm->fc = *cm->default_frame_context;
     } else {
@@ -4349,11 +4260,9 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
     if (!cm->fc->initialized)
       avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
                          "Uninitialized entropy context.");
-#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
     if (cm->features.cross_frame_context == CROSS_FRAME_CONTEXT_DISABLED) {
       av2_set_default_frame_contexts(cm);
     } else {
-#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
       int ref_frame_used = PRIMARY_REF_NONE;
       int secondary_map_idx = INVALID_IDX;
       get_secondary_reference_frame_idx(cm, &ref_frame_used,
@@ -4372,9 +4281,7 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
                               AVG_CDF_WEIGHT_NON_PRIMARY);
         }
       }
-#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
     }
-#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   }
 
   av2_finalize_encoded_frame(cpi);
@@ -4808,7 +4715,6 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
 #else
   seq_params->timing_info_present &= !seq_params->single_picture_header_flag;
 #endif  // CONFIG_CWG_F270_CI_OBU
-#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   switch (oxcf->algo_cfg.cross_frame_cdf_init_mode) {
     case 0:  // Disable cross frame CDF initialization
       features->cross_frame_context = CROSS_FRAME_CONTEXT_DISABLED;
@@ -4816,7 +4722,6 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
     case 1:  // Enable cross frame CDF initialization
     default: features->cross_frame_context = CROSS_FRAME_CONTEXT_FORWARD; break;
   }
-#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 
   if (cpi->oxcf.tool_cfg.enable_global_motion && !frame_is_intra_only(cm)) {
     // Flush any stale global motion information, which may be left over
@@ -4875,24 +4780,15 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
 #if CONFIG_ENTROPY_STATS
   av2_accumulate_frame_counts(&aggregate_fc, &cpi->counts);
 #endif  // CONFIG_ENTROPY_STATS
-#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   if (!(features->tip_frame_mode == TIP_FRAME_AS_OUTPUT) &&
       !cm->bru.frame_inactive_flag && !cm->bridge_frame_info.is_bridge_frame) {
-#else
-  if (features->refresh_frame_context == REFRESH_FRAME_CONTEXT_BACKWARD) {
-#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
     if (cm->seq_params.enable_avg_cdf && cm->seq_params.avg_cdf_type &&
         cm->tiles.rows * cm->tiles.cols > 1) {
       encoder_avg_tiles_cdfs(cpi);
     } else {
       *cm->fc = cpi->tile_data[largest_tile_id].tctx;
     }
-#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
     av2_reset_cdf_symbol_counters(cm->fc);
-#else
-    if (!cm->bru.frame_inactive_flag && !cm->bridge_frame_info.is_bridge_frame)
-      av2_reset_cdf_symbol_counters(cm->fc);
-#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   }
 
   cm->cur_frame->frame_context = *cm->fc;
@@ -5408,17 +5304,10 @@ int av2_get_compressed_data(AV2_COMP *cpi, unsigned int *frame_flags,
   av2_set_high_precision_mv(cpi, MV_PRECISION_ONE_EIGHTH_PEL);
 
   // Normal defaults
-#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   cm->features.cross_frame_context =
       (oxcf->tool_cfg.frame_parallel_decoding_mode)
           ? CROSS_FRAME_CONTEXT_DISABLED
           : CROSS_FRAME_CONTEXT_FORWARD;
-#else
-  cm->features.refresh_frame_context =
-      oxcf->tool_cfg.frame_parallel_decoding_mode
-          ? REFRESH_FRAME_CONTEXT_DISABLED
-          : REFRESH_FRAME_CONTEXT_BACKWARD;
-#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 
   // Initialize fields related to forward keyframes
   cpi->no_show_fwd_kf = 0;
@@ -5623,13 +5512,6 @@ void av2_apply_encoding_flags(AV2_COMP *cpi, avm_enc_frame_flags_t flags) {
       cpi->oxcf.kf_cfg.enable_sframe | ((flags & AVM_EFLAG_SET_S_FRAME) != 0);
   ext_flags->use_primary_ref_none =
       (flags & AVM_EFLAG_SET_PRIMARY_REF_NONE) != 0;
-
-#if !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
-  if (flags & AVM_EFLAG_NO_UPD_ENTROPY) {
-    update_entropy(&ext_flags->refresh_frame_context,
-                   &ext_flags->refresh_frame_context_pending, 0);
-  }
-#endif  // !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 }
 
 avm_fixed_buf_t *av2_get_global_headers(AV2_COMP *cpi) {

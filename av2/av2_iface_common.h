@@ -97,7 +97,6 @@ static void yuvconfig2image(avm_image_t *img, const YV12_BUFFER_CONFIG *yv12,
   img->sz = yv12->frame_size;
   assert(!yv12->metadata);
   img->metadata = NULL;
-#if CONFIG_CROP_WIN_CWG_F220
   img->w_conf_win_enabled_flag = yv12->w_conf_win_enabled_flag;
   if (img->w_conf_win_enabled_flag) {
     img->w_conf_win_left_offset = yv12->w_win_left_offset;
@@ -161,7 +160,6 @@ static void yuvconfig2image(avm_image_t *img, const YV12_BUFFER_CONFIG *yv12,
   }
   img->max_width = yv12->max_width;
   img->max_height = yv12->max_height;
-#endif  // CONFIG_CROP_WIN_CWG_F220
 }
 
 static avm_codec_err_t image2yuvconfig(const avm_image_t *img,

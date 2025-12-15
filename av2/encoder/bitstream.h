@@ -21,10 +21,8 @@ extern "C" {
 
 struct avm_write_bit_buffer;
 
-#if CONFIG_CROP_WIN_CWG_F220
 void av2_write_conformance_window(const SequenceHeader *seq_params,
                                   struct avm_write_bit_buffer *wb);
-#endif  // CONFIG_CROP_WIN_CWG_F220
 
 #if CONFIG_F255_QMOBU
 void setup_cm_qmindex_list(AV2_COMMON *const cm);

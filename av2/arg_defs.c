@@ -849,7 +849,6 @@ const av2_codec_arg_definitions_t g_av2_codec_arg_defs = {
       ARG_DEF(NULL, "disable-loopfilters-across-tiles", 1,
               "Disable loopfilters across tiles "
               "(0: false (default), 1: true)"),
-#if CONFIG_CROP_WIN_CWG_F220
   .enable_cropping_window =
       ARG_DEF(NULL, "enable-cropping-window", 1,
               "Enable cropping window (0: false (default), 1: true)"),
@@ -861,7 +860,6 @@ const av2_codec_arg_definitions_t g_av2_codec_arg_defs = {
       ARG_DEF(NULL, "crop-win-top-offset", 1, "Cropping window top offset"),
   .crop_win_bottom_offset = ARG_DEF(NULL, "crop-win-bottom-offset", 1,
                                     "Cropping window bottom offset"),
-#endif  // CONFIG_CROP_WIN_CWG_F220
   .frame_hash_metadata = ARG_DEF_ENUM(
       NULL, "frame-hash", 1,
       "Write decoded frame hash metadata OBUs:", frame_hash_metadata_enum),
@@ -882,20 +880,16 @@ const av2_codec_arg_definitions_t g_av2_codec_arg_defs = {
 #if CONFIG_ICC_METADATA
   .icc_file = ARG_DEF(NULL, "icc", 1, "ICC profile filename"),
 #endif  // CONFIG_ICC_METADATA
-#if CONFIG_SCAN_TYPE_METADATA
   .scan_type_info_present_flag =
       ARG_DEF(NULL, "scan-type-info", 1, "Scan type info present flag"),
-#endif  // CONFIG_SCAN_TYPE_METADATA
   .enable_mfh_obu_signaling =
       ARG_DEF(NULL, "enable-mfh-obu-signaling", 1,
               "Enable MFH OBU signaling (0: false (default), 1: true)"),
   .operating_points_count = ARG_DEF(NULL, "operating-points-count", 1,
                                     "Number of operating points (1-31)."),
-#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   .cross_frame_cdf_init_mode =
       ARG_DEF(NULL, "cross-frame-cdf-init-mode", 1,
               "Cross frame CDF for context initialization "
               "(0: disable cross frame CDF init, 1: enable cross frame CDF "
               "init(default), "),
-#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 };

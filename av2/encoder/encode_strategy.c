@@ -76,7 +76,6 @@ void av2_get_ref_frames_enc(AV2_COMP *const cpi, int cur_frame_disp,
   enc_bru_swap_ref(cm);
 }
 
-#if CONFIG_MULTI_LEVEL_SEGMENTATION
 void av2_set_seq_seg_info(SequenceHeader *seq_params,
                           struct segmentation *seg) {
   SegmentationInfoSyntax *seg_params = &seq_params->seg_params;
@@ -91,7 +90,6 @@ void av2_set_seq_seg_info(SequenceHeader *seq_params,
   seg_params->segid_preskip = seg->segid_preskip;
   seg_params->last_active_segid = seg->last_active_segid;
 }
-#endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
 
 void av2_configure_buffer_updates(AV2_COMP *const cpi,
                                   const FRAME_UPDATE_TYPE type) {
@@ -219,12 +217,6 @@ static void set_ext_overrides(AV2_COMMON *const cm,
     frame_params->frame_type = S_FRAME;
   }
 
-#if !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
-  if (ext_flags->refresh_frame_context_pending) {
-    cm->features.refresh_frame_context = ext_flags->refresh_frame_context;
-    ext_flags->refresh_frame_context_pending = 0;
-  }
-#endif  // !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   cm->features.allow_ref_frame_mvs = ext_flags->use_ref_frame_mvs;
 }
 
@@ -1139,9 +1131,6 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
       const int64_t pts64 =
           ticks_to_timebase_units(timestamp_ratio, *time_stamp);
       if (pts64 < 0 || pts64 > UINT32_MAX) return AVM_CODEC_ERROR;
-#if !CONFIG_CWG_F430
-      cm->frame_presentation_time = (uint32_t)pts64;
-#endif  // !CONFIG_CWG_F430
 #if !CONFIG_F024_KEYOBU
     }
 #endif
@@ -1347,9 +1336,6 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
       }
     }
     if (cm->bru.frame_inactive_flag) {
-#if !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
-      cm->features.refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
-#endif  // !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
       const RefCntBuffer *bru_ref_buf =
           get_ref_frame_buf(cm, cm->bru.update_ref_idx);
       cm->quant_params.base_qindex = bru_ref_buf->base_qindex;

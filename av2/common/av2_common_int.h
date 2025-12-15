@@ -130,7 +130,6 @@ enum {
   REFERENCE_MODES = 3,
 } UENUM1BYTE(REFERENCE_MODE);
 
-#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 enum {
   /**
    * Cross frame context initialization is disabled
@@ -143,19 +142,6 @@ enum {
    */
   CROSS_FRAME_CONTEXT_FORWARD,
 } UENUM1BYTE(CROSS_FRAME_CONTEXT_MODE);
-#else
-enum {
-  /**
-   * Frame context updates are disabled
-   */
-  REFRESH_FRAME_CONTEXT_DISABLED,
-  /**
-   * Update frame context to values resulting from backward probability
-   * updates based on entropy/counts in the decoded frame
-   */
-  REFRESH_FRAME_CONTEXT_BACKWARD,
-} UENUM1BYTE(REFRESH_FRAME_CONTEXT_MODE);
-#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 
 enum {
   /**
@@ -627,7 +613,6 @@ typedef struct CommonTileParams {
 
 } CommonTileParams;
 
-#if CONFIG_CROP_WIN_CWG_F220
 // This structure specifies cropping for the SH.
 typedef struct CropWindow {
   bool conf_win_enabled_flag;
@@ -636,7 +621,6 @@ typedef struct CropWindow {
   int conf_win_top_offset;
   int conf_win_bottom_offset;
 } CropWindow;
-#endif  // CONFIG_CROP_WIN_CWG_F220
 
 // Tile Info Syntax stucture: parses the tile information
 // in the Sequence header and Multi Frame Header
@@ -1154,10 +1138,7 @@ typedef struct SequenceHeader {
   // are_seq_headers_consistent() can be implemented with a memcmp() call.
   // TODO(urvang): We probably don't need the +1 here.
   avm_dec_model_op_parameters_t op_params[MAX_NUM_OPERATING_POINTS + 1];
-#if CONFIG_CROP_WIN_CWG_F220
   CropWindow conf;
-#endif  // CONFIG_CROP_WIN_CWG_F220
-#if CONFIG_SCAN_TYPE_METADATA
 #if !CONFIG_CWG_F270_CI_OBU
   // NOTE these syntax elements will move to the CI Obu
   int scan_type_info_present_flag;
@@ -1165,13 +1146,10 @@ typedef struct SequenceHeader {
   int fixed_cvs_pic_rate_flag;
   int elemental_ct_duration_minus_1;
 #endif  // !CONFIG_CWG_F270_CI_OBU
-#endif  // CONFIG_SCAN_TYPE_METADATA
 
-#if CONFIG_MULTI_LEVEL_SEGMENTATION
   uint8_t seq_seg_info_present_flag;
   SegmentationInfoSyntax seg_params;
   int allow_seg_info_change;
-#endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
 } SequenceHeader;
 
 typedef struct {
@@ -1306,19 +1284,11 @@ typedef struct {
    * Byte alignment of the planes in the reference buffers.
    */
   int byte_alignment;
-#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   /*!
    * Flag signaling how frame contexts should be initialized at the beginning of
    * a frame decode.
    */
   CROSS_FRAME_CONTEXT_MODE cross_frame_context;
-#else
-  /*!
-   * Flag signaling how frame contexts should be updated at the end of
-   * a frame decode.
-   */
-  REFRESH_FRAME_CONTEXT_MODE refresh_frame_context;
-#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   /*!
    * Max_drl_bits. Note number of ref MVs allowed is max_drl_bits + 1
    */
@@ -1469,7 +1439,6 @@ typedef struct MultiFrameHeader {
    * Seq size log2 in MFH
    */
   int mfh_seq_mib_sb_size_log2;
-#if CONFIG_MULTI_LEVEL_SEGMENTATION
   /*!
    * Presence of segmentation information in this multi-frame header
    */
@@ -1482,7 +1451,6 @@ typedef struct MultiFrameHeader {
    * enable_seg_flag for MFH
    */
   int mfh_ext_seg_flag;
-#endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
 } MultiFrameHeader;
 
 typedef struct CommonModeInfoParams CommonModeInfoParams;
@@ -2256,13 +2224,11 @@ component
    * to the sample values after adding the film grain
    */
   int clip_to_restricted_range;
-#if CONFIG_FGS_IDENT
   /*!
    * indicates that clipping to the restricted (studio) range should use the
    * mc_identity values range
    */
   int mc_identity;
-#endif  // CONFIG_FGS_IDENT
   /*!
    * the chroma scaling is inferred from the luma scaling
    */
@@ -2353,15 +2319,6 @@ typedef struct AV2Common {
   int render_width;  /*!< Rendered frame width */
   int render_height; /*!< Rendered frame height */
   /**@}*/
-
-#if !CONFIG_CWG_F430
-  /*!
-   * Presentation time of the frame in clock ticks DispCT counted from the
-   * removal time of the last random access point for the operating point that
-   * is being decoded.
-   */
-  uint32_t frame_presentation_time;
-#endif  // !CONFIG_CWG_F430
 
   /*!
    * Buffer where previous frame is stored.
@@ -2921,19 +2878,15 @@ typedef struct AV2Common {
    */
   struct OperatingPointSet *ops;
 
-#if CONFIG_SCAN_TYPE_METADATA
   /*!
    * Pic struct parameters.
    */
   avm_metadata_pic_struct_t pic_struct_metadata_params;
-#endif  // CONFIG_SCAN_TYPE_METADATA
 
-#if CONFIG_CWG_F430
   /*!
    * Temporal point info
    */
   avm_metadata_temporal_point_info_t temporal_point_info_metadata;
-#endif  // CONFIG_CWG_F430
 
 #if CONFIG_F024_KEYOBU
   /*!
@@ -5929,7 +5882,6 @@ static INLINE int is_frame_tile_config_reuse_eligible(
            tile_params->tile_info.sb_cols == tiles->sb_cols));
 }
 
-#if CONFIG_MULTI_LEVEL_SEGMENTATION
 static INLINE int is_frame_seg_config_reuse_eligible(
     const SegmentationInfoSyntax *const seg_params,
     const struct segmentation *const seg) {
@@ -5954,7 +5906,6 @@ static INLINE const SegmentationInfoSyntax *find_effective_seg_params(
   else
     return NULL;
 }
-#endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
 
 // This function derives the order of frame output with layer IDs
 static INLINE uint64_t derive_output_order_idx(AV2_COMMON *cm,

@@ -109,7 +109,6 @@ static void av2_read_mlayer_dependency_info(SequenceHeader *const seq,
   }
 }
 
-#if CONFIG_CROP_WIN_CWG_F220
 // This function validates the conformance window params
 static void av2_validate_seq_conformance_window(
     const struct SequenceHeader *seq_params,
@@ -145,7 +144,6 @@ static void av2_validate_seq_conformance_window(
         conf->conf_win_bottom_offset, seq_params->max_frame_height);
   }
 }
-#endif  // CONFIG_CROP_WIN_CWG_F220
 
 // Returns whether two sequence headers are consistent with each other.
 // Note that the 'op_params' field is not compared per Section 7.5 in the spec:
@@ -321,10 +319,8 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
   seq_params->max_frame_width = max_frame_width;
   seq_params->max_frame_height = max_frame_height;
 
-#if CONFIG_CROP_WIN_CWG_F220
   av2_read_conformance_window(rb, seq_params);
   av2_validate_seq_conformance_window(seq_params, &cm->error);
-#endif  // CONFIG_CROP_WIN_CWG_F220
 
 #if CONFIG_CWG_F270_CI_OBU
   av2_read_chroma_format_bitdepth(rb, seq_params, &cm->error);
@@ -530,10 +526,10 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
   }
 
   av2_read_sequence_header(rb, seq_params
-#if CONFIG_IMPROVED_REORDER_SEQ_FLAGS && !CONFIG_F255_QMOBU
+#if !CONFIG_F255_QMOBU
                            ,
                            &cm->quant_params, &cm->error
-#endif  // CONFIG_IMPROVED_REORDER_SEQ_FLAGS && !CONFIG_F255_QMOBU
+#endif  // !CONFIG_F255_QMOBU
   );
 
   // Level-driven memory restriction
@@ -548,18 +544,7 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
   }
   seq_params->film_grain_params_present = avm_rb_read_bit(rb);
 
-#if !CONFIG_IMPROVED_REORDER_SEQ_FLAGS
-  // Sequence header for coding tools beyond AV2
-  av2_read_sequence_header_beyond_av2(rb, seq_params
-#if !CONFIG_F255_QMOBU
-                                      ,
-                                      &cm->quant_params, &cm->error
-#endif  // !CONFIG_F255_QMOBU
-  );
-#endif  // !CONFIG_IMPROVED_REORDER_SEQ_FLAGS
-
 #if !CONFIG_CWG_F270_CI_OBU
-#if CONFIG_SCAN_TYPE_METADATA
   seq_params->scan_type_info_present_flag = avm_rb_read_bit(rb);
   if (seq_params->scan_type_info_present_flag) {
     seq_params->scan_type_idc = avm_rb_read_literal(rb, 2);
@@ -580,7 +565,6 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
                        "be in the range of 0 to 2046.\n",
                        seq_params->elemental_ct_duration_minus_1);
   }
-#endif  // CONFIG_SCAN_TYPE_METADATA
 #endif  // !CONFIG_CWG_F270_CI_OBU
 
   if (av2_check_trailing_bits(pbi, rb) != 0) {
@@ -844,7 +828,6 @@ static size_t read_metadata_icc_profile(AV2Decoder *const pbi,
 }
 #endif  // CONFIG_ICC_METADATA
 
-#if CONFIG_SCAN_TYPE_METADATA
 // On success, returns the number of bytes read from 'data'. On failure, calls
 // avm_internal_error() and does not return.
 static void read_metadata_scan_type(AV2Decoder *const pbi,
@@ -863,9 +846,7 @@ static void read_metadata_scan_type(AV2Decoder *const pbi,
   alloc_read_metadata(pbi, OBU_METADATA_TYPE_SCAN_TYPE, payload, 1,
                       AVM_MIF_ANY_FRAME);
 }
-#endif  // CONFIG_SCAN_TYPE_METADATA
 
-#if CONFIG_CWG_F430
 // On success, returns the number of bytes read from 'data'. On failure, calls
 // avm_internal_error() and does not return.
 static void read_metadata_temporal_point_info(AV2Decoder *const pbi,
@@ -885,7 +866,6 @@ static void read_metadata_temporal_point_info(AV2Decoder *const pbi,
                       AVM_MIF_ANY_FRAME);
 #endif  // CONFIG_METADATA
 }
-#endif  // CONFIG_CWG_F430
 
 static int read_metadata_frame_hash(AV2Decoder *const pbi,
                                     struct avm_read_bit_buffer *rb) {
@@ -1041,12 +1021,8 @@ static size_t read_metadata(AV2Decoder *pbi, const uint8_t *data, size_t sz)
   int known_metadata_type = metadata_type >= OBU_METADATA_TYPE_HDR_CLL &&
                             metadata_type < NUM_OBU_METADATA_TYPES;
   known_metadata_type |= metadata_type == OBU_METADATA_TYPE_ICC_PROFILE;
-#if CONFIG_SCAN_TYPE_METADATA
   known_metadata_type |= metadata_type == OBU_METADATA_TYPE_SCAN_TYPE;
-#endif  // CONFIG_SCAN_TYPE_METADATA
-#if CONFIG_CWG_F430
   known_metadata_type |= metadata_type == OBU_METADATA_TYPE_TEMPORAL_POINT_INFO;
-#endif  // CONFIG_CWG_F430
   if (!known_metadata_type)
 #else   // CONFIG_ICC_METADATA
   if (metadata_type == 0 || metadata_type >= 8)
@@ -1107,20 +1083,16 @@ static size_t read_metadata(AV2Decoder *pbi, const uint8_t *data, size_t sz)
     }
     return sz;
 #endif  // !CONFIG_METADATA
-#if CONFIG_SCAN_TYPE_METADATA
   } else if (metadata_type == OBU_METADATA_TYPE_SCAN_TYPE) {
     struct avm_read_bit_buffer rb;
     av2_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
     read_metadata_scan_type(pbi, &rb);
     return sz;
-#endif  // CONFIG_SCAN_TYPE_METADATA
-#if CONFIG_CWG_F430
   } else if (metadata_type == OBU_METADATA_TYPE_TEMPORAL_POINT_INFO) {
     struct avm_read_bit_buffer rb;
     av2_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
     read_metadata_temporal_point_info(pbi, &rb);
     return sz;
-#endif  // CONFIG_CWG_F430
 #if CONFIG_METADATA
   } else if (metadata_type == OBU_METADATA_TYPE_ICC_PROFILE) {
 #if !CONFIG_METADATA
@@ -1451,7 +1423,6 @@ static size_t read_metadata_short(AV2Decoder *pbi, const uint8_t *data,
       return 0;
     }
     return sz;
-#if CONFIG_SCAN_TYPE_METADATA
   } else if (metadata_type == OBU_METADATA_TYPE_SCAN_TYPE) {
     const size_t kMinScanTypeHeaderSize = 1;
     if (sz < kMinScanTypeHeaderSize) {
@@ -1461,8 +1432,6 @@ static size_t read_metadata_short(AV2Decoder *pbi, const uint8_t *data,
     av2_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
     read_metadata_scan_type(pbi, &rb);
     return sz;
-#endif  // CONFIG_SCAN_TYPE_METADATA
-#if CONFIG_CWG_F430
   } else if (metadata_type == OBU_METADATA_TYPE_TEMPORAL_POINT_INFO) {
     const size_t kMinTemporalPointInfoHeaderSize = 1;
     if (sz < kMinTemporalPointInfoHeaderSize) {
@@ -1472,7 +1441,6 @@ static size_t read_metadata_short(AV2Decoder *pbi, const uint8_t *data,
     av2_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
     read_metadata_temporal_point_info(pbi, &rb);
     return sz;
-#endif  // CONFIG_CWG_F430
   }
 
   av2_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);

@@ -162,13 +162,11 @@ int parse_cfg(const char *file, cfg_options_t *config) {
     GET_PARAMS(enable_short_refresh_frame_flags);
     GET_PARAMS(enable_ext_seg);
     GET_PARAMS(dpb_size);
-#if CONFIG_CROP_WIN_CWG_F220
     GET_PARAMS(enable_cropping_window);
     GET_PARAMS(crop_win_left_offset);
     GET_PARAMS(crop_win_right_offset);
     GET_PARAMS(crop_win_top_offset);
     GET_PARAMS(crop_win_bottom_offset);
-#endif  // CONFIG_CROP_WIN_CWG_F220
     GET_PARAMS(operating_points_count);
 
     fprintf(stderr, "\nInvalid parameter: %s", left);

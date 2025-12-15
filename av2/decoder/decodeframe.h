@@ -33,10 +33,8 @@ struct AV2Decoder;
 struct avm_read_bit_buffer;
 struct ThreadData;
 
-#if CONFIG_CROP_WIN_CWG_F220
 void av2_read_conformance_window(struct avm_read_bit_buffer *rb,
                                  struct SequenceHeader *seq_params);
-#endif  // CONFIG_CROP_WIN_CWG_F220
 
 uint32_t av2_read_layer_configuration_record_obu(
     struct AV2Decoder *pbi, int obu_xlayer_id, struct avm_read_bit_buffer *rb);
@@ -58,28 +56,16 @@ void copy_fgm_from_list(AV2_COMMON *cm, avm_film_grain_t *pars,
 // Reports errors by calling rb->error_handler() or avm_internal_error().
 void av2_read_sequence_header(struct avm_read_bit_buffer *rb,
                               SequenceHeader *seq_params
-#if CONFIG_IMPROVED_REORDER_SEQ_FLAGS && !CONFIG_F255_QMOBU
+#if !CONFIG_F255_QMOBU
                               ,
                               CommonQuantParams *quant_params,
                               struct avm_internal_error_info *error_info
-#endif  // CONFIG_IMPROVED_REORDER_SEQ_FLAGS && !CONFIG_F255_QMOBU
+#endif  // !CONFIG_F255_QMOBU
 );
 
 // Reads the tile information in the sequence header
 void read_sequence_tile_info(struct SequenceHeader *seq_params,
                              struct avm_read_bit_buffer *rb);
-
-#if !CONFIG_IMPROVED_REORDER_SEQ_FLAGS
-// this function can be removed with CONFIG_IMPROVED_REORDER_SEQ_FLAGS == 1
-// Reads additional sequence header for coding tools beyond AV2
-void av2_read_sequence_header_beyond_av2(
-    struct avm_read_bit_buffer *rb, SequenceHeader *seq_params
-#if !CONFIG_F255_QMOBU
-    ,
-    CommonQuantParams *quant_params, struct avm_internal_error_info *error_info
-#endif  // !CONFIG_F255_QMOBU
-);
-#endif  // !CONFIG_IMPROVED_REORDER_SEQ_FLAGS
 
 #if CONFIG_F255_QMOBU
 void alloc_qmatrix(struct quantization_matrix_set *qm_set);
@@ -161,11 +147,9 @@ struct avm_read_bit_buffer *av2_init_read_bit_buffer(
 void av2_free_mc_tmp_buf(struct ThreadData *thread_data);
 void av2_free_opfl_tmp_bufs(struct ThreadData *thread_data);
 
-#if CONFIG_CROP_WIN_CWG_F220
 void av2_validate_frame_level_conformance(
     const struct SequenceHeader *seq_params, int frame_width, int frame_height,
     struct avm_internal_error_info *error_info);
-#endif  // CONFIG_CROP_WIN_CWG_F220
 
 #ifdef __cplusplus
 }  // extern "C"

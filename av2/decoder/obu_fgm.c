@@ -62,9 +62,7 @@ void copy_fgm_from_list(AV2_COMMON *cm, avm_film_grain_t *pars,
   pars->cr_offset = fgm->cr_offset;
   pars->overlap_flag = fgm->overlap_flag;
   pars->clip_to_restricted_range = fgm->clip_to_restricted_range;
-#if CONFIG_FGS_IDENT
   pars->mc_identity = fgm->mc_identity;
-#endif  // CONFIG_FGS_IDENT
   pars->fgm_scale_from_channel0_flag = fgm->fgm_scale_from_channel0_flag;
   pars->grain_scale_shift = fgm->grain_scale_shift;
   pars->block_size = fgm->block_size;
@@ -188,12 +186,10 @@ static void read_film_grain_model(struct film_grain_model *fgm, int chroma_idc,
 
   fgm->clip_to_restricted_range = avm_rb_read_bit(rb);
 
-#if CONFIG_FGS_IDENT
   if (fgm->clip_to_restricted_range)
     fgm->mc_identity = avm_rb_read_bit(rb);
   else
     fgm->mc_identity = 0;
-#endif  // CONFIG_FGS_IDENT
 
   fgm->block_size = avm_rb_read_bit(rb);
 }

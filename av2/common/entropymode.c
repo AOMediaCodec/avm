@@ -1277,7 +1277,6 @@ void av2_setup_past_independence(AV2_COMMON *cm) {
   av2_setup_frame_contexts(cm);
 }
 
-#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 void av2_set_default_frame_contexts(AV2_COMMON *cm) {
   av2_default_coef_probs(cm);
   init_mode_probs(cm->fc, &cm->seq_params);
@@ -1285,4 +1284,3 @@ void av2_set_default_frame_contexts(AV2_COMMON *cm) {
   cm->fc->initialized = 1;
   av2_setup_frame_contexts(cm);
 }
-#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT

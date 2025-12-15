@@ -49,7 +49,6 @@ struct segmentation {
   uint8_t enable_ext_seg;  // Enable the extended max segment num = 16
 };
 
-#if CONFIG_MULTI_LEVEL_SEGMENTATION
 typedef struct SegmentationInfoSyntax {
   uint8_t allow_seg_info_change;
   int16_t feature_data[MAX_SEGMENTS][SEG_LVL_MAX];
@@ -58,7 +57,6 @@ typedef struct SegmentationInfoSyntax {
   uint8_t segid_preskip;
   uint8_t enable_ext_seg;
 } SegmentationInfoSyntax;
-#endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
 
 struct segmentation_probs {
   avm_cdf_prob pred_cdf[SEG_TEMPORAL_PRED_CTXS][CDF_SIZE(2)];
@@ -100,7 +98,6 @@ void av2_clearall_segfeatures(struct segmentation *seg);
 void av2_enable_segfeature(struct segmentation *seg, int segment_id,
                            SEG_LVL_FEATURES feature_id);
 
-#if CONFIG_MULTI_LEVEL_SEGMENTATION
 int av2_check_seg_equivalence(const struct SegmentationInfoSyntax *seg_params,
                               const struct segmentation *seg);
 
@@ -109,7 +106,6 @@ void av2_reconstruct_seg_params(const struct SegmentationInfoSyntax *seg_params,
 
 void av2_calculate_segdata_from_syntax(
     struct SegmentationInfoSyntax *seg_params);
-#endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
 
 void av2_calculate_segdata(struct segmentation *seg);
 

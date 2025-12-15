@@ -511,7 +511,6 @@ void av2_update_film_grain_parameters(struct AV2_COMP *cpi,
 #endif  // CONFIG_CWG_F270_CI_OBU
         cm->film_grain_params.clip_to_restricted_range = 0;
       }
-#if CONFIG_FGS_IDENT
 #if CONFIG_CWG_F270_CI_OBU
       if (cm->ci_params_per_layer[cm->mlayer_id]
               .color_info.matrix_coefficients == AVM_CICP_MC_IDENTITY)
@@ -521,7 +520,6 @@ void av2_update_film_grain_parameters(struct AV2_COMP *cpi,
         cm->film_grain_params.mc_identity = 1;
       else
         cm->film_grain_params.mc_identity = 0;
-#endif  // CONFIG_FGS_IDENT
     }
   } else if (tune_cfg->film_grain_table_filename) {
     cm->seq_params.film_grain_params_present = 1;
@@ -731,13 +729,10 @@ void av2_setup_frame(AV2_COMP *cpi) {
       av2_setup_past_independence(cm);
       cm->seg.update_map = 1;
       cm->seg.update_data = 1;
-    }
-#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
-    else if (cm->features.cross_frame_context == CROSS_FRAME_CONTEXT_DISABLED) {
+    } else if (cm->features.cross_frame_context ==
+               CROSS_FRAME_CONTEXT_DISABLED) {
       av2_set_default_frame_contexts(cm);
-    }
-#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
-    else {
+    } else {
       *cm->fc = primary_ref_buf->frame_context;
       int ref_frame_used = PRIMARY_REF_NONE;
       int map_idx = INVALID_IDX;

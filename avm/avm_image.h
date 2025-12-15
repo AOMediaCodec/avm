@@ -247,7 +247,6 @@ typedef enum avm_metadata_application_id {
   // 16-31 are externally defined
 } avm_metadata_application_id_t;
 
-#if CONFIG_SCAN_TYPE_METADATA
 /*!\brief Metadata Picture Scan Type
  *
  * Specifies the picture scan type is intended.
@@ -292,9 +291,7 @@ typedef struct avm_metadata_pic_struct_t {
   avm_pic_scan_type_t mps_source_scan_type_idc; /**< source scan type*/
   int mps_duplicate_flag;                       /**< frame duplicate */
 } avm_metadata_pic_struct_t;
-#endif  // CONFIG_SCAN_TYPE_METADATA
 
-#if CONFIG_CWG_F430
 /*!\brief Temporal Point Info Metadata payload.
  *
  * Contains the frame presentation time for decoder model timing
@@ -304,7 +301,6 @@ typedef struct avm_metadata_temporal_point_info_t {
                                             ticks*/
   int mtpi_frame_presentation_length;    /**< Frame presentation time length*/
 } avm_metadata_temporal_point_info_t;
-#endif  // CONFIG_CWG_F430
 
 /*!\brief Metadata persistence behavior
  *
@@ -367,7 +363,6 @@ typedef struct avm_image {
   unsigned int h;         /**< Stored image height */
   unsigned int bit_depth; /**< Stored image bit-depth */
 
-#if CONFIG_CROP_WIN_CWG_F220
   /* Cropping dimensions */
   int w_conf_win_enabled_flag;  /**< conformance window enable flag */
   int w_conf_win_left_offset;   /**< Conformance window left offset */
@@ -378,7 +373,6 @@ typedef struct avm_image {
   int max_height;               /**< Conformance window max height */
   int crop_width;               /**< Conformance window width */
   int crop_height;              /**< Conformance window height */
-#endif                          // CONFIG_CROP_WIN_CWG_F220
 
   /* Image display dimensions */
   unsigned int d_w; /**< Displayed image width */

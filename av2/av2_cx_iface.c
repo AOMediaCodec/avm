@@ -232,21 +232,15 @@ struct av2_extracfg {
   int dpb_size;
   unsigned int enable_bru;
   unsigned int disable_loopfilters_across_tiles;
-#if CONFIG_CROP_WIN_CWG_F220
   int enable_cropping_window;  // enable cropping window
   int crop_win_left_offset;    // cropping window left offset
   int crop_win_right_offset;   // cropping window right offset
   int crop_win_top_offset;     // cropping window top offset
   int crop_win_bottom_offset;  // cropping window bottom offset
-#endif                         // CONFIG_CROP_WIN_CWG_F220
-#if CONFIG_SCAN_TYPE_METADATA
   unsigned int scan_type_info_present_flag;
-#endif  // CONFIG_SCAN_TYPE_METADATA
   unsigned int enable_mfh_obu_signaling;
   int operating_points_count;
-#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   unsigned int cross_frame_cdf_init_mode;
-#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 };
 
 // Example subgop configs. Currently not used by default.
@@ -564,21 +558,15 @@ static struct av2_extracfg default_extra_cfg = {
   8,    // dpb_size
   0,    // enable_bru
   0,
-#if CONFIG_CROP_WIN_CWG_F220
   0,     // enable_cropping_window
   0,     // crop_win_left_offset
   0,     // crop_win_right_offset
   0,     // crop_win_top_offset
   0,     // crop_win_bottom_offset
-#endif  // CONFIG_CROP_WIN_CWG_F220
-#if CONFIG_SCAN_TYPE_METADATA
   0,
-#endif  // CONFIG_SCAN_TYPE_METADATA
   0,  // enable_mfh_obu_signaling
   1,
-#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   1                            // cross frame CDF init mode
-#endif // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 };
 // clang-format on
 
@@ -715,9 +703,7 @@ static avm_codec_err_t validate_config(avm_codec_alg_priv_t *ctx,
   RANGE_CHECK(cfg, rc_resize_kf_denominator, SCALE_NUMERATOR,
               SCALE_NUMERATOR << 1);
   RANGE_CHECK_HI(extra_cfg, cdf_update_mode, 2);
-#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   RANGE_CHECK_HI(extra_cfg, cross_frame_cdf_init_mode, 1);
-#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   RANGE_CHECK_HI(extra_cfg, motion_vector_unit_test, 2);
   RANGE_CHECK_HI(extra_cfg, sb_multipass_unit_test, 1);
   RANGE_CHECK_HI(extra_cfg, enable_auto_alt_ref, 1);
@@ -733,13 +719,11 @@ static avm_codec_err_t validate_config(avm_codec_alg_priv_t *ctx,
   RANGE_CHECK_HI(extra_cfg, tile_rows, 6);
 
   RANGE_CHECK_HI(cfg, monochrome, 1);
-#if CONFIG_CROP_WIN_CWG_F220
   RANGE_CHECK(extra_cfg, enable_cropping_window, 0, 1);
   RANGE_CHECK_HI(extra_cfg, crop_win_left_offset, 65535);
   RANGE_CHECK_HI(extra_cfg, crop_win_right_offset, 65535);
   RANGE_CHECK_HI(extra_cfg, crop_win_top_offset, 65535);
   RANGE_CHECK_HI(extra_cfg, crop_win_bottom_offset, 65535);
-#endif  // CONFIG_CROP_WIN_CWG_F220
 
   RANGE_CHECK_HI(extra_cfg, sharpness, 7);
   RANGE_CHECK_HI(extra_cfg, arnr_max_frames, 15);
@@ -1009,9 +993,7 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_onesided_comp = extra_cfg->enable_onesided_comp;
   cfg->enable_reduced_reference_set = extra_cfg->enable_reduced_reference_set;
   cfg->enable_bru = extra_cfg->enable_bru;
-#if CONFIG_SCAN_TYPE_METADATA
   cfg->scan_type_info_present_flag = extra_cfg->scan_type_info_present_flag;
-#endif  // CONFIG_SCAN_TYPE_METADATA
   cfg->enable_mfh_obu_signaling = extra_cfg->enable_mfh_obu_signaling;
   cfg->explicit_ref_frame_map = extra_cfg->explicit_ref_frame_map;
   cfg->enable_generation_sef_obu = extra_cfg->enable_generation_sef_obu;
@@ -1028,13 +1010,11 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_parity_hiding = extra_cfg->enable_parity_hiding;
   cfg->enable_short_refresh_frame_flags =
       extra_cfg->enable_short_refresh_frame_flags;
-#if CONFIG_CROP_WIN_CWG_F220
   cfg->enable_cropping_window = extra_cfg->enable_cropping_window;
   cfg->crop_win_left_offset = extra_cfg->crop_win_left_offset;
   cfg->crop_win_right_offset = extra_cfg->crop_win_right_offset;
   cfg->crop_win_top_offset = extra_cfg->crop_win_top_offset;
   cfg->crop_win_bottom_offset = extra_cfg->crop_win_bottom_offset;
-#endif  // CONFIG_CROP_WIN_CWG_F220
   cfg->enable_ext_seg = extra_cfg->enable_ext_seg;
   cfg->dpb_size = extra_cfg->dpb_size;
   cfg->operating_points_count = extra_cfg->operating_points_count;
@@ -1144,18 +1124,14 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_parity_hiding = cfg->enable_parity_hiding;
   extra_cfg->enable_short_refresh_frame_flags =
       cfg->enable_short_refresh_frame_flags;
-#if CONFIG_CROP_WIN_CWG_F220
   extra_cfg->enable_cropping_window = cfg->enable_cropping_window;
   extra_cfg->crop_win_left_offset = cfg->crop_win_left_offset;
   extra_cfg->crop_win_right_offset = cfg->crop_win_right_offset;
   extra_cfg->crop_win_top_offset = cfg->crop_win_top_offset;
   extra_cfg->crop_win_bottom_offset = cfg->crop_win_bottom_offset;
-#endif  // CONFIG_CROP_WIN_CWG_F220
   extra_cfg->enable_ext_seg = cfg->enable_ext_seg;
   extra_cfg->dpb_size = cfg->dpb_size;
-#if CONFIG_SCAN_TYPE_METADATA
   extra_cfg->scan_type_info_present_flag = cfg->scan_type_info_present_flag;
-#endif  // CONFIG_SCAN_TYPE_METADATA
   extra_cfg->enable_mfh_obu_signaling = cfg->enable_mfh_obu_signaling;
   extra_cfg->operating_points_count = cfg->operating_points_count;
 }
@@ -1378,10 +1354,8 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   }
   tool_cfg->disable_loopfilters_across_tiles =
       extra_cfg->disable_loopfilters_across_tiles;
-#if CONFIG_SCAN_TYPE_METADATA
   tool_cfg->scan_type_info_present_flag =
       extra_cfg->scan_type_info_present_flag;
-#endif  // CONFIG_SCAN_TYPE_METADATA
   tool_cfg->enable_mfh_obu_signaling = extra_cfg->enable_mfh_obu_signaling;
   tool_cfg->enable_bawp = extra_cfg->enable_bawp;
   tool_cfg->enable_cwp = extra_cfg->enable_cwp;
@@ -1417,13 +1391,11 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   tool_cfg->max_drl_refmvs = extra_cfg->max_drl_refmvs;
   tool_cfg->max_drl_refbvs = extra_cfg->max_drl_refbvs;
   tool_cfg->enable_refmvbank = extra_cfg->enable_refmvbank;
-#if CONFIG_CROP_WIN_CWG_F220
   tool_cfg->enable_cropping_window = extra_cfg->enable_cropping_window;
   tool_cfg->crop_win_left_offset = extra_cfg->crop_win_left_offset;
   tool_cfg->crop_win_right_offset = extra_cfg->crop_win_right_offset;
   tool_cfg->crop_win_top_offset = extra_cfg->crop_win_top_offset;
   tool_cfg->crop_win_bottom_offset = extra_cfg->crop_win_bottom_offset;
-#endif  // CONFIG_CROP_WIN_CWG_F220
   tool_cfg->operating_points_count = extra_cfg->operating_points_count;
 
   tool_cfg->enable_drl_reorder = extra_cfg->enable_drl_reorder;
@@ -1537,10 +1509,8 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   algo_cfg->arnr_max_frames = extra_cfg->arnr_max_frames;
   algo_cfg->arnr_strength = extra_cfg->arnr_strength;
   algo_cfg->cdf_update_mode = (uint8_t)extra_cfg->cdf_update_mode;
-#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   algo_cfg->cross_frame_cdf_init_mode =
       (uint8_t)extra_cfg->cross_frame_cdf_init_mode;
-#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   // TODO(any): Fix and Enable TPL for resize-mode > 0
   algo_cfg->enable_tpl_model =
       resize_cfg->resize_mode ? 0 : extra_cfg->enable_tpl_model;
@@ -3957,13 +3927,11 @@ static avm_codec_err_t encoder_set_option(avm_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av2_codec_arg_defs.cdf_update_mode, argv,
                               err_string)) {
     extra_cfg.cdf_update_mode = arg_parse_int_helper(&arg, err_string);
-#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   } else if (arg_match_helper(&arg,
                               &g_av2_codec_arg_defs.cross_frame_cdf_init_mode,
                               argv, err_string)) {
     extra_cfg.cross_frame_cdf_init_mode =
         arg_parse_int_helper(&arg, err_string);
-#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   } else if (arg_match_helper(&arg,
                               &g_av2_codec_arg_defs.enable_rect_partitions,
                               argv, err_string)) {
@@ -4096,7 +4064,6 @@ static avm_codec_err_t encoder_set_option(avm_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av2_codec_arg_defs.enable_flip_idtx,
                               argv, err_string)) {
     extra_cfg.enable_flip_idtx = arg_parse_int_helper(&arg, err_string);
-#if CONFIG_CROP_WIN_CWG_F220
   } else if (arg_match_helper(&arg,
                               &g_av2_codec_arg_defs.enable_cropping_window,
                               argv, err_string)) {
@@ -4114,7 +4081,6 @@ static avm_codec_err_t encoder_set_option(avm_codec_alg_priv_t *ctx,
                               &g_av2_codec_arg_defs.crop_win_bottom_offset,
                               argv, err_string)) {
     extra_cfg.crop_win_bottom_offset = arg_parse_int_helper(&arg, err_string);
-#endif  // CONFIG_CROP_WIN_CWG_F220
   } else if (arg_match_helper(&arg, &g_av2_codec_arg_defs.max_reference_frames,
                               argv, err_string)) {
     extra_cfg.max_reference_frames = arg_parse_int_helper(&arg, err_string);
@@ -4329,13 +4295,11 @@ static avm_codec_err_t encoder_set_option(avm_codec_alg_priv_t *ctx,
                  argv, err_string)) {
     extra_cfg.disable_loopfilters_across_tiles =
         arg_parse_int_helper(&arg, err_string);
-#if CONFIG_SCAN_TYPE_METADATA
   } else if (arg_match_helper(&arg,
                               &g_av2_codec_arg_defs.scan_type_info_present_flag,
                               argv, err_string)) {
     extra_cfg.scan_type_info_present_flag =
         arg_parse_int_helper(&arg, err_string);
-#endif  // CONFIG_SCAN_TYPE_METADATA
 #if CONFIG_METADATA
   } else if (arg_match_helper(&arg, &g_av2_codec_arg_defs.use_short_metadata,
                               argv, err_string)) {
@@ -4644,19 +4608,15 @@ static const avm_codec_enc_cfg_t encoder_usage_cfg[] = { {
         8,  // dpb_size
         0,  // enable_bru
         0,  // disable_loopfilters_across_tiles
-#if CONFIG_CROP_WIN_CWG_F220
         0,  // enable cropping window
         0,  // crop_win_left_offset
         0,  // crop_win_right_offset
         0,  // crop_win_top_offset
         0,  // crop_win_bottom_offset
-#endif      // CONFIG_CROP_WIN_CWG_F220
 #if CONFIG_ICC_METADATA
         NULL, 0,
 #endif  // CONFIG_ICC_METADATA
-#if CONFIG_SCAN_TYPE_METADATA
         0,
-#endif      // CONFIG_SCAN_TYPE_METADATA
         0,  // enable_mfh_obu_signaling
         1,
     },  // cfg

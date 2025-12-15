@@ -804,14 +804,12 @@ typedef struct {
    */
   uint8_t cdf_update_mode;
 
-#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   /*!
    * Indicates the cross frame CDF initialization mode
    * 0: cross frame initialization disabled
    * 1: cross frame initialization enabled
    */
   uint8_t cross_frame_cdf_init_mode;
-#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 
   /*!
    * Indicates if RDO based on frame temporal dependency should be enabled.
@@ -907,13 +905,11 @@ typedef struct {
   unsigned int max_drl_refbvs;
   // Indicates if ref MV Bank should be enabled.
   bool enable_refmvbank;
-#if CONFIG_CROP_WIN_CWG_F220
   int enable_cropping_window;
   int crop_win_left_offset;
   int crop_win_right_offset;
   int crop_win_top_offset;
   int crop_win_bottom_offset;
-#endif  // CONFIG_CROP_WIN_CWG_F220
   // Indicates if the reorder of DRL should be enabled.
   int enable_drl_reorder;
   // Indicates if the CDEF on skip_txfm = 1 blocks should be enabled.
@@ -949,9 +945,7 @@ typedef struct {
   unsigned int use_short_metadata;
 #endif  // CONFIG_METADATA
 
-#if CONFIG_SCAN_TYPE_METADATA
   unsigned int scan_type_info_present_flag;
-#endif  // CONFIG_SCAN_TYPE_METADATA
 
   unsigned int enable_mfh_obu_signaling;
   int operating_points_count;
@@ -2172,24 +2166,11 @@ typedef struct {
    */
   ExtRefreshFrameFlagsInfo refresh_frame;
 
-#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   /*!
    * Flag to enable CDF initialization with cross frame contexts at the
    * beginning of a frame decode.
    */
   bool cross_frame_context;
-#else
-  /*!
-   * Flag to enable the update of frame contexts at the end of a frame decode.
-   */
-  bool refresh_frame_context;
-
-  /*!
-   * Flag to indicate that update of refresh_frame_context from external
-   * interface is pending.
-   */
-  bool refresh_frame_context_pending;
-#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   /*!
    * Flag to enable temporal MV prediction.
    */
