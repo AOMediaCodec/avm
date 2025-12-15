@@ -8066,13 +8066,7 @@ static void handle_zero_cur_mfh_id(AV2_COMMON *const cm) {
 
 static int setup_multiframe_header_id(AV2_COMMON *const cm, OBU_TYPE obu_type,
                                       struct avm_read_bit_buffer *rb) {
-#if CONFIG_CWG_E242_MFH_ID_UVLC
   uint32_t cur_mfh_id = obu_type == OBU_BRIDGE_FRAME ? 0 : avm_rb_read_uvlc(rb);
-#else
-  uint32_t cur_mfh_id =
-      obu_type == OBU_BRIDGE_FRAME ? 0 : avm_rb_read_literal(rb, 4);
-#endif  // CONFIG_CWG_E242_MFH_ID_UVLC
-
   if (cur_mfh_id >= MAX_MFH_NUM) {
     avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
                        "multi-frame header id is greater than or equal to "

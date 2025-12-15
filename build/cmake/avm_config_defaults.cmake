@@ -150,13 +150,6 @@ set_avm_config_var(CONFIG_PARAKIT_COLLECT_DATA 0
 set_avm_config_var(CONFIG_METADATA 1 "F161 metadata syntax")
 set_avm_config_var(CONFIG_ICC_METADATA 1 "ICC metadata syntax")
 
-# CWG-E242
-set_avm_config_var(CONFIG_CWG_E242_SIGNAL_TILE_INFO 1
-                   "Signal tile information at sequence header.")
-
-set_avm_config_var(CONFIG_CWG_E242_PARSING_INDEP 1
-                   "Parsing independence of MFH.")
-
 set_avm_config_var(CONFIG_CWG_E242_BITDEPTH 1 "Signal Bitdepth using a LUT.")
 
 set_avm_config_var(CONFIG_CWG_E242_SEQ_HDR_ID 1 "Signal sequence header id.")
@@ -173,8 +166,6 @@ set_avm_config_var(CONFIG_CWG_F270_OPS 1 "Add OPS and SH related changes")
 # Source of throughput analysis : CWG-B065
 set_avm_config_var(CONFIG_THROUGHPUT_ANALYSIS 0
                    "AV2 experiment flag to measure throughput.")
-set_avm_config_var(CONFIG_CWG_E242_MFH_ID_UVLC 1
-                   "Signaling multi-frame header ID in UVLC")
 
 set_avm_config_var(
   CONFIG_QM_DEBUG 0
