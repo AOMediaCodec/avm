@@ -1864,7 +1864,9 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
           pbi->remapped_ref_idx_buf[cm->xlayer_id][i] = cm->remapped_ref_idx[i];
         }
-        pbi->seq_params_buf[cm->xlayer_id] = cm->seq_params;
+        for (int i = 0; i < MAX_SEQ_NUM; i++) {
+          pbi->seq_list_buf[cm->xlayer_id][i] = pbi->seq_list[i];
+        }
         for (int i = 0; i < MAX_MFH_NUM; i++) {
           pbi->mfh_params_buf[cm->xlayer_id][i] = cm->mfh_params[i];
         }
@@ -1875,8 +1877,9 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
           cm->remapped_ref_idx[i] = pbi->remapped_ref_idx_buf[cm->xlayer_id][i];
         }
-        cm->seq_params = pbi->seq_params_buf[cm->xlayer_id];
-        pbi->seq_params_buf[cm->xlayer_id] = cm->seq_params;
+        for (int i = 0; i < MAX_SEQ_NUM; i++) {
+          pbi->seq_list[i] = pbi->seq_list_buf[cm->xlayer_id][i];
+        }
         for (int i = 0; i < MAX_MFH_NUM; i++) {
           cm->mfh_params[i] = pbi->mfh_params_buf[cm->xlayer_id][i];
         }
@@ -1928,7 +1931,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         break;
       case OBU_SEQUENCE_HEADER:
         cm->xlayer_id = obu_header.obu_xlayer_id;
-        cm->seq_params = pbi->seq_params_buf[cm->xlayer_id];
         pbi->stream_switched = 0;
         decoded_payload_size = read_sequence_header_obu(pbi, &rb);
         if (cm->error.error_code != AVM_CODEC_OK) return -1;

@@ -447,7 +447,7 @@ typedef struct AV2Decoder {
 
   RefCntBuffer *ref_frame_map_buf[AVM_MAX_NUM_STREAMS][REF_FRAMES];
   int remapped_ref_idx_buf[AVM_MAX_NUM_STREAMS][REF_FRAMES];
-  SequenceHeader seq_params_buf[AVM_MAX_NUM_STREAMS];
+  SequenceHeader seq_list_buf[AVM_MAX_NUM_STREAMS][MAX_SEQ_NUM];
   MultiFrameHeader mfh_params_buf[AVM_MAX_NUM_STREAMS][MAX_MFH_NUM];
 #if CONFIG_F024_KEYOBU
   /*!
