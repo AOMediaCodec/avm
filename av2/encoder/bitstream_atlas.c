@@ -78,7 +78,6 @@ static uint32_t write_ats_multistream_alpha_atlas_info(
 
   avm_wb_write_bit(
       wb, ats_basic_info->ats_alpha_segments_present_flag[obu_xLayer_id][xAId]);
-#if CONFIG_ATLAS_BACKGROUND_COLOR
   avm_wb_write_bit(
       wb,
       ats_basic_info->ats_background_info_present_flag[obu_xLayer_id][xAId]);
@@ -91,7 +90,6 @@ static uint32_t write_ats_multistream_alpha_atlas_info(
     avm_wb_write_literal(
         wb, ats_basic_info->ats_background_blue_value[obu_xLayer_id][xAId], 8);
   }
-#endif  // CONFIG_ATLAS_BACKGROUND_COLOR
 
   const int NumSegments =
       ats_basic_info->ats_num_atlas_segments_minus_1[obu_xLayer_id][xAId] + 1;
@@ -124,7 +122,6 @@ static uint32_t write_ats_multistream_atlas_info(
   avm_wb_write_uvlc(
       wb, ats_basic_info->ats_num_atlas_segments_minus_1[obu_xLayer_id][xAId]);
 
-#if CONFIG_ATLAS_BACKGROUND_COLOR
   avm_wb_write_bit(
       wb,
       ats_basic_info->ats_background_info_present_flag[obu_xLayer_id][xAId]);
@@ -137,7 +134,6 @@ static uint32_t write_ats_multistream_atlas_info(
     avm_wb_write_literal(
         wb, ats_basic_info->ats_background_blue_value[obu_xLayer_id][xAId], 8);
   }
-#endif  // CONFIG_ATLAS_BACKGROUND_COLOR
 
   const int NumSegments =
       ats_basic_info->ats_num_atlas_segments_minus_1[obu_xLayer_id][xAId] + 1;

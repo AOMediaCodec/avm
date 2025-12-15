@@ -238,7 +238,6 @@ static uint32_t read_ats_multistream_alpha_atlas_info(
   ats_basic_info->ats_alpha_segments_present_flag[obu_xLayer_id][xAId] =
       avm_rb_read_bit(rb);
 
-#if CONFIG_ATLAS_BACKGROUND_COLOR
   ats_basic_info->ats_background_info_present_flag[obu_xLayer_id][xAId] =
       avm_rb_read_bit(rb);
   if (ats_basic_info->ats_background_info_present_flag[obu_xLayer_id][xAId] ==
@@ -250,7 +249,6 @@ static uint32_t read_ats_multistream_alpha_atlas_info(
     ats_basic_info->ats_background_blue_value[obu_xLayer_id][xAId] =
         avm_rb_read_literal(rb, 8);
   }
-#endif  // CONFIG_ATLAS_BACKGROUND_COLOR
 
   for (int i = 0; i < NumSegments; i++) {
     ats_basic_info->ats_input_stream_id[obu_xLayer_id][xAId][i] =
@@ -294,7 +292,6 @@ static uint32_t read_ats_multistream_atlas_info(
   ats_basic_info->AtlasHeight[obu_xLayer_id][xAId] =
       ats_basic_info->ats_atlas_height[obu_xLayer_id][xAId];
 
-#if CONFIG_ATLAS_BACKGROUND_COLOR
   ats_basic_info->ats_background_info_present_flag[obu_xLayer_id][xAId] =
       avm_rb_read_bit(rb);
   if (ats_basic_info->ats_background_info_present_flag[obu_xLayer_id][xAId] ==
@@ -306,7 +303,6 @@ static uint32_t read_ats_multistream_atlas_info(
     ats_basic_info->ats_background_blue_value[obu_xLayer_id][xAId] =
         avm_rb_read_literal(rb, 8);
   }
-#endif  // CONFIG_ATLAS_BACKGROUND_COLOR
 
   for (int i = 0; i < NumSegments; i++) {
     ats_basic_info->ats_input_stream_id[obu_xLayer_id][xAId][i] =
