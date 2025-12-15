@@ -67,7 +67,6 @@ static uint32_t write_ats_region_info(struct AtlasRegionInfo *atlas_reg_params,
   return 0;
 }
 
-#if CONFIG_ATLAS_ALPHA_SEGMENT
 static uint32_t write_ats_multistream_alpha_atlas_info(
     struct AtlasBasicInfo *ats_basic_info, int obu_xLayer_id, int xAId,
     struct avm_write_bit_buffer *wb) {
@@ -112,7 +111,6 @@ static uint32_t write_ats_multistream_alpha_atlas_info(
   }
   return 0;
 }
-#endif  // CONFIG_ATLAS_ALPHA_SEGMENT
 
 static uint32_t write_ats_multistream_atlas_info(
     struct AtlasBasicInfo *ats_basic_info, int obu_xLayer_id, int xAId,
@@ -294,7 +292,6 @@ uint32_t av2_write_atlas_segment_info_obu(AV2_COMP *cpi, int obu_xLayer_id,
     num_segments = atlas_params->ats_basic_info
                        ->ats_num_atlas_segments_minus_1[obu_xLayer_id][xAId] +
                    1;
-#if CONFIG_ATLAS_ALPHA_SEGMENT
   } else if (atlas_params->atlas_segment_mode_idc[obu_xLayer_id][xAId] ==
              MULTISTREAM_ALPHA_ATLAS) {
     write_ats_multistream_alpha_atlas_info(atlas_params->ats_basic_info,
@@ -302,7 +299,6 @@ uint32_t av2_write_atlas_segment_info_obu(AV2_COMP *cpi, int obu_xLayer_id,
     num_segments = atlas_params->ats_basic_info
                        ->ats_num_atlas_segments_minus_1[obu_xLayer_id][xAId] +
                    1;
-#endif  // CONFIG_ATLAS_ALPHA_SEGMENT
   }
   // Label each atlas segment
   write_ats_label_segment_info(cpi, obu_xLayer_id, xAId, num_segments, &wb);
