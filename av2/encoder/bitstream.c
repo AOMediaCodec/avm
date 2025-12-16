@@ -6060,7 +6060,9 @@ static AVM_INLINE void write_uncompressed_header(
       write_tile_info(cm, saved_wb, wb);
     }
 
-    if (seq_params->film_grain_params_present) encode_film_grain(cpi, wb);
+    if (seq_params->film_grain_params_present &&
+        (cm->show_frame || cm->showable_frame))
+      encode_film_grain(cpi, wb);
     return;
   }
 
@@ -6094,7 +6096,9 @@ static AVM_INLINE void write_uncompressed_header(
 
   if (!frame_is_intra_only(cm)) write_global_motion(cpi, wb);
 
-  if (seq_params->film_grain_params_present) encode_film_grain(cpi, wb);
+  if (seq_params->film_grain_params_present &&
+      (cm->show_frame || cm->showable_frame))
+    encode_film_grain(cpi, wb);
 }
 
 static int choose_size_bytes(uint32_t size, int spare_msbs) {
