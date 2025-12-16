@@ -35,7 +35,7 @@
 
 #define PRINT_TU_INFO 0
 
-#define AVM_MAX_NUM_STREAMS 4
+#define AVM_MAX_NUM_STREAMS 32
 
 const size_t kInitialBufferSize = 100 * 1024;
 
