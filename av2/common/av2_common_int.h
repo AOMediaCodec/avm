@@ -319,9 +319,6 @@ typedef struct RefCntBuffer {
   int showable_frame;      // frame can be used as show existing frame in future
   bool frame_output_done;  // 0: frame is not yet output 1: frame is already
                            // output
-#if !CONFIG_F153_FGM_OBU
-  uint8_t film_grain_params_present;
-#endif  // !CONFIG_F153_FGM_OBU
   avm_film_grain_t film_grain_params;
   // #endif
   avm_codec_frame_buffer_t raw_frame_buffer;
@@ -1054,18 +1051,6 @@ typedef struct SequenceHeader {
   uint8_t enable_short_refresh_frame_flags;
   uint8_t number_of_bits_for_lt_frame_id;
   uint8_t enable_ext_seg;
-#if !CONFIG_F255_QMOBU
-  bool user_defined_qmatrix;             // User defined quantizer matrix
-  bool qm_data_present[NUM_CUSTOM_QMS];  // User defined QM data present
-  // Note: qm_copy_from_previous_plane and qm_4x8_is_transpose_of_8x4 flags
-  // are automatically derived from stored QM coefficient data
-  // First index: level (0 <= level < NUM_CUSTOM_QMS)
-  // Second index: 0:Y, 1:U, 2:V
-  // Third index: (flattened) index to matrix entry
-  qm_val_t ***quantizer_matrix_8x8;
-  qm_val_t ***quantizer_matrix_8x4;
-  qm_val_t ***quantizer_matrix_4x8;
-#endif  // !CONFIG_F255_QMOBU
 
 #if CONFIG_CWG_F270_OPS
   AV2_LEVEL seq_max_level_idx;
@@ -1739,20 +1724,6 @@ struct CommonQuantParams {
    *  - If false, we implicitly use level index 'NUM_QM_LEVELS - 1'.
    */
   bool using_qmatrix;
-#if !CONFIG_F255_QMOBU
-  /*!
-   * Flag indicating whether quantization matrices are allocated.
-   */
-  bool qmatrix_allocated;
-
-  /*!
-   * Flag indicating whether quantization matrices are initialized.
-   * To avoid unnecessary computation, we want to initialize quantization
-   * matrices only when they are used.
-   * Note that when sequence header OBUs change, we should reset the parameter.
-   */
-  bool qmatrix_initialized;
-#endif  // CONFIG_F255_QMOBU
   /*!
    * Number of QM levels available for use by the segments in the frame.
    * Range is 1..4.
@@ -2076,7 +2047,6 @@ typedef struct BridgeFrame_Info {
   int print_bridge_frame_in_log;
 } BridgeFrameInfo;
 
-#if CONFIG_F255_QMOBU
 /*!
  * \brief Structure used for quantization matrix set
  */
@@ -2139,9 +2109,7 @@ struct qm_obu {
    */
   struct quantization_matrix_set qm_list[NUM_CUSTOM_QMS];
 };
-#endif  // CONFIG_F255_QMOBU
 
-#if CONFIG_F153_FGM_OBU
 /*!
  * \brief Structure used to convey film grain model.
  */
@@ -2264,7 +2232,6 @@ component
    */
   int fgm_chroma_idc;
 };
-#endif  // CONFIG_F153_FGM_OBU
 
 /*!
  * \brief Top level common structure used by both encoder and decoder.
@@ -2907,13 +2874,11 @@ typedef struct AV2Common {
   int is_leading_picture;
 
 #endif
-#if CONFIG_F153_FGM_OBU
   /*!
    * film grain id
    */
 
   int fgm_id;
-#endif  // CONFIG_F153_FGM_OBU
 
 #if CONFIG_F322_OBUER_REFRESTRICT
   /*!

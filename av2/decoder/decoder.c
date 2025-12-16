@@ -233,7 +233,6 @@ AV2Decoder *av2_decoder_create(BufferPool *const pool) {
   cm->num_ref_filters = NULL;
 
   av2_loop_filter_init(cm);
-#if CONFIG_F255_QMOBU
   for (int i = 0; i < NUM_CUSTOM_QMS; ++i) {
     pbi->qm_protected[i] = 0;
   }
@@ -245,17 +244,11 @@ AV2Decoder *av2_decoder_create(BufferPool *const pool) {
     pbi->qm_list[i].quantizer_matrix_allocated = false;
     pbi->qm_list[i].quantizer_matrix_num_planes = -1;
   }
-#else
-  cm->quant_params.qmatrix_allocated = false;
-  cm->quant_params.qmatrix_initialized = false;
-#endif  // CONFIG_F255_QMOBU
-#if CONFIG_F153_FGM_OBU
   for (int i = 0; i < MAX_FGM_NUM; ++i) {
     pbi->fgm_list[i].fgm_id = -1;
     pbi->fgm_list[i].fgm_tlayer_id = -1;
     pbi->fgm_list[i].fgm_mlayer_id = -1;
   }
-#endif  // CONFIG_F153_FGM_OBU
 #if CONFIG_F322_OBUER_REFRESTRICT
   pbi->restricted_predition = 0;
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
@@ -491,18 +484,10 @@ void av2_decoder_remove(AV2Decoder *pbi) {
     }
   }
 #endif
-#if CONFIG_F255_QMOBU
   for (int qm_pos = 0; qm_pos < NUM_CUSTOM_QMS; qm_pos++) {
     if (pbi->qm_list[qm_pos].quantizer_matrix != NULL)
       av2_free_qmset(pbi->qm_list[qm_pos].quantizer_matrix);
   }
-#else
-  if (pbi->common.quant_params.qmatrix_allocated) {
-    av2_free_qm(pbi->common.seq_params.quantizer_matrix_8x8);
-    av2_free_qm(pbi->common.seq_params.quantizer_matrix_8x4);
-    av2_free_qm(pbi->common.seq_params.quantizer_matrix_4x8);
-  }
-#endif  // CONFIG_F255_QMOBU
   avm_free(pbi);
 }
 

@@ -26,7 +26,6 @@
 #include "av2/decoder/decodeframe.h"
 #include "av2/decoder/obu.h"
 
-#if CONFIG_F153_FGM_OBU
 void copy_fgm_from_list(AV2_COMMON *cm, avm_film_grain_t *pars,
                         const struct film_grain_model *fgm) {
   const SequenceHeader *const seq_params = &cm->seq_params;
@@ -236,4 +235,3 @@ uint32_t read_fgm_obu(AV2Decoder *pbi, const int obu_tlayer_id,
   }
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }
-#endif  // CONFIG_F153_FGM_OBU

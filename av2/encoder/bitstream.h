@@ -24,22 +24,18 @@ struct avm_write_bit_buffer;
 void av2_write_conformance_window(const SequenceHeader *seq_params,
                                   struct avm_write_bit_buffer *wb);
 
-#if CONFIG_F255_QMOBU
 void setup_cm_qmindex_list(AV2_COMMON *const cm);
 bool add_userqm_in_qmobulist(AV2_COMP *cpi);
 uint32_t write_qm_obu(AV2_COMP *cpi, int signalled_obu_pos, uint8_t *const dst);
 int write_qm_data(AV2_COMP *cpi, struct quantization_matrix_set *qm_list,
                   int qm_pos, const int num_planes,
                   struct avm_write_bit_buffer *wb);
-#endif
-#if CONFIG_F153_FGM_OBU
 void set_film_grain_model(const AV2_COMP *const cpi,
                           struct film_grain_model *fgm_current);
 int film_grain_model_decision(int fgm_pos, struct film_grain_model *fgm_in_list,
                               struct film_grain_model *fgm);
 int write_fgm_obu(AV2_COMP *cpi, struct film_grain_model *fgm,
                   uint8_t *const dst);
-#endif  // CONFIG_F153_FGM_OBU
 
 // Writes only the OBU Sequence Header payload, and returns the size of the
 // payload written to 'dst'. This function does not write the OBU header, the

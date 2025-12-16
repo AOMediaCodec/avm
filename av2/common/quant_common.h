@@ -113,7 +113,6 @@ static INLINE int avm_get_qmlevel(int qindex, int first, int last,
                                                  : QINDEX_RANGE);
 }
 
-#if CONFIG_F255_QMOBU
 void av2_free_qmset(qm_val_t ***mat);
 qm_val_t ***av2_alloc_qmset();
 // Initialize all global quant/dequant matrices. Used by the encoder.
@@ -125,35 +124,6 @@ void av2_qm_replace_level(struct CommonQuantParams *quant_params, int level,
                           int num_planes, qm_val_t ***fund_matrices);
 void scale_tx(const int txsize, const int plane, qm_val_t *output,
               qm_val_t ***fund_matrices);
-#else
-// Allocates all the width-by-height quantization matrices as a
-// three-dimensional array. The first dimension is the number of levels
-// (NUM_CUSTOM_QMS = 15). The second dimension is the number of planes (3). The
-// third dimension is width * height and represents a flattened width-by-height
-// quantization matrix. Returns a pointer to the allocated three-dimensional
-// array.
-qm_val_t ***av2_alloc_qm(int width, int height);
-
-// Frees the three-dimensional array mat. The three-dimensional array must have
-// been allocated by av2_alloc_qm().
-void av2_free_qm(qm_val_t ***mat);
-// Initializes the fundamental quantization matrices to the default ones.
-void av2_init_qmatrix(qm_val_t ***qm_8x8, qm_val_t ***qm_8x4,
-                      qm_val_t ***qm_4x8, int num_planes);
-
-// Initialize all global quant/dequant matrices. Used by the encoder.
-void av2_qm_init(struct CommonQuantParams *quant_params, int num_planes,
-                 qm_val_t ****fund_matrices);
-
-// Initialize all global dequant matrices. Used by the decoder.
-void av2_qm_init_dequant_only(struct CommonQuantParams *quant_params,
-                              int num_planes, qm_val_t ****fund_matrices);
-
-// Replaces a level of quantization matrices based on the fundamental matrices
-// for that level. Assumes av2_qm_init() has been called. Used by the encoder.
-void av2_qm_replace_level(struct CommonQuantParams *quant_params, int level,
-                          int num_planes, qm_val_t ****fund_matrices);
-#endif  // CONFIG_F255_QMOBU
 // Get global dequant matrix.
 const qm_val_t *av2_iqmatrix(const struct CommonQuantParams *quant_params,
                              int qmlevel, int plane, TX_SIZE tx_size);

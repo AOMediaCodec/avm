@@ -47,31 +47,21 @@ uint32_t av2_read_atlas_segment_info_obu(struct AV2Decoder *pbi,
                                          int obu_xLayer_id,
                                          struct avm_read_bit_buffer *rb);
 
-#if CONFIG_F153_FGM_OBU
 void copy_fgm_from_list(AV2_COMMON *cm, avm_film_grain_t *pars,
                         const struct film_grain_model *fgm);
-#endif  // CONFIG_F153_FGM_OBU
 // Reads the middle part of the sequence header OBU (from
 // frame_width_bits_minus_1 to enable_restoration) into seq_params.
 // Reports errors by calling rb->error_handler() or avm_internal_error().
 void av2_read_sequence_header(struct avm_read_bit_buffer *rb,
-                              SequenceHeader *seq_params
-#if !CONFIG_F255_QMOBU
-                              ,
-                              CommonQuantParams *quant_params,
-                              struct avm_internal_error_info *error_info
-#endif  // !CONFIG_F255_QMOBU
-);
+                              SequenceHeader *seq_params);
 
 // Reads the tile information in the sequence header
 void read_sequence_tile_info(struct SequenceHeader *seq_params,
                              struct avm_read_bit_buffer *rb);
 
-#if CONFIG_F255_QMOBU
 void alloc_qmatrix(struct quantization_matrix_set *qm_set);
 void av2_copy_predefined_qmatrices_to_list(struct AV2Decoder *pbi,
                                            int num_planes);
-#endif  // CONFIG_F255_QMOBU
 
 // Reads multi-frame header
 void av2_read_multi_frame_header(AV2_COMMON *cm,

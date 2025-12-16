@@ -57,12 +57,8 @@ static int valid_obu_type(int obu_type) {
     case OBU_BRIDGE_FRAME:
     case OBU_MSDO:
     case OBU_RAS_FRAME:
-#if CONFIG_F255_QMOBU
     case OBU_QM:
-#endif  // CONFIG_F255_QMOBU
-#if CONFIG_F153_FGM_OBU
     case OBU_FGM:
-#endif  // CONFIG_F153_FGM_OBU
     case OBU_PADDING: valid_type = 1; break;
     default: break;
   }

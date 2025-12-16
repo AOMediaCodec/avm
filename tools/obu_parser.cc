@@ -81,12 +81,8 @@ bool ValidObuType(int obu_type) {
     case OBU_OPERATING_POINT_SET:
     case OBU_MSDO:
     case OBU_RAS_FRAME:
-#if CONFIG_F255_QMOBU
     case OBU_QM:
-#endif
-#if CONFIG_F153_FGM_OBU
     case OBU_FGM:
-#endif  // CONFIG_F153_FGM_OBU
 #if CONFIG_CWG_F270_CI_OBU
     case OBU_CONTENT_INTERPRETATION:
 #endif  // CONFIG_CWG_F270_CI_OBU

@@ -437,13 +437,11 @@ typedef struct AV2Decoder {
    */
   struct SequenceHeader *active_seq;
 #endif  // CONFIG_CWG_E242_SEQ_HDR_ID
-#if CONFIG_F255_QMOBU
   struct quantization_matrix_set qm_list[NUM_CUSTOM_QMS];
   // qm_protected[i]==1 indicates quantization_matrix, qm_list[i] is not reset
   // when a new sequence header is activated since it is signalled with the
   // sequence header.
   int qm_protected[NUM_CUSTOM_QMS];
-#endif  // CONFIG_F255_QMOBU
 
   RefCntBuffer *ref_frame_map_buf[AVM_MAX_NUM_STREAMS][REF_FRAMES];
   int remapped_ref_idx_buf[AVM_MAX_NUM_STREAMS][REF_FRAMES];
@@ -480,13 +478,11 @@ typedef struct AV2Decoder {
    */
   uint64_t random_access_point_count;
 #endif
-#if CONFIG_F153_FGM_OBU
   /*!
    * list of film grain model
    */
 
   struct film_grain_model fgm_list[MAX_FGM_NUM];
-#endif  // CONFIG_F153_FGM_OBU
 #if CONFIG_CWG_F270_CI_OBU
   /*!
    * Indicates if the ci obu is signalled with a CLK/OLK in the temporal unit

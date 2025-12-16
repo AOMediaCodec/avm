@@ -68,11 +68,7 @@ set_avm_config_var(CONFIG_ERROR_RESILIENT_FIX 1 "Additional check for s_frame.")
 set_avm_config_var(CONFIG_F322_OBUER_REFRESTRICT 1
                    "Use restricted reference for switch frames and after.")
 
-set_avm_config_var(CONFIG_F255_QMOBU 1 "Enable QM_OBU")
-
 set_avm_config_var(CONFIG_F024_KEYOBU 1 "Use Key OBUs.")
-
-set_avm_config_var(CONFIG_F153_FGM_OBU 1 "Signal film grain model in OBU_FGM.")
 
 #
 # Variables in this section can be set from the CMake command line or from

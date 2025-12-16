@@ -656,19 +656,6 @@ void av2_init_seq_coding_tools(
   seq->enable_ext_seg = tool_cfg->enable_ext_seg;
   seq->ref_frames = seq->single_picture_header_flag ? 2 : tool_cfg->dpb_size;
   seq->ref_frames_log2 = avm_ceil_log2(seq->ref_frames);
-#if !CONFIG_F255_QMOBU
-  const QuantizationCfg *const q_cfg = &oxcf->q_cfg;
-  seq->user_defined_qmatrix = q_cfg->using_qm && q_cfg->user_defined_qmatrix;
-#if CONFIG_QM_DEBUG
-  printf("[encoder.c av2_init_seq_coding_tools] user defined qmatrix: %d\n",
-         seq->user_defined_qmatrix);
-#endif  // CONFIG_QM_DEBUG
-  if (seq->user_defined_qmatrix) {
-    for (int i = 0; i < NUM_CUSTOM_QMS; i++) {
-      seq->qm_data_present[i] = q_cfg->qm_data_present[i];
-    }
-  }
-#endif  // !CONFIG_F255_QMOBU
 }
 #if CONFIG_CWG_F270_CI_OBU
 static void set_content_interpreation_params(struct AV2_COMP *cpi,
@@ -864,9 +851,7 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
     memset(&cpi->atlas_list[i], 0, sizeof(struct AtlasSegmentInfo));
   cm->atlas = &cpi->atlas_list[0];
 
-#if CONFIG_F153_FGM_OBU
   cpi->written_fgm_num = 0;
-#endif  // CONFIG_F153_FGM_OBU
 
 #if CONFIG_CWG_E242_SEQ_HDR_ID
   seq_params->seq_header_id =
@@ -1709,18 +1694,7 @@ AV2_COMP *av2_create_compressor(AV2EncoderConfig *oxcf, BufferPool *const pool,
    */
   av2_init_quantizer(&cm->seq_params, &cpi->enc_quant_dequant_params, cm);
 
-#if CONFIG_F255_QMOBU
   av2_qm_init(&cm->quant_params, av2_num_planes(cm));
-#else
-  SequenceHeader *seq = &cm->seq_params;
-
-  for (int i = 0; i < NUM_CUSTOM_QMS; i++) {
-    seq->qm_data_present[i] = false;
-  }
-
-  cm->quant_params.qmatrix_allocated = false;
-  cm->quant_params.qmatrix_initialized = false;
-#endif  // CONFIG_F255_QMOBU
   cm->seq_params.df_par_bits_minus2 = DF_PAR_BITS - 2;
   av2_loop_filter_init(cm);
 
@@ -4195,10 +4169,8 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
     // Save LR parameters
     LrParams lr_params = { { 0 }, { 0 }, { 0 }, { 0 } };
     store_lr_parameters(cm, &lr_params);
-#if CONFIG_F255_QMOBU
     int obu_written_status = cpi->obu_is_written;
     cpi->obu_is_written = true;
-#endif
 
     for (int i = 0; i < n_refs; ++i) {
       const int temp_map_idx = get_ref_frame_map_idx(cm, i);
@@ -4238,10 +4210,8 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
         best_ref_idx = i;
       }
     }
-#if CONFIG_F255_QMOBU
     // recover the obu_is_written status
     cpi->obu_is_written = obu_written_status;
-#endif
     if (cm->features.primary_ref_frame != best_ref_idx &&
         best_frame_size < cur_frame_size) {
       cm->features.primary_ref_frame = best_ref_idx;
@@ -4493,7 +4463,6 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
     int largest_tile_id = 0;  // Output from bitstream: unused here
     if (av2_pack_bitstream(cpi, dest, size, &largest_tile_id) != AVM_CODEC_OK)
       return AVM_CODEC_ERROR;
-#if CONFIG_F153_FGM_OBU  // encode_show_existing
     if (cpi->increase_fgm_counter) {
       assert(cm->fgm_id >= 0 && cm->fgm_id < MAX_FGM_NUM &&
              cpi->fgm.fgm_chroma_idc >= 0 && cpi->fgm.fgm_chroma_idc < 4);
@@ -4508,7 +4477,6 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
       cpi->fgm_list[fgm_pos] = cpi->fgm;
       cpi->written_fgm_num += 1;
     }
-#endif  // CONFIG_F153_FGM_OBU
 
     cpi->seq_params_locked = 1;
 
@@ -4543,7 +4511,7 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
 
     return AVM_CODEC_OK;
   }
-#else                    // CONFIG_F024_KEYOBU
+#else   // CONFIG_F024_KEYOBU
   const int encode_show_existing = encode_show_existing_frame(cm);
   if (encode_show_existing || cm->show_existing_frame) {
     av2_finalize_encoded_frame(cpi);
@@ -4552,7 +4520,6 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
       int largest_tile_id = 0;  // Output from bitstream: unused here
       if (av2_pack_bitstream(cpi, dest, size, &largest_tile_id) != AVM_CODEC_OK)
         return AVM_CODEC_ERROR;
-#if CONFIG_F153_FGM_OBU  // encode_show_existing
       if (cpi->increase_fgm_counter) {
         assert(cm->fgm_id >= 0 && cm->fgm_id < MAX_FGM_NUM &&
                cpi->fgm->fgm_chroma_idc >= 0 && cpi->fgm->fgm_chroma_idc < 4);
@@ -4567,7 +4534,6 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
         cpi->fgm_list[fgm_pos] = cpi->fgm;
         cpi->written_fgm_num += 1;
       }
-#endif                   // CONFIG_F153_FGM_OBU
     }
 
     cpi->seq_params_locked = 1;
@@ -4604,7 +4570,7 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
 
     return AVM_CODEC_OK;
   }
-#endif                   // CONFIG_F024_KEYOBU
+#endif  // CONFIG_F024_KEYOBU
 
 #if CONFIG_F024_KEYOBU
   if (current_frame->frame_type == KEY_FRAME) {
@@ -4736,7 +4702,6 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
   }
 
   cpi->seq_params_locked = 1;
-#if CONFIG_F153_FGM_OBU  // encode_with_recode_loop_and_filter
   if (cpi->increase_fgm_counter) {
     assert(cm->fgm_id >= 0 && cm->fgm_id < MAX_FGM_NUM &&
            cpi->fgm.fgm_chroma_idc >= 0 && cpi->fgm.fgm_chroma_idc < 4);
@@ -4751,7 +4716,6 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
     cpi->fgm_list[fgm_pos] = cpi->fgm;
     cpi->written_fgm_num += 1;
   }
-#endif  // CONFIG_F153_FGM_OBU
 
   if (cm->seg.enabled) {
     if (cm->seg.update_map) {

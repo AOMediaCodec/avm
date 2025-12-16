@@ -761,9 +761,6 @@ typedef struct {
   bool using_qm;
   // Indicates whether user-defined quantization matrices should be used
   bool user_defined_qmatrix;
-#if !CONFIG_F255_QMOBU
-  bool qm_data_present[NUM_CUSTOM_QMS];
-#endif  // !CONFIG_F255_QMOBU
   bool is_ra;
 } QuantizationCfg;
 
@@ -2917,7 +2914,6 @@ typedef struct AV2_COMP {
    */
   int switch_frame_mode;
 
-#if CONFIG_F255_QMOBU
   /*!
    * a list of OBU_QM
    */
@@ -2942,8 +2938,6 @@ typedef struct AV2_COMP {
    * Flags to indicate whether user defined qm is used for id, i
    */
   bool use_user_defined_qm[NUM_CUSTOM_QMS];
-#endif
-#if CONFIG_F153_FGM_OBU
   /*!
    * list of film grain models
    */
@@ -2964,7 +2958,6 @@ typedef struct AV2_COMP {
    */
 
   struct film_grain_model fgm;
-#endif  // CONFIG_F153_FGM_OBU
 
 #if CONFIG_CWG_F270_CI_OBU
   /*!

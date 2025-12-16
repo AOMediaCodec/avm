@@ -1111,22 +1111,11 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
 #if !CONFIG_F024_KEYOBU
     if (!frame_params.show_existing_frame) {
 #endif
-#if CONFIG_F153_FGM_OBU  // cpi->film_grain_table
       if (cpi->film_grain_table) {
         cm->seq_params.film_grain_params_present = avm_film_grain_table_lookup(
             cpi->film_grain_table, *time_stamp, *time_end, 0 /* =erase */,
             &cm->film_grain_params);
       }
-#else
-    if (cpi->film_grain_table) {
-      cm->cur_frame->film_grain_params_present = avm_film_grain_table_lookup(
-          cpi->film_grain_table, *time_stamp, *time_end, 0 /* =erase */,
-          &cm->film_grain_params);
-    } else {
-      cm->cur_frame->film_grain_params_present =
-          cm->seq_params.film_grain_params_present;
-    }
-#endif  // CONFIG_F153_FGM_OBU
       // only one operating point supported now
       const int64_t pts64 =
           ticks_to_timebase_units(timestamp_ratio, *time_stamp);
@@ -1437,7 +1426,6 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
     }
 #endif  // !CONFIG_F024_KEYOBU
   }
-#if CONFIG_F255_QMOBU
   if (cm->quant_params.using_qmatrix) {
     if (oxcf->q_cfg.using_qm && oxcf->q_cfg.user_defined_qmatrix) {
       for (int qm_id = 0; qm_id < NUM_CUSTOM_QMS; qm_id++) {
@@ -1449,26 +1437,6 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
       }
     }
   }
-#else
-  if (cm->quant_params.using_qmatrix) {
-    if (!cm->quant_params.qmatrix_allocated) {
-      cm->seq_params.quantizer_matrix_8x8 = av2_alloc_qm(8, 8);
-      cm->seq_params.quantizer_matrix_8x4 = av2_alloc_qm(8, 4);
-      cm->seq_params.quantizer_matrix_4x8 = av2_alloc_qm(4, 8);
-      cm->quant_params.qmatrix_allocated = true;
-    }
-    if (!cm->quant_params.qmatrix_initialized) {
-      av2_init_qmatrix(cm->seq_params.quantizer_matrix_8x8,
-                       cm->seq_params.quantizer_matrix_8x4,
-                       cm->seq_params.quantizer_matrix_4x8, av2_num_planes(cm));
-      qm_val_t ***fund_mat[3] = { cm->seq_params.quantizer_matrix_8x8,
-                                  cm->seq_params.quantizer_matrix_8x4,
-                                  cm->seq_params.quantizer_matrix_4x8 };
-      av2_qm_init(&cm->quant_params, av2_num_planes(cm), fund_mat);
-      cm->quant_params.qmatrix_initialized = true;
-    }
-  }
-#endif  // CONFIG_F255_QMOBU
   if (denoise_and_encode(cpi, dest, &frame_input, &frame_params,
                          &frame_results) != AVM_CODEC_OK) {
     return AVM_CODEC_ERROR;

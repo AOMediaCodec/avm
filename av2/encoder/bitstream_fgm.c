@@ -57,7 +57,6 @@
 #include "av2/encoder/pickrst.h"
 #include "av2/encoder/segmentation.h"
 #include "av2/encoder/tokenize.h"
-#if CONFIG_F153_FGM_OBU
 void set_film_grain_model(const AV2_COMP *const cpi,
                           struct film_grain_model *fgm_current) {
   const avm_film_grain_t *const pars = &cpi->common.film_grain_params;
@@ -303,4 +302,3 @@ int write_fgm_obu(AV2_COMP *cpi, struct film_grain_model *fgm,
   size = avm_wb_bytes_written(&wb);
   return size;
 }
-#endif  // CONFIG_F153_FGM_OBU

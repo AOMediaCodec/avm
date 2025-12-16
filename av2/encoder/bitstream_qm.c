@@ -63,7 +63,6 @@
 
 #include "av2/common/gdf.h"
 
-#if CONFIG_F255_QMOBU
 static bool qm_matrices_are_equal(const qm_val_t *mat_a, const qm_val_t *mat_b,
                                   int width, int height) {
   return memcmp(mat_a, mat_b, width * height * sizeof(qm_val_t)) == 0;
@@ -323,4 +322,3 @@ bool add_userqm_in_qmobulist(AV2_COMP *cpi) {
   if (obu_added) cpi->total_signalled_qmobu_count++;
   return obu_added;
 }
-#endif  // CONFIG_F255_QMOBU

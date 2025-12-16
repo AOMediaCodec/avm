@@ -28,7 +28,6 @@
 #include "av2/common/scan.h"
 #include "av2/common/quant_common.h"
 
-#if CONFIG_F255_QMOBU
 void alloc_qmatrix(struct quantization_matrix_set *qm_set) {
   int num_planes = 3;
   const TX_SIZE fund_tsize[3] = { TX_8X8, TX_8X4, TX_4X8 };
@@ -192,5 +191,3 @@ uint32_t read_qm_obu(AV2Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
   }
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }
-
-#endif  // CONFIG_F255_QMOBU

@@ -3467,7 +3467,6 @@ static AVM_INLINE void setup_quantization(CommonQuantParams *quant_params,
     quant_params->v_ac_delta_q = 0;
   }
 }
-#if CONFIG_F255_QMOBU
 void setup_quant_matrices(AV2Decoder *pbi, CommonQuantParams *quant_params,
                           int plane, int qmlevel) {
   AV2_COMMON *const cm = &pbi->common;
@@ -3548,57 +3547,15 @@ void setup_quant_matrices(AV2Decoder *pbi, CommonQuantParams *quant_params,
     }
   }
 }
-#endif  // CONFIG_F255_QMOBU
 
-static AVM_INLINE void setup_qm_params(
-#if CONFIG_F255_QMOBU
-    AV2Decoder *pbi,
-#else
-    SequenceHeader *seq_params,
-#if CONFIG_CWG_E242_SEQ_HDR_ID
-    SequenceHeader *active_seq,
-#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
-#endif  // CONFIG_F255_QMOBU
-    CommonQuantParams *quant_params, bool segmentation_enabled, int num_planes,
-    struct avm_read_bit_buffer *rb) {
+static AVM_INLINE void setup_qm_params(AV2Decoder *pbi,
+                                       CommonQuantParams *quant_params,
+                                       bool segmentation_enabled,
+                                       int num_planes,
+                                       struct avm_read_bit_buffer *rb) {
   quant_params->using_qmatrix = avm_rb_read_bit(rb);
-#if CONFIG_F255_QMOBU
   AV2_COMMON *const cm = &pbi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
-#else
-  if (quant_params->using_qmatrix) {
-    if (!quant_params->qmatrix_allocated) {
-      seq_params->quantizer_matrix_8x8 = av2_alloc_qm(8, 8);
-      seq_params->quantizer_matrix_8x4 = av2_alloc_qm(8, 4);
-      seq_params->quantizer_matrix_4x8 = av2_alloc_qm(4, 8);
-#if CONFIG_CWG_E242_SEQ_HDR_ID
-      // seq_params is &cm->seq_params and active_seq is pbi->active_seq.
-      // cm->seq_params is a copy of *pbi->active_seq. If we modify
-      // cm->seq_params here, keep *pbi->active_seq in sync.
-      active_seq->quantizer_matrix_8x8 = seq_params->quantizer_matrix_8x8;
-      active_seq->quantizer_matrix_8x4 = seq_params->quantizer_matrix_8x4;
-      active_seq->quantizer_matrix_4x8 = seq_params->quantizer_matrix_4x8;
-#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
-
-      quant_params->qmatrix_allocated = true;
-    }
-    if (!quant_params->qmatrix_initialized) {
-      if (!seq_params->user_defined_qmatrix) {
-        av2_init_qmatrix(seq_params->quantizer_matrix_8x8,
-                         seq_params->quantizer_matrix_8x4,
-                         seq_params->quantizer_matrix_4x8, num_planes);
-      }
-      qm_val_t ***fund_mat[3] = { seq_params->quantizer_matrix_8x8,
-                                  seq_params->quantizer_matrix_8x4,
-                                  seq_params->quantizer_matrix_4x8 };
-      av2_qm_init_dequant_only(quant_params, num_planes, fund_mat);
-      quant_params->qmatrix_initialized = true;
-    }
-  }
-#if CONFIG_QM_DEBUG
-  printf("[DEC-FRM] using_qmatrix: %d\n", quant_params->using_qmatrix);
-#endif
-#endif  // CONFIG_F255_QMOBU
   if (quant_params->using_qmatrix) {
     if (segmentation_enabled) {
       quant_params->pic_qm_num = avm_rb_read_literal(rb, 2) + 1;
@@ -3637,7 +3594,6 @@ static AVM_INLINE void setup_qm_params(
       }
 #endif
     }
-#if CONFIG_F255_QMOBU
     for (uint8_t i = 0; i < quant_params->pic_qm_num; i++) {
       setup_quant_matrices(pbi, quant_params, 0, quant_params->qm_y[i]);
       if (num_planes > 1) {
@@ -3645,7 +3601,6 @@ static AVM_INLINE void setup_qm_params(
         setup_quant_matrices(pbi, quant_params, 2, quant_params->qm_v[i]);
       }
     }
-#endif  // CONFIG_F255_QMOBU
   } else {
     for (uint8_t i = 0; i < 4; i++) {
       quant_params->qm_y[i] = 0;
@@ -3655,16 +3610,9 @@ static AVM_INLINE void setup_qm_params(
   }
 }
 // Build y/uv dequant values based on segmentation.
-static AVM_INLINE void setup_segmentation_dequant(
-#if CONFIG_F255_QMOBU
-    AV2Decoder *const pbi,
-#else
-    AV2_COMMON *const cm,
-#endif  // CONFIG_F255_QMOBU
-    MACROBLOCKD *const xd) {
-#if CONFIG_F255_QMOBU
+static AVM_INLINE void setup_segmentation_dequant(AV2Decoder *const pbi,
+                                                  MACROBLOCKD *const xd) {
   AV2_COMMON *const cm = &pbi->common;
-#endif  // CONFIG_F255_QMOBU
   const int bit_depth = cm->seq_params.bit_depth;
   // When segmentation is disabled, only the first value is used.  The
   // remaining are don't cares.
@@ -5879,7 +5827,6 @@ static AVM_INLINE void read_bitdepth(
                        "Unsupported profile/bit-depth combination");
   }
 }
-#if CONFIG_F153_FGM_OBU
 static void setup_film_grain(AV2Decoder *pbi, struct avm_read_bit_buffer *rb) {
   AV2_COMMON *const cm = &pbi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
@@ -5933,205 +5880,6 @@ static void setup_film_grain(AV2Decoder *pbi, struct avm_read_bit_buffer *rb) {
   }
   cm->cur_frame->film_grain_params = cm->film_grain_params;
 }
-#else
-void av2_read_film_grain_params(AV2_COMMON *cm,
-                                struct avm_read_bit_buffer *rb) {
-  avm_film_grain_t *pars = &cm->film_grain_params;
-  const SequenceHeader *const seq_params = &cm->seq_params;
-
-  if (cm->seq_params.single_picture_header_flag) {
-    pars->apply_grain = 1;
-  } else {
-    pars->apply_grain = avm_rb_read_bit(rb);
-  }
-  if (!pars->apply_grain) {
-    memset(pars, 0, sizeof(*pars));
-    return;
-  }
-
-  pars->random_seed = avm_rb_read_literal(rb, 16);
-#if CONFIG_F322_OBUER_REFRESTRICT  // fgm update
-  if (cm->current_frame.frame_type == INTER_FRAME && !frame_is_sframe(cm))
-#else
-  if (cm->current_frame.frame_type == INTER_FRAME)
-#endif                             // CONFIG_F322_OBUER_REFRESTRICT
-    pars->update_parameters = avm_rb_read_bit(rb);
-  else
-    pars->update_parameters = 1;
-#if CONFIG_F322_OBUER_REFRESTRICT  // film_grain_model
-  int num_ref_frames_available = 0;
-  for (int i = 0; i < cm->seq_params.ref_frames; i++) {
-    if (cm->ref_frame_map[i] != NULL)
-      num_ref_frames_available += !cm->ref_frame_map[i]->is_restricted_ref;
-  }
-  if (num_ref_frames_available == 0) assert(pars->update_parameters == 1);
-#endif                             // CONFIG_F322_OBUER_REFRESTRICT
-  pars->bit_depth = seq_params->bit_depth;
-
-  if (!pars->update_parameters) {
-    // inherit parameters from a previous reference frame
-    int film_grain_params_ref_idx =
-        avm_rb_read_literal(rb, cm->seq_params.ref_frames_log2);
-    if (film_grain_params_ref_idx >= cm->seq_params.ref_frames) {
-      avm_internal_error(
-          &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-          "Film grain reference idx must be less than %d but is set to %d",
-          cm->seq_params.ref_frames, film_grain_params_ref_idx);
-    }
-    // Section 6.8.20: It is a requirement of bitstream conformance that
-    // film_grain_params_ref_idx is equal to ref_frame_idx[ j ] for some value
-    // of j in the range 0 to INTER_REFS_PER_FRAME - 1.
-    int found = 0;
-    for (int i = 0; i < cm->ref_frames_info.num_total_refs; ++i) {
-      if (film_grain_params_ref_idx == cm->remapped_ref_idx[i]) {
-        found = 1;
-        break;
-      }
-    }
-    if (!found) {
-      avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-                         "Invalid film grain reference idx %d. ref_frame_idx = "
-                         "{%d, %d, %d, %d, %d, %d, %d}",
-                         film_grain_params_ref_idx, cm->remapped_ref_idx[0],
-                         cm->remapped_ref_idx[1], cm->remapped_ref_idx[2],
-                         cm->remapped_ref_idx[3], cm->remapped_ref_idx[4],
-                         cm->remapped_ref_idx[5], cm->remapped_ref_idx[6]);
-    }
-    RefCntBuffer *const buf = cm->ref_frame_map[film_grain_params_ref_idx];
-    if (buf == NULL) {
-      avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-                         "Invalid Film grain reference idx");
-    }
-#if CONFIG_F322_OBUER_REFRESTRICT
-    if (buf->is_restricted_ref) {
-      avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-                         "Invalid Film grain reference idx");
-    }
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
-    if (!buf->film_grain_params_present) {
-      avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-                         "Film grain reference parameters not available");
-    }
-    uint16_t random_seed = pars->random_seed;
-    *pars = buf->film_grain_params;   // inherit paramaters
-    pars->random_seed = random_seed;  // with new random seed
-    return;
-  }
-
-  // Scaling functions parameters
-#define fgm_value_increment(i, j) (fgm_scaling_points[i][j][0])
-#define fgm_value_scale(i, j) (fgm_scaling_points[i][j][1])
-  int(*fgm_scaling_points[])[2] = { pars->fgm_scaling_points_0,
-                                    pars->fgm_scaling_points_1,
-                                    pars->fgm_scaling_points_2 };
-
-  int fgmNumChannels = seq_params->monochrome ? 1 : 3;
-
-  if (fgmNumChannels > 1) {
-    pars->fgm_scale_from_channel0_flag = avm_rb_read_bit(rb);
-  } else {
-    pars->fgm_scale_from_channel0_flag = 0;
-  }
-
-  int fgmNumScalingChannels =
-      pars->fgm_scale_from_channel0_flag ? 1 : fgmNumChannels;
-
-  for (int i = 0; i < fgmNumScalingChannels; i++) {
-    pars->fgm_points[i] = avm_rb_read_literal(rb, 4);  // max 14
-    if (pars->fgm_points[i] > 14)
-      avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-                         "Number of points for film grain scaling function "
-                         "exceeds the maximum value.");
-    for (int j = 0; j < pars->fgm_points[i]; j++) {
-      fgm_value_increment(i, j) = avm_rb_read_literal(rb, 8);
-      fgm_scaling_points[i][j][0] =
-          j ? fgm_value_increment(i, j) + fgm_scaling_points[i][j - 1][0]
-            : fgm_value_increment(i, j);
-      if (j && fgm_scaling_points[i][j - 1][0] >= fgm_scaling_points[i][j][0])
-        avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-                           "First coordinate of the scaling function points "
-                           "shall be increasing.");
-      if (j && fgm_scaling_points[i][j][0] > 255)
-        avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-                           "First coordinate of the scaling function point "
-                           "exceeds the value 255.");
-      fgm_value_scale(i, j) = avm_rb_read_literal(rb, 8);
-    }
-  }
-
-  // Initialize unsignaled values to zero
-  for (int i = fgmNumScalingChannels; i < 3; i++) pars->fgm_points[i] = 0;
-
-  if ((seq_params->subsampling_x == 1) && (seq_params->subsampling_y == 1) &&
-      (((pars->fgm_points[1] == 0) && (pars->fgm_points[2] != 0)) ||
-       ((pars->fgm_points[1] != 0) && (pars->fgm_points[2] == 0))))
-    avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-                       "In YCbCr 4:2:0, film grain shall be applied "
-                       "to both chroma components or neither.");
-
-  pars->scaling_shift = avm_rb_read_literal(rb, 2) + 8;  // 8 + value
-
-  // AR coefficients
-  // Only sent if the corresponsing scaling function has
-  // more than 0 points
-
-  pars->ar_coeff_lag = avm_rb_read_literal(rb, 2);
-
-  int num_pos_luma = 2 * pars->ar_coeff_lag * (pars->ar_coeff_lag + 1);
-  int num_pos_chroma = num_pos_luma;
-  if (pars->fgm_points[0] > 0) ++num_pos_chroma;
-  if (pars->fgm_points[0])
-    for (int i = 0; i < num_pos_luma; i++)
-      pars->ar_coeffs_y[i] = avm_rb_read_literal(rb, 8) - 128;
-
-  if (pars->fgm_points[1] || pars->fgm_scale_from_channel0_flag)
-    for (int i = 0; i < num_pos_chroma; i++)
-      pars->ar_coeffs_cb[i] = avm_rb_read_literal(rb, 8) - 128;
-
-  if (pars->fgm_points[2] || pars->fgm_scale_from_channel0_flag)
-    for (int i = 0; i < num_pos_chroma; i++)
-      pars->ar_coeffs_cr[i] = avm_rb_read_literal(rb, 8) - 128;
-
-  pars->ar_coeff_shift = avm_rb_read_literal(rb, 2) + 6;  // 6 + value
-
-  pars->grain_scale_shift = avm_rb_read_literal(rb, 2);
-
-  if (pars->fgm_points[1]) {
-    pars->cb_mult = avm_rb_read_literal(rb, 8);
-    pars->cb_luma_mult = avm_rb_read_literal(rb, 8);
-    pars->cb_offset = avm_rb_read_literal(rb, 9);
-  }
-
-  if (pars->fgm_points[2]) {
-    pars->cr_mult = avm_rb_read_literal(rb, 8);
-    pars->cr_luma_mult = avm_rb_read_literal(rb, 8);
-    pars->cr_offset = avm_rb_read_literal(rb, 9);
-  }
-
-  pars->overlap_flag = avm_rb_read_bit(rb);
-
-  pars->clip_to_restricted_range = avm_rb_read_bit(rb);
-
-  if (pars->clip_to_restricted_range)
-    pars->mc_identity = avm_rb_read_bit(rb);
-  else
-    pars->mc_identity = 0;
-
-  pars->block_size = avm_rb_read_bit(rb);
-}
-
-static AVM_INLINE void read_film_grain(AV2_COMMON *cm,
-                                       struct avm_read_bit_buffer *rb) {
-  if (cm->seq_params.film_grain_params_present) {
-    av2_read_film_grain_params(cm, rb);
-  } else {
-    memset(&cm->film_grain_params, 0, sizeof(cm->film_grain_params));
-  }
-  cm->film_grain_params.bit_depth = cm->seq_params.bit_depth;
-  memcpy(&cm->cur_frame->film_grain_params, &cm->film_grain_params,
-         sizeof(avm_film_grain_t));
-}
-#endif  // CONFIG_F153_FGM_OBU
 
 #if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 // Given chroma_format_idc, set the subsampling_x/y values in `seq_params`.
@@ -6715,118 +6463,8 @@ void read_sequence_filter_group_tool_flags(struct SequenceHeader *seq_params,
   seq_params->df_par_bits_minus2 = avm_rb_read_literal(rb, 2);
 }
 
-#if !CONFIG_F255_QMOBU
-// Decodes the user-defined quantization matrices for the given level and stores
-// them in seq_params.
-static AVM_INLINE void decode_qm_data(
-    SequenceHeader *const seq_params, struct avm_read_bit_buffer *rb, int level,
-    int num_planes, struct avm_internal_error_info *error_info) {
-  const TX_SIZE fund_tsize[3] = { TX_8X8, TX_8X4, TX_4X8 };
-  qm_val_t ***fund_mat[3] = { seq_params->quantizer_matrix_8x8,
-                              seq_params->quantizer_matrix_8x4,
-                              seq_params->quantizer_matrix_4x8 };
-
-  for (int t = 0; t < 3; t++) {
-    const TX_SIZE tsize = fund_tsize[t];
-    const int width = tx_size_wide[tsize];
-    const int height = tx_size_high[tsize];
-    const SCAN_ORDER *s = get_scan(tsize, DCT_DCT);
-
-    for (int c = 0; c < num_planes; c++) {
-      if (c > 0) {
-        const bool qm_copy_from_previous_plane = avm_rb_read_bit(rb);
-
-        if (qm_copy_from_previous_plane) {
-          const qm_val_t *src_mat = fund_mat[t][level][c - 1];
-          qm_val_t *dst_mat = fund_mat[t][level][c];
-          memcpy(dst_mat, src_mat, width * height * sizeof(qm_val_t));
-          continue;
-        }
-      }
-      bool qm_8x8_is_symmetric = false;
-      if (tsize == TX_8X8) {
-        qm_8x8_is_symmetric = avm_rb_read_bit(rb);
-      } else if (tsize == TX_4X8) {
-        const bool qm_4x8_is_transpose_of_8x4 = avm_rb_read_bit(rb);
-
-        if (qm_4x8_is_transpose_of_8x4) {
-          assert(fund_tsize[t - 1] == TX_8X4);
-          const qm_val_t *src_mat = fund_mat[t - 1][level][c];
-          qm_val_t *dst_mat = fund_mat[t][level][c];
-
-          for (int i = 0; i < height; i++) {
-            for (int j = 0; j < width; j++) {
-              dst_mat[j] = src_mat[j * height];
-            }
-            src_mat += 1;
-            dst_mat += width;
-          }
-          continue;
-        }
-      }
-
-      qm_val_t *mat = fund_mat[t][level][c];
-      bool coef_repeat_until_end = false;
-      qm_val_t prev = 32;
-      for (int i = 0; i < tx_size_2d[tsize]; i++) {
-        const int pos = s->scan[i];
-        if (tsize == TX_8X8 && qm_8x8_is_symmetric) {
-          const int row = pos / width;
-          const int col = pos % width;
-          if (col > row) {
-            prev = mat[col * width + row];
-            mat[pos] = prev;
-            continue;
-          }
-        }
-
-        if (!coef_repeat_until_end) {
-          const int32_t delta = avm_rb_read_svlc(rb);
-          // The valid range of quantization matrix coefficients is 1..255.
-          // Therefore the valid range of delta values is -254..254. Because of
-          // the & 255 operation, the valid range of delta values can be reduced
-          // to -128..127 to shorten the svlc() code.
-          if (delta < -128 || delta > 127) {
-            avm_internal_error(error_info, AVM_CODEC_CORRUPT_FRAME,
-                               "Invalid matrix_coef_delta: %d", delta);
-          }
-          const qm_val_t coef = (prev + delta) & 255;
-          if (coef == 0) {
-            coef_repeat_until_end = true;
-          } else {
-            prev = coef;
-          }
-        }
-        mat[pos] = prev;
-      }
-    }
-  }
-}
-
-// Decodes all user-defined quantization matrices and stores them in seq_params.
-static AVM_INLINE void decode_user_defined_qm(
-    SequenceHeader *const seq_params, struct avm_read_bit_buffer *rb,
-    int num_planes, struct avm_internal_error_info *error_info) {
-  for (int i = 0; i < NUM_CUSTOM_QMS; i++) {
-    seq_params->qm_data_present[i] = avm_rb_read_bit(rb);
-#if CONFIG_QM_DEBUG
-    printf("[DEC-SEQ] qm_data_present[%d]: %d\n", i,
-           seq_params->qm_data_present[i]);
-#endif
-    if (seq_params->qm_data_present[i]) {
-      decode_qm_data(seq_params, rb, i, num_planes, error_info);
-    }
-  }
-}
-#endif  // !CONFIG_F255_QMOBU
-
 void read_sequence_transform_quant_entropy_group_tool_flags(
-    struct SequenceHeader *seq_params, struct avm_read_bit_buffer *rb
-#if !CONFIG_F255_QMOBU
-    ,
-    CommonQuantParams *quant_param, struct avm_internal_error_info *error_info
-#endif
-) {
+    struct SequenceHeader *seq_params, struct avm_read_bit_buffer *rb) {
   seq_params->enable_fsc = avm_rb_read_bit(rb);
   if (!seq_params->enable_fsc) {
     seq_params->enable_idtx_intra = avm_rb_read_bit(rb);
@@ -6903,31 +6541,6 @@ void read_sequence_transform_quant_entropy_group_tool_flags(
     seq_params->uv_dc_delta_q_enabled = 0;
     seq_params->uv_ac_delta_q_enabled = 0;
   }
-
-#if !CONFIG_F255_QMOBU
-  seq_params->user_defined_qmatrix = avm_rb_read_bit(rb);
-#if CONFIG_QM_DEBUG
-  printf("[DEC-SEQ] user_defined_qmatrix=%d\n",
-         seq_params->user_defined_qmatrix);
-#endif
-  if (seq_params->user_defined_qmatrix) {
-    int num_planes = seq_params->monochrome ? 1 : MAX_MB_PLANE;
-    if (!quant_params->qmatrix_allocated) {
-      seq_params->quantizer_matrix_8x8 = av2_alloc_qm(8, 8);
-      seq_params->quantizer_matrix_8x4 = av2_alloc_qm(8, 4);
-      seq_params->quantizer_matrix_4x8 = av2_alloc_qm(4, 8);
-      quant_params->qmatrix_allocated = true;
-    }
-    av2_init_qmatrix(seq_params->quantizer_matrix_8x8,
-                     seq_params->quantizer_matrix_8x4,
-                     seq_params->quantizer_matrix_4x8, num_planes);
-    decode_user_defined_qm(seq_params, rb, num_planes, error_info);
-  } else {
-    for (uint16_t i = 0; i < NUM_CUSTOM_QMS; i++) {
-      seq_params->qm_data_present[i] = false;
-    }
-  }
-#endif  // !CONFIG_F255_QMOBU
 }
 
 void read_sequence_segment_tool_flags(struct SequenceHeader *seq_params,
@@ -6941,13 +6554,7 @@ void read_sequence_segment_tool_flags(struct SequenceHeader *seq_params,
 }
 
 void av2_read_sequence_header(struct avm_read_bit_buffer *rb,
-                              SequenceHeader *seq_params
-#if !CONFIG_F255_QMOBU
-                              ,
-                              CommonQuantParams *quant_params,
-                              struct avm_internal_error_info *error_info
-#endif  // !CONFIG_F255_QMOBU
-) {
+                              SequenceHeader *seq_params) {
   seq_params->seq_tile_info_present_flag = 0;
   seq_params->tile_params.allow_tile_info_change = 0;
   read_sequence_partition_group_tool_flags(seq_params, rb);
@@ -6955,13 +6562,7 @@ void av2_read_sequence_header(struct avm_read_bit_buffer *rb,
   read_sequence_intra_group_tool_flags(seq_params, rb);
   read_sequence_inter_group_tool_flags(seq_params, rb);
   read_sequence_scc_group_tool_flags(seq_params, rb);
-  read_sequence_transform_quant_entropy_group_tool_flags(seq_params, rb
-#if !CONFIG_F255_QMOBU
-                                                         ,
-                                                         quant_params,
-                                                         error_info
-#endif
-  );
+  read_sequence_transform_quant_entropy_group_tool_flags(seq_params, rb);
   read_sequence_filter_group_tool_flags(seq_params, rb);
   seq_params->seq_tile_info_present_flag = avm_rb_read_bit(rb);
   if (seq_params->seq_tile_info_present_flag) {
@@ -7942,7 +7543,6 @@ static void handle_sequence_header(AV2Decoder *pbi,
   }
 #endif  // CONFIG_CWG_F270_CI_OBU
 
-#if CONFIG_F255_QMOBU
   const int num_planes = av2_num_planes(cm);
   for (int qm_pos = 0; qm_pos < NUM_CUSTOM_QMS; qm_pos++) {
     // qm_protected[qm_pos] == 1 indicates the pbi->qm_list[qm_pos] is signalled
@@ -7956,7 +7556,6 @@ static void handle_sequence_header(AV2Decoder *pbi,
     qmset->quantizer_matrix_num_planes = num_planes;
     qmset->is_user_defined_qm = false;
   }  // qm_pos
-#endif  // CONFIG_F255_QMOBU
 }
 #endif  // CONFIG_CWG_E242_SEQ_HDR_ID
 
@@ -8617,10 +8216,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     features->allow_ref_frame_mvs = 0;
     features->tip_frame_mode = TIP_FRAME_DISABLED;
     if (current_frame->frame_type == INTRA_ONLY_FRAME) {
-#if !CONFIG_F153_FGM_OBU
-      cm->cur_frame->film_grain_params_present =
-          seq_params->film_grain_params_present;
-#endif  // !CONFIG_F153_FGM_OBU
       setup_frame_size(cm, frame_size_override_flag, rb);
       read_screen_content_params(cm, rb);
       read_intrabc_params(cm, rb);
@@ -9245,13 +8840,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       }
     }
 
-#if CONFIG_F153_FGM_OBU  // bru
     setup_film_grain(pbi, rb);
-#else
-    cm->cur_frame->film_grain_params_present =
-        seq_params->film_grain_params_present;
-    read_film_grain(cm, rb);
-#endif  // CONFIG_F153_FGM_OBU
     return 0;
   }
 
@@ -9306,16 +8895,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
 
     setup_segmentation(cm, rb);
 
-    setup_qm_params(
-#if CONFIG_F255_QMOBU
-        pbi,
-#else
-        &cm->seq_params,
-#if CONFIG_CWG_E242_SEQ_HDR_ID
-        pbi->active_seq,
-#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
-#endif  // #if CONFIG_F255_QMOBU
-        quant_params, cm->seg.enabled, av2_num_planes(cm), rb);
+    setup_qm_params(pbi, quant_params, cm->seg.enabled, av2_num_planes(cm), rb);
     cm->delta_q_info.delta_q_res = 1;
     cm->delta_q_info.delta_q_present_flag =
         quant_params->base_qindex > 0 ? avm_rb_read_bit(rb) : 0;
@@ -9384,11 +8964,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     else
       features->allow_parity_hiding = avm_rb_read_bit(rb);
 
-#if CONFIG_F255_QMOBU
     setup_segmentation_dequant(pbi, xd);
-#else
-    setup_segmentation_dequant(cm, xd);
-#endif  // CONFIG_F255_QMOBU
 
     if (features->coded_lossless) {
       cm->lf.apply_deblocking_filter[0] = 0;
@@ -9456,15 +9032,9 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
         cm->lf.apply_deblocking_filter_tip) {
       read_tile_info(pbi, rb);
     }
-#if CONFIG_F153_FGM_OBU  // tip
     setup_film_grain(pbi, rb);
-#else
-    cm->cur_frame->film_grain_params_present =
-        seq_params->film_grain_params_present;
-    read_film_grain(cm, rb);
-#endif  // CONFIG_F153_FGM_OBU
-        // TIP frame will be output for displaying
-        // No futher processing needed
+    // TIP frame will be output for displaying
+    // No futher processing needed
     return 0;
   }
   features->tx_mode = read_tx_mode(rb, features->coded_lossless);
@@ -9503,13 +9073,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   }
 
   if (!frame_is_intra_only(cm)) read_global_motion(cm, rb);
-#if CONFIG_F153_FGM_OBU
   setup_film_grain(pbi, rb);
-#else
-  cm->cur_frame->film_grain_params_present =
-      seq_params->film_grain_params_present;
-  read_film_grain(cm, rb);
-#endif  // CONFIG_F153_FGM_OBU
   features->enable_ext_seg = seq_params->enable_ext_seg;
   return 0;
 }
