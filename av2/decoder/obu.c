@@ -1802,8 +1802,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
   }
 
 #if CONFIG_F160_TD_FIX1033
-  // TODO: fgm_seq_id_in_tu and seq_header_in_tu may be better to be renamed as
-  // fgm_seq_id_before_frame, seq_header_before_frame.
   int count_obus_with_frame_unit = 0;
   struct obu_info *obu_list = pbi->obu_list;
 #endif  // CONFIG_F160_TD_FIX1033
@@ -2147,8 +2145,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
             *p_data_end = data + payload_size;
           }
           break;
-        }  // (cm->bru.frame_inactive_flag  ||
-           // cm->bridge_frame_info.is_bridge_frame)
+        }
         if (obu_payload_offset > payload_size) {
           cm->error.error_code = AVM_CODEC_CORRUPT_FRAME;
           return -1;
@@ -2191,7 +2188,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         }
         decoded_payload_size = payload_size;
         break;
-    }  // switch (obu_header.type)
+    }
 
     // Check that the signalled OBU size matches the actual amount of data read
     if (decoded_payload_size > payload_size) {
@@ -2212,7 +2209,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
 #if CONFIG_F160_TD_FIX1033
     count_obus_with_frame_unit++;
 #endif  // CONFIG_F160_TD_FIX1033
-  }  // while (!frame_decoding_finished && cm->error.error_code == AVM_CODEC_OK)
+  }
 
   if (pbi->decoding_first_frame && keyframe_present == 0) {
     avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
@@ -2315,8 +2312,8 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         obu_list[obu_idx].first_tile_group == 0) {
       check_tilegroup_obus_in_a_frame_unit(cm, &obu_list[obu_idx],
                                            &obu_list[obu_idx - 1]);
-    }  // frame unit rule
-  }  // obu_idx
+    }
+  }
 
   assert(current_frame_unit.order_hint != -1);
   if (pbi->last_frame_unit.order_hint != -1 &&
@@ -2333,7 +2330,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
                                          &pbi->last_frame_unit,
                                          &pbi->last_displayable_frame_unit);
     }
-  }  // if (pbi->last_frame_unit.order_hint != -1)
+  }
 
   pbi->test_decoder_frame_unit_offset += count_obus_with_frame_unit;
 #endif

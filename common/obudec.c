@@ -118,7 +118,7 @@ static int is_multi_tile_vcl_obu_dec(OBU_TYPE obu_type) {
          obu_type == OBU_RAS_FRAME || obu_type == OBU_CLK ||
          obu_type == OBU_OLK;
 }
-// non vcl obus that starts a new temporal unit
+// non vcl obus that starts a new frame unit
 static int is_fuhead_non_vcl_obu(OBU_TYPE obu_type) {
   return obu_type == OBU_SEQUENCE_HEADER ||
          obu_type == OBU_MULTI_FRAME_HEADER ||

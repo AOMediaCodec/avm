@@ -840,39 +840,20 @@ static void check_random_access_frame_unit(struct AV2Decoder *pbi,
   }
 
   pbi->is_random_access_frame_unit = 0;
-  // random access frame unit of a temporal unit is the first CLK in the
-  // temporal unit that contains a configuration records. the first CLK implies
-  // a CLK with the lowest mlayer_id (not a CLK with mlayer_id=0) since
-  // mlayer_id is in ascending order.
-  // 1. if it is THE beginning of the bitstream, nothing to flush - it is okay
-  // to keep is_random_access_frame_unit true
   if (pbi->last_frame_unit.order_hint == -1) {
     if (!has_key_frames) assert(has_key_frames);
     pbi->is_random_access_frame_unit = has_key_frames;
     start_of_temporal_unit = true;
   }
   if (has_key_frames) {
-    // 2. this frame unit has a configuration records and a CLK, then it is a
-    // start of TU for sure
     pbi->is_random_access_frame_unit = has_key_frames && start_of_temporal_unit;
-
-    // 3. if it doesnot have any configuration records and it has a CLK
-    // 3-1. if it is the first FU
-    // 3-2. if it is second+ FU that follows
     if (pbi->last_frame_unit.order_hint != -1) {
-      // 3-2-1. follws non-CLK-FU
       pbi->is_random_access_frame_unit |=
           (has_key_frames && pbi->last_frame_unit.obu_type != OBU_CLK);
-      // 3-2-2. follows another CLK FU and the mlayer_id is smaller or equal
-      // Note this implementation assumes the bitstream complies the
-      // specification at this point. The obu order(layer_id+oh rule) will be
-      // checked later
       pbi->is_random_access_frame_unit |=
           (has_key_frames && pbi->last_frame_unit.obu_type == OBU_CLK &&
            (frame_unit_mlayer_id <= pbi->last_frame_unit.mlayer_id));
     }
-    // Note: the test decoder called at the encoder doesnot need to use random
-    // access points
   }
 }
 static void set_last_frame_unit(struct AV2Decoder *pbi) {
@@ -909,7 +890,6 @@ static void reset_last_frame_unit(struct AV2Decoder *pbi, const uint8_t *data,
     if (start_of_temporal_unit) break;
   }
 
-  // TODO: should the s/w handle out-of-band sequence header for this case?
   if (start_of_temporal_unit) {
     memset(&pbi->last_frame_unit, -1, sizeof(pbi->last_frame_unit));
     memset(&pbi->last_displayable_frame_unit, -1,
