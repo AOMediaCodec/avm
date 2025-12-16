@@ -179,7 +179,6 @@ static avm_codec_err_t decoder_destroy(avm_codec_alg_priv_t *ctx) {
 static avm_codec_err_t parse_bitdepth(struct avm_read_bit_buffer *rb,
                                       BITSTREAM_PROFILE profile,
                                       avm_bit_depth_t *bit_depth) {
-
   (void)profile;
   const uint32_t bitdepth_lut_idx = avm_rb_read_uvlc(rb);
   const int bitdepth = av2_get_bitdepth_from_index(bitdepth_lut_idx);

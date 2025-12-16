@@ -5805,7 +5805,8 @@ static AVM_INLINE void read_bitdepth(
     struct avm_internal_error_info *error_info) {
   const uint32_t bitdepth_lut_idx = avm_rb_read_uvlc(rb);
   const int bitdepth = av2_get_bitdepth_from_index(bitdepth_lut_idx);
-  if (bitdepth >= 0) seq_params->bit_depth = bitdepth;
+  if (bitdepth >= 0)
+    seq_params->bit_depth = bitdepth;
   else {
     avm_internal_error(error_info, AVM_CODEC_UNSUP_BITSTREAM,
                        "Unsupported profile/bit-depth combination");
