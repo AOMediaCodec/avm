@@ -734,6 +734,7 @@ static avm_codec_err_t init_decoder(avm_codec_alg_priv_t *ctx) {
   frame_worker_data->pbi->random_access_point_index = 0;
   frame_worker_data->pbi->random_access_point_count = 0;
 #endif
+  frame_worker_data->pbi->multi_stream_mode = 0;
   init_buffer_callbacks(ctx);
   for (int i = 0; i < AVM_MAX_NUM_STREAMS; i++) {
     for (int j = 0; j < INTER_REFS_PER_FRAME; j++) {

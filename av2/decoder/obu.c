@@ -211,6 +211,8 @@ static uint32_t read_multi_stream_decoder_operation_obu(
     (void)substream_tier_idx;
   }
 
+  pbi->multi_stream_mode = 1;
+
   if (av2_check_trailing_bits(pbi, rb) != 0) {
     return 0;
   }
@@ -1852,7 +1854,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         if (prev_obu_xlayer_id == -1) {
           prev_obu_xlayer_id = obu_header.obu_xlayer_id;
         } else {
-          if (prev_obu_xlayer_id >= 0 &&
+          if (pbi->multi_stream_mode && prev_obu_xlayer_id >= 0 &&
               obu_header.obu_xlayer_id != prev_obu_xlayer_id) {
             avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
                                "tile group OBUs with the same stream_id shall "

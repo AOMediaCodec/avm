@@ -492,6 +492,10 @@ typedef struct AV2Decoder {
    */
   int ci_and_key_per_layer[MAX_NUM_MLAYERS];
 #endif  // CONFIG_CWG_F270_CI_OBU
+        /*!
+         * Indicates if the MultiStreamMode is activated.
+         */
+  int multi_stream_mode;
 } AV2Decoder;
 
 // Returns 0 on success. Sets pbi->common.error.error_code to a nonzero error
