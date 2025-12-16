@@ -135,8 +135,10 @@ static const int temp_dist_score_lookup[7] = {
   0, 64, 96, 112, 120, 124, 126,
 };
 
-int is_layer_restricted(const int current_layer_id, const int max_layer_id) {
-  return current_layer_id > max_layer_id;
+// checks if the layer with current_layer_id is dropped according to the
+// layer_drop_mask, where value 1 in the mask indicates the layers are dropped.
+int is_layer_dropped(const int current_layer_id, const int layer_drop_mask) {
+  return ((1 << current_layer_id) & layer_drop_mask) > 0;
 }
 
 // Note: This function is only used for bitstream conformance check in the AVM
@@ -146,9 +148,10 @@ int is_layer_restricted(const int current_layer_id, const int max_layer_id) {
 int av2_get_op_constrained_ref_frames(AV2_COMMON *cm, int cur_frame_disp,
                                       int key_frame_only,
                                       RefFrameMapPair *ref_frame_map_pairs,
-                                      const int op_max_mlayer_id,
-                                      const int op_max_tlayer_id) {
-  assert(op_max_mlayer_id >= 0 && op_max_tlayer_id >= 0);
+                                      const int mlayer_mask,
+                                      const int tlayer_mask) {
+  assert(mlayer_mask >= 0 && mlayer_mask < (1 << MAX_NUM_MLAYERS));
+  assert(tlayer_mask >= 0 && tlayer_mask < (1 << MAX_NUM_TLAYERS));
   RefScoreData scores[REF_FRAMES];
   memset(scores, 0, REF_FRAMES * sizeof(*scores));
   for (int i = 0; i < cm->seq_params.ref_frames; i++) {
@@ -190,8 +193,8 @@ int av2_get_op_constrained_ref_frames(AV2_COMMON *cm, int cur_frame_disp,
                                           ref_mlayer_id))
       continue;
 
-    if (is_layer_restricted(cur_ref.mlayer_id, op_max_mlayer_id) ||
-        is_layer_restricted(cur_ref.temporal_layer_id, op_max_tlayer_id))
+    if (is_layer_dropped(ref_mlayer_id, mlayer_mask) ||
+        is_layer_dropped(ref_temporal_id, tlayer_mask))
       continue;
 
     // In error resilient mode, ref mapping must be independent of the

@@ -111,13 +111,13 @@ int av2_get_ref_frames(AV2_COMMON *cm, int cur_frame_disp,
                        int resolution_available, int key_frame_only,
                        RefFrameMapPair *ref_frame_map_pairs);
 
-int is_layer_restricted(const int current_layer_id, const int max_layer_id);
+int is_layer_dropped(const int current_layer_id, const int max_layer_id);
 
 int av2_get_op_constrained_ref_frames(AV2_COMMON *cm, int cur_frame_disp,
                                       int key_frame_only,
                                       RefFrameMapPair *ref_frame_map_pairs,
-                                      const int op_max_mlayer_id,
-                                      const int op_max_tlayer_id);
+                                      const int mlayer_mask,
+                                      const int tlayer_mask);
 
 // Derive the primary & secondary reference frame from the reference list based
 // on qindex and frame distances.
