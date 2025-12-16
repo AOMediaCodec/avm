@@ -4442,7 +4442,6 @@ static AVM_INLINE void write_seq_chroma_format(
   avm_wb_write_uvlc(wb, seq_chroma_format_idc);
 }
 
-#if CONFIG_CWG_E242_BITDEPTH
 int av2_get_index_from_bitdepth(int bit_depth) {
   int bitdepth_lut_idx = -1;
   switch (bit_depth) {
@@ -4453,23 +4452,13 @@ int av2_get_index_from_bitdepth(int bit_depth) {
   }
   return bitdepth_lut_idx;
 }
-#endif  // CONFIG_CWG_E242_BITDEPTH
 
 static AVM_INLINE void write_bitdepth(const SequenceHeader *const seq_params,
                                       struct avm_write_bit_buffer *wb) {
-#if CONFIG_CWG_E242_BITDEPTH
   const int bitdepth_lut_idx =
       av2_get_index_from_bitdepth(seq_params->bit_depth);
   assert(bitdepth_lut_idx >= 0);
   avm_wb_write_uvlc(wb, bitdepth_lut_idx);
-#else
-  // Profile 0/1: [0] for 8 bit, [1]  10-bit
-  // Profile   2: [0] for 8 bit, [10] 10-bit, [11] - 12-bit
-  avm_wb_write_bit(wb, seq_params->bit_depth == AVM_BITS_8 ? 0 : 1);
-  if (seq_params->profile == PROFILE_2 && seq_params->bit_depth != AVM_BITS_8) {
-    avm_wb_write_bit(wb, seq_params->bit_depth == AVM_BITS_10 ? 0 : 1);
-  }
-#endif  // CONFIG_CWG_E242_BITDEPTH
 }
 
 // This function writes the conformance window parameters

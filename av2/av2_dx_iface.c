@@ -173,17 +173,13 @@ static avm_codec_err_t decoder_destroy(avm_codec_alg_priv_t *ctx) {
   avm_free(ctx);
   return AVM_CODEC_OK;
 }
-#if CONFIG_CWG_E242_BITDEPTH
+
 // Reads the bitdepth lut index in color_config() and sets *bit_depth
 // accordingly.
-#else
-// Reads the high_bitdepth and twelve_bit fields in color_config() and sets
-// *bit_depth based on the values of those fields and profile.
-#endif
 static avm_codec_err_t parse_bitdepth(struct avm_read_bit_buffer *rb,
                                       BITSTREAM_PROFILE profile,
                                       avm_bit_depth_t *bit_depth) {
-#if CONFIG_CWG_E242_BITDEPTH
+
   (void)profile;
   const uint32_t bitdepth_lut_idx = avm_rb_read_uvlc(rb);
   const int bitdepth = av2_get_bitdepth_from_index(bitdepth_lut_idx);
@@ -191,18 +187,6 @@ static avm_codec_err_t parse_bitdepth(struct avm_read_bit_buffer *rb,
     return AVM_CODEC_UNSUP_BITSTREAM;
   else
     *bit_depth = (avm_bit_depth_t)bitdepth;
-#else
-  const int high_bitdepth = avm_rb_read_bit(rb);
-  if (profile == PROFILE_2 && high_bitdepth) {
-    const int twelve_bit = avm_rb_read_bit(rb);
-    *bit_depth = twelve_bit ? AVM_BITS_12 : AVM_BITS_10;
-  } else if (profile <= PROFILE_2) {
-    *bit_depth = high_bitdepth ? AVM_BITS_10 : AVM_BITS_8;
-  } else {
-    // Unsupported profile/bit-depth combination
-    return AVM_CODEC_UNSUP_BITSTREAM;
-  }
-#endif  // CONFIG_CWG_E242_BITDEPTH
   return AVM_CODEC_OK;
 }
 

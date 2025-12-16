@@ -5789,7 +5789,6 @@ static AVM_INLINE void error_handler(void *data, avm_codec_err_t error,
   avm_internal_error(&cm->error, error, detail);
 }
 
-#if CONFIG_CWG_E242_BITDEPTH
 // Gets the bitdepth_lut_idx field in color_config() and returns bit_depth from
 // the bitdepth list.
 int av2_get_bitdepth_from_index(uint32_t bitdepth_lut_idx) {
@@ -5799,29 +5798,14 @@ int av2_get_bitdepth_from_index(uint32_t bitdepth_lut_idx) {
   return bitdepth_list[bitdepth_lut_idx];
 }
 // Reads the bitdepth in color_config() and sets seq_params->bit_depth
-#else
-// Reads the high_bitdepth and twelve_bit fields in color_config() and sets
-// seq_params->bit_depth based on the values of those fields and
-// seq_params->profile.
-#endif  // CONFIG_CWG_E242_BITDEPTH
 // Reports errors by calling rb->error_handler() or
 // avm_internal_error().
 static AVM_INLINE void read_bitdepth(
     struct avm_read_bit_buffer *rb, SequenceHeader *seq_params,
     struct avm_internal_error_info *error_info) {
-#if CONFIG_CWG_E242_BITDEPTH
   const uint32_t bitdepth_lut_idx = avm_rb_read_uvlc(rb);
   const int bitdepth = av2_get_bitdepth_from_index(bitdepth_lut_idx);
   if (bitdepth >= 0) seq_params->bit_depth = bitdepth;
-#else
-  const int high_bitdepth = avm_rb_read_bit(rb);
-  if (seq_params->profile == PROFILE_2 && high_bitdepth) {
-    const int twelve_bit = avm_rb_read_bit(rb);
-    seq_params->bit_depth = twelve_bit ? AVM_BITS_12 : AVM_BITS_10;
-  } else if (seq_params->profile <= PROFILE_2) {
-    seq_params->bit_depth = high_bitdepth ? AVM_BITS_10 : AVM_BITS_8;
-  }
-#endif  // CONFIG_CWG_E242_BITDEPTH
   else {
     avm_internal_error(error_info, AVM_CODEC_UNSUP_BITSTREAM,
                        "Unsupported profile/bit-depth combination");

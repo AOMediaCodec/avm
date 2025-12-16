@@ -324,7 +324,6 @@ typedef enum avm_bit_depth {
   AVM_BITS_12 = 12, /**< 12 bits */
 } avm_bit_depth_t;
 
-#if CONFIG_CWG_E242_BITDEPTH
 /*!\brief Bit depth index
  * *
  * The index correponds with each bitepth
@@ -341,7 +340,6 @@ enum {
  * Return the bitdepth corresponding to index
  */
 int av2_get_bitdepth_from_index(uint32_t bitdepth_lut_idx);
-#endif  // CONFIG_CWG_E242_BITDEPTH
 
 /*!\brief Superblock size selection.
  *

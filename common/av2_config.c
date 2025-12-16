@@ -176,7 +176,6 @@ static int parse_operating_parameters_info(struct avm_read_bit_buffer *reader,
 }
 #endif  // !CONFIG_CWG_F270_OPS
 
-#if CONFIG_CWG_E242_BITDEPTH
 static int get_bitdepth(int bitdepth_lut_idx) {
   int bitdepth = -1;
   switch (bitdepth_lut_idx) {
@@ -187,7 +186,6 @@ static int get_bitdepth(int bitdepth_lut_idx) {
   }
   return bitdepth;
 }
-#endif  // CONFIG_CWG_E242_BITDEPTH
 
 #if CONFIG_CWG_F270_CI_OBU
 // Parse the chroma format and bitdepth in the sequence header.
@@ -204,7 +202,6 @@ static int parse_color_config(struct avm_read_bit_buffer *reader,
 
   AV2C_READ_UVLC_BITS_OR_RETURN_ERROR(chroma_format_idc);
 
-#if CONFIG_CWG_E242_BITDEPTH
   AV2C_READ_UVLC_BITS_OR_RETURN_ERROR(bitdepth_idx);
   if (bitdepth_idx > UINT8_MAX) {
     fprintf(stderr, "av2c: invalid value for bitdepth_idx: %u.\n",
@@ -218,19 +215,6 @@ static int parse_color_config(struct avm_read_bit_buffer *reader,
             bitdepth_idx);
     return -1;
   }
-#else
-  AV2C_READ_BIT_OR_RETURN_ERROR(high_bitdepth);
-  config->high_bitdepth = high_bitdepth;
-
-  int bit_depth = 0;
-  if (config->seq_profile == 2 && config->high_bitdepth) {
-    AV2C_READ_BIT_OR_RETURN_ERROR(twelve_bit);
-    config->twelve_bit = twelve_bit;
-    bit_depth = config->twelve_bit ? 12 : 10;
-  } else {
-    bit_depth = config->high_bitdepth ? 10 : 8;
-  }
-#endif  // CONFIG_CWG_E242_BITDEPTH
 
   (void)bit_depth;
   assert(bit_depth == 8 || bit_depth == 10 || bit_depth == 12);
@@ -653,16 +637,8 @@ int read_av2config(const uint8_t *buffer, size_t buffer_length,
   AV2C_READ_BIT_OR_RETURN_ERROR(seq_tier_0);
   config->seq_tier_0 = seq_tier_0;
 
-#if CONFIG_CWG_E242_BITDEPTH
   AV2C_READ_BITS_OR_RETURN_ERROR(bitdepth_idx, 2);
   config->bitdepth_idx = bitdepth_idx;
-#else
-  AV2C_READ_BIT_OR_RETURN_ERROR(high_bitdepth);
-  config->high_bitdepth = high_bitdepth;
-
-  AV2C_READ_BIT_OR_RETURN_ERROR(twelve_bit);
-  config->twelve_bit = twelve_bit;
-#endif  // CONFIG_CWG_E242_BITDEPTH
 
   AV2C_READ_BIT_OR_RETURN_ERROR(monochrome);
   config->monochrome = monochrome;
@@ -705,17 +681,12 @@ int write_av2config(const Av2Config *config, size_t capacity,
   avm_wb_write_literal(&writer, config->seq_profile, 3);
   avm_wb_write_literal(&writer, config->seq_level_idx_0, 5);
   avm_wb_write_bit(&writer, config->seq_tier_0);
-#if CONFIG_CWG_E242_BITDEPTH
   if (config->bitdepth_idx > 3) {
     fprintf(stderr, "av2c: invalid value for bitdepth_idx: %u.\n",
             config->bitdepth_idx);
     return -1;
   }
   avm_wb_write_literal(&writer, config->bitdepth_idx, 2);
-#else
-  avm_wb_write_bit(&writer, config->high_bitdepth);
-  avm_wb_write_bit(&writer, config->twelve_bit);
-#endif  // CONFIG_CWG_E242_BITDEPTH
   avm_wb_write_bit(&writer, config->monochrome);
   avm_wb_write_bit(&writer, config->chroma_subsampling_x);
   avm_wb_write_bit(&writer, config->chroma_subsampling_y);

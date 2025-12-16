@@ -28,12 +28,7 @@ extern "C" {
 // unsigned int (3) seq_profile;
 // unsigned int (5) seq_level_idx_0;
 // unsigned int (1) seq_tier_0;
-#if CONFIG_CWG_E242_BITDEPTH
 // unsigned int (2) bitdepth_idx;
-#else
-// unsigned int (1) high_bitdepth;
-// unsigned int (1) twelve_bit;
-#endif  // CONFIG_CWG_E242_BITDEPTH
 // unsigned int (1) monochrome;
 // unsigned int (1) chroma_subsampling_x;
 // unsigned int (1) chroma_subsampling_y;
@@ -61,12 +56,7 @@ typedef struct _Av2Config {
   uint8_t seq_profile;
   uint8_t seq_level_idx_0;
   uint8_t seq_tier_0;
-#if CONFIG_CWG_E242_BITDEPTH
   uint8_t bitdepth_idx;
-#else
-  uint8_t high_bitdepth;
-  uint8_t twelve_bit;
-#endif  // CONFIG_CWG_E242_BITDEPTH
   uint8_t monochrome;
   uint8_t chroma_subsampling_x;
   uint8_t chroma_subsampling_y;
