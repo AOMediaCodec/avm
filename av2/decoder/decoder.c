@@ -732,6 +732,7 @@ void output_frame_buffers(AV2Decoder *pbi, int ref_idx) {
     }
   }
 }
+#if !CONFIG_F024_KEYOBU
 // This function outputs all frames from the frame buffers that are showable but
 // have not yet been output in the previous CVS.
 void output_trailing_frames(AV2Decoder *pbi) {
@@ -754,7 +755,7 @@ void output_trailing_frames(AV2Decoder *pbi) {
     }
   } while (output_candidate != NULL);
 }
-
+#endif  // !CONFIG_F024_KEYOBU
 // If any buffer updating is signaled it should be done here.
 // Consumes a reference to cm->cur_frame.
 //
@@ -769,11 +770,13 @@ static void update_frame_buffers(AV2Decoder *pbi, int frame_decoded) {
 
   if (frame_decoded) {
     lock_buffer_pool(pool);
-
+#if !CONFIG_F024_KEYOBU
     if (cm->current_frame.frame_type == KEY_FRAME && cm->show_frame &&
         cm->current_frame.refresh_frame_flags ==
             ((1 << cm->seq_params.ref_frames) - 1))
       output_trailing_frames(pbi);
+#endif  // !CONFIG_F024_KEYOBU
+
 #if CONFIG_F322_OBUER_REFRESTRICT
     cm->cur_frame->is_restricted_ref = false;
 #endif  // CONFIG_F322_OBUER_REFRESTRICT

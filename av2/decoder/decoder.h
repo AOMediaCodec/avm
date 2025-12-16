@@ -581,10 +581,10 @@ static INLINE void check_ref_count_status_dec(struct AV2Decoder *pbi) {
   }
 }
 
-void output_trailing_frames(AV2Decoder *pbi);
-
 #if CONFIG_F024_KEYOBU
 avm_codec_err_t flush_remaining_frames(struct AV2Decoder *pbi);
+#else
+void output_trailing_frames(AV2Decoder *pbi);
 #endif
 
 static INLINE int av2_read_uniform(avm_reader *r, int n) {
