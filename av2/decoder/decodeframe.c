@@ -7343,11 +7343,7 @@ static int read_show_existing_frame(AV2Decoder *pbi,
 #if !CONFIG_F024_KEYOBU
   if (pbi->reset_decoder_state) frame_to_show->showable_frame = 0;
 #endif  // !CONFIG_F024_KEYOBU
-#if CONFIG_F446_SEF_FGM
   setup_film_grain(pbi, rb);
-#else
-  cm->film_grain_params = frame_to_show->film_grain_params;
-#endif // CONFIG_F446_SEF_FGM
 
 #if !CONFIG_F024_KEYOBU
   if (pbi->reset_decoder_state) {

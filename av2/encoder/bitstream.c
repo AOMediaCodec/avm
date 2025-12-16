@@ -5374,9 +5374,7 @@ static AVM_INLINE void write_show_existing_frame(
         wb, cm->current_frame.order_hint,
         seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
   }
-#if CONFIG_F446_SEF_FGM
   if (seq_params->film_grain_params_present) encode_film_grain(cpi, wb);
-#endif  // CONFIG_F446_SEF_FGM
 
   return;
 }
@@ -7551,11 +7549,7 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
 
   // Film Grain Model
   if ((cm->show_frame || cm->showable_frame) &&
-      cm->film_grain_params.apply_grain
-#if CONFIG_F446_SEF_FGM
-      && !cm->show_existing_frame
-#endif // CONFIG_F446_SEF_FGM
-  ) {
+      cm->film_grain_params.apply_grain && !cm->show_existing_frame) {
     struct film_grain_model fgm_current;
     set_film_grain_model(cpi, &fgm_current);
     int use_existing_fgm = -1;
@@ -7580,11 +7574,7 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
       if (use_existing_fgm != -1) {
         fgm_current.fgm_id = cpi->fgm_list[use_existing_fgm].fgm_id;
         cpi->increase_fgm_counter = false;
-#if CONFIG_F446_SEF_FGM
         cm->fgm_id = fgm_current.fgm_id;  // Use actual FGM_ID, not index
-#else
-        cm->fgm_id = use_existing_fgm;  // precaution
-#endif // CONFIG_F446_SEF_FGM
       }  // use existing
       else {
         fgm_current.fgm_id = cpi->written_fgm_num % MAX_FGM_NUM;
@@ -7607,9 +7597,7 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
       data += obu_header_size + obu_payload_size + length_field_size;
     }
     cpi->fgm = fgm_current;
-#if CONFIG_F446_SEF_FGM
     cm->cur_frame->fgm_id = cm->fgm_id;
-#endif  // CONFIG_F446_SEF_FGM
   }  // if(fgm is applied)
 
   // write metadata obus before the frame obu that has the show_frame flag set

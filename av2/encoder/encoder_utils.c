@@ -1055,10 +1055,8 @@ void av2_finalize_encoded_frame(AV2_COMP *const cpi) {
     cm->film_grain_params.random_seed += 3381;
     if (cm->film_grain_params.random_seed == 0)
       cm->film_grain_params.random_seed = 7391;
-  }
-#if CONFIG_F446_SEF_FGM
-  else if (cm->show_existing_frame &&
-           cm->seq_params.film_grain_params_present) {
+  } else if (cm->show_existing_frame &&
+             cm->seq_params.film_grain_params_present) {
     cm->cur_frame->film_grain_params =
         cm->ref_frame_map[cm->sef_ref_fb_idx]->film_grain_params;
     cm->cur_frame->fgm_id = cm->ref_frame_map[cm->sef_ref_fb_idx]->fgm_id;
@@ -1069,7 +1067,6 @@ void av2_finalize_encoded_frame(AV2_COMP *const cpi) {
     if (cm->film_grain_params.random_seed == 0)
       cm->film_grain_params.random_seed = 7391;
   }
-#endif  // CONFIG_F446_SEF_FGM
   // Initialise all tiles' contexts from the global frame context
   for (int tile_col = 0; tile_col < cm->tiles.cols; tile_col++) {
     for (int tile_row = 0; tile_row < cm->tiles.rows; tile_row++) {
