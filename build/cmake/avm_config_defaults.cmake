@@ -152,9 +152,6 @@ set_avm_config_var(CONFIG_CWG_E242_SEQ_HDR_ID 1 "Signal sequence header id.")
 
 set_avm_config_var(CONFIG_DIP_EXT_PRUNING 1 "AV2 DIP TFLite pruning.")
 
-# CWG-E242 Chroma Format IDC
-set_avm_config_var(CONFIG_CWG_E242_CHROMA_FORMAT_IDC 1 "Chroma format idc.")
-
 set_avm_config_var(CONFIG_CWG_F270_CI_OBU 1 "Use content interpretation OBU")
 
 set_avm_config_var(CONFIG_CWG_F270_OPS 1 "Add OPS and SH related changes")

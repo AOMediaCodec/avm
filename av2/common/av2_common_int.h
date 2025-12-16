@@ -2934,7 +2934,6 @@ void av2_set_class_id_array_stride(CommonModeInfoParams *mi_params,
                                    AV2_COMMON *cm, int height);
 void av2_dealloc_class_id_array(CommonModeInfoParams *mi_params);
 
-#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 // Given subsampling x/y and monochrome values in `seq_params`, outputs the
 // chroma format idc. Returns error in case of invalid subsampling format.
 static INLINE avm_codec_err_t av2_get_chroma_format_idc(
@@ -2952,7 +2951,6 @@ static INLINE avm_codec_err_t av2_get_chroma_format_idc(
   }
   return AVM_CODEC_OK;
 }
-#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
 int get_ccso_unit_size_log2_adaptive_tile(const AV2_COMMON *cm,
                                           int sb_size_log2, int unit_size_log2);
@@ -5798,7 +5796,6 @@ static INLINE MB_MODE_INFO **get_mi_location_from_collocated_mi(
   return this_mi;
 }
 
-#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 // Given chroma_format_idc, outputs the subsampling_x/y.
 // Returns error in case of invalid chroma_format_idc.
 static INLINE avm_codec_err_t av2_get_chroma_subsampling(
@@ -5820,7 +5817,6 @@ static INLINE avm_codec_err_t av2_get_chroma_subsampling(
   }
   return AVM_CODEC_OK;
 }
-#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
 // Returns pointer to effective sequence level or multi-frame header level tile
 // info. Returns null if none exist

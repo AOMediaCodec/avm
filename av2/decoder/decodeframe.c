@@ -5882,7 +5882,6 @@ static void setup_film_grain(AV2Decoder *pbi, struct avm_read_bit_buffer *rb) {
   cm->cur_frame->film_grain_params = cm->film_grain_params;
 }
 
-#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 // Given chroma_format_idc, set the subsampling_x/y values in `seq_params`.
 // Calls `avm_internal_error` in case of invalid chroma_format_idc.
 static void set_seq_chroma_format(uint32_t seq_chroma_format_idc,
@@ -5899,7 +5898,6 @@ static void set_seq_chroma_format(uint32_t seq_chroma_format_idc,
         seq_chroma_format_idc);
   }
 }
-#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
 #if CONFIG_CWG_F270_CI_OBU
 void av2_read_chroma_format_bitdepth(
@@ -5909,20 +5907,12 @@ void av2_read_color_config(
     struct avm_read_bit_buffer *rb,
 #endif  // CONFIG_CWG_F270_CI_OBU
     SequenceHeader *seq_params, struct avm_internal_error_info *error_info) {
-#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
   const uint32_t seq_chroma_format_idc = avm_rb_read_uvlc(rb);
   set_seq_chroma_format(seq_chroma_format_idc, seq_params, error_info);
-#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
   read_bitdepth(rb, seq_params, error_info);
 
-#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
   const int is_monochrome = (seq_chroma_format_idc == CHROMA_FORMAT_400);
-#else
-  // monochrome bit (not needed for PROFILE_1)
-  const int is_monochrome =
-      seq_params->profile != PROFILE_1 ? avm_rb_read_bit(rb) : 0;
-#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
   seq_params->monochrome = is_monochrome;
 #if !CONFIG_CWG_F270_CI_OBU
   int color_description_present_flag = avm_rb_read_bit(rb);
@@ -5956,28 +5946,6 @@ void av2_read_color_config(
     } else {
       // [16,235] (including xvycc) vs [0,255] range
       seq_params->color_range = avm_rb_read_bit(rb);
-#if !CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-      if (seq_params->profile == PROFILE_0) {
-        // 420 only
-        seq_params->subsampling_x = seq_params->subsampling_y = 1;
-      } else if (seq_params->profile == PROFILE_1) {
-        // 444 only
-        seq_params->subsampling_x = seq_params->subsampling_y = 0;
-      } else {
-        assert(seq_params->profile == PROFILE_2);
-        if (seq_params->bit_depth == AVM_BITS_12) {
-          seq_params->subsampling_x = avm_rb_read_bit(rb);
-          if (seq_params->subsampling_x)
-            seq_params->subsampling_y = avm_rb_read_bit(rb);  // 422 or 420
-          else
-            seq_params->subsampling_y = 0;  // 444
-        } else {
-          // 422
-          seq_params->subsampling_x = 1;
-          seq_params->subsampling_y = 0;
-        }
-      }
-#endif  // !CONFIG_CWG_E242_CHROMA_FORMAT_IDC
       if (seq_params->matrix_coefficients == AVM_CICP_MC_IDENTITY &&
           (seq_params->subsampling_x || seq_params->subsampling_y)) {
         avm_internal_error(

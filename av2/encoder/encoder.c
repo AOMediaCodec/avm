@@ -954,7 +954,6 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
     }
   }
 
-#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 #if CONFIG_CWG_F270_CI_OBU
   uint32_t seq_chroma_format_idc = 0;
 #else
@@ -967,7 +966,6 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
                        "Unsupported subsampling_x = %d, subsampling_y = %d.",
                        seq_params->subsampling_x, seq_params->subsampling_y);
   }
-#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
 #if CONFIG_CWG_F270_CI_OBU
   set_content_interpreation_params(cpi, oxcf, seq_chroma_format_idc);

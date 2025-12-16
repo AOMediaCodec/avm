@@ -4431,7 +4431,6 @@ static AVM_INLINE void write_profile(BITSTREAM_PROFILE profile,
   avm_wb_write_literal(wb, profile, PROFILE_BITS);
 }
 
-#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 // Write sequence chroma format idc to the bitstream.
 static AVM_INLINE void write_seq_chroma_format(
     const SequenceHeader *const seq_params, struct avm_write_bit_buffer *wb) {
@@ -4442,7 +4441,6 @@ static AVM_INLINE void write_seq_chroma_format(
   (void)err;
   avm_wb_write_uvlc(wb, seq_chroma_format_idc);
 }
-#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
 #if CONFIG_CWG_E242_BITDEPTH
 int av2_get_index_from_bitdepth(int bit_depth) {
@@ -4494,22 +4492,12 @@ static AVM_INLINE void write_chroma_format_bitdepth(
 static AVM_INLINE void write_color_config(
 #endif  // CONFIG_CWG_F270_CI_OBU
     const SequenceHeader *const seq_params, struct avm_write_bit_buffer *wb) {
-#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-  write_seq_chroma_format(seq_params, wb);
-  // NB: the bitdepth will be signalled after the chroma format
-#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
+  write_seq_chroma_format(seq_params, wb);
   write_bitdepth(seq_params, wb);
 #if !CONFIG_CWG_F270_CI_OBU
   const int is_monochrome = seq_params->monochrome;
 #endif  // !CONFIG_CWG_F270_CI_OBU
-#if !CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-  // monochrome bit
-  if (seq_params->profile != PROFILE_1)
-    avm_wb_write_bit(wb, is_monochrome);
-  else
-    assert(!is_monochrome);
-#endif  // !CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
 #if !CONFIG_CWG_F270_CI_OBU
   if (seq_params->color_primaries == AVM_CICP_CP_UNSPECIFIED &&
@@ -4537,33 +4525,6 @@ static AVM_INLINE void write_color_config(
       // 0: [16, 235] (i.e. xvYCC), 1: [0, 255]
       avm_wb_write_bit(wb, seq_params->color_range);
 #endif  // CONFIG_CWG_F270_CI_OBU
-
-#if !CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-      if (seq_params->profile == PROFILE_0) {
-        // 420 only
-        assert(seq_params->subsampling_x == 1 &&
-               seq_params->subsampling_y == 1);
-      } else if (seq_params->profile == PROFILE_1) {
-        // 444 only
-        assert(seq_params->subsampling_x == 0 &&
-               seq_params->subsampling_y == 0);
-      } else if (seq_params->profile == PROFILE_2) {
-        if (seq_params->bit_depth == AVM_BITS_12) {
-          // 420, 444 or 422
-          avm_wb_write_bit(wb, seq_params->subsampling_x);
-          if (seq_params->subsampling_x == 0) {
-            assert(seq_params->subsampling_y == 0 &&
-                   "4:4:0 subsampling not allowed in AV2");
-          } else {
-            avm_wb_write_bit(wb, seq_params->subsampling_y);
-          }
-        } else {
-          // 422 only
-          assert(seq_params->subsampling_x == 1 &&
-                 seq_params->subsampling_y == 0);
-        }
-      }
-#endif  // !CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
 #if !CONFIG_CWG_F270_CI_OBU
       if (seq_params->matrix_coefficients == AVM_CICP_MC_IDENTITY) {

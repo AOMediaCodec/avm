@@ -213,21 +213,14 @@ static avm_codec_err_t parse_chroma_format_bitdepth(
 static avm_codec_err_t parse_color_config(struct avm_read_bit_buffer *rb,
                                           BITSTREAM_PROFILE profile) {
 #endif  // CONFIG_CWG_F270_CI_OBU
-#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
   const uint32_t chroma_format_idc = avm_rb_read_uvlc(rb);
-#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
   avm_bit_depth_t bit_depth;
   avm_codec_err_t err = parse_bitdepth(rb, profile, &bit_depth);
   if (err != AVM_CODEC_OK) return err;
 
 #if !CONFIG_CWG_F270_CI_OBU
-#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
   const int is_monochrome = (chroma_format_idc == CHROMA_FORMAT_400);
-#else
-  // monochrome bit (not needed for PROFILE_1)
-  const int is_monochrome = profile != PROFILE_1 ? avm_rb_read_bit(rb) : 0;
-#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
   avm_color_primaries_t color_primaries;
   avm_transfer_characteristics_t transfer_characteristics;
   avm_matrix_coefficients_t matrix_coefficients;
@@ -261,32 +254,9 @@ static avm_codec_err_t parse_color_config(struct avm_read_bit_buffer *rb,
 #if !CONFIG_CWG_F270_CI_OBU
       avm_rb_read_bit(rb);  // color_range
 #endif                      // !CONFIG_CWG_F270_CI_OBU
-#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
       err = av2_get_chroma_subsampling(chroma_format_idc, &subsampling_x,
                                        &subsampling_y);
       if (err != AVM_CODEC_OK) return err;
-#else
-  if (profile == PROFILE_0) {
-    // 420 only
-    subsampling_x = subsampling_y = 1;
-  } else if (profile == PROFILE_1) {
-    // 444 only
-    subsampling_x = subsampling_y = 0;
-  } else {
-    assert(profile == PROFILE_2);
-    if (bit_depth == AVM_BITS_12) {
-      subsampling_x = avm_rb_read_bit(rb);
-      if (subsampling_x)
-        subsampling_y = avm_rb_read_bit(rb);  // 422 or 420
-      else
-        subsampling_y = 0;  // 444
-    } else {
-      // 422
-      subsampling_x = 1;
-      subsampling_y = 0;
-    }
-  }
-#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 #if !CONFIG_CWG_F270_CI_OBU
       if (matrix_coefficients == AVM_CICP_MC_IDENTITY &&
           (subsampling_x || subsampling_y)) {
