@@ -7221,6 +7221,16 @@ static int read_show_existing_frame(AV2Decoder *pbi,
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
   cm->sef_ref_fb_idx = existing_frame_idx;
   cm->derive_sef_order_hint = avm_rb_read_bit(rb);
+
+  if (cm->derive_sef_order_hint &&
+      (cm->mlayer_id != cm->ref_frame_map[cm->sef_ref_fb_idx]->mlayer_id)) {
+    avm_internal_error(
+        &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+        "The mlayer_id value of SEF OBU shall be identical to the mlayer_id "
+        "value of its reference frame specified by sef_ref_fb_idx, when "
+        "derive_sef_order_hint is equal to 1.");
+  }
+
   if (!cm->derive_sef_order_hint) {
     current_frame->order_hint = avm_rb_read_literal(
         rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
