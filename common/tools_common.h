@@ -69,7 +69,9 @@ typedef long FileOffset; /* NOLINT */
 
 #define RAW_FRAME_HDR_SZ sizeof(uint32_t)
 
-#define AV2_FOURCC 0x31305641
+// The fourcc below is the string "AV02" in reverse, with each character
+// converted to ASCII hex value.
+#define AV2_FOURCC 0x32305641
 
 enum VideoFileType {
   FILE_TYPE_OBU,
