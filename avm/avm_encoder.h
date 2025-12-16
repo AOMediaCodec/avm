@@ -620,7 +620,6 @@ typedef struct cfg_options {
    */
   unsigned int disable_loopfilters_across_tiles;
 
-#if CONFIG_CROP_WIN_CWG_F220
   /*!\brief enable cropping window
    *
    */
@@ -641,7 +640,6 @@ typedef struct cfg_options {
    *
    */
   int crop_win_bottom_offset;
-#endif  // CONFIG_CROP_WIN_CWG_F220
 
 #if CONFIG_ICC_METADATA
   /*!\brief ICC profile metadata
@@ -654,12 +652,10 @@ typedef struct cfg_options {
   size_t icc_size;
 #endif  // CONFIG_ICC_METADATA
 
-#if CONFIG_SCAN_TYPE_METADATA
   /*!\brief Scan type info present flag
    *
    */
   unsigned int scan_type_info_present_flag;
-#endif  // CONFIG_SCAN_TYPE_METADATA
 
   /*!\brief enable signaling multi-frame header OBU
    *

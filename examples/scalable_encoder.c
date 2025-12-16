@@ -234,11 +234,7 @@ int main(int argc, char **argv) {
       // and next base layer
       flags |= AVM_EFLAG_NO_REF_LAST2 | AVM_EFLAG_NO_REF_LAST3 |
                AVM_EFLAG_NO_REF_GF | AVM_EFLAG_NO_REF_ARF |
-               AVM_EFLAG_NO_REF_BWD | AVM_EFLAG_NO_REF_ARF2
-#if !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
-               | AVM_EFLAG_NO_UPD_ENTROPY
-#endif  // !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
-          ;
+               AVM_EFLAG_NO_REF_BWD | AVM_EFLAG_NO_REF_ARF2;
     cfg.g_w = info.frame_width;
     cfg.g_h = info.frame_height;
     if (avm_codec_enc_config_set(&codec, &cfg))
@@ -254,11 +250,7 @@ int main(int argc, char **argv) {
     //  use LAST (base layer) as sole reference
     flags = AVM_EFLAG_NO_REF_LAST2 | AVM_EFLAG_NO_REF_LAST3 |
             AVM_EFLAG_NO_REF_GF | AVM_EFLAG_NO_REF_ARF | AVM_EFLAG_NO_REF_BWD |
-            AVM_EFLAG_NO_REF_ARF2 | AVM_EFLAG_NO_UPD_ALL
-#if !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
-            | AVM_EFLAG_NO_UPD_ENTROPY
-#endif  // !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
-        ;
+            AVM_EFLAG_NO_REF_ARF2 | AVM_EFLAG_NO_UPD_ALL;
     cfg.g_w = info.frame_width;
     cfg.g_h = info.frame_height;
     avm_img_read(&raw1, infile1);

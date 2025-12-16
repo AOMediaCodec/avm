@@ -127,6 +127,9 @@ specialize qw/av2_bicubic_grad_interpolation_highbd sse4_1 avx2/;
 add_proto qw/int av2_opfl_mv_refinement_nxn/, " const int16_t *pdiff, int pstride, const int16_t *gx, const int16_t *gy, int gstride, int bw, int bh, int n, int d0, int d1, int grad_prec_bits, int mv_prec_bits, int mi_x, int mi_y, int mi_cols, int mi_rows, int is_decode, int *vx0, int *vy0, int *vx1, int *vy1";
 specialize qw/av2_opfl_mv_refinement_nxn sse4_1 avx2/;
 
+add_proto qw/void av2_opfl_mv_refinement_8x8/, "const int16_t *pdiff, int pstride, const int16_t *gx, const int16_t *gy, int gstride, int d0, int d1, int grad_prec_bits, int mv_prec_bits, int *vx0, int *vy0, int *vx1, int *vy1";
+specialize qw/av2_opfl_mv_refinement_8x8 sse4_1/;
+
 add_proto qw/void av2_copy_pred_array_highbd/, "const uint16_t *src1, const uint16_t *src2, int src_stride, int16_t *dst1,int16_t *dst2, int bw, int bh, int d0, int d1, int bd, int centered";
 specialize qw/av2_copy_pred_array_highbd sse4_1 avx2/;
 
@@ -436,12 +439,9 @@ add_proto qw/void av2_filter_intra_edge_high/, "uint16_t *p, int sz, int strengt
 specialize qw/av2_filter_intra_edge_high sse4_1/;
 
 # CFL
-if (avm_config("CONFIG_MHCCP_SOLVER_BITS") eq "yes") {
-  add_proto qw/void mhccp_predict_hv_hbd/, "const uint16_t *input, uint16_t *dst, bool have_top, bool have_left, int dst_stride, int *alpha_q3, int bit_depth, int width, int height, int dir";
-  specialize qw/mhccp_predict_hv_hbd avx2/;
-} else {
-  add_proto qw/void mhccp_predict_hv_hbd/, "const uint16_t *input, uint16_t *dst, bool have_top, bool have_left, int dst_stride, int64_t *alpha_q3, int bit_depth, int width, int height, int dir";
-}
+add_proto qw/void mhccp_predict_hv_hbd/, "const uint16_t *input, uint16_t *dst, bool have_top, bool have_left, int dst_stride, int *alpha_q3, int bit_depth, int width, int height, int dir";
+specialize qw/mhccp_predict_hv_hbd avx2/;
+
 # Temporarily disable the sse4 function since it might overflow.
 if ((avm_config("MHCCP_CONVOLVE_SIMPLIFY") eq "yes") && 0) {
   specialize qw/mhccp_predict_hv_hbd sse4_1/;

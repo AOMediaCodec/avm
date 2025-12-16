@@ -640,23 +640,15 @@ static AVM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
        tip_weight == TIP_EQUAL_WTD);
 
   ReferenceArea ref_area[2];
-  const int do_opfl =
-#if CONFIG_FIX_OPFL_AUTO
-      cm->features.opfl_refine_type != REFINE_NONE &&
-#else
-      cm->seq_params.enable_opfl_refine &&
-#endif  // CONFIG_FIX_OPFL_AUTO
-      cm->seq_params.enable_tip_refinemv && cm->features.use_optflow_tip &&
-      plane == 0;
+  const int do_opfl = cm->features.opfl_refine_type != REFINE_NONE &&
+                      cm->seq_params.enable_tip_refinemv &&
+                      cm->features.use_optflow_tip && plane == 0;
   int is_tip_mv_refine_disabled_for_unit_size_16x16 =
       is_tip_mv_refinement_disabled_for_unit_size_16x16(
           unit_bh, cm->seq_params.enable_tip_refinemv,
           cm->features.tip_frame_mode);
   const int do_ref_area_pad = cm->seq_params.enable_tip_refinemv &&
                               cm->has_both_sides_refs &&
-#if !CONFIG_FIX_BW_CHROMA_REFINED_MV
-                              (comp_bw > 4 || comp_bh > 4) &&
-#endif  // !CONFIG_FIX_BW_CHROMA_REFINED_MV
                               !is_tip_mv_refine_disabled_for_unit_size_16x16;
   if (do_ref_area_pad) {
     MB_MODE_INFO *mbmi = avm_calloc(1, sizeof(*mbmi));

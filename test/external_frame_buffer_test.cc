@@ -297,7 +297,7 @@ class ExternalFrameBufferMD5Test
 };
 
 #if CONFIG_WEBM_IO
-const char kAV2TestFile[] = "av1-1-b8-03-sizeup.mkv";
+const char kAV2TestFile[] = "av2-1-b8-03-sizeup.mkv";
 const char kAV2NonRefTestFile[] = "av1-1-b8-01-size-226x226.ivf";
 
 // Class for testing passing in external frame buffers to libavm.

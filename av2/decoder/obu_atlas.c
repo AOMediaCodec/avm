@@ -214,7 +214,6 @@ static uint32_t read_ats_label_segment_info(
   return 0;
 }
 
-#if CONFIG_ATLAS_ALPHA_SEGMENT
 static uint32_t read_ats_multistream_alpha_atlas_info(
     struct AV2Decoder *pbi, struct AtlasBasicInfo *ats_basic_info,
     int obu_xLayer_id, int xAId, struct avm_read_bit_buffer *rb) {
@@ -238,7 +237,6 @@ static uint32_t read_ats_multistream_alpha_atlas_info(
   ats_basic_info->ats_alpha_segments_present_flag[obu_xLayer_id][xAId] =
       avm_rb_read_bit(rb);
 
-#if CONFIG_ATLAS_BACKGROUND_COLOR
   ats_basic_info->ats_background_info_present_flag[obu_xLayer_id][xAId] =
       avm_rb_read_bit(rb);
   if (ats_basic_info->ats_background_info_present_flag[obu_xLayer_id][xAId] ==
@@ -250,7 +248,6 @@ static uint32_t read_ats_multistream_alpha_atlas_info(
     ats_basic_info->ats_background_blue_value[obu_xLayer_id][xAId] =
         avm_rb_read_literal(rb, 8);
   }
-#endif  // CONFIG_ATLAS_BACKGROUND_COLOR
 
   for (int i = 0; i < NumSegments; i++) {
     ats_basic_info->ats_input_stream_id[obu_xLayer_id][xAId][i] =
@@ -271,7 +268,6 @@ static uint32_t read_ats_multistream_alpha_atlas_info(
   }
   return 0;
 }
-#endif  // CONFIG_ATLAS_ALPHA_SEGMENT
 
 static uint32_t read_ats_multistream_atlas_info(
     struct AV2Decoder *pbi, struct AtlasBasicInfo *ats_basic_info,
@@ -294,7 +290,6 @@ static uint32_t read_ats_multistream_atlas_info(
   ats_basic_info->AtlasHeight[obu_xLayer_id][xAId] =
       ats_basic_info->ats_atlas_height[obu_xLayer_id][xAId];
 
-#if CONFIG_ATLAS_BACKGROUND_COLOR
   ats_basic_info->ats_background_info_present_flag[obu_xLayer_id][xAId] =
       avm_rb_read_bit(rb);
   if (ats_basic_info->ats_background_info_present_flag[obu_xLayer_id][xAId] ==
@@ -306,7 +301,6 @@ static uint32_t read_ats_multistream_atlas_info(
     ats_basic_info->ats_background_blue_value[obu_xLayer_id][xAId] =
         avm_rb_read_literal(rb, 8);
   }
-#endif  // CONFIG_ATLAS_BACKGROUND_COLOR
 
   for (int i = 0; i < NumSegments; i++) {
     ats_basic_info->ats_input_stream_id[obu_xLayer_id][xAId][i] =
@@ -394,7 +388,6 @@ uint32_t av2_read_atlas_segment_info_obu(struct AV2Decoder *pbi,
     num_segments = atlas_params->ats_basic_info
                        ->ats_num_atlas_segments_minus_1[obu_xLayer_id][xAId] +
                    1;
-#if CONFIG_ATLAS_ALPHA_SEGMENT
   } else if (atlas_params->atlas_segment_mode_idc[obu_xLayer_id][xAId] ==
              MULTISTREAM_ALPHA_ATLAS) {
     read_ats_multistream_alpha_atlas_info(pbi, atlas_params->ats_basic_info,
@@ -402,7 +395,6 @@ uint32_t av2_read_atlas_segment_info_obu(struct AV2Decoder *pbi,
     num_segments = atlas_params->ats_basic_info
                        ->ats_num_atlas_segments_minus_1[obu_xLayer_id][xAId] +
                    1;
-#endif  // CONFIG_ATLAS_ALPHA_SEGMENT
   }
   // Label each atlas segment
   read_ats_label_segment_info(pbi, atlas_params, obu_xLayer_id, xAId,

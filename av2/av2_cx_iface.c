@@ -83,13 +83,8 @@ struct av2_extracfg {
   unsigned int qm_min;
   unsigned int qm_max;
   unsigned int user_defined_qmatrix;
-#if !CONFIG_F255_QMOBU
-  unsigned int qm_data_present[NUM_CUSTOM_QMS];
-#endif  // !CONFIG_F255_QMOBU
   unsigned int frame_multi_qmatrix_unit_test;
-#if CONFIG_F356_SEF_DOH
   unsigned int sef_with_order_hint_test;
-#endif  // CONFIG_F356_SEF_DOH
   unsigned int multi_seq_header_test;
   unsigned int num_tg;
   unsigned int mtu_size;
@@ -234,21 +229,15 @@ struct av2_extracfg {
   int dpb_size;
   unsigned int enable_bru;
   unsigned int disable_loopfilters_across_tiles;
-#if CONFIG_CROP_WIN_CWG_F220
   int enable_cropping_window;  // enable cropping window
   int crop_win_left_offset;    // cropping window left offset
   int crop_win_right_offset;   // cropping window right offset
   int crop_win_top_offset;     // cropping window top offset
   int crop_win_bottom_offset;  // cropping window bottom offset
-#endif                         // CONFIG_CROP_WIN_CWG_F220
-#if CONFIG_SCAN_TYPE_METADATA
   unsigned int scan_type_info_present_flag;
-#endif  // CONFIG_SCAN_TYPE_METADATA
   unsigned int enable_mfh_obu_signaling;
   int operating_points_count;
-#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   unsigned int cross_frame_cdf_init_mode;
-#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 };
 
 // Example subgop configs. Currently not used by default.
@@ -423,13 +412,8 @@ static struct av2_extracfg default_extra_cfg = {
   DEFAULT_QM_FIRST,             // qm_min
   DEFAULT_QM_LAST,              // qm_max
   0,                                                // user-defined qmatrix
-#if !CONFIG_F255_QMOBU
-  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },  // qm_data_present
-#endif  // !CONFIG_F255_QMOBU
   0,                            // enable frame multi qmatrix unit test
-#if CONFIG_F356_SEF_DOH
   0,                            // enable show existing frame with order hint test;
-#endif // CONFIG_F356_SEF_DOH
   0,                            // multi_seq_header_test
   1,                            // max number of tile groups
   0,                            // mtu_size
@@ -568,21 +552,15 @@ static struct av2_extracfg default_extra_cfg = {
   8,    // dpb_size
   0,    // enable_bru
   0,
-#if CONFIG_CROP_WIN_CWG_F220
   0,     // enable_cropping_window
   0,     // crop_win_left_offset
   0,     // crop_win_right_offset
   0,     // crop_win_top_offset
   0,     // crop_win_bottom_offset
-#endif  // CONFIG_CROP_WIN_CWG_F220
-#if CONFIG_SCAN_TYPE_METADATA
   0,
-#endif  // CONFIG_SCAN_TYPE_METADATA
   0,  // enable_mfh_obu_signaling
   1,
-#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   1                            // cross frame CDF init mode
-#endif // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 };
 // clang-format on
 
@@ -719,9 +697,7 @@ static avm_codec_err_t validate_config(avm_codec_alg_priv_t *ctx,
   RANGE_CHECK(cfg, rc_resize_kf_denominator, SCALE_NUMERATOR,
               SCALE_NUMERATOR << 1);
   RANGE_CHECK_HI(extra_cfg, cdf_update_mode, 2);
-#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   RANGE_CHECK_HI(extra_cfg, cross_frame_cdf_init_mode, 1);
-#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   RANGE_CHECK_HI(extra_cfg, motion_vector_unit_test, 2);
   RANGE_CHECK_HI(extra_cfg, sb_multipass_unit_test, 1);
   RANGE_CHECK_HI(extra_cfg, enable_auto_alt_ref, 1);
@@ -737,13 +713,11 @@ static avm_codec_err_t validate_config(avm_codec_alg_priv_t *ctx,
   RANGE_CHECK_HI(extra_cfg, tile_rows, 6);
 
   RANGE_CHECK_HI(cfg, monochrome, 1);
-#if CONFIG_CROP_WIN_CWG_F220
   RANGE_CHECK(extra_cfg, enable_cropping_window, 0, 1);
   RANGE_CHECK_HI(extra_cfg, crop_win_left_offset, 65535);
   RANGE_CHECK_HI(extra_cfg, crop_win_right_offset, 65535);
   RANGE_CHECK_HI(extra_cfg, crop_win_top_offset, 65535);
   RANGE_CHECK_HI(extra_cfg, crop_win_bottom_offset, 65535);
-#endif  // CONFIG_CROP_WIN_CWG_F220
 
   RANGE_CHECK_HI(extra_cfg, sharpness, 7);
   RANGE_CHECK_HI(extra_cfg, arnr_max_frames, 15);
@@ -843,9 +817,7 @@ static avm_codec_err_t validate_config(avm_codec_alg_priv_t *ctx,
 
   RANGE_CHECK_HI(extra_cfg, enable_trellis_quant, 3);
   RANGE_CHECK_HI(extra_cfg, frame_multi_qmatrix_unit_test, 4);
-#if CONFIG_F356_SEF_DOH
   RANGE_CHECK_HI(extra_cfg, sef_with_order_hint_test, 2);
-#endif  // CONFIG_F356_SEF_DOH
   RANGE_CHECK_HI(extra_cfg, multi_seq_header_test, 2);
   RANGE_CHECK(extra_cfg, coeff_cost_upd_freq, 0, 2);
   RANGE_CHECK(extra_cfg, mode_cost_upd_freq, 0, 2);
@@ -1015,9 +987,7 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_onesided_comp = extra_cfg->enable_onesided_comp;
   cfg->enable_reduced_reference_set = extra_cfg->enable_reduced_reference_set;
   cfg->enable_bru = extra_cfg->enable_bru;
-#if CONFIG_SCAN_TYPE_METADATA
   cfg->scan_type_info_present_flag = extra_cfg->scan_type_info_present_flag;
-#endif  // CONFIG_SCAN_TYPE_METADATA
   cfg->enable_mfh_obu_signaling = extra_cfg->enable_mfh_obu_signaling;
   cfg->explicit_ref_frame_map = extra_cfg->explicit_ref_frame_map;
   cfg->enable_generation_sef_obu = extra_cfg->enable_generation_sef_obu;
@@ -1034,13 +1004,11 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_parity_hiding = extra_cfg->enable_parity_hiding;
   cfg->enable_short_refresh_frame_flags =
       extra_cfg->enable_short_refresh_frame_flags;
-#if CONFIG_CROP_WIN_CWG_F220
   cfg->enable_cropping_window = extra_cfg->enable_cropping_window;
   cfg->crop_win_left_offset = extra_cfg->crop_win_left_offset;
   cfg->crop_win_right_offset = extra_cfg->crop_win_right_offset;
   cfg->crop_win_top_offset = extra_cfg->crop_win_top_offset;
   cfg->crop_win_bottom_offset = extra_cfg->crop_win_bottom_offset;
-#endif  // CONFIG_CROP_WIN_CWG_F220
   cfg->enable_ext_seg = extra_cfg->enable_ext_seg;
   cfg->dpb_size = extra_cfg->dpb_size;
   cfg->operating_points_count = extra_cfg->operating_points_count;
@@ -1150,18 +1118,14 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_parity_hiding = cfg->enable_parity_hiding;
   extra_cfg->enable_short_refresh_frame_flags =
       cfg->enable_short_refresh_frame_flags;
-#if CONFIG_CROP_WIN_CWG_F220
   extra_cfg->enable_cropping_window = cfg->enable_cropping_window;
   extra_cfg->crop_win_left_offset = cfg->crop_win_left_offset;
   extra_cfg->crop_win_right_offset = cfg->crop_win_right_offset;
   extra_cfg->crop_win_top_offset = cfg->crop_win_top_offset;
   extra_cfg->crop_win_bottom_offset = cfg->crop_win_bottom_offset;
-#endif  // CONFIG_CROP_WIN_CWG_F220
   extra_cfg->enable_ext_seg = cfg->enable_ext_seg;
   extra_cfg->dpb_size = cfg->dpb_size;
-#if CONFIG_SCAN_TYPE_METADATA
   extra_cfg->scan_type_info_present_flag = cfg->scan_type_info_present_flag;
-#endif  // CONFIG_SCAN_TYPE_METADATA
   extra_cfg->enable_mfh_obu_signaling = cfg->enable_mfh_obu_signaling;
   extra_cfg->operating_points_count = cfg->operating_points_count;
 }
@@ -1179,11 +1143,7 @@ static double get_modeled_qp_offset(int qp, int level, int bit_depth,
   // 60% similar to rc_pick_q_and_bounds_one_pass_vbr() for Q mode ARF.
   // Rest derived similar to rc_pick_q_and_bounds_two_pass()
   static const int percents_ld[FIXED_QP_OFFSET_COUNT] = {
-#if CONFIG_ADJ_PYR_Q_OFFSET_LD
     78, 60, 32, 15, 8, 4,
-#else
-    76, 60, 30, 15, 8, 4,
-#endif  // CONFIG_ADJ_PYR_Q_OFFSET_LD
   };
   static const int percents[FIXED_QP_OFFSET_COUNT] = { 76, 61, 38, 20, 10, 4 };
   const double q_val = av2_convert_qindex_to_q(qp, bit_depth);
@@ -1388,10 +1348,8 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   }
   tool_cfg->disable_loopfilters_across_tiles =
       extra_cfg->disable_loopfilters_across_tiles;
-#if CONFIG_SCAN_TYPE_METADATA
   tool_cfg->scan_type_info_present_flag =
       extra_cfg->scan_type_info_present_flag;
-#endif  // CONFIG_SCAN_TYPE_METADATA
   tool_cfg->enable_mfh_obu_signaling = extra_cfg->enable_mfh_obu_signaling;
   tool_cfg->enable_bawp = extra_cfg->enable_bawp;
   tool_cfg->enable_cwp = extra_cfg->enable_cwp;
@@ -1427,13 +1385,11 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   tool_cfg->max_drl_refmvs = extra_cfg->max_drl_refmvs;
   tool_cfg->max_drl_refbvs = extra_cfg->max_drl_refbvs;
   tool_cfg->enable_refmvbank = extra_cfg->enable_refmvbank;
-#if CONFIG_CROP_WIN_CWG_F220
   tool_cfg->enable_cropping_window = extra_cfg->enable_cropping_window;
   tool_cfg->crop_win_left_offset = extra_cfg->crop_win_left_offset;
   tool_cfg->crop_win_right_offset = extra_cfg->crop_win_right_offset;
   tool_cfg->crop_win_top_offset = extra_cfg->crop_win_top_offset;
   tool_cfg->crop_win_bottom_offset = extra_cfg->crop_win_bottom_offset;
-#endif  // CONFIG_CROP_WIN_CWG_F220
   tool_cfg->operating_points_count = extra_cfg->operating_points_count;
 
   tool_cfg->enable_drl_reorder = extra_cfg->enable_drl_reorder;
@@ -1496,11 +1452,6 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   q_cfg->qm_minlevel = extra_cfg->qm_min;
   q_cfg->qm_maxlevel = extra_cfg->qm_max;
   q_cfg->user_defined_qmatrix = extra_cfg->user_defined_qmatrix != 0;
-#if !CONFIG_F255_QMOBU
-  for (int i = 0; i < NUM_CUSTOM_QMS; i++) {
-    q_cfg->qm_data_present[i] = extra_cfg->qm_data_present[i];
-  }
-#endif  // !CONFIG_F255_QMOBU
   q_cfg->quant_b_adapt = extra_cfg->quant_b_adapt;
   q_cfg->enable_chroma_deltaq = extra_cfg->enable_chroma_deltaq;
   q_cfg->aq_mode = extra_cfg->aq_mode;
@@ -1547,10 +1498,8 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   algo_cfg->arnr_max_frames = extra_cfg->arnr_max_frames;
   algo_cfg->arnr_strength = extra_cfg->arnr_strength;
   algo_cfg->cdf_update_mode = (uint8_t)extra_cfg->cdf_update_mode;
-#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   algo_cfg->cross_frame_cdf_init_mode =
       (uint8_t)extra_cfg->cross_frame_cdf_init_mode;
-#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   // TODO(any): Fix and Enable TPL for resize-mode > 0
   algo_cfg->enable_tpl_model =
       resize_cfg->resize_mode ? 0 : extra_cfg->enable_tpl_model;
@@ -1760,10 +1709,8 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   oxcf->unit_test_cfg.enable_subgop_stats = extra_cfg->enable_subgop_stats;
   oxcf->unit_test_cfg.frame_multi_qmatrix_unit_test =
       extra_cfg->frame_multi_qmatrix_unit_test;
-#if CONFIG_F356_SEF_DOH
   oxcf->unit_test_cfg.sef_with_order_hint_test =
       extra_cfg->sef_with_order_hint_test;
-#endif  // CONFIG_F356_SEF_DOH
   oxcf->unit_test_cfg.multi_seq_header_test = extra_cfg->multi_seq_header_test;
   oxcf->border_in_pixels =
       resize_cfg->resize_mode ? AVM_BORDER_IN_PIXELS : AVM_ENC_NO_SCALE_BORDER;
@@ -2156,35 +2103,12 @@ static avm_codec_err_t ctrl_set_user_defined_qmatrix(avm_codec_alg_priv_t *ctx,
   }
 
   AV2_COMP *cpi = ctx->cpi;
-#if CONFIG_F255_QMOBU
   if (num_planes != (cpi->common.seq_params.monochrome ? 1 : 3)) {
     return AVM_CODEC_INVALID_PARAM;
   }
   cpi->use_user_defined_qm[level] = true;
   if (cpi->user_defined_qm_list[level] == NULL)
     cpi->user_defined_qm_list[level] = av2_alloc_qmset();
-#else
-  SequenceHeader *seq_params = &cpi->common.seq_params;
-  if (num_planes != av2_num_planes(&cpi->common)) {
-    return AVM_CODEC_INVALID_PARAM;
-  }
-  if (!cpi->common.quant_params.qmatrix_allocated) {
-    seq_params->quantizer_matrix_8x8 = av2_alloc_qm(8, 8);
-    seq_params->quantizer_matrix_8x4 = av2_alloc_qm(8, 4);
-    seq_params->quantizer_matrix_4x8 = av2_alloc_qm(4, 8);
-    cpi->common.quant_params.qmatrix_allocated = true;
-  }
-  if (!cpi->common.quant_params.qmatrix_initialized) {
-    av2_init_qmatrix(seq_params->quantizer_matrix_8x8,
-                     seq_params->quantizer_matrix_8x4,
-                     seq_params->quantizer_matrix_4x8, num_planes);
-    qm_val_t ***fund_mat[3] = { cpi->common.seq_params.quantizer_matrix_8x8,
-                                cpi->common.seq_params.quantizer_matrix_8x4,
-                                cpi->common.seq_params.quantizer_matrix_4x8 };
-    av2_qm_init(&cpi->common.quant_params, num_planes, fund_mat);
-    cpi->common.quant_params.qmatrix_initialized = true;
-  }
-#endif  // CONFIG_F255_QMOBU
   // Copy user-defined QMs for level.
   for (int c = 0; c < num_planes; c++) {
     if (!user_defined_qm->qm_8x8[c]) {
@@ -2200,13 +2124,8 @@ static avm_codec_err_t ctrl_set_user_defined_qmatrix(avm_codec_alg_priv_t *ctx,
         return AVM_CODEC_INVALID_PARAM;
       }
     }
-#if CONFIG_F255_QMOBU
     memcpy(cpi->user_defined_qm_list[level][0][c], user_defined_qm->qm_8x8[c],
            8 * 8 * sizeof(qm_val_t));
-#else
-    memcpy(seq_params->quantizer_matrix_8x8[level][c],
-           user_defined_qm->qm_8x8[c], 8 * 8 * sizeof(qm_val_t));
-#endif  // CONFIG_F255_QMOBU
     if (!user_defined_qm->qm_8x4[c]) {
       return AVM_CODEC_INVALID_PARAM;
     }
@@ -2215,13 +2134,8 @@ static avm_codec_err_t ctrl_set_user_defined_qmatrix(avm_codec_alg_priv_t *ctx,
         return AVM_CODEC_INVALID_PARAM;
       }
     }
-#if CONFIG_F255_QMOBU
     memcpy(cpi->user_defined_qm_list[level][1][c], user_defined_qm->qm_8x4[c],
            8 * 4 * sizeof(qm_val_t));
-#else
-    memcpy(seq_params->quantizer_matrix_8x4[level][c],
-           user_defined_qm->qm_8x4[c], 8 * 4 * sizeof(qm_val_t));
-#endif  // CONFIG_F255_QMOBU
     if (!user_defined_qm->qm_4x8[c]) {
       return AVM_CODEC_INVALID_PARAM;
     }
@@ -2230,31 +2144,12 @@ static avm_codec_err_t ctrl_set_user_defined_qmatrix(avm_codec_alg_priv_t *ctx,
         return AVM_CODEC_INVALID_PARAM;
       }
     }
-#if CONFIG_F255_QMOBU
     memcpy(cpi->user_defined_qm_list[level][2][c], user_defined_qm->qm_4x8[c],
            4 * 8 * sizeof(qm_val_t));
-#else
-    memcpy(seq_params->quantizer_matrix_4x8[level][c],
-           user_defined_qm->qm_4x8[c], 4 * 8 * sizeof(qm_val_t));
-#endif  // CONFIG_F255_QMOBU
   }
 
-#if !CONFIG_F255_QMOBU
-  // Re-initialize QMs (of cm) with user-defined matrices for level
-  qm_val_t ***fund_mat[3] = { seq_params->quantizer_matrix_8x8,
-                              seq_params->quantizer_matrix_8x4,
-                              seq_params->quantizer_matrix_4x8 };
-  av2_qm_replace_level(&cpi->common.quant_params, level, num_planes, fund_mat);
-#endif  // !CONFIG_F255_QMOBU
   struct av2_extracfg extra_cfg = ctx->extra_cfg;
   extra_cfg.user_defined_qmatrix = 1;
-#if !CONFIG_F255_QMOBU
-  extra_cfg.qm_data_present[level] = 1;
-  // We need to send a new sequence header OBU to signal the user-defined QM
-  // data. Since the sequence header OBU has changed, it marks the beginning of
-  // a new coded video sequence, so the next frame must be a key frame.
-  ctx->next_frame_flags |= AVM_EFLAG_FORCE_KF;
-#endif  // !CONFIG_F255_QMOBU
 
   return update_extra_cfg(ctx, &extra_cfg);
 }
@@ -2267,7 +2162,6 @@ static avm_codec_err_t ctrl_set_frame_multi_qmatrix_unit_test(
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
-#if CONFIG_F356_SEF_DOH
 static avm_codec_err_t ctrl_set_sef_with_order_hint_test(
     avm_codec_alg_priv_t *ctx, va_list args) {
   struct av2_extracfg extra_cfg = ctx->extra_cfg;
@@ -2275,7 +2169,6 @@ static avm_codec_err_t ctrl_set_sef_with_order_hint_test(
       CAST(AV2E_SET_SEF_WITH_ORDER_HINT_TEST, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
-#endif  // CONFIG_F356_SEF_DOH
 
 static avm_codec_err_t ctrl_set_multi_seq_header_test(avm_codec_alg_priv_t *ctx,
                                                       va_list args) {
@@ -2954,19 +2847,11 @@ static void calculate_psnr(AV2_COMP *cpi, PSNR_STATS *psnr) {
   const int resize_mode = cpi->oxcf.resize_cfg.resize_mode;
   const YV12_BUFFER_CONFIG *source =
       resize_mode == RESIZE_NONE ? cpi->unfiltered_source : cpi->source;
-#if CONFIG_F356_SEF_DOH
   const YV12_BUFFER_CONFIG *b =
       cpi->common.show_existing_frame
           ? &cpi->common.ref_frame_map[cpi->common.sef_ref_fb_idx]->buf
           : &cpi->common.cur_frame->buf;
-#endif  // CONFIG_F356_SEF_DOH
-  avm_calc_highbd_psnr(source,
-#if CONFIG_F356_SEF_DOH
-                       b,
-#else
-                       &cpi->common.cur_frame->buf,
-#endif  // CONFIG_F356_SEF_DOH
-                       psnr, bit_depth, in_bit_depth,
+  avm_calc_highbd_psnr(source, b, psnr, bit_depth, in_bit_depth,
                        is_lossless_requested(&cpi->oxcf.rc_cfg));
 }
 
@@ -3979,13 +3864,11 @@ static avm_codec_err_t encoder_set_option(avm_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av2_codec_arg_defs.cdf_update_mode, argv,
                               err_string)) {
     extra_cfg.cdf_update_mode = arg_parse_int_helper(&arg, err_string);
-#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   } else if (arg_match_helper(&arg,
                               &g_av2_codec_arg_defs.cross_frame_cdf_init_mode,
                               argv, err_string)) {
     extra_cfg.cross_frame_cdf_init_mode =
         arg_parse_int_helper(&arg, err_string);
-#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   } else if (arg_match_helper(&arg,
                               &g_av2_codec_arg_defs.enable_rect_partitions,
                               argv, err_string)) {
@@ -4118,7 +4001,6 @@ static avm_codec_err_t encoder_set_option(avm_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av2_codec_arg_defs.enable_flip_idtx,
                               argv, err_string)) {
     extra_cfg.enable_flip_idtx = arg_parse_int_helper(&arg, err_string);
-#if CONFIG_CROP_WIN_CWG_F220
   } else if (arg_match_helper(&arg,
                               &g_av2_codec_arg_defs.enable_cropping_window,
                               argv, err_string)) {
@@ -4136,7 +4018,6 @@ static avm_codec_err_t encoder_set_option(avm_codec_alg_priv_t *ctx,
                               &g_av2_codec_arg_defs.crop_win_bottom_offset,
                               argv, err_string)) {
     extra_cfg.crop_win_bottom_offset = arg_parse_int_helper(&arg, err_string);
-#endif  // CONFIG_CROP_WIN_CWG_F220
   } else if (arg_match_helper(&arg, &g_av2_codec_arg_defs.max_reference_frames,
                               argv, err_string)) {
     extra_cfg.max_reference_frames = arg_parse_int_helper(&arg, err_string);
@@ -4351,13 +4232,11 @@ static avm_codec_err_t encoder_set_option(avm_codec_alg_priv_t *ctx,
                  argv, err_string)) {
     extra_cfg.disable_loopfilters_across_tiles =
         arg_parse_int_helper(&arg, err_string);
-#if CONFIG_SCAN_TYPE_METADATA
   } else if (arg_match_helper(&arg,
                               &g_av2_codec_arg_defs.scan_type_info_present_flag,
                               argv, err_string)) {
     extra_cfg.scan_type_info_present_flag =
         arg_parse_int_helper(&arg, err_string);
-#endif  // CONFIG_SCAN_TYPE_METADATA
 #if CONFIG_METADATA
   } else if (arg_match_helper(&arg, &g_av2_codec_arg_defs.use_short_metadata,
                               argv, err_string)) {
@@ -4449,9 +4328,7 @@ static avm_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV2E_SET_USER_DEFINED_QMATRIX, ctrl_set_user_defined_qmatrix },
   { AV2E_SET_FRAME_MULTI_QMATRIX_UNIT_TEST,
     ctrl_set_frame_multi_qmatrix_unit_test },
-#if CONFIG_F356_SEF_DOH
   { AV2E_SET_SEF_WITH_ORDER_HINT_TEST, ctrl_set_sef_with_order_hint_test },
-#endif  // CONFIG_F356_SEF_DOH
   { AV2E_SET_MULTI_SEQ_HEADER_TEST, ctrl_set_multi_seq_header_test },
   { AV2E_SET_NUM_TG, ctrl_set_num_tg },
   { AV2E_SET_MTU, ctrl_set_mtu },
@@ -4668,19 +4545,15 @@ static const avm_codec_enc_cfg_t encoder_usage_cfg[] = { {
         8,  // dpb_size
         0,  // enable_bru
         0,  // disable_loopfilters_across_tiles
-#if CONFIG_CROP_WIN_CWG_F220
         0,  // enable cropping window
         0,  // crop_win_left_offset
         0,  // crop_win_right_offset
         0,  // crop_win_top_offset
         0,  // crop_win_bottom_offset
-#endif      // CONFIG_CROP_WIN_CWG_F220
 #if CONFIG_ICC_METADATA
         NULL, 0,
 #endif  // CONFIG_ICC_METADATA
-#if CONFIG_SCAN_TYPE_METADATA
         0,
-#endif      // CONFIG_SCAN_TYPE_METADATA
         0,  // enable_mfh_obu_signaling
         1,
     },  // cfg

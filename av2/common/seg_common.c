@@ -48,7 +48,6 @@ void av2_calculate_segdata(struct segmentation *seg) {
   }
 }
 
-#if CONFIG_MULTI_LEVEL_SEGMENTATION
 void av2_calculate_segdata_from_syntax(SegmentationInfoSyntax *seg_params) {
   seg_params->segid_preskip = 0;
   seg_params->last_active_segid = 0;
@@ -100,7 +99,6 @@ void av2_reconstruct_seg_params(const struct SegmentationInfoSyntax *seg_params,
     }
   }
 }
-#endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
 
 void av2_enable_segfeature(struct segmentation *seg, int segment_id,
                            SEG_LVL_FEATURES feature_id) {

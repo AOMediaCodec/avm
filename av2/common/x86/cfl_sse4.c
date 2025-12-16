@@ -27,17 +27,10 @@ static __m128i read_int64(int64_t x) {
 #endif
 }
 
-#if CONFIG_MHCCP_SOLVER_BITS
 void mhccp_predict_hv_hbd_sse4_1(const uint16_t *input, uint16_t *dst,
                                  bool have_top, bool have_left, int dst_stride,
                                  int32_t *alpha_q3, int bit_depth, int width,
                                  int height, int dir) {
-#else
-void mhccp_predict_hv_hbd_sse4_1(const uint16_t *input, uint16_t *dst,
-                                 bool have_top, bool have_left, int dst_stride,
-                                 int64_t *alpha_q3, int bit_depth, int width,
-                                 int height, int dir) {
-#endif  // CONFIG_MHCCP_SOLVER_BITS
   const uint16_t mid_s = (1 << (bit_depth - 1));
   const __m128i mid_vec = _mm_set1_epi16(mid_s);
   const int cfl_stride = CFL_BUF_LINE * 2;

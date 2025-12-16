@@ -13,6 +13,7 @@
 #ifndef AVM_AVM_DSP_SIMD_V256_INTRINSICS_C_H_
 #define AVM_AVM_DSP_SIMD_V256_INTRINSICS_C_H_
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

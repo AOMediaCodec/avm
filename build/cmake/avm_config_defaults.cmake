@@ -68,11 +68,7 @@ set_avm_config_var(CONFIG_ERROR_RESILIENT_FIX 1 "Additional check for s_frame.")
 set_avm_config_var(CONFIG_F322_OBUER_REFRESTRICT 1
                    "Use restricted reference for switch frames and after.")
 
-set_avm_config_var(CONFIG_F255_QMOBU 1 "Enable QM_OBU")
-
 set_avm_config_var(CONFIG_F024_KEYOBU 1 "Use Key OBUs.")
-
-set_avm_config_var(CONFIG_F153_FGM_OBU 1 "Signal film grain model in OBU_FGM.")
 
 #
 # Variables in this section can be set from the CMake command line or from
@@ -143,113 +139,43 @@ set_avm_config_var(CONFIG_AV2_TEMPORAL_DENOISING 0
 set_avm_config_var(CONFIG_NN_V2 0 "Fully-connected neural nets ver.2.")
 
 # CWG-F221
-set_avm_config_var(CONFIG_ATLAS_BACKGROUND_COLOR 1
-                   "Atlas background color information.")
-set_avm_config_var(CONFIG_ATLAS_ALPHA_SEGMENT 1
-                   "Atlas alpha segment information.")
-
 set_avm_config_var(CONFIG_PARAKIT_COLLECT_DATA 0
                    "enables data collection for ParaKit training.")
 
 # AV2 experiment flags.
-set_avm_config_var(CONFIG_F356_SEF_DOH 1 "Signl order hint for SEF.")
-
 set_avm_config_var(CONFIG_METADATA 1 "F161 metadata syntax")
 set_avm_config_var(CONFIG_ICC_METADATA 1 "ICC metadata syntax")
-
-# CWG-E242
-set_avm_config_var(CONFIG_CWG_E242_SIGNAL_TILE_INFO 1
-                   "Signal tile information at sequence header.")
-
-set_avm_config_var(CONFIG_MULTI_LEVEL_SEGMENTATION 1
-                   "Segmentation information in the multi frame header")
-
-set_avm_config_var(CONFIG_CWG_E242_PARSING_INDEP 1
-                   "Parsing independence of MFH.")
 
 set_avm_config_var(CONFIG_CWG_E242_BITDEPTH 1 "Signal Bitdepth using a LUT.")
 
 set_avm_config_var(CONFIG_CWG_E242_SEQ_HDR_ID 1 "Signal sequence header id.")
 
-set_avm_config_var(CONFIG_REORDER_SEQ_FLAGS 1 "Group sequence header flags.")
-set_avm_config_var(CONFIG_IMPROVED_REORDER_SEQ_FLAGS 1
-                   "Improvement of Group sequence header flags.")
 set_avm_config_var(CONFIG_DIP_EXT_PRUNING 1 "AV2 DIP TFLite pruning.")
-
-set_avm_config_var(CONFIG_SCAN_TYPE_METADATA 1
-                   "CWG-F233 Scan type metadata syntax")
-# CWG-F349
-set_avm_config_var(CONFIG_CWG_F349_SIGNAL_TILE_INFO 1
-                   "Improved tile information at sequence header.")
 
 # CWG-E242 Chroma Format IDC
 set_avm_config_var(CONFIG_CWG_E242_CHROMA_FORMAT_IDC 1 "Chroma format idc.")
 
-# CWG-F220 Sequence Cropping Window
-set_avm_config_var(CONFIG_CROP_WIN_CWG_F220 1 "Sequence Cropping Window")
-
 set_avm_config_var(CONFIG_CWG_F270_CI_OBU 1 "Use content interpretation OBU")
-
-# CWG-F430 Temporal point info metadata
-set_avm_config_var(CONFIG_CWG_F430 1 "Temporal point info metadata.")
 
 set_avm_config_var(CONFIG_CWG_F270_OPS 1 "Add OPS and SH related changes")
 
 # Source of throughput analysis : CWG-B065
 set_avm_config_var(CONFIG_THROUGHPUT_ANALYSIS 0
                    "AV2 experiment flag to measure throughput.")
-set_avm_config_var(CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID 1
-                   "Enable frame output order derivation with layer ID")
-set_avm_config_var(CONFIG_CWG_E242_MFH_ID_UVLC 1
-                   "Signaling multi-frame header ID in UVLC")
-set_avm_config_var(OBU_ORDER_IN_TU 1 "Check OBU order in TU")
 
 set_avm_config_var(
   CONFIG_QM_DEBUG 0
   "Enable debug information for extension to AV2 quantization matrices.")
 
-set_avm_config_var(CONFIG_MHCCP_BLK_SIZE 1
-                   "Add block size constraint for MHCCP")
-
-set_avm_config_var(CONFIG_MHCCP_SOLVER_BITS 1
-                   "Reduce the number of bits for MHCCP solver")
-
-set_avm_config_var(CONFIG_FIX_OPFL_AUTO 1
-                   "Fix optical flow auto mode, option 3")
-set_avm_config_var(CONFIG_FIX_BW_CHROMA_REFINED_MV 1
-                   "Fix bandwidth issue for the refined MVs reused by chroma")
-
-set_avm_config_var(CONFIG_F421_BAWP_CHECKS 1 "Adjust BAWP condition checks")
-
 # This is an encode-only change.
-set_avm_config_var(CONFIG_FAST_INTER_RDO 1 "Fast inter mode selection")
-
-set_avm_config_var(CONFIG_QM_REVERT 1
-                   "Enable QMs based on original AV2 Quantization Matrices.")
-
 set_avm_config_var(CONFIG_ML_PART_SPLIT 1
                    "Partition SPLIT pruning/forcing as predicted by ML.")
-set_avm_config_var(
-  CONFIG_ADJ_PYR_Q_OFFSET_LD 1
-  "Encoder-only config to adjust pyr qp offsets for LD from nominal.")
-
-set_avm_config_var(CONFIG_CWG_F362 1
-                   "Implicit frame tool flags for single picture headers.")
-set_avm_config_var(
-  CONFIG_CWG_F377_STILL_PICTURE 1
-  "Sequence header OBU changes for single_picture_header_flag.")
-
-set_avm_config_var(CONFIG_FGS_IDENT 1
-                   "Fixing an issue with MC_IDENTITY moved to CI_OBU")
 
 set_avm_config_var(
   CONFIG_MIXED_LOSSLESS_ENCODE 0
   "Encoder only flag to configure encoder to enable mixed lossy/lossless coding"
 )
 
-set_avm_config_var(
-  CONFIG_DISABLE_CROSS_FRAME_CDF_INIT 1
-  "Introduce frame level flag for disabling cross frame CDF initialization.")
 #
 # Variables in this section control optional features of the build system.
 #

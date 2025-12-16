@@ -109,7 +109,6 @@ static void av2_read_mlayer_dependency_info(SequenceHeader *const seq,
   }
 }
 
-#if CONFIG_CROP_WIN_CWG_F220
 // This function validates the conformance window params
 static void av2_validate_seq_conformance_window(
     const struct SequenceHeader *seq_params,
@@ -145,7 +144,6 @@ static void av2_validate_seq_conformance_window(
         conf->conf_win_bottom_offset, seq_params->max_frame_height);
   }
 }
-#endif  // CONFIG_CROP_WIN_CWG_F220
 
 // Returns whether two sequence headers are consistent with each other.
 // Note that the 'op_params' field is not compared per Section 7.5 in the spec:
@@ -321,10 +319,8 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
   seq_params->max_frame_width = max_frame_width;
   seq_params->max_frame_height = max_frame_height;
 
-#if CONFIG_CROP_WIN_CWG_F220
   av2_read_conformance_window(rb, seq_params);
   av2_validate_seq_conformance_window(seq_params, &cm->error);
-#endif  // CONFIG_CROP_WIN_CWG_F220
 
 #if CONFIG_CWG_F270_CI_OBU
   av2_read_chroma_format_bitdepth(rb, seq_params, &cm->error);
@@ -349,15 +345,17 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
     seq_params->display_model_info_present_flag = 0;
   } else {
     seq_params->seq_max_display_model_info_present_flag = avm_rb_read_bit(rb);
+    seq_params->seq_max_initial_display_delay_minus_1 =
+        BUFFER_POOL_MAX_SIZE - 1;
     if (seq_params->seq_max_display_model_info_present_flag)
       seq_params->seq_max_initial_display_delay_minus_1 =
-          BUFFER_POOL_MAX_SIZE - 1;
+          avm_rb_read_literal(rb, 4);
     seq_params->decoder_model_info_present_flag = avm_rb_read_bit(rb);
     if (seq_params->decoder_model_info_present_flag) {
       seq_params->decoder_model_info.num_units_in_decoding_tick =
           avm_rb_read_unsigned_literal(rb, 32);
-      seq_params->seq_max_display_model_info_present_flag = avm_rb_read_bit(rb);
-      if (seq_params->seq_max_display_model_info_present_flag) {
+      seq_params->seq_max_decoder_model_present_flag = avm_rb_read_bit(rb);
+      if (seq_params->seq_max_decoder_model_present_flag) {
         seq_params->seq_max_decoder_buffer_delay = avm_rb_read_uvlc(rb);
         seq_params->seq_max_encoder_buffer_delay = avm_rb_read_uvlc(rb);
         seq_params->seq_max_low_delay_mode_flag = avm_rb_read_bit(rb);
@@ -372,7 +370,6 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
       seq_params->seq_max_encoder_buffer_delay = 20000;
       seq_params->seq_max_low_delay_mode_flag = 0;
     }
-    seq_params->seq_max_initial_display_delay_minus_1 = 0;
     // TODO: May need additional modifications with decoder model
     int64_t seq_bitrate = av2_max_level_bitrate(seq_params->profile,
                                                 seq_params->seq_max_level_idx,
@@ -529,37 +526,27 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
     }
   }
 
-  av2_read_sequence_header(rb, seq_params
-#if CONFIG_IMPROVED_REORDER_SEQ_FLAGS && !CONFIG_F255_QMOBU
-                           ,
-                           &cm->quant_params, &cm->error
-#endif  // CONFIG_IMPROVED_REORDER_SEQ_FLAGS && !CONFIG_F255_QMOBU
-  );
+  av2_read_sequence_header(rb, seq_params);
 
+#if CONFIG_CWG_F270_OPS
   // Level-driven memory restriction
-  const int max_legal_ref_frames =
-      av2_get_max_legal_dpb_size(seq_params, seq_params->seq_max_level_idx);
-  if (seq_params->ref_frames > max_legal_ref_frames) {
-    avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-                       "The maximum number of reference frames shall not be "
-                       "greater than %d, yet the bitstream indicates that the "
-                       "maximum DPB size is equal to %d.\n",
-                       max_legal_ref_frames, seq_params->ref_frames);
+  if (seq_params->seq_max_level_idx < SEQ_LEVELS) {
+    const int max_legal_ref_frames =
+        av2_get_max_legal_dpb_size(seq_params, seq_params->seq_max_level_idx);
+    if (seq_params->ref_frames > max_legal_ref_frames) {
+      avm_internal_error(
+          &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+          "The maximum number of reference frames shall not be "
+          "greater than %d, yet the bitstream indicates that the "
+          "maximum DPB size is equal to %d.\n",
+          max_legal_ref_frames, seq_params->ref_frames);
+    }
   }
+#endif  // CONFIG_CWG_F270_OPS
+
   seq_params->film_grain_params_present = avm_rb_read_bit(rb);
 
-#if !CONFIG_IMPROVED_REORDER_SEQ_FLAGS
-  // Sequence header for coding tools beyond AV2
-  av2_read_sequence_header_beyond_av2(rb, seq_params
-#if !CONFIG_F255_QMOBU
-                                      ,
-                                      &cm->quant_params, &cm->error
-#endif  // !CONFIG_F255_QMOBU
-  );
-#endif  // !CONFIG_IMPROVED_REORDER_SEQ_FLAGS
-
 #if !CONFIG_CWG_F270_CI_OBU
-#if CONFIG_SCAN_TYPE_METADATA
   seq_params->scan_type_info_present_flag = avm_rb_read_bit(rb);
   if (seq_params->scan_type_info_present_flag) {
     seq_params->scan_type_idc = avm_rb_read_literal(rb, 2);
@@ -580,7 +567,6 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
                        "be in the range of 0 to 2046.\n",
                        seq_params->elemental_ct_duration_minus_1);
   }
-#endif  // CONFIG_SCAN_TYPE_METADATA
 #endif  // !CONFIG_CWG_F270_CI_OBU
 
   if (av2_check_trailing_bits(pbi, rb) != 0) {
@@ -844,7 +830,6 @@ static size_t read_metadata_icc_profile(AV2Decoder *const pbi,
 }
 #endif  // CONFIG_ICC_METADATA
 
-#if CONFIG_SCAN_TYPE_METADATA
 // On success, returns the number of bytes read from 'data'. On failure, calls
 // avm_internal_error() and does not return.
 static void read_metadata_scan_type(AV2Decoder *const pbi,
@@ -863,9 +848,7 @@ static void read_metadata_scan_type(AV2Decoder *const pbi,
   alloc_read_metadata(pbi, OBU_METADATA_TYPE_SCAN_TYPE, payload, 1,
                       AVM_MIF_ANY_FRAME);
 }
-#endif  // CONFIG_SCAN_TYPE_METADATA
 
-#if CONFIG_CWG_F430
 // On success, returns the number of bytes read from 'data'. On failure, calls
 // avm_internal_error() and does not return.
 static void read_metadata_temporal_point_info(AV2Decoder *const pbi,
@@ -885,7 +868,6 @@ static void read_metadata_temporal_point_info(AV2Decoder *const pbi,
                       AVM_MIF_ANY_FRAME);
 #endif  // CONFIG_METADATA
 }
-#endif  // CONFIG_CWG_F430
 
 static int read_metadata_frame_hash(AV2Decoder *const pbi,
                                     struct avm_read_bit_buffer *rb) {
@@ -1002,12 +984,8 @@ static size_t read_metadata(AV2Decoder *pbi, const uint8_t *data, size_t sz)
   int known_metadata_type = metadata_type >= OBU_METADATA_TYPE_HDR_CLL &&
                             metadata_type < NUM_OBU_METADATA_TYPES;
   known_metadata_type |= metadata_type == OBU_METADATA_TYPE_ICC_PROFILE;
-#if CONFIG_SCAN_TYPE_METADATA
   known_metadata_type |= metadata_type == OBU_METADATA_TYPE_SCAN_TYPE;
-#endif  // CONFIG_SCAN_TYPE_METADATA
-#if CONFIG_CWG_F430
   known_metadata_type |= metadata_type == OBU_METADATA_TYPE_TEMPORAL_POINT_INFO;
-#endif  // CONFIG_CWG_F430
   if (!known_metadata_type)
 #else   // CONFIG_ICC_METADATA
   if (metadata_type == 0 || metadata_type >= 8)
@@ -1068,20 +1046,16 @@ static size_t read_metadata(AV2Decoder *pbi, const uint8_t *data, size_t sz)
     }
     return sz;
 #endif  // !CONFIG_METADATA
-#if CONFIG_SCAN_TYPE_METADATA
   } else if (metadata_type == OBU_METADATA_TYPE_SCAN_TYPE) {
     struct avm_read_bit_buffer rb;
     av2_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
     read_metadata_scan_type(pbi, &rb);
     return sz;
-#endif  // CONFIG_SCAN_TYPE_METADATA
-#if CONFIG_CWG_F430
   } else if (metadata_type == OBU_METADATA_TYPE_TEMPORAL_POINT_INFO) {
     struct avm_read_bit_buffer rb;
     av2_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
     read_metadata_temporal_point_info(pbi, &rb);
     return sz;
-#endif  // CONFIG_CWG_F430
 #if CONFIG_METADATA
   } else if (metadata_type == OBU_METADATA_TYPE_ICC_PROFILE) {
 #if !CONFIG_METADATA
@@ -1410,7 +1384,6 @@ static size_t read_metadata_short(AV2Decoder *pbi, const uint8_t *data,
       return 0;
     }
     return sz;
-#if CONFIG_SCAN_TYPE_METADATA
   } else if (metadata_type == OBU_METADATA_TYPE_SCAN_TYPE) {
     const size_t kMinScanTypeHeaderSize = 1;
     if (sz < kMinScanTypeHeaderSize) {
@@ -1420,8 +1393,6 @@ static size_t read_metadata_short(AV2Decoder *pbi, const uint8_t *data,
     av2_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
     read_metadata_scan_type(pbi, &rb);
     return sz;
-#endif  // CONFIG_SCAN_TYPE_METADATA
-#if CONFIG_CWG_F430
   } else if (metadata_type == OBU_METADATA_TYPE_TEMPORAL_POINT_INFO) {
     const size_t kMinTemporalPointInfoHeaderSize = 1;
     if (sz < kMinTemporalPointInfoHeaderSize) {
@@ -1431,7 +1402,6 @@ static size_t read_metadata_short(AV2Decoder *pbi, const uint8_t *data,
     av2_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
     read_metadata_temporal_point_info(pbi, &rb);
     return sz;
-#endif  // CONFIG_CWG_F430
   }
 
   av2_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
@@ -1493,33 +1463,28 @@ static int is_coded_frame(OBU_TYPE obu_type) {
 // Check the obu type ordering within a temporal unit
 // as a part of checking bitstream conformance.
 // On success, return 0. If failed return 1.
-#if OBU_ORDER_IN_TU
 static int check_obu_order(OBU_TYPE prev_obu_type, OBU_TYPE curr_obu_type) {
   // TODO: avm#1115 - Rewrite check_obu_order() to better express all OBU
   // ordering constraints.
-#if CONFIG_F153_FGM_OBU
   if (curr_obu_type == OBU_FGM || prev_obu_type == OBU_FGM) {
     return 0;
   }
-#endif  // CONFIG_F153_FGM_OBU
-#if CONFIG_F255_QMOBU
   if (is_coded_frame(curr_obu_type) && prev_obu_type == OBU_QM) {
     return 0;
   } else if (curr_obu_type == OBU_QM) {
     return 0;
-  } else
-#endif
-      if ((prev_obu_type == OBU_TEMPORAL_DELIMITER) &&
-          (curr_obu_type == OBU_MSDO ||
-           curr_obu_type == OBU_LAYER_CONFIGURATION_RECORD ||
-           curr_obu_type == OBU_ATLAS_SEGMENT ||
-           curr_obu_type == OBU_OPERATING_POINT_SET ||
-           curr_obu_type == OBU_SEQUENCE_HEADER ||
+  } else if ((prev_obu_type == OBU_TEMPORAL_DELIMITER) &&
+             (curr_obu_type == OBU_MSDO ||
+              curr_obu_type == OBU_LAYER_CONFIGURATION_RECORD ||
+              curr_obu_type == OBU_ATLAS_SEGMENT ||
+              curr_obu_type == OBU_OPERATING_POINT_SET ||
+              curr_obu_type == OBU_SEQUENCE_HEADER ||
 #if CONFIG_CWG_F270_CI_OBU
-           curr_obu_type == OBU_CONTENT_INTERPRETATION ||
+              curr_obu_type == OBU_CONTENT_INTERPRETATION ||
 #endif  // CONFIG_CWG_F270_CI_OBU
-           curr_obu_type == OBU_MULTI_FRAME_HEADER ||
-           is_coded_frame(curr_obu_type) || IS_METADATA_OBU(curr_obu_type))) {
+              curr_obu_type == OBU_MULTI_FRAME_HEADER ||
+              is_coded_frame(curr_obu_type) ||
+              IS_METADATA_OBU(curr_obu_type))) {
     return 0;
   } else if ((prev_obu_type == OBU_MSDO) &&
              (curr_obu_type == OBU_LAYER_CONFIGURATION_RECORD ||
@@ -1604,7 +1569,6 @@ static int check_obu_order(OBU_TYPE prev_obu_type, OBU_TYPE curr_obu_type) {
   }
   return 1;
 }
-#endif  // OBU_ORDER_IN_TU
 
 #if CONFIG_F024_KEYOBU
 int av2_ci_keyframe_in_temporal_unit(struct AV2Decoder *pbi,
@@ -1694,20 +1658,14 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
     return -1;
   }
 
-#if OBU_ORDER_IN_TU
   OBU_TYPE prev_obu_type = 0;
   OBU_TYPE curr_obu_type = 0;
   int prev_obu_type_initialized = 0;
-#endif  // OBU_ORDER_IN_TU
 
-#if CONFIG_F255_QMOBU
   uint32_t acc_qm_id_bitmap = 0;
-#endif
-#if CONFIG_F153_FGM_OBU
   // acc_fgm_id_bitmap accumulates fgm_id_bitmap in FGM OBU to check if film
   // grain models signalled before a coded frame have the same fgm_id
   uint32_t acc_fgm_id_bitmap = 0;
-#endif  // CONFIG_F153_FGM_OBU
 #if CONFIG_CWG_F270_CI_OBU
   av2_ci_keyframe_in_temporal_unit(pbi, data, data_end - data);
 #endif  // CONFIG_CWG_F270_CI_OBU
@@ -1773,7 +1731,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
     }
 #endif
 
-#if OBU_ORDER_IN_TU
     curr_obu_type = obu_header.type;
     if (prev_obu_type_initialized &&
         check_obu_order(prev_obu_type, curr_obu_type)) {
@@ -1784,7 +1741,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
     }
     prev_obu_type = curr_obu_type;
     prev_obu_type_initialized = 1;
-#endif  // OBU_ORDER_IN_TU
 
     if (obu_header.type == OBU_MSDO) {
       if (obu_header.obu_tlayer_id != 0)
@@ -1827,7 +1783,9 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
           pbi->remapped_ref_idx_buf[cm->xlayer_id][i] = cm->remapped_ref_idx[i];
         }
-        pbi->seq_params_buf[cm->xlayer_id] = cm->seq_params;
+        for (int i = 0; i < MAX_SEQ_NUM; i++) {
+          pbi->seq_list_buf[cm->xlayer_id][i] = pbi->seq_list[i];
+        }
         for (int i = 0; i < MAX_MFH_NUM; i++) {
           pbi->mfh_params_buf[cm->xlayer_id][i] = cm->mfh_params[i];
         }
@@ -1838,8 +1796,9 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
           cm->remapped_ref_idx[i] = pbi->remapped_ref_idx_buf[cm->xlayer_id][i];
         }
-        cm->seq_params = pbi->seq_params_buf[cm->xlayer_id];
-        pbi->seq_params_buf[cm->xlayer_id] = cm->seq_params;
+        for (int i = 0; i < MAX_SEQ_NUM; i++) {
+          pbi->seq_list[i] = pbi->seq_list_buf[cm->xlayer_id][i];
+        }
         for (int i = 0; i < MAX_MFH_NUM; i++) {
           cm->mfh_params[i] = pbi->mfh_params_buf[cm->xlayer_id][i];
         }
@@ -1891,7 +1850,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         break;
       case OBU_SEQUENCE_HEADER:
         cm->xlayer_id = obu_header.obu_xlayer_id;
-        cm->seq_params = pbi->seq_params_buf[cm->xlayer_id];
         pbi->stream_switched = 0;
         decoded_payload_size = read_sequence_header_obu(pbi, &rb);
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
@@ -1956,7 +1914,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
       case OBU_BRIDGE_FRAME:
         keyframe_present =
             (obu_header.type == OBU_CLK || obu_header.type == OBU_OLK);
-#if CONFIG_F255_QMOBU
         for (int i = 0; i < NUM_CUSTOM_QMS; i++) {
           if (acc_qm_id_bitmap & (1 << i)) {
             pbi->qm_protected[i] &=
@@ -1968,13 +1925,10 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         // qm_bit_map equal to 0, such QM OBUs will not set the same QM ID more
         // than once.
         acc_qm_id_bitmap = 0;
-#endif
-#if CONFIG_F153_FGM_OBU
         // It is a requirement that if multiple FGM OBUs are present
         // consecutively prior to a coded frame, such FGM OBUs will not set
         // the same FGM ID more than once.
         acc_fgm_id_bitmap = 0;
-#endif  // CONFIG_F153_FGM_OBU
         decoded_payload_size =
             read_tilegroup_obu(pbi, &rb, data, data + payload_size, p_data_end,
                                obu_header.type, &frame_decoding_finished);
@@ -2010,14 +1964,12 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         if (frame_decoding_finished) pbi->seen_frame_header = 0;
         pbi->num_tile_groups++;
         break;
-#if CONFIG_F255_QMOBU
       case OBU_QM:
         decoded_payload_size =
             read_qm_obu(pbi, obu_header.obu_tlayer_id, obu_header.obu_mlayer_id,
                         &acc_qm_id_bitmap, &rb);
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
         break;
-#endif  // CONFIG_F255_QMOBU
 #if !CONFIG_METADATA
       case OBU_METADATA:
         decoded_payload_size = read_metadata(pbi, data, payload_size);
@@ -2034,14 +1986,12 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
         break;
 #endif  // CONFIG_METADATA
-#if CONFIG_F153_FGM_OBU
       case OBU_FGM:
         decoded_payload_size =
             read_fgm_obu(pbi, obu_header.obu_tlayer_id,
                          obu_header.obu_mlayer_id, &acc_fgm_id_bitmap, &rb);
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
         break;
-#endif  // CONFIG_F153_FGM_OBU
       case OBU_PADDING:
         decoded_payload_size = read_padding(cm, data, payload_size);
         if (cm->error.error_code != AVM_CODEC_OK) return -1;

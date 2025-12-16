@@ -108,14 +108,6 @@ extern avm_codec_iface_t *avm_codec_av2_cx(void);
  */
 #define AVM_EFLAG_NO_UPD_ALL (1 << 23)
 
-#if !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
-/*!\brief Disable entropy update
- *
- * When this flag is set, the encoder will not update its internal entropy
- * model based on the entropy of this frame.
- */
-#define AVM_EFLAG_NO_UPD_ENTROPY (1 << 26)
-#endif  // !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 /*!\brief Disable ref frame mvs
  *
  * When this flag is set, the encoder will not allow frames to
@@ -1209,7 +1201,6 @@ enum avme_enc_control_id {
    * Valid range: 0..1, 0 is 16x16 block size (default), 1 is 32x32 block size
    */
   AV2E_SET_FILM_GRAIN_BLOCK_SIZE = 174,
-#if CONFIG_F356_SEF_DOH
   /*!\brief Control to set leaf node frames to be show existing frames with
    * derive_order_hint = 0
    *
@@ -1217,7 +1208,6 @@ enum avme_enc_control_id {
    * test
    */
   AV2E_SET_SEF_WITH_ORDER_HINT_TEST = 175,
-#endif
   /*!\brief Signal multiple sequence headers that are the same as the one
    * created
    *
@@ -1463,10 +1453,8 @@ AVM_CTRL_USE_TYPE(AV2E_SET_USER_DEFINED_QMATRIX, const avm_user_defined_qm_t *)
 AVM_CTRL_USE_TYPE(AV2E_SET_FRAME_MULTI_QMATRIX_UNIT_TEST, unsigned int)
 #define AVM_CTRL_AV2E_SET_FRAME_MULTI_QMATRIX_UNIT_TEST
 
-#if CONFIG_F356_SEF_DOH
 AVM_CTRL_USE_TYPE(AV2E_SET_SEF_WITH_ORDER_HINT_TEST, unsigned int)
 #define AVM_CTRL_SET_SEF_WITH_ORDER_HINT_TEST
-#endif  // CONFIG_F356_SEF_DOH
 
 AVM_CTRL_USE_TYPE(AV2E_SET_MULTI_SEQ_HEADER_TEST, unsigned int)
 #define AVM_CTRL_SET_MULTI_SEQ_HEADER_TEST

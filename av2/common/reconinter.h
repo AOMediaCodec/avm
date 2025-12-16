@@ -148,7 +148,6 @@ typedef struct SubpelParams {
 
 #define REFINE_MV_MAX_OFFSET 0
 
-#if CONFIG_FIX_BW_CHROMA_REFINED_MV
 #define EIGHT_TAPS_REF_TOP_BORDER (AVM_INTERP_EXTEND - 1 + REFINE_MV_MAX_OFFSET)
 #define EIGHT_TAPS_REF_LEFT_BORDER \
   (AVM_INTERP_EXTEND - 1 + REFINE_MV_MAX_OFFSET)
@@ -164,12 +163,6 @@ typedef struct SubpelParams {
   (AVM_4TAPS_INTERP_EXTEND + REFINE_MV_MAX_OFFSET)
 #define FOUR_TAPS_REF_BOTTOM_BORDER \
   (AVM_4TAPS_INTERP_EXTEND + REFINE_MV_MAX_OFFSET)
-#else
-#define REF_TOP_BORDER (AVM_INTERP_EXTEND - 1 + REFINE_MV_MAX_OFFSET)
-#define REF_LEFT_BORDER (AVM_INTERP_EXTEND - 1 + REFINE_MV_MAX_OFFSET)
-#define REF_RIGHT_BORDER (AVM_INTERP_EXTEND + REFINE_MV_MAX_OFFSET)
-#define REF_BOTTOM_BORDER (AVM_INTERP_EXTEND + REFINE_MV_MAX_OFFSET)
-#endif  // CONFIG_FIX_BW_CHROMA_REFINED_MV
 
 #define REF_TOP_BORDER_WARP (AVM_INTERP_EXTEND - 1)
 #define REF_LEFT_BORDER_WARP (AVM_INTERP_EXTEND - 1)
@@ -762,14 +755,9 @@ static INLINE int is_any_mv_refinement_allowed_in_tip(
     const AV2_COMMON *const cm) {
   if (!cm->has_both_sides_refs) return 0;
 
-#if CONFIG_FIX_OPFL_AUTO
   if (cm->features.opfl_refine_type == REFINE_NONE &&
       !cm->seq_params.enable_refinemv)
     return 0;
-#else
-  if (!cm->seq_params.enable_opfl_refine && !cm->seq_params.enable_refinemv)
-    return 0;
-#endif  // CONFIG_FIX_OPFL_AUTO
 
   if (!cm->seq_params.enable_tip_refinemv) return 0;
 
@@ -830,14 +818,9 @@ static INLINE int is_unequal_weighted_tip_allowed(const AV2_COMMON *const cm) {
 
   if (!cm->seq_params.enable_tip_refinemv) return 1;
 
-#if CONFIG_FIX_OPFL_AUTO
   if (cm->features.opfl_refine_type == REFINE_NONE &&
       !cm->seq_params.enable_refinemv)
     return 1;
-#else
-  if (!cm->seq_params.enable_opfl_refine && !cm->seq_params.enable_refinemv)
-    return 1;
-#endif  // CONFIG_FIX_OPFL_AUTO
 
   return 0;
 }

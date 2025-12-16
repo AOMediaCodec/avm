@@ -2377,7 +2377,6 @@ static AVM_INLINE void setup_bru_active_info(AV2_COMMON *const cm,
   }
 }
 
-#if CONFIG_MULTI_LEVEL_SEGMENTATION
 static void read_seg_syntax_info_to_segmentation(
     struct segmentation *seg, struct avm_read_bit_buffer *rb) {
   const int max_seg_num = seg->enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
@@ -2406,7 +2405,6 @@ static void read_seg_syntax_info_to_segmentation(
 
   av2_calculate_segdata(seg);
 }
-#endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
 
 static AVM_INLINE void setup_segmentation(AV2_COMMON *const cm,
                                           struct avm_read_bit_buffer *rb) {
@@ -2438,7 +2436,6 @@ static AVM_INLINE void setup_segmentation(AV2_COMMON *const cm,
     cm->last_frame_seg_map = NULL;
   }
 
-#if CONFIG_MULTI_LEVEL_SEGMENTATION
   const SegmentationInfoSyntax *const seg_params =
       find_effective_seg_params(cm);
   int reuse = 0;
@@ -2476,63 +2473,6 @@ static AVM_INLINE void setup_segmentation(AV2_COMMON *const cm,
     }
     seg->update_data = reuse ? 0 : 1;
   }
-#else
-  // Read update flags
-  if (cm->features.derived_primary_ref_frame == PRIMARY_REF_NONE) {
-    // These frames can't use previous frames, so must signal map + features
-    seg->update_map = 1;
-    seg->temporal_update = 0;
-    seg->update_data = 1;
-    seg->enable_ext_seg = cm->seq_params.enable_ext_seg;
-  } else {
-    seg->update_map = avm_rb_read_bit(rb);
-    if (seg->update_map) {
-#if CONFIG_F322_OBUER_REFRESTRICT  // segment
-      if (cm->current_frame.frame_type == S_FRAME)
-        seg->temporal_update = 0;
-      else
-#endif                             // CONFIG_F322_OBUER_REFRESTRICT
-        seg->temporal_update = avm_rb_read_bit(rb);
-    } else {
-      seg->temporal_update = 0;
-    }
-    seg->update_data = avm_rb_read_bit(rb);
-  }
-
-  // Segmentation data update
-  if (seg->update_data) {
-    av2_clearall_segfeatures(seg);
-    const int max_seg_num =
-        cm->seg.enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
-    for (int i = 0; i < max_seg_num; i++) {
-      for (int j = 0; j < SEG_LVL_MAX; j++) {
-        int data = 0;
-        const int feature_enabled = avm_rb_read_bit(rb);
-        if (feature_enabled) {
-          av2_enable_segfeature(seg, i, j);
-
-          const int data_max = av2_seg_feature_data_max(j);
-          const int data_min = -data_max;
-          const int ubits = get_unsigned_bits(data_max);
-
-          if (av2_is_segfeature_signed(j)) {
-            data = avm_rb_read_inv_signed_literal(rb, ubits);
-          } else {
-            data = avm_rb_read_literal(rb, ubits);
-          }
-
-          data = clamp(data, data_min, data_max);
-        }
-        av2_set_segdata(seg, i, j, data);
-      }
-    }
-    av2_calculate_segdata(seg);
-  } else if (cm->prev_frame) {
-    segfeatures_copy(seg, &cm->prev_frame->seg);
-  }
-  seg->enable_ext_seg = cm->seq_params.enable_ext_seg;
-  segfeatures_copy(&cm->cur_frame->seg, seg);
-#endif                             // CONFIG_MULTI_LEVEL_SEGMENTATION
 }
 
 // Same function as av2_read_uniform but reading from uncompressed header rb
@@ -3213,15 +3153,11 @@ static AVM_INLINE void setup_gdf(AV2_COMMON *cm,
     return;
   }
   init_gdf(cm);
-#if CONFIG_CWG_F362
   if (cm->seq_params.single_picture_header_flag) {
     cm->gdf_info.gdf_mode = 1;
   } else {
     cm->gdf_info.gdf_mode = avm_rb_read_bit(rb);
   }
-#else
-  cm->gdf_info.gdf_mode = avm_rb_read_bit(rb);
-#endif  // CONFIG_CWG_F362
   if (cm->gdf_info.gdf_mode > 0) {
     alloc_gdf_buffers(&cm->gdf_info);
     if (cm->gdf_info.gdf_block_num > 1) {
@@ -3244,15 +3180,11 @@ static AVM_INLINE void setup_cdef(AV2_COMMON *cm,
   if (cm->bru.frame_inactive_flag ||
       cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT)
     return;
-#if CONFIG_CWG_F362
   if (cm->seq_params.single_picture_header_flag) {
     cdef_info->cdef_frame_enable = 1;
   } else {
     cdef_info->cdef_frame_enable = avm_rb_read_bit(rb);
   }
-#else
-  cdef_info->cdef_frame_enable = avm_rb_read_bit(rb);
-#endif  // CONFIG_CWG_F362
   if (!cdef_info->cdef_frame_enable) {
     cdef_info->cdef_on_skip_txfm_frame_enable = 0;
     return;
@@ -3324,15 +3256,11 @@ static AVM_INLINE void setup_ccso(AV2_COMMON *cm,
   if (cm->bridge_frame_info.is_bridge_frame) {
     cm->ccso_info.ccso_frame_flag = 0;
   } else {
-#if CONFIG_CWG_F362
     if (cm->seq_params.single_picture_header_flag) {
       cm->ccso_info.ccso_frame_flag = 1;
     } else {
       cm->ccso_info.ccso_frame_flag = avm_rb_read_bit(rb);
     }
-#else
-    cm->ccso_info.ccso_frame_flag = avm_rb_read_bit(rb);
-#endif  // CONFIG_CWG_F362
   }
   if (cm->ccso_info.ccso_frame_flag) {
     const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(
@@ -3539,7 +3467,6 @@ static AVM_INLINE void setup_quantization(CommonQuantParams *quant_params,
     quant_params->v_ac_delta_q = 0;
   }
 }
-#if CONFIG_F255_QMOBU
 void setup_quant_matrices(AV2Decoder *pbi, CommonQuantParams *quant_params,
                           int plane, int qmlevel) {
   AV2_COMMON *const cm = &pbi->common;
@@ -3594,9 +3521,7 @@ void setup_quant_matrices(AV2Decoder *pbi, CommonQuantParams *quant_params,
 
   // Generate matrices for each tx size
   int current = 0;
-#if CONFIG_QM_REVERT
   const bool is_user_defined_qm = qmset->is_user_defined_qm;
-#endif
   for (int t = 0; t < TX_SIZES_ALL; ++t) {
     const int size = tx_size_2d[t];
     const int qm_tx_size = av2_get_adjusted_tx_size(t);
@@ -3604,7 +3529,6 @@ void setup_quant_matrices(AV2Decoder *pbi, CommonQuantParams *quant_params,
       assert(t > qm_tx_size);
       quant_params->giqmatrix[qmlevel][plane][t] =
           quant_params->giqmatrix[qmlevel][plane][qm_tx_size];
-#if CONFIG_QM_REVERT
     } else if (is_user_defined_qm &&
                (t <= TX_8X8 || t == TX_4X8 || t == TX_8X4)) {
       assert(current + size <= QM_TOTAL_SIZE);
@@ -3621,70 +3545,17 @@ void setup_quant_matrices(AV2Decoder *pbi, CommonQuantParams *quant_params,
           &predefined_iwt_matrix_ref[qmlevel][plane >= 1][current];
       current += size;
     }
-#else
-    } else {
-      assert(current + size <= QM_TOTAL_SIZE);
-      // Generate the iwt matrices from the base matrices.
-      scale_tx(t, plane, &quant_params->iwt_matrix_ref[qmlevel][plane][current],
-               qmset->quantizer_matrix);
-      quant_params->giqmatrix[qmlevel][plane][t] =
-          &quant_params->iwt_matrix_ref[qmlevel][plane][current];
-      current += size;
-    }
-#endif  // CONFIG_QM_REVERT
   }
 }
-#endif  // CONFIG_F255_QMOBU
 
-static AVM_INLINE void setup_qm_params(
-#if CONFIG_F255_QMOBU
-    AV2Decoder *pbi,
-#else
-    SequenceHeader *seq_params,
-#if CONFIG_CWG_E242_SEQ_HDR_ID
-    SequenceHeader *active_seq,
-#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
-#endif  // CONFIG_F255_QMOBU
-    CommonQuantParams *quant_params, bool segmentation_enabled, int num_planes,
-    struct avm_read_bit_buffer *rb) {
+static AVM_INLINE void setup_qm_params(AV2Decoder *pbi,
+                                       CommonQuantParams *quant_params,
+                                       bool segmentation_enabled,
+                                       int num_planes,
+                                       struct avm_read_bit_buffer *rb) {
   quant_params->using_qmatrix = avm_rb_read_bit(rb);
-#if CONFIG_F255_QMOBU
   AV2_COMMON *const cm = &pbi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
-#else
-  if (quant_params->using_qmatrix) {
-    if (!quant_params->qmatrix_allocated) {
-      seq_params->quantizer_matrix_8x8 = av2_alloc_qm(8, 8);
-      seq_params->quantizer_matrix_8x4 = av2_alloc_qm(8, 4);
-      seq_params->quantizer_matrix_4x8 = av2_alloc_qm(4, 8);
-#if CONFIG_CWG_E242_SEQ_HDR_ID
-      // seq_params is &cm->seq_params and active_seq is pbi->active_seq.
-      // cm->seq_params is a copy of *pbi->active_seq. If we modify
-      // cm->seq_params here, keep *pbi->active_seq in sync.
-      active_seq->quantizer_matrix_8x8 = seq_params->quantizer_matrix_8x8;
-      active_seq->quantizer_matrix_8x4 = seq_params->quantizer_matrix_8x4;
-      active_seq->quantizer_matrix_4x8 = seq_params->quantizer_matrix_4x8;
-#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
-
-      quant_params->qmatrix_allocated = true;
-    }
-    if (!quant_params->qmatrix_initialized) {
-      if (!seq_params->user_defined_qmatrix) {
-        av2_init_qmatrix(seq_params->quantizer_matrix_8x8,
-                         seq_params->quantizer_matrix_8x4,
-                         seq_params->quantizer_matrix_4x8, num_planes);
-      }
-      qm_val_t ***fund_mat[3] = { seq_params->quantizer_matrix_8x8,
-                                  seq_params->quantizer_matrix_8x4,
-                                  seq_params->quantizer_matrix_4x8 };
-      av2_qm_init_dequant_only(quant_params, num_planes, fund_mat);
-      quant_params->qmatrix_initialized = true;
-    }
-  }
-#if CONFIG_QM_DEBUG
-  printf("[DEC-FRM] using_qmatrix: %d\n", quant_params->using_qmatrix);
-#endif
-#endif  // CONFIG_F255_QMOBU
   if (quant_params->using_qmatrix) {
     if (segmentation_enabled) {
       quant_params->pic_qm_num = avm_rb_read_literal(rb, 2) + 1;
@@ -3723,7 +3594,6 @@ static AVM_INLINE void setup_qm_params(
       }
 #endif
     }
-#if CONFIG_F255_QMOBU
     for (uint8_t i = 0; i < quant_params->pic_qm_num; i++) {
       setup_quant_matrices(pbi, quant_params, 0, quant_params->qm_y[i]);
       if (num_planes > 1) {
@@ -3731,7 +3601,6 @@ static AVM_INLINE void setup_qm_params(
         setup_quant_matrices(pbi, quant_params, 2, quant_params->qm_v[i]);
       }
     }
-#endif  // CONFIG_F255_QMOBU
   } else {
     for (uint8_t i = 0; i < 4; i++) {
       quant_params->qm_y[i] = 0;
@@ -3741,16 +3610,9 @@ static AVM_INLINE void setup_qm_params(
   }
 }
 // Build y/uv dequant values based on segmentation.
-static AVM_INLINE void setup_segmentation_dequant(
-#if CONFIG_F255_QMOBU
-    AV2Decoder *const pbi,
-#else
-    AV2_COMMON *const cm,
-#endif  // CONFIG_F255_QMOBU
-    MACROBLOCKD *const xd) {
-#if CONFIG_F255_QMOBU
+static AVM_INLINE void setup_segmentation_dequant(AV2Decoder *const pbi,
+                                                  MACROBLOCKD *const xd) {
   AV2_COMMON *const cm = &pbi->common;
-#endif  // CONFIG_F255_QMOBU
   const int bit_depth = cm->seq_params.bit_depth;
   // When segmentation is disabled, only the first value is used.  The
   // remaining are don't cares.
@@ -3781,18 +3643,14 @@ static AVM_INLINE void setup_segmentation_dequant(
     const int qm_index = quant_params->qm_index[i];
     const int qmlevel_y =
         use_qmatrix ? quant_params->qm_y[qm_index] : NUM_QM_LEVELS - 1;
-#if CONFIG_QM_REVERT
     const int qmlevel_y0 =
         use_qmatrix ? quant_params->qm_y[0] : NUM_QM_LEVELS - 1;
-#endif  // CONFIG_QM_REVERT
 
     for (int j = 0; j < TX_SIZES_ALL; ++j) {
-#if CONFIG_QM_REVERT
       if (j > TX_8X8 && j != TX_4X8 && j != TX_8X4)
         quant_params->y_iqmatrix[i][j] =
             av2_iqmatrix(quant_params, qmlevel_y0, AVM_PLANE_Y, j);
       else
-#endif  // CONFIG_QM_REVERT
         quant_params->y_iqmatrix[i][j] =
             av2_iqmatrix(quant_params, qmlevel_y, AVM_PLANE_Y, j);
     }
@@ -3800,33 +3658,25 @@ static AVM_INLINE void setup_segmentation_dequant(
     if (num_planes > 1) {
       const int qmlevel_u =
           use_qmatrix ? quant_params->qm_u[qm_index] : NUM_QM_LEVELS - 1;
-#if CONFIG_QM_REVERT
       const int qmlevel_u0 =
           use_qmatrix ? quant_params->qm_u[0] : NUM_QM_LEVELS - 1;
-#endif  // CONFIG_QM_REVERT
       for (int j = 0; j < TX_SIZES_ALL; ++j) {
-#if CONFIG_QM_REVERT
         if (j > TX_8X8 && j != TX_4X8 && j != TX_8X4)
           quant_params->u_iqmatrix[i][j] =
               av2_iqmatrix(quant_params, qmlevel_u0, AVM_PLANE_U, j);
         else
-#endif  // CONFIG_QM_REVERT
           quant_params->u_iqmatrix[i][j] =
               av2_iqmatrix(quant_params, qmlevel_u, AVM_PLANE_U, j);
       }
       const int qmlevel_v =
           use_qmatrix ? quant_params->qm_v[qm_index] : NUM_QM_LEVELS - 1;
-#if CONFIG_QM_REVERT
       const int qmlevel_v0 =
           use_qmatrix ? quant_params->qm_v[0] : NUM_QM_LEVELS - 1;
-#endif  // CONFIG_QM_REVERT
       for (int j = 0; j < TX_SIZES_ALL; ++j) {
-#if CONFIG_QM_REVERT
         if (j > TX_8X8 && j != TX_4X8 && j != TX_8X4)
           quant_params->v_iqmatrix[i][j] =
               av2_iqmatrix(quant_params, qmlevel_v0, AVM_PLANE_V, j);
         else
-#endif  // CONFIG_QM_REVERT
           quant_params->v_iqmatrix[i][j] =
               av2_iqmatrix(quant_params, qmlevel_v, AVM_PLANE_V, j);
       }
@@ -4055,7 +3905,6 @@ static AVM_INLINE void setup_buffer_pool(AV2_COMMON *cm) {
 #endif  // CONFIG_CWG_F270_CI_OBU
   cm->cur_frame->buf.render_width = cm->render_width;
   cm->cur_frame->buf.render_height = cm->render_height;
-#if CONFIG_CROP_WIN_CWG_F220
   if (seq_params->conf.conf_win_enabled_flag) {
     cm->cur_frame->buf.w_conf_win_enabled_flag =
         seq_params->conf.conf_win_enabled_flag;
@@ -4074,13 +3923,11 @@ static AVM_INLINE void setup_buffer_pool(AV2_COMMON *cm) {
   }
   cm->cur_frame->buf.max_width = seq_params->max_frame_width;
   cm->cur_frame->buf.max_height = seq_params->max_frame_height;
-#endif  // CONFIG_CROP_WIN_CWG_F220
   if (cm->seq_params.enable_tip) {
     setup_tip_frame_size(cm);
   }
 }
 
-#if CONFIG_CROP_WIN_CWG_F220
 void av2_validate_frame_level_conformance(
     const struct SequenceHeader *seq_params, int frame_width, int frame_height,
     struct avm_internal_error_info *error_info) {
@@ -4137,7 +3984,6 @@ void av2_validate_frame_level_conformance(
         TopPosY, BottomPosY);
   }
 }
-#endif  // CONFIG_CROP_WIN_CWG_F220
 
 static AVM_INLINE void setup_frame_size(AV2_COMMON *cm,
                                         int frame_size_override_flag,
@@ -4169,7 +4015,6 @@ static AVM_INLINE void setup_frame_size(AV2_COMMON *cm,
       }
     } else {
       assert(cm->mfh_valid[cm->cur_mfh_id]);
-#if CONFIG_CWG_E242_PARSING_INDEP
       if (cm->mfh_params[cm->cur_mfh_id].mfh_frame_size_present_flag) {
         width = cm->mfh_params[cm->cur_mfh_id].mfh_frame_width;
         height = cm->mfh_params[cm->cur_mfh_id].mfh_frame_height;
@@ -4177,10 +4022,6 @@ static AVM_INLINE void setup_frame_size(AV2_COMMON *cm,
         width = seq_params->max_frame_width;
         height = seq_params->max_frame_height;
       }
-#else
-      width = cm->mfh_params[cm->cur_mfh_id].mfh_frame_width;
-      height = cm->mfh_params[cm->cur_mfh_id].mfh_frame_height;
-#endif  // CONFIG_CWG_E242_PARSING_INDEP
     }
   }
 
@@ -4188,10 +4029,8 @@ static AVM_INLINE void setup_frame_size(AV2_COMMON *cm,
   setup_render_size(cm, rb);
   setup_buffer_pool(cm);
   realloc_bru_info(cm);
-#if CONFIG_CROP_WIN_CWG_F220
   av2_validate_frame_level_conformance(&cm->seq_params, width, height,
                                        &cm->error);
-#endif  // CONFIG_CROP_WIN_CWG_F220
 }
 
 static AVM_INLINE void setup_seq_sb_size(SequenceHeader *seq_params,
@@ -4291,13 +4130,10 @@ static AVM_INLINE void setup_frame_size_with_refs(
   }
   setup_buffer_pool(cm);
   realloc_bru_info(cm);
-#if CONFIG_CROP_WIN_CWG_F220
   av2_validate_frame_level_conformance(&cm->seq_params, width, height,
                                        &cm->error);
-#endif  // CONFIG_CROP_WIN_CWG_F220
 }
 
-#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
 // Reconstructs the tile information
 static void reconstruct_tile_info_max_tile(
     AV2_COMMON *const cm, const TileInfoSyntax *const tile_params) {
@@ -4346,7 +4182,6 @@ static void reconstruct_tile_info_max_tile(
   }
   av2_calculate_tile_rows(tiles);
 }
-#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
 static AVM_INLINE void read_tile_info_max_tile(
     AV2_COMMON *const cm, struct avm_read_bit_buffer *const rb) {
@@ -4413,10 +4248,9 @@ static AVM_INLINE void read_tile_info(AV2Decoder *const pbi,
   }
   av2_get_tile_limits(&cm->tiles, cm->mi_params.mi_rows, cm->mi_params.mi_cols,
                       cm->mib_size_log2, cm->seq_params.mib_size_log2);
-#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
+
   const TileInfoSyntax *const tile_params = find_effective_tile_params(cm);
   int reuse = 0;
-#if CONFIG_CWG_F349_SIGNAL_TILE_INFO
   if (tile_params &&
       is_frame_tile_config_reuse_eligible(tile_params, &cm->tiles)) {
     if (tile_params->allow_tile_info_change)
@@ -4424,22 +4258,12 @@ static AVM_INLINE void read_tile_info(AV2Decoder *const pbi,
     else
       reuse = 1;
   }
-#else
-  cm->current_frame.tile_info_present_in_frame_header = avm_rb_read_bit(rb);
-  reuse = !cm->current_frame.tile_info_present_in_frame_header;
-  if (reuse && !tile_params) {
-    avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
-                       "No tile information present");
-  }
-#endif  // CONFIG_CWG_F349_SIGNAL_TILE_INFO
   if (reuse) {
     reconstruct_tile_info_max_tile(cm, tile_params);
   } else {
     read_tile_info_max_tile(cm, rb);
   }
-#else
-  read_tile_info_max_tile(cm, rb);
-#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
+
   if (cm->bru.enabled) {
     const int num_tiles = cm->tiles.rows * cm->tiles.cols;
     memset(cm->tiles.tile_active_bitmap, 0, (num_tiles + 7) / 8);
@@ -6003,7 +5827,6 @@ static AVM_INLINE void read_bitdepth(
                        "Unsupported profile/bit-depth combination");
   }
 }
-#if CONFIG_F153_FGM_OBU
 static void setup_film_grain(AV2Decoder *pbi, struct avm_read_bit_buffer *rb) {
   AV2_COMMON *const cm = &pbi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
@@ -6011,15 +5834,11 @@ static void setup_film_grain(AV2Decoder *pbi, struct avm_read_bit_buffer *rb) {
   if (seq_params->film_grain_params_present &&
       (cm->show_frame || cm->showable_frame)) {
     avm_film_grain_t *pars = &cm->film_grain_params;
-#if CONFIG_CWG_F362
     if (cm->seq_params.single_picture_header_flag) {
       pars->apply_grain = 1;
     } else {
       pars->apply_grain = avm_rb_read_bit(rb);
     }
-#else
-    pars->apply_grain = avm_rb_read_bit(rb);
-#endif  // CONFIG_CWG_F362
     if (pars->apply_grain) {
       cm->fgm_id = avm_rb_read_literal(rb, FGM_ID_BITS);
       pars->random_seed = avm_rb_read_literal(rb, 16);
@@ -6061,211 +5880,6 @@ static void setup_film_grain(AV2Decoder *pbi, struct avm_read_bit_buffer *rb) {
   }
   cm->cur_frame->film_grain_params = cm->film_grain_params;
 }
-#else
-void av2_read_film_grain_params(AV2_COMMON *cm,
-                                struct avm_read_bit_buffer *rb) {
-  avm_film_grain_t *pars = &cm->film_grain_params;
-  const SequenceHeader *const seq_params = &cm->seq_params;
-
-#if CONFIG_CWG_F362
-  if (cm->seq_params.single_picture_header_flag) {
-    pars->apply_grain = 1;
-  } else {
-    pars->apply_grain = avm_rb_read_bit(rb);
-  }
-#else
-  pars->apply_grain = avm_rb_read_bit(rb);
-#endif                             // CONFIG_CWG_F362
-  if (!pars->apply_grain) {
-    memset(pars, 0, sizeof(*pars));
-    return;
-  }
-
-  pars->random_seed = avm_rb_read_literal(rb, 16);
-#if CONFIG_F322_OBUER_REFRESTRICT  // fgm update
-  if (cm->current_frame.frame_type == INTER_FRAME && !frame_is_sframe(cm))
-#else
-  if (cm->current_frame.frame_type == INTER_FRAME)
-#endif                             // CONFIG_F322_OBUER_REFRESTRICT
-    pars->update_parameters = avm_rb_read_bit(rb);
-  else
-    pars->update_parameters = 1;
-#if CONFIG_F322_OBUER_REFRESTRICT  // film_grain_model
-  int num_ref_frames_available = 0;
-  for (int i = 0; i < cm->seq_params.ref_frames; i++) {
-    if (cm->ref_frame_map[i] != NULL)
-      num_ref_frames_available += !cm->ref_frame_map[i]->is_restricted_ref;
-  }
-  if (num_ref_frames_available == 0) assert(pars->update_parameters == 1);
-#endif                             // CONFIG_F322_OBUER_REFRESTRICT
-  pars->bit_depth = seq_params->bit_depth;
-
-  if (!pars->update_parameters) {
-    // inherit parameters from a previous reference frame
-    int film_grain_params_ref_idx =
-        avm_rb_read_literal(rb, cm->seq_params.ref_frames_log2);
-    if (film_grain_params_ref_idx >= cm->seq_params.ref_frames) {
-      avm_internal_error(
-          &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-          "Film grain reference idx must be less than %d but is set to %d",
-          cm->seq_params.ref_frames, film_grain_params_ref_idx);
-    }
-    // Section 6.8.20: It is a requirement of bitstream conformance that
-    // film_grain_params_ref_idx is equal to ref_frame_idx[ j ] for some value
-    // of j in the range 0 to INTER_REFS_PER_FRAME - 1.
-    int found = 0;
-    for (int i = 0; i < cm->ref_frames_info.num_total_refs; ++i) {
-      if (film_grain_params_ref_idx == cm->remapped_ref_idx[i]) {
-        found = 1;
-        break;
-      }
-    }
-    if (!found) {
-      avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-                         "Invalid film grain reference idx %d. ref_frame_idx = "
-                         "{%d, %d, %d, %d, %d, %d, %d}",
-                         film_grain_params_ref_idx, cm->remapped_ref_idx[0],
-                         cm->remapped_ref_idx[1], cm->remapped_ref_idx[2],
-                         cm->remapped_ref_idx[3], cm->remapped_ref_idx[4],
-                         cm->remapped_ref_idx[5], cm->remapped_ref_idx[6]);
-    }
-    RefCntBuffer *const buf = cm->ref_frame_map[film_grain_params_ref_idx];
-    if (buf == NULL) {
-      avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-                         "Invalid Film grain reference idx");
-    }
-#if CONFIG_F322_OBUER_REFRESTRICT
-    if (buf->is_restricted_ref) {
-      avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-                         "Invalid Film grain reference idx");
-    }
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
-    if (!buf->film_grain_params_present) {
-      avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-                         "Film grain reference parameters not available");
-    }
-    uint16_t random_seed = pars->random_seed;
-    *pars = buf->film_grain_params;   // inherit paramaters
-    pars->random_seed = random_seed;  // with new random seed
-    return;
-  }
-
-  // Scaling functions parameters
-#define fgm_value_increment(i, j) (fgm_scaling_points[i][j][0])
-#define fgm_value_scale(i, j) (fgm_scaling_points[i][j][1])
-  int(*fgm_scaling_points[])[2] = { pars->fgm_scaling_points_0,
-                                    pars->fgm_scaling_points_1,
-                                    pars->fgm_scaling_points_2 };
-
-  int fgmNumChannels = seq_params->monochrome ? 1 : 3;
-
-  if (fgmNumChannels > 1) {
-    pars->fgm_scale_from_channel0_flag = avm_rb_read_bit(rb);
-  } else {
-    pars->fgm_scale_from_channel0_flag = 0;
-  }
-
-  int fgmNumScalingChannels =
-      pars->fgm_scale_from_channel0_flag ? 1 : fgmNumChannels;
-
-  for (int i = 0; i < fgmNumScalingChannels; i++) {
-    pars->fgm_points[i] = avm_rb_read_literal(rb, 4);  // max 14
-    if (pars->fgm_points[i] > 14)
-      avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-                         "Number of points for film grain scaling function "
-                         "exceeds the maximum value.");
-    for (int j = 0; j < pars->fgm_points[i]; j++) {
-      fgm_value_increment(i, j) = avm_rb_read_literal(rb, 8);
-      fgm_scaling_points[i][j][0] =
-          j ? fgm_value_increment(i, j) + fgm_scaling_points[i][j - 1][0]
-            : fgm_value_increment(i, j);
-      if (j && fgm_scaling_points[i][j - 1][0] >= fgm_scaling_points[i][j][0])
-        avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-                           "First coordinate of the scaling function points "
-                           "shall be increasing.");
-      if (j && fgm_scaling_points[i][j][0] > 255)
-        avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-                           "First coordinate of the scaling function point "
-                           "exceeds the value 255.");
-      fgm_value_scale(i, j) = avm_rb_read_literal(rb, 8);
-    }
-  }
-
-  // Initialize unsignaled values to zero
-  for (int i = fgmNumScalingChannels; i < 3; i++) pars->fgm_points[i] = 0;
-
-  if ((seq_params->subsampling_x == 1) && (seq_params->subsampling_y == 1) &&
-      (((pars->fgm_points[1] == 0) && (pars->fgm_points[2] != 0)) ||
-       ((pars->fgm_points[1] != 0) && (pars->fgm_points[2] == 0))))
-    avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-                       "In YCbCr 4:2:0, film grain shall be applied "
-                       "to both chroma components or neither.");
-
-  pars->scaling_shift = avm_rb_read_literal(rb, 2) + 8;  // 8 + value
-
-  // AR coefficients
-  // Only sent if the corresponsing scaling function has
-  // more than 0 points
-
-  pars->ar_coeff_lag = avm_rb_read_literal(rb, 2);
-
-  int num_pos_luma = 2 * pars->ar_coeff_lag * (pars->ar_coeff_lag + 1);
-  int num_pos_chroma = num_pos_luma;
-  if (pars->fgm_points[0] > 0) ++num_pos_chroma;
-  if (pars->fgm_points[0])
-    for (int i = 0; i < num_pos_luma; i++)
-      pars->ar_coeffs_y[i] = avm_rb_read_literal(rb, 8) - 128;
-
-  if (pars->fgm_points[1] || pars->fgm_scale_from_channel0_flag)
-    for (int i = 0; i < num_pos_chroma; i++)
-      pars->ar_coeffs_cb[i] = avm_rb_read_literal(rb, 8) - 128;
-
-  if (pars->fgm_points[2] || pars->fgm_scale_from_channel0_flag)
-    for (int i = 0; i < num_pos_chroma; i++)
-      pars->ar_coeffs_cr[i] = avm_rb_read_literal(rb, 8) - 128;
-
-  pars->ar_coeff_shift = avm_rb_read_literal(rb, 2) + 6;  // 6 + value
-
-  pars->grain_scale_shift = avm_rb_read_literal(rb, 2);
-
-  if (pars->fgm_points[1]) {
-    pars->cb_mult = avm_rb_read_literal(rb, 8);
-    pars->cb_luma_mult = avm_rb_read_literal(rb, 8);
-    pars->cb_offset = avm_rb_read_literal(rb, 9);
-  }
-
-  if (pars->fgm_points[2]) {
-    pars->cr_mult = avm_rb_read_literal(rb, 8);
-    pars->cr_luma_mult = avm_rb_read_literal(rb, 8);
-    pars->cr_offset = avm_rb_read_literal(rb, 9);
-  }
-
-  pars->overlap_flag = avm_rb_read_bit(rb);
-
-  pars->clip_to_restricted_range = avm_rb_read_bit(rb);
-
-#if CONFIG_FGS_IDENT
-  if (pars->clip_to_restricted_range)
-    pars->mc_identity = avm_rb_read_bit(rb);
-  else
-    pars->mc_identity = 0;
-#endif  // CONFIG_FGS_IDENT
-
-  pars->block_size = avm_rb_read_bit(rb);
-}
-
-static AVM_INLINE void read_film_grain(AV2_COMMON *cm,
-                                       struct avm_read_bit_buffer *rb) {
-  if (cm->seq_params.film_grain_params_present) {
-    av2_read_film_grain_params(cm, rb);
-  } else {
-    memset(&cm->film_grain_params, 0, sizeof(cm->film_grain_params));
-  }
-  cm->film_grain_params.bit_depth = cm->seq_params.bit_depth;
-  memcpy(&cm->cur_frame->film_grain_params, &cm->film_grain_params,
-         sizeof(avm_film_grain_t));
-}
-#endif  // CONFIG_F153_FGM_OBU
 
 #if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 // Given chroma_format_idc, set the subsampling_x/y values in `seq_params`.
@@ -6438,10 +6052,6 @@ void av2_read_decoder_model_info(avm_dec_model_info_t *decoder_model_info,
   decoder_model_info->num_units_in_decoding_tick =
       avm_rb_read_unsigned_literal(rb,
                                    32);  // Number of units in a decoding tick
-#if !CONFIG_CWG_F430
-  decoder_model_info->frame_presentation_time_length =
-      avm_rb_read_literal(rb, 5) + 1;
-#endif  // !CONFIG_CWG_F430
 }
 
 void av2_read_op_parameters_info(avm_dec_model_op_parameters_t *op_params,
@@ -6454,15 +6064,6 @@ void av2_read_op_parameters_info(avm_dec_model_op_parameters_t *op_params,
   op_params->low_delay_mode_flag = avm_rb_read_bit(rb);
 }
 
-#if !CONFIG_CWG_F430
-static AVM_INLINE void read_temporal_point_info(
-    AV2_COMMON *const cm, struct avm_read_bit_buffer *rb) {
-  cm->frame_presentation_time = avm_rb_read_unsigned_literal(
-      rb, cm->seq_params.decoder_model_info.frame_presentation_time_length);
-}
-#endif  // !CONFIG_CWG_F430
-
-#if CONFIG_CROP_WIN_CWG_F220
 // This function reads the parameters for the conformance window
 void av2_read_conformance_window(struct avm_read_bit_buffer *rb,
                                  struct SequenceHeader *seq_params) {
@@ -6481,14 +6082,10 @@ void av2_read_conformance_window(struct avm_read_bit_buffer *rb,
     conf->conf_win_bottom_offset = 0;
   }
 }
-#endif  // CONFIG_CROP_WIN_CWG_F220
 
-#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
 void read_tile_syntax_info(TileInfoSyntax *tile_params,
                            struct avm_read_bit_buffer *rb) {
-#if CONFIG_CWG_F349_SIGNAL_TILE_INFO
   tile_params->allow_tile_info_change = avm_rb_read_bit(rb);
-#endif  // CONFIG_CWG_F349_SIGNAL_TILE_INFO
   CommonTileParams *tile_info = &tile_params->tile_info;
   tile_info->uniform_spacing = avm_rb_read_bit(rb);
 
@@ -6555,7 +6152,6 @@ void read_sequence_tile_info(struct SequenceHeader *seq_params,
       seq_params->mib_size_log2);
   read_tile_syntax_info(&seq_params->tile_params, rb);
 }
-#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
 // Reads tile information from multi-frame header
 static void read_multi_frame_header_tile_info(MultiFrameHeader *mfh_param,
@@ -6567,7 +6163,6 @@ static void read_multi_frame_header_tile_info(MultiFrameHeader *mfh_param,
   read_tile_syntax_info(&mfh_param->mfh_tile_params, rb);
 }
 
-#if CONFIG_MULTI_LEVEL_SEGMENTATION
 static void read_seg_syntax_info(struct SegmentationInfoSyntax *seg_params,
                                  struct avm_read_bit_buffer *rb) {
   seg_params->allow_seg_info_change = avm_rb_read_bit(rb);
@@ -6633,23 +6228,15 @@ struct avm_read_bit_buffer *rb) {
 
     av2_calculate_segdata(seg);
 }*/
-#endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
 
-#if CONFIG_REORDER_SEQ_FLAGS
-#if CONFIG_IMPROVED_REORDER_SEQ_FLAGS
 void read_sequence_partition_group_tool_flags(struct SequenceHeader *seq_params,
                                               struct avm_read_bit_buffer *rb) {
   setup_seq_sb_size(seq_params, rb);
   seq_params->enable_sdp = seq_params->monochrome ? 0 : avm_rb_read_bit(rb);
-#if CONFIG_CWG_F377_STILL_PICTURE
   seq_params->enable_extended_sdp =
       (seq_params->enable_sdp && !seq_params->single_picture_header_flag)
           ? avm_rb_read_bit(rb)
           : 0;
-#else
-  seq_params->enable_extended_sdp =
-      seq_params->enable_sdp ? avm_rb_read_bit(rb) : 0;
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
   seq_params->enable_ext_partitions = avm_rb_read_bit(rb);
   if (seq_params->enable_ext_partitions)
     seq_params->enable_uneven_4way_partitions = avm_rb_read_bit(rb);
@@ -6660,7 +6247,6 @@ void read_sequence_partition_group_tool_flags(struct SequenceHeader *seq_params,
     seq_params->max_pb_aspect_ratio_log2_m1 = avm_rb_read_bit(rb);
   }
 }
-#endif  // CONFIG_IMPROVED_REORDER_SEQ_FLAGS
 
 void read_sequence_intra_group_tool_flags(struct SequenceHeader *seq_params,
                                           struct avm_read_bit_buffer *rb) {
@@ -6668,10 +6254,8 @@ void read_sequence_intra_group_tool_flags(struct SequenceHeader *seq_params,
   seq_params->enable_intra_edge_filter = avm_rb_read_bit(rb);
   seq_params->enable_mrls = avm_rb_read_bit(rb);
   seq_params->enable_cfl_intra = avm_rb_read_bit(rb);
-#if CONFIG_IMPROVED_REORDER_SEQ_FLAGS
   seq_params->cfl_ds_filter_index =
       seq_params->monochrome ? 0 : avm_rb_read_literal(rb, 2);
-#endif  // CONFIG_IMPROVED_REORDER_SEQ_FLAGS
   seq_params->enable_mhccp = avm_rb_read_bit(rb);
   seq_params->enable_ibp = avm_rb_read_bit(rb);
 }
@@ -6720,7 +6304,6 @@ void read_sequence_inter_group_tool_flags(struct SequenceHeader *seq_params,
     seq_params->enable_drl_reorder =
         avm_rb_read_bit(rb) ? DRL_REORDER_CONSTRAINT : DRL_REORDER_ALWAYS;
   }
-#if CONFIG_CWG_F377_STILL_PICTURE
   if (seq_params->single_picture_header_flag) {
     seq_params->enable_explicit_ref_frame_map = 0;
     seq_params->ref_frames = 2;
@@ -6729,7 +6312,6 @@ void read_sequence_inter_group_tool_flags(struct SequenceHeader *seq_params,
     seq_params->def_max_drl_bits = MIN_MAX_DRL_BITS;
     seq_params->allow_frame_max_drl_bits = 0;
   } else {
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
     seq_params->enable_explicit_ref_frame_map = avm_rb_read_bit(rb);
     if (avm_rb_read_bit(rb)) {
       seq_params->ref_frames =
@@ -6744,26 +6326,18 @@ void read_sequence_inter_group_tool_flags(struct SequenceHeader *seq_params,
             rb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1) +
         MIN_MAX_DRL_BITS;
     seq_params->allow_frame_max_drl_bits = avm_rb_read_bit(rb);
-#if CONFIG_CWG_F377_STILL_PICTURE
   }
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
   seq_params->def_max_bvp_drl_bits =
       avm_rb_read_primitive_quniform(
           rb, MAX_MAX_IBC_DRL_BITS - MIN_MAX_IBC_DRL_BITS + 1) +
       MIN_MAX_IBC_DRL_BITS;
   seq_params->allow_frame_max_bvp_drl_bits = avm_rb_read_bit(rb);
 
-#if CONFIG_CWG_F377_STILL_PICTURE
   seq_params->num_same_ref_compound =
       seq_params->single_picture_header_flag ? 0 : avm_rb_read_literal(rb, 2);
 
   uint8_t enable_tip =
       seq_params->single_picture_header_flag ? 0 : avm_rb_read_bit(rb);
-#else
-  seq_params->num_same_ref_compound = avm_rb_read_literal(rb, 2);
-
-  uint8_t enable_tip = avm_rb_read_bit(rb);
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
   if (enable_tip) {
     seq_params->enable_tip = 1 + avm_rb_read_bit(rb);
   } else {
@@ -6774,44 +6348,27 @@ void read_sequence_inter_group_tool_flags(struct SequenceHeader *seq_params,
   } else {
     seq_params->enable_tip_hole_fill = 0;
   }
-#if CONFIG_CWG_F377_STILL_PICTURE
   seq_params->enable_mv_traj =
       seq_params->single_picture_header_flag ? 0 : avm_rb_read_bit(rb);
-#else
-  seq_params->enable_mv_traj = avm_rb_read_bit(rb);
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
   seq_params->enable_bawp = avm_rb_read_bit(rb);
-#if CONFIG_CWG_F377_STILL_PICTURE
   seq_params->enable_cwp =
       seq_params->single_picture_header_flag ? 0 : avm_rb_read_bit(rb);
   seq_params->enable_imp_msk_bld =
       seq_params->single_picture_header_flag ? 0 : avm_rb_read_bit(rb);
-#else
-  seq_params->enable_cwp = avm_rb_read_bit(rb);
-  seq_params->enable_imp_msk_bld = avm_rb_read_bit(rb);
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
-#if CONFIG_CWG_F377_STILL_PICTURE
   seq_params->enable_lf_sub_pu =
       seq_params->single_picture_header_flag ? 0 : avm_rb_read_bit(rb);
-#else
-  seq_params->enable_lf_sub_pu = avm_rb_read_bit(rb);
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
   if (seq_params->enable_tip == 1 && seq_params->enable_lf_sub_pu) {
     seq_params->enable_tip_explicit_qp = avm_rb_read_bit(rb);
   } else {
     seq_params->enable_tip_explicit_qp = 0;
   }
-#if CONFIG_CWG_F377_STILL_PICTURE
   if (seq_params->single_picture_header_flag) {
     seq_params->enable_opfl_refine = AVM_OPFL_REFINE_NONE;
     seq_params->enable_refinemv = 0;
   } else {
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
     seq_params->enable_opfl_refine = avm_rb_read_literal(rb, 2);
     seq_params->enable_refinemv = avm_rb_read_bit(rb);
-#if CONFIG_CWG_F377_STILL_PICTURE
   }
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
 
   seq_params->enable_tip_refinemv =
       (seq_params->enable_tip &&
@@ -6819,36 +6376,28 @@ void read_sequence_inter_group_tool_flags(struct SequenceHeader *seq_params,
           ? avm_rb_read_bit(rb)
           : 0;
 
-#if CONFIG_CWG_F377_STILL_PICTURE
   if (seq_params->single_picture_header_flag) {
     seq_params->enable_bru = 0;
     seq_params->enable_adaptive_mvd = 0;
     seq_params->enable_mvd_sign_derive = 0;
     seq_params->enable_flex_mvres = 0;
   } else {
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
     seq_params->enable_bru = avm_rb_read_bit(rb);
     seq_params->enable_adaptive_mvd = avm_rb_read_bit(rb);
     seq_params->enable_mvd_sign_derive = avm_rb_read_bit(rb);
     seq_params->enable_flex_mvres = avm_rb_read_bit(rb);
-#if CONFIG_CWG_F377_STILL_PICTURE
   }
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
   if (seq_params->single_picture_header_flag) {
     seq_params->enable_global_motion = 0;
   } else {
     seq_params->enable_global_motion = avm_rb_read_bit(rb);
   }
 
-#if CONFIG_CWG_F377_STILL_PICTURE
   if (seq_params->single_picture_header_flag) {
     seq_params->enable_short_refresh_frame_flags = 0;
   } else {
     seq_params->enable_short_refresh_frame_flags = avm_rb_read_bit(rb);
   }
-#else
-  seq_params->enable_short_refresh_frame_flags = avm_rb_read_bit(rb);
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
 }
 
 void read_sequence_scc_group_tool_flags(struct SequenceHeader *seq_params,
@@ -6900,16 +6449,9 @@ void read_sequence_filter_group_tool_flags(struct SequenceHeader *seq_params,
     }
   }
   seq_params->enable_ccso = avm_rb_read_bit(rb);
-#if !CONFIG_IMPROVED_REORDER_SEQ_FLAGS
-  seq_params->cfl_ds_filter_index =
-      seq_params->monochrome ? 0 : avm_rb_read_literal(rb, 2);
-#endif  //! CONFIG_IMPROVED_REORDER_SEQ_FLAGS
-#if CONFIG_IMPROVED_REORDER_SEQ_FLAGS
-#if CONFIG_CWG_F377_STILL_PICTURE
   if (seq_params->single_picture_header_flag) {
     seq_params->enable_cdef_on_skip_txfm = CDEF_ON_SKIP_TXFM_ADAPTIVE;
   } else {
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
     if (avm_rb_read_bit(rb)) {
       seq_params->enable_cdef_on_skip_txfm = CDEF_ON_SKIP_TXFM_ALWAYS_ON;
     } else {
@@ -6917,167 +6459,12 @@ void read_sequence_filter_group_tool_flags(struct SequenceHeader *seq_params,
                                                  ? CDEF_ON_SKIP_TXFM_DISABLED
                                                  : CDEF_ON_SKIP_TXFM_ADAPTIVE;
     }
-#if CONFIG_CWG_F377_STILL_PICTURE
   }
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
   seq_params->df_par_bits_minus2 = avm_rb_read_literal(rb, 2);
-#endif  // CONFIG_IMPROVED_REORDER_SEQ_FLAGS
-#if !CONFIG_IMPROVED_REORDER_SEQ_FLAGS
-  seq_params->enable_tcq = 0;
-  int enable_tcq = avm_rb_read_bit(rb);
-  if (enable_tcq) {
-#if CONFIG_CWG_F377_STILL_PICTURE
-    if (!seq_params->single_picture_header_flag)
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
-      enable_tcq += avm_rb_read_bit(rb);
-    seq_params->enable_tcq = enable_tcq;
-  }
-
-  if (seq_params->enable_tcq == TCQ_DISABLE ||
-      seq_params->enable_tcq >= TCQ_8ST_FR) {
-    seq_params->enable_parity_hiding = avm_rb_read_bit(rb);
-  } else {
-    seq_params->enable_parity_hiding = 0;
-  }
-  seq_params->enable_ext_partitions = avm_rb_read_bit(rb);
-  if (seq_params->enable_ext_partitions)
-    seq_params->enable_uneven_4way_partitions = avm_rb_read_bit(rb);
-  else
-    seq_params->enable_uneven_4way_partitions = 0;
-#endif  // !CONFIG_IMPROVED_REORDER_SEQ_FLAGS
 }
 
-#if CONFIG_IMPROVED_REORDER_SEQ_FLAGS
-#if !CONFIG_F255_QMOBU
-// Decodes the user-defined quantization matrices for the given level and stores
-// them in seq_params.
-static AVM_INLINE void decode_qm_data(
-    SequenceHeader *const seq_params, struct avm_read_bit_buffer *rb, int level,
-    int num_planes, struct avm_internal_error_info *error_info) {
-  const TX_SIZE fund_tsize[3] = { TX_8X8, TX_8X4, TX_4X8 };
-  qm_val_t ***fund_mat[3] = { seq_params->quantizer_matrix_8x8,
-                              seq_params->quantizer_matrix_8x4,
-                              seq_params->quantizer_matrix_4x8 };
-
-  for (int t = 0; t < 3; t++) {
-    const TX_SIZE tsize = fund_tsize[t];
-    const int width = tx_size_wide[tsize];
-    const int height = tx_size_high[tsize];
-    const SCAN_ORDER *s = get_scan(tsize, DCT_DCT);
-
-    for (int c = 0; c < num_planes; c++) {
-      if (c > 0) {
-        const bool qm_copy_from_previous_plane = avm_rb_read_bit(rb);
-
-        if (qm_copy_from_previous_plane) {
-          const qm_val_t *src_mat = fund_mat[t][level][c - 1];
-          qm_val_t *dst_mat = fund_mat[t][level][c];
-          memcpy(dst_mat, src_mat, width * height * sizeof(qm_val_t));
-          continue;
-        }
-      }
-      bool qm_8x8_is_symmetric = false;
-      if (tsize == TX_8X8) {
-        qm_8x8_is_symmetric = avm_rb_read_bit(rb);
-      } else if (tsize == TX_4X8) {
-        const bool qm_4x8_is_transpose_of_8x4 = avm_rb_read_bit(rb);
-
-        if (qm_4x8_is_transpose_of_8x4) {
-          assert(fund_tsize[t - 1] == TX_8X4);
-          const qm_val_t *src_mat = fund_mat[t - 1][level][c];
-          qm_val_t *dst_mat = fund_mat[t][level][c];
-
-          for (int i = 0; i < height; i++) {
-            for (int j = 0; j < width; j++) {
-              dst_mat[j] = src_mat[j * height];
-            }
-            src_mat += 1;
-            dst_mat += width;
-          }
-          continue;
-        }
-      }
-
-      qm_val_t *mat = fund_mat[t][level][c];
-      bool coef_repeat_until_end = false;
-      qm_val_t prev = 32;
-      for (int i = 0; i < tx_size_2d[tsize]; i++) {
-        const int pos = s->scan[i];
-        if (tsize == TX_8X8 && qm_8x8_is_symmetric) {
-          const int row = pos / width;
-          const int col = pos % width;
-          if (col > row) {
-            prev = mat[col * width + row];
-            mat[pos] = prev;
-            continue;
-          }
-        }
-
-        if (!coef_repeat_until_end) {
-          const int32_t delta = avm_rb_read_svlc(rb);
-          // The valid range of quantization matrix coefficients is 1..255.
-          // Therefore the valid range of delta values is -254..254. Because of
-          // the & 255 operation, the valid range of delta values can be reduced
-          // to -128..127 to shorten the svlc() code.
-          if (delta < -128 || delta > 127) {
-            avm_internal_error(error_info, AVM_CODEC_CORRUPT_FRAME,
-                               "Invalid matrix_coef_delta: %d", delta);
-          }
-          const qm_val_t coef = (prev + delta) & 255;
-          if (coef == 0) {
-            coef_repeat_until_end = true;
-          } else {
-            prev = coef;
-          }
-        }
-        mat[pos] = prev;
-      }
-    }
-  }
-}
-
-// Decodes all user-defined quantization matrices and stores them in seq_params.
-static AVM_INLINE void decode_user_defined_qm(
-    SequenceHeader *const seq_params, struct avm_read_bit_buffer *rb,
-    int num_planes, struct avm_internal_error_info *error_info) {
-  for (int i = 0; i < NUM_CUSTOM_QMS; i++) {
-    seq_params->qm_data_present[i] = avm_rb_read_bit(rb);
-#if CONFIG_QM_DEBUG
-    printf("[DEC-SEQ] qm_data_present[%d]: %d\n", i,
-           seq_params->qm_data_present[i]);
-#endif
-    if (seq_params->qm_data_present[i]) {
-      decode_qm_data(seq_params, rb, i, num_planes, error_info);
-    }
-  }
-}
-#endif  // !CONFIG_F255_QMOBU
-#endif  // CONFIG_IMPROVED_REORDER_SEQ_FLAGS
-
-#if CONFIG_IMPROVED_REORDER_SEQ_FLAGS
 void read_sequence_transform_quant_entropy_group_tool_flags(
-    struct SequenceHeader *seq_params, struct avm_read_bit_buffer *rb
-#if !CONFIG_F255_QMOBU
-    ,
-    CommonQuantParams *quant_param, struct avm_internal_error_info *error_info
-#endif
-) {
-#else
-void read_sequence_transform_group_tool_flags(struct SequenceHeader *seq_params,
-                                              struct avm_read_bit_buffer *rb) {
-#endif  // CONFIG_IMPROVED_REORDER_SEQ_FLAGS
-#if !CONFIG_IMPROVED_REORDER_SEQ_FLAGS
-  seq_params->enable_sdp = seq_params->monochrome ? 0 : avm_rb_read_bit(rb);
-#if CONFIG_CWG_F377_STILL_PICTURE
-  seq_params->enable_extended_sdp =
-      (seq_params->enable_sdp && !seq_params->single_picture_header_flag)
-          ? avm_rb_read_bit(rb)
-          : 0;
-#else
-  seq_params->enable_extended_sdp =
-      seq_params->enable_sdp ? avm_rb_read_bit(rb) : 0;
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
-#endif  //! CONFIG_IMPROVED_REORDER_SEQ_FLAGS
+    struct SequenceHeader *seq_params, struct avm_read_bit_buffer *rb) {
   seq_params->enable_fsc = avm_rb_read_bit(rb);
   if (!seq_params->enable_fsc) {
     seq_params->enable_idtx_intra = avm_rb_read_bit(rb);
@@ -7088,21 +6475,14 @@ void read_sequence_transform_group_tool_flags(struct SequenceHeader *seq_params,
   seq_params->enable_inter_ist = avm_rb_read_bit(rb);
   seq_params->enable_chroma_dctonly =
       seq_params->monochrome ? 0 : avm_rb_read_bit(rb);
-#if CONFIG_CWG_F377_STILL_PICTURE
   seq_params->enable_inter_ddt =
       seq_params->single_picture_header_flag ? 0 : avm_rb_read_bit(rb);
-#else
-  seq_params->enable_inter_ddt = avm_rb_read_bit(rb);
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
   seq_params->reduced_tx_part_set = avm_rb_read_bit(rb);
   seq_params->enable_cctx = seq_params->monochrome ? 0 : avm_rb_read_bit(rb);
-#if CONFIG_IMPROVED_REORDER_SEQ_FLAGS
   seq_params->enable_tcq = 0;
   int enable_tcq = avm_rb_read_bit(rb);
   if (enable_tcq) {
-#if CONFIG_CWG_F377_STILL_PICTURE
     if (!seq_params->single_picture_header_flag)
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
       enable_tcq += avm_rb_read_bit(rb);
     seq_params->enable_tcq = enable_tcq;
   }
@@ -7114,7 +6494,6 @@ void read_sequence_transform_group_tool_flags(struct SequenceHeader *seq_params,
     seq_params->enable_parity_hiding = 0;
   }
 
-#if CONFIG_CWG_F377_STILL_PICTURE
   if (seq_params->single_picture_header_flag) {
     // Setting both enable_avg_cdf and avg_cdf_type to 1 allows us to omit the
     // context_update_tile_id syntax element in tile_info(), which is part of
@@ -7122,14 +6501,11 @@ void read_sequence_transform_group_tool_flags(struct SequenceHeader *seq_params,
     seq_params->enable_avg_cdf = 1;
     seq_params->avg_cdf_type = 1;
   } else {
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
     seq_params->enable_avg_cdf = avm_rb_read_bit(rb);
     if (seq_params->enable_avg_cdf) {
       seq_params->avg_cdf_type = avm_rb_read_bit(rb);
     }
-#if CONFIG_CWG_F377_STILL_PICTURE
   }
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
   const int is_monochrome = seq_params->monochrome;
   if (is_monochrome) {
     seq_params->separate_uv_delta_q = 0;
@@ -7165,614 +6541,34 @@ void read_sequence_transform_group_tool_flags(struct SequenceHeader *seq_params,
     seq_params->uv_dc_delta_q_enabled = 0;
     seq_params->uv_ac_delta_q_enabled = 0;
   }
-
-#if !CONFIG_F255_QMOBU
-  seq_params->user_defined_qmatrix = avm_rb_read_bit(rb);
-#if CONFIG_QM_DEBUG
-  printf("[DEC-SEQ] user_defined_qmatrix=%d\n",
-         seq_params->user_defined_qmatrix);
-#endif
-  if (seq_params->user_defined_qmatrix) {
-    int num_planes = seq_params->monochrome ? 1 : MAX_MB_PLANE;
-    if (!quant_params->qmatrix_allocated) {
-      seq_params->quantizer_matrix_8x8 = av2_alloc_qm(8, 8);
-      seq_params->quantizer_matrix_8x4 = av2_alloc_qm(8, 4);
-      seq_params->quantizer_matrix_4x8 = av2_alloc_qm(4, 8);
-      quant_params->qmatrix_allocated = true;
-    }
-    av2_init_qmatrix(seq_params->quantizer_matrix_8x8,
-                     seq_params->quantizer_matrix_8x4,
-                     seq_params->quantizer_matrix_4x8, num_planes);
-    decode_user_defined_qm(seq_params, rb, num_planes, error_info);
-  } else {
-    for (uint16_t i = 0; i < NUM_CUSTOM_QMS; i++) {
-      seq_params->qm_data_present[i] = false;
-    }
-  }
-#endif  // !CONFIG_F255_QMOBU
-#endif  // CONFIG_IMPROVED_REORDER_SEQ_FLAGS
 }
-#endif  // CONFIG_REORDER_SEQ_FLAGS
 
 void read_sequence_segment_tool_flags(struct SequenceHeader *seq_params,
                                       struct avm_read_bit_buffer *rb) {
   seq_params->enable_ext_seg = avm_rb_read_bit(rb);
-#if CONFIG_MULTI_LEVEL_SEGMENTATION
   seq_params->seq_seg_info_present_flag = avm_rb_read_bit(rb);
   if (seq_params->seq_seg_info_present_flag) {
     seq_params->seg_params.enable_ext_seg = seq_params->enable_ext_seg;
     read_seg_syntax_info(&seq_params->seg_params, rb);
   }
-#endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
 }
 
 void av2_read_sequence_header(struct avm_read_bit_buffer *rb,
-                              SequenceHeader *seq_params
-#if CONFIG_IMPROVED_REORDER_SEQ_FLAGS && !CONFIG_F255_QMOBU
-                              ,
-                              CommonQuantParams *quant_params,
-                              struct avm_internal_error_info *error_info
-#endif  // CONFIG_IMPROVED_REORDER_SEQ_FLAGS  && !CONFIG_F255_QMOBU
-) {
-#if !CONFIG_IMPROVED_REORDER_SEQ_FLAGS
-  setup_seq_sb_size(seq_params, rb);
-#endif  //! CONFIG_IMPROVED_REORDER_SEQ_FLAGS
-#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
+                              SequenceHeader *seq_params) {
   seq_params->seq_tile_info_present_flag = 0;
-#if CONFIG_CWG_F349_SIGNAL_TILE_INFO
   seq_params->tile_params.allow_tile_info_change = 0;
-#endif  // CONFIG_CWG_F349_SIGNAL_TILE_INFO
-#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
-#if CONFIG_REORDER_SEQ_FLAGS
-#if CONFIG_IMPROVED_REORDER_SEQ_FLAGS
   read_sequence_partition_group_tool_flags(seq_params, rb);
-#endif  // CONFIG_IMPROVED_REORDER_SEQ_FLAGS
   read_sequence_segment_tool_flags(seq_params, rb);
   read_sequence_intra_group_tool_flags(seq_params, rb);
   read_sequence_inter_group_tool_flags(seq_params, rb);
   read_sequence_scc_group_tool_flags(seq_params, rb);
-#if CONFIG_IMPROVED_REORDER_SEQ_FLAGS
-  read_sequence_transform_quant_entropy_group_tool_flags(seq_params, rb
-#if !CONFIG_F255_QMOBU
-                                                         ,
-                                                         quant_params,
-                                                         error_info
-#endif
-  );
+  read_sequence_transform_quant_entropy_group_tool_flags(seq_params, rb);
   read_sequence_filter_group_tool_flags(seq_params, rb);
-#else
-  read_sequence_filter_group_tool_flags(seq_params, rb);
-  read_sequence_transform_group_tool_flags(seq_params, rb);
-#endif  // CONFIG_IMPROVED_REORDER_SEQ_FLAGS
-#else
-  seq_params->enable_intra_dip = avm_rb_read_bit(rb);
-  seq_params->enable_intra_edge_filter = avm_rb_read_bit(rb);
-#endif  // CONFIG_REORDER_SEQ_FLAGS
-  if (seq_params->single_picture_header_flag) {
-#if !CONFIG_REORDER_SEQ_FLAGS
-    seq_params->seq_enabled_motion_modes = (1 << SIMPLE_TRANSLATION);
-    seq_params->enable_masked_compound = 0;
-    seq_params->order_hint_info.enable_ref_frame_mvs = 0;
-    seq_params->force_screen_content_tools = 2;  // SELECT_SCREEN_CONTENT_TOOLS
-    seq_params->force_integer_mv = 2;            // SELECT_INTEGER_MV
-    seq_params->order_hint_info.order_hint_bits_minus_1 = -1;
-    seq_params->enable_six_param_warp_delta = 0;
-    seq_params->seq_frame_motion_modes_present_flag = 0;
-#endif  // !CONFIG_REORDER_SEQ_FLAGS
-  } else {
-#if !CONFIG_REORDER_SEQ_FLAGS
-    int seq_enabled_motion_modes = (1 << SIMPLE_TRANSLATION);
-#if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
-    uint8_t motion_mode_enabled = 0;
-    uint8_t warp_delta_enabled = 0;
-#endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
-    for (int motion_mode = INTERINTRA; motion_mode < MOTION_MODES;
-         motion_mode++) {
-      int enabled = avm_rb_read_bit(rb);
-#if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
-      motion_mode_enabled |= enabled;
-      if (motion_mode == WARP_DELTA && enabled) {
-        warp_delta_enabled = 1;
-      }
-#endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
-      if (enabled) {
-        seq_enabled_motion_modes |= (1 << motion_mode);
-      }
-    }
-
-#if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
-    seq_params->seq_frame_motion_modes_present_flag =
-        motion_mode_enabled ? avm_rb_read_bit(rb) : 0;
-    seq_params->enable_six_param_warp_delta =
-        warp_delta_enabled ? avm_rb_read_bit(rb) : 0;
-#else
-    seq_params->enable_six_param_warp_delta = avm_rb_read_bit(rb);
-#endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
-
-    seq_params->seq_enabled_motion_modes = seq_enabled_motion_modes;
-    seq_params->enable_masked_compound = avm_rb_read_bit(rb);
-    seq_params->order_hint_info.enable_ref_frame_mvs = avm_rb_read_bit(rb);
-    seq_params->order_hint_info.reduced_ref_frame_mvs_mode =
-        seq_params->order_hint_info.enable_ref_frame_mvs ? avm_rb_read_bit(rb)
-                                                         : 0;
-    if (avm_rb_read_bit(rb)) {
-      seq_params->force_screen_content_tools =
-          2;  // SELECT_SCREEN_CONTENT_TOOLS
-    } else {
-      seq_params->force_screen_content_tools = avm_rb_read_bit(rb);
-    }
-
-    if (seq_params->force_screen_content_tools > 0) {
-      if (avm_rb_read_bit(rb)) {
-        seq_params->force_integer_mv = 2;  // SELECT_INTEGER_MV
-      } else {
-        seq_params->force_integer_mv = avm_rb_read_bit(rb);
-      }
-    } else {
-      seq_params->force_integer_mv = 2;  // SELECT_INTEGER_MV
-    }
-
-    seq_params->order_hint_info.order_hint_bits_minus_1 =
-        avm_rb_read_literal(rb, 3);
-#endif  // !CONFIG_REORDER_SEQ_FLAGS
-  }
-
-#if !CONFIG_REORDER_SEQ_FLAGS
-  seq_params->disable_loopfilters_across_tiles = avm_rb_read_bit(rb);
-  seq_params->enable_cdef = avm_rb_read_bit(rb);
-  seq_params->enable_gdf = avm_rb_read_bit(rb);
-  seq_params->enable_restoration = avm_rb_read_bit(rb);
-  seq_params->lr_tools_disable_mask[0] = 0;
-  seq_params->lr_tools_disable_mask[1] = 0;
-  if (seq_params->enable_restoration) {
-    for (int i = 1; i < RESTORE_SWITCHABLE_TYPES; ++i) {
-      seq_params->lr_tools_disable_mask[0] |= (avm_rb_read_bit(rb) << i);
-    }
-    if (avm_rb_read_bit(rb)) {
-      seq_params->lr_tools_disable_mask[1] = DEF_UV_LR_TOOLS_DISABLE_MASK;
-      for (int i = 1; i < RESTORE_SWITCHABLE_TYPES; ++i) {
-        if (DEF_UV_LR_TOOLS_DISABLE_MASK & (1 << i)) continue;
-        seq_params->lr_tools_disable_mask[1] |= (avm_rb_read_bit(rb) << i);
-      }
-    } else {
-      seq_params->lr_tools_disable_mask[1] =
-          (seq_params->lr_tools_disable_mask[0] | DEF_UV_LR_TOOLS_DISABLE_MASK);
-    }
-  }
-#endif  // !CONFIG_REORDER_SEQ_FLAGS
-#if !CONFIG_IMPROVED_REORDER_SEQ_FLAGS
-  const int is_monochrome = seq_params->monochrome;
-  if (is_monochrome) {
-    seq_params->separate_uv_delta_q = 0;
-  } else {
-    seq_params->separate_uv_delta_q = avm_rb_read_bit(rb);
-  }
-
-  seq_params->equal_ac_dc_q = avm_rb_read_bit(rb);
-  if (!seq_params->equal_ac_dc_q) {
-    seq_params->base_y_dc_delta_q =
-        DELTA_DCQUANT_MIN + avm_rb_read_literal(rb, DELTA_DCQUANT_BITS);
-    seq_params->y_dc_delta_q_enabled = avm_rb_read_bit(rb);
-  } else {
-    seq_params->base_y_dc_delta_q = 0;
-    seq_params->y_dc_delta_q_enabled = 0;
-  }
-  if (!is_monochrome) {
-    if (!seq_params->equal_ac_dc_q) {
-      seq_params->base_uv_dc_delta_q =
-          DELTA_DCQUANT_MIN + avm_rb_read_literal(rb, DELTA_DCQUANT_BITS);
-      seq_params->uv_dc_delta_q_enabled = avm_rb_read_bit(rb);
-    } else {
-      seq_params->uv_dc_delta_q_enabled = 0;
-    }
-    seq_params->base_uv_ac_delta_q =
-        DELTA_DCQUANT_MIN + avm_rb_read_literal(rb, DELTA_DCQUANT_BITS);
-    seq_params->uv_ac_delta_q_enabled = avm_rb_read_bit(rb);
-    if (seq_params->equal_ac_dc_q)
-      seq_params->base_uv_dc_delta_q = seq_params->base_uv_ac_delta_q;
-  } else {
-    seq_params->base_uv_dc_delta_q = 0;
-    seq_params->base_uv_ac_delta_q = 0;
-    seq_params->uv_dc_delta_q_enabled = 0;
-    seq_params->uv_ac_delta_q_enabled = 0;
-  }
-#endif  // !CONFIG_IMPROVED_REORDER_SEQ_FLAGS
-#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
   seq_params->seq_tile_info_present_flag = avm_rb_read_bit(rb);
   if (seq_params->seq_tile_info_present_flag) {
     read_sequence_tile_info(seq_params, rb);
   }
-#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 }
-#if !CONFIG_IMPROVED_REORDER_SEQ_FLAGS
-#if !CONFIG_F255_QMOBU
-// Decodes the user-defined quantization matrices for the given level and stores
-// them in seq_params.
-static AVM_INLINE void decode_qm_data(
-    SequenceHeader *const seq_params, struct avm_read_bit_buffer *rb, int level,
-    int num_planes, struct avm_internal_error_info *error_info) {
-  const TX_SIZE fund_tsize[3] = { TX_8X8, TX_8X4, TX_4X8 };
-  qm_val_t ***fund_mat[3] = { seq_params->quantizer_matrix_8x8,
-                              seq_params->quantizer_matrix_8x4,
-                              seq_params->quantizer_matrix_4x8 };
-
-  for (int t = 0; t < 3; t++) {
-    const TX_SIZE tsize = fund_tsize[t];
-    const int width = tx_size_wide[tsize];
-    const int height = tx_size_high[tsize];
-    const SCAN_ORDER *s = get_scan(tsize, DCT_DCT);
-
-    for (int c = 0; c < num_planes; c++) {
-      if (c > 0) {
-        const bool qm_copy_from_previous_plane = avm_rb_read_bit(rb);
-
-        if (qm_copy_from_previous_plane) {
-          const qm_val_t *src_mat = fund_mat[t][level][c - 1];
-          qm_val_t *dst_mat = fund_mat[t][level][c];
-          memcpy(dst_mat, src_mat, width * height * sizeof(qm_val_t));
-          continue;
-        }
-      }
-      bool qm_8x8_is_symmetric = false;
-      if (tsize == TX_8X8) {
-        qm_8x8_is_symmetric = avm_rb_read_bit(rb);
-      } else if (tsize == TX_4X8) {
-        const bool qm_4x8_is_transpose_of_8x4 = avm_rb_read_bit(rb);
-
-        if (qm_4x8_is_transpose_of_8x4) {
-          assert(fund_tsize[t - 1] == TX_8X4);
-          const qm_val_t *src_mat = fund_mat[t - 1][level][c];
-          qm_val_t *dst_mat = fund_mat[t][level][c];
-
-          for (int i = 0; i < height; i++) {
-            for (int j = 0; j < width; j++) {
-              dst_mat[j] = src_mat[j * height];
-            }
-            src_mat += 1;
-            dst_mat += width;
-          }
-          continue;
-        }
-      }
-
-      qm_val_t *mat = fund_mat[t][level][c];
-      bool coef_repeat_until_end = false;
-      qm_val_t prev = 32;
-      for (int i = 0; i < tx_size_2d[tsize]; i++) {
-        const int pos = s->scan[i];
-        if (tsize == TX_8X8 && qm_8x8_is_symmetric) {
-          const int row = pos / width;
-          const int col = pos % width;
-          if (col > row) {
-            prev = mat[col * width + row];
-            mat[pos] = prev;
-            continue;
-          }
-        }
-
-        if (!coef_repeat_until_end) {
-          const int32_t delta = avm_rb_read_svlc(rb);
-          // The valid range of quantization matrix coefficients is 1..255.
-          // Therefore the valid range of delta values is -254..254. Because of
-          // the & 255 operation, the valid range of delta values can be reduced
-          // to -128..127 to shorten the svlc() code.
-          if (delta < -128 || delta > 127) {
-            avm_internal_error(error_info, AVM_CODEC_CORRUPT_FRAME,
-                               "Invalid matrix_coef_delta: %d", delta);
-          }
-          const qm_val_t coef = (prev + delta) & 255;
-          if (coef == 0) {
-            coef_repeat_until_end = true;
-          } else {
-            prev = coef;
-          }
-        }
-        mat[pos] = prev;
-      }
-    }
-  }
-}
-
-// Decodes all user-defined quantization matrices and stores them in seq_params.
-static AVM_INLINE void decode_user_defined_qm(
-    SequenceHeader *const seq_params, struct avm_read_bit_buffer *rb,
-    int num_planes, struct avm_internal_error_info *error_info) {
-  for (int i = 0; i < NUM_CUSTOM_QMS; i++) {
-    seq_params->qm_data_present[i] = avm_rb_read_bit(rb);
-#if CONFIG_QM_DEBUG
-    printf("[DEC-SEQ] qm_data_present[%d]: %d\n", i,
-           seq_params->qm_data_present[i]);
-#endif
-    if (seq_params->qm_data_present[i]) {
-      decode_qm_data(seq_params, rb, i, num_planes, error_info);
-    }
-  }
-}
-#endif  // !CONFIG_F255_QMOBU
-#endif  //! CONFIG_IMPROVED_REORDER_SEQ_FLAGS
-
-#if !CONFIG_IMPROVED_REORDER_SEQ_FLAGS
-// this function can be removed with CONFIG_IMPROVED_REORDER_SEQ_FLAGS == 1
-void av2_read_sequence_header_beyond_av2(
-    struct avm_read_bit_buffer *rb, SequenceHeader *seq_params
-#if !CONFIG_F255_QMOBU
-    ,
-    CommonQuantParams *quant_params, struct avm_internal_error_info *error_info
-#endif  // !CONFIG_F255_QMOBU
-) {
-#if !CONFIG_REORDER_SEQ_FLAGS
-  seq_params->enable_refmvbank = avm_rb_read_bit(rb);
-  if (avm_rb_read_bit(rb)) {
-    seq_params->enable_drl_reorder = DRL_REORDER_DISABLED;
-  } else {
-    seq_params->enable_drl_reorder =
-        avm_rb_read_bit(rb) ? DRL_REORDER_CONSTRAINT : DRL_REORDER_ALWAYS;
-  }
-#endif  // !CONFIG_REORDER_SEQ_FLAGS
-
-#if CONFIG_CWG_F377_STILL_PICTURE
-  if (seq_params->single_picture_header_flag) {
-    seq_params->enable_cdef_on_skip_txfm = CDEF_ON_SKIP_TXFM_ADAPTIVE;
-    // Setting both enable_avg_cdf and avg_cdf_type to 1 allows us to omit the
-    // context_update_tile_id syntax element in tile_info(), which is part of
-    // uncompressed_header().
-    seq_params->enable_avg_cdf = 1;
-    seq_params->avg_cdf_type = 1;
-  } else {
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
-    if (avm_rb_read_bit(rb)) {
-      seq_params->enable_cdef_on_skip_txfm = CDEF_ON_SKIP_TXFM_ALWAYS_ON;
-    } else {
-      seq_params->enable_cdef_on_skip_txfm = avm_rb_read_bit(rb)
-                                                 ? CDEF_ON_SKIP_TXFM_DISABLED
-                                                 : CDEF_ON_SKIP_TXFM_ADAPTIVE;
-    }
-    seq_params->enable_avg_cdf = avm_rb_read_bit(rb);
-    if (seq_params->enable_avg_cdf) {
-      seq_params->avg_cdf_type = avm_rb_read_bit(rb);
-    }
-#if CONFIG_CWG_F377_STILL_PICTURE
-  }
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
-#if !CONFIG_REORDER_SEQ_FLAGS
-#if CONFIG_CWG_F377_STILL_PICTURE
-  if (seq_params->single_picture_header_flag) {
-    seq_params->explicit_ref_frame_map = 0;
-
-    seq_params->ref_frames = 2;
-    seq_params->ref_frames_log2 = 1;
-
-    seq_params->def_max_drl_bits = MIN_MAX_DRL_BITS;
-    seq_params->allow_frame_max_drl_bits = 0;
-  } else {
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
-    seq_params->explicit_ref_frame_map = avm_rb_read_bit(rb);
-
-    if (avm_rb_read_bit(rb)) {
-      seq_params->ref_frames =
-          avm_rb_read_literal(rb, 4) + 1;  // explicitly signaled DPB size
-    } else {
-      seq_params->ref_frames = 8;  // default DPB size: 8
-    }
-    seq_params->ref_frames_log2 = avm_ceil_log2(seq_params->ref_frames);
-
-    seq_params->def_max_drl_bits =
-        avm_rb_read_primitive_quniform(
-            rb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1) +
-        MIN_MAX_DRL_BITS;
-    seq_params->allow_frame_max_drl_bits = avm_rb_read_bit(rb);
-#if CONFIG_CWG_F377_STILL_PICTURE
-  }
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
-  seq_params->def_max_bvp_drl_bits =
-      avm_rb_read_primitive_quniform(
-          rb, MAX_MAX_IBC_DRL_BITS - MIN_MAX_IBC_DRL_BITS + 1) +
-      MIN_MAX_IBC_DRL_BITS;
-  seq_params->allow_frame_max_bvp_drl_bits = avm_rb_read_bit(rb);
-
-#if CONFIG_CWG_F377_STILL_PICTURE
-  seq_params->num_same_ref_compound =
-      seq_params->single_picture_header_flag ? 0 : avm_rb_read_literal(rb, 2);
-#else
-  seq_params->num_same_ref_compound = avm_rb_read_literal(rb, 2);
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
-  seq_params->enable_sdp = seq_params->monochrome ? 0 : avm_rb_read_bit(rb);
-#if CONFIG_CWG_F377_STILL_PICTURE
-  seq_params->enable_extended_sdp =
-      (seq_params->enable_sdp && !seq_params->single_picture_header_flag)
-          ? avm_rb_read_bit(rb)
-          : 0;
-#else
-  seq_params->enable_extended_sdp =
-      seq_params->enable_sdp ? avm_rb_read_bit(rb) : 0;
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
-  seq_params->enable_ist = avm_rb_read_bit(rb);
-  seq_params->enable_inter_ist = avm_rb_read_bit(rb);
-  seq_params->enable_chroma_dctonly =
-      seq_params->monochrome ? 0 : avm_rb_read_bit(rb);
-#if CONFIG_CWG_F377_STILL_PICTURE
-  seq_params->enable_inter_ddt =
-      seq_params->single_picture_header_flag ? 0 : avm_rb_read_bit(rb);
-#else
-  seq_params->enable_inter_ddt = avm_rb_read_bit(rb);
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
-  seq_params->reduced_tx_part_set = avm_rb_read_bit(rb);
-  seq_params->enable_cctx = seq_params->monochrome ? 0 : avm_rb_read_bit(rb);
-  seq_params->enable_mrls = avm_rb_read_bit(rb);
-  seq_params->enable_cfl_intra = avm_rb_read_bit(rb);
-  seq_params->enable_mhccp = avm_rb_read_bit(rb);
-#if CONFIG_CWG_F377_STILL_PICTURE
-  uint8_t enable_tip =
-      seq_params->single_picture_header_flag ? 0 : avm_rb_read_bit(rb);
-#else
-  uint8_t enable_tip = avm_rb_read_bit(rb);
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
-  if (enable_tip) {
-    seq_params->enable_tip = 1 + avm_rb_read_bit(rb);
-  } else {
-    seq_params->enable_tip = 0;
-  }
-  if (seq_params->enable_tip) {
-    seq_params->enable_tip_hole_fill = avm_rb_read_bit(rb);
-  } else {
-    seq_params->enable_tip_hole_fill = 0;
-  }
-#if CONFIG_CWG_F377_STILL_PICTURE
-  seq_params->enable_mv_traj =
-      seq_params->single_picture_header_flag ? 0 : avm_rb_read_bit(rb);
-#else
-  seq_params->enable_mv_traj = avm_rb_read_bit(rb);
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
-  seq_params->enable_bawp = avm_rb_read_bit(rb);
-#if CONFIG_CWG_F377_STILL_PICTURE
-  seq_params->enable_cwp =
-      seq_params->single_picture_header_flag ? 0 : avm_rb_read_bit(rb);
-  seq_params->enable_imp_msk_bld =
-      seq_params->single_picture_header_flag ? 0 : avm_rb_read_bit(rb);
-#else
-  seq_params->enable_cwp = avm_rb_read_bit(rb);
-  seq_params->enable_imp_msk_bld = avm_rb_read_bit(rb);
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
-  seq_params->enable_fsc = avm_rb_read_bit(rb);
-  if (!seq_params->enable_fsc) {
-    seq_params->enable_idtx_intra = avm_rb_read_bit(rb);
-  } else {
-    seq_params->enable_idtx_intra = 1;
-  }
-  seq_params->enable_ccso = avm_rb_read_bit(rb);
-#if CONFIG_CWG_F377_STILL_PICTURE
-  seq_params->enable_lf_sub_pu =
-      seq_params->single_picture_header_flag ? 0 : avm_rb_read_bit(rb);
-#else
-  seq_params->enable_lf_sub_pu = avm_rb_read_bit(rb);
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
-  if (seq_params->enable_tip == 1 && seq_params->enable_lf_sub_pu) {
-    seq_params->enable_tip_explicit_qp = avm_rb_read_bit(rb);
-  } else {
-    seq_params->enable_tip_explicit_qp = 0;
-  }
-#if CONFIG_CWG_F377_STILL_PICTURE
-  seq_params->enable_opfl_refine = seq_params->single_picture_header_flag
-                                       ? AVM_OPFL_REFINE_NONE
-                                       : avm_rb_read_literal(rb, 2);
-#else
-  seq_params->enable_opfl_refine = avm_rb_read_literal(rb, 2);
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
-  seq_params->enable_ibp = avm_rb_read_bit(rb);
-#if CONFIG_CWG_F377_STILL_PICTURE
-  if (seq_params->single_picture_header_flag) {
-    seq_params->enable_adaptive_mvd = 0;
-    seq_params->enable_refinemv = 0;
-  } else {
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
-    seq_params->enable_adaptive_mvd = avm_rb_read_bit(rb);
-    seq_params->enable_refinemv = avm_rb_read_bit(rb);
-#if CONFIG_CWG_F377_STILL_PICTURE
-  }
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
-
-  seq_params->enable_tip_refinemv =
-      (seq_params->enable_tip &&
-       (seq_params->enable_opfl_refine || seq_params->enable_refinemv))
-          ? avm_rb_read_bit(rb)
-          : 0;
-#if CONFIG_CWG_F377_STILL_PICTURE
-  if (seq_params->single_picture_header_flag) {
-    seq_params->enable_bru = 0;
-    seq_params->enable_mvd_sign_derive = 0;
-    seq_params->enable_flex_mvres = 0;
-  } else {
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
-    seq_params->enable_bru = avm_rb_read_bit(rb);
-    seq_params->enable_mvd_sign_derive = avm_rb_read_bit(rb);
-    seq_params->enable_flex_mvres = avm_rb_read_bit(rb);
-#if CONFIG_CWG_F377_STILL_PICTURE
-  }
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
-  seq_params->cfl_ds_filter_index =
-      seq_params->monochrome ? 0 : avm_rb_read_literal(rb, 2);
-
-  seq_params->enable_tcq = 0;
-  int enable_tcq = avm_rb_read_bit(rb);
-  if (enable_tcq) {
-#if CONFIG_CWG_F377_STILL_PICTURE
-    if (!seq_params->single_picture_header_flag)
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
-      enable_tcq += avm_rb_read_bit(rb);
-    seq_params->enable_tcq = enable_tcq;
-  }
-  if (seq_params->enable_tcq == TCQ_DISABLE ||
-      seq_params->enable_tcq >= TCQ_8ST_FR) {
-    seq_params->enable_parity_hiding = avm_rb_read_bit(rb);
-  } else {
-    seq_params->enable_parity_hiding = 0;
-  }
-  seq_params->enable_ext_partitions = avm_rb_read_bit(rb);
-  if (seq_params->enable_ext_partitions)
-    seq_params->enable_uneven_4way_partitions = avm_rb_read_bit(rb);
-  else
-    seq_params->enable_uneven_4way_partitions = 0;
-#endif  // !CONFIG_REORDER_SEQ_FLAGS
-  seq_params->max_pb_aspect_ratio_log2_m1 = 2;
-  if (avm_rb_read_bit(rb)) {
-    seq_params->max_pb_aspect_ratio_log2_m1 = avm_rb_read_bit(rb);
-  }
-#if !CONFIG_REORDER_SEQ_FLAGS
-  if (seq_params->single_picture_header_flag) {
-    seq_params->enable_global_motion = 0;
-  } else {
-    seq_params->enable_global_motion = avm_rb_read_bit(rb);
-  }
-#endif  // !CONFIG_REORDER_SEQ_FLAGS
-  seq_params->df_par_bits_minus2 = avm_rb_read_literal(rb, 2);
-#if !CONFIG_REORDER_SEQ_FLAGS
-#if CONFIG_CWG_F377_STILL_PICTURE
-  if (seq_params->single_picture_header_flag) {
-    seq_params->enable_short_refresh_frame_flags = 0;
-    seq_params->number_of_bits_for_lt_frame_id = 0;
-  } else {
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
-    seq_params->enable_short_refresh_frame_flags = avm_rb_read_bit(rb);
-    seq_params->number_of_bits_for_lt_frame_id = avm_rb_read_literal(rb, 3);
-#if CONFIG_CWG_F377_STILL_PICTURE
-  }
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
-  seq_params->enable_ext_seg = avm_rb_read_bit(rb);
-#if CONFIG_MULTI_LEVEL_SEGMENTATION
-  seq_params->seq_seg_info_present_flag = avm_rb_read_bit(rb);
-  if (seq_params->seq_seg_info_present_flag) {
-    seq_params->seg_params.enable_ext_seg = seq_params->enable_ext_seg;
-    read_seg_syntax_info(&seq_params->seg_params, rb);
-  }
-#endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
-#endif  // !CONFIG_REORDER_SEQ_FLAGS
-
-#if !CONFIG_F255_QMOBU
-  seq_params->user_defined_qmatrix = avm_rb_read_bit(rb);
-#if CONFIG_QM_DEBUG
-  printf("[DEC-SEQ] user_defined_qmatrix=%d\n",
-         seq_params->user_defined_qmatrix);
-#endif
-  if (seq_params->user_defined_qmatrix) {
-    int num_planes = seq_params->monochrome ? 1 : MAX_MB_PLANE;
-    if (!quant_params->qmatrix_allocated) {
-      seq_params->quantizer_matrix_8x8 = av2_alloc_qm(8, 8);
-      seq_params->quantizer_matrix_8x4 = av2_alloc_qm(8, 4);
-      seq_params->quantizer_matrix_4x8 = av2_alloc_qm(4, 8);
-      quant_params->qmatrix_allocated = true;
-    }
-    av2_init_qmatrix(seq_params->quantizer_matrix_8x8,
-                     seq_params->quantizer_matrix_8x4,
-                     seq_params->quantizer_matrix_4x8, num_planes);
-    decode_user_defined_qm(seq_params, rb, num_planes, error_info);
-  } else {
-    for (uint16_t i = 0; i < NUM_CUSTOM_QMS; i++) {
-      seq_params->qm_data_present[i] = false;
-    }
-  }
-#endif  // !CONFIG_F255_QMOBU
-}
-#endif  // !CONFIG_IMPROVED_REORDER_SEQ_FLAGS
 
 static AVM_INLINE void read_mfh_sb_size(MultiFrameHeader *mfh_params,
                                         struct avm_read_bit_buffer *rb) {
@@ -7796,7 +6592,6 @@ static AVM_INLINE void read_mfh_sb_size(MultiFrameHeader *mfh_params,
   mfh_params->mfh_sb_size = sb_sizes[index + scale_sb];
 }
 
-#if CONFIG_MULTI_LEVEL_SEGMENTATION
 static AVM_INLINE void read_multi_frame_header_seg_info(
     MultiFrameHeader *mfh_param, struct avm_read_bit_buffer *rb) {
   mfh_param->mfh_seg_info_present_flag = avm_rb_read_bit(rb);
@@ -7806,7 +6601,6 @@ static AVM_INLINE void read_multi_frame_header_seg_info(
     read_seg_syntax_info(&mfh_param->mfh_seg_params, rb);
   }
 }
-#endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
 
 void av2_read_multi_frame_header(AV2_COMMON *cm,
                                  struct avm_read_bit_buffer *rb) {
@@ -7817,11 +6611,7 @@ void av2_read_multi_frame_header(AV2_COMMON *cm,
                        "Unsupported Sequence Header ID in MFH");
   }
 #endif  // #if CONFIG_CWG_E242_SEQ_HDR_ID
-#if CONFIG_CWG_E242_MFH_ID_UVLC
   uint32_t cur_mfh_id = avm_rb_read_uvlc(rb) + 1;
-#else
-  int cur_mfh_id = avm_rb_read_literal(rb, 4) + 1;
-#endif  // CONFIG_CWG_E242_MFH_ID_UVLC
   if (cur_mfh_id >= MAX_MFH_NUM) {
     avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
                        "multi-frame header id is greater than or equal to the "
@@ -7832,7 +6622,6 @@ void av2_read_multi_frame_header(AV2_COMMON *cm,
 #if CONFIG_CWG_E242_SEQ_HDR_ID
   mfh_param->mfh_seq_header_id = (int)mfh_seq_header_id;
 #endif  // #if CONFIG_CWG_E242_SEQ_HDR_ID
-#if CONFIG_CWG_E242_PARSING_INDEP
   mfh_param->mfh_frame_width = cm->seq_params.max_frame_width;
   mfh_param->mfh_frame_height = cm->seq_params.max_frame_height;
   mfh_param->mfh_frame_size_present_flag = avm_rb_read_bit(rb);
@@ -7847,25 +6636,6 @@ void av2_read_multi_frame_header(AV2_COMMON *cm,
                         &mfh_param->mfh_frame_width,
                         &mfh_param->mfh_frame_height);
   }
-#else
-  bool frame_size_update_flag = avm_rb_read_bit(rb);
-
-  int width = cm->seq_params.max_frame_width;
-  int height = cm->seq_params.max_frame_height;
-  if (frame_size_update_flag) {
-    int num_bits_width = cm->seq_params.num_bits_width;
-    int num_bits_height = cm->seq_params.num_bits_height;
-    av2_read_frame_size(rb, num_bits_width, num_bits_height, &width, &height);
-    if (width > cm->seq_params.max_frame_width ||
-        height > cm->seq_params.max_frame_height) {
-      avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
-                         "Frame dimensions are larger than the maximum values");
-    }
-  }
-  mfh_param->mfh_frame_width = width;
-  mfh_param->mfh_frame_height = height;
-#endif  // CONFIG_CWG_E242_PARSING_INDEP
-
   mfh_param->mfh_deblocking_filter_update_flag = avm_rb_read_bit(rb);
   if (mfh_param->mfh_deblocking_filter_update_flag) {
     for (int i = 0; i < 4; i++) {
@@ -7877,16 +6647,11 @@ void av2_read_multi_frame_header(AV2_COMMON *cm,
     }
   }
 
-#if !CONFIG_CWG_E242_PARSING_INDEP
-  mfh_param->mfh_tile_info_present_flag = avm_rb_read_bit(rb);
-#endif  //  !CONFIG_CWG_E242_PARSING_INDEP
   if (mfh_param->mfh_tile_info_present_flag) {
     read_mfh_sb_size(mfh_param, rb);
     read_multi_frame_header_tile_info(mfh_param, rb);
   }
-#if CONFIG_MULTI_LEVEL_SEGMENTATION
   read_multi_frame_header_seg_info(mfh_param, rb);
-#endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
 
   cm->mfh_valid[cur_mfh_id] = true;
 }
@@ -8111,7 +6876,7 @@ static AVM_INLINE void validate_refereces(AV2Decoder *const pbi) {
     }
   }
 }
-#if !CONFIG_F024_KEYOBU || !CONFIG_F356_SEF_DOH
+#if !CONFIG_F024_KEYOBU
 static AVM_INLINE void show_existing_frame_reset(AV2Decoder *const pbi) {
   AV2_COMMON *const cm = &pbi->common;
 
@@ -8134,12 +6899,8 @@ static AVM_INLINE void show_existing_frame_reset(AV2Decoder *const pbi) {
   // Note that the displayed frame must be valid for referencing in order to
   // have been selected.
   validate_refereces(pbi);
-
-#if !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
-  cm->features.refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
-#endif  // !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 }
-#endif  // !CONFIG_F024_KEYOBU || !CONFIG_F356_SEF_DOH
+#endif  // !CONFIG_F024_KEYOBU
 static INLINE void reset_frame_buffers(AV2_COMMON *cm) {
   RefCntBuffer *const frame_bufs = cm->buffer_pool->frame_bufs;
   int i;
@@ -8189,10 +6950,6 @@ static INLINE int get_disp_order_hint(AV2_COMMON *const cm)
     if (random_accessed) return current_frame->order_hint;
   }
 #else
-#if !CONFIG_F356_SEF_DOH
-  if (current_frame->frame_type == KEY_FRAME && cm->show_existing_frame)
-    return 0;
-#endif  // !CONFIG_F356_SEF_DOH
   // For key frames, the implicit derivation of display_order_hit is not
   // applied.
   if (current_frame->frame_type == KEY_FRAME) return current_frame->order_hint;
@@ -8337,9 +7094,7 @@ static void set_primary_ref_frame_and_ctx(AV2Decoder *pbi) {
       features->primary_ref_frame == PRIMARY_REF_NONE) {
     features->primary_ref_frame = PRIMARY_REF_NONE;
     features->derived_primary_ref_frame = PRIMARY_REF_NONE;
-#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
     features->cross_frame_context = CROSS_FRAME_CONTEXT_DISABLED;
-#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   }
   assert(IMPLIES(features->derived_primary_ref_frame == PRIMARY_REF_NONE,
                  features->primary_ref_frame == PRIMARY_REF_NONE));
@@ -8352,11 +7107,8 @@ static void set_primary_ref_frame_and_ctx(AV2Decoder *pbi) {
                        "Invalid primary_ref_frame");
   }
 
-  if (cm->features.primary_ref_frame == PRIMARY_REF_NONE
-#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
-      || cm->features.cross_frame_context == CROSS_FRAME_CONTEXT_DISABLED
-#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
-  ) {
+  if (cm->features.primary_ref_frame == PRIMARY_REF_NONE ||
+      cm->features.cross_frame_context == CROSS_FRAME_CONTEXT_DISABLED) {
     // use the default frame context values
     av2_setup_past_independence(cm);
   } else {
@@ -8467,9 +7219,12 @@ static int read_show_existing_frame(AV2Decoder *pbi,
                        "Invalid SEF Ref: restricted reference buffer");
   }
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
-#if CONFIG_F356_SEF_DOH
   cm->sef_ref_fb_idx = existing_frame_idx;
   cm->derive_sef_order_hint = avm_rb_read_bit(rb);
+#if CONFIG_F024_KEYOBU
+  cm->cur_frame->mlayer_id = cm->mlayer_id;
+#endif
+
   if (!cm->derive_sef_order_hint) {
     current_frame->order_hint = avm_rb_read_literal(
         rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
@@ -8543,21 +7298,6 @@ static int read_show_existing_frame(AV2Decoder *pbi,
     cm->cur_frame->order_hint = frame_to_show->order_hint;
     cm->cur_frame->display_order_hint = frame_to_show->display_order_hint;
   }
-#endif  // CONFIG_F356_SEF_DOH
-#if !CONFIG_CWG_F430
-  if (seq_params->decoder_model_info_present_flag &&
-#if CONFIG_CWG_F270_CI_OBU
-      (cm->ci_params_per_layer[cm->mlayer_id].ci_timing_info_present_flag ==
-       1) &&
-      cm->ci_params_per_layer[cm->mlayer_id]
-              .timing_info.equal_elemental_interval == 0
-#else
-      seq_params->timing_info.equal_picture_interval == 0
-#endif  // CONFIG_CWG_F270_CI_OBU
-  ) {
-    read_temporal_point_info(cm, rb);
-  }
-#endif  // !CONFIG_CWG_F430
   lock_buffer_pool(pool);
   assert(frame_to_show->ref_count > 0);
   // cm->cur_frame should be the buffer referenced by the return value
@@ -8572,12 +7312,10 @@ static int read_show_existing_frame(AV2Decoder *pbi,
 
   FrameHash raw_frame_hash = cm->cur_frame->raw_frame_hash;
   FrameHash grain_frame_hash = cm->cur_frame->grain_frame_hash;
-#if CONFIG_F356_SEF_DOH
   if (cm->derive_sef_order_hint)
-#endif  // CONFIG_F356_SEF_DOH
     assign_frame_buffer_p(&cm->cur_frame, frame_to_show);
 
-#if !CONFIG_F024_KEYOBU || !CONFIG_F356_SEF_DOH
+#if !CONFIG_F024_KEYOBU
   pbi->reset_decoder_state = frame_to_show->frame_type == KEY_FRAME;
 #endif  // !CONFIG_F024_KEYOBU
   // Combine any Decoded Frame Header metadata that was parsed before
@@ -8593,21 +7331,11 @@ static int read_show_existing_frame(AV2Decoder *pbi,
   cm->lf.apply_deblocking_filter[0] = 0;
   cm->lf.apply_deblocking_filter[1] = 0;
   cm->show_frame = 1;
-#if CONFIG_F356_SEF_DOH
   // It is a requirement of bitstream conformance that when
   // show_existing_frame is used to show a previous frame with derived display
   // order hint, the frame is output via the show_existing_frame mechanism at
   // most once.
-  if (cm->derive_sef_order_hint && frame_to_show->frame_output_done)
-#else
-  // It is a requirement of bitstream conformance that when
-  // show_existing_frame is used to show a previous frame with
-  // RefFrameType[ frame_to_show_map_idx ] equal to KEY_FRAME, that the
-  // frame is output via the show_existing_frame mechanism at most once.
-  if ((frame_to_show->frame_type == KEY_FRAME &&
-       !frame_to_show->showable_frame && frame_to_show->frame_output_done))
-#endif  // CONFIG_F356_SEF_DOH
-  {
+  if (cm->derive_sef_order_hint && frame_to_show->frame_output_done) {
     avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
                        "Buffer does not contain a showable frame");
   }
@@ -8615,20 +7343,19 @@ static int read_show_existing_frame(AV2Decoder *pbi,
   if (pbi->reset_decoder_state) frame_to_show->showable_frame = 0;
 #endif  // !CONFIG_F024_KEYOBU
   cm->film_grain_params = frame_to_show->film_grain_params;
-#if !CONFIG_F024_KEYOBU || !CONFIG_F356_SEF_DOH
+#if !CONFIG_F024_KEYOBU
   if (pbi->reset_decoder_state) {
     show_existing_frame_reset(pbi);
   } else {
 #endif  // !CONFIG_F024_KEYOBU
     current_frame->refresh_frame_flags = 0;
-#if !CONFIG_F024_KEYOBU || !CONFIG_F356_SEF_DOH
+#if !CONFIG_F024_KEYOBU
   }
 #endif  // !CONFIG_F024_KEYOBU
 
   return 0;
 }
 
-#if CONFIG_FIX_OPFL_AUTO
 static void read_frame_opfl_refine_type(AV2_COMMON *const cm,
                                         struct avm_read_bit_buffer *rb) {
   if (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
@@ -8651,7 +7378,6 @@ static void read_frame_opfl_refine_type(AV2_COMMON *const cm,
     cm->features.opfl_refine_type = cm->seq_params.enable_opfl_refine;
   }
 }
-#endif  // CONFIG_FIX_OPFL_AUTO
 
 int ras_frame_refresh_frame_flags_derivation(AV2Decoder *pbi) {
   AV2_COMMON *const cm = &pbi->common;
@@ -8821,7 +7547,6 @@ static void handle_sequence_header(AV2Decoder *pbi,
   }
 #endif  // CONFIG_CWG_F270_CI_OBU
 
-#if CONFIG_F255_QMOBU
   const int num_planes = av2_num_planes(cm);
   for (int qm_pos = 0; qm_pos < NUM_CUSTOM_QMS; qm_pos++) {
     // qm_protected[qm_pos] == 1 indicates the pbi->qm_list[qm_pos] is signalled
@@ -8833,31 +7558,8 @@ static void handle_sequence_header(AV2Decoder *pbi,
     qmset->qm_mlayer_id = -1;
     qmset->qm_tlayer_id = -1;
     qmset->quantizer_matrix_num_planes = num_planes;
-#if CONFIG_QM_REVERT
     qmset->is_user_defined_qm = false;
-#else
-    int qm_default_index = qm_pos;
-    qmset->qm_default_index = qm_pos;
-    if (!qmset->quantizer_matrix_allocated) {
-      alloc_qmatrix(qmset);
-    }
-    // copy predefined[qm_default_index] to qmset
-    for (int c = 0; c < num_planes; ++c) {
-      // plane_type: 0:luma, 1:chroma
-      const int plane_type = (c >= 1);
-      memcpy(qmset->quantizer_matrix[0][c],
-             predefined_8x8_iwt_base_matrix[qm_default_index][plane_type],
-             8 * 8 * sizeof(qm_val_t));
-      memcpy(qmset->quantizer_matrix[1][c],
-             predefined_8x4_iwt_base_matrix[qm_default_index][plane_type],
-             8 * 4 * sizeof(qm_val_t));
-      memcpy(qmset->quantizer_matrix[2][c],
-             predefined_4x8_iwt_base_matrix[qm_default_index][plane_type],
-             4 * 8 * sizeof(qm_val_t));
-    }
-#endif  // CONFIG_QM_REVERT
   }  // qm_pos
-#endif  // CONFIG_F255_QMOBU
 }
 #endif  // CONFIG_CWG_E242_SEQ_HDR_ID
 
@@ -8967,13 +7669,7 @@ static void handle_zero_cur_mfh_id(AV2_COMMON *const cm) {
 
 static int setup_multiframe_header_id(AV2_COMMON *const cm, OBU_TYPE obu_type,
                                       struct avm_read_bit_buffer *rb) {
-#if CONFIG_CWG_E242_MFH_ID_UVLC
   uint32_t cur_mfh_id = obu_type == OBU_BRIDGE_FRAME ? 0 : avm_rb_read_uvlc(rb);
-#else
-  uint32_t cur_mfh_id =
-      obu_type == OBU_BRIDGE_FRAME ? 0 : avm_rb_read_literal(rb, 4);
-#endif  // CONFIG_CWG_E242_MFH_ID_UVLC
-
   if (cur_mfh_id >= MAX_MFH_NUM) {
     avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
                        "multi-frame header id is greater than or equal to "
@@ -9228,12 +7924,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       cm->showable_frame = 0;
     } else
       cm->showable_frame = current_frame->frame_type != KEY_FRAME;
-#if CONFIG_CWG_F430
     if (!cm->show_frame) {
-#else
-    if (cm->show_frame) {
-    } else {
-#endif  // !CONFIG_CWG_F430
       if (cm->bridge_frame_info.is_bridge_frame) {
         cm->showable_frame = 0;
       } else {
@@ -9241,19 +7932,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
         cm->showable_frame = avm_rb_read_bit(rb);
       }
     }
-
-#if !CONFIG_CWG_F430
-    if ((cm->show_frame || cm->showable_frame) &&
-        seq_params->decoder_model_info_present_flag &&
-#if CONFIG_CWG_F270_CI_OBU
-        (ci_params->ci_timing_info_present_flag == 1) &&
-        ci_params->timing_info.equal_elemental_interval == 0
-#else
-        seq_params->timing_info.equal_picture_interval == 0
-#endif  // CONFIG_CWG_F270_CI_OBU
-    )
-      read_temporal_point_info(cm, rb);
-#endif  // !CONFIG_CWG_F430
 
 #if !CONFIG_F024_KEYOBU
     if (current_frame->frame_type == KEY_FRAME && cm->showable_frame) {
@@ -9286,9 +7964,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   features->derived_primary_ref_frame = PRIMARY_REF_NONE;
   pbi->signal_primary_ref_frame = -1;
 
-#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   features->cross_frame_context = CROSS_FRAME_CONTEXT_FORWARD;
-#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 
   if (!seq_params->single_picture_header_flag) {
 #if CONFIG_F024_KEYOBU
@@ -9345,12 +8021,10 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     if (!frame_is_sframe(cm) && !frame_is_intra_only(cm)) {
       if (!cm->bridge_frame_info.is_bridge_frame) {
         signal_primary_ref_frame = avm_rb_read_bit(rb);
-#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
         if (obu_type != OBU_REGULAR_TIP && obu_type != OBU_LEADING_TIP)
           features->cross_frame_context = avm_rb_read_bit(rb)
                                               ? CROSS_FRAME_CONTEXT_DISABLED
                                               : CROSS_FRAME_CONTEXT_FORWARD;
-#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
         pbi->signal_primary_ref_frame = signal_primary_ref_frame;
         if (signal_primary_ref_frame)
           features->primary_ref_frame =
@@ -9546,10 +8220,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     features->allow_ref_frame_mvs = 0;
     features->tip_frame_mode = TIP_FRAME_DISABLED;
     if (current_frame->frame_type == INTRA_ONLY_FRAME) {
-#if !CONFIG_F153_FGM_OBU
-      cm->cur_frame->film_grain_params_present =
-          seq_params->film_grain_params_present;
-#endif  // !CONFIG_F153_FGM_OBU
       setup_frame_size(cm, frame_size_override_flag, rb);
       read_screen_content_params(cm, rb);
       read_intrabc_params(cm, rb);
@@ -9916,9 +8586,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
                              "Invalid TIP mode.");
         }
 
-#if CONFIG_FIX_OPFL_AUTO
         read_frame_opfl_refine_type(cm, rb);
-#endif  // CONFIG_FIX_OPFL_AUTO
 
         if (features->tip_frame_mode && cm->seq_params.enable_tip_hole_fill) {
           features->allow_tip_hole_fill = avm_rb_read_bit(rb);
@@ -9955,11 +8623,9 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
         }
       } else {
         features->tip_frame_mode = TIP_FRAME_DISABLED;
-#if CONFIG_FIX_OPFL_AUTO
         if (!cm->bru.frame_inactive_flag &&
             !cm->bridge_frame_info.is_bridge_frame)
           read_frame_opfl_refine_type(cm, rb);
-#endif  // CONFIG_FIX_OPFL_AUTO
       }
 
       if (features->tip_frame_mode != TIP_FRAME_AS_OUTPUT &&
@@ -10008,25 +8674,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
           features->enabled_motion_modes =
               cm->seq_params.seq_enabled_motion_modes;
         }
-
-#if !CONFIG_FIX_OPFL_AUTO
-        if (cm->seq_params.enable_opfl_refine == AVM_OPFL_REFINE_AUTO) {
-          if (avm_rb_read_bit(rb)) {
-            features->opfl_refine_type = REFINE_SWITCHABLE;
-          } else {
-            features->opfl_refine_type =
-                avm_rb_read_bit(rb) ? REFINE_ALL : REFINE_NONE;
-          }
-        } else {
-          features->opfl_refine_type = cm->seq_params.enable_opfl_refine;
-        }
-      } else {
-        if (cm->seq_params.enable_opfl_refine == AVM_OPFL_REFINE_NONE) {
-          features->opfl_refine_type = REFINE_NONE;
-        } else {
-          features->opfl_refine_type = REFINE_ALL;
-        }
-#endif  // !CONFIG_FIX_OPFL_AUTO
       }
     }
 
@@ -10148,9 +8795,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       cm->cur_frame->rst_info[plane].rst_ref_pic_idx = 0;
       cm->cur_frame->rst_info[plane].temporal_pred_flag = 0;
     }
-#if !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
-    features->refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
-#endif  // !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
     features->disable_cdf_update = 1;
     const RefCntBuffer *ref_buf;
     if (cm->bridge_frame_info.is_bridge_frame) {
@@ -10200,13 +8844,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       }
     }
 
-#if CONFIG_F153_FGM_OBU  // bru
     setup_film_grain(pbi, rb);
-#else
-    cm->cur_frame->film_grain_params_present =
-        seq_params->film_grain_params_present;
-    read_film_grain(cm, rb);
-#endif  // CONFIG_F153_FGM_OBU
     return 0;
   }
 
@@ -10230,20 +8868,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     } else {
       features->disable_cdf_update = 1;
     }
-
-#if !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
-    if (!cm->bridge_frame_info.is_bridge_frame) {
-      const int might_bwd_adapt = !(seq_params->single_picture_header_flag) &&
-                                  !(features->disable_cdf_update);
-      if (might_bwd_adapt) {
-        features->refresh_frame_context = avm_rb_read_bit(rb)
-                                              ? REFRESH_FRAME_CONTEXT_DISABLED
-                                              : REFRESH_FRAME_CONTEXT_BACKWARD;
-      } else {
-        features->refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
-      }
-    }
-#endif  // !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 
     read_tile_info(pbi, rb);
     if (!av2_is_min_tile_width_satisfied(cm)) {
@@ -10275,16 +8899,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
 
     setup_segmentation(cm, rb);
 
-    setup_qm_params(
-#if CONFIG_F255_QMOBU
-        pbi,
-#else
-        &cm->seq_params,
-#if CONFIG_CWG_E242_SEQ_HDR_ID
-        pbi->active_seq,
-#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
-#endif  // #if CONFIG_F255_QMOBU
-        quant_params, cm->seg.enabled, av2_num_planes(cm), rb);
+    setup_qm_params(pbi, quant_params, cm->seg.enabled, av2_num_planes(cm), rb);
     cm->delta_q_info.delta_q_res = 1;
     cm->delta_q_info.delta_q_present_flag =
         quant_params->base_qindex > 0 ? avm_rb_read_bit(rb) : 0;
@@ -10353,11 +8968,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     else
       features->allow_parity_hiding = avm_rb_read_bit(rb);
 
-#if CONFIG_F255_QMOBU
     setup_segmentation_dequant(pbi, xd);
-#else
-    setup_segmentation_dequant(cm, xd);
-#endif  // CONFIG_F255_QMOBU
 
     if (features->coded_lossless) {
       cm->lf.apply_deblocking_filter[0] = 0;
@@ -10397,9 +9008,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       cm->cur_frame->u_ac_delta_q = cm->quant_params.u_ac_delta_q;
       cm->cur_frame->v_ac_delta_q = cm->quant_params.v_ac_delta_q;
     }
-#if !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
-    features->refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
-#endif  // !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
     features->disable_cdf_update = 1;
     features->coded_lossless = 0;
     features->all_lossless = 0;
@@ -10428,15 +9036,9 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
         cm->lf.apply_deblocking_filter_tip) {
       read_tile_info(pbi, rb);
     }
-#if CONFIG_F153_FGM_OBU  // tip
     setup_film_grain(pbi, rb);
-#else
-    cm->cur_frame->film_grain_params_present =
-        seq_params->film_grain_params_present;
-    read_film_grain(cm, rb);
-#endif  // CONFIG_F153_FGM_OBU
-        // TIP frame will be output for displaying
-        // No futher processing needed
+    // TIP frame will be output for displaying
+    // No futher processing needed
     return 0;
   }
   features->tx_mode = read_tx_mode(rb, features->coded_lossless);
@@ -10475,13 +9077,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   }
 
   if (!frame_is_intra_only(cm)) read_global_motion(cm, rb);
-#if CONFIG_F153_FGM_OBU
   setup_film_grain(pbi, rb);
-#else
-  cm->cur_frame->film_grain_params_present =
-      seq_params->film_grain_params_present;
-  read_film_grain(cm, rb);
-#endif  // CONFIG_F153_FGM_OBU
   features->enable_ext_seg = seq_params->enable_ext_seg;
   return 0;
 }
@@ -10729,26 +9325,17 @@ int32_t av2_read_tilegroup_header(
 
   if (is_first_tile_group) {
 #if CONFIG_BITSTREAM_DEBUG
-#if CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
     avm_bitstream_queue_set_frame_read(
         (int)(derive_output_order_idx(cm, cm->cur_frame) * 2 + cm->show_frame));
-#else   // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
-    avm_bitstream_queue_set_frame_read(cm->current_frame.order_hint * 2 +
-                                       cm->show_frame);
-#endif  // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
 #endif
 
     // avm_rb_bytes_read()= (rb->bit_offset + 7) >> 3;
     const uint32_t uncomp_hdr_size =
         (uint32_t)avm_rb_bytes_read(rb);  // Size of the uncompressed header
-#if CONFIG_F356_SEF_DOH
     const YV12_BUFFER_CONFIG *new_fb =
         (cm->show_existing_frame && !cm->derive_sef_order_hint)
             ? &cm->ref_frame_map[cm->sef_ref_fb_idx]->buf
             : &cm->cur_frame->buf;
-#else
-    YV12_BUFFER_CONFIG *new_fb = &cm->cur_frame->buf;
-#endif  // CONFIG_F356_SEF_DOH
     xd->cur_buf = new_fb;
     if (av2_allow_intrabc(cm, xd, BLOCK_4X4) && xd->tree_type != CHROMA_PART) {
       av2_setup_scale_factors_for_frame(
@@ -10825,11 +9412,8 @@ int32_t av2_read_tilegroup_header(
       memset(&cm->seg, 0, sizeof(cm->seg));
       cm->seg.enable_ext_seg = cm->seq_params.enable_ext_seg;
       segfeatures_copy(&cm->cur_frame->seg, &cm->seg);
-      if (cm->features.primary_ref_frame == PRIMARY_REF_NONE
-#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
-          || cm->features.cross_frame_context == CROSS_FRAME_CONTEXT_DISABLED
-#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
-      ) {
+      if (cm->features.primary_ref_frame == PRIMARY_REF_NONE ||
+          cm->features.cross_frame_context == CROSS_FRAME_CONTEXT_DISABLED) {
         // use the default frame context values
         *cm->fc = *cm->default_frame_context;
       } else {
@@ -10863,11 +9447,8 @@ int32_t av2_read_tilegroup_header(
 
     av2_setup_block_planes(xd, cm->seq_params.subsampling_x,
                            cm->seq_params.subsampling_y, av2_num_planes(cm));
-    if (cm->features.primary_ref_frame == PRIMARY_REF_NONE
-#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
-        || cm->features.cross_frame_context == CROSS_FRAME_CONTEXT_DISABLED
-#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
-    ) {
+    if (cm->features.primary_ref_frame == PRIMARY_REF_NONE ||
+        cm->features.cross_frame_context == CROSS_FRAME_CONTEXT_DISABLED) {
       // use the default frame context values
       *cm->fc = *cm->default_frame_context;
     } else {
@@ -11165,7 +9746,6 @@ void av2_decode_tg_tiles_and_wrapup(AV2Decoder *pbi, const uint8_t *data,
         }
       }
     }
-#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
     if (!pbi->dcb.corrupted) {
       if (!cm->bridge_frame_info.is_bridge_frame) {
         if (cm->seq_params.enable_avg_cdf && cm->seq_params.avg_cdf_type &&
@@ -11181,26 +9761,7 @@ void av2_decode_tg_tiles_and_wrapup(AV2Decoder *pbi, const uint8_t *data,
       avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
                          "Decode failed. Frame data is corrupted.");
     }
-#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   }
-
-#if !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
-  if (!pbi->dcb.corrupted) {
-    if (cm->features.refresh_frame_context == REFRESH_FRAME_CONTEXT_BACKWARD) {
-      if (cm->seq_params.enable_avg_cdf && cm->seq_params.avg_cdf_type &&
-          cm->tiles.rows * cm->tiles.cols > 1) {
-        decoder_avg_tiles_cdfs(pbi);
-      } else {
-        assert(pbi->context_update_tile_id < pbi->allocated_tiles);
-        *cm->fc = pbi->tile_data[pbi->context_update_tile_id].tctx;
-      }
-      av2_reset_cdf_symbol_counters(cm->fc);
-    }
-  } else {
-    avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
-                       "Decode failed. Frame data is corrupted.");
-  }
-#endif  // !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 
 #if CONFIG_INSPECTION
   if (pbi->inspect_cb != NULL) {

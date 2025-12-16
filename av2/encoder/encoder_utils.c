@@ -24,9 +24,7 @@
 #include "av2/encoder/rdopt.h"
 #include "av2/encoder/segmentation.h"
 #include "av2/encoder/encodeframe_utils.h"
-#if CONFIG_F356_SEF_DOH
 #include "av2/common/ccso.h"
-#endif  // CONFIG_F356_SEF_DOH
 #if CONFIG_TUNE_VMAF
 #include "av2/encoder/tune_vmaf.h"
 #endif
@@ -513,7 +511,6 @@ void av2_update_film_grain_parameters(struct AV2_COMP *cpi,
 #endif  // CONFIG_CWG_F270_CI_OBU
         cm->film_grain_params.clip_to_restricted_range = 0;
       }
-#if CONFIG_FGS_IDENT
 #if CONFIG_CWG_F270_CI_OBU
       if (cm->ci_params_per_layer[cm->mlayer_id]
               .color_info.matrix_coefficients == AVM_CICP_MC_IDENTITY)
@@ -523,7 +520,6 @@ void av2_update_film_grain_parameters(struct AV2_COMP *cpi,
         cm->film_grain_params.mc_identity = 1;
       else
         cm->film_grain_params.mc_identity = 0;
-#endif  // CONFIG_FGS_IDENT
     }
   } else if (tune_cfg->film_grain_table_filename) {
     cm->seq_params.film_grain_params_present = 1;
@@ -733,13 +729,10 @@ void av2_setup_frame(AV2_COMP *cpi) {
       av2_setup_past_independence(cm);
       cm->seg.update_map = 1;
       cm->seg.update_data = 1;
-    }
-#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
-    else if (cm->features.cross_frame_context == CROSS_FRAME_CONTEXT_DISABLED) {
+    } else if (cm->features.cross_frame_context ==
+               CROSS_FRAME_CONTEXT_DISABLED) {
       av2_set_default_frame_contexts(cm);
-    }
-#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
-    else {
+    } else {
       *cm->fc = primary_ref_buf->frame_context;
       int ref_frame_used = PRIMARY_REF_NONE;
       int map_idx = INVALID_IDX;
@@ -799,19 +792,11 @@ static void screen_content_tools_determination(
 
   const uint32_t in_bit_depth = cpi->oxcf.input_cfg.input_bit_depth;
   const uint32_t bit_depth = cpi->td.mb.e_mbd.bd;
-#if CONFIG_F356_SEF_DOH
   const YV12_BUFFER_CONFIG *b =
       cpi->common.show_existing_frame
           ? &cpi->common.ref_frame_map[cm->sef_ref_fb_idx]->buf
           : &cpi->common.cur_frame->buf;
-#endif  // CONFIG_F356_SEF_DOH
-  avm_calc_highbd_psnr(cpi->source,
-#if CONFIG_F356_SEF_DOH
-                       b,
-#else
-                       &cpi->common.cur_frame->buf,
-#endif  // CONFIG_F356_SEF_DOH
-                       &psnr[pass], bit_depth, in_bit_depth,
+  avm_calc_highbd_psnr(cpi->source, b, &psnr[pass], bit_depth, in_bit_depth,
                        is_lossless_requested(&cpi->oxcf.rc_cfg));
 
   if (pass != 1) return;
@@ -1007,7 +992,6 @@ static void fix_interp_filter(InterpFilter *const interp_filter,
     }
   }
 }
-#if CONFIG_F356_SEF_DOH
 void direct_existing_frames_to_current(AV2_COMP *const cpi) {
   AV2_COMMON *const cm = &cpi->common;
   cm->show_frame = 1;
@@ -1028,28 +1012,18 @@ void direct_existing_frames_to_current(AV2_COMP *const cpi) {
   }
   cm->cur_frame->frame_type = frame_to_show->frame_type;
 }
-#endif
 
 void av2_finalize_encoded_frame(AV2_COMP *const cpi) {
   AV2_COMMON *const cm = &cpi->common;
-#if !CONFIG_F153_FGM_OBU
-  CurrentFrame *const current_frame = &cm->current_frame;
-#endif  // #if !CONFIG_F153_FGM_OBU
-#if CONFIG_F356_SEF_DOH
   if (!cm->seq_params.single_picture_header_flag && cm->show_existing_frame &&
       !cm->derive_sef_order_hint) {
     direct_existing_frames_to_current(cpi);
   } else
-#endif  // CONFIG_F356_SEF_DOH
 #if CONFIG_F024_KEYOBU
-      if (cm->show_existing_frame
-#if CONFIG_F356_SEF_DOH
-          && cm->derive_sef_order_hint
-#endif
-      )
-#else  // CONFIG_F356_SEF_DOH
-  if (!cm->seq_params.single_picture_header_flag &&
-      (encode_show_existing_frame(cm) || cm->show_existing_frame))
+      if (cm->show_existing_frame && cm->derive_sef_order_hint)
+#else
+      if (!cm->seq_params.single_picture_header_flag &&
+          (encode_show_existing_frame(cm) || cm->show_existing_frame))
 #endif
   {
     RefCntBuffer *const frame_to_show =
@@ -1077,11 +1051,6 @@ void av2_finalize_encoded_frame(AV2_COMP *const cpi) {
     // Copy the current frame's film grain params to the its corresponding
     // RefCntBuffer slot.
     cm->cur_frame->film_grain_params = cm->film_grain_params;
-#if !CONFIG_F153_FGM_OBU
-    // We must update the parameters if this is not an INTER_FRAME
-    if (current_frame->frame_type != INTER_FRAME)
-      cm->cur_frame->film_grain_params.update_parameters = 1;
-#endif  // !CONFIG_F153_FGM_OBU
     // Iterate the random seed for the next frame.
     cm->film_grain_params.random_seed += 3381;
     if (cm->film_grain_params.random_seed == 0)

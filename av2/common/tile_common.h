@@ -63,11 +63,9 @@ void av2_get_uniform_tile_size(const struct AV2Common *cm, int *w, int *h);
 void av2_get_tile_limits(struct CommonTileParams *const tiles, int cm_mi_rows,
                          int cm_mi_cols, int mib_size_log2,
                          int seq_mib_size_log2);
-#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
 void av2_get_seqmfh_tile_limits(struct TileInfoSyntax *const tiles,
                                 int frame_height, int frame_width,
                                 int mib_size_log2, int seq_mib_size_log2);
-#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 void av2_calculate_tile_cols(struct CommonTileParams *const tiles);
 void av2_calculate_tile_rows(struct CommonTileParams *const tiles);
 

@@ -481,24 +481,18 @@ const arg_def_t *av2_key_val_args[] = {
   &g_av2_codec_arg_defs.dpb_size,
   &g_av2_codec_arg_defs.enable_bru,
   &g_av2_codec_arg_defs.disable_loopfilters_across_tiles,
-#if CONFIG_CROP_WIN_CWG_F220
   &g_av2_codec_arg_defs.enable_cropping_window,
   &g_av2_codec_arg_defs.crop_win_left_offset,
   &g_av2_codec_arg_defs.crop_win_right_offset,
   &g_av2_codec_arg_defs.crop_win_top_offset,
   &g_av2_codec_arg_defs.crop_win_bottom_offset,
-#endif  // CONFIG_CROP_WIN_CWG_F220
-#if CONFIG_SCAN_TYPE_METADATA
   &g_av2_codec_arg_defs.scan_type_info_present_flag,
-#endif  // CONFIG_SCAN_TYPE_METADATA
 #if CONFIG_METADATA
   &g_av2_codec_arg_defs.use_short_metadata,
 #endif  // CONFIG_METADATA
   &g_av2_codec_arg_defs.enable_mfh_obu_signaling,
   &g_av2_codec_arg_defs.operating_points_count,
-#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   &g_av2_codec_arg_defs.cross_frame_cdf_init_mode,
-#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   NULL,
 };
 
@@ -704,13 +698,11 @@ static void init_config(cfg_options_t *config) {
   config->enable_reduced_reference_set = 0;
   config->reduced_tx_type_set = 0;
   config->enable_refmvbank = 1;
-#if CONFIG_CROP_WIN_CWG_F220
   config->enable_cropping_window = 0;
   config->crop_win_left_offset = 0;
   config->crop_win_right_offset = 0;
   config->crop_win_top_offset = 0;
   config->crop_win_bottom_offset = 0;
-#endif  // CONFIG_CROP_WIN_CWG_F220
   config->enable_drl_reorder = 1;
   config->enable_cdef_on_skip_txfm = 1;
   config->enable_avg_cdf = 1;
@@ -721,9 +713,7 @@ static void init_config(cfg_options_t *config) {
   config->dpb_size = 8;
   config->enable_bru = 0;
   config->disable_loopfilters_across_tiles = 0;
-#if CONFIG_SCAN_TYPE_METADATA
   config->scan_type_info_present_flag = 0;
-#endif  // CONFIG_SCAN_TYPE_METADATA
   config->enable_mfh_obu_signaling = 0;
   config->operating_points_count = 1;
 }

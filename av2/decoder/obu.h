@@ -29,11 +29,9 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
 int av2_is_random_accessed_temporal_unit(const uint8_t *data, size_t data_sz);
 #endif  // CONFIG_F024_KEYOBU
 
-#if CONFIG_F153_FGM_OBU
 uint32_t read_fgm_obu(AV2Decoder *pbi, const int obu_tlayer_id,
                       const int obu_mlayer_id, uint32_t *acc_fgm_id_bitmap,
                       struct avm_read_bit_buffer *rb);
-#endif  // CONFIG_F153_FGM_OBU
 
 #if !CONFIG_CWG_F270_OPS
 avm_codec_err_t avm_get_num_layers_from_operating_point_idc(
@@ -41,11 +39,9 @@ avm_codec_err_t avm_get_num_layers_from_operating_point_idc(
     unsigned int *number_temporal_layers);
 #endif  // !CONFIG_CWG_F270_OPS
 
-#if CONFIG_F255_QMOBU
 uint32_t read_qm_obu(AV2Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
                      uint32_t *acc_qm_id_bitmap,
                      struct avm_read_bit_buffer *rb);
-#endif  // CONFIG_F255_QMOBU
 
 uint32_t av2_read_buffer_removal_timing_obu(struct AV2Decoder *pbi,
                                             struct avm_read_bit_buffer *rb,

@@ -140,9 +140,6 @@ static int parse_timing_info(struct avm_read_bit_buffer *reader) {
 // decoder_model_info( ) {
 //   buffer_delay_length_minus_1            f(5)
 //   num_units_in_decoding_tick             f(32)
-#if !CONFIG_CWG_F430
-//   frame_presentation_time_length_minus_1 f(5)
-#endif  // !CONFIG_CWG_F430
 // }
 //
 // Returns -1 upon failure, or the value of buffer_delay_length_minus_1 + 1.
@@ -152,9 +149,6 @@ static int parse_decoder_model_info(struct avm_read_bit_buffer *reader) {
 
   AV2C_READ_BITS_OR_RETURN_ERROR(buffer_delay_length_minus_1, 5);
   AV2C_READ_BITS_OR_RETURN_ERROR(num_units_in_decoding_tick, 32);
-#if !CONFIG_CWG_F430
-  AV2C_READ_BITS_OR_RETURN_ERROR(frame_presentation_time_length_minus_1, 5);
-#endif  // !CONFIG_CWG_F430
 
   AV2C_POP_ERROR_HANDLER_DATA();
   return buffer_delay_length_minus_1 + 1;
@@ -386,7 +380,6 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
   AV2C_READ_BITS_OR_RETURN_ERROR(max_frame_height_minus_1,
                                  frame_height_bits_minus_1 + 1);
 
-#if CONFIG_CROP_WIN_CWG_F220
   AV2C_READ_BIT_OR_RETURN_ERROR(conf_window_flag);
   config->conf_win_enabled_flag = conf_window_flag;
   if (config->conf_win_enabled_flag) {
@@ -401,7 +394,6 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
     config->conf_win_top_offset = 0;
     config->conf_win_bottom_offset = 0;
   }
-#endif  // CONFIG_CROP_WIN_CWG_F220
 
 #if CONFIG_CWG_F270_CI_OBU
   if (parse_chroma_format_bitdepth(reader, config) != 0) {

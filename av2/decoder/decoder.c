@@ -233,7 +233,6 @@ AV2Decoder *av2_decoder_create(BufferPool *const pool) {
   cm->num_ref_filters = NULL;
 
   av2_loop_filter_init(cm);
-#if CONFIG_F255_QMOBU
   for (int i = 0; i < NUM_CUSTOM_QMS; ++i) {
     pbi->qm_protected[i] = 0;
   }
@@ -245,17 +244,11 @@ AV2Decoder *av2_decoder_create(BufferPool *const pool) {
     pbi->qm_list[i].quantizer_matrix_allocated = false;
     pbi->qm_list[i].quantizer_matrix_num_planes = -1;
   }
-#else
-  cm->quant_params.qmatrix_allocated = false;
-  cm->quant_params.qmatrix_initialized = false;
-#endif  // CONFIG_F255_QMOBU
-#if CONFIG_F153_FGM_OBU
   for (int i = 0; i < MAX_FGM_NUM; ++i) {
     pbi->fgm_list[i].fgm_id = -1;
     pbi->fgm_list[i].fgm_tlayer_id = -1;
     pbi->fgm_list[i].fgm_mlayer_id = -1;
   }
-#endif  // CONFIG_F153_FGM_OBU
 #if CONFIG_F322_OBUER_REFRESTRICT
   pbi->restricted_predition = 0;
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
@@ -491,18 +484,10 @@ void av2_decoder_remove(AV2Decoder *pbi) {
     }
   }
 #endif
-#if CONFIG_F255_QMOBU
   for (int qm_pos = 0; qm_pos < NUM_CUSTOM_QMS; qm_pos++) {
     if (pbi->qm_list[qm_pos].quantizer_matrix != NULL)
       av2_free_qmset(pbi->qm_list[qm_pos].quantizer_matrix);
   }
-#else
-  if (pbi->common.quant_params.qmatrix_allocated) {
-    av2_free_qm(pbi->common.seq_params.quantizer_matrix_8x8);
-    av2_free_qm(pbi->common.seq_params.quantizer_matrix_8x4);
-    av2_free_qm(pbi->common.seq_params.quantizer_matrix_4x8);
-  }
-#endif  // CONFIG_F255_QMOBU
   avm_free(pbi);
 }
 
@@ -670,13 +655,8 @@ void output_frame_buffers(AV2Decoder *pbi, int ref_idx) {
     output_candidate = trigger_frame;
     for (int i = 0; i < cm->seq_params.ref_frames; i++) {
       if (is_frame_eligible_for_output(cm->ref_frame_map[i]) &&
-#if CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
           derive_output_order_idx(cm, cm->ref_frame_map[i]) <
               derive_output_order_idx(cm, output_candidate)) {
-#else   // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
-          cm->ref_frame_map[i]->display_order_hint <
-              output_candidate->display_order_hint) {
-#endif  // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
         output_candidate = cm->ref_frame_map[i];
       }
     }
@@ -685,12 +665,8 @@ void output_frame_buffers(AV2Decoder *pbi, int ref_idx) {
           &pbi->output_frames[pbi->num_output_frames++], output_candidate);
       output_candidate->frame_output_done = 1;
 #if CONFIG_BITSTREAM_DEBUG
-#if CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
       avm_bitstream_queue_set_frame_read(
           derive_output_order_idx(cm, output_candidate) * 2 + 1);
-#else   // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
-      avm_bitstream_queue_set_frame_read(output_candidate->order_hint * 2 + 1);
-#endif  // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
 #endif  // CONFIG_BITSTREAM_DEBUG
 #if CONFIG_MISMATCH_DEBUG
       mismatch_move_frame_idx_r(0);
@@ -698,30 +674,22 @@ void output_frame_buffers(AV2Decoder *pbi, int ref_idx) {
     }
   } while (output_candidate != trigger_frame);
 
-#if CONFIG_F356_SEF_DOH
   if (cm->show_existing_frame && !cm->derive_sef_order_hint) {
     int trigger_frame_output_done = trigger_frame->frame_output_done;
     assign_output_frame_buffer_p(&pbi->output_frames[pbi->num_output_frames++],
                                  cm->ref_frame_map[cm->sef_ref_fb_idx]);
     trigger_frame->frame_output_done = trigger_frame_output_done;
   } else {
-#endif  // CONFIG_F356_SEF_DOH
     // Add the output triggering frame into the output queue.
     assign_output_frame_buffer_p(&pbi->output_frames[pbi->num_output_frames++],
                                  trigger_frame);
     trigger_frame->frame_output_done = 1;
-#if CONFIG_F356_SEF_DOH
   }
-#endif  // CONFIG_F356_SEF_DOH
 
 #if CONFIG_BITSTREAM_DEBUG
   if (trigger_frame->order_hint != cm->cur_frame->order_hint) {
-#if CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
     avm_bitstream_queue_set_frame_read(
         derive_output_order_idx(cm, trigger_frame) * 2 + 1);
-#else   // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
-    avm_bitstream_queue_set_frame_read(trigger_frame->order_hint * 2 + 1);
-#endif  // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
   }
 #endif  // CONFIG_BITSTREAM_DEBUG
 #if CONFIG_MISMATCH_DEBUG
@@ -729,11 +697,9 @@ void output_frame_buffers(AV2Decoder *pbi, int ref_idx) {
     mismatch_move_frame_idx_r(0);
 #endif  // CONFIG_MISMATCH_DEBUG
 
-    // Add the next frames (showable_frame == 1) into the output queue.
-#if CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
+  // Add the next frames (showable_frame == 1) into the output queue.
   uint64_t trigger_frame_output_order =
       derive_output_order_idx(cm, trigger_frame);
-#endif  // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
 
 #if CONFIG_F322_OBUER_REFRESTRICT
   // NOTE when the restricted switch frame is used, the DOHs of some reference
@@ -744,33 +710,20 @@ void output_frame_buffers(AV2Decoder *pbi, int ref_idx) {
   int successive_output = 1;
   for (int k = 1; k <= cm->seq_params.ref_frames && successive_output > 0;
        k++) {
-#if CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
     uint64_t next_frame_output_order = trigger_frame_output_order + k;
-#else   // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
-    unsigned int next_disp_order = trigger_frame->display_order_hint + k;
-#endif  // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
     successive_output = 0;
     for (int i = 0; i < cm->seq_params.ref_frames; i++) {
       if (is_frame_eligible_for_output(cm->ref_frame_map[i]) &&
-#if CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
           derive_output_order_idx(cm, cm->ref_frame_map[i]) ==
-              next_frame_output_order
-#else   // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
-          cm->ref_frame_map[i]->display_order_hint == next_disp_order
-#endif  // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYE
-      ) {
+              next_frame_output_order) {
         assign_output_frame_buffer_p(
             &pbi->output_frames[pbi->num_output_frames++],
             cm->ref_frame_map[i]);
         cm->ref_frame_map[i]->frame_output_done = 1;
         successive_output++;
 #if CONFIG_BITSTREAM_DEBUG
-#if CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
         avm_bitstream_queue_set_frame_read(
             derive_output_order_idx(cm, cm->ref_frame_map[i]) * 2 + 1);
-#else   // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
-        avm_bitstream_queue_set_frame_read(next_disp_order * 2 + 1);
-#endif  // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
 #endif  // CONFIG_BITSTREAM_DEBUG
 #if CONFIG_MISMATCH_DEBUG
         mismatch_move_frame_idx_r(0);
@@ -779,6 +732,7 @@ void output_frame_buffers(AV2Decoder *pbi, int ref_idx) {
     }
   }
 }
+#if !CONFIG_F024_KEYOBU
 // This function outputs all frames from the frame buffers that are showable but
 // have not yet been output in the previous CVS.
 void output_trailing_frames(AV2Decoder *pbi) {
@@ -801,7 +755,7 @@ void output_trailing_frames(AV2Decoder *pbi) {
     }
   } while (output_candidate != NULL);
 }
-
+#endif  // !CONFIG_F024_KEYOBU
 // If any buffer updating is signaled it should be done here.
 // Consumes a reference to cm->cur_frame.
 //
@@ -816,11 +770,13 @@ static void update_frame_buffers(AV2Decoder *pbi, int frame_decoded) {
 
   if (frame_decoded) {
     lock_buffer_pool(pool);
-
+#if !CONFIG_F024_KEYOBU
     if (cm->current_frame.frame_type == KEY_FRAME && cm->show_frame &&
         cm->current_frame.refresh_frame_flags ==
             ((1 << cm->seq_params.ref_frames) - 1))
       output_trailing_frames(pbi);
+#endif  // !CONFIG_F024_KEYOBU
+
 #if CONFIG_F322_OBUER_REFRESTRICT
     cm->cur_frame->is_restricted_ref = false;
 #endif  // CONFIG_F322_OBUER_REFRESTRICT

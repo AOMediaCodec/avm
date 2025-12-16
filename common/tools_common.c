@@ -431,7 +431,6 @@ void avm_shift_img(unsigned int output_bit_depth, avm_image_t **img_ptr,
       img_shifted->monochrome = img->monochrome;
       img_shifted->csp = img->csp;
     }
-#if CONFIG_CROP_WIN_CWG_F220
     img_shifted->w_conf_win_enabled_flag = img->w_conf_win_enabled_flag;
     if (img_shifted->w_conf_win_enabled_flag) {
       img_shifted->w_conf_win_left_offset = img->w_conf_win_left_offset;
@@ -464,7 +463,6 @@ void avm_shift_img(unsigned int output_bit_depth, avm_image_t **img_ptr,
 
     // img_shifted->x_chroma_shift = img->x_chroma_shift;
     // img_shifted->y_chroma_shift = img->y_chroma_shift;
-#endif  // CONFIG_CROP_WIN_CWG_F220
     if (output_bit_depth > img->bit_depth) {
       avm_img_upshift(img_shifted, img, output_bit_depth - img->bit_depth);
     } else {

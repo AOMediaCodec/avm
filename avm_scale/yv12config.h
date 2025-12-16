@@ -127,7 +127,6 @@ typedef struct yv12_buffer_config {
   int flags;
   avm_metadata_array_t *metadata;
 
-#if CONFIG_CROP_WIN_CWG_F220
   /* Cropping dimensions */
   int w_conf_win_enabled_flag;
   int w_win_left_offset;
@@ -138,7 +137,6 @@ typedef struct yv12_buffer_config {
   int max_height;
   int crop_height;
   int crop_width;
-#endif  // CONFIG_CROP_WIN_CWG_F220
   /*!\endcond */
 } YV12_BUFFER_CONFIG;
 

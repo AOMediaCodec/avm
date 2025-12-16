@@ -279,7 +279,6 @@ static AVM_INLINE void dealloc_compressor_data(AV2_COMP *cpi) {
   }
   cpi->alloc_width = 0;
   cpi->alloc_height = 0;
-#if CONFIG_F255_QMOBU
   for (int qmobu_pos = 0; qmobu_pos < cpi->total_signalled_qmobu_count;
        qmobu_pos++) {
     int qm_bit_map = cpi->qmobu_list[qmobu_pos].qm_bit_map;
@@ -301,13 +300,6 @@ static AVM_INLINE void dealloc_compressor_data(AV2_COMP *cpi) {
       cpi->user_defined_qm_list[qm_idx] = NULL;
     }
   }
-#else
-  if (cm->quant_params.qmatrix_allocated) {
-    av2_free_qm(cm->seq_params.quantizer_matrix_8x8);
-    av2_free_qm(cm->seq_params.quantizer_matrix_8x4);
-    av2_free_qm(cm->seq_params.quantizer_matrix_4x8);
-  }
-#endif
 }
 
 static AVM_INLINE void alloc_altref_frame_buffer(AV2_COMP *cpi) {

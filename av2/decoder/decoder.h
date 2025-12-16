@@ -437,17 +437,15 @@ typedef struct AV2Decoder {
    */
   struct SequenceHeader *active_seq;
 #endif  // CONFIG_CWG_E242_SEQ_HDR_ID
-#if CONFIG_F255_QMOBU
   struct quantization_matrix_set qm_list[NUM_CUSTOM_QMS];
   // qm_protected[i]==1 indicates quantization_matrix, qm_list[i] is not reset
   // when a new sequence header is activated since it is signalled with the
   // sequence header.
   int qm_protected[NUM_CUSTOM_QMS];
-#endif  // CONFIG_F255_QMOBU
 
   RefCntBuffer *ref_frame_map_buf[AVM_MAX_NUM_STREAMS][REF_FRAMES];
   int remapped_ref_idx_buf[AVM_MAX_NUM_STREAMS][REF_FRAMES];
-  SequenceHeader seq_params_buf[AVM_MAX_NUM_STREAMS];
+  SequenceHeader seq_list_buf[AVM_MAX_NUM_STREAMS][MAX_SEQ_NUM];
   MultiFrameHeader mfh_params_buf[AVM_MAX_NUM_STREAMS][MAX_MFH_NUM];
 #if CONFIG_F024_KEYOBU
   /*!
@@ -480,13 +478,11 @@ typedef struct AV2Decoder {
    */
   uint64_t random_access_point_count;
 #endif
-#if CONFIG_F153_FGM_OBU
   /*!
    * list of film grain model
    */
 
   struct film_grain_model fgm_list[MAX_FGM_NUM];
-#endif  // CONFIG_F153_FGM_OBU
 #if CONFIG_CWG_F270_CI_OBU
   /*!
    * Indicates if the ci obu is signalled with a CLK/OLK in the temporal unit
@@ -585,10 +581,10 @@ static INLINE void check_ref_count_status_dec(struct AV2Decoder *pbi) {
   }
 }
 
-void output_trailing_frames(AV2Decoder *pbi);
-
 #if CONFIG_F024_KEYOBU
 avm_codec_err_t flush_remaining_frames(struct AV2Decoder *pbi);
+#else
+void output_trailing_frames(AV2Decoder *pbi);
 #endif
 
 static INLINE int av2_read_uniform(avm_reader *r, int n) {

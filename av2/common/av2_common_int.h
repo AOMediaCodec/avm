@@ -130,7 +130,6 @@ enum {
   REFERENCE_MODES = 3,
 } UENUM1BYTE(REFERENCE_MODE);
 
-#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 enum {
   /**
    * Cross frame context initialization is disabled
@@ -143,19 +142,6 @@ enum {
    */
   CROSS_FRAME_CONTEXT_FORWARD,
 } UENUM1BYTE(CROSS_FRAME_CONTEXT_MODE);
-#else
-enum {
-  /**
-   * Frame context updates are disabled
-   */
-  REFRESH_FRAME_CONTEXT_DISABLED,
-  /**
-   * Update frame context to values resulting from backward probability
-   * updates based on entropy/counts in the decoded frame
-   */
-  REFRESH_FRAME_CONTEXT_BACKWARD,
-} UENUM1BYTE(REFRESH_FRAME_CONTEXT_MODE);
-#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 
 enum {
   /**
@@ -333,9 +319,6 @@ typedef struct RefCntBuffer {
   int showable_frame;      // frame can be used as show existing frame in future
   bool frame_output_done;  // 0: frame is not yet output 1: frame is already
                            // output
-#if !CONFIG_F153_FGM_OBU
-  uint8_t film_grain_params_present;
-#endif  // !CONFIG_F153_FGM_OBU
   avm_film_grain_t film_grain_params;
   // #endif
   avm_codec_frame_buffer_t raw_frame_buffer;
@@ -627,7 +610,6 @@ typedef struct CommonTileParams {
 
 } CommonTileParams;
 
-#if CONFIG_CROP_WIN_CWG_F220
 // This structure specifies cropping for the SH.
 typedef struct CropWindow {
   bool conf_win_enabled_flag;
@@ -636,19 +618,14 @@ typedef struct CropWindow {
   int conf_win_top_offset;
   int conf_win_bottom_offset;
 } CropWindow;
-#endif  // CONFIG_CROP_WIN_CWG_F220
 
-#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
 // Tile Info Syntax stucture: parses the tile information
 // in the Sequence header and Multi Frame Header
 // Different from CommonTilesParams which is used to process the tiles
 typedef struct TileInfoSyntax {
-#if CONFIG_CWG_F349_SIGNAL_TILE_INFO
   uint8_t allow_tile_info_change; /*!< whether to allow tile info change */
-#endif
   CommonTileParams tile_info;
 } TileInfoSyntax;
-#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
 // This structure contains Buffer removal time parameters being parsed
 typedef struct {
@@ -811,17 +788,13 @@ typedef struct AtlasBasicInfo {
                        [MAX_NUM_ATLAS_SEGMENTS];
   int ats_segment_height[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID]
                         [MAX_NUM_ATLAS_SEGMENTS];
-#if CONFIG_ATLAS_ALPHA_SEGMENT
   int ats_alpha_segments_present_flag[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
   int ats_alpha_segment_flag[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID]
                             [MAX_NUM_ATLAS_SEGMENTS];
-#endif  // CONFIG_ATLAS_ALPHA_SEGMENT
-#if CONFIG_ATLAS_BACKGROUND_COLOR
   int ats_background_info_present_flag[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
   int ats_background_red_value[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
   int ats_background_green_value[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
   int ats_background_blue_value[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
-#endif  // CONFIG_ATLAS_BACKGROUND_COLOR
 } AtlasBasicInfo;
 
 typedef struct AtlasSegmentInfo {
@@ -1078,18 +1051,6 @@ typedef struct SequenceHeader {
   uint8_t enable_short_refresh_frame_flags;
   uint8_t number_of_bits_for_lt_frame_id;
   uint8_t enable_ext_seg;
-#if !CONFIG_F255_QMOBU
-  bool user_defined_qmatrix;             // User defined quantizer matrix
-  bool qm_data_present[NUM_CUSTOM_QMS];  // User defined QM data present
-  // Note: qm_copy_from_previous_plane and qm_4x8_is_transpose_of_8x4 flags
-  // are automatically derived from stored QM coefficient data
-  // First index: level (0 <= level < NUM_CUSTOM_QMS)
-  // Second index: 0:Y, 1:U, 2:V
-  // Third index: (flattened) index to matrix entry
-  qm_val_t ***quantizer_matrix_8x8;
-  qm_val_t ***quantizer_matrix_8x4;
-  qm_val_t ***quantizer_matrix_4x8;
-#endif  // !CONFIG_F255_QMOBU
 
 #if CONFIG_CWG_F270_OPS
   AV2_LEVEL seq_max_level_idx;
@@ -1128,10 +1089,8 @@ typedef struct SequenceHeader {
   uint8_t uv_ac_delta_q_enabled;
   uint8_t film_grain_params_present;
 
-#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
   uint8_t seq_tile_info_present_flag;  // whether seq level tile_info exists
   TileInfoSyntax tile_params;
-#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
   // Operating point info.
   int operating_points_cnt_minus_1;
@@ -1164,10 +1123,7 @@ typedef struct SequenceHeader {
   // are_seq_headers_consistent() can be implemented with a memcmp() call.
   // TODO(urvang): We probably don't need the +1 here.
   avm_dec_model_op_parameters_t op_params[MAX_NUM_OPERATING_POINTS + 1];
-#if CONFIG_CROP_WIN_CWG_F220
   CropWindow conf;
-#endif  // CONFIG_CROP_WIN_CWG_F220
-#if CONFIG_SCAN_TYPE_METADATA
 #if !CONFIG_CWG_F270_CI_OBU
   // NOTE these syntax elements will move to the CI Obu
   int scan_type_info_present_flag;
@@ -1175,13 +1131,10 @@ typedef struct SequenceHeader {
   int fixed_cvs_pic_rate_flag;
   int elemental_ct_duration_minus_1;
 #endif  // !CONFIG_CWG_F270_CI_OBU
-#endif  // CONFIG_SCAN_TYPE_METADATA
 
-#if CONFIG_MULTI_LEVEL_SEGMENTATION
   uint8_t seq_seg_info_present_flag;
   SegmentationInfoSyntax seg_params;
   int allow_seg_info_change;
-#endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
 } SequenceHeader;
 
 typedef struct {
@@ -1214,9 +1167,7 @@ typedef struct {
   int xlayer_id;
   SkipModeInfo skip_mode_info;
   int refresh_frame_flags;  // Which ref frames are overwritten by this frame
-#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
   bool tile_info_present_in_frame_header;
-#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 } CurrentFrame;
 
 /*!\endcond */
@@ -1318,19 +1269,11 @@ typedef struct {
    * Byte alignment of the planes in the reference buffers.
    */
   int byte_alignment;
-#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   /*!
    * Flag signaling how frame contexts should be initialized at the beginning of
    * a frame decode.
    */
   CROSS_FRAME_CONTEXT_MODE cross_frame_context;
-#else
-  /*!
-   * Flag signaling how frame contexts should be updated at the end of
-   * a frame decode.
-   */
-  REFRESH_FRAME_CONTEXT_MODE refresh_frame_context;
-#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   /*!
    * Max_drl_bits. Note number of ref MVs allowed is max_drl_bits + 1
    */
@@ -1430,7 +1373,6 @@ typedef struct MultiFrameHeader {
    */
   int mfh_seq_header_id;
 #endif  // CONFIG_CWG_E242_SEQ_HDR_ID
-#if CONFIG_CWG_E242_PARSING_INDEP
   /*!
    * Frame size present flag
    */
@@ -1443,7 +1385,6 @@ typedef struct MultiFrameHeader {
    * Frame height bits
    */
   int mfh_frame_height_bits_minus1;
-#endif  // CONFIG_CWG_E242_PARSING_INDEP
   /*!
    * Frame Width of frames that reference this multi-frame header
    */
@@ -1452,12 +1393,10 @@ typedef struct MultiFrameHeader {
    * Frame Height of frames that reference this multi-frame header
    */
   int mfh_frame_height;
-#if CONFIG_CWG_E242_PARSING_INDEP
   /*!
    * Render size present flag
    */
   int mfh_render_size_present_flag;
-#endif  // CONFIG_CWG_E242_PARSING_INDEP
   /*!
    * Presence of deblocking loop filter levels in this multi-frame header
    */
@@ -1485,7 +1424,6 @@ typedef struct MultiFrameHeader {
    * Seq size log2 in MFH
    */
   int mfh_seq_mib_sb_size_log2;
-#if CONFIG_MULTI_LEVEL_SEGMENTATION
   /*!
    * Presence of segmentation information in this multi-frame header
    */
@@ -1498,7 +1436,6 @@ typedef struct MultiFrameHeader {
    * enable_seg_flag for MFH
    */
   int mfh_ext_seg_flag;
-#endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
 } MultiFrameHeader;
 
 typedef struct CommonModeInfoParams CommonModeInfoParams;
@@ -1787,20 +1724,6 @@ struct CommonQuantParams {
    *  - If false, we implicitly use level index 'NUM_QM_LEVELS - 1'.
    */
   bool using_qmatrix;
-#if !CONFIG_F255_QMOBU
-  /*!
-   * Flag indicating whether quantization matrices are allocated.
-   */
-  bool qmatrix_allocated;
-
-  /*!
-   * Flag indicating whether quantization matrices are initialized.
-   * To avoid unnecessary computation, we want to initialize quantization
-   * matrices only when they are used.
-   * Note that when sequence header OBUs change, we should reset the parameter.
-   */
-  bool qmatrix_initialized;
-#endif  // CONFIG_F255_QMOBU
   /*!
    * Number of QM levels available for use by the segments in the frame.
    * Range is 1..4.
@@ -2124,7 +2047,6 @@ typedef struct BridgeFrame_Info {
   int print_bridge_frame_in_log;
 } BridgeFrameInfo;
 
-#if CONFIG_F255_QMOBU
 /*!
  * \brief Structure used for quantization matrix set
  */
@@ -2150,20 +2072,12 @@ struct quantization_matrix_set {
    * to be the  predefined matrices at the sequence header activation
    */
   int qm_mlayer_id;
-#if CONFIG_QM_REVERT
   /*!
    * Indicates if the quantization matrix set stores an 8x8/8x4/4x8 user-defined
    * qmatrix in quantizer_matrix. If is_user_defined_qm is false,
    * quantizer_matrix is not used.
    */
   bool is_user_defined_qm;
-#else
-  /*!
-   * Indicates the index of the predefined matrix indicated by the quantization
-   * matrix : -1: user_defined 0~15: predefined_matrix_idx
-   */
-  int qm_default_index;
-#endif  // CONFIG_QM_REVERT
   /*!
    * quantization matrix : [8x8/8x4/4x8][y/u/v][64 or 32]
    */
@@ -2195,9 +2109,7 @@ struct qm_obu {
    */
   struct quantization_matrix_set qm_list[NUM_CUSTOM_QMS];
 };
-#endif  // CONFIG_F255_QMOBU
 
-#if CONFIG_F153_FGM_OBU
 /*!
  * \brief Structure used to convey film grain model.
  */
@@ -2280,13 +2192,11 @@ component
    * to the sample values after adding the film grain
    */
   int clip_to_restricted_range;
-#if CONFIG_FGS_IDENT
   /*!
    * indicates that clipping to the restricted (studio) range should use the
    * mc_identity values range
    */
   int mc_identity;
-#endif  // CONFIG_FGS_IDENT
   /*!
    * the chroma scaling is inferred from the luma scaling
    */
@@ -2322,7 +2232,6 @@ component
    */
   int fgm_chroma_idc;
 };
-#endif  // CONFIG_F153_FGM_OBU
 
 /*!
  * \brief Top level common structure used by both encoder and decoder.
@@ -2377,15 +2286,6 @@ typedef struct AV2Common {
   int render_width;  /*!< Rendered frame width */
   int render_height; /*!< Rendered frame height */
   /**@}*/
-
-#if !CONFIG_CWG_F430
-  /*!
-   * Presentation time of the frame in clock ticks DispCT counted from the
-   * removal time of the last random access point for the operating point that
-   * is being decoded.
-   */
-  uint32_t frame_presentation_time;
-#endif  // !CONFIG_CWG_F430
 
   /*!
    * Buffer where previous frame is stored.
@@ -2491,14 +2391,10 @@ typedef struct AV2Common {
    */
 #endif  // CONFIG_F024_KEYOBU
   int show_existing_frame;
-
-#if CONFIG_F356_SEF_DOH
   /*!
    * If true, order_hint of the SEF OBU is derived from the reference frame
    */
   int derive_sef_order_hint;
-#endif
-
   /*!
    * Whether some features are allowed or not.
    */
@@ -2949,19 +2845,15 @@ typedef struct AV2Common {
    */
   struct OperatingPointSet *ops;
 
-#if CONFIG_SCAN_TYPE_METADATA
   /*!
    * Pic struct parameters.
    */
   avm_metadata_pic_struct_t pic_struct_metadata_params;
-#endif  // CONFIG_SCAN_TYPE_METADATA
 
-#if CONFIG_CWG_F430
   /*!
    * Temporal point info
    */
   avm_metadata_temporal_point_info_t temporal_point_info_metadata;
-#endif  // CONFIG_CWG_F430
 
 #if CONFIG_F024_KEYOBU
   /*!
@@ -2982,13 +2874,11 @@ typedef struct AV2Common {
   int is_leading_picture;
 
 #endif
-#if CONFIG_F153_FGM_OBU
   /*!
    * film grain id
    */
 
   int fgm_id;
-#endif  // CONFIG_F153_FGM_OBU
 
 #if CONFIG_F322_OBUER_REFRESTRICT
   /*!
@@ -5931,7 +5821,6 @@ static INLINE avm_codec_err_t av2_get_chroma_subsampling(
 }
 #endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
-#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
 // Returns pointer to effective sequence level or multi-frame header level tile
 // info. Returns null if none exist
 static INLINE const TileInfoSyntax *find_effective_tile_params(
@@ -5949,9 +5838,7 @@ static INLINE const TileInfoSyntax *find_effective_tile_params(
   else
     return NULL;
 }
-#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
-#if CONFIG_CWG_F349_SIGNAL_TILE_INFO
 static INLINE int is_frame_tile_config_reuse_eligible(
     const TileInfoSyntax *const tile_params,
     const CommonTileParams *const tiles) {
@@ -5959,9 +5846,7 @@ static INLINE int is_frame_tile_config_reuse_eligible(
           (tile_params->tile_info.sb_rows == tiles->sb_rows &&
            tile_params->tile_info.sb_cols == tiles->sb_cols));
 }
-#endif  // CONFIG_CWG_F349_SIGNAL_TILE_INFO
 
-#if CONFIG_MULTI_LEVEL_SEGMENTATION
 static INLINE int is_frame_seg_config_reuse_eligible(
     const SegmentationInfoSyntax *const seg_params,
     const struct segmentation *const seg) {
@@ -5986,9 +5871,7 @@ static INLINE const SegmentationInfoSyntax *find_effective_seg_params(
   else
     return NULL;
 }
-#endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
 
-#if CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
 // This function derives the order of frame output with layer IDs
 static INLINE uint64_t derive_output_order_idx(AV2_COMMON *cm,
                                                RefCntBuffer *output_candidate) {
@@ -5997,7 +5880,6 @@ static INLINE uint64_t derive_output_order_idx(AV2_COMMON *cm,
   uint64_t display_order = output_candidate->display_order_hint;
   return ((max_mlayer_id + 1) * display_order) + mlayer_id;
 }
-#endif  // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
 
 #ifdef __cplusplus
 }  // extern "C"

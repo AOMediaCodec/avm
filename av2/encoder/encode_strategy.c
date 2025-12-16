@@ -76,7 +76,6 @@ void av2_get_ref_frames_enc(AV2_COMP *const cpi, int cur_frame_disp,
   enc_bru_swap_ref(cm);
 }
 
-#if CONFIG_MULTI_LEVEL_SEGMENTATION
 void av2_set_seq_seg_info(SequenceHeader *seq_params,
                           struct segmentation *seg) {
   SegmentationInfoSyntax *seg_params = &seq_params->seg_params;
@@ -91,7 +90,6 @@ void av2_set_seq_seg_info(SequenceHeader *seq_params,
   seg_params->segid_preskip = seg->segid_preskip;
   seg_params->last_active_segid = seg->last_active_segid;
 }
-#endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
 
 void av2_configure_buffer_updates(AV2_COMP *const cpi,
                                   const FRAME_UPDATE_TYPE type) {
@@ -219,12 +217,6 @@ static void set_ext_overrides(AV2_COMMON *const cm,
     frame_params->frame_type = S_FRAME;
   }
 
-#if !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
-  if (ext_flags->refresh_frame_context_pending) {
-    cm->features.refresh_frame_context = ext_flags->refresh_frame_context;
-    ext_flags->refresh_frame_context_pending = 0;
-  }
-#endif  // !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   cm->features.allow_ref_frame_mvs = ext_flags->use_ref_frame_mvs;
 }
 
@@ -742,11 +734,9 @@ int av2_get_refresh_frame_flags(
   }
 #endif
 
-#if CONFIG_F356_SEF_DOH
   if (frame_params->duplicate_existing_frame) {
     return 0;
   }
-#endif
 
   const int refresh_mask = 0;
   const ExtRefreshFrameFlagsInfo *const ext_refresh_frame_flags =
@@ -1051,14 +1041,12 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
   if (!is_stat_generation_stage(cpi)) {
     av2_get_second_pass_params(cpi, &frame_params);
   }
-#if CONFIG_F356_SEF_DOH
   frame_params.duplicate_existing_frame = 0;
   if (cpi->oxcf.unit_test_cfg.sef_with_order_hint_test) {
     frame_params.duplicate_existing_frame =
         (gf_group->update_type[gf_group->index] == LF_UPDATE &&
          oxcf->gf_cfg.lag_in_frames != 0);
   }
-#endif  // CONFIG_F356_SEF_DOH
   struct lookahead_entry *source = NULL;
   struct lookahead_entry *last_source = NULL;
   struct lookahead_entry *bru_ref_source = NULL;
@@ -1119,41 +1107,23 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
   // Shown frames and arf-overlay frames need frame-rate considering
   if (frame_params.show_frame)
     adjust_frame_rate(cpi, source->ts_start, source->ts_end);
-#if CONFIG_F356_SEF_DOH
   if (!frame_params.duplicate_existing_frame) {
-#endif
 #if !CONFIG_F024_KEYOBU
     if (!frame_params.show_existing_frame) {
 #endif
-#if CONFIG_F153_FGM_OBU  // cpi->film_grain_table
       if (cpi->film_grain_table) {
         cm->seq_params.film_grain_params_present = avm_film_grain_table_lookup(
             cpi->film_grain_table, *time_stamp, *time_end, 0 /* =erase */,
             &cm->film_grain_params);
       }
-#else
-  if (cpi->film_grain_table) {
-    cm->cur_frame->film_grain_params_present = avm_film_grain_table_lookup(
-        cpi->film_grain_table, *time_stamp, *time_end, 0 /* =erase */,
-        &cm->film_grain_params);
-  } else {
-    cm->cur_frame->film_grain_params_present =
-        cm->seq_params.film_grain_params_present;
-  }
-#endif  // CONFIG_F153_FGM_OBU
       // only one operating point supported now
       const int64_t pts64 =
           ticks_to_timebase_units(timestamp_ratio, *time_stamp);
       if (pts64 < 0 || pts64 > UINT32_MAX) return AVM_CODEC_ERROR;
-#if !CONFIG_CWG_F430
-      cm->frame_presentation_time = (uint32_t)pts64;
-#endif  // !CONFIG_CWG_F430
 #if !CONFIG_F024_KEYOBU
     }
 #endif
-#if CONFIG_F356_SEF_DOH
   }
-#endif  // CONFIG_F356_SEF_DOH
   FRAME_UPDATE_TYPE frame_update_type = get_frame_update_type(gf_group);
 #if !CONFIG_F024_KEYOBU
   if (frame_params.show_existing_frame &&
@@ -1355,9 +1325,6 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
       }
     }
     if (cm->bru.frame_inactive_flag) {
-#if !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
-      cm->features.refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
-#endif  // !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
       const RefCntBuffer *bru_ref_buf =
           get_ref_frame_buf(cm, cm->bru.update_ref_idx);
       cm->quant_params.base_qindex = bru_ref_buf->base_qindex;
@@ -1444,10 +1411,7 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
   init_bru_frame(cm);
 
   cpi->td.mb.delta_qindex = 0;
-#if CONFIG_F356_SEF_DOH
   if (!frame_params.duplicate_existing_frame) {
-#endif
-
 #if !CONFIG_F024_KEYOBU
     if (!frame_params.show_existing_frame) {
 #endif
@@ -1461,10 +1425,7 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
 #if !CONFIG_F024_KEYOBU
     }
 #endif  // !CONFIG_F024_KEYOBU
-#if CONFIG_F356_SEF_DOH
   }
-#endif  // CONFIG_F356_SEF_DOH
-#if CONFIG_F255_QMOBU
   if (cm->quant_params.using_qmatrix) {
     if (oxcf->q_cfg.using_qm && oxcf->q_cfg.user_defined_qmatrix) {
       for (int qm_id = 0; qm_id < NUM_CUSTOM_QMS; qm_id++) {
@@ -1476,26 +1437,6 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
       }
     }
   }
-#else
-  if (cm->quant_params.using_qmatrix) {
-    if (!cm->quant_params.qmatrix_allocated) {
-      cm->seq_params.quantizer_matrix_8x8 = av2_alloc_qm(8, 8);
-      cm->seq_params.quantizer_matrix_8x4 = av2_alloc_qm(8, 4);
-      cm->seq_params.quantizer_matrix_4x8 = av2_alloc_qm(4, 8);
-      cm->quant_params.qmatrix_allocated = true;
-    }
-    if (!cm->quant_params.qmatrix_initialized) {
-      av2_init_qmatrix(cm->seq_params.quantizer_matrix_8x8,
-                       cm->seq_params.quantizer_matrix_8x4,
-                       cm->seq_params.quantizer_matrix_4x8, av2_num_planes(cm));
-      qm_val_t ***fund_mat[3] = { cm->seq_params.quantizer_matrix_8x8,
-                                  cm->seq_params.quantizer_matrix_8x4,
-                                  cm->seq_params.quantizer_matrix_4x8 };
-      av2_qm_init(&cm->quant_params, av2_num_planes(cm), fund_mat);
-      cm->quant_params.qmatrix_initialized = true;
-    }
-  }
-#endif  // CONFIG_F255_QMOBU
   if (denoise_and_encode(cpi, dest, &frame_input, &frame_params,
                          &frame_results) != AVM_CODEC_OK) {
     return AVM_CODEC_ERROR;

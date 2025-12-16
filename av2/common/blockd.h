@@ -649,11 +649,7 @@ typedef struct MB_MODE_INFO {
   int16_t tx_skip[TXK_TYPE_BUF_LEN];
 #endif
   /*! \brief The implicitly derived scaling factors*/
-#if CONFIG_MHCCP_SOLVER_BITS
   int32_t mhccp_implicit_param[2][MHCCP_NUM_PARAMS];  //[u/v]
-#else
-  int64_t mhccp_implicit_param[2][MHCCP_NUM_PARAMS];  //[u/v]
-#endif  // CONFIG_MHCCP_SOLVER_BITS
   /*! \brief Whether current block is inactive(0), support (1) and active(2)*/
   BruActiveMode sb_active_mode;
   /*! \brief store restoration type in current SB */

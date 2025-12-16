@@ -280,25 +280,19 @@ typedef struct av2_codec_arg_definitions {
 #endif  // CONFIG_METADATA
   arg_def_t enable_short_refresh_frame_flags;
 
-#if CONFIG_CROP_WIN_CWG_F220
   arg_def_t enable_cropping_window;
   arg_def_t crop_win_left_offset;
   arg_def_t crop_win_right_offset;
   arg_def_t crop_win_top_offset;
   arg_def_t crop_win_bottom_offset;
-#endif  // CONFIG_CROP_WIN_CWG_F220
 
 #if CONFIG_ICC_METADATA
   arg_def_t icc_file;
 #endif  // CONFIG_ICC_METADATA
-#if CONFIG_SCAN_TYPE_METADATA
   arg_def_t scan_type_info_present_flag;
-#endif  // CONFIG_SCAN_TYPE_METADATA
   arg_def_t enable_mfh_obu_signaling;
   arg_def_t operating_points_count;
-#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   arg_def_t cross_frame_cdf_init_mode;
-#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 } av2_codec_arg_definitions_t;
 
 extern const av2_codec_arg_definitions_t g_av2_codec_arg_defs;

@@ -692,11 +692,9 @@ typedef struct {
   // Indicates how many frame-level quantization matrix sets are defined for
   // unit test.
   uint8_t frame_multi_qmatrix_unit_test;
-#if CONFIG_F356_SEF_DOH
   // Indicates the leaf node frames(LF_UPDATE frames) are set as
   // show_existing_frame with derive_order_hint=0 Used only for test purpose.
   uint8_t sef_with_order_hint_test;
-#endif  // CONFIG_F356_SEF_DOH
   // Signal multiple sequence header
   uint8_t multi_seq_header_test;
 } UnitTestCfg;
@@ -763,9 +761,6 @@ typedef struct {
   bool using_qm;
   // Indicates whether user-defined quantization matrices should be used
   bool user_defined_qmatrix;
-#if !CONFIG_F255_QMOBU
-  bool qm_data_present[NUM_CUSTOM_QMS];
-#endif  // !CONFIG_F255_QMOBU
   bool is_ra;
 } QuantizationCfg;
 
@@ -806,14 +801,12 @@ typedef struct {
    */
   uint8_t cdf_update_mode;
 
-#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   /*!
    * Indicates the cross frame CDF initialization mode
    * 0: cross frame initialization disabled
    * 1: cross frame initialization enabled
    */
   uint8_t cross_frame_cdf_init_mode;
-#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 
   /*!
    * Indicates if RDO based on frame temporal dependency should be enabled.
@@ -909,13 +902,11 @@ typedef struct {
   unsigned int max_drl_refbvs;
   // Indicates if ref MV Bank should be enabled.
   bool enable_refmvbank;
-#if CONFIG_CROP_WIN_CWG_F220
   int enable_cropping_window;
   int crop_win_left_offset;
   int crop_win_right_offset;
   int crop_win_top_offset;
   int crop_win_bottom_offset;
-#endif  // CONFIG_CROP_WIN_CWG_F220
   // Indicates if the reorder of DRL should be enabled.
   int enable_drl_reorder;
   // Indicates if the CDEF on skip_txfm = 1 blocks should be enabled.
@@ -951,9 +942,7 @@ typedef struct {
   unsigned int use_short_metadata;
 #endif  // CONFIG_METADATA
 
-#if CONFIG_SCAN_TYPE_METADATA
   unsigned int scan_type_info_present_flag;
-#endif  // CONFIG_SCAN_TYPE_METADATA
 
   unsigned int enable_mfh_obu_signaling;
   int operating_points_count;
@@ -2174,24 +2163,11 @@ typedef struct {
    */
   ExtRefreshFrameFlagsInfo refresh_frame;
 
-#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   /*!
    * Flag to enable CDF initialization with cross frame contexts at the
    * beginning of a frame decode.
    */
   bool cross_frame_context;
-#else
-  /*!
-   * Flag to enable the update of frame contexts at the end of a frame decode.
-   */
-  bool refresh_frame_context;
-
-  /*!
-   * Flag to indicate that update of refresh_frame_context from external
-   * interface is pending.
-   */
-  bool refresh_frame_context_pending;
-#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   /*!
    * Flag to enable temporal MV prediction.
    */
@@ -2938,7 +2914,6 @@ typedef struct AV2_COMP {
    */
   int switch_frame_mode;
 
-#if CONFIG_F255_QMOBU
   /*!
    * a list of OBU_QM
    */
@@ -2963,8 +2938,6 @@ typedef struct AV2_COMP {
    * Flags to indicate whether user defined qm is used for id, i
    */
   bool use_user_defined_qm[NUM_CUSTOM_QMS];
-#endif
-#if CONFIG_F153_FGM_OBU
   /*!
    * list of film grain models
    */
@@ -2985,7 +2958,6 @@ typedef struct AV2_COMP {
    */
 
   struct film_grain_model fgm;
-#endif  // CONFIG_F153_FGM_OBU
 
 #if CONFIG_CWG_F270_CI_OBU
   /*!
@@ -3053,9 +3025,7 @@ typedef struct EncodeFrameParams {
 #if CONFIG_F024_KEYOBU
   OBU_TYPE frame_params_obu_type;
 #endif
-#if CONFIG_F356_SEF_DOH
   int duplicate_existing_frame;
-#endif  // CONFIG_F356_SEF_DOH
   /*!\endcond */
   /*!
    *  Bitmask of which reference buffers may be referenced by this frame.

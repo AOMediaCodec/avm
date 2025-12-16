@@ -76,12 +76,10 @@ typedef struct avm_codec_stream_info {
   unsigned int number_tlayers; /**< Number of temporal layers */
   unsigned int number_mlayers; /**< Number of embedded layers */
   unsigned int number_xlayers; /**< Number of extended layers */
-#if CONFIG_CROP_WIN_CWG_F220
-  int conf_win_left_offset;   /**< conformance window left offset */
-  int conf_win_right_offset;  /**< conformance window right offset */
-  int conf_win_top_offset;    /**< conformance window top offset */
-  int conf_win_bottom_offset; /**< conformance window bottom offset */
-#endif                        // CONFIG_CROP_WIN_CWG_F220
+  int conf_win_left_offset;    /**< conformance window left offset */
+  int conf_win_right_offset;   /**< conformance window right offset */
+  int conf_win_top_offset;     /**< conformance window top offset */
+  int conf_win_bottom_offset;  /**< conformance window bottom offset */
 } avm_codec_stream_info_t;
 
 /* REQUIRED FUNCTIONS

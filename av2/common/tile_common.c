@@ -46,7 +46,6 @@ void av2_get_tile_limits(CommonTileParams *const tiles, int cm_mi_rows,
   tiles->min_log2 = AVMMAX(tiles->min_log2, tiles->min_log2_cols);
 }
 
-#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
 void av2_get_seqmfh_tile_limits(TileInfoSyntax *const tiles, int frame_height,
                                 int frame_width, int mib_size_log2,
                                 int seq_mib_size_log2) {
@@ -55,7 +54,6 @@ void av2_get_seqmfh_tile_limits(TileInfoSyntax *const tiles, int frame_height,
   av2_get_tile_limits(&tiles->tile_info, cm_mi_rows, cm_mi_cols, mib_size_log2,
                       seq_mib_size_log2);
 }
-#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
 void av2_calculate_tile_cols(CommonTileParams *const tiles) {
   const int mib_size_log2 = tiles->mib_size_log2;

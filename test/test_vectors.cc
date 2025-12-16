@@ -249,14 +249,14 @@ const char *const kAV2TestVectors[] = { "av1-1-b8-00-quantizer-00.ivf",
                                         "av1-1-b8-01-size-66x66.ivf",
                                         "av1-1-b8-02-allintra.ivf",
                                         "av1-1-b8-03-sizedown.mkv",
-                                        "av1-1-b8-03-sizeup.mkv",
                                         "av1-1-b8-04-cdfupdate.ivf",
                                         "av1-1-b8-05-mv.ivf",
                                         "av1-1-b8-06-mfmv.ivf",
                                         "av1-1-b8-22-svc-L1T2.ivf",
                                         "av1-1-b8-22-svc-L2T1.ivf",
                                         "av1-1-b8-22-svc-L2T2.ivf",
-                                        "av1-1-b8-23-film_grain-50.ivf" };
+                                        "av1-1-b8-23-film_grain-50.ivf",
+                                        "av2-1-b8-03-sizeup.mkv" };
 /* clang-format on */
 const int kNumAV2TestVectors = NELEMENTS(kAV2TestVectors);
 #endif  // CONFIG_AV2_DECODER

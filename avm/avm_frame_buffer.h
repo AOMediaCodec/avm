@@ -26,7 +26,7 @@ extern "C" {
 
 /*!\brief The maximum number of sub-streams.
  */
-#define AVM_MAX_NUM_STREAMS 4
+#define AVM_MAX_NUM_STREAMS 32
 
 /*!\brief The maximum number of work buffers used by libavm.
  *  Support maximum 4 threads to decode video in parallel.

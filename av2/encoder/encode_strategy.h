@@ -66,9 +66,7 @@ void av2_configure_buffer_updates(AV2_COMP *const cpi,
                                   const FRAME_UPDATE_TYPE type);
 // Encoder-only version for the reference mapping
 
-#if CONFIG_MULTI_LEVEL_SEGMENTATION
 void av2_set_seq_seg_info(SequenceHeader *seq_params, struct segmentation *seg);
-#endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
 
 void av2_get_ref_frames_enc(AV2_COMP *const cpi, int cur_frame_disp,
                             RefFrameMapPair *ref_frame_map_pairs);
