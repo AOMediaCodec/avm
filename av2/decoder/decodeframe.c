@@ -7720,7 +7720,21 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
 #endif
                          seq_header_id_for_frame_header);
 
-  if (cm->cur_mfh_id == 0) handle_zero_cur_mfh_id(cm);
+  if (cm->cur_mfh_id == 0) {
+    handle_zero_cur_mfh_id(cm);
+  } else {
+    // Validate MFH frame dimensions when a MFH is present
+    assert(cm->mfh_valid[cm->cur_mfh_id]);
+    const MultiFrameHeader *mfh_param = &cm->mfh_params[cm->cur_mfh_id];
+    if (mfh_param->mfh_frame_size_present_flag) {
+      if (mfh_param->mfh_frame_width > seq_params->max_frame_width ||
+          mfh_param->mfh_frame_height > seq_params->max_frame_height) {
+        avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
+                           "MFH frame dimensions are larger than the sequence "
+                           "header values.\n");
+      }
+    }
+  }
 
   if (obu_type == OBU_BRIDGE_FRAME) {
     cm->bridge_frame_info.bridge_frame_ref_idx =
