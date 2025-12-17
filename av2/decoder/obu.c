@@ -807,7 +807,7 @@ static size_t read_metadata_banding_hints(AV2Decoder *const pbi,
 // Helper function to read banding hints from a bit buffer
 static void read_metadata_banding_hints_from_rb(
     AV2Decoder *const pbi, struct avm_read_bit_buffer *rb) {
-  AV2_COMMON *const cm = &pbi->common;
+  (void)pbi;  // kept for consistency
 
   const int coding_banding_present_flag = avm_rb_read_bit(rb);
   avm_rb_read_bit(rb);  // source_banding_present_flag
