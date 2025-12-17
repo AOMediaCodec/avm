@@ -276,7 +276,7 @@ static INLINE char const *get_component_name(int index) {
 #if CONFIG_F436_OBUORDER
 // This is a strcuture contains some information of obus to check the order of
 // obus is valid.
-struct obu_info {
+typedef struct {
   OBU_TYPE obu_type;
   int first_tile_group;
   int show_frame;
@@ -287,7 +287,7 @@ struct obu_info {
   int tlayer_id;
   int xlayer_id;
   int is_vcl;
-};
+} obu_info;
 #endif  // CONFIG_F436_OBUORDER
 
 typedef struct AV2Decoder {
@@ -476,7 +476,7 @@ typedef struct AV2Decoder {
    * it should be noted that it may be bigger than it should be in the case that
    * this decoder is invoked by the avm encoder
    */
-  struct obu_info *obu_list;
+  obu_info *obu_list;
   /*!
    * Used only when the avm encoder invokes test decoder and the avm encoder
    * feeds multiple frame units to avm_codec_decode()
@@ -489,12 +489,12 @@ typedef struct AV2Decoder {
    * last_frame_unit contains obu_info of the last frame unit
    * it is used to check the obu order validation
    */
-  struct obu_info last_frame_unit;
+  obu_info last_frame_unit;
   /*!
    * last_hidden_frame_unit contains obu_info of the last displayable frame unit
    * it is used to check the obu order validation
    */
-  struct obu_info last_displayable_frame_unit;
+  obu_info last_displayable_frame_unit;
   /*!
    * Indicates if the current data chunk being decoded in avm_codec_decode()
    * includes a random access point, OBU_CLK or OBU_OLK and it is the

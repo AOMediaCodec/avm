@@ -1649,8 +1649,8 @@ static int is_leading_vcl_obu(OBU_TYPE obu_type) {
 #if CONFIG_F436_OBUORDER
 // Check if any obu is present between two tile groups of one frame unit.
 static void check_tilegroup_obus_in_a_frame_unit(AV2_COMMON *const cm,
-                                                 struct obu_info *current_obu,
-                                                 struct obu_info *prev_obu) {
+                                                 obu_info *current_obu,
+                                                 obu_info *prev_obu) {
   if (current_obu->obu_type != prev_obu->obu_type ||
       current_obu->show_frame != prev_obu->show_frame ||
       current_obu->showable_frame != prev_obu->showable_frame ||
@@ -1669,8 +1669,8 @@ static void check_tilegroup_obus_in_a_frame_unit(AV2_COMMON *const cm,
 
 // Check if the CLK is the first frame of a mlayer.
 static void check_clk_in_a_layer(AV2_COMMON *const cm,
-                                 struct obu_info *current_frame_unit,
-                                 struct obu_info *last_frame_unit) {
+                                 obu_info *current_frame_unit,
+                                 obu_info *last_frame_unit) {
   if (current_frame_unit->obu_type == OBU_CLK &&
       last_frame_unit->obu_type != OBU_CLK &&
       current_frame_unit->mlayer_id == last_frame_unit->mlayer_id &&
@@ -1689,9 +1689,9 @@ static void check_clk_in_a_layer(AV2_COMMON *const cm,
 }
 
 // Check the mlayer ids of frame units before the current hidden frame.
-static void check_layerid_hidden_frame_units(
-    AV2_COMMON *const cm, struct obu_info *current_frame_unit,
-    struct obu_info *last_frame_unit) {
+static void check_layerid_hidden_frame_units(AV2_COMMON *const cm,
+                                             obu_info *current_frame_unit,
+                                             obu_info *last_frame_unit) {
   //[H:layer0][H:layer1] not allowed
   //[H:layer1][H:layer1] checked later : [H:layer1][H:layer1][S:layer1] ok,
   //[H:layer1][H:layer1][S:layer0] not allowed [H:layer2][H:layer1] not allowed
@@ -1722,9 +1722,8 @@ static void check_layerid_hidden_frame_units(
 
 // Check the mlayer ids of frame units before the current showable frame.
 static void check_layerid_showable_frame_units(
-    AV2_COMMON *const cm, struct obu_info *current_frame_unit,
-    struct obu_info *last_frame_unit,
-    struct obu_info *last_displayable_frame_unit) {
+    AV2_COMMON *const cm, obu_info *current_frame_unit,
+    obu_info *last_frame_unit, obu_info *last_displayable_frame_unit) {
   //[H:layer0][*S:layer1] not allowed
   // 3) [S:layer1][H:layer1][*S:layer2] not allowed
   //[H:layer1][*S:layer1] check last displayable frame unit
@@ -1811,7 +1810,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
 
 #if CONFIG_F436_OBUORDER
   int count_obus_with_frame_unit = 0;
-  struct obu_info *obu_list = pbi->obu_list;
+  obu_info *obu_list = pbi->obu_list;
 #endif  // CONFIG_F436_OBUORDER
   OBU_TYPE prev_obu_type = 0;
   OBU_TYPE curr_obu_type = 0;
@@ -1887,7 +1886,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
 #endif
 
 #if CONFIG_F436_OBUORDER
-    struct obu_info *const curr_obu_info =
+    obu_info *const curr_obu_info =
         &obu_list[pbi->test_decoder_frame_unit_offset +
                   count_obus_with_frame_unit];
     curr_obu_info->obu_type = obu_header.type;
@@ -2273,13 +2272,13 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
 #endif
 
 #if CONFIG_F436_OBUORDER
-  struct obu_info current_frame_unit;
+  obu_info current_frame_unit;
   memset(&current_frame_unit, -1, sizeof(current_frame_unit));
   const int start_obu_idx = pbi->test_decoder_frame_unit_offset;
   const int end_obu_idx =
       pbi->test_decoder_frame_unit_offset + count_obus_with_frame_unit;
   for (int obu_idx = start_obu_idx; obu_idx < end_obu_idx; obu_idx++) {
-    struct obu_info *this_obu = &obu_list[obu_idx];
+    obu_info *this_obu = &obu_list[obu_idx];
 #if CONFIG_F436_OBUORDER_DEBUG
     fprintf(stderr, "obu[%d] %s\n", obu_idx,
             avm_obu_type_to_string(this_obu->obu_type));

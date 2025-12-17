@@ -857,7 +857,7 @@ static void check_random_access_frame_unit(struct AV2Decoder *pbi,
   }
 }
 static void set_last_frame_unit(struct AV2Decoder *pbi) {
-  struct obu_info current_frame_unit;
+  obu_info current_frame_unit;
   memset(&current_frame_unit, -1, sizeof(current_frame_unit));
   for (int obu_idx = 0; obu_idx < pbi->num_obus_with_frame_unit; obu_idx++) {
     if (pbi->obu_list[obu_idx].first_tile_group == 1) {
@@ -999,13 +999,11 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
   // required only for test-decoder invoked by the avm encoder.
   check_random_access_frame_unit(frame_worker_data->pbi, data_start,
                                  (uint64_t)(data_end - data_start));
-  frame_worker_data->pbi->obu_list = (struct obu_info *)malloc(
-      sizeof(struct obu_info) *
-      frame_worker_data->pbi->num_obus_with_frame_unit);
+  frame_worker_data->pbi->obu_list = (obu_info *)malloc(
+      sizeof(obu_info) * frame_worker_data->pbi->num_obus_with_frame_unit);
   for (int obu_idx = 0;
        obu_idx < frame_worker_data->pbi->num_obus_with_frame_unit; obu_idx++)
-    memset(&frame_worker_data->pbi->obu_list[obu_idx], -1,
-           sizeof(struct obu_info));
+    memset(&frame_worker_data->pbi->obu_list[obu_idx], -1, sizeof(obu_info));
   frame_worker_data->pbi->test_decoder_frame_unit_offset = 0;
   for (int i = 0; i < MAX_NUM_MLAYERS; i++)
     frame_worker_data->pbi->num_displayable_frame_unit[i] = 0;
