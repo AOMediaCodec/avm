@@ -804,6 +804,57 @@ static size_t read_metadata_banding_hints(AV2Decoder *const pbi,
   return sz;
 }
 
+// Helper function to read banding hints from a bit buffer
+static void read_metadata_banding_hints_from_rb(
+    AV2Decoder *const pbi, struct avm_read_bit_buffer *rb) {
+  AV2_COMMON *const cm = &pbi->common;
+
+  const int coding_banding_present_flag = avm_rb_read_bit(rb);
+  const int source_banding_present_flag = avm_rb_read_bit(rb);
+
+  if (coding_banding_present_flag) {
+    const int banding_hints_flag = avm_rb_read_bit(rb);
+
+    if (banding_hints_flag) {
+      const int three_color_components = avm_rb_read_bit(rb);
+      const int num_components = three_color_components ? 3 : 1;
+
+      for (int plane = 0; plane < num_components; plane++) {
+        const int banding_in_component_present_flag = avm_rb_read_bit(rb);
+        if (banding_in_component_present_flag) {
+          avm_rb_read_literal(rb, 6);  // max_band_width_minus4
+          avm_rb_read_literal(rb, 4);  // max_band_step_minus1
+        }
+      }
+
+      const int band_units_information_present_flag = avm_rb_read_bit(rb);
+      if (band_units_information_present_flag) {
+        const int num_band_units_rows_minus_1 = avm_rb_read_literal(rb, 5);
+        const int num_band_units_cols_minus_1 = avm_rb_read_literal(rb, 5);
+        const int varying_size_band_units_flag = avm_rb_read_bit(rb);
+
+        if (varying_size_band_units_flag) {
+          avm_rb_read_literal(rb, 3);  // band_block_in_luma_samples
+
+          for (int r = 0; r <= num_band_units_rows_minus_1; r++) {
+            avm_rb_read_literal(rb, 5);  // vert_size_in_band_blocks_minus1
+          }
+
+          for (int c = 0; c <= num_band_units_cols_minus_1; c++) {
+            avm_rb_read_literal(rb, 5);  // horz_size_in_band_blocks_minus1
+          }
+        }
+
+        for (int r = 0; r <= num_band_units_rows_minus_1; r++) {
+          for (int c = 0; c <= num_band_units_cols_minus_1; c++) {
+            avm_rb_read_bit(rb);  // banding_in_band_unit_present_flag
+          }
+        }
+      }
+    }
+  }
+}
+
 #if CONFIG_ICC_METADATA
 // On success, returns the number of bytes read from 'data'. On failure, calls
 // avm_internal_error() and does not return.
@@ -1413,15 +1464,6 @@ static size_t read_metadata_short(AV2Decoder *pbi, const uint8_t *data,
       }
     }
     return sz;
-  } else if (metadata_type == OBU_METADATA_TYPE_BANDING_HINTS) {
-    size_t bytes_read =
-        type_length +
-        read_metadata_banding_hints(pbi, data + type_length, sz - type_length);
-    if (get_last_nonzero_byte(data + bytes_read, sz - bytes_read) != 0x80) {
-      cm->error.error_code = AVM_CODEC_CORRUPT_FRAME;
-      return 0;
-    }
-    return sz;
   } else if (metadata_type == OBU_METADATA_TYPE_SCAN_TYPE) {
     const size_t kMinScanTypeHeaderSize = 1;
     if (sz < kMinScanTypeHeaderSize) {
@@ -1455,6 +1497,9 @@ static size_t read_metadata_short(AV2Decoder *pbi, const uint8_t *data,
       }
       return sz;
     }
+  } else if (metadata_type == OBU_METADATA_TYPE_BANDING_HINTS) {
+    // Banding hints metadata is variable bits, not byte-aligned
+    read_metadata_banding_hints_from_rb(pbi, &rb);
   } else {
     assert(metadata_type == OBU_METADATA_TYPE_TIMECODE);
     read_metadata_timecode(&rb);
