@@ -69,14 +69,30 @@ static INLINE void check_frame_mv_slot(const AV2_COMMON *const cm, MV_REF *mv) {
     int cur_display_order = cm->cur_frame->display_order_hint;
 
     const int diff_0_cur =
-        get_relative_dist(&cm->seq_params.order_hint_info, ref_display_order[0],
-                          cur_display_order);
+#if CONFIG_F322_FIX_1191
+        get_ref_frame_buf(cm, mv->ref_frame[0])->is_restricted_ref
+            ? (1 << (DISPLAY_ORDER_HINT_BITS - 1))
+            :
+#endif  // CONFIG_F322_FIX_1191
+            get_relative_dist(&cm->seq_params.order_hint_info,
+                              ref_display_order[0], cur_display_order);
     const int diff_1_cur =
-        get_relative_dist(&cm->seq_params.order_hint_info, ref_display_order[1],
-                          cur_display_order);
+#if CONFIG_F322_FIX_1191
+        get_ref_frame_buf(cm, mv->ref_frame[1])->is_restricted_ref
+            ? (1 << (DISPLAY_ORDER_HINT_BITS - 1))
+            :
+#endif  // CONFIG_F322_FIX_1191
+            get_relative_dist(&cm->seq_params.order_hint_info,
+                              ref_display_order[1], cur_display_order);
     const int diff_0_1 =
-        get_relative_dist(&cm->seq_params.order_hint_info, ref_display_order[0],
-                          ref_display_order[1]);
+#if CONFIG_F322_FIX_1191
+        (get_ref_frame_buf(cm, mv->ref_frame[0])->is_restricted_ref ||
+         get_ref_frame_buf(cm, mv->ref_frame[1])->is_restricted_ref)
+            ? (1 << (DISPLAY_ORDER_HINT_BITS - 1))
+            :
+#endif  // CONFIG_F322_FIX_1191
+            get_relative_dist(&cm->seq_params.order_hint_info,
+                              ref_display_order[0], ref_display_order[1]);
 
     bool to_switch = false;
     if (diff_0_cur < 0 && diff_1_cur < 0) {

@@ -2543,7 +2543,8 @@ static AVM_INLINE void decode_restoration_mode(AV2_COMMON *cm,
             for (int i = 0; i < num_ref_frames; i++) {
               if (cm->ref_frame_map[cm->remapped_ref_idx[i]] != NULL)
                 num_ref_frames_available +=
-                    !cm->ref_frame_map[cm->remapped_ref_idx[i]]->is_restricted_ref;
+                    !cm->ref_frame_map[cm->remapped_ref_idx[i]]
+                         ->is_restricted_ref;
             }
             if (num_ref_frames_available == 0)
               assert(rsi->temporal_pred_flag == 0);
@@ -2553,10 +2554,12 @@ static AVM_INLINE void decode_restoration_mode(AV2_COMMON *cm,
                   rb,
                   avm_ceil_log2(num_ref_frames));  // read_lr_reference_idx
 #if CONFIG_F322_OBUER_REFRESTRICT
-            if (get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)->is_restricted_ref) {
-              avm_internal_error(&cm->error, AVM_CODEC_ERROR,
-                                 "Invalid rst_ref_pic_idx: restricted reference buffer");
-            }
+              if (get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)
+                      ->is_restricted_ref) {
+                avm_internal_error(
+                    &cm->error, AVM_CODEC_ERROR,
+                    "Invalid rst_ref_pic_idx: restricted reference buffer");
+              }
 #endif
             }
           }
@@ -3248,7 +3251,8 @@ static AVM_INLINE void setup_ccso(AV2_COMMON *cm,
   int num_ref_frames_available = 0;
   for (int i = 0; i < num_ref_frames; i++) {
     if (cm->ref_frame_map[cm->remapped_ref_idx[i]] != NULL)
-      num_ref_frames_available += !cm->ref_frame_map[cm->remapped_ref_idx[i]]->is_restricted_ref;
+      num_ref_frames_available +=
+          !cm->ref_frame_map[cm->remapped_ref_idx[i]]->is_restricted_ref;
   }
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
   if (cm->bridge_frame_info.is_bridge_frame) {
@@ -3281,6 +3285,11 @@ static AVM_INLINE void setup_ccso(AV2_COMMON *cm,
           cm->ccso_info.reuse_ccso[plane] = 0;
           cm->ccso_info.sb_reuse_ccso[plane] = 0;
         }
+#if CONFIG_F322_OBUER_REFRESTRICT
+        if (num_ref_frames_available == 0)
+          assert(cm->ccso_info.reuse_ccso[plane] == 0 &&
+                 cm->ccso_info.sb_reuse_ccso[plane] == 0);
+#endif  // CONFIG_F322_OBUER_REFRESTRICT
         if (cm->ccso_info.reuse_ccso[plane] ||
             cm->ccso_info.sb_reuse_ccso[plane]) {
           if (num_ref_frames > 1) {
@@ -7839,8 +7848,12 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
         if (cm->restricted_prediction_switch) {
           pbi->restricted_predition = 1;
           for (int i = 0; i < REF_FRAMES; i++) {
-            if (cm->ref_frame_map[i] != NULL)
+            if (cm->ref_frame_map[i] != NULL) {
               cm->ref_frame_map[i]->is_restricted_ref = true;
+#if CONFIG_F322_FIX_1191
+              cm->ref_frame_map[i]->frame_output_done = true;
+#endif
+            }
           }
         }
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
@@ -7882,11 +7895,18 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     }
 
 #if CONFIG_F322_OBUER_REFRESTRICT
-    if (current_frame->frame_type == KEY_FRAME) {
+#if CONFIG_F322_FIX_1191
+    if (obu_type == OBU_CLK || (obu_type == OBU_OLK && pbi->random_accessed))
+#else
+    if (current_frame->frame_type == KEY_FRAME)
+#endif
+    {
       pbi->restricted_predition = 0;
+#if !CONFIG_F322_FIX_1191
       for (int i = 0; i < seq_params->ref_frames; i++)
         if (cm->ref_frame_map[i] != NULL)
           cm->ref_frame_map[i]->is_restricted_ref = false;
+#endif  // !CONFIG_F322_FIX_1191
     }
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
 
@@ -8027,9 +8047,19 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
                                               ? CROSS_FRAME_CONTEXT_DISABLED
                                               : CROSS_FRAME_CONTEXT_FORWARD;
         pbi->signal_primary_ref_frame = signal_primary_ref_frame;
-        if (signal_primary_ref_frame)
+        if (signal_primary_ref_frame) {
           features->primary_ref_frame =
               avm_rb_read_literal(rb, PRIMARY_REF_BITS);
+#if CONFIG_F322_OBUER_REFRESTRICT
+          if (cm->ref_frame_map
+                  [cm->remapped_ref_idx[features->primary_ref_frame]]
+                      ->is_restricted_ref) {
+            avm_internal_error(
+                &cm->error, AVM_CODEC_ERROR,
+                "primary_ref_frame points a restricted reference");
+          }
+#endif  // CONFIG_F322_OBUER_REFRESTRICT
+        }
       }
     }
   }
@@ -8525,16 +8555,16 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
           scores[i].score = INT_MAX;
         for (int i = 0; i < cm->ref_frames_info.num_total_refs; i++) {
 #if CONFIG_F322_OBUER_REFRESTRICT
-            if (cm->ref_frame_map[cm->remapped_ref_idx[i]]->is_restricted_ref) {
-                scores[i].distance = (1 << (RELATIVE_DIST_BITS - 1)) - 1;
-            } else {
-                scores[i].score = i;
-                int ref = cm->remapped_ref_idx[i];
-                scores[i].distance =
-                    get_relative_dist(&seq_params->order_hint_info,
-                                      (int)current_frame->display_order_hint,
-                                      (int)cm->ref_frame_map_pairs[ref].disp_order);
-            }
+          if (cm->ref_frame_map[cm->remapped_ref_idx[i]]->is_restricted_ref) {
+            scores[i].distance = (1 << (RELATIVE_DIST_BITS - 1)) - 1;
+          } else {
+            scores[i].score = i;
+            int ref = cm->remapped_ref_idx[i];
+            scores[i].distance =
+                get_relative_dist(&seq_params->order_hint_info,
+                                  (int)current_frame->display_order_hint,
+                                  (int)cm->ref_frame_map_pairs[ref].disp_order);
+          }
 #else
           scores[i].score = i;
           int ref = cm->remapped_ref_idx[i];
@@ -8542,7 +8572,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
               get_relative_dist(&seq_params->order_hint_info,
                                 (int)current_frame->display_order_hint,
                                 (int)cm->ref_frame_map_pairs[ref].disp_order);
-#endif //CONFIG_F322_OBUER_REFRESTRICT
+#endif  // CONFIG_F322_OBUER_REFRESTRICT
           cm->ref_frames_info.ref_frame_distance[i] = scores[i].distance;
         }
 #if CONFIG_F322_OBUER_REFRESTRICT
