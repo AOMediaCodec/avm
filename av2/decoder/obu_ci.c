@@ -165,9 +165,36 @@ static INLINE void av2_read_sample_aspect_ratio_information(
   }
 }
 
+static int av2_ci_params_identical(const ContentInterpretation *ci1, const ContentInterpretation *ci2) {
+
+  // Compare all flag fields
+  if (ci1->ci_scan_type_idc != ci2->ci_scan_type_idc) return 0;
+  if (ci1->ci_color_description_present_flag != ci2->ci_color_description_present_flag) return 0;
+  if (ci1->ci_chroma_sample_position_present_flag != ci2->ci_chroma_sample_position_present_flag) return 0;
+  if (ci1->ci_aspect_ratio_info_present_flag != ci2->ci_aspect_ratio_info_present_flag) return 0;
+  if (ci1->ci_timing_info_present_flag != ci2->ci_timing_info_present_flag) return 0;
+  if (ci1->ci_extension_present_flag != ci2->ci_extension_present_flag) return 0;
+
+  // Compare the chroma sample position
+  if(ci1->ci_chroma_sample_position[0] != ci2->ci_chroma_sample_position[0]) return 0;
+  if(ci1->ci_chroma_sample_position[1] != ci2->ci_chroma_sample_position[1]) return 0;
+
+  // Compare the SAR infor
+  if (ci1->sar_info.sar_aspect_ratio_idc != ci2->sar_info.sar_aspect_ratio_idc) return 0;
+  if (ci1->sar_info.sar_width != ci2->sar_info.sar_width) return 0;
+  if (ci1->sar_info.sar_height != ci2->sar_info.sar_height) return 0;
+
+  // Compare timing info
+  if (ci1->timing_info.time_scale != ci2->timing_info.time_scale) return 0;
+  if (ci1->timing_info.equal_elemental_interval != ci2->timing_info.equal_elemental_interval) return 0;
+  if (ci1->timing_info.num_ticks_per_elemental_duration != ci2->timing_info.num_ticks_per_elemental_duration) return 0;
+
+  return 1; // All fields match
+}
+
 uint32_t av2_read_content_interpretation_obu(struct AV2Decoder *pbi,
                                              struct avm_read_bit_buffer *rb) {
-  // TODO: AVM issue #1172 - Add layer-dependency-based inheritance of CI params
+
   AV2_COMMON *const cm = &pbi->common;
   const int obu_mlayer_id = cm->mlayer_id;
   const uint32_t saved_bit_offset = rb->bit_offset;
@@ -234,7 +261,17 @@ uint32_t av2_read_content_interpretation_obu(struct AV2Decoder *pbi,
     avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
                        "CI OBU is signalled without CLK/OLK");
   } else if (pbi->ci_and_key_per_layer[obu_mlayer_id] == 2) {
-    cm->ci_params_per_layer[obu_mlayer_id] = ci_temp;
+      // Check if a CI OBU has already been received for this embedded layer
+    if (pbi->ci_obu_received_per_layer[obu_mlayer_id]) {
+      if (!av2_ci_params_identical(&cm->ci_params_per_layer[obu_mlayer_id], &ci_temp)) {
+        avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME, "Multiple CI OBUs in embedded layer must be identical.");
+      }
+      // CI obu matches the previous one, so no need to update
+    } else {
+      // Got the first CI Obu for this layer.
+      cm->ci_params_per_layer[obu_mlayer_id] = ci_temp;
+      pbi->ci_obu_received_per_layer[obu_mlayer_id] = 1;
+    }
   }
 
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);

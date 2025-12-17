@@ -280,6 +280,7 @@ AV2Decoder *av2_decoder_create(BufferPool *const pool) {
   // Initialize the Content Interpretation parameters
   for (int i = 0; i < MAX_NUM_MLAYERS; i++) {
     pbi->ci_and_key_per_layer[i] = 0;
+    pbi->ci_obu_received_per_layer[i] = 0;
     ContentInterpretation *ci_params = &cm->ci_params_per_layer[i];
     ci_params->ci_chroma_sample_position_present_flag = 0;
     ci_params->ci_chroma_sample_position[0] = AVM_CSP_UNSPECIFIED;
