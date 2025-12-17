@@ -183,6 +183,13 @@ static int av2_ci_params_identical(const ContentInterpretation *ci1,
   if (ci1->ci_extension_present_flag != ci2->ci_extension_present_flag)
     return 0;
 
+  // Compare color information
+  if (ci1->color_info.color_description_idc != ci2->color_info.color_description_idc) return 0;
+  if (ci1->color_info.color_primaries != ci2->color_info.color_primaries) return 0;
+  if (ci1->color_info.transfer_characteristics != ci2->color_info.transfer_characteristics) return 0;
+  if (ci1->color_info.matrix_coefficients != ci2->color_info.matrix_coefficients) return 0;
+  if (ci1->color_info.full_range_flag != ci2->color_info.full_range_flag) return 0;
+
   // Compare the chroma sample position
   if (ci1->ci_chroma_sample_position[0] != ci2->ci_chroma_sample_position[0])
     return 0;
