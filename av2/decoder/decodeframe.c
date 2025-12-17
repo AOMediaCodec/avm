@@ -8417,7 +8417,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
 
 #if CONFIG_F322_OBUER_REFRESTRICT
         // restricted_predition=if number of is_restricted_ref >0
-        if (pbi->restricted_predition) {
+        if (pbi->restricted_predition && obu_type != OBU_RAS_FRAME) {
           update_ref_frames_info(pbi, obu_type);
         }
 #endif  // CONFIG_F322_OBUER_REFRESTRICT

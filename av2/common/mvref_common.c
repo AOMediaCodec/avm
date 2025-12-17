@@ -4094,6 +4094,13 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
     cm->ref_frame_side[i] = 0;
     cm->ref_frame_relative_dist[i] = 0;
   }
+#if CONFIG_F322_OBUER_REFRESTRICT
+  for (int i = 0; i < cm->ref_frames_info.num_total_refs; i++) {
+      if (get_ref_frame_buf(cm, i)->is_restricted_ref) {
+        cm->ref_frame_relative_dist[i] = INT_MAX;
+      }
+    }
+#endif // CONFIG_F322_OBUER_REFRESTRICT
   for (int index = 0; index < cm->ref_frames_info.num_past_refs; index++) {
     const int ref_frame = cm->ref_frames_info.past_refs[index];
     cm->ref_frame_side[ref_frame] = 0;
