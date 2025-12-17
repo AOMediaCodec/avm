@@ -5407,8 +5407,8 @@ static INLINE int opfl_allowed_cur_refs_bsize(const AV2_COMMON *cm,
   if (frame_is_sframe(cm)) return 0;
 #endif  // CONFIG_ERROR_RESILIENT_FIX
 #if CONFIG_F322_FIX_1191
-  if(get_ref_frame_buf(cm, mbmi->ref_frame[0])->is_restricted_ref ||
-     get_ref_frame_buf(cm, mbmi->ref_frame[1])->is_restricted_ref )
+  if (get_ref_frame_buf(cm, mbmi->ref_frame[0])->is_restricted_ref ||
+      get_ref_frame_buf(cm, mbmi->ref_frame[1])->is_restricted_ref)
     return 0;
 #endif
   const unsigned int cur_index = cm->cur_frame->display_order_hint;

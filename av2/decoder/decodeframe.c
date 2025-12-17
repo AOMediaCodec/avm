@@ -7611,7 +7611,8 @@ void update_ref_frames_info(AV2Decoder *pbi, OBU_TYPE obu_type) {
   // They are still references but not to be used except for pixel values
   const int max_num_ref_frames =
       AVMMIN(cm->seq_params.ref_frames, INTER_REFS_PER_FRAME);
-  int num_valid_refs_without_restricted_ref = cm->ref_frames_info.num_total_refs;
+  int num_valid_refs_without_restricted_ref =
+      cm->ref_frames_info.num_total_refs;
   for (int idx = 0; idx < cm->seq_params.ref_frames &&
                     cm->ref_frames_info.num_total_refs < max_num_ref_frames;
        idx++) {
