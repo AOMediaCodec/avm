@@ -190,6 +190,9 @@ static int peek_obu_from_file(FILE *f, size_t obu_size, uint8_t *buffer,
 
 int file_is_obu(struct ObuDecInputContext *obu_ctx) {
   if (!obu_ctx || !obu_ctx->avx_ctx) return 0;
+#if !CONFIG_F160_TD_FIX1033
+  obu_ctx->has_temporal_delimiter = 0;
+#endif // CONFIG_F160_TD_FIX1033
   struct AvxInputContext *avx_ctx = obu_ctx->avx_ctx;
   uint8_t detect_buf[OBU_DETECTION_SIZE] = { 0 };
   FILE *f = avx_ctx->file;
@@ -221,6 +224,10 @@ int file_is_obu(struct ObuDecInputContext *obu_ctx) {
       } else if (obu_header_size == -1) {  // end of file
         break;
       }
+#if !CONFIG_F160_TD_FIX1033
+      if (obu_header.type == OBU_TEMPORAL_DELIMITER)
+        obu_ctx->has_temporal_delimiter = 1;
+#endif // !CONFIG_F160_TD_FIX1033
       if (fseeko(f, (FileOffset)obu_size - obu_header_size, SEEK_CUR) != 0) {
         fprintf(stderr, "file_type: Failure seeking to end of OBU.\n");
         rewind(f);
@@ -294,52 +301,54 @@ int obudec_read_temporal_unit
 #if !CONFIG_F160_TD_FIX1033
     int decoding_unit_token =
         (obu_header.type == OBU_TEMPORAL_DELIMITER && first_td != 1);
+    if (!obu_ctx->has_temporal_delimiter) {
 #endif
-
-    int first_tile_group_in_frame =
+      int first_tile_group_in_frame =
 #if CONFIG_F024_KEYOBU
-        is_multi_tile_vcl_obu_dec(obu_header.type)
+      is_multi_tile_vcl_obu_dec(obu_header.type)
 #if CONFIG_F160_TD_FIX1033
-                || obu_header.type == OBU_METADATA_GROUP
+      || obu_header.type == OBU_METADATA_GROUP
 #endif  // CONFIG_F160_TD_FIX1033
 #else
-        obu_header.type == OBU_TILE_GROUP
+      obu_header.type == OBU_TILE_GROUP
 #endif  // CONFIG_F024_KEYOBU
-            ? ((first_tile_group_byte >> 7) & 1u)
-            : first_tile_group_byte;
-
+      ? ((first_tile_group_byte >> 7) & 1u)
+      : first_tile_group_byte;
+      
 #if CONFIG_F160_TD_FIX1033
-    int prefix_metadata =
-        obu_header.type == OBU_METADATA_GROUP ? !first_tile_group_in_frame : -1;
+      int prefix_metadata =
+      obu_header.type == OBU_METADATA_GROUP ? !first_tile_group_in_frame : -1;
 #endif  // CONFIG_F160_TD_FIX1033
-
-    // TODO(any): OBU header type condition is almost same as
-    // `is_coded_frame`, except `type == OBU_BRIDGE_FRAME` condition. Need to
-    // refactor after macros are cleaned up.
-
+      
+      // TODO(any): OBU header type condition is almost same as
+      // `is_coded_frame`, except `type == OBU_BRIDGE_FRAME` condition. Need to
+      // refactor after macros are cleaned up.
+      
 #if CONFIG_F160_TD_FIX1033
-    int
+      int
 #endif  // CONFIG_F160_TD_FIX1033
-        decoding_unit_token =
-            ((vcl_obu_count > 0 &&
+      decoding_unit_token =
+      ((vcl_obu_count > 0 &&
 #if CONFIG_F024_KEYOBU
-              (is_multi_tile_vcl_obu_dec(obu_header.type) ||
-               is_single_tile_vcl_obu_dec(obu_header.type))
+        (is_multi_tile_vcl_obu_dec(obu_header.type) ||
+         is_single_tile_vcl_obu_dec(obu_header.type))
 #else
-          (obu_header.type == OBU_TILE_GROUP || obu_header.type == OBU_SEF ||
-           obu_header.type == OBU_TIP || obu_header.type == OBU_SWITCH ||
-           obu_header.type == OBU_RAS_FRAME)
+        (obu_header.type == OBU_TILE_GROUP || obu_header.type == OBU_SEF ||
+         obu_header.type == OBU_TIP || obu_header.type == OBU_SWITCH ||
+         obu_header.type == OBU_RAS_FRAME)
 #endif  // CONFIG_F024_KEYOBU
-              && first_tile_group_in_frame)
+        && first_tile_group_in_frame)
 #if CONFIG_F160_TD_FIX1033
-             ||
-             (vcl_obu_count > 0 && is_fu_head_non_vcl_obu(obu_header.type)) ||
-             (vcl_obu_count > 0 && obu_header.type == OBU_METADATA_GROUP &&
-              prefix_metadata == 1));
+       ||
+       (vcl_obu_count > 0 && is_fu_head_non_vcl_obu(obu_header.type)) ||
+       (vcl_obu_count > 0 && obu_header.type == OBU_METADATA_GROUP &&
+        prefix_metadata == 1));
 #else
-         || (vcl_obu_count > 0 && obu_header.type == OBU_SEQUENCE_HEADER));
+      || (vcl_obu_count > 0 && obu_header.type == OBU_SEQUENCE_HEADER));
 #endif  // CONFIG_F160_TD_FIX1033
-
+#if !CONFIG_F160_TD_FIX1033
+    }
+#endif // !CONFIG_F436_OBUORDER
     if (decoding_unit_token) {
       break;
     } else {
@@ -347,8 +356,16 @@ int obudec_read_temporal_unit
       if (obu_header.type == OBU_TEMPORAL_DELIMITER) first_td = 0;
 #endif
 #if CONFIG_F024_KEYOBU
+#if CONFIG_F160_TD_FIX1033
       if (is_multi_tile_vcl_obu_dec(obu_header.type) ||
           is_single_tile_vcl_obu_dec(obu_header.type))
+#else
+        if (is_multi_tile_vcl_obu_dec(obu_header.type) ||
+            obu_header.type == OBU_REGULAR_SEF ||
+            obu_header.type == OBU_LEADING_SEF ||
+            obu_header.type == OBU_REGULAR_TIP ||
+            obu_header.type == OBU_LEADING_TIP)
+#endif // CONFIG_F160_TD_FIX1033
 #else
       if (obu_header.type == OBU_TILE_GROUP || obu_header.type == OBU_SEF ||
           obu_header.type == OBU_TIP || obu_header.type == OBU_SWITCH ||

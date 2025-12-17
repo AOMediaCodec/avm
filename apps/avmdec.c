@@ -695,7 +695,11 @@ static int main_loop(int argc, const char **argv_) {
   memset(&webm_ctx, 0, sizeof(webm_ctx));
   input.webm_ctx = &webm_ctx;
 #endif
+#if CONFIG_F160_TD_FIX1033
   struct ObuDecInputContext obu_ctx = { NULL, NULL, 0, 0 };
+#else
+  struct ObuDecInputContext obu_ctx = { NULL, NULL, 0, 0, 0 };
+#endif
   int is_ivf = 0;
 
   obu_ctx.avx_ctx = &avm_input_ctx;

@@ -99,7 +99,11 @@ int main(int argc, char **argv) {
   size_t bytes_in_buffer = 0;
   size_t buffer_size = 0;
   struct AvxInputContext avm_input_ctx;
+#if CONFIG_F160_TD_FIX1033
   struct ObuDecInputContext obu_ctx = { &avm_input_ctx, NULL, 0, 0 };
+#else
+  struct ObuDecInputContext obu_ctx = { &avm_input_ctx, NULL, 0, 0, 0 };
+#endif
   avm_codec_stream_info_t si;
   uint8_t tmpbuf[32];
   unsigned int i;
