@@ -875,9 +875,7 @@ const av2_codec_arg_definitions_t g_av2_codec_arg_defs = {
       ARG_DEF(NULL, "enable-short-refresh-frame-flags", 1,
               "Signal refresh frame flags with N bits. (0: N = 8, 1 : N = 3)"),
 
-#if CONFIG_ICC_METADATA
   .icc_file = ARG_DEF(NULL, "icc", 1, "ICC profile filename"),
-#endif  // CONFIG_ICC_METADATA
   .scan_type_info_present_flag =
       ARG_DEF(NULL, "scan-type-info", 1, "Scan type info present flag"),
   .enable_mfh_obu_signaling =

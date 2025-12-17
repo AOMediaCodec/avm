@@ -4544,10 +4544,7 @@ static const avm_codec_enc_cfg_t encoder_usage_cfg[] = { {
         0,  // crop_win_right_offset
         0,  // crop_win_top_offset
         0,  // crop_win_bottom_offset
-#if CONFIG_ICC_METADATA
-        NULL, 0,
-#endif  // CONFIG_ICC_METADATA
-        0,
+        NULL, 0, 0,
         0,  // enable_mfh_obu_signaling
         1,
     },  // cfg

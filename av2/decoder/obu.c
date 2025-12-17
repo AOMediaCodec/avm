@@ -835,7 +835,6 @@ static void read_metadata_banding_hints_from_rb(
   }
 }
 
-#if CONFIG_ICC_METADATA
 // On success, returns the number of bytes read from 'data'. On failure, calls
 // avm_internal_error() and does not return.
 static size_t read_metadata_icc_profile(AV2Decoder *const pbi,
@@ -850,7 +849,6 @@ static size_t read_metadata_icc_profile(AV2Decoder *const pbi,
                       AVM_MIF_ANY_FRAME);
   return sz;
 }
-#endif  // CONFIG_ICC_METADATA
 
 // On success, returns the number of bytes read from 'data'. On failure, calls
 // avm_internal_error() and does not return.
@@ -1390,7 +1388,6 @@ static size_t read_metadata_short(AV2Decoder *pbi, const uint8_t *data,
   } else if (metadata_type == OBU_METADATA_TYPE_BANDING_HINTS) {
     // Banding hints metadata is variable bits, not byte-aligned
     read_metadata_banding_hints_from_rb(pbi, &rb);
-#if CONFIG_ICC_METADATA
   } else if (metadata_type == OBU_METADATA_TYPE_ICC_PROFILE) {
     // ICC profile is byte-aligned binary data
     // Find the last nonzero byte (should be 0x80 trailing byte)
@@ -1404,7 +1401,6 @@ static size_t read_metadata_short(AV2Decoder *pbi, const uint8_t *data,
     const size_t icc_payload_size = last_nonzero_idx;
     read_metadata_icc_profile(pbi, data + type_length, icc_payload_size);
     return sz;
-#endif  // CONFIG_ICC_METADATA
   } else {
     assert(metadata_type == OBU_METADATA_TYPE_TIMECODE);
     read_metadata_timecode(&rb);

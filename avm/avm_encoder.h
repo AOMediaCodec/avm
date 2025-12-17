@@ -641,7 +641,6 @@ typedef struct cfg_options {
    */
   int crop_win_bottom_offset;
 
-#if CONFIG_ICC_METADATA
   /*!\brief ICC profile metadata
    *
    */
@@ -650,7 +649,6 @@ typedef struct cfg_options {
    *
    */
   size_t icc_size;
-#endif  // CONFIG_ICC_METADATA
 
   /*!\brief Scan type info present flag
    *
