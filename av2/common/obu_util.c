@@ -44,12 +44,8 @@ static int valid_obu_type(int obu_type) {
     case OBU_TIP:
     case OBU_TILE_GROUP:
 #endif  // CONFIG_F024_KEYOBU
-#if !CONFIG_METADATA
-    case OBU_METADATA:
-#else
     case OBU_METADATA_SHORT:
     case OBU_METADATA_GROUP:
-#endif  // CONFIG_METADATA
     case OBU_BUFFER_REMOVAL_TIMING:
     case OBU_LAYER_CONFIGURATION_RECORD:
     case OBU_ATLAS_SEGMENT:

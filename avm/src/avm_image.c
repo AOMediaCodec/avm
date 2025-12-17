@@ -311,7 +311,6 @@ avm_metadata_t *avm_img_metadata_alloc(
   metadata->sz = sz;
   metadata->insert_flag = insert_flag;
 
-#if CONFIG_METADATA
   metadata->is_suffix = 0;
   metadata->necessity_idc = AVM_NECESSITY_UNDEFINED;
   metadata->application_id = AVM_APPID_UNDEFINED;
@@ -321,7 +320,6 @@ avm_metadata_t *avm_img_metadata_alloc(
   metadata->layer_idc = AVM_LAYER_UNSPECIFIED;
   metadata->xlayer_map = 0;
   memset(metadata->mlayer_map, 0, sizeof(metadata->mlayer_map));
-#endif  // CONFIG_METADATA
   return metadata;
 }
 

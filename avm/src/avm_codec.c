@@ -177,12 +177,8 @@ const char *avm_obu_type_to_string(OBU_TYPE type) {
     case OBU_TIP: return "OBU_TIP";
     case OBU_TILE_GROUP: return "OBU_TILE_GROUP";
 #endif  // CONFIG_F024_KEYOBU
-#if !CONFIG_METADATA
-    case OBU_METADATA: return "OBU_METADATA";
-#else
     case OBU_METADATA_SHORT: return "OBU_METADATA_SHORT";
     case OBU_METADATA_GROUP: return "OBU_METADATA_GROUP";
-#endif  // CONFIG_METADATA
     case OBU_LAYER_CONFIGURATION_RECORD:
       return "OBU_LAYER_CONFIGURATION_RECORD";
     case OBU_ATLAS_SEGMENT: return "OBU_ATLAS_SEGMENT";

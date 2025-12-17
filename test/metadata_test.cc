@@ -25,7 +25,6 @@
 
 namespace {
 const size_t kMetadataPayloadSizeT35 = 24;
-#if CONFIG_METADATA || CONFIG_F024_KEYOBU
 // itu_t_t35_country_code = 0xB5 (USA)
 // itu_t_t35_terminal_provider_code = 0x5890 (AVM)
 // itu_t_t35_terminal_provider_oriented_code = 0xFE (not specified, for testing
@@ -34,16 +33,8 @@ const uint8_t kMetadataPayloadT35[kMetadataPayloadSizeT35] = {
   0xB5, 0x58, 0x90, 0xFE, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B,
   0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17
 };
-#else
-// 0xB5 stands for the itut t35 metadata country code for the Unites States
-const uint8_t kMetadataPayloadT35[kMetadataPayloadSizeT35] = {
-  0xB5, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B,
-  0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17
-};
-#endif  // CONFIG_METADATA || CONFIG_F024_KEYOBU
 
 const size_t kMetadataPayloadSizeCll = 4;
-#if CONFIG_METADATA || CONFIG_F024_KEYOBU
 const uint8_t kMetadataPayloadCll[kMetadataPayloadSizeCll] = { 0xDE, 0xAD, 0xBE,
                                                                0xEF };
 const size_t kMetadataPayloadSizeMdcv = 24;
@@ -59,13 +50,8 @@ const uint8_t kMetadataPayloadMdcv[kMetadataPayloadSizeMdcv] = {
   0x00, 0x00, 0x00, 0x09,  // luminance_max
   0x00, 0x00, 0x00, 0x0A   // luminance_min
 };
-#else
-const uint8_t kMetadataPayloadCll[kMetadataPayloadSizeCll] = { 0xB5, 0x01, 0x02,
-                                                               0x03 };
-#endif  // CONFIG_METADATA || CONFIG_F024_KEYOBU
 
 #if CONFIG_AV2_ENCODER
-#if CONFIG_METADATA || CONFIG_F024_KEYOBU
 const size_t kMetadataObuSizeT35 = 29;
 const uint8_t kMetadataObuT35[kMetadataObuSizeT35] = {
   0x04,        // muh_metadata_type(leb128) = 4 (ITU-T T.35 metadata unit)
@@ -94,24 +80,6 @@ const uint8_t kMetadataObuCll[kMetadataObuSizeCll] = {
   0x00, 0x00,  // layer_idc(3) persistence_idc(3) priority(8) reserved(2)
   0xDE, 0xAD, 0xBE, 0xEF
 };
-#else   // CONFIG_METADATA || CONFIG_F024_KEYOBU
-const size_t kMetadataObuSizeT35 = 29;
-const uint8_t kMetadataObuT35[kMetadataObuSizeT35] = {
-  0x1C, 0x14, 0x00, 0x04, 0xB5, 0x01, 0x02, 0x03, 0x04, 0x05,
-  0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
-  0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x80
-};
-const size_t kMetadataObuSizeMdcv = 29;
-const uint8_t kMetadataObuMdcv[kMetadataObuSizeMdcv] = {
-  0x1C, 0x14, 0x00, 0x02, 0xB5, 0x01, 0x02, 0x03, 0x04, 0x05,
-  0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
-  0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x80
-};
-const size_t kMetadataObuSizeCll = 9;
-const uint8_t kMetadataObuCll[kMetadataObuSizeCll] = { 0x08, 0x14, 0x00,
-                                                       0x01, 0xB5, 0x01,
-                                                       0x02, 0x03, 0x80 };
-#endif  // CONFIG_METADATA || CONFIG_F024_KEYOBU
 
 class MetadataEncodeTest
     : public ::libavm_test::CodecTestWithParam<libavm_test::TestMode>,

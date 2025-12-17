@@ -487,9 +487,7 @@ const arg_def_t *av2_key_val_args[] = {
   &g_av2_codec_arg_defs.crop_win_top_offset,
   &g_av2_codec_arg_defs.crop_win_bottom_offset,
   &g_av2_codec_arg_defs.scan_type_info_present_flag,
-#if CONFIG_METADATA
   &g_av2_codec_arg_defs.use_short_metadata,
-#endif  // CONFIG_METADATA
   &g_av2_codec_arg_defs.enable_mfh_obu_signaling,
   &g_av2_codec_arg_defs.operating_points_count,
   &g_av2_codec_arg_defs.cross_frame_cdf_init_mode,

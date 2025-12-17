@@ -6644,7 +6644,6 @@ static uint32_t write_tilegroup_obu(
   return curr_tg_header_size + curr_tg_data_size;
 }
 
-#if CONFIG_METADATA
 static size_t av2_write_metadata_group_header(uint8_t *const dst,
                                               const size_t count,
                                               avm_metadata_t *first_metadata) {
@@ -6734,33 +6733,13 @@ static size_t av2_write_metadata_unit_header(const avm_metadata_t *metadata,
 
   return written_bytes;
 }
-#endif  // CONFIG_METADATA
 
-#if CONFIG_METADATA
 static size_t av2_write_metadata_unit(const avm_metadata_t *metadata,
-                                      uint8_t *const dst)
-#else
-static size_t av2_write_metadata_obu(const avm_metadata_t *metadata,
-                                     uint8_t *const dst)
-#endif  // CONFIG_METADATA
-{
+                                      uint8_t *const dst) {
   size_t coded_metadata_size = 0;
-#if !CONFIG_METADATA
-  const uint64_t metadata_type = (uint64_t)metadata->type;
-  if (avm_uleb_encode(metadata_type, sizeof(metadata_type), dst,
-                      &coded_metadata_size) != 0) {
-    return 0;
-  }
-#endif  // !CONFIG_METADATA
   memcpy(dst + coded_metadata_size, metadata->payload, metadata->sz);
 
-#if CONFIG_METADATA
   return (uint32_t)(coded_metadata_size + metadata->sz);
-#else
-  // Add trailing bits.
-  dst[coded_metadata_size + metadata->sz] = 0x80;
-  return (uint32_t)(coded_metadata_size + metadata->sz + 1);
-#endif  // CONFIG_METADATA
 }
 static size_t av2_write_metadata_obu(const avm_metadata_t *metadata,
                                      uint8_t *const dst) {
@@ -6792,13 +6771,9 @@ static size_t av2_write_metadata_obu(const avm_metadata_t *metadata,
                     (!metadata->cancel_flag) * metadata->sz + 1);
 }
 
-static size_t av2_write_metadata_array(AV2_COMP *const cpi, uint8_t *dst
-#if CONFIG_METADATA
-                                       ,
+static size_t av2_write_metadata_array(AV2_COMP *const cpi, uint8_t *dst,
                                        const bool is_suffix,
-                                       bool is_short_metadata
-#endif  // CONFIG_METADATA
-) {
+                                       bool is_short_metadata) {
   if (!cpi->source) return 0;
   AV2_COMMON *const cm = &cpi->common;
   avm_metadata_array_t *arr = cpi->source->metadata;
@@ -6807,7 +6782,6 @@ static size_t av2_write_metadata_array(AV2_COMP *const cpi, uint8_t *dst
   size_t obu_payload_size = 0;
   size_t total_bytes_written = 0;
   size_t length_field_size = 0;
-#if CONFIG_METADATA
   if (!is_short_metadata) {
     // category is a set of medata sharing the same `application_id` and
     // `necessity_id`
@@ -6930,33 +6904,6 @@ static size_t av2_write_metadata_array(AV2_COMP *const cpi, uint8_t *dst
       }
     }
   }
-#else
-  for (size_t i = 0; i < arr->sz; i++) {
-    avm_metadata_t *current_metadata = arr->metadata_array[i];
-    if (current_metadata && current_metadata->payload) {
-      if ((cm->current_frame.frame_type == KEY_FRAME &&
-           current_metadata->insert_flag == AVM_MIF_KEY_FRAME) ||
-          (cm->current_frame.frame_type != KEY_FRAME &&
-           current_metadata->insert_flag == AVM_MIF_NON_KEY_FRAME) ||
-          current_metadata->insert_flag == AVM_MIF_ANY_FRAME) {
-        obu_header_size =
-            av2_write_obu_header(&cpi->level_params, OBU_METADATA, 0, 0, dst);
-        obu_payload_size =
-            av2_write_metadata_obu(current_metadata, dst + obu_header_size);
-        length_field_size = obu_memmove(obu_header_size, obu_payload_size, dst);
-        if (av2_write_uleb_obu_size(obu_header_size, obu_payload_size, dst) ==
-            AVM_CODEC_OK) {
-          const size_t obu_size = obu_header_size + obu_payload_size;
-          dst += obu_size + length_field_size;
-          total_bytes_written += obu_size + length_field_size;
-        } else {
-          avm_internal_error(&cpi->common.error, AVM_CODEC_ERROR,
-                             "Error writing metadata OBU size");
-        }
-      }
-    }
-  }
-#endif  // CONFIG_METADATA
   return total_bytes_written;
 }
 
@@ -6984,12 +6931,8 @@ static void write_frame_hash(AV2_COMP *const cpi,
   }
 }
 
-static size_t write_scan_type_metadata(AV2_COMP *const cpi, uint8_t *dst
-#if CONFIG_METADATA
-                                       ,
-                                       ObuHeader *obu_header
-#endif  // CONFIG_METADATA
-) {
+static size_t write_scan_type_metadata(AV2_COMP *const cpi, uint8_t *dst,
+                                       ObuHeader *obu_header) {
   if (!cpi->source) return 0;
   AV2_COMMON *const cm = &cpi->common;
   unsigned char payload[1];
@@ -7008,7 +6951,6 @@ static size_t write_scan_type_metadata(AV2_COMP *const cpi, uint8_t *dst
   }
 
   size_t total_bytes_written = 0;
-#if CONFIG_METADATA
   metadata->cancel_flag = 0;
   metadata->priority = 0;
   metadata->persistence_idc = AVM_NO_PERSISTENCE;
@@ -7018,22 +6960,6 @@ static size_t write_scan_type_metadata(AV2_COMP *const cpi, uint8_t *dst
       av2_write_metadata_unit_header(metadata, dst, obu_header);
   total_bytes_written +=
       av2_write_metadata_unit(metadata, dst + total_bytes_written);
-#else
-  size_t obu_header_size =
-      av2_write_obu_header(&cpi->level_params, OBU_METADATA, 0, 0, dst);
-  size_t obu_payload_size =
-      av2_write_metadata_obu(metadata, dst + obu_header_size);
-  size_t length_field_size =
-      obu_memmove(obu_header_size, obu_payload_size, dst);
-  if (av2_write_uleb_obu_size(obu_header_size, obu_payload_size, dst) ==
-      AVM_CODEC_OK) {
-    const size_t obu_size = obu_header_size + obu_payload_size;
-    total_bytes_written += obu_size + length_field_size;
-  } else {
-    avm_internal_error(&cpi->common.error, AVM_CODEC_ERROR,
-                       "Error writing metadata OBU size");
-  }
-#endif  // CONFIG_METADATA
   avm_img_metadata_free(metadata);
 
   return total_bytes_written;
@@ -7068,16 +6994,11 @@ static size_t write_temporal_point_info_metadata(AV2_COMP *const cpi,
   metadata->layer_idc = AVM_LAYER_CURRENT;
 
   size_t total_bytes_written = 0;
-#if !CONFIG_METADATA
-  size_t obu_header_size =
-      av2_write_obu_header(&cpi->level_params, OBU_METADATA, 0, 0, dst);
-#else
   OBU_TYPE obu_type = cpi->oxcf.tool_cfg.use_short_metadata
                           ? OBU_METADATA_SHORT
                           : OBU_METADATA_GROUP;
   size_t obu_header_size =
       av2_write_obu_header(&cpi->level_params, obu_type, 0, 0, dst);
-#endif  // CONFIG_METADATA
   size_t obu_payload_size =
       av2_write_metadata_obu(metadata, dst + obu_header_size);
   size_t length_field_size =
@@ -7096,12 +7017,7 @@ static size_t write_temporal_point_info_metadata(AV2_COMP *const cpi,
 
 static size_t av2_write_frame_hash_metadata(
     AV2_COMP *const cpi, uint8_t *dst,
-    const avm_film_grain_t *const grain_params
-#if CONFIG_METADATA
-    ,
-    ObuHeader *obu_header
-#endif  // CONFIG_METADATA
-) {
+    const avm_film_grain_t *const grain_params, ObuHeader *obu_header) {
   if (!cpi->source) return 0;
   AV2_COMMON *const cm = &cpi->common;
   avm_image_t img;
@@ -7141,7 +7057,6 @@ static size_t av2_write_frame_hash_metadata(
   }
 
   size_t total_bytes_written = 0;
-#if CONFIG_METADATA
   metadata->cancel_flag = 0;
   metadata->priority = 0;
   metadata->persistence_idc = AVM_NO_PERSISTENCE;
@@ -7151,22 +7066,6 @@ static size_t av2_write_frame_hash_metadata(
       av2_write_metadata_unit_header(metadata, dst, obu_header);
   total_bytes_written +=
       av2_write_metadata_unit(metadata, dst + total_bytes_written);
-#else
-  size_t obu_header_size =
-      av2_write_obu_header(&cpi->level_params, OBU_METADATA, 0, 0, dst);
-  size_t obu_payload_size =
-      av2_write_metadata_obu(metadata, dst + obu_header_size);
-  size_t length_field_size =
-      obu_memmove(obu_header_size, obu_payload_size, dst);
-  if (av2_write_uleb_obu_size(obu_header_size, obu_payload_size, dst) ==
-      AVM_CODEC_OK) {
-    const size_t obu_size = obu_header_size + obu_payload_size;
-    total_bytes_written += obu_size + length_field_size;
-  } else {
-    avm_internal_error(&cpi->common.error, AVM_CODEC_ERROR,
-                       "Error writing metadata OBU size");
-  }
-#endif  // CONFIG_METADATA
   avm_img_metadata_free(metadata);
 
   return total_bytes_written;
@@ -7239,22 +7138,13 @@ size_t av2_write_banding_hints_metadata(
     return 0;
   }
   size_t total_bytes_written = 0;
-#if CONFIG_METADATA
   OBU_TYPE obu_type = cpi->oxcf.tool_cfg.use_short_metadata
                           ? OBU_METADATA_SHORT
                           : OBU_METADATA_GROUP;
-#else
-  OBU_TYPE obu_type = OBU_METADATA;
-#endif  // CONFIG_METADATA
   size_t obu_header_size =
       av2_write_obu_header(&cpi->level_params, obu_type, 0, 0, dst);
   size_t obu_payload_size =
-#if CONFIG_METADATA
-      av2_write_metadata_unit
-#else
-      av2_write_metadata_obu
-#endif  // CONFIG_METADATA
-      (metadata, dst + obu_header_size);
+      av2_write_metadata_unit(metadata, dst + obu_header_size);
   size_t length_field_size =
       obu_memmove(obu_header_size, obu_payload_size, dst);
   if (av2_write_uleb_obu_size(obu_header_size, obu_payload_size, dst) ==
@@ -7552,12 +7442,8 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
 
   // write metadata obus before the frame obu that has the show_frame flag set
   if (cm->show_frame)
-#if CONFIG_METADATA
     data += av2_write_metadata_array(cpi, data, false,
                                      cpi->oxcf.tool_cfg.use_short_metadata);
-#else
-    data += av2_write_metadata_array(cpi, data);
-#endif  // CONFIG_METADATA
 
   if (cpi->oxcf.tool_cfg.frame_hash_metadata) {
     const avm_film_grain_t *grain_params = &cm->film_grain_params;
@@ -7573,19 +7459,11 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
         && !encode_show_existing_frame(cm)
 #endif
         ;
-#if !CONFIG_METADATA
-    if (write_raw_frame_hash)
-      data += av2_write_frame_hash_metadata(cpi, data, NULL);
-#endif  // !CONFIG_METADATA
     // write frame hash metadata obu for frames with film grain params applied
     // before the frame obu that outputs the frame
     const int write_grain_frame_hash =
         (cpi->oxcf.tool_cfg.frame_hash_metadata & 2) && cm->show_frame &&
         apply_grain;
-#if !CONFIG_METADATA
-    if (write_grain_frame_hash)
-      data += av2_write_frame_hash_metadata(cpi, data, grain_params);
-#else
     if (write_raw_frame_hash || write_grain_frame_hash) {
       avm_metadata_array_t arr;
       arr.sz = (size_t)write_raw_frame_hash + (size_t)write_grain_frame_hash;
@@ -7671,7 +7549,6 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
         }
       }
     }
-#endif  // !CONFIG_METADATA
   }
 
   OBU_TYPE obu_type =
@@ -7752,20 +7629,17 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
     if (cm->bridge_frame_info.is_bridge_frame) break;
   }  // tg_idx
 
-#if CONFIG_METADATA
   // write suffix metadata obus after the frame obu that has the show_frame flag
   // set
   if (cm->show_frame)
     data += av2_write_metadata_array(cpi, data, true,
                                      cpi->oxcf.tool_cfg.use_short_metadata);
-#endif  // CONFIG_METADATA
 
 #if CONFIG_CWG_F270_CI_OBU
   if (cpi->scan_type_info_present_flag) {
 #else
   if (cm->seq_params.scan_type_info_present_flag) {
 #endif  // CONFIG_CWG_F270_CI_OBU
-#if CONFIG_METADATA
     avm_metadata_array_t arr;
     arr.sz = 1;
     avm_metadata_t metadata_base;
@@ -7824,7 +7698,6 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
       }
     }
   }
-#endif
 
   int write_temporal_point_metadata =
       (cpi->write_ci_obu_flag &&
