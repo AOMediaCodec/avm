@@ -2357,14 +2357,6 @@ static AVM_INLINE void setup_bru_active_info(AV2_COMMON *const cm,
       memset(cm->bru.active_mode_map, 0, sizeof(uint8_t) * cm->bru.total_units);
       cm->bru.update_ref_idx = avm_rb_read_literal(
           rb, avm_ceil_log2(cm->ref_frames_info.num_total_refs));
-#if CONFIG_F322_OBUER_REFRESTRICT
-      if (cm->ref_frame_map[cm->bru.update_ref_idx]->is_restricted_ref) {
-        avm_internal_error(&cm->error, AVM_CODEC_ERROR,
-                           "BRU update_ref_idx %d points restricted "
-                           "reference",
-                           cm->bru.update_ref_idx);
-      }
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
       cm->bru.frame_inactive_flag = avm_rb_read_bit(rb);
       if (cm->bru.frame_inactive_flag) {
         cm->features.disable_cdf_update = 1;
@@ -2549,9 +2541,9 @@ static AVM_INLINE void decode_restoration_mode(AV2_COMMON *cm,
 #if CONFIG_F322_OBUER_REFRESTRICT  // restoration
             int num_ref_frames_available = 0;
             for (int i = 0; i < num_ref_frames; i++) {
-              if (cm->ref_frame_map[i] != NULL)
+              if (cm->ref_frame_map[cm->remapped_ref_idx[i]] != NULL)
                 num_ref_frames_available +=
-                    !cm->ref_frame_map[i]->is_restricted_ref;
+                    !cm->ref_frame_map[cm->remapped_ref_idx[i]]->is_restricted_ref;
             }
             if (num_ref_frames_available == 0)
               assert(rsi->temporal_pred_flag == 0);
@@ -2560,6 +2552,12 @@ static AVM_INLINE void decode_restoration_mode(AV2_COMMON *cm,
               rsi->rst_ref_pic_idx = avm_rb_read_literal(
                   rb,
                   avm_ceil_log2(num_ref_frames));  // read_lr_reference_idx
+#if CONFIG_F322_OBUER_REFRESTRICT
+            if (get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)->is_restricted_ref) {
+              avm_internal_error(&cm->error, AVM_CODEC_ERROR,
+                                 "Invalid rst_ref_pic_idx: restricted reference buffer");
+            }
+#endif
             }
           }
 
@@ -6761,6 +6759,12 @@ static AVM_INLINE void read_global_motion(AV2_COMMON *cm,
   } else {
     RefCntBuffer *buf = get_ref_frame_buf(cm, our_ref);
     assert(buf);
+#if CONFIG_F322_OBUER_REFRESTRICT
+    if (buf->is_restricted_ref) {
+      avm_internal_error(&cm->error, AVM_CODEC_ERROR,
+                         "Invalid our_ref: restricted reference buffer");
+    }
+#endif
     int their_num_refs = buf->num_ref_frames;
     if (their_num_refs == 0) {
       // Special case: if an intra/key frame is used as a ref, use an
