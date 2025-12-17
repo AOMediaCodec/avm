@@ -995,8 +995,8 @@ static size_t read_metadata_unit_payload(AV2Decoder *pbi, const uint8_t *data,
 static size_t read_metadata(AV2Decoder *pbi, const uint8_t *data, size_t sz)
 #endif  // CONFIG_METADATA
 {
-#if !CONFIG_METADATA
   AV2_COMMON *const cm = &pbi->common;
+#if !CONFIG_METADATA
   size_t type_length;
   uint64_t type_value;
   if (avm_uleb_decode(data, sz, &type_value, &type_length) < 0) {
@@ -1123,12 +1123,18 @@ static size_t read_metadata(AV2Decoder *pbi, const uint8_t *data, size_t sz)
     assert(metadata_type == OBU_METADATA_TYPE_TIMECODE);
     read_metadata_timecode(&rb);
   }
-#if !CONFIG_METADATA
+#if CONFIG_METADATA
+  // Consume byte_alignment() bits as required by metadata_unit() spec.
+  if (av2_check_byte_alignment(cm, &rb) != 0) {
+    // cm->error.error_code is already set.
+    return 0;
+  }
+#else
   if (av2_check_trailing_bits(pbi, &rb) != 0) {
     // cm->error.error_code is already set.
     return 0;
   }
-#endif  // !CONFIG_METADATA
+#endif  // CONFIG_METADATA
   assert((rb.bit_offset & 7) == 0);
   return type_length + (rb.bit_offset >> 3);
 }
@@ -1452,6 +1458,10 @@ static size_t read_metadata_short(AV2Decoder *pbi, const uint8_t *data,
   } else {
     assert(metadata_type == OBU_METADATA_TYPE_TIMECODE);
     read_metadata_timecode(&rb);
+  }
+  // Consume byte_alignment() bits as required by metadata_unit() spec.
+  if (av2_check_byte_alignment(cm, &rb) != 0) {
+    return 0;
   }
   if (av2_check_trailing_bits(pbi, &rb) != 0) {
     // cm->error.error_code is already set.
