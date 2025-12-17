@@ -1646,9 +1646,10 @@ static int is_leading_vcl_obu(OBU_TYPE obu_type) {
 #endif  // CONFIG_F024_KEYOBU
 
 #if CONFIG_F160_TD_FIX1033
-void check_tilegroup_obus_in_a_frame_unit(AV2_COMMON *const cm,
-                                          struct obu_info *current_obu,
-                                          struct obu_info *prev_obu) {
+// Check if any obu is present between two tile groups of one frame unit.
+static void check_tilegroup_obus_in_a_frame_unit(AV2_COMMON *const cm,
+                                                 struct obu_info *current_obu,
+                                                 struct obu_info *prev_obu) {
   if (current_obu->obu_type != prev_obu->obu_type ||
       current_obu->show_frame != prev_obu->show_frame ||
       current_obu->showable_frame != prev_obu->showable_frame ||
@@ -1664,16 +1665,18 @@ void check_tilegroup_obus_in_a_frame_unit(AV2_COMMON *const cm,
                        prev_obu->order_hint);
   }
 }
-void check_clk_in_a_layer(AV2_COMMON *const cm,
-                          struct obu_info *current_frame_unit,
-                          struct obu_info *last_frame_unit) {
+
+// Check if the CLK is the first frame of a mlayer.
+static void check_clk_in_a_layer(AV2_COMMON *const cm,
+                                 struct obu_info *current_frame_unit,
+                                 struct obu_info *last_frame_unit) {
   if (current_frame_unit->obu_type == OBU_CLK &&
       last_frame_unit->obu_type != OBU_CLK &&
       current_frame_unit->mlayer_id == last_frame_unit->mlayer_id &&
       current_frame_unit->order_hint == last_frame_unit->order_hint) {
     avm_internal_error(
         &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-        "%s : a CLK should be the first frame of a mlyaer. "
+        "%s : a CLK should be the first frame of a mlayer. "
         "current obu %s, current oh "
         "%d, current mlayer_id %d, "
         "previous obu %s previous oh %d previous mlayer_id %d ",
@@ -1683,9 +1686,11 @@ void check_clk_in_a_layer(AV2_COMMON *const cm,
         last_frame_unit->order_hint, last_frame_unit->mlayer_id);
   }
 }
-void check_layerid_hidden_frame_units(AV2_COMMON *const cm,
-                                      struct obu_info *current_frame_unit,
-                                      struct obu_info *last_frame_unit) {
+
+// Check the mlayer ids of frame units before the current hidden frame.
+static void check_layerid_hidden_frame_units(
+    AV2_COMMON *const cm, struct obu_info *current_frame_unit,
+    struct obu_info *last_frame_unit) {
   //[H:layer0][H:layer1] not allowed
   //[H:layer1][H:layer1] checked later : [H:layer1][H:layer1][S:layer1] ok,
   //[H:layer1][H:layer1][S:layer0] not allowed [H:layer2][H:layer1] not allowed
@@ -1713,7 +1718,9 @@ void check_layerid_hidden_frame_units(AV2_COMMON *const cm,
         last_frame_unit->showable_frame);
   }
 }
-void check_layerid_showable_frame_units(
+
+// Check the mlayer ids of frame units before the current showable frame.
+static void check_layerid_showable_frame_units(
     AV2_COMMON *const cm, struct obu_info *current_frame_unit,
     struct obu_info *last_frame_unit,
     struct obu_info *last_displayable_frame_unit) {
@@ -1879,25 +1886,19 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
 #endif
 
 #if CONFIG_F160_TD_FIX1033
-    obu_list[pbi->test_decoder_frame_unit_offset + count_obus_with_frame_unit]
-        .obu_type = obu_header.type;
-    obu_list[pbi->test_decoder_frame_unit_offset + count_obus_with_frame_unit]
-        .is_vcl = is_single_tile_vcl_obu(obu_header.type) ||
-                  is_multi_tile_vcl_obu(obu_header.type);
-    obu_list[pbi->test_decoder_frame_unit_offset + count_obus_with_frame_unit]
-        .mlayer_id = obu_header.obu_mlayer_id;
-    obu_list[pbi->test_decoder_frame_unit_offset + count_obus_with_frame_unit]
-        .tlayer_id = obu_header.obu_tlayer_id;
-    obu_list[pbi->test_decoder_frame_unit_offset + count_obus_with_frame_unit]
-        .xlayer_id = obu_header.obu_xlayer_id;
-    obu_list[pbi->test_decoder_frame_unit_offset + count_obus_with_frame_unit]
-        .first_tile_group = -1;
-    obu_list[pbi->test_decoder_frame_unit_offset + count_obus_with_frame_unit]
-        .show_frame = -1;
-    obu_list[pbi->test_decoder_frame_unit_offset + count_obus_with_frame_unit]
-        .showable_frame = -1;
-    obu_list[pbi->test_decoder_frame_unit_offset + count_obus_with_frame_unit]
-        .order_hint = -1;
+    struct obu_info *const curr_obu_info =
+        &obu_list[pbi->test_decoder_frame_unit_offset +
+                  count_obus_with_frame_unit];
+    curr_obu_info->obu_type = obu_header.type;
+    curr_obu_info->is_vcl = is_single_tile_vcl_obu(obu_header.type) ||
+                            is_multi_tile_vcl_obu(obu_header.type);
+    curr_obu_info->mlayer_id = obu_header.obu_mlayer_id;
+    curr_obu_info->tlayer_id = obu_header.obu_tlayer_id;
+    curr_obu_info->xlayer_id = obu_header.obu_xlayer_id;
+    curr_obu_info->first_tile_group = -1;
+    curr_obu_info->show_frame = -1;
+    curr_obu_info->showable_frame = -1;
+    curr_obu_info->order_hint = -1;
 #endif
     curr_obu_type = obu_header.type;
     if (prev_obu_type_initialized &&
@@ -2111,17 +2112,9 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
             &frame_decoding_finished);
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
 #if CONFIG_F160_TD_FIX1033
-        obu_list[pbi->test_decoder_frame_unit_offset +
-                 count_obus_with_frame_unit]
-            .show_frame = cm->show_frame;
-        // when show_frame=1, cm->showable_frame = current_frame->frame_type !=
-        // KEY_FRAME;
-        obu_list[pbi->test_decoder_frame_unit_offset +
-                 count_obus_with_frame_unit]
-            .showable_frame = cm->show_frame ? 1 : cm->showable_frame;
-        obu_list[pbi->test_decoder_frame_unit_offset +
-                 count_obus_with_frame_unit]
-            .order_hint = cm->current_frame.order_hint;
+        curr_obu_info->show_frame = cm->show_frame;
+        curr_obu_info->showable_frame = cm->show_frame ? 1 : cm->showable_frame;
+        curr_obu_info->order_hint = cm->current_frame.order_hint;
 #endif
         if (cm->bru.frame_inactive_flag ||
             cm->bridge_frame_info.is_bridge_frame) {
@@ -2279,38 +2272,33 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
 #endif
 
 #if CONFIG_F160_TD_FIX1033
-  // NOTE: When this function is invoked by the endocer, the following assert()
-  // can be false. NOTE: When this function is invoked by the decoder,
-  // pbi->test_decoder_frame_unit_offset is always 0.
-  // assert(count_obus_with_frame_unit == pbi->num_obus_with_frame_unit);
   struct obu_info current_frame_unit;
   memset(&current_frame_unit, -1, sizeof(current_frame_unit));
-  int start_obu_idx = pbi->test_decoder_frame_unit_offset;
-  int end_obu_idx =
+  const int start_obu_idx = pbi->test_decoder_frame_unit_offset;
+  const int end_obu_idx =
       pbi->test_decoder_frame_unit_offset + count_obus_with_frame_unit;
   for (int obu_idx = start_obu_idx; obu_idx < end_obu_idx; obu_idx++) {
+    struct obu_info *this_obu = &obu_list[obu_idx];
 #if CONFIG_F160_TD_FIX1033_DEBUG
-    printf("obu[%d] %s\n", obu_idx,
-           avm_obu_type_to_string(obu_list[obu_idx].obu_type));
-    printf("\tfirst_tile_group: %d\n", obu_list[obu_idx].first_tile_group);
-    printf("\tshow_frame: %d\n", obu_list[obu_idx].show_frame);
-    printf("\tshowable_frame: %d\n", obu_list[obu_idx].showable_frame);
-    printf("\torder_hint: %d\n", obu_list[obu_idx].order_hint);
-    printf("\tmlayer_id: %d\n", obu_list[obu_idx].mlayer_id);
-    printf("\ttlayer_id: %d\n", obu_list[obu_idx].tlayer_id);
-    printf("\txlayer_id: %d\n", obu_list[obu_idx].xlayer_id);
-    printf("\tis_vcl: %d\n", obu_list[obu_idx].is_vcl);
+    fprintf(stderr, "obu[%d] %s\n", obu_idx,
+            avm_obu_type_to_string(this_obu->obu_type));
+    fprintf(stderr, "\tfirst_tile_group: %d\n", this_obu->first_tile_group);
+    fprintf(stderr, "\tshow_frame: %d\n", this_obu->show_frame);
+    fprintf(stderr, "\tshowable_frame: %d\n", this_obu->showable_frame);
+    fprintf(stderr, "\torder_hint: %d\n", this_obu->order_hint);
+    fprintf(stderr, "\tmlayer_id: %d\n", this_obu->mlayer_id);
+    fprintf(stderr, "\ttlayer_id: %d\n", this_obu->tlayer_id);
+    fprintf(stderr, "\txlayer_id: %d\n", this_obu->xlayer_id);
+    fprintf(stderr, "\tis_vcl: %d\n", this_obu->is_vcl);
 #endif
 
     if (obu_list[obu_idx].first_tile_group == 1) {
       current_frame_unit = obu_list[obu_idx];
-      pbi->num_displayable_frame_unit[obu_list[obu_idx].mlayer_id]++;
+      pbi->num_displayable_frame_unit[this_obu->mlayer_id]++;
     }
-    // no obus can be present between multiple tile group obus for one frame
-    // unit
-    if (is_multi_tile_vcl_obu(obu_list[obu_idx].obu_type) &&
+    if (is_multi_tile_vcl_obu(this_obu->obu_type) &&
         obu_list[obu_idx].first_tile_group == 0) {
-      check_tilegroup_obus_in_a_frame_unit(cm, &obu_list[obu_idx],
+      check_tilegroup_obus_in_a_frame_unit(cm, this_obu,
                                            &obu_list[obu_idx - 1]);
     }
   }
@@ -2318,8 +2306,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
   assert(current_frame_unit.order_hint != -1);
   if (pbi->last_frame_unit.order_hint != -1 &&
       (pbi->last_frame_unit.xlayer_id == current_frame_unit.xlayer_id)) {
-    // CLK : the first frame of a layer should be a CLK regardless of
-    // showable_frame
     check_clk_in_a_layer(cm, &current_frame_unit, &pbi->last_frame_unit);
 
     if (current_frame_unit.showable_frame == 0) {

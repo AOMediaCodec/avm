@@ -274,8 +274,8 @@ static INLINE char const *get_component_name(int index) {
 #endif
 
 #if CONFIG_F160_TD_FIX1033
-// this is a strcuture summarizes the crucial information of the obu for
-// checking the obu order
+// This is a strcuture contains some information of obus to check the order of
+// obus is valid.
 struct obu_info {
   OBU_TYPE obu_type;
   int first_tile_group;
@@ -496,7 +496,7 @@ typedef struct AV2Decoder {
    */
   struct obu_info last_displayable_frame_unit;
   /*!
-   * Indicates the current data chunk being decoded in avm_codec_decode()
+   * Indicates if the current data chunk being decoded in avm_codec_decode()
    * includes a random access point, OBU_CLK or OBU_OLK and it is the
    * start of a temporal unit that will require flush the remaining frames. -1
    * indicates not derived yet
@@ -520,8 +520,6 @@ typedef struct AV2Decoder {
    * dropped at the decoder it is set true when the decoder starts it is set
    * false when THE first CLK is decoded regardless of its mlayer. it is reset
    * true when a new sequence starts and a CLK is not decoded yet.
-   * TODO: is_first_layer_decoded may be able to be replaced with
-   * random_access_point
    */
   int is_first_layer_decoded;
   /*!

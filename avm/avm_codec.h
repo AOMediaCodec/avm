@@ -638,7 +638,7 @@ int is_multi_tile_vcl_obu(OBU_TYPE obu_type);
 #endif  // CONFIG_F024_KEYOBU
 /*!\brief Returns 1 when the obu is non vcl obu and can lead a temporal unit
  */
-int is_tuhead_non_vcl_obu(OBU_TYPE obu_type);
+int is_tu_head_non_vcl_obu(OBU_TYPE obu_type);
 #endif
 /*!@} - end defgroup codec*/
 #ifdef __cplusplus

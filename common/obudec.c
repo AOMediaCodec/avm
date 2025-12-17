@@ -119,7 +119,7 @@ static int is_multi_tile_vcl_obu_dec(OBU_TYPE obu_type) {
          obu_type == OBU_OLK;
 }
 // non vcl obus that starts a new frame unit
-static int is_fuhead_non_vcl_obu(OBU_TYPE obu_type) {
+static int is_fu_head_non_vcl_obu(OBU_TYPE obu_type) {
   return obu_type == OBU_SEQUENCE_HEADER ||
          obu_type == OBU_MULTI_FRAME_HEADER ||
          obu_type == OBU_TEMPORAL_DELIMITER ||
@@ -332,7 +332,8 @@ int obudec_read_temporal_unit
 #endif  // CONFIG_F024_KEYOBU
               && first_tile_group_in_frame)
 #if CONFIG_F160_TD_FIX1033
-             || (vcl_obu_count > 0 && is_fuhead_non_vcl_obu(obu_header.type)) ||
+             ||
+             (vcl_obu_count > 0 && is_fu_head_non_vcl_obu(obu_header.type)) ||
              (vcl_obu_count > 0 && obu_header.type == OBU_METADATA_GROUP &&
               prefix_metadata == 1));
 #else
@@ -344,9 +345,6 @@ int obudec_read_temporal_unit
     } else {
 #if !CONFIG_F160_TD_FIX1033
       if (obu_header.type == OBU_TEMPORAL_DELIMITER) first_td = 0;
-#endif
-#if CONFIG_F160_TD_FIX1033_DEBUG
-      printf("<<%s>> %s\n", __func__, avm_obu_type_to_string(obu_header.type));
 #endif
 #if CONFIG_F024_KEYOBU
       if (is_multi_tile_vcl_obu_dec(obu_header.type) ||
@@ -394,9 +392,6 @@ int obudec_read_temporal_unit
       return -1;
     }
   }
-#if CONFIG_F160_TD_FIX1033_DEBUG
-  printf("end of %s-------------\n", __func__);
-#endif
   return 0;
 }
 

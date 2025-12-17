@@ -1011,8 +1011,8 @@ static int main_loop(int argc, const char **argv_) {
       if (!read_frame(&input, &buf, &bytes_in_buffer, &buffer_size)) {
         frame_avail = 1;
 #if CONFIG_F160_TD_FIX1033
-        // frame_in counts number of individual frame units i.e. multiple tile
-        // groups that compose one frame count as 1
+        // frame_in counts number of frame units i.e. multiple tile
+        // groups that compose one frame count as 1.
 #endif
         frame_in++;
 
@@ -1060,7 +1060,7 @@ static int main_loop(int argc, const char **argv_) {
     got_data = 0;
     while ((img = avm_codec_get_frame(&decoder, &iter))) {
 #if CONFIG_F160_TD_FIX1033
-      // frame_out doesnot include hidden frames
+      // frame_out does not include hidden frames.
 #endif
       ++frame_out;
       if (frame_in < frame_out) {  // No OBUs for show_existing_frame.

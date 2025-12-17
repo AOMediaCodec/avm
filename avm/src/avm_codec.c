@@ -206,7 +206,7 @@ int is_multi_tile_vcl_obu(OBU_TYPE obu_type) {
          obu_type == OBU_RAS_FRAME || obu_type == OBU_CLK ||
          obu_type == OBU_OLK;
 }
-int is_tuhead_non_vcl_obu(OBU_TYPE obu_type) {
+int is_tu_head_non_vcl_obu(OBU_TYPE obu_type) {
   return obu_type == OBU_SEQUENCE_HEADER ||
          obu_type == OBU_TEMPORAL_DELIMITER ||
          obu_type == OBU_LAYER_CONFIGURATION_RECORD ||

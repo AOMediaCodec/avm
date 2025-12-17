@@ -887,9 +887,7 @@ int av2_receive_compressed_data(AV2Decoder *pbi, size_t size,
     if (ref_buf != NULL) ref_buf->buf.corrupted = 1;
   }
 #if CONFIG_F024_KEYOBU
-  // This process is placed here to set all the DPB available before new fb is
-  // assigned to cur_frame since is_random_access_frame_unit may be -1,
-  // is_random_access_frame_unit == 1 is checked explicitly
+  // flush_remaining_frames() is invoked before assign_cur_frame_new_fb().
 #if CONFIG_F160_TD_FIX1033
   if (pbi->is_random_access_frame_unit == 1)
 #else

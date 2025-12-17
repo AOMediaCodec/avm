@@ -804,10 +804,10 @@ static avm_codec_err_t decoder_inspect(avm_codec_alg_priv_t *ctx,
 #endif
 
 #if CONFIG_F160_TD_FIX1033
-// sets number of obus in this data chunk including 1 frame unit (that may
-// consist of multiple tile groups)
-// sets random_access_frame_unit to flush the remaining frames in the reference
-// list in get_...()
+// check_random_access_frame_unit() sets pbi->num_obus_with_frame_unit as the
+// number of obus in *data. check_random_access_frame_unit() also sets
+// pbi->is_random_access_frame_unit to be 1 if *data contains random access
+// frame unit.
 static void check_random_access_frame_unit(struct AV2Decoder *pbi,
                                            const uint8_t *data,
                                            uint64_t data_sz) {
@@ -836,7 +836,7 @@ static void check_random_access_frame_unit(struct AV2Decoder *pbi,
         assert(frame_unit_mlayer_id == obu_header.obu_mlayer_id);
       }
     }
-    start_of_temporal_unit = (is_tuhead_non_vcl_obu(obu_header.type));
+    start_of_temporal_unit = (is_tu_head_non_vcl_obu(obu_header.type));
   }
 
   pbi->is_random_access_frame_unit = 0;
@@ -885,7 +885,7 @@ static void reset_last_frame_unit(struct AV2Decoder *pbi, const uint8_t *data,
                                  &bytes_read);
     pbi->num_obus_with_frame_unit++;
     data_read += bytes_read + payload_size;
-    start_of_temporal_unit = (is_tuhead_non_vcl_obu(obu_header.type)) &&
+    start_of_temporal_unit = (is_tu_head_non_vcl_obu(obu_header.type)) &&
                              obu_header.type != OBU_TEMPORAL_DELIMITER;
     if (start_of_temporal_unit) break;
   }
@@ -982,7 +982,6 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
   const uint8_t *data_end = data + data_sz;
 
 #if CONFIG_F160_TD_FIX1033
-  // checking the number of obus in this data chunk
 #if !CONFIG_INSPECTION
   AVxWorker *const worker = ctx->frame_worker;
   FrameWorkerData *const frame_worker_data = (FrameWorkerData *)worker->data1;

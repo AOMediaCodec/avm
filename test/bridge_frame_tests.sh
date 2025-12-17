@@ -85,9 +85,7 @@ bridge_frame_tests() {
     return 1
   fi
 
-#CONFIG_F160_TD_FIX1033
   local decoded_frames="3 decoded frames"
-# local decoded_frames="2 decoded frames"
   if ! grep -q "${decoded_frames}" "${decoder_log}"; then
     elog "String '${decoded_frames}' not found in '${decoder_log}'."
     return 1
