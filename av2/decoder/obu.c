@@ -1505,12 +1505,17 @@ static size_t read_metadata_short(AV2Decoder *pbi, const uint8_t *data,
     read_metadata_banding_hints_from_rb(pbi, &rb);
 #if CONFIG_ICC_METADATA
   } else if (metadata_type == OBU_METADATA_TYPE_ICC_PROFILE) {
-    read_metadata_icc_profile(pbi, data + type_length, sz - type_length);
-    // ICC is byte-aligned, so skip to trailing bits check
-    if (get_last_nonzero_byte(data + type_length, sz - type_length) != 0x80) {
+    // ICC profile is byte-aligned binary data
+    // Find the last nonzero byte (should be 0x80 trailing byte)
+    const int last_nonzero_idx =
+        get_last_nonzero_byte_index(data + type_length, sz - type_length);
+    if (last_nonzero_idx < 0 || data[type_length + last_nonzero_idx] != 0x80) {
       cm->error.error_code = AVM_CODEC_CORRUPT_FRAME;
       return 0;
     }
+    // ICC payload size excludes the trailing 0x80 byte
+    const size_t icc_payload_size = last_nonzero_idx;
+    read_metadata_icc_profile(pbi, data + type_length, icc_payload_size);
     return sz;
 #endif  // CONFIG_ICC_METADATA
   } else {
