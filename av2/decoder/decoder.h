@@ -274,7 +274,7 @@ static INLINE char const *get_component_name(int index) {
 #endif
 
 #if CONFIG_F436_OBUORDER
-// This is a strcuture contains some information of obus to check the order of
+// This strcuture contains some information of obus to check the order of
 // obus is valid.
 typedef struct {
   OBU_TYPE obu_type;
