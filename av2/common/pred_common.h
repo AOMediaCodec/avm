@@ -56,9 +56,9 @@ static INLINE void init_ref_map_pair(AV2_COMMON *cm,
     if (ref_frame_map_pairs[map_idx].ref_frame_for_inference == -1) continue;
     ref_frame_map_pairs[map_idx].ref_frame_for_inference = 1;
     if (buf == NULL ||
-        !is_tlayer_scalable_and_dependent(&cm->seq_params,
-                                          cm->current_frame.temporal_layer_id,
-                                          buf->temporal_layer_id) ||
+        !is_tlayer_scalable_and_dependent(
+            &cm->seq_params, cm->current_frame.temporal_layer_id,
+            buf->temporal_layer_id, cm->current_frame.mlayer_id) ||
         !is_mlayer_scalable_and_dependent(
             &cm->seq_params, cm->current_frame.mlayer_id, buf->mlayer_id) ||
         (is_ras && buf->frame_type != KEY_FRAME)) {

@@ -4865,7 +4865,8 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
       if (cm->ref_frame_map[ref_idx] != NULL) {
         if (!is_tlayer_scalable_and_dependent(
                 &cm->seq_params, current_frame->temporal_layer_id,
-                cm->ref_frame_map[ref_idx]->temporal_layer_id))
+                cm->ref_frame_map[ref_idx]->temporal_layer_id,
+                current_frame->mlayer_id))
           continue;
         if (!is_mlayer_scalable_and_dependent(
                 &cm->seq_params, current_frame->mlayer_id,

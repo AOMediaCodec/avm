@@ -3506,9 +3506,10 @@ void setup_quant_matrices(AV2Decoder *pbi, CommonQuantParams *quant_params,
   //  the sequence header or an embedded and temporal layer with ids qmMlayerId
   //  and qmTlayerId, respectively for which
   //  mlayer_dependency_map[obu_mlayer_id][qmMlayerId] and
-  //  tlayer_dependency_map[obu_tlayer_id][qmTlayerId] are both equal to 1.
+  //  tlayer_dependency_map[obu_mlayer_id][obu_tlayer_id][qmTlayerId] are both
+  //  equal to 1.
   if ((qmset->qm_tlayer_id != -1 &&
-       cm->seq_params.tlayer_dependency_map[cm->tlayer_id]
+       cm->seq_params.tlayer_dependency_map[cm->mlayer_id][cm->tlayer_id]
                                            [qmset->qm_tlayer_id] != 1) ||
       (qmset->qm_mlayer_id != -1 &&
        cm->seq_params.mlayer_dependency_map[cm->mlayer_id]
@@ -5835,8 +5836,9 @@ static void setup_film_grain(AV2Decoder *pbi, struct avm_read_bit_buffer *rb) {
       }
       if (!seq_params->mlayer_dependency_map
                [cm->mlayer_id][pbi->fgm_list[cm->fgm_id].fgm_mlayer_id] ||
-          !seq_params->tlayer_dependency_map
-               [cm->tlayer_id][pbi->fgm_list[cm->fgm_id].fgm_tlayer_id]) {
+          !seq_params->tlayer_dependency_map[cm->mlayer_id][cm->tlayer_id]
+                                            [pbi->fgm_list[cm->fgm_id]
+                                                 .fgm_tlayer_id]) {
         avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
                            "mlayer_id(%d) or tlayer_id(%d) of the film grain "
                            "model is out of the limit",
@@ -6948,7 +6950,8 @@ static INLINE int get_disp_order_hint(AV2_COMMON *const cm)
         buf->is_restricted ||
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
         !is_tlayer_scalable_and_dependent(&cm->seq_params, cm->tlayer_id,
-                                          buf->temporal_layer_id) ||
+                                          buf->temporal_layer_id,
+                                          cm->mlayer_id) ||
         !is_mlayer_scalable_and_dependent(&cm->seq_params, cm->mlayer_id,
                                           buf->mlayer_id))
       continue;
@@ -7276,7 +7279,8 @@ static int read_show_existing_frame(AV2Decoder *pbi,
       const RefCntBuffer *const buf = cm->ref_frame_map[map_idx];
       if (buf == NULL ||
           !is_tlayer_scalable_and_dependent(&cm->seq_params, cm->tlayer_id,
-                                            buf->temporal_layer_id) ||
+                                            buf->temporal_layer_id,
+                                            cm->mlayer_id) ||
           !is_mlayer_scalable_and_dependent(&cm->seq_params, cm->mlayer_id,
                                             buf->mlayer_id))
         continue;
@@ -8348,7 +8352,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
           const int cur_tlayer_id = current_frame->temporal_layer_id;
           const int ref_tlayer_id = cm->ref_frame_map[ref]->temporal_layer_id;
           if (!is_tlayer_scalable_and_dependent(seq_params, cur_tlayer_id,
-                                                ref_tlayer_id)) {
+                                                ref_tlayer_id, cur_mlayer_id)) {
             avm_internal_error(
                 &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
                 "Unsupported bitstream: temporal layer scalability shall be "

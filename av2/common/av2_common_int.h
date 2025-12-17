@@ -1117,8 +1117,10 @@ typedef struct SequenceHeader {
   int tlayer_dependency_present_flag;
   int mlayer_dependency_present_flag;
   // Layer dependency structure arrays
-  int tlayer_dependency_map[MAX_NUM_TLAYERS][MAX_NUM_TLAYERS];
+  int tlayer_dependency_map[MAX_NUM_MLAYERS][MAX_NUM_TLAYERS][MAX_NUM_TLAYERS];
   int mlayer_dependency_map[MAX_NUM_MLAYERS][MAX_NUM_MLAYERS];
+  // Flag indicating tlayer map signaling per mlayer
+  int multi_tlayer_dependency_map_present_flag;
 
   uint8_t df_par_bits_minus2;
 
@@ -3094,20 +3096,27 @@ static INLINE int get_ref_frame_map_idx(const AV2_COMMON *const cm,
 
 static INLINE void setup_default_temporal_layer_dependency_structure(
     SequenceHeader *const seq) {
-  const int max_layer_id = seq->max_tlayer_id;
+  const int max_mlayer_id = seq->max_mlayer_id;
+  const int max_tlayer_id = seq->max_tlayer_id;
   memset(seq->tlayer_dependency_map, 0, sizeof seq->tlayer_dependency_map);
-  for (int curr_layer_id = 0; curr_layer_id <= max_layer_id; curr_layer_id++) {
-    for (int ref_layer_id = 0; ref_layer_id <= curr_layer_id; ref_layer_id++) {
-      seq->tlayer_dependency_map[curr_layer_id][ref_layer_id] = 1;
+  for (int mlayer_id = 0; mlayer_id <= max_mlayer_id; mlayer_id++) {
+    for (int curr_tlayer_id = 0; curr_tlayer_id <= max_tlayer_id;
+         curr_tlayer_id++) {
+      for (int ref_tlayer_id = 0; ref_tlayer_id <= curr_tlayer_id;
+           ref_tlayer_id++) {
+        seq->tlayer_dependency_map[mlayer_id][curr_tlayer_id][ref_tlayer_id] =
+            1;
+      }
     }
   }
 }
 
 static INLINE int is_tlayer_scalable_and_dependent(
-    const SequenceHeader *const seq, const int curr_layer_id,
-    const int ref_layer_id) {
-  assert(seq->max_tlayer_id >= curr_layer_id &&
-         seq->max_tlayer_id >= ref_layer_id);
+    const SequenceHeader *const seq, const int curr_tlayer_id,
+    const int ref_tlayer_id, const int curr_mlayer_id) {
+  assert(seq->max_tlayer_id >= curr_tlayer_id &&
+         seq->max_tlayer_id >= ref_tlayer_id);
+  assert(seq->max_tlayer_id >= curr_mlayer_id);
   // clang-format off
   /* The additional conditional check based on 'tlayer_dependency_present_flag' is
   redundant, since tlayer_dependency_map[][] equivalently implements
@@ -3124,9 +3133,10 @@ static INLINE int is_tlayer_scalable_and_dependent(
   */
   // clang-format on
   if (seq->tlayer_dependency_present_flag) {
-    return seq->tlayer_dependency_map[curr_layer_id][ref_layer_id];
+    return seq
+        ->tlayer_dependency_map[curr_mlayer_id][curr_tlayer_id][ref_tlayer_id];
   } else {
-    return curr_layer_id >= ref_layer_id;
+    return curr_tlayer_id >= ref_tlayer_id;
   }
 }
 

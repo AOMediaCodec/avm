@@ -85,21 +85,36 @@ static int read_bitstream_level(AV2_LEVEL *seq_level_idx,
 
 static void av2_read_tlayer_dependency_info(SequenceHeader *const seq,
                                             struct avm_read_bit_buffer *rb) {
-  const int max_layer_id = seq->max_tlayer_id;
-  for (int curr_layer_id = 1; curr_layer_id <= max_layer_id; curr_layer_id++) {
-    for (int ref_layer_id = curr_layer_id; ref_layer_id >= 0; ref_layer_id--) {
-      seq->tlayer_dependency_map[curr_layer_id][ref_layer_id] =
-          avm_rb_read_bit(rb);
+  const int max_mlayer_id = seq->max_mlayer_id;
+  const int max_tlayer_id = seq->max_tlayer_id;
+  const int multi_tlayer_flag = seq->multi_tlayer_dependency_map_present_flag;
+  for (int curr_mlayer_id = 0; curr_mlayer_id <= max_mlayer_id;
+       curr_mlayer_id++) {
+    for (int curr_tlayer_id = 1; curr_tlayer_id <= max_tlayer_id;
+         curr_tlayer_id++) {
+      for (int ref_tlayer_id = curr_tlayer_id; ref_tlayer_id >= 0;
+           ref_tlayer_id--) {
+        if (multi_tlayer_flag > 0 || curr_mlayer_id == 0) {
+          seq->tlayer_dependency_map[curr_mlayer_id][curr_tlayer_id]
+                                    [ref_tlayer_id] = avm_rb_read_bit(rb);
+        } else {
+          seq->tlayer_dependency_map[curr_mlayer_id][curr_tlayer_id]
+                                    [ref_tlayer_id] =
+              seq->tlayer_dependency_map[0][curr_tlayer_id][ref_tlayer_id];
+        }
+      }
     }
   }
 }
 
 static void av2_read_mlayer_dependency_info(SequenceHeader *const seq,
                                             struct avm_read_bit_buffer *rb) {
-  const int max_layer_id = seq->max_mlayer_id;
-  for (int curr_layer_id = 1; curr_layer_id <= max_layer_id; curr_layer_id++) {
-    for (int ref_layer_id = curr_layer_id; ref_layer_id >= 0; ref_layer_id--) {
-      seq->mlayer_dependency_map[curr_layer_id][ref_layer_id] =
+  const int max_mlayer_id = seq->max_mlayer_id;
+  for (int curr_mlayer_id = 1; curr_mlayer_id <= max_mlayer_id;
+       curr_mlayer_id++) {
+    for (int ref_mlayer_id = curr_mlayer_id; ref_mlayer_id >= 0;
+         ref_mlayer_id--) {
+      seq->mlayer_dependency_map[curr_mlayer_id][ref_mlayer_id] =
           avm_rb_read_bit(rb);
     }
   }
@@ -490,19 +505,10 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
     seq_params->max_mlayer_id = avm_rb_read_literal(rb, MLAYER_BITS);
   }
 
-  // setup default temporal layer dependency
-  setup_default_temporal_layer_dependency_structure(seq_params);
   // setup default embedded layer dependency
   setup_default_embedded_layer_dependency_structure(seq_params);
-
-  // tlayer dependency description
-  seq_params->tlayer_dependency_present_flag = 0;
-  if (seq_params->max_tlayer_id > 0) {
-    seq_params->tlayer_dependency_present_flag = avm_rb_read_bit(rb);
-    if (seq_params->tlayer_dependency_present_flag) {
-      av2_read_tlayer_dependency_info(seq_params, rb);
-    }
-  }
+  // setup default temporal layer dependency
+  setup_default_temporal_layer_dependency_structure(seq_params);
 
   // mlayer dependency description
   seq_params->mlayer_dependency_present_flag = 0;
@@ -510,6 +516,20 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
     seq_params->mlayer_dependency_present_flag = avm_rb_read_bit(rb);
     if (seq_params->mlayer_dependency_present_flag) {
       av2_read_mlayer_dependency_info(seq_params, rb);
+    }
+  }
+
+  // tlayer dependency description
+  seq_params->tlayer_dependency_present_flag = 0;
+  seq_params->multi_tlayer_dependency_map_present_flag = 0;
+  if (seq_params->max_tlayer_id > 0) {
+    seq_params->tlayer_dependency_present_flag = avm_rb_read_bit(rb);
+    if (seq_params->tlayer_dependency_present_flag) {
+      if (seq_params->max_mlayer_id > 0) {
+        seq_params->multi_tlayer_dependency_map_present_flag =
+            avm_rb_read_bit(rb);
+      }
+      av2_read_tlayer_dependency_info(seq_params, rb);
     }
   }
 
