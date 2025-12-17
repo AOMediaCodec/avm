@@ -109,7 +109,11 @@ static int read_obu_header_from_file(FILE *f, size_t obu_size, uint8_t *buffer,
 #if CONFIG_F024_KEYOBU
 // non vcl obus that starts a new frame unit
 static int is_fu_head_non_vcl_obu(OBU_TYPE obu_type) {
-  return is_tu_head_non_vcl_obu(obu_type) || obu_type == OBU_MULTI_FRAME_HEADER;
+  return is_tu_head_non_vcl_obu(obu_type) ||
+         obu_type == OBU_MULTI_FRAME_HEADER ||
+         obu_type == OBU_CONTENT_INTERPRETATION ||
+         obu_type == OBU_BUFFER_REMOVAL_TIMING || obu_type == OBU_QM ||
+         obu_type == OBU_FGM;
 }
 #endif  // CONFIG_F024_KEYOBU
 
