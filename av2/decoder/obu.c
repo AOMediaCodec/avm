@@ -1451,6 +1451,7 @@ static size_t read_padding(AV2_COMMON *const cm, const uint8_t *data,
   return sz;
 }
 
+#if !CONFIG_F436_OBUORDER
 // Check the obu type is a kind of coded frame
 static int is_coded_frame(OBU_TYPE obu_type) {
 #if CONFIG_F024_KEYOBU
@@ -1466,7 +1467,6 @@ static int is_coded_frame(OBU_TYPE obu_type) {
          obu_type == OBU_TILE_GROUP;
 #endif
 }
-#if !CONFIG_F436_OBUORDER
 // Check the obu type ordering within a temporal unit
 // as a part of checking bitstream conformance.
 // On success, return 0. If failed return 1.
