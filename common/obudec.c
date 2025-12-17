@@ -187,7 +187,7 @@ int file_is_obu(struct ObuDecInputContext *obu_ctx) {
   if (!obu_ctx || !obu_ctx->avx_ctx) return 0;
 #if !CONFIG_F436_OBUORDER
   obu_ctx->has_temporal_delimiter = 0;
-#endif  // CONFIG_F436_OBUORDER
+#endif  // !CONFIG_F436_OBUORDER
   struct AvxInputContext *avx_ctx = obu_ctx->avx_ctx;
   uint8_t detect_buf[OBU_DETECTION_SIZE] = { 0 };
   FILE *f = avx_ctx->file;
