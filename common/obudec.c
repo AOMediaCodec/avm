@@ -139,7 +139,8 @@ static int peek_obu_from_file(FILE *f, size_t obu_size, uint8_t *buffer,
 #if CONFIG_F024_KEYOBU
   if (is_multi_tile_vcl_obu(obu_header->type)
 #if CONFIG_F436_OBUORDER
-      || obu_header->type == OBU_METADATA_GROUP
+      || obu_header->type == OBU_METADATA_GROUP ||
+      obu_header->type == OBU_METADATA_SHORT
 #endif  // CONFIG_F436_OBUORDER
   )
 #else
