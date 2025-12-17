@@ -2217,23 +2217,38 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
       cm->error.error_code = status;
       return -1;
     }
+
+#if CONFIG_F436_OBUORDER
+    if (obu_header.type == OBU_PADDING) {
+      data += bytes_read;
+      decoded_payload_size = read_padding(cm, data, payload_size);
+      if (cm->error.error_code != AVM_CODEC_OK) return -1;
+    } else if (IS_METADATA_OBU(obu_header.type)) {
+      if (!(data[bytes_read] & 0x80)) {
+        cm->error.error_code = AVM_CODEC_UNSUP_BITSTREAM;
+      }
+#else
     // Accept both OBU_METADATA_SHORT and OBU_METADATA_GROUP for suffix metadata
     if (!IS_METADATA_OBU(obu_header.type) || data + bytes_read >= data_end)
       break;
 
     // check whether it is a suffix metadata OBU
     if (!(data[bytes_read] & 0x80)) break;
+#endif  // CONFIG_F436_OBUORDER
+      data += bytes_read;
 
-    data += bytes_read;
-
-    // Call the appropriate read function based on OBU type
-    if (obu_header.type == OBU_METADATA_GROUP) {
-      decoded_payload_size =
-          read_metadata_obu(pbi, data, payload_size, &obu_header, 1);
+      // Call the appropriate read function based on OBU type
+      if (obu_header.type == OBU_METADATA_GROUP) {
+        decoded_payload_size =
+            read_metadata_obu(pbi, data, payload_size, &obu_header, 1);
+      } else {
+        decoded_payload_size = read_metadata_short(pbi, data, payload_size, 1);
+      }
+#if CONFIG_F436_OBUORDER
     } else {
-      decoded_payload_size = read_metadata_short(pbi, data, payload_size, 1);
+      cm->error.error_code = AVM_CODEC_UNSUP_BITSTREAM;
     }
-
+#endif
     if (cm->error.error_code != AVM_CODEC_OK) return -1;
 
     // Check that the signalled OBU size matches the actual amount of data read

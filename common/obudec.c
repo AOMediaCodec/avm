@@ -291,7 +291,8 @@ int obudec_read_temporal_unit
 #if CONFIG_F024_KEYOBU
           is_multi_tile_vcl_obu(obu_header.type)
 #if CONFIG_F436_OBUORDER
-                  || obu_header.type == OBU_METADATA_GROUP
+                  || (obu_header.type == OBU_METADATA_SHORT ||
+                      obu_header.type == OBU_METADATA_GROUP)
 #endif  // CONFIG_F436_OBUORDER
 #else
         obu_header.type == OBU_TILE_GROUP
@@ -300,7 +301,8 @@ int obudec_read_temporal_unit
               : first_tile_group_byte;
 
 #if CONFIG_F436_OBUORDER
-      int prefix_metadata = obu_header.type == OBU_METADATA_GROUP
+      int prefix_metadata = (obu_header.type == OBU_METADATA_SHORT ||
+                             obu_header.type == OBU_METADATA_GROUP)
                                 ? !first_tile_group_in_frame
                                 : -1;
 #endif  // CONFIG_F436_OBUORDER
@@ -326,7 +328,9 @@ int obudec_read_temporal_unit
 #if CONFIG_F436_OBUORDER
                ||
                (vcl_obu_count > 0 && is_fu_head_non_vcl_obu(obu_header.type)) ||
-               (vcl_obu_count > 0 && obu_header.type == OBU_METADATA_GROUP &&
+               (vcl_obu_count > 0 &&
+                (obu_header.type == OBU_METADATA_SHORT ||
+                 obu_header.type == OBU_METADATA_GROUP) &&
                 prefix_metadata == 1));
 #else
          || (vcl_obu_count > 0 && obu_header.type == OBU_SEQUENCE_HEADER));
