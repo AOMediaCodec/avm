@@ -810,7 +810,7 @@ static void read_metadata_banding_hints_from_rb(
   AV2_COMMON *const cm = &pbi->common;
 
   const int coding_banding_present_flag = avm_rb_read_bit(rb);
-  const int source_banding_present_flag = avm_rb_read_bit(rb);
+  avm_rb_read_bit(rb);  // source_banding_present_flag
 
   if (coding_banding_present_flag) {
     const int banding_hints_flag = avm_rb_read_bit(rb);
@@ -1170,6 +1170,9 @@ static size_t read_metadata(AV2Decoder *pbi, const uint8_t *data, size_t sz)
 #endif  // !CONFIG_METADATA
       return sz;
     }
+  } else if (metadata_type == OBU_METADATA_TYPE_BANDING_HINTS) {
+    // Banding hints metadata is variable bits, not byte-aligned
+    read_metadata_banding_hints_from_rb(pbi, &rb);
   } else {
     assert(metadata_type == OBU_METADATA_TYPE_TIMECODE);
     read_metadata_timecode(&rb);
