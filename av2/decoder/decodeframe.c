@@ -7604,18 +7604,14 @@ void update_num_restricted_ref(AV2_COMMON *const cm) {
       max_num_ref_frames)
     cm->ref_frames_info.num_valid_refs_with_restricted_ref = max_num_ref_frames;
 }
-void update_ref_frames_info(AV2Decoder *pbi, OBU_TYPE obu_type,
-                            int explicit_ref_map) {
+void update_ref_frames_info(AV2Decoder *pbi, OBU_TYPE obu_type) {
   AV2_COMMON *const cm = &pbi->common;
   if (obu_type == OBU_BRIDGE_FRAME) return;
   // include restricted references num_total_refs and remapped_ref_idx.
   // They are still references but not to be used except for pixel values
   const int max_num_ref_frames =
       AVMMIN(cm->seq_params.ref_frames, INTER_REFS_PER_FRAME);
-  int num_valid_refs_without_restricted_ref =
-      explicit_ref_map == 0
-          ? cm->ref_frames_info.num_total_refs
-          : cm->ref_frames_info.num_valid_refs_without_restricted_ref;
+  int num_valid_refs_without_restricted_ref = cm->ref_frames_info.num_total_refs;
   for (int idx = 0; idx < cm->seq_params.ref_frames &&
                     cm->ref_frames_info.num_total_refs < max_num_ref_frames;
        idx++) {
@@ -8421,7 +8417,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
 #if CONFIG_F322_OBUER_REFRESTRICT
         // restricted_predition=if number of is_restricted_ref >0
         if (pbi->restricted_predition) {
-          update_ref_frames_info(pbi, obu_type, 0);
+          update_ref_frames_info(pbi, obu_type);
         }
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
 
@@ -8576,10 +8572,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
           cm->ref_frames_info.ref_frame_distance[i] = scores[i].distance;
         }
 #if CONFIG_F322_OBUER_REFRESTRICT
-        if (pbi->restricted_predition) {
-          update_num_restricted_ref(cm);
-          update_ref_frames_info(pbi, obu_type, explicit_ref_frame_map);
-        }
+        update_num_restricted_ref(cm);
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
         av2_get_past_future_cur_ref_lists(cm, scores);
       }
