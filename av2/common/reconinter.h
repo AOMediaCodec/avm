@@ -699,7 +699,11 @@ static INLINE int is_refinemv_allowed_reference(const AV2_COMMON *cm,
   // following logic for parsing is not reliable, so DMVR is disabled.
   if (frame_is_sframe(cm)) return 0;
 #endif  // CONFIG_ERROR_RESILIENT_FIX
-
+#if CONFIG_F322_FIX_1191
+  if(get_ref_frame_buf(cm, mbmi->ref_frame[0])->is_restricted_ref ||
+     get_ref_frame_buf(cm, mbmi->ref_frame[1])->is_restricted_ref )
+    return 0;
+#endif
   // If one of the reference frame is different resolution than the current
   // frame, refinemv is disabled.
   const struct scale_factors *const sf0 =
@@ -1191,7 +1195,11 @@ static INLINE int av2_allow_bawp(const AV2_COMMON *const cm,
   // following logic for parsing is not reliable, so we disable BAWP.
   if (frame_is_sframe(cm)) return 0;
 #endif  // CONFIG_ERROR_RESILIENT_FIX
-
+#if CONFIG_F322_FIX_1191
+  if(get_ref_frame_buf(cm, mbmi->ref_frame[0])->is_restricted_ref ||
+     get_ref_frame_buf(cm, mbmi->ref_frame[1])->is_restricted_ref )
+    return 0;
+#endif
   // If one of the reference frame is different resolution than the current
   // frame, bawp is disabled.
   const struct scale_factors *const sf0 =
