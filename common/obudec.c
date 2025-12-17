@@ -120,12 +120,7 @@ static int is_multi_tile_vcl_obu_dec(OBU_TYPE obu_type) {
 }
 // non vcl obus that starts a new frame unit
 static int is_fu_head_non_vcl_obu(OBU_TYPE obu_type) {
-  return obu_type == OBU_SEQUENCE_HEADER ||
-         obu_type == OBU_MULTI_FRAME_HEADER ||
-         obu_type == OBU_TEMPORAL_DELIMITER ||
-         obu_type == OBU_LAYER_CONFIGURATION_RECORD ||
-         obu_type == OBU_ATLAS_SEGMENT || obu_type == OBU_OPERATING_POINT_SET ||
-         obu_type == OBU_MSDO;
+  return is_tu_head_non_vcl_obu(obu_type) || obu_type == OBU_MULTI_FRAME_HEADER;
 }
 #endif  // CONFIG_F024_KEYOBU
 
