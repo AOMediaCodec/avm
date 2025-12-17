@@ -107,7 +107,7 @@ bool ReadTemporalUnit(InputContext *ctx, size_t *unit_size) {
       break;
     }
     case FILE_TYPE_OBU: {
-#if CONFIG_F160_TD_FIX1033
+#if CONFIG_F436_OBUORDER
       if (obudec_read_frame_unit(ctx->obu_ctx, &ctx->unit_buffer, unit_size,
                                  &ctx->unit_buffer_size))
 #else

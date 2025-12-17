@@ -99,7 +99,7 @@ int main(int argc, char **argv) {
   size_t bytes_in_buffer = 0;
   size_t buffer_size = 0;
   struct AvxInputContext avm_input_ctx;
-#if CONFIG_F160_TD_FIX1033
+#if CONFIG_F436_OBUORDER
   struct ObuDecInputContext obu_ctx = { &avm_input_ctx, NULL, 0, 0 };
 #else
   struct ObuDecInputContext obu_ctx = { &avm_input_ctx, NULL, 0, 0, 0 };
@@ -151,7 +151,7 @@ int main(int argc, char **argv) {
       die("Failed to open output for writing.");
   }
 
-#if CONFIG_F160_TD_FIX1033
+#if CONFIG_F436_OBUORDER
   while (
       !obudec_read_frame_unit(&obu_ctx, &buf, &bytes_in_buffer, &buffer_size))
 #else

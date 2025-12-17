@@ -194,7 +194,7 @@ const char *avm_obu_type_to_string(OBU_TYPE type) {
   return "<Invalid OBU Type>";
 }
 
-#if CONFIG_F160_TD_FIX1033 && CONFIG_F024_KEYOBU
+#if CONFIG_F436_OBUORDER && CONFIG_F024_KEYOBU
 int is_single_tile_vcl_obu(OBU_TYPE obu_type) {
   return obu_type == OBU_REGULAR_SEF || obu_type == OBU_LEADING_SEF ||
          obu_type == OBU_REGULAR_TIP || obu_type == OBU_LEADING_TIP ||
@@ -213,4 +213,4 @@ int is_tu_head_non_vcl_obu(OBU_TYPE obu_type) {
          obu_type == OBU_ATLAS_SEGMENT || obu_type == OBU_OPERATING_POINT_SET ||
          obu_type == OBU_MSDO;
 }
-#endif  // CONFIG_F160_TD_FIX1033 && CONFIG_F024_KEYOBU
+#endif  // CONFIG_F436_OBUORDER && CONFIG_F024_KEYOBU

@@ -803,7 +803,7 @@ static avm_codec_err_t decoder_inspect(avm_codec_alg_priv_t *ctx,
 }
 #endif
 
-#if CONFIG_F160_TD_FIX1033
+#if CONFIG_F436_OBUORDER
 // check_random_access_frame_unit() sets pbi->num_obus_with_frame_unit as the
 // number of obus in *data. check_random_access_frame_unit() also sets
 // pbi->is_random_access_frame_unit to be 1 if *data contains random access
@@ -896,7 +896,7 @@ static void reset_last_frame_unit(struct AV2Decoder *pbi, const uint8_t *data,
            sizeof(pbi->last_displayable_frame_unit));
   }
 }
-#endif  // CONFIG_F160_TD_FIX1033
+#endif  // CONFIG_F436_OBUORDER
 static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
                                       const uint8_t *data, size_t data_sz,
                                       void *user_priv) {
@@ -981,7 +981,7 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
   const uint8_t *data_start = data;
   const uint8_t *data_end = data + data_sz;
 
-#if CONFIG_F160_TD_FIX1033
+#if CONFIG_F436_OBUORDER
 #if !CONFIG_INSPECTION
   AVxWorker *const worker = ctx->frame_worker;
   FrameWorkerData *const frame_worker_data = (FrameWorkerData *)worker->data1;
@@ -1009,7 +1009,7 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
   frame_worker_data->pbi->test_decoder_frame_unit_offset = 0;
   for (int i = 0; i < MAX_NUM_MLAYERS; i++)
     frame_worker_data->pbi->num_displayable_frame_unit[i] = 0;
-#endif  // CONFIG_F160_TD_FIX1033
+#endif  // CONFIG_F436_OBUORDER
   // Decode in serial mode.
   while (data_start < data_end) {
     uint64_t frame_size = (uint64_t)(data_end - data_start);
@@ -1017,11 +1017,11 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
     res = decode_one(ctx, &data_start, (size_t)frame_size, user_priv);
     if (res != AVM_CODEC_OK) return res;
   }
-#if CONFIG_F160_TD_FIX1033
+#if CONFIG_F436_OBUORDER
   set_last_frame_unit(frame_worker_data->pbi);
   free(frame_worker_data->pbi->obu_list);
   frame_worker_data->pbi->num_obus_with_frame_unit = 0;
-#endif  // CONFIG_F160_TD_FIX1033
+#endif  // CONFIG_F436_OBUORDER
   return res;
 }
 

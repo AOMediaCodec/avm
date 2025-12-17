@@ -273,7 +273,7 @@ static INLINE char const *get_component_name(int index) {
 }
 #endif
 
-#if CONFIG_F160_TD_FIX1033
+#if CONFIG_F436_OBUORDER
 // This is a strcuture contains some information of obus to check the order of
 // obus is valid.
 struct obu_info {
@@ -288,7 +288,7 @@ struct obu_info {
   int xlayer_id;
   int is_vcl;
 };
-#endif  // CONFIG_F160_TD_FIX1033
+#endif  // CONFIG_F436_OBUORDER
 
 typedef struct AV2Decoder {
   DecoderCodingBlock dcb;
@@ -465,7 +465,7 @@ typedef struct AV2Decoder {
   SequenceHeader seq_list_buf[AVM_MAX_NUM_STREAMS][MAX_SEQ_NUM];
   MultiFrameHeader mfh_params_buf[AVM_MAX_NUM_STREAMS][MAX_MFH_NUM];
 #if CONFIG_F024_KEYOBU
-#if CONFIG_F160_TD_FIX1033
+#if CONFIG_F436_OBUORDER
   /*!
    * Indicates the number of obus signalled before the frame unit
    * including the frame unit (that may consist of multiple tile group obus)

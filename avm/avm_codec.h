@@ -627,7 +627,7 @@ typedef enum {
  * \param[in]     type            The OBU_TYPE to convert to string.
  */
 const char *avm_obu_type_to_string(OBU_TYPE type);
-#if CONFIG_F160_TD_FIX1033
+#if CONFIG_F436_OBUORDER
 #if CONFIG_F024_KEYOBU
 /*!\brief Returns 1 when the one tilegroup is allowed for the obu_type
  */

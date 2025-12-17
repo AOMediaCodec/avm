@@ -23,7 +23,7 @@ struct ObuDecInputContext {
   uint8_t *buffer;
   size_t buffer_capacity;
   size_t bytes_buffered;
-#if !CONFIG_F160_TD_FIX1033
+#if !CONFIG_F436_OBUORDER
   int has_temporal_delimiter;
 #endif
 };
@@ -33,7 +33,7 @@ struct ObuDecInputContext {
 // OBU as defined by Section 5 of the AV2 bitstream specification.
 int file_is_obu(struct ObuDecInputContext *obu_ctx);
 
-#if CONFIG_F160_TD_FIX1033
+#if CONFIG_F436_OBUORDER
 // Reads one frame unit from the input file. Returns 0 when a frame unit is
 // successfully read, 1 when end of file is reached, and less than 0 when an
 // error occurs. Stores frame unit data in 'buffer'. Reallocs buffer to match
@@ -51,7 +51,7 @@ int obudec_read_frame_unit(struct ObuDecInputContext *obu_ctx, uint8_t **buffer,
 int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
                               uint8_t **buffer, size_t *bytes_read,
                               size_t *buffer_size);
-#endif  // CONFIG_F160_TD_FIX1033
+#endif  // CONFIG_F436_OBUORDER
 void obudec_free(struct ObuDecInputContext *obu_ctx);
 
 #ifdef __cplusplus
