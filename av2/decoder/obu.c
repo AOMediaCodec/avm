@@ -1503,6 +1503,16 @@ static size_t read_metadata_short(AV2Decoder *pbi, const uint8_t *data,
   } else if (metadata_type == OBU_METADATA_TYPE_BANDING_HINTS) {
     // Banding hints metadata is variable bits, not byte-aligned
     read_metadata_banding_hints_from_rb(pbi, &rb);
+#if CONFIG_ICC_METADATA
+  } else if (metadata_type == OBU_METADATA_TYPE_ICC_PROFILE) {
+    read_metadata_icc_profile(pbi, data + type_length, sz - type_length);
+    // ICC is byte-aligned, so skip to trailing bits check
+    if (get_last_nonzero_byte(data + type_length, sz - type_length) != 0x80) {
+      cm->error.error_code = AVM_CODEC_CORRUPT_FRAME;
+      return 0;
+    }
+    return sz;
+#endif  // CONFIG_ICC_METADATA
   } else {
     assert(metadata_type == OBU_METADATA_TYPE_TIMECODE);
     read_metadata_timecode(&rb);
