@@ -165,6 +165,15 @@ static INLINE void av2_read_sample_aspect_ratio_information(
   }
 }
 
+void av2_init_ci_params(ContentInterpretation *ci_params) {
+  memset(ci_params, 0, sizeof(ContentInterpretation));
+  ci_params->ci_chroma_sample_position[0] = AVM_CSP_UNSPECIFIED;
+  ci_params->ci_chroma_sample_position[1] = AVM_CSP_UNSPECIFIED;
+  ci_params->color_info.color_primaries = AVM_CICP_CP_UNSPECIFIED;
+  ci_params->color_info.transfer_characteristics = AVM_CICP_TC_UNSPECIFIED;
+  ci_params->color_info.matrix_coefficients = AVM_CICP_MC_UNSPECIFIED;
+}
+
 static int av2_ci_params_identical(const ContentInterpretation *ci1,
                                    const ContentInterpretation *ci2) {
   if (!memcmp(ci1, ci2, sizeof(ContentInterpretation))) return 1;
@@ -181,6 +190,7 @@ uint32_t av2_read_content_interpretation_obu(struct AV2Decoder *pbi,
 
   // Parse CI OBU into a temp structure
   ContentInterpretation ci_temp;
+  av2_init_ci_params(&ci_temp);
   ci_temp.ci_scan_type_idc = avm_rb_read_literal(rb, 2);
   ci_temp.ci_color_description_present_flag = avm_rb_read_bit(rb);
   ci_temp.ci_chroma_sample_position_present_flag = avm_rb_read_bit(rb);

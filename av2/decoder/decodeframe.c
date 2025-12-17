@@ -7477,21 +7477,6 @@ static void handle_sequence_header(AV2Decoder *pbi,
   if ((obu_type == OBU_CLK || obu_type == OBU_OLK) &&
       (pbi->ci_and_key_per_layer[cm->mlayer_id] == 0)) {
     ContentInterpretation *ci_params = &cm->ci_params_per_layer[cm->mlayer_id];
-    ci_params->color_info.color_description_idc = 0;
-    ci_params->color_info.color_primaries = AVM_CICP_CP_UNSPECIFIED;
-    ci_params->color_info.matrix_coefficients = AVM_CICP_MC_UNSPECIFIED;
-    ci_params->color_info.transfer_characteristics = AVM_CICP_TC_UNSPECIFIED;
-    ci_params->color_info.full_range_flag = 0;
-
-    ci_params->ci_chroma_sample_position[0] = AVM_CSP_UNSPECIFIED;
-    ci_params->ci_chroma_sample_position[1] = AVM_CSP_UNSPECIFIED;
-
-    ci_params->ci_scan_type_idc = 0;
-    ci_params->ci_color_description_present_flag = 0;
-    ci_params->ci_chroma_sample_position_present_flag = 0;
-    ci_params->ci_aspect_ratio_info_present_flag = 0;
-    ci_params->ci_timing_info_present_flag = 0;
-    ci_params->ci_extension_present_flag = 0;
     for (int ref_layer_id = 0; ref_layer_id < cm->mlayer_id; ref_layer_id++) {
       if (cm->seq_params.mlayer_dependency_map[cm->mlayer_id][ref_layer_id]) {
         cm->ci_params_per_layer[cm->mlayer_id] =
