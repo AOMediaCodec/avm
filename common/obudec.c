@@ -349,7 +349,7 @@ int obudec_read_temporal_unit
 #endif  // CONFIG_F436_OBUORDER
 #if !CONFIG_F436_OBUORDER
     }
-#endif // !CONFIG_F436_OBUORDER
+#endif  // !CONFIG_F436_OBUORDER
     if (decoding_unit_token) {
       break;
     } else {

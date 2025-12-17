@@ -1624,17 +1624,18 @@ int av2_is_random_accessed_temporal_unit(const uint8_t *data, size_t data_sz) {
   const uint8_t *data_read = data;
   ObuHeader obu_header;
   memset(&obu_header, 0, sizeof(obu_header));
+  size_t bytes_available = data_sz;
   while (data_read < data + data_sz) {
     size_t payload_size = 0;
     size_t bytes_read = 0;
-    avm_read_obu_header_and_size(data_read, data_sz, &obu_header, &payload_size,
-                                 &bytes_read);
+    avm_read_obu_header_and_size(data_read, bytes_available, &obu_header,
+                                 &payload_size, &bytes_read);
 
     if (obu_header.type == OBU_CLK || obu_header.type == OBU_OLK) {
       return 1;
     }
     data_read += bytes_read + payload_size;
-    // data_sz -= bytes_read + payload_size;
+    bytes_available -= bytes_read + payload_size;
   }
   return 0;
 }
