@@ -282,7 +282,7 @@ typedef struct {
   int show_frame;
   // Note: if show_frame = 1, showble_frame = 1
   int showable_frame;
-  int order_hint;
+  int display_order_hint;
   int mlayer_id;
   int tlayer_id;
   int xlayer_id;

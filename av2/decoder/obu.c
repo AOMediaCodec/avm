@@ -1653,16 +1653,16 @@ static void check_tilegroup_obus_in_a_frame_unit(AV2_COMMON *const cm,
   if (current_obu->obu_type != prev_obu->obu_type ||
       current_obu->show_frame != prev_obu->show_frame ||
       current_obu->showable_frame != prev_obu->showable_frame ||
-      current_obu->order_hint != prev_obu->order_hint ||
+      current_obu->display_order_hint != prev_obu->display_order_hint ||
       current_obu->mlayer_id != prev_obu->mlayer_id) {
     avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
                        "%s : no obu is allowed between tilegroup obus in a "
                        "frame unit (current obu "
                        "%s, current oh %d previous obu %s previous oh %d)",
                        __func__, avm_obu_type_to_string(current_obu->obu_type),
-                       current_obu->order_hint,
+                       current_obu->display_order_hint,
                        avm_obu_type_to_string(prev_obu->obu_type),
-                       prev_obu->order_hint);
+                       prev_obu->display_order_hint);
   }
 }
 
@@ -1673,7 +1673,8 @@ static void check_clk_in_a_layer(AV2_COMMON *const cm,
   if (current_frame_unit->obu_type == OBU_CLK &&
       last_frame_unit->obu_type != OBU_CLK &&
       current_frame_unit->mlayer_id == last_frame_unit->mlayer_id &&
-      current_frame_unit->order_hint == last_frame_unit->order_hint) {
+      current_frame_unit->display_order_hint ==
+          last_frame_unit->display_order_hint) {
     avm_internal_error(
         &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
         "%s : a CLK should be the first frame of a mlayer. "
@@ -1681,9 +1682,9 @@ static void check_clk_in_a_layer(AV2_COMMON *const cm,
         "%d, current mlayer_id %d, "
         "previous obu %s previous oh %d previous mlayer_id %d ",
         __func__, avm_obu_type_to_string(current_frame_unit->obu_type),
-        current_frame_unit->order_hint, current_frame_unit->mlayer_id,
+        current_frame_unit->display_order_hint, current_frame_unit->mlayer_id,
         avm_obu_type_to_string(last_frame_unit->obu_type),
-        last_frame_unit->order_hint, last_frame_unit->mlayer_id);
+        last_frame_unit->display_order_hint, last_frame_unit->mlayer_id);
   }
 }
 
@@ -1711,10 +1712,10 @@ static void check_layerid_hidden_frame_units(AV2_COMMON *const cm,
         "(%s, OH%d, L%d, S%d)\n\t"
         "previous : (%s, OH%d, L%d, S%d)",
         __func__, avm_obu_type_to_string(current_frame_unit->obu_type),
-        current_frame_unit->order_hint, current_frame_unit->mlayer_id,
+        current_frame_unit->display_order_hint, current_frame_unit->mlayer_id,
         current_frame_unit->showable_frame,
         avm_obu_type_to_string(last_frame_unit->obu_type),
-        last_frame_unit->order_hint, last_frame_unit->mlayer_id,
+        last_frame_unit->display_order_hint, last_frame_unit->mlayer_id,
         last_frame_unit->showable_frame);
   }
 }
@@ -1745,15 +1746,15 @@ static void check_layerid_showable_frame_units(
         "(%s, OH%d, L%d, S%d)\n\t"
         "previous : (%s, OH%d, L%d, S%d)",
         __func__, avm_obu_type_to_string(current_frame_unit->obu_type),
-        current_frame_unit->order_hint, current_frame_unit->mlayer_id,
+        current_frame_unit->display_order_hint, current_frame_unit->mlayer_id,
         current_frame_unit->showable_frame,
         avm_obu_type_to_string(last_frame_unit->obu_type),
-        last_frame_unit->order_hint, last_frame_unit->mlayer_id,
+        last_frame_unit->display_order_hint, last_frame_unit->mlayer_id,
         last_frame_unit->showable_frame);
   } else if (last_frame_unit->showable_frame == 0 &&
              current_frame_unit->mlayer_id == last_frame_unit->mlayer_id) {
-    if (current_frame_unit->order_hint ==
-        last_displayable_frame_unit->order_hint) {
+    if (current_frame_unit->display_order_hint ==
+        last_displayable_frame_unit->display_order_hint) {
       avm_internal_error(
           &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
           "%s: mlayer_id should be in ascending order or order_hint should be "
@@ -1762,17 +1763,18 @@ static void check_layerid_showable_frame_units(
           "\tprevious : (%s, S%d)\n"
           "\tlast_displayable : (%s, OH%d, L%d)",
           __func__, avm_obu_type_to_string(current_frame_unit->obu_type),
-          current_frame_unit->order_hint, current_frame_unit->mlayer_id,
+          current_frame_unit->display_order_hint, current_frame_unit->mlayer_id,
           current_frame_unit->showable_frame,
           avm_obu_type_to_string(last_frame_unit->obu_type),
           last_frame_unit->showable_frame,
           avm_obu_type_to_string(last_displayable_frame_unit->obu_type),
-          last_displayable_frame_unit->order_hint,
+          last_displayable_frame_unit->display_order_hint,
           last_displayable_frame_unit->mlayer_id);
     }
   } else if (last_frame_unit->showable_frame == 1 &&
              current_frame_unit->mlayer_id <= last_frame_unit->mlayer_id) {
-    if (current_frame_unit->order_hint == last_frame_unit->order_hint) {
+    if (current_frame_unit->display_order_hint ==
+        last_frame_unit->display_order_hint) {
       avm_internal_error(
           &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
           "%s: mlayer_id should be in ascending order or order_hint should be "
@@ -1780,9 +1782,9 @@ static void check_layerid_showable_frame_units(
           "%d, current mlayer_id %d\n\t"
           "previous obu %s previous oh %d previous mlayer_id %d",
           __func__, avm_obu_type_to_string(current_frame_unit->obu_type),
-          current_frame_unit->order_hint, current_frame_unit->mlayer_id,
+          current_frame_unit->display_order_hint, current_frame_unit->mlayer_id,
           avm_obu_type_to_string(last_frame_unit->obu_type),
-          last_frame_unit->order_hint, last_frame_unit->mlayer_id);
+          last_frame_unit->display_order_hint, last_frame_unit->mlayer_id);
     }
   }
 }
@@ -1899,7 +1901,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
     curr_obu_info->first_tile_group = -1;
     curr_obu_info->show_frame = -1;
     curr_obu_info->showable_frame = -1;
-    curr_obu_info->order_hint = -1;
+    curr_obu_info->display_order_hint = -1;
 #else
     curr_obu_type = obu_header.type;
     if (prev_obu_type_initialized &&
@@ -2109,7 +2111,8 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
 #if CONFIG_F436_OBUORDER
         curr_obu_info->show_frame = cm->show_frame;
         curr_obu_info->showable_frame = cm->show_frame ? 1 : cm->showable_frame;
-        curr_obu_info->order_hint = cm->current_frame.order_hint;
+        curr_obu_info->display_order_hint =
+            cm->current_frame.display_order_hint;
 #endif
         if (cm->bru.frame_inactive_flag ||
             cm->bridge_frame_info.is_bridge_frame) {
@@ -2313,8 +2316,8 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
     }
   }
 
-  assert(current_frame_unit.order_hint != -1);
-  if (pbi->last_frame_unit.order_hint != -1 &&
+  assert(current_frame_unit.display_order_hint != -1);
+  if (pbi->last_frame_unit.display_order_hint != -1 &&
       (pbi->last_frame_unit.xlayer_id == current_frame_unit.xlayer_id)) {
     check_clk_in_a_layer(cm, &current_frame_unit, &pbi->last_frame_unit);
 

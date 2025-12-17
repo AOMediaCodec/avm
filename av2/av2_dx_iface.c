@@ -840,14 +840,14 @@ static void check_random_access_frame_unit(struct AV2Decoder *pbi,
   }
 
   pbi->is_random_access_frame_unit = 0;
-  if (pbi->last_frame_unit.order_hint == -1) {
+  if (pbi->last_frame_unit.display_order_hint == -1) {
     if (!has_key_frames) assert(has_key_frames);
     pbi->is_random_access_frame_unit = has_key_frames;
     start_of_temporal_unit = true;
   }
   if (has_key_frames) {
     pbi->is_random_access_frame_unit = has_key_frames && start_of_temporal_unit;
-    if (pbi->last_frame_unit.order_hint != -1) {
+    if (pbi->last_frame_unit.display_order_hint != -1) {
       pbi->is_random_access_frame_unit |=
           (has_key_frames && pbi->last_frame_unit.obu_type != OBU_CLK);
       pbi->is_random_access_frame_unit |=
