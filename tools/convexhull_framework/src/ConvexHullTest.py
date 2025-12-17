@@ -262,7 +262,7 @@ def SaveConvexHullResults(content, ScaleMethod, dnScAlgos, upScAlgos, csv, perfr
                     csv.write("%s,%s" % (enc_md5, dec_md5))
                 csv.write("\n")
 
-                if (EncodeMethod == 'avm') and not EnableParallelGopEncoding:
+                if (EncodeMethod == 'aom') and not EnableParallelGopEncoding:
                     enc_log = GetEncLogFile(bs, Path_EncLog)
                     GatherPerframeStat("AS", EncodeMethod, CodecName, EncodePreset, clip, GetShortContentName(bs),
                                        DnScaledW, DnScaledH, qp, enc_log, perframe_csv,
@@ -401,15 +401,15 @@ def ParseArguments(raw_args):
                              " 3: Warning, 4: Info, 5: Debug")
     parser.add_argument('-c', "--CodecName", dest='CodecName', type=str,
                         choices=CodecNames, metavar='',
-                        help="CodecName: av2, av2")
+                        help="CodecName: av1, av2")
     parser.add_argument('-m', "--EncodeMethod", dest='EncodeMethod', type=str,
                         choices=EncodeMethods, metavar='',
-                        help="EncodeMethod: avm, svt")
+                        help="EncodeMethod: aom, svt")
     parser.add_argument('-p', "--EncodePreset", dest='EncodePreset', type=str,
-                        metavar='', help="EncodePreset: 0,1,2... for avm and svt")
+                        metavar='', help="EncodePreset: 0,1,2... for aom and svt")
     parser.add_argument('-t', '--ScaleMethod', dest='ScaleMethod', type=str,
                         choices=ScaleMethods, metavar='',
-                        help="ScaleMethod: ffmpeg, hdrtool, avm")
+                        help="ScaleMethod: ffmpeg, hdrtool, aom")
 
     if len(raw_args) == 1:
         parser.print_help()
@@ -436,9 +436,9 @@ if __name__ == "__main__":
     #sys.argv = ["","-f","clean"]
     #sys.argv = ["","-f","scaling", "-t", "hdrtool"]
     #sys.argv = ["", "-f", "sumscaling", "-t", "hdrtool"]
-    #sys.argv = ["", "-f", "encode","-c","av2","-m","avm","-p","6", "-t", "hdrtool"]
-    #sys.argv = ["", "-f", "convexhull","-c","av2","-m","avm","-p","0", "-t", "hdrtool"]
-    #sys.argv = ["", "-f", "summary", "-c", "av2", "-m", "avm", "-p", "0", "-t", "hdrtool"]
+    #sys.argv = ["", "-f", "encode","-c","av2","-m","aom","-p","6", "-t", "hdrtool"]
+    #sys.argv = ["", "-f", "convexhull","-c","av2","-m","aom","-p","0", "-t", "hdrtool"]
+    #sys.argv = ["", "-f", "summary", "-c", "av2", "-m", "aom", "-p", "0", "-t", "hdrtool"]
     ParseArguments(sys.argv)
 
     # preparation for executing functions

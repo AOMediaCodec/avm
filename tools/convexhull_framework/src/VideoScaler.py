@@ -17,7 +17,7 @@ import fileinput
 import math
 from shutil import copyfile
 from Config import LoggerName, FFMPEG, HDRToolsConfigFileTemplate, HDRConvert, Platform, \
-    ContentPath, AVMScaler
+    ContentPath, AOMScaler
 from Utils import GetShortContentName, ExecuteCmd, md5
 from AV2CTCVideo import AS_Downscaled_Clips
 
@@ -25,8 +25,8 @@ subloggername = "VideoScaler"
 loggername = LoggerName + '.' + '%s' % subloggername
 logger = logging.getLogger(loggername)
 
-#use AVMScaler to do image rescaling
-def RescaleWithAvm(clip, outw, outh, algo, outfile, num, LogCmdOnly):
+#use AOMScaler to do image rescaling
+def RescaleWithAom(clip, outw, outh, algo, outfile, num, LogCmdOnly):
     out_s = outw / math.gcd(outw, clip.width)
     in_s  = clip.width / math.gcd(outw, clip.width)
     assert(out_s == int(out_s) and in_s == int(in_s))
@@ -37,7 +37,7 @@ def RescaleWithAvm(clip, outw, outh, algo, outfile, num, LogCmdOnly):
     if (outw > clip.width and outh > clip.height):
         args += ' %dx%d' % (outw, outh)
 
-    cmd = AVMScaler + args
+    cmd = AOMScaler + args
     ExecuteCmd(cmd, LogCmdOnly)
 
 #use ffmpeg to do image rescaling
@@ -130,8 +130,8 @@ def VideoRescaling(method, clip, num, outw, outh, outfile, algo, cfg_path,
                    LogCmdOnly = False):
     if method == "hdrtool":
         RescaleWithHDRTool(clip, outw, outh, algo, outfile, num, cfg_path, LogCmdOnly)
-    elif method == "avm":
-        RescaleWithAvm(clip, outw, outh, algo, outfile, num, LogCmdOnly)
+    elif method == "aom":
+        RescaleWithAom(clip, outw, outh, algo, outfile, num, LogCmdOnly)
     else:
         RescaleWithFfmpeg(clip, outw, outh, algo, outfile, num, LogCmdOnly)
 

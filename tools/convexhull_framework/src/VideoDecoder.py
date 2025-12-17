@@ -12,15 +12,15 @@ __author__ = "maggie.sun@intel.com, ryanlei@meta.com"
 
 import os
 import Utils
-from Config import AVMDEC, AV2DEC, EnableTimingInfo, Platform, UsePerfUtil, FFMPEG
+from Config import AOMDEC, AV1DEC, EnableTimingInfo, Platform, UsePerfUtil, FFMPEG
 from Utils import ExecuteCmd, GetShortContentName, ConvertYUVToY4M, DeleteFile
 
-def DecodeWithAVM(test_cfg, infile, outfile, dec_perf, decode_to_yuv, dec_log, LogCmdOnly=False):
+def DecodeWithAOM(test_cfg, infile, outfile, dec_perf, decode_to_yuv, dec_log, LogCmdOnly=False):
     if decode_to_yuv:
         args = " --codec=av2 --summary --rawvideo -o %s %s" % (outfile, infile)
     else:
         args = " --codec=av2 --summary -o %s %s" % (outfile, infile)
-    cmd = AVMDEC + args + "> %s 2>&1"%dec_log
+    cmd = AOMDEC + args + "> %s 2>&1"%dec_log
     if EnableTimingInfo:
         if Platform == "Windows":
             cmd = "ptime " + cmd + " >%s"%dec_perf
@@ -34,12 +34,12 @@ def DecodeWithAVM(test_cfg, infile, outfile, dec_perf, decode_to_yuv, dec_log, L
 
     ExecuteCmd(cmd, LogCmdOnly)
 
-def DecodeWithAV2(test_cfg, infile, outfile, dec_perf, decode_to_yuv, dec_log, LogCmdOnly=False):
+def DecodeWithAV1(test_cfg, infile, outfile, dec_perf, decode_to_yuv, dec_log, LogCmdOnly=False):
     if decode_to_yuv:
-        args = " --codec=av2 --summary --rawvideo -o %s %s" % (outfile, infile)
+        args = " --codec=av1 --summary --rawvideo -o %s %s" % (outfile, infile)
     else:
-        args = " --codec=av2 --summary -o %s %s" % (outfile, infile)
-    cmd = AV2DEC + args + "> %s 2>&1"%dec_log
+        args = " --codec=av1 --summary -o %s %s" % (outfile, infile)
+    cmd = AV1DEC + args + "> %s 2>&1"%dec_log
     if EnableTimingInfo:
         if Platform == "Windows":
             cmd = "ptime " + cmd + " >%s" % dec_perf
@@ -79,10 +79,10 @@ def DecodeWithHEVC(test_cfg, clip, infile, outfile, dec_perf, decode_to_yuv, dec
 
 def VideoDecode(clip, method, test_cfg, codec, infile, outfile, dec_perf, decode_to_yuv, dec_log, LogCmdOnly=False):
     Utils.CmdLogger.write("::Decode\n")
-    if codec == 'av2' and method == 'avm':
-        DecodeWithAVM(test_cfg, infile, outfile, dec_perf, decode_to_yuv, dec_log, LogCmdOnly)
-    elif codec == 'av2':
-        DecodeWithAV2(test_cfg, infile, outfile, dec_perf, decode_to_yuv, dec_log, LogCmdOnly)
+    if codec == 'av2' and method == 'aom':
+        DecodeWithAOM(test_cfg, infile, outfile, dec_perf, decode_to_yuv, dec_log, LogCmdOnly)
+    elif codec == 'av1':
+        DecodeWithAV1(test_cfg, infile, outfile, dec_perf, decode_to_yuv, dec_log, LogCmdOnly)
     elif codec == 'hevc':
         DecodeWithHEVC(test_cfg, clip, infile, outfile, dec_perf, decode_to_yuv, dec_log, LogCmdOnly)
     else:

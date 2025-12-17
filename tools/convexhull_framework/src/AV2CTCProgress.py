@@ -69,18 +69,18 @@ csv_paths = {
         "0",
         os.path.join(CTC_RESULT_PATH, "AV2-CTC-v1.0.0-alt-anchor-r3.0"),
     ],
-    # "libavm-v3.12.0": [
+    # "libaom-v3.12.0": [
     #    "v3.12.0",
-    #    "av2",
-    #    "avm",
+    #    "av1",
+    #    "aom",
     #    "0",
-    #    os.path.join(CTC_RESULT_PATH, "AV2-CTC-v3.12.0-constrained"),
+    #    os.path.join(CTC_RESULT_PATH, "AV1-CTC-v3.12.0-constrained"),
     # ],
-    # "libavm-v3.12.0-unconstrained": [
-    #    "av2",
-    #    "avm",
+    # "libaom-v3.12.0-unconstrained": [
+    #    "av1",
+    #    "aom",
     #    "0",
-    #    os.path.join(CTC_RESULT_PATH, "AV2-CTC-v3.12.0-unconstrained"),
+    #    os.path.join(CTC_RESULT_PATH, "AV1-CTC-v3.12.0-unconstrained"),
     # ],
     "v02.0.0": [
         "v2.0.0",
@@ -173,8 +173,8 @@ formats = {
     "v06.0.0": ["y", "-.", "o"],
     "v07.0.0": ["k", ":", "+"],
     "v08.0.0": ["w", ":", "^"],
-    # "libavm-v3.12.0": ["r", "--", "<"],
-    # "libavm-v3.12.0-unconstrained": ["g", "--", "<"],
+    # "libaom-v3.12.0": ["r", "--", "<"],
+    # "libaom-v3.12.0-unconstrained": ["g", "--", "<"],
     "v09.0.0": ["b", "-.", "^"],
     "v10.0.0": ["c", "-.", "+"],
     "v11.0.0": ["m", "-.", "o"],

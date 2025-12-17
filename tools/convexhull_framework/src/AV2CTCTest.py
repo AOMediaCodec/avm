@@ -331,7 +331,7 @@ def GenerateSummaryRDDataFile(EncodeMethod, CodecName, EncodePreset,
 
             csv.write("\n")
 
-            if (EncodeMethod == 'avm'):
+            if (EncodeMethod == 'aom'):
                 if test_cfg != "RA" or not EnableParallelGopEncoding:
                     enc_log = GetEncLogFile(bs, log_path)
                     GatherPerframeStat(test_cfg,EncodeMethod,CodecName,EncodePreset,clip,clip.file_name, clip.width,
@@ -363,12 +363,12 @@ def ParseArguments(raw_args):
                         help="logging level: 0:No Logging, 1: Critical, 2: Error,"
                              " 3: Warning, 4: Info, 5: Debug")
     parser.add_argument('-p', "--EncodePreset", dest='EncodePreset', type=str,
-                        metavar='', help="EncodePreset: 0,1,2... for avm")
+                        metavar='', help="EncodePreset: 0,1,2... for aom")
     parser.add_argument('-c', "--CodecName", dest='CodecName', type=str,
                         default='av2', choices=CodecNames, metavar='',
-                        help="CodecName: av2, av2, hevc")
+                        help="CodecName: av1, av2, hevc")
     parser.add_argument('-m', "--EncodeMethod", dest='EncodeMethod', type=str,
-                        metavar='', help="EncodeMethod: avm, svt for av2, hm for hevc")
+                        metavar='', help="EncodeMethod: aom, svt for av1, hm for hevc")
     if len(raw_args) == 1:
         parser.print_help()
         sys.exit(1)
@@ -387,10 +387,10 @@ def ParseArguments(raw_args):
 # main
 ######################################
 if __name__ == "__main__":
-    #sys.argv = ["", "-f", "encode", "-c", "av2", "-m", "avm", "-p", "6", "--LogCmdOnly", "1"]
-    #sys.argv = ["", "-f", "summary", "-c", "av2", "-m", "avm", "-p", "6"]
+    #sys.argv = ["", "-f", "encode", "-c", "av2", "-m", "aom", "-p", "6", "--LogCmdOnly", "1"]
+    #sys.argv = ["", "-f", "summary", "-c", "av2", "-m", "aom", "-p", "6"]
     #sys.argv = ["", "-f", "encode", "-c", "hevc", "-m", "hm", "-p", "0"] #, "--LogCmdOnly", "1"]
-    #sys.argv = ["", "-f", "encode", "-c", "av2", "-m", "avm", "-p", "0"]  # , "--LogCmdOnly", "1"]
+    #sys.argv = ["", "-f", "encode", "-c", "av1", "-m", "aom", "-p", "0"]  # , "--LogCmdOnly", "1"]
     ParseArguments(sys.argv)
 
     # preparation for executing functions
