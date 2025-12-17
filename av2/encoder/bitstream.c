@@ -3940,7 +3940,7 @@ static AVM_INLINE void encode_ccso(const AV2_COMMON *cm,
               assert(cm->ccso_info.ccso_ref_idx[plane] == 0);
             else
               assert(!get_ref_frame_buf(cm, cm->ccso_info.ccso_ref_idx[plane])
-                          ->is_restricted_ref);
+                          ->is_restricted);
 #else
             assert(cm->ccso_info.ccso_ref_idx[plane] == 0);
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
@@ -4239,7 +4239,7 @@ static AVM_INLINE void encode_segmentation(AV2_COMMON *cm,
       for (int ref_idx = 0; ref_idx < cm->seq_params.ref_frames; ref_idx++) {
         if (cm->ref_frame_map[ref_idx] != NULL)
           num_ref_frames_available +=
-              !cm->ref_frame_map[ref_idx]->is_restricted_ref;
+              !cm->ref_frame_map[ref_idx]->is_restricted;
       }
       if (num_ref_frames_available == 0) assert(seg->temporal_update == 0);
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
@@ -4399,7 +4399,7 @@ static AVM_INLINE void write_frame_size_with_refs(
   for (ref_frame = 0; ref_frame < num_refs; ++ref_frame) {
 #if CONFIG_F322_OBUER_REFRESTRICT  // write_frame_size_with_refs
     if (cm->ref_frame_map[ref_frame] != NULL &&
-        cm->ref_frame_map[ref_frame]->is_restricted_ref)
+        cm->ref_frame_map[ref_frame]->is_restricted)
       continue;
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
     const YV12_BUFFER_CONFIG *cfg =
@@ -5217,7 +5217,7 @@ static AVM_INLINE void write_global_motion(AV2_COMP *cpi,
     int temporal_distance;
     const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, frame);
 #if CONFIG_F322_OBUER_REFRESTRICT
-    if (ref_buf->is_restricted_ref) {
+    if (ref_buf->is_restricted) {
       cm->global_motion[frame].invalid = 1;
       continue;
     }
@@ -5410,13 +5410,6 @@ static AVM_INLINE void write_uncompressed_header(
       }
 #endif  // !CONFIG_F024_KEYOBU
     }
-
-#if CONFIG_F322_OBUER_REFRESTRICT
-    if (obu_type == OBU_SWITCH && cm->restricted_prediction_switch)
-      cm->cur_frame->is_restricted_switch_frame = 1;
-    else
-      cm->cur_frame->is_restricted_switch_frame = 0;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
 
     if (current_frame->frame_type == KEY_FRAME) {
       avm_wb_write_literal(wb, current_frame->long_term_id,
@@ -7378,6 +7371,21 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
                                            obu_layer, data);
     obu_payload_size = write_qm_obu(cpi, cpi->total_signalled_qmobu_count - 1,
                                     data + obu_header_size);
+    size_t length_field_size_qm =
+        obu_memmove(obu_header_size, obu_payload_size, data);
+    if (av2_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
+        AVM_CODEC_OK) {
+      return AVM_CODEC_ERROR;
+    }
+    data += obu_header_size + obu_payload_size + length_field_size_qm;
+  }
+
+  if (cpi->oxcf.q_cfg.using_qm && cm->current_frame.frame_type == S_FRAME &&
+      cm->restricted_prediction_switch) {
+    // reset qm obus
+    obu_header_size = av2_write_obu_header(level_params, OBU_QM, obu_temporal,
+                                           obu_layer, data);
+    obu_payload_size = write_reset_qm_obu(cpi, data + obu_header_size);
     size_t length_field_size_qm =
         obu_memmove(obu_header_size, obu_payload_size, data);
     if (av2_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=

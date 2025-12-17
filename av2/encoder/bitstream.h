@@ -27,6 +27,7 @@ void av2_write_conformance_window(const SequenceHeader *seq_params,
 void setup_cm_qmindex_list(AV2_COMMON *const cm);
 bool add_userqm_in_qmobulist(AV2_COMP *cpi);
 uint32_t write_qm_obu(AV2_COMP *cpi, int signalled_obu_pos, uint8_t *const dst);
+uint32_t write_reset_qm_obu(AV2_COMP *cpi, uint8_t *const dst);
 int write_qm_data(AV2_COMP *cpi, struct quantization_matrix_set *qm_list,
                   int qm_pos, const int num_planes,
                   struct avm_write_bit_buffer *wb);

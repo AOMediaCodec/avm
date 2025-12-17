@@ -473,7 +473,7 @@ int set_frame_filter_dictionary(int plane, const AV2_COMMON *cm,
       continue;
     }
 #if CONFIG_F322_OBUER_REFRESTRICT
-    if (ref_frame_buf->is_restricted_ref) continue;
+    if (ref_frame_buf->is_restricted) continue;
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
     int planes_to_check[2] = { plane, -1 };
     int num_planes_to_check = 1;

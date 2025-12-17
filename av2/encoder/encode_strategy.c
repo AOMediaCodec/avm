@@ -252,7 +252,7 @@ static void get_gop_cfg_enabled_refs(AV2_COMP *const cpi, int *ref_frame_flags,
     const RefCntBuffer *const buf = get_ref_frame_buf(&cpi->common, frame);
     if (buf == NULL) continue;
 #if CONFIG_F322_OBUER_REFRESTRICT
-    if (buf->is_restricted_ref) continue;
+    if (buf->is_restricted) continue;
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
     const int frame_order = (int)buf->display_order_hint;
     frame_level = buf->pyramid_level;

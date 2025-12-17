@@ -916,7 +916,7 @@ static AVM_INLINE void refresh_reference_frames(AV2_COMP *cpi) {
   }
 #endif  // ! CONFIG_F024_KEYOBU
 #if CONFIG_F322_OBUER_REFRESTRICT
-  cm->cur_frame->is_restricted_ref = false;
+  cm->cur_frame->is_restricted = false;
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
   if (!cm->bru.enabled) {
     // All buffers are refreshed for shown keyframes and S-frames.

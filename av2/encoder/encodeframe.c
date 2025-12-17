@@ -1764,7 +1764,7 @@ static AVM_INLINE void set_rel_frame_dist(
     ref_frame_dist_info->ref_relative_dist[ref_frame] = 0;
     if (ref_frame_flags & (1 << ref_frame)) {
 #if CONFIG_F322_OBUER_REFRESTRICT
-      assert(!cm->ref_frame_map[ref_frame]->is_restricted_ref);
+      assert(!cm->ref_frame_map[ref_frame]->is_restricted);
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
       int dist = av2_encoder_get_relative_dist(
           cm->cur_frame->ref_display_order_hint[ref_frame],

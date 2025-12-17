@@ -789,7 +789,7 @@ static void update_frame_buffers(AV2Decoder *pbi, int frame_decoded) {
 #endif  // !CONFIG_F024_KEYOBU
 
 #if CONFIG_F322_OBUER_REFRESTRICT
-    cm->cur_frame->is_restricted_ref = false;
+    cm->cur_frame->is_restricted = false;
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
 
     // The following for loop needs to release the reference stored in

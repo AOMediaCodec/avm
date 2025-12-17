@@ -342,9 +342,11 @@ typedef struct RefCntBuffer {
   FrameHash grain_frame_hash;
   CcsoInfo ccso_info;
 #if CONFIG_F322_OBUER_REFRESTRICT
-  bool is_restricted_ref;  // 0.free-to-use 1.restricted-to-use
-  bool is_restricted_switch_frame;
-  int has_restricted_ref[INTER_REFS_PER_FRAME];
+  // 0: Not restricted
+  // 1: Restricted. TMVP, CDF, etc. from the restricted ref frame cannot be
+  //    used. However, pixels from the restricted ref frame can be used.
+  int is_restricted;
+  int refs_restricted_status[INTER_REFS_PER_FRAME];
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
 } RefCntBuffer;
 
@@ -3272,7 +3274,7 @@ static INLINE RefCntBuffer *get_primary_ref_frame_buf(
   if (map_idx == INVALID_IDX) return NULL;
 #if CONFIG_F322_OBUER_REFRESTRICT
   if (cm->ref_frame_map[map_idx] != NULL &&
-      cm->ref_frame_map[map_idx]->is_restricted_ref)
+      cm->ref_frame_map[map_idx]->is_restricted)
     return NULL;
   else
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
@@ -5358,14 +5360,12 @@ static INLINE void init_ibp_info(
 #define DISPLAY_ORDER_HINT_BITS 30
 #define RELATIVE_DIST_BITS 8
 #if CONFIG_F322_OBUER_REFRESTRICT
-#define REF_RESTRICTED_DOH INT_MAX
+#define REF_RESTRICTED_DOH \
+  ((1 << (DISPLAY_ORDER_HINT_BITS - 1)) - 1 - REF_FRAMES)
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
 
 static INLINE int get_relative_dist(const OrderHintInfo *oh, int a, int b) {
   if (oh->order_hint_bits_minus_1 < 0) return 0;
-#if CONFIG_F322_OBUER_REFRESTRICT
-  assert(a != INT_MAX || b != INT_MAX);
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
   assert(a >= 0);
   assert(b >= 0);
   const int bits = DISPLAY_ORDER_HINT_BITS;

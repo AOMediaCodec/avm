@@ -4175,7 +4175,7 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
       const RefCntBuffer *const temp_ref_buf = cm->ref_frame_map[temp_map_idx];
 #if CONFIG_F322_OBUER_REFRESTRICT
       assert(temp_ref_buf != NULL);
-      if (temp_ref_buf != NULL && temp_ref_buf->is_restricted_ref) continue;
+      if (temp_ref_buf != NULL && temp_ref_buf->is_restricted) continue;
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
       if (temp_ref_buf->frame_type != INTER_FRAME) continue;
       if (cm->bru.enabled && i == cm->bru.update_ref_idx) continue;
@@ -4903,22 +4903,20 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
   cm->tlayer_id = 0;
   current_frame->temporal_layer_id = cm->tlayer_id;
 #if CONFIG_F322_OBUER_REFRESTRICT
-  cm->cur_frame->is_restricted_switch_frame = 0;
   cm->restricted_prediction_switch =
       cpi->oxcf.kf_cfg.sframe_dist != 0 && cpi->oxcf.kf_cfg.sframe_mode == 0;
   if (current_frame->frame_type == KEY_FRAME) {
     for (int i = 0; i < cm->seq_params.ref_frames; i++) {
       if (cm->ref_frame_map[i] != NULL)
-        cm->ref_frame_map[i]->is_restricted_ref = false;
+        cm->ref_frame_map[i]->is_restricted = false;
     }
   }
 
   if (cm->restricted_prediction_switch) {
-    cm->cur_frame->is_restricted_switch_frame = 1;
     if (current_frame->frame_type == S_FRAME) {
       for (int i = 0; i < cm->seq_params.ref_frames; i++) {
         if (cm->ref_frame_map[i] != NULL)
-          cm->ref_frame_map[i]->is_restricted_ref = true;
+          cm->ref_frame_map[i]->is_restricted = true;
       }
     }
 
@@ -4930,7 +4928,7 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
                                  current_frame->frame_type == KEY_FRAME ||
                                  current_frame->frame_type == INTRA_ONLY_FRAME)
                                     ? false
-                                    : !cm->ref_frame_map[i]->is_restricted_ref;
+                                    : !cm->ref_frame_map[i]->is_restricted;
         ref_frame_safe_to_use |= ref_unrestricted << i;
       }
     }
@@ -5017,7 +5015,7 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
           // Get reference frame buffer
           const RefCntBuffer *const buf = cm->ref_frame_map[map_idx];
 #if CONFIG_F322_OBUER_REFRESTRICT
-          if (buf != NULL && cm->ref_frame_map[map_idx]->is_restricted_ref)
+          if (buf != NULL && cm->ref_frame_map[map_idx]->is_restricted)
             continue;
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
           if (buf != NULL && buf->display_order_hint == 0) {
