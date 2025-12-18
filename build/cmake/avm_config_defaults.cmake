@@ -173,6 +173,10 @@ set_avm_config_var(
   "Encoder only flag to configure encoder to enable mixed lossy/lossless coding"
 )
 
+set_avm_config_var(
+  CONFIG_MHCCP_DIVISION_REVERT 1
+  "Revert the aspect 4 in proposal F303 for MHCCP division."
+)
 #
 # Variables in this section control optional features of the build system.
 #
