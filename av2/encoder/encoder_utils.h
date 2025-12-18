@@ -26,14 +26,10 @@ extern "C" {
 #define AM_SEGMENT_ID_INACTIVE 7
 #define AM_SEGMENT_ID_ACTIVE 0
 
-extern const int default_tx_type_probs[FRAME_UPDATE_TYPES][TX_SIZES_ALL]
-                                      [TX_TYPES];
+extern const int av2_default_tx_type_probs[FRAME_UPDATE_TYPES][TX_SIZES_ALL]
+                                          [TX_TYPES];
 
-extern const int default_warped_probs[FRAME_UPDATE_TYPES];
-
-extern const int default_switchable_interp_probs[FRAME_UPDATE_TYPES]
-                                                [SWITCHABLE_FILTER_CONTEXTS]
-                                                [SWITCHABLE_FILTERS];
+extern const int av2_default_warped_probs[FRAME_UPDATE_TYPES];
 
 // Mark all inactive blocks as active. Other segmentation features may be set
 // so memset cannot be used, instead only inactive blocks should be reset.
@@ -827,11 +823,11 @@ static AVM_INLINE void highbd_set_var_fns(AV2_COMP *const cpi) {
 static AVM_INLINE void copy_frame_prob_info(AV2_COMP *cpi) {
   FrameProbInfo *const frame_probs = &cpi->frame_probs;
   if (cpi->sf.tx_sf.tx_type_search.prune_tx_type_using_stats) {
-    av2_copy(frame_probs->tx_type_probs, default_tx_type_probs);
+    av2_copy(frame_probs->tx_type_probs, av2_default_tx_type_probs);
   }
   if (cpi->sf.inter_sf.prune_warped_prob_thresh > 0 ||
       cpi->sf.inter_sf.prune_warpmv_prob_thresh > 0) {
-    av2_copy(frame_probs->warped_probs, default_warped_probs);
+    av2_copy(frame_probs->warped_probs, av2_default_warped_probs);
   }
 }
 
