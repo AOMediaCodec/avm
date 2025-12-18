@@ -181,6 +181,8 @@ static INLINE int is_in_operating_point(int operating_point, int tlayer_id,
 
 void av2_init_level_info(struct AV2_COMP *cpi);
 
+bool is_filter_enabled_frame(const AV2_COMMON *const cm);
+
 void av2_update_level_info(struct AV2_COMP *cpi, size_t size, int64_t ts_start,
                            int64_t ts_end);
 
