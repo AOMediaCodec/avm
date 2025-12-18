@@ -1539,7 +1539,7 @@ static void read_intra_luma_mode(MACROBLOCKD *const xd, avm_reader *r) {
   assert(mode_idx < LUMA_MODE_COUNT);
   get_y_intra_mode_set(mbmi, xd);
   mbmi->joint_y_mode_delta_angle = mbmi->y_intra_mode_list[mode_idx];
-  set_y_mode_and_delta_angle(mbmi->joint_y_mode_delta_angle, mbmi);
+  av2_set_y_mode_and_delta_angle(mbmi->joint_y_mode_delta_angle, mbmi);
   mbmi->y_mode_idx = mode_idx;
   if (mbmi->joint_y_mode_delta_angle < NON_DIRECTIONAL_MODES_COUNT)
     assert(mbmi->joint_y_mode_delta_angle == mbmi->y_mode_idx);

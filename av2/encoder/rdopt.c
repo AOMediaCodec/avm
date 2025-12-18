@@ -8863,7 +8863,8 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
               break;
             mbmi->y_mode_idx = mode_idx;
             mbmi->joint_y_mode_delta_angle = mbmi->y_intra_mode_list[mode_idx];
-            set_y_mode_and_delta_angle(mbmi->joint_y_mode_delta_angle, mbmi);
+            av2_set_y_mode_and_delta_angle(mbmi->joint_y_mode_delta_angle,
+                                           mbmi);
             if ((!cpi->oxcf.intra_mode_cfg.enable_smooth_intra ||
                  cpi->sf.intra_sf.disable_smooth_intra) &&
                 (mbmi->mode == SMOOTH_PRED || mbmi->mode == SMOOTH_H_PRED ||

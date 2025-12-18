@@ -1361,7 +1361,7 @@ void search_fsc_mode(const AV2_COMP *const cpi, MACROBLOCK *x, int *rate,
              ++mode_idx) {
           mbmi->y_mode_idx = mode_idx;
           mbmi->joint_y_mode_delta_angle = mbmi->y_intra_mode_list[mode_idx];
-          set_y_mode_and_delta_angle(mbmi->joint_y_mode_delta_angle, mbmi);
+          av2_set_y_mode_and_delta_angle(mbmi->joint_y_mode_delta_angle, mbmi);
           if (mbmi->y_mode_idx >= FIRST_MODE_COUNT &&
               !(mbmi->angle_delta[PLANE_TYPE_Y] ==
                 best_mbmi->angle_delta[PLANE_TYPE_Y])) {
@@ -1610,7 +1610,7 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
           mbmi->y_mode_idx = mode_idx;
           mbmi->joint_y_mode_delta_angle = mbmi->y_intra_mode_list[mode_idx];
           // the below function changes the mbmi->mode based on the mode_idx
-          set_y_mode_and_delta_angle(mbmi->joint_y_mode_delta_angle, mbmi);
+          av2_set_y_mode_and_delta_angle(mbmi->joint_y_mode_delta_angle, mbmi);
           mode_costs = 0;
           if (dpcm_index > 0 &&
               (mrl_idx > 0 || (mbmi->mode != V_PRED && mbmi->mode != H_PRED) ||

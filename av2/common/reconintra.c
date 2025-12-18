@@ -369,7 +369,8 @@ int get_y_mode_idx_ctx(MACROBLOCKD *const xd) {
  * \param[in]    mbmi               Pointer to structure holding
  *                                  the mode info for the current macroblock.
  */
-void set_y_mode_and_delta_angle(const int mode_idx, MB_MODE_INFO *const mbmi) {
+void av2_set_y_mode_and_delta_angle(const int mode_idx,
+                                    MB_MODE_INFO *const mbmi) {
   if (mode_idx < NON_DIRECTIONAL_MODES_COUNT) {
     mbmi->mode = mode_idx;
     mbmi->angle_delta[PLANE_TYPE_Y] = 0;
