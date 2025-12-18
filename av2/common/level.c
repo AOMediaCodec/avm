@@ -477,7 +477,10 @@ static double time_to_decode_frame(const AV2_COMMON *const cm,
   const FRAME_TYPE frame_type = cm->current_frame.frame_type;
   int luma_samples = 0;
   if (frame_type == KEY_FRAME || frame_type == INTRA_ONLY_FRAME) {
-    luma_samples = cm->width * cm->height;
+    if (cm->features.allow_global_intrabc && is_filter_enabled_frame(cm))
+      luma_samples = 2 * cm->width * cm->height;
+    else
+      luma_samples = cm->width * cm->height;
   } else {
     const int spatial_layer_dimensions_present_flag = 0;
     if (spatial_layer_dimensions_present_flag) {
