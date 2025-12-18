@@ -102,9 +102,9 @@ int av2_cdef_compute_sb_list(const AV2_COMMON *const cm,
   return count;
 }
 
-void cdef_copy_rect8_16bit_to_16bit_c(uint16_t *dst, int dstride,
-                                      const uint16_t *src, int sstride, int v,
-                                      int h) {
+void av2_cdef_copy_rect8_16bit_to_16bit_c(uint16_t *dst, int dstride,
+                                          const uint16_t *src, int sstride,
+                                          int v, int h) {
   for (int i = 0; i < v; i++) {
     for (int j = 0; j < h; j++) {
       dst[i * dstride + j] = src[i * sstride + j];
@@ -117,7 +117,7 @@ void av2_cdef_copy_sb8_16(AV2_COMMON *const cm, uint16_t *const dst,
                           int src_hoffset, int sstride, int vsize, int hsize) {
   (void)cm;
   const uint16_t *base = &src[src_voffset * sstride + src_hoffset];
-  cdef_copy_rect8_16bit_to_16bit(dst, dstride, base, sstride, vsize, hsize);
+  av2_cdef_copy_rect8_16bit_to_16bit(dst, dstride, base, sstride, vsize, hsize);
 }
 
 static INLINE void fill_rect(uint16_t *dst, int dstride, int v, int h,

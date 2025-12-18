@@ -35,9 +35,9 @@
 #define CDEF_INBUF_SIZE \
   (CDEF_BSTRIDE * ((1 << MAX_SB_SIZE_LOG2) + 2 * CDEF_VBORDER))
 
-extern const int cdef_pri_taps[2][2];
-extern const int cdef_sec_taps[2];
-extern const int (*const cdef_directions)[2];
+extern const int av2_cdef_pri_taps[2][2];
+extern const int av2_cdef_sec_taps[2];
+extern const int (*const av2_cdef_directions)[2];
 
 typedef struct {
   uint8_t by;

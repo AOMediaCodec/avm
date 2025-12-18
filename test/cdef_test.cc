@@ -314,7 +314,7 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CDEFFindDirDualTest);
 typedef CDEFFindDirDualTest CDEFFindDirDualSpeedTest;
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CDEFFindDirDualSpeedTest);
 
-/* Bitmatch test of the SIMD implementations of cdef_find_dir_dual(). */
+/* Bitmatch test of the SIMD implementations of av2_cdef_find_dir_dual(). */
 void test_finddir_dual(
     void (*finddir)(const uint16_t *img1, const uint16_t *img2, int stride,
                     int32_t *var1, int32_t *var2, int coeff_shift, int *out1,
@@ -371,7 +371,7 @@ void test_finddir_dual(
   }
 }
 
-/* Speed test of the SIMD implementations of cdef_find_dir_dual(). */
+/* Speed test of the SIMD implementations of av2_cdef_find_dir_dual(). */
 void test_finddir_dual_speed(
     void (*finddir)(const uint16_t *img1, const uint16_t *img2, int stride,
                     int32_t *var1, int32_t *var2, int coeff_shift, int *out1,
@@ -432,15 +432,15 @@ using std::make_tuple;
 #if defined(_WIN64) || !defined(_MSC_VER) || defined(__clang__)
 #if (HAVE_SSE2 || HAVE_SSSE3 || HAVE_SSE4_1 || HAVE_AVX2 || HAVE_NEON)
 static const CdefFilterBlockFunctions kCdefFilterHighbdFuncC[] = {
-  { &cdef_filter_16_0_c, &cdef_filter_16_1_c, &cdef_filter_16_2_c,
-    &cdef_filter_16_3_c }
+  { &av2_cdef_filter_16_0_c, &av2_cdef_filter_16_1_c, &av2_cdef_filter_16_2_c,
+    &av2_cdef_filter_16_3_c }
 };
 #endif
 
 #if HAVE_SSE2
 static const CdefFilterBlockFunctions kCdefFilterHighbdFuncSse2[] = {
-  { &cdef_filter_16_0_sse2, &cdef_filter_16_1_sse2, &cdef_filter_16_2_sse2,
-    &cdef_filter_16_3_sse2 }
+  { &av2_cdef_filter_16_0_sse2, &av2_cdef_filter_16_1_sse2,
+    &av2_cdef_filter_16_2_sse2, &av2_cdef_filter_16_3_sse2 }
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -452,17 +452,18 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Range(0, 16), ::testing::Range(8, 13, 2)));
 
 INSTANTIATE_TEST_SUITE_P(SSE2, CDEFFindDirTest,
-                         ::testing::Values(make_tuple(&cdef_find_dir_sse2,
-                                                      &cdef_find_dir_c)));
+                         ::testing::Values(make_tuple(&av2_cdef_find_dir_sse2,
+                                                      &av2_cdef_find_dir_c)));
 
-INSTANTIATE_TEST_SUITE_P(SSE2, CDEFFindDirDualTest,
-                         ::testing::Values(make_tuple(&cdef_find_dir_dual_sse2,
-                                                      &cdef_find_dir_dual_c)));
+INSTANTIATE_TEST_SUITE_P(
+    SSE2, CDEFFindDirDualTest,
+    ::testing::Values(make_tuple(&av2_cdef_find_dir_dual_sse2,
+                                 &av2_cdef_find_dir_dual_c)));
 #endif
 #if HAVE_SSSE3
 static const CdefFilterBlockFunctions kCdefFilterHighbdFuncSsse3[] = {
-  { &cdef_filter_16_0_ssse3, &cdef_filter_16_1_ssse3, &cdef_filter_16_2_ssse3,
-    &cdef_filter_16_3_ssse3 }
+  { &av2_cdef_filter_16_0_ssse3, &av2_cdef_filter_16_1_ssse3,
+    &av2_cdef_filter_16_2_ssse3, &av2_cdef_filter_16_3_ssse3 }
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -474,18 +475,19 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Range(0, 16), ::testing::Range(8, 13, 2)));
 
 INSTANTIATE_TEST_SUITE_P(SSSE3, CDEFFindDirTest,
-                         ::testing::Values(make_tuple(&cdef_find_dir_ssse3,
-                                                      &cdef_find_dir_c)));
+                         ::testing::Values(make_tuple(&av2_cdef_find_dir_ssse3,
+                                                      &av2_cdef_find_dir_c)));
 
-INSTANTIATE_TEST_SUITE_P(SSSE3, CDEFFindDirDualTest,
-                         ::testing::Values(make_tuple(&cdef_find_dir_dual_ssse3,
-                                                      &cdef_find_dir_dual_c)));
+INSTANTIATE_TEST_SUITE_P(
+    SSSE3, CDEFFindDirDualTest,
+    ::testing::Values(make_tuple(&av2_cdef_find_dir_dual_ssse3,
+                                 &av2_cdef_find_dir_dual_c)));
 #endif
 
 #if HAVE_SSE4_1
 static const CdefFilterBlockFunctions kCdefFilterHighbdFuncSse4_1[] = {
-  { &cdef_filter_16_0_sse4_1, &cdef_filter_16_1_sse4_1,
-    &cdef_filter_16_2_sse4_1, &cdef_filter_16_3_sse4_1 }
+  { &av2_cdef_filter_16_0_sse4_1, &av2_cdef_filter_16_1_sse4_1,
+    &av2_cdef_filter_16_2_sse4_1, &av2_cdef_filter_16_3_sse4_1 }
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -496,18 +498,18 @@ INSTANTIATE_TEST_SUITE_P(
                                          BLOCK_8X8),
                        ::testing::Range(0, 16), ::testing::Range(8, 13, 2)));
 INSTANTIATE_TEST_SUITE_P(SSE4_1, CDEFFindDirTest,
-                         ::testing::Values(make_tuple(&cdef_find_dir_sse4_1,
-                                                      &cdef_find_dir_c)));
+                         ::testing::Values(make_tuple(&av2_cdef_find_dir_sse4_1,
+                                                      &av2_cdef_find_dir_c)));
 INSTANTIATE_TEST_SUITE_P(
     SSE4_1, CDEFFindDirDualTest,
-    ::testing::Values(make_tuple(&cdef_find_dir_dual_sse4_1,
-                                 &cdef_find_dir_dual_c)));
+    ::testing::Values(make_tuple(&av2_cdef_find_dir_dual_sse4_1,
+                                 &av2_cdef_find_dir_dual_c)));
 #endif
 
 #if HAVE_AVX2
 static const CdefFilterBlockFunctions kCdefFilterHighbdFuncAvx2[] = {
-  { &cdef_filter_16_0_avx2, &cdef_filter_16_1_avx2, &cdef_filter_16_2_avx2,
-    &cdef_filter_16_3_avx2 }
+  { &av2_cdef_filter_16_0_avx2, &av2_cdef_filter_16_1_avx2,
+    &av2_cdef_filter_16_2_avx2, &av2_cdef_filter_16_3_avx2 }
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -518,17 +520,18 @@ INSTANTIATE_TEST_SUITE_P(
                                          BLOCK_8X8),
                        ::testing::Range(0, 16), ::testing::Range(8, 13, 2)));
 INSTANTIATE_TEST_SUITE_P(AVX2, CDEFFindDirTest,
-                         ::testing::Values(make_tuple(&cdef_find_dir_avx2,
-                                                      &cdef_find_dir_c)));
-INSTANTIATE_TEST_SUITE_P(AVX2, CDEFFindDirDualTest,
-                         ::testing::Values(make_tuple(&cdef_find_dir_dual_avx2,
-                                                      &cdef_find_dir_dual_c)));
+                         ::testing::Values(make_tuple(&av2_cdef_find_dir_avx2,
+                                                      &av2_cdef_find_dir_c)));
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, CDEFFindDirDualTest,
+    ::testing::Values(make_tuple(&av2_cdef_find_dir_dual_avx2,
+                                 &av2_cdef_find_dir_dual_c)));
 #endif
 
 #if HAVE_NEON
 static const CdefFilterBlockFunctions kCdefFilterHighbdFuncNeon[] = {
-  { &cdef_filter_16_0_neon, &cdef_filter_16_1_neon, &cdef_filter_16_2_neon,
-    &cdef_filter_16_3_neon }
+  { &av2_cdef_filter_16_0_neon, &av2_cdef_filter_16_1_neon,
+    &av2_cdef_filter_16_2_neon, &av2_cdef_filter_16_3_neon }
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -539,11 +542,12 @@ INSTANTIATE_TEST_SUITE_P(
                                          BLOCK_8X8),
                        ::testing::Range(0, 16), ::testing::Range(8, 13, 2)));
 INSTANTIATE_TEST_SUITE_P(NEON, CDEFFindDirTest,
-                         ::testing::Values(make_tuple(&cdef_find_dir_neon,
-                                                      &cdef_find_dir_c)));
-INSTANTIATE_TEST_SUITE_P(NEON, CDEFFindDirDualTest,
-                         ::testing::Values(make_tuple(&cdef_find_dir_dual_neon,
-                                                      &cdef_find_dir_dual_c)));
+                         ::testing::Values(make_tuple(&av2_cdef_find_dir_neon,
+                                                      &av2_cdef_find_dir_c)));
+INSTANTIATE_TEST_SUITE_P(
+    NEON, CDEFFindDirDualTest,
+    ::testing::Values(make_tuple(&av2_cdef_find_dir_dual_neon,
+                                 &av2_cdef_find_dir_dual_c)));
 #endif
 
 // Test speed for all supported architectures
@@ -556,11 +560,12 @@ INSTANTIATE_TEST_SUITE_P(
                                          BLOCK_8X8),
                        ::testing::Range(0, 16), ::testing::Range(8, 13, 2)));
 INSTANTIATE_TEST_SUITE_P(SSE2, CDEFFindDirSpeedTest,
-                         ::testing::Values(make_tuple(&cdef_find_dir_sse2,
-                                                      &cdef_find_dir_c)));
-INSTANTIATE_TEST_SUITE_P(SSE2, CDEFFindDirDualSpeedTest,
-                         ::testing::Values(make_tuple(&cdef_find_dir_dual_sse2,
-                                                      &cdef_find_dir_dual_c)));
+                         ::testing::Values(make_tuple(&av2_cdef_find_dir_sse2,
+                                                      &av2_cdef_find_dir_c)));
+INSTANTIATE_TEST_SUITE_P(
+    SSE2, CDEFFindDirDualSpeedTest,
+    ::testing::Values(make_tuple(&av2_cdef_find_dir_dual_sse2,
+                                 &av2_cdef_find_dir_dual_c)));
 #endif
 
 #if HAVE_SSSE3
@@ -572,11 +577,12 @@ INSTANTIATE_TEST_SUITE_P(
                                          BLOCK_8X8),
                        ::testing::Range(0, 16), ::testing::Range(8, 13, 2)));
 INSTANTIATE_TEST_SUITE_P(SSSE3, CDEFFindDirSpeedTest,
-                         ::testing::Values(make_tuple(&cdef_find_dir_ssse3,
-                                                      &cdef_find_dir_c)));
-INSTANTIATE_TEST_SUITE_P(SSSE3, CDEFFindDirDualSpeedTest,
-                         ::testing::Values(make_tuple(&cdef_find_dir_dual_ssse3,
-                                                      &cdef_find_dir_dual_c)));
+                         ::testing::Values(make_tuple(&av2_cdef_find_dir_ssse3,
+                                                      &av2_cdef_find_dir_c)));
+INSTANTIATE_TEST_SUITE_P(
+    SSSE3, CDEFFindDirDualSpeedTest,
+    ::testing::Values(make_tuple(&av2_cdef_find_dir_dual_ssse3,
+                                 &av2_cdef_find_dir_dual_c)));
 #endif
 
 #if HAVE_SSE4_1
@@ -588,12 +594,12 @@ INSTANTIATE_TEST_SUITE_P(
                                          BLOCK_8X8),
                        ::testing::Range(0, 16), ::testing::Range(8, 13, 2)));
 INSTANTIATE_TEST_SUITE_P(SSE4_1, CDEFFindDirSpeedTest,
-                         ::testing::Values(make_tuple(&cdef_find_dir_sse4_1,
-                                                      &cdef_find_dir_c)));
+                         ::testing::Values(make_tuple(&av2_cdef_find_dir_sse4_1,
+                                                      &av2_cdef_find_dir_c)));
 INSTANTIATE_TEST_SUITE_P(
     SSE4_1, CDEFFindDirDualSpeedTest,
-    ::testing::Values(make_tuple(&cdef_find_dir_dual_sse4_1,
-                                 &cdef_find_dir_dual_c)));
+    ::testing::Values(make_tuple(&av2_cdef_find_dir_dual_sse4_1,
+                                 &av2_cdef_find_dir_dual_c)));
 #endif
 
 #if HAVE_AVX2
@@ -605,11 +611,12 @@ INSTANTIATE_TEST_SUITE_P(
                                          BLOCK_8X8),
                        ::testing::Range(0, 16), ::testing::Range(8, 13, 2)));
 INSTANTIATE_TEST_SUITE_P(AVX2, CDEFFindDirSpeedTest,
-                         ::testing::Values(make_tuple(&cdef_find_dir_avx2,
-                                                      &cdef_find_dir_c)));
-INSTANTIATE_TEST_SUITE_P(AVX2, CDEFFindDirDualSpeedTest,
-                         ::testing::Values(make_tuple(&cdef_find_dir_dual_avx2,
-                                                      &cdef_find_dir_dual_c)));
+                         ::testing::Values(make_tuple(&av2_cdef_find_dir_avx2,
+                                                      &av2_cdef_find_dir_c)));
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, CDEFFindDirDualSpeedTest,
+    ::testing::Values(make_tuple(&av2_cdef_find_dir_dual_avx2,
+                                 &av2_cdef_find_dir_dual_c)));
 #endif
 
 #if HAVE_NEON
@@ -621,11 +628,12 @@ INSTANTIATE_TEST_SUITE_P(
                                          BLOCK_8X8),
                        ::testing::Range(0, 16), ::testing::Range(8, 13, 2)));
 INSTANTIATE_TEST_SUITE_P(NEON, CDEFFindDirSpeedTest,
-                         ::testing::Values(make_tuple(&cdef_find_dir_neon,
-                                                      &cdef_find_dir_c)));
-INSTANTIATE_TEST_SUITE_P(NEON, CDEFFindDirDualSpeedTest,
-                         ::testing::Values(make_tuple(&cdef_find_dir_dual_neon,
-                                                      &cdef_find_dir_dual_c)));
+                         ::testing::Values(make_tuple(&av2_cdef_find_dir_neon,
+                                                      &av2_cdef_find_dir_c)));
+INSTANTIATE_TEST_SUITE_P(
+    NEON, CDEFFindDirDualSpeedTest,
+    ::testing::Values(make_tuple(&av2_cdef_find_dir_dual_neon,
+                                 &av2_cdef_find_dir_dual_c)));
 #endif
 
 #endif  // defined(_WIN64) || !defined(_MSC_VER)
