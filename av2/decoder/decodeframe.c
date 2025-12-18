@@ -7476,7 +7476,6 @@ static void handle_sequence_header(AV2Decoder *pbi,
 #if CONFIG_CWG_F270_CI_OBU
   if ((obu_type == OBU_CLK || obu_type == OBU_OLK) &&
       (pbi->ci_and_key_per_layer[cm->mlayer_id] == 0)) {
-    //ContentInterpretation *ci_params = &cm->ci_params_per_layer[cm->mlayer_id];
     for (int ref_layer_id = 0; ref_layer_id < cm->mlayer_id; ref_layer_id++) {
       if (cm->seq_params.mlayer_dependency_map[cm->mlayer_id][ref_layer_id]) {
         cm->ci_params_per_layer[cm->mlayer_id] =
