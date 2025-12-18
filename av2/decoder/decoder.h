@@ -557,10 +557,14 @@ typedef struct AV2Decoder {
    */
   int ci_obu_received_per_layer[MAX_NUM_MLAYERS];
 #endif  // CONFIG_CWG_F270_CI_OBU
-        /*!
-         * Indicates if the MultiStreamMode is activated.
-         */
+  /*!
+   * Indicates if the MultiStreamMode is activated.
+   */
   int multi_stream_mode;
+  /*!
+   * Indicates if the MSDO OBU is read.
+   */
+  int msdo_is_present_in_tu;
 } AV2Decoder;
 
 // Returns 0 on success. Sets pbi->common.error.error_code to a nonzero error

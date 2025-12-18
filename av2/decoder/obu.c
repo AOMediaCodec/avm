@@ -207,7 +207,7 @@ static uint32_t read_multi_stream_decoder_operation_obu(
     (void)substream_tier_idx;
   }
 
-  pbi->multi_stream_mode = 1;
+  pbi->msdo_is_present_in_tu = 1;
 
   if (av2_check_trailing_bits(pbi, rb) != 0) {
     return 0;
@@ -1805,6 +1805,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
   pbi->seen_frame_header = 0;
   pbi->next_start_tile = 0;
   pbi->num_tile_groups = 0;
+  pbi->msdo_is_present_in_tu = 0;
 
   if (data_end < data) {
     cm->error.error_code = AVM_CODEC_CORRUPT_FRAME;
@@ -1885,6 +1886,12 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
           continue;
         }
       }
+    }
+    if (pbi->random_accessed) {
+      if (pbi->msdo_is_present_in_tu)
+        pbi->multi_stream_mode = 1;
+      else
+        pbi->multi_stream_mode = 0;
     }
 #endif
 
