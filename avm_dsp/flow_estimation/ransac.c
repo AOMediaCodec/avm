@@ -455,6 +455,9 @@ static bool is_better_motion(const RANSAC_MOTION *motion_a,
   return compare_motions(motion_a, motion_b) < 0;
 }
 
+static const double identity_model_params[MAX_PARAMDIM] = { 0.0, 0.0, 1.0,
+                                                            0.0, 0.0, 1.0 };
+
 // Returns true on success, false on error
 static bool ransac_internal(const Correspondence *matched_points, int npoints,
                             MotionModel *motion_models, int num_desired_motions,
@@ -481,7 +484,7 @@ static bool ransac_internal(const Correspondence *matched_points, int npoints,
 
   // Initialize output models, as a fallback in case we can't find a model
   for (i = 0; i < num_desired_motions; i++) {
-    memcpy(motion_models[i].params, kIdentityParams,
+    memcpy(motion_models[i].params, identity_model_params,
            MAX_PARAMDIM * sizeof(*(motion_models[i].params)));
     motion_models[i].num_inliers = 0;
   }
