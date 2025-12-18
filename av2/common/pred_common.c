@@ -239,7 +239,7 @@ int av2_get_op_constrained_ref_frames(AV2_COMMON *cm, int cur_frame_disp,
   // Sort the references according to their score
   bubble_sort_ref_scores(scores, n_ranked);
 
-  for (int i = 0; i < cm->ref_frames_info.num_total_refs; i++) {
+  for (int i = 0; i < AVMMIN(n_ranked, INTER_REFS_PER_FRAME); i++) {
     cm->op_remapped_ref_idx[i] = scores[i].index;
   }
   // Fill any slots that are empty (should only happen for the first 7 frames)
