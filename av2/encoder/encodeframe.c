@@ -1697,7 +1697,7 @@ void av2_encode_tile(AV2_COMP *cpi, ThreadData *td, int tile_row,
                          &td->mb.e_mbd);
 
   if (cpi->oxcf.intra_mode_cfg.enable_cfl_intra)
-    cfl_init(&td->mb.e_mbd.cfl, &cm->seq_params);
+    av2_cfl_init(&td->mb.e_mbd.cfl, &cm->seq_params);
 
   av2_crc32c_calculator_init(
       &td->mb.txfm_search_info.mb_rd_record.crc_calculator);

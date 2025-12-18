@@ -241,10 +241,10 @@ static INLINE __m128i highbd_clamp_epi16(__m128i u, __m128i zero, __m128i max) {
   return _mm_max_epi16(_mm_min_epi16(u, max), zero);
 }
 
-static INLINE void cfl_predict_hbd_ssse3(const int16_t *pred_buf_q3,
-                                         uint16_t *dst, int dst_stride,
-                                         int alpha_q3, int bd, int width,
-                                         int height) {
+static INLINE void av2_cfl_predict_hbd_ssse3(const int16_t *pred_buf_q3,
+                                             uint16_t *dst, int dst_stride,
+                                             int alpha_q3, int bd, int width,
+                                             int height) {
   const __m128i alpha_sign = _mm_set1_epi16(alpha_q3);
   const __m128i alpha_q12 =
       _mm_slli_epi16(_mm_abs_epi16(alpha_sign), (9 - CFL_ADD_BITS_ALPHA));

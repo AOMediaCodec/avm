@@ -3395,7 +3395,7 @@ static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV2_COMMON *cm) {
   }
 }
 
-void cfl_init(CFL_CTX *cfl, const SequenceHeader *seq_params);
+void av2_cfl_init(CFL_CTX *cfl, const SequenceHeader *seq_params);
 
 static INLINE int av2_num_planes(const AV2_COMMON *cm) {
   return cm->seq_params.monochrome ? 1 : MAX_MB_PLANE;
@@ -3437,7 +3437,7 @@ static INLINE void av2_init_macroblockd(AV2_COMMON *cm, MACROBLOCKD *xd) {
   }
   xd->mi_stride = cm->mi_params.mi_stride;
   xd->error_info = &cm->error;
-  cfl_init(&xd->cfl, &cm->seq_params);
+  av2_cfl_init(&xd->cfl, &cm->seq_params);
 }
 
 static INLINE void set_entropy_context(MACROBLOCKD *xd, int mi_row, int mi_col,

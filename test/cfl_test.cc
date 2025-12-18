@@ -182,7 +182,7 @@ class CFLTestWithAlignedData : public CFLTest {
   }
 };
 
-typedef cfl_subtract_average_fn (*sub_avg_fn)(TX_SIZE tx_size);
+typedef av2_cfl_subtract_average_fn (*sub_avg_fn)(TX_SIZE tx_size);
 typedef std::tuple<TX_SIZE, sub_avg_fn> sub_avg_param;
 class CFLSubAvgTest : public ::testing::TestWithParam<sub_avg_param>,
                       public CFLTestWithData<int16_t> {
@@ -190,13 +190,13 @@ class CFLSubAvgTest : public ::testing::TestWithParam<sub_avg_param>,
   virtual void SetUp() {
     CFLTest::init(std::get<0>(this->GetParam()));
     sub_avg = std::get<1>(this->GetParam())(tx_size);
-    sub_avg_ref = cfl_get_subtract_average_fn_c(tx_size);
+    sub_avg_ref = av2_cfl_get_subtract_average_fn_c(tx_size);
   }
   virtual ~CFLSubAvgTest() {}
 
  protected:
-  cfl_subtract_average_fn sub_avg;
-  cfl_subtract_average_fn sub_avg_ref;
+  av2_cfl_subtract_average_fn sub_avg;
+  av2_cfl_subtract_average_fn sub_avg_ref;
 };
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CFLSubAvgTest);
 
@@ -286,20 +286,20 @@ class CFLSubsampleTest : public ::testing::TestWithParam<S>,
   }
 };
 
-typedef cfl_subsample_hbd_fn (*get_subsample_hbd_fn)(TX_SIZE tx_size);
+typedef av2_cfl_subsample_hbd_fn (*get_subsample_hbd_fn)(TX_SIZE tx_size);
 typedef std::tuple<TX_SIZE, get_subsample_hbd_fn, get_subsample_hbd_fn,
                    get_subsample_hbd_fn>
     subsample_hbd_param;
 class CFLSubsampleHBDTest
-    : public CFLSubsampleTest<subsample_hbd_param, cfl_subsample_hbd_fn,
+    : public CFLSubsampleTest<subsample_hbd_param, av2_cfl_subsample_hbd_fn,
                               uint16_t> {
  public:
   virtual ~CFLSubsampleHBDTest() {}
   virtual void SetUp() {
     CFLSubsampleTest::SetUp();
-    fun_420_ref = cfl_get_luma_subsampling_420_hbd_c(tx_size);
-    fun_422_ref = cfl_get_luma_subsampling_422_hbd_c(tx_size);
-    fun_444_ref = cfl_get_luma_subsampling_444_hbd_c(tx_size);
+    fun_420_ref = av2_cfl_get_luma_subsampling_420_hbd_c(tx_size);
+    fun_422_ref = av2_cfl_get_luma_subsampling_422_hbd_c(tx_size);
+    fun_444_ref = av2_cfl_get_luma_subsampling_444_hbd_c(tx_size);
   }
 };
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CFLSubsampleHBDTest);
@@ -329,7 +329,7 @@ TEST_P(CFLSubsampleHBDTest, DISABLED_SubsampleHBD444SpeedTest) {
   subsampleSpeedTest(fun_444, fun_444_ref, &ACMRandom::Rand12);
 }
 
-typedef cfl_predict_hbd_fn (*get_predict_fn_hbd)(TX_SIZE tx_size);
+typedef av2_cfl_predict_hbd_fn (*get_predict_fn_hbd)(TX_SIZE tx_size);
 typedef std::tuple<TX_SIZE, get_predict_fn_hbd> predict_param_hbd;
 class CFLPredictHBDTest : public ::testing::TestWithParam<predict_param_hbd>,
                           public CFLTestWithAlignedData<uint16_t> {
@@ -337,13 +337,13 @@ class CFLPredictHBDTest : public ::testing::TestWithParam<predict_param_hbd>,
   virtual void SetUp() {
     CFLTest::init(std::get<0>(this->GetParam()));
     predict = std::get<1>(this->GetParam())(tx_size);
-    predict_ref = cfl_get_predict_hbd_fn_c(tx_size);
+    predict_ref = av2_cfl_get_predict_hbd_fn_c(tx_size);
   }
   virtual ~CFLPredictHBDTest() {}
 
  protected:
-  cfl_predict_hbd_fn predict;
-  cfl_predict_hbd_fn predict_ref;
+  av2_cfl_predict_hbd_fn predict;
+  av2_cfl_predict_hbd_fn predict_ref;
 };
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CFLPredictHBDTest);
 
@@ -405,7 +405,7 @@ TEST_P(CFLPredictHBDTest, DISABLED_PredictHBDSpeedTest) {
       make_tuple(static_cast<TX_SIZE>(TX_4X64), &function),  \
       make_tuple(static_cast<TX_SIZE>(TX_64X4), &function)
 
-typedef cfl_subsample_hbd_fn (*get_subsample_hbd_fn)(TX_SIZE tx_size);
+typedef av2_cfl_subsample_hbd_fn (*get_subsample_hbd_fn)(TX_SIZE tx_size);
 typedef std::tuple<TX_SIZE, get_subsample_hbd_fn> CflSubsample121HbdParam;
 
 class CflSubsample121HBDTest
@@ -417,12 +417,12 @@ class CflSubsample121HBDTest
     CFLTest::init(std::get<0>(GetParam()));
     get_subsample_hbd_fn tgt_getter = std::get<1>(GetParam());
     tgt_fn_ = tgt_getter(tx_size);
-    ref_fn_ = cfl_get_luma_subsampling_420_hbd_121_c(tx_size);
+    ref_fn_ = av2_cfl_get_luma_subsampling_420_hbd_121_c(tx_size);
   }
 
  protected:
-  cfl_subsample_hbd_fn ref_fn_;
-  cfl_subsample_hbd_fn tgt_fn_;
+  av2_cfl_subsample_hbd_fn ref_fn_;
+  av2_cfl_subsample_hbd_fn tgt_fn_;
 };
 
 TEST_P(CflSubsample121HBDTest, Match) {
@@ -463,13 +463,13 @@ TEST_P(CflSubsample121HBDTest, DISABLED_Speed) {
 }
 
 #if HAVE_AVX2
-const CflSubsample121HbdParam cfl_subsample_121_hbd_avx2_params[] = {
-  ALL_CFL_TX_SIZES_121(cfl_get_luma_subsampling_420_hbd_121_avx2)
+const CflSubsample121HbdParam av2_cfl_subsample_121_hbd_avx2_params[] = {
+  ALL_CFL_TX_SIZES_121(av2_cfl_get_luma_subsampling_420_hbd_121_avx2)
 };
 
 INSTANTIATE_TEST_SUITE_P(
     AVX2, CflSubsample121HBDTest,
-    ::testing::ValuesIn(cfl_subsample_121_hbd_avx2_params));
+    ::testing::ValuesIn(av2_cfl_subsample_121_hbd_avx2_params));
 #endif
 
 #define ALL_CFL_TX_SIZES_COLOCATED(function)                 \
@@ -499,7 +499,7 @@ INSTANTIATE_TEST_SUITE_P(
       make_tuple(static_cast<TX_SIZE>(TX_4X64), &function),  \
       make_tuple(static_cast<TX_SIZE>(TX_64X4), &function)
 
-typedef cfl_subsample_hbd_fn (*get_subsample_hbd_fn)(TX_SIZE tx_size);
+typedef av2_cfl_subsample_hbd_fn (*get_subsample_hbd_fn)(TX_SIZE tx_size);
 typedef std::tuple<TX_SIZE, get_subsample_hbd_fn> CflSubsampleColocatedHbdParam;
 
 class CflSubsampleColocatedHBDTest
@@ -511,12 +511,12 @@ class CflSubsampleColocatedHBDTest
     CFLTest::init(std::get<0>(GetParam()));
     get_subsample_hbd_fn tgt_getter = std::get<1>(GetParam());
     tgt_fn_ = tgt_getter(tx_size);
-    ref_fn_ = cfl_get_luma_subsampling_420_hbd_colocated_c(tx_size);
+    ref_fn_ = av2_cfl_get_luma_subsampling_420_hbd_colocated_c(tx_size);
   }
 
  protected:
-  cfl_subsample_hbd_fn ref_fn_;
-  cfl_subsample_hbd_fn tgt_fn_;
+  av2_cfl_subsample_hbd_fn ref_fn_;
+  av2_cfl_subsample_hbd_fn tgt_fn_;
 };
 
 TEST_P(CflSubsampleColocatedHBDTest, Match) {
@@ -558,11 +558,13 @@ TEST_P(CflSubsampleColocatedHBDTest, DISABLED_Speed) {
 
 #if HAVE_AVX2
 const CflSubsampleColocatedHbdParam
-    cfl_subsample_colocated_hbd_avx2_params[] = { ALL_CFL_TX_SIZES_COLOCATED(
-        cfl_get_luma_subsampling_420_hbd_colocated_avx2) };
+    av2_cfl_subsample_colocated_hbd_avx2_params[] = {
+      ALL_CFL_TX_SIZES_COLOCATED(
+          av2_cfl_get_luma_subsampling_420_hbd_colocated_avx2)
+    };
 INSTANTIATE_TEST_SUITE_P(
     AVX2, CflSubsampleColocatedHBDTest,
-    ::testing::ValuesIn(cfl_subsample_colocated_hbd_avx2_params));
+    ::testing::ValuesIn(av2_cfl_subsample_colocated_hbd_avx2_params));
 #endif
 
 typedef void (*mhccp_predict_hv_hbd_fn)(const uint16_t *input, uint16_t *dst,
@@ -809,7 +811,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 #if HAVE_SSE2
 const sub_avg_param sub_avg_sizes_sse2[] = { ALL_CFL_TX_SIZES(
-    cfl_get_subtract_average_fn_sse2) };
+    av2_cfl_get_subtract_average_fn_sse2) };
 
 INSTANTIATE_TEST_SUITE_P(SSE2, CFLSubAvgTest,
                          ::testing::ValuesIn(sub_avg_sizes_sse2));
@@ -818,9 +820,9 @@ INSTANTIATE_TEST_SUITE_P(SSE2, CFLSubAvgTest,
 
 #if HAVE_SSSE3
 const subsample_hbd_param subsample_hbd_sizes_ssse3[] = {
-  ALL_CFL_TX_SIZES_SUBSAMPLE(cfl_get_luma_subsampling_420_hbd_ssse3,
-                             cfl_get_luma_subsampling_422_hbd_ssse3,
-                             cfl_get_luma_subsampling_444_hbd_ssse3)
+  ALL_CFL_TX_SIZES_SUBSAMPLE(av2_cfl_get_luma_subsampling_420_hbd_ssse3,
+                             av2_cfl_get_luma_subsampling_422_hbd_ssse3,
+                             av2_cfl_get_luma_subsampling_444_hbd_ssse3)
 };
 
 INSTANTIATE_TEST_SUITE_P(SSSE3, CFLSubsampleHBDTest,
@@ -830,19 +832,19 @@ INSTANTIATE_TEST_SUITE_P(SSSE3, CFLSubsampleHBDTest,
 
 #if HAVE_AVX2
 const sub_avg_param sub_avg_sizes_avx2[] = { ALL_CFL_TX_SIZES(
-    cfl_get_subtract_average_fn_avx2) };
+    av2_cfl_get_subtract_average_fn_avx2) };
 
 INSTANTIATE_TEST_SUITE_P(AVX2, CFLSubAvgTest,
                          ::testing::ValuesIn(sub_avg_sizes_avx2));
 
 const subsample_hbd_param subsample_hbd_sizes_avx2[] = {
-  ALL_CFL_TX_SIZES_SUBSAMPLE(cfl_get_luma_subsampling_420_hbd_avx2,
-                             cfl_get_luma_subsampling_422_hbd_avx2,
-                             cfl_get_luma_subsampling_444_hbd_avx2)
+  ALL_CFL_TX_SIZES_SUBSAMPLE(av2_cfl_get_luma_subsampling_420_hbd_avx2,
+                             av2_cfl_get_luma_subsampling_422_hbd_avx2,
+                             av2_cfl_get_luma_subsampling_444_hbd_avx2)
 };
 
 const predict_param_hbd predict_sizes_hbd_avx2[] = { ALL_CFL_TX_SIZES(
-    cfl_get_predict_hbd_fn_avx2) };
+    av2_cfl_get_predict_hbd_fn_avx2) };
 
 INSTANTIATE_TEST_SUITE_P(AVX2, CFLSubsampleHBDTest,
                          ::testing::ValuesIn(subsample_hbd_sizes_avx2));
@@ -853,19 +855,19 @@ INSTANTIATE_TEST_SUITE_P(AVX2, CFLPredictHBDTest,
 
 #if HAVE_NEON
 const sub_avg_param sub_avg_sizes_neon[] = { ALL_CFL_TX_SIZES(
-    cfl_get_subtract_average_fn_neon) };
+    av2_cfl_get_subtract_average_fn_neon) };
 
 INSTANTIATE_TEST_SUITE_P(NEON, CFLSubAvgTest,
                          ::testing::ValuesIn(sub_avg_sizes_neon));
 
 const subsample_hbd_param subsample_hbd_sizes_neon[] = {
-  ALL_CFL_TX_SIZES_SUBSAMPLE(cfl_get_luma_subsampling_420_hbd_neon,
-                             cfl_get_luma_subsampling_422_hbd_neon,
-                             cfl_get_luma_subsampling_444_hbd_neon)
+  ALL_CFL_TX_SIZES_SUBSAMPLE(av2_cfl_get_luma_subsampling_420_hbd_neon,
+                             av2_cfl_get_luma_subsampling_422_hbd_neon,
+                             av2_cfl_get_luma_subsampling_444_hbd_neon)
 };
 
 const predict_param_hbd predict_sizes_hbd_neon[] = { ALL_CFL_TX_SIZES(
-    cfl_get_predict_hbd_fn_neon) };
+    av2_cfl_get_predict_hbd_fn_neon) };
 
 INSTANTIATE_TEST_SUITE_P(NEON, CFLSubsampleHBDTest,
                          ::testing::ValuesIn(subsample_hbd_sizes_neon));
@@ -876,7 +878,7 @@ INSTANTIATE_TEST_SUITE_P(NEON, CFLPredictHBDTest,
 
 #if HAVE_VSX
 const sub_avg_param sub_avg_sizes_vsx[] = { ALL_CFL_TX_SIZES(
-    cfl_get_subtract_average_fn_vsx) };
+    av2_cfl_get_subtract_average_fn_vsx) };
 
 INSTANTIATE_TEST_SUITE_P(VSX, CFLSubAvgTest,
                          ::testing::ValuesIn(sub_avg_sizes_vsx));

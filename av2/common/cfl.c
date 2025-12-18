@@ -70,7 +70,7 @@ static INLINE int32_t mul_fixed32_adapt(int32_t a, int32_t b, int shift) {
   }
 }
 
-void cfl_init(CFL_CTX *cfl, const SequenceHeader *seq_params) {
+void av2_cfl_init(CFL_CTX *cfl, const SequenceHeader *seq_params) {
   assert(block_size_wide[CFL_MAX_BLOCK_SIZE] == CFL_BUF_LINE);
   assert(block_size_high[CFL_MAX_BLOCK_SIZE] == CFL_BUF_LINE);
 
@@ -87,8 +87,8 @@ void cfl_init(CFL_CTX *cfl, const SequenceHeader *seq_params) {
   cfl->dc_pred_is_cached[CFL_PRED_V] = 0;
 }
 
-void cfl_store_dc_pred(MACROBLOCKD *const xd, const uint16_t *input,
-                       CFL_PRED_TYPE pred_plane, int width) {
+void av2_cfl_store_dc_pred(MACROBLOCKD *const xd, const uint16_t *input,
+                           CFL_PRED_TYPE pred_plane, int width) {
   assert(pred_plane < CFL_PRED_PLANES);
   assert(width <= CFL_BUF_LINE);
 
@@ -96,23 +96,24 @@ void cfl_store_dc_pred(MACROBLOCKD *const xd, const uint16_t *input,
   return;
 }
 
-static void cfl_load_dc_pred_hbd(const uint16_t *dc_pred_cache, uint16_t *dst,
-                                 int dst_stride, int width, int height) {
+static void av2_cfl_load_dc_pred_hbd(const uint16_t *dc_pred_cache,
+                                     uint16_t *dst, int dst_stride, int width,
+                                     int height) {
   const size_t num_bytes = width * sizeof(*dst);
   for (int j = 0; j < height; j++) {
     memcpy(dst, dc_pred_cache, num_bytes);
     dst += dst_stride;
   }
 }
-void cfl_load_dc_pred(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
-                      TX_SIZE tx_size, CFL_PRED_TYPE pred_plane) {
+void av2_cfl_load_dc_pred(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
+                          TX_SIZE tx_size, CFL_PRED_TYPE pred_plane) {
   const int width = tx_size_wide[tx_size];
   const int height = tx_size_high[tx_size];
   assert(pred_plane < CFL_PRED_PLANES);
   assert(width <= CFL_BUF_LINE);
   assert(height <= CFL_BUF_LINE);
-  cfl_load_dc_pred_hbd(xd->cfl.dc_pred_cache[pred_plane], dst, dst_stride,
-                       width, height);
+  av2_cfl_load_dc_pred_hbd(xd->cfl.dc_pred_cache[pred_plane], dst, dst_stride,
+                           width, height);
 }
 
 // Due to frame boundary issues, it is possible that the total area covered by
@@ -182,8 +183,9 @@ static INLINE int cfl_idx_to_alpha(uint8_t alpha_idx, int8_t joint_sign,
   return (alpha_sign == CFL_SIGN_POS) ? abs_alpha_q3 + 1 : -abs_alpha_q3 - 1;
 }
 
-void cfl_predict_hbd_c(const int16_t *ac_buf_q3, uint16_t *dst, int dst_stride,
-                       int alpha_q3, int bit_depth, int width, int height) {
+void av2_cfl_predict_hbd_c(const int16_t *ac_buf_q3, uint16_t *dst,
+                           int dst_stride, int alpha_q3, int bit_depth,
+                           int width, int height) {
   for (int j = 0; j < height; j++) {
     for (int i = 0; i < width; i++) {
       dst[i] = clip_pixel_highbd(
@@ -603,10 +605,10 @@ void cfl_derive_block_implicit_scaling_factor(uint16_t *l, const uint16_t *c,
                                           shift);
 }
 
-void cfl_predict_block(bool seq_enable_cfl_intra, bool seq_enable_mhccp,
-                       MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
-                       TX_SIZE tx_size, int plane, bool have_top,
-                       bool have_left, int above_lines, int left_lines) {
+void av2_cfl_predict_block(bool seq_enable_cfl_intra, bool seq_enable_mhccp,
+                           MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
+                           TX_SIZE tx_size, int plane, bool have_top,
+                           bool have_left, int above_lines, int left_lines) {
   CFL_CTX *const cfl = &xd->cfl;
   MB_MODE_INFO *mbmi = xd->mi[0];
 
@@ -636,11 +638,11 @@ void cfl_predict_block(bool seq_enable_cfl_intra, bool seq_enable_mhccp,
   const int width = tx_size_wide[tx_size];
   const int height = tx_size_high[tx_size];
   if (AVMMAX(width, height) > 32) {
-    cfl_predict_hbd_c(cfl->ac_buf_q3, dst, dst_stride, alpha_q3, xd->bd, width,
-                      height);
+    av2_cfl_predict_hbd_c(cfl->ac_buf_q3, dst, dst_stride, alpha_q3, xd->bd,
+                          width, height);
   } else
-    cfl_get_predict_hbd_fn(tx_size)(cfl->ac_buf_q3, dst, dst_stride, alpha_q3,
-                                    xd->bd);
+    av2_cfl_get_predict_hbd_fn(tx_size)(cfl->ac_buf_q3, dst, dst_stride,
+                                        alpha_q3, xd->bd);
 }
 
 static void cfl_luma_subsampling_420_hbd_c(const uint16_t *input,
@@ -745,15 +747,16 @@ CFL_GET_SUBSAMPLE_121_FUNCTION(c)
 
 CFL_GET_SUBSAMPLE_COLOCATED_FUNCTION(c)
 
-static INLINE cfl_subsample_hbd_fn cfl_subsampling_hbd(TX_SIZE tx_size,
-                                                       int sub_x, int sub_y) {
+static INLINE av2_cfl_subsample_hbd_fn cfl_subsampling_hbd(TX_SIZE tx_size,
+                                                           int sub_x,
+                                                           int sub_y) {
   if (sub_x == 1) {
     if (sub_y == 1) {
-      return cfl_get_luma_subsampling_420_hbd(tx_size);
+      return av2_cfl_get_luma_subsampling_420_hbd(tx_size);
     }
-    return cfl_get_luma_subsampling_422_hbd(tx_size);
+    return av2_cfl_get_luma_subsampling_422_hbd(tx_size);
   }
-  return cfl_get_luma_subsampling_444_hbd(tx_size);
+  return av2_cfl_get_luma_subsampling_444_hbd(tx_size);
 }
 
 void cfl_store(MACROBLOCKD *const xd, CFL_CTX *cfl, const uint16_t *input,
@@ -814,8 +817,8 @@ void cfl_store(MACROBLOCKD *const xd, CFL_CTX *cfl, const uint16_t *input,
         cfl_luma_subsampling_420_hbd_121_c(input, input_stride, recon_buf_q3,
                                            width, height);
       } else {
-        cfl_get_luma_subsampling_420_hbd_121(tx_size)(input, input_stride,
-                                                      recon_buf_q3);
+        av2_cfl_get_luma_subsampling_420_hbd_121(tx_size)(input, input_stride,
+                                                          recon_buf_q3);
       }
     } else {
       if (AVMMAX(width, height) > 64) {
@@ -832,8 +835,8 @@ void cfl_store(MACROBLOCKD *const xd, CFL_CTX *cfl, const uint16_t *input,
         cfl_luma_subsampling_420_hbd_colocated_c(input, input_stride,
                                                  recon_buf_q3, width, height);
       } else {
-        cfl_get_luma_subsampling_420_hbd_colocated(tx_size)(input, input_stride,
-                                                            recon_buf_q3);
+        av2_cfl_get_luma_subsampling_420_hbd_colocated(tx_size)(
+            input, input_stride, recon_buf_q3);
       }
     } else {
       if (AVMMAX(width, height) > 64) {
@@ -855,8 +858,8 @@ void cfl_store(MACROBLOCKD *const xd, CFL_CTX *cfl, const uint16_t *input,
   }
 }
 
-void cfl_store_block(MACROBLOCKD *const xd, BLOCK_SIZE bsize, TX_SIZE tx_size,
-                     int filter_type) {
+void av2_cfl_store_block(MACROBLOCKD *const xd, BLOCK_SIZE bsize,
+                         TX_SIZE tx_size, int filter_type) {
   CFL_CTX *const cfl = &xd->cfl;
   struct macroblockd_plane *const pd = &xd->plane[AVM_PLANE_Y];
   // Always store full block, even if partially outside frame boundary.

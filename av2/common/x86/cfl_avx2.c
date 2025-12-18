@@ -17,47 +17,47 @@
 
 #include "av2/common/x86/cfl_simd.h"
 
-#define CFL_GET_SUBSAMPLE_FUNCTION_AVX2(sub, bd)                        \
-  CFL_SUBSAMPLE(avx2, sub, bd, 32, 32)                                  \
-  CFL_SUBSAMPLE(avx2, sub, bd, 32, 16)                                  \
-  CFL_SUBSAMPLE(avx2, sub, bd, 32, 8)                                   \
-  CFL_SUBSAMPLE(avx2, sub, bd, 32, 4)                                   \
-  CFL_SUBSAMPLE(avx2, sub, bd, 64, 64)                                  \
-  CFL_SUBSAMPLE(avx2, sub, bd, 64, 32)                                  \
-  CFL_SUBSAMPLE(avx2, sub, bd, 32, 64)                                  \
-  CFL_SUBSAMPLE(avx2, sub, bd, 64, 4)                                   \
-  CFL_SUBSAMPLE(avx2, sub, bd, 64, 8)                                   \
-  CFL_SUBSAMPLE(avx2, sub, bd, 64, 16)                                  \
-  cfl_subsample_##bd##_fn cfl_get_luma_subsampling_##sub##_##bd##_avx2( \
-      TX_SIZE tx_size) {                                                \
-    static const cfl_subsample_##bd##_fn subfn_##sub[TX_SIZES_ALL] = {  \
-      cfl_subsample_##bd##_##sub##_4x4_ssse3,   /* 4x4 */               \
-      cfl_subsample_##bd##_##sub##_8x8_ssse3,   /* 8x8 */               \
-      cfl_subsample_##bd##_##sub##_16x16_ssse3, /* 16x16 */             \
-      cfl_subsample_##bd##_##sub##_32x32_avx2,  /* 32x32 */             \
-      cfl_subsample_##bd##_##sub##_64x64_avx2,  /* 64x64 */             \
-      cfl_subsample_##bd##_##sub##_4x8_ssse3,   /* 4x8 */               \
-      cfl_subsample_##bd##_##sub##_8x4_ssse3,   /* 8x4 */               \
-      cfl_subsample_##bd##_##sub##_8x16_ssse3,  /* 8x16 */              \
-      cfl_subsample_##bd##_##sub##_16x8_ssse3,  /* 16x8 */              \
-      cfl_subsample_##bd##_##sub##_16x32_ssse3, /* 16x32 */             \
-      cfl_subsample_##bd##_##sub##_32x16_avx2,  /* 32x16 */             \
-      cfl_subsample_##bd##_##sub##_32x64_avx2,  /* 32x64 */             \
-      cfl_subsample_##bd##_##sub##_64x32_avx2,  /* 64x32 */             \
-      cfl_subsample_##bd##_##sub##_4x16_ssse3,  /* 4x16  */             \
-      cfl_subsample_##bd##_##sub##_16x4_ssse3,  /* 16x4  */             \
-      cfl_subsample_##bd##_##sub##_8x32_ssse3,  /* 8x32  */             \
-      cfl_subsample_##bd##_##sub##_32x8_avx2,   /* 32x8  */             \
-      cfl_subsample_##bd##_##sub##_16x64_ssse3, /* 16x64 */             \
-      cfl_subsample_##bd##_##sub##_64x16_avx2,  /* 64x16 */             \
-      cfl_subsample_##bd##_##sub##_4x32_ssse3,  /* 4x32  */             \
-      cfl_subsample_##bd##_##sub##_32x4_avx2,   /* 32x4  */             \
-      cfl_subsample_##bd##_##sub##_8x64_ssse3,  /* 8x64 */              \
-      cfl_subsample_##bd##_##sub##_64x8_avx2,   /* 64x8 */              \
-      cfl_subsample_##bd##_##sub##_4x64_ssse3,  /* 4x64 */              \
-      cfl_subsample_##bd##_##sub##_64x4_avx2,   /* 64x4 */              \
-    };                                                                  \
-    return subfn_##sub[tx_size];                                        \
+#define CFL_GET_SUBSAMPLE_FUNCTION_AVX2(sub, bd)                           \
+  CFL_SUBSAMPLE(avx2, sub, bd, 32, 32)                                     \
+  CFL_SUBSAMPLE(avx2, sub, bd, 32, 16)                                     \
+  CFL_SUBSAMPLE(avx2, sub, bd, 32, 8)                                      \
+  CFL_SUBSAMPLE(avx2, sub, bd, 32, 4)                                      \
+  CFL_SUBSAMPLE(avx2, sub, bd, 64, 64)                                     \
+  CFL_SUBSAMPLE(avx2, sub, bd, 64, 32)                                     \
+  CFL_SUBSAMPLE(avx2, sub, bd, 32, 64)                                     \
+  CFL_SUBSAMPLE(avx2, sub, bd, 64, 4)                                      \
+  CFL_SUBSAMPLE(avx2, sub, bd, 64, 8)                                      \
+  CFL_SUBSAMPLE(avx2, sub, bd, 64, 16)                                     \
+  av2_cfl_subsample_##bd##_fn                                              \
+      av2_cfl_get_luma_subsampling_##sub##_##bd##_avx2(TX_SIZE tx_size) {  \
+    static const av2_cfl_subsample_##bd##_fn subfn_##sub[TX_SIZES_ALL] = { \
+      av2_cfl_subsample_##bd##_##sub##_4x4_ssse3,   /* 4x4 */              \
+      av2_cfl_subsample_##bd##_##sub##_8x8_ssse3,   /* 8x8 */              \
+      av2_cfl_subsample_##bd##_##sub##_16x16_ssse3, /* 16x16 */            \
+      av2_cfl_subsample_##bd##_##sub##_32x32_avx2,  /* 32x32 */            \
+      av2_cfl_subsample_##bd##_##sub##_64x64_avx2,  /* 64x64 */            \
+      av2_cfl_subsample_##bd##_##sub##_4x8_ssse3,   /* 4x8 */              \
+      av2_cfl_subsample_##bd##_##sub##_8x4_ssse3,   /* 8x4 */              \
+      av2_cfl_subsample_##bd##_##sub##_8x16_ssse3,  /* 8x16 */             \
+      av2_cfl_subsample_##bd##_##sub##_16x8_ssse3,  /* 16x8 */             \
+      av2_cfl_subsample_##bd##_##sub##_16x32_ssse3, /* 16x32 */            \
+      av2_cfl_subsample_##bd##_##sub##_32x16_avx2,  /* 32x16 */            \
+      av2_cfl_subsample_##bd##_##sub##_32x64_avx2,  /* 32x64 */            \
+      av2_cfl_subsample_##bd##_##sub##_64x32_avx2,  /* 64x32 */            \
+      av2_cfl_subsample_##bd##_##sub##_4x16_ssse3,  /* 4x16  */            \
+      av2_cfl_subsample_##bd##_##sub##_16x4_ssse3,  /* 16x4  */            \
+      av2_cfl_subsample_##bd##_##sub##_8x32_ssse3,  /* 8x32  */            \
+      av2_cfl_subsample_##bd##_##sub##_32x8_avx2,   /* 32x8  */            \
+      av2_cfl_subsample_##bd##_##sub##_16x64_ssse3, /* 16x64 */            \
+      av2_cfl_subsample_##bd##_##sub##_64x16_avx2,  /* 64x16 */            \
+      av2_cfl_subsample_##bd##_##sub##_4x32_ssse3,  /* 4x32  */            \
+      av2_cfl_subsample_##bd##_##sub##_32x4_avx2,   /* 32x4  */            \
+      av2_cfl_subsample_##bd##_##sub##_8x64_ssse3,  /* 8x64 */             \
+      av2_cfl_subsample_##bd##_##sub##_64x8_avx2,   /* 64x8 */             \
+      av2_cfl_subsample_##bd##_##sub##_4x64_ssse3,  /* 4x64 */             \
+      av2_cfl_subsample_##bd##_##sub##_64x4_avx2,   /* 64x4 */             \
+    };                                                                     \
+    return subfn_##sub[tx_size];                                           \
   }
 
 #define ACCUMULATE_SUMS_64(a0, a1, a2, y)                                      \
@@ -1228,10 +1228,10 @@ static __m256i highbd_clamp_epi16(__m256i u, __m256i zero, __m256i max) {
   return _mm256_max_epi16(_mm256_min_epi16(u, max), zero);
 }
 
-static INLINE void cfl_predict_hbd_avx2(const int16_t *pred_buf_q3,
-                                        uint16_t *dst, int dst_stride,
-                                        int alpha_q3, int bd, int width,
-                                        int height) {
+static INLINE void av2_cfl_predict_hbd_avx2(const int16_t *pred_buf_q3,
+                                            uint16_t *dst, int dst_stride,
+                                            int alpha_q3, int bd, int width,
+                                            int height) {
   // Use SSSE3 version for smaller widths
   assert(width == 16 || width == 32);
   const __m256i alpha_sign = _mm256_set1_epi16(alpha_q3);
@@ -1266,33 +1266,33 @@ CFL_PREDICT_X(avx2, 32, 16, hbd)
 CFL_PREDICT_X(avx2, 32, 32, hbd)
 CFL_PREDICT_X(avx2, 32, 4, hbd)
 
-cfl_predict_hbd_fn cfl_get_predict_hbd_fn_avx2(TX_SIZE tx_size) {
-  static const cfl_predict_hbd_fn pred[TX_SIZES_ALL] = {
-    cfl_predict_hbd_4x4_ssse3,  /* 4x4 */
-    cfl_predict_hbd_8x8_ssse3,  /* 8x8 */
-    cfl_predict_hbd_16x16_avx2, /* 16x16 */
-    cfl_predict_hbd_32x32_avx2, /* 32x32 */
-    NULL,                       /* 64x64 (invalid CFL size) */
-    cfl_predict_hbd_4x8_ssse3,  /* 4x8 */
-    cfl_predict_hbd_8x4_ssse3,  /* 8x4 */
-    cfl_predict_hbd_8x16_ssse3, /* 8x16 */
-    cfl_predict_hbd_16x8_avx2,  /* 16x8 */
-    cfl_predict_hbd_16x32_avx2, /* 16x32 */
-    cfl_predict_hbd_32x16_avx2, /* 32x16 */
-    NULL,                       /* 32x64 (invalid CFL size) */
-    NULL,                       /* 64x32 (invalid CFL size) */
-    cfl_predict_hbd_4x16_ssse3, /* 4x16  */
-    cfl_predict_hbd_16x4_avx2,  /* 16x4  */
-    cfl_predict_hbd_8x32_ssse3, /* 8x32  */
-    cfl_predict_hbd_32x8_avx2,  /* 32x8  */
-    NULL,                       /* 16x64 (invalid CFL size) */
-    NULL,                       /* 64x16 (invalid CFL size) */
-    cfl_predict_hbd_4x32_ssse3, /* 4x32  */
-    cfl_predict_hbd_32x4_avx2,  /* 32x4  */
-    NULL,                       /* 8x64 (invalid CFL size) */
-    NULL,                       /* 64x8 (invalid CFL size) */
-    NULL,                       /* 4x64 (invalid CFL size) */
-    NULL,                       /* 64x4 (invalid CFL size) */
+av2_cfl_predict_hbd_fn av2_cfl_get_predict_hbd_fn_avx2(TX_SIZE tx_size) {
+  static const av2_cfl_predict_hbd_fn pred[TX_SIZES_ALL] = {
+    av2_cfl_predict_hbd_4x4_ssse3,  /* 4x4 */
+    av2_cfl_predict_hbd_8x8_ssse3,  /* 8x8 */
+    av2_cfl_predict_hbd_16x16_avx2, /* 16x16 */
+    av2_cfl_predict_hbd_32x32_avx2, /* 32x32 */
+    NULL,                           /* 64x64 (invalid CFL size) */
+    av2_cfl_predict_hbd_4x8_ssse3,  /* 4x8 */
+    av2_cfl_predict_hbd_8x4_ssse3,  /* 8x4 */
+    av2_cfl_predict_hbd_8x16_ssse3, /* 8x16 */
+    av2_cfl_predict_hbd_16x8_avx2,  /* 16x8 */
+    av2_cfl_predict_hbd_16x32_avx2, /* 16x32 */
+    av2_cfl_predict_hbd_32x16_avx2, /* 32x16 */
+    NULL,                           /* 32x64 (invalid CFL size) */
+    NULL,                           /* 64x32 (invalid CFL size) */
+    av2_cfl_predict_hbd_4x16_ssse3, /* 4x16  */
+    av2_cfl_predict_hbd_16x4_avx2,  /* 16x4  */
+    av2_cfl_predict_hbd_8x32_ssse3, /* 8x32  */
+    av2_cfl_predict_hbd_32x8_avx2,  /* 32x8  */
+    NULL,                           /* 16x64 (invalid CFL size) */
+    NULL,                           /* 64x16 (invalid CFL size) */
+    av2_cfl_predict_hbd_4x32_ssse3, /* 4x32  */
+    av2_cfl_predict_hbd_32x4_avx2,  /* 32x4  */
+    NULL,                           /* 8x64 (invalid CFL size) */
+    NULL,                           /* 64x8 (invalid CFL size) */
+    NULL,                           /* 4x64 (invalid CFL size) */
+    NULL,                           /* 64x4 (invalid CFL size) */
   };
   // Modulo TX_SIZES_ALL to ensure that an attacker won't be able to index the
   // function pointer array out of bounds.
@@ -1390,33 +1390,34 @@ CFL_SUB_AVG_X(avx2, 32, 4, 64, 7)
 
 // Based on the observation that for small blocks AVX2 does not outperform
 // SSE2, we call the SSE2 code for block widths 4 and 8.
-cfl_subtract_average_fn cfl_get_subtract_average_fn_avx2(TX_SIZE tx_size) {
-  static const cfl_subtract_average_fn sub_avg[TX_SIZES_ALL] = {
-    cfl_subtract_average_4x4_sse2,   /* 4x4 */
-    cfl_subtract_average_8x8_sse2,   /* 8x8 */
-    cfl_subtract_average_16x16_avx2, /* 16x16 */
-    cfl_subtract_average_32x32_avx2, /* 32x32 */
-    NULL,                            /* 64x64 (invalid CFL size) */
-    cfl_subtract_average_4x8_sse2,   /* 4x8 */
-    cfl_subtract_average_8x4_sse2,   /* 8x4 */
-    cfl_subtract_average_8x16_sse2,  /* 8x16 */
-    cfl_subtract_average_16x8_avx2,  /* 16x8 */
-    cfl_subtract_average_16x32_avx2, /* 16x32 */
-    cfl_subtract_average_32x16_avx2, /* 32x16 */
-    NULL,                            /* 32x64 (invalid CFL size) */
-    NULL,                            /* 64x32 (invalid CFL size) */
-    cfl_subtract_average_4x16_sse2,  /* 4x16 */
-    cfl_subtract_average_16x4_avx2,  /* 16x4 */
-    cfl_subtract_average_8x32_sse2,  /* 8x32 */
-    cfl_subtract_average_32x8_avx2,  /* 32x8 */
-    NULL,                            /* 16x64 (invalid CFL size) */
-    NULL,                            /* 64x16 (invalid CFL size) */
-    cfl_subtract_average_4x32_sse2,  /* 4x32  */
-    cfl_subtract_average_32x4_avx2,  /* 32x4  */
-    NULL,                            /* 8x64 (invalid CFL size) */
-    NULL,                            /* 64x8 (invalid CFL size) */
-    NULL,                            /* 4x64 (invalid CFL size) */
-    NULL,                            /* 64x4 (invalid CFL size) */
+av2_cfl_subtract_average_fn av2_cfl_get_subtract_average_fn_avx2(
+    TX_SIZE tx_size) {
+  static const av2_cfl_subtract_average_fn sub_avg[TX_SIZES_ALL] = {
+    av2_cfl_subtract_average_4x4_sse2,   /* 4x4 */
+    av2_cfl_subtract_average_8x8_sse2,   /* 8x8 */
+    av2_cfl_subtract_average_16x16_avx2, /* 16x16 */
+    av2_cfl_subtract_average_32x32_avx2, /* 32x32 */
+    NULL,                                /* 64x64 (invalid CFL size) */
+    av2_cfl_subtract_average_4x8_sse2,   /* 4x8 */
+    av2_cfl_subtract_average_8x4_sse2,   /* 8x4 */
+    av2_cfl_subtract_average_8x16_sse2,  /* 8x16 */
+    av2_cfl_subtract_average_16x8_avx2,  /* 16x8 */
+    av2_cfl_subtract_average_16x32_avx2, /* 16x32 */
+    av2_cfl_subtract_average_32x16_avx2, /* 32x16 */
+    NULL,                                /* 32x64 (invalid CFL size) */
+    NULL,                                /* 64x32 (invalid CFL size) */
+    av2_cfl_subtract_average_4x16_sse2,  /* 4x16 */
+    av2_cfl_subtract_average_16x4_avx2,  /* 16x4 */
+    av2_cfl_subtract_average_8x32_sse2,  /* 8x32 */
+    av2_cfl_subtract_average_32x8_avx2,  /* 32x8 */
+    NULL,                                /* 16x64 (invalid CFL size) */
+    NULL,                                /* 64x16 (invalid CFL size) */
+    av2_cfl_subtract_average_4x32_sse2,  /* 4x32  */
+    av2_cfl_subtract_average_32x4_avx2,  /* 32x4  */
+    NULL,                                /* 8x64 (invalid CFL size) */
+    NULL,                                /* 64x8 (invalid CFL size) */
+    NULL,                                /* 4x64 (invalid CFL size) */
+    NULL,                                /* 64x4 (invalid CFL size) */
   };
   // Modulo TX_SIZES_ALL to ensure that an attacker won't be able to
   // index the function pointer array out of bounds.

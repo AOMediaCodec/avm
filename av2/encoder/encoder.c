@@ -2140,10 +2140,10 @@ static int64_t compute_sad(const uint16_t *src, uint16_t *src2, int width,
   return sad;
 }
 
-static void cfl_predict_hbd_pre_analysis(const int16_t *ac_buf_q3,
-                                         uint16_t *dst, int dst_stride,
-                                         int alpha_q3, int bit_depth, int width,
-                                         int height) {
+static void av2_cfl_predict_hbd_pre_analysis(const int16_t *ac_buf_q3,
+                                             uint16_t *dst, int dst_stride,
+                                             int alpha_q3, int bit_depth,
+                                             int width, int height) {
   for (int j = 0; j < height; ++j) {
     for (int i = 0; i < width; ++i) {
       dst[i] = clip_pixel_highbd(
@@ -2154,8 +2154,8 @@ static void cfl_predict_hbd_pre_analysis(const int16_t *ac_buf_q3,
   }
 }
 
-static void cfl_predict_hbd_dc(const uint16_t *src, uint16_t *dst,
-                               int src_stride, int width, int height) {
+static void av2_cfl_predict_hbd_dc(const uint16_t *src, uint16_t *dst,
+                                   int src_stride, int width, int height) {
   int dc_val = 0;
   const uint16_t *chroma = src;
   for (int i = 0; i < width; ++i) {
@@ -2266,12 +2266,12 @@ void av2_set_downsample_filter_options(AV2_COMP *cpi) {
               recon_buf_q3, ac_buf_q3, blk_w >> subsampling_x,
               blk_h >> subsampling_y, 4,
               (blk_w >> subsampling_x) * (blk_h >> subsampling_y));
-          cfl_predict_hbd_dc(this_src_chroma - chroma_stride, dc_buf_q3,
-                             chroma_stride, blk_w >> subsampling_x,
-                             blk_h >> subsampling_y);
-          cfl_predict_hbd_pre_analysis(ac_buf_q3, dc_buf_q3, CFL_BUF_LINE,
-                                       alpha, bd, blk_w >> subsampling_x,
-                                       blk_h >> subsampling_y);
+          av2_cfl_predict_hbd_dc(this_src_chroma - chroma_stride, dc_buf_q3,
+                                 chroma_stride, blk_w >> subsampling_x,
+                                 blk_h >> subsampling_y);
+          av2_cfl_predict_hbd_pre_analysis(ac_buf_q3, dc_buf_q3, CFL_BUF_LINE,
+                                           alpha, bd, blk_w >> subsampling_x,
+                                           blk_h >> subsampling_y);
           int64_t filter_cost =
               compute_sad(dc_buf_q3, this_src_chroma, blk_w >> 1, blk_h >> 1, 2,
                           chroma_stride);

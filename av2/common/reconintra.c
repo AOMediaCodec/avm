@@ -1892,11 +1892,11 @@ void av2_predict_intra_block_facade(const AV2_COMMON *cm, MACROBLOCKD *xd,
                               angle_delta, use_palette, dst, dst_stride, dst,
                               dst_stride, blk_col, blk_row, plane);
       if (cfl->use_dc_pred_cache) {
-        cfl_store_dc_pred(xd, dst, pred_plane, tx_size_wide[tx_size]);
+        av2_cfl_store_dc_pred(xd, dst, pred_plane, tx_size_wide[tx_size]);
         cfl->dc_pred_is_cached[pred_plane] = 1;
       }
     } else {
-      cfl_load_dc_pred(xd, dst, dst_stride, tx_size, pred_plane);
+      av2_cfl_load_dc_pred(xd, dst, dst_stride, tx_size, pred_plane);
     }
     const int sub_x = cfl->subsampling_x;
     const int sub_y = cfl->subsampling_y;
@@ -1938,10 +1938,10 @@ void av2_predict_intra_block_facade(const AV2_COMMON *cm, MACROBLOCKD *xd,
                                         is_top_sb_boundary);
       }
     }
-    cfl_predict_block(cm->seq_params.enable_cfl_intra,
-                      cm->seq_params.enable_mhccp, xd, dst, dst_stride, tx_size,
-                      plane, above_lines > 0, left_lines > 0, above_lines,
-                      left_lines);
+    av2_cfl_predict_block(cm->seq_params.enable_cfl_intra,
+                          cm->seq_params.enable_mhccp, xd, dst, dst_stride,
+                          tx_size, plane, above_lines > 0, left_lines > 0,
+                          above_lines, left_lines);
 
     return;
   }

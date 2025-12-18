@@ -65,13 +65,13 @@ struct CNN_MULTI_OUT;
 typedef struct CNN_MULTI_OUT CNN_MULTI_OUT;
 
 /* Function pointers return by CfL functions */
-typedef void (*cfl_subsample_hbd_fn)(const uint16_t *input, int input_stride,
+typedef void (*av2_cfl_subsample_hbd_fn)(const uint16_t *input, int input_stride,
                                      uint16_t *output_q3);
 
-typedef void (*cfl_predict_hbd_fn)(const int16_t *src, uint16_t *dst,
+typedef void (*av2_cfl_predict_hbd_fn)(const int16_t *src, uint16_t *dst,
                                    int dst_stride, int alpha_q3, int bd);
 
-typedef void (*cfl_subtract_average_fn)(const uint16_t *src, int16_t *dst);
+typedef void (*av2_cfl_subtract_average_fn)(const uint16_t *src, int16_t *dst);
 
 EOF
 }
@@ -449,25 +449,25 @@ if ((avm_config("MHCCP_CONVOLVE_SIMPLIFY") eq "yes") && 0) {
 add_proto qw/void av2_mhccp_derive_multi_param_hv/, "MACROBLOCKD *const xd, int plane,int above_lines, int left_lines, int ref_width,int ref_height, int dir, int is_top_sb_boundary";
 specialize qw/av2_mhccp_derive_multi_param_hv avx2/;
 
-add_proto qw/cfl_subtract_average_fn cfl_get_subtract_average_fn/, "TX_SIZE tx_size";
-specialize qw/cfl_get_subtract_average_fn sse2 avx2 neon vsx/;
+add_proto qw/av2_cfl_subtract_average_fn av2_cfl_get_subtract_average_fn/, "TX_SIZE tx_size";
+specialize qw/av2_cfl_get_subtract_average_fn sse2 avx2 neon vsx/;
 
-add_proto qw/cfl_subsample_hbd_fn cfl_get_luma_subsampling_420_hbd/, "TX_SIZE tx_size";
-specialize qw/cfl_get_luma_subsampling_420_hbd ssse3 avx2 neon/;
+add_proto qw/av2_cfl_subsample_hbd_fn av2_cfl_get_luma_subsampling_420_hbd/, "TX_SIZE tx_size";
+specialize qw/av2_cfl_get_luma_subsampling_420_hbd ssse3 avx2 neon/;
 
-add_proto qw/cfl_subsample_hbd_fn cfl_get_luma_subsampling_420_hbd_121/, "TX_SIZE tx_size";
-specialize qw/cfl_get_luma_subsampling_420_hbd_121 avx2/;
+add_proto qw/av2_cfl_subsample_hbd_fn av2_cfl_get_luma_subsampling_420_hbd_121/, "TX_SIZE tx_size";
+specialize qw/av2_cfl_get_luma_subsampling_420_hbd_121 avx2/;
 
-add_proto qw/cfl_subsample_hbd_fn cfl_get_luma_subsampling_420_hbd_colocated/, "TX_SIZE tx_size";
-specialize qw/cfl_get_luma_subsampling_420_hbd_colocated avx2/;
+add_proto qw/av2_cfl_subsample_hbd_fn av2_cfl_get_luma_subsampling_420_hbd_colocated/, "TX_SIZE tx_size";
+specialize qw/av2_cfl_get_luma_subsampling_420_hbd_colocated avx2/;
 
-add_proto qw/cfl_subsample_hbd_fn cfl_get_luma_subsampling_422_hbd/, "TX_SIZE tx_size";
-specialize qw/cfl_get_luma_subsampling_422_hbd ssse3 avx2 neon/;
+add_proto qw/av2_cfl_subsample_hbd_fn av2_cfl_get_luma_subsampling_422_hbd/, "TX_SIZE tx_size";
+specialize qw/av2_cfl_get_luma_subsampling_422_hbd ssse3 avx2 neon/;
 
-add_proto qw/cfl_subsample_hbd_fn cfl_get_luma_subsampling_444_hbd/, "TX_SIZE tx_size";
-specialize qw/cfl_get_luma_subsampling_444_hbd ssse3 avx2 neon/;
+add_proto qw/av2_cfl_subsample_hbd_fn av2_cfl_get_luma_subsampling_444_hbd/, "TX_SIZE tx_size";
+specialize qw/av2_cfl_get_luma_subsampling_444_hbd ssse3 avx2 neon/;
 
-add_proto qw/cfl_predict_hbd_fn cfl_get_predict_hbd_fn/, "TX_SIZE tx_size";
-specialize qw/cfl_get_predict_hbd_fn avx2 neon/;
+add_proto qw/av2_cfl_predict_hbd_fn av2_cfl_get_predict_hbd_fn/, "TX_SIZE tx_size";
+specialize qw/av2_cfl_get_predict_hbd_fn avx2 neon/;
 
 1;

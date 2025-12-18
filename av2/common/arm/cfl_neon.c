@@ -397,10 +397,10 @@ static INLINE uint16x8x4_t clamp4q_s16(int16x8x4_t a, int16x8_t max) {
   return result;
 }
 
-static INLINE void cfl_predict_hbd_neon(const int16_t *pred_buf_q3,
-                                        uint16_t *dst, int dst_stride,
-                                        int alpha_q3, int bd, int width,
-                                        int height) {
+static INLINE void av2_cfl_predict_hbd_neon(const int16_t *pred_buf_q3,
+                                            uint16_t *dst, int dst_stride,
+                                            int alpha_q3, int bd, int width,
+                                            int height) {
   const int max = (1 << bd) - 1;
   const int16_t abs_alpha_q12 = abs(alpha_q3) << (9 - CFL_ADD_BITS_ALPHA);
   const int16_t *const end = pred_buf_q3 + height * CFL_BUF_LINE;
