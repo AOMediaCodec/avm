@@ -1029,8 +1029,6 @@ void get_division_scale_shift(uint32_t denom, int32_t *scale, int32_t *round,
                               int32_t *shift) {
   // This array stores the coefficients for the quadratic
   // (squared) term in the polynomial for each of the 8 regions.
-  // This array stores the coefficients for the quadratic
-  // (squared) term in the polynomial for each of the 8 regions.
   static const int pow2W[DIV_PREC_BITS_POW2] = { 214, 153, 113, 86,
                                                  67,  53,  43,  35 };
   // This array contains the offset values used to adjust
