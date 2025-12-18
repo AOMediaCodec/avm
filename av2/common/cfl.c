@@ -1029,7 +1029,6 @@ void get_division_scale_shift(uint32_t denom, int32_t *scale, int32_t *round,
                               int32_t *shift) {
   // This array stores the coefficients for the quadratic
   // (squared) term in the polynomial for each of the 8 regions.
-#if CONFIG_MHCCP_DIVISION_REVERT
   // This array stores the coefficients for the quadratic
   // (squared) term in the polynomial for each of the 8 regions.
   static const int pow2W[DIV_PREC_BITS_POW2] = { 214, 153, 113, 86,
@@ -1042,21 +1041,6 @@ void get_division_scale_shift(uint32_t denom, int32_t *scale, int32_t *round,
   // This array holds the constant bias term for each region's polynomial.
   static const int pow2B[DIV_PREC_BITS_POW2] = { 12784, 12054, 11670, 11583,
                                                  11764, 12195, 12870, 13782 };
-
-#else
-  static const int pow2W[DIV_PREC_BITS_POW2] = { 214, 153, 113, 86,
-                                                 67,  53,  43,  35 };
-  static const int pow2Q[DIV_PREC_BITS_POW2] = { 227, 181, 148, 124,
-                                                 104, 89,  77,  68 };
-  // This array contains the offset values used to adjust
-  //  the normalized denominator for each region.
-  static const int pow2O[DIV_PREC_BITS_POW2] = { 1024, 3072,  5120,  7168,
-                                                 9216, 11264, 13312, 15360 };
-
-  // This array holds the constant bias term for each region's polynomial.
-  static const int pow2B[DIV_PREC_BITS_POW2] = { 15420, 13797, 12483, 11397,
-                                                 10485, 9709,  9039,  8456 };
-#endif // CONFIG_MHCCP_DIVISION_REVERT
 
   *shift = floorLog2Uint64(denom);
   assert(*shift < 32);
@@ -1105,16 +1089,10 @@ void get_division_scale_shift(uint32_t denom, int32_t *scale, int32_t *round,
   int32_t index = normDiff >> DIV_INTR_BITS;
   int32_t normDiff2 = normDiff - pow2O[index];
 
-#if CONFIG_MHCCP_DIVISION_REVERT
   *scale = ((pow2W[index] * ((normDiff2 * normDiff2) >> DIV_PREC_BITS)) >>
             DIV_PREC_BITS_POW2) -
            (normDiff2 >> 1) + pow2B[index];
 
-#else
-  *scale = (((pow2W[index] * ((normDiff2 * normDiff2) >> DIV_PREC_BITS)) >>
-             DIV_PREC_BITS_POW2) -
-            ((pow2Q[index] * normDiff2) >> DIV_PREC_BITS_POW2) + pow2B[index]);
-#endif // CONFIG_MHCCP_DIVISION_REVERT
   *scale <<= MHCCP_DECIM_BITS - DIV_PREC_BITS;
 }
 
