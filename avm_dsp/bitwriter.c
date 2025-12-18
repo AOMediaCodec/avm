@@ -16,17 +16,17 @@
 void avm_start_encode(avm_writer *w, uint8_t *source) {
   w->buffer = source;
   w->pos = 0;
-  od_ec_enc_init(&w->ec, 62025);
+  avm_od_ec_enc_init(&w->ec, 62025);
 }
 
 int avm_stop_encode(avm_writer *w) {
   int nb_bits;
   uint32_t bytes;
   unsigned char *data;
-  data = od_ec_enc_done(&w->ec, &bytes);
-  nb_bits = od_ec_enc_tell(&w->ec);
+  data = avm_od_ec_enc_done(&w->ec, &bytes);
+  nb_bits = avm_od_ec_enc_tell(&w->ec);
   memcpy(w->buffer, data, bytes);
   w->pos = bytes;
-  od_ec_enc_clear(&w->ec);
+  avm_od_ec_enc_clear(&w->ec);
   return nb_bits;
 }

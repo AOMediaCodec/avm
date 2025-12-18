@@ -26,7 +26,7 @@
     month=Jun,
     year=2005
   }*/
-uint32_t OD_DIVU_SMALL_CONSTS[OD_DIVU_DMAX][2] = {
+uint32_t AVM_OD_DIVU_SMALL_CONSTS[OD_DIVU_DMAX][2] = {
   { 0xFFFFFFFF, 0xFFFFFFFF }, { 0xFFFFFFFF, 0xFFFFFFFF },
   { 0xAAAAAAAB, 0 },          { 0xFFFFFFFF, 0xFFFFFFFF },
   { 0xCCCCCCCD, 0 },          { 0xAAAAAAAB, 0 },

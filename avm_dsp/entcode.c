@@ -32,14 +32,14 @@ const uint16_t av2_prob_inc_tbl[15][16] = {
 
 /*Given the current total integer number of bits used and the current value of
    rng, computes the fraction number of bits used to OD_BITRES precision.
-  This is used by od_ec_enc_tell_frac() and od_ec_dec_tell_frac().
+  This is used by avm_od_ec_enc_tell_frac() and avm_od_ec_dec_tell_frac().
   nbits_total: The number of whole bits currently used, i.e., the value
-                returned by od_ec_enc_tell() or od_ec_dec_tell().
+                returned by avm_od_ec_enc_tell() or avm_od_ec_dec_tell().
   rng: The current value of rng from either the encoder or decoder state.
   Return: The number of bits scaled by 2**OD_BITRES.
           This will always be slightly larger than the exact value (e.g., all
            rounding error is in the positive direction).*/
-uint64_t od_ec_tell_frac(uint32_t nbits_total, uint32_t rng) {
+uint64_t avm_od_ec_tell_frac(uint32_t nbits_total, uint32_t rng) {
   uint64_t nbits;
   int64_t l;
   int i;
@@ -49,7 +49,7 @@ uint64_t od_ec_tell_frac(uint32_t nbits_total, uint32_t rng) {
      subsequent bits.
     The computation here is independent of val itself (the decoder does not
      even track that value), even though the real number of bits used after
-     od_ec_enc_done() may be 1 smaller if rng is a power of two and the
+     avm_od_ec_enc_done() may be 1 smaller if rng is a power of two and the
      corresponding trailing bits of val are all zeros.
     If we did try to track that special case, then coding a value with a
      probability of 1/(1 << n) might sometimes appear to use more than n bits.

@@ -31,12 +31,12 @@ typedef int od_coeff;
 
 #define OD_DIVU_DMAX (1024)
 
-extern uint32_t OD_DIVU_SMALL_CONSTS[OD_DIVU_DMAX][2];
+extern uint32_t AVM_OD_DIVU_SMALL_CONSTS[OD_DIVU_DMAX][2];
 
 /*Translate unsigned division by small divisors into multiplications.*/
 #define OD_DIVU_SMALL(_x, _d)                                     \
-  ((uint32_t)((OD_DIVU_SMALL_CONSTS[(_d)-1][0] * (uint64_t)(_x) + \
-               OD_DIVU_SMALL_CONSTS[(_d)-1][1]) >>                \
+  ((uint32_t)((AVM_OD_DIVU_SMALL_CONSTS[(_d)-1][0] * (uint64_t)(_x) + \
+               AVM_OD_DIVU_SMALL_CONSTS[(_d)-1][1]) >>                \
               32) >>                                              \
    (OD_ILOG_NZ(_d) - 1))
 

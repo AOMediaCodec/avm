@@ -146,7 +146,7 @@ static INLINE void avm_update_symb_counts(const avm_reader *r, int is_binary,
 
 static INLINE int avm_read_(avm_reader *r, int prob ACCT_INFO_PARAM) {
   int p = (0x7FFFFF - (prob << 15) + prob) >> 8;
-  int bit = od_ec_decode_bool_q15(&r->ec, p);
+  int bit = avm_od_ec_decode_bool_q15(&r->ec, p);
 
 #if CONFIG_BITSTREAM_DEBUG
   {
@@ -311,7 +311,7 @@ static INLINE int avm_read_cdf_(avm_reader *r, const avm_cdf_prob *cdf,
                                 int nsymbs ACCT_INFO_PARAM) {
   int symb;
   assert(cdf != NULL);
-  symb = od_ec_decode_cdf_q15(&r->ec, cdf, nsymbs);
+  symb = avm_od_ec_decode_cdf_q15(&r->ec, cdf, nsymbs);
 
 #if CONFIG_BITSTREAM_DEBUG
   {
@@ -377,7 +377,7 @@ static INLINE int avm_read_cdf_probdata(avm_reader *r, const avm_cdf_prob *cdf,
                                         int nsymbs) {
   int symb;
   assert(cdf != NULL);
-  symb = od_ec_decode_cdf_q15(&r->ec, cdf, nsymbs);
+  symb = avm_od_ec_decode_cdf_q15(&r->ec, cdf, nsymbs);
   return symb;
 }
 

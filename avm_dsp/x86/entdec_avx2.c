@@ -25,7 +25,8 @@
   nsyms: The number of symbols in the alphabet.
          This should be at most 16.
   Return: The decoded symbol s.*/
-int od_ec_decode_cdf_q15_avx2(od_ec_dec *dec, const uint16_t *icdf, int nsyms) {
+int avm_od_ec_decode_cdf_q15_avx2(od_ec_dec *dec, const uint16_t *icdf,
+                                  int nsyms) {
   uint16_t scaled_cdf[16];
 
   __m256i cdf = _mm256_lddqu_si256((__m256i *)icdf);

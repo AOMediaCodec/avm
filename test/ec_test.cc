@@ -39,7 +39,7 @@ TEST(EC_TEST, random_ec_test_Large) {
     seed = 0xdaa1a;
   }
   srand(seed);
-  od_ec_enc_init(&enc, 1);
+  avm_od_ec_enc_init(&enc, 1);
   /*Test compatibility between multiple different encode/decode routines.*/
   for (i = 0; i < 409600; i++) {
     unsigned *fz;
@@ -56,8 +56,8 @@ TEST(EC_TEST, random_ec_test_Large) {
     mode = (unsigned *)malloc(sz * sizeof(*mode));
     tell = (unsigned long *)malloc((sz + 1) * sizeof(*tell));
     enc_method = (unsigned *)malloc(sz * sizeof(*enc_method));
-    od_ec_enc_reset(&enc);
-    tell[0] = od_ec_enc_tell_frac(&enc);
+    avm_od_ec_enc_reset(&enc);
+    tell[0] = avm_od_ec_enc_tell_frac(&enc);
     for (j = 0; j < sz; j++) {
       data[j] = rand();
       mode[j] = rand();
@@ -98,25 +98,26 @@ TEST(EC_TEST, random_ec_test_Large) {
           uint16_t cdf[16] = {};
           cdf[0] = OD_ICDF(fz[j]);
           cdf[1] = OD_ICDF(1U << fts[j]);
-          od_ec_encode_cdf_q15(&enc, data[j], cdf, 2);
+          avm_od_ec_encode_cdf_q15(&enc, data[j], cdf, 2);
           break;
         }
       }
 
-      tell[j + 1] = od_ec_enc_tell_frac(&enc);
+      tell[j + 1] = avm_od_ec_enc_tell_frac(&enc);
     }
-    ptr = od_ec_enc_done(&enc, &ptr_sz);
-    EXPECT_GE(((od_ec_enc_tell(&enc) + 7U) >> 3), ptr_sz)
-        << "od_ec_enc_tell() lied: "
+    ptr = avm_od_ec_enc_done(&enc, &ptr_sz);
+    EXPECT_GE(((avm_od_ec_enc_tell(&enc) + 7U) >> 3), ptr_sz)
+        << "avm_od_ec_enc_tell() lied: "
            "there's "
-        << ptr_sz << " bytes instead of " << ((od_ec_enc_tell(&enc) + 7) >> 3)
-        << " (Random seed: " << seed << ")\n";
-    od_ec_dec_init(&dec, ptr, ptr_sz);
-    EXPECT_EQ(od_ec_dec_tell_frac(&dec), tell[0])
-        << "od_ec_dec_tell() mismatch between encoder and decoder "
+        << ptr_sz << " bytes instead of "
+        << ((avm_od_ec_enc_tell(&enc) + 7) >> 3) << " (Random seed: " << seed
+        << ")\n";
+    avm_od_ec_dec_init(&dec, ptr, ptr_sz);
+    EXPECT_EQ(avm_od_ec_dec_tell_frac(&dec), tell[0])
+        << "avm_od_ec_dec_tell() mismatch between encoder and decoder "
            "at symbol 0: "
-        << (unsigned long)od_ec_dec_tell_frac(&dec) << " instead of " << tell[0]
-        << " (Random seed: " << seed << ").\n";
+        << (unsigned long)avm_od_ec_dec_tell_frac(&dec) << " instead of "
+        << tell[0] << " (Random seed: " << seed << ").\n";
     for (j = 0; j < sz; j++) {
       int dec_method;
       unsigned int sym = data[j] + 1;  // Initialize sym to an invalid value.
@@ -148,7 +149,7 @@ TEST(EC_TEST, random_ec_test_Large) {
           uint16_t cdf[16] = {};
           cdf[0] = OD_ICDF(fz[j]);
           cdf[1] = OD_ICDF(1U << fts[j]);
-          sym = od_ec_decode_cdf_q15(&dec, cdf, 2);
+          sym = avm_od_ec_decode_cdf_q15(&dec, cdf, 2);
           break;
         }
       }
@@ -159,10 +160,10 @@ TEST(EC_TEST, random_ec_test_Large) {
           << j << " of " << sz << " (Random seed: " << seed << ").\n"
           << "Encoding method: " << enc_method[j]
           << " decoding method: " << dec_method << "\n";
-      EXPECT_EQ(od_ec_dec_tell_frac(&dec), tell[j + 1])
-          << "od_ec_dec_tell() mismatch between encoder and "
+      EXPECT_EQ(avm_od_ec_dec_tell_frac(&dec), tell[j + 1])
+          << "avm_od_ec_dec_tell() mismatch between encoder and "
              "decoder at symbol "
-          << j + 1 << ": " << (unsigned long)od_ec_dec_tell_frac(&dec)
+          << j + 1 << ": " << (unsigned long)avm_od_ec_dec_tell_frac(&dec)
           << " instead of " << tell[j + 1] << " (Random seed: " << seed
           << ").\n";
     }
@@ -173,31 +174,31 @@ TEST(EC_TEST, random_ec_test_Large) {
     free(fts);
     free(fz);
   }
-  od_ec_enc_reset(&enc);
+  avm_od_ec_enc_reset(&enc);
   if (CDF_SHIFT == 0) {
     od_ec_encode_literal_bypass(&enc, 0, 1);
     od_ec_encode_literal_bypass(&enc, 0, 1);
     od_ec_encode_literal_bypass(&enc, 0, 1);
     od_ec_encode_literal_bypass(&enc, 0, 1);
-    od_ec_encode_bool_q15(&enc, 0, OD_ICDF(24576));
+    avm_od_ec_encode_bool_q15(&enc, 0, OD_ICDF(24576));
     od_ec_enc_patch_initial_bits(&enc, 3, 2);
     EXPECT_FALSE(enc.error) << "od_ec_enc_patch_initial_bits() failed.\n";
     od_ec_enc_patch_initial_bits(&enc, 0, 5);
     EXPECT_TRUE(enc.error)
         << "od_ec_enc_patch_initial_bits() didn't fail when it should have.\n";
-    od_ec_enc_reset(&enc);
+    avm_od_ec_enc_reset(&enc);
     od_ec_encode_literal_bypass(&enc, 0, 1);
     od_ec_encode_literal_bypass(&enc, 0, 1);
-    od_ec_encode_bool_q15(&enc, 1, OD_ICDF(32256));
-    od_ec_encode_bool_q15(&enc, 0, OD_ICDF(24576));
+    avm_od_ec_encode_bool_q15(&enc, 1, OD_ICDF(32256));
+    avm_od_ec_encode_bool_q15(&enc, 0, OD_ICDF(24576));
     od_ec_enc_patch_initial_bits(&enc, 0, 2);
     EXPECT_FALSE(enc.error) << "od_ec_enc_patch_initial_bits() failed.\n";
-    ptr = od_ec_enc_done(&enc, &ptr_sz);
+    ptr = avm_od_ec_enc_done(&enc, &ptr_sz);
     EXPECT_EQ(ptr_sz, 2u);
     EXPECT_EQ(ptr[0], 63)
         << "Got " << ptr[0]
         << " when expecting 63 for od_ec_enc_patch_initial_bits().\n";
   }
-  od_ec_enc_clear(&enc);
+  avm_od_ec_enc_clear(&enc);
   EXPECT_EQ(ret, 0);
 }

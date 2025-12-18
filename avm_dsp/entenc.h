@@ -26,8 +26,9 @@ typedef struct od_ec_enc od_ec_enc;
 /*The entropy encoder context.*/
 struct od_ec_enc {
   /*Buffered output.
-    This contains only the raw bits until the final call to od_ec_enc_done(),
-     where all the arithmetic-coded data gets prepended to it.*/
+    This contains only the raw bits until the final call to
+    avm_od_ec_enc_done(), where all the arithmetic-coded data gets prepended to
+    it.*/
   unsigned char *buf;
   /*The size of the buffer.*/
   uint32_t storage;
@@ -53,30 +54,30 @@ struct od_ec_enc {
 
 /*See entenc.c for further documentation.*/
 
-void od_ec_enc_init(od_ec_enc *enc, uint32_t size) OD_ARG_NONNULL(1);
-void od_ec_enc_reset(od_ec_enc *enc) OD_ARG_NONNULL(1);
-void od_ec_enc_clear(od_ec_enc *enc) OD_ARG_NONNULL(1);
+void avm_od_ec_enc_init(od_ec_enc *enc, uint32_t size) OD_ARG_NONNULL(1);
+void avm_od_ec_enc_reset(od_ec_enc *enc) OD_ARG_NONNULL(1);
+void avm_od_ec_enc_clear(od_ec_enc *enc) OD_ARG_NONNULL(1);
 
 void od_ec_encode_bool_bypass(od_ec_enc *enc, int val) OD_ARG_NONNULL(1);
 void od_ec_encode_literal_bypass(od_ec_enc *enc, int val, int n_bits)
     OD_ARG_NONNULL(1);
-void od_ec_encode_bool_q15(od_ec_enc *enc, int val, unsigned f_q15)
+void avm_od_ec_encode_bool_q15(od_ec_enc *enc, int val, unsigned f_q15)
     OD_ARG_NONNULL(1);
-void od_ec_encode_cdf_q15(od_ec_enc *enc, int s, const uint16_t *cdf, int nsyms)
-    OD_ARG_NONNULL(1) OD_ARG_NONNULL(3);
+void avm_od_ec_encode_cdf_q15(od_ec_enc *enc, int s, const uint16_t *cdf,
+                              int nsyms) OD_ARG_NONNULL(1) OD_ARG_NONNULL(3);
 
 void od_ec_enc_bits(od_ec_enc *enc, uint32_t fl, unsigned ftb)
     OD_ARG_NONNULL(1);
 
 void od_ec_enc_patch_initial_bits(od_ec_enc *enc, unsigned val, int nbits)
     OD_ARG_NONNULL(1);
-OD_WARN_UNUSED_RESULT unsigned char *od_ec_enc_done(od_ec_enc *enc,
-                                                    uint32_t *nbytes)
+OD_WARN_UNUSED_RESULT unsigned char *avm_od_ec_enc_done(od_ec_enc *enc,
+                                                        uint32_t *nbytes)
     OD_ARG_NONNULL(1) OD_ARG_NONNULL(2);
 
-OD_WARN_UNUSED_RESULT int od_ec_enc_tell(const od_ec_enc *enc)
+OD_WARN_UNUSED_RESULT int avm_od_ec_enc_tell(const od_ec_enc *enc)
     OD_ARG_NONNULL(1);
-OD_WARN_UNUSED_RESULT uint64_t od_ec_enc_tell_frac(const od_ec_enc *enc)
+OD_WARN_UNUSED_RESULT uint64_t avm_od_ec_enc_tell_frac(const od_ec_enc *enc)
     OD_ARG_NONNULL(1);
 
 void od_ec_enc_checkpoint(od_ec_enc *dst, const od_ec_enc *src);

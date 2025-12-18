@@ -38,8 +38,8 @@ extern const uint16_t av2_prob_inc_tbl[15][16];
 
 /*See entcode.c for further documentation.*/
 
-OD_WARN_UNUSED_RESULT uint64_t od_ec_tell_frac(uint32_t nbits_total,
-                                               uint32_t rng);
+OD_WARN_UNUSED_RESULT uint64_t avm_od_ec_tell_frac(uint32_t nbits_total,
+                                                   uint32_t rng);
 
 #ifdef __cplusplus
 }  // extern "C"

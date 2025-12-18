@@ -184,9 +184,9 @@ specialize qw/avm_highbd_lpf_vertical_generic sse4_1/;
 #
 # Entropy
 #
-add_proto qw/int od_ec_decode_cdf_q15/, "od_ec_dec *dec, const uint16_t *icdf, int nsyms";
+add_proto qw/int avm_od_ec_decode_cdf_q15/, "od_ec_dec *dec, const uint16_t *icdf, int nsyms";
 if (avm_config("CONFIG_AV2_DECODER") eq "yes") {
-  specialize qw/od_ec_decode_cdf_q15 avx2/;
+  specialize qw/avm_od_ec_decode_cdf_q15 avx2/;
 }
 
 #
