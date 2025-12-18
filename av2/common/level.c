@@ -454,9 +454,9 @@ static void update_ref_buffers(const AV2_COMMON *const cm,
   }
 }
 
-bool is_filter_enabled_frame(const AV1_COMMON *const cm) {
+bool is_filter_enabled_frame(const AV2_COMMON *const cm) {
   bool inloop_filtering_enabled =
-      cm->lf.filter_level[0] != 0 || cm->lf.filter_level[1] != 0 ||
+      cm->lf.apply_deblocking_filter[0] != 0 || cm->lf.apply_deblocking_filter[1] != 0 ||
       cm->cdef_info.cdef_frame_enable != 0 ||
       cm->cur_frame->ccso_info.ccso_enable[0] != 0 ||
       cm->cur_frame->ccso_info.ccso_enable[1] != 0 ||
