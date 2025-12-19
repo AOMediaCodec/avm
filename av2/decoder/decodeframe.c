@@ -7591,6 +7591,9 @@ static void handle_sequence_header(AV2Decoder *pbi,
     qmset->quantizer_matrix_num_planes = num_planes;
     qmset->is_user_defined_qm = false;
   }  // qm_pos
+  for (int i = 0; i < NUM_CUSTOM_QMS; ++i) {
+    pbi->qm_protected[i] = 0;
+  }
 }
 #endif  // CONFIG_CWG_E242_SEQ_HDR_ID
 
