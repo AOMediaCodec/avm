@@ -2234,7 +2234,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
           || (obu_header.type == OBU_PADDING)
 #endif  // CONFIG_F436_OBUORDER
               ) ||
-        data + bytes_read >= data_end)
+        data + bytes_read > data_end)
       break;
 
 #if CONFIG_F436_OBUORDER
