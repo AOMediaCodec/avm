@@ -627,6 +627,84 @@ static const uint8_t refinemv_pad_left[14][16] = {
   { 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 14, 15 },
 };
 
+static const uint8_t refinemv_pad_left_bw_greater_than_15[16][16] = {
+  { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 },
+  { 1, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 },
+  { 2, 2, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 },
+  { 3, 3, 3, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 },
+  { 4, 4, 4, 4, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 },
+  { 5, 5, 5, 5, 5, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 },
+  { 6, 6, 6, 6, 6, 6, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 },
+  { 7, 7, 7, 7, 7, 7, 7, 7, 8, 9, 10, 11, 12, 13, 14, 15 },
+  { 8, 8, 8, 8, 8, 8, 8, 8, 8, 9, 10, 11, 12, 13, 14, 15 },
+  { 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 10, 11, 12, 13, 14, 15 },
+  { 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 11, 12, 13, 14, 15 },
+  { 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 12, 13, 14, 15 },
+  { 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 13, 14, 15 },
+  { 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 14, 15 },
+  { 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 15 },
+  { 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15 },
+};
+
+static const uint8_t refinemv_pad_right_arr[16][16] = {
+  { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 },
+  { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 14 },
+  { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 13, 13 },
+  { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 12, 12, 12 },
+  { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 11, 11, 11, 11 },
+  { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10, 10, 10 },
+  { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 9, 9, 9, 9, 9, 9 },
+  { 0, 1, 2, 3, 4, 5, 6, 7, 8, 8, 8, 8, 8, 8, 8, 8 },
+  { 0, 1, 2, 3, 4, 5, 6, 7, 7, 7, 7, 7, 7, 7, 7, 7 },
+  { 0, 1, 2, 3, 4, 5, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6 },
+  { 0, 1, 2, 3, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5 },
+  { 0, 1, 2, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4 },
+  { 0, 1, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 },
+  { 0, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 },
+  { 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+};
+
+static const uint8_t refinemv_pad_right_bw_31[15][16] = {
+  { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 },
+  { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 13, 15 },
+  { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 12, 12, 15 },
+  { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 11, 11, 11, 15 },
+  { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10, 10, 15 },
+  { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 9, 9, 9, 9, 9, 15 },
+  { 0, 1, 2, 3, 4, 5, 6, 7, 8, 8, 8, 8, 8, 8, 8, 15 },
+  { 0, 1, 2, 3, 4, 5, 6, 7, 7, 7, 7, 7, 7, 7, 7, 15 },
+  { 0, 1, 2, 3, 4, 5, 6, 6, 6, 6, 6, 6, 6, 6, 6, 15 },
+  { 0, 1, 2, 3, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 15 },
+  { 0, 1, 2, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 15 },
+  { 0, 1, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 15 },
+  { 0, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 15 },
+  { 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 15 },
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 15 },
+};
+
+static const uint8_t refinemv_pad_right_bw_23[8][16] = {
+  { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 },
+  { 0, 1, 2, 3, 4, 5, 5, 5, 8, 9, 10, 11, 12, 13, 13, 14 },
+  { 0, 1, 2, 3, 4, 4, 4, 4, 8, 9, 10, 11, 12, 12, 12, 13 },
+  { 0, 1, 2, 3, 3, 3, 3, 3, 8, 9, 10, 11, 11, 11, 11, 12 },
+  { 0, 1, 2, 2, 2, 2, 2, 2, 8, 9, 10, 10, 10, 10, 10, 11 },
+  { 0, 1, 1, 1, 1, 1, 1, 1, 8, 9, 9, 9, 9, 9, 9, 9 },
+  { 0, 0, 0, 0, 0, 0, 0, 0, 8, 8, 8, 8, 8, 8, 8, 8 },
+  { 0, 0, 0, 0, 0, 0, 0, 0, 8, 8, 8, 8, 8, 8, 8, 8 },
+};
+
+static const uint8_t refinemv_pad_left_bw_23[8][16] = {
+  { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 },
+  { 1, 1, 2, 3, 4, 5, 6, 5, 9, 9, 10, 11, 12, 13, 14, 14 },
+  { 2, 2, 2, 3, 4, 5, 6, 4, 10, 10, 10, 11, 12, 13, 14, 15 },
+  { 3, 3, 3, 3, 4, 5, 6, 3, 11, 11, 11, 11, 12, 13, 14, 15 },
+  { 4, 4, 4, 4, 4, 5, 6, 2, 12, 12, 12, 12, 12, 13, 14, 15 },
+  { 5, 5, 5, 5, 5, 5, 6, 1, 13, 13, 13, 13, 13, 13, 14, 15 },
+  { 6, 6, 6, 6, 6, 6, 6, 0, 14, 14, 14, 14, 14, 14, 14, 15 },
+  { 0, 0, 0, 0, 0, 0, 0, 0, 8, 8, 8, 8, 8, 8, 8, 8 },
+};
+
 static const uint8_t refinemv_pad_right_bw_15[14][16] = {
   { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 },
   { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 13, 15 },
@@ -672,13 +750,13 @@ void refinemv_highbd_pad_mc_border_avx2(const uint16_t *src, int src_stride,
                                         uint16_t *dst, int dst_stride, int x0,
                                         int y0, int b_w, int b_h,
                                         const ReferenceArea *ref_area) {
-  if (b_w != 15 && b_w != 11) {
+  if (b_w != 15 && b_w != 11 && b_w != 23 && b_w != 31) {
     refinemv_highbd_pad_mc_border_c(src, src_stride, dst, dst_stride, x0, y0,
                                     b_w, b_h, ref_area);
     return;
   }
 
-  assert(b_w == 15 || b_w == 11);
+  assert(b_w == 15 || b_w == 11 || b_w == 23 || b_w == 31);
   const int ref_x0 = ref_area->pad_block.x0;
   const int ref_y0 = ref_area->pad_block.y0;
   const int ref_x1 = ref_area->pad_block.x1;
@@ -698,63 +776,376 @@ void refinemv_highbd_pad_mc_border_avx2(const uint16_t *src, int src_stride,
   if (left > b_w) left = b_w;
   int right = (x0 + b_w > ref_x1) ? (x0 + b_w - ref_x1) : 0;
   if (right > b_w) right = b_w;
+  if (b_w == 23) {
+    if (left < (b_w - 1) && right < (b_w - 1) && (left != 0 || right != 0)) {
+      const __m256i shuffle_input_reg =
+          _mm256_load_si256((__m256i *)pad_mc_border_arrange_bytes);
+      const __m256i shuffle_output_reg =
+          _mm256_load_si256((__m256i *)pad_mc_border_shuffle_pattern);
+      if (left < 16) {
+        const __m128i shuffle_left = _mm_loadu_si128(
+            (__m128i *)refinemv_pad_left_bw_greater_than_15[left]);
+        const __m256i shuffle_reg_left = _mm256_inserti128_si256(
+            _mm256_castsi128_si256(shuffle_left), shuffle_left, 1);
+        if (right > 6) {
+          const uint8_t *refinemv_pad_right = refinemv_pad_right_arr[right - 7];
+          const __m128i shuffle_right =
+              _mm_loadu_si128((__m128i *)refinemv_pad_right);
+          const __m256i shuffle_reg_right = _mm256_inserti128_si256(
+              _mm256_castsi128_si256(shuffle_right), shuffle_right, 1);
+          __m256i out_reg_lo;
+          __m128i out_reg_hi;
+          do {
+            // s0 s1 s2 s3 s4 s5 s6 s7 s8 s9 s10 s11 s12 s13 s14 s15
+            const __m256i src_lo =
+                _mm256_loadu_si256((__m256i *)(ref_row + x0));
 
-  if (left < (b_w - 1) && right < (b_w - 1) && (left != 0 || right != 0)) {
-    const __m128i shuffle_left =
-        _mm_loadu_si128((__m128i *)refinemv_pad_left[left]);
-    const __m256i shuffle_reg_left = _mm256_inserti128_si256(
-        _mm256_castsi128_si256(shuffle_left), shuffle_left, 1);
+            const __m256i src_01 =
+                _mm256_shuffle_epi8(src_lo, shuffle_input_reg);
+            __m256i src_reg = _mm256_permute4x64_epi64(src_01, 0xD8);
 
-    const uint8_t *refinemv_pad_right = b_w == 15
-                                            ? refinemv_pad_right_bw_15[right]
-                                            : refinemv_pad_right_bw_11[right];
+            src_reg = _mm256_shuffle_epi8(src_reg, shuffle_reg_left);
+            src_reg = _mm256_shuffle_epi8(src_reg, shuffle_reg_right);
 
-    const __m128i shuffle_right =
-        _mm_loadu_si128((__m128i *)refinemv_pad_right);
-    const __m256i shuffle_reg_right = _mm256_inserti128_si256(
-        _mm256_castsi128_si256(shuffle_right), shuffle_right, 1);
+            out_reg_lo = _mm256_shuffle_epi8(
+                _mm256_permute4x64_epi64(src_reg, 0xD8), shuffle_output_reg);
+            out_reg_hi = _mm_set1_epi16(ref_row[b_w + x0 - right - 1]);
+            do {
+              _mm256_storeu_si256((__m256i *)dst, out_reg_lo);
+              _mm_storeu_si128((__m128i *)(dst + 16), out_reg_hi);
+              dst += dst_stride;
+              ++y0;
+              --b_h;
+            } while ((y0 <= ref_y0 || y0 >= ref_y1) && b_h);
+            ref_row += src_stride;
+          } while (b_h);
+        } else {
+          const uint8_t *refinemv_pad_right = refinemv_pad_right_bw_23[right];
+          const __m128i shuffle_right =
+              _mm_loadu_si128((__m128i *)refinemv_pad_right);
+          __m256i out_reg_lo;
+          __m128i out_reg_hi;
+          do {
+            // s0 s1 s2 s3 s4 s5 s6 s7 s8 s9 s10 s11 s12 s13 s14 s15
+            const __m256i src_lo =
+                _mm256_loadu_si256((__m256i *)(ref_row + x0));
+            // s17 s18 s19 s20 s21 s22 x x
+            const __m128i src_hi =
+                _mm_loadu_si128((__m128i *)(ref_row + x0 + 16));
 
-    const __m256i shuffle_input_reg =
-        _mm256_load_si256((__m256i *)pad_mc_border_arrange_bytes);
-    const __m256i shuffle_output_reg =
-        _mm256_load_si256((__m256i *)pad_mc_border_shuffle_pattern);
-    __m256i out_reg;
-    do {
-      const __m256i src_0 = _mm256_loadu_si256((__m256i *)(ref_row + x0));
+            const __m256i src_01 =
+                _mm256_shuffle_epi8(src_lo, shuffle_input_reg);
+            __m128i src_01_hi = _mm_shuffle_epi8(
+                src_hi, _mm256_castsi256_si128(shuffle_input_reg));
+            __m256i src_reg = _mm256_permute4x64_epi64(src_01, 0xD8);
 
-      const __m256i src_01 = _mm256_shuffle_epi8(src_0, shuffle_input_reg);
-      __m256i src_reg = _mm256_permute4x64_epi64(src_01, 0xD8);
+            src_reg = _mm256_shuffle_epi8(src_reg, shuffle_reg_left);
+            src_01_hi = _mm_shuffle_epi8(src_01_hi, shuffle_right);
 
-      src_reg = _mm256_shuffle_epi8(src_reg, shuffle_reg_left);
-      src_reg = _mm256_shuffle_epi8(src_reg, shuffle_reg_right);
+            out_reg_lo = _mm256_shuffle_epi8(
+                _mm256_permute4x64_epi64(src_reg, 0xD8), shuffle_output_reg);
+            out_reg_hi = _mm_shuffle_epi8(
+                src_01_hi, _mm256_castsi256_si128(shuffle_output_reg));
+            do {
+              _mm256_storeu_si256((__m256i *)dst, out_reg_lo);
+              _mm_storeu_si128((__m128i *)(dst + 16), out_reg_hi);
+              dst += dst_stride;
+              ++y0;
+              --b_h;
+            } while ((y0 <= ref_y0 || y0 >= ref_y1) && b_h);
+            ref_row += src_stride;
+          } while (b_h);
+        }
+      } else {
+        if (right > 6) {
+          const uint8_t *refinemv_pad_right = refinemv_pad_right_arr[right - 7];
+          const __m128i shuffle_right =
+              _mm_loadu_si128((__m128i *)refinemv_pad_right);
+          const __m256i shuffle_reg_right = _mm256_inserti128_si256(
+              _mm256_castsi128_si256(shuffle_right), shuffle_right, 1);
+          __m256i out_reg_lo;
+          __m128i out_reg_hi;
+          do {
+            // s0
+            const __m256i src_lo = _mm256_set1_epi16(ref_row[x0 + left]);
 
-      out_reg = _mm256_shuffle_epi8(_mm256_permute4x64_epi64(src_reg, 0xD8),
-                                    shuffle_output_reg);
+            const __m256i src_01 =
+                _mm256_shuffle_epi8(src_lo, shuffle_input_reg);
+            __m256i src_reg = _mm256_permute4x64_epi64(src_01, 0xD8);
+            src_reg = _mm256_shuffle_epi8(src_reg, shuffle_reg_right);
+
+            out_reg_lo = _mm256_shuffle_epi8(
+                _mm256_permute4x64_epi64(src_reg, 0xD8), shuffle_output_reg);
+            out_reg_hi = _mm_set1_epi16(ref_row[b_w + x0 - right - 1]);
+            do {
+              _mm256_storeu_si256((__m256i *)dst, out_reg_lo);
+              _mm_storeu_si128((__m128i *)(dst + 16), out_reg_hi);
+              dst += dst_stride;
+              ++y0;
+              --b_h;
+            } while ((y0 <= ref_y0 || y0 >= ref_y1) && b_h);
+            ref_row += src_stride;
+          } while (b_h);
+        } else {
+          const uint8_t *refinemv_pad_right = refinemv_pad_right_bw_23[right];
+          const __m128i shuffle_right =
+              _mm_loadu_si128((__m128i *)refinemv_pad_right);
+          const __m128i shuffle_left =
+              _mm_loadu_si128((__m128i *)refinemv_pad_left_bw_23[left - 16]);
+          __m256i out_reg_lo;
+          __m128i out_reg_hi;
+          do {
+            // s0
+            const __m256i src_lo = _mm256_set1_epi16(ref_row[x0 + left]);
+            // s17 s18 s19 s20 s21 s22 x x
+            const __m128i src_hi =
+                _mm_loadu_si128((__m128i *)(ref_row + x0 + 16));
+
+            __m128i src_01_hi = _mm_shuffle_epi8(
+                src_hi, _mm256_castsi256_si128(shuffle_input_reg));
+            src_01_hi = _mm_shuffle_epi8(src_01_hi, shuffle_left);
+            src_01_hi = _mm_shuffle_epi8(src_01_hi, shuffle_right);
+
+            out_reg_lo = src_lo;
+            out_reg_hi = _mm_shuffle_epi8(
+                src_01_hi, _mm256_castsi256_si128(shuffle_output_reg));
+            do {
+              _mm256_storeu_si256((__m256i *)dst, out_reg_lo);
+              _mm_storeu_si128((__m128i *)(dst + 16), out_reg_hi);
+              dst += dst_stride;
+              ++y0;
+              --b_h;
+            } while ((y0 <= ref_y0 || y0 >= ref_y1) && b_h);
+            ref_row += src_stride;
+          } while (b_h);
+        }
+      }
+    } else if (left == 0 && right == 0) {
       do {
-        _mm256_storeu_si256((__m256i *)dst, out_reg);
+        const __m256i src_lo = _mm256_loadu_si256((__m256i *)(ref_row + x0));
+        const __m128i src_hi = _mm_loadu_si128((__m128i *)(ref_row + x0 + 16));
+        _mm256_storeu_si256((__m256i *)dst, src_lo);
+        _mm_storeu_si128((__m128i *)(dst + 16), src_hi);
         dst += dst_stride;
         ++y0;
-        --b_h;
-      } while ((y0 <= ref_y0 || y0 >= ref_y1) && b_h);
-      ref_row += src_stride;
-    } while (b_h);
-  } else if (left == 0 && right == 0) {
-    do {
-      const __m256i src_0 = _mm256_loadu_si256((__m256i *)(ref_row + x0));
-      _mm256_storeu_si256((__m256i *)dst, src_0);
-      dst += dst_stride;
-      ++y0;
-      if (y0 > ref_y0 && y0 < ref_y1) ref_row += src_stride;
-    } while (--b_h);
+        if (y0 > ref_y0 && y0 < ref_y1) ref_row += src_stride;
+      } while (--b_h);
+    } else {
+      const uint16_t *cur_ref_row =
+          (left >= (b_w - 1)) ? (ref_row + ref_x0) : (ref_row + ref_x1 - 1);
+      do {
+        const __m256i src_0 = _mm256_set1_epi16(cur_ref_row[0]);
+        _mm256_storeu_si256((__m256i *)dst, src_0);
+        _mm_storeu_si128((__m128i *)(dst + 16), _mm256_castsi256_si128(src_0));
+        dst += dst_stride;
+        ++y0;
+        if (y0 > ref_y0 && y0 < ref_y1) cur_ref_row += src_stride;
+      } while (--b_h);
+    }
+  } else if (b_w == 31) {
+    if (left < (b_w - 1) && right < (b_w - 1) && (left != 0 || right != 0)) {
+      const __m256i shuffle_input_reg =
+          _mm256_load_si256((__m256i *)pad_mc_border_arrange_bytes);
+      const __m256i shuffle_output_reg =
+          _mm256_load_si256((__m256i *)pad_mc_border_shuffle_pattern);
+      if (left < 16) {
+        if (right > 14) {
+          const uint8_t *refine_mv_pad_right =
+              refinemv_pad_right_arr[right - 15];
+          const uint8_t *refine_mv_pad_left =
+              refinemv_pad_left_bw_greater_than_15[left];
+          const __m128i shuffle_right =
+              _mm_loadu_si128((__m128i *)refine_mv_pad_right);
+          const __m256i shuffle_reg_right = _mm256_inserti128_si256(
+              _mm256_castsi128_si256(shuffle_right), shuffle_right, 1);
+          const __m128i shuffle_left =
+              _mm_loadu_si128((__m128i *)refine_mv_pad_left);
+          const __m256i shuffle_reg_left = _mm256_inserti128_si256(
+              _mm256_castsi128_si256(shuffle_left), shuffle_left, 1);
+          __m256i out_reg_lo, out_reg_hi;
+          do {
+            // s0
+            const __m256i src_lo =
+                _mm256_loadu_si256((__m256i *)(ref_row + x0));
+
+            const __m256i src_01 =
+                _mm256_shuffle_epi8(src_lo, shuffle_input_reg);
+            __m256i src_reg = _mm256_permute4x64_epi64(src_01, 0xD8);
+            src_reg = _mm256_shuffle_epi8(src_reg, shuffle_reg_left);
+            src_reg = _mm256_shuffle_epi8(src_reg, shuffle_reg_right);
+
+            out_reg_lo = _mm256_shuffle_epi8(
+                _mm256_permute4x64_epi64(src_reg, 0xD8), shuffle_output_reg);
+            out_reg_hi = _mm256_set1_epi16(ref_row[b_w + x0 - right - 1]);
+            do {
+              _mm256_storeu_si256((__m256i *)dst, out_reg_lo);
+              _mm256_storeu_si256((__m256i *)(dst + 16), out_reg_hi);
+              dst += dst_stride;
+              ++y0;
+              --b_h;
+            } while ((y0 <= ref_y0 || y0 >= ref_y1) && b_h);
+            ref_row += src_stride;
+          } while (b_h);
+        } else {
+          const uint8_t *refinemv_pad_right = refinemv_pad_right_bw_31[right];
+          const uint8_t *refine_mv_pad_left =
+              refinemv_pad_left_bw_greater_than_15[left];
+          const __m128i shuffle_right =
+              _mm_loadu_si128((__m128i *)refinemv_pad_right);
+          const __m256i shuffle_reg_right = _mm256_inserti128_si256(
+              _mm256_castsi128_si256(shuffle_right), shuffle_right, 1);
+          const __m128i shuffle_left =
+              _mm_loadu_si128((__m128i *)refine_mv_pad_left);
+          const __m256i shuffle_reg_left = _mm256_inserti128_si256(
+              _mm256_castsi128_si256(shuffle_left), shuffle_left, 1);
+          __m256i out_reg_lo, out_reg_hi;
+          do {
+            // s0
+            const __m256i src_lo =
+                _mm256_loadu_si256((__m256i *)(ref_row + x0));
+            const __m256i src_hi =
+                _mm256_loadu_si256((__m256i *)(ref_row + x0 + 16));
+
+            const __m256i src_01 =
+                _mm256_shuffle_epi8(src_lo, shuffle_input_reg);
+            const __m256i src_02 =
+                _mm256_shuffle_epi8(src_hi, shuffle_input_reg);
+            __m256i src_reg_lo = _mm256_permute4x64_epi64(src_01, 0xD8);
+            __m256i src_reg_hi = _mm256_permute4x64_epi64(src_02, 0xD8);
+            src_reg_lo = _mm256_shuffle_epi8(src_reg_lo, shuffle_reg_left);
+            src_reg_hi = _mm256_shuffle_epi8(src_reg_hi, shuffle_reg_right);
+
+            out_reg_lo = _mm256_shuffle_epi8(
+                _mm256_permute4x64_epi64(src_reg_lo, 0xD8), shuffle_output_reg);
+            out_reg_hi = _mm256_shuffle_epi8(
+                _mm256_permute4x64_epi64(src_reg_hi, 0xD8), shuffle_output_reg);
+            do {
+              _mm256_storeu_si256((__m256i *)dst, out_reg_lo);
+              _mm256_storeu_si256((__m256i *)(dst + 16), out_reg_hi);
+              dst += dst_stride;
+              ++y0;
+              --b_h;
+            } while ((y0 <= ref_y0 || y0 >= ref_y1) && b_h);
+            ref_row += src_stride;
+          } while (b_h);
+        }
+      } else {
+        assert(right < 14);
+        const uint8_t *refinemv_pad_right = refinemv_pad_right_bw_31[right];
+        const uint8_t *refine_mv_pad_left =
+            refinemv_pad_left_bw_greater_than_15[left - 16];
+        const __m128i shuffle_right =
+            _mm_loadu_si128((__m128i *)refinemv_pad_right);
+        const __m256i shuffle_reg_right = _mm256_inserti128_si256(
+            _mm256_castsi128_si256(shuffle_right), shuffle_right, 1);
+        const __m128i shuffle_left =
+            _mm_loadu_si128((__m128i *)refine_mv_pad_left);
+        const __m256i shuffle_reg_left = _mm256_inserti128_si256(
+            _mm256_castsi128_si256(shuffle_left), shuffle_left, 1);
+        __m256i out_reg_lo, out_reg_hi;
+        do {
+          out_reg_lo = _mm256_set1_epi16(ref_row[x0 + left]);
+          const __m256i src_hi =
+              _mm256_loadu_si256((__m256i *)(ref_row + x0 + 16));
+
+          const __m256i src_02 = _mm256_shuffle_epi8(src_hi, shuffle_input_reg);
+          __m256i src_reg_hi = _mm256_permute4x64_epi64(src_02, 0xD8);
+          src_reg_hi = _mm256_shuffle_epi8(src_reg_hi, shuffle_reg_left);
+          src_reg_hi = _mm256_shuffle_epi8(src_reg_hi, shuffle_reg_right);
+
+          out_reg_hi = _mm256_shuffle_epi8(
+              _mm256_permute4x64_epi64(src_reg_hi, 0xD8), shuffle_output_reg);
+          do {
+            _mm256_storeu_si256((__m256i *)dst, out_reg_lo);
+            _mm256_storeu_si256((__m256i *)(dst + 16), out_reg_hi);
+            dst += dst_stride;
+            ++y0;
+            --b_h;
+          } while ((y0 <= ref_y0 || y0 >= ref_y1) && b_h);
+          ref_row += src_stride;
+        } while (b_h);
+      }
+    } else if (left == 0 && right == 0) {
+      do {
+        const __m256i src_lo = _mm256_loadu_si256((__m256i *)(ref_row + x0));
+        const __m256i src_hi =
+            _mm256_loadu_si256((__m256i *)(ref_row + x0 + 16));
+        _mm256_storeu_si256((__m256i *)dst, src_lo);
+        _mm256_storeu_si256((__m256i *)(dst + 16), src_hi);
+        dst += dst_stride;
+        ++y0;
+        if (y0 > ref_y0 && y0 < ref_y1) ref_row += src_stride;
+      } while (--b_h);
+    } else {
+      const uint16_t *cur_ref_row =
+          (left >= (b_w - 1)) ? (ref_row + ref_x0) : (ref_row + ref_x1 - 1);
+      do {
+        const __m256i src_0 = _mm256_set1_epi16(cur_ref_row[0]);
+        _mm256_storeu_si256((__m256i *)dst, src_0);
+        _mm256_storeu_si256((__m256i *)(dst + 16), src_0);
+        dst += dst_stride;
+        ++y0;
+        if (y0 > ref_y0 && y0 < ref_y1) cur_ref_row += src_stride;
+      } while (--b_h);
+    }
   } else {
-    const uint16_t *cur_ref_row =
-        (left >= (b_w - 1)) ? (ref_row + ref_x0) : (ref_row + ref_x1 - 1);
-    do {
-      const __m256i src_0 = _mm256_set1_epi16(cur_ref_row[0]);
-      _mm256_storeu_si256((__m256i *)dst, src_0);
-      dst += dst_stride;
-      ++y0;
-      if (y0 > ref_y0 && y0 < ref_y1) cur_ref_row += src_stride;
-    } while (--b_h);
+    if (left < (b_w - 1) && right < (b_w - 1) && (left != 0 || right != 0)) {
+      const __m128i shuffle_left =
+          _mm_loadu_si128((__m128i *)refinemv_pad_left[left]);
+      const __m256i shuffle_reg_left = _mm256_inserti128_si256(
+          _mm256_castsi128_si256(shuffle_left), shuffle_left, 1);
+
+      const uint8_t *refinemv_pad_right = b_w == 15
+                                              ? refinemv_pad_right_bw_15[right]
+                                              : refinemv_pad_right_bw_11[right];
+
+      const __m128i shuffle_right =
+          _mm_loadu_si128((__m128i *)refinemv_pad_right);
+      const __m256i shuffle_reg_right = _mm256_inserti128_si256(
+          _mm256_castsi128_si256(shuffle_right), shuffle_right, 1);
+
+      const __m256i shuffle_input_reg =
+          _mm256_load_si256((__m256i *)pad_mc_border_arrange_bytes);
+      const __m256i shuffle_output_reg =
+          _mm256_load_si256((__m256i *)pad_mc_border_shuffle_pattern);
+      __m256i out_reg;
+      do {
+        const __m256i src_0 = _mm256_loadu_si256((__m256i *)(ref_row + x0));
+
+        const __m256i src_01 = _mm256_shuffle_epi8(src_0, shuffle_input_reg);
+        __m256i src_reg = _mm256_permute4x64_epi64(src_01, 0xD8);
+
+        src_reg = _mm256_shuffle_epi8(src_reg, shuffle_reg_left);
+        src_reg = _mm256_shuffle_epi8(src_reg, shuffle_reg_right);
+
+        out_reg = _mm256_shuffle_epi8(_mm256_permute4x64_epi64(src_reg, 0xD8),
+                                      shuffle_output_reg);
+        do {
+          _mm256_storeu_si256((__m256i *)dst, out_reg);
+          dst += dst_stride;
+          ++y0;
+          --b_h;
+        } while ((y0 <= ref_y0 || y0 >= ref_y1) && b_h);
+        ref_row += src_stride;
+      } while (b_h);
+    } else if (left == 0 && right == 0) {
+      do {
+        const __m256i src_0 = _mm256_loadu_si256((__m256i *)(ref_row + x0));
+        _mm256_storeu_si256((__m256i *)dst, src_0);
+        dst += dst_stride;
+        ++y0;
+        if (y0 > ref_y0 && y0 < ref_y1) ref_row += src_stride;
+      } while (--b_h);
+    } else {
+      const uint16_t *cur_ref_row =
+          (left >= (b_w - 1)) ? (ref_row + ref_x0) : (ref_row + ref_x1 - 1);
+      do {
+        const __m256i src_0 = _mm256_set1_epi16(cur_ref_row[0]);
+        _mm256_storeu_si256((__m256i *)dst, src_0);
+        dst += dst_stride;
+        ++y0;
+        if (y0 > ref_y0 && y0 < ref_y1) cur_ref_row += src_stride;
+      } while (--b_h);
+    }
   }
 }
