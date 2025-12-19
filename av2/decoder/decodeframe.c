@@ -6735,6 +6735,12 @@ static AVM_INLINE void read_global_motion(AV2_COMMON *cm,
       int their_ref = avm_rb_read_primitive_quniform(rb, their_num_refs);
       const int our_ref_order_hint = buf->display_order_hint;
       const int their_ref_order_hint = buf->ref_display_order_hint[their_ref];
+#if CONFIG_F322_OBUER_REFRESTRICT
+      if (buf->refs_restricted_status[their_ref]) {
+        avm_internal_error(&cm->error, AVM_CODEC_ERROR,
+                           "Invalid their_ref: restricted reference buffer");
+      }
+#endif
       cm->base_global_motion_model = buf->global_motion[their_ref];
       cm->base_global_motion_distance =
           get_relative_dist(&seq_params->order_hint_info, our_ref_order_hint,
