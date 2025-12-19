@@ -5404,6 +5404,15 @@ static INLINE int opfl_allowed_cur_refs_bsize(const AV2_COMMON *cm,
 #if CONFIG_ERROR_RESILIENT_FIX
   if (frame_is_sframe(cm)) return 0;
 #endif  // CONFIG_ERROR_RESILIENT_FIX
+
+#if CONFIG_F322_OBUER_REFRESTRICT
+  if ((get_ref_frame_buf(cm, mbmi->ref_frame[0]) != NULL &&
+       get_ref_frame_buf(cm, mbmi->ref_frame[0])->is_restricted) ||
+      (get_ref_frame_buf(cm, mbmi->ref_frame[1]) != NULL &&
+       get_ref_frame_buf(cm, mbmi->ref_frame[1])->is_restricted))
+    return 0;
+#endif  // CONFIG_F322_OBUER_REFRESTRICT
+
   const unsigned int cur_index = cm->cur_frame->display_order_hint;
   int d0, d1;
   if (mbmi->ref_frame[0] == TIP_FRAME) {
