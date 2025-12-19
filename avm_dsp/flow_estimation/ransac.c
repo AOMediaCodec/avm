@@ -671,9 +671,9 @@ static const RansacModelInfo ransac_model_info[TRANS_TYPES] = {
 };
 
 // Returns true on success, false on error
-bool ransac(const Correspondence *matched_points, int npoints,
-            TransformationType type, MotionModel *motion_models,
-            int num_desired_motions, bool *mem_alloc_failed) {
+bool avm_ransac(const Correspondence *matched_points, int npoints,
+                TransformationType type, MotionModel *motion_models,
+                int num_desired_motions, bool *mem_alloc_failed) {
 #if ALLOW_TRANSLATION_MODELS
   assert(type > IDENTITY && type < TRANS_TYPES);
 #else

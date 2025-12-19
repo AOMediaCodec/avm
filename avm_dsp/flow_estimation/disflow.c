@@ -816,8 +816,8 @@ bool av2_compute_global_motion_disflow(
   const int num_correspondences = determine_disflow_correspondence(
       src_pyramid, ref_pyramid, src_corners, flow, correspondences);
 
-  bool result = ransac(correspondences, num_correspondences, type,
-                       motion_models, num_motion_models, mem_alloc_failed);
+  bool result = avm_ransac(correspondences, num_correspondences, type,
+                           motion_models, num_motion_models, mem_alloc_failed);
 
   avm_free(correspondences);
   free_flow_field(flow);

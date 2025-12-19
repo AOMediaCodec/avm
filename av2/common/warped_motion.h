@@ -182,15 +182,16 @@ static const uint8_t warp_pad_right[14][16] = {
 void av2_set_warp_translation(int mi_row, int mi_col, BLOCK_SIZE bsize, MV mv,
                               WarpedMotionParams *wm);
 
-void highbd_warp_plane(WarpedMotionParams *wm, const uint16_t *const ref,
-                       int width, int height, int stride, uint16_t *const pred,
-                       int p_col, int p_row, int p_width, int p_height,
-                       int p_stride, int subsampling_x, int subsampling_y,
-                       int bd, ConvolveParams *conv_params,
-                       const struct scale_factors *sf
+void av2_highbd_warp_plane(WarpedMotionParams *wm, const uint16_t *const ref,
+                           int width, int height, int stride,
+                           uint16_t *const pred, int p_col, int p_row,
+                           int p_width, int p_height, int p_stride,
+                           int subsampling_x, int subsampling_y, int bd,
+                           ConvolveParams *conv_params,
+                           const struct scale_factors *sf
 
-                       ,
-                       int use_warp_bd_box, PadBlock *warp_bd_box);
+                           ,
+                           int use_warp_bd_box, PadBlock *warp_bd_box);
 
 void av2_warp_plane(WarpedMotionParams *wm, int bd, const uint16_t *ref,
                     int width, int height, int stride, uint16_t *pred,
