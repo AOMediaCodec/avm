@@ -4166,7 +4166,7 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
     for (int j = i + 1; j < cm->ref_frames_info.num_total_refs; j++) {
       if (
 #if CONFIG_F322_OBUER_REFRESTRICT
-          !get_ref_frame_buf(cm, j)->is_restricted &&
+          !get_ref_frame_buf(cm, sort_ref[j])->is_restricted &&
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
           get_relative_dist(order_hint_info, disp_order[j], disp_order[i]) <
               0) {

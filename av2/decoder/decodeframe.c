@@ -7046,15 +7046,6 @@ static void set_primary_ref_frame_and_ctx(AV2Decoder *pbi) {
     if (!pbi->signal_primary_ref_frame) {
       features->primary_ref_frame = features->derived_primary_ref_frame;
     }
-#if CONFIG_F322_OBUER_REFRESTRICT
-    else {
-      if (get_ref_frame_buf(cm, features->primary_ref_frame) != NULL &&
-          get_ref_frame_buf(cm, features->primary_ref_frame)->is_restricted) {
-        avm_internal_error(&cm->error, AVM_CODEC_ERROR,
-                           "primary_ref_frame points a restricted reference");
-      }
-    }
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
   }
 
   // For primary_ref_frame and derived_primary_ref_frame, if one of them is
@@ -7075,7 +7066,13 @@ static void set_primary_ref_frame_and_ctx(AV2Decoder *pbi) {
     avm_internal_error(&cm->error, AVM_CODEC_ERROR,
                        "Invalid primary_ref_frame");
   }
-
+#if CONFIG_F322_OBUER_REFRESTRICT
+  if (get_ref_frame_buf(cm, features->primary_ref_frame) != NULL &&
+      get_ref_frame_buf(cm, features->primary_ref_frame)->is_restricted) {
+    avm_internal_error(&cm->error, AVM_CODEC_ERROR,
+                       "primary_ref_frame points a restricted reference");
+  }
+#endif  // CONFIG_F322_OBUER_REFRESTRICT
   if (cm->features.primary_ref_frame == PRIMARY_REF_NONE ||
       cm->features.cross_frame_context == CROSS_FRAME_CONTEXT_DISABLED) {
     // use the default frame context values
