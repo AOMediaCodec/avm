@@ -189,7 +189,7 @@ void av2_setup_frame_size(AV2_COMP *cpi) {
                                current_frame->frame_type == KEY_FRAME ||
                                current_frame->frame_type == INTRA_ONLY_FRAME)
                                   ? false
-                                  : !cm->ref_frame_map[i]->is_restricted_ref;
+                                  : !cm->ref_frame_map[i]->is_restricted;
       ref_frame_safe_to_use |= ref_unrestricted << i;
     }
   }

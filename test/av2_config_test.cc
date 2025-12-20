@@ -50,8 +50,7 @@ bool VerifyAv2c(const uint8_t *const obu_buffer, size_t obu_buffer_length) {
     EXPECT_EQ(0, av2_config.seq_profile);
     EXPECT_EQ(0, av2_config.seq_level_idx_0);
     EXPECT_EQ(0, av2_config.seq_tier_0);
-    EXPECT_EQ(0, av2_config.high_bitdepth);
-    EXPECT_EQ(0, av2_config.twelve_bit);
+    EXPECT_EQ(0, av2_config.bitdepth_idx);
     EXPECT_EQ(0, av2_config.monochrome);
     EXPECT_EQ(1, av2_config.chroma_subsampling_x);
     EXPECT_EQ(1, av2_config.chroma_subsampling_y);

@@ -24,6 +24,7 @@
 #include "av2/common/common.h"
 #include "av2/common/obu_util.h"
 #include "av2/common/enums.h"
+#include "avm/avm_codec.h"
 
 /*!\brief Maximum OBU header size in bytes. */
 #define OBU_HEADER_SIZE 1
@@ -104,17 +105,15 @@ static int read_obu_header_from_file(FILE *f, size_t obu_size, uint8_t *buffer,
 
   return obu_header->obu_extension_flag ? 2 : 1;
 }
+
 #if CONFIG_F024_KEYOBU
-static int is_single_tile_vcl_obu(OBU_TYPE obu_type) {
-  return obu_type == OBU_REGULAR_SEF || obu_type == OBU_LEADING_SEF ||
-         obu_type == OBU_REGULAR_TIP || obu_type == OBU_LEADING_TIP ||
-         obu_type == OBU_BRIDGE_FRAME;
-}
-static int is_multi_tile_vcl_obu(OBU_TYPE obu_type) {
-  return obu_type == OBU_REGULAR_TILE_GROUP ||
-         obu_type == OBU_LEADING_TILE_GROUP || obu_type == OBU_SWITCH ||
-         obu_type == OBU_RAS_FRAME || obu_type == OBU_CLK ||
-         obu_type == OBU_OLK;
+// non vcl obus that starts a new frame unit
+static int is_fu_head_non_vcl_obu(OBU_TYPE obu_type) {
+  return is_tu_head_non_vcl_obu(obu_type) ||
+         obu_type == OBU_MULTI_FRAME_HEADER ||
+         obu_type == OBU_CONTENT_INTERPRETATION ||
+         obu_type == OBU_BUFFER_REMOVAL_TIMING || obu_type == OBU_QM ||
+         obu_type == OBU_FGM;
 }
 #endif  // CONFIG_F024_KEYOBU
 
@@ -138,7 +137,12 @@ static int peek_obu_from_file(FILE *f, size_t obu_size, uint8_t *buffer,
   // as the condition used in 2 places with TODOs below. Need to refactor
   // after macros are cleaned up.
 #if CONFIG_F024_KEYOBU
-  if (is_multi_tile_vcl_obu(obu_header->type))
+  if (is_multi_tile_vcl_obu(obu_header->type)
+#if CONFIG_F436_OBUORDER
+      || obu_header->type == OBU_METADATA_GROUP ||
+      obu_header->type == OBU_METADATA_SHORT
+#endif  // CONFIG_F436_OBUORDER
+  )
 #else
   if (obu_header->type == OBU_TILE_GROUP || obu_header->type == OBU_SWITCH ||
       obu_header->type == OBU_RAS_FRAME)
@@ -175,7 +179,9 @@ static int peek_obu_from_file(FILE *f, size_t obu_size, uint8_t *buffer,
 
 int file_is_obu(struct ObuDecInputContext *obu_ctx) {
   if (!obu_ctx || !obu_ctx->avx_ctx) return 0;
+#if !CONFIG_F436_OBUORDER
   obu_ctx->has_temporal_delimiter = 0;
+#endif  // !CONFIG_F436_OBUORDER
   struct AvxInputContext *avx_ctx = obu_ctx->avx_ctx;
   uint8_t detect_buf[OBU_DETECTION_SIZE] = { 0 };
   FILE *f = avx_ctx->file;
@@ -207,8 +213,10 @@ int file_is_obu(struct ObuDecInputContext *obu_ctx) {
       } else if (obu_header_size == -1) {  // end of file
         break;
       }
+#if !CONFIG_F436_OBUORDER
       if (obu_header.type == OBU_TEMPORAL_DELIMITER)
         obu_ctx->has_temporal_delimiter = 1;
+#endif  // !CONFIG_F436_OBUORDER
       if (fseeko(f, (FileOffset)obu_size - obu_header_size, SEEK_CUR) != 0) {
         fprintf(stderr, "file_type: Failure seeking to end of OBU.\n");
         rewind(f);
@@ -221,10 +229,13 @@ int file_is_obu(struct ObuDecInputContext *obu_ctx) {
   rewind(f);
   return 1;
 }
-
-int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
-                              uint8_t **buffer, size_t *bytes_read,
-                              size_t *buffer_size) {
+#if CONFIG_F436_OBUORDER
+int obudec_read_frame_unit
+#else
+int obudec_read_temporal_unit
+#endif
+    (struct ObuDecInputContext *obu_ctx, uint8_t **buffer, size_t *bytes_read,
+     size_t *buffer_size) {
   FILE *f = obu_ctx->avx_ctx->file;
   if (!f) return -1;
 
@@ -238,9 +249,17 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
   size_t tu_size = 0;
   FileOffset fpos = ftello(f);
   uint8_t detect_buf[OBU_DETECTION_SIZE] = { 0 };
+#if !CONFIG_F436_OBUORDER
   int first_td = 1;
-
-  int vcl_obu_count = 0;  // a local variable to count the nubmer of obus
+#endif  // !CONFIG_F436_OBUORDER
+  // vcl_obu_count indicates the number of video coding layer obus in this data
+  // chunk to be fed to avm_codec_decode() the data chunk consists of temporal
+  // delimiter(if present), configuration records(if present), qm obus(if
+  // present), fgm obus(if present), metadata obus(if present),
+  // single_tilegroup_obu(show or showable) or multiple
+  // multi_tilegroup_obus(show or showable), and metadata suffix obus(if
+  // present)
+  int vcl_obu_count = 0;
   while (1) {
     ObuHeader obu_header;
     memset(&obu_header, 0, sizeof(obu_header));
@@ -268,43 +287,79 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
 
     // A data chunk before next decoding_unit_token is read from the file to
     // buffer to be decoded.
+#if !CONFIG_F436_OBUORDER
     int decoding_unit_token =
         (obu_header.type == OBU_TEMPORAL_DELIMITER && first_td != 1);
     if (!obu_ctx->has_temporal_delimiter) {
+#endif
       int first_tile_group_in_frame =
 #if CONFIG_F024_KEYOBU
           is_multi_tile_vcl_obu(obu_header.type)
+#if CONFIG_F436_OBUORDER
+                  || (obu_header.type == OBU_METADATA_SHORT ||
+                      obu_header.type == OBU_METADATA_GROUP)
+#endif  // CONFIG_F436_OBUORDER
 #else
-          obu_header.type == OBU_TILE_GROUP
+        obu_header.type == OBU_TILE_GROUP
 #endif  // CONFIG_F024_KEYOBU
               ? ((first_tile_group_byte >> 7) & 1u)
               : first_tile_group_byte;
+
+#if CONFIG_F436_OBUORDER
+      int prefix_metadata = (obu_header.type == OBU_METADATA_SHORT ||
+                             obu_header.type == OBU_METADATA_GROUP)
+                                ? !first_tile_group_in_frame
+                                : -1;
+#endif  // CONFIG_F436_OBUORDER
+
       // TODO(any): OBU header type condition is almost same as
       // `is_coded_frame`, except `type == OBU_BRIDGE_FRAME` condition. Need to
       // refactor after macros are cleaned up.
-      decoding_unit_token =
-          ((vcl_obu_count > 0 &&
+
+#if CONFIG_F436_OBUORDER
+      int
+#endif  // CONFIG_F436_OBUORDER
+          decoding_unit_token =
+              ((vcl_obu_count > 0 &&
 #if CONFIG_F024_KEYOBU
-            (is_multi_tile_vcl_obu(obu_header.type) ||
-             is_single_tile_vcl_obu(obu_header.type))
+                (is_multi_tile_vcl_obu(obu_header.type) ||
+                 is_single_tile_vcl_obu(obu_header.type))
 #else
-            (obu_header.type == OBU_TILE_GROUP || obu_header.type == OBU_SEF ||
-             obu_header.type == OBU_TIP || obu_header.type == OBU_SWITCH ||
-             obu_header.type == OBU_RAS_FRAME)
+          (obu_header.type == OBU_TILE_GROUP || obu_header.type == OBU_SEF ||
+           obu_header.type == OBU_TIP || obu_header.type == OBU_SWITCH ||
+           obu_header.type == OBU_RAS_FRAME)
 #endif  // CONFIG_F024_KEYOBU
-            && first_tile_group_in_frame) ||
-           (vcl_obu_count > 0 && obu_header.type == OBU_SEQUENCE_HEADER));
+                && first_tile_group_in_frame)
+#if CONFIG_F436_OBUORDER
+               ||
+               (vcl_obu_count > 0 && is_fu_head_non_vcl_obu(obu_header.type)) ||
+               (vcl_obu_count > 0 &&
+                (obu_header.type == OBU_METADATA_SHORT ||
+                 obu_header.type == OBU_METADATA_GROUP) &&
+                prefix_metadata == 1));
+#else
+         || (vcl_obu_count > 0 && obu_header.type == OBU_SEQUENCE_HEADER));
+#endif  // CONFIG_F436_OBUORDER
+#if !CONFIG_F436_OBUORDER
     }
+#endif  // !CONFIG_F436_OBUORDER
     if (decoding_unit_token) {
       break;
     } else {
+#if !CONFIG_F436_OBUORDER
       if (obu_header.type == OBU_TEMPORAL_DELIMITER) first_td = 0;
+#endif
 #if CONFIG_F024_KEYOBU
+#if CONFIG_F436_OBUORDER
+      if (is_multi_tile_vcl_obu(obu_header.type) ||
+          is_single_tile_vcl_obu(obu_header.type))
+#else
       if (is_multi_tile_vcl_obu(obu_header.type) ||
           obu_header.type == OBU_REGULAR_SEF ||
           obu_header.type == OBU_LEADING_SEF ||
           obu_header.type == OBU_REGULAR_TIP ||
           obu_header.type == OBU_LEADING_TIP)
+#endif  // CONFIG_F436_OBUORDER
 #else
       if (obu_header.type == OBU_TILE_GROUP || obu_header.type == OBU_SEF ||
           obu_header.type == OBU_TIP || obu_header.type == OBU_SWITCH ||

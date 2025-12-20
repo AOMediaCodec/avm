@@ -1697,7 +1697,7 @@ void av2_encode_tile(AV2_COMP *cpi, ThreadData *td, int tile_row,
                          &td->mb.e_mbd);
 
   if (cpi->oxcf.intra_mode_cfg.enable_cfl_intra)
-    cfl_init(&td->mb.e_mbd.cfl, &cm->seq_params);
+    av2_cfl_init(&td->mb.e_mbd.cfl, &cm->seq_params);
 
   av2_crc32c_calculator_init(
       &td->mb.txfm_search_info.mb_rd_record.crc_calculator);
@@ -1764,7 +1764,7 @@ static AVM_INLINE void set_rel_frame_dist(
     ref_frame_dist_info->ref_relative_dist[ref_frame] = 0;
     if (ref_frame_flags & (1 << ref_frame)) {
 #if CONFIG_F322_OBUER_REFRESTRICT
-      assert(!cm->ref_frame_map[ref_frame]->is_restricted_ref);
+      assert(!cm->ref_frame_map[ref_frame]->is_restricted);
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
       int dist = av2_encoder_get_relative_dist(
           cm->cur_frame->ref_display_order_hint[ref_frame],

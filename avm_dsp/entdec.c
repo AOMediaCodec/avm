@@ -35,9 +35,9 @@
   End of stream is handled by writing out the smallest number of bits that
    ensures that the stream will be correctly decoded regardless of the value of
    any subsequent bits.
-  od_ec_dec_tell() can be used to determine how many bits were needed to decode
-   all the symbols thus far; other data can be packed in the remaining bits of
-   the input buffer.
+  avm_od_ec_dec_tell() can be used to determine how many bits were needed to
+  decode all the symbols thus far; other data can be packed in the remaining
+  bits of the input buffer.
   @PHDTHESIS{Pas76,
     author="Richard Clark Pasco",
     title="Source coding algorithms for fast data compression",
@@ -72,8 +72,8 @@
 /*Initializes the decoder.
   buf: The input buffer to use.
   storage: The size in bytes of the input buffer.*/
-void od_ec_dec_init(od_ec_dec *dec, const unsigned char *buf,
-                    uint32_t storage) {
+void avm_od_ec_dec_init(od_ec_dec *dec, const unsigned char *buf,
+                        uint32_t storage) {
   dec->buf = buf;
   dec->end = buf + storage;
   dec->bptr = buf;
@@ -87,7 +87,7 @@ void od_ec_dec_init(od_ec_dec *dec, const unsigned char *buf,
 /*Decode a single binary value.
   f: The probability that the bit is one, scaled by 32768.
   Return: The value decoded (0 or 1).*/
-int od_ec_decode_bool_q15(od_ec_dec *dec, unsigned f) {
+int avm_od_ec_decode_bool_q15(od_ec_dec *dec, unsigned f) {
   od_ec_window dif;
   od_ec_window vw;
   unsigned r;
@@ -189,7 +189,8 @@ int od_ec_decode_unary_bypass(od_ec_dec *dec, int max_bits) {
   nsyms: The number of symbols in the alphabet.
          This should be at most 16.
   Return: The decoded symbol s.*/
-int od_ec_decode_cdf_q15_c(od_ec_dec *dec, const uint16_t *icdf, int nsyms) {
+int avm_od_ec_decode_cdf_q15_c(od_ec_dec *dec, const uint16_t *icdf,
+                               int nsyms) {
   od_ec_window dif;
   unsigned r;
   unsigned c;
@@ -225,7 +226,7 @@ int od_ec_decode_cdf_q15_c(od_ec_dec *dec, const uint16_t *icdf, int nsyms) {
   Return: The number of bits.
           This will always be slightly larger than the exact value (e.g., all
            rounding error is in the positive direction).*/
-int od_ec_dec_tell(const od_ec_dec *dec) {
+int avm_od_ec_dec_tell(const od_ec_dec *dec) {
   /*There is a window of bits stored in dec->dif. The difference
      (dec->bptr - dec->buf) tells us how many bytes have been read into this
      window. The difference (dec->cnt - dec->tell_offs) tells us how many of
@@ -239,6 +240,6 @@ int od_ec_dec_tell(const od_ec_dec *dec) {
   Return: The number of bits scaled by 2**OD_BITRES.
           This will always be slightly larger than the exact value (e.g., all
            rounding error is in the positive direction).*/
-uint64_t od_ec_dec_tell_frac(const od_ec_dec *dec) {
-  return od_ec_tell_frac(od_ec_dec_tell(dec), dec->rng);
+uint64_t avm_od_ec_dec_tell_frac(const od_ec_dec *dec) {
+  return avm_od_ec_tell_frac(avm_od_ec_dec_tell(dec), dec->rng);
 }

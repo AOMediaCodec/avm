@@ -181,10 +181,10 @@ static AVM_INLINE void array_reverse_transpose_8x8_avx2(__m256i *in,
 
 /* AVX2 function which computes the CDEF directions of two 8x8 blocks together.
  */
-void cdef_find_dir_dual_avx2(const uint16_t *img1, const uint16_t *img2,
-                             int stride, int32_t *var_out_1st,
-                             int32_t *var_out_2nd, int coeff_shift,
-                             int *out_dir_1st_8x8, int *out_dir_2nd_8x8) {
+void av2_cdef_find_dir_dual_avx2(const uint16_t *img1, const uint16_t *img2,
+                                 int stride, int32_t *var_out_1st,
+                                 int32_t *var_out_2nd, int coeff_shift,
+                                 int *out_dir_1st_8x8, int *out_dir_2nd_8x8) {
   int32_t cost_first_8x8[8];
   int32_t cost_second_8x8[8];
   // Used to store the best cost for 2 8x8's.

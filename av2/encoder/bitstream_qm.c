@@ -289,6 +289,16 @@ uint32_t write_qm_obu(AV2_COMP *cpi, int signalled_obu_pos,
   return size;
 }
 
+uint32_t write_reset_qm_obu(AV2_COMP *cpi, uint8_t *const dst) {
+  struct avm_write_bit_buffer wb = { dst, 0 };
+  uint32_t size = 0;
+  int qm_bit_map = 0;
+  avm_wb_write_literal(&wb, qm_bit_map, NUM_CUSTOM_QMS);
+  avm_wb_write_bit(&wb, cpi->common.seq_params.monochrome ? 0 : 1);
+  av2_add_trailing_bits(&wb);
+  size = avm_wb_bytes_written(&wb);
+  return size;
+}
 //-------//
 bool add_userqm_in_qmobulist(AV2_COMP *cpi) {
   bool obu_added = false;

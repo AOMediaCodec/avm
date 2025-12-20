@@ -24,9 +24,9 @@
 extern "C" {
 #endif
 
-bool ransac(const Correspondence *matched_points, int npoints,
-            TransformationType type, MotionModel *motion_models,
-            int num_desired_motions, bool *mem_alloc_failed);
+bool avm_ransac(const Correspondence *matched_points, int npoints,
+                TransformationType type, MotionModel *motion_models,
+                int num_desired_motions, bool *mem_alloc_failed);
 
 #ifdef __cplusplus
 }

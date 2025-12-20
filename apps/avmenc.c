@@ -279,9 +279,7 @@ const arg_def_t *global_args[] = {
   &g_av2_codec_arg_defs.enable_ops,
   &g_av2_codec_arg_defs.enable_atlas,
 
-#if CONFIG_ICC_METADATA
   &g_av2_codec_arg_defs.icc_file,
-#endif  // CONFIG_ICC_METADATA
 
   NULL
 };
@@ -487,9 +485,7 @@ const arg_def_t *av2_key_val_args[] = {
   &g_av2_codec_arg_defs.crop_win_top_offset,
   &g_av2_codec_arg_defs.crop_win_bottom_offset,
   &g_av2_codec_arg_defs.scan_type_info_present_flag,
-#if CONFIG_METADATA
   &g_av2_codec_arg_defs.use_short_metadata,
-#endif  // CONFIG_METADATA
   &g_av2_codec_arg_defs.enable_mfh_obu_signaling,
   &g_av2_codec_arg_defs.operating_points_count,
   &g_av2_codec_arg_defs.cross_frame_cdf_init_mode,
@@ -718,7 +714,6 @@ static void init_config(cfg_options_t *config) {
   config->operating_points_count = 1;
 }
 
-#if CONFIG_ICC_METADATA
 int read_icc_profile(struct AvxEncoderConfig *global, const char *file) {
   FILE *f = fopen(file, "r");
   fseek(f, 0, SEEK_END);
@@ -732,7 +727,6 @@ int read_icc_profile(struct AvxEncoderConfig *global, const char *file) {
          (int)global->encoder_config.icc_size);
   return 0;
 }
-#endif  // CONFIG_ICC_METADATA
 
 /* Parses global config arguments into the AvxEncoderConfig. Note that
  * argv is modified and overwrites all parsed arguments.
@@ -832,10 +826,8 @@ static void parse_global_config(struct AvxEncoderConfig *global, char ***argv) {
     } else if (arg_match(&arg, &g_av2_codec_arg_defs.disable_warning_prompt,
                          argi)) {
       global->disable_warning_prompt = 1;
-#if CONFIG_ICC_METADATA
     } else if (arg_match(&arg, &g_av2_codec_arg_defs.icc_file, argi)) {
       read_icc_profile(global, arg.val);
-#endif  // CONFIG_ICC_METADATA
     } else {
       argj++;
     }
@@ -2418,20 +2410,16 @@ int main(int argc, const char **argv_) {
         frame_to_encode = &raw;
       }
       assert(frame_to_encode->fmt & AVM_IMG_FMT_HIGHBITDEPTH);
-#if CONFIG_ICC_METADATA
       if (frame_avail && global.encoder_config.icc_data != NULL) {
         avm_img_add_metadata(frame_to_encode, OBU_METADATA_TYPE_ICC_PROFILE,
                              global.encoder_config.icc_data,
                              global.encoder_config.icc_size, AVM_MIF_KEY_FRAME);
       }
-#endif  // CONFIG_ICC_METADATA
       FOREACH_STREAM(stream, streams) {
         encode_frame(stream, &global, frame_avail ? frame_to_encode : NULL,
                      seen_frames);
       };
-#if CONFIG_ICC_METADATA
       avm_img_remove_metadata(frame_to_encode);
-#endif  // CONFIG_ICC_METADATA
       FOREACH_STREAM(stream, streams) { update_quantizer_histogram(stream); }
 
       got_data = 0;

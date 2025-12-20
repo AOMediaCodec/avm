@@ -159,8 +159,8 @@ static INLINE void array_reverse_transpose_8x8(v128 *in, v128 *res) {
   res[0] = v128_ziphi_64(tr1_7, tr1_6);
 }
 
-int SIMD_FUNC(cdef_find_dir)(const uint16_t *img, int stride, int32_t *var,
-                             int coeff_shift) {
+int SIMD_FUNC(av2_cdef_find_dir)(const uint16_t *img, int stride, int32_t *var,
+                                 int coeff_shift) {
   int i;
   int32_t cost[8];
   int32_t best_cost = 0;
@@ -246,14 +246,14 @@ SIMD_INLINE void filter_block_4x4(uint16_t *const dest, int dstride,
   v256 sum, row, res;
   const v256 cdef_large_value_mask = v256_dup_16((uint16_t)~CDEF_VERY_LARGE);
   v256 max, min;
-  const int po1 = cdef_directions[dir][0];
-  const int po2 = cdef_directions[dir][1];
-  const int s1o1 = cdef_directions[dir + 2][0];
-  const int s1o2 = cdef_directions[dir + 2][1];
-  const int s2o1 = cdef_directions[dir - 2][0];
-  const int s2o2 = cdef_directions[dir - 2][1];
-  const int *pri_taps = cdef_pri_taps[(pri_strength >> coeff_shift) & 1];
-  const int *sec_taps = cdef_sec_taps;
+  const int po1 = av2_cdef_directions[dir][0];
+  const int po2 = av2_cdef_directions[dir][1];
+  const int s1o1 = av2_cdef_directions[dir + 2][0];
+  const int s1o2 = av2_cdef_directions[dir + 2][1];
+  const int s2o1 = av2_cdef_directions[dir - 2][0];
+  const int s2o2 = av2_cdef_directions[dir - 2][1];
+  const int *pri_taps = av2_cdef_pri_taps[(pri_strength >> coeff_shift) & 1];
+  const int *sec_taps = av2_cdef_sec_taps;
   int i;
 
   if (enable_primary && pri_strength)
@@ -424,14 +424,14 @@ SIMD_INLINE void filter_block_8x8(uint16_t *const dest, int dstride,
   v256 sum, p0, p1, p2, p3, row, res;
   const v256 cdef_large_value_mask = v256_dup_16((uint16_t)~CDEF_VERY_LARGE);
   v256 max, min;
-  const int po1 = cdef_directions[dir][0];
-  const int po2 = cdef_directions[dir][1];
-  const int s1o1 = cdef_directions[dir + 2][0];
-  const int s1o2 = cdef_directions[dir + 2][1];
-  const int s2o1 = cdef_directions[dir - 2][0];
-  const int s2o2 = cdef_directions[dir - 2][1];
-  const int *pri_taps = cdef_pri_taps[(pri_strength >> coeff_shift) & 1];
-  const int *sec_taps = cdef_sec_taps;
+  const int po1 = av2_cdef_directions[dir][0];
+  const int po2 = av2_cdef_directions[dir][1];
+  const int s1o1 = av2_cdef_directions[dir + 2][0];
+  const int s1o2 = av2_cdef_directions[dir + 2][1];
+  const int s2o1 = av2_cdef_directions[dir - 2][0];
+  const int s2o2 = av2_cdef_directions[dir - 2][1];
+  const int *pri_taps = av2_cdef_pri_taps[(pri_strength >> coeff_shift) & 1];
+  const int *sec_taps = av2_cdef_sec_taps;
 
   if (enable_primary && pri_strength)
     pri_damping = AVMMAX(0, pri_damping - get_msb(pri_strength));
@@ -593,11 +593,11 @@ SIMD_INLINE void copy_block_8xh(uint16_t *const dest, int dstride,
 
 /* Wrapper function which invokes block width specific CDEF SIMD functions when
  * primary and secondary strengths are non-zero. */
-void SIMD_FUNC(cdef_filter_16_0)(uint16_t *const dest, int dstride,
-                                 const uint16_t *in, int pri_strength,
-                                 int sec_strength, int dir, int pri_damping,
-                                 int sec_damping, int coeff_shift,
-                                 int block_width, int block_height) {
+void SIMD_FUNC(av2_cdef_filter_16_0)(uint16_t *const dest, int dstride,
+                                     const uint16_t *in, int pri_strength,
+                                     int sec_strength, int dir, int pri_damping,
+                                     int sec_damping, int coeff_shift,
+                                     int block_width, int block_height) {
   if (block_width == 8) {
     filter_block_8x8(dest, dstride, in, pri_strength, sec_strength, dir,
                      pri_damping, sec_damping, coeff_shift, block_height,
@@ -613,11 +613,11 @@ void SIMD_FUNC(cdef_filter_16_0)(uint16_t *const dest, int dstride,
 
 /* Wrapper function which invokes block width specific CDEF SIMD functions when
  * primary strength is non-zero and secondary strength is zero. */
-void SIMD_FUNC(cdef_filter_16_1)(uint16_t *const dest, int dstride,
-                                 const uint16_t *in, int pri_strength,
-                                 int sec_strength, int dir, int pri_damping,
-                                 int sec_damping, int coeff_shift,
-                                 int block_width, int block_height) {
+void SIMD_FUNC(av2_cdef_filter_16_1)(uint16_t *const dest, int dstride,
+                                     const uint16_t *in, int pri_strength,
+                                     int sec_strength, int dir, int pri_damping,
+                                     int sec_damping, int coeff_shift,
+                                     int block_width, int block_height) {
   if (block_width == 8) {
     filter_block_8x8(dest, dstride, in, pri_strength, sec_strength, dir,
                      pri_damping, sec_damping, coeff_shift, block_height,
@@ -633,11 +633,11 @@ void SIMD_FUNC(cdef_filter_16_1)(uint16_t *const dest, int dstride,
 
 /* Wrapper function which invokes block width specific CDEF SIMD functions when
  * primary strength is zero and secondary strength is non-zero. */
-void SIMD_FUNC(cdef_filter_16_2)(uint16_t *const dest, int dstride,
-                                 const uint16_t *in, int pri_strength,
-                                 int sec_strength, int dir, int pri_damping,
-                                 int sec_damping, int coeff_shift,
-                                 int block_width, int block_height) {
+void SIMD_FUNC(av2_cdef_filter_16_2)(uint16_t *const dest, int dstride,
+                                     const uint16_t *in, int pri_strength,
+                                     int sec_strength, int dir, int pri_damping,
+                                     int sec_damping, int coeff_shift,
+                                     int block_width, int block_height) {
   if (block_width == 8) {
     filter_block_8x8(dest, dstride, in, pri_strength, sec_strength, dir,
                      pri_damping, sec_damping, coeff_shift, block_height,
@@ -653,11 +653,11 @@ void SIMD_FUNC(cdef_filter_16_2)(uint16_t *const dest, int dstride,
 
 /* Wrapper function which invokes block width specific CDEF SIMD functions when
  * both primary and secondary strengths are zero. */
-void SIMD_FUNC(cdef_filter_16_3)(uint16_t *const dest, int dstride,
-                                 const uint16_t *in, int pri_strength,
-                                 int sec_strength, int dir, int pri_damping,
-                                 int sec_damping, int coeff_shift,
-                                 int block_width, int block_height) {
+void SIMD_FUNC(av2_cdef_filter_16_3)(uint16_t *const dest, int dstride,
+                                     const uint16_t *in, int pri_strength,
+                                     int sec_strength, int dir, int pri_damping,
+                                     int sec_damping, int coeff_shift,
+                                     int block_width, int block_height) {
   (void)pri_strength;
   (void)sec_strength;
   (void)dir;
@@ -672,9 +672,10 @@ void SIMD_FUNC(cdef_filter_16_3)(uint16_t *const dest, int dstride,
   }
 }
 
-void SIMD_FUNC(cdef_copy_rect8_16bit_to_16bit)(uint16_t *const dst, int dstride,
-                                               const uint16_t *src, int sstride,
-                                               int v, int h) {
+void SIMD_FUNC(av2_cdef_copy_rect8_16bit_to_16bit)(uint16_t *const dst,
+                                                   int dstride,
+                                                   const uint16_t *src,
+                                                   int sstride, int v, int h) {
   int i, j;
   for (i = 0; i < v; i++) {
     for (j = 0; j < (h & ~0x7); j += 8) {

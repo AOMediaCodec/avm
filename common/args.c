@@ -195,7 +195,7 @@ int parse_cfg(const char *file, cfg_options_t *config) {
 
 int arg_match(struct arg *arg_, const struct arg_def *def, char **argv) {
   char err_msg[ARG_ERR_MSG_MAX_LEN];
-  int ret = arg_match_helper(arg_, def, argv, err_msg);
+  int ret = avm_arg_match_helper(arg_, def, argv, err_msg);
   if (err_msg[0] != '\0') {
     die(err_msg);
   }
@@ -256,7 +256,7 @@ void arg_show_usage(FILE *fp, const struct arg_def *const *defs) {
 
 unsigned int arg_parse_uint(const struct arg *arg) {
   char err_msg[ARG_ERR_MSG_MAX_LEN];
-  unsigned int ret = arg_parse_uint_helper(arg, err_msg);
+  unsigned int ret = avm_arg_parse_uint_helper(arg, err_msg);
   if (err_msg[0] != '\0') {
     die(err_msg);
   }
@@ -265,7 +265,7 @@ unsigned int arg_parse_uint(const struct arg *arg) {
 
 int arg_parse_int(const struct arg *arg) {
   char err_msg[ARG_ERR_MSG_MAX_LEN];
-  int ret = arg_parse_int_helper(arg, err_msg);
+  int ret = avm_arg_parse_int_helper(arg, err_msg);
   if (err_msg[0] != '\0') {
     die(err_msg);
   }
@@ -274,7 +274,7 @@ int arg_parse_int(const struct arg *arg) {
 
 struct avm_rational arg_parse_rational(const struct arg *arg) {
   char err_msg[ARG_ERR_MSG_MAX_LEN];
-  struct avm_rational ret = arg_parse_rational_helper(arg, err_msg);
+  struct avm_rational ret = avm_arg_parse_rational_helper(arg, err_msg);
   if (err_msg[0] != '\0') {
     die(err_msg);
   }
@@ -283,7 +283,7 @@ struct avm_rational arg_parse_rational(const struct arg *arg) {
 
 int arg_parse_enum(const struct arg *arg) {
   char err_msg[ARG_ERR_MSG_MAX_LEN];
-  int ret = arg_parse_enum_helper(arg, err_msg);
+  int ret = avm_arg_parse_enum_helper(arg, err_msg);
   if (err_msg[0] != '\0') {
     die(err_msg);
   }
@@ -292,7 +292,7 @@ int arg_parse_enum(const struct arg *arg) {
 
 int arg_parse_enum_or_int(const struct arg *arg) {
   char err_msg[ARG_ERR_MSG_MAX_LEN];
-  int ret = arg_parse_enum_or_int_helper(arg, err_msg);
+  int ret = avm_arg_parse_enum_or_int_helper(arg, err_msg);
   if (err_msg[0] != '\0') {
     die(err_msg);
   }
@@ -303,7 +303,7 @@ int arg_parse_enum_or_int(const struct arg *arg) {
 // return the number of elements in the list
 int arg_parse_list(const struct arg *arg, int *list, int n) {
   char err_msg[ARG_ERR_MSG_MAX_LEN];
-  int ret = arg_parse_list_helper(arg, list, n, err_msg);
+  int ret = avm_arg_parse_list_helper(arg, list, n, err_msg);
   if (err_msg[0] != '\0') {
     die(err_msg);
   }

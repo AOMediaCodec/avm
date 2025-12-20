@@ -218,7 +218,6 @@ typedef enum avm_metadata_insert_flags {
 /*!\brief Array of avm_metadata structs for an image. */
 typedef struct avm_metadata_array avm_metadata_array_t;
 
-#if CONFIG_METADATA
 /*!\brief Metadata necessity indicator
  *
  * Indicates the importance level of the metadata for proper decoding
@@ -326,15 +325,13 @@ typedef enum avm_metadata_layer {
   AVM_LAYER_VALUES = 3,
   // 4-15 are reserved for AVM use
 } avm_metadata_layer_t;
-#endif  // CONFIG_METADATA
 
 /*!\brief Metadata payload. */
 typedef struct avm_metadata {
-  uint32_t type;                           /**< Metadata type */
-  uint8_t *payload;                        /**< Metadata payload data */
-  size_t sz;                               /**< Metadata payload size */
-  avm_metadata_insert_flags_t insert_flag; /**< Metadata insertion flag */
-#if CONFIG_METADATA
+  uint32_t type;                                /**< Metadata type */
+  uint8_t *payload;                             /**< Metadata payload data */
+  size_t sz;                                    /**< Metadata payload size */
+  avm_metadata_insert_flags_t insert_flag;      /**< Metadata insertion flag */
   uint8_t is_suffix;                            /**< Metadata suffix flag */
   avm_metadata_necessity_t necessity_idc;       /**< Metadata necessity */
   avm_metadata_application_id_t application_id; /**< Metadata application id */
@@ -344,7 +341,6 @@ typedef struct avm_metadata {
   avm_metadata_layer_t layer_idc;               /**< Metadata layers mode */
   uint32_t xlayer_map;                          /**< Metadata x_layer mapping */
   uint8_t mlayer_map[31];                       /**< Metadata m_layer mapping */
-#endif                                          // CONFIG_METADATA
 
 } avm_metadata_t;
 

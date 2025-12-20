@@ -1193,13 +1193,14 @@ void av2_ext_highbd_warp_affine_scaled_c(
   }
 }
 
-void highbd_warp_plane(WarpedMotionParams *wm, const uint16_t *const ref,
-                       int width, int height, int stride, uint16_t *const pred,
-                       int p_col, int p_row, int p_width, int p_height,
-                       int p_stride, int subsampling_x, int subsampling_y,
-                       int bd, ConvolveParams *conv_params,
-                       const struct scale_factors *sf, int use_warp_bd_box,
-                       PadBlock *warp_bd_box) {
+void av2_highbd_warp_plane(WarpedMotionParams *wm, const uint16_t *const ref,
+                           int width, int height, int stride,
+                           uint16_t *const pred, int p_col, int p_row,
+                           int p_width, int p_height, int p_stride,
+                           int subsampling_x, int subsampling_y, int bd,
+                           ConvolveParams *conv_params,
+                           const struct scale_factors *sf, int use_warp_bd_box,
+                           PadBlock *warp_bd_box) {
   const int is_scaled = sf ? av2_is_scaled(sf) : 0;
   assert(wm->wmtype <= AFFINE);
   if (wm->wmtype == ROTZOOM) {
@@ -1246,9 +1247,10 @@ void av2_warp_plane(WarpedMotionParams *wm, int bd, const uint16_t *ref,
 
                     ,
                     int use_warp_bd_box, PadBlock *warp_bd_box) {
-  highbd_warp_plane(wm, ref, width, height, stride, pred, p_col, p_row, p_width,
-                    p_height, p_stride, subsampling_x, subsampling_y, bd,
-                    conv_params, sf, use_warp_bd_box, warp_bd_box);
+  av2_highbd_warp_plane(wm, ref, width, height, stride, pred, p_col, p_row,
+                        p_width, p_height, p_stride, subsampling_x,
+                        subsampling_y, bd, conv_params, sf, use_warp_bd_box,
+                        warp_bd_box);
 }
 
 #define LS_MV_MAX 256  // max mv in 1/8-pel

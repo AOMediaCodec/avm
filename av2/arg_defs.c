@@ -867,19 +867,15 @@ const av2_codec_arg_definitions_t g_av2_codec_arg_defs = {
       ARG_DEF(NULL, "use-per-plane-frame-hash", 1,
               "Write hash values for each plane instead of the entire frame. "
               "(0: false (default), 1: true)"),
-#if CONFIG_METADATA
   .use_short_metadata = ARG_DEF(NULL, "use-short-metadata", 1,
                                 "Use short metadata OBU format "
                                 "(0: GROUP format [default], 1: SHORT format)"),
-#endif  // CONFIG_METADATA
 #endif  // CONFIG_AV2_ENCODER
   .enable_short_refresh_frame_flags =
       ARG_DEF(NULL, "enable-short-refresh-frame-flags", 1,
               "Signal refresh frame flags with N bits. (0: N = 8, 1 : N = 3)"),
 
-#if CONFIG_ICC_METADATA
   .icc_file = ARG_DEF(NULL, "icc", 1, "ICC profile filename"),
-#endif  // CONFIG_ICC_METADATA
   .scan_type_info_present_flag =
       ARG_DEF(NULL, "scan-type-info", 1, "Scan type info present flag"),
   .enable_mfh_obu_signaling =

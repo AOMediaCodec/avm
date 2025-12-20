@@ -116,8 +116,8 @@ static void od_ec_enc_normalize(od_ec_enc *enc, od_ec_window low, unsigned rng,
 
 /*Initializes the encoder.
   size: The initial size of the buffer, in bytes.*/
-void od_ec_enc_init(od_ec_enc *enc, uint32_t size) {
-  od_ec_enc_reset(enc);
+void avm_od_ec_enc_init(od_ec_enc *enc, uint32_t size) {
+  avm_od_ec_enc_reset(enc);
   enc->buf = (unsigned char *)malloc(sizeof(*enc->buf) * size);
   enc->storage = size;
   if (size > 0 && enc->buf == NULL) {
@@ -133,7 +133,7 @@ void od_ec_enc_init(od_ec_enc *enc, uint32_t size) {
 }
 
 /*Reinitializes the encoder.*/
-void od_ec_enc_reset(od_ec_enc *enc) {
+void avm_od_ec_enc_reset(od_ec_enc *enc) {
   enc->offs = 0;
   enc->low = 0;
   enc->rng = 0x8000;
@@ -148,7 +148,7 @@ void od_ec_enc_reset(od_ec_enc *enc) {
 }
 
 /*Frees the buffers used by the encoder.*/
-void od_ec_enc_clear(od_ec_enc *enc) {
+void avm_od_ec_enc_clear(od_ec_enc *enc) {
   free(enc->precarry_buf);
   free(enc->buf);
 }
@@ -192,7 +192,7 @@ static void od_ec_encode_q15(od_ec_enc *enc, unsigned fl, unsigned fh, int s,
 /*Encode a single binary value.
   val: The value to encode (0 or 1).
   f: The probability that the val is one, scaled by 32768.*/
-void od_ec_encode_bool_q15(od_ec_enc *enc, int val, unsigned f) {
+void avm_od_ec_encode_bool_q15(od_ec_enc *enc, int val, unsigned f) {
   od_ec_window l;
   unsigned r;
   unsigned v;
@@ -246,8 +246,8 @@ void od_ec_encode_literal_bypass(od_ec_enc *enc, int val, int n_bits) {
          be 0.
   nsyms: The number of symbols in the alphabet.
          This should be at most 16.*/
-void od_ec_encode_cdf_q15(od_ec_enc *enc, int s, const uint16_t *icdf,
-                          int nsyms) {
+void avm_od_ec_encode_cdf_q15(od_ec_enc *enc, int s, const uint16_t *icdf,
+                              int nsyms) {
   (void)nsyms;
   assert(s >= 0);
   assert(s < nsyms);
@@ -297,11 +297,11 @@ void od_ec_enc_patch_initial_bits(od_ec_enc *enc, unsigned val, int nbits) {
 
 /*Indicates that there are no more symbols to encode.
   All remaining output bytes are flushed to the output buffer.
-  od_ec_enc_reset() should be called before using the encoder again.
+  avm_od_ec_enc_reset() should be called before using the encoder again.
   bytes: Returns the size of the encoded data in the returned buffer.
   Return: A pointer to the start of the final buffer, or NULL if there was an
            encoding error.*/
-unsigned char *od_ec_enc_done(od_ec_enc *enc, uint32_t *nbytes) {
+unsigned char *avm_od_ec_enc_done(od_ec_enc *enc, uint32_t *nbytes) {
   unsigned char *out;
   uint32_t storage;
   uint16_t *buf;
@@ -316,7 +316,7 @@ unsigned char *od_ec_enc_done(od_ec_enc *enc, uint32_t *nbytes) {
   {
     uint32_t tell;
     /* Don't count the 1 bit we lose to raw bits as overhead. */
-    tell = od_ec_enc_tell(enc) - 1;
+    tell = avm_od_ec_enc_tell(enc) - 1;
     fprintf(stderr, "overhead: %f%%\n",
             100 * (tell - enc->entropy) / enc->entropy);
     fprintf(stderr, "efficiency: %f bits/symbol\n",
@@ -399,7 +399,7 @@ unsigned char *od_ec_enc_done(od_ec_enc *enc, uint32_t *nbytes) {
   Return: The number of bits.
           This will always be slightly larger than the exact value (e.g., all
            rounding error is in the positive direction).*/
-int od_ec_enc_tell(const od_ec_enc *enc) {
+int avm_od_ec_enc_tell(const od_ec_enc *enc) {
   /*The 10 here counteracts the offset of -9 baked into cnt, and adds 1 extra
      bit, which we reserve for terminating the stream.*/
   return (enc->cnt + 10) + enc->offs * 8;
@@ -414,8 +414,8 @@ int od_ec_enc_tell(const od_ec_enc *enc) {
   Return: The number of bits scaled by 2**OD_BITRES.
           This will always be slightly larger than the exact value (e.g., all
            rounding error is in the positive direction).*/
-uint64_t od_ec_enc_tell_frac(const od_ec_enc *enc) {
-  return od_ec_tell_frac(od_ec_enc_tell(enc), enc->rng);
+uint64_t avm_od_ec_enc_tell_frac(const od_ec_enc *enc) {
+  return avm_od_ec_tell_frac(avm_od_ec_enc_tell(enc), enc->rng);
 }
 
 /*Saves a entropy coder checkpoint to dst.

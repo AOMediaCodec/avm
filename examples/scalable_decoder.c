@@ -99,7 +99,11 @@ int main(int argc, char **argv) {
   size_t bytes_in_buffer = 0;
   size_t buffer_size = 0;
   struct AvxInputContext avm_input_ctx;
+#if CONFIG_F436_OBUORDER
+  struct ObuDecInputContext obu_ctx = { &avm_input_ctx, NULL, 0, 0 };
+#else
   struct ObuDecInputContext obu_ctx = { &avm_input_ctx, NULL, 0, 0, 0 };
+#endif
   avm_codec_stream_info_t si;
   uint8_t tmpbuf[32];
   unsigned int i;
@@ -147,8 +151,14 @@ int main(int argc, char **argv) {
       die("Failed to open output for writing.");
   }
 
+#if CONFIG_F436_OBUORDER
+  while (
+      !obudec_read_frame_unit(&obu_ctx, &buf, &bytes_in_buffer, &buffer_size))
+#else
   while (!obudec_read_temporal_unit(&obu_ctx, &buf, &bytes_in_buffer,
-                                    &buffer_size)) {
+                                    &buffer_size))
+#endif
+  {
     avm_codec_iter_t iter = NULL;
     avm_image_t *img = NULL;
     if (avm_codec_decode(&codec, buf, bytes_in_buffer, NULL))

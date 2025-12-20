@@ -641,7 +641,6 @@ typedef struct cfg_options {
    */
   int crop_win_bottom_offset;
 
-#if CONFIG_ICC_METADATA
   /*!\brief ICC profile metadata
    *
    */
@@ -650,7 +649,6 @@ typedef struct cfg_options {
    *
    */
   size_t icc_size;
-#endif  // CONFIG_ICC_METADATA
 
   /*!\brief Scan type info present flag
    *
@@ -1197,7 +1195,6 @@ typedef struct avm_codec_enc_cfg {
    */
   unsigned int frame_hash_per_plane;
 
-#if CONFIG_METADATA
   /*!\brief Use short metadata OBU format
    *
    * Controls whether to use OBU_METADATA_SHORT or OBU_METADATA_GROUP format
@@ -1207,7 +1204,6 @@ typedef struct avm_codec_enc_cfg {
    * - 1 = OBU_METADATA_SHORT - single unit per OBU
    */
   unsigned int use_short_metadata;
-#endif  // CONFIG_METADATA
 
   /*!\brief Options defined per config file
    *

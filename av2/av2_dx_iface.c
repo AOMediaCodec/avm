@@ -173,17 +173,12 @@ static avm_codec_err_t decoder_destroy(avm_codec_alg_priv_t *ctx) {
   avm_free(ctx);
   return AVM_CODEC_OK;
 }
-#if CONFIG_CWG_E242_BITDEPTH
+
 // Reads the bitdepth lut index in color_config() and sets *bit_depth
 // accordingly.
-#else
-// Reads the high_bitdepth and twelve_bit fields in color_config() and sets
-// *bit_depth based on the values of those fields and profile.
-#endif
 static avm_codec_err_t parse_bitdepth(struct avm_read_bit_buffer *rb,
                                       BITSTREAM_PROFILE profile,
                                       avm_bit_depth_t *bit_depth) {
-#if CONFIG_CWG_E242_BITDEPTH
   (void)profile;
   const uint32_t bitdepth_lut_idx = avm_rb_read_uvlc(rb);
   const int bitdepth = av2_get_bitdepth_from_index(bitdepth_lut_idx);
@@ -191,18 +186,6 @@ static avm_codec_err_t parse_bitdepth(struct avm_read_bit_buffer *rb,
     return AVM_CODEC_UNSUP_BITSTREAM;
   else
     *bit_depth = (avm_bit_depth_t)bitdepth;
-#else
-  const int high_bitdepth = avm_rb_read_bit(rb);
-  if (profile == PROFILE_2 && high_bitdepth) {
-    const int twelve_bit = avm_rb_read_bit(rb);
-    *bit_depth = twelve_bit ? AVM_BITS_12 : AVM_BITS_10;
-  } else if (profile <= PROFILE_2) {
-    *bit_depth = high_bitdepth ? AVM_BITS_10 : AVM_BITS_8;
-  } else {
-    // Unsupported profile/bit-depth combination
-    return AVM_CODEC_UNSUP_BITSTREAM;
-  }
-#endif  // CONFIG_CWG_E242_BITDEPTH
   return AVM_CODEC_OK;
 }
 
@@ -213,21 +196,14 @@ static avm_codec_err_t parse_chroma_format_bitdepth(
 static avm_codec_err_t parse_color_config(struct avm_read_bit_buffer *rb,
                                           BITSTREAM_PROFILE profile) {
 #endif  // CONFIG_CWG_F270_CI_OBU
-#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
   const uint32_t chroma_format_idc = avm_rb_read_uvlc(rb);
-#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
   avm_bit_depth_t bit_depth;
   avm_codec_err_t err = parse_bitdepth(rb, profile, &bit_depth);
   if (err != AVM_CODEC_OK) return err;
 
 #if !CONFIG_CWG_F270_CI_OBU
-#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
   const int is_monochrome = (chroma_format_idc == CHROMA_FORMAT_400);
-#else
-  // monochrome bit (not needed for PROFILE_1)
-  const int is_monochrome = profile != PROFILE_1 ? avm_rb_read_bit(rb) : 0;
-#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
   avm_color_primaries_t color_primaries;
   avm_transfer_characteristics_t transfer_characteristics;
   avm_matrix_coefficients_t matrix_coefficients;
@@ -261,32 +237,9 @@ static avm_codec_err_t parse_color_config(struct avm_read_bit_buffer *rb,
 #if !CONFIG_CWG_F270_CI_OBU
       avm_rb_read_bit(rb);  // color_range
 #endif                      // !CONFIG_CWG_F270_CI_OBU
-#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
       err = av2_get_chroma_subsampling(chroma_format_idc, &subsampling_x,
                                        &subsampling_y);
       if (err != AVM_CODEC_OK) return err;
-#else
-  if (profile == PROFILE_0) {
-    // 420 only
-    subsampling_x = subsampling_y = 1;
-  } else if (profile == PROFILE_1) {
-    // 444 only
-    subsampling_x = subsampling_y = 0;
-  } else {
-    assert(profile == PROFILE_2);
-    if (bit_depth == AVM_BITS_12) {
-      subsampling_x = avm_rb_read_bit(rb);
-      if (subsampling_x)
-        subsampling_y = avm_rb_read_bit(rb);  // 422 or 420
-      else
-        subsampling_y = 0;  // 444
-    } else {
-      // 422
-      subsampling_x = 1;
-      subsampling_y = 0;
-    }
-  }
-#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 #if !CONFIG_CWG_F270_CI_OBU
       if (matrix_coefficients == AVM_CICP_MC_IDENTITY &&
           (subsampling_x || subsampling_y)) {
@@ -734,6 +687,8 @@ static avm_codec_err_t init_decoder(avm_codec_alg_priv_t *ctx) {
   frame_worker_data->pbi->random_access_point_index = 0;
   frame_worker_data->pbi->random_access_point_count = 0;
 #endif
+  frame_worker_data->pbi->multi_stream_mode = 0;
+  frame_worker_data->pbi->msdo_is_present_in_tu = 0;
   init_buffer_callbacks(ctx);
   for (int i = 0; i < AVM_MAX_NUM_STREAMS; i++) {
     for (int j = 0; j < INTER_REFS_PER_FRAME; j++) {
@@ -849,6 +804,100 @@ static avm_codec_err_t decoder_inspect(avm_codec_alg_priv_t *ctx,
 }
 #endif
 
+#if CONFIG_F436_OBUORDER
+// check_random_access_frame_unit() sets pbi->num_obus_with_frame_unit as the
+// number of obus in *data. check_random_access_frame_unit() also sets
+// pbi->is_random_access_frame_unit to be 1 if *data contains random access
+// frame unit.
+static void check_random_access_frame_unit(struct AV2Decoder *pbi,
+                                           const uint8_t *data,
+                                           uint64_t data_sz) {
+  pbi->num_obus_with_frame_unit = 0;
+  pbi->is_random_access_frame_unit = -1;
+  bool start_of_temporal_unit = true;
+  bool has_key_frames = false;
+  int frame_unit_mlayer_id = -1;
+  const uint8_t *data_read = data;
+  ObuHeader obu_header;
+  memset(&obu_header, 0, sizeof(obu_header));
+  while (data_read < data + data_sz) {
+    size_t payload_size = 0;
+    size_t bytes_read = 0;
+    avm_read_obu_header_and_size(data_read, data_sz, &obu_header, &payload_size,
+                                 &bytes_read);
+    pbi->num_obus_with_frame_unit++;
+    data_read += bytes_read + payload_size;
+    has_key_frames |=
+        (obu_header.type == OBU_CLK);  // || obu_header.type == OBU_OLK);
+    if (is_single_tile_vcl_obu(obu_header.type) ||
+        is_multi_tile_vcl_obu(obu_header.type)) {
+      if (frame_unit_mlayer_id == -1)
+        frame_unit_mlayer_id = obu_header.obu_mlayer_id;
+      else {
+        assert(frame_unit_mlayer_id == obu_header.obu_mlayer_id);
+      }
+    }
+    start_of_temporal_unit = (is_tu_head_non_vcl_obu(obu_header.type));
+  }
+
+  pbi->is_random_access_frame_unit = 0;
+  if (pbi->last_frame_unit.display_order_hint == -1) {
+    if (!has_key_frames) assert(has_key_frames);
+    pbi->is_random_access_frame_unit = has_key_frames;
+    start_of_temporal_unit = true;
+  }
+  if (has_key_frames) {
+    pbi->is_random_access_frame_unit = has_key_frames && start_of_temporal_unit;
+    if (pbi->last_frame_unit.display_order_hint != -1) {
+      pbi->is_random_access_frame_unit |=
+          (has_key_frames && pbi->last_frame_unit.obu_type != OBU_CLK);
+      pbi->is_random_access_frame_unit |=
+          (has_key_frames && pbi->last_frame_unit.obu_type == OBU_CLK &&
+           (frame_unit_mlayer_id <= pbi->last_frame_unit.mlayer_id));
+    }
+  }
+}
+static void set_last_frame_unit(struct AV2Decoder *pbi) {
+  obu_info current_frame_unit;
+  memset(&current_frame_unit, -1, sizeof(current_frame_unit));
+  for (int obu_idx = 0; obu_idx < pbi->num_obus_with_frame_unit; obu_idx++) {
+    if (pbi->obu_list[obu_idx].first_tile_group == 1) {
+      if (pbi->obu_list[obu_idx].showable_frame == 0 &&
+          pbi->last_frame_unit.showable_frame == 1) {
+        pbi->last_displayable_frame_unit = pbi->last_frame_unit;
+      }
+      pbi->last_frame_unit = pbi->obu_list[obu_idx];
+    }
+  }
+}
+static void reset_last_frame_unit(struct AV2Decoder *pbi, const uint8_t *data,
+                                  uint64_t data_sz) {
+  // NOTE: last_frame_unit and last_displayable_frame_unit should be reset to -1
+  // when the upcoming frame unit should not be compared with the previous frame
+  // unit such as the first frame of a new CVS.
+  bool start_of_temporal_unit = true;
+  const uint8_t *data_read = data;
+  ObuHeader obu_header;
+  memset(&obu_header, 0, sizeof(obu_header));
+  while (data_read < data + data_sz) {
+    size_t payload_size = 0;
+    size_t bytes_read = 0;
+    avm_read_obu_header_and_size(data_read, data_sz, &obu_header, &payload_size,
+                                 &bytes_read);
+    pbi->num_obus_with_frame_unit++;
+    data_read += bytes_read + payload_size;
+    start_of_temporal_unit = (is_tu_head_non_vcl_obu(obu_header.type)) &&
+                             obu_header.type != OBU_TEMPORAL_DELIMITER;
+    if (start_of_temporal_unit) break;
+  }
+
+  if (start_of_temporal_unit) {
+    memset(&pbi->last_frame_unit, -1, sizeof(pbi->last_frame_unit));
+    memset(&pbi->last_displayable_frame_unit, -1,
+           sizeof(pbi->last_displayable_frame_unit));
+  }
+}
+#endif  // CONFIG_F436_OBUORDER
 static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
                                       const uint8_t *data, size_t data_sz,
                                       void *user_priv) {
@@ -933,6 +982,33 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
   const uint8_t *data_start = data;
   const uint8_t *data_end = data + data_sz;
 
+#if CONFIG_F436_OBUORDER
+#if !CONFIG_INSPECTION
+  AVxWorker *const worker = ctx->frame_worker;
+  FrameWorkerData *const frame_worker_data = (FrameWorkerData *)worker->data1;
+#endif  // !CONFIG_INSPECTION
+
+  // reset last_frame_unit and last_displayable_frame_unit if needed
+  reset_last_frame_unit(frame_worker_data->pbi, data_start,
+                        (uint64_t)(data_end - data_start));
+
+  // Note:obu_list is placed in pbi instead of a local variable in
+  // avm_decode_frame_from_obus() due to the avm encoder that feeds multiple
+  // frame units to avm_codec_decode() to avoid multiple memory assignment.
+  // The input data has more than one frame unit unlike the stand alone decoder
+  // input data to have one frame unit. test_decoder_frame_unit_offset is
+  // required only for test-decoder invoked by the avm encoder.
+  check_random_access_frame_unit(frame_worker_data->pbi, data_start,
+                                 (uint64_t)(data_end - data_start));
+  frame_worker_data->pbi->obu_list = (obu_info *)malloc(
+      sizeof(obu_info) * frame_worker_data->pbi->num_obus_with_frame_unit);
+  for (int obu_idx = 0;
+       obu_idx < frame_worker_data->pbi->num_obus_with_frame_unit; obu_idx++)
+    memset(&frame_worker_data->pbi->obu_list[obu_idx], -1, sizeof(obu_info));
+  frame_worker_data->pbi->test_decoder_frame_unit_offset = 0;
+  for (int i = 0; i < MAX_NUM_MLAYERS; i++)
+    frame_worker_data->pbi->num_displayable_frame_unit[i] = 0;
+#endif  // CONFIG_F436_OBUORDER
   // Decode in serial mode.
   while (data_start < data_end) {
     uint64_t frame_size = (uint64_t)(data_end - data_start);
@@ -940,7 +1016,11 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
     res = decode_one(ctx, &data_start, (size_t)frame_size, user_priv);
     if (res != AVM_CODEC_OK) return res;
   }
-
+#if CONFIG_F436_OBUORDER
+  set_last_frame_unit(frame_worker_data->pbi);
+  free(frame_worker_data->pbi->obu_list);
+  frame_worker_data->pbi->num_obus_with_frame_unit = 0;
+#endif  // CONFIG_F436_OBUORDER
   return res;
 }
 

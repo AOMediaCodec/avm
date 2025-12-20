@@ -34,7 +34,7 @@ static INLINE void init_ref_map_pair(AV2_COMMON *cm,
     // Get reference frame buffer
     const RefCntBuffer *const buf = cm->ref_frame_map[map_idx];
 #if CONFIG_F322_OBUER_REFRESTRICT
-    if (buf != NULL && buf->is_restricted_ref) {
+    if (buf != NULL && buf->is_restricted) {
       ref_frame_map_pairs[map_idx].ref_frame_restricted = 1;
       continue;
     }

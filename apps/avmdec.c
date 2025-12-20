@@ -130,47 +130,23 @@ static const arg_def_t randomaccess =
 #endif
 static const arg_def_t bruoptmodearg =
     ARG_DEF(NULL, "bru-opt-mode", 0, "Use BRU optimized decode mode");
-#if CONFIG_ICC_METADATA
 static const arg_def_t icc_file =
     ARG_DEF(NULL, "icc", 1, "Output ICC profile file");
-#endif  // CONFIG_ICC_METADATA
-static const arg_def_t *all_args[] = { &help,
-                                       &codecarg,
-                                       &use_yv12,
-                                       &use_i420,
-                                       &flipuvarg,
-                                       &rawvideo,
-                                       &noblitarg,
-                                       &progressarg,
-                                       &limitarg,
-                                       &skiparg,
-                                       &numstreamsarg,
-                                       &summaryarg,
-                                       &outputfile,
+static const arg_def_t *all_args[] = {
+  &help,           &codecarg,      &use_yv12,    &use_i420,       &flipuvarg,
+  &rawvideo,       &noblitarg,     &progressarg, &limitarg,       &skiparg,
+  &numstreamsarg,  &summaryarg,    &outputfile,
 #if CONFIG_PARAKIT_COLLECT_DATA
-                                       &datafilesuffix,
-                                       &datafilepath,
+  &datafilesuffix, &datafilepath,
 #endif
-                                       &threadsarg,
-                                       &verbosearg,
-                                       &scalearg,
-                                       &fb_arg,
-                                       &md5arg,
-                                       &verifyarg,
-                                       &framestatsarg,
-                                       &continuearg,
-                                       &outbitdeptharg,
-                                       &oppointarg,
-                                       &outallarg,
-                                       &skipfilmgrain,
+  &threadsarg,     &verbosearg,    &scalearg,    &fb_arg,         &md5arg,
+  &verifyarg,      &framestatsarg, &continuearg, &outbitdeptharg, &oppointarg,
+  &outallarg,      &skipfilmgrain,
 #if CONFIG_F024_KEYOBU
-                                       &randomaccess,
+  &randomaccess,
 #endif  // CONFIG_F024_KEYOBU
-                                       &bruoptmodearg,
-#if CONFIG_ICC_METADATA
-                                       &icc_file,
-#endif  // CONFIG_ICC_METADATA
-                                       NULL };
+  &bruoptmodearg,  &icc_file,      NULL
+};
 
 #if CONFIG_LANCZOS_RESAMPLE
 
@@ -354,8 +330,13 @@ static int read_frame(struct AvxDecInputContext *input, uint8_t **buf,
       return ivf_read_frame(input->avm_input_ctx->file, buf, bytes_in_buffer,
                             buffer_size, NULL);
     case FILE_TYPE_OBU:
+#if CONFIG_F436_OBUORDER
+      return obudec_read_frame_unit(input->obu_ctx, buf, bytes_in_buffer,
+                                    buffer_size);
+#else
       return obudec_read_temporal_unit(input->obu_ctx, buf, bytes_in_buffer,
                                        buffer_size);
+#endif  // CONFIG_F436_OBUORDER
     default: return 1;
   }
 }
@@ -692,11 +673,9 @@ static int main_loop(int argc, const char **argv_) {
   int substream_frame_out[AVM_MAX_NUM_STREAMS] = { 0, 0, 0, 0 };
   FILE *framestats_file = NULL;
 
-#if CONFIG_ICC_METADATA
   FILE *icc_f = NULL;
   uint8_t *icc_data = NULL;
   size_t icc_size = 0;
-#endif  // CONFIG_ICC_METADATA
 
   MD5Context md5_ctx;
   unsigned char md5_digest[16];
@@ -716,7 +695,11 @@ static int main_loop(int argc, const char **argv_) {
   memset(&webm_ctx, 0, sizeof(webm_ctx));
   input.webm_ctx = &webm_ctx;
 #endif
+#if CONFIG_F436_OBUORDER
+  struct ObuDecInputContext obu_ctx = { NULL, NULL, 0, 0 };
+#else
   struct ObuDecInputContext obu_ctx = { NULL, NULL, 0, 0, 0 };
+#endif
   int is_ivf = 0;
 
   obu_ctx.avx_ctx = &avm_input_ctx;
@@ -828,10 +811,8 @@ static int main_loop(int argc, const char **argv_) {
 #endif  // CONFIG_F024_KEYOBU
     } else if (arg_match(&arg, &bruoptmodearg, argi)) {
       bru_opt_mode = 1;
-#if CONFIG_ICC_METADATA
     } else if (arg_match(&arg, &icc_file, argi)) {
       icc_f = fopen(arg.val, "wb");
-#endif  // CONFIG_ICC_METADATA
     } else {
       argj++;
     }
@@ -1033,6 +1014,10 @@ static int main_loop(int argc, const char **argv_) {
     if (!stop_after || frame_in < stop_after) {
       if (!read_frame(&input, &buf, &bytes_in_buffer, &buffer_size)) {
         frame_avail = 1;
+#if CONFIG_F436_OBUORDER
+        // frame_in counts number of frame units i.e. multiple tile
+        // groups that compose one frame count as 1.
+#endif
         frame_in++;
 
         avm_usec_timer_start(&timer);
@@ -1078,6 +1063,9 @@ static int main_loop(int argc, const char **argv_) {
 
     got_data = 0;
     while ((img = avm_codec_get_frame(&decoder, &iter))) {
+#if CONFIG_F436_OBUORDER
+      // frame_out does not include hidden frames.
+#endif
       ++frame_out;
       if (frame_in < frame_out) {  // No OBUs for show_existing_frame.
         frame_in = frame_out;
@@ -1096,7 +1084,6 @@ static int main_loop(int argc, const char **argv_) {
 
       if (progress) show_progress(frame_in, frame_out, dx_time);
 
-#if CONFIG_ICC_METADATA
       const int num_metadata = avm_img_num_metadata(img);
       for (int m = 0; m < num_metadata; m++) {
         const avm_metadata_t *metadata = avm_img_get_metadata(img, m);
@@ -1113,7 +1100,6 @@ static int main_loop(int argc, const char **argv_) {
             break;
         }
       }
-#endif  // CONFIG_ICC_METADATA
 
       if (do_verify) {
         if (check_decoded_frame_hash(&decoder, img, frame_out,
@@ -1372,7 +1358,6 @@ fail2:
   fclose(infile);
   if (framestats_file) fclose(framestats_file);
 
-#if CONFIG_ICC_METADATA
   if (icc_f) {
     if (icc_size > 0) {
       fwrite(icc_data, 1, icc_size, icc_f);
@@ -1380,7 +1365,6 @@ fail2:
     fclose(icc_f);
   }
   if (icc_data != NULL) free(icc_data);
-#endif  // CONFIG_ICC_METADATA
 
   free(argv);
 

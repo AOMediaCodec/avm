@@ -86,7 +86,7 @@ static INLINE void avm_write(avm_writer *w, int bit, int probability) {
   bitstream_queue_push(bit, cdf, 2);
 #endif  // CONFIG_BITSTREAM_DEBUG
 
-  od_ec_encode_bool_q15(&w->ec, bit, p);
+  avm_od_ec_encode_bool_q15(&w->ec, bit, p);
 }
 
 static INLINE void avm_write_bit(avm_writer *w, int bit) {
@@ -115,7 +115,7 @@ static INLINE void avm_write_cdf(avm_writer *w, int symb,
   bitstream_queue_push(symb, cdf, nsymbs);
 #endif  // CONFIG_BITSTREAM_DEBUG
 
-  od_ec_encode_cdf_q15(&w->ec, symb, cdf, nsymbs);
+  avm_od_ec_encode_cdf_q15(&w->ec, symb, cdf, nsymbs);
 }
 
 static INLINE void avm_write_symbol(avm_writer *w, int symb, avm_cdf_prob *cdf,

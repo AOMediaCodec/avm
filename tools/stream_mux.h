@@ -107,8 +107,14 @@ bool ReadTemporalUnit(InputContext *ctx, size_t *unit_size) {
       break;
     }
     case FILE_TYPE_OBU: {
+#if CONFIG_F436_OBUORDER
+      if (obudec_read_frame_unit(ctx->obu_ctx, &ctx->unit_buffer, unit_size,
+                                 &ctx->unit_buffer_size))
+#else
       if (obudec_read_temporal_unit(ctx->obu_ctx, &ctx->unit_buffer, unit_size,
-                                    &ctx->unit_buffer_size)) {
+                                    &ctx->unit_buffer_size))
+#endif
+      {
         return false;
       }
       break;
@@ -156,12 +162,8 @@ bool ValidObuType(int obu_type) {
 #else
     case OBU_TILE_GROUP:
 #endif
-#if !CONFIG_METADATA
-    case OBU_METADATA:
-#else
     case OBU_METADATA_SHORT:
     case OBU_METADATA_GROUP:
-#endif  // CONFIG_METADATA
     case OBU_LAYER_CONFIGURATION_RECORD:
     case OBU_ATLAS_SEGMENT:
     case OBU_OPERATING_POINT_SET:

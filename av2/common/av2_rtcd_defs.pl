@@ -65,13 +65,13 @@ struct CNN_MULTI_OUT;
 typedef struct CNN_MULTI_OUT CNN_MULTI_OUT;
 
 /* Function pointers return by CfL functions */
-typedef void (*cfl_subsample_hbd_fn)(const uint16_t *input, int input_stride,
+typedef void (*av2_cfl_subsample_hbd_fn)(const uint16_t *input, int input_stride,
                                      uint16_t *output_q3);
 
-typedef void (*cfl_predict_hbd_fn)(const int16_t *src, uint16_t *dst,
+typedef void (*av2_cfl_predict_hbd_fn)(const int16_t *src, uint16_t *dst,
                                    int dst_stride, int alpha_q3, int bd);
 
-typedef void (*cfl_subtract_average_fn)(const uint16_t *src, int16_t *dst);
+typedef void (*av2_cfl_subtract_average_fn)(const uint16_t *src, int16_t *dst);
 
 EOF
 }
@@ -325,30 +325,30 @@ add_proto qw/void av2_cnn_batchnorm/, "float **image, int channels, int width, i
 
 # Deringing Functions
 
-add_proto qw/int cdef_find_dir/, "const uint16_t *img, int stride, int32_t *var, int coeff_shift";
-add_proto qw/void cdef_find_dir_dual/, "const uint16_t *img1, const uint16_t *img2, int stride, int32_t *var1, int32_t *var2, int coeff_shift, int *out1, int *out2";
+add_proto qw/int av2_cdef_find_dir/, "const uint16_t *img, int stride, int32_t *var, int coeff_shift";
+add_proto qw/void av2_cdef_find_dir_dual/, "const uint16_t *img1, const uint16_t *img2, int stride, int32_t *var1, int32_t *var2, int coeff_shift, int *out1, int *out2";
 
 # 16 bit dst
-add_proto qw/void cdef_filter_16_0/, "uint16_t *const dst16, int dstride, const uint16_t *in, int pri_strength, int sec_strength, int dir, int pri_damping, int sec_damping, int coeff_shift, int block_width, int block_height";
-add_proto qw/void cdef_filter_16_1/, "uint16_t *const dst16, int dstride, const uint16_t *in, int pri_strength, int sec_strength, int dir, int pri_damping, int sec_damping, int coeff_shift, int block_width, int block_height";
-add_proto qw/void cdef_filter_16_2/, "uint16_t *const dst16, int dstride, const uint16_t *in, int pri_strength, int sec_strength, int dir, int pri_damping, int sec_damping, int coeff_shift, int block_width, int block_height";
-add_proto qw/void cdef_filter_16_3/, "uint16_t *const dst16, int dstride, const uint16_t *in, int pri_strength, int sec_strength, int dir, int pri_damping, int sec_damping, int coeff_shift, int block_width, int block_height";
+add_proto qw/void av2_cdef_filter_16_0/, "uint16_t *const dst16, int dstride, const uint16_t *in, int pri_strength, int sec_strength, int dir, int pri_damping, int sec_damping, int coeff_shift, int block_width, int block_height";
+add_proto qw/void av2_cdef_filter_16_1/, "uint16_t *const dst16, int dstride, const uint16_t *in, int pri_strength, int sec_strength, int dir, int pri_damping, int sec_damping, int coeff_shift, int block_width, int block_height";
+add_proto qw/void av2_cdef_filter_16_2/, "uint16_t *const dst16, int dstride, const uint16_t *in, int pri_strength, int sec_strength, int dir, int pri_damping, int sec_damping, int coeff_shift, int block_width, int block_height";
+add_proto qw/void av2_cdef_filter_16_3/, "uint16_t *const dst16, int dstride, const uint16_t *in, int pri_strength, int sec_strength, int dir, int pri_damping, int sec_damping, int coeff_shift, int block_width, int block_height";
 
-add_proto qw/void cdef_copy_rect8_16bit_to_16bit/, "uint16_t *const dst, int dstride, const uint16_t *src, int sstride, int v, int h";
+add_proto qw/void av2_cdef_copy_rect8_16bit_to_16bit/, "uint16_t *const dst, int dstride, const uint16_t *src, int sstride, int v, int h";
 
 # VS compiling for 32 bit targets does not support vector types in
 # structs as arguments, which makes the v256 type of the intrinsics
 # hard to support, so optimizations for this target are disabled.
 if ($opts{config} !~ /libs-x86-win32-vs.*/) {
-  specialize qw/cdef_find_dir sse2 ssse3 sse4_1 avx2 neon/;
-  specialize qw/cdef_find_dir_dual sse2 ssse3 sse4_1 avx2 neon/;
+  specialize qw/av2_cdef_find_dir sse2 ssse3 sse4_1 avx2 neon/;
+  specialize qw/av2_cdef_find_dir_dual sse2 ssse3 sse4_1 avx2 neon/;
 
-  specialize qw/cdef_filter_16_0 sse2 ssse3 sse4_1 avx2 neon/;
-  specialize qw/cdef_filter_16_1 sse2 ssse3 sse4_1 avx2 neon/;
-  specialize qw/cdef_filter_16_2 sse2 ssse3 sse4_1 avx2 neon/;
-  specialize qw/cdef_filter_16_3 sse2 ssse3 sse4_1 avx2 neon/;
+  specialize qw/av2_cdef_filter_16_0 sse2 ssse3 sse4_1 avx2 neon/;
+  specialize qw/av2_cdef_filter_16_1 sse2 ssse3 sse4_1 avx2 neon/;
+  specialize qw/av2_cdef_filter_16_2 sse2 ssse3 sse4_1 avx2 neon/;
+  specialize qw/av2_cdef_filter_16_3 sse2 ssse3 sse4_1 avx2 neon/;
 
-  specialize qw/cdef_copy_rect8_16bit_to_16bit sse2 ssse3 sse4_1 avx2 neon/;
+  specialize qw/av2_cdef_copy_rect8_16bit_to_16bit sse2 ssse3 sse4_1 avx2 neon/;
 }
   add_proto qw/void gdf_set_lap_and_cls_unit/, "const int i_min, const int i_max, const int j_min, const int j_max, const uint16_t *rec_pnt, const int rec_stride, const int bit_depth, uint16_t *const *gdf_lap_y, const int gdf_lap_y_stride, uint32_t *gdf_cls_y, const int gdf_cls_y_stride";
   specialize qw/gdf_set_lap_and_cls_unit avx2/;
@@ -449,25 +449,25 @@ if ((avm_config("MHCCP_CONVOLVE_SIMPLIFY") eq "yes") && 0) {
 add_proto qw/void av2_mhccp_derive_multi_param_hv/, "MACROBLOCKD *const xd, int plane,int above_lines, int left_lines, int ref_width,int ref_height, int dir, int is_top_sb_boundary";
 specialize qw/av2_mhccp_derive_multi_param_hv avx2/;
 
-add_proto qw/cfl_subtract_average_fn cfl_get_subtract_average_fn/, "TX_SIZE tx_size";
-specialize qw/cfl_get_subtract_average_fn sse2 avx2 neon vsx/;
+add_proto qw/av2_cfl_subtract_average_fn av2_cfl_get_subtract_average_fn/, "TX_SIZE tx_size";
+specialize qw/av2_cfl_get_subtract_average_fn sse2 avx2 neon vsx/;
 
-add_proto qw/cfl_subsample_hbd_fn cfl_get_luma_subsampling_420_hbd/, "TX_SIZE tx_size";
-specialize qw/cfl_get_luma_subsampling_420_hbd ssse3 avx2 neon/;
+add_proto qw/av2_cfl_subsample_hbd_fn av2_cfl_get_luma_subsampling_420_hbd/, "TX_SIZE tx_size";
+specialize qw/av2_cfl_get_luma_subsampling_420_hbd ssse3 avx2 neon/;
 
-add_proto qw/cfl_subsample_hbd_fn cfl_get_luma_subsampling_420_hbd_121/, "TX_SIZE tx_size";
-specialize qw/cfl_get_luma_subsampling_420_hbd_121 avx2/;
+add_proto qw/av2_cfl_subsample_hbd_fn av2_cfl_get_luma_subsampling_420_hbd_121/, "TX_SIZE tx_size";
+specialize qw/av2_cfl_get_luma_subsampling_420_hbd_121 avx2/;
 
-add_proto qw/cfl_subsample_hbd_fn cfl_get_luma_subsampling_420_hbd_colocated/, "TX_SIZE tx_size";
-specialize qw/cfl_get_luma_subsampling_420_hbd_colocated avx2/;
+add_proto qw/av2_cfl_subsample_hbd_fn av2_cfl_get_luma_subsampling_420_hbd_colocated/, "TX_SIZE tx_size";
+specialize qw/av2_cfl_get_luma_subsampling_420_hbd_colocated avx2/;
 
-add_proto qw/cfl_subsample_hbd_fn cfl_get_luma_subsampling_422_hbd/, "TX_SIZE tx_size";
-specialize qw/cfl_get_luma_subsampling_422_hbd ssse3 avx2 neon/;
+add_proto qw/av2_cfl_subsample_hbd_fn av2_cfl_get_luma_subsampling_422_hbd/, "TX_SIZE tx_size";
+specialize qw/av2_cfl_get_luma_subsampling_422_hbd ssse3 avx2 neon/;
 
-add_proto qw/cfl_subsample_hbd_fn cfl_get_luma_subsampling_444_hbd/, "TX_SIZE tx_size";
-specialize qw/cfl_get_luma_subsampling_444_hbd ssse3 avx2 neon/;
+add_proto qw/av2_cfl_subsample_hbd_fn av2_cfl_get_luma_subsampling_444_hbd/, "TX_SIZE tx_size";
+specialize qw/av2_cfl_get_luma_subsampling_444_hbd ssse3 avx2 neon/;
 
-add_proto qw/cfl_predict_hbd_fn cfl_get_predict_hbd_fn/, "TX_SIZE tx_size";
-specialize qw/cfl_get_predict_hbd_fn avx2 neon/;
+add_proto qw/av2_cfl_predict_hbd_fn av2_cfl_get_predict_hbd_fn/, "TX_SIZE tx_size";
+specialize qw/av2_cfl_get_predict_hbd_fn avx2 neon/;
 
 1;

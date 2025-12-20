@@ -108,8 +108,8 @@ typedef void (*predict_inter_block_visitor_fn_t)(AV2_COMMON *const cm,
                                                  DecoderCodingBlock *dcb,
                                                  BLOCK_SIZE bsize);
 
-typedef void (*cfl_store_inter_block_visitor_fn_t)(AV2_COMMON *const cm,
-                                                   MACROBLOCKD *const xd);
+typedef void (*av2_cfl_store_inter_block_visitor_fn_t)(AV2_COMMON *const cm,
+                                                       MACROBLOCKD *const xd);
 
 typedef struct ThreadData {
   DecoderCodingBlock dcb;
@@ -144,7 +144,7 @@ typedef struct ThreadData {
   decode_block_visitor_fn_t inverse_tx_inter_block_visit;
   predict_inter_block_visitor_fn_t predict_inter_block_visit;
   predict_inter_block_visitor_fn_t copy_frame_mvs_block_visit;
-  cfl_store_inter_block_visitor_fn_t cfl_store_inter_block_visit;
+  av2_cfl_store_inter_block_visitor_fn_t av2_cfl_store_inter_block_visit;
 
   REF_MV_BANK ref_mv_bank;
   WARP_PARAM_BANK warp_param_bank;
@@ -272,6 +272,23 @@ static INLINE char const *get_component_name(int index) {
   return "error";
 }
 #endif
+
+#if CONFIG_F436_OBUORDER
+// This structure contains some information of obus to check the order of
+// obus is valid.
+typedef struct {
+  OBU_TYPE obu_type;
+  int first_tile_group;
+  int show_frame;
+  // Note: if show_frame = 1, showble_frame = 1
+  int showable_frame;
+  int display_order_hint;
+  int mlayer_id;
+  int tlayer_id;
+  int xlayer_id;
+  int is_vcl;
+} obu_info;
+#endif  // CONFIG_F436_OBUORDER
 
 typedef struct AV2Decoder {
   DecoderCodingBlock dcb;
@@ -448,6 +465,49 @@ typedef struct AV2Decoder {
   SequenceHeader seq_list_buf[AVM_MAX_NUM_STREAMS][MAX_SEQ_NUM];
   MultiFrameHeader mfh_params_buf[AVM_MAX_NUM_STREAMS][MAX_MFH_NUM];
 #if CONFIG_F024_KEYOBU
+#if CONFIG_F436_OBUORDER
+  /*!
+   * Indicates the number of obus signalled before the frame unit
+   * including the frame unit (that may consist of multiple tile group obus)
+   */
+  int num_obus_with_frame_unit;
+  /*!
+   * list of obus with a frame unit
+   * it should be noted that it may be bigger than it should be in the case that
+   * this decoder is invoked by the avm encoder
+   */
+  obu_info *obu_list;
+  /*!
+   * Used only when the avm encoder invokes test decoder and the avm encoder
+   * feeds multiple frame units to avm_codec_decode()
+   * test_decoder_frame_unit_offset is increased by number of obus including
+   * configuration records, qm and fgm obus and 1 frame unit that may consist of
+   * multiple obus
+   */
+  int test_decoder_frame_unit_offset;
+  /*!
+   * last_frame_unit contains obu_info of the last frame unit
+   * it is used to check the obu order validation
+   */
+  obu_info last_frame_unit;
+  /*!
+   * last_hidden_frame_unit contains obu_info of the last displayable frame unit
+   * it is used to check the obu order validation
+   */
+  obu_info last_displayable_frame_unit;
+  /*!
+   * Indicates if the current data chunk being decoded in avm_codec_decode()
+   * includes a random access point, OBU_CLK or OBU_OLK and it is the
+   * start of a temporal unit that will require flush the remaining frames. -1
+   * indicates not derived yet
+   */
+  int is_random_access_frame_unit;
+  /*!
+   * Indicates the number of displayable_frame_unit  per layer between layer_id
+   * change num_displayable_frame_unit[i] can be maximum 1.   *
+   */
+  int num_displayable_frame_unit[MAX_NUM_MLAYERS];
+#endif
   /*!
    * Indicates an OLK is encountered in any layer
    * It is initialized as 0 and set 1 when the first olk is decoded and set 0
@@ -460,8 +520,6 @@ typedef struct AV2Decoder {
    * dropped at the decoder it is set true when the decoder starts it is set
    * false when THE first CLK is decoded regardless of its mlayer. it is reset
    * true when a new sequence starts and a CLK is not decoded yet.
-   * TODO: is_first_layer_decoded may be able to be replaced with
-   * random_access_point
    */
   int is_first_layer_decoded;
   /*!
@@ -491,7 +549,22 @@ typedef struct AV2Decoder {
    * 2. CI obu signalled with CLK/OLK
    */
   int ci_and_key_per_layer[MAX_NUM_MLAYERS];
+
+  /*!
+   * Indicates if a CI OBU has been received for each embedded layer.
+   * Used to enforce the constraint that all CI OBUs in the same embedded layer
+   * must contain identical information
+   */
+  int ci_obu_received_per_layer[MAX_NUM_MLAYERS];
 #endif  // CONFIG_CWG_F270_CI_OBU
+  /*!
+   * Indicates if the MultiStreamMode is activated.
+   */
+  int multi_stream_mode;
+  /*!
+   * Indicates if the MSDO OBU is read.
+   */
+  int msdo_is_present_in_tu;
 } AV2Decoder;
 
 // Returns 0 on success. Sets pbi->common.error.error_code to a nonzero error

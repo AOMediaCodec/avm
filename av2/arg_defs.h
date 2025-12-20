@@ -275,9 +275,7 @@ typedef struct av2_codec_arg_definitions {
 #endif  // CONFIG_AV2_ENCODER
   arg_def_t frame_hash_metadata;
   arg_def_t frame_hash_per_plane;
-#if CONFIG_METADATA
   arg_def_t use_short_metadata;
-#endif  // CONFIG_METADATA
   arg_def_t enable_short_refresh_frame_flags;
 
   arg_def_t enable_cropping_window;
@@ -286,9 +284,7 @@ typedef struct av2_codec_arg_definitions {
   arg_def_t crop_win_top_offset;
   arg_def_t crop_win_bottom_offset;
 
-#if CONFIG_ICC_METADATA
   arg_def_t icc_file;
-#endif  // CONFIG_ICC_METADATA
   arg_def_t scan_type_info_present_flag;
   arg_def_t enable_mfh_obu_signaling;
   arg_def_t operating_points_count;

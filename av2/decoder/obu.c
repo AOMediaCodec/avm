@@ -31,12 +31,8 @@
 #include "av2/common/enums.h"
 
 // Helper macro to check if OBU type is metadata
-#if !CONFIG_METADATA
-#define IS_METADATA_OBU(type) ((type) == OBU_METADATA)
-#else
 #define IS_METADATA_OBU(type) \
   ((type) == OBU_METADATA_SHORT || (type) == OBU_METADATA_GROUP)
-#endif  // CONFIG_METADATA
 
 #if !CONFIG_CWG_F270_OPS
 avm_codec_err_t avm_get_num_layers_from_operating_point_idc(
@@ -211,6 +207,8 @@ static uint32_t read_multi_stream_decoder_operation_obu(
     (void)substream_tier_idx;
   }
 
+  pbi->msdo_is_present_in_tu = 1;
+
   if (av2_check_trailing_bits(pbi, rb) != 0) {
     return 0;
   }
@@ -327,17 +325,6 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
 #else
   av2_read_color_config(rb, seq_params, &cm->error);
 #endif  // CONFIG_CWG_F270_CI_OBU
-
-#if !CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-  if (!(seq_params->subsampling_x == 0 && seq_params->subsampling_y == 0) &&
-      !(seq_params->subsampling_x == 1 && seq_params->subsampling_y == 1) &&
-      !(seq_params->subsampling_x == 1 && seq_params->subsampling_y == 0)) {
-    avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-                       "Only 4:4:4, 4:2:2 and 4:2:0 are currently supported, "
-                       "%d %d subsampling is not supported.\n",
-                       seq_params->subsampling_x, seq_params->subsampling_y);
-  }
-#endif  // !CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
 #if CONFIG_CWG_F270_OPS
   if (seq_params->single_picture_header_flag) {
@@ -595,18 +582,29 @@ static uint32_t read_tilegroup_obu(AV2Decoder *pbi,
                                    struct avm_read_bit_buffer *rb,
                                    const uint8_t *data, const uint8_t *data_end,
                                    const uint8_t **p_data_end,
-                                   OBU_TYPE obu_type, int *is_last_tg) {
+                                   OBU_TYPE obu_type,
+#if CONFIG_F436_OBUORDER
+                                   int *is_first_tg,
+#endif  // CONFIG_F436_OBUORDER
+                                   int *is_last_tg) {
   AV2_COMMON *const cm = &pbi->common;
   int start_tile, end_tile;
   int32_t header_size, tg_payload_size;
 
   assert(rb->bit_offset == 0);
   assert(rb->bit_buffer == data);
-
+#if CONFIG_F436_OBUORDER
+  *is_first_tg = 1;  // it is updated by av2_read_tilegroup_header()
+#else
   int is_first_tg = 1;  // return from av2_read_tilegroup_header
-  header_size =
-      av2_read_tilegroup_header(pbi, rb, data, p_data_end, &is_first_tg,
-                                &start_tile, &end_tile, obu_type);
+#endif
+  header_size = av2_read_tilegroup_header(pbi, rb, data, p_data_end,
+#if CONFIG_F436_OBUORDER
+                                          is_first_tg,
+#else
+                                          &is_first_tg,
+#endif
+                                          &start_tile, &end_tile, obu_type);
 
   bool skip_payload = false;
 #if CONFIG_F024_KEYOBU
@@ -637,7 +635,13 @@ static uint32_t read_tilegroup_obu(AV2Decoder *pbi,
     data += header_size;
 
     av2_decode_tg_tiles_and_wrapup(pbi, data, data_end, p_data_end, start_tile,
-                                   end_tile, is_first_tg);
+                                   end_tile,
+#if CONFIG_F436_OBUORDER
+                                   *is_first_tg
+#else
+                                   is_first_tg
+#endif
+    );
 
     tg_payload_size = (uint32_t)(*p_data_end - data);
     *is_last_tg = end_tile == cm->tiles.rows * cm->tiles.cols - 1;
@@ -704,27 +708,11 @@ static void read_metadata_itut_t35(AV2Decoder *const pbi, const uint8_t *data,
     }
     ++country_code_size;
   }
-#if CONFIG_METADATA
   const int end_index = (int)sz;
-#else
-  int end_index = get_last_nonzero_byte_index(data, sz);
-#endif  // CONFIG_METADATA
   if (end_index < country_code_size) {
     avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
                        "No trailing bits found in ITU-T T.35 metadata OBU");
   }
-#if !CONFIG_METADATA
-  // itu_t_t35_payload_bytes is byte aligned. Section 6.7.2 of the spec says:
-  //   itu_t_t35_payload_bytes shall be bytes containing data registered as
-  //   specified in Recommendation ITU-T T.35.
-  // Therefore the first trailing byte should be 0x80.
-  if (data[end_index] != 0x80) {
-    avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
-                       "The last nonzero byte of the ITU-T T.35 metadata OBU "
-                       "is 0x%02x, should be 0x80.",
-                       data[end_index]);
-  }
-#endif  // !CONFIG_METADATA
   alloc_read_metadata(pbi, OBU_METADATA_TYPE_ITUT_T35, data, end_index,
                       AVM_MIF_ANY_FRAME);
 }
@@ -813,7 +801,57 @@ static size_t read_metadata_banding_hints(AV2Decoder *const pbi,
   return sz;
 }
 
-#if CONFIG_ICC_METADATA
+// Helper function to read banding hints from a bit buffer
+static void read_metadata_banding_hints_from_rb(
+    AV2Decoder *const pbi, struct avm_read_bit_buffer *rb) {
+  (void)pbi;  // kept for consistency
+
+  const int coding_banding_present_flag = avm_rb_read_bit(rb);
+  avm_rb_read_bit(rb);  // source_banding_present_flag
+
+  if (coding_banding_present_flag) {
+    const int banding_hints_flag = avm_rb_read_bit(rb);
+
+    if (banding_hints_flag) {
+      const int three_color_components = avm_rb_read_bit(rb);
+      const int num_components = three_color_components ? 3 : 1;
+
+      for (int plane = 0; plane < num_components; plane++) {
+        const int banding_in_component_present_flag = avm_rb_read_bit(rb);
+        if (banding_in_component_present_flag) {
+          avm_rb_read_literal(rb, 6);  // max_band_width_minus4
+          avm_rb_read_literal(rb, 4);  // max_band_step_minus1
+        }
+      }
+
+      const int band_units_information_present_flag = avm_rb_read_bit(rb);
+      if (band_units_information_present_flag) {
+        const int num_band_units_rows_minus_1 = avm_rb_read_literal(rb, 5);
+        const int num_band_units_cols_minus_1 = avm_rb_read_literal(rb, 5);
+        const int varying_size_band_units_flag = avm_rb_read_bit(rb);
+
+        if (varying_size_band_units_flag) {
+          avm_rb_read_literal(rb, 3);  // band_block_in_luma_samples
+
+          for (int r = 0; r <= num_band_units_rows_minus_1; r++) {
+            avm_rb_read_literal(rb, 5);  // vert_size_in_band_blocks_minus1
+          }
+
+          for (int c = 0; c <= num_band_units_cols_minus_1; c++) {
+            avm_rb_read_literal(rb, 5);  // horz_size_in_band_blocks_minus1
+          }
+        }
+
+        for (int r = 0; r <= num_band_units_rows_minus_1; r++) {
+          for (int c = 0; c <= num_band_units_cols_minus_1; c++) {
+            avm_rb_read_bit(rb);  // banding_in_band_unit_present_flag
+          }
+        }
+      }
+    }
+  }
+}
+
 // On success, returns the number of bytes read from 'data'. On failure, calls
 // avm_internal_error() and does not return.
 static size_t read_metadata_icc_profile(AV2Decoder *const pbi,
@@ -828,7 +866,6 @@ static size_t read_metadata_icc_profile(AV2Decoder *const pbi,
                       AVM_MIF_ANY_FRAME);
   return sz;
 }
-#endif  // CONFIG_ICC_METADATA
 
 // On success, returns the number of bytes read from 'data'. On failure, calls
 // avm_internal_error() and does not return.
@@ -858,15 +895,13 @@ static void read_metadata_temporal_point_info(AV2Decoder *const pbi,
       avm_rb_read_unsigned_literal(rb, 5) + 1;
   int n = cm->temporal_point_info_metadata.mtpi_frame_presentation_length;
   cm->temporal_point_info_metadata.mtpi_frame_presentation_time =
-      avm_rb_read_literal(rb, n);
+      avm_rb_read_unsigned_literal(rb, n);
 
-#if CONFIG_METADATA
   uint8_t payload[1];
   payload[0] =
       (cm->temporal_point_info_metadata.mtpi_frame_presentation_time & 0XFF);
   alloc_read_metadata(pbi, OBU_METADATA_TYPE_TEMPORAL_POINT_INFO, payload, 1,
                       AVM_MIF_ANY_FRAME);
-#endif  // CONFIG_METADATA
 }
 
 static int read_metadata_frame_hash(AV2Decoder *const pbi,
@@ -958,94 +993,32 @@ static uint8_t get_last_nonzero_byte(const uint8_t *data, size_t sz) {
 // On success, returns the number of bytes read from 'data'. On failure, sets
 // pbi->common.error.error_code and returns 0, or calls avm_internal_error()
 // and does not return.
-#if CONFIG_METADATA
 static size_t read_metadata_unit_payload(AV2Decoder *pbi, const uint8_t *data,
-                                         avm_metadata_t *metadata)
-#else
-static size_t read_metadata(AV2Decoder *pbi, const uint8_t *data, size_t sz)
-#endif  // CONFIG_METADATA
-{
-#if !CONFIG_METADATA
+                                         avm_metadata_t *metadata) {
   AV2_COMMON *const cm = &pbi->common;
-  size_t type_length;
-  uint64_t type_value;
-  if (avm_uleb_decode(data, sz, &type_value, &type_length) < 0) {
-    cm->error.error_code = AVM_CODEC_CORRUPT_FRAME;
-    return 0;
-  }
-  const OBU_METADATA_TYPE metadata_type = (OBU_METADATA_TYPE)type_value;
-#else
   size_t type_length = 0;
   const OBU_METADATA_TYPE metadata_type = metadata->type;
   const size_t sz = metadata->sz;
-#endif  // !CONFIG_METADATA
 
-#if CONFIG_METADATA
   int known_metadata_type = metadata_type >= OBU_METADATA_TYPE_HDR_CLL &&
                             metadata_type < NUM_OBU_METADATA_TYPES;
   known_metadata_type |= metadata_type == OBU_METADATA_TYPE_ICC_PROFILE;
   known_metadata_type |= metadata_type == OBU_METADATA_TYPE_SCAN_TYPE;
   known_metadata_type |= metadata_type == OBU_METADATA_TYPE_TEMPORAL_POINT_INFO;
-  if (!known_metadata_type)
-#else   // CONFIG_ICC_METADATA
-  if (metadata_type == 0 || metadata_type >= 8)
-#endif  // CONFIG_ICC_METADATA
-  {
-#if !CONFIG_METADATA
-    // If metadata_type is reserved for future use or a user private value,
-    // ignore the entire OBU and just check trailing bits.
-    if (get_last_nonzero_byte(data + type_length, sz - type_length) == 0) {
-      cm->error.error_code = AVM_CODEC_CORRUPT_FRAME;
-      return 0;
-    }
-#endif  // !CONFIG_METADATA
+  if (!known_metadata_type) {
     return sz;
   }
   if (metadata_type == OBU_METADATA_TYPE_ITUT_T35) {
-#if !CONFIG_METADATA
-    // read_metadata_itut_t35() checks trailing bits.
-#endif  // !CONFIG_METADATA
     read_metadata_itut_t35(pbi, data + type_length, sz - type_length);
     return sz;
   } else if (metadata_type == OBU_METADATA_TYPE_HDR_CLL) {
-#if !CONFIG_METADATA
-    size_t bytes_read =
-        type_length +
-#endif  // !CONFIG_METADATA
-        read_metadata_hdr_cll(pbi, data + type_length, sz - type_length);
-#if !CONFIG_METADATA
-    if (get_last_nonzero_byte(data + bytes_read, sz - bytes_read) != 0x80) {
-      cm->error.error_code = AVM_CODEC_CORRUPT_FRAME;
-      return 0;
-    }
-#endif  // !CONFIG_METADATA
+    read_metadata_hdr_cll(pbi, data + type_length, sz - type_length);
     return sz;
   } else if (metadata_type == OBU_METADATA_TYPE_HDR_MDCV) {
-#if !CONFIG_METADATA
-    size_t bytes_read =
-        type_length +
-#endif  // !CONFIG_METADATA
-        read_metadata_hdr_mdcv(pbi, data + type_length, sz - type_length);
-#if !CONFIG_METADATA
-    if (get_last_nonzero_byte(data + bytes_read, sz - bytes_read) != 0x80) {
-      cm->error.error_code = AVM_CODEC_CORRUPT_FRAME;
-      return 0;
-    }
-#endif  // !CONFIG_METADATA
+    read_metadata_hdr_mdcv(pbi, data + type_length, sz - type_length);
     return sz;
   } else if (metadata_type == OBU_METADATA_TYPE_BANDING_HINTS) {
-#if !CONFIG_METADATA
-    size_t bytes_read =
-        type_length +
-#endif  // !CONFIG_METADATA
-        read_metadata_banding_hints(pbi, data + type_length, sz - type_length);
-#if !CONFIG_METADATA
-    if (get_last_nonzero_byte(data + bytes_read, sz - bytes_read) != 0x80) {
-      cm->error.error_code = AVM_CODEC_CORRUPT_FRAME;
-      return 0;
-    }
-    return sz;
-#endif  // !CONFIG_METADATA
+    read_metadata_banding_hints(pbi, data + type_length, sz - type_length);
   } else if (metadata_type == OBU_METADATA_TYPE_SCAN_TYPE) {
     struct avm_read_bit_buffer rb;
     av2_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
@@ -1056,52 +1029,33 @@ static size_t read_metadata(AV2Decoder *pbi, const uint8_t *data, size_t sz)
     av2_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
     read_metadata_temporal_point_info(pbi, &rb);
     return sz;
-#if CONFIG_METADATA
   } else if (metadata_type == OBU_METADATA_TYPE_ICC_PROFILE) {
-#if !CONFIG_METADATA
-    size_t bytes_read =
-        type_length +
-#endif  // !CONFIG_METADATA
-        read_metadata_icc_profile(pbi, data + type_length, sz - type_length);
-#if !CONFIG_METADATA
-    if (get_last_nonzero_byte(data + bytes_read, sz - bytes_read) != 0x80) {
-      cm->error.error_code = AVM_CODEC_CORRUPT_FRAME;
-      return 0;
-    }
-#endif  // !CONFIG_METADATA
+    read_metadata_icc_profile(pbi, data + type_length, sz - type_length);
     return sz;
-#endif  // CONFIG_ICC_METADATA
   }
 
   struct avm_read_bit_buffer rb;
   av2_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
   if (metadata_type == OBU_METADATA_TYPE_DECODED_FRAME_HASH) {
     if (read_metadata_frame_hash(pbi, &rb)) {
-#if !CONFIG_METADATA
-      // Unsupported Decoded Frame Hash metadata. Ignoring the entire OBU and
-      // just checking trailing bits
-      if (get_last_nonzero_byte(data + type_length, sz - type_length) == 0) {
-        cm->error.error_code = AVM_CODEC_CORRUPT_FRAME;
-        return 0;
-      }
-#endif  // !CONFIG_METADATA
       return sz;
     }
+  } else if (metadata_type == OBU_METADATA_TYPE_BANDING_HINTS) {
+    // Banding hints metadata is variable bits, not byte-aligned
+    read_metadata_banding_hints_from_rb(pbi, &rb);
   } else {
     assert(metadata_type == OBU_METADATA_TYPE_TIMECODE);
     read_metadata_timecode(&rb);
   }
-#if !CONFIG_METADATA
-  if (av2_check_trailing_bits(pbi, &rb) != 0) {
+  // Consume byte_alignment() bits as required by metadata_unit() spec.
+  if (av2_check_byte_alignment(cm, &rb) != 0) {
     // cm->error.error_code is already set.
     return 0;
   }
-#endif  // !CONFIG_METADATA
   assert((rb.bit_offset & 7) == 0);
   return type_length + (rb.bit_offset >> 3);
 }
 
-#if CONFIG_METADATA
 static size_t read_metadata_obsp(AV2Decoder *pbi, const uint8_t *data,
                                  size_t sz,
                                  avm_metadata_array_t *metadata_array,
@@ -1253,7 +1207,6 @@ static size_t read_metadata_obu(AV2Decoder *pbi, const uint8_t *data, size_t sz,
   }
   return bytes_read + 1;
 }
-#endif  // CONFIG_METADATA
 
 // Checks the metadata for correct syntax but ignores the parsed metadata.
 //
@@ -1375,15 +1328,6 @@ static size_t read_metadata_short(AV2Decoder *pbi, const uint8_t *data,
       }
     }
     return sz;
-  } else if (metadata_type == OBU_METADATA_TYPE_BANDING_HINTS) {
-    size_t bytes_read =
-        type_length +
-        read_metadata_banding_hints(pbi, data + type_length, sz - type_length);
-    if (get_last_nonzero_byte(data + bytes_read, sz - bytes_read) != 0x80) {
-      cm->error.error_code = AVM_CODEC_CORRUPT_FRAME;
-      return 0;
-    }
-    return sz;
   } else if (metadata_type == OBU_METADATA_TYPE_SCAN_TYPE) {
     const size_t kMinScanTypeHeaderSize = 1;
     if (sz < kMinScanTypeHeaderSize) {
@@ -1415,9 +1359,29 @@ static size_t read_metadata_short(AV2Decoder *pbi, const uint8_t *data,
       }
       return sz;
     }
+  } else if (metadata_type == OBU_METADATA_TYPE_BANDING_HINTS) {
+    // Banding hints metadata is variable bits, not byte-aligned
+    read_metadata_banding_hints_from_rb(pbi, &rb);
+  } else if (metadata_type == OBU_METADATA_TYPE_ICC_PROFILE) {
+    // ICC profile is byte-aligned binary data
+    // Find the last nonzero byte (should be 0x80 trailing byte)
+    const int last_nonzero_idx =
+        get_last_nonzero_byte_index(data + type_length, sz - type_length);
+    if (last_nonzero_idx < 0 || data[type_length + last_nonzero_idx] != 0x80) {
+      cm->error.error_code = AVM_CODEC_CORRUPT_FRAME;
+      return 0;
+    }
+    // ICC payload size excludes the trailing 0x80 byte
+    const size_t icc_payload_size = last_nonzero_idx;
+    read_metadata_icc_profile(pbi, data + type_length, icc_payload_size);
+    return sz;
   } else {
     assert(metadata_type == OBU_METADATA_TYPE_TIMECODE);
     read_metadata_timecode(&rb);
+  }
+  // Consume byte_alignment() bits as required by metadata_unit() spec.
+  if (av2_check_byte_alignment(cm, &rb) != 0) {
+    return 0;
   }
   if (av2_check_trailing_bits(pbi, &rb) != 0) {
     // cm->error.error_code is already set.
@@ -1444,6 +1408,7 @@ static size_t read_padding(AV2_COMMON *const cm, const uint8_t *data,
   return sz;
 }
 
+#if !CONFIG_F436_OBUORDER
 // Check the obu type is a kind of coded frame
 static int is_coded_frame(OBU_TYPE obu_type) {
 #if CONFIG_F024_KEYOBU
@@ -1459,7 +1424,6 @@ static int is_coded_frame(OBU_TYPE obu_type) {
          obu_type == OBU_TILE_GROUP;
 #endif
 }
-
 // Check the obu type ordering within a temporal unit
 // as a part of checking bitstream conformance.
 // On success, return 0. If failed return 1.
@@ -1569,7 +1533,7 @@ static int check_obu_order(OBU_TYPE prev_obu_type, OBU_TYPE curr_obu_type) {
   }
   return 1;
 }
-
+#endif  // CONFIG_F436_OBUORDER
 #if CONFIG_F024_KEYOBU
 int av2_ci_keyframe_in_temporal_unit(struct AV2Decoder *pbi,
                                      const uint8_t *data, size_t data_sz) {
@@ -1612,9 +1576,9 @@ int av2_ci_keyframe_in_temporal_unit(struct AV2Decoder *pbi,
 #endif
 
 #if CONFIG_F024_KEYOBU
+#if !CONFIG_F436_OBUORDER
 int av2_is_random_accessed_temporal_unit(const uint8_t *data, size_t data_sz) {
   const uint8_t *data_read = data;
-
   ObuHeader obu_header;
   memset(&obu_header, 0, sizeof(obu_header));
   while (data_read < data + data_sz) {
@@ -1622,6 +1586,7 @@ int av2_is_random_accessed_temporal_unit(const uint8_t *data, size_t data_sz) {
     size_t bytes_read = 0;
     avm_read_obu_header_and_size(data_read, data_sz, &obu_header, &payload_size,
                                  &bytes_read);
+
     if (obu_header.type == OBU_CLK || obu_header.type == OBU_OLK) {
       return 1;
     }
@@ -1630,12 +1595,157 @@ int av2_is_random_accessed_temporal_unit(const uint8_t *data, size_t data_sz) {
   }
   return 0;
 }
-
+#endif  // !CONFIG_F436_OBUORDER
 static int is_leading_vcl_obu(OBU_TYPE obu_type) {
   return (obu_type == OBU_LEADING_TILE_GROUP || obu_type == OBU_LEADING_SEF ||
           obu_type == OBU_LEADING_TIP);
 }
 #endif  // CONFIG_F024_KEYOBU
+
+#if CONFIG_F436_OBUORDER
+// Check if any obu is present between two tile groups of one frame unit.
+static void check_tilegroup_obus_in_a_frame_unit(AV2_COMMON *const cm,
+                                                 obu_info *current_obu,
+                                                 obu_info *prev_obu) {
+  if (current_obu->obu_type != prev_obu->obu_type ||
+      current_obu->show_frame != prev_obu->show_frame ||
+      current_obu->showable_frame != prev_obu->showable_frame ||
+      current_obu->display_order_hint != prev_obu->display_order_hint ||
+      current_obu->mlayer_id != prev_obu->mlayer_id) {
+    avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+                       "%s : no obu is allowed between tilegroup obus in a "
+                       "frame unit (current obu "
+                       "%s, current oh %d previous obu %s previous oh %d)",
+                       __func__, avm_obu_type_to_string(current_obu->obu_type),
+                       current_obu->display_order_hint,
+                       avm_obu_type_to_string(prev_obu->obu_type),
+                       prev_obu->display_order_hint);
+  }
+}
+
+// Check if the CLK is the first frame of a mlayer.
+static void check_clk_in_a_layer(AV2_COMMON *const cm,
+                                 obu_info *current_frame_unit,
+                                 obu_info *last_frame_unit) {
+  if (current_frame_unit->obu_type == OBU_CLK &&
+      last_frame_unit->obu_type != OBU_CLK &&
+      current_frame_unit->mlayer_id == last_frame_unit->mlayer_id &&
+      current_frame_unit->display_order_hint ==
+          last_frame_unit->display_order_hint) {
+    avm_internal_error(
+        &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+        "%s : a CLK should be the first frame of a mlayer. "
+        "current obu %s, current oh "
+        "%d, current mlayer_id %d, "
+        "previous obu %s previous oh %d previous mlayer_id %d ",
+        __func__, avm_obu_type_to_string(current_frame_unit->obu_type),
+        current_frame_unit->display_order_hint, current_frame_unit->mlayer_id,
+        avm_obu_type_to_string(last_frame_unit->obu_type),
+        last_frame_unit->display_order_hint, last_frame_unit->mlayer_id);
+  }
+}
+
+// Check the mlayer ids of frame units before the current hidden frame.
+static void check_layerid_hidden_frame_units(AV2_COMMON *const cm,
+                                             obu_info *current_frame_unit,
+                                             obu_info *last_frame_unit) {
+  //[H:layer0][H:layer1] not allowed
+  //[H:layer1][H:layer1] checked later : [H:layer1][H:layer1][S:layer1] ok,
+  //[H:layer1][H:layer1][S:layer0] not allowed [H:layer2][H:layer1] not allowed
+  //[S:layer0][H:layer1] checked later:
+  // 1) [S:layer0][H:layer1][S:layer1] maybe ok,
+  // 2) [S:layer0][H:layer1][S:layer0] not allowed
+  //[S:layer1][H:layer1] checked later :
+  // 1) [S:layer1][H:layer1][S:layer1] maybe ok (e.g. CLK[0], Bridge[0], TG[1])
+  // 2) [S:layer1][H:layer1][S:layer0] not allowed
+  // 3) [S:layer1][H:layer1][S:layer2] not allowed
+  //[S:layer2][H:layer1] allowed
+  if ((last_frame_unit->showable_frame == 0 &&
+       current_frame_unit->mlayer_id != last_frame_unit->mlayer_id)) {
+    avm_internal_error(
+        &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+        "%s : hidden frames should proceed displayable frames in a "
+        "layer:\n\tcurrent  : "
+        "(%s, OH%d, L%d, S%d)\n\t"
+        "previous : (%s, OH%d, L%d, S%d)",
+        __func__, avm_obu_type_to_string(current_frame_unit->obu_type),
+        current_frame_unit->display_order_hint, current_frame_unit->mlayer_id,
+        current_frame_unit->showable_frame,
+        avm_obu_type_to_string(last_frame_unit->obu_type),
+        last_frame_unit->display_order_hint, last_frame_unit->mlayer_id,
+        last_frame_unit->showable_frame);
+  }
+}
+
+// Check the mlayer ids of frame units before the current showable frame.
+static void check_layerid_showable_frame_units(
+    AV2_COMMON *const cm, obu_info *current_frame_unit,
+    obu_info *last_frame_unit, obu_info *last_displayable_frame_unit) {
+  //[H:layer0][*S:layer1] not allowed
+  // 3) [S:layer1][H:layer1][*S:layer2] not allowed
+  //[H:layer1][*S:layer1] check last displayable frame unit
+  // 1) [S:layer0][H:layer1][*S:layer1] maybe ok,
+  // 1) [S:layer1][H:layer1][*S:layer1] maybe ok (e.g. CLK[0], Bridge[0], TG[1])
+  //[H:layer2][*S:layer1] check last displayable frame unit
+  // 2) [S:layer0][H:layer1][*S:layer0] not allowed
+  // 2) [S:layer1][H:layer1][*S:layer0] not allowed
+
+  //[S:layer0][*S:layer1] allowed
+  //[S:layer1][*S:layer1] check orderhint of [S:layer1] and [S:layer1]
+  //[S:layer2][*S:layer1] check orderhint of [S:layer2] and [S:layer1]
+
+  if (last_frame_unit->showable_frame == 0 &&
+      current_frame_unit->mlayer_id != last_frame_unit->mlayer_id) {
+    avm_internal_error(
+        &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+        "%s : hidden frames should proceed displayable frames in a "
+        "layer:\n\tcurrent  : "
+        "(%s, OH%d, L%d, S%d)\n\t"
+        "previous : (%s, OH%d, L%d, S%d)",
+        __func__, avm_obu_type_to_string(current_frame_unit->obu_type),
+        current_frame_unit->display_order_hint, current_frame_unit->mlayer_id,
+        current_frame_unit->showable_frame,
+        avm_obu_type_to_string(last_frame_unit->obu_type),
+        last_frame_unit->display_order_hint, last_frame_unit->mlayer_id,
+        last_frame_unit->showable_frame);
+  } else if (last_frame_unit->showable_frame == 0 &&
+             current_frame_unit->mlayer_id == last_frame_unit->mlayer_id) {
+    if (current_frame_unit->display_order_hint ==
+        last_displayable_frame_unit->display_order_hint) {
+      avm_internal_error(
+          &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+          "%s: mlayer_id should be in ascending order or order_hint should be "
+          "different:\n"
+          "\tcurrent  : (%s, OH%d, L%d, S%d)\n"
+          "\tprevious : (%s, S%d)\n"
+          "\tlast_displayable : (%s, OH%d, L%d)",
+          __func__, avm_obu_type_to_string(current_frame_unit->obu_type),
+          current_frame_unit->display_order_hint, current_frame_unit->mlayer_id,
+          current_frame_unit->showable_frame,
+          avm_obu_type_to_string(last_frame_unit->obu_type),
+          last_frame_unit->showable_frame,
+          avm_obu_type_to_string(last_displayable_frame_unit->obu_type),
+          last_displayable_frame_unit->display_order_hint,
+          last_displayable_frame_unit->mlayer_id);
+    }
+  } else if (last_frame_unit->showable_frame == 1 &&
+             current_frame_unit->mlayer_id <= last_frame_unit->mlayer_id) {
+    if (current_frame_unit->display_order_hint ==
+        last_frame_unit->display_order_hint) {
+      avm_internal_error(
+          &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+          "%s: mlayer_id should be in ascending order or order_hint should be "
+          "different:\n\tcurrent obu %s, current oh "
+          "%d, current mlayer_id %d\n\t"
+          "previous obu %s previous oh %d previous mlayer_id %d",
+          __func__, avm_obu_type_to_string(current_frame_unit->obu_type),
+          current_frame_unit->display_order_hint, current_frame_unit->mlayer_id,
+          avm_obu_type_to_string(last_frame_unit->obu_type),
+          last_frame_unit->display_order_hint, last_frame_unit->mlayer_id);
+    }
+  }
+}
+#endif  // CONFIG_F436_OBUORDER
 // On success, sets *p_data_end and returns a boolean that indicates whether
 // the decoding of the current frame is finished. On failure, sets
 // cm->error.error_code and returns -1.
@@ -1652,16 +1762,21 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
   pbi->seen_frame_header = 0;
   pbi->next_start_tile = 0;
   pbi->num_tile_groups = 0;
+  pbi->msdo_is_present_in_tu = 0;
 
   if (data_end < data) {
     cm->error.error_code = AVM_CODEC_CORRUPT_FRAME;
     return -1;
   }
 
+#if CONFIG_F436_OBUORDER
+  int count_obus_with_frame_unit = 0;
+  obu_info *obu_list = pbi->obu_list;
+#else
   OBU_TYPE prev_obu_type = 0;
   OBU_TYPE curr_obu_type = 0;
   int prev_obu_type_initialized = 0;
-
+#endif  // CONFIG_F436_OBUORDER
   uint32_t acc_qm_id_bitmap = 0;
   // acc_fgm_id_bitmap accumulates fgm_id_bitmap in FGM OBU to check if film
   // grain models signalled before a coded frame have the same fgm_id
@@ -1729,8 +1844,29 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         }
       }
     }
+    if (pbi->random_accessed) {
+      if (pbi->msdo_is_present_in_tu)
+        pbi->multi_stream_mode = 1;
+      else
+        pbi->multi_stream_mode = 0;
+    }
 #endif
 
+#if CONFIG_F436_OBUORDER
+    obu_info *const curr_obu_info =
+        &obu_list[pbi->test_decoder_frame_unit_offset +
+                  count_obus_with_frame_unit];
+    curr_obu_info->obu_type = obu_header.type;
+    curr_obu_info->is_vcl = is_single_tile_vcl_obu(obu_header.type) ||
+                            is_multi_tile_vcl_obu(obu_header.type);
+    curr_obu_info->mlayer_id = obu_header.obu_mlayer_id;
+    curr_obu_info->tlayer_id = obu_header.obu_tlayer_id;
+    curr_obu_info->xlayer_id = obu_header.obu_xlayer_id;
+    curr_obu_info->first_tile_group = -1;
+    curr_obu_info->show_frame = -1;
+    curr_obu_info->showable_frame = -1;
+    curr_obu_info->display_order_hint = -1;
+#else
     curr_obu_type = obu_header.type;
     if (prev_obu_type_initialized &&
         check_obu_order(prev_obu_type, curr_obu_type)) {
@@ -1741,7 +1877,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
     }
     prev_obu_type = curr_obu_type;
     prev_obu_type_initialized = 1;
-
+#endif  // CONFIG_F436_OBUORDER
     if (obu_header.type == OBU_MSDO) {
       if (obu_header.obu_tlayer_id != 0)
         avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
@@ -1809,7 +1945,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         if (prev_obu_xlayer_id == -1) {
           prev_obu_xlayer_id = obu_header.obu_xlayer_id;
         } else {
-          if (prev_obu_xlayer_id >= 0 &&
+          if (pbi->multi_stream_mode && prev_obu_xlayer_id >= 0 &&
               obu_header.obu_xlayer_id != prev_obu_xlayer_id) {
             avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
                                "tile group OBUs with the same stream_id shall "
@@ -1929,10 +2065,19 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         // consecutively prior to a coded frame, such FGM OBUs will not set
         // the same FGM ID more than once.
         acc_fgm_id_bitmap = 0;
-        decoded_payload_size =
-            read_tilegroup_obu(pbi, &rb, data, data + payload_size, p_data_end,
-                               obu_header.type, &frame_decoding_finished);
+        decoded_payload_size = read_tilegroup_obu(
+            pbi, &rb, data, data + payload_size, p_data_end, obu_header.type,
+#if CONFIG_F436_OBUORDER
+            &curr_obu_info->first_tile_group,
+#endif  // CONFIG_F436_OBUORDER
+            &frame_decoding_finished);
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
+#if CONFIG_F436_OBUORDER
+        curr_obu_info->show_frame = cm->show_frame;
+        curr_obu_info->showable_frame = cm->show_frame ? 1 : cm->showable_frame;
+        curr_obu_info->display_order_hint =
+            cm->current_frame.display_order_hint;
+#endif
         if (cm->bru.frame_inactive_flag ||
             cm->bridge_frame_info.is_bridge_frame) {
           pbi->seen_frame_header = 0;
@@ -1970,12 +2115,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
                         &acc_qm_id_bitmap, &rb);
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
         break;
-#if !CONFIG_METADATA
-      case OBU_METADATA:
-        decoded_payload_size = read_metadata(pbi, data, payload_size);
-        if (cm->error.error_code != AVM_CODEC_OK) return -1;
-        break;
-#else
       case OBU_METADATA_SHORT:
         decoded_payload_size = read_metadata_short(pbi, data, payload_size, 0);
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
@@ -1985,7 +2124,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
             read_metadata_obu(pbi, data, payload_size, &obu_header, 0);
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
         break;
-#endif  // CONFIG_METADATA
       case OBU_FGM:
         decoded_payload_size =
             read_fgm_obu(pbi, obu_header.obu_tlayer_id,
@@ -2023,6 +2161,9 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
     }
 
     data += payload_size;
+#if CONFIG_F436_OBUORDER
+    count_obus_with_frame_unit++;
+#endif  // CONFIG_F436_OBUORDER
   }
 
   if (pbi->decoding_first_frame && keyframe_present == 0) {
@@ -2030,7 +2171,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
                        "the first frame of a bitstream shall be a keyframe");
   }
 
-#if CONFIG_METADATA
   // check whether suffix metadata OBUs are present
   while (cm->error.error_code == AVM_CODEC_OK && data < data_end) {
     size_t payload_size = 0;
@@ -2044,23 +2184,38 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
       cm->error.error_code = status;
       return -1;
     }
+
     // Accept both OBU_METADATA_SHORT and OBU_METADATA_GROUP for suffix metadata
-    if (!IS_METADATA_OBU(obu_header.type) || data + bytes_read >= data_end)
+    if (!(IS_METADATA_OBU(obu_header.type)
+#if CONFIG_F436_OBUORDER
+          || (obu_header.type == OBU_PADDING)
+#endif  // CONFIG_F436_OBUORDER
+              ) ||
+        data + bytes_read > data_end)
       break;
 
-    // check whether it is a suffix metadata OBU
-    if (!(data[bytes_read] & 0x80)) break;
+#if CONFIG_F436_OBUORDER
+    if (obu_header.type == OBU_PADDING) {
+      data += bytes_read;
+      decoded_payload_size = read_padding(cm, data, payload_size);
+      if (cm->error.error_code != AVM_CODEC_OK) return -1;
+    } else if (IS_METADATA_OBU(obu_header.type)) {
+#endif  // CONFIG_F436_OBUORDER
+      // check whether it is a suffix metadata OBU
+      if (!(data[bytes_read] & 0x80)) break;
 
-    data += bytes_read;
+      data += bytes_read;
 
-    // Call the appropriate read function based on OBU type
-    if (obu_header.type == OBU_METADATA_GROUP) {
-      decoded_payload_size =
-          read_metadata_obu(pbi, data, payload_size, &obu_header, 1);
-    } else {
-      decoded_payload_size = read_metadata_short(pbi, data, payload_size, 1);
+      // Call the appropriate read function based on OBU type
+      if (obu_header.type == OBU_METADATA_GROUP) {
+        decoded_payload_size =
+            read_metadata_obu(pbi, data, payload_size, &obu_header, 1);
+      } else {
+        decoded_payload_size = read_metadata_short(pbi, data, payload_size, 1);
+      }
+#if CONFIG_F436_OBUORDER
     }
-
+#endif  // CONFIG_F436_OBUORDER
     if (cm->error.error_code != AVM_CODEC_OK) return -1;
 
     // Check that the signalled OBU size matches the actual amount of data read
@@ -2071,7 +2226,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
 
     data += payload_size;
   }
-#endif  // CONFIG_METADATA
 
   if (cm->error.error_code != AVM_CODEC_OK) return -1;
 
@@ -2092,6 +2246,56 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
             pbi->component_time[i]);
     pbi->frame_component_time[i] = 0;
   }
+#endif
+
+#if CONFIG_F436_OBUORDER
+  obu_info current_frame_unit;
+  memset(&current_frame_unit, -1, sizeof(current_frame_unit));
+  const int start_obu_idx = pbi->test_decoder_frame_unit_offset;
+  const int end_obu_idx =
+      pbi->test_decoder_frame_unit_offset + count_obus_with_frame_unit;
+  for (int obu_idx = start_obu_idx; obu_idx < end_obu_idx; obu_idx++) {
+    obu_info *this_obu = &obu_list[obu_idx];
+#if CONFIG_F436_OBUORDER_DEBUG
+    fprintf(stderr, "obu[%d] %s\n", obu_idx,
+            avm_obu_type_to_string(this_obu->obu_type));
+    fprintf(stderr, "\tfirst_tile_group: %d\n", this_obu->first_tile_group);
+    fprintf(stderr, "\tshow_frame: %d\n", this_obu->show_frame);
+    fprintf(stderr, "\tshowable_frame: %d\n", this_obu->showable_frame);
+    fprintf(stderr, "\torder_hint: %d\n", this_obu->order_hint);
+    fprintf(stderr, "\tmlayer_id: %d\n", this_obu->mlayer_id);
+    fprintf(stderr, "\ttlayer_id: %d\n", this_obu->tlayer_id);
+    fprintf(stderr, "\txlayer_id: %d\n", this_obu->xlayer_id);
+    fprintf(stderr, "\tis_vcl: %d\n", this_obu->is_vcl);
+#endif
+
+    if (this_obu->first_tile_group == 1) {
+      current_frame_unit = *this_obu;
+      pbi->num_displayable_frame_unit[this_obu->mlayer_id]++;
+    }
+    if (is_multi_tile_vcl_obu(this_obu->obu_type) &&
+        this_obu->first_tile_group == 0) {
+      check_tilegroup_obus_in_a_frame_unit(cm, this_obu,
+                                           &obu_list[obu_idx - 1]);
+    }
+  }
+
+  assert(current_frame_unit.display_order_hint != -1);
+  if (pbi->last_frame_unit.display_order_hint != -1 &&
+      (pbi->last_frame_unit.xlayer_id == current_frame_unit.xlayer_id)) {
+    check_clk_in_a_layer(cm, &current_frame_unit, &pbi->last_frame_unit);
+
+    if (current_frame_unit.showable_frame == 0) {
+      check_layerid_hidden_frame_units(cm, &current_frame_unit,
+                                       &pbi->last_frame_unit);
+    } else {
+      check_layerid_showable_frame_units(cm, &current_frame_unit,
+                                         &pbi->last_frame_unit,
+                                         &pbi->last_displayable_frame_unit);
+    }
+  }
+
+  pbi->test_decoder_frame_unit_offset += count_obus_with_frame_unit;
 #endif
 
   return frame_decoding_finished;

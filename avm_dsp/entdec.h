@@ -61,8 +61,8 @@ struct od_ec_dec {
 
 /*See entdec.c for further documentation.*/
 
-void od_ec_dec_init(od_ec_dec *dec, const unsigned char *buf, uint32_t storage)
-    OD_ARG_NONNULL(1) OD_ARG_NONNULL(2);
+void avm_od_ec_dec_init(od_ec_dec *dec, const unsigned char *buf,
+                        uint32_t storage) OD_ARG_NONNULL(1) OD_ARG_NONNULL(2);
 
 OD_WARN_UNUSED_RESULT int od_ec_decode_bool_bypass(od_ec_dec *dec)
     OD_ARG_NONNULL(1);
@@ -72,15 +72,15 @@ OD_WARN_UNUSED_RESULT int od_ec_decode_literal_bypass(od_ec_dec *dec,
 OD_WARN_UNUSED_RESULT int od_ec_decode_unary_bypass(od_ec_dec *dec,
                                                     int max_bits)
     OD_ARG_NONNULL(1);
-OD_WARN_UNUSED_RESULT int od_ec_decode_bool_q15(od_ec_dec *dec, unsigned f)
+OD_WARN_UNUSED_RESULT int avm_od_ec_decode_bool_q15(od_ec_dec *dec, unsigned f)
     OD_ARG_NONNULL(1);
 
 OD_WARN_UNUSED_RESULT uint32_t od_ec_dec_bits_(od_ec_dec *dec, unsigned ftb)
     OD_ARG_NONNULL(1);
 
-OD_WARN_UNUSED_RESULT int od_ec_dec_tell(const od_ec_dec *dec)
+OD_WARN_UNUSED_RESULT int avm_od_ec_dec_tell(const od_ec_dec *dec)
     OD_ARG_NONNULL(1);
-OD_WARN_UNUSED_RESULT uint64_t od_ec_dec_tell_frac(const od_ec_dec *dec)
+OD_WARN_UNUSED_RESULT uint64_t avm_od_ec_dec_tell_frac(const od_ec_dec *dec)
     OD_ARG_NONNULL(1);
 
 /*This is meant to be a large, positive constant that can still be efficiently
@@ -88,8 +88,8 @@ OD_WARN_UNUSED_RESULT uint64_t od_ec_dec_tell_frac(const od_ec_dec *dec)
   Even relatively modest values like 100 would work fine.*/
 #define OD_EC_LOTS_OF_BITS (0x4000)
 
-/*The return value of od_ec_dec_tell does not change across an od_ec_dec_refill
-   call.*/
+/*The return value of avm_od_ec_dec_tell does not change across an
+   od_ec_dec_refill call.*/
 static void od_ec_dec_refill(od_ec_dec *dec) {
   int s;
   od_ec_window dif;
@@ -104,7 +104,7 @@ static void od_ec_dec_refill(od_ec_dec *dec) {
   for (; s >= 0 && bptr < end; s -= 8, bptr++) {
     /*Each time a byte is inserted into the window (dif), bptr advances and cnt
        is incremented by 8, so the total number of consumed bits (the return
-       value of od_ec_dec_tell) does not change.*/
+       value of avm_od_ec_dec_tell) does not change.*/
     assert(s <= OD_EC_WINDOW_SIZE - 8);
     dif ^= (od_ec_window)bptr[0] << s;
     cnt += 8;

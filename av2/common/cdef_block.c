@@ -22,13 +22,13 @@
 beginning and end of the table. The cdef direction range is [0, 7] and the
 first index is offset +/-2. This removes the need to constrain the first
 index to the same range using e.g., & 7. */
-DECLARE_ALIGNED(16, const int, cdef_directions_padded[12][2]) = {
-  /* Padding: cdef_directions[6] */
+DECLARE_ALIGNED(16, const int, av2_cdef_directions_padded[12][2]) = {
+  /* Padding: av2_cdef_directions[6] */
   { 1 * CDEF_BSTRIDE + 0, 2 * CDEF_BSTRIDE + 0 },
-  /* Padding: cdef_directions[7] */
+  /* Padding: av2_cdef_directions[7] */
   { 1 * CDEF_BSTRIDE + 0, 2 * CDEF_BSTRIDE - 1 },
 
-  /* Begin cdef_directions */
+  /* Begin av2_cdef_directions */
   { -1 * CDEF_BSTRIDE + 1, -2 * CDEF_BSTRIDE + 2 },
   { 0 * CDEF_BSTRIDE + 1, -1 * CDEF_BSTRIDE + 2 },
   { 0 * CDEF_BSTRIDE + 1, 0 * CDEF_BSTRIDE + 2 },
@@ -37,15 +37,15 @@ DECLARE_ALIGNED(16, const int, cdef_directions_padded[12][2]) = {
   { 1 * CDEF_BSTRIDE + 0, 2 * CDEF_BSTRIDE + 1 },
   { 1 * CDEF_BSTRIDE + 0, 2 * CDEF_BSTRIDE + 0 },
   { 1 * CDEF_BSTRIDE + 0, 2 * CDEF_BSTRIDE - 1 },
-  /* End cdef_directions */
+  /* End av2_cdef_directions */
 
-  /* Padding: cdef_directions[0] */
+  /* Padding: av2_cdef_directions[0] */
   { -1 * CDEF_BSTRIDE + 1, -2 * CDEF_BSTRIDE + 2 },
-  /* Padding: cdef_directions[1] */
+  /* Padding: av2_cdef_directions[1] */
   { 0 * CDEF_BSTRIDE + 1, -1 * CDEF_BSTRIDE + 2 },
 };
 
-const int (*const cdef_directions)[2] = cdef_directions_padded + 2;
+const int (*const av2_cdef_directions)[2] = av2_cdef_directions_padded + 2;
 
 /* Detect direction. 0 means 45-degree up-right, 2 is horizontal, and so on.
    The search minimizes the weighted variance along all the lines in a
@@ -54,8 +54,8 @@ const int (*const cdef_directions)[2] = cdef_directions_padded + 2;
    in a particular direction. Since each direction have the same sum(x^2) term,
    that term is never computed. See Section 2, step 2, of:
    http://jmvalin.ca/notes/intra_paint.pdf */
-int cdef_find_dir_c(const uint16_t *img, int stride, int32_t *var,
-                    int coeff_shift) {
+int av2_cdef_find_dir_c(const uint16_t *img, int stride, int32_t *var,
+                        int coeff_shift) {
   int i;
   int32_t cost[8] = { 0 };
   int partial[8][15] = { { 0 } };
@@ -126,15 +126,15 @@ int cdef_find_dir_c(const uint16_t *img, int stride, int32_t *var,
 }
 
 /* Computes the CDEF directions of 2 consecutive 8x8 blocks. */
-void cdef_find_dir_dual_c(const uint16_t *img1, const uint16_t *img2,
-                          int stride, int32_t *var1, int32_t *var2,
-                          int coeff_shift, int *out1, int *out2) {
-  *out1 = cdef_find_dir_c(img1, stride, var1, coeff_shift);
-  *out2 = cdef_find_dir_c(img2, stride, var2, coeff_shift);
+void av2_cdef_find_dir_dual_c(const uint16_t *img1, const uint16_t *img2,
+                              int stride, int32_t *var1, int32_t *var2,
+                              int coeff_shift, int *out1, int *out2) {
+  *out1 = av2_cdef_find_dir_c(img1, stride, var1, coeff_shift);
+  *out2 = av2_cdef_find_dir_c(img2, stride, var2, coeff_shift);
 }
 
-const int cdef_pri_taps[2][2] = { { 4, 2 }, { 3, 3 } };
-const int cdef_sec_taps[2] = { 2, 1 };
+const int av2_cdef_pri_taps[2][2] = { { 4, 2 }, { 3, 3 } };
+const int av2_cdef_sec_taps[2] = { 2, 1 };
 
 /* Smooth in the direction detected. */
 static void cdef_filter_block_internal(uint16_t *const dst16, int dstride,
@@ -147,8 +147,8 @@ static void cdef_filter_block_internal(uint16_t *const dst16, int dstride,
   const int clipping_required = (enable_primary && enable_secondary);
   int i, j, k;
   const int s = CDEF_BSTRIDE;
-  const int *pri_taps = cdef_pri_taps[(pri_strength >> coeff_shift) & 1];
-  const int *sec_taps = cdef_sec_taps;
+  const int *pri_taps = av2_cdef_pri_taps[(pri_strength >> coeff_shift) & 1];
+  const int *sec_taps = av2_cdef_sec_taps;
   for (i = 0; i < block_height; i++) {
     for (j = 0; j < block_width; j++) {
       int16_t sum = 0;
@@ -158,8 +158,8 @@ static void cdef_filter_block_internal(uint16_t *const dst16, int dstride,
       int min = x;
       for (k = 0; k < 2; k++) {
         if (enable_primary) {
-          int16_t p0 = in[i * s + j + cdef_directions[dir][k]];
-          int16_t p1 = in[i * s + j - cdef_directions[dir][k]];
+          int16_t p0 = in[i * s + j + av2_cdef_directions[dir][k]];
+          int16_t p1 = in[i * s + j - av2_cdef_directions[dir][k]];
           sum += pri_taps[k] * constrain(p0 - x, pri_strength, pri_damping);
           sum += pri_taps[k] * constrain(p1 - x, pri_strength, pri_damping);
           if (clipping_required) {
@@ -170,10 +170,10 @@ static void cdef_filter_block_internal(uint16_t *const dst16, int dstride,
           }
         }
         if (enable_secondary) {
-          int16_t s0 = in[i * s + j + cdef_directions[dir + 2][k]];
-          int16_t s1 = in[i * s + j - cdef_directions[dir + 2][k]];
-          int16_t s2 = in[i * s + j + cdef_directions[dir - 2][k]];
-          int16_t s3 = in[i * s + j - cdef_directions[dir - 2][k]];
+          int16_t s0 = in[i * s + j + av2_cdef_directions[dir + 2][k]];
+          int16_t s1 = in[i * s + j - av2_cdef_directions[dir + 2][k]];
+          int16_t s2 = in[i * s + j + av2_cdef_directions[dir - 2][k]];
+          int16_t s3 = in[i * s + j - av2_cdef_directions[dir - 2][k]];
           if (clipping_required) {
             if (s0 != CDEF_VERY_LARGE) max = AVMMAX(s0, max);
             if (s1 != CDEF_VERY_LARGE) max = AVMMAX(s1, max);
@@ -202,10 +202,11 @@ static void cdef_filter_block_internal(uint16_t *const dst16, int dstride,
 
 /* Wrapper function which invokes cdef_filter_block_internal() when both primary
  * and secondary strengths are non-zero. */
-void cdef_filter_16_0_c(uint16_t *const dst16, int dstride, const uint16_t *in,
-                        int pri_strength, int sec_strength, int dir,
-                        int pri_damping, int sec_damping, int coeff_shift,
-                        int block_width, int block_height) {
+void av2_cdef_filter_16_0_c(uint16_t *const dst16, int dstride,
+                            const uint16_t *in, int pri_strength,
+                            int sec_strength, int dir, int pri_damping,
+                            int sec_damping, int coeff_shift, int block_width,
+                            int block_height) {
   cdef_filter_block_internal(dst16, dstride, in, pri_strength, sec_strength,
                              dir, pri_damping, sec_damping, coeff_shift,
                              block_width, block_height,
@@ -214,10 +215,11 @@ void cdef_filter_16_0_c(uint16_t *const dst16, int dstride, const uint16_t *in,
 
 /* Wrapper function which invokes cdef_filter_block_internal() when primary
  * strength is non-zero and secondary strength is zero. */
-void cdef_filter_16_1_c(uint16_t *const dst16, int dstride, const uint16_t *in,
-                        int pri_strength, int sec_strength, int dir,
-                        int pri_damping, int sec_damping, int coeff_shift,
-                        int block_width, int block_height) {
+void av2_cdef_filter_16_1_c(uint16_t *const dst16, int dstride,
+                            const uint16_t *in, int pri_strength,
+                            int sec_strength, int dir, int pri_damping,
+                            int sec_damping, int coeff_shift, int block_width,
+                            int block_height) {
   cdef_filter_block_internal(dst16, dstride, in, pri_strength, sec_strength,
                              dir, pri_damping, sec_damping, coeff_shift,
                              block_width, block_height,
@@ -226,10 +228,11 @@ void cdef_filter_16_1_c(uint16_t *const dst16, int dstride, const uint16_t *in,
 
 /* Wrapper function which invokes cdef_filter_block_internal() when primary
  * strength is zero and secondary strength is non-zero. */
-void cdef_filter_16_2_c(uint16_t *const dst16, int dstride, const uint16_t *in,
-                        int pri_strength, int sec_strength, int dir,
-                        int pri_damping, int sec_damping, int coeff_shift,
-                        int block_width, int block_height) {
+void av2_cdef_filter_16_2_c(uint16_t *const dst16, int dstride,
+                            const uint16_t *in, int pri_strength,
+                            int sec_strength, int dir, int pri_damping,
+                            int sec_damping, int coeff_shift, int block_width,
+                            int block_height) {
   cdef_filter_block_internal(dst16, dstride, in, pri_strength, sec_strength,
                              dir, pri_damping, sec_damping, coeff_shift,
                              block_width, block_height,
@@ -238,10 +241,11 @@ void cdef_filter_16_2_c(uint16_t *const dst16, int dstride, const uint16_t *in,
 
 /* Wrapper function which invokes cdef_filter_block_internal() when both primary
  * and secondary strengths are zero. */
-void cdef_filter_16_3_c(uint16_t *const dst16, int dstride, const uint16_t *in,
-                        int pri_strength, int sec_strength, int dir,
-                        int pri_damping, int sec_damping, int coeff_shift,
-                        int block_width, int block_height) {
+void av2_cdef_filter_16_3_c(uint16_t *const dst16, int dstride,
+                            const uint16_t *in, int pri_strength,
+                            int sec_strength, int dir, int pri_damping,
+                            int sec_damping, int coeff_shift, int block_width,
+                            int block_height) {
   cdef_filter_block_internal(dst16, dstride, in, pri_strength, sec_strength,
                              dir, pri_damping, sec_damping, coeff_shift,
                              block_width, block_height,
@@ -260,13 +264,14 @@ static INLINE int adjust_strength(int strength, int32_t var) {
   return var ? (strength * (4 + i) + 8) >> 4 : 0;
 }
 
-/* Computes CDEF direction of each 8x8 block by invoking cdef_find_dir_dual()
- * for the adjacent 8x8 blocks and cdef_find_dir() for the remaining 8x8 block.
+/* Computes CDEF direction of each 8x8 block by invoking
+ * av2_cdef_find_dir_dual() for the adjacent 8x8 blocks and av2_cdef_find_dir()
+ * for the remaining 8x8 block.
  */
-static inline void avm_cdef_find_dir(const uint16_t *in, cdef_list *dlist,
-                                     int var[CDEF_NBLOCKS][CDEF_NBLOCKS],
-                                     int cdef_count, int coeff_shift,
-                                     int dir[CDEF_NBLOCKS][CDEF_NBLOCKS]) {
+static inline void avm_av2_cdef_find_dir(const uint16_t *in, cdef_list *dlist,
+                                         int var[CDEF_NBLOCKS][CDEF_NBLOCKS],
+                                         int cdef_count, int coeff_shift,
+                                         int dir[CDEF_NBLOCKS][CDEF_NBLOCKS]) {
   int bi;
 
   // Find direction of two 8x8 blocks together.
@@ -277,17 +282,17 @@ static inline void avm_cdef_find_dir(const uint16_t *in, cdef_list *dlist,
     const int bx2 = dlist[bi + 1].bx;
     const int pos1 = 8 * by * CDEF_BSTRIDE + 8 * bx;
     const int pos2 = 8 * by2 * CDEF_BSTRIDE + 8 * bx2;
-    cdef_find_dir_dual(&in[pos1], &in[pos2], CDEF_BSTRIDE, &var[by][bx],
-                       &var[by2][bx2], coeff_shift, &dir[by][bx],
-                       &dir[by2][bx2]);
+    av2_cdef_find_dir_dual(&in[pos1], &in[pos2], CDEF_BSTRIDE, &var[by][bx],
+                           &var[by2][bx2], coeff_shift, &dir[by][bx],
+                           &dir[by2][bx2]);
   }
 
   // Process remaining 8x8 blocks here. One 8x8 at a time.
   if (cdef_count % 2) {
     const int by = dlist[bi].by;
     const int bx = dlist[bi].bx;
-    dir[by][bx] = cdef_find_dir(&in[8 * by * CDEF_BSTRIDE + 8 * bx],
-                                CDEF_BSTRIDE, &var[by][bx], coeff_shift);
+    dir[by][bx] = av2_cdef_find_dir(&in[8 * by * CDEF_BSTRIDE + 8 * bx],
+                                    CDEF_BSTRIDE, &var[by][bx], coeff_shift);
   }
 }
 
@@ -333,7 +338,7 @@ void av2_cdef_filter_fb(uint8_t *dst8, uint16_t *dst16, int dstride,
 
   if (pli == 0) {
     if (!dirinit || !*dirinit) {
-      avm_cdef_find_dir(in, dlist, var, cdef_count, coeff_shift, dir);
+      avm_av2_cdef_find_dir(in, dlist, var, cdef_count, coeff_shift, dir);
       if (dirinit) *dirinit = 1;
     }
   }
@@ -355,9 +360,10 @@ void av2_cdef_filter_fb(uint8_t *dst8, uint16_t *dst16, int dstride,
    * strength_index == 2 : enable_primary = 0, enable_secondary = 1
    * strength_index == 3 : enable_primary = 0, enable_secondary = 0
    */
-  const cdef_filter_block_func cdef_filter_fn[4] = {
-    cdef_filter_16_0, cdef_filter_16_1, cdef_filter_16_2, cdef_filter_16_3
-  };
+  const cdef_filter_block_func cdef_filter_fn[4] = { av2_cdef_filter_16_0,
+                                                     av2_cdef_filter_16_1,
+                                                     av2_cdef_filter_16_2,
+                                                     av2_cdef_filter_16_3 };
   for (bi = 0; bi < cdef_count; bi++) {
     by = dlist[bi].by;
     bx = dlist[bi].bx;

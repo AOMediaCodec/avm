@@ -65,7 +65,7 @@ csv_paths = {
     "v01.0.0": [
         "v1.0.0",
         "av2",
-        "avm",
+        "aom",
         "0",
         os.path.join(CTC_RESULT_PATH, "AV2-CTC-v1.0.0-alt-anchor-r3.0"),
     ],
@@ -85,65 +85,72 @@ csv_paths = {
     "v02.0.0": [
         "v2.0.0",
         "av2",
-        "avm",
+        "aom",
         "0",
         os.path.join(CTC_RESULT_PATH, "AV2-CTC-v2.0.0"),
     ],
     "v03.0.0": [
         "v3.0.0",
         "av2",
-        "avm",
+        "aom",
         "0",
         os.path.join(CTC_RESULT_PATH, "AV2-CTC-v3.0.0"),
     ],
     "v04.0.0": [
         "v4.0.0",
         "av2",
-        "avm",
+        "aom",
         "0",
         os.path.join(CTC_RESULT_PATH, "AV2-CTC-v4.0.0"),
     ],
     "v05.0.0": [
         "v5.0.0",
         "av2",
-        "avm",
+        "aom",
         "0",
         os.path.join(CTC_RESULT_PATH, "AV2-CTC-v5.0.0"),
     ],
     "v06.0.0": [
         "v6.0.0",
         "av2",
-        "avm",
+        "aom",
         "0",
         os.path.join(CTC_RESULT_PATH, "AV2-CTC-v6.0.0"),
     ],
     "v07.0.0": [
         "v7.0.0",
         "av2",
-        "avm",
+        "aom",
         "0",
         os.path.join(CTC_RESULT_PATH, "AV2-CTC-v7.0.0"),
     ],
     "v08.0.0": [
         "v8.0.0",
         "av2",
-        "avm",
+        "aom",
         "0",
         os.path.join(CTC_RESULT_PATH, "AV2-CTC-v8.0.0"),
     ],
     "v09.0.0": [
         "v9.0.0",
         "av2",
-        "avm",
+        "aom",
         "0",
         os.path.join(CTC_RESULT_PATH, "AV2-CTC-v9.0.0"),
     ],
     "v10.0.0": [
         "v10.0.0",
         "av2",
-        "avm",
+        "aom",
         "0",
         os.path.join(CTC_RESULT_PATH, "AV2-CTC-v10.0.0"),
+    ],
+    "v11.0.0": [
+        "v11.0.0",
+        "av2",
+        "aom",
+        "0",
+        os.path.join(CTC_RESULT_PATH, "AV2-CTC-v11.0.0"),
     ],
 }
 
@@ -170,6 +177,21 @@ formats = {
     # "libavm-v3.12.0-unconstrained": ["g", "--", "<"],
     "v09.0.0": ["b", "-.", "^"],
     "v10.0.0": ["c", "-.", "+"],
+    "v11.0.0": ["m", "-.", "o"],
+}
+
+dates = {
+    "v01.0.0": "01/16/2021",
+    "v02.0.0": "08/27/2021",
+    "v03.0.0": "05/27/2022",
+    "v04.0.0": "04/04/2023",
+    "v05.0.0": "08/14/2023",
+    "v06.0.0": "01/05/2024",
+    "v07.0.0": "05/20/2024",
+    "v08.0.0": "09/16/2024",
+    "v09.0.0": "01/24/2025",
+    "v10.0.0": "06/02/2025",
+    "v11.0.0": "08/29/2025",
 }
 
 AS_formats = {
@@ -185,24 +207,24 @@ anchor = "v01.0.0"
 rd_curve_pdf = os.path.join(CTC_RESULT_PATH, "rdcurve.pdf")
 combined_rd_curve_pdf = os.path.join(CTC_RESULT_PATH, "combined_rdcurve.pdf")
 combined_runtime_pdf = os.path.join(CTC_RESULT_PATH, "combined_runtime.pdf")
-bdrate_summary = os.path.join(CTC_RESULT_PATH, "Bdrate-Summary-AV2-vs-AV2.csv")
+bdrate_summary = os.path.join(CTC_RESULT_PATH, "Bdrate-Summary-AV1-vs-AV2.csv")
 avg_bdrate_by_tag_class = os.path.join(
-    CTC_RESULT_PATH, "AverageBdrateByTagClass-Summary-AV2-vs-AV2.csv"
+    CTC_RESULT_PATH, "AverageBdrateByTagClass-Summary-AV1-vs-AV2.csv"
 )
 avg_bdrate_by_tag = os.path.join(
-    CTC_RESULT_PATH, "AverageBdrateByTag-Summary-AV2-vs-AV2.csv"
+    CTC_RESULT_PATH, "AverageBdrateByTag-Summary-AV1-vs-AV2.csv"
 )
 per_video_bdrate = os.path.join(
-    CTC_RESULT_PATH, "PerVideoBdrate-Summary-AV2-vs-AV2.csv"
+    CTC_RESULT_PATH, "PerVideoBdrate-Summary-AV1-vs-AV2.csv"
 )
 avg_bdrate_by_tag_pdf = os.path.join(
-    CTC_RESULT_PATH, "AverageBdrateByTag-Summary-AV2-vs-AV2.pdf"
+    CTC_RESULT_PATH, "AverageBdrateByTag-Summary-AV1-vs-AV2.pdf"
 )
 avg_bdrate_by_tag_class_pdf = os.path.join(
-    CTC_RESULT_PATH, "AverageBdrateByTagClass-Summary-AV2-vs-AV2.pdf"
+    CTC_RESULT_PATH, "AverageBdrateByTagClass-Summary-AV1-vs-AV2.pdf"
 )
 per_video_bdrate_by_tag_class_pdf = os.path.join(
-    CTC_RESULT_PATH, "PerVideoBdrate-Summary-AV2-vs-AV2.pdf"
+    CTC_RESULT_PATH, "PerVideoBdrate-Summary-AV1-vs-AV2.pdf"
 )
 colors = cycle("bgrycmkw")
 markers = cycle("o*^+<x>.")
@@ -844,6 +866,11 @@ def plot_avg_bdrate_by_tag(avg_bdrate_by_tag_csv, avg_bdrate_by_tag_pdf):
                 ax.set_title("BDRATE-%s for %s" % (qty, cfg), fontsize=40)
                 ax.set_xlabel("Tag", fontsize=20)
                 ax.set_ylabel("BDRATE", fontsize=20)
+                xticks = ax.get_xticks()
+                xtickslabels = [label.get_text() for label in ax.get_xticklabels()]
+                xtickslabels = [f"{tag}\n{dates[tag]}" for tag in xtickslabels]
+                ax.set_xticks(xticks, labels=xtickslabels)
+
                 for q in ax.containers:
                     ax.bar_label(q, fontsize=20)
                 plt.xticks(rotation=30, horizontalalignment="center")
@@ -875,6 +902,11 @@ def plot_avg_bdrate_by_tag_class(
                     )
                     ax.set_xlabel("Tag", fontsize=20)
                     ax.set_ylabel("BDRATE", fontsize=20)
+                    xticks = ax.get_xticks()
+                    xtickslabels = [label.get_text() for label in ax.get_xticklabels()]
+                    xtickslabels = [f"{tag}\n{dates[tag]}" for tag in xtickslabels]
+                    ax.set_xticks(xticks, labels=xtickslabels)
+
                     for q in ax.containers:
                         ax.bar_label(q, fontsize=20)
                     plt.xticks(rotation=30, horizontalalignment="center")
@@ -913,6 +945,10 @@ def plot_per_video_bdrate_by_tag_class(
                         )
                         ax.set_xlabel("Tag", fontsize=20)
                         ax.set_ylabel("BDRATE", fontsize=20)
+                        xticks = ax.get_xticks()
+                        xtickslabels = [f"{tag}\n{dates[tag]}" for tag in tags]
+                        ax.set_xticks(xticks, labels=xtickslabels)
+
                         for q in ax.containers:
                             ax.bar_label(q, fontsize=20)
                         ax.set_xticks(idx)

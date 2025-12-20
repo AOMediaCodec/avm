@@ -18,12 +18,6 @@
 #include "avm_ports/mem.h"
 #include "avm_scale/yv12config.h"
 
-// clang-format off
-const double kIdentityParams[MAX_PARAMDIM] = {
-  0.0, 0.0, 1.0, 0.0, 0.0, 1.0
-};
-// clang-format on
-
 // Compute a global motion model between the given source and ref frames.
 //
 // As is standard for video codecs, the resulting model maps from (x, y)

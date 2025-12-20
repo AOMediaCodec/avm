@@ -106,7 +106,7 @@ void av2_get_past_future_cur_ref_lists(AV2_COMMON *cm, RefScoreData *scores) {
 #if CONFIG_F322_OBUER_REFRESTRICT
     int ref_idx = cm->remapped_ref_idx[i];
     if (cm->ref_frame_map[ref_idx] != NULL &&
-        cm->ref_frame_map[ref_idx]->is_restricted_ref)
+        cm->ref_frame_map[ref_idx]->is_restricted)
       continue;
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
     // If order hint is disabled, the scores and past/future information are
@@ -270,7 +270,7 @@ int av2_get_ref_frames(AV2_COMMON *cm, int cur_frame_disp,
     // resetting when S_FRAME. these values should not change the outputs
     for (int i = 0; i < cm->seq_params.ref_frames; i++) {
       if (cm->ref_frame_map[i] != NULL) {
-        cm->ref_frame_map[i]->display_order_hint = REF_RESTRICTED_DOH;
+        cm->ref_frame_map[i]->display_order_hint = REF_RESTRICTED_DOH + i;
         cm->ref_frame_map[i]->base_qindex = 255;
         cm->ref_frame_map[i]->absolute_poc =
             -2;  // this change is only for the encoder output log

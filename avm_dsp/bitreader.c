@@ -18,7 +18,7 @@ int avm_reader_init(avm_reader *r, const uint8_t *buffer, size_t size) {
   }
   r->buffer_end = buffer + size;
   r->buffer = buffer;
-  od_ec_dec_init(&r->ec, buffer, (uint32_t)size);
+  avm_od_ec_dec_init(&r->ec, buffer, (uint32_t)size);
 #if CONFIG_ACCOUNTING
   r->accounting = NULL;
 #endif
@@ -29,10 +29,12 @@ const uint8_t *avm_reader_find_begin(avm_reader *r) { return r->buffer; }
 
 const uint8_t *avm_reader_find_end(avm_reader *r) { return r->buffer_end; }
 
-uint32_t avm_reader_tell(const avm_reader *r) { return od_ec_dec_tell(&r->ec); }
+uint32_t avm_reader_tell(const avm_reader *r) {
+  return avm_od_ec_dec_tell(&r->ec);
+}
 
 uint64_t avm_reader_tell_frac(const avm_reader *r) {
-  return od_ec_dec_tell_frac(&r->ec);
+  return avm_od_ec_dec_tell_frac(&r->ec);
 }
 
 int avm_reader_has_overflowed(const avm_reader *r) {

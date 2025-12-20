@@ -954,7 +954,6 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
     }
   }
 
-#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 #if CONFIG_CWG_F270_CI_OBU
   uint32_t seq_chroma_format_idc = 0;
 #else
@@ -967,7 +966,6 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
                        "Unsupported subsampling_x = %d, subsampling_y = %d.",
                        seq_params->subsampling_x, seq_params->subsampling_y);
   }
-#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
 #if CONFIG_CWG_F270_CI_OBU
   set_content_interpreation_params(cpi, oxcf, seq_chroma_format_idc);
@@ -2142,10 +2140,10 @@ static int64_t compute_sad(const uint16_t *src, uint16_t *src2, int width,
   return sad;
 }
 
-static void cfl_predict_hbd_pre_analysis(const int16_t *ac_buf_q3,
-                                         uint16_t *dst, int dst_stride,
-                                         int alpha_q3, int bit_depth, int width,
-                                         int height) {
+static void av2_cfl_predict_hbd_pre_analysis(const int16_t *ac_buf_q3,
+                                             uint16_t *dst, int dst_stride,
+                                             int alpha_q3, int bit_depth,
+                                             int width, int height) {
   for (int j = 0; j < height; ++j) {
     for (int i = 0; i < width; ++i) {
       dst[i] = clip_pixel_highbd(
@@ -2156,8 +2154,8 @@ static void cfl_predict_hbd_pre_analysis(const int16_t *ac_buf_q3,
   }
 }
 
-static void cfl_predict_hbd_dc(const uint16_t *src, uint16_t *dst,
-                               int src_stride, int width, int height) {
+static void av2_cfl_predict_hbd_dc(const uint16_t *src, uint16_t *dst,
+                                   int src_stride, int width, int height) {
   int dc_val = 0;
   const uint16_t *chroma = src;
   for (int i = 0; i < width; ++i) {
@@ -2268,12 +2266,12 @@ void av2_set_downsample_filter_options(AV2_COMP *cpi) {
               recon_buf_q3, ac_buf_q3, blk_w >> subsampling_x,
               blk_h >> subsampling_y, 4,
               (blk_w >> subsampling_x) * (blk_h >> subsampling_y));
-          cfl_predict_hbd_dc(this_src_chroma - chroma_stride, dc_buf_q3,
-                             chroma_stride, blk_w >> subsampling_x,
-                             blk_h >> subsampling_y);
-          cfl_predict_hbd_pre_analysis(ac_buf_q3, dc_buf_q3, CFL_BUF_LINE,
-                                       alpha, bd, blk_w >> subsampling_x,
-                                       blk_h >> subsampling_y);
+          av2_cfl_predict_hbd_dc(this_src_chroma - chroma_stride, dc_buf_q3,
+                                 chroma_stride, blk_w >> subsampling_x,
+                                 blk_h >> subsampling_y);
+          av2_cfl_predict_hbd_pre_analysis(ac_buf_q3, dc_buf_q3, CFL_BUF_LINE,
+                                           alpha, bd, blk_w >> subsampling_x,
+                                           blk_h >> subsampling_y);
           int64_t filter_cost =
               compute_sad(dc_buf_q3, this_src_chroma, blk_w >> 1, blk_h >> 1, 2,
                           chroma_stride);
@@ -4177,7 +4175,7 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
       const RefCntBuffer *const temp_ref_buf = cm->ref_frame_map[temp_map_idx];
 #if CONFIG_F322_OBUER_REFRESTRICT
       assert(temp_ref_buf != NULL);
-      if (temp_ref_buf != NULL && temp_ref_buf->is_restricted_ref) continue;
+      if (temp_ref_buf != NULL && temp_ref_buf->is_restricted) continue;
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
       if (temp_ref_buf->frame_type != INTER_FRAME) continue;
       if (cm->bru.enabled && i == cm->bru.update_ref_idx) continue;
@@ -4846,6 +4844,7 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
 #if CONFIG_F024_KEYOBU
   cm->current_frame.cm_obu_type = frame_params->frame_params_obu_type;
 #endif  // CONFIG_F024_KEYOBU
+
   current_frame->order_hint =
       current_frame->frame_number + frame_params->order_offset;
   current_frame->display_order_hint = current_frame->order_hint;
@@ -4904,22 +4903,20 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
   cm->tlayer_id = 0;
   current_frame->temporal_layer_id = cm->tlayer_id;
 #if CONFIG_F322_OBUER_REFRESTRICT
-  cm->cur_frame->is_restricted_switch_frame = 0;
   cm->restricted_prediction_switch =
       cpi->oxcf.kf_cfg.sframe_dist != 0 && cpi->oxcf.kf_cfg.sframe_mode == 0;
   if (current_frame->frame_type == KEY_FRAME) {
     for (int i = 0; i < cm->seq_params.ref_frames; i++) {
       if (cm->ref_frame_map[i] != NULL)
-        cm->ref_frame_map[i]->is_restricted_ref = false;
+        cm->ref_frame_map[i]->is_restricted = false;
     }
   }
 
   if (cm->restricted_prediction_switch) {
-    cm->cur_frame->is_restricted_switch_frame = 1;
     if (current_frame->frame_type == S_FRAME) {
       for (int i = 0; i < cm->seq_params.ref_frames; i++) {
         if (cm->ref_frame_map[i] != NULL)
-          cm->ref_frame_map[i]->is_restricted_ref = true;
+          cm->ref_frame_map[i]->is_restricted = true;
       }
     }
 
@@ -4931,7 +4928,7 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
                                  current_frame->frame_type == KEY_FRAME ||
                                  current_frame->frame_type == INTRA_ONLY_FRAME)
                                     ? false
-                                    : !cm->ref_frame_map[i]->is_restricted_ref;
+                                    : !cm->ref_frame_map[i]->is_restricted;
         ref_frame_safe_to_use |= ref_unrestricted << i;
       }
     }
@@ -4953,7 +4950,6 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
     av2_get_ref_frames(cm, cur_frame_disp, 0, 0, cm->ref_frame_map_pairs);
     av2_get_ref_frames(cm, cur_frame_disp, 1, 0, cm->ref_frame_map_pairs);
   }
-
   current_frame->absolute_poc =
       current_frame->key_frame_number + current_frame->display_order_hint;
   if (current_frame->frame_type == KEY_FRAME) {
@@ -5019,7 +5015,7 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
           // Get reference frame buffer
           const RefCntBuffer *const buf = cm->ref_frame_map[map_idx];
 #if CONFIG_F322_OBUER_REFRESTRICT
-          if (buf != NULL && cm->ref_frame_map[map_idx]->is_restricted_ref)
+          if (buf != NULL && cm->ref_frame_map[map_idx]->is_restricted)
             continue;
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
           if (buf != NULL && buf->display_order_hint == 0) {

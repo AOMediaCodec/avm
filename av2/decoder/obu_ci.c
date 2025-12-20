@@ -165,9 +165,23 @@ static INLINE void av2_read_sample_aspect_ratio_information(
   }
 }
 
+void av2_init_ci_params(ContentInterpretation *ci_params) {
+  memset(ci_params, 0, sizeof(ContentInterpretation));
+  ci_params->ci_chroma_sample_position[0] = AVM_CSP_UNSPECIFIED;
+  ci_params->ci_chroma_sample_position[1] = AVM_CSP_UNSPECIFIED;
+  ci_params->color_info.color_primaries = AVM_CICP_CP_UNSPECIFIED;
+  ci_params->color_info.transfer_characteristics = AVM_CICP_TC_UNSPECIFIED;
+  ci_params->color_info.matrix_coefficients = AVM_CICP_MC_UNSPECIFIED;
+}
+
+static int av2_ci_params_identical(const ContentInterpretation *ci1,
+                                   const ContentInterpretation *ci2) {
+  if (!memcmp(ci1, ci2, sizeof(ContentInterpretation))) return 1;
+  return 0;
+}
+
 uint32_t av2_read_content_interpretation_obu(struct AV2Decoder *pbi,
                                              struct avm_read_bit_buffer *rb) {
-  // TODO: AVM issue #1172 - Add layer-dependency-based inheritance of CI params
   AV2_COMMON *const cm = &pbi->common;
   const int obu_mlayer_id = cm->mlayer_id;
   const uint32_t saved_bit_offset = rb->bit_offset;
@@ -176,6 +190,7 @@ uint32_t av2_read_content_interpretation_obu(struct AV2Decoder *pbi,
 
   // Parse CI OBU into a temp structure
   ContentInterpretation ci_temp;
+  av2_init_ci_params(&ci_temp);
   ci_temp.ci_scan_type_idc = avm_rb_read_literal(rb, 2);
   ci_temp.ci_color_description_present_flag = avm_rb_read_bit(rb);
   ci_temp.ci_chroma_sample_position_present_flag = avm_rb_read_bit(rb);
@@ -234,7 +249,20 @@ uint32_t av2_read_content_interpretation_obu(struct AV2Decoder *pbi,
     avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
                        "CI OBU is signalled without CLK/OLK");
   } else if (pbi->ci_and_key_per_layer[obu_mlayer_id] == 2) {
-    cm->ci_params_per_layer[obu_mlayer_id] = ci_temp;
+    // Check if a CI OBU has already been received for this embedded layer
+    if (pbi->ci_obu_received_per_layer[obu_mlayer_id]) {
+      if (!av2_ci_params_identical(&cm->ci_params_per_layer[obu_mlayer_id],
+                                   &ci_temp)) {
+        avm_internal_error(
+            &cm->error, AVM_CODEC_CORRUPT_FRAME,
+            "Multiple CI OBUs in embedded layer must be identical.");
+      }
+      // CI obu matches the previous one, so no need to update
+    } else {
+      // Got the first CI Obu for this layer.
+      cm->ci_params_per_layer[obu_mlayer_id] = ci_temp;
+      pbi->ci_obu_received_per_layer[obu_mlayer_id] = 1;
+    }
   }
 
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);

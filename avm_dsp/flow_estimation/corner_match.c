@@ -302,8 +302,8 @@ bool av2_compute_global_motion_feature_match(
       ref_corners->corners, ref_corners->num_corners, src_width, src_height,
       src_stride, ref_stride, correspondences);
 
-  bool result = ransac(correspondences, num_correspondences, type,
-                       motion_models, num_motion_models, mem_alloc_failed);
+  bool result = avm_ransac(correspondences, num_correspondences, type,
+                           motion_models, num_motion_models, mem_alloc_failed);
 
   avm_free(correspondences);
   return result;

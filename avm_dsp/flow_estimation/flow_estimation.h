@@ -67,8 +67,6 @@ typedef struct {
 static const GlobalMotionMethod default_global_motion_method =
     GLOBAL_MOTION_METHOD_DISFLOW;
 
-extern const double kIdentityParams[MAX_PARAMDIM];
-
 // Compute a global motion model between the given source and ref frames.
 //
 // As is standard for video codecs, the resulting model maps from (x, y)

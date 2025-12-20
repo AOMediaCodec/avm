@@ -937,10 +937,8 @@ typedef struct {
   // entire frame.
   bool frame_hash_per_plane;
 
-#if CONFIG_METADATA
   // Indicates whether to use short metadata OBU format (1) or group format (0)
   unsigned int use_short_metadata;
-#endif  // CONFIG_METADATA
 
   unsigned int scan_type_info_present_flag;
 

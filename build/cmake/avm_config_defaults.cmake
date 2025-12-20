@@ -67,6 +67,10 @@ set_avm_config_var(CONFIG_ERROR_RESILIENT_FIX 1 "Additional check for s_frame.")
 
 set_avm_config_var(CONFIG_F322_OBUER_REFRESTRICT 1
                    "Use restricted reference for switch frames and after.")
+set_avm_config_var(CONFIG_F436_OBUORDER 1
+                   "Check the order of frame units is valid")
+set_avm_config_var(CONFIG_F436_OBUORDER_DEBUG 0
+                   "Output obu information for CONFIG_F436_OBUORDER")
 
 set_avm_config_var(CONFIG_F024_KEYOBU 1 "Use Key OBUs.")
 
@@ -143,17 +147,10 @@ set_avm_config_var(CONFIG_PARAKIT_COLLECT_DATA 0
                    "enables data collection for ParaKit training.")
 
 # AV2 experiment flags.
-set_avm_config_var(CONFIG_METADATA 1 "F161 metadata syntax")
-set_avm_config_var(CONFIG_ICC_METADATA 1 "ICC metadata syntax")
-
-set_avm_config_var(CONFIG_CWG_E242_BITDEPTH 1 "Signal Bitdepth using a LUT.")
 
 set_avm_config_var(CONFIG_CWG_E242_SEQ_HDR_ID 1 "Signal sequence header id.")
 
 set_avm_config_var(CONFIG_DIP_EXT_PRUNING 1 "AV2 DIP TFLite pruning.")
-
-# CWG-E242 Chroma Format IDC
-set_avm_config_var(CONFIG_CWG_E242_CHROMA_FORMAT_IDC 1 "Chroma format idc.")
 
 set_avm_config_var(CONFIG_CWG_F270_CI_OBU 1 "Use content interpretation OBU")
 

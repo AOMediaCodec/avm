@@ -319,6 +319,7 @@ typedef struct RefCntBuffer {
   int showable_frame;      // frame can be used as show existing frame in future
   bool frame_output_done;  // 0: frame is not yet output 1: frame is already
                            // output
+  int fgm_id;
   avm_film_grain_t film_grain_params;
   // #endif
   avm_codec_frame_buffer_t raw_frame_buffer;
@@ -341,9 +342,11 @@ typedef struct RefCntBuffer {
   FrameHash grain_frame_hash;
   CcsoInfo ccso_info;
 #if CONFIG_F322_OBUER_REFRESTRICT
-  bool is_restricted_ref;  // 0.free-to-use 1.restricted-to-use
-  bool is_restricted_switch_frame;
-  int has_restricted_ref[INTER_REFS_PER_FRAME];
+  // 0: Not restricted
+  // 1: Restricted. TMVP, CDF, etc. from the restricted ref frame cannot be
+  //    used. However, pixels from the restricted ref frame can be used.
+  int is_restricted;
+  int refs_restricted_status[INTER_REFS_PER_FRAME];
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
 } RefCntBuffer;
 
@@ -2933,7 +2936,6 @@ void av2_set_class_id_array_stride(CommonModeInfoParams *mi_params,
                                    AV2_COMMON *cm, int height);
 void av2_dealloc_class_id_array(CommonModeInfoParams *mi_params);
 
-#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 // Given subsampling x/y and monochrome values in `seq_params`, outputs the
 // chroma format idc. Returns error in case of invalid subsampling format.
 static INLINE avm_codec_err_t av2_get_chroma_format_idc(
@@ -2951,7 +2953,6 @@ static INLINE avm_codec_err_t av2_get_chroma_format_idc(
   }
   return AVM_CODEC_OK;
 }
-#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
 int get_ccso_unit_size_log2_adaptive_tile(const AV2_COMMON *cm,
                                           int sb_size_log2, int unit_size_log2);
@@ -3273,7 +3274,7 @@ static INLINE RefCntBuffer *get_primary_ref_frame_buf(
   if (map_idx == INVALID_IDX) return NULL;
 #if CONFIG_F322_OBUER_REFRESTRICT
   if (cm->ref_frame_map[map_idx] != NULL &&
-      cm->ref_frame_map[map_idx]->is_restricted_ref)
+      cm->ref_frame_map[map_idx]->is_restricted)
     return NULL;
   else
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
@@ -3394,7 +3395,7 @@ static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV2_COMMON *cm) {
   }
 }
 
-void cfl_init(CFL_CTX *cfl, const SequenceHeader *seq_params);
+void av2_cfl_init(CFL_CTX *cfl, const SequenceHeader *seq_params);
 
 static INLINE int av2_num_planes(const AV2_COMMON *cm) {
   return cm->seq_params.monochrome ? 1 : MAX_MB_PLANE;
@@ -3436,7 +3437,7 @@ static INLINE void av2_init_macroblockd(AV2_COMMON *cm, MACROBLOCKD *xd) {
   }
   xd->mi_stride = cm->mi_params.mi_stride;
   xd->error_info = &cm->error;
-  cfl_init(&xd->cfl, &cm->seq_params);
+  av2_cfl_init(&xd->cfl, &cm->seq_params);
 }
 
 static INLINE void set_entropy_context(MACROBLOCKD *xd, int mi_row, int mi_col,
@@ -5359,14 +5360,12 @@ static INLINE void init_ibp_info(
 #define DISPLAY_ORDER_HINT_BITS 30
 #define RELATIVE_DIST_BITS 8
 #if CONFIG_F322_OBUER_REFRESTRICT
-#define REF_RESTRICTED_DOH INT_MAX
+#define REF_RESTRICTED_DOH \
+  ((1 << (DISPLAY_ORDER_HINT_BITS - 1)) - 1 - REF_FRAMES)
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
 
 static INLINE int get_relative_dist(const OrderHintInfo *oh, int a, int b) {
   if (oh->order_hint_bits_minus_1 < 0) return 0;
-#if CONFIG_F322_OBUER_REFRESTRICT
-  assert(a != INT_MAX || b != INT_MAX);
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
   assert(a >= 0);
   assert(b >= 0);
   const int bits = DISPLAY_ORDER_HINT_BITS;
@@ -5405,6 +5404,15 @@ static INLINE int opfl_allowed_cur_refs_bsize(const AV2_COMMON *cm,
 #if CONFIG_ERROR_RESILIENT_FIX
   if (frame_is_sframe(cm)) return 0;
 #endif  // CONFIG_ERROR_RESILIENT_FIX
+
+#if CONFIG_F322_OBUER_REFRESTRICT
+  if ((get_ref_frame_buf(cm, mbmi->ref_frame[0]) != NULL &&
+       get_ref_frame_buf(cm, mbmi->ref_frame[0])->is_restricted) ||
+      (get_ref_frame_buf(cm, mbmi->ref_frame[1]) != NULL &&
+       get_ref_frame_buf(cm, mbmi->ref_frame[1])->is_restricted))
+    return 0;
+#endif  // CONFIG_F322_OBUER_REFRESTRICT
+
   const unsigned int cur_index = cm->cur_frame->display_order_hint;
   int d0, d1;
   if (mbmi->ref_frame[0] == TIP_FRAME) {
@@ -5797,7 +5805,6 @@ static INLINE MB_MODE_INFO **get_mi_location_from_collocated_mi(
   return this_mi;
 }
 
-#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 // Given chroma_format_idc, outputs the subsampling_x/y.
 // Returns error in case of invalid chroma_format_idc.
 static INLINE avm_codec_err_t av2_get_chroma_subsampling(
@@ -5819,7 +5826,6 @@ static INLINE avm_codec_err_t av2_get_chroma_subsampling(
   }
   return AVM_CODEC_OK;
 }
-#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
 // Returns pointer to effective sequence level or multi-frame header level tile
 // info. Returns null if none exist

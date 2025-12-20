@@ -700,6 +700,14 @@ static INLINE int is_refinemv_allowed_reference(const AV2_COMMON *cm,
   if (frame_is_sframe(cm)) return 0;
 #endif  // CONFIG_ERROR_RESILIENT_FIX
 
+#if CONFIG_F322_OBUER_REFRESTRICT
+  if ((get_ref_frame_buf(cm, mbmi->ref_frame[0]) != NULL &&
+       get_ref_frame_buf(cm, mbmi->ref_frame[0])->is_restricted) ||
+      (get_ref_frame_buf(cm, mbmi->ref_frame[1]) != NULL &&
+       get_ref_frame_buf(cm, mbmi->ref_frame[1])->is_restricted))
+    return 0;
+#endif  // CONFIG_F322_OBUER_REFRESTRICT
+
   // If one of the reference frame is different resolution than the current
   // frame, refinemv is disabled.
   const struct scale_factors *const sf0 =
@@ -1191,6 +1199,14 @@ static INLINE int av2_allow_bawp(const AV2_COMMON *const cm,
   // following logic for parsing is not reliable, so we disable BAWP.
   if (frame_is_sframe(cm)) return 0;
 #endif  // CONFIG_ERROR_RESILIENT_FIX
+
+#if CONFIG_F322_OBUER_REFRESTRICT
+  if ((get_ref_frame_buf(cm, mbmi->ref_frame[0]) != NULL &&
+       get_ref_frame_buf(cm, mbmi->ref_frame[0])->is_restricted) ||
+      (get_ref_frame_buf(cm, mbmi->ref_frame[1]) != NULL &&
+       get_ref_frame_buf(cm, mbmi->ref_frame[1])->is_restricted))
+    return 0;
+#endif  // CONFIG_F322_OBUER_REFRESTRICT
 
   // If one of the reference frame is different resolution than the current
   // frame, bawp is disabled.
