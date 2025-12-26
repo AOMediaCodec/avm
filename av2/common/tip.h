@@ -41,6 +41,15 @@ void av2_setup_tip_frame(AV2_COMMON *cm, MACROBLOCKD *xd, uint16_t **mc_buf,
                          CalcSubpelParamsFunc calc_subpel_params_func,
                          int copy_refined_mvs);
 
+// Row based processing for TIP frame
+void av2_tip_setup_tip_frame_row(AV2_COMMON *cm, MACROBLOCKD *xd, int blk_row,
+                                 int blk_col_start, int blk_row_end,
+                                 int blk_col_end, int mvs_stride,
+                                 int unit_blk_size, int max_allow_blk_size,
+                                 uint16_t **mc_buf, CONV_BUF_TYPE *tmp_conv_dst,
+                                 CalcSubpelParamsFunc calc_subpel_params_func,
+                                 int copy_refined_mvs);
+
 // Get the block width when blocks with same MV are combined.
 static AVM_INLINE int get_tip_block_width_with_same_mv(
     const AV2_COMMON *cm, const TPL_MV_REF *tpl_mvs, int unit_blk_size,

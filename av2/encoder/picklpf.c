@@ -474,9 +474,10 @@ static double try_filter_tip_frame(AV2_COMP *const cpi, int tip_delta) {
   int64_t filter_sse = 0;
   cm->lf.apply_deblocking_filter_tip = 1;
   cm->lf.tip_delta = tip_delta;
+  ThreadData *const td = &cpi->td;
 
   init_tip_lf_parameter(cm, 0, num_planes);
-  loop_filter_tip_frame(cm, 0, num_planes);
+  loop_filter_tip_frame(cm, &td->mb.e_mbd, 0, num_planes);
 
   YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tip_frame->buf;
   for (int i = 0; i < num_planes; i++) {

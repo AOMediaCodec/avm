@@ -93,10 +93,11 @@ void av2_loop_filter_frame(YV12_BUFFER_CONFIG *frame, struct AV2Common *cm,
 void loop_filter_tip_plane(struct AV2Common *cm, const int plane, uint16_t *dst,
                            const int dst_stride, const int plane_w,
                            const int plane_h);
-void setup_tip_dst_planes(struct AV2Common *const cm, const int plane,
-                          const int tpl_row, const int tpl_col);
-void loop_filter_tip_frame(struct AV2Common *cm, int plane_start,
-                           int plane_end);
+void setup_tip_dst_planes(struct AV2Common *const cm, MACROBLOCKD *xd,
+                          const int plane, const int tpl_row,
+                          const int tpl_col);
+void loop_filter_tip_frame(struct AV2Common *cm, MACROBLOCKD *xd,
+                           int plane_start, int plane_end);
 void init_tip_lf_parameter(struct AV2Common *cm, int plane_start,
                            int plane_end);
 void av2_filter_block_plane_vert(struct AV2Common *const cm,

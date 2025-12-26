@@ -1911,14 +1911,6 @@ typedef struct {
 } RefFramesInfo;
 
 /*!
- * \brief Structure used for storing tip reconstruct and prediction
- */
-typedef struct {
-  /** dst buffer */
-  struct buf_2d dst;
-} TIP_PLANE;
-
-/*!
  * \brief Structure used for tip
  */
 typedef struct TIP_Buffer {
@@ -1931,10 +1923,6 @@ typedef struct TIP_Buffer {
    * Buffer to store temporary frame when doing frame motion compensation.
    */
   RefCntBuffer *tmp_tip_frame;
-  /*!
-   * Info specific to each plane.
-   */
-  TIP_PLANE tip_plane[MAX_MB_PLANE];
   /*!
    * Offset of TIP frame to its reference frame.
    */
@@ -2822,30 +2810,6 @@ typedef struct AV2Common {
    * TIP reference frame
    */
   TIP tip_ref;
-  /*!
-   * Blk buffer of the first reference for tip optflow
-   */
-  uint16_t *dst0_16_tip;
-  /*!
-   * Blk buffer of the second reference for tip optflow
-   */
-  uint16_t *dst1_16_tip;
-  /*!
-   * Buffer of horizontal gradient in buffer 0
-   */
-  int16_t *gx0;
-  /*!
-   * Buffer of vertical gradient in buffer 0
-   */
-  int16_t *gy0;
-  /*!
-   * Buffer of horizontal gradient in buffer 1
-   */
-  int16_t *gx1;
-  /*!
-   * Buffer of vertical gradient in buffer 1
-   */
-  int16_t *gy1;
   /*!
    * Size of the superblock used for this frame.
    */

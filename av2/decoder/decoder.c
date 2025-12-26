@@ -154,22 +154,6 @@ static INLINE void dec_free_tip_ref_frame(AV2_COMMON *const cm) {
   cm->tip_ref.tmp_tip_frame = NULL;
 }
 
-static INLINE void dec_init_optflow_bufs(AV2_COMMON *const cm) {
-  cm->dst0_16_tip = avm_memalign(32, 8 * 8 * sizeof(uint16_t));
-  cm->dst1_16_tip = avm_memalign(32, 8 * 8 * sizeof(uint16_t));
-  cm->gx0 = avm_memalign(32, 2 * 8 * 8 * sizeof(*cm->gx0));
-  cm->gx1 = avm_memalign(32, 2 * 8 * 8 * sizeof(*cm->gx1));
-  cm->gy0 = cm->gx0 + (8 * 8);
-  cm->gy1 = cm->gx1 + (8 * 8);
-}
-
-static INLINE void dec_free_optflow_bufs(AV2_COMMON *const cm) {
-  avm_free(cm->dst0_16_tip);
-  avm_free(cm->dst1_16_tip);
-  avm_free(cm->gx0);
-  avm_free(cm->gx1);
-}
-
 #if CONFIG_PARAKIT_COLLECT_DATA
 AV2Decoder *av2_decoder_create(BufferPool *const pool, const char *path,
                                const char *suffix) {
@@ -269,7 +253,6 @@ AV2Decoder *av2_decoder_create(BufferPool *const pool) {
 #endif
 
   dec_init_tip_ref_frame(cm);
-  dec_init_optflow_bufs(cm);
 
   cm->error.setjmp = 0;
 
@@ -471,7 +454,6 @@ void av2_decoder_remove(AV2Decoder *pbi) {
   }
 
   dec_free_tip_ref_frame(&pbi->common);
-  dec_free_optflow_bufs(&pbi->common);
 
   free_bru_info(&pbi->common);
   av2_dec_free_cb_buf(pbi);

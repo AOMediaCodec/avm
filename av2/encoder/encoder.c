@@ -1442,21 +1442,6 @@ static INLINE void free_tip_ref_frame(AV2_COMMON *const cm) {
   avm_free(cm->tip_ref.tmp_tip_frame);
 }
 
-static INLINE void init_optflow_bufs(AV2_COMMON *const cm) {
-  cm->dst0_16_tip = avm_memalign(32, 8 * 8 * sizeof(uint16_t));
-  cm->dst1_16_tip = avm_memalign(32, 8 * 8 * sizeof(uint16_t));
-  cm->gx0 = avm_memalign(32, 2 * 8 * 8 * sizeof(*cm->gx0));
-  cm->gx1 = avm_memalign(32, 2 * 8 * 8 * sizeof(*cm->gx1));
-  cm->gy0 = cm->gx0 + (8 * 8);
-  cm->gy1 = cm->gx1 + (8 * 8);
-}
-static INLINE void free_optflow_bufs(AV2_COMMON *const cm) {
-  avm_free(cm->dst0_16_tip);
-  avm_free(cm->dst1_16_tip);
-  avm_free(cm->gx0);
-  avm_free(cm->gx1);
-}
-
 AV2_COMP *av2_create_compressor(AV2EncoderConfig *oxcf, BufferPool *const pool,
                                 FIRSTPASS_STATS *frame_stats_buf,
                                 COMPRESSOR_STAGE stage, int num_lap_buffers,
@@ -1699,8 +1684,6 @@ AV2_COMP *av2_create_compressor(AV2EncoderConfig *oxcf, BufferPool *const pool,
   // The buffers related to TIP are not used during LAP stage. Hence,
   // the allocation is limited to encode stage.
   if (cpi->compressor_stage == ENCODE_STAGE) init_tip_ref_frame(cm);
-
-  init_optflow_bufs(cm);
 
   cm->error.setjmp = 0;
 
@@ -1945,8 +1928,6 @@ void av2_remove_compressor(AV2_COMP *cpi) {
 #endif  // CONFIG_INTERNAL_STATS
 
   if (cpi->compressor_stage == ENCODE_STAGE) free_tip_ref_frame(cm);
-
-  free_optflow_bufs(cm);
 
   free_bru_info(cm);
 
@@ -3737,7 +3718,7 @@ static INLINE int compute_tip_direct_output_mode_RD(AV2_COMP *cpi,
       }
       search_tip_filter_level(cpi, cm);
       init_tip_lf_parameter(cm, 0, av2_num_planes(cm));
-      loop_filter_tip_frame(cm, 0, av2_num_planes(cm));
+      loop_filter_tip_frame(cm, &td->mb.e_mbd, 0, av2_num_planes(cm));
       if (cm->seq_params.enable_tip_explicit_qp == 0) {
         cm->cur_frame->u_ac_delta_q = cm->quant_params.u_ac_delta_q =
             u_ac_delta_q_backup;
@@ -3788,7 +3769,7 @@ static INLINE int compute_tip_direct_output_mode_RD(AV2_COMP *cpi,
                             av2_enc_calc_subpel_params, 0 /* copy_refined_mvs */
         );
         if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu) {
-          loop_filter_tip_frame(cm, 0, av2_num_planes(cm));
+          loop_filter_tip_frame(cm, &td->mb.e_mbd, 0, av2_num_planes(cm));
         }
 
         int64_t this_sse = avm_highbd_get_y_sse(cpi->source, tip_frame_buf);
@@ -3826,7 +3807,7 @@ static INLINE int compute_tip_direct_output_mode_RD(AV2_COMP *cpi,
                           av2_enc_calc_subpel_params, 0 /* copy_refined_mvs */
       );
       if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu) {
-        loop_filter_tip_frame(cm, 0, av2_num_planes(cm));
+        loop_filter_tip_frame(cm, &td->mb.e_mbd, 0, av2_num_planes(cm));
       }
 
       int64_t this_sse = avm_highbd_get_y_sse(cpi->source, tip_frame_buf);
@@ -3948,7 +3929,7 @@ static INLINE int finalize_tip_mode(AV2_COMP *cpi, uint8_t *dest, size_t *size,
     );
     if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu) {
       init_tip_lf_parameter(cm, 0, av2_num_planes(cm));
-      loop_filter_tip_frame(cm, 0, av2_num_planes(cm));
+      loop_filter_tip_frame(cm, &td->mb.e_mbd, 0, av2_num_planes(cm));
       avm_extend_frame_borders(&cm->tip_ref.tip_frame->buf, av2_num_planes(cm),
                                0);
     }

@@ -1517,6 +1517,14 @@ typedef struct macroblockd_plane {
 #endif
 } MACROBLOCKD_PLANE;
 
+/*!
+ * \brief Structure used for storing tip reconstruct and prediction
+ */
+typedef struct {
+  /** dst buffer */
+  struct buf_2d dst;
+} TIP_PLANE;
+
 #define BLOCK_OFFSET(i) ((i) << 4)
 
 #define LR_BANK_SIZE 4
@@ -1916,6 +1924,11 @@ typedef struct macroblockd {
    * Info specific to each plane.
    */
   struct macroblockd_plane plane[MAX_MB_PLANE];
+
+  /*!
+   * TIP Info specific to each plane.
+   */
+  TIP_PLANE tip_plane[MAX_MB_PLANE];
 
   /*!
    * Tile related info.

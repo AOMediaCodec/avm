@@ -1236,10 +1236,11 @@ static AVM_INLINE void setup_tip_dst_plane(struct buf_2d *dst, uint16_t *src,
 }
 
 // setup dst buffer
-AVM_INLINE void setup_tip_dst_planes(AV2_COMMON *const cm, const int plane,
-                                     const int tpl_row, const int tpl_col) {
+AVM_INLINE void setup_tip_dst_planes(AV2_COMMON *const cm, MACROBLOCKD *xd,
+                                     const int plane, const int tpl_row,
+                                     const int tpl_col) {
   const YV12_BUFFER_CONFIG *src = &cm->tip_ref.tip_frame->buf;
-  TIP_PLANE *const pd = &cm->tip_ref.tip_plane[plane];
+  TIP_PLANE *const pd = &xd->tip_plane[plane];
   int is_uv = 0;
   int subsampling_x = 0;
   int subsampling_y = 0;
@@ -1295,13 +1296,12 @@ void init_tip_lf_parameter(struct AV2Common *cm, int plane_start,
 }
 
 // Apply loop filtering on TIP frame
-void loop_filter_tip_frame(struct AV2Common *cm, int plane_start,
-                           int plane_end) {
+void loop_filter_tip_frame(struct AV2Common *cm, MACROBLOCKD *xd,
+                           int plane_start, int plane_end) {
   if (!cm->lf.apply_deblocking_filter_tip) return;
   for (int plane = plane_start; plane < plane_end; ++plane) {
-    TIP *tip_ref = &cm->tip_ref;
-    setup_tip_dst_planes(cm, plane, 0, 0);
-    TIP_PLANE *const tip = &tip_ref->tip_plane[plane];
+    setup_tip_dst_planes(cm, xd, plane, 0, 0);
+    TIP_PLANE *const tip = &xd->tip_plane[plane];
     struct buf_2d *const dst_buf = &tip->dst;
     uint16_t *const dst = dst_buf->buf;
     const int dst_stride = dst_buf->stride;

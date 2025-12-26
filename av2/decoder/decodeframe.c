@@ -650,7 +650,7 @@ static void av2_dec_setup_tip_frame(AV2_COMMON *cm, MACROBLOCKD *xd,
   }
   if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu) {
     init_tip_lf_parameter(cm, 0, av2_num_planes(cm));
-    loop_filter_tip_frame(cm, 0, av2_num_planes(cm));
+    loop_filter_tip_frame(cm, xd, 0, av2_num_planes(cm));
   }
 }
 
@@ -9242,6 +9242,8 @@ static AVM_INLINE void process_tip_mode(AV2Decoder *pbi) {
 
   if (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
     xd->opfl_vxy_bufs = pbi->td.opfl_vxy_bufs;
+    xd->opfl_gxy_bufs = pbi->td.opfl_gxy_bufs;
+    xd->opfl_dst_bufs = pbi->td.opfl_dst_bufs;
     av2_dec_setup_tip_frame(cm, xd, pbi->td.mc_buf, pbi->td.tmp_conv_dst);
   } else if (cm->features.tip_frame_mode == TIP_FRAME_AS_REF) {
     av2_setup_tip_motion_field(cm);
