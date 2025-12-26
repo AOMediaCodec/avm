@@ -25,6 +25,7 @@
 #include "av2/common/common.h"
 #include "av2/common/pred_common.h"
 #include "avm_mem/avm_mem.h"
+#include "av2/common/reconintra.h"
 
 namespace {
 
@@ -282,4 +283,204 @@ const IntraPredFunc<HighbdIntraPred> HighbdIntraPredTestVectorSse2[] = {
 INSTANTIATE_TEST_SUITE_P(SSE2, HighbdIntraPredTest,
                          ::testing::ValuesIn(HighbdIntraPredTestVectorSse2));
 #endif  // HAVE_SSE2
+
+const int kAngleDelta[3] = { -3, 0, 3 };
+const int kAngleMultiplier = 3;
+
+typedef void (*av2_build_intra_predictors_high_fn)(
+    const MACROBLOCKD *xd, const uint16_t *ref, int ref_stride, uint16_t *dst,
+    int dst_stride, PREDICTION_MODE mode, int p_angle, int angle_delta,
+    TX_SIZE tx_size, int disable_edge_filter, int n_top_px, int n_topright_px,
+    int n_left_px, int n_bottomleft_px, int plane, int is_sb_boundary,
+    const int seq_ibp_flag,
+    const IbpWeightsType ibp_weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90],
+    uint8_t mrl_index);
+
+typedef void (*av2_build_intra_predictors_high_default_fn)(
+    const MACROBLOCKD *xd, const uint16_t *ref, int ref_stride, uint16_t *dst,
+    int dst_stride, PREDICTION_MODE mode, int p_angle, int angle_delta,
+    TX_SIZE tx_size, int disable_edge_filter, int n_top_px, int n_topright_px,
+    int n_left_px, int n_bottomleft_px, int plane, int apply_ibp,
+    const IbpWeightsType ibp_weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90],
+    uint8_t mrl_index);
+
+typedef std::tuple<int, int, int, int, int, int, int,
+                   av2_build_intra_predictors_high_fn,
+                   av2_build_intra_predictors_high_default_fn>
+    av2_build_intra_predictors_high_tests;
+
+class BuildIntraPredictorsHighTest
+    : public ::testing::TestWithParam<av2_build_intra_predictors_high_tests> {
+ public:
+  void AllocInputData() {
+    // allocate buffer - 16 byte alignement is required for the intrinsics
+    data_ref_ = (uint16_t *)avm_memalign(
+        16, (dst_stride_ * dst_stride_) * sizeof(*data_ref_));
+    ASSERT_TRUE(data_ref_ != nullptr);
+    data_mod_ = (uint16_t *)avm_memalign(
+        16, (dst_stride_ * dst_stride_) * sizeof(*data_mod_));
+    ASSERT_TRUE(data_mod_ != nullptr);
+
+    // Allocate the pointer arrays first
+    xd_.mi = (MB_MODE_INFO **)avm_calloc(1, sizeof(*xd_.mi));
+    ASSERT_TRUE(xd_.mi != nullptr);
+
+    if (xd_.mi) xd_.mi[0] = (MB_MODE_INFO *)avm_calloc(1, sizeof(**xd_.mi));
+    ASSERT_TRUE(xd_.mi[0] != nullptr);
+
+    xd_.above_mbmi = (MB_MODE_INFO *)avm_calloc(1, sizeof(*xd_.above_mbmi));
+    ASSERT_TRUE(xd_.above_mbmi != nullptr);
+    xd_.left_mbmi = (MB_MODE_INFO *)avm_calloc(1, sizeof(*xd_.left_mbmi));
+    ASSERT_TRUE(xd_.left_mbmi != nullptr);
+    xd_.chroma_above_mbmi =
+        (MB_MODE_INFO *)avm_calloc(1, sizeof(*xd_.chroma_above_mbmi));
+    ASSERT_TRUE(xd_.chroma_above_mbmi != nullptr);
+    xd_.chroma_left_mbmi =
+        (MB_MODE_INFO *)avm_calloc(1, sizeof(*xd_.chroma_left_mbmi));
+    ASSERT_TRUE(xd_.chroma_left_mbmi != nullptr);
+  }
+
+  void SetUp() override {
+    mode_ = std::get<0>(GetParam());
+    bd_ = std::get<1>(GetParam());
+    tx_size_ = std::get<2>(GetParam());
+    plane_ = std::get<3>(GetParam());
+    angle_delta_idx_ = std::get<4>(GetParam());
+    n_topright_px_ = std::get<5>(GetParam());
+    n_bottomleft_px_ = std::get<6>(GetParam());
+    ref_fn_ = std::get<7>(GetParam());
+    tgt_fn_ = std::get<8>(GetParam());
+    mrl_index_ = 0;
+    dst_stride_ = 256;
+    memset(&xd_, 0, sizeof(xd_));
+
+    AllocInputData();
+    InitInputBuffs();
+    InitInputParams();
+
+    rnd_.Reset(ACMRandom::DeterministicSeed());
+  }
+
+  void InitInputBuffs() {
+    const uint16_t mask = (1 << bd_) - 1;
+    // fill the data buffer
+    for (int i = 0; i < (dst_stride_ * dst_stride_); i++) {
+      uint16_t val = this->rnd_.Rand16() & mask;
+      data_ref_[i] = val;
+      data_mod_[i] = val;
+    }
+  }
+
+  void InitInputParams() {
+    if (plane_ == 0)
+      tree_type_ = 1;  // LUMA
+    else
+      tree_type_ = 2;  // CHROMA
+
+    xd_.bd = bd_;
+    xd_.tree_type = tree_type_;
+    // set to a fixed value for intra dip
+    MB_MODE_INFO *mbmi = xd_.mi[0];
+    mbmi->use_intra_dip = 0;
+    mbmi->multi_line_mrl = false;
+    mbmi->intra_dip_mode = 0;
+    mbmi->uv_mode = UV_DC_PRED;
+    const int txb_idx = get_tx_partition_idx(mbmi, plane_);
+    mbmi->is_wide_angle[plane_ > 0][txb_idx] = 0;
+    mbmi->mapped_intra_mode[plane_ > 0][txb_idx] = DC_PRED;
+    enable_ibp_ = rnd_(2);
+    disable_edge_filter_ = rnd_(2);
+    is_sb_boundary_ = rnd_(2);
+    angle_delta_ = kAngleDelta[angle_delta_idx_];
+    p_angle_ = mode_to_angle_map[mode_] + (angle_delta_ * kAngleMultiplier);
+
+    init_ibp_info(ibp_directional_weights_);
+
+    n_top_px_ = tx_size_wide[tx_size_];
+    n_left_px_ = tx_size_high[tx_size_];
+
+    av2_init_intra_predictors();
+  }
+
+  void TearDown() override {
+    avm_free(xd_.mi[0]);
+    avm_free(xd_.mi);
+    avm_free(xd_.above_mbmi);
+    avm_free(xd_.left_mbmi);
+    avm_free(xd_.chroma_above_mbmi);
+    avm_free(xd_.chroma_left_mbmi);
+    avm_free(data_ref_);
+    avm_free(data_mod_);
+  }
+
+  void AssertIntraPredSamples(uint16_t *data_ref, uint16_t *data_mod) {
+    uint16_t *ref_ptr = data_ref;
+    uint16_t *tgt_ptr = data_mod;
+    int count = dst_stride_ * dst_stride_;
+    for (int i = 0; i < count; i++) {
+      const uint16_t ref_val = ref_ptr[i];
+      const uint16_t tgt_val = tgt_ptr[i];
+      ASSERT_EQ(ref_val, tgt_val) << "Mismatch at index[" << (i)
+                                  << "] ref=" << ref_val << " tgt=" << tgt_val;
+    }
+  }
+
+ protected:
+  MACROBLOCKD xd_;
+  int bd_, mrl_index_, angle_delta_, p_angle_, angle_delta_idx_;
+  TX_SIZE tx_size_;
+  PREDICTION_MODE mode_;
+  unsigned int plane_;
+  av2_build_intra_predictors_high_default_fn tgt_fn_;
+  av2_build_intra_predictors_high_fn ref_fn_;
+  ACMRandom rnd_;
+  TREE_TYPE tree_type_;
+  uint8_t enable_ibp_;
+  int disable_edge_filter_;
+  int dst_stride_;
+  uint16_t *data_ref_;
+  uint16_t *data_mod_;
+  int is_sb_boundary_;
+  int n_top_px_, n_topright_px_, n_left_px_, n_bottomleft_px_;
+  IbpWeightsType ibp_directional_weights_[IBP_WEIGHT_SIZE][IBP_WEIGHT_SIZE]
+                                         [DIR_MODES_0_90];
+};
+
+TEST_P(BuildIntraPredictorsHighTest, CompareRefAndMod) {
+  const bool is_ibp_allowed_blk_sz = tx_size_ != TX_4X4;
+  const int apply_ibp = enable_ibp_ && is_ibp_allowed_blk_sz;
+
+  // +8 is for 16 byte alignment required for intrinsics
+  uint16_t *ptr_ref = data_ref_ + dst_stride_ + 8;
+  // need to reset the below to 0 for refernce function call only
+  int ref_topright_px = (n_topright_px_ > 0) ? n_topright_px_ : 0;
+  int ref_bottomleft_px = (n_bottomleft_px_ > 0) ? n_bottomleft_px_ : 0;
+  ref_fn_(&xd_, ptr_ref, dst_stride_, ptr_ref, dst_stride_, mode_, p_angle_,
+          angle_delta_, tx_size_, disable_edge_filter_, n_top_px_,
+          ref_topright_px, n_left_px_, ref_bottomleft_px, plane_,
+          is_sb_boundary_, enable_ibp_, ibp_directional_weights_, mrl_index_);
+
+  // +8 is for 16 byte alignment required for intrinsics
+  uint16_t *ptr_mod = data_mod_ + dst_stride_ + 8;
+  tgt_fn_(&xd_, ptr_mod, dst_stride_, ptr_mod, dst_stride_, mode_, p_angle_,
+          angle_delta_, tx_size_, disable_edge_filter_, n_top_px_,
+          n_topright_px_, n_left_px_, n_bottomleft_px_, plane_, apply_ibp,
+          ibp_directional_weights_, mrl_index_);
+
+  AssertIntraPredSamples(data_ref_, data_mod_);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, BuildIntraPredictorsHighTest,
+    ::testing::Combine(
+        ::testing::Range(0, 13),       // Mode
+        ::testing::Values(8, 10, 12),  // bd
+        ::testing::Range(0, 25),       // tx_size
+        ::testing::Values(0, 1),       // Luma, Chroma
+        ::testing::Range(0, 3),        // angle_delta_idx
+        ::testing::Values(4, 16, 64),  // topright_px
+        ::testing::Values(8, 32, 64),  // n_bottomleft_px
+        ::testing::Values(av2_build_intra_predictors_high),
+        ::testing::Values(av2_build_intra_predictors_high_default)));
+
 }  // namespace
