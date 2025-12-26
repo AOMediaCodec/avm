@@ -301,6 +301,25 @@ DECLARE_ALIGNED(16, static const int16_t, av2_dr_interp_filter[32][4]) = {
   { -2, 8, 125, -3 },   { -1, 4, 127, -2 }
 };
 
+// Build Intra Predictors for mrl_index > 0 or = 0
+void av2_build_intra_predictors_high(
+    const MACROBLOCKD *xd, const uint16_t *ref, int ref_stride, uint16_t *dst,
+    int dst_stride, PREDICTION_MODE mode, int p_angle, int angle_delta,
+    TX_SIZE tx_size, int disable_edge_filter, int n_top_px, int n_topright_px,
+    int n_left_px, int n_bottomleft_px, int plane, int is_sb_boundary,
+    const int seq_ibp_flag,
+    const IbpWeightsType ibp_weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90],
+    uint8_t mrl_index);
+
+// Build Intra Predictors for mrl_index = 0
+void av2_build_intra_predictors_high_default(
+    const MACROBLOCKD *xd, const uint16_t *ref, int ref_stride, uint16_t *dst,
+    int dst_stride, PREDICTION_MODE mode, int p_angle, int angle_delta,
+    TX_SIZE tx_size, int disable_edge_filter, int n_top_px, int n_topright_px,
+    int n_left_px, int n_bottomleft_px, int plane, int apply_ibp,
+    const IbpWeightsType ibp_weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90],
+    uint8_t mrl_index);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
