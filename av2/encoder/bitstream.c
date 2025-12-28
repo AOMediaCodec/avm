@@ -4840,8 +4840,8 @@ void write_sequence_inter_group_tool_flags(
     assert(!seq_params->enable_flex_mvres);
   } else {
     avm_wb_write_bit(wb, seq_params->enable_bru > 0);
-    avm_wb_write_bit(wb, seq_params->enable_mvd_sign_derive);
     avm_wb_write_bit(wb, seq_params->enable_adaptive_mvd);
+    avm_wb_write_bit(wb, seq_params->enable_mvd_sign_derive);
     avm_wb_write_bit(wb, seq_params->enable_flex_mvres);
   }
 
