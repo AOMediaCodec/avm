@@ -4625,6 +4625,95 @@ void calc_gradient_in_various_directions_avx2(
         buffer_col - 1, col_end, feature_length, buffer_col);
 }
 
+// Prepare feature_sum_buffers for the remaining width
+static void prepare_feature_sum_bufs_4_avx2(int *feature_sum_buffers[],
+                                            int16_t *feature_line_buffers[],
+                                            int feature_length, int buffer_row,
+                                            int buffer_col) {
+  const int buffer_row_0 = buffer_row;
+  const int buffer_row_1 = buffer_row_0 + feature_length;
+  const int buffer_row_2 = buffer_row_1 + feature_length;
+  const int buffer_row_3 = buffer_row_2 + feature_length;
+#if defined(__GCC__)
+#pragma GCC ivdep
+#endif
+  const int16_t *line_buf0 = &feature_line_buffers[buffer_row_0][buffer_col];
+  const int16_t *line_buf1 = &feature_line_buffers[buffer_row_1][buffer_col];
+  const int16_t *line_buf2 = &feature_line_buffers[buffer_row_2][buffer_col];
+  const int16_t *line_buf3 = &feature_line_buffers[buffer_row_3][buffer_col];
+  int *sum_buf0 = &feature_sum_buffers[0][buffer_col];
+  int *sum_buf1 = &feature_sum_buffers[1][buffer_col];
+  int *sum_buf2 = &feature_sum_buffers[2][buffer_col];
+  int *sum_buf3 = &feature_sum_buffers[3][buffer_col];
+
+  const __m128i line0 = _mm_loadu_si64((__m128i const *)line_buf0);
+  const __m128i line1 = _mm_loadu_si64((__m128i const *)line_buf1);
+  const __m128i line2 = _mm_loadu_si64((__m128i const *)line_buf2);
+  const __m128i line3 = _mm_loadu_si64((__m128i const *)line_buf3);
+  const __m128i line00 = _mm_cvtepi16_epi32(line0);
+  const __m128i line11 = _mm_cvtepi16_epi32(line1);
+  const __m128i line22 = _mm_cvtepi16_epi32(line2);
+  const __m128i line33 = _mm_cvtepi16_epi32(line3);
+
+  const __m128i sum0 = _mm_loadu_si128((__m128i const *)sum_buf0);
+  const __m128i sum1 = _mm_loadu_si128((__m128i const *)sum_buf1);
+  const __m128i sum2 = _mm_loadu_si128((__m128i const *)sum_buf2);
+  const __m128i sum3 = _mm_loadu_si128((__m128i const *)sum_buf3);
+
+  const __m128i sub0 = _mm_sub_epi32(sum0, line00);
+  const __m128i sub1 = _mm_sub_epi32(sum1, line11);
+  const __m128i sub2 = _mm_sub_epi32(sum2, line22);
+  const __m128i sub3 = _mm_sub_epi32(sum3, line33);
+
+  _mm_storeu_si128((__m128i *)(sum_buf0), sub0);
+  _mm_storeu_si128((__m128i *)(sum_buf1), sub1);
+  _mm_storeu_si128((__m128i *)(sum_buf2), sub2);
+  _mm_storeu_si128((__m128i *)(sum_buf3), sub3);
+}
+
+// Update feature_sum_buffers for the remaining width
+static void update_feature_sum_bufs_4_avx2(int *feature_sum_buffers[],
+                                           int16_t *feature_line_buffers[],
+                                           int feature_length, int buffer_row,
+                                           int buffer_col) {
+  const int buffer_row_0 = buffer_row;
+  const int buffer_row_1 = buffer_row_0 + feature_length;
+  const int buffer_row_2 = buffer_row_1 + feature_length;
+  const int buffer_row_3 = buffer_row_2 + feature_length;
+  const int16_t *line_buf0 = &feature_line_buffers[buffer_row_0][buffer_col];
+  const int16_t *line_buf1 = &feature_line_buffers[buffer_row_1][buffer_col];
+  const int16_t *line_buf2 = &feature_line_buffers[buffer_row_2][buffer_col];
+  const int16_t *line_buf3 = &feature_line_buffers[buffer_row_3][buffer_col];
+  int *sum_buf0 = &feature_sum_buffers[0][buffer_col];
+  int *sum_buf1 = &feature_sum_buffers[1][buffer_col];
+  int *sum_buf2 = &feature_sum_buffers[2][buffer_col];
+  int *sum_buf3 = &feature_sum_buffers[3][buffer_col];
+
+  const __m128i line0 = _mm_loadu_si64((__m128i const *)line_buf0);
+  const __m128i line1 = _mm_loadu_si64((__m128i const *)line_buf1);
+  const __m128i line2 = _mm_loadu_si64((__m128i const *)line_buf2);
+  const __m128i line3 = _mm_loadu_si64((__m128i const *)line_buf3);
+  const __m128i line00 = _mm_cvtepi16_epi32(line0);
+  const __m128i line11 = _mm_cvtepi16_epi32(line1);
+  const __m128i line22 = _mm_cvtepi16_epi32(line2);
+  const __m128i line33 = _mm_cvtepi16_epi32(line3);
+
+  const __m128i sum0 = _mm_loadu_si128((__m128i const *)sum_buf0);
+  const __m128i sum1 = _mm_loadu_si128((__m128i const *)sum_buf1);
+  const __m128i sum2 = _mm_loadu_si128((__m128i const *)sum_buf2);
+  const __m128i sum3 = _mm_loadu_si128((__m128i const *)sum_buf3);
+
+  const __m128i sub0 = _mm_add_epi32(sum0, line00);
+  const __m128i sub1 = _mm_add_epi32(sum1, line11);
+  const __m128i sub2 = _mm_add_epi32(sum2, line22);
+  const __m128i sub3 = _mm_add_epi32(sum3, line33);
+
+  _mm_storeu_si128((__m128i *)(sum_buf0), sub0);
+  _mm_storeu_si128((__m128i *)(sum_buf1), sub1);
+  _mm_storeu_si128((__m128i *)(sum_buf2), sub2);
+  _mm_storeu_si128((__m128i *)(sum_buf3), sub3);
+}
+
 void prepare_feature_sum_bufs_avx2(int *feature_sum_buffers[],
                                    int16_t *feature_line_buffers[],
                                    int feature_length, int buffer_row,
@@ -4672,11 +4761,16 @@ void prepare_feature_sum_bufs_avx2(int *feature_sum_buffers[],
   }
 
   // Invoke C function to process remaining width.
-  const int remaining_width = tot_width - buffer_col;
+  int remaining_width = tot_width - buffer_col;
+  const int remain_width_mul4 = (remaining_width >> 2) << 2;
+  remaining_width -= remain_width_mul4;
+  if (remain_width_mul4)
+    prepare_feature_sum_bufs_4_avx2(feature_sum_buffers, feature_line_buffers,
+                                    feature_length, buffer_row, buffer_col);
   if (remaining_width)
     prepare_feature_sum_bufs_c(feature_sum_buffers, feature_line_buffers,
                                feature_length, buffer_row, 0, remaining_width,
-                               buffer_col);
+                               buffer_col + remain_width_mul4);
 }
 
 static void update_feature_sum_bufs_avx2(int *feature_sum_buffers[],
@@ -4726,11 +4820,16 @@ static void update_feature_sum_bufs_avx2(int *feature_sum_buffers[],
   }
 
   // Invoke C function to process remaining width.
-  const int remaining_width = tot_width - buffer_col;
+  int remaining_width = tot_width - buffer_col;
+  const int remain_width_mul4 = (remaining_width >> 2) << 2;
+  remaining_width -= remain_width_mul4;
+  if (remain_width_mul4)
+    update_feature_sum_bufs_4_avx2(feature_sum_buffers, feature_line_buffers,
+                                   feature_length, buffer_row, buffer_col);
   if (remaining_width)
     update_feature_sum_bufs_c(feature_sum_buffers, feature_line_buffers,
                               feature_length, buffer_row, 0, remaining_width,
-                              buffer_col);
+                              buffer_col + remain_width_mul4);
 }
 
 void fill_directional_feature_buffers_highbd_avx2(

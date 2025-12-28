@@ -1113,7 +1113,7 @@ void apply_pc_wiener_highbd(
       const int block_col_end = j + 1;
 #endif  // PC_WIENER_BLOCK_SIZE > 1
 
-      if (mbmi_ptr_procunit) {
+      if (mbmi_ptr_procunit && cm->features.has_lossless_segment) {
         assert(!classify_only);
         const int start_mi_x = block_col_begin >> (MI_SIZE_LOG2 - ss_x);
         const int start_mi_y = block_row_begin >> (MI_SIZE_LOG2 - ss_y);
@@ -1370,16 +1370,17 @@ static AVM_INLINE void apply_wienerns_multi_class_highbd(
     uint16_t *dst_row = dst + r * dst_stride;
     for (int c = 0; c < width; c += block_size) {
       const int w = AVMMIN(block_size, width - c);
-
-      const int start_mi_x = c >> (MI_SIZE_LOG2 - ss_x);
-      const int start_mi_y = r >> (MI_SIZE_LOG2 - ss_y);
-      MB_MODE_INFO **this_mbmi_ptr =
-          mbmi_ptr_procunit + start_mi_y * mi_stride + start_mi_x;
-      MB_MODE_INFO **this_mbmi =
-          get_mi_location_from_collocated_mi(cm, this_mbmi_ptr, plane);
-      if (lossless_segment[this_mbmi[0]->segment_id]) {
-        copy_tile(w, h, dgd_row + c, stride, dst_row + c, dst_stride);
-        continue;
+      if (cm->features.has_lossless_segment) {
+        const int start_mi_x = c >> (MI_SIZE_LOG2 - ss_x);
+        const int start_mi_y = r >> (MI_SIZE_LOG2 - ss_y);
+        MB_MODE_INFO **this_mbmi_ptr =
+            mbmi_ptr_procunit + start_mi_y * mi_stride + start_mi_x;
+        MB_MODE_INFO **this_mbmi =
+            get_mi_location_from_collocated_mi(cm, this_mbmi_ptr, plane);
+        if (lossless_segment[this_mbmi[0]->segment_id]) {
+          copy_tile(w, h, dgd_row + c, stride, dst_row + c, dst_stride);
+          continue;
+        }
       }
       int sub_class_id = 0;
       if (num_classes > 1) {
@@ -1449,16 +1450,17 @@ void apply_wienerns_class_id_highbd(
 
       for (int c = 0; c < width; c += block_size) {
         const int w = AVMMIN(block_size, width - c);
-
-        const int start_mi_x = c >> (MI_SIZE_LOG2 - ss_x);
-        const int start_mi_y = r >> (MI_SIZE_LOG2 - ss_y);
-        MB_MODE_INFO **this_mbmi_ptr =
-            mbmi_ptr_procunit + start_mi_y * mi_stride + start_mi_x;
-        MB_MODE_INFO **this_mbmi =
-            get_mi_location_from_collocated_mi(cm, this_mbmi_ptr, plane);
-        if (lossless_segment[this_mbmi[0]->segment_id]) {
-          copy_tile(w, h, dgd_row + c, stride, dst_row + c, dst_stride);
-          continue;
+        if (cm->features.has_lossless_segment) {
+          const int start_mi_x = c >> (MI_SIZE_LOG2 - ss_x);
+          const int start_mi_y = r >> (MI_SIZE_LOG2 - ss_y);
+          MB_MODE_INFO **this_mbmi_ptr =
+              mbmi_ptr_procunit + start_mi_y * mi_stride + start_mi_x;
+          MB_MODE_INFO **this_mbmi =
+              get_mi_location_from_collocated_mi(cm, this_mbmi_ptr, plane);
+          if (lossless_segment[this_mbmi[0]->segment_id]) {
+            copy_tile(w, h, dgd_row + c, stride, dst_row + c, dst_stride);
+            continue;
+          }
         }
         int sub_class_id = 0;
         if (num_classes > 1) {
