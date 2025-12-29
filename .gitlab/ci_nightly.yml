@@ -53,7 +53,7 @@ Linux All Unit Test:
     - export GTEST_SHARD_INDEX=$((CI_NODE_INDEX - 1))
   script:
     - cd avm_nightly_build
-    - ./test_libavm
+    - ./test_libavm || exit $?
     # Ignore parse errors due to a bug in `gcovr 7.0`:
     # https://github.com/gcovr/gcovr/issues/882
     # Change behavior when to avoid aborting on 'Got function on multiple lines'
@@ -244,7 +244,7 @@ Linux Unit (x86_64, sse4_2):
       filter="*Large*"
       # As of 17 May 2018 there are no large threading tests.
       [ "${AVM_SANITIZER_TYPE}" = "thread" ] && filter="*Thread*Large*" || :
-    - ./avm_build/${AVM_SANITIZER_TYPE}/test_libavm --gtest_filter="${filter}" 2> >(tee -a sanitizer.log >&2)
+    - ./avm_build/${AVM_SANITIZER_TYPE}/test_libavm --gtest_filter="${filter}" 2> >(tee -a sanitizer.log >&2) || exit $?
     - |
       # Looking for sanitizer output in log...
       grep -q "\(ERROR\|WARNING\): \(Address\|Thread\|Memory\|Leak\)Sanitizer:" sanitizer.log && {
