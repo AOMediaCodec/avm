@@ -7606,7 +7606,7 @@ void update_ref_frames_info(AV2Decoder *pbi, OBU_TYPE obu_type) {
       const int ref_mlayer_id = cm->ref_frame_map[idx]->mlayer_id;
       const int ref_temporal_id = cm->ref_frame_map[idx]->temporal_layer_id;
       if (is_tlayer_scalable_and_dependent(&cm->seq_params, cur_temporal_id,
-                                           ref_temporal_id) &&
+                                           ref_temporal_id, cur_mlayer_id) &&
           is_mlayer_scalable_and_dependent(&cm->seq_params, cur_mlayer_id,
                                            ref_mlayer_id)) {
         int map_pos = -1;
@@ -7856,7 +7856,8 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
               const int ref_temporal_id =
                   cm->ref_frame_map[i]->temporal_layer_id;
               if (is_tlayer_scalable_and_dependent(
-                      &cm->seq_params, cur_temporal_id, ref_temporal_id) &&
+                      &cm->seq_params, cur_temporal_id, ref_temporal_id,
+                      cur_mlayer_id) &&
                   is_mlayer_scalable_and_dependent(
                       &cm->seq_params, cur_mlayer_id, ref_mlayer_id)) {
                 cm->ref_frame_map[i]->is_restricted = true;
