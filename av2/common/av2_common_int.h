@@ -350,7 +350,7 @@ typedef struct RefCntBuffer {
   int showable_frame;
 #else
   int showable_frame;  // frame can be used as show existing frame in future
-#endif / CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
+#endif // CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
 
   bool frame_output_done;  // 0: frame is not yet output 1: frame is already
                            // output
