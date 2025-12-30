@@ -88,6 +88,13 @@ Linux All Unit Test:
     paths:
       - avm_nightly_build/coverage_*.json
       - avm_nightly_build/coverage_*.log
+  # Retry on runner issues or if `test_libavm` is OOM killed (exit code: 137).
+  retry:
+    max: 2
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
+    exit_codes: 137
 
 # Produce actual coverage report from the
 # "Linux All Unit Test" job that ran in the
@@ -265,6 +272,13 @@ Linux Unit (x86_64, sse4_2):
     when: on_failure
     paths:
       - sanitizer.log
+  # Retry on runner issues or if `test_libavm` is OOM killed (exit code: 137).
+  retry:
+    max: 2
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
+    exit_codes: 137
 
 Linux Sanitizer (address) Test Nightly:
   extends: .sanitizer-common-nigtly
