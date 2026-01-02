@@ -2460,10 +2460,9 @@ static AVM_INLINE void write_inter_txb_coeff(
       get_mb_plane_block_size(xd, mbmi, plane, ss_x, ss_y);
   assert(plane_bsize < BLOCK_SIZES_ALL);
   const TX_SIZE max_tx_size = get_vartx_max_txsize(xd, plane_bsize, plane);
-  const int step =
-      tx_size_wide_unit[max_tx_size] * tx_size_high_unit[max_tx_size];
   const int bkw = tx_size_wide_unit[max_tx_size];
   const int bkh = tx_size_high_unit[max_tx_size];
+  const int step = bkw * bkh;
   const int lossless = xd->lossless[mbmi->segment_id];
   const BLOCK_SIZE max_unit_bsize = get_plane_block_size(
       BLOCK_64X64, lossless ? ss_x : 0, lossless ? ss_y : 0);

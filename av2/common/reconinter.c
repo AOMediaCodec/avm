@@ -321,8 +321,6 @@ const wedge_params_type av2_wedge_params_lookup[BLOCK_SIZES_ALL] = {
     wedge_tmvp_decisions[BLOCK_8X64] },
   { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, all_wedge_masks[BLOCK_64X8],
     wedge_tmvp_decisions[BLOCK_64X8] },
-  { 0, NULL, NULL, NULL, NULL },
-  { 0, NULL, NULL, NULL, NULL },
 };
 
 // Init the cwp masks, called by init_cwp_masks
@@ -612,7 +610,7 @@ static uint8_t ii_size_scales[BLOCK_SIZES_ALL] = {
     4,  4,  2,  2,  2, 1, 1, 1,
     0,  0,  0,  // unused
     8,  8,  4,  4,  2, 2,
-    4,  4,  2,  2,  2, 2,
+    4,  4,  2,  2,
 };
 /* clang-format on */
 

@@ -64,8 +64,8 @@ static AVM_INLINE int64_t compute_sse_plane(MACROBLOCK *x, MACROBLOCKD *xd,
       get_plane_block_size(bsize, pd->subsampling_x, pd->subsampling_y);
   int bw, bh;
   const struct macroblock_plane *const p = &x->plane[plane];
-  get_txb_dimensions(xd, plane, plane_bsize, 0, 0, plane_bsize, NULL, NULL, &bw,
-                     &bh);
+  get_txb_dimensions(xd, plane, plane_bsize, 0, 0, block_size_wide[plane_bsize],
+                     block_size_high[plane_bsize], NULL, NULL, &bw, &bh);
   int64_t sse = calculate_sse(xd, p, pd, bw, bh);
   return sse;
 }

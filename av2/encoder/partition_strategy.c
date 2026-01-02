@@ -1090,12 +1090,6 @@ static INLINE SimpleMotionData *get_sms_arr(SimpleMotionDataBufs *sms_bufs,
       MAKE_SMS_ARR_SWITCH_CASE(64, 8, 1);
       MAKE_SMS_ARR_SWITCH_CASE(32, 4, 1);
 
-      // 16:1 blocks
-      MAKE_SMS_ARR_SWITCH_CASE(64, 4, 1);
-
-      // 1:16 blocks
-      MAKE_SMS_ARR_SWITCH_CASE(4, 64, 1);
-
       default: assert(0 && "Invalid bsize"); return NULL;
     }
   } else {  // region_type = 0
@@ -1142,12 +1136,6 @@ static INLINE SimpleMotionData *get_sms_arr(SimpleMotionDataBufs *sms_bufs,
       // 8:1 blocks
       MAKE_SMS_ARR_SWITCH_CASE(64, 8, 0);
       MAKE_SMS_ARR_SWITCH_CASE(32, 4, 0);
-
-      // 16:1 blocks
-      MAKE_SMS_ARR_SWITCH_CASE(64, 4, 0);
-
-      // 1:16 blocks
-      MAKE_SMS_ARR_SWITCH_CASE(4, 64, 0);
 
       default: assert(0 && "Invalid bsize"); return NULL;
     }

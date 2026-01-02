@@ -175,7 +175,7 @@ static AVM_INLINE void av2_ml_part_split_features_square(AV2_COMP *const cpi,
               x->plane[0].src.stride, intrapred, MAX_TX_SIZE, 0, 0, 0);
 
           unsigned int curr_sse = 0, curr_var = 0;
-          curr_var = cpi->fn_ptr[txsize_to_bsize[tx_sub_size]].vf(
+          curr_var = cpi->fn_ptr[enc_txsize_to_bsize[tx_sub_size]].vf(
               x->plane[0].src.buf + src_off, x->plane[0].src.stride, intrapred,
               MAX_TX_SIZE, &curr_sse);
           for (int cand = 0; cand < 3; cand++) {
@@ -250,7 +250,7 @@ static AVM_INLINE void av2_ml_part_split_features_none(AV2_COMP *const cpi,
                                 x->plane[0].src.stride, intrapred + intr_off,
                                 MAX_BLK_SIZE, 0, 0, 0);
         unsigned int tmp = 0;
-        curr_var += cpi->fn_ptr[txsize_to_bsize[tx_size]].vf(
+        curr_var += cpi->fn_ptr[enc_txsize_to_bsize[tx_size]].vf(
             x->plane[0].src.buf + src_off, x->plane[0].src.stride,
             intrapred + intr_off, MAX_BLK_SIZE, &tmp);
         curr_sse += tmp;

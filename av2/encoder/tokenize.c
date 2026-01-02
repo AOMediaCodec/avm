@@ -315,12 +315,10 @@ void av2_tokenize_sb_vartx(const AV2_COMP *cpi, ThreadData *td,
     const int mi_width = mi_size_wide[plane_bsize];
     const int mi_height = mi_size_high[plane_bsize];
     const TX_SIZE max_tx_size = get_vartx_max_txsize(xd, plane_bsize, plane);
-    const BLOCK_SIZE txb_size = txsize_to_bsize[max_tx_size];
-    const int bw = mi_size_wide[txb_size];
-    const int bh = mi_size_high[txb_size];
+    const int bw = tx_size_wide_unit[max_tx_size];
+    const int bh = tx_size_high_unit[max_tx_size];
     int block = 0;
-    const int step =
-        tx_size_wide_unit[max_tx_size] * tx_size_high_unit[max_tx_size];
+    const int step = bw * bh;
 
     const int lossless = xd->lossless[mbmi->segment_id];
     const BLOCK_SIZE max_unit_bsize = get_plane_block_size(

@@ -1067,9 +1067,8 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
 #if CONFIG_MISMATCH_DEBUG
   if (dry_run == OUTPUT_ENABLED) {
     int pixel_c, pixel_r;
-    BLOCK_SIZE bsize = txsize_to_bsize[tx_size];
-    int blk_w = block_size_wide[bsize];
-    int blk_h = block_size_high[bsize];
+    const int blk_w = tx_size_wide[tx_size];
+    const int blk_h = tx_size_high[tx_size];
     if (plane) {
       mi_to_pixel_loc(&pixel_c, &pixel_r,
                       mbmi->chroma_ref_info.mi_col_chroma_base,
@@ -1269,12 +1268,10 @@ void av2_encode_sb(const struct AV2_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
     const int mi_width = mi_size_wide[plane_bsize];
     const int mi_height = mi_size_high[plane_bsize];
     const TX_SIZE max_tx_size = get_vartx_max_txsize(xd, plane_bsize, plane);
-    const BLOCK_SIZE txb_size = txsize_to_bsize[max_tx_size];
-    const int bw = mi_size_wide[txb_size];
-    const int bh = mi_size_high[txb_size];
+    const int bw = tx_size_wide_unit[max_tx_size];
+    const int bh = tx_size_high_unit[max_tx_size];
     int block = 0;
-    const int step =
-        tx_size_wide_unit[max_tx_size] * tx_size_high_unit[max_tx_size];
+    const int step = bw * bh;
     av2_get_entropy_contexts(plane_bsize, pd, ctx.ta[plane], ctx.tl[plane]);
     arg.ta = ctx.ta[plane];
     arg.tl = ctx.tl[plane];
@@ -1534,9 +1531,8 @@ void av2_encode_block_intra(int plane, int block, int blk_row, int blk_col,
 #if CONFIG_MISMATCH_DEBUG
   if (args->dry_run == OUTPUT_ENABLED) {
     int pixel_c, pixel_r;
-    BLOCK_SIZE bsize = txsize_to_bsize[tx_size];
-    int blk_w = block_size_wide[bsize];
-    int blk_h = block_size_high[bsize];
+    const int blk_w = tx_size_wide[tx_size];
+    const int blk_h = tx_size_high[tx_size];
     if (plane) {
       mi_to_pixel_loc(&pixel_c, &pixel_r,
                       mbmi->chroma_ref_info.mi_col_chroma_base,
@@ -1860,9 +1856,8 @@ void av2_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
 #if CONFIG_MISMATCH_DEBUG
   if (args->dry_run == OUTPUT_ENABLED) {
     int pixel_c, pixel_r;
-    BLOCK_SIZE bsize = txsize_to_bsize[tx_size];
-    int blk_w = block_size_wide[bsize];
-    int blk_h = block_size_high[bsize];
+    const int blk_w = tx_size_wide[tx_size];
+    const int blk_h = tx_size_high[tx_size];
     mi_to_pixel_loc(&pixel_c, &pixel_r,
                     xd->mi[0]->chroma_ref_info.mi_col_chroma_base,
                     xd->mi[0]->chroma_ref_info.mi_row_chroma_base, blk_col,

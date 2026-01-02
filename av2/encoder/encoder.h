@@ -2271,6 +2271,43 @@ typedef struct {
 
 /*!\cond */
 
+// Define 2 extra indices for 4x64 and 64x4 block sizes, for use with
+// `AV2_COMP.fn_ptr` array below. This is because this array may be used for any
+// transform or coding block size. So, we need these 2 extra sizes that exist
+// for transform blocks, but NOT for coding blocks.
+#define BLOCK_4X64 BLOCK_SIZES_ALL
+#define BLOCK_64X4 (BLOCK_4X64 + 1)
+#define ENCODER_BLOCK_SIZES_ALL (BLOCK_64X4 + 1)
+
+// Used to get block size index for `AV2_COMP.fn_ptr` array.
+static const int enc_txsize_to_bsize[TX_SIZES_ALL] = {
+  BLOCK_4X4,    // TX_4X4
+  BLOCK_8X8,    // TX_8X8
+  BLOCK_16X16,  // TX_16X16
+  BLOCK_32X32,  // TX_32X32
+  BLOCK_64X64,  // TX_64X64
+  BLOCK_4X8,    // TX_4X8
+  BLOCK_8X4,    // TX_8X4
+  BLOCK_8X16,   // TX_8X16
+  BLOCK_16X8,   // TX_16X8
+  BLOCK_16X32,  // TX_16X32
+  BLOCK_32X16,  // TX_32X16
+  BLOCK_32X64,  // TX_32X64
+  BLOCK_64X32,  // TX_64X32
+  BLOCK_4X16,   // TX_4X16
+  BLOCK_16X4,   // TX_16X4
+  BLOCK_8X32,   // TX_8X32
+  BLOCK_32X8,   // TX_32X8
+  BLOCK_16X64,  // TX_16X64
+  BLOCK_64X16,  // TX_64X16
+  BLOCK_4X32,   // TX_4X32
+  BLOCK_32X4,   // TX_32X4
+  BLOCK_8X64,   // TX_8X64
+  BLOCK_64X8,   // TX_64X8
+  BLOCK_4X64,   // TX_4X64
+  BLOCK_64X4,   // TX_64X4
+};
+
 /*!\endcond */
 
 /*!
@@ -2509,7 +2546,7 @@ typedef struct AV2_COMP {
    * fn_ptr[i] indicates the list of function pointers corresponding to block
    * size i.
    */
-  avm_variance_fn_ptr_t fn_ptr[BLOCK_SIZES_ALL];
+  avm_variance_fn_ptr_t fn_ptr[ENCODER_BLOCK_SIZES_ALL];
 
   /*!
    * Information related to two pass encoding.

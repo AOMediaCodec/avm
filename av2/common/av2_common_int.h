@@ -4751,11 +4751,10 @@ static AVM_INLINE bool is_do_uneven_4way_partition_implied(
 static INLINE void txfm_partition_update(TXFM_CONTEXT *above_ctx,
                                          TXFM_CONTEXT *left_ctx,
                                          TX_SIZE tx_size, TX_SIZE txb_size) {
-  BLOCK_SIZE bsize = txsize_to_bsize[txb_size];
-  int bh = mi_size_high[bsize];
-  int bw = mi_size_wide[bsize];
-  uint8_t txw = tx_size_wide[tx_size];
-  uint8_t txh = tx_size_high[tx_size];
+  const int bh = tx_size_high_unit[txb_size];
+  const int bw = tx_size_wide_unit[txb_size];
+  const uint8_t txw = tx_size_wide[tx_size];
+  const uint8_t txh = tx_size_high[tx_size];
   int i;
   for (i = 0; i < bh; ++i) left_ctx[i] = txh;
   for (i = 0; i < bw; ++i) above_ctx[i] = txw;

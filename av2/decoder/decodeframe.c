@@ -312,9 +312,8 @@ static AVM_INLINE void predict_and_reconstruct_intra_block(
   const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
   const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
   int pixel_c, pixel_r;
-  BLOCK_SIZE bsize = txsize_to_bsize[tx_size];
-  int blk_w = block_size_wide[bsize];
-  int blk_h = block_size_high[bsize];
+  const int blk_w = tx_size_wide[tx_size];
+  const int blk_h = tx_size_high[tx_size];
   if (plane == 0 || xd->is_chroma_ref) {
     struct macroblockd_plane *const pd = &xd->plane[plane];
     if (plane) {
@@ -418,9 +417,8 @@ static AVM_INLINE void inverse_transform_inter_block(
                           reduced_tx_set_used);
 #if CONFIG_MISMATCH_DEBUG
   int pixel_c, pixel_r;
-  BLOCK_SIZE bsize = txsize_to_bsize[tx_size];
-  int blk_w = block_size_wide[bsize];
-  int blk_h = block_size_high[bsize];
+  const int blk_w = tx_size_wide[tx_size];
+  const int blk_h = tx_size_high[tx_size];
   const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
   const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
   if (plane) {

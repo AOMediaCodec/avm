@@ -59,12 +59,10 @@ static AVM_INLINE int inter_mode_data_block_idx(BLOCK_SIZE bsize) {
 // Get transform block visible dimensions cropped to the MI units.
 static AVM_INLINE void get_txb_dimensions(const MACROBLOCKD *xd, int plane,
                                           BLOCK_SIZE plane_bsize, int blk_row,
-                                          int blk_col, BLOCK_SIZE tx_bsize,
-                                          int *width, int *height,
-                                          int *visible_width,
+                                          int blk_col, int txb_width,
+                                          int txb_height, int *width,
+                                          int *height, int *visible_width,
                                           int *visible_height) {
-  const int txb_height = block_size_high[tx_bsize];
-  const int txb_width = block_size_wide[tx_bsize];
   assert(txb_height <= block_size_high[plane_bsize]);
   assert(txb_width <= block_size_wide[plane_bsize]);
   const struct macroblockd_plane *const pd = &xd->plane[plane];

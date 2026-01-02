@@ -72,16 +72,16 @@ static const uint8_t
 // origin_threshold * 128 / 100
 static const uint32_t skip_pred_threshold[3][BLOCK_SIZES_ALL] = {
   {
-      64, 64, 64, 70, 60, 60, 68, 68, 68, 68, 68, 68, 68, 68, 68, 68,
-      68, 68, 68, 64, 64, 70, 70, 68, 68, 60, 60, 68, 68, 68, 68,
+      64, 64, 64, 70, 60, 60, 68, 68, 68, 68, 68, 68, 68, 68, 68,
+      68, 68, 68, 68, 64, 64, 70, 70, 68, 68, 60, 60, 68, 68,
   },
   {
-      88, 88, 88, 86, 87, 87, 68, 68, 68, 68, 68, 68, 68, 68, 68, 68,
-      68, 68, 68, 88, 88, 86, 86, 68, 68, 87, 87, 68, 68, 68, 68,
+      88, 88, 88, 86, 87, 87, 68, 68, 68, 68, 68, 68, 68, 68, 68,
+      68, 68, 68, 68, 88, 88, 86, 86, 68, 68, 87, 87, 68, 68,
   },
   {
-      90, 93, 93, 90, 93, 93, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74,
-      74, 74, 74, 90, 90, 90, 90, 74, 74, 93, 93, 74, 74, 74, 74,
+      90, 93, 93, 90, 93, 93, 74, 74, 74, 74, 74, 74, 74, 74, 74,
+      74, 74, 74, 74, 90, 90, 90, 90, 74, 74, 93, 93, 74, 74,
   },
 };
 
@@ -90,11 +90,11 @@ static const uint32_t skip_pred_threshold[3][BLOCK_SIZES_ALL] = {
 // if (tx_size_high[max_tx_size] > 16 || tx_size_wide[max_tx_size] > 16)
 //   max_tx_size = AVMMIN(max_txsize_lookup[bsize], TX_16X16);
 static const TX_SIZE max_predict_sf_tx_size[BLOCK_SIZES_ALL] = {
-  TX_4X4,   TX_4X8,   TX_8X4,   TX_8X8,   TX_8X16,  TX_16X8,  TX_16X16,
-  TX_16X16, TX_16X16, TX_16X16, TX_16X16, TX_16X16, TX_16X16, TX_16X16,
-  TX_16X16, TX_16X16, TX_16X16, TX_16X16, TX_16X16, TX_4X16,  TX_16X4,
-  TX_8X8,   TX_8X8,   TX_16X16, TX_16X16, TX_4X16,  TX_16X4,  TX_8X16,
-  TX_16X8,  TX_4X16,  TX_16X4,
+  TX_4X4,   TX_4X8,   TX_8X4,   TX_8X8,   TX_8X16,  TX_16X8,
+  TX_16X16, TX_16X16, TX_16X16, TX_16X16, TX_16X16, TX_16X16,
+  TX_16X16, TX_16X16, TX_16X16, TX_16X16, TX_16X16, TX_16X16,
+  TX_16X16, TX_4X16,  TX_16X4,  TX_8X8,   TX_8X8,   TX_16X16,
+  TX_16X16, TX_4X16,  TX_16X4,  TX_8X16,  TX_16X8,
 };
 
 // look-up table for sqrt of number of pixels in a transform block
@@ -187,13 +187,11 @@ static AVM_INLINE void fetch_tx_rd_info(int n4,
 // transform block.
 static INLINE int64_t pixel_diff_dist(const AV2_COMMON *cm, const MACROBLOCK *x,
                                       int plane, int blk_row, int blk_col,
-                                      const BLOCK_SIZE plane_bsize,
-                                      const BLOCK_SIZE tx_bsize,
+                                      BLOCK_SIZE plane_bsize, int txb_cols,
+                                      int txb_rows,
                                       unsigned int *block_mse_q8) {
   int visible_rows, visible_cols;
   const MACROBLOCKD *xd = &x->e_mbd;
-  const int txb_cols = block_size_wide[tx_bsize];
-  const int txb_rows = block_size_high[tx_bsize];
   get_visible_dimensions(xd, plane, blk_col, blk_row, txb_cols, txb_rows,
                          cm->width, cm->height, &visible_cols, &visible_rows);
   const int diff_stride = block_size_wide[plane_bsize];
@@ -220,12 +218,13 @@ static INLINE int64_t pixel_diff_dist(const AV2_COMMON *cm, const MACROBLOCK *x,
 // transform block
 static INLINE int64_t pixel_diff_stats(
     MACROBLOCK *x, int plane, int blk_row, int blk_col,
-    const BLOCK_SIZE plane_bsize, const BLOCK_SIZE tx_bsize,
+    const BLOCK_SIZE plane_bsize, const TX_SIZE tx_size,
     unsigned int *block_mse_q8, int64_t *per_px_mean, uint64_t *block_var) {
   int visible_rows, visible_cols;
   const MACROBLOCKD *xd = &x->e_mbd;
-  get_txb_dimensions(xd, plane, plane_bsize, blk_row, blk_col, tx_bsize, NULL,
-                     NULL, &visible_cols, &visible_rows);
+  get_txb_dimensions(xd, plane, plane_bsize, blk_row, blk_col,
+                     tx_size_wide[tx_size], tx_size_high[tx_size], NULL, NULL,
+                     &visible_cols, &visible_rows);
   const int diff_stride = block_size_wide[plane_bsize];
   const int16_t *diff = x->plane[plane].src_diff;
 
@@ -263,7 +262,8 @@ static int predict_skip_txfm(const AV2_COMMON *cm, MACROBLOCK *x,
   const int32_t dc_q =
       av2_dc_quant_QTX(x->qindex, 0, cm->seq_params.base_y_dc_delta_q, xd->bd);
 
-  *dist = pixel_diff_dist(cm, x, 0, 0, 0, bsize, bsize, NULL);
+  *dist = pixel_diff_dist(cm, x, 0, 0, 0, bsize, block_size_wide[bsize],
+                          block_size_high[bsize], NULL);
 
   const int64_t mse = *dist / bw / bh;
   // Normalized quantizer takes the transform upscaling factor (8 for tx size
@@ -418,7 +418,7 @@ static AVM_INLINE void get_energy_distribution_fine(
   unsigned int esq[16] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
   if (bsize < BLOCK_16X16 || (bsize >= BLOCK_4X16 && bsize <= BLOCK_32X8) ||
-      (bsize >= BLOCK_4X32 && bsize <= BLOCK_64X4)) {
+      (bsize >= BLOCK_4X32 && bsize <= BLOCK_64X8)) {
     // Special cases: calculate 'esq' values manually, as we don't have 'vf'
     // functions for the 16 (very small) sub-blocks of this block.
     const int w_shift = (bw == 4)    ? 0
@@ -613,7 +613,7 @@ static AVM_INLINE void PrintTransformUnitStats(
   FILE *fout = fopen(output_file, "a");
   if (!fout) return;
 
-  const BLOCK_SIZE tx_bsize = txsize_to_bsize[tx_size];
+  const int tx_bsize = enc_txsize_to_bsize[tx_size];
   const MACROBLOCKD *const xd = &x->e_mbd;
   const int plane = 0;
   struct macroblock_plane *const p = &x->plane[plane];
@@ -798,8 +798,8 @@ static AVM_INLINE void PrintPredictionUnitStats(const AV2_COMP *const cpi,
   struct macroblockd_plane *pd = &xd->plane[plane];
   const int diff_stride = block_size_wide[plane_bsize];
   int bw, bh;
-  get_txb_dimensions(xd, plane, plane_bsize, 0, 0, plane_bsize, NULL, NULL, &bw,
-                     &bh);
+  get_txb_dimensions(xd, plane, plane_bsize, 0, 0, block_size_wide[plane_bsize],
+                     block_size_high[plane_bsize], NULL, NULL, &bw, &bh);
   const int num_samples = bw * bh;
   const int dequant_shift = xd->bd - 5;
 
@@ -1019,11 +1019,11 @@ static INLINE void recon_intra(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
 static unsigned pixel_dist_visible_only(
     const AV2_COMP *const cpi, const MACROBLOCK *x, const uint16_t *src,
     const int src_stride, const uint16_t *dst, const int dst_stride,
-    const BLOCK_SIZE tx_bsize, int txb_rows, int txb_cols, int visible_rows,
+    TX_SIZE tx_size, int txb_rows, int txb_cols, int visible_rows,
     int visible_cols) {
-  unsigned sse;
-
   if (txb_rows == visible_rows && txb_cols == visible_cols) {
+    const int tx_bsize = enc_txsize_to_bsize[tx_size];
+    unsigned sse;
     cpi->fn_ptr[tx_bsize].vf(src, src_stride, dst, dst_stride, &sse);
     return sse;
   }
@@ -1032,8 +1032,6 @@ static unsigned pixel_dist_visible_only(
   uint64_t sse64 = avm_highbd_sse_odd_size(src, src_stride, dst, dst_stride,
                                            visible_cols, visible_rows);
   return (unsigned int)ROUND_POWER_OF_TWO(sse64, (xd->bd - 8) * 2);
-
-  return sse;
 }
 
 // Compute the pixel domain distortion from src and dst on all visible 4x4s in
@@ -1042,23 +1040,19 @@ static unsigned pixel_dist_visible_only(
 static unsigned pixel_dist(const AV2_COMP *const cpi, const MACROBLOCK *x,
                            int plane, const uint16_t *src, const int src_stride,
                            const uint16_t *dst, const int dst_stride,
-                           int blk_row, int blk_col,
-                           const BLOCK_SIZE tx_bsize) {
-  int txb_rows, txb_cols, visible_rows, visible_cols;
+                           int blk_row, int blk_col, TX_SIZE tx_size) {
   const MACROBLOCKD *xd = &x->e_mbd;
-
   const AV2_COMMON *const cm = &cpi->common;
-  txb_cols = block_size_wide[tx_bsize];
-  txb_rows = block_size_high[tx_bsize];
+  const int txb_cols = tx_size_wide[tx_size];
+  const int txb_rows = tx_size_high[tx_size];
 
+  int visible_rows, visible_cols;
   get_visible_dimensions(xd, plane, blk_col, blk_row, txb_cols, txb_rows,
                          cm->width, cm->height, &visible_cols, &visible_rows);
 
-  unsigned sse = pixel_dist_visible_only(cpi, x, src, src_stride, dst,
-                                         dst_stride, tx_bsize, txb_rows,
-                                         txb_cols, visible_rows, visible_cols);
-
-  return sse;
+  return pixel_dist_visible_only(cpi, x, src, src_stride, dst, dst_stride,
+                                 tx_size, txb_rows, txb_cols, visible_rows,
+                                 visible_cols);
 }
 
 static INLINE int64_t dist_block_px_domain(const AV2_COMP *cpi, MACROBLOCK *x,
@@ -1067,9 +1061,8 @@ static INLINE int64_t dist_block_px_domain(const AV2_COMP *cpi, MACROBLOCK *x,
   MACROBLOCKD *const xd = &x->e_mbd;
   const struct macroblock_plane *const p = &x->plane[plane];
   const uint16_t eob = p->eobs[block];
-  const BLOCK_SIZE tx_bsize = txsize_to_bsize[tx_size];
-  const int bsw = block_size_wide[tx_bsize];
-  const int bsh = block_size_high[tx_bsize];
+  const int bsw = tx_size_wide[tx_size];
+  const int bsh = tx_size_high[tx_size];
   const int src_stride = x->plane[plane].src.stride;
   const int dst_stride = xd->plane[plane].dst.stride;
   // Scale the transform block index to pixel unit.
@@ -1097,7 +1090,7 @@ static INLINE int64_t dist_block_px_domain(const AV2_COMP *cpi, MACROBLOCK *x,
       cpi->common.features.reduced_tx_set_used);
 
   return 16 * pixel_dist(cpi, x, plane, src, src_stride, recon, MAX_TX_SIZE,
-                         blk_row, blk_col, tx_bsize);
+                         blk_row, blk_col, tx_size);
 }
 
 // Evaluate U and V distortion jointly for cross chroma component transform
@@ -1113,9 +1106,8 @@ static INLINE int64_t joint_uv_dist_block_px_domain(const AV2_COMP *cpi,
   const struct macroblockd_plane *const pd_c2 = &xd->plane[AVM_PLANE_V];
   const uint16_t max_chroma_eob = AVMMAX(p_c1->eobs[block], p_c2->eobs[block]);
   const int eob_max = av2_get_max_eob(tx_size);
-  const BLOCK_SIZE tx_bsize = txsize_to_bsize[tx_size];
-  const int bsw = block_size_wide[tx_bsize];
-  const int bsh = block_size_high[tx_bsize];
+  const int bsw = tx_size_wide[tx_size];
+  const int bsh = tx_size_high[tx_size];
   // Scale the transform block index to pixel unit.
   const int src_idx_c1 = (blk_row * p_c1->src.stride + blk_col) << MI_SIZE_LOG2;
   const int src_idx_c2 = (blk_row * p_c2->src.stride + blk_col) << MI_SIZE_LOG2;
@@ -1173,10 +1165,10 @@ static INLINE int64_t joint_uv_dist_block_px_domain(const AV2_COMP *cpi,
 
   int64_t dist_c1 =
       pixel_dist(cpi, x, AVM_PLANE_U, src_c1, p_c1->src.stride, recon_c1,
-                 MAX_TX_SIZE, blk_row, blk_col, tx_bsize);
+                 MAX_TX_SIZE, blk_row, blk_col, tx_size);
   int64_t dist_c2 =
       pixel_dist(cpi, x, AVM_PLANE_V, src_c2, p_c2->src.stride, recon_c2,
-                 MAX_TX_SIZE, blk_row, blk_col, tx_bsize);
+                 MAX_TX_SIZE, blk_row, blk_col, tx_size);
   avm_free(recon_c1);
   avm_free(recon_c2);
 
@@ -2119,8 +2111,7 @@ static INLINE void predict_dc_only_block(
 
   uint64_t block_var = UINT64_MAX;
   *block_sse = pixel_diff_stats(x, plane, blk_row, blk_col, plane_bsize,
-                                txsize_to_bsize[tx_size], block_mse_q8,
-                                per_px_mean, &block_var);
+                                tx_size, block_mse_q8, per_px_mean, &block_var);
   assert((*block_mse_q8) != UINT_MAX);
   uint64_t var_threshold = (uint64_t)(1.8 * qstep * qstep);
   block_var = ROUND_POWER_OF_TWO(block_var, (xd->bd - 8) * 2);
@@ -2307,7 +2298,8 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
     }
   } else {
     block_sse = pixel_diff_dist(cm, x, plane, blk_row, blk_col, plane_bsize,
-                                txsize_to_bsize[tx_size], &block_mse_q8);
+                                tx_size_wide[tx_size], tx_size_high[tx_size],
+                                &block_mse_q8);
     assert(block_mse_q8 != UINT_MAX);
   }
 

@@ -151,8 +151,8 @@ static int8_t estimate_wedge_sign(const AV2_COMP *cpi, const MACROBLOCK *x,
     BLOCK_16X4, BLOCK_8X32, BLOCK_32X8,
     // 32X4,       4X32,          64X8
     BLOCK_INVALID, BLOCK_INVALID, BLOCK_32X4,
-    // 8x64,       4X64,          64X4
-    BLOCK_4X32,    BLOCK_INVALID, BLOCK_INVALID,
+    // 8x64
+    BLOCK_4X32
   };
   /* clang-format on */
   const struct macroblock_plane *const p = &x->plane[0];

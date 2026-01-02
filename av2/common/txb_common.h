@@ -785,7 +785,8 @@ static INLINE void get_txb_ctx(const BLOCK_SIZE plane_bsize,
   txb_ctx->dc_sign_ctx = dc_sign_contexts[dc_sign + 2 * MAX_TX_SIZE_UNIT];
 
   if (plane == 0) {
-    if (plane_bsize == txsize_to_bsize[tx_size]) {
+    if (block_size_wide[plane_bsize] == tx_size_wide[tx_size] &&
+        block_size_high[plane_bsize] == tx_size_high[tx_size]) {
       txb_ctx->txb_skip_ctx = 0;
     } else {
       // This is the algorithm to generate table skip_contexts[top][left].
@@ -834,10 +835,10 @@ static INLINE void get_txb_ctx(const BLOCK_SIZE plane_bsize,
     if (plane == AVM_PLANE_U) {
       ctx_offset = 6;
     } else {
-      ctx_offset = (num_pels_log2_lookup[plane_bsize] >
-                    num_pels_log2_lookup[txsize_to_bsize[tx_size]])
-                       ? (V_TXB_SKIP_CONTEXT_OFFSET >> 1)
-                       : 0;
+      ctx_offset =
+          (num_pels_log2_lookup[plane_bsize] > tx_num_pels_log2_lookup[tx_size])
+              ? (V_TXB_SKIP_CONTEXT_OFFSET >> 1)
+              : 0;
     }
     txb_ctx->txb_skip_ctx = ctx_base + ctx_offset;
   }
