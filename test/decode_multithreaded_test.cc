@@ -27,14 +27,15 @@ namespace {
 static const int kNumMultiThreadDecoders = 3;
 
 class AV2DecodeMultiThreadedTest
-    : public ::libavm_test::CodecTestWith5Params<int, int, int, int, int>,
+    : public ::libavm_test::CodecTestWith7Params<int, int, int, int, int, int,
+                                                 int>,
       public ::libavm_test::EncoderTest {
  protected:
   AV2DecodeMultiThreadedTest()
       : EncoderTest(GET_PARAM(0)), md5_single_thread_(), md5_multi_thread_(),
         n_tile_cols_(GET_PARAM(1)), n_tile_rows_(GET_PARAM(2)),
         n_tile_groups_(GET_PARAM(3)), set_cpu_used_(GET_PARAM(4)),
-        row_mt_(GET_PARAM(5)) {
+        row_mt_(GET_PARAM(5)), n_frames_(GET_PARAM(6)), qp_(GET_PARAM(7)) {
     init_flags_ = AVM_CODEC_USE_PSNR;
     avm_codec_dec_cfg_t cfg = avm_codec_dec_cfg_t();
     cfg.w = 352;
@@ -68,7 +69,7 @@ class AV2DecodeMultiThreadedTest
       encoder->Control(AV2E_SET_TILE_ROWS, n_tile_rows_);
       encoder->Control(AV2E_SET_NUM_TG, n_tile_groups_);
       encoder->Control(AVME_SET_CPUUSED, set_cpu_used_);
-      encoder->Control(AVME_SET_QP, 210);
+      encoder->Control(AVME_SET_QP, qp_);
     }
   }
 
@@ -106,7 +107,8 @@ class AV2DecodeMultiThreadedTest
     cfg_.rc_end_usage = AVM_Q;
 
     libavm_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
-                                       timebase.den, timebase.num, 0, 2);
+                                       timebase.den, timebase.num, 0,
+                                       n_frames_);
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 
     const char *md5_single_thread_str = md5_single_thread_.Get();
@@ -128,6 +130,8 @@ class AV2DecodeMultiThreadedTest
   int n_tile_groups_;
   int set_cpu_used_;
   int row_mt_;
+  int n_frames_;
+  int qp_;
 };
 
 // run an encode and do the decode both in single thread
@@ -142,10 +146,30 @@ TEST_P(AV2DecodeMultiThreadedTestLarge, MD5Match) { DoTest(); }
 // TODO(ranjit): More tests have to be added using pre-generated MD5.
 AV2_INSTANTIATE_TEST_SUITE(AV2DecodeMultiThreadedTest, ::testing::Values(1, 2),
                            ::testing::Values(1, 2), ::testing::Values(1),
-                           ::testing::Values(3), ::testing::Values(0, 1));
+                           ::testing::Values(3), ::testing::Values(0, 1),
+                           ::testing::Values(2), ::testing::Values(210));
 AV2_INSTANTIATE_TEST_SUITE(AV2DecodeMultiThreadedTestLarge,
                            ::testing::Values(0, 1, 2, 6),
                            ::testing::Values(0, 1, 2, 6),
                            ::testing::Values(1, 4), ::testing::Values(1),
-                           ::testing::Values(0, 1));
+                           ::testing::Values(0, 1), ::testing::Values(2),
+                           ::testing::Values(210));
+
+// Test is configured with high QP and more frames to cover MT testing of TIP
+// direct frames.
+class AV2DecodeTIPMultiThreadedTest : public AV2DecodeMultiThreadedTest {};
+TEST_P(AV2DecodeTIPMultiThreadedTest, MD5Match) { DoTest(); }
+
+class AV2DecodeTIPMultiThreadedTestLarge : public AV2DecodeMultiThreadedTest {};
+TEST_P(AV2DecodeTIPMultiThreadedTestLarge, MD5Match) { DoTest(); }
+
+AV2_INSTANTIATE_TEST_SUITE(AV2DecodeTIPMultiThreadedTest, ::testing::Values(0),
+                           ::testing::Values(0), ::testing::Values(1),
+                           ::testing::Values(3), ::testing::Values(0, 1),
+                           ::testing::Values(8), ::testing::Values(235));
+AV2_INSTANTIATE_TEST_SUITE(AV2DecodeTIPMultiThreadedTestLarge,
+                           ::testing::Values(0), ::testing::Values(0),
+                           ::testing::Values(1), ::testing::Values(1),
+                           ::testing::Values(0, 1), ::testing::Values(8),
+                           ::testing::Values(235));
 }  // namespace
