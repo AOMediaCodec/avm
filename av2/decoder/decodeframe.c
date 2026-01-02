@@ -625,8 +625,9 @@ static void dec_calc_subpel_params_and_extend(
 static void copy_tip_worker_data(AV2Decoder *pbi, AV2_COMMON *cm) {
   int num_worker = pbi->max_threads;
   avm_free(pbi->tip_worker_data);
-  CHECK_MEM_ERROR(cm, pbi->tip_worker_data,
-                  avm_malloc(num_worker * sizeof(*(pbi->tip_worker_data))));
+  CHECK_MEM_ERROR(
+      cm, pbi->tip_worker_data,
+      avm_memalign(32, num_worker * sizeof(*(pbi->tip_worker_data))));
 
   for (int worker_idx = 0; worker_idx < num_worker; ++worker_idx) {
     DecWorkerData *const thread_data = pbi->thread_data + worker_idx;
