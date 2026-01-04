@@ -44,6 +44,7 @@
 #include "common/tools_common.h"
 #include "common/video_common.h"
 #include "common/video_reader.h"
+#include "tools/extract_proto/avm_frame.pb.h"
 #include "tools/extract_proto/enum_mappings.h"
 
 #include "absl/flags/flag.h"
@@ -59,7 +60,6 @@
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
 #include "google/protobuf/text_format.h"
-#include "avm_frame.pb.h"
 
 using ::avm::tools::BlockSize;
 using ::avm::tools::CodingUnit;

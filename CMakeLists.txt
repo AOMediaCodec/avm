@@ -205,14 +205,8 @@ list(APPEND AVM_WEBM_DECODER_SOURCES "${AVM_ROOT}/common/webmdec.cc"
 list(APPEND AVM_WEBM_ENCODER_SOURCES "${AVM_ROOT}/common/webmenc.cc"
      "${AVM_ROOT}/common/webmenc.h")
 
-include_directories(
-  ${AVM_ROOT}
-  ${AVM_CONFIG_DIR}
-  ${AVM_ROOT}/apps
-  ${AVM_ROOT}/common
-  ${AVM_ROOT}/examples
-  ${AVM_ROOT}/stats
-  ${AVM_ROOT}/third_party/abseil-cpp)
+include_directories(${AVM_ROOT} ${AVM_CONFIG_DIR} ${AVM_ROOT}/apps
+                    ${AVM_ROOT}/common ${AVM_ROOT}/examples ${AVM_ROOT}/stats)
 
 # Targets
 add_library(avm_version ${AVM_VERSION_SOURCES})
@@ -442,67 +436,6 @@ if(CONFIG_AV2_DECODER AND ENABLE_EXAMPLES)
 
       em_link_post_js(inspect "${AVM_ROOT}/tools/inspect-post.js")
     endif()
-  endif()
-
-  if(CONFIG_EXTRACT_PROTO)
-    list(APPEND AVM_EXTRACT_PROTO_SOURCES
-         "${AVM_ROOT}/tools/extract_proto/extract_proto.cc"
-         "${AVM_ROOT}/tools/extract_proto/enum_mappings.h")
-    set(AVM_FRAME_PROTO_PATH "${AVM_ROOT}/tools/extract_proto/avm_frame.proto")
-    find_package(Protobuf REQUIRED)
-    set(ABSL_PROPAGATE_CXX_STD ON)
-    include_directories(${Protobuf_INCLUDE_DIRS})
-    protobuf_generate_cpp(AVM_FRAME_PROTO_SRCS AVM_FRAME_PROTO_HDRS
-                          ${AVM_FRAME_PROTO_PATH})
-    add_subdirectory(third_party/abseil-cpp)
-    # Find Python and generate the enums mapping for extract_proto.
-    find_package(Python3)
-    if(NOT PYTHON3_FOUND)
-      message(FATAL_ERROR "python3 is required to build extract_proto.")
-    endif()
-
-    set(EXTRACT_PROTO_ENUMS_MAPPING_HEADER
-        "${AVM_ROOT}/tools/extract_proto/enum_mappings.h")
-    add_custom_command(
-      OUTPUT ${EXTRACT_PROTO_ENUMS_MAPPING_HEADER}
-      COMMAND
-        ${Python_EXECUTABLE}
-        "${AVM_ROOT}/tools/extract_proto/generate_enum_mappings.py"
-        --enums_header "${AVM_ROOT}/av2/common/av2_common_int.h" --enums_header
-        "${AVM_ROOT}/av2/common/blockd.h" --enums_header
-        "${AVM_ROOT}/av2/common/enums.h" --enums_header
-        "${AVM_ROOT}/av2/common/filter.h" --enums_header
-        "${AVM_ROOT}/av2/common/mv.h" --enums_header
-        "${AVM_ROOT}/av2/decoder/accounting.h" --output
-        "${AVM_ROOT}/tools/extract_proto/enum_mappings.h"
-      DEPENDS "${AVM_ROOT}/tools/extract_proto/generate_enum_mappings.py"
-              "${AVM_ROOT}/av2/common/av2_common_int.h"
-              "${AVM_ROOT}/av2/common/blockd.h"
-              "${AVM_ROOT}/av2/common/enums.h"
-              "${AVM_ROOT}/av2/common/filter.h"
-              "${AVM_ROOT}/av2/common/mv.h"
-              "${AVM_ROOT}/av2/decoder/accounting.h"
-      VERBATIM)
-    add_executable(
-      extract_proto
-      ${AVM_EXTRACT_PROTO_SOURCES} ${AVM_FRAME_PROTO_SRCS}
-      ${AVM_FRAME_PROTO_HDRS} $<TARGET_OBJECTS:avm_common_app_util>
-      $<TARGET_OBJECTS:avm_decoder_app_util>)
-    target_link_libraries(
-      extract_proto
-      PRIVATE absl::base
-              absl::flags
-              absl::flags_parse
-              absl::log
-              absl::log_flags
-              absl::log_globals
-              absl::log_initialize
-              absl::status
-              absl::statusor
-              absl::strings
-              ${Protobuf_LIBRARIES})
-
-    list(APPEND AVM_APP_TARGETS extract_proto)
   endif()
 
   # Maintain a list of decoder example targets.
@@ -755,6 +688,96 @@ if(CONFIG_AV2_ENCODER)
         endif()
       endforeach()
     endforeach()
+  endif()
+
+  if(CONFIG_EXTRACT_PROTO)
+    set(EXTRACT_PROTO_SUBDIR "tools/extract_proto")
+    set(EXTRACT_PROTO_SOURCE_FOLDER "${AVM_ROOT}/${EXTRACT_PROTO_SUBDIR}")
+    set(AVM_FRAME_PROTO_PATH "${EXTRACT_PROTO_SOURCE_FOLDER}/avm_frame.proto")
+    set(AVM_FRAME_PROTO_SRCS
+        "${CMAKE_CURRENT_BINARY_DIR}/${EXTRACT_PROTO_SUBDIR}/avm_frame.pb.cc")
+    set(AVM_FRAME_PROTO_HDRS
+        "${CMAKE_CURRENT_BINARY_DIR}/${EXTRACT_PROTO_SUBDIR}/avm_frame.pb.h")
+
+    if(TARGET protobuf::protoc AND NOT CMAKE_CROSSCOMPILING)
+      set(PROTOC_EXECUTABLE protobuf::protoc)
+      set(PROTOC_DEPENDENCY protobuf::protoc)
+    else()
+      # Fall back to system's protoc.
+      find_program(SYSTEM_PROTOC protoc REQUIRED)
+      set(PROTOC_EXECUTABLE ${SYSTEM_PROTOC})
+      set(PROTOC_DEPENDENCY "")
+    endif()
+    add_custom_command(
+      OUTPUT ${AVM_FRAME_PROTO_SRCS} ${AVM_FRAME_PROTO_HDRS}
+      COMMAND ${PROTOC_EXECUTABLE} "--cpp_out=${CMAKE_CURRENT_BINARY_DIR}"
+              "-I${CMAKE_CURRENT_SOURCE_DIR}" "${AVM_FRAME_PROTO_PATH}"
+      DEPENDS "${AVM_FRAME_PROTO_PATH}" ${PROTOC_DEPENDENCY}
+      COMMENT "Generating avm_frame proto sources.")
+
+    add_library(avm_frame_proto_lib)
+    target_sources(avm_frame_proto_lib PRIVATE ${AVM_FRAME_PROTO_SRCS}
+                                               ${AVM_FRAME_PROTO_HDRS})
+    target_link_libraries(avm_frame_proto_lib PUBLIC protobuf::libprotobuf)
+    target_include_directories(avm_frame_proto_lib
+                               PUBLIC "${CMAKE_CURRENT_BINARY_DIR}")
+
+    if(NOT TARGET absl::base)
+      message(FATAL_ERROR "Abseil not found for extract_proto.")
+    endif()
+
+    # Find Python and generate the enums mapping for extract_proto.
+    find_package(Python3)
+    if(NOT PYTHON3_FOUND)
+      message(FATAL_ERROR "python3 is required to build extract_proto.")
+    endif()
+
+    set(EXTRACT_PROTO_ENUMS_MAPPING_HEADER
+        "${AVM_ROOT}/tools/extract_proto/enum_mappings.h")
+    add_custom_command(
+      OUTPUT ${EXTRACT_PROTO_ENUMS_MAPPING_HEADER}
+      COMMAND
+        ${Python_EXECUTABLE}
+        "${AVM_ROOT}/tools/extract_proto/generate_enum_mappings.py"
+        --enums_header "${AVM_ROOT}/av2/common/av2_common_int.h" --enums_header
+        "${AVM_ROOT}/av2/common/blockd.h" --enums_header
+        "${AVM_ROOT}/av2/common/enums.h" --enums_header
+        "${AVM_ROOT}/av2/common/filter.h" --enums_header
+        "${AVM_ROOT}/av2/common/mv.h" --enums_header
+        "${AVM_ROOT}/av2/decoder/accounting.h" --output
+        "${AVM_ROOT}/tools/extract_proto/enum_mappings.h"
+      DEPENDS "${AVM_ROOT}/tools/extract_proto/generate_enum_mappings.py"
+              "${AVM_ROOT}/av2/common/av2_common_int.h"
+              "${AVM_ROOT}/av2/common/blockd.h"
+              "${AVM_ROOT}/av2/common/enums.h"
+              "${AVM_ROOT}/av2/common/filter.h"
+              "${AVM_ROOT}/av2/common/mv.h"
+              "${AVM_ROOT}/av2/decoder/accounting.h"
+      VERBATIM)
+    list(APPEND AVM_EXTRACT_PROTO_SOURCES
+         "${AVM_ROOT}/tools/extract_proto/extract_proto.cc"
+         "${AVM_ROOT}/tools/extract_proto/enum_mappings.h")
+    add_executable(
+      extract_proto
+      ${AVM_EXTRACT_PROTO_SOURCES} ${AVM_FRAME_PROTO_SRCS}
+      ${AVM_FRAME_PROTO_HDRS} $<TARGET_OBJECTS:avm_common_app_util>
+      $<TARGET_OBJECTS:avm_decoder_app_util>)
+    target_link_libraries(
+      extract_proto
+      PRIVATE absl::base
+              absl::flags
+              absl::flags_parse
+              absl::log
+              absl::log_flags
+              absl::log_globals
+              absl::log_initialize
+              absl::status
+              absl::statusor
+              absl::strings
+              ${Protobuf_LIBRARIES})
+
+    list(APPEND AVM_APP_TARGETS extract_proto)
+
   endif()
 
   if(CONFIG_TUNE_VMAF)
