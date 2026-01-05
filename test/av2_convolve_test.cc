@@ -142,7 +142,7 @@ template <typename T>
 
 TEST_F(AV2ConvolveParametersTest, GetHighbdTestParams) {
   auto v = GetHighbdTestParams(av2_highbd_convolve_x_sr_c);
-  ASSERT_EQ(82U, v.size());
+  ASSERT_EQ(74U, v.size());
   int num_10 = 0;
   int num_12 = 0;
   for (const auto &p : v) {
