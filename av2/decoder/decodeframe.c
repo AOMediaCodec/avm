@@ -25,6 +25,7 @@
 #include "config/avm_dsp_rtcd.h"
 #include "config/avm_scale_rtcd.h"
 #include "config/av2_rtcd.h"
+#include "av2/common/level.h"
 
 #include "avm/avm_codec.h"
 #include "avm_dsp/avm_dsp_common.h"
@@ -6832,6 +6833,19 @@ static INLINE void read_intrabc_params(AV2_COMMON *const cm,
       features->allow_local_intrabc = features->allow_intrabc;
     }
     read_frame_max_bvp_drl_bits(cm, rb);
+  }
+
+  if (cm->seq_params.seq_max_level_idx < SEQ_LEVELS) {
+    const int max_legal_ref_frames =
+        av2_get_max_level_ref_frames(cm, cm->seq_params.seq_max_level_idx);
+    if (cm->seq_params.ref_frames > max_legal_ref_frames) {
+      avm_internal_error(
+          &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+          "The maximum number of reference frames shall not be "
+          "greater than %d, yet the bitstream indicates that the "
+          "maximum DPB size is equal to %d.\n",
+          max_legal_ref_frames, cm->seq_params.ref_frames);
+    }
   }
 }
 static INLINE void read_screen_content_params(AV2_COMMON *const cm,

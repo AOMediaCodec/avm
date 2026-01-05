@@ -346,7 +346,7 @@ typedef enum {
   TILE_SIZE_HEADER_RATE_TOO_HIGH,
   BITRATE_TOO_HIGH,
   DECODER_MODEL_FAIL,
-  DPB_SIZE_FAIL,
+  REF_FRAMES_FAIL,
 
   TARGET_LEVEL_FAIL_IDS,
   TARGET_LEVEL_OK,
@@ -372,7 +372,7 @@ static const char *level_fail_messages[TARGET_LEVEL_FAIL_IDS] = {
   "The product of max tile size and header rate is too high.",
   "The bitrate is too high.",
   "The decoder model fails.",
-  "The DPB size is invalid.",
+  "The number of reference frames is invalid.",
 };
 
 static double get_max_bitrate(const AV2LevelSpec *const level_spec, int tier,
@@ -650,6 +650,26 @@ void av2_decoder_model_init(const AV2_COMP *const cpi, AV2_LEVEL level,
       seq_params->op_params[op_index].initial_display_delay;
   decoder_model->initial_presentation_delay = INVALID_TIME;
   decoder_model->decode_rate = av2_level_defs[level].max_decode_rate;
+  decoder_model->is_num_ref_frames_legal = true;
+}
+
+int av2_get_max_level_ref_frames(const AV2_COMMON *const cm,
+                                 AV2_LEVEL level_index) {
+  const SequenceHeader *const seq_params = &cm->seq_params;
+  const int cap = (seq_params->ref_frames != 8) ? 16 : 8;
+
+  const int max_picture_size = av2_level_defs[level_index].max_picture_size;
+
+  const int64_t current_picture_size =
+      seq_params->max_frame_width * seq_params->max_frame_height;
+
+  int64_t limit = (int64_t)(max_picture_size * 8) / current_picture_size;
+
+  if (cm->features.allow_global_intrabc && is_filter_enabled_frame(cm)) {
+    limit -= 1;
+  }
+  const int max_level_ref_frames = (int)AVMMIN(cap, limit);
+  return max_level_ref_frames;
 }
 
 void av2_decoder_model_process_frame(const AV2_COMP *const cpi,
@@ -667,6 +687,12 @@ void av2_decoder_model_process_frame(const AV2_COMP *const cpi,
   if (!show_existing_frame) ++decoder_model->num_decoded_frame;
   if (show_frame) ++decoder_model->num_shown_frame;
   decoder_model->coded_bits += coded_bits;
+
+  const int max_active_level_ref_frames =
+      av2_get_max_level_ref_frames(cm, decoder_model->level);
+  decoder_model->is_num_ref_frames_legal =
+      decoder_model->is_num_ref_frames_legal &&
+      (cm->seq_params.ref_frames <= max_active_level_ref_frames);
 
   int display_idx = -1;
   if (show_existing_frame) {
@@ -871,16 +897,6 @@ double av2_get_min_cr_for_level(AV2_LEVEL level_index, int tier,
                     level_spec->max_decode_rate);
 }
 
-int av2_get_max_legal_dpb_size(const SequenceHeader *seq_params,
-                               AV2_LEVEL level_index) {
-  int max_picture_size = av2_level_defs[level_index].max_picture_size;
-  int current_picture_size =
-      seq_params->max_frame_width * seq_params->max_frame_height;
-  int max_legal_dpb_size =
-      AVMMIN(REF_FRAMES, (int)((max_picture_size * 8) / current_picture_size));
-  return max_legal_dpb_size;
-}
-
 static void get_temporal_parallel_params(int scalability_mode_idc,
                                          int *temporal_parallel_num,
                                          int *temporal_parallel_denom) {
@@ -1021,9 +1037,8 @@ static TARGET_LEVEL_FAIL_ID check_level_constraints(
       }
     }
 
-    if (seq_params->ref_frames >
-        av2_get_max_legal_dpb_size(seq_params, level)) {
-      fail_id = DPB_SIZE_FAIL;
+    if (!decoder_model->is_num_ref_frames_legal) {
+      fail_id = REF_FRAMES_FAIL;
       break;
     }
 
