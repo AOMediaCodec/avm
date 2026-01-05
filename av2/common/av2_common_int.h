@@ -4481,11 +4481,8 @@ static AVM_INLINE void init_allowed_partitions_for_signaling(
   const int has_cols = (mi_col + hbs_w) < cm->mi_params.mi_cols;
   const bool is_chroma_ref =
       chroma_ref_info ? chroma_ref_info->is_chroma_ref : true;
-  int num_allowed_partitions = 0;
   const RECT_PART_TYPE implied_rect_type =
       rect_type_implied_by_bsize(bsize, tree_type);
-  const int max_aspect_ratio =
-      1 << (cm->seq_params.max_pb_aspect_ratio_log2_m1 + 1);
 
   const int is_horz_size_valid =
       is_partition_valid(bsize, PARTITION_HORZ) && implied_rect_type != VERT &&
@@ -4501,7 +4498,6 @@ static AVM_INLINE void init_allowed_partitions_for_signaling(
   partition_allowed[PARTITION_NONE] =
       (tree_type == CHROMA_PART && bsize == BLOCK_8X8) ||
       (has_rows && has_cols);
-  num_allowed_partitions += partition_allowed[PARTITION_NONE];
 
   partition_allowed[PARTITION_HORZ] =
       is_block_splittable && is_horz_size_valid &&
@@ -4509,14 +4505,12 @@ static AVM_INLINE void init_allowed_partitions_for_signaling(
                                          parent_region_type) &&
       is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
                                     mi_col, bsize, PARTITION_HORZ, ss_x, ss_y);
-  num_allowed_partitions += partition_allowed[PARTITION_HORZ];
   partition_allowed[PARTITION_VERT] =
       is_block_splittable && is_vert_size_valid &&
       is_valid_partition_in_mixed_region(bsize, PARTITION_VERT,
                                          parent_region_type) &&
       is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
                                     mi_col, bsize, PARTITION_VERT, ss_x, ss_y);
-  num_allowed_partitions += partition_allowed[PARTITION_VERT];
 
   const bool ext_partition_allowed =
       is_block_splittable && cm->seq_params.enable_ext_partitions;
@@ -4532,7 +4526,6 @@ static AVM_INLINE void init_allowed_partitions_for_signaling(
       is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
                                     mi_col, bsize, PARTITION_HORZ_3, ss_x,
                                     ss_y);
-  num_allowed_partitions += partition_allowed[PARTITION_HORZ_3];
 
   partition_allowed[PARTITION_VERT_3] =
       ext_partition_allowed && implied_rect_type != HORZ &&
@@ -4545,7 +4538,6 @@ static AVM_INLINE void init_allowed_partitions_for_signaling(
       is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
                                     mi_col, bsize, PARTITION_VERT_3, ss_x,
                                     ss_y);
-  num_allowed_partitions += partition_allowed[PARTITION_VERT_3];
 
   const bool uneven_4way_partition_allowed =
       ext_partition_allowed && cm->seq_params.enable_uneven_4way_partitions;
@@ -4560,7 +4552,6 @@ static AVM_INLINE void init_allowed_partitions_for_signaling(
       is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
                                     mi_col, bsize, PARTITION_HORZ_4A, ss_x,
                                     ss_y);
-  num_allowed_partitions += partition_allowed[PARTITION_HORZ_4A];
 
   partition_allowed[PARTITION_HORZ_4B] =
       uneven_4way_partition_allowed && implied_rect_type != VERT &&
@@ -4573,7 +4564,6 @@ static AVM_INLINE void init_allowed_partitions_for_signaling(
       is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
                                     mi_col, bsize, PARTITION_HORZ_4B, ss_x,
                                     ss_y);
-  num_allowed_partitions += partition_allowed[PARTITION_HORZ_4B];
 
   partition_allowed[PARTITION_VERT_4A] =
       uneven_4way_partition_allowed && implied_rect_type != HORZ &&
@@ -4586,7 +4576,6 @@ static AVM_INLINE void init_allowed_partitions_for_signaling(
       is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
                                     mi_col, bsize, PARTITION_VERT_4A, ss_x,
                                     ss_y);
-  num_allowed_partitions += partition_allowed[PARTITION_VERT_4A];
 
   partition_allowed[PARTITION_VERT_4B] =
       uneven_4way_partition_allowed && implied_rect_type != HORZ &&
@@ -4599,7 +4588,6 @@ static AVM_INLINE void init_allowed_partitions_for_signaling(
       is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
                                     mi_col, bsize, PARTITION_VERT_4B, ss_x,
                                     ss_y);
-  num_allowed_partitions += partition_allowed[PARTITION_VERT_4B];
 
   assert(partition_allowed[PARTITION_HORZ_4A] ==
          partition_allowed[PARTITION_HORZ_4B]);
@@ -4608,21 +4596,22 @@ static AVM_INLINE void init_allowed_partitions_for_signaling(
 
   partition_allowed[PARTITION_SPLIT] =
       is_square_split_eligible(bsize, cm->sb_size);
-  num_allowed_partitions += partition_allowed[PARTITION_SPLIT];
 
-  // Validate partition modes based on aspect ratio  constraints.
-  if (max_aspect_ratio < 16) {
-    num_allowed_partitions = 0;
-    for (PARTITION_TYPE p = PARTITION_NONE; p < ALL_PARTITION_TYPES; ++p) {
-      partition_allowed[p] =
-          partition_allowed[p] &&
-          check_partition_aspect_ratio(bsize, p, max_aspect_ratio);
-      num_allowed_partitions += partition_allowed[p];
-    }
+  // Validate partition modes based on aspect ratio constraints.
+  const int max_aspect_ratio =
+      1 << (cm->seq_params.max_pb_aspect_ratio_log2_m1 + 1);
+  assert(max_aspect_ratio == 2 || max_aspect_ratio == 4 ||
+         max_aspect_ratio == 8);
+  int num_allowed_partitions = 0;
+  for (PARTITION_TYPE p = PARTITION_NONE; p < ALL_PARTITION_TYPES; ++p) {
+    partition_allowed[p] =
+        partition_allowed[p] &&
+        check_partition_aspect_ratio(bsize, p, max_aspect_ratio);
+    num_allowed_partitions += partition_allowed[p];
   }
 
   if (num_allowed_partitions == 0) {
-    partition_allowed[PARTITION_NONE] = 1;
+    partition_allowed[PARTITION_NONE] = true;
   }
 }
 

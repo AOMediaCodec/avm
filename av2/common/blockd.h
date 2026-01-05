@@ -890,11 +890,10 @@ static AVM_INLINE bool is_ext_partition_allowed(BLOCK_SIZE bsize,
     return false;
   }
   // If a 64x16 luma block performs HORZ_3 split, we'll get luma block size of
-  // 64x4, which implies chroma block size of 32x2, which is invalid. So,
-  // extended partitions are disabled. Same goes for tall blocks.
-  if (tree_type == CHROMA_PART &&
-      ((bsize == BLOCK_64X16 && rect_type == HORZ) ||
-       (bsize == BLOCK_16X64 && rect_type == VERT))) {
+  // 64x4, which invalid. So, extended partitions are disabled. Same goes for
+  // tall blocks.
+  if ((bsize == BLOCK_64X16 && rect_type == HORZ) ||
+      (bsize == BLOCK_16X64 && rect_type == VERT)) {
     return false;
   }
   assert(IMPLIES(rect_type == HORZ,
