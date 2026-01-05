@@ -209,14 +209,14 @@ static const avm_cdf_prob default_wedge_dist_cdf[CDF_SIZE(4)] = { AVM_CDF4( 8203
 
 static const avm_cdf_prob default_wedge_dist_cdf2[CDF_SIZE(3)] = { AVM_CDF3(14463, 19115),  75 };
 
-static const avm_cdf_prob default_warp_interintra_cdf[4][CDF_SIZE(2)] = {
+static const avm_cdf_prob default_warp_interintra_cdf[BLOCK_SIZE_GROUPS][CDF_SIZE(2)] = {
   { AVM_CDF2(16384),   0 },
   { AVM_CDF2(27980),  56 },
   { AVM_CDF2(29163),  56 },
   { AVM_CDF2(30658),  62 },
 };
 
-static const avm_cdf_prob default_interintra_cdf[4][CDF_SIZE(2)] = {
+static const avm_cdf_prob default_interintra_cdf[BLOCK_SIZE_GROUPS][CDF_SIZE(2)] = {
   { AVM_CDF2(20569),   1 },
   { AVM_CDF2(17106),   1 },
   { AVM_CDF2(20948),   1 },
@@ -225,7 +225,7 @@ static const avm_cdf_prob default_interintra_cdf[4][CDF_SIZE(2)] = {
 
 static const avm_cdf_prob default_wedge_interintra_cdf[CDF_SIZE(2)] = { AVM_CDF2(16758),   0 };
 
-static const avm_cdf_prob default_interintra_mode_cdf[4][CDF_SIZE(4)] = {
+static const avm_cdf_prob default_interintra_mode_cdf[BLOCK_SIZE_GROUPS][CDF_SIZE(4)] = {
   { AVM_CDF4( 1819, 16131, 26802),  32 },
   { AVM_CDF4( 1442, 15840, 28441),   1 },
   { AVM_CDF4( 1995, 15814, 28221),   7 },
@@ -244,14 +244,14 @@ static const avm_cdf_prob default_warp_ref_idx2_cdf[1][CDF_SIZE(2)] = {
   { AVM_CDF2(25360),  75 },
 };
 
-static const avm_cdf_prob default_warp_causal_cdf[4][CDF_SIZE(2)] = {
+static const avm_cdf_prob default_warp_causal_cdf[WARP_CAUSAL_MODE_CTX][CDF_SIZE(2)] = {
   { AVM_CDF2(14877),   1 },
   { AVM_CDF2(12801),   0 },
   { AVM_CDF2( 6885),   6 },
   { AVM_CDF2( 2987),  30 },
 };
 
-static const avm_cdf_prob default_warp_precision_idx_cdf[31][CDF_SIZE(2)] = {
+static const avm_cdf_prob default_warp_precision_idx_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)] = {
   { AVM_CDF2(16384),   0 },
   { AVM_CDF2(16384),   0 },
   { AVM_CDF2(16384),   0 },
@@ -281,8 +281,6 @@ static const avm_cdf_prob default_warp_precision_idx_cdf[31][CDF_SIZE(2)] = {
   { AVM_CDF2(16384),   0 },
   { AVM_CDF2(20066),  25 },
   { AVM_CDF2(18893),   5 },
-  { AVM_CDF2(16384),   0 },
-  { AVM_CDF2(16384),   0 },
 };
 
 static const avm_cdf_prob default_warp_delta_param_cdf[2][CDF_SIZE(8)] = {
