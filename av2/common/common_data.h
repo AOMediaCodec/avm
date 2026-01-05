@@ -170,11 +170,6 @@ static const uint8_t num_pels_log2_lookup[BLOCK_SIZES_ALL] = {
   14, 15, 15, 16, 6, 6, 8, 8, 10, 10, 7,  7,  9,  9,
 };
 
-static const uint8_t tx_num_pels_log2_lookup[TX_SIZES_ALL] = {
-  4, 6, 8, 10, 12, 5,  5, 7, 7, 9, 9, 11, 11,
-  6, 6, 8, 8,  10, 10, 7, 7, 9, 9, 8, 8,
-};
-
 // Supported weighting factor for compound weighted prediction
 static const int8_t cwp_weighting_factor[2][MAX_CWP_NUM] = {
   { 8, 12, 4, 10, 6 },

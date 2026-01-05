@@ -43,7 +43,7 @@ static AVM_INLINE void get_quantize_error(const MACROBLOCK *x, int plane,
   const struct macroblock_plane *const p = &x->plane[plane];
   const MACROBLOCKD *xd = &x->e_mbd;
   const SCAN_ORDER *const scan_order = &av2_default_scan_orders[tx_size];
-  int pix_num = 1 << tx_num_pels_log2_lookup[tx_size];
+  const int pix_num = tx_size_2d[tx_size];
   const int shift = tx_size == TX_32X32 ? 0 : 2;
 
   QUANT_PARAM quant_param;
@@ -159,7 +159,7 @@ static AVM_INLINE int64_t tpl_get_satd_cost(const MACROBLOCK *x,
 static int rate_estimator(const tran_low_t *qcoeff, int eob, TX_SIZE tx_size) {
   const SCAN_ORDER *const scan_order = &av2_default_scan_orders[tx_size];
 
-  assert((1 << tx_num_pels_log2_lookup[tx_size]) >= eob);
+  assert(tx_size_2d[tx_size] >= eob);
   avm_clear_system_state();
   int rate_cost = 1;
 

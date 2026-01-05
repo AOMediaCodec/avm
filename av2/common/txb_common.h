@@ -835,10 +835,11 @@ static INLINE void get_txb_ctx(const BLOCK_SIZE plane_bsize,
     if (plane == AVM_PLANE_U) {
       ctx_offset = 6;
     } else {
+      const uint8_t cb_pels_log2 = num_pels_log2_lookup[plane_bsize];
+      const uint8_t tx_pels_log2 =
+          tx_size_wide_log2[tx_size] + tx_size_high_log2[tx_size];
       ctx_offset =
-          (num_pels_log2_lookup[plane_bsize] > tx_num_pels_log2_lookup[tx_size])
-              ? (V_TXB_SKIP_CONTEXT_OFFSET >> 1)
-              : 0;
+          (cb_pels_log2 > tx_pels_log2) ? (V_TXB_SKIP_CONTEXT_OFFSET >> 1) : 0;
     }
     txb_ctx->txb_skip_ctx = ctx_base + ctx_offset;
   }
