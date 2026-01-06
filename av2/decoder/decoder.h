@@ -273,7 +273,6 @@ static INLINE char const *get_component_name(int index) {
 }
 #endif
 
-#if CONFIG_F436_OBUORDER
 // This structure contains some information of obus to check the order of
 // obus is valid.
 typedef struct {
@@ -288,7 +287,6 @@ typedef struct {
   int xlayer_id;
   int is_vcl;
 } obu_info;
-#endif  // CONFIG_F436_OBUORDER
 
 typedef struct AV2Decoder {
   DecoderCodingBlock dcb;
@@ -467,7 +465,6 @@ typedef struct AV2Decoder {
   SequenceHeader seq_list_buf[AVM_MAX_NUM_STREAMS][MAX_SEQ_NUM];
   MultiFrameHeader mfh_params_buf[AVM_MAX_NUM_STREAMS][MAX_MFH_NUM];
 #if CONFIG_F024_KEYOBU
-#if CONFIG_F436_OBUORDER
   /*!
    * Indicates the number of obus signalled before the frame unit
    * including the frame unit (that may consist of multiple tile group obus)
@@ -509,7 +506,7 @@ typedef struct AV2Decoder {
    * change num_displayable_frame_unit[i] can be maximum 1.   *
    */
   int num_displayable_frame_unit[MAX_NUM_MLAYERS];
-#endif
+
   /*!
    * Indicates an OLK is encountered in any layer
    * It is initialized as 0 and set 1 when the first olk is decoded and set 0

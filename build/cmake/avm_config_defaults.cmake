@@ -67,10 +67,6 @@ set_avm_config_var(CONFIG_ERROR_RESILIENT_FIX 1 "Additional check for s_frame.")
 
 set_avm_config_var(CONFIG_F322_OBUER_REFRESTRICT 1
                    "Use restricted reference for switch frames and after.")
-set_avm_config_var(CONFIG_F436_OBUORDER 1
-                   "Check the order of frame units is valid")
-set_avm_config_var(CONFIG_F436_OBUORDER_DEBUG 0
-                   "Output obu information for CONFIG_F436_OBUORDER")
 
 set_avm_config_var(CONFIG_F024_KEYOBU 1 "Use Key OBUs.")
 

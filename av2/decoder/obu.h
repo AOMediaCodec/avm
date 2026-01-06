@@ -25,10 +25,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
                                const uint8_t *data_end,
                                const uint8_t **p_data_end);
 
-#if CONFIG_F024_KEYOBU && !CONFIG_F436_OBUORDER
-int av2_is_random_accessed_temporal_unit(const uint8_t *data, size_t data_sz);
-#endif  // CONFIG_F024_KEYOBU && !CONFIG_F436_OBUORDER
-
 uint32_t read_fgm_obu(AV2Decoder *pbi, const int obu_tlayer_id,
                       const int obu_mlayer_id, uint32_t *acc_fgm_id_bitmap,
                       struct avm_read_bit_buffer *rb);

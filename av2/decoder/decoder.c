@@ -237,7 +237,6 @@ AV2Decoder *av2_decoder_create(BufferPool *const pool) {
   pbi->restricted_predition = 0;
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
 
-#if CONFIG_F436_OBUORDER
   memset(&pbi->last_frame_unit, -1, sizeof(pbi->last_frame_unit));
   memset(&pbi->last_displayable_frame_unit, -1,
          sizeof(pbi->last_displayable_frame_unit));
@@ -245,7 +244,6 @@ AV2Decoder *av2_decoder_create(BufferPool *const pool) {
   for (int i = 0; i < MAX_NUM_MLAYERS; i++) {
     pbi->num_displayable_frame_unit[i] = 0;
   }
-#endif
 
 #if CONFIG_ACCOUNTING
   pbi->acct_enabled = 1;
@@ -873,12 +871,7 @@ int av2_receive_compressed_data(AV2Decoder *pbi, size_t size,
   }
 #if CONFIG_F024_KEYOBU
   // flush_remaining_frames() is invoked before assign_cur_frame_new_fb().
-#if CONFIG_F436_OBUORDER
-  if (pbi->is_random_access_frame_unit == 1)
-#else
-  if (av2_is_random_accessed_temporal_unit(source, size))
-#endif
-  {
+  if (pbi->is_random_access_frame_unit == 1) {
     flush_remaining_frames(pbi);
   }
 #endif
