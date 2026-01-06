@@ -53,7 +53,6 @@ bool ValidObuType(int obu_type) {
     case OBU_SEQUENCE_HEADER:
     case OBU_TEMPORAL_DELIMITER:
     case OBU_MULTI_FRAME_HEADER:
-#if CONFIG_F024_KEYOBU
     case OBU_CLK:
     case OBU_OLK:
     case OBU_LEADING_TILE_GROUP:
@@ -63,12 +62,6 @@ bool ValidObuType(int obu_type) {
     case OBU_REGULAR_SEF:
     case OBU_LEADING_TIP:
     case OBU_REGULAR_TIP:
-#else   // CONFIG_F024_KEYOBU
-    case OBU_SWITCH:
-    case OBU_SEF:
-    case OBU_TIP:
-    case OBU_TILE_GROUP:
-#endif  // CONFIG_F024_KEYOBU
     case OBU_METADATA_SHORT:
     case OBU_METADATA_GROUP:
     case OBU_BUFFER_REMOVAL_TIMING:
@@ -183,14 +176,10 @@ bool DumpObu(const uint8_t *data, int length, int *obu_overhead_bytes) {
       ++obu_overhead;
     }
 
-#if CONFIG_F024_KEYOBU
     bool is_tile_group = obu_header.type == OBU_LEADING_TILE_GROUP ||
                          obu_header.type == OBU_REGULAR_TILE_GROUP ||
                          obu_header.type == OBU_CLK ||
                          obu_header.type == OBU_OLK;
-#else
-    bool is_tile_group = obu_header.type == OBU_TILE_GROUP;
-#endif
     is_tile_group = is_tile_group || obu_header.type == OBU_SWITCH;
     is_tile_group = is_tile_group || obu_header.type == OBU_BRIDGE_FRAME;
     bool first_tile_group_in_frame = false;

@@ -28,7 +28,6 @@ static int valid_obu_type(int obu_type) {
 #endif  // CONFIG_CWG_F270_CI_OBU
     case OBU_TEMPORAL_DELIMITER:
     case OBU_MULTI_FRAME_HEADER:
-#if CONFIG_F024_KEYOBU
     case OBU_SWITCH:
     case OBU_LEADING_SEF:
     case OBU_REGULAR_SEF:
@@ -38,12 +37,6 @@ static int valid_obu_type(int obu_type) {
     case OBU_REGULAR_TILE_GROUP:
     case OBU_CLK:
     case OBU_OLK:
-#else   // CONFIG_F024_KEYOBU
-    case OBU_SWITCH:
-    case OBU_SEF:
-    case OBU_TIP:
-    case OBU_TILE_GROUP:
-#endif  // CONFIG_F024_KEYOBU
     case OBU_METADATA_SHORT:
     case OBU_METADATA_GROUP:
     case OBU_BUFFER_REMOVAL_TIMING:

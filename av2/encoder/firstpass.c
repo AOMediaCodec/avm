@@ -1068,12 +1068,7 @@ void av2_first_pass(AV2_COMP *cpi, const int64_t ts_duration) {
   }
 
   const bool compute_ds_filter =
-#if CONFIG_F024_KEYOBU
       av2_is_shown_keyframe(cpi, cm->current_frame.frame_type);
-#else
-      av2_is_shown_keyframe(cpi, cm->current_frame.frame_type) &&
-      !cpi->common.show_existing_frame;
-#endif
   if (compute_ds_filter) {
     av2_set_downsample_filter_options(cpi);
   }

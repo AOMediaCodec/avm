@@ -123,29 +123,25 @@ static const arg_def_t outallarg = ARG_DEF(
     NULL, "all-layers", 0, "Output all decoded frames of a scalable bitstream");
 static const arg_def_t skipfilmgrain =
     ARG_DEF(NULL, "skip-film-grain", 0, "Skip film grain application");
-#if CONFIG_F024_KEYOBU
 static const arg_def_t randomaccess =
     ARG_DEF(NULL, "random-access", 0,
             "Random access to random-access-th random access point");
-#endif
 static const arg_def_t bruoptmodearg =
     ARG_DEF(NULL, "bru-opt-mode", 0, "Use BRU optimized decode mode");
 static const arg_def_t icc_file =
     ARG_DEF(NULL, "icc", 1, "Output ICC profile file");
 static const arg_def_t *all_args[] = {
-  &help,           &codecarg,      &use_yv12,    &use_i420,       &flipuvarg,
-  &rawvideo,       &noblitarg,     &progressarg, &limitarg,       &skiparg,
-  &numstreamsarg,  &summaryarg,    &outputfile,
+  &help,           &codecarg,      &use_yv12,      &use_i420,
+  &flipuvarg,      &rawvideo,      &noblitarg,     &progressarg,
+  &limitarg,       &skiparg,       &numstreamsarg, &summaryarg,
+  &outputfile,
 #if CONFIG_PARAKIT_COLLECT_DATA
   &datafilesuffix, &datafilepath,
 #endif
-  &threadsarg,     &verbosearg,    &scalearg,    &fb_arg,         &md5arg,
-  &verifyarg,      &framestatsarg, &continuearg, &outbitdeptharg, &oppointarg,
-  &outallarg,      &skipfilmgrain,
-#if CONFIG_F024_KEYOBU
-  &randomaccess,
-#endif  // CONFIG_F024_KEYOBU
-  &bruoptmodearg,  &icc_file,      NULL
+  &threadsarg,     &verbosearg,    &scalearg,      &fb_arg,
+  &md5arg,         &verifyarg,     &framestatsarg, &continuearg,
+  &outbitdeptharg, &oppointarg,    &outallarg,     &skipfilmgrain,
+  &randomaccess,   &bruoptmodearg, &icc_file,      NULL
 };
 
 #if CONFIG_LANCZOS_RESAMPLE
@@ -651,9 +647,7 @@ static int main_loop(int argc, const char **argv_) {
   int operating_point = 0;
   int output_all_layers = 0;
   int skip_film_grain = 0;
-#if CONFIG_F024_KEYOBU
   int random_access = 0;
-#endif  // CONFIG_F024_KEYOBU
   int bru_opt_mode = 0;
   avm_image_t *scaled_img = NULL;
   avm_image_t *img_shifted = NULL;
@@ -796,10 +790,8 @@ static int main_loop(int argc, const char **argv_) {
       output_all_layers = 1;
     } else if (arg_match(&arg, &skipfilmgrain, argi)) {
       skip_film_grain = 1;
-#if CONFIG_F024_KEYOBU
     } else if (arg_match(&arg, &randomaccess, argi)) {
       random_access = arg_parse_uint(&arg);
-#endif  // CONFIG_F024_KEYOBU
     } else if (arg_match(&arg, &bruoptmodearg, argi)) {
       bru_opt_mode = 1;
     } else if (arg_match(&arg, &icc_file, argi)) {
@@ -954,14 +946,12 @@ static int main_loop(int argc, const char **argv_) {
     goto fail;
   }
 
-#if CONFIG_F024_KEYOBU
   if (AVM_CODEC_CONTROL_TYPECHECKED(&decoder, AV2D_SET_RANDOM_ACCESS,
                                     random_access)) {
     fprintf(stderr, "Failed to set random_access: %s\n",
             avm_codec_error(&decoder));
     goto fail;
   }
-#endif  // CONFIG_F024_KEYOBU
 
   if (AVM_CODEC_CONTROL_TYPECHECKED(&decoder, AV2D_SET_BRU_OPT_MODE,
                                     bru_opt_mode)) {
@@ -1057,10 +1047,7 @@ static int main_loop(int argc, const char **argv_) {
       if (frame_in < frame_out) {  // No OBUs for show_existing_frame.
         frame_in = frame_out;
       }
-#if CONFIG_F024_KEYOBU
-      if (!flush_decoder)
-#endif
-        got_data = 1;
+      if (!flush_decoder) got_data = 1;
 
       if (AVM_CODEC_CONTROL_TYPECHECKED(&decoder, AVMD_GET_FRAME_CORRUPTED,
                                         &corrupted)) {

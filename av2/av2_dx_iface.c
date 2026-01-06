@@ -51,9 +51,7 @@ struct avm_codec_alg_priv {
   int byte_alignment;
   int skip_loop_filter;
   int skip_film_grain;
-#if CONFIG_F024_KEYOBU
   uint64_t random_access;
-#endif  // CONFIG_F024_KEYOBU
   int bru_opt_mode;
   unsigned int row_mt;
   int operating_point;
@@ -453,7 +451,6 @@ static avm_codec_err_t decoder_peek_si_internal(const uint8_t *data,
 #endif  // !CONFIG_CWG_F270_OPS
 
       got_sequence_header = 1;
-#if CONFIG_F024_KEYOBU
     } else if (obu_header.type == OBU_CLK || obu_header.type == OBU_OLK) {
       found_keyframe = 1;
       break;
@@ -475,64 +472,6 @@ static avm_codec_err_t decoder_peek_si_internal(const uint8_t *data,
         intra_only_flag = 1;
       }
     }  // TILE_GROUP
-#else  // CONFIG_F024_KEYOBU
-#if CONFIG_F024_KEYOBU
-    } else if (obu_header.type == OBU_LEADING_TILE_GROUP ||
-               obu_header.type == OBU_REGULAR_TILE_GROUP ||
-               obu_header.type == OBU_BRIDGE_FRAME) {
-#else
-    } else if (obu_header.type == OBU_TILE_GROUP ||
-               obu_header.type == OBU_BRIDGE_FRAME) {
-#endif  // CONFIG_F024_KEYOBU
-      if (got_sequence_header && single_picture_header_flag) {
-        found_keyframe = 1;
-        break;
-      } else {
-        // make sure we have enough bits to get the frame type out
-        if (data_sz < 1) return AVM_CODEC_CORRUPT_FRAME;
-        struct avm_read_bit_buffer rb = { data, data + data_sz, 0, NULL, NULL };
-        int first_tile_group_in_frame = avm_rb_read_bit(&rb);
-        if (!first_tile_group_in_frame) {
-          avm_rb_read_bit(&rb);  // send_uncompressed_header_flag
-        }
-
-        uint32_t mfh_id = avm_rb_read_uvlc(&rb);
-        if (mfh_id == 0) {
-          uint32_t seq_header_id_in_frame_header = avm_rb_read_uvlc(&rb);
-          (void)seq_header_id_in_frame_header;
-        }
-
-        FRAME_TYPE frame_type = KEY_FRAME;
-        if (obu_header.type == OBU_RAS_FRAME || obu_header.type == OBU_SWITCH) {
-          frame_type = S_FRAME;
-        } else {
-          if (avm_rb_read_bit(&rb)) {
-            frame_type = INTER_FRAME;
-          } else {
-#if !CONFIG_F024_KEYOBU
-            if (avm_rb_read_bit(&rb)) {
-              frame_type = KEY_FRAME;
-            } else {
-#endif  // !CONFIG_F024_KEYOBU
-              frame_type = INTRA_ONLY_FRAME;
-#if !CONFIG_F024_KEYOBU
-            }  // not key_frame
-#endif  // !CONFIG_F024_KEYOBU
-          }  // not inter_frame
-        }
-
-#if !CONFIG_F024_KEYOBU
-        if (frame_type == KEY_FRAME) {
-          found_keyframe = 1;
-          break;  // Stop here as no further OBUs will change the outcome.
-        } else
-#endif  // !CONFIG_F024_KEYOBU
-          if (frame_type == INTRA_ONLY_FRAME) {
-            intra_only_flag = 1;
-          }
-      }
-    }
-#endif  // KEY
     // skip past any unread OBU header data
     data += payload_size;
     data_sz -= payload_size;
@@ -582,9 +521,7 @@ static void init_buffer_callbacks(avm_codec_alg_priv_t *ctx) {
   cm->features.byte_alignment = ctx->byte_alignment;
   pbi->skip_loop_filter = ctx->skip_loop_filter;
   pbi->skip_film_grain = ctx->skip_film_grain;
-#if CONFIG_F024_KEYOBU
   pbi->random_access_point_index = ctx->random_access;
-#endif  // CONFIG_F024_KEYOBU
   pbi->bru_opt_mode = ctx->bru_opt_mode;
 
   if (ctx->get_ext_fb_cb != NULL && ctx->release_ext_fb_cb != NULL) {
@@ -680,13 +617,11 @@ static avm_codec_err_t init_decoder(avm_codec_alg_priv_t *ctx) {
          ctx->base.ibp_directional_weights,
          sizeof(ctx->base.ibp_directional_weights));
   worker->hook = frame_worker_hook;
-#if CONFIG_F024_KEYOBU
   frame_worker_data->pbi->olk_encountered = 0;
   frame_worker_data->pbi->random_accessed = false;
   frame_worker_data->pbi->is_first_layer_decoded = true;
   frame_worker_data->pbi->random_access_point_index = 0;
   frame_worker_data->pbi->random_access_point_count = 0;
-#endif
   frame_worker_data->pbi->multi_stream_mode = 0;
   frame_worker_data->pbi->msdo_is_present_in_tu = 0;
   init_buffer_callbacks(ctx);
@@ -797,9 +732,6 @@ static avm_codec_err_t decoder_inspect(avm_codec_alg_priv_t *ctx,
   for (int i = 0; i < frame_worker_data->pbi->common.seq_params.ref_frames; ++i)
     if (cm->ref_frame_map[i] == cm->cur_frame) data2->idx = i;
   data2->buf = data;
-#if !CONFIG_F024_KEYOBU
-  data2->show_existing = cm->show_existing_frame;
-#endif  // !CONFIG_F024_KEYOBU
   return res;
 }
 #endif
@@ -936,19 +868,11 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
     // is useful when OBUs are lost due to channel errors or removed for
     // temporal scalability.
     if (data == NULL && data_sz == 0) {
-#if CONFIG_F024_KEYOBU
       avm_codec_err_t err = flush_remaining_frames(pbi);
-#else
-      output_trailing_frames(pbi);
-#endif  // CONFIG_F024_KEYOBU
       for (size_t j = 0; j < pbi->num_output_frames; j++) {
         decrease_ref_count(pbi->output_frames[j], pool);
       }
-#if CONFIG_F024_KEYOBU
       return err;
-#else
-      return AVM_CODEC_OK;
-#endif  // CONFIG_F024_KEYOBU
     }
   }
 
@@ -1491,7 +1415,7 @@ static avm_codec_err_t ctrl_get_sb_size(avm_codec_alg_priv_t *ctx,
   }
   return AVM_CODEC_INVALID_PARAM;
 }
-#if !CONFIG_F024_KEYOBU
+
 static avm_codec_err_t ctrl_get_show_existing_frame_flag(
     avm_codec_alg_priv_t *ctx, va_list args) {
   int *const arg = va_arg(args, int *);
@@ -1500,7 +1424,7 @@ static avm_codec_err_t ctrl_get_show_existing_frame_flag(
              ->pbi->common.show_existing_frame;
   return AVM_CODEC_OK;
 }
-#endif
+
 static avm_codec_err_t ctrl_get_s_frame_info(avm_codec_alg_priv_t *ctx,
                                              va_list args) {
   avm_s_frame_info *const s_frame_info = va_arg(args, avm_s_frame_info *);
@@ -1775,7 +1699,7 @@ static avm_codec_err_t ctrl_set_skip_film_grain(avm_codec_alg_priv_t *ctx,
 
   return AVM_CODEC_OK;
 }
-#if CONFIG_F024_KEYOBU
+
 static avm_codec_err_t ctrl_set_random_access(avm_codec_alg_priv_t *ctx,
                                               va_list args) {
   ctx->random_access = va_arg(args, int);
@@ -1787,7 +1711,6 @@ static avm_codec_err_t ctrl_set_random_access(avm_codec_alg_priv_t *ctx,
   }
   return AVM_CODEC_OK;
 }
-#endif  // CONFIG_F024_KEYOBU
 
 static avm_codec_err_t ctrl_set_bru_opt_mode(avm_codec_alg_priv_t *ctx,
                                              va_list args) {
@@ -1868,9 +1791,7 @@ static avm_codec_ctrl_fn_map_t decoder_ctrl_maps[] = {
   { AV2_SET_INSPECTION_CALLBACK, ctrl_set_inspection_callback },
   { AV2D_SET_ROW_MT, ctrl_set_row_mt },
   { AV2D_SET_SKIP_FILM_GRAIN, ctrl_set_skip_film_grain },
-#if CONFIG_F024_KEYOBU
   { AV2D_SET_RANDOM_ACCESS, ctrl_set_random_access },
-#endif  // CONFIG_F024_KEYOBU
   { AV2D_SET_BRU_OPT_MODE, ctrl_set_bru_opt_mode },
   { AV2D_ENABLE_SUBGOP_STATS, ctrl_enable_subgop_stats },
 
@@ -1896,9 +1817,7 @@ static avm_codec_ctrl_fn_map_t decoder_ctrl_maps[] = {
   { AVMD_GET_SCREEN_CONTENT_TOOLS_INFO, ctrl_get_screen_content_tools_info },
   { AVMD_GET_STILL_PICTURE, ctrl_get_still_picture },
   { AVMD_GET_SB_SIZE, ctrl_get_sb_size },
-#if !CONFIG_F024_KEYOBU
   { AVMD_GET_SHOW_EXISTING_FRAME_FLAG, ctrl_get_show_existing_frame_flag },
-#endif
   { AVMD_GET_S_FRAME_INFO, ctrl_get_s_frame_info },
   { AVMD_GET_FRAME_INFO, ctrl_get_dec_frame_info },
 

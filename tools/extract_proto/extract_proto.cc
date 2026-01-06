@@ -711,13 +711,6 @@ void InspectFrame(void *pbi, void *data) {
   ExtractProtoContext *ctx = static_cast<ExtractProtoContext *>(data);
   insp_frame_data &frame_data = ctx->frame_data;
   ifd_inspect(&frame_data, pbi, 0);
-#if !CONFIG_F024_KEYOBU
-  // Show existing frames just show a reference buffer we've already decoded.
-  // There's no information to show.
-  if (frame_data.show_existing_frame) {
-    return;
-  }
-#endif
 
   AV2Decoder *decoder = (AV2Decoder *)pbi;
   AV2_COMMON *const cm = &decoder->common;

@@ -600,7 +600,7 @@ static void release_current_frame(AV2Decoder *pbi) {
   unlock_buffer_pool(pool);
   cm->cur_frame = NULL;
 }
-#if CONFIG_F024_KEYOBU
+
 // This function flushes out the DPB, all the slots in the dpb is free to use
 avm_codec_err_t flush_remaining_frames(struct AV2Decoder *pbi) {
   avm_codec_err_t res = AVM_CODEC_OK;
@@ -624,7 +624,7 @@ avm_codec_err_t flush_remaining_frames(struct AV2Decoder *pbi) {
   } while (output_candidate != NULL);
   return res;
 }
-#endif  // CONFIG_F024_KEYOBU
+
 // This function outputs frames that are ready to be output.
 // The output frames may be the output trigger frame along with
 // past frames that have not yet been output,
@@ -718,30 +718,7 @@ void output_frame_buffers(AV2Decoder *pbi, int ref_idx) {
     }
   }
 }
-#if !CONFIG_F024_KEYOBU
-// This function outputs all frames from the frame buffers that are showable but
-// have not yet been output in the previous CVS.
-void output_trailing_frames(AV2Decoder *pbi) {
-  AV2_COMMON *const cm = &pbi->common;
-  RefCntBuffer *output_candidate = NULL;
-  do {
-    output_candidate = NULL;
-    for (int i = 0; i < REF_FRAMES; i++) {
-      if (is_frame_eligible_for_output(cm->ref_frame_map[i]) &&
-          (output_candidate == NULL ||
-           cm->ref_frame_map[i]->display_order_hint <=
-               output_candidate->display_order_hint)) {
-        output_candidate = cm->ref_frame_map[i];
-      }
-    }
-    if (output_candidate != NULL) {
-      assign_output_frame_buffer_p(
-          &pbi->output_frames[pbi->num_output_frames++], output_candidate);
-      output_candidate->frame_output_done = 1;
-    }
-  } while (output_candidate != NULL);
-}
-#endif  // !CONFIG_F024_KEYOBU
+
 // If any buffer updating is signaled it should be done here.
 // Consumes a reference to cm->cur_frame.
 //
@@ -756,13 +733,6 @@ static void update_frame_buffers(AV2Decoder *pbi, int frame_decoded) {
 
   if (frame_decoded) {
     lock_buffer_pool(pool);
-#if !CONFIG_F024_KEYOBU
-    if (cm->current_frame.frame_type == KEY_FRAME &&
-        cm->immediate_output_picture &&
-        cm->current_frame.refresh_frame_flags ==
-            ((1 << cm->seq_params.ref_frames) - 1))
-      output_trailing_frames(pbi);
-#endif  // !CONFIG_F024_KEYOBU
 
     cm->cur_frame->is_restricted = false;
 
@@ -782,10 +752,7 @@ static void update_frame_buffers(AV2Decoder *pbi, int frame_decoded) {
         decrease_ref_count(cm->ref_frame_map[ref_index], pool);
         if ((cm->current_frame.frame_type == KEY_FRAME &&
              cm->immediate_output_picture == 1) &&
-#if CONFIG_F024_KEYOBU
-            cm->seq_params.max_mlayer_id == 0 &&
-#endif
-            ref_index > 0) {
+            cm->seq_params.max_mlayer_id == 0 && ref_index > 0) {
           cm->ref_frame_map[ref_index] = NULL;
         } else {
           cm->ref_frame_map[ref_index] = cm->cur_frame;
@@ -827,10 +794,7 @@ static AVM_INLINE void update_long_term_frame_id(AV2Decoder *const pbi) {
     if ((refresh_frame_flags >> i) & 1) {
       if ((cm->current_frame.frame_type == KEY_FRAME &&
            cm->immediate_output_picture == 1) &&
-#if CONFIG_F024_KEYOBU
-          cm->seq_params.max_mlayer_id == 0 &&
-#endif
-          i > 0) {
+          cm->seq_params.max_mlayer_id == 0 && i > 0) {
         pbi->long_term_ids_in_buffer[i] = -1;
         pbi->valid_for_referencing[i] = 0;
       } else {
@@ -862,12 +826,10 @@ int av2_receive_compressed_data(AV2Decoder *pbi, size_t size,
     RefCntBuffer *ref_buf = get_ref_frame_buf(cm, last_frame);
     if (ref_buf != NULL) ref_buf->buf.corrupted = 1;
   }
-#if CONFIG_F024_KEYOBU
   // flush_remaining_frames() is invoked before assign_cur_frame_new_fb().
   if (pbi->is_random_access_frame_unit == 1) {
     flush_remaining_frames(pbi);
   }
-#endif
   check_ref_count_status_dec(pbi);
   if (assign_cur_frame_new_fb(cm) == NULL) {
     cm->error.error_code = AVM_CODEC_MEM_ERROR;
@@ -943,21 +905,14 @@ int av2_receive_compressed_data(AV2Decoder *pbi, size_t size,
   }
 
   avm_clear_system_state();
-#if !CONFIG_F024_KEYOBU
-  if (!cm->show_existing_frame) {
-#endif
-    if (cm->seg.enabled) {
-      if (cm->prev_frame &&
-          (cm->mi_params.mi_rows == cm->prev_frame->mi_rows) &&
-          (cm->mi_params.mi_cols == cm->prev_frame->mi_cols)) {
-        cm->last_frame_seg_map = cm->prev_frame->seg_map;
-      } else {
-        cm->last_frame_seg_map = NULL;
-      }
+  if (cm->seg.enabled) {
+    if (cm->prev_frame && (cm->mi_params.mi_rows == cm->prev_frame->mi_rows) &&
+        (cm->mi_params.mi_cols == cm->prev_frame->mi_cols)) {
+      cm->last_frame_seg_map = cm->prev_frame->seg_map;
+    } else {
+      cm->last_frame_seg_map = NULL;
     }
-#if !CONFIG_F024_KEYOBU
   }
-#endif
 
   // Update progress in frame parallel decode.
   cm->error.setjmp = 0;

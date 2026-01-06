@@ -161,7 +161,6 @@ const char *avm_obu_type_to_string(OBU_TYPE type) {
 #endif  // CONFIG_CWG_F270_CI_OBU
     case OBU_TEMPORAL_DELIMITER: return "OBU_TEMPORAL_DELIMITER";
     case OBU_MULTI_FRAME_HEADER: return "OBU_MULTI_FRAME_HEADER";
-#if CONFIG_F024_KEYOBU
     case OBU_SWITCH: return "OBU_SWITCH";
     case OBU_LEADING_SEF: return "OBU_LEADING_SEF";
     case OBU_REGULAR_SEF: return "OBU_REGULAR_SEF";
@@ -171,12 +170,6 @@ const char *avm_obu_type_to_string(OBU_TYPE type) {
     case OBU_REGULAR_TILE_GROUP: return "OBU_REGULAR_TILE_GROUP";
     case OBU_CLK: return "OBU_CLK";
     case OBU_OLK: return "OBU_OLK";
-#else
-    case OBU_SWITCH: return "OBU_SWITCH";
-    case OBU_SEF: return "OBU_SEF";
-    case OBU_TIP: return "OBU_TIP";
-    case OBU_TILE_GROUP: return "OBU_TILE_GROUP";
-#endif  // CONFIG_F024_KEYOBU
     case OBU_METADATA_SHORT: return "OBU_METADATA_SHORT";
     case OBU_METADATA_GROUP: return "OBU_METADATA_GROUP";
     case OBU_LAYER_CONFIGURATION_RECORD:

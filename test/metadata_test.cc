@@ -150,28 +150,15 @@ class MetadataEncodeTest
 
       // look for valid metadatas in bitstream
       bool itut_t35_metadata_found = false;
-#if CONFIG_F024_KEYOBU
       // skip first 5 bytes (muh_metadata_type, muh_header_size,
       // muh_payload_size, layer_idc+persistence_idc+priority+reserved
       const size_t kMetadataObuSizeT35_payload_only = kMetadataObuSizeT35 - 5;
       const uint8_t *kMetadataObuT35_payload_pointer = &kMetadataObuT35[5];
-#endif
       if (bitstream_size >= kMetadataObuSizeT35) {
         for (size_t i = 0;
-#if CONFIG_F024_KEYOBU
-             i <= bitstream_size - kMetadataObuSizeT35_payload_only;
-#else
-             i <= bitstream_size - kMetadataObuSizeT35;
-#endif
-             ++i) {
-          if (memcmp(bitstream + i,
-#if CONFIG_F024_KEYOBU
-                     kMetadataObuT35_payload_pointer,
-                     kMetadataObuSizeT35_payload_only
-#else
-                     kMetadataObuT35, kMetadataObuSizeT35
-#endif
-                     ) == 0) {
+             i <= bitstream_size - kMetadataObuSizeT35_payload_only; ++i) {
+          if (memcmp(bitstream + i, kMetadataObuT35_payload_pointer,
+                     kMetadataObuSizeT35_payload_only) == 0) {
             itut_t35_metadata_found = true;
           }
         }
@@ -181,29 +168,16 @@ class MetadataEncodeTest
       if (is_keyframe) {
         // Testing for HDR MDCV metadata
         bool hdr_mdcv_metadata_found = false;
-#if CONFIG_F024_KEYOBU
         // skip first 5 bytes (muh_metadata_type, muh_header_size,
         // muh_payload_size, layer_idc+persistence_idc+priority+reserved
         const size_t kMetadataObuSizeMdcv_payload_only =
             kMetadataObuSizeMdcv - 5;
         const uint8_t *kMetadataObuMdcv_payload_pointer = &kMetadataObuMdcv[5];
-#endif  // CONFIG_F024_KEYOBU
         if (bitstream_size >= kMetadataObuSizeMdcv) {
           for (size_t i = 0;
-#if CONFIG_F024_KEYOBU
-               i <= bitstream_size - kMetadataObuSizeMdcv_payload_only;
-#else
-               i <= bitstream_size - kMetadataObuSizeMdcv;
-#endif
-               ++i) {
-            if (memcmp(bitstream + i,
-#if CONFIG_F024_KEYOBU
-                       kMetadataObuMdcv_payload_pointer,
-                       kMetadataObuSizeMdcv_payload_only
-#else
-                       kMetadataObuMdcv, kMetadataObuSizeMdcv
-#endif  // CONFIG_F024_KEYOBU
-                       ) == 0) {
+               i <= bitstream_size - kMetadataObuSizeMdcv_payload_only; ++i) {
+            if (memcmp(bitstream + i, kMetadataObuMdcv_payload_pointer,
+                       kMetadataObuSizeMdcv_payload_only) == 0) {
               hdr_mdcv_metadata_found = true;
             }
           }
@@ -212,28 +186,15 @@ class MetadataEncodeTest
 
         // Testing for HDR CLL metadata
         bool hdr_cll_metadata_found = false;
-#if CONFIG_F024_KEYOBU
         // skip first 5 bytes (muh_metadata_type, muh_header_size,
         // muh_payload_size, layer_idc+persistence_idc+priority+reserved
         const size_t kMetadataObuSizeCll_payload_only = kMetadataObuSizeCll - 5;
         const uint8_t *kMetadataObuCll_payload_pointer = &kMetadataObuCll[5];
-#endif  // CONFIG_F024_KEYOBU
         if (bitstream_size >= kMetadataObuSizeCll) {
           for (size_t i = 0;
-#if CONFIG_F024_KEYOBU
-               i <= bitstream_size - kMetadataObuSizeCll_payload_only;
-#else
-               i <= bitstream_size - kMetadataObuSizeCll;
-#endif
-               ++i) {
-            if (memcmp(bitstream + i,
-#if CONFIG_F024_KEYOBU
-                       kMetadataObuCll_payload_pointer,
-                       kMetadataObuSizeCll_payload_only
-#else
-                       kMetadataObuCll, kMetadataObuSizeCll
-#endif
-                       ) == 0) {
+               i <= bitstream_size - kMetadataObuSizeCll_payload_only; ++i) {
+            if (memcmp(bitstream + i, kMetadataObuCll_payload_pointer,
+                       kMetadataObuSizeCll_payload_only) == 0) {
               hdr_cll_metadata_found = true;
             }
           }

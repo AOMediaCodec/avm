@@ -1175,9 +1175,7 @@ typedef struct {
 
 typedef struct {
   FRAME_TYPE frame_type;
-#if CONFIG_F024_KEYOBU
   OBU_TYPE cm_obu_type;
-#endif
   REFERENCE_MODE reference_mode;
 
   unsigned int order_hint;
@@ -2417,7 +2415,6 @@ typedef struct AV2Common {
    */
 #endif  // CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
   int implicit_output_picture;
-#if CONFIG_F024_KEYOBU
   /*!
    * index in the cm->ref_frame_map for the reference frame of duplicated frame
    */
@@ -2426,13 +2423,6 @@ typedef struct AV2Common {
   /*!
    * If true, the obu_type of the frame is SEF_OBU
    */
-#else
-  /*!
-   * If true, show an existing frame coded before, instead of actually coding a
-   * frame. The existing frame comes from one of the existing reference buffers,
-   * as signaled in the bitstream.
-   */
-#endif  // CONFIG_F024_KEYOBU
   int show_existing_frame;
   /*!
    * If true, order_hint of the SEF OBU is derived from the reference frame
@@ -2874,7 +2864,6 @@ typedef struct AV2Common {
    */
   avm_metadata_temporal_point_info_t temporal_point_info_metadata;
 
-#if CONFIG_F024_KEYOBU
   /*!
    * Order hint of the last encountered OLK per layer
    */
@@ -2892,7 +2881,6 @@ typedef struct AV2Common {
    */
   int is_leading_picture;
 
-#endif
   /*!
    * film grain id
    */
@@ -3020,12 +3008,8 @@ static INLINE int get_free_fb(AV2_COMMON *cm) {
   } else {
     // We should never run out of free buffers. If this assertion fails, there
     // is a reference leak.
-#if CONFIG_F024_KEYOBU
     avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
                        "Unable to find free frame buffer");
-#else
-    assert(0 && "Ran out of free frame buffers. Likely a reference leak.");
-#endif
     // Reset i to be INVALID_IDX to indicate no free buffer found.
     i = INVALID_IDX;
   }

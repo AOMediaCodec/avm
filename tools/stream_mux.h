@@ -133,29 +133,15 @@ bool ValidObuType(int obu_type) {
     case OBU_SEQUENCE_HEADER:
     case OBU_TEMPORAL_DELIMITER:
     case OBU_MULTI_FRAME_HEADER:
-#if CONFIG_F024_KEYOBU
     case OBU_CLK:
     case OBU_OLK:
-#endif
     case OBU_SWITCH:
-#if CONFIG_F024_KEYOBU
     case OBU_LEADING_SEF:
     case OBU_REGULAR_SEF:
-#else
-    case OBU_SEF:
-#endif
-#if CONFIG_F024_KEYOBU
     case OBU_LEADING_TIP:
     case OBU_REGULAR_TIP:
-#else
-    case OBU_TIP:
-#endif
-#if CONFIG_F024_KEYOBU
     case OBU_LEADING_TILE_GROUP:
     case OBU_REGULAR_TILE_GROUP:
-#else
-    case OBU_TILE_GROUP:
-#endif
     case OBU_METADATA_SHORT:
     case OBU_METADATA_GROUP:
     case OBU_LAYER_CONFIGURATION_RECORD:

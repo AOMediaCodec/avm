@@ -161,11 +161,7 @@ static void av2_validate_seq_conformance_window(
 //   Within a particular coded video sequence, the contents of
 //   sequence_header_obu must be bit-identical each time the sequence header
 //   appears except for the contents of operating_parameters_info.
-#if !CONFIG_F024_KEYOBU
-static
-#endif  // !CONFIG_F024_KEYOBU
-    int
-    are_seq_headers_consistent(const SequenceHeader *seq_params_old,
+int are_seq_headers_consistent(const SequenceHeader *seq_params_old,
                                const SequenceHeader *seq_params_new) {
   return !memcmp(seq_params_old, seq_params_new,
                  offsetof(SequenceHeader, op_params));
@@ -615,18 +611,10 @@ static uint32_t read_tilegroup_obu(AV2Decoder *pbi,
       pbi, rb, data, p_data_end, is_first_tg, &start_tile, &end_tile, obu_type);
 
   bool skip_payload = false;
-#if CONFIG_F024_KEYOBU
   skip_payload |= (obu_type == OBU_LEADING_SEF);
   skip_payload |= (obu_type == OBU_REGULAR_SEF);
-#else
-  skip_payload |= (obu_type == OBU_SEF);
-#endif  // CONFIG_F024_KEYOBU
-#if CONFIG_F024_KEYOBU
   skip_payload |= (obu_type == OBU_LEADING_TIP);
   skip_payload |= (obu_type == OBU_REGULAR_TIP);
-#else
-  skip_payload |= (obu_type == OBU_TIP);
-#endif  // CONFIG_F024_KEYOBU
   skip_payload |= cm->bru.frame_inactive_flag;
   skip_payload |= cm->bridge_frame_info.is_bridge_frame;
 
@@ -1453,7 +1441,6 @@ static size_t read_padding(AV2_COMMON *const cm, const uint8_t *data,
   return sz;
 }
 
-#if CONFIG_F024_KEYOBU
 int av2_ci_keyframe_in_temporal_unit(struct AV2Decoder *pbi,
                                      const uint8_t *data, size_t data_sz) {
   const uint8_t *data_read = data;
@@ -1492,14 +1479,11 @@ int av2_ci_keyframe_in_temporal_unit(struct AV2Decoder *pbi,
   }
   return 0;
 }
-#endif
 
-#if CONFIG_F024_KEYOBU
 static int is_leading_vcl_obu(OBU_TYPE obu_type) {
   return (obu_type == OBU_LEADING_TILE_GROUP || obu_type == OBU_LEADING_SEF ||
           obu_type == OBU_LEADING_TIP);
 }
-#endif  // CONFIG_F024_KEYOBU
 
 // Check if any obu is present between two tile groups of one frame unit.
 static void check_tilegroup_obus_in_a_frame_unit(AV2_COMMON *const cm,
@@ -1702,7 +1686,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
       return -1;
     }
 
-#if CONFIG_F024_KEYOBU
     // Skip all obus till the random_accessed-th random access point
     // Remove all leading_vcl obus
     if (obu_header.type == OBU_LEADING_SEF ||
@@ -1743,7 +1726,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
       else
         pbi->multi_stream_mode = 0;
     }
-#endif
 
     obu_info *const curr_obu_info =
         &obu_list[pbi->test_decoder_frame_unit_offset +
@@ -1869,11 +1851,9 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         pbi->stream_switched = 0;
         decoded_payload_size = read_sequence_header_obu(pbi, &rb);
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
-#if CONFIG_F024_KEYOBU
         pbi->is_first_layer_decoded = true;
         for (int layer = 0; layer < MAX_NUM_MLAYERS; layer++)
           cm->olk_refresh_frame_flags[layer] = -1;
-#endif  // CONFIG_F024_KEYOBU
         break;
       case OBU_BUFFER_REMOVAL_TIMING:
         decoded_payload_size =
@@ -1905,27 +1885,15 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         decoded_payload_size = read_multi_frame_header_obu(pbi, &rb);
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
         break;
-#if CONFIG_F024_KEYOBU
       case OBU_CLK:
       case OBU_OLK:
       case OBU_LEADING_TILE_GROUP:
       case OBU_REGULAR_TILE_GROUP:
-#else
-      case OBU_TILE_GROUP:
-#endif  // CONFIG_F024_KEYOBU
       case OBU_SWITCH:
-#if CONFIG_F024_KEYOBU
       case OBU_LEADING_SEF:
       case OBU_REGULAR_SEF:
-#else
-      case OBU_SEF:
-#endif  // CONFIG_F024_KEYOBU
-#if CONFIG_F024_KEYOBU
       case OBU_LEADING_TIP:
       case OBU_REGULAR_TIP:
-#else
-      case OBU_TIP:
-#endif  // CONFIG_F024_KEYOBU
       case OBU_RAS_FRAME:
       case OBU_BRIDGE_FRAME:
         keyframe_present =

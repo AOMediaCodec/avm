@@ -105,20 +105,10 @@ enum {
   FRAMEFLAGS_HAS_FILM_GRAIN_PARAMS = 1 << 7,
 } UENUM1BYTE(FRAMETYPE_FLAGS);
 
-static INLINE int get_true_pyr_level(int frame_level,
-#if CONFIG_F024_KEYOBU
-                                     int is_key_frame,
-#else
-                                     int frame_order,
-#endif  // CONFIG_F024_KEYOBU
+static INLINE int get_true_pyr_level(int frame_level, int is_key_frame,
                                      int max_layer_depth, int is_key_overlay) {
   if (is_key_overlay) return max_layer_depth;
-#if CONFIG_F024_KEYOBU
-  if (is_key_frame)
-#else
-  if (frame_order == 0)
-#endif  // CONFIG_F024_KEYOBU
-  {
+  if (is_key_frame) {
     // Keyframe case
     return 1;
   } else if (frame_level == MAX_ARF_LAYERS) {
@@ -2330,7 +2320,6 @@ typedef struct AV2_COMP {
    * When set, this flag indicates that the current frame is a forward keyframe.
    */
   int no_show_fwd_kf;
-#if CONFIG_F024_KEYOBU
   /*!
    * Indicates an OLK obu is encountered in any layer
    * It is initialized as 0 and set 1 when the first olk is decoded and set 0
@@ -2345,7 +2334,6 @@ typedef struct AV2_COMP {
    * If true, the overlay update is for an OLK
    */
   bool is_olk_overlay;
-#endif
   /*!
    * Stores the trellis optimization type at segment level.
    * optimize_seg_arr[i] stores the trellis opt type for ith segment.
@@ -2681,21 +2669,12 @@ typedef struct AV2_COMP {
    * Multi-threading parameters.
    */
   MultiThreadInfo mt_info;
-#if CONFIG_F024_KEYOBU
   /*!
    * Specifies the frame to be output. It is valid only if show_existing_frame
    * is 1. When show_existing_frame is 0, existing_fb_idx_to_show is set to
    * INVALID_IDX.
    */
   int fb_idx_for_overlay;
-#else
-  /*!
-   * Specifies the frame to be output. It is valid only if show_existing_frame
-   * is 1. When show_existing_frame is 0, existing_fb_idx_to_show is set to
-   * INVALID_IDX.
-   */
-  int existing_fb_idx_to_show;
-#endif
   /*!
    * When set, indicates that internal ARFs are enabled.
    */
@@ -3013,16 +2992,9 @@ typedef struct EncodeFrameParams {
 
   /*!\cond */
   int refresh_frame_flags;
-#if CONFIG_F024_KEYOBU
   bool frame_params_update_type_was_overlay;
   int fb_idx_for_overlay;
-#else
-  int show_existing_frame;
-  int existing_fb_idx_to_show;
-#endif
-#if CONFIG_F024_KEYOBU
   OBU_TYPE frame_params_obu_type;
-#endif
   int duplicate_existing_frame;
   /*!\endcond */
   /*!
@@ -3324,18 +3296,6 @@ static INLINE int *cond_cost_list(const struct AV2_COMP *cpi, int *cost_list) {
 }
 
 void av2_new_framerate(AV2_COMP *cpi, double framerate);
-
-#if !CONFIG_F024_KEYOBU
-// Don't allow a show_existing_frame to coincide with an error resilient
-// frame. An exception can be made for a forward keyframe since it has no
-// previous dependencies.
-static INLINE int encode_show_existing_frame(const AV2_COMMON *cm) {
-  if (!cm->show_existing_frame) return 0;
-  // show_existing_frame can be equal to 1
-  // only for a forward key frame
-  return (!frame_is_sframe(cm) && cm->current_frame.frame_type == KEY_FRAME);
-}
-#endif
 
 // Get index into the 'cpi->mbmi_ext_info.frame_base' array for the given
 // 'mi_row' and 'mi_col'.

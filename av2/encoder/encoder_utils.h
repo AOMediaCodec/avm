@@ -900,15 +900,6 @@ static AVM_INLINE void release_scaled_references(AV2_COMP *cpi) {
 // Refresh reference frame buffers according to refresh_frame_flags.
 static AVM_INLINE void refresh_reference_frames(AV2_COMP *cpi) {
   AV2_COMMON *const cm = &cpi->common;
-#if !CONFIG_F024_KEYOBU
-  // Reset display order hint for forward keyframe
-  // TODO(sarahparker): Find a way to also reset order_hint without causing
-  // a crash.
-  if (cm->cur_frame->frame_type == KEY_FRAME && cm->show_existing_frame) {
-    cm->cur_frame->display_order_hint = 0;
-    cm->cur_frame->display_order_hint_restricted = 0;
-  }
-#endif  // ! CONFIG_F024_KEYOBU
   cm->cur_frame->is_restricted = false;
   if (!cm->bru.enabled) {
     // All buffers are refreshed for shown keyframes and S-frames.
@@ -917,10 +908,7 @@ static AVM_INLINE void refresh_reference_frames(AV2_COMP *cpi) {
       if (((cm->current_frame.refresh_frame_flags >> ref_frame) & 1) == 1) {
         if (cm->cur_frame->frame_type == KEY_FRAME &&
             cm->immediate_output_picture == 1 &&
-#if CONFIG_F024_KEYOBU
-            cm->seq_params.max_mlayer_id == 0 &&
-#endif
-            ref_frame > 0) {
+            cm->seq_params.max_mlayer_id == 0 && ref_frame > 0) {
           // NOTE: if a keyframe has refresh_idx!=0, this process doesnot add
           // the keyframe to the reference list. for example, mlayer_id=1,
           // refresh_frame_flags=64

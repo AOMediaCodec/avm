@@ -77,11 +77,8 @@ int av2_check_byte_alignment(AV2_COMMON *const cm,
 // failure.
 int av2_check_trailing_bits(struct AV2Decoder *pbi,
                             struct avm_read_bit_buffer *rb);
-#if CONFIG_F024_KEYOBU
 int are_seq_headers_consistent(const SequenceHeader *seq_params_old,
                                const SequenceHeader *seq_params_new);
-#endif  // CONFIG_F024_KEYOBU
-
 // On success, returns the tilegroup header size. On failure, calls
 // avm_internal_error and does not return.
 int32_t av2_read_tilegroup_header(

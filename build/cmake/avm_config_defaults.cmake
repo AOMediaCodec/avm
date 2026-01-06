@@ -61,8 +61,6 @@ set_avm_detect_var(HAVE_UNISTD_H 0
                    "Internal flag, unistd.h present for target.")
 set_avm_detect_var(HAVE_WXWIDGETS 0 "WxWidgets present.")
 
-set_avm_config_var(CONFIG_F024_KEYOBU 1 "Use Key OBUs.")
-
 #
 # Variables in this section can be set from the CMake command line or from
 # within the CMake GUI. The variables control libavm features.

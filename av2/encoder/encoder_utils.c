@@ -901,20 +901,8 @@ void av2_finalize_encoded_frame(AV2_COMP *const cpi) {
   if (!cm->seq_params.single_picture_header_flag && cm->show_existing_frame &&
       !cm->derive_sef_order_hint) {
     direct_existing_frames_to_current(cpi);
-  } else
-#if CONFIG_F024_KEYOBU
-      if (cm->show_existing_frame && cm->derive_sef_order_hint)
-#else
-      if (!cm->seq_params.single_picture_header_flag &&
-          (encode_show_existing_frame(cm) || cm->show_existing_frame))
-#endif
-  {
-    RefCntBuffer *const frame_to_show =
-#if CONFIG_F024_KEYOBU
-        cm->ref_frame_map[cm->sef_ref_fb_idx];
-#else
-        cm->ref_frame_map[cpi->existing_fb_idx_to_show];
-#endif
+  } else if (cm->show_existing_frame && cm->derive_sef_order_hint) {
+    RefCntBuffer *const frame_to_show = cm->ref_frame_map[cm->sef_ref_fb_idx];
 
     if (frame_to_show == NULL) {
       avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
@@ -923,13 +911,7 @@ void av2_finalize_encoded_frame(AV2_COMP *const cpi) {
     assign_frame_buffer_p(&cm->cur_frame, frame_to_show);
   }
 
-  if (
-#if CONFIG_F024_KEYOBU
-      !cm->show_existing_frame &&
-#else
-      !encode_show_existing_frame(cm) &&
-#endif
-      cm->seq_params.film_grain_params_present &&
+  if (!cm->show_existing_frame && cm->seq_params.film_grain_params_present &&
       (cm->immediate_output_picture || cm->implicit_output_picture)) {
     // Copy the current frame's film grain params to the its corresponding
     // RefCntBuffer slot.

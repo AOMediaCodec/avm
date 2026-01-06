@@ -5277,13 +5277,7 @@ static AVM_INLINE void write_show_existing_frame(
     AV2_COMP *cpi, struct avm_write_bit_buffer *wb) {
   AV2_COMMON *const cm = &cpi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
-  avm_wb_write_literal(wb,
-#if CONFIG_F024_KEYOBU
-                       cm->sef_ref_fb_idx,
-#else
-                       cpi->existing_fb_idx_to_show,
-#endif
-                       cm->seq_params.ref_frames_log2);
+  avm_wb_write_literal(wb, cm->sef_ref_fb_idx, cm->seq_params.ref_frames_log2);
   avm_wb_write_bit(wb, cm->derive_sef_order_hint);
   if (!cm->derive_sef_order_hint) {
     avm_wb_write_literal(
@@ -5330,51 +5324,26 @@ static AVM_INLINE void write_uncompressed_header(
   }
 
   if (seq_params->still_picture) {
-#if !CONFIG_F024_KEYOBU
-    assert(cm->show_existing_frame == 0);
-#endif
     assert(cm->immediate_output_picture == 1);
     assert(current_frame->frame_type == KEY_FRAME);
   }
 
   if (!seq_params->single_picture_header_flag) {
-#if CONFIG_F024_KEYOBU
-    if (obu_type == OBU_LEADING_SEF || obu_type == OBU_REGULAR_SEF)
-#else
-    if (obu_type == OBU_SEF)
-#endif
-    {
+    if (obu_type == OBU_LEADING_SEF || obu_type == OBU_REGULAR_SEF) {
       write_show_existing_frame(cpi, wb);
       return;
     }
 
-#if CONFIG_F024_KEYOBU
     bool frame_type_signaled = true;
     frame_type_signaled &= (obu_type != OBU_CLK && obu_type != OBU_OLK);
     frame_type_signaled &= (obu_type != OBU_SWITCH);
     frame_type_signaled &=
         (obu_type != OBU_LEADING_TIP && obu_type != OBU_REGULAR_TIP);
     frame_type_signaled &= (!cm->bridge_frame_info.is_bridge_frame);
-#else   // CONFIG_F024_KEYOBU
-    bool frame_type_signaled = true;
-    frame_type_signaled &= (obu_type != OBU_SWITCH);
-    frame_type_signaled &= (obu_type != OBU_RAS_FRAME);
-    frame_type_signaled &= (obu_type != OBU_TIP);
-    frame_type_signaled &= (!cm->bridge_frame_info.is_bridge_frame);
-#endif  //  CONFIG_F024_KEYOBU
 
     if (frame_type_signaled) {
       const int is_inter_frame = (current_frame->frame_type == INTER_FRAME);
       avm_wb_write_bit(wb, is_inter_frame);
-#if !CONFIG_F024_KEYOBU
-      if (!is_inter_frame) {
-        const int is_key_frame = (current_frame->frame_type == KEY_FRAME);
-        avm_wb_write_bit(wb, is_key_frame);
-        if (!is_key_frame) {
-          avm_wb_write_bit(wb, current_frame->frame_type == INTRA_ONLY_FRAME);
-        }
-      }
-#endif  // !CONFIG_F024_KEYOBU
     }
 
     if (current_frame->frame_type == KEY_FRAME) {
@@ -5393,10 +5362,7 @@ static AVM_INLINE void write_uncompressed_header(
         avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
                            "Bridge frame immediate_output_picture is 1");
       }
-    } else
-#if CONFIG_F024_KEYOBU
-        if (obu_type != OBU_OLK)
-#endif  // CONFIG_F024_KEYOBU
+    } else if (obu_type != OBU_OLK)
       avm_wb_write_bit(wb, cm->immediate_output_picture);
 
     if (!cm->immediate_output_picture) {
@@ -5477,7 +5443,6 @@ static AVM_INLINE void write_uncompressed_header(
     }  // if (!features->error_resilient_mode && !frame_is_intra_only(cm))
   }  // !if (seq_params->single_picture_hdr_flag)
 
-#if CONFIG_F024_KEYOBU
   if (obu_type == OBU_OLK) {
     cpi->olk_encountered = 1;
     cm->last_olk_disp_order_hint[cm->mlayer_id] =
@@ -5494,9 +5459,7 @@ static AVM_INLINE void write_uncompressed_header(
     cpi->olk_encountered = 0;
     cm->olk_refresh_frame_flags[cm->mlayer_id] = INVALID_IDX;
   }
-#endif  // CONFIG_F024_KEYOBU
 
-#if CONFIG_F024_KEYOBU
   if (obu_type == OBU_CLK || obu_type == OBU_OLK) {
     int refresh_idx = -1;
     if (obu_type == OBU_CLK && seq_params->max_mlayer_id == 0) {
@@ -5543,12 +5506,7 @@ static AVM_INLINE void write_uncompressed_header(
       // Shown keyframes and switch-frames automatically refreshes all reference
       // frames.  For all other frame types, we need to write
       // refresh_frame_flags.
-      if (
-#if !CONFIG_F024_KEYOBU
-          (current_frame->frame_type == KEY_FRAME &&
-           !cm->immediate_output_picture) ||
-#endif  // !CONFIG_F024_KEYOBU
-          (current_frame->frame_type == INTER_FRAME &&
+      if ((current_frame->frame_type == INTER_FRAME &&
            cpi->switch_frame_mode != 1) ||
           (current_frame->frame_type == S_FRAME &&
            cpi->switch_frame_mode != 1) ||
@@ -5589,70 +5547,6 @@ static AVM_INLINE void write_uncompressed_header(
     }  //(!cm->bridge_frame_info.is_bridge_frame ||
        // cm->bridge_frame_info.bridge_frame_overwrite_flag)
   }  // else of (CLK || OLK)
-#else  // CONFIG_F024_KEYOBU
-  if (cm->bridge_frame_info.is_bridge_frame) {
-    avm_wb_write_literal(wb, cm->bridge_frame_info.bridge_frame_overwrite_flag,
-                         1);
-
-    if (!cm->bridge_frame_info.bridge_frame_overwrite_flag) {
-      if (current_frame->refresh_frame_flags !=
-          (1 << cm->bridge_frame_info.bridge_frame_ref_idx)) {
-        avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-                           "Bridge frame refresh_frame_flags is not equal to 1 "
-                           "<< bridge_frame_ref_idx");
-      }
-    }
-  }
-
-  if (!cm->bridge_frame_info.is_bridge_frame ||
-      cm->bridge_frame_info.bridge_frame_overwrite_flag) {
-    // Shown keyframes and switch-frames automatically refreshes all
-    // reference frames.  For all other frame types, we need to write
-    // refresh_frame_flags.
-    if ((current_frame->frame_type == KEY_FRAME &&
-         !cm->immediate_output_picture) ||
-        current_frame->frame_type == S_FRAME ||
-        (current_frame->frame_type == INTER_FRAME &&
-         cpi->switch_frame_mode != 1) ||
-        (current_frame->frame_type == S_FRAME && cpi->switch_frame_mode != 1) ||
-        current_frame->frame_type == INTRA_ONLY_FRAME) {
-      if (cm->seq_params.enable_short_refresh_frame_flags &&
-          !(current_frame->frame_type == KEY_FRAME &&
-            !cm->immediate_output_picture) &&
-          !frame_is_sframe(cm)) {
-        const bool has_refresh_frame_flags =
-            current_frame->refresh_frame_flags != 0;
-        avm_wb_write_literal(wb, has_refresh_frame_flags, 1);
-        if (has_refresh_frame_flags) {
-          int refresh_idx = 0;
-          for (int i = 0; i < cm->seq_params.ref_frames; ++i) {
-            if ((current_frame->refresh_frame_flags >> i) & 1) {
-              refresh_idx = i;
-              break;
-            }
-          }
-          avm_wb_write_literal(wb, refresh_idx, seq_params->ref_frames_log2);
-        }
-      }
-      // if (cm->seq_params.enable_short_refresh_frame_flags &&
-      //  !(current_frame->frame_type == KEY_FRAME &&
-      //  !cm->immediate_output_picture) && !frame_is_sframe(cm))
-      else {
-        avm_wb_write_literal(wb, current_frame->refresh_frame_flags,
-                             cm->seq_params.ref_frames);
-      }
-    }
-    //  ((current_frame->frame_type == KEY_FRAME &&
-    //  !cm->immediate_output_picture) ||
-    //        (current_frame->frame_type == INTER_FRAME &&
-    //         cpi->switch_frame_mode != 1) ||
-    //        (current_frame->frame_type == S_FRAME && cpi->switch_frame_mode !=
-    //        1)
-    //        || current_frame->frame_type == INTRA_ONLY_FRAME)
-  }  //(!cm->bridge_frame_info.is_bridge_frame ||
-  // cm->bridge_frame_info.bridge_frame_overwrite_flag)
-
-#endif  // CONFIG_F024_KEYOBU
 
   if (current_frame->frame_type == KEY_FRAME) {
     write_frame_size(cm, frame_size_override_flag, wb);
@@ -5709,13 +5603,8 @@ static AVM_INLINE void write_uncompressed_header(
         write_frame_size(cm, frame_size_override_flag, wb);
       }
 
-#if CONFIG_F024_KEYOBU
       if (obu_type != OBU_REGULAR_TIP && obu_type != OBU_LEADING_TIP &&
-          current_frame->frame_type == INTER_FRAME)
-#else
-      if (obu_type != OBU_TIP && current_frame->frame_type == INTER_FRAME)
-#endif
-      {
+          current_frame->frame_type == INTER_FRAME) {
         encode_bru_active_info(cpi, wb);
       }
       if (cm->bru.frame_inactive_flag ||
@@ -5750,12 +5639,7 @@ static AVM_INLINE void write_uncompressed_header(
           !cm->bridge_frame_info.is_bridge_frame &&
           !cm->bru.frame_inactive_flag) {
         if (cm->seq_params.enable_tip == 1) {
-#if CONFIG_F024_KEYOBU
-          if (obu_type != OBU_LEADING_TIP && obu_type != OBU_REGULAR_TIP)
-#else
-          if (obu_type != OBU_TIP)
-#endif
-          {
+          if (obu_type != OBU_LEADING_TIP && obu_type != OBU_REGULAR_TIP) {
             avm_wb_write_bit(wb, features->tip_frame_mode == TIP_FRAME_AS_REF);
           }
         } else {
@@ -6094,19 +5978,12 @@ static int remux_tiles(const CommonTileParams *const tiles, uint8_t *dst,
 uint32_t av2_write_obu_header(AV2LevelParams *const level_params,
                               OBU_TYPE obu_type, int obu_temporal,
                               int obu_layer, uint8_t *const dst) {
-#if CONFIG_F024_KEYOBU
   bool count_header = (obu_type == OBU_REGULAR_TILE_GROUP ||
                        obu_type == OBU_LEADING_TILE_GROUP);
   count_header |= (obu_type == OBU_SWITCH);
   count_header |= (obu_type == OBU_LEADING_SEF || obu_type == OBU_REGULAR_SEF);
   count_header |= (obu_type == OBU_LEADING_TIP || obu_type == OBU_REGULAR_TIP);
   count_header |= (obu_type == OBU_CLK || obu_type == OBU_OLK);
-#else
-  bool count_header = (obu_type == OBU_TILE_GROUP);
-  count_header |= (obu_type == OBU_SWITCH);
-  count_header |= (obu_type == OBU_SEF);
-  count_header |= (obu_type == OBU_TIP);
-#endif  // CONFIG_F024_KEYOBU
 
   count_header |= (obu_type == OBU_RAS_FRAME);
   if (level_params->keep_level_stats && count_header)
@@ -6524,15 +6401,10 @@ static uint32_t write_tilegroup_header(AV2_COMP *cpi, OBU_TYPE obu_type,
   struct avm_write_bit_buffer wb = { dst, 0 };
   int first_tile_group_in_frame = start_tile_idx == 0 ? 1 : 0;
   bool send_first_tile_group_indication = true;
-#if CONFIG_F024_KEYOBU
   send_first_tile_group_indication &= obu_type != OBU_REGULAR_SEF;
   send_first_tile_group_indication &= obu_type != OBU_LEADING_SEF;
   send_first_tile_group_indication &= obu_type != OBU_REGULAR_TIP;
   send_first_tile_group_indication &= obu_type != OBU_LEADING_TIP;
-#else
-  send_first_tile_group_indication &= obu_type != OBU_SEF;
-  send_first_tile_group_indication &= obu_type != OBU_TIP;
-#endif  // CONFIG_F024_KEYOBU
   send_first_tile_group_indication &= obu_type != OBU_BRIDGE_FRAME;
 
   if (send_first_tile_group_indication)
@@ -6551,15 +6423,10 @@ static uint32_t write_tilegroup_header(AV2_COMP *cpi, OBU_TYPE obu_type,
   skip_tile_indices |= cpi->common.bru.frame_inactive_flag;
   skip_tile_indices |= cpi->common.bridge_frame_info.is_bridge_frame;
 
-#if CONFIG_F024_KEYOBU
   skip_tile_indices |= obu_type == OBU_LEADING_SEF;
   skip_tile_indices |= obu_type == OBU_REGULAR_SEF;
   skip_tile_indices |= obu_type == OBU_LEADING_TIP;
   skip_tile_indices |= obu_type == OBU_REGULAR_TIP;
-#else
-  skip_tile_indices |= obu_type == OBU_SEF;
-  skip_tile_indices |= obu_type == OBU_TIP;
-#endif  // CONFIG_F024_KEYOBU
   if (skip_tile_indices) {
     av2_add_trailing_bits(&wb);
   } else {
@@ -6597,17 +6464,10 @@ static uint32_t write_tilegroup_obu(
   }
   bool skip_tilegroup_payload = false;
 
-#if CONFIG_F024_KEYOBU
   skip_tilegroup_payload |= (obu_type == OBU_LEADING_SEF);
   skip_tilegroup_payload |= (obu_type == OBU_REGULAR_SEF);
   skip_tilegroup_payload |= (obu_type == OBU_LEADING_TIP);
   skip_tilegroup_payload |= (obu_type == OBU_REGULAR_TIP);
-#else
-  skip_tilegroup_payload |= (obu_type == OBU_SEF);
-  skip_tilegroup_payload |= (obu_type == OBU_TIP);
-
-#endif  // CONFIG_F024_KEYOBU
-
   skip_tilegroup_payload |= cm->bru.frame_inactive_flag;
   skip_tilegroup_payload |= cm->bridge_frame_info.is_bridge_frame;
 
@@ -7240,12 +7100,9 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
   }
 
   // write sequence header obu if obu type is CLK, preceded by 4-byte size
-#if CONFIG_F024_KEYOBU
-  if (cm->current_frame.cm_obu_type == OBU_CLK)
-#else
-  if (av2_is_shown_keyframe(cpi, cm->current_frame.frame_type))
-#endif
-  {
+  // NOTE: by signalling a SH only with CLK, bitstreams generated by the AVM s/w
+  // may not be random accessed to an OBU_OLK
+  if (cm->current_frame.cm_obu_type == OBU_CLK) {
     obu_header_size =
         av2_write_obu_header(level_params, OBU_SEQUENCE_HEADER, 0, 0, data);
 
@@ -7342,11 +7199,7 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
       }
     }
   }
-  if (add_new_user_qm && !cpi->obu_is_written
-#if !CONFIG_F024_KEYOBU
-      && !cm->show_existing_frame
-#endif
-  ) {
+  if (add_new_user_qm && !cpi->obu_is_written) {
     assert(cpi->total_signalled_qmobu_count > 0);
     obu_header_size = av2_write_obu_header(level_params, OBU_QM, obu_temporal,
                                            obu_layer, data);
@@ -7444,11 +7297,7 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
     const int write_raw_frame_hash =
         ((cpi->oxcf.tool_cfg.frame_hash_metadata & 1) ||
          ((cpi->oxcf.tool_cfg.frame_hash_metadata & 2) && !apply_grain)) &&
-        (cm->immediate_output_picture || cm->implicit_output_picture)
-#if !CONFIG_F024_KEYOBU
-        && !encode_show_existing_frame(cm)
-#endif
-        ;
+        (cm->immediate_output_picture || cm->implicit_output_picture);
     // write frame hash metadata obu for frames with film grain params applied
     // before the frame obu that outputs the frame
     const int write_grain_frame_hash =
@@ -7541,30 +7390,15 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
     }
   }
 
-  OBU_TYPE obu_type =
-#if CONFIG_F024_KEYOBU
-      cm->is_leading_picture == 1 ? OBU_LEADING_TILE_GROUP
-                                  : OBU_REGULAR_TILE_GROUP;
-#else   // CONFIG_F024_KEYOBU
-      OBU_TILE_GROUP;
-#endif  // CONFIG_F024_KEYOBU
-#if CONFIG_F024_KEYOBU
+  OBU_TYPE obu_type = cm->is_leading_picture == 1 ? OBU_LEADING_TILE_GROUP
+                                                  : OBU_REGULAR_TILE_GROUP;
   if (cm->current_frame.frame_type == KEY_FRAME)
     obu_type = cpi->no_show_fwd_kf ? OBU_OLK : OBU_CLK;
-#endif
   if (cm->current_frame.frame_type == S_FRAME) obu_type = OBU_SWITCH;
-
-#if !CONFIG_F024_KEYOBU
-  if (encode_show_existing_frame(cm)) obu_type = OBU_SEF;
-#endif  // CONFIG_F024_KEYOBU
 
   if (cm->current_frame.frame_type == INTER_FRAME &&
       cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT)
-#if CONFIG_F024_KEYOBU
     obu_type = cm->is_leading_picture == 1 ? OBU_LEADING_TIP : OBU_REGULAR_TIP;
-#else
-    obu_type = OBU_TIP;
-#endif  // CONFIG_F024_KEYOBU
 
   if (cm->bridge_frame_info.is_bridge_frame) obu_type = OBU_BRIDGE_FRAME;
 
@@ -7603,18 +7437,8 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
       saved_wb_first_tg.bit_buffer += length_field_size;
     data += obu_header_size + obu_payload_size + length_field_size;
 
-#if CONFIG_F024_KEYOBU
-    if (obu_type == OBU_LEADING_SEF || obu_type == OBU_REGULAR_SEF)
-#else
-    if (obu_type == OBU_SEF)
-#endif  // CONFIG_F024_KEYOBU
-      break;
-#if CONFIG_F024_KEYOBU
-    if (obu_type == OBU_LEADING_TIP || obu_type == OBU_REGULAR_TIP)
-#else
-    if (obu_type == OBU_TIP)
-#endif  // CONFIG_F024_KEYOBU
-      break;
+    if (obu_type == OBU_LEADING_SEF || obu_type == OBU_REGULAR_SEF) break;
+    if (obu_type == OBU_LEADING_TIP || obu_type == OBU_REGULAR_TIP) break;
     if (cm->bru.frame_inactive_flag) break;
     if (cm->bridge_frame_info.is_bridge_frame) break;
   }  // tg_idx

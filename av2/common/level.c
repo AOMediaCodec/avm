@@ -690,20 +690,11 @@ void av2_decoder_model_process_frame(const AV2_COMP *const cpi,
 
   int display_idx = -1;
   if (show_existing_frame) {
-#if CONFIG_F024_KEYOBU
     display_idx = decoder_model->vbi[cm->sef_ref_fb_idx];
-#else
-    display_idx = decoder_model->vbi[cpi->existing_fb_idx_to_show];
-#endif
     if (display_idx < 0) {
       decoder_model->status = DECODE_EXISTING_FRAME_BUF_EMPTY;
       return;
     }
-#if !CONFIG_F024_KEYOBU
-    if (decoder_model->frame_buffer_pool[display_idx].frame_type == KEY_FRAME) {
-      update_ref_buffers(cm, decoder_model, display_idx, 0xFF);
-    }
-#endif  // !CONFIG_F024_KEYOBU
   } else {
     const double removal_time = get_removal_time(decoder_model);
     if (removal_time < 0.0) {
@@ -1163,13 +1154,8 @@ static void scan_past_frames(const FrameWindowBuffer *const buffer,
   size_t encoded_size_in_bytes = 0;
   for (int i = 0; i < AVMMIN(num_frames_in_buffer, num_frames_to_scan); ++i) {
     const FrameRecord *const record = &buffer->buf[index];
-#if CONFIG_F024_KEYOBU
     frame_headers += record->frame_header_count;
-#endif  // CONFIG_F024_KEYOBU
     if (!record->show_existing_frame) {
-#if !CONFIG_F024_KEYOBU
-      frame_headers += record->frame_header_count;
-#endif  // !CONFIG_F024_KEYOBU
       decoded_samples += record->pic_size;
     }
     if (record->immediate_output_picture) {

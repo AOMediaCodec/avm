@@ -3659,12 +3659,8 @@ static int encode_with_recode_loop(AV2_COMP *cpi, size_t *size, uint8_t *dest) {
 }
 
 static INLINE bool allow_tip_direct_output(AV2_COMMON *const cm) {
-  if (!frame_is_intra_only(cm) &&
-#if !CONFIG_F024_KEYOBU
-      !encode_show_existing_frame(cm) &&
-#endif
-      cm->seq_params.enable_tip == 1 && cm->features.tip_frame_mode &&
-      !cm->bru.enabled) {
+  if (!frame_is_intra_only(cm) && cm->seq_params.enable_tip == 1 &&
+      cm->features.tip_frame_mode && !cm->bru.enabled) {
     return true;
   }
 
@@ -4349,14 +4345,8 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
     cm->features.allow_global_intrabc = 0;
     cm->features.allow_local_intrabc = 0;
   }
-#if CONFIG_F024_KEYOBU
   const bool compute_ds_filter =
       cpi->common.current_frame.cm_obu_type == OBU_CLK;
-#else
-  const bool compute_ds_filter =
-      av2_is_shown_keyframe(cpi, cm->current_frame.frame_type) &&
-      !cpi->common.show_existing_frame;
-#endif  // CONFIG_F024_KEYOBU
   if (compute_ds_filter) {
     av2_set_downsample_filter_options(cpi);
   }
@@ -4384,7 +4374,6 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
   //    gf_group->update_type[gf_group->size] = GF_UPDATE;
   //  }
 
-#if CONFIG_F024_KEYOBU
   if (!cpi->oxcf.ref_frm_cfg.enable_generation_sef_obu &&
       cpi->update_type_was_overlay) {
     assign_frame_buffer_p(&cm->cur_frame,
@@ -4483,68 +4472,7 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
 
     return AVM_CODEC_OK;
   }
-#else   // CONFIG_F024_KEYOBU
-  const int encode_show_existing = encode_show_existing_frame(cm);
-  if (encode_show_existing || cm->show_existing_frame) {
-    av2_finalize_encoded_frame(cpi);
-    if (encode_show_existing || !cm->derive_sef_order_hint) {
-      // Build the bitstream
-      int largest_tile_id = 0;  // Output from bitstream: unused here
-      if (av2_pack_bitstream(cpi, dest, size, &largest_tile_id) != AVM_CODEC_OK)
-        return AVM_CODEC_ERROR;
-      if (cpi->increase_fgm_counter) {
-        assert(cm->fgm_id >= 0 && cm->fgm_id < MAX_FGM_NUM &&
-               cpi->fgm->fgm_chroma_idc >= 0 && cpi->fgm->fgm_chroma_idc < 4);
-        int fgm_pos = cpi->written_fgm_num % MAX_FGM_NUM;
-        int valid_fgm_num = AVMMIN(cpi->written_fgm_num, MAX_FGM_NUM);
-        for (int i = 0; i < valid_fgm_num; i++) {
-          if (cpi->fgm_list[i].fgm_id == cm->fgm_id) {
-            fgm_pos = i;
-            break;
-          }
-        }
-        cpi->fgm_list[fgm_pos] = cpi->fgm;
-        cpi->written_fgm_num += 1;
-      }
-    }
 
-    cpi->seq_params_locked = 1;
-
-    // NOTE: Save the new show frame buffer index for --test-code=warn, i.e.,
-    //       for the purpose to verify no mismatch between encoder and decoder.
-    if (cm->immediate_output_picture) cpi->last_show_frame_buf = cm->cur_frame;
-    if (cm->immediate_output_picture && !cm->derive_sef_order_hint) {
-      cpi->last_show_frame_buf =
-          cm->ref_frame_map[cpi->existing_fb_idx_to_show];
-    }
-    refresh_reference_frames(cpi);
-
-    // Since we allocate a spot for the OVERLAY frame in the gf group, we need
-    // to do post-encoding update accordingly.
-    if (cpi->rc.is_src_frame_alt_ref) {
-      av2_set_target_rate(cpi, cm->width, cm->height);
-      av2_rc_postencode_update(cpi, *size);
-    }
-
-    if (is_psnr_calc_enabled(cpi)) {
-      int y_crop_width = !cm->derive_sef_order_hint
-                             ? cm->ref_frame_map[cpi->existing_fb_idx_to_show]
-                                   ->buf.y_crop_width
-                             : cm->cur_frame->buf.y_crop_width;
-      int y_crop_height = !cm->derive_sef_order_hint
-                              ? cm->ref_frame_map[cpi->existing_fb_idx_to_show]
-                                    ->buf.y_crop_height
-                              : cm->cur_frame->buf.y_crop_height;
-      cpi->source = realloc_and_scale_source(cpi, y_crop_width, y_crop_height);
-    }
-
-    ++current_frame->frame_number;
-
-    return AVM_CODEC_OK;
-  }
-#endif  // CONFIG_F024_KEYOBU
-
-#if CONFIG_F024_KEYOBU
   if (current_frame->frame_type == KEY_FRAME) {
     cm->is_leading_picture = -1;
     if (cpi->no_show_fwd_kf) {
@@ -4563,7 +4491,6 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
       cm->is_leading_picture = 0;
     }  // !leading_picture
   }  // !KEYFRAME
-#endif  // CONFIG_F024_KEYOBU
 
   // Work out whether to force_integer_mv this frame
   if (!is_stat_generation_stage(cpi) &&
@@ -4787,25 +4714,17 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
   cm->immediate_output_picture = frame_params->immediate_output_picture;
   cm->ref_frame_flags = frame_params->ref_frame_flags;
   cpi->speed = frame_params->speed;
-#if CONFIG_F024_KEYOBU
   cpi->update_type_was_overlay =
       frame_params->frame_params_update_type_was_overlay;
   cpi->fb_idx_for_overlay = frame_params->fb_idx_for_overlay;
   cm->show_existing_frame = 0;
   cm->sef_ref_fb_idx = 0;
-#else
-  cm->show_existing_frame = frame_params->show_existing_frame;
-  cpi->existing_fb_idx_to_show = frame_params->existing_fb_idx_to_show;
-#endif
   memcpy(cm->remapped_ref_idx, frame_params->remapped_ref_idx,
          INTER_REFS_PER_FRAME * sizeof(*cm->remapped_ref_idx));
 
   // NOTE: frame_number is reset only for the CLK
-  if (av2_is_shown_keyframe(cpi, current_frame->frame_type)
-#if CONFIG_F024_KEYOBU
-      && !cpi->update_type_was_overlay
-#endif  // CONFIG_F024_KEYOBU
-  ) {
+  if (av2_is_shown_keyframe(cpi, current_frame->frame_type) &&
+      !cpi->update_type_was_overlay) {
     current_frame->key_frame_number += current_frame->frame_number;
     current_frame->frame_number = 0;
   }
@@ -4815,11 +4734,7 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
       cpi->oxcf.unit_test_cfg.multi_seq_header_test)
     cm->seq_params.seq_header_id =
         current_frame->key_frame_number % MAX_SEQ_NUM;
-
-#if CONFIG_F024_KEYOBU
   cm->current_frame.cm_obu_type = frame_params->frame_params_obu_type;
-#endif  // CONFIG_F024_KEYOBU
-
   current_frame->order_hint =
       current_frame->frame_number + frame_params->order_offset;
   current_frame->display_order_hint = current_frame->order_hint;
@@ -4866,12 +4781,7 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
 
   current_frame->pyramid_level = get_true_pyr_level(
       cpi->gf_group.layer_depth[cpi->gf_group.index],
-#if CONFIG_F024_KEYOBU
-      current_frame->frame_type == KEY_FRAME,
-#else
-      current_frame->display_order_hint,
-#endif  // CONFIG_F024_KEYOBU
-      cpi->gf_group.max_layer_depth,
+      current_frame->frame_type == KEY_FRAME, cpi->gf_group.max_layer_depth,
       cpi->gf_group.update_type[cpi->gf_group.index] == KFFLT_OVERLAY_UPDATE);
 
   cm->tlayer_id = 0;
@@ -4969,9 +4879,7 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
         cm->immediate_output_picture = 0;
         cm->implicit_output_picture = 0;
         cm->show_existing_frame = 0;
-#if CONFIG_F024_KEYOBU
         cm->sef_ref_fb_idx = 0;
-#endif  // CONFIG_F024_KEYOBU
         cm->current_frame.order_hint = 0;
         cm->current_frame.frame_number = 0;
         cm->bridge_frame_info.bridge_frame_ref_idx = INVALID_IDX;
@@ -5258,12 +5166,7 @@ int av2_get_compressed_data(AV2_COMP *cpi, unsigned int *frame_flags,
   cpi->time_compress_data += avm_usec_timer_elapsed(&cmptimer);
 #endif  // CONFIG_INTERNAL_STATS
   if (cpi->b_calculate_psnr) {
-    if (
-#if CONFIG_F024_KEYOBU
-        cpi->update_type_was_overlay ||
-#else
-        cm->show_existing_frame ||
-#endif
+    if (cpi->update_type_was_overlay ||
         (*size > 0 && !is_stat_generation_stage(cpi) &&
          cm->immediate_output_picture)) {
       generate_psnr_packet(cpi);

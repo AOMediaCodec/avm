@@ -3214,18 +3214,11 @@ static avm_codec_err_t encoder_encode(avm_codec_alg_priv_t *ctx,
       cpi->seq_params_locked = 1;
       is_frame_visible = cpi->common.immediate_output_picture;
       if (!cpi->oxcf.ref_frm_cfg.enable_generation_sef_obu) {
-#if CONFIG_F024_KEYOBU
         if ((!cpi->is_olk_overlay && cpi->update_type_was_overlay) ||
             (cpi->common.current_frame.frame_type != KEY_FRAME &&
              cpi->common.show_existing_frame)) {
           is_frame_visible_null = 1;
         }
-#else
-        if (cpi->common.current_frame.frame_type != KEY_FRAME &&
-            cpi->common.show_existing_frame) {
-          is_frame_visible_null = 1;
-        }
-#endif
       } else {
         if (cpi->common.show_existing_frame) {
           is_frame_visible_null = 1;
@@ -3274,15 +3267,9 @@ static avm_codec_err_t encoder_encode(avm_codec_alg_priv_t *ctx,
         cx_data_sz -= frame_size;
 
         index_size = MAG_SIZE * (ctx->pending_frame_count - 1) + 2;
-#if CONFIG_F024_KEYOBU
         has_no_show_keyframe |=
             (cpi->no_show_fwd_kf &&
              cpi->common.current_frame.frame_type == KEY_FRAME);
-#else
-        has_no_show_keyframe |=
-            (!is_frame_visible &&
-             cpi->common.current_frame.frame_type == KEY_FRAME);
-#endif
         if (cpi->print_per_frame_stats) {
           report_stats(cpi, frame_size, cx_time);
         }

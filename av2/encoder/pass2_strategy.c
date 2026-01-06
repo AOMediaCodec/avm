@@ -2798,9 +2798,7 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
       if (cpi->no_show_fwd_kf) {
         assert(update_type == ARF_UPDATE || update_type == KFFLT_UPDATE);
         frame_params->frame_type = KEY_FRAME;
-#if CONFIG_F024_KEYOBU
         frame_params->frame_params_obu_type = OBU_OLK;
-#endif
       } else {
         frame_params->frame_type = INTER_FRAME;
         update_subgop_stats(&cpi->gf_group, &cpi->subgop_stats,
@@ -2877,18 +2875,14 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
     FIRSTPASS_STATS this_frame_copy;
     this_frame_copy = this_frame;
     frame_params->frame_type = KEY_FRAME;
-#if CONFIG_F024_KEYOBU
     if (frame_params->frame_params_obu_type == NUM_OBU_TYPES)
       frame_params->frame_params_obu_type = OBU_CLK;
-#endif
     // Define next KF group and assign bits to it.
     find_next_key_frame(cpi, &this_frame);
     this_frame = this_frame_copy;
   } else {
     frame_params->frame_type = INTER_FRAME;
-#if CONFIG_F024_KEYOBU
     frame_params->frame_params_obu_type = NUM_OBU_TYPES;
-#endif
     const int altref_enabled = is_altref_enabled(oxcf->gf_cfg.lag_in_frames,
                                                  oxcf->gf_cfg.enable_auto_arf);
     const int sframe_dist = oxcf->kf_cfg.sframe_dist;
@@ -2980,19 +2974,15 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
     if (update_type == ARF_UPDATE) {
       if (cpi->no_show_fwd_kf) {
         frame_params->frame_type = KEY_FRAME;
-#if CONFIG_F024_KEYOBU
         frame_params->frame_params_obu_type = OBU_OLK;
-#endif
       } else {
         frame_params->frame_type = rc->frames_since_key == 0 ? KEY_FRAME
                                    : (frame_params->frame_type == S_FRAME)
                                        ? S_FRAME
                                        : INTER_FRAME;
-#if CONFIG_F024_KEYOBU
         if (frame_params->frame_params_obu_type == NUM_OBU_TYPES)
           frame_params->frame_params_obu_type =
               rc->frames_since_key == 0 ? OBU_CLK : NUM_OBU_TYPES;
-#endif
 
         // ARF_UPDATE and KFFLT_UPDATE is set as S_FRAME in the RA case
         if (frame_params->frame_type == INTER_FRAME &&

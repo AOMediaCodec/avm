@@ -651,11 +651,6 @@ int skip_non_transform = 0;
 void inspect(void *pbi, void *data) {
   /* Fetch frame data. */
   ifd_inspect(&frame_data, pbi, skip_non_transform);
-#if !CONFIG_F024_KEYOBU
-  // Show existing frames just show a reference buffer we've already decoded.
-  // There's no information to show.
-  if (frame_data.show_existing_frame) return;
-#endif
   (void)data;
   // We allocate enough space and hope we don't write out of bounds. Totally
   // unsafe but this speeds things up, especially when compiled to Javascript.
@@ -811,28 +806,6 @@ struct av2_ref_frame ref_dec;
 EMSCRIPTEN_KEEPALIVE
 int read_frame() {
   img = NULL;
-#if !CONFIG_F024_KEYOBU
-  // This loop skips over any frames that are show_existing_frames,  as
-  // there is nothing to analyze.
-  do {
-    if (!have_frame) {
-      if (!avm_video_reader_read_frame(reader)) return EXIT_FAILURE;
-      frame = avm_video_reader_get_frame(reader, &frame_size);
-
-      have_frame = 1;
-      end_frame = frame + frame_size;
-    }
-
-    if (avm_codec_decode(&codec, frame, (unsigned int)frame_size, &adr) !=
-        AVM_CODEC_OK) {
-      die_codec(&codec, "Failed to decode frame.");
-    }
-
-    frame = adr.buf;
-    frame_size = end_frame - frame;
-    if (frame == end_frame) have_frame = 0;
-  } while (adr.show_existing);
-#endif
   int got_any_frames = 0;
   avm_image_t *frame_img;
   ref_dec.idx = adr.idx;

@@ -87,10 +87,6 @@ typedef struct {
   const unsigned char *buf;
   /*! Index into reference buffer array to see result of decoding 1 OBU. */
   int idx;
-#if !CONFIG_F024_KEYOBU
-  /*! Is a show existing frame. */
-  int show_existing;
-#endif  // !CONFIG_F024_KEYOBU
 } Av2DecodeReturn;
 
 /*!\brief Max number of tile columns
@@ -331,9 +327,7 @@ enum avm_dec_control_id {
    */
   AV2D_SET_SKIP_FILM_GRAIN,
 
-#if CONFIG_F024_KEYOBU
   AV2D_SET_RANDOM_ACCESS,
-#endif  // CONFIG_F024_KEYOBU
 
   AV2D_SET_BRU_OPT_MODE,
 
@@ -487,10 +481,8 @@ AVM_CTRL_USE_TYPE(AV2D_SET_ROW_MT, unsigned int)
 AVM_CTRL_USE_TYPE(AV2D_SET_SKIP_FILM_GRAIN, int)
 #define AVM_CTRL_AV2D_SET_SKIP_FILM_GRAIN
 
-#if CONFIG_F024_KEYOBU
 AVM_CTRL_USE_TYPE(AV2D_SET_RANDOM_ACCESS, int)
 #define AVM_CTRL_AV2D_SET_RANDOM_ACCESS
-#endif  // CONFIG_F024_KEYOBU
 
 AVM_CTRL_USE_TYPE(AV2D_SET_BRU_OPT_MODE, int)
 #define AVM_CTRL_AV2D_SET_BRU_OPT_MODE

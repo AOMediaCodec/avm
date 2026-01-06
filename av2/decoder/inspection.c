@@ -121,9 +121,6 @@ int ifd_inspect(insp_frame_data *fd, void *decoder, int skip_not_transform) {
     ifd_clear(fd);
     ifd_init_mi_rc(fd, mi_params->mi_cols, mi_params->mi_rows);
   }
-#if !CONFIG_F024_KEYOBU
-  fd->show_existing_frame = cm->show_existing_frame;
-#endif
   fd->frame_number = cm->current_frame.frame_number;
   fd->immediate_output_picture = cm->immediate_output_picture;
   fd->frame_type = cm->current_frame.frame_type;

@@ -462,7 +462,6 @@ typedef struct AV2Decoder {
   int remapped_ref_idx_buf[AVM_MAX_NUM_STREAMS][REF_FRAMES];
   SequenceHeader seq_list_buf[AVM_MAX_NUM_STREAMS][MAX_SEQ_NUM];
   MultiFrameHeader mfh_params_buf[AVM_MAX_NUM_STREAMS][MAX_MFH_NUM];
-#if CONFIG_F024_KEYOBU
   /*!
    * Indicates the number of obus signalled before the frame unit
    * including the frame unit (that may consist of multiple tile group obus)
@@ -532,7 +531,6 @@ typedef struct AV2Decoder {
    * count number of sequence header for random access
    */
   uint64_t random_access_point_count;
-#endif
   /*!
    * list of film grain model
    */
@@ -652,11 +650,7 @@ static INLINE void check_ref_count_status_dec(struct AV2Decoder *pbi) {
   }
 }
 
-#if CONFIG_F024_KEYOBU
 avm_codec_err_t flush_remaining_frames(struct AV2Decoder *pbi);
-#else
-void output_trailing_frames(AV2Decoder *pbi);
-#endif
 
 static INLINE int av2_read_uniform(avm_reader *r, int n) {
   const int l = get_unsigned_bits(n);

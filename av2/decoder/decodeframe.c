@@ -6844,10 +6844,7 @@ static AVM_INLINE void validate_refereces(AV2Decoder *const pbi) {
     if ((refresh_frame_flags >> i) & 1) {
       if ((cm->current_frame.frame_type == KEY_FRAME &&
            cm->immediate_output_picture == 1) &&
-#if CONFIG_F024_KEYOBU
-          cm->seq_params.max_mlayer_id == 0 &&
-#endif
-          i > 0) {
+          cm->seq_params.max_mlayer_id == 0 && i > 0) {
         pbi->valid_for_referencing[i] = 0;
       } else {
         pbi->valid_for_referencing[i] = 1;
@@ -6855,31 +6852,7 @@ static AVM_INLINE void validate_refereces(AV2Decoder *const pbi) {
     }
   }
 }
-#if !CONFIG_F024_KEYOBU
-static AVM_INLINE void show_existing_frame_reset(AV2Decoder *const pbi) {
-  AV2_COMMON *const cm = &pbi->common;
 
-  assert(cm->show_existing_frame);
-
-  cm->current_frame.frame_type = KEY_FRAME;
-  cm->current_frame.refresh_frame_flags = (1 << cm->seq_params.ref_frames) - 1;
-
-  for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
-    cm->remapped_ref_idx[i] = INVALID_IDX;
-  }
-
-  cm->cur_frame->display_order_hint = 0;
-
-  if (pbi->need_resync) {
-    reset_ref_frame_map(cm);
-    pbi->need_resync = 0;
-  }
-
-  // Note that the displayed frame must be valid for referencing in order to
-  // have been selected.
-  validate_refereces(pbi);
-}
-#endif  // !CONFIG_F024_KEYOBU
 static INLINE void reset_frame_buffers(AV2_COMMON *cm) {
   RefCntBuffer *const frame_bufs = cm->buffer_pool->frame_bufs;
   int i;
@@ -6901,16 +6874,11 @@ static INLINE void reset_frame_buffers(AV2_COMMON *cm) {
   unlock_buffer_pool(cm->buffer_pool);
 }
 
-#if CONFIG_F024_KEYOBU
 static INLINE int get_disp_order_hint(AV2_COMMON *const cm, OBU_TYPE obu_type,
                                       bool random_accessed,
                                       bool is_op_constrained,
                                       const int mlayer_mask,
-                                      const int tlayer_mask)
-#else
-static INLINE int get_disp_order_hint(AV2_COMMON *const cm)
-#endif
-{
+                                      const int tlayer_mask) {
   if (is_op_constrained) {
     // This configuration is only used for conformance checking in the AVM
     // reference software.
@@ -6923,17 +6891,11 @@ static INLINE int get_disp_order_hint(AV2_COMMON *const cm)
     assert(mlayer_mask == -1 && mlayer_mask == -1);
   }
   CurrentFrame *const current_frame = &cm->current_frame;
-#if CONFIG_F024_KEYOBU
   if (obu_type == OBU_CLK) {
     return current_frame->order_hint;
   } else if (obu_type == OBU_OLK) {
     if (random_accessed) return current_frame->order_hint;
   }
-#else
-  // For key frames, the implicit derivation of display_order_hit is not
-  // applied.
-  if (current_frame->frame_type == KEY_FRAME) return current_frame->order_hint;
-#endif  // CONFIG_F024_KEYOBU
   if (current_frame->frame_type == S_FRAME &&
       cm->restricted_prediction_switch && !cm->show_existing_frame) {
     for (int map_idx = 0; map_idx < cm->seq_params.ref_frames; map_idx++) {
@@ -6952,13 +6914,11 @@ static INLINE int get_disp_order_hint(AV2_COMMON *const cm)
     // Get reference frame buffer
     const RefCntBuffer *const buf = cm->ref_frame_map[map_idx];
     if (buf == NULL ||
-#if CONFIG_F024_KEYOBU
 #if CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
         (!buf->implicit_output_picture && !buf->immediate_output_picture) ||
 #else
         !buf->implicit_output_picture ||
 #endif  // CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
-#endif  // CONFIG_F024_KEYOBU
         buf->is_restricted ||
         !is_tlayer_scalable_and_dependent(&cm->seq_params, cm->tlayer_id,
                                           buf->tlayer_id, cm->mlayer_id) ||
@@ -7131,7 +7091,6 @@ static void read_frame_max_drl_bits(AV2_COMMON *const cm,
   }
 }
 
-#if CONFIG_F024_KEYOBU
 static void reset_buffer_other_than_OLK(AV2Decoder *pbi) {
   AV2_COMMON *const cm = &pbi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
@@ -7154,7 +7113,6 @@ static int is_regular_non_olk_obu(OBU_TYPE obu_type) {
          obu_type == OBU_SWITCH || obu_type == OBU_RAS_FRAME ||
          obu_type == OBU_BRIDGE_FRAME || obu_type == OBU_REGULAR_TILE_GROUP;
 }
-#endif
 
 static int is_layer_within_operating_point(AV2Decoder *pbi,
                                            const int current_tlayer_id,
@@ -7177,30 +7135,22 @@ static void create_operating_point_masks(AV2Decoder *pbi, int *tlayer_op_mask,
                     ((1 << MLAYER_BITS) - 1);
 }
 
-static int read_show_existing_frame(AV2Decoder *pbi,
-#if CONFIG_F024_KEYOBU
-                                    bool is_regular_obu,
-#endif
+static int read_show_existing_frame(AV2Decoder *pbi, bool is_regular_obu,
                                     struct avm_read_bit_buffer *rb) {
   AV2_COMMON *const cm = &pbi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
   CurrentFrame *const current_frame = &cm->current_frame;
   BufferPool *const pool = cm->buffer_pool;
-#if CONFIG_F024_KEYOBU
   if (is_regular_obu && pbi->olk_encountered) {
     pbi->olk_encountered = 0;
     reset_buffer_other_than_OLK(pbi);
     unlock_buffer_pool(pool);
   }
-#endif
   cm->show_existing_frame = 1;
   init_bru_params(cm);
   // Show an existing frame directly.
-  const int existing_frame_idx =
-#if CONFIG_F024_KEYOBU
-      cm->sef_ref_fb_idx =
-#endif  // CONFIG_F024_KEYOBU
-          avm_rb_read_literal(rb, seq_params->ref_frames_log2);
+  const int existing_frame_idx = cm->sef_ref_fb_idx =
+      avm_rb_read_literal(rb, seq_params->ref_frames_log2);
   if (existing_frame_idx >= seq_params->ref_frames) {
     avm_internal_error(
         &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
@@ -7224,22 +7174,15 @@ static int read_show_existing_frame(AV2Decoder *pbi,
   }
   cm->sef_ref_fb_idx = existing_frame_idx;
   cm->derive_sef_order_hint = avm_rb_read_bit(rb);
-#if CONFIG_F024_KEYOBU
   cm->cur_frame->mlayer_id = cm->mlayer_id;
-#endif
 
   if (!cm->derive_sef_order_hint) {
     current_frame->order_hint = avm_rb_read_literal(
         rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
 
-    current_frame->display_order_hint =
-#if CONFIG_F024_KEYOBU
-        get_disp_order_hint(cm,
-                            is_regular_obu ? OBU_REGULAR_SEF : OBU_LEADING_SEF,
-                            false, false, -1, -1);
-#else
-        get_disp_order_hint(cm);
-#endif  // CONFIG_F024_KEYOBU
+    current_frame->display_order_hint = get_disp_order_hint(
+        cm, is_regular_obu ? OBU_REGULAR_SEF : OBU_LEADING_SEF, false, false,
+        -1, -1);
     // Note: The following if block implements bitstream constraint checks for
     // consistent display order hint derivation when (embedded or temporal)
     // layers are selectively dropped based on operating points. The following
@@ -7332,9 +7275,6 @@ static int read_show_existing_frame(AV2Decoder *pbi,
   if (cm->derive_sef_order_hint)
     assign_frame_buffer_p(&cm->cur_frame, frame_to_show);
 
-#if !CONFIG_F024_KEYOBU
-  pbi->reset_decoder_state = frame_to_show->frame_type == KEY_FRAME;
-#endif  // !CONFIG_F024_KEYOBU
   // Combine any Decoded Frame Header metadata that was parsed before
   // the referenced frame with any parsed before this
   // show_existing_frame header, e.g. raw frame hash values before the
@@ -7356,21 +7296,8 @@ static int read_show_existing_frame(AV2Decoder *pbi,
     avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
                        "Buffer does not contain a showable frame");
   }
-#if !CONFIG_F024_KEYOBU
-  if (pbi->reset_decoder_state) frame_to_show->implicit_output_picture = 0;
-#endif  // !CONFIG_F024_KEYOBU
   setup_film_grain(pbi, rb);
-
-#if !CONFIG_F024_KEYOBU
-  if (pbi->reset_decoder_state) {
-    show_existing_frame_reset(pbi);
-  } else {
-#endif  // !CONFIG_F024_KEYOBU
-    current_frame->refresh_frame_flags = 0;
-#if !CONFIG_F024_KEYOBU
-  }
-#endif  // !CONFIG_F024_KEYOBU
-
+  current_frame->refresh_frame_flags = 0;
   return 0;
 }
 
@@ -7466,10 +7393,7 @@ static void activate_layer_configuration_record(AV2Decoder *pbi,
 }
 
 #if CONFIG_CWG_E242_SEQ_HDR_ID
-static void handle_sequence_header(AV2Decoder *pbi,
-#if CONFIG_F024_KEYOBU
-                                   OBU_TYPE obu_type,
-#endif
+static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
                                    int seq_header_id) {
   AV2_COMMON *const cm = &pbi->common;
   // TODO: make sure pbi->random_accessed is correctly assigned
@@ -7728,9 +7652,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   CurrentFrame *const current_frame = &cm->current_frame;
   FeatureFlags *const features = &cm->features;
   MACROBLOCKD *const xd = &pbi->dcb.xd;
-#if CONFIG_F024_KEYOBU
   BufferPool *const pool = cm->buffer_pool;
-#endif  // CONFIG_F024_KEYOBU
   avm_s_frame_info *sframe_info = &pbi->sframe_info;
   sframe_info->is_s_frame = 0;
   sframe_info->is_s_frame_at_altref = 0;
@@ -7770,11 +7692,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   int seq_header_id_for_frame_header = setup_sequence_header_id(cm, rb);
   assert(seq_header_id_for_frame_header >= 0);
 
-  handle_sequence_header(pbi,
-#if CONFIG_F024_KEYOBU
-                         obu_type,
-#endif
-                         seq_header_id_for_frame_header);
+  handle_sequence_header(pbi, obu_type, seq_header_id_for_frame_header);
 
   if (cm->cur_mfh_id == 0) {
     handle_zero_cur_mfh_id(cm);
@@ -7828,22 +7746,9 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
 
   } else {
     pbi->reset_decoder_state = 0;
-#if CONFIG_F024_KEYOBU
     cm->show_existing_frame = 0;
     if (obu_type == OBU_LEADING_SEF || obu_type == OBU_REGULAR_SEF)
-      return read_show_existing_frame(pbi,
-#if CONFIG_F024_KEYOBU
-                                      obu_type == OBU_REGULAR_SEF,
-#endif  // CONFIG_F024_KEYOBU
-                                      rb);
-#else
-    if (obu_type == OBU_SEF)
-      return read_show_existing_frame(pbi, rb);
-    else
-      cm->show_existing_frame = 0;
-#endif  // CONFIG_F024_KEYOBU
-
-#if CONFIG_F024_KEYOBU
+      return read_show_existing_frame(pbi, obu_type == OBU_REGULAR_SEF, rb);
     if (obu_type == OBU_CLK) {
       current_frame->frame_type = KEY_FRAME;
       pbi->olk_encountered = 0;
@@ -7857,54 +7762,35 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
         unlock_buffer_pool(pool);
       }
       pbi->olk_encountered = 1;
-    } else
-#endif  // CONFIG_F024_KEYOBU
-      if (obu_type == OBU_RAS_FRAME || obu_type == OBU_SWITCH) {
-        current_frame->frame_type = S_FRAME;
-        if (cm->restricted_prediction_switch) {
-          pbi->restricted_predition = 1;
-          for (int i = 0; i < REF_FRAMES; i++) {
-            if (cm->ref_frame_map[i] != NULL) {
-              const int cur_mlayer_id = cm->current_frame.mlayer_id;
-              const int cur_tlayer_id = cm->current_frame.tlayer_id;
-              const int ref_mlayer_id = cm->ref_frame_map[i]->mlayer_id;
-              const int ref_tlayer_id = cm->ref_frame_map[i]->tlayer_id;
-              if (is_tlayer_scalable_and_dependent(&cm->seq_params,
-                                                   cur_tlayer_id, ref_tlayer_id,
-                                                   cur_mlayer_id) &&
-                  is_mlayer_scalable_and_dependent(
-                      &cm->seq_params, cur_mlayer_id, ref_mlayer_id)) {
-                cm->ref_frame_map[i]->is_restricted = true;
-                cm->ref_frame_map[i]->frame_output_done = true;
-              }
+    } else if (obu_type == OBU_RAS_FRAME || obu_type == OBU_SWITCH) {
+      current_frame->frame_type = S_FRAME;
+      if (cm->restricted_prediction_switch) {
+        pbi->restricted_predition = 1;
+        for (int i = 0; i < REF_FRAMES; i++) {
+          if (cm->ref_frame_map[i] != NULL) {
+            const int cur_mlayer_id = cm->current_frame.mlayer_id;
+            const int cur_tlayer_id = cm->current_frame.tlayer_id;
+            const int ref_mlayer_id = cm->ref_frame_map[i]->mlayer_id;
+            const int ref_tlayer_id = cm->ref_frame_map[i]->tlayer_id;
+            if (is_tlayer_scalable_and_dependent(&cm->seq_params, cur_tlayer_id,
+                                                 ref_tlayer_id,
+                                                 cur_mlayer_id) &&
+                is_mlayer_scalable_and_dependent(&cm->seq_params, cur_mlayer_id,
+                                                 ref_mlayer_id)) {
+              cm->ref_frame_map[i]->is_restricted = true;
+              cm->ref_frame_map[i]->frame_output_done = true;
             }
           }
         }
-      } else
-#if CONFIG_F024_KEYOBU
-          if (obu_type == OBU_REGULAR_TIP || obu_type == OBU_LEADING_TIP)
-#else
-        if (obu_type == OBU_TIP)
-#endif
-      {
-        current_frame->frame_type = INTER_FRAME;
-      } else if (cm->bridge_frame_info.is_bridge_frame) {
-        current_frame->frame_type = INTER_FRAME;
-      } else {
-        if (avm_rb_read_bit(rb)) {
-          current_frame->frame_type = INTER_FRAME;
-        } else {
-#if !CONFIG_F024_KEYOBU
-          if (avm_rb_read_bit(rb)) {
-            current_frame->frame_type = KEY_FRAME;
-          } else {
-#endif  // !CONFIG_F024_KEYOBU
-            current_frame->frame_type = INTRA_ONLY_FRAME;
-#if !CONFIG_F024_KEYOBU
-          }
-#endif  // #if !CONFIG_F024_KEYOBU
-        }
       }
+    } else if (obu_type == OBU_REGULAR_TIP || obu_type == OBU_LEADING_TIP) {
+      current_frame->frame_type = INTER_FRAME;
+    } else if (cm->bridge_frame_info.is_bridge_frame) {
+      current_frame->frame_type = INTER_FRAME;
+    } else {
+      current_frame->frame_type =
+          avm_rb_read_bit(rb) ? INTER_FRAME : INTRA_ONLY_FRAME;
+    }
     current_frame->long_term_id = -1;
     if (current_frame->frame_type == KEY_FRAME) {
       current_frame->long_term_id =
@@ -7928,22 +7814,14 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     if (cm->bridge_frame_info.is_bridge_frame) {
       cm->immediate_output_picture = 0;
     } else {
-#if CONFIG_F024_KEYOBU
       if (obu_type == OBU_OLK)
         cm->immediate_output_picture = 0;
       else
-#endif  // CONFIG_F024_KEYOBU
         cm->immediate_output_picture = avm_rb_read_bit(rb);
     }
 
     if (cm->immediate_output_picture == 0) pbi->is_arf_frame_present = 1;
-#if CONFIG_F024_KEYOBU
-    if (obu_type == OBU_OLK)
-#else
-    if (cm->immediate_output_picture == 0 &&
-        cm->current_frame.frame_type == KEY_FRAME)
-#endif
-      pbi->is_fwd_kf_present = 1;
+    if (obu_type == OBU_OLK) pbi->is_fwd_kf_present = 1;
     if (cm->current_frame.frame_type == S_FRAME) {
       sframe_info->is_s_frame = 1;
       sframe_info->is_s_frame_at_altref = cm->immediate_output_picture ? 0 : 1;
@@ -7975,14 +7853,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
 #endif  // CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
     }
 
-#if !CONFIG_F024_KEYOBU
-    if (current_frame->frame_type == KEY_FRAME && cm->implicit_output_picture) {
-      avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-                         "implicit_output_picture should be equal to 0"
-                         "Frame "
-                         "type is KEY_FRAME.");
-    }
-#endif  // !CONFIG_F024_KEYOBU
 #if CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
     cm->cur_frame->immediate_output_picture = cm->immediate_output_picture;
 #endif  // CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
@@ -8012,14 +7882,12 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   features->cross_frame_context = CROSS_FRAME_CONTEXT_FORWARD;
 
   if (!seq_params->single_picture_header_flag) {
-#if CONFIG_F024_KEYOBU
     if (pbi->olk_encountered && is_regular_non_olk_obu(obu_type)) {
       pbi->olk_encountered = 0;
       lock_buffer_pool(pool);
       reset_buffer_other_than_OLK(pbi);
       unlock_buffer_pool(pool);
     }  // if(pbi->olk_encountered...)
-#endif
 
     if (cm->bridge_frame_info.is_bridge_frame) {
       frame_size_override_flag = 1;
@@ -8027,12 +7895,8 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       frame_size_override_flag = frame_is_sframe(cm) ? 1 : avm_rb_read_bit(rb);
       current_frame->order_hint = avm_rb_read_literal(
           rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
-#if CONFIG_F024_KEYOBU
       current_frame->display_order_hint = get_disp_order_hint(
           cm, obu_type, pbi->random_accessed, false, -1, -1);
-#else
-      current_frame->display_order_hint = get_disp_order_hint(cm);
-#endif  // CONFIG_F024_KEYOBU
       // Note: The following if block implements bitstream constraint checks for
       // consistent display order hint derivation when (embedded or temporal)
       // layers are selectively dropped based on operating points. The following
@@ -8087,13 +7951,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     }
   }
 
-#if CONFIG_F024_KEYOBU
-  if (obu_type == OBU_CLK || obu_type == OBU_OLK)
-#else
-  if (current_frame->frame_type == KEY_FRAME)
-#endif  // CONFIG_F024_KEYOBU
-  {
-#if CONFIG_F024_KEYOBU
+  if (obu_type == OBU_CLK || obu_type == OBU_OLK) {
     if (obu_type == OBU_CLK && seq_params->max_mlayer_id == 0) {
       current_frame->refresh_frame_flags = ((1 << seq_params->ref_frames) - 1);
       pbi->is_first_layer_decoded = false;
@@ -8130,14 +7988,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       cm->olk_refresh_frame_flags[cm->mlayer_id] =
           current_frame->refresh_frame_flags;
     }  // OBU_OLK
-#else
-    if (!cm->immediate_output_picture) {  // unshown keyframe (forward keyframe)
-      current_frame->refresh_frame_flags =
-          avm_rb_read_literal(rb, seq_params->ref_frames);
-    } else {  // shown keyframe
-      current_frame->refresh_frame_flags = (1 << seq_params->ref_frames) - 1;
-    }
-#endif  // CONFIG_F024_KEYOBU
     for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
       cm->remapped_ref_idx[i] = INVALID_IDX;
     }
@@ -8461,13 +8311,8 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       if (cm->bridge_frame_info.is_bridge_frame) {
         assert(cm->ref_frames_info.num_total_refs == 1);
       }
-#if CONFIG_F024_KEYOBU
       if (obu_type != OBU_LEADING_TIP && obu_type != OBU_REGULAR_TIP &&
-          current_frame->frame_type == INTER_FRAME)
-#else
-      if (obu_type != OBU_TIP && current_frame->frame_type == INTER_FRAME)
-#endif  // CONFIG_F024_KEYOBU
-      {
+          current_frame->frame_type == INTER_FRAME) {
         setup_bru_active_info(cm, rb);
         if (cm->bru.enabled) {
           const RefCntBuffer *const bru_ref =
@@ -8609,12 +8454,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
           cm->ref_frames_info.num_total_refs >= 2 &&
           !cm->bridge_frame_info.is_bridge_frame &&
           !cm->bru.frame_inactive_flag) {
-#if CONFIG_F024_KEYOBU
-        if (obu_type == OBU_REGULAR_TIP || obu_type == OBU_LEADING_TIP)
-#else
-        if (obu_type == OBU_TIP)
-#endif  // CONFIG_F024_KEYOBU
-        {
+        if (obu_type == OBU_REGULAR_TIP || obu_type == OBU_LEADING_TIP) {
           features->tip_frame_mode = TIP_FRAME_AS_OUTPUT;
         } else {
           features->tip_frame_mode =
@@ -8752,9 +8592,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   av2_setup_frame_sign_bias(cm);
 
   cm->cur_frame->frame_type = current_frame->frame_type;
-#if CONFIG_F024_KEYOBU
   cm->cur_frame->mlayer_id = cm->mlayer_id;
-#endif
   validate_refereces(pbi);
 
   cm->cur_frame->buf.bit_depth = seq_params->bit_depth;
@@ -9312,15 +9150,10 @@ int32_t av2_read_tilegroup_header(
   int is_first_tile_group = 1;
   int send_uncompressed_header_flag = 1;
   bool send_first_tile_group_indication = true;
-#if CONFIG_F024_KEYOBU
   send_first_tile_group_indication &= obu_type != OBU_LEADING_SEF;
   send_first_tile_group_indication &= obu_type != OBU_REGULAR_SEF;
   send_first_tile_group_indication &= obu_type != OBU_LEADING_TIP;
   send_first_tile_group_indication &= obu_type != OBU_REGULAR_TIP;
-#else
-  send_first_tile_group_indication &= obu_type != OBU_SEF;
-  send_first_tile_group_indication &= obu_type != OBU_TIP;
-#endif  // CONFIG_F024_KEYOBU
   send_first_tile_group_indication &= obu_type != OBU_BRIDGE_FRAME;
   if (send_first_tile_group_indication)
     is_first_tile_group = avm_rb_read_bit(rb);
@@ -9381,12 +9214,7 @@ int32_t av2_read_tilegroup_header(
           xd->cur_buf->y_crop_height, xd->cur_buf->y_crop_width,
           xd->cur_buf->y_crop_height);
     }
-#if CONFIG_F024_KEYOBU
-    if (obu_type == OBU_REGULAR_SEF || obu_type == OBU_LEADING_SEF)
-#else
-    if (obu_type == OBU_SEF)
-#endif  // CONFIG_F024_KEYOBU
-    {
+    if (obu_type == OBU_REGULAR_SEF || obu_type == OBU_LEADING_SEF) {
       // showing a frame directly
       *p_data_end = data + uncomp_hdr_size;
       if (pbi->reset_decoder_state) {
@@ -9470,12 +9298,7 @@ int32_t av2_read_tilegroup_header(
     }
 
     process_tip_mode(pbi);
-#if CONFIG_F024_KEYOBU
-    if (obu_type == OBU_REGULAR_TIP || obu_type == OBU_LEADING_TIP)
-#else
-    if (obu_type == OBU_TIP)
-#endif  // CONFIG_F024_KEYOBU
-    {
+    if (obu_type == OBU_REGULAR_TIP || obu_type == OBU_LEADING_TIP) {
       *p_data_end = data + uncomp_hdr_size;
 #if CONFIG_COLLECT_COMPONENT_TIMING
       end_timing(pbi, av2_read_tilegroup_header_time);
@@ -9505,16 +9328,10 @@ int32_t av2_read_tilegroup_header(
   }
 
   bool tile_indices_present_flag = true;
-#if CONFIG_F024_KEYOBU
   tile_indices_present_flag &= obu_type != OBU_LEADING_SEF;
   tile_indices_present_flag &= obu_type != OBU_REGULAR_SEF;
   tile_indices_present_flag &= obu_type != OBU_LEADING_TIP;
   tile_indices_present_flag &= obu_type != OBU_REGULAR_TIP;
-#else
-  tile_indices_present_flag &= obu_type != OBU_SEF;
-  tile_indices_present_flag &= obu_type != OBU_TIP;
-#endif  // CONFIG_F024_KEYOBU
-
   tile_indices_present_flag &=
       (!cm->bru.frame_inactive_flag && !cm->bridge_frame_info.is_bridge_frame);
   if (tile_indices_present_flag)

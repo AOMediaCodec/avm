@@ -106,7 +106,6 @@ static int read_obu_header_from_file(FILE *f, size_t obu_size, uint8_t *buffer,
   return obu_header->obu_extension_flag ? 2 : 1;
 }
 
-#if CONFIG_F024_KEYOBU
 // non vcl obus that starts a new frame unit
 static int is_fu_head_non_vcl_obu(OBU_TYPE obu_type) {
   return is_tu_head_non_vcl_obu(obu_type) ||
@@ -115,7 +114,6 @@ static int is_fu_head_non_vcl_obu(OBU_TYPE obu_type) {
          obu_type == OBU_BUFFER_REMOVAL_TIMING || obu_type == OBU_QM ||
          obu_type == OBU_FGM;
 }
-#endif  // CONFIG_F024_KEYOBU
 
 static int peek_obu_from_file(FILE *f, size_t obu_size, uint8_t *buffer,
                               ObuHeader *obu_header,
@@ -136,15 +134,9 @@ static int peek_obu_from_file(FILE *f, size_t obu_size, uint8_t *buffer,
   // TODO(any): The `if` and `else if` conditions below combined are same
   // as the condition used in 2 places with TODOs below. Need to refactor
   // after macros are cleaned up.
-#if CONFIG_F024_KEYOBU
   if (is_multi_tile_vcl_obu(obu_header->type) ||
       obu_header->type == OBU_METADATA_GROUP ||
-      obu_header->type == OBU_METADATA_SHORT)
-#else
-  if (obu_header->type == OBU_TILE_GROUP || obu_header->type == OBU_SWITCH ||
-      obu_header->type == OBU_RAS_FRAME)
-#endif  // CONFIG_F024_KEYOBU
-  {
+      obu_header->type == OBU_METADATA_SHORT) {
     if (obu_size < (size_t)obu_header_size + 1) {
       return -2;
     }
@@ -154,14 +146,7 @@ static int peek_obu_from_file(FILE *f, size_t obu_size, uint8_t *buffer,
       return -2;
     }
     *first_tile_group = buffer[obu_header_size];
-  } else if (
-#if CONFIG_F024_KEYOBU
-      is_single_tile_vcl_obu(obu_header->type)
-#else
-      obu_header->type == OBU_TIP || obu_header->type == OBU_SEF ||
-      obu_header->type == OBU_BRIDGE_FRAME
-#endif  // CONFIG_F024_KEYOBU
-  ) {
+  } else if (is_single_tile_vcl_obu(obu_header->type)) {
     *first_tile_group = 1;
   } else {
     *first_tile_group = 0;
@@ -270,13 +255,9 @@ int obudec_read_frame_unit(struct ObuDecInputContext *obu_ctx, uint8_t **buffer,
     // A data chunk before next decoding_unit_token is read from the file to
     // buffer to be decoded.
     int first_tile_group_in_frame =
-#if CONFIG_F024_KEYOBU
         is_multi_tile_vcl_obu(obu_header.type) ||
                 (obu_header.type == OBU_METADATA_SHORT ||
                  obu_header.type == OBU_METADATA_GROUP)
-#else
-        obu_header.type == OBU_TILE_GROUP
-#endif  // CONFIG_F024_KEYOBU
             ? ((first_tile_group_byte >> 7) & 1u)
             : first_tile_group_byte;
     int prefix_metadata = (obu_header.type == OBU_METADATA_SHORT ||
@@ -290,15 +271,9 @@ int obudec_read_frame_unit(struct ObuDecInputContext *obu_ctx, uint8_t **buffer,
 
     int decoding_unit_token =
         ((vcl_obu_count > 0 &&
-#if CONFIG_F024_KEYOBU
           (is_multi_tile_vcl_obu(obu_header.type) ||
-           is_single_tile_vcl_obu(obu_header.type))
-#else
-          (obu_header.type == OBU_TILE_GROUP || obu_header.type == OBU_SEF ||
-           obu_header.type == OBU_TIP || obu_header.type == OBU_SWITCH ||
-           obu_header.type == OBU_RAS_FRAME)
-#endif  // CONFIG_F024_KEYOBU
-          && first_tile_group_in_frame) ||
+           is_single_tile_vcl_obu(obu_header.type)) &&
+          first_tile_group_in_frame) ||
          (vcl_obu_count > 0 && is_fu_head_non_vcl_obu(obu_header.type)) ||
          (vcl_obu_count > 0 &&
           (obu_header.type == OBU_METADATA_SHORT ||
@@ -307,14 +282,8 @@ int obudec_read_frame_unit(struct ObuDecInputContext *obu_ctx, uint8_t **buffer,
     if (decoding_unit_token) {
       break;
     } else {
-#if CONFIG_F024_KEYOBU
       if (is_multi_tile_vcl_obu(obu_header.type) ||
           is_single_tile_vcl_obu(obu_header.type))
-#else
-      if (obu_header.type == OBU_TILE_GROUP || obu_header.type == OBU_SEF ||
-          obu_header.type == OBU_TIP || obu_header.type == OBU_SWITCH ||
-          obu_header.type == OBU_RAS_FRAME)
-#endif  // CONFIG_F024_KEYOBU
         vcl_obu_count++;
       if (fseeko(f, (FileOffset)obu_size, SEEK_CUR) != 0) {
         fprintf(stderr, "obudec: Failure seeking to end of OBU.\n");
