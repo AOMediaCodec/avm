@@ -61,13 +61,6 @@ set_avm_detect_var(HAVE_UNISTD_H 0
                    "Internal flag, unistd.h present for target.")
 set_avm_detect_var(HAVE_WXWIDGETS 0 "WxWidgets present.")
 
-set_avm_config_var(CONFIG_F322_OBUER_EXPLICIT_REFLIST 1
-                   "Signal explit_ref_frame_map in uncompressed_headr")
-set_avm_config_var(CONFIG_ERROR_RESILIENT_FIX 1 "Additional check for s_frame.")
-
-set_avm_config_var(CONFIG_F322_OBUER_REFRESTRICT 1
-                   "Use restricted reference for switch frames and after.")
-
 set_avm_config_var(CONFIG_F024_KEYOBU 1 "Use Key OBUs.")
 
 #

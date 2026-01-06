@@ -799,12 +799,8 @@ static AVM_INLINE void write_single_ref(
     avm_writer *w) {
   const MB_MODE_INFO *const mbmi = xd->mi[0];
   MV_REFERENCE_FRAME ref = mbmi->ref_frame[0];
-#if CONFIG_F322_OBUER_REFRESTRICT
   // NOTE:num_valid_refs_with_restricted_ref may be the same as num_total_refs
   const int n_refs = ref_frames_info->num_valid_refs_with_restricted_ref;
-#else
-  const int n_refs = ref_frames_info->num_total_refs;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
   assert(ref < n_refs);
   for (int i = 0; i < n_refs - 1; i++) {
     const int bit = ref == i;
@@ -820,12 +816,8 @@ static AVM_INLINE void write_compound_ref(
   const MB_MODE_INFO *const mbmi = xd->mi[0];
   MV_REFERENCE_FRAME ref0 = mbmi->ref_frame[0];
   MV_REFERENCE_FRAME ref1 = mbmi->ref_frame[1];
-#if CONFIG_F322_OBUER_REFRESTRICT
   // NOTE:num_valid_refs_with_restricted_ref may be the same as num_total_refs
   const int n_refs = ref_frames_info->num_valid_refs_with_restricted_ref;
-#else
-  const int n_refs = ref_frames_info->num_total_refs;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
   int may_have_same_ref_comp = ref_frames_info->num_same_ref_compound > 0;
   if (ref_frames_info->num_same_ref_compound > 0) {
     assert(n_refs >= 1);
@@ -3278,21 +3270,15 @@ static AVM_INLINE void encode_restoration_mode(
             const int num_ref_frames =
                 (frame_is_intra_only(cm) || frame_is_sframe(cm))
                     ? 0
-#if CONFIG_F322_OBUER_REFRESTRICT
                     // NOTE: at the encoder num_total_refs may not include
                     // restricted references
                     : cm->ref_frames_info.num_valid_refs_with_restricted_ref;
-#else
-                    : cm->ref_frames_info.num_total_refs;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
 
             if (num_ref_frames > 0)
               avm_wb_write_bit(wb, rsi->temporal_pred_flag);
-#if CONFIG_F322_OBUER_REFRESTRICT
             if (rsi->temporal_pred_flag) {
               assert(cm->ref_frames_info.num_total_refs > 0);
             }
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
             if (rsi->temporal_pred_flag && num_ref_frames > 1)
               avm_wb_write_literal(
                   wb, rsi->rst_ref_pic_idx,
@@ -3904,13 +3890,9 @@ static AVM_INLINE void encode_ccso(const AV2_COMMON *cm,
   const int num_ref_frames =
       (frame_is_intra_only(cm) || frame_is_sframe(cm))
           ? 0
-#if CONFIG_F322_OBUER_REFRESTRICT
           // NOTE: at the encoder num_total_refs may not include restricted
           // references
           : cm->ref_frames_info.num_valid_refs_with_restricted_ref;
-#else
-          : cm->ref_frames_info.num_total_refs;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
   if (!cm->bridge_frame_info.is_bridge_frame) {
     if (cm->seq_params.single_picture_header_flag) {
       assert(cm->ccso_info.ccso_frame_flag);
@@ -3935,15 +3917,11 @@ static AVM_INLINE void encode_ccso(const AV2_COMMON *cm,
             avm_wb_write_literal(wb, cm->ccso_info.ccso_ref_idx[plane],
                                  avm_ceil_log2(num_ref_frames));
           } else {
-#if CONFIG_F322_OBUER_REFRESTRICT
             if (cm->ref_frames_info.num_restricted_ref == 0)
               assert(cm->ccso_info.ccso_ref_idx[plane] == 0);
             else
               assert(!get_ref_frame_buf(cm, cm->ccso_info.ccso_ref_idx[plane])
                           ->is_restricted);
-#else
-            assert(cm->ccso_info.ccso_ref_idx[plane] == 0);
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
           }
           assert(cm->ccso_info.ccso_ref_idx[plane] <
                  cm->ref_frames_info.num_total_refs);
@@ -4127,14 +4105,10 @@ static AVM_INLINE void encode_bru_active_info(AV2_COMP *cpi,
     if (cm->bru.enabled) {
       avm_wb_write_literal(
           wb, cm->bru.update_ref_idx,
-#if CONFIG_F322_OBUER_REFRESTRICT
           // Note that num_total_refs may not include
           //  restricted references  at the encoder side,
-          avm_ceil_log2(cm->ref_frames_info.num_valid_refs_with_restricted_ref)
-#else
-          avm_ceil_log2(cm->ref_frames_info.num_total_refs)
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
-      );
+          avm_ceil_log2(
+              cm->ref_frames_info.num_valid_refs_with_restricted_ref));
       avm_wb_write_bit(wb, cm->bru.frame_inactive_flag);
       if (!cm->show_frame) {
         avm_internal_error(&cm->error, AVM_CODEC_ERROR,
@@ -4230,11 +4204,8 @@ static AVM_INLINE void encode_segmentation(AV2_COMMON *cm,
   } else {
     avm_wb_write_bit(wb, seg->update_map);
     if (seg->update_map) {
-#if CONFIG_F322_OBUER_REFRESTRICT  // segmentation
       if (cm->current_frame.frame_type != S_FRAME)
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
         avm_wb_write_bit(wb, seg->temporal_update);
-#if CONFIG_F322_OBUER_REFRESTRICT  // segmentation
       int num_ref_frames_available = 0;
       for (int ref_idx = 0; ref_idx < cm->seq_params.ref_frames; ref_idx++) {
         if (cm->ref_frame_map[ref_idx] != NULL)
@@ -4242,7 +4213,6 @@ static AVM_INLINE void encode_segmentation(AV2_COMMON *cm,
               !cm->ref_frame_map[ref_idx]->is_restricted;
       }
       if (num_ref_frames_available == 0) assert(seg->temporal_update == 0);
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
     }
     seg->update_data = reuse ? 0 : 1;
   }
@@ -4397,11 +4367,9 @@ static AVM_INLINE void write_frame_size_with_refs(
                            : cm->ref_frames_info.num_total_refs_res_indep;
   MV_REFERENCE_FRAME ref_frame;
   for (ref_frame = 0; ref_frame < num_refs; ++ref_frame) {
-#if CONFIG_F322_OBUER_REFRESTRICT  // write_frame_size_with_refs
     if (cm->ref_frame_map[ref_frame] != NULL &&
         cm->ref_frame_map[ref_frame]->is_restricted)
       continue;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
     const YV12_BUFFER_CONFIG *cfg =
         explicit_ref_frame_map
             ? get_ref_frame_yv12_buf(cm, ref_frame)
@@ -5190,10 +5158,8 @@ static AVM_INLINE void write_global_motion(AV2_COMP *cpi,
 
   int our_ref = cpi->gm_info.base_model_our_ref;
   int their_ref = cpi->gm_info.base_model_their_ref;
-#if CONFIG_ERROR_RESILIENT_FIX
   assert(IMPLIES(frame_is_sframe(cm), our_ref == num_total_refs));
   if (!frame_is_sframe(cm))
-#endif  // CONFIG_ERROR_RESILIENT_FIX
     avm_wb_write_primitive_quniform(wb, num_total_refs + 1, our_ref);
   if (our_ref >= num_total_refs) {
     // Special case: Use IDENTITY model
@@ -5216,12 +5182,10 @@ static AVM_INLINE void write_global_motion(AV2_COMP *cpi,
   for (frame = 0; frame < num_total_refs; ++frame) {
     int temporal_distance;
     const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, frame);
-#if CONFIG_F322_OBUER_REFRESTRICT
     if (ref_buf->is_restricted) {
       cm->global_motion[frame].invalid = 1;
       continue;
     }
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
     const int ref_order_hint = ref_buf->display_order_hint;
     const int cur_order_hint = cm->cur_frame->display_order_hint;
     temporal_distance = get_relative_dist(&seq_params->order_hint_info,
@@ -5620,7 +5584,7 @@ static AVM_INLINE void write_uncompressed_header(
     }  //(!cm->bridge_frame_info.is_bridge_frame ||
        // cm->bridge_frame_info.bridge_frame_overwrite_flag)
   }  // else of (CLK || OLK)
-#else                              // CONFIG_F024_KEYOBU
+#else  // CONFIG_F024_KEYOBU
   if (cm->bridge_frame_info.is_bridge_frame) {
     avm_wb_write_literal(wb, cm->bridge_frame_info.bridge_frame_overwrite_flag,
                          1);
@@ -5641,9 +5605,7 @@ static AVM_INLINE void write_uncompressed_header(
     // reference frames.  For all other frame types, we need to write
     // refresh_frame_flags.
     if ((current_frame->frame_type == KEY_FRAME && !cm->show_frame) ||
-#if CONFIG_F322_OBUER_REFRESTRICT  // refresh_frame_flags
         current_frame->frame_type == S_FRAME ||
-#endif                             // CONFIG_F322_OBUER_REFRESTRICT
         (current_frame->frame_type == INTER_FRAME &&
          cpi->switch_frame_mode != 1) ||
         (current_frame->frame_type == S_FRAME && cpi->switch_frame_mode != 1) ||
@@ -5713,12 +5675,10 @@ static AVM_INLINE void write_uncompressed_header(
           (cpi->switch_frame_mode == 1 || frame_is_sframe(cm) ||
            seq_params->enable_explicit_ref_frame_map) &&
           !cm->bridge_frame_info.is_bridge_frame;
-#if CONFIG_F322_OBUER_EXPLICIT_REFLIST
       if (!frame_is_intra_only(cm) && !frame_is_sframe(cm) &&
           seq_params->enable_explicit_ref_frame_map &&
           !cm->bridge_frame_info.is_bridge_frame)
         avm_wb_write_bit(wb, explicit_ref_frame_map);
-#endif
       if (explicit_ref_frame_map) {
         const int max_num_ref_frames =
             AVMMIN(seq_params->ref_frames, INTER_REFS_PER_FRAME);
@@ -5765,14 +5725,9 @@ static AVM_INLINE void write_uncompressed_header(
         assert(features->allow_ref_frame_mvs == 0);
       }
       if (features->allow_ref_frame_mvs &&
-#if CONFIG_F322_OBUER_REFRESTRICT
           // NOTE: at the encoder side num_total_refs doesnot include
           // restricted reference
-          cm->ref_frames_info.num_valid_refs_with_restricted_ref > 1
-#else
-          cm->ref_frames_info.num_total_refs > 1
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
-      ) {
+          cm->ref_frames_info.num_valid_refs_with_restricted_ref > 1) {
         // Write TMVP sampling mode
         if (block_size_high[seq_params->sb_size] > 64) {
           assert(cm->tmvp_sample_step == 1 || cm->tmvp_sample_step == 2);
@@ -5783,11 +5738,7 @@ static AVM_INLINE void write_uncompressed_header(
       }
 
       if (cm->seq_params.enable_tip && features->allow_ref_frame_mvs &&
-#if CONFIG_F322_OBUER_REFRESTRICT
           cm->ref_frames_info.num_valid_refs_with_restricted_ref >= 2 &&
-#else
-          cm->ref_frames_info.num_total_refs >= 2 &&
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
           !cm->bridge_frame_info.is_bridge_frame &&
           !cm->bru.frame_inactive_flag) {
         if (cm->seq_params.enable_tip == 1) {
@@ -6578,10 +6529,8 @@ static uint32_t write_tilegroup_header(AV2_COMP *cpi, OBU_TYPE obu_type,
 
   if (send_first_tile_group_indication)
     avm_wb_write_bit(&wb, first_tile_group_in_frame);
-#if CONFIG_F322_OBUER_REFRESTRICT
   if (obu_type == OBU_SWITCH)
     avm_wb_write_bit(&wb, cpi->common.restricted_prediction_switch);
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
 
   int send_uncompressed_header_flag = frame_is_sframe(&cpi->common);
   if (!first_tile_group_in_frame) {

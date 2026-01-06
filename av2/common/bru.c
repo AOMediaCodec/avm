@@ -333,31 +333,22 @@ RefCntBuffer *bru_swap_common(AV2_COMMON *cm) {
     MV_REFERENCE_FRAME ref_frame;
     for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ++ref_frame) {
       const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
-      if (buf != NULL && ref_frame < cm->ref_frames_info.num_total_refs
-#if CONFIG_F322_OBUER_REFRESTRICT
-          && !buf->is_restricted
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
-      ) {
+      if (buf != NULL && ref_frame < cm->ref_frames_info.num_total_refs &&
+          !buf->is_restricted) {
         ref_buf->ref_order_hints[ref_frame] = buf->order_hint;
         ref_buf->ref_display_order_hint[ref_frame] = buf->display_order_hint;
-#if CONFIG_F322_OBUER_REFRESTRICT
         ref_buf->refs_restricted_status[ref_frame] = 0;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
       } else {
         ref_buf->ref_order_hints[ref_frame] = -1;
         ref_buf->ref_display_order_hint[ref_frame] = -1;
-#if CONFIG_F322_OBUER_REFRESTRICT
         ref_buf->refs_restricted_status[ref_frame] = 1;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
       }
     }
     RefCntBuffer *tmp_buf = cm->cur_frame;
     ref_buf->order_hint = cm->cur_frame->order_hint;
     ref_buf->display_order_hint = cm->cur_frame->display_order_hint;
-#if CONFIG_F322_OBUER_REFRESTRICT
     ref_buf->display_order_hint_restricted =
         cm->cur_frame->display_order_hint_restricted;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
     ref_buf->long_term_id = cm->cur_frame->long_term_id;
     ref_buf->absolute_poc = cm->cur_frame->absolute_poc;
     ref_buf->pyramid_level = cm->cur_frame->pyramid_level;

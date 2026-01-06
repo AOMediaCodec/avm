@@ -906,14 +906,10 @@ static AVM_INLINE void refresh_reference_frames(AV2_COMP *cpi) {
   // a crash.
   if (cm->cur_frame->frame_type == KEY_FRAME && cm->show_existing_frame) {
     cm->cur_frame->display_order_hint = 0;
-#if CONFIG_F322_OBUER_REFRESTRICT
     cm->cur_frame->display_order_hint_restricted = 0;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
   }
 #endif  // ! CONFIG_F024_KEYOBU
-#if CONFIG_F322_OBUER_REFRESTRICT
   cm->cur_frame->is_restricted = false;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
   if (!cm->bru.enabled) {
     // All buffers are refreshed for shown keyframes and S-frames.
     for (int ref_frame = 0; ref_frame < cm->seq_params.ref_frames;

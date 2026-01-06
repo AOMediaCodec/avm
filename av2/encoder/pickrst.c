@@ -3625,9 +3625,7 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
   for (int ref_idx = 0; ref_idx < num_ref_frames; ref_idx++) {
     RestorationInfo rsi =
         get_ref_frame_buf(rsc->cm, ref_idx)->rst_info[rsc->plane];
-#if CONFIG_F322_OBUER_REFRESTRICT
     if (get_ref_frame_buf(rsc->cm, ref_idx)->is_restricted) continue;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
     if (!rsi.frame_filters_on) {
       const int alternate_plane = alternate_ref_plane(rsc->plane);
       if (alternate_plane != -1) {
@@ -3664,10 +3662,8 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
     rsc->temporal_pred_flag = 1;
     rsc->rst_ref_pic_idx = best_ref_idx;
     rsc->frame_filter_cost = 0;
-#if CONFIG_F322_OBUER_REFRESTRICT
     if (get_ref_frame_buf(rsc->cm, best_ref_idx) != NULL)
       assert(!get_ref_frame_buf(rsc->cm, best_ref_idx)->is_restricted);
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
   } else {
     rsc->temporal_pred_flag = 0;
   }

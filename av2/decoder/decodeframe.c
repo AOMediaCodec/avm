@@ -2487,11 +2487,9 @@ static AVM_INLINE void setup_segmentation(AV2_COMMON *const cm,
   } else {
     seg->update_map = avm_rb_read_bit(rb);
     if (seg->update_map) {
-#if CONFIG_F322_OBUER_REFRESTRICT  // segment
       if (cm->current_frame.frame_type == S_FRAME)
         seg->temporal_update = 0;
       else
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
         seg->temporal_update = avm_rb_read_bit(rb);
     } else {
       seg->temporal_update = 0;
@@ -2571,7 +2569,6 @@ static AVM_INLINE void decode_restoration_mode(AV2_COMMON *cm,
 
             if (num_ref_frames > 0)
               rsi->temporal_pred_flag = avm_rb_read_bit(rb);
-#if CONFIG_F322_OBUER_REFRESTRICT  // restoration
             int num_ref_frames_available = 0;
             for (int i = 0; i < num_ref_frames; i++) {
               if (cm->ref_frame_map[cm->remapped_ref_idx[i]] != NULL)
@@ -2580,18 +2577,15 @@ static AVM_INLINE void decode_restoration_mode(AV2_COMMON *cm,
             }
             if (num_ref_frames_available == 0)
               assert(rsi->temporal_pred_flag == 0);
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
             if (rsi->temporal_pred_flag && num_ref_frames > 1) {
               rsi->rst_ref_pic_idx = avm_rb_read_literal(
                   rb,
                   avm_ceil_log2(num_ref_frames));  // read_lr_reference_idx
-#if CONFIG_F322_OBUER_REFRESTRICT
               if (get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)->is_restricted) {
                 avm_internal_error(
                     &cm->error, AVM_CODEC_ERROR,
                     "Invalid rst_ref_pic_idx: restricted reference buffer");
               }
-#endif
             }
           }
 
@@ -3278,14 +3272,12 @@ static AVM_INLINE void setup_ccso(AV2_COMMON *cm,
   const int num_ref_frames = (frame_is_intra_only(cm) || frame_is_sframe(cm))
                                  ? 0
                                  : cm->ref_frames_info.num_total_refs;
-#if CONFIG_F322_OBUER_REFRESTRICT  // ccso
   int num_ref_frames_available = 0;
   for (int i = 0; i < num_ref_frames; i++) {
     if (cm->ref_frame_map[cm->remapped_ref_idx[i]] != NULL)
       num_ref_frames_available +=
           !cm->ref_frame_map[cm->remapped_ref_idx[i]]->is_restricted;
   }
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
   if (cm->bridge_frame_info.is_bridge_frame) {
     cm->ccso_info.ccso_frame_flag = 0;
   } else {
@@ -3316,11 +3308,9 @@ static AVM_INLINE void setup_ccso(AV2_COMMON *cm,
           cm->ccso_info.reuse_ccso[plane] = 0;
           cm->ccso_info.sb_reuse_ccso[plane] = 0;
         }
-#if CONFIG_F322_OBUER_REFRESTRICT
         if (num_ref_frames_available == 0)
           assert(cm->ccso_info.reuse_ccso[plane] == 0 &&
                  cm->ccso_info.sb_reuse_ccso[plane] == 0);
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
         if (cm->ccso_info.reuse_ccso[plane] ||
             cm->ccso_info.sb_reuse_ccso[plane]) {
           if (num_ref_frames > 1) {
@@ -3335,7 +3325,6 @@ static AVM_INLINE void setup_ccso(AV2_COMMON *cm,
                 &cm->error, AVM_CODEC_ERROR,
                 "Invalid ccso_ref_idx: ccso_ref_idx >= num_total_refs");
           }
-#if CONFIG_F322_OBUER_REFRESTRICT
           if (get_ref_frame_buf(cm, cm->ccso_info.ccso_ref_idx[plane])
                   ->is_restricted) {
             avm_internal_error(&cm->error, AVM_CODEC_ERROR,
@@ -3343,7 +3332,6 @@ static AVM_INLINE void setup_ccso(AV2_COMMON *cm,
                                "refefence frame",
                                plane, cm->ccso_info.ccso_ref_idx[plane]);
           }
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
           ref_frame_ccso_info =
               &get_ref_frame_buf(cm, cm->ccso_info.ccso_ref_idx[plane])
                    ->ccso_info;
@@ -4110,12 +4098,10 @@ static AVM_INLINE void setup_frame_size_with_refs(
       const RefCntBuffer *const ref_buf =
           explicit_ref_frame_map ? get_ref_frame_buf(cm, i)
                                  : get_ref_frame_buf_res_indep(cm, i);
-#if CONFIG_F322_OBUER_REFRESTRICT
       if (ref_buf->is_restricted) {
         avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
                            "Invalid condition: restricted reference buffer");
       }
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
       // This will never be NULL in a normal stream, as streams are required to
       // have a shown keyframe before any inter frames, which would refresh all
       // the reference buffers. However, it might be null if we're starting in
@@ -6740,12 +6726,8 @@ static AVM_INLINE void read_global_motion(AV2_COMMON *cm,
     return;
   }
 
-#if CONFIG_ERROR_RESILIENT_FIX
   int our_ref = num_total_refs;
   if (!frame_is_sframe(cm))
-#else
-  int
-#endif  // CONFIG_ERROR_RESILIENT_FIX
     our_ref = avm_rb_read_primitive_quniform(rb, num_total_refs + 1);
   if (our_ref == num_total_refs) {
     // Special case: Use IDENTITY model
@@ -6754,12 +6736,10 @@ static AVM_INLINE void read_global_motion(AV2_COMMON *cm,
   } else {
     RefCntBuffer *buf = get_ref_frame_buf(cm, our_ref);
     assert(buf);
-#if CONFIG_F322_OBUER_REFRESTRICT
     if (buf->is_restricted) {
       avm_internal_error(&cm->error, AVM_CODEC_ERROR,
                          "Invalid our_ref: restricted reference buffer");
     }
-#endif
     int their_num_refs = buf->num_ref_frames;
     if (their_num_refs == 0) {
       // Special case: if an intra/key frame is used as a ref, use an
@@ -6768,12 +6748,10 @@ static AVM_INLINE void read_global_motion(AV2_COMMON *cm,
       cm->base_global_motion_distance = 1;
     } else {
       const int their_ref = avm_rb_read_primitive_quniform(rb, their_num_refs);
-#if CONFIG_F322_OBUER_REFRESTRICT
       if (buf->refs_restricted_status[their_ref]) {
         avm_internal_error(&cm->error, AVM_CODEC_ERROR,
                            "Invalid their_ref: restricted reference buffer");
       }
-#endif
       const int our_ref_order_hint = buf->display_order_hint;
       const int their_ref_order_hint = buf->ref_display_order_hint[their_ref];
       cm->base_global_motion_model = buf->global_motion[their_ref];
@@ -6786,12 +6764,10 @@ static AVM_INLINE void read_global_motion(AV2_COMMON *cm,
   for (int frame = 0; frame < cm->ref_frames_info.num_total_refs; ++frame) {
     int temporal_distance;
     const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, frame);
-#if CONFIG_F322_OBUER_REFRESTRICT
     if (ref_buf->is_restricted) {
       cm->global_motion[frame].invalid = 1;
       continue;
     }
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
     const int ref_order_hint = ref_buf->display_order_hint;
     const int cur_order_hint = cm->cur_frame->display_order_hint;
     temporal_distance = get_relative_dist(&seq_params->order_hint_info,
@@ -6956,7 +6932,6 @@ static INLINE int get_disp_order_hint(AV2_COMMON *const cm)
   // applied.
   if (current_frame->frame_type == KEY_FRAME) return current_frame->order_hint;
 #endif  // CONFIG_F024_KEYOBU
-#if CONFIG_F322_OBUER_REFRESTRICT
   if (current_frame->frame_type == S_FRAME &&
       cm->restricted_prediction_switch && !cm->show_existing_frame) {
     for (int map_idx = 0; map_idx < cm->seq_params.ref_frames; map_idx++) {
@@ -6965,7 +6940,6 @@ static INLINE int get_disp_order_hint(AV2_COMMON *const cm)
     }
     return current_frame->order_hint;
   }
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
   // Derive the exact display order hint from the signaled order_hint.
   // This requires scaling up order_hints corresponding to frame
   // numbers that exceed the number of bits available to send the order_hints.
@@ -6983,9 +6957,7 @@ static INLINE int get_disp_order_hint(AV2_COMMON *const cm)
         !buf->showable_frame ||
 #endif  // CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
 #endif  // CONFIG_F024_KEYOBU
-#if CONFIG_F322_OBUER_REFRESTRICT
         buf->is_restricted ||
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
         !is_tlayer_scalable_and_dependent(&cm->seq_params, cm->tlayer_id,
                                           buf->tlayer_id, cm->mlayer_id) ||
         !is_mlayer_scalable_and_dependent(&cm->seq_params, cm->mlayer_id,
@@ -7111,13 +7083,11 @@ static void set_primary_ref_frame_and_ctx(AV2Decoder *pbi) {
     avm_internal_error(&cm->error, AVM_CODEC_ERROR,
                        "Invalid primary_ref_frame");
   }
-#if CONFIG_F322_OBUER_REFRESTRICT
   if (get_ref_frame_buf(cm, features->primary_ref_frame) != NULL &&
       get_ref_frame_buf(cm, features->primary_ref_frame)->is_restricted) {
     avm_internal_error(&cm->error, AVM_CODEC_ERROR,
                        "primary_ref_frame points a restricted reference");
   }
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
   if (cm->features.primary_ref_frame == PRIMARY_REF_NONE ||
       cm->features.cross_frame_context == CROSS_FRAME_CONTEXT_DISABLED) {
     // use the default frame context values
@@ -7246,12 +7216,10 @@ static int read_show_existing_frame(AV2Decoder *pbi,
     avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
                        "Buffer does not contain a decoded frame");
   }
-#if CONFIG_F322_OBUER_REFRESTRICT
   if (pbi->restricted_predition && frame_to_show->is_restricted) {
     avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
                        "Invalid SEF Ref: restricted reference buffer");
   }
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
   cm->sef_ref_fb_idx = existing_frame_idx;
   cm->derive_sef_order_hint = avm_rb_read_bit(rb);
 #if CONFIG_F024_KEYOBU
@@ -7607,7 +7575,6 @@ static int is_reference_mapping_consistent(
   return 1;
 }
 
-#if CONFIG_F322_OBUER_REFRESTRICT
 void update_num_restricted_ref(AV2_COMMON *const cm) {
   int num_total_refs = cm->ref_frames_info.num_total_refs;
   int num_restricted_ref = 0;
@@ -7628,6 +7595,7 @@ void update_num_restricted_ref(AV2_COMMON *const cm) {
       max_num_ref_frames)
     cm->ref_frames_info.num_valid_refs_with_restricted_ref = max_num_ref_frames;
 }
+
 void update_ref_frames_info(AV2Decoder *pbi, OBU_TYPE obu_type) {
   AV2_COMMON *const cm = &pbi->common;
   if (obu_type == OBU_BRIDGE_FRAME) return;
@@ -7669,7 +7637,7 @@ void update_ref_frames_info(AV2Decoder *pbi, OBU_TYPE obu_type) {
     }  // restricted reference
   }
 }
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
+
 #if CONFIG_CWG_F270_OPS
 static avm_codec_err_t avm_get_num_layers_from_operating_point_idc(
     int operating_point_idc, unsigned int *number_mlayers,
@@ -7890,7 +7858,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
 #endif  // CONFIG_F024_KEYOBU
       if (obu_type == OBU_RAS_FRAME || obu_type == OBU_SWITCH) {
         current_frame->frame_type = S_FRAME;
-#if CONFIG_F322_OBUER_REFRESTRICT
         if (cm->restricted_prediction_switch) {
           pbi->restricted_predition = 1;
           for (int i = 0; i < REF_FRAMES; i++) {
@@ -7910,7 +7877,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
             }
           }
         }
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
       } else
 #if CONFIG_F024_KEYOBU
           if (obu_type == OBU_REGULAR_TIP || obu_type == OBU_LEADING_TIP)
@@ -7948,11 +7914,9 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       }
     }
 
-#if CONFIG_F322_OBUER_REFRESTRICT
     if (obu_type == OBU_CLK || (obu_type == OBU_OLK && pbi->random_accessed)) {
       pbi->restricted_predition = 0;
     }
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
 
     if (pbi->stream_switched) {
       pbi->stream_switched = 0;
@@ -8099,10 +8063,8 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
         }
       }
       current_frame->frame_number = current_frame->order_hint;
-#if CONFIG_F322_OBUER_REFRESTRICT
       current_frame->display_order_hint_restricted =
           current_frame->display_order_hint;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
     }
 
     if (!frame_is_sframe(cm) && !frame_is_intra_only(cm)) {
@@ -8340,7 +8302,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       // Reference rankings will be implicitly derived in av2_get_ref_frames,
       // but if the explicit mode is used, reference indices will be signaled,
       // which overwrites the implictly derived ones.
-#if CONFIG_F322_OBUER_EXPLICIT_REFLIST
       int explicit_ref_frame_map = -1;
       // explicit_ref_frame_map is always true when frame_type is s_frame.
       // explicit_ref_frame_map is always false when frame_type is key_frame or
@@ -8359,12 +8320,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
         else
           explicit_ref_frame_map = 0;
       }
-#else
-      const int explicit_ref_frame_map =
-          (cm->features.error_resilient_mode || frame_is_sframe(cm) ||
-           seq_params->explicit_ref_frame_map) &&
-          !cm->bridge_frame_info.is_bridge_frame;
-#endif  // CONFIG_F322_OBUER_EXPLICIT_REFLIST
 
       if (explicit_ref_frame_map) {
         cm->ref_frames_info.num_total_refs =
@@ -8484,13 +8439,10 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
           }
         }
 
-#if CONFIG_F322_OBUER_REFRESTRICT
         // restricted_predition=if number of is_restricted_ref >0
         if (pbi->restricted_predition && obu_type != OBU_RAS_FRAME) {
           update_ref_frames_info(pbi, obu_type);
         }
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
-
       }  // (!explicit_ref_frame_map)
       // Check to make sure all reference frames have valid dimensions.
       for (int i = 0; i < cm->ref_frames_info.num_total_refs; ++i) {
@@ -8498,11 +8450,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
         int valid_ref_frame = valid_ref_frame_size(ref_frame->buf.y_crop_width,
                                                    ref_frame->buf.y_crop_height,
                                                    cm->width, cm->height);
-#if CONFIG_F322_OBUER_REFRESTRICT
         if (!valid_ref_frame && !ref_frame->is_restricted)
-#else
-        if (!valid_ref_frame)
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
           avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
                              "Referenced frame has invalid size");
       }
@@ -8520,13 +8468,11 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
         if (cm->bru.enabled) {
           const RefCntBuffer *const bru_ref =
               get_ref_frame_buf(cm, cm->bru.update_ref_idx);
-#if CONFIG_F322_OBUER_REFRESTRICT
           if (pbi->restricted_predition && bru_ref != NULL &&
               bru_ref->is_restricted) {
             avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
                                "Invalid BRU Ref: restricted reference buffer");
           }
-#endif
           if (bru_ref == NULL) {
             avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
                                "Invalid BRU Ref: invalid reference buffer");
@@ -8596,9 +8542,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
         for (int i = 0; i < cm->seq_params.ref_frames; i++) {
           const RefCntBuffer *const buf = cm->ref_frame_map[i];
           if (buf) {
-#if CONFIG_F322_OBUER_REFRESTRICT
             if (buf->is_restricted) continue;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
             int ref_disp = (int)buf->display_order_hint;
             const int disp_diff = get_relative_dist(
                 &cm->seq_params.order_hint_info, cur_frame_disp, ref_disp);
@@ -8620,7 +8564,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
         for (int i = 0; i < seq_params->ref_frames; i++)
           scores[i].score = INT_MAX;
         for (int i = 0; i < cm->ref_frames_info.num_total_refs; i++) {
-#if CONFIG_F322_OBUER_REFRESTRICT
           if (cm->ref_frame_map[cm->remapped_ref_idx[i]]->is_restricted) {
             scores[i].distance = (1 << (RELATIVE_DIST_BITS - 1)) - 1;
           } else {
@@ -8631,19 +8574,9 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
                                   (int)current_frame->display_order_hint,
                                   (int)cm->ref_frame_map_pairs[ref].disp_order);
           }
-#else
-          scores[i].score = i;
-          int ref = cm->remapped_ref_idx[i];
-          scores[i].distance =
-              get_relative_dist(&seq_params->order_hint_info,
-                                (int)current_frame->display_order_hint,
-                                (int)cm->ref_frame_map_pairs[ref].disp_order);
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
           cm->ref_frames_info.ref_frame_distance[i] = scores[i].distance;
         }
-#if CONFIG_F322_OBUER_REFRESTRICT
         update_num_restricted_ref(cm);
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
         av2_get_past_future_cur_ref_lists(cm, scores);
       }
       cm->cur_frame->num_ref_frames = cm->ref_frames_info.num_total_refs;
@@ -9388,12 +9321,10 @@ int32_t av2_read_tilegroup_header(
   if (send_first_tile_group_indication)
     is_first_tile_group = avm_rb_read_bit(rb);
   *first_tile_group_in_frame = is_first_tile_group;
-#if CONFIG_F322_OBUER_REFRESTRICT
   if (obu_type == OBU_SWITCH || obu_type == OBU_RAS_FRAME)
     cm->restricted_prediction_switch = avm_rb_read_bit(rb);
   else
     cm->restricted_prediction_switch = 0;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
 
   if (is_first_tile_group) {
 #if CONFIG_MISMATCH_DEBUG

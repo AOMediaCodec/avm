@@ -2818,7 +2818,6 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
         if (frame_params->frame_type != KEY_FRAME)
           frame_params->frame_type = S_FRAME;
       }
-#if CONFIG_F322_OBUER_REFRESTRICT
       int sframe_dist = oxcf->kf_cfg.sframe_dist;
       int sframe_mode = oxcf->kf_cfg.sframe_mode;
       CurrentFrame *const current_frame = &cpi->common.current_frame;
@@ -2849,7 +2848,6 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
           }
         }
       }  // sframe_dist
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
       return;
     }
   }
@@ -2898,40 +2896,37 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
     const int update_type = gf_group->update_type[gf_group->index];
     CurrentFrame *const current_frame = &cpi->common.current_frame;
     if (sframe_dist != 0) {
-#if CONFIG_F322_OBUER_REFRESTRICT
       if (sframe_mode == 0 && oxcf->gf_cfg.lag_in_frames != 0) {
         if (update_type == ARF_UPDATE || update_type == KFFLT_UPDATE) {
           frame_params->frame_type = S_FRAME;
         }
-      } else
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
-        if (altref_enabled) {
-          if (sframe_mode == 1) {
-            // sframe_mode == 1: insert sframe if it matches altref frame.
-            if (current_frame->frame_number % sframe_dist == 0 &&
-                current_frame->frame_number != 0 &&
-                (update_type == ARF_UPDATE || update_type == KFFLT_UPDATE)) {
-              frame_params->frame_type = S_FRAME;
-            }
-          } else {
-            // sframe_mode == 0: if sframe will be inserted at the next
-            // available altref frame
-            if (current_frame->frame_number % sframe_dist == 0 &&
-                current_frame->frame_number != 0) {
-              rc->sframe_due = 1;
-            }
-            if (rc->sframe_due &&
-                (update_type == ARF_UPDATE || update_type == KFFLT_UPDATE)) {
-              frame_params->frame_type = S_FRAME;
-              rc->sframe_due = 0;
-            }
-          }
-        } else {
+      } else if (altref_enabled) {
+        if (sframe_mode == 1) {
+          // sframe_mode == 1: insert sframe if it matches altref frame.
           if (current_frame->frame_number % sframe_dist == 0 &&
-              current_frame->frame_number != 0) {
+              current_frame->frame_number != 0 &&
+              (update_type == ARF_UPDATE || update_type == KFFLT_UPDATE)) {
             frame_params->frame_type = S_FRAME;
           }
+        } else {
+          // sframe_mode == 0: if sframe will be inserted at the next
+          // available altref frame
+          if (current_frame->frame_number % sframe_dist == 0 &&
+              current_frame->frame_number != 0) {
+            rc->sframe_due = 1;
+          }
+          if (rc->sframe_due &&
+              (update_type == ARF_UPDATE || update_type == KFFLT_UPDATE)) {
+            frame_params->frame_type = S_FRAME;
+            rc->sframe_due = 0;
+          }
         }
+      } else {
+        if (current_frame->frame_number % sframe_dist == 0 &&
+            current_frame->frame_number != 0) {
+          frame_params->frame_type = S_FRAME;
+        }
+      }
     }
   }
 
@@ -2999,12 +2994,10 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
               rc->frames_since_key == 0 ? OBU_CLK : NUM_OBU_TYPES;
 #endif
 
-#if CONFIG_F322_OBUER_REFRESTRICT
         // ARF_UPDATE and KFFLT_UPDATE is set as S_FRAME in the RA case
         if (frame_params->frame_type == INTER_FRAME &&
             (oxcf->kf_cfg.sframe_dist > 0 && oxcf->kf_cfg.sframe_mode == 0))
           frame_params->frame_type = S_FRAME;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
       }
     }
 

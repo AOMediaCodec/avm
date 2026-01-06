@@ -404,7 +404,6 @@ static AVM_INLINE void pick_base_gm_params(AV2_COMP *cpi) {
     best_cost = this_cost;
     best_enable_models = this_enable_models;
   }
-#if CONFIG_ERROR_RESILIENT_FIX
   if (frame_is_sframe(cm)) {
     gm_info->base_model_our_ref = best_our_ref;
     gm_info->base_model_their_ref = best_their_ref;
@@ -412,7 +411,6 @@ static AVM_INLINE void pick_base_gm_params(AV2_COMP *cpi) {
     cm->base_global_motion_distance = best_temporal_distance;
     return;
   }
-#endif  // CONFIG_ERROR_RESILIENT_FIX
   // Then try each available reference model in turn
   for (int our_ref = 0; our_ref < num_total_refs; ++our_ref) {
     const int ref_disabled = !(cm->ref_frame_flags & (1 << our_ref));

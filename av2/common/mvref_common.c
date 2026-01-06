@@ -2939,10 +2939,8 @@ void av2_find_best_ref_mvs(int_mv *mvlist, int_mv *nearest_mv, int_mv *near_mv,
 void av2_setup_frame_buf_refs(AV2_COMMON *cm) {
   cm->cur_frame->order_hint = cm->current_frame.order_hint;
   cm->cur_frame->display_order_hint = cm->current_frame.display_order_hint;
-#if CONFIG_F322_OBUER_REFRESTRICT
   cm->cur_frame->display_order_hint_restricted =
       cm->current_frame.display_order_hint_restricted;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
   cm->cur_frame->long_term_id = cm->current_frame.long_term_id;
   cm->cur_frame->absolute_poc = cm->current_frame.absolute_poc;
   cm->cur_frame->pyramid_level = cm->current_frame.pyramid_level;
@@ -2953,25 +2951,18 @@ void av2_setup_frame_buf_refs(AV2_COMMON *cm) {
   MV_REFERENCE_FRAME ref_frame;
   for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ++ref_frame) {
     const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
-    if (buf != NULL && ref_frame < cm->ref_frames_info.num_total_refs
-#if CONFIG_F322_OBUER_REFRESTRICT
-        && !buf->is_restricted
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
-    ) {
+    if (buf != NULL && ref_frame < cm->ref_frames_info.num_total_refs &&
+        !buf->is_restricted) {
       cm->cur_frame->ref_order_hints[ref_frame] = buf->order_hint;
       cm->cur_frame->ref_display_order_hint[ref_frame] =
           buf->display_order_hint;
       cm->cur_frame->ref_mlayer_ids[ref_frame] = buf->mlayer_id;
-#if CONFIG_F322_OBUER_REFRESTRICT
       cm->cur_frame->refs_restricted_status[ref_frame] = buf->is_restricted;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
     } else {
       cm->cur_frame->ref_order_hints[ref_frame] = -1;
       cm->cur_frame->ref_display_order_hint[ref_frame] = -1;
       cm->cur_frame->ref_mlayer_ids[ref_frame] = -1;
-#if CONFIG_F322_OBUER_REFRESTRICT
       cm->cur_frame->refs_restricted_status[ref_frame] = 1;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
     }
   }
 }
@@ -3034,9 +3025,7 @@ static INLINE int is_ref_overlay(const AV2_COMMON *const cm, int ref) {
   if (buf == NULL) return -1;
   const int ref_order_hint = buf->display_order_hint;
   for (int r = 0; r < INTER_REFS_PER_FRAME; ++r) {
-#if CONFIG_F322_OBUER_REFRESTRICT
     if (buf->refs_restricted_status[r] == 1) continue;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
     if (buf->ref_display_order_hint[r] == -1) continue;
     const int ref_ref_order_hint = buf->ref_display_order_hint[r];
     if (get_relative_dist(order_hint_info, ref_order_hint,
@@ -3055,9 +3044,7 @@ static void recur_topo_sort_refs(const AV2_COMMON *cm, const bool *is_overlay,
   const RefCntBuffer *const buf = get_ref_frame_buf(cm, rf);
   if (buf->frame_type == INTER_FRAME) {
     for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
-#if CONFIG_F322_OBUER_REFRESTRICT
       if (buf->refs_restricted_status[i] == 1) continue;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
       const int target_ref_hint = buf->ref_display_order_hint[i];
       if (target_ref_hint < 0) continue;
       int found_rf = -1;
@@ -3087,9 +3074,7 @@ static int has_future_ref(const AV2_COMMON *cm, int rf) {
   RefCntBuffer *buf = get_ref_frame_buf(cm, rf);
   const int cur_hint = buf->display_order_hint;
   for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
-#if CONFIG_F322_OBUER_REFRESTRICT
     if (buf->refs_restricted_status[i]) continue;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
     const int ref_hint = buf->ref_display_order_hint[i];
     if (ref_hint >= 0 && get_relative_dist(&cm->seq_params.order_hint_info,
                                            ref_hint, cur_hint) > 0) {
@@ -3105,9 +3090,7 @@ static int has_past_ref(const AV2_COMMON *cm, int rf) {
   RefCntBuffer *buf = get_ref_frame_buf(cm, rf);
   const int cur_hint = buf->display_order_hint;
   for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
-#if CONFIG_F322_OBUER_REFRESTRICT
     if (buf->refs_restricted_status[i]) continue;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
     const int ref_hint = buf->ref_display_order_hint[i];
     if (ref_hint >= 0 && get_relative_dist(&cm->seq_params.order_hint_info,
                                            ref_hint, cur_hint) < 0) {
@@ -3501,9 +3484,7 @@ static int motion_field_projection_side(AV2_COMMON *cm,
   const int *const ref_order_hints =
       &start_frame_buf->ref_display_order_hint[0];
   for (MV_REFERENCE_FRAME rf = 0; rf < INTER_REFS_PER_FRAME; ++rf) {
-#if CONFIG_F322_OBUER_REFRESTRICT
     if (start_frame_buf->refs_restricted_status[rf] == 1) continue;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
     if (ref_order_hints[rf] != -1) {
       ref_offset[rf] =
           get_relative_dist(&cm->seq_params.order_hint_info,
@@ -3520,17 +3501,10 @@ static int motion_field_projection_side(AV2_COMMON *cm,
 
   int start_ref_map[INTER_REFS_PER_FRAME];
   for (int k = 0; k < INTER_REFS_PER_FRAME; k++) {
-#if CONFIG_F322_OBUER_REFRESTRICT
     start_ref_map[k] = NONE_FRAME;
 
     const int ref_k_hint = start_frame_buf->ref_display_order_hint[k];
     if (ref_k_hint < 0) continue;
-#else
-    const int ref_k_hint = start_frame_buf->ref_display_order_hint[k];
-    if (ref_k_hint < 0) continue;
-
-    start_ref_map[k] = NONE_FRAME;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
     if (get_relative_dist(&cm->seq_params.order_hint_info,
                           start_frame_order_hint, ref_k_hint) == 0) {
       continue;
@@ -3751,9 +3725,7 @@ void determine_tmvp_sample_step(AV2_COMMON *cm,
     for (int j = 0; j < 2; j++) {
       if (!checked_ref[i][j]) continue;
       const RefCntBuffer *buf = get_ref_frame_buf(cm, i);
-#if CONFIG_F322_OBUER_REFRESTRICT
       if (buf == NULL || buf->is_restricted) continue;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
       const int buf_hint = buf->display_order_hint;
       if (!is_ref_motion_field_eligible(cm, buf)) continue;
       calc_and_set_avg_lengths(cm, i, j);
@@ -3944,10 +3916,8 @@ static void fill_id_offset_sample_gap(AV2_COMMON *cm) {
   const int sb_tmvp_size = (mf_sb_size >> TMVP_MI_SZ_LOG2);
   const int sb_tmvp_size_log2 = mf_sb_size_log2 - TMVP_MI_SZ_LOG2;
   for (int rf = 0; rf < cm->ref_frames_info.num_total_refs; rf++) {
-#if CONFIG_F322_OBUER_REFRESTRICT
     const RefCntBuffer *buf = get_ref_frame_buf(cm, rf);
     if (buf == NULL || buf->is_restricted) continue;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
     for (int r = 0; r < mvs_rows; r += cm->tmvp_sample_step) {
       for (int c = 0; c < mvs_cols; c += cm->tmvp_sample_step) {
         if (cm->id_offset_map_rows[rf][r][c].as_int == INVALID_MV) continue;
@@ -4078,20 +4048,16 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
     cm->ref_frame_side[i] = 0;
     cm->ref_frame_relative_dist[i] = 0;
   }
-#if CONFIG_F322_OBUER_REFRESTRICT
   for (int i = 0; i < cm->ref_frames_info.num_total_refs; i++) {
     if (get_ref_frame_buf(cm, i)->is_restricted) {
       cm->ref_frame_relative_dist[i] = INT_MAX;
     }
   }
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
   for (int index = 0; index < cm->ref_frames_info.num_past_refs; index++) {
     const int ref_frame = cm->ref_frames_info.past_refs[index];
     cm->ref_frame_side[ref_frame] = 0;
     const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
-#if CONFIG_F322_OBUER_REFRESTRICT
     assert(!buf->is_restricted);
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
     ref_buf[ref_frame] = buf;
     const int relative_dist =
         get_relative_dist(order_hint_info, buf->display_order_hint,
@@ -4102,9 +4068,7 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
     const int ref_frame = cm->ref_frames_info.future_refs[index];
     cm->ref_frame_side[ref_frame] = 1;
     const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
-#if CONFIG_F322_OBUER_REFRESTRICT
     assert(!buf->is_restricted);
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
     ref_buf[ref_frame] = buf;
     const int relative_dist =
         get_relative_dist(order_hint_info, buf->display_order_hint,
@@ -4115,9 +4079,7 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
     const int ref_frame = cm->ref_frames_info.cur_refs[index];
     cm->ref_frame_side[ref_frame] = -1;
     const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
-#if CONFIG_F322_OBUER_REFRESTRICT
     assert(!buf->is_restricted);
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
     ref_buf[ref_frame] = buf;
     const int relative_dist =
         get_relative_dist(order_hint_info, buf->display_order_hint,
@@ -4146,12 +4108,10 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
 
   bool is_overlay[INTER_REFS_PER_FRAME] = { false };
   for (int rf = cm->ref_frames_info.num_total_refs - 1; rf >= 0; rf--) {
-#if CONFIG_F322_OBUER_REFRESTRICT
     const RefCntBuffer *const buf = get_ref_frame_buf(cm, rf);
     if (buf != NULL && buf->is_restricted) {
       continue;
     }
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
     if (is_ref_overlay(cm, rf) &&
         get_ref_frame_buf(cm, rf)->frame_type != KEY_FRAME) {
       is_overlay[rf] = true;
@@ -4164,10 +4124,7 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
   // Sort the points by x.
   for (int i = 0; i < cm->ref_frames_info.num_total_refs; i++) {
     for (int j = i + 1; j < cm->ref_frames_info.num_total_refs; j++) {
-      if (
-#if CONFIG_F322_OBUER_REFRESTRICT
-          !get_ref_frame_buf(cm, sort_ref[j])->is_restricted &&
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
+      if (!get_ref_frame_buf(cm, sort_ref[j])->is_restricted &&
           get_relative_dist(order_hint_info, disp_order[j], disp_order[i]) <
               0) {
         int tmp = disp_order[i];
@@ -4196,9 +4153,7 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
   int visited[INTER_REFS_PER_FRAME] = { 0 };
   int stack_count = 0;
   for (int rf = 0; rf < cm->ref_frames_info.num_total_refs; rf++) {
-#if CONFIG_F322_OBUER_REFRESTRICT
     if (get_ref_frame_buf(cm, rf)->is_restricted) continue;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
     if (visited[rf] == 0) {
       recur_topo_sort_refs(cm, is_overlay, rf_stack, visited, &stack_count, rf);
     }
@@ -4209,9 +4164,7 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
   int rf_topo_stack_idx[INTER_REFS_PER_FRAME];
   for (int rf = 0; rf < cm->ref_frames_info.num_total_refs; rf++) {
     rf_topo_stack_idx[rf] = -1;
-#if CONFIG_F322_OBUER_REFRESTRICT
     if (get_ref_frame_buf(cm, rf)->is_restricted) continue;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
     for (int stack_idx = 0; stack_idx < stack_count; stack_idx++) {
       if (rf_stack[stack_idx] == rf) {
         rf_topo_stack_idx[rf] = stack_idx;
@@ -4244,10 +4197,8 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
         start_frame = cm->tip_ref.ref_frame[1];
         target_frame = cm->tip_ref.ref_frame[0];
       }
-#if CONFIG_F322_OBUER_REFRESTRICT
       assert(!(get_ref_frame_buf(cm, start_frame)->is_restricted) &&
              !(get_ref_frame_buf(cm, target_frame)->is_restricted));
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
       int dist_diff = get_relative_dist(
           order_hint_info,
           get_ref_frame_buf(cm, start_frame)->display_order_hint,
@@ -4262,12 +4213,10 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
       cm->tip_ref.ref_frame[1] = NONE_FRAME;
     }
   }
-#if CONFIG_F322_OBUER_REFRESTRICT
   int valid_ref_num = cm->ref_frames_info.num_total_refs;
   if (cm->ref_frames_info.num_total_refs >
       cm->ref_frames_info.num_valid_refs_without_restricted_ref)
     valid_ref_num = cm->ref_frames_info.num_valid_refs_without_restricted_ref;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
   for (int group_idx = 0; group_idx < 2; ++group_idx) {
     int past_ref_sort_idx =
         cur_frame_sort_idx >= group_idx ? cur_frame_sort_idx - group_idx : -1;
@@ -4275,14 +4224,9 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
         !has_future_ref(cm, sort_ref[past_ref_sort_idx]))
       past_ref_sort_idx = -1;
 
-    int future_ref_sort_idx =
-#if CONFIG_F322_OBUER_REFRESTRICT
-        cur_frame_sort_idx < valid_ref_num - group_idx - 1
-#else
-        cur_frame_sort_idx < cm->ref_frames_info.num_total_refs - group_idx - 1
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
-            ? cur_frame_sort_idx + 1 + group_idx
-            : -1;
+    int future_ref_sort_idx = cur_frame_sort_idx < valid_ref_num - group_idx - 1
+                                  ? cur_frame_sort_idx + 1 + group_idx
+                                  : -1;
     if (future_ref_sort_idx >= 0 &&
         !has_past_ref(cm, sort_ref[future_ref_sort_idx]))
       future_ref_sort_idx = -1;
@@ -4401,13 +4345,11 @@ void av2_setup_ref_frame_sides(AV2_COMMON *cm) {
   for (int ref_frame = 0; ref_frame < num_refs; ref_frame++) {
     const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
     int order_hint = 0;
-#if CONFIG_F322_OBUER_REFRESTRICT
     if (buf != NULL && buf->is_restricted) {
       cm->ref_frame_side[ref_frame] = 0;
       cm->ref_frame_relative_dist[ref_frame] = INT_MAX;
       continue;
     }
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
     if (buf != NULL) order_hint = buf->display_order_hint;
     const int relative_dist =
         get_relative_dist(order_hint_info, order_hint, cur_order_hint);
@@ -4622,45 +4564,31 @@ void av2_setup_skip_mode_allowed(AV2_COMMON *cm) {
   skip_mode_info->ref_frame_idx_1 = INVALID_IDX;
 
   if (frame_is_intra_only(cm)
-  // This line should be added, however it will have stats change, can be
-  // enabled as bug fix if confirmed.
-  //      || cm->current_frame.reference_mode == SINGLE_REFERENCE
-#if CONFIG_F322_OBUER_REFRESTRICT  // av2_setup_skip_mode_allowed
-      || frame_is_sframe(cm)
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
-  )
+      // This line should be added, however it will have stats change, can be
+      // enabled as bug fix if confirmed.
+      //      || cm->current_frame.reference_mode == SINGLE_REFERENCE
+      || frame_is_sframe(cm))
     return;
 
   skip_mode_info->skip_mode_allowed = 1;
-#if CONFIG_F322_OBUER_REFRESTRICT
   // NOTE: at the encoder side num_total_refs doesnot include
   // restricted reference
-  if (cm->ref_frames_info.num_valid_refs_with_restricted_ref > 1)
-#else
-  if (cm->ref_frames_info.num_total_refs > 1)
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
-  {
+  if (cm->ref_frames_info.num_valid_refs_with_restricted_ref > 1) {
     skip_mode_info->ref_frame_idx_1 = 1;
     skip_mode_info->ref_frame_idx_0 = 0;
     const int cur_order_hint = cm->current_frame.display_order_hint;
     int ref_offset[2];
     get_skip_mode_ref_offsets(cm, ref_offset);
     const int cur_to_ref0 =
-#if CONFIG_F322_OBUER_REFRESTRICT
         (get_ref_frame_buf(cm, skip_mode_info->ref_frame_idx_0)->is_restricted)
             ? 0
-            :
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
-            abs(get_relative_dist(&cm->seq_params.order_hint_info,
-                                  cur_order_hint, ref_offset[0]));
+            : abs(get_relative_dist(&cm->seq_params.order_hint_info,
+                                    cur_order_hint, ref_offset[0]));
     const int cur_to_ref1 =
-#if CONFIG_F322_OBUER_REFRESTRICT
         (get_ref_frame_buf(cm, skip_mode_info->ref_frame_idx_1)->is_restricted)
             ? 0
-            :
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
-            abs(get_relative_dist(&cm->seq_params.order_hint_info,
-                                  cur_order_hint, ref_offset[1]));
+            : abs(get_relative_dist(&cm->seq_params.order_hint_info,
+                                    cur_order_hint, ref_offset[1]));
     if (abs(cur_to_ref0 - cur_to_ref1) > 1) {
       skip_mode_info->ref_frame_idx_0 = 0;
       skip_mode_info->ref_frame_idx_1 = 0;

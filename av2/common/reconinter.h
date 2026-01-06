@@ -694,19 +694,15 @@ static INLINE int is_refinemv_allowed_reference(const AV2_COMMON *cm,
   const unsigned int cur_index = cm->cur_frame->display_order_hint;
   int d0, d1;
   int is_tip = (mbmi->ref_frame[0] == TIP_FRAME);
-#if CONFIG_ERROR_RESILIENT_FIX
   // In error resilient mode, whether a frame is scaled may be unknown, and the
   // following logic for parsing is not reliable, so DMVR is disabled.
   if (frame_is_sframe(cm)) return 0;
-#endif  // CONFIG_ERROR_RESILIENT_FIX
 
-#if CONFIG_F322_OBUER_REFRESTRICT
   if ((get_ref_frame_buf(cm, mbmi->ref_frame[0]) != NULL &&
        get_ref_frame_buf(cm, mbmi->ref_frame[0])->is_restricted) ||
       (get_ref_frame_buf(cm, mbmi->ref_frame[1]) != NULL &&
        get_ref_frame_buf(cm, mbmi->ref_frame[1])->is_restricted))
     return 0;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
 
   // If one of the reference frame is different resolution than the current
   // frame, refinemv is disabled.
@@ -1194,19 +1190,15 @@ static INLINE int av2_allow_bawp(const AV2_COMMON *const cm,
                                  int mi_col) {
   if (mbmi->mode == WARPMV) return 0;
   if (mbmi->mode == GLOBALMV) return 0;
-#if CONFIG_ERROR_RESILIENT_FIX
   // In error resilient mode, whether a frame is scaled may be unknown, and the
   // following logic for parsing is not reliable, so we disable BAWP.
   if (frame_is_sframe(cm)) return 0;
-#endif  // CONFIG_ERROR_RESILIENT_FIX
 
-#if CONFIG_F322_OBUER_REFRESTRICT
   if ((get_ref_frame_buf(cm, mbmi->ref_frame[0]) != NULL &&
        get_ref_frame_buf(cm, mbmi->ref_frame[0])->is_restricted) ||
       (get_ref_frame_buf(cm, mbmi->ref_frame[1]) != NULL &&
        get_ref_frame_buf(cm, mbmi->ref_frame[1])->is_restricted))
     return 0;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
 
   // If one of the reference frame is different resolution than the current
   // frame, bawp is disabled.

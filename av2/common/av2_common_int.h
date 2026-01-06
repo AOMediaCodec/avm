@@ -292,9 +292,7 @@ typedef struct RefCntBuffer {
   // the limitation of get_relative_dist() which returns incorrect
   // distance when a very old frame is used as a reference.
   unsigned int display_order_hint;
-#if CONFIG_F322_OBUER_REFRESTRICT
   unsigned int display_order_hint_restricted;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
   unsigned int absolute_poc;
   int long_term_id;
   // Frame's level within the hierarchical structure
@@ -376,13 +374,11 @@ typedef struct RefCntBuffer {
   FrameHash raw_frame_hash;
   FrameHash grain_frame_hash;
   CcsoInfo ccso_info;
-#if CONFIG_F322_OBUER_REFRESTRICT
   // 0: Not restricted
   // 1: Restricted. TMVP, CDF, etc. from the restricted ref frame cannot be
   //    used. However, pixels from the restricted ref frame can be used.
   int is_restricted;
   int refs_restricted_status[INTER_REFS_PER_FRAME];
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
 } RefCntBuffer;
 
 // Store the characteristics related to each reference frame, which can be used
@@ -392,15 +388,11 @@ typedef struct {
   // 1 if this reference frame can be considered in the inference process (not
   // a repeated reference frame)
   int ref_frame_for_inference;
-#if CONFIG_F322_OBUER_REFRESTRICT
   int ref_frame_restricted;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
   int pyr_level;
   int tlayer_id;
   int disp_order;
-#if CONFIG_F322_OBUER_REFRESTRICT
   int disp_order_removed;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
   int base_qindex;
   int mlayer_id;
   int width;
@@ -1193,9 +1185,7 @@ typedef struct {
 
   unsigned int order_hint;
   unsigned int display_order_hint;
-#if CONFIG_F322_OBUER_REFRESTRICT
   unsigned int display_order_hint_restricted;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
   int long_term_id;
   // Frame's level within the hierarchical structure
   unsigned int pyramid_level;
@@ -1891,7 +1881,6 @@ typedef struct {
    * Number of references for the compound mode with the same slot.
    */
   int num_same_ref_compound;
-#if CONFIG_F322_OBUER_REFRESTRICT
   /*!
    * Number of references that are not restricted
    */
@@ -1907,7 +1896,6 @@ typedef struct {
    * applied
    */
   int num_valid_refs_with_restricted_ref;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
 } RefFramesInfo;
 
 /*!
@@ -2918,13 +2906,11 @@ typedef struct AV2Common {
 
   int fgm_id;
 
-#if CONFIG_F322_OBUER_REFRESTRICT
   /*!
    * restricted_prediction_switch equals 1 indicates the frame is a switch frame
    * with restricted references.
    */
   bool restricted_prediction_switch;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
 
 } AV2_COMMON;
 
@@ -3232,9 +3218,7 @@ static INLINE void get_secondary_reference_frame_idx(const AV2_COMMON *const cm,
     for (; ref_frame < cm->ref_frames_info.num_total_refs; ref_frame++) {
       RefFrameMapPair cur_ref =
           cm->ref_frame_map_pairs[get_ref_frame_map_idx(cm, ref_frame)];
-#if CONFIG_F322_OBUER_REFRESTRICT
       assert(!cur_ref.ref_frame_restricted);
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
       if (cur_ref.ref_frame_for_inference == -1 ||
           cur_ref.frame_type != INTER_FRAME)
         continue;
@@ -3315,12 +3299,10 @@ static INLINE RefCntBuffer *get_primary_ref_frame_buf(
   }
   const int map_idx = get_ref_frame_map_idx(cm, primary_ref_frame);
   if (map_idx == INVALID_IDX) return NULL;
-#if CONFIG_F322_OBUER_REFRESTRICT
   if (cm->ref_frame_map[map_idx] != NULL &&
       cm->ref_frame_map[map_idx]->is_restricted)
     return NULL;
   else
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
     return cm->ref_frame_map[map_idx];
 }
 
@@ -5402,10 +5384,8 @@ static INLINE void init_ibp_info(
 
 #define DISPLAY_ORDER_HINT_BITS 30
 #define RELATIVE_DIST_BITS 8
-#if CONFIG_F322_OBUER_REFRESTRICT
 #define REF_RESTRICTED_DOH \
   ((1 << (DISPLAY_ORDER_HINT_BITS - 1)) - 1 - REF_FRAMES)
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
 
 static INLINE int get_relative_dist(const OrderHintInfo *oh, int a, int b) {
   if (oh->order_hint_bits_minus_1 < 0) return 0;
@@ -5444,17 +5424,13 @@ static INLINE int opfl_allowed_cur_refs_bsize(const AV2_COMMON *cm,
     return 0;
 
   if (!has_second_ref(mbmi) && !is_tip_ref_frame(mbmi->ref_frame[0])) return 0;
-#if CONFIG_ERROR_RESILIENT_FIX
   if (frame_is_sframe(cm)) return 0;
-#endif  // CONFIG_ERROR_RESILIENT_FIX
 
-#if CONFIG_F322_OBUER_REFRESTRICT
   if ((get_ref_frame_buf(cm, mbmi->ref_frame[0]) != NULL &&
        get_ref_frame_buf(cm, mbmi->ref_frame[0])->is_restricted) ||
       (get_ref_frame_buf(cm, mbmi->ref_frame[1]) != NULL &&
        get_ref_frame_buf(cm, mbmi->ref_frame[1])->is_restricted))
     return 0;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
 
   const unsigned int cur_index = cm->cur_frame->display_order_hint;
   int d0, d1;
