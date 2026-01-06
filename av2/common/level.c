@@ -920,9 +920,8 @@ static void get_temporal_parallel_params(int scalability_mode_idc,
 #define MAX_TILE_SIZE_HEADER_RATE_PRODUCT 588251136
 
 static TARGET_LEVEL_FAIL_ID check_level_constraints(
-    const SequenceHeader *seq_params, const AV2LevelInfo *const level_info,
-    AV2_LEVEL level, int tier, int is_still_picture, BITSTREAM_PROFILE profile,
-    int check_bitrate) {
+    const AV2LevelInfo *const level_info, AV2_LEVEL level, int tier,
+    int is_still_picture, BITSTREAM_PROFILE profile, int check_bitrate) {
   const DECODER_MODEL *const decoder_model = &level_info->decoder_models[level];
   const DECODER_MODEL_STATUS decoder_model_status = decoder_model->status;
   if (decoder_model_status != DECODER_MODEL_OK &&
@@ -1285,9 +1284,8 @@ void av2_update_level_info(AV2_COMP *cpi, size_t size, int64_t ts_start,
     if (target_level < SEQ_LEVELS) {
       assert(is_valid_seq_level_idx(target_level));
       const int tier = cpi->tier[i];
-      const TARGET_LEVEL_FAIL_ID fail_id =
-          check_level_constraints(seq_params, level_info, target_level, tier,
-                                  is_still_picture, profile, 0);
+      const TARGET_LEVEL_FAIL_ID fail_id = check_level_constraints(
+          level_info, target_level, tier, is_still_picture, profile, 0);
       if (fail_id != TARGET_LEVEL_OK) {
         const int target_level_major = 2 + (target_level >> 2);
         const int target_level_minor = target_level & 3;
@@ -1316,7 +1314,7 @@ avm_codec_err_t av2_get_seq_level_idx(const AV2_COMP *cpi,
     for (int level = 0; level < SEQ_LEVELS; ++level) {
       if (!is_valid_seq_level_idx(level)) continue;
       const TARGET_LEVEL_FAIL_ID fail_id = check_level_constraints(
-          seq_params, level_info, level, tier, is_still_picture, profile, 1);
+          level_info, level, tier, is_still_picture, profile, 1);
       if (fail_id == TARGET_LEVEL_OK) {
         seq_level_idx[op] = level;
         break;
