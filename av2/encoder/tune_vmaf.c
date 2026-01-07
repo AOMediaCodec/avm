@@ -877,14 +877,15 @@ static AVM_INLINE void get_neighbor_frames(const AV2_COMP *const cpi,
                                            YV12_BUFFER_CONFIG **next) {
   const AV2_COMMON *const cm = &cpi->common;
   const GF_GROUP *gf_group = &cpi->gf_group;
-  const int src_index =
-      cm->show_frame != 0 ? 0 : gf_group->arf_src_offset[gf_group->index];
+  const int src_index = cm->immediate_output_picture != 0
+                            ? 0
+                            : gf_group->arf_src_offset[gf_group->index];
   struct lookahead_entry *last_entry =
       av2_lookahead_peek(cpi->lookahead, src_index - 1, cpi->compressor_stage);
   struct lookahead_entry *next_entry =
       av2_lookahead_peek(cpi->lookahead, src_index + 1, cpi->compressor_stage);
   *next = &next_entry->img;
-  *last = cm->show_frame ? cpi->last_source : &last_entry->img;
+  *last = cm->immediate_output_picture ? cpi->last_source : &last_entry->img;
 }
 
 // Calculates the new qindex from the VMAF motion score. This is based on the
@@ -914,7 +915,7 @@ int av2_get_vmaf_base_qindex(const AV2_COMP *const cpi, int current_qindex) {
     return current_qindex;
   }
   YV12_BUFFER_CONFIG *cur_buf = cpi->source;
-  if (cm->show_frame == 0) {
+  if (cm->immediate_output_picture == 0) {
     const int src_index = gf_group->arf_src_offset[gf_group->index];
     struct lookahead_entry *cur_entry =
         av2_lookahead_peek(cpi->lookahead, src_index, cpi->compressor_stage);

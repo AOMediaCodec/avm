@@ -125,7 +125,7 @@ int ifd_inspect(insp_frame_data *fd, void *decoder, int skip_not_transform) {
   fd->show_existing_frame = cm->show_existing_frame;
 #endif
   fd->frame_number = cm->current_frame.frame_number;
-  fd->show_frame = cm->show_frame;
+  fd->show_frame = cm->immediate_output_picture;
   fd->frame_type = cm->current_frame.frame_type;
   fd->base_qindex = quant_params->base_qindex;
   fd->tip_frame_mode = cm->features.tip_frame_mode;
