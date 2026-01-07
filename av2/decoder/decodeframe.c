@@ -6834,19 +6834,6 @@ static INLINE void read_intrabc_params(AV2_COMMON *const cm,
     }
     read_frame_max_bvp_drl_bits(cm, rb);
   }
-
-  if (cm->seq_params.seq_max_level_idx < SEQ_LEVELS) {
-    const int max_legal_ref_frames =
-        av2_get_max_level_ref_frames(cm, cm->seq_params.seq_max_level_idx);
-    if (cm->seq_params.ref_frames > max_legal_ref_frames) {
-      avm_internal_error(
-          &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-          "The maximum number of reference frames shall not be "
-          "greater than %d, yet the bitstream indicates that the "
-          "maximum DPB size is equal to %d.\n",
-          max_legal_ref_frames, cm->seq_params.ref_frames);
-    }
-  }
 }
 static INLINE void read_screen_content_params(AV2_COMMON *const cm,
                                               struct avm_read_bit_buffer *rb) {
@@ -8421,6 +8408,20 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       }
     }
   }
+
+  if (cm->seq_params.seq_max_level_idx < SEQ_LEVELS) {
+    const int max_legal_ref_frames = av2_get_max_level_ref_frames(
+        cm, obu_type, cm->seq_params.seq_max_level_idx);
+    if (cm->seq_params.ref_frames > max_legal_ref_frames) {
+      avm_internal_error(
+          &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+          "The maximum number of reference frames shall not be "
+          "greater than %d, yet the bitstream indicates that the "
+          "maximum decoded picture buffer size is equal to %d.\n",
+          max_legal_ref_frames, cm->seq_params.ref_frames);
+    }
+  }
+
   av2_setup_frame_buf_refs(cm);
 
   av2_setup_frame_sign_bias(cm);

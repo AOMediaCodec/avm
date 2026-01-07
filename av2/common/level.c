@@ -650,10 +650,9 @@ void av2_decoder_model_init(const AV2_COMP *const cpi, AV2_LEVEL level,
       seq_params->op_params[op_index].initial_display_delay;
   decoder_model->initial_presentation_delay = INVALID_TIME;
   decoder_model->decode_rate = av2_level_defs[level].max_decode_rate;
-  decoder_model->is_num_ref_frames_legal = true;
 }
 
-int av2_get_max_level_ref_frames(const AV2_COMMON *const cm,
+int av2_get_max_level_ref_frames(const AV2_COMMON *const cm, OBU_TYPE obu_type,
                                  AV2_LEVEL level_index) {
   const SequenceHeader *const seq_params = &cm->seq_params;
   const int cap = (seq_params->ref_frames != 8) ? 16 : 8;
@@ -665,7 +664,11 @@ int av2_get_max_level_ref_frames(const AV2_COMMON *const cm,
 
   int64_t limit = (int64_t)(max_picture_size * 8) / current_picture_size;
 
-  if (cm->features.allow_global_intrabc && is_filter_enabled_frame(cm)) {
+  const int decode_count =
+      cm->features.allow_global_intrabc && is_filter_enabled_frame(cm) ? 2 : 1;
+
+  if (decode_count == 2 &&
+      (obu_type == OBU_CLK || seq_params->max_mlayer_id != 0)) {
     limit -= 1;
   }
   const int max_level_ref_frames = (int)AVMMIN(cap, limit);
@@ -687,12 +690,6 @@ void av2_decoder_model_process_frame(const AV2_COMP *const cpi,
   if (!show_existing_frame) ++decoder_model->num_decoded_frame;
   if (show_frame) ++decoder_model->num_shown_frame;
   decoder_model->coded_bits += coded_bits;
-
-  const int max_active_level_ref_frames =
-      av2_get_max_level_ref_frames(cm, decoder_model->level);
-  decoder_model->is_num_ref_frames_legal =
-      decoder_model->is_num_ref_frames_legal &&
-      (cm->seq_params.ref_frames <= max_active_level_ref_frames);
 
   int display_idx = -1;
   if (show_existing_frame) {
@@ -1034,11 +1031,6 @@ static TARGET_LEVEL_FAIL_ID check_level_constraints(
         fail_id = TILE_SIZE_HEADER_RATE_TOO_HIGH;
         break;
       }
-    }
-
-    if (!decoder_model->is_num_ref_frames_legal) {
-      fail_id = REF_FRAMES_FAIL;
-      break;
     }
 
   } while (0);

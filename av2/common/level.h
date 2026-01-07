@@ -145,7 +145,6 @@ typedef struct {
 
   double max_display_rate;
   double max_decode_rate;
-  bool is_num_ref_frames_legal;
 } DECODER_MODEL;
 
 typedef struct {
@@ -213,7 +212,7 @@ double av2_get_min_cr_for_level(AV2_LEVEL level_index, int tier,
                                 int is_still_picture);
 
 // Return maximum legal DPB size defined by the level.
-int av2_get_max_level_ref_frames(const AV2_COMMON *const cm,
+int av2_get_max_level_ref_frames(const AV2_COMMON *const cm, OBU_TYPE obu_type,
                                  AV2_LEVEL level_index);
 
 #endif  // AVM_AV2_ENCODER_LEVEL_H_
