@@ -263,7 +263,7 @@ static void update_buffer_level(AV2_COMP *cpi, int encoded_frame_size) {
   RATE_CONTROL *const rc = &cpi->rc;
 
   // Non-viewable frames are a special case and are treated as pure overhead.
-  if (!cm->show_frame)
+  if (!cm->immediate_output_picture)
     rc->bits_off_target -= encoded_frame_size;
   else
     rc->bits_off_target += rc->avg_frame_bandwidth - encoded_frame_size;
@@ -1597,7 +1597,8 @@ static int rc_pick_q_and_bounds(const AV2_COMP *cpi, int width, int height,
 
   if (frame_is_intra_only(cm)) {
     const int is_fwd_kf = cm->current_frame.frame_type == KEY_FRAME &&
-                          cm->show_frame == 0 && cpi->no_show_fwd_kf;
+                          cm->immediate_output_picture == 0 &&
+                          cpi->no_show_fwd_kf;
     get_intra_q_and_bounds(cpi, width, height, &active_best_quality,
                            &active_worst_quality, qp, is_fwd_kf);
 #ifdef STRICT_RC
@@ -1741,7 +1742,7 @@ static void update_golden_frame_stats(AV2_COMP *cpi) {
   if (gf_group->update_type[gf_group->index] == GF_UPDATE ||
       rc->is_src_frame_alt_ref) {
     rc->frames_since_golden = 0;
-  } else if (cpi->common.show_frame) {
+  } else if (cpi->common.immediate_output_picture) {
     rc->frames_since_golden++;
   }
 }
@@ -1818,7 +1819,8 @@ void av2_rc_postencode_update(AV2_COMP *cpi, uint64_t bytes_used) {
 
   // Actual bits spent
   rc->total_actual_bits += rc->projected_frame_size;
-  rc->total_target_bits += cm->show_frame ? rc->avg_frame_bandwidth : 0;
+  rc->total_target_bits +=
+      cm->immediate_output_picture ? rc->avg_frame_bandwidth : 0;
 
   rc->total_target_vs_actual = rc->total_actual_bits - rc->total_target_bits;
 
@@ -1833,7 +1835,7 @@ void av2_rc_postencode_update(AV2_COMP *cpi, uint64_t bytes_used) {
     update_golden_frame_stats(cpi);
 
   if (current_frame->frame_type == KEY_FRAME) rc->frames_since_key = 0;
-  // if (current_frame->frame_number == 1 && cm->show_frame)
+  // if (current_frame->frame_number == 1 && cm->immediate_output_picture)
   /*
   rc->this_frame_target =
       (int)(rc->this_frame_target / resize_rate_factor(&cpi->oxcf.frm_dim_cfg,

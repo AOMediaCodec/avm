@@ -599,7 +599,8 @@ void av2_setup_frame(AV2_COMP *cpi) {
   }
 
   const BLOCK_SIZE old_sb_size = cm->sb_size;
-  if ((cm->current_frame.frame_type == KEY_FRAME && cm->show_frame) ||
+  if ((cm->current_frame.frame_type == KEY_FRAME &&
+       cm->immediate_output_picture) ||
       frame_is_sframe(cm)) {
     if (!cpi->seq_params_locked) {
       set_sb_size(cm, av2_select_sb_size(cpi));
@@ -876,8 +877,8 @@ static void fix_interp_filter(InterpFilter *const interp_filter,
 }
 void direct_existing_frames_to_current(AV2_COMP *const cpi) {
   AV2_COMMON *const cm = &cpi->common;
-  cm->show_frame = 1;
-  cm->cur_frame->showable_frame = 1;
+  cm->immediate_output_picture = 1;
+  cm->cur_frame->implicit_output_picture = 1;
   cm->cur_frame->frame_output_done = 0;
   // copy from current_frame
   cm->cur_frame->order_hint = cm->current_frame.order_hint;
@@ -929,7 +930,7 @@ void av2_finalize_encoded_frame(AV2_COMP *const cpi) {
       !encode_show_existing_frame(cm) &&
 #endif
       cm->seq_params.film_grain_params_present &&
-      (cm->show_frame || cm->showable_frame)) {
+      (cm->immediate_output_picture || cm->implicit_output_picture)) {
     // Copy the current frame's film grain params to the its corresponding
     // RefCntBuffer slot.
     cm->cur_frame->film_grain_params = cm->film_grain_params;

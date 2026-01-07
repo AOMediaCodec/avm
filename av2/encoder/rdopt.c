@@ -6826,7 +6826,7 @@ static AVM_INLINE void init_mode_skip_mask(mode_skip_mask_t *mask,
   }
 
   if (sf->inter_sf.alt_ref_search_fp) {
-    if (!cm->show_frame && x->best_pred_mv_sad < INT_MAX) {
+    if (!cm->immediate_output_picture && x->best_pred_mv_sad < INT_MAX) {
       int sad_thresh = x->best_pred_mv_sad + (x->best_pred_mv_sad >> 3);
       // Conservatively skip the modes w.r.t. BWDREF, ALTREF2 and ALTREF, if
       // those are past frames

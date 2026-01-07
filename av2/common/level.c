@@ -682,7 +682,7 @@ void av2_decoder_model_process_frame(const AV2_COMP *const cpi,
   const AV2_COMMON *const cm = &cpi->common;
   const int luma_pic_size = cm->width * cm->height;
   const int show_existing_frame = cm->show_existing_frame;
-  const int show_frame = cm->show_frame || show_existing_frame;
+  const int show_frame = cm->immediate_output_picture || show_existing_frame;
   ++decoder_model->num_frame;
   if (!show_existing_frame) ++decoder_model->num_decoded_frame;
   if (show_frame) ++decoder_model->num_shown_frame;
@@ -1222,7 +1222,7 @@ void av2_update_level_info(AV2_COMP *cpi, size_t size, int64_t ts_start,
   const int tiles = tile_cols * tile_rows;
   const int luma_pic_size = upscaled_width * height;
   const int frame_header_count = level_params->frame_header_count;
-  const int show_frame = cm->show_frame;
+  const int show_frame = cm->immediate_output_picture;
   const int show_existing_frame = cm->show_existing_frame;
   int max_tile_size;
   int min_cropped_tile_width;

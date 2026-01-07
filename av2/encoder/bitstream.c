@@ -2390,7 +2390,7 @@ static AVM_INLINE void enc_dump_logs(
   if (is_inter_block(mbmi, SHARED_PART)) {
 #define FRAME_TO_CHECK 11
     if (cm->current_frame.frame_number == FRAME_TO_CHECK &&
-        cm->show_frame == 1) {
+        cm->immediate_output_picture == 1) {
       const BLOCK_SIZE bsize = mbmi->sb_type;
 
       int_mv mv[2] = { 0 };
@@ -2421,12 +2421,13 @@ static AVM_INLINE void enc_dump_logs(
       printf(
           "=== ENCODER ===: "
           "Frame=%d, (mi_row,mi_col)=(%d,%d), skip_mode=%d, mode=%d, bsize=%d, "
-          "show_frame=%d, mv[0]=(%d,%d), mv[1]=(%d,%d), ref[0]=%d, "
+          "immediate_output_picture=%d, mv[0]=(%d,%d), mv[1]=(%d,%d), "
+          "ref[0]=%d, "
           "ref[1]=%d, motion_mode=%d, mode_ctx=%d, "
           "newmv_ctx=%d, zeromv_ctx=%d, refmv_ctx=%d, tx_size=%d\n",
           cm->current_frame.frame_number, mi_row, mi_col, mbmi->skip_mode,
-          mbmi->mode, bsize, cm->show_frame, mv[0].as_mv.row, mv[0].as_mv.col,
-          mv[1].as_mv.row, mv[1].as_mv.col, mbmi->ref_frame[0],
+          mbmi->mode, bsize, cm->immediate_output_picture, mv[0].as_mv.row,
+          mv[0].as_mv.col, mv[1].as_mv.row, mv[1].as_mv.col, mbmi->ref_frame[0],
           mbmi->ref_frame[1], mbmi->motion_mode, mode_ctx, newmv_ctx,
           zeromv_ctx, refmv_ctx, mbmi->tx_size);
     }
@@ -4136,9 +4137,10 @@ static AVM_INLINE void encode_bru_active_info(AV2_COMP *cpi,
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
       );
       avm_wb_write_bit(wb, cm->bru.frame_inactive_flag);
-      if (!cm->show_frame) {
+      if (!cm->immediate_output_picture) {
         avm_internal_error(&cm->error, AVM_CODEC_ERROR,
-                           "Invalid show_frame: BRU frame must be show_frame");
+                           "Invalid immediate_output_picture: BRU frame must "
+                           "be immediate_output_picture");
       }
     }
   }
@@ -5258,7 +5260,7 @@ static AVM_INLINE void write_global_motion(AV2_COMP *cpi,
     */
     /*
     printf("Frame %d/%d: Enc Ref %d: %d %d %d %d\n",
-           cm->current_frame.frame_number, cm->show_frame, frame,
+           cm->current_frame.frame_number, cm->immediate_output_picture, frame,
            cm->global_motion[frame].wmmat[0],
            cm->global_motion[frame].wmmat[1],
     cm->global_motion[frame].wmmat[2], cm->global_motion[frame].wmmat[3]);
@@ -5367,7 +5369,7 @@ static AVM_INLINE void write_uncompressed_header(
 #if !CONFIG_F024_KEYOBU
     assert(cm->show_existing_frame == 0);
 #endif
-    assert(cm->show_frame == 1);
+    assert(cm->immediate_output_picture == 1);
     assert(current_frame->frame_type == KEY_FRAME);
   }
 
@@ -5423,27 +5425,27 @@ static AVM_INLINE void write_uncompressed_header(
     }
 
     if (cm->bridge_frame_info.is_bridge_frame) {
-      if (cm->show_frame) {
+      if (cm->immediate_output_picture) {
         avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-                           "Bridge frame show_frame is 1");
+                           "Bridge frame immediate_output_picture is 1");
       }
     } else
 #if CONFIG_F024_KEYOBU
         if (obu_type != OBU_OLK)
 #endif  // CONFIG_F024_KEYOBU
-      avm_wb_write_bit(wb, cm->show_frame);
+      avm_wb_write_bit(wb, cm->immediate_output_picture);
 
-    if (!cm->show_frame) {
+    if (!cm->immediate_output_picture) {
       if (cm->bridge_frame_info.is_bridge_frame) {
-        if (cm->showable_frame) {
+        if (cm->implicit_output_picture) {
           avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-                             "Bridge frame showable_frame is not 0");
+                             "Bridge frame implicit_output_picture is not 0");
         }
       } else
-        avm_wb_write_bit(wb, cm->showable_frame);
+        avm_wb_write_bit(wb, cm->implicit_output_picture);
 #if CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
     } else {
-      cm->showable_frame = 0;
+      cm->implicit_output_picture = 0;
 #endif  // CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
     }
 
@@ -5579,7 +5581,8 @@ static AVM_INLINE void write_uncompressed_header(
       // refresh_frame_flags.
       if (
 #if !CONFIG_F024_KEYOBU
-          (current_frame->frame_type == KEY_FRAME && !cm->show_frame) ||
+          (current_frame->frame_type == KEY_FRAME &&
+           !cm->immediate_output_picture) ||
 #endif  // !CONFIG_F024_KEYOBU
           (current_frame->frame_type == INTER_FRAME &&
            cpi->switch_frame_mode != 1) ||
@@ -5587,7 +5590,8 @@ static AVM_INLINE void write_uncompressed_header(
            cpi->switch_frame_mode != 1) ||
           current_frame->frame_type == INTRA_ONLY_FRAME) {
         if (cm->seq_params.enable_short_refresh_frame_flags &&
-            !(current_frame->frame_type == KEY_FRAME && !cm->show_frame) &&
+            !(current_frame->frame_type == KEY_FRAME &&
+              !cm->immediate_output_picture) &&
             !frame_is_sframe(cm)) {
           const bool has_refresh_frame_flags =
               current_frame->refresh_frame_flags != 0;
@@ -5604,14 +5608,15 @@ static AVM_INLINE void write_uncompressed_header(
           }
         }
         // if (cm->seq_params.enable_short_refresh_frame_flags &&
-        //  !(current_frame->frame_type == KEY_FRAME && !cm->show_frame) &&
-        //  !frame_is_sframe(cm))
+        //  !(current_frame->frame_type == KEY_FRAME &&
+        //  !cm->immediate_output_picture) && !frame_is_sframe(cm))
         else {
           avm_wb_write_literal(wb, current_frame->refresh_frame_flags,
                                cm->seq_params.ref_frames);
         }
       }
-      //  ((current_frame->frame_type == KEY_FRAME && !cm->show_frame) ||
+      //  ((current_frame->frame_type == KEY_FRAME &&
+      //  !cm->immediate_output_picture) ||
       //        (current_frame->frame_type == INTER_FRAME &&
       //         cpi->switch_frame_mode != 1) ||
       //        (current_frame->frame_type == S_FRAME && cpi->switch_frame_mode
@@ -5640,7 +5645,8 @@ static AVM_INLINE void write_uncompressed_header(
     // Shown keyframes and switch-frames automatically refreshes all
     // reference frames.  For all other frame types, we need to write
     // refresh_frame_flags.
-    if ((current_frame->frame_type == KEY_FRAME && !cm->show_frame) ||
+    if ((current_frame->frame_type == KEY_FRAME &&
+         !cm->immediate_output_picture) ||
 #if CONFIG_F322_OBUER_REFRESTRICT  // refresh_frame_flags
         current_frame->frame_type == S_FRAME ||
 #endif                             // CONFIG_F322_OBUER_REFRESTRICT
@@ -5649,7 +5655,8 @@ static AVM_INLINE void write_uncompressed_header(
         (current_frame->frame_type == S_FRAME && cpi->switch_frame_mode != 1) ||
         current_frame->frame_type == INTRA_ONLY_FRAME) {
       if (cm->seq_params.enable_short_refresh_frame_flags &&
-          !(current_frame->frame_type == KEY_FRAME && !cm->show_frame) &&
+          !(current_frame->frame_type == KEY_FRAME &&
+            !cm->immediate_output_picture) &&
           !frame_is_sframe(cm)) {
         const bool has_refresh_frame_flags =
             current_frame->refresh_frame_flags != 0;
@@ -5666,14 +5673,15 @@ static AVM_INLINE void write_uncompressed_header(
         }
       }
       // if (cm->seq_params.enable_short_refresh_frame_flags &&
-      //  !(current_frame->frame_type == KEY_FRAME && !cm->show_frame) &&
-      //  !frame_is_sframe(cm))
+      //  !(current_frame->frame_type == KEY_FRAME &&
+      //  !cm->immediate_output_picture) && !frame_is_sframe(cm))
       else {
         avm_wb_write_literal(wb, current_frame->refresh_frame_flags,
                              cm->seq_params.ref_frames);
       }
     }
-    //  ((current_frame->frame_type == KEY_FRAME && !cm->show_frame) ||
+    //  ((current_frame->frame_type == KEY_FRAME &&
+    //  !cm->immediate_output_picture) ||
     //        (current_frame->frame_type == INTER_FRAME &&
     //         cpi->switch_frame_mode != 1) ||
     //        (current_frame->frame_type == S_FRAME && cpi->switch_frame_mode !=
@@ -5893,7 +5901,7 @@ static AVM_INLINE void write_uncompressed_header(
 
   if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame) {
     if (seq_params->film_grain_params_present &&
-        (cm->show_frame || cm->showable_frame))
+        (cm->immediate_output_picture || cm->implicit_output_picture))
       encode_film_grain(cpi, wb);
 
     cm->cur_frame->frame_context = *cm->fc;
@@ -6010,7 +6018,7 @@ static AVM_INLINE void write_uncompressed_header(
     }
 
     if (seq_params->film_grain_params_present &&
-        (cm->show_frame || cm->showable_frame))
+        (cm->immediate_output_picture || cm->implicit_output_picture))
       encode_film_grain(cpi, wb);
     return;
   }
@@ -6046,7 +6054,7 @@ static AVM_INLINE void write_uncompressed_header(
   if (!frame_is_intra_only(cm)) write_global_motion(cpi, wb);
 
   if (seq_params->film_grain_params_present &&
-      (cm->show_frame || cm->showable_frame))
+      (cm->immediate_output_picture || cm->implicit_output_picture))
     encode_film_grain(cpi, wb);
 }
 
@@ -7420,7 +7428,7 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
   }
 
   // Film Grain Model
-  if ((cm->show_frame || cm->showable_frame) &&
+  if ((cm->immediate_output_picture || cm->implicit_output_picture) &&
       cm->film_grain_params.apply_grain && !cm->show_existing_frame) {
     struct film_grain_model fgm_current;
     set_film_grain_model(cpi, &fgm_current);
@@ -7472,8 +7480,9 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
     cm->cur_frame->fgm_id = cm->fgm_id;
   }  // if(fgm is applied)
 
-  // write metadata obus before the frame obu that has the show_frame flag set
-  if (cm->show_frame)
+  // write metadata obus before the frame obu that has the
+  // immediate_output_picture flag set
+  if (cm->immediate_output_picture)
     data += av2_write_metadata_array(cpi, data, false,
                                      cpi->oxcf.tool_cfg.use_short_metadata);
 
@@ -7486,7 +7495,7 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
     const int write_raw_frame_hash =
         ((cpi->oxcf.tool_cfg.frame_hash_metadata & 1) ||
          ((cpi->oxcf.tool_cfg.frame_hash_metadata & 2) && !apply_grain)) &&
-        (cm->show_frame || cm->showable_frame)
+        (cm->immediate_output_picture || cm->implicit_output_picture)
 #if !CONFIG_F024_KEYOBU
         && !encode_show_existing_frame(cm)
 #endif
@@ -7494,8 +7503,8 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
     // write frame hash metadata obu for frames with film grain params applied
     // before the frame obu that outputs the frame
     const int write_grain_frame_hash =
-        (cpi->oxcf.tool_cfg.frame_hash_metadata & 2) && cm->show_frame &&
-        apply_grain;
+        (cpi->oxcf.tool_cfg.frame_hash_metadata & 2) &&
+        cm->immediate_output_picture && apply_grain;
     if (write_raw_frame_hash || write_grain_frame_hash) {
       avm_metadata_array_t arr;
       arr.sz = (size_t)write_raw_frame_hash + (size_t)write_grain_frame_hash;
@@ -7661,9 +7670,9 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
     if (cm->bridge_frame_info.is_bridge_frame) break;
   }  // tg_idx
 
-  // write suffix metadata obus after the frame obu that has the show_frame flag
-  // set
-  if (cm->show_frame)
+  // write suffix metadata obus after the frame obu that has the
+  // immediate_output_picture flag set
+  if (cm->immediate_output_picture)
     data += av2_write_metadata_array(cpi, data, true,
                                      cpi->oxcf.tool_cfg.use_short_metadata);
 

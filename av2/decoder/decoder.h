@@ -279,8 +279,8 @@ static INLINE char const *get_component_name(int index) {
 typedef struct {
   OBU_TYPE obu_type;
   int first_tile_group;
-  int show_frame;
-  // Note: if show_frame = 1, showble_frame = 1
+  int immediate_output_picture;
+  // Note: if immediate_output_picture = 1, showble_frame = 1
   int showable_frame;
   int display_order_hint;
   int mlayer_id;
@@ -626,7 +626,8 @@ static INLINE void decrease_ref_count(RefCntBuffer *const buf,
 
 // Check whether the frame is ready to output or not.
 static INLINE bool is_frame_eligible_for_output(RefCntBuffer *const buf) {
-  return ((buf != NULL) && !buf->frame_output_done && buf->showable_frame);
+  return ((buf != NULL) && !buf->frame_output_done &&
+          buf->implicit_output_picture);
 }
 
 static INLINE void check_ref_count_status_dec(struct AV2Decoder *pbi) {

@@ -6421,7 +6421,8 @@ BEGIN_PARTITION_SEARCH:
   // If CONFIG_COLLECT_PARTITION_STATS is 1, then print out the stats for each
   // prediction block.
   FILE *f = fopen("data.csv", "a");
-  fprintf(f, "%d,%d,%d,", bsize, cm->show_frame, frame_is_intra_only(cm));
+  fprintf(f, "%d,%d,%d,", bsize, cm->immediate_output_picture,
+          frame_is_intra_only(cm));
   for (int idx = 0; idx < EXT_PARTITION_TYPES; idx++) {
     fprintf(f, "%d,", partition_decisions[idx]);
   }

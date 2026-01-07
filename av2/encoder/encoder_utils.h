@@ -919,7 +919,8 @@ static AVM_INLINE void refresh_reference_frames(AV2_COMP *cpi) {
     for (int ref_frame = 0; ref_frame < cm->seq_params.ref_frames;
          ref_frame++) {
       if (((cm->current_frame.refresh_frame_flags >> ref_frame) & 1) == 1) {
-        if (cm->cur_frame->frame_type == KEY_FRAME && cm->show_frame == 1 &&
+        if (cm->cur_frame->frame_type == KEY_FRAME &&
+            cm->immediate_output_picture == 1 &&
 #if CONFIG_F024_KEYOBU
             cm->seq_params.max_mlayer_id == 0 &&
 #endif

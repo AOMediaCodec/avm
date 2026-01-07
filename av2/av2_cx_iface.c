@@ -3212,7 +3212,7 @@ static avm_codec_err_t encoder_encode(avm_codec_alg_priv_t *ctx,
       }
 
       cpi->seq_params_locked = 1;
-      is_frame_visible = cpi->common.show_frame;
+      is_frame_visible = cpi->common.immediate_output_picture;
       if (!cpi->oxcf.ref_frm_cfg.enable_generation_sef_obu) {
 #if CONFIG_F024_KEYOBU
         if ((!cpi->is_olk_overlay && cpi->update_type_was_overlay) ||
@@ -3237,10 +3237,10 @@ static avm_codec_err_t encoder_encode(avm_codec_alg_priv_t *ctx,
       if (frame_size) {
         if (ctx->pending_cx_data == 0) ctx->pending_cx_data = cx_data;
         const int write_temporal_delimiter =
-            !(ctx->oxcf.signal_td)
-                ? 0
-                : (!cpi->common.mlayer_id &&
-                   (cpi->common.show_frame || cpi->common.showable_frame));
+            !(ctx->oxcf.signal_td) ? 0
+                                   : (!cpi->common.mlayer_id &&
+                                      (cpi->common.immediate_output_picture ||
+                                       cpi->common.implicit_output_picture));
         if (write_temporal_delimiter) {
           const uint32_t obu_payload_size = 0;
           const size_t length_field_size =

@@ -2566,18 +2566,19 @@ static void dec_dump_logs(AV2_COMMON *cm, MB_MODE_INFO *const mbmi, int mi_row,
   }
 
 #define FRAME_TO_CHECK 11
-  if (cm->current_frame.frame_number == FRAME_TO_CHECK && cm->show_frame == 1) {
+  if (cm->current_frame.frame_number == FRAME_TO_CHECK &&
+      cm->immediate_output_picture == 1) {
     printf(
         "=== DECODER ===: "
         "Frame=%d, (mi_row,mi_col)=(%d,%d), skip_mode=%d, mode=%d, bsize=%d, "
-        "show_frame=%d, mv[0]=(%d,%d), mv[1]=(%d,%d), ref[0]=%d, "
+        "immediate_output_picture=%d, mv[0]=(%d,%d), mv[1]=(%d,%d), ref[0]=%d, "
         "ref[1]=%d, motion_mode=%d, mode_ctx=%d, "
         "newmv_ctx=%d, zeromv_ctx=%d, refmv_ctx=%d, tx_size=%d\n",
         cm->current_frame.frame_number, mi_row, mi_col, mbmi->skip_mode,
-        mbmi->mode, mbmi->sb_type, cm->show_frame, mv[0].as_mv.row,
-        mv[0].as_mv.col, mv[1].as_mv.row, mv[1].as_mv.col, mbmi->ref_frame[0],
-        mbmi->ref_frame[1], mbmi->motion_mode, mode_ctx, newmv_ctx, zeromv_ctx,
-        refmv_ctx, mbmi->tx_size);
+        mbmi->mode, mbmi->sb_type, cm->immediate_output_picture,
+        mv[0].as_mv.row, mv[0].as_mv.col, mv[1].as_mv.row, mv[1].as_mv.col,
+        mbmi->ref_frame[0], mbmi->ref_frame[1], mbmi->motion_mode, mode_ctx,
+        newmv_ctx, zeromv_ctx, refmv_ctx, mbmi->tx_size);
   }
 }
 #endif  // DEC_MISMATCH_DEBUG

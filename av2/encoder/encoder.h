@@ -3473,7 +3473,7 @@ static AVM_INLINE int is_psnr_calc_enabled(const AV2_COMP *cpi) {
   const AV2_COMMON *const cm = &cpi->common;
 
   return cpi->b_calculate_psnr >= 1 && !is_stat_generation_stage(cpi) &&
-         cm->show_frame;
+         cm->immediate_output_picture;
 }
 
 #if CONFIG_COLLECT_PARTITION_STATS == 2

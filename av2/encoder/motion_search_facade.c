@@ -94,7 +94,7 @@ void av2_single_motion_search(const AV2_COMP *const cpi, MACROBLOCK *x,
   // Work out the size of the first step in the mv step search.
   // 0 here is maximum length first step. 1 is AVMMAX >> 1 etc.
   int step_param;
-  if (cpi->sf.mv_sf.auto_mv_step_size && cm->show_frame) {
+  if (cpi->sf.mv_sf.auto_mv_step_size && cm->immediate_output_picture) {
     // Take the weighted average of the step_params based on the last frame's
     // max mv magnitude and that based on the best ref mvs of the current
     // block for the given reference.

@@ -2394,9 +2394,10 @@ static AVM_INLINE void setup_bru_active_info(AV2_COMMON *const cm,
       if (cm->bru.frame_inactive_flag) {
         cm->features.disable_cdf_update = 1;
       }
-      if (!cm->show_frame) {
+      if (!cm->immediate_output_picture) {
         avm_internal_error(&cm->error, AVM_CODEC_ERROR,
-                           "Invalid show_frame: BRU frame must be show_frame");
+                           "Invalid immediate_output_picture: BRU frame must "
+                           "be immediate_output_picture");
       }
     }
   }
@@ -5850,9 +5851,9 @@ static void setup_film_grain(AV2Decoder *pbi, struct avm_read_bit_buffer *rb) {
   AV2_COMMON *const cm = &pbi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
   memset(&cm->film_grain_params, 0, sizeof(cm->film_grain_params));
-  // NOTE: show_frame is 1 when cm->show_existing_frame
+  // NOTE: immediate_output_picture is 1 when cm->show_existing_frame
   if (seq_params->film_grain_params_present &&
-      (cm->show_frame || cm->showable_frame)) {
+      (cm->immediate_output_picture || cm->implicit_output_picture)) {
     avm_film_grain_t *pars = &cm->film_grain_params;
     if (cm->seq_params.single_picture_header_flag) {
       pars->apply_grain = 1;
@@ -6837,7 +6838,7 @@ static AVM_INLINE void read_global_motion(AV2_COMMON *cm,
     */
     /*
     printf("Dec Ref %d [%d/%d]: %d %d %d %d\n",
-           frame, cm->current_frame.frame_number, cm->show_frame,
+           frame, cm->current_frame.frame_number, cm->immediate_output_picture,
            cm->global_motion[frame].wmmat[0],
            cm->global_motion[frame].wmmat[1],
            cm->global_motion[frame].wmmat[2],
@@ -6865,7 +6866,8 @@ static AVM_INLINE void validate_refereces(AV2Decoder *const pbi) {
   int refresh_frame_flags = cm->current_frame.refresh_frame_flags;
   for (int i = 0; i < cm->seq_params.ref_frames; i++) {
     if ((refresh_frame_flags >> i) & 1) {
-      if ((cm->current_frame.frame_type == KEY_FRAME && cm->show_frame == 1) &&
+      if ((cm->current_frame.frame_type == KEY_FRAME &&
+           cm->immediate_output_picture == 1) &&
 #if CONFIG_F024_KEYOBU
           cm->seq_params.max_mlayer_id == 0 &&
 #endif
@@ -6978,9 +6980,9 @@ static INLINE int get_disp_order_hint(AV2_COMMON *const cm)
     if (buf == NULL ||
 #if CONFIG_F024_KEYOBU
 #if CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
-        (!buf->showable_frame && !buf->show_frame) ||
+        (!buf->implicit_output_picture && !buf->immediate_output_picture) ||
 #else
-        !buf->showable_frame ||
+        !buf->implicit_output_picture ||
 #endif  // CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
 #endif  // CONFIG_F024_KEYOBU
 #if CONFIG_F322_OBUER_REFRESTRICT
@@ -7332,9 +7334,10 @@ static int read_show_existing_frame(AV2Decoder *pbi,
     cm->cur_frame->display_order_hint = current_frame->display_order_hint;
   } else {
 #if CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
-    if (frame_to_show->showable_frame || frame_to_show->show_frame) {
+    if (frame_to_show->implicit_output_picture ||
+        frame_to_show->immediate_output_picture) {
 #else
-    if (frame_to_show->showable_frame) {
+    if (frame_to_show->implicit_output_picture) {
 #endif  // CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
       avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
                          "the reference frame should be a hidden frame when "
@@ -7376,7 +7379,7 @@ static int read_show_existing_frame(AV2Decoder *pbi,
 
   cm->lf.apply_deblocking_filter[0] = 0;
   cm->lf.apply_deblocking_filter[1] = 0;
-  cm->show_frame = 1;
+  cm->immediate_output_picture = 1;
   // It is a requirement of bitstream conformance that when
   // show_existing_frame is used to show a previous frame with derived display
   // order hint, the frame is output via the show_existing_frame mechanism at
@@ -7386,7 +7389,7 @@ static int read_show_existing_frame(AV2Decoder *pbi,
                        "Buffer does not contain a showable frame");
   }
 #if !CONFIG_F024_KEYOBU
-  if (pbi->reset_decoder_state) frame_to_show->showable_frame = 0;
+  if (pbi->reset_decoder_state) frame_to_show->implicit_output_picture = 0;
 #endif  // !CONFIG_F024_KEYOBU
   setup_film_grain(pbi, rb);
 
@@ -7839,12 +7842,12 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
 
   if (seq_params->single_picture_header_flag) {
     cm->show_existing_frame = 0;
-    cm->show_frame = 1;
+    cm->immediate_output_picture = 1;
 #if CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
-    cm->showable_frame = 0;
-    cm->cur_frame->show_frame = 1;
+    cm->implicit_output_picture = 0;
+    cm->cur_frame->immediate_output_picture = 1;
 #endif  // CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
-    cm->cur_frame->showable_frame = 0;
+    cm->cur_frame->implicit_output_picture = 0;
     current_frame->frame_type = KEY_FRAME;
     if (pbi->stream_switched) {
       pbi->stream_switched = 0;
@@ -7959,71 +7962,72 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       reset_frame_buffers(cm);
     }
     if (cm->bridge_frame_info.is_bridge_frame) {
-      cm->show_frame = 0;
+      cm->immediate_output_picture = 0;
     } else {
 #if CONFIG_F024_KEYOBU
       if (obu_type == OBU_OLK)
-        cm->show_frame = 0;
+        cm->immediate_output_picture = 0;
       else
 #endif  // CONFIG_F024_KEYOBU
-        cm->show_frame = avm_rb_read_bit(rb);
+        cm->immediate_output_picture = avm_rb_read_bit(rb);
     }
 
-    if (cm->show_frame == 0) pbi->is_arf_frame_present = 1;
+    if (cm->immediate_output_picture == 0) pbi->is_arf_frame_present = 1;
 #if CONFIG_F024_KEYOBU
     if (obu_type == OBU_OLK)
 #else
-    if (cm->show_frame == 0 && cm->current_frame.frame_type == KEY_FRAME)
+    if (cm->immediate_output_picture == 0 &&
+        cm->current_frame.frame_type == KEY_FRAME)
 #endif
       pbi->is_fwd_kf_present = 1;
     if (cm->current_frame.frame_type == S_FRAME) {
       sframe_info->is_s_frame = 1;
-      sframe_info->is_s_frame_at_altref = cm->show_frame ? 0 : 1;
+      sframe_info->is_s_frame_at_altref = cm->immediate_output_picture ? 0 : 1;
     }
-    if (seq_params->still_picture &&
-        (current_frame->frame_type != KEY_FRAME || !cm->show_frame)) {
+    if (seq_params->still_picture && (current_frame->frame_type != KEY_FRAME ||
+                                      !cm->immediate_output_picture)) {
       avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
                          "Still pictures must be coded as shown keyframes");
     }
 #if !CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
     if (cm->bridge_frame_info.is_bridge_frame) {
-      cm->showable_frame = 0;
+      cm->implicit_output_picture = 0;
     } else {
-      cm->showable_frame = current_frame->frame_type != KEY_FRAME;
+      cm->implicit_output_picture = current_frame->frame_type != KEY_FRAME;
     }
 #endif  // !CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
-    if (!cm->show_frame) {
+    if (!cm->immediate_output_picture) {
       if (cm->bridge_frame_info.is_bridge_frame) {
-        cm->showable_frame = 0;
+        cm->implicit_output_picture = 0;
       } else {
 #if !CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
         // See if this frame can be used as show_existing_frame in future
 #endif  // !CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
-        cm->showable_frame = avm_rb_read_bit(rb);
+        cm->implicit_output_picture = avm_rb_read_bit(rb);
       }
 #if CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
     } else {
-      cm->showable_frame = 0;
+      cm->implicit_output_picture = 0;
 #endif  // CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
     }
 
 #if !CONFIG_F024_KEYOBU
-    if (current_frame->frame_type == KEY_FRAME && cm->showable_frame) {
+    if (current_frame->frame_type == KEY_FRAME && cm->implicit_output_picture) {
       avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-                         "showable_frame should be equal to 0"
+                         "implicit_output_picture should be equal to 0"
                          "Frame "
                          "type is KEY_FRAME.");
     }
 #endif  // !CONFIG_F024_KEYOBU
 #if CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
-    cm->cur_frame->show_frame = cm->show_frame;
+    cm->cur_frame->immediate_output_picture = cm->immediate_output_picture;
 #endif  // CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
-    cm->cur_frame->showable_frame = cm->showable_frame;
+    cm->cur_frame->implicit_output_picture = cm->implicit_output_picture;
     cm->cur_frame->frame_output_done = 0;
   }
   av2_set_frame_sb_size(cm, cm->seq_params.sb_size);
 
-  if (current_frame->frame_type == KEY_FRAME && cm->show_frame) {
+  if (current_frame->frame_type == KEY_FRAME && cm->immediate_output_picture) {
     /* All frames need to be marked as not valid for referencing */
     for (int i = 0; i < seq_params->ref_frames; i++) {
       pbi->valid_for_referencing[i] = 0;
@@ -8165,7 +8169,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
           current_frame->refresh_frame_flags;
     }  // OBU_OLK
 #else
-    if (!cm->show_frame) {  // unshown keyframe (forward keyframe)
+    if (!cm->immediate_output_picture) {  // unshown keyframe (forward keyframe)
       current_frame->refresh_frame_flags =
           avm_rb_read_literal(rb, seq_params->ref_frames);
     } else {  // shown keyframe
@@ -9428,7 +9432,8 @@ int32_t av2_read_tilegroup_header(
   if (is_first_tile_group) {
 #if CONFIG_BITSTREAM_DEBUG
     avm_bitstream_queue_set_frame_read(
-        (int)(derive_output_order_idx(cm, cm->cur_frame) * 2 + cm->show_frame));
+        (int)(derive_output_order_idx(cm, cm->cur_frame) * 2 +
+              cm->immediate_output_picture));
 #endif
 
     // avm_rb_bytes_read()= (rb->bit_offset + 7) >> 3;

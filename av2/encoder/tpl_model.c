@@ -1262,9 +1262,10 @@ void av2_tpl_setup_stats(AV2_COMP *cpi, int gop_eval,
     (void)this_frame_params;
     av2_configure_buffer_updates(cpi, gf_group->update_type[gf_index]);
 
-    cm->show_frame = gf_group->update_type[gf_index] != ARF_UPDATE &&
-                     gf_group->update_type[gf_index] != KFFLT_UPDATE &&
-                     gf_group->update_type[gf_index] != INTNL_ARF_UPDATE;
+    cm->immediate_output_picture =
+        gf_group->update_type[gf_index] != ARF_UPDATE &&
+        gf_group->update_type[gf_index] != KFFLT_UPDATE &&
+        gf_group->update_type[gf_index] != INTNL_ARF_UPDATE;
 
     gf_group->q_val[gf_index] =
         av2_rc_pick_q_and_bounds(cpi, &cpi->rc, cm->width, cm->height, gf_index,
@@ -1324,7 +1325,7 @@ void av2_tpl_setup_stats(AV2_COMP *cpi, int gop_eval,
 
   av2_configure_buffer_updates(cpi, gf_group->update_type[gf_group->index]);
   cm->current_frame.frame_type = frame_params->frame_type;
-  cm->show_frame = frame_params->show_frame;
+  cm->immediate_output_picture = frame_params->show_frame;
 }
 
 void av2_tpl_rdmult_setup(AV2_COMP *cpi) {

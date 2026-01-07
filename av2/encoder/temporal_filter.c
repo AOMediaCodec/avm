@@ -1257,12 +1257,12 @@ int av2_temporal_filter(AV2_COMP *cpi, const int filter_frame_lookahead_idx,
 
   // Set showable frame.
   if (filter_frame_lookahead_idx >= 0) {
-    cpi->common.showable_frame = num_frames_for_filtering == 1 ||
-                                 is_second_arf ||
-                                 (cpi->oxcf.algo_cfg.enable_overlay == 0);
+    cpi->common.implicit_output_picture =
+        num_frames_for_filtering == 1 || is_second_arf ||
+        (cpi->oxcf.algo_cfg.enable_overlay == 0);
 
     if (gf_group->update_type[gf_group->index] == KFFLT_UPDATE)
-      cpi->common.showable_frame = 0;
+      cpi->common.implicit_output_picture = 0;
   }
 
   // Do filtering.
@@ -1319,7 +1319,7 @@ int av2_temporal_filter(AV2_COMP *cpi, const int filter_frame_lookahead_idx,
         *show_existing_arf = 1;
       }
 #endif  //! CONFIG_MIXED_LOSSLESS_ENCODE
-      cpi->common.showable_frame |= *show_existing_arf;
+      cpi->common.implicit_output_picture |= *show_existing_arf;
     } else {
       if (show_existing_arf) *show_existing_arf = 0;
       // Use source frame if the filtered frame becomes very different.

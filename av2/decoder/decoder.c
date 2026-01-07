@@ -66,7 +66,8 @@ static void update_subgop_stats(const AV2_COMMON *const cm,
   subgop_stats->disp_frame_idx[subgop_stats->stat_count] = display_order_hint;
   subgop_stats->show_existing_frame[subgop_stats->stat_count] =
       cm->show_existing_frame;
-  subgop_stats->show_frame[subgop_stats->stat_count] = cm->show_frame;
+  subgop_stats->show_frame[subgop_stats->stat_count] =
+      cm->immediate_output_picture;
   subgop_stats->qindex[subgop_stats->stat_count] = cm->quant_params.base_qindex;
   subgop_stats->refresh_frame_flags[subgop_stats->stat_count] =
       cm->current_frame.refresh_frame_flags;
@@ -692,7 +693,7 @@ void output_frame_buffers(AV2Decoder *pbi, int ref_idx) {
     mismatch_move_frame_idx_r(0);
 #endif  // CONFIG_MISMATCH_DEBUG
 
-  // Add the next frames (showable_frame == 1) into the output queue.
+  // Add the next frames (implicit_output_picture == 1) into the output queue.
   uint64_t trigger_frame_output_order =
       derive_output_order_idx(cm, trigger_frame);
 
@@ -766,7 +767,8 @@ static void update_frame_buffers(AV2Decoder *pbi, int frame_decoded) {
   if (frame_decoded) {
     lock_buffer_pool(pool);
 #if !CONFIG_F024_KEYOBU
-    if (cm->current_frame.frame_type == KEY_FRAME && cm->show_frame &&
+    if (cm->current_frame.frame_type == KEY_FRAME &&
+        cm->immediate_output_picture &&
         cm->current_frame.refresh_frame_flags ==
             ((1 << cm->seq_params.ref_frames) - 1))
       output_trailing_frames(pbi);
@@ -791,7 +793,7 @@ static void update_frame_buffers(AV2Decoder *pbi, int frame_decoded) {
           output_frame_buffers(pbi, ref_index);
         decrease_ref_count(cm->ref_frame_map[ref_index], pool);
         if ((cm->current_frame.frame_type == KEY_FRAME &&
-             cm->show_frame == 1) &&
+             cm->immediate_output_picture == 1) &&
 #if CONFIG_F024_KEYOBU
             cm->seq_params.max_mlayer_id == 0 &&
 #endif
@@ -806,7 +808,7 @@ static void update_frame_buffers(AV2Decoder *pbi, int frame_decoded) {
     }
     update_subgop_stats(cm, &pbi->subgop_stats, cm->cur_frame->order_hint,
                         pbi->enable_subgop_stats);
-    if (((cm->show_frame && !cm->cur_frame->frame_output_done) ||
+    if (((cm->immediate_output_picture && !cm->cur_frame->frame_output_done) ||
          cm->show_existing_frame)) {
       output_frame_buffers(pbi, -1);
       decrease_ref_count(cm->cur_frame, pool);
@@ -835,7 +837,8 @@ static AVM_INLINE void update_long_term_frame_id(AV2Decoder *const pbi) {
   int refresh_frame_flags = cm->current_frame.refresh_frame_flags;
   for (int i = 0; i < cm->seq_params.ref_frames; i++) {
     if ((refresh_frame_flags >> i) & 1) {
-      if ((cm->current_frame.frame_type == KEY_FRAME && cm->show_frame == 1) &&
+      if ((cm->current_frame.frame_type == KEY_FRAME &&
+           cm->immediate_output_picture == 1) &&
 #if CONFIG_F024_KEYOBU
           cm->seq_params.max_mlayer_id == 0 &&
 #endif

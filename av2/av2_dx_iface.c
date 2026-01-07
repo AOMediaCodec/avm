@@ -933,9 +933,9 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
     }
     ctx->num_grain_image_frame_buffers = 0;
     // Output any frames in the buffer
-    // that have showable_frame == 1 but have not yet been output.  This is
-    // useful when OBUs are lost due to channel errors or removed for temporal
-    // scalability.
+    // that have implicit_output_picture == 1 but have not yet been output. This
+    // is useful when OBUs are lost due to channel errors or removed for
+    // temporal scalability.
     if (data == NULL && data_sz == 0) {
 #if CONFIG_F024_KEYOBU
       avm_codec_err_t err = flush_remaining_frames(pbi);
@@ -1370,7 +1370,7 @@ static avm_codec_err_t ctrl_get_frame_flags(avm_codec_alg_priv_t *ctx,
     case KEY_FRAME:
       *arg |= AVM_FRAME_IS_KEY;
       *arg |= AVM_FRAME_IS_INTRAONLY;
-      if (!pbi->common.show_frame) {
+      if (!pbi->common.immediate_output_picture) {
         *arg |= AVM_FRAME_IS_DELAYED_RANDOM_ACCESS_POINT;
       }
       break;

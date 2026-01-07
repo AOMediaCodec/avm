@@ -2058,7 +2058,8 @@ static void set_mv_search_params(AV2_COMP *cpi) {
       mv_search_params->max_mv_magnitude = max_mv_def;
     } else {
       // Use cpi->max_mv_magnitude == -1 to exclude first pass case.
-      if (cm->show_frame && mv_search_params->max_mv_magnitude != -1) {
+      if (cm->immediate_output_picture &&
+          mv_search_params->max_mv_magnitude != -1) {
         // Allow mv_steps to correspond to twice the max mv magnitude found
         // in the previous frame, capped by the default max_mv_magnitude based
         // on resolution.
@@ -4425,7 +4426,7 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
       cpi->is_olk_overlay = 0;
     }
     cpi->seq_params_locked = 1;
-    if (cm->show_frame) cpi->last_show_frame_buf = cm->cur_frame;
+    if (cm->immediate_output_picture) cpi->last_show_frame_buf = cm->cur_frame;
 
     // current_frame->frame_number is incremented already for
     // keyframe overlays.
@@ -4519,8 +4520,8 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
 
     // NOTE: Save the new show frame buffer index for --test-code=warn, i.e.,
     //       for the purpose to verify no mismatch between encoder and decoder.
-    if (cm->show_frame) cpi->last_show_frame_buf = cm->cur_frame;
-    if (cm->show_frame && !cm->derive_sef_order_hint) {
+    if (cm->immediate_output_picture) cpi->last_show_frame_buf = cm->cur_frame;
+    if (cm->immediate_output_picture && !cm->derive_sef_order_hint) {
       cpi->last_show_frame_buf =
           cm->ref_frame_map[cpi->existing_fb_idx_to_show];
     }
@@ -4651,7 +4652,7 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
       // TODO(huisu@google.com): design schemes for various trade-offs between
       // compression quality and decoding speed.
       features->disable_cdf_update =
-          (frame_is_intra_only(cm) || !cm->show_frame) ? 0 : 1;
+          (frame_is_intra_only(cm) || !cm->immediate_output_picture) ? 0 : 1;
       break;
   }
 #if CONFIG_CWG_F270_CI_OBU
@@ -4711,7 +4712,7 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
 
   // NOTE: Save the new show frame buffer index for --test-code=warn, i.e.,
   //       for the purpose to verify no mismatch between encoder and decoder.
-  if (cm->show_frame) cpi->last_show_frame_buf = cm->cur_frame;
+  if (cm->immediate_output_picture) cpi->last_show_frame_buf = cm->cur_frame;
   if (cm->seq_params.enable_bru && !cm->bru.enabled &&
       cm->current_frame.frame_type == INTER_FRAME) {
     bru_lookahead_buf_refresh(cpi->lookahead,
@@ -4743,7 +4744,8 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
   int i;
   fprintf(stderr, "\n Frame number: %d, Frame type: %s, Show Frame: %d\n",
           cm->current_frame.frame_number,
-          get_frame_type_enum(cm->current_frame.frame_type), cm->show_frame);
+          get_frame_type_enum(cm->current_frame.frame_type),
+          cm->immediate_output_picture);
   for (i = 0; i < kTimingComponents; i++) {
     cpi->component_time[i] += cpi->frame_component_time[i];
     fprintf(stderr, " %s:  %" PRId64 " us (total: %" PRId64 " us)\n",
@@ -4763,7 +4765,7 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
   // A droppable frame might not be shown but it always
   // takes a space in the gf group. Therefore, even when
   // it is not shown, we still need update the count down.
-  if (cm->show_frame) {
+  if (cm->immediate_output_picture) {
     ++current_frame->frame_number;
   }
 
@@ -4790,7 +4792,7 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
 
   current_frame->refresh_frame_flags = frame_params->refresh_frame_flags;
   cm->current_frame.frame_type = frame_params->frame_type;
-  cm->show_frame = frame_params->show_frame;
+  cm->immediate_output_picture = frame_params->show_frame;
   cm->ref_frame_flags = frame_params->ref_frame_flags;
   cpi->speed = frame_params->speed;
 #if CONFIG_F024_KEYOBU
@@ -4957,7 +4959,8 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
            "bitstream debug tool does not support multithreading");
     bitstream_queue_record_write();
     avm_bitstream_queue_set_frame_write(
-        (int)(derive_output_order_idx(cm, cm->cur_frame) * 2 + cm->show_frame));
+        (int)(derive_output_order_idx(cm, cm->cur_frame) * 2 +
+              cm->immediate_output_picture));
 #endif  // CONFIG_BITSTREAM_DEBUG
     const ResizeCfg *resize_cfg = &cpi->oxcf.resize_cfg;
     FeatureFlags *const features = &cm->features;
@@ -4977,8 +4980,8 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
         cm->bridge_frame_info.is_bridge_frame = 1;
         cm->current_frame.display_order_hint = 0;
         cm->current_frame.absolute_poc = 0;
-        cm->show_frame = 0;
-        cm->showable_frame = 0;
+        cm->immediate_output_picture = 0;
+        cm->implicit_output_picture = 0;
         cm->show_existing_frame = 0;
 #if CONFIG_F024_KEYOBU
         cm->sef_ref_fb_idx = 0;
@@ -5184,7 +5187,7 @@ static void compute_internal_stats(AV2_COMP *cpi, int frame_bytes) {
   if (cm->current_frame.frame_type == KEY_FRAME) return;  // skip key frame
 #endif
   cpi->bytes += frame_bytes;
-  if (cm->show_frame) {
+  if (cm->immediate_output_picture) {
     const YV12_BUFFER_CONFIG *orig = cpi->source;
     const YV12_BUFFER_CONFIG *recon =
         cpi->common.show_existing_frame
@@ -5236,7 +5239,7 @@ int av2_get_compressed_data(AV2_COMP *cpi, unsigned int *frame_flags,
   const AV2EncoderConfig *const oxcf = &cpi->oxcf;
   AV2_COMMON *const cm = &cpi->common;
   cm->cur_mfh_id = oxcf->tool_cfg.enable_mfh_obu_signaling ? 1 : 0;
-  cm->showable_frame = 0;
+  cm->implicit_output_picture = 0;
   *size = 0;
 #if CONFIG_INTERNAL_STATS
   struct avm_usec_timer cmptimer;
@@ -5277,7 +5280,8 @@ int av2_get_compressed_data(AV2_COMP *cpi, unsigned int *frame_flags,
 #else
         cm->show_existing_frame ||
 #endif
-        (*size > 0 && !is_stat_generation_stage(cpi) && cm->show_frame)) {
+        (*size > 0 && !is_stat_generation_stage(cpi) &&
+         cm->immediate_output_picture)) {
       generate_psnr_packet(cpi);
     }
   }
@@ -5309,7 +5313,7 @@ int av2_get_compressed_data(AV2_COMP *cpi, unsigned int *frame_flags,
 
 int av2_get_preview_raw_frame(AV2_COMP *cpi, YV12_BUFFER_CONFIG *dest) {
   AV2_COMMON *cm = &cpi->common;
-  if (!cm->show_frame) {
+  if (!cm->immediate_output_picture) {
     return -1;
   } else {
     int ret;
