@@ -862,6 +862,16 @@ static void calculate_features(int32_t *feature_vector, int bit_depth, int col,
                                PcwienerBuffers *buffers) {
   // Index derivation to retrieve the stored accumulated value.
   const int accum_index = col / PC_WIENER_BLOCK_SIZE;
+
+#if PC_WIENER_CLASSIFICATION_CLEAN_UP
+  if (buffers->directional_feature_accumulator[0][accum_index] != 0) {
+    struct avm_internal_error_info error;
+    avm_internal_error(
+        &error, AVM_CODEC_ERROR,
+        "The horizontal direction feature value is expected to be zero");
+  }
+#endif
+
   for (int f = 0; f < NUM_PC_WIENER_FEATURES; ++f) {
     feature_vector[f] =
         buffers->directional_feature_accumulator[f][accum_index] *
@@ -933,6 +943,15 @@ static uint8_t get_pcwiener_index(int bit_depth, int32_t *multiplier, int col,
 
   // Fill the feature vector.
   calculate_features(feature_vector, bit_depth, col, buffers);
+
+#if PC_WIENER_CLASSIFICATION_CLEAN_UP
+  if (feature_vector[0] != 0) {
+    struct avm_internal_error_info error;
+    avm_internal_error(
+        &error, AVM_CODEC_ERROR,
+        "The horizontal direction feature value is expected to be zero");
+  }
+#endif
 
   // actual * 256
   const int tskip_index = NUM_PC_WIENER_FEATURES;

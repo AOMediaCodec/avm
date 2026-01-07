@@ -1011,8 +1011,10 @@ void prepare_feature_sum_bufs_c(int *feature_sum_buffers[],
 #pragma GCC ivdep
 #endif
   for (int col = col_begin; col < col_end; ++col, ++buffer_col) {
+#if !PC_WIENER_CLASSIFICATION_CLEAN_UP
     feature_sum_buffers[0][buffer_col] -=
         feature_line_buffers[buffer_row_0][buffer_col];
+#endif
     feature_sum_buffers[1][buffer_col] -=
         feature_line_buffers[buffer_row_1][buffer_col];
     feature_sum_buffers[2][buffer_col] -=
@@ -1049,8 +1051,10 @@ void calc_gradient_in_various_directions_c(int16_t *feature_line_buffers[],
     // H O H
     // A V D
     const int16_t base_value = 2 * dgd[dgd_id];  // O.
+#if !PC_WIENER_CLASSIFICATION_CLEAN_UP
     const int16_t horizontal_diff =
-        dgd[dgd_id + 1] + dgd[dgd_id - 1] - base_value;           // H.
+        dgd[dgd_id + 1] + dgd[dgd_id - 1] - base_value;  // H.
+#endif
     int16_t vertical_diff = dgd[prev_row] - base_value;           // V.
     int16_t anti_diagonal_diff = dgd[prev_row + 1] - base_value;  // A.
     int16_t diagonal_diff = dgd[prev_row - 1] - base_value;       // D.
@@ -1059,8 +1063,10 @@ void calc_gradient_in_various_directions_c(int16_t *feature_line_buffers[],
     anti_diagonal_diff += dgd[next_row - 1];
     diagonal_diff += dgd[next_row + 1];
 
+#if !PC_WIENER_CLASSIFICATION_CLEAN_UP
     feature_line_buffers[buffer_row_0][buffer_col] =
-        abs(horizontal_diff);                                             // fo
+        abs(horizontal_diff);  // fo
+#endif
     feature_line_buffers[buffer_row_1][buffer_col] = abs(vertical_diff);  // f1
     feature_line_buffers[buffer_row_2][buffer_col] =
         abs(anti_diagonal_diff);                                          // f2
@@ -1080,8 +1086,10 @@ void update_feature_sum_bufs_c(int *feature_sum_buffers[],
 #pragma GCC ivdep
 #endif
   for (int col = col_begin; col < col_end; ++col, ++buffer_col) {
+#if !PC_WIENER_CLASSIFICATION_CLEAN_UP
     feature_sum_buffers[0][buffer_col] +=
         feature_line_buffers[buffer_row_0][buffer_col];
+#endif
     feature_sum_buffers[1][buffer_col] +=
         feature_line_buffers[buffer_row_1][buffer_col];
     feature_sum_buffers[2][buffer_col] +=

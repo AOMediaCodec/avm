@@ -4551,7 +4551,9 @@ void calc_gradient_in_various_directions_avx2(
   const int buffer_row_1 = buffer_row_0 + feature_length;
   const int buffer_row_2 = buffer_row_1 + feature_length;
   const int buffer_row_3 = buffer_row_2 + feature_length;
+#if !PC_WIENER_CLASSIFICATION_CLEAN_UP
   const int16_t *line_buf0 = feature_line_buffers[buffer_row_0];
+#endif
   const int16_t *line_buf1 = feature_line_buffers[buffer_row_1];
   const int16_t *line_buf2 = feature_line_buffers[buffer_row_2];
   const int16_t *line_buf3 = feature_line_buffers[buffer_row_3];
@@ -4574,23 +4576,29 @@ void calc_gradient_in_various_directions_avx2(
     // p0 p1 p2 p3 p4 p5 p6 p7 p8 p9 p10 p11 p12 p13 p14 p15
     const __m256i src_pm1 = _mm256_loadu_si256((__m256i const *)(prev_row - 1));
     // c0 c1 c2 c3 c4 c5 c6 c7 c8 c9 c10 c11 c12 c13 c14 c15
+#if !PC_WIENER_CLASSIFICATION_CLEAN_UP
     const __m256i src_cm1 = _mm256_loadu_si256((__m256i const *)(cur_row - 1));
+#endif
     // n0 n1 n2 n3 n4 n5 n6 n7 n8 n9 n10 n11 n12 n13 n14 n15
     const __m256i src_nm1 = _mm256_loadu_si256((__m256i const *)(next_row - 1));
 
     // p2 p3 p4 p5 p6 p7 p8 p9 p10 p11 p12 p13 p14 p15 p16 p17
     const __m256i src_pp1 = _mm256_loadu_si256((__m256i const *)(prev_row + 1));
+#if !PC_WIENER_CLASSIFICATION_CLEAN_UP
     // c2 c3 c4 c5 c6 c7 c8 c9 c10 c11 c12 c13 c14 c15 c16 c17
     const __m256i src_cp1 = _mm256_loadu_si256((__m256i const *)(cur_row + 1));
+#endif
     // n2 n3 n4 n5 n6 n7 n8 n9 n10 n11 n12 n13 n14 n15 n16 n17
     const __m256i src_np1 = _mm256_loadu_si256((__m256i const *)(next_row + 1));
 
     // Horizontal Gradient calculation
     const __m256i base_val = _mm256_add_epi16(src_c, src_c);
+#if !PC_WIENER_CLASSIFICATION_CLEAN_UP
     const __m256i partial_horz_diff = _mm256_add_epi16(src_cm1, src_cp1);
     const __m256i horz_diff = _mm256_sub_epi16(partial_horz_diff, base_val);
     const __m256i abs_horz_diff = _mm256_abs_epi16(horz_diff);
     _mm256_storeu_si256((__m256i *)(line_buf0 + wd), abs_horz_diff);
+#endif
 
     // Vertical Gradient calculation
     const __m256i partial_vert_diff = _mm256_add_epi16(src_p, src_n);
@@ -4637,35 +4645,49 @@ static void prepare_feature_sum_bufs_4_avx2(int *feature_sum_buffers[],
 #if defined(__GCC__)
 #pragma GCC ivdep
 #endif
+#if !PC_WIENER_CLASSIFICATION_CLEAN_UP
   const int16_t *line_buf0 = &feature_line_buffers[buffer_row_0][buffer_col];
+#endif
   const int16_t *line_buf1 = &feature_line_buffers[buffer_row_1][buffer_col];
   const int16_t *line_buf2 = &feature_line_buffers[buffer_row_2][buffer_col];
   const int16_t *line_buf3 = &feature_line_buffers[buffer_row_3][buffer_col];
+#if !PC_WIENER_CLASSIFICATION_CLEAN_UP
   int *sum_buf0 = &feature_sum_buffers[0][buffer_col];
+#endif
   int *sum_buf1 = &feature_sum_buffers[1][buffer_col];
   int *sum_buf2 = &feature_sum_buffers[2][buffer_col];
   int *sum_buf3 = &feature_sum_buffers[3][buffer_col];
 
+#if !PC_WIENER_CLASSIFICATION_CLEAN_UP
   const __m128i line0 = _mm_loadu_si64((__m128i const *)line_buf0);
+#endif
   const __m128i line1 = _mm_loadu_si64((__m128i const *)line_buf1);
   const __m128i line2 = _mm_loadu_si64((__m128i const *)line_buf2);
   const __m128i line3 = _mm_loadu_si64((__m128i const *)line_buf3);
+#if !PC_WIENER_CLASSIFICATION_CLEAN_UP
   const __m128i line00 = _mm_cvtepi16_epi32(line0);
+#endif
   const __m128i line11 = _mm_cvtepi16_epi32(line1);
   const __m128i line22 = _mm_cvtepi16_epi32(line2);
   const __m128i line33 = _mm_cvtepi16_epi32(line3);
 
+#if !PC_WIENER_CLASSIFICATION_CLEAN_UP
   const __m128i sum0 = _mm_loadu_si128((__m128i const *)sum_buf0);
+#endif
   const __m128i sum1 = _mm_loadu_si128((__m128i const *)sum_buf1);
   const __m128i sum2 = _mm_loadu_si128((__m128i const *)sum_buf2);
   const __m128i sum3 = _mm_loadu_si128((__m128i const *)sum_buf3);
 
+#if !PC_WIENER_CLASSIFICATION_CLEAN_UP
   const __m128i sub0 = _mm_sub_epi32(sum0, line00);
+#endif
   const __m128i sub1 = _mm_sub_epi32(sum1, line11);
   const __m128i sub2 = _mm_sub_epi32(sum2, line22);
   const __m128i sub3 = _mm_sub_epi32(sum3, line33);
 
+#if !PC_WIENER_CLASSIFICATION_CLEAN_UP
   _mm_storeu_si128((__m128i *)(sum_buf0), sub0);
+#endif
   _mm_storeu_si128((__m128i *)(sum_buf1), sub1);
   _mm_storeu_si128((__m128i *)(sum_buf2), sub2);
   _mm_storeu_si128((__m128i *)(sum_buf3), sub3);
@@ -4680,35 +4702,49 @@ static void update_feature_sum_bufs_4_avx2(int *feature_sum_buffers[],
   const int buffer_row_1 = buffer_row_0 + feature_length;
   const int buffer_row_2 = buffer_row_1 + feature_length;
   const int buffer_row_3 = buffer_row_2 + feature_length;
+#if !PC_WIENER_CLASSIFICATION_CLEAN_UP
   const int16_t *line_buf0 = &feature_line_buffers[buffer_row_0][buffer_col];
+#endif
   const int16_t *line_buf1 = &feature_line_buffers[buffer_row_1][buffer_col];
   const int16_t *line_buf2 = &feature_line_buffers[buffer_row_2][buffer_col];
   const int16_t *line_buf3 = &feature_line_buffers[buffer_row_3][buffer_col];
+#if !PC_WIENER_CLASSIFICATION_CLEAN_UP
   int *sum_buf0 = &feature_sum_buffers[0][buffer_col];
+#endif
   int *sum_buf1 = &feature_sum_buffers[1][buffer_col];
   int *sum_buf2 = &feature_sum_buffers[2][buffer_col];
   int *sum_buf3 = &feature_sum_buffers[3][buffer_col];
 
+#if !PC_WIENER_CLASSIFICATION_CLEAN_UP
   const __m128i line0 = _mm_loadu_si64((__m128i const *)line_buf0);
+#endif
   const __m128i line1 = _mm_loadu_si64((__m128i const *)line_buf1);
   const __m128i line2 = _mm_loadu_si64((__m128i const *)line_buf2);
   const __m128i line3 = _mm_loadu_si64((__m128i const *)line_buf3);
+#if !PC_WIENER_CLASSIFICATION_CLEAN_UP
   const __m128i line00 = _mm_cvtepi16_epi32(line0);
+#endif
   const __m128i line11 = _mm_cvtepi16_epi32(line1);
   const __m128i line22 = _mm_cvtepi16_epi32(line2);
   const __m128i line33 = _mm_cvtepi16_epi32(line3);
 
+#if !PC_WIENER_CLASSIFICATION_CLEAN_UP
   const __m128i sum0 = _mm_loadu_si128((__m128i const *)sum_buf0);
+#endif
   const __m128i sum1 = _mm_loadu_si128((__m128i const *)sum_buf1);
   const __m128i sum2 = _mm_loadu_si128((__m128i const *)sum_buf2);
   const __m128i sum3 = _mm_loadu_si128((__m128i const *)sum_buf3);
 
+#if !PC_WIENER_CLASSIFICATION_CLEAN_UP
   const __m128i sub0 = _mm_add_epi32(sum0, line00);
+#endif
   const __m128i sub1 = _mm_add_epi32(sum1, line11);
   const __m128i sub2 = _mm_add_epi32(sum2, line22);
   const __m128i sub3 = _mm_add_epi32(sum3, line33);
 
+#if !PC_WIENER_CLASSIFICATION_CLEAN_UP
   _mm_storeu_si128((__m128i *)(sum_buf0), sub0);
+#endif
   _mm_storeu_si128((__m128i *)(sum_buf1), sub1);
   _mm_storeu_si128((__m128i *)(sum_buf2), sub2);
   _mm_storeu_si128((__m128i *)(sum_buf3), sub3);
@@ -4722,11 +4758,15 @@ void prepare_feature_sum_bufs_avx2(int *feature_sum_buffers[],
   const int buffer_row_1 = buffer_row_0 + feature_length;
   const int buffer_row_2 = buffer_row_1 + feature_length;
   const int buffer_row_3 = buffer_row_2 + feature_length;
+#if !PC_WIENER_CLASSIFICATION_CLEAN_UP
   const int16_t *line_buf0 = feature_line_buffers[buffer_row_0];
+#endif
   const int16_t *line_buf1 = feature_line_buffers[buffer_row_1];
   const int16_t *line_buf2 = feature_line_buffers[buffer_row_2];
   const int16_t *line_buf3 = feature_line_buffers[buffer_row_3];
+#if !PC_WIENER_CLASSIFICATION_CLEAN_UP
   int *sum_buf0 = feature_sum_buffers[0];
+#endif
   int *sum_buf1 = feature_sum_buffers[1];
   int *sum_buf2 = feature_sum_buffers[2];
   int *sum_buf3 = feature_sum_buffers[3];
@@ -4734,26 +4774,36 @@ void prepare_feature_sum_bufs_avx2(int *feature_sum_buffers[],
 
   // Process width multiples of 8.
   for (int wd = 0; wd + 8 < tot_width; wd += 8) {
+#if !PC_WIENER_CLASSIFICATION_CLEAN_UP
     const __m128i line0 = _mm_loadu_si128((__m128i const *)(line_buf0 + wd));
+#endif
     const __m128i line1 = _mm_loadu_si128((__m128i const *)(line_buf1 + wd));
     const __m128i line2 = _mm_loadu_si128((__m128i const *)(line_buf2 + wd));
     const __m128i line3 = _mm_loadu_si128((__m128i const *)(line_buf3 + wd));
+#if !PC_WIENER_CLASSIFICATION_CLEAN_UP
     const __m256i sum0 = _mm256_loadu_si256((__m256i const *)(sum_buf0 + wd));
+#endif
     const __m256i sum1 = _mm256_loadu_si256((__m256i const *)(sum_buf1 + wd));
     const __m256i sum2 = _mm256_loadu_si256((__m256i const *)(sum_buf2 + wd));
     const __m256i sum3 = _mm256_loadu_si256((__m256i const *)(sum_buf3 + wd));
 
+#if !PC_WIENER_CLASSIFICATION_CLEAN_UP
     const __m256i line00 = _mm256_cvtepi16_epi32(line0);
+#endif
     const __m256i line11 = _mm256_cvtepi16_epi32(line1);
     const __m256i line22 = _mm256_cvtepi16_epi32(line2);
     const __m256i line33 = _mm256_cvtepi16_epi32(line3);
 
+#if !PC_WIENER_CLASSIFICATION_CLEAN_UP
     const __m256i sub0 = _mm256_sub_epi32(sum0, line00);
+#endif
     const __m256i sub1 = _mm256_sub_epi32(sum1, line11);
     const __m256i sub2 = _mm256_sub_epi32(sum2, line22);
     const __m256i sub3 = _mm256_sub_epi32(sum3, line33);
 
+#if !PC_WIENER_CLASSIFICATION_CLEAN_UP
     _mm256_storeu_si256((__m256i *)(sum_buf0 + wd), sub0);
+#endif
     _mm256_storeu_si256((__m256i *)(sum_buf1 + wd), sub1);
     _mm256_storeu_si256((__m256i *)(sum_buf2 + wd), sub2);
     _mm256_storeu_si256((__m256i *)(sum_buf3 + wd), sub3);
@@ -4782,37 +4832,51 @@ static void update_feature_sum_bufs_avx2(int *feature_sum_buffers[],
   const int buffer_row_1 = buffer_row_0 + feature_length;
   const int buffer_row_2 = buffer_row_1 + feature_length;
   const int buffer_row_3 = buffer_row_2 + feature_length;
+#if !PC_WIENER_CLASSIFICATION_CLEAN_UP
   const int16_t *line_buf0 = feature_line_buffers[buffer_row_0];
+#endif
   const int16_t *line_buf1 = feature_line_buffers[buffer_row_1];
   const int16_t *line_buf2 = feature_line_buffers[buffer_row_2];
   const int16_t *line_buf3 = feature_line_buffers[buffer_row_3];
+#if !PC_WIENER_CLASSIFICATION_CLEAN_UP
   int *sum_buf0 = feature_sum_buffers[0];
+#endif
   int *sum_buf1 = feature_sum_buffers[1];
   int *sum_buf2 = feature_sum_buffers[2];
   int *sum_buf3 = feature_sum_buffers[3];
   const int tot_width = col_end - col_begin;
 
   for (int wd = 0; wd + 8 < tot_width; wd += 8) {
+#if !PC_WIENER_CLASSIFICATION_CLEAN_UP
     const __m128i line0 = _mm_loadu_si128((__m128i const *)(line_buf0 + wd));
+#endif
     const __m128i line1 = _mm_loadu_si128((__m128i const *)(line_buf1 + wd));
     const __m128i line2 = _mm_loadu_si128((__m128i const *)(line_buf2 + wd));
     const __m128i line3 = _mm_loadu_si128((__m128i const *)(line_buf3 + wd));
+#if !PC_WIENER_CLASSIFICATION_CLEAN_UP
     const __m256i fsum0 = _mm256_loadu_si256((__m256i const *)(sum_buf0 + wd));
+#endif
     const __m256i fsum1 = _mm256_loadu_si256((__m256i const *)(sum_buf1 + wd));
     const __m256i fsum2 = _mm256_loadu_si256((__m256i const *)(sum_buf2 + wd));
     const __m256i fsum3 = _mm256_loadu_si256((__m256i const *)(sum_buf3 + wd));
 
+#if !PC_WIENER_CLASSIFICATION_CLEAN_UP
     const __m256i line00 = _mm256_cvtepi16_epi32(line0);
+#endif
     const __m256i line11 = _mm256_cvtepi16_epi32(line1);
     const __m256i line22 = _mm256_cvtepi16_epi32(line2);
     const __m256i line33 = _mm256_cvtepi16_epi32(line3);
 
+#if !PC_WIENER_CLASSIFICATION_CLEAN_UP
     const __m256i sub0 = _mm256_add_epi32(fsum0, line00);
+#endif
     const __m256i sub1 = _mm256_add_epi32(fsum1, line11);
     const __m256i sub2 = _mm256_add_epi32(fsum2, line22);
     const __m256i sub3 = _mm256_add_epi32(fsum3, line33);
 
+#if !PC_WIENER_CLASSIFICATION_CLEAN_UP
     _mm256_storeu_si256((__m256i *)(sum_buf0 + wd), sub0);
+#endif
     _mm256_storeu_si256((__m256i *)(sum_buf1 + wd), sub1);
     _mm256_storeu_si256((__m256i *)(sum_buf2 + wd), sub2);
     _mm256_storeu_si256((__m256i *)(sum_buf3 + wd), sub3);
