@@ -110,10 +110,6 @@ enum {
   DECODER_MODEL_DISABLED
 } UENUM1BYTE(DECODER_MODEL_STATUS);
 
-#if !CONFIG_CWG_F270_OPS
-#define BUFFER_POOL_MAX_SIZE 18  // Max VBI slots (16) + 2 extra
-#endif                           // !CONFIG_CWG_F270_OPS
-
 typedef struct {
   DECODER_MODEL_STATUS status;
   DECODER_MODEL_MODE mode;
@@ -191,12 +187,10 @@ double av2_get_compression_ratio(const AV2_COMMON *const cm,
                                  size_t encoded_frame_size);
 
 // Return sequence level indices in seq_level_idx[MAX_NUM_OPERATING_POINTS].
-avm_codec_err_t av2_get_seq_level_idx(
-#if CONFIG_CWG_F270_OPS
-    const struct AV2_COMP *cpi,
-#endif  // CONFIG_CWG_F270_OPS
-    const SequenceHeader *seq_params, const AV2LevelParams *level_params,
-    int *seq_level_idx);
+avm_codec_err_t av2_get_seq_level_idx(const struct AV2_COMP *cpi,
+                                      const SequenceHeader *seq_params,
+                                      const AV2LevelParams *level_params,
+                                      int *seq_level_idx);
 
 void av2_decoder_model_init(const struct AV2_COMP *const cpi, AV2_LEVEL level,
                             int op_index, DECODER_MODEL *const decoder_model);

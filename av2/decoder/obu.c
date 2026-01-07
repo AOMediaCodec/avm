@@ -34,45 +34,6 @@
 #define IS_METADATA_OBU(type) \
   ((type) == OBU_METADATA_SHORT || (type) == OBU_METADATA_GROUP)
 
-#if !CONFIG_CWG_F270_OPS
-avm_codec_err_t avm_get_num_layers_from_operating_point_idc(
-    int operating_point_idc, unsigned int *number_mlayers,
-    unsigned int *number_tlayers) {
-  // derive number of embedded/temporal layers from operating_point_idc
-  if (!number_mlayers || !number_tlayers) return AVM_CODEC_INVALID_PARAM;
-
-  if (operating_point_idc == 0) {
-    *number_tlayers = 1;
-    *number_mlayers = 1;
-  } else {
-    *number_mlayers = 0;
-    *number_tlayers = 0;
-    for (int j = 0; j < MAX_NUM_MLAYERS; j++) {
-      *number_mlayers += (operating_point_idc >> (j + MAX_NUM_TLAYERS)) & 0x1;
-    }
-    for (int j = 0; j < MAX_NUM_TLAYERS; j++) {
-      *number_tlayers += (operating_point_idc >> j) & 0x1;
-    }
-  }
-  return AVM_CODEC_OK;
-}
-
-static int is_obu_in_current_operating_point(AV2Decoder *pbi,
-                                             ObuHeader obu_header) {
-  if (!pbi->current_operating_point) {
-    return 1;
-  }
-
-  if ((pbi->current_operating_point >> obu_header.obu_tlayer_id) & 0x1 &&
-      (pbi->current_operating_point >>
-       (obu_header.obu_mlayer_id + MAX_NUM_TLAYERS)) &
-          0x1) {
-    return 1;
-  }
-  return 0;
-}
-#endif  // !CONFIG_CWG_F270_OPS
-
 static uint32_t read_temporal_delimiter_obu() { return 0; }
 
 // Returns a boolean that indicates success.
@@ -261,21 +222,12 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
     seq_params->seq_header_id = seq_header_id;
   }
 
-#if CONFIG_CWG_F270_OPS
   seq_params->profile = av2_read_profile(rb);
   if (seq_params->profile > CONFIG_MAX_DECODE_PROFILE) {
     cm->error.error_code = AVM_CODEC_UNSUP_BITSTREAM;
     return 0;
   }
-#endif  // CONFIG_CWG_F270_OPS
 
-#if !CONFIG_CWG_F270_OPS
-  seq_params->profile = av2_read_profile(rb);
-  if (seq_params->profile > CONFIG_MAX_DECODE_PROFILE) {
-    cm->error.error_code = AVM_CODEC_UNSUP_BITSTREAM;
-    return 0;
-  }
-#endif  // !CONFIG_CWG_F270_OPS
   seq_params->single_picture_header_flag = avm_rb_read_bit(rb);
   if (seq_params->single_picture_header_flag) {
     seq_params->seq_lcr_id = LCR_ID_UNSPECIFIED;
@@ -289,7 +241,7 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
     seq_params->seq_lcr_id = seq_lcr_id;
     seq_params->still_picture = avm_rb_read_bit(rb);
   }
-#if CONFIG_CWG_F270_OPS
+
   if (!read_bitstream_level(&seq_params->seq_max_level_idx, rb)) {
     cm->error.error_code = AVM_CODEC_UNSUP_BITSTREAM;
     return 0;
@@ -299,17 +251,6 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
     seq_params->seq_tier = avm_rb_read_bit(rb);
   else
     seq_params->seq_tier = 0;
-#else
-  if (!read_bitstream_level(&seq_params->seq_level_idx[0], rb)) {
-    cm->error.error_code = AVM_CODEC_UNSUP_BITSTREAM;
-    return 0;
-  }
-  if (seq_params->seq_level_idx[0] >= SEQ_LEVEL_4_0 &&
-      !seq_params->single_picture_header_flag)
-    seq_params->tier[0] = avm_rb_read_bit(rb);
-  else
-    seq_params->tier[0] = 0;
-#endif  // CONFIG_CWG_F270_OPS
 
   const int num_bits_width = avm_rb_read_literal(rb, 4) + 1;
   const int num_bits_height = avm_rb_read_literal(rb, 4) + 1;
@@ -324,13 +265,8 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
   av2_read_conformance_window(rb, seq_params);
   av2_validate_seq_conformance_window(seq_params, &cm->error);
 
-#if CONFIG_CWG_F270_CI_OBU
   av2_read_chroma_format_bitdepth(rb, seq_params, &cm->error);
-#else
-  av2_read_color_config(rb, seq_params, &cm->error);
-#endif  // CONFIG_CWG_F270_CI_OBU
 
-#if CONFIG_CWG_F270_OPS
   if (seq_params->single_picture_header_flag) {
     seq_params->decoder_model_info_present_flag = 0;
     seq_params->display_model_info_present_flag = 0;
@@ -376,115 +312,6 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
                          "AV2 does not support this combination of "
                          "profile, level, and tier.");
   }
-#else
-  if (seq_params->single_picture_header_flag) {
-#if !CONFIG_CWG_F270_CI_OBU
-    seq_params->timing_info_present = 0;
-#endif  // !CONFIG_CWG_F270_CI_OBU
-    seq_params->decoder_model_info_present_flag = 0;
-    seq_params->display_model_info_present_flag = 0;
-    seq_params->operating_points_cnt_minus_1 = 0;
-    seq_params->operating_point_idc[0] = 0;
-    seq_params->op_params[0].decoder_model_param_present_flag = 0;
-    seq_params->op_params[0].display_model_param_present_flag = 0;
-  } else {
-#if !CONFIG_CWG_F270_CI_OBU
-    seq_params->timing_info_present = avm_rb_read_bit(rb);
-    if (seq_params->timing_info_present) {
-      av2_read_timing_info_header(&seq_params->timing_info, &cm->error, rb);
-#endif  // !CONFIG_CWG_F270_CI_OBU
-      seq_params->decoder_model_info_present_flag = avm_rb_read_bit(rb);
-      if (seq_params->decoder_model_info_present_flag)
-        av2_read_decoder_model_info(&seq_params->decoder_model_info, rb);
-#if !CONFIG_CWG_F270_CI_OBU
-    } else {
-      seq_params->decoder_model_info_present_flag = 0;
-    }
-#endif  // !CONFIG_CWG_F270_CI_OBU
-    seq_params->display_model_info_present_flag = avm_rb_read_bit(rb);
-    seq_params->operating_points_cnt_minus_1 =
-        avm_rb_read_literal(rb, OP_POINTS_CNT_MINUS_1_BITS);
-    for (int i = 0; i < seq_params->operating_points_cnt_minus_1 + 1; i++) {
-      seq_params->operating_point_idc[i] =
-          avm_rb_read_literal(rb, OP_POINTS_IDC_BITS);
-      if (seq_params->decoder_model_info_present_flag) {
-        seq_params->op_params[i].decoder_model_param_present_flag =
-            avm_rb_read_bit(rb);
-        if (seq_params->op_params[i].decoder_model_param_present_flag)
-          av2_read_op_parameters_info(&seq_params->op_params[i],
-                                      seq_params->decoder_model_info
-                                          .encoder_decoder_buffer_delay_length,
-                                      rb);
-      } else {
-        seq_params->op_params[i].decoder_model_param_present_flag = 0;
-      }
-#if CONFIG_CWG_F270_CI_OBU
-      if (seq_params->op_params[i].decoder_model_param_present_flag)
-#else
-      if (seq_params->timing_info_present &&
-          (seq_params->timing_info.equal_picture_interval ||
-           seq_params->op_params[i].decoder_model_param_present_flag))
-#endif  // CONFIG_CWG_F270_CI_OBU
-      {
-        seq_params->op_params[i].bitrate = av2_max_level_bitrate(
-            seq_params->profile, seq_params->seq_level_idx[i],
-            seq_params->tier[i]);
-        // Level with seq_level_idx = 31 returns a high "dummy" bitrate to pass
-        // the check
-        if (seq_params->op_params[i].bitrate == 0)
-          avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-                             "AV2 does not support this combination of "
-                             "profile, level, and tier.");
-        // Buffer size in bits/s is bitrate in bits/s * 1 s
-        seq_params->op_params[i].buffer_size = seq_params->op_params[i].bitrate;
-      }
-      if (
-#if !CONFIG_CWG_F270_CI_OBU
-          seq_params->timing_info_present &&
-          seq_params->timing_info.equal_picture_interval &&
-#endif  // !CONFIG_CWG_F270_CI_OBU
-          !seq_params->op_params[i].decoder_model_param_present_flag) {
-        // When the decoder_model_parameters are not sent for this op, set
-        // the default ones that can be used with the resource availability mode
-        seq_params->op_params[i].decoder_buffer_delay = 70000;
-        seq_params->op_params[i].encoder_buffer_delay = 20000;
-        seq_params->op_params[i].low_delay_mode_flag = 0;
-      }
-
-      if (seq_params->display_model_info_present_flag) {
-        seq_params->op_params[i].display_model_param_present_flag =
-            avm_rb_read_bit(rb);
-        if (seq_params->op_params[i].display_model_param_present_flag) {
-          seq_params->op_params[i].initial_display_delay =
-              avm_rb_read_literal(rb, 4) + 1;
-          if (seq_params->op_params[i].initial_display_delay > 10)
-            avm_internal_error(
-                &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-                "AV2 does not support more than 10 decoded frames delay");
-        } else {
-          seq_params->op_params[i].initial_display_delay = 10;
-        }
-      } else {
-        seq_params->op_params[i].display_model_param_present_flag = 0;
-        seq_params->op_params[i].initial_display_delay = 10;
-      }
-    }
-  }
-  // This decoder supports all levels.  Choose operating point provided by
-  // external means
-  int operating_point = pbi->operating_point;
-  if (operating_point < 0 ||
-      operating_point > seq_params->operating_points_cnt_minus_1)
-    operating_point = 0;
-  pbi->current_operating_point =
-      seq_params->operating_point_idc[operating_point];
-  if (avm_get_num_layers_from_operating_point_idc(
-          pbi->current_operating_point, &cm->number_mlayers,
-          &cm->number_tlayers) != AVM_CODEC_OK) {
-    cm->error.error_code = AVM_CODEC_ERROR;
-    return 0;
-  }
-#endif  // CONFIG_CWG_F270_OPS
 
   if (seq_params->single_picture_header_flag) {
     seq_params->max_tlayer_id = 0;
@@ -524,7 +351,6 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
 
   av2_read_sequence_header(rb, seq_params);
 
-#if CONFIG_CWG_F270_OPS
   // Level-driven memory restriction
   if (seq_params->seq_max_level_idx < SEQ_LEVELS) {
     const int max_legal_ref_frames =
@@ -538,32 +364,8 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
           max_legal_ref_frames, seq_params->ref_frames);
     }
   }
-#endif  // CONFIG_CWG_F270_OPS
 
   seq_params->film_grain_params_present = avm_rb_read_bit(rb);
-
-#if !CONFIG_CWG_F270_CI_OBU
-  seq_params->scan_type_info_present_flag = avm_rb_read_bit(rb);
-  if (seq_params->scan_type_info_present_flag) {
-    seq_params->scan_type_idc = avm_rb_read_literal(rb, 2);
-    seq_params->fixed_cvs_pic_rate_flag = avm_rb_read_bit(rb);
-    if (seq_params->fixed_cvs_pic_rate_flag)
-      seq_params->elemental_ct_duration_minus_1 = avm_rb_read_uvlc(rb);
-    else
-      seq_params->elemental_ct_duration_minus_1 = -1;
-  } else {
-    seq_params->scan_type_idc = 0;
-    seq_params->fixed_cvs_pic_rate_flag = 0;
-    seq_params->elemental_ct_duration_minus_1 = -1;
-  }
-  if (seq_params->elemental_ct_duration_minus_1 + 1 < 0 ||
-      seq_params->elemental_ct_duration_minus_1 + 1 > 2046) {
-    avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-                       "The value of elemental_ct_duration_minus_1 + 1 shall "
-                       "be in the range of 0 to 2046.\n",
-                       seq_params->elemental_ct_duration_minus_1);
-  }
-#endif  // !CONFIG_CWG_F270_CI_OBU
 
   if (av2_check_trailing_bits(pbi, rb) != 0) {
     // cm->error.error_code is already set.
@@ -1651,9 +1453,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
   // acc_fgm_id_bitmap accumulates fgm_id_bitmap in FGM OBU to check if film
   // grain models signalled before a coded frame have the same fgm_id
   uint32_t acc_fgm_id_bitmap = 0;
-#if CONFIG_CWG_F270_CI_OBU
   av2_ci_keyframe_in_temporal_unit(pbi, data, data_end - data);
-#endif  // CONFIG_CWG_F270_CI_OBU
   int prev_obu_xlayer_id = -1;
 
   int keyframe_present = 0;
@@ -1816,17 +1616,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
       cm->bridge_frame_info.is_bridge_frame = 0;
     }
 
-#if !CONFIG_CWG_F270_OPS
-    if (obu_header.type != OBU_TEMPORAL_DELIMITER &&
-        obu_header.type != OBU_SEQUENCE_HEADER) {
-      // don't decode obu if it's not in current operating mode
-      if (!is_obu_in_current_operating_point(pbi, obu_header)) {
-        data += payload_size;
-        continue;
-      }
-    }
-#endif  // !CONFIG_CWG_F270_OPS
-
     av2_init_read_bit_buffer(pbi, &rb, data, data + payload_size);
     switch (obu_header.type) {
       case OBU_TEMPORAL_DELIMITER:
@@ -1868,12 +1657,10 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
             av2_read_operating_point_set_obu(pbi, cm->xlayer_id, &rb);
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
         break;
-#if CONFIG_CWG_F270_CI_OBU
       case OBU_CONTENT_INTERPRETATION:
         decoded_payload_size = av2_read_content_interpretation_obu(pbi, &rb);
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
         break;
-#endif  // CONFIG_CWG_F270_CI_OBU
       case OBU_MULTI_FRAME_HEADER:
         decoded_payload_size = read_multi_frame_header_obu(pbi, &rb);
         if (cm->error.error_code != AVM_CODEC_OK) return -1;

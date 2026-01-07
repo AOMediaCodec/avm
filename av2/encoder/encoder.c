@@ -278,13 +278,8 @@ static INLINE int does_level_match(int width, int height, double fps,
          height <= lvl_height * lvl_dim_mult;
 }
 
-static void set_bitstream_level_tier(
-#if CONFIG_CWG_F270_OPS
-    AV2_COMP *cpi,
-#else
-    SequenceHeader *seq,
-#endif  // !CONFIG_CWG_F270_OPS
-    AV2_COMMON *cm, int width, int height, double init_framerate) {
+static void set_bitstream_level_tier(AV2_COMP *cpi, AV2_COMMON *cm, int width,
+                                     int height, double init_framerate) {
   // TODO(any): This is a placeholder function that only addresses dimensions
   // and max display sample rates.
   // Need to add checks for max bit rate, max decoded luma sample rate, header
@@ -329,19 +324,11 @@ static void set_bitstream_level_tier(
 
   SequenceHeader *const seq_params = &cm->seq_params;
   for (int i = 0; i < MAX_NUM_OPERATING_POINTS; ++i) {
-#if CONFIG_CWG_F270_OPS
     cpi->level_idx[i] = level;
-#else
-    seq->seq_level_idx[i] = level;
-#endif  // CONFIG_CWG_F270_OPS
     // Set the maximum parameters for bitrate and buffer size for this profile,
     // level, and tier
     seq_params->op_params[i].bitrate = av2_max_level_bitrate(
-#if CONFIG_CWG_F270_OPS
         cm->seq_params.profile, cpi->level_idx[i], cpi->tier[i]);
-#else
-        cm->seq_params.profile, seq->seq_level_idx[i], seq->tier[i]);
-#endif  //  CONFIG_CWG_F270_OPS
 
     // Level with seq_level_idx = 31 returns a high "dummy" bitrate to pass the
     // check
@@ -354,11 +341,8 @@ static void set_bitstream_level_tier(
   }
 }
 
-void av2_init_seq_coding_tools(
-#if CONFIG_CWG_F270_OPS
-    AV2_COMP *cpi,
-#endif  // CONFIG_CWG_F270_OPS
-    SequenceHeader *seq, AV2_COMMON *cm, const AV2EncoderConfig *oxcf) {
+void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
+                               AV2_COMMON *cm, const AV2EncoderConfig *oxcf) {
   const FrameDimensionCfg *const frm_dim_cfg = &oxcf->frm_dim_cfg;
   const ToolCfg *const tool_cfg = &oxcf->tool_cfg;
 
@@ -515,18 +499,10 @@ void av2_init_seq_coding_tools(
   seq->enable_mvd_sign_derive =
       seq->single_picture_header_flag ? 0 : tool_cfg->enable_mvd_sign_derive;
 
-  set_bitstream_level_tier(
-#if CONFIG_CWG_F270_OPS
-      cpi,
-#else
-      seq,
-#endif  // CONFIG_CWG_F270_OPS
-      cm, frm_dim_cfg->width, frm_dim_cfg->height,
-      oxcf->input_cfg.init_framerate);
+  set_bitstream_level_tier(cpi, cm, frm_dim_cfg->width, frm_dim_cfg->height,
+                           oxcf->input_cfg.init_framerate);
 
-#if CONFIG_CWG_F270_OPS
   seq->seq_max_level_idx = cpi->level_idx[0];
-#endif  // CONFIG_CWG_F270_OPS
 
   if (seq->operating_points_cnt_minus_1 == 0) {
     seq->operating_point_idc[0] = 0;
@@ -608,15 +584,6 @@ void av2_init_seq_coding_tools(
     seq->conf.conf_win_bottom_offset = 0;
   }
 
-#if !CONFIG_CWG_F270_CI_OBU
-  seq->scan_type_info_present_flag = oxcf->tool_cfg.scan_type_info_present_flag;
-  if (seq->scan_type_info_present_flag) {
-    seq->scan_type_idc = AVM_SCAN_TYPE_UNSPECIFIED;
-    seq->fixed_cvs_pic_rate_flag = 0;
-    seq->elemental_ct_duration_minus_1 = -1;
-  }
-#endif  // !CONFIG_CWG_F270_CI_OBU
-
   seq->enable_cdef_on_skip_txfm = seq->single_picture_header_flag
                                       ? CDEF_ON_SKIP_TXFM_ADAPTIVE
                                       : tool_cfg->enable_cdef_on_skip_txfm;
@@ -654,7 +621,7 @@ void av2_init_seq_coding_tools(
   seq->ref_frames = seq->single_picture_header_flag ? 2 : tool_cfg->dpb_size;
   seq->ref_frames_log2 = avm_ceil_log2(seq->ref_frames);
 }
-#if CONFIG_CWG_F270_CI_OBU
+
 static void set_content_interpreation_params(struct AV2_COMP *cpi,
                                              const AV2EncoderConfig *oxcf,
                                              CHROMA_FORMAT chroma_format_idc) {
@@ -808,7 +775,6 @@ static void set_content_interpreation_params(struct AV2_COMP *cpi,
   else
     cpi->write_ci_obu_flag = 0;
 }
-#endif  // CONFIG_CWG_F270_CI_OBU
 
 static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
   AV2_COMMON *const cm = &cpi->common;
@@ -860,25 +826,7 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
 
   seq_params->profile = oxcf->profile;
   seq_params->bit_depth = oxcf->tool_cfg.bit_depth;
-#if !CONFIG_CWG_F270_CI_OBU
-  seq_params->color_primaries = color_cfg->color_primaries;
-  seq_params->transfer_characteristics = color_cfg->transfer_characteristics;
-  seq_params->matrix_coefficients = color_cfg->matrix_coefficients;
-#endif  // !CONFIG_CWG_F270_CI_OBU
   seq_params->monochrome = oxcf->tool_cfg.enable_monochrome;
-#if !CONFIG_CWG_F270_CI_OBU
-  seq_params->chroma_sample_position = color_cfg->chroma_sample_position;
-  seq_params->color_range = color_cfg->color_range;
-  seq_params->timing_info_present = dec_model_cfg->timing_info_present;
-  seq_params->timing_info.num_units_in_display_tick =
-      dec_model_cfg->timing_info.num_units_in_display_tick;
-  seq_params->timing_info.time_scale = dec_model_cfg->timing_info.time_scale;
-  seq_params->timing_info.equal_picture_interval =
-      dec_model_cfg->timing_info.equal_picture_interval;
-  seq_params->timing_info.num_ticks_per_picture =
-      dec_model_cfg->timing_info.num_ticks_per_picture;
-#endif  // !CONFIG_CWG_F270_CI_OBU
-
   seq_params->display_model_info_present_flag =
       dec_model_cfg->display_model_info_present_flag;
   seq_params->decoder_model_info_present_flag =
@@ -889,22 +837,16 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
         dec_model_cfg->num_units_in_decoding_tick;
     av2_set_avm_dec_model_info(&seq_params->decoder_model_info);
     av2_set_dec_model_op_parameters(&seq_params->op_params[0]);
-#if CONFIG_CWG_F270_CI_OBU
   } else if (dec_model_cfg->timing_info_present &&
              dec_model_cfg->timing_info.equal_elemental_interval &&
              !dec_model_cfg->decoder_model_info_present_flag) {
-#else
-  } else if (seq_params->timing_info_present &&
-             seq_params->timing_info.equal_picture_interval &&
-             !seq_params->decoder_model_info_present_flag) {
-#endif  // CONFIG_CWG_F270_CI_OBU
     // set the decoder model parameters in resource availability mode
     av2_set_resource_availability_parameters(&seq_params->op_params[0]);
   } else {
     seq_params->op_params[0].initial_display_delay =
         10;  // Default value (not signaled)
   }
-#if CONFIG_CWG_F270_OPS
+
   seq_params->seq_max_display_model_info_present_flag = 0;
   seq_params->seq_max_initial_display_delay_minus_1 = 0;
   if (seq_params->decoder_model_info_present_flag) {
@@ -915,20 +857,13 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
       seq_params->seq_max_low_delay_mode_flag = 0;
     }
   }
-#endif  //  CONFIG_CWG_F270_OPS
 
   if (seq_params->monochrome) {
     seq_params->subsampling_x = 1;
     seq_params->subsampling_y = 1;
-#if CONFIG_CWG_F270_CI_OBU
   } else if (color_cfg->color_primaries == AVM_CICP_CP_BT_709 &&
              color_cfg->transfer_characteristics == AVM_CICP_TC_SRGB &&
              color_cfg->matrix_coefficients == AVM_CICP_MC_IDENTITY) {
-#else
-  } else if (seq_params->color_primaries == AVM_CICP_CP_BT_709 &&
-             seq_params->transfer_characteristics == AVM_CICP_TC_SRGB &&
-             seq_params->matrix_coefficients == AVM_CICP_MC_IDENTITY) {
-#endif  // CONFIG_CWG_F270_CI_OBU
     seq_params->subsampling_x = 0;
     seq_params->subsampling_y = 0;
   } else {
@@ -949,11 +884,7 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
     }
   }
 
-#if CONFIG_CWG_F270_CI_OBU
   uint32_t seq_chroma_format_idc = 0;
-#else
-  uint32_t seq_chroma_format_idc;
-#endif  // CONFIG_CWG_F270_CI_OBU
   avm_codec_err_t err =
       av2_get_chroma_format_idc(seq_params, &seq_chroma_format_idc);
   if (err != AVM_CODEC_OK) {
@@ -962,9 +893,7 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
                        seq_params->subsampling_x, seq_params->subsampling_y);
   }
 
-#if CONFIG_CWG_F270_CI_OBU
   set_content_interpreation_params(cpi, oxcf, seq_chroma_format_idc);
-#endif  // CONFIG_CWG_F270_CI_OBU
 
   cm->width = oxcf->frm_dim_cfg.width;
   cm->height = oxcf->frm_dim_cfg.height;
@@ -1082,9 +1011,6 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
   InitialDimensions *const initial_dimensions = &cpi->initial_dimensions;
   const FrameDimensionCfg *const frm_dim_cfg = &cpi->oxcf.frm_dim_cfg;
   const DecoderModelCfg *const dec_model_cfg = &oxcf->dec_model_cfg;
-#if !CONFIG_CWG_F270_CI_OBU
-  const ColorCfg *const color_cfg = &oxcf->color_cfg;
-#endif  // !CONFIG_CWG_F270_CI_OBU
   const RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
   // in case of LAP, lag in frames is set according to number of lap buffers
   // calculated at init time. This stores and restores LAP's lag in frames to
@@ -1098,16 +1024,6 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
 
   if (seq_params->profile != oxcf->profile) seq_params->profile = oxcf->profile;
   seq_params->bit_depth = oxcf->tool_cfg.bit_depth;
-#if !CONFIG_CWG_F270_CI_OBU
-  seq_params->color_primaries = color_cfg->color_primaries;
-  seq_params->transfer_characteristics = color_cfg->transfer_characteristics;
-  seq_params->matrix_coefficients = color_cfg->matrix_coefficients;
-  seq_params->monochrome = oxcf->tool_cfg.enable_monochrome;
-  seq_params->chroma_sample_position = color_cfg->chroma_sample_position;
-
-  seq_params->color_range = color_cfg->color_range;
-
-#else
   uint32_t chroma_format_idc = 0;
   avm_codec_err_t err =
       av2_get_chroma_format_idc(seq_params, &chroma_format_idc);
@@ -1117,21 +1033,9 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
                        seq_params->subsampling_x, seq_params->subsampling_y);
   }
   set_content_interpreation_params(cpi, oxcf, chroma_format_idc);
-#endif  // CONFIG_CWG_F270_CI_OBU
 
   assert(IMPLIES(seq_params->profile <= PROFILE_1,
                  seq_params->bit_depth <= AVM_BITS_10));
-
-#if !CONFIG_CWG_F270_CI_OBU
-  seq_params->timing_info_present = dec_model_cfg->timing_info_present;
-  seq_params->timing_info.num_units_in_display_tick =
-      dec_model_cfg->timing_info.num_units_in_display_tick;
-  seq_params->timing_info.time_scale = dec_model_cfg->timing_info.time_scale;
-  seq_params->timing_info.equal_picture_interval =
-      dec_model_cfg->timing_info.equal_picture_interval;
-  seq_params->timing_info.num_ticks_per_picture =
-      dec_model_cfg->timing_info.num_ticks_per_picture;
-#endif  // !CONFIG_CWG_F270_CI_OBU
 
   seq_params->display_model_info_present_flag =
       dec_model_cfg->display_model_info_present_flag;
@@ -1143,15 +1047,9 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
         dec_model_cfg->num_units_in_decoding_tick;
     av2_set_avm_dec_model_info(&seq_params->decoder_model_info);
     av2_set_dec_model_op_parameters(&seq_params->op_params[0]);
-#if CONFIG_CWG_F270_CI_OBU
   } else if (dec_model_cfg->timing_info_present &&
              dec_model_cfg->timing_info.equal_elemental_interval &&
              !dec_model_cfg->decoder_model_info_present_flag) {
-#else
-  } else if (seq_params->timing_info_present &&
-             seq_params->timing_info.equal_picture_interval &&
-             !seq_params->decoder_model_info_present_flag) {
-#endif  // CONFIG_CWG_F270_CI_OBU
     // set the decoder model parameters in resource availability mode
     av2_set_resource_availability_parameters(&seq_params->op_params[0]);
   } else {
@@ -1184,12 +1082,7 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
   if (level_params->target_seq_level_idx[0] < SEQ_LEVELS) {
     // Adjust encoder config in order to meet target level.
     config_target_level(cpi, level_params->target_seq_level_idx[0],
-#if CONFIG_CWG_F270_OPS
-                        cpi->tier[0]
-#else
-                        seq_params->tier[0]
-#endif  // CONFIG_CWG_F270_OPS
-    );
+                        cpi->tier[0]);
   }
 
   // Need to call av2_rc_init() whenever any QP, lossless or related config
@@ -1302,11 +1195,7 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
   if (!cpi->seq_params_locked) {
     set_sb_size(cm, new_sb_size);
     for (int i = 0; i < MAX_NUM_OPERATING_POINTS; ++i)
-#if CONFIG_CWG_F270_OPS
       cpi->tier[i] = (oxcf->tier_mask >> i) & 1;
-#else
-      seq_params->tier[i] = (oxcf->tier_mask >> i) & 1;
-#endif  // CONFIG_CWG_F270_OPS
   } else {
     av2_set_frame_sb_size(cm, new_sb_size);
   }
@@ -1346,15 +1235,7 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
   // Init sequence level coding tools
   // This should not be called after the first key frame.
   if (!cpi->seq_params_locked) {
-#if !CONFIG_CWG_F270_OPS
-    seq_params->operating_points_cnt_minus_1 =
-        oxcf->tool_cfg.operating_points_count - 1;
-#endif  // !CONFIG_CWG_F270_OPS
-    av2_init_seq_coding_tools(
-#if CONFIG_CWG_F270_OPS
-        cpi,
-#endif  // CONFIG_CWG_F270_OPS
-        &cm->seq_params, cm, oxcf);
+    av2_init_seq_coding_tools(cpi, &cm->seq_params, cm, oxcf);
     if (seq_params->enable_restoration) set_seq_lr_tools_mask(seq_params, oxcf);
   }
 
@@ -4052,9 +3933,7 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
   }
 
   SequenceHeader *const seq_params = &cm->seq_params;
-#if CONFIG_CWG_F270_CI_OBU
   ColorInfo *const color_info = &cm->ci_params_encoder.color_info;
-#endif  // CONFIG_CWG_F270_CI_OBU
   if (cm->bru.enabled && cm->current_frame.frame_type != KEY_FRAME) {
     enc_bru_swap_stage(cpi);
   }
@@ -4071,27 +3950,14 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
     cpi->ambient_err = avm_highbd_get_y_sse(cpi->source, &cm->cur_frame->buf);
   }
 
-#if CONFIG_CWG_F270_CI_OBU
   cm->cur_frame->buf.color_primaries = color_info->color_primaries;
   cm->cur_frame->buf.transfer_characteristics =
       color_info->transfer_characteristics;
   cm->cur_frame->buf.matrix_coefficients = color_info->matrix_coefficients;
-#else
-  cm->cur_frame->buf.color_primaries = seq_params->color_primaries;
-  cm->cur_frame->buf.transfer_characteristics =
-      seq_params->transfer_characteristics;
-  cm->cur_frame->buf.matrix_coefficients = seq_params->matrix_coefficients;
-#endif  // CONFIG_CWG_F270_CI_OBU
   cm->cur_frame->buf.monochrome = seq_params->monochrome;
-#if CONFIG_CWG_F270_CI_OBU
   cm->cur_frame->buf.chroma_sample_position =
       cm->ci_params_encoder.ci_chroma_sample_position[0];
   cm->cur_frame->buf.color_range = color_info->full_range_flag;
-#else
-  cm->cur_frame->buf.chroma_sample_position =
-      seq_params->chroma_sample_position;
-  cm->cur_frame->buf.color_range = seq_params->color_range;
-#endif  // CONFIG_CWG_F270_CI_OBU
   cm->cur_frame->buf.render_width = cm->render_width;
   cm->cur_frame->buf.render_height = cm->render_height;
   cm->cur_frame->buf.bit_depth = (unsigned int)seq_params->bit_depth;
@@ -4572,12 +4438,8 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
           (frame_is_intra_only(cm) || !cm->immediate_output_picture) ? 0 : 1;
       break;
   }
-#if CONFIG_CWG_F270_CI_OBU
   cm->ci_params_encoder.ci_timing_info_present_flag &=
       !seq_params->single_picture_header_flag;
-#else
-  seq_params->timing_info_present &= !seq_params->single_picture_header_flag;
-#endif  // CONFIG_CWG_F270_CI_OBU
   switch (oxcf->algo_cfg.cross_frame_cdf_init_mode) {
     case 0:  // Disable cross frame CDF initialization
       features->cross_frame_context = CROSS_FRAME_CONTEXT_DISABLED;

@@ -25,7 +25,6 @@
 #include "av2/common/blockd.h"
 #include "av2/encoder/bitstream.h"
 #include "avm/avm_image.h"
-#if CONFIG_CWG_F270_CI_OBU
 void av2_write_color_info(const struct ContentInterpretation *ci_params,
                           struct avm_write_bit_buffer *wb) {
   const ColorInfo *col_info = &ci_params->color_info;
@@ -81,4 +80,3 @@ uint32_t av2_write_content_interpretation_obu(
   size = avm_wb_bytes_written(&wb);
   return size;
 }
-#endif  // CONFIG_CWG_F270_CI_OBU

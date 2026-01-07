@@ -4445,122 +4445,21 @@ void av2_write_conformance_window(const SequenceHeader *seq_params,
   }
 }
 
-#if CONFIG_CWG_F270_CI_OBU
 static AVM_INLINE void write_chroma_format_bitdepth(
-#else
-static AVM_INLINE void write_color_config(
-#endif  // CONFIG_CWG_F270_CI_OBU
     const SequenceHeader *const seq_params, struct avm_write_bit_buffer *wb) {
-
   write_seq_chroma_format(seq_params, wb);
   write_bitdepth(seq_params, wb);
-#if !CONFIG_CWG_F270_CI_OBU
-  const int is_monochrome = seq_params->monochrome;
-#endif  // !CONFIG_CWG_F270_CI_OBU
-
-#if !CONFIG_CWG_F270_CI_OBU
-  if (seq_params->color_primaries == AVM_CICP_CP_UNSPECIFIED &&
-      seq_params->transfer_characteristics == AVM_CICP_TC_UNSPECIFIED &&
-      seq_params->matrix_coefficients == AVM_CICP_MC_UNSPECIFIED) {
-    avm_wb_write_bit(wb, 0);  // No color description present
-  } else {
-    avm_wb_write_bit(wb, 1);  // Color description present
-    avm_wb_write_literal(wb, seq_params->color_primaries, 8);
-    avm_wb_write_literal(wb, seq_params->transfer_characteristics, 8);
-    avm_wb_write_literal(wb, seq_params->matrix_coefficients, 8);
-  }
-  if (is_monochrome) {
-    // 0: [16, 235] (i.e. xvYCC), 1: [0, 255]
-    avm_wb_write_bit(wb, seq_params->color_range);
-  } else {
-    if (seq_params->color_primaries == AVM_CICP_CP_BT_709 &&
-        seq_params->transfer_characteristics == AVM_CICP_TC_SRGB &&
-        seq_params->matrix_coefficients == AVM_CICP_MC_IDENTITY) {
-      assert(seq_params->subsampling_x == 0 && seq_params->subsampling_y == 0);
-      assert(seq_params->profile == PROFILE_1 ||
-             (seq_params->profile == PROFILE_2 &&
-              seq_params->bit_depth == AVM_BITS_12));
-    } else {
-      // 0: [16, 235] (i.e. xvYCC), 1: [0, 255]
-      avm_wb_write_bit(wb, seq_params->color_range);
-#endif  // CONFIG_CWG_F270_CI_OBU
-
-#if !CONFIG_CWG_F270_CI_OBU
-      if (seq_params->matrix_coefficients == AVM_CICP_MC_IDENTITY) {
-        assert(seq_params->subsampling_x == 0 &&
-               seq_params->subsampling_y == 0);
-      }
-      if (seq_params->subsampling_x == 1 && seq_params->subsampling_y == 0) {
-        // YUV 4:2:2
-        assert(seq_params->chroma_sample_position == AVM_CSP_UNSPECIFIED ||
-               seq_params->chroma_sample_position == AVM_CSP_LEFT ||
-               seq_params->chroma_sample_position == AVM_CSP_CENTER);
-        const int csp_present_flag =
-            seq_params->chroma_sample_position != AVM_CSP_UNSPECIFIED;
-        avm_wb_write_bit(wb, csp_present_flag);
-        if (csp_present_flag) {
-          avm_wb_write_bit(wb, seq_params->chroma_sample_position);
-        }
-      } else if (seq_params->subsampling_x == 1 &&
-                 seq_params->subsampling_y == 1) {
-        // YUV 4:2:0
-        assert(seq_params->chroma_sample_position == AVM_CSP_UNSPECIFIED ||
-               (seq_params->chroma_sample_position >= AVM_CSP_LEFT &&
-                seq_params->chroma_sample_position <= AVM_CSP_BOTTOM));
-        const int csp_present_flag =
-            seq_params->chroma_sample_position != AVM_CSP_UNSPECIFIED;
-        avm_wb_write_bit(wb, csp_present_flag);
-        if (csp_present_flag) {
-          avm_wb_write_literal(wb, seq_params->chroma_sample_position, 3);
-        }
-      }
-    }
-  }
-#endif  // !CONFIG_CWG_F270_CI_OBU
 }
-#if CONFIG_CWG_F270_CI_OBU
-void av2_write_timing_info_header
-#else
-static AVM_INLINE void write_timing_info_header
-#endif  // CONFIG_CWG_F270_CI_OBU
-    (const avm_timing_info_t *const timing_info,
-     struct avm_write_bit_buffer *wb) {
+
+void av2_write_timing_info_header(const avm_timing_info_t *const timing_info,
+                                  struct avm_write_bit_buffer *wb) {
   avm_wb_write_unsigned_literal(wb, timing_info->num_units_in_display_tick, 32);
   avm_wb_write_unsigned_literal(wb, timing_info->time_scale, 32);
-#if CONFIG_CWG_F270_CI_OBU
   avm_wb_write_bit(wb, timing_info->equal_elemental_interval);
   if (timing_info->equal_elemental_interval) {
     avm_wb_write_uvlc(wb, timing_info->num_ticks_per_elemental_duration - 1);
-#else
-  avm_wb_write_bit(wb, timing_info->equal_picture_interval);
-  if (timing_info->equal_picture_interval) {
-    avm_wb_write_uvlc(wb, timing_info->num_ticks_per_picture - 1);
-#endif  // CONFIG_CWG_F270_CI_OBU
   }
 }
-
-#if !CONFIG_CWG_F270_OPS
-static AVM_INLINE void write_decoder_model_info(
-    const avm_dec_model_info_t *const decoder_model_info,
-    struct avm_write_bit_buffer *wb) {
-  avm_wb_write_literal(
-      wb, decoder_model_info->encoder_decoder_buffer_delay_length - 1, 5);
-  avm_wb_write_unsigned_literal(
-      wb, decoder_model_info->num_units_in_decoding_tick, 32);
-}
-#endif  // !CONFIG_CWG_F270_OPS
-
-#if !CONFIG_CWG_F270_OPS
-static AVM_INLINE void write_dec_model_op_parameters(
-    const avm_dec_model_op_parameters_t *op_params, int buffer_delay_length,
-    struct avm_write_bit_buffer *wb) {
-  avm_wb_write_unsigned_literal(wb, op_params->decoder_buffer_delay,
-                                buffer_delay_length);
-  avm_wb_write_unsigned_literal(wb, op_params->encoder_buffer_delay,
-                                buffer_delay_length);
-  avm_wb_write_bit(wb, op_params->low_delay_mode_flag);
-}
-#endif  // !CONFIG_CWG_F270_OPS
 
 // Writes tile syntax
 void write_tile_syntax_info(const TileInfoSyntax *tile_params,
@@ -6094,17 +5993,11 @@ uint32_t av2_write_sequence_header_obu(const SequenceHeader *seq_params,
     avm_wb_write_literal(&wb, seq_params->seq_lcr_id, 3);
     avm_wb_write_bit(&wb, seq_params->still_picture);
   }
-#if CONFIG_CWG_F270_OPS
+
   write_bitstream_level(seq_params->seq_max_level_idx, &wb);
   if (seq_params->seq_max_level_idx >= SEQ_LEVEL_4_0 &&
       !seq_params->single_picture_header_flag)
     avm_wb_write_bit(&wb, seq_params->seq_tier);
-#else
-  write_bitstream_level(seq_params->seq_level_idx[0], &wb);
-  if (seq_params->seq_level_idx[0] >= SEQ_LEVEL_4_0 &&
-      !seq_params->single_picture_header_flag)
-    avm_wb_write_bit(&wb, seq_params->tier[0]);
-#endif  // CONFIG_CWG_F270_OPS
 
   avm_wb_write_literal(&wb, seq_params->num_bits_width - 1, 4);
   avm_wb_write_literal(&wb, seq_params->num_bits_height - 1, 4);
@@ -6115,20 +6008,12 @@ uint32_t av2_write_sequence_header_obu(const SequenceHeader *seq_params,
 
   av2_write_conformance_window(seq_params, &wb);
 
-#if CONFIG_CWG_F270_CI_OBU
   write_chroma_format_bitdepth(seq_params, &wb);
-#else
-  write_color_config(seq_params, &wb);
-#endif  // CONFIG_CWG_F270_CI_OBU
 
   if (seq_params->single_picture_header_flag) {
-#if !CONFIG_CWG_F270_CI_OBU
-    assert(seq_params->timing_info_present == 0);
-#endif  // !CONFIG_CWG_F270_CI_OBU
     assert(seq_params->decoder_model_info_present_flag == 0);
     assert(seq_params->display_model_info_present_flag == 0);
   } else {
-#if CONFIG_CWG_F270_OPS
     avm_wb_write_bit(&wb, seq_params->seq_max_display_model_info_present_flag);
     if (seq_params->seq_max_display_model_info_present_flag) {
       avm_wb_write_literal(
@@ -6145,51 +6030,6 @@ uint32_t av2_write_sequence_header_obu(const SequenceHeader *seq_params,
         avm_wb_write_bit(&wb, seq_params->seq_max_low_delay_mode_flag);
       }
     }
-#else
-#if !CONFIG_CWG_F270_CI_OBU
-    avm_wb_write_bit(
-        &wb, seq_params->timing_info_present);  // timing info present flag
-
-    if (seq_params->timing_info_present) {
-      // timing_info
-      write_timing_info_header(&seq_params->timing_info, &wb);
-#endif  // !CONFIG_CWG_F270_CI_OBU
-      avm_wb_write_bit(&wb, seq_params->decoder_model_info_present_flag);
-      if (seq_params->decoder_model_info_present_flag) {
-        write_decoder_model_info(&seq_params->decoder_model_info, &wb);
-      }
-#if !CONFIG_CWG_F270_CI_OBU
-    }
-#endif  // !CONFIG_CWG_F270_CI_OBU
-    avm_wb_write_bit(&wb, seq_params->display_model_info_present_flag);
-    avm_wb_write_literal(&wb, seq_params->operating_points_cnt_minus_1,
-                         OP_POINTS_CNT_MINUS_1_BITS);
-    int i;
-    for (i = 0; i < seq_params->operating_points_cnt_minus_1 + 1; i++) {
-      avm_wb_write_literal(&wb, seq_params->operating_point_idc[i],
-                           OP_POINTS_IDC_BITS);
-      if (seq_params->decoder_model_info_present_flag) {
-        avm_wb_write_bit(
-            &wb, seq_params->op_params[i].decoder_model_param_present_flag);
-        if (seq_params->op_params[i].decoder_model_param_present_flag) {
-          write_dec_model_op_parameters(
-              &seq_params->op_params[i],
-              seq_params->decoder_model_info
-                  .encoder_decoder_buffer_delay_length,
-              &wb);
-        }
-      }
-      if (seq_params->display_model_info_present_flag) {
-        avm_wb_write_bit(
-            &wb, seq_params->op_params[i].display_model_param_present_flag);
-        if (seq_params->op_params[i].display_model_param_present_flag) {
-          assert(seq_params->op_params[i].initial_display_delay <= 10);
-          avm_wb_write_literal(
-              &wb, seq_params->op_params[i].initial_display_delay - 1, 4);
-        }
-      }
-    }
-#endif  // !CONFIG_CWG_F270_OPS
   }
 
   if (!seq_params->single_picture_header_flag) {
@@ -6220,16 +6060,6 @@ uint32_t av2_write_sequence_header_obu(const SequenceHeader *seq_params,
   write_sequence_header(seq_params, &wb);
 
   avm_wb_write_bit(&wb, seq_params->film_grain_params_present);
-
-#if !CONFIG_CWG_F270_CI_OBU
-  avm_wb_write_bit(&wb, seq_params->scan_type_info_present_flag);
-  if (seq_params->scan_type_info_present_flag) {
-    avm_wb_write_literal(&wb, seq_params->scan_type_idc, 2);
-    avm_wb_write_bit(&wb, seq_params->fixed_cvs_pic_rate_flag);
-    if (seq_params->fixed_cvs_pic_rate_flag)
-      avm_wb_write_uvlc(&wb, seq_params->elemental_ct_duration_minus_1);
-  }
-#endif  // !CONFIG_CWG_F270_CI_OBU
 
   av2_add_trailing_bits(&wb);
 
@@ -7131,7 +6961,6 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
       }
     }
 
-#if CONFIG_CWG_F270_CI_OBU
     if (cm->current_frame.frame_type == KEY_FRAME && !cpi->no_show_fwd_kf &&
         cpi->write_ci_obu_flag) {
       obu_header_size = av2_write_obu_header(
@@ -7146,7 +6975,6 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
       }
       data += obu_header_size + obu_payload_size + length_field_size1;
     }
-#endif  // CONFIG_CWG_F270_CI_OBU
 
     if (cm->cur_mfh_id != 0) {
       // write multi-frame header if KEY_FRAME
@@ -7443,11 +7271,7 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
     data += av2_write_metadata_array(cpi, data, true,
                                      cpi->oxcf.tool_cfg.use_short_metadata);
 
-#if CONFIG_CWG_F270_CI_OBU
   if (cpi->scan_type_info_present_flag) {
-#else
-  if (cm->seq_params.scan_type_info_present_flag) {
-#endif  // CONFIG_CWG_F270_CI_OBU
     avm_metadata_array_t arr;
     arr.sz = 1;
     avm_metadata_t metadata_base;

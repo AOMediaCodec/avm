@@ -204,10 +204,6 @@ AV2Decoder *av2_decoder_create(BufferPool *const pool) {
   pbi->common.buffer_pool = pool;
 
   cm->seq_params.bit_depth = AVM_BITS_8;
-#if !CONFIG_CWG_F270_CI_OBU
-  cm->seq_params.chroma_sample_position = AVM_CSP_UNSPECIFIED;
-#endif  // CONFIG_CWG_F270_CI_OBU
-
   cm->mi_params.free_mi = dec_free_mi;
   cm->mi_params.setup_mi = dec_setup_mi;
   cm->mi_params.set_mb_mi = dec_set_mb_mi;
@@ -256,7 +252,6 @@ AV2Decoder *av2_decoder_create(BufferPool *const pool) {
   avm_get_worker_interface()->init(&pbi->lf_worker);
   pbi->lf_worker.thread_name = "avm lf worker";
 
-#if CONFIG_CWG_F270_CI_OBU
   // Initialize the Content Interpretation parameters
   for (int i = 0; i < MAX_NUM_MLAYERS; i++) {
     pbi->ci_and_key_per_layer[i] = 0;
@@ -277,7 +272,6 @@ AV2Decoder *av2_decoder_create(BufferPool *const pool) {
     ci_params->ci_timing_info_present_flag = 0;
     ci_params->ci_extension_present_flag = 0;
   }
-#endif  // CONFIG_CWG_F270_CI_OBU
 
 #if DEBUG_EXTQUANT
   cm->fDecCoeffLog = fopen("DecCoeffLog.txt", "wt");

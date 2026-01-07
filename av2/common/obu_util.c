@@ -23,9 +23,7 @@ static int valid_obu_type(int obu_type) {
   int valid_type = 0;
   switch (obu_type) {
     case OBU_SEQUENCE_HEADER:
-#if CONFIG_CWG_F270_CI_OBU
     case OBU_CONTENT_INTERPRETATION:
-#endif  // CONFIG_CWG_F270_CI_OBU
     case OBU_TEMPORAL_DELIMITER:
     case OBU_MULTI_FRAME_HEADER:
     case OBU_SWITCH:

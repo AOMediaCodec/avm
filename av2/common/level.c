@@ -388,11 +388,7 @@ static double get_max_bitrate(const AV2LevelSpec *const level_spec, int tier,
 double av2_get_max_bitrate_for_level(AV2_LEVEL level_index, int tier,
                                      BITSTREAM_PROFILE profile) {
   assert(is_valid_seq_level_idx(level_index));
-#if CONFIG_CWG_F270_OPS
   return get_max_bitrate(&av2_level_defs[level_index], tier, profile);
-#else
-  return get_max_bitrate(&av2_level_defs[level_index], tier, profile);
-#endif  // CONFIG_CWG_F270_OPS
 }
 
 void av2_get_max_tiles_for_level(AV2_LEVEL level_index, int *const max_tiles,
@@ -606,13 +602,8 @@ void av2_decoder_model_init(const AV2_COMP *const cpi, AV2_LEVEL level,
 
   const AV2_COMMON *const cm = &cpi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
-#if CONFIG_CWG_F270_OPS
   decoder_model->bit_rate = get_max_bitrate(
       av2_level_defs + level, cpi->tier[op_index], seq_params->profile);
-#else
-  decoder_model->bit_rate = get_max_bitrate(
-      av2_level_defs + level, seq_params->tier[op_index], seq_params->profile);
-#endif  // CONFIG_CWG_F270_OPS
 
   // TODO(huisu or anyone): implement SCHEDULE_MODE.
   decoder_model->mode = RESOURCE_MODE;
@@ -644,23 +635,12 @@ void av2_decoder_model_init(const AV2_COMP *const cpi, AV2_LEVEL level,
   dfg_interval_queue->head = 0;
   dfg_interval_queue->size = 0;
 
-#if CONFIG_CWG_F270_CI_OBU
   if (cm->ci_params_encoder.ci_timing_info_present_flag) {
     decoder_model->num_ticks_per_picture =
         cm->ci_params_encoder.timing_info.num_ticks_per_elemental_duration;
-#else
-  if (seq_params->timing_info_present) {
-    decoder_model->num_ticks_per_picture =
-        seq_params->timing_info.num_ticks_per_picture;
-#endif  // CONFIG_CWG_F270_CI_OBU
     decoder_model->display_clock_tick =
-#if CONFIG_CWG_F270_CI_OBU
         cm->ci_params_encoder.timing_info.num_ticks_per_elemental_duration /
         cm->ci_params_encoder.timing_info.time_scale;
-#else
-        seq_params->timing_info.num_units_in_display_tick /
-        seq_params->timing_info.time_scale;
-#endif  // CONFIG_CWG_F270_CI_OBU
   } else {
     decoder_model->num_ticks_per_picture = 1;
     decoder_model->display_clock_tick = 1.0 / cpi->framerate;
@@ -1289,11 +1269,7 @@ void av2_update_level_info(AV2_COMP *cpi, size_t size, int64_t ts_start,
     const AV2_LEVEL target_level = level_params->target_seq_level_idx[i];
     if (target_level < SEQ_LEVELS) {
       assert(is_valid_seq_level_idx(target_level));
-#if CONFIG_CWG_F270_OPS
       const int tier = cpi->tier[i];
-#else
-      const int tier = seq_params->tier[i];
-#endif  // CONFIG_CWG_F270_OPS
       const TARGET_LEVEL_FAIL_ID fail_id =
           check_level_constraints(seq_params, level_info, target_level, tier,
                                   is_still_picture, profile, 0);
@@ -1309,27 +1285,17 @@ void av2_update_level_info(AV2_COMP *cpi, size_t size, int64_t ts_start,
   }
 }
 
-avm_codec_err_t av2_get_seq_level_idx(
-#if CONFIG_CWG_F270_OPS
-    const AV2_COMP *cpi,
-#endif  // CONFIG_CWG_F270_OPS
-    const SequenceHeader *seq_params,
+avm_codec_err_t av2_get_seq_level_idx(const AV2_COMP *cpi,
+                                      const SequenceHeader *seq_params,
 
-    const AV2LevelParams *level_params, int *seq_level_idx) {
+                                      const AV2LevelParams *level_params,
+                                      int *seq_level_idx) {
   const int is_still_picture = seq_params->still_picture;
   const BITSTREAM_PROFILE profile = seq_params->profile;
-#if CONFIG_CWG_F270_OPS
   for (int op = 0; op < seq_params->operating_points_cnt_minus_1 + 1; ++op) {
-#else
-  for (int op = 0; op < seq_params->operating_points_cnt_minus_1 + 1; ++op) {
-#endif  // CONFIG_CWG_F270_OPS
     seq_level_idx[op] = (int)SEQ_LEVEL_MAX;
     if (!((level_params->keep_level_stats >> op) & 1)) continue;
-#if CONFIG_CWG_F270_OPS
     const int tier = cpi->tier[op];
-#else
-    const int tier = seq_params->tier[op];
-#endif  // CONFIG_CWG_F270_OPS
     const AV2LevelInfo *const level_info = level_params->level_info[op];
     assert(level_info != NULL);
     for (int level = 0; level < SEQ_LEVELS; ++level) {

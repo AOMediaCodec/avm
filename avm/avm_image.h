@@ -161,7 +161,6 @@ typedef enum avm_chroma_sample_position {
                                  */
 // clang-format on
 
-#if CONFIG_CWG_F270_CI_OBU
 /*!\brief List of Sample aspect ratio.
  This list is specified in H.273 8.6 Sample aspect ratio indicator*/
 typedef enum avm_sample_aspect_ratio {
@@ -194,7 +193,6 @@ typedef enum avm_color_description {
   AVM_COLOR_DESC_IDC_SRGB = 4,       // CP=1, TC=13, MC=0
   AVM_COLOR_DESC_IDC_SRGBSYCC = 5,   // CP=1, TC=13, MC=5
 } avm_color_description_t;
-#endif  // CONFIG_CWG_F270_CI_OBU
 
 /*!\brief List of insert flags for Metadata
  *

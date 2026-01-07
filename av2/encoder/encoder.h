@@ -2863,12 +2863,10 @@ typedef struct AV2_COMP {
    * for future frames
    */
   int tip_mode_count[INTER_REFS_PER_FRAME];
-#if CONFIG_CWG_F270_CI_OBU
   /*!
    * write ci obu
    */
   int write_ci_obu_flag;
-#endif  // CONFIG_CWG_F270_CI_OBU
   /*!
    * Write the Buffer Removal Timing OBU
    */
@@ -2936,15 +2934,12 @@ typedef struct AV2_COMP {
 
   struct film_grain_model fgm;
 
-#if CONFIG_CWG_F270_CI_OBU
   /*!
    * Indicates that scan type info is present
    */
 
   int scan_type_info_present_flag;
-#endif  // CONFIG_CWG_F270_CI_OBU
 
-#if CONFIG_CWG_F270_OPS
   /*!
    * Indicates the level index for the operating points
    */
@@ -2955,7 +2950,6 @@ typedef struct AV2_COMP {
    */
 
   uint8_t tier[MAX_NUM_OPERATING_POINTS];  // seq_tier in spec. One bit: 0 or 1.
-#endif                                     // CONFIG_CWG_F270_OPS
 } AV2_COMP;
 
 /*!
@@ -3038,11 +3032,8 @@ void av2_change_config(AV2_COMP *cpi, const AV2EncoderConfig *oxcf);
 void av2_check_initial_width(AV2_COMP *cpi, int subsampling_x,
                              int subsampling_y);
 
-void av2_init_seq_coding_tools(
-#if CONFIG_CWG_F270_OPS
-    AV2_COMP *cpi,
-#endif  // CONFIG_CWG_F270_OPS
-    SequenceHeader *seq, AV2_COMMON *cm, const AV2EncoderConfig *oxcf);
+void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
+                               AV2_COMMON *cm, const AV2EncoderConfig *oxcf);
 
 /*!\endcond */
 

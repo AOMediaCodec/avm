@@ -24,7 +24,6 @@
 #include "av2/decoder/decodeframe.h"
 #include "av2/decoder/obu.h"
 #include "av2/common/av2_common_int.h"
-#if CONFIG_CWG_F270_CI_OBU
 
 static void av2_set_color_info(ContentInterpretation *ci_params) {
   assert(ci_params->color_info.color_description_idc !=
@@ -267,4 +266,3 @@ uint32_t av2_read_content_interpretation_obu(struct AV2Decoder *pbi,
 
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }
-#endif  // CONFIG_CWG_F270_CI_OBU

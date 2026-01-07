@@ -89,93 +89,6 @@ static void bitreader_error_handler(void *data, avm_codec_err_t error,
   *error_val = -1;
 }
 
-#if !CONFIG_CWG_F270_OPS
-// Parse the AV2 timing_info() structure:
-// timing_info( ) {
-//   num_units_in_display_tick       f(32)
-//   time_scale                      f(32)
-#if CONFIG_CWG_F270_CI_OBU
-//   equal_elemental_interval          f(1)
-//   if (equal_elemental_interval)
-#else
-//   equal_picture_interval          f(1)
-//   if (equal_picture_interval)
-#endif  // CONFIG_CWG_F270_CI_OBU
-//     num_ticks_per_picture_minus_1 uvlc()
-//   }
-static int parse_timing_info(struct avm_read_bit_buffer *reader) {
-  int result = 0;
-  AV2C_PUSH_ERROR_HANDLER_DATA(result);
-
-  AV2C_READ_BITS_OR_RETURN_ERROR(num_units_in_display_tick, 32);
-  AV2C_READ_BITS_OR_RETURN_ERROR(time_scale, 32);
-
-#if CONFIG_CWG_F270_CI_OBU
-  AV2C_READ_BIT_OR_RETURN_ERROR(equal_elemental_interval);
-  if (equal_elemental_interval) {
-#else
-  AV2C_READ_BIT_OR_RETURN_ERROR(equal_picture_interval);
-  if (equal_picture_interval) {
-#endif  // CONFIG_CWG_F270_CI_OBU
-    uint32_t num_ticks_per_picture_minus_1 = avm_rb_read_uvlc(reader);
-    if (result == -1) {
-      fprintf(stderr,
-              "av2c: Could not read bits for "
-              "num_ticks_per_picture_minus_1, value=%u.\n",
-              num_ticks_per_picture_minus_1);
-      return result;
-    }
-    if (num_ticks_per_picture_minus_1 == UINT32_MAX) {
-      fprintf(stderr,
-              "av2c: num_ticks_per_picture_minus_1 cannot be (1 << 32) − 1.\n");
-      return -1;
-    }
-  }
-
-  AV2C_POP_ERROR_HANDLER_DATA();
-  return result;
-}
-
-// Parse the AV2 decoder_model_info() structure:
-// decoder_model_info( ) {
-//   buffer_delay_length_minus_1            f(5)
-//   num_units_in_decoding_tick             f(32)
-// }
-//
-// Returns -1 upon failure, or the value of buffer_delay_length_minus_1 + 1.
-static int parse_decoder_model_info(struct avm_read_bit_buffer *reader) {
-  int result = 0;
-  AV2C_PUSH_ERROR_HANDLER_DATA(result);
-
-  AV2C_READ_BITS_OR_RETURN_ERROR(buffer_delay_length_minus_1, 5);
-  AV2C_READ_BITS_OR_RETURN_ERROR(num_units_in_decoding_tick, 32);
-
-  AV2C_POP_ERROR_HANDLER_DATA();
-  return buffer_delay_length_minus_1 + 1;
-}
-
-// Parse the AV2 operating_parameters_info() structure:
-// operating_parameters_info( op ) {
-//   n = buffer_delay_length_minus_1 + 1
-//   decoder_buffer_delay[ op ] f(n)
-//   encoder_buffer_delay[ op ] f(n)
-//   low_delay_mode_flag[ op ] f(1)
-// }
-static int parse_operating_parameters_info(struct avm_read_bit_buffer *reader,
-                                           int buffer_delay_length_minus_1) {
-  int result = 0;
-  AV2C_PUSH_ERROR_HANDLER_DATA(result);
-
-  const int buffer_delay_length = buffer_delay_length_minus_1 + 1;
-  AV2C_READ_BITS_OR_RETURN_ERROR(decoder_buffer_delay, buffer_delay_length);
-  AV2C_READ_BITS_OR_RETURN_ERROR(encoder_buffer_delay, buffer_delay_length);
-  AV2C_READ_BIT_OR_RETURN_ERROR(low_delay_mode_flag);
-
-  AV2C_POP_ERROR_HANDLER_DATA();
-  return result;
-}
-#endif  // !CONFIG_CWG_F270_OPS
-
 static int get_bitdepth(int bitdepth_lut_idx) {
   int bitdepth = -1;
   switch (bitdepth_lut_idx) {
@@ -187,16 +100,9 @@ static int get_bitdepth(int bitdepth_lut_idx) {
   return bitdepth;
 }
 
-#if CONFIG_CWG_F270_CI_OBU
 // Parse the chroma format and bitdepth in the sequence header.
 static int parse_chroma_format_bitdepth(struct avm_read_bit_buffer *reader,
                                         Av2Config *config) {
-#else
-// Parse the AV2 color_config() structure..See:
-// https://aomediacodec.github.io/av2-spec/av2-spec.pdf#page=44
-static int parse_color_config(struct avm_read_bit_buffer *reader,
-                              Av2Config *config) {
-#endif  // CONFIG_CWG_F270_CI_OBU
   int result = 0;
   AV2C_PUSH_ERROR_HANDLER_DATA(result);
 
@@ -256,31 +162,6 @@ static int parse_color_config(struct avm_read_bit_buffer *reader,
     }
     config->chroma_subsampling_x = (uint8_t)subsampling_x;
     config->chroma_subsampling_y = (uint8_t)subsampling_y;
-
-#if !CONFIG_CWG_F270_CI_OBU
-    if (config->chroma_subsampling_x && !config->chroma_subsampling_y) {
-      // YUV 4:2:2
-      config->chroma_sample_position = AVM_CSP_UNSPECIFIED;
-      AV2C_READ_BIT_OR_RETURN_ERROR(csp_present_flag);
-      if (csp_present_flag) {
-        AV2C_READ_BIT_OR_RETURN_ERROR(chroma_sample_position);
-        config->chroma_sample_position = chroma_sample_position;
-      }
-    } else if (config->chroma_subsampling_x && config->chroma_subsampling_y) {
-      // YUV 4:2:0
-      config->chroma_sample_position = AVM_CSP_UNSPECIFIED;
-      AV2C_READ_BIT_OR_RETURN_ERROR(csp_present_flag);
-      if (csp_present_flag) {
-        AV2C_READ_BITS_OR_RETURN_ERROR(chroma_sample_position, 3);
-        if (chroma_sample_position > AVM_CSP_BOTTOM) {
-          fprintf(stderr, "av2c: Invalid chroma_sample_position, value=%d.\n",
-                  chroma_sample_position);
-          return -1;
-        }
-        config->chroma_sample_position = chroma_sample_position;
-      }
-    }
-#endif  // !CONFIG_CWG_F270_CI_OBU
   }
 
   AV2C_POP_ERROR_HANDLER_DATA();
@@ -344,22 +225,14 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
     config->conf_win_bottom_offset = 0;
   }
 
-#if CONFIG_CWG_F270_CI_OBU
   if (parse_chroma_format_bitdepth(reader, config) != 0) {
     fprintf(stderr, "Chroma format or bitdepth parsing failed.\n");
     return -1;
   }
-#else
-  if (parse_color_config(reader, config) != 0) {
-    fprintf(stderr, "av2c: color_config() parse failed.\n");
-    return -1;
-  }
-#endif  // CONFIG_CWG_F270_CI_OBU
 
   if (single_picture_header_flag) {
     config->initial_presentation_delay_present = 0;
   } else {
-#if CONFIG_CWG_F270_OPS
     AV2C_READ_BIT_OR_RETURN_ERROR(max_display_model_info_present_flag);
     int seq_max_display_model_info_present_flag =
         max_display_model_info_present_flag;
@@ -388,69 +261,11 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
         }
       }
     }
-#else
-    int has_decoder_model = 0;
-    int buffer_delay_length = 0;
-
-#if !CONFIG_CWG_F270_CI_OBU
-    AV2C_READ_BIT_OR_RETURN_ERROR(timing_info_present_flag);
-    if (timing_info_present_flag) {
-      if (parse_timing_info(reader) != 0) return -1;
-#endif  // !CONFIG_CWG_F270_CI_OBU
-
-      AV2C_READ_BIT_OR_RETURN_ERROR(decoder_model_info_present_flag);
-      if (decoder_model_info_present_flag &&
-          (buffer_delay_length = parse_decoder_model_info(reader)) == -1) {
-        return -1;
-      }
-      has_decoder_model = 1;
-#if !CONFIG_CWG_F270_CI_OBU
-    }
-#endif  //  !CONFIG_CWG_F270_CI_OBU
-
-    AV2C_READ_BIT_OR_RETURN_ERROR(initial_presentation_delay_present);
-    config->initial_presentation_delay_present =
-        initial_presentation_delay_present;
-
-    AV2C_READ_BITS_OR_RETURN_ERROR(operating_points_cnt_minus_1, 5);
-    const int num_operating_points = operating_points_cnt_minus_1 + 1;
-
-    for (int op_index = 0; op_index < num_operating_points; ++op_index) {
-      AV2C_READ_BITS_OR_RETURN_ERROR(operating_point_idc, 12);
-      if (has_decoder_model) {
-        AV2C_READ_BIT_OR_RETURN_ERROR(decoder_model_present_for_op);
-        if (decoder_model_present_for_op) {
-          if (parse_operating_parameters_info(reader, buffer_delay_length) ==
-              -1) {
-            return -1;
-          }
-        }
-      }
-
-      if (config->initial_presentation_delay_present) {
-        // Skip the initial presentation delay bits if present since this
-        // function has no access to the data required to properly set the
-        // field.
-        AV2C_READ_BIT_OR_RETURN_ERROR(
-            initial_presentation_delay_present_for_this_op);
-        if (initial_presentation_delay_present_for_this_op) {
-          AV2C_READ_BITS_OR_RETURN_ERROR(initial_presentation_delay_minus_1, 4);
-        }
-      }
-
-      if (op_index == 0) {
-        // Av2Config needs only the values from the first operating point.
-        config->initial_presentation_delay_present = 0;
-        config->initial_presentation_delay_minus_one = 0;
-      }
-    }
-#endif  // CONFIG_CWG_F270_OPS
   }
 
   return 0;
 }
 
-#if CONFIG_CWG_F270_CI_OBU
 // Parse Content Interpretation OBU and populare config with CI params
 static int parse_content_intrepretation_obu(const uint8_t *const buffer,
                                             size_t length, Av2Config *config) {
@@ -554,7 +369,6 @@ static int parse_content_intrepretation_obu(const uint8_t *const buffer,
   config->ci_present = 1;
   return 0;
 }
-#endif  // CONFIG_CWG_F270_CI_OBU
 
 int get_av2config_from_obu(const uint8_t *buffer, size_t length,
                            Av2Config *config) {
@@ -578,7 +392,6 @@ int get_av2config_from_obu(const uint8_t *buffer, size_t length,
   memset(config, 0, sizeof(*config));
   config->marker = 1;
   config->version = 1;
-#if CONFIG_CWG_F270_CI_OBU
   if (parse_sequence_header(buffer + obu_header_length, sequence_header_length,
                             config) != 0) {
     return -1;
@@ -600,10 +413,6 @@ int get_av2config_from_obu(const uint8_t *buffer, size_t length,
     }
   }
   return 0;
-#else
-  return parse_sequence_header(buffer + obu_header_length,
-                               sequence_header_length, config);
-#endif  // CONFIG_CWG_F270_CI_OBU
 }
 
 int read_av2config(const uint8_t *buffer, size_t buffer_length,

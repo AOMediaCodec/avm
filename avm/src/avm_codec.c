@@ -156,9 +156,7 @@ void avm_merge_corrupted_flag(int *corrupted, int value) {
 const char *avm_obu_type_to_string(OBU_TYPE type) {
   switch (type) {
     case OBU_SEQUENCE_HEADER: return "OBU_SEQUENCE_HEADER";
-#if CONFIG_CWG_F270_CI_OBU
     case OBU_CONTENT_INTERPRETATION: return "OBU_CONTENT_INTERPRETATION";
-#endif  // CONFIG_CWG_F270_CI_OBU
     case OBU_TEMPORAL_DELIMITER: return "OBU_TEMPORAL_DELIMITER";
     case OBU_MULTI_FRAME_HEADER: return "OBU_MULTI_FRAME_HEADER";
     case OBU_SWITCH: return "OBU_SWITCH";

@@ -148,9 +148,7 @@ bool ValidObuType(int obu_type) {
     case OBU_ATLAS_SEGMENT:
     case OBU_OPERATING_POINT_SET:
     case OBU_MSDO:
-#if CONFIG_CWG_F270_CI_OBU
     case OBU_CONTENT_INTERPRETATION:
-#endif  // CONFIG_CWG_F270_CI_OBU
     case OBU_PADDING: return true;
   }
   return false;

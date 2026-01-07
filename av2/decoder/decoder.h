@@ -535,7 +535,6 @@ typedef struct AV2Decoder {
    */
 
   struct film_grain_model fgm_list[MAX_FGM_NUM];
-#if CONFIG_CWG_F270_CI_OBU
   /*!
    * Indicates if the ci obu is signalled with a CLK/OLK in the temporal unit
    * 0. CLK/OLK signalled without CI
@@ -550,7 +549,6 @@ typedef struct AV2Decoder {
    * must contain identical information
    */
   int ci_obu_received_per_layer[MAX_NUM_MLAYERS];
-#endif  // CONFIG_CWG_F270_CI_OBU
   /*!
    * Indicates if the MultiStreamMode is activated.
    */

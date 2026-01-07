@@ -91,24 +91,14 @@ void av2_decode_tg_tiles_and_wrapup(struct AV2Decoder *pbi, const uint8_t *data,
                                     const uint8_t **p_data_end, int start_tile,
                                     int end_tile, int initialize_flag);
 
-#if CONFIG_CWG_F270_CI_OBU
 uint32_t av2_read_content_interpretation_obu(struct AV2Decoder *pbi,
                                              struct avm_read_bit_buffer *rb);
-#endif  // CONFIG_CWG_F270_CI_OBU
 
-#if CONFIG_CWG_F270_CI_OBU
 // Reads the chroma format and bitdepth in the sequence header. Reports errors
 // by calling rb->error_handler() or avm_internal_error().
 void av2_read_chroma_format_bitdepth(
     struct avm_read_bit_buffer *rb, SequenceHeader *seq_params,
     struct avm_internal_error_info *error_info);
-#else
-// Implements the color_config() function in the spec. Reports errors by
-// calling rb->error_handler() or avm_internal_error().
-void av2_read_color_config(struct avm_read_bit_buffer *rb,
-                           SequenceHeader *seq_params,
-                           struct avm_internal_error_info *error_info);
-#endif  // CONFIG_CWG_F270_CI_OBU
 
 // Implements the timing_info() function in the spec. Reports errors by calling
 // rb->error_handler() or avm_internal_error().

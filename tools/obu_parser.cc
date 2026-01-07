@@ -72,9 +72,7 @@ bool ValidObuType(int obu_type) {
     case OBU_RAS_FRAME:
     case OBU_QM:
     case OBU_FGM:
-#if CONFIG_CWG_F270_CI_OBU
     case OBU_CONTENT_INTERPRETATION:
-#endif  // CONFIG_CWG_F270_CI_OBU
     case OBU_PADDING: return true;
   }
   return false;

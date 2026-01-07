@@ -887,10 +887,8 @@ typedef struct OperatingPointSet {
   int ops_operational_ptl_present_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
   int ops_color_info_present_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
   int ops_decoder_model_info_present_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
-#if CONFIG_CWG_F270_OPS
   int ops_initial_display_delay_present_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
   int ops_initial_display_delay_minus_1[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
-#endif  // CONFIG_CWG_F270_OPS
 
   int ops_mlayer_info_idc[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
   uint32_t ops_data_size[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT];
@@ -920,7 +918,6 @@ typedef struct OperatingPointSet {
   struct OpsDecoderModelInfo ops_decoder_model_info_s;
 } OperatingPointSet;
 
-#if CONFIG_CWG_F270_CI_OBU
 // This structure specifies the color info params
 typedef struct color_info {
   int color_description_idc;
@@ -951,7 +948,7 @@ typedef struct ContentInterpretation {
   SarInfo sar_info;
   avm_timing_info_t timing_info;
 } ContentInterpretation;
-#endif  // CONFIG_CWG_F270_CI_OBU
+
 // Sequence header structure.
 // Note: All syntax elements of sequence_header_obu that need to be
 // bit-identical across multiple sequence headers must be part of this struct,
@@ -1077,7 +1074,6 @@ typedef struct SequenceHeader {
   uint8_t number_of_bits_for_lt_frame_id;
   uint8_t enable_ext_seg;
 
-#if CONFIG_CWG_F270_OPS
   AV2_LEVEL seq_max_level_idx;
   uint8_t seq_tier;
   int seq_max_display_model_info_present_flag;
@@ -1086,24 +1082,14 @@ typedef struct SequenceHeader {
   int seq_max_decoder_buffer_delay;
   int seq_max_encoder_buffer_delay;
   int seq_max_low_delay_mode_flag;
-#endif  // CONFIG_CWG_F270_OPS
   BITSTREAM_PROFILE profile;
 
   // Color config.
   avm_bit_depth_t bit_depth;  // AVM_BITS_8 in profile 0 or 1,
                               // AVM_BITS_10 or AVM_BITS_12 in profile 2 or 3.
   uint8_t monochrome;         // Monochorme video
-#if !CONFIG_CWG_F270_CI_OBU
-  avm_color_primaries_t color_primaries;
-  avm_transfer_characteristics_t transfer_characteristics;
-  avm_matrix_coefficients_t matrix_coefficients;
-  int color_range;
-#endif                // !CONFIG_CWG_F270_CI_OBU
-  int subsampling_x;  // Chroma subsampling for x
-  int subsampling_y;  // Chroma subsampling for y
-#if !CONFIG_CWG_F270_CI_OBU
-  avm_chroma_sample_position_t chroma_sample_position;
-#endif                    // !CONFIG_CWG_F270_CI_OBU
+  int subsampling_x;          // Chroma subsampling for x
+  int subsampling_y;          // Chroma subsampling for y
   uint8_t equal_ac_dc_q;  // force ac, dc quantizers in each plane to be equal
   uint8_t separate_uv_delta_q;
   int8_t base_y_dc_delta_q;
@@ -1120,17 +1106,9 @@ typedef struct SequenceHeader {
   // Operating point info.
   int operating_points_cnt_minus_1;
   int operating_point_idc[MAX_NUM_OPERATING_POINTS];
-#if !CONFIG_CWG_F270_CI_OBU
-  int timing_info_present;
-  avm_timing_info_t timing_info;
-#endif  // !CONFIG_CWG_F270_CI_OBU
   uint8_t decoder_model_info_present_flag;
   avm_dec_model_info_t decoder_model_info;
   uint8_t display_model_info_present_flag;
-#if !CONFIG_CWG_F270_OPS
-  AV2_LEVEL seq_level_idx[MAX_NUM_OPERATING_POINTS];
-  uint8_t tier[MAX_NUM_OPERATING_POINTS];  // seq_tier in spec. One bit: 0 or 1.
-#endif                                     // !CONFIG_CWG_F270_OPS
 
   // Layer dependency structure descriptors
   int max_tlayer_id;
@@ -1151,14 +1129,6 @@ typedef struct SequenceHeader {
   // TODO(urvang): We probably don't need the +1 here.
   avm_dec_model_op_parameters_t op_params[MAX_NUM_OPERATING_POINTS + 1];
   CropWindow conf;
-#if !CONFIG_CWG_F270_CI_OBU
-  // NOTE these syntax elements will move to the CI Obu
-  int scan_type_info_present_flag;
-  avm_pic_scan_type_t scan_type_idc;
-  int fixed_cvs_pic_rate_flag;
-  int elemental_ct_duration_minus_1;
-#endif  // !CONFIG_CWG_F270_CI_OBU
-
   uint8_t seq_seg_info_present_flag;
   SegmentationInfoSyntax seg_params;
   int allow_seg_info_change;
@@ -2579,7 +2549,6 @@ typedef struct AV2Common {
    */
   bool mfh_valid[MAX_MFH_NUM];
 
-#if CONFIG_CWG_F270_CI_OBU
   /*!
    * Elements part of the content interpretation, when present, applicable for
    * all the frames in the video.
@@ -2593,7 +2562,6 @@ typedef struct AV2Common {
    * we should migrate the encoder to use the ci_params_per_layer array.
    */
   ContentInterpretation ci_params_encoder;
-#endif  // CONFIG_CWG_F270_CI_OBU
 
   /*!
    * Current CDFs of all the symbols for the current frame.

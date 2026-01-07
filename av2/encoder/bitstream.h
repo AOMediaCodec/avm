@@ -99,12 +99,10 @@ void av2_write_tx_type(const AV2_COMMON *const cm, const MACROBLOCKD *xd,
 void av2_write_cctx_type(const AV2_COMMON *const cm, const MACROBLOCKD *xd,
                          CctxType cctx_type, TX_SIZE tx_size, avm_writer *w);
 
-#if CONFIG_CWG_F270_CI_OBU
 void av2_write_timing_info_header(const avm_timing_info_t *const timing_info,
                                   struct avm_write_bit_buffer *wb);
 uint32_t av2_write_content_interpretation_obu(
     const ContentInterpretation *ci_params, uint8_t *const dst);
-#endif  // CONFIG_CWG_F270_CI_OBU
 
 #ifdef __cplusplus
 }  // extern "C"

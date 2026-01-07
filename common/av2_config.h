@@ -66,7 +66,6 @@ typedef struct _Av2Config {
   uint8_t chroma_sample_position;
   uint8_t initial_presentation_delay_present;
   uint8_t initial_presentation_delay_minus_one;
-#if CONFIG_CWG_F270_CI_OBU
   // Content interpretation OBU parameters
   uint8_t ci_present;
   uint8_t ci_scan_type_idc;
@@ -85,7 +84,6 @@ typedef struct _Av2Config {
   uint8_t ci_sar_aspect_ratio_idc;
   uint8_t ci_sar_width;
   uint8_t ci_sar_height;
-#endif  // CONFIG_CWG_F270_CI_OBU
 } Av2Config;
 
 // Attempts to parse a Sequence Header OBU and set the paramenters of 'config'.

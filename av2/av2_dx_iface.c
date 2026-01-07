@@ -187,180 +187,20 @@ static avm_codec_err_t parse_bitdepth(struct avm_read_bit_buffer *rb,
   return AVM_CODEC_OK;
 }
 
-#if CONFIG_CWG_F270_CI_OBU
 static avm_codec_err_t parse_chroma_format_bitdepth(
     struct avm_read_bit_buffer *rb, BITSTREAM_PROFILE profile) {
-#else
-static avm_codec_err_t parse_color_config(struct avm_read_bit_buffer *rb,
-                                          BITSTREAM_PROFILE profile) {
-#endif  // CONFIG_CWG_F270_CI_OBU
   const uint32_t chroma_format_idc = avm_rb_read_uvlc(rb);
 
   avm_bit_depth_t bit_depth;
   avm_codec_err_t err = parse_bitdepth(rb, profile, &bit_depth);
   if (err != AVM_CODEC_OK) return err;
-
-#if !CONFIG_CWG_F270_CI_OBU
-  const int is_monochrome = (chroma_format_idc == CHROMA_FORMAT_400);
-  avm_color_primaries_t color_primaries;
-  avm_transfer_characteristics_t transfer_characteristics;
-  avm_matrix_coefficients_t matrix_coefficients;
-  int color_description_present_flag = avm_rb_read_bit(rb);
-  if (color_description_present_flag) {
-    color_primaries = avm_rb_read_literal(rb, 8);
-    transfer_characteristics = avm_rb_read_literal(rb, 8);
-    matrix_coefficients = avm_rb_read_literal(rb, 8);
-  } else {
-    color_primaries = AVM_CICP_CP_UNSPECIFIED;
-    transfer_characteristics = AVM_CICP_TC_UNSPECIFIED;
-    matrix_coefficients = AVM_CICP_MC_UNSPECIFIED;
-  }
-  if (is_monochrome) {
-    // [16,235] (including xvycc) vs [0,255] range
-    avm_rb_read_bit(rb);  // color_range
-  } else {
-    if (color_primaries == AVM_CICP_CP_BT_709 &&
-        transfer_characteristics == AVM_CICP_TC_SRGB &&
-        matrix_coefficients == AVM_CICP_MC_IDENTITY) {
-      // 444 only
-      if (!(profile == PROFILE_1 ||
-            (profile == PROFILE_2 && bit_depth == AVM_BITS_12))) {
-        // sRGB colorspace not compatible with specified profile
-        return AVM_CODEC_UNSUP_BITSTREAM;
-      }
-    } else {
-#endif  // !CONFIG_CWG_F270_CI_OBU
-      int subsampling_x;
-      int subsampling_y;
-#if !CONFIG_CWG_F270_CI_OBU
-      avm_rb_read_bit(rb);  // color_range
-#endif                      // !CONFIG_CWG_F270_CI_OBU
-      err = av2_get_chroma_subsampling(chroma_format_idc, &subsampling_x,
-                                       &subsampling_y);
-      if (err != AVM_CODEC_OK) return err;
-#if !CONFIG_CWG_F270_CI_OBU
-      if (matrix_coefficients == AVM_CICP_MC_IDENTITY &&
-          (subsampling_x || subsampling_y)) {
-        // Identity CICP Matrix incompatible with non 4:4:4 color sampling
-        return AVM_CODEC_UNSUP_BITSTREAM;
-      }
-      if (subsampling_x && !subsampling_y) {
-        // YUV 4:2:2
-        const int csp_present_flag = avm_rb_read_bit(rb);
-        if (csp_present_flag) {
-          avm_rb_read_bit(rb);  // chroma_sample_position
-        }
-      } else if (subsampling_x && subsampling_y) {
-        // YUV 4:2:0
-        const int csp_present_flag = avm_rb_read_bit(rb);
-        if (csp_present_flag) {
-          avm_rb_read_literal(rb, 3);  // chroma_sample_position
-        }
-      }
-    }
-  }
-#endif  // !CONFIG_CWG_F270_CI_OBU
+  int subsampling_x;
+  int subsampling_y;
+  err = av2_get_chroma_subsampling(chroma_format_idc, &subsampling_x,
+                                   &subsampling_y);
+  if (err != AVM_CODEC_OK) return err;
   return AVM_CODEC_OK;
 }
-
-#if !CONFIG_CWG_F270_OPS
-static avm_codec_err_t parse_timing_info(struct avm_read_bit_buffer *rb) {
-  const uint32_t num_units_in_display_tick =
-      avm_rb_read_unsigned_literal(rb, 32);
-  const uint32_t time_scale = avm_rb_read_unsigned_literal(rb, 32);
-  if (num_units_in_display_tick == 0 || time_scale == 0)
-    return AVM_CODEC_UNSUP_BITSTREAM;
-  const uint8_t equal_picture_interval = avm_rb_read_bit(rb);
-  if (equal_picture_interval) {
-    const uint32_t num_ticks_per_picture_minus_1 = avm_rb_read_uvlc(rb);
-    if (num_ticks_per_picture_minus_1 == UINT32_MAX) {
-      // num_ticks_per_picture_minus_1 cannot be (1 << 32) − 1.
-      return AVM_CODEC_UNSUP_BITSTREAM;
-    }
-  }
-  return AVM_CODEC_OK;
-}
-
-static avm_codec_err_t parse_decoder_model_info(
-    struct avm_read_bit_buffer *rb, int *buffer_delay_length_minus_1) {
-  *buffer_delay_length_minus_1 = avm_rb_read_literal(rb, 5);
-  const uint32_t num_units_in_decoding_tick =
-      avm_rb_read_unsigned_literal(rb, 32);
-  (void)num_units_in_decoding_tick;
-  return AVM_CODEC_OK;
-}
-
-static avm_codec_err_t parse_op_parameters_info(
-    struct avm_read_bit_buffer *rb, int buffer_delay_length_minus_1) {
-  const int n = buffer_delay_length_minus_1 + 1;
-  const uint32_t decoder_buffer_delay = avm_rb_read_unsigned_literal(rb, n);
-  const uint32_t encoder_buffer_delay = avm_rb_read_unsigned_literal(rb, n);
-  const uint8_t low_delay_mode_flag = avm_rb_read_bit(rb);
-  (void)decoder_buffer_delay;
-  (void)encoder_buffer_delay;
-  (void)low_delay_mode_flag;
-  return AVM_CODEC_OK;
-}
-
-// Parses the operating points (including operating_point_idc, seq_level_idx,
-// and seq_tier) and then sets si->number_spatial_layers and
-// si->number_temporal_layers based on operating_point_idc[0].
-static avm_codec_err_t parse_operating_points(struct avm_read_bit_buffer *rb,
-                                              int is_reduced_header,
-                                              avm_codec_stream_info_t *si) {
-  int operating_point_idc0 = 0;
-  if (is_reduced_header) {
-  } else {
-    uint8_t decoder_model_info_present_flag = 0;
-    int buffer_delay_length_minus_1 = 0;
-    avm_codec_err_t status;
-#if !CONFIG_CWG_F270_CI_OBU
-    const uint8_t timing_info_present_flag = avm_rb_read_bit(rb);
-    if (timing_info_present_flag) {
-      if ((status = parse_timing_info(rb)) != AVM_CODEC_OK) return status;
-#endif  //  !CONFIG_CWG_F270_CI_OBU
-      decoder_model_info_present_flag = avm_rb_read_bit(rb);
-      if (decoder_model_info_present_flag) {
-        if ((status = parse_decoder_model_info(
-                 rb, &buffer_delay_length_minus_1)) != AVM_CODEC_OK)
-          return status;
-      }
-#if !CONFIG_CWG_F270_CI_OBU
-    }
-#endif  // !CONFIG_CWG_F270_CI_OBU
-    const uint8_t initial_display_delay_present_flag = avm_rb_read_bit(rb);
-    const uint8_t operating_points_cnt_minus_1 =
-        avm_rb_read_literal(rb, OP_POINTS_CNT_MINUS_1_BITS);
-    for (int i = 0; i < operating_points_cnt_minus_1 + 1; i++) {
-      int operating_point_idc;
-      operating_point_idc = avm_rb_read_literal(rb, OP_POINTS_IDC_BITS);
-      if (i == 0) operating_point_idc0 = operating_point_idc;
-      if (decoder_model_info_present_flag) {
-        const uint8_t decoder_model_present_for_this_op = avm_rb_read_bit(rb);
-        if (decoder_model_present_for_this_op) {
-          if ((status = parse_op_parameters_info(
-                   rb, buffer_delay_length_minus_1)) != AVM_CODEC_OK)
-            return status;
-        }
-      }
-      if (initial_display_delay_present_flag) {
-        const uint8_t initial_display_delay_present_for_this_op =
-            avm_rb_read_bit(rb);
-        if (initial_display_delay_present_for_this_op)
-          avm_rb_read_literal(rb, 4);  // initial_display_delay_minus_1
-      }
-    }
-  }
-
-  if (avm_get_num_layers_from_operating_point_idc(
-          operating_point_idc0, &si->number_mlayers, &si->number_tlayers) !=
-      AVM_CODEC_OK) {
-    return AVM_CODEC_ERROR;
-  }
-
-  return AVM_CODEC_OK;
-}
-#endif  // !CONFIG_CWG_F270_OPS
 
 static avm_codec_err_t decoder_peek_si_internal(const uint8_t *data,
                                                 size_t data_sz,
@@ -436,17 +276,8 @@ static avm_codec_err_t decoder_peek_si_internal(const uint8_t *data,
         si->conf_win_bottom_offset = avm_rb_read_uvlc(&rb);
       }
 
-#if CONFIG_CWG_F270_CI_OBU
       status = parse_chroma_format_bitdepth(&rb, profile);
-#else
-      status = parse_color_config(&rb, profile);
-#endif  // CONFIG_CWG_F270_CI_OBU
       if (status != AVM_CODEC_OK) return status;
-
-#if !CONFIG_CWG_F270_OPS
-      status = parse_operating_points(&rb, single_picture_header_flag, si);
-      if (status != AVM_CODEC_OK) return status;
-#endif  // !CONFIG_CWG_F270_OPS
 
       got_sequence_header = 1;
     } else if (obu_header.type == OBU_CLK || obu_header.type == OBU_OLK) {

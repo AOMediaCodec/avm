@@ -29,12 +29,6 @@ uint32_t read_fgm_obu(AV2Decoder *pbi, const int obu_tlayer_id,
                       const int obu_mlayer_id, uint32_t *acc_fgm_id_bitmap,
                       struct avm_read_bit_buffer *rb);
 
-#if !CONFIG_CWG_F270_OPS
-avm_codec_err_t avm_get_num_layers_from_operating_point_idc(
-    int operating_point_idc, unsigned int *number_spatial_layers,
-    unsigned int *number_temporal_layers);
-#endif  // !CONFIG_CWG_F270_OPS
-
 uint32_t read_qm_obu(AV2Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
                      uint32_t *acc_qm_id_bitmap,
                      struct avm_read_bit_buffer *rb);
