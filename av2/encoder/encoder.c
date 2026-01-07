@@ -850,10 +850,8 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
 
   cpi->written_fgm_num = 0;
 
-#if CONFIG_CWG_E242_SEQ_HDR_ID
-  seq_params->seq_header_id =
-      0;  // intentionally 0 for a single sequence bitstream
-#endif    // CONFIG_CWG_E242_SEQ_HDR_ID
+  // seq_header_id is set 0 for a single sequence bitstream
+  seq_params->seq_header_id = 0;
   if (oxcf->layer_cfg.enable_lcr) {
     seq_params->seq_lcr_id = 1;
   } else {

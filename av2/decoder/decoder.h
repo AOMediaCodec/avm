@@ -438,7 +438,6 @@ typedef struct AV2Decoder {
    */
   struct AtlasSegmentInfo *active_atlas_segment_info;
 
-#if CONFIG_CWG_E242_SEQ_HDR_ID
   /*!
    * list of sequence headers
    */
@@ -451,7 +450,7 @@ typedef struct AV2Decoder {
    * active sequence header for the frame
    */
   struct SequenceHeader *active_seq;
-#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
+
   struct quantization_matrix_set qm_list[NUM_CUSTOM_QMS];
   // qm_protected[i]==1 indicates quantization_matrix, qm_list[i] is not reset
   // when a new sequence header is activated since it is signalled with the

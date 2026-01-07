@@ -237,7 +237,6 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
   // Verify rb has been configured to report errors.
   assert(rb->error_handler);
 
-#if CONFIG_CWG_E242_SEQ_HDR_ID
   // Use an element in the pbi->seq_list array to store the information as we
   // decode. At the end, if no errors have occurred, cm->seq_params is updated.
   uint32_t seq_header_id = avm_rb_read_uvlc(rb);
@@ -261,12 +260,6 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
     pbi->seq_header_count++;
     seq_params->seq_header_id = seq_header_id;
   }
-#else
-  // Use a local variable to store the information as we decode. At the end,
-  // if no errors have occurred, cm->seq_params is updated.
-  SequenceHeader sh = cm->seq_params;
-  SequenceHeader *const seq_params = &sh;
-#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
 
 #if CONFIG_CWG_F270_OPS
   seq_params->profile = av2_read_profile(rb);

@@ -408,9 +408,7 @@ static avm_codec_err_t decoder_peek_si_internal(const uint8_t *data,
       // Read a few values from the sequence header payload
       struct avm_read_bit_buffer rb = { data, data + data_sz, 0, NULL, NULL };
 
-#if CONFIG_CWG_E242_SEQ_HDR_ID
       avm_rb_read_uvlc(&rb);  // seq_header_id
-#endif                        // CONFIG_CWG_E242_SEQ_HDR_ID
 
       BITSTREAM_PROFILE profile = av2_read_profile(&rb);  // profile
       single_picture_header_flag = avm_rb_read_bit(&rb);

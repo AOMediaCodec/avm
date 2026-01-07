@@ -5041,9 +5041,7 @@ static AVM_INLINE void write_multi_frame_header(
     AV2_COMP *cpi, const MultiFrameHeader *const mfh_param,
     struct avm_write_bit_buffer *wb) {
   AV2_COMMON *const cm = &cpi->common;
-#if CONFIG_CWG_E242_SEQ_HDR_ID
   avm_wb_write_uvlc(wb, mfh_param->mfh_seq_header_id);
-#endif  // #if CONFIG_CWG_E242_SEQ_HDR_ID
   avm_wb_write_uvlc(wb, cm->cur_mfh_id - 1);
   avm_wb_write_bit(wb, mfh_param->mfh_frame_size_present_flag);
   avm_wb_write_bit(wb, mfh_param->mfh_tile_info_present_flag);
@@ -6088,9 +6086,7 @@ uint32_t av2_write_sequence_header_obu(const SequenceHeader *seq_params,
   struct avm_write_bit_buffer wb = { dst, 0 };
   uint32_t size = 0;
 
-#if CONFIG_CWG_E242_SEQ_HDR_ID
   avm_wb_write_uvlc(&wb, seq_params->seq_header_id);
-#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
 
   write_profile(seq_params->profile, &wb);
   avm_wb_write_bit(&wb, seq_params->single_picture_header_flag);
@@ -6912,9 +6908,7 @@ static void set_multi_frame_header_with_keyframe(AV2_COMP *cpi,
   SequenceHeader *const seq_params = &cpi->common.seq_params;
   TileInfoSyntax *tile_params = &mfh_params->mfh_tile_params;
 
-#if CONFIG_CWG_E242_SEQ_HDR_ID
   mfh_params->mfh_seq_header_id = 0;
-#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
   mfh_params->mfh_frame_size_present_flag =
       cm->width != cm->seq_params.max_frame_width ||
       cm->height != cm->seq_params.max_frame_height;

@@ -6550,13 +6550,11 @@ static AVM_INLINE void read_multi_frame_header_seg_info(
 
 void av2_read_multi_frame_header(AV2_COMMON *cm,
                                  struct avm_read_bit_buffer *rb) {
-#if CONFIG_CWG_E242_SEQ_HDR_ID
   const uint32_t mfh_seq_header_id = avm_rb_read_uvlc(rb);
   if (mfh_seq_header_id >= MAX_SEQ_NUM) {
     avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
                        "Unsupported Sequence Header ID in MFH");
   }
-#endif  // #if CONFIG_CWG_E242_SEQ_HDR_ID
   uint32_t cur_mfh_id = avm_rb_read_uvlc(rb) + 1;
   if (cur_mfh_id >= MAX_MFH_NUM) {
     avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
@@ -6565,9 +6563,7 @@ void av2_read_multi_frame_header(AV2_COMMON *cm,
   }
 
   MultiFrameHeader *mfh_param = &cm->mfh_params[cur_mfh_id];
-#if CONFIG_CWG_E242_SEQ_HDR_ID
   mfh_param->mfh_seq_header_id = (int)mfh_seq_header_id;
-#endif  // #if CONFIG_CWG_E242_SEQ_HDR_ID
   mfh_param->mfh_frame_width = cm->seq_params.max_frame_width;
   mfh_param->mfh_frame_height = cm->seq_params.max_frame_height;
   mfh_param->mfh_frame_size_present_flag = avm_rb_read_bit(rb);
@@ -7362,7 +7358,6 @@ static void activate_layer_configuration_record(AV2Decoder *pbi,
   }
 }
 
-#if CONFIG_CWG_E242_SEQ_HDR_ID
 static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
                                    int seq_header_id) {
   AV2_COMMON *const cm = &pbi->common;
@@ -7460,7 +7455,6 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     pbi->qm_protected[i] = 0;
   }
 }
-#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
 
 static int is_reference_mapping_consistent(
     int ref_list1[INTER_REFS_PER_FRAME], int ref_list2[INTER_REFS_PER_FRAME]) {

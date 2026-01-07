@@ -959,9 +959,7 @@ typedef struct ContentInterpretation {
 // One exception is the last member 'op_params' that is ignored by
 // are_seq_headers_consistent() function.
 typedef struct SequenceHeader {
-#if CONFIG_CWG_E242_SEQ_HDR_ID
   int seq_header_id;
-#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
 
   int seq_lcr_id;
 
@@ -1392,12 +1390,10 @@ typedef struct {
  * \brief Multi-frame level parameters.
  */
 typedef struct MultiFrameHeader {
-#if CONFIG_CWG_E242_SEQ_HDR_ID
   /*!
    * Seq header id in multi frame header
    */
   int mfh_seq_header_id;
-#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
   /*!
    * Frame size present flag
    */
