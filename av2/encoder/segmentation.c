@@ -261,9 +261,7 @@ void av2_choose_segmap_coding_method(AV2_COMMON *cm, MACROBLOCKD *xd) {
   } else {
     seg->temporal_update = 0;
   }
-#if CONFIG_F322_OBUER_REFRESTRICT
   if (cm->current_frame.frame_type == S_FRAME) seg->temporal_update = 0;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
 }
 
 void av2_reset_segment_features(AV2_COMMON *cm) {

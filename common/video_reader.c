@@ -87,14 +87,8 @@ int avm_video_reader_read_frame(AvxVideoReader *reader) {
                            &reader->frame_size, &reader->buffer_size,
                            &reader->pts);
   } else if (reader->input_ctx.file_type == FILE_TYPE_OBU) {
-#if CONFIG_F436_OBUORDER
     return !obudec_read_frame_unit(&reader->obu_ctx, &reader->buffer,
                                    &reader->frame_size, &reader->buffer_size);
-#else
-    return !obudec_read_temporal_unit(&reader->obu_ctx, &reader->buffer,
-                                      &reader->frame_size,
-                                      &reader->buffer_size);
-#endif  // CONFIG_F436_OBUORDER
 #if CONFIG_WEBM_IO
   } else if (reader->input_ctx.file_type == FILE_TYPE_WEBM) {
     return !webm_read_frame(&reader->webm_ctx, &reader->buffer,

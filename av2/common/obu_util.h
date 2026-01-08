@@ -34,7 +34,7 @@ avm_codec_err_t avm_read_obu_header_and_size(const uint8_t *data,
                                              size_t *const payload_size,
                                              size_t *const bytes_read);
 
-#if CONFIG_F436_OBUORDER && CONFIG_F024_KEYOBU
+#if CONFIG_F024_KEYOBU
 /*!\brief Returns 1 when the one tilegroup is allowed for the obu_type
  */
 static INLINE int is_single_tile_vcl_obu(OBU_TYPE obu_type) {
@@ -61,7 +61,7 @@ static INLINE int is_tu_head_non_vcl_obu(OBU_TYPE obu_type) {
          obu_type == OBU_ATLAS_SEGMENT || obu_type == OBU_OPERATING_POINT_SET ||
          obu_type == OBU_MSDO;
 }
-#endif  // CONFIG_F436_OBUORDER && CONFIG_F024_KEYOBU
+#endif  // CONFIG_F024_KEYOBU
 
 #ifdef __cplusplus
 }  // extern "C"

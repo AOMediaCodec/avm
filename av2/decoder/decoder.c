@@ -234,11 +234,8 @@ AV2Decoder *av2_decoder_create(BufferPool *const pool) {
     pbi->fgm_list[i].fgm_tlayer_id = -1;
     pbi->fgm_list[i].fgm_mlayer_id = -1;
   }
-#if CONFIG_F322_OBUER_REFRESTRICT
   pbi->restricted_predition = 0;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
 
-#if CONFIG_F436_OBUORDER
   memset(&pbi->last_frame_unit, -1, sizeof(pbi->last_frame_unit));
   memset(&pbi->last_displayable_frame_unit, -1,
          sizeof(pbi->last_displayable_frame_unit));
@@ -246,7 +243,6 @@ AV2Decoder *av2_decoder_create(BufferPool *const pool) {
   for (int i = 0; i < MAX_NUM_MLAYERS; i++) {
     pbi->num_displayable_frame_unit[i] = 0;
   }
-#endif
 
 #if CONFIG_ACCOUNTING
   pbi->acct_enabled = 1;
@@ -697,12 +693,6 @@ void output_frame_buffers(AV2Decoder *pbi, int ref_idx) {
   uint64_t trigger_frame_output_order =
       derive_output_order_idx(cm, trigger_frame);
 
-#if CONFIG_F322_OBUER_REFRESTRICT
-  // NOTE when the restricted switch frame is used, the DOHs of some reference
-  // frames are not reliable and very big(INT_MAX). therefore, nothing will be
-  // output.
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
-
   int successive_output = 1;
   for (int k = 1; k <= cm->seq_params.ref_frames && successive_output > 0;
        k++) {
@@ -774,9 +764,7 @@ static void update_frame_buffers(AV2Decoder *pbi, int frame_decoded) {
       output_trailing_frames(pbi);
 #endif  // !CONFIG_F024_KEYOBU
 
-#if CONFIG_F322_OBUER_REFRESTRICT
     cm->cur_frame->is_restricted = false;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
 
     // The following for loop needs to release the reference stored in
     // cm->ref_frame_map[ref_index] before storing a reference to
@@ -876,12 +864,7 @@ int av2_receive_compressed_data(AV2Decoder *pbi, size_t size,
   }
 #if CONFIG_F024_KEYOBU
   // flush_remaining_frames() is invoked before assign_cur_frame_new_fb().
-#if CONFIG_F436_OBUORDER
-  if (pbi->is_random_access_frame_unit == 1)
-#else
-  if (av2_is_random_accessed_temporal_unit(source, size))
-#endif
-  {
+  if (pbi->is_random_access_frame_unit == 1) {
     flush_remaining_frames(pbi);
   }
 #endif

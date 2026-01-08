@@ -330,13 +330,8 @@ static int read_frame(struct AvxDecInputContext *input, uint8_t **buf,
       return ivf_read_frame(input->avm_input_ctx->file, buf, bytes_in_buffer,
                             buffer_size, NULL);
     case FILE_TYPE_OBU:
-#if CONFIG_F436_OBUORDER
       return obudec_read_frame_unit(input->obu_ctx, buf, bytes_in_buffer,
                                     buffer_size);
-#else
-      return obudec_read_temporal_unit(input->obu_ctx, buf, bytes_in_buffer,
-                                       buffer_size);
-#endif  // CONFIG_F436_OBUORDER
     default: return 1;
   }
 }
@@ -695,11 +690,7 @@ static int main_loop(int argc, const char **argv_) {
   memset(&webm_ctx, 0, sizeof(webm_ctx));
   input.webm_ctx = &webm_ctx;
 #endif
-#if CONFIG_F436_OBUORDER
   struct ObuDecInputContext obu_ctx = { NULL, NULL, 0, 0 };
-#else
-  struct ObuDecInputContext obu_ctx = { NULL, NULL, 0, 0, 0 };
-#endif
   int is_ivf = 0;
 
   obu_ctx.avx_ctx = &avm_input_ctx;
@@ -1014,10 +1005,8 @@ static int main_loop(int argc, const char **argv_) {
     if (!stop_after || frame_in < stop_after) {
       if (!read_frame(&input, &buf, &bytes_in_buffer, &buffer_size)) {
         frame_avail = 1;
-#if CONFIG_F436_OBUORDER
         // frame_in counts number of frame units i.e. multiple tile
         // groups that compose one frame count as 1.
-#endif
         frame_in++;
 
         avm_usec_timer_start(&timer);
@@ -1063,9 +1052,7 @@ static int main_loop(int argc, const char **argv_) {
 
     got_data = 0;
     while ((img = avm_codec_get_frame(&decoder, &iter))) {
-#if CONFIG_F436_OBUORDER
       // frame_out does not include hidden frames.
-#endif
       ++frame_out;
       if (frame_in < frame_out) {  // No OBUs for show_existing_frame.
         frame_in = frame_out;

@@ -33,20 +33,16 @@ static INLINE void init_ref_map_pair(AV2_COMMON *cm,
   for (int map_idx = 0; map_idx < cm->seq_params.ref_frames; map_idx++) {
     // Get reference frame buffer
     const RefCntBuffer *const buf = cm->ref_frame_map[map_idx];
-#if CONFIG_F322_OBUER_REFRESTRICT
     if (buf != NULL && buf->is_restricted) {
       ref_frame_map_pairs[map_idx].ref_frame_restricted = 1;
       continue;
     }
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
     if (buf) {
       ref_frame_map_pairs[map_idx].width = buf->buf.y_crop_width;
       ref_frame_map_pairs[map_idx].height = buf->buf.y_crop_height;
       ref_frame_map_pairs[map_idx].disp_order = (int)buf->display_order_hint;
-#if CONFIG_F322_OBUER_REFRESTRICT
       ref_frame_map_pairs[map_idx].disp_order_removed =
           (int)buf->display_order_hint_restricted;
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
       ref_frame_map_pairs[map_idx].pyr_level = buf->pyramid_level;
       ref_frame_map_pairs[map_idx].tlayer_id = buf->tlayer_id;
       ref_frame_map_pairs[map_idx].mlayer_id = buf->mlayer_id;
