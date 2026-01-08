@@ -1028,9 +1028,9 @@ static AVM_INLINE void init_gop_frames_for_tpl(
                                   : gf_group->cur_frame_idx[gf_index] +
                                         gf_group->arf_src_offset[gf_index];
     int lookahead_index = frame_display_index - anc_frame_offset;
-    frame_params.show_frame = frame_update_type != ARF_UPDATE &&
-                              frame_update_type != KFFLT_UPDATE &&
-                              frame_update_type != INTNL_ARF_UPDATE;
+    frame_params.immediate_output_picture =
+        frame_update_type != ARF_UPDATE && frame_update_type != KFFLT_UPDATE &&
+        frame_update_type != INTNL_ARF_UPDATE;
 #if !CONFIG_F024_KEYOBU
     frame_params.show_existing_frame =
         frame_update_type == INTNL_OVERLAY_UPDATE ||
@@ -1077,7 +1077,7 @@ static AVM_INLINE void init_gop_frames_for_tpl(
 
     const int true_disp =
         (int)(tpl_frame->frame_display_index) -
-        (gf_group->subgop_cfg != NULL && frame_params.show_frame);
+        (gf_group->subgop_cfg != NULL && frame_params.immediate_output_picture);
     if (cm->seq_params.enable_explicit_ref_frame_map || frame_is_sframe(cm))
       av2_get_ref_frames_enc(cpi, true_disp, ref_frame_map_pairs);
     else
@@ -1116,9 +1116,9 @@ static AVM_INLINE void init_gop_frames_for_tpl(
 
   if (cpi->rc.frames_since_key == 0) {
     TplDepFrame *tpl_frame = &tpl_data->tpl_frame[cur_frame_idx];
-    const int true_disp =
-        (int)(tpl_frame->frame_display_index) -
-        (gf_group->subgop_cfg != NULL && init_frame_params->show_frame);
+    const int true_disp = (int)(tpl_frame->frame_display_index) -
+                          (gf_group->subgop_cfg != NULL &&
+                           init_frame_params->immediate_output_picture);
     init_ref_map_pair(cm, ref_frame_map_pairs,
                       init_frame_params->frame_type == KEY_FRAME,
                       cpi->switch_frame_mode == 1);
@@ -1141,9 +1141,9 @@ static AVM_INLINE void init_gop_frames_for_tpl(
        ++gf_index) {
     TplDepFrame *tpl_frame = &tpl_data->tpl_frame[gf_index];
     FRAME_UPDATE_TYPE frame_update_type = LF_UPDATE;
-    frame_params.show_frame = frame_update_type != ARF_UPDATE &&
-                              frame_update_type != KFFLT_UPDATE &&
-                              frame_update_type != INTNL_ARF_UPDATE;
+    frame_params.immediate_output_picture =
+        frame_update_type != ARF_UPDATE && frame_update_type != KFFLT_UPDATE &&
+        frame_update_type != INTNL_ARF_UPDATE;
 #if !CONFIG_F024_KEYOBU
     frame_params.show_existing_frame =
         frame_update_type == INTNL_OVERLAY_UPDATE;
@@ -1177,7 +1177,7 @@ static AVM_INLINE void init_gop_frames_for_tpl(
 
     const int true_disp =
         (int)(tpl_frame->frame_display_index) -
-        (gf_group->subgop_cfg != NULL && frame_params.show_frame);
+        (gf_group->subgop_cfg != NULL && frame_params.immediate_output_picture);
     if (cm->seq_params.enable_explicit_ref_frame_map || frame_is_sframe(cm) ||
         cpi->switch_frame_mode == 1)
       av2_get_ref_frames_enc(cpi, true_disp, ref_frame_map_pairs);
@@ -1221,9 +1221,9 @@ static AVM_INLINE void init_gop_frames_for_tpl(
   }
 
   TplDepFrame *tpl_frame = &tpl_data->tpl_frame[cur_frame_idx];
-  const int true_disp =
-      (int)(tpl_frame->frame_display_index) -
-      (gf_group->subgop_cfg != NULL && init_frame_params->show_frame);
+  const int true_disp = (int)(tpl_frame->frame_display_index) -
+                        (gf_group->subgop_cfg != NULL &&
+                         init_frame_params->immediate_output_picture);
   init_ref_map_pair(cm, ref_frame_map_pairs,
                     init_frame_params->frame_type == KEY_FRAME,
                     cpi->switch_frame_mode == 1);
@@ -1325,7 +1325,7 @@ void av2_tpl_setup_stats(AV2_COMP *cpi, int gop_eval,
 
   av2_configure_buffer_updates(cpi, gf_group->update_type[gf_group->index]);
   cm->current_frame.frame_type = frame_params->frame_type;
-  cm->immediate_output_picture = frame_params->show_frame;
+  cm->immediate_output_picture = frame_params->immediate_output_picture;
 }
 
 void av2_tpl_rdmult_setup(AV2_COMP *cpi) {

@@ -1549,7 +1549,8 @@ static avm_codec_err_t ctrl_get_dec_frame_info(avm_codec_alg_priv_t *ctx,
     step_data->disp_frame_idx = subgop_stats->disp_frame_idx[step_idx];
     step_data->show_existing_frame =
         subgop_stats->show_existing_frame[step_idx];
-    step_data->show_frame = subgop_stats->show_frame[step_idx];
+    step_data->immediate_output_picture =
+        subgop_stats->immediate_output_picture[step_idx];
     step_data->qindex = subgop_stats->qindex[step_idx];
     step_data->refresh_frame_flags =
         subgop_stats->refresh_frame_flags[step_idx];

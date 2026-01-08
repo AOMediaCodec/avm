@@ -147,7 +147,7 @@ static INLINE int is_frame_droppable(
 static INLINE void update_frames_till_gf_update(AV2_COMP *cpi) {
   // TODO(weitinglin): Updating this counter for is_frame_droppable
   // is a work-around to handle the condition when a frame is drop.
-  // We should fix the cpi->common.show_frame flag
+  // We should fix the cpi->common.immediate_output_picture flag
   // instead of checking the other condition to update the counter properly.
   if (cpi->common.immediate_output_picture ||
       is_frame_droppable(&cpi->ext_flags.refresh_frame)) {
@@ -454,7 +454,7 @@ static struct lookahead_entry *choose_frame_source(
       pop_lookahead = 0;
     }
   }
-  frame_params->show_frame = pop_lookahead;
+  frame_params->immediate_output_picture = pop_lookahead;
   if (pop_lookahead) {
     // show frame, pop from buffer
     // Get last frame source.
@@ -856,10 +856,10 @@ static int denoise_and_encode(AV2_COMP *const cpi, uint8_t *const dest,
       av2_frame_init_quantizer(cpi);
       av2_setup_past_independence(cm);
 
-      if (!frame_params->show_frame && cpi->no_show_fwd_kf) {
+      if (!frame_params->immediate_output_picture && cpi->no_show_fwd_kf) {
         // fwd kf
         arf_src_index = -1 * gf_group->arf_src_offset[gf_group->index];
-      } else if (!frame_params->show_frame) {
+      } else if (!frame_params->immediate_output_picture) {
         arf_src_index = 0;
       } else {
         arf_src_index = -1;
@@ -1052,7 +1052,7 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
   struct lookahead_entry *bru_ref_source = NULL;
   if (frame_params.frame_params_update_type_was_overlay) {
     source = av2_lookahead_pop(cpi->lookahead, flush, cpi->compressor_stage);
-    frame_params.show_frame = 1;
+    frame_params.immediate_output_picture = 1;
   } else {
     source = choose_frame_source(cpi, &flush, &last_source,
                                  -(BRU_ENC_LOOKAHEAD_DIST_MINUS_1 + 1),
@@ -1106,7 +1106,7 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
     *frame_flags = (source->flags & AVM_EFLAG_FORCE_KF) ? FRAMEFLAGS_KEY : 0;
 
   // Shown frames and arf-overlay frames need frame-rate considering
-  if (frame_params.show_frame)
+  if (frame_params.immediate_output_picture)
     adjust_frame_rate(cpi, source->ts_start, source->ts_end);
   if (!frame_params.duplicate_existing_frame) {
 #if !CONFIG_F024_KEYOBU
@@ -1194,13 +1194,13 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
     set_ext_overrides(cm, &frame_params, ext_flags);
 
   // Shown keyframes and S frames refresh all reference buffers
-  const int force_refresh_all =
-      ((frame_params.frame_type == KEY_FRAME && frame_params.show_frame) ||
-       frame_params.frame_type == S_FRAME)
+  const int force_refresh_all = ((frame_params.frame_type == KEY_FRAME &&
+                                  frame_params.immediate_output_picture) ||
+                                 frame_params.frame_type == S_FRAME)
 #if CONFIG_F024_KEYOBU
       ;
 #else
-      && !frame_params.show_existing_frame;
+                                && !frame_params.show_existing_frame;
 #endif
 
   (void)force_refresh_all;

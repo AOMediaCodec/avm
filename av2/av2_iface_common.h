@@ -23,7 +23,7 @@
 typedef struct {
   int disp_frame_idx;
   int is_filtered;
-  int show_frame;
+  int immediate_output_picture;
   int show_existing_frame;
   int pyramid_level;
   int qindex;

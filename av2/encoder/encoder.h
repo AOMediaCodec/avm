@@ -3009,7 +3009,7 @@ typedef struct EncodeFrameParams {
   /*!
    * Should the current frame be displayed after being decoded
    */
-  int show_frame;
+  int immediate_output_picture;
 
   /*!\cond */
   int refresh_frame_flags;

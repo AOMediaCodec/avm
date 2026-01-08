@@ -2979,7 +2979,7 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
     }
     const int update_type = gf_group->update_type[gf_group->index];
 
-    frame_params->show_frame =
+    frame_params->immediate_output_picture =
         !(update_type == ARF_UPDATE || update_type == INTNL_ARF_UPDATE);
 
     if (update_type == ARF_UPDATE) {

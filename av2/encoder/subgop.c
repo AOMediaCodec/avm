@@ -190,8 +190,8 @@ static int process_subgop_config(char *str, SubGOPCfg *config) {
   if (strlen(token) == 0) return 0;
   return process_subgop_steps(token, config);
 }
-// frames with show_frame = 1, showable_frame = 1
-// and show_existing_frame = 1 are handled as
+// frames with immediate_output_picture = 1, implicit_output_picture = 1,
+// or show_existing_frame = 1 are handled as
 // 'visible' frames
 static int is_visible(FRAME_TYPE_CODE code) {
   switch (code) {

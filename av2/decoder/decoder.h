@@ -240,7 +240,7 @@ typedef struct AV2DecTileMTData {
 typedef struct {
   unsigned char disp_frame_idx[MAX_SUBGOP_STATS_SIZE];
   int show_existing_frame[MAX_SUBGOP_STATS_SIZE];
-  int show_frame[MAX_SUBGOP_STATS_SIZE];
+  int immediate_output_picture[MAX_SUBGOP_STATS_SIZE];
   int qindex[MAX_SUBGOP_STATS_SIZE];
   int refresh_frame_flags[MAX_SUBGOP_STATS_SIZE];
   unsigned int ref_frame_map[MAX_SUBGOP_STATS_SIZE][REF_FRAMES];

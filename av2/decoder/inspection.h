@@ -96,7 +96,7 @@ struct insp_frame_data {
   int max_sb_rows;
   int max_sb_cols;
   int16_t frame_number;
-  int show_frame;
+  int immediate_output_picture;
   int frame_type;
   int base_qindex;
   int tip_frame_mode;

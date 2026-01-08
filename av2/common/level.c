@@ -1104,7 +1104,8 @@ static void get_tile_stats(const AV2_COMMON *const cm,
 
 static int store_frame_record(int64_t ts_start, int64_t ts_end,
                               size_t encoded_size, int pic_size,
-                              int frame_header_count, int tiles, int show_frame,
+                              int frame_header_count, int tiles,
+                              int immediate_output_picture,
                               int show_existing_frame,
                               FrameWindowBuffer *const buffer) {
   if (buffer->num < FRAME_WINDOW_SIZE) {
@@ -1120,7 +1121,7 @@ static int store_frame_record(int64_t ts_start, int64_t ts_end,
   record->pic_size = pic_size;
   record->frame_header_count = frame_header_count;
   record->tiles = tiles;
-  record->show_frame = show_frame;
+  record->immediate_output_picture = immediate_output_picture;
   record->show_existing_frame = show_existing_frame;
   return new_idx;
 }
@@ -1131,7 +1132,7 @@ static int count_frames(const FrameWindowBuffer *const buffer,
                         int64_t duration) {
   const int current_idx = (buffer->start + buffer->num - 1) % FRAME_WINDOW_SIZE;
   // Assume current frame is shown frame.
-  assert(buffer->buf[current_idx].show_frame);
+  assert(buffer->buf[current_idx].immediate_output_picture);
 
   const int64_t current_time = buffer->buf[current_idx].ts_end;
   const int64_t time_limit = AVMMAX(current_time - duration, 0);
@@ -1140,7 +1141,7 @@ static int count_frames(const FrameWindowBuffer *const buffer,
   for (int i = buffer->num - 2; i >= 0; --i, --index, ++num_frames) {
     if (index < 0) index = FRAME_WINDOW_SIZE - 1;
     const FrameRecord *const record = &buffer->buf[index];
-    if (!record->show_frame) continue;
+    if (!record->immediate_output_picture) continue;
     const int64_t ts_start = record->ts_start;
     if (ts_start < time_limit) break;
   }
@@ -1171,7 +1172,7 @@ static void scan_past_frames(const FrameWindowBuffer *const buffer,
 #endif  // !CONFIG_F024_KEYOBU
       decoded_samples += record->pic_size;
     }
-    if (record->show_frame) {
+    if (record->immediate_output_picture) {
       display_samples += record->pic_size;
     }
     tiles += record->tiles;
@@ -1222,7 +1223,7 @@ void av2_update_level_info(AV2_COMP *cpi, size_t size, int64_t ts_start,
   const int tiles = tile_cols * tile_rows;
   const int luma_pic_size = upscaled_width * height;
   const int frame_header_count = level_params->frame_header_count;
-  const int show_frame = cm->immediate_output_picture;
+  const int immediate_output_picture = cm->immediate_output_picture;
   const int show_existing_frame = cm->show_existing_frame;
   int max_tile_size;
   int min_cropped_tile_width;
@@ -1280,12 +1281,12 @@ void av2_update_level_info(AV2_COMP *cpi, size_t size, int64_t ts_start,
     // Store info. of current frame into FrameWindowBuffer.
     FrameWindowBuffer *const buffer = &level_info->frame_window_buffer;
     store_frame_record(ts_start, ts_end, size, luma_pic_size,
-                       frame_header_count, tiles, show_frame,
+                       frame_header_count, tiles, immediate_output_picture,
                        show_existing_frame, buffer);
-    if (show_frame) {
+    if (immediate_output_picture) {
       // Count the number of frames encoded in the past 1 second.
       const int encoded_frames_in_last_second =
-          show_frame ? count_frames(buffer, TICKS_PER_SEC) : 0;
+          immediate_output_picture ? count_frames(buffer, TICKS_PER_SEC) : 0;
       scan_past_frames(buffer, encoded_frames_in_last_second, level_spec,
                        level_stats);
       level_stats->total_time_encoded +=

@@ -66,7 +66,7 @@ static void update_subgop_stats(const AV2_COMMON *const cm,
   subgop_stats->disp_frame_idx[subgop_stats->stat_count] = display_order_hint;
   subgop_stats->show_existing_frame[subgop_stats->stat_count] =
       cm->show_existing_frame;
-  subgop_stats->show_frame[subgop_stats->stat_count] =
+  subgop_stats->immediate_output_picture[subgop_stats->stat_count] =
       cm->immediate_output_picture;
   subgop_stats->qindex[subgop_stats->stat_count] = cm->quant_params.base_qindex;
   subgop_stats->refresh_frame_flags[subgop_stats->stat_count] =

@@ -4792,7 +4792,7 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
 
   current_frame->refresh_frame_flags = frame_params->refresh_frame_flags;
   cm->current_frame.frame_type = frame_params->frame_type;
-  cm->immediate_output_picture = frame_params->show_frame;
+  cm->immediate_output_picture = frame_params->immediate_output_picture;
   cm->ref_frame_flags = frame_params->ref_frame_flags;
   cpi->speed = frame_params->speed;
 #if CONFIG_F024_KEYOBU

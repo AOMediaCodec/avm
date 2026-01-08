@@ -42,7 +42,7 @@ typedef struct {
   int pic_size;
   int frame_header_count;
   int tiles;
-  int show_frame;
+  int immediate_output_picture;
   int show_existing_frame;
 } FrameRecord;
 
