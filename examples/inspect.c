@@ -746,7 +746,7 @@ void inspect(void *pbi, void *data) {
   buf +=
       snprintf(buf, MAX_BUFFER, "  \"frame\": %d,\n", frame_data.frame_number);
   buf += snprintf(buf, MAX_BUFFER, "  \"showFrame\": %d,\n",
-                  frame_data.show_frame);
+                  frame_data.immediate_output_picture);
   buf += snprintf(buf, MAX_BUFFER, "  \"frameType\": %d,\n",
                   frame_data.frame_type);
   buf += snprintf(buf, MAX_BUFFER, "  \"baseQIndex\": %d,\n",

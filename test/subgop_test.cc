@@ -279,7 +279,7 @@ class SubGopTestLarge
     for (int idx = 0; idx < MAX_SUBGOP_STATS_SIZE; idx++) {
       subgop_data_.step[idx].disp_frame_idx = -1;
       subgop_data_.step[idx].show_existing_frame = -1;
-      subgop_data_.step[idx].show_frame = -1;
+      subgop_data_.step[idx].immediate_output_picture = -1;
       subgop_data_.step[idx].is_filtered = -1;
       subgop_data_.step[idx].pyramid_level = 0;
       subgop_data_.step[idx].qindex = 0;
@@ -383,17 +383,18 @@ class SubGopTestLarge
     for (int idx = 0; idx < subgop_data_.num_steps; idx++) {
       FRAME_TYPE_CODE frame_type_code = FRAME_TYPE_INO_VISIBLE;
       int show_existing_frame = subgop_data_.step[idx].show_existing_frame;
-      int show_frame = subgop_data_.step[idx].show_frame;
+      int immediate_output_picture =
+          subgop_data_.step[idx].immediate_output_picture;
       int is_filtered = subgop_data_.step[idx].is_filtered;
 
       assert(show_existing_frame >= 0);
-      assert(show_frame >= 0);
+      assert(immediate_output_picture >= 0);
       assert(frame_type_code != 0);
       if (show_existing_frame == 0) {
-        if (show_frame == 0)
+        if (immediate_output_picture == 0)
           frame_type_code = (is_filtered == 1) ? FRAME_TYPE_OOO_FILTERED
                                                : FRAME_TYPE_OOO_UNFILTERED;
-        else if (show_frame == 1)
+        else if (immediate_output_picture == 1)
           frame_type_code = (is_filtered == 1) ? FRAME_TYPE_INO_REPEAT
                                                : FRAME_TYPE_INO_VISIBLE;
       } else if (show_existing_frame == 1) {

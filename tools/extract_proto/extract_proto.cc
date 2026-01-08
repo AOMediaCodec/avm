@@ -668,7 +668,7 @@ void InspectTipFrame(void *pbi, void *data) {
   frame_params->set_subsampling_y(subsampling_y);
   frame_params->set_bit_depth(bit_depth);
   frame_params->set_frame_type(cm->current_frame.frame_type);
-  frame_params->set_show_frame(cm->show_frame);
+  frame_params->set_show_frame(cm->immediate_output_picture);
   PopulateEnumMappings(frame.mutable_enum_mappings());
   auto *tip_frame = frame.mutable_tip_frame_params();
   tip_frame->set_tip_mode(TIP_FRAME_AS_OUTPUT);
@@ -736,7 +736,7 @@ void InspectFrame(void *pbi, void *data) {
       ctx, frame_data.frame_number, frame_data.frame_type));
   frame_params->set_raw_display_index(frame_data.frame_number);
   frame_params->set_decode_index(ctx->decode_count++);
-  frame_params->set_show_frame(frame_data.show_frame);
+  frame_params->set_show_frame(frame_data.immediate_output_picture);
   frame_params->set_base_qindex(frame_data.base_qindex);
   frame_params->set_width(frame_width);
   frame_params->set_height(frame_height);
