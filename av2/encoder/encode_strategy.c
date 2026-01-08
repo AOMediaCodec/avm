@@ -1104,13 +1104,6 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
   }
 #endif  // CONFIG_MISMATCH_DEBUG
 
-#if CONFIG_MISMATCH_DEBUG
-  if (has_no_stats_stage(cpi)) {
-    mismatch_move_frame_idx_w(
-        !frame_params.frame_params_update_type_was_overlay);
-  }
-#endif  // CONFIG_MISMATCH_DEBUG
-
   if (!is_stat_generation_stage(cpi))
     set_ext_overrides(cm, &frame_params, ext_flags);
 
