@@ -7647,6 +7647,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       pbi->olk_encountered = 1;
     } else if (obu_type == OBU_RAS_FRAME || obu_type == OBU_SWITCH) {
       current_frame->frame_type = S_FRAME;
+      cm->restricted_prediction_switch = avm_rb_read_bit(rb);
       if (cm->restricted_prediction_switch) {
         for (int i = 0; i < REF_FRAMES; i++) {
           if (cm->ref_frame_map[i] != NULL) {
@@ -8997,10 +8998,6 @@ int32_t av2_read_tilegroup_header(
   if (send_first_tile_group_indication)
     is_first_tile_group = avm_rb_read_bit(rb);
   *first_tile_group_in_frame = is_first_tile_group;
-  if (obu_type == OBU_SWITCH || obu_type == OBU_RAS_FRAME)
-    cm->restricted_prediction_switch = avm_rb_read_bit(rb);
-  else
-    cm->restricted_prediction_switch = 0;
 
   if (is_first_tile_group) {
 #if CONFIG_MISMATCH_DEBUG

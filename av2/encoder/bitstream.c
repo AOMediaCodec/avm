@@ -5242,7 +5242,9 @@ static AVM_INLINE void write_uncompressed_header(
         (obu_type != OBU_LEADING_TIP && obu_type != OBU_REGULAR_TIP);
     frame_type_signaled &= (!cm->bridge_frame_info.is_bridge_frame);
 
-    if (frame_type_signaled) {
+    if (obu_type == OBU_RAS_FRAME || obu_type == OBU_SWITCH) {
+      avm_wb_write_bit(wb, cpi->common.restricted_prediction_switch);
+    } else if (frame_type_signaled) {
       const int is_inter_frame = (current_frame->frame_type == INTER_FRAME);
       avm_wb_write_bit(wb, is_inter_frame);
     }
@@ -6220,8 +6222,6 @@ static uint32_t write_tilegroup_header(AV2_COMP *cpi, OBU_TYPE obu_type,
 
   if (send_first_tile_group_indication)
     avm_wb_write_bit(&wb, first_tile_group_in_frame);
-  if (obu_type == OBU_SWITCH)
-    avm_wb_write_bit(&wb, cpi->common.restricted_prediction_switch);
 
   int send_uncompressed_header_flag = frame_is_sframe(&cpi->common);
   if (!first_tile_group_in_frame) {
