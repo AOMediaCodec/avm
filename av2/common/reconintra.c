@@ -1826,6 +1826,82 @@ void av2_predict_intra_block(const AV2_COMMON *cm, const MACROBLOCKD *xd,
   }
 }
 
+// Fetch neighboring luma samples for multi hypothesis cross component
+// prediction for 4:2:0 case.
+void av2_mhccp_implicit_fetch_neighbor_luma_420_c(
+    const uint16_t *input, int input_stride, int above_lines, int left_lines,
+    int is_top_sb_boundary, int ref_width, int ref_height, int sub_y,
+    uint8_t cfl_ds_filter_index, int width, int height, uint16_t *output_q3,
+    int output_stride) {
+  for (int h = 0; h < ref_height; h += 2) {
+    for (int w = 0; w < ref_width; w += 2) {
+      const int bot = w + input_stride;
+      if ((h >= above_lines && w >= left_lines + width) ||
+          (h >= above_lines + height && w >= left_lines))
+        continue;
+      // For blocks at the superblock top boundary, we only have one line
+      // above available, therefore we need to offset values for above
+      // region Proposal E229 (for 4:2:0 case) propose to use only 4 lines
+      // and 2 padding lines for the luma reference region, and 2 lines and
+      // 1 padding line for the chroma reference region. Therefore, for
+      // these 2 padding lines above and to the left, we need to offset the
+      // reference region for the top and left boundaries ref_h_t_off is the
+      // position offset value of the top pixel in cfl_ds_filter_index == 2
+      // for both padding and superblock top boundary.
+      int ref_h_t_off = 0;
+      // ref_h_c_off is the position offset value of the pixel in the same
+      // horizontal line of the center pixel for both padding and superblock
+      // top boundary.
+      int ref_h_c_off = 0;
+      // ref_h_b_off is the position offset value of the bottom pixel in
+      // downsample filtering for both padding and superblock top boundary.
+      int ref_h_b_off = 0;
+      // ref_w_off is the position offset value for padding only in the left
+      // and right directions.
+      int ref_w_off = 0;
+      // Preparing the vertical position offset values for superblock top
+      // boundary and padding.
+      if (above_lines == ((LINE_NUM + 1) << sub_y)) {
+        if (is_top_sb_boundary && (h < above_lines)) {
+          // For the top boundary of the superblock, we need to offset the
+          // reference region.
+          ref_h_t_off = h != 0 ? ((LINE_NUM + 1) << sub_y) - h
+                               : ((LINE_NUM + 1) << sub_y) - (h + 1);
+          ref_h_c_off = ((LINE_NUM + 1) << sub_y) - (h + 1);
+          ref_h_b_off = ((LINE_NUM + 1) << sub_y) - (h + 2);
+        }
+      }
+      if (cfl_ds_filter_index == 1) {
+        output_q3[w >> 1] =
+            input[AVMMAX(0, w - 1) + ref_w_off + ref_h_c_off * input_stride] +
+            2 * input[w + ref_w_off + ref_h_c_off * input_stride] +
+            input[w + 1 + ref_w_off + ref_h_c_off * input_stride] +
+            input[bot + AVMMAX(-1, -w) + ref_w_off +
+                  ref_h_b_off * input_stride] +
+            2 * input[bot + ref_w_off + ref_h_b_off * input_stride] +
+            input[bot + 1 + ref_w_off + ref_h_b_off * input_stride];
+      } else if (cfl_ds_filter_index == 2) {
+        const int top = h != 0 ? w - input_stride : w;
+        output_q3[w >> 1] =
+            input[AVMMAX(0, w - 1) + ref_w_off + ref_h_c_off * input_stride] +
+            4 * input[w + ref_w_off + ref_h_c_off * input_stride] +
+            input[w + 1 + ref_w_off + ref_h_c_off * input_stride] +
+            input[top + ref_w_off + ref_h_t_off * input_stride] +
+            input[bot + ref_w_off + ref_h_b_off * input_stride];
+      } else {
+        output_q3[w >> 1] =
+            (input[w + ref_w_off + ref_h_c_off * input_stride] +
+             input[w + 1 + ref_w_off + ref_h_c_off * input_stride] +
+             input[bot + ref_w_off + ref_h_b_off * input_stride] +
+             input[bot + 1 + ref_w_off + ref_h_b_off * input_stride])
+            << 1;
+      }
+    }
+    output_q3 += output_stride;
+    input += (input_stride << 1);
+  }
+}
+
 void mhccp_implicit_fetch_neighbor_luma(const AV2_COMMON *cm,
                                         MACROBLOCKD *const xd, int row, int col,
                                         TX_SIZE tx_size, int *above_lines,
@@ -1950,76 +2026,10 @@ void mhccp_implicit_fetch_neighbor_luma(const AV2_COMMON *cm,
   input = input - (*above_lines) * input_stride - *left_lines;
   if ((*above_lines) || (*left_lines)) {
     if (sub_x && sub_y) {
-      for (int h = 0; h < (*ref_height); h += 2) {
-        for (int w = 0; w < (*ref_width); w += 2) {
-          const int bot = w + input_stride;
-          if ((h >= *above_lines && w >= *left_lines + width) ||
-              (h >= *above_lines + height && w >= *left_lines))
-            continue;
-          // For blocks at the superblock top boundary, we only have one line
-          // above available, therefore we need to offset values for above
-          // region Proposal E229 (for 4:2:0 case) propose to use only 4 lines
-          // and 2 padding lines for the luma reference region, and 2 lines and
-          // 1 padding line for the chroma reference region. Therefore, for
-          // these 2 padding lines above and to the left, we need to offset the
-          // reference region for the top and left boundaries ref_h_t_off is the
-          // position offset value of the top pixel in cfl_ds_filter_index == 2
-          // for both padding and superblock top boundary
-          int ref_h_t_off = 0;
-          // ref_h_c_off is the position offset value of the pixel in the same
-          // horizontal line of the center pixel for both padding and superblock
-          // top boundary
-          int ref_h_c_off = 0;
-          // ref_h_b_off is the position offset value of the bottom pixel in
-          // downsample filtering for both padding and superblock top boundary
-          int ref_h_b_off = 0;
-          // ref_w_off is the position offset value for padding only in the left
-          // and right directions
-          int ref_w_off = 0;
-          // Preparing the vertical position offset values for superblock top
-          // boundary and padding
-          if (*above_lines == ((LINE_NUM + 1) << sub_y)) {
-            if (is_top_sb_boundary && (h < *above_lines)) {
-              // For the top boundary of the superblock, we need to offset the
-              // reference region
-              ref_h_t_off = h != 0 ? ((LINE_NUM + 1) << sub_y) - h
-                                   : ((LINE_NUM + 1) << sub_y) - (h + 1);
-              ref_h_c_off = ((LINE_NUM + 1) << sub_y) - (h + 1);
-              ref_h_b_off = ((LINE_NUM + 1) << sub_y) - (h + 2);
-            }
-          }
-          if (cm->seq_params.cfl_ds_filter_index == 1) {
-            output_q3[w >> 1] =
-                input[AVMMAX(0, w - 1) + ref_w_off +
-                      ref_h_c_off * input_stride] +
-                2 * input[w + ref_w_off + ref_h_c_off * input_stride] +
-                input[w + 1 + ref_w_off + ref_h_c_off * input_stride] +
-                input[bot + AVMMAX(-1, -w) + ref_w_off +
-                      ref_h_b_off * input_stride] +
-                2 * input[bot + ref_w_off + ref_h_b_off * input_stride] +
-                input[bot + 1 + ref_w_off + ref_h_b_off * input_stride];
-          } else if (cm->seq_params.cfl_ds_filter_index == 2) {
-            const int top = h != 0 ? w - input_stride : w;
-            output_q3[w >> 1] =
-                input[AVMMAX(0, w - 1) + ref_w_off +
-                      ref_h_c_off * input_stride] +
-                4 * input[w + ref_w_off + ref_h_c_off * input_stride] +
-                input[w + 1 + ref_w_off + ref_h_c_off * input_stride] +
-                input[top + ref_w_off + ref_h_t_off * input_stride] +
-                input[bot + ref_w_off + ref_h_b_off * input_stride];
-          } else {
-            output_q3[w >> 1] =
-                (input[w + ref_w_off + ref_h_c_off * input_stride] +
-                 input[w + 1 + ref_w_off + ref_h_c_off * input_stride] +
-                 input[bot + ref_w_off + ref_h_b_off * input_stride] +
-                 input[bot + 1 + ref_w_off + ref_h_b_off * input_stride])
-                << 1;
-          }
-        }
-        output_q3 += output_stride;
-        input += (input_stride << 1);
-      }
-
+      av2_mhccp_implicit_fetch_neighbor_luma_420(
+          input, input_stride, *above_lines, *left_lines, is_top_sb_boundary,
+          *ref_width, *ref_height, sub_y, cm->seq_params.cfl_ds_filter_index,
+          width, height, output_q3, output_stride);
     } else if (sub_x) {
       for (int h = 0; h < (*ref_height); h++) {
         for (int i = 0; i < (*ref_width); i += 2) {
@@ -2096,22 +2106,16 @@ void mhccp_implicit_fetch_neighbor_luma(const AV2_COMMON *cm,
   }
 }
 
-void mhccp_implicit_fetch_neighbor_chroma(MACROBLOCKD *const xd, int plane,
-                                          int row, int col, TX_SIZE tx_size,
-                                          int above_lines, int left_lines,
-                                          int is_top_sb_boundary, int ref_width,
-                                          int ref_height) {
-  CFL_CTX *const cfl = &xd->cfl;
-  struct macroblockd_plane *const pd = &xd->plane[plane];
-  int input_stride = pd->dst.stride;
-  uint16_t *dst = &pd->dst.buf[(row * pd->dst.stride + col) << MI_SIZE_LOG2];
-
+// Fetch neighboring chroma samples for multi hypothesis cross component
+// prediction.
+void av2_mhccp_implicit_fetch_neighbor_chroma_c(
+    const uint16_t *input, int input_stride, TX_SIZE tx_size, int above_lines,
+    int left_lines, int is_top_sb_boundary, int ref_width, int ref_height,
+    uint16_t *output_q3) {
   const int width = tx_size_wide[tx_size];
   const int height = tx_size_high[tx_size];
 
-  uint16_t *output_q3 = cfl->mhccp_ref_buf_q3[plane];
   int output_stride = CFL_BUF_LINE * 2;
-  uint16_t *input = dst - above_lines * input_stride - left_lines;
   if (above_lines || left_lines) {
     for (int h = 0; h < ref_height; ++h) {
       for (int w = 0; w < ref_width; ++w) {
@@ -2238,9 +2242,12 @@ void av2_predict_intra_block_facade(const AV2_COMMON *cm, MACROBLOCKD *xd,
         left_lines >>= sub_x;
         ref_width >>= sub_x;
         ref_height >>= sub_y;
-        mhccp_implicit_fetch_neighbor_chroma(
-            xd, plane, blk_row, blk_col, tx_size, above_lines, left_lines,
-            is_top_sb_boundary, ref_width, ref_height);
+        uint16_t *output_q3 = cfl->mhccp_ref_buf_q3[plane];
+        uint16_t *input = dst - above_lines * dst_stride - left_lines;
+
+        av2_mhccp_implicit_fetch_neighbor_chroma(
+            input, dst_stride, tx_size, above_lines, left_lines,
+            is_top_sb_boundary, ref_width, ref_height, output_q3);
         av2_mhccp_derive_multi_param_hv(xd, plane, above_lines, left_lines,
                                         ref_width, ref_height, mbmi->mh_dir,
                                         is_top_sb_boundary);

@@ -263,13 +263,6 @@ void mhccp_implicit_fetch_neighbor_luma(const AV2_COMMON *cm,
                                         TX_SIZE tx_size, int *above_lines,
                                         int *left_lines, int is_top_sb_boundary,
                                         int *ref_width, int *ref_height);
-// fetch neighboring chroma samples for multi hypothesis cross component
-// prediction
-void mhccp_implicit_fetch_neighbor_chroma(MACROBLOCKD *const xd, int plane,
-                                          int row, int col, TX_SIZE tx_size,
-                                          int above_lines, int left_lines,
-                                          int is_top_sb_boundary, int ref_width,
-                                          int ref_height);
 
 static AVM_INLINE void set_have_top_and_left(int *have_top, int *have_left,
                                              const MACROBLOCKD *xd, int row_off,

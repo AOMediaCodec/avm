@@ -452,6 +452,12 @@ specialize qw/av2_mhccp_derive_multi_param_hv avx2/;
 add_proto qw/av2_cfl_subtract_average_fn av2_cfl_get_subtract_average_fn/, "TX_SIZE tx_size";
 specialize qw/av2_cfl_get_subtract_average_fn sse2 avx2 neon vsx/;
 
+add_proto qw/void av2_mhccp_implicit_fetch_neighbor_chroma/, "const uint16_t *dst, int input_stride, TX_SIZE tx_size, int above_lines, int left_lines, int is_top_sb_boundary, int ref_width, int ref_height, uint16_t *output_q3";
+specialize qw/av2_mhccp_implicit_fetch_neighbor_chroma avx2/;
+
+add_proto qw/void av2_mhccp_implicit_fetch_neighbor_luma_420/, "const uint16_t *input, int input_stride, int above_lines, int left_lines, int is_top_sb_boundary, int ref_width, int ref_height, int sub_y, uint8_t cfl_ds_filter_index, int width, int height, uint16_t *output_q3, int output_stride";
+specialize qw/av2_mhccp_implicit_fetch_neighbor_luma_420 avx2/;
+
 add_proto qw/av2_cfl_subsample_hbd_fn av2_cfl_get_luma_subsampling_420_hbd/, "TX_SIZE tx_size";
 specialize qw/av2_cfl_get_luma_subsampling_420_hbd ssse3 avx2 neon/;
 

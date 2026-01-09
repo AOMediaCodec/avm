@@ -1823,3 +1823,211 @@ void av2_mhccp_derive_multi_param_hv_avx2(MACROBLOCKD *const xd, int plane,
         1 << MHCCP_DECIM_BITS;
   }
 }
+
+// AVX2 implementation for av2_mhccp_implicit_fetch_neighbor_chroma_c
+void av2_mhccp_implicit_fetch_neighbor_chroma_avx2(
+    const uint16_t *input, int input_stride, TX_SIZE tx_size, int above_lines,
+    int left_lines, int is_top_sb_boundary, int ref_width, int ref_height,
+    uint16_t *output_q3) {
+  (void)is_top_sb_boundary;
+  const int width = tx_size_wide[tx_size];
+  const int height = tx_size_high[tx_size];
+
+  int output_stride = CFL_BUF_LINE * 2;
+  if (above_lines || left_lines) {
+    for (int h = 0; h < ref_height; ++h) {
+      assert(LINE_NUM == 1);
+      int ref_h_offset = (above_lines == (LINE_NUM + 1) && h == 0) ? 1 : 0;
+      int h_offset_stride = ref_h_offset * input_stride;
+      int w = 0;
+      for (; w < ref_width; w += 16) {
+        if ((h >= above_lines && w >= left_lines + width) ||
+            (h >= above_lines + height && w >= left_lines))
+          continue;
+        __m256i l_vec =
+            _mm256_loadu_si256((const __m256i *)(input + h_offset_stride + w));
+        if (left_lines == (LINE_NUM + 1) && (w == 0)) {
+          __m128i lo = _mm256_castsi256_si128(l_vec);
+          lo = _mm_shufflelo_epi16(lo, _MM_SHUFFLE(3, 2, 1, 1));
+          l_vec = _mm256_inserti128_si256(l_vec, lo, 0);
+        }
+        _mm256_storeu_si256((__m256i *)(output_q3 + w), l_vec);
+      }
+      output_q3 += output_stride;
+      input += input_stride;
+    }
+  }
+}
+
+DECLARE_ALIGNED(32, static const uint8_t,
+                shuffle_index[32]) = { 0,  1,  4, 5,  8,  9, 12, 13, 0,  1, 4,
+                                       5,  8,  9, 12, 13, 0, 1,  4,  5,  8, 9,
+                                       12, 13, 0, 1,  4,  5, 8,  9,  12, 13 };
+DECLARE_ALIGNED(32, static const uint16_t,
+                blend_index[16]) = { 0xFFFF, 0, 0, 0, 0, 0, 0, 0,
+                                     0xFFFF, 0, 0, 0, 0, 0, 0, 0 };
+
+// AVX2 implementation for av2_mhccp_implicit_fetch_neighbor_luma_420_c
+void av2_mhccp_implicit_fetch_neighbor_luma_420_avx2(
+    const uint16_t *input, int input_stride, int above_lines, int left_lines,
+    int is_top_sb_boundary, int ref_width, int ref_height, int sub_y,
+    uint8_t cfl_ds_filter_index, int width, int height, uint16_t *output_q3,
+    int output_stride) {
+  for (int h = 0; h < ref_height; h += 2) {
+    int ref_h_t_off = 0;
+    int ref_h_c_off = 0;
+    int ref_h_b_off = 0;
+    int ref_w_off = 0;
+    if (above_lines == ((LINE_NUM + 1) << sub_y)) {
+      if (is_top_sb_boundary && (h < above_lines)) {
+        // For the top boundary of the superblock, we need to offset the
+        // reference region
+        ref_h_t_off = h != 0 ? ((LINE_NUM + 1) << sub_y) - h
+                             : ((LINE_NUM + 1) << sub_y) - (h + 1);
+        ref_h_c_off = ((LINE_NUM + 1) << sub_y) - (h + 1);
+        ref_h_b_off = ((LINE_NUM + 1) << sub_y) - (h + 2);
+      }
+    }
+    int h_c_offset_stride = ref_h_c_off * input_stride;
+    int h_b_offset_stride = ref_h_b_off * input_stride + input_stride;
+    for (int w = 0; w < ref_width; w += 32) {
+      if ((h >= above_lines && w >= left_lines + width) ||
+          (h >= above_lines + height && w >= left_lines))
+        continue;
+
+      // h_c0, h_c1, ... h_c15
+      __m256i h_c0 =
+          _mm256_loadu_si256((const __m256i *)(input + h_c_offset_stride + w));
+
+      // h_c16, h_c17, ... h_c31
+      __m256i h_c16 = _mm256_loadu_si256(
+          (const __m256i *)(input + h_c_offset_stride + w + 16));
+
+      // h_b0, h_b1, ..... h_b15
+      __m256i h_b0 =
+          _mm256_loadu_si256((const __m256i *)(input + h_b_offset_stride + w));
+
+      // h_b16, h_b17, ..... h_b31
+      __m256i h_b16 = _mm256_loadu_si256(
+          (const __m256i *)(input + h_b_offset_stride + w + 16));
+
+      if (cfl_ds_filter_index == 1 || cfl_ds_filter_index == 2) {
+        __m256i blend_mask = _mm256_load_si256((__m256i *)blend_index);
+        __m256i h_cm1;
+        if (w > 0) {
+          h_cm1 = _mm256_loadu_si256(
+              (const __m256i *)(input + h_c_offset_stride + ref_w_off + w - 1));
+        } else {
+          // h_c7, h_c0, h_c1, h_c2, h_c3, h_c4, h_c5, h_c6, h_c15, h_c8, h_c9,
+          // h_c10, h_c11, h_c12, h_c13, h_c14
+          __m256i w_reorder1 = _mm256_alignr_epi8(h_c0, h_c0, 14);
+          // h_c0, h_c1, h_c2, h_c3, h_c4, h_c5, h_c6, h_c7, h_c7, h_c0, h_c1,
+          // h_c2, h_c3, h_c4, h_c5, h_c6
+          __m256i w_reorder2 =
+              _mm256_permute2x128_si256(h_c0, w_reorder1, 0x20);
+          // h_c0, h_c0, h_c1, h_c2, h_c3, h_c4, h_c5, h_c6, h_c7, h_c8, h_c9,
+          // h_c10, h_c11, h_c12, h_c13, h_c14
+          h_cm1 = _mm256_blendv_epi8(w_reorder1, w_reorder2, blend_mask);
+        }
+
+        // h_c15, h_c16, ... h_c30
+        __m256i h_c15 = _mm256_loadu_si256(
+            (const __m256i *)(input + h_c_offset_stride + w + 15));
+
+        if (cfl_ds_filter_index == 1) {
+          __m256i h_bm1;
+          if (w > 0) {
+            h_bm1 =
+                _mm256_loadu_si256((const __m256i *)(input + h_b_offset_stride +
+                                                     ref_w_off + w - 1));
+          } else {
+            // h_b7, h_b0, h_b1, h_b2, h_b3, h_b4, h_b5, h_b6, h_b15, h_b8,
+            // h_b9, h_b10, h_b11, h_b12, h_b13, h_b14
+            __m256i b_reorder1 = _mm256_alignr_epi8(h_b0, h_b0, 14);
+            // h_b0, h_b1, h_b2, h_b3, h_b4, h_b5, h_b6, h_b7, h_b7, h_b0, h_b1,
+            // h_b2, h_b3, h_b4, h_b5, h_b6
+            __m256i b_reorder2 =
+                _mm256_permute2x128_si256(h_b0, b_reorder1, 0x20);
+
+            // h_b0, h_b0, h_b1, h_b2, h_b3, h_b4, h_b5, h_b6, h_b7, h_b8, h_b9,
+            // h_b10, h_b11, h_b12, h_b13, h_b14
+            h_bm1 = _mm256_blendv_epi8(b_reorder1, b_reorder2, blend_mask);
+          }
+
+          // h_b15, h_b16, ..... h_b30
+          __m256i h_b15 = _mm256_loadu_si256(
+              (const __m256i *)(input + h_b_offset_stride + w + 15));
+
+          __m256i h_cm1_c0 = _mm256_add_epi16(h_cm1, h_c0);
+          __m256i h_bm1_b0 = _mm256_add_epi16(h_bm1, h_b0);
+          __m256i h_c15_c16 = _mm256_add_epi16(h_c15, h_c16);
+          __m256i h_b15_b16 = _mm256_add_epi16(h_b15, h_b16);
+
+          __m256i h_cm1_c0_bm1_b0 = _mm256_add_epi16(h_cm1_c0, h_bm1_b0);
+          __m256i h_c15_c16_b15_b16 = _mm256_add_epi16(h_c15_c16, h_b15_b16);
+
+          __m256i res = _mm256_hadd_epi16(h_cm1_c0_bm1_b0, h_c15_c16_b15_b16);
+
+          res = _mm256_permute4x64_epi64(res, 0xD8);
+
+          _mm256_storeu_si256((__m256i *)(output_q3 + (w >> 1)), res);
+        } else if (cfl_ds_filter_index == 2) {
+          const int top = h != 0 ? (-input_stride) : 0;
+          int h_t_offset_stride = top + ref_h_t_off * input_stride;
+
+          __m256i h_t0 = _mm256_loadu_si256(
+              (const __m256i *)(input + h_t_offset_stride + w));
+          __m256i h_t16 = _mm256_loadu_si256(
+              (const __m256i *)(input + h_t_offset_stride + w + 16));
+
+          const __m256i shuffle_mask =
+              _mm256_load_si256((__m256i *)shuffle_index);
+          // h_c0, h_c2, h_c4, ....
+          __m256i h_c0_even = _mm256_shuffle_epi8(h_c0, shuffle_mask);
+          // h_b0, h_b2, h_b4, ....
+          __m256i h_b0_even = _mm256_shuffle_epi8(h_b0, shuffle_mask);
+          __m256i b0_c0_even = _mm256_unpacklo_epi16(h_b0_even, h_c0_even);
+          // h_t0, h_t2, h_t4, ....
+          __m256i h_t0_even = _mm256_shuffle_epi8(h_t0, shuffle_mask);
+          __m256i t0_c0_even = _mm256_unpacklo_epi16(h_t0_even, h_c0_even);
+
+          // h_c16, h_c18, h_c20, ....
+          __m256i h_c16_even = _mm256_shuffle_epi8(h_c16, shuffle_mask);
+          // h_b16, h_b18, h_b20, ....
+          __m256i h_b16_even = _mm256_shuffle_epi8(h_b16, shuffle_mask);
+          __m256i b16_c16_even = _mm256_unpacklo_epi16(h_b16_even, h_c16_even);
+          // h_t16, h_t18, h_t20, ....
+          __m256i h_t16_even = _mm256_shuffle_epi8(h_t16, shuffle_mask);
+          __m256i t16_c16_even = _mm256_unpacklo_epi16(h_t16_even, h_c16_even);
+
+          __m256i h_cm1_c0 = _mm256_add_epi16(h_cm1, h_c0);
+          __m256i bc0_tc0_even = _mm256_add_epi16(b0_c0_even, t0_c0_even);
+          __m256i h_c15_c16 = _mm256_add_epi16(h_c15, h_c16);
+          __m256i bc16_tc16_even = _mm256_add_epi16(b16_c16_even, t16_c16_even);
+
+          __m256i h_cm1_c0_bc0_tc0_even =
+              _mm256_add_epi16(h_cm1_c0, bc0_tc0_even);
+          __m256i h_c15_c16_bc16_tc16_even =
+              _mm256_add_epi16(h_c15_c16, bc16_tc16_even);
+
+          __m256i res = _mm256_hadd_epi16(h_cm1_c0_bc0_tc0_even,
+                                          h_c15_c16_bc16_tc16_even);
+
+          res = _mm256_permute4x64_epi64(res, 0xD8);
+          _mm256_storeu_si256((__m256i *)(output_q3 + (w >> 1)), res);
+        }
+      } else {
+        __m256i h_c0_b0 = _mm256_add_epi16(h_c0, h_b0);
+        __m256i h_c16_b16 = _mm256_add_epi16(h_c16, h_b16);
+
+        __m256i res = _mm256_hadd_epi16(h_c0_b0, h_c16_b16);
+        res = _mm256_permute4x64_epi64(res, 0xD8);
+        res = _mm256_slli_epi16(res, 1);
+
+        _mm256_storeu_si256((__m256i *)(output_q3 + (w >> 1)), res);
+      }
+    }
+    output_q3 += output_stride;
+    input += (input_stride << 1);
+  }
+}

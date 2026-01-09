@@ -883,4 +883,283 @@ const sub_avg_param sub_avg_sizes_vsx[] = { ALL_CFL_TX_SIZES(
 INSTANTIATE_TEST_SUITE_P(VSX, CFLSubAvgTest,
                          ::testing::ValuesIn(sub_avg_sizes_vsx));
 #endif
+
+#if HAVE_AVX2
+std::array<std::array<int, 2>, 3> chroma_above_left_line_pairs = {
+  { { 0, 2 }, { 2, 0 }, { 2, 2 } }
+};
+
+std::array<std::array<int, 2>, 3> luma_above_left_line_pairs = {
+  { { 0, 4 }, { 4, 0 }, { 4, 4 } }
+};
+#endif  // HAVE_AVX2
+
+const int chroma_tx_size[] = { 0, 1,  2,  3,  5,  6,  7,  8,
+                               9, 10, 13, 14, 15, 16, 19, 20 };
+
+typedef void (*av2_mhccp_implicit_fetch_neighbor_chroma_fn)(
+    const uint16_t *dst, int input_stride, TX_SIZE tx_size, int above_lines,
+    int left_lines, int is_top_sb_boundary, int ref_width, int ref_height,
+    uint16_t *output_q3);
+
+typedef std::tuple<std::array<int, 2>, int, int,
+                   av2_mhccp_implicit_fetch_neighbor_chroma_fn>
+    mhccp_derive_param_chroma;
+
+class MhccpImplicitFetchNeighbourChromaTest
+    : public ::testing::TestWithParam<mhccp_derive_param_chroma> {
+ public:
+  void SetUp() override {
+    std::array<int, 2> arrlin = std::get<0>(GetParam());
+    above_lines_ = arrlin[0];
+    left_lines_ = arrlin[1];
+    tx_size_ = std::get<1>(GetParam());
+    bd_ = std::get<2>(GetParam());
+
+    tgt_fn_ = std::get<3>(GetParam());
+    ref_fn_ = av2_mhccp_implicit_fetch_neighbor_chroma_c;
+
+    ref_width_ = AVMMIN((tx_size_wide[tx_size_] + left_lines_), 128);
+    ref_height_ = AVMMIN((tx_size_high[tx_size_] + above_lines_), 128);
+
+    initData();
+
+    rnd_.Reset(ACMRandom::DeterministicSeed());
+  }
+
+ protected:
+  av2_mhccp_implicit_fetch_neighbor_chroma_fn tgt_fn_;
+  av2_mhccp_implicit_fetch_neighbor_chroma_fn ref_fn_;
+  int above_lines_, left_lines_, ref_width_, ref_height_, bd_;
+  TX_SIZE tx_size_;
+  uint16_t *output_q3_ref_, *output_q3_tgt_, *input_;
+  ACMRandom rnd_;
+
+  void initData() {
+    int num_w, num_h;
+    num_w = num_h = (CFL_BUF_LINE << 1);
+    const uint16_t mask = (1 << bd_) - 1;
+    input_ = (uint16_t *)calloc(1, sizeof(uint16_t) * (num_h * num_w));
+    for (int i = 0; i < num_h; ++i) {
+      for (int j = 0; j < num_w; ++j) {
+        uint16_t val = this->rnd_.Rand16() & mask;
+        input_[i * num_w + j] = val;
+      }
+    }
+    output_q3_ref_ = (uint16_t *)calloc(1, sizeof(uint16_t) * (num_h * num_w));
+    output_q3_tgt_ = (uint16_t *)calloc(1, sizeof(uint16_t) * (num_h * num_w));
+  }
+
+  void TearDown() override {
+    free(input_);
+    free(output_q3_ref_);
+    free(output_q3_tgt_);
+  }
+
+  void assertMhccpChromaEqParams(int above_l, int left_l, int width, int height,
+                                 int ref_w, int ref_h, int stride) {
+    uint16_t *ref_ptr = output_q3_ref_;
+    uint16_t *tgt_ptr = output_q3_tgt_;
+    for (int i = 0; i < ref_h; ++i) {
+      for (int j = 0; j < ref_w; ++j) {
+        if ((i >= above_l && j >= left_l + width) ||
+            (i >= above_l + height && j >= left_l))
+          continue;
+        const uint16_t ref_val = ref_ptr[i * stride + j];
+        const uint16_t tgt_val = tgt_ptr[i * stride + j];
+        ASSERT_EQ(ref_val, tgt_val)
+            << "Mismatch at index[" << (i * stride + j) << "] ref=" << ref_val
+            << " tgt=" << tgt_val;
+      }
+    }
+  }
+};
+
+TEST_P(MhccpImplicitFetchNeighbourChromaTest, CompareCAndAVX2) {
+  const int is_top_sb_boundary = rnd_(2);
+  int dst_stride_ = CFL_BUF_LINE << 1;
+  ref_fn_(input_, dst_stride_, tx_size_, above_lines_, left_lines_,
+          is_top_sb_boundary, ref_width_, ref_height_, output_q3_ref_);
+
+  tgt_fn_(input_, dst_stride_, tx_size_, above_lines_, left_lines_,
+          is_top_sb_boundary, ref_width_, ref_height_, output_q3_tgt_);
+
+  assertMhccpChromaEqParams(above_lines_, left_lines_, tx_size_wide[tx_size_],
+                            tx_size_high[tx_size_], ref_width_, ref_height_,
+                            dst_stride_);
+}
+
+TEST_P(MhccpImplicitFetchNeighbourChromaTest, DISABLED_SpeedTest) {
+  const int is_top_sb_boundary = 0;
+  avm_usec_timer ref_timer, tgt_timer;
+  int dst_stride_ = CFL_BUF_LINE << 1;
+
+  avm_usec_timer_start(&ref_timer);
+  for (int i = 0; i < NUM_ITERATIONS_SPEED; ++i) {
+    ref_fn_(input_, dst_stride_, tx_size_, above_lines_, left_lines_,
+            is_top_sb_boundary, ref_width_, ref_height_, output_q3_ref_);
+  }
+  avm_usec_timer_mark(&ref_timer);
+  const int ref_time = (int)avm_usec_timer_elapsed(&ref_timer);
+
+  avm_usec_timer_start(&tgt_timer);
+  for (int i = 0; i < NUM_ITERATIONS_SPEED; ++i) {
+    tgt_fn_(input_, dst_stride_, tx_size_, above_lines_, left_lines_,
+            is_top_sb_boundary, ref_width_, ref_height_, output_q3_tgt_);
+  }
+  avm_usec_timer_mark(&tgt_timer);
+  const int tgt_time = (int)avm_usec_timer_elapsed(&tgt_timer);
+
+  printSpeed(ref_time, tgt_time, tx_size_wide[tx_size_],
+             tx_size_high[tx_size_]);
+  assertFaster(ref_time, tgt_time);
+}
+
+#if HAVE_AVX2
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, MhccpImplicitFetchNeighbourChromaTest,
+    ::testing::Combine(
+        ::testing::ValuesIn(chroma_above_left_line_pairs),
+        ::testing::ValuesIn(chroma_tx_size),  // tx_size
+        ::testing::Values(8, 10, 12),         // bd
+        ::testing::Values(av2_mhccp_implicit_fetch_neighbor_chroma_avx2)));
+#endif  // HAVE_AVX2
+
+typedef void (*av2_mhccp_implicit_fetch_neighbor_luma_420_fn)(
+    const uint16_t *input, int input_stride, int above_lines, int left_lines,
+    int is_top_sb_boundary, int ref_width, int ref_height, int sub_y,
+    uint8_t cfl_ds_filter_index, int width, int height, uint16_t *output_q3,
+    int output_stride);
+
+typedef std::tuple<std::array<int, 2>, int, int, int, int,
+                   av2_mhccp_implicit_fetch_neighbor_luma_420_fn>
+    mhccp_derive_param_luma;
+
+class MhccpImplicitFetchNeighbourLumaTest
+    : public ::testing::TestWithParam<mhccp_derive_param_luma> {
+ public:
+  void SetUp() override {
+    std::array<int, 2> arrlin = std::get<0>(GetParam());
+    above_lines_ = arrlin[0];
+    left_lines_ = arrlin[1];
+    cfl_ds_filter_index_ = std::get<1>(GetParam());
+    width_ = std::get<2>(GetParam()) << 1;
+    height_ = std::get<3>(GetParam()) << 1;
+    bd_ = std::get<4>(GetParam());
+
+    tgt_fn_ = std::get<5>(GetParam());
+    ref_fn_ = av2_mhccp_implicit_fetch_neighbor_luma_420_c;
+
+    initData();
+
+    rnd_.Reset(ACMRandom::DeterministicSeed());
+  }
+
+ protected:
+  av2_mhccp_implicit_fetch_neighbor_luma_420_fn tgt_fn_;
+  av2_mhccp_implicit_fetch_neighbor_luma_420_fn ref_fn_;
+  int above_lines_, left_lines_, ref_width_, ref_height_, bd_;
+  int sub_y_, input_stride_, output_stride_;
+  int width_, height_;
+  uint16_t *output_q3_ref_, *output_q3_tgt_, *input_;
+  uint8_t cfl_ds_filter_index_;
+  ACMRandom rnd_;
+
+  void initData() {
+    int num_w, num_h;
+    sub_y_ = 1;
+    input_stride_ = output_stride_ = (CFL_BUF_LINE << 1);
+    ref_width_ = AVMMIN(left_lines_ + width_, 128);
+    ref_height_ = AVMMIN(above_lines_ + height_, 128);
+    num_w = num_h = (CFL_BUF_LINE << 1);
+    const uint16_t mask = (1 << bd_) - 1;
+    input_ = (uint16_t *)calloc(1, sizeof(uint16_t) * (num_h * num_w));
+    for (int i = 0; i < num_h; ++i) {
+      for (int j = 0; j < num_w; ++j) {
+        uint16_t val = this->rnd_.Rand16() & mask;
+        input_[i * num_w + j] = val;
+      }
+    }
+    output_q3_ref_ = (uint16_t *)calloc(1, sizeof(uint16_t) * (num_h * num_w));
+    output_q3_tgt_ = (uint16_t *)calloc(1, sizeof(uint16_t) * (num_h * num_w));
+  }
+
+  void TearDown() override {
+    free(input_);
+    free(output_q3_ref_);
+    free(output_q3_tgt_);
+  }
+
+  void assertMhccpLumaEqParams(int above_l, int left_l, int width, int height,
+                               int ref_w, int ref_h) {
+    uint16_t *ref_ptr = output_q3_ref_;
+    uint16_t *tgt_ptr = output_q3_tgt_;
+    for (int i = 0; i < ref_h; i += 2) {
+      for (int j = 0; j < ref_w; j += 2) {
+        if ((i >= above_l && j >= left_l + width) ||
+            (i >= above_l + height && j >= left_l))
+          continue;
+        const uint16_t ref_val = ref_ptr[(i >> 1) * output_stride_ + (j >> 1)];
+        const uint16_t tgt_val = tgt_ptr[(i >> 1) * output_stride_ + (j >> 1)];
+        ASSERT_EQ(ref_val, tgt_val)
+            << "Mismatch at index[" << ((i >> 1) * output_stride_ + (j >> 1))
+            << "] ref=" << ref_val << " tgt=" << tgt_val;
+      }
+    }
+  }
+};
+
+TEST_P(MhccpImplicitFetchNeighbourLumaTest, CompareCAndAVX2) {
+  const int is_top_sb_boundary = rnd_(2);
+  ref_fn_(input_, input_stride_, above_lines_, left_lines_, is_top_sb_boundary,
+          ref_width_, ref_height_, sub_y_, cfl_ds_filter_index_, width_,
+          height_, output_q3_ref_, output_stride_);
+
+  tgt_fn_(input_, input_stride_, above_lines_, left_lines_, is_top_sb_boundary,
+          ref_width_, ref_height_, sub_y_, cfl_ds_filter_index_, width_,
+          height_, output_q3_tgt_, output_stride_);
+
+  assertMhccpLumaEqParams(above_lines_, left_lines_, width_, height_,
+                          ref_width_, ref_height_);
+}
+
+TEST_P(MhccpImplicitFetchNeighbourLumaTest, DISABLED_SpeedTest) {
+  const int is_top_sb_boundary = 0;
+  avm_usec_timer ref_timer, tgt_timer;
+  avm_usec_timer_start(&ref_timer);
+  for (int i = 0; i < NUM_ITERATIONS_SPEED; ++i) {
+    ref_fn_(input_, input_stride_, above_lines_, left_lines_,
+            is_top_sb_boundary, ref_width_, ref_height_, sub_y_,
+            cfl_ds_filter_index_, width_, height_, output_q3_ref_,
+            output_stride_);
+  }
+  avm_usec_timer_mark(&ref_timer);
+  const int ref_time = (int)avm_usec_timer_elapsed(&ref_timer);
+
+  avm_usec_timer_start(&tgt_timer);
+  for (int i = 0; i < NUM_ITERATIONS_SPEED; ++i) {
+    tgt_fn_(input_, input_stride_, above_lines_, left_lines_,
+            is_top_sb_boundary, ref_width_, ref_height_, sub_y_,
+            cfl_ds_filter_index_, width_, height_, output_q3_tgt_,
+            output_stride_);
+  }
+  avm_usec_timer_mark(&tgt_timer);
+  const int tgt_time = (int)avm_usec_timer_elapsed(&tgt_timer);
+
+  printSpeed(ref_time, tgt_time, (width_ >> 1), (height_ >> 1));
+  assertFaster(ref_time, tgt_time);
+}
+
+#if HAVE_AVX2
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, MhccpImplicitFetchNeighbourLumaTest,
+    ::testing::Combine(
+        ::testing::ValuesIn(luma_above_left_line_pairs),
+        ::testing::Values(0, 1, 2),           // cfl_ds_filter_index_
+        ::testing::Values(4, 8, 16, 32, 64),  // width_
+        ::testing::Values(4, 8, 16, 32, 64),  // height_
+        ::testing::Values(8, 10, 12),         // bd
+        ::testing::Values(av2_mhccp_implicit_fetch_neighbor_luma_420_avx2)));
+#endif  // HAVE_AVX2
+
 }  // namespace
