@@ -7205,7 +7205,7 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   // TODO: make sure pbi->random_accessed is correctly assigned
   bool activate_sequence_header =
       (obu_type == OBU_CLK || obu_type == OBU_OLK) &&
-      pbi->is_first_layer_decoded;
+      pbi->is_random_access_frame_unit;
   bool seq_header_found = false;
   for (int i = 0; i < pbi->seq_header_count; i++) {
     if (pbi->seq_list[i].seq_header_id == seq_header_id) {
@@ -7246,6 +7246,9 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   if (obu_type == OBU_CLK) {
     reset_ref_frame_map(cm);
   }
+
+  for (int layer = 0; layer < MAX_NUM_MLAYERS; layer++)
+    cm->olk_refresh_frame_flags[layer] = -1;
 
   // check bitstream conformance if sequence header is parsed
   // bitstream constraint for tlayer_id
@@ -7791,7 +7794,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   if (obu_type == OBU_CLK || obu_type == OBU_OLK) {
     if (obu_type == OBU_CLK && seq_params->max_mlayer_id == 0) {
       current_frame->refresh_frame_flags = ((1 << seq_params->ref_frames) - 1);
-      pbi->is_first_layer_decoded = false;
     } else if (obu_type == OBU_OLK || seq_params->max_mlayer_id != 0) {
       const int short_refresh_frame_flags =
           cm->seq_params.enable_short_refresh_frame_flags;
@@ -7808,17 +7810,15 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
             avm_rb_read_literal(rb, refresh_frame_flags_bits);
       }
     }
-    if (obu_type == OBU_CLK && pbi->is_first_layer_decoded) {
+    if (obu_type == OBU_CLK && pbi->is_random_access_frame_unit) {
       for (int ref_pos = 0; ref_pos < seq_params->ref_frames; ref_pos++) {
         if (!(current_frame->refresh_frame_flags >> ref_pos & 1u)) {
           decrease_ref_count(cm->ref_frame_map[ref_pos], pool);
           cm->ref_frame_map[ref_pos] = NULL;
         }
       }
-      pbi->is_first_layer_decoded = false;
     }
     if (obu_type == OBU_OLK) {
-      if (pbi->random_accessed) pbi->is_first_layer_decoded = false;
       cm->last_olk_disp_order_hint[cm->mlayer_id] =
           cm->current_frame.display_order_hint;
       cm->last_olk_order_hint[cm->mlayer_id] = cm->current_frame.order_hint;

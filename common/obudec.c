@@ -108,8 +108,10 @@ static int read_obu_header_from_file(FILE *f, size_t obu_size, uint8_t *buffer,
 }
 
 // non vcl obus that starts a new frame unit
-static int is_fu_head_non_vcl_obu(OBU_TYPE obu_type) {
-  return is_tu_head_non_vcl_obu(obu_type) ||
+static int is_fu_head_non_vcl_obu(OBU_TYPE obu_type, int xlayer_id) {
+  // note that prefix metata is not included in this list since 1 bit parsing is
+  // required to check if the metadata obu is prefix.
+  return is_tu_head_non_vcl_obu(obu_type, xlayer_id) ||
          obu_type == OBU_MULTI_FRAME_HEADER ||
          obu_type == OBU_CONTENT_INTERPRETATION ||
          obu_type == OBU_BUFFER_REMOVAL_TIMING || obu_type == OBU_QM ||
@@ -275,7 +277,8 @@ int obudec_read_frame_unit(struct ObuDecInputContext *obu_ctx, uint8_t **buffer,
           (is_multi_tile_vcl_obu(obu_header.type) ||
            is_single_tile_vcl_obu(obu_header.type)) &&
           first_tile_group_in_frame) ||
-         (vcl_obu_count > 0 && is_fu_head_non_vcl_obu(obu_header.type)) ||
+         (vcl_obu_count > 0 &&
+          is_fu_head_non_vcl_obu(obu_header.type, obu_header.obu_xlayer_id)) ||
          (vcl_obu_count > 0 &&
           (obu_header.type == OBU_METADATA_SHORT ||
            obu_header.type == OBU_METADATA_GROUP) &&

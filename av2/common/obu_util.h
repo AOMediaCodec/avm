@@ -13,6 +13,7 @@
 #define AVM_AV2_COMMON_OBU_UTIL_H_
 
 #include "avm/avm_codec.h"
+#include "av2/common/enums.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -53,11 +54,13 @@ static INLINE int is_multi_tile_vcl_obu(OBU_TYPE obu_type) {
 
 /*!\brief Returns 1 when the obu is non vcl obu and can lead a temporal unit
  */
-static INLINE int is_tu_head_non_vcl_obu(OBU_TYPE obu_type) {
+static INLINE int is_tu_head_non_vcl_obu(OBU_TYPE obu_type, int xlayer_id) {
   return obu_type == OBU_SEQUENCE_HEADER ||
          obu_type == OBU_TEMPORAL_DELIMITER ||
          obu_type == OBU_LAYER_CONFIGURATION_RECORD ||
          obu_type == OBU_ATLAS_SEGMENT || obu_type == OBU_OPERATING_POINT_SET ||
+         (obu_type == OBU_METADATA_SHORT && xlayer_id == GLOBAL_XLAYER_ID) ||
+         (obu_type == OBU_METADATA_GROUP && xlayer_id == GLOBAL_XLAYER_ID) ||
          obu_type == OBU_MSDO;
 }
 

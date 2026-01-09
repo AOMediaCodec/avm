@@ -1550,31 +1550,16 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
       cm->is_leading_picture = 0;
     else
       cm->is_leading_picture = -1;
-    if (obu_header.type == OBU_CLK || obu_header.type == OBU_OLK)
-      pbi->random_access_point_count++;
-    if (pbi->random_access_point_count < pbi->random_access_point_index) {
-      pbi->random_accessed = 0;
+
+    // If a layer is dropped, the avm decoder will skip the layer in the current
+    // function, avm_decode_frame_fom_obus() Regardless of layers dropped,
+    // global config and the sequence header are decoded and obu_list[] is
+    // created.
+    if (obu_header.obu_mlayer_id == pbi->dropped_mlayer_id &&
+        obu_header.obu_xlayer_id != GLOBAL_XLAYER_ID &&
+        obu_header.type != OBU_SEQUENCE_HEADER) {
       data += (bytes_read + payload_size);
       continue;
-    } else {
-      if (obu_header.type == OBU_OLK || obu_header.type == OBU_CLK)
-        pbi->random_accessed = 1;
-      if ((obu_header.type == OBU_OLK || obu_header.type == OBU_CLK) &&
-          pbi->random_access_point_count != pbi->random_access_point_index)
-        pbi->random_accessed = 0;
-      if (pbi->random_accessed) {
-        // drop all leading vcl obus
-        if (is_leading_vcl_obu(obu_header.type)) {
-          data += (bytes_read + payload_size);
-          continue;
-        }
-      }
-    }
-    if (pbi->random_accessed) {
-      if (pbi->msdo_is_present_in_tu)
-        pbi->multi_stream_mode = 1;
-      else
-        pbi->multi_stream_mode = 0;
     }
 
     obu_info *const curr_obu_info =
@@ -1711,9 +1696,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         pbi->stream_switched = 0;
         decoded_payload_size = read_sequence_header_obu(pbi, &rb);
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
-        pbi->is_first_layer_decoded = true;
-        for (int layer = 0; layer < MAX_NUM_MLAYERS; layer++)
-          cm->olk_refresh_frame_flags[layer] = -1;
         break;
       case OBU_BUFFER_REMOVAL_TIMING:
         decoded_payload_size =

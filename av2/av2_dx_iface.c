@@ -448,7 +448,6 @@ static avm_codec_err_t init_decoder(avm_codec_alg_priv_t *ctx) {
   worker->hook = frame_worker_hook;
   frame_worker_data->pbi->olk_encountered = 0;
   frame_worker_data->pbi->random_accessed = false;
-  frame_worker_data->pbi->is_first_layer_decoded = true;
   frame_worker_data->pbi->random_access_point_index = 0;
   frame_worker_data->pbi->random_access_point_count = 0;
   frame_worker_data->pbi->multi_stream_mode = 0;
@@ -568,17 +567,22 @@ static avm_codec_err_t decoder_inspect(avm_codec_alg_priv_t *ctx,
 // check_random_access_frame_unit() sets pbi->num_obus_with_frame_unit as the
 // number of obus in *data. check_random_access_frame_unit() also sets
 // pbi->is_random_access_frame_unit to be 1 if *data contains random access
-// frame unit.
-static void check_random_access_frame_unit(struct AV2Decoder *pbi,
-                                           const uint8_t *data,
-                                           uint64_t data_sz) {
+// frame unit(CLK+SH and OLK+SH, when an OLK is not accompanied with a SH, it is
+// not considered as a random access point)
+static int check_random_access_frame_unit(struct AV2Decoder *pbi,
+                                          const uint8_t *data,
+                                          uint64_t data_sz) {
+  // Note that it assumes a SH will be provided in data when it needs to be
+  // provded. IMPORTANT: it assumes there will be no other frame units then CLK
+  // in data: ex) no [16][8][4][2][1]... if there is CLK/OLK
   pbi->num_obus_with_frame_unit = 0;
-  pbi->is_random_access_frame_unit = -1;
-  bool start_of_temporal_unit = true;
+  bool start_of_temporal_unit = false;
   bool has_key_frames = false;
+  bool has_seq_header = false;
   int frame_unit_mlayer_id = -1;
   const uint8_t *data_read = data;
   ObuHeader obu_header;
+  OBU_TYPE current_frame_obu_type = 0;
   memset(&obu_header, 0, sizeof(obu_header));
   while (data_read < data + data_sz) {
     size_t payload_size = 0;
@@ -587,7 +591,8 @@ static void check_random_access_frame_unit(struct AV2Decoder *pbi,
                                  &bytes_read);
     pbi->num_obus_with_frame_unit++;
     data_read += bytes_read + payload_size;
-    has_key_frames |= (obu_header.type == OBU_CLK);
+    has_seq_header |= obu_header.type == OBU_SEQUENCE_HEADER;
+    has_key_frames |= obu_header.type == OBU_CLK || obu_header.type == OBU_OLK;
     if (is_single_tile_vcl_obu(obu_header.type) ||
         is_multi_tile_vcl_obu(obu_header.type)) {
       if (frame_unit_mlayer_id == -1)
@@ -595,46 +600,87 @@ static void check_random_access_frame_unit(struct AV2Decoder *pbi,
       else {
         assert(frame_unit_mlayer_id == obu_header.obu_mlayer_id);
       }
+      current_frame_obu_type = obu_header.type;
     }
-    start_of_temporal_unit = (is_tu_head_non_vcl_obu(obu_header.type));
+    start_of_temporal_unit |=
+        (is_tu_head_non_vcl_obu(obu_header.type, obu_header.obu_xlayer_id));
   }
 
-  pbi->is_random_access_frame_unit = 0;
-  if (pbi->last_frame_unit.display_order_hint == -1) {
-    if (!has_key_frames) assert(has_key_frames);
-    pbi->is_random_access_frame_unit = has_key_frames;
-    start_of_temporal_unit = true;
-  }
-  if (has_key_frames) {
-    pbi->is_random_access_frame_unit = has_key_frames && start_of_temporal_unit;
-    if (pbi->last_frame_unit.display_order_hint != -1) {
-      pbi->is_random_access_frame_unit |=
-          (has_key_frames && pbi->last_frame_unit.obu_type != OBU_CLK);
-      pbi->is_random_access_frame_unit |=
-          (has_key_frames && pbi->last_frame_unit.obu_type == OBU_CLK &&
-           (frame_unit_mlayer_id <= pbi->last_frame_unit.mlayer_id));
+  if (frame_unit_mlayer_id == pbi->dropped_mlayer_id) {
+    // if the current frame unit is dropped
+    pbi->is_random_access_frame_unit = 0;
+  } else {
+    if (pbi->last_frame_unit.mlayer_id == -1) {
+      // when it is the first frame unit regarldess of layer dropping in the
+      // sequence This fram unit may be dropped later in
+      // avm_decode_frame_from_obus() if the current frame is dropped, this
+      // frame unit is not a random access point.
+      assert(has_seq_header);
+      assert(has_key_frames);
+      assert(start_of_temporal_unit);
+      pbi->is_random_access_frame_unit = 1;
+    } else if (has_key_frames) {
+      // if when the previous frame unit is dropped,
+      // pbi->last_frame_unit.mlayer_id is set as the one in
+      // set_last_frame_unit()
+      if (pbi->dropped_mlayer_id == -1 ||
+          frame_unit_mlayer_id < pbi->dropped_mlayer_id)
+        pbi->is_random_access_frame_unit = has_seq_header;
+      else if (pbi->last_frame_unit.mlayer_id == pbi->dropped_mlayer_id &&
+               pbi->last_frame_unit.is_key_frame_w_sh) {
+        pbi->is_random_access_frame_unit = 1;
+      }
     }
   }
+  if (pbi->is_random_access_frame_unit) pbi->random_access_point_count++;
+  int skip_decoding_frame_units = 0;
+  if (pbi->random_access_point_count < pbi->random_access_point_index) {
+    skip_decoding_frame_units = 1;
+  }
+  if (pbi->is_random_access_frame_unit) {
+    pbi->random_accessed =
+        (pbi->random_access_point_count == pbi->random_access_point_index);
+  }
+
+  if (pbi->random_accessed) {
+    // drop all leading vcl obus (is_leading_vcl_obu)
+    if ((current_frame_obu_type == OBU_LEADING_TILE_GROUP ||
+         current_frame_obu_type == OBU_LEADING_SEF ||
+         current_frame_obu_type == OBU_LEADING_TIP)) {
+      skip_decoding_frame_units = 1;
+    }
+  }
+  return skip_decoding_frame_units;
 }
 static void set_last_frame_unit(struct AV2Decoder *pbi) {
-  obu_info current_frame_unit;
-  memset(&current_frame_unit, -1, sizeof(current_frame_unit));
+  bool has_seq_header = false;
   for (int obu_idx = 0; obu_idx < pbi->num_obus_with_frame_unit; obu_idx++) {
-    if (pbi->obu_list[obu_idx].first_tile_group == 1) {
+    has_seq_header |= (pbi->obu_list[obu_idx].obu_type == OBU_SEQUENCE_HEADER);
+    if (pbi->obu_list[obu_idx].is_vcl &&
+        pbi->obu_list[obu_idx].first_tile_group == 1 &&
+        pbi->dropped_mlayer_id == -1) {
       if (pbi->obu_list[obu_idx].showable_frame == 0 &&
           pbi->last_frame_unit.showable_frame == 1) {
         pbi->last_displayable_frame_unit = pbi->last_frame_unit;
       }
       pbi->last_frame_unit = pbi->obu_list[obu_idx];
+    } else if (pbi->obu_list[obu_idx].is_vcl && pbi->dropped_mlayer_id != -1) {
+      // pbi->obu_list[obu_idx].first_tile_group is not decoded when the layer
+      // is dropped. last_frame_unit is set even when the obu is dropped
+      pbi->last_frame_unit = pbi->obu_list[obu_idx];
     }
   }
+
+  if (has_seq_header && (pbi->last_frame_unit.obu_type == OBU_CLK ||
+                         pbi->last_frame_unit.obu_type == OBU_OLK))
+    pbi->last_frame_unit.is_key_frame_w_sh = 1;
 }
 static void reset_last_frame_unit(struct AV2Decoder *pbi, const uint8_t *data,
                                   uint64_t data_sz) {
   // NOTE: last_frame_unit and last_displayable_frame_unit should be reset to -1
   // when the upcoming frame unit should not be compared with the previous frame
   // unit such as the first frame of a new CVS.
-  bool start_of_temporal_unit = true;
+  bool reset_last_frame_units = false;
   const uint8_t *data_read = data;
   ObuHeader obu_header;
   memset(&obu_header, 0, sizeof(obu_header));
@@ -645,12 +691,13 @@ static void reset_last_frame_unit(struct AV2Decoder *pbi, const uint8_t *data,
                                  &bytes_read);
     pbi->num_obus_with_frame_unit++;
     data_read += bytes_read + payload_size;
-    start_of_temporal_unit = (is_tu_head_non_vcl_obu(obu_header.type)) &&
-                             obu_header.type != OBU_TEMPORAL_DELIMITER;
-    if (start_of_temporal_unit) break;
+    reset_last_frame_units =
+        (is_tu_head_non_vcl_obu(obu_header.type, obu_header.obu_xlayer_id)) &&
+        obu_header.type != OBU_TEMPORAL_DELIMITER;
+    if (reset_last_frame_units) break;
   }
 
-  if (start_of_temporal_unit) {
+  if (reset_last_frame_units) {
     memset(&pbi->last_frame_unit, -1, sizeof(pbi->last_frame_unit));
     memset(&pbi->last_displayable_frame_unit, -1,
            sizeof(pbi->last_displayable_frame_unit));
@@ -748,8 +795,11 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
   // The input data has more than one frame unit unlike the stand alone decoder
   // input data to have one frame unit. test_decoder_frame_unit_offset is
   // required only for test-decoder invoked by the avm encoder.
-  check_random_access_frame_unit(frame_worker_data->pbi, data_start,
-                                 (uint64_t)(data_end - data_start));
+  int skip_decoding_frame_units = check_random_access_frame_unit(
+      frame_worker_data->pbi, data_start, (uint64_t)(data_end - data_start));
+  if (skip_decoding_frame_units) {
+    return AVM_CODEC_OK;
+  }
   frame_worker_data->pbi->obu_list = (obu_info *)malloc(
       sizeof(obu_info) * frame_worker_data->pbi->num_obus_with_frame_unit);
   for (int obu_idx = 0;

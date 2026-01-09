@@ -282,6 +282,7 @@ typedef struct {
   int tlayer_id;
   int xlayer_id;
   int is_vcl;
+  int is_key_frame_w_sh;
 } obu_info;
 
 typedef struct AV2Decoder {
@@ -486,10 +487,14 @@ typedef struct AV2Decoder {
   /*!
    * Indicates if the current data chunk being decoded in avm_codec_decode()
    * includes a random access point, OBU_CLK or OBU_OLK and it is the
-   * start of a temporal unit that will require flush the remaining frames. -1
-   * indicates not derived yet
+   * start of a temporal unit that will require flush the remaining frames.
    */
   int is_random_access_frame_unit;
+  /*!
+   * Indicates mlayer_id to be dropped. dropped_mlayer_id is initialized -1 and
+   * dropped_mlayer_id may be set by the decoder option
+   */
+  int dropped_mlayer_id;
   /*!
    * Indicates the number of displayable_frame_unit  per layer between layer_id
    * change num_displayable_frame_unit[i] can be maximum 1.   *
@@ -503,24 +508,18 @@ typedef struct AV2Decoder {
    */
   int olk_encountered;
   /*!
-   * Indicates the CLK or OLK is in the layer that is decoded first. This means
-   * the other layers with mlayer_id smaller than the current layer_id are
-   * dropped at the decoder it is set true when the decoder starts it is set
-   * false when THE first CLK is decoded regardless of its mlayer. it is reset
-   * true when a new sequence starts and a CLK is not decoded yet.
-   */
-  int is_first_layer_decoded;
-  /*!
-   * Indicates that a frame is decoded as a random access point
+   * Indicates that the current CLK or OLK is accessed as a start of a sequence
+   * Once it is set true, It stays true till the next random access point
    */
   bool random_accessed;
   /*!
-   * When random_accessed is true, random_access_point_index-th random access
-   * point is decoded as a random access point
+   * An decoder option to start decoding from the random_access_point_index-th
+   * random access point
    */
   uint64_t random_access_point_index;
   /*!
-   * count number of sequence header for random access
+   * Counts the number of random access points. It is increased by 1 at the
+   * first CLK/OLK of a temporal unit
    */
   uint64_t random_access_point_count;
   /*!
