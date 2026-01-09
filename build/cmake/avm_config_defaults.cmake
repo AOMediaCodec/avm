@@ -141,7 +141,8 @@ set_avm_config_var(
   "Modified signaling for immediate_output_picture and implicit_output_picture."
 )
 
-set_avm_config_var(CONFIG_CWG_F452 1 "change coding descriptor for temporal point info metadata")
+set_avm_config_var(CONFIG_CWG_F452 1
+                   "change coding descriptor for temporal point info metadata")
 
 # Source of throughput analysis : CWG-B065
 set_avm_config_var(CONFIG_THROUGHPUT_ANALYSIS 0
