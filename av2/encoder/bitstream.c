@@ -5268,10 +5268,8 @@ static AVM_INLINE void write_uncompressed_header(
         }
       } else
         avm_wb_write_bit(wb, cm->implicit_output_picture);
-#if CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
     } else {
       cm->implicit_output_picture = 0;
-#endif  // CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
     }
   }
   int frame_size_override_flag = 0;

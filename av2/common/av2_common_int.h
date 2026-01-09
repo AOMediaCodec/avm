@@ -314,7 +314,6 @@ typedef struct RefCntBuffer {
   int width;
   int height;
   WarpedMotionParams global_motion[INTER_REFS_PER_FRAME];
-#if CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
   /*!
    * Specifies whether the current picture is immediately queued for output
    * or not after decoding.
@@ -342,10 +341,6 @@ typedef struct RefCntBuffer {
    * using the show_existing_frame mechanism.
    */
   int implicit_output_picture;
-#else
-  int implicit_output_picture;  // frame can be used as show existing frame in
-                                // future
-#endif  // CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
 
   bool frame_output_done;  // 0: frame is not yet output 1: frame is already
                            // output
@@ -2337,7 +2332,6 @@ typedef struct AV2Common {
    */
   RefFrameMapPair ref_frame_map_pairs[REF_FRAMES];
 
-#if CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
   /*!
    * Specifies whether the current picture is immediately queued for output
    * or not after decoding.
@@ -2350,16 +2344,8 @@ typedef struct AV2Common {
    * should not be immediately queued for output and that the output of this
    * picture depends on additional syntax elements in the bitstream.
    */
-#else
-  /*!
-   * If true, this frame is actually shown after decoding.
-   * If false, this frame is coded in the bitstream, but not shown. It is only
-   * used as a reference for other frames coded later.
-   */
-#endif  // CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
   int immediate_output_picture;
 
-#if CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
   /*!
    * Specifies whether the current picture will be output according to the
    * output picture buffer process.
@@ -2372,14 +2358,6 @@ typedef struct AV2Common {
    * not output using the output frame buffers process, but can be output
    * using the show_existing_frame mechanism.
    */
-#else
-  /*!
-   * If true, this frame can be used as a show-existing frame for other frames
-   * coded later.
-   * When 'show_frame' is true, this is always true for all non-keyframes.
-   * When 'show_frame' is false, this value is transmitted in the bitstream.
-   */
-#endif  // CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
   int implicit_output_picture;
   /*!
    * index in the cm->ref_frame_map for the reference frame of duplicated frame

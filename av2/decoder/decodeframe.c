@@ -6765,11 +6765,7 @@ static INLINE int get_disp_order_hint(AV2_COMMON *const cm, OBU_TYPE obu_type,
     // Get reference frame buffer
     const RefCntBuffer *const buf = cm->ref_frame_map[map_idx];
     if (buf == NULL ||
-#if CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
         (!buf->implicit_output_picture && !buf->immediate_output_picture) ||
-#else
-        !buf->implicit_output_picture ||
-#endif  // CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
         buf->is_restricted ||
         !is_tlayer_scalable_and_dependent(&cm->seq_params, cm->tlayer_id,
                                           buf->tlayer_id, cm->mlayer_id) ||
@@ -7095,12 +7091,8 @@ static int read_show_existing_frame(AV2Decoder *pbi, bool is_regular_obu,
     cm->cur_frame->order_hint = current_frame->order_hint;
     cm->cur_frame->display_order_hint = current_frame->display_order_hint;
   } else {
-#if CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
     if (frame_to_show->implicit_output_picture ||
         frame_to_show->immediate_output_picture) {
-#else
-    if (frame_to_show->implicit_output_picture) {
-#endif  // CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
       avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
                          "the reference frame should be a hidden frame when "
                          "derive_sef_order_hint is true");
@@ -7571,10 +7563,8 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   if (seq_params->single_picture_header_flag) {
     cm->show_existing_frame = 0;
     cm->immediate_output_picture = 1;
-#if CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
     cm->implicit_output_picture = 0;
     cm->cur_frame->immediate_output_picture = 1;
-#endif  // CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
     cm->cur_frame->implicit_output_picture = 0;
     current_frame->frame_type = KEY_FRAME;
     if (pbi->stream_switched) {
@@ -7673,31 +7663,17 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
                          "Still pictures must be coded as shown keyframes");
     }
-#if !CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
-    if (cm->bridge_frame_info.is_bridge_frame) {
-      cm->implicit_output_picture = 0;
-    } else {
-      cm->implicit_output_picture = current_frame->frame_type != KEY_FRAME;
-    }
-#endif  // !CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
     if (!cm->immediate_output_picture) {
       if (cm->bridge_frame_info.is_bridge_frame) {
         cm->implicit_output_picture = 0;
       } else {
-#if !CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
-        // See if this frame can be used as show_existing_frame in future
-#endif  // !CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
         cm->implicit_output_picture = avm_rb_read_bit(rb);
       }
-#if CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
     } else {
       cm->implicit_output_picture = 0;
-#endif  // CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
     }
 
-#if CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
     cm->cur_frame->immediate_output_picture = cm->immediate_output_picture;
-#endif  // CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
     cm->cur_frame->implicit_output_picture = cm->implicit_output_picture;
     cm->cur_frame->frame_output_done = 0;
   }
