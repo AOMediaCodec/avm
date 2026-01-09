@@ -7098,8 +7098,10 @@ static int read_show_existing_frame(AV2Decoder *pbi, bool is_regular_obu,
                          "derive_sef_order_hint is true");
       return 0;
     }
-    cm->cur_frame->order_hint = frame_to_show->order_hint;
-    cm->cur_frame->display_order_hint = frame_to_show->display_order_hint;
+    current_frame->order_hint = cm->cur_frame->order_hint =
+        frame_to_show->order_hint;
+    current_frame->display_order_hint = cm->cur_frame->display_order_hint =
+        frame_to_show->display_order_hint;
   }
   lock_buffer_pool(pool);
   assert(frame_to_show->ref_count > 0);
