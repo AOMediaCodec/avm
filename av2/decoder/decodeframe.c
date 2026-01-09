@@ -5899,25 +5899,6 @@ void av2_read_timing_info_header(avm_timing_info_t *timing_info,
   }
 }
 
-void av2_read_decoder_model_info(avm_dec_model_info_t *decoder_model_info,
-                                 struct avm_read_bit_buffer *rb) {
-  decoder_model_info->encoder_decoder_buffer_delay_length =
-      avm_rb_read_literal(rb, 5) + 1;
-  decoder_model_info->num_units_in_decoding_tick =
-      avm_rb_read_unsigned_literal(rb,
-                                   32);  // Number of units in a decoding tick
-}
-
-void av2_read_op_parameters_info(avm_dec_model_op_parameters_t *op_params,
-                                 int buffer_delay_length,
-                                 struct avm_read_bit_buffer *rb) {
-  op_params->decoder_buffer_delay =
-      avm_rb_read_unsigned_literal(rb, buffer_delay_length);
-  op_params->encoder_buffer_delay =
-      avm_rb_read_unsigned_literal(rb, buffer_delay_length);
-  op_params->low_delay_mode_flag = avm_rb_read_bit(rb);
-}
-
 // This function reads the parameters for the conformance window
 void av2_read_conformance_window(struct avm_read_bit_buffer *rb,
                                  struct SequenceHeader *seq_params) {

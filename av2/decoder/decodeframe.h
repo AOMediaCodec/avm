@@ -106,17 +106,6 @@ void av2_read_timing_info_header(avm_timing_info_t *timing_info,
                                  struct avm_internal_error_info *error,
                                  struct avm_read_bit_buffer *rb);
 
-// Implements the decoder_model_info() function in the spec. Reports errors by
-// calling rb->error_handler().
-void av2_read_decoder_model_info(avm_dec_model_info_t *decoder_model_info,
-                                 struct avm_read_bit_buffer *rb);
-
-// Implements the operating_parameters_info() function in the spec. Reports
-// errors by calling rb->error_handler().
-void av2_read_op_parameters_info(avm_dec_model_op_parameters_t *op_params,
-                                 int buffer_delay_length,
-                                 struct avm_read_bit_buffer *rb);
-
 struct avm_read_bit_buffer *av2_init_read_bit_buffer(
     struct AV2Decoder *pbi, struct avm_read_bit_buffer *rb, const uint8_t *data,
     const uint8_t *data_end);
