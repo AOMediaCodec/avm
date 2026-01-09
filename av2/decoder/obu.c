@@ -741,6 +741,7 @@ static int read_metadata_frame_hash(AV2Decoder *const pbi,
   return 0;
 }
 
+#if !CONFIG_CWG_F438
 static void scalability_structure(struct avm_read_bit_buffer *rb) {
   const int spatial_layers_cnt_minus_1 = avm_rb_read_literal(rb, 2);
   const int spatial_layer_dimensions_present_flag = avm_rb_read_bit(rb);
@@ -779,6 +780,7 @@ static void read_metadata_scalability(struct avm_read_bit_buffer *rb) {
     scalability_structure(rb);
   }
 }
+#endif  // !CONFIG_CWG_F438
 
 static void read_metadata_timecode(struct avm_read_bit_buffer *rb) {
   avm_rb_read_literal(rb, 5);  // counting_type f(5)
@@ -878,19 +880,22 @@ static size_t read_metadata_unit_payload(AV2Decoder *pbi, const uint8_t *data,
 
   struct avm_read_bit_buffer rb;
   av2_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
+#if !CONFIG_CWG_F438
   if (metadata_type == OBU_METADATA_TYPE_SCALABILITY) {
     read_metadata_scalability(&rb);
-  } else if (metadata_type == OBU_METADATA_TYPE_DECODED_FRAME_HASH) {
-    if (read_metadata_frame_hash(pbi, &rb)) {
-      return sz;
+  } else
+#endif  // !CONFIG_CWG_F438
+    if (metadata_type == OBU_METADATA_TYPE_DECODED_FRAME_HASH) {
+      if (read_metadata_frame_hash(pbi, &rb)) {
+        return sz;
+      }
+    } else if (metadata_type == OBU_METADATA_TYPE_BANDING_HINTS) {
+      // Banding hints metadata is variable bits, not byte-aligned
+      read_metadata_banding_hints_from_rb(pbi, &rb);
+    } else {
+      assert(metadata_type == OBU_METADATA_TYPE_TIMECODE);
+      read_metadata_timecode(&rb);
     }
-  } else if (metadata_type == OBU_METADATA_TYPE_BANDING_HINTS) {
-    // Banding hints metadata is variable bits, not byte-aligned
-    read_metadata_banding_hints_from_rb(pbi, &rb);
-  } else {
-    assert(metadata_type == OBU_METADATA_TYPE_TIMECODE);
-    read_metadata_timecode(&rb);
-  }
   // Consume byte_alignment() bits as required by metadata_unit() spec.
   if (av2_check_byte_alignment(cm, &rb) != 0) {
     // cm->error.error_code is already set.
@@ -1193,38 +1198,42 @@ static size_t read_metadata_short(AV2Decoder *pbi, const uint8_t *data,
   }
 
   av2_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
+#if !CONFIG_CWG_F438
   if (metadata_type == OBU_METADATA_TYPE_SCALABILITY) {
     read_metadata_scalability(&rb);
-  } else if (metadata_type == OBU_METADATA_TYPE_DECODED_FRAME_HASH) {
-    if (read_metadata_frame_hash(pbi, &rb)) {
-      // Unsupported Decoded Frame Hash metadata. Ignoring the entire OBU and
-      // just checking trailing bits
-      if (get_last_nonzero_byte(data + type_length, sz - type_length) == 0) {
+  } else
+#endif  // !CONFIG_CWG_F438
+    if (metadata_type == OBU_METADATA_TYPE_DECODED_FRAME_HASH) {
+      if (read_metadata_frame_hash(pbi, &rb)) {
+        // Unsupported Decoded Frame Hash metadata. Ignoring the entire OBU and
+        // just checking trailing bits
+        if (get_last_nonzero_byte(data + type_length, sz - type_length) == 0) {
+          cm->error.error_code = AVM_CODEC_CORRUPT_FRAME;
+          return 0;
+        }
+        return sz;
+      }
+    } else if (metadata_type == OBU_METADATA_TYPE_BANDING_HINTS) {
+      // Banding hints metadata is variable bits, not byte-aligned
+      read_metadata_banding_hints_from_rb(pbi, &rb);
+    } else if (metadata_type == OBU_METADATA_TYPE_ICC_PROFILE) {
+      // ICC profile is byte-aligned binary data
+      // Find the last nonzero byte (should be 0x80 trailing byte)
+      const int last_nonzero_idx =
+          get_last_nonzero_byte_index(data + type_length, sz - type_length);
+      if (last_nonzero_idx < 0 ||
+          data[type_length + last_nonzero_idx] != 0x80) {
         cm->error.error_code = AVM_CODEC_CORRUPT_FRAME;
         return 0;
       }
+      // ICC payload size excludes the trailing 0x80 byte
+      const size_t icc_payload_size = last_nonzero_idx;
+      read_metadata_icc_profile(pbi, data + type_length, icc_payload_size);
       return sz;
+    } else {
+      assert(metadata_type == OBU_METADATA_TYPE_TIMECODE);
+      read_metadata_timecode(&rb);
     }
-  } else if (metadata_type == OBU_METADATA_TYPE_BANDING_HINTS) {
-    // Banding hints metadata is variable bits, not byte-aligned
-    read_metadata_banding_hints_from_rb(pbi, &rb);
-  } else if (metadata_type == OBU_METADATA_TYPE_ICC_PROFILE) {
-    // ICC profile is byte-aligned binary data
-    // Find the last nonzero byte (should be 0x80 trailing byte)
-    const int last_nonzero_idx =
-        get_last_nonzero_byte_index(data + type_length, sz - type_length);
-    if (last_nonzero_idx < 0 || data[type_length + last_nonzero_idx] != 0x80) {
-      cm->error.error_code = AVM_CODEC_CORRUPT_FRAME;
-      return 0;
-    }
-    // ICC payload size excludes the trailing 0x80 byte
-    const size_t icc_payload_size = last_nonzero_idx;
-    read_metadata_icc_profile(pbi, data + type_length, icc_payload_size);
-    return sz;
-  } else {
-    assert(metadata_type == OBU_METADATA_TYPE_TIMECODE);
-    read_metadata_timecode(&rb);
-  }
   // Consume byte_alignment() bits as required by metadata_unit() spec.
   if (av2_check_byte_alignment(cm, &rb) != 0) {
     return 0;

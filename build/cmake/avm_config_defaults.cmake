@@ -136,6 +136,8 @@ set_avm_config_var(CONFIG_PARAKIT_COLLECT_DATA 0
 # AV2 experiment flags.
 set_avm_config_var(CONFIG_DIP_EXT_PRUNING 1 "AV2 DIP TFLite pruning.")
 
+set_avm_config_var(CONFIG_CWG_F438 1 "Remove scalability metadata.")
+
 # Source of throughput analysis : CWG-B065
 set_avm_config_var(CONFIG_THROUGHPUT_ANALYSIS 0
                    "AV2 experiment flag to measure throughput.")
