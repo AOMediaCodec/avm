@@ -7008,21 +7008,6 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
     data += obu_header_size + obu_payload_size + length_field_size_qm;
   }
 
-  if (cpi->oxcf.q_cfg.using_qm && cm->current_frame.frame_type == S_FRAME &&
-      cm->restricted_prediction_switch) {
-    // reset qm obus
-    obu_header_size = av2_write_obu_header(level_params, OBU_QM, obu_temporal,
-                                           obu_layer, data);
-    obu_payload_size = write_reset_qm_obu(cpi, data + obu_header_size);
-    size_t length_field_size_qm =
-        obu_memmove(obu_header_size, obu_payload_size, data);
-    if (av2_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
-        AVM_CODEC_OK) {
-      return AVM_CODEC_ERROR;
-    }
-    data += obu_header_size + obu_payload_size + length_field_size_qm;
-  }
-
   // Film Grain Model
   if ((cm->immediate_output_picture || cm->implicit_output_picture) &&
       cm->film_grain_params.apply_grain && !cm->show_existing_frame) {

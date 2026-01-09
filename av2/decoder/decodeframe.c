@@ -7261,6 +7261,19 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
                        "the first frame of a bitstream shall be a keyframe");
   }
+  if ((obu_type == OBU_SWITCH || obu_type == OBU_RAS_FRAME) &&
+      cm->restricted_prediction_switch) {
+    const int num_planes = av2_num_planes(cm);
+    for (int qm_pos = 0; qm_pos < NUM_CUSTOM_QMS; qm_pos++) {
+      struct quantization_matrix_set *qmset = &pbi->qm_list[qm_pos];
+      qmset->qm_id = qm_pos;
+      qmset->qm_mlayer_id = -1;
+      qmset->qm_tlayer_id = -1;
+      qmset->quantizer_matrix_num_planes = num_planes;
+      qmset->is_user_defined_qm = false;
+      pbi->qm_protected[qm_pos] = 0;
+    }
+  }
   if (!activate_sequence_header) {
     if (!are_seq_headers_consistent(&cm->seq_params, pbi->active_seq)) {
       avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
