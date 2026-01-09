@@ -3639,7 +3639,9 @@ static AVM_INLINE void setup_segmentation_dequant(AV2Decoder *const pbi,
   const int bit_depth = cm->seq_params.bit_depth;
   // When segmentation is disabled, only the first value is used.  The
   // remaining are don't cares.
-  const int max_segments = cm->seg.enabled ? MAX_SEGMENTS : 1;
+  const int max_segments =
+      cm->seg.enabled ? (cm->seg.enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8)
+                      : 1;
   CommonQuantParams *const quant_params = &cm->quant_params;
   for (int i = 0; i < max_segments; ++i) {
     const int qindex = xd->qindex[i];
