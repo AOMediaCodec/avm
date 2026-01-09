@@ -753,7 +753,12 @@ static int read_metadata_frame_hash(AV2Decoder *const pbi,
   if (per_plane) {
     const int num_planes = is_monochrome ? 1 : 3;
     // Verify that is_monochrome matches the sequence header
-    assert(is_monochrome == cm->seq_params.monochrome);
+    if (is_monochrome != cm->seq_params.monochrome) {
+      avm_internal_error(
+          &cm->error, AVM_CODEC_CORRUPT_FRAME,
+          "Monochrome flag mismatch in decoded frame hash metadata");
+      return -1;
+    }
     for (int i = 0; i < num_planes; ++i) {
       PlaneHash *plane = &frame_hash->plane[i];
       for (size_t j = 0; j < 16; ++j)
