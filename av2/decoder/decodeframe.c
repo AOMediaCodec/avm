@@ -7310,6 +7310,18 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
         "%d, yet max_mlayer_id in the sequence header is %d.",
         cm->mlayer_id, cm->seq_params.max_mlayer_id);
   }
+
+  if ((obu_type == OBU_CLK || obu_type == OBU_OLK) &&
+      (pbi->ci_and_key_per_layer[cm->mlayer_id] == 0)) {
+    for (int ref_layer_id = 0; ref_layer_id < cm->mlayer_id; ref_layer_id++) {
+      if (cm->seq_params.mlayer_dependency_map[cm->mlayer_id][ref_layer_id]) {
+        cm->ci_params_per_layer[cm->mlayer_id] =
+            cm->ci_params_per_layer[ref_layer_id];
+        break;
+      }
+    }
+  }
+
   const int num_planes = av2_num_planes(cm);
   for (int qm_pos = 0; qm_pos < NUM_CUSTOM_QMS; qm_pos++) {
     // qm_protected[qm_pos] == 1 indicates the pbi->qm_list[qm_pos] is signalled
