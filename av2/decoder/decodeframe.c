@@ -6175,36 +6175,6 @@ static void read_seg_syntax_info(struct SegmentationInfoSyntax *seg_params,
   av2_calculate_segdata_from_syntax(seg_params);
 }
 
-/*static void read_seg_syntax_info_to_segmentation(struct segmentation *seg,
-struct avm_read_bit_buffer *rb) {
-
-  const int max_seg_num = seg->enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
-  av2_clearall_segfeatures(seg);
-
-  for (int i = 0; i < max_seg_num; i++) {
-    for (int j = 0; j < SEG_LVL_MAX; j++) {
-       int data = 0;
-        const int feature_enabled = avm_rb_read_bit(rb);
-          if (feature_enabled) {
-            av2_enable_segfeature(seg, i, j);
-            const int data_max = av2_seg_feature_data_max(j);
-            const int data_min = -data_max;
-            const int ubits = get_unsigned_bits(data_max);
-
-          if (av2_is_segfeature_signed(j)) {
-            data = avm_rb_read_inv_signed_literal(rb, ubits);
-          } else {
-            data = avm_rb_read_literal(rb, ubits);
-          }
-          data = clamp(data, data_min, data_max);
-        }
-        av2_set_segdata(seg, i, j, data);
-      }
-    }
-
-    av2_calculate_segdata(seg);
-}*/
-
 void read_sequence_partition_group_tool_flags(struct SequenceHeader *seq_params,
                                               struct avm_read_bit_buffer *rb) {
   setup_seq_sb_size(seq_params, rb);
