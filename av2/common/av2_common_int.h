@@ -67,8 +67,6 @@ extern "C" {
 #define DELTA_DCQUANT_MAX (1 << (DELTA_DCQUANT_BITS - 2))
 #define DELTA_DCQUANT_MIN (DELTA_DCQUANT_MAX - (1 << DELTA_DCQUANT_BITS) + 1)
 
-#define DEBUG_EXTQUANT 0
-
 #define PRIMARY_REF_BITS MAX_REFS_PER_FRAME_LOG2
 #define PRIMARY_REF_NONE INTER_REFS_PER_FRAME
 
@@ -2705,11 +2703,6 @@ typedef struct AV2Common {
   int64_t txcoeff_cost_timer;
   int64_t txcoeff_cost_count;
 #endif  // TXCOEFF_COST_TIMER
-
-#if DEBUG_EXTQUANT
-  FILE *fEncCoeffLog;
-  FILE *fDecCoeffLog;
-#endif
 
 #if CONFIG_PARAKIT_COLLECT_DATA
   ProbModelInfo prob_models[MAX_NUM_CTX_GROUPS];

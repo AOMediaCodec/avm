@@ -1339,10 +1339,6 @@ AV2_COMP *av2_create_compressor(AV2EncoderConfig *oxcf, BufferPool *const pool,
     return 0;
   }
 
-#if DEBUG_EXTQUANT
-  cm->fEncCoeffLog = fopen("EncCoeffLog.txt", "wt");
-#endif
-
   cm->error.setjmp = 1;
   cpi->lap_enabled = num_lap_buffers > 0;
   cpi->compressor_stage = stage;
@@ -1810,11 +1806,6 @@ void av2_remove_compressor(AV2_COMP *cpi) {
   av2_remove_common(cm);
   av2_free_ref_frame_buffers(cm->buffer_pool);
 
-#if DEBUG_EXTQUANT
-  if (cpi->common.fEncCoeffLog != NULL) {
-    fclose(cpi->common.fEncCoeffLog);
-  }
-#endif
   avm_free(cpi->subgop_config_str);
   avm_free(cpi->subgop_config_path);
   avm_free(cpi);

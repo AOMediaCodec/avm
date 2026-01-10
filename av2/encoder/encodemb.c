@@ -1377,25 +1377,12 @@ void av2_encode_block_intra(int plane, int block, int blk_row, int blk_col,
 
   TX_TYPE tx_type = DCT_DCT;
   const int bw = mi_size_wide[plane_bsize];
-#if DEBUG_EXTQUANT
-  if (args->dry_run == OUTPUT_ENABLED) {
-    fprintf(cm->fEncCoeffLog,
-            "\nmi_row = %d, mi_col = %d, blk_row = %d,"
-            " blk_col = %d, plane = %d, tx_size = %d ",
-            xd->mi_row, xd->mi_col, blk_row, blk_col, plane, tx_size);
-  }
-#endif
 
   if (plane == 0 && is_blk_skip(x->txfm_search_info.blk_skip[plane],
                                 blk_row * bw + blk_col)) {
     *eob = 0;
     *bob_code = 0;
     p->txb_entropy_ctx[block] = 0;
-#if DEBUG_EXTQUANT
-    if (args->dry_run == OUTPUT_ENABLED) {
-      fprintf(cm->fEncCoeffLog, "tx_type = %d, eob = %d", tx_type, *eob);
-    }
-#endif
 
   } else {
     const ENTROPY_CONTEXT *a = &args->ta[blk_col];
@@ -1434,15 +1421,6 @@ void av2_encode_block_intra(int plane, int block, int blk_row, int blk_col,
         cm->features.allow_parity_hiding && !xd->lossless[mbmi->segment_id] &&
         plane == PLANE_TYPE_Y &&
         ph_allowed_tx_types[get_primary_tx_type(tx_type)] && (*eob > PHTHRESH);
-#if DEBUG_EXTQUANT
-    if (args->dry_run == OUTPUT_ENABLED) {
-      fprintf(cm->fEncCoeffLog, "tx_type = %d, eob = %d\n", tx_type, *eob);
-      for (int c = 0; c < tx_size_wide[tx_size] * tx_size_high[tx_size]; c++) {
-        fprintf(cm->fEncCoeffLog, "%d  ", dqcoeff[c]);
-      }
-      fprintf(cm->fEncCoeffLog, "\n\n");
-    }
-#endif
 
     // Settings for optimization type. NOTE: To set optimization type for all
     // intra frames, both `KEY_BLOCK_OPT_TYPE` and `INTRA_BLOCK_OPT_TYPE` should

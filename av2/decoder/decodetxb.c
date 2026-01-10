@@ -698,13 +698,6 @@ uint8_t av2_read_coeffs_txb(const AV2_COMMON *const cm, DecoderCodingBlock *dcb,
   uint16_t *const eob = &(eob_data->eob);
   uint16_t *const max_scan_line = &(eob_data->max_scan_line);
 
-#if DEBUG_EXTQUANT
-  fprintf(cm->fDecCoeffLog,
-          "\nmi_row = %d, mi_col = %d, blk_row = %d,"
-          " blk_col = %d, plane = %d, tx_size = %d ",
-          xd->mi_row, xd->mi_col, blk_row, blk_col, plane, tx_size);
-#endif
-
   const TX_TYPE tx_type =
       av2_get_tx_type(xd, plane_type, blk_row, blk_col, tx_size,
                       is_reduced_tx_set_used(cm, plane_type));
@@ -732,10 +725,6 @@ uint8_t av2_read_coeffs_txb(const AV2_COMMON *const cm, DecoderCodingBlock *dcb,
   if (*eob > 1) {
     memset(levels_buf, 0, sizeof(*levels_buf) * TX_PAD_2D);
   }
-
-#if DEBUG_EXTQUANT
-  fprintf(cm->fDecCoeffLog, "tx_type = %d, eob = %d\n", tx_type, *eob);
-#endif
 
   int tcq_mode = tcq_enable(cm->features.tcq_mode,
                             xd->lossless[mbmi->segment_id], plane, tx_class);
@@ -980,13 +969,6 @@ uint8_t av2_read_coeffs_txb(const AV2_COMMON *const cm, DecoderCodingBlock *dcb,
       state = tcq_next_state(state, level);
     }
   }
-
-#if DEBUG_EXTQUANT
-  for (int c = 0; c < tx_size_wide[tx_size] * tx_size_high[tx_size]; c++) {
-    fprintf(cm->fDecCoeffLog, "%d  ", tcoeffs[c]);
-  }
-  fprintf(cm->fDecCoeffLog, "\n\n");
-#endif
 
   cul_level = AVMMIN(COEFF_CONTEXT_MASK, cul_level);
 

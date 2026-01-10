@@ -919,11 +919,6 @@ void av2_write_coeffs_txb(const AV2_COMMON *const cm, MACROBLOCK *const x,
       av2_get_tx_type(xd, plane_type, blk_row, blk_col, tx_size,
                       is_reduced_tx_set_used(cm, plane_type));
 
-#if DEBUG_EXTQUANT
-  fprintf(cm->fEncCoeffLog, "\nblk_row=%d,blk_col=%d,plane=%d,tx_size=%d",
-          blk_row, blk_col, plane, tx_size);
-#endif
-
   const TX_CLASS tx_class = tx_type_to_class[get_primary_tx_type(tx_type)];
   const int tcq_mode =
       tcq_enable(cm->features.tcq_mode, xd->lossless[xd->mi[0]->segment_id],
@@ -938,10 +933,6 @@ void av2_write_coeffs_txb(const AV2_COMMON *const cm, MACROBLOCK *const x,
               !xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART]))) {
     av2_write_sec_tx_type(cm, xd, tx_type, tx_size, eob, w);
   }
-
-#if DEBUG_EXTQUANT
-  fprintf(cm->fEncCoeffLog, "tx_type=%d, eob=%d\n", tx_type, eob);
-#endif
 
   uint8_t levels_buf[TX_PAD_2D];
   uint8_t *const levels = set_levels(levels_buf, width);
@@ -1153,15 +1144,6 @@ void av2_write_coeffs_txb(const AV2_COMMON *const cm, MACROBLOCK *const x,
       }
     }
   }
-
-#if DEBUG_EXTQUANT
-  for (int c = 0; c < eob; ++c) {
-    const tran_low_t v = tcoeff[scan[c]];
-    const tran_low_t level = abs(v);
-    fprintf(cm->fEncCoeffLog, "c=%d,pos=%d,level=%d,dq_coeff=%d\n", c, scan[c],
-            level, v);
-  }
-#endif
 
   int hr_level_avg = 0;
   // Loop to code all signs in the transform block,

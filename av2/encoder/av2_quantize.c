@@ -511,32 +511,6 @@ void av2_init_plane_quantizers(const AV2_COMP *cpi, MACROBLOCK *x,
   get_qindex_with_offsets(cm, x->qindex, xd->mi[0]->final_qindex_dc,
                           xd->mi[0]->final_qindex_ac);
 
-#if DEBUG_EXTQUANT
-  fprintf(cm->fEncCoeffLog, "\ninit_plane_quantizers\n");
-  fprintf(cm->fEncCoeffLog, "qindex = %d\n", qindex);
-  fprintf(cm->fEncCoeffLog, "\nquant_QTX = [%d, %d, %d]",
-          x->plane[0].quant_QTX[0], x->plane[1].quant_QTX[0],
-          x->plane[2].quant_QTX[0]);
-  fprintf(cm->fEncCoeffLog, "\nquant_fp_QTX = [%d, %d, %d]",
-          x->plane[0].quant_fp_QTX[0], x->plane[1].quant_fp_QTX[0],
-          x->plane[2].quant_fp_QTX[0]);
-  fprintf(cm->fEncCoeffLog, "\nround_fp_QTX = [%d, %d, %d]",
-          x->plane[0].round_fp_QTX[0], x->plane[1].round_fp_QTX[0],
-          x->plane[2].round_fp_QTX[0]);
-  fprintf(cm->fEncCoeffLog, "\nquant_shift_QTX = [%d, %d, %d]",
-          x->plane[0].quant_shift_QTX[0], x->plane[1].quant_shift_QTX[0],
-          x->plane[2].quant_shift_QTX[0]);
-  fprintf(cm->fEncCoeffLog, "\nzbin_QTX = [%d, %d, %d]",
-          x->plane[0].zbin_QTX[0], x->plane[1].zbin_QTX[0],
-          x->plane[2].zbin_QTX[0]);
-  fprintf(cm->fEncCoeffLog, "\nround_QTX = [%d, %d, %d]",
-          x->plane[0].round_QTX[0], x->plane[1].round_QTX[0],
-          x->plane[2].round_QTX[0]);
-  fprintf(cm->fEncCoeffLog, "\ndequant_QTX = [%d, %d, %d]\n",
-          x->plane[0].dequant_QTX[0], x->plane[1].dequant_QTX[0],
-          x->plane[2].dequant_QTX[0]);
-#endif
-
   MvCosts *mv_costs = &x->mv_costs;
   av2_set_error_per_bit(mv_costs, rdmult);
   av2_set_sad_per_bit(cpi, mv_costs, qindex);

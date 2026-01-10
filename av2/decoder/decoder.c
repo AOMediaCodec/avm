@@ -272,10 +272,6 @@ AV2Decoder *av2_decoder_create(BufferPool *const pool) {
     ci_params->ci_extension_present_flag = 0;
   }
 
-#if DEBUG_EXTQUANT
-  cm->fDecCoeffLog = fopen("DecCoeffLog.txt", "wt");
-#endif
-
 #if CONFIG_PARAKIT_COLLECT_DATA
 #include "av2/common/entropy_inits_coeffs.h"
 #include "av2/common/entropy_inits_modes.h"
@@ -455,12 +451,6 @@ void av2_decoder_remove(AV2Decoder *pbi) {
   av2_free_mc_tmp_buf(&pbi->td);
   av2_free_opfl_tmp_bufs(&pbi->td);
   avm_img_metadata_array_free(pbi->metadata);
-
-#if DEBUG_EXTQUANT
-  if (pbi->common.fDecCoeffLog != NULL) {
-    fclose(pbi->common.fDecCoeffLog);
-  }
-#endif
 
 #if CONFIG_PARAKIT_COLLECT_DATA
   for (int f = 0; f < MAX_NUM_CTX_GROUPS; f++) {
