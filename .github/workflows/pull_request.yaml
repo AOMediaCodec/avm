@@ -152,6 +152,35 @@ jobs:
             fi
           done
 
+  previous-build-x86_64-linux-gcc:
+    name: Previous Build (x86_64-linux-gcc)
+    uses: ./.github/workflows/build-job-reusable.yaml
+    needs:
+      - style-checks
+      - pr-checks
+      - test-data-checks
+      - vars
+    if: (!cancelled())
+    with:
+      avm-build-config: ${{ matrix.avm-build-config }}
+      parent-job-name: previous-build-x86_64-linux-gcc
+      runner: '["${{ needs.vars.outputs.runner }}"]'
+      container-image: ${{ needs.vars.outputs.container-image }}
+      show-github-context: true
+      extra-env-vars: |
+        DIFF_REF=${{ github.event.pull_request.base.sha }}
+        INSTALLROOT_FOLDER=installroot_old
+        # Allow build warnings.
+        EXTRA_CMAKE_FLAGS=-DENABLE_WERROR=0
+      before-script: |
+        #TODO: git fetch --unshallow
+        git checkout "${DIFF_REF}"
+      artifact-paths: /installroot_old
+    strategy:
+      matrix:
+        avm-build-config:
+          - encode-only
+
   test-data:
     name: Test Data
     uses: ./.github/workflows/common-test-data-reusable.yaml
