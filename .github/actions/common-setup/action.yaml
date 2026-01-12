@@ -1,0 +1,50 @@
+name: Workflows common setup
+description: Various common setup for workflows
+inputs:
+  show-github-context:
+    type: boolean
+    required: false
+    default: false
+  extra-env-vars:
+    type: string
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Fix 'detected dubious ownership in repository' git error
+      shell: bash
+      run: git config --global --add safe.directory "${GITHUB_WORKSPACE}"
+
+    - name: Set extra environment variables
+      shell: bash
+      run: |
+        echo "${{ inputs.extra-env-vars }}" | grep -Ev '(^#|^$)' >>${GITHUB_ENV} || true
+
+    - name: Show environment variables
+      shell: bash
+      run: |
+        printf -- "--------------------------------------------------\n"
+        env | sort -n
+        printf -- "--------------------------------------------------\n"
+
+    - name: Show GitHub context
+      shell: bash
+      run: |
+        if ${{ inputs.show-github-context }}; then
+          echo "${GITHUB_CONTEXT}"
+        fi
+      env:
+        GITHUB_CONTEXT: ${{ toJson(github) }}
+
+    - name: Add llvm to system PATH
+      shell: bash
+      run: echo "/usr/lib/llvm-18/bin" >>${GITHUB_PATH}
+
+    - name: Show DIFF_REF if set
+      shell: bash
+      run: |
+        if [ -n "${DIFF_REF:-}" ]; then
+          echo "Diff reference is ${DIFF_REF}"
+        fi
