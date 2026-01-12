@@ -1,0 +1,226 @@
+name: Sanitizer job reusable
+on:
+  workflow_call:
+    inputs:
+      avm-sanitizer-type:
+        type: string
+        required: true
+      runner:
+        type: string
+        default: '["self-hosted"]'
+        required: false
+      container-image:
+        type: string
+        default: docker-registry-internal.aom-infra.org/aomediacodec/aom-testing/ubuntu2404:lnicolas
+        required: false
+      max-total-shards:
+        type: number
+        required: false
+        default: 0
+      show-github-context:
+        type: boolean
+        required: false
+        default: false
+      extra-env-vars:
+        type: string
+        required: false
+        default: ""
+      before-script:
+        type: string
+        required: false
+        default: "# No before-script specified."
+      use-large-tests:
+        type: boolean
+        required: false
+        default: false
+      timeout-minutes:
+        type: number
+        required: false
+        default: 1200
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  sanitizer:
+    name: ${{ inputs.avm-sanitizer-type }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    runs-on: ${{ fromJson(inputs.runner) }}
+    container:
+      image: ${{ inputs.container-image }}
+      options: --privileged
+    env:
+      LIBAVM_TEST_DATA_PATH: ${{ github.workspace }}/libavm-test-data
+      SANITIZER_OPTIONS: "\
+        :handle_segv=1\
+        :handle_abort=1\
+        :handle_sigfpe=1\
+        :fast_unwind_on_fatal=1\
+        :allocator_may_return_null=1"
+      AVM_SANITIZER_TYPE: ${{ inputs.avm-sanitizer-type }}
+      USE_LARGE_TESTS: ${{ inputs.use-large-tests }}
+    steps:
+      - uses: actions/checkout@v4.1.0
+        with:
+          fetch-depth: 50
+          lfs: true
+
+      - uses: ./.github/actions/common-setup
+        with:
+          show-github-context: ${{ inputs.show-github-context }}
+          extra-env-vars: ${{ inputs.extra-env-vars }}
+
+      - name: Get sanitizer build
+        uses: actions/download-artifact@v5
+        with:
+          name: avm-sanitizers-${{ inputs.avm-sanitizer-type }}
+
+      - name: Get test data
+        uses: actions/download-artifact@v5
+        with:
+          name: test-data
+          path: libavm-test-data
+
+      - name: Fix executable bit permissions
+        run: |
+          # See https://github.com/actions/upload-artifact/issues/38 for details about why we need this
+
+          # Look for files starting with ELF header and set executable but
+          for file in $(find avm_build/ -type f); do
+            if grep --quiet --binary --text --perl-regexp "^\x7f\x45\x4c\x46" "${file}"; then
+              echo "Found binary ${file}, fixing permissions."
+              chmod a+x "${file}"
+            fi
+          done
+
+      - name: Run before-script
+        run: ${{ inputs.before-script }}
+
+      - name: Run sanitizer
+        run: |
+          if [ -z "${AVM_SANITIZER_TYPE}" ]; then
+            echo "AVM_SANITIZER_TYPE is not set." >&2
+            exit 1
+          fi
+
+          case ${AVM_SANITIZER_TYPE} in
+            address)
+              SANITIZER_OPTIONS="${SANITIZER_OPTIONS}:detect_stack_use_after_return=1"
+              SANITIZER_OPTIONS="${SANITIZER_OPTIONS}:max_uar_stack_size_log=17"
+              export ASAN_OPTIONS="${SANITIZER_OPTIONS}"
+              ;;
+            memory)
+              MSAN_OPTIONS="${SANITIZER_OPTIONS}"
+              export MSAN_OPTIONS
+
+              # use msan-enabled libs
+              export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/usr/lib/llvm-18-msan/lib"
+              ;;
+            thread)
+              # The thread sanitizer uses a subset.
+              TSAN_OPTIONS="handle_sigfpe=1"
+              TSAN_OPTIONS="${TSAN_OPTIONS} handle_segv=1"
+              TSAN_OPTIONS="${TSAN_OPTIONS} handle_abort=1"
+              export TSAN_OPTIONS
+              ;;
+            undefined|integer)
+              SANITIZER_OPTIONS="${SANITIZER_OPTIONS}:print_stacktrace=1"
+              SANITIZER_OPTIONS="${SANITIZER_OPTIONS}:report_error_type=1"  # TODO: this was not set in gitlab's nightly, is there a problem to keep it ?
+              SANITIZER_OPTIONS="${SANITIZER_OPTIONS}:suppressions=.gitlab/UBSan.supp"
+              export UBSAN_OPTIONS="${SANITIZER_OPTIONS}"
+              ;;
+          esac
+
+          if [ "${USE_LARGE_TESTS}" = "true" ]; then
+            filter="*Large*"
+          else
+            filter="-*Large*:*MD5Test*:*TestVectorTest*:*InvalidFile*:*ExternalFrameBuffer*"
+          fi
+
+          case "${AVM_SANITIZER_TYPE}" in
+            thread)
+              [ "${USE_LARGE_TESTS}" = "true" ] && filter="*Thread*Large*" || filter="*Thread*:${filter}"
+              ;;
+            memory)
+              filter="-*Large*:*MD5Test*:*TestVectorTest*:*InvalidFile*:*ExternalFrameBuffer*:*UninstantiatedParameterizedTestSuite*"
+              ;;
+          esac
+
+          echo "Using filter: ${filter}"
+
+          # Save sanitizer settings for debugging
+          cat >sanitizer.env <<EOF
+          export LIBAVM_TEST_DATA_PATH="${LIBAVM_TEST_DATA_PATH:-}"
+          export AVM_SANITIZER_TYPE="${AVM_SANITIZER_TYPE:-}"
+          export SANITIZER_OPTIONS="${SANITIZER_OPTIONS:-}"
+          export ASAN_OPTIONS="${ASAN_OPTIONS:-}"
+          export MSAN_OPTIONS="${MSAN_OPTIONS:-}"
+          export TSAN_OPTIONS="${TSAN_OPTIONS:-}"
+          export UBSAN_OPTIONS="${UBSAN_OPTIONS:-}"
+          export filter="${filter:-}"
+
+          if [ -n "${LD_LIBRARY_PATH:-}"]; then
+            export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}"
+          fi
+
+          # You can re-run test using:
+          #
+          # #~ . ./sanitizer.env
+          # #~ ./avm_build/\${AVM_SANITIZER_TYPE}/test_libavm --gtest_filter="\${filter}"
+          EOF
+
+          cpu_cores=$(nproc)
+          total_shards=$((2*cpu_cores))
+          commands=/tmp/parallel.commands.$$
+
+          if [ "${{ inputs.max-total-shards }}" -ne 0 -a "${total_shards}" -gt "${{ inputs.max-total-shards }}" ]; then
+            echo "warning: forcing total shards to ${{ inputs.max-total-shards }}" >&2
+            total_shards=${{ inputs.max-total-shards }}
+          fi
+
+          printf "" >${commands}
+
+          for id in $(seq 0 $((total_shards-1))); do
+            echo "GTEST_TOTAL_SHARDS=${total_shards} GTEST_SHARD_INDEX=${id} GTEST_OUTPUT=xml:report.${id}.xml ./avm_build/${AVM_SANITIZER_TYPE}/test_libavm --gtest_filter=\"${filter}\" 2> >(tee -a sanitizer.${id}.log >&2)" >>${commands}
+          done
+
+          cat ${commands}
+          time parallel --line-buffer --memfree 10G --memsuspend 4G --load 100% --delay 3 --shuf < ${commands} || true
+
+          for logfile in sanitizer.*.log; do
+            # Delete empty log
+            if [ ! -s ${logfile} ]; then
+              rm -vf ${logfile}
+              continue
+            fi
+
+            # Looking for sanitizer output in log...
+            grep -q "\(ERROR\|WARNING\): \(Address\|Thread\|Memory\|Leak\)Sanitizer:" ${logfile} && {
+              echo "Found sanitizer errors or warnings, check the ${logfile} log below:"
+              cat ${logfile}
+              echo "You may reproduce sanitizer builds and tests by following instructions below: "
+              echo "https://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#build-unit-tests-with-sanitizers and"
+              echo "https://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#run-unit-tests-with-sanitizers"
+              exit 1
+            }
+
+            # Looking for UBSan output in log (differs from the common format)
+            grep -q ":[[:digit:]]\+:[[:digit:]]\+: runtime error:" ${logfile} && {
+              echo "Found sanitizer errors or warnings, check the ${logfile} log below:"
+              cat ${logfile}
+              echo "You may reproduce sanitizer builds and tests by following instructions below: "
+              echo "https://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#build-unit-tests-with-sanitizers and"
+              echo "https://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#run-unit-tests-with-sanitizers"
+              exit 1
+            }
+          done
+
+          echo "No sanitizer errors found"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4.1.0
+        if: ${{ failure() }}
+        with:
+          name: sanitizer-${{ inputs.avm-sanitizer-type }}-logs
+          path: sanitizer.*.log
