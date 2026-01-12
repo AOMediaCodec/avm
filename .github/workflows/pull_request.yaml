@@ -161,3 +161,17 @@ jobs:
     with:
       runner: '["${{ needs.vars.outputs.runner }}"]'
       container-image: ${{ needs.vars.outputs.container-image }}
+
+  common-builds:
+    name: Common Builds
+    uses: ./.github/workflows/common-builds-reusable.yaml
+    needs:
+      - style-checks
+      - pr-checks
+      - test-data-checks
+      - vars
+    if: (!cancelled())
+    with:
+      runner: '["${{ needs.vars.outputs.runner }}"]'
+      container-image: ${{ needs.vars.outputs.container-image }}
+      container-image-multilib: ${{ needs.vars.outputs.container-image-multilib }}
