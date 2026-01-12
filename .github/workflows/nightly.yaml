@@ -1,6 +1,8 @@
 name: Nightly
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "0 4 * * *"  # 4am UTC / 8pm PST
 
 defaults:
   run:
