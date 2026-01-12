@@ -6598,16 +6598,8 @@ static size_t write_temporal_point_info_metadata(AV2_COMP *const cpi,
   unsigned char payload[5];  // Max 5 + 32 = 37 bits = 5 bytes
   struct avm_write_bit_buffer wb = { payload, 0 };
 
-#if CONFIG_CWG_F452
   avm_wb_write_uleb(
       &wb, cm->temporal_point_info_metadata.mtpi_frame_presentation_time);
-#else
-  int n = cm->temporal_point_info_metadata.mtpi_frame_presentation_length - 1;
-  avm_wb_write_unsigned_literal(&wb, n, 5);
-  avm_wb_write_unsigned_literal(
-      &wb, cm->temporal_point_info_metadata.mtpi_frame_presentation_time,
-      n + 1);
-#endif  // CONFIG_CWG_F452
 
   // Calculate actual payload size in bytes
   size_t payload_size = avm_wb_bytes_written(&wb);

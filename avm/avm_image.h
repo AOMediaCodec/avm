@@ -296,9 +296,6 @@ typedef struct avm_metadata_pic_struct_t {
 typedef struct avm_metadata_temporal_point_info_t {
   uint32_t mtpi_frame_presentation_time; /**< Frame presentation time in clock
                                             ticks*/
-#if !CONFIG_CWG_F452
-  int mtpi_frame_presentation_length; /**< Frame presentation time length*/
-#endif                                // !CONFIG_CWG_F452
 } avm_metadata_temporal_point_info_t;
 
 /*!\brief Metadata persistence behavior
