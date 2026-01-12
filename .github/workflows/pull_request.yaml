@@ -1,0 +1,163 @@
+name: Pull Request
+on:
+  pull_request:
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: pr-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # This job is a hack because GitHub doesn't support referencing env vars for setting runners or container image
+  # See https://github.com/orgs/community/discussions/26324
+  vars:
+    name: Set common variables
+    runs-on: ubuntu-latest
+    outputs:
+      runner: self-hosted
+      container-image: docker-registry-internal.aom-infra.org/aomediacodec/aom-testing/ubuntu2404:lnicolas
+      container-image-multilib: docker-registry-internal.aom-infra.org/aomediacodec/aom-testing/ubuntu2404-multilib:lnicolas
+      timeout-minutes: 660
+    steps:
+      - name: Do nothing
+        run: |
+          echo noop
+
+  style-checks:
+    name: Style Checks
+    if: (!cancelled())
+    needs:
+      - vars
+    timeout-minutes: ${{ fromJson(needs.vars.outputs.timeout-minutes) }}
+    runs-on: ${{ needs.vars.outputs.runner }}
+    container:
+      image: ${{ needs.vars.outputs.container-image }}
+    env:
+      DIFF_REF: ${{ github.event.pull_request.base.sha }}
+    steps:
+      - uses: actions/checkout@v4.1.0
+        with:
+          fetch-depth: 50
+          lfs: true
+
+      - uses: ./.github/actions/common-setup
+
+      - name: Run clang-format
+        run: |
+          echo "lang-format version: $(clang-format --version)"
+
+          # Run clang-format check.
+          for f in $(git diff --diff-filter=ACMR --name-only ${DIFF_REF} '*.[hc]pp' '*.cc' '*.[ch]' | grep -v third_party); do
+            exit_code=0
+            clang-format -i --style=file $f -n -Werror || exit_code=$?
+            if [ ${exit_code} -ne 0 ]; then
+              echo -e "\e[31mPlease format your code by following instructions here:\e[0m"
+              echo -e "\e[31mREDACTED://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#style-check\e[0m"
+              exit 1
+            fi
+          done
+
+      - name: Run cmake-format
+        run: |
+          echo "cmake-format version: $(cmake-format --version)"
+
+          # Run cmake-format check.
+          for f in $(git diff --diff-filter=ACMR --name-only ${DIFF_REF} '*.cmake' 'CMakeLists.txt' | grep -v third_party); do
+            exit_code=0
+            cmake-format --check $f || exit_code=$?
+            if [ ${exit_code} -ne 0 ]; then
+              echo -e "\e[31mPlease format your code by following instructions here:\e[0m"
+              echo -e "\e[31mREDACTED://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#style-check\e[0m"
+              exit 1
+            fi
+          done
+
+  pr-checks:
+    name: PR Checks
+    if: (!cancelled())
+    needs:
+      - vars
+    timeout-minutes: ${{ fromJson(needs.vars.outputs.timeout-minutes) }}
+    runs-on: ${{ needs.vars.outputs.runner }}
+    container:
+      image: ${{ needs.vars.outputs.container-image }}
+    env:
+      DIFF_REF: ${{ github.event.pull_request.base.sha }}
+    steps:
+      - uses: actions/checkout@v4.1.0
+        with:
+          fetch-depth: 50
+          lfs: true
+
+      - uses: ./.github/actions/common-setup
+
+      - name: Validate files with the executable bit set
+        run: |
+          echo lol=${{ github.ref }}
+          git diff "${DIFF_REF}" --check
+
+          # Validate files with the executable bit set
+          files=$(git diff --name-only "${DIFF_REF}" | tr '\n' ' ')
+          git ls-tree -r HEAD $files | while read mode type sha1 file; do
+            if [ "$mode" = "100755" ]; then
+              case "$file" in
+                configure|*.php|*.pl|*.py|*.sh)
+                  ;;
+                *)
+                  echo "File $file should not be executable."
+                  echo "Only configure|*.php|*.pl|*.py|*.sh are accepted."
+                  exit 1
+                  ;;
+              esac
+            fi
+          done
+
+  test-data-checks:
+    name: Test Data Checks
+    if: (!cancelled())
+    needs:
+      - vars
+    timeout-minutes: ${{ fromJson(needs.vars.outputs.timeout-minutes) }}
+    runs-on: ${{ needs.vars.outputs.runner }}
+    container:
+      image: ${{ needs.vars.outputs.container-image }}
+    env:
+      DIFF_REF: ${{ github.event.pull_request.base.sha }}
+    steps:
+      - uses: actions/checkout@v4.1.0
+        with:
+          fetch-depth: 50
+          lfs: true
+
+      - uses: ./.github/actions/common-setup
+
+      - name: Ensure added test files add declared in test data
+        run: |
+          # TODO: replace this test with a proper job/rule filter
+          if [ -z "$(git diff ${DIFF_REF} "test/")" ]; then
+            echo "No test file added."
+            exit 0
+          fi
+          ADDED_TEST_FILES="$(git diff ${DIFF_REF} "test/" \
+            | perl -ne  '/^\+.*?"((?!\$).*?\.(ivf|webm|res|mkv|y4m|yuv))"/g and print "$1\n"')" \
+          printf "Checking for files:\n%s\n\n" "$ADDED_TEST_FILES"
+          echo "$ADDED_TEST_FILES" | while read -r f; do
+            if [ -n "$(grep -L "${f}"  test/test-data.sha1 test/test_data_util.cmake)" ]; then
+              echo "file: ${f} was not found in test-data.sha1 or test_data_util.cmake"
+              exit 1
+            fi
+          done
+
+  test-data:
+    name: Test Data
+    uses: ./.github/workflows/common-test-data-reusable.yaml
+    needs:
+      - vars
+    if: (!cancelled())
+    with:
+      runner: '["${{ needs.vars.outputs.runner }}"]'
+      container-image: ${{ needs.vars.outputs.container-image }}
