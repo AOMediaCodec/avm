@@ -403,3 +403,39 @@ jobs:
         analyzer-mode:
           - deep
           - shallow
+
+  so-checks:
+    name: SO checks
+    needs:
+      - common-builds
+      - vars
+    if: (!cancelled())
+    timeout-minutes: ${{ fromJson(needs.vars.outputs.timeout-minutes) }}
+    runs-on: ${{ needs.vars.outputs.runner }}
+    container:
+      image: ${{ needs.vars.outputs.container-image }}
+    steps:
+      - name: Pull build
+        uses: actions/download-artifact@v5
+        with:
+          name: build-x86_64-linux-gcc-shared
+
+      - name: Check SO
+        run: |
+          for so in $(find -name '*.so*'); do
+            echo "Checking ${so} for textrels..."
+            if readelf -dW ${so} | grep TEXTREL; then
+              textrels=$(eu-findtextrel ${so} | sort | uniq)
+              if [ -n "${textrels}" ]; then
+                echo "${textrels}"
+                exit 1
+              fi
+            fi
+
+            echo "Checking ${so} ELF header/section headers..."
+            if readelf -lW ${so} | grep WE; then
+              echo "Invalid ELF header/section headers"
+              echo "https://android.googlesource.com/platform/bionic/+/master/android-changes-for-ndk-developers.md#Writable-and-Executable-Segments-Enforced-for-API-level-26"
+              exit 1
+            fi
+          done
