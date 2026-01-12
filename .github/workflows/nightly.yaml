@@ -142,6 +142,7 @@ jobs:
     name: Linux All Unit Tests
     needs:
       - linux-build-nightly
+      - linux-unit-optim  # ensure unit tests are started last, so very long jobs like GOP encode or sanitizers are getting a runner slot ASAP
       - test-data
       - vars
     if: (!cancelled())
