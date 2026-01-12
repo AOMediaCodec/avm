@@ -1,0 +1,47 @@
+name: Common Test Data
+on:
+  workflow_call:
+    inputs:
+      runner:
+        type: string
+        default: '["self-hosted"]'
+        required: false
+      container-image:
+        type: string
+        default: docker-registry-internal.aom-infra.org/aomediacodec/aom-testing/ubuntu2404:lnicolas
+        required: false
+      timeout-minutes:
+        type: number
+        required: false
+        default: 660
+
+jobs:
+  test-data:
+    name: Test Data
+    if: (!cancelled())
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    runs-on: ${{ fromJson(inputs.runner) }}
+    container:
+      image: ${{ inputs.container-image }}
+    env:
+      LIBAVM_TEST_DATA_PATH: ${{ github.workspace }}/libavm-test-data
+    steps:
+      - uses: actions/checkout@v4.1.0
+        with:
+          fetch-depth: 50
+          lfs: true
+
+      - uses: ./.github/actions/common-setup
+
+      - name: Build test data
+        run: |
+          cmake -B avm_testdata -GNinja -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+          cmake --build avm_testdata --target testdata
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4.1.0
+        if: success()
+        with:
+          name: "${{ github.job }}"
+          retention-days: 1
+          path: libavm-test-data
