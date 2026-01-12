@@ -62,6 +62,7 @@ implicit-integer-sign-change:*/avm/*
 unsigned-integer-overflow:*/tensorflow/*
 unsigned-integer-overflow:*/XNNPACK/*
 unsigned-integer-overflow:*/cpuinfo/*
+implicit-signed-integer-truncation:*/XNNPACK/*
 shift-base:*/tensorflow/*
 function:*/XNNPACK/*
 function:*/cpuinfo/*
