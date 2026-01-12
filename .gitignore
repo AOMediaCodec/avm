@@ -17,3 +17,8 @@ ParaKit/binaries/*
 parakit.egg-info/
 .DS_Store
 .idea/
+
+# Vim swap files
+*.swp
+*.swn
+*.swo
