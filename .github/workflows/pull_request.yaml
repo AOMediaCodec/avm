@@ -204,3 +204,122 @@ jobs:
       runner: '["${{ needs.vars.outputs.runner }}"]'
       container-image: ${{ needs.vars.outputs.container-image }}
       container-image-multilib: ${{ needs.vars.outputs.container-image-multilib }}
+
+  example-test-x86_64-gcc:
+    name: Example Test (x86_64-gcc)
+    needs:
+      - common-builds
+      - test-data
+      - vars
+    if: (!cancelled())
+    timeout-minutes: ${{ fromJson(needs.vars.outputs.timeout-minutes) }}
+    runs-on: ${{ needs.vars.outputs.runner }}
+    container:
+      image: ${{ needs.vars.outputs.container-image }}
+    env:
+      LIBAVM_TEST_DATA_PATH: ${{ github.workspace }}/libavm-test-data
+    steps:
+      - uses: actions/checkout@v4.1.0
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          lfs: true
+
+      - uses: ./.github/actions/common-setup
+
+      - name: Get test data
+        uses: actions/download-artifact@v5
+        with:
+          name: test-data
+          path: libavm-test-data
+
+      - name: Get example build
+        uses: actions/download-artifact@v5
+        with:
+          name: example-build
+          path: avm_example_build
+
+      - name: Fix executable bit permissions
+        run: |
+          # See https://github.com/actions/upload-artifact/issues/38 for details about why we need this
+
+          # Look for files starting with ELF header and set executable but
+          for file in $(find avm_example_build/ -type f); do
+            if grep --quiet --binary --text --perl-regexp "^\x7f\x45\x4c\x46" "${file}"; then
+              echo "Found binary ${file}, fixing permissions."
+              chmod a+x "${file}"
+            fi
+          done
+
+      - name: Run example test
+        run: |
+          cpu_cores=$(nproc)
+          commands=/tmp/parallel.commands.$$
+
+          printf "" >${commands}
+
+          cd avm_example_build
+          for test in $(../test/examples.sh --list-tests); do
+            echo "sh ../test/examples.sh --bin-path examples --verbose --show-program-output --filter \"\b${test}\b\"" >>${commands}
+          done
+
+          cat ${commands}
+          time parallel --line-buffer --jobs ${cpu_cores} < ${commands}
+
+          if [ $? -ne 0 ]; then
+            echo "Failure running '${t}' example test, see log above for details!"
+            exit 1
+          fi
+
+  linux-sanitizer-test:
+    name: Linux Sanitizer Test
+    uses: ./.github/workflows/sanitizer-job-reusable.yaml
+    needs:
+      - common-builds
+      - vars
+    if: (!cancelled())
+    with:
+      avm-sanitizer-type: ${{ matrix.avm-sanitizer-type }}
+      max-total-shards: ${{ matrix.max-total-shards }}
+      runner: '["${{ needs.vars.outputs.runner }}"]'
+      container-image: ${{ needs.vars.outputs.container-image }}
+      show-github-context: true
+    strategy:
+      fail-fast: false
+      matrix:
+        avm-sanitizer-type:
+          - address
+          - integer
+          - thread
+          - undefined
+          # CFI Sanitizer commented for now, as lto build does not work
+          # - cfi
+        include:
+          # default to unlimited
+          - max-total-shards: 0
+
+  encdec-run:
+    name: Enc/Dec
+    uses: ./.github/workflows/encdec-job-reusable.yaml
+    needs:
+      - common-builds
+      - previous-build-x86_64-linux-gcc
+      - vars
+    if: (!cancelled())
+    with:
+      avm-enc-output: ${{ matrix.avm-enc-output }}
+      avm-enc-limit: ${{ matrix.avm-enc-limit }}
+      parent-job-name: encdec-run
+      runner: '["${{ needs.vars.outputs.runner }}"]'
+      container-image: ${{ needs.vars.outputs.container-image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        avm-enc-output:
+          - all-intra
+          - random-access
+          - low-delay
+        include:
+          - avm-enc-limit: 30
+          - avm-enc-limit: 15
+            avm-enc-output: all-intra
