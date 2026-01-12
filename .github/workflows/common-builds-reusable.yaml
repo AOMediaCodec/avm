@@ -1,0 +1,512 @@
+name: Common Build Jobs
+on:
+  workflow_call:
+    inputs:
+      runner:
+        type: string
+        default: '["self-hosted"]'
+        required: false
+      container-image:
+        type: string
+        default: docker-registry-internal.aom-infra.org/aomediacodec/aom-testing/ubuntu2404:lnicolas
+        required: false
+      container-image-multilib:
+        type: string
+        default: docker-registry-internal.aom-infra.org/aomediacodec/aom-testing/ubuntu2404-multilib:lnicolas
+        required: false
+      timeout-minutes:
+        type: number
+        required: false
+        default: 660
+
+jobs:
+  build-generic-gnu:
+    name: Build (generic-gnu)
+    uses: ./.github/workflows/build-job-reusable.yaml
+    if: (!cancelled())
+    with:
+      avm-build-config: ${{ matrix.avm-build-config }}
+      parent-job-name: build-generic-gnu
+      runner: ${{ inputs.runner }}
+      container-image: ${{ inputs.container-image }}
+      show-github-context: true
+      extra-env-vars: |
+        EXTRA_CMAKE_FLAGS=-DAVM_TARGET_CPU=generic
+    strategy:
+      matrix:
+        avm-build-config:
+          - internal-stats
+          - no-rtcd
+          - rtcd
+          - encode-only
+          - decode-only
+          - no-thread
+          - no-webm
+          - inspection-accounting
+          - no-examples
+
+  build-x86_64-linux-gcc:
+    name: Build (x86_64-linux-gcc)
+    uses: ./.github/workflows/build-job-reusable.yaml
+    if: (!cancelled())
+    with:
+      avm-build-config: ${{ matrix.avm-build-config }}
+      parent-job-name: build-x86_64-linux-gcc
+      runner: ${{ inputs.runner }}
+      container-image: ${{ inputs.container-image }}
+      show-github-context: true
+      artifact-paths: /installroot
+    strategy:
+      matrix:
+        avm-build-config:
+          - shared
+          - no-rtcd
+          - rtcd
+          - encode-only
+          - decode-only
+          - no-thread
+          - no-webm
+          - inspection-accounting
+          - nasm
+          - no-examples
+          - debug
+
+  build-entropy-stats:
+    name: Build (entropy-stats)
+    uses: ./.github/workflows/build-job-reusable.yaml
+    if: (!cancelled())
+    with:
+      avm-build-config: ${{ matrix.avm-build-config }}
+      parent-job-name: build-entropy-stats
+      runner: ${{ inputs.runner }}
+      container-image: ${{ inputs.container-image }}
+      show-github-context: true
+      extra-env-vars: |
+        # Allow build warnings.
+        EXTRA_CMAKE_FLAGS=-DENABLE_WERROR=0
+    strategy:
+      matrix:
+        avm-build-config:
+          - entropy-stats
+
+  build-bitstream-mismatch-debug:
+    name: Build (bitstream-mismatch-debug)
+    uses: ./.github/workflows/build-job-reusable.yaml
+    if: (!cancelled())
+    with:
+      avm-build-config: ${{ matrix.avm-build-config }}
+      parent-job-name: build-bitstream-mismatch-debug
+      runner: ${{ inputs.runner }}
+      container-image: ${{ inputs.container-image }}
+      show-github-context: true
+    strategy:
+      matrix:
+        avm-build-config:
+          - bitstream-mismatch-debug
+
+  build-x86-linux-gcc:
+    name: Build (x86-linux-gcc)
+    uses: ./.github/workflows/build-job-reusable.yaml
+    if: (!cancelled())
+    with:
+      avm-build-config: ${{ matrix.avm-build-config }}
+      parent-job-name: build-x86-linux-gcc
+      runner: ${{ inputs.runner }}
+      container-image: ${{ inputs.container-image-multilib }}
+      show-github-context: true
+      extra-env-vars: |
+        EXTRA_CMAKE_FLAGS=-DCMAKE_TOOLCHAIN_FILE=build/cmake/toolchains/x86-linux.cmake
+    strategy:
+      matrix:
+        avm-build-config:
+          - shared
+          - no-rtcd
+          - rtcd
+          - encode-only
+          - decode-only
+          - no-thread
+          - no-webm
+          - inspection-accounting
+          - nasm
+          - no-examples
+          - debug
+
+  build-aarch64-linux-gcc:
+    name: Build (aarch64-linux-gcc)
+    uses: ./.github/workflows/build-job-reusable.yaml
+    if: (!cancelled())
+    with:
+      avm-build-config: ${{ matrix.avm-build-config }}
+      parent-job-name: build-aarch64-linux-gcc
+      runner: ${{ inputs.runner }}
+      container-image: ${{ inputs.container-image }}
+      show-github-context: true
+      extra-env-vars: |
+        # Overwriting the default flags to disable Werror
+        CMAKE_FLAGS=-DENABLE_CCACHE=1 -DENABLE_DOCS=0 -DCONFIG_ML_PART_SPLIT=0 -DCONFIG_DIP_EXT_PRUNING=0 -DCMAKE_TOOLCHAIN_FILE=build/cmake/toolchains/arm64-linux-gcc.cmake
+    strategy:
+      matrix:
+        avm-build-config:
+          - shared
+          - no-rtcd
+          - rtcd
+          - encode-only
+          - decode-only
+          - no-thread
+          - no-webm
+          - inspection-accounting
+          - no-examples
+
+  build-armv7-linux-gcc:
+    name: Build (armv7-linux-gcc)
+    uses: ./.github/workflows/build-job-reusable.yaml
+    if: (!cancelled())
+    with:
+      avm-build-config: ${{ matrix.avm-build-config }}
+      parent-job-name: build-armv7-linux-gcc
+      runner: ${{ inputs.runner }}
+      container-image: ${{ inputs.container-image }}
+      show-github-context: true
+      extra-env-vars: |
+        # Overwriting the default flags to disable Werror
+        CMAKE_FLAGS=-DENABLE_CCACHE=1 -DENABLE_DOCS=0 -DCONFIG_ML_PART_SPLIT=0 -DCONFIG_DIP_EXT_PRUNING=0 -DCMAKE_TOOLCHAIN_FILE=build/cmake/toolchains/armv7-linux-gcc.cmake
+    strategy:
+      matrix:
+        avm-build-config:
+          - shared
+          - no-rtcd
+          - rtcd
+          - encode-only
+          - decode-only
+          - no-thread
+          - no-webm
+          - inspection-accounting
+          - no-examples
+
+  build-ppc-linux-gcc:
+    name: Build (ppc-linux-gcc)
+    uses: ./.github/workflows/build-job-reusable.yaml
+    if: (!cancelled())
+    with:
+      avm-build-config: ${{ matrix.avm-build-config }}
+      parent-job-name: build-ppc-linux-gcc
+      runner: ${{ inputs.runner }}
+      container-image: ${{ inputs.container-image }}
+      show-github-context: true
+      extra-env-vars: |
+        EXTRA_CMAKE_FLAGS=-DCONFIG_ML_PART_SPLIT=0 -DCONFIG_DIP_EXT_PRUNING=0 -DCROSS=powerpc64le-linux-gnu- -DCMAKE_TOOLCHAIN_FILE=build/cmake/toolchains/ppc-linux-gcc.cmake
+    strategy:
+      matrix:
+        avm-build-config:
+          - shared
+          - no-rtcd
+          - rtcd
+          - encode-only
+          - decode-only
+          - no-thread
+          - no-webm
+          - inspection-accounting
+          - nasm
+          - no-examples
+          - debug
+
+  build-x86-mingw-gcc:
+    name: Build (x86-mingw-gcc)
+    uses: ./.github/workflows/build-job-reusable.yaml
+    if: (!cancelled())
+    with:
+      avm-build-config: ${{ matrix.avm-build-config }}
+      parent-job-name: build-x86-mingw-gcc
+      runner: ${{ inputs.runner }}
+      container-image: ${{ inputs.container-image }}
+      show-github-context: true
+      extra-env-vars: |
+        EXTRA_CMAKE_FLAGS=-DCONFIG_ML_PART_SPLIT=0 -DCONFIG_DIP_EXT_PRUNING=0 -DCMAKE_TOOLCHAIN_FILE=build/cmake/toolchains/x86-mingw-gcc.cmake
+    strategy:
+      matrix:
+        avm-build-config:
+          - no-rtcd
+          - rtcd
+          - encode-only
+          - decode-only
+          - no-thread
+          - no-webm
+          - inspection-accounting
+          - nasm
+          - no-examples
+
+  build-x86_64-mingw-gcc:
+    name: Build (x86_64-mingw-gcc)
+    uses: ./.github/workflows/build-job-reusable.yaml
+    if: (!cancelled())
+    with:
+      avm-build-config: ${{ matrix.avm-build-config }}
+      parent-job-name: build-x86_64-mingw-gcc
+      runner: ${{ inputs.runner }}
+      container-image: ${{ inputs.container-image }}
+      show-github-context: true
+      extra-env-vars: |
+        EXTRA_CMAKE_FLAGS=-DCONFIG_ML_PART_SPLIT=0 -DCONFIG_DIP_EXT_PRUNING=0 -DCMAKE_TOOLCHAIN_FILE=build/cmake/toolchains/x86_64-mingw-gcc.cmake
+    strategy:
+      matrix:
+        avm-build-config:
+          - no-rtcd
+          - rtcd
+          - encode-only
+          - decode-only
+          - no-thread
+          - no-webm
+          - inspection-accounting
+          - nasm
+          - no-examples
+
+  build-x86_64-clang:
+    name: Build (x86_64-clang)
+    uses: ./.github/workflows/build-job-reusable.yaml
+    if: (!cancelled())
+    with:
+      avm-build-config: ${{ matrix.avm-build-config }}
+      parent-job-name: build-x86_64-clang
+      runner: ${{ inputs.runner }}
+      container-image: ${{ inputs.container-image }}
+      show-github-context: true
+      extra-env-vars: |
+        EXTRA_CMAKE_FLAGS=-DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+    strategy:
+      matrix:
+        avm-build-config:
+          - debug
+          - release
+
+  build-documentation:
+    name: Build Documentation
+    if: (!cancelled())
+    timeout-minutes: 660
+    runs-on: ${{ fromJson(inputs.runner) }}
+    container:
+      image: ${{ inputs.container-image }}
+    steps:
+      - uses: actions/checkout@v4.1.0
+        with:
+          fetch-depth: 50
+          lfs: true
+
+      - uses: ./.github/actions/common-setup
+
+      - name: Force doxygen warnings to be treated as errors
+        run: |
+          sed -i 's/WARN_AS_ERROR\s\+= NO/WARN_AS_ERROR        = YES/g'  libs.doxy_template
+
+      - name: Build documentation
+        run: |
+          cmake --version
+
+          # CMake 4.0.0 removed compatibility with CMake < 3.5. Add -DCMAKE_POLICY_VERSION_MINIMUM=3.5 to try configuring anyway.
+          cmake -B avm_docs_build -GNinja \
+              -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+              -DENABLE_DOCS=1 \
+              -DENABLE_EXAMPLES=0 \
+              -DBUILD_SHARED_LIBS=0 \
+              -DCMAKE_BUILD_TYPE=Debug
+
+          cmake --build avm_docs_build --target docs
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4.1.0
+        if: success()
+        with:
+          name: documentation
+          retention-days: 7
+          path: avm_docs_build/docs/
+
+  build-linux-sanitizers-x86_64-clang:
+    name: Build Linux Sanitizers (x86_64-clang)
+    if: (!cancelled())
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    runs-on: ${{ fromJson(inputs.runner) }}
+    container:
+      image: ${{ inputs.container-image }}
+    env:
+      AVM_SANITIZER_TYPE: ${{ matrix.avm-sanitizer-type }}
+      SANITIZER_IGNORES_FILE: .gitlab/SanitizerIgnores.txt
+      # CMake 4.0.0 removed compatibility with CMake < 3.5. Add
+      # -DCMAKE_POLICY_VERSION_MINIMUM=3.5 to try configuring anyway.
+      CMAKE_FLAGS: >-
+        -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+        -DENABLE_CCACHE=1
+        -DCMAKE_C_COMPILER=clang
+        -DCMAKE_CXX_COMPILER=clang++
+        -DENABLE_EXAMPLES=0
+      CCACHE_BASEDIR: ${{ github.workspace }}
+      CCACHE_DIR: ${{ github.workspace }}/ccache
+      CCACHE_COMPILERCHECK: content
+
+    steps:
+      - uses: actions/checkout@v4.1.0
+        with:
+          fetch-depth: 50
+          lfs: true
+
+      - uses: ./.github/actions/common-setup
+
+      - uses: actions/cache/restore@v4
+        with:
+          path: ccache
+          key: non-existent
+          restore-keys: |
+            ${{ github.job }}-${{ matrix.avm-sanitizer-type }}-
+
+      - name: Clear ccache stats
+        run: |
+          ccache --zero-stats
+          ccache --show-stats
+
+      - name: Build sanitizer
+        run: |
+          if [ "${AVM_SANITIZER_TYPE}" = "memory" ]; then
+            # Memory sanitizer must be built using an msan-enabled LLVM
+            LLVM_MSAN_DIR="/usr/lib/llvm-18-msan"
+
+            MSAN_CFLAGS="-fsanitize=memory -fsanitize-memory-track-origins=2"
+            MSAN_CFLAGS="${MSAN_CFLAGS} -fno-omit-frame-pointer -g -O2"
+            MSAN_CFLAGS="${MSAN_CFLAGS} -I${LLVM_MSAN_DIR}/include"
+
+            MSAN_CXXFLAGS="${MSAN_CFLAGS}"
+            MSAN_CXXFLAGS="${MSAN_CXXFLAGS} -I${LLVM_MSAN_DIR}/include/c++/v1"
+            MSAN_CXXFLAGS="${MSAN_CXXFLAGS} -stdlib=libc++"
+
+            MSAN_LD_FLAGS="${MSAN_CXXFLAGS} -L${LLVM_MSAN_DIR}/lib -lc++abi"
+
+            export CFLAGS="${MSAN_CFLAGS}"
+            export CXXFLAGS="${MSAN_CXXFLAGS}"
+            export LDFLAGS="${MSAN_LD_FLAGS}"
+
+            CMAKE_FLAGS="${CMAKE_FLAGS} -DAVM_TARGET_CPU=generic"
+
+          else
+            SANITIZER_BLACKLIST_FLAG="-fsanitize-blacklist=${PWD}/${SANITIZER_IGNORES_FILE}"
+
+            CMAKE_FLAGS="${CMAKE_FLAGS} -DSANITIZE=${AVM_SANITIZER_TYPE}"
+            CMAKE_FLAGS="${CMAKE_FLAGS} -DENABLE_ASSERTS=1"
+            CMAKE_FLAGS="${CMAKE_FLAGS} -DAVM_EXTRA_C_FLAGS=${SANITIZER_BLACKLIST_FLAG}"
+            CMAKE_FLAGS="${CMAKE_FLAGS} -DAVM_EXTRA_CXX_FLAGS=${SANITIZER_BLACKLIST_FLAG}"
+          fi
+
+          echo "CMake Flags: ${CMAKE_FLAGS}"
+
+          cmake -B "avm_build/${AVM_SANITIZER_TYPE}" -GNinja -DCMAKE_BUILD_TYPE=RelWithDebInfo ${CMAKE_FLAGS}
+
+          # TODO: check if this is still needed
+          # Special handling for a transient clang compiler crash
+          exit_code=0
+          cmake --build "avm_build/${AVM_SANITIZER_TYPE}" --target test_libavm 2>&1 | tee build.log || exit_code=$?
+
+          # Looking for clang compiler crash in log
+          compiler_crash_exit_code=135
+          grep -q "clang frontend command failed with exit code ${compiler_crash_exit_code}" build.log && {
+            echo "Compiler crashed with exit code ${compiler_crash_exit_code}"
+            echo "Saving diagnostic files and asking pipeline to retry..."
+            mkdir clang_diagnostic_files
+            cp /tmp/av2_config* clang_diagnostic_files/
+            exit ${compiler_crash_exit_code}
+          }
+          exit ${exit_code}
+
+      - name: Show ccache stats
+        run: |
+          ccache --show-stats
+
+      - uses: actions/cache/save@v4
+        with:
+          path: ccache
+          key: ${{ github.job }}-${{ matrix.avm-sanitizer-type }}-${{ github.run_id }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4.1.0
+        if: always()
+        with:
+          name: avm-sanitizers-${{ matrix.avm-sanitizer-type }}
+          retention-days: 1
+          path: |
+            avm_build/*/test_libavm
+            clang_diagnostic_files/*
+
+    strategy:
+      matrix:
+        avm-sanitizer-type:
+          - address
+          - undefined
+          - integer
+          - thread
+          - memory
+          # CFI Sanitizer commented for now, as lto build does not work
+          # - cfi
+
+  example-build-x86_64-gcc:
+    name: Example Build (x86_64-gcc)
+    if: (!cancelled())
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    runs-on: ${{ fromJson(inputs.runner) }}
+    container:
+      image: ${{ inputs.container-image }}
+    env:
+      CCACHE_BASEDIR: ${{ github.workspace }}
+      CCACHE_DIR: ${{ github.workspace }}/ccache
+      CCACHE_COMPILERCHECK: content
+    steps:
+      - uses: actions/checkout@v4.1.0
+        with:
+          fetch-depth: 50
+          fetch-tags: true
+          lfs: true
+
+      - uses: ./.github/actions/common-setup
+
+      - uses: actions/cache/restore@v4
+        with:
+          path: ccache
+          key: non-existent
+          restore-keys: |
+            ${{ github.job }}-
+
+      - name: Clear ccache stats
+        run: |
+          ccache --zero-stats
+          ccache --show-stats
+
+      - name: Build example
+        run: |
+          cmake --version
+
+          export CMAKE_BUILD_PARALLEL_LEVEL=24
+
+          # CMake 4.0.0 removed compatibility with CMake < 3.5. Add -DCMAKE_POLICY_VERSION_MINIMUM=3.5 to try configuring anyway.
+          cmake -B avm_example_build \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+            -DENABLE_ASSERTS=1 \
+            -DENABLE_EXAMPLES=1 \
+            -DBUILD_SHARED_LIBS=0
+
+          cmake --build avm_example_build
+
+      - name: Show ccache stats
+        run: |
+          ccache --show-stats
+
+      - uses: actions/cache/save@v4
+        with:
+          path: ccache
+          key: ${{ github.job }}-${{ github.run_id }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4.1.0
+        if: success()
+        with:
+          name: example-build
+          retention-days: 1
+          path: |
+            avm_example_build/avmenc
+            avm_example_build/avmdec
+            avm_example_build/config
+            avm_example_build/examples
+            avm_example_build/tools
