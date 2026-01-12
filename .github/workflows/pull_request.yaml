@@ -323,3 +323,83 @@ jobs:
           - avm-enc-limit: 30
           - avm-enc-limit: 15
             avm-enc-output: all-intra
+
+  static-analyzer:
+    name: Static Analyzer
+    needs:
+      - vars
+    if: (!cancelled())
+    timeout-minutes: ${{ fromJson(needs.vars.outputs.timeout-minutes) }}
+    runs-on: ${{ needs.vars.outputs.runner }}
+    container:
+      image: ${{ needs.vars.outputs.container-image }}
+    env:
+      ANALYZER_MODE: ${{ matrix.analyzer-mode }}
+    steps:
+      - uses: actions/checkout@v4.1.0
+        with:
+          fetch-depth: 50
+          fetch-tags: true
+          lfs: true
+
+      - uses: ./.github/actions/common-setup
+
+      - name: Analyze
+        run: |
+          mkdir analyzer-${ANALYZER_MODE}
+
+          scan_build() {
+            scan-build \
+              --exclude third_party \
+              --exclude _deps \
+              --exclude abseil-cpp \
+              --exclude benchmark \
+              --exclude cpuinfo \
+              --exclude eigen \
+              --exclude farmhash \
+              --exclude fft2d \
+              --exclude flatbuffers \
+              --exclude flatbuffers-flatc \
+              --exclude fp16 \
+              --exclude FP16 \
+              --exclude FXdiv \
+              --exclude psimd \
+              --exclude ml_dtypes \
+              --exclude neon2sse \
+              --exclude protobuf \
+              --exclude pthreadpool \
+              --exclude pthreadpool-source \
+              --exclude ruy \
+              --exclude xnnpack \
+              --exclude XNNPACK \
+              --exclude googletest \
+              -o analyzer-${ANALYZER_MODE} \
+              -analyzer-config mode=${ANALYZER_MODE} \
+              $*
+          }
+
+          # CMake 4.0.0 removed compatibility with CMake < 3.5. Add
+          # -DCMAKE_POLICY_VERSION_MINIMUM=3.5 to try configuring anyway.
+          scan_build cmake -B avm_build -GNinja -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_BUILD_TYPE=Debug
+          exit_code=0
+          scan_build --status-bugs cmake --build avm_build || exit_code=$?
+          if [ ${exit_code} -ne 0 ]; then
+            echo -e "\e[31mstatic analyzer HTML warning report can be browsed by following this wiki page:\e[0m"
+            echo -e "\e[31mhttps://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#viewing-static-analysis-report-from-gitlab-ci\e[0m"
+            exit 1
+          fi
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4.1.0
+        if: ${{ failure() }}
+        with:
+          name: analyzer-${{ matrix.analyzer-mode }}
+          path: analyzer-${{ matrix.analyzer-mode }}
+          retention-days: 14
+
+    strategy:
+      fail-fast: false
+      matrix:
+        analyzer-mode:
+          - deep
+          - shallow
