@@ -1,0 +1,627 @@
+name: Nightly
+on:
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: nightly-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # This job is a hack because GitHub doesn't support referencing env vars for setting runners or container image
+  # See https://github.com/orgs/community/discussions/26324
+  vars:
+    name: Set common variables
+    runs-on: ubuntu-latest
+    outputs:
+      runner: self-hosted
+      container-image: docker-registry-internal.aom-infra.org/aomediacodec/aom-testing/ubuntu2404:lnicolas
+      container-image-multilib: docker-registry-internal.aom-infra.org/aomediacodec/aom-testing/ubuntu2404-multilib:lnicolas
+      timeout-minutes: 660
+    steps:
+      - name: Do nothing
+        run: |
+          echo noop
+
+  test-data:
+    name: Test Data
+    uses: ./.github/workflows/common-test-data-reusable.yaml
+    needs:
+      - vars
+    if: (!cancelled())
+    with:
+      runner: '["${{ needs.vars.outputs.runner }}"]'
+      container-image: ${{ needs.vars.outputs.container-image }}
+
+  common-builds:
+    name: Common Builds
+    uses: ./.github/workflows/common-builds-reusable.yaml
+    needs:
+      - vars
+    if: (!cancelled())
+    with:
+      runner: '["${{ needs.vars.outputs.runner }}"]'
+      container-image: ${{ needs.vars.outputs.container-image }}
+      container-image-multilib: ${{ needs.vars.outputs.container-image-multilib }}
+
+  linux-build-nightly:
+    name: Linux Build Nightly
+    needs:
+      - common-builds
+      - vars
+    if: (!cancelled())
+    timeout-minutes: ${{ fromJson(needs.vars.outputs.timeout-minutes) }}
+    runs-on: ${{ needs.vars.outputs.runner }}
+    container:
+      image: ${{ needs.vars.outputs.container-image }}
+    env:
+      # CMake 4.0.0 removed compatibility with CMake < 3.5. Add
+      # -DCMAKE_POLICY_VERSION_MINIMUM=3.5 to try configuring anyway.
+      CMAKE_FLAGS: >-
+        -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+        -DENABLE_CCACHE=1
+        -DCMAKE_BUILD_TYPE=RelWithDebInfo
+        -DAVM_EXTRA_C_FLAGS="--coverage"
+        -DAVM_EXTRA_CXX_FLAGS="--coverage"
+        -DAVM_EXTRA_EXE_LINKER_FLAGS="--coverage"
+      CCACHE_BASEDIR: ${{ github.workspace }}
+      CCACHE_DIR: ${{ github.workspace }}/ccache
+      CCACHE_COMPILERCHECK: content
+
+    steps:
+      - uses: actions/checkout@v4.1.0
+        with:
+          fetch-depth: 50
+          lfs: true
+
+      - uses: ./.github/actions/common-setup
+
+      - uses: actions/cache/restore@v4
+        with:
+          path: ccache
+          key: non-existent
+          restore-keys: |
+            ${{ github.job }}-
+
+      - name: Clear ccache stats
+        run: |
+          ccache --zero-stats
+          ccache --show-stats
+
+      - name: Build
+        run: |
+          echo "CMake Flags: ${CMAKE_FLAGS}"
+
+          cmake -B avm_nightly_build -GNinja ${CMAKE_FLAGS}
+          cmake --build avm_nightly_build --target avmenc
+          cmake --build avm_nightly_build --target test_libavm
+
+      - name: Debug list
+        run: |
+          find avm_nightly_build -name '*.gc[dn][ao]'
+          tar cf debug.tar .
+
+      - name: Debug upload
+        uses: actions/upload-artifact@v4.1.0
+        if: always()
+        with:
+          name: ${{ github.job }}-debug
+          retention-days: 1
+          path: debug.tar
+
+      - name: Show ccache stats
+        run: |
+          ccache --show-stats
+
+      - uses: actions/cache/save@v4
+        with:
+          path: ccache
+          key: ${{ github.job }}-${{ github.run_id }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4.1.0
+        if: always()
+        with:
+          name: ${{ github.job }}
+          retention-days: 1
+          path: |
+            avm_nightly_build/avmenc
+            avm_nightly_build/test_libavm
+            avm_nightly_build/**/*.gcno
+            avm_nightly_build/**/*.[hc]
+            avm_nightly_build/**/*.[hc]pp
+            avm_nightly_build/**/*.cc
+            avm_nightly_build/**/*.inc
+
+  linux-all-unit-tests:
+    name: Linux All Unit Tests
+    needs:
+      - linux-build-nightly
+      - test-data
+      - vars
+    if: (!cancelled())
+    timeout-minutes: ${{ fromJson(needs.vars.outputs.timeout-minutes) }}
+    runs-on: ${{ needs.vars.outputs.runner }}
+    container:
+      image: ${{ needs.vars.outputs.container-image }}
+    env:
+      LIBAVM_TEST_DATA_PATH: ${{ github.workspace }}/libavm-test-data
+      GTEST_TOTAL_SHARDS: ${{ strategy.job-total }}
+      GTEST_SHARD_INDEX: ${{ strategy.job-index }}
+      GTEST_OUTPUT: xml:report.xml
+      MATRIX_JOB_TOTAL: 24
+      MATRIX_JOB_INDEX: ${{ matrix.parallel-runs }}
+
+    steps:
+      - uses: actions/checkout@v4.1.0
+        with:
+          fetch-depth: 50
+          lfs: true
+
+      - uses: ./.github/actions/common-setup
+
+      - name: Get nightly build
+        uses: actions/download-artifact@v5
+        with:
+          name: linux-build-nightly
+          path: avm_nightly_build
+
+      - name: Get test data
+        uses: actions/download-artifact@v5
+        with:
+          name: test-data
+          path: libavm-test-data
+
+      - name: Fix executable bit permissions
+        run: |
+          # See https://github.com/actions/upload-artifact/issues/38 for details about why we need this
+
+          # Look for files (with no extension) starting with ELF header and set executable bit
+          for file in $(find avm_nightly_build/ -type f ! -name "*.*"); do
+            if grep --quiet --binary --text --perl-regexp "^\x7f\x45\x4c\x46" "${file}"; then
+              echo "Found binary ${file}, fixing permissions."
+              chmod a+x "${file}"
+            fi
+          done
+
+      - name: Run tests
+        run: |
+          # Hack to support run local github actions via act
+          # See https://github.com/nektos/act/issues/5976
+          if [ "${ACT:-}" = "true" ]; then
+            export GTEST_TOTAL_SHARDS=${MATRIX_JOB_TOTAL:-20}
+            export GTEST_SHARD_INDEX=${MATRIX_JOB_INDEX}
+
+            # Ensure new environment variables persist in subsequent runs
+            echo "GTEST_TOTAL_SHARDS=${GTEST_TOTAL_SHARDS}" >>${GITHUB_ENV}
+            echo "GTEST_SHARD_INDEX=${GTEST_SHARD_INDEX}" >>${GITHUB_ENV}
+          fi
+
+          # Show job strategy
+          cat <<EOF
+          GTEST_TOTAL_SHARDS=${GTEST_TOTAL_SHARDS}
+          GTEST_SHARD_INDEX=${GTEST_SHARD_INDEX}
+
+          EOF
+
+          # Save sanitizer settings for debugging
+          cat >unittest.env <<EOF
+          export LIBAVM_TEST_DATA_PATH="${LIBAVM_TEST_DATA_PATH:-}"
+          export GTEST_TOTAL_SHARDS="${GTEST_TOTAL_SHARDS:-}"
+          export GTEST_SHARD_INDEX="${GTEST_SHARD_INDEX:-}"
+          export GTEST_OUTPUT="${GTEST_OUTPUT:-}"
+
+          # You can re-run test using:
+          #
+          # #~ . ./unittest.env
+          # #~ ./avm_nightly_build/test_libavm
+          EOF
+
+          cd avm_nightly_build
+          ./test_libavm
+
+      - name: Generate coverage report
+        run: |
+          # Ignore parse errors due to a bug in `gcovr 7.0`: https://github.com/gcovr/gcovr/issues/882
+          #
+          # Change behavior when to avoid aborting on 'Got function on multiple lines'
+          # by using the first line: https://gcovr.com/en/8.2/guide/merging.html
+          #
+          # Ignore errors about 'no_working_dir_found' because tarballs for third_party
+          # code (e.g. tensorflow and dependencies) are NOT extracted here and so the
+          # source files from those are NOT available.
+
+          cd avm_nightly_build
+          gcovr \
+            --merge-mode-functions=merge-use-line-min \
+            --gcov-executable gcov-14 \
+            --gcov-ignore-parse-errors \
+            --gcov-ignore-errors=no_working_dir_found \
+            --exclude ../third_party \
+            --exclude _deps \
+            --exclude abseil-cpp \
+            --exclude benchmark \
+            --exclude cpuinfo \
+            --exclude eigen \
+            --exclude farmhash \
+            --exclude fft2d \
+            --exclude flatbuffers \
+            --exclude flatbuffers-flatc \
+            --exclude fp16 \
+            --exclude FP16 \
+            --exclude FXdiv \
+            --exclude psimd \
+            --exclude ml_dtypes \
+            --exclude neon2sse \
+            --exclude protobuf \
+            --exclude pthreadpool \
+            --exclude pthreadpool-source \
+            --exclude ruy \
+            --exclude xnnpack \
+            --exclude XNNPACK \
+            --exclude gemmlowp \
+            --exclude googletest \
+            --exclude-directories third_party \
+            --exclude-directories avm_nightly_build/third_party \
+            --json \
+            --output coverage_${GTEST_SHARD_INDEX}.json \
+            --root ../ . \
+            >coverage_${GTEST_SHARD_INDEX}.log 2>&1
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4.1.0
+        if: always()
+        with:
+          name: ${{ github.job }}-${{ strategy.job-index }}
+          path: |
+            avm_nightly_build/report.xml
+            avm_nightly_build/coverage_*.json
+            avm_nightly_build/coverage_*.log
+
+    strategy:
+      fail-fast: false
+      matrix:
+        parallel-runs: [0, 1 , 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
+
+  linux-all-publish-results:
+    name: Linux All Publish Unit Tests Results
+    needs:
+      - linux-all-unit-tests
+      - vars
+    if: (!cancelled())
+    timeout-minutes: ${{ fromJson(needs.vars.outputs.timeout-minutes) }}
+    runs-on: ${{ needs.vars.outputs.runner }}
+    container:
+      image: ${{ needs.vars.outputs.container-image }}
+
+    steps:
+      - uses: actions/checkout@v4.1.0
+        with:
+          fetch-depth: 50
+          lfs: true
+
+      - uses: ./.github/actions/common-setup
+
+      - name: Get nightly build
+        uses: actions/download-artifact@v5
+        with:
+          name: linux-build-nightly
+          path: avm_nightly_build
+
+      - name: Get test results
+        uses: actions/download-artifact@v5
+        with:
+          pattern: linux-all-unit-tests-*
+          path: unit_tests_results
+
+      - name: List reports
+        run: |
+          find . -type f | sort -n
+
+      - name: Compile coverage reports
+        run: |
+          mkdir -p coverage-html
+          mv unit_tests_results/*/coverage_*.json avm_nightly_build/
+          cd avm_nightly_build
+          gcovr \
+            --gcov-executable gcov-14 \
+            --add-tracefile "coverage_*.json" \
+            --exclude ../third_party \
+            --exclude _deps \
+            --exclude abseil-cpp \
+            --exclude benchmark \
+            --exclude cpuinfo \
+            --exclude eigen \
+            --exclude farmhash \
+            --exclude fft2d \
+            --exclude flatbuffers \
+            --exclude flatbuffers-flatc \
+            --exclude fp16 \
+            --exclude FP16 \
+            --exclude FXdiv \
+            --exclude psimd \
+            --exclude ml_dtypes \
+            --exclude neon2sse \
+            --exclude protobuf \
+            --exclude pthreadpool \
+            --exclude pthreadpool-source \
+            --exclude ruy \
+            --exclude xnnpack \
+            --exclude XNNPACK \
+            --exclude gemmlowp \
+            --exclude googletest \
+            --exclude-directories third_party \
+            --exclude-directories avm_nightly_build/third_party \
+            --xml ../coverage.xml \
+            --html \
+            --html-details ../coverage-html/coverage.html \
+            --print-summary \
+            --root ../ .
+
+      - uses: 5monkeys/cobertura-action@master
+        with:
+          path: coverage.xml
+          minimum_coverage: 75
+
+      - name: Publish Junit Test Report
+        uses: mikepenz/action-junit-report@v5
+        if: always()
+        with:
+          report_paths: unit_tests_results/**/report.xml
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4.1.0
+        if: always()
+        with:
+          name: coverage-html
+          path: |
+            coverage-html
+
+  linux-unit-optim:
+    name: Linux Unit Optim
+    needs:
+      - linux-build-nightly
+      - test-data
+      - vars
+    if: (!cancelled())
+    timeout-minutes: ${{ fromJson(needs.vars.outputs.timeout-minutes) }}
+    runs-on: ${{ needs.vars.outputs.runner }}
+    container:
+      image: ${{ needs.vars.outputs.container-image }}
+    env:
+      LIBAVM_TEST_DATA_PATH: ${{ github.workspace }}/libavm-test-data
+      AVM_OPTIM_LEVEL: ${{ matrix.avm-optim-level }}
+
+    steps:
+      - name: Get nightly build
+        uses: actions/download-artifact@v5
+        with:
+          name: linux-build-nightly
+          path: avm_nightly_build
+
+      - name: Get test data
+        uses: actions/download-artifact@v5
+        with:
+          name: test-data
+          path: libavm-test-data
+
+      - name: Fix executable bit permissions
+        run: |
+          # See https://github.com/actions/upload-artifact/issues/38 for details about why we need this
+
+          # Look for files (with no extension) starting with ELF header and set executable bit
+          for file in $(find avm_nightly_build/ -type f ! -name "*.*"); do
+            if grep --quiet --binary --text --perl-regexp "^\x7f\x45\x4c\x46" "${file}"; then
+              echo "Found binary ${file}, fixing permissions."
+              chmod a+x "${file}"
+            fi
+          done
+
+      - name: Run tests
+        run: |
+          case "${AVM_OPTIM_LEVEL}" in
+            sse) export AVM_SIMD_CAPS_MASK=0x3 ;;
+            sse2) export AVM_SIMD_CAPS_MASK=0x7 ;;
+            sse3) export AVM_SIMD_CAPS_MASK=0xf ;;
+            ssse3) export AVM_SIMD_CAPS_MASK=0x1f ;;
+            sse4_1) export AVM_SIMD_CAPS_MASK=0x3f ;;
+            # sse4_2 was added *after* avx2 so the mask is a little weird
+            sse4_2) export AVM_SIMD_CAPS_MASK=0x13f ;;
+            avx2) export AVM_SIMD_CAPS_MASK=0x1ff ;;
+          esac
+
+          filter="-C*:MMX*:SSE*:SSSE*:AVX*:*Large*"
+
+          cpu_cores=$(nproc)
+          total_shards=$((2*cpu_cores))
+          commands=/tmp/parallel.commands.$$
+
+          cd avm_nightly_build
+          printf "" >${commands}
+
+          for id in $(seq 0 $((total_shards-1))); do
+            echo GTEST_TOTAL_SHARDS=${total_shards} GTEST_SHARD_INDEX=${id} GTEST_OUTPUT=xml:report.${id}.xml ./test_libavm --gtest_filter=${filter} >>${commands}
+          done
+
+          cat ${commands}
+          time parallel --line-buffer --jobs ${cpu_cores} < ${commands}
+
+      - name: Publish Junit Test Report
+        uses: mikepenz/action-junit-report@v5
+        if: always()
+        with:
+          check_name: ${{ github.job }} ${{ matrix.avm-optim-level }} Junit Report
+          report_paths: avm_nightly_build/report.*.xml
+
+    strategy:
+      fail-fast: false
+      matrix:
+        avm-optim-level:
+          - sse2
+          - ssse3
+          - sse4_2
+
+  linux-sanitizer-test:
+    name: Linux Sanitizer Test
+    uses: ./.github/workflows/sanitizer-job-reusable.yaml
+    needs:
+      - common-builds
+      - test-data
+      - vars
+    if: (!cancelled())
+    with:
+      avm-sanitizer-type: ${{ matrix.avm-sanitizer-type }}
+      max-total-shards: ${{ matrix.max-total-shards }}
+      runner: '["${{ needs.vars.outputs.runner }}"]'
+      container-image: ${{ needs.vars.outputs.container-image }}
+      show-github-context: true
+      use-large-tests: true
+    strategy:
+      fail-fast: false
+      matrix:
+        avm-sanitizer-type:
+          - address
+          - integer
+          - memory
+          - thread
+          - undefined
+          # CFI Sanitizer commented for now, as lto build does not work
+          # - cfi
+        include:
+          # default to unlimited
+          - max-total-shards: 0
+          # limit thread sanitizer to 6 parallel processes to avoid being OOM-killed
+          - avm-sanitizer-type: thread
+            max-total-shards: 6
+
+  serial-parallel-encode:
+    name: Serial/Parallel GOP encode
+    needs:
+      - linux-build-nightly
+      - vars
+    if: (!cancelled())
+    timeout-minutes: ${{ fromJson(needs.vars.outputs.timeout-minutes) }}
+    runs-on: ${{ needs.vars.outputs.runner }}
+    container:
+      image: ${{ needs.vars.outputs.container-image }}
+    env:
+      AVMENC_SKIP: ${{ matrix.avm-enc-skip }}
+      AVMENC_LIMIT: ${{ matrix.avm-enc-limit }}
+      AVMENC_QP: 160
+      AVMENC_INPUT: Vertical_Bayshore_270x480_2997.y4m
+      AVMENC_OUTPUT: ${{ matrix.avm-enc-output }}
+
+    steps:
+      - name: Get nightly build
+        uses: actions/download-artifact@v5
+        with:
+          name: linux-build-nightly
+          path: avm_nightly_build
+
+      - name: Fix executable bit permissions
+        run: |
+          # See https://github.com/actions/upload-artifact/issues/38 for details about why we need this
+
+          # Look for files (with no extension) starting with ELF header and set executable bit
+          for file in $(find avm_nightly_build/ -type f ! -name "*.*"); do
+            if grep --quiet --binary --text --perl-regexp "^\x7f\x45\x4c\x46" "${file}"; then
+              echo "Found binary ${file}, fixing permissions."
+              chmod a+x "${file}"
+            fi
+          done
+
+      - name: Get input asset
+        run: |
+          curl -s -S -f -O https://gitlab.com/AOMediaCodec/aom-testing/-/raw/master/test-files/${AVMENC_INPUT}.xz
+          unxz ${AVMENC_INPUT}.xz
+
+      - name: Encode GOP
+        run: |
+          avm_nightly_build/avmenc \
+            --debug \
+            --cpu-used=0 \
+            --passes=1 \
+            --lag-in-frames=19 \
+            --auto-alt-ref=1 \
+            --min-gf-interval=16 \
+            --max-gf-interval=16 \
+            --gf-min-pyr-height=4 \
+            --gf-max-pyr-height=4 \
+            --kf-min-dist=65 \
+            --kf-max-dist=65 \
+            --use-fixed-qp-offsets=1 \
+            --deltaq-mode=0 \
+            --enable-tpl-model=0 \
+            --end-usage=q \
+            --qp=${AVMENC_QP} \
+            --enable-keyframe-filtering=0 \
+            --obu \
+            --limit=${AVMENC_LIMIT} \
+            --skip=${AVMENC_SKIP} \
+            -o "${AVMENC_OUTPUT}.obu"  \
+            "${AVMENC_INPUT}" 2>&1 | tee "${AVMENC_OUTPUT}.psnr.log"
+
+          if [ ! -f "${AVMENC_OUTPUT}.obu" ]; then
+            echo "No OBU file generated." >&2
+            exit 1
+          fi
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4.1.0
+        if: always()
+        with:
+          name: enc-${{ matrix.avm-enc-output }}
+          path: |
+            ${{ matrix.avm-enc-output }}*
+
+    strategy:
+      matrix:
+        avm-enc-output:
+          - serial-2gops
+          - parallel-gop1
+          - parallel-gop2
+        include:
+          - avm-enc-output: serial-2gops
+            avm-enc-skip: 0
+            avm-enc-limit: 130
+          - avm-enc-output: parallel-gop1
+            avm-enc-skip: 0
+            avm-enc-limit: 65
+          - avm-enc-output: parallel-gop2
+            avm-enc-skip: 65
+            avm-enc-limit: 130
+
+  serial-parallel-compare:
+    name: Serial/Parallel GOP compare
+    needs:
+      - serial-parallel-encode
+      - vars
+    if: (!cancelled())
+    timeout-minutes: ${{ fromJson(needs.vars.outputs.timeout-minutes) }}
+    runs-on: ${{ needs.vars.outputs.runner }}
+    container:
+      image: ${{ needs.vars.outputs.container-image }}
+
+    steps:
+      - name: Get serial-2gops OBU
+        uses: actions/download-artifact@v5
+        with:
+          name: enc-serial-2gops
+
+      - name: Get parallel-gop1 OBU
+        uses: actions/download-artifact@v5
+        with:
+          name: enc-parallel-gop1
+
+      - name: Get parallel-gop2 OBU
+        uses: actions/download-artifact@v5
+        with:
+          name: enc-parallel-gop2
+
+      - name: Compare GOPs
+        run: |
+          cat parallel-gop1.obu parallel-gop2.obu > parallel-2gops.obu
+          diff serial-2gops.obu parallel-2gops.obu
