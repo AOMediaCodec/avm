@@ -1,0 +1,193 @@
+name: Build job reusable
+on:
+  workflow_call:
+    inputs:
+      avm-build-config:
+        type: string
+        required: true
+      parent-job-name:
+        type: string
+        required: true
+      runner:
+        type: string
+        default: '["self-hosted"]'
+        required: false
+      container-image:
+        type: string
+        default: docker-registry-internal.aom-infra.org/aomediacodec/aom-testing/ubuntu2404:lnicolas
+        required: false
+      show-github-context:
+        type: boolean
+        required: false
+        default: false
+      extra-env-vars:
+        type: string
+        required: false
+        default: ""
+      before-script:
+        type: string
+        required: false
+        default: "# No before-script specified."
+      artifact-paths:
+        type: string
+        required: false
+        default: ""
+      timeout-minutes:
+        type: number
+        required: false
+        default: 660
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    name: ${{ inputs.parent-job-name }} (${{ inputs.avm-build-config }})
+    if: (!cancelled())
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    runs-on: ${{ fromJson(inputs.runner) }}
+    container:
+      image: ${{ inputs.container-image }}
+    env:
+      # CMake 4.0.0 removed compatibility with CMake < 3.5. Add
+      # -DCMAKE_POLICY_VERSION_MINIMUM=3.5 to try configuring anyway.
+      CMAKE_FLAGS: -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DENABLE_CCACHE=1 -DENABLE_WERROR=1 -DENABLE_DOCS=0
+      INSTALLROOT_FOLDER: installroot
+      CCACHE_BASEDIR: ${{ github.workspace }}
+      CCACHE_DIR: ${{ github.workspace }}/ccache
+      CCACHE_COMPILERCHECK: content
+      AVM_BUILD_CONFIG: ${{ inputs.avm-build-config }}
+      PARENT_JOB_NAME: ${{ inputs.parent-job-name }}
+    steps:
+      - uses: actions/checkout@v4.1.0
+        with:
+          fetch-depth: 50
+          lfs: true
+
+      - uses: ./.github/actions/common-setup
+        with:
+          show-github-context: ${{ inputs.show-github-context }}
+          extra-env-vars: ${{ inputs.extra-env-vars }}
+
+      - name: Run before-script
+        run: ${{ inputs.before-script }}
+
+      - uses: actions/cache/restore@v4
+        with:
+          path: ccache
+          key: non-existent
+          restore-keys: |
+            ${{ inputs.parent-job-name }}-${{ inputs.avm-build-config }}-
+
+      - name: Clear ccache stats
+        run: |
+          ccache --zero-stats
+          ccache --show-stats
+
+      - name: Configure CMAKE_FLAGS
+        run: |
+          if [ -z "${AVM_BUILD_CONFIG}" ]; then
+            echo "AVM_BUILD_CONFIG is not set." >&2
+            exit 1
+          fi
+
+          case ${AVM_BUILD_CONFIG} in
+            internal-stats)
+              CMAKE_FLAGS="${CMAKE_FLAGS} -DCONFIG_INTERNAL_STATS=1"
+              ;;
+            shared)
+              CMAKE_FLAGS="${CMAKE_FLAGS} -DBUILD_SHARED_LIBS=1"
+              ;;
+            no-rtcd)
+              CMAKE_FLAGS="${CMAKE_FLAGS} -DCONFIG_RUNTIME_CPU_DETECT=0"
+              ;;
+            rtcd)
+              CMAKE_FLAGS="${CMAKE_FLAGS} -DCONFIG_RUNTIME_CPU_DETECT=1"
+              ;;
+            encode-only)
+              CMAKE_FLAGS="${CMAKE_FLAGS} -DCONFIG_AV2_DECODER=0"
+              ;;
+            decode-only)
+              CMAKE_FLAGS="${CMAKE_FLAGS} -DCONFIG_AV2_ENCODER=0"
+              ;;
+            no-thread)
+              CMAKE_FLAGS="${CMAKE_FLAGS} -DCONFIG_MULTITHREAD=0"
+              ;;
+            no-webm)
+              CMAKE_FLAGS="${CMAKE_FLAGS} -DCONFIG_WEBM_IO=0"
+              ;;
+            inspection-accounting)
+              CMAKE_FLAGS="${CMAKE_FLAGS} -DCONFIG_INSPECTION=1 -DCONFIG_ACCOUNTING=1"
+              ;;
+            entropy-stats)
+              CMAKE_FLAGS="${CMAKE_FLAGS} -DCONFIG_ENTROPY_STATS=1"
+              ;;
+            bitstream-mismatch-debug)
+              CMAKE_FLAGS="${CMAKE_FLAGS} -DCONFIG_BITSTREAM_DEBUG=1 -DCONFIG_MISMATCH_DEBUG=1"
+              ;;
+            nasm)
+              CMAKE_FLAGS="${CMAKE_FLAGS} -DENABLE_NASM=1"
+              ;;
+            no-examples)
+              CMAKE_FLAGS="${CMAKE_FLAGS} -DENABLE_EXAMPLES=0"
+              ;;
+            debug)
+              CMAKE_FLAGS="${CMAKE_FLAGS} -DCMAKE_BUILD_TYPE=Debug"
+              ;;
+            release)
+              CMAKE_FLAGS="${CMAKE_FLAGS} -DCMAKE_BUILD_TYPE=Release"
+              ;;
+            *)
+              echo "Unknown configuration: '${AVM_BUILD_CONFIG}'" >&2
+              exit 1
+              ;;
+          esac
+
+          # Append to workflow environment
+          echo "CMAKE_FLAGS=${CMAKE_FLAGS}" >>${GITHUB_ENV}
+
+      - name: Build source
+        run: |
+          cmake --version
+
+          printf -- "\n---------------------------------------------------\n"
+          echo "CMake Flags:       ${CMAKE_FLAGS}"
+          echo "Extra CMake Flags: ${EXTRA_CMAKE_FLAGS}"
+          echo "Configuration:     ${AVM_BUILD_CONFIG}"
+          printf -- "---------------------------------------------------\n\n"
+
+          export CMAKE_BUILD_PARALLEL_LEVEL=24
+
+          exit_code=0
+          time cmake -B avm_build -S . -GNinja -DCMAKE_BUILD_TYPE=Release ${CMAKE_FLAGS} ${EXTRA_CMAKE_FLAGS}
+          time cmake --build avm_build -j 24 || exit_code=$?
+
+          # TODO: fix wiki URL
+          if [ ${exit_code} -ne 0 ]; then
+            echo -e "\e[31mYou may reproduce the compile failure by following instructions here:\e[0m"
+            echo -e "\e[31mhttps://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#build-avm-in-various-configurations\e[0m"
+            echo -e "\e[31mUsing following values:\e[0m"
+            echo -e "\e[31mCMAKE_FLAGS = ${CMAKE_FLAGS}\e[0m"
+            echo -e "\e[31mEXTRA_CMAKE_FLAGS = ${EXTRA_CMAKE_FLAGS}\e[0m"
+            exit 1
+          fi
+          time cmake --build avm_build --target dist
+          DESTDIR="${CI_PROJECT_DIR}/${INSTALLROOT_FOLDER}" cmake --build avm_build --target install/strip
+
+      - name: Show ccache stats
+        run: |
+          ccache --show-stats
+
+      - uses: actions/cache/save@v4
+        with:
+          path: ccache
+          key: ${{ inputs.parent-job-name }}-${{ inputs.avm-build-config }}-${{ github.run_id }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4.1.0
+        if: ${{ success() && inputs.artifact-paths != '' }}
+        with:
+          name: ${{ inputs.parent-job-name }}-${{ inputs.avm-build-config }}
+          retention-days: 1
+          path: ${{ inputs.artifact-paths }}
