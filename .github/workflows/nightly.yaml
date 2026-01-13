@@ -52,7 +52,6 @@ jobs:
   linux-build-nightly:
     name: Linux Build Nightly
     needs:
-      - common-builds
       - vars
     if: (!cancelled())
     timeout-minutes: ${{ fromJson(needs.vars.outputs.timeout-minutes) }}
@@ -129,7 +128,6 @@ jobs:
     name: Linux All Unit Tests
     needs:
       - linux-build-nightly
-      - linux-unit-optim  # ensure unit tests are started last, so very long jobs like GOP encode or sanitizers are getting a runner slot ASAP
       - test-data
       - vars
     if: (!cancelled())
