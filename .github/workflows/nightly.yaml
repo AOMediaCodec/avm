@@ -101,19 +101,6 @@ jobs:
           cmake --build avm_nightly_build --target avmenc
           cmake --build avm_nightly_build --target test_libavm
 
-      - name: Debug list
-        run: |
-          find avm_nightly_build -name '*.gc[dn][ao]'
-          tar cf debug.tar .
-
-      - name: Debug upload
-        uses: actions/upload-artifact@v4.1.0
-        if: always()
-        with:
-          name: ${{ github.job }}-debug
-          retention-days: 1
-          path: debug.tar
-
       - name: Show ccache stats
         run: |
           ccache --show-stats
@@ -152,11 +139,6 @@ jobs:
       image: ${{ needs.vars.outputs.container-image }}
     env:
       LIBAVM_TEST_DATA_PATH: ${{ github.workspace }}/libavm-test-data
-      GTEST_TOTAL_SHARDS: ${{ strategy.job-total }}
-      GTEST_SHARD_INDEX: ${{ strategy.job-index }}
-      GTEST_OUTPUT: xml:report.xml
-      MATRIX_JOB_TOTAL: 24
-      MATRIX_JOB_INDEX: ${{ matrix.parallel-runs }}
 
     steps:
       - uses: actions/checkout@v4.1.0
@@ -192,30 +174,9 @@ jobs:
 
       - name: Run tests
         run: |
-          # Hack to support run local github actions via act
-          # See https://github.com/nektos/act/issues/5976
-          if [ "${ACT:-}" = "true" ]; then
-            export GTEST_TOTAL_SHARDS=${MATRIX_JOB_TOTAL:-20}
-            export GTEST_SHARD_INDEX=${MATRIX_JOB_INDEX}
-
-            # Ensure new environment variables persist in subsequent runs
-            echo "GTEST_TOTAL_SHARDS=${GTEST_TOTAL_SHARDS}" >>${GITHUB_ENV}
-            echo "GTEST_SHARD_INDEX=${GTEST_SHARD_INDEX}" >>${GITHUB_ENV}
-          fi
-
-          # Show job strategy
-          cat <<EOF
-          GTEST_TOTAL_SHARDS=${GTEST_TOTAL_SHARDS}
-          GTEST_SHARD_INDEX=${GTEST_SHARD_INDEX}
-
-          EOF
-
           # Save sanitizer settings for debugging
           cat >unittest.env <<EOF
           export LIBAVM_TEST_DATA_PATH="${LIBAVM_TEST_DATA_PATH:-}"
-          export GTEST_TOTAL_SHARDS="${GTEST_TOTAL_SHARDS:-}"
-          export GTEST_SHARD_INDEX="${GTEST_SHARD_INDEX:-}"
-          export GTEST_OUTPUT="${GTEST_OUTPUT:-}"
 
           # You can re-run test using:
           #
@@ -224,7 +185,44 @@ jobs:
           EOF
 
           cd avm_nightly_build
-          ./test_libavm
+          mkdir ../coverage.parallel
+
+          # as of 2026-01-13, there are 75k unit tests, so we could distribute them on a large number of total shards
+          cpu_cores=$(nproc)
+          total_shards=$((10*cpu_cores))
+          commands=/tmp/parallel.commands.$$
+
+          printf "" >${commands}
+
+          for id in $(seq 0 $((total_shards-1))); do
+            echo "GTEST_TOTAL_SHARDS=${total_shards} GTEST_SHARD_INDEX=${id} GTEST_OUTPUT=xml:report.${id}.xml GCOV_PREFIX=../coverage.parallel/gcov.${id} GCOV_PREFIX_STRIP=3 ./test_libavm 2>&1 | tee unittest.${id}.log" >>${commands}
+          done
+
+          cat ${commands}
+          time parallel --line-buffer --memfree 10G --memsuspend 4G --load 100% --delay 3 --shuf < ${commands} || true
+
+      - name: Merge coverage GCDA into working directory
+        run: |
+          cd avm_nightly_build
+
+          # Merge GCDA files from parallel runs
+          mkdir -p ../coverage.merged
+          for gcda_dir in ../coverage.parallel/gcov.*; do
+            echo "merging ${gcda_dir}"
+
+            gcov-tool-14 merge \
+              --output ../coverage.merged \
+              ${gcda_dir} \
+              ../coverage.merged
+          done
+
+          # Generate file list to be copied to the object (GCNO) directory
+          cd ../coverage.merged/avm_nightly_build
+          find -type f | sort -n >/tmp/files.gcda
+
+          while read gcda_file; do
+            cp ${gcda_file} ${GITHUB_WORKSPACE}/avm_nightly_build/${gcda_file}
+          done < /tmp/files.gcda
 
       - name: Generate coverage report
         run: |
@@ -270,68 +268,18 @@ jobs:
             --exclude-directories third_party \
             --exclude-directories avm_nightly_build/third_party \
             --json \
-            --output coverage_${GTEST_SHARD_INDEX}.json \
+            --output coverage.json \
             --root ../ . \
-            >coverage_${GTEST_SHARD_INDEX}.log 2>&1
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4.1.0
-        if: always()
-        with:
-          name: ${{ github.job }}-${{ strategy.job-index }}
-          path: |
-            avm_nightly_build/report.xml
-            avm_nightly_build/coverage_*.json
-            avm_nightly_build/coverage_*.log
-
-    strategy:
-      fail-fast: false
-      matrix:
-        parallel-runs: [0, 1 , 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
-
-  linux-all-publish-results:
-    name: Linux All Publish Unit Tests Results
-    needs:
-      - linux-all-unit-tests
-      - vars
-    if: (!cancelled())
-    timeout-minutes: ${{ fromJson(needs.vars.outputs.timeout-minutes) }}
-    runs-on: ${{ needs.vars.outputs.runner }}
-    container:
-      image: ${{ needs.vars.outputs.container-image }}
-
-    steps:
-      - uses: actions/checkout@v4.1.0
-        with:
-          fetch-depth: 50
-          lfs: true
-
-      - uses: ./.github/actions/common-setup
-
-      - name: Get nightly build
-        uses: actions/download-artifact@v5
-        with:
-          name: linux-build-nightly
-          path: avm_nightly_build
-
-      - name: Get test results
-        uses: actions/download-artifact@v5
-        with:
-          pattern: linux-all-unit-tests-*
-          path: unit_tests_results
-
-      - name: List reports
-        run: |
-          find . -type f | sort -n
+            >coverage.log 2>&1
 
       - name: Compile coverage reports
         run: |
           mkdir -p coverage-html
-          mv unit_tests_results/*/coverage_*.json avm_nightly_build/
           cd avm_nightly_build
+
           gcovr \
             --gcov-executable gcov-14 \
-            --add-tracefile "coverage_*.json" \
+            --add-tracefile coverage.json \
             --exclude ../third_party \
             --exclude _deps \
             --exclude abseil-cpp \
@@ -373,7 +321,7 @@ jobs:
         uses: mikepenz/action-junit-report@v5
         if: always()
         with:
-          report_paths: unit_tests_results/**/report.xml
+          report_paths: avm_nightly_build/report.*.xml
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4.1.0
