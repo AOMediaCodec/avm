@@ -2992,6 +2992,9 @@ static void init_partition_search_state_params(
   const AV2_COMMON *const cm = &cpi->common;
   PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
   const CommonModeInfoParams *const mi_params = &cpi->common.mi_params;
+  // TODO(urvang): Use this assumption to cleanup unnecessary checks here and in
+  // related partition search functions.
+  assert(pc_tree != NULL);
   TREE_TYPE tree_type = xd->tree_type;
   // Special case: for INTRA region in inter frame, luma partition tree type
   // needs to be changed to SHARED_PART to match the signaling logic.
