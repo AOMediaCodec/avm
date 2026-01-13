@@ -399,8 +399,10 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
   if (!av2_check_profile_interop_conformance(
           seq_params->seq_profile_idc, seq_params->bit_depth,
           seq_params->subsampling_x, seq_params->subsampling_y,
-          seq_params->monochrome, seq_params->seq_max_mcount, &cm->error, 1))
-    ;
+          seq_params->monochrome, seq_params->seq_max_mcount, &cm->error, 1)) {
+    avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+                       "Unsupported bitstream");
+  }
 #endif  // CONFIG_CWG_F429_INTEROP
 
   av2_read_sequence_header(rb, seq_params);

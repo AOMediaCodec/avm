@@ -50,60 +50,6 @@ static int32_t high_kbps[1 << LEVEL_BITS] = {
 };
 
 #if CONFIG_CWG_F429_INTEROP
-
-// TODO: verify that this table is correct and then make the change
-// Get ProfileScalingFactor per AV2 Spec Table A.5
-// It depends on seq_profile_idc, bit_depth_idc and chroma_format
-
-/* Table A.5: Definition of ProfileScalingFactor
- * seq_profile_idc    | bit_depth_idc |chroma_format_idc  | ProfileScalingFactor
- * ----------------------------------------------------------------------------
- * (0, 1, 2, 3, 4, 5)      (0, 1)      CHROMA_FORMAT_400        0
-                                       CHROMA_FORMAT_420
- * ----------------------------------------------------------------------------
- *      4                  (0, 1)      CHROMA_FORMAT_422        1
- * ----------------------------------------------------------------------------
- *      5                  (0, 1)      CHROMA_FORMAT_444        2
- * ----------------------------------------------------------------------------
- */
-/*
-static int get_profile_scaling_factor(int seq_profile_idc,
-                                      int chroma_format_idc) {
- // Table A.5: Definition of ProfileScalingFactor
-  // Note that the bit_depth_idx must be 0 or 1 for all valid combinations
-
-  // All profiles (0-5) with 400 or 420 chroma format
-  if (chroma_format_idc == CHROMA_FORMAT_400 ||
-      chroma_format_idc == CHROMA_FORMAT_420) {
-    return 0;
-  }
-
-  // Profile 4 with 422 chroma format
-  if (seq_profile_idc == 4 && chroma_format_idc == CHROMA_FORMAT_422) {
-    return 1;
-  }
-
-  // Profile 5 with 444 chroma format
-  if (seq_profile_idc == 5 && chroma_format_idc == CHROMA_FORMAT_444) {
-    return 2;
-  }
-
-  // Default for invalid combinations
-  return 0;
-}
-
-// Get BitrateProfileFactor from ProfileScalingFactor per AV2 spec
-static int get_bitrate_profile_factor(int profile_scaling_factor) {
-  // Per spec:
-  // If ProfileScalingFactor == 0, BitrateProfileFactor = 1.0
-  // If ProfileScalingFactor == 1, BitrateProfileFactor = 2.0
-  // If ProfileScalingFactor == 2, BitrateProfileFactor = 3.0
-  if (profile_scaling_factor == 0) return 1;
-  if (profile_scaling_factor == 1) return 2;
-  if (profile_scaling_factor == 2) return 3;
-  return 1;  // Default
-}
- */
 // get chroma subsampling values
 static int get_chroma_format_from_subsampling(int monochrome, int subsampling_x,
                                               int subsampling_y) {

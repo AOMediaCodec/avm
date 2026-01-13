@@ -23,12 +23,13 @@
 /*
  * Table A.1: AV2 Multi-Sequence Configurations
  *
- * ConfigurationID | Configuration Label | Toolset | BitDepth (8/10/12/14/16) | Chroma Format (4:0:0/4:2:0/4:2:2/4:4:4)
+ * ConfigurationID | Configuration Label | Toolset | BitDepth (8/10/12/14/16) |Chroma Format (4:0:0/4:2:0/4:2:2/4:4:4)
  ------------------|---------------------|---------|--------------------------|----------------------------------------
  *       0         | C_Main_420_10       | Main    | 8, 10                    | 4:0:0, 4:2:0
  *       1         | C_Main_422_10       | Main    | 8, 10                    | 4:0:0, 4:2:0, 4:2:2
  *       2         | C_Main_444_10       | Main    | 8, 10                    | 4:0:0, 4:2:0, 4:4:4
- *       3-63      | Reserved            | -       | -                        | -
+ *       3-63      | Reserved            | -       | -                        |
+
  *
  * Notes:
  * - ConfigurationID: Identifies the multi-sequence configuration(6-bit value(
@@ -39,16 +40,17 @@
 
 #if CONFIG_CWG_F429_INTEROP
 typedef enum {
-  C_MAIN_420_10 = 0, // Main toolset, 8/10-10-bit, 4:0:0/4:2:0
-  C_MAIN_422_10 = 1, // Main toolset, 8/10-10-bit, 4:0:0/4:2:0/4:2:2
-  C_MAIN_444_10 = 2, // Main toolset, 8/10-10-bit, 4:0:0/4:2:0/4:4:4
+  C_MAIN_420_10 = 0,  // Main toolset, 8/10-10-bit, 4:0:0/4:2:0
+  C_MAIN_422_10 = 1,  // Main toolset, 8/10-10-bit, 4:0:0/4:2:0/4:2:2
+  C_MAIN_444_10 = 2,  // Main toolset, 8/10-10-bit, 4:0:0/4:2:0/4:4:4
 } AV2_CONFIGURATION_LABEL;
 
 //=================================================================
 // Table A.2: Allowed Values for Sub-Bitstream Syntax Elements
 //=================================================================
 /*
- * Table A.2: Allowed Values for Sub-Bitstream Syntax Elements Accoring to Multi-Sequence Configuration
+ * Table A.2: Allowed Values for Sub-Bitstream Syntax Elements Accoring to
+ Multi-Sequence Configuration
  *
  *  Configuration Label | seq_profile_idc | chroma_format_idc | bit_depth_idc
  -----------------------|-----------------|-------------------|---------------
@@ -57,7 +59,8 @@ typedef enum {
  *   C_Main_444_10      | 0..3            | 0..2              | 0..1
  *
  * Notes:
- * - seq_profile_idc: Allowed profile values (0=Main_420_10_IP0, 1=Main_420_10_IP1, 2=Main_420_10_IP2, 3=Main_420_10)
+ * - seq_profile_idc: Allowed profile values (0=Main_420_10_IP0,
+ 1=Main_420_10_IP1, 2=Main_420_10_IP2, 3=Main_420_10)
  * - bit_depth_idc: 0=8-bit, 1=10-bit
  * - C_Main_420_10: Supports profiles 0-3, chroma 4:0:0 and 4:2:0, bit depths 8 and 10
  * - C_Main_422_10: Supports profiles 0-3, chroma 4:0:0, 4:2:0 and 4:2:2, bit depth 8 and 10
@@ -133,26 +136,28 @@ static const int SeqProfileMaxMlayerCnt[32] = {
   MAX_NUM_MLAYERS,  // seq_profile_idc
 };
 
-/* Table A4 Allowed values for sub-bitstream syntax elements to conform to a specific AV2 profile
- *  Profile Label    | seq_profile_idc | chroma_format_idc | bit_depth_idc | max_mlayer_cnt
+/* Table A4 Allowed values for sub-bitstream syntax elements to conform to a
+ specific AV2 profile
+ *  Profile Label    | seq_profile_idc | chroma_format_idc | bit_depth_idc |
+ max_mlayer_cnt
  * ----------------------------------------------------------------------------------------
- *  Main_420_10_IP0           0          CHROMA_FORMAT_400     0 or 1            1
+ *  Main_420_10_IP0           0          CHROMA_FORMAT_400     0 or 1 1
                                          CHROMA_FORMAT_420
  * -----------------------------------------------------------------------------------------
- *  Main_420_10_IP1           1          CHROMA_FORMAT_400     0 or 1            2
+ *  Main_420_10_IP1           1          CHROMA_FORMAT_400     0 or 1 2
                                          CHROMA_FORMAT_420
  * -----------------------------------------------------------------------------------------
- *  Main_420_10_IP2           2          CHROMA_FORMAT_400     0 or 1            3
+ *  Main_420_10_IP2           2          CHROMA_FORMAT_400     0 or 1 3
                                          CHROMA_FORMAT_420
  * -----------------------------------------------------------------------------------------
- *  Main_420_10               3          CHROMA_FORMAT_400     0 or 1            -
+ *  Main_420_10               3          CHROMA_FORMAT_400     0 or 1 -
                                          CHROMA_FORMAT_420
  * -----------------------------------------------------------------------------------------
- *  Main_422_10               4          CHROMA_FORMAT_400     0 or 1            -
+ *  Main_422_10               4          CHROMA_FORMAT_400     0 or 1 -
                                          CHROMA_FORMAT_420
                                          CHROMA_FORMAT_422
  * -----------------------------------------------------------------------------------------
- *  Main_444_10               5          CHROMA_FORMAT_400     0 or 1            -
+ *  Main_444_10               5          CHROMA_FORMAT_400     0 or 1 -
                                          CHROMA_FORMAT_420
                                          CHROMA_FORMAT_444
  * -----------------------------------------------------------------------------------------
@@ -205,19 +210,19 @@ static INLINE int av2_get_max_mlayer_cnt_from_profile(int seq_profile_idc) {
   return SeqProfileMaxMlayerCnt[seq_profile_idc];
 }
 
-int av2_validate_layer_capacity(int seq_profile_idc,
-                                              int num_extended_layers,
-                                              int num_embedded_layers) {
+int av2_validate_layer_capacity(int seq_profile_idc, int num_extended_layers,
+                                int num_embedded_layers) {
   const int interop_point = av2_get_interop_point_from_profile(seq_profile_idc);
   if (interop_point < 0) return 0;
-  
+
   // Check if layer combinations are allowed for this interop point
-  const int combinations_allowed = av2_get_interop_combinations_allowed(interop_point);
+  const int combinations_allowed =
+      av2_get_interop_combinations_allowed(interop_point);
   if (combinations_allowed < 0) return 0;
   if (combinations_allowed == 0) {
     if (num_extended_layers > 1 || num_embedded_layers > 1) return 0;
   }
-  
+
   const int max_extended = av2_get_interop_max_extended_layers(interop_point);
   const int max_embedded = av2_get_interop_max_embedded_layers(interop_point);
   if (max_extended < 0 || max_embedded < 0)
@@ -233,17 +238,19 @@ int av2_check_profile_interop_conformance(
     int profile, int bit_depth, int subsampling_x, int subsampling_y,
     int monochrome, int seq_max_mcount,
     struct avm_internal_error_info *error_info, int is_decoder) {
-
   const int max_allowed_mcount = av2_get_max_mlayer_cnt_from_profile(profile);
   if (max_allowed_mcount < 0) {
     avm_internal_error(
-                       error_info, is_decoder ? AVM_CODEC_UNSUP_BITSTREAM: AVM_CODEC_INVALID_PARAM,
+        error_info,
+        is_decoder ? AVM_CODEC_UNSUP_BITSTREAM : AVM_CODEC_INVALID_PARAM,
         "Profile conformance error: max_allowed_count is below 0");
     return 0;
   }
 
   if (seq_max_mcount > max_allowed_mcount) {
-    avm_internal_error(error_info, is_decoder ? AVM_CODEC_UNSUP_BITSTREAM: AVM_CODEC_INVALID_PARAM,
+    avm_internal_error(
+        error_info,
+        is_decoder ? AVM_CODEC_UNSUP_BITSTREAM : AVM_CODEC_INVALID_PARAM,
         "Profile conformance error: seq_max_mcount is exceeded.");
     return 0;
   }
@@ -256,36 +263,48 @@ int av2_check_profile_interop_conformance(
   if (profile == PROFILE_0) {
     // Profile 0: 8-bit and 10-bit 4:2:0 and 4:4:4 only
     if (bit_depth != AVM_BITS_8 && bit_depth != AVM_BITS_10) {
-      avm_internal_error(error_info, is_decoder ? AVM_CODEC_UNSUP_BITSTREAM: AVM_CODEC_INVALID_PARAM,
+      avm_internal_error(
+          error_info,
+          is_decoder ? AVM_CODEC_UNSUP_BITSTREAM : AVM_CODEC_INVALID_PARAM,
           "Profile 0: (Main-10-420) only supports 8-bit and 10-bit.");
       return 0;
     }
     if (!monochrome && !is_420) {
-      avm_internal_error(error_info, is_decoder ? AVM_CODEC_UNSUP_BITSTREAM: AVM_CODEC_INVALID_PARAM,
+      avm_internal_error(
+          error_info,
+          is_decoder ? AVM_CODEC_UNSUP_BITSTREAM : AVM_CODEC_INVALID_PARAM,
           "Profile 0: (Main-10-420) only supports 4:0:0 and 4:2:0 chroma.");
       return 0;
     }
   } else if (profile == PROFILE_1) {
     // Main-10-422: 8-bit and 10-bit, 4:0:0, 4:2:0, and 4:2:2
     if (bit_depth != AVM_BITS_8 && bit_depth != AVM_BITS_10) {
-      avm_internal_error(error_info, is_decoder ? AVM_CODEC_UNSUP_BITSTREAM: AVM_CODEC_INVALID_PARAM,
+      avm_internal_error(
+          error_info,
+          is_decoder ? AVM_CODEC_UNSUP_BITSTREAM : AVM_CODEC_INVALID_PARAM,
           "Profile 1: (Main-10-422) only supports 8-bit and 10-bit.");
       return 0;
     }
     if (!monochrome && !is_420 && !is_422) {
-      avm_internal_error(error_info, is_decoder ? AVM_CODEC_UNSUP_BITSTREAM: AVM_CODEC_INVALID_PARAM,
+      avm_internal_error(
+          error_info,
+          is_decoder ? AVM_CODEC_UNSUP_BITSTREAM : AVM_CODEC_INVALID_PARAM,
           "Profile 1: (Main-10-422) only supports 4:0:0, 4:2:0, 4:2:2 chroma.");
       return 0;
     }
   } else if (profile == PROFILE_2) {
     // Main -10-444: 8-bit and 10-bit, 4:0:0, 4:2:0, 4:2:2 and 4:4:4
     if (bit_depth != AVM_BITS_8 && bit_depth != AVM_BITS_10) {
-      avm_internal_error(error_info, is_decoder ? AVM_CODEC_UNSUP_BITSTREAM: AVM_CODEC_INVALID_PARAM,
+      avm_internal_error(
+          error_info,
+          is_decoder ? AVM_CODEC_UNSUP_BITSTREAM : AVM_CODEC_INVALID_PARAM,
           "Profile 2: (Main-10-444) only supports 4:0:0, 4:2:0, 4:2:2 chroma.");
       return 0;
     }
     if (!monochrome && !is_420 && !is_422 && !is_444) {
-      avm_internal_error(error_info, is_decoder ? AVM_CODEC_UNSUP_BITSTREAM: AVM_CODEC_INVALID_PARAM,
+      avm_internal_error(
+          error_info,
+          is_decoder ? AVM_CODEC_UNSUP_BITSTREAM : AVM_CODEC_INVALID_PARAM,
           "Profile 2: (Main-10-444) only supports 4:0:0, 4:2:0, 4:2:2 chroma.");
       return 0;
     }
@@ -351,13 +370,13 @@ int get_bitrate_profile_factor(int profile_scaling_factor) {
 //================================================
 // Set Profile for (LCR, OPS)
 //================================================
-int av2_set_profile(int bit_depth, int chroma_format_idc, int num_mlayers, int lcr_present, int ops_present) {
-  
+int av2_set_profile(int bit_depth, int chroma_format_idc, int num_mlayers,
+                    int lcr_present, int ops_present) {
   // Validate bit depth
   if (!(bit_depth == AVM_BITS_8 || bit_depth == AVM_BITS_10)) {
     return -1;
   }
-  
+
   // Validate chroma format
   if (!(chroma_format_idc == CHROMA_FORMAT_400 ||
         chroma_format_idc == CHROMA_FORMAT_420 ||
@@ -365,26 +384,30 @@ int av2_set_profile(int bit_depth, int chroma_format_idc, int num_mlayers, int l
         chroma_format_idc == CHROMA_FORMAT_444)) {
     return -1;
   }
-  
+
   // Profile selection based on chroma format and mlayer count
   // Per Table A.1 Profile Definition and Table A.2 Allowed varies
-  if (chroma_format_idc == CHROMA_FORMAT_400 || chroma_format_idc == CHROMA_FORMAT_420) {
+  if (chroma_format_idc == CHROMA_FORMAT_400 ||
+      chroma_format_idc == CHROMA_FORMAT_420) {
     if (lcr_present || ops_present) {
       if (num_mlayers == 1) {
-        return  MAIN_420_10_IP0; // Profile 0: Main_420_10_IPO (max_mlayer_cnt = 1)
+        return MAIN_420_10_IP0;  // Profile 0: Main_420_10_IPO (max_mlayer_cnt =
+                                 // 1)
       } else if (num_mlayers == 2) {
-        return  MAIN_420_10_IP1; // Profile 1: Main_420_10_IP1 (max_mlayer_cnt = 2)
+        return MAIN_420_10_IP1;  // Profile 1: Main_420_10_IP1 (max_mlayer_cnt =
+                                 // 2)
       } else if (num_mlayers == 3) {
-        return  MAIN_420_10_IP2; // Profile 2: Main_420_10_IP2 (max_mlayer_cnt = 3)
+        return MAIN_420_10_IP2;  // Profile 2: Main_420_10_IP2 (max_mlayer_cnt =
+                                 // 3)
       } else {
-        return MAIN_420_10; // Profile 3: Main_420_10 (unconstraint profile)
+        return MAIN_420_10;  // Profile 3: Main_420_10 (unconstraint profile)
       }
     } else {
       // No LCR/OPS: infer profile from mlayer count
       if (num_mlayers == 1) {
         return MAIN_420_10_IP0;
       } else if (num_mlayers == 2) {
-        return  MAIN_420_10_IP1;
+        return MAIN_420_10_IP1;
       } else if (num_mlayers == 3) {
         return MAIN_420_10_IP2;
       } else {
@@ -393,7 +416,8 @@ int av2_set_profile(int bit_depth, int chroma_format_idc, int num_mlayers, int l
     }
   } else if (chroma_format_idc == CHROMA_FORMAT_422) {
     // 4:2:2 chroma format
-    // Maps to C_Main_422_10. Per Table A.2" seq_profile_idc can be 0..3 for C_Main_422_10
+    // Maps to C_Main_422_10. Per Table A.2" seq_profile_idc can be 0..3 for
+    // C_Main_422_10
     return MAIN_422_10;
   } else if (chroma_format_idc == CHROMA_FORMAT_444) {
     // 4:4:4 chroma format
