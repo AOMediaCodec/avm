@@ -2992,7 +2992,13 @@ static void init_partition_search_state_params(
   const AV2_COMMON *const cm = &cpi->common;
   PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
   const CommonModeInfoParams *const mi_params = &cpi->common.mi_params;
-  const TREE_TYPE tree_type = xd->tree_type;
+  TREE_TYPE tree_type = xd->tree_type;
+  // Special case: for INTRA region in inter frame, luma partition tree type
+  // needs to be changed to SHARED_PART to match the signaling logic.
+  if (!frame_is_intra_only(cm) && xd->tree_type == LUMA_PART &&
+      pc_tree->region_type == INTRA_REGION) {
+    tree_type = SHARED_PART;
+  }
 
   assert(bsize < BLOCK_SIZES_ALL);
 
@@ -3033,7 +3039,7 @@ static void init_partition_search_state_params(
       mi_row, mi_col, part_search_state->ss_x, part_search_state->ss_y, bsize,
       ptree_luma, &pc_tree->chroma_ref_info, part_search_state->partition_cost);
 
-  if (xd->tree_type != CHROMA_PART) {
+  if (tree_type != CHROMA_PART) {
     const int ctx = get_intra_region_context(bsize);
     part_search_state->region_type_cost = x->mode_costs.region_type_cost[ctx];
   }
