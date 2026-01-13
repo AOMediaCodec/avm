@@ -5222,8 +5222,16 @@ static AVM_INLINE void write_uncompressed_header(
     assert(cm->immediate_output_picture == 1);
     assert(current_frame->frame_type == KEY_FRAME);
   }
-
-  if (!seq_params->single_picture_header_flag) {
+#if CONFIG_G006_UCH_REORDER
+  if (seq_params->single_picture_header_flag) {
+    avm_wb_write_literal(
+        wb, current_frame->order_hint,
+        seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
+  } else
+#else
+  if (!seq_params->single_picture_header_flag)
+#endif
+  {
     if (obu_type == OBU_LEADING_SEF || obu_type == OBU_REGULAR_SEF) {
       write_show_existing_frame(cpi, wb);
       return;
@@ -5240,7 +5248,7 @@ static AVM_INLINE void write_uncompressed_header(
       const int is_inter_frame = (current_frame->frame_type == INTER_FRAME);
       avm_wb_write_bit(wb, is_inter_frame);
     }
-
+#if !CONFIG_G006_UCH_REORDER
     if (current_frame->frame_type == KEY_FRAME) {
       avm_wb_write_literal(wb, current_frame->long_term_id,
                            seq_params->number_of_bits_for_lt_frame_id);
@@ -5251,7 +5259,7 @@ static AVM_INLINE void write_uncompressed_header(
                              seq_params->number_of_bits_for_lt_frame_id);
       }
     }
-
+#endif  // !CONFIG_G006_UCH_REORDER
     if (cm->bridge_frame_info.is_bridge_frame) {
       if (cm->immediate_output_picture) {
         avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
@@ -5271,6 +5279,23 @@ static AVM_INLINE void write_uncompressed_header(
     } else {
       cm->implicit_output_picture = 0;
     }
+#if CONFIG_G006_UCH_REORDER
+    if (!cm->bridge_frame_info.is_bridge_frame)
+      avm_wb_write_literal(
+          wb, current_frame->order_hint,
+          seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
+
+    if (current_frame->frame_type == KEY_FRAME) {
+      avm_wb_write_literal(wb, current_frame->long_term_id,
+                           seq_params->number_of_bits_for_lt_frame_id);
+    } else if (cpi->switch_frame_mode == 1) {
+      avm_wb_write_literal(wb, cm->num_ref_key_frames, 3);
+      for (int i = 0; i < cm->num_ref_key_frames; i++) {
+        avm_wb_write_literal(wb, cm->ref_long_term_ids[i],
+                             seq_params->number_of_bits_for_lt_frame_id);
+      }
+    }
+#endif  // CONFIG_G006_UCH_REORDER
   }
   int frame_size_override_flag = 0;
 
@@ -5308,9 +5333,11 @@ static AVM_INLINE void write_uncompressed_header(
                               : (cm->width != seq_params->max_frame_width ||
                                  cm->height != seq_params->max_frame_height);
       if (!frame_is_sframe(cm)) avm_wb_write_bit(wb, frame_size_override_flag);
+#if !CONFIG_G006_UCH_REORDER
       avm_wb_write_literal(
           wb, current_frame->order_hint,
           seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
+#endif  // !CONFIG_G006_UCH_REORDER
     }
 
     if (!frame_is_sframe(cm) && !frame_is_intra_only(cm)) {

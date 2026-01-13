@@ -7542,7 +7542,12 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       reset_frame_buffers(cm);
     }
     cm->cur_frame->frame_output_done = 0;
-
+#if CONFIG_G006_UCH_REORDER
+    current_frame->order_hint = avm_rb_read_literal(
+        rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
+    current_frame->display_order_hint =
+        get_disp_order_hint(cm, obu_type, pbi->random_accessed, false, -1, -1);
+#endif  // CONFIG_G006_UCH_REORDER
   } else {
     pbi->reset_decoder_state = 0;
     cm->show_existing_frame = 0;
@@ -7589,6 +7594,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       current_frame->frame_type =
           avm_rb_read_bit(rb) ? INTER_FRAME : INTRA_ONLY_FRAME;
     }
+#if !CONFIG_G006_UCH_REORDER
     current_frame->long_term_id = -1;
     if (current_frame->frame_type == KEY_FRAME) {
       current_frame->long_term_id =
@@ -7600,7 +7606,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
             avm_rb_read_literal(rb, seq_params->number_of_bits_for_lt_frame_id);
       }
     }
-
+#endif  // !CONFIG_G006_UCH_REORDER
     if (obu_type == OBU_CLK || (obu_type == OBU_OLK && pbi->random_accessed)) {
       pbi->restricted_predition = 0;
     }
@@ -7642,6 +7648,25 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     cm->cur_frame->immediate_output_picture = cm->immediate_output_picture;
     cm->cur_frame->implicit_output_picture = cm->implicit_output_picture;
     cm->cur_frame->frame_output_done = 0;
+#if CONFIG_G006_UCH_REORDER
+    if (obu_type != OBU_BRIDGE_FRAME) {
+      current_frame->order_hint = avm_rb_read_literal(
+          rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
+      current_frame->display_order_hint = get_disp_order_hint(
+          cm, obu_type, pbi->random_accessed, false, -1, -1);
+    }
+    current_frame->long_term_id = -1;
+    if (current_frame->frame_type == KEY_FRAME) {
+      current_frame->long_term_id =
+          avm_rb_read_literal(rb, seq_params->number_of_bits_for_lt_frame_id);
+    } else if (obu_type == OBU_RAS_FRAME) {
+      cm->num_ref_key_frames = avm_rb_read_literal(rb, 3);
+      for (int i = 0; i < cm->num_ref_key_frames; i++) {
+        cm->ref_long_term_ids[i] =
+            avm_rb_read_literal(rb, seq_params->number_of_bits_for_lt_frame_id);
+      }
+    }
+#endif  // CONFIG_G006_UCH_REORDER
   }
   av2_set_frame_sb_size(cm, cm->seq_params.sb_size);
 
@@ -7677,10 +7702,12 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       frame_size_override_flag = 1;
     } else {
       frame_size_override_flag = frame_is_sframe(cm) ? 1 : avm_rb_read_bit(rb);
+#if !CONFIG_G006_UCH_REORDER
       current_frame->order_hint = avm_rb_read_literal(
           rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
       current_frame->display_order_hint = get_disp_order_hint(
           cm, obu_type, pbi->random_accessed, false, -1, -1);
+#endif  // !CONFIG_G006_UCH_REORDER
       // Note: The following if block implements bitstream constraint checks for
       // consistent display order hint derivation when (embedded or temporal)
       // layers are selectively dropped based on operating points. The following
