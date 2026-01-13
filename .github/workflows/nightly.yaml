@@ -457,11 +457,8 @@ jobs:
     container:
       image: ${{ needs.vars.outputs.container-image }}
     env:
-      AVMENC_SKIP: ${{ matrix.avm-enc-skip }}
-      AVMENC_LIMIT: ${{ matrix.avm-enc-limit }}
       AVMENC_QP: 160
       AVMENC_INPUT: Vertical_Bayshore_270x480_2997.y4m
-      AVMENC_OUTPUT: ${{ matrix.avm-enc-output }}
 
     steps:
       - name: Get nightly build
@@ -487,90 +484,50 @@ jobs:
           curl -s -S -f -O https://gitlab.com/AOMediaCodec/aom-testing/-/raw/master/test-files/${AVMENC_INPUT}.xz
           unxz ${AVMENC_INPUT}.xz
 
-      - name: Encode GOP
+      - name: Encode GOPs
         run: |
-          avm_nightly_build/avmenc \
-            --debug \
-            --cpu-used=0 \
-            --passes=1 \
-            --lag-in-frames=19 \
-            --auto-alt-ref=1 \
-            --min-gf-interval=16 \
-            --max-gf-interval=16 \
-            --gf-min-pyr-height=4 \
-            --gf-max-pyr-height=4 \
-            --kf-min-dist=65 \
-            --kf-max-dist=65 \
-            --use-fixed-qp-offsets=1 \
-            --deltaq-mode=0 \
-            --enable-tpl-model=0 \
-            --end-usage=q \
-            --qp=${AVMENC_QP} \
-            --enable-keyframe-filtering=0 \
-            --obu \
-            --limit=${AVMENC_LIMIT} \
-            --skip=${AVMENC_SKIP} \
-            -o "${AVMENC_OUTPUT}.obu"  \
-            "${AVMENC_INPUT}" 2>&1 | tee "${AVMENC_OUTPUT}.psnr.log"
+          commands=/tmp/parallel.commands.$$
 
-          if [ ! -f "${AVMENC_OUTPUT}.obu" ]; then
-            echo "No OBU file generated." >&2
-            exit 1
-          fi
+          printf "" >${commands}
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4.1.0
-        if: always()
-        with:
-          name: enc-${{ matrix.avm-enc-output }}
-          path: |
-            ${{ matrix.avm-enc-output }}*
+          for avmenc in \
+            serial-2gops:0:130 \
+            parallel-gop1:0:65 \
+            parallel-gop2:65:130 \
+          ; do
+            avmenc_output=$(echo "${avmenc}" | cut -d: -f1)
+            avmenc_skip=$(echo "${avmenc}" | cut -d: -f2)
+            avmenc_limit=$(echo "${avmenc}" | cut -d: -f3)
 
-    strategy:
-      matrix:
-        avm-enc-output:
-          - serial-2gops
-          - parallel-gop1
-          - parallel-gop2
-        include:
-          - avm-enc-output: serial-2gops
-            avm-enc-skip: 0
-            avm-enc-limit: 130
-          - avm-enc-output: parallel-gop1
-            avm-enc-skip: 0
-            avm-enc-limit: 65
-          - avm-enc-output: parallel-gop2
-            avm-enc-skip: 65
-            avm-enc-limit: 130
+            echo "avm_nightly_build/avmenc \
+              --debug \
+              --cpu-used=0 \
+              --passes=1 \
+              --lag-in-frames=19 \
+              --auto-alt-ref=1 \
+              --min-gf-interval=16 \
+              --max-gf-interval=16 \
+              --gf-min-pyr-height=4 \
+              --gf-max-pyr-height=4 \
+              --kf-min-dist=65 \
+              --kf-max-dist=65 \
+              --use-fixed-qp-offsets=1 \
+              --deltaq-mode=0 \
+              --enable-tpl-model=0 \
+              --end-usage=q \
+              --qp=${AVMENC_QP} \
+              --enable-keyframe-filtering=0 \
+              --obu \
+              --limit=${avmenc_limit} \
+              --skip=${avmenc_skip} \
+              --output=${avmenc_output}.obu \
+              ${AVMENC_INPUT} 2>&1 | tee ${avmenc_output}.psnr.log" >>${commands}
+          done
 
-  serial-parallel-compare:
-    name: Serial/Parallel GOP compare
-    needs:
-      - serial-parallel-encode
-      - vars
-    if: (!cancelled())
-    timeout-minutes: ${{ fromJson(needs.vars.outputs.timeout-minutes) }}
-    runs-on: ${{ needs.vars.outputs.runner }}
-    container:
-      image: ${{ needs.vars.outputs.container-image }}
-
-    steps:
-      - name: Get serial-2gops OBU
-        uses: actions/download-artifact@v5
-        with:
-          name: enc-serial-2gops
-
-      - name: Get parallel-gop1 OBU
-        uses: actions/download-artifact@v5
-        with:
-          name: enc-parallel-gop1
-
-      - name: Get parallel-gop2 OBU
-        uses: actions/download-artifact@v5
-        with:
-          name: enc-parallel-gop2
+          cat ${commands}
+          time parallel --line-buffer < ${commands}
 
       - name: Compare GOPs
         run: |
-          cat parallel-gop1.obu parallel-gop2.obu > parallel-2gops.obu
+          cat parallel-gop1.obu parallel-gop2.obu >parallel-2gops.obu
           diff serial-2gops.obu parallel-2gops.obu
