@@ -244,12 +244,10 @@ uint32_t av2_read_content_interpretation_obu(struct AV2Decoder *pbi,
   //  * 0. CLK/OLK signalled without CI
   //  * 1. CI obu signalled without CLK/OLK
   //  * 2. CI obu signalled with CLK/OLK
-  if (pbi->ci_and_key_per_layer[obu_mlayer_id] == 1) {
-    avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
-                       "CI OBU is signalled without CLK/OLK");
-  } else if (pbi->ci_and_key_per_layer[obu_mlayer_id] == 2) {
+  if (pbi->ci_and_key_per_layer[obu_mlayer_id] != 0) {
     // Check if a CI OBU has already been received for this embedded layer
-    if (pbi->ci_obu_received_per_layer[obu_mlayer_id]) {
+    if (pbi->ci_obu_received_per_layer[obu_mlayer_id] ||
+        (pbi->ci_and_key_per_layer[obu_mlayer_id] == 1)) {
       if (!av2_ci_params_identical(&cm->ci_params_per_layer[obu_mlayer_id],
                                    &ci_temp)) {
         avm_internal_error(
