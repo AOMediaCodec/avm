@@ -808,7 +808,7 @@ static void av2_set_profile_info_for_obus(AV2_COMP *cpi, int num_mlayers) {
   lcr->lcr_max_interop = interop;
 
   // Seet per-xlayer PTL info
-  for (int i = 0; i < MAX_NUM_XLAYERS; i++) {
+  for (int i = 0; i < MAX_NUM_XLAYERS - 1; i++) {
     lcr->lcr_seq_profile_idc[i] = profile;
     lcr->lcr_max_level_idx[i] = level_idx;
     lcr->lcr_tier_flag[i] = tier;
