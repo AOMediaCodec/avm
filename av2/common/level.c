@@ -478,15 +478,10 @@ static double time_to_decode_frame(const AV2_COMMON *const cm,
     else
       luma_samples = cm->width * cm->height;
   } else {
-    const int spatial_layer_dimensions_present_flag = 0;
-    if (spatial_layer_dimensions_present_flag) {
-      assert(0 && "Spatial layer dimensions not supported yet.");
-    } else {
-      const SequenceHeader *const seq_params = &cm->seq_params;
-      const int max_frame_width = seq_params->max_frame_width;
-      const int max_frame_height = seq_params->max_frame_height;
-      luma_samples = max_frame_width * max_frame_height;
-    }
+    const SequenceHeader *const seq_params = &cm->seq_params;
+    const int max_frame_width = seq_params->max_frame_width;
+    const int max_frame_height = seq_params->max_frame_height;
+    luma_samples = max_frame_width * max_frame_height;
   }
 
   return luma_samples / (double)max_decode_rate;
