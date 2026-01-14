@@ -114,25 +114,6 @@ int av2_index_color_cache(const uint16_t *color_cache, int n_cache,
   return j;
 }
 
-int av2_get_palette_delta_bits_v(const PALETTE_MODE_INFO *const pmi,
-                                 int bit_depth, int *zero_count,
-                                 int *min_bits) {
-  const int n = pmi->palette_size[1];
-  const int max_val = 1 << bit_depth;
-  int max_d = 0;
-  *min_bits = bit_depth - 4;
-  *zero_count = 0;
-  for (int i = 1; i < n; ++i) {
-    const int delta = pmi->palette_colors[2 * PALETTE_MAX_SIZE + i] -
-                      pmi->palette_colors[2 * PALETTE_MAX_SIZE + i - 1];
-    const int v = abs(delta);
-    const int d = AVMMIN(v, max_val - v);
-    if (d > max_d) max_d = d;
-    if (d == 0) ++(*zero_count);
-  }
-  return AVMMAX(avm_ceil_log2(max_d + 1), *min_bits);
-}
-
 int av2_palette_color_cost_y(const PALETTE_MODE_INFO *const pmi,
                              const uint16_t *color_cache, int n_cache,
                              int bit_depth) {
@@ -144,31 +125,6 @@ int av2_palette_color_cost_y(const PALETTE_MODE_INFO *const pmi,
                             cache_color_found, out_cache_colors);
   const int total_bits =
       n_cache + delta_encode_cost(out_cache_colors, n_out_cache, bit_depth, 1);
-  return av2_cost_literal(total_bits);
-}
-
-int av2_palette_color_cost_uv(const PALETTE_MODE_INFO *const pmi,
-                              const uint16_t *color_cache, int n_cache,
-                              int bit_depth) {
-  const int n = pmi->palette_size[1];
-  int total_bits = 0;
-  // U channel palette color cost.
-  int out_cache_colors[PALETTE_MAX_SIZE];
-  uint8_t cache_color_found[2 * PALETTE_MAX_SIZE];
-  const int n_out_cache = av2_index_color_cache(
-      color_cache, n_cache, pmi->palette_colors + PALETTE_MAX_SIZE, n,
-      cache_color_found, out_cache_colors);
-  total_bits +=
-      n_cache + delta_encode_cost(out_cache_colors, n_out_cache, bit_depth, 0);
-
-  // V channel palette color cost.
-  int zero_count = 0, min_bits_v = 0;
-  const int bits_v =
-      av2_get_palette_delta_bits_v(pmi, bit_depth, &zero_count, &min_bits_v);
-  const int bits_using_delta =
-      2 + bit_depth + (bits_v + 1) * (n - 1) - zero_count;
-  const int bits_using_raw = bit_depth * n;
-  total_bits += 1 + AVMMIN(bits_using_delta, bits_using_raw);
   return av2_cost_literal(total_bits);
 }
 

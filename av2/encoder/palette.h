@@ -138,21 +138,6 @@ int av2_index_color_cache(const uint16_t *color_cache, int n_cache,
                           const uint16_t *colors, int n_colors,
                           uint8_t *cache_color_found, int *out_cache_colors);
 
-/*!\brief Gets the rate cost for each delta-encoding v palette.
- *
- * \ingroup palette_mode_search
- * \param[in]    pmi                  Struct that stores the palette mode info.
- * \param[in]    bit_depth            Pixel bitdepth of the sequence.
- * \param[in]    zero_count           Stores the number of zero deltas.
- * \param[in]    min_bits             Minimum bits for the deltas. Sets to
- *                                    bit_depth - 4.
- *
- * \return Returns the number of bits used to transmit each v palette color
- * delta and assigns zero_count with the number of deltas being 0.
- */
-int av2_get_palette_delta_bits_v(const PALETTE_MODE_INFO *const pmi,
-                                 int bit_depth, int *zero_count, int *min_bits);
-
 /*!\brief Gets the rate cost for transmitting luma palette color values.
  *
  * \ingroup palette_mode_search
@@ -167,21 +152,6 @@ int av2_get_palette_delta_bits_v(const PALETTE_MODE_INFO *const pmi,
 int av2_palette_color_cost_y(const PALETTE_MODE_INFO *const pmi,
                              const uint16_t *color_cache, int n_cache,
                              int bit_depth);
-
-/*!\brief Gets the rate cost for transmitting luma palette chroma values.
- *
- * \ingroup palette_mode_search
- * \param[in]    pmi                  Struct that stores the palette mode info.
- * \param[in]    color_cache          Color cache presented at the decoder.
- * \param[in]    n_cache              Number of colors in the cache.
- * \param[in]    bit_depth            Pixel bitdepth of the sequence.
- *
- * \return Returns the rate needed to transmit the palette. Note that this does
- * not include the cost of transmitted the color map.
- */
-int av2_palette_color_cost_uv(const PALETTE_MODE_INFO *const pmi,
-                              const uint16_t *color_cache, int n_cache,
-                              int bit_depth);
 
 /*!\brief Search for the best palette in the luma plane.
  *
