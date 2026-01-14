@@ -688,6 +688,16 @@ static void set_content_interpreation_params(struct AV2_COMP *cpi,
     ci_params->ci_color_description_present_flag = 1;
   else
     ci_params->ci_color_description_present_flag = 0;
+
+  if (ci_params->color_info.color_description_idc ==
+          AVM_COLOR_DESC_IDC_EXPLICIT &&
+      ci_params->color_info.color_primaries == AVM_CICP_CP_UNSPECIFIED &&
+      ci_params->color_info.transfer_characteristics ==
+          AVM_CICP_TC_UNSPECIFIED &&
+      ci_params->color_info.matrix_coefficients == AVM_CICP_MC_UNSPECIFIED &&
+      ci_params->color_info.full_range_flag == 0)
+    ci_params->ci_color_description_present_flag = 0;
+
   ci_params->ci_chroma_sample_position_present_flag = 0;
   if (chroma_format_idc == CHROMA_FORMAT_422 ||
       chroma_format_idc == CHROMA_FORMAT_420) {
