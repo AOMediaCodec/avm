@@ -232,10 +232,22 @@ uint32_t av2_read_content_interpretation_obu(struct AV2Decoder *pbi,
   if (ci_temp.ci_timing_info_present_flag)
     av2_read_timing_info_header(&ci_temp.timing_info, &cm->error, rb);
 
+#if CONFIG_F414_OBU_EXTENSION
+  // The +1 to account for the extension bit read before
+  size_t bits_before_ext = rb->bit_offset - saved_bit_offset - 1;
   if (ci_temp.ci_extension_present_flag) {
-    // TODO: issue #1111 - Add the extension mechanism
+    // Extension data bits = total - bits_read_before_extension -1 (ext flag)
+    // - trailing bits
+    int extension_bits = read_obu_extension_bits(
+        rb->bit_buffer, rb->bit_buffer_end - rb->bit_buffer, bits_before_ext,
+        &pbi->common.error);
+    if (extension_bits > 0) {
+      rb->bit_offset += extension_bits;  // skip over the extension bits
+    } else {
+      // No extension data present
+    }
   }
-
+#endif  // CONFIG_F414_OBU_EXTENSION
   if (av2_check_trailing_bits(pbi, rb) != 0) {
     // cm->error.error_code is already set.
     return 0;

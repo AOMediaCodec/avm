@@ -268,7 +268,10 @@ uint32_t av2_write_layer_configuration_record_obu(AV2_COMP *cpi, int xlayer_id,
     write_lcr_global_info(cpi, &wb);
   else
     write_lcr_local_info(cpi, xlayer_id, &wb);
-
+#if CONFIG_F414_OBU_EXTENSION
+  avm_wb_write_bit(&wb, cpi->common.lcr_params.lcr_extension_present_flag);
+  assert(!cpi->common.lcr_params.lcr_extension_present_flag);
+#endif  // CONFIG_F414_OBU_EXTENSION
   av2_add_trailing_bits(&wb);
   size = avm_wb_bytes_written(&wb);
   return size;

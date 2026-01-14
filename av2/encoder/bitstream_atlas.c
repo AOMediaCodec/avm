@@ -302,7 +302,10 @@ uint32_t av2_write_atlas_segment_info_obu(AV2_COMP *cpi, int obu_xLayer_id,
   }
   // Label each atlas segment
   write_ats_label_segment_info(cpi, obu_xLayer_id, xAId, num_segments, &wb);
-
+#if CONFIG_F414_OBU_EXTENSION
+  avm_wb_write_bit(&wb, atlas_params->ats_extension_present_flag);
+  assert(!atlas_params->ats_extension_present_flag);
+#endif  // CONFIG_F414_OBU_EXTENSION
   av2_add_trailing_bits(&wb);
   size = avm_wb_bytes_written(&wb);
   return size;

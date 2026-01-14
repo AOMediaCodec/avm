@@ -74,7 +74,6 @@ uint32_t av2_write_content_interpretation_obu(
     av2_write_timing_info_header(&ci_params->timing_info, &wb);
   }
   if (ci_params->ci_extension_present_flag) {
-    // TODO: issue #1111 - Add the extension mechanism
   }
   av2_add_trailing_bits(&wb);
   size = avm_wb_bytes_written(&wb);

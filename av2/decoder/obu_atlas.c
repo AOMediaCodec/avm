@@ -399,7 +399,23 @@ uint32_t av2_read_atlas_segment_info_obu(struct AV2Decoder *pbi,
   // Label each atlas segment
   read_ats_label_segment_info(pbi, atlas_params, obu_xLayer_id, xAId,
                               num_segments, rb);
-
+#if CONFIG_F414_OBU_EXTENSION
+  size_t bits_before_ext = rb->bit_offset - saved_bit_offset;
+  atlas_params->ats_extension_present_flag = avm_rb_read_bit(rb);
+  if (atlas_params->ats_extension_present_flag) {
+    // Extension data bits = total - bits_read_before_extension -1 (ext flag) -
+    // trailing bits
+    int extension_bits = read_obu_extension_bits(
+        rb->bit_buffer, rb->bit_buffer_end - rb->bit_buffer, bits_before_ext,
+        &pbi->common.error);
+    if (extension_bits > 0) {
+      // skip over the extension bits
+      rb->bit_offset += extension_bits;
+    } else {
+      // No extension data present
+    }
+  }
+#endif  // CONFIG_F414_OBU_EXTENSION
   if (av2_check_trailing_bits(pbi, rb) != 0) {
     return 0;
   }

@@ -352,6 +352,24 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
   av2_read_sequence_header(rb, seq_params);
   seq_params->film_grain_params_present = avm_rb_read_bit(rb);
 
+#if CONFIG_F414_OBU_EXTENSION
+  size_t bits_before_ext = rb->bit_offset - saved_bit_offset;
+  seq_params->seq_extension_present_flag = avm_rb_read_bit(rb);
+  if (seq_params->seq_extension_present_flag) {
+    // Extension data bits = total - bits_read_before_extension -1 (ext flag) -
+    // trailing bits
+    int extension_bits = read_obu_extension_bits(
+        rb->bit_buffer, rb->bit_buffer_end - rb->bit_buffer, bits_before_ext,
+        &pbi->common.error);
+    if (extension_bits > 0) {
+      // skip over the extension bits
+      rb->bit_offset += extension_bits;
+    } else {
+      // No extension data is present
+    }
+  }
+#endif  // CONFIG_F414_OBU_EXTENSION
+
   if (av2_check_trailing_bits(pbi, rb) != 0) {
     // cm->error.error_code is already set.
     return 0;
@@ -365,6 +383,25 @@ static uint32_t read_multi_frame_header_obu(AV2Decoder *pbi,
   const uint32_t saved_bit_offset = rb->bit_offset;
 
   av2_read_multi_frame_header(cm, rb);
+
+#if CONFIG_F414_OBU_EXTENSION
+  size_t bits_before_ext = rb->bit_offset - saved_bit_offset;
+  cm->mfh_params[cm->cur_mfh_id].mfh_extension_present_flag =
+      avm_rb_read_bit(rb);
+  if (cm->mfh_params[cm->cur_mfh_id].mfh_extension_present_flag) {
+    // Extension data bits = total - bits_read_before_extension -1 (ext flag) -
+    // trailing bits
+    int extension_bits = read_obu_extension_bits(
+        rb->bit_buffer, rb->bit_buffer_end - rb->bit_buffer, bits_before_ext,
+        &pbi->common.error);
+    if (extension_bits > 0) {
+      // skip over the extension bits
+      rb->bit_offset += extension_bits;
+    } else {
+      // No extension data present
+    }
+  }
+#endif  // CONFIG_F414_OBU_EXTENSION
 
   if (av2_check_trailing_bits(pbi, rb) != 0) {
     // cm->error.error_code is already set.

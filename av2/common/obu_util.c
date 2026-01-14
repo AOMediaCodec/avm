@@ -17,7 +17,7 @@
 
 #include "avm_dsp/bitreader_buffer.h"
 #include "av2/common/enums.h"
-
+#if !CONFIG_F414_OBU_EXTENSION
 // Returns 1 when OBU type is valid, and 0 otherwise.
 static int valid_obu_type(int obu_type) {
   int valid_type = 0;
@@ -51,7 +51,7 @@ static int valid_obu_type(int obu_type) {
   }
   return valid_type;
 }
-
+#endif  // !CONFIG_F414_OBU_EXTENSION
 static avm_codec_err_t read_obu_size(const uint8_t *data,
                                      size_t bytes_available,
                                      size_t *const obu_size,
@@ -79,8 +79,9 @@ static avm_codec_err_t read_obu_header(struct avm_read_bit_buffer *rb,
 
   header->obu_extension_flag = avm_rb_read_bit(rb);
   header->type = (OBU_TYPE)avm_rb_read_literal(rb, 5);  // obu_type
+#if !CONFIG_F414_OBU_EXTENSION
   if (!valid_obu_type(header->type)) return AVM_CODEC_CORRUPT_FRAME;
-
+#endif  // !CONFIG_F414_OBU_EXTENSION
   header->obu_tlayer_id = avm_rb_read_literal(rb, TLAYER_BITS);
 
   if (header->obu_extension_flag) {

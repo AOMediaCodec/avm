@@ -59,6 +59,12 @@ void av2_read_sequence_header(struct avm_read_bit_buffer *rb,
 void read_sequence_tile_info(struct SequenceHeader *seq_params,
                              struct avm_read_bit_buffer *rb);
 
+#if CONFIG_F414_OBU_EXTENSION
+int read_obu_extension_bits(const uint8_t *obu_payload, size_t payload_size,
+                            size_t bits_read_before_extension,
+                            struct avm_internal_error_info *error_info);
+#endif  //  CONFIG_F414_OBU_EXTENSION
+
 void alloc_qmatrix(struct quantization_matrix_set *qm_set);
 void av2_copy_predefined_qmatrices_to_list(struct AV2Decoder *pbi,
                                            int num_planes);

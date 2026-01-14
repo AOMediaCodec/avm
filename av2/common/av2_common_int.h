@@ -742,6 +742,9 @@ typedef struct LayerConfigurationRecord {
   struct RepresentationInfo rep_list[MAX_LCR_TYPES][MAX_NUM_XLAYERS];
   struct XLayerColorInfo xlayer_col_params;
   struct EmbeddedLayerInfo mlayer_params;
+#if CONFIG_F414_OBU_EXTENSION
+  int lcr_extension_present_flag;
+#endif  // CONFIG_F414_OBU_EXTENSION
 } LayerConfigurationRecord;
 
 typedef struct AtlasLabelSegmentInfo {
@@ -831,6 +834,9 @@ typedef struct AtlasSegmentInfo {
   struct AtlasBasicInfo ats_basic_info_s;
   struct AtlasRegionToSegmentMapping ats_reg_seg_map;
   struct AtlasLabelSegmentInfo ats_label_seg;
+#if CONFIG_F414_OBU_EXTENSION
+  int ats_extension_present_flag;
+#endif  // CONFIG_F414_OBU_EXTENSION
 } AtlasSegmentInfo;
 
 typedef struct OpsColorInfo {
@@ -904,6 +910,9 @@ typedef struct OperatingPointSet {
   struct OpsColorInfo ops_col_info_s;
   struct OpsDecoderModelInfo *ops_decoder_model_info;
   struct OpsDecoderModelInfo ops_decoder_model_info_s;
+#if CONFIG_F414_OBU_EXTENSION
+  int ops_extension_present_flag;
+#endif  // CONFIG_F414_OBU_EXTENSION
 } OperatingPointSet;
 
 // This structure specifies the color info params
@@ -1120,6 +1129,9 @@ typedef struct SequenceHeader {
   uint8_t seq_seg_info_present_flag;
   SegmentationInfoSyntax seg_params;
   int allow_seg_info_change;
+#if CONFIG_F414_OBU_EXTENSION
+  int seq_extension_present_flag;
+#endif  // CONFIG_F414_OBU_EXTENSION
 } SequenceHeader;
 
 typedef struct {
@@ -1415,6 +1427,12 @@ typedef struct MultiFrameHeader {
    * enable_seg_flag for MFH
    */
   int mfh_ext_seg_flag;
+#if CONFIG_F414_OBU_EXTENSION
+  /*!
+   * Extension present flag
+   */
+  int mfh_extension_present_flag;
+#endif  // CONFIG_F414_OBU_EXTENSION
 } MultiFrameHeader;
 
 typedef struct CommonModeInfoParams CommonModeInfoParams;

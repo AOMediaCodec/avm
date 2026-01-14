@@ -6027,7 +6027,10 @@ uint32_t av2_write_sequence_header_obu(const SequenceHeader *seq_params,
   write_sequence_header(seq_params, &wb);
 
   avm_wb_write_bit(&wb, seq_params->film_grain_params_present);
-
+#if CONFIG_F414_OBU_EXTENSION
+  avm_wb_write_bit(&wb, seq_params->seq_extension_present_flag);
+  assert(!seq_params->seq_extension_present_flag);
+#endif  // CONFIG_F414_OBU_EXTENSION
   av2_add_trailing_bits(&wb);
 
   size = avm_wb_bytes_written(&wb);
@@ -6041,7 +6044,10 @@ uint32_t write_multi_frame_header_obu(AV2_COMP *cpi,
   uint32_t size = 0;
 
   write_multi_frame_header(cpi, mfh_param, &wb);
-
+#if CONFIG_F414_OBU_EXTENSION
+  avm_wb_write_bit(&wb, mfh_param->mfh_extension_present_flag);
+  assert(!mfh_param->mfh_extension_present_flag);
+#endif  // CONFIG_F414_OBU_EXTENSION
   av2_add_trailing_bits(&wb);
 
   size = avm_wb_bytes_written(&wb);
@@ -6733,6 +6739,9 @@ static void set_multi_frame_header_with_keyframe(AV2_COMP *cpi,
   } else {
     mfh_params->mfh_tile_info_present_flag = 0;
   }
+#if CONFIG_F414_OBU_EXTENSION
+  mfh_params->mfh_extension_present_flag = 0;
+#endif  // CONFIG_F414_OBU_EXTENSION
 }
 
 size_t av2_write_banding_hints_metadata(

@@ -7435,6 +7435,64 @@ static int setup_sequence_header_id(AV2_COMMON *const cm,
   return seq_header_id_in_frame_header;
 }
 
+#if CONFIG_F414_OBU_EXTENSION
+static int av1_get_obu_trailing_bits_count(const uint8_t *obu_payload,
+                                           size_t payload_size) {
+  assert(payload_size != 0);
+
+  int trailing_bits = 0;
+
+  // Step 1: Get the last byte of the payload
+  int i;
+  for (i = (int)payload_size - 1; i >= 0; i--) {
+    if (obu_payload[i] != 0) {
+      break;
+    }
+    trailing_bits += 8;
+  }
+
+  // Step 2: If all bytes are 0, then is invalid: there should be at least 1
+  if (i < 0) return -1;
+
+  // Step 3: Read backwards from bit 0 to find the first one
+  uint8_t last_nonzero_byte = obu_payload[i];
+  for (int bit_pos = 0; bit_pos < 8; bit_pos++) {
+    if (last_nonzero_byte & (1 << bit_pos)) {
+      // Found the trailing "1" bit marker
+      trailing_bits += bit_pos + 1;
+      break;
+    }
+  }
+  return trailing_bits;
+}
+
+int read_obu_extension_bits(const uint8_t *obu_payload, size_t payload_size,
+                            size_t bits_read_before_extension,
+                            struct avm_internal_error_info *error_info) {
+  // Get trailing bits count
+  int num_trailing_bits =
+      av1_get_obu_trailing_bits_count(obu_payload, payload_size);
+  if (num_trailing_bits < 0) {
+    avm_internal_error(error_info, AVM_CODEC_UNSUP_BITSTREAM,
+                       "Extension bits when present cannot be less than 0.\n");
+  }
+
+  // Calculate total bits in paylaod
+  size_t total_payload_bits = payload_size * 8;
+
+  // Extension data bits = total - bits_read_before_extension -1 (ext flag) -
+  // trailing bits
+  if (total_payload_bits - bits_read_before_extension - 1 <
+      (size_t)num_trailing_bits) {
+    return -1;
+  }
+  size_t extension_data_bits =
+      total_payload_bits - bits_read_before_extension - 1 - num_trailing_bits;
+
+  return (int)extension_data_bits;
+}
+#endif  // CONFIG_F414_OBU_EXTENSION
+
 // On success, returns 0. On failure, calls avm_internal_error and does not
 // return.
 static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
