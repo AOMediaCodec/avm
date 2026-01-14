@@ -672,31 +672,33 @@ static void set_content_interpreation_params(struct AV2_COMP *cpi,
   }
   ci_params->color_info.full_range_flag = color_cfg->color_range;
 
-  if ((ci_params->color_info.color_description_idc ==
-       AVM_COLOR_DESC_IDC_EXPLICIT) ||
-      (ci_params->color_info.color_description_idc ==
-       AVM_COLOR_DESC_IDC_BT709SDR) ||
-      (ci_params->color_info.color_description_idc ==
-       AVM_COLOR_DESC_IDC_SRGB) ||
-      (ci_params->color_info.color_description_idc ==
-       AVM_COLOR_DESC_IDC_SRGBSYCC) ||
-      (ci_params->color_info.color_description_idc ==
-       AVM_CICP_TC_BT_2020_10_BIT) ||
-      (ci_params->color_info.color_description_idc ==
-       AVM_COLOR_DESC_IDC_BT2100HLG) ||
-      (ci_params->color_info.full_range_flag != 0))
-    ci_params->ci_color_description_present_flag = 1;
-  else
-    ci_params->ci_color_description_present_flag = 0;
-
   if (ci_params->color_info.color_description_idc ==
           AVM_COLOR_DESC_IDC_EXPLICIT &&
       ci_params->color_info.color_primaries == AVM_CICP_CP_UNSPECIFIED &&
       ci_params->color_info.transfer_characteristics ==
           AVM_CICP_TC_UNSPECIFIED &&
       ci_params->color_info.matrix_coefficients == AVM_CICP_MC_UNSPECIFIED &&
-      ci_params->color_info.full_range_flag == 0)
+      ci_params->color_info.full_range_flag == 0) {
+    // Skip signalling color description when EXPLICIT mode has all the default
+    // values
     ci_params->ci_color_description_present_flag = 0;
+  } else if ((ci_params->color_info.color_description_idc ==
+              AVM_COLOR_DESC_IDC_EXPLICIT) ||
+             (ci_params->color_info.color_description_idc ==
+              AVM_COLOR_DESC_IDC_BT709SDR) ||
+             (ci_params->color_info.color_description_idc ==
+              AVM_COLOR_DESC_IDC_SRGB) ||
+             (ci_params->color_info.color_description_idc ==
+              AVM_COLOR_DESC_IDC_SRGBSYCC) ||
+             (ci_params->color_info.color_description_idc ==
+              AVM_CICP_TC_BT_2020_10_BIT) ||
+             (ci_params->color_info.color_description_idc ==
+              AVM_COLOR_DESC_IDC_BT2100HLG) ||
+             (ci_params->color_info.full_range_flag != 0)) {
+    ci_params->ci_color_description_present_flag = 1;
+  } else {
+    ci_params->ci_color_description_present_flag = 0;
+  }
 
   ci_params->ci_chroma_sample_position_present_flag = 0;
   if (chroma_format_idc == CHROMA_FORMAT_422 ||
