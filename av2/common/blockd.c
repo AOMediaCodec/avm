@@ -520,9 +520,6 @@ int set_frame_filter_dictionary(int plane, const AV2_COMMON *cm,
        ++pc_wiener_cnt) {
     int filter_index = shuffled_index[pc_wiener_cnt];
     assert(filter_index < NUM_PC_WIENER_FILTERS);
-    if (filter_index >= NUM_PC_WIENER_FILTERS) {
-      filter_index = NUM_PC_WIENER_FILTERS - 1;
-    }
 
     const int16_t *pcwiener_filter = cm->translated_pcwiener_filters +
                                      filter_index * MAX_NUM_DICTIONARY_TAPS;
