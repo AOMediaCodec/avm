@@ -544,8 +544,6 @@ typedef struct SimpleMotionData {
   BLOCK_SIZE bsize;                  /*!< blocksize */
   int mi_row;                        /*!< row position in mi units */
   int mi_col;                        /*!< col position in mi units */
-  MV_COST_TYPE mv_cost_type;         /*!< mv cost type */
-  int sadpb;                         /*!< sad per bit */
   int errorperbit;                   /*!< error per bit */
   MV start_mv_list[kSMSMaxStartMVs]; /*!< start mv list */
   int num_start_mvs;                 /*!< number of start mvs */
@@ -1343,15 +1341,6 @@ typedef struct macroblock {
 
   //! Entropy context for the current row.
   FRAME_CONTEXT *row_ctx;
-  /*! \brief Entropy context for the current tile.
-   *
-   * This context will be used to update color_map_cdf pointer which would be
-   * used during pack bitstream. For single thread and tile-multithreading case
-   * this pointer will be same as xd->tile_ctx, but for the case of row-mt:
-   * xd->tile_ctx will point to a temporary context while tile_pb_ctx will point
-   * to the accurate tile context.
-   */
-  FRAME_CONTEXT *tile_pb_ctx;
 
   /*! \brief Buffer of transformed coefficients
    *

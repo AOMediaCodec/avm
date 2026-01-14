@@ -405,7 +405,6 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
     assert(current_mi_row != -1 && current_mi_row <= tile_info->mi_row_end);
 
     td->mb.e_mbd.tile_ctx = td->tctx;
-    td->mb.tile_pb_ctx = &this_tile->tctx;
 
     if (this_tile->allow_update_cdf) {
       td->mb.row_ctx = this_tile->row_ctx;
@@ -459,7 +458,6 @@ static int enc_worker_hook(void *arg1, void *unused) {
     TileDataEnc *const this_tile =
         &cpi->tile_data[tile_row * cm->tiles.cols + tile_col];
     thread_data->td->mb.e_mbd.tile_ctx = &this_tile->tctx;
-    thread_data->td->mb.tile_pb_ctx = &this_tile->tctx;
     av2_encode_tile(cpi, thread_data->td, tile_row, tile_col);
   }
 

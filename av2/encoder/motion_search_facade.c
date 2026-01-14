@@ -1509,7 +1509,6 @@ int_mv av2_simple_motion_search_ext(AV2_COMP *const cpi,
 
   // Allow more mesh searches for screen content type on the ARF.
   const int fine_search_interval = use_fine_search_interval(cpi);
-  sms_data->sadpb = x->mv_costs.sadperbit;
   sms_data->errorperbit = x->mv_costs.errorperbit;
 
   const MvSubpelPrecision pb_mv_precision = mbmi->pb_mv_precision;

@@ -1741,7 +1741,6 @@ static AVM_INLINE void encode_tiles(AV2_COMP *cpi) {
       cpi->td.intrabc_used = 0;
       cpi->td.deltaq_used = 0;
       cpi->td.mb.e_mbd.tile_ctx = &this_tile->tctx;
-      cpi->td.mb.tile_pb_ctx = &this_tile->tctx;
       cpi->td.mb.palette_pixels = 0;
       av2_encode_tile(cpi, &cpi->td, tile_row, tile_col);
       cpi->palette_pixel_num += cpi->td.mb.palette_pixels;
