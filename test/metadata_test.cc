@@ -34,6 +34,14 @@ const uint8_t kMetadataPayloadT35[kMetadataPayloadSizeT35] = {
   0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17
 };
 
+const size_t kMetadataPayloadSizeUserDataUnregistered = 32;
+// uuid_iso_iec_11578 (16 bytes) + user data (16 bytes)
+// UUID: 550e8400-e29b-41d4-a716-446655440000 (example UUID)
+const uint8_t kMetadataPayloadUserDataUnregistered[kMetadataPayloadSizeUserDataUnregistered] = {
+  0x55, 0x0e, 0x84, 0x00, 0xe2, 0x9b, 0x41, 0xd4, 0xa7, 0x16, 0x44, 0x66, 0x55, 0x44, 0x00, 0x00,
+  0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10
+};
+
 const size_t kMetadataPayloadSizeCll = 4;
 const uint8_t kMetadataPayloadCll[kMetadataPayloadSizeCll] = { 0xDE, 0xAD, 0xBE,
                                                                0xEF };
@@ -60,6 +68,16 @@ const uint8_t kMetadataObuT35[kMetadataObuSizeT35] = {
   0x00, 0x00,  // layer_idc(3) persistence_idc(3) priority(8) reserved(2)
   0xB5, 0x58, 0x90, 0xFE, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B,
   0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17
+};
+
+const size_t kMetadataObuSizeUserDataUnregistered = 37;
+const uint8_t kMetadataObuUserDataUnregistered[kMetadataObuSizeUserDataUnregistered] = {
+  0x20,        // muh_metadata_type(leb128) = 32 (User Data Unregistered)
+  0x06,        // muh_header_size(7) = 3 + muh_cancel_flag(1) = 0
+  0x20,        // muh_payload_size(leb128) = 32
+  0x00, 0x00,  // layer_idc(3) persistence_idc(3) priority(8) reserved(2)
+  0x55, 0x0e, 0x84, 0x00, 0xe2, 0x9b, 0x41, 0xd4, 0xa7, 0x16, 0x44, 0x66, 0x55, 0x44, 0x00, 0x00,
+  0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10
 };
 
 const size_t kMetadataObuSizeMdcv = 29;
@@ -278,6 +296,16 @@ TEST(MetadataTest, MetadataAllocation) {
   avm_img_metadata_free(metadata);
 }
 
+TEST(MetadataTest, MetadataAllocationUserDataUnregistered) {
+  avm_metadata_t *metadata =
+      avm_img_metadata_alloc(OBU_METADATA_TYPE_USER_DATA_UNREGISTERED,
+                             kMetadataPayloadUserDataUnregistered,
+                             kMetadataPayloadSizeUserDataUnregistered,
+                             AVM_MIF_ANY_FRAME);
+  ASSERT_NE(metadata, nullptr);
+  avm_img_metadata_free(metadata);
+}
+
 TEST(MetadataTest, MetadataArrayAllocation) {
   avm_metadata_array_t *metadata_array = avm_img_metadata_array_alloc(2);
   ASSERT_NE(metadata_array, nullptr);
@@ -288,6 +316,24 @@ TEST(MetadataTest, MetadataArrayAllocation) {
   metadata_array->metadata_array[1] =
       avm_img_metadata_alloc(OBU_METADATA_TYPE_ITUT_T35, kMetadataPayloadT35,
                              kMetadataPayloadSizeT35, AVM_MIF_ANY_FRAME);
+
+  avm_img_metadata_array_free(metadata_array);
+}
+
+TEST(MetadataTest, MetadataArrayAllocationUserDataUnregistered) {
+  avm_metadata_array_t *metadata_array = avm_img_metadata_array_alloc(2);
+  ASSERT_NE(metadata_array, nullptr);
+
+  metadata_array->metadata_array[0] =
+      avm_img_metadata_alloc(OBU_METADATA_TYPE_USER_DATA_UNREGISTERED,
+                             kMetadataPayloadUserDataUnregistered,
+                             kMetadataPayloadSizeUserDataUnregistered,
+                             AVM_MIF_ANY_FRAME);
+  metadata_array->metadata_array[1] =
+      avm_img_metadata_alloc(OBU_METADATA_TYPE_USER_DATA_UNREGISTERED,
+                             kMetadataPayloadUserDataUnregistered,
+                             kMetadataPayloadSizeUserDataUnregistered,
+                             AVM_MIF_ANY_FRAME);
 
   avm_img_metadata_array_free(metadata_array);
 }
@@ -307,12 +353,42 @@ TEST(MetadataTest, AddMetadataToImage) {
             -1);
 }
 
+TEST(MetadataTest, AddMetadataToImageUserDataUnregistered) {
+  avm_image_t image;
+  image.metadata = NULL;
+
+  ASSERT_EQ(avm_img_add_metadata(&image, OBU_METADATA_TYPE_USER_DATA_UNREGISTERED,
+                                 kMetadataPayloadUserDataUnregistered,
+                                 kMetadataPayloadSizeUserDataUnregistered,
+                                 AVM_MIF_ANY_FRAME),
+            0);
+  avm_img_metadata_array_free(image.metadata);
+  EXPECT_EQ(avm_img_add_metadata(NULL, OBU_METADATA_TYPE_USER_DATA_UNREGISTERED,
+                                 kMetadataPayloadUserDataUnregistered,
+                                 kMetadataPayloadSizeUserDataUnregistered,
+                                 AVM_MIF_ANY_FRAME),
+            -1);
+}
+
 TEST(MetadataTest, RemoveMetadataFromImage) {
   avm_image_t image;
   image.metadata = NULL;
 
   ASSERT_EQ(avm_img_add_metadata(&image, OBU_METADATA_TYPE_ITUT_T35,
                                  kMetadataPayloadT35, kMetadataPayloadSizeT35,
+                                 AVM_MIF_ANY_FRAME),
+            0);
+  avm_img_remove_metadata(&image);
+  avm_img_remove_metadata(NULL);
+}
+
+TEST(MetadataTest, RemoveMetadataFromImageUserDataUnregistered) {
+  avm_image_t image;
+  image.metadata = NULL;
+
+  ASSERT_EQ(avm_img_add_metadata(&image, OBU_METADATA_TYPE_USER_DATA_UNREGISTERED,
+                                 kMetadataPayloadUserDataUnregistered,
+                                 kMetadataPayloadSizeUserDataUnregistered,
                                  AVM_MIF_ANY_FRAME),
             0);
   avm_img_remove_metadata(&image);
@@ -351,6 +427,33 @@ TEST(MetadataTest, CopyMetadataToFrameBuffer) {
   avm_remove_metadata_from_frame_buffer(NULL);
 }
 
+TEST(MetadataTest, CopyMetadataToFrameBufferUserDataUnregistered) {
+  YV12_BUFFER_CONFIG yvBuf;
+  yvBuf.metadata = NULL;
+
+  avm_metadata_array_t *metadata_array = avm_img_metadata_array_alloc(1);
+  ASSERT_NE(metadata_array, nullptr);
+
+  metadata_array->metadata_array[0] =
+      avm_img_metadata_alloc(OBU_METADATA_TYPE_USER_DATA_UNREGISTERED,
+                             kMetadataPayloadUserDataUnregistered,
+                             kMetadataPayloadSizeUserDataUnregistered,
+                             AVM_MIF_ANY_FRAME);
+
+  // Metadata_array
+  int status = avm_copy_metadata_to_frame_buffer(&yvBuf, metadata_array);
+  EXPECT_EQ(status, 0);
+  status = avm_copy_metadata_to_frame_buffer(NULL, metadata_array);
+  EXPECT_EQ(status, -1);
+  avm_img_metadata_array_free(metadata_array);
+
+  // YV12_BUFFER_CONFIG
+  status = avm_copy_metadata_to_frame_buffer(&yvBuf, NULL);
+  EXPECT_EQ(status, -1);
+  avm_remove_metadata_from_frame_buffer(&yvBuf);
+  avm_remove_metadata_from_frame_buffer(NULL);
+}
+
 TEST(MetadataTest, GetMetadataFromImage) {
   avm_image_t image;
   image.metadata = NULL;
@@ -369,6 +472,31 @@ TEST(MetadataTest, GetMetadataFromImage) {
   ASSERT_EQ(metadata->sz, kMetadataPayloadSizeT35);
   EXPECT_EQ(
       memcmp(kMetadataPayloadT35, metadata->payload, kMetadataPayloadSizeT35),
+      0);
+
+  avm_img_metadata_array_free(image.metadata);
+}
+
+TEST(MetadataTest, GetMetadataFromImageUserDataUnregistered) {
+  avm_image_t image;
+  image.metadata = NULL;
+
+  ASSERT_EQ(avm_img_add_metadata(&image, OBU_METADATA_TYPE_USER_DATA_UNREGISTERED,
+                                 kMetadataPayloadUserDataUnregistered,
+                                 kMetadataPayloadSizeUserDataUnregistered,
+                                 AVM_MIF_ANY_FRAME),
+            0);
+
+  EXPECT_TRUE(avm_img_get_metadata(NULL, 0) == NULL);
+  EXPECT_TRUE(avm_img_get_metadata(&image, 1u) == NULL);
+  EXPECT_TRUE(avm_img_get_metadata(&image, 10u) == NULL);
+
+  const avm_metadata_t *metadata = avm_img_get_metadata(&image, 0);
+  ASSERT_TRUE(metadata != NULL);
+  ASSERT_EQ(metadata->sz, kMetadataPayloadSizeUserDataUnregistered);
+  EXPECT_EQ(
+      memcmp(kMetadataPayloadUserDataUnregistered, metadata->payload,
+             kMetadataPayloadSizeUserDataUnregistered),
       0);
 
   avm_img_metadata_array_free(image.metadata);
@@ -404,6 +532,69 @@ TEST(MetadataTest, ReadMetadatasFromImage) {
         memcmp(kMetadataPayloadT35, metadata->payload, kMetadataPayloadSizeT35),
         0);
   }
+  avm_img_metadata_array_free(image.metadata);
+}
+
+TEST(MetadataTest, ReadMetadatasFromImageIncludingUserDataUnregistered) {
+  avm_image_t image;
+  image.metadata = NULL;
+
+  uint32_t types[4];
+  types[0] = OBU_METADATA_TYPE_ITUT_T35;
+  types[1] = OBU_METADATA_TYPE_USER_DATA_UNREGISTERED;
+  types[2] = OBU_METADATA_TYPE_HDR_CLL;
+  types[3] = OBU_METADATA_TYPE_HDR_MDCV;
+
+  ASSERT_EQ(avm_img_add_metadata(&image, types[0], kMetadataPayloadT35,
+                                 kMetadataPayloadSizeT35, AVM_MIF_ANY_FRAME),
+            0);
+  ASSERT_EQ(avm_img_add_metadata(&image, types[1],
+                                 kMetadataPayloadUserDataUnregistered,
+                                 kMetadataPayloadSizeUserDataUnregistered,
+                                 AVM_MIF_ANY_FRAME),
+            0);
+  ASSERT_EQ(avm_img_add_metadata(&image, types[2], kMetadataPayloadCll,
+                                 kMetadataPayloadSizeCll, AVM_MIF_KEY_FRAME),
+            0);
+  ASSERT_EQ(avm_img_add_metadata(&image, types[3], kMetadataPayloadMdcv,
+                                 kMetadataPayloadSizeMdcv, AVM_MIF_KEY_FRAME),
+            0);
+
+  size_t number_metadata = avm_img_num_metadata(&image);
+  ASSERT_EQ(number_metadata, 4u);
+
+  // Check ITUT_T35
+  const avm_metadata_t *metadata0 = avm_img_get_metadata(&image, 0);
+  ASSERT_TRUE(metadata0 != NULL);
+  ASSERT_EQ(metadata0->type, types[0]);
+  ASSERT_EQ(metadata0->sz, kMetadataPayloadSizeT35);
+  EXPECT_EQ(memcmp(kMetadataPayloadT35, metadata0->payload,
+                   kMetadataPayloadSizeT35), 0);
+
+  // Check USER_DATA_UNREGISTERED
+  const avm_metadata_t *metadata1 = avm_img_get_metadata(&image, 1);
+  ASSERT_TRUE(metadata1 != NULL);
+  ASSERT_EQ(metadata1->type, types[1]);
+  ASSERT_EQ(metadata1->sz, kMetadataPayloadSizeUserDataUnregistered);
+  EXPECT_EQ(memcmp(kMetadataPayloadUserDataUnregistered, metadata1->payload,
+                   kMetadataPayloadSizeUserDataUnregistered), 0);
+
+  // Check HDR_CLL
+  const avm_metadata_t *metadata2 = avm_img_get_metadata(&image, 2);
+  ASSERT_TRUE(metadata2 != NULL);
+  ASSERT_EQ(metadata2->type, types[2]);
+  ASSERT_EQ(metadata2->sz, kMetadataPayloadSizeCll);
+  EXPECT_EQ(memcmp(kMetadataPayloadCll, metadata2->payload,
+                   kMetadataPayloadSizeCll), 0);
+
+  // Check HDR_MDCV
+  const avm_metadata_t *metadata3 = avm_img_get_metadata(&image, 3);
+  ASSERT_TRUE(metadata3 != NULL);
+  ASSERT_EQ(metadata3->type, types[3]);
+  ASSERT_EQ(metadata3->sz, kMetadataPayloadSizeMdcv);
+  EXPECT_EQ(memcmp(kMetadataPayloadMdcv, metadata3->payload,
+                   kMetadataPayloadSizeMdcv), 0);
+
   avm_img_metadata_array_free(image.metadata);
 }
 

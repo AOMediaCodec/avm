@@ -674,6 +674,21 @@ static size_t read_metadata_icc_profile(AV2Decoder *const pbi,
   return sz;
 }
 
+// On failure, calls avm_internal_error() and does not return.
+static void read_metadata_user_data_unregistered(AV2Decoder *const pbi, const uint8_t *data,
+                                   size_t sz) {
+  AV2_COMMON *const cm = &pbi->common;
+  // uuid_iso_iec_11578 is 128 bits (16 bytes)
+  const int uuid_size = 16;
+  if (sz < uuid_size) {
+    avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
+                       "uuid_iso_iec_11578 is missing or incomplete");
+  }
+  const int end_index = (int)sz;
+  alloc_read_metadata(pbi, OBU_METADATA_TYPE_USER_DATA_UNREGISTERED, data, end_index,
+                      AVM_MIF_ANY_FRAME);
+}
+
 // On success, returns the number of bytes read from 'data'. On failure, calls
 // avm_internal_error() and does not return.
 static void read_metadata_scan_type(AV2Decoder *const pbi,
@@ -849,6 +864,7 @@ static size_t read_metadata_unit_payload(AV2Decoder *pbi, const uint8_t *data,
   known_metadata_type |= metadata_type == OBU_METADATA_TYPE_ICC_PROFILE;
   known_metadata_type |= metadata_type == OBU_METADATA_TYPE_SCAN_TYPE;
   known_metadata_type |= metadata_type == OBU_METADATA_TYPE_TEMPORAL_POINT_INFO;
+  known_metadata_type |= metadata_type == OBU_METADATA_TYPE_USER_DATA_UNREGISTERED;
   if (!known_metadata_type) {
     return sz;
   }
@@ -875,6 +891,9 @@ static size_t read_metadata_unit_payload(AV2Decoder *pbi, const uint8_t *data,
     return sz;
   } else if (metadata_type == OBU_METADATA_TYPE_ICC_PROFILE) {
     read_metadata_icc_profile(pbi, data + type_length, sz - type_length);
+    return sz;
+  } else if (metadata_type == OBU_METADATA_TYPE_USER_DATA_UNREGISTERED) {
+    read_metadata_user_data_unregistered(pbi, data + type_length, sz - type_length);
     return sz;
   }
 

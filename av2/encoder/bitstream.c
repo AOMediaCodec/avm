@@ -6791,6 +6791,49 @@ size_t av2_write_banding_hints_metadata(
   return total_bytes_written;
 }
 
+size_t av2_write_metadata_user_data_unregistered(
+    AV2_COMP *const cpi, uint8_t *dst, const uint8_t *payload,
+    size_t payload_size) {
+  if (!cpi->source || !payload || payload_size < 16) return 0;
+
+  // Minimum size is 16 bytes for UUID (uuid_iso_iec_11578)
+  if (payload_size < 16) {
+    avm_internal_error(&cpi->common.error, AVM_CODEC_ERROR,
+                       "User data unregistered payload must be at least 16 bytes (UUID)");
+    return 0;
+  }
+
+  avm_metadata_t *metadata =
+      avm_img_metadata_alloc(OBU_METADATA_TYPE_USER_DATA_UNREGISTERED, payload,
+                             payload_size, AVM_MIF_ANY_FRAME);
+  if (!metadata) {
+    avm_internal_error(&cpi->common.error, AVM_CODEC_MEM_ERROR,
+                       "Error allocating user data unregistered metadata");
+    return 0;
+  }
+  size_t total_bytes_written = 0;
+  OBU_TYPE obu_type = cpi->oxcf.tool_cfg.use_short_metadata
+                          ? OBU_METADATA_SHORT
+                          : OBU_METADATA_GROUP;
+  size_t obu_header_size =
+      av2_write_obu_header(&cpi->level_params, obu_type, 0, 0, dst);
+  size_t obu_payload_size =
+      av2_write_metadata_unit(metadata, dst + obu_header_size);
+  size_t length_field_size =
+      obu_memmove(obu_header_size, obu_payload_size, dst);
+  if (av2_write_uleb_obu_size(obu_header_size, obu_payload_size, dst) ==
+      AVM_CODEC_OK) {
+    const size_t obu_size = obu_header_size + obu_payload_size;
+    total_bytes_written += obu_size + length_field_size;
+  } else {
+    avm_internal_error(&cpi->common.error, AVM_CODEC_ERROR,
+                       "Error writing user data unregistered metadata OBU size");
+  }
+  avm_img_metadata_free(metadata);
+
+  return total_bytes_written;
+}
+
 // This function actually writes to the bistream. The av2_pack_bitstream()
 // function is a thin wrapper around this function.
 static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
