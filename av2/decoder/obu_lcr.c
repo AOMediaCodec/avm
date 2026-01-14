@@ -16,12 +16,14 @@
 #include "avm_dsp/bitreader_buffer.h"
 #include "av2/common/common.h"
 #include "av2/common/obu_util.h"
+#include "av2/common/annexA.h"
 #include "av2/common/timing.h"
 #include "av2/decoder/decoder.h"
 #include "av2/decoder/decodeframe.h"
 #include "av2/decoder/obu.h"
 #include "av2/common/enums.h"
 
+#if !CONFIG_CWG_F429_INTEROP
 // TODO(hegilmez) to be specified, depending on profile, tier definitions
 static int read_lcr_profile_tier_level(int isGlobal, int xId) {
 #if MULTILAYER_HLS_REMOVE_LOGS
@@ -35,6 +37,7 @@ static int read_lcr_profile_tier_level(int isGlobal, int xId) {
 #endif  // MULTILAYER_HLS_REMOVE_LOGS
   return 0;
 }
+#endif  // !CONFIG_CWG_F429_INTEROP
 
 static int read_lcr_xlayer_color_info(struct AV2Decoder *pbi, int isGlobal,
                                       int xId, struct avm_read_bit_buffer *rb) {
@@ -176,7 +179,9 @@ static int read_lcr_xlayer_info(struct AV2Decoder *pbi,
   lcr_params->lcr_embedded_layer_info_present_flag[isGlobal][xId] =
       avm_rb_read_bit(rb);
 
+#if !CONFIG_CWG_F429_INTEROP
   read_lcr_profile_tier_level(isGlobal, xId);
+#endif  // !CONFIG_CWG_F429_INTEROP
 
   if (lcr_params->lcr_rep_info_present_flag[isGlobal][xId])
     read_lcr_rep_info(lcr_params, isGlobal, xId, rb);
@@ -221,6 +226,30 @@ static int read_lcr_xlayer_info(struct AV2Decoder *pbi,
   return 0;
 }
 
+#if CONFIG_CWG_F429_INTEROP
+// This if for the global LCR
+static void read_lcr_aggregate_profile_tier_level_info(
+    struct LayerConfigurationRecord *lcr_params,
+    struct avm_read_bit_buffer *rb) {
+  lcr_params->lcr_config_idc = avm_rb_read_literal(rb, CONFIG_BITS);
+  lcr_params->lcr_aggregate_level_idx = avm_rb_read_literal(rb, LEVEL_BITS);
+  lcr_params->lcr_max_tier_flag = avm_rb_read_bit(rb);
+  lcr_params->lcr_max_interop = avm_rb_read_literal(rb, INTEROP_BITS);
+}
+
+// This is for the per xlayer
+static void read_lcr_seq_profile_tier_level_info(
+    struct LayerConfigurationRecord *lcr_params, int xId,
+    struct avm_read_bit_buffer *rb) {
+  // The profile here will correspond to the individual substream
+  lcr_params->lcr_seq_profile_idc[xId] = avm_rb_read_literal(rb, PROFILE_BITS);
+  lcr_params->lcr_max_level_idx[xId] = avm_rb_read_literal(rb, LEVEL_BITS);
+  lcr_params->lcr_tier_flag[xId] = avm_rb_read_bit(rb);
+  lcr_params->lcr_max_mlayer_count[xId] = avm_rb_read_literal(rb, 3);
+  (void)avm_rb_read_literal(rb, 2);
+}
+#endif  // CONFIG_CWG_F429_INTEROP
+
 static void read_lcr_global_payload(struct AV2Decoder *pbi,
                                     struct LayerConfigurationRecord *lcr_params,
                                     int i, struct avm_read_bit_buffer *rb) {
@@ -261,6 +290,70 @@ static int read_lcr_global_info(struct AV2Decoder *pbi,
   }
 
   lcr_params->lcr_global_config_record_id = lcr_global_config_record_id;
+
+#if CONFIG_CWG_F429_INTEROP
+  lcr_params->lcr_xlayer_map = avm_rb_read_literal(rb, 31);
+  int LcrMaxNumXLayerCount = 0;
+  int lcr_xlayer_id_array[MAX_NUM_XLAYERS];
+  for (int i = 0; i < 31; i++) {
+    if (lcr_params->lcr_xlayer_map & (1 << i)) {
+      lcr_xlayer_id_array[LcrMaxNumXLayerCount] = i;
+      LcrMaxNumXLayerCount++;
+    }
+  }
+  lcr_params->lcr_max_num_extended_layers_minus_1 =
+      (LcrMaxNumXLayerCount > 0) ? LcrMaxNumXLayerCount - 1 : 0;
+
+  lcr_params->lcr_aggregate_profile_tier_level_info_present_flag =
+      avm_rb_read_bit(rb);
+  lcr_params->lcr_seq_profile_tier_level_info_present_flag =
+      avm_rb_read_bit(rb);
+  lcr_params->lcr_global_payload_present_flag = avm_rb_read_bit(rb);
+  lcr_params->lcr_dependent_xlayers_flag = avm_rb_read_bit(rb);
+  lcr_params->lcr_global_atlas_id_present_flag = avm_rb_read_bit(rb);
+  lcr_params->lcr_global_purpose_id = avm_rb_read_literal(rb, 7);
+  if (lcr_params->lcr_global_atlas_id_present_flag) {
+    lcr_params->lcr_global_atlas_id = avm_rb_read_literal(rb, 3);
+  } else {
+    lcr_params->lcr_global_atlas_id = LCR_ID_UNSPECIFIED;
+    lcr_params->lcr_reserved_zero_3bits = avm_rb_read_literal(rb, 3);
+  }
+  lcr_params->lcr_reserved_zero_7bits = avm_rb_read_literal(rb, 7);
+  (void)lcr_params->lcr_reserved_zero_7bits;
+
+  // Read the aggregate profile info if present
+  if (lcr_params->lcr_aggregate_profile_tier_level_info_present_flag) {
+    read_lcr_aggregate_profile_tier_level_info(lcr_params, rb);
+  }
+
+  if (lcr_params->lcr_seq_profile_tier_level_info_present_flag) {
+    for (int i = 0; i < LcrMaxNumXLayerCount; i++) {
+      read_lcr_seq_profile_tier_level_info(lcr_params, lcr_xlayer_id_array[i],
+                                           rb);
+
+      // Validate layer capacity againt profile constraints
+      const int xId = lcr_xlayer_id_array[i];
+      const int profile = lcr_params->lcr_seq_profile_idc[xId];
+      const int num_extended_layers = LcrMaxNumXLayerCount;
+      const int num_embedded_layers = lcr_params->lcr_max_mlayer_count[xId];
+      if (!av2_validate_layer_capacity(profile, num_extended_layers,
+                                       num_embedded_layers)) {
+        avm_internal_error(
+            &pbi->common.error, AVM_CODEC_UNSUP_BITSTREAM,
+            "LCR layer capacity validataion failed: profile %d does not suport "
+            "%d extended layers and %d embedded layers.",
+            profile, num_extended_layers, num_embedded_layers);
+      }
+    }
+  }
+
+  if (lcr_params->lcr_global_payload_present_flag) {
+    for (int i = 0; i < LcrMaxNumXLayerCount; i++) {
+      lcr_params->lcr_data_size[i] = avm_rb_read_uleb(rb);
+      read_lcr_global_payload(pbi, lcr_params, i, rb);
+    }
+  }
+#else
   lcr_params->lcr_max_num_extended_layers_minus_1 =
       avm_rb_read_literal(rb, XLAYER_BITS);
   lcr_params->lcr_max_profile_tier_level_info_present_flag =
@@ -296,6 +389,8 @@ static int read_lcr_global_info(struct AV2Decoder *pbi,
       lcr_params->lcr_data_size[i] = avm_rb_read_uleb(rb);
     read_lcr_global_payload(pbi, lcr_params, i, rb);
   }
+#endif  // CONFIG_CWG_F429_INTEROP
+
   lcr_params->is_local_lcr = 0;
   lcr_params->xlayer_id = GLOBAL_XLAYER_ID;
   // NOTE: lcr_params->lcr_xLayer_id indicates the corresponding extended layer
@@ -335,6 +430,24 @@ static int read_lcr_local_info(struct AV2Decoder *pbi, int xlayerId,
   lcr_params->lcr_global_config_record_id = lcr_global_id;
   lcr_params->lcr_local_id[xlayerId] = avm_rb_read_literal(rb, 3);
 
+#if CONFIG_CWG_F429_INTEROP
+  lcr_params->lcr_profile_tier_level_info_present_flag[xlayerId] =
+      avm_rb_read_bit(rb);
+  lcr_params->lcr_local_atlas_id_present_flag[xlayerId] = avm_rb_read_bit(rb);
+
+  if (lcr_params->lcr_profile_tier_level_info_present_flag[xlayerId]) {
+    read_lcr_seq_profile_tier_level_info(lcr_params, xlayerId, rb);
+  }
+
+  if (lcr_params->lcr_local_atlas_id_present_flag[xlayerId]) {
+    lcr_params->lcr_local_atlas_id[xlayerId] = avm_rb_read_literal(rb, 3);
+  } else {
+    lcr_params->lcr_local_atlas_id[xlayerId] = LCR_ID_UNSPECIFIED;
+    lcr_params->lcr_reserved_zero_3bits = avm_rb_read_literal(rb, 3);
+  }
+  lcr_params->lcr_reserved_zero_5bits = avm_rb_read_literal(rb, 5);
+  (void)lcr_params->lcr_reserved_zero_5bits;
+#else
   lcr_params->lcr_local_atlas_id_present_flag[xlayerId] = avm_rb_read_bit(rb);
 
   if (lcr_params->lcr_local_atlas_id_present_flag[xlayerId]) {
@@ -345,6 +458,7 @@ static int read_lcr_local_info(struct AV2Decoder *pbi, int xlayerId,
   }
 
   lcr_params->lcr_reserved_zero_6bits = avm_rb_read_literal(rb, 6);
+#endif  // CONFIG_CWG_F429_INTEROP
 
   read_lcr_xlayer_info(pbi, lcr_params, 0, xlayerId, rb);
   lcr_params->is_local_lcr = 1;

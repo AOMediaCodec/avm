@@ -11,6 +11,8 @@
  */
 
 #include "av2/common/timing.h"
+#include "av2/common/blockd.h"
+#include "av2/common/annexA.h"
 
 /* Tables for AV2 max bitrates for different levels of main and high tier.
  * The tables are in Kbps instead of Mbps in the specification.
@@ -47,19 +49,58 @@ static int32_t high_kbps[1 << LEVEL_BITS] = {
   UNDEFINED_RATE, UNDEFINED_RATE, UNDEFINED_RATE, UNDEFINED_RATE
 };
 
+#if CONFIG_CWG_F429_INTEROP
+// get chroma subsampling values
+static int get_chroma_format_from_subsampling(int monochrome, int subsampling_x,
+                                              int subsampling_y) {
+  if (monochrome) return CHROMA_FORMAT_400;
+  if (subsampling_x == 1 && subsampling_y == 1) return CHROMA_FORMAT_420;
+  if (subsampling_x == 1 && subsampling_y == 0) return CHROMA_FORMAT_422;
+  if (subsampling_x == 0 && subsampling_y == 0) return CHROMA_FORMAT_444;
+  return CHROMA_FORMAT_420;  // Default
+}
+#else
 /* BitrateProfileFactor */
 static int bitrate_profile_factor[1 << PROFILE_BITS] = {
   1, 2, 3, 0, 0, 0, 0, 0
 };
+#endif  // CONFIG_CWG_F429_INTEROP
 
-int64_t av2_max_level_bitrate(BITSTREAM_PROFILE seq_profile, int seq_level_idx,
-                              int seq_tier) {
+int64_t av2_max_level_bitrate(
+#if CONFIG_CWG_F429_INTEROP
+    BITSTREAM_PROFILE seq_profile_idc,
+#else
+    BITSTREAM_PROFILE seq_profile,
+#endif
+    int seq_level_idx, int seq_tier
+#if CONFIG_CWG_F429_INTEROP
+    ,
+    int monochrome, int subsampling_x, int subsampling_y
+#endif  // CONFIG_CWG_F429_INTEROP
+) {
   int64_t bitrate;
 
+#if CONFIG_CWG_F429_INTEROP
+  int chroma_format_idc = get_chroma_format_from_subsampling(
+      monochrome, subsampling_x, subsampling_y);
+  int profile_scaling_factor =
+      get_profile_scaling_factor(seq_profile_idc, chroma_format_idc);
+  int bitrate_profile_factor =
+      get_bitrate_profile_factor(profile_scaling_factor);
+#endif  // CONFIG_CWG_F429_INTEROP
+
   if (seq_tier) {
+#if CONFIG_CWG_F429_INTEROP
+    bitrate = high_kbps[seq_level_idx] * bitrate_profile_factor;
+#else
     bitrate = high_kbps[seq_level_idx] * bitrate_profile_factor[seq_profile];
+#endif  // CONFIG_CWG_F429_INTEROP
   } else {
+#if CONFIG_CWG_F429_INTEROP
+    bitrate = main_kbps[seq_level_idx] * bitrate_profile_factor;
+#else
     bitrate = main_kbps[seq_level_idx] * bitrate_profile_factor[seq_profile];
+#endif  // CONFIG_CWG_F429_INTEROP
   }
 
   return bitrate * 1000;

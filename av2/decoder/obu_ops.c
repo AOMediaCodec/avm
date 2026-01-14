@@ -89,6 +89,33 @@ static void read_ops_decoder_model_info(
       avm_rb_read_bit(rb);  // low-delay mode flag
 }
 
+#if CONFIG_CWG_F429_INTEROP
+static void read_ops_aggregate_profile_tier_level_info(
+    struct OperatingPointSet *ops_params, int opsID, int opIndex,
+    struct avm_read_bit_buffer *rb) {
+  ops_params->ops_config_idc[opsID][opIndex] =
+      avm_rb_read_literal(rb, CONFIG_BITS);
+  ops_params->ops_aggregate_level_idx[opsID][opIndex] =
+      avm_rb_read_literal(rb, LEVEL_BITS);
+  ops_params->ops_max_tier_flag[opsID][opIndex] = avm_rb_read_bit(rb);
+  ops_params->ops_max_interop[opsID][opIndex] =
+      avm_rb_read_literal(rb, INTEROP_BITS);
+}
+
+static void read_ops_seq_profile_tier_level_info(
+    struct OperatingPointSet *ops_params, int xId, int opsID, int opIndex,
+    int j, struct avm_read_bit_buffer *rb) {
+  ops_params->ops_seq_profile_idc[xId][opsID][opIndex][j] =
+      avm_rb_read_literal(rb, PROFILE_BITS);
+  ops_params->ops_level_idx[xId][opsID][opIndex][j] =
+      avm_rb_read_literal(rb, LEVEL_BITS);
+  ops_params->ops_tier_flag[xId][opsID][opIndex][j] = avm_rb_read_bit(rb);
+  ops_params->ops_mlayer_count[xId][opsID][opIndex][j] =
+      avm_rb_read_literal(rb, 3);
+  (void)avm_rb_read_literal(rb, 2);
+}
+#endif  // CONFIG_CWG_F429_INTEROP
+
 uint32_t av2_read_operating_point_set_obu(struct AV2Decoder *pbi,
                                           int obu_xlayer_id,
                                           struct avm_read_bit_buffer *rb) {
@@ -124,11 +151,20 @@ uint32_t av2_read_operating_point_set_obu(struct AV2Decoder *pbi,
   if (ops_params->ops_cnt[obu_xlayer_id][ops_id] > 0) {
     ops_params->ops_priority[obu_xlayer_id][ops_id] =
         avm_rb_read_literal(rb, 4);
+#if CONFIG_CWG_F429_INTEROP
+    ops_params->ops_intent[obu_xlayer_id][ops_id] = avm_rb_read_literal(rb, 7);
+#else
     ops_params->ops_intent[obu_xlayer_id][ops_id] = avm_rb_read_literal(rb, 4);
+#endif  // CONFIG_CWG_F429_INTEROP
     ops_params->ops_intent_present_flag[obu_xlayer_id][ops_id] =
         avm_rb_read_bit(rb);
+#if CONFIG_CWG_F429_INTEROP
+    ops_params->ops_ptl_present_flag[obu_xlayer_id][ops_id] =
+        avm_rb_read_bit(rb);
+#else
     ops_params->ops_operational_ptl_present_flag[obu_xlayer_id][ops_id] =
         avm_rb_read_bit(rb);
+#endif  // CONFIG_CWG_F429_INTEROP
     ops_params->ops_color_info_present_flag[obu_xlayer_id][ops_id] =
         avm_rb_read_bit(rb);
     ops_params->ops_decoder_model_info_present_flag[obu_xlayer_id][ops_id] =
@@ -137,10 +173,18 @@ uint32_t av2_read_operating_point_set_obu(struct AV2Decoder *pbi,
     if (obu_xlayer_id == GLOBAL_XLAYER_ID) {
       ops_params->ops_mlayer_info_idc[obu_xlayer_id][ops_id] =
           avm_rb_read_literal(rb, 2);
+#if CONFIG_CWG_F429_INTEROP
+      (void)avm_rb_read_literal(rb, 7);  // ops_reserved_7bits
+#else
       (void)avm_rb_read_literal(rb, 2);  // ops_reserved_2bits
+#endif  // CONFIG_CWG_F429_INTEROP
     } else {
       ops_params->ops_mlayer_info_idc[obu_xlayer_id][ops_id] = 1;
+#if CONFIG_CWG_F429_INTEROP
+      (void)avm_rb_read_literal(rb, 9);  // ops_reserved_9bits
+#else
       (void)avm_rb_read_literal(rb, 3);  // ops_reserved_3bits
+#endif  // CONFIG_CWG_F429_INTEROP
     }
 
     // Byte alignment before reading operating point data because
@@ -161,8 +205,24 @@ uint32_t av2_read_operating_point_set_obu(struct AV2Decoder *pbi,
 
       if (ops_params->ops_intent_present_flag[obu_xlayer_id][ops_id])
         ops_params->ops_intent_op[obu_xlayer_id][ops_id][i] =
+#if CONFIG_CWG_F429_INTEROP
+            avm_rb_read_literal(rb, 7);
+#else
             avm_rb_read_literal(rb, 4);
+#endif  // CONFIG_CWG_F429_INTEROP
 
+#if CONFIG_CWG_F429_INTEROP
+      if (ops_params->ops_ptl_present_flag[obu_xlayer_id][ops_id]) {
+        if (obu_xlayer_id == GLOBAL_XLAYER_ID) {
+          // Read aggregate PTL info
+          read_ops_aggregate_profile_tier_level_info(ops_params, ops_id, i, rb);
+        } else {
+          // Read seq PTL info this xlayer
+          read_ops_seq_profile_tier_level_info(ops_params, obu_xlayer_id,
+                                               ops_id, i, obu_xlayer_id, rb);
+        }
+      }
+#else
       if (ops_params->ops_operational_ptl_present_flag[obu_xlayer_id][ops_id]) {
         ops_params->ops_operational_profile_id[obu_xlayer_id][ops_id][i] =
             avm_rb_read_literal(rb, 6);
@@ -171,6 +231,7 @@ uint32_t av2_read_operating_point_set_obu(struct AV2Decoder *pbi,
         ops_params->ops_operational_tier_id[obu_xlayer_id][ops_id][i] =
             avm_rb_read_bit(rb);
       }
+#endif  // CONFIG_CWG_F429_INTEROP
       if (ops_params->ops_color_info_present_flag[obu_xlayer_id][ops_id]) {
         read_ops_color_info(ops_params->ops_col_info, obu_xlayer_id, ops_id, i,
                             rb);
@@ -194,6 +255,17 @@ uint32_t av2_read_operating_point_set_obu(struct AV2Decoder *pbi,
         read_ops_decoder_model_info(ops_params->ops_decoder_model_info,
                                     obu_xlayer_id, ops_id, i, rb);
       }
+#if CONFIG_CWG_F429_INTEROP
+      ops_params
+          ->ops_initial_display_delay_present_flag[obu_xlayer_id][ops_id][i] =
+          avm_rb_read_bit(rb);
+      if (ops_params->ops_initial_display_delay_present_flag[obu_xlayer_id]
+                                                            [ops_id][i]) {
+        ops_params
+            ->ops_initial_display_delay_minus_1[obu_xlayer_id][ops_id][i] =
+            avm_rb_read_literal(rb, 4);
+      }
+#else
       ops_params
           ->ops_initial_display_delay_present_flag[obu_xlayer_id][ops_id] =
           avm_rb_read_bit(rb);
@@ -202,7 +274,7 @@ uint32_t av2_read_operating_point_set_obu(struct AV2Decoder *pbi,
         ops_params->ops_initial_display_delay_minus_1[obu_xlayer_id][ops_id] =
             avm_rb_read_literal(rb, 4);
       }
-
+#endif  // CONFIG_CWG_F429_INTEROP
       if (obu_xlayer_id == GLOBAL_XLAYER_ID) {
         ops_params->ops_xlayer_map[obu_xlayer_id][ops_id][i] =
             avm_rb_read_literal(rb, MAX_NUM_XLAYERS - 1);
@@ -212,6 +284,13 @@ uint32_t av2_read_operating_point_set_obu(struct AV2Decoder *pbi,
                (1 << j))) {
             ops_params->OpsxLayerId[obu_xlayer_id][ops_id][i][k] = j;
             k++;
+#if CONFIG_CWG_F429_INTEROP
+            // Read seq PTL info for this xlayer if PTL is present
+            if (ops_params->ops_ptl_present_flag[obu_xlayer_id][ops_id]) {
+              read_ops_seq_profile_tier_level_info(ops_params, obu_xlayer_id,
+                                                   ops_id, i, j, rb);
+            }
+#endif  // CONFIG_CWG_F429_INTEROP
           }
           // ops_params->ops_mlayer_info_idc[obu_xlayer_id][ops_id] == 0
           // specifies that mlayer information syntax structure is not present
@@ -221,6 +300,27 @@ uint32_t av2_read_operating_point_set_obu(struct AV2Decoder *pbi,
                                  ops_params->ops_mlayer_info, rb);
           } else if (ops_params->ops_mlayer_info_idc[obu_xlayer_id][ops_id] ==
                      2) {
+#if CONFIG_CWG_F429_INTEROP
+            ops_params->ops_mlayer_explicit_info_flag[ops_id][i][j] =
+                avm_rb_read_bit(rb);
+            if (ops_params->ops_mlayer_explicit_info_flag[ops_id][i][j]) {
+              // if flag is sset, read mlayer info directly
+              read_ops_mlayer_info(obu_xlayer_id, ops_id, i, j,
+                                   ops_params->ops_mlayer_info, rb);
+            } else {
+              // otherwise read embedded ops reference
+              ops_params->ops_embedded_mapping[obu_xlayer_id][ops_id][i][j] =
+                  avm_rb_read_literal(rb, 4);
+              ops_params->ops_embedded_op_id[obu_xlayer_id][ops_id][i][j] =
+                  avm_rb_read_literal(rb, 3);
+              if (ops_params->ops_embedded_op_id[obu_xlayer_id][ops_id][i][j] >
+                  6) {
+                avm_internal_error(
+                    &pbi->common.error, AVM_CODEC_UNSUP_BITSTREAM,
+                    "value of ops_embedded_op_id shall not be larger than 6.");
+              }
+            }
+#else
             ops_params->ops_embedded_mapping[obu_xlayer_id][ops_id][i][j] =
                 avm_rb_read_literal(rb, 4);
             ops_params->ops_embedded_op_id[obu_xlayer_id][ops_id][i][j] =
@@ -238,6 +338,7 @@ uint32_t av2_read_operating_point_set_obu(struct AV2Decoder *pbi,
             read_ops_mlayer_info(obu_xlayer_id, embedded_ops_id,
                                  embedded_op_index, j,
                                  ops_params->ops_mlayer_info, rb);
+#endif  // CONFIG_CWG_F429_INTEROP
           } else if (ops_params->ops_mlayer_info_idc[obu_xlayer_id][ops_id] >=
                      3) {
             avm_internal_error(

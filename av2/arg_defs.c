@@ -291,6 +291,11 @@ const av2_codec_arg_definitions_t g_av2_codec_arg_defs = {
   .enable_ops =
       ARG_DEF(NULL, "enable-ops", 1,
               "Enable operating point set (OPS) OBU (0: off (default), 1: on)"),
+#if CONFIG_CWG_F429_INTEROP
+  .num_ops = ARG_DEF(
+      NULL, "num-ops", 1,
+      "Number of operating point sets (OPS) to encode (1-16, default 1"),
+#endif  // CONFIG_CWG_F429_INTEROP
   .enable_atlas = ARG_DEF(NULL, "enable-atlas", 1,
                           "Enable atlas segment OBU (0: off (default), 1: on)"),
   .noise_sens = ARG_DEF(NULL, "noise-sensitivity", 1,

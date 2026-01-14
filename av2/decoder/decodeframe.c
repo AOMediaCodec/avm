@@ -7380,10 +7380,13 @@ void update_ref_frames_info(AV2Decoder *pbi, OBU_TYPE obu_type) {
     }
   }
 }
-
-static avm_codec_err_t avm_get_num_layers_from_operating_point_idc(
-    int operating_point_idc, unsigned int *number_mlayers,
-    unsigned int *number_tlayers) {
+#if CONFIG_CWG_F429_INTEROP
+avm_codec_err_t avm_get_num_layers_from_operating_point_idc
+#else
+static avm_codec_err_t avm_get_num_layers_from_operating_point_idc
+#endif  // CONFIG_CWG_F429_INTEROP
+    (int operating_point_idc, unsigned int *number_mlayers,
+     unsigned int *number_tlayers) {
   // derive number of embedded/temporal layers from operating_point_idc
   if (!number_mlayers || !number_tlayers) return AVM_CODEC_INVALID_PARAM;
 
@@ -7481,6 +7484,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   }
 #endif
 
+#if !CONFIG_CWG_F429_INTEROP
   // The current decoder implementation supports all levels.
   // TODO: Replace this with a CLI option that allows to choose an operating
   // point by external means.
@@ -7496,6 +7500,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     cm->error.error_code = AVM_CODEC_ERROR;
     return 0;
   }
+#endif  // !CONFIG_CWG_F429_INTEROP
 
   cm->cur_mfh_id = setup_multiframe_header_id(cm, obu_type, rb);
 

@@ -18,6 +18,8 @@ list(
   AVM_AV2_COMMON_SOURCES
   "${AVM_ROOT}/common/args_helper.h"
   "${AVM_ROOT}/common/args_helper.c"
+  "${AVM_ROOT}/av2/common/annexA.c"
+  "${AVM_ROOT}/av2/common/annexA.h"
   "${AVM_ROOT}/av2/arg_defs.h"
   "${AVM_ROOT}/av2/arg_defs.c"
   "${AVM_ROOT}/av2/av2_iface_common.h"

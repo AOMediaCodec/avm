@@ -13,6 +13,7 @@
 #define AVM_COMMON_AV2_CONFIG_H_
 
 #include "avm/avm_integer.h"
+#include "config/avm_config.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -25,7 +26,11 @@ extern "C" {
 //
 // unsigned int (1) marker = 1;
 // unsigned int (7) version = 1;
+#if CONFIG_CWG_F429_INTEROP
+// unsigned int (5) seq_profile_idc;
+#else
 // unsigned int (3) seq_profile;
+#endif  // CONFIG_CWG_F429_INTEROP
 // unsigned int (5) seq_level_idx_0;
 // unsigned int (1) seq_tier_0;
 // unsigned int (2) bitdepth_idx;
@@ -51,7 +56,11 @@ typedef struct _Av2Config {
   uint8_t version;
   uint8_t seq_header_id;
   uint8_t seq_lcr_id;
+#if CONFIG_CWG_F429_INTEROP
+  uint8_t seq_profile_idc;
+#else
   uint8_t seq_profile;
+#endif  // CONFIG_CWG_F429_INTEROP
   uint8_t seq_level_idx_0;
   uint8_t seq_tier_0;
   uint8_t bitdepth_idx;

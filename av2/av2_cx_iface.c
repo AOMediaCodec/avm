@@ -1685,6 +1685,9 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   oxcf->signal_td = cfg->signal_td;
   layer_cfg->enable_lcr = cfg->enable_lcr;
   layer_cfg->enable_ops = cfg->enable_ops;
+#if CONFIG_CWG_F429_INTEROP
+  layer_cfg->num_ops = cfg->num_ops > 0 ? cfg->num_ops : 1;
+#endif  // CONFIG_CWG_F429_INTEROP
   layer_cfg->enable_atlas = cfg->enable_atlas;
 
   // Set unit test related configuration.
@@ -1744,7 +1747,12 @@ static avm_codec_err_t encoder_set_config(avm_codec_alg_priv_t *ctx,
     ctx->cfg = *cfg;
     set_encoder_config(&ctx->oxcf, &ctx->cfg, &ctx->extra_cfg, 0);
     // On profile change, request a key frame
+#if CONFIG_CWG_F429_INTEROP
+    force_key |=
+        ctx->cpi->common.seq_params.seq_profile_idc != ctx->oxcf.profile;
+#else
     force_key |= ctx->cpi->common.seq_params.profile != ctx->oxcf.profile;
+#endif  // CONFIG_CWG_F429_INTEROP
     av2_change_config(ctx->cpi, &ctx->oxcf);
     if (ctx->cpi_lap != NULL) {
       av2_change_config(ctx->cpi_lap, &ctx->oxcf);
@@ -4508,18 +4516,21 @@ static const avm_codec_enc_cfg_t encoder_usage_cfg[] = { {
     2000,  // rc_two_pass_vbrmax_section
 
     // keyframing settings (kf)
-    0,                           // fwd_kf_enabled
-    AVM_KF_AUTO,                 // kf_mode
-    0,                           // kf_min_dist
-    9999,                        // kf_max_dist
-    0,                           // sframe_dist
-    1,                           // sframe_mode
-    0,                           // monochrome
-    0,                           // full_still_picture_hdr
-    1,                           // enable_tcq
-    0,                           // signal_td
-    0,                           // enable_lcr
-    0,                           // enable_ops
+    0,            // fwd_kf_enabled
+    AVM_KF_AUTO,  // kf_mode
+    0,            // kf_min_dist
+    9999,         // kf_max_dist
+    0,            // sframe_dist
+    1,            // sframe_mode
+    0,            // monochrome
+    0,            // full_still_picture_hdr
+    1,            // enable_tcq
+    0,            // signal_td
+    0,            // enable_lcr
+    0,            // enable_ops
+#if CONFIG_CWG_F429_INTEROP
+    1,                           // num_ops
+#endif                           // CONFIG_CWG_F429_INTEROP
     0,                           // enable_atlas
     0,                           // tile_width_count
     0,                           // tile_height_count

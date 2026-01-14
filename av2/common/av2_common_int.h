@@ -707,12 +707,38 @@ typedef struct EmbeddedLayerInfo {
 typedef struct LayerConfigurationRecord {
   int lcr_global_config_record_id;
   int lcr_max_num_extended_layers_minus_1;
+#if CONFIG_CWG_F429_INTEROP
+  int lcr_aggregate_profile_tier_level_info_present_flag;
+  int lcr_seq_profile_tier_level_info_present_flag;
+  int lcr_global_payload_present_flag;
+  int lcr_xlayer_map;  // f(31) xlayer bitmap
+
+  // lcr_aggregate_profile_tier_level_info() - called once for global LCR
+  int lcr_config_idc;           // f(6)
+  int lcr_aggregate_level_idx;  // f(5);
+  int lcr_max_tier_flag;        // f(1);
+  int lcr_max_interop;          // f(4);
+
+  // lcr_seq_profile_tier_level_info()- per xlayer
+  int lcr_seq_profile_idc[MAX_NUM_MLAYERS];
+  int lcr_max_level_idx[MAX_NUM_MLAYERS];
+  int lcr_tier_flag[MAX_NUM_MLAYERS];
+  int lcr_max_mlayer_count[MAX_NUM_MLAYERS];
+
+  // Local LCR: lcr_profile_tier_level_info_present_flag
+  int lcr_profile_tier_level_info_present_flag[MAX_NUM_MLAYERS];
+#else
   int lcr_max_profile_tier_level_info_present_flag;
+#endif  // CONFIG_CWG_F429_INTEROP
   int lcr_global_atlas_id_present_flag;
   int dependent_atlas_id_present_flag;
   int lcr_reserved_zero_2bits;
   int lcr_global_atlas_id;
   int lcr_reserved_zero_3bits;
+#if CONFIG_CWG_F429_INTEROP
+  int lcr_reserved_zero_5bits;
+  int lcr_reserved_zero_7bits;
+#endif  // CONFIG_CWG_F429_INTEROP
   int lcr_data_size_present_flag;
   int lcr_global_purpose_id;
 
@@ -877,19 +903,55 @@ typedef struct OperatingPointSet {
   int ops_priority[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
   int ops_intent[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
   int ops_intent_present_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
+#if CONFIG_CWG_F429_INTEROP
+  int ops_initial_display_delay_present_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID]
+                                            [MAX_OPS_COUNT];
+  int ops_initial_display_delay_minus_1[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID]
+                                       [MAX_OPS_COUNT];
+
+  // called for the global
+  int ops_config_idc[MAX_NUM_OPS_ID][MAX_OPS_COUNT];           // f(6)
+  int ops_aggregate_level_idx[MAX_NUM_OPS_ID][MAX_OPS_COUNT];  // f(5)
+  int ops_max_tier_flag[MAX_NUM_OPS_ID][MAX_OPS_COUNT];        // f(1)
+  int ops_max_interop[MAX_NUM_OPS_ID][MAX_OPS_COUNT];          // f(4);
+
+  // for the local/per-layer, which is caleld per xlayer in the operating point
+  int ops_seq_profile_idc[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT]
+                         [MAX_NUM_MLAYERS];
+  int ops_level_idx[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT]
+                   [MAX_NUM_MLAYERS];
+  int ops_tier_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT]
+                   [MAX_NUM_MLAYERS];
+  int ops_mlayer_count[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT]
+                      [MAX_NUM_MLAYERS];
+
+  // ops_mlayer_explicit_info_flag for idc==2
+  int ops_mlayer_explicit_info_flag[MAX_NUM_OPS_ID][MAX_OPS_COUNT]
+                                   [MAX_NUM_XLAYERS];
+  int ops_ptl_present_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
+#else
   int ops_operational_ptl_present_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
+#endif  // CONFIG_CWG_F429_INTEROP
   int ops_color_info_present_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
   int ops_decoder_model_info_present_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
+#if !CONFIG_CWG_F429_INTEROP
   int ops_initial_display_delay_present_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
   int ops_initial_display_delay_minus_1[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
-
+#endif  // !CONFIG_CWG_F429_INTEROP
   int ops_mlayer_info_idc[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
   uint32_t ops_data_size[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT];
   int ops_intent_op[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT];
   int ops_operational_profile_id[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID]
                                 [MAX_OPS_COUNT];
+#if CONFIG_CWG_F429_INTEROP
+  int ops_operational_interop[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT];
+#endif  // CONFIG_CWG_F429_INTEROP
   int ops_operational_level_id[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT];
   int ops_operational_tier_id[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT];
+
+#if CONFIG_CWG_F429_INTEROP
+  int ops_interop[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT];
+#endif  // CONFIG_CWG_F429_INTEROP
 
   int ops_xlayer_map[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT];
   int ops_embedded_mapping[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT]
@@ -1075,7 +1137,11 @@ typedef struct SequenceHeader {
   int seq_max_decoder_buffer_delay;
   int seq_max_encoder_buffer_delay;
   int seq_max_low_delay_mode_flag;
+#if CONFIG_CWG_F429_INTEROP
+  BITSTREAM_PROFILE seq_profile_idc;
+#else
   BITSTREAM_PROFILE profile;
+#endif  // CONFIG_CWG_F429_INTEROP
 
   // Color config.
   avm_bit_depth_t bit_depth;  // AVM_BITS_8 in profile 0 or 1,
@@ -1106,6 +1172,9 @@ typedef struct SequenceHeader {
   // Layer dependency structure descriptors
   int max_tlayer_id;
   int max_mlayer_id;
+#if CONFIG_CWG_F429_INTEROP
+  int seq_max_mcount;
+#endif  // CONFIG_CWG_F429_INTEROP
   // Layer dependency signaling present flag
   int tlayer_dependency_present_flag;
   int mlayer_dependency_present_flag;

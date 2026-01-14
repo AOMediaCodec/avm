@@ -59,6 +59,10 @@ void av2_read_sequence_header(struct avm_read_bit_buffer *rb,
 void read_sequence_tile_info(struct SequenceHeader *seq_params,
                              struct avm_read_bit_buffer *rb);
 
+#if CONFIG_CWG_F429_INTEROP
+uint32_t av2_check_conformance();
+#endif  // CONFIG_CWG_F429_INTEROP
+
 void alloc_qmatrix(struct quantization_matrix_set *qm_set);
 void av2_copy_predefined_qmatrices_to_list(struct AV2Decoder *pbi,
                                            int num_planes);

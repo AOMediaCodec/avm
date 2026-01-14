@@ -102,7 +102,7 @@ set_avm_config_var(CONFIG_DENOISE 1
                    "Denoise/noise modeling support in encoder.")
 set_avm_config_var(CONFIG_INSPECTION 0 "Enables bitstream inspection.")
 set_avm_config_var(CONFIG_INTERNAL_STATS 0 "Enables internal encoder stats.")
-set_avm_config_var(CONFIG_MAX_DECODE_PROFILE 2
+set_avm_config_var(CONFIG_MAX_DECODE_PROFILE 3
                    "Max profile to support decoding.")
 set_avm_config_var(CONFIG_SIZE_LIMIT 0 "Limit max decode width/height.")
 set_avm_config_var(CONFIG_SPATIAL_RESAMPLING 1 "Spatial resampling.")
@@ -135,6 +135,9 @@ set_avm_config_var(CONFIG_PARAKIT_COLLECT_DATA 0
 
 # AV2 experiment flags.
 set_avm_config_var(CONFIG_DIP_EXT_PRUNING 1 "AV2 DIP TFLite pruning.")
+
+# CWG-F429
+set_avm_config_var(CONFIG_CWG_F429_INTEROP 1 "Profile signalling.")
 
 # Source of throughput analysis : CWG-B065
 set_avm_config_var(CONFIG_THROUGHPUT_ANALYSIS 0

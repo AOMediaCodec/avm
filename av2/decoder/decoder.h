@@ -356,6 +356,10 @@ typedef struct AV2Decoder {
   avm_inspect_cb inspect_tip_cb;
   void *inspect_ctx;
 #endif
+#if CONFIG_CWG_F429_INTEROP
+  int selected_ops_id;
+  int selected_op_index;
+#endif  // CONFIG_CWG_F429_INTEROP
   int operating_point;
   int current_operating_point;
   int seen_frame_header;

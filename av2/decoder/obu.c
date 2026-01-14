@@ -143,9 +143,15 @@ static uint32_t read_multi_stream_decoder_operation_obu(
   }
   cm->num_streams = num_streams;
 
+#if CONFIG_CWG_F429_INTEROP
+  const int multi_config_idc =
+      avm_rb_read_literal(rb, CONFIG_BITS);  // read profile of multistream
+  (void)multi_config_idc;
+#else
   const int multistream_profile_idx =
       avm_rb_read_literal(rb, PROFILE_BITS);  // read profile of multistream
   (void)multistream_profile_idx;
+#endif  // CONFIG_CWG_F429_INTEROP
 
   const int multistream_level_idx =
       avm_rb_read_literal(rb, LEVEL_BITS);  // read level of multistream
@@ -154,6 +160,11 @@ static uint32_t read_multi_stream_decoder_operation_obu(
   const int multistream_tier_idx =
       avm_rb_read_bit(rb);  // read tier of multistream
   (void)multistream_tier_idx;
+
+#if CONFIG_CWG_F429_INTEROP
+  const int multi_interop = avm_rb_read_literal(rb, INTEROP_BITS);
+  (void)multi_interop;
+#endif  // CONFIG_CWG_F429_INTEROP
 
   const int multistream_even_allocation_flag =
       avm_rb_read_bit(rb);  // read multistream_even_allocation_flag
@@ -167,7 +178,11 @@ static uint32_t read_multi_stream_decoder_operation_obu(
   for (int i = 0; i < num_streams; i++) {
     cm->stream_ids[i] = avm_rb_read_literal(rb, XLAYER_BITS);  // read stream ID
     const int substream_profile_idx =
+#if CONFIG_CWG_F429_INTEROP
+        avm_rb_read_literal(rb, 5);  // read profile of multistream
+#else
         avm_rb_read_literal(rb, PROFILE_BITS);  // read profile of multistream
+#endif  // CONFIG_CWG_F429_INTEROP
     (void)substream_profile_idx;
 
     const int substream_level_idx =
@@ -177,6 +192,11 @@ static uint32_t read_multi_stream_decoder_operation_obu(
     const int substream_tier_idx =
         avm_rb_read_bit(rb);  // read tier of multistream
     (void)substream_tier_idx;
+
+#if CONFIG_CWG_F429_INTEROP
+    const int sub_mlayer_count = avm_rb_read_literal(rb, 4);
+    (void)sub_mlayer_count;
+#endif  // CONFIG_CWG_F429_INTEROP
   }
 
   pbi->msdo_is_present_in_tu = 1;
@@ -222,8 +242,16 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
     seq_params->seq_header_id = seq_header_id;
   }
 
+#if CONFIG_CWG_F429_INTEROP
+  seq_params->seq_profile_idc = av2_read_profile(rb);
+  // Note: if more profiles need to be added, CONFIG_MAX_DECODE_PROFILE needs to
+  // be changed to is_valid_profile() that checks if the profile is valid
+  if (seq_params->seq_profile_idc > CONFIG_MAX_DECODE_PROFILE)
+#else
   seq_params->profile = av2_read_profile(rb);
-  if (seq_params->profile > CONFIG_MAX_DECODE_PROFILE) {
+  if (seq_params->profile > CONFIG_MAX_DECODE_PROFILE)
+#endif  // CONFIG_CWG_F429_INTEROP
+  {
     cm->error.error_code = AVM_CODEC_UNSUP_BITSTREAM;
     return 0;
   }
@@ -297,10 +325,19 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
       seq_params->seq_max_encoder_buffer_delay = 20000;
       seq_params->seq_max_low_delay_mode_flag = 0;
     }
-    // TODO: May need additional modifications with decoder model
-    int64_t seq_bitrate = av2_max_level_bitrate(seq_params->profile,
-                                                seq_params->seq_max_level_idx,
-                                                seq_params->seq_tier);
+    int64_t seq_bitrate = av2_max_level_bitrate(
+#if CONFIG_CWG_F429_INTEROP
+        seq_params->seq_profile_idc,
+#else
+        seq_params->profile,
+#endif  // CONFIG_CWG_F429_INTEROP
+        seq_params->seq_max_level_idx, seq_params->seq_tier
+#if CONFIG_CWG_F429_INTEROP
+        ,
+        seq_params->monochrome, seq_params->subsampling_x,
+        seq_params->subsampling_y
+#endif  // CONFIG_CWG_F429_INTEROP
+    );
     if (seq_bitrate == 0)
       avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
                          "AV2 does not support this combination of "
@@ -316,9 +353,18 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
   if (seq_params->single_picture_header_flag) {
     seq_params->max_tlayer_id = 0;
     seq_params->max_mlayer_id = 0;
+#if CONFIG_CWG_F429_INTEROP
+    seq_params->seq_max_mcount = 1;
+#endif  // CONFIG_CWG_F429_INTEROP
   } else {
     seq_params->max_tlayer_id = avm_rb_read_literal(rb, TLAYER_BITS);
     seq_params->max_mlayer_id = avm_rb_read_literal(rb, MLAYER_BITS);
+#if CONFIG_CWG_F429_INTEROP
+    if (seq_params->max_mlayer_id > 0) {
+      int n = avm_ceil_log2(seq_params->max_mlayer_id + 1);
+      seq_params->seq_max_mcount = avm_rb_read_literal(rb, n);
+    }
+#endif  // CONFIG_CWG_F429_INTEROP
   }
 
   // setup default embedded layer dependency
@@ -348,6 +394,16 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
       av2_read_tlayer_dependency_info(seq_params, rb);
     }
   }
+
+#if CONFIG_CWG_F429_INTEROP
+  if (!av2_check_profile_interop_conformance(
+          seq_params->seq_profile_idc, seq_params->bit_depth,
+          seq_params->subsampling_x, seq_params->subsampling_y,
+          seq_params->monochrome, seq_params->seq_max_mcount, &cm->error, 1)) {
+    avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+                       "Unsupported bitstream");
+  }
+#endif  // CONFIG_CWG_F429_INTEROP
 
   av2_read_sequence_header(rb, seq_params);
   seq_params->film_grain_params_present = avm_rb_read_bit(rb);
@@ -1405,6 +1461,49 @@ static void check_layerid_showable_frame_units(
   }
 }
 
+#if CONFIG_CWG_F429_INTEROP
+// Select operating point based on user selection (default to 0, 0)
+// The priority is that if a user provides an input then that takes priority
+int avm_set_current_operating_point(struct AV2Decoder *pbi) {
+  AV2_COMMON *const cm = &pbi->common;
+  int found = 0;
+  for (int i = 0; i < pbi->ops_counter; i++) {
+    // Check if this OPS matches the selected OPS id
+    for (int xlayer = 0; xlayer < MAX_NUM_XLAYERS; xlayer++) {
+      int ops_id = pbi->ops_list[i].ops_id[xlayer];
+      if (ops_id == pbi->selected_ops_id) {
+        // Found the OPS, now check if the OP idex is valid
+        if (pbi->selected_ops_id < pbi->ops_list[i].ops_cnt[xlayer][ops_id]) {
+          pbi->operating_point = pbi->ops_list[i].ops_id[xlayer];
+          found = 1;
+          break;
+        }
+      }
+    }
+    if (found) break;
+  }
+  if (!found) {
+    // Selected OPS/Op pair is not found, use default
+    // If OPS counter > 0, use first available OPS, otherwise use 0
+    printf("Warning: No OPS was available, all layers to be decoded.\n");
+    if (pbi->ops_counter > 0) {
+      pbi->operating_point = pbi->ops_list[0].ops_id[0];
+    } else {
+      pbi->operating_point = 0;
+    }
+  }
+
+  pbi->current_operating_point = pbi->operating_point;
+  if (avm_get_num_layers_from_operating_point_idc(
+          pbi->current_operating_point, &cm->number_mlayers,
+          &cm->number_tlayers) != AVM_CODEC_OK) {
+    cm->error.error_code = AVM_CODEC_ERROR;
+    return 0;
+  }
+  return 0;
+}
+#endif  // CONFIG_CWG_F429_INTEROP
+
 // On success, sets *p_data_end and returns a boolean that indicates whether
 // the decoding of the current frame is finished. On failure, sets
 // cm->error.error_code and returns -1.
@@ -1612,6 +1711,9 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
       case OBU_SEQUENCE_HEADER:
         cm->xlayer_id = obu_header.obu_xlayer_id;
         pbi->stream_switched = 0;
+#if CONFIG_CWG_F429_INTEROP
+        avm_set_current_operating_point(pbi);
+#endif  // CONFIG_CWG_F429_INTEROP
         decoded_payload_size = read_sequence_header_obu(pbi, &rb);
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
         pbi->is_first_layer_decoded = true;

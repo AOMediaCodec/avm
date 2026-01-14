@@ -48,6 +48,12 @@ void av2_set_resource_availability_parameters(
     avm_dec_model_op_parameters_t *op_params);
 
 int64_t av2_max_level_bitrate(BITSTREAM_PROFILE seq_profile, int seq_level_idx,
-                              int seq_tier);
+                              int seq_tier
+#if CONFIG_CWG_F429_INTEROP
+                              ,
+                              int monochrome, int subsampling_x,
+                              int subsampling_y
+#endif  // CONFIG_CWG_F429_INTEROP
+);
 
 #endif  // AVM_AV2_COMMON_TIMING_H_

@@ -109,6 +109,9 @@ typedef struct av2_codec_arg_definitions {
   arg_def_t signal_td;
   arg_def_t enable_lcr;
   arg_def_t enable_ops;
+#if CONFIG_CWG_F429_INTEROP
+  arg_def_t num_ops;
+#endif  // CONFIG_CWG_F429_INTEROP
   arg_def_t enable_atlas;
   arg_def_t noise_sens;
   arg_def_t sharpness;
