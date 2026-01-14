@@ -7452,6 +7452,55 @@ static int setup_sequence_header_id(AV2_COMMON *const cm,
   return seq_header_id_in_frame_header;
 }
 
+#if CONFIG_F414_OBU_EXTENSION
+int av1_get_obu_trailing_bits_count(const uint8_t *obu_payload,
+                                    size_t payload_size,
+                                    int obu_extension_flag) {
+  if (payload_size == 0 || !obu_extension_flag) return 0;
+
+  // Step 1: Get the last byte of the payload
+  uint8_t last_byte = obu_payload[payload_size - 1];
+
+  // Step 2: If last byte is 0, then is invalid: there should be at least 1
+  if (last_byte == 0) return 0;
+
+  // Step 3: Read backwards from bit 0 to find the first one
+  int trailing_bits = 0;
+  for (int bit_pos = 0; bit_pos < 8; bit_pos++) {
+    if (last_byte & (1 << bit_pos)) {
+      // Found the trailing "1" bit marker
+      trailing_bits = bit_pos + 1;
+      break;
+    }
+  }
+  return trailing_bits;
+}
+
+int read_obu_extension_bits(const uint8_t *obu_payload, size_t payload_size,
+                            size_t bits_read_before_extension,
+                            int obu_extension_flag) {
+  if (!obu_extension_flag) {
+  }
+
+  // Get trailing bits count
+  int num_trailing_bits = av1_get_obu_trailing_bits_count(
+      obu_payload, payload_size, obu_extension_flag);
+  if (num_trailing_bits < 0) {
+    return -1;
+  }
+
+  // Calculate total bits in paylaod
+  size_t total_payload_bits = payload_size * 8;
+
+  // Extension data bits = total - bits_read_before_extension -1 (ext flag) -
+  // trailing bits
+  size_t extension_data_bits =
+      total_payload_bits - bits_read_before_extension - 1 - num_trailing_bits;
+
+  return (int)extension_data_bits;
+}
+#endif  // CONFIG_F414_OBU_EXTENSION
+
 // On success, returns 0. On failure, calls avm_internal_error and does not
 // return.
 static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,

@@ -36,16 +36,32 @@ struct ThreadData;
 void av2_read_conformance_window(struct avm_read_bit_buffer *rb,
                                  struct SequenceHeader *seq_params);
 
-uint32_t av2_read_layer_configuration_record_obu(
-    struct AV2Decoder *pbi, int obu_xlayer_id, struct avm_read_bit_buffer *rb);
+uint32_t av2_read_layer_configuration_record_obu(struct AV2Decoder *pbi,
+                                                 int obu_xlayer_id,
+                                                 struct avm_read_bit_buffer *rb
+#if CONFIG_F414_OBU_EXTENSION
+                                                 ,
+                                                 size_t payload_size
+#endif  // CONFIG_F414_OBU_EXTENSION
+);
 
 uint32_t av2_read_operating_point_set_obu(struct AV2Decoder *pbi,
                                           int obu_xlayer_id,
-                                          struct avm_read_bit_buffer *rb);
+                                          struct avm_read_bit_buffer *rb
+#if CONFIG_F414_OBU_EXTENSION
+                                          ,
+                                          size_t payload_size
+#endif  // CONFIG_F414_OBU_EXTENSION
+);
 
 uint32_t av2_read_atlas_segment_info_obu(struct AV2Decoder *pbi,
                                          int obu_xLayer_id,
-                                         struct avm_read_bit_buffer *rb);
+                                         struct avm_read_bit_buffer *rb
+#if CONFIG_F414_OBU_EXTENSION
+                                         ,
+                                         size_t payload_size
+#endif  // CONFIG_F414_OBU_EXTENSION
+);
 
 void copy_fgm_from_list(AV2_COMMON *cm, avm_film_grain_t *pars,
                         const struct film_grain_model *fgm);
@@ -58,6 +74,16 @@ void av2_read_sequence_header(struct avm_read_bit_buffer *rb,
 // Reads the tile information in the sequence header
 void read_sequence_tile_info(struct SequenceHeader *seq_params,
                              struct avm_read_bit_buffer *rb);
+
+#if CONFIG_F414_OBU_EXTENSION
+int av1_get_obu_trailing_bits_count(const uint8_t *obu_payload,
+                                    size_t payload_size,
+                                    int obu_extension_flag);
+
+int read_obu_extension_bits(const uint8_t *obu_payload, size_t payload_size,
+                            size_t bits_read_before_extension,
+                            int obu_extension_flag);
+#endif  //  CONFIG_F414_OBU_EXTENSION
 
 void alloc_qmatrix(struct quantization_matrix_set *qm_set);
 void av2_copy_predefined_qmatrices_to_list(struct AV2Decoder *pbi,
@@ -92,7 +118,12 @@ void av2_decode_tg_tiles_and_wrapup(struct AV2Decoder *pbi, const uint8_t *data,
                                     int end_tile, int initialize_flag);
 
 uint32_t av2_read_content_interpretation_obu(struct AV2Decoder *pbi,
-                                             struct avm_read_bit_buffer *rb);
+                                             struct avm_read_bit_buffer *rb
+#if CONFIG_F414_OBU_EXTENSION
+                                             ,
+                                             size_t payload_size
+#endif  // CONFIG_F414_OBU_EXTENSION
+);
 
 // Reads the chroma format and bitdepth in the sequence header. Reports errors
 // by calling rb->error_handler() or avm_internal_error().

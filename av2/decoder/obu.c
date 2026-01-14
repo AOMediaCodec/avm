@@ -191,7 +191,12 @@ static uint32_t read_multi_stream_decoder_operation_obu(
 // On success, returns the number of bytes read from 'rb'.
 // On failure, sets pbi->common.error.error_code and returns 0.
 static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
-                                         struct avm_read_bit_buffer *rb) {
+                                         struct avm_read_bit_buffer *rb
+#if CONFIG_F414_OBU_EXTENSION
+                                         ,
+                                         size_t payload_size
+#endif  // CONFIG_F414_OBU_EXTENSION
+) {
   AV2_COMMON *const cm = &pbi->common;
   const uint32_t saved_bit_offset = rb->bit_offset;
 
@@ -352,6 +357,23 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
   av2_read_sequence_header(rb, seq_params);
   seq_params->film_grain_params_present = avm_rb_read_bit(rb);
 
+#if CONFIG_F414_OBU_EXTENSION
+  size_t bits_before_ext = rb->bit_offset - saved_bit_offset;
+  seq_params->seq_extension_present_flag = avm_rb_read_bit(rb);
+  if (seq_params->seq_extension_present_flag) {
+    // Extension data bits = total - bits_read_before_extension -1 (ext flag) -
+    // trailing bits
+    int extension_bits = read_obu_extension_bits(rb->bit_buffer, payload_size,
+                                                 bits_before_ext, 1);
+    if (extension_bits > 0) {
+      // skip over the extension bits
+      rb->bit_offset += extension_bits;
+    } else {
+      // No extension data is present
+    }
+  }
+#endif  // CONFIG_F414_OBU_EXTENSION
+
   if (av2_check_trailing_bits(pbi, rb) != 0) {
     // cm->error.error_code is already set.
     return 0;
@@ -360,11 +382,34 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
 }
 
 static uint32_t read_multi_frame_header_obu(AV2Decoder *pbi,
-                                            struct avm_read_bit_buffer *rb) {
+                                            struct avm_read_bit_buffer *rb
+#if CONFIG_F414_OBU_EXTENSION
+                                            ,
+                                            size_t payload_size
+#endif  // CONFIG_F414_OBU_EXTENSION
+) {
   AV2_COMMON *const cm = &pbi->common;
   const uint32_t saved_bit_offset = rb->bit_offset;
 
   av2_read_multi_frame_header(cm, rb);
+
+#if CONFIG_F414_OBU_EXTENSION
+  size_t bits_before_ext = rb->bit_offset - saved_bit_offset;
+  cm->mfh_params[cm->cur_mfh_id].mfh_extension_present_flag =
+      avm_rb_read_bit(rb);
+  if (cm->mfh_params[cm->cur_mfh_id].mfh_extension_present_flag) {
+    // Extension data bits = total - bits_read_before_extension -1 (ext flag) -
+    // trailing bits
+    int extension_bits = read_obu_extension_bits(rb->bit_buffer, payload_size,
+                                                 bits_before_ext, 1);
+    if (extension_bits > 0) {
+      // skip over the extension bits
+      rb->bit_offset += extension_bits;
+    } else {
+      // No extension data present
+    }
+  }
+#endif  // CONFIG_F414_OBU_EXTENSION
 
   if (av2_check_trailing_bits(pbi, rb) != 0) {
     // cm->error.error_code is already set.
@@ -1612,7 +1657,12 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
       case OBU_SEQUENCE_HEADER:
         cm->xlayer_id = obu_header.obu_xlayer_id;
         pbi->stream_switched = 0;
-        decoded_payload_size = read_sequence_header_obu(pbi, &rb);
+        decoded_payload_size = read_sequence_header_obu(pbi, &rb
+#if CONFIG_F414_OBU_EXTENSION
+                                                        ,
+                                                        payload_size
+#endif  // CONFIG_F414_OBU_EXTENSION
+        );
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
         pbi->is_first_layer_decoded = true;
         for (int layer = 0; layer < MAX_NUM_MLAYERS; layer++)
@@ -1625,25 +1675,50 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         break;
       case OBU_LAYER_CONFIGURATION_RECORD:
         decoded_payload_size =
-            av2_read_layer_configuration_record_obu(pbi, cm->xlayer_id, &rb);
+            av2_read_layer_configuration_record_obu(pbi, cm->xlayer_id, &rb
+#if CONFIG_F414_OBU_EXTENSION
+                                                    ,
+                                                    payload_size
+#endif  // CONFIG_F414_OBU_EXTENSION
+            );
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
         break;
       case OBU_ATLAS_SEGMENT:
         decoded_payload_size =
-            av2_read_atlas_segment_info_obu(pbi, cm->xlayer_id, &rb);
+            av2_read_atlas_segment_info_obu(pbi, cm->xlayer_id, &rb
+#if CONFIG_F414_OBU_EXTENSION
+                                            ,
+                                            payload_size
+#endif  // CONFIG_F414_OBU_EXTENSION
+            );
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
         break;
       case OBU_OPERATING_POINT_SET:
         decoded_payload_size =
-            av2_read_operating_point_set_obu(pbi, cm->xlayer_id, &rb);
+            av2_read_operating_point_set_obu(pbi, cm->xlayer_id, &rb
+#if CONFIG_F414_OBU_EXTENSION
+                                             ,
+                                             payload_size
+#endif  // CONFIG_F414_OBU_EXTENSION
+            );
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
         break;
       case OBU_CONTENT_INTERPRETATION:
-        decoded_payload_size = av2_read_content_interpretation_obu(pbi, &rb);
+        decoded_payload_size = av2_read_content_interpretation_obu(pbi, &rb
+#if CONFIG_F414_OBU_EXTENSION
+                                                                   ,
+                                                                   payload_size
+#endif  // CONFIG_F414_OBU_EXTENSION
+        );
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
         break;
       case OBU_MULTI_FRAME_HEADER:
-        decoded_payload_size = read_multi_frame_header_obu(pbi, &rb);
+        decoded_payload_size = read_multi_frame_header_obu(pbi, &rb
+#if CONFIG_F414_OBU_EXTENSION
+                                                           ,
+                                                           payload_size
+#endif  // CONFIG_F414_OBU_EXTENSION
+        );
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
         break;
       case OBU_CLK:
@@ -1741,11 +1816,15 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         break;
       default:
         // Skip unrecognized OBUs
+#if CONFIG_F414_OBU_EXTENSION
+        data += bytes_read + payload_size;
+#else
         if (payload_size > 0 &&
             get_last_nonzero_byte(data, payload_size) == 0) {
           cm->error.error_code = AVM_CODEC_CORRUPT_FRAME;
           return -1;
         }
+#endif  // CONFIG_F414_OBU_EXTENSION
         decoded_payload_size = payload_size;
         break;
     }
@@ -1758,11 +1837,15 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
 
     // If there are extra padding bytes, they should all be zero
     while (decoded_payload_size < payload_size) {
+#if CONFIG_F414_OBU_EXTENSION
+      decoded_payload_size++;
+#else
       uint8_t padding_byte = data[decoded_payload_size++];
       if (padding_byte != 0) {
         cm->error.error_code = AVM_CODEC_CORRUPT_FRAME;
         return -1;
       }
+#endif  // CONFIG_F414_OBU_EXTENSION
     }
 
     data += payload_size;

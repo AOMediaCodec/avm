@@ -180,7 +180,12 @@ static int av2_ci_params_identical(const ContentInterpretation *ci1,
 }
 
 uint32_t av2_read_content_interpretation_obu(struct AV2Decoder *pbi,
-                                             struct avm_read_bit_buffer *rb) {
+                                             struct avm_read_bit_buffer *rb
+#if CONFIG_F414_OBU_EXTENSION
+                                             ,
+                                             size_t payload_size
+#endif  // CONFIG_F414_OBU_EXTENSION
+) {
   AV2_COMMON *const cm = &pbi->common;
   const int obu_mlayer_id = cm->mlayer_id;
   const uint32_t saved_bit_offset = rb->bit_offset;
@@ -235,7 +240,21 @@ uint32_t av2_read_content_interpretation_obu(struct AV2Decoder *pbi,
   if (ci_temp.ci_extension_present_flag) {
     // TODO: issue #1111 - Add the extension mechanism
   }
-
+#if CONFIG_F414_OBU_EXTENSION
+  size_t bits_before_ext = rb->bit_offset - saved_bit_offset + 1;
+  // The +1 to account for the extension bit read before
+  if (ci_temp.ci_extension_present_flag) {
+    // Extension data bits = total - bits_read_before_extension -1 (ext flag)
+    // - trailing bits
+    int extension_bits = read_obu_extension_bits(rb->bit_buffer, payload_size,
+                                                 bits_before_ext, 1);
+    if (extension_bits > 0) {
+      rb->bit_offset += extension_bits;  // skip over the extension bits
+    } else {
+      // No extension data present
+    }
+  }
+#endif  // CONFIG_F414_OBU_EXTENSION
   if (av2_check_trailing_bits(pbi, rb) != 0) {
     // cm->error.error_code is already set.
     return 0;

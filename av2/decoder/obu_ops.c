@@ -91,7 +91,12 @@ static void read_ops_decoder_model_info(
 
 uint32_t av2_read_operating_point_set_obu(struct AV2Decoder *pbi,
                                           int obu_xlayer_id,
-                                          struct avm_read_bit_buffer *rb) {
+                                          struct avm_read_bit_buffer *rb
+#if CONFIG_F414_OBU_EXTENSION
+                                          ,
+                                          size_t payload_size
+#endif  // CONFIG_F414_OBU_EXTENSION
+) {
   const uint32_t saved_bit_offset = rb->bit_offset;
 
   int ops_reset_flag = avm_rb_read_bit(rb);
@@ -280,6 +285,23 @@ uint32_t av2_read_operating_point_set_obu(struct AV2Decoder *pbi,
       }
     }
   }
+
+#if CONFIG_F414_OBU_EXTENSION
+  size_t bits_before_ext = rb->bit_offset - saved_bit_offset;
+  ops_params->ops_extension_present_flag = avm_rb_read_bit(rb);
+  if (ops_params->ops_extension_present_flag) {
+    // Extension data bits = total - bits_read_before_extension -1 (ext flag) -
+    // trailing bits
+    int extension_bits = read_obu_extension_bits(rb->bit_buffer, payload_size,
+                                                 bits_before_ext, 1);
+    if (extension_bits > 0) {
+      rb->bit_offset += extension_bits;  // skip over the extension bits
+    } else {
+      // No extension data present
+    }
+  }
+#endif  // CONFIG_F414_OBU_EXTENSION
+
   if (av2_check_trailing_bits(pbi, rb) != 0) {
     return 0;
   }
