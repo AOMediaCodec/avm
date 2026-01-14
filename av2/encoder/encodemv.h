@@ -52,14 +52,6 @@ static INLINE MV_JOINT_TYPE av2_get_mv_joint(const MV *mv) {
   return (!!mv->col) | ((!!mv->row) << 1);
 }
 
-static INLINE int av2_mv_class_base(MV_CLASS_TYPE c) {
-  return c ? CLASS0_SIZE << (c + 2) : 0;
-}
-
-static INLINE int av2_mv_class_base_low_precision(MV_CLASS_TYPE c) {
-  return c ? (1 << c) : 0;
-}
-
 // If n != 0, returns the floor of log base 2 of n. If n == 0, returns 0.
 static INLINE uint8_t av2_log_in_base_2(unsigned int n) {
   // get_msb() is only valid when n != 0.
