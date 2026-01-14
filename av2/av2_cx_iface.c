@@ -576,7 +576,6 @@ struct avm_codec_alg_priv {
   unsigned char *pending_cx_data;
   size_t pending_cx_data_sz;
   int pending_frame_count;
-  size_t pending_frame_sizes[8];
   avm_image_t preview_img;
   avm_enc_frame_flags_t next_frame_flags;
   avm_codec_pkt_list_decl(256) pkt_list;
@@ -3246,7 +3245,7 @@ static avm_codec_err_t encoder_encode(avm_codec_alg_priv_t *ctx,
         }
         frame_size = curr_frame_size;
 
-        ctx->pending_frame_sizes[ctx->pending_frame_count++] = frame_size;
+        ctx->pending_frame_count++;
         ctx->pending_cx_data_sz += frame_size;
 
         cx_data += frame_size;
