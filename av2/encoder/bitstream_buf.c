@@ -64,10 +64,25 @@ void av2_set_buffer_removal_timing_params(AV2_COMP *const cpi) {
   AV2_COMMON *const cm = &cpi->common;
   struct OperatingPointSet *ops = &cm->ops_params;
   BufferRemovalTimingInfo *brt_info = &cm->brt_info;
-  // xlayer_id
-  brt_info->obu_xlayer_id = cm->xlayer_id;
-  const int xlayer_id = brt_info->obu_xlayer_id;
+  const int xlayer_id = cm->xlayer_id;
   // ops_id
+#if CONFIG_CWG_G010
+  brt_info->br_ops_dependent_flag = 0;
+  if (brt_info->br_ops_dependent_flag) {
+    brt_info->br_ops_id = ops->ops_id[xlayer_id];
+    // ops_cnt
+    brt_info->br_ops_cnt[brt_info->br_ops_id] =
+        ops->ops_cnt[xlayer_id][brt_info->br_ops_id];
+    for (int i = 0; i < brt_info->br_ops_cnt[brt_info->br_ops_id]; i++) {
+      brt_info->br_decoder_model_present_op_flag[brt_info->br_ops_id][i] = 0;
+      if (brt_info->br_decoder_model_present_op_flag[brt_info->br_ops_id][i]) {
+        brt_info->br_time_op[brt_info->br_ops_id][i] = 0;
+      }
+    }
+  } else {
+    brt_info->br_time = 0;
+  }
+#else
   brt_info->br_ops_id[xlayer_id] = ops->ops_id[xlayer_id];
   const int ops_id = brt_info->br_ops_id[xlayer_id];
   // ops_cnt
@@ -82,6 +97,7 @@ void av2_set_buffer_removal_timing_params(AV2_COMP *const cpi) {
     if (br_decoder_model_present_op_flag)
       brt_info->br_buffer_removal_time[xlayer_id][ops_id][i] = 0;
   }
+#endif  // CONFIG_CWG_G010
 }
 
 uint32_t av2_write_buffer_removal_timing_obu(
@@ -89,6 +105,24 @@ uint32_t av2_write_buffer_removal_timing_obu(
   struct avm_write_bit_buffer wb = { dst, 0 };
   uint32_t size = 0;
 
+#if CONFIG_CWG_G010
+  avm_wb_write_bit(&wb, brt_info->br_ops_dependent_flag);
+  if (brt_info->br_ops_dependent_flag) {
+    avm_wb_write_literal(&wb, brt_info->br_ops_id, 4);
+    avm_wb_write_literal(&wb, brt_info->br_ops_cnt[brt_info->br_ops_id], 3);
+    for (int i = 0; i < brt_info->br_ops_cnt[brt_info->br_ops_id]; i++) {
+      avm_wb_write_bit(
+          &wb,
+          brt_info->br_decoder_model_present_op_flag[brt_info->br_ops_id][i]);
+      if (brt_info->br_decoder_model_present_op_flag[brt_info->br_ops_id][i]) {
+        int data = brt_info->br_time_op[brt_info->br_ops_id][i];
+        avm_wb_write_rice_golomb(&wb, data, 4);
+      }
+    }
+  } else {
+    avm_wb_write_rice_golomb(&wb, brt_info->br_time, 4);
+  }
+#else
   int xlayer_id = brt_info->obu_xlayer_id;
   int ops_id = brt_info->ops_id;
   int ops_cnt = brt_info->br_ops_cnt[xlayer_id][ops_id];
@@ -101,6 +135,7 @@ uint32_t av2_write_buffer_removal_timing_obu(
       avm_wb_write_uvlc(&wb,
                         brt_info->br_buffer_removal_time[xlayer_id][ops_id][i]);
   }
+#endif  // CONFIG_CWG_G010
 
   av2_add_trailing_bits(&wb);
   size = avm_wb_bytes_written(&wb);

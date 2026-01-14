@@ -180,6 +180,7 @@ const char *avm_obu_type_to_string(OBU_TYPE type) {
     case OBU_PADDING: return "OBU_PADDING";
     case OBU_QM: return "OBU_QM";
     case OBU_FGM: return "OBU_FGM";
+    case OBU_BUFFER_REMOVAL_TIMING: return "OBU_BUFFER_REMOVAL_TIMING";
     default: break;
   }
   return "<Invalid OBU Type>";

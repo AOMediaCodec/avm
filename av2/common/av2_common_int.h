@@ -649,13 +649,23 @@ typedef struct TileInfoSyntax {
 
 // This structure contains Buffer removal time parameters being parsed
 typedef struct {
-  int obu_xlayer_id;
+#if CONFIG_CWG_G010
+  int br_ops_dependent_flag;
+#endif  // CONFIG_CWG_G010
   int ops_id;
+#if CONFIG_CWG_G010
+  int br_ops_id;
+  int br_ops_cnt[MAX_NUM_OPS_ID];
+  int br_decoder_model_present_op_flag[MAX_NUM_OPS_ID][MAX_OPS_COUNT];
+  int br_time_op[MAX_NUM_OPS_ID][MAX_OPS_COUNT];
+  int br_time;
+#else
   int br_ops_id[MAX_NUM_XLAYERS];
   int br_ops_cnt[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
   int br_decoder_model_present_op_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID]
                                       [MAX_OPS_COUNT];
   int br_buffer_removal_time[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT];
+#endif  // CONFIG_CWG_G010
 } BufferRemovalTimingInfo;
 
 typedef struct CroppingWindow {
@@ -867,7 +877,13 @@ typedef struct OperatingPointSet {
   int ops_intent_present_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
   int ops_operational_ptl_present_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
   int ops_color_info_present_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
+#if CONFIG_CWG_G010
+  int ops_decoder_model_info_for_this_op_present_flag[MAX_NUM_XLAYERS]
+                                                     [MAX_NUM_OPS_ID]
+                                                     [MAX_OPS_COUNT];
+#else
   int ops_decoder_model_info_present_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
+#endif  // CONFIG_CWG_G010
   int ops_initial_display_delay_present_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
   int ops_initial_display_delay_minus_1[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
 

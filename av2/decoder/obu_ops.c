@@ -131,8 +131,10 @@ uint32_t av2_read_operating_point_set_obu(struct AV2Decoder *pbi,
         avm_rb_read_bit(rb);
     ops_params->ops_color_info_present_flag[obu_xlayer_id][ops_id] =
         avm_rb_read_bit(rb);
+#if !CONFIG_CWG_G010
     ops_params->ops_decoder_model_info_present_flag[obu_xlayer_id][ops_id] =
         avm_rb_read_bit(rb);
+#endif  // !CONFIG_CWG_G010
 
     if (obu_xlayer_id == GLOBAL_XLAYER_ID) {
       ops_params->ops_mlayer_info_idc[obu_xlayer_id][ops_id] =
@@ -189,8 +191,17 @@ uint32_t av2_read_operating_point_set_obu(struct AV2Decoder *pbi,
         ops_params->ops_col_info
             ->ops_full_range_flag[obu_xlayer_id][ops_id][i] = 0;
       }
+#if CONFIG_CWG_G010
+      ops_params->ops_decoder_model_info_for_this_op_present_flag[obu_xlayer_id]
+                                                                 [ops_id][i] =
+          avm_rb_read_bit(rb);
+      if (ops_params
+              ->ops_decoder_model_info_for_this_op_present_flag[obu_xlayer_id]
+                                                               [ops_id][i]) {
+#else
       if (ops_params
               ->ops_decoder_model_info_present_flag[obu_xlayer_id][ops_id]) {
+#endif  // CONFIG_CWG_G010
         read_ops_decoder_model_info(ops_params->ops_decoder_model_info,
                                     obu_xlayer_id, ops_id, i, rb);
       }

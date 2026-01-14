@@ -32,14 +32,70 @@ uint32_t av2_read_buffer_removal_timing_obu(struct AV2Decoder *pbi,
   AV2_COMMON *const cm = &pbi->common;
   const uint32_t saved_bit_offset = rb->bit_offset;
 
-  // Verify rb has been configured to report errors.
   assert(rb->error_handler);
 
+#if CONFIG_CWG_G010
+  BufferRemovalTimingInfo *const brt_info = &cm->brt_info;
+#else
   BufferRemovalTimingInfo btr = cm->brt_info;
   BufferRemovalTimingInfo *const brt_info = &btr;
   brt_info->obu_xlayer_id = xlayer_id;
+#endif  // CONFIG_CWG_G010
 
   // br_ops_id
+#if CONFIG_CWG_G010
+  brt_info->br_ops_dependent_flag = avm_rb_read_bit(rb);
+  if (brt_info->br_ops_dependent_flag) {
+    brt_info->br_ops_id = avm_rb_read_literal(rb, 4);
+    brt_info->br_ops_cnt[brt_info->br_ops_id] = avm_rb_read_literal(rb, 3);
+    // Find the corresponding OPS in pbi->ops_list where
+    // ops_id == br_ops_id.
+    // It is a requirement of bitstream conformance that if a buffer removal
+    // time OBU with a buffer br_ops_id is present in the
+    // bitstream, an operating point set OBU shall also be present in the
+    // bitstream with a value of ops_id equal to br_ops_id."
+    int matched_ops_idx = -1;
+    for (int i = 0; i < pbi->ops_counter; i++) {
+      if (pbi->ops_list[i].ops_id[xlayer_id] == brt_info->br_ops_id) {
+        matched_ops_idx = i;
+        break;
+      }
+    }
+    if (matched_ops_idx < 0) {
+      avm_internal_error(
+          &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+          "No matching operating point set OBU found for br_ops_id = %d. "
+          "Bitstream conformance requires an OPS OBU with ops_id[%d] = %d.",
+          brt_info->br_ops_id, xlayer_id, brt_info->br_ops_id);
+      return 0;
+    }
+    // It is a requirement of bitstream conformance that br_ops_cnt[xlayer_id]
+    // [opsId], when present shall be equal to the value of
+    // ops_cnt[xlayerId][ops_id] of the corresponding operating point set OBU.
+    if (brt_info->br_ops_cnt[brt_info->br_ops_id] !=
+        pbi->ops_list[matched_ops_idx]
+            .ops_cnt[xlayer_id][brt_info->br_ops_id]) {
+      avm_internal_error(
+          &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+          "Mismatch between the operating point count in Buffer  Removal "
+          "Timing OBU (%d) and Operating Point set OBU (%d).",
+          brt_info->br_ops_cnt[brt_info->br_ops_id],
+          pbi->ops_list[matched_ops_idx]
+              .ops_cnt[xlayer_id][brt_info->br_ops_id]);
+      return 0;
+    }
+    // decoder model
+    for (int i = 0; i < brt_info->br_ops_cnt[brt_info->br_ops_id]; i++) {
+      brt_info->br_decoder_model_present_op_flag[brt_info->br_ops_id][i] =
+          avm_rb_read_bit(rb);
+      if (brt_info->br_decoder_model_present_op_flag[brt_info->br_ops_id][i])
+        brt_info->br_time_op[brt_info->br_ops_id][i] =
+            avm_rb_read_rice_golomb(rb, 4);
+    }
+  } else {
+    brt_info->br_time = avm_rb_read_rice_golomb(rb, 4);
+  }
+#else
   brt_info->br_ops_id[xlayer_id] = avm_rb_read_literal(rb, 4);
   int ops_id = brt_info->br_ops_id[xlayer_id];
   // Find the corresponding OPS in pbi->ops_list where
@@ -87,6 +143,7 @@ uint32_t av2_read_buffer_removal_timing_obu(struct AV2Decoder *pbi,
       brt_info->br_buffer_removal_time[xlayer_id][ops_id][i] =
           avm_rb_read_uvlc(rb);
   }
+#endif  //  CONFIG_CWG_G010
   if (av2_check_trailing_bits(pbi, rb) != 0) {
     // cm->error.error_code is already set.
     return 0;

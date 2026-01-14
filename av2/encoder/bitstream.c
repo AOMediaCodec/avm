@@ -6880,24 +6880,6 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
   level_params->frame_header_count = 0;
 
   // The TD is now written outside the frame encode loop
-  if (av2_is_shown_keyframe(cpi, cm->current_frame.frame_type) &&
-      cpi->write_brt_obu) {
-    av2_set_buffer_removal_timing_params(cpi);
-    obu_header_size = av2_write_obu_header(
-        level_params, OBU_BUFFER_REMOVAL_TIMING, 0, 0, data);
-
-    obu_payload_size = av2_write_buffer_removal_timing_obu(
-        &cm->brt_info, data + obu_header_size);
-    const size_t length_field_size =
-        obu_memmove(obu_header_size, obu_payload_size, data);
-    if (av2_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
-        AVM_CODEC_OK) {
-      return AVM_CODEC_ERROR;
-    }
-
-    data += obu_header_size + obu_payload_size + length_field_size;
-  }
-
   if (av2_is_shown_keyframe(cpi, cm->current_frame.frame_type)) {
     const LayerCfg *const layer_cfg = &cpi->oxcf.layer_cfg;
     // Layer Configuration Record
@@ -7048,6 +7030,23 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
           AVM_CODEC_OK) {
         return AVM_CODEC_ERROR;
       }
+      data += obu_header_size + obu_payload_size + length_field_size;
+    }
+
+    if (av2_is_shown_keyframe(cpi, cm->current_frame.frame_type) &&
+        cpi->write_brt_obu) {
+      av2_set_buffer_removal_timing_params(cpi);
+      obu_header_size = av2_write_obu_header(
+          level_params, OBU_BUFFER_REMOVAL_TIMING, 0, 0, data);
+
+      obu_payload_size = av2_write_buffer_removal_timing_obu(
+          &cm->brt_info, data + obu_header_size);
+      length_field_size = obu_memmove(obu_header_size, obu_payload_size, data);
+      if (av2_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
+          AVM_CODEC_OK) {
+        return AVM_CODEC_ERROR;
+      }
+
       data += obu_header_size + obu_payload_size + length_field_size;
     }
 

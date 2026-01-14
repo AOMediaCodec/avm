@@ -148,7 +148,16 @@ static uint32_t calculate_ops_data_size(AV2_COMP *cpi, int obu_xlayer_id,
   }
 
   // Write decoder model info if present (using actual values)
+#if CONFIG_CWG_G010
+  avm_wb_write_bit(
+      &temp_wb,
+      ops->ops_decoder_model_info_for_this_op_present_flag[obu_xlayer_id]
+                                                          [ops_id][op_index]);
+  if (ops->ops_decoder_model_info_for_this_op_present_flag[obu_xlayer_id]
+                                                          [ops_id][op_index]) {
+#else
   if (ops->ops_decoder_model_info_present_flag[obu_xlayer_id][ops_id]) {
+#endif  // CONFIG_CWG_G010
     struct OpsDecoderModelInfo *ops_decoder_model_info =
         ops->ops_decoder_model_info;
 
@@ -307,8 +316,10 @@ uint32_t av2_write_operating_point_set_obu(AV2_COMP *cpi, int obu_xlayer_id,
         &wb, ops->ops_operational_ptl_present_flag[obu_xlayer_id][ops_id]);
     avm_wb_write_bit(&wb,
                      ops->ops_color_info_present_flag[obu_xlayer_id][ops_id]);
+#if !CONFIG_CWG_G010
     avm_wb_write_bit(
         &wb, ops->ops_decoder_model_info_present_flag[obu_xlayer_id][ops_id]);
+#endif  // !CONFIG_CWG_G010
 
     if (obu_xlayer_id == GLOBAL_XLAYER_ID) {
       avm_wb_write_literal(&wb, ops->ops_mlayer_info_idc[obu_xlayer_id][ops_id],
@@ -344,7 +355,16 @@ uint32_t av2_write_operating_point_set_obu(AV2_COMP *cpi, int obu_xlayer_id,
       }
       if (ops->ops_color_info_present_flag[obu_xlayer_id][ops_id])
         write_ops_color_info(opsColInfo, obu_xlayer_id, ops_id, i, &wb);
+#if CONFIG_CWG_G010
+      avm_wb_write_bit(
+          &wb,
+          ops->ops_decoder_model_info_for_this_op_present_flag[obu_xlayer_id]
+                                                              [ops_id][i]);
+      if (ops->ops_decoder_model_info_for_this_op_present_flag[obu_xlayer_id]
+                                                              [ops_id][i]) {
+#else
       if (ops->ops_decoder_model_info_present_flag[obu_xlayer_id][ops_id]) {
+#endif  // CONFIG_CWG_G010
         write_ops_decoder_model_info(ops->ops_decoder_model_info, obu_xlayer_id,
                                      ops_id, i, &wb);
       }
