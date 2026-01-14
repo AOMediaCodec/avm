@@ -720,10 +720,10 @@ typedef struct LayerConfigurationRecord {
   int lcr_max_interop;          // f(4);
 
   // lcr_seq_profile_tier_level_info()- per xlayer
-  int lcr_seq_profile_idc[MAX_NUM_MLAYERS];
-  int lcr_max_level_idx[MAX_NUM_MLAYERS];
-  int lcr_tier_flag[MAX_NUM_MLAYERS];
-  int lcr_max_mlayer_count[MAX_NUM_MLAYERS];
+  int lcr_seq_profile_idc[MAX_NUM_XLAYERS];
+  int lcr_max_level_idx[MAX_NUM_XLAYERS];
+  int lcr_tier_flag[MAX_NUM_XLAYERS];
+  int lcr_max_mlayer_count[MAX_NUM_XLAYERS];
 
   // Local LCR: lcr_profile_tier_level_info_present_flag
   int lcr_profile_tier_level_info_present_flag[MAX_NUM_MLAYERS];
