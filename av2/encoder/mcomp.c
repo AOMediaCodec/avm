@@ -2579,28 +2579,6 @@ int av2_get_cwp_idx_cost(int8_t cwp_idx, const AV2_COMMON *const cm,
   return cost;
 }
 
-int av2_get_ref_mvpred_var_cost(const AV2_COMP *cpi, const MACROBLOCKD *xd,
-                                const FULLPEL_MOTION_SEARCH_PARAMS *ms_params) {
-  const BLOCK_SIZE bsize = ms_params->bsize;
-  const int mi_row = xd->mi_row;
-  const int mi_col = xd->mi_col;
-
-  const FullMvLimits *mv_limits = &ms_params->mv_limits;
-  const MV *dv = ms_params->mv_cost_params.ref_mv;
-  if (!av2_is_dv_valid(*dv, &cpi->common, xd, mi_row, mi_col, bsize,
-                       cpi->common.mib_size_log2))
-    return INT_MAX;
-
-  FULLPEL_MV cur_mv = get_fullmv_from_mv(dv);
-  if (!av2_is_fullmv_in_range(mv_limits, cur_mv,
-                              ms_params->mv_cost_params.pb_mv_precision))
-    return INT_MAX;
-
-  int cost = get_mvpred_var_cost(ms_params, &cur_mv) -
-             mv_err_cost(*dv, &ms_params->mv_cost_params);
-  return cost;
-}
-
 void av2_init_ref_mv(MV_COST_PARAMS *mv_cost_params, const MV *ref_mv) {
   mv_cost_params->ref_mv = ref_mv;
   mv_cost_params->full_ref_mv = get_fullmv_from_mv(ref_mv);

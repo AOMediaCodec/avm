@@ -734,11 +734,6 @@ int av2_get_ref_bv_rate_cost(int intrabc_mode, int intrabc_drl_idx,
 int av2_pick_ref_bv(FULLPEL_MV *best_full_mv, int max_bvp_drl_bits,
                     const FULLPEL_MOTION_SEARCH_PARAMS *fullms_params);
 
-// Compute the estimated RD cost for the reference BV
-int av2_get_ref_mvpred_var_cost(const struct AV2_COMP *cpi,
-                                const MACROBLOCKD *xd,
-                                const FULLPEL_MOTION_SEARCH_PARAMS *ms_params);
-
 #ifdef __cplusplus
 }  // extern "C"
 #endif

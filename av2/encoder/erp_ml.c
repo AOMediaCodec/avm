@@ -15,11 +15,6 @@
 #include "av2/encoder/erp_models.h"
 #include "av2/encoder/ml.h"
 
-#define MAKE_ERP_MODEL_SWITCH_CASE(bsize)           \
-  case bsize:                                       \
-    return is_hd ? av2_erp_rect_hd_##bsize##_tflite \
-                 : av2_erp_rect_##bsize##_tflite;
-
 #define MAKE_ERP_DNN_MODEL_SWITCH_CASE(bsize)         \
   case bsize:                                         \
     return is_hd ? &av2_erp_rect_hd_nn_config_##bsize \
@@ -106,7 +101,6 @@ static const float *get_std(BLOCK_SIZE bsize, bool is_hd) {
     default: assert(0 && "Invalid block size!\n"); return NULL;
   }
 }
-#undef MAKE_ERP_MODEL_SWITCH_CASE
 
 static inline void normalize(float *features_dst, const float *features_src,
                              const float *mean, const float *std,
