@@ -300,18 +300,215 @@ jobs:
 
   encdec-run:
     name: Enc/Dec
-    uses: ./.github/workflows/encdec-job-reusable.yaml
     needs:
       - common-builds
       - previous-build-x86_64-linux-gcc
       - vars
     if: (!cancelled())
-    with:
-      avm-enc-output: ${{ matrix.avm-enc-output }}
-      avm-enc-limit: ${{ matrix.avm-enc-limit }}
-      parent-job-name: encdec-run
-      runner: '["${{ needs.vars.outputs.runner }}"]'
-      container-image: ${{ needs.vars.outputs.container-image }}
+    timeout-minutes: ${{ fromJson(needs.vars.outputs.timeout-minutes) }}
+    runs-on: ${{ needs.vars.outputs.runner }}
+    container:
+      image: ${{ needs.vars.outputs.container-image }}
+    env:
+      AVMENC_OUTPUT: ${{ matrix.avm-enc-output }}
+      AVMENC_LIMIT: ${{ matrix.avm-enc-limit }}
+      AVMENC_QP: 210
+      AVMENC_INPUT: Vertical_Bayshore_270x480_2997.y4m
+      AVMENC_COMMON_ARGS: "\
+        --debug \
+        --cpu-used=0 \
+        --passes=1 \
+        --deltaq-mode=0 \
+        --enable-keyframe-filtering=0 \
+        --enable-tpl-model=0 \
+        --use-fixed-qp-offsets=1 \
+        --end-usage=q \
+        --obu \
+        --psnr \
+      "
+
+    steps:
+      - name: Configure AVM encoder
+        run: |
+          if [ -z "${AVMENC_OUTPUT}" ]; then
+            echo "AVMENC_OUTPUT is not set." >&2
+            exit 1
+          fi
+
+          # common encoder arguments to all outputs
+          AVMENC_ARGS="${AVMENC_COMMON_ARGS} \
+            --qp=${AVMENC_QP} \
+            --limit=${AVMENC_LIMIT} \
+          "
+
+          # output-specific arguments
+          case ${AVMENC_OUTPUT} in
+            all-intra)
+              AVMENC_ARGS="${AVMENC_ARGS} \
+              --kf-max-dist=0 \
+              --kf-min-dist=0 \
+              "
+              ;;
+
+            random-access)
+              AVMENC_ARGS="${AVMENC_ARGS} \
+                --auto-alt-ref=1 \
+                --gf-max-pyr-height=4 \
+                --gf-min-pyr-height=4 \
+                --kf-max-dist=65 \
+                --kf-min-dist=65 \
+                --lag-in-frames=19 \
+                --max-gf-interval=16 \
+                --min-gf-interval=16 \
+              "
+              ;;
+
+            low-delay)
+              AVMENC_ARGS="${AVMENC_ARGS} \
+                --gf-max-pyr-height=4 \
+                --gf-min-pyr-height=4 \
+                --kf-max-dist=9999 \
+                --kf-min-dist=9999 \
+                --lag-in-frames=0 \
+                --subgop-config-str=ld \
+              "
+              ;;
+
+            *)
+              echo "Unknown encoder output: '${AVMENC_OUTPUT}'" >&2
+              exit 1
+              ;;
+          esac
+
+          # Append to workflow environment
+          echo "AVMENC_ARGS=${AVMENC_ARGS}" >>${GITHUB_ENV}
+
+      - name: Pull input file
+        run: |
+          curl -s -S -f -O https://gitlab.com/AOMediaCodec/aom-testing/-/raw/master/test-files/${AVMENC_INPUT}.xz
+          unxz ${AVMENC_INPUT}.xz
+
+      - name: Pull previous encoder build
+        uses: actions/download-artifact@v5
+        with:
+          name: previous-build-x86_64-linux-gcc-encode-only
+          path: enc-previous
+
+      - name: Pull current encoder build
+        uses: actions/download-artifact@v5
+        with:
+          name: example-build
+          path: enc-current
+
+      - name: Fix executable bit permissions
+        run: |
+          # See https://github.com/actions/upload-artifact/issues/38 for details about why we need this
+
+          # Look for files starting with ELF header and set executable but
+          for file in $(find . -type f); do
+            if grep --quiet --binary --text --perl-regexp "^\x7f\x45\x4c\x46" "${file}"; then
+              echo "Found binary ${file}, fixing permissions."
+              chmod a+x "${file}"
+            fi
+          done
+
+      - name: Encode
+        run: |
+          printf -- "\n---------------------------------------------------\n"
+          echo "Encoder input:  ${AVMENC_INPUT}"
+          echo "Encoder output: ${AVMENC_OUTPUT}"
+          echo "Encoder args:   ${AVMENC_ARGS}"
+          printf -- "---------------------------------------------------\n\n"
+
+          commands=/tmp/parallel.commands.$$
+          cat >${commands} <<EOF
+          enc-previous/usr/local/bin/avmenc ${AVMENC_ARGS} --output=${AVMENC_OUTPUT}.previous.obu ${AVMENC_INPUT} 2>&1 | tee ${AVMENC_OUTPUT}.previous.psnr.log
+          enc-current/avmenc                ${AVMENC_ARGS} --output=${AVMENC_OUTPUT}.current.obu  ${AVMENC_INPUT} 2>&1 | tee ${AVMENC_OUTPUT}.current.psnr.log
+          EOF
+
+          time parallel --line-buffer < ${commands} || true
+
+          for obu_file in ${AVMENC_OUTPUT}.previous.obu ${AVMENC_OUTPUT}.current.obu; do
+            if [ ! -f ${obu_file} ]; then
+              echo "Cannot find OBU file ${obu_file}" >&2
+              exit 1
+            fi
+
+            md5sum --binary ${obu_file} | awk '{ print $1; }' > ${obu_file}.md5
+          done
+
+      - name: Decode
+        run: |
+          enc-current/avmdec \
+            ${AVMENC_OUTPUT}.current.obu \
+            --output=${AVMDEC_OUTPUT}.current.decoded.y4m \
+            --summary \
+            2>&1 | tee ${AVMDEC_OUTPUT}.current.summary.log
+
+          if [ ! -f ${AVMDEC_OUTPUT}.current.decoded.y4m ]; then
+            echo "Cannot find decoded Y4M file" >&2
+            exit 1
+          fi
+
+          if [ ! -f ${AVMDEC_OUTPUT}.current.summary.log ]; then
+            echo "Cannot find decoder summary log file" >&2
+            exit 1
+          fi
+
+          for str in 'decoded frames' 'showed frames'; do
+            frame_count=$(grep -E -o "[0-9]+ ${str}" "${AVMDEC_OUTPUT}.current.summary.log" | sed -E "s/([0-9]+) ${str}/\1/g")
+            echo "${str} = ${frame_count}"
+            if [ ${frame_count} -ne ${AVMENC_LIMIT} ]; then
+              echo "ERROR: Unexpected number of ${str}. Got ${frame_count}, expected ${AVMENC_LIMIT}" >&2
+              exit 1
+            fi
+          done
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4.1.0
+        if: ${{ always() }}
+        with:
+          name: encdec-${{ matrix.avm-enc-output }}
+          path: ${{ matrix.avm-enc-output }}.*
+
+      - name: Compare hashes
+        run: |
+          ALLOW_FAIL=0
+          FAILED=0
+
+          if [ -n "$(git --no-pager log --grep STATS_CHANGED --format=format:"%H" "${{ github.event.pull_request.base.sha }}..${{ github.sha }}")" ]; then
+            ALLOW_FAIL=1
+          fi
+
+          variant=${AVMDEC_OUTPUT}
+
+          if diff -- "${AVMENC_OUTPUT}.previous.obu.md5" "${AVMENC_OUTPUT}.current.obu.md5" &>/dev/null; then
+            echo "OK: No differences in ${AVMENC_OUTPUT} outputs found."
+            echo ""
+          else
+            echo "WARNING: ${AVMENC_OUTPUT}.previous.obu.md5 and ${AVMENC_OUTPUT}.current.obu.md5 differ!"
+            echo "${AVMENC_OUTPUT}.previous.obu.md5 : $(cat ${AVMENC_OUTPUT}.previous.obu.md5)"
+            echo "${AVMENC_OUTPUT}.current.obu.md5  : $(cat ${AVMENC_OUTPUT}.current.obu.md5)"
+            echo ""
+            FAILED=1
+          fi
+
+          if [ ${FAILED} -eq 1 ]; then
+            if [ ${ALLOW_FAIL} -eq 1 ]; then
+              echo "SUCCESS: Even though a mismatch was detected, one or more"
+              echo "         commits contain the STATS_CHANGED keyword, so mismatch"
+              echo "         of encode outputs is allowed."
+              echo "Commits containing STATS_CHANGED added in this MR:"
+              git --no-pager log --grep STATS_CHANGED --format=format:"%h: %s; \"%aN\" <%aE>" "${{ github.event.pull_request.base.sha }}..${{ github.sha }}"
+              echo ""
+              exit 0
+            fi
+
+            echo "FAIL: Failing job due to mismatch and no STATS_CHANGED keyword"
+            echo "      was found in any of the commits added in this MR!"
+            exit 1
+          fi
+
     strategy:
       fail-fast: false
       matrix:
