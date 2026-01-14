@@ -442,7 +442,6 @@ void av2_set_offsets_without_segment_id(
   av2_setup_src_planes(x, cpi->source, mi_row, mi_col, num_planes,
                        chroma_ref_info);
 
-  // required by av2_append_sub8x8_mvs_for_idx() and av2_find_best_ref_mvs()
   xd->tile = *tile;
 }
 

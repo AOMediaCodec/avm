@@ -606,12 +606,6 @@ void av2_initialize_warp_wrl_list(
     WARP_CANDIDATE warp_param_stack[][MAX_WARP_REF_CANDIDATES],
     uint8_t valid_num_warp_candidates[INTER_REFS_PER_FRAME]);
 
-// check a list of motion vectors by sad score using a number rows of pixels
-// above and a number cols of pixels in the left to select the one with best
-// score to use as ref motion vector
-void av2_find_best_ref_mvs(int_mv *mvlist, int_mv *nearest_mv, int_mv *near_mv,
-                           MvSubpelPrecision precision);
-
 uint8_t av2_findSamples(const AV2_COMMON *cm, MACROBLOCKD *xd, int *pts,
                         int *pts_inref, int ref_idx);
 

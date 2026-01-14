@@ -2925,17 +2925,6 @@ void av2_find_mv_refs(
   }
 }
 
-void av2_find_best_ref_mvs(int_mv *mvlist, int_mv *nearest_mv, int_mv *near_mv,
-                           MvSubpelPrecision precision) {
-  int i;
-  // Make sure all the candidates are properly clamped etc
-  for (i = 0; i < MAX_MV_REF_CANDIDATES; ++i) {
-    lower_mv_precision(&mvlist[i].as_mv, precision);
-  }
-  *nearest_mv = mvlist[0];
-  *near_mv = mvlist[1];
-}
-
 void av2_setup_frame_buf_refs(AV2_COMMON *cm) {
   cm->cur_frame->order_hint = cm->current_frame.order_hint;
   cm->cur_frame->display_order_hint = cm->current_frame.display_order_hint;

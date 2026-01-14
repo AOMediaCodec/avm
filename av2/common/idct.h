@@ -25,8 +25,6 @@
 extern "C" {
 #endif
 
-typedef void (*transform_1d)(const tran_low_t *, tran_low_t *);
-
 void inv_txfm_c(const tran_low_t *input, uint16_t *dest, int stride,
                 const TxfmParam *txfm_param);
 
