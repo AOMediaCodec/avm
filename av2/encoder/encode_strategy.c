@@ -89,6 +89,7 @@ void av2_set_seq_seg_info(SequenceHeader *seq_params,
   }
   seg_params->segid_preskip = seg->segid_preskip;
   seg_params->last_active_segid = seg->last_active_segid;
+  seg_params->enable_ext_seg = seq_params->enable_ext_seg;
 }
 
 void av2_configure_buffer_updates(AV2_COMP *const cpi,
