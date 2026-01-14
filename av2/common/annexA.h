@@ -44,7 +44,8 @@ struct SequenceHeader;
 // Returns 1 on success and 0 on failure
 int av2_check_profile_interop_conformance(
     int profile, int bit_depth, int subsampling_x, int subsampling_y,
-    int monochrome, int seq_max_mcount,struct avm_internal_error_info *error_info, int is_decoder);
+    int monochrome, int seq_max_mcount,
+    struct avm_internal_error_info *error_info, int is_decoder);
 
 //==========================================
 // Profile Scaling and Bitrate Functions
@@ -57,11 +58,9 @@ int get_bitrate_profile_factor(int profile_scaling_factor);
 //==========================================
 // Validate function
 //===========================================
-int av2_validate_layer_capacity(int seq_profile_idc,
-                                              int num_extended_layers,
+int av2_validate_layer_capacity(int seq_profile_idc, int num_extended_layers,
                                 int num_embedded_layers);
 
 #endif  // CONFIG_CWG_F429_INTEROP
-
 
 #endif  // AVM_AV2_COMMON_TIMING_H_

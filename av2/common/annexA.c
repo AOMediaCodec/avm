@@ -23,11 +23,15 @@
 /*
  * Table A.1: AV2 Multi-Sequence Configurations
  *
- * ConfigurationID | Configuration Label | Toolset | BitDepth (8/10/12/14/16) |Chroma Format (4:0:0/4:2:0/4:2:2/4:4:4)
+ * ConfigurationID | Configuration Label | Toolset | BitDepth (8/10/12/14/16)
+ |Chroma Format (4:0:0/4:2:0/4:2:2/4:4:4)
  ------------------|---------------------|---------|--------------------------|----------------------------------------
- *       0         | C_Main_420_10       | Main    | 8, 10                    | 4:0:0, 4:2:0
- *       1         | C_Main_422_10       | Main    | 8, 10                    | 4:0:0, 4:2:0, 4:2:2
- *       2         | C_Main_444_10       | Main    | 8, 10                    | 4:0:0, 4:2:0, 4:4:4
+ *       0         | C_Main_420_10       | Main    | 8, 10                    |
+ 4:0:0, 4:2:0
+ *       1         | C_Main_422_10       | Main    | 8, 10                    |
+ 4:0:0, 4:2:0, 4:2:2
+ *       2         | C_Main_444_10       | Main    | 8, 10                    |
+ 4:0:0, 4:2:0, 4:4:4
  *       3-63      | Reserved            | -       | -                        |
 
  *
@@ -62,9 +66,12 @@ typedef enum {
  * - seq_profile_idc: Allowed profile values (0=Main_420_10_IP0,
  1=Main_420_10_IP1, 2=Main_420_10_IP2, 3=Main_420_10)
  * - bit_depth_idc: 0=8-bit, 1=10-bit
- * - C_Main_420_10: Supports profiles 0-3, chroma 4:0:0 and 4:2:0, bit depths 8 and 10
- * - C_Main_422_10: Supports profiles 0-3, chroma 4:0:0, 4:2:0 and 4:2:2, bit depth 8 and 10
- * - C_Main_444_10: Supports profiles 0-3, chroma 4:0:0, 4:2:0, and 4:4:4, bit depth 8 and 10
+ * - C_Main_420_10: Supports profiles 0-3, chroma 4:0:0 and 4:2:0, bit depths 8
+ and 10
+ * - C_Main_422_10: Supports profiles 0-3, chroma 4:0:0, 4:2:0 and 4:2:2, bit
+ depth 8 and 10
+ * - C_Main_444_10: Supports profiles 0-3, chroma 4:0:0, 4:2:0, and 4:4:4, bit
+ depth 8 and 10
  */
 
 // Interoperability Point Table (Table 2 from CWG-F429)
