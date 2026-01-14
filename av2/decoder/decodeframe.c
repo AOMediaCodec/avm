@@ -267,12 +267,6 @@ static AVM_INLINE void predict_inter_block_void(AV2_COMMON *const cm,
   (void)bsize;
 }
 
-static AVM_INLINE void av2_cfl_store_inter_block_void(AV2_COMMON *const cm,
-                                                      MACROBLOCKD *const xd) {
-  (void)cm;
-  (void)xd;
-}
-
 static AVM_INLINE void predict_and_reconstruct_intra_block(
     const AV2_COMMON *const cm, DecoderCodingBlock *dcb, avm_reader *const r,
     const int plane, const int row, const int col, const TX_SIZE tx_size) {
@@ -822,15 +816,6 @@ static AVM_INLINE void dec_build_inter_predictor(const AV2_COMMON *cm,
     assert(av2_allow_intrabc_morph_pred(cm));
     assert(is_intrabc_block(mbmi, xd->tree_type));
     av2_build_morph_pred(cm, xd, bsize, mi_row, mi_col);
-  }
-}
-
-static AVM_INLINE void av2_cfl_store_inter_block(AV2_COMMON *const cm,
-                                                 MACROBLOCKD *const xd) {
-  MB_MODE_INFO *mbmi = xd->mi[0];
-  if (store_cfl_required(cm, xd) && xd->tree_type == SHARED_PART) {
-    av2_cfl_store_block(xd, mbmi->sb_type[PLANE_TYPE_Y], mbmi->tx_size,
-                        cm->seq_params.cfl_ds_filter_index);
   }
 }
 
@@ -4577,7 +4562,6 @@ static AVM_INLINE void set_decode_func_pointers(ThreadData *td,
   td->inverse_cctx_block_visit = decode_block_void;
   td->predict_inter_block_visit = predict_inter_block_void;
   td->copy_frame_mvs_block_visit = predict_inter_block_void;
-  td->av2_cfl_store_inter_block_visit = av2_cfl_store_inter_block_void;
 
   if (parse_decode_flag & 0x1) {
     td->read_coeffs_tx_intra_block_visit = read_coeffs_tx_intra_block;
@@ -4590,7 +4574,6 @@ static AVM_INLINE void set_decode_func_pointers(ThreadData *td,
     td->inverse_cctx_block_visit = inverse_cross_chroma_transform_block;
     td->predict_inter_block_visit = predict_inter_block;
     td->copy_frame_mvs_block_visit = copy_frame_mvs_inter_block;
-    td->av2_cfl_store_inter_block_visit = av2_cfl_store_inter_block;
   }
 }
 

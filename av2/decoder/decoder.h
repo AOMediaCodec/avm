@@ -108,9 +108,6 @@ typedef void (*predict_inter_block_visitor_fn_t)(AV2_COMMON *const cm,
                                                  DecoderCodingBlock *dcb,
                                                  BLOCK_SIZE bsize);
 
-typedef void (*av2_cfl_store_inter_block_visitor_fn_t)(AV2_COMMON *const cm,
-                                                       MACROBLOCKD *const xd);
-
 typedef struct ThreadData {
   DecoderCodingBlock dcb;
 
@@ -144,7 +141,6 @@ typedef struct ThreadData {
   decode_block_visitor_fn_t inverse_tx_inter_block_visit;
   predict_inter_block_visitor_fn_t predict_inter_block_visit;
   predict_inter_block_visitor_fn_t copy_frame_mvs_block_visit;
-  av2_cfl_store_inter_block_visitor_fn_t av2_cfl_store_inter_block_visit;
 
   REF_MV_BANK ref_mv_bank;
   WARP_PARAM_BANK warp_param_bank;
