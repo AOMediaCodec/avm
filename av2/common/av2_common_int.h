@@ -1433,6 +1433,9 @@ typedef struct MultiFrameHeader {
    */
   int mfh_ext_seg_flag;
 #if CONFIG_F414_OBU_EXTENSION
+  /*!
+   * Extension present flag
+   */
   uint8_t mfh_extension_present_flag;
 #endif  // CONFIG_F414_OBU_EXTENSION
 } MultiFrameHeader;
