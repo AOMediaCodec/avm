@@ -2434,12 +2434,6 @@ typedef struct AV2_COMP {
   RD_OPT rd;
 
   /*!
-   * Temporary coding context used to save and restore when encoding with and
-   * without super-resolution.
-   */
-  CODING_CONTEXT coding_context;
-
-  /*!
    * Parameters related to global motion search.
    */
   GlobalMotionInfo gm_info;

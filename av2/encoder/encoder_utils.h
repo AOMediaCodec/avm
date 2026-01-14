@@ -831,30 +831,12 @@ static AVM_INLINE void copy_frame_prob_info(AV2_COMP *cpi) {
   }
 }
 
-// Restores CDEF coding context.
-static AVM_INLINE void restore_cdef_coding_context(CdefInfo *const dst,
-                                                   const CdefInfo *const src) {
-  dst->cdef_bits = src->cdef_bits;
-  dst->cdef_damping = src->cdef_damping;
-  av2_copy(dst->cdef_strengths, src->cdef_strengths);
-  av2_copy(dst->cdef_uv_strengths, src->cdef_uv_strengths);
-  dst->nb_cdef_strengths = src->nb_cdef_strengths;
-}
-
 static AVM_INLINE int equal_dimensions_and_border(const YV12_BUFFER_CONFIG *a,
                                                   const YV12_BUFFER_CONFIG *b) {
   return a->y_height == b->y_height && a->y_width == b->y_width &&
          a->uv_height == b->uv_height && a->uv_width == b->uv_width &&
          a->y_stride == b->y_stride && a->uv_stride == b->uv_stride &&
          a->border == b->border;
-}
-
-static AVM_INLINE int update_entropy(bool *ext_refresh_frame_context,
-                                     bool *ext_refresh_frame_context_pending,
-                                     bool update) {
-  *ext_refresh_frame_context = update;
-  *ext_refresh_frame_context_pending = 1;
-  return 0;
 }
 
 static AVM_INLINE int combine_prior_with_tpl_boost(double min_factor,
