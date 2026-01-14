@@ -848,11 +848,6 @@ typedef struct OpsDecoderModelInfo {
   int ops_low_delay_mode_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT];
 } OpsDecoderModelInfo;
 
-typedef struct OpsDecModelInfo {
-  uint32_t ops_num_units_in_decoder_tick[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID]
-                                        [MAX_OPS_COUNT];
-} OpsDecModelInfo;
-
 typedef struct OPSMLayerInfo {
   // mlayer
   int ops_mlayer_map[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT]
