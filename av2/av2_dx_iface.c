@@ -487,7 +487,8 @@ static INLINE void check_resync(avm_codec_alg_priv_t *const ctx,
       frame_is_intra_only(&pbi->common))
     ctx->need_resync = 0;
 }
-
+// The input "data" to decode_one() contains only one
+// (funcional_obu+frame_unit+funcional_obu)
 static avm_codec_err_t decode_one(avm_codec_alg_priv_t *ctx,
                                   const uint8_t **data, size_t data_sz,
                                   void *user_priv) {
@@ -718,6 +719,34 @@ static avm_codec_err_t reset_last_frame_unit(struct AV2Decoder *pbi,
   return res;
 }
 
+static size_t get_size_of_frame_unit(const uint8_t *data, uint64_t data_sz) {
+  avm_codec_err_t res = AVM_CODEC_OK;
+  const uint8_t *data_read = data;
+  ObuHeader obu_header;
+  bool bfirst = true;
+  while (data_read < data + data_sz) {
+    size_t payload_size = 0;
+    size_t bytes_read = 0;
+    res = avm_read_obu_header_and_size(data_read, data_sz, &obu_header,
+                                       &payload_size, &bytes_read);
+    if (res != AVM_CODEC_OK) return 0;
+    if (is_single_tile_vcl_obu(obu_header.type) ||
+        is_multi_tile_vcl_obu(obu_header.type)) {
+      uint8_t first_byte_payload = data_read[bytes_read];
+      bool is_first_tile = is_single_tile_vcl_obu(obu_header.type)
+                               ? true
+                               : ((first_byte_payload & 128) >> 7);
+      if (is_first_tile && !bfirst) {
+        return data_read - data;
+      }
+      bfirst = false;
+    }
+    data_read += bytes_read + payload_size;
+  }
+
+  return data_sz;
+}
+
 static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
                                       const uint8_t *data, size_t data_sz,
                                       void *user_priv) {
@@ -799,47 +828,57 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
   FrameWorkerData *const frame_worker_data = (FrameWorkerData *)worker->data1;
 #endif  // !CONFIG_INSPECTION
 
-  // reset last_frame_unit and last_displayable_frame_unit if needed
-  res = reset_last_frame_unit(frame_worker_data->pbi, data_start,
-                              data_end - data_start);
-  if (res != AVM_CODEC_OK) return res;
-
-  // Note:obu_list is placed in pbi instead of a local variable in
-  // avm_decode_frame_from_obus() due to the avm encoder that feeds multiple
-  // frame units to avm_codec_decode() to avoid multiple memory assignment.
-  // The input data has more than one frame unit unlike the stand alone decoder
-  // input data to have one frame unit. test_decoder_frame_unit_offset is
-  // required only for test-decoder invoked by the avm encoder.
-
-  bool skip_decoding_frame_units;
-  res = check_random_access_frame_unit(frame_worker_data->pbi, data_start,
-                                       data_end - data_start,
-                                       &skip_decoding_frame_units);
-  if (res != AVM_CODEC_OK) return res;
-  if (skip_decoding_frame_units) {
-    return AVM_CODEC_OK;
-  }
-  frame_worker_data->pbi->obu_list = (obu_info *)malloc(
-      sizeof(obu_info) * frame_worker_data->pbi->num_obus_with_frame_unit);
-  for (int obu_idx = 0;
-       obu_idx < frame_worker_data->pbi->num_obus_with_frame_unit; obu_idx++)
-    memset(&frame_worker_data->pbi->obu_list[obu_idx], -1, sizeof(obu_info));
-  frame_worker_data->pbi->test_decoder_frame_unit_offset = 0;
-  for (int i = 0; i < MAX_NUM_MLAYERS; i++)
-    frame_worker_data->pbi->num_displayable_frame_unit[i] = 0;
-
-  // Decode in serial mode.
+  // When this function (avm_codec_decode()) is invoked at the encdoer as a test
+  // decoder, the input to this function (data) may contain more than one
+  // frame_unit that contains (config,funtional
+  // obus+video_coding_units_that_consist_one_frame_for_one_layer). This
+  // implementation analyzes the input(data) and
+  // then feeds each frame_unit to decode_one() just like this decoder is used
+  // as a standalone decoder. frame_unit_size is the offset from the
+  // previousframe unit.
+  // When this decoder is used as a standalone decoder,frame_unit_size most
+  // likely is the same (data_end - data_start).
   while (data_start < data_end) {
-    size_t frame_size = data_end - data_start;
-
-    res = decode_one(ctx, &data_start, frame_size, user_priv);
+    size_t frame_unit_size =
+        get_size_of_frame_unit(data_start, (uint64_t)(data_end - data_start));
+    if (frame_unit_size == 0 || frame_unit_size == SIZE_MAX) {
+      return AVM_CODEC_ERROR;
+    }
+    res = reset_last_frame_unit(frame_worker_data->pbi, data_start,
+                                frame_unit_size);
     if (res != AVM_CODEC_OK) return res;
+
+    bool skip_decoding_frame_units;
+    res = check_random_access_frame_unit(frame_worker_data->pbi, data_start,
+                                         frame_unit_size,
+                                         &skip_decoding_frame_units);
+    if (res != AVM_CODEC_OK) return res;
+    if (skip_decoding_frame_units) {
+      continue;
+    }
+    frame_worker_data->pbi->obu_list = (obu_info *)malloc(
+        sizeof(obu_info) * frame_worker_data->pbi->num_obus_with_frame_unit);
+    for (int obu_idx = 0;
+         obu_idx < frame_worker_data->pbi->num_obus_with_frame_unit; obu_idx++)
+      memset(&frame_worker_data->pbi->obu_list[obu_idx], -1, sizeof(obu_info));
+    for (int i = 0; i < MAX_NUM_MLAYERS; i++)
+      frame_worker_data->pbi->num_displayable_frame_unit[i] = 0;
+
+    // Decode in serial mode.
+
+    res = decode_one(ctx, &data_start, frame_unit_size, user_priv);
+
+    if (res != AVM_CODEC_OK) return res;
+
+    set_last_frame_unit(frame_worker_data->pbi);
+    free(frame_worker_data->pbi->obu_list);
+    frame_worker_data->pbi->num_obus_with_frame_unit = 0;
   }
 
-  set_last_frame_unit(frame_worker_data->pbi);
-  free(frame_worker_data->pbi->obu_list);
-  frame_worker_data->pbi->num_obus_with_frame_unit = 0;
-
+  if (data_start != data_end) {
+    avm_internal_error(&frame_worker_data->pbi->common.error, AVM_CODEC_ERROR,
+                       "data reading error in decoder_decode()");
+  }
   return res;
 }
 

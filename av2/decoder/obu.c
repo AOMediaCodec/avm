@@ -30,10 +30,6 @@
 #include "av2/decoder/obu.h"
 #include "av2/common/enums.h"
 
-// Helper macro to check if OBU type is metadata
-#define IS_METADATA_OBU(type) \
-  ((type) == OBU_METADATA_SHORT || (type) == OBU_METADATA_GROUP)
-
 static uint32_t read_temporal_delimiter_obu() { return 0; }
 
 // Returns a boolean that indicates success.
@@ -1341,6 +1337,258 @@ static void check_tilegroup_obus_in_a_frame_unit(AV2_COMMON *const cm,
   }
 }
 
+// TU validation: Check if an OBU type is metadata obu
+static int is_metadata_obu(OBU_TYPE obu_type) {
+  return (obu_type == OBU_METADATA_SHORT || obu_type == OBU_METADATA_GROUP);
+}
+
+// TU validation: Check if an OBU type is global configuration information
+static int is_global_config_obu(OBU_TYPE obu_type, int xlayer_id) {
+  return obu_type == OBU_MSDO ||
+         (obu_type == OBU_LAYER_CONFIGURATION_RECORD &&
+          xlayer_id == GLOBAL_XLAYER_ID) ||
+         (obu_type == OBU_OPERATING_POINT_SET &&
+          xlayer_id == GLOBAL_XLAYER_ID) ||
+         (obu_type == OBU_ATLAS_SEGMENT && xlayer_id == GLOBAL_XLAYER_ID) ||
+         (obu_type == OBU_METADATA_GROUP && xlayer_id == GLOBAL_XLAYER_ID);
+}
+
+// TU validation: Check if an OBU type is local configuration information
+static int is_local_config_obu(OBU_TYPE obu_type, int xlayer_id) {
+  return (obu_type == OBU_LAYER_CONFIGURATION_RECORD &&
+          xlayer_id != GLOBAL_XLAYER_ID) ||
+         (obu_type == OBU_OPERATING_POINT_SET &&
+          xlayer_id != GLOBAL_XLAYER_ID) ||
+         (obu_type == OBU_ATLAS_SEGMENT && xlayer_id != GLOBAL_XLAYER_ID);
+}
+
+// TU validation: Check if an OBU type is not global or local configuration
+// information, not sequence header or not padding
+static int is_frame_unit(OBU_TYPE obu_type, int xlayer_id) {
+  //  OBU_MULTI_FRAME_HEADER,
+  //  OBU_BUFFER_REMOVAL_TIMING,
+  //  OBU_QM,
+  //  OBU_FGM,
+  //  OBU_CONTENT_INTERPRETATION,
+  //  OBU_METADATA,
+  //  OBU_METADATA_SHORT,
+  //  OBU_CLK,
+  //  OBU_OLK,
+  //  OBU_LEADING_TILE_GROUP,
+  //  OBU_REGULAR_TILE_GROUP,
+  //  OBU_SWITCH,
+  //  OBU_LEADING_SEF,
+  //  OBU_REGULAR_SEF,
+  //  OBU_LEADING_TIP,
+  //  OBU_REGULAR_TIP,
+  //  OBU_BRIDGE_FRAME,
+  //  OBU_RAS_FRAME
+  int non_frame_unit_obu = is_global_config_obu(obu_type, xlayer_id) ||
+                           is_local_config_obu(obu_type, xlayer_id) ||
+                           obu_type == OBU_SEQUENCE_HEADER ||
+                           obu_type == OBU_PADDING;
+
+  return !non_frame_unit_obu;
+}
+
+static int is_coded_frame(OBU_TYPE obu_type) {
+  return is_multi_tile_vcl_obu(obu_type) || is_single_tile_vcl_obu(obu_type);
+}
+// Validates OBU order within a Temporal Unit with state machine.
+// Returns 1 if OBU is valid for the current state, 0 if it violates rules.
+int check_temporal_unit_structure(temporal_unit_state_t *state, int obu_type,
+                                  int xlayer_id, int metadata_is_suffix,
+                                  int prev_obu_type) {
+  // Validate input parameters
+  if (!state) return 0;
+
+  switch (*state) {
+    case TU_STATE_START:
+    case TU_STATE_TEMPORAL_DELIMITER:
+      if (obu_type == OBU_TEMPORAL_DELIMITER) {
+        if (*state == TU_STATE_TEMPORAL_DELIMITER)
+          return 0;  // Only one allowed
+        *state = TU_STATE_TEMPORAL_DELIMITER;
+        return 1;
+      } else if (is_global_config_obu(obu_type,
+                                      xlayer_id)) {  // First OBU: global config
+        *state = TU_STATE_GLOBAL_INFO;
+        return 1;
+      } else if (is_local_config_obu(obu_type,
+                                     xlayer_id)) {  // First OBU: local config
+        *state = TU_STATE_LOCAL_INFO;
+        return 1;
+      } else if (obu_type == OBU_SEQUENCE_HEADER) {
+        *state = TU_STATE_SEQUENCE_HEADER;
+        return 1;
+      } else if (is_frame_unit(obu_type, xlayer_id)) {
+        *state = TU_STATE_FRAME_UINT_DATA;
+        return 1;
+      } else {  // Invalid OBU type(such as OBU_PADDING) for start of temporal
+                // unit
+        return 0;
+      }
+
+    case TU_STATE_GLOBAL_INFO:
+      if (is_global_config_obu(obu_type, xlayer_id)) {
+        // 0 or 1 OBU_MSDO,
+        // 0 or more: OBU_LCR
+        // 0 or more: OBU_OPS
+        // 0 or more: OBU_ATLAS_SEGMENT
+        // 0 or more: OBU_METADATA(obu_xlayer_id = 0x1F)
+        // MSDO -> LCR -> LCR -> OPS -> OPS -> ATS -> ATS -> METADATA ->
+        // METADATA
+        if (obu_type == OBU_MSDO)
+          return 0;  // Only one allowed
+        else if (obu_type == OBU_LAYER_CONFIGURATION_RECORD &&
+                 (prev_obu_type == OBU_OPERATING_POINT_SET ||
+                  prev_obu_type == OBU_ATLAS_SEGMENT ||
+                  is_metadata_obu(prev_obu_type))) {
+          return 0;
+        } else if (obu_type == OBU_OPERATING_POINT_SET &&
+                   (prev_obu_type == OBU_ATLAS_SEGMENT ||
+                    is_metadata_obu(prev_obu_type))) {
+          return 0;
+        } else if (obu_type == OBU_ATLAS_SEGMENT &&
+                   is_metadata_obu(prev_obu_type)) {
+          return 0;
+        } else
+          return 1;
+      } else if (is_local_config_obu(obu_type, xlayer_id)) {
+        *state = TU_STATE_LOCAL_INFO;  // Transition from global to local
+        return 1;
+      } else if (obu_type == OBU_SEQUENCE_HEADER) {
+        *state = TU_STATE_SEQUENCE_HEADER;  // Transition from global to SH
+        return 1;
+      } else if (is_frame_unit(obu_type, xlayer_id)) {
+        *state = TU_STATE_FRAME_UINT_DATA;
+        return 1;
+      } else {
+        // Invalid OBU type during global info phase or wrong xlayer_id
+        return 0;
+      }
+
+    case TU_STATE_LOCAL_INFO:
+      if (is_local_config_obu(obu_type, xlayer_id)) {
+        // Local information: LCR -> LCR -> OPS -> OPS -> ATS -> ATS
+        // 0 or more OBU_LCR
+        // 0 or more OBU_OPS
+        // 0 or more OBU_ATLAS_SEGMENT
+        if (obu_type == OBU_LAYER_CONFIGURATION_RECORD &&
+            prev_obu_type != OBU_LAYER_CONFIGURATION_RECORD) {
+          return 0;
+        } else if (obu_type == OBU_OPERATING_POINT_SET &&
+                   prev_obu_type == OBU_ATLAS_SEGMENT) {
+          return 0;
+        } else
+          return 1;
+      } else if (obu_type == OBU_SEQUENCE_HEADER) {
+        *state = TU_STATE_SEQUENCE_HEADER;
+        return 1;
+      } else if (is_frame_unit(obu_type, xlayer_id)) {
+        *state = TU_STATE_FRAME_UINT_DATA;
+        return 1;
+      } else {
+        return 0;  // Invalid OBU type(such as global obus) during local info
+                   // phase
+      }
+
+    case TU_STATE_SEQUENCE_HEADER:
+      // 0 or more OBU_SEQUENCE_HEADER
+      if (obu_type == OBU_SEQUENCE_HEADER) {
+        return prev_obu_type == OBU_SEQUENCE_HEADER;
+      } else if (is_frame_unit(obu_type, xlayer_id)) {
+        *state = TU_STATE_FRAME_UINT_DATA;
+        return 1;
+      } else {
+        return 0;  // Invalid OBU type(such as global obus) during sequence
+                   // header phase
+      }
+
+    case TU_STATE_FRAME_UINT_DATA:
+      if (is_frame_unit(obu_type, xlayer_id)) {
+        // CI -> CI -> MFH -> MFH -> (BRT, QM, FGM, METADATA_prefix,
+        // METADATA_SHORT_prefix) -> coded_frame -> METADATA_suffix,
+        // METADATA_SHORT_suffix)
+        if (obu_type == OBU_CONTENT_INTERPRETATION &&
+            prev_obu_type != OBU_CONTENT_INTERPRETATION)
+          return 0;
+        else if (obu_type == OBU_MULTI_FRAME_HEADER &&
+                 (prev_obu_type != OBU_CONTENT_INTERPRETATION &&
+                  prev_obu_type != OBU_MULTI_FRAME_HEADER))
+          return 0;
+        else if (((is_metadata_obu(obu_type) &&
+                   metadata_is_suffix == 0) ||  // prefix
+                  obu_type == OBU_BUFFER_REMOVAL_TIMING ||
+                  obu_type == OBU_QM || obu_type == OBU_FGM) &&
+                 (is_coded_frame(prev_obu_type) ||
+                  (is_metadata_obu(prev_obu_type) &&
+                   metadata_is_suffix == 1)))  // suffix
+          return 0;
+        else  // other cases may be evaluated later
+          return 1;
+      } else if (obu_type == OBU_PADDING) {
+        *state = TU_STATE_PADDING;
+        return 1;
+      } else {
+        return 0;
+      }
+
+    case TU_STATE_PADDING:
+      return 0;  // No additional OBUs should be processed in this state
+
+    default:
+      // Invalid state
+      return 0;
+  }
+}
+
+// Validates a completed temporal unit. Returns 1 if valid, 0 if invalid.
+// Called after processing all OBUs in the temporal unit.
+int validate_temporal_unit_completion(const mlayer_validation_state_t *state) {
+  // Validate input parameter
+  if (!state) return 0;
+
+  // At least one coded showable picture unit shall be present in this TU
+  if (!state->has_any_showable_unit)
+    return 0;  // No showable pictures found in temporal unit
+
+  // If hidden is present, then showable must also be present in same layer.
+  for (int i = 0; i < 8; i++) {  // MAX_NUM_MLAYERS = 8
+    const mlayer_frame_state_t *layer = &state->layers[i];
+
+    if (!layer->first_picture_unit_processed) continue;
+
+    if (layer->hidden_picture_count > 0 && layer->showable_picture_count == 0) {
+      return 0;  // Hidden pictures without showable pictures in same layer
+    }
+  }
+
+  if (state->clk_olk_exclusion_violated)
+    return 0;  // CLK/OLK mutual exclusion was violated
+
+  // Verify that all processed layers have valid DisplayOrderHint consistency
+  int found_showable_layer = 0;
+  for (int i = 0; i < 8; i++) {
+    const mlayer_frame_state_t *layer = &state->layers[i];
+
+    if (!layer->first_picture_unit_processed) continue;
+
+    if (layer->showable_picture_count > 0) {
+      found_showable_layer = 1;
+
+      if (layer->display_order_hint != state->global_display_order_hint)
+        return 0;  // DisplayOrderHint inconsistency detected
+    }
+  }
+
+  // If showable units exist, at least one showable layer must be present
+  if (state->has_any_showable_unit && !found_showable_layer)
+    return 0;  // Inconsistent showable state
+
+  return 1;  // Temporal unit validation successful
+}
+
 // Check if the CLK is the first frame of a mlayer.
 static void check_clk_in_a_layer(AV2_COMMON *const cm,
                                  obu_info *current_frame_unit,
@@ -1550,8 +1798,14 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
   // grain models signalled before a coded frame have the same fgm_id
   uint32_t acc_fgm_id_bitmap = 0;
   int prev_obu_xlayer_id = -1;
-
   int keyframe_present = 0;
+
+  // prev_obu_type, prev_xlayer_id and tu_validation_state are used to compare
+  // obus in this "data"
+  OBU_TYPE prev_obu_type = NUM_OBU_TYPES;
+  int prev_xlayer_id = -1;
+  temporal_unit_state_t tu_validation_state = TU_STATE_START;
+
   // decode frame as a series of OBUs
   while (!frame_decoding_finished && cm->error.error_code == AVM_CODEC_OK) {
     struct avm_read_bit_buffer rb;
@@ -1583,9 +1837,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
     else
       cm->is_leading_picture = -1;
 
-    obu_info *const curr_obu_info =
-        &obu_list[pbi->test_decoder_frame_unit_offset +
-                  count_obus_with_frame_unit];
+    obu_info *const curr_obu_info = &obu_list[count_obus_with_frame_unit];
     curr_obu_info->obu_type = obu_header.type;
     curr_obu_info->is_vcl = is_single_tile_vcl_obu(obu_header.type) ||
                             is_multi_tile_vcl_obu(obu_header.type);
@@ -1596,6 +1848,31 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
     curr_obu_info->immediate_output_picture = -1;
     curr_obu_info->showable_frame = -1;
     curr_obu_info->display_order_hint = -1;
+
+    // Extract metadata_is_suffix for metadata OBUs
+    // Per spec sections 5.17.2 and 5.17.3, metadata_is_suffix is f(1) - the
+    // first bit of the payload
+    int metadata_is_suffix = -1;  // -1 means not applicable
+    if (obu_header.type == OBU_METADATA_SHORT ||
+        obu_header.type == OBU_METADATA_GROUP) {
+      // data has been advanced by bytes_read, so data[0] is first payload byte
+      metadata_is_suffix = (data[0] & 0x80) >> 7;
+    }
+
+    // Validate OBU ordering within temporal units
+    if (!check_temporal_unit_structure(&tu_validation_state, obu_header.type,
+                                       obu_header.obu_xlayer_id,
+                                       metadata_is_suffix, prev_obu_type)) {
+      avm_internal_error(
+          &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+          "OBU order violation: current OBU %s with xlayer_id %d mlayer_id %d "
+          "previous OBU %s(xlayer_id=%d) invalid in current state",
+          avm_obu_type_to_string(obu_header.type), obu_header.obu_xlayer_id,
+          obu_header.obu_mlayer_id, avm_obu_type_to_string(prev_obu_type),
+          prev_xlayer_id);
+    }
+    prev_obu_type = obu_header.type;
+    prev_xlayer_id = obu_header.obu_xlayer_id;
 
     check_valid_layer_id(obu_header, cm);
 
@@ -1803,7 +2080,10 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
         break;
       case OBU_PADDING:
-        decoded_payload_size = read_padding(cm, data, payload_size);
+        // OBU_PADDING is not allowed being present before the frame unit
+        avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+                           "OBU order violation: OBU_PADDING "
+                           "cannot be present before a coded frame");
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
         break;
       default:
@@ -1856,7 +2136,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
     }
 
     // Accept both OBU_METADATA_SHORT and OBU_METADATA_GROUP for suffix metadata
-    if (!(IS_METADATA_OBU(obu_header.type) ||
+    if (!(is_metadata_obu(obu_header.type) ||
           (obu_header.type == OBU_PADDING)) ||
         data + bytes_read > data_end)
       break;
@@ -1865,10 +2145,13 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
       data += bytes_read;
       decoded_payload_size = read_padding(cm, data, payload_size);
       if (cm->error.error_code != AVM_CODEC_OK) return -1;
-    } else if (IS_METADATA_OBU(obu_header.type)) {
+    } else if (is_metadata_obu(obu_header.type)) {
       // check whether it is a suffix metadata OBU
-      if (!(data[bytes_read] & 0x80)) break;
-
+      if (!(data[bytes_read] & 0x80)) {
+        avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+                           "OBU order violation: OBU_METADATA_x(prefix) cannot "
+                           "be present after a coded frame");
+      }
       data += bytes_read;
 
       // Call the appropriate read function based on OBU type
@@ -1914,10 +2197,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
 
   obu_info current_frame_unit;
   memset(&current_frame_unit, -1, sizeof(current_frame_unit));
-  const int start_obu_idx = pbi->test_decoder_frame_unit_offset;
-  const int end_obu_idx =
-      pbi->test_decoder_frame_unit_offset + count_obus_with_frame_unit;
-  for (int obu_idx = start_obu_idx; obu_idx < end_obu_idx; obu_idx++) {
+  for (int obu_idx = 0; obu_idx < count_obus_with_frame_unit; obu_idx++) {
     obu_info *this_obu = &obu_list[obu_idx];
 
     if (this_obu->first_tile_group == 1) {
@@ -1945,8 +2225,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
                                          &pbi->last_displayable_frame_unit);
     }
   }
-
-  pbi->test_decoder_frame_unit_offset += count_obus_with_frame_unit;
 
   return frame_decoding_finished;
 }

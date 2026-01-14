@@ -466,14 +466,6 @@ typedef struct AV2Decoder {
    */
   obu_info *obu_list;
   /*!
-   * Used only when the avm encoder invokes test decoder and the avm encoder
-   * feeds multiple frame units to avm_codec_decode()
-   * test_decoder_frame_unit_offset is increased by number of obus including
-   * configuration records, qm and fgm obus and 1 frame unit that may consist of
-   * multiple obus
-   */
-  int test_decoder_frame_unit_offset;
-  /*!
    * last_frame_unit contains obu_info of the last frame unit
    * it is used to check the obu order validation
    */
