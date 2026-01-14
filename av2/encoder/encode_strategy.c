@@ -58,9 +58,9 @@ void av2_get_ref_frames_enc(AV2_COMP *const cpi, int cur_frame_disp,
                             RefFrameMapPair *ref_frame_map_pairs) {
   AV2_COMMON *const cm = &cpi->common;
   assert(cm->seq_params.enable_explicit_ref_frame_map || frame_is_sframe(cm));
-  // With explicit_ref_frame_map, error_resilient_mode or switch_frame_mode on,
-  // an encoder-only ranking scheme can be implemented here. For now,
-  // av2_get_ref_frames is used as a placeholder.
+  // With explicit_ref_frame_map or switch_frame_mode on, an encoder-only
+  // ranking scheme can be implemented here. For now, av2_get_ref_frames is used
+  // as a placeholder.
   // Do a dry run to obtain variables in resolution independent reference
   // mapping that will be used in write_frame_size_with_refs
   if (cpi->switch_frame_mode == 1) {

@@ -105,7 +105,6 @@ struct av2_extracfg {
   int render_width;
   int render_height;
   avm_superblock_size_t superblock_size;
-  int error_resilient_mode;
   int s_frame_mode;
 
   int film_grain_test_vector;
@@ -433,7 +432,6 @@ static struct av2_extracfg default_extra_cfg = {
   0,                            // render width
   0,                            // render height
   AVM_SUPERBLOCK_SIZE_DYNAMIC,  // superblock_size
-  0,                            // error_resilient_mode off by default.
   0,                            // s_frame_mode off by default.
   0,                            // film_grain_test_vector
   0,                            // film_grain_table_filename
@@ -3836,7 +3834,6 @@ static avm_codec_err_t encoder_set_option(avm_codec_alg_priv_t *ctx,
   } else if (avm_arg_match_helper(&arg, &g_av2_codec_arg_defs.superblock_size,
                                   argv, err_string)) {
     extra_cfg.superblock_size = avm_arg_parse_enum_helper(&arg, err_string);
-    extra_cfg.error_resilient_mode = avm_arg_parse_int_helper(&arg, err_string);
   } else if (avm_arg_match_helper(&arg, &g_av2_codec_arg_defs.sframe_mode, argv,
                                   err_string)) {
     extra_cfg.s_frame_mode = avm_arg_parse_int_helper(&arg, err_string);

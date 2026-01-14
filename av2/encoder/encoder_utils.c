@@ -587,7 +587,7 @@ void av2_setup_frame(AV2_COMP *cpi) {
   AV2_COMMON *const cm = &cpi->common;
   // Set up entropy context depending on frame type. The decoder mandates
   // the use of the default context, index 0, for keyframes and inter
-  // frames where the error_resilient_mode or intra_only flag is set. For
+  // frames where the s-frame or intra_only flag is set. For
   // other inter-frames the encoder currently uses only two contexts;
   // context 1 for ALTREF frames and context 0 for the others.
 
