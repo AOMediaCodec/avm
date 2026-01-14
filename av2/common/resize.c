@@ -325,21 +325,6 @@ static void interpolate(const uint8_t *const input, int in_length,
                    SUBPEL_TAPS);
 }
 
-int32_t av2_get_upscale_convolve_step(int in_length, int out_length) {
-  return ((in_length << RS_SCALE_SUBPEL_BITS) + out_length / 2) / out_length;
-}
-
-static int32_t get_upscale_convolve_x0(int in_length, int out_length,
-                                       int32_t x_step_qn) {
-  const int err = out_length * x_step_qn - (in_length << RS_SCALE_SUBPEL_BITS);
-  const int32_t x0 =
-      (-((out_length - in_length) << (RS_SCALE_SUBPEL_BITS - 1)) +
-       out_length / 2) /
-          out_length +
-      RS_SCALE_EXTRA_OFF - err / 2;
-  return (int32_t)((uint32_t)x0 & RS_SCALE_SUBPEL_MASK);
-}
-
 static void down2_symeven(const uint8_t *const input, int length,
                           uint8_t *output) {
   // Actual filter len = 2 * filter_len_half.
@@ -871,67 +856,6 @@ void av2_resize_lanczos_and_extend_frame(const YV12_BUFFER_CONFIG *src,
   avm_extend_frame_borders(dst, num_planes, 1);
 }
 
-static void highbd_upscale_normative_rect(const uint16_t *const input,
-                                          int height, int width, int in_stride,
-                                          uint16_t *output, int height2,
-                                          int width2, int out_stride,
-                                          int x_step_qn, int x0_qn,
-                                          int pad_left, int pad_right, int bd) {
-  assert(width > 0);
-  assert(height > 0);
-  assert(width2 > 0);
-  assert(height2 > 0);
-  assert(height2 == height);
-
-  // Extend the left/right pixels of the tile column if needed
-  // (either because we can't sample from other tiles, or because we're at
-  // a frame edge).
-  // Save the overwritten pixels into tmp_left and tmp_right.
-  // Note: Because we pass input-1 to av2_convolve_horiz_rs, we need one extra
-  // column of border pixels compared to what we'd naively think.
-  const int border_cols = UPSCALE_NORMATIVE_TAPS / 2 + 1;
-  const int border_size = border_cols * sizeof(uint16_t);
-  uint16_t *tmp_left =
-      NULL;  // Silence spurious "may be used uninitialized" warnings
-  uint16_t *tmp_right = NULL;
-  uint16_t *const in_tl = (uint16_t *)input - border_cols;
-  uint16_t *const in_tr = (uint16_t *)input + width;
-  if (pad_left) {
-    tmp_left = (uint16_t *)avm_malloc(sizeof(*tmp_left) * border_cols * height);
-    for (int i = 0; i < height; i++) {
-      memcpy(tmp_left + i * border_cols, in_tl + i * in_stride, border_size);
-      avm_memset16(in_tl + i * in_stride, input[i * in_stride], border_cols);
-    }
-  }
-  if (pad_right) {
-    tmp_right =
-        (uint16_t *)avm_malloc(sizeof(*tmp_right) * border_cols * height);
-    for (int i = 0; i < height; i++) {
-      memcpy(tmp_right + i * border_cols, in_tr + i * in_stride, border_size);
-      avm_memset16(in_tr + i * in_stride, input[i * in_stride + width - 1],
-                   border_cols);
-    }
-  }
-
-  av2_highbd_convolve_horiz_rs(input - 1, in_stride, output, out_stride, width2,
-                               height2, &av2_resize_filter_normative[0][0],
-                               x0_qn, x_step_qn, bd);
-
-  // Restore the left/right border pixels
-  if (pad_left) {
-    for (int i = 0; i < height; i++) {
-      memcpy(in_tl + i * in_stride, tmp_left + i * border_cols, border_size);
-    }
-    avm_free(tmp_left);
-  }
-  if (pad_right) {
-    for (int i = 0; i < height; i++) {
-      memcpy(in_tr + i * in_stride, tmp_right + i * border_cols, border_size);
-    }
-    avm_free(tmp_right);
-  }
-}
-
 void av2_resize_frame420(const uint8_t *const y, int y_stride,
                          const uint8_t *const u, const uint8_t *const v,
                          int uv_stride, int height, int width, uint8_t *oy,
@@ -1068,70 +992,6 @@ void av2_resize_and_extend_frame_nonnormative(const YV12_BUFFER_CONFIG *src,
                             dst->widths[is_uv], dst->strides[is_uv], bd);
   }
   avm_extend_frame_borders(dst, num_planes, 0);
-}
-
-void av2_upscale_normative_rows(const AV2_COMMON *cm, const uint16_t *src,
-                                int src_stride, uint16_t *dst, int dst_stride,
-                                int plane, int rows) {
-  const int is_uv = (plane > 0);
-  const int ss_x = is_uv && cm->seq_params.subsampling_x;
-  const int downscaled_plane_width = ROUND_POWER_OF_TWO(cm->width, ss_x);
-  const int upscaled_plane_width = ROUND_POWER_OF_TWO(cm->width, ss_x);
-
-  TileInfo tile_col;
-  const int32_t x_step_qn = av2_get_upscale_convolve_step(
-      downscaled_plane_width, upscaled_plane_width);
-  int32_t x0_qn = get_upscale_convolve_x0(downscaled_plane_width,
-                                          upscaled_plane_width, x_step_qn);
-
-  for (int j = 0; j < cm->tiles.cols; j++) {
-    av2_tile_set_col(&tile_col, cm, j);
-    // Determine the limits of this tile column in both the source
-    // and destination images.
-    // Note: The actual location which we start sampling from is
-    // (downscaled_x0 - 1 + (x0_qn/2^14)), and this quanti ty increases
-    // by exactly dst_width * (x_step_qn/2^14) pixels each iteration.
-    const int downscaled_x0 = tile_col.mi_col_start << (MI_SIZE_LOG2 - ss_x);
-    const int downscaled_x1 = tile_col.mi_col_end << (MI_SIZE_LOG2 - ss_x);
-    const int src_width = downscaled_x1 - downscaled_x0;
-
-    const int upscaled_x0 = downscaled_x0;
-    int upscaled_x1;
-    if (j == cm->tiles.cols - 1) {
-      upscaled_x1 = upscaled_plane_width;
-    } else {
-      upscaled_x1 = downscaled_x1;
-    }
-
-    const uint16_t *const src_ptr = src + downscaled_x0;
-    uint16_t *const dst_ptr = dst + upscaled_x0;
-    const int dst_width = upscaled_x1 - upscaled_x0;
-
-    const int pad_left = (j == 0);
-    const int pad_right = (j == cm->tiles.cols - 1);
-
-    highbd_upscale_normative_rect(src_ptr, rows, src_width, src_stride, dst_ptr,
-                                  rows, dst_width, dst_stride, x_step_qn, x0_qn,
-                                  pad_left, pad_right,
-                                  cm->seq_params.bit_depth);
-
-    // Update the fractional pixel offset to prepare for the next tile column.
-    x0_qn += (dst_width * x_step_qn) - (src_width << RS_SCALE_SUBPEL_BITS);
-  }
-}
-
-void av2_upscale_normative_and_extend_frame(const AV2_COMMON *cm,
-                                            const YV12_BUFFER_CONFIG *src,
-                                            YV12_BUFFER_CONFIG *dst) {
-  const int num_planes = av2_num_planes(cm);
-  for (int i = 0; i < num_planes; ++i) {
-    const int is_uv = (i > 0);
-    av2_upscale_normative_rows(cm, src->buffers[i], src->strides[is_uv],
-                               dst->buffers[i], dst->strides[is_uv], i,
-                               src->crop_heights[is_uv]);
-  }
-
-  avm_extend_frame_borders(dst, num_planes, cm->decoding);
 }
 
 YV12_BUFFER_CONFIG *av2_scale_if_required(AV2_COMMON *cm,

@@ -65,13 +65,6 @@ void av2_highbd_resize_frame444(const uint16_t *const y, int y_stride,
                                 int ouv_stride, int oheight, int owidth,
                                 int bd);
 
-void av2_upscale_normative_rows(const AV2_COMMON *cm, const uint16_t *src,
-                                int src_stride, uint16_t *dst, int dst_stride,
-                                int plane, int rows);
-void av2_upscale_normative_and_extend_frame(const AV2_COMMON *cm,
-                                            const YV12_BUFFER_CONFIG *src,
-                                            YV12_BUFFER_CONFIG *dst);
-
 YV12_BUFFER_CONFIG *av2_scale_if_required(AV2_COMMON *cm,
                                           YV12_BUFFER_CONFIG *unscaled,
                                           YV12_BUFFER_CONFIG *scaled,
@@ -90,8 +83,6 @@ void av2_calculate_scaled_size(int *width, int *height, int resize_denom);
 #define UPSCALE_NORMATIVE_TAPS 8
 extern const int16_t av2_resize_filter_normative[1 << RS_SUBPEL_BITS]
                                                 [UPSCALE_NORMATIVE_TAPS];
-
-int32_t av2_get_upscale_convolve_step(int in_length, int out_length);
 
 #ifdef __cplusplus
 }  // extern "C"
