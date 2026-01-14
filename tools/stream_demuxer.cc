@@ -27,12 +27,21 @@ static int read_multi_stream_decoder_operation(struct avm_read_bit_buffer *rb,
     return -1;
   }
 
+#if CONFIG_CWG_F429_INTEROP
+  const int multistream_config_idc =
+      avm_rb_read_literal(rb, CONFIG_BITS);  // read profile of multistream
+  (void)multistream_config_idc;
+#if PRINT_TU_INFO
+  printf("--multistream_config_idx: %d\n", multistream_config_idx);
+#endif  // PRINT_TU_INFO
+#else
   const int multistream_profile_idx =
       avm_rb_read_literal(rb, PROFILE_BITS);  // read profile of multistream
 #if PRINT_TU_INFO
   printf("--multistream_profile_idx: %d\n", multistream_profile_idx);
 #endif  // PRINT_TU_INFO
   (void)multistream_profile_idx;
+#endif // CONFIG_CWG_F429_INTEROP
 
   const int multistream_level_idx =
       avm_rb_read_literal(rb, LEVEL_BITS);  // read level of multistream
@@ -47,6 +56,14 @@ static int read_multi_stream_decoder_operation(struct avm_read_bit_buffer *rb,
   printf("--multistream_tier_idx: %d\n", multistream_tier_idx);
 #endif  // PRINT_TU_INFO
   (void)multistream_tier_idx;
+
+#if CONFIG_CWG_F429_INTEROP
+  const int multistream_interop = avm_rb_read_literal(rb, INTEROP_BITS);
+#if PRINT_TU_INFO
+  printf("--multistream_interop: %d\n", multistream_interop_idx);
+#endif  // PRINT_TU_INFO
+  (void)multistream_interop;
+#endif  // CONFIG_CWG_F429_INTEROP
 
   const int multistream_even_allocation_flag =
       avm_rb_read_bit(rb);  // read multistream_even_allocation_flag
@@ -83,6 +100,15 @@ static int read_multi_stream_decoder_operation(struct avm_read_bit_buffer *rb,
            substream_tier_idx);
 #endif  // PRINT_TU_INFO
     (void)substream_tier_idx;
+
+#if CONFIG_CWG_F429_INTEROP
+    const int sub_mlayer_count = avm_rb_read_literal(rb, 4);
+#if PRINT_TU_INFO
+    printf("--sub-stream_mlayer_count[%d]: %d\n", stream_ids[i],
+           substream_tier_idx);
+#endif  // PRINT_TU_INFO
+    (void)sub_mlayer_count;
+#endif  // CONFIG_CWG_F429_INTEROP
   }
 
   return num_streams;

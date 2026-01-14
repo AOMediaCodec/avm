@@ -178,11 +178,7 @@ static uint32_t read_multi_stream_decoder_operation_obu(
   for (int i = 0; i < num_streams; i++) {
     cm->stream_ids[i] = avm_rb_read_literal(rb, XLAYER_BITS);  // read stream ID
     const int substream_profile_idx =
-#if CONFIG_CWG_F429_INTEROP
-        avm_rb_read_literal(rb, 5);  // read profile of multistream
-#else
         avm_rb_read_literal(rb, PROFILE_BITS);  // read profile of multistream
-#endif  // CONFIG_CWG_F429_INTEROP
     (void)substream_profile_idx;
 
     const int substream_level_idx =
