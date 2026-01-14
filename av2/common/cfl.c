@@ -19,8 +19,6 @@
 #include "av2/common/reconinter.h"
 #include "av2/common/warped_motion.h"
 
-#define LOCAL_FIXED_MULT(x, y, round, bits) (((x) * (y) + round) >> bits)
-
 /*
  * Approximate ((a * b) + round) >> shift using only 32-bit intermediates.
  * Strategy:

@@ -207,11 +207,6 @@ enum {
 #define FRAME_OFFSET_BITS 5
 #define MAX_FRAME_DISTANCE ((1 << FRAME_OFFSET_BITS) - 1)
 
-// 4 frame filter levels: y plane vertical, y plane horizontal,
-// u plane, and v plane
-#define FRAME_LF_COUNT 4
-#define MAX_MODE_LF_DELTAS 2
-
 // Multiple reference line selection for intra prediction
 #define MRL_LINE_NUMBER 4
 #define FIRST_MODE_COUNT 13

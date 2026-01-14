@@ -37,7 +37,6 @@ enum {
 
 #define INTRA_EDGE_FILT 3
 #define INTRA_EDGE_TAPS 5
-#define MAX_UPSAMPLE_SZ 16
 #define NUM_INTRA_NEIGHBOUR_PIXELS (MAX_TX_SIZE * 2 + 64)
 
 static const uint8_t extend_modes[INTRA_MODES] = {

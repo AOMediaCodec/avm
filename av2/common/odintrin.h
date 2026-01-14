@@ -27,8 +27,6 @@
 extern "C" {
 #endif
 
-typedef int od_coeff;
-
 #define OD_DIVU_DMAX (1024)
 
 extern uint32_t AVM_OD_DIVU_SMALL_CONSTS[OD_DIVU_DMAX][2];

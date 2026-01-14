@@ -163,10 +163,6 @@ static INLINE int get_first_match_index(int compound_match_index,
          ((1 << num_frame_first_predictor_bits[nopcw][num_classes]) - 1);
 }
 
-#define LR_TILE_ROW 0
-#define LR_TILE_COL 0
-#define LR_TILE_COLS 1
-
 /*!\endcond */
 
 /*!\brief Parameters related to Restoration Unit Info */

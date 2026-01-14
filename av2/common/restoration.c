@@ -97,21 +97,6 @@ const int wienerns_subsetcfg_large_y[][WIENERNS_TAPS_MAX] = {
   { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
 };
 
-const int wienerns_coeff_y[][WIENERNS_COEFCFG_LEN] = {
-  AVM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y, 5, -12, 0),
-  AVM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y, 5, -12, 0),
-  AVM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y, 4, -7, 0),
-  AVM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y, 4, -7, 0),
-  AVM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y, 4, -8, 0),
-  AVM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y, 4, -8, 0),
-  AVM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y, 3, -4, 0),
-  AVM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y, 3, -4, 0),
-  AVM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y, 3, -4, 0),
-  AVM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y, 3, -4, 0),
-  AVM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y, 3, -4, 0),
-  AVM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y, 3, -4, 0),
-};
-
 #define WIENERNS_PREC_BITS_UV 7
 const int wienerns_coeff_uv[][WIENERNS_COEFCFG_LEN] = {
   AVM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 5, -12, 0),
@@ -172,11 +157,6 @@ const int wienerns_simd_config_uv_from_y[][3] = {
 // pcwiener_tap_config_luma does not need to be defined since it is the
 // same as wienerns_simd_config_y.
 #define pcwiener_tap_config_luma wienerns_simd_config_y
-
-const int wienerns_subsetcfg_y[][WIENERNS_TAPS_MAX] = {
-  { 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
-  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
-};
 
 const int wienerns_subsetcfg_uv[][WIENERNS_TAPS_MAX] = {
   { 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },

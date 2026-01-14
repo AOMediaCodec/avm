@@ -73,12 +73,6 @@ static const PREDICTION_MODE interintra_to_intra_mode[INTERINTRA_MODES] = {
   DC_PRED, V_PRED, H_PRED, SMOOTH_PRED
 };
 
-// Mapping of intra mode to the interintra mode
-static const INTERINTRA_MODE intra_to_interintra_mode[INTRA_MODES] = {
-  II_DC_PRED, II_V_PRED, II_H_PRED, II_V_PRED,      II_SMOOTH_PRED, II_V_PRED,
-  II_H_PRED,  II_H_PRED, II_V_PRED, II_SMOOTH_PRED, II_SMOOTH_PRED
-};
-
 static INLINE int av2_is_directional_mode(PREDICTION_MODE mode) {
   return mode >= V_PRED && mode <= D67_PRED;
 }
