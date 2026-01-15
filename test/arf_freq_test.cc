@@ -20,6 +20,7 @@
 #include "test/y4m_video_source.h"
 #include "test/yuv_video_source.h"
 #include "av2/encoder/ratectrl.h"
+#include "config/avm_config.h"
 
 namespace {
 
