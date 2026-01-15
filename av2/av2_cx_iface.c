@@ -874,7 +874,8 @@ static avm_codec_err_t validate_img(avm_codec_alg_priv_t *ctx,
     case AVM_IMG_FMT_I444:
     case AVM_IMG_FMT_I44416:
 #if CONFIG_CWG_F429_INTEROP
-      if (ctx->cfg.g_profile == (unsigned int)MAIN_444_10 &&
+      // MAIN_444_10 (profile 5) is the only profile that support 444
+      if (ctx->cfg.g_profile != (unsigned int)MAIN_444_10 &&
 #else
       if (ctx->cfg.g_profile == (unsigned int)PROFILE_0 &&
 #endif  // CONFIG_CWG_F429_INTEROP

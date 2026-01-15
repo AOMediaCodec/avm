@@ -36,9 +36,9 @@ static int write_multi_stream_decoder_operation_obu(uint8_t *const dst,
 
   avm_wb_write_literal(&wb, num_streams - 2, 3);  // signal number of streams
 #if CONFIG_CWG_F429_INTEROP
-  avm_wb_write_literal(&wb, 0, CONFIG_BITS);     // multistream_profile_idx
+  avm_wb_write_literal(&wb, 0, CONFIG_BITS);  // multistream_profile_idx
 #else
-  avm_wb_write_literal(&wb, 0, PROFILE_BITS);     // multistream_profile_idx
+  avm_wb_write_literal(&wb, 0, PROFILE_BITS);  // multistream_profile_idx
 #endif  // CONFIG_CWG_F429_INTEROP
   avm_wb_write_literal(&wb, SEQ_LEVEL_4_0,
                        LEVEL_BITS);  // multistream_level_idx

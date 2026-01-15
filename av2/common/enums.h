@@ -301,7 +301,6 @@ enum {
 } SENUM1BYTE(BITSTREAM_PROFILE);
 #endif  // CONFIG_CWG_F429_INTEROP
 
-
 #define BUFFER_POOL_MAX_SIZE 18  // Max VBI slots (16) + 2 extra
 
 #define MAX_NUM_TLAYERS 4

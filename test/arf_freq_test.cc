@@ -54,7 +54,8 @@ const TestVideoParam kTestVectors[] = {
   { "hantro_collage_w352h288.yuv", 352, 288, 30, 1, 8, AVM_IMG_FMT_I420,
     AVM_BITS_8, 0 },
 #if CONFIG_CWG_F429_INTEROP
-  { "rush_hour_444.y4m", 352, 288, 30, 1, 8, AVM_IMG_FMT_I444, AVM_BITS_8, 5 }, // MAIN_444_10
+  { "rush_hour_444.y4m", 352, 288, 30, 1, 8, AVM_IMG_FMT_I444, AVM_BITS_8,
+    5 },  // MAIN_444_10
 #else
   { "rush_hour_444.y4m", 352, 288, 30, 1, 8, AVM_IMG_FMT_I444, AVM_BITS_8, 1 },
 #endif  // CONFIG_CWG_F429_INTEROP

@@ -65,8 +65,10 @@ std::ostream &operator<<(std::ostream &os, const TestVideoParam &test_arg) {
 const TestVideoParam kTestVectors[] = {
   { "park_joy_90p_8_420.y4m", 8, AVM_IMG_FMT_I420, AVM_BITS_8, 0 },
 #if CONFIG_CWG_F429_INTEROP
-  { "park_joy_90p_8_422.y4m", 8, AVM_IMG_FMT_I422, AVM_BITS_8, 4 },  // MAIN_422_10
-  { "park_joy_90p_8_444.y4m", 8, AVM_IMG_FMT_I444, AVM_BITS_8, 5 },  // MAIN_444_10
+  { "park_joy_90p_8_422.y4m", 8, AVM_IMG_FMT_I422, AVM_BITS_8,
+    4 },  // MAIN_422_10
+  { "park_joy_90p_8_444.y4m", 8, AVM_IMG_FMT_I444, AVM_BITS_8,
+    5 },  // MAIN_444_10
 #else
   { "park_joy_90p_8_422.y4m", 8, AVM_IMG_FMT_I422, AVM_BITS_8, 2 },
   { "park_joy_90p_8_444.y4m", 8, AVM_IMG_FMT_I444, AVM_BITS_8, 1 },

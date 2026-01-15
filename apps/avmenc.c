@@ -2186,33 +2186,39 @@ int main(int argc, const char **argv_) {
           case 2:
           case 3:
             // Profiles 0 to 3 are all 420 profiles
-            if (input.fmt == AVM_IMG_FMT_I444 || input.fmt == AVM_IMG_FMT_I42216) {
+            if (input.fmt == AVM_IMG_FMT_I444 ||
+                input.fmt == AVM_IMG_FMT_I42216) {
               if (!stream->config.cfg.monochrome) {
-                stream->config.cfg.g_profile = 5; // MAIN_444_10
+                stream->config.cfg.g_profile = 5;  // MAIN_444_10
                 profile_updated = 1;
               }
-            } else if (input.fmt == AVM_IMG_FMT_I422 || input.fmt == AVM_IMG_FMT_I44416){
-                stream->config.cfg.g_profile = 4;  // MAIN_422_10
-                profile_updated = 1;
+            } else if (input.fmt == AVM_IMG_FMT_I422 ||
+                       input.fmt == AVM_IMG_FMT_I44416) {
+              stream->config.cfg.g_profile = 4;  // MAIN_422_10
+              profile_updated = 1;
             }
             break;
           case 4:
             // Profile 4 is 422 profile
-            if (input.fmt == AVM_IMG_FMT_I444 || input.fmt == AVM_IMG_FMT_I42216) {
-              stream->config.cfg.g_profile = 5; // MAIN_422_10
+            if (input.fmt == AVM_IMG_FMT_I444 ||
+                input.fmt == AVM_IMG_FMT_I42216) {
+              stream->config.cfg.g_profile = 5;  // MAIN_422_10
               profile_updated = 1;
-            } else if (input.fmt == AVM_IMG_FMT_I420 || input.fmt == AVM_IMG_FMT_I42016) {
-              stream->config.cfg.g_profile = 3; // MAIN_420_10
+            } else if (input.fmt == AVM_IMG_FMT_I420 ||
+                       input.fmt == AVM_IMG_FMT_I42016) {
+              stream->config.cfg.g_profile = 3;  // MAIN_420_10
               profile_updated = 1;
             }
             break;
           case 5:
             // Profile 5 is 444 profile
-            if (input.fmt == AVM_IMG_FMT_I422 || input.fmt == AVM_IMG_FMT_I42216) {
-              stream->config.cfg.g_profile = 4; // MAIN_422_10
+            if (input.fmt == AVM_IMG_FMT_I422 ||
+                input.fmt == AVM_IMG_FMT_I42216) {
+              stream->config.cfg.g_profile = 4;  // MAIN_422_10
               profile_updated = 1;
-            } else if (input.fmt == AVM_IMG_FMT_I420 || input.fmt == AVM_IMG_FMT_I42016) {
-              stream->config.cfg.g_profile = 3; // MAIN_420_10
+            } else if (input.fmt == AVM_IMG_FMT_I420 ||
+                       input.fmt == AVM_IMG_FMT_I42016) {
+              stream->config.cfg.g_profile = 3;  // MAIN_420_10
               profile_updated = 1;
             }
             break;

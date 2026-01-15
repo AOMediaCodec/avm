@@ -41,7 +41,7 @@ static int read_multi_stream_decoder_operation(struct avm_read_bit_buffer *rb,
   printf("--multistream_profile_idx: %d\n", multistream_profile_idx);
 #endif  // PRINT_TU_INFO
   (void)multistream_profile_idx;
-#endif // CONFIG_CWG_F429_INTEROP
+#endif  // CONFIG_CWG_F429_INTEROP
 
   const int multistream_level_idx =
       avm_rb_read_literal(rb, LEVEL_BITS);  // read level of multistream
