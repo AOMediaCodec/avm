@@ -4397,7 +4397,7 @@ static AVM_INLINE void write_frame_size_with_refs(
 #if CONFIG_CWG_F429_INTEROP
 static AVM_INLINE void write_profile(BITSTREAM_PROFILE profile,
                                      struct avm_write_bit_buffer *wb) {
-  assert(profile >= MAIN_420_10_IP0 && profile < MAIN_444_10);
+  assert(profile >= MAIN_420_10_IP0 && profile <= MAIN_444_10);
   avm_wb_write_literal(wb, profile, PROFILE_BITS);
 }
 #else
