@@ -803,8 +803,7 @@ endif()
 if(ENABLE_EXAMPLES)
 
   # Maintain a separate variable listing only the examples to facilitate
-  # installation of example programs into an examples sub directory of
-  # $AVM_DIST_DIR/bin when building the dist target.
+  # installation of example programs into an examples sub directory.
   list(APPEND AVM_EXAMPLE_TARGETS ${AVM_DECODER_EXAMPLE_TARGETS}
        ${AVM_ENCODER_EXAMPLE_TARGETS})
 endif()
@@ -845,9 +844,8 @@ if(ENABLE_TOOLS)
     list(APPEND AVM_TOOL_TARGETS stream_demuxer)
     list(APPEND AVM_APP_TARGETS stream_demuxer)
 
-    # Maintain a separate variable listing only the examples to facilitate
-    # installation of example programs into an tools sub directory of
-    # $AVM_DIST_DIR/bin when building the dist target.
+    # Maintain a separate variable listing only the tools to facilitate
+    # installation of tool programs into a tools sub directory.
     list(APPEND AVM_TOOL_TARGETS ${AVM_DECODER_TOOL_TARGETS}
          ${AVM_ENCODER_TOOL_TARGETS})
   endif()
@@ -1074,46 +1072,16 @@ if(ENABLE_DOCS)
   endif()
 endif()
 
-# Aomedia dist rule.
-if(CONFIG_AV2_DECODER AND ENABLE_EXAMPLES)
-  list(APPEND AVM_DIST_APPS $<TARGET_FILE:avmdec>)
-endif()
-if(CONFIG_AV2_ENCODER AND ENABLE_EXAMPLES)
-  list(APPEND AVM_DIST_APPS $<TARGET_FILE:avmenc>)
-endif()
-
 if(ENABLE_EXAMPLES)
   foreach(example ${AVM_EXAMPLE_TARGETS})
-    list(APPEND AVM_DIST_EXAMPLES $<TARGET_FILE:${example}>)
     set_property(TARGET ${example} PROPERTY FOLDER examples)
   endforeach()
 endif()
 
 if(ENABLE_TOOLS)
   foreach(tool ${AVM_TOOL_TARGETS})
-    list(APPEND AVM_DIST_TOOLS $<TARGET_FILE:${tool}>)
     set_property(TARGET ${tool} PROPERTY FOLDER tools)
   endforeach()
-endif()
-
-if(NOT AVM_DIST_DIR)
-  set(AVM_DIST_DIR "${AVM_CONFIG_DIR}/dist")
-endif()
-
-add_custom_target(
-  dist
-  COMMAND
-    ${CMAKE_COMMAND} -DAVM_ROOT=${AVM_ROOT} -DAVM_CONFIG_DIR=${AVM_CONFIG_DIR}
-    -DAVM_DIST_DIR=${AVM_DIST_DIR} -DAVM_DIST_APPS="${AVM_DIST_APPS}"
-    -DAVM_DIST_EXAMPLES="${AVM_DIST_EXAMPLES}"
-    -DAVM_DIST_TOOLS="${AVM_DIST_TOOLS}"
-    -DAVM_DIST_INCLUDES="${AVM_INSTALL_INCS}" -DAVM_DIST_LIBS=$<TARGET_FILE:avm>
-    -DENABLE_DOCS=${ENABLE_DOCS} -P "${AVM_ROOT}/build/cmake/dist.cmake"
-  DEPENDS ${AVM_INSTALL_BINS} ${AVM_INSTALL_LIBS} ${AVM_INSTALL_INCS}
-          ${AVM_EXAMPLE_TARGETS} ${AVM_TOOL_TARGETS})
-
-if(ENABLE_DOCS)
-  add_dependencies(dist docs)
 endif()
 
 # Collect all variables containing libavm source files.
