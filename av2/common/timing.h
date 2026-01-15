@@ -15,6 +15,7 @@
 
 #include "avm/avm_integer.h"
 #include "av2/common/enums.h"
+#include "av2/common/annexA.h"
 
 typedef struct avm_timing {
   uint32_t num_units_in_display_tick;

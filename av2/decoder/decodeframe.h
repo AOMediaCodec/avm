@@ -73,7 +73,10 @@ void av2_read_multi_frame_header(AV2_COMMON *cm,
 
 void av2_read_frame_size(struct avm_read_bit_buffer *rb, int num_bits_width,
                          int num_bits_height, int *width, int *height);
+#if CONFIG_CWG_F429_INTEROP
+#else
 BITSTREAM_PROFILE av2_read_profile(struct avm_read_bit_buffer *rb);
+#endif  // CONFIG_CWG_F429_INTEROP
 int av2_check_byte_alignment(AV2_COMMON *const cm,
                              struct avm_read_bit_buffer *const rb);
 

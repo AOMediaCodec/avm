@@ -279,14 +279,28 @@ enum {
 // Profile 2.  8-bit and 10-bit 4:2:2
 //            12-bit  4:0:0, 4:2:2 and 4:4:4
 // Since we have three bits for the profiles, it can be extended later.
+
 #endif  // CONFIG_CWG_F429_INTEROP
 
+#if CONFIG_CWG_F429_INTEROP
+enum {
+  MAIN_420_10_IP0,
+  MAIN_420_10_IP1,
+  MAIN_420_10_IP2,
+  MAIN_420_10,
+  MAIN_422_10,
+  MAIN_444_10,
+  RESERVED,
+} SENUM1BYTE(BITSTREAM_PROFILE);
+#else
 enum {
   PROFILE_0,
   PROFILE_1,
   PROFILE_2,
   MAX_PROFILES,
 } SENUM1BYTE(BITSTREAM_PROFILE);
+#endif  // CONFIG_CWG_F429_INTEROP
+
 
 #define BUFFER_POOL_MAX_SIZE 18  // Max VBI slots (16) + 2 extra
 

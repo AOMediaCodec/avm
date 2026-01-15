@@ -21,6 +21,7 @@
 #include "avm/internal/avm_codec_internal.h"
 #include "avm_util/avm_thread.h"
 #include "av2/common/alloccommon.h"
+#include "av2/common/annexA.h"
 #include "av2/common/av2_loopfilter.h"
 #include "av2/common/blockd.h"
 #include "av2/common/entropy.h"

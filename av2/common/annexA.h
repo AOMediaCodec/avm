@@ -60,7 +60,16 @@ int get_bitrate_profile_factor(int profile_scaling_factor);
 int av2_validate_layer_capacity(int seq_profile_idc,
                                               int num_extended_layers,
                                 int num_embedded_layers);
-
+// SEQ_PROFILE
+/*typedef enum {
+  MAIN_420_10_IP0,
+  MAIN_420_10_IP1,
+  MAIN_420_10_IP2,
+  MAIN_420_10,
+  MAIN_422_10,
+  MAIN_444_10,
+  RESERVED,
+} BITSTREAM_PROFILE;*/
 #endif  // CONFIG_CWG_F429_INTEROP
 
 

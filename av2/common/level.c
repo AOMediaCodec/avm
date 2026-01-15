@@ -381,7 +381,12 @@ static double get_max_bitrate(const AV2LevelSpec *const level_spec, int tier,
   const double bitrate_basis =
       (tier ? level_spec->high_mbps : level_spec->main_mbps) * 1e6;
   const double bitrate_profile_factor =
+#if CONFIG_CWG_F429_INTEROP
+  //TODO: @spaluri check this: This needs to be modified
+      profile == MAIN_420_10_IP0 ? 1.0 : (profile == MAIN_420_10_IP1 ? 2.0 : 3.0);
+#else
       profile == PROFILE_0 ? 1.0 : (profile == PROFILE_1 ? 2.0 : 3.0);
+#endif  // CONFIG_CWG_F429_INTEROP
   return bitrate_basis * bitrate_profile_factor;
 }
 
@@ -1177,11 +1182,14 @@ double av2_get_compression_ratio(const AV2_COMMON *const cm,
   const SequenceHeader *const seq_params = &cm->seq_params;
 #if CONFIG_CWG_F429_INTEROP
   const BITSTREAM_PROFILE profile = seq_params->seq_profile_idc;
+  //TODO: spaluri this needs to change
+  const int pic_size_profile_factor =
+      profile == MAIN_420_10_IP0 ? 15 : (profile == MAIN_420_10_IP1 ? 30 : 36);
 #else
   const BITSTREAM_PROFILE profile = seq_params->profile;
-#endif  // CONFIG_CWG_F429_INTEROP
   const int pic_size_profile_factor =
       profile == PROFILE_0 ? 15 : (profile == PROFILE_1 ? 30 : 36);
+#endif  // CONFIG_CWG_F429_INTEROP
   encoded_frame_size =
       (encoded_frame_size > 129 ? encoded_frame_size - 128 : 1);
   const size_t uncompressed_frame_size =

@@ -1163,7 +1163,7 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
   set_content_interpreation_params(cpi, oxcf, chroma_format_idc);
 
 #if CONFIG_CWG_F429_INTEROP
-  assert(IMPLIES(seq_params->seq_profile_idc <= PROFILE_1,
+  assert(IMPLIES(seq_params->seq_profile_idc <= MAIN_444_10,
 #else
   assert(IMPLIES(seq_params->profile <= PROFILE_1,
 #endif  // CONFIG_CWG_F429_INTEROP
@@ -5030,36 +5030,32 @@ int av2_receive_raw_frame(AV2_COMP *cpi, avm_enc_frame_flags_t frame_flags,
   // bitstream must be designated as Professional Profile in the sequence
   // header.
 #if CONFIG_CWG_F429_INTEROP
-  if ((seq_params->seq_profile_idc == PROFILE_0) && !seq_params->monochrome &&
+  if (!av2_check_profile_interop_conformance(seq_params->seq_profile_idc, seq_params->bit_depth, subsampling_x, subsampling_y, seq_params->monochrome, seq_params->seq_max_mcount, &cm->error, 0)) {
+    avm_internal_error(&cm->error, AVM_CODEC_INVALID_PARAM,
+                       "Non-4:2:0 color format requires profile 4 or 5");
+    res = -1;
+  }
 #else
   if ((seq_params->profile == PROFILE_0) && !seq_params->monochrome &&
-#endif
       (subsampling_x != 1 || subsampling_y != 1)) {
     avm_internal_error(&cm->error, AVM_CODEC_INVALID_PARAM,
                        "Non-4:2:0 color format requires profile 1 or 2");
     res = -1;
   }
-#if CONFIG_CWG_F429_INTEROP
-  if ((seq_params->seq_profile_idc == PROFILE_1) &&
-#else
   if ((seq_params->profile == PROFILE_1) &&
-#endif  // CONFIG_CWG_F429_INTEROP
       !(subsampling_x == 0 && subsampling_y == 0)) {
     avm_internal_error(&cm->error, AVM_CODEC_INVALID_PARAM,
                        "Profile 1 requires 4:4:4 color format");
     res = -1;
   }
-#if CONFIG_CWG_F429_INTEROP
-  if ((seq_params->seq_profile_idc == PROFILE_2) &&
-#else
   if ((seq_params->profile == PROFILE_2) &&
-#endif  // CONFIG_CWG_F429_INTEROP
       (seq_params->bit_depth <= AVM_BITS_10) &&
       !(subsampling_x == 1 && subsampling_y == 0)) {
     avm_internal_error(&cm->error, AVM_CODEC_INVALID_PARAM,
                        "Profile 2 bit-depth <= 10 requires 4:2:2 color format");
     res = -1;
   }
+#endif  // CONFIG_CWG_F429_INTEROP
 
   return res;
 }
