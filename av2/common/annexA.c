@@ -17,7 +17,7 @@
 #include "av2/common/blockd.h"
 #include "av2/common/enums.h"
 
-#ifndef NDEBUG
+/* clang-format off */
 /*
 //=================================================================
 // Table A.1: AV2 Multi-Sequence Configurations
@@ -39,7 +39,7 @@
  * - Chroma Format: Support chroma subsampling formats
  * - Resered: ConfigurationID valies 3-64 are reserved for future use
  */
-#endif  // NDEBUG
+/* clang-format on */
 
 #if CONFIG_CWG_F429_INTEROP
 typedef enum {
@@ -48,7 +48,7 @@ typedef enum {
   C_MAIN_444_10 = 2,  // Main toolset, 8/10-10-bit, 4:0:0/4:2:0/4:4:4
 } AV2_CONFIGURATION_LABEL;
 
-#ifndef NDEBUG
+/* clang-format off */
 /*=================================================================
 // Table A.2: Allowed Values for Sub-Bitstream Syntax Elements
 //=================================================================
@@ -78,7 +78,7 @@ typedef enum {
 // INTEROP_2: Max 4 extended, 3 embedded, combinations allowed
 // INTEROP_3-14: Reserved
 // INTEROP_15: Max values, combinations allowed
-#endif  // NDEBUG
+/* clang-format on */
 
 typedef enum {
   INTEROP_0,
@@ -143,7 +143,7 @@ static const int SeqProfileMaxMlayerCnt[32] = {
   MAX_NUM_MLAYERS,  // seq_profile_idc 6
 };
 
-#ifndef NDEBUG
+/* clang-format off */
 /* Table A4 Allowed values for sub-bitstream syntax elements to conform to a specific AV2 profile
  *  Profile Label          |    seq_profile_idc    |    chroma_format_idc    |    bit_depth_idc    |    max_mlayer_cnt
  * -------------------------------------------------------------------------------------------------------------------
@@ -170,7 +170,7 @@ static const int SeqProfileMaxMlayerCnt[32] = {
  *  Reserved                         6-31
  * ---------------------------------------------------------------------------------------------------------------------
  */
-#endif  // NDEBUG
+/* clang-format on */
 
 //=================================================================
 // Profile Conformance Functions
@@ -355,7 +355,7 @@ int av2_check_profile_interop_conformance(
   return 1;
 }
 
-#ifndef NDEBUG
+/* clang-format off */
 /*=================================================================
 // Profile Scaling and Bitrate Functions
 //=================================================================
@@ -371,7 +371,7 @@ int av2_check_profile_interop_conformance(
  *      5                        (0, 1)              CHROMA_FORMAT_444                      2
  * ----------------------------------------------------------------------------------------------------
  */
-#endif  // NDEBUG
+/* clang-format on */
 
 int get_profile_scaling_factor(int seq_profile_idc, int chroma_format_idc) {
   // Table A.5: Definition of ProfileScalingFactor
