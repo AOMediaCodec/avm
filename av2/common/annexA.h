@@ -43,8 +43,9 @@ struct SequenceHeader;
 // Validates the bitstream parameters conform to the specified profile
 // Returns 1 on success and 0 on failure
 int av2_check_profile_interop_conformance(
-                                          int profile, int bit_depth, int subsampling_x, int subsampling_y,
-                                          int monochrome, int seq_max_mcount,struct avm_internal_error_info *error_info, int is_decoder);
+    int profile, int bit_depth, int subsampling_x, int subsampling_y,
+    int monochrome, int seq_max_mcount,
+    struct avm_internal_error_info *error_info, int is_decoder);
 
 //==========================================
 // Profile Scaling and Bitrate Functions
@@ -57,19 +58,8 @@ int get_bitrate_profile_factor(int profile_scaling_factor);
 //==========================================
 // Validate function
 //===========================================
-int av2_validate_layer_capacity(int seq_profile_idc,
-                                int num_extended_layers,
+int av2_validate_layer_capacity(int seq_profile_idc, int num_extended_layers,
                                 int num_embedded_layers);
-// SEQ_PROFILE
-/*typedef enum {
- MAIN_420_10_IP0,
- MAIN_420_10_IP1,
- MAIN_420_10_IP2,
- MAIN_420_10,
- MAIN_422_10,
- MAIN_444_10,
- RESERVED,
- } BITSTREAM_PROFILE;*/
 #endif  // CONFIG_CWG_F429_INTEROP
 
 #ifdef __cplusplus
