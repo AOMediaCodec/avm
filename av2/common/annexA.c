@@ -17,19 +17,20 @@
 #include "av2/common/blockd.h"
 #include "av2/common/enums.h"
 
-/*!
+#ifndef NDEBUG
+/*
 //=================================================================
 // Table A.1: AV2 Multi-Sequence Configurations
 //=================================================================
  *
  * Table A.1: AV2 Multi-Sequence Configurations
  *
- * ConfigurationID    |    Configuration Label    |    Toolset    |    BitDepth (8/10/12/14/16)    |    Chroma Format (4:0:0/4:2:0/4:2:2/4:4:4)
- * ---------------------|----------------------------|--------------|----------------------------------|-----------------------------------------------
- *       0              | C_Main_420_10            | Main           | 8, 10                                       |  4:0:0, 4:2:0
- *       1              | C_Main_422_10             | Main          | 8, 10                                       |  4:0:0, 4:2:0, 4:2:2
- *       2              | C_Main_444_10             | Main          | 8, 10                                        |  4:0:0, 4:2:0, 4:4:4
- *       3-63         | Reserved                       | -                 | -                                              |
+ * ConfigurationID | Configuration Label | Toolset |  BitDepth (8/10/12/14/16) | Chroma Format (4:0:0/4:2:0/4:2:2/4:4:4)
+ * ----------------|---------------------|---------|---------------------------|----------------------------------------
+ *       0         | C_Main_420_10       | Main    | 8, 10                     |  4:0:0, 4:2:0
+ *       1         | C_Main_422_10       | Main    | 8, 10                     |  4:0:0, 4:2:0, 4:2:2
+ *       2         | C_Main_444_10       | Main    | 8, 10                     |  4:0:0, 4:2:0, 4:4:4
+ *       3-63      | Reserved            | -       | -                         |
 
  *
  * Notes:
@@ -38,6 +39,7 @@
  * - Chroma Format: Support chroma subsampling formats
  * - Resered: ConfigurationID valies 3-64 are reserved for future use
  */
+#endif  // NDEBUG
 
 #if CONFIG_CWG_F429_INTEROP
 typedef enum {
@@ -46,20 +48,22 @@ typedef enum {
   C_MAIN_444_10 = 2,  // Main toolset, 8/10-10-bit, 4:0:0/4:2:0/4:4:4
 } AV2_CONFIGURATION_LABEL;
 
-/*!=================================================================
+#ifndef NDEBUG
+/*=================================================================
 // Table A.2: Allowed Values for Sub-Bitstream Syntax Elements
 //=================================================================
  *
  * Table A.2: Allowed Values for Sub-Bitstream Syntax Elements Accoring to Multi-Sequence Configuration
  *
  *  Configuration Label    |   seq_profile_idc    |    chroma_format_idc    |    bit_depth_idc
- * ---------------------------|-----------------------|----------------------------|---------------
- *   C_Main_420_10        | 0..3                         | 0..1                                | 0..1
- *   C_Main_422_10       | 0..3                          | 0..1, 3                            | 0..1
- *   C_Main_444_10       | 0..3                          | 0..2                                | 0..1
+ * ------------------------|----------------------|-------------------------|---------------
+ *   C_Main_420_10         | 0..3                 | 0..1                    | 0..1
+ *   C_Main_422_10         | 0..3                 | 0..1, 3                 | 0..1
+ *   C_Main_444_10         | 0..3                 | 0..2                    | 0..1
  *
  * Notes:
- * - seq_profile_idc: Allowed profile values (0=MAIN_420_10_IP0, 1=MAIN_420_10_IP1, 2=MAIN_420_10_IP2, 3=Main_420_10, 4=MAIN_422_10, 5=MAIN_444_10)
+ * - seq_profile_idc: Allowed profile values (0=MAIN_420_10_IP0, 1=MAIN_420_10_IP1, 2=MAIN_420_10_IP2, 3=Main_420_10,
+ *                                            4=MAIN_422_10, 5=MAIN_444_10)
  * - bit_depth_idc: 0=8-bit, 1=10-bit
  * - C_Main_420_10: Supports profiles 0-3, chroma 4:0:0 and 4:2:0, bit depths 8 and 10
  * - C_Main_422_10: Supports profiles 0-3, chroma 4:0:0, 4:2:0 and 4:2:2, bit depth 8 and 10
@@ -74,6 +78,7 @@ typedef enum {
 // INTEROP_2: Max 4 extended, 3 embedded, combinations allowed
 // INTEROP_3-14: Reserved
 // INTEROP_15: Max values, combinations allowed
+#endif  // NDEBUG
 
 typedef enum {
   INTEROP_0,
@@ -138,33 +143,34 @@ static const int SeqProfileMaxMlayerCnt[32] = {
   MAX_NUM_MLAYERS,  // seq_profile_idc 6
 };
 
-/*! Table A4 Allowed values for sub-bitstream syntax elements to conform to a
- specific AV2 profile
+#ifndef NDEBUG
+/* Table A4 Allowed values for sub-bitstream syntax elements to conform to a specific AV2 profile
  *  Profile Label          |    seq_profile_idc    |    chroma_format_idc    |    bit_depth_idc    |    max_mlayer_cnt
- * ---------------------------------------------------------------------------
- *  Main_420_10_IP0           0                  CHROMA_FORMAT_400          0 or 1                        1
- *                              CHROMA_FORMAT_420
- * -----------------------------------------------------------------------------------------
- *  Main_420_10_IP1           1                 CHROMA_FORMAT_400          0 or 1                        2
- *                             CHROMA_FORMAT_420
- * -----------------------------------------------------------------------------------------
- *  Main_420_10_IP2           2                   CHROMA_FORMAT_400           0 or 1                       3
- *                              CHROMA_FORMAT_420
- * -----------------------------------------------------------------------------------------
- *  Main_420_10               3                  CHROMA_FORMAT_400           0 or 1                           -
- *                            CHROMA_FORMAT_420
- * -----------------------------------------------------------------------------------------
- *  Main_422_10               4                    CHROMA_FORMAT_400            0 or 1                           -
- *                             CHROMA_FORMAT_420
- *                             CHROMA_FORMAT_422
- * -----------------------------------------------------------------------------------------
- *  Main_444_10               5                   CHROMA_FORMAT_400            0 or 1                            -
- *                            CHROMA_FORMAT_420
- *                            CHROMA_FORMAT_444
- * -----------------------------------------------------------------------------------------
- *  Reserved                 6-31
- * -----------------------------------------------------------------------------------------
+ * -------------------------------------------------------------------------------------------------------------------
+ *  Main_420_10_IP0                   0                  CHROMA_FORMAT_400          0 or 1                        1
+ *                                                       CHROMA_FORMAT_420
+ * -------------------------------------------------------------------------------------------------------------------
+ *  Main_420_10_IP1                   1                  CHROMA_FORMAT_400          0 or 1                        2
+ *                                                       CHROMA_FORMAT_420
+ * --------------------------------------------------------------------------------------------------------------------
+ *  Main_420_10_IP2                   2                  CHROMA_FORMAT_400          0 or 1                        3
+ *                                                       CHROMA_FORMAT_420
+ * --------------------------------------------------------------------------------------------------------------------
+ *  Main_420_10                       3                  CHROMA_FORMAT_400          0 or 1                        -
+ *                                                       CHROMA_FORMAT_420
+ * ---------------------------------------------------------------------------------------------------------------------
+ *  Main_422_10                       4                  CHROMA_FORMAT_400          0 or 1                        -
+ *                                                       CHROMA_FORMAT_420
+ *                                                       CHROMA_FORMAT_422
+ * ---------------------------------------------------------------------------------------------------------------------
+ *  Main_444_10                       5                  CHROMA_FORMAT_400          0 or 1                        -
+ *                                                       CHROMA_FORMAT_420
+ *                                                       CHROMA_FORMAT_444
+ * ---------------------------------------------------------------------------------------------------------------------
+ *  Reserved                         6-31
+ * ---------------------------------------------------------------------------------------------------------------------
  */
+#endif  // NDEBUG
 
 //=================================================================
 // Profile Conformance Functions
@@ -349,21 +355,23 @@ int av2_check_profile_interop_conformance(
   return 1;
 }
 
-/*!=================================================================
+#ifndef NDEBUG
+/*=================================================================
 // Profile Scaling and Bitrate Functions
 //=================================================================
 
  * Table A.5: Definition of ProfileScalingFactor
- * seq_profile_idc    | bit_depth_idc      |      chroma_format_idc       | ProfileScalingFactor
- * ----------------------------------------------------------------------------
- * (0, 1, 2, 3, 4, 5)                 (0, 1)              CHROMA_FORMAT_400                       0
- *                             CHROMA_FORMAT_420
- * ----------------------------------------------------------------------------
- *      4                            (0, 1)             CHROMA_FORMAT_422                      1
- * ----------------------------------------------------------------------------
- *      5                           (0, 1)              CHROMA_FORMAT_444                      2
- * ----------------------------------------------------------------------------
+ * seq_profile_idc          | bit_depth_idc      |      chroma_format_idc       | ProfileScalingFactor
+ * ----------------------------------------------------------------------------------------------------
+ * (0, 1, 2, 3, 4, 5)            (0, 1)              CHROMA_FORMAT_400                       0
+ *                                                   CHROMA_FORMAT_420
+ * ----------------------------------------------------------------------------------------------------
+ *      4                        (0, 1)              CHROMA_FORMAT_422                       1
+ * ----------------------------------------------------------------------------------------------------
+ *      5                        (0, 1)              CHROMA_FORMAT_444                      2
+ * ----------------------------------------------------------------------------------------------------
  */
+#endif  // NDEBUG
 
 int get_profile_scaling_factor(int seq_profile_idc, int chroma_format_idc) {
   // Table A.5: Definition of ProfileScalingFactor
