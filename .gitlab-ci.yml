@@ -275,7 +275,6 @@ Test Data Check:
         echo -e "\e[31mEXTRA_CMAKE_FLAGS = ${EXTRA_CMAKE_FLAGS}\e[0m"
         exit 1
       fi
-    - cmake --build avm_build --target dist
     - DESTDIR="${CI_PROJECT_DIR}/${INSTALLROOT_FOLDER}" cmake --build avm_build --target install/strip
   needs: []
 
