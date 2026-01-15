@@ -210,7 +210,7 @@ int32_t av2_dc_quant_QTX(int qindex, int delta, int base_dc_delta_q,
 #if CONFIG_AVM_BITS_12
                "bit_depth should be AVM_BITS_8, AVM_BITS_10 or AVM_BITS_12");
 #else
-        "bit_depth should be AVM_BITS_8, AVM_BITS_10");
+               "bit_depth should be AVM_BITS_8, AVM_BITS_10");
 #endif  // CONFIG_AVM_BITS_12
         return -1;
     }
@@ -277,7 +277,7 @@ int32_t av2_ac_quant_QTX(int qindex, int delta, int base_ac_delta_q,
 #if CONFIG_AVM_BITS_12
                "bit_depth should be AVM_BITS_8, AVM_BITS_10 or AVM_BITS_12");
 #else
-        "bit_depth should be AVM_BITS_8, AVM_BITS_10");
+               "bit_depth should be AVM_BITS_8, AVM_BITS_10");
 #endif  // CONFIG_AVM_BITS_12
         return -1;
     }

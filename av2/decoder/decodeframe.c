@@ -5779,7 +5779,7 @@ int av2_get_bitdepth_from_index(uint32_t bitdepth_lut_idx) {
   static avm_bit_depth_t bitdepth_list[] = { AVM_BITS_10, AVM_BITS_8,
                                              AVM_BITS_12 };
 #else
-  static avm_bit_depth_t bitdepth_list[] = { AVM_BITS_10, AVM_BITS_8};
+  static avm_bit_depth_t bitdepth_list[] = { AVM_BITS_10, AVM_BITS_8 };
 #endif  // CONFIG_AVM_BITS_12
   if (bitdepth_lut_idx >= AVM_NUM_SUPPORTED_BITDEPTH) return -1;
   return bitdepth_list[bitdepth_lut_idx];

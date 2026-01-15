@@ -48,17 +48,15 @@
 #define MAX_BPB_FACTOR 50
 
 #define FRAME_OVERHEAD_BITS 200
-#define ASSIGN_MINQ_TABLE(bit_depth, name)                   \
-  do {                                                       \
-    switch (bit_depth) {                                     \
-      case AVM_BITS_8: name = name##_8; break;               \
-      case AVM_BITS_10: name = name##_10; break;             \
-      default:                                               \
-        assert(0 &&                                          \
-               "bit_depth should be AVM_BITS_8, AVM_BITS_10" \
-              );                                             \
-        name = NULL;                                         \
-    }                                                        \
+#define ASSIGN_MINQ_TABLE(bit_depth, name)                          \
+  do {                                                              \
+    switch (bit_depth) {                                            \
+      case AVM_BITS_8: name = name##_8; break;                      \
+      case AVM_BITS_10: name = name##_10; break;                    \
+      default:                                                      \
+        assert(0 && "bit_depth should be AVM_BITS_8, AVM_BITS_10"); \
+        name = NULL;                                                \
+    }                                                               \
   } while (0)
 
 // Tables relating active max Q to active min Q

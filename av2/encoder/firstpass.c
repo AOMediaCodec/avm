@@ -381,7 +381,7 @@ static int firstpass_intra_prediction(
 #if CONFIG_AVM_BITS_12
              "AVM_BITS_10 or AVM_BITS_12");
 #else
-              "AVM_BITS_10");
+             "AVM_BITS_10");
 #endif  // CONFIG_AVM_BITS_12
       return -1;
   }

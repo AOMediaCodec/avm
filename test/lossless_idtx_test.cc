@@ -93,7 +93,8 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(kTxSizes),
                        ::testing::Values(AVM_BITS_8, AVM_BITS_10
 #if CONFIG_AVM_BITS_12
-                                         , AVM_BITS_12
+                                         ,
+                                         AVM_BITS_12
 #endif  // CONFIG_AVM_BITS_12
                                          )));
 
@@ -105,8 +106,9 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(kTxSizes),
                        ::testing::Values(AVM_BITS_8, AVM_BITS_10
 #if CONFIG_AVM_BITS_12
-                                         , AVM_BITS_12)
+                                         ,
+                                         AVM_BITS_12)
 #endif  // CONFIG_AVM_BITS_12
-                       ));
+                           ));
 #endif  // HAVE_AVX2
 }  // namespace

@@ -1146,10 +1146,10 @@ typedef struct SequenceHeader {
                               // AVM_BITS_10
 #if CONFIG_AVM_BITS_12
   // or AVM_BITS_12 in profile 2 or 3.
-#endif  // CONFIG_AVM_BITS_12
-  uint8_t monochrome;         // Monochorme video
-  int subsampling_x;          // Chroma subsampling for x
-  int subsampling_y;          // Chroma subsampling for y
+#endif                    // CONFIG_AVM_BITS_12
+  uint8_t monochrome;     // Monochorme video
+  int subsampling_x;      // Chroma subsampling for x
+  int subsampling_y;      // Chroma subsampling for y
   uint8_t equal_ac_dc_q;  // force ac, dc quantizers in each plane to be equal
   uint8_t separate_uv_delta_q;
   int8_t base_y_dc_delta_q;
