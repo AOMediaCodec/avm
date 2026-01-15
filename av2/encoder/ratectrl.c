@@ -35,6 +35,7 @@
 #include "av2/encoder/random.h"
 #include "av2/encoder/ratectrl.h"
 #include "av2/encoder/scale.h"
+#include "config/avm_config.h"
 
 #define USE_UNRESTRICTED_Q_IN_CQ_MODE 0
 
@@ -52,11 +53,10 @@
     switch (bit_depth) {                                     \
       case AVM_BITS_8: name = name##_8; break;               \
       case AVM_BITS_10: name = name##_10; break;             \
-      case AVM_BITS_12: name = name##_12; break;             \
       default:                                               \
         assert(0 &&                                          \
                "bit_depth should be AVM_BITS_8, AVM_BITS_10" \
-               " or AVM_BITS_12");                           \
+              );                                             \
         name = NULL;                                         \
     }                                                        \
   } while (0)
@@ -160,10 +160,12 @@ void av2_rc_init_minq_luts(void) {
                  arfgf_low_motion_minq_10, arfgf_high_motion_minq_10,
                  arfgf_ld_low_motion_minq_10, arfgf_ld_high_motion_minq_10,
                  inter_minq_10, rtc_minq_10, AVM_BITS_10);
+#if CONFIG_AVM_BITS_12
   init_minq_luts(kf_low_motion_minq_12, kf_high_motion_minq_12,
                  arfgf_low_motion_minq_12, arfgf_high_motion_minq_12,
                  arfgf_ld_low_motion_minq_12, arfgf_ld_high_motion_minq_12,
                  inter_minq_12, rtc_minq_12, AVM_BITS_12);
+#endif  // CONFIG_AVM_BITS_12
 }
 
 // These functions use formulaic calculations to make playing with the
@@ -180,12 +182,17 @@ double av2_convert_qindex_to_q(int qindex, avm_bit_depth_t bit_depth) {
     case AVM_BITS_10:
       return av2_ac_quant_QTX(qindex, 0, 0, bit_depth) /
              (32.0 * (1 << QUANT_TABLE_BITS));
+#if CONFIG_AVM_BITS_12
     case AVM_BITS_12:
       return av2_ac_quant_QTX(qindex, 0, 0, bit_depth) /
              (128.0 * (1 << QUANT_TABLE_BITS));
-
+#endif  // CONFIG_AVM_BITS_12
     default:
+#if CONFIG_AVM_BITS_12
       assert(0 && "bit_depth should be AVM_BITS_8, AVM_BITS_10 or AVM_BITS_12");
+#else
+      assert(0 && "bit_depth should be AVM_BITS_8 or AVM_BITS_10");
+#endif  // CONFIG_AVM_BITS_12
       return -1.0;
   }
 }

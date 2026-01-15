@@ -4424,7 +4424,9 @@ int av2_get_index_from_bitdepth(int bit_depth) {
   switch (bit_depth) {
     case AVM_BITS_10: bitdepth_lut_idx = AVM_BITDEPTH_0; break;
     case AVM_BITS_8: bitdepth_lut_idx = AVM_BITDEPTH_1; break;
+#if CONFIG_AVM_BITS_12
     case AVM_BITS_12: bitdepth_lut_idx = AVM_BITDEPTH_2; break;
+#endif  // CONFIG_AVM_BITS_12
     default: break;
   }
   return bitdepth_lut_idx;

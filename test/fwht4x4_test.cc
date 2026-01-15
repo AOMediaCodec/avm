@@ -175,18 +175,24 @@ using std::make_tuple;
 INSTANTIATE_TEST_SUITE_P(
     C, Trans4x4WHT,
     ::testing::Values(make_tuple(&av2_highbd_fwht4x4_c, &iwht4x4_10, DCT_DCT,
-                                 AVM_BITS_10, 16, static_cast<FdctFunc>(NULL)),
-                      make_tuple(&av2_highbd_fwht4x4_c, &iwht4x4_12, DCT_DCT,
+                                 AVM_BITS_10, 16, static_cast<FdctFunc>(NULL))
+#if CONFIG_AVM_BITS_12
+                      , make_tuple(&av2_highbd_fwht4x4_c, &iwht4x4_12, DCT_DCT,
                                  AVM_BITS_12, 16,
-                                 static_cast<FdctFunc>(NULL))));
+                                 static_cast<FdctFunc>(NULL))
+#endif  // CONFIG_AVM_BITS_12
+                      ));
 #if HAVE_NEON
 
 INSTANTIATE_TEST_SUITE_P(
     NEON, Trans4x4WHT,
     ::testing::Values(make_tuple(&av2_highbd_fwht4x4_neon, &iwht4x4_10, DCT_DCT,
-                                 AVM_BITS_10, 16, &av2_highbd_fwht4x4_c),
-                      make_tuple(&av2_highbd_fwht4x4_neon, &iwht4x4_12, DCT_DCT,
-                                 AVM_BITS_12, 16, &av2_highbd_fwht4x4_c)));
+                                 AVM_BITS_10, 16, &av2_highbd_fwht4x4_c)
+#if CONFIG_AVM_BITS_12
+                      , make_tuple(&av2_highbd_fwht4x4_neon, &iwht4x4_12, DCT_DCT,
+                                 AVM_BITS_12, 16, &av2_highbd_fwht4x4_c)
+#endif  // CONFIG_AVM_BITS_12
+                         ));
 
 #endif  // HAVE_NEON
 

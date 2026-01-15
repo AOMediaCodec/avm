@@ -258,6 +258,7 @@ const HighbdMaskedSubPixelVarianceParam hbd_sub_pel_var_test[] = {
   make_tuple(&avm_highbd_10_masked_sub_pixel_variance4x4_ssse3,
              &avm_highbd_10_masked_sub_pixel_variance4x4_c, AVM_BITS_10),
 
+#if CONFIG_AVM_BITS_12
   make_tuple(&avm_highbd_12_masked_sub_pixel_variance256x256_ssse3,
              &avm_highbd_12_masked_sub_pixel_variance256x256_c, AVM_BITS_12),
   make_tuple(&avm_highbd_12_masked_sub_pixel_variance256x128_ssse3,
@@ -296,6 +297,7 @@ const HighbdMaskedSubPixelVarianceParam hbd_sub_pel_var_test[] = {
              &avm_highbd_12_masked_sub_pixel_variance4x8_c, AVM_BITS_12),
   make_tuple(&avm_highbd_12_masked_sub_pixel_variance4x4_ssse3,
              &avm_highbd_12_masked_sub_pixel_variance4x4_c, AVM_BITS_12),
+#endif  // CONFIG_AVM_BITS_12
 
   make_tuple(&avm_highbd_8_masked_sub_pixel_variance64x16_ssse3,
              &avm_highbd_8_masked_sub_pixel_variance64x16_c, AVM_BITS_8),
@@ -321,6 +323,7 @@ const HighbdMaskedSubPixelVarianceParam hbd_sub_pel_var_test[] = {
              &avm_highbd_10_masked_sub_pixel_variance16x4_c, AVM_BITS_10),
   make_tuple(&avm_highbd_10_masked_sub_pixel_variance4x16_ssse3,
              &avm_highbd_10_masked_sub_pixel_variance4x16_c, AVM_BITS_10),
+#if CONFIG_AVM_BITS_12
   make_tuple(&avm_highbd_12_masked_sub_pixel_variance64x16_ssse3,
              &avm_highbd_12_masked_sub_pixel_variance64x16_c, AVM_BITS_12),
   make_tuple(&avm_highbd_12_masked_sub_pixel_variance16x64_ssse3,
@@ -333,6 +336,7 @@ const HighbdMaskedSubPixelVarianceParam hbd_sub_pel_var_test[] = {
              &avm_highbd_12_masked_sub_pixel_variance16x4_c, AVM_BITS_12),
   make_tuple(&avm_highbd_12_masked_sub_pixel_variance4x16_ssse3,
              &avm_highbd_12_masked_sub_pixel_variance4x16_c, AVM_BITS_12),
+#endif  // CONFIG_AVM_BITS_12
   make_tuple(&avm_highbd_8_masked_sub_pixel_variance64x8_ssse3,
              &avm_highbd_8_masked_sub_pixel_variance64x8_c, AVM_BITS_8),
   make_tuple(&avm_highbd_8_masked_sub_pixel_variance8x64_ssse3,
@@ -357,6 +361,7 @@ const HighbdMaskedSubPixelVarianceParam hbd_sub_pel_var_test[] = {
              &avm_highbd_10_masked_sub_pixel_variance64x4_c, AVM_BITS_10),
   make_tuple(&avm_highbd_10_masked_sub_pixel_variance4x64_ssse3,
              &avm_highbd_10_masked_sub_pixel_variance4x64_c, AVM_BITS_10),
+#if CONFIG_AVM_BITS_12
   make_tuple(&avm_highbd_12_masked_sub_pixel_variance64x8_ssse3,
              &avm_highbd_12_masked_sub_pixel_variance64x8_c, AVM_BITS_12),
   make_tuple(&avm_highbd_12_masked_sub_pixel_variance8x64_ssse3,
@@ -369,6 +374,7 @@ const HighbdMaskedSubPixelVarianceParam hbd_sub_pel_var_test[] = {
              &avm_highbd_12_masked_sub_pixel_variance64x4_c, AVM_BITS_12),
   make_tuple(&avm_highbd_12_masked_sub_pixel_variance4x64_ssse3,
              &avm_highbd_12_masked_sub_pixel_variance4x64_c, AVM_BITS_12),
+#endif  // CONFIG_AVM_BITS_12
 };
 
 INSTANTIATE_TEST_SUITE_P(SSSE3_C_COMPARE, HighbdMaskedSubPixelVarianceTest,

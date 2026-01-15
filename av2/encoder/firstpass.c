@@ -46,6 +46,8 @@
 #include "av2/encoder/reconinter_enc.h"
 #include "av2/encoder/scale.h"
 
+#include "config/avm_config.h"
+
 #define OUTPUT_FPF 0
 
 #define FIRST_PASS_Q 10.0
@@ -370,11 +372,17 @@ static int firstpass_intra_prediction(
   switch (seq_params->bit_depth) {
     case AVM_BITS_8: break;
     case AVM_BITS_10: this_intra_error >>= 4; break;
+#if CONFIG_AVM_BITS_12
     case AVM_BITS_12: this_intra_error >>= 8; break;
+#endif  // CONFIG_AVM_BITS_12
     default:
       assert(0 &&
              "seq_params->bit_depth should be AVM_BITS_8, "
+#if CONFIG_AVM_BITS_12
              "AVM_BITS_10 or AVM_BITS_12");
+#else
+              "AVM_BITS_10");
+#endif  // CONFIG_AVM_BITS_12
       return -1;
   }
 
@@ -398,11 +406,17 @@ static int firstpass_intra_prediction(
   switch (seq_params->bit_depth) {
     case AVM_BITS_8: break;
     case AVM_BITS_10: level_sample >>= 2; break;
+#if CONFIG_AVM_BITS_12
     case AVM_BITS_12: level_sample >>= 4; break;
+#endif  // CONFIG_AVM_BITS_12
     default:
       assert(0 &&
              "seq_params->bit_depth should be AVM_BITS_8, "
+#if CONFIG_AVM_BITS_12
              "AVM_BITS_10 or AVM_BITS_12");
+#else
+             "AVM_BITS_10");
+#endif  // CONFIG_AVM_BITS_12
       return -1;
   }
   if ((level_sample < DARK_THRESH) && (log_intra < 9.0)) {

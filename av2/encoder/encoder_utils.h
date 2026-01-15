@@ -719,6 +719,7 @@ static AVM_INLINE void highbd_set_var_fns(AV2_COMP *const cpi) {
       HIGHBD_SDSFP_WRAPPER(4, 64, 10)
       break;
 
+#if CONFIG_AVM_BITS_12
     case AVM_BITS_12:
       HIGHBD_BFP_WRAPPER(64, 16, 12)
       HIGHBD_BFP_WRAPPER(16, 64, 12)
@@ -812,11 +813,16 @@ static AVM_INLINE void highbd_set_var_fns(AV2_COMP *const cpi) {
       HIGHBD_SDSFP_WRAPPER(64, 4, 12)
       HIGHBD_SDSFP_WRAPPER(4, 64, 12)
       break;
+#endif  // CONFIG_AVM_BITS_12
 
     default:
       assert(0 &&
              "cm->seq_params.bit_depth should be AVM_BITS_8, "
+#if CONFIG_AVM_BITS_12
              "AVM_BITS_10 or AVM_BITS_12");
+#else
+             " or AVM_BITS_10");
+#endif  // CONFIG_AVM_BITS_12
   }
 }
 

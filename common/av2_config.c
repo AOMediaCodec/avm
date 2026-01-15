@@ -94,7 +94,9 @@ static int get_bitdepth(int bitdepth_lut_idx) {
   switch (bitdepth_lut_idx) {
     case AVM_BITDEPTH_0: bitdepth = AVM_BITS_10; break;
     case AVM_BITDEPTH_1: bitdepth = AVM_BITS_8; break;
+#if CONFIG_AVM_BITS_12
     case AVM_BITDEPTH_2: bitdepth = AVM_BITS_12; break;
+#endif  // CONFIG_AVM_BITS_12
     default: break;
   }
   return bitdepth;

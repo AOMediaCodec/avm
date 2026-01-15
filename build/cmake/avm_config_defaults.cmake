@@ -141,6 +141,7 @@ set_avm_config_var(CONFIG_CWG_F452 1
 
 # CWG-F429
 set_avm_config_var(CONFIG_CWG_F429_INTEROP 1 "Profile signalling.")
+set_avm_config_var(CONFIG_AVM_BITS_12 1 "Disable the AVM_BITS_12.")
 
 # Source of throughput analysis : CWG-B065
 set_avm_config_var(CONFIG_THROUGHPUT_ANALYSIS 0

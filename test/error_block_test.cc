@@ -229,8 +229,10 @@ using std::make_tuple;
 const ErrorBlockParam kErrorBlockTestParamsSse2[] = {
   make_tuple(&av2_highbd_block_error_sse2, &av2_highbd_block_error_c,
              AVM_BITS_10),
+#if CONFIG_AVM_BITS_12
   make_tuple(&av2_highbd_block_error_sse2, &av2_highbd_block_error_c,
              AVM_BITS_12),
+#endif  // CONFIG_AVM_BITS_12
   make_tuple(&av2_highbd_block_error_sse2, &av2_highbd_block_error_c,
              AVM_BITS_8),
 };
@@ -243,8 +245,10 @@ INSTANTIATE_TEST_SUITE_P(SSE2, ErrorBlockTest,
 const ErrorBlockParam kErrorBlockTestParamsAvx2[] = {
   make_tuple(&av2_highbd_block_error_avx2, &av2_highbd_block_error_c,
              AVM_BITS_10),
+#if CONFIG_AVM_BITS_12
   make_tuple(&av2_highbd_block_error_avx2, &av2_highbd_block_error_c,
              AVM_BITS_12),
+#endif  // CONFIG_AVM_BITS_12
   make_tuple(&av2_highbd_block_error_avx2, &av2_highbd_block_error_c,
              AVM_BITS_8),
 };

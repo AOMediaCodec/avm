@@ -13,6 +13,7 @@
 #include "avm_ports/avm_timer.h"
 #include "av2/encoder/encodeframe_utils.h"
 #include "av2/encoder/partition_ml.h"
+#include "config/avm_config.h"
 
 // Computes residual stats on a transformed and quantized residual of the
 // block. This is used as ML features for prediction. The information computed
@@ -639,7 +640,9 @@ int av2_ml_part_split_infer(AV2_COMP *const cpi, MACROBLOCK *x, int mi_row,
   int qp_offset;
   switch (cm->seq_params.bit_depth) {
     case AVM_BITS_10: qp_offset = qindex_10b_offset[1]; break;
+#if CONFIG_AVM_BITS_12
     case AVM_BITS_12: qp_offset = qindex_12b_offset[1]; break;
+#endif  // CONFIG_AVM_BITS_12
     default: qp_offset = 0; break;
   }
 

@@ -81,6 +81,7 @@ const TestVideoParam kTestVectors[] = {
   { "park_joy_90p_10_422.y4m", 10, AVM_IMG_FMT_I42216, AVM_BITS_10, 2 },
   { "park_joy_90p_10_444.y4m", 10, AVM_IMG_FMT_I44416, AVM_BITS_10, 1 },
 #endif  // CONFIG_CWG_F429_INTEROP
+#if CONFIG_AVM_BITS_12
   { "park_joy_90p_12_420.y4m", 12, AVM_IMG_FMT_I42016, AVM_BITS_12, 2 },
 #if CONFIG_CWG_F429_INTEROP
   { "park_joy_90p_12_422.y4m", 12, AVM_IMG_FMT_I42216, AVM_BITS_12, 4 },
@@ -89,6 +90,7 @@ const TestVideoParam kTestVectors[] = {
   { "park_joy_90p_12_422.y4m", 12, AVM_IMG_FMT_I42216, AVM_BITS_12, 2 },
   { "park_joy_90p_12_444.y4m", 12, AVM_IMG_FMT_I44416, AVM_BITS_12, 2 },
 #endif  // CONFIG_CWG_F429_INTEROP
+#endif  // CONFIG_AVM_BITS_12
 };
 
 // Encoding modes tested

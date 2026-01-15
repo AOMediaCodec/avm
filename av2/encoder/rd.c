@@ -46,6 +46,7 @@
 #include "av2/encoder/rdopt_utils.h"
 #include "av2/encoder/tokenize.h"
 #include "av2/encoder/trellis_quant.h"
+#include "config/avm_config.h"
 
 #define RD_THRESH_POW 1.25
 
@@ -647,7 +648,9 @@ static void init_me_luts_bd(int *bit16lut, int range,
 void av2_init_me_luts(void) {
   init_me_luts_bd(sad_per_bit_lut_8, QINDEX_RANGE_8_BITS, AVM_BITS_8);
   init_me_luts_bd(sad_per_bit_lut_10, QINDEX_RANGE_10_BITS, AVM_BITS_10);
+#if CONFIG_AVM_BITS_12
   init_me_luts_bd(sad_per_bit_lut_12, QINDEX_RANGE, AVM_BITS_12);
+#endif  // CONFIG_AVM_BITS_12
 }
 
 static const int rd_boost_factor[16] = { 64, 32, 32, 32, 24, 16, 12, 12,
@@ -673,9 +676,15 @@ int av2_compute_rd_mult_based_on_qindex(const AV2_COMP *cpi, int qindex) {
   switch (cpi->common.seq_params.bit_depth) {
     case AVM_BITS_8: break;
     case AVM_BITS_10: rdmult = ROUND_POWER_OF_TWO(rdmult, 4); break;
+#if CONFIG_AVM_BITS_12
     case AVM_BITS_12: rdmult = ROUND_POWER_OF_TWO(rdmult, 8); break;
+#endif  // CONFIG_AVM_BITS_12
     default:
+#if CONFIG_AVM_BITS_12
       assert(0 && "bit_depth should be AVM_BITS_8, AVM_BITS_10 or AVM_BITS_12");
+#else
+      assert(0 && "bit_depth should be AVM_BITS_8 or AVM_BITS_10");
+#endif  // CONFIG_AVM_BITS_12
       return -1;
   }
   return (int)(rdmult > 0 ? rdmult : 1);
@@ -748,9 +757,13 @@ int av2_get_adaptive_rdmult(const AV2_COMP *cpi, double beta) {
                     RDMULT_FROM_Q2_DEN),
           4 + 2 * QUANT_TABLE_BITS);
       break;
+#if CONFIG_AVM_BITS_12
     case AVM_BITS_12:
+#endif  // CONFIG_AVM_BITS_12
     default:
+#if CONFIG_AVM_BITS_12
       assert(cm->seq_params.bit_depth == AVM_BITS_12);
+#endif  // CONFIG_AVM_BITS_12
       rdmult = ROUND_POWER_OF_TWO_64(
           (int64_t)((rdmult_from_q2_num * (double)q * q / beta) /
                     RDMULT_FROM_Q2_DEN),
@@ -782,11 +795,17 @@ static int compute_rd_thresh_factor(int qindex, int base_y_dc_delta_q,
     case AVM_BITS_10:
       q = av2_dc_quant_QTX(qindex, 0, base_y_dc_delta_q, AVM_BITS_10) / 16.0;
       break;
+#if CONFIG_AVM_BITS_12
     case AVM_BITS_12:
       q = av2_dc_quant_QTX(qindex, 0, base_y_dc_delta_q, AVM_BITS_12) / 64.0;
       break;
+#endif  // CONFIG_AVM_BITS_12
     default:
+#if CONFIG_AVM_BITS_12
       assert(0 && "bit_depth should be AVM_BITS_8, AVM_BITS_10 or AVM_BITS_12");
+#else
+      assert(0 && "bit_depth should be AVM_BITS_8 or AVM_BITS_10");
+#endif  // CONFIG_AVM_BITS_12
       return -1;
   }
   // TODO(debargha): Adjust the function below.
@@ -798,9 +817,15 @@ void av2_set_sad_per_bit(const AV2_COMP *cpi, MvCosts *mv_costs, int qindex) {
   switch (cpi->common.seq_params.bit_depth) {
     case AVM_BITS_8: mv_costs->sadperbit = sad_per_bit_lut_8[qindex]; break;
     case AVM_BITS_10: mv_costs->sadperbit = sad_per_bit_lut_10[qindex]; break;
+#if CONFIG_AVM_BITS_12
     case AVM_BITS_12: mv_costs->sadperbit = sad_per_bit_lut_12[qindex]; break;
+#endif  // CONFIG_AVM_BITS_12
     default:
+#if CONFIG_AVM_BITS_12
       assert(0 && "bit_depth should be AVM_BITS_8, AVM_BITS_10 or AVM_BITS_12");
+#else
+      assert(0 && "bit_depth should be AVM_BITS_8 or AVM_BITS_10");
+#endif  // CONFIG_AVM_BITS_12
   }
 }
 
@@ -1779,11 +1804,17 @@ int av2_get_intra_cost_penalty(int qindex, int qdelta, int base_y_dc_delta_q,
     case AVM_BITS_10:
       return ROUND_POWER_OF_TWO(INTRA_COST_PENALTY_Q_FACTOR * q,
                                 2 + QUANT_TABLE_BITS);
+#if CONFIG_AVM_BITS_12
     case AVM_BITS_12:
       return ROUND_POWER_OF_TWO(INTRA_COST_PENALTY_Q_FACTOR * q,
                                 4 + QUANT_TABLE_BITS);
+#endif  // CONFIG_AVM_BITS_12
     default:
+#if CONFIG_AVM_BITS_12
       assert(0 && "bit_depth should be AVM_BITS_8, AVM_BITS_10 or AVM_BITS_12");
+#else
+      assert(0 && "bit_depth should be AVM_BITS_8 or AVM_BITS_10");
+#endif  // CONFIG_AVM_BITS_12
       return -1;
   }
 }

@@ -1143,7 +1143,10 @@ typedef struct SequenceHeader {
 
   // Color config.
   avm_bit_depth_t bit_depth;  // AVM_BITS_8 in profile 0 or 1,
-                              // AVM_BITS_10 or AVM_BITS_12 in profile 2 or 3.
+                              // AVM_BITS_10
+#if CONFIG_AVM_BITS_12
+  // or AVM_BITS_12 in profile 2 or 3.
+#endif  // CONFIG_AVM_BITS_12
   uint8_t monochrome;         // Monochorme video
   int subsampling_x;          // Chroma subsampling for x
   int subsampling_y;          // Chroma subsampling for y

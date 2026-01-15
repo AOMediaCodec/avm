@@ -60,10 +60,12 @@ using libavm_test::ACMRandom;
 // (bit_depth - 8) for se
 static void RoundHighBitDepth(int bit_depth, int64_t *se, uint64_t *sse) {
   switch (bit_depth) {
+#if CONFIG_AVM_BITS_12
     case AVM_BITS_12:
       *sse = (*sse + 128) >> 8;
       *se = (*se + 8) >> 4;
       break;
+#endif  // CONFIG_AVM_BITS_12
     case AVM_BITS_10:
       *sse = (*sse + 8) >> 4;
       *se = (*se + 2) >> 2;

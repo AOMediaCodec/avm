@@ -5775,8 +5775,12 @@ static AVM_INLINE void error_handler(void *data, avm_codec_err_t error,
 // Gets the bitdepth_lut_idx field in color_config() and returns bit_depth from
 // the bitdepth list.
 int av2_get_bitdepth_from_index(uint32_t bitdepth_lut_idx) {
+#if CONFIG_AVM_BITS_12
   static avm_bit_depth_t bitdepth_list[] = { AVM_BITS_10, AVM_BITS_8,
                                              AVM_BITS_12 };
+#else
+  static avm_bit_depth_t bitdepth_list[] = { AVM_BITS_10, AVM_BITS_8};
+#endif  // CONFIG_AVM_BITS_12
   if (bitdepth_lut_idx >= AVM_NUM_SUPPORTED_BITDEPTH) return -1;
   return bitdepth_list[bitdepth_lut_idx];
 }

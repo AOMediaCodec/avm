@@ -11,6 +11,7 @@
  */
 
 #include "av2/arg_defs.h"
+#include "config/avm_config.h"
 
 static const struct arg_enum_list test_decode_enum[] = {
   { "off", TEST_DECODE_OFF },
@@ -20,7 +21,11 @@ static const struct arg_enum_list test_decode_enum[] = {
 };
 
 static const struct arg_enum_list bitdepth_enum[] = {
-  { "8", AVM_BITS_8 }, { "10", AVM_BITS_10 }, { "12", AVM_BITS_12 }, { NULL, 0 }
+  { "8", AVM_BITS_8 }, { "10", AVM_BITS_10 },
+#if CONFIG_AVM_BITS_12
+  { "12", AVM_BITS_12 },
+#endif  // CONFIG_AVM_BITS_12
+  { NULL, 0 }
 };
 
 #if CONFIG_WEBM_IO
