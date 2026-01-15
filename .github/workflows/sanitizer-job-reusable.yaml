@@ -11,7 +11,7 @@ on:
         required: false
       container-image:
         type: string
-        default: docker-registry-internal.aom-infra.org/aomediacodec/aom-testing/ubuntu2404:lnicolas
+        default: docker-registry-internal.aom-infra.org/aomediacodec/aom-testing/ubuntu2404:20260116205104
         required: false
       max-total-shards:
         type: number
