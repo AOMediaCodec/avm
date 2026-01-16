@@ -204,7 +204,7 @@ jobs:
         if: ${{ always() }}
         with:
           name: unit-test-logs
-          path: example.test.*.log
+          path: unittest.*.log
 
       - name: Merge coverage GCDA into working directory
         run: |
