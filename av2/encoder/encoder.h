@@ -646,8 +646,14 @@ typedef struct {
   // Indicates if one-sided compound should be enabled.
   bool enable_onesided_comp;
   bool explicit_ref_frame_map;
+#if CONFIG_ISSUE1206_REVERT
+  // Indicates if SEFs with the display order hint derivation are added to
+  // ouptput hidden frames.
+  bool add_sef_for_hidden_frames;
+#else
   // Indicates if frame order derivation based on SEF is enabled.
   bool enable_generation_sef_obu;
+#endif
 } RefFrameCfg;
 
 typedef struct {

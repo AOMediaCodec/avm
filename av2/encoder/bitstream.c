@@ -7245,8 +7245,12 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
   if (cm->show_existing_frame) {
     obu_type =
         (cm->is_leading_picture == 1 ? OBU_LEADING_SEF : OBU_REGULAR_SEF);
-    cm->derive_sef_order_hint = 0;
+#if CONFIG_ISSUE1206_REVERT
+    if (!cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames)
+#endif
+      cm->derive_sef_order_hint = 0;
   }
+
   const int num_tiles = cm->tiles.cols * cm->tiles.rows;
   const int max_tg_num = AVMMIN(cpi->num_tg, num_tiles);
   const int num_tiles_per_tg = num_tiles / max_tg_num;
