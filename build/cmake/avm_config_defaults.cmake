@@ -133,6 +133,8 @@ set_avm_config_var(CONFIG_NN_V2 0 "Fully-connected neural nets ver.2.")
 set_avm_config_var(CONFIG_PARAKIT_COLLECT_DATA 0
                    "enables data collection for ParaKit training.")
 
+set_avm_config_var(CONFIG_IGNORE_RESERVED_OBU 1 "Ignore reserved OBU.")
+
 # AV2 experiment flags.
 set_avm_config_var(CONFIG_DIP_EXT_PRUNING 1 "AV2 DIP TFLite pruning.")
 

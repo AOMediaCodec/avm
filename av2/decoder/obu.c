@@ -1778,11 +1778,13 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         break;
       default:
         // Skip unrecognized OBUs
+#if !CONFIG_IGNORE_RESERVED_OBU
         if (payload_size > 0 &&
             get_last_nonzero_byte(data, payload_size) == 0) {
           cm->error.error_code = AVM_CODEC_CORRUPT_FRAME;
           return -1;
         }
+#endif  // !CONFIG_IGNORE_RESERVED_OBU
         decoded_payload_size = payload_size;
         break;
     }
