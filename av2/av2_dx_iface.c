@@ -606,6 +606,11 @@ static int check_random_access_frame_unit(struct AV2Decoder *pbi,
         (is_tu_head_non_vcl_obu(obu_header.type, obu_header.obu_xlayer_id));
   }
 
+  if (start_of_temporal_unit) {
+    printf("(%s) pbi->last_frame_unit.mlayer_id : %d\n", __func__,
+           pbi->last_frame_unit.mlayer_id);
+  }
+  pbi->is_random_access_frame_unit = 0;
   if (frame_unit_mlayer_id == pbi->dropped_mlayer_id) {
     // if the current frame unit is dropped
     pbi->is_random_access_frame_unit = 0;
@@ -627,11 +632,19 @@ static int check_random_access_frame_unit(struct AV2Decoder *pbi,
           frame_unit_mlayer_id < pbi->dropped_mlayer_id)
         pbi->is_random_access_frame_unit = has_seq_header;
       else if (pbi->last_frame_unit.mlayer_id == pbi->dropped_mlayer_id &&
-               pbi->last_frame_unit.is_key_frame_w_sh) {
+               pbi->last_frame_unit.is_key_frame_w_sh == 1) {
         pbi->is_random_access_frame_unit = 1;
       }
     }
   }
+#if 1
+  fprintf(stderr,
+          "(%s) has_keyframes : %d, has_seq_header: %d "
+          "is_random_access_frame_unit %d\n",
+          __func__, has_key_frames, has_seq_header,
+          pbi->is_random_access_frame_unit);
+#endif
+
   if (pbi->is_random_access_frame_unit) pbi->random_access_point_count++;
   int skip_decoding_frame_units = 0;
   if (pbi->random_access_point_count < pbi->random_access_point_index) {
@@ -674,6 +687,14 @@ static void set_last_frame_unit(struct AV2Decoder *pbi) {
   if (has_seq_header && (pbi->last_frame_unit.obu_type == OBU_CLK ||
                          pbi->last_frame_unit.obu_type == OBU_OLK))
     pbi->last_frame_unit.is_key_frame_w_sh = 1;
+  else
+    pbi->last_frame_unit.is_key_frame_w_sh = 0;
+
+#if 1
+  fprintf(stderr, "(%s) last_frame_unit.mlayer_id : %d is_key_frame_w_sh:%d\n",
+          __func__, pbi->last_frame_unit.mlayer_id,
+          pbi->last_frame_unit.is_key_frame_w_sh);
+#endif
 }
 static void reset_last_frame_unit(struct AV2Decoder *pbi, const uint8_t *data,
                                   uint64_t data_sz) {
@@ -701,6 +722,10 @@ static void reset_last_frame_unit(struct AV2Decoder *pbi, const uint8_t *data,
     memset(&pbi->last_frame_unit, -1, sizeof(pbi->last_frame_unit));
     memset(&pbi->last_displayable_frame_unit, -1,
            sizeof(pbi->last_displayable_frame_unit));
+#if 1
+    fprintf(stderr, "(%s) last_frame_unit.mlayer_id : %d\n", __func__,
+            pbi->last_frame_unit.mlayer_id);
+#endif
   }
 }
 
