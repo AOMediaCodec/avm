@@ -282,7 +282,10 @@ typedef struct {
   int tlayer_id;
   int xlayer_id;
   int is_vcl;
-  int is_key_frame_w_sh;
+  // is_key_frame_with_sh is 1 when obu_type is CLK/OLK and a sequence header is
+  // present in the frame unit. is_key_frame_with_sh is 0 when obu_type is not
+  // CLK/OLK or a sequence header is present in the frame unit.
+  int is_key_frame_with_sh;
 } obu_info;
 
 typedef struct AV2Decoder {
@@ -513,13 +516,14 @@ typedef struct AV2Decoder {
    */
   bool random_accessed;
   /*!
-   * An decoder option to start decoding from the random_access_point_index-th
+   * A decoder option to start decoding from the random_access_point_index-th
    * random access point
    */
   uint64_t random_access_point_index;
   /*!
    * Counts the number of random access points. It is increased by 1 at the
-   * first CLK/OLK of a temporal unit
+   * first CLK/OLK of a temporal unit. If a sequence header is not provided,
+   * CLK/OLK is not considered as a random access point.
    */
   uint64_t random_access_point_count;
   /*!
