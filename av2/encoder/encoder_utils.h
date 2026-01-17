@@ -155,13 +155,13 @@ static AVM_INLINE void init_buffer_indices(
       const uint16_t *src_ptr, int source_stride, const uint16_t *ref_ptr, \
       int ref_stride) {                                                    \
     return fnname(src_ptr, source_stride, ref_ptr, ref_stride) >> 2;       \
-  }                                                                        \
-  static unsigned int fnname##_bits12(                                     \
-      const uint16_t *src_ptr, int source_stride, const uint16_t *ref_ptr, \
-      int ref_stride) {                                                    \
-    return fnname(src_ptr, source_stride, ref_ptr, ref_stride) >> 4;       \
   }
-
+#if !CONFIG_REMOVE_SUPPORT_12BITS
+static unsigned int fnname##_bits12(const uint16_t *src_ptr, int source_stride,
+                                    const uint16_t *ref_ptr, int ref_stride) {
+  return fnname(src_ptr, source_stride, ref_ptr, ref_stride) >> 4;
+}
+#endif  // CONFIG_REMOVE_SUPPORT_12BITS
 #define MAKE_BFP_SADAVG_WRAPPER(fnname)                                        \
   static unsigned int fnname##_bits8(                                          \
       const uint16_t *src_ptr, int source_stride, const uint16_t *ref_ptr,     \
@@ -173,14 +173,14 @@ static AVM_INLINE void init_buffer_indices(
       int ref_stride, const uint16_t *second_pred) {                           \
     return fnname(src_ptr, source_stride, ref_ptr, ref_stride, second_pred) >> \
            2;                                                                  \
-  }                                                                            \
-  static unsigned int fnname##_bits12(                                         \
-      const uint16_t *src_ptr, int source_stride, const uint16_t *ref_ptr,     \
-      int ref_stride, const uint16_t *second_pred) {                           \
-    return fnname(src_ptr, source_stride, ref_ptr, ref_stride, second_pred) >> \
-           4;                                                                  \
   }
-
+#if !CONFIG_REMOVE_SUPPORT_12BITS
+static unsigned int fnname##_bits12(const uint16_t *src_ptr, int source_stride,
+                                    const uint16_t *ref_ptr, int ref_stride,
+                                    const uint16_t *second_pred) {
+  return fnname(src_ptr, source_stride, ref_ptr, ref_stride, second_pred) >> 4;
+}
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
 #define MAKE_BFP_SAD4D_WRAPPER(fnname)                                         \
   static void fnname##_bits8(const uint16_t *src_ptr, int source_stride,       \
                              const uint16_t *const ref_ptr[], int ref_stride,  \
@@ -193,14 +193,16 @@ static AVM_INLINE void init_buffer_indices(
     int i;                                                                     \
     fnname(src_ptr, source_stride, ref_ptr, ref_stride, sad_array);            \
     for (i = 0; i < 4; i++) sad_array[i] >>= 2;                                \
-  }                                                                            \
-  static void fnname##_bits12(const uint16_t *src_ptr, int source_stride,      \
-                              const uint16_t *const ref_ptr[], int ref_stride, \
-                              unsigned int *sad_array) {                       \
-    int i;                                                                     \
-    fnname(src_ptr, source_stride, ref_ptr, ref_stride, sad_array);            \
-    for (i = 0; i < 4; i++) sad_array[i] >>= 4;                                \
   }
+#if !CONFIG_REMOVE_SUPPORT_12BITS
+static void fnname##_bits12(const uint16_t *src_ptr, int source_stride,
+                            const uint16_t *const ref_ptr[], int ref_stride,
+                            unsigned int *sad_array) {
+  int i;
+  fnname(src_ptr, source_stride, ref_ptr, ref_stride, sad_array);
+  for (i = 0; i < 4; i++) sad_array[i] >>= 4;
+}
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
 
 #define MAKE_BFP_JSADAVG_WRAPPER(fnname)                                    \
   static unsigned int fnname##_bits8(                                       \
@@ -217,15 +219,17 @@ static AVM_INLINE void init_buffer_indices(
     return fnname(src_ptr, source_stride, ref_ptr, ref_stride, second_pred, \
                   jcp_param) >>                                             \
            2;                                                               \
-  }                                                                         \
-  static unsigned int fnname##_bits12(                                      \
-      const uint16_t *src_ptr, int source_stride, const uint16_t *ref_ptr,  \
-      int ref_stride, const uint16_t *second_pred,                          \
-      const DIST_WTD_COMP_PARAMS *jcp_param) {                              \
-    return fnname(src_ptr, source_stride, ref_ptr, ref_stride, second_pred, \
-                  jcp_param) >>                                             \
-           4;                                                               \
   }
+#if !CONFIG_REMOVE_SUPPORT_12BITS
+static unsigned int fnname##_bits12(const uint16_t *src_ptr, int source_stride,
+                                    const uint16_t *ref_ptr, int ref_stride,
+                                    const uint16_t *second_pred,
+                                    const DIST_WTD_COMP_PARAMS *jcp_param) {
+  return fnname(src_ptr, source_stride, ref_ptr, ref_stride, second_pred,
+                jcp_param) >>
+         4;
+}
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
 
 MAKE_BFP_SAD_WRAPPER(avm_highbd_sad256x256)
 MAKE_BFP_SADAVG_WRAPPER(avm_highbd_sad256x256_avg)
@@ -384,15 +388,18 @@ MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad32x4_avg)
     return fnname(src_ptr, source_stride, ref_ptr, ref_stride,             \
                   second_pred_ptr, m, m_stride, invert_mask) >>            \
            2;                                                              \
-  }                                                                        \
-  static unsigned int fnname##_bits12(                                     \
-      const uint16_t *src_ptr, int source_stride, const uint16_t *ref_ptr, \
-      int ref_stride, const uint16_t *second_pred_ptr, const uint8_t *m,   \
-      int m_stride, int invert_mask) {                                     \
-    return fnname(src_ptr, source_stride, ref_ptr, ref_stride,             \
-                  second_pred_ptr, m, m_stride, invert_mask) >>            \
-           4;                                                              \
   }
+#if !CONFIG_REMOVE_SUPPORT_12BITS
+static unsigned int fnname##_bits12(const uint16_t *src_ptr, int source_stride,
+                                    const uint16_t *ref_ptr, int ref_stride,
+                                    const uint16_t *second_pred_ptr,
+                                    const uint8_t *m, int m_stride,
+                                    int invert_mask) {
+  return fnname(src_ptr, source_stride, ref_ptr, ref_stride, second_pred_ptr, m,
+                m_stride, invert_mask) >>
+         4;
+}
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
 
 MAKE_MBFP_COMPOUND_SAD_WRAPPER(avm_highbd_masked_sad256x256)
 MAKE_MBFP_COMPOUND_SAD_WRAPPER(avm_highbd_masked_sad256x128)
@@ -443,11 +450,13 @@ MAKE_MBFP_COMPOUND_SAD_WRAPPER(avm_highbd_masked_sad32x4)
   static unsigned int fnname##_bits10(const uint16_t *src, int src_stride,   \
                                       const uint16_t *ref, int ref_stride) { \
     return fnname(src, src_stride, ref, ref_stride) >> 2;                    \
-  }                                                                          \
-  static unsigned int fnname##_bits12(const uint16_t *src, int src_stride,   \
-                                      const uint16_t *ref, int ref_stride) { \
-    return fnname(src, src_stride, ref, ref_stride) >> 4;                    \
   }
+#if !CONFIG_REMOVE_SUPPORT_12BITS
+static unsigned int fnname##_bits12(const uint16_t *src, int src_stride,
+                                    const uint16_t *ref, int ref_stride) {
+  return fnname(src, src_stride, ref, ref_stride) >> 4;
+}
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
 
 #define MAKE_SDSF_SKIP_SAD_4D_WRAPPER(fnname)                                  \
   static void fnname##_bits8(const uint16_t *src_ptr, int source_stride,       \
@@ -461,14 +470,16 @@ MAKE_MBFP_COMPOUND_SAD_WRAPPER(avm_highbd_masked_sad32x4)
     int i;                                                                     \
     fnname(src_ptr, source_stride, ref_ptr, ref_stride, sad_array);            \
     for (i = 0; i < 4; i++) sad_array[i] >>= 2;                                \
-  }                                                                            \
-  static void fnname##_bits12(const uint16_t *src_ptr, int source_stride,      \
-                              const uint16_t *const ref_ptr[], int ref_stride, \
-                              unsigned int *sad_array) {                       \
-    int i;                                                                     \
-    fnname(src_ptr, source_stride, ref_ptr, ref_stride, sad_array);            \
-    for (i = 0; i < 4; i++) sad_array[i] >>= 4;                                \
   }
+#if !CONFIG_REMOVE_SUPPORT_12BITS
+static void fnname##_bits12(const uint16_t *src_ptr, int source_stride,
+                            const uint16_t *const ref_ptr[], int ref_stride,
+                            unsigned int *sad_array) {
+  int i;
+  fnname(src_ptr, source_stride, ref_ptr, ref_stride, sad_array);
+  for (i = 0; i < 4; i++) sad_array[i] >>= 4;
+}
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
 
 MAKE_SDSF_SKIP_SAD_WRAPPER(avm_highbd_sad_skip_256x256)
 MAKE_SDSF_SKIP_SAD_WRAPPER(avm_highbd_sad_skip_256x128)
@@ -719,6 +730,7 @@ static AVM_INLINE void highbd_set_var_fns(AV2_COMP *const cpi) {
       HIGHBD_SDSFP_WRAPPER(4, 64, 10)
       break;
 
+#if !CONFIG_REMOVE_SUPPORT_12BITS
     case AVM_BITS_12:
       HIGHBD_BFP_WRAPPER(64, 16, 12)
       HIGHBD_BFP_WRAPPER(16, 64, 12)
@@ -812,11 +824,17 @@ static AVM_INLINE void highbd_set_var_fns(AV2_COMP *const cpi) {
       HIGHBD_SDSFP_WRAPPER(64, 4, 12)
       HIGHBD_SDSFP_WRAPPER(4, 64, 12)
       break;
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
 
     default:
       assert(0 &&
-             "cm->seq_params.bit_depth should be AVM_BITS_8, "
-             "AVM_BITS_10 or AVM_BITS_12");
+             "cm->seq_params.bit_depth should be AVM_BITS_8"
+#if !CONFIG_REMOVE_SUPPORT_12BITS
+             ", AVM_BITS_10 or AVM_BITS_12"
+#else
+             " or AVM_BITS_10"
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
+      );
   }
 }
 

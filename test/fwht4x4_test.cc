@@ -50,9 +50,11 @@ void iwht4x4_10(const tran_low_t *in, uint16_t *out, int stride) {
   av2_highbd_iwht4x4_16_add_c(in, out, stride, 10);
 }
 
+#if !CONFIG_REMOVE_SUPPORT_12BITS
 void iwht4x4_12(const tran_low_t *in, uint16_t *out, int stride) {
   av2_highbd_iwht4x4_16_add_c(in, out, stride, 12);
 }
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
 
 class Trans4x4WHT : public libavm_test::TransformTestBase<tran_low_t>,
                     public ::testing::TestWithParam<Dct4x4Param> {
@@ -175,18 +177,25 @@ using std::make_tuple;
 INSTANTIATE_TEST_SUITE_P(
     C, Trans4x4WHT,
     ::testing::Values(make_tuple(&av2_highbd_fwht4x4_c, &iwht4x4_10, DCT_DCT,
-                                 AVM_BITS_10, 16, static_cast<FdctFunc>(NULL)),
+                                 AVM_BITS_10, 16, static_cast<FdctFunc>(NULL))
+#if !CONFIG_REMOVE_SUPPORT_12BITS
+                          ,
                       make_tuple(&av2_highbd_fwht4x4_c, &iwht4x4_12, DCT_DCT,
-                                 AVM_BITS_12, 16,
-                                 static_cast<FdctFunc>(NULL))));
+                                 AVM_BITS_12, 16, static_cast<FdctFunc>(NULL))
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
+                          ));
 #if HAVE_NEON
 
 INSTANTIATE_TEST_SUITE_P(
     NEON, Trans4x4WHT,
     ::testing::Values(make_tuple(&av2_highbd_fwht4x4_neon, &iwht4x4_10, DCT_DCT,
-                                 AVM_BITS_10, 16, &av2_highbd_fwht4x4_c),
+                                 AVM_BITS_10, 16, &av2_highbd_fwht4x4_c)
+#if !CONFIG_REMOVE_SUPPORT_12BITS
+                          ,
                       make_tuple(&av2_highbd_fwht4x4_neon, &iwht4x4_12, DCT_DCT,
-                                 AVM_BITS_12, 16, &av2_highbd_fwht4x4_c)));
+                                 AVM_BITS_12, 16, &av2_highbd_fwht4x4_c)
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
+                          ));
 
 #endif  // HAVE_NEON
 

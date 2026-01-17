@@ -47,10 +47,12 @@ static const int qindex_10b_offset[] = {
   0,
   48,
 };
+#if !CONFIG_REMOVE_SUPPORT_12BITS
 static const int qindex_12b_offset[] = {
   0,
   96,
 };
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
 
 // The QUANTS structure is used only for internal quantizer setup in
 // av2_quantize.c.

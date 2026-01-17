@@ -321,7 +321,9 @@ typedef struct avm_codec_ctx {
 typedef enum avm_bit_depth {
   AVM_BITS_8 = 8,   /**<  8 bits */
   AVM_BITS_10 = 10, /**< 10 bits */
+#if !CONFIG_REMOVE_SUPPORT_12BITS
   AVM_BITS_12 = 12, /**< 12 bits */
+#endif              // !CONFIG_REMOVE_SUPPORT_12BITS
 } avm_bit_depth_t;
 
 /*!\brief Bit depth index
@@ -329,10 +331,14 @@ typedef enum avm_bit_depth {
  * The index correponds with each bitepth
  */
 enum {
-  AVM_BITDEPTH_0 = 0,        /**< 10 bits */
-  AVM_BITDEPTH_1 = 1,        /**< 8 bits */
+  AVM_BITDEPTH_0 = 0, /**< 10 bits */
+  AVM_BITDEPTH_1 = 1, /**< 8 bits */
+#if !CONFIG_REMOVE_SUPPORT_12BITS
   AVM_BITDEPTH_2 = 2,        /**< 12 bits */
   AVM_NUM_SUPPORTED_BITDEPTH /**<number of supported bitdepth>*/
+#else
+  AVM_NUM_SUPPORTED_BITDEPTH = 2 /**<number of supported bitdepth>*/
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
 };
 
 /*!\brief Return the bitdepth

@@ -91,8 +91,12 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(::testing::Values(&av2_lossless_fwd_idtx_c),
                        ::testing::Values(&av2_lossless_inv_idtx_add_c),
                        ::testing::ValuesIn(kTxSizes),
-                       ::testing::Values(AVM_BITS_8, AVM_BITS_10,
-                                         AVM_BITS_12)));
+                       ::testing::Values(AVM_BITS_8, AVM_BITS_10
+#if !CONFIG_REMOVE_SUPPORT_12BITS
+                                         ,
+                                         AVM_BITS_12
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
+                                         )));
 
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
@@ -100,7 +104,11 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(::testing::Values(&av2_lossless_fwd_idtx_avx2),
                        ::testing::Values(&av2_lossless_inv_idtx_add_avx2),
                        ::testing::ValuesIn(kTxSizes),
-                       ::testing::Values(AVM_BITS_8, AVM_BITS_10,
-                                         AVM_BITS_12)));
+                       ::testing::Values(AVM_BITS_8, AVM_BITS_10
+#if !CONFIG_REMOVE_SUPPORT_12BITS
+                                         ,
+                                         AVM_BITS_12
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
+                                         )));
 #endif  // HAVE_AVX2
 }  // namespace

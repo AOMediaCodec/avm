@@ -191,6 +191,7 @@ int32_t av2_dc_quant_QTX(int qindex, int delta, int base_dc_delta_q,
         }
         return 4 * Q;
       }
+#if !CONFIG_REMOVE_SUPPORT_12BITS
       case AVM_BITS_12: {
         int32_t Q;
         if ((q_clamped - qindex_offset) < 25) {
@@ -202,9 +203,16 @@ int32_t av2_dc_quant_QTX(int qindex, int delta, int base_dc_delta_q,
         }
         return 16 * Q;
       }
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
       default:
         assert(0 &&
-               "bit_depth should be AVM_BITS_8, AVM_BITS_10 or AVM_BITS_12");
+               "bit_depth should be AVM_BITS_8"
+#if !CONFIG_REMOVE_SUPPORT_12BITS
+               ", AVM_BITS_10 or AVM_BITS_12"
+#else
+               " or AVM_BITS_10"
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
+        );
         return -1;
     }
   } else {
@@ -252,6 +260,7 @@ int32_t av2_ac_quant_QTX(int qindex, int delta, int base_ac_delta_q,
         }
         return 4 * Q;
       }
+#if !CONFIG_REMOVE_SUPPORT_12BITS
       case AVM_BITS_12: {
         int32_t Q;
         if ((q_clamped - qindex_offset) < 25) {
@@ -263,9 +272,16 @@ int32_t av2_ac_quant_QTX(int qindex, int delta, int base_ac_delta_q,
         }
         return 16 * Q;
       }
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
       default:
         assert(0 &&
-               "bit_depth should be AVM_BITS_8, AVM_BITS_10 or AVM_BITS_12");
+               "bit_depth should be AVM_BITS_8"
+#if !CONFIG_REMOVE_SUPPORT_12BITS
+               ", AVM_BITS_10 or AVM_BITS_12"
+#else
+               " or AVM_BITS_10"
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
+        );
         return -1;
     }
   } else {

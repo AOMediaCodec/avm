@@ -720,11 +720,20 @@ static int get_qstep(int base_qindex, int qindex_offset, int bit_depth,
     case AVM_BITS_10:
       *shift = 4 + base_shift;
       return av2_ac_quant_QTX(base_qindex, qindex_offset, 0, bit_depth);
+#if !CONFIG_REMOVE_SUPPORT_12BITS
     case AVM_BITS_12:
       *shift = 6 + base_shift;
       return av2_ac_quant_QTX(base_qindex, qindex_offset, 0, bit_depth);
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
     default:
-      assert(0 && "bit_depth should be AVM_BITS_8, AVM_BITS_10 or AVM_BITS_12");
+      assert(0 &&
+             "bit_depth should be AVM_BITS_8"
+#if !CONFIG_REMOVE_SUPPORT_12BITS
+             ", AVM_BITS_10 or AVM_BITS_12"
+#else
+             " or AVM_BITS_10"
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
+      );
       return -1;
   }
 }

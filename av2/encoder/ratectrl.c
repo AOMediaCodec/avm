@@ -47,6 +47,18 @@
 #define MAX_BPB_FACTOR 50
 
 #define FRAME_OVERHEAD_BITS 200
+#if CONFIG_REMOVE_SUPPORT_12BITS
+#define ASSIGN_MINQ_TABLE(bit_depth, name)                            \
+  do {                                                                \
+    switch (bit_depth) {                                              \
+      case AVM_BITS_8: name = name##_8; break;                        \
+      case AVM_BITS_10: name = name##_10; break;                      \
+      default:                                                        \
+        assert(0 && "bit_depth should be AVM_BITS_8 or AVM_BITS_10"); \
+        name = NULL;                                                  \
+    }                                                                 \
+  } while (0)
+#else
 #define ASSIGN_MINQ_TABLE(bit_depth, name)                   \
   do {                                                       \
     switch (bit_depth) {                                     \
@@ -60,6 +72,7 @@
         name = NULL;                                         \
     }                                                        \
   } while (0)
+#endif  // CONFIG_REMOVE_SUPPORT_12BITS
 
 // Tables relating active max Q to active min Q
 static int kf_low_motion_minq_8[QINDEX_RANGE];
@@ -79,6 +92,7 @@ static int arfgf_ld_low_motion_minq_10[QINDEX_RANGE];
 static int arfgf_ld_high_motion_minq_10[QINDEX_RANGE];
 static int inter_minq_10[QINDEX_RANGE];
 static int rtc_minq_10[QINDEX_RANGE];
+#if !CONFIG_REMOVE_SUPPORT_12BITS
 static int kf_low_motion_minq_12[QINDEX_RANGE];
 static int kf_high_motion_minq_12[QINDEX_RANGE];
 static int arfgf_low_motion_minq_12[QINDEX_RANGE];
@@ -87,7 +101,7 @@ static int arfgf_ld_low_motion_minq_12[QINDEX_RANGE];
 static int arfgf_ld_high_motion_minq_12[QINDEX_RANGE];
 static int inter_minq_12[QINDEX_RANGE];
 static int rtc_minq_12[QINDEX_RANGE];
-
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
 static int gf_high = 2400;
 static int gf_low = 300;
 #ifdef STRICT_RC
@@ -160,10 +174,12 @@ void av2_rc_init_minq_luts(void) {
                  arfgf_low_motion_minq_10, arfgf_high_motion_minq_10,
                  arfgf_ld_low_motion_minq_10, arfgf_ld_high_motion_minq_10,
                  inter_minq_10, rtc_minq_10, AVM_BITS_10);
+#if !CONFIG_REMOVE_SUPPORT_12BITS
   init_minq_luts(kf_low_motion_minq_12, kf_high_motion_minq_12,
                  arfgf_low_motion_minq_12, arfgf_high_motion_minq_12,
                  arfgf_ld_low_motion_minq_12, arfgf_ld_high_motion_minq_12,
                  inter_minq_12, rtc_minq_12, AVM_BITS_12);
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
 }
 
 // These functions use formulaic calculations to make playing with the
@@ -180,12 +196,21 @@ double av2_convert_qindex_to_q(int qindex, avm_bit_depth_t bit_depth) {
     case AVM_BITS_10:
       return av2_ac_quant_QTX(qindex, 0, 0, bit_depth) /
              (32.0 * (1 << QUANT_TABLE_BITS));
+#if !CONFIG_REMOVE_SUPPORT_12BITS
     case AVM_BITS_12:
       return av2_ac_quant_QTX(qindex, 0, 0, bit_depth) /
              (128.0 * (1 << QUANT_TABLE_BITS));
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
 
     default:
-      assert(0 && "bit_depth should be AVM_BITS_8, AVM_BITS_10 or AVM_BITS_12");
+      assert(0 &&
+             "bit_depth should be AVM_BITS_8"
+#if !CONFIG_REMOVE_SUPPORT_12BITS
+             ", AVM_BITS_10 or AVM_BITS_12"
+#else
+             " or AVM_BITS_10"
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
+      );
       return -1.0;
   }
 }

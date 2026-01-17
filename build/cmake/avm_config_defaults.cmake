@@ -147,6 +147,9 @@ set_avm_config_var(
 # This is an encode-only change.
 set_avm_config_var(CONFIG_ML_PART_SPLIT 1
                    "Partition SPLIT pruning/forcing as predicted by ML.")
+# Remove 12-bit support
+set_avm_config_var(CONFIG_REMOVE_SUPPORT_12BITS 1
+                   "Remove 12-bit depth support from codec.")
 
 set_avm_config_var(
   CONFIG_MIXED_LOSSLESS_ENCODE 0

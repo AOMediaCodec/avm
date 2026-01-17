@@ -639,7 +639,9 @@ int av2_ml_part_split_infer(AV2_COMP *const cpi, MACROBLOCK *x, int mi_row,
   int qp_offset;
   switch (cm->seq_params.bit_depth) {
     case AVM_BITS_10: qp_offset = qindex_10b_offset[1]; break;
+#if !CONFIG_REMOVE_SUPPORT_12BITS
     case AVM_BITS_12: qp_offset = qindex_12b_offset[1]; break;
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
     default: qp_offset = 0; break;
   }
 

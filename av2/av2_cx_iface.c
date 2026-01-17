@@ -651,8 +651,13 @@ static avm_codec_err_t validate_config(avm_codec_alg_priv_t *ctx,
   RANGE_CHECK(cfg, g_timebase.num, 1, cfg->g_timebase.den);
   RANGE_CHECK_HI(cfg, g_profile, MAX_PROFILES - 1);
 
+#if !CONFIG_REMOVE_SUPPORT_12BITS
   RANGE_CHECK(cfg, g_bit_depth, AVM_BITS_8, AVM_BITS_12);
   RANGE_CHECK(cfg, g_input_bit_depth, AVM_BITS_8, AVM_BITS_12);
+#else
+  RANGE_CHECK(cfg, g_bit_depth, AVM_BITS_8, AVM_BITS_10);
+  RANGE_CHECK(cfg, g_input_bit_depth, AVM_BITS_8, AVM_BITS_10);
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
 
   const int min_quantizer =
       (-(int)(cfg->g_bit_depth - AVM_BITS_8) * MAXQ_OFFSET);

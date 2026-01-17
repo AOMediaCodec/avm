@@ -370,11 +370,18 @@ static int firstpass_intra_prediction(
   switch (seq_params->bit_depth) {
     case AVM_BITS_8: break;
     case AVM_BITS_10: this_intra_error >>= 4; break;
+#if !CONFIG_REMOVE_SUPPORT_12BITS
     case AVM_BITS_12: this_intra_error >>= 8; break;
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
     default:
       assert(0 &&
-             "seq_params->bit_depth should be AVM_BITS_8, "
-             "AVM_BITS_10 or AVM_BITS_12");
+             "seq_params->bit_depth should be AVM_BITS_8"
+#if !CONFIG_REMOVE_SUPPORT_12BITS
+             ", AVM_BITS_10 or AVM_BITS_12"
+#else
+             " or AVM_BITS_10"
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
+      );
       return -1;
   }
 
@@ -398,11 +405,18 @@ static int firstpass_intra_prediction(
   switch (seq_params->bit_depth) {
     case AVM_BITS_8: break;
     case AVM_BITS_10: level_sample >>= 2; break;
+#if !CONFIG_REMOVE_SUPPORT_12BITS
     case AVM_BITS_12: level_sample >>= 4; break;
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
     default:
       assert(0 &&
-             "seq_params->bit_depth should be AVM_BITS_8, "
-             "AVM_BITS_10 or AVM_BITS_12");
+             "seq_params->bit_depth should be AVM_BITS_8"
+#if !CONFIG_REMOVE_SUPPORT_12BITS
+             ", AVM_BITS_10 or AVM_BITS_12"
+#else
+             " or AVM_BITS_10"
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
+      );
       return -1;
   }
   if ((level_sample < DARK_THRESH) && (log_intra < 9.0)) {

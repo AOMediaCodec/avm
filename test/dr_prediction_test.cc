@@ -312,29 +312,39 @@ INSTANTIATE_TEST_SUITE_P(
                                NULL, AVM_BITS_8, kZ1Start),
         DrPredFunc<DrPred_Hbd>(&z1_wrapper_hbd<av2_highbd_dr_prediction_z1_c>,
                                NULL, AVM_BITS_10, kZ1Start),
+#if !CONFIG_REMOVE_SUPPORT_12BITS
         DrPredFunc<DrPred_Hbd>(&z1_wrapper_hbd<av2_highbd_dr_prediction_z1_c>,
                                NULL, AVM_BITS_12, kZ1Start),
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
         DrPredFunc<DrPred_Hbd>(&z2_wrapper_hbd<av2_highbd_dr_prediction_z2_c>,
                                NULL, AVM_BITS_8, kZ2Start),
         DrPredFunc<DrPred_Hbd>(&z2_wrapper_hbd<av2_highbd_dr_prediction_z2_c>,
                                NULL, AVM_BITS_10, kZ2Start),
+#if !CONFIG_REMOVE_SUPPORT_12BITS
         DrPredFunc<DrPred_Hbd>(&z2_wrapper_hbd<av2_highbd_dr_prediction_z2_c>,
                                NULL, AVM_BITS_12, kZ2Start),
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
         DrPredFunc<DrPred_Hbd>(&z3_wrapper_hbd<av2_highbd_dr_prediction_z3_c>,
                                NULL, AVM_BITS_8, kZ3Start),
         DrPredFunc<DrPred_Hbd>(&z3_wrapper_hbd<av2_highbd_dr_prediction_z3_c>,
                                NULL, AVM_BITS_10, kZ3Start),
+#if !CONFIG_REMOVE_SUPPORT_12BITS
         DrPredFunc<DrPred_Hbd>(&z3_wrapper_hbd<av2_highbd_dr_prediction_z3_c>,
                                NULL, AVM_BITS_12, kZ3Start),
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
         DrPredFunc<DrPred_Hbd>(
             &z3_idif_wrapper_hbd<av2_highbd_dr_prediction_z3_idif_c>, NULL,
             AVM_BITS_8, kZ3Start),
         DrPredFunc<DrPred_Hbd>(
             &z3_idif_wrapper_hbd<av2_highbd_dr_prediction_z3_idif_c>, NULL,
-            AVM_BITS_10, kZ3Start),
+            AVM_BITS_10, kZ3Start)
+#if !CONFIG_REMOVE_SUPPORT_12BITS
+            ,
         DrPredFunc<DrPred_Hbd>(
             &z3_idif_wrapper_hbd<av2_highbd_dr_prediction_z3_idif_c>, NULL,
-            AVM_BITS_12, kZ3Start)));
+            AVM_BITS_12, kZ3Start)
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
+            ));
 
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
@@ -348,10 +358,12 @@ INSTANTIATE_TEST_SUITE_P(
             &z1_wrapper_hbd<av2_highbd_dr_prediction_z1_c>,
             &z1_wrapper_hbd<av2_highbd_dr_prediction_z1_avx2>, AVM_BITS_10,
             kZ1Start),
+#if !CONFIG_REMOVE_SUPPORT_12BITS
         DrPredFunc<DrPred_Hbd>(
             &z1_wrapper_hbd<av2_highbd_dr_prediction_z1_c>,
             &z1_wrapper_hbd<av2_highbd_dr_prediction_z1_avx2>, AVM_BITS_12,
             kZ1Start),
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
         DrPredFunc<DrPred_Hbd>(
             &z2_wrapper_hbd<av2_highbd_dr_prediction_z2_c>,
             &z2_wrapper_hbd<av2_highbd_dr_prediction_z2_avx2>, AVM_BITS_8,
@@ -360,10 +372,12 @@ INSTANTIATE_TEST_SUITE_P(
             &z2_wrapper_hbd<av2_highbd_dr_prediction_z2_c>,
             &z2_wrapper_hbd<av2_highbd_dr_prediction_z2_avx2>, AVM_BITS_10,
             kZ2Start),
+#if !CONFIG_REMOVE_SUPPORT_12BITS
         DrPredFunc<DrPred_Hbd>(
             &z2_wrapper_hbd<av2_highbd_dr_prediction_z2_c>,
             &z2_wrapper_hbd<av2_highbd_dr_prediction_z2_avx2>, AVM_BITS_12,
             kZ2Start),
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
         DrPredFunc<DrPred_Hbd>(
             &z3_wrapper_hbd<av2_highbd_dr_prediction_z3_c>,
             &z3_wrapper_hbd<av2_highbd_dr_prediction_z3_avx2>, AVM_BITS_8,
@@ -372,10 +386,12 @@ INSTANTIATE_TEST_SUITE_P(
             &z3_wrapper_hbd<av2_highbd_dr_prediction_z3_c>,
             &z3_wrapper_hbd<av2_highbd_dr_prediction_z3_avx2>, AVM_BITS_10,
             kZ3Start),
+#if !CONFIG_REMOVE_SUPPORT_12BITS
         DrPredFunc<DrPred_Hbd>(
             &z3_wrapper_hbd<av2_highbd_dr_prediction_z3_c>,
             &z3_wrapper_hbd<av2_highbd_dr_prediction_z3_avx2>, AVM_BITS_12,
             kZ3Start),
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
         DrPredFunc<DrPred_Hbd>(
             &z3_idif_wrapper_hbd<av2_highbd_dr_prediction_z3_idif_c>,
             &z3_idif_wrapper_hbd<av2_highbd_dr_prediction_z3_idif_avx2>,
@@ -383,11 +399,15 @@ INSTANTIATE_TEST_SUITE_P(
         DrPredFunc<DrPred_Hbd>(
             &z3_idif_wrapper_hbd<av2_highbd_dr_prediction_z3_idif_c>,
             &z3_idif_wrapper_hbd<av2_highbd_dr_prediction_z3_idif_avx2>,
-            AVM_BITS_10, kZ3Start),
+            AVM_BITS_10, kZ3Start)
+#if !CONFIG_REMOVE_SUPPORT_12BITS
+            ,
         DrPredFunc<DrPred_Hbd>(
             &z3_idif_wrapper_hbd<av2_highbd_dr_prediction_z3_idif_c>,
             &z3_idif_wrapper_hbd<av2_highbd_dr_prediction_z3_idif_avx2>,
-            AVM_BITS_12, kZ3Start)));
+            AVM_BITS_12, kZ3Start)
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
+            ));
 
 TEST_P(HighbdDrPredTest, DISABLED_Speed) {
   const int angles[] = { 3, 45, 87 };

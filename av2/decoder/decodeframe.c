@@ -5751,7 +5751,10 @@ static AVM_INLINE void error_handler(void *data, avm_codec_err_t error,
 // the bitdepth list.
 int av2_get_bitdepth_from_index(uint32_t bitdepth_lut_idx) {
   static avm_bit_depth_t bitdepth_list[] = { AVM_BITS_10, AVM_BITS_8,
-                                             AVM_BITS_12 };
+#if !CONFIG_REMOVE_SUPPORT_12BITS
+                                             AVM_BITS_12
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
+  };
   if (bitdepth_lut_idx >= AVM_NUM_SUPPORTED_BITDEPTH) return -1;
   return bitdepth_list[bitdepth_lut_idx];
 }

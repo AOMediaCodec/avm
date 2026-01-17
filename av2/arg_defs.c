@@ -19,9 +19,12 @@ static const struct arg_enum_list test_decode_enum[] = {
   { NULL, 0 }
 };
 
-static const struct arg_enum_list bitdepth_enum[] = {
-  { "8", AVM_BITS_8 }, { "10", AVM_BITS_10 }, { "12", AVM_BITS_12 }, { NULL, 0 }
-};
+static const struct arg_enum_list bitdepth_enum[] = { { "8", AVM_BITS_8 },
+                                                      { "10", AVM_BITS_10 },
+#if !CONFIG_REMOVE_SUPPORT_12BITS
+                                                      { "12", AVM_BITS_12 },
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
+                                                      { NULL, 0 } };
 
 #if CONFIG_WEBM_IO
 static const struct arg_enum_list stereo_mode_enum[] = {

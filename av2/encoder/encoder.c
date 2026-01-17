@@ -886,13 +886,17 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
       seq_params->subsampling_x = 0;
       seq_params->subsampling_y = 0;
     } else {
+#if !CONFIG_REMOVE_SUPPORT_12BITS
       if (seq_params->bit_depth == AVM_BITS_12) {
         seq_params->subsampling_x = oxcf->input_cfg.chroma_subsampling_x;
         seq_params->subsampling_y = oxcf->input_cfg.chroma_subsampling_y;
       } else {
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
         seq_params->subsampling_x = 1;
         seq_params->subsampling_y = 0;
+#if !CONFIG_REMOVE_SUPPORT_12BITS
       }
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
     }
   }
 

@@ -261,6 +261,7 @@ static int read_lcr_global_info(struct AV2Decoder *pbi,
   }
 
   lcr_params->lcr_global_config_record_id = lcr_global_config_record_id;
+
   lcr_params->lcr_max_num_extended_layers_minus_1 =
       avm_rb_read_literal(rb, XLAYER_BITS);
   lcr_params->lcr_max_profile_tier_level_info_present_flag =
@@ -296,6 +297,7 @@ static int read_lcr_global_info(struct AV2Decoder *pbi,
       lcr_params->lcr_data_size[i] = avm_rb_read_uleb(rb);
     read_lcr_global_payload(pbi, lcr_params, i, rb);
   }
+
   lcr_params->is_local_lcr = 0;
   lcr_params->xlayer_id = GLOBAL_XLAYER_ID;
   // NOTE: lcr_params->lcr_xLayer_id indicates the corresponding extended layer

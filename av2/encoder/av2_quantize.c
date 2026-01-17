@@ -288,11 +288,20 @@ static int get_qzbin_factor(int q, int base_y_dc_delta_q,
       return q == 0 ? 64 : (quant < (148 << QUANT_TABLE_BITS) ? 84 : 80);
     case AVM_BITS_10:
       return q == 0 ? 64 : (quant < (592 << QUANT_TABLE_BITS) ? 84 : 80);
+#if !CONFIG_REMOVE_SUPPORT_12BITS
     case AVM_BITS_12:
       return q == 0 ? 64 : (quant < (2368 << QUANT_TABLE_BITS) ? 84 : 80);
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
 
     default:
-      assert(0 && "bit_depth should be AVM_BITS_8, AVM_BITS_10 or AVM_BITS_12");
+      assert(0 &&
+             "bit_depth should be AVM_BITS_8"
+#if !CONFIG_REMOVE_SUPPORT_12BITS
+             ", AVM_BITS_10 or AVM_BITS_12"
+#else
+             " or AVM_BITS_10"
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
+      );
       return -1;
   }
 }
@@ -669,11 +678,20 @@ int av2_quantizer_to_qindex(int quantizer, avm_bit_depth_t bit_depth) {
     case AVM_BITS_10:
       return (quantizer_to_qindex[quantizer] +
               qindex_10b_offset[quantizer != 0]);
+#if !CONFIG_REMOVE_SUPPORT_12BITS
     case AVM_BITS_12:
       return (quantizer_to_qindex[quantizer] +
               qindex_12b_offset[quantizer != 0]);
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
     default:
-      assert(0 && "bit_depth should be AVM_BITS_8, AVM_BITS_10 or AVM_BITS_12");
+      assert(0 &&
+             "bit_depth should be AVM_BITS_8"
+#if !CONFIG_REMOVE_SUPPORT_12BITS
+             ", AVM_BITS_10 or AVM_BITS_12"
+#else
+             " or AVM_BITS_10"
+#endif  // !CONFIG_REMOVE_SUPPORT_12BITS
+      );
       return -1;
   }
 }
