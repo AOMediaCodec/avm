@@ -337,10 +337,14 @@ INSTANTIATE_TEST_SUITE_P(
             AVM_BITS_8, kZ3Start),
         DrPredFunc<DrPred_Hbd>(
             &z3_idif_wrapper_hbd<av2_highbd_dr_prediction_z3_idif_c>, NULL,
-            AVM_BITS_10, kZ3Start),
+            AVM_BITS_10, kZ3Start)
+#if CONFIG_AVM_BITS_12
+            ,
         DrPredFunc<DrPred_Hbd>(
             &z3_idif_wrapper_hbd<av2_highbd_dr_prediction_z3_idif_c>, NULL,
-            AVM_BITS_12, kZ3Start)));
+            AVM_BITS_12, kZ3Start)
+#endif  // CONFIG_AVM_BITS_12
+            ));
 
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(

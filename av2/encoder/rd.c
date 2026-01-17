@@ -631,7 +631,9 @@ void av2_fill_lr_rates(ModeCosts *mode_costs, FRAME_CONTEXT *fc) {
 // Values are now correlated to quantizer.
 static int sad_per_bit_lut_8[QINDEX_RANGE];
 static int sad_per_bit_lut_10[QINDEX_RANGE];
+#if CONFIG_AVM_BITS_12
 static int sad_per_bit_lut_12[QINDEX_RANGE];
+#endif  // CONFIG_AVM_BITS_12
 
 static void init_me_luts_bd(int *bit16lut, int range,
                             avm_bit_depth_t bit_depth) {

@@ -18,6 +18,7 @@
 
 #include "av2/encoder/encoder.h"
 #include "av2/encoder/encodetxb.h"
+#include "config/avm_config.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -156,11 +157,11 @@ static AVM_INLINE void init_buffer_indices(
       int ref_stride) {                                                    \
     return fnname(src_ptr, source_stride, ref_ptr, ref_stride) >> 2;       \
   }                                                                        \
-  static unsigned int fnname##_bits12(                                     \
+  /*static unsigned int fnname##_bits12(                                   \
       const uint16_t *src_ptr, int source_stride, const uint16_t *ref_ptr, \
       int ref_stride) {                                                    \
     return fnname(src_ptr, source_stride, ref_ptr, ref_stride) >> 4;       \
-  }
+  }*/
 
 #define MAKE_BFP_SADAVG_WRAPPER(fnname)                                        \
   static unsigned int fnname##_bits8(                                          \
@@ -174,12 +175,13 @@ static AVM_INLINE void init_buffer_indices(
     return fnname(src_ptr, source_stride, ref_ptr, ref_stride, second_pred) >> \
            2;                                                                  \
   }                                                                            \
-  static unsigned int fnname##_bits12(                                         \
-      const uint16_t *src_ptr, int source_stride, const uint16_t *ref_ptr,     \
-      int ref_stride, const uint16_t *second_pred) {                           \
-    return fnname(src_ptr, source_stride, ref_ptr, ref_stride, second_pred) >> \
-           4;                                                                  \
-  }
+  /*                                                                           \
+    static unsigned int fnname##_bits12(                                       \
+        const uint16_t *src_ptr, int source_stride, const uint16_t *ref_ptr,   \
+        int ref_stride, const uint16_t *second_pred) {                         \
+      return fnname(src_ptr, source_stride, ref_ptr, ref_stride, second_pred)  \
+    >> 4;                                                                            \
+    }*/
 
 #define MAKE_BFP_SAD4D_WRAPPER(fnname)                                         \
   static void fnname##_bits8(const uint16_t *src_ptr, int source_stride,       \
@@ -194,38 +196,40 @@ static AVM_INLINE void init_buffer_indices(
     fnname(src_ptr, source_stride, ref_ptr, ref_stride, sad_array);            \
     for (i = 0; i < 4; i++) sad_array[i] >>= 2;                                \
   }                                                                            \
-  static void fnname##_bits12(const uint16_t *src_ptr, int source_stride,      \
+  /*static void fnname##_bits12(const uint16_t *src_ptr, int source_stride,    \
                               const uint16_t *const ref_ptr[], int ref_stride, \
                               unsigned int *sad_array) {                       \
     int i;                                                                     \
     fnname(src_ptr, source_stride, ref_ptr, ref_stride, sad_array);            \
     for (i = 0; i < 4; i++) sad_array[i] >>= 4;                                \
-  }
+  }*/
 
-#define MAKE_BFP_JSADAVG_WRAPPER(fnname)                                    \
-  static unsigned int fnname##_bits8(                                       \
-      const uint16_t *src_ptr, int source_stride, const uint16_t *ref_ptr,  \
-      int ref_stride, const uint16_t *second_pred,                          \
-      const DIST_WTD_COMP_PARAMS *jcp_param) {                              \
-    return fnname(src_ptr, source_stride, ref_ptr, ref_stride, second_pred, \
-                  jcp_param);                                               \
-  }                                                                         \
-  static unsigned int fnname##_bits10(                                      \
-      const uint16_t *src_ptr, int source_stride, const uint16_t *ref_ptr,  \
-      int ref_stride, const uint16_t *second_pred,                          \
-      const DIST_WTD_COMP_PARAMS *jcp_param) {                              \
-    return fnname(src_ptr, source_stride, ref_ptr, ref_stride, second_pred, \
-                  jcp_param) >>                                             \
-           2;                                                               \
-  }                                                                         \
-  static unsigned int fnname##_bits12(                                      \
-      const uint16_t *src_ptr, int source_stride, const uint16_t *ref_ptr,  \
-      int ref_stride, const uint16_t *second_pred,                          \
-      const DIST_WTD_COMP_PARAMS *jcp_param) {                              \
-    return fnname(src_ptr, source_stride, ref_ptr, ref_stride, second_pred, \
-                  jcp_param) >>                                             \
-           4;                                                               \
-  }
+#define MAKE_BFP_JSADAVG_WRAPPER(fnname)                                      \
+  static unsigned int fnname##_bits8(                                         \
+      const uint16_t *src_ptr, int source_stride, const uint16_t *ref_ptr,    \
+      int ref_stride, const uint16_t *second_pred,                            \
+      const DIST_WTD_COMP_PARAMS *jcp_param) {                                \
+    return fnname(src_ptr, source_stride, ref_ptr, ref_stride, second_pred,   \
+                  jcp_param);                                                 \
+  }                                                                           \
+  static unsigned int fnname##_bits10(                                        \
+      const uint16_t *src_ptr, int source_stride, const uint16_t *ref_ptr,    \
+      int ref_stride, const uint16_t *second_pred,                            \
+      const DIST_WTD_COMP_PARAMS *jcp_param) {                                \
+    return fnname(src_ptr, source_stride, ref_ptr, ref_stride, second_pred,   \
+                  jcp_param) >>                                               \
+           2;                                                                 \
+  }                                                                           \
+  /*#if CONFIG_AVM_BITS_12                                                    \
+    static unsigned int fnname##_bits12(                                      \
+        const uint16_t *src_ptr, int source_stride, const uint16_t *ref_ptr,  \
+        int ref_stride, const uint16_t *second_pred,                          \
+        const DIST_WTD_COMP_PARAMS *jcp_param) {                              \
+      return fnname(src_ptr, source_stride, ref_ptr, ref_stride, second_pred, \
+                    jcp_param) >>                                             \
+             4;                                                               \
+    }                                                                         \
+  #endif  // CONFIG_AVM_BITS_12*/
 
 MAKE_BFP_SAD_WRAPPER(avm_highbd_sad256x256)
 MAKE_BFP_SADAVG_WRAPPER(avm_highbd_sad256x256_avg)
@@ -385,14 +389,14 @@ MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad32x4_avg)
                   second_pred_ptr, m, m_stride, invert_mask) >>            \
            2;                                                              \
   }                                                                        \
-  static unsigned int fnname##_bits12(                                     \
+  /*static unsigned int fnname##_bits12(                                   \
       const uint16_t *src_ptr, int source_stride, const uint16_t *ref_ptr, \
       int ref_stride, const uint16_t *second_pred_ptr, const uint8_t *m,   \
       int m_stride, int invert_mask) {                                     \
     return fnname(src_ptr, source_stride, ref_ptr, ref_stride,             \
                   second_pred_ptr, m, m_stride, invert_mask) >>            \
            4;                                                              \
-  }
+  }*/
 
 MAKE_MBFP_COMPOUND_SAD_WRAPPER(avm_highbd_masked_sad256x256)
 MAKE_MBFP_COMPOUND_SAD_WRAPPER(avm_highbd_masked_sad256x128)
@@ -435,19 +439,20 @@ MAKE_MBFP_COMPOUND_SAD_WRAPPER(avm_highbd_masked_sad32x4)
                avm_highbd_sad_skip_##WIDTH##x##HEIGHT##_bits##BD, \
                avm_highbd_sad_skip_##WIDTH##x##HEIGHT##x4d##_bits##BD)
 
-#define MAKE_SDSF_SKIP_SAD_WRAPPER(fnname)                                   \
-  static unsigned int fnname##_bits8(const uint16_t *src, int src_stride,    \
-                                     const uint16_t *ref, int ref_stride) {  \
-    return fnname(src, src_stride, ref, ref_stride);                         \
-  }                                                                          \
-  static unsigned int fnname##_bits10(const uint16_t *src, int src_stride,   \
-                                      const uint16_t *ref, int ref_stride) { \
-    return fnname(src, src_stride, ref, ref_stride) >> 2;                    \
-  }                                                                          \
-  static unsigned int fnname##_bits12(const uint16_t *src, int src_stride,   \
-                                      const uint16_t *ref, int ref_stride) { \
-    return fnname(src, src_stride, ref, ref_stride) >> 4;                    \
-  }
+#define MAKE_SDSF_SKIP_SAD_WRAPPER(fnname)                                     \
+  static unsigned int fnname##_bits8(const uint16_t *src, int src_stride,      \
+                                     const uint16_t *ref, int ref_stride) {    \
+    return fnname(src, src_stride, ref, ref_stride);                           \
+  }                                                                            \
+  static unsigned int fnname##_bits10(const uint16_t *src, int src_stride,     \
+                                      const uint16_t *ref, int ref_stride) {   \
+    return fnname(src, src_stride, ref, ref_stride) >> 2;                      \
+  }                                                                            \
+  /*                                                                           \
+  static unsigned int fnname##_bits12(const uint16_t *src, int src_stride,     \
+                                        const uint16_t *ref, int ref_stride) { \
+      return fnname(src, src_stride, ref, ref_stride) >> 4;                    \
+    }*/
 
 #define MAKE_SDSF_SKIP_SAD_4D_WRAPPER(fnname)                                  \
   static void fnname##_bits8(const uint16_t *src_ptr, int source_stride,       \
@@ -462,13 +467,13 @@ MAKE_MBFP_COMPOUND_SAD_WRAPPER(avm_highbd_masked_sad32x4)
     fnname(src_ptr, source_stride, ref_ptr, ref_stride, sad_array);            \
     for (i = 0; i < 4; i++) sad_array[i] >>= 2;                                \
   }                                                                            \
-  static void fnname##_bits12(const uint16_t *src_ptr, int source_stride,      \
+  /*static void fnname##_bits12(const uint16_t *src_ptr, int source_stride,    \
                               const uint16_t *const ref_ptr[], int ref_stride, \
                               unsigned int *sad_array) {                       \
     int i;                                                                     \
     fnname(src_ptr, source_stride, ref_ptr, ref_stride, sad_array);            \
     for (i = 0; i < 4; i++) sad_array[i] >>= 4;                                \
-  }
+  }*/
 
 MAKE_SDSF_SKIP_SAD_WRAPPER(avm_highbd_sad_skip_256x256)
 MAKE_SDSF_SKIP_SAD_WRAPPER(avm_highbd_sad_skip_256x128)

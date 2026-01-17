@@ -77,6 +77,7 @@ static int arfgf_ld_low_motion_minq_10[QINDEX_RANGE];
 static int arfgf_ld_high_motion_minq_10[QINDEX_RANGE];
 static int inter_minq_10[QINDEX_RANGE];
 static int rtc_minq_10[QINDEX_RANGE];
+#if CONFIG_AVM_BITS_12
 static int kf_low_motion_minq_12[QINDEX_RANGE];
 static int kf_high_motion_minq_12[QINDEX_RANGE];
 static int arfgf_low_motion_minq_12[QINDEX_RANGE];
@@ -85,6 +86,7 @@ static int arfgf_ld_low_motion_minq_12[QINDEX_RANGE];
 static int arfgf_ld_high_motion_minq_12[QINDEX_RANGE];
 static int inter_minq_12[QINDEX_RANGE];
 static int rtc_minq_12[QINDEX_RANGE];
+#endif  // CONFIG_AVM_BITS_12
 
 static int gf_high = 2400;
 static int gf_low = 300;
