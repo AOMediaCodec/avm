@@ -67,16 +67,30 @@
     reader->error_handler_data = original_error_handler_data; \
   } while (0)
 
-#define AV2C_READ_UVLC_BITS_OR_RETURN_ERROR(field)                             \
-  uint32_t field = 0;                                                          \
-  do {                                                                         \
-    field = avm_rb_read_uvlc(reader);                                          \
-    if (result == -1) {                                                        \
-      fprintf(stderr,                                                          \
-              "av2c: Error reading bit for " #field ", value=%u result=%d.\n", \
-              field, result);                                                  \
-      return -1;                                                               \
-    }                                                                          \
+#define AV2C_READ_UVLC_BITS_OR_RETURN_ERROR(field)   \
+  uint32_t field = 0;                                \
+  do {                                               \
+    field = avm_rb_read_uvlc(reader);                \
+    if (result == -1) {                              \
+      fprintf(stderr,                                \
+              "av2c: Error reading uvlc for " #field \
+              ", value=%u result=%d.\n",             \
+              field, result);                        \
+      return -1;                                     \
+    }                                                \
+  } while (0)
+
+#define AV2C_READ_RICE_GOLOMB_OR_RETURN_ERROR(field, k)     \
+  uint32_t field = 0;                                       \
+  do {                                                      \
+    field = avm_rb_read_rice_golomb(reader, k);             \
+    if (result == -1) {                                     \
+      fprintf(stderr,                                       \
+              "av2c: Error reading rice-golomb for " #field \
+              ", value=%u result=%d.\n",                    \
+              field, result);                               \
+      return -1;                                            \
+    }                                                       \
   } while (0)
 
 static const size_t kAv2cSize = 4;
@@ -107,6 +121,19 @@ static int parse_chroma_format_bitdepth(struct avm_read_bit_buffer *reader,
   AV2C_PUSH_ERROR_HANDLER_DATA(result);
 
   AV2C_READ_UVLC_BITS_OR_RETURN_ERROR(chroma_format_idc);
+  config->monochrome = (chroma_format_idc == CHROMA_FORMAT_400);
+
+  // Derive chroma subsampling from chroma format idc
+  int subsampling_x;
+  int subsampling_y;
+  avm_codec_err_t err = av2_get_chroma_subsampling(
+      chroma_format_idc, &subsampling_x, &subsampling_y);
+  if (err != AVM_CODEC_OK) {
+    fprintf(stderr, "chroma format idc %u not supported.\n", chroma_format_idc);
+    return -1;
+  }
+  config->chroma_subsampling_x = (uint8_t)subsampling_x;
+  config->chroma_subsampling_y = (uint8_t)subsampling_y;
 
   AV2C_READ_UVLC_BITS_OR_RETURN_ERROR(bitdepth_idx);
   if (bitdepth_idx > UINT8_MAX) {
@@ -122,47 +149,7 @@ static int parse_chroma_format_bitdepth(struct avm_read_bit_buffer *reader,
     return -1;
   }
 
-  (void)bit_depth;
   assert(bit_depth == 8 || bit_depth == 10 || bit_depth == 12);
-  config->monochrome = (chroma_format_idc == CHROMA_FORMAT_400);
-
-  int color_primaries = AVM_CICP_CP_UNSPECIFIED;
-  int transfer_characteristics = AVM_CICP_TC_UNSPECIFIED;
-  int matrix_coefficients = AVM_CICP_MC_UNSPECIFIED;
-
-  AV2C_READ_BIT_OR_RETURN_ERROR(color_description_present_flag);
-  if (color_description_present_flag) {
-    AV2C_READ_BITS_OR_RETURN_ERROR(color_primaries_val, 8);
-    color_primaries = color_primaries_val;
-    AV2C_READ_BITS_OR_RETURN_ERROR(transfer_characteristics_val, 8);
-    transfer_characteristics = transfer_characteristics_val;
-    AV2C_READ_BITS_OR_RETURN_ERROR(matrix_coefficients_val, 8);
-    matrix_coefficients = matrix_coefficients_val;
-  }
-
-  if (config->monochrome) {
-    AV2C_READ_BIT_OR_RETURN_ERROR(color_range);
-    config->chroma_subsampling_x = 1;
-    config->chroma_subsampling_y = 1;
-  } else if (color_primaries == AVM_CICP_CP_BT_709 &&
-             transfer_characteristics == AVM_CICP_TC_SRGB &&
-             matrix_coefficients == AVM_CICP_MC_IDENTITY) {
-    config->chroma_subsampling_x = 0;
-    config->chroma_subsampling_y = 0;
-  } else {
-    AV2C_READ_BIT_OR_RETURN_ERROR(color_range);
-    int subsampling_x;
-    int subsampling_y;
-    avm_codec_err_t err = av2_get_chroma_subsampling(
-        chroma_format_idc, &subsampling_x, &subsampling_y);
-    if (err != AVM_CODEC_OK) {
-      fprintf(stderr, "chroma format idc %d not supported.\n",
-              chroma_format_idc);
-      return -1;
-    }
-    config->chroma_subsampling_x = (uint8_t)subsampling_x;
-    config->chroma_subsampling_y = (uint8_t)subsampling_y;
-  }
 
   AV2C_POP_ERROR_HANDLER_DATA();
   return result;
@@ -298,32 +285,33 @@ static int parse_content_intrepretation_obu(const uint8_t *const buffer,
 
   // Parse color information if present
   if (ci_color_description_present_flag) {
-    AV2C_READ_BITS_OR_RETURN_ERROR(color_description_idc, 2);
-    // Rice-Golomb with k=3, but for simplicity we read as literal
-    // In actual implementation, use avm_rb_read_rice_golomb(reader, 2)
+    // color description_idc is coded as rg(2) (Rice-Golomb with k =2)
+    AV2C_READ_RICE_GOLOMB_OR_RETURN_ERROR(ci_color_description_idc, 2);
+    config->ci_color_description_idc = ci_color_description_idc;
 
-    if (color_description_idc == 0) {
-      AV2C_READ_UVLC_BITS_OR_RETURN_ERROR(color_primaries);
+    if (config->ci_color_description_idc == AVM_COLOR_DESC_IDC_EXPLICIT) {
+      AV2C_READ_BITS_OR_RETURN_ERROR(color_primaries, 8);
       config->ci_color_primaries = color_primaries;
 
-      AV2C_READ_UVLC_BITS_OR_RETURN_ERROR(transfer_characteristics);
+      AV2C_READ_BITS_OR_RETURN_ERROR(transfer_characteristics, 8);
       config->ci_transfer_characteristics = transfer_characteristics;
 
-      AV2C_READ_UVLC_BITS_OR_RETURN_ERROR(matrix_coefficients);
+      AV2C_READ_BITS_OR_RETURN_ERROR(matrix_coefficients, 8);
       config->ci_matrix_coefficients = matrix_coefficients;
 
     } else {
-      config->ci_color_primaries = 2;           // AVM_CICP_CP_UNSPECIFIED
-      config->ci_transfer_characteristics = 2;  // AVM_CICP_TC_UNSPECIFIED
-      config->ci_matrix_coefficients = 2;       // AVM_CICP_MC_UNSPECIFIED
+      config->ci_color_primaries = AVM_CICP_CP_UNSPECIFIED;
+      config->ci_transfer_characteristics = AVM_CICP_TC_UNSPECIFIED;
+      config->ci_matrix_coefficients = AVM_CICP_MC_UNSPECIFIED;
     }
 
     AV2C_READ_BIT_OR_RETURN_ERROR(full_range_flag);
     config->ci_full_range_flag = full_range_flag;
   } else {
-    config->ci_color_primaries = 2;           // AVM_CICP_CP_UNSPECIFIED
-    config->ci_transfer_characteristics = 2;  // AVM_CICP_TC_UNSPECIFIED
-    config->ci_matrix_coefficients = 2;       // AVM_CICP_MC_UNSPECIFIED
+    config->ci_color_description_idc = AVM_COLOR_DESC_IDC_EXPLICIT;
+    config->ci_color_primaries = AVM_CICP_CP_UNSPECIFIED;
+    config->ci_transfer_characteristics = AVM_CICP_TC_UNSPECIFIED;
+    config->ci_matrix_coefficients = AVM_CICP_MC_UNSPECIFIED;
     config->ci_full_range_flag = 0;
   }
 

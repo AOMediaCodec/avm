@@ -74,6 +74,7 @@ typedef struct _Av2Config {
   uint8_t ci_aspect_ratio_info_present_flag;
   uint8_t ci_timing_info_present_flag;
   // Color information
+  uint8_t ci_color_description_idc;
   uint8_t ci_color_primaries;
   uint8_t ci_matrix_coefficients;
   uint8_t ci_transfer_characteristics;

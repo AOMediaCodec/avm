@@ -35,6 +35,7 @@ text avm_malloc
 text avm_rb_bytes_read
 text avm_rb_read_bit
 text avm_rb_read_literal
+text avm_rb_read_rice_golomb
 text avm_rb_read_uvlc
 text avm_uleb_decode
 text avm_uleb_encode
