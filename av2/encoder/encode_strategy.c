@@ -860,7 +860,9 @@ static int denoise_and_encode(AV2_COMP *const cpi, uint8_t *const dest,
 #else
     if (cpi->oxcf.ref_frm_cfg.enable_generation_sef_obu)
 #endif
+    {
       cpi->common.implicit_output_picture = 0;
+    }
 
     if (code_arf) {
       avm_extend_frame_borders(&cpi->alt_ref_buffer, av2_num_planes(cm), 0);
@@ -1011,15 +1013,18 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
   if (cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames)
 #else
   if (cpi->oxcf.ref_frm_cfg.enable_generation_sef_obu)
-    cpi->common.implicit_output_picture = 0;
 #endif
-    if (source == NULL) {  // If no source was found, we can't encode a frame.
-      if (flush && oxcf->pass == 1 && !cpi->twopass.first_pass_done) {
-        av2_end_first_pass(cpi); /* get last stats packet */
-        cpi->twopass.first_pass_done = 1;
-      }
-      return -1;
+  {
+    cpi->common.implicit_output_picture = 0;
+  }
+
+  if (source == NULL) {  // If no source was found, we can't encode a frame.
+    if (flush && oxcf->pass == 1 && !cpi->twopass.first_pass_done) {
+      av2_end_first_pass(cpi); /* get last stats packet */
+      cpi->twopass.first_pass_done = 1;
     }
+    return -1;
+  }
   // Source may be changed if temporal filtered later.
   frame_input.source = &source->img;
   frame_input.last_source = last_source != NULL ? &last_source->img : NULL;
@@ -1108,7 +1113,9 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
 #else
   if (cpi->oxcf.ref_frm_cfg.enable_generation_sef_obu)
 #endif
+  {
     cm->implicit_output_picture = 0;
+  }
 
   if (frame_params.frame_type == KEY_FRAME && !cpi->no_show_fwd_kf)
     cm->implicit_output_picture = 0;
