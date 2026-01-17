@@ -128,7 +128,11 @@ void TestHighbdIntraPred(TX_SIZE tx_size, AvxHighbdPredFunc const *pred_funcs,
       block_width * block_height * kNumAv2IntraFuncs;
   const int kNumTests = static_cast<int>(2.e10 / num_pixels_per_test);
   Av2HighbdIntraPredTestMem intra_pred_test_mem;
+#if CONFIG_REMOVE_SUPPORT_12BITS
+  const int bd = 10;
+#else
   const int bd = 12;
+#endif
   intra_pred_test_mem.Init(block_width, block_height, bd);
 
   for (int k = 0; k < kNumAv2IntraFuncs; ++k) {

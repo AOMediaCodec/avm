@@ -285,9 +285,18 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(SumSquares1DI32Test);
 
 TEST_P(SumSquares1DI32Test, RandomValues) {
   ACMRandom rnd(ACMRandom::DeterministicSeed());
+#if CONFIG_REMOVE_SUPPORT_12BITS
+  const int bd_ar[2] = { 8, 10 };
+#else
   const int bd_ar[3] = { 8, 10, 12 };
+#endif
   const int kNumIterations = 500;
-  for (int i = 0; i < 3; ++i) {
+#if CONFIG_REMOVE_SUPPORT_12BITS
+  for (int i = 0; i < 2; ++i)
+#else
+  for (int i = 0; i < 3; ++i)
+#endif
+  {
     const int bd = bd_ar[i];
     const int msb = bd + 8;  // bit-depth + 8
     const int coeffRange = (1 << msb) - 1;
@@ -393,7 +402,11 @@ class SSETest : public ::testing::TestWithParam<SSETestParam> {
   void GenRandomData(int width, int height, int stride) {
     uint16_t *pSrc = (uint16_t *)src_;
     uint16_t *pRef = (uint16_t *)ref_;
+#if CONFIG_REMOVE_SUPPORT_12BITS
+    const int msb = 9;  // Up to 10 bit input
+#else
     const int msb = 11;  // Up to 12 bit input
+#endif
     const int limit = 1 << (msb + 1);
     for (int ii = 0; ii < height; ii++) {
       for (int jj = 0; jj < width; jj++) {

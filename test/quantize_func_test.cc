@@ -373,20 +373,26 @@ const QuantizeParam kQParamArraySSE2[] = {
              static_cast<TX_SIZE>(TX_16X16), TYPE_B, AVM_BITS_8, LOGSCALE_0),
   make_tuple(&avm_highbd_quantize_b_c, &avm_highbd_quantize_b_sse2,
              static_cast<TX_SIZE>(TX_16X16), TYPE_B, AVM_BITS_10, LOGSCALE_0),
+#if !CONFIG_REMOVE_SUPPORT_12BITS
   make_tuple(&avm_highbd_quantize_b_c, &avm_highbd_quantize_b_sse2,
              static_cast<TX_SIZE>(TX_16X16), TYPE_B, AVM_BITS_12, LOGSCALE_0),
+#endif
   make_tuple(&avm_highbd_quantize_b_c, &avm_highbd_quantize_b_sse2,
              static_cast<TX_SIZE>(TX_32X32), TYPE_B, AVM_BITS_8, LOGSCALE_1),
   make_tuple(&avm_highbd_quantize_b_c, &avm_highbd_quantize_b_sse2,
              static_cast<TX_SIZE>(TX_32X32), TYPE_B, AVM_BITS_10, LOGSCALE_1),
+#if !CONFIG_REMOVE_SUPPORT_12BITS
   make_tuple(&avm_highbd_quantize_b_c, &avm_highbd_quantize_b_sse2,
              static_cast<TX_SIZE>(TX_32X32), TYPE_B, AVM_BITS_12, LOGSCALE_1),
+#endif
   make_tuple(&avm_highbd_quantize_b_c, &avm_highbd_quantize_b_sse2,
              static_cast<TX_SIZE>(TX_64X64), TYPE_B, AVM_BITS_8, LOGSCALE_2),
   make_tuple(&avm_highbd_quantize_b_c, &avm_highbd_quantize_b_sse2,
              static_cast<TX_SIZE>(TX_64X64), TYPE_B, AVM_BITS_10, LOGSCALE_2),
+#if !CONFIG_REMOVE_SUPPORT_12BITS
   make_tuple(&avm_highbd_quantize_b_c, &avm_highbd_quantize_b_sse2,
              static_cast<TX_SIZE>(TX_64X64), TYPE_B, AVM_BITS_12, LOGSCALE_2),
+#endif
 };
 
 INSTANTIATE_TEST_SUITE_P(SSE2, QuantizeTest,
