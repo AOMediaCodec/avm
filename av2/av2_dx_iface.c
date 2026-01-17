@@ -578,7 +578,6 @@ static bool check_random_access_frame_unit(struct AV2Decoder *pbi,
   // provded. IMPORTANT: it assumes there will be no other frame units then CLK
   // in data: ex) no [16][8][4][2][1]... if there is CLK/OLK
   pbi->num_obus_with_frame_unit = 0;
-  bool start_of_temporal_unit = false;
   bool has_key_frames = false;
   bool has_seq_header = false;
   int frame_unit_mlayer_id = -1;
@@ -604,8 +603,6 @@ static bool check_random_access_frame_unit(struct AV2Decoder *pbi,
       }
       current_frame_obu_type = obu_header.type;
     }
-    start_of_temporal_unit |=
-        (is_tu_head_non_vcl_obu(obu_header.type, obu_header.obu_xlayer_id));
   }
 
   pbi->is_random_access_frame_unit = 0;
@@ -620,7 +617,6 @@ static bool check_random_access_frame_unit(struct AV2Decoder *pbi,
       // frame unit is not a random access point.
       assert(has_seq_header);
       assert(has_key_frames);
-      assert(start_of_temporal_unit);
       pbi->is_random_access_frame_unit = 1;
     } else if (has_key_frames) {
       // if when the previous frame unit is dropped,
