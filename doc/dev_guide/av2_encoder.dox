@@ -344,10 +344,10 @@ The following are the main data structures referenced in this section
  is \ref av2_encode_strategy(), which determines high-level encode strategy
  (frame type, frame placement, etc.) and then encodes the frame by calling
  \ref av2_encode(). In \ref av2_encode(), \ref av2_first_pass() will execute
- the first_pass of two-pass encoding, while \ref encode_frame_to_data_rate()
+ the first_pass of two-pass encoding, while encode_frame_to_data_rate()
  will perform the final pass for either one-pass or two-pass encoding.
 
- The main body of \ref encode_frame_to_data_rate() is
+ The main body of encode_frame_to_data_rate() is
  \ref encode_with_recode_loop_and_filter(), which handles encoding before
  in-loop filters (with recode loops \ref encode_with_recode_loop(), or
  without any recode loop \ref encode_without_recode()), followed by in-loop
@@ -610,7 +610,7 @@ Statistics for each frame are stored in \ref FIRSTPASS_STATS frame_stats_buf.
 After completion of the first pass, \ref av2_encode() will be called again for
 each frame with \ref AV2EncoderConfig.pass = 2.  The frames are then encoded in
 accordance with the statistics gathered during the first pass by calls to
-\ref encode_frame_to_data_rate() which in turn calls
+encode_frame_to_data_rate() which in turn calls
  \ref av2_get_second_pass_params().
 
 In summary the second pass code :-

@@ -7553,9 +7553,11 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   }
 
   if (obu_type == OBU_BRIDGE_FRAME) {
+    cm->bridge_frame_info.is_bridge_frame = 1;
     cm->bridge_frame_info.bridge_frame_ref_idx =
         avm_rb_read_literal(rb, seq_params->ref_frames_log2);
   } else {
+    cm->bridge_frame_info.is_bridge_frame = 0;
     cm->bridge_frame_info.bridge_frame_ref_idx = INVALID_IDX;
   }
 
