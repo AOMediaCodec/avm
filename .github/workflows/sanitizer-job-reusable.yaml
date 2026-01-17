@@ -182,7 +182,7 @@ jobs:
           printf "" >${commands}
 
           for id in $(seq 0 $((total_shards-1))); do
-            echo "GTEST_TOTAL_SHARDS=${total_shards} GTEST_SHARD_INDEX=${id} GTEST_OUTPUT=xml:report.${id}.xml ./avm_build/${AVM_SANITIZER_TYPE}/test_libavm --gtest_filter=\"${filter}\" 2> >(tee -a ${GITHUB_WORKSPACE}/sanitizer.${id}.log >&2)" >>${commands}
+            echo "GTEST_TOTAL_SHARDS=${total_shards} GTEST_SHARD_INDEX=${id} GTEST_OUTPUT=xml:report.${id}.xml ./avm_build/${AVM_SANITIZER_TYPE}/test_libavm --gtest_filter=\"${filter}\" 2>&1 | tee -a ${GITHUB_WORKSPACE}/sanitizer.${id}.log" >>${commands}
           done
 
           cat ${commands}

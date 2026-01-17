@@ -261,7 +261,7 @@ jobs:
 
           cd avm_example_build
           for test in $(../test/examples.sh --list-tests); do
-            echo "sh ../test/examples.sh --bin-path examples --verbose --show-program-output --filter \"\b${test}\b\" 2> >(tee -a ${GITHUB_WORKSPACE}/example.test.${test}.log >&2)" >>${commands}
+            echo "sh ../test/examples.sh --bin-path examples --verbose --show-program-output --filter \"\b${test}\b\" 2>&1 | tee -a ${GITHUB_WORKSPACE}/example.test.${test}.log" >>${commands}
           done
 
           cat ${commands}
