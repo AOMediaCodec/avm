@@ -60,6 +60,9 @@ int get_bitrate_profile_factor(int profile_scaling_factor);
 //===========================================
 int av2_validate_layer_capacity(int seq_profile_idc, int num_extended_layers,
                                 int num_embedded_layers);
+
+int get_toolset_from_config_idc(int config_idc);
+const char *get_toolset_name(int toolset);
 #endif  // CONFIG_CWG_F429_INTEROP
 
 #ifdef __cplusplus

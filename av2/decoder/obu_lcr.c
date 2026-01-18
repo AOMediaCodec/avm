@@ -223,6 +223,9 @@ static void read_lcr_aggregate_profile_tier_level_info(
   lcr_params->lcr_aggregate_level_idx = avm_rb_read_literal(rb, LEVEL_BITS);
   lcr_params->lcr_max_tier_flag = avm_rb_read_bit(rb);
   lcr_params->lcr_max_interop = avm_rb_read_literal(rb, INTEROP_BITS);
+  int toolset = get_toolset_from_config_idc(lcr_params->lcr_config_idc);
+  printf("read_lcr_profile_tier_level: lcr_config_idc %s\n",
+         get_toolset_name(toolset));
 }
 
 // This is for the per xlayer

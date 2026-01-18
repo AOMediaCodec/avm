@@ -1002,6 +1002,19 @@ typedef struct ContentInterpretation {
   avm_timing_info_t timing_info;
 } ContentInterpretation;
 
+#if CONFIG_CWG_F429_INTEROP
+// Operating point parameters
+// Contains layer count, and indentification information the operating point
+typedef struct DecOperatingPointParams {
+  int DecOpSetId;            // Operating point set ID
+  int DecOpCount;            // Operaring point count within the set
+  int DecOpIndex;            // Operating point index within the ops_cnt
+  unsigned int num_mlayers;  // Number of embedded layers
+  unsigned int num_tlayers;  // Number of temporal layers
+  int DecXlayerId;
+} DecOperatingPointParams;
+#endif  // CONFIG_CWG_F429_INTEROP
+
 // Sequence header structure.
 // Note: All syntax elements of sequence_header_obu that need to be
 // bit-identical across multiple sequence headers must be part of this struct,

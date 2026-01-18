@@ -359,9 +359,11 @@ typedef struct AV2Decoder {
 #if CONFIG_CWG_F429_INTEROP
   int selected_ops_id;
   int selected_op_index;
-#endif  // CONFIG_CWG_F429_INTEROP
+  DecOperatingPointParams DecOpPoint;
+#else
   int operating_point;
   int current_operating_point;
+#endif  // CONFIG_CWG_F429_INTEROP
   int seen_frame_header;
   // The expected start_tile (tg_start syntax element) of the next tile group.
   int next_start_tile;

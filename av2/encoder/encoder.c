@@ -959,17 +959,32 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
     seq_params->subsampling_y = 0;
   } else {
 #if CONFIG_CWG_F429_INTEROP
-    if (seq_params->seq_profile_idc == 0) {
-#else
-    if (seq_params->profile == 0) {
-#endif  // CONFIG_CWG_F429_INTEROP
+    if (seq_params->seq_profile_idc <= MAIN_420_10) {
+      // Profiles 0-3: 4:2:0 chroma subsampling only
       seq_params->subsampling_x = 1;
       seq_params->subsampling_y = 1;
-#if CONFIG_CWG_F429_INTEROP
-    } else if (seq_params->seq_profile_idc == 1) {
+    } else if (seq_params->seq_profile_idc == MAIN_422_10) {
+      // Profile 4: Use input chroma subsampling (4:2:2 or 4:2:0)
+      seq_params->subsampling_x = oxcf->input_cfg.chroma_subsampling_x;
+      seq_params->subsampling_y = oxcf->input_cfg.chroma_subsampling_y;
+      if (seq_params->subsampling_x != 1) {
+        seq_params->subsampling_x = 1;
+        seq_params->subsampling_y = 0;
+      }
+    } else if (seq_params->seq_profile_idc == MAIN_444_10) {
+      // Profile 5: Use input chroma subsampling (4:4:4, 4:2:2 or 4:2:0)
+      seq_params->subsampling_x = oxcf->input_cfg.chroma_subsampling_x;
+      seq_params->subsampling_y = oxcf->input_cfg.chroma_subsampling_y;
+    } else {
+      // Reserved profile: Set it to 4:2:0 ?
+      seq_params->subsampling_x = 1;
+      seq_params->subsampling_y = 1;
+    }
 #else
+    if (seq_params->profile == 0) {
+      seq_params->subsampling_x = 1;
+      seq_params->subsampling_y = 1;
     } else if (seq_params->profile == 1) {
-#endif  // CONFIG_CWG_F429_INTEROP
       seq_params->subsampling_x = 0;
       seq_params->subsampling_y = 0;
     } else {
@@ -981,6 +996,7 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
         seq_params->subsampling_y = 0;
       }
     }
+#endif  // CONFIG_CWG_F429_INTEROP
   }
 
   uint32_t seq_chroma_format_idc = 0;

@@ -57,9 +57,9 @@ typedef enum {
  *
  *  Configuration Label    |   seq_profile_idc    |    chroma_format_idc    |    bit_depth_idc
  * ------------------------|----------------------|-------------------------|---------------
- *   C_Main_420_10         | 0..3                 | 0..1                    | 0..1
- *   C_Main_422_10         | 0..3                 | 0..1, 3                 | 0..1
- *   C_Main_444_10         | 0..3                 | 0..2                    | 0..1
+ *   C_Main_420_10         | 0..5                 | 0..1                    | 0..1
+ *   C_Main_422_10         | 0..5                 | 0..1, 3                 | 0..1
+ *   C_Main_444_10         | 0..5                 | 0..2                    | 0..1
  *
  * Notes:
  * - seq_profile_idc: Allowed profile values (0=MAIN_420_10_IP0, 1=MAIN_420_10_IP1, 2=MAIN_420_10_IP2, 3=Main_420_10,
@@ -242,6 +242,29 @@ static int check_bit_depth_8_10(int bit_depth, int profile_idc,
     return 0;
   }
   return 1;
+}
+
+enum {
+  TOOLSET_MAIN = 0,  // Main tool set
+  // TOOLSET_MULTIVIEW = 1, // Example
+  // TOOLSET_SCALABILITY = 2,  // Example
+  TOOLSET_TYPES
+};
+
+static const char *const toolset_names[] = { "MAIN", "UNKNOWN" };
+const char *get_toolset_name(int toolset) {
+  if (toolset > 0 && toolset < TOOLSET_TYPES) {
+    return toolset_names[toolset];
+  }
+  return toolset_names[TOOLSET_TYPES];
+}
+
+int get_toolset_from_config_idc(int config_idc) {
+  if (config_idc >= 0 && config_idc <= 2) {
+    return TOOLSET_MAIN;
+  }
+  // future
+  return TOOLSET_MAIN;
 }
 
 static int check_chroma_format(int monochrome, int is_420, int is_422,

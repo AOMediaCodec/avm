@@ -1467,10 +1467,29 @@ static void check_layerid_showable_frame_units(
 }
 
 #if CONFIG_CWG_F429_INTEROP
+static int get_ops_mlayer_count(const struct OPSMLayerInfo *mlayer_info,
+                                int xlayer_id, int ops_id, int ops_idx) {
+  if (mlayer_info == NULL) return 0;
+  if (xlayer_id < 0 || xlayer_id >= MAX_NUM_XLAYERS) return 0;
+  if (ops_id < 0 || ops_id >= MAX_NUM_OPS_ID) return 0;
+  if (ops_idx < 0 || ops_idx >= MAX_OPS_COUNT) return 0;
+
+  return mlayer_info->OPMLayerCount[xlayer_id][ops_id][ops_idx][xlayer_id];
+}
+
+static int get_ops_tlayer_count(const struct OPSMLayerInfo *mlayer_info,
+                                int xlayer_id, int ops_id, int ops_idx) {
+  if (mlayer_info == NULL) return 0;
+  if (xlayer_id < 0 || xlayer_id >= MAX_NUM_XLAYERS) return 0;
+  if (ops_id < 0 || ops_id >= MAX_NUM_OPS_ID) return 0;
+  if (ops_idx < 0 || ops_idx >= MAX_OPS_COUNT) return 0;
+
+  return mlayer_info->OPTLayerCount[xlayer_id][ops_id][ops_idx][xlayer_id];
+}
+
 // Select operating point based on user selection (default to 0, 0)
 // The priority is that if a user provides an input then that takes priority
 int avm_set_current_operating_point(struct AV2Decoder *pbi) {
-  AV2_COMMON *const cm = &pbi->common;
   int found = 0;
   for (int i = 0; i < pbi->ops_counter; i++) {
     // Check if this OPS matches the selected OPS id
@@ -1479,7 +1498,16 @@ int avm_set_current_operating_point(struct AV2Decoder *pbi) {
       if (ops_id == pbi->selected_ops_id) {
         // Found the OPS, now check if the OP idex is valid
         if (pbi->selected_ops_id < pbi->ops_list[i].ops_cnt[xlayer][ops_id]) {
-          pbi->operating_point = pbi->ops_list[i].ops_id[xlayer];
+          pbi->DecOpPoint.DecOpSetId = pbi->ops_list[i].ops_id[xlayer];
+          pbi->DecOpPoint.DecOpCount = pbi->ops_list[i].ops_cnt[xlayer];
+          pbi->DecOpPoint.DecOpIndex = pbi->selected_op_index;
+          pbi->DecOpPoint.DecXlayerId = xlayer;
+          pbi->DecOpPoint.num_mlayers = get_ops_mlayer_count(
+              pbi->ops_list[i].ops_mlayer_info, xlayer,
+              pbi->DecOpPoint.DecOpSetId, pbi->DecOpPoint.DecOpIndex);
+          pbi->DecOpPoint.num_mlayers = get_ops_tlayer_count(
+              pbi->ops_list[i].ops_mlayer_info, xlayer,
+              pbi->DecOpPoint.DecOpSetId, pbi->DecOpPoint.DecOpIndex);
           found = 1;
           break;
         }
@@ -1492,18 +1520,20 @@ int avm_set_current_operating_point(struct AV2Decoder *pbi) {
     // If OPS counter > 0, use first available OPS, otherwise use 0
     printf("Warning: No OPS was available, all layers to be decoded.\n");
     if (pbi->ops_counter > 0) {
-      pbi->operating_point = pbi->ops_list[0].ops_id[0];
+      pbi->DecOpPoint.DecOpSetId = pbi->ops_list[0].ops_id[0];
+      pbi->DecOpPoint.DecOpCount = pbi->ops_list[0].ops_cnt[0];
+      pbi->DecOpPoint.DecOpIndex = 0;
+      pbi->DecOpPoint.DecXlayerId = 0;
+      pbi->DecOpPoint.num_mlayers = 1;
+      pbi->DecOpPoint.num_mlayers = 1;
     } else {
-      pbi->operating_point = 0;
+      pbi->DecOpPoint.DecOpSetId = 0;
+      pbi->DecOpPoint.DecOpCount = 0;
+      pbi->DecOpPoint.DecOpIndex = 0;
+      pbi->DecOpPoint.DecXlayerId = 0;
+      pbi->DecOpPoint.num_mlayers = 1;
+      pbi->DecOpPoint.num_mlayers = 1;
     }
-  }
-
-  pbi->current_operating_point = pbi->operating_point;
-  if (avm_get_num_layers_from_operating_point_idc(
-          pbi->current_operating_point, &cm->number_mlayers,
-          &cm->number_tlayers) != AVM_CODEC_OK) {
-    cm->error.error_code = AVM_CODEC_ERROR;
-    return 0;
   }
   return 0;
 }
