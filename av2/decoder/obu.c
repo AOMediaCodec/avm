@@ -1478,13 +1478,15 @@ static int get_ops_mlayer_count(const struct OPSMLayerInfo *mlayer_info,
 }
 
 static int get_ops_tlayer_count(const struct OPSMLayerInfo *mlayer_info,
-                                int xlayer_id, int ops_id, int ops_idx) {
+                                int xlayer_id, int ops_id, int ops_idx,
+                                int mlayer_id) {
   if (mlayer_info == NULL) return 0;
   if (xlayer_id < 0 || xlayer_id >= MAX_NUM_XLAYERS) return 0;
   if (ops_id < 0 || ops_id >= MAX_NUM_OPS_ID) return 0;
   if (ops_idx < 0 || ops_idx >= MAX_OPS_COUNT) return 0;
+  if (mlayer_id < 0 || mlayer_id >= MAX_NUM_XLAYERS) return 0;
 
-  return mlayer_info->OPTLayerCount[xlayer_id][ops_id][ops_idx][xlayer_id];
+  return mlayer_info->OPTLayerCount[xlayer_id][ops_id][ops_idx][mlayer_id];
 }
 
 // Select operating point based on user selection (default to 0, 0)
@@ -1507,7 +1509,7 @@ int avm_set_current_operating_point(struct AV2Decoder *pbi) {
               pbi->DecOpPoint.DecOpSetId, pbi->DecOpPoint.DecOpIndex);
           pbi->DecOpPoint.num_mlayers = get_ops_tlayer_count(
               pbi->ops_list[i].ops_mlayer_info, xlayer,
-              pbi->DecOpPoint.DecOpSetId, pbi->DecOpPoint.DecOpIndex);
+              pbi->DecOpPoint.DecOpSetId, pbi->DecOpPoint.DecOpIndex, 0);
           found = 1;
           break;
         }
@@ -1520,19 +1522,20 @@ int avm_set_current_operating_point(struct AV2Decoder *pbi) {
     // If OPS counter > 0, use first available OPS, otherwise use 0
     printf("Warning: No OPS was available, all layers to be decoded.\n");
     if (pbi->ops_counter > 0) {
-      pbi->DecOpPoint.DecOpSetId = pbi->ops_list[0].ops_id[0];
-      pbi->DecOpPoint.DecOpCount = pbi->ops_list[0].ops_cnt[0];
+      int default_ops_id = pbi->ops_list[0].ops_id[0];
+      pbi->DecOpPoint.DecOpSetId = default_ops_id;
+      pbi->DecOpPoint.DecOpCount = pbi->ops_list[0].ops_cnt[0][default_ops_id];
       pbi->DecOpPoint.DecOpIndex = 0;
       pbi->DecOpPoint.DecXlayerId = 0;
       pbi->DecOpPoint.num_mlayers = 1;
-      pbi->DecOpPoint.num_mlayers = 1;
+      pbi->DecOpPoint.num_tlayers = 1;
     } else {
       pbi->DecOpPoint.DecOpSetId = 0;
       pbi->DecOpPoint.DecOpCount = 0;
       pbi->DecOpPoint.DecOpIndex = 0;
       pbi->DecOpPoint.DecXlayerId = 0;
       pbi->DecOpPoint.num_mlayers = 1;
-      pbi->DecOpPoint.num_mlayers = 1;
+      pbi->DecOpPoint.num_tlayers = 1;
     }
   }
   return 0;

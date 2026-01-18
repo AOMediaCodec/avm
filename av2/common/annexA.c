@@ -253,7 +253,7 @@ enum {
 
 static const char *const toolset_names[] = { "MAIN", "UNKNOWN" };
 const char *get_toolset_name(int toolset) {
-  if (toolset > 0 && toolset < TOOLSET_TYPES) {
+  if (toolset >= 0 && toolset < TOOLSET_TYPES) {
     return toolset_names[toolset];
   }
   return toolset_names[TOOLSET_TYPES];
