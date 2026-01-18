@@ -6849,16 +6849,29 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
       }
       data += obu_header_size + obu_payload_size + length_field_size;
     }
-
+    // TODO: OPS needs to be set before not here.
+#if CONFIG_F429_OPS
+    // Local Operating Point Set, xlayer_id = cm->xlayer_id (probably 0?);
+    // ops_id = 0
+#endif
     // Operating Point Set
     if (layer_cfg->enable_ops) {
+#if !CONFIG_F429_OPS
       int xlayer_id = 0;
       struct OperatingPointSet *ops = &cpi->ops_list[0];
       av2_set_ops_params(cpi, ops, xlayer_id);
+#endif
       obu_header_size = av2_write_obu_header(
           level_params, OBU_OPERATING_POINT_SET, 0, 0, data);
-      obu_payload_size = av2_write_operating_point_set_obu(
-          cpi, xlayer_id, data + obu_header_size);
+      obu_payload_size =
+          av2_write_operating_point_set_obu(cpi,
+#if CONFIG_F429_OPS
+                                            0,  // xlayer_id,
+                                            cpi->ops_id,
+#else
+                                            xlayer_id,
+#endif  // CONFIG_F429_OPS
+                                            data + obu_header_size);
       const size_t length_field_size =
           obu_memmove(obu_header_size, obu_payload_size, data);
       if (av2_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=

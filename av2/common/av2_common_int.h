@@ -833,6 +833,187 @@ typedef struct AtlasSegmentInfo {
   struct AtlasLabelSegmentInfo ats_label_seg;
 } AtlasSegmentInfo;
 
+#if CONFIG_F429_OPS
+/*!
+ * \brief Operating point set color information
+ */
+typedef struct OpsColorInfo {
+  /*!
+   * Color description indicator for each operating point
+   */
+  int ops_color_description_idc;
+  /*!
+   * Color primaries for each operating point
+   */
+  int ops_color_primaries;
+  /*!
+   * Transfer characteristics for each operating point
+   */
+  int ops_transfer_characteristics;
+  /*!
+   * Matrix coefficients for each operating point
+   */
+  int ops_matrix_coefficients;
+  /*!
+   * Full range flag for each operating point
+   */
+  int ops_full_range_flag;
+} OpsColorInfo;
+
+/*!
+ * \brief Operating point set M-layer (embedded layer) information
+ */
+typedef struct OpsMLayerInfo {
+  /*!
+   * M-layer mapping for each operating point and extended layer
+   */
+  int ops_mlayer_map;
+  /*!
+   * M-layer IDs for each operating point
+   */
+  int OpsMlayerID;
+  /*!
+   * M-layer count for each operating point and extended layer
+   */
+  int OpsMLayerCount;
+  /*!
+   * T-layer (temporal layer) mapping for each operating point
+   */
+  int ops_tlayer_map;
+  /*!
+   * T-layer IDs for each operating point
+   */
+  int OpsTlayerID;
+  /*!
+   * T-layer count for each operating point
+   */
+  int OPTLayerCount;
+} OpsMLayerInfo;
+
+typedef struct OpsPtlInfo {
+  int ops_config_idc;           // f(6)
+  int ops_aggregate_level_idx;  // f(5)
+  int ops_max_tier_flag;        // f(1)
+  int ops_max_interop;          // f(4)
+} OpsPtlInfo;
+
+typedef struct OpsSeqPtlInfo {
+  int ops_seq_profile_idc;  // f(5)
+  int ops_level_idx;        // f(5)
+  int ops_tier_flag;        // f(1)
+  int ops_mlayer_count;     // f(3)
+  int ops_reserved_2bits;   // f(2)
+} OpsSeqPtlInfo;
+
+/*!
+ * \brief Operating point set decoder model information
+ */
+typedef struct OpsDecoderModelInfo {
+  /*!
+   * Decoder buffer delay for each operating point
+   */
+  int ops_decoder_buffer_delay;  // uvlc()
+  /*!
+   * Encoder buffer delay for each operating point
+   */
+  int ops_encoder_buffer_delay;  // uvlc()
+  /*!
+   * Low delay mode flag for each operating point
+   */
+  int ops_low_delay_mode_flag;  // f(1)
+} OpsDecoderModelInfo;
+
+typedef struct OperatingPointPayload {
+  /*!
+   * Data size for each operating point (leb128)
+   */
+  uint32_t ops_data_size;
+  /*!
+   * Intent for each operating point (7 bits)
+   */
+  int ops_intent_op;
+
+  struct OpsPtlInfo ops_aggregate_profile_tier_level_info;
+  struct OpsColorInfo ops_color_info;
+  struct OpsDecoderModelInfo ops_decoder_model_info;
+  /*!
+   * Flag indicating if initial display delay is present
+   */
+  int ops_initial_display_delay_present_flag;
+  /*!
+   * Initial display delay minus 1 (4 bits)
+   */
+  int ops_initial_display_delay_minus_1;
+  /*!
+   * Extended layer map for each operating point (31 bits)
+   */
+  int ops_xlayer_map;
+  struct OpsSeqPtlInfo ops_seq_profile_tier_level_info[32];
+
+  struct OpsMLayerInfo ops_mlayer_info[32];
+
+  int ops_mlayer_explicit_info_flag[32];
+  /*!
+   * Embedded operating point ID (4 bits)
+   */
+  int ops_embedded_op_id[32];
+  /*!
+   * Embedded operating point ID (3 bits)
+   */
+  int ops_embedded_op_index[32];
+
+  int XCount;
+  int OpsxLayerId[32];  // TODO: is 32 correct?
+
+} OperatingPointPayload;
+
+typedef struct OperatingPointSet {
+  /*!
+   * Reset flag for the operating point set
+   */
+  int ops_reset_flag;
+  /*!
+   * Operating point set ID (4 bits)
+   * ops_id is initilized as -1 when the decoder starts
+   */
+  int ops_id;
+  /*!
+   * Count of operating points in this set (3 bits)
+   */
+  int ops_cnt;
+  /*!
+   * Priority of the operating point set (4 bits)
+   */
+  int ops_priority;
+  /*!
+   * Intent of the operating point set (7 bits)
+   */
+  int ops_intent;
+  /*!
+   * Flag indicating if intent is present
+   */
+  int ops_intent_present_flag;
+  /*!
+   * Flag indicating if operational profile/tier/level is present
+   */
+  int ops_operational_ptl_present_flag;
+  /*!
+   * Flag indicating if color information is present
+   */
+  int ops_color_info_present_flag;
+  /*!
+   * Flag indicating if decoder model information is present
+   */
+  int ops_decoder_model_info_present_flag;
+  /*!
+   * M-layer information indicator (2 bits)
+   */
+  int ops_mlayer_info_idc;
+
+  struct OperatingPointPayload operating_point_payload[8];
+
+} OperatingPointSet;
+#else
 typedef struct OpsColorInfo {
   int ops_color_description_idc[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT];
   int ops_color_primaries[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT];
@@ -905,7 +1086,7 @@ typedef struct OperatingPointSet {
   struct OpsDecoderModelInfo *ops_decoder_model_info;
   struct OpsDecoderModelInfo ops_decoder_model_info_s;
 } OperatingPointSet;
-
+#endif  // CONFIG_F429_OPS
 // This structure specifies the color info params
 typedef struct color_info {
   int color_description_idc;
@@ -2496,8 +2677,11 @@ typedef struct AV2Common {
   /*!
    * Operating Point Set part of the operating point set
    */
+#if CONFIG_F429_OPS
+  OperatingPointSet ops_params_for_frame;
+#else
   OperatingPointSet ops_params;
-
+#endif
   /*!
    * Elements part of the sequence header, that are applicable for all the
    * frames in the video.
@@ -2775,6 +2959,7 @@ typedef struct AV2Common {
    * Atlas structure.
    */
   struct AtlasSegmentInfo *atlas;
+#if !CONFIG_F429_OPS
   /*!
    * Operating point set (OPS) id.
    */
@@ -2783,7 +2968,7 @@ typedef struct AV2Common {
    * Operating point set (OPS) structure.
    */
   struct OperatingPointSet *ops;
-
+#endif  // !CONFIG_F429_OPS
   /*!
    * Pic struct parameters.
    */

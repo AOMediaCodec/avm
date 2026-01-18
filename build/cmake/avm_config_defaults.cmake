@@ -148,6 +148,13 @@ set_avm_config_var(
 set_avm_config_var(CONFIG_ML_PART_SPLIT 1
                    "Partition SPLIT pruning/forcing as predicted by ML.")
 
+# CWG-F429: Fix Operating Point Set OBU syntax to match spec
+set_avm_config_var(
+  CONFIG_F429_OPS
+  1
+  "Update Operating Point Set OBU syntax based on the draft specification(Jan17th)."
+)
+
 set_avm_config_var(
   CONFIG_MIXED_LOSSLESS_ENCODE 0
   "Encoder only flag to configure encoder to enable mixed lossy/lossless coding"

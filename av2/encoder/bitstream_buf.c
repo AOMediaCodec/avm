@@ -62,16 +62,28 @@
 
 void av2_set_buffer_removal_timing_params(AV2_COMP *const cpi) {
   AV2_COMMON *const cm = &cpi->common;
+#if CONFIG_F429_OPS
+  struct OperatingPointSet *ops = &cpi->ops_list[cm->xlayer_id][cpi->ops_id];
+#else
   struct OperatingPointSet *ops = &cm->ops_params;
+#endif
   BufferRemovalTimingInfo *brt_info = &cm->brt_info;
   // xlayer_id
   brt_info->obu_xlayer_id = cm->xlayer_id;
   const int xlayer_id = brt_info->obu_xlayer_id;
   // ops_id
+#if CONFIG_F429_OPS
+  brt_info->br_ops_id[xlayer_id] = ops->ops_id;
+#else
   brt_info->br_ops_id[xlayer_id] = ops->ops_id[xlayer_id];
+#endif  // CONFIG_F429_OPS
   const int ops_id = brt_info->br_ops_id[xlayer_id];
   // ops_cnt
+#if CONFIG_F429_OPS
+  brt_info->br_ops_cnt[xlayer_id][ops_id] = ops->ops_cnt;
+#else
   brt_info->br_ops_cnt[xlayer_id][ops_id] = ops->ops_cnt[xlayer_id][ops_id];
+#endif  // CONFIG_F429_OPS
   const int ops_cnt = brt_info->br_ops_cnt[xlayer_id][ops_id];
   // decoder model information
   int br_decoder_model_present_op_flag = 0;

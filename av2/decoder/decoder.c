@@ -240,6 +240,14 @@ AV2Decoder *av2_decoder_create(BufferPool *const pool) {
     pbi->num_displayable_frame_unit[i] = 0;
   }
 
+#if CONFIG_F429_OPS
+  for (int i = 0; i < MAX_NUM_XLAYERS; i++) {
+    for (int j = 0; j < MAX_NUM_OPS_ID; j++) {
+      pbi->ops_list[i][j].ops_id = -1;
+    }
+  }
+#endif  // CONFIG_F429_OPS
+
 #if CONFIG_ACCOUNTING
   pbi->acct_enabled = 1;
   avm_accounting_init(&pbi->accounting);

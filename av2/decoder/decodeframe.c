@@ -7363,7 +7363,7 @@ void update_ref_frames_info(AV2Decoder *pbi, OBU_TYPE obu_type) {
     }
   }
 }
-
+#if !CONFIG_F429_OPS
 static avm_codec_err_t avm_get_num_layers_from_operating_point_idc(
     int operating_point_idc, unsigned int *number_mlayers,
     unsigned int *number_tlayers) {
@@ -7385,7 +7385,7 @@ static avm_codec_err_t avm_get_num_layers_from_operating_point_idc(
   }
   return AVM_CODEC_OK;
 }
-
+#endif  // !CONFIG_F429_OPS
 // Called if the cm->cur_mfh_id is zero.
 static void handle_zero_cur_mfh_id(AV2_COMMON *const cm) {
   const SequenceHeader *const seq_params = &cm->seq_params;
@@ -7467,6 +7467,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   // The current decoder implementation supports all levels.
   // TODO: Replace this with a CLI option that allows to choose an operating
   // point by external means.
+#if !CONFIG_F429_OPS
   if (pbi->ops_counter > 0) {
     pbi->operating_point = pbi->ops_list[0].ops_id[0];
   } else {
@@ -7479,6 +7480,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     cm->error.error_code = AVM_CODEC_ERROR;
     return 0;
   }
+#endif  // !CONFIG_F429_OPS
 
   cm->cur_mfh_id = setup_multiframe_header_id(cm, obu_type, rb);
 
@@ -7504,9 +7506,15 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   }
 
   if (obu_type == OBU_BRIDGE_FRAME) {
+#if CONFIG_F429_OPS
+    cm->bridge_frame_info.is_bridge_frame = 1;
+#endif
     cm->bridge_frame_info.bridge_frame_ref_idx =
         avm_rb_read_literal(rb, seq_params->ref_frames_log2);
   } else {
+#if CONFIG_F429_OPS
+    cm->bridge_frame_info.is_bridge_frame = 0;
+#endif
     cm->bridge_frame_info.bridge_frame_ref_idx = INVALID_IDX;
   }
 

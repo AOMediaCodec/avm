@@ -810,6 +810,15 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
   cm->lcr_params.lcr_global_config_record_id = 1;
   for (int i = 0; i < MAX_NUM_LCR; i++) cm->lcr_params.lcr_global_id[i] = 1;
 
+#if CONFIG_F429_OPS
+  // Encoder input parameter
+  cpi->ops_id = 0;
+  for (int i = 0; i < MAX_NUM_XLAYERS; i++) {
+    for (int j = 0; j < MAX_NUM_OPS_ID; j++) {
+      memset(&cpi->ops_list[i][j], 0, sizeof(struct OperatingPointSet));
+    }
+  }
+#else
   // Initialize OPS information
   for (int i = 0; i < MAX_NUM_OPS_ID; i++)
     memset(&cpi->ops_list[i], 0, sizeof(struct OperatingPointSet));
@@ -820,6 +829,7 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
       cm->ops->ops_cnt[i][j] = oxcf->tool_cfg.operating_points_count;
     }
   }
+#endif  // !CONFIG_F429_OPS
 
   // Initialize Atlas Segment information
   for (int i = 0; i < MAX_NUM_ATLAS_SEG_ID; i++)

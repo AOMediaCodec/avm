@@ -2872,7 +2872,15 @@ typedef struct AV2_COMP {
   /*!
    * list for Operating Point Set (OPS) information
    */
+#if CONFIG_F429_OPS
+  struct OperatingPointSet ops_list[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
+  /*!
+   * id of the operseting opint set obu that the current sequence uses
+   */
+  int ops_id;
+#else
   struct OperatingPointSet ops_list[MAX_NUM_OPS_ID];
+#endif
   /*!
    * list for Atlas information
    */

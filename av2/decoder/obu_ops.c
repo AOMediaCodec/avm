@@ -20,6 +20,242 @@
 #include "av2/decoder/decodeframe.h"
 #include "av2/decoder/obu.h"
 
+#if CONFIG_F429_OPS
+// Operating point set mlayer info syntax (Section 5.11.5)
+static void read_ops_mlayer_info(struct OpsMLayerInfo *ops_mlayer_info,
+                                 struct avm_read_bit_buffer *rb) {
+  // Read mlayer map (8 bits for MAX_NUM_MLAYERS=8)
+  ops_mlayer_info->ops_mlayer_map = avm_rb_read_literal(rb, 8);
+  ops_mlayer_info->OpsMLayerCount = 0;
+  int mCount = 0;
+
+  for (int j = 0; j < 8; j++) {
+    if ((ops_mlayer_info->ops_mlayer_map & (1 << j))) {
+      ops_mlayer_info->OpsMlayerID = j;
+      // Read tlayer map (4 bits for MAX_NUM_TLAYERS=4)
+      ops_mlayer_info->ops_tlayer_map =
+          avm_rb_read_literal(rb, MAX_NUM_TLAYERS);
+      int tCount = 0;
+      for (int k = 0; k < 4; k++) {
+        if ((ops_mlayer_info->ops_tlayer_map & (1 << k))) {
+          ops_mlayer_info->OpsTlayerID = k;
+          tCount++;
+        }
+      }
+      ops_mlayer_info->OPTLayerCount = tCount;
+      mCount++;
+    }
+  }
+  ops_mlayer_info->OpsMLayerCount = mCount;
+}
+
+// Operating point set color info syntax (Section 5.11.4)
+static void read_ops_color_info(struct OpsColorInfo *opsColInfo,
+                                struct avm_read_bit_buffer *rb) {
+  // ops_color_description_idc: indicates the combination of color primaries,
+  // transfer characteristics and matrix coefficients as defined in CWG-F270.
+  // The value of color_description_idc shall be in the range of 0 to 15,
+  // inclusive. Values larger than 4 are reserved for future use by AOMedia and
+  // should be ignored by decoders conforming to this version of this
+  // specification.
+  opsColInfo->ops_color_description_idc = avm_rb_read_rice_golomb(rb, 2);
+  if (opsColInfo->ops_color_description_idc == 0) {
+    opsColInfo->ops_color_primaries = avm_rb_read_literal(rb, 8);
+    opsColInfo->ops_transfer_characteristics = avm_rb_read_literal(rb, 8);
+    opsColInfo->ops_matrix_coefficients = avm_rb_read_literal(rb, 8);
+  }
+  opsColInfo->ops_full_range_flag = avm_rb_read_bit(rb);
+}
+
+// Operating point set decoder model info syntax (Section 5.11.3)
+static void read_ops_decoder_model_info(
+    struct OpsDecoderModelInfo *ops_decoder_model_info,
+    struct avm_read_bit_buffer *rb) {
+  ops_decoder_model_info->ops_decoder_buffer_delay = avm_rb_read_uvlc(rb);
+  ops_decoder_model_info->ops_encoder_buffer_delay = avm_rb_read_uvlc(rb);
+  ops_decoder_model_info->ops_low_delay_mode_flag = avm_rb_read_bit(rb);
+}
+
+// Operating point set aggregate profile tier level info syntax (Section
+// 5.11.1)
+static void read_ops_aggregate_profile_tier_level_info(
+    struct OpsPtlInfo *ops_ptl_info, struct avm_read_bit_buffer *rb) {
+  ops_ptl_info->ops_config_idc = avm_rb_read_literal(rb, 6);
+  ops_ptl_info->ops_aggregate_level_idx = avm_rb_read_literal(rb, 5);
+  ops_ptl_info->ops_max_tier_flag = avm_rb_read_bit(rb);
+  ops_ptl_info->ops_max_interop = avm_rb_read_literal(rb, 4);
+}
+
+// Operating point set sequence profile tier level info syntax (Section 5.11.2)
+static void read_ops_seq_profile_tier_level_info(
+    struct OpsSeqPtlInfo *ops_seq_ptl_info, struct avm_read_bit_buffer *rb) {
+  ops_seq_ptl_info->ops_seq_profile_idc = avm_rb_read_literal(rb, 5);
+  ops_seq_ptl_info->ops_level_idx = avm_rb_read_literal(rb, 5);
+  ops_seq_ptl_info->ops_tier_flag = avm_rb_read_bit(rb);
+  ops_seq_ptl_info->ops_mlayer_count = avm_rb_read_literal(rb, 3);
+  ops_seq_ptl_info->ops_reserved_2bits = avm_rb_read_literal(rb, 2);
+}
+
+// Operating point payload syntax (Section 5.11)
+static uint32_t read_operating_point_payload(
+    struct AV2Decoder *pbi, int xId, struct OperatingPointSet *ops_params,
+    int op_index, struct avm_read_bit_buffer *rb) {
+  struct OperatingPointPayload *op_payload =
+      &ops_params->operating_point_payload[op_index];
+
+  // Read ops_data_size (LEB128 encoded)
+  op_payload->ops_data_size = avm_rb_read_uleb(rb);
+
+  const uint32_t saved_bit_offset = rb->bit_offset;
+
+  // Read ops_op_intent (7 bits) if intent_present_flag is set
+  if (ops_params->ops_intent_present_flag)
+    op_payload->ops_intent_op = avm_rb_read_literal(rb, 7);
+
+  // Read profile/tier/level information if present
+  if (ops_params->ops_operational_ptl_present_flag) {
+    if (xId == GLOBAL_XLAYER_ID) {
+      // Read aggregate profile tier level info
+      read_ops_aggregate_profile_tier_level_info(
+          &op_payload->ops_aggregate_profile_tier_level_info, rb);
+    } else {
+      // Read sequence profile tier level info for this xlayer
+      read_ops_seq_profile_tier_level_info(
+          &op_payload->ops_seq_profile_tier_level_info[xId], rb);
+    }
+  }
+
+  // Read color info if present
+  if (ops_params->ops_color_info_present_flag) {
+    read_ops_color_info(&op_payload->ops_color_info, rb);
+  } else {
+    op_payload->ops_color_info.ops_color_description_idc = 0;
+    op_payload->ops_color_info.ops_color_primaries = AVM_CICP_CP_UNSPECIFIED;
+    op_payload->ops_color_info.ops_transfer_characteristics =
+        AVM_CICP_TC_UNSPECIFIED;
+    op_payload->ops_color_info.ops_matrix_coefficients =
+        AVM_CICP_CP_UNSPECIFIED;
+    op_payload->ops_color_info.ops_full_range_flag = 0;
+  }
+
+  // Read decoder model info if present
+  if (ops_params->ops_decoder_model_info_present_flag) {
+    read_ops_decoder_model_info(&op_payload->ops_decoder_model_info, rb);
+  }
+
+  // Read initial display delay info
+  op_payload->ops_initial_display_delay_present_flag = avm_rb_read_bit(rb);
+  if (op_payload->ops_initial_display_delay_present_flag) {
+    op_payload->ops_initial_display_delay_minus_1 = avm_rb_read_literal(rb, 4);
+  }
+
+  // Process xlayer mapping
+  if (xId == GLOBAL_XLAYER_ID) {
+    // Read xlayer map (31 bits)
+    op_payload->ops_xlayer_map = avm_rb_read_literal(rb, 31);
+    int k = 0;
+    for (int j = 0; j < 31; j++) {
+      if ((op_payload->ops_xlayer_map & (1 << j))) {
+        op_payload->OpsxLayerId[k] = j;
+        k++;
+
+        // Read seq profile tier level info for this xlayer if PTL present
+        if (ops_params->ops_operational_ptl_present_flag) {
+          read_ops_seq_profile_tier_level_info(
+              &op_payload->ops_seq_profile_tier_level_info[j], rb);
+        }
+
+        // Read mlayer info based on ops_mlayer_info_idc
+        int idc = ops_params->ops_mlayer_info_idc;
+        if (idc == 1) {
+          read_ops_mlayer_info(&op_payload->ops_mlayer_info[j], rb);
+        } else if (idc == 2) {
+          op_payload->ops_mlayer_explicit_info_flag[j] = avm_rb_read_bit(rb);
+          if (op_payload->ops_mlayer_explicit_info_flag[j]) {
+            read_ops_mlayer_info(&op_payload->ops_mlayer_info[j], rb);
+          } else {
+            op_payload->ops_embedded_op_id[j] = avm_rb_read_literal(rb, 4);
+            op_payload->ops_embedded_op_index[j] = avm_rb_read_literal(rb, 3);
+          }
+        }
+      }
+    }
+    op_payload->XCount = k;
+  } else {
+    op_payload->XCount = 1;
+    op_payload->OpsxLayerId[0] = xId;
+    read_ops_mlayer_info(&op_payload->ops_mlayer_info[xId], rb);
+  }
+
+  // Byte alignment at end of each operating point iteration
+  if (av2_check_byte_alignment(&pbi->common, rb) != 0) {
+    avm_internal_error(&pbi->common.error, AVM_CODEC_CORRUPT_FRAME,
+                       "Byte alignment error at end of operating point in "
+                       "av2_read_operating_point_set_obu()");
+  }
+
+  const uint32_t opsBytes = ((rb->bit_offset - saved_bit_offset + 7) >> 3);
+  return opsBytes;
+}
+
+// Operating point set OBU syntax (Section 5.10)
+uint32_t av2_read_operating_point_set_obu(struct AV2Decoder *pbi,
+                                          int obu_xlayer_id,
+                                          struct avm_read_bit_buffer *rb) {
+  const uint32_t saved_bit_offset = rb->bit_offset;
+
+  // Read ops_reset_flag and ops_id
+  int ops_reset_flag = avm_rb_read_bit(rb);
+  int ops_id = avm_rb_read_literal(rb, OPS_ID_BITS);
+
+  struct OperatingPointSet *ops_params = &pbi->ops_list[obu_xlayer_id][ops_id];
+
+  // Set reset flag and ops_id
+  ops_params->ops_reset_flag = ops_reset_flag;
+  ops_params->ops_id = ops_id;
+
+  // Read ops_cnt (3 bits)
+  ops_params->ops_cnt = avm_rb_read_literal(rb, OPS_COUNT_BITS);
+
+  if (ops_params->ops_cnt > 0) {
+    // Read OPS header fields
+    ops_params->ops_priority = avm_rb_read_literal(rb, 4);
+    ops_params->ops_intent = avm_rb_read_literal(rb, 7);
+    ops_params->ops_intent_present_flag = avm_rb_read_bit(rb);
+    ops_params->ops_operational_ptl_present_flag = avm_rb_read_bit(rb);
+    ops_params->ops_color_info_present_flag = avm_rb_read_bit(rb);
+    ops_params->ops_decoder_model_info_present_flag = avm_rb_read_bit(rb);
+
+    // Read mlayer_info_idc and reserved bits
+    if (obu_xlayer_id == GLOBAL_XLAYER_ID) {
+      ops_params->ops_mlayer_info_idc = avm_rb_read_literal(rb, 2);
+      (void)avm_rb_read_literal(rb, 7);  // ops_reserved_7bits
+    } else {
+      (void)avm_rb_read_literal(rb, 9);  // ops_reserved_9bits
+    }
+
+    // Upto this point, 24 bits are consumed.
+    if ((rb->bit_offset & 7) != 0) {
+      avm_internal_error(
+          &pbi->common.error, AVM_CODEC_CORRUPT_FRAME,
+          "Byte alignment is required in av2_read_operating_point_set_obu()");
+    }
+
+    // Read operating point payloads
+    // TODO: is there any conformance, requirement on the return size of
+    // read_operating_point_payload()?
+    for (int i = 0; i < ops_params->ops_cnt; i++) {
+      read_operating_point_payload(pbi, obu_xlayer_id, ops_params, i, rb);
+    }
+  }
+
+  if (av2_check_trailing_bits(pbi, rb) != 0) {
+    return 0;
+  }
+  return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
+}
+
+#else
 static void read_ops_mlayer_info(int obuXLId, int opsID, int opIndex, int xLId,
                                  struct OPSMLayerInfo *ops_mlayer_info,
                                  struct avm_read_bit_buffer *rb) {
@@ -285,3 +521,4 @@ uint32_t av2_read_operating_point_set_obu(struct AV2Decoder *pbi,
   }
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }
+#endif  // CONFIG_F429_OPS
