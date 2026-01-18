@@ -144,6 +144,11 @@ set_avm_config_var(
   CONFIG_QM_DEBUG 0
   "Enable debug information for extension to AV2 quantization matrices.")
 
+set_avm_config_var(
+  CONFIG_LCR_UPDATE
+  1
+  "Update Layer Configuration Record OBU syntax based on the draft specification(Jan17th)."
+)
 # This is an encode-only change.
 set_avm_config_var(CONFIG_ML_PART_SPLIT 1
                    "Partition SPLIT pruning/forcing as predicted by ML.")

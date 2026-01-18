@@ -3700,8 +3700,16 @@ static InterpFilter read_frame_interp_filter(struct avm_read_bit_buffer *rb) {
                              : avm_rb_read_literal(rb, LOG_SWITCHABLE_FILTERS);
 }
 
-static AVM_INLINE void setup_render_size(AV2_COMMON *cm,
-                                         struct avm_read_bit_buffer *rb) {
+static AVM_INLINE void setup_render_size(
+#if CONFIG_LCR_UPDATE
+    AV2Decoder *pbi,
+#else
+    AV2_COMMON *cm,
+#endif
+    struct avm_read_bit_buffer *rb) {
+#if CONFIG_LCR_UPDATE
+  AV2_COMMON *cm = &pbi->common;
+#endif
   if (cm->bridge_frame_info.is_bridge_frame) {
     return;
   }
@@ -3712,6 +3720,23 @@ static AVM_INLINE void setup_render_size(AV2_COMMON *cm,
   // i.e, xlayer_info(1,n) is specified, where n is xlayer_id[i] of the i-th
   // extended layer. Set default to use xlayer_id 31 when Global LCR is being
   // used
+#if CONFIG_LCR_UPDATE
+  cm->render_width = cm->width;
+  cm->render_height = cm->height;
+
+  LcrXlayerInfo *lcr_xlayer_info = NULL;
+  if (pbi->active_lcr->lcr_local_id == cm->seq_params.seq_lcr_id) {  // local
+    lcr_xlayer_info = &pbi->active_lcr->lcr_xlayer_info;
+  } else if (pbi->active_lcr->lcr_global_config_record_id ==
+             cm->seq_params.seq_lcr_id) {
+    lcr_xlayer_info = &pbi->active_lcr->lcr_global_payload->lcr_xlayer_info;
+  }
+  if (lcr_xlayer_info != NULL && lcr_xlayer_info->lcr_rep_info_present_flag) {
+    cm->render_width = lcr_xlayer_info->lcr_rep_info.lcr_max_pic_width;
+    cm->render_height = lcr_xlayer_info->lcr_rep_info.lcr_max_pic_height;
+  }
+  // TODO: what if lcr_embedded_layer_info_present_flag=1?
+#else
   const bool is_global_lcr = !cm->lcr_params.is_local_lcr;
   const int xlayer_id =
       is_global_lcr ? GLOBAL_XLAYER_ID : cm->lcr_params.xlayer_id;
@@ -3723,6 +3748,7 @@ static AVM_INLINE void setup_render_size(AV2_COMMON *cm,
     cm->render_width = cm->width;
     cm->render_height = cm->height;
   }
+#endif
 }
 
 static AVM_INLINE void resize_context_buffers(AV2_COMMON *cm, int width,
@@ -3947,9 +3973,16 @@ void av2_validate_frame_level_conformance(
   }
 }
 
-static AVM_INLINE void setup_frame_size(AV2_COMMON *cm,
-                                        int frame_size_override_flag,
-                                        struct avm_read_bit_buffer *rb) {
+static AVM_INLINE void setup_frame_size(
+#if CONFIG_LCR_UPDATE
+    AV2Decoder *pbi,
+#else
+    AV2_COMMON *cm,
+#endif
+    int frame_size_override_flag, struct avm_read_bit_buffer *rb) {
+#if CONFIG_LCR_UPDATE
+  AV2_COMMON *cm = &pbi->common;
+#endif
   const SequenceHeader *const seq_params = &cm->seq_params;
   int width, height;
 
@@ -3988,7 +4021,11 @@ static AVM_INLINE void setup_frame_size(AV2_COMMON *cm,
   }
 
   resize_context_buffers(cm, width, height);
+#if CONFIG_LCR_UPDATE
+  setup_render_size(pbi, rb);
+#else
   setup_render_size(cm, rb);
+#endif
   setup_buffer_pool(cm);
   realloc_bru_info(cm);
   av2_validate_frame_level_conformance(&cm->seq_params, width, height,
@@ -4023,8 +4060,15 @@ static INLINE int valid_ref_frame_img_fmt(avm_bit_depth_t ref_bit_depth,
 }
 
 static AVM_INLINE void setup_frame_size_with_refs(
-    AV2_COMMON *cm, const int explicit_ref_frame_map,
-    struct avm_read_bit_buffer *rb) {
+#if CONFIG_LCR_UPDATE
+    AV2Decoder *pbi,
+#else
+    AV2_COMMON *cm,
+#endif
+    const int explicit_ref_frame_map, struct avm_read_bit_buffer *rb) {
+#if CONFIG_LCR_UPDATE
+  AV2_COMMON *cm = &pbi->common;
+#endif
   int width, height;
   int found = 0;
   // In implicit reference framework, the reference frame mapping up to this
@@ -4070,7 +4114,11 @@ static AVM_INLINE void setup_frame_size_with_refs(
 
     av2_read_frame_size(rb, num_bits_width, num_bits_height, &width, &height);
     resize_context_buffers(cm, width, height);
+#if CONFIG_LCR_UPDATE
+    setup_render_size(pbi, rb);
+#else
     setup_render_size(cm, rb);
+#endif
   }
 
   if (width <= 0 || height <= 0)
@@ -7154,12 +7202,33 @@ void mark_reference_frames_with_long_term_ids(AV2Decoder *pbi) {
 static void activate_atlas_segment(AV2Decoder *pbi) {
   AV2_COMMON *const cm = &pbi->common;
   bool atlas_found = false;
+  // TODO: lcr_global_atlas_id can be associated only with atlas_segment_id[31]
+//  lcr_global_atlas_id, when present, specifies the value of the
+//  atlas_segment_id[ 31 ] associated with the current global LCR. When not
+//  present in a global LCR, the value of atlas_segment_id[ 31 ] shall be
+//  assumed to be equal to 0. lcr_local_atlas_id[ i ], when present, provides an
+//  identifier for a local atlas with atlas_segment_id equal to
+//  lcr_local_atlas_id[ i ] that is associated with the extended layer with
+//  obu_xlayer_id equal to i. If this value is not present this information can
+//  be provided by a global atlas, if present, or is considered as unspecified.
+// verify the intention of the implementation in the anchor.
+#if CONFIG_LCR_UPDATE
+  assert(pbi->active_lcr != NULL);
+  int atas_lcr_id = -1;
+  if (pbi->active_lcr->lcr_local_id == cm->seq_params.seq_lcr_id) {  // local
+    atas_lcr_id = pbi->active_lcr->lcr_local_atlas_id;
+  } else if (pbi->active_lcr->lcr_global_config_record_id ==
+             cm->seq_params.seq_lcr_id) {
+    atas_lcr_id = pbi->active_lcr->lcr_global_atlas_id;
+  }
+#else
   int xlayer_id = GLOBAL_XLAYER_ID;
   if (cm->lcr_params.is_local_lcr) xlayer_id = cm->lcr_params.xlayer_id;
 
   int atas_lcr_id = cm->lcr_params.is_local_lcr
                         ? cm->lcr_params.lcr_local_atlas_id[xlayer_id]
                         : cm->lcr_params.lcr_global_atlas_id;
+#endif
   for (int i = 0; i < pbi->atlas_counter; i++) {
     if (pbi->atlas_list[i].atlas_segment_id[i] == atas_lcr_id) {
       pbi->active_atlas_segment_info = &pbi->atlas_list[i];
@@ -7176,6 +7245,29 @@ static void activate_atlas_segment(AV2Decoder *pbi) {
 
 static void activate_layer_configuration_record(AV2Decoder *pbi,
                                                 int seq_lcr_id) {
+#if CONFIG_LCR_UPDATE
+  pbi->active_lcr = NULL;
+  if (seq_lcr_id != LCR_ID_UNSPECIFIED) {
+    bool local_lcr_present =
+        pbi->lcr_list[pbi->common.xlayer_id][seq_lcr_id].lcr_local_id ==
+        seq_lcr_id;
+    bool global_lcr_present = pbi->lcr_list[GLOBAL_XLAYER_ID][seq_lcr_id]
+                                  .lcr_global_config_record_id == seq_lcr_id;
+    if (local_lcr_present)
+      pbi->active_lcr = &pbi->lcr_list[pbi->common.xlayer_id][seq_lcr_id];
+    else if (global_lcr_present)
+      pbi->active_lcr = &pbi->lcr_list[GLOBAL_XLAYER_ID][seq_lcr_id];
+
+    if (pbi->active_lcr == NULL) {
+      avm_internal_error(
+          &pbi->common.error, AVM_CODEC_UNSUP_BITSTREAM,
+          "local LCR with lcr_local_id=seq_lcr_id(%d) or global LCR with "
+          "lcr_global_config_record_id=seq_lcr_id(%d) is not present\n",
+          seq_lcr_id, seq_lcr_id);
+    }
+    activate_atlas_segment(pbi);
+  }
+#else
   AV2_COMMON *const cm = &pbi->common;
   bool lcr_found = false;
   for (int i = 0; i < pbi->lcr_counter; i++) {
@@ -7192,6 +7284,7 @@ static void activate_layer_configuration_record(AV2Decoder *pbi,
     avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
                        "Unsupported LCR id in the Sequence Header.\n");
   }
+#endif
 }
 
 static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
@@ -7241,7 +7334,9 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   if (obu_type == OBU_CLK) {
     reset_ref_frame_map(cm);
   }
-
+#if CONFIG_LCR_UPDATE
+  activate_layer_configuration_record(pbi, cm->seq_params.seq_lcr_id);
+#endif  // CONFIG_LCR_UPDATE
   // check bitstream conformance if sequence header is parsed
   // bitstream constraint for tlayer_id
   if (cm->tlayer_id > cm->seq_params.max_tlayer_id) {
@@ -7509,7 +7604,8 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   } else {
     cm->bridge_frame_info.bridge_frame_ref_idx = INVALID_IDX;
   }
-
+  // TODO: is it intended to set atlas_params based on seq_lcr_id?
+#if !CONFIG_LCR_UPDATE
   if (obu_type == OBU_OLK || obu_type == OBU_CLK) {
     if (seq_params->seq_lcr_id != LCR_ID_UNSPECIFIED) {
       activate_layer_configuration_record(pbi, seq_params->seq_lcr_id);
@@ -7518,7 +7614,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       memset(&cm->atlas_params, 0, sizeof(struct AtlasSegmentInfo));
     }
   }
-
+#endif  // !CONFIG_LCR_UPDATE
   if (pbi->ci_obu_received_per_layer[cm->mlayer_id] &&
       (color_info->matrix_coefficients == AVM_CICP_MC_IDENTITY) &&
       (seq_params->subsampling_x || seq_params->subsampling_y)) {
@@ -7893,7 +7989,11 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     cm->current_frame.mlayer_id = cm->mlayer_id;
     cm->current_frame.xlayer_id = cm->xlayer_id;
     features->tip_frame_mode = TIP_FRAME_DISABLED;
+#if CONFIG_LCR_UPDATE
+    setup_frame_size(pbi, frame_size_override_flag, rb);
+#else
     setup_frame_size(cm, frame_size_override_flag, rb);
+#endif
     read_screen_content_params(cm, rb);
     read_intrabc_params(cm, rb);
     features->allow_ref_frame_mvs = 0;
@@ -7908,7 +8008,11 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     features->allow_ref_frame_mvs = 0;
     features->tip_frame_mode = TIP_FRAME_DISABLED;
     if (current_frame->frame_type == INTRA_ONLY_FRAME) {
+#if CONFIG_LCR_UPDATE
+      setup_frame_size(pbi, frame_size_override_flag, rb);
+#else
       setup_frame_size(cm, frame_size_override_flag, rb);
+#endif
       read_screen_content_params(cm, rb);
       read_intrabc_params(cm, rb);
 
@@ -8013,9 +8117,17 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       }
       if (!frame_is_sframe(cm) && frame_size_override_flag &&
           !cm->bridge_frame_info.is_bridge_frame) {
+#if CONFIG_LCR_UPDATE
+        setup_frame_size_with_refs(pbi, explicit_ref_frame_map, rb);
+#else
         setup_frame_size_with_refs(cm, explicit_ref_frame_map, rb);
+#endif
       } else {
+#if CONFIG_LCR_UPDATE
+        setup_frame_size(pbi, frame_size_override_flag, rb);
+#else
         setup_frame_size(cm, frame_size_override_flag, rb);
+#endif
       }
 
       // Overwrite the reference mapping considering the resolution

@@ -418,9 +418,12 @@ typedef struct AV2Decoder {
    */
   uint64_t frame_component_time[kTimingComponents];
 #endif
-
+#if CONFIG_LCR_UPDATE
+  struct LayerConfigurationRecord lcr_list[MAX_NUM_XLAYERS][MAX_NUM_LCR];
+#else
   struct LayerConfigurationRecord lcr_list[MAX_NUM_LCR];
   int lcr_counter;
+#endif  // CONFIG_LCR_UPDATE
   struct AtlasSegmentInfo atlas_list[MAX_NUM_ATLAS_SEG_ID];
   int atlas_counter;
   struct OperatingPointSet ops_list[MAX_NUM_OPS_ID];

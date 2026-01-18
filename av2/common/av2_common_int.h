@@ -658,6 +658,25 @@ typedef struct {
   int br_buffer_removal_time[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT];
 } BufferRemovalTimingInfo;
 
+#if CONFIG_LCR_UPDATE
+// LCR aggregate profile tier level info (Section 5.8.3)
+typedef struct LcrAggregatePtlInfo {
+  int lcr_config_idc;
+  int lcr_aggregate_level_idx;
+  int lcr_max_tier_flag;
+  int lcr_max_interop;
+} LcrAggregatePtlInfo;
+
+// LCR sequence profile tier level info (Section 5.8.4)
+typedef struct LcrSeqPtlInfo {
+  int lcr_seq_profile_idc;
+  int lcr_max_level_idx;
+  int lcr_tier_flag;
+  int lcr_max_mlayer_count;
+  int lcr_reserved_zero_2bits;
+} LcrSeqPtlInfo;
+#endif  // CONFIG_LCR_UPDATE
+
 typedef struct CroppingWindow {
   int crop_window_present_flag;
   int crop_win_left_offset;
@@ -677,7 +696,7 @@ typedef struct RepresentationInfo {
   int lcr_bit_depth_idc;
   int lcr_chroma_format_idc;
 } RepresentationInfo;
-
+#if !CONFIG_LCR_UPDATE
 typedef struct XLayerColorInfo {
   int layer_color_description_idc[MAX_LCR_TYPES][MAX_NUM_XLAYERS];
   int layer_color_primaries[MAX_LCR_TYPES][MAX_NUM_XLAYERS];
@@ -703,8 +722,99 @@ typedef struct EmbeddedLayerInfo {
   int LcrTlayerID[MAX_LCR_TYPES][MAX_NUM_XLAYERS][MAX_NUM_TLAYERS];
   int MLayerCount[MAX_LCR_TYPES][MAX_NUM_XLAYERS];
 } EmbeddedLayerInfo;
+#else
+typedef struct XLayerColorInfo {
+  int layer_color_description_idc;
+  int layer_color_primaries;
+  int layer_transfer_characteristics;
+  int layer_matrix_coefficients;
+  int layer_full_range_flag;
+} XLayerColorInfo;
 
+typedef struct EmbeddedLayerInfo {
+  int lcr_mlayer_map;
+  int lcr_tlayer_map[MAX_NUM_MLAYERS];
+  int lcr_layer_atlas_segment_id[8];
+  int lcr_priority_order[8];
+  int lcr_rendering_method[8];
+
+  int lcr_layer_type[8];
+  int lcr_auxiliary_type[8];
+  int lcr_view_type[8];
+  int lcr_view_id[8];
+  int lcr_dependent_layer_map[8];
+  int lcr_crop_info_in_scr_flag[8];
+  int lcr_crop_max_width[8];
+  int lcr_crop_max_height[8];
+  int LcrMlayerID[MAX_NUM_MLAYERS];
+  int TLayerCount[MAX_NUM_MLAYERS];
+  int LcrTlayerID[MAX_NUM_TLAYERS];
+  int MLayerCount;
+} EmbeddedLayerInfo;
+
+// XLayer info fields (Section 5.8.6)
+typedef struct LcrXlayerInfo {
+  int lcr_rep_info_present_flag;
+  int lcr_xlayer_purpose_present_flag;
+  int lcr_xlayer_color_info_present_flag;
+  int lcr_embedded_layer_info_present_flag;
+  int lcr_xlayer_purpose_id;
+  int lcr_xlayer_atlas_segment_id;
+  int lcr_xlayer_priority_order;
+  int lcr_xlayer_rendering_method;
+
+  // Representation info (Section 5.8.7)
+  struct RepresentationInfo lcr_rep_info;
+
+  // Cropping windows
+  struct CroppingWindow crop_win_list;
+
+  // Color info
+  struct XLayerColorInfo xlayer_col_params;
+
+  // Embedded layer info (Section 5.8.8)
+  struct EmbeddedLayerInfo mlayer_params;
+} LcrXlayerInfo;
+
+typedef struct LcrGlobalPayload {
+  int lcr_num_dependent_xlayer_map;
+  LcrXlayerInfo lcr_xlayer_info;
+} LcrGlobalPayload;
+#endif
 typedef struct LayerConfigurationRecord {
+  // Global LCR fields (Section 5.8.1)
+  int lcr_global_config_record_id;
+#if CONFIG_LCR_UPDATE
+  uint32_t lcr_xlayer_map;
+  int lcr_aggregate_profile_tier_level_info_present_flag;
+  int lcr_seq_profile_tier_level_info_present_flag;
+  int lcr_global_payload_present_flag;
+  int lcr_dependent_xlayers_flag;
+  int lcr_global_atlas_id_present_flag;
+  int lcr_global_purpose_id;
+  int lcr_global_atlas_id;
+  int lcr_reserved_zero_3bits;
+  int lcr_reserved_zero_7bits;
+
+  // Profile/tier/level information
+  struct LcrAggregatePtlInfo lcr_aggregate_ptl_info;
+  // only lcr_seq_ptl_info[0] is used for lcr_local_info
+  struct LcrSeqPtlInfo lcr_seq_ptl_info[32];
+
+  // Global payload data (Section 5.8.5)
+  uint32_t lcr_data_size[32];
+  LcrGlobalPayload lcr_global_payload[32];
+
+  // Local LCR fields (Section 5.8.2)
+  int lcr_global_id;
+  int lcr_local_id;
+  int lcr_profile_tier_level_info_present_flag;
+  int lcr_local_atlas_id_present_flag;
+  int lcr_local_atlas_id;
+  // int lcr_reserved_zero_3bits;
+  int lcr_reserved_zero_5bits;
+  LcrXlayerInfo lcr_xlayer_info;
+#else
   int lcr_global_config_record_id;
   int lcr_max_num_extended_layers_minus_1;
   int lcr_max_profile_tier_level_info_present_flag;
@@ -742,6 +852,7 @@ typedef struct LayerConfigurationRecord {
   struct RepresentationInfo rep_list[MAX_LCR_TYPES][MAX_NUM_XLAYERS];
   struct XLayerColorInfo xlayer_col_params;
   struct EmbeddedLayerInfo mlayer_params;
+#endif  // CONFIG_LCR_UPDATE
 } LayerConfigurationRecord;
 
 typedef struct AtlasLabelSegmentInfo {
@@ -2482,12 +2593,12 @@ typedef struct AV2Common {
 
   //! Index for TIP weighted prediction parameters.
   int8_t tip_global_wtd_index;
-
+#if !CONFIG_LCR_UPDATE
   /*!
    * Elements part of the layer configuration record
    */
   LayerConfigurationRecord lcr_params;
-
+#endif  // CONFIG_LCR_UPDATE
   /*!
    * Elements part of the atlas segment
    */
@@ -2759,6 +2870,7 @@ typedef struct AV2Common {
    */
   bool wedge_mask_initialized;
 
+#if !CONFIG_LCR_UPDATE
   /*!
    * Layer config record (LCR) id.
    */
@@ -2767,6 +2879,7 @@ typedef struct AV2Common {
    * Layer config record (LCR) structure.
    */
   struct LayerConfigurationRecord *lcr;
+#endif  // !CONFIG_LCR_UPDATE
   /*!
    * Atlas id.
    */

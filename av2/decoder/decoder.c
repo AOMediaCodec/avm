@@ -239,7 +239,15 @@ AV2Decoder *av2_decoder_create(BufferPool *const pool) {
   for (int i = 0; i < MAX_NUM_MLAYERS; i++) {
     pbi->num_displayable_frame_unit[i] = 0;
   }
-
+#if CONFIG_LCR_UPDATE
+  for (int i = 0; i < MAX_NUM_XLAYERS; i++) {
+    for (int j = 0; j < MAX_NUM_LCR; j++) {
+      pbi->lcr_list[i][j].lcr_global_id = -1;
+      pbi->lcr_list[i][j].lcr_local_id = -1;
+    }
+  }
+  pbi->active_lcr = NULL;
+#endif
 #if CONFIG_ACCOUNTING
   pbi->acct_enabled = 1;
   avm_accounting_init(&pbi->accounting);

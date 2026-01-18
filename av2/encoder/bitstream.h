@@ -57,6 +57,9 @@ void av2_add_trailing_bits(struct avm_write_bit_buffer *wb);
 
 uint32_t av2_write_layer_configuration_record_obu(AV2_COMP *const cpi,
                                                   int xlayer_id,
+#if CONFIG_LCR_UPDATE
+                                                  int lcr_id,
+#endif
                                                   uint8_t *const dst);
 uint32_t av2_write_atlas_segment_info_obu(AV2_COMP *const cpi,
                                           int obu_xLayer_id,

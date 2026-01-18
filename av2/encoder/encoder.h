@@ -2868,7 +2868,15 @@ typedef struct AV2_COMP {
   /*!
    * list for Layer Config Record (LCR) information
    */
+#if CONFIG_LCR_UPDATE
+  struct LayerConfigurationRecord lcr_list[MAX_NUM_XLAYERS][MAX_NUM_LCR];
+  /*!
+   * Layer config record (LCR) id.
+   */
+  int lcr_id;
+#else
   struct LayerConfigurationRecord lcr_list[MAX_NUM_LCR];
+#endif
   /*!
    * list for Operating Point Set (OPS) information
    */
