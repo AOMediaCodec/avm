@@ -13,46 +13,8 @@
 
 #include "av2/common/obu_util.h"
 
-#include "config/avm_config.h"
-
 #include "avm_dsp/bitreader_buffer.h"
 #include "av2/common/enums.h"
-
-#if !CONFIG_IGNORE_RESERVED_OBU
-// Returns 1 when OBU type is valid, and 0 otherwise.
-static int valid_obu_type(int obu_type) {
-  int valid_type = 0;
-  switch (obu_type) {
-    case OBU_SEQUENCE_HEADER:
-    case OBU_CONTENT_INTERPRETATION:
-    case OBU_TEMPORAL_DELIMITER:
-    case OBU_MULTI_FRAME_HEADER:
-    case OBU_SWITCH:
-    case OBU_LEADING_SEF:
-    case OBU_REGULAR_SEF:
-    case OBU_LEADING_TIP:
-    case OBU_REGULAR_TIP:
-    case OBU_LEADING_TILE_GROUP:
-    case OBU_REGULAR_TILE_GROUP:
-    case OBU_CLK:
-    case OBU_OLK:
-    case OBU_METADATA_SHORT:
-    case OBU_METADATA_GROUP:
-    case OBU_BUFFER_REMOVAL_TIMING:
-    case OBU_LAYER_CONFIGURATION_RECORD:
-    case OBU_ATLAS_SEGMENT:
-    case OBU_OPERATING_POINT_SET:
-    case OBU_BRIDGE_FRAME:
-    case OBU_MSDO:
-    case OBU_RAS_FRAME:
-    case OBU_QM:
-    case OBU_FGM:
-    case OBU_PADDING: valid_type = 1; break;
-    default: break;
-  }
-  return valid_type;
-}
-#endif  // !CONFIG_IGNORE_RESERVED_OBU
 
 static avm_codec_err_t read_obu_size(const uint8_t *data,
                                      size_t bytes_available,
@@ -81,9 +43,6 @@ static avm_codec_err_t read_obu_header(struct avm_read_bit_buffer *rb,
 
   header->obu_extension_flag = avm_rb_read_bit(rb);
   header->type = (OBU_TYPE)avm_rb_read_literal(rb, 5);  // obu_type
-#if !CONFIG_IGNORE_RESERVED_OBU
-  if (!valid_obu_type(header->type)) return AVM_CODEC_CORRUPT_FRAME;
-#endif  // !CONFIG_IGNORE_RESERVED_OBU
 
   header->obu_tlayer_id = avm_rb_read_literal(rb, TLAYER_BITS);
 
