@@ -140,8 +140,8 @@ set_avm_config_var(CONFIG_DIP_EXT_PRUNING 1 "AV2 DIP TFLite pruning.")
 set_avm_config_var(CONFIG_THROUGHPUT_ANALYSIS 0
                    "AV2 experiment flag to measure throughput.")
 
-set_avm_config_var(CONFIG_F414_OBU_EXTENSION 1
-                   "Obu extension and extensibility")
+# CWG-F414
+set_avm_config_var(CONFIG_F414_OBU_EXTENSION 1 "Obu extension mechanism.")
 
 set_avm_config_var(
   CONFIG_QM_DEBUG 0

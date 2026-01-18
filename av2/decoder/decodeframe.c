@@ -7442,7 +7442,7 @@ static int av1_get_obu_trailing_bits_count(const uint8_t *obu_payload,
 
   int trailing_bits = 0;
 
-  // Step 1: Get the last byte of the payload
+  // Step 1: Get the last nonzero byte of the payload
   int i;
   for (i = (int)payload_size - 1; i >= 0; i--) {
     if (obu_payload[i] != 0) {
@@ -7473,18 +7473,21 @@ int read_obu_extension_bits(const uint8_t *obu_payload, size_t payload_size,
   int num_trailing_bits =
       av1_get_obu_trailing_bits_count(obu_payload, payload_size);
   if (num_trailing_bits < 0) {
-    avm_internal_error(error_info, AVM_CODEC_UNSUP_BITSTREAM,
-                       "Extension bits when present cannot be less than 0.\n");
+    avm_internal_error(
+        error_info, AVM_CODEC_UNSUP_BITSTREAM,
+        "Trailing bits are not found when OBU extension data is present.");
   }
 
-  // Calculate total bits in paylaod
+  // Calculate total bits in payload
   size_t total_payload_bits = payload_size * 8;
 
   // Extension data bits = total - bits_read_before_extension -1 (ext flag) -
   // trailing bits
   if (total_payload_bits - bits_read_before_extension - 1 <
       (size_t)num_trailing_bits) {
-    return -1;
+    avm_internal_error(
+        error_info, AVM_CODEC_UNSUP_BITSTREAM,
+        "Trailing bits are not found when OBU extension data is present.");
   }
   size_t extension_data_bits =
       total_payload_bits - bits_read_before_extension - 1 - num_trailing_bits;

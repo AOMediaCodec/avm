@@ -835,9 +835,6 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
   } else {
     seq_params->seq_lcr_id = LCR_ID_UNSPECIFIED;
   }
-#if CONFIG_F414_OBU_EXTENSION
-  seq_params->seq_extension_present_flag = 0;
-#endif  // CONFIG_F414_OBU_EXTENSION
   seq_params->profile = oxcf->profile;
   seq_params->bit_depth = oxcf->tool_cfg.bit_depth;
   seq_params->monochrome = oxcf->tool_cfg.enable_monochrome;
@@ -871,6 +868,9 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
       seq_params->seq_max_low_delay_mode_flag = 0;
     }
   }
+#if CONFIG_F414_OBU_EXTENSION
+  seq_params->seq_extension_present_flag = 0;
+#endif  // CONFIG_F414_OBU_EXTENSION
 
   if (seq_params->monochrome) {
     seq_params->subsampling_x = 1;

@@ -360,7 +360,7 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
     // trailing bits
     int extension_bits = read_obu_extension_bits(
         rb->bit_buffer, rb->bit_buffer_end - rb->bit_buffer, bits_before_ext,
-        &pbi->common.error);
+        &cm->error);
     if (extension_bits > 0) {
       // skip over the extension bits
       rb->bit_offset += extension_bits;
@@ -393,7 +393,7 @@ static uint32_t read_multi_frame_header_obu(AV2Decoder *pbi,
     // trailing bits
     int extension_bits = read_obu_extension_bits(
         rb->bit_buffer, rb->bit_buffer_end - rb->bit_buffer, bits_before_ext,
-        &pbi->common.error);
+        &cm->error);
     if (extension_bits > 0) {
       // skip over the extension bits
       rb->bit_offset += extension_bits;

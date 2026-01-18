@@ -56,7 +56,7 @@ uint32_t av2_write_content_interpretation_obu(
   avm_wb_write_bit(&wb, ci_params->ci_chroma_sample_position_present_flag);
   avm_wb_write_bit(&wb, ci_params->ci_aspect_ratio_info_present_flag);
   avm_wb_write_bit(&wb, ci_params->ci_timing_info_present_flag);
-  avm_wb_write_bit(&wb, 0);
+  avm_wb_write_bit(&wb, ci_params->ci_extension_present_flag);
   avm_wb_write_bit(&wb, 0);
 
   if (ci_params->ci_color_description_present_flag)
@@ -73,8 +73,8 @@ uint32_t av2_write_content_interpretation_obu(
   if (ci_params->ci_timing_info_present_flag) {
     av2_write_timing_info_header(&ci_params->timing_info, &wb);
   }
-  if (ci_params->ci_extension_present_flag) {
-  }
+  if (ci_params->ci_extension_present_flag)
+    assert(!ci_params->ci_extension_present_flag);
   av2_add_trailing_bits(&wb);
   size = avm_wb_bytes_written(&wb);
   return size;
