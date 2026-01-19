@@ -1486,7 +1486,8 @@ static int get_ops_tlayer_count(const struct OPSMLayerInfo *mlayer_info,
   if (ops_idx < 0 || ops_idx >= MAX_OPS_COUNT) return 0;
   if (mlayer_id < 0 || mlayer_id >= MAX_NUM_XLAYERS) return 0;
 
-  return mlayer_info->OPTLayerCount[xlayer_id][ops_id][ops_idx][mlayer_id];
+  return mlayer_info
+      ->OPTLayerCount[xlayer_id][ops_id][ops_idx][xlayer_id][mlayer_id];
 }
 
 // Select operating point based on user selection (default to 0, 0)
@@ -1501,7 +1502,7 @@ int avm_set_current_operating_point(struct AV2Decoder *pbi) {
         // Found the OPS, now check if the OP idex is valid
         if (pbi->selected_ops_id < pbi->ops_list[i].ops_cnt[xlayer][ops_id]) {
           pbi->DecOpPoint.DecOpSetId = pbi->ops_list[i].ops_id[xlayer];
-          pbi->DecOpPoint.DecOpCount = pbi->ops_list[i].ops_cnt[xlayer];
+          pbi->DecOpPoint.DecOpCount = pbi->ops_list[i].ops_cnt[xlayer][ops_id];
           pbi->DecOpPoint.DecOpIndex = pbi->selected_op_index;
           pbi->DecOpPoint.DecXlayerId = xlayer;
           pbi->DecOpPoint.num_mlayers = get_ops_mlayer_count(
