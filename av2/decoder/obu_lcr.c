@@ -233,14 +233,8 @@ static void read_lcr_global_payload(struct AV2Decoder *pbi,
   read_lcr_xlayer_info(pbi, lcr_params, 1, n, rb);
 }
 
-#if CONFIG_F414_OBU_EXTENSION
 static LayerConfigurationRecord *read_lcr_global_info(
     struct AV2Decoder *pbi, struct avm_read_bit_buffer *rb) {
-#else
-static int read_lcr_global_info(struct AV2Decoder *pbi,
-                                struct avm_read_bit_buffer *rb) {
-#endif  // CONFIG_F414_OBU_EXTENSION
-
   int lcr_global_config_record_id = avm_rb_read_literal(rb, 3);
 
   if (lcr_global_config_record_id == LCR_ID_UNSPECIFIED) {
@@ -307,22 +301,11 @@ static int read_lcr_global_info(struct AV2Decoder *pbi,
   // NOTE: lcr_params->lcr_xLayer_id indicates the corresponding extended layer
   // ID for the indicated extended layer in the Global LCR and
   // lcr_params->xlayer_id is the obu_layer_id.
-
-#if CONFIG_F414_OBU_EXTENSION
   return lcr_params;
-#else
-  return 0;
-#endif  // CONFIG_F414_OBU_EXTENSION
 }
 
-#if CONFIG_F414_OBU_EXTENSION
 static LayerConfigurationRecord *read_lcr_local_info(
     struct AV2Decoder *pbi, int xlayerId, struct avm_read_bit_buffer *rb) {
-#else
-static int read_lcr_local_info(struct AV2Decoder *pbi, int xlayerId,
-                               struct avm_read_bit_buffer *rb) {
-#endif  // CONFIG_F414_OBU_EXTENSION
-
   int lcr_global_id = avm_rb_read_literal(rb, 3);
 
   if (lcr_global_id == LCR_ID_UNSPECIFIED) {
@@ -366,11 +349,7 @@ static int read_lcr_local_info(struct AV2Decoder *pbi, int xlayerId,
   read_lcr_xlayer_info(pbi, lcr_params, 0, xlayerId, rb);
   lcr_params->is_local_lcr = 1;
   lcr_params->xlayer_id = xlayerId;
-#if CONFIG_F414_OBU_EXTENSION
   return lcr_params;
-#else
-  return 0;
-#endif  // CONFIG_F414_OBU_EXTENSION
 }
 
 uint32_t av2_read_layer_configuration_record_obu(
@@ -378,17 +357,12 @@ uint32_t av2_read_layer_configuration_record_obu(
   const uint32_t saved_bit_offset = rb->bit_offset;
   assert(rb->error_handler);
 
-#if CONFIG_F414_OBU_EXTENSION
-  struct LayerConfigurationRecord *lcr_params = NULL;
-#endif  // CONFIG_F414_OBU_EXTENSION
+  struct LayerConfigurationRecord *lcr_params;
 
   if (xlayer_id == GLOBAL_XLAYER_ID)
-#if CONFIG_F414_OBU_EXTENSION
-    lcr_params =
-#endif  // CONFIG_F414_OBU_EXTENSION
-        read_lcr_global_info(pbi, rb);
+    lcr_params = read_lcr_global_info(pbi, rb);
   else
-    read_lcr_local_info(pbi, xlayer_id, rb);
+    lcr_params = read_lcr_local_info(pbi, xlayer_id, rb);
 
 #if CONFIG_F414_OBU_EXTENSION
   size_t bits_before_ext = rb->bit_offset - saved_bit_offset;
@@ -405,6 +379,8 @@ uint32_t av2_read_layer_configuration_record_obu(
       // No extension data present
     }
   }
+#else
+  (void)lcr_params;
 #endif  // CONFIG_F414_OBU_EXTENSION
   if (av2_check_trailing_bits(pbi, rb) != 0) {
     return 0;

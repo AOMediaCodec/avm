@@ -17,6 +17,7 @@
 
 #include "avm_dsp/bitreader_buffer.h"
 #include "av2/common/enums.h"
+
 // Returns 1 when OBU type is valid, and 0 otherwise.
 static int valid_obu_type(int obu_type) {
   int valid_type = 0;
