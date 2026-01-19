@@ -801,7 +801,7 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
 #if CONFIG_LCR_UPDATE
   for (int i = 0; i < MAX_NUM_XLAYERS; i++)
     for (int j = 0; j < MAX_NUM_LCR; j++)
-      memset(&cpi->lcr_list[i][i], 0, sizeof(struct LayerConfigurationRecord));
+      memset(&cpi->lcr_list[i][j], 0, sizeof(struct LayerConfigurationRecord));
 #else
   for (int i = 0; i < MAX_NUM_LCR; i++)
     memset(&cpi->lcr_list[i], 0, sizeof(struct LayerConfigurationRecord));
