@@ -3723,19 +3723,20 @@ static AVM_INLINE void setup_render_size(
 #if CONFIG_LCR_UPDATE
   cm->render_width = cm->width;
   cm->render_height = cm->height;
-
-  LcrXlayerInfo *lcr_xlayer_info = NULL;
-  if (pbi->active_lcr->lcr_local_id == cm->seq_params.seq_lcr_id) {  // local
-    lcr_xlayer_info = &pbi->active_lcr->lcr_xlayer_info;
-  } else if (pbi->active_lcr->lcr_global_config_record_id ==
-             cm->seq_params.seq_lcr_id) {
-    lcr_xlayer_info = &pbi->active_lcr->lcr_global_payload->lcr_xlayer_info;
+  if (pbi->active_lcr != NULL) {
+    // TODO: what if lcr_embedded_layer_info_present_flag=1?
+    LcrXlayerInfo *lcr_xlayer_info = NULL;
+    if (pbi->active_lcr->lcr_local_id == cm->seq_params.seq_lcr_id) {  // local
+      lcr_xlayer_info = &pbi->active_lcr->lcr_xlayer_info;
+    } else if (pbi->active_lcr->lcr_global_config_record_id ==
+               cm->seq_params.seq_lcr_id) {
+      lcr_xlayer_info = &pbi->active_lcr->lcr_global_payload->lcr_xlayer_info;
+    }
+    if (lcr_xlayer_info != NULL && lcr_xlayer_info->lcr_rep_info_present_flag) {
+      cm->render_width = lcr_xlayer_info->lcr_rep_info.lcr_max_pic_width;
+      cm->render_height = lcr_xlayer_info->lcr_rep_info.lcr_max_pic_height;
+    }
   }
-  if (lcr_xlayer_info != NULL && lcr_xlayer_info->lcr_rep_info_present_flag) {
-    cm->render_width = lcr_xlayer_info->lcr_rep_info.lcr_max_pic_width;
-    cm->render_height = lcr_xlayer_info->lcr_rep_info.lcr_max_pic_height;
-  }
-  // TODO: what if lcr_embedded_layer_info_present_flag=1?
 #else
   const bool is_global_lcr = !cm->lcr_params.is_local_lcr;
   const int xlayer_id =
