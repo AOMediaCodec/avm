@@ -3482,7 +3482,7 @@ static AVM_INLINE void write_wienerns_framefilters_hdr(
         nsfilter_params, c_id, wb);
   }
   assert(num_classes <= WIENERNS_MAX_CLASSES);
-  const int(*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
+  const int (*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
 
   for (int c_id = 0; c_id < num_classes; ++c_id) {
     if (skip_filter_write_for_class[c_id]) continue;
@@ -3581,7 +3581,7 @@ static AVM_INLINE void write_wienerns_filter(
   }
   const int num_classes = wienerns_info->num_classes;
   assert(num_classes <= WIENERNS_MAX_CLASSES);
-  const int(*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
+  const int (*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
 
   for (int c_id = 0; c_id < num_classes; ++c_id) {
     if (skip_filter_write_for_class[c_id]) {
@@ -6791,15 +6791,17 @@ size_t av2_write_banding_hints_metadata(
   return total_bytes_written;
 }
 
-size_t av2_write_metadata_user_data_unregistered(
-    AV2_COMP *const cpi, uint8_t *dst, const uint8_t *payload,
-    size_t payload_size) {
+size_t av2_write_metadata_user_data_unregistered(AV2_COMP *const cpi,
+                                                 uint8_t *dst,
+                                                 const uint8_t *payload,
+                                                 size_t payload_size) {
   if (!cpi->source || !payload || payload_size < 16) return 0;
 
   // Minimum size is 16 bytes for UUID (uuid_iso_iec_11578)
   if (payload_size < 16) {
-    avm_internal_error(&cpi->common.error, AVM_CODEC_ERROR,
-                       "User data unregistered payload must be at least 16 bytes (UUID)");
+    avm_internal_error(
+        &cpi->common.error, AVM_CODEC_ERROR,
+        "User data unregistered payload must be at least 16 bytes (UUID)");
     return 0;
   }
 
@@ -6826,8 +6828,9 @@ size_t av2_write_metadata_user_data_unregistered(
     const size_t obu_size = obu_header_size + obu_payload_size;
     total_bytes_written += obu_size + length_field_size;
   } else {
-    avm_internal_error(&cpi->common.error, AVM_CODEC_ERROR,
-                       "Error writing user data unregistered metadata OBU size");
+    avm_internal_error(
+        &cpi->common.error, AVM_CODEC_ERROR,
+        "Error writing user data unregistered metadata OBU size");
   }
   avm_img_metadata_free(metadata);
 
