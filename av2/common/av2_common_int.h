@@ -854,7 +854,90 @@ typedef struct LayerConfigurationRecord {
   struct EmbeddedLayerInfo mlayer_params;
 #endif  // CONFIG_LCR_UPDATE
 } LayerConfigurationRecord;
+#if CONFIG_ATLAS_UPDATE
+// 5.9.1. Atlas label segment info syntax
+typedef struct AtlasLabelSegmentInfo {
+  int ats_signaled_atlas_segment_ids_flag;
+  int ats_atlas_segment_id[MAX_NUM_ATLAS_SEGMENTS];
+  int AtlasSegmentIDToIndex[MAX_NUM_ATLAS_SEGMENTS];
+  int AtlasSegmentIndexToID[MAX_NUM_ATLAS_SEGMENTS];
+} AtlasLabelSegmentInfo;
 
+// 5.9.2. Atlas region info syntax
+typedef struct AtlasRegionInfo {
+  int ats_num_region_columns_minus1;
+  int ats_num_region_rows_minus1;
+  int ats_column_width_minus1[MAX_ATLAS_REGIONS];
+  int ats_uniform_spacing_flag;
+  int ats_row_height_minus1[MAX_ATLAS_REGIONS];
+  int ats_region_width_minus_1;
+  int ats_region_height_minus_1;
+  int NumRegionsInAtlas;
+  int AtlasWidth;
+  int AtlasHeight;
+} AtlasRegionInfo;
+
+// 5.9.3. Atlas region to segment mapping syntax
+typedef struct AtlasRegionToSegmentMapping {
+  int ats_single_region_per_atlas_segment_flag;
+  int ats_num_atlas_segments_minus1;
+  int ats_top_left_region_column[MAX_NUM_ATLAS_SEGMENTS];
+  int ats_top_left_region_row[MAX_NUM_ATLAS_SEGMENTS];
+  int ats_bottom_right_region_column_off[MAX_NUM_ATLAS_SEGMENTS];
+  int ats_bottom_right_region_row_off[MAX_NUM_ATLAS_SEGMENTS];
+  // Derived values (not signaled in bitstream)
+  int ats_bottom_right_region_column[MAX_NUM_ATLAS_SEGMENTS];
+  int ats_bottom_right_region_row[MAX_NUM_ATLAS_SEGMENTS];
+} AtlasRegionToSegmentMapping;
+
+// 5.9.4. Atlas multistream atlas info syntax
+typedef struct AtlasMultistreamAtlasInfo {
+  int ats_atlas_width;
+  int ats_atlas_height;
+  int ats_num_atlas_segments_minus1;
+  int ats_alpha_segments_present_flag;
+  int ats_background_info_present_flag;
+  int ats_background_red_value;
+  int ats_background_green_value;
+  int ats_background_blue_value;
+  int ats_input_stream_id[MAX_NUM_ATLAS_SEGMENTS];
+  int ats_segment_top_left_pos_x[MAX_NUM_ATLAS_SEGMENTS];
+  int ats_segment_top_left_pos_y[MAX_NUM_ATLAS_SEGMENTS];
+  int ats_segment_width[MAX_NUM_ATLAS_SEGMENTS];
+  int ats_segment_height[MAX_NUM_ATLAS_SEGMENTS];
+  int ats_alpha_segment_flag[MAX_NUM_ATLAS_SEGMENTS];
+  int AtlasWidth;
+  int AtlasHeight;
+} AtlasMultistreamAtlasInfo;
+
+// 5.9.5. Atlas basic atlas info syntax
+typedef struct AtlasBasicAtlasInfo {
+  int ats_stream_id_present;
+  int ats_atlas_width;
+  int ats_atlas_height;
+  int ats_num_atlas_segments_minus1;
+  int AtlasWidth;
+  int AtlasHeight;
+  int ats_input_stream_id[MAX_NUM_ATLAS_SEGMENTS];
+  int ats_segment_top_left_pos_x[MAX_NUM_ATLAS_SEGMENTS];
+  int ats_segment_top_left_pos_y[MAX_NUM_ATLAS_SEGMENTS];
+  int ats_segment_width[MAX_NUM_ATLAS_SEGMENTS];
+  int ats_segment_height[MAX_NUM_ATLAS_SEGMENTS];
+} AtlasBasicAtlasInfo;
+// Main AtlasSegmentInfo structure (updated for CONFIG_ATLAS_UPDATE)
+typedef struct AtlasSegmentInfo {
+  int atlas_segment_id;
+  int atlas_segment_mode_idc;
+  int ats_nominal_width_minus1;
+  int ats_nominal_height_minus1;
+
+  struct AtlasRegionInfo ats_region_info;
+  struct AtlasRegionToSegmentMapping ats_region_to_segment_mapping;
+  struct AtlasMultistreamAtlasInfo ats_multistream_atlas_info;
+  struct AtlasBasicAtlasInfo ats_basic_atlas_info;
+  struct AtlasLabelSegmentInfo ats_label_segment_info;
+} AtlasSegmentInfo;
+#else
 typedef struct AtlasLabelSegmentInfo {
   int ats_signalled_atlas_segment_ids_flag[MAX_NUM_XLAYERS]
                                           [MAX_NUM_ATLAS_SEG_ID];
@@ -943,6 +1026,7 @@ typedef struct AtlasSegmentInfo {
   struct AtlasRegionToSegmentMapping ats_reg_seg_map;
   struct AtlasLabelSegmentInfo ats_label_seg;
 } AtlasSegmentInfo;
+#endif  // CONFIG_ATLAS_UPDATE
 
 typedef struct OpsColorInfo {
   int ops_color_description_idc[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT];
@@ -2599,11 +2683,13 @@ typedef struct AV2Common {
    */
   LayerConfigurationRecord lcr_params;
 #endif  // CONFIG_LCR_UPDATE
+
+#if !CONFIG_ATLAS_UPDATE
   /*!
    * Elements part of the atlas segment
    */
   AtlasSegmentInfo atlas_params;
-
+#endif  // !CONFIG_ATLAS_UPDATE
   /*!
    * Operating Point Set part of the operating point set
    */
@@ -2880,6 +2966,7 @@ typedef struct AV2Common {
    */
   struct LayerConfigurationRecord *lcr;
 #endif  // !CONFIG_LCR_UPDATE
+#if !CONFIG_ATLAS_UPDATE
   /*!
    * Atlas id.
    */
@@ -2888,6 +2975,7 @@ typedef struct AV2Common {
    * Atlas structure.
    */
   struct AtlasSegmentInfo *atlas;
+#endif  // !CONFIG_ATLAS_UPDATE
   /*!
    * Operating point set (OPS) id.
    */

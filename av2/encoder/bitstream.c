@@ -6876,13 +6876,21 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
 
     // Atlas Segment
     if (layer_cfg->enable_lcr && layer_cfg->enable_atlas) {
+#if CONFIG_ATLAS_UPDATE
+      int xlayer_id = cm->xlayer_id;
+#else
       int xlayer_id = 0;
       struct AtlasSegmentInfo *atlas_params = &cpi->atlas_list[0];
       av2_set_atlas_segment_info_params(cpi, atlas_params, xlayer_id);
+#endif
       obu_header_size =
           av2_write_obu_header(level_params, OBU_ATLAS_SEGMENT, 0, 0, data);
-      obu_payload_size = av2_write_atlas_segment_info_obu(
-          cpi, xlayer_id, data + obu_header_size);
+      obu_payload_size =
+          av2_write_atlas_segment_info_obu(cpi, xlayer_id,
+#if CONFIG_ATLAS_UPDATE
+                                           cpi->atlas_seg_id,
+#endif
+                                           data + obu_header_size);
       const size_t length_field_size =
           obu_memmove(obu_header_size, obu_payload_size, data);
       if (av2_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=

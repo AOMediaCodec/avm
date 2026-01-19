@@ -7230,6 +7230,12 @@ static void activate_atlas_segment(AV2Decoder *pbi) {
                         ? cm->lcr_params.lcr_local_atlas_id[xlayer_id]
                         : cm->lcr_params.lcr_global_atlas_id;
 #endif
+#if CONFIG_ATLAS_UPDATE && CONFIG_LCR_UPDATE
+  int xlayer_id = GLOBAL_XLAYER_ID;
+  if (pbi->active_lcr->lcr_local_id == cm->seq_params.seq_lcr_id)  // local
+    xlayer_id = cm->xlayer_id;
+  pbi->active_atlas_segment_info = &pbi->atlas_list[xlayer_id][atas_lcr_id];
+#else
   for (int i = 0; i < pbi->atlas_counter; i++) {
     if (pbi->atlas_list[i].atlas_segment_id[i] == atas_lcr_id) {
       pbi->active_atlas_segment_info = &pbi->atlas_list[i];
@@ -7242,6 +7248,7 @@ static void activate_atlas_segment(AV2Decoder *pbi) {
   } else {
     memset(&cm->atlas_params, 0, sizeof(struct AtlasSegmentInfo));
   }
+#endif
 }
 
 static void activate_layer_configuration_record(AV2Decoder *pbi,

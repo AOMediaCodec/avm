@@ -2884,7 +2884,15 @@ typedef struct AV2_COMP {
   /*!
    * list for Atlas information
    */
+#if CONFIG_ATLAS_UPDATE
+  struct AtlasSegmentInfo atlas_list[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
+  /*!
+   * Atlas Segment Id.
+   */
+  int atlas_seg_id;
+#else
   struct AtlasSegmentInfo atlas_list[MAX_NUM_ATLAS_SEG_ID];
+#endif  // CONFIG_ATLAS_UPDATE
 
   /*!
    * determine the mode of the switch frame

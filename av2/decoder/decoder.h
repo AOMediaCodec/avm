@@ -424,8 +424,12 @@ typedef struct AV2Decoder {
   struct LayerConfigurationRecord lcr_list[MAX_NUM_LCR];
   int lcr_counter;
 #endif  // CONFIG_LCR_UPDATE
+#if CONFIG_ATLAS_UPDATE
+  struct AtlasSegmentInfo atlas_list[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
+#else
   struct AtlasSegmentInfo atlas_list[MAX_NUM_ATLAS_SEG_ID];
   int atlas_counter;
+#endif
   struct OperatingPointSet ops_list[MAX_NUM_OPS_ID];
   int ops_counter;
   /*!

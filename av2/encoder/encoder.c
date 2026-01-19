@@ -825,12 +825,16 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
       cm->ops->ops_cnt[i][j] = oxcf->tool_cfg.operating_points_count;
     }
   }
-
+#if CONFIG_ATLAS_UPDATE
+  for (int i = 0; i < MAX_NUM_XLAYERS; i++)
+    for (int j = 0; j < MAX_NUM_ATLAS_SEG_ID; j++)
+      memset(&cpi->atlas_list[i][j], 0, sizeof(struct AtlasSegmentInfo));
+#else
   // Initialize Atlas Segment information
   for (int i = 0; i < MAX_NUM_ATLAS_SEG_ID; i++)
     memset(&cpi->atlas_list[i], 0, sizeof(struct AtlasSegmentInfo));
   cm->atlas = &cpi->atlas_list[0];
-
+#endif
   cpi->written_fgm_num = 0;
 
   // seq_header_id is set 0 for a single sequence bitstream
