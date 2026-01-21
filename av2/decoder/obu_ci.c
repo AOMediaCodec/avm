@@ -253,25 +253,27 @@ uint32_t av2_read_content_interpretation_obu(struct AV2Decoder *pbi,
     return 0;
   }
 
-  //  * 0. CLK/OLK signalled without CI
-  //  * 1. CI obu signalled without CLK/OLK
-  //  * 2. CI obu signalled with CLK/OLK
-  if (pbi->ci_and_key_per_layer[obu_mlayer_id] != 0) {
+  assert(
+      pbi->obus_in_frame_unit_data[obu_mlayer_id][OBU_CONTENT_INTERPRETATION]);
+  // this CI OBU is signalled with a KEY OBU in the frame data unit
+  int ci_is_with_keyobu =
+      (pbi->obus_in_frame_unit_data[obu_mlayer_id][OBU_CLK] ||
+       pbi->obus_in_frame_unit_data[obu_mlayer_id][OBU_OLK]);
+
+  if (!ci_is_with_keyobu) {
     // Check if a CI OBU has already been received for this embedded layer
-    if (pbi->ci_obu_received_per_layer[obu_mlayer_id] ||
-        (pbi->ci_and_key_per_layer[obu_mlayer_id] == 1)) {
-      if (!av2_ci_params_identical(&cm->ci_params_per_layer[obu_mlayer_id],
-                                   &ci_temp)) {
-        avm_internal_error(
-            &cm->error, AVM_CODEC_CORRUPT_FRAME,
-            "Multiple CI OBUs in embedded layer must be identical.");
-      }
-      // CI obu matches the previous one, so no need to update
-    } else {
-      // Got the first CI Obu for this layer.
-      cm->ci_params_per_layer[obu_mlayer_id] = ci_temp;
-      pbi->ci_obu_received_per_layer[obu_mlayer_id] = 1;
+    // If this is the first CI OBU in the bitstream but it is signalled not at
+    // the random access point, This CI OBU should be the same as the default,
+    // which is considered as the exisiting CI.
+    if (!av2_ci_params_identical(&cm->ci_params_per_layer[obu_mlayer_id],
+                                 &ci_temp)) {
+      avm_internal_error(
+          &cm->error, AVM_CODEC_CORRUPT_FRAME,
+          "Multiple CI OBUs in embedded layer must be identical.");
     }
+  } else {
+    // Got the first CI Obu for this layer.
+    cm->ci_params_per_layer[obu_mlayer_id] = ci_temp;
   }
 
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);

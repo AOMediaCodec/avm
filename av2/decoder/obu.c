@@ -1294,45 +1294,6 @@ static size_t read_padding(AV2_COMMON *const cm, const uint8_t *data,
   return sz;
 }
 
-int av2_ci_keyframe_in_temporal_unit(struct AV2Decoder *pbi,
-                                     const uint8_t *data, size_t data_sz) {
-  const uint8_t *data_read = data;
-
-  ObuHeader obu_header;
-  memset(&obu_header, 0, sizeof(obu_header));
-  int keyframe_present_per_layer[MAX_NUM_MLAYERS] = { 0 };
-  int ci_present_per_layer[MAX_NUM_MLAYERS] = { 0 };
-  // Scan the TU and check if key frame and CI are present.
-  // Note: Should the CI follow the OLK/CLK immediately
-  while (data_read < data + data_sz) {
-    size_t payload_size = 0;
-    size_t bytes_read = 0;
-    avm_read_obu_header_and_size(data_read, data_sz, &obu_header, &payload_size,
-                                 &bytes_read);
-    const int mlayer_id = obu_header.obu_mlayer_id;
-    if (obu_header.type == OBU_CLK || obu_header.type == OBU_OLK) {
-      keyframe_present_per_layer[mlayer_id] = 1;
-    }
-    if (obu_header.type == OBU_CONTENT_INTERPRETATION) {
-      ci_present_per_layer[mlayer_id] = 1;
-    }
-    data_read += bytes_read + payload_size;
-  }
-
-  //  * 0. CLK/OLK signalled without CI
-  //  * 1. CI obu signalled without CLK/OLK
-  //  * 2. CI obu signalled with CLK/OLK
-  for (int i = 0; i < MAX_NUM_MLAYERS; i++) {
-    if (!ci_present_per_layer[i] && keyframe_present_per_layer[i])
-      pbi->ci_and_key_per_layer[i] = 0;
-    else if (ci_present_per_layer[i] && !keyframe_present_per_layer[i])
-      pbi->ci_and_key_per_layer[i] = 1;
-    else if (ci_present_per_layer[i] && keyframe_present_per_layer[i])
-      pbi->ci_and_key_per_layer[i] = 2;
-  }
-  return 0;
-}
-
 static int is_leading_vcl_obu(OBU_TYPE obu_type) {
   return (obu_type == OBU_LEADING_TILE_GROUP || obu_type == OBU_LEADING_SEF ||
           obu_type == OBU_LEADING_TIP);
@@ -1517,7 +1478,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
   // acc_fgm_id_bitmap accumulates fgm_id_bitmap in FGM OBU to check if film
   // grain models signalled before a coded frame have the same fgm_id
   uint32_t acc_fgm_id_bitmap = 0;
-  av2_ci_keyframe_in_temporal_unit(pbi, data, data_end - data);
   int prev_obu_xlayer_id = -1;
 
   int keyframe_present = 0;

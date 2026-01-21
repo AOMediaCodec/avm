@@ -535,20 +535,6 @@ typedef struct AV2Decoder {
   bool obus_in_frame_unit_data[MAX_NUM_MLAYERS][NUM_OBU_TYPES];
 
   /*!
-   * Indicates if the ci obu is signalled with a CLK/OLK in the temporal unit
-   * 0. CLK/OLK signalled without CI
-   * 1. CI obu signalled without CLK/OLK
-   * 2. CI obu signalled with CLK/OLK
-   */
-  int ci_and_key_per_layer[MAX_NUM_MLAYERS];
-
-  /*!
-   * Indicates if a CI OBU has been received for each embedded layer.
-   * Used to enforce the constraint that all CI OBUs in the same embedded layer
-   * must contain identical information
-   */
-  int ci_obu_received_per_layer[MAX_NUM_MLAYERS];
-  /*!
    * Indicates if the MultiStreamMode is activated.
    */
   int multi_stream_mode;

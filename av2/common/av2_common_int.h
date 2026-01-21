@@ -2544,7 +2544,8 @@ typedef struct AV2Common {
 
   /*!
    * Elements part of the content interpretation, when present, applicable for
-   * all the frames in the video.
+   * all the frames in the video. ci_params_per_layer is initialized to default
+   * at the beginning of the decoder and at the random access point
    */
   ContentInterpretation ci_params_per_layer[MAX_NUM_MLAYERS];
 
@@ -5835,6 +5836,23 @@ static INLINE uint64_t derive_output_order_idx(AV2_COMMON *cm,
   return ((max_mlayer_id + 1) * display_order) + mlayer_id;
 }
 
+// This function intializes ci_params for the mlayer[mlayer_id]
+static INLINE void initialize_ci_params(AV2_COMMON *cm, int mlayer_id) {
+  ContentInterpretation *ci_params = &cm->ci_params_per_layer[mlayer_id];
+  ci_params->ci_chroma_sample_position[0] = AVM_CSP_UNSPECIFIED;
+  ci_params->ci_chroma_sample_position[1] = AVM_CSP_UNSPECIFIED;
+  ci_params->color_info.color_description_idc = AVM_COLOR_DESC_IDC_EXPLICIT;
+  ci_params->color_info.color_primaries = AVM_CICP_CP_UNSPECIFIED;
+  ci_params->color_info.matrix_coefficients = AVM_CICP_MC_UNSPECIFIED;
+  ci_params->color_info.transfer_characteristics = AVM_CICP_TC_UNSPECIFIED;
+  ci_params->color_info.full_range_flag = 0;
+  ci_params->ci_scan_type_idc = AVM_SCAN_TYPE_UNSPECIFIED;
+  ci_params->ci_color_description_present_flag = 0;
+  ci_params->ci_chroma_sample_position_present_flag = 0;
+  ci_params->ci_aspect_ratio_info_present_flag = 0;
+  ci_params->ci_timing_info_present_flag = 0;
+  ci_params->ci_extension_present_flag = 0;
+}
 #ifdef __cplusplus
 }  // extern "C"
 #endif
