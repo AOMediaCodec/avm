@@ -1604,7 +1604,18 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
                            "Incorrect obu_xlayer_id for MSDO: %d",
                            obu_header.obu_xlayer_id);
     }
-
+    if (obu_header.type == OBU_SEQUENCE_HEADER ||
+        obu_header.type == OBU_TEMPORAL_DELIMITER ||
+        obu_header.type == OBU_MULTI_FRAME_HEADER) {
+      if (obu_header.obu_tlayer_id != 0 || obu_header.obu_mlayer_id != 0 ||
+          obu_header.obu_xlayer_id == GLOBAL_XLAYER_ID)
+        avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+                           "Incorrect layer_id for %s: "
+                           "tlayer_id %d mlayer_id %d xlayer_id %d",
+                           avm_obu_type_to_string(obu_header.type),
+                           obu_header.obu_tlayer_id, obu_header.obu_mlayer_id,
+                           obu_header.obu_xlayer_id);
+    }
     // Record obu size header information.
     pbi->obu_size_hdr.data = data + obu_header.size;
     pbi->obu_size_hdr.size = bytes_read - obu_header.size;
