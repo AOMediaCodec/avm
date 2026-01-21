@@ -448,7 +448,7 @@ static avm_codec_err_t init_decoder(avm_codec_alg_priv_t *ctx) {
   worker->hook = frame_worker_hook;
   frame_worker_data->pbi->olk_encountered = 0;
   frame_worker_data->pbi->random_accessed = false;
-  frame_worker_data->pbi->random_access_point_index = 0;
+  frame_worker_data->pbi->random_access_point_index = -1;
   frame_worker_data->pbi->random_access_point_count = 0;
   frame_worker_data->pbi->multi_stream_mode = 0;
   frame_worker_data->pbi->msdo_is_present_in_tu = 0;

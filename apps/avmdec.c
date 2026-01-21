@@ -647,7 +647,7 @@ static int main_loop(int argc, const char **argv_) {
   int operating_point = 0;
   int output_all_layers = 0;
   int skip_film_grain = 0;
-  int random_access_point_index = 0;
+  int random_access_point_index = -1;
   int bru_opt_mode = 0;
   avm_image_t *scaled_img = NULL;
   avm_image_t *img_shifted = NULL;
