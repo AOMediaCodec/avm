@@ -277,6 +277,7 @@ const arg_def_t *global_args[] = {
   &g_av2_codec_arg_defs.signal_td,
   &g_av2_codec_arg_defs.enable_lcr,
   &g_av2_codec_arg_defs.enable_ops,
+  &g_av2_codec_arg_defs.num_ops,
   &g_av2_codec_arg_defs.enable_atlas,
 
   &g_av2_codec_arg_defs.icc_file,
@@ -1254,6 +1255,8 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
       config->cfg.enable_lcr = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &g_av2_codec_arg_defs.enable_ops, argi)) {
       config->cfg.enable_ops = arg_parse_uint(&arg);
+    } else if (arg_match(&arg, &g_av2_codec_arg_defs.num_ops, argi)) {
+      config->cfg.num_ops = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &g_av2_codec_arg_defs.enable_atlas, argi)) {
       config->cfg.enable_atlas = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &g_av2_codec_arg_defs.tile_width, argi)) {

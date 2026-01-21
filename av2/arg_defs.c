@@ -289,8 +289,11 @@ const av2_codec_arg_definitions_t g_av2_codec_arg_defs = {
       ARG_DEF(NULL, "enable-lcr", 1,
               "Enable layer config record (LCR) OBU (0: off (default), 1: on)"),
   .enable_ops =
-      ARG_DEF(NULL, "enable-ops", 1,
+      ARG_DEF(NULL, "enable-operating-point-sets", 1,
               "Enable operating point set (OPS) OBU (0: off (default), 1: on)"),
+  .num_ops = ARG_DEF(
+      NULL, "num-operating-point-sets", 1,
+      "Number of operating point sets (OPS) to encode (1-16, default 1"),
   .enable_atlas = ARG_DEF(NULL, "enable-atlas", 1,
                           "Enable atlas segment OBU (0: off (default), 1: on)"),
   .noise_sens = ARG_DEF(NULL, "noise-sensitivity", 1,

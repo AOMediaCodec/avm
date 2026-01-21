@@ -669,6 +669,8 @@ typedef struct {
   bool enable_lcr;
   // Indicates the OPS OBU (OBU_OPERATING_POINT_SET) is enabled.
   bool enable_ops;
+  // Indicates the number of OPS OBUs
+  int num_ops;
   // Indicates the Atlas Segment OBU (OBU_ATLAS_SEGMENT) is enabled.
   bool enable_atlas;
 } LayerCfg;

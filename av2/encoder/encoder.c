@@ -817,11 +817,34 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
     memset(&cpi->ops_list[i], 0, sizeof(struct OperatingPointSet));
   cm->ops = &cpi->ops_list[0];
 
+#if CONFIG_AV2_PROFILES
+  // Initialize multiple OPS structures based on the num of ops (num_ops)
+  // This will help using --select-op option at the decoder
+  const int num_ops = oxcf->layer_cfg.num_ops > 0 ? oxcf->layer_cfg.num_ops : 1;
+  // Initialize OPS sub-structure
+  for (int ops_idx = 0; ops_idx < num_ops && ops_idx < MAX_NUM_OPS_ID;
+       ops_idx++) {
+    struct OperatingPointSet *ops = &cpi->ops_list[ops_idx];
+    ops->ops_mlayer_info = &ops->ops_mlayer_info_s;
+    ops->ops_col_info = &ops->ops_col_info_s;
+    ops->ops_decoder_model_info = &ops->ops_decoder_model_info_s;
+    // Set unique OPS ids for each one.
+    for (int xlayer = 0; xlayer < MAX_NUM_XLAYERS; xlayer++) {
+      ops->ops_id[xlayer] = ops_idx;
+      // Set operating point count for this OPS ID
+      ops->ops_cnt[xlayer][ops_idx] = oxcf->tool_cfg.operating_points_count;
+      if (xlayer != GLOBAL_XLAYER_ID) {
+        ops->ops_mlayer_info_idc[xlayer][ops_idx] = 1;
+      }
+    }
+  }
+#else
   for (int i = 0; i < MAX_NUM_XLAYERS; i++) {
     for (int j = 0; j < MAX_NUM_OPS_ID; j++) {
       cm->ops->ops_cnt[i][j] = oxcf->tool_cfg.operating_points_count;
     }
   }
+#endif  // CONFIG_AV2_PROFILES
 
   // Initialize Atlas Segment information
   for (int i = 0; i < MAX_NUM_ATLAS_SEG_ID; i++)
@@ -1078,6 +1101,29 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
   av2_update_film_grain_parameters(cpi, oxcf);
 
   cpi->oxcf = *oxcf;
+
+#if CONFIG_AV2_PROFILES
+  // Initialize multiple OPS structures based on the num of ops (num_ops)
+  // This will help using --select-op option at the decoder
+  const int num_ops = oxcf->layer_cfg.num_ops > 0 ? oxcf->layer_cfg.num_ops : 1;
+  // Initialize OPS sub-structure
+  for (int ops_idx = 0; ops_idx < num_ops && ops_idx < MAX_NUM_OPS_ID;
+       ops_idx++) {
+    struct OperatingPointSet *ops = &cpi->ops_list[ops_idx];
+    ops->ops_mlayer_info = &ops->ops_mlayer_info_s;
+    ops->ops_col_info = &ops->ops_col_info_s;
+    ops->ops_decoder_model_info = &ops->ops_decoder_model_info_s;
+    // Set unique OPS ids for each one.
+    for (int xlayer = 0; xlayer < MAX_NUM_XLAYERS; xlayer++) {
+      ops->ops_id[xlayer] = ops_idx;
+      // Set operating point count for this OPS ID
+      ops->ops_cnt[xlayer][ops_idx] = oxcf->tool_cfg.operating_points_count;
+      if (xlayer != GLOBAL_XLAYER_ID) {
+        ops->ops_mlayer_info_idc[xlayer][ops_idx] = 1;
+      }
+    }
+  }
+#endif  // CONFIG_AV2_PROFILES
 
   x->e_mbd.bd = (int)seq_params->bit_depth;
   x->e_mbd.global_motion = cm->global_motion;

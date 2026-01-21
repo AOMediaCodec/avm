@@ -109,6 +109,7 @@ typedef struct av2_codec_arg_definitions {
   arg_def_t signal_td;
   arg_def_t enable_lcr;
   arg_def_t enable_ops;
+  arg_def_t num_ops;
   arg_def_t enable_atlas;
   arg_def_t noise_sens;
   arg_def_t sharpness;

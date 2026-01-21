@@ -126,7 +126,7 @@ avmenc_av2_obu_lcr_ops_atlas() {
       $(avmenc_encode_test_fast_params) \
       --obu \
       --enable-lcr=1 \
-      --enable-ops=1 \
+      --enable-operating-point-sets=1 \
       --enable-atlas=1 \
       --cpu-used=5 \
       --output="${output}" || return 1

@@ -171,6 +171,18 @@ static uint32_t calculate_ops_data_size(AV2_COMP *cpi, int obu_xlayer_id,
             ->ops_low_delay_mode_flag[obu_xlayer_id][ops_id][op_index]);
   }
 
+#if CONFIG_AV2_PROFILES
+  // Write ops_initial_display_delay_present_flag (always writte)
+  avm_wb_write_bit(
+      &temp_wb,
+      ops->ops_initial_display_delay_present_flag[obu_xlayer_id][ops_id]);
+  if (ops->ops_initial_display_delay_present_flag[obu_xlayer_id][ops_id]) {
+    avm_wb_write_literal(
+        &temp_wb, ops->ops_initial_display_delay_minus_1[obu_xlayer_id][ops_id],
+        4);
+  }
+#endif  // CONFIG_AV2_PROFILES
+
   // Write xlayer_map and mlayer info if xlayer_id == 31
   if (obu_xlayer_id == GLOBAL_XLAYER_ID) {
     avm_wb_write_literal(&temp_wb,

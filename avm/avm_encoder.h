@@ -1081,6 +1081,12 @@ typedef struct avm_codec_enc_cfg {
    */
   unsigned int enable_ops;
 
+  /*!\brief Signal number of operating point set (OPS) OBU.
+   *
+   *  This is only true when enable_ops is equal to 1
+   */
+  unsigned int num_ops;
+
   /*!\brief Signal atlas segment OBU.
    *
    * This value indicates atlas segment OBU is signaled.

@@ -110,7 +110,6 @@ set_avm_config_var(DECODE_HEIGHT_LIMIT 0 "Set limit for decode height.")
 set_avm_config_var(DECODE_WIDTH_LIMIT 0 "Set limit for decode width.")
 set_avm_config_var(CONFIG_TUNE_VMAF 0 "Enable encoding tuning for VMAF.")
 set_avm_config_var(CONFIG_USE_VMAF_RC 0 "Use libvmaf_rc tune for VMAF_NEG.")
-set_avm_config_var(CONFIG_AV2_PROFILES 1 "Profile related changes.")
 
 # AV2 experiment flags.
 set_avm_config_var(CONFIG_SPEED_STATS 0 "AV2 experiment flag.")
@@ -129,6 +128,7 @@ set_avm_config_var(CONFIG_COLLECT_COMPONENT_TIMING 0
 set_avm_config_var(CONFIG_AV2_TEMPORAL_DENOISING 0
                    "Build with temporal denoising support.")
 set_avm_config_var(CONFIG_NN_V2 0 "Fully-connected neural nets ver.2.")
+set_avm_config_var(CONFIG_AV2_PROFILES 1 "AV2 profile related changes.")
 
 # CWG-F221
 set_avm_config_var(CONFIG_PARAKIT_COLLECT_DATA 0

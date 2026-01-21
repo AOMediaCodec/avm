@@ -1681,6 +1681,7 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   oxcf->signal_td = cfg->signal_td;
   layer_cfg->enable_lcr = cfg->enable_lcr;
   layer_cfg->enable_ops = cfg->enable_ops;
+  layer_cfg->num_ops = cfg->num_ops > 0 ? cfg->num_ops : 1;
   layer_cfg->enable_atlas = cfg->enable_atlas;
 
   // Set unit test related configuration.
@@ -4511,6 +4512,7 @@ static const avm_codec_enc_cfg_t encoder_usage_cfg[] = { {
     0,                           // signal_td
     0,                           // enable_lcr
     0,                           // enable_ops
+    1,                           // num_ops
     0,                           // enable_atlas
     0,                           // tile_width_count
     0,                           // tile_height_count
