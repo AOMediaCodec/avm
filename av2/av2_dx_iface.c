@@ -606,30 +606,16 @@ static bool check_random_access_frame_unit(struct AV2Decoder *pbi,
   }
 
   pbi->is_random_access_frame_unit = 0;
-  if (frame_unit_mlayer_id == pbi->dropped_mlayer_id) {
-    // if the current frame unit is dropped
-    pbi->is_random_access_frame_unit = 0;
+  if (pbi->last_frame_unit.mlayer_id == -1) {
+    // It is the first frame unit in the sequence.
+    // This fram unit may be dropped later in
+    // avm_decode_frame_from_obus() if the current frame is dropped, this
+    // frame unit is not a random access point.
+    assert(has_seq_header);
+    assert(has_key_frames);
+    pbi->is_random_access_frame_unit = 1;
   } else {
-    if (pbi->last_frame_unit.mlayer_id == -1) {
-      // when it is the first frame unit regarldess of layer dropping in the
-      // sequence This fram unit may be dropped later in
-      // avm_decode_frame_from_obus() if the current frame is dropped, this
-      // frame unit is not a random access point.
-      assert(has_seq_header);
-      assert(has_key_frames);
-      pbi->is_random_access_frame_unit = 1;
-    } else if (has_key_frames) {
-      // if when the previous frame unit is dropped,
-      // pbi->last_frame_unit.mlayer_id is set as the one in
-      // set_last_frame_unit()
-      if (pbi->dropped_mlayer_id == -1 ||
-          frame_unit_mlayer_id < pbi->dropped_mlayer_id)
-        pbi->is_random_access_frame_unit = has_seq_header;
-      else if (pbi->last_frame_unit.mlayer_id == pbi->dropped_mlayer_id &&
-               pbi->last_frame_unit.is_key_frame_with_sh == 1) {
-        pbi->is_random_access_frame_unit = 1;
-      }
-    }
+    pbi->is_random_access_frame_unit = has_key_frames;
   }
 
   if (pbi->is_random_access_frame_unit) pbi->random_access_point_count++;
@@ -658,14 +644,13 @@ static void set_last_frame_unit(struct AV2Decoder *pbi) {
   for (int obu_idx = 0; obu_idx < pbi->num_obus_with_frame_unit; obu_idx++) {
     has_seq_header |= (pbi->obu_list[obu_idx].obu_type == OBU_SEQUENCE_HEADER);
     if (pbi->obu_list[obu_idx].is_vcl &&
-        pbi->obu_list[obu_idx].first_tile_group == 1 &&
-        pbi->dropped_mlayer_id == -1) {
+        pbi->obu_list[obu_idx].first_tile_group == 1) {
       if (pbi->obu_list[obu_idx].showable_frame == 0 &&
           pbi->last_frame_unit.showable_frame == 1) {
         pbi->last_displayable_frame_unit = pbi->last_frame_unit;
       }
       pbi->last_frame_unit = pbi->obu_list[obu_idx];
-    } else if (pbi->obu_list[obu_idx].is_vcl && pbi->dropped_mlayer_id != -1) {
+    } else if (pbi->obu_list[obu_idx].is_vcl) {
       // pbi->obu_list[obu_idx].first_tile_group is not decoded when the layer
       // is dropped. last_frame_unit is set even when the obu is dropped
       pbi->last_frame_unit = pbi->obu_list[obu_idx];

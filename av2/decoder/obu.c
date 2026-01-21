@@ -1551,17 +1551,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
     else
       cm->is_leading_picture = -1;
 
-    // If a layer is dropped, the avm decoder will skip the layer in the current
-    // function, avm_decode_frame_fom_obus() Regardless of layers dropped,
-    // global config and the sequence header are decoded and obu_list[] is
-    // created.
-    if (obu_header.obu_mlayer_id == pbi->dropped_mlayer_id &&
-        obu_header.obu_xlayer_id != GLOBAL_XLAYER_ID &&
-        obu_header.type != OBU_SEQUENCE_HEADER) {
-      data += (bytes_read + payload_size);
-      continue;
-    }
-
     obu_info *const curr_obu_info =
         &obu_list[pbi->test_decoder_frame_unit_offset +
                   count_obus_with_frame_unit];

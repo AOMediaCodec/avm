@@ -494,11 +494,6 @@ typedef struct AV2Decoder {
    */
   int is_random_access_frame_unit;
   /*!
-   * Indicates mlayer_id to be dropped. dropped_mlayer_id is initialized -1 and
-   * dropped_mlayer_id may be set by the decoder option
-   */
-  int dropped_mlayer_id;
-  /*!
    * Indicates the number of displayable_frame_unit  per layer between layer_id
    * change num_displayable_frame_unit[i] can be maximum 1.   *
    */
