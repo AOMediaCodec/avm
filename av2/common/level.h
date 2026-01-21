@@ -145,6 +145,8 @@ typedef struct {
 
   double max_display_rate;
   double max_decode_rate;
+  bool max_tile_rate_satisfy;
+  bool compressed_size_satisfy;
 } DECODER_MODEL;
 
 typedef struct {
@@ -197,7 +199,8 @@ void av2_decoder_model_init(const struct AV2_COMP *const cpi, AV2_LEVEL level,
 
 void av2_decoder_model_process_frame(const struct AV2_COMP *const cpi,
                                      size_t coded_bits,
-                                     DECODER_MODEL *const decoder_model);
+                                     DECODER_MODEL *const decoder_model,
+                                     AV2LevelSpec *const level_spec);
 
 // Return max bitrate(bps) for given level.
 double av2_get_max_bitrate_for_level(AV2_LEVEL level_index, int tier,

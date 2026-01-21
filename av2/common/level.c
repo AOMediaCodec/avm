@@ -342,7 +342,7 @@ typedef enum {
   FRAME_HEADER_RATE_TOO_HIGH,
   DISPLAY_RATE_TOO_HIGH,
   DECODE_RATE_TOO_HIGH,
-  CR_TOO_SMALL,
+  CS_TOO_HIGH,
   TILE_SIZE_HEADER_RATE_TOO_HIGH,
   BITRATE_TOO_HIGH,
   DECODER_MODEL_FAIL,
@@ -368,7 +368,7 @@ static const char *level_fail_messages[TARGET_LEVEL_FAIL_IDS] = {
   "The frame header rate is too high.",
   "The display luma sample rate is too high.",
   "The decoded luma sample rate is too high.",
-  "The compression ratio is too small.",
+  "The compression size is too high.",
   "The product of max tile size and header rate is too high.",
   "The bitrate is too high.",
   "The decoder model fails.",
@@ -383,6 +383,24 @@ static double get_max_bitrate(const AV2LevelSpec *const level_spec, int tier,
   const double bitrate_profile_factor =
       profile == PROFILE_0 ? 1.0 : (profile == PROFILE_1 ? 2.0 : 3.0);
   return bitrate_basis * bitrate_profile_factor;
+}
+
+static double get_max_compressed_size(const AV2LevelSpec *const level_spec,
+                                      int tier, BITSTREAM_PROFILE profile,
+                                      int luma_sample_count,
+                                      double frame_parsing_time) {
+  if (level_spec->level < SEQ_LEVEL_4_0) tier = 0;
+  const double min_comp_basis =
+      (tier ? level_spec->high_cr : level_spec->main_cr);
+  const double bitrate_profile_factor =
+      profile == PROFILE_0 ? 1.0 : (profile == PROFILE_1 ? 2.0 : 3.0);
+
+  double max_compressed_size =
+      (frame_parsing_time * level_spec->max_decode_rate *
+       bitrate_profile_factor) /
+      (8 * min_comp_basis);
+  return AVMMIN((luma_sample_count * bitrate_profile_factor) * 1.25 / 8.0,
+                max_compressed_size);
 }
 
 double av2_get_max_bitrate_for_level(AV2_LEVEL level_index, int tier,
@@ -615,6 +633,8 @@ void av2_decoder_model_init(const AV2_COMP *const cpi, AV2_LEVEL level,
   decoder_model->decode_samples = 0;
   decoder_model->display_samples = 0;
   decoder_model->max_decode_rate = 0.0;
+  decoder_model->max_tile_rate_satisfy = true;
+  decoder_model->compressed_size_satisfy = true;
   decoder_model->max_display_rate = 0.0;
 
   decoder_model->num_frame = -1;
@@ -672,12 +692,14 @@ int av2_get_max_level_ref_frames(const AV2_COMMON *const cm, OBU_TYPE obu_type,
 
 void av2_decoder_model_process_frame(const AV2_COMP *const cpi,
                                      size_t coded_bits,
-                                     DECODER_MODEL *const decoder_model) {
+                                     DECODER_MODEL *const decoder_model,
+                                     AV2LevelSpec *const level_spec) {
   if (!decoder_model || decoder_model->status != DECODER_MODEL_OK) return;
 
   avm_clear_system_state();
 
   const AV2_COMMON *const cm = &cpi->common;
+  const SequenceHeader *const seq_params = &cm->seq_params;
   const int luma_pic_size = cm->width * cm->height;
   const int show_existing_frame = cm->show_existing_frame;
   const int show_frame = cm->immediate_output_picture || show_existing_frame;
@@ -705,11 +727,30 @@ void av2_decoder_model_process_frame(const AV2_COMP *const cpi,
     assert(previous_removal_time < removal_time);
     decoder_model->removal_time = removal_time;
     decoder_model->decode_samples = luma_pic_size;
-    const double this_decode_rate =
-        previous_decode_samples / (removal_time - previous_removal_time);
+    bool is_global_intrabc_inloop_filtered_frame =
+        cm->features.allow_global_intrabc && is_filter_enabled_frame(cm);
+    const double dt = is_global_intrabc_inloop_filtered_frame
+                          ? 0.5 * (removal_time - previous_removal_time)
+                          : (removal_time - previous_removal_time);
+    const double this_decode_rate = previous_decode_samples / dt;
     decoder_model->max_decode_rate =
         AVMMAX(decoder_model->max_decode_rate, this_decode_rate);
 
+    const int scaled = (int)(level_spec->max_tiles * 120.0 * dt);
+    int max_tile_limit = AVMMIN(level_spec->max_tiles, AVMMAX(1, scaled));
+
+    decoder_model->max_tile_rate_satisfy =
+        decoder_model->max_tile_rate_satisfy &&
+        (cm->tiles.rows * cm->tiles.cols <= max_tile_limit);
+
+    AV2_LEVEL level = decoder_model->level;
+
+    double compressed_size_limit =
+        get_max_compressed_size(av2_level_defs + level, cpi->tier[0],
+                                seq_params->profile, luma_pic_size, dt);
+    decoder_model->compressed_size_satisfy =
+        decoder_model->compressed_size_satisfy &&
+        (coded_bits <= compressed_size_limit);
     // A frame with show_existing_frame being false indicates the end of a DFG.
     // Update the bits arrival time of this DFG.
     const double buffer_delay = (decoder_model->encoder_buffer_delay +
@@ -909,7 +950,7 @@ static void get_temporal_parallel_params(int scalability_mode_idc,
 #define MAX_TILE_SIZE (4096 * 2304)
 #define MIN_FRAME_WIDTH 16
 #define MIN_FRAME_HEIGHT 16
-#define MAX_TILE_SIZE_HEADER_RATE_PRODUCT 588251136
+#define MAX_TILE_SIZE_HEADER_RATE_PRODUCT 547430400
 
 static TARGET_LEVEL_FAIL_ID check_level_constraints(
     const AV2LevelInfo *const level_info, AV2_LEVEL level, int tier,
@@ -951,30 +992,6 @@ static TARGET_LEVEL_FAIL_ID check_level_constraints(
       break;
     }
 
-    if (level_spec->max_header_rate > target_level_spec->max_header_rate) {
-      fail_id = FRAME_HEADER_RATE_TOO_HIGH;
-      break;
-    }
-
-    if (decoder_model->max_display_rate >
-        (double)target_level_spec->max_display_rate) {
-      fail_id = DISPLAY_RATE_TOO_HIGH;
-      break;
-    }
-
-    // TODO(huisu): we are not using max decode rate calculated by the decoder
-    // model because the model in resource availability mode always returns
-    // MaxDecodeRate(as in the level definitions) as the max decode rate.
-    if (level_spec->max_decode_rate > target_level_spec->max_decode_rate) {
-      fail_id = DECODE_RATE_TOO_HIGH;
-      break;
-    }
-
-    if (level_spec->max_tile_rate > target_level_spec->max_tiles * 120) {
-      fail_id = TILE_RATE_TOO_HIGH;
-      break;
-    }
-
     if (level_stats->max_tile_size > MAX_TILE_SIZE) {
       fail_id = TILE_TOO_LARGE;
       break;
@@ -994,12 +1011,38 @@ static TARGET_LEVEL_FAIL_ID check_level_constraints(
       fail_id = TILE_WIDTH_INVALID;
       break;
     }
+    /*
+        const double min_cr = get_min_cr(target_level_spec, tier,
+       is_still_picture, level_spec->max_decode_rate); if (level_stats->min_cr <
+       min_cr) { fail_id = CR_TOO_SMALL; break;
+        }
+    */
+    if (!is_still_picture) {
+      // Using sliding window (OK)
+      if (level_spec->max_header_rate > target_level_spec->max_header_rate) {
+        fail_id = FRAME_HEADER_RATE_TOO_HIGH;
+        break;
+      }
+      // Using decoder model (Ok)
+      if (decoder_model->max_display_rate >
+          (double)target_level_spec->max_display_rate) {
+        fail_id = DISPLAY_RATE_TOO_HIGH;
+        break;
+      }
+      // Use decoder model (Ok)
+      if (decoder_model->max_decode_rate > target_level_spec->max_decode_rate) {
+        fail_id = DECODE_RATE_TOO_HIGH;
+        break;
+      }
 
-    const double min_cr = get_min_cr(target_level_spec, tier, is_still_picture,
-                                     level_spec->max_decode_rate);
-    if (level_stats->min_cr < min_cr) {
-      fail_id = CR_TOO_SMALL;
-      break;
+      if (!decoder_model->max_tile_rate_satisfy) {
+        fail_id = TOO_MANY_TILES;
+        break;
+      }
+      if (!decoder_model->compressed_size_satisfy) {
+        fail_id = CS_TOO_HIGH;
+        break;
+      }
     }
 
     if (check_bitrate) {
@@ -1263,7 +1306,8 @@ void av2_update_level_info(AV2_COMP *cpi, size_t size, int64_t ts_start,
 
     DECODER_MODEL *const decoder_models = level_info->decoder_models;
     for (AV2_LEVEL level = SEQ_LEVEL_2_0; level < SEQ_LEVELS; ++level) {
-      av2_decoder_model_process_frame(cpi, size << 3, &decoder_models[level]);
+      av2_decoder_model_process_frame(cpi, size << 3, &decoder_models[level],
+                                      level_spec);
     }
 
     // Check whether target level is met.
