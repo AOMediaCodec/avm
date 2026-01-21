@@ -813,7 +813,9 @@ static avm_codec_err_t validate_config(avm_codec_alg_priv_t *ctx,
   RANGE_CHECK(extra_cfg, reduced_ref_frame_mvs_mode, 0, 1);
   RANGE_CHECK(extra_cfg, enable_reduced_reference_set, 0, 1);
   RANGE_CHECK(extra_cfg, explicit_ref_frame_map, 0, 1);
-#if !CONFIG_ISSUE1206_REVERT
+#if CONFIG_ISSUE1206_REVERT
+  RANGE_CHECK(extra_cfg, add_sef_for_hidden_frames, 0, 1);
+#else
   RANGE_CHECK(extra_cfg, enable_generation_sef_obu, 0, 1);
 #endif
   RANGE_CHECK_HI(extra_cfg, chroma_subsampling_x, 1);

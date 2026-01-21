@@ -4164,6 +4164,16 @@ void encoder_avg_tiles_cdfs(AV2_COMP *const cpi) {
     }
   }
 }
+#if CONFIG_ISSUE1206_REVERT
+// Returns 1 if a SEF OBU that refers to a hidden frame needs to be added with
+// add_sef_for_hidden_frames = 1. Returns 0 otherwise
+static bool add_sef_for_hidden_frame(AV2_COMP *cpi) {
+  return cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames &&
+         cpi->update_type_was_overlay && cpi->fb_idx_for_overlay != -1 &&
+         cpi->common.ref_frame_map[cpi->fb_idx_for_overlay] != NULL;
+}
+
+#endif
 /*!\brief Run the final pass encoding for 1-pass/2-pass encoding mode, and pack
  * the bitstream
  *
@@ -4246,9 +4256,7 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
 #if CONFIG_ISSUE1206_REVERT
   if ((!cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames &&
        cpi->update_type_was_overlay) ||
-      (cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames &&
-       cpi->update_type_was_overlay && cpi->fb_idx_for_overlay != -1 &&
-       cm->ref_frame_map[cpi->fb_idx_for_overlay] != NULL &&
+      (add_sef_for_hidden_frame(cpi) &&
        cm->ref_frame_map[cpi->fb_idx_for_overlay]->frame_type == KEY_FRAME))
 #else
   if (!cpi->oxcf.ref_frm_cfg.enable_generation_sef_obu &&
@@ -4295,9 +4303,7 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
     return AVM_CODEC_OK;
   }
 #if CONFIG_ISSUE1206_REVERT
-  if (cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames &&
-      cpi->update_type_was_overlay && cpi->fb_idx_for_overlay != -1 &&
-      cm->ref_frame_map[cpi->fb_idx_for_overlay] != NULL &&
+  if (add_sef_for_hidden_frame(cpi) &&
       cm->ref_frame_map[cpi->fb_idx_for_overlay]->frame_type != KEY_FRAME) {
     // Add SEF_OBU with the display order hint derivation
     cm->show_existing_frame = 1;
