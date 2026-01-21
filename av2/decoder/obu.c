@@ -29,6 +29,7 @@
 #include "av2/decoder/decodeframe.h"
 #include "av2/decoder/obu.h"
 #include "av2/common/enums.h"
+#include "av2/common/annexA.h"
 
 static uint32_t read_temporal_delimiter_obu() { return 0; }
 
@@ -334,7 +335,7 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
   }
 
   seq_params->seq_profile_idc = av2_read_profile(rb);
-  if (seq_params->seq_profile_idc > CONFIG_MAX_DECODE_PROFILE) {
+  if (seq_params->seq_profile_idc >= MAX_PROFILES) {
     cm->error.error_code = AVM_CODEC_UNSUP_BITSTREAM;
     return 0;
   }
@@ -408,9 +409,15 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
       seq_params->seq_max_encoder_buffer_delay = 20000;
       seq_params->seq_max_low_delay_mode_flag = 0;
     }
-    int64_t seq_bitrate = av2_max_level_bitrate(seq_params->seq_profile_idc,
-                                                seq_params->seq_max_level_idx,
-                                                seq_params->seq_tier);
+    int64_t seq_bitrate = av2_max_level_bitrate(
+        seq_params->seq_profile_idc, seq_params->seq_max_level_idx,
+        seq_params->seq_tier
+#if CONFIG_AV2_PROFILES
+        ,
+        seq_params->subsampling_x, seq_params->subsampling_y,
+        seq_params->monochrome
+#endif  // CONFIG_AV2_PROFILES
+    );
     if (seq_bitrate == 0)
       avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
                          "AV2 does not support this combination of "
@@ -467,6 +474,14 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
       av2_read_tlayer_dependency_info(seq_params, rb);
     }
   }
+
+#if CONFIG_AV2_PROFILES
+  if (!av2_check_profile_interop_conformance(seq_params, &cm->error, 1)) {
+    avm_internal_error(
+        &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+        "Unsupported Bitdepth, Chroma format or number of embedded layers");
+  }
+#endif  // CONFIG_AV2_PROFILES
 
   av2_read_sequence_header(rb, seq_params);
   seq_params->film_grain_params_present = avm_rb_read_bit(rb);

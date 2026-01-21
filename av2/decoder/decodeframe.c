@@ -5802,7 +5802,13 @@ static void setup_film_grain(AV2Decoder *pbi, struct avm_read_bit_buffer *rb) {
       }
       uint32_t seq_chroma_format_idc = CHROMA_FORMAT_420;
       avm_codec_err_t err =
+#if CONFIG_AV2_PROFILES
+          av2_get_chroma_format_idc(
+              seq_params->subsampling_x, seq_params->subsampling_y,
+              seq_params->monochrome, &seq_chroma_format_idc);
+#else
           av2_get_chroma_format_idc(seq_params, &seq_chroma_format_idc);
+#endif  // CONFIG_AV2_PROFILES
       if (err != AVM_CODEC_OK) {
         avm_internal_error(
             &cm->error, err,

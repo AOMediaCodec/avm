@@ -4393,18 +4393,32 @@ static AVM_INLINE void write_frame_size_with_refs(
   }
 }
 
+#if CONFIG_AV2_PROFILES
+static AVM_INLINE void write_profile(BITSTREAM_PROFILE profile,
+                                     struct avm_write_bit_buffer *wb) {
+  assert(profile >= MAIN_420_10_IP0 && profile < MAX_PROFILES);
+  avm_wb_write_literal(wb, profile, PROFILE_BITS);
+}
+#else
 static AVM_INLINE void write_profile(BITSTREAM_PROFILE profile,
                                      struct avm_write_bit_buffer *wb) {
   assert(profile >= PROFILE_0 && profile < MAX_PROFILES);
   avm_wb_write_literal(wb, profile, PROFILE_BITS);
 }
+#endif  //  CONFIG_AV2_PROFILES
 
 // Write sequence chroma format idc to the bitstream.
 static AVM_INLINE void write_seq_chroma_format(
     const SequenceHeader *const seq_params, struct avm_write_bit_buffer *wb) {
   uint32_t seq_chroma_format_idc = CHROMA_FORMAT_420;
   avm_codec_err_t err =
+#if CONFIG_AV2_PROFILES
+      av2_get_chroma_format_idc(seq_params->subsampling_x,
+                                seq_params->subsampling_y,
+                                seq_params->monochrome, &seq_chroma_format_idc);
+#else
       av2_get_chroma_format_idc(seq_params, &seq_chroma_format_idc);
+#endif  // CONFIG_AV2_PROFILES
   assert(err == AVM_CODEC_OK);
   (void)err;
   avm_wb_write_uvlc(wb, seq_chroma_format_idc);

@@ -376,19 +376,50 @@ static const char *level_fail_messages[TARGET_LEVEL_FAIL_IDS] = {
 };
 
 static double get_max_bitrate(const AV2LevelSpec *const level_spec, int tier,
-                              BITSTREAM_PROFILE profile) {
+                              BITSTREAM_PROFILE profile
+#if CONFIG_AV2_PROFILES
+                              ,
+                              int subsampling_x, int subsampling_y,
+                              int monochrome
+#endif  // CONFIG_AV2_PROFILES
+) {
   if (level_spec->level < SEQ_LEVEL_4_0) tier = 0;
   const double bitrate_basis =
       (tier ? level_spec->high_mbps : level_spec->main_mbps) * 1e6;
+
+#if CONFIG_AV2_PROFILES
+  uint32_t chroma_format_idc = CHROMA_FORMAT_420;
+  av2_get_chroma_format_idc(subsampling_x, subsampling_y, monochrome,
+                            &chroma_format_idc);
+  double bitrate_profile_factor = 0;
+  if (profile == MAIN_444_10 && chroma_format_idc == CHROMA_FORMAT_444)
+    bitrate_profile_factor = 2;
+  else if (profile == MAIN_422_10 && chroma_format_idc == CHROMA_FORMAT_422)
+    bitrate_profile_factor = 1;
+  else
+    bitrate_profile_factor = 0;
+#else
   const double bitrate_profile_factor =
       profile == PROFILE_0 ? 1.0 : (profile == PROFILE_1 ? 2.0 : 3.0);
+#endif  // CONFIG_AV2_PROFILES
   return bitrate_basis * bitrate_profile_factor;
 }
 
 double av2_get_max_bitrate_for_level(AV2_LEVEL level_index, int tier,
-                                     BITSTREAM_PROFILE profile) {
+                                     BITSTREAM_PROFILE profile
+#if CONFIG_AV2_PROFILES
+                                     ,
+                                     int subsampling_x, int subsampling_y,
+                                     int monochrome
+#endif  // CONFIG_AV2_PROFILES
+) {
   assert(is_valid_seq_level_idx(level_index));
-  return get_max_bitrate(&av2_level_defs[level_index], tier, profile);
+  return get_max_bitrate(&av2_level_defs[level_index], tier, profile
+#if CONFIG_AV2_PROFILES
+                         ,
+                         subsampling_x, subsampling_y, monochrome
+#endif  // CONFIG_AV2_PROFILES
+  );
 }
 
 void av2_get_max_tiles_for_level(AV2_LEVEL level_index, int *const max_tiles,
@@ -598,7 +629,13 @@ void av2_decoder_model_init(const AV2_COMP *const cpi, AV2_LEVEL level,
   const AV2_COMMON *const cm = &cpi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
   decoder_model->bit_rate = get_max_bitrate(
-      av2_level_defs + level, cpi->tier[op_index], seq_params->seq_profile_idc);
+      av2_level_defs + level, cpi->tier[op_index], seq_params->seq_profile_idc
+#if CONFIG_AV2_PROFILES
+      ,
+      seq_params->subsampling_x, seq_params->subsampling_y,
+      seq_params->monochrome
+#endif  // CONFIG_AV2_PROFILES
+  );
 
   // TODO(huisu or anyone): implement SCHEDULE_MODE.
   decoder_model->mode = RESOURCE_MODE;
@@ -913,7 +950,12 @@ static void get_temporal_parallel_params(int scalability_mode_idc,
 
 static TARGET_LEVEL_FAIL_ID check_level_constraints(
     const AV2LevelInfo *const level_info, AV2_LEVEL level, int tier,
-    int is_still_picture, BITSTREAM_PROFILE profile, int check_bitrate) {
+    int is_still_picture, BITSTREAM_PROFILE profile, int check_bitrate
+#if CONFIG_AV2_PROFILES
+    ,
+    int subsampling_x, int subsampling_y, int monochrome
+#endif  // CONFIG_AV2_PROFILES
+) {
   const DECODER_MODEL *const decoder_model = &level_info->decoder_models[level];
   const DECODER_MODEL_STATUS decoder_model_status = decoder_model->status;
   if (decoder_model_status != DECODER_MODEL_OK &&
@@ -1006,7 +1048,12 @@ static TARGET_LEVEL_FAIL_ID check_level_constraints(
     if (check_bitrate) {
       // Check average bitrate instead of max_bitrate.
       const double bitrate_limit =
-          get_max_bitrate(target_level_spec, tier, profile);
+          get_max_bitrate(target_level_spec, tier, profile
+#if CONFIG_AV2_PROFILES
+                          ,
+                          subsampling_x, subsampling_y, monochrome
+#endif  // CONFIG_AV2_PROFILES
+          );
       const double avg_bitrate = level_stats->total_compressed_size * 8.0 /
                                  level_stats->total_time_encoded;
       if (avg_bitrate > bitrate_limit) {
@@ -1169,8 +1216,13 @@ double av2_get_compression_ratio(const AV2_COMMON *const cm,
   const int luma_pic_size = upscaled_width * height;
   const SequenceHeader *const seq_params = &cm->seq_params;
   const BITSTREAM_PROFILE profile = seq_params->seq_profile_idc;
+#if CONFIG_AV2_PROFILES
+  const int pic_size_profile_factor =
+      profile == MAIN_420_10_IP0 ? 15 : (profile == MAIN_420_10_IP1 ? 30 : 36);
+#else
   const int pic_size_profile_factor =
       profile == PROFILE_0 ? 15 : (profile == PROFILE_1 ? 30 : 36);
+#endif  // CONFIG_AV2_PROFILES
   encoded_frame_size =
       (encoded_frame_size > 129 ? encoded_frame_size - 128 : 1);
   const size_t uncompressed_frame_size =
@@ -1273,7 +1325,13 @@ void av2_update_level_info(AV2_COMP *cpi, size_t size, int64_t ts_start,
       assert(is_valid_seq_level_idx(target_level));
       const int tier = cpi->tier[i];
       const TARGET_LEVEL_FAIL_ID fail_id = check_level_constraints(
-          level_info, target_level, tier, is_still_picture, profile, 0);
+          level_info, target_level, tier, is_still_picture, profile, 0
+#if CONFIG_AV2_PROFILES
+          ,
+          cm->seq_params.subsampling_x, cm->seq_params.subsampling_y,
+          cm->seq_params.monochrome
+#endif  // CONFIG_AV2_PROFILES
+      );
       if (fail_id != TARGET_LEVEL_OK) {
         const int target_level_major = 2 + (target_level >> 2);
         const int target_level_minor = target_level & 3;
@@ -1302,7 +1360,13 @@ avm_codec_err_t av2_get_seq_level_idx(const AV2_COMP *cpi,
     for (int level = 0; level < SEQ_LEVELS; ++level) {
       if (!is_valid_seq_level_idx(level)) continue;
       const TARGET_LEVEL_FAIL_ID fail_id = check_level_constraints(
-          level_info, level, tier, is_still_picture, profile, 1);
+          level_info, level, tier, is_still_picture, profile, 1
+#if CONFIG_AV2_PROFILES
+          ,
+          seq_params->subsampling_x, seq_params->subsampling_y,
+          seq_params->monochrome
+#endif  // CONFIG_AV2_PROFILES
+      );
       if (fail_id == TARGET_LEVEL_OK) {
         seq_level_idx[op] = level;
         break;

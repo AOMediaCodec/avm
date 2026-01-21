@@ -263,6 +263,18 @@ enum {
 
 #define DMVR_SEARCH_NUM_NEIGHBORS 24
 #define PROFILE_BITS 5
+#if CONFIG_AV2_PROFILES
+// Refer to Table A.4 in annexA.c
+enum {
+  MAIN_420_10_IP0,
+  MAIN_420_10_IP1,
+  MAIN_420_10_IP2,
+  MAIN_420_10,
+  MAIN_422_10,
+  MAIN_444_10,
+  MAX_PROFILES,
+} SENUM1BYTE(BITSTREAM_PROFILE);
+#else
 // The following three profiles are currently defined.
 // Profile 0.  8-bit and 10-bit 4:2:0 and 4:0:0 only.
 // Profile 1.  8-bit and 10-bit 4:4:4
@@ -275,6 +287,7 @@ enum {
   PROFILE_2,
   MAX_PROFILES,
 } SENUM1BYTE(BITSTREAM_PROFILE);
+#endif  // CONFIG_AV2_PROFILES
 
 #define BUFFER_POOL_MAX_SIZE 18  // Max VBI slots (16) + 2 extra
 

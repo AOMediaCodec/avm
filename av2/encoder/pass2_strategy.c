@@ -792,7 +792,13 @@ static int adjust_boost_bits_for_target_level(const AV2_COMP *const cpi,
     assert(is_valid_seq_level_idx(target_level));
 
     const double level_bitrate_limit = av2_get_max_bitrate_for_level(
-        target_level, seq_params->seq_tier, seq_params->seq_profile_idc);
+        target_level, seq_params->seq_tier, seq_params->seq_profile_idc
+#if CONFIG_AV2_PROFILES
+        ,
+        seq_params->subsampling_x, seq_params->subsampling_y,
+        seq_params->monochrome
+#endif  // CONFIG_AV2_PROFILES
+    );
     const int target_bits_per_frame =
         (int)(level_bitrate_limit / cpi->framerate);
     if (frame_type == 0) {

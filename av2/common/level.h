@@ -201,7 +201,13 @@ void av2_decoder_model_process_frame(const struct AV2_COMP *const cpi,
 
 // Return max bitrate(bps) for given level.
 double av2_get_max_bitrate_for_level(AV2_LEVEL level_index, int tier,
-                                     BITSTREAM_PROFILE profile);
+                                     BITSTREAM_PROFILE profile
+#if CONFIG_AV2_PROFILES
+                                     ,
+                                     int subsampling_x, int subsampling_y,
+                                     int monochrome
+#endif  // CONFIG_AV2_PROFILES
+);
 
 // Get max number of tiles and tile columns for given level.
 void av2_get_max_tiles_for_level(AV2_LEVEL level_index, int *const max_tiles,

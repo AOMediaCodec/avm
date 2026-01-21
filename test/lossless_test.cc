@@ -19,6 +19,7 @@
 #include "test/i420_video_source.h"
 #include "test/util.h"
 #include "test/y4m_video_source.h"
+#include "av2/common/enums.h"
 
 namespace {
 
@@ -109,7 +110,11 @@ TEST_P(LosslessTestLarge, TestLossLessEncoding) {
 TEST_P(LosslessTestLarge, TestLossLessEncoding444) {
   libavm_test::Y4mVideoSource video("rush_hour_444.y4m", 0, 3);
 
+#if CONFIG_AV2_PROFILES
+  cfg_.g_profile = MAIN_444_10;
+#else
   cfg_.g_profile = 1;
+#endif  //  CONFIG_AV2_PROFILES
   cfg_.g_timebase = video.timebase();
   cfg_.rc_target_bitrate = 2000;
   cfg_.g_lag_in_frames = 25;

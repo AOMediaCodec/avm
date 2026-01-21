@@ -102,8 +102,6 @@ set_avm_config_var(CONFIG_DENOISE 1
                    "Denoise/noise modeling support in encoder.")
 set_avm_config_var(CONFIG_INSPECTION 0 "Enables bitstream inspection.")
 set_avm_config_var(CONFIG_INTERNAL_STATS 0 "Enables internal encoder stats.")
-set_avm_config_var(CONFIG_MAX_DECODE_PROFILE 2
-                   "Max profile to support decoding.")
 set_avm_config_var(CONFIG_SIZE_LIMIT 0 "Limit max decode width/height.")
 set_avm_config_var(CONFIG_SPATIAL_RESAMPLING 1 "Spatial resampling.")
 set_avm_config_var(DECODE_HEIGHT_LIMIT 0 "Set limit for decode height.")

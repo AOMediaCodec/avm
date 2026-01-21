@@ -2175,6 +2175,42 @@ int main(int argc, const char **argv_) {
       if (input.fmt != AVM_IMG_FMT_I420 && input.fmt != AVM_IMG_FMT_I42016) {
         /* Automatically upgrade if input is non-4:2:0 but a 4:2:0 profile
            was selected. */
+#if CONFIG_AV2_PROFILES
+        switch (stream->config.cfg.g_profile) {
+          case MAIN_420_10_IP0:
+          case MAIN_420_10_IP1:
+          case MAIN_420_10_IP2:
+          case MAIN_420_10:
+            // Profiles 0 to 3 are all 420 profiles
+            if (input.fmt == AVM_IMG_FMT_I444 ||
+                input.fmt == AVM_IMG_FMT_I44416) {
+              if (!stream->config.cfg.monochrome) {
+                stream->config.cfg.g_profile =
+                    MAIN_444_10;  // upgrate to MAIN_444_10
+                profile_updated = 1;
+              }
+            } else if (input.fmt == AVM_IMG_FMT_I422 ||
+                       input.fmt == AVM_IMG_FMT_I42216) {
+              stream->config.cfg.g_profile = MAIN_422_10;  // MAIN_422_10
+              profile_updated = 1;
+            }
+            break;
+          case MAIN_422_10:
+            // Profile 4 is 422 profile -- upgrate to 444 if needed
+            if (input.fmt == AVM_IMG_FMT_I444 ||
+                input.fmt == AVM_IMG_FMT_I44416) {
+              if (!stream->config.cfg.monochrome) {
+                stream->config.cfg.g_profile = MAIN_444_10;  // Upgrade to 444
+                profile_updated = 1;
+              }
+            }
+            break;
+          case MAIN_444_10:
+            // Do not downgrade from 444
+            break;
+          default: break;
+        }
+#else
         switch (stream->config.cfg.g_profile) {
           case 0:
             if (input.bit_depth < 12 && (input.fmt == AVM_IMG_FMT_I444 ||
@@ -2233,6 +2269,7 @@ int main(int argc, const char **argv_) {
             break;
           default: break;
         }
+#endif  // CONFIG_AV2_PROFILES
       }
       /* Automatically set the codec bit depth to match the input bit depth.
        * Upgrade the profile if required. */

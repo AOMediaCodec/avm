@@ -2895,6 +2895,26 @@ void av2_set_class_id_array_stride(CommonModeInfoParams *mi_params,
                                    AV2_COMMON *cm, int height);
 void av2_dealloc_class_id_array(CommonModeInfoParams *mi_params);
 
+#if CONFIG_AV2_PROFILES
+// Given subsampling x/y and monochrome values in `seq_params`, outputs the
+// chroma format idc. Returns error in case of invalid subsampling format.
+static INLINE avm_codec_err_t
+av2_get_chroma_format_idc(int subsampling_x, int subsampling_y, int monochrome,
+                          uint32_t *seq_chroma_format_idc) {
+  if (monochrome) {
+    *seq_chroma_format_idc = CHROMA_FORMAT_400;
+  } else if (subsampling_x == 1 && subsampling_y == 1) {
+    *seq_chroma_format_idc = CHROMA_FORMAT_420;
+  } else if (subsampling_x == 1 && subsampling_y == 0) {
+    *seq_chroma_format_idc = CHROMA_FORMAT_422;
+  } else if (subsampling_x == 0 && subsampling_y == 0) {
+    *seq_chroma_format_idc = CHROMA_FORMAT_444;
+  } else {
+    return AVM_CODEC_UNSUP_BITSTREAM;
+  }
+  return AVM_CODEC_OK;
+}
+#else
 // Given subsampling x/y and monochrome values in `seq_params`, outputs the
 // chroma format idc. Returns error in case of invalid subsampling format.
 static INLINE avm_codec_err_t av2_get_chroma_format_idc(
@@ -2912,6 +2932,7 @@ static INLINE avm_codec_err_t av2_get_chroma_format_idc(
   }
   return AVM_CODEC_OK;
 }
+#endif  // CONFIG_AV2_PROFILES
 
 int get_ccso_unit_size_log2_adaptive_tile(const AV2_COMMON *cm,
                                           int sb_size_log2, int unit_size_log2);
