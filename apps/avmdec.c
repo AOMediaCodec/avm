@@ -647,7 +647,7 @@ static int main_loop(int argc, const char **argv_) {
   int operating_point = 0;
   int output_all_layers = 0;
   int skip_film_grain = 0;
-  int random_access = 0;
+  int random_access_point_index = 0;
   int bru_opt_mode = 0;
   avm_image_t *scaled_img = NULL;
   avm_image_t *img_shifted = NULL;
@@ -791,7 +791,7 @@ static int main_loop(int argc, const char **argv_) {
     } else if (arg_match(&arg, &skipfilmgrain, argi)) {
       skip_film_grain = 1;
     } else if (arg_match(&arg, &randomaccess, argi)) {
-      random_access = arg_parse_uint(&arg);
+      random_access_point_index = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &bruoptmodearg, argi)) {
       bru_opt_mode = 1;
     } else if (arg_match(&arg, &icc_file, argi)) {
@@ -947,8 +947,8 @@ static int main_loop(int argc, const char **argv_) {
   }
 
   if (AVM_CODEC_CONTROL_TYPECHECKED(&decoder, AV2D_SET_RANDOM_ACCESS,
-                                    random_access)) {
-    fprintf(stderr, "Failed to set random_access: %s\n",
+                                    random_access_point_index)) {
+    fprintf(stderr, "Failed to set random_access_point_index: %s\n",
             avm_codec_error(&decoder));
     goto fail;
   }

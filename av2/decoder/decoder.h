@@ -508,6 +508,8 @@ typedef struct AV2Decoder {
   /*!
    * Indicates that the current CLK or OLK is accessed as a start of a sequence
    * Once it is set true, It stays true till the next random access point
+   * random_accessed is derived to be true when random_access_point_count is
+   * equal to random_access_point_index
    */
   bool random_accessed;
   /*!

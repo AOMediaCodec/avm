@@ -51,7 +51,7 @@ struct avm_codec_alg_priv {
   int byte_alignment;
   int skip_loop_filter;
   int skip_film_grain;
-  uint64_t random_access;
+  uint64_t random_access_point_index;
   int bru_opt_mode;
   unsigned int row_mt;
   int operating_point;
@@ -350,7 +350,7 @@ static void init_buffer_callbacks(avm_codec_alg_priv_t *ctx) {
   cm->features.byte_alignment = ctx->byte_alignment;
   pbi->skip_loop_filter = ctx->skip_loop_filter;
   pbi->skip_film_grain = ctx->skip_film_grain;
-  pbi->random_access_point_index = ctx->random_access;
+  pbi->random_access_point_index = ctx->random_access_point_index;
   pbi->bru_opt_mode = ctx->bru_opt_mode;
 
   if (ctx->get_ext_fb_cb != NULL && ctx->release_ext_fb_cb != NULL) {
@@ -579,7 +579,6 @@ static bool check_random_access_frame_unit(struct AV2Decoder *pbi,
   // in data: ex) no [16][8][4][2][1]... if there is CLK/OLK
   pbi->num_obus_with_frame_unit = 0;
   bool has_key_frames = false;
-  bool has_seq_header = false;
   int frame_unit_mlayer_id = -1;
   const uint8_t *data_read = data;
   ObuHeader obu_header;
@@ -592,7 +591,6 @@ static bool check_random_access_frame_unit(struct AV2Decoder *pbi,
                                  &bytes_read);
     pbi->num_obus_with_frame_unit++;
     data_read += bytes_read + payload_size;
-    has_seq_header |= obu_header.type == OBU_SEQUENCE_HEADER;
     has_key_frames |= obu_header.type == OBU_CLK || obu_header.type == OBU_OLK;
     if (is_single_tile_vcl_obu(obu_header.type) ||
         is_multi_tile_vcl_obu(obu_header.type)) {
@@ -611,7 +609,6 @@ static bool check_random_access_frame_unit(struct AV2Decoder *pbi,
     // This fram unit may be dropped later in
     // avm_decode_frame_from_obus() if the current frame is dropped, this
     // frame unit is not a random access point.
-    assert(has_seq_header);
     assert(has_key_frames);
     pbi->is_random_access_frame_unit = 1;
   } else {
@@ -1568,12 +1565,13 @@ static avm_codec_err_t ctrl_set_skip_film_grain(avm_codec_alg_priv_t *ctx,
 
 static avm_codec_err_t ctrl_set_random_access(avm_codec_alg_priv_t *ctx,
                                               va_list args) {
-  ctx->random_access = va_arg(args, int);
+  ctx->random_access_point_index = va_arg(args, int);
 
   if (ctx->frame_worker) {
     AVxWorker *const worker = ctx->frame_worker;
     FrameWorkerData *const frame_worker_data = (FrameWorkerData *)worker->data1;
-    frame_worker_data->pbi->random_access_point_index = ctx->random_access;
+    frame_worker_data->pbi->random_access_point_index =
+        ctx->random_access_point_index;
   }
   return AVM_CODEC_OK;
 }
