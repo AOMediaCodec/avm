@@ -5954,7 +5954,7 @@ uint32_t av2_write_sequence_header_obu(const SequenceHeader *seq_params,
 
   avm_wb_write_uvlc(&wb, seq_params->seq_header_id);
 
-  write_profile(seq_params->profile, &wb);
+  write_profile(seq_params->seq_profile_idc, &wb);
   avm_wb_write_bit(&wb, seq_params->single_picture_header_flag);
   if (!seq_params->single_picture_header_flag) {
     avm_wb_write_literal(&wb, seq_params->seq_lcr_id, 3);
@@ -6002,6 +6002,12 @@ uint32_t av2_write_sequence_header_obu(const SequenceHeader *seq_params,
   if (!seq_params->single_picture_header_flag) {
     avm_wb_write_literal(&wb, seq_params->max_tlayer_id, TLAYER_BITS);
     avm_wb_write_literal(&wb, seq_params->max_mlayer_id, MLAYER_BITS);
+#if CONFIG_AV2_PROFILES
+    if (seq_params->max_mlayer_id > 0) {
+      int n = avm_ceil_log2(seq_params->max_mlayer_id + 1);
+      avm_wb_write_literal(&wb, seq_params->seq_max_mlayer_cnt, n);
+    }
+#endif  // CONFIG_AV2_PROFILES
   }
 
   // mlayer dependency description

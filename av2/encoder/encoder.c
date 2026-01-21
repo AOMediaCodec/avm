@@ -328,8 +328,7 @@ static void set_bitstream_level_tier(AV2_COMP *cpi, AV2_COMMON *cm, int width,
     // Set the maximum parameters for bitrate and buffer size for this profile,
     // level, and tier
     seq_params->op_params[i].bitrate = av2_max_level_bitrate(
-        cm->seq_params.profile, cpi->level_idx[i], cpi->tier[i]);
-
+        cm->seq_params.seq_profile_idc, cpi->level_idx[i], cpi->tier[i]);
     // Level with seq_level_idx = 31 returns a high "dummy" bitrate to pass the
     // check
     if (seq_params->op_params[i].bitrate == 0)
@@ -531,6 +530,9 @@ void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
   seq->mlayer_dependency_present_flag = 0;
   setup_default_temporal_layer_dependency_structure(seq);
   setup_default_embedded_layer_dependency_structure(seq);
+#if CONFIG_AV2_PROFILES
+  seq->seq_max_mlayer_cnt = 1;
+#endif  // CONFIG_AV2_PROFILES
 
   // delta_q
   seq->base_y_dc_delta_q = 0;
@@ -835,7 +837,8 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
   } else {
     seq_params->seq_lcr_id = LCR_ID_UNSPECIFIED;
   }
-  seq_params->profile = oxcf->profile;
+
+  seq_params->seq_profile_idc = oxcf->profile;
   seq_params->bit_depth = oxcf->tool_cfg.bit_depth;
   seq_params->monochrome = oxcf->tool_cfg.enable_monochrome;
   seq_params->display_model_info_present_flag =
@@ -881,10 +884,10 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
     seq_params->subsampling_x = 0;
     seq_params->subsampling_y = 0;
   } else {
-    if (seq_params->profile == 0) {
+    if (seq_params->seq_profile_idc == 0) {
       seq_params->subsampling_x = 1;
       seq_params->subsampling_y = 1;
-    } else if (seq_params->profile == 1) {
+    } else if (seq_params->seq_profile_idc == 1) {
       seq_params->subsampling_x = 0;
       seq_params->subsampling_y = 0;
     } else {
@@ -1036,7 +1039,8 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
 
   memset(brt_info, 0, sizeof(BufferRemovalTimingInfo));
 
-  if (seq_params->profile != oxcf->profile) seq_params->profile = oxcf->profile;
+  if (seq_params->seq_profile_idc != oxcf->profile)
+    seq_params->seq_profile_idc = oxcf->profile;
   seq_params->bit_depth = oxcf->tool_cfg.bit_depth;
   uint32_t chroma_format_idc = 0;
   avm_codec_err_t err =
@@ -1048,7 +1052,7 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
   }
   set_content_interpreation_params(cpi, oxcf, chroma_format_idc);
 
-  assert(IMPLIES(seq_params->profile <= PROFILE_1,
+  assert(IMPLIES(seq_params->seq_profile_idc <= PROFILE_1,
                  seq_params->bit_depth <= AVM_BITS_10));
 
   seq_params->display_model_info_present_flag =
@@ -4922,19 +4926,19 @@ int av2_receive_raw_frame(AV2_COMP *cpi, avm_enc_frame_flags_t frame_flags,
   // Profile in the seq header, and likewise a bitstream that contains 4:2:2
   // bitstream must be designated as Professional Profile in the sequence
   // header.
-  if ((seq_params->profile == PROFILE_0) && !seq_params->monochrome &&
+  if ((seq_params->seq_profile_idc == PROFILE_0) && !seq_params->monochrome &&
       (subsampling_x != 1 || subsampling_y != 1)) {
     avm_internal_error(&cm->error, AVM_CODEC_INVALID_PARAM,
                        "Non-4:2:0 color format requires profile 1 or 2");
     res = -1;
   }
-  if ((seq_params->profile == PROFILE_1) &&
+  if ((seq_params->seq_profile_idc == PROFILE_1) &&
       !(subsampling_x == 0 && subsampling_y == 0)) {
     avm_internal_error(&cm->error, AVM_CODEC_INVALID_PARAM,
                        "Profile 1 requires 4:4:4 color format");
     res = -1;
   }
-  if ((seq_params->profile == PROFILE_2) &&
+  if ((seq_params->seq_profile_idc == PROFILE_2) &&
       (seq_params->bit_depth <= AVM_BITS_10) &&
       !(subsampling_x == 1 && subsampling_y == 0)) {
     avm_internal_error(&cm->error, AVM_CODEC_INVALID_PARAM,

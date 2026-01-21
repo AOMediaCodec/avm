@@ -1740,7 +1740,8 @@ static avm_codec_err_t encoder_set_config(avm_codec_alg_priv_t *ctx,
     ctx->cfg = *cfg;
     set_encoder_config(&ctx->oxcf, &ctx->cfg, &ctx->extra_cfg, 0);
     // On profile change, request a key frame
-    force_key |= ctx->cpi->common.seq_params.profile != ctx->oxcf.profile;
+    force_key |=
+        ctx->cpi->common.seq_params.seq_profile_idc != ctx->oxcf.profile;
     av2_change_config(ctx->cpi, &ctx->oxcf);
     if (ctx->cpi_lap != NULL) {
       av2_change_config(ctx->cpi_lap, &ctx->oxcf);

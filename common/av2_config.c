@@ -188,8 +188,8 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
   }
   config->seq_header_id = seq_header_id;
 
-  AV2C_READ_BITS_OR_RETURN_ERROR(seq_profile, 3);
-  config->seq_profile = seq_profile;
+  AV2C_READ_BITS_OR_RETURN_ERROR(seq_profile, PROFILE_BITS);
+  config->seq_profile_idc = seq_profile;
   AV2C_READ_BIT_OR_RETURN_ERROR(single_picture_header_flag);
   if (!single_picture_header_flag) {
     AV2C_READ_BITS_OR_RETURN_ERROR(seq_lcr_id, 3);
@@ -435,8 +435,8 @@ int read_av2config(const uint8_t *buffer, size_t buffer_length,
   AV2C_READ_BITS_OR_RETURN_ERROR(version, 7);
   config->version = version;
 
-  AV2C_READ_BITS_OR_RETURN_ERROR(seq_profile, 3);
-  config->seq_profile = seq_profile;
+  AV2C_READ_BITS_OR_RETURN_ERROR(seq_profile, PROFILE_BITS);
+  config->seq_profile_idc = seq_profile;
 
   AV2C_READ_BITS_OR_RETURN_ERROR(seq_level_idx_0, 5);
   config->seq_level_idx_0 = seq_level_idx_0;
@@ -485,7 +485,7 @@ int write_av2config(const Av2Config *config, size_t capacity,
 
   avm_wb_write_bit(&writer, config->marker);
   avm_wb_write_literal(&writer, config->version, 7);
-  avm_wb_write_literal(&writer, config->seq_profile, 3);
+  avm_wb_write_literal(&writer, config->seq_profile_idc, PROFILE_BITS);
   avm_wb_write_literal(&writer, config->seq_level_idx_0, 5);
   avm_wb_write_bit(&writer, config->seq_tier_0);
   if (config->bitdepth_idx > 3) {

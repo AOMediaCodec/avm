@@ -222,8 +222,8 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
     seq_params->seq_header_id = seq_header_id;
   }
 
-  seq_params->profile = av2_read_profile(rb);
-  if (seq_params->profile > CONFIG_MAX_DECODE_PROFILE) {
+  seq_params->seq_profile_idc = av2_read_profile(rb);
+  if (seq_params->seq_profile_idc > CONFIG_MAX_DECODE_PROFILE) {
     cm->error.error_code = AVM_CODEC_UNSUP_BITSTREAM;
     return 0;
   }
@@ -297,8 +297,7 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
       seq_params->seq_max_encoder_buffer_delay = 20000;
       seq_params->seq_max_low_delay_mode_flag = 0;
     }
-    // TODO: May need additional modifications with decoder model
-    int64_t seq_bitrate = av2_max_level_bitrate(seq_params->profile,
+    int64_t seq_bitrate = av2_max_level_bitrate(seq_params->seq_profile_idc,
                                                 seq_params->seq_max_level_idx,
                                                 seq_params->seq_tier);
     if (seq_bitrate == 0)
@@ -316,9 +315,18 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
   if (seq_params->single_picture_header_flag) {
     seq_params->max_tlayer_id = 0;
     seq_params->max_mlayer_id = 0;
+#if CONFIG_AV2_PROFILES
+    seq_params->seq_max_mlayer_cnt = 1;
+#endif  // CONFIG_AV2_PROFILES
   } else {
     seq_params->max_tlayer_id = avm_rb_read_literal(rb, TLAYER_BITS);
     seq_params->max_mlayer_id = avm_rb_read_literal(rb, MLAYER_BITS);
+#if CONFIG_AV2_PROFILES
+    if (seq_params->max_mlayer_id > 0) {
+      int n = avm_ceil_log2(seq_params->max_mlayer_id + 1);
+      seq_params->seq_max_mlayer_cnt = avm_rb_read_literal(rb, n);
+    }
+#endif  // CONFIG_AV2_PROFILES
   }
 
   // setup default embedded layer dependency

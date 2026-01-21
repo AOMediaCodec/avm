@@ -1079,7 +1079,11 @@ typedef struct SequenceHeader {
   int seq_max_decoder_buffer_delay;
   int seq_max_encoder_buffer_delay;
   int seq_max_low_delay_mode_flag;
-  BITSTREAM_PROFILE profile;
+  BITSTREAM_PROFILE seq_profile_idc;
+#if CONFIG_AV2_PROFILES
+  // Maximum number of embedded layers that are supported in the bitstream
+  int seq_max_mlayer_cnt;
+#endif  // CONFIG_AV2_PROFILES
 
   // Color config.
   avm_bit_depth_t bit_depth;  // AVM_BITS_8 in profile 0 or 1,

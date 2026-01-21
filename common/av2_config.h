@@ -51,7 +51,7 @@ typedef struct _Av2Config {
   uint8_t version;
   uint8_t seq_header_id;
   uint8_t seq_lcr_id;
-  uint8_t seq_profile;
+  uint8_t seq_profile_idc;
   uint8_t seq_level_idx_0;
   uint8_t seq_tier_0;
   uint8_t bitdepth_idx;

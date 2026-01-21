@@ -598,7 +598,7 @@ void av2_decoder_model_init(const AV2_COMP *const cpi, AV2_LEVEL level,
   const AV2_COMMON *const cm = &cpi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
   decoder_model->bit_rate = get_max_bitrate(
-      av2_level_defs + level, cpi->tier[op_index], seq_params->profile);
+      av2_level_defs + level, cpi->tier[op_index], seq_params->seq_profile_idc);
 
   // TODO(huisu or anyone): implement SCHEDULE_MODE.
   decoder_model->mode = RESOURCE_MODE;
@@ -1167,7 +1167,7 @@ double av2_get_compression_ratio(const AV2_COMMON *const cm,
   const int height = cm->height;
   const int luma_pic_size = upscaled_width * height;
   const SequenceHeader *const seq_params = &cm->seq_params;
-  const BITSTREAM_PROFILE profile = seq_params->profile;
+  const BITSTREAM_PROFILE profile = seq_params->seq_profile_idc;
   const int pic_size_profile_factor =
       profile == PROFILE_0 ? 15 : (profile == PROFILE_1 ? 30 : 36);
   encoded_frame_size =
@@ -1207,7 +1207,7 @@ void av2_update_level_info(AV2_COMP *cpi, size_t size, int64_t ts_start,
   const int xlayer_id = cm->xlayer_id;
   (void)xlayer_id;
   const SequenceHeader *const seq_params = &cm->seq_params;
-  const BITSTREAM_PROFILE profile = seq_params->profile;
+  const BITSTREAM_PROFILE profile = seq_params->seq_profile_idc;
   const int is_still_picture = seq_params->still_picture;
   // update level_stats
   // TODO(kyslov@) fix the implementation according to buffer model
@@ -1291,7 +1291,7 @@ avm_codec_err_t av2_get_seq_level_idx(const AV2_COMP *cpi,
                                       const AV2LevelParams *level_params,
                                       int *seq_level_idx) {
   const int is_still_picture = seq_params->still_picture;
-  const BITSTREAM_PROFILE profile = seq_params->profile;
+  const BITSTREAM_PROFILE profile = seq_params->seq_profile_idc;
   for (int op = 0; op < seq_params->operating_points_cnt_minus_1 + 1; ++op) {
     seq_level_idx[op] = (int)SEQ_LEVEL_MAX;
     if (!((level_params->keep_level_stats >> op) & 1)) continue;

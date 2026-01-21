@@ -262,7 +262,7 @@ enum {
 #define IBC_BOTTOM_INTERP_BORDER 1
 
 #define DMVR_SEARCH_NUM_NEIGHBORS 24
-#define PROFILE_BITS 3
+#define PROFILE_BITS 5
 // The following three profiles are currently defined.
 // Profile 0.  8-bit and 10-bit 4:2:0 and 4:0:0 only.
 // Profile 1.  8-bit and 10-bit 4:4:4
