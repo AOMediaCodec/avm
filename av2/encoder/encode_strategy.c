@@ -855,12 +855,7 @@ static int denoise_and_encode(AV2_COMP *const cpi, uint8_t *const dest,
     cm->current_frame.frame_type = frame_params->frame_type;
     const int code_arf =
         av2_temporal_filter(cpi, arf_src_index, &show_existing_alt_ref);
-#if CONFIG_ISSUE1206_REVERT
-    if (cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames)
-#else
-    if (cpi->oxcf.ref_frm_cfg.enable_generation_sef_obu)
-#endif
-    {
+    if (cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames) {
       cpi->common.implicit_output_picture = 0;
     }
 
@@ -995,26 +990,12 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
   struct lookahead_entry *source = NULL;
   struct lookahead_entry *last_source = NULL;
   struct lookahead_entry *bru_ref_source = NULL;
-#if !CONFIG_ISSUE1206_REVERT
-  if (frame_params.frame_params_update_type_was_overlay) {
-    source = av2_lookahead_pop(cpi->lookahead, flush, cpi->compressor_stage);
-    frame_params.immediate_output_picture = 1;
-  } else {
-#endif  // !CONFIG_ISSUE1206_REVERT
-    source = choose_frame_source(cpi, &flush, &last_source,
-                                 -(BRU_ENC_LOOKAHEAD_DIST_MINUS_1 + 1),
-                                 &bru_ref_source, &frame_params);
-#if !CONFIG_ISSUE1206_REVERT
-  }
-#endif
+  source = choose_frame_source(cpi, &flush, &last_source,
+                               -(BRU_ENC_LOOKAHEAD_DIST_MINUS_1 + 1),
+                               &bru_ref_source, &frame_params);
   if (frame_params.frame_type == S_FRAME)
     cpi->common.immediate_output_picture = 1;
-#if CONFIG_ISSUE1206_REVERT
-  if (cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames)
-#else
-  if (cpi->oxcf.ref_frm_cfg.enable_generation_sef_obu)
-#endif
-  {
+  if (cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames) {
     cpi->common.implicit_output_picture = 0;
   }
 
@@ -1108,12 +1089,7 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
   if (frame_params.frame_type == KEY_FRAME) {
     source->disp_order_hint = 0;
   }
-#if CONFIG_ISSUE1206_REVERT
-  if (cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames)
-#else
-  if (cpi->oxcf.ref_frm_cfg.enable_generation_sef_obu)
-#endif
-  {
+  if (cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames) {
     cm->implicit_output_picture = 0;
   }
 

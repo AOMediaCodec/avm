@@ -4164,16 +4164,15 @@ void encoder_avg_tiles_cdfs(AV2_COMP *const cpi) {
     }
   }
 }
-#if CONFIG_ISSUE1206_REVERT
+
 // Returns 1 if a SEF OBU that refers to a hidden frame needs to be added with
 // add_sef_for_hidden_frames = 1. Returns 0 otherwise
-static bool add_sef_for_hidden_frame(AV2_COMP *cpi) {
+static bool need_sef_obu_for_hidden_frame(AV2_COMP *cpi) {
   return cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames &&
          cpi->update_type_was_overlay && cpi->fb_idx_for_overlay != -1 &&
          cpi->common.ref_frame_map[cpi->fb_idx_for_overlay] != NULL;
 }
 
-#endif
 /*!\brief Run the final pass encoding for 1-pass/2-pass encoding mode, and pack
  * the bitstream
  *
@@ -4253,16 +4252,10 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
   //    gf_group->update_type[gf_group->size] = GF_UPDATE;
   //  }
 
-#if CONFIG_ISSUE1206_REVERT
   if ((!cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames &&
        cpi->update_type_was_overlay) ||
-      (add_sef_for_hidden_frame(cpi) &&
-       cm->ref_frame_map[cpi->fb_idx_for_overlay]->frame_type == KEY_FRAME))
-#else
-  if (!cpi->oxcf.ref_frm_cfg.enable_generation_sef_obu &&
-      cpi->update_type_was_overlay)
-#endif
-  {
+      (need_sef_obu_for_hidden_frame(cpi) &&
+       cm->ref_frame_map[cpi->fb_idx_for_overlay]->frame_type == KEY_FRAME)) {
     assign_frame_buffer_p(&cm->cur_frame,
                           cm->ref_frame_map[cpi->fb_idx_for_overlay]);
     int enc_olk_fb_idx = 0;
@@ -4302,8 +4295,8 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
       ++current_frame->frame_number;
     return AVM_CODEC_OK;
   }
-#if CONFIG_ISSUE1206_REVERT
-  if (add_sef_for_hidden_frame(cpi) &&
+
+  if (need_sef_obu_for_hidden_frame(cpi) &&
       cm->ref_frame_map[cpi->fb_idx_for_overlay]->frame_type != KEY_FRAME) {
     // Add SEF_OBU with the display order hint derivation
     cm->show_existing_frame = 1;
@@ -4324,15 +4317,8 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
 
     return AVM_CODEC_OK;
   }
-#endif  // CONFIG_ISSUE1206_REVERT
 
-#if CONFIG_ISSUE1206_REVERT
-  if (cm->show_existing_frame && !cm->derive_sef_order_hint)
-#else
-  if (cpi->oxcf.ref_frm_cfg.enable_generation_sef_obu &&
-      cm->show_existing_frame)
-#endif
-  {
+  if (cm->show_existing_frame && !cm->derive_sef_order_hint) {
     av2_finalize_encoded_frame(cpi);
     // Build the bitstream
     int largest_tile_id = 0;  // Output from bitstream: unused here
@@ -4648,17 +4634,7 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
   current_frame->order_hint =
       current_frame->frame_number + frame_params->order_offset;
   current_frame->display_order_hint = current_frame->order_hint;
-#if CONFIG_ISSUE1206_REVERT
   cm->show_existing_frame = frame_params->duplicate_existing_frame;
-#else
-  if (cpi->oxcf.ref_frm_cfg.enable_generation_sef_obu) {
-    cm->show_existing_frame =
-        frame_params->frame_params_update_type_was_overlay;
-    cm->sef_ref_fb_idx = cpi->fb_idx_for_overlay;
-  } else {
-    cm->show_existing_frame = frame_params->duplicate_existing_frame;
-  }
-#endif
   // scan the reference list. if all the display_order_hint of the reference
   // frame is smaller than the current display_order_hint,
   // duplicate_existing_frame is not applicable.
