@@ -143,9 +143,15 @@ static uint32_t read_multi_stream_decoder_operation_obu(
   }
   cm->num_streams = num_streams;
 
+#if CONFIG_AV2_PROFILES
+  const int multi_config_idc =
+      avm_rb_read_literal(rb, CONFIG_BITS);  // read profile of multistream
+  (void)multi_config_idc;
+#else
   const int multistream_profile_idx =
       avm_rb_read_literal(rb, PROFILE_BITS);  // read profile of multistream
   (void)multistream_profile_idx;
+#endif  // CONFIG_AV2_PROFILES
 
   const int multistream_level_idx =
       avm_rb_read_literal(rb, LEVEL_BITS);  // read level of multistream

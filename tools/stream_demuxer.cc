@@ -27,12 +27,21 @@ static int read_multi_stream_decoder_operation(struct avm_read_bit_buffer *rb,
     return -1;
   }
 
+#if CONFIG_AV2_PROFILES
+  const int multistream_config_idc =
+      avm_rb_read_literal(rb, CONFIG_BITS);  // read profile of multistream
+  (void)multistream_config_idc;
+#if PRINT_TU_INFO
+  printf("--multistream_config_idx: %d\n", multistream_config_idx);
+#endif  // PRINT_TU_INFO
+#else
   const int multistream_profile_idx =
       avm_rb_read_literal(rb, PROFILE_BITS);  // read profile of multistream
 #if PRINT_TU_INFO
   printf("--multistream_profile_idx: %d\n", multistream_profile_idx);
 #endif  // PRINT_TU_INFO
   (void)multistream_profile_idx;
+#endif  // CONFIG_AV2_PROFILES
 
   const int multistream_level_idx =
       avm_rb_read_literal(rb, LEVEL_BITS);  // read level of multistream

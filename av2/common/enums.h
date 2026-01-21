@@ -263,12 +263,8 @@ enum {
 
 #define DMVR_SEARCH_NUM_NEIGHBORS 24
 #define PROFILE_BITS 5
-// The following three profiles are currently defined.
-// Profile 0.  8-bit and 10-bit 4:2:0 and 4:0:0 only.
-// Profile 1.  8-bit and 10-bit 4:4:4
-// Profile 2.  8-bit and 10-bit 4:2:2
-//            12-bit  4:0:0, 4:2:2 and 4:4:4
-// Since we have three bits for the profiles, it can be extended later.
+#define INTEROP_BITS 4
+#define CONFIG_BITS 6
 enum {
   PROFILE_0,
   PROFILE_1,
