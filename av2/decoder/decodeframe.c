@@ -7203,8 +7203,9 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   AV2_COMMON *const cm = &pbi->common;
   // TODO: make sure pbi->random_accessed is correctly assigned
   bool activate_sequence_header =
-      (obu_type == OBU_CLK || obu_type == OBU_OLK) &&
-      pbi->is_random_access_frame_unit;
+      ((obu_type == OBU_CLK || obu_type == OBU_OLK) &&
+       pbi->is_random_access_frame_unit) ||
+      pbi->stream_switched;
   bool seq_header_found = false;
   for (int i = 0; i < pbi->seq_header_count; i++) {
     if (pbi->seq_list[i].seq_header_id == seq_header_id) {

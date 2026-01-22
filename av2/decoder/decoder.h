@@ -284,6 +284,35 @@ typedef struct {
   int is_vcl;
 } obu_info;
 
+/*!
+ * This structure contains buffers to store multiple variables per sub-stream
+ */
+typedef struct {
+  RefCntBuffer *ref_frame_map_buf[REF_FRAMES];
+  int remapped_ref_idx_buf[INTER_REFS_PER_FRAME];
+  struct SequenceHeader seq_list_buf[MAX_SEQ_NUM];
+  MultiFrameHeader mfh_params_buf[MAX_MFH_NUM];
+  int valid_for_referencing_buf[REF_FRAMES];
+  int long_term_ids_in_buffer_buf[REF_FRAMES];
+  struct LayerConfigurationRecord lcr_list_buf[MAX_NUM_LCR];
+  int lcr_counter_buf;
+  struct AtlasSegmentInfo atlas_list_buf[MAX_NUM_ATLAS_SEG_ID];
+  int atlas_counter_buf;
+  struct OperatingPointSet ops_list_buf[MAX_NUM_OPS_ID];
+  int ops_counter_buf;
+  struct LayerConfigurationRecord *active_lcr_buf;
+  struct AtlasSegmentInfo *active_atlas_segment_info_buf;
+  struct quantization_matrix_set qm_list_buf[NUM_CUSTOM_QMS];
+  int qm_protected_buf[NUM_CUSTOM_QMS];
+  int olk_encountered_buf;
+  uint64_t random_access_point_index_buf;
+  uint64_t random_access_point_count_buf;
+  struct film_grain_model fgm_list_buf[MAX_FGM_NUM];
+  RefCntBuffer *prev_frame_buf;
+  uint8_t *last_frame_seg_map_buf;
+  ContentInterpretation ci_params_per_layer_buf[MAX_NUM_MLAYERS];
+} StreamInfo;
+
 typedef struct AV2Decoder {
   DecoderCodingBlock dcb;
 
@@ -321,7 +350,8 @@ typedef struct AV2Decoder {
   int output_all_layers;
   RefCntBuffer *output_frames[REF_FRAMES + 1];  // Use only for single layer
   size_t output_frames_offset;                  // Use only for single layer
-  size_t num_output_frames;  // How many frames are queued up so far?
+  size_t num_output_frames;                     // How many frames are queued
+                                                // up so far?
 
   // In order to properly support random-access decoding, we need
   // to behave slightly differently for the very first frame we decode.
@@ -450,10 +480,11 @@ typedef struct AV2Decoder {
   // sequence header.
   int qm_protected[NUM_CUSTOM_QMS];
 
-  RefCntBuffer *ref_frame_map_buf[AVM_MAX_NUM_STREAMS][REF_FRAMES];
-  int remapped_ref_idx_buf[AVM_MAX_NUM_STREAMS][REF_FRAMES];
-  SequenceHeader seq_list_buf[AVM_MAX_NUM_STREAMS][MAX_SEQ_NUM];
-  MultiFrameHeader mfh_params_buf[AVM_MAX_NUM_STREAMS][MAX_MFH_NUM];
+  /*!
+   * list of stream info to store multiple variables per sub-stream
+   */
+  StreamInfo *stream_info;
+
   /*!
    * Indicates the number of obus signalled before the frame unit
    * including the frame unit (that may consist of multiple tile group obus)

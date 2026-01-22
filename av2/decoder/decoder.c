@@ -190,11 +190,6 @@ AV2Decoder *av2_decoder_create(BufferPool *const pool) {
   avm_once(initialize_dec);
 
   // Initialize the references to not point to any frame buffers.
-  for (int i = 0; i < AVM_MAX_NUM_STREAMS; i++) {
-    for (int j = 0; j < REF_FRAMES; j++) {
-      pbi->ref_frame_map_buf[i][j] = NULL;
-    }
-  }
   for (int i = 0; i < NELEMENTS(cm->ref_frame_map); i++) {
     cm->ref_frame_map[i] = NULL;
   }
@@ -452,6 +447,15 @@ void av2_decoder_remove(AV2Decoder *pbi) {
     if (pbi->qm_list[qm_pos].quantizer_matrix != NULL)
       av2_free_qmset(pbi->qm_list[qm_pos].quantizer_matrix);
   }
+
+  if (pbi->multi_stream_mode) {
+    // Release intermediate buffers to store internal variables per sub-stream
+    if (pbi->stream_info != NULL) {
+      avm_free(pbi->stream_info);
+      pbi->stream_info = NULL;
+    }
+  }
+
   avm_free(pbi);
 }
 

@@ -123,6 +123,111 @@ int are_seq_headers_consistent(const SequenceHeader *seq_params_old,
   return !memcmp(seq_params_old, seq_params_new,
                  offsetof(SequenceHeader, op_params));
 }
+
+// Helper function to store xlayer context
+static void store_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
+                                 int xlayer_id) {
+  for (int i = 0; i < REF_FRAMES; i++) {
+    pbi->stream_info[xlayer_id].ref_frame_map_buf[i] = cm->ref_frame_map[i];
+    pbi->stream_info[xlayer_id].valid_for_referencing_buf[i] =
+        pbi->valid_for_referencing[i];
+    pbi->stream_info[xlayer_id].long_term_ids_in_buffer_buf[i] =
+        pbi->long_term_ids_in_buffer[i];
+  }
+  for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
+    pbi->stream_info[xlayer_id].remapped_ref_idx_buf[i] =
+        cm->remapped_ref_idx[i];
+  }
+  for (int i = 0; i < MAX_SEQ_NUM; i++) {
+    pbi->stream_info[xlayer_id].seq_list_buf[i] = pbi->seq_list[i];
+  }
+  for (int i = 0; i < MAX_MFH_NUM; i++) {
+    pbi->stream_info[xlayer_id].mfh_params_buf[i] = cm->mfh_params[i];
+  }
+  for (int i = 0; i < MAX_NUM_LCR; i++) {
+    pbi->stream_info[xlayer_id].lcr_list_buf[i] = pbi->lcr_list[i];
+  }
+  pbi->stream_info[xlayer_id].lcr_counter_buf = pbi->lcr_counter;
+  for (int i = 0; i < MAX_NUM_ATLAS_SEG_ID; i++) {
+    pbi->stream_info[xlayer_id].atlas_list_buf[i] = pbi->atlas_list[i];
+  }
+  pbi->stream_info[xlayer_id].atlas_counter_buf = pbi->atlas_counter;
+  for (int i = 0; i < MAX_NUM_OPS_ID; i++) {
+    pbi->stream_info[xlayer_id].ops_list_buf[i] = pbi->ops_list[i];
+  }
+  pbi->stream_info[xlayer_id].active_lcr_buf = pbi->active_lcr;
+  pbi->stream_info[xlayer_id].active_atlas_segment_info_buf =
+      pbi->active_atlas_segment_info;
+  for (int i = 0; i < NUM_CUSTOM_QMS; i++) {
+    pbi->stream_info[xlayer_id].qm_list_buf[i] = pbi->qm_list[i];
+    pbi->stream_info[xlayer_id].qm_protected_buf[i] = pbi->qm_protected[i];
+  }
+  pbi->stream_info[xlayer_id].olk_encountered_buf = pbi->olk_encountered;
+  pbi->stream_info[xlayer_id].random_access_point_index_buf =
+      pbi->random_access_point_index;
+  pbi->stream_info[xlayer_id].random_access_point_count_buf =
+      pbi->random_access_point_count;
+  for (int i = 0; i < MAX_FGM_NUM; i++) {
+    pbi->stream_info[xlayer_id].fgm_list_buf[i] = pbi->fgm_list[i];
+  }
+  pbi->stream_info[xlayer_id].prev_frame_buf = cm->prev_frame;
+  pbi->stream_info[xlayer_id].last_frame_seg_map_buf = cm->last_frame_seg_map;
+  pbi->stream_info[xlayer_id].ci_params_per_layer_buf[cm->mlayer_id] =
+      cm->ci_params_per_layer[cm->mlayer_id];
+}
+
+// Helper function to restore xlayer context
+static void restore_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
+                                   int xlayer_id) {
+  for (int i = 0; i < REF_FRAMES; i++) {
+    cm->ref_frame_map[i] = pbi->stream_info[xlayer_id].ref_frame_map_buf[i];
+    pbi->valid_for_referencing[i] =
+        pbi->stream_info[xlayer_id].valid_for_referencing_buf[i];
+    pbi->long_term_ids_in_buffer[i] =
+        pbi->stream_info[xlayer_id].long_term_ids_in_buffer_buf[i];
+  }
+  for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
+    cm->remapped_ref_idx[i] =
+        pbi->stream_info[xlayer_id].remapped_ref_idx_buf[i];
+  }
+  for (int i = 0; i < MAX_SEQ_NUM; i++) {
+    pbi->seq_list[i] = pbi->stream_info[xlayer_id].seq_list_buf[i];
+  }
+  for (int i = 0; i < MAX_MFH_NUM; i++) {
+    cm->mfh_params[i] = pbi->stream_info[xlayer_id].mfh_params_buf[i];
+  }
+  for (int i = 0; i < MAX_NUM_LCR; i++) {
+    pbi->lcr_list[i] = pbi->stream_info[xlayer_id].lcr_list_buf[i];
+  }
+  pbi->lcr_counter = pbi->stream_info[xlayer_id].lcr_counter_buf;
+  for (int i = 0; i < MAX_NUM_ATLAS_SEG_ID; i++) {
+    pbi->atlas_list[i] = pbi->stream_info[xlayer_id].atlas_list_buf[i];
+  }
+  pbi->atlas_counter = pbi->stream_info[xlayer_id].atlas_counter_buf;
+  for (int i = 0; i < MAX_NUM_OPS_ID; i++) {
+    pbi->ops_list[i] = pbi->stream_info[xlayer_id].ops_list_buf[i];
+  }
+  pbi->active_lcr = pbi->stream_info[xlayer_id].active_lcr_buf;
+  pbi->active_atlas_segment_info =
+      pbi->stream_info[xlayer_id].active_atlas_segment_info_buf;
+  for (int i = 0; i < NUM_CUSTOM_QMS; i++) {
+    pbi->qm_list[i] = pbi->stream_info[xlayer_id].qm_list_buf[i];
+    pbi->qm_protected[i] = pbi->stream_info[xlayer_id].qm_protected_buf[i];
+  }
+  pbi->olk_encountered = pbi->stream_info[xlayer_id].olk_encountered_buf;
+  pbi->random_access_point_index =
+      pbi->stream_info[xlayer_id].random_access_point_index_buf;
+  pbi->random_access_point_count =
+      pbi->stream_info[xlayer_id].random_access_point_count_buf;
+  for (int i = 0; i < MAX_FGM_NUM; i++) {
+    pbi->fgm_list[i] = pbi->stream_info[xlayer_id].fgm_list_buf[i];
+  }
+  cm->prev_frame = pbi->stream_info[xlayer_id].prev_frame_buf;
+  cm->last_frame_seg_map = pbi->stream_info[xlayer_id].last_frame_seg_map_buf;
+  cm->ci_params_per_layer[cm->mlayer_id] =
+      pbi->stream_info[xlayer_id].ci_params_per_layer_buf[cm->mlayer_id];
+}
+
 static uint32_t read_multi_stream_decoder_operation_obu(
     AV2Decoder *pbi, struct avm_read_bit_buffer *rb) {
   AV2_COMMON *const cm = &pbi->common;
@@ -173,6 +278,16 @@ static uint32_t read_multi_stream_decoder_operation_obu(
     const int substream_tier_idx =
         avm_rb_read_bit(rb);  // read tier of multistream
     (void)substream_tier_idx;
+  }
+  // Allocate intermediate buffers to store internal variables per sub-stream
+  if (pbi->stream_info != NULL) {
+    avm_free(pbi->stream_info);
+    pbi->stream_info = NULL;
+  }
+  pbi->stream_info = (StreamInfo *)avm_malloc(num_streams * sizeof(StreamInfo));
+  if (pbi->stream_info == NULL) {
+    avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
+                       "Memory allocation failed for pbi->stream_info\n");
   }
 
   pbi->msdo_is_present_in_tu = 1;
@@ -1895,32 +2010,14 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
     if (obu_header.type == OBU_MSDO) {
       cm->xlayer_id = obu_header.obu_xlayer_id;
     } else {
-      if (cm->xlayer_id != obu_header.obu_xlayer_id) {
-        for (int i = 0; i < REF_FRAMES; i++) {
-          pbi->ref_frame_map_buf[cm->xlayer_id][i] = cm->ref_frame_map[i];
-        }
-        for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
-          pbi->remapped_ref_idx_buf[cm->xlayer_id][i] = cm->remapped_ref_idx[i];
-        }
-        for (int i = 0; i < MAX_SEQ_NUM; i++) {
-          pbi->seq_list_buf[cm->xlayer_id][i] = pbi->seq_list[i];
-        }
-        for (int i = 0; i < MAX_MFH_NUM; i++) {
-          pbi->mfh_params_buf[cm->xlayer_id][i] = cm->mfh_params[i];
-        }
+      if (cm->xlayer_id == 31) {
         cm->xlayer_id = obu_header.obu_xlayer_id;
-        for (int i = 0; i < REF_FRAMES; i++) {
-          cm->ref_frame_map[i] = pbi->ref_frame_map_buf[cm->xlayer_id][i];
-        }
-        for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
-          cm->remapped_ref_idx[i] = pbi->remapped_ref_idx_buf[cm->xlayer_id][i];
-        }
-        for (int i = 0; i < MAX_SEQ_NUM; i++) {
-          pbi->seq_list[i] = pbi->seq_list_buf[cm->xlayer_id][i];
-        }
-        for (int i = 0; i < MAX_MFH_NUM; i++) {
-          cm->mfh_params[i] = pbi->mfh_params_buf[cm->xlayer_id][i];
-        }
+      } else if (cm->xlayer_id != obu_header.obu_xlayer_id) {
+        // Store and restore xlayer context
+        store_xlayer_context(pbi, cm, cm->xlayer_id);
+        cm->xlayer_id = obu_header.obu_xlayer_id;
+        restore_xlayer_context(pbi, cm, cm->xlayer_id);
+
         pbi->stream_switched = 1;
       }
       if (obu_header.type == OBU_LEADING_TILE_GROUP ||

@@ -453,18 +453,8 @@ static avm_codec_err_t init_decoder(avm_codec_alg_priv_t *ctx) {
   frame_worker_data->pbi->multi_stream_mode = 0;
   frame_worker_data->pbi->msdo_is_present_in_tu = 0;
   init_buffer_callbacks(ctx);
-  for (int i = 0; i < AVM_MAX_NUM_STREAMS; i++) {
-    for (int j = 0; j < INTER_REFS_PER_FRAME; j++) {
-      frame_worker_data->pbi->remapped_ref_idx_buf[i][j] = INVALID_IDX;
-    }
-  }
   for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
     frame_worker_data->pbi->common.remapped_ref_idx[i] = INVALID_IDX;
-  }
-  for (int i = 0; i < AVM_MAX_NUM_STREAMS; i++) {
-    for (int j = 0; j < REF_FRAMES; j++) {
-      frame_worker_data->pbi->ref_frame_map_buf[i][j] = NULL;
-    }
   }
   for (int i = 0; i < frame_worker_data->pbi->common.seq_params.ref_frames;
        i++) {
