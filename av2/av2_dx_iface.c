@@ -579,11 +579,15 @@ static bool check_random_access_frame_unit(struct AV2Decoder *pbi,
   // in data: ex) no [16][8][4][2][1]... if there is CLK/OLK
   pbi->num_obus_with_frame_unit = 0;
   bool has_key_frames = false;
+  bool has_seq_header = false;
   int frame_unit_mlayer_id = -1;
   const uint8_t *data_read = data;
   ObuHeader obu_header;
   OBU_TYPE current_frame_obu_type = 0;
   memset(&obu_header, 0, sizeof(obu_header));
+  bool obu_in_frame_unit_data[NUM_OBU_TYPES];
+  for (int i = 0; i < NUM_OBU_TYPES; i++) obu_in_frame_unit_data[i] = false;
+
   while (data_read < data + data_sz) {
     size_t payload_size = 0;
     size_t bytes_read = 0;
@@ -592,6 +596,7 @@ static bool check_random_access_frame_unit(struct AV2Decoder *pbi,
     pbi->num_obus_with_frame_unit++;
     data_read += bytes_read + payload_size;
     has_key_frames |= obu_header.type == OBU_CLK || obu_header.type == OBU_OLK;
+    has_seq_header |= obu_header.type == OBU_SEQUENCE_HEADER;
     if (is_single_tile_vcl_obu(obu_header.type) ||
         is_multi_tile_vcl_obu(obu_header.type)) {
       if (frame_unit_mlayer_id == -1)
@@ -601,28 +606,46 @@ static bool check_random_access_frame_unit(struct AV2Decoder *pbi,
       }
       current_frame_obu_type = obu_header.type;
     }
+    obu_in_frame_unit_data[obu_header.type] = true;
+  }
+  for (int i = 0; i < NUM_OBU_TYPES; i++) {
+    pbi->obus_in_frame_unit_data[frame_unit_mlayer_id][i] =
+        obu_in_frame_unit_data[i];
   }
 
+  // NOTE: This code doesnot consider the case layers are dropped or extracted.
+  // When the frame unit has an OBU_KEY and OBU_SH, it can be a
+  // random_access_point.
+  if (has_key_frames && has_seq_header) pbi->random_access_point_count++;
+  pbi->random_accessed =
+      (pbi->random_access_point_count == pbi->random_access_point_index);
+
+  //(has_key_frames && has_seq_header && OBU_CLK) : always random access point.
+  //(has_key_frames && has_seq_header && OBU_OLK) : random access point when
+  // random_accessed. (pbi->last_frame_unit.mlayer_id == -1 && has_key_frame)  :
+  // random access point when has_seq_header. (pbi->last_frame_unit.mlayer_id ==
+  //-1 && !has_key_frame)  : you have a problem.
   pbi->is_random_access_frame_unit = 0;
   if (pbi->last_frame_unit.mlayer_id == -1) {
     // It is the first frame unit in the sequence.
-    // This fram unit may be dropped later in
-    // avm_decode_frame_from_obus() if the current frame is dropped, this
-    // frame unit is not a random access point.
+    // If it doesnot have OBU_KEY, it is illegal.
+    // If it doesnot have OBU_SH, it is not random access point
+    // NOTE: This code doesnot consider the case layers are dropped or
+    // extracted.
     assert(has_key_frames);
-    pbi->is_random_access_frame_unit = 1;
+    pbi->is_random_access_frame_unit = has_seq_header;
   } else {
-    pbi->is_random_access_frame_unit = has_key_frames;
+    // This ensures OBU_OLK becomes a random access point only when
+    // has_seq_header and random accessed.
+    if (pbi->obus_in_frame_unit_data[frame_unit_mlayer_id][OBU_CLK])
+      pbi->is_random_access_frame_unit = has_seq_header;
+    else if (pbi->obus_in_frame_unit_data[frame_unit_mlayer_id][OBU_OLK])
+      pbi->is_random_access_frame_unit = has_seq_header && pbi->random_accessed;
   }
 
-  if (pbi->is_random_access_frame_unit) pbi->random_access_point_count++;
   bool skip_decoding_frame_units = false;
   if (pbi->random_access_point_count < pbi->random_access_point_index) {
     skip_decoding_frame_units = true;
-  }
-  if (pbi->is_random_access_frame_unit) {
-    pbi->random_accessed =
-        (pbi->random_access_point_count == pbi->random_access_point_index);
   }
 
   if (pbi->random_accessed) {

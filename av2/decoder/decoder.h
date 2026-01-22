@@ -530,6 +530,14 @@ typedef struct AV2Decoder {
    */
 
   struct film_grain_model fgm_list[MAX_FGM_NUM];
+
+  /*!
+   * Indicates the presence of obu in the current frame unit data
+   * When obus_in_frame_unit_data[mlayer_id][i] is true, OBUs with obu_type = i
+   * and obu_mlayer_id=mlayer_id are present in the current frame unit data
+   */
+  bool obus_in_frame_unit_data[MAX_NUM_MLAYERS][NUM_OBU_TYPES];
+
   /*!
    * Indicates if the ci obu is signalled with a CLK/OLK in the temporal unit
    * 0. CLK/OLK signalled without CI
