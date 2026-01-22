@@ -226,7 +226,7 @@ static const AV2LevelSpec av2_level_defs[SEQ_LEVELS] = {
     .max_v_size = 19902,
     .max_display_rate = 4278190080L,
     .max_decode_rate = 4706009088L,
-    .max_header_rate = 900,
+    .max_header_rate = 960,
     .main_mbps = 160.0,
     .high_mbps = 800.0,
     .main_cr = 8.0,
@@ -239,7 +239,7 @@ static const AV2LevelSpec av2_level_defs[SEQ_LEVELS] = {
     .max_v_size = 19902,
     .max_display_rate = 8556380160L,
     .max_decode_rate = 8758886400L,
-    .max_header_rate = 900,
+    .max_header_rate = 960,
     .main_mbps = 200.0,
     .high_mbps = 960.0,
     .main_cr = 8.0,
@@ -252,7 +252,7 @@ static const AV2LevelSpec av2_level_defs[SEQ_LEVELS] = {
     .max_v_size = 19902,
     .max_display_rate = 17112760320L,
     .max_decode_rate = 17517772800L,
-    .max_header_rate = 900,
+    .max_header_rate = 960,
     .main_mbps = 320.0,
     .high_mbps = 1600.0,
     .main_cr = 8.0,
@@ -265,7 +265,7 @@ static const AV2LevelSpec av2_level_defs[SEQ_LEVELS] = {
     .max_v_size = 19902,
     .max_display_rate = 17112760320L,
     .max_decode_rate = 18824036352L,
-    .max_header_rate = 900,
+    .max_header_rate = 960,
     .main_mbps = 320.0,
     .high_mbps = 1600.0,
     .main_cr = 8.0,
@@ -278,7 +278,7 @@ static const AV2LevelSpec av2_level_defs[SEQ_LEVELS] = {
     .max_v_size = 38400,
     .max_display_rate = 17112760320L,
     .max_decode_rate = 18824036352L,
-    .max_header_rate = 900,
+    .max_header_rate = 960,
     .main_mbps = 320.0,
     .high_mbps = 1600.0,
     .main_cr = 8.0,
@@ -291,7 +291,7 @@ static const AV2LevelSpec av2_level_defs[SEQ_LEVELS] = {
     .max_v_size = 38400,
     .max_display_rate = 34225520640L,
     .max_decode_rate = 34910031052L,
-    .max_header_rate = 900,
+    .max_header_rate = 960,
     .main_mbps = 400.0,
     .high_mbps = 1920.0,
     .main_cr = 8.0,
@@ -304,7 +304,7 @@ static const AV2LevelSpec av2_level_defs[SEQ_LEVELS] = {
     .max_v_size = 38400,
     .max_display_rate = 68451041280L,
     .max_decode_rate = 69820062105L,
-    .max_header_rate = 900,
+    .max_header_rate = 960,
     .main_mbps = 640.0,
     .high_mbps = 3200.0,
     .main_cr = 8.0,
@@ -317,7 +317,7 @@ static const AV2LevelSpec av2_level_defs[SEQ_LEVELS] = {
     .max_v_size = 38400,
     .max_display_rate = 68451041280L,
     .max_decode_rate = 75296145408L,
-    .max_header_rate = 900,
+    .max_header_rate = 960,
     .main_mbps = 640.0,
     .high_mbps = 3200.0,
     .main_cr = 8.0,
@@ -913,8 +913,7 @@ static void get_temporal_parallel_params(int scalability_mode_idc,
 
 static TARGET_LEVEL_FAIL_ID check_level_constraints(
     const AV2LevelInfo *const level_info, AV2_LEVEL level, int tier,
-    uint8_t seq_tier, int is_still_picture, BITSTREAM_PROFILE profile,
-    int check_bitrate) {
+    int is_still_picture, BITSTREAM_PROFILE profile, int check_bitrate) {
   const DECODER_MODEL *const decoder_model = &level_info->decoder_models[level];
   const DECODER_MODEL_STATUS decoder_model_status = decoder_model->status;
   if (decoder_model_status != DECODER_MODEL_OK &&
@@ -953,7 +952,7 @@ static TARGET_LEVEL_FAIL_ID check_level_constraints(
     }
 
     if (level_spec->max_header_rate >
-        (target_level_spec->max_header_rate * (1 + (seq_tier * 2)))) {
+        (target_level_spec->max_header_rate * (1 + (tier * 2)))) {
       fail_id = FRAME_HEADER_RATE_TOO_HIGH;
       break;
     }
@@ -1274,8 +1273,7 @@ void av2_update_level_info(AV2_COMP *cpi, size_t size, int64_t ts_start,
       assert(is_valid_seq_level_idx(target_level));
       const int tier = cpi->tier[i];
       const TARGET_LEVEL_FAIL_ID fail_id = check_level_constraints(
-          level_info, target_level, tier, seq_params->seq_tier,
-          is_still_picture, profile, 0);
+          level_info, target_level, tier, is_still_picture, profile, 0);
       if (fail_id != TARGET_LEVEL_OK) {
         const int target_level_major = 2 + (target_level >> 2);
         const int target_level_minor = target_level & 3;
@@ -1303,9 +1301,8 @@ avm_codec_err_t av2_get_seq_level_idx(const AV2_COMP *cpi,
     assert(level_info != NULL);
     for (int level = 0; level < SEQ_LEVELS; ++level) {
       if (!is_valid_seq_level_idx(level)) continue;
-      const TARGET_LEVEL_FAIL_ID fail_id =
-          check_level_constraints(level_info, level, tier, seq_params->seq_tier,
-                                  is_still_picture, profile, 1);
+      const TARGET_LEVEL_FAIL_ID fail_id = check_level_constraints(
+          level_info, level, tier, is_still_picture, profile, 1);
       if (fail_id == TARGET_LEVEL_OK) {
         seq_level_idx[op] = level;
         break;
