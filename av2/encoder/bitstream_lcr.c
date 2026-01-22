@@ -226,6 +226,11 @@ static int write_lcr_global_info(AV2_COMP *cpi,
   avm_wb_write_bit(wb, lcr_params.lcr_data_size_present_flag);
 
   avm_wb_write_literal(wb, lcr_params.lcr_global_purpose_id, 7);
+#if CONFIG_TU_ALIGNMENT
+  avm_wb_write_bit(wb, lcr_params.lcr_enforce_tu_alignment_flag);
+  avm_wb_write_bit(wb, lcr_params.lcr_enforce_tile_alignment_flag);
+  avm_wb_write_literal(wb, lcr_params.lcr_reserved_zero_6bits, 6);
+#endif  // CONFIG_TU_ALIGNMENT
 
   if (lcr_params.lcr_max_profile_tier_level_info_present_flag)
     write_lcr_profile_tier_level(31, 31);
