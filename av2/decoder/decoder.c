@@ -230,7 +230,6 @@ AV2Decoder *av2_decoder_create(BufferPool *const pool) {
     pbi->fgm_list[i].fgm_tlayer_id = -1;
     pbi->fgm_list[i].fgm_mlayer_id = -1;
   }
-  pbi->restricted_predition = 0;
 
   memset(&pbi->last_frame_unit, -1, sizeof(pbi->last_frame_unit));
   memset(&pbi->last_displayable_frame_unit, -1,

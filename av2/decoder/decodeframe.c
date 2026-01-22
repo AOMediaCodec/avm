@@ -6972,7 +6972,7 @@ static int read_show_existing_frame(AV2Decoder *pbi, bool is_regular_obu,
     avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
                        "Buffer does not contain a decoded frame");
   }
-  if (pbi->restricted_predition && frame_to_show->is_restricted) {
+  if (frame_to_show->is_restricted) {
     avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
                        "Invalid SEF Ref: restricted reference buffer");
   }
@@ -7630,7 +7630,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     } else if (obu_type == OBU_RAS_FRAME || obu_type == OBU_SWITCH) {
       current_frame->frame_type = S_FRAME;
       if (cm->restricted_prediction_switch) {
-        pbi->restricted_predition = 1;
         for (int i = 0; i < REF_FRAMES; i++) {
           if (cm->ref_frame_map[i] != NULL) {
             const int cur_mlayer_id = cm->current_frame.mlayer_id;
@@ -7665,10 +7664,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
         cm->ref_long_term_ids[i] =
             avm_rb_read_literal(rb, seq_params->number_of_bits_for_lt_frame_id);
       }
-    }
-
-    if (obu_type == OBU_CLK || (obu_type == OBU_OLK && pbi->random_accessed)) {
-      pbi->restricted_predition = 0;
     }
 
     if (pbi->stream_switched) {
@@ -8135,8 +8130,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
           }
         }
 
-        // restricted_predition=if number of is_restricted_ref >0
-        if (pbi->restricted_predition && obu_type != OBU_RAS_FRAME) {
+        if (obu_type != OBU_RAS_FRAME) {
           update_ref_frames_info(pbi, obu_type);
         }
       }
@@ -8159,8 +8153,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
         if (cm->bru.enabled) {
           const RefCntBuffer *const bru_ref =
               get_ref_frame_buf(cm, cm->bru.update_ref_idx);
-          if (pbi->restricted_predition && bru_ref != NULL &&
-              bru_ref->is_restricted) {
+          if (bru_ref != NULL && bru_ref->is_restricted) {
             avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
                                "Invalid BRU Ref: restricted reference buffer");
           }

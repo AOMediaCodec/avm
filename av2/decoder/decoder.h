@@ -304,9 +304,6 @@ typedef struct AV2Decoder {
   ThreadData td;
   TileDataDec *tile_data;
   int allocated_tiles;
-  // 1 indicates it may have restricted references
-  // 0 indicates it doesnot have restricted references
-  int restricted_predition;
 
   TileBufferDec tile_buffers[MAX_TILE_ROWS][MAX_TILE_COLS];
   AV2DecTileMT tile_mt_info;
