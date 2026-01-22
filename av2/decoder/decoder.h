@@ -518,13 +518,13 @@ typedef struct AV2Decoder {
    * random_access_point_index is equal to random_access_point_count   * when
    * not used, the default value is -1
    */
-  uint64_t random_access_point_index;
+  int64_t random_access_point_index;
   /*!
    * Counts the number of random access points. It is increased by 1 at the
    * first CLK/OLK of a temporal unit. If a sequence header is not provided,
    * CLK/OLK is not considered as a random access point.
    */
-  uint64_t random_access_point_count;
+  int64_t random_access_point_count;
   /*!
    * list of film grain model
    */

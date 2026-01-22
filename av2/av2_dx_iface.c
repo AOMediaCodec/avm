@@ -51,7 +51,7 @@ struct avm_codec_alg_priv {
   int byte_alignment;
   int skip_loop_filter;
   int skip_film_grain;
-  uint64_t random_access_point_index;
+  int64_t random_access_point_index;
   int bru_opt_mode;
   unsigned int row_mt;
   int operating_point;
