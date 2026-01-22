@@ -942,7 +942,6 @@ static void get_temporal_parallel_params(int scalability_mode_idc,
   }
 }
 
-#define MAX_TILE_SIZE (4096 * 2304)
 #define MIN_FRAME_WIDTH 16
 #define MIN_FRAME_HEIGHT 16
 #define MAX_TILE_SIZE_HEADER_RATE_PRODUCT 588251136
@@ -1016,8 +1015,14 @@ static TARGET_LEVEL_FAIL_ID check_level_constraints(
       fail_id = TILE_RATE_TOO_HIGH;
       break;
     }
-
-    if (level_stats->max_tile_size > MAX_TILE_SIZE) {
+#if CONFIG_FIX_LEVEL_7_8
+    const int max_tile_size = (level >= SEQ_LEVEL_7_0 && level <= SEQ_LEVEL_8_3)
+                                  ? MAX_TILE_AREA_LEVEL_7_AND_ABOVE
+                                  : MAX_TILE_AREA;
+#else
+    const int max_tile_size = MAX_TILE_AREA;
+#endif
+    if (level_stats->max_tile_size > max_tile_size) {
       fail_id = TILE_TOO_LARGE;
       break;
     }

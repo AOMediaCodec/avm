@@ -22,7 +22,12 @@ void av2_tile_init(TileInfo *tile, const AV2_COMMON *cm, int row, int col) {
 
 void av2_get_tile_limits(CommonTileParams *const tiles, int cm_mi_rows,
                          int cm_mi_cols, int mib_size_log2,
-                         int seq_mib_size_log2) {
+                         int seq_mib_size_log2
+#if CONFIG_FIX_LEVEL_7_8
+                         ,
+                         int max_level_idx
+#endif  // CONFIG_FIX_LEVEL_7_8
+) {
   tiles->mib_size_log2 = mib_size_log2;
   tiles->mi_rows = cm_mi_rows;
   tiles->mi_cols = cm_mi_cols;
@@ -37,7 +42,14 @@ void av2_get_tile_limits(CommonTileParams *const tiles, int cm_mi_rows,
 
   const int sb_size_log2 = mib_size_log2 + MI_SIZE_LOG2;
   tiles->max_width_sb = MAX_TILE_WIDTH >> sb_size_log2;
+#if CONFIG_FIX_LEVEL_7_8
+  bool use_level_7_above = max_level_idx >= SEQ_LEVEL_7_0;
+  const int max_tile_area_sb =
+      (use_level_7_above ? MAX_TILE_AREA_LEVEL_7_AND_ABOVE : MAX_TILE_AREA) >>
+      (2 * sb_size_log2);
+#else
   const int max_tile_area_sb = MAX_TILE_AREA >> (2 * sb_size_log2);
+#endif  // CONFIG_FIX_LEVEL_7_8
 
   tiles->min_log2_cols = tile_log2(tiles->max_width_sb, sb_cols);
   tiles->max_log2_cols = tile_log2(1, AVMMIN(sb_cols, MAX_TILE_COLS));
@@ -48,11 +60,21 @@ void av2_get_tile_limits(CommonTileParams *const tiles, int cm_mi_rows,
 
 void av2_get_seqmfh_tile_limits(TileInfoSyntax *const tiles, int frame_height,
                                 int frame_width, int mib_size_log2,
-                                int seq_mib_size_log2) {
+                                int seq_mib_size_log2
+#if CONFIG_FIX_LEVEL_7_8
+                                ,
+                                int max_level_idx
+#endif  // CONFIG_FIX_LEVEL_7_8
+) {
   const int cm_mi_rows = ALIGN_POWER_OF_TWO(frame_height, 3) >> MI_SIZE_LOG2;
   const int cm_mi_cols = ALIGN_POWER_OF_TWO(frame_width, 3) >> MI_SIZE_LOG2;
   av2_get_tile_limits(&tiles->tile_info, cm_mi_rows, cm_mi_cols, mib_size_log2,
-                      seq_mib_size_log2);
+                      seq_mib_size_log2
+#if CONFIG_FIX_LEVEL_7_8
+                      ,
+                      max_level_idx
+#endif  // CONFIG_FIX_LEVEL_7_8
+  );
 }
 
 void av2_calculate_tile_cols(CommonTileParams *const tiles) {

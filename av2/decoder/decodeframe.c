@@ -4205,7 +4205,12 @@ static AVM_INLINE void read_tile_info(AV2Decoder *const pbi,
     return;
   }
   av2_get_tile_limits(&cm->tiles, cm->mi_params.mi_rows, cm->mi_params.mi_cols,
-                      cm->mib_size_log2, cm->seq_params.mib_size_log2);
+                      cm->mib_size_log2, cm->seq_params.mib_size_log2
+#if CONFIG_FIX_LEVEL_7_8
+                      ,
+                      cm->seq_params.seq_max_level_idx
+#endif  // CONFIG_FIX_LEVEL_7_8
+  );
 
   const TileInfoSyntax *const tile_params = find_effective_tile_params(cm);
   int reuse = 0;
@@ -5971,17 +5976,23 @@ void read_sequence_tile_info(struct SequenceHeader *seq_params,
   av2_get_seqmfh_tile_limits(
       &seq_params->tile_params, seq_params->max_frame_height,
       seq_params->max_frame_width, seq_params->mib_size_log2,
-      seq_params->mib_size_log2);
+      seq_params->mib_size_log2
+#if CONFIG_FIX_LEVEL_7_8
+      ,
+      seq_params->seq_max_level_idx
+#endif  // CONFIG_FIX_LEVEL_7_8
+  );
   read_tile_syntax_info(&seq_params->tile_params, rb);
 }
 
 // Reads tile information from multi-frame header
 static void read_multi_frame_header_tile_info(MultiFrameHeader *mfh_param,
-                                              struct avm_read_bit_buffer *rb) {
+                                              struct avm_read_bit_buffer *rb,
+                                              int max_level_idx) {
   av2_get_seqmfh_tile_limits(
       &mfh_param->mfh_tile_params, mfh_param->mfh_frame_height,
       mfh_param->mfh_frame_width, mi_size_wide_log2[mfh_param->mfh_sb_size],
-      mfh_param->mfh_seq_mib_sb_size_log2);
+      mfh_param->mfh_seq_mib_sb_size_log2, max_level_idx);
   read_tile_syntax_info(&mfh_param->mfh_tile_params, rb);
 }
 
@@ -6394,8 +6405,9 @@ static AVM_INLINE void read_multi_frame_header_seg_info(
   }
 }
 
-uint32_t av2_read_multi_frame_header(AV2_COMMON *cm,
+uint32_t av2_read_multi_frame_header(AV2Decoder *pbi, AV2_COMMON *cm,
                                      struct avm_read_bit_buffer *rb) {
+  (void)pbi;
   const uint32_t mfh_seq_header_id = avm_rb_read_uvlc(rb);
   if (mfh_seq_header_id >= MAX_SEQ_NUM) {
     avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
@@ -6437,7 +6449,13 @@ uint32_t av2_read_multi_frame_header(AV2_COMMON *cm,
 
   if (mfh_param->mfh_tile_info_present_flag) {
     read_mfh_sb_size(mfh_param, rb);
-    read_multi_frame_header_tile_info(mfh_param, rb);
+    read_multi_frame_header_tile_info(
+        mfh_param, rb
+#if CONFIG_FIX_LEVEL_7_8
+        ,
+        pbi->seq_list[mfh_param->mfh_seq_header_id].seq_max_level_idx
+#endif  // CONFIG_FIX_LEVEL_7_8
+    );
   }
   read_multi_frame_header_seg_info(mfh_param, rb);
 

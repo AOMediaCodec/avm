@@ -515,7 +515,7 @@ static uint32_t read_multi_frame_header_obu(AV2Decoder *pbi,
   AV2_COMMON *const cm = &pbi->common;
   const uint32_t saved_bit_offset = rb->bit_offset;
 
-  const uint32_t cur_mfh_id = av2_read_multi_frame_header(cm, rb);
+  const uint32_t cur_mfh_id = av2_read_multi_frame_header(pbi, cm, rb);
   assert(cur_mfh_id < MAX_MFH_NUM);
 
 #if CONFIG_F414_OBU_EXTENSION
@@ -2227,7 +2227,12 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
           CommonTileParams *const tiles = &cm->tiles;
           av2_get_tile_limits(&cm->tiles, cm->mi_params.mi_rows,
                               cm->mi_params.mi_cols, cm->mib_size_log2,
-                              cm->seq_params.mib_size_log2);
+                              cm->seq_params.mib_size_log2
+#if CONFIG_FIX_LEVEL_7_8
+                              ,
+                              cm->seq_params.seq_max_level_idx
+#endif  // CONFIG_FIX_LEVEL_7_8
+          );
           tiles->uniform_spacing = 1;
           tiles->log2_cols = 0;
           av2_calculate_tile_cols(tiles);
