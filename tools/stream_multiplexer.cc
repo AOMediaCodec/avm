@@ -25,7 +25,7 @@ static int write_multi_stream_decoder_operation_obu(uint8_t *const dst,
                                                     int *stream_ids,
                                                     int *stream_buffer_units) {
   struct avm_write_bit_buffer wb = { dst, 0 };
-  int obu_type = OBU_MSDO;
+  int obu_type = OBU_MULTI_STREAM_DECODER_OPERATION;
   uint32_t size = 0;
 
   avm_wb_write_literal(&wb, 1, 1);              // obu_header_extension_flag

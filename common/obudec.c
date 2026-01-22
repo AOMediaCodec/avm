@@ -98,7 +98,7 @@ static int read_obu_header_from_file(FILE *f, size_t obu_size, uint8_t *buffer,
     obu_header->obu_xlayer_id = (buffer[1]) & 31;      // obu_layer (xlayer)
   } else {
     obu_header->obu_mlayer_id = 0;  // obu_layer (mlayer)
-    if (obu_header->type == OBU_MSDO)
+    if (obu_header->type == OBU_MULTI_STREAM_DECODER_OPERATION)
       obu_header->obu_xlayer_id = GLOBAL_XLAYER_ID;  // obu_layer (xlayer)
     else
       obu_header->obu_xlayer_id = 0;  // obu_layer (xlayer)
@@ -114,8 +114,9 @@ static int is_fu_head_non_vcl_obu(OBU_TYPE obu_type, int xlayer_id) {
   return is_tu_head_non_vcl_obu(obu_type, xlayer_id) ||
          obu_type == OBU_MULTI_FRAME_HEADER ||
          obu_type == OBU_CONTENT_INTERPRETATION ||
-         obu_type == OBU_BUFFER_REMOVAL_TIMING || obu_type == OBU_QM ||
-         obu_type == OBU_FGM;
+         obu_type == OBU_BUFFER_REMOVAL_TIMING ||
+         obu_type == OBU_QUANTIZATION_MATRIX ||
+         obu_type == OBU_FILM_GRAIN_MODEL;
 }
 
 static int peek_obu_from_file(FILE *f, size_t obu_size, uint8_t *buffer,

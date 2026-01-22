@@ -217,8 +217,10 @@ uint32_t av2_read_content_interpretation_obu(struct AV2Decoder *pbi,
                                      [OBU_CONTENT_INTERPRETATION]);
   // this CI OBU is signalled with a KEY OBU in the frame data unit
   int ci_is_with_keyobu =
-      (pbi->obus_in_frame_unit_data[obu_tlayer_id][obu_mlayer_id][OBU_CLK] ||
-       pbi->obus_in_frame_unit_data[obu_tlayer_id][obu_mlayer_id][OBU_OLK]);
+      (pbi->obus_in_frame_unit_data[obu_tlayer_id][obu_mlayer_id]
+                                   [OBU_CLOSED_LOOP_KEY] ||
+       pbi->obus_in_frame_unit_data[obu_tlayer_id][obu_mlayer_id]
+                                   [OBU_OPEN_LOOP_KEY]);
 
   if (!ci_is_with_keyobu) {
     // Check if a CI OBU has already been received for this embedded layer

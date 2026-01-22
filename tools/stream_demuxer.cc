@@ -163,7 +163,7 @@ std::vector<uint8_t> ExtractTU(const uint8_t *data, int length,
 
     if (obu_header.obu_header_extension_flag) {
       *current_stream_id = obu_header.obu_xlayer_id;
-    } else if (obu_header.type == OBU_MSDO) {
+    } else if (obu_header.type == OBU_MULTI_STREAM_DECODER_OPERATION) {
       *current_stream_id = 31;
     } else {
       *current_stream_id = 0;
@@ -196,7 +196,7 @@ std::vector<uint8_t> ExtractTU(const uint8_t *data, int length,
       tu_obus.insert(tu_obus.end(), obu_size_data.begin(), obu_size_data.end());
       tu_obus.insert(tu_obus.end(), obu_tmp.begin(), obu_tmp.end());
 
-    } else if (obu_header.type == OBU_MSDO) {
+    } else if (obu_header.type == OBU_MULTI_STREAM_DECODER_OPERATION) {
       init_read_bit_buffer(
           &rb, data_ptr + obu_header_size + static_cast<int>(length_field_size),
           data_ptr + obu_total_size + length_field_size);

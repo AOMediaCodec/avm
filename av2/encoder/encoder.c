@@ -4563,7 +4563,7 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
     cm->features.allow_local_intrabc = 0;
   }
   const bool compute_ds_filter =
-      cpi->common.current_frame.cm_obu_type == OBU_CLK;
+      cpi->common.current_frame.cm_obu_type == OBU_CLOSED_LOOP_KEY;
   if (compute_ds_filter) {
     av2_set_downsample_filter_options(cpi);
   }

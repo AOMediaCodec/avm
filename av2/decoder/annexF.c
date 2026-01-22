@@ -91,7 +91,7 @@
  * OBU Type                       | Purpose in Phase 1
  * -------------------------------|---------------------------------------------
  * OBU_TEMPORAL_DELIMITER         | Marks start of temporal unit
- * OBU_MSDO                       | Step 2: multistream detection, xlayer list
+ * OBU_MULTI_STREAM_DECODER_OPERATION | Step 2: multistream detection, xlayer list
  * OBU_LAYER_CONFIGURATION_RECORD | Step 2: xlayer discovery (global or local)
  * OBU_ATLAS_SEGMENT              | Cross-layer structural metadata
  * OBU_OPERATING_POINT_SET        | Steps 3/4: xlayer selection and map data

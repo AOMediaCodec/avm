@@ -1367,9 +1367,10 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
           gf_group->arf_index >= 0 && cpi->rc.frames_to_key == 0) {
         if (allow_direct_use) {
           frame_params.frame_params_update_type_was_overlay = 1;
-          // NOTE: this is NOT OBU_OLK but the overlay at the end of the group
+          // NOTE: this is NOT OBU_OPEN_LOOP_KEY but the overlay at the end of
+          // the group
           //  pointing an OLK
-          frame_params.frame_params_obu_type = OBU_OLK;
+          frame_params.frame_params_obu_type = OBU_OPEN_LOOP_KEY;
         } else {
           // This is a olk kf overlay, but not show_existing
           frame_params.frame_params_update_type_was_overlay = 0;

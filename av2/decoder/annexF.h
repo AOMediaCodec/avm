@@ -147,7 +147,8 @@ void av2_sbe_extract_seq_header_params(SubBitstreamExtractionState *sbe,
 // Returns 1 if the OBU type is a structural OBU that should always
 // be parsed before filtering can begin.
 static INLINE int is_sbe_structural_obu(OBU_TYPE obu_type) {
-  return obu_type == OBU_TEMPORAL_DELIMITER || obu_type == OBU_MSDO ||
+  return obu_type == OBU_TEMPORAL_DELIMITER ||
+         obu_type == OBU_MULTI_STREAM_DECODER_OPERATION ||
          obu_type == OBU_LAYER_CONFIGURATION_RECORD ||
          obu_type == OBU_ATLAS_SEGMENT || obu_type == OBU_OPERATING_POINT_SET ||
          obu_type == OBU_BUFFER_REMOVAL_TIMING || obu_type == OBU_PADDING;

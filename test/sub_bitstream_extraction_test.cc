@@ -117,7 +117,7 @@ TEST_F(SBEApiTest, ProcessGlobalOpsNoMatchDoesNotSelect) {
 
 TEST_F(SBEApiTest, IsStructuralObu) {
   EXPECT_EQ(is_sbe_structural_obu(OBU_TEMPORAL_DELIMITER), 1);
-  EXPECT_EQ(is_sbe_structural_obu(OBU_MSDO), 1);
+  EXPECT_EQ(is_sbe_structural_obu(OBU_MULTI_STREAM_DECODER_OPERATION), 1);
   EXPECT_EQ(is_sbe_structural_obu(OBU_LAYER_CONFIGURATION_RECORD), 1);
   EXPECT_EQ(is_sbe_structural_obu(OBU_ATLAS_SEGMENT), 1);
   EXPECT_EQ(is_sbe_structural_obu(OBU_OPERATING_POINT_SET), 1);

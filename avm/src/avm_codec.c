@@ -166,8 +166,8 @@ const char *avm_obu_type_to_string(OBU_TYPE type) {
     case OBU_REGULAR_TIP: return "OBU_REGULAR_TIP";
     case OBU_LEADING_TILE_GROUP: return "OBU_LEADING_TILE_GROUP";
     case OBU_REGULAR_TILE_GROUP: return "OBU_REGULAR_TILE_GROUP";
-    case OBU_CLK: return "OBU_CLK";
-    case OBU_OLK: return "OBU_OLK";
+    case OBU_CLOSED_LOOP_KEY: return "OBU_CLOSED_LOOP_KEY";
+    case OBU_OPEN_LOOP_KEY: return "OBU_OPEN_LOOP_KEY";
     case OBU_METADATA_SHORT: return "OBU_METADATA_SHORT";
     case OBU_METADATA_GROUP: return "OBU_METADATA_GROUP";
     case OBU_LAYER_CONFIGURATION_RECORD:
@@ -175,11 +175,12 @@ const char *avm_obu_type_to_string(OBU_TYPE type) {
     case OBU_ATLAS_SEGMENT: return "OBU_ATLAS_SEGMENT";
     case OBU_OPERATING_POINT_SET: return "OBU_OPERATING_POINT_SET";
     case OBU_BRIDGE_FRAME: return "OBU_BRIDGE_FRAME";
-    case OBU_MSDO: return "OBU_MSDO";
+    case OBU_MULTI_STREAM_DECODER_OPERATION:
+      return "OBU_MULTI_STREAM_DECODER_OPERATION";
     case OBU_RAS_FRAME: return "OBU_RAS_FRAME";
     case OBU_PADDING: return "OBU_PADDING";
-    case OBU_QM: return "OBU_QM";
-    case OBU_FGM: return "OBU_FGM";
+    case OBU_QUANTIZATION_MATRIX: return "OBU_QUANTIZATION_MATRIX";
+    case OBU_FILM_GRAIN_MODEL: return "OBU_FILM_GRAIN_MODEL";
     case OBU_BUFFER_REMOVAL_TIMING: return "OBU_BUFFER_REMOVAL_TIMING";
     default: break;
   }
@@ -191,8 +192,8 @@ int avm_obu_type_is_valid(int obu_type) {
     case OBU_SEQUENCE_HEADER:
     case OBU_TEMPORAL_DELIMITER:
     case OBU_MULTI_FRAME_HEADER:
-    case OBU_CLK:
-    case OBU_OLK:
+    case OBU_CLOSED_LOOP_KEY:
+    case OBU_OPEN_LOOP_KEY:
     case OBU_LEADING_TILE_GROUP:
     case OBU_REGULAR_TILE_GROUP:
     case OBU_METADATA_SHORT:
@@ -207,10 +208,10 @@ int avm_obu_type_is_valid(int obu_type) {
     case OBU_ATLAS_SEGMENT:
     case OBU_OPERATING_POINT_SET:
     case OBU_BRIDGE_FRAME:
-    case OBU_MSDO:
+    case OBU_MULTI_STREAM_DECODER_OPERATION:
     case OBU_RAS_FRAME:
-    case OBU_QM:
-    case OBU_FGM:
+    case OBU_QUANTIZATION_MATRIX:
+    case OBU_FILM_GRAIN_MODEL:
     case OBU_CONTENT_INTERPRETATION:
     case OBU_PADDING: return 1;
   }

@@ -302,7 +302,8 @@ static avm_codec_err_t decoder_peek_si_internal(const uint8_t *data,
       }
 
       got_sequence_header = 1;
-    } else if (obu_header.type == OBU_CLK || obu_header.type == OBU_OLK) {
+    } else if (obu_header.type == OBU_CLOSED_LOOP_KEY ||
+               obu_header.type == OBU_OPEN_LOOP_KEY) {
       found_keyframe = 1;
       break;
     } else if (obu_header.type == OBU_LEADING_TILE_GROUP ||
@@ -796,8 +797,10 @@ void set_this_is_first_keyframe_unit_in_tu(struct AV2Decoder *pbi,
                                            int current_is_shown,
                                            int current_order_hint) {
   pbi->this_is_first_keyframe_unit_in_tu = 0;
-  bool has_clk = pbi->obus_in_frame_unit_data[tlayer_id][mlayer_id][OBU_CLK];
-  bool has_olk = pbi->obus_in_frame_unit_data[tlayer_id][mlayer_id][OBU_OLK];
+  bool has_clk =
+      pbi->obus_in_frame_unit_data[tlayer_id][mlayer_id][OBU_CLOSED_LOOP_KEY];
+  bool has_olk =
+      pbi->obus_in_frame_unit_data[tlayer_id][mlayer_id][OBU_OPEN_LOOP_KEY];
   // has_sh currently is set based on the presence of sequence header with the
   // frame unit. It should be extended to support out-of-band sequence headers
   // or sequence header earlier in the bitstream.
@@ -824,8 +827,8 @@ void set_this_is_first_keyframe_unit_in_tu(struct AV2Decoder *pbi,
   //* {CLK[mlayer=0]-TG[malyer=1]}-{CLK[mlayer=0]-TG[malyer=1]}
   //* {CLK[mlayer=0]-TG[malyer=1]-CLK[malyer=2]}
   if ((pbi->last_frame_unit.mlayer_id == mlayer_id) &&
-      ((pbi->last_frame_unit.obu_type != OBU_CLK && has_clk) ||
-       (pbi->last_frame_unit.obu_type != OBU_OLK && has_olk))) {
+      ((pbi->last_frame_unit.obu_type != OBU_CLOSED_LOOP_KEY && has_clk) ||
+       (pbi->last_frame_unit.obu_type != OBU_OPEN_LOOP_KEY && has_olk))) {
     pbi->this_is_first_keyframe_unit_in_tu = 1;
     return;
   }
@@ -897,16 +900,18 @@ static void set_this_is_first_vcl_obu_in_tu(struct AV2Decoder *pbi,
     return;
   }
 
-  bool has_clk = pbi->obus_in_frame_unit_data[tlayer_id][mlayer_id][OBU_CLK];
-  bool has_olk = pbi->obus_in_frame_unit_data[tlayer_id][mlayer_id][OBU_OLK];
+  bool has_clk =
+      pbi->obus_in_frame_unit_data[tlayer_id][mlayer_id][OBU_CLOSED_LOOP_KEY];
+  bool has_olk =
+      pbi->obus_in_frame_unit_data[tlayer_id][mlayer_id][OBU_OPEN_LOOP_KEY];
 
   // Mirror the mlayer-transition checks from
   // set_this_is_first_keyframe_unit_in_tu: A transition where the last frame
   // unit was at a higher mlayer and the current frame unit carries CLK/OLK
   // means we wrapped back to a new TU.
   if ((has_clk || has_olk) && (pbi->last_frame_unit.mlayer_id == mlayer_id) &&
-      ((pbi->last_frame_unit.obu_type != OBU_CLK && has_clk) ||
-       (pbi->last_frame_unit.obu_type != OBU_OLK && has_olk))) {
+      ((pbi->last_frame_unit.obu_type != OBU_CLOSED_LOOP_KEY && has_clk) ||
+       (pbi->last_frame_unit.obu_type != OBU_OPEN_LOOP_KEY && has_olk))) {
     pbi->this_is_first_vcl_obu_in_tu = 1;
     return;
   }
@@ -1100,8 +1105,9 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
     bool has_mf_header =
         pbi->obus_in_frame_unit_data[0][mlayer_id][OBU_MULTI_FRAME_HEADER];
     bool has_key_obu =
-        pbi->obus_in_frame_unit_data[tlayer_id][mlayer_id][OBU_CLK] ||
-        pbi->obus_in_frame_unit_data[tlayer_id][mlayer_id][OBU_OLK];
+        pbi->obus_in_frame_unit_data[tlayer_id][mlayer_id]
+                                    [OBU_CLOSED_LOOP_KEY] ||
+        pbi->obus_in_frame_unit_data[tlayer_id][mlayer_id][OBU_OPEN_LOOP_KEY];
     pbi->current_mlayer_id = mlayer_id;
     pbi->current_tlayer_id = tlayer_id;
 
@@ -1160,7 +1166,8 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
       data_start += frame_unit_size;
       continue;
     } else if ((pbi->random_accessed && !has_key_obu) ||
-               pbi->obus_in_frame_unit_data[tlayer_id][mlayer_id][OBU_CLK]) {
+               pbi->obus_in_frame_unit_data[tlayer_id][mlayer_id]
+                                           [OBU_CLOSED_LOOP_KEY]) {
       pbi->random_accessed = false;
     }
 

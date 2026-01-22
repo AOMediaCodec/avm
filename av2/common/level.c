@@ -930,7 +930,7 @@ int av2_get_max_level_ref_frames(const AV2_COMMON *const cm, OBU_TYPE obu_type,
       cm->features.allow_global_intrabc && is_filter_enabled_frame(cm) ? 2 : 1;
 
   if (decode_count == 2 &&
-      (obu_type != OBU_CLK || seq_params->max_mlayer_id != 0)) {
+      (obu_type != OBU_CLOSED_LOOP_KEY || seq_params->max_mlayer_id != 0)) {
     limit -= 1;
   }
   const int max_level_ref_frames = (int)AVMMIN(cap, limit);

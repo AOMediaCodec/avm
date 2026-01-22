@@ -146,8 +146,8 @@ bool DumpObu(const uint8_t *data, int length, int *obu_overhead_bytes) {
 
     bool is_tile_group = obu_header.type == OBU_LEADING_TILE_GROUP ||
                          obu_header.type == OBU_REGULAR_TILE_GROUP ||
-                         obu_header.type == OBU_CLK ||
-                         obu_header.type == OBU_OLK;
+                         obu_header.type == OBU_CLOSED_LOOP_KEY ||
+                         obu_header.type == OBU_OPEN_LOOP_KEY;
     is_tile_group = is_tile_group || obu_header.type == OBU_SWITCH;
     is_tile_group = is_tile_group || obu_header.type == OBU_BRIDGE_FRAME;
     bool first_tile_group_in_frame = false;

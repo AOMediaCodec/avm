@@ -2938,7 +2938,7 @@ typedef struct AV2_COMP {
   int switch_frame_mode;
 
   /*!
-   * a list of OBU_QM
+   * a list of OBU_QUANTIZATION_MATRIX
    */
 
   struct qm_obu qmobu_list[NUM_CUSTOM_QMS];

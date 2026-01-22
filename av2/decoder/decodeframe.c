@@ -6748,9 +6748,9 @@ int get_disp_order_hint_keyobu(SequenceHeader *seq_params, OBU_TYPE obu_type,
     assert(mlayer_mask == -1 && mlayer_mask == -1);
   }
 
-  if (obu_type == OBU_CLK) {
+  if (obu_type == OBU_CLOSED_LOOP_KEY) {
     return order_hint;
-  } else if (obu_type == OBU_OLK) {
+  } else if (obu_type == OBU_OPEN_LOOP_KEY) {
     if (random_accessed) return order_hint;
   }
 
@@ -6822,9 +6822,9 @@ static INLINE int get_disp_order_hint(AV2_COMMON *const cm, OBU_TYPE obu_type,
     assert(mlayer_mask == -1 && mlayer_mask == -1);
   }
   CurrentFrame *const current_frame = &cm->current_frame;
-  if (obu_type == OBU_CLK) {
+  if (obu_type == OBU_CLOSED_LOOP_KEY) {
     return current_frame->order_hint;
-  } else if (obu_type == OBU_OLK) {
+  } else if (obu_type == OBU_OPEN_LOOP_KEY) {
     if (random_accessed) return current_frame->order_hint;
   }
   if (current_frame->frame_type == S_FRAME &&
@@ -7056,7 +7056,7 @@ int av2_is_regular_vcl_obu(OBU_TYPE obu_type) {
   return (obu_type == OBU_REGULAR_SEF || obu_type == OBU_REGULAR_TIP ||
           obu_type == OBU_REGULAR_TILE_GROUP || obu_type == OBU_BRIDGE_FRAME ||
           obu_type == OBU_SWITCH || obu_type == OBU_RAS_FRAME ||
-          obu_type == OBU_OLK);
+          obu_type == OBU_OPEN_LOOP_KEY);
 }
 #if !CONFIG_ANNEXF
 static int is_layer_within_operating_point(AV2Decoder *pbi,
@@ -7753,11 +7753,12 @@ static void reset_qm_list(AV2Decoder *pbi) {
 static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
                                    int xlayer_id, int seq_header_id) {
   AV2_COMMON *const cm = &pbi->common;
-  bool keyframe_unit_in_tu = ((obu_type == OBU_CLK || obu_type == OBU_OLK) &&
-                              pbi->this_is_first_keyframe_unit_in_tu);
+  bool keyframe_unit_in_tu =
+      ((obu_type == OBU_CLOSED_LOOP_KEY || obu_type == OBU_OPEN_LOOP_KEY) &&
+       pbi->this_is_first_keyframe_unit_in_tu);
 
   if (pbi->decoding_first_frame &&
-      !(obu_type == OBU_CLK || obu_type == OBU_OLK)) {
+      !(obu_type == OBU_CLOSED_LOOP_KEY || obu_type == OBU_OPEN_LOOP_KEY)) {
     avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
                        "the first frame of a bitstream shall be a keyframe");
   }
@@ -7771,7 +7772,8 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   }
 
   // SH activation
-  if (obu_type == OBU_CLK || (obu_type == OBU_OLK && pbi->random_accessed)) {
+  if (obu_type == OBU_CLOSED_LOOP_KEY ||
+      (obu_type == OBU_OPEN_LOOP_KEY && pbi->random_accessed)) {
     pbi->active_seq[xlayer_id] = *seq_from_uch;
     // Reset malyer_id_map
     for (int i = 0; i < MAX_NUM_MLAYERS; i++)
@@ -7784,8 +7786,8 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   // much
   cm->seq_params = pbi->active_seq[xlayer_id];
 
-  if (obu_type == OBU_CLK || obu_type == OBU_OLK || obu_type == OBU_RAS_FRAME ||
-      obu_type == OBU_SWITCH)
+  if (obu_type == OBU_CLOSED_LOOP_KEY || obu_type == OBU_OPEN_LOOP_KEY ||
+      obu_type == OBU_RAS_FRAME || obu_type == OBU_SWITCH)
     reset_qm_list(pbi);
 
   if (!keyframe_unit_in_tu) {
@@ -7799,14 +7801,14 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
 
   // NOTE: at this point, the current obu is first CLK/OLK in the temporal unit
   // cm->seq_params is the currently active sequence header
-  assert(obu_type == OBU_CLK || obu_type == OBU_OLK);
+  assert(obu_type == OBU_CLOSED_LOOP_KEY || obu_type == OBU_OPEN_LOOP_KEY);
 
-  if (obu_type == OBU_OLK && !pbi->random_accessed) {
+  if (obu_type == OBU_OPEN_LOOP_KEY && !pbi->random_accessed) {
     if (!are_seq_headers_consistent(&cm->seq_params, seq_from_uch)) {
-      avm_internal_error(
-          &cm->error, AVM_CODEC_CORRUPT_FRAME,
-          "Sequence Header changed at OBU_OLK when pbi->random_accessed %d",
-          pbi->random_accessed);
+      avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
+                         "Sequence Header changed at OBU_OPEN_LOOP_KEY when "
+                         "pbi->random_accessed %d",
+                         pbi->random_accessed);
       return;
     }
   }
@@ -7814,7 +7816,7 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   // Empty referece list
   // NOTE: Should olk + random access reset reference list? It will be
   // redundant but will it harm?
-  if (obu_type == OBU_CLK) {
+  if (obu_type == OBU_CLOSED_LOOP_KEY) {
     reset_ref_frame_map(cm);
     for (int layer = 0; layer < MAX_NUM_MLAYERS; layer++) {
       cm->olk_refresh_frame_flags[layer] = -1;
@@ -7843,13 +7845,13 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
         cm->mlayer_id, cm->seq_params.max_mlayer_id);
   }
 
-  // At this point, obu_type is OBU_CLK or OBU_OLK.
+  // At this point, obu_type is OBU_CLOSED_LOOP_KEY or OBU_OPEN_LOOP_KEY.
   // When OBU_CONTENT_INTERPRETATION is not accompanied with the current obu,
   // cm->ci_params_per_layer[cm->mlayer_id] is reset to default values.
   const bool is_ci_present =
       pbi->obus_in_frame_unit_data[cm->tlayer_id][cm->mlayer_id]
                                   [OBU_CONTENT_INTERPRETATION];
-  if (!is_ci_present && obu_type == OBU_CLK) {
+  if (!is_ci_present && obu_type == OBU_CLOSED_LOOP_KEY) {
     // Initialize to default first
     av2_initialize_ci_params(&cm->ci_params_per_layer[cm->mlayer_id]);
 
@@ -8128,7 +8130,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     cm->bridge_frame_info.bridge_frame_ref_idx = INVALID_IDX;
   }
 
-  if (obu_type == OBU_OLK || obu_type == OBU_CLK) {
+  if (obu_type == OBU_OPEN_LOOP_KEY || obu_type == OBU_CLOSED_LOOP_KEY) {
     if (seq_params->seq_lcr_id != LCR_ID_UNSPECIFIED) {
       activate_layer_configuration_record(pbi, seq_params->seq_lcr_id);
     } else {
@@ -8159,7 +8161,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     cm->show_existing_frame = 0;
     if (obu_type == OBU_LEADING_SEF || obu_type == OBU_REGULAR_SEF)
       return read_show_existing_frame(pbi, obu_type == OBU_REGULAR_SEF, rb);
-    if (obu_type == OBU_CLK || obu_type == OBU_OLK) {
+    if (obu_type == OBU_CLOSED_LOOP_KEY || obu_type == OBU_OPEN_LOOP_KEY) {
       current_frame->frame_type = KEY_FRAME;
     } else if (obu_type == OBU_RAS_FRAME || obu_type == OBU_SWITCH) {
       current_frame->frame_type = S_FRAME;
@@ -8194,14 +8196,14 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     if (cm->bridge_frame_info.is_bridge_frame) {
       cm->immediate_output_picture = 0;
     } else {
-      if (obu_type == OBU_OLK)
+      if (obu_type == OBU_OPEN_LOOP_KEY)
         cm->immediate_output_picture = 0;
       else
         cm->immediate_output_picture = avm_rb_read_bit(rb);
     }
 
     if (cm->immediate_output_picture == 0) pbi->is_arf_frame_present = 1;
-    if (obu_type == OBU_OLK) pbi->is_fwd_kf_present = 1;
+    if (obu_type == OBU_OPEN_LOOP_KEY) pbi->is_fwd_kf_present = 1;
     if (cm->current_frame.frame_type == S_FRAME) {
       sframe_info->is_s_frame = 1;
       sframe_info->is_s_frame_at_altref = cm->immediate_output_picture ? 0 : 1;
@@ -8240,9 +8242,9 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   features->cross_frame_context = CROSS_FRAME_CONTEXT_FORWARD;
 
   if (!seq_params->single_picture_header_flag) {
-    if (obu_type == OBU_CLK) {
+    if (obu_type == OBU_CLOSED_LOOP_KEY) {
       pbi->olk_encountered = 0;
-    } else if (obu_type == OBU_OLK) {
+    } else if (obu_type == OBU_OPEN_LOOP_KEY) {
       if (pbi->olk_encountered && pbi->this_is_first_vcl_obu_in_tu) {
         // This is the case when the first regular frame is another OLK
         // (0-4(K)-2-1-3-8(K)...
@@ -8316,7 +8318,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
           current_frame->display_order_hint;
     }
 
-    if (obu_type == OBU_OLK) {
+    if (obu_type == OBU_OPEN_LOOP_KEY) {
       if (cm->implicit_output_picture) {
         pbi->last_olk_tu_display_order_hint = current_frame->display_order_hint;
       } else {
@@ -8353,10 +8355,11 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     }
   }
 
-  if (obu_type == OBU_CLK || obu_type == OBU_OLK) {
-    if (obu_type == OBU_CLK && seq_params->max_mlayer_id == 0) {
+  if (obu_type == OBU_CLOSED_LOOP_KEY || obu_type == OBU_OPEN_LOOP_KEY) {
+    if (obu_type == OBU_CLOSED_LOOP_KEY && seq_params->max_mlayer_id == 0) {
       current_frame->refresh_frame_flags = ((1 << seq_params->ref_frames) - 1);
-    } else if (obu_type == OBU_OLK || seq_params->max_mlayer_id != 0) {
+    } else if (obu_type == OBU_OPEN_LOOP_KEY ||
+               seq_params->max_mlayer_id != 0) {
       const int short_refresh_frame_flags =
           cm->seq_params.enable_short_refresh_frame_flags;
       const int refresh_frame_flags_bits = short_refresh_frame_flags
@@ -8372,7 +8375,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
             avm_rb_read_literal(rb, refresh_frame_flags_bits);
       }
     }
-    if (obu_type == OBU_CLK && pbi->this_is_first_vcl_obu_in_tu) {
+    if (obu_type == OBU_CLOSED_LOOP_KEY && pbi->this_is_first_vcl_obu_in_tu) {
       for (int ref_pos = 0; ref_pos < seq_params->ref_frames; ref_pos++) {
         if (!(current_frame->refresh_frame_flags >> ref_pos & 1u)) {
           decrease_ref_count(cm->ref_frame_map[ref_pos], pool);
@@ -8380,7 +8383,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
         }
       }
     }
-    if (obu_type == OBU_OLK) {
+    if (obu_type == OBU_OPEN_LOOP_KEY) {
       cm->olk_refresh_frame_flags[cm->mlayer_id] =
           current_frame->refresh_frame_flags;
     }
@@ -8476,7 +8479,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   }
 
   if (cm->is_leading_picture == 1) {
-    // other obu_types cannot overwrite the slots OBU_OLK is stored
+    // other obu_types cannot overwrite the slots OBU_OPEN_LOOP_KEY is stored
     for (int idx = 0; idx <= seq_params->max_mlayer_id; idx++) {
       if (cm->olk_refresh_frame_flags[idx] == -1) continue;
       if (current_frame->refresh_frame_flags &

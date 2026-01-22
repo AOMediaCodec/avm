@@ -2334,11 +2334,12 @@ struct quantization_matrix_set {
 };
 
 /*!
- * \brief Structure for an obu with obu_type equals to OBU_QM
+ * \brief Structure for an obu with obu_type equals to OBU_QUANTIZATION_MATRIX
  */
 struct qm_obu {
   /*!
-   * Mask to indicates the ids of quantization matrices in this OBU_QM
+   * Mask to indicates the ids of quantization matrices in this
+   * OBU_QUANTIZATION_MATRIX
    */
   int qm_bit_map;
   /*!

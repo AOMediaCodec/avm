@@ -1688,7 +1688,7 @@ static int is_metadata_obu(OBU_TYPE obu_type) {
 
 // TU validation: Check if an OBU type is global configuration information
 static int is_global_config_obu(OBU_TYPE obu_type, int xlayer_id) {
-  return obu_type == OBU_MSDO ||
+  return obu_type == OBU_MULTI_STREAM_DECODER_OPERATION ||
          (obu_type == OBU_LAYER_CONFIGURATION_RECORD &&
           xlayer_id == GLOBAL_XLAYER_ID) ||
          (obu_type == OBU_OPERATING_POINT_SET &&
@@ -1712,13 +1712,13 @@ static int is_local_config_obu(OBU_TYPE obu_type, int xlayer_id) {
 static int is_frame_unit(OBU_TYPE obu_type, int xlayer_id) {
   //  OBU_MULTI_FRAME_HEADER,
   //  OBU_BUFFER_REMOVAL_TIMING,
-  //  OBU_QM,
-  //  OBU_FGM,
+  //  OBU_QUANTIZATION_MATRIX,
+  //  OBU_FILM_GRAIN_MODEL,
   //  OBU_CONTENT_INTERPRETATION,
   //  OBU_METADATA_SHORT,
   //  OBU_METADATA_GROUP,
-  //  OBU_CLK,
-  //  OBU_OLK,
+  //  OBU_CLOSED_LOOP_KEY,
+  //  OBU_OPEN_LOOP_KEY,
   //  OBU_LEADING_TILE_GROUP,
   //  OBU_REGULAR_TILE_GROUP,
   //  OBU_SWITCH,
@@ -1777,14 +1777,14 @@ int check_temporal_unit_structure(temporal_unit_state_t *state, int obu_type,
 
     case TU_STATE_GLOBAL_INFO:
       if (is_global_config_obu(obu_type, xlayer_id)) {
-        // 0 or 1 OBU_MSDO,
-        // 0 or more: OBU_LCR
-        // 0 or more: OBU_OPS
+        // 0 or 1 OBU_MULTI_STREAM_DECODER_OPERATION,
+        // 0 or more: OBU_LAYER_CONFIGURATION_RECORD
+        // 0 or more: OBU_OPERATING_POINT_SET
         // 0 or more: OBU_ATLAS_SEGMENT
         // 0 or more: OBU_METADATA(obu_xlayer_id = 0x1F)
         // MSDO -> LCR -> LCR -> OPS -> OPS -> ATS -> ATS -> METADATA ->
         // METADATA
-        if (obu_type == OBU_MSDO)
+        if (obu_type == OBU_MULTI_STREAM_DECODER_OPERATION)
           return 0;  // Only one allowed
         else if (obu_type == OBU_LAYER_CONFIGURATION_RECORD &&
                  (prev_obu_type == OBU_OPERATING_POINT_SET ||
@@ -1866,7 +1866,8 @@ int check_temporal_unit_structure(temporal_unit_state_t *state, int obu_type,
         else if (((is_metadata_obu(obu_type) &&
                    metadata_is_suffix == 0) ||  // prefix
                   obu_type == OBU_BUFFER_REMOVAL_TIMING ||
-                  obu_type == OBU_QM || obu_type == OBU_FGM) &&
+                  obu_type == OBU_QUANTIZATION_MATRIX ||
+                  obu_type == OBU_FILM_GRAIN_MODEL) &&
                  (is_coded_frame(prev_obu_type) ||
                   (is_metadata_obu(prev_obu_type) &&
                    metadata_is_suffix == 1)))  // suffix
@@ -1933,8 +1934,8 @@ int validate_temporal_unit_completion(const mlayer_validation_state_t *state) {
 static void check_clk_in_a_layer(AV2_COMMON *const cm,
                                  obu_info *current_frame_unit,
                                  obu_info *last_frame_unit) {
-  if (current_frame_unit->obu_type == OBU_CLK &&
-      last_frame_unit->obu_type != OBU_CLK &&
+  if (current_frame_unit->obu_type == OBU_CLOSED_LOOP_KEY &&
+      last_frame_unit->obu_type != OBU_CLOSED_LOOP_KEY &&
       current_frame_unit->mlayer_id == last_frame_unit->mlayer_id &&
       current_frame_unit->display_order_hint ==
           last_frame_unit->display_order_hint) {
@@ -2069,7 +2070,7 @@ static void check_valid_layer_id(ObuHeader obu_header, AV2_COMMON *const cm) {
         avm_obu_type_to_string(obu_header.type), obu_header.obu_tlayer_id,
         obu_header.obu_mlayer_id, obu_header.obu_xlayer_id);
   }
-  if (obu_header.type == OBU_MSDO &&
+  if (obu_header.type == OBU_MULTI_STREAM_DECODER_OPERATION &&
       obu_header.obu_xlayer_id != GLOBAL_XLAYER_ID) {
     avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
                        "Incorrect obu_xlayer_id for MSDO: %d",
@@ -2098,7 +2099,8 @@ static void check_valid_layer_id(ObuHeader obu_header, AV2_COMMON *const cm) {
         obu_header.type == OBU_LAYER_CONFIGURATION_RECORD ||
         obu_header.type == OBU_ATLAS_SEGMENT ||
         obu_header.type == OBU_OPERATING_POINT_SET ||
-        obu_header.type == OBU_MSDO || obu_header.type == OBU_PADDING)) {
+        obu_header.type == OBU_MULTI_STREAM_DECODER_OPERATION ||
+        obu_header.type == OBU_PADDING)) {
     avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
                        "Incorrect layer_id for %s: xlayer_id %d",
                        avm_obu_type_to_string(obu_header.type),
@@ -2106,7 +2108,8 @@ static void check_valid_layer_id(ObuHeader obu_header, AV2_COMMON *const cm) {
   }
 
   // CLK/OLK are only present in temporal layer 0
-  if ((obu_header.type == OBU_CLK || obu_header.type == OBU_OLK) &&
+  if ((obu_header.type == OBU_CLOSED_LOOP_KEY ||
+       obu_header.type == OBU_OPEN_LOOP_KEY) &&
       obu_header.obu_tlayer_id != 0) {
     avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
                        "Incorrect tlayer_id for %s: tlayer_id %d",
@@ -2660,7 +2663,7 @@ avm_codec_err_t parse_to_order_hint_for_vcl_obu(
   // SWITCH/RAS_FRAME: S_FRAME (implicit, no bit).
   // All other tile groups: read 1 bit (INTER vs INTRA_ONLY).
   int frame_type;
-  if (obu_type == OBU_CLK || obu_type == OBU_OLK) {
+  if (obu_type == OBU_CLOSED_LOOP_KEY || obu_type == OBU_OPEN_LOOP_KEY) {
     frame_type = KEY_FRAME;
   } else if (obu_type == OBU_SWITCH || obu_type == OBU_RAS_FRAME) {
     frame_type = S_FRAME;
@@ -2698,7 +2701,7 @@ avm_codec_err_t parse_to_order_hint_for_vcl_obu(
   // OLK and BRIDGE_FRAME: immediate_output_picture is implicitly 0.
   // All others: read 1 bit.
   bool immediate_output_picture;
-  if (obu_type == OBU_OLK || obu_type == OBU_BRIDGE_FRAME) {
+  if (obu_type == OBU_OPEN_LOOP_KEY || obu_type == OBU_BRIDGE_FRAME) {
     immediate_output_picture = 0;
   } else {
     immediate_output_picture = avm_rb_read_bit(rb);
@@ -2724,7 +2727,7 @@ avm_codec_err_t parse_to_order_hint_for_vcl_obu(
   int order_hint = avm_rb_read_literal(
       rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
 
-  if (obu_type == OBU_CLK) {
+  if (obu_type == OBU_CLOSED_LOOP_KEY) {
     // CLK: display_order_hint == order_hint directly.
     *current_order_hint = order_hint;
   } else if (frame_type == S_FRAME && restricted_prediction_switch) {
@@ -3122,7 +3125,8 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
     // OBU restores it.
     if (pbi->this_is_first_keyframe_unit_in_tu &&
         cm->xlayer_id != GLOBAL_XLAYER_ID &&
-        pbi->obus_in_frame_unit_data[cm->tlayer_id][cm->mlayer_id][OBU_CLK]) {
+        pbi->obus_in_frame_unit_data[cm->tlayer_id][cm->mlayer_id]
+                                    [OBU_CLOSED_LOOP_KEY]) {
       flush_remaining_frames(pbi, INT_MAX);
     }
 
@@ -3141,7 +3145,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         pbi->seen_frame_header = 0;
         pbi->next_start_tile = 0;
         break;
-      case OBU_MSDO:
+      case OBU_MULTI_STREAM_DECODER_OPERATION:
         decoded_payload_size =
             read_multi_stream_decoder_operation_obu(pbi, &rb);
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
@@ -3229,8 +3233,8 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         decoded_payload_size = read_multi_frame_header_obu(pbi, &rb);
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
         break;
-      case OBU_CLK:
-      case OBU_OLK:
+      case OBU_CLOSED_LOOP_KEY:
+      case OBU_OPEN_LOOP_KEY:
       case OBU_LEADING_TILE_GROUP:
       case OBU_REGULAR_TILE_GROUP:
       case OBU_SWITCH:
@@ -3242,10 +3246,10 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
       case OBU_BRIDGE_FRAME:
         for (int i = 0; i < NUM_CUSTOM_QMS; i++) {
           if (acc_qm_id_bitmap & (1 << i)) {
-            pbi->qm_protected[i] &=
-                (obu_header.type == OBU_CLK || obu_header.type == OBU_OLK ||
-                 obu_header.type == OBU_RAS_FRAME ||
-                 obu_header.type == OBU_SWITCH);
+            pbi->qm_protected[i] &= (obu_header.type == OBU_CLOSED_LOOP_KEY ||
+                                     obu_header.type == OBU_OPEN_LOOP_KEY ||
+                                     obu_header.type == OBU_RAS_FRAME ||
+                                     obu_header.type == OBU_SWITCH);
           }
         }
 #if CONFIG_AV2_PROFILES
@@ -3407,7 +3411,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         if (frame_decoding_finished) pbi->seen_frame_header = 0;
         pbi->num_tile_groups++;
         break;
-      case OBU_QM:
+      case OBU_QUANTIZATION_MATRIX:
         decoded_payload_size =
             read_qm_obu(pbi, obu_header.obu_tlayer_id, obu_header.obu_mlayer_id,
                         &acc_qm_id_bitmap, &rb);
@@ -3422,7 +3426,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
             read_metadata_obu(pbi, data, payload_size, &obu_header, 0);
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
         break;
-      case OBU_FGM:
+      case OBU_FILM_GRAIN_MODEL:
         decoded_payload_size =
             read_fgm_obu(pbi, obu_header.obu_tlayer_id,
                          obu_header.obu_mlayer_id, &acc_fgm_id_bitmap, &rb);

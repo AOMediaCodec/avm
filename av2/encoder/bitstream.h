@@ -45,8 +45,8 @@ uint32_t av2_write_sequence_header_obu(const SequenceHeader *seq_params,
                                        uint8_t *const dst);
 
 // Writes the OBU header byte, and the OBU header extension byte when
-// obu_type is not OBU_MSDO and obu_layer is non-zero. Returns number of bytes
-// written to 'dst'.
+// obu_type is not OBU_MULTI_STREAM_DECODER_OPERATION and obu_layer is non-zero.
+// Returns number of bytes written to 'dst'.
 uint32_t av2_write_obu_header(AV2LevelParams *const level_params,
                               OBU_TYPE obu_type, int obu_temporal,
                               int obu_layer, uint8_t *const dst);

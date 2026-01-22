@@ -2809,7 +2809,7 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
       if (cpi->no_show_fwd_kf) {
         assert(update_type == ARF_UPDATE || update_type == KFFLT_UPDATE);
         frame_params->frame_type = KEY_FRAME;
-        frame_params->frame_params_obu_type = OBU_OLK;
+        frame_params->frame_params_obu_type = OBU_OPEN_LOOP_KEY;
       } else {
         frame_params->frame_type = INTER_FRAME;
         update_subgop_stats(&cpi->gf_group, &cpi->subgop_stats,
@@ -2908,7 +2908,7 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
     } else {
       frame_params->frame_type = KEY_FRAME;
       if (frame_params->frame_params_obu_type == NUM_OBU_TYPES)
-        frame_params->frame_params_obu_type = OBU_CLK;
+        frame_params->frame_params_obu_type = OBU_CLOSED_LOOP_KEY;
       // Define next KF group and assign bits to it.
       find_next_key_frame(cpi, &this_frame);
     }
@@ -3010,7 +3010,7 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
     if (update_type == ARF_UPDATE) {
       if (cpi->no_show_fwd_kf) {
         frame_params->frame_type = KEY_FRAME;
-        frame_params->frame_params_obu_type = OBU_OLK;
+        frame_params->frame_params_obu_type = OBU_OPEN_LOOP_KEY;
       } else {
         frame_params->frame_type = rc->frames_since_key == 0 ? KEY_FRAME
                                    : (frame_params->frame_type == S_FRAME)
@@ -3018,7 +3018,7 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
                                        : INTER_FRAME;
         if (frame_params->frame_params_obu_type == NUM_OBU_TYPES)
           frame_params->frame_params_obu_type =
-              rc->frames_since_key == 0 ? OBU_CLK : NUM_OBU_TYPES;
+              rc->frames_since_key == 0 ? OBU_CLOSED_LOOP_KEY : NUM_OBU_TYPES;
 
         // ARF_UPDATE and KFFLT_UPDATE is set as S_FRAME in the RA case
         if (frame_params->frame_type == INTER_FRAME &&

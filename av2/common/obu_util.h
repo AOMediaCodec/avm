@@ -50,8 +50,8 @@ static INLINE int is_single_tile_vcl_obu(OBU_TYPE obu_type) {
 static INLINE int is_multi_tile_vcl_obu(OBU_TYPE obu_type) {
   return obu_type == OBU_REGULAR_TILE_GROUP ||
          obu_type == OBU_LEADING_TILE_GROUP || obu_type == OBU_SWITCH ||
-         obu_type == OBU_RAS_FRAME || obu_type == OBU_CLK ||
-         obu_type == OBU_OLK;
+         obu_type == OBU_RAS_FRAME || obu_type == OBU_CLOSED_LOOP_KEY ||
+         obu_type == OBU_OPEN_LOOP_KEY;
 }
 
 /*!\brief Returns 1 when the obu is non vcl obu and can lead a temporal unit
@@ -63,7 +63,7 @@ static INLINE int is_tu_head_non_vcl_obu(OBU_TYPE obu_type, int xlayer_id) {
          obu_type == OBU_ATLAS_SEGMENT || obu_type == OBU_OPERATING_POINT_SET ||
          (obu_type == OBU_METADATA_SHORT && xlayer_id == GLOBAL_XLAYER_ID) ||
          (obu_type == OBU_METADATA_GROUP && xlayer_id == GLOBAL_XLAYER_ID) ||
-         obu_type == OBU_MSDO;
+         obu_type == OBU_MULTI_STREAM_DECODER_OPERATION;
 }
 
 #ifdef __cplusplus
