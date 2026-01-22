@@ -5987,12 +5987,21 @@ void read_sequence_tile_info(struct SequenceHeader *seq_params,
 
 // Reads tile information from multi-frame header
 static void read_multi_frame_header_tile_info(MultiFrameHeader *mfh_param,
-                                              struct avm_read_bit_buffer *rb,
-                                              int max_level_idx) {
+                                              struct avm_read_bit_buffer *rb
+#if CONFIG_FIX_LEVEL_7_8
+                                              ,
+                                              int max_level_idx
+#endif  // CONFIG_FIX_LEVEL_7_8
+) {
   av2_get_seqmfh_tile_limits(
       &mfh_param->mfh_tile_params, mfh_param->mfh_frame_height,
       mfh_param->mfh_frame_width, mi_size_wide_log2[mfh_param->mfh_sb_size],
-      mfh_param->mfh_seq_mib_sb_size_log2, max_level_idx);
+      mfh_param->mfh_seq_mib_sb_size_log2
+#if CONFIG_FIX_LEVEL_7_8
+      ,
+      max_level_idx
+#endif  // CONFIG_FIX_LEVEL_7_8
+  );
   read_tile_syntax_info(&mfh_param->mfh_tile_params, rb);
 }
 
