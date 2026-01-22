@@ -7711,14 +7711,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   }
   av2_set_frame_sb_size(cm, cm->seq_params.sb_size);
 
-  if (current_frame->frame_type == KEY_FRAME && cm->immediate_output_picture) {
-    /* All frames need to be marked as not valid for referencing */
-    for (int i = 0; i < seq_params->ref_frames; i++) {
-      pbi->valid_for_referencing[i] = 0;
-      pbi->long_term_ids_in_buffer[i] = -1;
-    }
-  }
-
   int frame_size_override_flag = 0;
   features->allow_intrabc = 0;
   features->allow_global_intrabc = 0;
