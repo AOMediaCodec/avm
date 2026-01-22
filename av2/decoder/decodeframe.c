@@ -7047,12 +7047,10 @@ static int read_show_existing_frame(AV2Decoder *pbi, bool is_regular_obu,
     }
     cm->cur_frame->order_hint = current_frame->order_hint;
     cm->cur_frame->display_order_hint = current_frame->display_order_hint;
-#if CONFIG_ISSUE1206
     resize_context_buffers(cm, frame_to_show->width, frame_to_show->height);
     setup_buffer_pool(cm);
     avm_yv12_copy_frame(&frame_to_show->buf, &cm->cur_frame->buf,
                         av2_num_planes(cm) ? 1 : 3);
-#endif
   } else {
     if (frame_to_show->implicit_output_picture ||
         frame_to_show->immediate_output_picture) {
@@ -7076,10 +7074,8 @@ static int read_show_existing_frame(AV2Decoder *pbi, bool is_regular_obu,
   // call decrease_ref_count(). If cm->cur_frame->raw_frame_buffer has
   // already been allocated, it will not be released by
   // assign_frame_buffer_p()!
-#if CONFIG_ISSUE1206
-  if (cm->derive_sef_order_hint)
-#endif
-    assert(!cm->cur_frame->raw_frame_buffer.data);
+  assert(IMPLIES(cm->derive_sef_order_hint,
+                 !cm->cur_frame->raw_frame_buffer.data));
 
   FrameHash raw_frame_hash = cm->cur_frame->raw_frame_hash;
   FrameHash grain_frame_hash = cm->cur_frame->grain_frame_hash;
