@@ -145,10 +145,11 @@ class MetadataEncodeTest
                                AVM_MIF_KEY_FRAME),
           0);
 
-      ASSERT_EQ(avm_img_add_metadata(
-                    current_frame, OBU_METADATA_TYPE_USER_DATA_UNREGISTERED,
-                    kMetadataPayloadUserDataUnregistered,
-                    kMetadataPayloadSizeUserDataUnregistered, AVM_MIF_ANY_FRAME),
+      ASSERT_EQ(avm_img_add_metadata(current_frame,
+                                     OBU_METADATA_TYPE_USER_DATA_UNREGISTERED,
+                                     kMetadataPayloadUserDataUnregistered,
+                                     kMetadataPayloadSizeUserDataUnregistered,
+                                     AVM_MIF_ANY_FRAME),
                 0);
     }
   }
@@ -247,7 +248,8 @@ class MetadataEncodeTest
                  kMetadataPayloadSizeCll),
           0);
 
-      // Check USER_DATA_UNREGISTERED metadata (present on all frames, index 3 on keyframes)
+      // Check USER_DATA_UNREGISTERED metadata (present on all frames, index 3
+      // on keyframes)
       ASSERT_EQ(kMetadataPayloadSizeUserDataUnregistered,
                 img.metadata->metadata_array[3]->sz);
       EXPECT_EQ(memcmp(kMetadataPayloadUserDataUnregistered,
@@ -255,7 +257,8 @@ class MetadataEncodeTest
                        kMetadataPayloadSizeUserDataUnregistered),
                 0);
     } else {
-      // Check USER_DATA_UNREGISTERED metadata (present on all frames, index 1 on non-keyframes)
+      // Check USER_DATA_UNREGISTERED metadata (present on all frames, index 1
+      // on non-keyframes)
       ASSERT_EQ(kMetadataPayloadSizeUserDataUnregistered,
                 img.metadata->metadata_array[1]->sz);
       EXPECT_EQ(memcmp(kMetadataPayloadUserDataUnregistered,
