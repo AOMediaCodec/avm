@@ -144,6 +144,12 @@ class MetadataEncodeTest
                                kMetadataPayloadCll, kMetadataPayloadSizeCll,
                                AVM_MIF_KEY_FRAME),
           0);
+
+      ASSERT_EQ(avm_img_add_metadata(
+                    current_frame, OBU_METADATA_TYPE_USER_DATA_UNREGISTERED,
+                    kMetadataPayloadUserDataUnregistered,
+                    kMetadataPayloadSizeUserDataUnregistered, AVM_MIF_ANY_FRAME),
+                0);
     }
   }
 
@@ -217,7 +223,7 @@ class MetadataEncodeTest
   virtual void DecompressedFrameHook(const avm_image_t &img,
                                      avm_codec_pts_t pts) {
     ASSERT_TRUE(img.metadata != nullptr);
-    unsigned n_meta = pts == 0 ? 3 : 1;
+    unsigned n_meta = pts == 0 ? 4 : 2;
 
     ASSERT_EQ(img.metadata->sz, n_meta);
 
@@ -227,9 +233,9 @@ class MetadataEncodeTest
                kMetadataPayloadSizeT35),
         0);
 
-    if (n_meta == 3) {
+    if (n_meta == 4) {
       // Check keyframe-only metadata
-      ASSERT_EQ(kMetadataPayloadSizeT35, img.metadata->metadata_array[1]->sz);
+      ASSERT_EQ(kMetadataPayloadSizeMdcv, img.metadata->metadata_array[1]->sz);
       EXPECT_EQ(
           memcmp(kMetadataPayloadMdcv, img.metadata->metadata_array[1]->payload,
                  kMetadataPayloadSizeMdcv),
@@ -240,6 +246,22 @@ class MetadataEncodeTest
           memcmp(kMetadataPayloadCll, img.metadata->metadata_array[2]->payload,
                  kMetadataPayloadSizeCll),
           0);
+
+      // Check USER_DATA_UNREGISTERED metadata (present on all frames, index 3 on keyframes)
+      ASSERT_EQ(kMetadataPayloadSizeUserDataUnregistered,
+                img.metadata->metadata_array[3]->sz);
+      EXPECT_EQ(memcmp(kMetadataPayloadUserDataUnregistered,
+                       img.metadata->metadata_array[3]->payload,
+                       kMetadataPayloadSizeUserDataUnregistered),
+                0);
+    } else {
+      // Check USER_DATA_UNREGISTERED metadata (present on all frames, index 1 on non-keyframes)
+      ASSERT_EQ(kMetadataPayloadSizeUserDataUnregistered,
+                img.metadata->metadata_array[1]->sz);
+      EXPECT_EQ(memcmp(kMetadataPayloadUserDataUnregistered,
+                       img.metadata->metadata_array[1]->payload,
+                       kMetadataPayloadSizeUserDataUnregistered),
+                0);
     }
   }
 

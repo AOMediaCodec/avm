@@ -1261,6 +1261,21 @@ static size_t read_metadata_short(AV2Decoder *pbi, const uint8_t *data,
       const size_t icc_payload_size = last_nonzero_idx;
       read_metadata_icc_profile(pbi, data + type_length, icc_payload_size);
       return sz;
+    } else if (metadata_type == OBU_METADATA_TYPE_USER_DATA_UNREGISTERED) {
+      // User data unregistered is byte-aligned binary data
+      // Find the last nonzero byte (should be 0x80 trailing byte)
+      const int last_nonzero_idx =
+          get_last_nonzero_byte_index(data + type_length, sz - type_length);
+      if (last_nonzero_idx < 0 ||
+          data[type_length + last_nonzero_idx] != 0x80) {
+        cm->error.error_code = AVM_CODEC_CORRUPT_FRAME;
+        return 0;
+      }
+      // User data payload size excludes the trailing 0x80 byte
+      const size_t user_data_payload_size = last_nonzero_idx;
+      read_metadata_user_data_unregistered(pbi, data + type_length,
+                                           user_data_payload_size);
+      return sz;
     } else {
       assert(metadata_type == OBU_METADATA_TYPE_TIMECODE);
       read_metadata_timecode(&rb);
