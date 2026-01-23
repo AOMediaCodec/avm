@@ -1883,6 +1883,151 @@ static void check_valid_layer_id(ObuHeader obu_header, AV2_COMMON *const cm) {
                        obu_header.obu_xlayer_id);
   }
 }
+#if CONFIG_AV2_PROFILES
+// Check if an OBU should be decoded based on the selected operating point
+static int is_obu_within_operating_point(struct AV2Decoder *pbi,
+                                         ObuHeader *obu_header) {
+  // Step 1: Decode all HLS OBUS
+  switch (obu_header->type) {
+      // Any more OBUs to be added ?
+      // These OBUs always decode
+    case OBU_TEMPORAL_DELIMITER:
+    case OBU_SEQUENCE_HEADER:
+    case OBU_OPERATING_POINT_SET:
+    case OBU_MSDO:
+    case OBU_LAYER_CONFIGURATION_RECORD:
+    case OBU_ATLAS_SEGMENT:
+    case OBU_MULTI_FRAME_HEADER:
+    case OBU_BUFFER_REMOVAL_TIMING:
+    case OBU_CONTENT_INTERPRETATION: return 1;
+    default: break;
+  }
+
+  // Step 2: If no operating point is selected, decode everything
+  if (pbi->dec_ops.dec_op == NULL || pbi->dec_ops.dec_ops == NULL) return 1;
+
+  const OperatingPointSet *ops = pbi->dec_ops.dec_ops;
+  const OperatingPoint *op = pbi->dec_ops.dec_op;
+  const int xlayer_id = obu_header->obu_xlayer_id;
+  const int mlayer_id = obu_header->obu_mlayer_id;
+  const int tlayer_id = obu_header->obu_tlayer_id;
+
+  // Step 3: What happens whtn mlayer_info_idc is 0.
+  // No mlayer and tlayer infor present
+  if (ops->ops_mlayer_info_idc == 0) return 1;
+
+  // Step 3: An ops is selected, check if the current OBU is the xlayer map.
+  int in_mlayer =
+      (op->mlayer_info.ops_mlayer_map[xlayer_id] & (1 << mlayer_id));
+  if (in_mlayer == 0) return 0;  // skip the obu
+
+  // Step 4: Check if it within the tlayer map
+  int in_tlayer =
+      (op->mlayer_info.ops_tlayer_map[xlayer_id][mlayer_id] & (1 << tlayer_id));
+  if (in_tlayer == 0) return 0;  // skip the obu
+
+  // Decode the OBU
+  return 1;
+}
+
+static int get_ops_mlayer_count(const struct OpMLayerInfo *mlayer_info,
+                                int xlayer_id) {
+  if (mlayer_info == NULL) return 0;
+  if (xlayer_id < 0 || xlayer_id >= MAX_NUM_XLAYERS) return 0;
+  return mlayer_info->OPMLayerCount[xlayer_id];
+}
+
+static int get_ops_tlayer_count(const struct OpMLayerInfo *mlayer_info,
+                                int xlayer_id, int mlayer_id) {
+  if (mlayer_info == NULL) return 0;
+  if (xlayer_id < 0 || xlayer_id >= MAX_NUM_XLAYERS) return 0;
+  if (mlayer_id < 0 || mlayer_id >= MAX_NUM_XLAYERS) return 0;
+
+  return mlayer_info->OPTLayerCount[xlayer_id][mlayer_id];
+}
+
+// Select operating point based on user selection (default to 0, 0)
+// The priority is that if a user provides an input then that takes priority
+// This function is used to determine which OPS ID to use:
+// 1. selected_ops_id if >= 0
+// 2. if ops_id >= 0; then look for the ops_index
+int avm_set_current_operating_point(struct AV2Decoder *pbi, int xlayer_id) {
+  int target_ops_id =
+      pbi->selected_ops_id >= 0 ? pbi->selected_ops_id : pbi->ops_id;
+  // Note that the default is pbi->ops_id is -1;
+
+  // Only proceed to check for the operating point iff the ops id is valid
+  if (target_ops_id < 0 || target_ops_id >= MAX_NUM_OPS_ID) return 0;
+
+  // Determine which OP index is beyond the ops_cnt; then use 0 instead.
+  int target_op_index = (pbi->selected_ops_id >= 0)
+                            ? pbi->selected_op_index
+                            : ((pbi->ops_id >= 0) ? pbi->ops_id : 0);
+
+  struct OperatingPointSet *ops = &pbi->ops_list[xlayer_id][target_ops_id];
+  struct DecOperatingPointParams *dec_op_params = &pbi->dec_ops;
+  // Is this necessary ?
+  dec_op_params->dec_ops = ops;
+  dec_op_params->dec_op = dec_op_params->dec_ops->op;
+  if (!ops->valid || ops->ops_id != target_ops_id) {
+    dec_op_params->DecOpSetId = 0;
+    dec_op_params->DecOpCount = 0;
+    dec_op_params->DecOpIndex = 0;
+    dec_op_params->num_mlayers = 1;
+    dec_op_params->num_tlayers = 1;
+    dec_op_params->isValid = 0;  // No matching OPS
+    dec_op_params->dec_ops = NULL;
+    dec_op_params->dec_op = NULL;
+    printf("Warning: No OPS was available, all layers to be decoded.\n");
+    return 0;
+  }
+
+  // Check if the Global or Local OPS is to be used
+  if (ops->obu_xlayer_id == GLOBAL_XLAYER_ID) {
+    // If the GLOBAL OPS is to be used
+    if (target_op_index >= 0 && target_op_index < ops->ops_cnt) {
+      struct OperatingPoint *op = &ops->op[target_op_index];
+      dec_op_params->DecOpSetId = ops->ops_id;
+      dec_op_params->DecOpCount = ops->ops_cnt;
+      dec_op_params->DecOpIndex = target_op_index;
+      dec_op_params->DecXlayerId = 31;
+      int xlayer = 31;  // Set this since it a global ops
+      dec_op_params->num_mlayers =
+          get_ops_mlayer_count(&op->mlayer_info, xlayer);
+      dec_op_params->num_tlayers =
+          get_ops_tlayer_count(&op->mlayer_info, xlayer, 0);
+
+      // Can this happen
+      if (dec_op_params->num_mlayers == 0) dec_op_params->num_mlayers = 1;
+      if (dec_op_params->num_tlayers == 0) dec_op_params->num_tlayers = 1;
+      dec_op_params->dec_op = op;
+      dec_op_params->isValid = 1;  // No matching OPS
+      return 0;
+    }
+  } else {
+    // Its a local OPS
+    if (target_op_index >= 0 && target_op_index < ops->ops_cnt) {
+      OperatingPoint *op = &ops->op[target_op_index];
+      dec_op_params->DecOpSetId = ops->ops_id;
+      dec_op_params->DecOpCount = ops->ops_cnt;
+      dec_op_params->DecOpIndex = target_op_index;
+      dec_op_params->DecXlayerId = ops->obu_xlayer_id;
+      int xlayer = dec_op_params->DecXlayerId;
+      dec_op_params->num_mlayers =
+          get_ops_mlayer_count(&op->mlayer_info, xlayer);
+      dec_op_params->num_tlayers =
+          get_ops_tlayer_count(&op->mlayer_info, xlayer, 0);
+      if (dec_op_params->num_mlayers == 0) dec_op_params->num_mlayers = 1;
+      if (dec_op_params->num_tlayers == 0) dec_op_params->num_tlayers = 1;
+      dec_op_params->dec_op = op;
+      dec_op_params->isValid = 1;  // No matching OPS
+    }
+    return 0;
+  }
+  return 0;
+}
+#endif  // CONFIG_AV2_PROFILES
+
 // On success, sets *p_data_end and returns a boolean that indicates whether
 // the decoding of the current frame is finished. On failure, sets
 // cm->error.error_code and returns -1.
@@ -1942,6 +2087,14 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
       cm->error.error_code = status;
       return -1;
     }
+
+#if CONFIG_AV2_PROFILES
+    // If the OBU is not supported by the operating point
+    if (!is_obu_within_operating_point(pbi, &obu_header)) {
+      data += payload_size;
+      continue;
+    }
+#endif  // CONFIG_AV2_PROFILES
 
     // Skip all obus till the random_accessed-th random access point
     // Remove all leading_vcl obus
@@ -2077,6 +2230,9 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
       case OBU_OPERATING_POINT_SET:
         decoded_payload_size =
             av2_read_operating_point_set_obu(pbi, cm->xlayer_id, &rb);
+#if CONFIG_AV2_PROFILES
+        avm_set_current_operating_point(pbi, cm->xlayer_id);
+#endif  // CONFIG_AV2_PROFILES
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
         break;
       case OBU_CONTENT_INTERPRETATION:
