@@ -7270,17 +7270,16 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
         cm->mlayer_id, cm->seq_params.max_mlayer_id);
   }
 
-  // set the CI parameters if any CI OBU is present with this CLK or OLK
-  // note
-  // pbi->obus_in_frame_unit_data[cm->mlayer_id][OBU_CONTENT_INTERPRETATION]
-  // will be updated every frame unit
-  bool is_ci_present =
+  // At this point, obu_type is OBU_CLK or OBU_OLK.
+  // When OBU_CONTENT_INTERPRETATION is not accompanied with the current obu,
+  // cm->ci_params_per_layer[cm->mlayer_id] is reset to default values.
+  const bool is_ci_present =
       pbi->obus_in_frame_unit_data[cm->mlayer_id][OBU_CONTENT_INTERPRETATION];
   if (!is_ci_present) {
-    // reset to default first
-    initialize_ci_params(cm, cm->mlayer_id);
+    // Initialize to default first
+    av2_initialize_ci_params(&cm->ci_params_per_layer[cm->mlayer_id]);
 
-    // then if there is any CI OBUs in the previous mlayer, copy the ci_params
+    // Then, if there is any CI OBUs in the previous mlayer, copy the ci_params
     for (int ref_layer_id = 0; ref_layer_id < cm->mlayer_id; ref_layer_id++) {
       if (cm->seq_params.mlayer_dependency_map[cm->mlayer_id][ref_layer_id]) {
         cm->ci_params_per_layer[cm->mlayer_id] =

@@ -5836,9 +5836,9 @@ static INLINE uint64_t derive_output_order_idx(AV2_COMMON *cm,
   return ((max_mlayer_id + 1) * display_order) + mlayer_id;
 }
 
-// This function intializes ci_params for the mlayer[mlayer_id]
-static INLINE void initialize_ci_params(AV2_COMMON *cm, int mlayer_id) {
-  ContentInterpretation *ci_params = &cm->ci_params_per_layer[mlayer_id];
+// This function intializes ci_params for the mlayer[mlayer_id] to default
+// values.
+static INLINE void av2_initialize_ci_params(ContentInterpretation *ci_params) {
   ci_params->ci_chroma_sample_position[0] = AVM_CSP_UNSPECIFIED;
   ci_params->ci_chroma_sample_position[1] = AVM_CSP_UNSPECIFIED;
   ci_params->color_info.color_description_idc = AVM_COLOR_DESC_IDC_EXPLICIT;
