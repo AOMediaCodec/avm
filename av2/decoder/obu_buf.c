@@ -50,7 +50,11 @@ uint32_t av2_read_buffer_removal_timing_obu(struct AV2Decoder *pbi,
   // of ops_id[obu_xlayer_id] equal to br_ops_id[obu_xlayer_id]."
   struct OperatingPointSet *matched_ops = NULL;
   for (int i = 0; i < pbi->ops_counter; i++) {
+#if CONFIG_AV2_PROFILES
+    if (pbi->ops_list[i].ops_id == ops_id) {
+#else
     if (pbi->ops_list[i].ops_id[xlayer_id] == ops_id) {
+#endif  // CONFIG_AV2_PROFILES
       matched_ops = &pbi->ops_list[i];
       break;
     }
@@ -69,8 +73,12 @@ uint32_t av2_read_buffer_removal_timing_obu(struct AV2Decoder *pbi,
   // It is a requirement of bitstream conformance that br_ops_cnt[xlayer_id]
   // [opsId], when present shall be equal to the value of
   // ops_cnt[xlayerId][ops_id] of the corresponding operating point set OBU.
+#if CONFIG_AV2_PROFILES
+  if (brt_info->br_ops_cnt[xlayer_id][ops_id] != matched_ops->ops_cnt) {
+#else
   if (brt_info->br_ops_cnt[xlayer_id][ops_id] !=
       matched_ops->ops_cnt[xlayer_id][ops_id]) {
+#endif  // CONFIG_AV2_PROFILES
     avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
                        "Inconsistent values for the operating point count"
                        "Buffer timing and OPS counts. The bitstream constraint "

@@ -6914,8 +6914,9 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
 
     // Operating Point Set
     if (layer_cfg->enable_ops) {
-#if CONFIG_AV2_PROFILES
+#if !CONFIG_AV2_PROFILES
       int xlayer_id = 0;
+#endif  // !CONFIG_AV2_PROFILES
       const int num_ops = layer_cfg->num_ops > 0 ? layer_cfg->num_ops : 1;
       // Write multiple OPS OBUs, one for each OPS
       for (int ops_idx = 0; ops_idx < num_ops && ops_idx < MAX_NUM_OPS_ID;
@@ -6923,7 +6924,9 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
         // Update cm->ops to the current OPS before calling av2_set_ops_params
         cm->ops = &cpi->ops_list[ops_idx];
         struct OperatingPointSet *ops = &cpi->ops_list[ops_idx];
-        av2_set_ops_params(cpi, ops, xlayer_id);
+#if CONFIG_AV2_PROFILES
+        if (!ops->valid) continue;
+        int xlayer_id = ops->obu_xlayer_id;
         obu_header_size = av2_write_obu_header(
             level_params, OBU_OPERATING_POINT_SET, 0, 0, data);
         obu_payload_size = av2_write_operating_point_set_obu(
@@ -6940,20 +6943,22 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
       // default/primary one
       cm->ops = &cpi->ops_list[0];
 #else
-      int xlayer_id = 0;
-      struct OperatingPointSet *ops = &cpi->ops_list[0];
-      av2_set_ops_params(cpi, ops, xlayer_id);
-      obu_header_size = av2_write_obu_header(
-          level_params, OBU_OPERATING_POINT_SET, 0, 0, data);
-      obu_payload_size = av2_write_operating_point_set_obu(
-          cpi, xlayer_id, data + obu_header_size);
-      const size_t length_field_size =
-          obu_memmove(obu_header_size, obu_payload_size, data);
-      if (av2_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
-          AVM_CODEC_OK) {
-        return AVM_CODEC_ERROR;
+        av2_set_ops_params(cpi, ops, xlayer_id);
+        obu_header_size = av2_write_obu_header(
+            level_params, OBU_OPERATING_POINT_SET, 0, 0, data);
+        obu_payload_size = av2_write_operating_point_set_obu(
+            cpi, xlayer_id, data + obu_header_size);
+        const size_t length_field_size =
+            obu_memmove(obu_header_size, obu_payload_size, data);
+        if (av2_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
+            AVM_CODEC_OK) {
+          return AVM_CODEC_ERROR;
+        }
+        data += obu_header_size + obu_payload_size + length_field_size;
       }
-      data += obu_header_size + obu_payload_size + length_field_size;
+      // point to the first OPS because the assumption is that this is a
+      // default/primary one
+      cm->ops = &cpi->ops_list[0];
 #endif  // CONFIG_AV2_PROFILES
     }
 

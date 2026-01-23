@@ -839,6 +839,83 @@ typedef struct AtlasSegmentInfo {
 #endif  // CONFIG_F414_OBU_EXTENSION
 } AtlasSegmentInfo;
 
+#if CONFIG_AV2_PROFILES
+typedef struct OpsColorInfo {
+  int ops_color_description_idc;
+  int ops_color_primaries;
+  int ops_transfer_characteristics;
+  int ops_matrix_coefficients;
+  int ops_full_range_flag;
+} OpsColorInfo;
+
+typedef struct OpsDecoderModelInfo {
+  int ops_decoder_buffer_delay;
+  int ops_encoder_buffer_delay;
+  int ops_low_delay_mode_flag;
+} OpsDecoderModelInfo;
+
+typedef struct OpMLayerInfo {
+  // mlayer
+  int ops_mlayer_map[MAX_NUM_XLAYERS];  // 8 bits per xlayer
+  int OPMLayerCount[MAX_NUM_XLAYERS];   // 4 bits per mlayer
+  // tlayer
+  int ops_tlayer_map[MAX_NUM_XLAYERS][MAX_NUM_TLAYERS];
+  int OPTLayerCount[MAX_NUM_XLAYERS][MAX_NUM_MLAYERS];
+} OpMLayerInfo;
+
+typedef struct OperatingPoint {
+  uint32_t ops_data_size;
+  int ops_intent_op;
+  int ops_config_idc;
+  int ops_aggregate_level_idx;
+  int ops_max_tier_flag;
+  int ops_max_interop;
+  int ops_seq_profile_idc[MAX_NUM_XLAYERS];
+  int ops_level_idx[MAX_NUM_XLAYERS];
+  int ops_tier_flag[MAX_NUM_XLAYERS];
+  int ops_mlayer_count[MAX_NUM_XLAYERS];
+  int ops_xlayer_map;
+  int ops_initial_display_delay_present_flag;
+  int ops_initial_display_delay_minus_1;
+  int ops_mlayer_explicit_info_flag[MAX_NUM_XLAYERS];
+  int ops_embedded_mapping[MAX_NUM_XLAYERS];
+  int ops_embedded_op_id[MAX_NUM_XLAYERS];
+
+  int XCount;
+  int OpsxLayerID[MAX_NUM_XLAYERS];
+
+  OpsColorInfo col_info;
+  OpsDecoderModelInfo decoder_model_info;
+  OpMLayerInfo mlayer_info;
+} OperatingPoint;
+
+typedef struct OperatingPointSet {
+  // NOTE: One instance of OperatingPointSet per OPS OBU
+  // This needs to be stored in ops_list[ops_id]
+  // If an OPS with a duplicate ID is received, then it will
+  // overwrite the exisiting slot in the list.
+
+  int valid;
+  int obu_xlayer_id;
+  int ops_reset_flag;
+  int ops_id;
+  int ops_cnt;
+  int ops_priority;
+  int ops_intent;
+  int ops_intent_present_flag;
+  int ops_ptl_present_flag;
+  int ops_color_info_present_flag;
+  int ops_decoder_model_info_present_flag;
+  int ops_mlayer_info_idc;
+  // Array of operating points
+  // this is up MAX_OPS_COUNT
+  OperatingPoint op[MAX_OPS_COUNT];
+
+#if CONFIG_F414_OBU_EXTENSION
+  int ops_extension_present_flag;
+#endif  // CONFIG_F414_OBU_EXTENSION
+} OperatingPointSet;
+#else
 typedef struct OpsColorInfo {
   int ops_color_description_idc[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT];
   int ops_color_primaries[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT];
@@ -914,6 +991,7 @@ typedef struct OperatingPointSet {
   int ops_extension_present_flag;
 #endif  // CONFIG_F414_OBU_EXTENSION
 } OperatingPointSet;
+#endif  // CONFIG_AV2_PROFILES
 
 // This structure specifies the color info params
 typedef struct color_info {
@@ -945,6 +1023,22 @@ typedef struct ContentInterpretation {
   SarInfo sar_info;
   avm_timing_info_t timing_info;
 } ContentInterpretation;
+
+#if CONFIG_AV2_PROFILES
+// Operating point parameters
+// Contains layer count, and indentification information the operating point
+typedef struct DecOperatingPointParams {
+  struct OperatingPointSet *dec_ops;
+  struct OperatingPoint *dec_op;
+  int DecOpSetId;            // Operating point set ID
+  int DecOpCount;            // Operaring point count within the set
+  int DecOpIndex;            // Operating point index within the ops_cnt
+  unsigned int num_mlayers;  // Number of embedded layers
+  unsigned int num_tlayers;  // Number of temporal layers
+  int DecXlayerId;
+  int isValid;
+} DecOperatingPointParams;
+#endif  // CONFIG_AV2_PROFILES
 
 // Sequence header structure.
 // Note: All syntax elements of sequence_header_obu that need to be

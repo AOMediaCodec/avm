@@ -815,7 +815,6 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
   // Initialize OPS information
   for (int i = 0; i < MAX_NUM_OPS_ID; i++)
     memset(&cpi->ops_list[i], 0, sizeof(struct OperatingPointSet));
-  cm->ops = &cpi->ops_list[0];
 
 #if CONFIG_AV2_PROFILES
   // Initialize multiple OPS structures based on the num of ops (num_ops)
@@ -824,19 +823,10 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
   // Initialize OPS sub-structure
   for (int ops_idx = 0; ops_idx < num_ops && ops_idx < MAX_NUM_OPS_ID;
        ops_idx++) {
+    // Note: using ops_idx as the ops_id
     struct OperatingPointSet *ops = &cpi->ops_list[ops_idx];
-    ops->ops_mlayer_info = &ops->ops_mlayer_info_s;
-    ops->ops_col_info = &ops->ops_col_info_s;
-    ops->ops_decoder_model_info = &ops->ops_decoder_model_info_s;
-    // Set unique OPS ids for each one.
-    for (int xlayer = 0; xlayer < MAX_NUM_XLAYERS; xlayer++) {
-      ops->ops_id[xlayer] = ops_idx;
-      // Set operating point count for this OPS ID
-      ops->ops_cnt[xlayer][ops_idx] = oxcf->tool_cfg.operating_points_count;
-      if (xlayer != GLOBAL_XLAYER_ID) {
-        ops->ops_mlayer_info_idc[xlayer][ops_idx] = 1;
-      }
-    }
+    av2_set_ops_params(ops, GLOBAL_XLAYER_ID, ops_idx,
+                       oxcf->tool_cfg.operating_points_count);
   }
 #else
   for (int i = 0; i < MAX_NUM_XLAYERS; i++) {
@@ -1109,19 +1099,10 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
   // Initialize OPS sub-structure
   for (int ops_idx = 0; ops_idx < num_ops && ops_idx < MAX_NUM_OPS_ID;
        ops_idx++) {
+    // Note: using ops_idx as the ops_id
     struct OperatingPointSet *ops = &cpi->ops_list[ops_idx];
-    ops->ops_mlayer_info = &ops->ops_mlayer_info_s;
-    ops->ops_col_info = &ops->ops_col_info_s;
-    ops->ops_decoder_model_info = &ops->ops_decoder_model_info_s;
-    // Set unique OPS ids for each one.
-    for (int xlayer = 0; xlayer < MAX_NUM_XLAYERS; xlayer++) {
-      ops->ops_id[xlayer] = ops_idx;
-      // Set operating point count for this OPS ID
-      ops->ops_cnt[xlayer][ops_idx] = oxcf->tool_cfg.operating_points_count;
-      if (xlayer != GLOBAL_XLAYER_ID) {
-        ops->ops_mlayer_info_idc[xlayer][ops_idx] = 1;
-      }
-    }
+    av2_set_ops_params(ops, GLOBAL_XLAYER_ID, ops_idx,
+                       oxcf->tool_cfg.operating_points_count);
   }
 #endif  // CONFIG_AV2_PROFILES
 

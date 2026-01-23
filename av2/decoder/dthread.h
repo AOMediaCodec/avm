@@ -41,6 +41,10 @@ typedef struct FrameWorkerData {
   size_t data_size;
   void *user_priv;
   int received_frame;
+#if CONFIG_AV2_PROFILES
+  int selected_ops_id;
+  int selected_op_index;
+#endif  // CONFIG_AV2_PROFILES
 } FrameWorkerData;
 
 #ifdef __cplusplus

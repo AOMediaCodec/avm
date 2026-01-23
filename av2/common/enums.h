@@ -262,6 +262,10 @@ enum {
 #define IBC_BOTTOM_INTERP_BORDER 1
 
 #define DMVR_SEARCH_NUM_NEIGHBORS 24
+#if CONFIG_AV2_PROFILES
+#define CONFIG_BITS 6
+#define INTEROP_BITS 4
+#endif  // CONFIG_AV2_PROFILES
 #define PROFILE_BITS 5
 // The following three profiles are currently defined.
 // Profile 0.  8-bit and 10-bit 4:2:0 and 4:0:0 only.

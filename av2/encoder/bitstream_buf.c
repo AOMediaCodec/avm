@@ -68,10 +68,18 @@ void av2_set_buffer_removal_timing_params(AV2_COMP *const cpi) {
   brt_info->obu_xlayer_id = cm->xlayer_id;
   const int xlayer_id = brt_info->obu_xlayer_id;
   // ops_id
+#if CONFIG_AV2_PROFILES
+  brt_info->br_ops_id[xlayer_id] = ops->ops_id;
+#else
   brt_info->br_ops_id[xlayer_id] = ops->ops_id[xlayer_id];
+#endif  // CONFIG_AV2_PROFILES
   const int ops_id = brt_info->br_ops_id[xlayer_id];
   // ops_cnt
+#if CONFIG_AV2_PROFILES
+  brt_info->br_ops_cnt[xlayer_id][ops_id] = ops->ops_cnt;
+#else
   brt_info->br_ops_cnt[xlayer_id][ops_id] = ops->ops_cnt[xlayer_id][ops_id];
+#endif  //
   const int ops_cnt = brt_info->br_ops_cnt[xlayer_id][ops_id];
   // decoder model information
   int br_decoder_model_present_op_flag = 0;
