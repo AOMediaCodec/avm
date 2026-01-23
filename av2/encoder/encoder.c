@@ -537,9 +537,9 @@ void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
   seq->mlayer_dependency_present_flag = 0;
   setup_default_temporal_layer_dependency_structure(seq);
   setup_default_embedded_layer_dependency_structure(seq);
-#if CONFIG_AV2_PROFILES
+#if CONFIG_AV2_PROFILES || CONFIG_G006_SYNTAX_REORDER
   seq->seq_max_mlayer_cnt = 1;
-#endif  // CONFIG_AV2_PROFILES
+#endif  // CONFIG_AV2_PROFILES || CONFIG_G006_SYNTAX_REORDER
 
   // delta_q
   seq->base_y_dc_delta_q = 0;

@@ -178,10 +178,10 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
   AV2C_READ_BITS_OR_RETURN_ERROR(seq_profile, PROFILE_BITS);
   config->seq_profile_idc = seq_profile;
   AV2C_READ_BIT_OR_RETURN_ERROR(single_picture_header_flag);
-  if (!single_picture_header_flag) {
-    AV2C_READ_BITS_OR_RETURN_ERROR(seq_lcr_id, 3);
-    config->seq_lcr_id = seq_lcr_id;
-    AV2C_READ_BIT_OR_RETURN_ERROR(still_picture);
+#if CONFIG_G006_SYNTAX_REORDER
+  if (parse_chroma_format_bitdepth(reader, config) != 0) {
+    fprintf(stderr, "Chroma format or bitdepth parsing failed.\n");
+    return -1;
   }
   AV2C_READ_BITS_OR_RETURN_ERROR(seq_level_idx_0, 5);
   config->seq_level_idx_0 = seq_level_idx_0;
@@ -189,7 +189,23 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
     AV2C_READ_BIT_OR_RETURN_ERROR(single_tier_0);
     config->seq_tier_0 = 0;
   }
-
+#endif  // CONFIG_G006_SYNTAX_REORDER
+  if (!single_picture_header_flag) {
+    AV2C_READ_BITS_OR_RETURN_ERROR(seq_lcr_id, 3);
+    config->seq_lcr_id = seq_lcr_id;
+    AV2C_READ_BIT_OR_RETURN_ERROR(still_picture);
+#if CONFIG_G006_SYNTAX_REORDER
+    AV2C_READ_BITS_OR_RETURN_ERROR(seq_max_mlayer_cnt, 3);
+#endif  // CONFIG_G006_SYNTAX_REORDER
+  }
+#if !CONFIG_G006_SYNTAX_REORDER
+  AV2C_READ_BITS_OR_RETURN_ERROR(seq_level_idx_0, 5);
+  config->seq_level_idx_0 = seq_level_idx_0;
+  if (seq_level_idx_0 > 7 && !single_picture_header_flag) {
+    AV2C_READ_BIT_OR_RETURN_ERROR(single_tier_0);
+    config->seq_tier_0 = 0;
+  }
+#endif  // !CONFIG_G006_SYNTAX_REORDER
   AV2C_READ_BITS_OR_RETURN_ERROR(frame_width_bits_minus_1, 4);
   AV2C_READ_BITS_OR_RETURN_ERROR(frame_height_bits_minus_1, 4);
   AV2C_READ_BITS_OR_RETURN_ERROR(max_frame_width_minus_1,
@@ -212,10 +228,12 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
     config->conf_win_bottom_offset = 0;
   }
 
+#if !CONFIG_G006_SYNTAX_REORDER
   if (parse_chroma_format_bitdepth(reader, config) != 0) {
     fprintf(stderr, "Chroma format or bitdepth parsing failed.\n");
     return -1;
   }
+#endif  // !CONFIG_G006_SYNTAX_REORDER
 
   if (single_picture_header_flag) {
     config->initial_presentation_delay_present = 0;

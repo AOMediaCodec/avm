@@ -343,18 +343,11 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
   }
 
   seq_params->single_picture_header_flag = avm_rb_read_bit(rb);
-  if (seq_params->single_picture_header_flag) {
-    seq_params->seq_lcr_id = LCR_ID_UNSPECIFIED;
-    seq_params->still_picture = 1;
-  } else {
-    int seq_lcr_id = avm_rb_read_literal(rb, 3);
-    if (seq_lcr_id > MAX_NUM_SEQ_LCR_ID) {
-      avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-                         "Unsupported LCR id in the Sequence Header.\n");
-    }
-    seq_params->seq_lcr_id = seq_lcr_id;
-    seq_params->still_picture = avm_rb_read_bit(rb);
-  }
+#if CONFIG_G006_SYNTAX_REORDER
+  av2_read_chroma_format_bitdepth(rb, seq_params, &cm->error);
+  //  seq_params->seq_chroma_format_idc = avm_rb_read_uvlc(rb);
+  //  seq_params->bit_depth = av2_get_bitdepth_from_index(avm_rb_read_uvlc(rb));
+  //  set_seq_chroma_format_and_bitdepth(cm);
 
   if (!read_bitstream_level(&seq_params->seq_max_level_idx, rb)) {
     cm->error.error_code = AVM_CODEC_UNSUP_BITSTREAM;
@@ -365,7 +358,36 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
     seq_params->seq_tier = avm_rb_read_bit(rb);
   else
     seq_params->seq_tier = 0;
+#endif  // CONFIG_G006_SYNTAX_REORDER
 
+  if (seq_params->single_picture_header_flag) {
+    seq_params->seq_lcr_id = LCR_ID_UNSPECIFIED;
+    seq_params->still_picture = 1;
+    seq_params->decoder_model_info_present_flag = 0;
+    seq_params->display_model_info_present_flag = 0;
+  } else {
+    int seq_lcr_id = avm_rb_read_literal(rb, 3);
+    if (seq_lcr_id > MAX_NUM_SEQ_LCR_ID) {
+      avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+                         "Unsupported LCR id in the Sequence Header.\n");
+    }
+    seq_params->seq_lcr_id = seq_lcr_id;
+    seq_params->still_picture = avm_rb_read_bit(rb);
+#if CONFIG_G006_SYNTAX_REORDER
+    seq_params->seq_max_mlayer_cnt = avm_rb_read_literal(rb, 3);
+#endif  // CONFIG_G006_SYNTAX_REORDER
+  }
+#if !CONFIG_G006_SYNTAX_REORDER
+  if (!read_bitstream_level(&seq_params->seq_max_level_idx, rb)) {
+    cm->error.error_code = AVM_CODEC_UNSUP_BITSTREAM;
+    return 0;
+  }
+  if (seq_params->seq_max_level_idx >= SEQ_LEVEL_4_0 &&
+      !seq_params->single_picture_header_flag)
+    seq_params->seq_tier = avm_rb_read_bit(rb);
+  else
+    seq_params->seq_tier = 0;
+#endif  // !CONFIG_G006_SYNTAX_REORDER
   const int num_bits_width = avm_rb_read_literal(rb, 4) + 1;
   const int num_bits_height = avm_rb_read_literal(rb, 4) + 1;
   const int max_frame_width = avm_rb_read_literal(rb, num_bits_width) + 1;
@@ -379,7 +401,9 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
   av2_read_conformance_window(rb, seq_params);
   av2_validate_seq_conformance_window(seq_params, &cm->error);
 
+#if !CONFIG_G006_SYNTAX_REORDER
   av2_read_chroma_format_bitdepth(rb, seq_params, &cm->error);
+#endif  // !CONFIG_G006_SYNTAX_REORDER
 
   if (seq_params->single_picture_header_flag) {
     seq_params->decoder_model_info_present_flag = 0;
@@ -441,12 +465,12 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
   } else {
     seq_params->max_tlayer_id = avm_rb_read_literal(rb, TLAYER_BITS);
     seq_params->max_mlayer_id = avm_rb_read_literal(rb, MLAYER_BITS);
-#if CONFIG_AV2_PROFILES
+#if CONFIG_AV2_PROFILES && !CONFIG_G006_SYNTAX_REORDER
     if (seq_params->max_mlayer_id > 0) {
       int n = avm_ceil_log2(seq_params->max_mlayer_id + 1);
       seq_params->seq_max_mlayer_cnt = avm_rb_read_literal(rb, n);
     }
-#endif  // CONFIG_AV2_PROFILES
+#endif  // CONFIG_AV2_PROFILES && !CONFIG_G006_SYNTAX_REORDER
   }
 
   // setup default embedded layer dependency

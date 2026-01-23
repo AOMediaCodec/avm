@@ -1067,17 +1067,22 @@ typedef struct SequenceHeader {
   int seq_max_encoder_buffer_delay;
   int seq_max_low_delay_mode_flag;
   BITSTREAM_PROFILE seq_profile_idc;
-#if CONFIG_AV2_PROFILES
+#if CONFIG_AV2_PROFILES || CONFIG_G006_SYNTAX_REORDER
   // Maximum number of embedded layers that are supported in the bitstream
   int seq_max_mlayer_cnt;
-#endif  // CONFIG_AV2_PROFILES
-
+#endif  // CONFIG_AV2_PROFILES || CONFIG_G006_SYNTAX_REORDER
+#if !CONFIG_G006_SYNTAX_REORDER
   // Color config.
+#endif                        // !CONFIG_G006_SYNTAX_REORDER
   avm_bit_depth_t bit_depth;  // AVM_BITS_8 in profile 0 or 1,
                               // AVM_BITS_10 or AVM_BITS_12 in profile 2 or 3.
-  uint8_t monochrome;         // Monochorme video
-  int subsampling_x;          // Chroma subsampling for x
-  int subsampling_y;          // Chroma subsampling for y
+#if CONFIG_G006_SYNTAX_REORDER
+  // Color config.
+  uint32_t seq_chroma_format_idc;
+#endif
+  uint8_t monochrome;     // Monochorme video
+  int subsampling_x;      // Chroma subsampling for x
+  int subsampling_y;      // Chroma subsampling for y
   uint8_t equal_ac_dc_q;  // force ac, dc quantizers in each plane to be equal
   uint8_t separate_uv_delta_q;
   int8_t base_y_dc_delta_q;

@@ -252,15 +252,27 @@ static avm_codec_err_t decoder_peek_si_internal(const uint8_t *data,
 
       BITSTREAM_PROFILE profile = av2_read_profile(&rb);  // profile
       single_picture_header_flag = avm_rb_read_bit(&rb);
-      if (!single_picture_header_flag) {
-        avm_rb_read_literal(&rb, 3);  // seq_lcr_id
-        avm_rb_read_bit(&rb);         // still_picture
-      }
+#if CONFIG_G006_SYNTAX_REORDER
+      status = parse_chroma_format_bitdepth(&rb, profile);
+      if (status != AVM_CODEC_OK) return status;
       int seq_level_idx =
           avm_rb_read_literal(&rb, LEVEL_BITS);  // seq_level_idx
       if (seq_level_idx > 7 && !single_picture_header_flag)
         avm_rb_read_bit(&rb);  // seq_tier_flag
-
+#endif                         // CONFIG_G006_SYNTAX_REORDER
+      if (!single_picture_header_flag) {
+        avm_rb_read_literal(&rb, 3);  // seq_lcr_id
+        avm_rb_read_bit(&rb);         // still_picture
+#if CONFIG_G006_SYNTAX_REORDER
+        avm_rb_read_literal(&rb, 3);  // seq_max_mlayer_cnt
+#endif                                // CONFIG_G006_SYNTAX_REORDER
+      }
+#if !CONFIG_G006_SYNTAX_REORDER
+      int seq_level_idx =
+          avm_rb_read_literal(&rb, LEVEL_BITS);  // seq_level_idx
+      if (seq_level_idx > 7 && !single_picture_header_flag)
+        avm_rb_read_bit(&rb);  // seq_tier_flag
+#endif                         // !CONFIG_G006_SYNTAX_REORDER
       int num_bits_width = avm_rb_read_literal(&rb, 4) + 1;
       int num_bits_height = avm_rb_read_literal(&rb, 4) + 1;
       int max_frame_width = avm_rb_read_literal(&rb, num_bits_width) + 1;
@@ -276,8 +288,10 @@ static avm_codec_err_t decoder_peek_si_internal(const uint8_t *data,
         si->conf_win_bottom_offset = avm_rb_read_uvlc(&rb);
       }
 
+#if !CONFIG_G006_SYNTAX_REORDER
       status = parse_chroma_format_bitdepth(&rb, profile);
       if (status != AVM_CODEC_OK) return status;
+#endif  // !CONFIG_G006_SYNTAX_REORDER
 
       got_sequence_header = 1;
     } else if (obu_header.type == OBU_CLK || obu_header.type == OBU_OLK) {
