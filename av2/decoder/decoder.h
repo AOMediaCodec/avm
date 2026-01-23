@@ -282,10 +282,6 @@ typedef struct {
   int tlayer_id;
   int xlayer_id;
   int is_vcl;
-  // is_key_frame_with_sh is 1 when obu_type is CLK/OLK and a sequence header is
-  // present in the frame unit. is_key_frame_with_sh is 0 when obu_type is not
-  // CLK/OLK or a sequence header is present in the frame unit.
-  int is_key_frame_with_sh;
 } obu_info;
 
 typedef struct AV2Decoder {

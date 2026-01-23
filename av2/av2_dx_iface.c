@@ -621,10 +621,14 @@ static bool check_random_access_frame_unit(struct AV2Decoder *pbi,
       (pbi->random_access_point_count == pbi->random_access_point_index);
 
   //(has_key_frames && has_seq_header && OBU_CLK) : always random access point.
-  //(has_key_frames && has_seq_header && OBU_OLK) : random access point when
-  // random_accessed. (pbi->last_frame_unit.mlayer_id == -1 && has_key_frame)  :
-  // random access point when has_seq_header. (pbi->last_frame_unit.mlayer_id ==
-  //-1 && !has_key_frame)  : you have a problem.
+  // The reference list is flushed and cleared. (has_key_frames &&
+  // has_seq_header
+  //&& OBU_OLK) : counted as a random access point. The reference list is
+  // flushed and cleared only when random_accessed.
+  //(pbi->last_frame_unit.mlayer_id == -1 && has_key_frame)  : this is the first
+  // frame unit of a coded sequence. This can be a rando access point only when
+  // has_seq_header=1. (pbi->last_frame_unit.mlayer_id == -1 && !has_key_frame)
+  //: you have a problem.
   pbi->is_random_access_frame_unit = 0;
   if (pbi->last_frame_unit.mlayer_id == -1) {
     // It is the first frame unit in the sequence.
@@ -660,9 +664,7 @@ static bool check_random_access_frame_unit(struct AV2Decoder *pbi,
 }
 
 static void set_last_frame_unit(struct AV2Decoder *pbi) {
-  bool has_seq_header = false;
   for (int obu_idx = 0; obu_idx < pbi->num_obus_with_frame_unit; obu_idx++) {
-    has_seq_header |= (pbi->obu_list[obu_idx].obu_type == OBU_SEQUENCE_HEADER);
     if (pbi->obu_list[obu_idx].is_vcl &&
         pbi->obu_list[obu_idx].first_tile_group == 1) {
       if (pbi->obu_list[obu_idx].showable_frame == 0 &&
@@ -676,12 +678,6 @@ static void set_last_frame_unit(struct AV2Decoder *pbi) {
       pbi->last_frame_unit = pbi->obu_list[obu_idx];
     }
   }
-
-  if (has_seq_header && (pbi->last_frame_unit.obu_type == OBU_CLK ||
-                         pbi->last_frame_unit.obu_type == OBU_OLK))
-    pbi->last_frame_unit.is_key_frame_with_sh = 1;
-  else
-    pbi->last_frame_unit.is_key_frame_with_sh = 0;
 }
 
 static void reset_last_frame_unit(struct AV2Decoder *pbi, const uint8_t *data,
