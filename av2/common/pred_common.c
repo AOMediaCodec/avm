@@ -139,6 +139,7 @@ int is_layer_dropped(const int current_layer_id, const int layer_drop_mask) {
   return ((1 << current_layer_id) & layer_drop_mask) > 0;
 }
 
+#if 0   // av2-spec-internal issue #448
 // Note: This function is only used for bitstream conformance check in the AVM
 // reference software. Decoder implementations may skip this check since this
 // function shall not change the reference mapping for different operating
@@ -248,6 +249,7 @@ int av2_get_op_constrained_ref_frames(AV2_COMMON *cm, int cur_frame_disp,
   }
   return scores[0].index;  // return default index for invalid case
 }
+#endif  // av2-spec-internal issue #448
 
 // Determine reference mapping by ranking the reference frames based on a
 // score function.

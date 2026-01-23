@@ -2920,7 +2920,7 @@ typedef struct AV2_COMP {
   /*!
    * list for Operating Point Set (OPS) information
    */
-  struct OperatingPointSet ops_list[MAX_NUM_OPS_ID];
+  struct OperatingPointSet ops_list[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
   /*!
    * list for Atlas information
    */

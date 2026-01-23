@@ -374,8 +374,20 @@ typedef struct AV2Decoder {
   avm_inspect_cb inspect_tip_cb;
   void *inspect_ctx;
 #endif
+#if CONFIG_AV2_PROFILES
+  // Operating point set id
+  int ops_id;
+  // Operating point index
+  int op_index;
+  // Selected operating point set id
+  int selected_ops_id;
+  // Selected operarint point id
+  int selected_op_index;
+  DecOperatingPointParams dec_op_params;
+#else
   int operating_point;
   int current_operating_point;
+#endif  // CONFIG_AV2_PROFILES
   int seen_frame_header;
   // The expected start_tile (tg_start syntax element) of the next tile group.
   int next_start_tile;
@@ -444,7 +456,11 @@ typedef struct AV2Decoder {
   int lcr_counter;
   struct AtlasSegmentInfo atlas_list[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
   int atlas_counter[MAX_NUM_XLAYERS];
+#if CONFIG_AV2_PROFILES
+  struct OperatingPointSet ops_list[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
+#else
   struct OperatingPointSet ops_list[MAX_NUM_OPS_ID];
+#endif  // CONFIG_AV2_PROFILES
   int ops_counter;
   /*!
    * active layer configuration record for a coded video sequence

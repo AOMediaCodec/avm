@@ -61,7 +61,7 @@ uint32_t av2_write_layer_configuration_record_obu(AV2_COMP *const cpi,
                                                   uint8_t *const dst);
 uint32_t av2_write_atlas_segment_info_obu(AV2_COMP *const cpi,
                                           uint8_t *const dst);
-uint32_t av2_write_operating_point_set_obu(AV2_COMP *const cpi,
+uint32_t av2_write_operating_point_set_obu(AV2_COMP *const cpi, int xlayer_id,
                                            int obu_xlayer_id,
                                            uint8_t *const dst);
 
@@ -72,8 +72,12 @@ int av2_set_atlas_segment_info_params(AV2_COMP *cpi,
                                       struct AtlasSegmentInfo *atlas,
                                       int xlayer_id);
 
-int av2_set_ops_params(AV2_COMP *cpi, struct OperatingPointSet *ops,
-                       int xlayer_id);
+#if CONFIG_AV2_PROFILES
+void av2_set_ops_params(struct OperatingPointSet *ops, int xlayer_id,
+                        int ops_id, int ops_cnt);
+#else
+int av2_set_ops_params(struct OperatingPointSet *ops, int xlayer_id);
+#endif  // CONFIG_AV2_PROFILES
 
 uint32_t av2_write_buffer_removal_timing_obu(
     const BufferRemovalTimingInfo *brt_info, uint8_t *const dst);
