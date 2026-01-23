@@ -7050,7 +7050,7 @@ static int read_show_existing_frame(AV2Decoder *pbi, bool is_regular_obu,
     resize_context_buffers(cm, frame_to_show->width, frame_to_show->height);
     setup_buffer_pool(cm);
     avm_yv12_copy_frame(&frame_to_show->buf, &cm->cur_frame->buf,
-                        av2_num_planes(cm) ? 1 : 3);
+                        av2_num_planes(cm));
   } else {
     if (frame_to_show->implicit_output_picture ||
         frame_to_show->immediate_output_picture) {
