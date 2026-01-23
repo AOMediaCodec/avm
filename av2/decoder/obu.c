@@ -390,13 +390,13 @@ static uint32_t read_multi_frame_header_obu(AV2Decoder *pbi,
   AV2_COMMON *const cm = &pbi->common;
   const uint32_t saved_bit_offset = rb->bit_offset;
 
-  av2_read_multi_frame_header(cm, rb);
+  const uint32_t cur_mfh_id = av2_read_multi_frame_header(cm, rb);
 
 #if CONFIG_F414_OBU_EXTENSION
   size_t bits_before_ext = rb->bit_offset - saved_bit_offset;
-  cm->mfh_params[cm->cur_mfh_id].mfh_extension_present_flag =
-      avm_rb_read_bit(rb);
-  if (cm->mfh_params[cm->cur_mfh_id].mfh_extension_present_flag) {
+  assert(cur_mfh_id >= 0 && cur_mfh_id < MAX_MFH_NUM);
+  cm->mfh_params[cur_mfh_id].mfh_extension_present_flag = avm_rb_read_bit(rb);
+  if (cm->mfh_params[cur_mfh_id].mfh_extension_present_flag) {
     // Extension data bits = total - bits_read_before_extension -1 (ext flag) -
     // trailing bits
     int extension_bits = read_obu_extension_bits(
