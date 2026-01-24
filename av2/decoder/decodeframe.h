@@ -71,7 +71,7 @@ void av2_copy_predefined_qmatrices_to_list(struct AV2Decoder *pbi,
 
 // Reads MFH (multi-frame header) from bitstream.
 // On success, returns the MFH ID.
-// On failure, calls avm_internal_error( and does not return.
+// On failure, calls avm_internal_error() and does not return.
 uint32_t av2_read_multi_frame_header(AV2_COMMON *cm,
                                      struct avm_read_bit_buffer *rb);
 
