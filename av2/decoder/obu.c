@@ -1636,11 +1636,31 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
 
     avm_codec_err_t status = avm_read_obu_header_and_size(
         data, bytes_available, &obu_header, &payload_size, &bytes_read);
-
+    
     if (status != AVM_CODEC_OK) {
       cm->error.error_code = status;
       return -1;
     }
+    
+#if CONFIG_AV2_PROFILES
+  if (pbi->valid_ops_exists == -1) {
+    for (int i = 0; i < MAX_OPS_COUNT; i++) {
+      struct OperatingPointSet *ops = &pbi->ops_list[i];
+      if (ops != NULL) {
+        pbi->valid_ops_exists = 1;
+        break;
+      }
+    }
+  }
+  // If a valid OPS exists, then have to check
+  // if the current OBU is within that mlayer and tlayer
+  // if it is continue
+  // if it is not then skip the payload
+  // if it is not then skip the payload
+  if (pbi->valid_ops_exists) {
+      
+  }
+#endif  // CONFIG_AV2_PROFILES
 
     // Skip all obus till the random_accessed-th random access point
     // Remove all leading_vcl obus
@@ -1783,10 +1803,10 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
       case OBU_SEQUENCE_HEADER:
         cm->xlayer_id = obu_header.obu_xlayer_id;
         pbi->stream_switched = 0;
+        decoded_payload_size = read_sequence_header_obu(pbi, &rb);
 #if CONFIG_AV2_PROFILES
         avm_set_current_operating_point(pbi);
 #endif  // CONFIG_AV2_PROFILES
-        decoded_payload_size = read_sequence_header_obu(pbi, &rb);
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
         break;
       case OBU_BUFFER_REMOVAL_TIMING:

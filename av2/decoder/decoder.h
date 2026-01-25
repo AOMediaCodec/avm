@@ -430,6 +430,7 @@ typedef struct AV2Decoder {
   int atlas_counter;
   struct OperatingPointSet ops_list[MAX_NUM_OPS_ID];
   int ops_counter;
+  int valid_ops_exists;
   /*!
    * active layer configuration record for a coded video sequence
    */

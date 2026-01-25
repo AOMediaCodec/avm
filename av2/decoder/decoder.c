@@ -235,6 +235,7 @@ AV2Decoder *av2_decoder_create(BufferPool *const pool) {
   // check if this needs to be 0
   pbi->selected_ops_id = -1;
   pbi->selected_op_index = -1;
+  pbi->valid_ops_exists = -1;
 #endif  // CONFIG_AV2_PROFILES
 
   memset(&pbi->last_frame_unit, -1, sizeof(pbi->last_frame_unit));
