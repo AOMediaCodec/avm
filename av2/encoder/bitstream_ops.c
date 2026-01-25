@@ -183,7 +183,7 @@ static uint32_t calculate_ops_data_size(AV2_COMP *cpi, int obu_xlayer_id,
   // Write the xlayer map and the mlayer info if xlayer_id == 31
   if (obu_xlayer_id == GLOBAL_XLAYER_ID) {
     // Write the malyer info for each xlayer in the map
-    avm_wb_write_literal(&temp_wb, op->ops_xlayer_map, MAX_NUM_XLAYERS -1);
+    avm_wb_write_literal(&temp_wb, op->ops_xlayer_map, MAX_NUM_XLAYERS - 1);
     for (int j = 0; j < MAX_NUM_XLAYERS - 1; j++) {
       if (op->ops_xlayer_map & (1 << j)) {
         if (ops->ops_ptl_present_flag) {

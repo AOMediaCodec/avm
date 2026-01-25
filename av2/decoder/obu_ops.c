@@ -234,12 +234,13 @@ uint32_t av2_read_operating_point_set_obu(struct AV2Decoder *pbi,
           if ((op->ops_xlayer_map & (1 << j))) {
             op->OpsxLayerID[k] = j;
             k++;
-            
+
             // ops_params->ops_mlayer_info_idc[obu_xlayer_id][ops_id] == 0
             // specifies that mlayer information syntax structure is not present
             // in the current OPS.
             if (ops->ops_ptl_present_flag) {
-              op->ops_seq_profile_idc[j] = avm_rb_read_literal(rb, PROFILE_BITS);
+              op->ops_seq_profile_idc[j] =
+                  avm_rb_read_literal(rb, PROFILE_BITS);
               op->ops_level_idx[j] = avm_rb_read_literal(rb, LEVEL_BITS);
               op->ops_tier_flag[j] = avm_rb_read_bit(rb);
               op->ops_mlayer_count[j] = avm_rb_read_literal(rb, 3);
@@ -257,15 +258,16 @@ uint32_t av2_read_operating_point_set_obu(struct AV2Decoder *pbi,
                 op->ops_embedded_mapping[j] = avm_rb_read_literal(rb, 4);
                 op->ops_embedded_op_id[j] = avm_rb_read_literal(rb, 3);
                 if (op->ops_embedded_op_id[j] > 6) {
-                  avm_internal_error(
-                                     &pbi->common.error, AVM_CODEC_UNSUP_BITSTREAM,
-                                     "value of ops_embedded_op_id shall not be larger than 6.");
+                  avm_internal_error(&pbi->common.error,
+                                     AVM_CODEC_UNSUP_BITSTREAM,
+                                     "value of ops_embedded_op_id shall not be "
+                                     "larger than 6.");
                 }
               }
             } else if (ops->ops_mlayer_info_idc >= 3) {
               avm_internal_error(
-                                 &pbi->common.error, AVM_CODEC_UNSUP_BITSTREAM,
-                                 "value of ops_embedded_op_id shall not be larger than 3.");
+                  &pbi->common.error, AVM_CODEC_UNSUP_BITSTREAM,
+                  "value of ops_embedded_op_id shall not be larger than 3.");
             }
           }
         }
