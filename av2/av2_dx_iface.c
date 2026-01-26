@@ -683,8 +683,11 @@ static void set_last_frame_unit(struct AV2Decoder *pbi) {
   }
 }
 
-static void reset_last_frame_unit(struct AV2Decoder *pbi, const uint8_t *data,
-                                  uint64_t data_sz) {
+static avm_codec_err_t reset_last_frame_unit(struct AV2Decoder *pbi,
+                                             const uint8_t *data,
+                                             uint64_t data_sz) {
+  avm_codec_err_t res = AVM_CODEC_OK;
+
   // NOTE: last_frame_unit and last_displayable_frame_unit should be reset to -1
   // when the upcoming frame unit should not be compared with the previous frame
   // unit such as the first frame of a new CVS.
@@ -695,8 +698,9 @@ static void reset_last_frame_unit(struct AV2Decoder *pbi, const uint8_t *data,
   while (data_read < data + data_sz) {
     size_t payload_size = 0;
     size_t bytes_read = 0;
-    avm_read_obu_header_and_size(data_read, data_sz, &obu_header, &payload_size,
-                                 &bytes_read);
+    res = avm_read_obu_header_and_size(data_read, data_sz, &obu_header,
+                                       &payload_size, &bytes_read);
+    if (res != AVM_CODEC_OK) return res;
     pbi->num_obus_with_frame_unit++;
     data_read += bytes_read + payload_size;
     reset_last_frame_units =
@@ -710,6 +714,8 @@ static void reset_last_frame_unit(struct AV2Decoder *pbi, const uint8_t *data,
     memset(&pbi->last_displayable_frame_unit, -1,
            sizeof(pbi->last_displayable_frame_unit));
   }
+
+  return res;
 }
 
 static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
@@ -794,8 +800,9 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
 #endif  // !CONFIG_INSPECTION
 
   // reset last_frame_unit and last_displayable_frame_unit if needed
-  reset_last_frame_unit(frame_worker_data->pbi, data_start,
-                        (uint64_t)(data_end - data_start));
+  res = reset_last_frame_unit(frame_worker_data->pbi, data_start,
+                              (uint64_t)(data_end - data_start));
+  if (res != AVM_CODEC_OK) return res;
 
   // Note:obu_list is placed in pbi instead of a local variable in
   // avm_decode_frame_from_obus() due to the avm encoder that feeds multiple
