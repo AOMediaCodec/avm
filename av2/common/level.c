@@ -342,6 +342,7 @@ typedef enum {
   FRAME_HEADER_RATE_TOO_HIGH,
   DISPLAY_RATE_TOO_HIGH,
   DECODE_RATE_TOO_HIGH,
+  FRAME_SYMBOL_COUNT_TOO_HIGH,
   CS_TOO_HIGH,
   TILE_SIZE_HEADER_RATE_TOO_HIGH,
   BITRATE_TOO_HIGH,
@@ -368,6 +369,7 @@ static const char *level_fail_messages[TARGET_LEVEL_FAIL_IDS] = {
   "The frame header rate is too high.",
   "The display luma sample rate is too high.",
   "The decoded luma sample rate is too high.",
+  "The number of frame symbols is too high.",
   "The compression size is too high.",
   "The product of max tile size and header rate is too high.",
   "The bitrate is too high.",
@@ -401,6 +403,21 @@ static double get_max_compressed_size(const AV2LevelSpec *const level_spec,
       (8 * min_comp_basis);
   return AVMMIN((luma_sample_count * bitrate_profile_factor) * 1.25 / 8.0,
                 max_compressed_size);
+}
+
+static double get_max_frame_symbol_count(const AV2LevelSpec *const level_spec,
+                                         int tier, BITSTREAM_PROFILE profile,
+                                         double frame_parsing_time) {
+  if (level_spec->level < SEQ_LEVEL_4_0) tier = 0;
+  const double min_comp_basis =
+      (tier ? level_spec->high_cr : level_spec->main_cr);
+  const double bitrate_profile_factor =
+      profile == PROFILE_0 ? 1.0 : (profile == PROFILE_1 ? 2.0 : 3.0);
+
+  double max_frame_symbol_count =
+      frame_parsing_time * level_spec->max_decode_rate *
+      bitrate_profile_factor * (8 / (9 * min_comp_basis) + 1 / 48);
+  return max_frame_symbol_count;
 }
 
 double av2_get_max_bitrate_for_level(AV2_LEVEL level_index, int tier,
@@ -635,6 +652,7 @@ void av2_decoder_model_init(const AV2_COMP *const cpi, AV2_LEVEL level,
   decoder_model->max_decode_rate = 0.0;
   decoder_model->max_tile_rate_satisfy = true;
   decoder_model->compressed_size_satisfy = true;
+  decoder_model->frame_symbol_count_satisfy = true;
   decoder_model->max_display_rate = 0.0;
 
   decoder_model->num_frame = -1;
@@ -751,6 +769,11 @@ void av2_decoder_model_process_frame(const AV2_COMP *const cpi,
     decoder_model->compressed_size_satisfy =
         decoder_model->compressed_size_satisfy &&
         (coded_bits <= compressed_size_limit);
+    double frame_symbol_count_limit = get_max_frame_symbol_count(
+        av2_level_defs + level, cpi->tier[0], seq_params->profile, dt);
+    decoder_model->frame_symbol_count_satisfy =
+        decoder_model->frame_symbol_count_satisfy &&
+        (cm->features.frame_symbol_count <= frame_symbol_count_limit);
     // A frame with show_existing_frame being false indicates the end of a DFG.
     // Update the bits arrival time of this DFG.
     const double buffer_delay = (decoder_model->encoder_buffer_delay +
@@ -1041,6 +1064,10 @@ static TARGET_LEVEL_FAIL_ID check_level_constraints(
       }
       if (!decoder_model->compressed_size_satisfy) {
         fail_id = CS_TOO_HIGH;
+        break;
+      }
+      if (!decoder_model->frame_symbol_count_satisfy) {
+        fail_id = FRAME_SYMBOL_COUNT_TOO_HIGH;
         break;
       }
     }

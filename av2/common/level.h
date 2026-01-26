@@ -147,6 +147,7 @@ typedef struct {
   double max_decode_rate;
   bool max_tile_rate_satisfy;
   bool compressed_size_satisfy;
+  bool frame_symbol_count_satisfy;
 } DECODER_MODEL;
 
 typedef struct {
