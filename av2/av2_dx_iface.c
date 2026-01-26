@@ -574,6 +574,8 @@ static avm_codec_err_t decoder_inspect(avm_codec_alg_priv_t *ctx,
 static avm_codec_err_t check_random_access_frame_unit(
     struct AV2Decoder *pbi, const uint8_t *data, uint64_t data_sz,
     bool *skip_decoding_frame_units) {
+  avm_codec_err_t res = AVM_CODEC_OK;
+
   // Note that it assumes a SH will be provided in data when it needs to be
   // provded. IMPORTANT: it assumes there will be no other frame units then CLK
   // in data: ex) no [16][8][4][2][1]... if there is CLK/OLK
@@ -591,8 +593,9 @@ static avm_codec_err_t check_random_access_frame_unit(
   while (data_read < data + data_sz) {
     size_t payload_size = 0;
     size_t bytes_read = 0;
-    avm_read_obu_header_and_size(data_read, data_sz, &obu_header, &payload_size,
-                                 &bytes_read);
+    res = avm_read_obu_header_and_size(data_read, data_sz, &obu_header,
+                                       &payload_size, &bytes_read);
+    if (res != AVM_CODEC_OK) return res;
     pbi->num_obus_with_frame_unit++;
     data_read += bytes_read + payload_size;
     has_key_frames |= obu_header.type == OBU_CLK || obu_header.type == OBU_OLK;
@@ -660,7 +663,7 @@ static avm_codec_err_t check_random_access_frame_unit(
       *skip_decoding_frame_units = true;
     }
   }
-  return AVM_CODEC_OK;
+  return res;
 }
 
 static void set_last_frame_unit(struct AV2Decoder *pbi) {
