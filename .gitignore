@@ -18,6 +18,11 @@ parakit.egg-info/
 .DS_Store
 .idea/
 
+# Ignore all in build folder except a few elements
+build/
+!build/cmake
+!build/.gitattributes
+
 # Vim swap files
 *.swp
 *.swn
