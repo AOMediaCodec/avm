@@ -743,7 +743,7 @@ static INLINE void get_txb_ctx_skip(const BLOCK_SIZE plane_bsize,
   (void)tx_size;
   (void)a;
   (void)l;
-  const int skip_offset = 9;
+  const int skip_offset = TXB_SKIP_CONTEXTS - 1;
   txb_ctx->dc_sign_ctx = 0;
   txb_ctx->txb_skip_ctx = skip_offset;
 }
