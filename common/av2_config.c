@@ -293,11 +293,8 @@ static int parse_content_intrepretation_obu(const uint8_t *const buffer,
   AV2C_READ_BIT_OR_RETURN_ERROR(ci_timing_info_present_flag);
   config->ci_timing_info_present_flag = ci_timing_info_present_flag;
 
-  AV2C_READ_BIT_OR_RETURN_ERROR(ci_extension_present_flag);
-  (void)ci_extension_present_flag;  // Not stored in config
-
-  AV2C_READ_BIT_OR_RETURN_ERROR(reserved_bit);
-  (void)reserved_bit;  // Reserved bit
+  AV2C_READ_BITS_OR_RETURN_ERROR(reserved_bits, 2);
+  (void)reserved_bits;  // Reserved bits
 
   // Parse color information if present
   if (ci_color_description_present_flag) {
@@ -365,7 +362,7 @@ static int parse_content_intrepretation_obu(const uint8_t *const buffer,
   }
 
   // Skip timing info parsing for now (complex structure)
-  // Skip extension parsing (not yet defined)
+  // Skip extension parsing
   config->ci_present = 1;
   return 0;
 }

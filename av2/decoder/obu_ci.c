@@ -195,8 +195,7 @@ uint32_t av2_read_content_interpretation_obu(struct AV2Decoder *pbi,
   ci_temp.ci_chroma_sample_position_present_flag = avm_rb_read_bit(rb);
   ci_temp.ci_aspect_ratio_info_present_flag = avm_rb_read_bit(rb);
   ci_temp.ci_timing_info_present_flag = avm_rb_read_bit(rb);
-  ci_temp.ci_extension_present_flag = avm_rb_read_bit(rb);
-  (void)avm_rb_read_bit(rb);  // ci_reserved_1bit
+  (void)avm_rb_read_literal(rb, 2);  // ci_reserved_2bit
 
   if (ci_temp.ci_color_description_present_flag) {
     av2_read_color_info(&ci_temp, rb);
@@ -233,8 +232,8 @@ uint32_t av2_read_content_interpretation_obu(struct AV2Decoder *pbi,
     av2_read_timing_info_header(&ci_temp.timing_info, &cm->error, rb);
 
 #if CONFIG_F414_OBU_EXTENSION
-  // The +1 to account for the extension bit read before
-  size_t bits_before_ext = rb->bit_offset - saved_bit_offset - 1;
+  size_t bits_before_ext = rb->bit_offset - saved_bit_offset;
+  ci_temp.ci_extension_present_flag = avm_rb_read_bit(rb);
   if (ci_temp.ci_extension_present_flag) {
     // Extension data bits = total - bits_read_before_extension -1 (ext flag)
     // - trailing bits
