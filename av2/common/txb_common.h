@@ -743,7 +743,7 @@ static INLINE void get_txb_ctx_skip(const BLOCK_SIZE plane_bsize,
   (void)tx_size;
   (void)a;
   (void)l;
-  const int skip_offset = 13;
+  const int skip_offset = 9;
   txb_ctx->dc_sign_ctx = 0;
   txb_ctx->txb_skip_ctx = skip_offset;
 }
@@ -832,7 +832,7 @@ static INLINE void get_txb_ctx(const BLOCK_SIZE plane_bsize,
     const int ctx_base = get_entropy_context(tx_size, a, l);
     int ctx_offset = 0;
     if (plane == AVM_PLANE_U) {
-      ctx_offset = 7;
+      ctx_offset = 6;
     } else {
       ctx_offset = (num_pels_log2_lookup[plane_bsize] >
                     num_pels_log2_lookup[txsize_to_bsize[tx_size]])
