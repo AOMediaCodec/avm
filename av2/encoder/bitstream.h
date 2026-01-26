@@ -60,7 +60,6 @@ uint32_t av2_write_layer_configuration_record_obu(AV2_COMP *const cpi,
                                                   int xlayer_id,
                                                   uint8_t *const dst);
 uint32_t av2_write_atlas_segment_info_obu(AV2_COMP *const cpi,
-                                          int obu_xLayer_id,
                                           uint8_t *const dst);
 uint32_t av2_write_operating_point_set_obu(AV2_COMP *const cpi,
                                            int obu_xlayer_id,

@@ -751,90 +751,73 @@ typedef struct LayerConfigurationRecord {
 #endif  // CONFIG_F414_OBU_EXTENSION
 } LayerConfigurationRecord;
 
+// Each AtlasSegmentInfo represents ONE atlas OBU
+// identified by obu_xlayer_id, atlas_segment_id) pair
+// This is the main one.
 typedef struct AtlasLabelSegmentInfo {
-  int ats_signalled_atlas_segment_ids_flag[MAX_NUM_XLAYERS]
-                                          [MAX_NUM_ATLAS_SEG_ID];
-  int ats_atlas_segment_id[MAX_NUM_XLAYERS];
-  int AtlasSegmentIDToIndex[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID]
-                           [MAX_NUM_ATLAS_SEGMENTS];
-  int AtlasSegmentIndexToID[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID]
-                           [MAX_NUM_ATLAS_SEGMENTS];
+  int ats_signalled_atlas_segment_ids_flag;
+  int ats_atlas_segment_id[MAX_NUM_ATLAS_SEGMENTS];
+  int AtlasSegmentIDToIndex[MAX_NUM_ATLAS_SEGMENTS];
+  int AtlasSegmentIndexToID[MAX_NUM_ATLAS_SEGMENTS];
 } AtlasLabelSegmentInfo;
 
 typedef struct AtlasRegionToSegmentMapping {
-  int ats_single_region_per_atlas_segment_flag[MAX_NUM_XLAYERS]
-                                              [MAX_NUM_ATLAS_SEG_ID];
-  int ats_num_atlas_segments_minus_1[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
-  int ats_top_left_region_column[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID]
-                                [MAX_NUM_ATLAS_SEGMENTS];
-  int ats_top_left_region_row[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID]
-                             [MAX_NUM_ATLAS_SEGMENTS];
-  int ats_bottom_right_region_column_offset[MAX_NUM_XLAYERS]
-                                           [MAX_NUM_ATLAS_SEG_ID]
-                                           [MAX_NUM_ATLAS_SEGMENTS];
-  int ats_bottom_right_region_row_offset[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID]
-                                        [MAX_NUM_ATLAS_SEGMENTS];
+  int ats_single_region_per_atlas_segment_flag;
+  int ats_num_atlas_segments_minus_1;
+  int ats_top_left_region_column[MAX_NUM_ATLAS_SEGMENTS];
+  int ats_top_left_region_row[MAX_NUM_ATLAS_SEGMENTS];
+  int ats_bottom_right_region_column_offset[MAX_NUM_ATLAS_SEGMENTS];
+  int ats_bottom_right_region_row_offset[MAX_NUM_ATLAS_SEGMENTS];
   // derived from ats_top_left_region_column and
   // ats_bottom_right_region_column_offset
-  int ats_bottom_right_region_column[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID]
-                                    [MAX_NUM_ATLAS_SEGMENTS];
+  int ats_bottom_right_region_column[MAX_NUM_ATLAS_SEGMENTS];
   // derived from ats_top_left_region_row and ats_bottom_right_region_row_offset
-  int ats_bottom_right_region_row[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID]
-                                 [MAX_NUM_ATLAS_SEGMENTS];
+  int ats_bottom_right_region_row[MAX_NUM_ATLAS_SEGMENTS];
 } AtlasRegionToSegmentMapping;
 
 typedef struct AtlasRegionInfo {
-  int ats_num_region_columns_minus_1[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
-  int ats_num_region_rows_minus_1[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
-  int ats_column_width_minus_1[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID]
-                              [MAX_ATLAS_REGIONS];
-  int ats_uniform_spacing_flag[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
-  int ats_row_height_minus_1[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID]
-                            [MAX_ATLAS_REGIONS];
-  int ats_region_width_minus_1[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
-  int ats_region_height_minus_1[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
-  int NumRegionsInAtlas[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
-  int AtlasWidth[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
-  int AtlasHeight[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
+  int ats_num_region_columns_minus_1;
+  int ats_num_region_rows_minus_1;
+  int ats_column_width_minus_1[MAX_ATLAS_REGIONS];
+  int ats_uniform_spacing_flag;
+  int ats_row_height_minus_1[MAX_ATLAS_REGIONS];
+  int ats_region_width_minus_1;
+  int ats_region_height_minus_1;
+  int NumRegionsInAtlas;
+  int AtlasWidth;
+  int AtlasHeight;
 } AtlasRegionInfo;
 
 typedef struct AtlasBasicInfo {
-  int ats_stream_id_present[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
-  int ats_atlas_width[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
-  int ats_atlas_height[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
-  int ats_num_atlas_segments_minus_1[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
-  int AtlasWidth[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
-  int AtlasHeight[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
-  int ats_input_stream_id[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID]
-                         [MAX_NUM_ATLAS_SEGMENTS];
-  int ats_segment_top_left_pos_x[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID]
-                                [MAX_NUM_ATLAS_SEGMENTS];
-  int ats_segment_top_left_pos_y[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID]
-                                [MAX_NUM_ATLAS_SEGMENTS];
-  int ats_segment_width[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID]
-                       [MAX_NUM_ATLAS_SEGMENTS];
-  int ats_segment_height[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID]
-                        [MAX_NUM_ATLAS_SEGMENTS];
-  int ats_alpha_segments_present_flag[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
-  int ats_alpha_segment_flag[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID]
-                            [MAX_NUM_ATLAS_SEGMENTS];
-  int ats_background_info_present_flag[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
-  int ats_background_red_value[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
-  int ats_background_green_value[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
-  int ats_background_blue_value[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
+  int ats_stream_id_present;
+  int ats_atlas_width;
+  int ats_atlas_height;
+  int ats_num_atlas_segments_minus_1;
+  int AtlasWidth;
+  int AtlasHeight;
+  int ats_input_stream_id[MAX_NUM_ATLAS_SEGMENTS];
+  int ats_segment_top_left_pos_x[MAX_NUM_ATLAS_SEGMENTS];
+  int ats_segment_top_left_pos_y[MAX_NUM_ATLAS_SEGMENTS];
+  int ats_segment_width[MAX_NUM_ATLAS_SEGMENTS];
+  int ats_segment_height[MAX_NUM_ATLAS_SEGMENTS];
+  int ats_alpha_segments_present_flag;
+  int ats_alpha_segment_flag[MAX_NUM_ATLAS_SEGMENTS];
+  int ats_background_info_present_flag;
+  int ats_background_red_value;
+  int ats_background_green_value;
+  int ats_background_blue_value;
 } AtlasBasicInfo;
 
 typedef struct AtlasSegmentInfo {
-  int atlas_segment_id[MAX_NUM_XLAYERS];
-  int atlas_segment_mode_idc[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
-  int ats_nominal_width_minus1[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
-  int ats_nominal_height_minus1[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
+  int valid;          // Is this entry valid
+  int obu_xlayer_id;  // From obu header
+  int atlas_segment_id;
+  int atlas_segment_mode_idc;
+  int ats_nominal_width_minus1;
+  int ats_nominal_height_minus1;
 
   struct AtlasRegionInfo ats_reg_params;
-  // TODO(hegilmez/spaluri): may clean up this pointer, keeping for potential
-  // changes
   struct AtlasBasicInfo *ats_basic_info;
-  // TODO(hegilmez/spaluri): may rename if above pointer is removed
   struct AtlasBasicInfo ats_basic_info_s;
   struct AtlasRegionToSegmentMapping ats_reg_seg_map;
   struct AtlasLabelSegmentInfo ats_label_seg;

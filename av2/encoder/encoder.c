@@ -854,9 +854,14 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
 #endif  // CONFIG_AV2_PROFILES
 
   // Initialize Atlas Segment information
-  for (int i = 0; i < MAX_NUM_ATLAS_SEG_ID; i++)
-    memset(&cpi->atlas_list[i], 0, sizeof(struct AtlasSegmentInfo));
-  cm->atlas = &cpi->atlas_list[0];
+  // The Atlas list is a 2D array with indices [XLAYER ID][NUM OF ATLAS]
+  // An atlas is maps to an extended layer in the LCR.
+  for (int i = 0; i < MAX_NUM_XLAYERS; i++) {
+    for (int j = 0; j < MAX_NUM_ATLAS_SEG_ID; j++) {
+      memset(&cpi->atlas_list[i][j], 0, sizeof(struct AtlasSegmentInfo));
+    }
+  }
+  cm->atlas = &cpi->atlas_list[0][0];
 
   cpi->written_fgm_num = 0;
 
