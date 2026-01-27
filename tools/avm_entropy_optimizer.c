@@ -1670,13 +1670,13 @@ int main(int argc, const char **argv) {
   cts_each_dim[1] = FSC_TX_SIZE_CONTEXTS;
   cts_each_dim[2] = IDTX_LEVEL_CONTEXTS;
   cts_each_dim[3] = BR_CDF_SIZE;
-  optimize_cdf_table(&fc.coeff_lps_multi_skip[0][0][0][0], probsfile, 4,
-                     cts_each_dim,
-                     "static const avm_cdf_prob "
-                     "av2_default_coeff_lps_multi_cdfs_idtx"
-                     "[TOKEN_CDF_Q_CTXS][FSC_TX_SIZE_CONTEXTS][IDTX_LEVEL_CONTEXTS]"
-                     "[CDF_SIZE(BR_CDF_SIZE)]",
-                     1, &total_count, 196, mem_wanted, "Coefficients");
+  optimize_cdf_table(
+      &fc.coeff_lps_multi_skip[0][0][0][0], probsfile, 4, cts_each_dim,
+      "static const avm_cdf_prob "
+      "av2_default_coeff_lps_multi_cdfs_idtx"
+      "[TOKEN_CDF_Q_CTXS][FSC_TX_SIZE_CONTEXTS][IDTX_LEVEL_CONTEXTS]"
+      "[CDF_SIZE(BR_CDF_SIZE)]",
+      1, &total_count, 196, mem_wanted, "Coefficients");
 
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = FSC_TX_SIZE_CONTEXTS;
