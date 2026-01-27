@@ -40,6 +40,7 @@ struct avm_writer {
   uint8_t *buffer;
   od_ec_enc ec;
   uint8_t allow_update_cdf;
+  uint64_t frame_symbol_count;
 };
 
 typedef struct avm_writer avm_writer;
@@ -101,6 +102,7 @@ static INLINE void avm_write_literal(avm_writer *w, int data, int bits) {
   bitstream_queue_push_literal(data, bits);
 #endif  // CONFIG_BITSTREAM_DEBUG
   int n;
+  w->frame_symbol_count += bits;
   while (bits > 0) {
     n = bits >= 8 ? 8 : bits;
     od_ec_encode_literal_bypass(&w->ec, (data >> (bits - n)), n);
@@ -120,6 +122,7 @@ static INLINE void avm_write_cdf(avm_writer *w, int symb,
 
 static INLINE void avm_write_symbol(avm_writer *w, int symb, avm_cdf_prob *cdf,
                                     int nsymbs) {
+  w->frame_symbol_count++;
   avm_write_cdf(w, symb, cdf, nsymbs);
   if (w->allow_update_cdf) update_cdf(cdf, symb, nsymbs);
 }

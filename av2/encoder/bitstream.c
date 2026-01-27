@@ -6079,7 +6079,7 @@ static uint32_t write_tilegroup_payload(AV2_COMP *const cpi, uint8_t *const dst,
   // int curr_tg_data_size = 0;
 
   *largest_tile_id = 0;
-
+  mode_bc.frame_symbol_count = 0;
   uint8_t *tile_data_start = dst + total_size;
   int tile_idx = 0;
   for (tile_row = 0; tile_row < tile_rows; tile_row++) {
@@ -6138,7 +6138,7 @@ static uint32_t write_tilegroup_payload(AV2_COMP *const cpi, uint8_t *const dst,
     else if (tile_idx > end_tile_idx)
       break;
   }
-
+  cm->features.frame_symbol_count = mode_bc.frame_symbol_count;
   if (tile_cols * tile_rows > 1 &&
       cm->features.tip_frame_mode != TIP_FRAME_AS_OUTPUT) {
     if (!cm->seq_params.enable_avg_cdf || !cm->seq_params.avg_cdf_type) {
