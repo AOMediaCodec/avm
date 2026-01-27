@@ -1130,9 +1130,7 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
       cm->current_frame.frame_type == KEY_FRAME, cpi->gf_group.max_layer_depth,
       cpi->gf_group.update_type[cpi->gf_group.index] == KFFLT_OVERLAY_UPDATE);
 
-  cm->tlayer_id = 0;
   cm->current_frame.tlayer_id = cm->tlayer_id;
-  cm->mlayer_id = 0;
   cm->current_frame.mlayer_id = cm->mlayer_id;
 
   init_ref_map_pair(&cpi->common, cm->ref_frame_map_pairs,

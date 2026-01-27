@@ -1214,6 +1214,16 @@ enum avme_enc_control_id {
    * \note This is used to test the case multiple sequence headers are signalled
    */
   AV2E_SET_MULTI_SEQ_HEADER_TEST = 176,
+
+  /*!\brief Codec control function to set encoder temporal layer id, unsigned
+   * int parameter.
+   */
+  AVME_SET_TLAYER_ID = 177,
+
+  /*!\brief Codec control function to set number of temporal layers, int
+   * parameter
+   */
+  AVME_SET_NUMBER_TLAYERS = 178,
 };
 
 /*!\brief avm 1-D scaling mode
@@ -1711,6 +1721,12 @@ AVM_CTRL_USE_TYPE(AV2E_SET_ENABLE_BRU, int)
 #define AVM_CTRL_AV2E_SET_ENABLE_BRU
 AVM_CTRL_USE_TYPE(AV2E_GET_ENABLE_BRU, int *)
 #define AVM_CTRL_AV2E_GET_ENABLE_BRU
+
+AVM_CTRL_USE_TYPE(AVME_SET_TLAYER_ID, unsigned int)
+#define AVM_CTRL_AVME_SET_TLAYER_ID
+
+AVM_CTRL_USE_TYPE(AVME_SET_NUMBER_TLAYERS, int)
+#define AVME_CTRL_AVME_SET_NUMBER_TLAYERS
 
 /*!\endcond */
 /*! @} - end defgroup avm_encoder */

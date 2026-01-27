@@ -524,8 +524,8 @@ void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
   }
 
   // layer dependency information
-  seq->max_tlayer_id = 0;
-  seq->max_mlayer_id = 0;
+  seq->max_tlayer_id = cm->number_tlayers;
+  seq->max_mlayer_id = cm->number_mlayers;
   seq->tlayer_dependency_present_flag = 0;
   seq->mlayer_dependency_present_flag = 0;
   setup_default_temporal_layer_dependency_structure(seq);
@@ -4724,7 +4724,6 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
       current_frame->frame_type == KEY_FRAME, cpi->gf_group.max_layer_depth,
       cpi->gf_group.update_type[cpi->gf_group.index] == KFFLT_OVERLAY_UPDATE);
 
-  cm->tlayer_id = 0;
   current_frame->tlayer_id = cm->tlayer_id;
   cm->restricted_prediction_switch =
       cpi->oxcf.kf_cfg.sframe_dist != 0 && cpi->oxcf.kf_cfg.sframe_mode == 0;

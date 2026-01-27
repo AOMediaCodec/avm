@@ -3548,12 +3548,30 @@ static avm_codec_err_t ctrl_set_mlayer_id(avm_codec_alg_priv_t *ctx,
   return AVM_CODEC_OK;
 }
 
+static avm_codec_err_t ctrl_set_tlayer_id(avm_codec_alg_priv_t *ctx,
+                                          va_list args) {
+  const int tlayer_id = va_arg(args, int);
+  if (tlayer_id >= MAX_NUM_TLAYERS) return AVM_CODEC_INVALID_PARAM;
+  ctx->cpi->common.tlayer_id = tlayer_id;
+  return AVM_CODEC_OK;
+}
+
 static avm_codec_err_t ctrl_set_number_mlayers(avm_codec_alg_priv_t *ctx,
                                                va_list args) {
+  struct av2_extracfg extra_cfg = ctx->extra_cfg;
   const int number_mlayers = va_arg(args, int);
   if (number_mlayers > MAX_NUM_MLAYERS) return AVM_CODEC_INVALID_PARAM;
   ctx->cpi->common.number_mlayers = number_mlayers;
-  return AVM_CODEC_OK;
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+
+static avm_codec_err_t ctrl_set_number_tlayers(avm_codec_alg_priv_t *ctx,
+                                               va_list args) {
+  struct av2_extracfg extra_cfg = ctx->extra_cfg;
+  const int number_tlayers = va_arg(args, int);
+  if (number_tlayers > MAX_NUM_TLAYERS) return AVM_CODEC_INVALID_PARAM;
+  ctx->cpi->common.number_tlayers = number_tlayers;
+  return update_extra_cfg(ctx, &extra_cfg);
 }
 
 static avm_codec_err_t ctrl_set_tune_content(avm_codec_alg_priv_t *ctx,
@@ -4329,6 +4347,7 @@ static avm_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AVME_SET_ACTIVEMAP, ctrl_set_active_map },
   { AVME_SET_SCALEMODE, ctrl_set_scale_mode },
   { AVME_SET_MLAYER_ID, ctrl_set_mlayer_id },
+  { AVME_SET_TLAYER_ID, ctrl_set_tlayer_id },
   { AVME_SET_CPUUSED, ctrl_set_cpuused },
   { AVME_SET_ENABLEAUTOALTREF, ctrl_set_enable_auto_alt_ref },
   { AVME_SET_ENABLEAUTOBWDREF, ctrl_set_enable_auto_bwd_ref },
@@ -4345,6 +4364,7 @@ static avm_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AVME_SET_QP, ctrl_set_qp },
   { AVME_SET_MAX_INTRA_BITRATE_PCT, ctrl_set_rc_max_intra_bitrate_pct },
   { AVME_SET_NUMBER_MLAYERS, ctrl_set_number_mlayers },
+  { AVME_SET_NUMBER_TLAYERS, ctrl_set_number_tlayers },
   { AV2E_SET_MAX_INTER_BITRATE_PCT, ctrl_set_rc_max_inter_bitrate_pct },
   { AV2E_SET_GF_CBR_BOOST_PCT, ctrl_set_rc_gf_cbr_boost_pct },
   { AV2E_SET_LOSSLESS, ctrl_set_lossless },

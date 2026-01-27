@@ -137,6 +137,7 @@ if(NOT BUILD_SHARED_LIBS)
       "${AVM_ROOT}/test/still_picture_test.cc"
       "${AVM_ROOT}/test/subgop_test.cc"
       "${AVM_ROOT}/test/superframe_test.cc"
+      "${AVM_ROOT}/test/temporal_layers_test.cc"
       "${AVM_ROOT}/test/tile_config_test.cc"
       "${AVM_ROOT}/test/tile_independence_test.cc"
       "${AVM_ROOT}/test/temporal_filter_test.cc")
