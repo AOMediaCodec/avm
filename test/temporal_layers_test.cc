@@ -24,7 +24,7 @@ class TemporalLayersTestLarge : public ::libavm_test::CodecTestWithParam<int>,
   TemporalLayersTestLarge() : EncoderTest(GET_PARAM(0)), speed_(GET_PARAM(1)) {}
   virtual ~TemporalLayersTestLarge() {}
 
-  virtual void SetUp() {
+  virtual void SetUp() override {
     InitializeConfig();
     passes_ = 1;
     cfg_.rc_end_usage = AVM_Q;
@@ -37,7 +37,7 @@ class TemporalLayersTestLarge : public ::libavm_test::CodecTestWithParam<int>,
   }
 
   virtual void PreEncodeFrameHook(::libavm_test::VideoSource *video,
-                                  ::libavm_test::Encoder *encoder) {
+                                  ::libavm_test::Encoder *encoder) override {
     frame_flags_ = 0;
     if (video->frame() == 0) {
       encoder->Control(AVME_SET_CPUUSED, speed_);
@@ -74,7 +74,7 @@ class TemporalLayersTestLarge : public ::libavm_test::CodecTestWithParam<int>,
   }
 
   virtual bool HandleDecodeResult(const avm_codec_err_t res_dec,
-                                  libavm_test::Decoder *decoder) {
+                                  libavm_test::Decoder *decoder) override {
     EXPECT_EQ(AVM_CODEC_OK, res_dec) << decoder->DecodeError();
     return AVM_CODEC_OK == res_dec;
   }
