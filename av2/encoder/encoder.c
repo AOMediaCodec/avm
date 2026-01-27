@@ -524,8 +524,8 @@ void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
   }
 
   // layer dependency information
-  seq->max_tlayer_id = cm->number_tlayers;
-  seq->max_mlayer_id = cm->number_mlayers;
+  seq->max_tlayer_id = cm->number_tlayers - 1;
+  seq->max_mlayer_id = cm->number_mlayers - 1;
   seq->tlayer_dependency_present_flag = 0;
   seq->mlayer_dependency_present_flag = 0;
   setup_default_temporal_layer_dependency_structure(seq);
