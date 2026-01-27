@@ -719,7 +719,7 @@ static avm_codec_err_t reset_last_frame_unit(struct AV2Decoder *pbi,
   return res;
 }
 
-static size_t get_size_of_frame_unit(const uint8_t *data, uint64_t data_sz) {
+static size_t get_size_of_frame_unit(const uint8_t *data, size_t data_sz) {
   avm_codec_err_t res = AVM_CODEC_OK;
   const uint8_t *data_read = data;
   ObuHeader obu_header;
@@ -840,7 +840,7 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
   // likely is the same (data_end - data_start).
   while (data_start < data_end) {
     size_t frame_unit_size =
-        get_size_of_frame_unit(data_start, (uint64_t)(data_end - data_start));
+        get_size_of_frame_unit(data_start, data_end - data_start);
     if (frame_unit_size == 0 || frame_unit_size == SIZE_MAX) {
       return AVM_CODEC_ERROR;
     }
