@@ -1323,14 +1323,15 @@ typedef struct FRAME_COUNTS {
   unsigned int eob_extra[TOKEN_CDF_Q_CTXS][2];
   unsigned int dc_sign[TOKEN_CDF_Q_CTXS][PLANE_TYPES][DC_SIGN_GROUPS]
                       [DC_SIGN_CONTEXTS][2];
-  unsigned int coeff_base_bob_multi[TOKEN_CDF_Q_CTXS][TX_SIZES]
+  unsigned int coeff_base_bob_multi[TOKEN_CDF_Q_CTXS][FSC_TX_SIZE_CONTEXTS]
                                    [SIG_COEF_CONTEXTS_BOB][NUM_BASE_LEVELS + 1];
-  unsigned int idtx_sign[TOKEN_CDF_Q_CTXS][TX_SIZES][IDTX_SIGN_CONTEXTS][2];
-  unsigned int coeff_lps_skip[TX_SIZES][BR_CDF_SIZE - 1][IDTX_LEVEL_CONTEXTS]
-                             [2];
-  unsigned int coeff_lps_multi_skip[TOKEN_CDF_Q_CTXS][TX_SIZES]
+  unsigned int idtx_sign[TOKEN_CDF_Q_CTXS][FSC_TX_SIZE_CONTEXTS]
+                        [IDTX_SIGN_CONTEXTS][2];
+  unsigned int coeff_lps_skip[FSC_TX_SIZE_CONTEXTS][BR_CDF_SIZE - 1]
+                             [IDTX_LEVEL_CONTEXTS][2];
+  unsigned int coeff_lps_multi_skip[TOKEN_CDF_Q_CTXS][FSC_TX_SIZE_CONTEXTS]
                                    [IDTX_LEVEL_CONTEXTS][BR_CDF_SIZE];
-  unsigned int coeff_base_multi_skip[TOKEN_CDF_Q_CTXS][TX_SIZES]
+  unsigned int coeff_base_multi_skip[TOKEN_CDF_Q_CTXS][FSC_TX_SIZE_CONTEXTS]
                                     [IDTX_SIG_COEF_CONTEXTS]
                                     [NUM_BASE_LEVELS + 2];
 

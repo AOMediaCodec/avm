@@ -1442,23 +1442,23 @@ int main(int argc, const char **argv) {
 
   /* forward skip sign bit */
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
-  cts_each_dim[1] = TX_SIZES;
+  cts_each_dim[1] = FSC_TX_SIZE_CONTEXTS;
   cts_each_dim[2] = IDTX_SIGN_CONTEXTS;
   cts_each_dim[3] = 2;
   optimize_cdf_table(&fc.idtx_sign[0][0][0][0], probsfile, 4, cts_each_dim,
                      "static const avm_cdf_prob "
                      "av2_default_idtx_sign_cdfs[TOKEN_CDF_Q_CTXS]"
-                     "[TX_SIZES][IDTX_SIGN_CONTEXTS][CDF_SIZE(2)]",
+                     "[FSC_TX_SIZE_CONTEXTS][IDTX_SIGN_CONTEXTS][CDF_SIZE(2)]",
                      1, &total_count, 72, mem_wanted, "Coefficients");
 
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
-  cts_each_dim[1] = TX_SIZES;
+  cts_each_dim[1] = FSC_TX_SIZE_CONTEXTS;
   cts_each_dim[2] = SIG_COEF_CONTEXTS_BOB;
   cts_each_dim[3] = NUM_BASE_LEVELS + 1;
   optimize_cdf_table(
       &fc.coeff_base_bob_multi[0][0][0][0], probsfile, 4, cts_each_dim,
       "static const avm_cdf_prob av2_default_coeff_base_bob_multi_cdfs"
-      "[TOKEN_CDF_Q_CTXS][TX_SIZES][SIG_COEF_CONTEXTS_BOB]"
+      "[TOKEN_CDF_Q_CTXS][FSC_TX_SIZE_CONTEXTS][SIG_COEF_CONTEXTS_BOB]"
       "[CDF_SIZE(NUM_BASE_LEVELS + 1)]",
       1, &total_count, 24, mem_wanted, "Coefficients");
 
@@ -1667,25 +1667,25 @@ int main(int argc, const char **argv) {
       1, &total_count, dq_minus_entries_def, mem_wanted, "Coefficients");
 
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
-  cts_each_dim[1] = TX_SIZES;
+  cts_each_dim[1] = FSC_TX_SIZE_CONTEXTS;
   cts_each_dim[2] = IDTX_LEVEL_CONTEXTS;
   cts_each_dim[3] = BR_CDF_SIZE;
   optimize_cdf_table(&fc.coeff_lps_multi_skip[0][0][0][0], probsfile, 4,
                      cts_each_dim,
                      "static const avm_cdf_prob "
                      "av2_default_coeff_lps_multi_cdfs_idtx"
-                     "[TOKEN_CDF_Q_CTXS][TX_SIZES][IDTX_LEVEL_CONTEXTS]"
+                     "[TOKEN_CDF_Q_CTXS][FSC_TX_SIZE_CONTEXTS][IDTX_LEVEL_CONTEXTS]"
                      "[CDF_SIZE(BR_CDF_SIZE)]",
                      1, &total_count, 196, mem_wanted, "Coefficients");
 
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
-  cts_each_dim[1] = TX_SIZES;
+  cts_each_dim[1] = FSC_TX_SIZE_CONTEXTS;
   cts_each_dim[2] = IDTX_SIG_COEF_CONTEXTS;
   cts_each_dim[3] = NUM_BASE_LEVELS + 2;
   optimize_cdf_table(
       &fc.coeff_base_multi_skip[0][0][0][0], probsfile, 4, cts_each_dim,
       "static const avm_cdf_prob av2_default_coeff_base_multi_cdfs_idtx"
-      "[TOKEN_CDF_Q_CTXS][TX_SIZES][IDTX_SIG_COEF_CONTEXTS]"
+      "[TOKEN_CDF_Q_CTXS][FSC_TX_SIZE_CONTEXTS][IDTX_SIG_COEF_CONTEXTS]"
       "[CDF_SIZE(NUM_BASE_LEVELS + 2)]",
       1, &total_count, 196, mem_wanted, "Coefficients");
 
