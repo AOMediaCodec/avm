@@ -52,9 +52,6 @@ class TemporalLayersTestLarge : public ::libavm_test::CodecTestWithParam<int>,
       } else {
         temporal_layer_id_ = 1;
         encoder->Control(AVME_SET_TLAYER_ID, 1);
-        if (decode_base_only_ || drop_tl2_) {
-          frame_flags_ = AVM_EFLAG_NO_UPD_ALL;
-        }
       }
     } else if (num_temporal_layers_ == 3) {
       if (video->frame() % 4 == 0) {
@@ -66,9 +63,6 @@ class TemporalLayersTestLarge : public ::libavm_test::CodecTestWithParam<int>,
       } else {
         temporal_layer_id_ = 2;
         encoder->Control(AVME_SET_TLAYER_ID, 2);
-        if (decode_base_only_ || drop_tl2_) {
-          frame_flags_ = AVM_EFLAG_NO_UPD_ALL;
-        }
       }
     }
   }
