@@ -951,20 +951,24 @@ void av2_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
         }
       }
       for (int ctx = 0; ctx < SIG_COEF_CONTEXTS_UV; ++ctx) {
-        for (int q_i = 0; q_i < TCQ_CTXS; q_i++) {
-          av2_cost_tokens_from_cdf(pcost->base_cost_uv[ctx][q_i],
-                                   fc->coeff_base_uv_cdf[ctx][q_i], 4, NULL);
-        }
+        // for (int q_i = 0; q_i < TCQ_CTXS; q_i++) {
+        //   av2_cost_tokens_from_cdf(pcost->base_cost_uv[ctx][q_i],
+        //                            fc->coeff_base_uv_cdf[ctx][q_i], 4, NULL);
+        // }
+        av2_cost_tokens_from_cdf(pcost->base_cost_uv[ctx],
+          fc->coeff_base_uv_cdf[ctx], 4, NULL);
       }
       // Rearrange costs into base_cost_zero[] array for quicker access.
       for (int q_i = 0; q_i < TCQ_CTXS; q_i++) {
         for (int ctx = 0; ctx < SIG_COEF_CONTEXTS; ++ctx) {
           pcost->base_cost_zero[q_i][ctx] = pcost->base_cost[ctx][q_i][0];
         }
-        for (int ctx = 0; ctx < SIG_COEF_CONTEXTS_UV; ++ctx) {
-          pcost->base_cost_uv_zero[q_i][ctx] = pcost->base_cost_uv[ctx][q_i][0];
-        }
       }
+      for (int ctx = 0; ctx < SIG_COEF_CONTEXTS_UV; ++ctx) {
+          pcost->base_cost_uv_zero[ctx] = pcost->base_cost_uv[ctx][0];
+      }
+    
+
       // Rearrange costs into base_lf_cost_zero[] array for quicker access.
       for (int q_i = 0; q_i < TCQ_CTXS; q_i++) {
         for (int ctx = 0; ctx < LF_SIG_COEF_CONTEXTS; ++ctx) {
@@ -1001,16 +1005,22 @@ void av2_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
               pcost->base_eob_cost[ctx][a2 - 1] + av2_cost_literal(1);
         }
         for (int ctx = 0; ctx < SIG_COEF_CONTEXTS_UV; ++ctx) {
-          // Q0, uv, absLev 0 / 2
-          pcost->base_cost_uv_low_tbl[idx][ctx][0][0] =
-              pcost->base_cost_uv[ctx][0][a0] + av2_cost_literal(1);
-          pcost->base_cost_uv_low_tbl[idx][ctx][0][1] =
-              pcost->base_cost_uv[ctx][0][a2] + av2_cost_literal(1);
-          // Q1, uv,absLev 1 / 3
-          pcost->base_cost_uv_low_tbl[idx][ctx][1][0] =
-              pcost->base_cost_uv[ctx][1][a1] + av2_cost_literal(1);
-          pcost->base_cost_uv_low_tbl[idx][ctx][1][1] =
-              pcost->base_cost_uv[ctx][1][a3] + av2_cost_literal(1);
+          // UV coeffs, absLev 0 / 2
+          pcost->base_cost_uv_low_tbl[idx][ctx][0] =
+              pcost->base_cost_uv[ctx][a0] + av2_cost_literal(1);
+          pcost->base_cost_uv_low_tbl[idx][ctx][1] =
+              pcost->base_cost_uv[ctx][a2] + av2_cost_literal(1);
+
+          // // Q0, uv, absLev 0 / 2
+          // pcost->base_cost_uv_low_tbl[idx][ctx][0][0] =
+          //     pcost->base_cost_uv[ctx][0][a0] + av2_cost_literal(1);
+          // pcost->base_cost_uv_low_tbl[idx][ctx][0][1] =
+          //     pcost->base_cost_uv[ctx][0][a2] + av2_cost_literal(1);
+          // // Q1, uv,absLev 1 / 3
+          // pcost->base_cost_uv_low_tbl[idx][ctx][1][0] =
+          //     pcost->base_cost_uv[ctx][1][a1] + av2_cost_literal(1);
+          // pcost->base_cost_uv_low_tbl[idx][ctx][1][1] =
+          //     pcost->base_cost_uv[ctx][1][a3] + av2_cost_literal(1);
         }
         for (int ctx = 0; ctx < SIG_COEF_CONTEXTS_EOB; ++ctx) {
           // UV EOB coeff, absLev 0 / 2
