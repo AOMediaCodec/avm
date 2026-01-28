@@ -878,6 +878,7 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
   if (data_start != data_end) {
     avm_internal_error(&frame_worker_data->pbi->common.error, AVM_CODEC_ERROR,
                        "data reading error in decoder_decode()");
+    return AVM_CODEC_ERROR;
   }
   return res;
 }

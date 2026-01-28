@@ -2080,10 +2080,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
         break;
       case OBU_PADDING:
-        // OBU_PADDING is not allowed being present before the frame unit
-        avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-                           "OBU order violation: OBU_PADDING "
-                           "cannot be present before a coded frame");
+        decoded_payload_size = read_padding(cm, data, payload_size);
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
         break;
       default:
