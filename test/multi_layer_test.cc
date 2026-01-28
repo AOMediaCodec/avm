@@ -122,7 +122,6 @@ class MultiLayerTestLarge : public ::libavm_test::CodecTestWithParam<int>,
     } else if (num_spatial_layers_ > 1) {
       if (drop_sl2_) {
         if (spatial_layer_id_ == 2) {
-          printf("drop sl 2 \n");
           return false;
         } else
           return true;
@@ -130,7 +129,6 @@ class MultiLayerTestLarge : public ::libavm_test::CodecTestWithParam<int>,
         if (spatial_layer_id_ == 0)
           return true;
         else {
-          printf("drop sl1 \n");
           return false;
         }
       } else {
