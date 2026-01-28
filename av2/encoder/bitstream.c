@@ -5243,7 +5243,7 @@ static AVM_INLINE void write_uncompressed_header(
     frame_type_signaled &= (!cm->bridge_frame_info.is_bridge_frame);
 
     if (obu_type == OBU_RAS_FRAME || obu_type == OBU_SWITCH) {
-      avm_wb_write_bit(wb, cpi->common.restricted_prediction_switch);
+      avm_wb_write_bit(wb, cm->restricted_prediction_switch);
     } else if (frame_type_signaled) {
       const int is_inter_frame = (current_frame->frame_type == INTER_FRAME);
       avm_wb_write_bit(wb, is_inter_frame);
