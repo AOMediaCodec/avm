@@ -193,7 +193,7 @@ jobs:
           printf "" >${commands}
 
           for id in $(seq 0 $((total_shards-1))); do
-            echo "GTEST_TOTAL_SHARDS=${total_shards} GTEST_SHARD_INDEX=${id} GTEST_OUTPUT=xml:report.${id}.xml GCOV_PREFIX=../coverage.parallel/gcov.${id} GCOV_PREFIX_STRIP=3 ./test_libavm 2>&1 | tee -a ${GITHUB_WORKSPACE}/unittest.${id}.log" >>${commands}
+            echo "GTEST_TOTAL_SHARDS=${total_shards} GTEST_SHARD_INDEX=${id} GTEST_OUTPUT=xml:report.${id}.xml GCOV_PREFIX=../coverage.parallel/gcov.${id} GCOV_PREFIX_STRIP=3 ${GITHUB_WORKSPACE}/.github/capture-logs.sh ${GITHUB_WORKSPACE}/unittest.${id}.log ./test_libavm" >>${commands}
           done
 
           cat ${commands}
@@ -352,6 +352,13 @@ jobs:
       AVM_OPTIM_LEVEL: ${{ matrix.avm-optim-level }}
 
     steps:
+      - uses: actions/checkout@v4.1.0
+        with:
+          fetch-depth: 50
+          lfs: true
+
+      - uses: ./.github/actions/common-setup
+
       - name: Get nightly build
         uses: actions/download-artifact@v5
         with:
@@ -399,7 +406,7 @@ jobs:
           printf "" >${commands}
 
           for id in $(seq 0 $((total_shards-1))); do
-            echo "GTEST_TOTAL_SHARDS=${total_shards} GTEST_SHARD_INDEX=${id} GTEST_OUTPUT=xml:report.${id}.xml ./test_libavm --gtest_filter=${filter} 2>&1 | tee -a ${GITHUB_WORKSPACE}/${{ github.job }}.${{ matrix.avm-optim-level }}.${id}.log" >>${commands}
+            echo "GTEST_TOTAL_SHARDS=${total_shards} GTEST_SHARD_INDEX=${id} GTEST_OUTPUT=xml:report.${id}.xml ${GITHUB_WORKSPACE}/.github/capture-logs.sh ${GITHUB_WORKSPACE}/${{ github.job }}.${{ matrix.avm-optim-level }}.${id}.log ./test_libavm --gtest_filter=${filter}" >>${commands}
           done
 
           cat ${commands}

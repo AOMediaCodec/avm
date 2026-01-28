@@ -173,6 +173,7 @@ jobs:
           cpu_cores=$(nproc)
           total_shards=$((2*cpu_cores))
           commands=/tmp/parallel.commands.$$
+          exit_code=0
 
           if [ "${{ inputs.max-total-shards }}" -ne 0 -a "${total_shards}" -gt "${{ inputs.max-total-shards }}" ]; then
             echo "warning: forcing total shards to ${{ inputs.max-total-shards }}" >&2
@@ -182,45 +183,52 @@ jobs:
           printf "" >${commands}
 
           for id in $(seq 0 $((total_shards-1))); do
-            echo "GTEST_TOTAL_SHARDS=${total_shards} GTEST_SHARD_INDEX=${id} GTEST_OUTPUT=xml:report.${id}.xml ./avm_build/${AVM_SANITIZER_TYPE}/test_libavm --gtest_filter=\"${filter}\" 2>&1 | tee -a ${GITHUB_WORKSPACE}/sanitizer.${id}.log" >>${commands}
+            echo "GTEST_TOTAL_SHARDS=${total_shards} GTEST_SHARD_INDEX=${id} GTEST_OUTPUT=xml:report.${id}.xml ${GITHUB_WORKSPACE}/.github/capture-logs.sh ${GITHUB_WORKSPACE}/sanitizer.${id}.log ./avm_build/${AVM_SANITIZER_TYPE}/test_libavm --gtest_filter=\"${filter}\"" >>${commands}
           done
 
           cat ${commands}
-          time parallel --line-buffer --memfree 10G --memsuspend 4G --load 100% --delay 3 --shuf < ${commands} || true
+          time parallel --line-buffer --memfree 10G --memsuspend 4G --load 100% --delay 3 --shuf < ${commands} || exit_code=$?
 
           for logfile in sanitizer.*.log; do
-            # Delete empty log
-            if [ ! -s ${logfile} ]; then
-              rm -vf ${logfile}
+            found_error=false
+
+            # If 'failure' found in log filename, exit was non-zero
+            if echo "${logfile}" | grep -E '\.failure\.log$'; then
+              found_error=true
+
+            # Looking for sanitizer output in log...
+            elif grep -q "\(ERROR\|WARNING\): \(Address\|Thread\|Memory\|Leak\)Sanitizer:" ${logfile}; then
+              found_error=true
+
+            # Looking for UBSan output in log (differs from the common format)
+            elif grep -q ":[[:digit:]]\+:[[:digit:]]\+: runtime error:" ${logfile}; then
+              found_error=true
+            fi
+
+            # No error found, proceed with next logfile
+            if ! ${found_error}; then
               continue
             fi
 
-            # Looking for sanitizer output in log...
-            grep -q "\(ERROR\|WARNING\): \(Address\|Thread\|Memory\|Leak\)Sanitizer:" ${logfile} && {
-              echo "Found sanitizer errors or warnings, check the ${logfile} log below:"
-              cat ${logfile}
-              echo "You may reproduce sanitizer builds and tests by following instructions below: "
-              echo "https://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#build-unit-tests-with-sanitizers and"
-              echo "https://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#run-unit-tests-with-sanitizers"
-              exit 1
-            }
+            if echo "${logfile}" | grep -E '\.success\.log$'; then
+              logfile_new_name="$(echo "${logfile}" | sed -E 's/\.success\.log$/.failure.log/')"
+              mv --verbose "${logfile}" "${logfile_new_name}"
+              logfile="${logfile_new_name}"
+            fi
 
-            # Looking for UBSan output in log (differs from the common format)
-            grep -q ":[[:digit:]]\+:[[:digit:]]\+: runtime error:" ${logfile} && {
-              echo "Found sanitizer errors or warnings, check the ${logfile} log below:"
-              cat ${logfile}
-              echo "You may reproduce sanitizer builds and tests by following instructions below: "
-              echo "https://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#build-unit-tests-with-sanitizers and"
-              echo "https://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#run-unit-tests-with-sanitizers"
-              exit 1
-            }
+            echo "Found sanitizer errors or warnings, check the ${logfile} log below:"
+            cat ${logfile}
+            echo "You may reproduce sanitizer builds and tests by following instructions below: "
+            echo "https://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#build-unit-tests-with-sanitizers and"
+            echo "https://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#run-unit-tests-with-sanitizers"
+            exit_code=$((exit_code+1))
           done
 
-          echo "No sanitizer errors found"
+          exit ${exit_code}
 
       - name: Upload logs
         uses: actions/upload-artifact@v4.1.0
-        if: ${{ failure() }}
+        if: ${{ always() }}
         with:
           name: sanitizer-${{ inputs.avm-sanitizer-type }}-logs
           path: sanitizer.*.log
