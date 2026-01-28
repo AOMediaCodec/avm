@@ -4725,6 +4725,7 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
       cpi->gf_group.update_type[cpi->gf_group.index] == KFFLT_OVERLAY_UPDATE);
 
   current_frame->tlayer_id = cm->tlayer_id;
+  current_frame->mlayer_id = cm->mlayer_id;
   cm->restricted_prediction_switch =
       cpi->oxcf.kf_cfg.sframe_dist != 0 && cpi->oxcf.kf_cfg.sframe_mode == 0;
   if (current_frame->frame_type == KEY_FRAME) {
