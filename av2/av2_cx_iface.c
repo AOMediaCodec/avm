@@ -3560,18 +3560,16 @@ static avm_codec_err_t ctrl_set_scale_mode(avm_codec_alg_priv_t *ctx,
 
 static avm_codec_err_t ctrl_set_mlayer_id(avm_codec_alg_priv_t *ctx,
                                           va_list args) {
-  const int mlayer_id = va_arg(args, int);
-  if (mlayer_id < 0 || mlayer_id >= MAX_NUM_MLAYERS)
-    return AVM_CODEC_INVALID_PARAM;
+  const unsigned int mlayer_id = va_arg(args, int);
+  if (mlayer_id >= MAX_NUM_MLAYERS) return AVM_CODEC_INVALID_PARAM;
   ctx->cpi->common.mlayer_id = mlayer_id;
   return AVM_CODEC_OK;
 }
 
 static avm_codec_err_t ctrl_set_tlayer_id(avm_codec_alg_priv_t *ctx,
                                           va_list args) {
-  const int tlayer_id = va_arg(args, int);
-  if (tlayer_id < 0 || tlayer_id >= MAX_NUM_TLAYERS)
-    return AVM_CODEC_INVALID_PARAM;
+  const unsigned int tlayer_id = va_arg(args, int);
+  if (tlayer_id >= MAX_NUM_TLAYERS) return AVM_CODEC_INVALID_PARAM;
   ctx->cpi->common.tlayer_id = tlayer_id;
   return AVM_CODEC_OK;
 }

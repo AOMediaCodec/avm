@@ -572,6 +572,8 @@ static int get_free_ref_map_index_mlayers(
     RefFrameMapPair ref_map_pairs[REF_FRAMES], const int ref_frames,
     const int cur_mlayer_id) {
   int idx_sel = INVALID_IDX;
+  // Check for fb index for mlayer <= current mlayer_id, if none exists
+  // allow for mlayer > current_mlayer_id.
   for (int idx = 0; idx < ref_frames; ++idx) {
     if (ref_map_pairs[idx].ref_frame_for_inference == -1 &&
         ref_map_pairs[idx].mlayer_id <= cur_mlayer_id) {
