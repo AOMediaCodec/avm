@@ -7232,7 +7232,7 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     return;
   }
 
-  assert(obu_type == OBU_CLK || obu_type == OBU_OLK);
+  assert(obu_type == OBU_CLK || obu_type == OBU_OLK || pbi->stream_switched);
 
   if (obu_type == OBU_OLK && !pbi->random_accessed) {
     if (!are_seq_headers_consistent(&cm->seq_params, pbi->active_seq)) {
