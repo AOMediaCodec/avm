@@ -34,6 +34,9 @@ class MultiLayerTestLarge : public ::libavm_test::CodecTestWithParam<int>,
     cfg_.g_lag_in_frames = 0;
     cfg_.g_profile = 0;
     cfg_.g_bit_depth = AVM_BITS_8;
+    top_width_ = 160;
+    top_height_ = 90;
+    num_mismatch_ = 0;
   }
 
   void PreEncodeFrameHook(::libavm_test::VideoSource *video,
@@ -129,6 +132,18 @@ class MultiLayerTestLarge : public ::libavm_test::CodecTestWithParam<int>,
     return AVM_CODEC_OK == res_dec;
   }
 
+  void DecompressedFrameHook(const avm_image_t &img,
+                             avm_codec_pts_t pts) override {
+    (void)pts;
+    if (spatial_layer_id_ == 0 && num_spatial_layers_ == 2) {
+      EXPECT_EQ(img.d_w, top_width_ / 2);
+      EXPECT_EQ(img.d_h, top_height_ / 2);
+    } else if (spatial_layer_id_ == 0 && num_spatial_layers_ == 3) {
+      EXPECT_EQ(img.d_w, top_width_ / 4);
+      EXPECT_EQ(img.d_h, top_height_ / 4 + 1);
+    }
+  }
+
   bool DoDecode() const override {
     if (num_temporal_layers_ > 1) {
       if (drop_tl2_) {
@@ -163,6 +178,12 @@ class MultiLayerTestLarge : public ::libavm_test::CodecTestWithParam<int>,
     return true;
   }
 
+  void MismatchHook(const avm_image_t *img1, const avm_image_t *img2) override {
+    (void)img1;
+    (void)img2;
+    num_mismatch_++;
+  }
+
   int speed_;
   bool decode_base_only_;
   bool drop_tl2_;
@@ -172,6 +193,9 @@ class MultiLayerTestLarge : public ::libavm_test::CodecTestWithParam<int>,
   double mismatch_psnr_;
   int num_temporal_layers_;
   int num_spatial_layers_;
+  unsigned int top_width_;
+  unsigned int top_height_;
+  int num_mismatch_;
 };
 
 TEST_P(MultiLayerTestLarge, MultiLayerTest2Temporal) {
@@ -181,6 +205,7 @@ TEST_P(MultiLayerTestLarge, MultiLayerTest2Temporal) {
   decode_base_only_ = false;
   drop_tl2_ = false;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
+  EXPECT_EQ(num_mismatch_, 0);
 }
 
 TEST_P(MultiLayerTestLarge, MultiLayerTest2TemporalDecodeBaseOnly) {
@@ -190,6 +215,7 @@ TEST_P(MultiLayerTestLarge, MultiLayerTest2TemporalDecodeBaseOnly) {
   decode_base_only_ = true;
   drop_tl2_ = false;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
+  EXPECT_EQ(num_mismatch_, 0);
 }
 
 TEST_P(MultiLayerTestLarge, MultiLayerTest3Temporal) {
@@ -199,6 +225,7 @@ TEST_P(MultiLayerTestLarge, MultiLayerTest3Temporal) {
   decode_base_only_ = false;
   drop_tl2_ = false;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
+  EXPECT_EQ(num_mismatch_, 0);
 }
 
 TEST_P(MultiLayerTestLarge, MultiLayerTest3TemporalDecodeBaseOnly) {
@@ -208,6 +235,7 @@ TEST_P(MultiLayerTestLarge, MultiLayerTest3TemporalDecodeBaseOnly) {
   decode_base_only_ = true;
   drop_tl2_ = false;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
+  EXPECT_EQ(num_mismatch_, 0);
 }
 
 TEST_P(MultiLayerTestLarge, MultiLayerTest3TemporalDropTL2) {
@@ -217,6 +245,7 @@ TEST_P(MultiLayerTestLarge, MultiLayerTest3TemporalDropTL2) {
   decode_base_only_ = false;
   drop_tl2_ = true;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
+  EXPECT_EQ(num_mismatch_, 0);
 }
 
 TEST_P(MultiLayerTestLarge, MultiLayerTest2Spatial) {
@@ -226,6 +255,7 @@ TEST_P(MultiLayerTestLarge, MultiLayerTest2Spatial) {
   decode_base_only_ = false;
   drop_tl2_ = false;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
+  EXPECT_EQ(num_mismatch_, 0);
 }
 
 TEST_P(MultiLayerTestLarge, MultiLayerTest2SpatialDecodeBaseOnly) {
@@ -235,6 +265,7 @@ TEST_P(MultiLayerTestLarge, MultiLayerTest2SpatialDecodeBaseOnly) {
   decode_base_only_ = true;
   drop_tl2_ = false;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
+  EXPECT_EQ(num_mismatch_, 0);
 }
 
 TEST_P(MultiLayerTestLarge, MultiLayerTest3Spatial) {
@@ -244,6 +275,7 @@ TEST_P(MultiLayerTestLarge, MultiLayerTest3Spatial) {
   decode_base_only_ = false;
   drop_tl2_ = false;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
+  EXPECT_EQ(num_mismatch_, 0);
 }
 
 TEST_P(MultiLayerTestLarge, MultiLayerTest3SpatialDropSL2) {
@@ -253,6 +285,7 @@ TEST_P(MultiLayerTestLarge, MultiLayerTest3SpatialDropSL2) {
   decode_base_only_ = false;
   drop_sl2_ = true;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
+  EXPECT_EQ(num_mismatch_, 0);
 }
 
 TEST_P(MultiLayerTestLarge, MultiLayerTest2Spatial2Temp) {
@@ -262,6 +295,7 @@ TEST_P(MultiLayerTestLarge, MultiLayerTest2Spatial2Temp) {
   decode_base_only_ = false;
   drop_sl2_ = false;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
+  EXPECT_EQ(num_mismatch_, 0);
 }
 
 TEST_P(MultiLayerTestLarge, MultiLayerTest2Spatial2TempDropTL1) {
@@ -271,6 +305,7 @@ TEST_P(MultiLayerTestLarge, MultiLayerTest2Spatial2TempDropTL1) {
   decode_base_only_ = true;
   drop_sl2_ = false;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
+  EXPECT_EQ(num_mismatch_, 0);
 }
 
 AV2_INSTANTIATE_TEST_SUITE(MultiLayerTestLarge, ::testing::Values(5));
