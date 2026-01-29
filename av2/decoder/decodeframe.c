@@ -721,6 +721,10 @@ static AVM_INLINE void decode_mbmi_block(AV2Decoder *const pbi,
     if (cm->bridge_frame_info.is_bridge_frame) {
       bru_zero_sb_mvs(cm, -1, mi_row, mi_col, x_inside_boundary,
                       y_inside_boundary);
+    } else if (pbi->bru_opt_mode && cm->bru.enabled) {
+      // only update ref MVS for optimized decoder
+      bru_zero_sb_mvs(cm, cm->bru.update_ref_idx, mi_row, mi_col,
+                      x_inside_boundary, y_inside_boundary);
     }
     if (!cm->bru.frame_inactive_flag &&
         !cm->bridge_frame_info.is_bridge_frame) {
