@@ -200,8 +200,9 @@ int av2_check_profile_interop_conformance(
         avm_internal_error(
             error_info,
             is_decoder ? AVM_CODEC_UNSUP_BITSTREAM : AVM_CODEC_INVALID_PARAM,
-            "Profile %d only supports 4:0:0%s%s%s chroma.",
-            (BITSTREAM_PROFILE)profile, is_420, is_422, is_444);
+            "Profile %d only supports YUV 4:0:0 and YUV 4:2:0 color formats, "
+            "but color format YUV %s was provided.",
+            (BITSTREAM_PROFILE)profile, is_422 ? "4:2:2" : "4:4:4");
       }
       break;
     case MAIN_422_10:
@@ -213,8 +214,9 @@ int av2_check_profile_interop_conformance(
         avm_internal_error(
             error_info,
             is_decoder ? AVM_CODEC_UNSUP_BITSTREAM : AVM_CODEC_INVALID_PARAM,
-            "Profile %d only supports 4:0:0%s%s%s chroma.",
-            (BITSTREAM_PROFILE)profile, is_420, is_422, is_444);
+            "Profile %d only supports YUV 4:0:0, YUV 4:2:0 and YUV 4:2:2 color "
+            "formats, but color format YUV 4:4:4 was provided.",
+            (BITSTREAM_PROFILE)profile);
       }
       break;
     case MAIN_444_10:
@@ -226,8 +228,9 @@ int av2_check_profile_interop_conformance(
         avm_internal_error(
             error_info,
             is_decoder ? AVM_CODEC_UNSUP_BITSTREAM : AVM_CODEC_INVALID_PARAM,
-            "Profile %d only supports 4:0:0%s%s%s chroma.",
-            (BITSTREAM_PROFILE)profile, is_420, is_422, is_444);
+            "Profile %d only supports YUV 4:0:0, YUV 4:2:0 and YUV 4:4:4 color "
+            "formats, but color format YUV 4:2:2 was provided.",
+            (BITSTREAM_PROFILE)profile);
       }
       break;
     default:
