@@ -659,14 +659,14 @@ static avm_codec_err_t check_random_access_frame_unit(
 
 static void set_last_frame_unit(struct AV2Decoder *pbi) {
   for (int obu_idx = 0; obu_idx < pbi->num_obus_with_frame_unit; obu_idx++) {
-    if (pbi->obu_list[obu_idx].is_vcl &&
+    if (pbi->obu_list[obu_idx].is_vcl == 1 &&
         pbi->obu_list[obu_idx].first_tile_group == 1) {
       if (pbi->obu_list[obu_idx].showable_frame == 0 &&
           pbi->last_frame_unit.showable_frame == 1) {
         pbi->last_displayable_frame_unit = pbi->last_frame_unit;
       }
       pbi->last_frame_unit = pbi->obu_list[obu_idx];
-    } else if (pbi->obu_list[obu_idx].is_vcl) {
+    } else if (pbi->obu_list[obu_idx].is_vcl == 1) {
       // pbi->obu_list[obu_idx].first_tile_group is not decoded when the layer
       // is dropped. last_frame_unit is set even when the obu is dropped
       pbi->last_frame_unit = pbi->obu_list[obu_idx];
