@@ -44,8 +44,9 @@ class MultiLayerTestLarge : public ::libavm_test::CodecTestWithParam<int>,
       encoder->Control(AVME_SET_NUMBER_MLAYERS, num_spatial_layers_);
       encoder->Control(AVME_SET_NUMBER_TLAYERS, num_temporal_layers_);
       encoder->Control(AVME_SET_MLAYER_ID, 0);
+      encoder->Control(AVME_SET_TLAYER_ID, 0);
     }
-    if (num_temporal_layers_ == 2) {
+    if (num_temporal_layers_ == 2 && num_spatial_layers_ == 1) {
       if (video->frame() % 2 == 0) {
         temporal_layer_id_ = 0;
         encoder->Control(AVME_SET_TLAYER_ID, 0);
@@ -53,7 +54,7 @@ class MultiLayerTestLarge : public ::libavm_test::CodecTestWithParam<int>,
         temporal_layer_id_ = 1;
         encoder->Control(AVME_SET_TLAYER_ID, 1);
       }
-    } else if (num_temporal_layers_ == 3) {
+    } else if (num_temporal_layers_ == 3 && num_spatial_layers_ == 1) {
       if (video->frame() % 4 == 0) {
         temporal_layer_id_ = 0;
         encoder->Control(AVME_SET_TLAYER_ID, 0);
@@ -64,9 +65,7 @@ class MultiLayerTestLarge : public ::libavm_test::CodecTestWithParam<int>,
         temporal_layer_id_ = 2;
         encoder->Control(AVME_SET_TLAYER_ID, 2);
       }
-    }
-
-    if (num_spatial_layers_ == 2) {
+    } else if (num_temporal_layers_ == 1 && num_spatial_layers_ == 2) {
       if (video->frame() % 2 == 0) {
         struct avm_scaling_mode mode = { AVME_ONETWO, AVME_ONETWO };
         encoder->Control(AVME_SET_SCALEMODE, &mode);
@@ -78,7 +77,7 @@ class MultiLayerTestLarge : public ::libavm_test::CodecTestWithParam<int>,
         spatial_layer_id_ = 1;
         encoder->Control(AVME_SET_MLAYER_ID, 1);
       }
-    } else if (num_spatial_layers_ == 3) {
+    } else if (num_temporal_layers_ == 1 && num_spatial_layers_ == 3) {
       if (video->frame() % 3 == 0) {
         struct avm_scaling_mode mode = { AVME_ONEFOUR, AVME_ONEFOUR };
         encoder->Control(AVME_SET_SCALEMODE, &mode);
@@ -94,6 +93,32 @@ class MultiLayerTestLarge : public ::libavm_test::CodecTestWithParam<int>,
         encoder->Control(AVME_SET_SCALEMODE, &mode);
         spatial_layer_id_ = 2;
         encoder->Control(AVME_SET_MLAYER_ID, 2);
+      }
+    } else if (num_temporal_layers_ == 2 && num_spatial_layers_ == 2) {
+      if (video->frame() % 4 == 0) {
+        struct avm_scaling_mode mode = { AVME_ONETWO, AVME_ONETWO };
+        encoder->Control(AVME_SET_SCALEMODE, &mode);
+        spatial_layer_id_ = 0;
+        temporal_layer_id_ = 0;
+        encoder->Control(AVME_SET_MLAYER_ID, 0);
+        encoder->Control(AVME_SET_TLAYER_ID, 0);
+      } else if (video->frame() % 2 == 0) {
+        struct avm_scaling_mode mode = { AVME_ONETWO, AVME_ONETWO };
+        encoder->Control(AVME_SET_SCALEMODE, &mode);
+        spatial_layer_id_ = 0;
+        temporal_layer_id_ = 1;
+        encoder->Control(AVME_SET_MLAYER_ID, 0);
+        encoder->Control(AVME_SET_TLAYER_ID, 1);
+      } else if ((video->frame() - 1) % 4 == 0) {
+        spatial_layer_id_ = 1;
+        temporal_layer_id_ = 0;
+        encoder->Control(AVME_SET_MLAYER_ID, 1);
+        encoder->Control(AVME_SET_TLAYER_ID, 0);
+      } else if ((video->frame() - 1) % 2 == 0) {
+        spatial_layer_id_ = 1;
+        temporal_layer_id_ = 1;
+        encoder->Control(AVME_SET_MLAYER_ID, 1);
+        encoder->Control(AVME_SET_TLAYER_ID, 1);
       }
     }
   }
@@ -227,6 +252,24 @@ TEST_P(MultiLayerTestLarge, MultiLayerTest3SpatialDropSL2) {
   num_spatial_layers_ = 3;
   decode_base_only_ = false;
   drop_sl2_ = true;
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
+}
+
+TEST_P(MultiLayerTestLarge, MultiLayerTest2Spatial2Temp) {
+  ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
+  num_temporal_layers_ = 2;
+  num_spatial_layers_ = 2;
+  decode_base_only_ = false;
+  drop_sl2_ = false;
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
+}
+
+TEST_P(MultiLayerTestLarge, MultiLayerTest2Spatial2TempDropTL1) {
+  ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
+  num_temporal_layers_ = 2;
+  num_spatial_layers_ = 2;
+  decode_base_only_ = true;
+  drop_sl2_ = false;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
 }
 
