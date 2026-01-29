@@ -782,7 +782,7 @@ void av2_decoder_model_process_frame(const AV2_COMP *const cpi,
         (coded_bits <= compressed_size_limit);
 
     double frame_symbol_count_limit = get_max_frame_symbol_count(
-        av2_level_defs + level, cpi->tier[0], seq_params->profile, dt);
+        av2_level_defs + level, cpi->tier[0], seq_params->seq_profile_idc, dt);
     decoder_model->frame_symbol_count_satisfy =
         decoder_model->frame_symbol_count_satisfy &&
         (cm->features.frame_symbol_count <= frame_symbol_count_limit);
