@@ -214,7 +214,7 @@ static uint32_t calculate_ops_data_size(AV2_COMP *cpi, int obu_xlayer_id,
   }
   // Add byte alignment
   avm_wb_write_literal(&temp_wb, 0, (8 - temp_wb.bit_offset % 8) % 8);
-  return avm_wb_bytes_written(&temp_wb);
+  return (temp_wb.bit_offset + 7) / 8;
 }
 #else
   struct avm_write_bit_buffer temp_wb = { NULL, 0 };
@@ -409,7 +409,6 @@ static uint32_t calculate_ops_data_size(AV2_COMP *cpi, int obu_xlayer_id,
 uint32_t av2_write_operating_point_set_obu(AV2_COMP *cpi, int ops_id,
                                            int obu_xlayer_id,
                                            uint8_t *const dst) {
-
   struct avm_write_bit_buffer wb = { dst, 0 };
   uint32_t size = 0;
 
