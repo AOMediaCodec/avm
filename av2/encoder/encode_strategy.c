@@ -568,28 +568,6 @@ int use_subgop_cfg(const GF_GROUP *const gf_group, int gf_index) {
   return 1;
 }
 
-static int get_free_ref_map_index_mlayers(
-    RefFrameMapPair ref_map_pairs[REF_FRAMES], const int ref_frames,
-    const int cur_mlayer_id) {
-  int idx_sel = INVALID_IDX;
-  // Check for fb index for mlayer <= current mlayer_id, if none exists
-  // allow for mlayer > current_mlayer_id.
-  for (int idx = 0; idx < ref_frames; ++idx) {
-    if (ref_map_pairs[idx].ref_frame_for_inference == -1 &&
-        ref_map_pairs[idx].mlayer_id <= cur_mlayer_id) {
-      idx_sel = idx;
-    }
-  }
-  if (idx_sel == INVALID_IDX) {
-    for (int idx = 0; idx < ref_frames; ++idx) {
-      if (ref_map_pairs[idx].ref_frame_for_inference == -1) return idx;
-    }
-  } else {
-    return idx_sel;
-  }
-  return INVALID_IDX;
-}
-
 static int get_free_ref_map_index(RefFrameMapPair ref_map_pairs[REF_FRAMES],
                                   const int ref_frames) {
   for (int idx = 0; idx < ref_frames; ++idx)
@@ -742,13 +720,8 @@ int av2_get_refresh_frame_flags(
       }
     }
   } else {
-    if (cpi->common.number_mlayers > 1)
-      free_fb_index = get_free_ref_map_index_mlayers(
-          ref_frame_map_pairs, cpi->common.seq_params.ref_frames,
-          cpi->common.mlayer_id);
-    else
-      free_fb_index = get_free_ref_map_index(ref_frame_map_pairs,
-                                             cpi->common.seq_params.ref_frames);
+    free_fb_index = get_free_ref_map_index(ref_frame_map_pairs,
+                                           cpi->common.seq_params.ref_frames);
   }
   if (use_subgop_cfg(&cpi->gf_group, gf_index)) {
     const int mask = get_refresh_frame_flags_subgop_cfg(
