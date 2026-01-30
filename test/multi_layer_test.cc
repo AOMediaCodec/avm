@@ -261,8 +261,8 @@ TEST_P(MultiLayerTestLarge, MultiLayerTest3TemporalDropTL2) {
 }
 
 // The spatial layer tests below currently on allow for prediction
-// off base SL0 (m=0) layer. Will allow for prediction off same m layer
-// in a subsequent change.
+// of enhancements layers (m > 0) off the base (m=0) layers. Will allow
+// for prediction off previous m layers (at t-1, t-2,) in a subsequent change.
 TEST_P(MultiLayerTestLarge, MultiLayerTest2Spatial) {
   ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
   num_temporal_layers_ = 1;
