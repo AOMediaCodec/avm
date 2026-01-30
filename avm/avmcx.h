@@ -1224,6 +1224,11 @@ enum avme_enc_control_id {
    * parameter
    */
   AVME_SET_NUMBER_TLAYERS = 178,
+
+  /*!\brief Codec control function to enable explicit_ref_frame_map,
+   * int parameter.
+  */
+  AV2E_SET_ENABLE_EXPLICIT_REF_FRAME_MAP = 179,
 };
 
 /*!\brief avm 1-D scaling mode
@@ -1727,6 +1732,9 @@ AVM_CTRL_USE_TYPE(AVME_SET_TLAYER_ID, unsigned int)
 
 AVM_CTRL_USE_TYPE(AVME_SET_NUMBER_TLAYERS, int)
 #define AVME_CTRL_AVME_SET_NUMBER_TLAYERS
+
+AVM_CTRL_USE_TYPE(AV2E_SET_ENABLE_EXPLICIT_REF_FRAME_MAP, int)
+#define AVME_CTRL_AV2E_SET_ENABLE_EXPLICIT_REF_FRAME_MAP
 
 /*!\endcond */
 /*! @} - end defgroup avm_encoder */

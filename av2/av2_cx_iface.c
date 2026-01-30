@@ -2681,6 +2681,14 @@ static avm_codec_err_t ctrl_get_enable_bru(avm_codec_alg_priv_t *ctx,
   return AVM_CODEC_OK;
 }
 
+static avm_codec_err_t ctrl_enable_explict_ref_frame_map(avm_codec_alg_priv_t *ctx,
+                                                         va_list args) {
+  struct av2_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.explicit_ref_frame_map = CAST(AV2E_SET_ENABLE_BRU, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+  return AVM_CODEC_OK;
+}
+
 static avm_codec_err_t create_stats_buffer(FIRSTPASS_STATS **frame_stats_buffer,
                                            STATS_BUFFER_CTX *stats_buf_context,
                                            int num_lap_buffers) {
@@ -4481,6 +4489,7 @@ static avm_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV2E_ENABLE_SUBGOP_STATS, ctrl_enable_subgop_stats },
   { AV2E_SET_ENABLE_BRU, ctrl_set_enable_bru },
   { AV2E_GET_ENABLE_BRU, ctrl_get_enable_bru },
+  { AV2E_SET_ENABLE_EXPLICIT_REF_FRAME_MAP, ctrl_enable_explict_ref_frame_map },
   // Getters
   { AVME_GET_LAST_QUANTIZER, ctrl_get_quantizer },
   { AV2_GET_REFERENCE, ctrl_get_reference },

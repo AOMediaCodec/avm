@@ -37,6 +37,7 @@ class MultiLayerTestLarge : public ::libavm_test::CodecTestWithParam<int>,
     top_width_ = 160;
     top_height_ = 90;
     num_mismatch_ = 0;
+    enable_explicit_ref_frame_map_ = false;
   }
 
   void PreEncodeFrameHook(::libavm_test::VideoSource *video,
@@ -48,6 +49,9 @@ class MultiLayerTestLarge : public ::libavm_test::CodecTestWithParam<int>,
       encoder->Control(AVME_SET_NUMBER_TLAYERS, num_temporal_layers_);
       encoder->Control(AVME_SET_MLAYER_ID, 0);
       encoder->Control(AVME_SET_TLAYER_ID, 0);
+      if (enable_explicit_ref_frame_map_) {
+        encoder->Control(AV2E_SET_ENABLE_EXPLICIT_REF_FRAME_MAP, 1);
+      }
     }
     if (num_temporal_layers_ == 2 && num_spatial_layers_ == 1) {
       if (video->frame() % 2 == 0) {
@@ -145,7 +149,14 @@ class MultiLayerTestLarge : public ::libavm_test::CodecTestWithParam<int>,
   }
 
   bool DoDecode() const override {
-    if (num_temporal_layers_ > 1) {
+    if (num_temporal_layers_ > 1 && num_spatial_layers_ > 1) {
+      if (decode_base_only_) {
+        if (temporal_layer_id_ == 0 && spatial_layer_id_ == 0)
+          return true;
+        else
+          return false;
+      }
+    } else if (num_temporal_layers_ > 1 && num_spatial_layers_ == 1) {
       if (drop_tl2_) {
         if (temporal_layer_id_ == 2) {
           return false;
@@ -159,7 +170,7 @@ class MultiLayerTestLarge : public ::libavm_test::CodecTestWithParam<int>,
       } else {
         return true;
       }
-    } else if (num_spatial_layers_ > 1) {
+    } else if (num_spatial_layers_ > 1 && num_temporal_layers_ == 1) {
       if (drop_sl2_) {
         if (spatial_layer_id_ == 2) {
           return false;
@@ -196,6 +207,7 @@ class MultiLayerTestLarge : public ::libavm_test::CodecTestWithParam<int>,
   unsigned int top_width_;
   unsigned int top_height_;
   int num_mismatch_;
+  bool enable_explicit_ref_frame_map_;
 };
 
 TEST_P(MultiLayerTestLarge, MultiLayerTest2Temporal) {
@@ -248,6 +260,9 @@ TEST_P(MultiLayerTestLarge, MultiLayerTest3TemporalDropTL2) {
   EXPECT_EQ(num_mismatch_, 0);
 }
 
+// The spatial layer tests below currently on allow for prediction
+// off base SL0 (m=0) layer. Will allow for prediction off same m layer
+// in a subsequent change.
 TEST_P(MultiLayerTestLarge, MultiLayerTest2Spatial) {
   ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
   num_temporal_layers_ = 1;
@@ -278,12 +293,12 @@ TEST_P(MultiLayerTestLarge, MultiLayerTest3Spatial) {
   EXPECT_EQ(num_mismatch_, 0);
 }
 
-TEST_P(MultiLayerTestLarge, MultiLayerTest3SpatialDropSL2) {
+TEST_P(MultiLayerTestLarge, MultiLayerTest3SpatialDecodeBaseOnly) {
   ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
   num_temporal_layers_ = 1;
   num_spatial_layers_ = 3;
-  decode_base_only_ = false;
-  drop_sl2_ = true;
+  decode_base_only_ = true;
+  drop_sl2_ = false;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
   EXPECT_EQ(num_mismatch_, 0);
 }
@@ -298,7 +313,7 @@ TEST_P(MultiLayerTestLarge, MultiLayerTest2Spatial2Temp) {
   EXPECT_EQ(num_mismatch_, 0);
 }
 
-TEST_P(MultiLayerTestLarge, MultiLayerTest2Spatial2TempDropTL1) {
+TEST_P(MultiLayerTestLarge, MultiLayerTest2Spatial2TempDecodeBaseOnly) {
   ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
   num_temporal_layers_ = 2;
   num_spatial_layers_ = 2;
@@ -308,5 +323,16 @@ TEST_P(MultiLayerTestLarge, MultiLayerTest2Spatial2TempDropTL1) {
   EXPECT_EQ(num_mismatch_, 0);
 }
 
+// Test the case explicit_ref_frame_map enabeld for this (2, 2) pattern,
+TEST_P(MultiLayerTestLarge, MultiLayerTest2Spatial2TempExplRefFrameMap) {
+  ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 200);
+  num_temporal_layers_ = 2;
+  num_spatial_layers_ = 2;
+  decode_base_only_ = false;
+  drop_sl2_ = false;
+  enable_explicit_ref_frame_map_ = true;
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
+  EXPECT_EQ(num_mismatch_, 0);
+}
 AV2_INSTANTIATE_TEST_SUITE(MultiLayerTestLarge, ::testing::Values(5));
 }  // namespace
