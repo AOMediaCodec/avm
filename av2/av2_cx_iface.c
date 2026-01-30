@@ -649,10 +649,15 @@ static avm_codec_err_t validate_config(avm_codec_alg_priv_t *ctx,
   RANGE_CHECK(cfg, g_h, 1, 65535);  // 16 bits available
   RANGE_CHECK(cfg, g_timebase.den, 1, 1000000000);
   RANGE_CHECK(cfg, g_timebase.num, 1, cfg->g_timebase.den);
-  RANGE_CHECK_HI(cfg, g_profile, MAX_PROFILES - 1);
 
+  RANGE_CHECK_HI(cfg, g_profile, MAX_PROFILES - 1);
+#if CONFIG_AV2_PROFILES && !CONFIG_TESTONLY_12BIT_SUPPORT
+  RANGE_CHECK(cfg, g_bit_depth, AVM_BITS_8, AVM_BITS_10);
+  RANGE_CHECK(cfg, g_input_bit_depth, AVM_BITS_8, AVM_BITS_10);
+#else
   RANGE_CHECK(cfg, g_bit_depth, AVM_BITS_8, AVM_BITS_12);
   RANGE_CHECK(cfg, g_input_bit_depth, AVM_BITS_8, AVM_BITS_12);
+#endif  // CONFIG_AV2_PROFILES && !CONFIG_TESTONLY_12BIT_SUPPORT
 
   const int min_quantizer =
       (-(int)(cfg->g_bit_depth - AVM_BITS_8) * MAXQ_OFFSET);
@@ -721,14 +726,7 @@ static avm_codec_err_t validate_config(avm_codec_alg_priv_t *ctx,
   RANGE_CHECK_HI(extra_cfg, arnr_strength, 6);
   RANGE_CHECK(extra_cfg, content, AVM_CONTENT_DEFAULT, AVM_CONTENT_INVALID - 1);
 
-#if CONFIG_AV2_PROFILES
-  if (cfg->g_profile > (unsigned int)MAIN_444_10) {
-    ERROR("Codec profile not supported.");
-  }
-  if (cfg->g_bit_depth > AVM_BITS_10) {
-    ERROR("Source bit-depth > 10 not supported");
-  }
-#else
+#if !CONFIG_AV2_PROFILES
   if (cfg->g_profile <= (unsigned int)PROFILE_1 &&
       cfg->g_bit_depth > AVM_BITS_10) {
     ERROR("Codec bit-depth 12 not supported in profile < 2");
@@ -737,7 +735,7 @@ static avm_codec_err_t validate_config(avm_codec_alg_priv_t *ctx,
       cfg->g_input_bit_depth > 10) {
     ERROR("Source bit-depth 12 not supported in profile < 2");
   }
-#endif  // CONFIG_AV2_PROFILES
+#endif  // !CONFIG_AV2_PROFILES
 
   if (cfg->rc_end_usage == AVM_Q) {
     RANGE_CHECK_HI(cfg, use_fixed_qp_offsets, 2);

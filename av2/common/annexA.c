@@ -86,7 +86,15 @@ typedef enum {
 } INTEROP_POINTS;
 
 static const int seq_profile_max_mlayer_cnt[MAX_PROFILES] = {
-  1, 2, 3, MAX_NUM_MLAYERS, MAX_NUM_MLAYERS, MAX_NUM_MLAYERS,
+  1,
+  2,
+  3,
+  MAX_NUM_MLAYERS,
+  MAX_NUM_MLAYERS,
+  MAX_NUM_MLAYERS,
+#if CONFIG_TESTONLY_12BIT_SUPPORT
+  MAX_NUM_MLAYERS,
+#endif  // CONFIG_TESTONLY_12BIT_SUPPORT
 };
 
 /* clang-format off */
@@ -166,20 +174,24 @@ static avm_codec_err_t check_mlayer_count(int profile_idc, int seq_max_mcount) {
 int av2_check_profile_interop_conformance(
     struct SequenceHeader *seq_params,
     struct avm_internal_error_info *error_info, int is_decoder) {
+  const int profile = seq_params->seq_profile_idc;
+  const int bit_depth = seq_params->bit_depth;
+  const int monochrome = seq_params->monochrome;
+  const int seq_max_mcount = seq_params->seq_max_mlayer_cnt;
+
+#if CONFIG_TESTONLY_12BIT_SUPPORT
+  if (profile == TEST_ONLY_12BIT_PROFILE && bit_depth == AVM_BITS_12) return 1;
+#endif  // CONFIG_TESTONLY_12BIT_SUPPORT
+
   uint32_t chroma_format_idc = CHROMA_FORMAT_420;
   avm_codec_err_t err = av2_get_chroma_format_idc(
-      seq_params->subsampling_x, seq_params->subsampling_y,
-      seq_params->monochrome, &chroma_format_idc);
+      seq_params->subsampling_x, seq_params->subsampling_y, monochrome,
+      &chroma_format_idc);
   (void)err;
 
   const int is_420 = (chroma_format_idc == CHROMA_FORMAT_420);
   const int is_422 = (chroma_format_idc == CHROMA_FORMAT_422);
   const int is_444 = (chroma_format_idc == CHROMA_FORMAT_444);
-
-  const int profile = seq_params->seq_profile_idc;
-  const int bit_depth = seq_params->bit_depth;
-  const int monochrome = seq_params->monochrome;
-  const int seq_max_mcount = seq_params->seq_max_mlayer_cnt;
 
   // All profiles support 8-bit and 10-bit only
   int is_valid_bit_depth = check_bit_depth_8_10(bit_depth);

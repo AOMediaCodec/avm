@@ -272,6 +272,10 @@ enum {
   MAIN_420_10,
   MAIN_422_10,
   MAIN_444_10,
+#if CONFIG_TESTONLY_12BIT_SUPPORT
+  // Fake profile value only for testing 12-bit. Not defined in AV2 spec.
+  TEST_ONLY_12BIT_PROFILE,
+#endif  // CONFIG_TESTONLY_12BIT_SUPPORT
   MAX_PROFILES,
 } SENUM1BYTE(BITSTREAM_PROFILE);
 #else

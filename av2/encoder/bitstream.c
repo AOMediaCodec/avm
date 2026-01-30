@@ -4393,19 +4393,11 @@ static AVM_INLINE void write_frame_size_with_refs(
   }
 }
 
-#if CONFIG_AV2_PROFILES
 static AVM_INLINE void write_profile(BITSTREAM_PROFILE profile,
                                      struct avm_write_bit_buffer *wb) {
-  assert(profile >= MAIN_420_10_IP0 && profile < MAX_PROFILES);
+  assert(profile >= 0 && profile < MAX_PROFILES);
   avm_wb_write_literal(wb, profile, PROFILE_BITS);
 }
-#else
-static AVM_INLINE void write_profile(BITSTREAM_PROFILE profile,
-                                     struct avm_write_bit_buffer *wb) {
-  assert(profile >= PROFILE_0 && profile < MAX_PROFILES);
-  avm_wb_write_literal(wb, profile, PROFILE_BITS);
-}
-#endif  //  CONFIG_AV2_PROFILES
 
 // Write sequence chroma format idc to the bitstream.
 static AVM_INLINE void write_seq_chroma_format(

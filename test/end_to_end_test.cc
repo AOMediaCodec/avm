@@ -63,33 +63,40 @@ std::ostream &operator<<(std::ostream &os, const TestVideoParam &test_arg) {
             << " profile:" << test_arg.profile << " }";
 }
 
+#if CONFIG_AV2_PROFILES
+const TestVideoParam kTestVectors[] = {
+  { "park_joy_90p_8_420.y4m", 8, AVM_IMG_FMT_I420, AVM_BITS_8,
+    MAIN_420_10_IP0 },
+  { "park_joy_90p_8_422.y4m", 8, AVM_IMG_FMT_I422, AVM_BITS_8, MAIN_422_10 },
+  { "park_joy_90p_8_444.y4m", 8, AVM_IMG_FMT_I444, AVM_BITS_8, MAIN_444_10 },
+  { "park_joy_90p_10_420.y4m", 10, AVM_IMG_FMT_I42016, AVM_BITS_10,
+    MAIN_420_10_IP0 },
+  { "park_joy_90p_10_422.y4m", 10, AVM_IMG_FMT_I42216, AVM_BITS_10,
+    MAIN_422_10 },
+  { "park_joy_90p_10_444.y4m", 10, AVM_IMG_FMT_I44416, AVM_BITS_10,
+    MAIN_444_10 },
+#if CONFIG_TESTONLY_12BIT_SUPPORT
+  { "park_joy_90p_12_420.y4m", 12, AVM_IMG_FMT_I42016, AVM_BITS_12,
+    TEST_ONLY_12BIT_PROFILE },
+  { "park_joy_90p_12_422.y4m", 12, AVM_IMG_FMT_I42216, AVM_BITS_12,
+    TEST_ONLY_12BIT_PROFILE },
+  { "park_joy_90p_12_444.y4m", 12, AVM_IMG_FMT_I44416, AVM_BITS_12,
+    TEST_ONLY_12BIT_PROFILE },
+#endif  // CONFIG_TESTONLY_12BIT_SUPPORT
+};
+#else
 const TestVideoParam kTestVectors[] = {
   { "park_joy_90p_8_420.y4m", 8, AVM_IMG_FMT_I420, AVM_BITS_8, 0 },
-#if CONFIG_AV2_PROFILES
-  { "park_joy_90p_8_422.y4m", 8, AVM_IMG_FMT_I422, AVM_BITS_8, MAIN_422_10 },
-  { "park_joy_90p_8_444.y4m", 8, AVM_IMG_FMT_I444, AVM_BITS_8,
-    5 },  // MAIN_444_10
-#else
   { "park_joy_90p_8_422.y4m", 8, AVM_IMG_FMT_I422, AVM_BITS_8, 2 },
   { "park_joy_90p_8_444.y4m", 8, AVM_IMG_FMT_I444, AVM_BITS_8, 1 },
-#endif  // CONFIG_AV2_PROFILES
   { "park_joy_90p_10_420.y4m", 10, AVM_IMG_FMT_I42016, AVM_BITS_10, 0 },
-#if CONFIG_AV2_PROFILES
-  { "park_joy_90p_10_422.y4m", 10, AVM_IMG_FMT_I42216, AVM_BITS_10, 4 },
-  { "park_joy_90p_10_444.y4m", 10, AVM_IMG_FMT_I44416, AVM_BITS_10, 5 },
-#else
   { "park_joy_90p_10_422.y4m", 10, AVM_IMG_FMT_I42216, AVM_BITS_10, 2 },
   { "park_joy_90p_10_444.y4m", 10, AVM_IMG_FMT_I44416, AVM_BITS_10, 1 },
-#endif  // CONFIG_AV2_PROFILES
   { "park_joy_90p_12_420.y4m", 12, AVM_IMG_FMT_I42016, AVM_BITS_12, 2 },
-#if CONFIG_AV2_PROFILES
-  { "park_joy_90p_12_422.y4m", 12, AVM_IMG_FMT_I42216, AVM_BITS_12, 4 },
-  { "park_joy_90p_12_444.y4m", 12, AVM_IMG_FMT_I44416, AVM_BITS_12, 5 },
-#else
   { "park_joy_90p_12_422.y4m", 12, AVM_IMG_FMT_I42216, AVM_BITS_12, 2 },
   { "park_joy_90p_12_444.y4m", 12, AVM_IMG_FMT_I44416, AVM_BITS_12, 2 },
-#endif  // CONFIG_AV2_PROFILES
 };
+#endif  // CONFIG_AV2_PROFILES
 
 // Encoding modes tested
 const libavm_test::TestMode kEncodingModeVectors[] = {

@@ -109,6 +109,10 @@ set_avm_config_var(DECODE_WIDTH_LIMIT 0 "Set limit for decode width.")
 set_avm_config_var(CONFIG_TUNE_VMAF 0 "Enable encoding tuning for VMAF.")
 set_avm_config_var(CONFIG_USE_VMAF_RC 0 "Use libvmaf_rc tune for VMAF_NEG.")
 
+# 12-bit support.
+set_avm_config_var(CONFIG_TESTONLY_12BIT_SUPPORT 1
+                   "Enables 12-bit test-only profile not yet supported in AV2.")
+
 # AV2 experiment flags.
 set_avm_config_var(CONFIG_SPEED_STATS 0 "AV2 experiment flag.")
 set_avm_config_var(CONFIG_COLLECT_RD_STATS 0 "AV2 experiment flag.")

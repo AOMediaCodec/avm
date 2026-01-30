@@ -913,6 +913,26 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
              color_cfg->matrix_coefficients == AVM_CICP_MC_IDENTITY) {
     seq_params->subsampling_x = 0;
     seq_params->subsampling_y = 0;
+#if CONFIG_AV2_PROFILES
+  } else {
+    if (seq_params->seq_profile_idc <= MAIN_420_10) {
+      seq_params->subsampling_x = 1;
+      seq_params->subsampling_y = 1;
+    } else if (seq_params->seq_profile_idc == MAIN_422_10) {
+      seq_params->subsampling_x = 1;
+      seq_params->subsampling_y = 0;
+    } else if (seq_params->seq_profile_idc == MAIN_444_10) {
+      seq_params->subsampling_x = 0;
+      seq_params->subsampling_y = 0;
+#if CONFIG_TESTONLY_12BIT_SUPPORT
+    } else if (seq_params->seq_profile_idc == TEST_ONLY_12BIT_PROFILE) {
+      seq_params->subsampling_x = oxcf->input_cfg.chroma_subsampling_x;
+      seq_params->subsampling_y = oxcf->input_cfg.chroma_subsampling_y;
+#endif  // CONFIG_TESTONLY_12BIT_SUPPORT
+    } else {
+      assert(0 && "Invalid seq_params->seq_profile_idc");
+    }
+#else
   } else {
     if (seq_params->seq_profile_idc == 0) {
       seq_params->subsampling_x = 1;
@@ -929,6 +949,7 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
         seq_params->subsampling_y = 0;
       }
     }
+#endif  // CONFIG_AV2_PROFILES
   }
 
   uint32_t seq_chroma_format_idc = 0;
@@ -1116,15 +1137,6 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
   }
   set_content_interpreation_params(cpi, oxcf, chroma_format_idc);
 
-  assert(IMPLIES(
-#if CONFIG_AV2_PROFILES
-      seq_params->seq_profile_idc <= MAIN_444_10
-#else
-      seq_params->profile <= PROFILE_1
-#endif  // CONFIG_AV2_PROFILES
-      ,
-      seq_params->bit_depth <= AVM_BITS_10));
-
 #if CONFIG_AV2_PROFILES
   // Validate profile conformance for chroma format, bitdepth, and mcount
   // This is the equivalent to the decoder's
@@ -1135,6 +1147,9 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
         &cm->error, AVM_CODEC_INVALID_PARAM,
         "Profile conformance validation failed during encoder init.");
   }
+#else
+  assert(IMPLIES(seq_params->seq_profile_idc <= MAIN_444_10,
+                 seq_params->bit_depth <= AVM_BITS_10));
 #endif  // CONFIG_AV2_PROFILES
 
   seq_params->display_model_info_present_flag =
