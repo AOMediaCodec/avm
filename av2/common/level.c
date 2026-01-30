@@ -13,6 +13,7 @@
 #include "avm_ports/system_state.h"
 #include "av2/common/level.h"
 #include "av2/encoder/encoder.h"
+#include "av2/common/annexA.h"
 
 /* clang-format off */
 #define UNDEFINED_LEVEL     \
@@ -388,16 +389,14 @@ static double get_max_bitrate(const AV2LevelSpec *const level_spec, int tier,
       (tier ? level_spec->high_mbps : level_spec->main_mbps) * 1e6;
 
 #if CONFIG_AV2_PROFILES
+  static const double bitrate_profile_factor_table[] = { 1.0, 2.0, 3.0 };
   uint32_t chroma_format_idc = CHROMA_FORMAT_420;
   av2_get_chroma_format_idc(subsampling_x, subsampling_y, monochrome,
                             &chroma_format_idc);
-  double bitrate_profile_factor = 0;
-  if (profile == MAIN_444_10 && chroma_format_idc == CHROMA_FORMAT_444)
-    bitrate_profile_factor = 2;
-  else if (profile == MAIN_422_10 && chroma_format_idc == CHROMA_FORMAT_422)
-    bitrate_profile_factor = 1;
-  else
-    bitrate_profile_factor = 0;
+  const int profile_scaling_factor =
+      get_profile_scaling_factor(profile, chroma_format_idc);
+  double bitrate_profile_factor =
+      bitrate_profile_factor_table[profile_scaling_factor];
 #else
   const double bitrate_profile_factor =
       profile == PROFILE_0 ? 1.0 : (profile == PROFILE_1 ? 2.0 : 3.0);
