@@ -5208,6 +5208,7 @@ static AVM_INLINE void write_uncompressed_header(
 
   if (cm->bridge_frame_info.is_bridge_frame) {
     assert(cm->cur_mfh_id == 0);
+    avm_wb_write_uvlc(wb, cm->seq_params.seq_header_id);
     avm_wb_write_literal(wb, cm->bridge_frame_info.bridge_frame_ref_idx,
                          seq_params->ref_frames_log2);
   } else {
