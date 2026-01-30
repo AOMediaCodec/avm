@@ -856,6 +856,10 @@ static avm_codec_err_t validate_config(avm_codec_alg_priv_t *ctx,
 
 static avm_codec_err_t validate_img(avm_codec_alg_priv_t *ctx,
                                     const avm_image_t *img) {
+#if CONFIG_AV2_PROFILES && CONFIG_TESTONLY_12BIT_SUPPORT
+  if (ctx->cfg.g_profile == TEST_ONLY_12BIT_PROFILE) return AVM_CODEC_OK;
+#endif  // CONFIG_AV2_PROFILES && CONFIG_TESTONLY_12BIT_SUPPORT
+
   switch (img->fmt) {
     case AVM_IMG_FMT_YV12:
     case AVM_IMG_FMT_I420:

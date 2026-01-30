@@ -2284,6 +2284,14 @@ int main(int argc, const char **argv_) {
         }
       }
 
+#if CONFIG_AV2_PROFILES
+#if CONFIG_TESTONLY_12BIT_SUPPORT
+      if (stream->config.cfg.g_bit_depth > 10) {
+        stream->config.cfg.g_profile = TEST_ONLY_12BIT_PROFILE;
+        profile_updated = 1;
+      }
+#endif  // CONFIG_TESTONLY_12BIT_SUPPORT
+#else
       if (stream->config.cfg.g_bit_depth > 10) {
         switch (stream->config.cfg.g_profile) {
           case 0:
@@ -2294,6 +2302,8 @@ int main(int argc, const char **argv_) {
           default: break;
         }
       }
+#endif  // CONFIG_AV2_PROFILES
+
       // Force encoder to use 16-bit pipeline for 8-bit video/image
       if (profile_updated && !global.quiet) {
         fprintf(stderr,
