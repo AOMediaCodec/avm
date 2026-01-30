@@ -3481,7 +3481,7 @@ static AVM_INLINE void write_wienerns_framefilters_hdr(
         nsfilter_params, c_id, wb);
   }
   assert(num_classes <= WIENERNS_MAX_CLASSES);
-  const int(*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
+  const int (*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
 
   for (int c_id = 0; c_id < num_classes; ++c_id) {
     if (skip_filter_write_for_class[c_id]) continue;
@@ -3580,7 +3580,7 @@ static AVM_INLINE void write_wienerns_filter(
   }
   const int num_classes = wienerns_info->num_classes;
   assert(num_classes <= WIENERNS_MAX_CLASSES);
-  const int(*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
+  const int (*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
 
   for (int c_id = 0; c_id < num_classes; ++c_id) {
     if (skip_filter_write_for_class[c_id]) {
@@ -5207,7 +5207,7 @@ static AVM_INLINE void write_uncompressed_header(
   FeatureFlags *const features = &cm->features;
 
   if (cm->bridge_frame_info.is_bridge_frame) {
-    avm_wb_write_uvlc(wb, 0);  // seq_header_id_in_frame_header
+    assert(cm->cur_mfh_id == 0);
     avm_wb_write_literal(wb, cm->bridge_frame_info.bridge_frame_ref_idx,
                          seq_params->ref_frames_log2);
   } else {
