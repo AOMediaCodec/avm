@@ -209,8 +209,7 @@ static uint32_t calculate_ops_data_size(AV2_COMP *cpi, int obu_xlayer_id,
     }
   } else {
     // This is mlayer info for a single xlayer
-    if (ops->ops_mlayer_info_idc == 1)
-      write_ops_mlayer_info(&op->mlayer_info, obu_xlayer_id, &temp_wb);
+    write_ops_mlayer_info(&op->mlayer_info, obu_xlayer_id, &temp_wb);
   }
   // Add byte alignment
   avm_wb_write_literal(&temp_wb, 0, (8 - temp_wb.bit_offset % 8) % 8);
@@ -500,8 +499,7 @@ uint32_t av2_write_operating_point_set_obu(AV2_COMP *cpi, int ops_id,
       }
     } else {
       // Write mlayer infor for single xlayer
-      if (ops->ops_mlayer_info_idc == 1)
-        write_ops_mlayer_info(&op->mlayer_info, obu_xlayer_id, &wb);
+      write_ops_mlayer_info(&op->mlayer_info, obu_xlayer_id, &wb);
     }
     // Byte alignment at end of each operating point iteration
     avm_wb_write_literal(&wb, 0, (8 - wb.bit_offset % 8) % 8);
