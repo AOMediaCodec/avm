@@ -1206,7 +1206,6 @@ static INLINE int reuse_comp_mv_for_opfl(const AV2_COMMON *const cm,
     }
     return 1;
   }
-
   return 0;
 }
 
