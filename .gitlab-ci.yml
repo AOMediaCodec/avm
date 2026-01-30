@@ -242,6 +242,9 @@ Test Data Check:
         bitstream-mismatch-debug)
           CMAKE_FLAGS="$CMAKE_FLAGS -DCONFIG_BITSTREAM_DEBUG=1 -DCONFIG_MISMATCH_DEBUG=1"
           ;;
+        disable-12bit-profile)
+          CMAKE_FLAGS="$CMAKE_FLAGS -DCONFIG_TESTONLY_12BIT_SUPPORT=0"
+          ;;
         nasm)
           CMAKE_FLAGS="$CMAKE_FLAGS -DENABLE_NASM=1"
           ;;
@@ -335,6 +338,13 @@ Build (bitstream-mismatch-debug):
     matrix:
       - AVM_BUILD_CONFIG:
           - bitstream-mismatch-debug
+
+Build (disable-12bit-profile):
+  extends: .build-common
+  parallel:
+    matrix:
+      - AVM_BUILD_CONFIG:
+          - disable-12bit-profile
 
 Build (x86-linux-gcc):
   extends: .build-common

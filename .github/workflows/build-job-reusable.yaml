@@ -126,6 +126,9 @@ jobs:
             bitstream-mismatch-debug)
               CMAKE_FLAGS="${CMAKE_FLAGS} -DCONFIG_BITSTREAM_DEBUG=1 -DCONFIG_MISMATCH_DEBUG=1"
               ;;
+            disable-12bit-profile)
+              CMAKE_FLAGS="${CMAKE_FLAGS} -DCONFIG_TESTONLY_12BIT_SUPPORT=0"
+              ;;
             nasm)
               CMAKE_FLAGS="${CMAKE_FLAGS} -DENABLE_NASM=1"
               ;;
