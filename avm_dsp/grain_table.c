@@ -36,7 +36,7 @@
 #include "avm_dsp/avm_dsp_common.h"
 #include "avm_dsp/grain_table.h"
 #include "avm_mem/avm_mem.h"
-static const char kFileMagic[8] = "filmgrn2";
+static const char kFileMagic[8] = { 'f', 'i', 'l', 'm', 'g', 'r', 'n', '2' };
 static void grain_table_entry_read(FILE *file,
                                    struct avm_internal_error_info *error_info,
                                    avm_film_grain_table_entry_t *entry) {
