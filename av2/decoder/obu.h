@@ -92,4 +92,9 @@ int check_mlayer_frame_structure(mlayer_validation_state_t *state,
                                  const test_obu_info_t *obu_info);
 int validate_temporal_unit_completion(const mlayer_validation_state_t *state);
 
+bool conformance_check_msdo_lcr(struct AV2Decoder *pbi, int num_extended_layers,
+                                int num_embedded_layers, bool msdo_present,
+                                bool global_lcr_present,
+                                bool local_lcr_present);
+
 #endif  // AVM_AV2_DECODER_OBU_H_

@@ -27,12 +27,12 @@ static int read_multi_stream_decoder_operation(struct avm_read_bit_buffer *rb,
     return -1;
   }
 
-  const int multistream_profile_idx =
+  const int multistream_profile_idc =
       avm_rb_read_literal(rb, PROFILE_BITS);  // read profile of multistream
 #if PRINT_TU_INFO
-  printf("--multistream_profile_idx: %d\n", multistream_profile_idx);
+  printf("--multistream_profile_idc: %d\n", multistream_profile_idc);
 #endif  // PRINT_TU_INFO
-  (void)multistream_profile_idx;
+  (void)multistream_profile_idc;
 
   const int multistream_level_idx =
       avm_rb_read_literal(rb, LEVEL_BITS);  // read level of multistream
@@ -62,13 +62,13 @@ static int read_multi_stream_decoder_operation(struct avm_read_bit_buffer *rb,
 #if PRINT_TU_INFO
     printf("--stream_ids[%d]: %d\n", i, stream_ids[i]);
 #endif  // PRINT_TU_INFO
-    const int substream_profile_idx =
+    const int substream_profile_idc =
         avm_rb_read_literal(rb, PROFILE_BITS);  // read profile of multistream
 #if PRINT_TU_INFO
-    printf("--sub-stream_profile_idx[%d]: %d\n", stream_ids[i],
-           substream_profile_idx);
+    printf("--sub-stream_profile_idc[%d]: %d\n", stream_ids[i],
+           substream_profile_idc);
 #endif  // PRINT_TU_INFO
-    (void)substream_profile_idx;
+    (void)substream_profile_idc;
     const int substream_level_idx =
         avm_rb_read_literal(rb, LEVEL_BITS);  // read level of multistream
 #if PRINT_TU_INFO

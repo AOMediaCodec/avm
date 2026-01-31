@@ -247,17 +247,14 @@ static uint32_t read_multi_stream_decoder_operation_obu(
   }
   cm->num_streams = num_streams;
 
-  const int multistream_profile_idx =
+  pbi->common.msdo_params.multistream_profile_idc =
       avm_rb_read_literal(rb, PROFILE_BITS);  // read profile of multistream
-  (void)multistream_profile_idx;
 
-  const int multistream_level_idx =
+  pbi->common.msdo_params.multistream_level_idx =
       avm_rb_read_literal(rb, LEVEL_BITS);  // read level of multistream
-  (void)multistream_level_idx;
 
-  const int multistream_tier_idx =
+  pbi->common.msdo_params.multistream_tier_idx =
       avm_rb_read_bit(rb);  // read tier of multistream
-  (void)multistream_tier_idx;
 
   const int multistream_even_allocation_flag =
       avm_rb_read_bit(rb);  // read multistream_even_allocation_flag
@@ -270,9 +267,9 @@ static uint32_t read_multi_stream_decoder_operation_obu(
 
   for (int i = 0; i < num_streams; i++) {
     cm->stream_ids[i] = avm_rb_read_literal(rb, XLAYER_BITS);  // read stream ID
-    const int substream_profile_idx =
+    const int substream_profile_idc =
         avm_rb_read_literal(rb, PROFILE_BITS);  // read profile of multistream
-    (void)substream_profile_idx;
+    (void)substream_profile_idc;
 
     const int substream_level_idx =
         avm_rb_read_literal(rb, LEVEL_BITS);  // read level of multistream
@@ -1900,6 +1897,58 @@ static void check_valid_layer_id(ObuHeader obu_header, AV2_COMMON *const cm) {
                        obu_header.obu_xlayer_id);
   }
 }
+
+BITSTREAM_PROFILE get_msdo_profile(struct AV2Decoder *pbi) {
+  return pbi->common.msdo_params.multistream_profile_idc;
+}
+
+BITSTREAM_PROFILE get_lcr_profile(struct AV2Decoder *pbi) {
+  (void)pbi;
+  return MAIN_420_10_IP2;  // TODO: need to be updated after PTL signaling part
+                           // of LCR is implemented.
+}
+
+// Conformance check for the presence of MSDO and LCR
+bool conformance_check_msdo_lcr(struct AV2Decoder *pbi, int num_extended_layers,
+                                int num_embedded_layers, bool msdo_present,
+                                bool global_lcr_present,
+                                bool local_lcr_present) {
+  assert(num_extended_layers > 0 && num_embedded_layers > 0);
+
+  if (num_extended_layers == 1 && num_embedded_layers == 1) {
+    if (!msdo_present) return true;
+  }
+
+  if (num_extended_layers > 1 && num_embedded_layers == 1) {
+    if (msdo_present && (get_msdo_profile(pbi) == MAIN_420_10_IP0 ||
+                         get_msdo_profile(pbi) == MAIN_420_10_IP1 ||
+                         get_msdo_profile(pbi) == MAIN_420_10_IP2))
+      return true;
+
+    if (global_lcr_present && get_lcr_profile(pbi) == MAIN_420_10_IP2)
+      return true;
+  }
+
+  if (num_extended_layers == 1 && num_embedded_layers > 1) {
+    if (!msdo_present && local_lcr_present &&
+        get_lcr_profile(pbi) == MAIN_420_10_IP1)
+      return true;
+
+    if (!msdo_present && (global_lcr_present || local_lcr_present) &&
+        get_lcr_profile(pbi) == MAIN_420_10_IP2)
+      return true;
+  }
+
+  if (num_extended_layers > 1 && num_embedded_layers > 1) {
+    if (msdo_present && local_lcr_present &&
+        get_msdo_profile(pbi) == MAIN_420_10_IP2)
+      return true;
+
+    if (global_lcr_present && get_lcr_profile(pbi) == MAIN_420_10_IP2)
+      return true;
+  }
+  return false;
+}
 // On success, sets *p_data_end and returns a boolean that indicates whether
 // the decoding of the current frame is finished. On failure, sets
 // cm->error.error_code and returns -1.
@@ -1968,6 +2017,36 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
       cm->is_leading_picture = 0;
     else
       cm->is_leading_picture = -1;
+    if (pbi->random_accessed) {
+      int num_xlayers = 0;
+      int num_mlayers = 0;
+      for (int i = 0; i < AVM_MAX_NUM_STREAMS - 1; i++) {
+        if (pbi->xlayer_id_map[i] >= 0) num_xlayers++;
+      }
+      for (int i = 0; i < MAX_NUM_MLAYERS - 1; i++) {
+        if (pbi->mlayer_id_map[i] >= 0) num_mlayers++;
+      }
+
+      if (!conformance_check_msdo_lcr(
+              pbi, num_xlayers, num_mlayers, pbi->multi_stream_mode,
+              !cm->lcr_params.is_local_lcr, cm->lcr_params.is_local_lcr)) {
+        avm_internal_error(
+            &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+            "An MSDO or LCR OBU in the current CVS violates the requirements "
+            "of bitstream conformance for MSDO and LCR");
+      }
+
+      if (pbi->msdo_is_present_in_tu)
+        pbi->multi_stream_mode = 1;
+      else
+        pbi->multi_stream_mode = 0;
+      for (int i = 0; i < AVM_MAX_NUM_STREAMS - 1; i++)
+        pbi->xlayer_id_map[i] = 0;
+      for (int i = 0; i < MAX_NUM_MLAYERS - 1; i++) pbi->mlayer_id_map[i] = 0;
+    }
+
+    pbi->xlayer_id_map[obu_header.obu_xlayer_id] = 1;
+    pbi->mlayer_id_map[obu_header.obu_mlayer_id] = 1;
 
     obu_info *const curr_obu_info = &obu_list[count_obus_with_frame_unit];
     curr_obu_info->obu_type = obu_header.type;

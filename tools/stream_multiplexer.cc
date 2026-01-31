@@ -35,7 +35,7 @@ static int write_multi_stream_decoder_operation_obu(uint8_t *const dst,
   avm_wb_write_literal(&wb, 31, 5);             // obu_xlayer
 
   avm_wb_write_literal(&wb, num_streams - 2, 3);  // signal number of streams
-  avm_wb_write_literal(&wb, 0, PROFILE_BITS);     // multistream_profile_idx
+  avm_wb_write_literal(&wb, 0, PROFILE_BITS);     // multistream_profile_idc
   avm_wb_write_literal(&wb, SEQ_LEVEL_4_0,
                        LEVEL_BITS);  // multistream_level_idx
   avm_wb_write_bit(&wb, 0);          // multistream_tier_idx
@@ -62,7 +62,7 @@ static int write_multi_stream_decoder_operation_obu(uint8_t *const dst,
 
   for (int i = 0; i < num_streams; i++) {
     avm_wb_write_literal(&wb, stream_ids[i], XLAYER_BITS);  // signal stream IDs
-    avm_wb_write_literal(&wb, 0, PROFILE_BITS);  // substream profile_idx
+    avm_wb_write_literal(&wb, 0, PROFILE_BITS);  // substream profile_idc
     avm_wb_write_literal(&wb, SEQ_LEVEL_4_0,
                          LEVEL_BITS);  // substream level_idx
     avm_wb_write_bit(&wb, 0);          // substream tier_idx

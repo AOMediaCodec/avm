@@ -933,6 +933,13 @@ typedef struct ContentInterpretation {
   avm_timing_info_t timing_info;
 } ContentInterpretation;
 
+// Multi-stream decoder operation structure.
+typedef struct MultistreamDecoderOperation {
+  BITSTREAM_PROFILE multistream_profile_idc;
+  AV2_LEVEL multistream_level_idx;
+  uint8_t multistream_tier_idx;
+} MultistreamDecoderOperation;
+
 // Sequence header structure.
 // Note: All syntax elements of sequence_header_obu that need to be
 // bit-identical across multiple sequence headers must be part of this struct,
@@ -2491,6 +2498,11 @@ typedef struct AV2Common {
 
   //! Index for TIP weighted prediction parameters.
   int8_t tip_global_wtd_index;
+
+  /*!
+   * Elements part of the muti-stream decoder operation
+   */
+  MultistreamDecoderOperation msdo_params;
 
   /*!
    * Elements part of the layer configuration record
