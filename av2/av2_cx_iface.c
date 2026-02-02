@@ -2687,7 +2687,6 @@ static avm_codec_err_t ctrl_set_enable_explict_ref_frame_map(
   extra_cfg.explicit_ref_frame_map =
       CAST(AV2E_SET_ENABLE_EXPLICIT_REF_FRAME_MAP, args);
   return update_extra_cfg(ctx, &extra_cfg);
-  return AVM_CODEC_OK;
 }
 
 static avm_codec_err_t create_stats_buffer(FIRSTPASS_STATS **frame_stats_buffer,

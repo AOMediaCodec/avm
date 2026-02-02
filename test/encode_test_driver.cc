@@ -189,7 +189,7 @@ void EncoderTest::RunLoop(VideoSource *video) {
     std::unique_ptr<Decoder> decoder(
         codec_->CreateDecoder(dec_cfg, 0 /* flags */));
 
-    number_spatial_layers_ = GetNumSpatialLayers();
+    number_spatial_layers_ = GetNumEmbeddedLayers();
 
     bool again;
     DxDataIterator dec_iter = decoder->GetDxData();

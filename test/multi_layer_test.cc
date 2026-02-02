@@ -17,7 +17,7 @@
 #include "test/util.h"
 
 namespace {
-// This class is used to test temporal and Embedded (embedded) layers.
+// This class is used to test temporal and embedded layers.
 class MultiLayerTestLarge : public ::libavm_test::CodecTestWithParam<int>,
                             public ::libavm_test::EncoderTest {
  protected:
@@ -40,7 +40,7 @@ class MultiLayerTestLarge : public ::libavm_test::CodecTestWithParam<int>,
     layer_frame_cnt_ = 0;
   }
 
-  int GetNumSpatialLayers() override { return num_embedded_layers_; }
+  int GetNumEmbeddedLayers() override { return num_embedded_layers_; }
 
   void PreEncodeFrameHook(::libavm_test::VideoSource *video,
                           ::libavm_test::Encoder *encoder) override {

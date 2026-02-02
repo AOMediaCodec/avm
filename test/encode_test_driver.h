@@ -257,7 +257,7 @@ class EncoderTest {
     return 1;
   }
 
-  virtual int GetNumSpatialLayers() { return 1; }
+  virtual int GetNumEmbeddedLayers() { return 1; }
 
   // Hook that can modify the encoder's output data
   virtual const avm_codec_cx_pkt_t *MutateEncoderOutputHook(
