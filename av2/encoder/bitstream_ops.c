@@ -634,6 +634,13 @@ void av2_set_ops_params(struct OperatingPointSet *ops, int xlayer_id,
   if (xlayer_id != GLOBAL_XLAYER_ID) {
     ops->ops_mlayer_info_idc = 1;  // Needed for local ops
   }
+  // Initialize default mlayer info ane tlaer info for the xlayer id
+  int count = ops_cnt < MAX_OPS_COUNT ? ops_cnt : MAX_OPS_COUNT;
+  for (int i = 0; i < count; i++) {
+    ops->op[i].mlayer_info.ops_mlayer_map[xlayer_id] = 1;
+    ops->op[i].mlayer_info.ops_tlayer_map[xlayer_id][0] = 1;
+    ops->op[i].mlayer_info.OPMLayerCount[xlayer_id] = 1;
+  }
 }
 #else
   int av2_set_ops_params(AV2_COMP * cpi, struct OperatingPointSet * ops,
