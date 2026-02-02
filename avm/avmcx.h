@@ -1227,7 +1227,7 @@ enum avme_enc_control_id {
 
   /*!\brief Codec control function to enable explicit_ref_frame_map,
    * int parameter.
-  */
+   */
   AV2E_SET_ENABLE_EXPLICIT_REF_FRAME_MAP = 179,
 };
 
