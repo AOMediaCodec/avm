@@ -130,6 +130,7 @@ if(NOT BUILD_SHARED_LIBS)
       "${AVM_ROOT}/test/kf_test.cc"
       "${AVM_ROOT}/test/lossless_test.cc"
       "${AVM_ROOT}/test/mfh_test.cc"
+      "${AVM_ROOT}/test/multi_layer_test.cc"
       "${AVM_ROOT}/test/quant_test.cc"
       "${AVM_ROOT}/test/sb_multipass_test.cc"
       "${AVM_ROOT}/test/screen_content_test.cc"
@@ -137,7 +138,6 @@ if(NOT BUILD_SHARED_LIBS)
       "${AVM_ROOT}/test/still_picture_test.cc"
       "${AVM_ROOT}/test/subgop_test.cc"
       "${AVM_ROOT}/test/superframe_test.cc"
-      "${AVM_ROOT}/test/multi_layer_test.cc"
       "${AVM_ROOT}/test/tile_config_test.cc"
       "${AVM_ROOT}/test/tile_independence_test.cc"
       "${AVM_ROOT}/test/temporal_filter_test.cc")

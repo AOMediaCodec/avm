@@ -17,7 +17,7 @@
 #include "test/util.h"
 
 namespace {
-// This class is used to test temporal and spatial (embedded) layers.
+// This class is used to test temporal and Embedded (embedded) layers.
 class MultiLayerTestLarge : public ::libavm_test::CodecTestWithParam<int>,
                             public ::libavm_test::EncoderTest {
  protected:
@@ -37,15 +37,18 @@ class MultiLayerTestLarge : public ::libavm_test::CodecTestWithParam<int>,
     top_width_ = 160;
     top_height_ = 90;
     num_mismatch_ = 0;
-    enable_explicit_ref_frame_map_ = false;
+    layer_frame_cnt_ = 0;
   }
+
+  int GetNumSpatialLayers() override { return num_embedded_layers_; }
 
   void PreEncodeFrameHook(::libavm_test::VideoSource *video,
                           ::libavm_test::Encoder *encoder) override {
+    (void)video;
     frame_flags_ = 0;
-    if (video->frame() == 0) {
+    if (layer_frame_cnt_ == 0) {
       encoder->Control(AVME_SET_CPUUSED, speed_);
-      encoder->Control(AVME_SET_NUMBER_MLAYERS, num_spatial_layers_);
+      encoder->Control(AVME_SET_NUMBER_MLAYERS, num_embedded_layers_);
       encoder->Control(AVME_SET_NUMBER_TLAYERS, num_temporal_layers_);
       encoder->Control(AVME_SET_MLAYER_ID, 0);
       encoder->Control(AVME_SET_TLAYER_ID, 0);
@@ -53,81 +56,82 @@ class MultiLayerTestLarge : public ::libavm_test::CodecTestWithParam<int>,
         encoder->Control(AV2E_SET_ENABLE_EXPLICIT_REF_FRAME_MAP, 1);
       }
     }
-    if (num_temporal_layers_ == 2 && num_spatial_layers_ == 1) {
-      if (video->frame() % 2 == 0) {
+    if (num_temporal_layers_ == 2 && num_embedded_layers_ == 1) {
+      if (layer_frame_cnt_ % 2 == 0) {
         temporal_layer_id_ = 0;
         encoder->Control(AVME_SET_TLAYER_ID, 0);
       } else {
         temporal_layer_id_ = 1;
         encoder->Control(AVME_SET_TLAYER_ID, 1);
       }
-    } else if (num_temporal_layers_ == 3 && num_spatial_layers_ == 1) {
-      if (video->frame() % 4 == 0) {
+    } else if (num_temporal_layers_ == 3 && num_embedded_layers_ == 1) {
+      if (layer_frame_cnt_ % 4 == 0) {
         temporal_layer_id_ = 0;
         encoder->Control(AVME_SET_TLAYER_ID, 0);
-      } else if (video->frame() % 2 == 0) {
+      } else if (layer_frame_cnt_ % 2 == 0) {
         temporal_layer_id_ = 1;
         encoder->Control(AVME_SET_TLAYER_ID, 1);
       } else {
         temporal_layer_id_ = 2;
         encoder->Control(AVME_SET_TLAYER_ID, 2);
       }
-    } else if (num_temporal_layers_ == 1 && num_spatial_layers_ == 2) {
-      if (video->frame() % 2 == 0) {
+    } else if (num_temporal_layers_ == 1 && num_embedded_layers_ == 2) {
+      if (layer_frame_cnt_ % 2 == 0) {
         struct avm_scaling_mode mode = { AVME_ONETWO, AVME_ONETWO };
         encoder->Control(AVME_SET_SCALEMODE, &mode);
-        spatial_layer_id_ = 0;
+        embedded_layer_id_ = 0;
         encoder->Control(AVME_SET_MLAYER_ID, 0);
       } else {
         struct avm_scaling_mode mode = { AVME_NORMAL, AVME_NORMAL };
         encoder->Control(AVME_SET_SCALEMODE, &mode);
-        spatial_layer_id_ = 1;
+        embedded_layer_id_ = 1;
         encoder->Control(AVME_SET_MLAYER_ID, 1);
       }
-    } else if (num_temporal_layers_ == 1 && num_spatial_layers_ == 3) {
-      if (video->frame() % 3 == 0) {
+    } else if (num_temporal_layers_ == 1 && num_embedded_layers_ == 3) {
+      if (layer_frame_cnt_ % 3 == 0) {
         struct avm_scaling_mode mode = { AVME_ONEFOUR, AVME_ONEFOUR };
         encoder->Control(AVME_SET_SCALEMODE, &mode);
-        spatial_layer_id_ = 0;
+        embedded_layer_id_ = 0;
         encoder->Control(AVME_SET_MLAYER_ID, 0);
-      } else if ((video->frame() - 1) % 3 == 0) {
+      } else if ((layer_frame_cnt_ - 1) % 3 == 0) {
         struct avm_scaling_mode mode = { AVME_ONETWO, AVME_ONETWO };
         encoder->Control(AVME_SET_SCALEMODE, &mode);
-        spatial_layer_id_ = 1;
+        embedded_layer_id_ = 1;
         encoder->Control(AVME_SET_MLAYER_ID, 1);
-      } else if ((video->frame() - 2) % 3 == 0) {
+      } else if ((layer_frame_cnt_ - 2) % 3 == 0) {
         struct avm_scaling_mode mode = { AVME_NORMAL, AVME_NORMAL };
         encoder->Control(AVME_SET_SCALEMODE, &mode);
-        spatial_layer_id_ = 2;
+        embedded_layer_id_ = 2;
         encoder->Control(AVME_SET_MLAYER_ID, 2);
       }
-    } else if (num_temporal_layers_ == 2 && num_spatial_layers_ == 2) {
-      if (video->frame() % 4 == 0) {
+    } else if (num_temporal_layers_ == 2 && num_embedded_layers_ == 2) {
+      if (layer_frame_cnt_ % 4 == 0) {
         struct avm_scaling_mode mode = { AVME_ONETWO, AVME_ONETWO };
         encoder->Control(AVME_SET_SCALEMODE, &mode);
-        spatial_layer_id_ = 0;
+        embedded_layer_id_ = 0;
         temporal_layer_id_ = 0;
         encoder->Control(AVME_SET_MLAYER_ID, 0);
         encoder->Control(AVME_SET_TLAYER_ID, 0);
-      } else if (video->frame() % 2 == 0) {
+      } else if (layer_frame_cnt_ % 2 == 0) {
         struct avm_scaling_mode mode = { AVME_ONETWO, AVME_ONETWO };
         encoder->Control(AVME_SET_SCALEMODE, &mode);
-        spatial_layer_id_ = 0;
+        embedded_layer_id_ = 0;
         temporal_layer_id_ = 1;
         encoder->Control(AVME_SET_MLAYER_ID, 0);
         encoder->Control(AVME_SET_TLAYER_ID, 1);
-      } else if ((video->frame() - 1) % 4 == 0) {
-        spatial_layer_id_ = 1;
+      } else if ((layer_frame_cnt_ - 1) % 4 == 0) {
+        embedded_layer_id_ = 1;
         temporal_layer_id_ = 0;
         encoder->Control(AVME_SET_MLAYER_ID, 1);
         encoder->Control(AVME_SET_TLAYER_ID, 0);
-      } else if ((video->frame() - 1) % 2 == 0) {
-        spatial_layer_id_ = 1;
+      } else if ((layer_frame_cnt_ - 1) % 2 == 0) {
+        embedded_layer_id_ = 1;
         temporal_layer_id_ = 1;
         encoder->Control(AVME_SET_MLAYER_ID, 1);
         encoder->Control(AVME_SET_TLAYER_ID, 1);
       }
     }
+    layer_frame_cnt_++;
   }
 
   bool HandleDecodeResult(const avm_codec_err_t res_dec,
@@ -139,28 +143,28 @@ class MultiLayerTestLarge : public ::libavm_test::CodecTestWithParam<int>,
   void DecompressedFrameHook(const avm_image_t &img,
                              avm_codec_pts_t pts) override {
     (void)pts;
-    if (spatial_layer_id_ == 0 && num_spatial_layers_ == 2) {
+    if (embedded_layer_id_ == 0 && num_embedded_layers_ == 2) {
       EXPECT_EQ(img.d_w, top_width_ / 2);
       EXPECT_EQ(img.d_h, top_height_ / 2);
-    } else if (spatial_layer_id_ == 0 && num_spatial_layers_ == 3) {
+    } else if (embedded_layer_id_ == 0 && num_embedded_layers_ == 3) {
       EXPECT_EQ(img.d_w, top_width_ / 4);
       EXPECT_EQ(img.d_h, top_height_ / 4 + 1);
     }
   }
 
   bool DoDecode() const override {
-    if (num_temporal_layers_ > 1 && num_spatial_layers_ > 1) {
+    if (num_temporal_layers_ > 1 && num_embedded_layers_ > 1) {
       if (decode_base_only_) {
-        if (temporal_layer_id_ == 0 && spatial_layer_id_ == 0)
+        if (temporal_layer_id_ == 0)
           return true;
         else
           return false;
       }
-    } else if (num_temporal_layers_ > 1 && num_spatial_layers_ == 1) {
+    } else if (num_temporal_layers_ > 1 && num_embedded_layers_ == 1) {
       if (drop_tl2_) {
-        if (temporal_layer_id_ == 2) {
+        if (temporal_layer_id_ == 2)
           return false;
-        } else
+        else
           return true;
       } else if (decode_base_only_) {
         if (temporal_layer_id_ == 0)
@@ -170,14 +174,14 @@ class MultiLayerTestLarge : public ::libavm_test::CodecTestWithParam<int>,
       } else {
         return true;
       }
-    } else if (num_spatial_layers_ > 1 && num_temporal_layers_ == 1) {
+    } else if (num_embedded_layers_ > 1 && num_temporal_layers_ == 1) {
       if (drop_sl2_) {
-        if (spatial_layer_id_ == 2) {
+        if (embedded_layer_id_ == 2) {
           return false;
         } else
           return true;
       } else if (decode_base_only_) {
-        if (spatial_layer_id_ == 0)
+        if (embedded_layer_id_ == 0)
           return true;
         else {
           return false;
@@ -200,134 +204,148 @@ class MultiLayerTestLarge : public ::libavm_test::CodecTestWithParam<int>,
   bool drop_tl2_;
   bool drop_sl2_;
   int temporal_layer_id_;
-  int spatial_layer_id_;
+  int embedded_layer_id_;
   double mismatch_psnr_;
   int num_temporal_layers_;
-  int num_spatial_layers_;
+  int num_embedded_layers_;
   unsigned int top_width_;
   unsigned int top_height_;
   int num_mismatch_;
   bool enable_explicit_ref_frame_map_;
+  int layer_frame_cnt_;
 };
 
 TEST_P(MultiLayerTestLarge, MultiLayerTest2Temporal) {
-  ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
+  ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 200);
   num_temporal_layers_ = 2;
-  num_spatial_layers_ = 1;
+  num_embedded_layers_ = 1;
   decode_base_only_ = false;
   drop_tl2_ = false;
+  enable_explicit_ref_frame_map_ = false;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
   EXPECT_EQ(num_mismatch_, 0);
 }
 
 TEST_P(MultiLayerTestLarge, MultiLayerTest2TemporalDecodeBaseOnly) {
-  ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
+  ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 200);
   num_temporal_layers_ = 2;
-  num_spatial_layers_ = 1;
+  num_embedded_layers_ = 1;
   decode_base_only_ = true;
   drop_tl2_ = false;
+  enable_explicit_ref_frame_map_ = true;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
   EXPECT_EQ(num_mismatch_, 0);
 }
 
 TEST_P(MultiLayerTestLarge, MultiLayerTest3Temporal) {
-  ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
+  ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 200);
   num_temporal_layers_ = 3;
-  num_spatial_layers_ = 1;
+  num_embedded_layers_ = 1;
   decode_base_only_ = false;
   drop_tl2_ = false;
+  enable_explicit_ref_frame_map_ = false;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
   EXPECT_EQ(num_mismatch_, 0);
 }
 
 TEST_P(MultiLayerTestLarge, MultiLayerTest3TemporalDecodeBaseOnly) {
-  ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
+  ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 200);
   num_temporal_layers_ = 3;
-  num_spatial_layers_ = 1;
+  num_embedded_layers_ = 1;
   decode_base_only_ = true;
   drop_tl2_ = false;
+  enable_explicit_ref_frame_map_ = true;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
   EXPECT_EQ(num_mismatch_, 0);
 }
 
 TEST_P(MultiLayerTestLarge, MultiLayerTest3TemporalDropTL2) {
-  ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
+  ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 200);
   num_temporal_layers_ = 3;
-  num_spatial_layers_ = 1;
+  num_embedded_layers_ = 1;
   decode_base_only_ = false;
   drop_tl2_ = true;
+  enable_explicit_ref_frame_map_ = true;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
   EXPECT_EQ(num_mismatch_, 0);
 }
 
-// The spatial layer tests below currently on allow for prediction
-// of enhancements layers (m > 0) off the base (m=0) layers. Will allow
-// for prediction off previous m layers (at t-1, t-2,) in a subsequent change.
-TEST_P(MultiLayerTestLarge, MultiLayerTest2Spatial) {
-  ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
+// For the embedded layer tests below: the example used here is that of
+// spatial layers. Currently for spatial layers there is no prediction off
+// same m layer at previous times. Future change will add a test control to
+// allow for more flexible prediction structures, so a given m layer can also
+// predict off the same m layers at previous times (t-1, t-2,).
+TEST_P(MultiLayerTestLarge, MultiLayerTest2Embedded) {
+  ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 200);
   num_temporal_layers_ = 1;
-  num_spatial_layers_ = 2;
+  num_embedded_layers_ = 2;
   decode_base_only_ = false;
   drop_tl2_ = false;
+  enable_explicit_ref_frame_map_ = false;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
   EXPECT_EQ(num_mismatch_, 0);
 }
 
-TEST_P(MultiLayerTestLarge, MultiLayerTest2SpatialDecodeBaseOnly) {
-  ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
+TEST_P(MultiLayerTestLarge, MultiLayerTest2EmbeddedDecodeBaseOnly) {
+  ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 200);
   num_temporal_layers_ = 1;
-  num_spatial_layers_ = 2;
+  num_embedded_layers_ = 2;
   decode_base_only_ = true;
   drop_tl2_ = false;
+  enable_explicit_ref_frame_map_ = true;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
   EXPECT_EQ(num_mismatch_, 0);
 }
 
-TEST_P(MultiLayerTestLarge, MultiLayerTest3Spatial) {
-  ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
+TEST_P(MultiLayerTestLarge, MultiLayerTest3Embedded) {
+  ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 200);
   num_temporal_layers_ = 1;
-  num_spatial_layers_ = 3;
+  num_embedded_layers_ = 3;
   decode_base_only_ = false;
   drop_tl2_ = false;
+  enable_explicit_ref_frame_map_ = false;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
   EXPECT_EQ(num_mismatch_, 0);
 }
 
-TEST_P(MultiLayerTestLarge, MultiLayerTest3SpatialDecodeBaseOnly) {
-  ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
+TEST_P(MultiLayerTestLarge, MultiLayerTest3EmbeddedDecodeBaseOnly) {
+  ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 200);
   num_temporal_layers_ = 1;
-  num_spatial_layers_ = 3;
+  num_embedded_layers_ = 3;
   decode_base_only_ = true;
   drop_sl2_ = false;
+  enable_explicit_ref_frame_map_ = true;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
   EXPECT_EQ(num_mismatch_, 0);
 }
 
-TEST_P(MultiLayerTestLarge, MultiLayerTest2Spatial2Temp) {
-  ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
-  num_temporal_layers_ = 2;
-  num_spatial_layers_ = 2;
-  decode_base_only_ = false;
-  drop_sl2_ = false;
-  ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
-  EXPECT_EQ(num_mismatch_, 0);
-}
-
-TEST_P(MultiLayerTestLarge, MultiLayerTest2Spatial2TempDecodeBaseOnly) {
-  ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
-  num_temporal_layers_ = 2;
-  num_spatial_layers_ = 2;
-  decode_base_only_ = true;
-  drop_sl2_ = false;
-  ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
-  EXPECT_EQ(num_mismatch_, 0);
-}
-
-// Test the case explicit_ref_frame_map enabeld for this (2, 2) pattern,
-TEST_P(MultiLayerTestLarge, MultiLayerTest2Spatial2TempExplRefFrameMap) {
+TEST_P(MultiLayerTestLarge, MultiLayerTest2Embedded2Temp) {
   ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 200);
   num_temporal_layers_ = 2;
-  num_spatial_layers_ = 2;
+  num_embedded_layers_ = 2;
+  decode_base_only_ = false;
+  drop_sl2_ = false;
+  enable_explicit_ref_frame_map_ = false;
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
+  EXPECT_EQ(num_mismatch_, 0);
+}
+
+TEST_P(MultiLayerTestLarge, MultiLayerTest2Embedded2TempDropTL1) {
+  ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 200);
+  num_temporal_layers_ = 2;
+  num_embedded_layers_ = 2;
+  decode_base_only_ = true;
+  drop_sl2_ = false;
+  enable_explicit_ref_frame_map_ = true;
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
+  EXPECT_EQ(num_mismatch_, 0);
+}
+
+// Test the case explicit_ref_frame_map enabled for this (2, 2) pattern,
+TEST_P(MultiLayerTestLarge, MultiLayerTest2Embedded2TempExplRefFrameMap) {
+  ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 200);
+  num_temporal_layers_ = 2;
+  num_embedded_layers_ = 2;
   decode_base_only_ = false;
   drop_sl2_ = false;
   enable_explicit_ref_frame_map_ = true;

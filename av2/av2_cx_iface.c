@@ -2681,10 +2681,11 @@ static avm_codec_err_t ctrl_get_enable_bru(avm_codec_alg_priv_t *ctx,
   return AVM_CODEC_OK;
 }
 
-static avm_codec_err_t ctrl_enable_explict_ref_frame_map(avm_codec_alg_priv_t *ctx,
-                                                         va_list args) {
+static avm_codec_err_t ctrl_set_enable_explict_ref_frame_map(
+    avm_codec_alg_priv_t *ctx, va_list args) {
   struct av2_extracfg extra_cfg = ctx->extra_cfg;
-  extra_cfg.explicit_ref_frame_map = CAST(AV2E_SET_ENABLE_BRU, args);
+  extra_cfg.explicit_ref_frame_map =
+      CAST(AV2E_SET_ENABLE_EXPLICIT_REF_FRAME_MAP, args);
   return update_extra_cfg(ctx, &extra_cfg);
   return AVM_CODEC_OK;
 }
@@ -3568,7 +3569,7 @@ static avm_codec_err_t ctrl_set_scale_mode(avm_codec_alg_priv_t *ctx,
 
 static avm_codec_err_t ctrl_set_mlayer_id(avm_codec_alg_priv_t *ctx,
                                           va_list args) {
-  const unsigned int mlayer_id = va_arg(args, int);
+  const unsigned int mlayer_id = va_arg(args, unsigned int);
   if (mlayer_id >= MAX_NUM_MLAYERS) return AVM_CODEC_INVALID_PARAM;
   ctx->cpi->common.mlayer_id = mlayer_id;
   return AVM_CODEC_OK;
@@ -3576,7 +3577,7 @@ static avm_codec_err_t ctrl_set_mlayer_id(avm_codec_alg_priv_t *ctx,
 
 static avm_codec_err_t ctrl_set_tlayer_id(avm_codec_alg_priv_t *ctx,
                                           va_list args) {
-  const unsigned int tlayer_id = va_arg(args, int);
+  const unsigned int tlayer_id = va_arg(args, unsigned int);
   if (tlayer_id >= MAX_NUM_TLAYERS) return AVM_CODEC_INVALID_PARAM;
   ctx->cpi->common.tlayer_id = tlayer_id;
   return AVM_CODEC_OK;
@@ -4489,7 +4490,8 @@ static avm_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV2E_ENABLE_SUBGOP_STATS, ctrl_enable_subgop_stats },
   { AV2E_SET_ENABLE_BRU, ctrl_set_enable_bru },
   { AV2E_GET_ENABLE_BRU, ctrl_get_enable_bru },
-  { AV2E_SET_ENABLE_EXPLICIT_REF_FRAME_MAP, ctrl_enable_explict_ref_frame_map },
+  { AV2E_SET_ENABLE_EXPLICIT_REF_FRAME_MAP,
+    ctrl_set_enable_explict_ref_frame_map },
   // Getters
   { AVME_GET_LAST_QUANTIZER, ctrl_get_quantizer },
   { AV2_GET_REFERENCE, ctrl_get_reference },
