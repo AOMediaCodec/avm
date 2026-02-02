@@ -792,7 +792,7 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
       FrameWorkerData *const frame_worker_data =
           (FrameWorkerData *)worker->data1;
       struct AV2Decoder *pbi = frame_worker_data->pbi;
-      if (!pbi) {
+      if (pbi) {
         int num_xlayers = 0;
         int num_mlayers = 0;
         for (int i = 0; i < AVM_MAX_NUM_STREAMS - 1; i++) {

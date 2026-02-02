@@ -1898,11 +1898,11 @@ static void check_valid_layer_id(ObuHeader obu_header, AV2_COMMON *const cm) {
   }
 }
 
-BITSTREAM_PROFILE get_msdo_profile(struct AV2Decoder *pbi) {
+static BITSTREAM_PROFILE get_msdo_profile(struct AV2Decoder *pbi) {
   return pbi->common.msdo_params.multistream_profile_idc;
 }
 
-BITSTREAM_PROFILE get_lcr_profile(struct AV2Decoder *pbi) {
+static BITSTREAM_PROFILE get_lcr_profile(struct AV2Decoder *pbi) {
   (void)pbi;
   return MAIN_420_10_IP2;  // TODO: need to be updated after PTL signaling part
                            // of LCR is implemented.
