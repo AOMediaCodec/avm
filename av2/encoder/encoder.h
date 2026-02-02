@@ -696,6 +696,8 @@ typedef struct {
   int buffer_refresh_multi_layers_test[REF_FRAMES];
   // Changes needed for multi layers tests with nonzero lag.
   int multi_layers_lag_test;
+  // Signal one sequence header for the entire sequence.
+  uint8_t single_seq_header_for_all_test;
 } UnitTestCfg;
 
 typedef struct {

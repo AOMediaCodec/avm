@@ -144,6 +144,7 @@ uint32_t av2_read_content_interpretation_obu(struct AV2Decoder *pbi,
                                              struct avm_read_bit_buffer *rb) {
   AV2_COMMON *const cm = &pbi->common;
   const int obu_mlayer_id = cm->mlayer_id;
+  const int obu_tlayer_id = cm->tlayer_id;
   const uint32_t saved_bit_offset = rb->bit_offset;
   cm->error.error_code = AVM_CODEC_OK;
   assert(rb->error_handler);
@@ -212,12 +213,12 @@ uint32_t av2_read_content_interpretation_obu(struct AV2Decoder *pbi,
     return 0;
   }
 
-  assert(
-      pbi->obus_in_frame_unit_data[obu_mlayer_id][OBU_CONTENT_INTERPRETATION]);
+  assert(pbi->obus_in_frame_unit_data[obu_tlayer_id][obu_mlayer_id]
+                                     [OBU_CONTENT_INTERPRETATION]);
   // this CI OBU is signalled with a KEY OBU in the frame data unit
   int ci_is_with_keyobu =
-      (pbi->obus_in_frame_unit_data[obu_mlayer_id][OBU_CLK] ||
-       pbi->obus_in_frame_unit_data[obu_mlayer_id][OBU_OLK]);
+      (pbi->obus_in_frame_unit_data[obu_tlayer_id][obu_mlayer_id][OBU_CLK] ||
+       pbi->obus_in_frame_unit_data[obu_tlayer_id][obu_mlayer_id][OBU_OLK]);
 
   if (!ci_is_with_keyobu) {
     // Check if a CI OBU has already been received for this embedded layer

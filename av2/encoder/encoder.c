@@ -4541,6 +4541,7 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
   if (compute_ds_filter) {
     av2_set_downsample_filter_options(cpi);
   }
+
   // frame type has been decided outside of this function call
   cm->cur_frame->frame_type = current_frame->frame_type;
 
@@ -4973,7 +4974,8 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
   if (av2_is_shown_keyframe(cpi, current_frame->frame_type) &&
       !cpi->update_type_was_overlay) {
     current_frame->key_frame_number += current_frame->frame_number;
-    current_frame->frame_number = 0;
+    if (!cpi->oxcf.unit_test_cfg.single_seq_header_for_all_test)
+      current_frame->frame_number = 0;
     if (cpi->oxcf.unit_test_cfg.multi_seq_header_test) {
       cm->seq_params.seq_header_id =
           (cm->seq_params.seq_header_id + 1) % MAX_SEQ_NUM;

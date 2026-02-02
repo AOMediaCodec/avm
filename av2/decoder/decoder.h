@@ -474,15 +474,12 @@ typedef struct AV2Decoder {
   /*!
    * list of sequence headers
    */
-  struct SequenceHeader seq_list[MAX_SEQ_NUM];
+  struct SequenceHeader seq_list[MAX_NUM_XLAYERS][MAX_SEQ_NUM];
+
   /*!
-   * counter for sequence headers
+   * active sequence header for each xlayer_id
    */
-  int seq_header_count;
-  /*!
-   * active sequence header for the frame
-   */
-  struct SequenceHeader *active_seq;
+  struct SequenceHeader active_seq[MAX_NUM_XLAYERS];
 
   struct quantization_matrix_set qm_list[NUM_CUSTOM_QMS];
   // qm_protected[i]==1 indicates quantization_matrix, qm_list[i] is not reset
@@ -518,10 +515,25 @@ typedef struct AV2Decoder {
   obu_info last_displayable_frame_unit;
   /*!
    * Indicates if the current data chunk being decoded in avm_codec_decode()
-   * includes a random access point, OBU_CLK or OBU_OLK and it is the
-   * start of a temporal unit that will require flush the remaining frames.
+   * is the first frame unit of the temporal unit
    */
-  int is_random_access_frame_unit;
+  int this_is_first_keyframe_unit_in_tu;
+  /*!
+   * Indicates mlayer_id of the current data chunk being decoded. This is used
+   * only for determining first clk/olk in the tu.
+   */
+  int current_mlayer_id;
+  /*!
+   * Indicates tlayer_id of the current data chunk being decoded. This is used
+   * only for determining first clk/olk in the tu.
+   */
+  int current_tlayer_id;
+  /*!
+   * Indicates order_hint_bits to parse order_hint of the frames in the current
+   * data chunk This is used only for determining first clk/olk in the tu.
+   */
+  int current_order_hint_bits;
+
   /*!
    * Indicates the number of displayable_frame_unit  per layer between layer_id
    * change num_displayable_frame_unit[i] can be maximum 1.   *
@@ -562,10 +574,11 @@ typedef struct AV2Decoder {
 
   /*!
    * Indicates the presence of obu in the current frame unit data
-   * When obus_in_frame_unit_data[mlayer_id][i] is true, OBUs with obu_type = i
-   * and obu_mlayer_id=mlayer_id are present in the current frame unit data
+   * When obus_in_frame_unit_data[tlayer_id][mlayer_id][i] is true, OBUs with
+   * obu_type = i and obu_mlayer_id=mlayer_id are present in the current frame
+   * unit data
    */
-  bool obus_in_frame_unit_data[MAX_NUM_MLAYERS][NUM_OBU_TYPES];
+  bool obus_in_frame_unit_data[MAX_NUM_TLAYERS][MAX_NUM_MLAYERS][NUM_OBU_TYPES];
 
   /*!
    * Indicates if the MultiStreamMode is activated.

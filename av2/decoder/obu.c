@@ -219,7 +219,7 @@ static void store_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
         cm->remapped_ref_idx[i];
   }
   for (int i = 0; i < MAX_SEQ_NUM; i++) {
-    pbi->stream_info[stream_idx].seq_list_buf[i] = pbi->seq_list[i];
+    pbi->stream_info[stream_idx].seq_list_buf[i] = pbi->seq_list[xlayer_id][i];
   }
   for (int i = 0; i < MAX_MFH_NUM; i++) {
     pbi->stream_info[stream_idx].mfh_params_buf[i] = cm->mfh_params[i];
@@ -302,7 +302,7 @@ static void restore_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
         pbi->stream_info[stream_idx].remapped_ref_idx_buf[i];
   }
   for (int i = 0; i < MAX_SEQ_NUM; i++) {
-    pbi->seq_list[i] = pbi->stream_info[stream_idx].seq_list_buf[i];
+    pbi->seq_list[xlayer_id][i] = pbi->stream_info[stream_idx].seq_list_buf[i];
   }
   for (int i = 0; i < MAX_MFH_NUM; i++) {
     cm->mfh_params[i] = pbi->stream_info[stream_idx].mfh_params_buf[i];
@@ -456,7 +456,7 @@ static uint32_t read_multi_stream_decoder_operation_obu(
 
 // On success, returns the number of bytes read from 'rb'.
 // On failure, sets pbi->common.error.error_code and returns 0.
-static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
+static uint32_t read_sequence_header_obu(AV2Decoder *pbi, int xlayer_id,
                                          struct avm_read_bit_buffer *rb) {
   AV2_COMMON *const cm = &pbi->common;
   const uint32_t saved_bit_offset = rb->bit_offset;
@@ -471,22 +471,9 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
     cm->error.error_code = AVM_CODEC_UNSUP_BITSTREAM;
     return 0;
   }
-  struct SequenceHeader *seq_params;
-  int seq_header_pos = -1;
-  for (int i = 0; i < pbi->seq_header_count; i++) {
-    if (pbi->seq_list[i].seq_header_id == (int)seq_header_id) {
-      seq_header_pos = i;
-      break;
-    }
-  }
-  if (seq_header_pos != -1) {
-    seq_params = &pbi->seq_list[seq_header_pos];
-  } else {
-    assert(pbi->seq_header_count < MAX_SEQ_NUM);
-    seq_params = &pbi->seq_list[pbi->seq_header_count];
-    pbi->seq_header_count++;
-    seq_params->seq_header_id = seq_header_id;
-  }
+
+  struct SequenceHeader *seq_params = &pbi->seq_list[xlayer_id][seq_header_id];
+  seq_params->seq_header_id = seq_header_id;
 
   seq_params->seq_profile_idc = av2_read_profile(rb);
   if (seq_params->seq_profile_idc >= MAX_PROFILES) {
@@ -712,8 +699,8 @@ static uint32_t read_tilegroup_obu(AV2Decoder *pbi,
                                    struct avm_read_bit_buffer *rb,
                                    const uint8_t *data, const uint8_t *data_end,
                                    const uint8_t **p_data_end,
-                                   OBU_TYPE obu_type, int *is_first_tg,
-                                   int *is_last_tg) {
+                                   OBU_TYPE obu_type, int obu_xlayer_id,
+                                   int *is_first_tg, int *is_last_tg) {
   AV2_COMMON *const cm = &pbi->common;
   int start_tile, end_tile;
   int32_t header_size, tg_payload_size;
@@ -721,8 +708,9 @@ static uint32_t read_tilegroup_obu(AV2Decoder *pbi,
   assert(rb->bit_offset == 0);
   assert(rb->bit_buffer == data);
   *is_first_tg = 1;  // it is updated by av2_read_tilegroup_header()
-  header_size = av2_read_tilegroup_header(
-      pbi, rb, data, p_data_end, is_first_tg, &start_tile, &end_tile, obu_type);
+  header_size = av2_read_tilegroup_header(pbi, rb, data, p_data_end,
+                                          is_first_tg, &start_tile, &end_tile,
+                                          obu_type, obu_xlayer_id);
 
   bool skip_payload = false;
   skip_payload |= (obu_type == OBU_LEADING_SEF);
@@ -2174,6 +2162,274 @@ bool conformance_check_msdo_lcr(struct AV2Decoder *pbi, bool global_lcr_present,
 }
 #endif  // CONFIG_AV2_PROFILES
 
+// Parse given "data" to get long_term_frame_id_bits and OrderHintBits.
+avm_codec_err_t parse_sh(struct AV2Decoder *pbi, const uint8_t *data,
+                         size_t payload_size,
+                         struct SequenceHeader *seq_params) {
+  const uint32_t saved_bit_offset = 0;
+  struct avm_internal_error_info error_info;
+  struct avm_read_bit_buffer readbits;
+  struct avm_read_bit_buffer *rb = &readbits;
+  rb->bit_offset = 0;
+  rb->error_handler_data = NULL;
+  rb->bit_buffer = data;
+  rb->bit_buffer_end = data + payload_size;
+
+  seq_params->seq_header_id = avm_rb_read_uvlc(rb);
+  seq_params->seq_profile_idc = av2_read_profile(rb);
+  seq_params->single_picture_header_flag = avm_rb_read_bit(rb);
+  if (!seq_params->single_picture_header_flag) {
+    int seq_lcr_id = avm_rb_read_literal(rb, 3);
+    seq_params->seq_lcr_id = seq_lcr_id;
+    seq_params->still_picture = avm_rb_read_bit(rb);
+  }
+  read_bitstream_level(&seq_params->seq_max_level_idx, rb);
+
+  if (seq_params->seq_max_level_idx >= SEQ_LEVEL_4_0 &&
+      !seq_params->single_picture_header_flag)
+    seq_params->seq_tier = avm_rb_read_bit(rb);
+  else
+    seq_params->seq_tier = 0;
+
+  seq_params->num_bits_width = avm_rb_read_literal(rb, 4) + 1;
+  seq_params->num_bits_height = avm_rb_read_literal(rb, 4) + 1;
+  seq_params->max_frame_width =
+      avm_rb_read_literal(rb, seq_params->num_bits_width) + 1;
+  seq_params->max_frame_height =
+      avm_rb_read_literal(rb, seq_params->num_bits_height) + 1;
+
+  av2_read_conformance_window(rb, seq_params);
+  // av2_validate_seq_conformance_window(seq_params, &cm->error);
+
+  av2_read_chroma_format_bitdepth(rb, seq_params, &error_info);
+
+  if (!seq_params->single_picture_header_flag) {
+    seq_params->seq_max_display_model_info_present_flag = avm_rb_read_bit(rb);
+    seq_params->seq_max_initial_display_delay_minus_1 =
+        BUFFER_POOL_MAX_SIZE - 1;
+    if (seq_params->seq_max_display_model_info_present_flag)
+      seq_params->seq_max_initial_display_delay_minus_1 =
+          avm_rb_read_literal(rb, 4);
+    seq_params->decoder_model_info_present_flag = avm_rb_read_bit(rb);
+    if (seq_params->decoder_model_info_present_flag) {
+      seq_params->decoder_model_info.num_units_in_decoding_tick =
+          avm_rb_read_unsigned_literal(rb, 32);
+      seq_params->seq_max_decoder_model_present_flag = avm_rb_read_bit(rb);
+      if (seq_params->seq_max_decoder_model_present_flag) {
+        seq_params->seq_max_decoder_buffer_delay = avm_rb_read_uvlc(rb);
+        seq_params->seq_max_encoder_buffer_delay = avm_rb_read_uvlc(rb);
+        seq_params->seq_max_low_delay_mode_flag = avm_rb_read_bit(rb);
+      } else {
+        seq_params->seq_max_decoder_buffer_delay = 70000;
+        seq_params->seq_max_encoder_buffer_delay = 20000;
+        seq_params->seq_max_low_delay_mode_flag = 0;
+      }
+    } else {
+      seq_params->decoder_model_info.num_units_in_decoding_tick = 1;
+      seq_params->seq_max_decoder_buffer_delay = 70000;
+      seq_params->seq_max_encoder_buffer_delay = 20000;
+      seq_params->seq_max_low_delay_mode_flag = 0;
+    }
+    // int64_t seq_bitrate =
+    av2_max_level_bitrate(seq_params->seq_profile_idc,
+                          seq_params->seq_max_level_idx, seq_params->seq_tier
+#if CONFIG_AV2_PROFILES
+                          ,
+                          seq_params->subsampling_x, seq_params->subsampling_y,
+                          seq_params->monochrome
+#endif  // CONFIG_AV2_PROFILES
+    );
+  }
+
+  if (seq_params->single_picture_header_flag) {
+    seq_params->max_tlayer_id = 0;
+    seq_params->max_mlayer_id = 0;
+#if CONFIG_AV2_PROFILES
+    seq_params->seq_max_mlayer_cnt = 1;
+#endif  // CONFIG_AV2_PROFILES
+  } else {
+    seq_params->max_tlayer_id = avm_rb_read_literal(rb, TLAYER_BITS);
+    seq_params->max_mlayer_id = avm_rb_read_literal(rb, MLAYER_BITS);
+#if CONFIG_AV2_PROFILES
+    if (seq_params->max_mlayer_id > 0) {
+      int n = avm_ceil_log2(seq_params->max_mlayer_id + 1);
+      seq_params->seq_max_mlayer_cnt = avm_rb_read_literal(rb, n);
+    }
+#endif  // CONFIG_AV2_PROFILES
+  }
+
+  // setup default embedded layer dependency
+  setup_default_embedded_layer_dependency_structure(seq_params);
+  // setup default temporal layer dependency
+  setup_default_temporal_layer_dependency_structure(seq_params);
+
+  // mlayer dependency description
+  seq_params->mlayer_dependency_present_flag = 0;
+  if (seq_params->max_mlayer_id > 0) {
+    seq_params->mlayer_dependency_present_flag = avm_rb_read_bit(rb);
+    if (seq_params->mlayer_dependency_present_flag) {
+      av2_read_mlayer_dependency_info(seq_params, rb);
+    }
+  }
+
+  // tlayer dependency description
+  seq_params->tlayer_dependency_present_flag = 0;
+  seq_params->multi_tlayer_dependency_map_present_flag = 0;
+  if (seq_params->max_tlayer_id > 0) {
+    seq_params->tlayer_dependency_present_flag = avm_rb_read_bit(rb);
+    if (seq_params->tlayer_dependency_present_flag) {
+      if (seq_params->max_mlayer_id > 0) {
+        seq_params->multi_tlayer_dependency_map_present_flag =
+            avm_rb_read_bit(rb);
+      }
+      av2_read_tlayer_dependency_info(seq_params, rb);
+    }
+  }
+
+#if CONFIG_AV2_PROFILES
+  if (!av2_check_profile_interop_conformance(seq_params, &error_info, 1)) {
+    return AVM_CODEC_UNSUP_BITSTREAM;
+  }
+#endif  // CONFIG_AV2_PROFILES
+
+  av2_read_sequence_header(rb, seq_params);
+  seq_params->film_grain_params_present = avm_rb_read_bit(rb);
+
+#if CONFIG_F414_OBU_EXTENSION
+  size_t bits_before_ext = rb->bit_offset - saved_bit_offset;
+  seq_params->seq_extension_present_flag = avm_rb_read_bit(rb);
+  if (seq_params->seq_extension_present_flag) {
+    // Extension data bits = total - bits_read_before_extension -1 (ext flag) -
+    // trailing bits
+    int extension_bits = read_obu_extension_bits(
+        rb->bit_buffer, rb->bit_buffer_end - rb->bit_buffer, bits_before_ext,
+        &error_info);
+    if (extension_bits > 0) {
+      // skip over the extension bits
+      rb->bit_offset += extension_bits;
+    } else {
+      // No extension data is present
+    }
+  }
+#endif  // CONFIG_F414_OBU_EXTENSION
+
+  if (av2_check_trailing_bits(pbi, rb) != 0) {
+    // cm->error.error_code is already set.
+    return AVM_CODEC_CORRUPT_FRAME;
+  }
+  return AVM_CODEC_OK;
+}
+
+avm_codec_err_t parse_mfh(struct AV2Decoder *pbi, const uint8_t *data,
+                          size_t payload_size,
+                          struct MultiFrameHeader *mfh_list) {
+  (void)pbi;
+  struct avm_read_bit_buffer readbits;
+  struct avm_read_bit_buffer *rb = &readbits;
+  rb->bit_offset = 0;
+  rb->error_handler_data = NULL;
+  rb->bit_buffer = data;
+  rb->bit_buffer_end = data + payload_size;
+
+  int mfh_seq_header_id = avm_rb_read_uvlc(rb);
+  if (mfh_seq_header_id >= MAX_SEQ_NUM) {
+    return AVM_CODEC_CORRUPT_FRAME;
+  }
+  int mfh_id = avm_rb_read_uvlc(rb) + 1;
+  if (mfh_id >= MAX_MFH_NUM) {
+    return AVM_CODEC_CORRUPT_FRAME;
+  }
+
+  mfh_list[mfh_id].mfh_id = mfh_id;
+  mfh_list[mfh_id].mfh_seq_header_id = mfh_seq_header_id;
+  return AVM_CODEC_OK;
+}
+// Parse given "data" to get immediate_output_frame,
+// implicit_output_frame, and order_hint. "data" contains the payload of
+// OBU_CLK/OLK. This function is called only for keyobus with
+// is_first_tile_group = 1. On sucess, returns AVM_CODEC_OK.
+avm_codec_err_t parse_to_order_hint_for_keyobu(
+    struct AV2Decoder *pbi, const uint8_t *data, size_t payload_size,
+    OBU_TYPE obu_type, int xlayer_id, int tlayer_id, int mlayer_id,
+    struct SequenceHeader *current_seq_params,
+    struct MultiFrameHeader *mfh_list, int *current_is_shown,
+    int *current_order_hint) {
+  struct avm_read_bit_buffer readbits;
+  struct avm_read_bit_buffer *rb = &readbits;
+  rb->bit_offset = 0;
+  rb->error_handler_data = NULL;
+  rb->bit_buffer = data;
+  rb->bit_buffer_end = data + payload_size;
+
+  int is_first_tile_group = avm_rb_read_bit(rb);
+  if (!is_first_tile_group) return AVM_CODEC_OK;  // skip
+
+  // read_uncompressed_header
+  int32_t cur_mfh_id = avm_rb_read_uvlc(rb);
+  uint32_t seq_header_id_in_frame_header = 0;
+  if (cur_mfh_id == 0)
+    seq_header_id_in_frame_header = avm_rb_read_uvlc(rb);
+  else {
+    // check the newly signalled MFH first since new MFH may overwrite the
+    // previous ones in common.mfh_params
+    if (mfh_list[cur_mfh_id].mfh_id != -1) {
+      assert(mfh_list[cur_mfh_id].mfh_id == cur_mfh_id);
+      seq_header_id_in_frame_header = mfh_list[cur_mfh_id].mfh_seq_header_id;
+    } else if (pbi->common.mfh_valid[cur_mfh_id]) {
+      seq_header_id_in_frame_header =
+          pbi->common.mfh_params[cur_mfh_id].mfh_seq_header_id;
+    } else {
+      // cm->mfh_params[mfh_id_signalled+1] is not valid/present,
+      return AVM_CODEC_CORRUPT_FRAME;
+    }
+  }
+
+  // select sequence header
+  struct SequenceHeader *seq_params;
+  if ((uint32_t)current_seq_params->seq_header_id ==
+      seq_header_id_in_frame_header) {
+    // use new sh
+    seq_params = current_seq_params;
+  } else if (pbi->seq_list[xlayer_id][seq_header_id_in_frame_header]
+                 .seq_header_id >= 0) {
+    // seq_list[seq_header_id_in_frame_header]
+    seq_params = &pbi->seq_list[xlayer_id][seq_header_id_in_frame_header];
+  } else {
+    // mfh_list[mfh_id_signalled+1] is not valid/present,
+    return AVM_CODEC_CORRUPT_FRAME;
+  }
+
+  // int long_term_id =
+  avm_rb_read_literal(rb, seq_params->number_of_bits_for_lt_frame_id);
+
+  bool immediate_output_picture = 0;
+  bool implicit_output_picture = 0;
+  if (obu_type == OBU_OLK)
+    immediate_output_picture = 0;
+  else
+    immediate_output_picture = avm_rb_read_bit(rb);
+
+  if (!immediate_output_picture) {
+    implicit_output_picture = avm_rb_read_bit(rb);
+  }
+  *current_is_shown = immediate_output_picture || implicit_output_picture;
+
+  if (!seq_params->single_picture_header_flag) {
+    avm_rb_read_bit(rb);  // bool frame_size_override_flag  =
+  }
+  int order_hint = avm_rb_read_literal(
+      rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
+
+  if (obu_type == OBU_CLK)
+    *current_order_hint = order_hint;
+  else {
+    *current_order_hint = get_disp_order_hint_keyobu(
+        seq_params, obu_type, order_hint, tlayer_id, mlayer_id,
+        pbi->common.ref_frame_map, pbi->random_accessed, false, -1, -1);
+  }
+  return AVM_CODEC_OK;
+}
+
 // On success, sets *p_data_end and returns a boolean that indicates whether
 // the decoding of the current frame is finished. On failure, sets
 // cm->error.error_code and returns -1.
@@ -2292,8 +2548,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
       return -1;
     }
 
-    // Skip all obus till the random_accessed-th random access point
-    // Remove all leading_vcl obus
     if (is_leading_vcl_obu(obu_header.type))
       cm->is_leading_picture = 1;
     else if (is_regular_vcl_obu(obu_header.type))
@@ -2337,9 +2591,11 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
     curr_obu_info->obu_type = obu_header.type;
     curr_obu_info->is_vcl = is_single_tile_vcl_obu(obu_header.type) ||
                             is_multi_tile_vcl_obu(obu_header.type);
-    curr_obu_info->mlayer_id = obu_header.obu_mlayer_id;
-    curr_obu_info->tlayer_id = obu_header.obu_tlayer_id;
-    curr_obu_info->xlayer_id = obu_header.obu_xlayer_id;
+    if (curr_obu_info->is_vcl) {
+      assert(curr_obu_info->xlayer_id == obu_header.obu_xlayer_id);
+      assert(curr_obu_info->mlayer_id == obu_header.obu_mlayer_id);
+      assert(curr_obu_info->tlayer_id == obu_header.obu_tlayer_id);
+    }
     curr_obu_info->first_tile_group = -1;
     curr_obu_info->immediate_output_picture = -1;
     curr_obu_info->showable_frame = -1;
@@ -2445,7 +2701,8 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
       case OBU_SEQUENCE_HEADER:
         cm->xlayer_id = obu_header.obu_xlayer_id;
         pbi->stream_switched = 0;
-        decoded_payload_size = read_sequence_header_obu(pbi, &rb);
+        decoded_payload_size =
+            read_sequence_header_obu(pbi, obu_header.obu_xlayer_id, &rb);
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
         break;
       case OBU_BUFFER_REMOVAL_TIMING:
@@ -2506,7 +2763,8 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         acc_fgm_id_bitmap = 0;
         decoded_payload_size = read_tilegroup_obu(
             pbi, &rb, data, data + payload_size, p_data_end, obu_header.type,
-            &curr_obu_info->first_tile_group, &frame_decoding_finished);
+            obu_header.obu_xlayer_id, &curr_obu_info->first_tile_group,
+            &frame_decoding_finished);
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
         curr_obu_info->immediate_output_picture = cm->immediate_output_picture;
         curr_obu_info->showable_frame =
@@ -2638,6 +2896,16 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
 
     if (obu_header.type == OBU_PADDING) {
       decoded_payload_size = read_padding(cm, data, payload_size);
+      obu_info *const curr_obu_info = &obu_list[count_obus_with_frame_unit];
+      assert(curr_obu_info->xlayer_id == obu_header.obu_mlayer_id);
+      assert(curr_obu_info->mlayer_id == obu_header.obu_tlayer_id);
+      assert(curr_obu_info->tlayer_id == obu_header.obu_xlayer_id);
+      curr_obu_info->obu_type = obu_header.type;
+      curr_obu_info->first_tile_group = -1;
+      curr_obu_info->immediate_output_picture = -1;
+      curr_obu_info->showable_frame = -1;
+      curr_obu_info->display_order_hint = -1;
+      count_obus_with_frame_unit++;
       if (cm->error.error_code != AVM_CODEC_OK) return -1;
     } else if (is_metadata_obu(obu_header.type)) {
       // check whether it is a suffix metadata OBU
@@ -2658,6 +2926,16 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
       } else {
         decoded_payload_size = read_metadata_short(pbi, data, payload_size, 1);
       }
+      obu_info *const curr_obu_info = &obu_list[count_obus_with_frame_unit];
+      curr_obu_info->obu_type = obu_header.type;
+      assert(curr_obu_info->xlayer_id == obu_header.obu_mlayer_id);
+      assert(curr_obu_info->mlayer_id == obu_header.obu_tlayer_id);
+      assert(curr_obu_info->tlayer_id == obu_header.obu_xlayer_id);
+      curr_obu_info->first_tile_group = -1;
+      curr_obu_info->immediate_output_picture = -1;
+      curr_obu_info->showable_frame = -1;
+      curr_obu_info->display_order_hint = -1;
+      count_obus_with_frame_unit++;
     }
     if (cm->error.error_code != AVM_CODEC_OK) return -1;
 

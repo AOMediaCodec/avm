@@ -92,7 +92,7 @@ int are_seq_headers_consistent(const SequenceHeader *seq_params_old,
 int32_t av2_read_tilegroup_header(
     struct AV2Decoder *pbi, struct avm_read_bit_buffer *rb, const uint8_t *data,
     const uint8_t **p_data_end, int *first_tile_group_in_frame, int *start_tile,
-    int *end_tile, OBU_TYPE obu_type);
+    int *end_tile, OBU_TYPE obu_type, int obu_xlayer_id);
 
 void av2_decode_tg_tiles_and_wrapup(struct AV2Decoder *pbi, const uint8_t *data,
                                     const uint8_t *data_end,
@@ -125,6 +125,13 @@ void av2_validate_frame_level_conformance(
     const struct SequenceHeader *seq_params, int frame_width, int frame_height,
     struct avm_internal_error_info *error_info);
 
+// This function is used to dervie DOH to check the first keyobu of the temporal
+// unit. This function must be updated with the get_disp_order_hint()
+int get_disp_order_hint_keyobu(SequenceHeader *seq_params, OBU_TYPE obu_type,
+                               int order_hint, int tlayer_id, int mlayer_id,
+                               RefCntBuffer **ref_frame_map,
+                               bool random_accessed, bool is_op_constrained,
+                               const int mlayer_mask, const int tlayer_mask);
 #ifdef __cplusplus
 }  // extern "C"
 #endif

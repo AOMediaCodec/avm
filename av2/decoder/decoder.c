@@ -229,13 +229,18 @@ AV2Decoder *av2_decoder_create(BufferPool *const pool) {
   memset(&pbi->last_frame_unit, -1, sizeof(pbi->last_frame_unit));
   memset(&pbi->last_displayable_frame_unit, -1,
          sizeof(pbi->last_displayable_frame_unit));
-  pbi->is_random_access_frame_unit = 0;
+  pbi->this_is_first_keyframe_unit_in_tu = 0;
   for (int i = 0; i < MAX_NUM_MLAYERS; i++) {
     pbi->num_displayable_frame_unit[i] = 0;
   }
-  for (int i = 0; i < MAX_NUM_MLAYERS; i++)
-    memset(pbi->obus_in_frame_unit_data[i], 0,
-           sizeof(pbi->obus_in_frame_unit_data[i]));
+  for (int j = 0; j < MAX_NUM_TLAYERS; j++)
+    for (int i = 0; i < MAX_NUM_MLAYERS; i++)
+      memset(pbi->obus_in_frame_unit_data[j][i], 0,
+             sizeof(pbi->obus_in_frame_unit_data[j][i]));
+
+  for (int xlayer = 0; xlayer < MAX_NUM_XLAYERS; xlayer++)
+    for (int i = 0; i < MAX_SEQ_NUM; i++)
+      pbi->seq_list[xlayer][i].seq_header_id = -1;
 
 #if CONFIG_ACCOUNTING
   pbi->acct_enabled = 1;
@@ -251,8 +256,6 @@ AV2Decoder *av2_decoder_create(BufferPool *const pool) {
 
   // Initialize the Content Interpretation parameters
   for (int i = 0; i < MAX_NUM_MLAYERS; i++) {
-    memset(pbi->obus_in_frame_unit_data[i], 0,
-           sizeof(pbi->obus_in_frame_unit_data[i]));
     av2_initialize_ci_params(&cm->ci_params_per_layer[i]);
   }
 
@@ -796,7 +799,10 @@ int av2_receive_compressed_data(AV2Decoder *pbi, size_t size,
     if (ref_buf != NULL) ref_buf->buf.corrupted = 1;
   }
   // flush_remaining_frames() is invoked before assign_cur_frame_new_fb().
-  if (pbi->is_random_access_frame_unit == 1) {
+  // FLUSH remaing frames at the first CLK in the tu
+  if (pbi->this_is_first_keyframe_unit_in_tu &&
+      pbi->obus_in_frame_unit_data[pbi->current_tlayer_id]
+                                  [pbi->current_mlayer_id][OBU_CLK]) {
     flush_remaining_frames(pbi);
   }
   check_ref_count_status_dec(pbi);

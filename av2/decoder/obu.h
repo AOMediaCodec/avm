@@ -17,6 +17,25 @@
 #include "avm_dsp/bitreader_buffer.h"
 #include "av2/decoder/decoder.h"
 
+// Parse given "data" to get long_term_frame_id_bits and OrderHintBits.
+avm_codec_err_t parse_sh(struct AV2Decoder *pbi, const uint8_t *data,
+                         size_t payload_size,
+                         struct SequenceHeader *seq_params);
+
+// Parse given "data" to get mfh_seq_header_id
+avm_codec_err_t parse_mfh(struct AV2Decoder *pbi, const uint8_t *data,
+                          size_t payload_size, struct MultiFrameHeader *mfh);
+
+// Parse given "data" to get immediate_output_frame,
+// implicit_output_frame, and order_hint. "data" contains the payload of
+// OBU_CLK/OLK.
+avm_codec_err_t parse_to_order_hint_for_keyobu(
+    struct AV2Decoder *pbi, const uint8_t *data, size_t payload_size,
+    OBU_TYPE obu_type, int xlayer_id, int tlayer_id, int mlayer_id,
+    struct SequenceHeader *current_seq_params,
+    struct MultiFrameHeader *current_mfh, int *current_is_shown,
+    int *current_order_hint);
+
 // Try to decode one frame from a buffer.
 // Returns 1 if we decoded a frame,
 //         0 if we didn't decode a frame but that's okay

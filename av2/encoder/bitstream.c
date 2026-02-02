@@ -4921,11 +4921,9 @@ static void write_frame_max_bvp_drl_bits(AV2_COMMON *const cm,
 }
 
 static AVM_INLINE void write_multi_frame_header(
-    AV2_COMP *cpi, const MultiFrameHeader *const mfh_param,
-    struct avm_write_bit_buffer *wb) {
-  AV2_COMMON *const cm = &cpi->common;
+    const MultiFrameHeader *const mfh_param, struct avm_write_bit_buffer *wb) {
   avm_wb_write_uvlc(wb, mfh_param->mfh_seq_header_id);
-  avm_wb_write_uvlc(wb, cm->cur_mfh_id - 1);
+  avm_wb_write_uvlc(wb, mfh_param->mfh_id - 1);
   avm_wb_write_bit(wb, mfh_param->mfh_frame_size_present_flag);
   if (mfh_param->mfh_frame_size_present_flag) {
     const int coded_width = mfh_param->mfh_frame_width;
@@ -5935,7 +5933,6 @@ uint32_t av2_write_sequence_header_obu(const SequenceHeader *seq_params,
   uint32_t size = 0;
 
   avm_wb_write_uvlc(&wb, seq_params->seq_header_id);
-
   write_profile(seq_params->seq_profile_idc, &wb);
   avm_wb_write_bit(&wb, seq_params->single_picture_header_flag);
   if (!seq_params->single_picture_header_flag) {
@@ -6025,13 +6022,12 @@ uint32_t av2_write_sequence_header_obu(const SequenceHeader *seq_params,
   return size;
 }
 
-uint32_t write_multi_frame_header_obu(AV2_COMP *cpi,
-                                      const MultiFrameHeader *mfh_param,
+uint32_t write_multi_frame_header_obu(const MultiFrameHeader *mfh_param,
                                       uint8_t *const dst) {
   struct avm_write_bit_buffer wb = { dst, 0 };
   uint32_t size = 0;
 
-  write_multi_frame_header(cpi, mfh_param, &wb);
+  write_multi_frame_header(mfh_param, &wb);
 #if CONFIG_F414_OBU_EXTENSION
   avm_wb_write_bit(&wb, mfh_param->mfh_extension_present_flag);
   assert(!mfh_param->mfh_extension_present_flag);
@@ -6937,7 +6933,6 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
   if (cm->current_frame.cm_obu_type == OBU_CLK) {
     obu_header_size =
         av2_write_obu_header(level_params, OBU_SEQUENCE_HEADER, 0, 0, data);
-
     if (cm->seq_params.seq_seg_info_present_flag)
       av2_set_seq_seg_info(&cm->seq_params, &cm->seg);
     obu_payload_size =
@@ -6973,7 +6968,7 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
       obu_header_size = av2_write_obu_header(
           level_params, OBU_MULTI_FRAME_HEADER, 0, 0, data);
       obu_payload_size = write_multi_frame_header_obu(
-          cpi, &cm->mfh_params[cm->cur_mfh_id], data + obu_header_size);
+          &cm->mfh_params[cm->cur_mfh_id], data + obu_header_size);
       length_field_size = obu_memmove(obu_header_size, obu_payload_size, data);
       if (av2_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
           AVM_CODEC_OK) {

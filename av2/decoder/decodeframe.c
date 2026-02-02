@@ -6701,11 +6701,87 @@ static INLINE void reset_frame_buffers(AV2_COMMON *cm) {
   unlock_buffer_pool(cm->buffer_pool);
 }
 
+// This function is used to dervie DOH to check the first keyobu of the temporal
+// unit. This function must be updated with the get_disp_order_hint()
+int get_disp_order_hint_keyobu(SequenceHeader *seq_params, OBU_TYPE obu_type,
+                               int order_hint, int tlayer_id, int mlayer_id,
+                               RefCntBuffer **ref_frame_map,
+                               bool random_accessed, bool is_op_constrained,
+                               const int mlayer_mask, const int tlayer_mask) {
+  if (is_op_constrained) {
+    // This configuration is only used for conformance checking in the AVM
+    // reference software.
+    assert(mlayer_mask >= 0 && mlayer_mask < (1 << MAX_NUM_MLAYERS));
+    assert(tlayer_mask >= 0 && tlayer_mask < (1 << MAX_NUM_TLAYERS));
+  } else {
+    // This configuration is used in actual decoding process. Thus,
+    // op_max_mlayer_id and op_max_tlayer_id are not needed and should be set to
+    // -1 if is_op_constrained is false.
+    assert(mlayer_mask == -1 && mlayer_mask == -1);
+  }
+
+  if (obu_type == OBU_CLK) {
+    return order_hint;
+  } else if (obu_type == OBU_OLK) {
+    if (random_accessed) return order_hint;
+  }
+
+  // Derive the exact display order hint from the signaled order_hint.
+  // This requires scaling up order_hints corresponding to frame
+  // numbers that exceed the number of bits available to send the order_hints.
+
+  // Find the reference frame with the largest order_hint
+  int max_disp_order_hint = 0;
+  for (int map_idx = 0; map_idx < seq_params->ref_frames; map_idx++) {
+    // Get reference frame buffer
+    const RefCntBuffer *const buf = ref_frame_map[map_idx];
+    if (buf == NULL ||
+        (!buf->implicit_output_picture && !buf->immediate_output_picture) ||
+        buf->is_restricted ||
+        !is_tlayer_scalable_and_dependent(seq_params, tlayer_id, buf->tlayer_id,
+                                          mlayer_id) ||
+        !is_mlayer_scalable_and_dependent(seq_params, mlayer_id,
+                                          buf->mlayer_id))
+      continue;
+    // Note: Exercising this condition is only used for the bitstream
+    // conformance check in the AVM reference software. Decoder implementations
+    // may skip this check since this conditional check shall not change the
+    // display order hint derivation.
+    if (is_op_constrained && (is_layer_dropped(buf->mlayer_id, mlayer_mask) ||
+                              is_layer_dropped(buf->tlayer_id, tlayer_mask)))
+      continue;
+
+    if ((int)buf->display_order_hint > max_disp_order_hint)
+      max_disp_order_hint = buf->display_order_hint;
+  }
+
+  int cur_disp_order_hint = order_hint;
+  int display_order_hint_factor =
+      1 << (seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
+
+  while (abs(max_disp_order_hint - cur_disp_order_hint) >=
+         (display_order_hint_factor >> 1)) {
+    if (cur_disp_order_hint > max_disp_order_hint) return cur_disp_order_hint;
+    cur_disp_order_hint += display_order_hint_factor;
+  }
+  // We restrict the derived display order hint to a range, to avoid 32 bit
+  // integer overflow and some corner cases when display order hint operations
+  // are performed in DISPLAY_ORDER_HINT_BITS bit range
+  struct avm_internal_error_info error_info;
+  error_info.error_code = AVM_CODEC_OK;
+  if (cur_disp_order_hint >= (1 << (DISPLAY_ORDER_HINT_BITS - 1)))
+    avm_internal_error(&error_info, AVM_CODEC_ERROR,
+                       "Derived display order hint is invalid");
+  return cur_disp_order_hint;
+}
+
 static INLINE int get_disp_order_hint(AV2_COMMON *const cm, OBU_TYPE obu_type,
                                       bool random_accessed,
                                       bool is_op_constrained,
                                       const int mlayer_mask,
                                       const int tlayer_mask) {
+  // NOTE: when this function is updated, get_disp_order_hint_keyobu() must be
+  // updated.
   if (is_op_constrained) {
     // This configuration is only used for conformance checking in the AVM
     // reference software.
@@ -6931,6 +7007,9 @@ static void reset_buffer_other_than_OLK(AV2Decoder *pbi) {
       if (pbi->random_accessed) pbi->valid_for_referencing[ref_index] = 1;
     }
   }
+
+  for (int layer = 0; layer <= seq_params->max_mlayer_id; layer++)
+    cm->olk_refresh_frame_flags[layer] = -1;
 }
 static int is_regular_non_olk_obu(OBU_TYPE obu_type) {
   return obu_type == OBU_REGULAR_SEF || obu_type == OBU_REGULAR_TIP ||
@@ -6975,6 +7054,7 @@ static int read_show_existing_frame(AV2Decoder *pbi, bool is_regular_obu,
   // Show an existing frame directly.
   const int existing_frame_idx = cm->sef_ref_fb_idx =
       avm_rb_read_literal(rb, seq_params->ref_frames_log2);
+
   if (existing_frame_idx >= seq_params->ref_frames) {
     avm_internal_error(
         &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
@@ -7262,32 +7342,36 @@ static void activate_layer_configuration_record(AV2Decoder *pbi,
 }
 
 static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
-                                   int seq_header_id) {
+                                   int xlayer_id, int seq_header_id) {
   AV2_COMMON *const cm = &pbi->common;
-  // TODO: make sure pbi->random_accessed is correctly assigned
-  bool activate_sequence_header =
-      ((obu_type == OBU_CLK || obu_type == OBU_OLK) &&
-       pbi->is_random_access_frame_unit) ||
-      pbi->stream_switched;
-  bool seq_header_found = false;
-  for (int i = 0; i < pbi->seq_header_count; i++) {
-    if (pbi->seq_list[i].seq_header_id == seq_header_id) {
-      pbi->active_seq = &pbi->seq_list[i];
-      seq_header_found = true;
-      break;
-    }
-  }
-  if (!seq_header_found) {
-    avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
-                       "No sequence header found with id = %d", seq_header_id);
-  }
+  bool keyframe_unit_in_tu = ((obu_type == OBU_CLK || obu_type == OBU_OLK) &&
+                              pbi->this_is_first_keyframe_unit_in_tu) ||
+                             pbi->stream_switched;
+
   if (pbi->decoding_first_frame &&
       !(obu_type == OBU_CLK || obu_type == OBU_OLK)) {
     avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
                        "the first frame of a bitstream shall be a keyframe");
   }
-  if (!activate_sequence_header) {
-    if (!are_seq_headers_consistent(&cm->seq_params, pbi->active_seq)) {
+
+  struct SequenceHeader *seq_from_uch =
+      &pbi->seq_list[xlayer_id][seq_header_id];
+
+  if (seq_from_uch->seq_header_id == -1) {
+    avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
+                       "No sequence header found with id = %d", seq_header_id);
+  }
+
+  // SH activation
+  if (obu_type == OBU_CLK || (obu_type == OBU_OLK && pbi->random_accessed))
+    pbi->active_seq[xlayer_id] = *seq_from_uch;
+
+  // NOTE: cm->seq_params is a intermediate variable not to change the code too
+  // much
+  cm->seq_params = pbi->active_seq[xlayer_id];
+
+  if (!keyframe_unit_in_tu) {
+    if (!are_seq_headers_consistent(&cm->seq_params, seq_from_uch)) {
       avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
                          "Sequence Header changed at %s",
                          avm_obu_type_to_string(obu_type));
@@ -7295,25 +7379,28 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     return;
   }
 
+  // NOTE: at this point, the current obu is first CLK/OLK in the temporal unit
+  // cm->seq_params is the currently active sequence header
   assert(obu_type == OBU_CLK || obu_type == OBU_OLK || pbi->stream_switched);
 
   if (obu_type == OBU_OLK && !pbi->random_accessed) {
-    if (!are_seq_headers_consistent(&cm->seq_params, pbi->active_seq)) {
+    if (!are_seq_headers_consistent(&cm->seq_params, seq_from_uch)) {
       avm_internal_error(
           &cm->error, AVM_CODEC_CORRUPT_FRAME,
           "Sequence Header changed at OBU_OLK when pbi->random_accessed %d",
           pbi->random_accessed);
+      return;
     }
   }
 
-  cm->seq_params = *pbi->active_seq;
-
+  // Empty referece list
+  // NOTE: Should olk + random access reset reference list? It will be
+  // redundant but will it harm?
   if (obu_type == OBU_CLK) {
     reset_ref_frame_map(cm);
+    for (int layer = 0; layer < MAX_NUM_MLAYERS; layer++)
+      cm->olk_refresh_frame_flags[layer] = -1;
   }
-
-  for (int layer = 0; layer < MAX_NUM_MLAYERS; layer++)
-    cm->olk_refresh_frame_flags[layer] = -1;
 
   // check bitstream conformance if sequence header is parsed
   // bitstream constraint for tlayer_id
@@ -7339,8 +7426,10 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   // When OBU_CONTENT_INTERPRETATION is not accompanied with the current obu,
   // cm->ci_params_per_layer[cm->mlayer_id] is reset to default values.
   const bool is_ci_present =
-      pbi->obus_in_frame_unit_data[cm->mlayer_id][OBU_CONTENT_INTERPRETATION];
-  if (!is_ci_present) {
+      pbi->obus_in_frame_unit_data[cm->tlayer_id][cm->mlayer_id]
+                                  [OBU_CONTENT_INTERPRETATION];
+  if ((!is_ci_present && obu_type == OBU_CLK) ||
+      (!is_ci_present && pbi->stream_switched)) {
     // Initialize to default first
     av2_initialize_ci_params(&cm->ci_params_per_layer[cm->mlayer_id]);
 
@@ -7354,6 +7443,7 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     }
   }
 
+  // reset QM to default: for both OLK and CLK
   const int num_planes = av2_num_planes(cm);
   for (int qm_pos = 0; qm_pos < NUM_CUSTOM_QMS; qm_pos++) {
     // qm_protected[qm_pos] == 1 indicates the pbi->qm_list[qm_pos] is signalled
@@ -7538,6 +7628,7 @@ int read_obu_extension_bits(const uint8_t *obu_payload, size_t payload_size,
 // On success, returns 0. On failure, calls avm_internal_error and does not
 // return.
 static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
+                                    int obu_xlayer_id,
                                     struct avm_read_bit_buffer *rb) {
   AV2_COMMON *const cm = &pbi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
@@ -7587,7 +7678,8 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   int seq_header_id_for_frame_header = setup_sequence_header_id(cm, rb);
   assert(seq_header_id_for_frame_header >= 0);
 
-  handle_sequence_header(pbi, obu_type, seq_header_id_for_frame_header);
+  handle_sequence_header(pbi, obu_type, obu_xlayer_id,
+                         seq_header_id_for_frame_header);
 
   if (cm->cur_mfh_id == 0) {
     handle_zero_cur_mfh_id(cm);
@@ -7843,7 +7935,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
             avm_rb_read_literal(rb, refresh_frame_flags_bits);
       }
     }
-    if (obu_type == OBU_CLK && pbi->is_random_access_frame_unit) {
+    if (obu_type == OBU_CLK) {
       for (int ref_pos = 0; ref_pos < seq_params->ref_frames; ref_pos++) {
         if (!(current_frame->refresh_frame_flags >> ref_pos & 1u)) {
           decrease_ref_count(cm->ref_frame_map[ref_pos], pool);
@@ -8985,7 +9077,7 @@ static int32_t read_tile_indices_in_tilegroup(AV2Decoder *pbi,
 int32_t av2_read_tilegroup_header(
     AV2Decoder *pbi, struct avm_read_bit_buffer *rb, const uint8_t *data,
     const uint8_t **p_data_end, int *first_tile_group_in_frame, int *start_tile,
-    int *end_tile, OBU_TYPE obu_type) {
+    int *end_tile, OBU_TYPE obu_type, int obu_xlayer_id) {
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(pbi, av2_read_tilegroup_header_time);
 #endif
@@ -9031,7 +9123,7 @@ int32_t av2_read_tilegroup_header(
       rb->bit_offset += pbi->uncomp_hdr_size_in_bits;
     } else {
       uint32_t uncomp_hdr_start_point = rb->bit_offset;
-      read_uncompressed_header(pbi, obu_type, rb);
+      read_uncompressed_header(pbi, obu_type, obu_xlayer_id, rb);
 
       // Conformance check for the number of reference frames
       if (cm->seq_params.seq_max_level_idx < SEQ_LEVELS) {

@@ -1604,6 +1604,11 @@ typedef struct {
  */
 typedef struct MultiFrameHeader {
   /*!
+   * id for the current MFH, used to check the MFH is valid.
+   */
+
+  int mfh_id;
+  /*!
    * Seq header id in multi frame header
    */
   int mfh_seq_header_id;
