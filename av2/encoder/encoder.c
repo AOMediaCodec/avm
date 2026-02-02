@@ -828,7 +828,7 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
          ops_idx++) {
       // Note: using ops_idx as the ops_id
       struct OperatingPointSet *ops = &cpi->ops_list[i][ops_idx];
-      av2_set_ops_params(ops, GLOBAL_XLAYER_ID, ops_idx,
+      av2_set_ops_params(ops, i, ops_idx,
                          oxcf->tool_cfg.operating_points_count);
     }
   }
@@ -1106,7 +1106,7 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
          ops_idx++) {
       // Note: using ops_idx as the ops_id
       struct OperatingPointSet *ops = &cpi->ops_list[i][ops_idx];
-      av2_set_ops_params(ops, GLOBAL_XLAYER_ID, ops_idx,
+      av2_set_ops_params(ops, i, ops_idx,
                          oxcf->tool_cfg.operating_points_count);
     }
   }
