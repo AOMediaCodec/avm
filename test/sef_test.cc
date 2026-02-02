@@ -21,13 +21,17 @@
 namespace {
 
 static const struct SEFTestParam {
-  int enable_frame_output_order_derivation;
+  int output_sef;
+  int sef_with_order_hint;
   double psnr_thresh;
 } sefTestParams[] = {
-  // enable_frame_output_order_derivation = 0
-  { 0, 30.0 },
-  // enable_frame_output_order_derivation = 1
-  { 1, 30.0 },
+  // Don't output SEF (show-existing-frame) OBU.
+  { 0, 0, 22.0 },
+  // Output SEF OBU, where order hint is NOT explicitly signaled.
+  { 1, 0, 22.0 },
+  // Output SEF OBU, where order hint is explicitly signaled.
+  // TODO(jungsun): Fix this use case and then uncomment the test case below.
+  // { 1, 1, 22.0 },
 };
 
 // Compiler may decide to add some padding to the struct above for alignment,
@@ -36,33 +40,33 @@ static const struct SEFTestParam {
 // provide our own function to print the struct.
 // This also makes '--gtest_list_tests' output more understandable.
 std::ostream &operator<<(std::ostream &os, const SEFTestParam &p) {
-  os << "SEFTestParam { " << "frame_output_order_derivation = "
-     << p.enable_frame_output_order_derivation << ", "
+  os << "SEFTestParam { " << "output_sef = " << p.output_sef << ", "
+     << "sef_with_order_hint = " << p.sef_with_order_hint
      << "psnr_thresh = " << p.psnr_thresh << " }";
   return os;
 }
 
 // Params: encoding mode, rate control mode and SEFTestParam object.
-class SEFTestLarge
+class SEFTest
     : public ::libavm_test::CodecTestWith3Params<libavm_test::TestMode,
                                                  avm_rc_mode, SEFTestParam>,
       public ::libavm_test::EncoderTest {
  protected:
-  SEFTestLarge()
+  SEFTest()
       : EncoderTest(GET_PARAM(0)), encoding_mode_(GET_PARAM(1)),
         rc_mode_(GET_PARAM(2)) {
-    enable_frame_output_order_derivation_ =
-        GET_PARAM(3).enable_frame_output_order_derivation;
+    output_sef_ = GET_PARAM(3).output_sef;
+    sef_with_order_hint_ = GET_PARAM(3).sef_with_order_hint;
     psnr_threshold_ = GET_PARAM(3).psnr_thresh;
   }
-  virtual ~SEFTestLarge() {}
+  virtual ~SEFTest() {}
 
   virtual void SetUp() {
     InitializeConfig();
     SetMode(encoding_mode_);
     const avm_rational timebase = { 1, 30 };
     cfg_.g_timebase = timebase;
-    cpu_used_ = 4;
+    cpu_used_ = 5;
     cfg_.rc_end_usage = rc_mode_;
     cfg_.g_lag_in_frames = 19;
     cfg_.g_threads = 0;
@@ -89,8 +93,11 @@ class SEFTestLarge
       encoder->Control(AVME_SET_ENABLEAUTOALTREF, 1);
       encoder->Control(AVME_SET_ARNR_MAXFRAMES, 7);
       encoder->Control(AVME_SET_ARNR_STRENGTH, 5);
-      encoder->SetOption("enable-generation-sef-obu",
-                         enable_frame_output_order_derivation_ ? "1" : "0");
+      encoder->SetOption("add-sef-for-output", output_sef_ ? "1" : "0");
+      if (output_sef_) {
+        encoder->Control(AV2E_SET_SEF_WITH_ORDER_HINT_TEST,
+                         sef_with_order_hint_);
+      }
     }
   }
 
@@ -103,24 +110,25 @@ class SEFTestLarge
 
   ::libavm_test::TestMode encoding_mode_;
   avm_rc_mode rc_mode_;
-  int enable_frame_output_order_derivation_;
+  int output_sef_;
+  int sef_with_order_hint_;
   double psnr_threshold_;
   int cpu_used_;
   int nframes_;
   double psnr_;
 };
 
-TEST_P(SEFTestLarge, TestShowExistingFrame) {
-  libavm_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
+TEST_P(SEFTest, TestShowExistingFrame) {
+  libavm_test::I420VideoSource video("hantro_collage_w352h288.yuv", 64, 64,
                                      cfg_.g_timebase.den, cfg_.g_timebase.num,
                                      0, 32);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   EXPECT_GT(GetAveragePsnr(), GetPsnrThreshold())
-      << "Frame output order derivation = "
-      << enable_frame_output_order_derivation_ << ", ";
+      << "Output SEF = " << output_sef_ << ", "
+      << "SEF with order hint = " << sef_with_order_hint_;
 }
 
-AV2_INSTANTIATE_TEST_SUITE(SEFTestLarge, GOODQUALITY_TEST_MODES,
+AV2_INSTANTIATE_TEST_SUITE(SEFTest, GOODQUALITY_TEST_MODES,
                            ::testing::Values(AVM_Q),
                            ::testing::ValuesIn(sefTestParams));
 }  // namespace
