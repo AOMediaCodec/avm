@@ -1376,12 +1376,12 @@ typedef struct FRAME_COUNTS {
                                  [BR_CDF_SIZE];
   // LF Base, BR UV
   unsigned int coeff_base_lf_multi_uv[TOKEN_CDF_Q_CTXS][LF_SIG_COEF_CONTEXTS_UV]
-                                     [TCQ_CTXS][LF_BASE_SYMBOLS];
+                                     [LF_BASE_SYMBOLS];
   unsigned int coeff_lps_lf_multi_uv[TOKEN_CDF_Q_CTXS][LF_LEVEL_CONTEXTS_UV]
                                     [BR_CDF_SIZE];
   // HF Base, BR UV
   unsigned int coeff_base_multi_uv[TOKEN_CDF_Q_CTXS][SIG_COEF_CONTEXTS_UV]
-                                  [TCQ_CTXS][NUM_BASE_LEVELS + 2];
+                                  [NUM_BASE_LEVELS + 2];
   unsigned int coeff_lps_multi_uv[TOKEN_CDF_Q_CTXS][LEVEL_CONTEXTS_UV]
                                  [BR_CDF_SIZE];
   // LF, HF EOB UV

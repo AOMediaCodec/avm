@@ -2205,18 +2205,36 @@ static AVM_FORCE_INLINE int get_two_coeff_cost_simple(
   cost +=  limits ? base_lf_cost : base_cost; 
 
   int diff = 0;
-
   if (limits) {
     if (abs_qc <= (LF_BASE_SYMBOLS - 1)) {
-      diff = (abs_qc == 0) ? 0
-                           : base_lf_cost_ptr[coeff_ctx][0][abs_qc] -
-                                 base_lf_cost_ptr[coeff_ctx][0][abs_qc - 1];
+      if (plane > 0 ) {
+          // on plane U/V
+          diff = (abs_qc == 0) ? 0
+          : base_lf_cost_uv_ptr[coeff_ctx][abs_qc] -
+                base_lf_cost_uv_ptr[coeff_ctx][abs_qc - 1];
+      } else {
+        // on plane Y
+        diff = (abs_qc == 0) ? 0
+        : base_lf_cost_ptr[coeff_ctx][0][abs_qc] -
+              base_lf_cost_ptr[coeff_ctx][0][abs_qc - 1];
+      }
+
     }
   } else {
     if (abs_qc <= 3) {
-      diff = (abs_qc == 0) ? 0
-                           : base_cost_ptr[abs_qc] -
-                                 base_cost_ptr[abs_qc - 1];
+      if (plane > 0) {
+        // plane U/V
+        diff = (abs_qc == 0) ? 0
+        : base_cost_uv_ptr[abs_qc] -
+              base_cost_uv_ptr[abs_qc - 1];     
+
+      } else {
+        // plane Y 
+        diff = (abs_qc == 0) ? 0
+        : base_cost_ptr[abs_qc] -
+              base_cost_ptr[abs_qc - 1];
+      }
+
     }
   }
   diff += (abs_qc == 1) ? av2_cost_literal(1) : 0;
@@ -2615,8 +2633,7 @@ static INLINE void update_coeff_general(
     if (abs_qc == 1) {
       abs_qc_low = qc_low = dqc_low = 0;
       dist_low = dist0;
-      rate_low = limits ? base_lf_cost_ptr[coeff_ctx][0][0]
-                        : base_cost;
+      rate_low = limits ? base_lf_cost  : base_cost;
     } else {
       get_qc_dqc_low(abs_qc, sign, dqv, shift, &qc_low, &dqc_low);
       abs_qc_low = abs_qc - 1;
@@ -4373,7 +4390,7 @@ void av2_update_and_record_txb_context(int plane, int block, int blk_row,
         if (plane > 0) {
           if (limits) {
             ++td->counts
-                  ->coeff_base_lf_multi_uv[cdf_idx][coeff_ctx][q_i]
+                  ->coeff_base_lf_multi_uv[cdf_idx][coeff_ctx]
                                           [AVMMIN(level, LF_BASE_SYMBOLS - 1)];
           } else {
             ++td->counts->coeff_base_multi_uv[cdf_idx][coeff_ctx]
@@ -4574,7 +4591,7 @@ void av2_update_and_record_txb_context(int plane, int block, int blk_row,
         if (plane > 0) {
           if (limits) {
             ++td->counts
-                  ->coeff_base_lf_multi_uv[cdf_idx][coeff_ctx][q_i]
+                  ->coeff_base_lf_multi_uv[cdf_idx][coeff_ctx]
                                           [AVMMIN(level, LF_BASE_SYMBOLS - 1)];
           } else {
             ++td->counts->coeff_base_multi_uv[cdf_idx][coeff_ctx]
