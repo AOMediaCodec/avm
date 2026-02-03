@@ -7046,7 +7046,7 @@ static int read_show_existing_frame(AV2Decoder *pbi, bool is_regular_obu,
     }
     if (max_disp_order_hint < current_frame->display_order_hint) {
       avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-                         "display order hint of SEF(%s) is bigger than "
+                         "display order hint of SEF(%d) is bigger than "
                          "max_disp_order_hint(%d) in the ref_frame_map",
                          current_frame->display_order_hint,
                          max_disp_order_hint);

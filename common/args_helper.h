@@ -20,7 +20,7 @@ extern "C" {
 #endif
 
 // Maximum length of the error messages for the helper functions.
-#define ARG_ERR_MSG_MAX_LEN 200
+#define ARG_ERR_MSG_MAX_LEN 320
 
 struct arg {
   char **argv;
