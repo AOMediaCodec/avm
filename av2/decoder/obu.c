@@ -1779,8 +1779,9 @@ static void check_layerid_showable_frame_units(
   //[H:layer0][*S:layer1] not allowed
   // 3) [S:layer1][H:layer1][*S:layer2] not allowed
   //[H:layer1][*S:layer1] check last displayable frame unit
-  // 1) [S:layer0][H:layer1][*S:layer1] maybe ok,
-  // 1) [S:layer1][H:layer1][*S:layer1] maybe ok (e.g. CLK[0], Bridge[0], TG[1])
+  // 1) [S:layer0][H:layer1][*S:layer1] is allowed
+  // 1) [S:layer1][H:layer1][*S:layer1] maybe okay - doh comparison required
+  // betwee S and S
   //[H:layer2][*S:layer1] check last displayable frame unit
   // 2) [S:layer0][H:layer1][*S:layer0] not allowed
   // 2) [S:layer1][H:layer1][*S:layer0] not allowed
@@ -1804,7 +1805,9 @@ static void check_layerid_showable_frame_units(
         last_frame_unit->display_order_hint, last_frame_unit->mlayer_id,
         last_frame_unit->showable_frame);
   } else if (last_frame_unit->showable_frame == 0 &&
-             current_frame_unit->mlayer_id == last_frame_unit->mlayer_id) {
+             current_frame_unit->mlayer_id == last_frame_unit->mlayer_id &&
+             current_frame_unit->mlayer_id ==
+                 last_displayable_frame_unit->mlayer_id) {
     if (current_frame_unit->display_order_hint ==
         last_displayable_frame_unit->display_order_hint) {
       avm_internal_error(
