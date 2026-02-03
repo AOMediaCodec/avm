@@ -565,12 +565,18 @@ if(CONFIG_AV2_ENCODER)
       "${AVM_ROOT}/examples/scalable_encoder.c"
       $<TARGET_OBJECTS:avm_common_app_util>
       $<TARGET_OBJECTS:avm_encoder_app_util>)
+    add_executable(
+      embedded_temporal_layers_encoder
+      "${AVM_ROOT}/examples/embedded_temporal_layers_encoder.c"
+      $<TARGET_OBJECTS:avm_common_app_util>
+      $<TARGET_OBJECTS:avm_encoder_app_util>)
 
     # Maintain a list of encoder example targets.
     list(
       APPEND
       AVM_ENCODER_EXAMPLE_TARGETS
       avmenc
+      embedded_temporal_layers_encoder
       lossless_encoder
       noise_model
       set_maps

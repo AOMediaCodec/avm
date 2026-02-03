@@ -94,6 +94,9 @@ if(CONFIG_AV2_ENCODER)
   set(AVM_DOXYGEN_EXAMPLE_SOURCES ${AVM_DOXYGEN_EXAMPLE_SOURCES}
                                   "${AVM_ROOT}/examples/scalable_encoder.c")
 
+  set(AVM_DOXYGEN_EXAMPLE_SOURCES ${AVM_DOXYGEN_EXAMPLE_SOURCES}
+                                  "${AVM_ROOT}/examples/embedded_temporal_layers_encoder.c")
+
   set(AVM_DOXYGEN_EXAMPLE_DESCRIPTIONS ${AVM_DOXYGEN_EXAMPLE_DESCRIPTIONS}
                                        "Scalable encoder loop.")
 
