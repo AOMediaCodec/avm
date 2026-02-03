@@ -30,8 +30,7 @@ static const struct SEFTestParam {
   // Output SEF OBU, where order hint is NOT explicitly signaled.
   { 1, 0, 22.0 },
   // Output SEF OBU, where order hint is explicitly signaled.
-  // TODO(jungsun): Fix this use case and then uncomment the test case below.
-  // { 1, 1, 22.0 },
+  { 1, 1, 22.0 },
 };
 
 // Compiler may decide to add some padding to the struct above for alignment,

@@ -985,7 +985,7 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
   frame_params.duplicate_existing_frame = 0;
   if (cpi->oxcf.unit_test_cfg.sef_with_order_hint_test) {
     frame_params.duplicate_existing_frame =
-        (gf_group->update_type[gf_group->index] == LF_UPDATE &&
+        (gf_group->update_type[gf_group->index] == INTNL_OVERLAY_UPDATE &&
          oxcf->gf_cfg.lag_in_frames != 0);
   }
   struct lookahead_entry *source = NULL;
