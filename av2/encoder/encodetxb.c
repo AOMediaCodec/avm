@@ -1801,7 +1801,7 @@ static AVM_FORCE_INLINE int warehouse_efficients_txb(
         cost +=
             base_lf_cost_uv[coeff_ctx][0][AVMMIN(level, LF_BASE_SYMBOLS - 1)];
       } else {
-        cost += base_cost_uv[AVMMIN(level, 3)];
+        cost += base_cost_uv[coeff_ctx][AVMMIN(level, 3)];
       }
     } else {
       if (limits) {
@@ -1902,7 +1902,7 @@ static AVM_FORCE_INLINE int warehouse_efficients_txb(
         cost +=
             base_lf_cost_uv[coeff_ctx][0][AVMMIN(level, LF_BASE_SYMBOLS - 1)];
       } else {
-        cost += base_cost_uv[AVMMIN(level, 3)];
+        cost += base_cost_uv[coeff_ctx][AVMMIN(level, 3)];
       }
     } else {
       if (limits) {
@@ -2189,13 +2189,16 @@ static AVM_FORCE_INLINE int get_two_coeff_cost_simple(
       plane > 0 ? txb_costs->base_lf_cost_uv : txb_costs->base_lf_cost;
   // const int(*base_cost_ptr)[TCQ_CTXS][8] =
   //     plane > 0 ? txb_costs->base_cost_uv : txb_costs->base_cost;
-  const int(*base_cost_ptr)[8] =
-      plane > 0 ? txb_costs->base_cost_uv[coeff_ctx] : txb_costs->base_cost[coeff_ctx][0];
+
+  const int(*base_cost_ptr)[TCQ_CTXS][8] = txb_costs->base_cost;
+  const int(*base_cost_uv_ptr)[8] = txb_costs->base_cost_uv;
+  int base_cost =  plane > 0 ? base_cost_uv_ptr[coeff_ctx][AVMMIN(abs_qc, 3)] : base_cost_ptr[coeff_ctx][0][AVMMIN(abs_qc, 3)];
 
   cost +=
       limits
           ? base_lf_cost_ptr[coeff_ctx][0][AVMMIN(abs_qc, LF_BASE_SYMBOLS - 1)]
-          : base_cost_ptr[AVMMIN(abs_qc, 3)];
+          : base_cost; 
+
   int diff = 0;
 
   if (limits) {
@@ -2395,12 +2398,13 @@ static INLINE int get_coeff_cost_general(
         plane > 0 ? txb_costs->base_lf_cost_uv : txb_costs->base_lf_cost;
     // const int(*base_cost_ptr)[TCQ_CTXS][8] =
     //     plane > 0 ? txb_costs->base_cost_uv : txb_costs->base_cost;
-    const int(*base_cost_ptr)[8] =
-        plane > 0 ? txb_costs->base_cost_uv[coeff_ctx] : txb_costs->base_cost[coeff_ctx][0];
-
+    const int(*base_cost_uv_ptr)[8] = txb_costs->base_cost_uv;
+    const int(*base_cost_ptr)[TCQ_CTXS][8] = txb_costs->base_cost_uv; 
+    int base_cost =  plane > 0 ? base_cost_uv_ptr[coeff_ctx][AVMMIN(abs_qc, 3)] : base_cost_ptr[coeff_ctx][0][AVMMIN(abs_qc, 3)];
+    
     cost += limits ? base_lf_cost_ptr[coeff_ctx][0]
                                      [AVMMIN(abs_qc, LF_BASE_SYMBOLS - 1)]
-                   : base_cost_ptr[AVMMIN(abs_qc, 3)];
+                   : base_cost;
   }
   if (abs_qc != 0) {
     const int dc_ph_group = 0;  // PH disabled
@@ -2569,15 +2573,16 @@ static INLINE void update_coeff_general(
       plane > 0 ? txb_costs->base_lf_cost_uv : txb_costs->base_lf_cost;
   // const int(*base_cost_ptr)[TCQ_CTXS][8] =
   //     plane > 0 ? txb_costs->base_cost_uv : txb_costs->base_cost;
-  const int(*base_cost_ptr)[8] =
-      plane > 0 ? txb_costs->base_cost_uv[coeff_ctx] : txb_costs->base_cost[coeff_ctx][0];
+  const int(*base_cost_uv_ptr)[8] = txb_costs->base_cost_uv;
+  const int(*base_cost_ptr)[TCQ_CTXS][8] = txb_costs->base_cost;
+  int base_cost =  plane > 0 ? base_cost_uv_ptr[coeff_ctx][0] : base_cost_ptr[coeff_ctx][0][0];
 
   const int row = ci >> bwl;
   const int col = ci - (row << bwl);
   int limits = get_lf_limits(row, col, tx_class, plane);
   if (qc == 0) {
     *accu_rate += limits ? base_lf_cost_ptr[coeff_ctx][0][0]
-                         : base_cost_ptr[0];
+                         : base_cost;
   } else {
     const int sign = (qc < 0) ? 1 : 0;
     const tran_low_t abs_qc = abs(qc);
@@ -2598,7 +2603,7 @@ static INLINE void update_coeff_general(
       abs_qc_low = qc_low = dqc_low = 0;
       dist_low = dist0;
       rate_low = limits ? base_lf_cost_ptr[coeff_ctx][0][0]
-                        : base_cost_ptr[0];
+                        : base_cost;
     } else {
       get_qc_dqc_low(abs_qc, sign, dqv, shift, &qc_low, &dqc_low);
       abs_qc_low = abs_qc - 1;
