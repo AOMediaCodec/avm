@@ -1415,22 +1415,6 @@ typedef struct MultiFrameHeader {
   int mfh_apply_deblocking_filter[4];
 
   /*!
-   * Presence of tile information in this multi-frame header
-   */
-  uint8_t mfh_tile_info_present_flag;
-  /*!
-   * Tile configuration parameters for frames that reference this MFH
-   */
-  TileInfoSyntax mfh_tile_params;
-  /*!
-   * sb size in MFH
-   */
-  BLOCK_SIZE mfh_sb_size;
-  /*!
-   * Seq size log2 in MFH
-   */
-  int mfh_seq_mib_sb_size_log2;
-  /*!
    * Presence of segmentation information in this multi-frame header
    */
   uint8_t mfh_seg_info_present_flag;
@@ -5240,9 +5224,7 @@ static INLINE int is_valid_seq_level_idx(AV2_LEVEL seq_level_idx) {
           // The following levels are currently undefined.
           seq_level_idx != SEQ_LEVEL_2_2 && seq_level_idx != SEQ_LEVEL_2_3 &&
           seq_level_idx != SEQ_LEVEL_3_2 && seq_level_idx != SEQ_LEVEL_3_3 &&
-          seq_level_idx != SEQ_LEVEL_4_2 && seq_level_idx != SEQ_LEVEL_4_3 &&
-          seq_level_idx != SEQ_LEVEL_7_0 && seq_level_idx != SEQ_LEVEL_7_1 &&
-          seq_level_idx != SEQ_LEVEL_7_2 && seq_level_idx != SEQ_LEVEL_7_3);
+          seq_level_idx != SEQ_LEVEL_4_2 && seq_level_idx != SEQ_LEVEL_4_3);
 }
 
 // Intra derivative for directional predictions.
@@ -5809,14 +5791,8 @@ static INLINE avm_codec_err_t av2_get_chroma_subsampling(
 // info. Returns null if none exist
 static INLINE const TileInfoSyntax *find_effective_tile_params(
     const AV2_COMMON *const cm) {
-  // Check MFH tile params first (if MFH is valid and has tile info)
-  if (cm->mfh_valid[cm->cur_mfh_id] &&
-      cm->mfh_params[cm->cur_mfh_id].mfh_tile_info_present_flag) {
-    return &cm->mfh_params[cm->cur_mfh_id].mfh_tile_params;
-  }
-  // TODO(any): when multiframe header tiling is implemented, this
-  // function should return the effective mfh tile_params if it exists,
-  // or the seq level tile_params if it exists, or NULL
+  // TODO(any): This function should return the effective mfh tile_params if it
+  // exists, or the seq level tile_params if it exists, or NULL
   if (cm->seq_params.seq_tile_info_present_flag)
     return &cm->seq_params.tile_params;
   else

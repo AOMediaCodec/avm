@@ -12,6 +12,7 @@
 
 #include "avm_ports/system_state.h"
 #include "av2/common/level.h"
+#include "av2/common/tile_common.h"
 #include "av2/encoder/encoder.h"
 #include "av2/common/annexA.h"
 
@@ -337,6 +338,9 @@ typedef enum {
   TOO_MANY_TILES,
   TILE_RATE_TOO_HIGH,
   TILE_TOO_LARGE,
+#if CONFIG_G018
+  TILE_WIDTH_TOO_LARGE,
+#endif  // CONFIG_G018
   CROPPED_TILE_WIDTH_TOO_SMALL,
   CROPPED_TILE_HEIGHT_TOO_SMALL,
   TILE_WIDTH_INVALID,
@@ -363,6 +367,9 @@ static const char *level_fail_messages[TARGET_LEVEL_FAIL_IDS] = {
   "Too many tiles are used.",
   "The tile rate is too high.",
   "The tile size is too large.",
+#if CONFIG_G018
+  "The tile width is too large.",
+#endif  // CONFIG_G018
   "The cropped tile width is less than 8.",
   "The cropped tile height is less than 8.",
   "The tile width is invalid.",
@@ -945,7 +952,8 @@ static void get_temporal_parallel_params(int scalability_mode_idc,
 #define MAX_TILE_SIZE (4096 * 2304)
 #define MIN_FRAME_WIDTH 16
 #define MIN_FRAME_HEIGHT 16
-#define MAX_TILE_SIZE_HEADER_RATE_PRODUCT 588251136
+#define MAX_TILE_SIZE_HEADER_RATE_PRODUCT 547430400
+// (557430400 = 3840 * 2160 * 60 * 1.1)
 
 static TARGET_LEVEL_FAIL_ID check_level_constraints(
     const AV2LevelInfo *const level_info, AV2_LEVEL level, int tier,
@@ -1017,10 +1025,35 @@ static TARGET_LEVEL_FAIL_ID check_level_constraints(
       break;
     }
 
+#if CONFIG_G018
+    // check if tile area using scaled limit:
+    // TileWidth * TileHeight <= Tile_Area_Scaling_Factor[tier][level] * 4096 *
+    // 2304/4
+    const int level_idx = target_level_spec->level;
+    const int tier_idx = (tier > 0) ? 1 : 0;
+    if (level_idx != SEQ_LEVEL_MAX) {
+      int scaling_factor = Tile_Area_Scaling_Factor[tier_idx][level_idx];
+      const uint32_t max_tile_area = (scaling_factor * MAX_TILE_SIZE) >> 2;
+      if (level_stats->max_tile_size > (int)max_tile_area) {
+        fail_id = TILE_TOO_LARGE;
+        break;
+      }
+
+      // Check tile width using scaled limit
+      // TileWidth <= Tile_Width_Scaling_Factor[tier][level] * MAX_TILE_WIDTH/4
+      scaling_factor = Tile_Width_Scaling_factor[tier_idx][level_idx];
+      const int max_tile_width_limit = (scaling_factor * MAX_TILE_WIDTH) >> 2;
+      if (level_stats->max_tile_width > max_tile_width_limit) {
+        fail_id = TILE_WIDTH_TOO_LARGE;
+        break;
+      }
+    }
+#else
     if (level_stats->max_tile_size > MAX_TILE_SIZE) {
       fail_id = TILE_TOO_LARGE;
       break;
     }
+#endif  // CONFIG_G018
 
     if (level_stats->min_frame_width < MIN_FRAME_WIDTH) {
       fail_id = LUMA_PIC_H_SIZE_TOO_SMALL;
@@ -1067,9 +1100,21 @@ static TARGET_LEVEL_FAIL_ID check_level_constraints(
       const int scalability_mode_idc = -1;
       get_temporal_parallel_params(scalability_mode_idc, &temporal_parallel_num,
                                    &temporal_parallel_denom);
+
       const int val = level_stats->max_tile_size * level_spec->max_header_rate *
                       temporal_parallel_denom / temporal_parallel_num;
+#if CONFIG_G018
+      /*MaxTileSizeInLumaSamples * NumFrameHeadersPerSec is less than or equal
+       * to (Tile_Area_Scaling_Factor[ TierIdx ][ LevelIdx ] * 547,430,400 )/ 4.
+       * The number of 547,430,400 corresponds to (where this number is the
+       * decode luma sample rate of 3840x2160 * 60fps * 1.1).*/
+      const int scaling_factor = Tile_Area_Scaling_Factor[tier_idx][level_idx];
+      const uint64_t max_tile_size_header_rate =
+          (scaling_factor * MAX_TILE_SIZE_HEADER_RATE_PRODUCT) >> 2;
+      if ((uint64_t)val > max_tile_size_header_rate) {
+#else
       if (val > MAX_TILE_SIZE_HEADER_RATE_PRODUCT) {
+#endif  // CONFIG_G018
         fail_id = TILE_SIZE_HEADER_RATE_TOO_HIGH;
         break;
       }
@@ -1083,14 +1128,21 @@ static TARGET_LEVEL_FAIL_ID check_level_constraints(
 static void get_tile_stats(const AV2_COMMON *const cm,
                            const TileDataEnc *const tile_data,
                            int *max_tile_size, int *min_cropped_tile_width,
-                           int *min_cropped_tile_height,
-                           int *tile_width_valid) {
+                           int *min_cropped_tile_height, int *tile_width_valid
+#if CONFIG_G018
+                           ,
+                           int *max_tile_width
+#endif  // CONFIG_G018
+) {
   const int tile_cols = cm->tiles.cols;
   const int tile_rows = cm->tiles.rows;
   *max_tile_size = 0;
   *min_cropped_tile_width = INT_MAX;
   *min_cropped_tile_height = INT_MAX;
   *tile_width_valid = 1;
+#if CONFIG_G018
+  *max_tile_width = 0;
+#endif  // CONFIG_G018
 
   for (int tile_row = 0; tile_row < tile_rows; ++tile_row) {
     for (int tile_col = 0; tile_col < tile_cols; ++tile_col) {
@@ -1102,6 +1154,9 @@ static void get_tile_stats(const AV2_COMMON *const cm,
           (tile_info->mi_row_end - tile_info->mi_row_start) * MI_SIZE;
       const int tile_size = tile_width * tile_height;
       *max_tile_size = AVMMAX(*max_tile_size, tile_size);
+#if CONFIG_G018
+      *max_tile_width = AVMMAX(*max_tile_width, tile_width);
+#endif  // CONFIG_G018
 
       const int cropped_tile_width =
           cm->width - tile_info->mi_col_start * MI_SIZE;
@@ -1245,11 +1300,19 @@ void av2_update_level_info(AV2_COMP *cpi, size_t size, int64_t ts_start,
   const int immediate_output_picture = cm->immediate_output_picture;
   const int show_existing_frame = cm->show_existing_frame;
   int max_tile_size;
+#if CONFIG_G018
+  int max_tile_width;
+#endif  // CONFIG_G018
   int min_cropped_tile_width;
   int min_cropped_tile_height;
   int tile_width_is_valid;
   get_tile_stats(cm, cpi->tile_data, &max_tile_size, &min_cropped_tile_width,
-                 &min_cropped_tile_height, &tile_width_is_valid);
+                 &min_cropped_tile_height, &tile_width_is_valid
+#if CONFIG_G018
+                 ,
+                 &max_tile_width
+#endif  // CONFIG_G018
+  );
 
   avm_clear_system_state();
   const double compression_ratio = av2_get_compression_ratio(cm, size);
@@ -1276,6 +1339,10 @@ void av2_update_level_info(AV2_COMP *cpi, size_t size, int64_t ts_start,
 
     level_stats->max_tile_size =
         AVMMAX(level_stats->max_tile_size, max_tile_size);
+#if CONFIG_G018
+    level_stats->max_tile_width =
+        AVMMAX(level_stats->max_tile_width, max_tile_width);
+#endif  // CONFIG_G018
     level_stats->min_cropped_tile_width =
         AVMMIN(level_stats->min_cropped_tile_width, min_cropped_tile_width);
     level_stats->min_cropped_tile_height =

@@ -4512,12 +4512,6 @@ void write_tile_syntax_info(const TileInfoSyntax *tile_params,
   }
 }
 
-// Writes tile information to multi-frame header
-static AVM_INLINE void write_tile_mfh(const MultiFrameHeader *const mfh_param,
-                                      struct avm_write_bit_buffer *wb) {
-  write_tile_syntax_info(&mfh_param->mfh_tile_params, wb);
-}
-
 static AVM_INLINE void encode_film_grain(const AV2_COMP *const cpi,
                                          struct avm_write_bit_buffer *wb) {
   const AV2_COMMON *const cm = &cpi->common;
@@ -4924,21 +4918,6 @@ static void write_frame_max_bvp_drl_bits(AV2_COMMON *const cm,
   }
 }
 
-static AVM_INLINE void write_mfh_sb_size(
-    const MultiFrameHeader *const mfh_params, struct avm_write_bit_buffer *wb) {
-  const bool is_seq_256 = mfh_params->mfh_seq_mib_sb_size_log2 == 6;
-  avm_wb_write_bit(wb, is_seq_256);
-  if (is_seq_256) {
-    // If seq level sb_size is 256, signal another bit to say if the sb_size
-    // should be scaled to 128 (i.e. whether this mfh header is only for
-    // key and intra-only frames)
-    const bool scale_sb = mfh_params->mfh_sb_size == BLOCK_128X128;
-    avm_wb_write_bit(wb, scale_sb);
-    return;
-  }
-  avm_wb_write_bit(wb, mfh_params->mfh_seq_mib_sb_size_log2 == 5);
-}
-
 static AVM_INLINE void write_multi_frame_header(
     AV2_COMP *cpi, const MultiFrameHeader *const mfh_param,
     struct avm_write_bit_buffer *wb) {
@@ -4946,9 +4925,7 @@ static AVM_INLINE void write_multi_frame_header(
   avm_wb_write_uvlc(wb, mfh_param->mfh_seq_header_id);
   avm_wb_write_uvlc(wb, cm->cur_mfh_id - 1);
   avm_wb_write_bit(wb, mfh_param->mfh_frame_size_present_flag);
-  avm_wb_write_bit(wb, mfh_param->mfh_tile_info_present_flag);
-  if (mfh_param->mfh_frame_size_present_flag ||
-      mfh_param->mfh_tile_info_present_flag) {
+  if (mfh_param->mfh_frame_size_present_flag) {
     const int coded_width = mfh_param->mfh_frame_width;
     const int coded_height = mfh_param->mfh_frame_height;
     avm_wb_write_literal(wb, mfh_param->mfh_frame_width_bits_minus1, 4);
@@ -4964,11 +4941,6 @@ static AVM_INLINE void write_multi_frame_header(
     for (int i = 0; i < 4; i++) {
       avm_wb_write_bit(wb, mfh_param->mfh_apply_deblocking_filter[i]);
     }
-  }
-
-  if (mfh_param->mfh_tile_info_present_flag) {
-    write_mfh_sb_size(mfh_param, wb);
-    write_tile_mfh(mfh_param, wb);
   }
 
   avm_wb_write_bit(wb, mfh_param->mfh_seg_info_present_flag);
@@ -6719,7 +6691,6 @@ static void set_multi_frame_header_with_keyframe(AV2_COMP *cpi,
                                                  MultiFrameHeader *mfh_params) {
   AV2_COMMON *cm = &cpi->common;
   SequenceHeader *const seq_params = &cpi->common.seq_params;
-  TileInfoSyntax *tile_params = &mfh_params->mfh_tile_params;
 
   mfh_params->mfh_seq_header_id = 0;
   mfh_params->mfh_frame_size_present_flag =
@@ -6738,20 +6709,6 @@ static void set_multi_frame_header_with_keyframe(AV2_COMP *cpi,
     mfh_params->mfh_frame_height = cm->height;
   }
 
-  mfh_params->mfh_sb_size = seq_params->sb_size;
-  assert(seq_params->sb_size == BLOCK_256X256 ||
-         seq_params->sb_size == BLOCK_128X128 ||
-         seq_params->sb_size == BLOCK_64X64);
-  mfh_params->mfh_seq_mib_sb_size_log2 = seq_params->mib_size_log2;
-  // Currently copying the SH params. Encoder should ideally set different set
-  // of params in MFH to execise this functionality
-  if (seq_params->seq_tile_info_present_flag) {
-    memcpy(tile_params, &seq_params->tile_params,
-           sizeof(struct TileInfoSyntax));
-    mfh_params->mfh_tile_info_present_flag = 1;
-  } else {
-    mfh_params->mfh_tile_info_present_flag = 0;
-  }
 #if CONFIG_F414_OBU_EXTENSION
   mfh_params->mfh_extension_present_flag = 0;
 #endif  // CONFIG_F414_OBU_EXTENSION

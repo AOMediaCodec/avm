@@ -4206,7 +4206,12 @@ static AVM_INLINE void read_tile_info(AV2Decoder *const pbi,
     return;
   }
   av2_get_tile_limits(&cm->tiles, cm->mi_params.mi_rows, cm->mi_params.mi_cols,
-                      cm->mib_size_log2, cm->seq_params.mib_size_log2);
+                      cm->mib_size_log2, cm->seq_params.mib_size_log2
+#if CONFIG_G018
+                      ,
+                      cm->seq_params.seq_max_level_idx, cm->seq_params.seq_tier
+#endif  // CONFIG_G018
+  );
 
   const TileInfoSyntax *const tile_params = find_effective_tile_params(cm);
   int reuse = 0;
@@ -5969,21 +5974,16 @@ void read_tile_syntax_info(TileInfoSyntax *tile_params,
 
 void read_sequence_tile_info(struct SequenceHeader *seq_params,
                              struct avm_read_bit_buffer *rb) {
-  av2_get_seqmfh_tile_limits(
-      &seq_params->tile_params, seq_params->max_frame_height,
-      seq_params->max_frame_width, seq_params->mib_size_log2,
-      seq_params->mib_size_log2);
+  av2_get_seq_tile_limits(&seq_params->tile_params,
+                          seq_params->max_frame_height,
+                          seq_params->max_frame_width,
+                          seq_params->mib_size_log2, seq_params->mib_size_log2
+#if CONFIG_G018
+                          ,
+                          seq_params->seq_max_level_idx, seq_params->seq_tier
+#endif  // CONFIG_G018
+  );
   read_tile_syntax_info(&seq_params->tile_params, rb);
-}
-
-// Reads tile information from multi-frame header
-static void read_multi_frame_header_tile_info(MultiFrameHeader *mfh_param,
-                                              struct avm_read_bit_buffer *rb) {
-  av2_get_seqmfh_tile_limits(
-      &mfh_param->mfh_tile_params, mfh_param->mfh_frame_height,
-      mfh_param->mfh_frame_width, mi_size_wide_log2[mfh_param->mfh_sb_size],
-      mfh_param->mfh_seq_mib_sb_size_log2);
-  read_tile_syntax_info(&mfh_param->mfh_tile_params, rb);
 }
 
 static void read_seg_syntax_info(struct SegmentationInfoSyntax *seg_params,
@@ -6363,28 +6363,6 @@ void av2_read_sequence_header(struct avm_read_bit_buffer *rb,
   }
 }
 
-static AVM_INLINE void read_mfh_sb_size(MultiFrameHeader *mfh_params,
-                                        struct avm_read_bit_buffer *rb) {
-  static const BLOCK_SIZE sb_sizes[] = { BLOCK_256X256, BLOCK_128X128,
-                                         BLOCK_64X64 };
-  int index = 0;
-  bool scale_sb = 0;
-  bool bit = avm_rb_read_bit(rb);
-  if (bit) {
-    scale_sb = avm_rb_read_bit(rb);
-  } else {
-    index++;
-    bit = avm_rb_read_bit(rb);
-    if (!bit) {
-      index++;
-    }
-  }
-  BLOCK_SIZE sb_size = sb_sizes[index];
-  mfh_params->mfh_seq_mib_sb_size_log2 = mi_size_wide_log2[sb_size];
-  assert(IMPLIES(scale_sb, sb_size == BLOCK_256X256));
-  mfh_params->mfh_sb_size = sb_sizes[index + scale_sb];
-}
-
 static AVM_INLINE void read_multi_frame_header_seg_info(
     MultiFrameHeader *mfh_param, struct avm_read_bit_buffer *rb) {
   mfh_param->mfh_seg_info_present_flag = avm_rb_read_bit(rb);
@@ -6414,9 +6392,7 @@ uint32_t av2_read_multi_frame_header(AV2_COMMON *cm,
   mfh_param->mfh_frame_width = cm->seq_params.max_frame_width;
   mfh_param->mfh_frame_height = cm->seq_params.max_frame_height;
   mfh_param->mfh_frame_size_present_flag = avm_rb_read_bit(rb);
-  mfh_param->mfh_tile_info_present_flag = avm_rb_read_bit(rb);
-  if (mfh_param->mfh_frame_size_present_flag ||
-      mfh_param->mfh_tile_info_present_flag) {
+  if (mfh_param->mfh_frame_size_present_flag) {
     mfh_param->mfh_frame_width_bits_minus1 = avm_rb_read_literal(rb, 4);
     int num_bits_width = mfh_param->mfh_frame_width_bits_minus1 + 1;
     mfh_param->mfh_frame_height_bits_minus1 = avm_rb_read_literal(rb, 4);
@@ -6436,10 +6412,6 @@ uint32_t av2_read_multi_frame_header(AV2_COMMON *cm,
     }
   }
 
-  if (mfh_param->mfh_tile_info_present_flag) {
-    read_mfh_sb_size(mfh_param, rb);
-    read_multi_frame_header_tile_info(mfh_param, rb);
-  }
   read_multi_frame_header_seg_info(mfh_param, rb);
 
   cm->mfh_valid[cur_mfh_id] = true;

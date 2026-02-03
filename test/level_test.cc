@@ -81,9 +81,7 @@ TEST_P(LevelTestLarge, TestTargetLevelApi) {
       if ((level <= SEQ_LEVELS && level != SEQ_LEVEL_2_2 &&
            level != SEQ_LEVEL_2_3 && level != SEQ_LEVEL_3_2 &&
            level != SEQ_LEVEL_3_3 && level != SEQ_LEVEL_4_2 &&
-           level != SEQ_LEVEL_4_3 && level != SEQ_LEVEL_7_0 &&
-           level != SEQ_LEVEL_7_1 && level != SEQ_LEVEL_7_2 &&
-           level != SEQ_LEVEL_7_3) ||
+           level != SEQ_LEVEL_4_3) ||
           level == SEQ_LEVEL_MAX ||
           operating_point == MAX_NUM_OPERATING_POINTS) {
         EXPECT_EQ(AVM_CODEC_OK,

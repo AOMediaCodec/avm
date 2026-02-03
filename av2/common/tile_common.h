@@ -59,13 +59,47 @@ AV2PixelRect av2_get_tile_rect(const TileInfo *tile_info,
 #define MAX_TILE_WIDTH (4096)        // Max Tile width in pixels
 #define MAX_TILE_AREA (4096 * 2304)  // Maximum tile area in pixels
 
+#if CONFIG_G018
+// Tile width scaling factors for different levels and tiers
+// [tier][lev] - values are multiplexed by MAX_TILE_WIDTH and divided by 4
+static const int Tile_Width_Scaling_factor[2][31] = {
+  // Tier 0
+  { 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+    4, 4, 4, 4, 4, 4, 4, 4, 8, 8, 8, 8, 0, 0, 0 },  // 28 - 30 reserved
+  // Tier 1
+  { 4, 4, 4, 4, 4, 4, 4, 4, 4,  4,  4,  4,  4, 4, 4, 4,
+    4, 4, 4, 4, 4, 4, 4, 4, 16, 16, 16, 16, 0, 0, 0 }  // 28-30 reserved
+};
+
+// Tile area scaling factors for different levels and tiers
+// [tier][lev] - values are multiplexed by MAX_TILE_WIDTH and divided by 4
+static const int Tile_Area_Scaling_Factor[2][31] = {
+  // Tier 0
+  { 4, 4, 4, 4, 4, 4, 4, 4, 4,  4,  4,  4,  4, 4, 4, 4,
+    4, 4, 4, 4, 8, 8, 8, 8, 16, 16, 16, 16, 0, 0, 0 },  // 28-30 reserved
+  // Tier 1
+  { 4, 4, 4, 4, 4,  4,  4,  4,  4,  4,  4,  4,  4, 4, 4, 4,
+    4, 4, 4, 4, 16, 16, 16, 16, 32, 32, 32, 32, 0, 0, 0 },  // 28-30 reserved
+};
+#endif  // CONFIG_G018
+
 void av2_get_uniform_tile_size(const struct AV2Common *cm, int *w, int *h);
 void av2_get_tile_limits(struct CommonTileParams *const tiles, int cm_mi_rows,
                          int cm_mi_cols, int mib_size_log2,
-                         int seq_mib_size_log2);
-void av2_get_seqmfh_tile_limits(struct TileInfoSyntax *const tiles,
-                                int frame_height, int frame_width,
-                                int mib_size_log2, int seq_mib_size_log2);
+                         int seq_mib_size_log2
+#if CONFIG_G018
+                         ,
+                         int seq_level_idx, int seq_tier
+#endif  // CONFIG_G018
+);
+void av2_get_seq_tile_limits(struct TileInfoSyntax *const tiles,
+                             int frame_height, int frame_width,
+                             int mib_size_log2, int seq_mib_size_log2
+#if CONFIG_G018
+                             ,
+                             int seq_level_idx, int seq_tier
+#endif  // CONFIG_G018
+);
 void av2_calculate_tile_cols(struct CommonTileParams *const tiles);
 void av2_calculate_tile_rows(struct CommonTileParams *const tiles);
 

@@ -979,9 +979,14 @@ static AVM_INLINE void av2_set_seq_tile_info(SequenceHeader *const seq_params,
         oxcf->tile_cfg.tile_width_count == 0 ||
         oxcf->tile_cfg.tile_height_count == 0);
   int i, start_sb;
-  av2_get_seqmfh_tile_limits(
-      tile_params, seq_params->max_frame_height, seq_params->max_frame_width,
-      seq_params->mib_size_log2, seq_params->mib_size_log2);
+  av2_get_seq_tile_limits(tile_params, seq_params->max_frame_height,
+                          seq_params->max_frame_width,
+                          seq_params->mib_size_log2, seq_params->mib_size_log2
+#if CONFIG_G018
+                          ,
+                          seq_params->seq_max_level_idx, seq_params->seq_tier
+#endif  // CONFIG_G018
+  );
 
   if (tile_cfg->tile_width_count == 0 || tile_cfg->tile_height_count == 0) {
     tiles->uniform_spacing = 1;
@@ -1028,7 +1033,12 @@ static AVM_INLINE void av2_set_tile_info(AV2_COMMON *const cm,
   int i, start_sb;
 
   av2_get_tile_limits(&cm->tiles, mi_params->mi_rows, mi_params->mi_cols,
-                      cm->mib_size_log2, cm->seq_params.mib_size_log2);
+                      cm->mib_size_log2, cm->seq_params.mib_size_log2
+#if CONFIG_G018
+                      ,
+                      cm->seq_params.seq_max_level_idx, cm->seq_params.seq_tier
+#endif  // CONFIG_G018
+  );
 
   int sb_size_scale = 1;
   // Intra frame force to use SB size as 128x128 when encoder is configured with

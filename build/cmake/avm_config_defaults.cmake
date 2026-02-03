@@ -10,13 +10,13 @@
 
 include("${AVM_ROOT}/build/cmake/util.cmake")
 
-# This file sets default values for libavm configuration variables. All libavm
+# This file sets default values for libavm configuration variables.All libavm
 # config variables are added to the CMake variable cache via the macros provided
 # in util.cmake.
 
 #
 # The variables in this section of the file are detected at configuration time,
-# but can be overridden via the use of CONFIG_* and ENABLE_* values also defined
+# but can be overridden via the use of CONFIG_ *and ENABLE_ *values also defined
 # in this file.
 #
 
@@ -42,7 +42,7 @@ set_avm_detect_var(HAVE_MSA 0 "Enables MSA optimizations.")
 # PPC feature flags.
 set_avm_detect_var(HAVE_VSX 0 "Enables VSX optimizations.")
 
-# x86/x86_64 feature flags.
+# x86 / x86_64 feature flags.
 set_avm_detect_var(HAVE_AVX 0 "Enables AVX optimizations.")
 set_avm_detect_var(HAVE_AVX2 0 "Enables AVX2 optimizations.")
 set_avm_detect_var(HAVE_MMX 0 "Enables MMX optimizations. ")
@@ -63,7 +63,7 @@ set_avm_detect_var(HAVE_WXWIDGETS 0 "WxWidgets present.")
 
 #
 # Variables in this section can be set from the CMake command line or from
-# within the CMake GUI. The variables control libavm features.
+# within the CMake GUI.The variables control libavm features.
 #
 
 # Build configuration flags.
@@ -108,8 +108,9 @@ set_avm_config_var(DECODE_HEIGHT_LIMIT 0 "Set limit for decode height.")
 set_avm_config_var(DECODE_WIDTH_LIMIT 0 "Set limit for decode width.")
 set_avm_config_var(CONFIG_TUNE_VMAF 0 "Enable encoding tuning for VMAF.")
 set_avm_config_var(CONFIG_USE_VMAF_RC 0 "Use libvmaf_rc tune for VMAF_NEG.")
+set_avm_config_var(CONFIG_G018 1 "Tile resolution limits")
 
-# 12-bit support.
+# 12 - bit support.
 set_avm_config_var(CONFIG_TESTONLY_12BIT_SUPPORT 1
                    "Enables 12-bit test-only profile not yet supported in AV2.")
 
@@ -134,7 +135,7 @@ set_avm_config_var(CONFIG_AV2_PROFILES 1 "AV2 profile related changes.")
 set_avm_config_var(CONFIG_TU_ALIGNMENT 1 "Missing TU alignment syntax")
 set_avm_config_var(CONFIG_CWG_G010 1 "Updates to the BRT OBU")
 
-# CWG-F221
+# CWG - F221
 set_avm_config_var(CONFIG_PARAKIT_COLLECT_DATA 0
                    "enables data collection for ParaKit training.")
 
@@ -144,18 +145,18 @@ set_avm_config_var(CONFIG_DIP_EXT_PRUNING 1 "AV2 DIP TFLite pruning.")
 
 set_avm_config_var(CONFIG_CWG_F438 1 "Remove scalability metadata.")
 
-# Source of throughput analysis : CWG-B065
+# Source of throughput analysis : CWG - B065
 set_avm_config_var(CONFIG_THROUGHPUT_ANALYSIS 0
                    "AV2 experiment flag to measure throughput.")
 
-# CWG-F414
+# CWG - F414
 set_avm_config_var(CONFIG_F414_OBU_EXTENSION 1 "Obu extension mechanism.")
 
 set_avm_config_var(
   CONFIG_QM_DEBUG 0
   "Enable debug information for extension to AV2 quantization matrices.")
 
-# This is an encode-only change.
+# This is an encode - only change.
 set_avm_config_var(CONFIG_ML_PART_SPLIT 1
                    "Partition SPLIT pruning/forcing as predicted by ML.")
 
@@ -189,10 +190,10 @@ set_avm_option_var(ENABLE_TOOLS "Enable applications in tools sub directory."
 set_avm_option_var(ENABLE_WERROR "Converts warnings to errors at compile time."
                    OFF)
 
-# ARM assembly/intrinsics flags.
+# ARM assembly / intrinsics flags.
 set_avm_option_var(ENABLE_NEON "Enables NEON optimizations on ARM targets." ON)
 
-# MIPS assembly/intrinsics flags.
+# MIPS assembly / intrinsics flags.
 set_avm_option_var(ENABLE_DSPR2 "Enables DSPR2 optimizations on MIPS targets."
                    OFF)
 set_avm_option_var(ENABLE_MSA "Enables MSA optimizations on MIPS targets." OFF)
@@ -201,7 +202,7 @@ set_avm_option_var(ENABLE_MSA "Enables MSA optimizations on MIPS targets." OFF)
 set_avm_option_var(ENABLE_VSX "Enables VSX optimizations on PowerPC targets."
                    ON)
 
-# x86/x86_64 assembly/intrinsics flags.
+# x86 / x86_64 assembly / intrinsics flags.
 set_avm_option_var(ENABLE_MMX
                    "Enables MMX optimizations on x86/x86_64 targets." ON)
 set_avm_option_var(ENABLE_SSE
