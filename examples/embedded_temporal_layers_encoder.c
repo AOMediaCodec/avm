@@ -163,8 +163,8 @@ int main(int argc, char **argv) {
       flags |= AVM_EFLAG_FORCE_KF;
     }
 
-    // For spatial layers: call the encoder num_embedded_layers times with same
-    // input.
+    // For embedded layers: call the encoder num_embedded_layers times with same
+    // input at different scales. So the example here is spatial layers.
     for (int sl = 0; sl < num_embedded_layers; sl++) {
       if (num_temporal_layers == 2 && num_embedded_layers == 1) {
         if (frames_encoded % 2 == 0) {
