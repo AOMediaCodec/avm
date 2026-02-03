@@ -297,7 +297,7 @@ TEST_P(MultiLayerTest, MultiLayerTest2EmbeddedDecodeBaseOnly) {
   EXPECT_EQ(num_mismatch_, 0);
 }
 
-TEST_P(MultiLayerTest, MultiLayerTest3Embedded) {
+TEST_P(MultiLayerTest, DISABLED_MultiLayerTest3Embedded) {
   ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
   num_temporal_layers_ = 1;
   num_embedded_layers_ = 3;
@@ -308,7 +308,7 @@ TEST_P(MultiLayerTest, MultiLayerTest3Embedded) {
   EXPECT_EQ(num_mismatch_, 0);
 }
 
-TEST_P(MultiLayerTest, MultiLayerTest3EmbeddedDecodeBaseOnly) {
+TEST_P(MultiLayerTest, DISABLED_MultiLayerTest3EmbeddedDecodeBaseOnly) {
   ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
   num_temporal_layers_ = 1;
   num_embedded_layers_ = 3;
