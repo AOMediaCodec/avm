@@ -18,11 +18,11 @@
 
 namespace {
 // This class is used to test temporal and embedded layers.
-class MultiLayerTestLarge : public ::libavm_test::CodecTestWithParam<int>,
-                            public ::libavm_test::EncoderTest {
+class MultiLayerTest : public ::libavm_test::CodecTestWithParam<int>,
+                       public ::libavm_test::EncoderTest {
  protected:
-  MultiLayerTestLarge() : EncoderTest(GET_PARAM(0)), speed_(GET_PARAM(1)) {}
-  ~MultiLayerTestLarge() override {}
+  MultiLayerTest() : EncoderTest(GET_PARAM(0)), speed_(GET_PARAM(1)) {}
+  ~MultiLayerTest() override {}
 
   void SetUp() override {
     InitializeConfig();
@@ -215,7 +215,7 @@ class MultiLayerTestLarge : public ::libavm_test::CodecTestWithParam<int>,
   int layer_frame_cnt_;
 };
 
-TEST_P(MultiLayerTestLarge, MultiLayerTest2Temporal) {
+TEST_P(MultiLayerTest, MultiLayerTest2Temporal) {
   ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
   num_temporal_layers_ = 2;
   num_embedded_layers_ = 1;
@@ -226,7 +226,7 @@ TEST_P(MultiLayerTestLarge, MultiLayerTest2Temporal) {
   EXPECT_EQ(num_mismatch_, 0);
 }
 
-TEST_P(MultiLayerTestLarge, MultiLayerTest2TemporalDecodeBaseOnly) {
+TEST_P(MultiLayerTest, MultiLayerTest2TemporalDecodeBaseOnly) {
   ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
   num_temporal_layers_ = 2;
   num_embedded_layers_ = 1;
@@ -237,7 +237,7 @@ TEST_P(MultiLayerTestLarge, MultiLayerTest2TemporalDecodeBaseOnly) {
   EXPECT_EQ(num_mismatch_, 0);
 }
 
-TEST_P(MultiLayerTestLarge, MultiLayerTest3Temporal) {
+TEST_P(MultiLayerTest, MultiLayerTest3Temporal) {
   ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
   num_temporal_layers_ = 3;
   num_embedded_layers_ = 1;
@@ -248,7 +248,7 @@ TEST_P(MultiLayerTestLarge, MultiLayerTest3Temporal) {
   EXPECT_EQ(num_mismatch_, 0);
 }
 
-TEST_P(MultiLayerTestLarge, MultiLayerTest3TemporalDecodeBaseOnly) {
+TEST_P(MultiLayerTest, MultiLayerTest3TemporalDecodeBaseOnly) {
   ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
   num_temporal_layers_ = 3;
   num_embedded_layers_ = 1;
@@ -259,7 +259,7 @@ TEST_P(MultiLayerTestLarge, MultiLayerTest3TemporalDecodeBaseOnly) {
   EXPECT_EQ(num_mismatch_, 0);
 }
 
-TEST_P(MultiLayerTestLarge, MultiLayerTest3TemporalDropTL2) {
+TEST_P(MultiLayerTest, MultiLayerTest3TemporalDropTL2) {
   ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
   num_temporal_layers_ = 3;
   num_embedded_layers_ = 1;
@@ -275,7 +275,7 @@ TEST_P(MultiLayerTestLarge, MultiLayerTest3TemporalDropTL2) {
 // same m layer at previous times. Future change will add a test control to
 // allow for more flexible prediction structures, so a given m layer can also
 // predict off the same m layers at previous times (t-1, t-2,).
-TEST_P(MultiLayerTestLarge, MultiLayerTest2Embedded) {
+TEST_P(MultiLayerTest, MultiLayerTest2Embedded) {
   ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
   num_temporal_layers_ = 1;
   num_embedded_layers_ = 2;
@@ -286,7 +286,7 @@ TEST_P(MultiLayerTestLarge, MultiLayerTest2Embedded) {
   EXPECT_EQ(num_mismatch_, 0);
 }
 
-TEST_P(MultiLayerTestLarge, MultiLayerTest2EmbeddedDecodeBaseOnly) {
+TEST_P(MultiLayerTest, MultiLayerTest2EmbeddedDecodeBaseOnly) {
   ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
   num_temporal_layers_ = 1;
   num_embedded_layers_ = 2;
@@ -297,7 +297,7 @@ TEST_P(MultiLayerTestLarge, MultiLayerTest2EmbeddedDecodeBaseOnly) {
   EXPECT_EQ(num_mismatch_, 0);
 }
 
-TEST_P(MultiLayerTestLarge, MultiLayerTest3Embedded) {
+TEST_P(MultiLayerTest, MultiLayerTest3Embedded) {
   ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
   num_temporal_layers_ = 1;
   num_embedded_layers_ = 3;
@@ -308,7 +308,7 @@ TEST_P(MultiLayerTestLarge, MultiLayerTest3Embedded) {
   EXPECT_EQ(num_mismatch_, 0);
 }
 
-TEST_P(MultiLayerTestLarge, MultiLayerTest3EmbeddedDecodeBaseOnly) {
+TEST_P(MultiLayerTest, MultiLayerTest3EmbeddedDecodeBaseOnly) {
   ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
   num_temporal_layers_ = 1;
   num_embedded_layers_ = 3;
@@ -319,7 +319,7 @@ TEST_P(MultiLayerTestLarge, MultiLayerTest3EmbeddedDecodeBaseOnly) {
   EXPECT_EQ(num_mismatch_, 0);
 }
 
-TEST_P(MultiLayerTestLarge, MultiLayerTest2Embedded2Temp) {
+TEST_P(MultiLayerTest, MultiLayerTest2Embedded2Temp) {
   ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
   num_temporal_layers_ = 2;
   num_embedded_layers_ = 2;
@@ -330,7 +330,7 @@ TEST_P(MultiLayerTestLarge, MultiLayerTest2Embedded2Temp) {
   EXPECT_EQ(num_mismatch_, 0);
 }
 
-TEST_P(MultiLayerTestLarge, MultiLayerTest2Embedded2TempDropTL1) {
+TEST_P(MultiLayerTest, MultiLayerTest2Embedded2TempDropTL1) {
   ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
   num_temporal_layers_ = 2;
   num_embedded_layers_ = 2;
@@ -342,7 +342,7 @@ TEST_P(MultiLayerTestLarge, MultiLayerTest2Embedded2TempDropTL1) {
 }
 
 // Test the case explicit_ref_frame_map enabled for this (2, 2) pattern,
-TEST_P(MultiLayerTestLarge, MultiLayerTest2Embedded2TempExplRefFrameMap) {
+TEST_P(MultiLayerTest, MultiLayerTest2Embedded2TempExplRefFrameMap) {
   ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
   num_temporal_layers_ = 2;
   num_embedded_layers_ = 2;
@@ -352,5 +352,5 @@ TEST_P(MultiLayerTestLarge, MultiLayerTest2Embedded2TempExplRefFrameMap) {
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
   EXPECT_EQ(num_mismatch_, 0);
 }
-AV2_INSTANTIATE_TEST_SUITE(MultiLayerTestLarge, ::testing::Values(5));
+AV2_INSTANTIATE_TEST_SUITE(MultiLayerTest, ::testing::Values(5));
 }  // namespace
