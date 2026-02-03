@@ -142,7 +142,7 @@ typedef struct frame_contexts {
   avm_cdf_prob coeff_br_lf_cdf[LF_LEVEL_CONTEXTS][CDF_SIZE(BR_CDF_SIZE)];
   avm_cdf_prob coeff_br_cdf[LEVEL_CONTEXTS][CDF_SIZE(BR_CDF_SIZE)];
   // UV CDFs
-  avm_cdf_prob coeff_base_lf_uv_cdf[LF_SIG_COEF_CONTEXTS_UV][TCQ_CTXS]
+  avm_cdf_prob coeff_base_lf_uv_cdf[LF_SIG_COEF_CONTEXTS_UV]
                                    [CDF_SIZE(LF_BASE_SYMBOLS)];
   avm_cdf_prob coeff_base_lf_eob_uv_cdf[SIG_COEF_CONTEXTS_EOB]
                                        [CDF_SIZE(LF_BASE_SYMBOLS - 1)];

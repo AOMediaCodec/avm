@@ -179,7 +179,7 @@ typedef struct LV_MAP_COEFF_COST {
   //! Cost for encoding the base_eob level of a low-frequency chroma coefficient
   int base_lf_eob_cost_uv[SIG_COEF_CONTEXTS_EOB][LF_BASE_SYMBOLS - 1];
   //! Cost for encoding the base level of a low-frequency chroma coefficient
-  int base_lf_cost_uv[LF_SIG_COEF_CONTEXTS_UV][TCQ_CTXS][LF_BASE_SYMBOLS * 2];
+  int base_lf_cost_uv[LF_SIG_COEF_CONTEXTS_UV][LF_BASE_SYMBOLS * 2];
   /*! \brief Cost for encoding the base_eob of a chroma level.
    *
    * Decoder uses base_eob to derive the base_level as base_eob := base_eob+1.
@@ -228,11 +228,11 @@ typedef struct LV_MAP_COEFF_COST {
   //! Cost for encoding coeff_base Y zero value (LF region).
   uint16_t base_lf_cost_zero[TCQ_CTXS][LF_SIG_COEF_CONTEXTS];
   //! Cost for encoding coeff_base UV zero value (LF region).
-  uint16_t base_lf_cost_uv_zero[TCQ_CTXS][LF_SIG_COEF_CONTEXTS];
+  uint16_t base_lf_cost_uv_zero[LF_SIG_COEF_CONTEXTS];
   //! Cost for encoding coeff base + mid Y values (LF region).
   uint16_t base_lf_cost_low_tbl[9][LF_SIG_COEF_CONTEXTS][TCQ_CTXS][2];
   //! Cost for encoding coeff base + mid UV values (LF region).
-  uint16_t base_lf_cost_uv_low_tbl[9][LF_SIG_COEF_CONTEXTS][TCQ_CTXS][2];
+  uint16_t base_lf_cost_uv_low_tbl[9][LF_SIG_COEF_CONTEXTS][2];
   //! Cost for encoding eob position.
   uint16_t base_eob_cost_tbl[5][SIG_COEF_CONTEXTS_EOB][2];
   //! Cost for encoding eob position (UV).

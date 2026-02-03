@@ -208,19 +208,23 @@ static INLINE int get_coeff_cost_general(int ci, tran_low_t abs_qc, int sign,
                                          const int32_t *tmp_sign, int plane,
                                          int limits, int q_i) {
   int cost = 0;
-  const int(*base_lf_cost_ptr)[TCQ_CTXS][LF_BASE_SYMBOLS * 2] =
-      plane > 0 ? txb_costs->base_lf_cost_uv : txb_costs->base_lf_cost;
+  // const int(*base_lf_cost_ptr)[TCQ_CTXS][LF_BASE_SYMBOLS * 2] =
+  //     plane > 0 ? txb_costs->base_lf_cost_uv : txb_costs->base_lf_cost;
   // const int(*base_cost_ptr)[TCQ_CTXS][8] =
   //     plane > 0 ? txb_costs->base_cost_uv : txb_costs->base_cost;
+
+  const int(*base_lf_cost_ptr)[TCQ_CTXS][LF_BASE_SYMBOLS * 2] = txb_costs->base_lf_cost;
+  const int(*base_lf_cost_uv_ptr)[LF_BASE_SYMBOLS * 2] = txb_costs->base_lf_cost_uv; 
+  int base_lf_cost = plane > 0 ? base_lf_cost_uv_ptr[coeff_ctx][AVMMIN(abs_qc, LF_BASE_SYMBOLS - 1)]
+                                          : base_lf_cost_ptr[coeff_ctx][q_i][AVMMIN(abs_qc, LF_BASE_SYMBOLS - 1)]; 
+
 
   const int(*base_cost_ptr)[TCQ_CTXS][8] = txb_costs->base_cost;
   const int(*base_cost_uv_ptr)[8] = txb_costs->base_cost_uv;
   int base_cost =  plane > 0 ? base_cost_uv_ptr[coeff_ctx][AVMMIN(abs_qc, 3)] 
     : base_cost_ptr[coeff_ctx][q_i][AVMMIN(abs_qc, 3)]; 
 
-  cost += limits ? base_lf_cost_ptr[coeff_ctx][q_i]
-                                   [AVMMIN(abs_qc, LF_BASE_SYMBOLS - 1)]
-                 : base_cost;
+  cost += limits ? base_lf_cost : base_cost;
 
   if (abs_qc != 0) {
     const int dc_ph_group = 0;  // PH disabled
@@ -786,7 +790,7 @@ void av2_get_rate_dist_lf_chroma_c(const struct LV_MAP_COEFF_COST *txb_costs,
     int cost1 = get_coeff_cost(blk_pos, absLevel[a1], coeff_sign, base_ctx,
                                mid_ctx, dc_sign_ctx, txb_costs, bwl, tx_class,
                                tmp_sign, plane, 1, q_i);
-    rd->rate_zero[i] = txb_costs->base_lf_cost_uv[base_ctx][q_i][0];
+    rd->rate_zero[i] = txb_costs->base_lf_cost_uv[base_ctx][0];
     rd->rate[2 * i] = cost0;
     rd->rate[2 * i + 1] = cost1;
   }
