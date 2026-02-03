@@ -509,6 +509,8 @@ static AVM_FORCE_INLINE int get_nz_map_ctx_from_stats(
 
 typedef avm_cdf_prob (*base_lf_cdf_arr)[TCQ_CTXS][CDF_SIZE(LF_BASE_SYMBOLS)];
 typedef avm_cdf_prob (*base_cdf_arr)[TCQ_CTXS][CDF_SIZE(4)];
+typedef avm_cdf_prob (*base_lf_uv_cdf_arr)[CDF_SIZE(LF_BASE_SYMBOLS)];
+typedef avm_cdf_prob (*base_uv_cdf_arr)[CDF_SIZE(4)];
 typedef avm_cdf_prob (*br_cdf_arr)[CDF_SIZE(BR_CDF_SIZE)];
 typedef avm_cdf_prob (*base_fsc_cdf_arr)[CDF_SIZE(4)];
 typedef avm_cdf_prob (*base_ph_cdf_arr)[CDF_SIZE(4)];
