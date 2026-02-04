@@ -568,7 +568,7 @@ typedef struct AV2Decoder {
   /*!
    * Map to indicate which xlayer is present in the current CVS.
    */
-  int xlayer_id_map[AVM_MAX_NUM_STREAMS];
+  int xlayer_id_map[AVM_MAX_NUM_STREAMS - 1];
   /*!
    * Map to indicate which mlayer is present in the current CVS.
    */

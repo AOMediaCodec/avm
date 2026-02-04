@@ -798,7 +798,7 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
         for (int i = 0; i < AVM_MAX_NUM_STREAMS - 1; i++) {
           if (pbi->xlayer_id_map[i] >= 0) num_xlayers++;
         }
-        for (int i = 0; i < MAX_NUM_MLAYERS - 1; i++) {
+        for (int i = 0; i < MAX_NUM_MLAYERS; i++) {
           if (pbi->mlayer_id_map[i] >= 0) num_mlayers++;
         }
 

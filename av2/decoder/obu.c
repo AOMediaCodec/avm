@@ -2026,7 +2026,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
       for (int i = 0; i < AVM_MAX_NUM_STREAMS - 1; i++) {
         if (pbi->xlayer_id_map[i] >= 0) num_xlayers++;
       }
-      for (int i = 0; i < MAX_NUM_MLAYERS - 1; i++) {
+      for (int i = 0; i < MAX_NUM_MLAYERS; i++) {
         if (pbi->mlayer_id_map[i] >= 0) num_mlayers++;
       }
 
@@ -2045,7 +2045,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         pbi->multi_stream_mode = 0;
       for (int i = 0; i < AVM_MAX_NUM_STREAMS - 1; i++)
         pbi->xlayer_id_map[i] = 0;
-      for (int i = 0; i < MAX_NUM_MLAYERS - 1; i++) pbi->mlayer_id_map[i] = 0;
+      for (int i = 0; i < MAX_NUM_MLAYERS; i++) pbi->mlayer_id_map[i] = 0;
     }
 
     pbi->xlayer_id_map[obu_header.obu_xlayer_id] = 1;
