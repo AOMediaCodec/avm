@@ -35,6 +35,19 @@ typedef struct {
   double high_cr;
 } AV2LevelSpec;
 
+// AV2 Substream Level Specifications
+typedef struct {
+  int max_picture_size;
+  int max_picture_size_x;
+  double scale_factor_x;  // This is present here to align with the table in
+                          // Specification text. This one is derived from the
+                          // bitstream
+  int max_v_size_x;
+  int max_h_size_x;
+  int max_tile_cols_x;
+  int max_header_rate_x;
+} AV2SubstreamLevelSpec;
+
 typedef struct {
   int64_t ts_start;
   int64_t ts_end;
@@ -171,6 +184,9 @@ typedef struct AV2LevelParams {
   AV2LevelInfo *level_info[MAX_NUM_OPERATING_POINTS];
   // Count the number of OBU_FRAME and OBU_FRAME_HEADER for level calculation.
   int frame_header_count;
+#if CONFIG_F428_MULTISTREAM
+  double multi_stream_scaling_x;
+#endif  // CONFIG_F428_MULTISTREAM
 } AV2LevelParams;
 
 static INLINE int is_in_operating_point(int operating_point, int tlayer_id,
@@ -180,6 +196,9 @@ static INLINE int is_in_operating_point(int operating_point, int tlayer_id,
   return ((operating_point >> tlayer_id) & 1) &&
          ((operating_point >> (mlayer_id + MAX_NUM_TLAYERS)) & 1);
 }
+#if CONFIG_F428_MULTISTREAM
+int level_to_sub_stream_level_index(AV2_LEVEL level, double scaling_factor_x);
+#endif  // CONFIG_F428_MULTISTREAM
 
 void av2_init_level_info(struct AV2_COMP *cpi);
 
@@ -214,15 +233,15 @@ double av2_get_max_bitrate_for_level(AV2_LEVEL level_index, int tier,
                                      int subsampling_x, int subsampling_y,
                                      int monochrome
 #endif  // CONFIG_AV2_PROFILES
+#if CONFIG_F428_MULTISTREAM
+                                     ,
+                                     double multi_stream_scaling_x
+#endif  //  CONFIG_F428_MULTISTREAM
 );
 
 // Get max number of tiles and tile columns for given level.
 void av2_get_max_tiles_for_level(AV2_LEVEL level_index, int *const max_tiles,
                                  int *const max_tile_cols);
-
-// Return minimum compression ratio for given level.
-double av2_get_min_cr_for_level(AV2_LEVEL level_index, int tier,
-                                int is_still_picture);
 
 // Return maximum legal DPB size defined by the level.
 int av2_get_max_level_ref_frames(const AV2_COMMON *const cm, OBU_TYPE obu_type,

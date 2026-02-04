@@ -798,6 +798,10 @@ static int adjust_boost_bits_for_target_level(const AV2_COMP *const cpi,
         seq_params->subsampling_x, seq_params->subsampling_y,
         seq_params->monochrome
 #endif  // CONFIG_AV2_PROFILES
+#if CONFIG_F428_MULTISTREAM
+        ,
+        cpi->level_params.multi_stream_scaling_x
+#endif  //  CONFIG_F428_MULTISTREAM
     );
     const int target_bits_per_frame =
         (int)(level_bitrate_limit / cpi->framerate);

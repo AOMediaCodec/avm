@@ -52,6 +52,10 @@ static AVM_INLINE void config_target_level(AV2_COMP *const cpi,
       seq_params->subsampling_x, seq_params->subsampling_y,
       seq_params->monochrome
 #endif  // CONFIG_AV2_PROFILES
+#if CONFIG_F428_MULTISTREAM
+      ,
+      cpi->level_params.multi_stream_scaling_x
+#endif  //  CONFIG_F428_MULTISTREAM
   );
   const int64_t max_bitrate = (int64_t)(level_bitrate_limit * 0.70);
   rc_cfg->target_bandwidth = AVMMIN(rc_cfg->target_bandwidth, max_bitrate);
@@ -80,12 +84,6 @@ static AVM_INLINE void config_target_level(AV2_COMP *const cpi,
          tile_cols * (1 << tile_cfg->tile_rows) > max_tiles) {
     --tile_cfg->tile_rows;
   }
-
-  // Adjust min compression ratio.
-  const int still_picture = seq_params->still_picture;
-  const double min_cr =
-      av2_get_min_cr_for_level(target_level, tier, still_picture);
-  rc_cfg->min_cr = AVMMAX(rc_cfg->min_cr, (unsigned int)(min_cr * 100));
 }
 
 /*!\brief Function to test for conditions that indicate we should loop

@@ -328,6 +328,114 @@ static const AV2LevelSpec av2_level_defs[SEQ_LEVELS] = {
     .max_tile_cols = 64 }
 };
 
+static const AV2SubstreamLevelSpec av2_substream_level_defs[15] = {
+  { .max_picture_size = 2359296,
+    .max_picture_size_x = 1433600,
+    .scale_factor_x = 1.5,
+    .max_v_size_x = 1600,
+    .max_h_size_x = 896,
+    .max_tile_cols_x = 7,
+    .max_header_rate_x = 132 },
+  { .max_picture_size = 2359296,
+    .max_picture_size_x = 552960,
+    .scale_factor_x = 4.0,
+    .max_v_size_x = 960,
+    .max_h_size_x = 576,
+    .max_tile_cols_x = 4,
+    .max_header_rate_x = 132 },
+  { .max_picture_size = 2359296,
+    .max_picture_size_x = 245760,
+    .scale_factor_x = 9.0,
+    .max_v_size_x = 640,
+    .max_h_size_x = 384,
+    .max_tile_cols_x = 3,
+    .max_header_rate_x = 132 },
+  { .max_picture_size = 8912896,
+    .max_picture_size_x = 3768320,
+    .scale_factor_x = 1.5,
+    .max_v_size_x = 2560,
+    .max_h_size_x = 1472,
+    .max_tile_cols_x = 7,
+    .max_header_rate_x = 132 },
+  { .max_picture_size = 8912896,
+    .max_picture_size_x = 2088960,
+    .scale_factor_x = 4.0,
+    .max_v_size_x = 1920,
+    .max_h_size_x = 1088,
+    .max_tile_cols_x = 4,
+    .max_header_rate_x = 132 },
+  { .max_picture_size = 8912896,
+    .max_picture_size_x = 983040,
+    .scale_factor_x = 9.0,
+    .max_v_size_x = 1280,
+    .max_h_size_x = 768,
+    .max_tile_cols_x = 3,
+    .max_header_rate_x = 132 },
+  { .max_picture_size = 35651584,
+    .max_picture_size_x = 11673600,
+    .scale_factor_x = 1.5,
+    .max_v_size_x = 5120,
+    .max_h_size_x = 2280,
+    .max_tile_cols_x = 13,
+    .max_header_rate_x = 132 },
+  { .max_picture_size = 35651584,
+    .max_picture_size_x = 8355840,
+    .scale_factor_x = 4.0,
+    .max_v_size_x = 3840,
+    .max_h_size_x = 2176,
+    .max_tile_cols_x = 8,
+    .max_header_rate_x = 132 },
+  { .max_picture_size = 35651584,
+    .max_picture_size_x = 3768320,
+    .scale_factor_x = 9.0,
+    .max_v_size_x = 2560,
+    .max_h_size_x = 1472,
+    .max_tile_cols_x = 5,
+    .max_header_rate_x = 132 },
+  { .max_picture_size = 142606336,
+    .max_picture_size_x = 58982400,
+    .scale_factor_x = 1.5,
+    .max_v_size_x = 10240,
+    .max_h_size_x = 5760,
+    .max_tile_cols_x = 26,
+    .max_header_rate_x = 132 },
+  { .max_picture_size = 142606336,
+    .max_picture_size_x = 33177600,
+    .scale_factor_x = 4.0,
+    .max_v_size_x = 7680,
+    .max_h_size_x = 4320,
+    .max_tile_cols_x = 16,
+    .max_header_rate_x = 132 },
+  { .max_picture_size = 142606336,
+    .max_picture_size_x = 14745600,
+    .scale_factor_x = 9.0,
+    .max_v_size_x = 5120,
+    .max_h_size_x = 2880,
+    .max_tile_cols_x = 11,
+    .max_header_rate_x = 132 },
+  { .max_picture_size = 530841600,
+    .max_picture_size_x = 235929600,
+    .scale_factor_x = 1.5,
+    .max_v_size_x = 20480,
+    .max_h_size_x = 11520,
+    .max_tile_cols_x = 52,
+    .max_header_rate_x = 132 },
+  { .max_picture_size = 530841600,
+    .max_picture_size_x = 132710400,
+    .scale_factor_x = 4.0,
+    .max_v_size_x = 15360,
+    .max_h_size_x = 8640,
+    .max_tile_cols_x = 32,
+    .max_header_rate_x = 132 },
+  { .max_picture_size = 530841600,
+    .max_picture_size_x = 58982400,
+    .scale_factor_x = 9.0,
+    .max_v_size_x = 10240,
+    .max_h_size_x = 5760,
+    .max_tile_cols_x = 21,
+    .max_header_rate_x = 132 },
+};
+
 typedef enum {
   LUMA_PIC_SIZE_TOO_LARGE,
   LUMA_PIC_H_SIZE_TOO_LARGE,
@@ -394,11 +502,22 @@ static double get_max_bitrate(const AV2LevelSpec *const level_spec, int tier,
                               int subsampling_x, int subsampling_y,
                               int monochrome
 #endif  // CONFIG_AV2_PROFILES
+#if CONFIG_F428_MULTISTREAM
+                              ,
+                              double multistream_scalling_x
+#endif  // CONFIG_F428_MULTISTREAM
 ) {
   if (level_spec->level < SEQ_LEVEL_4_0) tier = 0;
+#if CONFIG_F428_MULTISTREAM
+  const double scale =
+      multistream_scalling_x == 0.0 ? 1 : multistream_scalling_x;
+  const double bitrate_basis =
+      (tier ? level_spec->high_mbps / scale : level_spec->main_mbps / scale) *
+      1e6;
+#else
   const double bitrate_basis =
       (tier ? level_spec->high_mbps : level_spec->main_mbps) * 1e6;
-
+#endif  // CONFIG_F428_MULTISTREAM
 #if CONFIG_AV2_PROFILES
   uint32_t chroma_format_idc = CHROMA_FORMAT_420;
   av2_get_chroma_format_idc(subsampling_x, subsampling_y, monochrome,
@@ -441,8 +560,6 @@ static double get_max_compressed_size(const AV2LevelSpec *const level_spec,
       profile == PROFILE_0 ? 1.0 : (profile == PROFILE_1 ? 2.0 : 3.0);
 #endif  // CONFIG_AV2_PROFILES
 
-  // TODO: PicSizeProfileFactor need to be updated after the adotion of MR 2998
-
   double max_compressed_size =
       ((long long)(frame_parsing_time * level_spec->max_decode_rate *
                    bitrate_profile_factor) >>
@@ -463,6 +580,10 @@ static double get_max_frame_symbol_count(const AV2LevelSpec *const level_spec,
                                          int subsampling_x, int subsampling_y,
                                          int monochrome
 #endif  // CONFIG_AV2_PROFILES
+#if CONFIG_F428_MULTISTREAM
+                                         ,
+                                         double multi_stream_scaling_x
+#endif  //  CONFIG_F428_MULTISTREAM
 ) {
   if (level_spec->level < SEQ_LEVEL_4_0) tier = 0;
   const double min_comp_basis =
@@ -480,10 +601,16 @@ static double get_max_frame_symbol_count(const AV2LevelSpec *const level_spec,
   const double bitrate_profile_factor =
       profile == PROFILE_0 ? 1.0 : (profile == PROFILE_1 ? 2.0 : 3.0);
 #endif  // CONFIG_AV2_PROFILES
-
+#if CONFIG_F428_MULTISTREAM
+  double scale = multi_stream_scaling_x == 0 ? 1 : multi_stream_scaling_x;
+  double max_frame_symbol_count =
+      frame_parsing_time * (level_spec->max_decode_rate / scale) *
+      bitrate_profile_factor * (8 / (9 * min_comp_basis) + 1 / 48);
+#else
   double max_frame_symbol_count =
       frame_parsing_time * level_spec->max_decode_rate *
       bitrate_profile_factor * (8 / (9 * min_comp_basis) + 1 / 48);
+#endif  //  CONFIG_F428_MULTISTREAM
   return max_frame_symbol_count;
 }
 
@@ -494,6 +621,10 @@ double av2_get_max_bitrate_for_level(AV2_LEVEL level_index, int tier,
                                      int subsampling_x, int subsampling_y,
                                      int monochrome
 #endif  // CONFIG_AV2_PROFILES
+#if CONFIG_F428_MULTISTREAM
+                                     ,
+                                     double multi_stream_scaling_x
+#endif  //  CONFIG_F428_MULTISTREAM
 ) {
   assert(is_valid_seq_level_idx(level_index));
   return get_max_bitrate(&av2_level_defs[level_index], tier, profile
@@ -501,6 +632,10 @@ double av2_get_max_bitrate_for_level(AV2_LEVEL level_index, int tier,
                          ,
                          subsampling_x, subsampling_y, monochrome
 #endif  // CONFIG_AV2_PROFILES
+#if CONFIG_F428_MULTISTREAM
+                         ,
+                         multi_stream_scaling_x
+#endif  //  CONFIG_F428_MULTISTREAM
   );
 }
 
@@ -717,6 +852,10 @@ void av2_decoder_model_init(const AV2_COMP *const cpi, AV2_LEVEL level,
       seq_params->subsampling_x, seq_params->subsampling_y,
       seq_params->monochrome
 #endif  // CONFIG_AV2_PROFILES
+#if CONFIG_F428_MULTISTREAM
+      ,
+      cpi->level_params.multi_stream_scaling_x
+#endif  //  CONFIG_F428_MULTISTREAM
   );
 
   // TODO(huisu or anyone): implement SCHEDULE_MODE.
@@ -802,6 +941,13 @@ void av2_decoder_model_process_frame(const AV2_COMP *const cpi,
 
   const AV2_COMMON *const cm = &cpi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
+#if CONFIG_F428_MULTISTREAM
+  const AV2LevelParams *const level_params = &cpi->level_params;
+  const double multi_stream_scaling_x =
+      level_params->multi_stream_scaling_x == 0
+          ? 1.0
+          : level_params->multi_stream_scaling_x;
+#endif  //  CONFIG_F428_MULTISTREAM
   const int luma_pic_size = cm->width * cm->height;
   const int show_existing_frame = cm->show_existing_frame;
   const int show_frame = cm->immediate_output_picture || show_existing_frame;
@@ -838,9 +984,12 @@ void av2_decoder_model_process_frame(const AV2_COMP *const cpi,
 
     decoder_model->max_decode_rate =
         AVMMAX(decoder_model->max_decode_rate, this_decode_rate);
-
+#if CONFIG_F428_MULTISTREAM
+    const int scaled =
+        (int)((level_spec->max_tiles / multi_stream_scaling_x) * 120.0 * dt);
+#else
     const int scaled = (int)(level_spec->max_tiles * 120.0 * dt);
-
+#endif  //  CONFIG_F428_MULTISTREAM
     int max_tile_limit = AVMMIN(level_spec->max_tiles, AVMMAX(1, scaled));
 
     decoder_model->max_tile_rate_satisfy =
@@ -869,6 +1018,10 @@ void av2_decoder_model_process_frame(const AV2_COMP *const cpi,
         seq_params->subsampling_x, seq_params->subsampling_y,
         seq_params->monochrome
 #endif
+#if CONFIG_F428_MULTISTREAM
+        ,
+        multi_stream_scaling_x
+#endif  //  CONFIG_F428_MULTISTREAM
     );
     decoder_model->frame_symbol_count_satisfy =
         decoder_model->frame_symbol_count_satisfy &&
@@ -993,6 +1146,13 @@ void av2_decoder_model_process_frame(const AV2_COMP *const cpi,
     }
   }
 }
+#if CONFIG_F428_MULTISTREAM
+int level_to_sub_stream_level_index(AV2_LEVEL level, double scaling_factor_x) {
+  int level_base = (level - SEQ_LEVEL_4_0) >> 2;
+  int offset = scaling_factor_x == 1.5 ? 0 : (scaling_factor_x == 4.0 ? 1 : 2);
+  return level_base + offset;
+}
+#endif  // CONFIG_F428_MULTISTREAM
 
 void av2_init_level_info(AV2_COMP *cpi) {
   for (int op_index = 0; op_index < MAX_NUM_OPERATING_POINTS; ++op_index) {
@@ -1034,24 +1194,6 @@ void av2_init_level_info(AV2_COMP *cpi) {
   }
 }
 
-static double get_min_cr(const AV2LevelSpec *const level_spec, int tier,
-                         int is_still_picture, int64_t decoded_sample_rate) {
-  if (is_still_picture) return 0.8;
-  if (level_spec->level < SEQ_LEVEL_4_0) tier = 0;
-  const double min_cr_basis = tier ? level_spec->high_cr : level_spec->main_cr;
-  const double speed_adj =
-      (double)decoded_sample_rate / level_spec->max_display_rate;
-  return AVMMAX(min_cr_basis * speed_adj, 0.8);
-}
-
-double av2_get_min_cr_for_level(AV2_LEVEL level_index, int tier,
-                                int is_still_picture) {
-  assert(is_valid_seq_level_idx(level_index));
-  const AV2LevelSpec *const level_spec = &av2_level_defs[level_index];
-  return get_min_cr(level_spec, tier, is_still_picture,
-                    level_spec->max_decode_rate);
-}
-
 static void get_temporal_parallel_params(int scalability_mode_idc,
                                          int *temporal_parallel_num,
                                          int *temporal_parallel_denom) {
@@ -1077,6 +1219,9 @@ static void get_temporal_parallel_params(int scalability_mode_idc,
 #define MAX_TILE_SIZE_HEADER_RATE_PRODUCT 547430400
 
 static TARGET_LEVEL_FAIL_ID check_level_constraints(
+#if CONFIG_F428_MULTISTREAM
+    const AV2_COMP *const cpi,
+#endif
     const AV2LevelInfo *const level_info, AV2_LEVEL level, int tier,
     int is_still_picture, BITSTREAM_PROFILE profile, int check_bitrate
 #if CONFIG_AV2_PROFILES
@@ -1090,33 +1235,76 @@ static TARGET_LEVEL_FAIL_ID check_level_constraints(
       decoder_model_status != DECODER_MODEL_DISABLED) {
     return DECODER_MODEL_FAIL;
   }
-
+#if CONFIG_F428_MULTISTREAM
+  bool is_multi_stream = cpi->level_params.multi_stream_scaling_x == 1.5 ||
+                         cpi->level_params.multi_stream_scaling_x == 4.0 ||
+                         cpi->level_params.multi_stream_scaling_x == 9.0;
+  double multi_stream_scaling_x =
+      is_multi_stream ? cpi->level_params.multi_stream_scaling_x : 1.0;
+  const int multi_stream_idx =
+      is_multi_stream
+          ? level_to_sub_stream_level_index(level, multi_stream_scaling_x)
+          : 0;
+  const AV2SubstreamLevelSpec *const target_sub_stream_level_spec =
+      &av2_substream_level_defs[multi_stream_idx];
+#endif  //  CONFIG_F428_MULTISTREAM
   const AV2LevelSpec *const level_spec = &level_info->level_spec;
   const AV2LevelSpec *const target_level_spec = &av2_level_defs[level];
   const AV2LevelStats *const level_stats = &level_info->level_stats;
   TARGET_LEVEL_FAIL_ID fail_id = TARGET_LEVEL_OK;
   do {
+#if CONFIG_F428_MULTISTREAM
+    const int max_picture_size =
+        is_multi_stream ? (target_sub_stream_level_spec->max_v_size_x *
+                           target_sub_stream_level_spec->max_h_size_x)
+                        : target_level_spec->max_picture_size;
+    const int max_h_size = is_multi_stream
+                               ? target_sub_stream_level_spec->max_h_size_x
+                               : target_level_spec->max_h_size;
+    const int max_v_size = is_multi_stream
+                               ? target_sub_stream_level_spec->max_v_size_x
+                               : target_level_spec->max_v_size;
+    const int max_tile_cols =
+        is_multi_stream ? target_sub_stream_level_spec->max_tile_cols_x
+                        : target_level_spec->max_tile_cols;
+    const int max_tiles =
+        (int)(target_level_spec->max_tiles / multi_stream_scaling_x);
+    if (level_spec->max_picture_size > max_picture_size) {
+#else
     if (level_spec->max_picture_size > target_level_spec->max_picture_size) {
+#endif  //  CONFIG_F428_MULTISTREAM
       fail_id = LUMA_PIC_SIZE_TOO_LARGE;
       break;
     }
-
+#if CONFIG_F428_MULTISTREAM
+    if (level_spec->max_h_size > max_h_size) {
+#else
     if (level_spec->max_h_size > target_level_spec->max_h_size) {
+#endif  //  CONFIG_F428_MULTISTREAM
       fail_id = LUMA_PIC_H_SIZE_TOO_LARGE;
       break;
     }
-
+#if CONFIG_F428_MULTISTREAM
+    if (level_spec->max_v_size > max_v_size) {
+#else
     if (level_spec->max_v_size > target_level_spec->max_v_size) {
+#endif  //  CONFIG_F428_MULTISTREAM
       fail_id = LUMA_PIC_V_SIZE_TOO_LARGE;
       break;
     }
-
+#if CONFIG_F428_MULTISTREAM
+    if (level_spec->max_tile_cols > max_tile_cols) {
+#else
     if (level_spec->max_tile_cols > target_level_spec->max_tile_cols) {
+#endif  //  CONFIG_F428_MULTISTREAM
       fail_id = TOO_MANY_TILE_COLUMNS;
       break;
     }
-
+#if CONFIG_F428_MULTISTREAM
+    if (level_spec->max_tiles > max_tiles) {
+#else
     if (level_spec->max_tiles > target_level_spec->max_tiles) {
+#endif  //  CONFIG_F428_MULTISTREAM
       fail_id = TOO_MANY_TILES;
       break;
     }
@@ -1172,19 +1360,37 @@ static TARGET_LEVEL_FAIL_ID check_level_constraints(
       break;
     }
     if (!is_still_picture) {
+#if CONFIG_F428_MULTISTREAM
+      const int max_header_rate =
+          is_multi_stream ? target_sub_stream_level_spec->max_header_rate_x
+                          : target_level_spec->max_header_rate;
+      const double max_display_rate =
+          (double)target_level_spec->max_display_rate / multi_stream_scaling_x;
+      const double max_decode_rate =
+          (double)target_level_spec->max_decode_rate / multi_stream_scaling_x;
+
+      if (level_spec->max_header_rate > (max_header_rate * (1 + (tier * 2)))) {
+#else
       if (level_spec->max_header_rate >
           (target_level_spec->max_header_rate * (1 + (tier * 2)))) {
+#endif  //  CONFIG_F428_MULTISTREAM
         fail_id = FRAME_HEADER_RATE_TOO_HIGH;
         break;
       }
-
+#if CONFIG_F428_MULTISTREAM
+      if (decoder_model->max_display_rate > max_display_rate) {
+#else
       if (decoder_model->max_display_rate >
           (double)target_level_spec->max_display_rate) {
+#endif  //  CONFIG_F428_MULTISTREAM
         fail_id = DISPLAY_RATE_TOO_HIGH;
         break;
       }
-
+#if CONFIG_F428_MULTISTREAM
+      if (decoder_model->max_decode_rate > max_decode_rate) {
+#else
       if (decoder_model->max_decode_rate > target_level_spec->max_decode_rate) {
+#endif  //  CONFIG_F428_MULTISTREAM
         fail_id = DECODE_RATE_TOO_HIGH;
         break;
       }
@@ -1212,6 +1418,10 @@ static TARGET_LEVEL_FAIL_ID check_level_constraints(
                           ,
                           subsampling_x, subsampling_y, monochrome
 #endif  // CONFIG_AV2_PROFILES
+#if CONFIG_F428_MULTISTREAM
+                          ,
+                          cpi->level_params.multi_stream_scaling_x
+#endif  //  CONFIG_F428_MULTISTREAM
           );
       const double avg_bitrate = level_stats->total_compressed_size * 8.0 /
                                  level_stats->total_time_encoded;
@@ -1420,8 +1630,11 @@ double av2_get_compression_ratio(const AV2_COMMON *const cm,
 void av2_update_level_info(AV2_COMP *cpi, size_t size, int64_t ts_start,
                            int64_t ts_end) {
   AV2_COMMON *const cm = &cpi->common;
+#if CONFIG_F428_MULTISTREAM
+  AV2LevelParams *const level_params = &cpi->level_params;
+#else
   const AV2LevelParams *const level_params = &cpi->level_params;
-
+#endif  // CONFIG_F428_MULTISTREAM
   const int upscaled_width = cm->width;
   const int width = cm->width;
   const int height = cm->height;
@@ -1469,7 +1682,10 @@ void av2_update_level_info(AV2_COMP *cpi, size_t size, int64_t ts_start,
     AV2LevelInfo *const level_info = level_params->level_info[i];
     assert(level_info != NULL);
     AV2LevelStats *const level_stats = &level_info->level_stats;
-
+#if CONFIG_F428_MULTISTREAM
+    // update the multitream scaling factor.
+    level_params->multi_stream_scaling_x = 0;
+#endif  //  CONFIG_F428_MULTISTREAM
     level_stats->max_tile_size =
         AVMMAX(level_stats->max_tile_size, max_tile_size);
 #if CONFIG_G018
@@ -1525,6 +1741,9 @@ void av2_update_level_info(AV2_COMP *cpi, size_t size, int64_t ts_start,
       assert(is_valid_seq_level_idx(target_level));
       const int tier = cpi->tier[i];
       const TARGET_LEVEL_FAIL_ID fail_id = check_level_constraints(
+#if CONFIG_F428_MULTISTREAM
+          cpi,
+#endif  //  CONFIG_F428_MULTISTREAM
           level_info, target_level, tier, is_still_picture, profile, 0
 #if CONFIG_AV2_PROFILES
           ,
@@ -1560,6 +1779,9 @@ avm_codec_err_t av2_get_seq_level_idx(const AV2_COMP *cpi,
     for (int level = 0; level < SEQ_LEVELS; ++level) {
       if (!is_valid_seq_level_idx(level)) continue;
       const TARGET_LEVEL_FAIL_ID fail_id = check_level_constraints(
+#if CONFIG_F428_MULTISTREAM
+          cpi,
+#endif
           level_info, level, tier, is_still_picture, profile, 1
 #if CONFIG_AV2_PROFILES
           ,
