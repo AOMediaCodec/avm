@@ -385,7 +385,6 @@ static void set_good_speed_features_framesize_independent(
     sf->tx_sf.model_based_prune_tx_search_level = 0;
     sf->tx_sf.tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_2;
     sf->tx_sf.tx_type_search.skip_tx_search = 1;
-    sf->tx_sf.use_intra_txb_hash = 1;
 
     sf->rd_sf.disable_tcq = 1;
     sf->rd_sf.perform_coeff_opt = boosted ? 2 : 3;
@@ -525,9 +524,6 @@ static void set_good_speed_features_framesize_independent(
     sf->tx_sf.tx_type_search.fast_intra_tx_type_search = 1;
     sf->tx_sf.tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_3;
     sf->tx_sf.tx_type_search.prune_tx_type_est_rd = 1;
-    // TODO(any): Experiment with enabling of this speed feature as hash state
-    // is reset during winner mode processing
-    sf->tx_sf.use_intra_txb_hash = 0;
 
     sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 3 : 5;
     sf->rd_sf.perform_coeff_opt_based_on_satd =
@@ -581,7 +577,6 @@ static void set_good_speed_features_framesize_independent(
     sf->tpl_sf.disable_filtered_key_tpl = 1;
 
     sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 2;
-    sf->tx_sf.use_intra_txb_hash = 1;
     sf->tx_sf.tx_type_search.prune_tx_type_est_rd = 0;
 
     sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 4 : 6;
@@ -589,12 +584,6 @@ static void set_good_speed_features_framesize_independent(
     sf->winner_mode_sf.dc_blk_pred_level = 2;
     sf->winner_mode_sf.multi_winner_mode_type = MULTI_WINNER_MODE_OFF;
   }
-
-  // Intra txb hash is currently not compatible with multi-winner mode as the
-  // hashes got reset during multi-winner mode processing.
-  assert(IMPLIES(
-      sf->winner_mode_sf.multi_winner_mode_type != MULTI_WINNER_MODE_OFF,
-      !sf->tx_sf.use_intra_txb_hash));
 }
 
 static AVM_INLINE void init_hl_sf(HIGH_LEVEL_SPEED_FEATURES *hl_sf) {
@@ -786,7 +775,6 @@ static AVM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
   tx_sf->txb_split_cap = 1;
   tx_sf->adaptive_tx_type_search_idx = 0;
   tx_sf->adaptive_tx_partition_type_search_idx = 0;
-  tx_sf->use_intra_txb_hash = 0;
   tx_sf->use_inter_txb_hash = 1;
   tx_sf->prune_tx_rd_eval_sec_tx_sse = false;
   tx_sf->use_largest_tx_size_for_small_bsize = false;
@@ -1268,7 +1256,6 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
         sf->rd_sf.tx_domain_dist_thres_level = 1;
         sf->tx_sf.tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_2;
         sf->tx_sf.tx_type_search.skip_tx_search = 1;
-        sf->tx_sf.use_intra_txb_hash = 1;
       }
     }
   }

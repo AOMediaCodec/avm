@@ -115,32 +115,6 @@ static const int tx_partition_prune_level[2][6] = { { 0, 1, 3, 3, 2, 3 },
 static const int tx_type_prune_level[2][6] = { { 0, 1, 2, 1, 2, 3 },
                                                { 0, 1, 3, 3, 2, 3 } };
 
-static int find_tx_size_rd_info(TXB_RD_RECORD *cur_record,
-                                const uint32_t hash) {
-  // Linear search through the circular buffer to find matching hash.
-  for (int i = cur_record->index_start - 1; i >= 0; i--) {
-    if (cur_record->hash_vals[i] == hash) return i;
-  }
-  for (int i = cur_record->num - 1; i >= cur_record->index_start; i--) {
-    if (cur_record->hash_vals[i] == hash) return i;
-  }
-  int index;
-  // If not found - add new RD info into the buffer and return its index
-  if (cur_record->num < TX_SIZE_RD_RECORD_BUFFER_LEN) {
-    index = (cur_record->index_start + cur_record->num) %
-            TX_SIZE_RD_RECORD_BUFFER_LEN;
-    cur_record->num++;
-  } else {
-    index = cur_record->index_start;
-    cur_record->index_start =
-        (cur_record->index_start + 1) % TX_SIZE_RD_RECORD_BUFFER_LEN;
-  }
-
-  cur_record->hash_vals[index] = hash;
-  av2_zero(cur_record->tx_rd_info[index]);
-  return index;
-}
-
 static INLINE uint32_t get_block_residue_hash(MACROBLOCK *x, BLOCK_SIZE bsize) {
   const int rows = block_size_high[bsize];
   const int cols = block_size_wide[bsize];
@@ -1175,74 +1149,9 @@ static INLINE int64_t joint_uv_dist_block_px_domain(const AV2_COMP *cpi,
   return 16 * (dist_c1 + dist_c2);
 }
 
-static uint32_t get_intra_txb_hash(MACROBLOCK *x, int plane, int blk_row,
-                                   int blk_col, BLOCK_SIZE plane_bsize,
-                                   TX_SIZE tx_size, PREDICTION_MODE intra_dir) {
-  int16_t tmp_data[64 * 64];
-  const int diff_stride = block_size_wide[plane_bsize];
-  const int16_t *diff = x->plane[plane].src_diff;
-  const int16_t *cur_diff_row = diff + 4 * blk_row * diff_stride + 4 * blk_col;
-  const int txb_w = tx_size_wide[tx_size];
-  const int txb_h = tx_size_high[tx_size];
-  uint8_t *hash_data = (uint8_t *)cur_diff_row;
-  if (txb_w != diff_stride) {
-    int16_t *cur_hash_row = tmp_data;
-    for (int i = 0; i < txb_h; i++) {
-      memcpy(cur_hash_row, cur_diff_row, sizeof(*diff) * txb_w);
-      cur_hash_row += txb_w;
-      cur_diff_row += diff_stride;
-    }
-    hash_data = (uint8_t *)tmp_data;
-  }
-  CRC32C *crc = &x->txfm_search_info.mb_rd_record.crc_calculator;
-  const uint32_t hash = av2_get_crc32c_value(crc, hash_data, 2 * txb_w * txb_h);
-  return (hash << 9) + (tx_size << 4) + (intra_dir);
-}
-
 // pruning thresholds for prune_txk_type and prune_txk_type_separ
 static const int prune_factors[5] = { 200, 200, 120, 80, 40 };  // scale 1000
 static const int mul_factors[5] = { 80, 80, 70, 50, 30 };       // scale 100
-
-static INLINE int is_intra_hash_match(const AV2_COMP *cpi, MACROBLOCK *x,
-                                      int plane, int blk_row, int blk_col,
-                                      BLOCK_SIZE plane_bsize, TX_SIZE tx_size,
-                                      const TXB_CTX *const txb_ctx,
-                                      TXB_RD_INFO **intra_txb_rd_info,
-                                      const int tx_type_map_idx,
-                                      uint16_t *cur_joint_ctx) {
-  MACROBLOCKD *xd = &x->e_mbd;
-  TxfmSearchInfo *txfm_info = &x->txfm_search_info;
-  assert(cpi->sf.tx_sf.use_intra_txb_hash &&
-         frame_is_intra_only(&cpi->common) &&
-         !is_inter_block(xd->mi[0], xd->tree_type) && plane == 0 &&
-         tx_size_wide[tx_size] == tx_size_high[tx_size]);
-  MB_MODE_INFO *mbmi = xd->mi[0];
-  PREDICTION_MODE intra_dir = mbmi->mode;
-  const uint32_t intra_hash = get_intra_txb_hash(
-      x, plane, blk_row, blk_col, plane_bsize, tx_size, intra_dir);
-
-  const int intra_hash_idx =
-      find_tx_size_rd_info(&txfm_info->txb_rd_record_intra, intra_hash);
-  *intra_txb_rd_info =
-      &txfm_info->txb_rd_record_intra.tx_rd_info[intra_hash_idx];
-  *cur_joint_ctx = txb_ctx->txb_skip_ctx;
-  if (xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] == 0) {
-    *cur_joint_ctx += (txb_ctx->dc_sign_ctx << 8);
-  }
-  if ((*intra_txb_rd_info)->entropy_context == *cur_joint_ctx &&
-      txfm_info->txb_rd_record_intra.tx_rd_info[intra_hash_idx].valid) {
-    xd->tx_type_map[tx_type_map_idx] = (*intra_txb_rd_info)->tx_type;
-    const TX_TYPE ref_tx_type = av2_get_tx_type(
-        xd, get_plane_type(plane), blk_row, blk_col, tx_size,
-        is_reduced_tx_set_used(&cpi->common, get_plane_type(plane)));
-    const int fsc_invalid =
-        !xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
-        (*intra_txb_rd_info)->tx_type == IDTX;
-    if (fsc_invalid) return 0;
-    return (ref_tx_type == (*intra_txb_rd_info)->tx_type);
-  }
-  return 0;
-}
 
 // R-D costs are sorted in ascending order.
 static INLINE void sort_rd(int64_t rds[], int txk[], int len) {
@@ -2218,54 +2127,6 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
   skip_trellis |= !is_trellis_used(cpi->optimize_seg_arr[xd->mi[0]->segment_id],
                                    DRY_RUN_NORMAL);
 
-  // Hashing based speed feature for intra block. If the hash of the residue
-  // is found in the hash table, use the previous RD search results stored in
-  // the table and terminate early.
-  TXB_RD_INFO *intra_txb_rd_info = NULL;
-  uint16_t cur_joint_ctx = 0;
-  const int is_inter = is_inter_block(mbmi, xd->tree_type);
-  const int use_intra_txb_hash =
-      cpi->sf.tx_sf.use_intra_txb_hash && frame_is_intra_only(cm) &&
-      !is_inter && plane == 0 && tx_size_wide[tx_size] == tx_size_high[tx_size];
-  if (use_intra_txb_hash) {
-    const int mi_row = xd->mi_row;
-    const int mi_col = xd->mi_col;
-    const int within_border =
-        mi_row >= xd->tile.mi_row_start &&
-        (mi_row + mi_size_high[plane_bsize] < xd->tile.mi_row_end) &&
-        mi_col >= xd->tile.mi_col_start &&
-        (mi_col + mi_size_wide[plane_bsize] < xd->tile.mi_col_end);
-    if (within_border &&
-        is_intra_hash_match(cpi, x, plane, blk_row, blk_col, plane_bsize,
-                            tx_size, txb_ctx, &intra_txb_rd_info,
-                            tx_type_map_idx, &cur_joint_ctx)) {
-      best_rd_stats->rate = intra_txb_rd_info->rate;
-      best_rd_stats->dist = intra_txb_rd_info->dist;
-      best_rd_stats->sse = intra_txb_rd_info->sse;
-      best_rd_stats->skip_txfm = intra_txb_rd_info->eob == 0;
-      x->plane[plane].eobs[block] = intra_txb_rd_info->eob;
-      x->plane[plane].bobs[block] = intra_txb_rd_info->bob;
-      x->plane[plane].txb_entropy_ctx[block] =
-          intra_txb_rd_info->txb_entropy_ctx;
-      best_eob = intra_txb_rd_info->eob;
-      best_tx_type = intra_txb_rd_info->tx_type;
-      const TX_CLASS tx_class =
-          tx_type_to_class[get_primary_tx_type(best_tx_type)];
-      if (tcq_enable(cm->features.tcq_mode, xd->lossless[xd->mi[0]->segment_id],
-                     plane, tx_class))
-        // perform_block_coeff_opt : Whether trellis optimization is done.
-        // we do not skip any optimization in loop of txfm search. so make sure
-        // each block is optimized.
-        assert(intra_txb_rd_info->perform_block_coeff_opt);
-      skip_trellis |= !intra_txb_rd_info->perform_block_coeff_opt;
-      update_txk_array(xd, blk_row, blk_col, tx_size, best_tx_type);
-      recon_intra(cpi, x, plane, block, blk_row, blk_col, plane_bsize, tx_size,
-                  txb_ctx, skip_trellis, best_tx_type, 1, &rate_cost, best_eob);
-      p->dqcoeff = orig_dqcoeff;
-      return;
-    }
-  }
-
   uint8_t best_txb_ctx = 0;
   // txk_allowed = TX_TYPES: >1 tx types are allowed
   // txk_allowed < TX_TYPES: only that specific tx type is allowed.
@@ -2374,6 +2235,7 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
                   cpi->oxcf.q_cfg.quant_b_adapt, &quant_param);
 
   int eob_found = 0;
+  const int is_inter = is_inter_block(mbmi, xd->tree_type);
   const TxSetType tx_set_type = av2_get_ext_tx_set_type(
       tx_size, is_inter, cm->features.reduced_tx_set_used);
 
@@ -2781,18 +2643,6 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
   if (plane == 0 && x->plane[plane].eobs[block] == 1 &&
       get_primary_tx_type(best_tx_type) != DCT_DCT && !is_inter) {
     av2_invalid_rd_stats(best_rd_stats);
-  }
-
-  if (intra_txb_rd_info != NULL) {
-    intra_txb_rd_info->valid = 1;
-    intra_txb_rd_info->entropy_context = cur_joint_ctx;
-    intra_txb_rd_info->rate = best_rd_stats->rate;
-    intra_txb_rd_info->dist = best_rd_stats->dist;
-    intra_txb_rd_info->sse = best_rd_stats->sse;
-    intra_txb_rd_info->eob = best_eob;
-    intra_txb_rd_info->txb_entropy_ctx = best_txb_ctx;
-    intra_txb_rd_info->perform_block_coeff_opt = perform_block_coeff_opt;
-    if (plane == 0) intra_txb_rd_info->tx_type = best_tx_type;
   }
 
   // Intra mode needs decoded pixels such that the next transform block
