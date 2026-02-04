@@ -38,6 +38,10 @@ class MultiLayerTest : public ::libavm_test::CodecTestWithParam<int>,
     top_height_ = 90;
     num_mismatch_ = 0;
     layer_frame_cnt_ = 0;
+    decode_base_only_ = false;
+    drop_tl2_ = false;
+    drop_sl2_ = false;   
+    enable_explicit_ref_frame_map_ = false;
   }
 
   int GetNumEmbeddedLayers() override { return num_embedded_layers_; }
