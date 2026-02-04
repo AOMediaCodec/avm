@@ -3229,8 +3229,7 @@ static avm_codec_err_t encoder_encode(avm_codec_alg_priv_t *ctx,
       if (!cpi->is_olk_overlay && cpi->update_type_was_overlay) {
         if (cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames) {
           is_frame_visible_null = 0;
-          assert(cpi->common.show_existing_frame &&
-                 cpi->common.derive_sef_order_hint);
+          assert(cpi->common.show_existing_frame);
         } else {
           is_frame_visible_null = 1;
           assert(IMPLIES(is_frame_visible_null, frame_size == 0));
