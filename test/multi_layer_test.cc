@@ -40,7 +40,7 @@ class MultiLayerTest : public ::libavm_test::CodecTestWithParam<int>,
     layer_frame_cnt_ = 0;
     decode_base_only_ = false;
     drop_tl2_ = false;
-    drop_sl2_ = false;   
+    drop_sl2_ = false;
     enable_explicit_ref_frame_map_ = false;
   }
 
