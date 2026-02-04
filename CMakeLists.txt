@@ -566,8 +566,8 @@ if(CONFIG_AV2_ENCODER)
       $<TARGET_OBJECTS:avm_common_app_util>
       $<TARGET_OBJECTS:avm_encoder_app_util>)
     add_executable(
-      embedded_temporal_layers_encoder
-      "${AVM_ROOT}/examples/embedded_temporal_layers_encoder.c"
+      multi_layers_encoder
+      "${AVM_ROOT}/examples/multi_layers_encoder.c"
       $<TARGET_OBJECTS:avm_common_app_util>
       $<TARGET_OBJECTS:avm_encoder_app_util>)
 
@@ -576,8 +576,8 @@ if(CONFIG_AV2_ENCODER)
       APPEND
       AVM_ENCODER_EXAMPLE_TARGETS
       avmenc
-      embedded_temporal_layers_encoder
       lossless_encoder
+      multi_layers_encoder
       noise_model
       set_maps
       simple_encoder
