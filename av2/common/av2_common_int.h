@@ -1413,6 +1413,10 @@ typedef struct {
    */
   bool disable_cdf_update;
   /*!
+   * The total number of symbols of the current frame.
+   */
+  uint64_t frame_symbol_count;
+  /*!
    * The maximum allowable mv precision of the current frame.
    */
   MvSubpelPrecision fr_mv_precision;

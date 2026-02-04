@@ -6063,6 +6063,7 @@ static uint32_t write_tilegroup_payload(AV2_COMP *const cpi, uint8_t *const dst,
   *largest_tile_id = 0;
 
   uint8_t *tile_data_start = dst + total_size;
+  mode_bc.frame_symbol_count = 0;
   int tile_idx = 0;
   for (tile_row = 0; tile_row < tile_rows; tile_row++) {
     TileInfo tile_info;
@@ -6107,7 +6108,7 @@ static uint32_t write_tilegroup_payload(AV2_COMP *const cpi, uint8_t *const dst,
         *largest_tile_id = tile_cols * tile_row + tile_col;
         max_tile_size = tile_size;
       }
-
+      cm->features.frame_symbol_count = mode_bc.frame_symbol_count;
       if (tile_idx < end_tile_idx) {
         mem_put_le32(buf->data, tile_size - AV2_MIN_TILE_SIZE_BYTES);
       }
