@@ -7285,8 +7285,10 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
   if (cm->show_existing_frame) {
     obu_type =
         (cm->is_leading_picture == 1 ? OBU_LEADING_SEF : OBU_REGULAR_SEF);
-    if (!cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames)
+    if (cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames &&
+        cpi->oxcf.unit_test_cfg.sef_with_order_hint_test) {
       cm->derive_sef_order_hint = 0;
+    }
   }
 
   const int num_tiles = cm->tiles.cols * cm->tiles.rows;
