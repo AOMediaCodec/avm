@@ -153,7 +153,8 @@ set_avm_config_var(CONFIG_THROUGHPUT_ANALYSIS 0
 set_avm_config_var(CONFIG_F414_OBU_EXTENSION 1 "Obu extension mechanism.")
 
 # CWG-F428
-set_avm_config_var(CONFIG_F428_MULTISTREAM 1 "Level restriction with multistream mode ON.")
+set_avm_config_var(CONFIG_F428_MULTISTREAM 1
+                   "Level restriction with multistream mode ON.")
 set_avm_config_var(
   CONFIG_QM_DEBUG 0
   "Enable debug information for extension to AV2 quantization matrices.")
