@@ -117,8 +117,6 @@ int main(int argc, char **argv) {
   keyframe_interval = 1000;
   if (keyframe_interval < 0) die("Invalid keyframe interval value.");
 
-  printf("Using %s\n", avm_codec_iface_name(encoder));
-
   avm_codec_ctx_t codec;
   res = avm_codec_enc_config_default(encoder, &cfg, 0);
   if (res) die_codec(&codec, "Failed to get default codec config.");
@@ -132,7 +130,6 @@ int main(int argc, char **argv) {
   cfg.rc_max_quantizer = 150;
   cfg.g_error_resilient = 0;
   cfg.g_lag_in_frames = 0;
-  cfg.rc_end_usage = AVM_Q;
   cfg.signal_td = 0;
   outfile = fopen(outfile_arg, "wb");
   if (!outfile) die("Failed to open %s for writing.", outfile_arg);
@@ -159,13 +156,15 @@ int main(int argc, char **argv) {
   while (avm_img_read(&raw0, infile0)) {
     int flags = 0;
 
-    if (keyframe_interval > 0 && frames_encoded % keyframe_interval == 0) {
+    if (keyframe_interval > 0 &&
+        frames_encoded % (keyframe_interval * num_embedded_layers) == 0) {
       flags |= AVM_EFLAG_FORCE_KF;
     }
 
     // For embedded layers: call the encoder num_embedded_layers times with same
     // input at different scales. So the example here is spatial layers.
     for (int sl = 0; sl < num_embedded_layers; sl++) {
+      // Add more cases and move/refactor, up to (3,3).
       if (num_temporal_layers == 2 && num_embedded_layers == 1) {
         if (frames_encoded % 2 == 0) {
           avm_codec_control(&codec, AVME_SET_TLAYER_ID, 0);
