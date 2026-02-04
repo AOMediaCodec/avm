@@ -1545,26 +1545,24 @@ int main(int argc, const char **argv) {
   // LF Base, BR
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = LF_SIG_COEF_CONTEXTS_UV;
-  cts_each_dim[2] = TCQ_CTXS;
-  cts_each_dim[3] = LF_BASE_SYMBOLS;
+  cts_each_dim[2] = LF_BASE_SYMBOLS;
   int dq_minus_entries_uv = LF_SIG_COEF_CONTEXTS_UV * (LF_BASE_SYMBOLS - 1);
   optimize_cdf_table(
-      &fc.coeff_base_lf_multi_uv[0][0][0][0], probsfile, 4, cts_each_dim,
+      &fc.coeff_base_lf_multi_uv[0][0][0], probsfile, 3, cts_each_dim,
       "static const avm_cdf_prob av2_default_coeff_base_lf_multi_uv_cdfs"
-      "[TOKEN_CDF_Q_CTXS][LF_SIG_COEF_CONTEXTS_UV][TCQ_CTXS][CDF_SIZE(LF_BASE_"
+      "[TOKEN_CDF_Q_CTXS][LF_SIG_COEF_CONTEXTS_UV][CDF_SIZE(LF_BASE_"
       "SYMBOLS)]",
       1, &total_count, dq_minus_entries_uv, mem_wanted, "Coefficients");
 
   // HF Base, BR
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = SIG_COEF_CONTEXTS_UV;
-  cts_each_dim[2] = TCQ_CTXS;
-  cts_each_dim[3] = NUM_BASE_LEVELS + 2;
+  cts_each_dim[2] = NUM_BASE_LEVELS + 2;
   dq_minus_entries_uv = SIG_COEF_CONTEXTS_UV * (NUM_BASE_LEVELS + 2 - 1);
   optimize_cdf_table(
-      &fc.coeff_base_multi_uv[0][0][0][0], probsfile, 4, cts_each_dim,
+      &fc.coeff_base_multi_uv[0][0][0], probsfile, 3, cts_each_dim,
       "static const avm_cdf_prob av2_default_coeff_base_multi_uv_cdfs"
-      "[TOKEN_CDF_Q_CTXS][SIG_COEF_CONTEXTS_UV][TCQ_CTXS][CDF_SIZE(NUM_BASE_"
+      "[TOKEN_CDF_Q_CTXS][SIG_COEF_CONTEXTS_UV][CDF_SIZE(NUM_BASE_"
       "LEVELS + 2)]",
       1, &total_count, dq_minus_entries_uv, mem_wanted, "Coefficients");
 
