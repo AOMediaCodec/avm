@@ -82,7 +82,7 @@ if(CONFIG_AV2_ENCODER)
       ${AVM_DOXYGEN_EXAMPLE_SOURCES}
       "${AVM_ROOT}/apps/avmenc.c"
       "${AVM_ROOT}/examples/lossless_encoder.c"
-      "${AVM_ROOT}/examples/multi_layer_encoder.c"
+      "${AVM_ROOT}/examples/multi_layers_encoder.c"
       "${AVM_ROOT}/examples/set_maps.c"
       "${AVM_ROOT}/examples/simple_encoder.c"
       "${AVM_ROOT}/examples/twopass_encoder.c")
