@@ -88,7 +88,8 @@ if(CONFIG_AV2_ENCODER)
       "${AVM_ROOT}/examples/twopass_encoder.c")
 
   set(AVM_DOXYGEN_EXAMPLE_DESCRIPTIONS
-      ${AVM_DOXYGEN_EXAMPLE_DESCRIPTIONS} "Full featured encoder."
+      ${
+    AVM_DOXYGEN_EXAMPLE_DESCRIPTIONS} "Full featured encoder."
       "Simplified lossless encoder." "Multi layer encoder."
       "Set active and ROI maps." "Simplified encoder loop."
       "Two-pass encoder loop.")
