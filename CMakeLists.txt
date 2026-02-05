@@ -682,6 +682,17 @@ if(CONFIG_AV2_ENCODER)
 
     execute_process(COMMAND bash -c "${EXTRACT_DEPS_TO_BUILD}")
 
+    # Patch in this commit.
+    # https://github.com/abseil/abseil-cpp/commit/809e5de7b92950849289236a5a09e9cb4f32c7b9
+    string(
+      CONCAT
+        APPLY_PATCH_ABSEIL_CPP
+        "cd ${CMAKE_BINARY_DIR}/abseil-cpp;"
+        "patch -p1 < ${CMAKE_CURRENT_SOURCE_DIR}/third_party/abseil-cpp-add-include.patch; "
+    )
+
+    execute_process(COMMAND bash -c "${APPLY_PATCH_ABSEIL_CPP}")
+
     set(FP16_SOURCE_DIR ${CMAKE_BINARY_DIR}/fp16)
     set(PTHREADPOOL_SOURCE_DIR ${CMAKE_BINARY_DIR}/pthreadpool)
     set(PSIMD_SOURCE_DIR ${CMAKE_BINARY_DIR}/psimd)
