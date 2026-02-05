@@ -241,11 +241,13 @@ static int construct_multi_layer_gf_structure(
       first_frame_update_type == KF_UPDATE, use_altref, &is_ld_map);
   int is_ld_map_first_gop = is_ld_map && first_frame_update_type == KF_UPDATE;
 
-  if (first_frame_update_type == KF_UPDATE &&
+  if (first_frame_update_type == KF_UPDATE && !cpi->olk_encountered &&
       cpi->oxcf.kf_cfg.enable_keyframe_filtering > 1 &&
       has_enough_frames_for_key_filtering(cpi->rc.frames_to_key,
                                           cpi->oxcf.algo_cfg.arnr_max_frames,
                                           cpi->oxcf.gf_cfg.lag_in_frames)) {
+    // Note: for OLK, we treat it as ARF in the gf group, so will not enter this
+    // if condition.
     gf_group->has_overlay_for_key_frame = 1;
     gf_group->update_type[frame_index] = KFFLT_UPDATE;
     gf_group->arf_src_offset[frame_index] = 0;
@@ -352,7 +354,8 @@ void av2_gop_setup_structure(AV2_COMP *cpi) {
   GF_GROUP *const gf_group = &cpi->gf_group;
   TWO_PASS *const twopass = &cpi->twopass;
   FRAME_INFO *const frame_info = &cpi->frame_info;
-  const int key_frame = rc->frames_since_key == 0;
+  const int key_frame =
+      rc->frames_since_key == 0 && !cpi->gf_state.olk_overlay_last;
   const int use_altref = gf_group->max_layer_depth_allowed > 0;
   const FRAME_UPDATE_TYPE update_type = cpi->gf_state.arf_gf_boost_lst ||
                                                 use_altref ||

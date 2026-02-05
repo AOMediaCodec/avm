@@ -1047,6 +1047,8 @@ typedef struct {
 typedef struct {
   // Track if the last frame in a GOP has higher quality.
   int arf_gf_boost_lst;
+  // Track if the last frame in a GOP is a olk overlay
+  int olk_overlay_last;
 } GF_STATE;
 
 typedef struct {

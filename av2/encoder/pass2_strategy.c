@@ -1940,6 +1940,9 @@ static void define_gf_group(AV2_COMP *cpi, FIRSTPASS_STATS *this_frame,
   av2_gop_bit_allocation(cpi, rc, gf_group,
                          frame_params->frame_type == KEY_FRAME, use_alt_ref,
                          gf_group_bits);
+
+  // Reset to 0 until the next olk overlay is seen
+  cpi->gf_state.olk_overlay_last = 0;
 }
 
 // #define FIXED_ARF_BITS
@@ -2870,16 +2873,32 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
     rc->active_worst_quality = oxcf->rc_cfg.qp;
   }
 
-  // Keyframe and section processing.
-  if (rc->frames_to_key <= 0) {
+  // Keyframe and section processing.  Note for OLK overlay, frames_to_key ==
+  // 0. But we don't want to reset gf group yet, hence the condition
+  // gf_group->index >= gf_group->size.
+  if (rc->frames_to_key <= 0 && gf_group->index >= gf_group->size) {
     assert(rc->frames_to_key >= -1);
     FIRSTPASS_STATS this_frame_copy;
     this_frame_copy = this_frame;
-    frame_params->frame_type = KEY_FRAME;
-    if (frame_params->frame_params_obu_type == NUM_OBU_TYPES)
-      frame_params->frame_params_obu_type = OBU_CLK;
-    // Define next KF group and assign bits to it.
-    find_next_key_frame(cpi, &this_frame);
+    if (cpi->gf_state.olk_overlay_last) {
+      // The olk key frame has been encoded. Next is the arf.
+      frame_params->frame_type = INTER_FRAME;
+      frame_params->frame_params_obu_type = NUM_OBU_TYPES;
+      // Use prev olk position as the start
+      const FIRSTPASS_STATS *const start_position = twopass->stats_in;
+      twopass->stats_in--;
+      this_frame = *twopass->stats_in;
+      find_next_key_frame(cpi, &this_frame);
+      reset_fpf_position(twopass, start_position);
+      rc->frames_to_key--;
+      rc->frames_since_key++;
+    } else {
+      frame_params->frame_type = KEY_FRAME;
+      if (frame_params->frame_params_obu_type == NUM_OBU_TYPES)
+        frame_params->frame_params_obu_type = OBU_CLK;
+      // Define next KF group and assign bits to it.
+      find_next_key_frame(cpi, &this_frame);
+    }
     this_frame = this_frame_copy;
   } else {
     frame_params->frame_type = INTER_FRAME;

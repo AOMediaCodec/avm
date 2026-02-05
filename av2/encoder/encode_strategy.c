@@ -171,12 +171,13 @@ static INLINE void update_gf_group_index(AV2_COMP *cpi) {
 static INLINE void set_show_existing_alt_ref(GF_GROUP *const gf_group,
                                              int apply_filtering,
                                              int enable_overlay,
-                                             int show_existing_alt_ref) {
+                                             int show_existing_alt_ref,
+                                             int is_filtered_kf) {
   if (get_frame_update_type(gf_group) != ARF_UPDATE &&
       get_frame_update_type(gf_group) != KFFLT_UPDATE)
     return;
 
-  if (get_frame_update_type(gf_group) == KFFLT_UPDATE) {
+  if (is_filtered_kf) {
     // Key overlay is always used to ensure good visual quality.
     gf_group->show_existing_alt_ref = 0;
     return;
@@ -867,9 +868,14 @@ static int denoise_and_encode(AV2_COMP *const cpi, uint8_t *const dest,
                                         source_buffer->metadata);
     }
   }
+
+  int is_filtered_kf =
+      get_frame_update_type(gf_group) == KFFLT_UPDATE ||
+      (cpi->no_show_fwd_kf && cpi->oxcf.kf_cfg.enable_keyframe_filtering > 1);
+
   set_show_existing_alt_ref(&cpi->gf_group, apply_filtering,
                             oxcf->algo_cfg.enable_overlay,
-                            show_existing_alt_ref);
+                            show_existing_alt_ref, is_filtered_kf);
   // perform tpl after filtering
   int allow_tpl = oxcf->gf_cfg.lag_in_frames > 1 &&
                   !is_stat_generation_stage(cpi) &&
@@ -956,10 +962,15 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
         (gf_group->update_type[gf_group->index] == OVERLAY_UPDATE ||
          gf_group->update_type[gf_group->index] == KFFLT_OVERLAY_UPDATE) &&
         gf_group->arf_index >= 0 && cpi->rc.frames_to_key == 0) {
-      frame_params.frame_params_update_type_was_overlay = 1;
-      // NOTE: this is NOT OBU_OLK but the overlay at the end of the group
-      //  pointing an OLK
-      frame_params.frame_params_obu_type = OBU_OLK;
+      if (gf_group->show_existing_alt_ref) {
+        frame_params.frame_params_update_type_was_overlay = 1;
+        // NOTE: this is NOT OBU_OLK but the overlay at the end of the group
+        //  pointing an OLK
+        frame_params.frame_params_obu_type = OBU_OLK;
+      } else {
+        // This is a olk kf overlay, but not show_existing
+        frame_params.frame_params_update_type_was_overlay = 0;
+      }
     } else {
       frame_params.frame_params_update_type_was_overlay =
           (gf_group->show_existing_alt_ref &&
@@ -1134,6 +1145,33 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
   cm->current_frame.tlayer_id = cm->tlayer_id;
   cm->current_frame.mlayer_id = cm->mlayer_id;
 
+  if (cpi->olk_encountered &&
+      cm->olk_refresh_frame_flags[cm->mlayer_id] != INVALID_IDX &&
+      cpi->gf_group.index == cpi->gf_group.size - 1) {
+    assert(cpi->gf_group.update_type[cpi->gf_group.index] == OVERLAY_UPDATE ||
+      cpi->gf_group.update_type[cpi->gf_group.index] ==
+        KFFLT_OVERLAY_UPDATE);
+
+    // This is an OLK KF overlay. We need to clear all references except for the
+    // OLK.
+    int ref_flags_to_keep = 0;
+    for (int layer = 0; layer <= cm->seq_params.max_mlayer_id; layer++) {
+      ref_flags_to_keep |= cm->olk_refresh_frame_flags[cm->mlayer_id];
+    }
+    for (int ref_index = 0; ref_index < cm->seq_params.ref_frames;
+                            ref_index++) {
+      if (!((ref_flags_to_keep >> ref_index) & 1u)) {
+        if (cm->ref_frame_map[ref_index] != NULL) {
+          --cm->ref_frame_map[ref_index]->ref_count;
+          cm->ref_frame_map[ref_index] = NULL;
+        }
+      }
+    }
+
+    // Set gf_state flag so the next gf group knows that the OLK has been
+    // encoded
+    cpi->gf_state.olk_overlay_last = 1;
+  }
   init_ref_map_pair(&cpi->common, cm->ref_frame_map_pairs,
                     frame_params.frame_type == KEY_FRAME,
                     cpi->switch_frame_mode == 1);

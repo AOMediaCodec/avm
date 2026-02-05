@@ -1518,9 +1518,7 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   kf_cfg->sframe_mode = cfg->sframe_mode;
   kf_cfg->enable_sframe = extra_cfg->s_frame_mode;
 
-  kf_cfg->enable_keyframe_filtering =
-      kf_cfg->fwd_kf_enabled ? AVMMIN(extra_cfg->enable_keyframe_filtering, 1)
-                             : extra_cfg->enable_keyframe_filtering;
+  kf_cfg->enable_keyframe_filtering = extra_cfg->enable_keyframe_filtering;
 
   kf_cfg->enable_intrabc = extra_cfg->enable_intrabc;
   kf_cfg->enable_intrabc_ext = extra_cfg->enable_intrabc_ext;

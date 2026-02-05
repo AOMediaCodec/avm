@@ -1256,14 +1256,13 @@ int av2_temporal_filter(AV2_COMP *cpi, const int filter_frame_lookahead_idx,
   assert(filter_frame_idx < num_frames_for_filtering);
 
   // Set showable frame.
-  if (filter_frame_lookahead_idx >= 0) {
-    cpi->common.implicit_output_picture =
-        num_frames_for_filtering == 1 || is_second_arf ||
-        (cpi->oxcf.algo_cfg.enable_overlay == 0);
+  cpi->common.implicit_output_picture =
+      num_frames_for_filtering == 1 || is_second_arf ||
+      (cpi->oxcf.algo_cfg.enable_overlay == 0);
 
-    if (gf_group->update_type[gf_group->index] == KFFLT_UPDATE)
-      cpi->common.implicit_output_picture = 0;
-  }
+  if (gf_group->update_type[gf_group->index] == KFFLT_UPDATE ||
+      (cpi->no_show_fwd_kf && cpi->oxcf.kf_cfg.enable_keyframe_filtering > 1))
+    cpi->common.implicit_output_picture = 0;
 
   // Do filtering.
   const int is_key_frame = (filter_frame_lookahead_idx <= 0);

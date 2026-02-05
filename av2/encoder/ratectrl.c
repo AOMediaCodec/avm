@@ -1834,7 +1834,8 @@ void av2_rc_postencode_update(AV2_COMP *cpi, uint64_t bytes_used) {
     // Update the Golden frame stats as appropriate.
     update_golden_frame_stats(cpi);
 
-  if (current_frame->frame_type == KEY_FRAME) rc->frames_since_key = 0;
+  if (current_frame->frame_type == KEY_FRAME && !cpi->no_show_fwd_kf)
+    rc->frames_since_key = 0;
   // if (current_frame->frame_number == 1 && cm->immediate_output_picture)
   /*
   rc->this_frame_target =
