@@ -89,8 +89,9 @@ if(CONFIG_AV2_ENCODER)
 
   set(AVM_DOXYGEN_EXAMPLE_DESCRIPTIONS
       ${AVM_DOXYGEN_EXAMPLE_DESCRIPTIONS} "Full featured encoder."
-      "Simplified lossless encoder." "Set active and ROI maps."
-      "Simplified encoder loop." "Two-pass encoder loop.")
+      "Simplified lossless encoder." "Multi layer encoder."
+      "Set active and ROI maps." "Simplified encoder loop."
+      "Two-pass encoder loop.")
 
   set(AVM_DOXYGEN_EXAMPLE_SOURCES ${AVM_DOXYGEN_EXAMPLE_SOURCES}
                                   "${AVM_ROOT}/examples/scalable_encoder.c")
