@@ -687,6 +687,16 @@ int av2_get_refresh_frame_flags(
     return refresh_mask;
   }
 
+  if (cpi->use_buffer_update_test) {
+    // This logic is currently only called for the tests in
+    // multi_layers_tests.cc.
+    int refresh_mask_control = 0;
+    for (int i = 0; i < cpi->common.seq_params.ref_frames; i++) {
+      refresh_mask_control |= cpi->buffer_update_test[i] << i;
+    }
+    return refresh_mask_control;
+  }
+
   // BRU frame, refresh flag is set to refresh BRU ref frame
   int free_fb_index = INVALID_IDX;
   if (cpi->common.bru.enabled) {

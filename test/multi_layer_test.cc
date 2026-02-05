@@ -42,6 +42,10 @@ class MultiLayerTest : public ::libavm_test::CodecTestWithParam<int>,
     drop_tl2_ = false;
     drop_sl2_ = false;
     enable_explicit_ref_frame_map_ = false;
+    enable_buffer_update_test_ = false;
+    refresh_count_ = 0;
+    enable_s_frame_ = false;
+    start_decoding_tl1_ = 0;
   }
 
   int GetNumEmbeddedLayers() override { return num_embedded_layers_; }
@@ -135,6 +139,32 @@ class MultiLayerTest : public ::libavm_test::CodecTestWithParam<int>,
         encoder->Control(AVME_SET_TLAYER_ID, 1);
       }
     }
+    if (enable_buffer_update_test_) {
+      avm_buffer_update_test_t buffer_update;
+      for (int i = 0; i < 8; i++) {
+        buffer_update.buffer_update_test[i] = 0;
+      }
+      if (num_temporal_layers_ == 2 && num_embedded_layers_ == 2) {
+        // Don't refresh (ml1, tl1).
+        if (embedded_layer_id_ != 1 || temporal_layer_id_ != 1) {
+          // Refresh based on refresh_count_, which takes even
+          // slot for ml=0 and odd slot for ml=1;
+          buffer_update.buffer_update_test[refresh_count_] = 1;
+          refresh_count_++;
+          if (refresh_count_ > 7) refresh_count_ = 0;
+        }
+        encoder->Control(AV2E_SET_ENABLE_BUFFER_UPDATE_TEST, &buffer_update);
+      }
+    }
+    if (enable_s_frame_) {
+      if (layer_frame_cnt_ ==
+              (start_decoding_tl1_ - 1) * num_embedded_layers_ &&
+          temporal_layer_id_ == 0) {
+        encoder->Control(AV2E_SET_S_FRAME_MODE, 1);
+      } else {
+        encoder->Control(AV2E_SET_S_FRAME_MODE, 0);
+      }
+    }
     layer_frame_cnt_++;
   }
 
@@ -157,6 +187,14 @@ class MultiLayerTest : public ::libavm_test::CodecTestWithParam<int>,
   }
 
   bool DoDecode() const override {
+    if (enable_s_frame_) {
+      // Drop TL1 until start_decoding_tl_.
+      if (layer_frame_cnt_ < start_decoding_tl1_ * num_embedded_layers_ &&
+          temporal_layer_id_ == 1)
+        return false;
+      else
+        return true;
+    }
     if (num_temporal_layers_ > 1 && num_embedded_layers_ > 1) {
       if (decode_base_only_) {
         if (temporal_layer_id_ == 0)
@@ -217,6 +255,10 @@ class MultiLayerTest : public ::libavm_test::CodecTestWithParam<int>,
   int num_mismatch_;
   bool enable_explicit_ref_frame_map_;
   int layer_frame_cnt_;
+  bool enable_buffer_update_test_;
+  int refresh_count_;
+  bool enable_s_frame_;
+  int start_decoding_tl1_;
 };
 
 TEST_P(MultiLayerTest, MultiLayerTest2Temporal) {
@@ -356,5 +398,53 @@ TEST_P(MultiLayerTest, MultiLayerTest2Embedded2TempExplRefFrameMap) {
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
   EXPECT_EQ(num_mismatch_, 0);
 }
+
+// This test uses the test control (AV2E_SET_ENABLE_BUFFER_UPDATE_TEST)
+// to externally set the slot used for refresh for every frame. This is
+// done to make sure we get temporal prediction of ml=1 frames off ml=1
+// frames at previous times, i.e.,frame#8 predicts off frame#5, #3, in
+// addition to prediction off ml=0 (#7, #4). Without this control the
+// buffer slot refreshed on a ml=0 frame may use the same slot refreshed on
+// the previous ml=1 frame, thus removing the temporal prediction of the
+// next ml=1 frame.
+//
+//               (ml1)#3                   (ml1)#8
+//
+//   (ml1)#1     (ml0)#2      (ml1)#5      (ml0)#7
+//
+//   (ml0)#0                  (ml0)#4                 . . . . .
+//     ----------------------------------------------
+//      (tl0)       tl1)        (tl0)       (tl1)
+TEST_P(MultiLayerTest, MultiLayerTest2Embedded2TemporalBufferControl) {
+  ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
+  num_temporal_layers_ = 2;
+  num_embedded_layers_ = 2;
+  decode_base_only_ = false;
+  drop_tl2_ = false;
+  enable_explicit_ref_frame_map_ = false;
+  enable_buffer_update_test_ = true;
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
+  EXPECT_EQ(num_mismatch_, 0);
+}
+
+// Drop the TL1 layer frames ((ml0,tl1), (ml1,tl1)) from the start and then
+// start decoding TL1 frames in midstream. Verify that a S frame is needed to
+// switch up to full stream without decode error and mismatch. Without the S
+// frame the additional temporal prediction (noted above with buffer control)
+// will cause decode error when switching up.
+TEST_P(MultiLayerTest, MultiLayerTest2Embedded2TemporaSframe) {
+  ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
+  num_temporal_layers_ = 2;
+  num_embedded_layers_ = 2;
+  decode_base_only_ = false;
+  drop_tl2_ = false;
+  enable_explicit_ref_frame_map_ = false;
+  enable_buffer_update_test_ = true;
+  enable_s_frame_ = true;
+  start_decoding_tl1_ = 11;
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
+  EXPECT_EQ(num_mismatch_, 0);
+}
+
 AV2_INSTANTIATE_TEST_SUITE(MultiLayerTest, ::testing::Values(5));
 }  // namespace

@@ -2984,6 +2984,12 @@ typedef struct AV2_COMP {
    */
 
   uint8_t tier[MAX_NUM_OPERATING_POINTS];  // seq_tier in spec. One bit: 0 or 1.
+
+  /*!
+   * Flags only used by the tests in multi_layers_tests.cc
+   */
+  int use_buffer_update_test;
+  int buffer_update_test[REF_FRAMES];
 } AV2_COMP;
 
 /*!

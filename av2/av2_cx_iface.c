@@ -2687,6 +2687,17 @@ static avm_codec_err_t ctrl_set_enable_explict_ref_frame_map(
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
+static avm_codec_err_t ctrl_set_enable_buffer_update_test(
+    avm_codec_alg_priv_t *ctx, va_list args) {
+  avm_buffer_update_test_t *const data =
+      va_arg(args, avm_buffer_update_test_t *);
+  ctx->cpi->use_buffer_update_test = 1;
+  for (unsigned int i = 0; i < 8; ++i) {
+    ctx->cpi->buffer_update_test[i] = data->buffer_update_test[i];
+  }
+  return AVM_CODEC_OK;
+}
+
 static avm_codec_err_t create_stats_buffer(FIRSTPASS_STATS **frame_stats_buffer,
                                            STATS_BUFFER_CTX *stats_buf_context,
                                            int num_lap_buffers) {
@@ -4488,6 +4499,7 @@ static avm_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV2E_GET_ENABLE_BRU, ctrl_get_enable_bru },
   { AV2E_SET_ENABLE_EXPLICIT_REF_FRAME_MAP,
     ctrl_set_enable_explict_ref_frame_map },
+  { AV2E_SET_ENABLE_BUFFER_UPDATE_TEST, ctrl_set_enable_buffer_update_test },
   // Getters
   { AVME_GET_LAST_QUANTIZER, ctrl_get_quantizer },
   { AV2_GET_REFERENCE, ctrl_get_reference },

@@ -1230,6 +1230,12 @@ enum avme_enc_control_id {
    * int parameter.
    */
   AV2E_SET_ENABLE_EXPLICIT_REF_FRAME_MAP = 179,
+
+  /*!\brief Codec control function to control the reference frame
+   * buffer updates, only used for the test multi_layers_test.cc,
+   * avm_buffer_update_test_t *parameter.
+   */
+  AV2E_SET_ENABLE_BUFFER_UPDATE_TEST = 180,
 };
 
 /*!\brief avm 1-D scaling mode
@@ -1336,6 +1342,13 @@ typedef enum {
   AVM_TUNE_VMAF_MAX_GAIN = 6,
   AVM_TUNE_VMAF_NEG_MAX_GAIN = 7,
 } avm_tune_metric;
+
+/*!\brief Parameters for avm_buffer_update_test: this is only used
+ * by the tests in multi_layer_tests.cc.
+ */
+typedef struct avm_buffer_update_test {
+  int buffer_update_test[16];
+} avm_buffer_update_test_t;
 
 /*!\cond */
 /*!\brief Encoder control function parameter type
@@ -1736,6 +1749,9 @@ AVM_CTRL_USE_TYPE(AVME_SET_NUMBER_TLAYERS, int)
 
 AVM_CTRL_USE_TYPE(AV2E_SET_ENABLE_EXPLICIT_REF_FRAME_MAP, int)
 #define AVME_CTRL_AV2E_SET_ENABLE_EXPLICIT_REF_FRAME_MAP
+
+AVM_CTRL_USE_TYPE(AV2E_SET_ENABLE_BUFFER_UPDATE_TEST, int)
+#define AVME_CTRL_AV2E_SET_ENABLE_BUFFER_UPDATE_TEST
 
 /*!\endcond */
 /*! @} - end defgroup avm_encoder */
