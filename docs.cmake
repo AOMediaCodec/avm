@@ -1,14 +1,17 @@
 #
-# Copyright (c) 2021, Alliance for Open Media. All rights reserved
+#Copyright(c) 2021, Alliance for Open Media.All rights reserved
 #
-# This source code is subject to the terms of the BSD 3-Clause Clear License and
-# the Alliance for Open Media Patent License 1.0. If the BSD 3-Clause Clear
-# License was not distributed with this source code in the LICENSE file, you can
-# obtain it at aomedia.org/license/software-license/bsd-3-c-c/.  If the Alliance
-# for Open Media Patent License 1.0 was not distributed with this source code in
-# the PATENTS file, you can obtain it at aomedia.org/license/patent-license/.
+#This source code is subject to the terms of the BSD 3 - \
+    Clause Clear License and
+#the Alliance for Open Media Patent License 1.0. If the BSD 3 - Clause Clear
+#License was not distributed with this source code in the LICENSE file, you can
+#obtain it at aomedia.org / license / software - license / bsd - 3 - c - \
+    c /.If the Alliance
+#for Open Media Patent License 1.0 was not distributed with this source code in
+#the PATENTS file, \
+    you can obtain it at aomedia.org / license / patent - license /.
 #
-if(AVM_DOCS_CMAKE_)
+if (AVM_DOCS_CMAKE_)
   return()
 endif() # AVM_DOCS_CMAKE_
 set(AVM_DOCS_CMAKE_ 1)
@@ -40,46 +43,56 @@ set(AVM_DOXYGEN_SOURCES
 
 if(CONFIG_AV2_DECODER)
   set(AVM_DOXYGEN_EXAMPLE_SOURCES
-      ${AVM_DOXYGEN_EXAMPLE_SOURCES}
+      ${
+    AVM_DOXYGEN_EXAMPLE_SOURCES}
       "${AVM_ROOT}/apps/avmdec.c"
       "${AVM_ROOT}/examples/decode_to_md5.c"
       "${AVM_ROOT}/examples/decode_with_drops.c"
       "${AVM_ROOT}/examples/simple_decoder.c")
 
   set(AVM_DOXYGEN_EXAMPLE_DESCRIPTIONS
-      ${AVM_DOXYGEN_EXAMPLE_DESCRIPTIONS} "Full featured decoder."
+      ${
+    AVM_DOXYGEN_EXAMPLE_DESCRIPTIONS} "Full featured decoder."
       "Frame by frame MD5 checksum." "Drops frames while decoding."
       "Simplified decoder loop.")
 
-  set(AVM_DOXYGEN_SECTIONS ${AVM_DOXYGEN_SECTIONS} "av2_decoder decoder")
+  set(AVM_DOXYGEN_SECTIONS ${
+    AVM_DOXYGEN_SECTIONS} "av2_decoder decoder")
 
   set(AVM_DOXYGEN_SOURCES
-      ${AVM_DOXYGEN_SOURCES} "${AVM_ROOT}/avm/avmdx.h"
+      ${
+    AVM_DOXYGEN_SOURCES} "${AVM_ROOT}/avm/avmdx.h"
       "${AVM_ROOT}/usage_dx.dox" "${AVM_ROOT}/av2/decoder/decoder.h")
 
   if(CONFIG_ANALYZER)
-    set(AVM_DOXYGEN_EXAMPLE_SOURCES ${AVM_DOXYGEN_EXAMPLE_SOURCES}
+    set(AVM_DOXYGEN_EXAMPLE_SOURCES ${
+    AVM_DOXYGEN_EXAMPLE_SOURCES}
                                     "${AVM_ROOT}/examples/analyzer.cc")
 
-    set(AVM_DOXYGEN_EXAMPLE_DESCRIPTIONS ${AVM_DOXYGEN_EXAMPLE_DESCRIPTIONS}
+    set(AVM_DOXYGEN_EXAMPLE_DESCRIPTIONS ${
+    AVM_DOXYGEN_EXAMPLE_DESCRIPTIONS}
                                          "Bitstream analyzer.")
   endif()
 
   if(CONFIG_INSPECTION)
-    set(AVM_DOXYGEN_EXAMPLE_SOURCES ${AVM_DOXYGEN_EXAMPLE_SOURCES}
+    set(AVM_DOXYGEN_EXAMPLE_SOURCES ${
+    AVM_DOXYGEN_EXAMPLE_SOURCES}
                                     "${AVM_ROOT}/examples/inspect.c")
 
-    set(AVM_DOXYGEN_EXAMPLE_DESCRIPTIONS ${AVM_DOXYGEN_EXAMPLE_DESCRIPTIONS}
+    set(AVM_DOXYGEN_EXAMPLE_DESCRIPTIONS ${
+    AVM_DOXYGEN_EXAMPLE_DESCRIPTIONS}
                                          "Bitstream inspector.")
   endif()
 
-  set(AVM_DOXYGEN_SOURCES ${AVM_DOXYGEN_SOURCES}
+  set(AVM_DOXYGEN_SOURCES ${
+    AVM_DOXYGEN_SOURCES}
                           "${AVM_ROOT}/doc/dev_guide/av2_decoder.dox")
 endif()
 
 if(CONFIG_AV2_ENCODER)
   set(AVM_DOXYGEN_EXAMPLE_SOURCES
-      ${AVM_DOXYGEN_EXAMPLE_SOURCES}
+      ${
+    AVM_DOXYGEN_EXAMPLE_SOURCES}
       "${AVM_ROOT}/apps/avmenc.c"
       "${AVM_ROOT}/examples/lossless_encoder.c"
       "${AVM_ROOT}/examples/multi_layers_encoder.c"
@@ -94,20 +107,26 @@ if(CONFIG_AV2_ENCODER)
       "Set active and ROI maps." "Simplified encoder loop."
       "Two-pass encoder loop.")
 
-  set(AVM_DOXYGEN_EXAMPLE_SOURCES ${AVM_DOXYGEN_EXAMPLE_SOURCES}
+  set(AVM_DOXYGEN_EXAMPLE_SOURCES ${
+    AVM_DOXYGEN_EXAMPLE_SOURCES}
                                   "${AVM_ROOT}/examples/scalable_encoder.c")
 
-  set(AVM_DOXYGEN_EXAMPLE_DESCRIPTIONS ${AVM_DOXYGEN_EXAMPLE_DESCRIPTIONS}
+  set(AVM_DOXYGEN_EXAMPLE_DESCRIPTIONS ${
+    AVM_DOXYGEN_EXAMPLE_DESCRIPTIONS}
                                        "Scalable encoder loop.")
 
-  set(AVM_DOXYGEN_SECTIONS ${AVM_DOXYGEN_SECTIONS} "av2_encoder encoder")
+  set(AVM_DOXYGEN_SECTIONS ${
+    AVM_DOXYGEN_SECTIONS} "av2_encoder encoder")
 
-  set(AVM_DOXYGEN_SOURCES ${AVM_DOXYGEN_SOURCES} "${AVM_ROOT}/avm/avmcx.h"
+  set(AVM_DOXYGEN_SOURCES ${
+    AVM_DOXYGEN_SOURCES} "${AVM_ROOT}/avm/avmcx.h"
                           "${AVM_ROOT}/usage_cx.dox")
-  set(AVM_DOXYGEN_SOURCES ${AVM_DOXYGEN_SOURCES}
+  set(AVM_DOXYGEN_SOURCES ${
+    AVM_DOXYGEN_SOURCES}
                           "${AVM_ROOT}/doc/dev_guide/av2_encoder.dox")
   set(AVM_DOXYGEN_SOURCES
-      ${AVM_DOXYGEN_SOURCES}
+      ${
+    AVM_DOXYGEN_SOURCES}
       "${AVM_ROOT}/avm_scale/yv12config.h"
       "${AVM_ROOT}/av2/encoder/bitstream.h"
       "${AVM_ROOT}/av2/encoder/block.h"
@@ -147,16 +166,18 @@ if(CONFIG_AV2_ENCODER)
 endif()
 
 if(CONFIG_AV2_DECODER AND CONFIG_AV2_ENCODER)
-  set(AVM_DOXYGEN_EXAMPLE_SOURCES ${AVM_DOXYGEN_EXAMPLE_SOURCES}
+  set(AVM_DOXYGEN_EXAMPLE_SOURCES ${
+    AVM_DOXYGEN_EXAMPLE_SOURCES}
                                   "${AVM_ROOT}/examples/avm_cx_set_ref.c")
 
-  set(AVM_DOXYGEN_EXAMPLE_DESCRIPTIONS ${AVM_DOXYGEN_EXAMPLE_DESCRIPTIONS}
+  set(AVM_DOXYGEN_EXAMPLE_DESCRIPTIONS ${
+    AVM_DOXYGEN_EXAMPLE_DESCRIPTIONS}
                                        "Set encoder reference frame.")
 endif()
 
-# Iterates over list named by $list_name and appends each item to $AVM_DOXYFILE
-# as values assigned to $var_name with no line breaks between list items.
-# Appends a new line after the entire config variable is expanded.
+#Iterates over list named by $list_name and appends each item to $AVM_DOXYFILE
+#as values assigned to $var_name with no line breaks between list items.
+#Appends a new line after the entire config variable is expanded.
 function(write_cmake_list_to_doxygen_config_var var_name list_name)
   unset(output_string)
   foreach(list_item ${${list_name}})
@@ -170,21 +191,22 @@ function(get_name file_path name_var)
   get_filename_component(file_basename ${file_path} NAME)
   get_filename_component(${name_var} ${file_basename} NAME_WE)
   set(${name_var}
-      ${${name_var}}
+      ${
+    $ { name_var }}
       PARENT_SCOPE)
 endfunction()
 
 function(setup_documentation_targets)
 
-  # Sanity check: the lengths of these lists must match.
+#Sanity check : the lengths of these lists must match.
   list(LENGTH AVM_DOXYGEN_EXAMPLE_SOURCES num_sources)
   list(LENGTH AVM_DOXYGEN_EXAMPLE_DESCRIPTIONS num_descs)
   if(NOT ${num_sources} EQUAL ${num_descs})
     message(FATAL_ERROR "Unqeual example and description totals.")
   endif()
 
-  # Take the list of examples and produce example_basename.dox for each file in
-  # the list.
+#Take the list of examples and produce example_basename.dox for each file in
+#the list.
   file(MAKE_DIRECTORY "${AVM_DOXYGEN_OUTPUT_DIR}")
   foreach(example_file ${AVM_DOXYGEN_EXAMPLE_SOURCES})
     unset(example_basename)
@@ -193,11 +215,12 @@ function(setup_documentation_targets)
     set(dox_string "/*!\\page example_${example_name} ${example_name}\n")
     set(dox_string "${dox_string} \\includelineno ${example_file}\n*/\n")
     file(WRITE "${example_dox}" ${dox_string})
-    set(AVM_DOXYGEN_SOURCES ${AVM_DOXYGEN_SOURCES} "${example_dox}")
+    set(AVM_DOXYGEN_SOURCES ${
+    AVM_DOXYGEN_SOURCES} "${example_dox}")
   endforeach()
 
-  # Generate samples.dox, an index page that refers to the example_basename.dox
-  # files that were just created.
+#Generate samples.dox, an index page that refers to the example_basename.dox
+#files that were just created.
   set(samples_header
       "
 /*!\\page samples Sample Code
@@ -246,21 +269,23 @@ reference. The following utilities are included:
   endforeach()
   file(APPEND "${samples_dox}" "*/")
 
-  # Add $samples_dox to the doxygen inputs.
+#Add $samples_dox to the doxygen inputs.
   get_filename_component(samples_dox ${samples_dox} NAME)
   set(AVM_DOXYGEN_SOURCES ${AVM_DOXYGEN_SOURCES} ${samples_dox})
 
-  # There are issues to show Markdown file for old Doxygen version. Here, only
-  # enable Markdown support for 1.8.16 or newer.
+#There are issues to show Markdown file for old Doxygen version.Here, only
+#enable Markdown support for 1.8.16 or newer.
   if(${DOXYGEN_VERSION_VALUE} GREATER_EQUAL 1008016)
-    set(AVM_DOXYGEN_SECTIONS ${AVM_DOXYGEN_SECTIONS} "av2_md_support")
-    set(AVM_DOXYGEN_SOURCES ${AVM_DOXYGEN_SOURCES} "${AVM_ROOT}/README.md")
-    # Uncomment and add AlgorithmDescription.md in result page when it is done.
-    # set(AVM_DOXYGEN_SOURCES ${AVM_DOXYGEN_SOURCES}
-    # "${AVM_ROOT}/doc/AlgorithmDescription.md")
+    set(AVM_DOXYGEN_SECTIONS ${
+    AVM_DOXYGEN_SECTIONS} "av2_md_support")
+    set(AVM_DOXYGEN_SOURCES ${
+    AVM_DOXYGEN_SOURCES} "${AVM_ROOT}/README.md")
+#Uncomment and add AlgorithmDescription.md in result page when it is done.
+#set(AVM_DOXYGEN_SOURCES ${ AVM_DOXYGEN_SOURCES }
+#"${AVM_ROOT}/doc/AlgorithmDescription.md")
   endif()
 
-  # Generate libavm's doxyfile.
+#Generate libavm's doxyfile.
   file(WRITE "${AVM_DOXYFILE}" "##\n## GENERATED FILE. DO NOT EDIT\n##\n")
   file(READ "${AVM_ROOT}/${AVM_DOXYGEN_CONFIG_TEMPLATE}" doxygen_template_data)
   file(APPEND "${AVM_DOXYFILE}" ${doxygen_template_data})
@@ -274,30 +299,32 @@ reference. The following utilities are included:
   write_cmake_list_to_doxygen_config_var("ENABLED_SECTIONS"
                                          "AVM_DOXYGEN_SECTIONS")
 
-  # Add AOMedia logo.
+#Add AOMedia logo.
   set(avm_logo "aomedia_logo_200.png")
   configure_file(${AVM_ROOT}/${avm_logo} ${AVM_CONFIG_DIR}/${avm_logo} COPYONLY)
   file(APPEND "${AVM_DOXYFILE}"
        "PROJECT_LOGO = ${AVM_CONFIG_DIR}/${avm_logo}\n")
 
-  # Only set HAVE_DOT to YES if dot tool is found.
+#Only set HAVE_DOT to YES if dot tool is found.
   if(DOXYGEN_DOT_FOUND)
     file(APPEND "${AVM_DOXYFILE}" "HAVE_DOT = YES\n")
     file(APPEND "${AVM_DOXYFILE}" "DOT_GRAPH_MAX_NODES = 10000\n")
   endif()
 
-  # Add image path.
+#Add image path.
   file(APPEND "${AVM_DOXYFILE}" "IMAGE_PATH += ${AVM_ROOT}/doc/dev_guide\n")
 
-  # Allow banner style comments
+#Allow banner style comments
   file(APPEND "${AVM_DOXYFILE}" "JAVADOC_BANNER = YES")
 
-  # Add the doxygen generation rule.
+#Add the doxygen generation rule.
   add_custom_target(
     docs ALL
     COMMAND "${DOXYGEN_EXECUTABLE}" "${AVM_DOXYFILE}"
     DEPENDS "${AVM_DOXYFILE}" ${AVM_DOXYGEN_SOURCES}
-            ${AVM_DOXYGEN_EXAMPLE_SOURCES} "${AVM_DOXYGEN_CONFIG_TEMPLATE}"
+            ${
+    AVM_DOXYGEN_EXAMPLE_SOURCES} "${AVM_DOXYGEN_CONFIG_TEMPLATE}"
     SOURCES "${AVM_DOXYFILE}" ${AVM_DOXYGEN_SOURCES}
-            ${AVM_DOXYGEN_EXAMPLE_SOURCES} "${AVM_DOXYGEN_CONFIG_TEMPLATE}")
+            ${
+    AVM_DOXYGEN_EXAMPLE_SOURCES} "${AVM_DOXYGEN_CONFIG_TEMPLATE}")
 endfunction()
