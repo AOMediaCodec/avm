@@ -76,21 +76,9 @@ int df_side_from_qindex(int q_index, int bit_depth) {
   return side_threshold;
 }
 
-uint16_t av2_get_filter_q(AV2_COMMON *const cm, const MACROBLOCKD *const xd,
-                          const loop_filter_info_n *lfi_n, const int dir_idx,
+uint16_t av2_get_filter_q(const loop_filter_info_n *lfi_n, const int dir_idx,
                           int plane, const MB_MODE_INFO *mbmi, int bit_depth) {
-  int final_qindex_dc[3], final_qindex_ac[3];
-  int segment_id = mbmi->segment_id;
-  if (mbmi->skip_txfm[xd->tree_type == CHROMA_PART] &&
-      is_inter_block(mbmi, xd->tree_type) &&
-      !cm->features.has_lossless_segment) {
-    int cdf_num;
-    segment_id = av2_get_spatial_seg_pred(cm, xd, &cdf_num);
-  }
-  int seg_qindex = av2_get_qindex(&cm->seg, segment_id, xd->current_base_qindex,
-                                  cm->seq_params.bit_depth);
-  get_qindex_with_offsets(cm, seg_qindex, final_qindex_dc, final_qindex_ac);
-  const int current_q_index = final_qindex_ac[plane];
+  const int current_q_index = mbmi->final_qindex_ac[plane];
 
   return df_quant_from_qindex(
       current_q_index + lfi_n->q_thr_q_offset[plane][dir_idx], bit_depth);
@@ -638,9 +626,8 @@ static TX_SIZE set_lpf_parameters(
     }
     // prepare outer edge parameters. deblock the edge if it's an edge of a TU
     {
-      const uint32_t curr_q =
-          av2_get_filter_q(cm, xd, &cm->lf_info, edge_dir, plane, mbmi,
-                           cm->seq_params.bit_depth);
+      const uint32_t curr_q = av2_get_filter_q(&cm->lf_info, edge_dir, plane,
+                                               mbmi, cm->seq_params.bit_depth);
       const uint32_t curr_side = av2_get_filter_side(
           &cm->lf_info, edge_dir, plane, mbmi, cm->seq_params.bit_depth);
 
@@ -680,9 +667,8 @@ static TX_SIZE set_lpf_parameters(
           check_sub_pu_edge(cm, xd, mi_prev, plane, prev_tree_type, scale_horz,
                             scale_vert, edge_dir, 0, &pv_ts, &pv_sub_pu_edge,
                             &pv_tx_m_partition_size);
-          const uint32_t pv_q =
-              av2_get_filter_q(cm, xd, &cm->lf_info, edge_dir, plane, mi_prev,
-                               cm->seq_params.bit_depth);
+          const uint32_t pv_q = av2_get_filter_q(
+              &cm->lf_info, edge_dir, plane, mi_prev, cm->seq_params.bit_depth);
           const uint32_t pv_side = av2_get_filter_side(
               &cm->lf_info, edge_dir, plane, mi_prev, cm->seq_params.bit_depth);
 
