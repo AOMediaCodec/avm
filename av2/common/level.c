@@ -1150,7 +1150,7 @@ void av2_decoder_model_process_frame(const AV2_COMP *const cpi,
 int level_to_sub_stream_level_index(AV2_LEVEL level, double scaling_factor_x) {
   int level_base = (level - SEQ_LEVEL_4_0) >> 2;
   int offset = scaling_factor_x == 1.5 ? 0 : (scaling_factor_x == 4.0 ? 1 : 2);
-  return level_base + offset;
+  return 3 * level_base + offset;
 }
 #endif  // CONFIG_F428_MULTISTREAM
 
