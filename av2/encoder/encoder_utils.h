@@ -984,7 +984,7 @@ static AVM_INLINE void av2_set_seq_tile_info(SequenceHeader *const seq_params,
       seq_params->mib_size_log2, seq_params->mib_size_log2
 #if CONFIG_FIX_LEVEL_7_8
       ,
-      seq_params->seq_max_level_idx
+      seq_params->seq_max_level_idx, seq_params->seq_tier
 #endif  // CONFIG_FIX_LEVEL_7_8
   );
 
@@ -1036,7 +1036,7 @@ static AVM_INLINE void av2_set_tile_info(AV2_COMMON *const cm,
                       cm->mib_size_log2, cm->seq_params.mib_size_log2
 #if CONFIG_FIX_LEVEL_7_8
                       ,
-                      cm->seq_params.seq_max_level_idx
+                      cm->seq_params.seq_max_level_idx, cm->seq_params.seq_tier
 #endif  // CONFIG_FIX_LEVEL_7_8
   );
 

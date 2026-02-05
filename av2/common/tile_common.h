@@ -59,7 +59,8 @@ AV2PixelRect av2_get_tile_rect(const TileInfo *tile_info,
 #define MAX_TILE_WIDTH (4096)        // Max Tile width in pixels
 #define MAX_TILE_AREA (4096 * 2304)  // Maximum tile area in pixels
 #if CONFIG_FIX_LEVEL_7_8
-#define MAX_TILE_AREA_LEVEL_7_AND_ABOVE (4096 * 4608)
+extern const int tile_width_scaling_factor[2][31];
+extern const int tile_area_scaling_factor[2][31];
 #endif  // CONFIG_FIX_LEVEL_7_8
 
 void av2_get_uniform_tile_size(const struct AV2Common *cm, int *w, int *h);
@@ -68,7 +69,7 @@ void av2_get_tile_limits(struct CommonTileParams *const tiles, int cm_mi_rows,
                          int seq_mib_size_log2
 #if CONFIG_FIX_LEVEL_7_8
                          ,
-                         int max_level_idx
+                         int max_level_idx, int seq_tier
 #endif  // CONFIG_FIX_LEVEL_7_8
 );
 void av2_get_seqmfh_tile_limits(struct TileInfoSyntax *const tiles,
@@ -76,7 +77,7 @@ void av2_get_seqmfh_tile_limits(struct TileInfoSyntax *const tiles,
                                 int mib_size_log2, int seq_mib_size_log2
 #if CONFIG_FIX_LEVEL_7_8
                                 ,
-                                int max_level_idx
+                                int max_level_idx, int seq_tier
 #endif  // CONFIG_FIX_LEVEL_7_8
 );
 void av2_calculate_tile_cols(struct CommonTileParams *const tiles);

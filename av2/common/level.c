@@ -1016,9 +1016,35 @@ static TARGET_LEVEL_FAIL_ID check_level_constraints(
       break;
     }
 #if CONFIG_FIX_LEVEL_7_8
-    const int max_tile_size = level >= SEQ_LEVEL_7_0
-                                  ? MAX_TILE_AREA_LEVEL_7_AND_ABOVE
-                                  : MAX_TILE_AREA;
+    const int mi_cols =
+        ALIGN_POWER_OF_TWO(level_info->cm_mi_cols, level_info->mib_size_log2);
+    const int mi_rows =
+        ALIGN_POWER_OF_TWO(level_info->cm_mi_rows, level_info->mib_size_log2);
+    const int sb_cols = mi_cols >> level_info->mib_size_log2;
+    const int sb_rows = mi_rows >> level_info->mib_size_log2;
+    const int sb_size_log2 = level_info->mib_size_log2 + MI_SIZE_LOG2;
+
+    int max_tile_size_sb;
+    int max_tile_width_sb;
+    if (level == 31) {
+      max_tile_width_sb = sb_cols;
+      max_tile_size_sb = sb_cols * sb_rows;
+    } else {
+      max_tile_width_sb =
+          (tile_width_scaling_factor[tier][level] * MAX_TILE_WIDTH) >>
+          (sb_size_log2 + 4);
+      max_tile_size_sb =
+          (tile_area_scaling_factor[tier][level] * MAX_TILE_AREA) >>
+          (2 * (sb_size_log2 + 2) + 2);
+    }
+
+    const int max_tile_size = max_tile_size_sb << (2 * sb_size_log2);
+    const int max_tile_width = max_tile_width_sb << sb_size_log2;
+
+    if (level_stats->max_tile_width > max_tile_width) {
+      fail_id = TILE_WIDTH_INVALID;
+      break;
+    }
 #else
     const int max_tile_size = MAX_TILE_AREA;
 #endif
@@ -1087,12 +1113,19 @@ static TARGET_LEVEL_FAIL_ID check_level_constraints(
 
 static void get_tile_stats(const AV2_COMMON *const cm,
                            const TileDataEnc *const tile_data,
-                           int *max_tile_size, int *min_cropped_tile_width,
+                           int *max_tile_size,
+#if CONFIG_FIX_LEVEL_7_8
+                           int *max_tile_width,
+#endif  // CONFIG_FIX_LEVEL_7_8
+                           int *min_cropped_tile_width,
                            int *min_cropped_tile_height,
                            int *tile_width_valid) {
   const int tile_cols = cm->tiles.cols;
   const int tile_rows = cm->tiles.rows;
   *max_tile_size = 0;
+#if CONFIG_FIX_LEVEL_7_8
+  *max_tile_width = 0;
+#endif  // CONFIG_FIX_LEVEL_7_8
   *min_cropped_tile_width = INT_MAX;
   *min_cropped_tile_height = INT_MAX;
   *tile_width_valid = 1;
@@ -1107,6 +1140,9 @@ static void get_tile_stats(const AV2_COMMON *const cm,
           (tile_info->mi_row_end - tile_info->mi_row_start) * MI_SIZE;
       const int tile_size = tile_width * tile_height;
       *max_tile_size = AVMMAX(*max_tile_size, tile_size);
+#if CONFIG_FIX_LEVEL_7_8
+      *max_tile_width = AVMMAX(*max_tile_width, tile_width);
+#endif  // CONFIG_FIX_LEVEL_7_8
 
       const int cropped_tile_width =
           cm->width - tile_info->mi_col_start * MI_SIZE;
@@ -1250,11 +1286,18 @@ void av2_update_level_info(AV2_COMP *cpi, size_t size, int64_t ts_start,
   const int immediate_output_picture = cm->immediate_output_picture;
   const int show_existing_frame = cm->show_existing_frame;
   int max_tile_size;
+#if CONFIG_FIX_LEVEL_7_8
+  int max_tile_width;
+#endif  // CONFIG_FIX_LEVEL_7_8
   int min_cropped_tile_width;
   int min_cropped_tile_height;
   int tile_width_is_valid;
-  get_tile_stats(cm, cpi->tile_data, &max_tile_size, &min_cropped_tile_width,
-                 &min_cropped_tile_height, &tile_width_is_valid);
+  get_tile_stats(cm, cpi->tile_data, &max_tile_size,
+#if CONFIG_FIX_LEVEL_7_8
+                 &max_tile_width,
+#endif  // CONFIG_FIX_LEVEL_7_8
+                 &min_cropped_tile_width, &min_cropped_tile_height,
+                 &tile_width_is_valid);
 
   avm_clear_system_state();
   const double compression_ratio = av2_get_compression_ratio(cm, size);
@@ -1277,10 +1320,21 @@ void av2_update_level_info(AV2_COMP *cpi, size_t size, int64_t ts_start,
 
     AV2LevelInfo *const level_info = level_params->level_info[i];
     assert(level_info != NULL);
+
+#if CONFIG_FIX_LEVEL_7_8
+    level_info->cm_mi_rows = cm->mi_params.mi_rows;
+    level_info->cm_mi_cols = cm->mi_params.mi_cols;
+    level_info->mib_size_log2 = cm->seq_params.mib_size_log2;
+#endif  // CONFIG_FIX_LEVEL_7_8
+
     AV2LevelStats *const level_stats = &level_info->level_stats;
 
     level_stats->max_tile_size =
         AVMMAX(level_stats->max_tile_size, max_tile_size);
+#if CONFIG_FIX_LEVEL_7_8
+    level_stats->max_tile_width =
+        AVMMAX(level_stats->max_tile_width, max_tile_width);
+#endif  // CONFIG_FIX_LEVEL_7_8
     level_stats->min_cropped_tile_width =
         AVMMIN(level_stats->min_cropped_tile_width, min_cropped_tile_width);
     level_stats->min_cropped_tile_height =

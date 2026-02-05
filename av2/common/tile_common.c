@@ -15,6 +15,21 @@
 #include "av2/common/tile_common.h"
 #include "avm_dsp/avm_dsp_common.h"
 
+#if CONFIG_FIX_LEVEL_7_8
+const int tile_width_scaling_factor[2][31] = {
+  { 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,  4,  4, 4,
+    4, 4, 4, 4, 4, 4, 4, 4, 8, 8, 8, 8, -1, -1, -1 },
+  { 4, 4, 4, 4, 4, 4, 4, 4, 4,  4,  4,  4,  4,  4,  4, 4,
+    4, 4, 4, 4, 8, 8, 8, 8, 16, 16, 16, 16, -1, -1, -1 }
+};
+const int tile_area_scaling_factor[2][31] = {
+  { 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,  4,  4,  4,      4,  4,
+    4, 4, 4, 4, 4, 8, 8, 8, 8, 16, 16, 16, 16 - 1, -1, -1 },
+  { 4, 4, 4, 4, 4, 4,  4,  4,  4,  4,  4,  4,  4,      4,  4,
+    4, 4, 4, 4, 4, 16, 16, 16, 16, 32, 32, 32, 32 - 1, -1, -1 }
+};
+#endif  // CONFIG_FIX_LEVEL_7_8
+
 void av2_tile_init(TileInfo *tile, const AV2_COMMON *cm, int row, int col) {
   av2_tile_set_row(tile, cm, row);
   av2_tile_set_col(tile, cm, col);
@@ -25,7 +40,7 @@ void av2_get_tile_limits(CommonTileParams *const tiles, int cm_mi_rows,
                          int seq_mib_size_log2
 #if CONFIG_FIX_LEVEL_7_8
                          ,
-                         int max_level_idx
+                         int max_level_idx, int seq_tier
 #endif  // CONFIG_FIX_LEVEL_7_8
 ) {
   tiles->mib_size_log2 = mib_size_log2;
@@ -41,13 +56,23 @@ void av2_get_tile_limits(CommonTileParams *const tiles, int cm_mi_rows,
   tiles->sb_cols = sb_cols;
 
   const int sb_size_log2 = mib_size_log2 + MI_SIZE_LOG2;
-  tiles->max_width_sb = MAX_TILE_WIDTH >> sb_size_log2;
+
 #if CONFIG_FIX_LEVEL_7_8
-  bool use_level_7_above = max_level_idx >= SEQ_LEVEL_7_0;
-  const int max_tile_area_sb =
-      (use_level_7_above ? MAX_TILE_AREA_LEVEL_7_AND_ABOVE : MAX_TILE_AREA) >>
-      (2 * sb_size_log2);
+  int max_tile_area_sb;
+  if (max_level_idx == 31) {
+    tiles->max_width_sb = sb_cols;
+    max_tile_area_sb = sb_cols * sb_rows;
+  } else {
+    tiles->max_width_sb =
+        (tile_width_scaling_factor[seq_tier][max_level_idx] * MAX_TILE_WIDTH) >>
+        (sb_size_log2 + 4);
+    max_tile_area_sb =
+        (tile_area_scaling_factor[seq_tier][max_level_idx] * MAX_TILE_AREA) >>
+        (2 * (sb_size_log2 + 2) + 2);
+  }
+
 #else
+  tiles->max_width_sb = MAX_TILE_WIDTH >> sb_size_log2;
   const int max_tile_area_sb = MAX_TILE_AREA >> (2 * sb_size_log2);
 #endif  // CONFIG_FIX_LEVEL_7_8
 
@@ -63,7 +88,7 @@ void av2_get_seqmfh_tile_limits(TileInfoSyntax *const tiles, int frame_height,
                                 int seq_mib_size_log2
 #if CONFIG_FIX_LEVEL_7_8
                                 ,
-                                int max_level_idx
+                                int max_level_idx, int seq_tier
 #endif  // CONFIG_FIX_LEVEL_7_8
 ) {
   const int cm_mi_rows = ALIGN_POWER_OF_TWO(frame_height, 3) >> MI_SIZE_LOG2;
@@ -72,7 +97,7 @@ void av2_get_seqmfh_tile_limits(TileInfoSyntax *const tiles, int frame_height,
                       seq_mib_size_log2
 #if CONFIG_FIX_LEVEL_7_8
                       ,
-                      max_level_idx
+                      max_level_idx, seq_tier
 #endif  // CONFIG_FIX_LEVEL_7_8
   );
 }

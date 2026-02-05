@@ -2225,12 +2225,12 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
           pbi->seen_frame_header = 0;
           frame_decoding_finished = 1;
           CommonTileParams *const tiles = &cm->tiles;
-          av2_get_tile_limits(&cm->tiles, cm->mi_params.mi_rows,
-                              cm->mi_params.mi_cols, cm->mib_size_log2,
-                              cm->seq_params.mib_size_log2
+          av2_get_tile_limits(
+              &cm->tiles, cm->mi_params.mi_rows, cm->mi_params.mi_cols,
+              cm->mib_size_log2, cm->seq_params.mib_size_log2
 #if CONFIG_FIX_LEVEL_7_8
-                              ,
-                              cm->seq_params.seq_max_level_idx
+              ,
+              cm->seq_params.seq_max_level_idx, cm->seq_params.seq_tier
 #endif  // CONFIG_FIX_LEVEL_7_8
           );
           tiles->uniform_spacing = 1;

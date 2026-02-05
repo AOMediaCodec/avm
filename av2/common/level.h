@@ -57,6 +57,9 @@ typedef struct {
 typedef struct {
   int max_bitrate;  // Max bitrate in any 1-second window, in bps.
   int max_tile_size;
+#if CONFIG_FIX_LEVEL_7_8
+  int max_tile_width;
+#endif  // CONFIG_FIX_LEVEL_7_8
   int min_cropped_tile_width;
   int min_cropped_tile_height;
   int tile_width_is_valid;
@@ -152,6 +155,11 @@ typedef struct {
   AV2LevelSpec level_spec;
   FrameWindowBuffer frame_window_buffer;
   DECODER_MODEL decoder_models[SEQ_LEVELS];
+#if CONFIG_FIX_LEVEL_7_8
+  int cm_mi_rows;
+  int cm_mi_cols;
+  int mib_size_log2;
+#endif  // CONFIG_FIX_LEVEL_7_8
 } AV2LevelInfo;
 
 typedef struct AV2LevelParams {

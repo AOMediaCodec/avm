@@ -4208,7 +4208,7 @@ static AVM_INLINE void read_tile_info(AV2Decoder *const pbi,
                       cm->mib_size_log2, cm->seq_params.mib_size_log2
 #if CONFIG_FIX_LEVEL_7_8
                       ,
-                      cm->seq_params.seq_max_level_idx
+                      cm->seq_params.seq_max_level_idx, cm->seq_params.seq_tier
 #endif  // CONFIG_FIX_LEVEL_7_8
   );
 
@@ -5979,7 +5979,7 @@ void read_sequence_tile_info(struct SequenceHeader *seq_params,
       seq_params->mib_size_log2
 #if CONFIG_FIX_LEVEL_7_8
       ,
-      seq_params->seq_max_level_idx
+      seq_params->seq_max_level_idx, seq_params->seq_tier
 #endif  // CONFIG_FIX_LEVEL_7_8
   );
   read_tile_syntax_info(&seq_params->tile_params, rb);
@@ -5990,7 +5990,7 @@ static void read_multi_frame_header_tile_info(MultiFrameHeader *mfh_param,
                                               struct avm_read_bit_buffer *rb
 #if CONFIG_FIX_LEVEL_7_8
                                               ,
-                                              int max_level_idx
+                                              int max_level_idx, int seq_tier
 #endif  // CONFIG_FIX_LEVEL_7_8
 ) {
   av2_get_seqmfh_tile_limits(
@@ -5999,7 +5999,7 @@ static void read_multi_frame_header_tile_info(MultiFrameHeader *mfh_param,
       mfh_param->mfh_seq_mib_sb_size_log2
 #if CONFIG_FIX_LEVEL_7_8
       ,
-      max_level_idx
+      max_level_idx, seq_tier
 #endif  // CONFIG_FIX_LEVEL_7_8
   );
   read_tile_syntax_info(&mfh_param->mfh_tile_params, rb);
@@ -6462,7 +6462,8 @@ uint32_t av2_read_multi_frame_header(AV2Decoder *pbi, AV2_COMMON *cm,
         mfh_param, rb
 #if CONFIG_FIX_LEVEL_7_8
         ,
-        pbi->seq_list[mfh_param->mfh_seq_header_id].seq_max_level_idx
+        pbi->seq_list[mfh_param->mfh_seq_header_id].seq_max_level_idx,
+        pbi->seq_list[mfh_param->mfh_seq_header_id].seq_tier
 #endif  // CONFIG_FIX_LEVEL_7_8
     );
   }
