@@ -1234,7 +1234,6 @@ static INLINE int av2_get_mbmi_seg_pred(const AV2_COMMON *const cm,
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
-  MB_MODE_INFO *mbmi = xd->mi[0];
 
   if ((xd->up_available) && (xd->left_available)) {
     MB_MODE_INFO **mi = mi_params->mi_grid_base +
@@ -1283,7 +1282,6 @@ void av2_encode_sb(const struct AV2_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
                             plane_end);
 
     if (cpi->oxcf.q_cfg.aq_mode != NO_AQ) {
-      const AV2_COMMON *const cm = &cpi->common;
       int current_base_qindex = cpi->common.delta_q_info.delta_q_present_flag
                                     ? xd->current_base_qindex
                                     : cpi->common.quant_params.base_qindex;
