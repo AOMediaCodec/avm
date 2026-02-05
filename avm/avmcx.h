@@ -1347,6 +1347,7 @@ typedef enum {
  * by the tests in multi_layer_tests.cc.
  */
 typedef struct avm_buffer_update_test {
+  /*!\brief buffer update flag, only used for multi_layer_tests.cc. */
   int buffer_update_test[16];
 } avm_buffer_update_test_t;
 
