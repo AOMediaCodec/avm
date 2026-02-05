@@ -82,6 +82,7 @@ if(CONFIG_AV2_ENCODER)
       ${AVM_DOXYGEN_EXAMPLE_SOURCES}
       "${AVM_ROOT}/apps/avmenc.c"
       "${AVM_ROOT}/examples/lossless_encoder.c"
+      "${AVM_ROOT}/examples/multi_layers_encoder.c"
       "${AVM_ROOT}/examples/set_maps.c"
       "${AVM_ROOT}/examples/simple_encoder.c"
       "${AVM_ROOT}/examples/twopass_encoder.c")
@@ -93,9 +94,6 @@ if(CONFIG_AV2_ENCODER)
 
   set(AVM_DOXYGEN_EXAMPLE_SOURCES ${AVM_DOXYGEN_EXAMPLE_SOURCES}
                                   "${AVM_ROOT}/examples/scalable_encoder.c")
-
-  set(AVM_DOXYGEN_EXAMPLE_SOURCES ${AVM_DOXYGEN_EXAMPLE_SOURCES}
-                                  "${AVM_ROOT}/examples/multi_layers_encoder.c")
 
   set(AVM_DOXYGEN_EXAMPLE_DESCRIPTIONS ${AVM_DOXYGEN_EXAMPLE_DESCRIPTIONS}
                                        "Scalable encoder loop.")

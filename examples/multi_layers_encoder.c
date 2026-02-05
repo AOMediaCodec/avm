@@ -142,7 +142,7 @@ int main(int argc, char **argv) {
   if (avm_codec_control(&codec, AVME_SET_CPUUSED, 5))
     die_codec(&codec, "Failed to set cpu to 5");
 
-  // Test case: currently only (1, 2), (2, 1), (2, 2),
+  // Test case: currently only (1, 2), (2, 1), (2, 2), (1, 3), (3 1),
   // more cases will be added.
   int num_embedded_layers = 2;
   int num_temporal_layers = 1;
@@ -198,6 +198,34 @@ int main(int argc, char **argv) {
         } else if ((frames_encoded - 1) % 2 == 0) {
           avm_codec_control(&codec, AVME_SET_MLAYER_ID, 1);
           avm_codec_control(&codec, AVME_SET_TLAYER_ID, 1);
+        }
+      } else if (num_temporal_layers == 3 && num_embedded_layers == 1) {
+        if (frames_encoded % 4 == 0) {
+          avm_codec_control(&codec, AVME_SET_MLAYER_ID, 0);
+          avm_codec_control(&codec, AVME_SET_TLAYER_ID, 0);
+        } else if (frames_encoded % 2 == 0) {
+          avm_codec_control(&codec, AVME_SET_MLAYER_ID, 0);
+          avm_codec_control(&codec, AVME_SET_TLAYER_ID, 1);
+        } else {
+          avm_codec_control(&codec, AVME_SET_MLAYER_ID, 0);
+          avm_codec_control(&codec, AVME_SET_TLAYER_ID, 2);
+        }
+      } else if (num_temporal_layers == 1 && num_embedded_layers == 3) {
+        if (frames_encoded % 3 == 0) {
+          struct avm_scaling_mode mode = { AVME_ONEFOUR, AVME_ONEFOUR };
+          avm_codec_control(&codec, AVME_SET_SCALEMODE, &mode);
+          avm_codec_control(&codec, AVME_SET_MLAYER_ID, 0);
+          avm_codec_control(&codec, AVME_SET_TLAYER_ID, 0);
+        } else if ((frames_encoded - 1) % 3 == 0) {
+          struct avm_scaling_mode mode = { AVME_ONETWO, AVME_ONETWO };
+          avm_codec_control(&codec, AVME_SET_SCALEMODE, &mode);
+          avm_codec_control(&codec, AVME_SET_MLAYER_ID, 1);
+          avm_codec_control(&codec, AVME_SET_TLAYER_ID, 0);
+        } else if ((frames_encoded - 2) % 3 == 0) {
+          struct avm_scaling_mode mode = { AVME_NORMAL, AVME_NORMAL };
+          avm_codec_control(&codec, AVME_SET_SCALEMODE, &mode);
+          avm_codec_control(&codec, AVME_SET_MLAYER_ID, 2);
+          avm_codec_control(&codec, AVME_SET_TLAYER_ID, 0);
         }
       }
 
