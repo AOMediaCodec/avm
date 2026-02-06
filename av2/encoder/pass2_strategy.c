@@ -2875,8 +2875,10 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
 
   // Keyframe and section processing.  Note for OLK overlay, frames_to_key ==
   // 0. But we don't want to reset gf group yet, hence the condition
-  // gf_group->index >= gf_group->size.
-  if (rc->frames_to_key <= 0 && gf_group->index >= gf_group->size) {
+  // gf_group->index >= gf_group->size.  Also key_freq_max == 0 is the special
+  // case for all_intra encode, so we just find the next key frame regardless.
+  if (rc->frames_to_key <= 0 &&
+      (gf_group->index >= gf_group->size || oxcf->kf_cfg.key_freq_max == 0)) {
     assert(rc->frames_to_key >= -1);
     FIRSTPASS_STATS this_frame_copy;
     this_frame_copy = this_frame;
