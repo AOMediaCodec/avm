@@ -953,7 +953,7 @@ static void get_temporal_parallel_params(int scalability_mode_idc,
 #define MIN_FRAME_WIDTH 16
 #define MIN_FRAME_HEIGHT 16
 #define MAX_TILE_SIZE_HEADER_RATE_PRODUCT 547430400
-// (557430400 = 3840 * 2160 * 60 * 1.1)
+// (547430400 = 3840 * 2160 * 60 * 1.1)
 
 static TARGET_LEVEL_FAIL_ID check_level_constraints(
     const AV2LevelInfo *const level_info, AV2_LEVEL level, int tier,
@@ -1108,16 +1108,22 @@ static TARGET_LEVEL_FAIL_ID check_level_constraints(
        * to (Tile_Area_Scaling_Factor[ TierIdx ][ LevelIdx ] * 547,430,400 )/ 4.
        * The number of 547,430,400 corresponds to (where this number is the
        * decode luma sample rate of 3840x2160 * 60fps * 1.1).*/
-      const int scaling_factor = Tile_Area_Scaling_Factor[tier_idx][level_idx];
-      const uint64_t max_tile_size_header_rate =
-          (scaling_factor * MAX_TILE_SIZE_HEADER_RATE_PRODUCT) >> 2;
-      if ((uint64_t)val > max_tile_size_header_rate) {
+      if (level_idx != SEQ_LEVEL_MAX) {
+        const int scaling_factor =
+            Tile_Area_Scaling_Factor[tier_idx][level_idx];
+        const uint64_t max_tile_size_header_rate =
+            (scaling_factor * MAX_TILE_SIZE_HEADER_RATE_PRODUCT) >> 2;
+        if ((uint64_t)val > max_tile_size_header_rate) {
+          fail_id = TILE_SIZE_HEADER_RATE_TOO_HIGH;
+          break;
+        }
+      }
 #else
       if (val > MAX_TILE_SIZE_HEADER_RATE_PRODUCT) {
-#endif  // CONFIG_G018
         fail_id = TILE_SIZE_HEADER_RATE_TOO_HIGH;
         break;
       }
+#endif  // CONFIG_G018
     }
 
   } while (0);
