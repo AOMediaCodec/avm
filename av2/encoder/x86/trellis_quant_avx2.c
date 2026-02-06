@@ -945,7 +945,7 @@ void av2_get_rate_dist_def_chroma_avx2(
     int sign, struct tcq_rate_t *rd) {
   (void)bwl;
   const int32_t(*cost_zero)[SIG_COEF_CONTEXTS] = txb_costs->base_cost_uv_zero;
-  const uint16_t(*cost_low_tbl)[SIG_COEF_CONTEXTS][TCQ_CTXS][2] =
+  const uint16_t(*cost_low_tbl)[SIG_COEF_CONTEXTS][2] =
       txb_costs->base_cost_uv_low_tbl;
   const uint16_t(*cost_eob_tbl)[SIG_COEF_CONTEXTS_EOB][2] =
       txb_costs->base_eob_cost_uv_tbl;
