@@ -2117,7 +2117,8 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
     if (obu_header.type == OBU_MSDO) {
       cm->xlayer_id = obu_header.obu_xlayer_id;
     } else {
-      if (cm->xlayer_id == 31) {
+      if (cm->xlayer_id == GLOBAL_XLAYER_ID ||
+          obu_header.obu_xlayer_id == GLOBAL_XLAYER_ID) {
         cm->xlayer_id = obu_header.obu_xlayer_id;
       } else if (cm->xlayer_id != obu_header.obu_xlayer_id) {
         // Store and restore xlayer context
