@@ -131,6 +131,7 @@ if(NOT BUILD_SHARED_LIBS)
       "${AVM_ROOT}/test/lossless_test.cc"
       "${AVM_ROOT}/test/mfh_test.cc"
       "${AVM_ROOT}/test/multi_layer_test.cc"
+      "${AVM_ROOT}/test/multiple_sequence_header_test.cc"
       "${AVM_ROOT}/test/quant_test.cc"
       "${AVM_ROOT}/test/sb_multipass_test.cc"
       "${AVM_ROOT}/test/screen_content_test.cc"
