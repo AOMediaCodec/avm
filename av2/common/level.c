@@ -1027,12 +1027,12 @@ static TARGET_LEVEL_FAIL_ID check_level_constraints(
 
 #if CONFIG_G018
     // check if tile area using scaled limit:
-    // TileWidth * TileHeight <= Tile_Area_Scaling_Factor[tier][level] * 4096 *
-    // 2304/4
+    // TileWidth * TileHeight <= av2_tile_area_scaling_factor[tier][level] *
+    // 4096 * 2304/4
     const int level_idx = target_level_spec->level;
     const int tier_idx = (tier > 0) ? 1 : 0;
     if (level_idx != SEQ_LEVEL_MAX) {
-      int scaling_factor = Tile_Area_Scaling_Factor[tier_idx][level_idx];
+      int scaling_factor = av2_tile_area_scaling_factor[tier_idx][level_idx];
       const uint32_t max_tile_area = (scaling_factor * MAX_TILE_SIZE) >> 2;
       if (level_stats->max_tile_size > (int)max_tile_area) {
         fail_id = TILE_TOO_LARGE;
@@ -1040,8 +1040,9 @@ static TARGET_LEVEL_FAIL_ID check_level_constraints(
       }
 
       // Check tile width using scaled limit
-      // TileWidth <= Tile_Width_Scaling_Factor[tier][level] * MAX_TILE_WIDTH/4
-      scaling_factor = Tile_Width_Scaling_factor[tier_idx][level_idx];
+      // TileWidth <= av2_tile_width_scaling_factor[tier][level] *
+      // MAX_TILE_WIDTH/4
+      scaling_factor = av2_tile_width_scaling_factor[tier_idx][level_idx];
       const int max_tile_width_limit = (scaling_factor * MAX_TILE_WIDTH) >> 2;
       if (level_stats->max_tile_width > max_tile_width_limit) {
         fail_id = TILE_WIDTH_TOO_LARGE;
@@ -1105,12 +1106,12 @@ static TARGET_LEVEL_FAIL_ID check_level_constraints(
                       temporal_parallel_denom / temporal_parallel_num;
 #if CONFIG_G018
       /*MaxTileSizeInLumaSamples * NumFrameHeadersPerSec is less than or equal
-       * to (Tile_Area_Scaling_Factor[ TierIdx ][ LevelIdx ] * 547,430,400 )/ 4.
-       * The number of 547,430,400 corresponds to (where this number is the
-       * decode luma sample rate of 3840x2160 * 60fps * 1.1).*/
+       * to (av2_tile_area_scaling_factor[ TierIdx ][ LevelIdx ] * 547,430,400
+       * )/ 4. The number of 547,430,400 corresponds to (where this number is
+       * the decode luma sample rate of 3840x2160 * 60fps * 1.1).*/
       if (level_idx != SEQ_LEVEL_MAX) {
         const int scaling_factor =
-            Tile_Area_Scaling_Factor[tier_idx][level_idx];
+            av2_tile_area_scaling_factor[tier_idx][level_idx];
         const uint64_t max_tile_size_header_rate =
             (scaling_factor * MAX_TILE_SIZE_HEADER_RATE_PRODUCT) >> 2;
         if ((uint64_t)val > max_tile_size_header_rate) {

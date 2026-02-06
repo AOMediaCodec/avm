@@ -27,7 +27,7 @@ static int get_max_tile_width(int seq_level_idx, int seq_tier, int sb_size_log2,
     return sb_cols;
   }
   const int tier = (seq_tier > 0) ? 1 : 0;
-  const int scaling_factor = Tile_Width_Scaling_factor[tier][seq_level_idx];
+  const int scaling_factor = av2_tile_width_scaling_factor[tier][seq_level_idx];
   return (scaling_factor * MAX_TILE_WIDTH >> (sb_size_log2 + 2));
 }
 
@@ -37,7 +37,7 @@ static int get_max_tile_area(int seq_level_idx, int seq_tier, int sb_size_log2,
     return sb_cols * sb_rows;
   }
   const int tier = (seq_tier > 0) ? 1 : 0;
-  const int scaling_factor = Tile_Area_Scaling_Factor[tier][seq_level_idx];
+  const int scaling_factor = av2_tile_area_scaling_factor[tier][seq_level_idx];
   return (scaling_factor * MAX_TILE_AREA) >> (2 * sb_size_log2 + 2);
 }
 #endif  // CONFIG_G018

@@ -288,8 +288,8 @@ static INLINE int check_tile_constraints(int width, int height,
 
   // Get scaling factor
   const int tier_idx = (tier > 0) ? 1 : 0;
-  const int width_scaling = Tile_Width_Scaling_factor[tier_idx][level];
-  const int area_scaling = Tile_Area_Scaling_Factor[tier_idx][level];
+  const int width_scaling = av2_tile_width_scaling_factor[tier_idx][level];
+  const int area_scaling = av2_tile_area_scaling_factor[tier_idx][level];
 
   // Calculate max tile width and area in pixels for this level/tier
   const int max_tile_width = (width_scaling * MAX_TILE_WIDTH) >> 2;

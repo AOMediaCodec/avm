@@ -18,6 +18,7 @@ extern "C" {
 #endif
 
 #include "config/avm_config.h"
+#include "av2/common/enums.h"
 
 struct AV2Common;
 struct SequenceHeader;
@@ -62,7 +63,7 @@ AV2PixelRect av2_get_tile_rect(const TileInfo *tile_info,
 #if CONFIG_G018
 // Tile width scaling factors for different levels and tiers
 // [tier][lev] - values are multiplexed by MAX_TILE_WIDTH and divided by 4
-static const int Tile_Width_Scaling_factor[2][31] = {
+static const int av2_tile_width_scaling_factor[2][SEQ_LEVEL_MAX] = {
   // Tier 0
   { 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
     4, 4, 4, 4, 4, 4, 4, 4, 8, 8, 8, 8, 0, 0, 0 },  // 28 - 30 reserved
@@ -73,7 +74,7 @@ static const int Tile_Width_Scaling_factor[2][31] = {
 
 // Tile area scaling factors for different levels and tiers
 // [tier][lev] - values are multiplexed by MAX_TILE_WIDTH and divided by 4
-static const int Tile_Area_Scaling_Factor[2][31] = {
+static const int av2_tile_area_scaling_factor[2][SEQ_LEVEL_MAX] = {
   // Tier 0
   { 4, 4, 4, 4, 4, 4, 4, 4, 4,  4,  4,  4,  4, 4, 4, 4,
     4, 4, 4, 4, 8, 8, 8, 8, 16, 16, 16, 16, 0, 0, 0 },  // 28-30 reserved
