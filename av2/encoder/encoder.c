@@ -4382,10 +4382,8 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
   //    gf_group->update_type[gf_group->size] = GF_UPDATE;
   //  }
 
-  if ((!cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames &&
-       cpi->update_type_was_overlay) ||
-      (need_sef_obu_for_hidden_frame(cpi) &&
-       cm->ref_frame_map[cpi->fb_idx_for_overlay]->frame_type == KEY_FRAME)) {
+  if (!cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames &&
+      cpi->update_type_was_overlay) {
     assign_frame_buffer_p(&cm->cur_frame,
                           cm->ref_frame_map[cpi->fb_idx_for_overlay]);
     int enc_olk_fb_idx = 0;
@@ -4426,24 +4424,61 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
     return AVM_CODEC_OK;
   }
 
-  if (need_sef_obu_for_hidden_frame(cpi) &&
-      cm->ref_frame_map[cpi->fb_idx_for_overlay]->frame_type != KEY_FRAME) {
+  if (need_sef_obu_for_hidden_frame(cpi)) {
+    // If this is an olk SEF, reset the buffers except for the olk.
+    int enc_olk_fb_idx = 0;
+    for (int ref_pos = 0; ref_pos < seq_params->ref_frames; ref_pos++) {
+      if ((cm->olk_refresh_frame_flags[cm->mlayer_id] >> ref_pos) & 1) {
+        enc_olk_fb_idx = ref_pos;
+        break;
+      }
+    }
+    if (cpi->olk_encountered &&
+        cm->olk_refresh_frame_flags[cm->mlayer_id] != INVALID_IDX &&
+        enc_olk_fb_idx == cpi->fb_idx_for_overlay) {
+      int ref_flags_to_keep = 0;
+      for (int layer = 0; layer <= seq_params->max_mlayer_id; layer++) {
+        ref_flags_to_keep |= cm->olk_refresh_frame_flags[cm->mlayer_id];
+      }
+      for (int ref_index = 0; ref_index < cm->seq_params.ref_frames;
+           ref_index++) {
+        if (!((ref_flags_to_keep >> ref_index) & 1u)) {
+          if (cm->ref_frame_map[ref_index] != NULL) {
+            --cm->ref_frame_map[ref_index]->ref_count;
+            cm->ref_frame_map[ref_index] = NULL;
+          }
+        }
+      }
+      cpi->is_olk_overlay = 1;
+    } else {
+      cpi->is_olk_overlay = 0;
+    }
+
     // Add SEF_OBU with the display order hint derivation
     cm->show_existing_frame = 1;
     cm->derive_sef_order_hint = 1;
     cm->immediate_output_picture = 1;
     cm->implicit_output_picture = 0;
-    cpi->is_olk_overlay = 0;
     cm->ref_frame_flags = 0;
     cpi->seq_params_locked = 1;
     cm->sef_ref_fb_idx = cpi->fb_idx_for_overlay;
+
+    if (cm->last_olk_disp_order_hint[cm->mlayer_id] >
+        cm->current_frame.display_order_hint) {
+      cm->is_leading_picture = 1;
+    } else {
+      cm->is_leading_picture = 0;
+    }
+
     // Build the bitstream
     int largest_tile_id = 0;  // Output from bitstream: unused here
     av2_finalize_encoded_frame(cpi);
     if (av2_pack_bitstream(cpi, dest, size, &largest_tile_id) != AVM_CODEC_OK)
       return AVM_CODEC_ERROR;
     cpi->last_show_frame_buf = cm->cur_frame;
-    ++current_frame->frame_number;
+    if (!av2_check_keyframe_overlay(cpi->gf_group.index, &cpi->gf_group,
+                                    cpi->rc.frames_since_key))
+      ++current_frame->frame_number;
 
     return AVM_CODEC_OK;
   }
@@ -4515,9 +4550,9 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
     }
   } else {
     if (cm->last_olk_disp_order_hint[cm->mlayer_id] >
-        cm->current_frame.display_order_hint)
+        cm->current_frame.display_order_hint) {
       cm->is_leading_picture = 1;
-    else {
+    } else {
       cm->is_leading_picture = 0;
     }
   }
