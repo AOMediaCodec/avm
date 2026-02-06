@@ -1149,8 +1149,8 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
       cm->olk_refresh_frame_flags[cm->mlayer_id] != INVALID_IDX &&
       cpi->gf_group.index == cpi->gf_group.size - 1) {
     assert(cpi->gf_group.update_type[cpi->gf_group.index] == OVERLAY_UPDATE ||
-      cpi->gf_group.update_type[cpi->gf_group.index] ==
-        KFFLT_OVERLAY_UPDATE);
+           cpi->gf_group.update_type[cpi->gf_group.index] ==
+               KFFLT_OVERLAY_UPDATE);
 
     // This is an OLK KF overlay. We need to clear all references except for the
     // OLK.
@@ -1159,7 +1159,7 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
       ref_flags_to_keep |= cm->olk_refresh_frame_flags[cm->mlayer_id];
     }
     for (int ref_index = 0; ref_index < cm->seq_params.ref_frames;
-                            ref_index++) {
+         ref_index++) {
       if (!((ref_flags_to_keep >> ref_index) & 1u)) {
         if (cm->ref_frame_map[ref_index] != NULL) {
           --cm->ref_frame_map[ref_index]->ref_count;
