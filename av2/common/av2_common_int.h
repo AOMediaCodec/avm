@@ -1075,8 +1075,9 @@ typedef struct SequenceHeader {
   int seq_max_low_delay_mode_flag;
   BITSTREAM_PROFILE seq_profile_idc;
 #if CONFIG_AV2_PROFILES
-  // Maximum number of embedded layers that are supported in the bitstream
-  int seq_max_mlayer_cnt;
+  // Maximum number of embedded layers that are supported in the bitstream minus
+  // 1
+  int seq_max_mlayer_cnt_minus_1;
 #endif  // CONFIG_AV2_PROFILES
 
   // Color config.

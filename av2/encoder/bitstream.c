@@ -6013,7 +6013,7 @@ uint32_t av2_write_sequence_header_obu(const SequenceHeader *seq_params,
 #if CONFIG_AV2_PROFILES
     if (seq_params->max_mlayer_id > 0) {
       int n = avm_ceil_log2(seq_params->max_mlayer_id + 1);
-      avm_wb_write_literal(&wb, seq_params->seq_max_mlayer_cnt, n);
+      avm_wb_write_literal(&wb, seq_params->seq_max_mlayer_cnt_minus_1, n);
     }
 #endif  // CONFIG_AV2_PROFILES
   }

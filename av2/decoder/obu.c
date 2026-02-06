@@ -433,7 +433,7 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
     seq_params->max_tlayer_id = 0;
     seq_params->max_mlayer_id = 0;
 #if CONFIG_AV2_PROFILES
-    seq_params->seq_max_mlayer_cnt = 1;
+    seq_params->seq_max_mlayer_cnt_minus_1 = 0;
 #endif  // CONFIG_AV2_PROFILES
   } else {
     seq_params->max_tlayer_id = avm_rb_read_literal(rb, TLAYER_BITS);
@@ -441,16 +441,15 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
 #if CONFIG_AV2_PROFILES
     if (seq_params->max_mlayer_id > 0) {
       int n = avm_ceil_log2(seq_params->max_mlayer_id + 1);
-      seq_params->seq_max_mlayer_cnt = avm_rb_read_literal(rb, n);
-      if (seq_params->seq_max_mlayer_cnt < 1 ||
-          seq_params->seq_max_mlayer_cnt > seq_params->max_mlayer_id + 1) {
+      seq_params->seq_max_mlayer_cnt_minus_1 = avm_rb_read_literal(rb, n);
+      if (seq_params->seq_max_mlayer_cnt_minus_1 > seq_params->max_mlayer_id) {
         avm_internal_error(
             &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-            "seq_max_mlayer_cnt %d is outside the range of 1 to %d",
-            seq_params->seq_max_mlayer_cnt, seq_params->max_mlayer_id + 1);
+            "seq_max_mlayer_cnt_minus_1 %d is outside the range of 0 to %d",
+            seq_params->seq_max_mlayer_cnt_minus_1, seq_params->max_mlayer_id);
       }
     } else {
-      seq_params->seq_max_mlayer_cnt = 1;
+      seq_params->seq_max_mlayer_cnt_minus_1 = 0;
     }
 #endif  // CONFIG_AV2_PROFILES
   }

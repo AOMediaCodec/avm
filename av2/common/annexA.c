@@ -177,7 +177,7 @@ int av2_check_profile_interop_conformance(
   const BITSTREAM_PROFILE profile = seq_params->seq_profile_idc;
   const avm_bit_depth_t bit_depth = seq_params->bit_depth;
   const uint8_t monochrome = seq_params->monochrome;
-  const int seq_max_mcount = seq_params->seq_max_mlayer_cnt;
+  const int seq_max_mcount = seq_params->seq_max_mlayer_cnt_minus_1 + 1;
 
 #if CONFIG_TESTONLY_12BIT_SUPPORT
   if (profile == TEST_ONLY_12BIT_PROFILE && bit_depth == AVM_BITS_12) return 1;
