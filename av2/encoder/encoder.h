@@ -690,6 +690,10 @@ typedef struct {
   uint8_t sef_with_order_hint_test;
   // Signal multiple sequence header
   uint8_t multi_seq_header_test;
+  // Flag to indicate ref buffer refresh for the multi layers unittests.
+  int use_buffer_refresh_multi_layers_test;
+  // Refresh buffer flags for use in the multi layer unittests.
+  int buffer_refresh_multi_layers_test[REF_FRAMES];
 } UnitTestCfg;
 
 typedef struct {

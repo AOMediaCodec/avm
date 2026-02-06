@@ -187,7 +187,7 @@ class MultiLayerTest : public ::libavm_test::CodecTestWithParam<int>,
   }
 
   bool DoDecode() const override {
-    if (enable_s_frame_) {
+    if (start_decoding_tl1_ > 0) {
       // Drop TL1 until start_decoding_tl_.
       if (layer_frame_cnt_ < start_decoding_tl1_ * num_embedded_layers_ &&
           temporal_layer_id_ == 1)

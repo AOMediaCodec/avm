@@ -237,6 +237,8 @@ struct av2_extracfg {
   unsigned int enable_mfh_obu_signaling;
   int operating_points_count;
   unsigned int cross_frame_cdf_init_mode;
+  int use_buffer_refresh_multi_layers_test;
+  int buffer_refresh_multi_layers_test[REF_FRAMES];
 };
 
 // Example subgop configs. Currently not used by default.
@@ -558,7 +560,9 @@ static struct av2_extracfg default_extra_cfg = {
   0,
   0,  // enable_mfh_obu_signaling
   1,
-  1                            // cross frame CDF init mode
+  1,                            // cross frame CDF init mode
+  0,  // buffer_update_multi_layers_test
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } // buffer_update_multi_layers_test
 };
 // clang-format on
 
@@ -1713,6 +1717,12 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   oxcf->unit_test_cfg.sef_with_order_hint_test =
       extra_cfg->sef_with_order_hint_test;
   oxcf->unit_test_cfg.multi_seq_header_test = extra_cfg->multi_seq_header_test;
+  oxcf->unit_test_cfg.use_buffer_refresh_multi_layers_test =
+      extra_cfg->use_buffer_refresh_multi_layers_test;
+  for (int i = 0; i < REF_FRAMES; i++) {
+    oxcf->unit_test_cfg.buffer_refresh_multi_layers_test[i] =
+        extra_cfg->buffer_refresh_multi_layers_test[i];
+  }
   oxcf->border_in_pixels =
       resize_cfg->resize_mode ? AVM_BORDER_IN_PIXELS : AVM_ENC_NO_SCALE_BORDER;
   memcpy(oxcf->target_seq_level_idx, extra_cfg->target_seq_level_idx,
@@ -2689,13 +2699,14 @@ static avm_codec_err_t ctrl_set_enable_explict_ref_frame_map(
 
 static avm_codec_err_t ctrl_set_enable_buffer_update_test(
     avm_codec_alg_priv_t *ctx, va_list args) {
+  struct av2_extracfg extra_cfg = ctx->extra_cfg;
   avm_buffer_update_test_t *const data =
       va_arg(args, avm_buffer_update_test_t *);
-  ctx->cpi->use_buffer_update_test = 1;
-  for (unsigned int i = 0; i < 8; ++i) {
-    ctx->cpi->buffer_update_test[i] = data->buffer_update_test[i];
+  extra_cfg.use_buffer_refresh_multi_layers_test = 1;
+  for (unsigned int i = 0; i < REF_FRAMES; ++i) {
+    extra_cfg.buffer_refresh_multi_layers_test[i] = data->buffer_update_test[i];
   }
-  return AVM_CODEC_OK;
+  return update_extra_cfg(ctx, &extra_cfg);
 }
 
 static avm_codec_err_t create_stats_buffer(FIRSTPASS_STATS **frame_stats_buffer,

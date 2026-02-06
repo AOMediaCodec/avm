@@ -687,12 +687,13 @@ int av2_get_refresh_frame_flags(
     return refresh_mask;
   }
 
-  if (cpi->use_buffer_update_test) {
+  if (cpi->oxcf.unit_test_cfg.use_buffer_refresh_multi_layers_test) {
     // This logic is currently only called for the tests in
     // multi_layers_tests.cc.
     int refresh_mask_control = 0;
     for (int i = 0; i < cpi->common.seq_params.ref_frames; i++) {
-      refresh_mask_control |= cpi->buffer_update_test[i] << i;
+      refresh_mask_control |=
+          cpi->oxcf.unit_test_cfg.buffer_refresh_multi_layers_test[i] << i;
     }
     return refresh_mask_control;
   }
