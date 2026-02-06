@@ -565,11 +565,6 @@ if(CONFIG_AV2_ENCODER)
       "${AVM_ROOT}/examples/scalable_encoder.c"
       $<TARGET_OBJECTS:avm_common_app_util>
       $<TARGET_OBJECTS:avm_encoder_app_util>)
-    add_executable(
-      multi_layers_encoder
-      "${AVM_ROOT}/examples/multi_layers_encoder.c"
-      $<TARGET_OBJECTS:avm_common_app_util>
-      $<TARGET_OBJECTS:avm_encoder_app_util>)
 
     # Maintain a list of encoder example targets.
     list(
@@ -577,7 +572,6 @@ if(CONFIG_AV2_ENCODER)
       AVM_ENCODER_EXAMPLE_TARGETS
       avmenc
       lossless_encoder
-      multi_layers_encoder
       noise_model
       set_maps
       simple_encoder

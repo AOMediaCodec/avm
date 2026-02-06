@@ -82,16 +82,14 @@ if(CONFIG_AV2_ENCODER)
       ${AVM_DOXYGEN_EXAMPLE_SOURCES}
       "${AVM_ROOT}/apps/avmenc.c"
       "${AVM_ROOT}/examples/lossless_encoder.c"
-      "${AVM_ROOT}/examples/multi_layers_encoder.c"
       "${AVM_ROOT}/examples/set_maps.c"
       "${AVM_ROOT}/examples/simple_encoder.c"
       "${AVM_ROOT}/examples/twopass_encoder.c")
 
   set(AVM_DOXYGEN_EXAMPLE_DESCRIPTIONS
       ${AVM_DOXYGEN_EXAMPLE_DESCRIPTIONS} "Full featured encoder."
-      "Simplified lossless encoder." "Multi layer encoder."
-      "Set active and ROI maps." "Simplified encoder loop."
-      "Two-pass encoder loop.")
+      "Simplified lossless encoder." "Set active and ROI maps."
+      "Simplified encoder loop." "Two-pass encoder loop.")
 
   set(AVM_DOXYGEN_EXAMPLE_SOURCES ${AVM_DOXYGEN_EXAMPLE_SOURCES}
                                   "${AVM_ROOT}/examples/scalable_encoder.c")
