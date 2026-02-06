@@ -952,8 +952,8 @@ static void get_temporal_parallel_params(int scalability_mode_idc,
 #define MAX_TILE_SIZE (4096 * 2304)
 #define MIN_FRAME_WIDTH 16
 #define MIN_FRAME_HEIGHT 16
-#define MAX_TILE_SIZE_HEADER_RATE_PRODUCT 547430400
 // (547430400 = 3840 * 2160 * 60 * 1.1)
+#define MAX_TILE_SIZE_HEADER_RATE_PRODUCT 547430400
 
 static TARGET_LEVEL_FAIL_ID check_level_constraints(
     const AV2LevelInfo *const level_info, AV2_LEVEL level, int tier,
