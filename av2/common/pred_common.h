@@ -305,7 +305,7 @@ static INLINE int get_segment_id(const CommonModeInfoParams *const mi_params,
 
 static INLINE int av2_get_spatial_seg_pred(const AV2_COMMON *const cm,
                                            const MACROBLOCKD *const xd,
-                                           int *cdf_index) {
+                                           int *cdf_index, int rd) {
   int prev_ul = -1;  // top left segment_id
   int prev_l = -1;   // left segment_id
   int prev_u = -1;   // top segment_id
@@ -315,16 +315,28 @@ static INLINE int av2_get_spatial_seg_pred(const AV2_COMMON *const cm,
   const uint8_t *seg_map = cm->cur_frame->seg_map;
 
   if ((xd->up_available) && (xd->left_available)) {
-    prev_ul =
-        get_segment_id(mi_params, seg_map, BLOCK_4X4, mi_row - 1, mi_col - 1);
+    prev_ul = rd ? mi_params
+                       ->mi_grid_base[(mi_row - 1) * mi_params->mi_stride +
+                                      (mi_col - 1)]
+                       ->segment_id
+                 : get_segment_id(mi_params, seg_map, BLOCK_4X4, mi_row - 1,
+                                  mi_col - 1);
   }
   if (xd->up_available) {
-    prev_u =
-        get_segment_id(mi_params, seg_map, BLOCK_4X4, mi_row - 1, mi_col - 0);
+    prev_u = rd ? mi_params
+                      ->mi_grid_base[(mi_row - 1) * mi_params->mi_stride +
+                                     (mi_col - 0)]
+                      ->segment_id
+                : get_segment_id(mi_params, seg_map, BLOCK_4X4, mi_row - 1,
+                                 mi_col - 0);
   }
   if (xd->left_available) {
-    prev_l =
-        get_segment_id(mi_params, seg_map, BLOCK_4X4, mi_row - 0, mi_col - 1);
+    prev_l = rd ? mi_params
+                      ->mi_grid_base[(mi_row - 0) * mi_params->mi_stride +
+                                     (mi_col - 1)]
+                      ->segment_id
+                : get_segment_id(mi_params, seg_map, BLOCK_4X4, mi_row - 0,
+                                 mi_col - 1);
   }
   // This property follows from the fact that get_segment_id() returns a
   // nonnegative value. This allows us to test for all edge cases with a simple

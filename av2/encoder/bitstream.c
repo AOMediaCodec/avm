@@ -742,7 +742,7 @@ static AVM_INLINE void write_segment_id(AV2_COMP *cpi,
   AV2_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &cpi->td.mb.e_mbd;
   int cdf_num;
-  const int pred = av2_get_spatial_seg_pred(cm, xd, &cdf_num);
+  const int pred = av2_get_spatial_seg_pred(cm, xd, &cdf_num, 0);
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
 

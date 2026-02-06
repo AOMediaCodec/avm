@@ -820,7 +820,7 @@ int av2_neg_deinterleave(int diff, int ref, int max) {
 static int read_segment_id(AV2_COMMON *const cm, const MACROBLOCKD *const xd,
                            avm_reader *r, int skip) {
   int cdf_num;
-  const int pred = av2_get_spatial_seg_pred(cm, xd, &cdf_num);
+  const int pred = av2_get_spatial_seg_pred(cm, xd, &cdf_num, 0);
   if (skip && !cm->features.has_lossless_segment) return pred;
 
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;

@@ -1226,39 +1226,6 @@ void av2_encode_sby_pass1(AV2_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize) {
                                          encode_block_pass1, &args);
 }
 
-static INLINE int av2_get_mbmi_seg_pred(const AV2_COMMON *const cm,
-                                        const MACROBLOCKD *const xd) {
-  int prev_ul = -1;  // top left segment_id
-  int prev_l = -1;   // left segment_id
-  int prev_u = -1;   // top segment_id
-  const int mi_row = xd->mi_row;
-  const int mi_col = xd->mi_col;
-  const CommonModeInfoParams *const mi_params = &cm->mi_params;
-
-  if ((xd->up_available) && (xd->left_available)) {
-    MB_MODE_INFO **mi = mi_params->mi_grid_base +
-                        (mi_row - 1) * mi_params->mi_stride + (mi_col - 1);
-    prev_ul = mi[0]->segment_id;
-  }
-  if (xd->up_available) {
-    MB_MODE_INFO **mi = mi_params->mi_grid_base +
-                        (mi_row - 1) * mi_params->mi_stride + (mi_col - 0);
-    prev_u = mi[0]->segment_id;
-  }
-  if (xd->left_available) {
-    MB_MODE_INFO **mi = mi_params->mi_grid_base +
-                        mi_params->mi_stride * (mi_row - 0) + (mi_col - 1);
-    prev_l = mi[0]->segment_id;
-  }
-
-  // If 2 or more are identical returns that as predictor, otherwise prev_l.
-  if (prev_u == -1)  // edge case
-    return prev_l == -1 ? 0 : prev_l;
-  if (prev_l == -1)  // edge case
-    return prev_u;
-  return (prev_ul == prev_u) ? prev_u : prev_l;
-}
-
 void av2_encode_sb(const struct AV2_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
                    RUN_TYPE dry_run, int plane_start, int plane_end) {
   (void)bsize;
@@ -1288,7 +1255,8 @@ void av2_encode_sb(const struct AV2_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
       if (mbmi->skip_txfm[xd->tree_type == CHROMA_PART] &&
           !cm->features.has_lossless_segment) {
         assert(is_inter_block(mbmi, xd->tree_type));
-        int pred = av2_get_mbmi_seg_pred(cm, xd);
+        int cdf_num;
+        int pred = av2_get_spatial_seg_pred(cm, xd, &cdf_num, 1);
         mbmi->segment_id = pred;
         int seg_qindex =
             av2_get_qindex(&cm->seg, mbmi->segment_id, current_base_qindex,
