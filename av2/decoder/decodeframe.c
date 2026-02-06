@@ -8439,19 +8439,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     }
   }
 
-  if (cm->seq_params.seq_max_level_idx < SEQ_LEVELS) {
-    const int max_legal_ref_frames = av2_get_max_level_ref_frames(
-        cm, obu_type, cm->seq_params.seq_max_level_idx);
-    if (cm->seq_params.ref_frames > max_legal_ref_frames) {
-      avm_internal_error(
-          &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-          "The maximum number of reference frames shall not be "
-          "greater than %d, yet the bitstream indicates that the "
-          "maximum decoded picture buffer size is equal to %d.\n",
-          max_legal_ref_frames, cm->seq_params.ref_frames);
-    }
-  }
-
   av2_setup_frame_buf_refs(cm);
 
   av2_setup_frame_sign_bias(cm);
@@ -9024,6 +9011,21 @@ int32_t av2_read_tilegroup_header(
     } else {
       uint32_t uncomp_hdr_start_point = rb->bit_offset;
       read_uncompressed_header(pbi, obu_type, rb);
+
+      // Conformance check for the number of reference frames
+      if (cm->seq_params.seq_max_level_idx < SEQ_LEVELS) {
+        const int max_legal_ref_frames = av2_get_max_level_ref_frames(
+            cm, obu_type, cm->seq_params.seq_max_level_idx);
+        if (cm->seq_params.ref_frames > max_legal_ref_frames) {
+          avm_internal_error(
+              &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+              "The maximum number of reference frames shall not be "
+              "greater than %d, yet the bitstream indicates that the "
+              "maximum decoded picture buffer size is equal to %d.\n",
+              max_legal_ref_frames, cm->seq_params.ref_frames);
+        }
+      }
+
       pbi->uncomp_hdr_size_in_bits = rb->bit_offset - uncomp_hdr_start_point;
     }
   }
