@@ -339,6 +339,7 @@ typedef struct RefCntBuffer {
    * using the show_existing_frame mechanism.
    */
   int implicit_output_picture;
+  int allow_direct_use;
 
   bool frame_output_done;  // 0: frame is not yet output 1: frame is already
                            // output
@@ -2384,6 +2385,10 @@ typedef struct AV2Common {
    * using the show_existing_frame mechanism.
    */
   int implicit_output_picture;
+  /*!
+   * Allow to directly re-use this coding frame
+   */
+  int allow_direct_use;
   /*!
    * index in the cm->ref_frame_map for the reference frame of duplicated frame
    */

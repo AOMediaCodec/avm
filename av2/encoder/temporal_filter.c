@@ -1241,6 +1241,7 @@ int av2_temporal_filter(AV2_COMP *cpi, const int filter_frame_lookahead_idx,
   // ARFs except the second ARF to be zero. We should investigate in which case
   // it is more beneficial to use non-zero strength filtering.
   if (update_type == INTNL_ARF_UPDATE && !is_second_arf) {
+    cpi->common.allow_direct_use = 1;
     return 0;
   }
 
@@ -1256,13 +1257,13 @@ int av2_temporal_filter(AV2_COMP *cpi, const int filter_frame_lookahead_idx,
   assert(filter_frame_idx < num_frames_for_filtering);
 
   // Set showable frame.
-  cpi->common.implicit_output_picture =
-      num_frames_for_filtering == 1 || is_second_arf ||
-      (cpi->oxcf.algo_cfg.enable_overlay == 0);
+  cpi->common.allow_direct_use = num_frames_for_filtering == 1 ||
+                                 is_second_arf ||
+                                 (cpi->oxcf.algo_cfg.enable_overlay == 0);
 
   if (gf_group->update_type[gf_group->index] == KFFLT_UPDATE ||
       (cpi->no_show_fwd_kf && cpi->oxcf.kf_cfg.enable_keyframe_filtering > 1))
-    cpi->common.implicit_output_picture = 0;
+    cpi->common.allow_direct_use = 0;
 
   // Do filtering.
   const int is_key_frame = (filter_frame_lookahead_idx <= 0);
@@ -1318,7 +1319,7 @@ int av2_temporal_filter(AV2_COMP *cpi, const int filter_frame_lookahead_idx,
         *show_existing_arf = 1;
       }
 #endif  //! CONFIG_MIXED_LOSSLESS_ENCODE
-      cpi->common.implicit_output_picture |= *show_existing_arf;
+      cpi->common.allow_direct_use |= *show_existing_arf;
     } else {
       if (show_existing_arf) *show_existing_arf = 0;
       // Use source frame if the filtered frame becomes very different.

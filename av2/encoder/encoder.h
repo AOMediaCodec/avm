@@ -1030,9 +1030,6 @@ typedef struct {
   //   gf_cfg->gf_min_pyr_height, subgop config etc, and the qualities may still
   //   emulate 'layers'.
   int max_layer_depth_allowed;
-  // Flag to indicate if the frame of type OVERLAY_UPDATE in the current GF
-  // interval shows existing alt-ref frame
-  int show_existing_alt_ref;
   // This is currently only populated for AVM_Q mode
   unsigned char q_val[MAX_STATIC_GF_GROUP_LENGTH];
   int bit_allocation[MAX_STATIC_GF_GROUP_LENGTH];

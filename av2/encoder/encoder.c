@@ -4459,6 +4459,7 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
     cm->derive_sef_order_hint = 1;
     cm->immediate_output_picture = 1;
     cm->implicit_output_picture = 0;
+    cm->allow_direct_use = 0;
     cm->ref_frame_flags = 0;
     cpi->seq_params_locked = 1;
     cm->sef_ref_fb_idx = cpi->fb_idx_for_overlay;
@@ -4927,6 +4928,7 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
         cm->current_frame.absolute_poc = 0;
         cm->immediate_output_picture = 0;
         cm->implicit_output_picture = 0;
+        cm->allow_direct_use = 0;
         cm->show_existing_frame = 0;
         cm->sef_ref_fb_idx = 0;
         cm->current_frame.order_hint = 0;
@@ -5195,6 +5197,7 @@ int av2_get_compressed_data(AV2_COMP *cpi, unsigned int *frame_flags,
   AV2_COMMON *const cm = &cpi->common;
   cm->cur_mfh_id = oxcf->tool_cfg.enable_mfh_obu_signaling ? 1 : 0;
   cm->implicit_output_picture = 0;
+  cm->allow_direct_use = 0;
   *size = 0;
 #if CONFIG_INTERNAL_STATS
   struct avm_usec_timer cmptimer;

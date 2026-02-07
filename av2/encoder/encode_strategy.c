@@ -165,30 +165,6 @@ static INLINE void update_gf_group_index(AV2_COMP *cpi) {
   // originally encoded.
   ++cpi->gf_group.index;
 }
-// Update show_existing_alt_ref flag
-// for frames of type OVERLAY_UPDATE in the
-//  current GF interval
-static INLINE void set_show_existing_alt_ref(GF_GROUP *const gf_group,
-                                             int apply_filtering,
-                                             int enable_overlay,
-                                             int show_existing_alt_ref,
-                                             int is_filtered_kf) {
-  if (get_frame_update_type(gf_group) != ARF_UPDATE &&
-      get_frame_update_type(gf_group) != KFFLT_UPDATE)
-    return;
-
-  if (is_filtered_kf) {
-    // Key overlay is always used to ensure good visual quality.
-    gf_group->show_existing_alt_ref = 0;
-    return;
-  }
-
-  if (!enable_overlay)
-    gf_group->show_existing_alt_ref = 1;
-  else
-    gf_group->show_existing_alt_ref =
-        apply_filtering ? show_existing_alt_ref : 1;
-}
 
 static void update_rc_counts(AV2_COMP *cpi) {
   update_keyframe_counters(cpi);
@@ -461,9 +437,11 @@ static struct lookahead_entry *choose_frame_source(
     source =
         av2_lookahead_peek(cpi->lookahead, src_index, cpi->compressor_stage);
     if (source != NULL) {
-      cm->implicit_output_picture = 1;
+      cm->allow_direct_use = 1;
       if (gf_group->update_type[gf_group->index] == KFFLT_UPDATE)
-        cm->implicit_output_picture = 0;
+        cm->allow_direct_use = 0;
+
+      cm->implicit_output_picture = cm->allow_direct_use;
     }
   }
   return source;
@@ -775,6 +753,8 @@ static int denoise_and_encode(AV2_COMP *const cpi, uint8_t *const dest,
   AV2_COMMON *const cm = &cpi->common;
   const GF_GROUP *const gf_group = &cpi->gf_group;
 
+  cm->cur_frame->allow_direct_use = 0;
+
   // Decide whether to apply temporal filtering to the source frame.
   int apply_filtering = 0;
   int arf_src_index = -1;
@@ -857,8 +837,10 @@ static int denoise_and_encode(AV2_COMP *const cpi, uint8_t *const dest,
     cm->current_frame.frame_type = frame_params->frame_type;
     const int code_arf =
         av2_temporal_filter(cpi, arf_src_index, &show_existing_alt_ref);
+
+    cm->implicit_output_picture = cm->allow_direct_use;
     if (cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames) {
-      cpi->common.implicit_output_picture = 0;
+      cm->implicit_output_picture = 0;
     }
 
     if (code_arf) {
@@ -869,13 +851,8 @@ static int denoise_and_encode(AV2_COMP *const cpi, uint8_t *const dest,
     }
   }
 
-  int is_filtered_kf =
-      get_frame_update_type(gf_group) == KFFLT_UPDATE ||
-      (cpi->no_show_fwd_kf && cpi->oxcf.kf_cfg.enable_keyframe_filtering > 1);
+  cm->cur_frame->allow_direct_use = cm->allow_direct_use;
 
-  set_show_existing_alt_ref(&cpi->gf_group, apply_filtering,
-                            oxcf->algo_cfg.enable_overlay,
-                            show_existing_alt_ref, is_filtered_kf);
   // perform tpl after filtering
   int allow_tpl = oxcf->gf_cfg.lag_in_frames > 1 &&
                   !is_stat_generation_stage(cpi) &&
@@ -954,45 +931,10 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
   }
 
   if (!is_stat_generation_stage(cpi)) {
-    // If this is a forward keyframe, mark as a show_existing_frame
-    // TODO(bohanli): find a consistent condition for fwd keyframes
     frame_params.frame_params_obu_type = NUM_OBU_TYPES;
-    if (oxcf->kf_cfg.fwd_kf_enabled &&
-        (gf_group->index == (gf_group->size - 1)) &&
-        (gf_group->update_type[gf_group->index] == OVERLAY_UPDATE ||
-         gf_group->update_type[gf_group->index] == KFFLT_OVERLAY_UPDATE) &&
-        gf_group->arf_index >= 0 && cpi->rc.frames_to_key == 0) {
-      if (gf_group->show_existing_alt_ref) {
-        frame_params.frame_params_update_type_was_overlay = 1;
-        // NOTE: this is NOT OBU_OLK but the overlay at the end of the group
-        //  pointing an OLK
-        frame_params.frame_params_obu_type = OBU_OLK;
-      } else {
-        // This is a olk kf overlay, but not show_existing
-        frame_params.frame_params_update_type_was_overlay = 0;
-      }
-    } else {
-      frame_params.frame_params_update_type_was_overlay =
-          (gf_group->show_existing_alt_ref &&
-           (gf_group->update_type[gf_group->index] == OVERLAY_UPDATE ||
-            gf_group->update_type[gf_group->index] == KFFLT_OVERLAY_UPDATE)) ||
-          gf_group->update_type[gf_group->index] == INTNL_OVERLAY_UPDATE;
-    }
-    frame_params.frame_params_update_type_was_overlay &=
-        allow_show_existing(cpi, *frame_flags);
-
-    // Reset show_existing_alt_ref decision to 0 after it is used.
-    if (gf_group->update_type[gf_group->index] == OVERLAY_UPDATE ||
-        gf_group->update_type[gf_group->index] == KFFLT_OVERLAY_UPDATE) {
-      gf_group->show_existing_alt_ref = 0;
-    }
-  } else {
-    frame_params.frame_params_update_type_was_overlay = 0;
-  }
-
-  if (!is_stat_generation_stage(cpi)) {
     av2_get_second_pass_params(cpi, &frame_params);
   }
+
   frame_params.duplicate_existing_frame = 0;
   if (cpi->oxcf.unit_test_cfg.sef_with_order_hint_test) {
     frame_params.duplicate_existing_frame =
@@ -1105,8 +1047,10 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
     cm->implicit_output_picture = 0;
   }
 
-  if (frame_params.frame_type == KEY_FRAME && !cpi->no_show_fwd_kf)
+  if (frame_params.frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) {
+    cm->allow_direct_use = 0;
     cm->implicit_output_picture = 0;
+  }
 
 #if CONFIG_MISMATCH_DEBUG
   if (has_no_stats_stage(cpi)) {
@@ -1301,16 +1245,50 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
         cur_frame_disp, cm->ref_frame_map_pairs);
     frame_params.fb_idx_for_overlay = INVALID_IDX;
 
-    if (frame_params.frame_params_update_type_was_overlay) {
-      for (int frame = 0; frame < cm->seq_params.ref_frames; frame++) {
-        const RefCntBuffer *const buf = cm->ref_frame_map[frame];
-        if (buf == NULL) continue;
-        const int frame_order = cpi->oxcf.kf_cfg.sframe_dist != 0
-                                    ? (int)buf->display_order_hint_restricted
-                                    : (int)buf->display_order_hint;
-        if (frame_order == cur_frame_disp)
-          frame_params.fb_idx_for_overlay = frame;
+    for (int frame = 0; frame < cm->seq_params.ref_frames; frame++) {
+      const RefCntBuffer *const buf = cm->ref_frame_map[frame];
+      if (buf == NULL) continue;
+      const int frame_order = cpi->oxcf.kf_cfg.sframe_dist != 0
+                                  ? (int)buf->display_order_hint_restricted
+                                  : (int)buf->display_order_hint;
+      if (frame_order == cur_frame_disp)
+        frame_params.fb_idx_for_overlay = frame;
+    }
+
+    if (!is_stat_generation_stage(cpi)) {
+      int allow_direct_use = 0;
+      if (frame_params.fb_idx_for_overlay != INVALID_IDX)
+        allow_direct_use = cm->ref_frame_map[frame_params.fb_idx_for_overlay]
+                               ->allow_direct_use;
+
+      // If this is a forward keyframe, mark as a show_existing_frame
+      // TODO(bohanli): find a consistent condition for fwd keyframes
+      if (oxcf->kf_cfg.fwd_kf_enabled &&
+          (gf_group->index == (gf_group->size - 1)) &&
+          (gf_group->update_type[gf_group->index] == OVERLAY_UPDATE ||
+           gf_group->update_type[gf_group->index] == KFFLT_OVERLAY_UPDATE) &&
+          gf_group->arf_index >= 0 && cpi->rc.frames_to_key == 0) {
+        if (allow_direct_use) {
+          frame_params.frame_params_update_type_was_overlay = 1;
+          // NOTE: this is NOT OBU_OLK but the overlay at the end of the group
+          //  pointing an OLK
+          frame_params.frame_params_obu_type = OBU_OLK;
+        } else {
+          // This is a olk kf overlay, but not show_existing
+          frame_params.frame_params_update_type_was_overlay = 0;
+        }
+      } else {
+        frame_params.frame_params_update_type_was_overlay =
+            (allow_direct_use &&
+             (gf_group->update_type[gf_group->index] == OVERLAY_UPDATE ||
+              gf_group->update_type[gf_group->index] ==
+                  KFFLT_OVERLAY_UPDATE)) ||
+            gf_group->update_type[gf_group->index] == INTNL_OVERLAY_UPDATE;
       }
+      frame_params.frame_params_update_type_was_overlay &=
+          allow_show_existing(cpi, *frame_flags);
+    } else {
+      frame_params.frame_params_update_type_was_overlay = 0;
     }
   }
 
