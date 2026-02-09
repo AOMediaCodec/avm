@@ -7143,7 +7143,7 @@ static void activate_atlas_segment(AV2Decoder *pbi) {
   int atas_lcr_id = cm->lcr_params.is_local_lcr
                         ? cm->lcr_params.lcr_local_atlas_id[xlayer_id]
                         : cm->lcr_params.lcr_global_atlas_id;
-  for (int i = 0; i < pbi->atlas_counter; i++) {
+  for (int i = 0; i < pbi->atlas_counter[xlayer_id]; i++) {
     if (pbi->atlas_list[xlayer_id][i].atlas_segment_id == atas_lcr_id) {
       pbi->active_atlas_segment_info = &pbi->atlas_list[xlayer_id][i];
       atlas_found = true;

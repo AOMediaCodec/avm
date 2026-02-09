@@ -254,7 +254,7 @@ uint32_t av2_read_atlas_segment_info_obu(struct AV2Decoder *pbi,
   int atlas_segment_id = avm_rb_read_literal(rb, ATLAS_SEG_ID_BITS);
   struct AtlasSegmentInfo *atlas_params = NULL;
   int atlas_pos = -1;
-  for (int i = 0; i < pbi->atlas_counter; i++) {
+  for (int i = 0; i < pbi->atlas_counter[obu_xLayer_id]; i++) {
     if (pbi->atlas_list[obu_xLayer_id][i].atlas_segment_id ==
         atlas_segment_id) {
       atlas_pos = i;
@@ -264,9 +264,11 @@ uint32_t av2_read_atlas_segment_info_obu(struct AV2Decoder *pbi,
   if (atlas_pos != -1) {
     atlas_params = &pbi->atlas_list[obu_xLayer_id][atlas_pos];
   } else {
-    const int idx = AVMMIN(pbi->atlas_counter, MAX_NUM_ATLAS_SEG_ID - 1);
+    const int idx =
+        AVMMIN(pbi->atlas_counter[obu_xLayer_id], MAX_NUM_ATLAS_SEG_ID - 1);
     atlas_params = &pbi->atlas_list[obu_xLayer_id][idx];
-    pbi->atlas_counter = AVMMIN(pbi->atlas_counter + 1, MAX_NUM_ATLAS_SEG_ID);
+    pbi->atlas_counter[obu_xLayer_id] =
+        AVMMIN(pbi->atlas_counter[obu_xLayer_id] + 1, MAX_NUM_ATLAS_SEG_ID);
     atlas_params->ats_basic_info = &atlas_params->ats_basic_info_s;
   }
 

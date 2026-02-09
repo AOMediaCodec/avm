@@ -209,7 +209,7 @@ static void store_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
     pbi->stream_info[xlayer_id].atlas_list_buf[i] =
         pbi->atlas_list[xlayer_id][i];
   }
-  pbi->stream_info[xlayer_id].atlas_counter_buf = pbi->atlas_counter;
+  pbi->stream_info[xlayer_id].atlas_counter_buf = pbi->atlas_counter[xlayer_id];
   for (int i = 0; i < MAX_NUM_OPS_ID; i++) {
     pbi->stream_info[xlayer_id].ops_list_buf[i] = pbi->ops_list[i];
   }
@@ -262,7 +262,7 @@ static void restore_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
     pbi->atlas_list[xlayer_id][i] =
         pbi->stream_info[xlayer_id].atlas_list_buf[i];
   }
-  pbi->atlas_counter = pbi->stream_info[xlayer_id].atlas_counter_buf;
+  pbi->atlas_counter[xlayer_id] = pbi->stream_info[xlayer_id].atlas_counter_buf;
   for (int i = 0; i < MAX_NUM_OPS_ID; i++) {
     pbi->ops_list[i] = pbi->stream_info[xlayer_id].ops_list_buf[i];
   }
