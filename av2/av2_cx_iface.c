@@ -561,7 +561,7 @@ static struct av2_extracfg default_extra_cfg = {
   0,  // enable_mfh_obu_signaling
   1,
   1,                            // cross frame CDF init mode
-  0,  // buffer_update_multi_layers_test
+  0,  // use_buffer_refresh_multi_layers_test
   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } // buffer_update_multi_layers_test
 };
 // clang-format on
