@@ -6847,6 +6847,8 @@ static void set_primary_ref_frame_and_ctx(AV2Decoder *pbi) {
 
     if (!pbi->signal_primary_ref_frame) {
       features->primary_ref_frame = features->derived_primary_ref_frame;
+    } else {
+      features->derived_primary_ref_frame = features->primary_ref_frame;
     }
   }
 
@@ -7817,6 +7819,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
         if (signal_primary_ref_frame) {
           features->primary_ref_frame =
               avm_rb_read_literal(rb, PRIMARY_REF_BITS);
+          features->derived_primary_ref_frame = features->primary_ref_frame;
         }
       }
     }
