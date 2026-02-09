@@ -14,6 +14,7 @@
 #define AVM_AV2_DECODER_OBU_H_
 
 #include "avm/avm_codec.h"
+#include "avm_dsp/bitreader_buffer.h"
 #include "av2/decoder/decoder.h"
 
 // Try to decode one frame from a buffer.
@@ -98,5 +99,10 @@ bool conformance_check_msdo_lcr(struct AV2Decoder *pbi, int num_extended_layers,
                                 bool global_lcr_present,
                                 bool local_lcr_present);
 #endif  // CONFIG_AV2_PROFILES
+
+void av2_read_color_info(int *color_description_idc, int *color_primaries,
+                         int *transfer_characteristics,
+                         int *matrix_coefficients, int *full_range_flag,
+                         struct avm_read_bit_buffer *rb);
 
 #endif  // AVM_AV2_DECODER_OBU_H_

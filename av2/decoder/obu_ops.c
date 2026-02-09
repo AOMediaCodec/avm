@@ -53,25 +53,12 @@ static void read_ops_mlayer_info(int obuXLId, int opsID, int opIndex, int xLId,
 static void read_ops_color_info(struct OpsColorInfo *opsColInfo,
                                 int obu_xlayer_id, int ops_id, int ops_idx,
                                 struct avm_read_bit_buffer *rb) {
-  // ops_color_description_idc: indicates the combination of color primaries,
-  // transfer characteristics and matrix coefficients as defined in CWG-F270.
-  // The value of color_description_idc shall be in the range of 0 to 15,
-  // inclusive. Values larger than 4 are reserved for future use by AOMedia and
-  // should be ignored by decoders conforming to this version of this
-  // specification.
-  opsColInfo->ops_color_description_idc[obu_xlayer_id][ops_id][ops_idx] =
-      avm_rb_read_rice_golomb(rb, 2);
-  if (opsColInfo->ops_color_description_idc[obu_xlayer_id][ops_id][ops_idx] ==
-      0) {
-    opsColInfo->ops_color_primaries[obu_xlayer_id][ops_id][ops_idx] =
-        avm_rb_read_literal(rb, 8);
-    opsColInfo->ops_transfer_characteristics[obu_xlayer_id][ops_id][ops_idx] =
-        avm_rb_read_literal(rb, 8);
-    opsColInfo->ops_matrix_coefficients[obu_xlayer_id][ops_id][ops_idx] =
-        avm_rb_read_literal(rb, 8);
-  }
-  opsColInfo->ops_full_range_flag[obu_xlayer_id][ops_id][ops_idx] =
-      avm_rb_read_bit(rb);
+  av2_read_color_info(
+      &opsColInfo->ops_color_description_idc[obu_xlayer_id][ops_id][ops_idx],
+      &opsColInfo->ops_color_primaries[obu_xlayer_id][ops_id][ops_idx],
+      &opsColInfo->ops_transfer_characteristics[obu_xlayer_id][ops_id][ops_idx],
+      &opsColInfo->ops_matrix_coefficients[obu_xlayer_id][ops_id][ops_idx],
+      &opsColInfo->ops_full_range_flag[obu_xlayer_id][ops_id][ops_idx], rb);
 }
 
 static void read_ops_decoder_model_info(

@@ -36,27 +36,15 @@ static int read_lcr_profile_tier_level(int isGlobal, int xId) {
   return 0;
 }
 
-static int read_lcr_xlayer_color_info(struct AV2Decoder *pbi, int isGlobal,
-                                      int xId, struct avm_read_bit_buffer *rb) {
+static void read_lcr_xlayer_color_info(struct AV2Decoder *pbi, int isGlobal,
+                                       int xId,
+                                       struct avm_read_bit_buffer *rb) {
   struct XLayerColorInfo *xlayer = &pbi->common.lcr_params.xlayer_col_params;
-  // layer_color_description_idc: indicates the combination of color primaries,
-  // transfer characteristics and matrix coefficients as defined in CWG-F270.
-  // The value of color_description_idc shall be in the range of 0 to 15,
-  // inclusive. Values larger than 4 are reserved for future use by AOMedia and
-  // should be ignored by decoders conforming to this version of this
-  // specification.
-  xlayer->layer_color_description_idc[isGlobal][xId] =
-      avm_rb_read_rice_golomb(rb, 2);
-  if (xlayer->layer_color_description_idc[isGlobal][xId] == 0) {
-    xlayer->layer_color_primaries[isGlobal][xId] = avm_rb_read_literal(rb, 8);
-    xlayer->layer_transfer_characteristics[isGlobal][xId] =
-        avm_rb_read_literal(rb, 8);
-    xlayer->layer_matrix_coefficients[isGlobal][xId] =
-        avm_rb_read_literal(rb, 8);
-  }
-  xlayer->layer_full_range_flag[isGlobal][xId] = avm_rb_read_bit(rb);
-
-  return 0;
+  av2_read_color_info(&xlayer->layer_color_description_idc[isGlobal][xId],
+                      &xlayer->layer_color_primaries[isGlobal][xId],
+                      &xlayer->layer_transfer_characteristics[isGlobal][xId],
+                      &xlayer->layer_matrix_coefficients[isGlobal][xId],
+                      &xlayer->layer_full_range_flag[isGlobal][xId], rb);
 }
 
 static int read_lcr_embedded_layer_info(

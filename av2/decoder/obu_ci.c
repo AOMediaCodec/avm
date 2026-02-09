@@ -25,7 +25,7 @@
 #include "av2/decoder/obu.h"
 #include "av2/common/av2_common_int.h"
 
-static void av2_set_color_info(ContentInterpretation *ci_params) {
+static void set_ci_color_info(ContentInterpretation *ci_params) {
   assert(ci_params->color_info.color_description_idc !=
          AVM_COLOR_DESC_IDC_EXPLICIT);
   switch (ci_params->color_info.color_description_idc) {
@@ -137,21 +137,20 @@ static int av2_set_sar_info(ContentInterpretation *ci_params) {
   return supported_sample_aspect_ratio;
 }
 
-static INLINE void av2_read_color_info(struct ContentInterpretation *ci_params,
-                                       struct avm_read_bit_buffer *rb) {
+static INLINE void read_ci_color_info(struct ContentInterpretation *ci_params,
+                                      struct avm_read_bit_buffer *rb) {
   ColorInfo *col_info = &ci_params->color_info;
-  col_info->color_description_idc = avm_rb_read_rice_golomb(rb, 2);
-
-  if (col_info->color_description_idc == AVM_COLOR_DESC_IDC_EXPLICIT) {
-    col_info->color_primaries = avm_rb_read_literal(rb, 8);
-    col_info->transfer_characteristics = avm_rb_read_literal(rb, 8);
-    col_info->matrix_coefficients = avm_rb_read_literal(rb, 8);
-  } else {
-    col_info->color_primaries = AVM_CICP_CP_UNSPECIFIED;
-    col_info->transfer_characteristics = AVM_CICP_TC_UNSPECIFIED;
-    col_info->matrix_coefficients = AVM_CICP_MC_UNSPECIFIED;
-  }
-  col_info->full_range_flag = avm_rb_read_bit(rb);
+  int color_primaries;
+  int transfer_characteristics;
+  int matrix_coefficients;
+  av2_read_color_info(&col_info->color_description_idc, &color_primaries,
+                      &transfer_characteristics, &matrix_coefficients,
+                      &col_info->full_range_flag, rb);
+  col_info->color_primaries = (avm_color_primaries_t)color_primaries;
+  col_info->transfer_characteristics =
+      (avm_transfer_characteristics_t)transfer_characteristics;
+  col_info->matrix_coefficients =
+      (avm_matrix_coefficients_t)matrix_coefficients;
 }
 
 static INLINE void av2_read_sample_aspect_ratio_information(
@@ -198,9 +197,9 @@ uint32_t av2_read_content_interpretation_obu(struct AV2Decoder *pbi,
   (void)avm_rb_read_literal(rb, 2);  // ci_reserved_2bit
 
   if (ci_temp.ci_color_description_present_flag) {
-    av2_read_color_info(&ci_temp, rb);
+    read_ci_color_info(&ci_temp, rb);
     if (ci_temp.color_info.color_description_idc != AVM_COLOR_DESC_IDC_EXPLICIT)
-      av2_set_color_info(&ci_temp);
+      set_ci_color_info(&ci_temp);
   } else {
     ci_temp.color_info.color_primaries = AVM_CICP_CP_UNSPECIFIED;
     ci_temp.color_info.matrix_coefficients = AVM_CICP_MC_UNSPECIFIED;

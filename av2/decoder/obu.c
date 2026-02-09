@@ -125,6 +125,30 @@ int are_seq_headers_consistent(const SequenceHeader *seq_params_old,
                  offsetof(SequenceHeader, op_params));
 }
 
+void av2_read_color_info(int *color_description_idc, int *color_primaries,
+                         int *transfer_characteristics,
+                         int *matrix_coefficients, int *full_range_flag,
+                         struct avm_read_bit_buffer *rb) {
+  // color_description_idc: indicates the combination of color primaries,
+  // transfer characteristics and matrix coefficients as defined in Section
+  // 6.10.4 (Operating point set color info semantics) in the spec.
+  // The value of color_description_idc shall be in the range of 0 to 15,
+  // inclusive. Values larger than 5 are reserved for future use by AOMedia and
+  // should be ignored by decoders conforming to this version of this
+  // specification.
+  *color_description_idc = avm_rb_read_rice_golomb(rb, 2);
+  if (*color_description_idc == AVM_COLOR_DESC_IDC_EXPLICIT) {
+    *color_primaries = avm_rb_read_literal(rb, 8);
+    *transfer_characteristics = avm_rb_read_literal(rb, 8);
+    *matrix_coefficients = avm_rb_read_literal(rb, 8);
+  } else {
+    *color_primaries = AVM_CICP_CP_UNSPECIFIED;
+    *transfer_characteristics = AVM_CICP_TC_UNSPECIFIED;
+    *matrix_coefficients = AVM_CICP_MC_UNSPECIFIED;
+  }
+  *full_range_flag = avm_rb_read_bit(rb);
+}
+
 // Helper function to store xlayer context
 static void store_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
                                  int xlayer_id) {
