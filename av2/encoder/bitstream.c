@@ -6994,7 +6994,6 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
           AVM_CODEC_OK) {
         return AVM_CODEC_ERROR;
       }
-      data += obu_header_size + obu_payload_size + length_field_size;
     }
 
     if (cm->current_frame.frame_type == KEY_FRAME && !cpi->no_show_fwd_kf &&

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Alliance for Open Media. All rights reserved
+ * Copyright (c) 2026, Alliance for Open Media. All rights reserved
  *
  * This source code is subject to the terms of the BSD 3-Clause Clear License
  * and the Alliance for Open Media Patent License 1.0. If the BSD 3-Clause Clear
@@ -9,9 +9,6 @@
  * source code in the PATENTS file, you can obtain it at
  * aomedia.org/license/patent-license/.
  */
-
-#include <memory>
-#include <ostream>
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
@@ -28,7 +25,7 @@ const unsigned int kFrames = 20;
 const unsigned int kKeyFrameInterval = 10;
 const unsigned int kCpuUsed = 5;
 
-// This class is used to test use of multiple sequnce headers.
+// This class is used to test use of multiple sequence headers.
 class MultipleSequenceHeaderTest
     : public ::libavm_test::CodecTestWithParam<int>,
       public ::libavm_test::EncoderTest {
@@ -36,9 +33,9 @@ class MultipleSequenceHeaderTest
   MultipleSequenceHeaderTest()
       : EncoderTest(GET_PARAM(0)), cpu_used_(GET_PARAM(1)) {}
 
-  virtual ~MultipleSequenceHeaderTest() {}
+  ~MultipleSequenceHeaderTest() override {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     InitializeConfig();
     SetMode(::libavm_test::kOnePassGood);
     cfg_.rc_end_usage = AVM_Q;
@@ -54,8 +51,8 @@ class MultipleSequenceHeaderTest
     // init_flags_ = AVM_CODEC_USE_PER_FRAME_STATS;
   }
 
-  virtual void PreEncodeFrameHook(::libavm_test::VideoSource *video,
-                                  ::libavm_test::Encoder *encoder) {
+  void PreEncodeFrameHook(::libavm_test::VideoSource *video,
+                          ::libavm_test::Encoder *encoder) override {
     if (video->frame() == 0) {
       encoder->Control(AVME_SET_CPUUSED, cpu_used_);
       encoder->Control(AVME_SET_ENABLEAUTOALTREF, 1);
@@ -66,7 +63,6 @@ class MultipleSequenceHeaderTest
   }
 
   int cpu_used_;
-  ;
 };
 
 TEST_P(MultipleSequenceHeaderTest, EndtoEndTest) {
