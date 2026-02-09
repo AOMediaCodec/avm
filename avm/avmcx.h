@@ -1236,6 +1236,17 @@ enum avme_enc_control_id {
    * avm_buffer_refresh_test_t *parameter.
    */
   AV2E_SET_ENABLE_BUFFER_REFRESH_TEST = 180,
+
+  /*!\brief Codec control function to add sef for hidden frames.
+   * int parameter.
+   */
+  AV2E_SET_ADD_SEF_FOR_HIDDEN_FRAMES = 180,
+
+  /*!\brief Codec control function to enable a flag to control changes
+   * for testing multi layers with nonzero lag.
+   * int parameter.
+   */
+  AV2E_SET_ENABLE_FLAG_MULTI_LAYER_LAG_TEST = 181,
 };
 
 /*!\brief avm 1-D scaling mode
@@ -1755,6 +1766,11 @@ AVM_CTRL_USE_TYPE(AV2E_SET_ENABLE_BUFFER_REFRESH_TEST,
                   avm_buffer_refresh_test_t *)
 #define AVME_CTRL_AV2E_SET_ENABLE_BUFFER_REFRESH_TEST
 
+AVM_CTRL_USE_TYPE(AV2E_SET_ADD_SEF_FOR_HIDDEN_FRAMES, int)
+#define AVM_CTRL_AVE2_SET_ADD_SEF_FOR_HIDDEN_FRAMES
+
+AVM_CTRL_USE_TYPE(AV2E_SET_ENABLE_FLAG_MULTI_LAYER_LAG_TEST, int)
+#define AVME_CTRL_AV2E_SET_ENABLE_FLAG_MULTI_LAYER_LAG_TEST
 /*!\endcond */
 /*! @} - end defgroup avm_encoder */
 #ifdef __cplusplus

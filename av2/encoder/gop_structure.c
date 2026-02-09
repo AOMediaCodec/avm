@@ -286,7 +286,13 @@ static int construct_multi_layer_gf_structure(
     // ALTREF.
     if (use_altref) {
       gf_group->update_type[frame_index] = ARF_UPDATE;
-      gf_group->arf_src_offset[frame_index] = gf_interval - cur_frame_index - 1;
+      if (cpi->oxcf.unit_test_cfg.multi_layers_lag_test) {
+        gf_group->arf_src_offset[frame_index] =
+            cpi->common.number_mlayers * (gf_interval - cur_frame_index - 1);
+      } else {
+        gf_group->arf_src_offset[frame_index] =
+            gf_interval - cur_frame_index - 1;
+      }
       gf_group->cur_frame_idx[frame_index] = cur_frame_index;
       gf_group->layer_depth[frame_index] = 1;
       gf_group->arf_boost[frame_index] = cpi->rc.gfu_boost;

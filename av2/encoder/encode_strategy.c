@@ -163,7 +163,27 @@ static INLINE void update_gf_group_index(AV2_COMP *cpi) {
   // a show_existing_frame with a source other than altref, or if it is not
   // a displayed forward keyframe, the index was incremented when it was
   // originally encoded.
-  ++cpi->gf_group.index;
+  if (!cpi->oxcf.unit_test_cfg.multi_layers_lag_test) {
+    ++cpi->gf_group.index;
+  } else {
+    // To be updated based on the (multi_layers) tests for nonzero lag.
+    // The current test is for fixed GOP of depth 1, with only one ARF
+    // as hidden frame, and keyframe_filtering off.
+    GF_GROUP *const gf_group = &cpi->gf_group;
+    if (gf_group->update_type[cpi->gf_group.index] == ARF_UPDATE) {
+      ++gf_group->index;
+    } else if (cpi->common.mlayer_id == 0 &&
+               gf_group->update_type[cpi->gf_group.index - 1] == ARF_UPDATE &&
+               gf_group->update_type[cpi->gf_group.index] == LF_UPDATE) {
+      // This willl force the next encode_call to encode ARF followed by LF
+      // at the next ml layer.
+      gf_group->index = gf_group->index - 1;
+    } else if ((unsigned int)cpi->common.mlayer_id ==
+               cpi->common.number_mlayers - 1) {
+      // Every regular frame is encoded with same source up to number_mlayers.
+      ++gf_group->index;
+    }
+  }
 }
 
 static void update_rc_counts(AV2_COMP *cpi) {

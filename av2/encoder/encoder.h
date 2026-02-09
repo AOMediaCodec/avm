@@ -694,6 +694,8 @@ typedef struct {
   int use_buffer_refresh_multi_layers_test;
   // Refresh buffer flags for use in the multi layer unittests.
   int buffer_refresh_multi_layers_test[REF_FRAMES];
+  // Changes needed for multi layers tests with nonzero lag.
+  int multi_layers_lag_test;
 } UnitTestCfg;
 
 typedef struct {
