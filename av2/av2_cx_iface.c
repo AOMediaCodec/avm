@@ -2710,13 +2710,6 @@ static avm_codec_err_t ctrl_set_enable_buffer_refresh_test(
     extra_cfg.buffer_refresh_multi_layers_test[i] =
         data->buffer_refresh_test[i];
   }
-}
-
-static avm_codec_err_t ctrl_set_add_sef_for_hidden_frames(
-    avm_codec_alg_priv_t *ctx, va_list args) {
-  struct av2_extracfg extra_cfg = ctx->extra_cfg;
-  extra_cfg.add_sef_for_hidden_frames =
-      CAST(AV2E_SET_ADD_SEF_FOR_HIDDEN_FRAMES, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
@@ -4530,7 +4523,6 @@ static avm_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV2E_SET_ENABLE_EXPLICIT_REF_FRAME_MAP,
     ctrl_set_enable_explict_ref_frame_map },
   { AV2E_SET_ENABLE_BUFFER_REFRESH_TEST, ctrl_set_enable_buffer_refresh_test },
-  { AV2E_SET_ADD_SEF_FOR_HIDDEN_FRAMES, ctrl_set_add_sef_for_hidden_frames },
   { AV2E_SET_ENABLE_FLAG_MULTI_LAYER_LAG_TEST,
     ctrl_set_enable_flag_multi_layer_lag_test },
   // Getters
