@@ -557,9 +557,10 @@ TEST_P(MultiLayerTest, MultiLayerTest2EmbeddedLagEx1) {
 // and hidden (H) frames. For fixed gop with multiple arf updates.
 // For the first few frames the pattern is (TS is timestamp of input source
 // frames):
-//       TS0                              TS1 TS2
+//       TS0                           TS1
 // [S:ml0][S:ml1], [H:ml0][H:ml0][H:ml0][S:ml0][H:ml1][H:ml1][H:ml1][S:ml1],
-// [S:ml0][Sml1] . . .
+//       TS2            TS3
+// [S:ml0][Sml1],  [S:ml0][Sml1], . .
 TEST_P(MultiLayerTest, MultiLayerTest2EmbeddedLagEx2) {
   cfg_.g_lag_in_frames = 17;
   ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
