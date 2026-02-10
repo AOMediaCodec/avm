@@ -6834,7 +6834,7 @@ static void set_primary_ref_frame_and_ctx(AV2Decoder *pbi) {
 
     if (!pbi->signal_primary_ref_frame) {
       features->primary_ref_frame = features->derived_primary_ref_frame;
-    } else {
+    } else if (pbi->signal_primary_ref_frame == 1) {  // initial value is -1
       features->derived_primary_ref_frame = features->primary_ref_frame;
     }
   }

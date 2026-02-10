@@ -3220,6 +3220,9 @@ static void set_primary_ref_frame_for_error_resilient(AV2_COMP *cpi) {
     }
     cpi->signal_primary_ref_frame = cm->features.primary_ref_frame !=
                                     cm->features.derived_primary_ref_frame;
+    if (cpi->signal_primary_ref_frame) {
+      cm->features.derived_primary_ref_frame = cm->features.primary_ref_frame;
+    }
     if (cm->features.primary_ref_frame == PRIMARY_REF_NONE)
       av2_setup_past_independence(cm);
   }
@@ -3251,6 +3254,7 @@ static void set_primary_ref_frame(AV2_COMP *cpi) {
       cm->features.derived_primary_ref_frame != PRIMARY_REF_NONE) {
     cm->features.derived_primary_ref_frame = PRIMARY_REF_NONE;
     cpi->signal_primary_ref_frame = 1;
+    cm->features.derived_primary_ref_frame = cm->features.primary_ref_frame;
   }
 }
 
@@ -4185,6 +4189,9 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
     }
     cpi->signal_primary_ref_frame = cm->features.derived_primary_ref_frame !=
                                     cm->features.primary_ref_frame;
+    if (cpi->signal_primary_ref_frame) {
+      cm->features.derived_primary_ref_frame = cm->features.primary_ref_frame;
+    }
 
     const int map_idx =
         get_ref_frame_map_idx(cm, cm->features.primary_ref_frame);
