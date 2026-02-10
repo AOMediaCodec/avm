@@ -177,7 +177,7 @@ static int read_lcr_xlayer_info(struct AV2Decoder *pbi,
     read_lcr_xlayer_color_info(pbi, isGlobal, xId, rb);
   } else {
     lcr_params->xlayer_col_params.layer_color_description_idc[isGlobal][xId] =
-        0;
+        AVM_COLOR_DESC_IDC_EXPLICIT;
     lcr_params->xlayer_col_params.layer_color_primaries[isGlobal][xId] =
         AVM_CICP_CP_UNSPECIFIED;
     lcr_params->xlayer_col_params

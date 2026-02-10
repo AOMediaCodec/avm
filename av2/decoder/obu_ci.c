@@ -25,44 +25,6 @@
 #include "av2/decoder/obu.h"
 #include "av2/common/av2_common_int.h"
 
-static void set_ci_color_info(ContentInterpretation *ci_params) {
-  assert(ci_params->color_info.color_description_idc !=
-         AVM_COLOR_DESC_IDC_EXPLICIT);
-  switch (ci_params->color_info.color_description_idc) {
-    case AVM_COLOR_DESC_IDC_BT709SDR:
-      ci_params->color_info.color_primaries = AVM_CICP_CP_BT_709;
-      ci_params->color_info.transfer_characteristics = AVM_CICP_TC_BT_709;
-      ci_params->color_info.matrix_coefficients = AVM_CICP_MC_BT_470_B_G;
-      break;
-    case AVM_COLOR_DESC_IDC_BT2100PQ:
-      ci_params->color_info.color_primaries = AVM_CICP_CP_BT_2020;
-      ci_params->color_info.transfer_characteristics = AVM_CICP_TC_SMPTE_2084;
-      ci_params->color_info.matrix_coefficients = AVM_CICP_MC_BT_2020_NCL;
-      break;
-    case AVM_COLOR_DESC_IDC_BT2100HLG:
-      ci_params->color_info.color_primaries = AVM_CICP_CP_BT_2020;
-      ci_params->color_info.transfer_characteristics =
-          AVM_CICP_TC_BT_2020_10_BIT;
-      ci_params->color_info.matrix_coefficients = AVM_CICP_MC_BT_2020_NCL;
-      break;
-    case AVM_COLOR_DESC_IDC_SRGB:
-      ci_params->color_info.color_primaries = AVM_CICP_CP_BT_709;
-      ci_params->color_info.transfer_characteristics = AVM_CICP_TC_SRGB;
-      ci_params->color_info.matrix_coefficients = AVM_CICP_MC_IDENTITY;
-      break;
-    case AVM_COLOR_DESC_IDC_SRGBSYCC:
-      ci_params->color_info.color_primaries = AVM_CICP_CP_BT_709;
-      ci_params->color_info.transfer_characteristics = AVM_CICP_TC_SRGB;
-      ci_params->color_info.matrix_coefficients = AVM_CICP_MC_BT_470_B_G;
-      break;
-    default:
-      ci_params->color_info.color_primaries = AVM_CICP_CP_UNSPECIFIED;
-      ci_params->color_info.transfer_characteristics = AVM_CICP_TC_UNSPECIFIED;
-      ci_params->color_info.matrix_coefficients = AVM_CICP_MC_UNSPECIFIED;
-      break;
-  }
-}
-
 static int av2_set_sar_info(ContentInterpretation *ci_params) {
   int supported_sample_aspect_ratio = 1;
   switch (ci_params->sar_info.sar_aspect_ratio_idc) {
@@ -198,12 +160,11 @@ uint32_t av2_read_content_interpretation_obu(struct AV2Decoder *pbi,
 
   if (ci_temp.ci_color_description_present_flag) {
     read_ci_color_info(&ci_temp, rb);
-    if (ci_temp.color_info.color_description_idc != AVM_COLOR_DESC_IDC_EXPLICIT)
-      set_ci_color_info(&ci_temp);
   } else {
+    ci_temp.color_info.color_description_idc = AVM_COLOR_DESC_IDC_EXPLICIT;
     ci_temp.color_info.color_primaries = AVM_CICP_CP_UNSPECIFIED;
-    ci_temp.color_info.matrix_coefficients = AVM_CICP_MC_UNSPECIFIED;
     ci_temp.color_info.transfer_characteristics = AVM_CICP_TC_UNSPECIFIED;
+    ci_temp.color_info.matrix_coefficients = AVM_CICP_MC_UNSPECIFIED;
     ci_temp.color_info.full_range_flag = 0;
   }
 
