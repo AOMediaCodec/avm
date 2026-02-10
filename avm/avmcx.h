@@ -1208,10 +1208,11 @@ enum avme_enc_control_id {
    * test
    */
   AV2E_SET_SEF_WITH_ORDER_HINT_TEST = 175,
-  /*!\brief Signal multiple sequence headers that are the same as the one
-   * created
+  /*!\brief Use seq_hdr_id = 1 for 1st GOP's sequence header as well as
+   * uncompressed headers; seq_hdr_id = 2 for 2nd GOP's sequence header as well
+   * as uncompressed headers etc.
    *
-   * \note This is used to test the case multiple sequence headers are signalled
+   * \note This is used for testing signaling of multiple sequence headers.
    */
   AV2E_SET_MULTI_SEQ_HEADER_TEST = 176,
 
