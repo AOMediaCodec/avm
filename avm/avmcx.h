@@ -1348,7 +1348,7 @@ typedef enum {
  */
 typedef struct avm_buffer_refresh_test {
   /*!\brief buffer update flag, only used for testing. */
-  int buffer_refresh_test[16];
+  int buffer_refresh_test[16];  // array of REF_FRAMES = 16.
 } avm_buffer_refresh_test_t;
 
 /*!\cond */
