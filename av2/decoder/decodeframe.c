@@ -7249,7 +7249,7 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
           pbi->random_accessed);
     }
   }
-  // TODO: is reset_mfh_valid() needed at certain point?
+
   cm->seq_params = *pbi->active_seq;
 
   if (obu_type == OBU_CLK) {
