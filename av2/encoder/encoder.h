@@ -1043,6 +1043,8 @@ typedef struct {
   int size;
   // Current subgop cfg being used, NULL if cfg not specified
   const SubGOPCfg *subgop_cfg;
+  // Number of arf updates before a displayeed frame.
+  int arf_update_counter;
   /*!\endcond */
 } GF_GROUP;
 /*!\cond */

@@ -32,7 +32,7 @@ static void set_multi_layer_params(const TWO_PASS *twopass,
                                    GF_GROUP *const gf_group, RATE_CONTROL *rc,
                                    FRAME_INFO *frame_info, int start, int end,
                                    int *cur_frame_idx, int *frame_ind,
-                                   int layer_depth) {
+                                   int layer_depth, int num_mlayers) {
   const int num_frames_to_process = end - start;
 
   // Either we are at the last level of the pyramid, or we don't have enough
@@ -58,7 +58,7 @@ static void set_multi_layer_params(const TWO_PASS *twopass,
 
     // Internal ARF.
     gf_group->update_type[*frame_ind] = INTNL_ARF_UPDATE;
-    gf_group->arf_src_offset[*frame_ind] = m - start;
+    gf_group->arf_src_offset[*frame_ind] = num_mlayers * (m - start);
     gf_group->cur_frame_idx[*frame_ind] = *cur_frame_idx;
     gf_group->layer_depth[*frame_ind] = layer_depth;
 
@@ -69,7 +69,8 @@ static void set_multi_layer_params(const TWO_PASS *twopass,
 
     // Frames displayed before this internal ARF.
     set_multi_layer_params(twopass, gf_group, rc, frame_info, start, m,
-                           cur_frame_idx, frame_ind, layer_depth + 1);
+                           cur_frame_idx, frame_ind, layer_depth + 1,
+                           num_mlayers);
 
     // Overlay for internal ARF.
     gf_group->update_type[*frame_ind] = INTNL_OVERLAY_UPDATE;
@@ -82,7 +83,8 @@ static void set_multi_layer_params(const TWO_PASS *twopass,
 
     // Frames displayed after this internal ARF.
     set_multi_layer_params(twopass, gf_group, rc, frame_info, m + 1, end,
-                           cur_frame_idx, frame_ind, layer_depth + 1);
+                           cur_frame_idx, frame_ind, layer_depth + 1,
+                           num_mlayers);
   }
 }
 
@@ -304,7 +306,7 @@ static int construct_multi_layer_gf_structure(
     }
     set_multi_layer_params(twopass, gf_group, rc, frame_info, cur_frame_index,
                            gf_interval - 1, &cur_frame_index, &frame_index,
-                           use_altref + 1);
+                           use_altref + 1, cpi->common.number_mlayers);
     if (use_altref) {
       gf_group->update_type[frame_index] = OVERLAY_UPDATE;
       gf_group->arf_src_offset[frame_index] = 0;

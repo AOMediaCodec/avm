@@ -47,12 +47,15 @@ class MultiLayerTest : public ::libavm_test::CodecTestWithParam<int>,
     refresh_count_ = 0;
     enable_s_frame_ = false;
     start_decoding_tl1_ = 0;
+    pyramid_level_one_ = false;
   }
 
   int GetNumEmbeddedLayers() override { return num_embedded_layers_; }
 
   void PreEncodeFrameHook(::libavm_test::VideoSource *video,
                           ::libavm_test::Encoder *encoder) override {
+    (void)video;
+    encoder->SetOption("add-sef-for-output", "1");
     frame_flags_ = 0;
     if (layer_frame_cnt_ == 0) {
       encoder->Control(AVME_SET_CPUUSED, speed_);
@@ -65,8 +68,10 @@ class MultiLayerTest : public ::libavm_test::CodecTestWithParam<int>,
       }
       if (cfg_.g_lag_in_frames > 0) {
         int gop_size = (cfg_.g_lag_in_frames - 1) / num_embedded_layers_;
-        encoder->Control(AV2E_SET_GF_MAX_PYRAMID_HEIGHT, 1);
-        encoder->Control(AV2E_SET_GF_MIN_PYRAMID_HEIGHT, 1);
+        if (pyramid_level_one_) {
+          encoder->Control(AV2E_SET_GF_MAX_PYRAMID_HEIGHT, 1);
+          encoder->Control(AV2E_SET_GF_MIN_PYRAMID_HEIGHT, 1);
+        }
         encoder->Control(AV2E_SET_MIN_GF_INTERVAL, gop_size);
         encoder->Control(AV2E_SET_MAX_GF_INTERVAL, gop_size);
         encoder->Control(AV2E_SET_ENABLE_KEYFRAME_FILTERING, 0);
@@ -303,6 +308,7 @@ class MultiLayerTest : public ::libavm_test::CodecTestWithParam<int>,
   bool enable_s_frame_;
   // Frame to start encoding the tl=1 layer.
   int start_decoding_tl1_;
+  bool pyramid_level_one_;
 };
 
 TEST_P(MultiLayerTest, MultiLayerTest2Temporal) {
@@ -529,12 +535,13 @@ TEST_P(MultiLayerTest, MultiLayerTest3Embedded3TemporalDropSL2) {
 }
 
 // Test the case of nonzero lag for 2 embedded layers (ml), for both show (S)
-// and hidden (H) frames. This verifies that a mlayer frame has to have one
-// show picture. For the first few frames the pattern is (TS is timestamp of
-// input source frames):
+// and hidden (H) frames. For fixed gop with pyramid height = 1.
+// This verifies that a mlayer frame has to have one show picture.
+// For the first few frames the pattern is (TS is timestamp of input source
+// frames):
 //       TS0                  TS1                       TS2
 // [S:ml0][S:ml1], [H:ml0][S:ml0][H:ml1][S:ml1], [S:ml0][Sml1] . . .
-TEST_P(MultiLayerTest, MultiLayerTest2EmbeddedLag) {
+TEST_P(MultiLayerTest, MultiLayerTest2EmbeddedLagEx1) {
   cfg_.g_lag_in_frames = 17;
   ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
   num_temporal_layers_ = 1;
@@ -542,6 +549,26 @@ TEST_P(MultiLayerTest, MultiLayerTest2EmbeddedLag) {
   decode_base_only_ = false;
   drop_sl2_ = false;
   enable_explicit_ref_frame_map_ = false;
+  pyramid_level_one_ = true;
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
+}
+
+// Test the case of nonzero lag for 2 embedded layers (ml), for both show (S)
+// and hidden (H) frames. For fixed gop with multiple arf updates.
+// For the first few frames the pattern is (TS is timestamp of input source
+// frames):
+//       TS0                              TS1 TS2
+// [S:ml0][S:ml1], [H:ml0][H:ml0][H:ml0][S:ml0][H:ml1][H:ml1][H:ml1][S:ml1],
+// [S:ml0][Sml1] . . .
+TEST_P(MultiLayerTest, MultiLayerTest2EmbeddedLagEx2) {
+  cfg_.g_lag_in_frames = 17;
+  ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
+  num_temporal_layers_ = 1;
+  num_embedded_layers_ = 2;
+  decode_base_only_ = false;
+  drop_sl2_ = false;
+  enable_explicit_ref_frame_map_ = false;
+  pyramid_level_one_ = false;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
 }
 
