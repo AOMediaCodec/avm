@@ -6984,18 +6984,6 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
 
     data += obu_header_size + obu_payload_size + length_field_size;
 
-    if (cpi->oxcf.unit_test_cfg.multi_seq_header_test) {
-      obu_header_size =
-          av2_write_obu_header(level_params, OBU_SEQUENCE_HEADER, 0, 0, data);
-      obu_payload_size = av2_write_sequence_header_obu(&cm->seq_params,
-                                                       data + obu_header_size);
-      length_field_size = obu_memmove(obu_header_size, obu_payload_size, data);
-      if (av2_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
-          AVM_CODEC_OK) {
-        return AVM_CODEC_ERROR;
-      }
-    }
-
     if (cm->current_frame.frame_type == KEY_FRAME && !cpi->no_show_fwd_kf &&
         cpi->write_ci_obu_flag) {
       obu_header_size = av2_write_obu_header(
