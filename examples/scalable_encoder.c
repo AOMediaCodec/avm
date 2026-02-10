@@ -74,7 +74,6 @@ int main(int argc, char **argv) {
   int num_temporal_layers = 1;
   int num_embedded_layers = 1;
   const int fps = 30;
-  const char *codec_arg = NULL;
   const char *width_arg = NULL;
   const char *height_arg = NULL;
   const char *infile0_arg = NULL;
