@@ -2781,7 +2781,7 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
   RATE_CONTROL *const rc = &cpi->rc;
   TWO_PASS *const twopass = &cpi->twopass;
   GF_GROUP *const gf_group = &cpi->gf_group;
-  const AV2EncoderConfig *const oxcf = &cpi->oxcf;
+  AV2EncoderConfig *const oxcf = &cpi->oxcf;
 
   if (is_stat_consumption_stage(cpi) && !twopass->stats_in) return;
   cpi->switch_frame_mode = 0;
@@ -2792,7 +2792,7 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
     setup_target_rate(cpi);
     int src_index = gf_group->arf_src_offset[gf_group->index];
     if (src_index == cpi->rc.frames_to_key && src_index != 0 &&
-        cpi->oxcf.kf_cfg.fwd_kf_enabled) {
+        cpi->oxcf.kf_cfg.fwd_kf_enabled && gf_group->size > 1) {
       cpi->no_show_fwd_kf = 1;
     }
     // If this is an arf frame then we dont want to read the stats file or
@@ -2887,14 +2887,17 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
       // The olk key frame has been encoded. Next is the arf.
       frame_params->frame_type = INTER_FRAME;
       frame_params->frame_params_obu_type = NUM_OBU_TYPES;
-      // Use prev olk position as the start
-      const FIRSTPASS_STATS *const start_position = twopass->stats_in;
-      twopass->stats_in--;
-      this_frame = *twopass->stats_in;
+      int ori_kf_freq_min = oxcf->kf_cfg.key_freq_min;
+      int ori_kf_freq_max = oxcf->kf_cfg.key_freq_max;
+      // Temporarily change decrease key frame interval since we've already seen
+      // the key frame in the OLK.
+      oxcf->kf_cfg.key_freq_min = AVMMAX(0, oxcf->kf_cfg.key_freq_min - 1);
+      oxcf->kf_cfg.key_freq_max =
+          AVMMAX(oxcf->kf_cfg.key_freq_min, oxcf->kf_cfg.key_freq_max - 1);
       find_next_key_frame(cpi, &this_frame);
-      reset_fpf_position(twopass, start_position);
-      rc->frames_to_key--;
       rc->frames_since_key++;
+      oxcf->kf_cfg.key_freq_min = ori_kf_freq_min;
+      oxcf->kf_cfg.key_freq_max = ori_kf_freq_max;
     } else {
       frame_params->frame_type = KEY_FRAME;
       if (frame_params->frame_params_obu_type == NUM_OBU_TYPES)
@@ -2986,7 +2989,7 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
     cpi->no_show_fwd_kf = 0;
     int src_index = gf_group->arf_src_offset[gf_group->index];
     if (src_index == cpi->rc.frames_to_key && src_index != 0 &&
-        cpi->oxcf.kf_cfg.fwd_kf_enabled) {
+        cpi->oxcf.kf_cfg.fwd_kf_enabled && gf_group->size > 1) {
       cpi->no_show_fwd_kf = 1;
     }
     const int update_type = gf_group->update_type[gf_group->index];
