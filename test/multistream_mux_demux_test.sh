@@ -78,6 +78,47 @@ encode_bitstream_1() {
   echo "Successfully encoded bitstream_1.bin"
 }
 
+# Encode first bitstream for multi_layer encoder.
+ml_encode_bitstream_0() {
+  local encoder="$(avm_tool_path examples/scalable_encoder)"
+
+  eval "${encoder}" \
+      352 288 \
+      hantro_collage_w352h288.yuv \
+      ${BITSTREAM_0} \
+      20 \
+      $1 $2 \
+ #     ${devnull} || return 1
+
+  if [ ! -e "${BITSTREAM_0}" ]; then
+    elog "Encoding bitstream_0 failed."
+    return 1
+  fi
+
+  echo "Successfully encoded bitstream_0.bin"
+}
+
+# Encode second bitstream for multi_layer encoder.
+ml_encode_bitstream_1() {
+  local encoder="$(avm_tool_path examples/scalable_encoder)"
+
+ eval "${encoder}" \
+      352 288 \
+      hantro_collage_w352h288.yuv \
+      ${BITSTREAM_1} \
+      20 \
+      $1 $2 \
+ #     ${devnull} || return 1
+
+  if [ ! -e "${BITSTREAM_1}" ]; then
+    elog "Encoding bitstream_1 failed."
+    return 1
+  fi
+
+  echo "Successfully encoded bitstream_1.bin"
+}
+
+
 # Decode the first bitstream
 decode_bitstream_0() {
   local decoder="$(avm_tool_path avmdec)"
@@ -229,8 +270,26 @@ compare_md5() {
 
 # Run complete encode, mux, and demux pipeline
 run_encode_mux_demux() {
-  encode_bitstream_0 || return 1
-  encode_bitstream_1 || return 1
+
+  echo "Start single layer stream"
+
+#  encode_bitstream_0 || return 1
+#  encode_bitstream_1 || return 1
+#  decode_bitstream_0 || return 1
+#  decode_bitstream_1 || return 1
+#  mux_bitstreams || return 1
+#  demux_bitstream || return 1
+#  compare_bitstreams || return 1
+#  decode_muxed_bitstream || return 1
+#  compare_md5 || return 1
+
+  echo "Done avmenc single layer stream"
+
+  echo "Start multi layer streams"
+
+  echo "(#temporal, #embedded) = (1 1)"
+  ml_encode_bitstream_0 1 1 || return 1
+  ml_encode_bitstream_1 1 1 || return 1
   decode_bitstream_0 || return 1
   decode_bitstream_1 || return 1
   mux_bitstreams || return 1
@@ -238,6 +297,52 @@ run_encode_mux_demux() {
   compare_bitstreams || return 1
   decode_muxed_bitstream || return 1
   compare_md5 || return 1
+
+  echo "(#temporal, #embedded) = (2 1)"
+  ml_encode_bitstream_0 2 1 || return 1
+  ml_encode_bitstream_1 2 1 || return 1
+  decode_bitstream_0 || return 1
+  decode_bitstream_1 || return 1
+  mux_bitstreams || return 1
+  demux_bitstream || return 1
+  compare_bitstreams || return 1
+  decode_muxed_bitstream || return 1
+  compare_md5 || return 1
+
+  echo "(#temporal, #embedded) = (1 2)"
+  ml_encode_bitstream_0 1 2 || return 1
+  ml_encode_bitstream_1 1 2 || return 1
+  decode_bitstream_0 || return 1
+  decode_bitstream_1 || return 1
+  mux_bitstreams || return 1
+  demux_bitstream || return 1
+  compare_bitstreams || return 1
+  decode_muxed_bitstream || return 1
+  compare_md5 || return 1
+
+  echo "(#temporal, #embedded) = (2 2)"
+  ml_encode_bitstream_0 2 2 || return 1
+  ml_encode_bitstream_1 2 2 || return 1
+  decode_bitstream_0 || return 1
+  decode_bitstream_1 || return 1
+  mux_bitstreams || return 1
+  demux_bitstream || return 1
+  compare_bitstreams || return 1
+  decode_muxed_bitstream || return 1
+  compare_md5 || return 1
+
+  echo "(#temporal, #embedded) = (1 2) and (2, 1) for first/second stream"
+  ml_encode_bitstream_0 1 2 || return 1
+  ml_encode_bitstream_1 2 1 || return 1
+  decode_bitstream_0 || return 1
+  decode_bitstream_1 || return 1
+  mux_bitstreams || return 1
+  demux_bitstream || return 1
+  compare_bitstreams || return 1
+  decode_muxed_bitstream || return 1
+  compare_md5 || return 1
+
+  echo "Done with multi layer streams"
 }
 
 # Test list

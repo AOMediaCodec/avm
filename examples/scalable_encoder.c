@@ -24,8 +24,8 @@ static const char *exec_name;
 
 void usage_exit(void) {
   fprintf(stderr,
-          "Usage: %s <codec> <width> <height> <infile0>  "
-          "<outfile> <frames to encode>\n"
+          "Usage: %s <width> <height> <infile0>  "
+          "<outfile> <frames to encode> <num_temporal_layers> <num_embedded_layers> \n"
           "See comments in embedded_temporal_layers_encoder.c for more "
           "information.\n",
           exec_name);
@@ -70,6 +70,8 @@ int main(int argc, char **argv) {
   int keyframe_interval = 0;
   int max_frames = 0;
   int frames_encoded = 0;
+  int num_temporal_layers = 1;
+  int num_embedded_layers = 1;
   const int fps = 30;
   const char *codec_arg = NULL;
   const char *width_arg = NULL;
@@ -85,16 +87,17 @@ int main(int argc, char **argv) {
   // "missing-field-initializers" warning in some compilers.
   memset(&info, 0, sizeof(info));
 
-  if (argc != 7) die("Invalid number of arguments");
+  if (argc != 8) die("Invalid number of arguments");
 
-  codec_arg = argv[1];
-  width_arg = argv[2];
-  height_arg = argv[3];
-  infile0_arg = argv[4];
-  outfile_arg = argv[5];
-  max_frames = (int)strtol(argv[6], NULL, 0);
+  width_arg = argv[1];
+  height_arg = argv[2];
+  infile0_arg = argv[3];
+  outfile_arg = argv[4];
+  max_frames = (int)strtol(argv[5], NULL, 0);
+  num_temporal_layers = (int)strtol(argv[6], NULL, 0);
+  num_embedded_layers = (int)strtol(argv[7], NULL, 0);
 
-  avm_codec_iface_t *encoder = get_avm_encoder_by_short_name(codec_arg);
+  avm_codec_iface_t *encoder = get_avm_encoder_by_short_name("av2");
   if (!encoder) die("Unsupported codec.");
 
   info.codec_fourcc = get_fourcc_by_avm_encoder(encoder);
@@ -142,10 +145,8 @@ int main(int argc, char **argv) {
   if (avm_codec_control(&codec, AVME_SET_CPUUSED, 5))
     die_codec(&codec, "Failed to set cpu to 5");
 
-  // Test case: currently only (1, 2), (2, 1), (2, 2), (1, 3), (3 1),
+  // Test cases for layers: currently only (1, 2), (2, 1), (2, 2), (1, 3), (3 1),
   // more cases will be added.
-  int num_embedded_layers = 2;
-  int num_temporal_layers = 1;
 
   if (avm_codec_control(&codec, AVME_SET_NUMBER_MLAYERS, num_embedded_layers))
     die_codec(&codec, "Failed to set number of embedded layers.");
