@@ -42,7 +42,7 @@ class MultiLayerTest : public ::libavm_test::CodecTestWithParam<int>,
     drop_tl2_ = false;
     drop_sl2_ = false;
     enable_explicit_ref_frame_map_ = false;
-    enable_buffer_update_test_ = false;
+    enable_buffer_refresh_test_ = false;
     refresh_count_ = 0;
     enable_s_frame_ = false;
     start_decoding_tl1_ = 0;
@@ -139,21 +139,21 @@ class MultiLayerTest : public ::libavm_test::CodecTestWithParam<int>,
         encoder->Control(AVME_SET_TLAYER_ID, 1);
       }
     }
-    if (enable_buffer_update_test_) {
-      avm_buffer_update_test_t buffer_update;
+    if (enable_buffer_refresh_test_) {
+      avm_buffer_refresh_test_t buffer_refresh;
       for (int i = 0; i < 8; i++) {
-        buffer_update.buffer_update_test[i] = 0;
+        buffer_refresh.buffer_refresh_test[i] = 0;
       }
       if (num_temporal_layers_ == 2 && num_embedded_layers_ == 2) {
         // Don't refresh (ml1, tl1).
         if (embedded_layer_id_ != 1 || temporal_layer_id_ != 1) {
           // Refresh based on refresh_count_, which takes even
           // slot for ml=0 and odd slot for ml=1;
-          buffer_update.buffer_update_test[refresh_count_] = 1;
+          buffer_refresh.buffer_refresh_test[refresh_count_] = 1;
           refresh_count_++;
           if (refresh_count_ > 7) refresh_count_ = 0;
         }
-        encoder->Control(AV2E_SET_ENABLE_BUFFER_UPDATE_TEST, &buffer_update);
+        encoder->Control(AV2E_SET_ENABLE_BUFFER_REFRESH_TEST, &buffer_refresh);
       }
     }
     if (enable_s_frame_) {
@@ -255,9 +255,10 @@ class MultiLayerTest : public ::libavm_test::CodecTestWithParam<int>,
   int num_mismatch_;
   bool enable_explicit_ref_frame_map_;
   int layer_frame_cnt_;
-  bool enable_buffer_update_test_;
+  bool enable_buffer_refresh_test_;
   int refresh_count_;
   bool enable_s_frame_;
+  // Frame to start encoding the tl=1 layer.
   int start_decoding_tl1_;
 };
 
@@ -414,7 +415,7 @@ TEST_P(MultiLayerTest, MultiLayerTest2Embedded2TempExplRefFrameMap) {
 //
 //   (ml0)#0                  (ml0)#4                 . . . . .
 //     ----------------------------------------------
-//      (tl0)       tl1)        (tl0)       (tl1)
+//      (tl0)      (tl1)        (tl0)       (tl1)
 TEST_P(MultiLayerTest, MultiLayerTest2Embedded2TemporalBufferControl) {
   ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
   num_temporal_layers_ = 2;
@@ -422,7 +423,7 @@ TEST_P(MultiLayerTest, MultiLayerTest2Embedded2TemporalBufferControl) {
   decode_base_only_ = false;
   drop_tl2_ = false;
   enable_explicit_ref_frame_map_ = false;
-  enable_buffer_update_test_ = true;
+  enable_buffer_refresh_test_ = true;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
   EXPECT_EQ(num_mismatch_, 0);
 }
@@ -439,7 +440,7 @@ TEST_P(MultiLayerTest, MultiLayerTest2Embedded2TemporaSframe) {
   decode_base_only_ = false;
   drop_tl2_ = false;
   enable_explicit_ref_frame_map_ = false;
-  enable_buffer_update_test_ = true;
+  enable_buffer_refresh_test_ = true;
   enable_s_frame_ = true;
   start_decoding_tl1_ = 11;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));

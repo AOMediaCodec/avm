@@ -562,7 +562,7 @@ static struct av2_extracfg default_extra_cfg = {
   1,
   1,                            // cross frame CDF init mode
   0,  // use_buffer_refresh_multi_layers_test
-  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } // buffer_update_multi_layers_test
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } // buffer_refresh_multi_layers_test
 };
 // clang-format on
 
@@ -2697,14 +2697,15 @@ static avm_codec_err_t ctrl_set_enable_explict_ref_frame_map(
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
-static avm_codec_err_t ctrl_set_enable_buffer_update_test(
+static avm_codec_err_t ctrl_set_enable_buffer_refresh_test(
     avm_codec_alg_priv_t *ctx, va_list args) {
   struct av2_extracfg extra_cfg = ctx->extra_cfg;
-  avm_buffer_update_test_t *const data =
-      va_arg(args, avm_buffer_update_test_t *);
+  avm_buffer_refresh_test_t *const data =
+      CAST(AV2E_SET_ENABLE_BUFFER_REFRESH_TEST, args);
   extra_cfg.use_buffer_refresh_multi_layers_test = 1;
-  for (unsigned int i = 0; i < REF_FRAMES; ++i) {
-    extra_cfg.buffer_refresh_multi_layers_test[i] = data->buffer_update_test[i];
+  for (int i = 0; i < REF_FRAMES; ++i) {
+    extra_cfg.buffer_refresh_multi_layers_test[i] =
+        data->buffer_refresh_test[i];
   }
   return update_extra_cfg(ctx, &extra_cfg);
 }
@@ -4510,7 +4511,7 @@ static avm_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV2E_GET_ENABLE_BRU, ctrl_get_enable_bru },
   { AV2E_SET_ENABLE_EXPLICIT_REF_FRAME_MAP,
     ctrl_set_enable_explict_ref_frame_map },
-  { AV2E_SET_ENABLE_BUFFER_UPDATE_TEST, ctrl_set_enable_buffer_update_test },
+  { AV2E_SET_ENABLE_BUFFER_REFRESH_TEST, ctrl_set_enable_buffer_refresh_test },
   // Getters
   { AVME_GET_LAST_QUANTIZER, ctrl_get_quantizer },
   { AV2_GET_REFERENCE, ctrl_get_reference },
