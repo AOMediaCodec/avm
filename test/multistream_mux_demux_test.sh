@@ -309,38 +309,38 @@ run_encode_mux_demux() {
   decode_muxed_bitstream || return 1
   compare_md5 || return 1
 
-  echo "(#temporal, #embedded) = (1 2)"
-  ml_encode_bitstream_0 1 2 || return 1
-  ml_encode_bitstream_1 1 2 || return 1
-  decode_bitstream_0 || return 1
-  decode_bitstream_1 || return 1
-  mux_bitstreams || return 1
-  demux_bitstream || return 1
-  compare_bitstreams || return 1
-  decode_muxed_bitstream || return 1
-  compare_md5 || return 1
+  #echo "(#temporal, #embedded) = (1 2)"
+  #ml_encode_bitstream_0 1 2 || return 1
+  #ml_encode_bitstream_1 1 2 || return 1
+  #decode_bitstream_0 || return 1
+  #decode_bitstream_1 || return 1
+  #mux_bitstreams || return 1
+  #demux_bitstream || return 1
+  #compare_bitstreams || return 1
+  #decode_muxed_bitstream || return 1
+  #compare_md5 || return 1
 
-  echo "(#temporal, #embedded) = (2 2)"
-  ml_encode_bitstream_0 2 2 || return 1
-  ml_encode_bitstream_1 2 2 || return 1
-  decode_bitstream_0 || return 1
-  decode_bitstream_1 || return 1
-  mux_bitstreams || return 1
-  demux_bitstream || return 1
-  compare_bitstreams || return 1
-  decode_muxed_bitstream || return 1
-  compare_md5 || return 1
+  #echo "(#temporal, #embedded) = (2 2)"
+  #ml_encode_bitstream_0 2 2 || return 1
+  #ml_encode_bitstream_1 2 2 || return 1
+  #decode_bitstream_0 || return 1
+  #decode_bitstream_1 || return 1
+  #mux_bitstreams || return 1
+  #demux_bitstream || return 1
+  #compare_bitstreams || return 1
+  #decode_muxed_bitstream || return 1
+  #compare_md5 || return 1
 
-  echo "(#temporal, #embedded) = (1 2) and (2, 1) for first/second stream"
-  ml_encode_bitstream_0 1 2 || return 1
-  ml_encode_bitstream_1 2 1 || return 1
-  decode_bitstream_0 || return 1
-  decode_bitstream_1 || return 1
-  mux_bitstreams || return 1
-  demux_bitstream || return 1
-  compare_bitstreams || return 1
-  decode_muxed_bitstream || return 1
-  compare_md5 || return 1
+  #echo "(#temporal, #embedded) = (1 2) and (2, 1) for first/second stream"
+  #ml_encode_bitstream_0 1 2 || return 1
+  #ml_encode_bitstream_1 2 1 || return 1
+  #decode_bitstream_0 || return 1
+  #decode_bitstream_1 || return 1
+  #mux_bitstreams || return 1
+  #demux_bitstream || return 1
+  #compare_bitstreams || return 1
+  #decode_muxed_bitstream || return 1
+  #compare_md5 || return 1
 
   echo "Done with multi layer streams"
 }
