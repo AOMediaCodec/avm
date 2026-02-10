@@ -88,7 +88,7 @@ ml_encode_bitstream_0() {
       ${BITSTREAM_0} \
       10 \
       $1 $2 \
- 
+
   if [ ! -e "${BITSTREAM_0}" ]; then
     elog "Encoding bitstream_0 failed."
     return 1
