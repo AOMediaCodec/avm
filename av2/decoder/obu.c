@@ -1963,6 +1963,15 @@ static void check_valid_layer_id(ObuHeader obu_header, AV2_COMMON *const cm) {
                        avm_obu_type_to_string(obu_header.type),
                        obu_header.obu_xlayer_id);
   }
+
+  // CLK/OLK are only present in temporal layer 0
+  if ((obu_header.type == OBU_CLK || obu_header.type == OBU_OLK) &&
+      obu_header.obu_tlayer_id != 0) {
+    avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+                       "Incorrect tlayer_id for %s: tlayer_id %d",
+                       avm_obu_type_to_string(obu_header.type),
+                       obu_header.obu_tlayer_id);
+  }
 }
 
 #if CONFIG_AV2_PROFILES
