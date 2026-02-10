@@ -25,7 +25,8 @@ static const char *exec_name;
 void usage_exit(void) {
   fprintf(stderr,
           "Usage: %s <width> <height> <infile0>  "
-          "<outfile> <frames to encode> <num_temporal_layers> <num_embedded_layers> \n"
+          "<outfile> <frames to encode> <num_temporal_layers> "
+          "<num_embedded_layers> \n"
           "See comments in embedded_temporal_layers_encoder.c for more "
           "information.\n",
           exec_name);
@@ -145,8 +146,8 @@ int main(int argc, char **argv) {
   if (avm_codec_control(&codec, AVME_SET_CPUUSED, 5))
     die_codec(&codec, "Failed to set cpu to 5");
 
-  // Test cases for layers: currently only (1, 2), (2, 1), (2, 2), (1, 3), (3 1),
-  // more cases will be added.
+  // Test cases for layers: currently only (1, 2), (2, 1), (2, 2), (1, 3), (3
+  // 1), more cases will be added.
 
   if (avm_codec_control(&codec, AVME_SET_NUMBER_MLAYERS, num_embedded_layers))
     die_codec(&codec, "Failed to set number of embedded layers.");
