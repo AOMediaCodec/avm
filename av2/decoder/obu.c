@@ -157,10 +157,10 @@ void av2_read_color_info(int *color_description_idc, int *color_primaries,
       *transfer_characteristics = AVM_CICP_TC_SMPTE_2084;  // 16
       *matrix_coefficients = AVM_CICP_MC_BT_2020_NCL;      // 9
       break;
-    case AVM_COLOR_DESC_IDC_BT2100HLG:                 // 3
-      *color_primaries = AVM_CICP_CP_BT_2020;          // 9
-      *transfer_characteristics = AVM_CICP_TC_HLG;     // 18
-      *matrix_coefficients = AVM_CICP_MC_BT_2020_NCL;  // 9
+    case AVM_COLOR_DESC_IDC_BT2100HLG:                         // 3
+      *color_primaries = AVM_CICP_CP_BT_2020;                  // 9
+      *transfer_characteristics = AVM_CICP_TC_BT_2020_10_BIT;  // 14
+      *matrix_coefficients = AVM_CICP_MC_BT_2020_NCL;          // 9
       break;
     case AVM_COLOR_DESC_IDC_SRGB:                    // 4
       *color_primaries = AVM_CICP_CP_BT_709;         // 1
