@@ -688,8 +688,8 @@ int av2_get_refresh_frame_flags(
   }
 
   if (cpi->oxcf.unit_test_cfg.use_buffer_refresh_multi_layers_test) {
-    // This logic is currently only called for the tests in
-    // multi_layers_tests.cc.
+    // This logic is currently only used with the control
+    // AV2E_SET_ENABLE_BUFFER_REFRESH_TEST.
     int refresh_mask_control = 0;
     for (int i = 0; i < cpi->common.seq_params.ref_frames; i++) {
       refresh_mask_control |=

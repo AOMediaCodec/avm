@@ -1233,7 +1233,7 @@ enum avme_enc_control_id {
 
   /*!\brief Codec control function to control the reference frame
    * buffer updates, only used for the testing.
-   * avm_buffer_update_test_t *parameter.
+   * avm_buffer_refresh_test_t *parameter.
    */
   AV2E_SET_ENABLE_BUFFER_REFRESH_TEST = 180,
 };
@@ -1343,8 +1343,8 @@ typedef enum {
   AVM_TUNE_VMAF_NEG_MAX_GAIN = 7,
 } avm_tune_metric;
 
-/*!\brief Parameters for AV2E_SET_ENABLE_BUFFER_UPDATE_TEST: this is only
- * used by the tests in multi_layer_tests.cc.
+/*!\brief Parameters for AV2E_SET_ENABLE_BUFFER_REFRESH_TEST: this is
+ * only used for testing.
  */
 typedef struct avm_buffer_refresh_test {
   /*!\brief buffer update flag, only used for testing. */

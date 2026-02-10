@@ -400,7 +400,7 @@ TEST_P(MultiLayerTest, MultiLayerTest2Embedded2TempExplRefFrameMap) {
   EXPECT_EQ(num_mismatch_, 0);
 }
 
-// This test uses the test control (AV2E_SET_ENABLE_BUFFER_UPDATE_TEST)
+// This test uses the test control (AV2E_SET_ENABLE_BUFFER_REFRESH_TEST)
 // to externally set the slot used for refresh for every frame. This is
 // done to make sure we get temporal prediction of ml=1 frames off ml=1
 // frames at previous times, i.e.,frame#8 predicts off frame#5, #3, in
