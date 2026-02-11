@@ -709,6 +709,11 @@ static void update_frame_buffers(AV2Decoder *pbi, int frame_decoded) {
 
     cm->cur_frame->is_restricted = false;
 
+    int first_ref_index;
+    const bool frame_refreshes_multiple_dpb_slots =
+        av2_frame_refreshes_multiple_dpb_slots(
+            cm->current_frame.refresh_frame_flags, &first_ref_index);
+
     // The following for loop needs to release the reference stored in
     // cm->ref_frame_map[ref_index] before storing a reference to
     // cm->cur_frame in cm->ref_frame_map[ref_index].
@@ -723,9 +728,10 @@ static void update_frame_buffers(AV2Decoder *pbi, int frame_decoded) {
         if (is_frame_eligible_for_output(cm->ref_frame_map[ref_index]))
           output_frame_buffers(pbi, ref_index);
         decrease_ref_count(cm->ref_frame_map[ref_index], pool);
-        if ((cm->current_frame.frame_type == KEY_FRAME &&
-             cm->immediate_output_picture == 1) &&
-            cm->seq_params.max_mlayer_id == 0 && ref_index > 0) {
+
+        if (av2_skip_reference_buffer_update(frame_refreshes_multiple_dpb_slots,
+                                             cm->seq_params.max_mlayer_id,
+                                             ref_index, first_ref_index)) {
           cm->ref_frame_map[ref_index] = NULL;
         } else {
           cm->ref_frame_map[ref_index] = cm->cur_frame;
@@ -762,12 +768,16 @@ static void update_frame_buffers(AV2Decoder *pbi, int frame_decoded) {
 // and mark frames as valid for reference.
 static AVM_INLINE void update_long_term_frame_id(AV2Decoder *const pbi) {
   AV2_COMMON *const cm = &pbi->common;
-  int refresh_frame_flags = cm->current_frame.refresh_frame_flags;
+  const int refresh_frame_flags = cm->current_frame.refresh_frame_flags;
+  int first_ref_index;
+  const bool frame_refreshes_multiple_dpb_slots =
+      av2_frame_refreshes_multiple_dpb_slots(refresh_frame_flags,
+                                             &first_ref_index);
   for (int i = 0; i < cm->seq_params.ref_frames; i++) {
     if ((refresh_frame_flags >> i) & 1) {
-      if ((cm->current_frame.frame_type == KEY_FRAME &&
-           cm->immediate_output_picture == 1) &&
-          cm->seq_params.max_mlayer_id == 0 && i > 0) {
+      if (av2_skip_reference_buffer_update(frame_refreshes_multiple_dpb_slots,
+                                           cm->seq_params.max_mlayer_id, i,
+                                           first_ref_index)) {
         pbi->long_term_ids_in_buffer[i] = -1;
         pbi->valid_for_referencing[i] = 0;
       } else {

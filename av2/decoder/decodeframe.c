@@ -6665,14 +6665,19 @@ static AVM_INLINE void reset_ref_frame_map(AV2_COMMON *const cm) {
 
 // If the refresh_frame_flags bitmask is set, update reference frame id values
 // and mark frames as valid for reference.
-static AVM_INLINE void validate_refereces(AV2Decoder *const pbi) {
+static AVM_INLINE void validate_references(AV2Decoder *const pbi) {
   AV2_COMMON *const cm = &pbi->common;
-  int refresh_frame_flags = cm->current_frame.refresh_frame_flags;
+  const int refresh_frame_flags = cm->current_frame.refresh_frame_flags;
+  int first_ref_index;
+  const bool frame_refreshes_multiple_dpb_slots =
+      av2_frame_refreshes_multiple_dpb_slots(refresh_frame_flags,
+                                             &first_ref_index);
+
   for (int i = 0; i < cm->seq_params.ref_frames; i++) {
     if ((refresh_frame_flags >> i) & 1) {
-      if ((cm->current_frame.frame_type == KEY_FRAME &&
-           cm->immediate_output_picture == 1) &&
-          cm->seq_params.max_mlayer_id == 0 && i > 0) {
+      if (av2_skip_reference_buffer_update(frame_refreshes_multiple_dpb_slots,
+                                           cm->seq_params.max_mlayer_id, i,
+                                           first_ref_index)) {
         pbi->valid_for_referencing[i] = 0;
       } else {
         pbi->valid_for_referencing[i] = 1;
@@ -8582,7 +8587,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   cm->cur_frame->mlayer_id = cm->mlayer_id;
   cm->cur_frame->xlayer_id = cm->xlayer_id;
   cm->cur_frame->stream_id = av2_get_stream_index(cm, cm->xlayer_id);
-  validate_refereces(pbi);
+  validate_references(pbi);
 
   cm->cur_frame->buf.bit_depth = seq_params->bit_depth;
   cm->cur_frame->buf.color_primaries = color_info->color_primaries;
