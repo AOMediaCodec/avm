@@ -5425,27 +5425,32 @@ static AVM_INLINE void write_uncompressed_header(
       // By default, no need to signal ref mapping indices in NRS because
       // decoder can derive them unless order_hint is not available. Explicit
       // signaling happens only when enabled by the command line flag or in
-      // error resilient mode
+      // error resilient mode. Bridge frames infer explicit mode without
+      // signaling.
       const int explicit_ref_frame_map =
           (cpi->switch_frame_mode == 1 || frame_is_sframe(cm) ||
-           seq_params->enable_explicit_ref_frame_map) &&
-          !cm->bridge_frame_info.is_bridge_frame;
+           seq_params->enable_explicit_ref_frame_map ||
+           cm->bridge_frame_info.is_bridge_frame);
       if (!frame_is_intra_only(cm) && !frame_is_sframe(cm) &&
           seq_params->enable_explicit_ref_frame_map &&
           !cm->bridge_frame_info.is_bridge_frame)
         avm_wb_write_bit(wb, explicit_ref_frame_map);
       if (explicit_ref_frame_map) {
-        const int max_num_ref_frames =
-            AVMMIN(seq_params->ref_frames, INTER_REFS_PER_FRAME);
-        if (cm->ref_frames_info.num_total_refs < 0 ||
-            cm->ref_frames_info.num_total_refs > max_num_ref_frames)
-          avm_internal_error(&cpi->common.error, AVM_CODEC_ERROR,
-                             "Invalid num_total_refs");
-        avm_wb_write_literal(wb, cm->ref_frames_info.num_total_refs,
-                             MAX_REFS_PER_FRAME_LOG2);
-        for (int i = 0; i < cm->ref_frames_info.num_total_refs; ++i)
-          avm_wb_write_literal(wb, get_ref_frame_map_idx(cm, i),
-                               cm->seq_params.ref_frames_log2);
+        if (!cm->bridge_frame_info.is_bridge_frame) {
+          const int max_num_ref_frames =
+              AVMMIN(seq_params->ref_frames, INTER_REFS_PER_FRAME);
+          if (cm->ref_frames_info.num_total_refs < 0 ||
+              cm->ref_frames_info.num_total_refs > max_num_ref_frames)
+            avm_internal_error(&cpi->common.error, AVM_CODEC_ERROR,
+                               "Invalid num_total_refs");
+          avm_wb_write_literal(wb, cm->ref_frames_info.num_total_refs,
+                               MAX_REFS_PER_FRAME_LOG2);
+          for (int i = 0; i < cm->ref_frames_info.num_total_refs; ++i)
+            avm_wb_write_literal(wb, get_ref_frame_map_idx(cm, i),
+                                 cm->seq_params.ref_frames_log2);
+        }
+        // Bridge frames: nothing written, all inferred from
+        // bridge_frame_ref_idx
       }
 
       if (!frame_is_sframe(cm) && frame_size_override_flag &&

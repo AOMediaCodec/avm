@@ -8027,17 +8027,18 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       // but if the explicit mode is used, reference indices will be signaled,
       // which overwrites the implictly derived ones.
       int explicit_ref_frame_map = -1;
-      // explicit_ref_frame_map is always true when frame_type is s_frame.
-      // explicit_ref_frame_map is always false when frame_type is key_frame or
-      // intra_only frame. explicit_ref_frame_map is always false when
-      // seq_params->explicit_ref_frame_map is false and frame_type is not
-      // s_frame.
+      // explicit_ref_frame_map is always true when frame_type is s_frame or
+      // bridge_frame. explicit_ref_frame_map is always false when frame_type is
+      // key_frame or intra_only frame. For other frames, explicit_ref_frame_map
+      // is signaled when seq_params->enable_explicit_ref_frame_map is true.
+      // Bridge frames infer num_total_refs = 1 and ref_idx[0] =
+      // bridge_frame_ref_idx.
       if (frame_is_sframe(cm))
         explicit_ref_frame_map = 1;
       else if (frame_is_intra_only(cm))
         explicit_ref_frame_map = 0;
       else if (cm->bridge_frame_info.is_bridge_frame)
-        explicit_ref_frame_map = 0;
+        explicit_ref_frame_map = 1;
       else {
         if (seq_params->enable_explicit_ref_frame_map)
           explicit_ref_frame_map = avm_rb_read_bit(rb);
@@ -8046,55 +8047,62 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       }
 
       if (explicit_ref_frame_map) {
-        cm->ref_frames_info.num_total_refs =
-            avm_rb_read_literal(rb, MAX_REFS_PER_FRAME_LOG2);
-        const int max_num_ref_frames =
-            AVMMIN(seq_params->ref_frames, INTER_REFS_PER_FRAME);
-        // Check whether num_total_refs read is valid
-        if (current_frame->frame_type != S_FRAME)
-          if (cm->ref_frames_info.num_total_refs < 0 ||
-              cm->ref_frames_info.num_total_refs > max_num_ref_frames)
-            avm_internal_error(&cm->error, AVM_CODEC_ERROR,
-                               "Invalid num_total_refs");
-        for (int i = 0; i < cm->ref_frames_info.num_total_refs; ++i) {
-          int ref = avm_rb_read_literal(rb, seq_params->ref_frames_log2);
-          if (ref >= seq_params->ref_frames) {
-            avm_internal_error(
-                &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-                "Explicit ref frame idx must be less than %d but is set to %d",
-                seq_params->ref_frames, ref);
-          }
+        if (cm->bridge_frame_info.is_bridge_frame) {
+          // Bridge frames: infer num_total_refs = 1 and ref_idx =
+          // bridge_frame_ref_idx
+          cm->ref_frames_info.num_total_refs = 1;
+          cm->remapped_ref_idx[0] = cm->bridge_frame_info.bridge_frame_ref_idx;
+        } else {
+          cm->ref_frames_info.num_total_refs =
+              avm_rb_read_literal(rb, MAX_REFS_PER_FRAME_LOG2);
+          const int max_num_ref_frames =
+              AVMMIN(seq_params->ref_frames, INTER_REFS_PER_FRAME);
+          // Check whether num_total_refs read is valid
+          if (current_frame->frame_type != S_FRAME)
+            if (cm->ref_frames_info.num_total_refs < 0 ||
+                cm->ref_frames_info.num_total_refs > max_num_ref_frames)
+              avm_internal_error(&cm->error, AVM_CODEC_ERROR,
+                                 "Invalid num_total_refs");
+          for (int i = 0; i < cm->ref_frames_info.num_total_refs; ++i) {
+            int ref = avm_rb_read_literal(rb, seq_params->ref_frames_log2);
+            if (ref >= seq_params->ref_frames) {
+              avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+                                 "Explicit ref frame idx must be less than %d "
+                                 "but is set to %d",
+                                 seq_params->ref_frames, ref);
+            }
 
-          // Most of the time, streams start with a keyframe. In that case,
-          // ref_frame_map will have been filled in at that point and will not
-          // contain any NULLs. However, streams are explicitly allowed to start
-          // with an intra-only frame, so long as they don't then signal a
-          // reference to a slot that hasn't been set yet. That's what we are
-          // checking here.
-          if (cm->ref_frame_map[ref] == NULL)
-            avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
-                               "Inter frame requests nonexistent reference");
-          // mlayer and tlayer scalability related bitstream constraints for the
-          // explicit reference frame signaling
-          const int cur_mlayer_id = current_frame->mlayer_id;
-          const int ref_mlayer_id = cm->ref_frame_map[ref]->mlayer_id;
-          if (!is_mlayer_scalable_and_dependent(seq_params, cur_mlayer_id,
-                                                ref_mlayer_id)) {
-            avm_internal_error(
-                &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-                "Unsupported bitstream: embedded layer scalability shall be "
-                "maintained in explicit reference map signaling.");
+            // Most of the time, streams start with a keyframe. In that case,
+            // ref_frame_map will have been filled in at that point and will not
+            // contain any NULLs. However, streams are explicitly allowed to
+            // start with an intra-only frame, so long as they don't then signal
+            // a reference to a slot that hasn't been set yet. That's what we
+            // are checking here.
+            if (cm->ref_frame_map[ref] == NULL)
+              avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
+                                 "Inter frame requests nonexistent reference");
+            // mlayer and tlayer scalability related bitstream constraints for
+            // the explicit reference frame signaling
+            const int cur_mlayer_id = current_frame->mlayer_id;
+            const int ref_mlayer_id = cm->ref_frame_map[ref]->mlayer_id;
+            if (!is_mlayer_scalable_and_dependent(seq_params, cur_mlayer_id,
+                                                  ref_mlayer_id)) {
+              avm_internal_error(
+                  &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+                  "Unsupported bitstream: embedded layer scalability shall be "
+                  "maintained in explicit reference map signaling.");
+            }
+            const int cur_tlayer_id = current_frame->tlayer_id;
+            const int ref_tlayer_id = cm->ref_frame_map[ref]->tlayer_id;
+            if (!is_tlayer_scalable_and_dependent(
+                    seq_params, cur_tlayer_id, ref_tlayer_id, cur_mlayer_id)) {
+              avm_internal_error(
+                  &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+                  "Unsupported bitstream: temporal layer scalability shall be "
+                  "maintained in explicit reference map signaling.");
+            }
+            cm->remapped_ref_idx[i] = ref;
           }
-          const int cur_tlayer_id = current_frame->tlayer_id;
-          const int ref_tlayer_id = cm->ref_frame_map[ref]->tlayer_id;
-          if (!is_tlayer_scalable_and_dependent(seq_params, cur_tlayer_id,
-                                                ref_tlayer_id, cur_mlayer_id)) {
-            avm_internal_error(
-                &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-                "Unsupported bitstream: temporal layer scalability shall be "
-                "maintained in explicit reference map signaling.");
-          }
-          cm->remapped_ref_idx[i] = ref;
         }
       }
       if (!frame_is_sframe(cm) && frame_size_override_flag &&
