@@ -1100,9 +1100,26 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
   cm->current_frame.tlayer_id = cm->tlayer_id;
   cm->current_frame.mlayer_id = cm->mlayer_id;
 
+  int is_olk_overlay = 0;
+  if ((cpi->gf_group.update_type[cpi->gf_group.index] == OVERLAY_UPDATE ||
+       cpi->gf_group.update_type[cpi->gf_group.index] ==
+           KFFLT_OVERLAY_UPDATE) &&
+      cm->olk_refresh_frame_flags[cm->mlayer_id] != INVALID_IDX) {
+    for (int frame = 0; frame < cm->seq_params.ref_frames; frame++) {
+      const RefCntBuffer *const buf = cm->ref_frame_map[frame];
+      if (buf == NULL) continue;
+      const int frame_order = cpi->oxcf.kf_cfg.sframe_dist != 0
+                                  ? (int)buf->display_order_hint_restricted
+                                  : (int)buf->display_order_hint;
+      if (frame_order == cur_frame_disp) {
+        is_olk_overlay =
+            (cm->olk_refresh_frame_flags[cm->mlayer_id] >> frame) & 1;
+      }
+    }
+  }
   if (cpi->olk_encountered &&
       cm->olk_refresh_frame_flags[cm->mlayer_id] != INVALID_IDX &&
-      cpi->gf_group.index == cpi->gf_group.size - 1) {
+      is_olk_overlay) {
     assert(cpi->gf_group.update_type[cpi->gf_group.index] == OVERLAY_UPDATE ||
            cpi->gf_group.update_type[cpi->gf_group.index] ==
                KFFLT_OVERLAY_UPDATE);
