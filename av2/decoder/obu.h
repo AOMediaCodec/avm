@@ -52,7 +52,6 @@ typedef enum {
   TU_STATE_SEQUENCE_HEADER,  // Processing sequence header OBUs
   TU_STATE_FRAME_UINT_DATA,  // Processing frame/coded picture data, CI, FGM,
                              // QM, MFH, BRT
-  TU_STATE_PADDING           // The last OBU if present
 } temporal_unit_state_t;
 
 // Multi-layer frame validation state

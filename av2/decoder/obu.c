@@ -1596,6 +1596,9 @@ int check_temporal_unit_structure(temporal_unit_state_t *state, int obu_type,
   // Validate input parameters
   if (!state) return 0;
 
+  // One or more padding OBUs may appear in any order within an OBU sequence.
+  if (obu_type == OBU_PADDING) return 1;
+
   switch (*state) {
     case TU_STATE_START:
     case TU_STATE_TEMPORAL_DELIMITER:
@@ -1618,8 +1621,7 @@ int check_temporal_unit_structure(temporal_unit_state_t *state, int obu_type,
       } else if (is_frame_unit(obu_type, xlayer_id)) {
         *state = TU_STATE_FRAME_UINT_DATA;
         return 1;
-      } else {  // Invalid OBU type(such as OBU_PADDING) for start of temporal
-                // unit
+      } else {  // Invalid OBU type for start of temporal unit
         return 0;
       }
 
@@ -1721,15 +1723,9 @@ int check_temporal_unit_structure(temporal_unit_state_t *state, int obu_type,
           return 0;
         else  // other cases may be evaluated later
           return 1;
-      } else if (obu_type == OBU_PADDING) {
-        *state = TU_STATE_PADDING;
-        return 1;
       } else {
         return 0;
       }
-
-    case TU_STATE_PADDING:
-      return 0;  // No additional OBUs should be processed in this state
 
     default:
       // Invalid state
