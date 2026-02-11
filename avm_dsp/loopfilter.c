@@ -64,6 +64,9 @@ int filt_choice_highbd(uint16_t *s, int pitch, int max_filt_neg,
   int max_samples_neg = max_filt_neg == 0 ? 0 : max_filt_neg / 2 - 1;
   int max_samples_pos = max_filt_pos / 2 - 1;
 
+  assert(max_samples_pos == 1 || max_samples_pos == 3 || max_samples_pos == 4 ||
+         max_samples_pos == 6 || max_samples_pos == 8);
+
   if (max_samples_pos < 1 || max_samples_pos < max_samples_neg) return 0;
 
   int16_t second_derivs_buf[SEC_DERIV_ARRAY_LEN];
@@ -109,8 +112,6 @@ int filt_choice_highbd(uint16_t *s, int pitch, int max_filt_neg,
   mask |= ((second_deriv[-1] + second_deriv[0]) > q_thresh * DF_6_THRESH) * -1;
 
   if (mask) return 1;
-
-  if (max_samples_pos == 2) return 2;
 
   // Testing 3 sample modification
   //-----------------------------------------------

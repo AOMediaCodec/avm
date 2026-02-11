@@ -600,6 +600,9 @@ static INLINE int filt_choice_highbd_horizontal_px4_sse4_1(
   int max_samples_neg = max_filt_neg / 2 - 1;
   int max_samples_pos = max_filt_pos / 2 - 1;
 
+  assert(max_samples_pos == 1 || max_samples_pos == 3 || max_samples_pos == 4 ||
+         max_samples_pos == 6 || max_samples_pos == 8);
+
   if (max_samples_pos < 1 || max_samples_pos < max_samples_neg) return 0;
 
   int8_t mask = 0;
@@ -708,8 +711,6 @@ static INLINE int filt_choice_highbd_horizontal_px4_sse4_1(
   mask |= ((res_arr[1] + res_arr[2]) > q_thresh * DF_6_THRESH) * -1;
 
   if (mask) return 1;
-
-  if (max_samples_pos == 2) return 2;
 
   // Testing 3 sample modification
   //-----------------------------------------------
@@ -844,6 +845,9 @@ static INLINE int filt_choice_highbd_vertical_px4_sse4_1(uint16_t *s, int pitch,
   int max_samples_neg = max_filt_neg / 2 - 1;
   int max_samples_pos = max_filt_pos / 2 - 1;
 
+  assert(max_samples_pos == 1 || max_samples_pos == 3 || max_samples_pos == 4 ||
+         max_samples_pos == 6 || max_samples_pos == 8);
+
   if (max_samples_pos < 1 || max_samples_pos < max_samples_neg) return 0;
 
   int8_t mask = 0;
@@ -921,8 +925,6 @@ static INLINE int filt_choice_highbd_vertical_px4_sse4_1(uint16_t *s, int pitch,
   mask |= ((res_arr[1] + res_arr[2]) > q_thresh * DF_6_THRESH) * -1;
 
   if (mask) return 1;
-
-  if (max_samples_pos == 2) return 2;
 
   // Testing 3 sample modification
   //-----------------------------------------------
