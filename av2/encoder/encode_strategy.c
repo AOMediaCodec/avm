@@ -174,7 +174,7 @@ static INLINE void update_gf_group_index(AV2_COMP *cpi) {
         gf_group->update_type[cpi->gf_group.index] == KFFLT_UPDATE) {
       ++gf_group->index;
       if (cpi->common.mlayer_id == 0) gf_group->arf_update_counter++;
-    } else if (cpi->common.mlayer_id == 0 &&
+    } else if (cpi->common.mlayer_id == 0 && cpi->gf_group.index > 0 &&
                gf_group->update_type[cpi->gf_group.index] == LF_UPDATE &&
                (gf_group->update_type[cpi->gf_group.index - 1] == ARF_UPDATE ||
                 gf_group->update_type[cpi->gf_group.index - 1] ==
