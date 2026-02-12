@@ -568,7 +568,7 @@ static avm_codec_err_t check_random_access_frame_unit(
   avm_codec_err_t res = AVM_CODEC_OK;
 
   // Note that it assumes a SH will be provided in data when it needs to be
-  // provded. IMPORTANT: it assumes there will be no other frame units then CLK
+  // provided. IMPORTANT: it assumes there will be no other frame units than CLK
   // in data: ex) no [16][8][4][2][1]... if there is CLK/OLK
   pbi->num_obus_with_frame_unit = 0;
   bool has_key_frames = false;
@@ -593,14 +593,18 @@ static avm_codec_err_t check_random_access_frame_unit(
     has_seq_header |= obu_header.type == OBU_SEQUENCE_HEADER;
     if (is_single_tile_vcl_obu(obu_header.type) ||
         is_multi_tile_vcl_obu(obu_header.type)) {
-      if (frame_unit_mlayer_id == -1)
+      if (frame_unit_mlayer_id == -1) {
         frame_unit_mlayer_id = obu_header.obu_mlayer_id;
-      else {
-        assert(frame_unit_mlayer_id == obu_header.obu_mlayer_id);
+      } else if (frame_unit_mlayer_id != obu_header.obu_mlayer_id) {
+        return AVM_CODEC_CORRUPT_FRAME;
       }
       current_frame_obu_type = obu_header.type;
     }
     obu_in_frame_unit_data[obu_header.type] = true;
+  }
+  if (frame_unit_mlayer_id == -1) {
+    // No single- or multi-tile VCL OBU found.
+    return AVM_CODEC_CORRUPT_FRAME;
   }
   for (int i = 0; i < NUM_OBU_TYPES; i++) {
     pbi->obus_in_frame_unit_data[frame_unit_mlayer_id][i] =
