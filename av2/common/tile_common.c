@@ -120,6 +120,13 @@ void av2_calculate_tile_cols(CommonTileParams *const tiles) {
         ALIGN_POWER_OF_TWO(tiles->mi_cols, seq_mib_size_log2) >>
         seq_mib_size_log2;
     const int full_sb_cols = tiles->mi_cols >> seq_mib_size_log2;
+    
+    const int max_tiles = AVMMAX(1, sb_cols);
+    const int num_tiles_needed = 1 << tiles->log2_cols;
+    if (num_tiles_needed > max_tiles) {
+      tiles->log2_cols = tile_log2(1, max_tiles);
+    }
+
     const int base_size_sb = full_sb_cols >> tiles->log2_cols;
     int extra_sbs = full_sb_cols - (base_size_sb << tiles->log2_cols);
     if (base_size_sb == 0) extra_sbs += seq_sb_cols - full_sb_cols;
@@ -181,6 +188,14 @@ void av2_calculate_tile_rows(CommonTileParams *const tiles) {
         ALIGN_POWER_OF_TWO(tiles->mi_rows, seq_mib_size_log2) >>
         seq_mib_size_log2;
     const int full_sb_rows = tiles->mi_rows >> seq_mib_size_log2;
+    
+
+    const int max_tiles = AVMMAX(1, sb_rows);
+    const int num_tiles_needed = 1 << tiles->log2_rows;
+    if (num_tiles_needed > max_tiles) {
+      tiles->log2_rows =  tile_log2(1, max_tiles);
+    }
+
     const int base_size_sb = full_sb_rows >> tiles->log2_rows;
     int extra_sbs = full_sb_rows - (base_size_sb << tiles->log2_rows);
     if (base_size_sb == 0) extra_sbs += seq_sb_rows - full_sb_rows;

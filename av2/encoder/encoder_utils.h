@@ -1040,6 +1040,22 @@ static AVM_INLINE void av2_set_tile_info(AV2_COMMON *const cm,
 #endif  // CONFIG_G018
   );
 
+  // When sequence-level tile info is present and tile info change is not
+  // allowed, use the sequence tile parameters to ensure encoder/decoder
+  // consistency.
+  const TileInfoSyntax *const seq_tile_params =
+      cm->seq_params.seq_tile_info_present_flag ? &cm->seq_params.tile_params
+                                                : NULL;
+  if (seq_tile_params && !seq_tile_params->allow_tile_info_change &&
+      seq_tile_params->tile_info.uniform_spacing) {
+    tiles->uniform_spacing = 1;
+    tiles->log2_cols = seq_tile_params->tile_info.log2_cols;
+    tiles->log2_rows = seq_tile_params->tile_info.log2_rows;
+    av2_calculate_tile_cols(tiles);
+    av2_calculate_tile_rows(tiles);
+    return;
+  }
+
   int sb_size_scale = 1;
   // Intra frame force to use SB size as 128x128 when encoder is configured with
   // max SB size as 256x256. Since in non-uniform tile spacing tile size is
