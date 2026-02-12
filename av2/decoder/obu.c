@@ -480,19 +480,6 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi, int xlayer_id,
   }
 
   seq_params->single_picture_header_flag = avm_rb_read_bit(rb);
-  if (seq_params->single_picture_header_flag) {
-    seq_params->seq_lcr_id = LCR_ID_UNSPECIFIED;
-    seq_params->still_picture = 1;
-  } else {
-    int seq_lcr_id = avm_rb_read_literal(rb, 3);
-    if (seq_lcr_id > MAX_NUM_SEQ_LCR_ID) {
-      avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-                         "Unsupported LCR id in the Sequence Header.\n");
-    }
-    seq_params->seq_lcr_id = seq_lcr_id;
-    seq_params->still_picture = avm_rb_read_bit(rb);
-  }
-
   if (!read_bitstream_level(&seq_params->seq_max_level_idx, rb)) {
     cm->error.error_code = AVM_CODEC_UNSUP_BITSTREAM;
     return 0;
@@ -502,6 +489,37 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi, int xlayer_id,
     seq_params->seq_tier = avm_rb_read_bit(rb);
   else
     seq_params->seq_tier = 0;
+  av2_read_chroma_format_bitdepth(rb, seq_params, &cm->error);
+  if (seq_params->single_picture_header_flag) {
+    seq_params->seq_lcr_id = LCR_ID_UNSPECIFIED;
+    seq_params->still_picture = 1;
+    seq_params->max_tlayer_id = 0;
+    seq_params->max_mlayer_id = 0;
+    seq_params->seq_max_mlayer_cnt = 1;
+  } else {
+    int seq_lcr_id = avm_rb_read_literal(rb, 3);
+    if (seq_lcr_id > MAX_NUM_SEQ_LCR_ID) {
+      avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+                         "Unsupported LCR id in the Sequence Header.\n");
+    }
+    seq_params->seq_lcr_id = seq_lcr_id;
+    seq_params->still_picture = avm_rb_read_bit(rb);
+    seq_params->max_tlayer_id = avm_rb_read_literal(rb, TLAYER_BITS);
+    seq_params->max_mlayer_id = avm_rb_read_literal(rb, MLAYER_BITS);
+    if (seq_params->max_mlayer_id > 0) {
+      int n = avm_ceil_log2(seq_params->max_mlayer_id + 1);
+      int seq_max_mlayer_cnt_minus_1 = avm_rb_read_literal(rb, n);
+      if (seq_max_mlayer_cnt_minus_1 > seq_params->max_mlayer_id) {
+        avm_internal_error(
+            &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+            "seq_max_mlayer_cnt_minus_1 %d is greater than max_mlayer_id %d",
+            seq_max_mlayer_cnt_minus_1, seq_params->max_mlayer_id);
+      }
+      seq_params->seq_max_mlayer_cnt = seq_max_mlayer_cnt_minus_1 + 1;
+    } else {
+      seq_params->seq_max_mlayer_cnt = 1;
+    }
+  }
 
   const int num_bits_width = avm_rb_read_literal(rb, 4) + 1;
   const int num_bits_height = avm_rb_read_literal(rb, 4) + 1;
@@ -515,8 +533,6 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi, int xlayer_id,
 
   av2_read_conformance_window(rb, seq_params);
   av2_validate_seq_conformance_window(seq_params, &cm->error);
-
-  av2_read_chroma_format_bitdepth(rb, seq_params, &cm->error);
 
   if (seq_params->single_picture_header_flag) {
     seq_params->decoder_model_info_present_flag = 0;
@@ -567,32 +583,6 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi, int xlayer_id,
       avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
                          "AV2 does not support this combination of "
                          "profile, level, and tier.");
-  }
-
-  if (seq_params->single_picture_header_flag) {
-    seq_params->max_tlayer_id = 0;
-    seq_params->max_mlayer_id = 0;
-#if CONFIG_AV2_PROFILES
-    seq_params->seq_max_mlayer_cnt = 1;
-#endif  // CONFIG_AV2_PROFILES
-  } else {
-    seq_params->max_tlayer_id = avm_rb_read_literal(rb, TLAYER_BITS);
-    seq_params->max_mlayer_id = avm_rb_read_literal(rb, MLAYER_BITS);
-#if CONFIG_AV2_PROFILES
-    if (seq_params->max_mlayer_id > 0) {
-      int n = avm_ceil_log2(seq_params->max_mlayer_id + 1);
-      int seq_max_mlayer_cnt_minus_1 = avm_rb_read_literal(rb, n);
-      if (seq_max_mlayer_cnt_minus_1 > seq_params->max_mlayer_id) {
-        avm_internal_error(
-            &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-            "seq_max_mlayer_cnt_minus_1 %d is greater than max_mlayer_id %d",
-            seq_max_mlayer_cnt_minus_1, seq_params->max_mlayer_id);
-      }
-      seq_params->seq_max_mlayer_cnt = seq_max_mlayer_cnt_minus_1 + 1;
-    } else {
-      seq_params->seq_max_mlayer_cnt = 1;
-    }
-#endif  // CONFIG_AV2_PROFILES
   }
 
   // setup default embedded layer dependency

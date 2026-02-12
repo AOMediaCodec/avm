@@ -178,16 +178,26 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
   AV2C_READ_BITS_OR_RETURN_ERROR(seq_profile, PROFILE_BITS);
   config->seq_profile_idc = seq_profile;
   AV2C_READ_BIT_OR_RETURN_ERROR(single_picture_header_flag);
+  AV2C_READ_BITS_OR_RETURN_ERROR(seq_level_idx_0, LEVEL_BITS);
+  config->seq_level_idx_0 = seq_level_idx_0;
+  if (seq_level_idx_0 >= SEQ_LEVEL_4_0 && !single_picture_header_flag) {
+    AV2C_READ_BIT_OR_RETURN_ERROR(single_tier_0);
+    config->seq_tier_0 = 0;
+  }
+  if (parse_chroma_format_bitdepth(reader, config) != 0) {
+    fprintf(stderr, "Chroma format or bitdepth parsing failed.\n");
+    return -1;
+  }
   if (!single_picture_header_flag) {
     AV2C_READ_BITS_OR_RETURN_ERROR(seq_lcr_id, 3);
     config->seq_lcr_id = seq_lcr_id;
     AV2C_READ_BIT_OR_RETURN_ERROR(still_picture);
-  }
-  AV2C_READ_BITS_OR_RETURN_ERROR(seq_level_idx_0, 5);
-  config->seq_level_idx_0 = seq_level_idx_0;
-  if (seq_level_idx_0 > 7 && !single_picture_header_flag) {
-    AV2C_READ_BIT_OR_RETURN_ERROR(single_tier_0);
-    config->seq_tier_0 = 0;
+    AV2C_READ_BITS_OR_RETURN_ERROR(max_tlayer_id, TLAYER_BITS);
+    AV2C_READ_BITS_OR_RETURN_ERROR(max_mlayer_id, MLAYER_BITS);
+    if (max_mlayer_id > 0) {
+      int n = avm_ceil_log2(max_mlayer_id + 1);
+      AV2C_READ_BITS_OR_RETURN_ERROR(seq_max_mlayer_cnt_minus_1, n);
+    }
   }
 
   AV2C_READ_BITS_OR_RETURN_ERROR(frame_width_bits_minus_1, 4);
@@ -210,11 +220,6 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
     config->conf_win_right_offset = 0;
     config->conf_win_top_offset = 0;
     config->conf_win_bottom_offset = 0;
-  }
-
-  if (parse_chroma_format_bitdepth(reader, config) != 0) {
-    fprintf(stderr, "Chroma format or bitdepth parsing failed.\n");
-    return -1;
   }
 
   if (single_picture_header_flag) {

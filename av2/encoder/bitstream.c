@@ -5935,15 +5935,23 @@ uint32_t av2_write_sequence_header_obu(const SequenceHeader *seq_params,
   avm_wb_write_uvlc(&wb, seq_params->seq_header_id);
   write_profile(seq_params->seq_profile_idc, &wb);
   avm_wb_write_bit(&wb, seq_params->single_picture_header_flag);
-  if (!seq_params->single_picture_header_flag) {
-    avm_wb_write_literal(&wb, seq_params->seq_lcr_id, 3);
-    avm_wb_write_bit(&wb, seq_params->still_picture);
-  }
 
   write_bitstream_level(seq_params->seq_max_level_idx, &wb);
   if (seq_params->seq_max_level_idx >= SEQ_LEVEL_4_0 &&
       !seq_params->single_picture_header_flag)
     avm_wb_write_bit(&wb, seq_params->seq_tier);
+  write_chroma_format_bitdepth(seq_params, &wb);
+
+  if (!seq_params->single_picture_header_flag) {
+    avm_wb_write_literal(&wb, seq_params->seq_lcr_id, 3);
+    avm_wb_write_bit(&wb, seq_params->still_picture);
+    avm_wb_write_literal(&wb, seq_params->max_tlayer_id, TLAYER_BITS);
+    avm_wb_write_literal(&wb, seq_params->max_mlayer_id, MLAYER_BITS);
+    if (seq_params->max_mlayer_id > 0) {
+      int n = avm_ceil_log2(seq_params->max_mlayer_id + 1);
+      avm_wb_write_literal(&wb, seq_params->seq_max_mlayer_cnt - 1, n);
+    }
+  }
 
   avm_wb_write_literal(&wb, seq_params->num_bits_width - 1, 4);
   avm_wb_write_literal(&wb, seq_params->num_bits_height - 1, 4);
@@ -5953,8 +5961,6 @@ uint32_t av2_write_sequence_header_obu(const SequenceHeader *seq_params,
                        seq_params->num_bits_height);
 
   av2_write_conformance_window(seq_params, &wb);
-
-  write_chroma_format_bitdepth(seq_params, &wb);
 
   if (seq_params->single_picture_header_flag) {
     assert(seq_params->decoder_model_info_present_flag == 0);
@@ -5976,17 +5982,6 @@ uint32_t av2_write_sequence_header_obu(const SequenceHeader *seq_params,
         avm_wb_write_bit(&wb, seq_params->seq_max_low_delay_mode_flag);
       }
     }
-  }
-
-  if (!seq_params->single_picture_header_flag) {
-    avm_wb_write_literal(&wb, seq_params->max_tlayer_id, TLAYER_BITS);
-    avm_wb_write_literal(&wb, seq_params->max_mlayer_id, MLAYER_BITS);
-#if CONFIG_AV2_PROFILES
-    if (seq_params->max_mlayer_id > 0) {
-      int n = avm_ceil_log2(seq_params->max_mlayer_id + 1);
-      avm_wb_write_literal(&wb, seq_params->seq_max_mlayer_cnt - 1, n);
-    }
-#endif  // CONFIG_AV2_PROFILES
   }
 
   // mlayer dependency description
