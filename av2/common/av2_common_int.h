@@ -1136,10 +1136,6 @@ typedef struct SequenceHeader {
 
   uint8_t df_par_bits_minus2;
 
-  // IMPORTANT: the op_params member must be at the end of the struct so that
-  // are_seq_headers_consistent() can be implemented with a memcmp() call.
-  // TODO(urvang): We probably don't need the +1 here.
-  avm_dec_model_op_parameters_t op_params[MAX_NUM_OPERATING_POINTS + 1];
   CropWindow conf;
   uint8_t seq_seg_info_present_flag;
   SegmentationInfoSyntax seg_params;
@@ -1147,6 +1143,10 @@ typedef struct SequenceHeader {
 #if CONFIG_F414_OBU_EXTENSION
   int seq_extension_present_flag;
 #endif  // CONFIG_F414_OBU_EXTENSION
+  // IMPORTANT: the op_params member must be at the end of the struct so that
+  // are_seq_headers_consistent() can be implemented with a memcmp() call.
+  // TODO(urvang): We probably don't need the +1 here.
+  avm_dec_model_op_parameters_t op_params[MAX_NUM_OPERATING_POINTS + 1];
 } SequenceHeader;
 
 typedef struct {
