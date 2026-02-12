@@ -134,7 +134,7 @@ int main(int argc, char **argv) {
   cfg.rc_max_quantizer = 150;
   cfg.g_error_resilient = 0;
   cfg.g_lag_in_frames = 0;
-  cfg.signal_td = 0;
+  cfg.signal_td = 1;
   outfile = fopen(outfile_arg, "wb");
   if (!outfile) die("Failed to open %s for writing.", outfile_arg);
 
