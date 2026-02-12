@@ -75,7 +75,7 @@ int av2_check_seg_equivalence(const struct SegmentationInfoSyntax *seg_params,
 
   for (int i = 0; i < max_seg_num; i++) {
     for (int j = 0; j < SEG_LVL_MAX; j++) {
-      if (seg_params->feature_mask[i] & (i << j)) {
+      if (seg_params->feature_mask[i] & (1 << j)) {
         if (seg_params->feature_data[i][j] != seg->feature_data[i][j]) return 0;
       }
     }
