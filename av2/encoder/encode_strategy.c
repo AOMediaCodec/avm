@@ -170,14 +170,21 @@ static INLINE void update_gf_group_index(AV2_COMP *cpi) {
     // The current test is for fixed GOP with keyframe_filtering off.
     GF_GROUP *const gf_group = &cpi->gf_group;
     if (gf_group->update_type[cpi->gf_group.index] == ARF_UPDATE ||
-        gf_group->update_type[cpi->gf_group.index] == INTNL_ARF_UPDATE) {
+        gf_group->update_type[cpi->gf_group.index] == INTNL_ARF_UPDATE ||
+        gf_group->update_type[cpi->gf_group.index] == KFFLT_UPDATE) {
       ++gf_group->index;
       if (cpi->common.mlayer_id == 0) gf_group->arf_update_counter++;
-    } else if (cpi->common.mlayer_id == 0 && cpi->gf_group.index > 0 &&
+    } else if (cpi->common.mlayer_id == 0 &&
+               gf_group->update_type[cpi->gf_group.index] == LF_UPDATE &&
                (gf_group->update_type[cpi->gf_group.index - 1] == ARF_UPDATE ||
                 gf_group->update_type[cpi->gf_group.index - 1] ==
-                    INTNL_ARF_UPDATE) &&
-               gf_group->update_type[cpi->gf_group.index] == LF_UPDATE) {
+                    INTNL_ARF_UPDATE ||
+                gf_group->update_type[cpi->gf_group.index - 1] ==
+                    OVERLAY_UPDATE ||
+                gf_group->update_type[cpi->gf_group.index - 1] ==
+                    INTNL_OVERLAY_UPDATE ||
+                gf_group->update_type[cpi->gf_group.index - 1] ==
+                    KFFLT_OVERLAY_UPDATE)) {
       // This willl force the next encode_call to encode ARFs followed by LF
       // at the next ml layer.
       gf_group->index = gf_group->index - gf_group->arf_update_counter;
