@@ -52,7 +52,6 @@ class MultiLayerTest : public ::libavm_test::CodecTestWithParam<int>,
 
   void PreEncodeFrameHook(::libavm_test::VideoSource *video,
                           ::libavm_test::Encoder *encoder) override {
-    (void)video;
     frame_flags_ = 0;
     if (layer_frame_cnt_ == 0) {
       encoder->Control(AVME_SET_CPUUSED, speed_);
@@ -136,6 +135,36 @@ class MultiLayerTest : public ::libavm_test::CodecTestWithParam<int>,
         embedded_layer_id_ = 1;
         temporal_layer_id_ = 1;
         encoder->Control(AVME_SET_MLAYER_ID, 1);
+        encoder->Control(AVME_SET_TLAYER_ID, 1);
+      }
+    } else if (num_temporal_layers_ == 3 && num_embedded_layers_ == 3) {
+      embedded_layer_id_ = (layer_frame_cnt_ % 3 == 0)         ? 0
+                           : ((layer_frame_cnt_ - 1) % 3 == 0) ? 1
+                                                               : 2;
+      if (embedded_layer_id_ == 0) {
+        struct avm_scaling_mode mode = { AVME_ONEFOUR, AVME_ONEFOUR };
+        encoder->Control(AVME_SET_SCALEMODE, &mode);
+        embedded_layer_id_ = 0;
+        encoder->Control(AVME_SET_MLAYER_ID, 0);
+      } else if (embedded_layer_id_ == 1) {
+        struct avm_scaling_mode mode = { AVME_ONETWO, AVME_ONETWO };
+        encoder->Control(AVME_SET_SCALEMODE, &mode);
+        embedded_layer_id_ = 1;
+        encoder->Control(AVME_SET_MLAYER_ID, 1);
+      } else if (embedded_layer_id_ == 2) {
+        struct avm_scaling_mode mode = { AVME_NORMAL, AVME_NORMAL };
+        encoder->Control(AVME_SET_SCALEMODE, &mode);
+        embedded_layer_id_ = 2;
+        encoder->Control(AVME_SET_MLAYER_ID, 2);
+      }
+      if (video->frame() % 4 == 0) {
+        temporal_layer_id_ = 0;
+        encoder->Control(AVME_SET_TLAYER_ID, 0);
+      } else if ((video->frame() - 1) % 2 == 0) {
+        temporal_layer_id_ = 2;
+        encoder->Control(AVME_SET_TLAYER_ID, 2);
+      } else if ((video->frame() - 2) % 4 == 0) {
+        temporal_layer_id_ = 1;
         encoder->Control(AVME_SET_TLAYER_ID, 1);
       }
     }
@@ -443,6 +472,44 @@ TEST_P(MultiLayerTest, MultiLayerTest2Embedded2TemporaSframe) {
   enable_buffer_refresh_test_ = true;
   enable_s_frame_ = true;
   start_decoding_tl1_ = 11;
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
+  EXPECT_EQ(num_mismatch_, 0);
+}
+
+TEST_P(MultiLayerTest, MultiLayerTest3Embedded3Temporal) {
+  ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
+  num_temporal_layers_ = 3;
+  num_embedded_layers_ = 3;
+  decode_base_only_ = false;
+  drop_tl2_ = false;
+  enable_explicit_ref_frame_map_ = false;
+  enable_buffer_refresh_test_ = false;
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
+  EXPECT_EQ(num_mismatch_, 0);
+}
+
+TEST_P(MultiLayerTest, MultiLayerTest3Embedded3TemporalDropTL2) {
+  ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
+  num_temporal_layers_ = 3;
+  num_embedded_layers_ = 3;
+  decode_base_only_ = false;
+  drop_tl2_ = true;
+  drop_sl2_ = false;
+  enable_explicit_ref_frame_map_ = false;
+  enable_buffer_refresh_test_ = false;
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
+  EXPECT_EQ(num_mismatch_, 0);
+}
+
+TEST_P(MultiLayerTest, MultiLayerTest3Embedded3TemporalDropSL2) {
+  ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
+  num_temporal_layers_ = 3;
+  num_embedded_layers_ = 3;
+  decode_base_only_ = false;
+  drop_tl2_ = false;
+  drop_sl2_ = true;
+  enable_explicit_ref_frame_map_ = false;
+  enable_buffer_refresh_test_ = false;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
   EXPECT_EQ(num_mismatch_, 0);
 }

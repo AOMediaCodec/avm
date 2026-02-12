@@ -73,6 +73,7 @@ int main(int argc, char **argv) {
   int frames_encoded = 0;
   int num_temporal_layers = 1;
   int num_embedded_layers = 1;
+  int temp_unit_counter = 0;
   const int fps = 30;
   const char *width_arg = NULL;
   const char *height_arg = NULL;
@@ -228,12 +229,37 @@ int main(int argc, char **argv) {
           avm_codec_control(&codec, AVME_SET_MLAYER_ID, 2);
           avm_codec_control(&codec, AVME_SET_TLAYER_ID, 0);
         }
+      } else if (num_temporal_layers == 3 && num_embedded_layers == 3) {
+        int embedded_layer_id = (frames_encoded % 3 == 0)         ? 0
+                                : ((frames_encoded - 1) % 3 == 0) ? 1
+                                                                  : 2;
+        if (embedded_layer_id == 0) {
+          struct avm_scaling_mode mode = { AVME_ONEFOUR, AVME_ONEFOUR };
+          avm_codec_control(&codec, AVME_SET_SCALEMODE, &mode);
+          avm_codec_control(&codec, AVME_SET_MLAYER_ID, 0);
+        } else if (embedded_layer_id == 1) {
+          struct avm_scaling_mode mode = { AVME_ONETWO, AVME_ONETWO };
+          avm_codec_control(&codec, AVME_SET_SCALEMODE, &mode);
+          avm_codec_control(&codec, AVME_SET_MLAYER_ID, 1);
+        } else if (embedded_layer_id == 2) {
+          struct avm_scaling_mode mode = { AVME_NORMAL, AVME_NORMAL };
+          avm_codec_control(&codec, AVME_SET_SCALEMODE, &mode);
+          avm_codec_control(&codec, AVME_SET_MLAYER_ID, 2);
+        }
+        if (temp_unit_counter % 4 == 0) {
+          avm_codec_control(&codec, AVME_SET_TLAYER_ID, 0);
+        } else if ((temp_unit_counter - 1) % 2 == 0) {
+          avm_codec_control(&codec, AVME_SET_TLAYER_ID, 2);
+        } else if ((temp_unit_counter - 2) % 4 == 0) {
+          avm_codec_control(&codec, AVME_SET_TLAYER_ID, 1);
+        }
       }
 
       encode_frame(&codec, &raw0, frame_count++, flags, outfile);
 
       frames_encoded++;
     }
+    temp_unit_counter++;
 
     if (max_frames > 0 && frames_encoded >= max_frames * num_embedded_layers)
       break;
