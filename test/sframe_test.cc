@@ -93,7 +93,7 @@ class SFramePresenceTest
 };
 
 TEST_P(SFramePresenceTest, DISABLED_SFramePresenceTest) {
-  libavm_test::Y4mVideoSource video("park_joy_90p_8_420.y4m", 0, 20);
+  libavm_test::Y4mVideoSource video("park_joy_90p_8_420.y4m", 0, 10);
 
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   ASSERT_EQ(is_sframe_present_, 1);

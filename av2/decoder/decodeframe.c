@@ -7507,8 +7507,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   MACROBLOCKD *const xd = &pbi->dcb.xd;
   BufferPool *const pool = cm->buffer_pool;
   avm_s_frame_info *sframe_info = &pbi->sframe_info;
-  sframe_info->is_s_frame = 0;
-  sframe_info->is_s_frame_at_altref = 0;
   init_bru_params(cm);
 #if CONFIG_PARAKIT_COLLECT_DATA
   for (int i = 0; i < MAX_NUM_CTX_GROUPS; i++) {

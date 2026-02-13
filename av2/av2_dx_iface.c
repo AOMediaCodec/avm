@@ -1390,10 +1390,13 @@ static avm_codec_err_t ctrl_get_s_frame_info(avm_codec_alg_priv_t *ctx,
       AVxWorker *const worker = ctx->frame_worker;
       FrameWorkerData *const frame_worker_data =
           (FrameWorkerData *)worker->data1;
-      const AV2Decoder *pbi = frame_worker_data->pbi;
+      AV2Decoder *pbi = frame_worker_data->pbi;
       s_frame_info->is_s_frame = pbi->sframe_info.is_s_frame;
       s_frame_info->is_s_frame_at_altref =
           pbi->sframe_info.is_s_frame_at_altref;
+      // Reset after getting info.
+      pbi->sframe_info.is_s_frame = 0;
+      pbi->sframe_info.is_s_frame_at_altref = 0;
       return AVM_CODEC_OK;
     } else {
       return AVM_CODEC_ERROR;
