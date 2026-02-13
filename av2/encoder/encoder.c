@@ -3428,7 +3428,6 @@ static void set_primary_ref_frame(AV2_COMP *cpi) {
 
   if (cm->features.primary_ref_frame == PRIMARY_REF_NONE &&
       cm->features.derived_primary_ref_frame != PRIMARY_REF_NONE) {
-    cm->features.derived_primary_ref_frame = PRIMARY_REF_NONE;
     cpi->signal_primary_ref_frame = 1;
     cm->features.derived_primary_ref_frame = cm->features.primary_ref_frame;
   }
