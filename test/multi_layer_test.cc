@@ -549,6 +549,7 @@ TEST_P(MultiLayerTest, MultiLayerTest2EmbeddedLagEx1) {
   decode_base_only_ = false;
   drop_sl2_ = false;
   enable_explicit_ref_frame_map_ = false;
+  enable_buffer_refresh_test_ = false;
   pyramid_level_one_ = true;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
 }
@@ -569,6 +570,7 @@ TEST_P(MultiLayerTest, MultiLayerTest2EmbeddedLagEx2) {
   decode_base_only_ = false;
   drop_sl2_ = false;
   enable_explicit_ref_frame_map_ = false;
+  enable_buffer_refresh_test_ = false;
   pyramid_level_one_ = false;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
 }

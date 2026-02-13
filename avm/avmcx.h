@@ -1241,7 +1241,7 @@ enum avme_enc_control_id {
    * for testing multi layers with nonzero lag.
    * int parameter.
    */
-  AV2E_SET_ENABLE_FLAG_MULTI_LAYER_LAG_TEST = 180,
+  AV2E_SET_ENABLE_FLAG_MULTI_LAYER_LAG_TEST = 181,
 };
 
 /*!\brief avm 1-D scaling mode
