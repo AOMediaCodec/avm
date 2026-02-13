@@ -26,7 +26,7 @@ void usage_exit(void) {
   fprintf(stderr,
           "Usage: %s <width> <height> <infile0>  "
           "<outfile> <frames to encode> <num_temporal_layers> "
-          "<num_embedded_layers> \n"
+          "<num_embedded_layers> <lag> \n"
           "See comments in embedded_temporal_layers_encoder.c for more "
           "information.\n",
           exec_name);
@@ -73,6 +73,7 @@ int main(int argc, char **argv) {
   int frames_encoded = 0;
   int num_temporal_layers = 1;
   int num_embedded_layers = 1;
+  int lag = 0;
   int temp_unit_counter = 0;
   const int fps = 30;
   const char *width_arg = NULL;
@@ -88,7 +89,7 @@ int main(int argc, char **argv) {
   // "missing-field-initializers" warning in some compilers.
   memset(&info, 0, sizeof(info));
 
-  if (argc != 8) die("Invalid number of arguments");
+  if (argc != 9) die("Invalid number of arguments");
 
   width_arg = argv[1];
   height_arg = argv[2];
@@ -97,6 +98,7 @@ int main(int argc, char **argv) {
   max_frames = (int)strtol(argv[5], NULL, 0);
   num_temporal_layers = (int)strtol(argv[6], NULL, 0);
   num_embedded_layers = (int)strtol(argv[7], NULL, 0);
+  lag = (int)strtol(argv[8], NULL, 0);
 
   avm_codec_iface_t *encoder = get_avm_encoder_by_short_name("av2");
   if (!encoder) die("Unsupported codec.");
@@ -110,6 +112,10 @@ int main(int argc, char **argv) {
   if (info.frame_width <= 0 || info.frame_height <= 0 ||
       (info.frame_width % 2) != 0 || (info.frame_height % 2) != 0) {
     die("Invalid frame size: %dx%d", info.frame_width, info.frame_height);
+  }
+
+  if (lag > 0 && (num_temporal_layers > 2 || num_embedded_layers > 2)) {
+    die("Nonzero lag not setup/tested for tl or ml above 2 \n");
   }
 
   if (!avm_img_alloc(&raw0, AVM_IMG_FMT_I420, info.frame_width,
@@ -133,7 +139,7 @@ int main(int argc, char **argv) {
   cfg.rc_min_quantizer = 150;
   cfg.rc_max_quantizer = 150;
   cfg.g_error_resilient = 0;
-  cfg.g_lag_in_frames = 0;
+  cfg.g_lag_in_frames = lag;
   cfg.signal_td = 1;
   outfile = fopen(outfile_arg, "wb");
   if (!outfile) die("Failed to open %s for writing.", outfile_arg);
@@ -153,6 +159,15 @@ int main(int argc, char **argv) {
     die_codec(&codec, "Failed to set number of embedded layers.");
   if (avm_codec_control(&codec, AVME_SET_NUMBER_TLAYERS, num_temporal_layers))
     die_codec(&codec, "Failed to set number of temporal layers.");
+
+  if (lag > 0) {
+    int gop_size = (lag - 1) / num_embedded_layers;
+    avm_codec_control(&codec, AV2E_SET_MIN_GF_INTERVAL, gop_size);
+    avm_codec_control(&codec, AV2E_SET_MAX_GF_INTERVAL, gop_size);
+    avm_codec_control(&codec, AV2E_SET_ENABLE_KEYFRAME_FILTERING, 0);
+    if (num_temporal_layers > 1 || num_embedded_layers > 1)
+      avm_codec_control(&codec, AV2E_SET_ENABLE_FLAG_MULTI_LAYER_LAG_TEST, 1);
+  }
 
   // Encode frames.
   while (avm_img_read(&raw0, infile0)) {
@@ -175,8 +190,11 @@ int main(int argc, char **argv) {
         }
       } else if (num_temporal_layers == 1 && num_embedded_layers == 2) {
         if (frames_encoded % 2 == 0) {
-          struct avm_scaling_mode mode = { AVME_ONETWO, AVME_ONETWO };
-          avm_codec_control(&codec, AVME_SET_SCALEMODE, &mode);
+          if (lag == 0) {
+            // Look into why scaling case fails for nonzero lag.
+            struct avm_scaling_mode mode = { AVME_ONETWO, AVME_ONETWO };
+            avm_codec_control(&codec, AVME_SET_SCALEMODE, &mode);
+          }
           avm_codec_control(&codec, AVME_SET_MLAYER_ID, 0);
         } else {
           struct avm_scaling_mode mode = { AVME_NORMAL, AVME_NORMAL };
@@ -185,13 +203,17 @@ int main(int argc, char **argv) {
         }
       } else if (num_temporal_layers == 2 && num_embedded_layers == 2) {
         if (frames_encoded % 4 == 0) {
-          struct avm_scaling_mode mode = { AVME_ONETWO, AVME_ONETWO };
-          avm_codec_control(&codec, AVME_SET_SCALEMODE, &mode);
+          if (lag == 0) {
+            struct avm_scaling_mode mode = { AVME_ONETWO, AVME_ONETWO };
+            avm_codec_control(&codec, AVME_SET_SCALEMODE, &mode);
+          }
           avm_codec_control(&codec, AVME_SET_MLAYER_ID, 0);
           avm_codec_control(&codec, AVME_SET_TLAYER_ID, 0);
         } else if (frames_encoded % 2 == 0) {
-          struct avm_scaling_mode mode = { AVME_ONETWO, AVME_ONETWO };
-          avm_codec_control(&codec, AVME_SET_SCALEMODE, &mode);
+          if (lag == 0) {
+            struct avm_scaling_mode mode = { AVME_ONETWO, AVME_ONETWO };
+            avm_codec_control(&codec, AVME_SET_SCALEMODE, &mode);
+          }
           avm_codec_control(&codec, AVME_SET_MLAYER_ID, 0);
           avm_codec_control(&codec, AVME_SET_TLAYER_ID, 1);
         } else if ((frames_encoded - 1) % 4 == 0) {
