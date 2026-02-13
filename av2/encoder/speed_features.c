@@ -345,6 +345,9 @@ static void set_good_speed_features_framesize_independent(
     sf->tx_sf.adaptive_tx_partition_type_search_idx = 4;
 
     sf->inter_sf.prune_comp_search_by_single_result = boosted ? 2 : 1;
+
+    sf->part_sf.disable_uneven_4way_partitions = true;
+    sf->part_sf.disable_ext_partitions = true;
   }
 
   if (speed >= 2) {
@@ -661,6 +664,8 @@ static AVM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->prune_split_ml_level = -2;  // default pruning
   part_sf->prune_split_ml_level_inter = -1;
 #endif  // CONFIG_ML_PART_SPLIT
+  part_sf->disable_ext_partitions = false;
+  part_sf->disable_uneven_4way_partitions = false;
 }
 
 static AVM_INLINE void init_mv_sf(MV_SPEED_FEATURES *mv_sf) {

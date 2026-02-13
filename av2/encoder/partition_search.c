@@ -2873,6 +2873,7 @@ static AVM_INLINE PARTITION_TYPE get_forced_partition_type(
 
 static AVM_INLINE void init_allowed_partitions(
     PartitionSearchState *part_search_state, const PartitionCfg *part_cfg,
+    const SPEED_FEATURES *const sf,
     const int bru_skip, const bool *partition_allowed) {
   const PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
   const BLOCK_SIZE bsize = blk_params->bsize;
@@ -2910,6 +2911,7 @@ static AVM_INLINE void init_allowed_partitions(
       is_bsize_geq(vert_subsize, min_partition_size);
 
   part_search_state->partition_3_allowed[HORZ] =
+      !sf->part_sf.disable_ext_partitions &&
       partition_allowed[PARTITION_HORZ_3] &&
       is_bsize_geq(get_partition_subsize(bsize, PARTITION_HORZ_3),
                    blk_params->min_partition_size) &&
@@ -2917,6 +2919,7 @@ static AVM_INLINE void init_allowed_partitions(
                    blk_params->min_partition_size);
 
   part_search_state->partition_3_allowed[VERT] =
+      !sf->part_sf.disable_ext_partitions &&
       partition_allowed[PARTITION_VERT_3] &&
       is_bsize_geq(get_partition_subsize(bsize, PARTITION_VERT_3),
                    blk_params->min_partition_size) &&
@@ -2924,18 +2927,26 @@ static AVM_INLINE void init_allowed_partitions(
                    blk_params->min_partition_size);
 
   part_search_state->partition_4a_allowed[HORZ] =
+      !sf->part_sf.disable_ext_partitions &&
+      !sf->part_sf.disable_uneven_4way_partitions &&
       partition_allowed[PARTITION_HORZ_4A] &&
       is_bsize_geq(get_partition_subsize(bsize, PARTITION_HORZ_4A),
                    blk_params->min_partition_size);
   part_search_state->partition_4b_allowed[HORZ] =
+      !sf->part_sf.disable_ext_partitions &&
+      !sf->part_sf.disable_uneven_4way_partitions &&
       partition_allowed[PARTITION_HORZ_4B] &&
       is_bsize_geq(get_partition_subsize(bsize, PARTITION_HORZ_4B),
                    blk_params->min_partition_size);
   part_search_state->partition_4a_allowed[VERT] =
+      !sf->part_sf.disable_ext_partitions &&
+      !sf->part_sf.disable_uneven_4way_partitions &&
       partition_allowed[PARTITION_VERT_4A] &&
       is_bsize_geq(get_partition_subsize(bsize, PARTITION_VERT_4A),
                    blk_params->min_partition_size);
   part_search_state->partition_4b_allowed[VERT] =
+      !sf->part_sf.disable_ext_partitions &&
+      !sf->part_sf.disable_uneven_4way_partitions &&
       partition_allowed[PARTITION_VERT_4B] &&
       is_bsize_geq(get_partition_subsize(bsize, PARTITION_VERT_4B),
                    blk_params->min_partition_size);
@@ -3056,7 +3067,7 @@ static void init_partition_search_state_params(
       pc_tree->region_type, partition_allowed);
 
   init_allowed_partitions(
-      part_search_state, &cpi->oxcf.part_cfg,
+      part_search_state, &cpi->oxcf.part_cfg, &cpi->sf,
       is_bru_not_active_and_not_on_partial_border(cm, mi_col, mi_row, bsize),
       partition_allowed);
 
@@ -6058,7 +6069,7 @@ BEGIN_PARTITION_SEARCH:
         (pc_tree->parent ? pc_tree->parent->region_type : INTRA_REGION), mi_row,
         mi_col, ss_x, ss_y, bsize, &pc_tree->chroma_ref_info);
     init_allowed_partitions(
-        &part_search_state, &cpi->oxcf.part_cfg,
+        &part_search_state, &cpi->oxcf.part_cfg, &cpi->sf,
         is_bru_not_active_and_not_on_partial_border(cm, mi_col, mi_row, bsize),
         partition_allowed);
 #if CONFIG_ML_PART_SPLIT
