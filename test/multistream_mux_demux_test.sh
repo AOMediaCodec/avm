@@ -86,7 +86,7 @@ ml_encode_bitstream_0() {
       352 288 \
       $(yuv_raw_input_ml) \
       ${BITSTREAM_0} \
-      10 \
+      20 \
       $1 $2 $3 \
 
   if [ ! -e "${BITSTREAM_0}" ]; then
@@ -105,7 +105,7 @@ ml_encode_bitstream_1() {
       352 288 \
       $(yuv_raw_input_ml) \
       ${BITSTREAM_1} \
-      10 \
+      20 \
       $1 $2 $3 \
 
   if [ ! -e "${BITSTREAM_1}" ]; then
