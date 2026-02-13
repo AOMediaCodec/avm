@@ -163,7 +163,8 @@ static INLINE void update_gf_group_index(AV2_COMP *cpi) {
   // a show_existing_frame with a source other than altref, or if it is not
   // a displayed forward keyframe, the index was incremented when it was
   // originally encoded.
-  if (!cpi->oxcf.unit_test_cfg.multi_layers_lag_test) {
+  if (!cpi->oxcf.unit_test_cfg.multi_layers_lag_test ||
+      cpi->common.number_mlayers == 1) {
     ++cpi->gf_group.index;
   } else {
     // To be updated based on the (multi_layers) tests for nonzero lag.
@@ -1044,6 +1045,14 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
     if (pts64 < 0 || pts64 > UINT32_MAX) return AVM_CODEC_ERROR;
   }
   FRAME_UPDATE_TYPE frame_update_type = get_frame_update_type(gf_group);
+
+  if (cpi->oxcf.unit_test_cfg.multi_layers_lag_test &&
+      cm->number_tlayers == 2) {
+    if (frame_update_type == LF_UPDATE)
+      cm->tlayer_id = 1;
+    else
+      cm->tlayer_id = 0;
+  }
 
   // TODO(david.turner@argondesign.com): Move all the encode strategy
   // (largely near av2_get_compressed_data) in here

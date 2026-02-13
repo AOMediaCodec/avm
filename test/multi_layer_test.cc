@@ -75,7 +75,8 @@ class MultiLayerTest : public ::libavm_test::CodecTestWithParam<int>,
         encoder->Control(AV2E_SET_MIN_GF_INTERVAL, gop_size);
         encoder->Control(AV2E_SET_MAX_GF_INTERVAL, gop_size);
         encoder->Control(AV2E_SET_ENABLE_KEYFRAME_FILTERING, 0);
-        encoder->Control(AV2E_SET_ENABLE_FLAG_MULTI_LAYER_LAG_TEST, 1);
+        if (num_temporal_layers_ > 1 || num_embedded_layers_ > 1)
+          encoder->Control(AV2E_SET_ENABLE_FLAG_MULTI_LAYER_LAG_TEST, 1);
       }
     }
     if (num_temporal_layers_ == 2 && num_embedded_layers_ == 1) {
@@ -130,15 +131,19 @@ class MultiLayerTest : public ::libavm_test::CodecTestWithParam<int>,
       }
     } else if (num_temporal_layers_ == 2 && num_embedded_layers_ == 2) {
       if (layer_frame_cnt_ % 4 == 0) {
-        struct avm_scaling_mode mode = { AVME_ONETWO, AVME_ONETWO };
-        encoder->Control(AVME_SET_SCALEMODE, &mode);
+        if (cfg_.g_lag_in_frames == 0) {
+          struct avm_scaling_mode mode = { AVME_ONETWO, AVME_ONETWO };
+          encoder->Control(AVME_SET_SCALEMODE, &mode);
+        }
         embedded_layer_id_ = 0;
         temporal_layer_id_ = 0;
         encoder->Control(AVME_SET_MLAYER_ID, 0);
         encoder->Control(AVME_SET_TLAYER_ID, 0);
       } else if (layer_frame_cnt_ % 2 == 0) {
-        struct avm_scaling_mode mode = { AVME_ONETWO, AVME_ONETWO };
-        encoder->Control(AVME_SET_SCALEMODE, &mode);
+        if (cfg_.g_lag_in_frames == 0) {
+          struct avm_scaling_mode mode = { AVME_ONETWO, AVME_ONETWO };
+          encoder->Control(AVME_SET_SCALEMODE, &mode);
+        }
         embedded_layer_id_ = 0;
         temporal_layer_id_ = 1;
         encoder->Control(AVME_SET_MLAYER_ID, 0);
@@ -566,6 +571,37 @@ TEST_P(MultiLayerTest, MultiLayerTest2EmbeddedLagEx2) {
   cfg_.g_lag_in_frames = 17;
   ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
   num_temporal_layers_ = 1;
+  num_embedded_layers_ = 2;
+  decode_base_only_ = false;
+  drop_sl2_ = false;
+  enable_explicit_ref_frame_map_ = false;
+  enable_buffer_refresh_test_ = false;
+  pyramid_level_one_ = false;
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
+}
+
+// 2 temporal layers with nonzero lag. Under the test control
+// A2E_SET_ENABLE_FLAG_MULTI_LAYER_LAG_TEST: the LF_UPDATE frames are
+// internally set as tlayer_id = 1, and the rest as tlayer_id = 0.
+TEST_P(MultiLayerTest, MultiLayerTest2TemporalLag) {
+  cfg_.g_lag_in_frames = 9;
+  ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
+  num_temporal_layers_ = 2;
+  num_embedded_layers_ = 1;
+  decode_base_only_ = false;
+  drop_sl2_ = false;
+  enable_explicit_ref_frame_map_ = false;
+  enable_buffer_refresh_test_ = false;
+  pyramid_level_one_ = false;
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
+}
+
+// 2 embedded and 2 temporal layers with nonzero lag, under the test control
+// A2E_SET_ENABLE_FLAG_MULTI_LAYER_LAG_TEST.
+TEST_P(MultiLayerTest, MultiLayerTest2Embedded2TemporalLag) {
+  cfg_.g_lag_in_frames = 17;
+  ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
+  num_temporal_layers_ = 2;
   num_embedded_layers_ = 2;
   decode_base_only_ = false;
   drop_sl2_ = false;
