@@ -489,13 +489,11 @@ static int allow_show_existing(const AV2_COMP *const cpi,
       av2_lookahead_peek(cpi->lookahead, 0, cpi->compressor_stage);
   if (lookahead_src == NULL) return 1;
 
-  const int is_error_resilient =
-      (lookahead_src->flags & AVM_EFLAG_ERROR_RESILIENT);
   const int is_s_frame = cpi->oxcf.kf_cfg.enable_sframe ||
                          (lookahead_src->flags & AVM_EFLAG_SET_S_FRAME);
   const int is_key_frame =
       (cpi->rc.frames_to_key == 0) || (frame_flags & FRAMEFLAGS_KEY);
-  return !(is_error_resilient || is_s_frame) || is_key_frame;
+  return !is_s_frame || is_key_frame;
 }
 
 // Update frame_flags to tell the encoder's caller what sort of frame was

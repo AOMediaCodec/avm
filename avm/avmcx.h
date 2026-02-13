@@ -114,12 +114,6 @@ extern avm_codec_iface_t *avm_codec_av2_cx(void);
  * be encoded using mfmv.
  */
 #define AVM_EFLAG_NO_REF_FRAME_MVS (1 << 27)
-/*!\brief Enable error resilient frame
- *
- * When this flag is set, the encoder will code frames as error
- * resilient.
- */
-#define AVM_EFLAG_ERROR_RESILIENT (1 << 28)
 /*!\brief Enable s frame mode
  *
  * When this flag is set, the encoder will code frames as an
