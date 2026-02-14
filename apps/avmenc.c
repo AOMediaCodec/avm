@@ -1266,7 +1266,7 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
       config->cfg.tile_height_count =
           arg_parse_list(&arg, config->cfg.tile_heights, MAX_TILE_HEIGHTS);
 #if CONFIG_TUNE_VMAF
-    } else if (arg_match(&arg, &vmaf_model_path, argi)) {
+    } else if (arg_match(&arg, &g_av2_codec_arg_defs.vmaf_model_path, argi)) {
       config->vmaf_model_path = arg.val;
 #endif
     } else if (arg_match(&arg, &g_av2_codec_arg_defs.use_fixed_qp_offsets,

@@ -1800,10 +1800,7 @@ AV2_COMP *av2_create_compressor(AV2EncoderConfig *oxcf, BufferPool *const pool,
       cpi->vmaf_info.best_unsharp_amount[i] = -1.0;
     }
     cpi->vmaf_info.original_qindex = -1;
-
-#if CONFIG_USE_VMAF_RC
     cpi->vmaf_info.vmaf_model = NULL;
-#endif
   }
 #endif
 
@@ -3607,7 +3604,7 @@ static int encode_with_recode_loop(AV2_COMP *cpi, size_t *size, uint8_t *dest) {
     cm->features.allow_local_intrabc = 0;
   }
 
-#if CONFIG_USE_VMAF_RC
+#if CONFIG_TUNE_VMAF
   if (oxcf->tune_cfg.tuning == AVM_TUNE_VMAF_NEG_MAX_GAIN) {
     av2_vmaf_neg_preprocessing(cpi, cpi->unscaled_source);
   }

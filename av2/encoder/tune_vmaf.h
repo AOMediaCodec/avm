@@ -40,10 +40,8 @@ typedef struct {
   // Stores the origial qindex before scaling.
   int original_qindex;
 
-#if CONFIG_USE_VMAF_RC
   // VMAF model used in VMAF caculations.
   VmafModel *vmaf_model;
-#endif
 } TuneVMAFInfo;
 
 typedef struct AV2_COMP AV2_COMP;
@@ -52,9 +50,7 @@ void av2_vmaf_blk_preprocessing(AV2_COMP *cpi, YV12_BUFFER_CONFIG *source);
 
 void av2_vmaf_frame_preprocessing(AV2_COMP *cpi, YV12_BUFFER_CONFIG *source);
 
-#ifdef CONFIG_USE_VMAF_RC
 void av2_vmaf_neg_preprocessing(AV2_COMP *cpi, YV12_BUFFER_CONFIG *source);
-#endif
 
 void av2_set_mb_vmaf_rdmult_scaling(AV2_COMP *cpi);
 
