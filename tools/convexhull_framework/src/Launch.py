@@ -22,7 +22,6 @@ import os
 import re
 import sys
 import glob
-import subprocess
 from Config import WorkPath
 
 # Test configurations that have subfolders under cmdLogs

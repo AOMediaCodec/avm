@@ -15,7 +15,6 @@ import re
 import sys
 from csv import DictReader
 import subprocess
-import time
 import logging
 import hashlib
 import math
@@ -24,9 +23,8 @@ import scipy.interpolate
 import matplotlib.pyplot as plt
 from operator import itemgetter
 from Config import LogLevels, ContentPath, Platform, Path_RDResults, QPs, PSNR_Y_WEIGHT, PSNR_U_WEIGHT, PSNR_V_WEIGHT, \
-APSNR_Y_WEIGHT, APSNR_U_WEIGHT, APSNR_V_WEIGHT, InterpolatePieces, UsePCHIPInterpolation, FFMPEG, DATASET, FrameNum, EnableSubjectiveTest
+APSNR_Y_WEIGHT, APSNR_U_WEIGHT, APSNR_V_WEIGHT, InterpolatePieces, FFMPEG, DATASET, FrameNum, EnableSubjectiveTest
 from AV2CTCVideo import Y4M_CLIPs, CTC_TEST_SET
-from CalcBDRate import BD_RATE
 from AV2SubjectiveVideo import SUBJECTIVE_CLIPS, AV2_SUBJECTIVE_TEST
 
 # Global variable for current job shell script file handle
@@ -681,7 +679,6 @@ def ConvertYUVToY4M(clip, yuv_file, y4m_file, LogCmdOnly=False):
 
     ExecuteCmd(cmd, LogCmdOnly)
 
-'''
 ######################################
 # main
 ######################################
@@ -830,4 +827,3 @@ if __name__ == "__main__":
     plt.legend()
     plt.grid(True)
     plt.show()
-'''

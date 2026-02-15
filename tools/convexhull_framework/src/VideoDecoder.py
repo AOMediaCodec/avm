@@ -13,7 +13,7 @@ __author__ = "maggie.sun@intel.com, ryanlei@meta.com"
 import os
 import Utils
 from Config import AOMDEC, AV1DEC, EnableTimingInfo, Platform, UsePerfUtil, FFMPEG
-from Utils import ExecuteCmd, GetShortContentName, ConvertYUVToY4M, DeleteFile
+from Utils import ExecuteCmd
 
 def DecodeWithAOM(test_cfg, infile, outfile, dec_perf, decode_to_yuv, dec_log, LogCmdOnly=False):
     if decode_to_yuv:

@@ -68,19 +68,20 @@ csv_paths = {
         "0",
         os.path.join(CTC_RESULT_PATH, "AV2-CTC-v1.0.0-alt-anchor-r3.0"),
     ],
-    # "libaom-v3.12.0": [
-    #    "v3.12.0",
-    #    "av1",
-    #    "aom",
-    #    "0",
-    #    os.path.join(CTC_RESULT_PATH, "AV1-CTC-v3.12.0-constrained"),
-    # ],
-    # "libaom-v3.12.0-unconstrained": [
-    #    "av1",
-    #    "aom",
-    #    "0",
-    #    os.path.join(CTC_RESULT_PATH, "AV1-CTC-v3.12.0-unconstrained"),
-    # ],
+    "libaom-v3.12.0": [
+        "v3.12.0",
+        "av1",
+        "aom",
+        "0",
+        os.path.join(CTC_RESULT_PATH, "AV1-CTC-v3.12.0-constrained"),
+    ],
+    "libaom-v3.12.0-unconstrained": [
+        "v3.12.0",
+        "av1",
+        "aom",
+        "0",
+        os.path.join(CTC_RESULT_PATH, "AV1-CTC-v3.12.0-unconstrained"),
+    ],
     "v02.0.0": [
         "v2.0.0",
         "av2",
@@ -179,8 +180,8 @@ formats = {
     "v06.0.0": ["y", "-.", "o"],
     "v07.0.0": ["k", ":", "+"],
     "v08.0.0": ["w", ":", "^"],
-    # "libaom-v3.12.0": ["r", "--", "<"],
-    # "libaom-v3.12.0-unconstrained": ["g", "--", "<"],
+    "libaom-v3.12.0": ["r", "--", "<"],
+    "libaom-v3.12.0-unconstrained": ["g", "--", "<"],
     "v09.0.0": ["b", "-.", "^"],
     "v10.0.0": ["c", "-.", "+"],
     "v11.0.0": ["m", "-.", "o"],
@@ -200,6 +201,8 @@ dates = {
     "v10.0.0": "06/02/2025",
     "v11.0.0": "08/29/2025",
     "v12.0.0": "10/27/2025",
+    "libaom-v3.12.0": "02/10/2025",
+    "libaom-v3.12.0-unconstrained": "01/10/2025",
 }
 
 AS_formats = {
@@ -866,6 +869,7 @@ def plot_avg_bdrate_by_tag(avg_bdrate_by_tag_csv, avg_bdrate_by_tag_pdf):
     df = pd.read_csv(avg_bdrate_by_tag_csv, index_col=0)
     # print(df)
     with PdfPages(avg_bdrate_by_tag_pdf) as export_pdf:
+        # Existing bar charts - one chart per configuration and quality metric
         for cfg in df["cfg"].unique().tolist():
             for qty in ["overall_psnr", "ssim_y", "vmaf"]:
                 ax = df[df["cfg"] == cfg][qty].plot(
@@ -887,6 +891,67 @@ def plot_avg_bdrate_by_tag(avg_bdrate_by_tag_csv, avg_bdrate_by_tag_pdf):
                 export_pdf.savefig()
                 plt.close()
 
+        # New line charts - one chart per configuration with all 3 quality metrics
+        line_colors = {
+            "overall_psnr": "#1f77b4",  # Blue
+            "ssim_y": "#ff7f0e",        # Orange
+            "vmaf": "#2ca02c"           # Green
+        }
+        line_labels = {
+            "overall_psnr": "PSNR-Overall",
+            "ssim_y": "SSIM-Y",
+            "vmaf": "VMAF"
+        }
+        line_markers = {
+            "overall_psnr": "o",
+            "ssim_y": "s",
+            "vmaf": "^"
+        }
+
+        for cfg in df["cfg"].unique().tolist():
+            fig, ax = plt.subplots(figsize=(30, 15))
+
+            cfg_df = df[df["cfg"] == cfg].copy()
+            tags = cfg_df.index.tolist()
+            x_labels = [f"{tag}\n{dates[tag]}" for tag in tags]
+            x_positions = range(len(tags))
+
+            # Plot each quality metric as a line
+            for qty in ["overall_psnr", "ssim_y", "vmaf"]:
+                y_values = cfg_df[qty].tolist()
+                ax.plot(
+                    x_positions,
+                    y_values,
+                    color=line_colors[qty],
+                    marker=line_markers[qty],
+                    markersize=12,
+                    linewidth=2.5,
+                    label=line_labels[qty]
+                )
+                # Add data labels on each point
+                for x, y in zip(x_positions, y_values):
+                    ax.annotate(
+                        f"{y:.2f}",
+                        (x, y),
+                        textcoords="offset points",
+                        xytext=(0, 10),
+                        ha="center",
+                        fontsize=14
+                    )
+
+            ax.set_title(f"BDRATE Trends for {cfg} Configuration", fontsize=40)
+            ax.set_xlabel("Release Tag / Date", fontsize=20)
+            ax.set_ylabel("BDRATE (%)", fontsize=20)
+            ax.set_xticks(x_positions)
+            ax.set_xticklabels(x_labels, rotation=30, ha="center", fontsize=16)
+            ax.tick_params(axis="y", labelsize=16)
+            ax.grid(True, linestyle="--", alpha=0.7)
+            ax.legend(loc="lower left", fontsize=20, framealpha=0.9)
+
+            plt.tight_layout()
+            export_pdf.savefig()
+            plt.close()
+
 
 def plot_avg_bdrate_by_tag_class(
     avg_bdrate_by_tag_class_csv, avg_bdrate_by_tag_class_pdf
@@ -894,6 +959,7 @@ def plot_avg_bdrate_by_tag_class(
     df = pd.read_csv(avg_bdrate_by_tag_class_csv, index_col=0)
     # print(df)
     with PdfPages(avg_bdrate_by_tag_class_pdf) as export_pdf:
+        # Existing bar charts - one chart per configuration, class, and quality metric
         for cfg in df["cfg"].unique().tolist():
             # print(df["class"].unique().tolist())
             for cls in df["class"].unique().tolist():
@@ -922,6 +988,93 @@ def plot_avg_bdrate_by_tag_class(
                     # plt.show()
                     export_pdf.savefig()
                     plt.close()
+
+        # New line charts - one chart per configuration and quality metric
+        # Each chart has multiple series (one per video class)
+        quality_labels = {
+            "overall_psnr": "PSNR-Overall",
+            "ssim_y": "SSIM-Y",
+            "vmaf": "VMAF"
+        }
+
+        # Define colors for different video classes
+        class_colors = [
+            "#1f77b4",  # Blue
+            "#ff7f0e",  # Orange
+            "#2ca02c",  # Green
+            "#d62728",  # Red
+            "#9467bd",  # Purple
+            "#8c564b",  # Brown
+            "#e377c2",  # Pink
+            "#7f7f7f",  # Gray
+            "#bcbd22",  # Yellow-green
+            "#17becf",  # Cyan
+        ]
+
+        class_markers = ["o", "s", "^", "D", "v", "p", "h", "*", "X", "P"]
+
+        for cfg in df["cfg"].unique().tolist():
+            for qty in ["overall_psnr", "ssim_y", "vmaf"]:
+                fig, ax = plt.subplots(figsize=(30, 15))
+
+                cfg_df = df[df["cfg"] == cfg]
+                if cfg_df.empty:
+                    plt.close()
+                    continue
+
+                # Get unique tags and classes for this configuration
+                tags = cfg_df.index.unique().tolist()
+                classes = cfg_df["class"].unique().tolist()
+                x_labels = [f"{tag}\n{dates[tag]}" for tag in tags]
+                x_positions = range(len(tags))
+
+                # Plot each class as a separate line
+                for i, cls in enumerate(classes):
+                    cls_data = cfg_df[cfg_df["class"] == cls]
+                    if cls_data.empty:
+                        continue
+
+                    # Get y values for each tag (may have missing values)
+                    y_values = []
+                    valid_x = []
+                    for j, tag in enumerate(tags):
+                        if tag in cls_data.index:
+                            val = cls_data.loc[tag, qty]
+                            if pd.notna(val):
+                                y_values.append(val)
+                                valid_x.append(j)
+
+                    if not y_values:
+                        continue
+
+                    color = class_colors[i % len(class_colors)]
+                    marker = class_markers[i % len(class_markers)]
+
+                    ax.plot(
+                        valid_x,
+                        y_values,
+                        color=color,
+                        marker=marker,
+                        markersize=10,
+                        linewidth=2,
+                        label=cls
+                    )
+
+                ax.set_title(
+                    f"BDRATE {quality_labels[qty]} Trends by Class for {cfg} Configuration",
+                    fontsize=40
+                )
+                ax.set_xlabel("Release Tag / Date", fontsize=20)
+                ax.set_ylabel("BDRATE (%)", fontsize=20)
+                ax.set_xticks(x_positions)
+                ax.set_xticklabels(x_labels, rotation=30, ha="center", fontsize=16)
+                ax.tick_params(axis="y", labelsize=16)
+                ax.grid(True, linestyle="--", alpha=0.7)
+                ax.legend(loc="lower left", fontsize=18, framealpha=0.9)
+
+                plt.tight_layout()
+                export_pdf.savefig()
+                plt.close()
 
 
 def plot_per_video_bdrate_by_tag_class(

@@ -54,11 +54,11 @@ check_python() {
         echo "Please install Python 3.8 or later."
         exit 1
     fi
-    
+
     # Check Python version
     PYTHON_VERSION=$($PYTHON_CMD -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
     echo -e "Found Python: ${GREEN}$PYTHON_CMD${NC} (version $PYTHON_VERSION)"
-    
+
     # Compare versions
     if [ "$(printf '%s\n' "$MIN_PYTHON_VERSION" "$PYTHON_VERSION" | sort -V | head -n1)" != "$MIN_PYTHON_VERSION" ]; then
         echo -e "${RED}Error: Python $MIN_PYTHON_VERSION or later is required, but found $PYTHON_VERSION${NC}"
@@ -69,14 +69,14 @@ check_python() {
 # Create virtual environment
 create_venv() {
     echo -e "\n${YELLOW}Creating virtual environment at: $VENV_PATH${NC}"
-    
+
     if [ -d "$VENV_PATH" ]; then
         echo -e "${YELLOW}Virtual environment already exists. Removing old one...${NC}"
         rm -rf "$VENV_PATH"
     fi
-    
+
     $PYTHON_CMD -m venv "$VENV_PATH"
-    
+
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}Virtual environment created successfully.${NC}"
     else
@@ -89,13 +89,13 @@ create_venv() {
 install_dependencies() {
     echo -e "\n${YELLOW}Activating virtual environment...${NC}"
     source "$VENV_PATH/bin/activate"
-    
+
     echo -e "\n${YELLOW}Installing dependencies from requirements.txt...${NC}"
     REQUIREMENTS_FILE="$SCRIPT_DIR/requirements.txt"
-    
+
     if [ -f "$REQUIREMENTS_FILE" ]; then
         pip install --require-hashes -r "$REQUIREMENTS_FILE"
-        
+
         if [ $? -eq 0 ]; then
             echo -e "${GREEN}All dependencies installed successfully.${NC}"
         else

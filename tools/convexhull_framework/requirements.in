@@ -1,14 +1,18 @@
-# AVM CTC Framework - Python Dependencies
+# AVM CTC Framework - Python Dependencies (Source File)
 #
-# This file lists all Python packages required by the AVM CTC testing framework.
+# This is the SOURCE file for dependencies. Use pip-compile to generate
+# the pinned requirements.txt file.
 #
-# Installation:
-#   1. Create a virtual environment: python3 -m venv venv
-#   2. Activate it: source venv/bin/activate (Linux/macOS) or venv\Scripts\activate (Windows)
-#   3. Install dependencies: pip install -r requirements.txt
+# Workflow:
+#   1. Edit this file to add/remove/update dependencies
+#   2. Run: pip-compile requirements.in -o requirements.txt
+#   3. Commit both requirements.in and requirements.txt
 #
-# For development, you may also want to install:
-#   pip install -r requirements-dev.txt (if available)
+# To regenerate with hashes (recommended for production):
+#   pip-compile --generate-hashes requirements.in -o requirements.txt
+#
+# To upgrade all packages:
+#   pip-compile --upgrade requirements.in -o requirements.txt
 
 # Data processing and numerical computing
 numpy>=1.20.0

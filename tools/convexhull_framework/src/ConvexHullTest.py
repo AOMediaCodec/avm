@@ -29,7 +29,6 @@ from Config import (
     EnableTimingInfo,
     EncodeMethods,
     GOP_SIZE,
-    InterpolatePieces,
     LoggerName,
     LogLevels,
     Path_RDResults,
@@ -37,7 +36,6 @@ from Config import (
     QualityList,
     ScaleMethods,
     UpScalingAlgos,
-    UsePCHIPInterpolation,
     UsePerfUtil,
     WorkPath,
 )
@@ -52,7 +50,6 @@ from ScalingTest import Run_Scaling_Test
 from Utils import (
     Cleanfolder,
     Clip,
-    convex_hull,
     CreateClipList,
     CreateNewSubfolder,
     DeleteFile,
@@ -65,8 +62,6 @@ from Utils import (
     GetRDResultCsvFile,
     GetShortContentName,
     GetTestCfgSubfolder,
-    Interpolate_Bilinear,
-    Interpolate_PCHIP,
     md5,
     ParseDecLogFile,
     SetupLogging,

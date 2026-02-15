@@ -11,7 +11,6 @@
 __author__ = "maggie.sun@intel.com, ryanlei@meta.com"
 
 import logging
-import math
 import os
 import re
 

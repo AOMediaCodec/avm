@@ -14,7 +14,11 @@ ctc_version: "8.0"
 # =============================================================================
 paths:
   # Root path relative to the src directory (or use absolute path)
-  root: "/home/ryanlei/NCTests/AVM/AVM-CTC/avm-ctc/tools/convexhull_framework/"
+  root: "/Users/ryanlei/ryanlei/Data/AVM/avm-ctc/tools/convexhull_framework/"
+  # Path to bin directory (optional, defaults to {root}/bin if not specified)
+  bin: "/Users/ryanlei/ryanlei/Data/AVM/avm-ctc/tools/convexhull_framework/bin"
+  # Path to work directory (optional, defaults to {root}/test if not specified)
+  work: "/Users/ryanlei/ryanlei/Data/AVM/avm-ctc/tools/convexhull_framework/test"
   # Path to video content for testing
   content: "<...>"
   # Path to subjective test content (used when enable_subjective_test is true)

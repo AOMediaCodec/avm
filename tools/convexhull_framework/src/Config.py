@@ -54,10 +54,12 @@ CTC_VERSION = _config.get("ctc_version", "8.0")
 
 ######################################
 # Path configuration
+# BinPath and WorkPath can be specified in config.yaml,
+# or they default to {RootPath}/bin and {RootPath}/test
 ######################################
 RootPath = _config["paths"]["root"]
-BinPath = os.path.join(RootPath, "bin")
-WorkPath = os.path.join(RootPath, "test")
+BinPath = _config["paths"].get("bin", os.path.join(RootPath, "bin"))
+WorkPath = _config["paths"].get("work", os.path.join(RootPath, "test"))
 
 ######################################
 # Feature flags

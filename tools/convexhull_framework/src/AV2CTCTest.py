@@ -12,7 +12,6 @@ __author__ = "maggie.sun@intel.com, ryanlei@meta.com"
 
 import argparse
 import os
-import re
 import subprocess
 import sys
 
@@ -23,13 +22,10 @@ from Config import (
     CodecNames,
     EnableMD5,
     EnableParallelGopEncoding,
-    EnableSubjectiveTest,
     EnableTimingInfo,
     GOP_SIZE,
-    HEVC_QPs,
     LoggerName,
     LogLevels,
-    MIN_GOP_LENGTH,
     Path_RDResults,
     QPs,
     QualityList,
@@ -121,9 +117,7 @@ def setupWorkFolderStructure():
     abs_path = os.path.abspath(WorkPath)
     print(abs_path)
     if os.path.exists(abs_path) == False:
-        cmd = "mkscratchdir " + abs_path
-        print(cmd)
-        subprocess.call(cmd, shell=True)
+        os.makedirs(abs_path, exist_ok=True)
 
     Path_Bitstreams = CreateNewSubfolder(WorkPath, "bitstreams")
     Path_DecodedYuv = CreateNewSubfolder(WorkPath, "decodedYUVs")

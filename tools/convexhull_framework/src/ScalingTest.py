@@ -11,8 +11,6 @@
 __author__ = "maggie.sun@intel.com, ryanlei@meta.com"
 
 import os
-import xlsxwriter
-import xlrd
 import logging
 from CalculateQualityMetrics import CalculateQualityMetric, GatherQualityMetrics
 from VideoScaler import GetDownScaledOutFile, DownScaling, UpScaling,\
@@ -33,7 +31,7 @@ def Run_Scaling_Test(clip, dnScalAlgo, upScalAlgo, path_dnscl, path_upscl,
                 % os.path.basename(clip.file_name))
     DnScaledRes = [(int(clip.width / ratio), int(clip.height / ratio))
                    for ratio in DnScaleRatio]
-    total_frame = get_total_frames('AS', clip)
+    total_frame = get_total_frame('AS', clip)
     for i in range(len(DnScaledRes)):
         DnScaledW = DnScaledRes[i][0]
         DnScaledH = DnScaledRes[i][1]

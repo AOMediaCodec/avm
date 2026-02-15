@@ -121,8 +121,13 @@ def BD_RATE(qty_type, br1, qtyMtrc1, br2, qtyMtrc2):
     v2 = scipy.interpolate.pchip_interpolate(qmetrics2, logbr2, samples)
 
     # Calculate the integral using the trapezoid method on the samples.
-    int1 = np.trapz(v1, dx=interval)
-    int2 = np.trapz(v2, dx=interval)
+    # Use np.trapezoid for NumPy 2.0+, fallback to np.trapz for older versions
+    if hasattr(np, 'trapezoid'):
+        int1 = np.trapezoid(v1, dx=interval)
+        int2 = np.trapezoid(v2, dx=interval)
+    else:
+        int1 = np.trapz(v1, dx=interval)
+        int2 = np.trapz(v2, dx=interval)
 
     # find avg diff
     avg_exp_diff = (int2 - int1) / (max_int - min_int)

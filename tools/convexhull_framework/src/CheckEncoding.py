@@ -12,8 +12,6 @@ __author__ = "maggie.sun@intel.com, ryanlei@meta.com"
 
 import os
 import re
-import sys
-import argparse
 import subprocess
 
 from Utils import CreateNewSubfolder, GetTestCfgSubfolder
