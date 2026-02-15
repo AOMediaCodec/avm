@@ -306,6 +306,9 @@ typedef struct {
   RefCntBuffer *prev_frame_buf;
   uint8_t *last_frame_seg_map_buf;
   ContentInterpretation ci_params_per_layer_buf[MAX_NUM_MLAYERS];
+  SequenceHeader seq_params_buf;
+  int seq_header_count_buf;
+  bool mfh_valid_buf[MAX_MFH_NUM];
 } StreamInfo;
 
 typedef struct AV2Decoder {
