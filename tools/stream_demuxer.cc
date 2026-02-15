@@ -96,6 +96,16 @@ static void write_obu_header_without_stream_id(uint8_t *const dst,
   avm_wb_write_literal(&wb, obu_header->obu_tlayer_id, 2);  // obu_temporal
 }
 
+static void write_obu_header_extension_without_stream_id(
+    uint8_t *const dst, ObuHeader *obu_header) {
+  struct avm_write_bit_buffer wb = { dst, 0 };
+  avm_wb_write_bit(&wb, 1);                                 // extention flag
+  avm_wb_write_literal(&wb, obu_header->type, 5);           // obu_type
+  avm_wb_write_literal(&wb, obu_header->obu_tlayer_id, 2);  // obu_temporal
+  avm_wb_write_literal(&wb, obu_header->obu_mlayer_id, 3);  // obu_mlayer
+  avm_wb_write_literal(&wb, 0, 5);                          // obu_xlayer
+}
+
 // This function read a temporal unit from a merged bitstream,
 // writes the temporal unit into each sub-stream.
 std::vector<uint8_t> ExtractTU(const uint8_t *data, int length,
@@ -181,10 +191,10 @@ std::vector<uint8_t> ExtractTU(const uint8_t *data, int length,
       size_t coded_obu_size;
       avm_uleb_encode(obu_total_size, sizeof(obu_total_size),
                       obu_size_data.data(), &coded_obu_size);
-      if (length_field_size != coded_obu_size)
-        fprintf(stderr, "\nError: length_field_size != coded_obu_size\n");
-      tu_obus.insert(tu_obus.end(), obu_size_data.begin(), obu_size_data.end());
+      tu_obus.insert(tu_obus.end(), obu_size_data.begin(),
+                     obu_size_data.begin() + coded_obu_size);
       tu_obus.insert(tu_obus.end(), obu_tmp.begin(), obu_tmp.end());
+
     } else if (obu_header.type == OBU_MSDO) {
       init_read_bit_buffer(
           &rb, data_ptr + obu_header_size + static_cast<int>(length_field_size),
@@ -193,14 +203,20 @@ std::vector<uint8_t> ExtractTU(const uint8_t *data, int length,
     } else {
       std::vector<uint8_t> obu_size_data(length_field_size);
       size_t coded_obu_size;
-      avm_uleb_encode(obu_total_size - 1, sizeof(obu_total_size),
-                      obu_size_data.data(), &coded_obu_size);
-      if (length_field_size != coded_obu_size)
-        fprintf(stderr, "\nError: length_field_size != coded_obu_size\n");
-      tu_obus.insert(tu_obus.end(), obu_size_data.begin(), obu_size_data.end());
+      avm_uleb_encode(obu_total_size - (obu_header.obu_mlayer_id == 0),
+                      sizeof(obu_total_size), obu_size_data.data(),
+                      &coded_obu_size);
+      tu_obus.insert(tu_obus.end(), obu_size_data.begin(),
+                     obu_size_data.begin() + coded_obu_size);
 
-      std::vector<uint8_t> obu_header_data(1);
-      write_obu_header_without_stream_id(obu_header_data.data(), &obu_header);
+      std::vector<uint8_t> obu_header_data(1 + (obu_header.obu_mlayer_id != 0));
+
+      if (!obu_header.obu_mlayer_id)
+        write_obu_header_without_stream_id(obu_header_data.data(), &obu_header);
+      else
+        write_obu_header_extension_without_stream_id(obu_header_data.data(),
+                                                     &obu_header);
+
       tu_obus.insert(tu_obus.end(), obu_header_data.begin(),
                      obu_header_data.end());
       tu_obus.insert(tu_obus.end(), obu_tmp.begin() + obu_header_size,
