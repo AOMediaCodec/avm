@@ -117,8 +117,14 @@ static const arg_def_t framestatsarg =
     ARG_DEF(NULL, "framestats", 1, "Output per-frame stats (.csv format)");
 static const arg_def_t outbitdeptharg =
     ARG_DEF(NULL, "output-bit-depth", 1, "Output bit-depth for decoded frames");
-static const arg_def_t oppointarg = ARG_DEF(
-    NULL, "oppoint", 1, "Select an operating point of a scalable bitstream");
+static const arg_def_t selectopsarg = ARG_DEF(
+    NULL, "select-ops", 1,
+    "Select OPS and operating point (format: ops_id,op_index or ops_id, e.g., "
+    "--select-ops=1,2 (i.e., ops_id=1 op_index=2). [Max(15, 7)]");
+static const arg_def_t selectlocalopsarg = ARG_DEF(
+    NULL, "select-local-ops", 1,
+    "Select local OPS per extended layer "
+    "(format: xlayer_id,ops_id,op_index, e.g., --select-local-ops=0,1,0)");
 static const arg_def_t outallarg = ARG_DEF(
     NULL, "all-layers", 0, "Output all decoded frames of a scalable bitstream");
 static const arg_def_t skipfilmgrain =
@@ -130,19 +136,40 @@ static const arg_def_t bruoptmodearg =
     ARG_DEF(NULL, "bru-opt-mode", 0, "Use BRU optimized decode mode");
 static const arg_def_t icc_file =
     ARG_DEF(NULL, "icc", 1, "Output ICC profile file");
-static const arg_def_t *all_args[] = {
-  &help,           &codecarg,      &use_yv12,      &use_i420,
-  &flipuvarg,      &rawvideo,      &noblitarg,     &progressarg,
-  &limitarg,       &skiparg,       &numstreamsarg, &summaryarg,
-  &outputfile,
+static const arg_def_t *all_args[] = { &help,
+                                       &codecarg,
+                                       &use_yv12,
+                                       &use_i420,
+                                       &flipuvarg,
+                                       &rawvideo,
+                                       &noblitarg,
+                                       &progressarg,
+                                       &limitarg,
+                                       &skiparg,
+                                       &numstreamsarg,
+                                       &summaryarg,
+                                       &outputfile,
 #if CONFIG_PARAKIT_COLLECT_DATA
-  &datafilesuffix, &datafilepath,
+                                       &datafilesuffix,
+                                       &datafilepath,
 #endif
-  &threadsarg,     &verbosearg,    &scalearg,      &fb_arg,
-  &md5arg,         &verifyarg,     &framestatsarg, &continuearg,
-  &outbitdeptharg, &oppointarg,    &outallarg,     &skipfilmgrain,
-  &randomaccess,   &bruoptmodearg, &icc_file,      NULL
-};
+                                       &threadsarg,
+                                       &verbosearg,
+                                       &scalearg,
+                                       &fb_arg,
+                                       &md5arg,
+                                       &verifyarg,
+                                       &framestatsarg,
+                                       &continuearg,
+                                       &outbitdeptharg,
+                                       &selectopsarg,
+                                       &selectlocalopsarg,
+                                       &outallarg,
+                                       &skipfilmgrain,
+                                       &randomaccess,
+                                       &bruoptmodearg,
+                                       &icc_file,
+                                       NULL };
 
 #if CONFIG_LANCZOS_RESAMPLE
 
@@ -645,7 +672,12 @@ static int main_loop(int argc, const char **argv_) {
   int frames_corrupted = 0;
   int dec_flags = 0;
   int do_scale = 0;
-  int operating_point = 0;
+  int selected_ops_id = -1;
+  int selected_op_index = -1;
+  int select_ops_set = 0;
+  // Local OPS selections: each entry is [xlayer_id, ops_id, op_index]
+  int local_ops_selections[31][3];
+  int num_local_ops_selections = 0;
   int output_all_layers = 0;
   int skip_film_grain = 0;
   int random_access_point_index = -1;
@@ -785,8 +817,33 @@ static int main_loop(int argc, const char **argv_) {
       keep_going = 1;
     } else if (arg_match(&arg, &outbitdeptharg, argi)) {
       fixed_output_bit_depth = arg_parse_uint(&arg);
-    } else if (arg_match(&arg, &oppointarg, argi)) {
-      operating_point = arg_parse_int(&arg);
+    } else if (arg_match(&arg, &selectopsarg, argi)) {
+      int ops_list[2] = { 0, 0 };
+      int num_ops = arg_parse_list(&arg, ops_list, 2);
+      if (num_ops < 1) {
+        die("Error: --select-ops requires format ops_id,op_index or ops_id\n");
+      }
+      selected_ops_id = ops_list[0];
+      if (num_ops >= 2) {
+        selected_op_index = ops_list[1];
+      } else {
+        selected_op_index = 0;
+      }
+      select_ops_set = 1;
+    } else if (arg_match(&arg, &selectlocalopsarg, argi)) {
+      int local_ops_list[3] = { 0, 0, 0 };
+      int num_params = arg_parse_list(&arg, local_ops_list, 3);
+      if (num_params < 3) {
+        die("Error: --select-local-ops requires format "
+            "xlayer_id,ops_id,op_index\n");
+      }
+      if (num_local_ops_selections >= 31) {
+        die("Error: more than 31 --select-local-ops options\n");
+      }
+      local_ops_selections[num_local_ops_selections][0] = local_ops_list[0];
+      local_ops_selections[num_local_ops_selections][1] = local_ops_list[1];
+      local_ops_selections[num_local_ops_selections][2] = local_ops_list[2];
+      num_local_ops_selections++;
     } else if (arg_match(&arg, &outallarg, argi)) {
       output_all_layers = 1;
     } else if (arg_match(&arg, &skipfilmgrain, argi)) {
@@ -926,11 +983,27 @@ static int main_loop(int argc, const char **argv_) {
 
   if (!quiet) fprintf(stderr, "%s\n", decoder.name);
 
-  if (AVM_CODEC_CONTROL_TYPECHECKED(&decoder, AV2D_SET_OPERATING_POINT,
-                                    operating_point)) {
-    fprintf(stderr, "Failed to set operating_point: %s\n",
-            avm_codec_error(&decoder));
-    goto fail;
+  // Only set selected OPS when explicitly requested via --select-ops.
+  // Setting it to 0,0 by default enables sub-bitstream extraction (SBE),
+  // which can incorrectly filter out frame OBUs in multi-layer bitstreams
+  // and break reference frame state (e.g., CCSO reuse).
+  if (select_ops_set) {
+    int ops_params[2] = { selected_ops_id, selected_op_index };
+    if (AVM_CODEC_CONTROL_TYPECHECKED(&decoder, AV2D_SET_SELECTED_OPS,
+                                      ops_params)) {
+      fprintf(stderr, "Failed to set selected OPS: %s\n",
+              avm_codec_error(&decoder));
+      goto fail;
+    }
+  }
+  // Apply local OPS selections
+  for (i = 0; i < num_local_ops_selections; i++) {
+    if (AVM_CODEC_CONTROL_TYPECHECKED(&decoder, AV2D_SET_SELECTED_LOCAL_OPS,
+                                      local_ops_selections[i])) {
+      fprintf(stderr, "Failed to set local OPS for xlayer %d: %s\n",
+              local_ops_selections[i][0], avm_codec_error(&decoder));
+      goto fail;
+    }
   }
 
   if (AVM_CODEC_CONTROL_TYPECHECKED(&decoder, AV2D_SET_OUTPUT_ALL_LAYERS,

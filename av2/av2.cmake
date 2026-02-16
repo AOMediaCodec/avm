@@ -145,6 +145,8 @@ list(
   APPEND
   AVM_AV2_DECODER_SOURCES
   "${AVM_ROOT}/av2/av2_dx_iface.c"
+  "${AVM_ROOT}/av2/decoder/annexF.c"
+  "${AVM_ROOT}/av2/decoder/annexF.h"
   "${AVM_ROOT}/av2/decoder/decodeframe.c"
   "${AVM_ROOT}/av2/decoder/decodeframe.h"
   "${AVM_ROOT}/av2/decoder/decodemv.c"

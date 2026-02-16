@@ -1181,6 +1181,22 @@ typedef struct MultistreamDecoderOperation {
   uint8_t multistream_tier_idx;
 } MultistreamDecoderOperation;
 
+#if CONFIG_ANNEXF
+// Operating point parameters
+// Contains layer count, and identification information of the operating point
+typedef struct DecOperatingPointParams {
+  struct OperatingPointSet *dec_ops;
+  struct OperatingPoint *dec_op;
+  int DecOpSetId;            // Operating point set ID
+  int DecOpCount;            // Operaring point count within the set
+  int DecOpIndex;            // Operating point index within the ops_cnt
+  unsigned int num_mlayers;  // Number of embedded layers
+  unsigned int num_tlayers;  // Number of temporal layers
+  int DecXlayerId;
+  int isValid;
+} DecOperatingPointParams;
+#endif  // CONFIG_ANNEXF
+
 // Sequence header structure.
 // Note: All syntax elements of sequence_header_obu that need to be
 // bit-identical across multiple sequence headers must be part of this struct,

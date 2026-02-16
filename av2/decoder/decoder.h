@@ -29,6 +29,9 @@
 #if CONFIG_INSPECTION
 #include "av2/decoder/inspection.h"
 #endif
+#if CONFIG_ANNEXF
+#include "av2/decoder/annexF.h"
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -401,8 +404,18 @@ typedef struct AV2Decoder {
   avm_inspect_cb inspect_tip_cb;
   void *inspect_ctx;
 #endif
+#if CONFIG_ANNEXF
+  // Selected operating point set id
+  int selected_ops_id;
+  // Selected operarint point id
+  int selected_op_index;
+  DecOperatingPointParams dec_op_params;
+  // Sub-bitstream extraction state (Annex F)
+  SubBitstreamExtractionState sbe_state;
+#else
   int operating_point;
   int current_operating_point;
+#endif  // CONFIG_ANNEXF
   int seen_frame_header;
   // The expected start_tile (tg_start syntax element) of the next tile group.
   int next_start_tile;

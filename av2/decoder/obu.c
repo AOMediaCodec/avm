@@ -30,6 +30,9 @@
 #include "av2/decoder/obu.h"
 #include "av2/common/enums.h"
 #include "av2/common/annexA.h"
+#if CONFIG_ANNEXF
+#include "av2/decoder/annexF.h"
+#endif
 
 static uint32_t read_temporal_delimiter_obu() { return 0; }
 
@@ -229,11 +232,11 @@ void av2_store_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm, int xlayer_id) {
   }
 #endif  // CONFIG_AV2_LCR_PROFILES
   pbi->stream_info[stream_idx].lcr_counter_buf = pbi->lcr_counter;
-#if !CONFIG_AV2_PROFILES
+#if !CONFIG_ANNEXF
   for (int i = 0; i < MAX_NUM_OPS_ID; i++) {
     pbi->stream_info[stream_idx].ops_list_buf[i] = pbi->ops_list[i];
   }
-#endif  // !CONFIG_AV2_PROFILES
+#endif  // !CONFIG_ANNEXF
   pbi->stream_info[stream_idx].active_lcr_buf = pbi->active_lcr;
   pbi->stream_info[stream_idx].active_atlas_segment_info_buf =
       pbi->active_atlas_segment_info;
@@ -309,11 +312,11 @@ void av2_restore_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
   }
 #endif  // CONFIG_AV2_LCR_PROFILES
   pbi->lcr_counter = pbi->stream_info[stream_idx].lcr_counter_buf;
-#if !CONFIG_AV2_PROFILES
+#if !CONFIG_ANNEXF
   for (int i = 0; i < MAX_NUM_OPS_ID; i++) {
     pbi->ops_list[i] = pbi->stream_info[stream_idx].ops_list_buf[i];
   }
-#endif  // !CONFIG_AV2_PROFILES
+#endif  // !CONFIG_ANNEXF
   pbi->active_lcr = pbi->stream_info[stream_idx].active_lcr_buf;
   pbi->active_atlas_segment_info =
       pbi->stream_info[stream_idx].active_atlas_segment_info_buf;
@@ -2358,6 +2361,160 @@ bool conformance_check_msdo_lcr(struct AV2Decoder *pbi, bool global_lcr_present,
   }
   return false;
 }
+
+static int get_ops_mlayer_count(const struct OpsMLayerInfo *mlayer_info,
+                                int xlayer_id) {
+  if (mlayer_info == NULL) return 0;
+  if (xlayer_id < 0 || xlayer_id >= MAX_NUM_XLAYERS) return 0;
+  return mlayer_info->OPMLayerCount[xlayer_id];
+}
+
+static int get_ops_tlayer_count(const struct OpsMLayerInfo *mlayer_info,
+                                int xlayer_id, int mlayer_id) {
+  if (mlayer_info == NULL) return 0;
+  if (xlayer_id < 0 || xlayer_id >= MAX_NUM_XLAYERS) return 0;
+  if (mlayer_id < 0 || mlayer_id >= MAX_NUM_MLAYERS) return 0;
+
+  return mlayer_info->OPTLayerCount[xlayer_id][mlayer_id];
+}
+
+#if CONFIG_ANNEXF
+// Default operating point set id
+static const int default_ops_id = 0;
+// Default operating point index
+static const int default_op_index = 0;
+#endif  // CONFIG_ANNEXF
+
+// Select the operating point for the current xlayer.
+// If the user has explicitly set an OPS via codec control, use that;
+// otherwise fall back to the default (ops_id=0, op_index=0).
+// This function determines the OPS ID to use:
+// 1. selected_ops_id if >= 0 (user-specified via AV2D_SET_SELECTED_OPS)
+// 2. otherwise, default_ops_id (0)
+//
+// When sbe_state.retention_map_ready is set, num_mlayers and num_tlayers are
+// derived directly from the SBE retention map so that the decoder layer counts
+// are consistent with the OBU-level filtering already applied by Annex F.
+// When the retention map is not ready (no OPS selected, SBE disabled, or map
+// not yet built), the decoder decodes all layers in the bitstream.
+static void avm_set_current_operating_point(struct AV2Decoder *pbi,
+                                            int xlayer_id) {
+  struct DecOperatingPointParams *dec_op_params = &pbi->dec_op_params;
+
+#if CONFIG_ANNEXF
+  // If the Annex F retention map is ready, derive num_mlayers and num_tlayers
+  // from it so that the decoder layer counts match the OBU filter exactly.
+  // This ensures avm_set_current_operating_point and the SBE are always
+  // consistent and share the same source of truth.
+  if (pbi->sbe_state.retention_map_ready && pbi->sbe_state.extraction_enabled) {
+    int xid = xlayer_id;
+    if (xid < 0 || xid >= MAX_NUM_XLAYERS) {
+      avm_internal_error(&pbi->common.error, AVM_CODEC_UNSUP_BITSTREAM,
+                         "Invalid xlayer_id %d for operating point selection",
+                         xid);
+    }
+
+    // Count distinct mlayers retained for this xlayer.
+    unsigned int num_mlayers = 0;
+    for (int j = 0; j < MAX_NUM_MLAYERS; j++) {
+      for (int k = 0; k < MAX_NUM_TLAYERS; k++) {
+        if (pbi->sbe_state.retention_map[xid][j][k]) {
+          num_mlayers = j + 1;
+          break;
+        }
+      }
+    }
+
+    // Count distinct tlayers retained for the base mlayer of this xlayer.
+    unsigned int num_tlayers = 0;
+    for (int k = 0; k < MAX_NUM_TLAYERS; k++) {
+      for (int j = 0; j < MAX_NUM_MLAYERS; j++) {
+        if (pbi->sbe_state.retention_map[xid][j][k]) {
+          num_tlayers = k + 1;
+          break;
+        }
+      }
+    }
+
+    dec_op_params->num_mlayers = num_mlayers > 0 ? num_mlayers : 1;
+    dec_op_params->num_tlayers = num_tlayers > 0 ? num_tlayers : 1;
+    dec_op_params->isValid = 1;
+    // dec_ops/dec_op/DecOpSetId etc. are still populated below from the OPS
+    // for use by other decoder subsystems that inspect those fields.
+  }
+#endif  // CONFIG_ANNEXF
+
+  int target_ops_id =
+      pbi->selected_ops_id >= 0 ? pbi->selected_ops_id : default_ops_id;
+
+  // Only proceed to check for the operating point iff the ops id is valid
+  if (target_ops_id < 0 || target_ops_id >= MAX_NUM_OPS_ID) return;
+
+  // Determine the target op point index.
+  int target_op_index =
+      (pbi->selected_ops_id >= 0) ? pbi->selected_op_index : default_op_index;
+
+  struct OperatingPointSet *ops = &pbi->ops_list[xlayer_id][target_ops_id];
+  dec_op_params->dec_ops = ops;
+  dec_op_params->dec_op = dec_op_params->dec_ops->op;
+  if (!ops->valid || ops->ops_id != target_ops_id) {
+    dec_op_params->DecOpSetId = 0;
+    dec_op_params->DecOpCount = 0;
+    dec_op_params->DecOpIndex = 0;
+#if CONFIG_ANNEXF
+    // If SBE retention map is not ready or not enabled, decode all layers.
+    if (!pbi->sbe_state.retention_map_ready ||
+        !pbi->sbe_state.extraction_enabled) {
+      dec_op_params->num_mlayers = MAX_NUM_MLAYERS;
+      dec_op_params->num_tlayers = MAX_NUM_TLAYERS;
+    }
+#else
+    dec_op_params->num_mlayers = 1;
+    dec_op_params->num_tlayers = 1;
+#endif                           // CONFIG_ANNEXF
+    dec_op_params->isValid = 0;  // No matching OPS
+    dec_op_params->dec_ops = NULL;
+    dec_op_params->dec_op = NULL;
+    // No OPS was available, all layers to be decoded.
+    return;
+  }
+
+  // NOTE: if a GLOBAL vs. LOCAL OPS is to be used, then
+  // Additional logic can be placed here to differentiate between
+  // the global and local OPS
+  if (target_op_index >= 0 && target_op_index < ops->ops_cnt) {
+    struct OperatingPoint *op = &ops->op[target_op_index];
+    dec_op_params->DecOpSetId = ops->ops_id;
+    dec_op_params->DecOpCount = ops->ops_cnt;
+    dec_op_params->DecOpIndex = target_op_index;
+    dec_op_params->DecXlayerId = ops->obu_xlayer_id;
+    int xlayer = dec_op_params->DecXlayerId;
+#if CONFIG_ANNEXF
+    // Only overwrite num_mlayers/num_tlayers from OPS if the SBE retention
+    // map has not already set them. The SBE map is the authoritative source
+    // when Annex F extraction is active.
+    if (!pbi->sbe_state.retention_map_ready ||
+        !pbi->sbe_state.extraction_enabled) {
+      dec_op_params->num_mlayers =
+          get_ops_mlayer_count(&op->mlayer_info, xlayer);
+      dec_op_params->num_tlayers =
+          get_ops_tlayer_count(&op->mlayer_info, xlayer, pbi->common.mlayer_id);
+      if (dec_op_params->num_mlayers == 0) dec_op_params->num_mlayers = 1;
+      if (dec_op_params->num_tlayers == 0) dec_op_params->num_tlayers = 1;
+    }
+#else
+    dec_op_params->num_mlayers = get_ops_mlayer_count(&op->mlayer_info, xlayer);
+    dec_op_params->num_tlayers =
+        get_ops_tlayer_count(&op->mlayer_info, xlayer, pbi->common.mlayer_id);
+    if (dec_op_params->num_mlayers == 0) dec_op_params->num_mlayers = 1;
+    if (dec_op_params->num_tlayers == 0) dec_op_params->num_tlayers = 1;
+#endif  // CONFIG_ANNEXF
+    dec_op_params->dec_op = op;
+    dec_op_params->isValid = 1;
+    return;
+  }
+  return;
+}
 #endif  // CONFIG_AV2_PROFILES
 
 // Parse given "data" to get long_term_frame_id_bits and OrderHintBits.
@@ -2919,6 +3076,28 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
       return -1;
     }
 
+#if CONFIG_ANNEXF
+    // Annex F: Sub-bitstream extraction.
+    // When extraction is enabled, trigger retention map construction when
+    // transitioning from structural OBUs to non-structural OBUs, then
+    // filter OBUs based on the retention map.
+    if (pbi->sbe_state.extraction_enabled) {
+      if (!pbi->sbe_state.retention_map_ready &&
+          !is_sbe_structural_obu(obu_header.type)) {
+        av2_sbe_build_retention_map(&pbi->sbe_state, pbi);
+      }
+      if (pbi->sbe_state.retention_map_ready) {
+        if (!av2_sbe_should_retain_obu(
+                &pbi->sbe_state, obu_header.type, obu_header.obu_xlayer_id,
+                obu_header.obu_mlayer_id, obu_header.obu_tlayer_id)) {
+          pbi->sbe_state.obus_removed++;
+          data += payload_size;
+          continue;
+        }
+        pbi->sbe_state.obus_retained++;
+      }
+    }
+#endif  // CONFIG_ANNEXF
     if (is_leading_vcl_obu(obu_header.type))
       cm->is_leading_picture = 1;
     else if (av2_is_regular_vcl_obu(obu_header.type))
@@ -3083,6 +3262,12 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         decoded_payload_size =
             read_multi_stream_decoder_operation_obu(pbi, &rb);
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
+#if CONFIG_ANNEXF
+        if (pbi->sbe_state.extraction_enabled) {
+          av2_sbe_process_msdo(&pbi->sbe_state, cm->num_streams,
+                               cm->stream_ids);
+        }
+#endif  // CONFIG_ANNEXF
         break;
       case OBU_SEQUENCE_HEADER:
         cm->xlayer_id = obu_header.obu_xlayer_id;
@@ -3093,6 +3278,14 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         // check dependency map consistency for OPS
         check_ops_layer_map_conformance(pbi, cm->xlayer_id);
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
+#if CONFIG_ANNEXF
+        if (pbi->sbe_state.extraction_enabled) {
+          av2_sbe_extract_seq_header_params(
+              &pbi->sbe_state, obu_header.obu_xlayer_id,
+              cm->seq_params.seq_profile_idc, cm->seq_params.seq_max_level_idx,
+              cm->seq_params.seq_tier, cm->seq_params.seq_max_mlayer_cnt);
+        }
+#endif  // CONFIG_ANNEXF
         break;
       case OBU_BUFFER_REMOVAL_TIMING:
         decoded_payload_size =
@@ -3103,6 +3296,14 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         decoded_payload_size =
             av2_read_layer_configuration_record_obu(pbi, cm->xlayer_id, &rb);
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
+#if CONFIG_ANNEXF
+        if (pbi->sbe_state.extraction_enabled &&
+            cm->xlayer_id == GLOBAL_XLAYER_ID) {
+          av2_sbe_process_global_lcr(
+              &pbi->sbe_state, cm->lcr_params.global_lcr.LcrMaxNumXLayerCount,
+              cm->lcr_params.global_lcr.lcr_xlayer_id);
+        }
+#endif  // CONFIG_ANNEXF
         break;
       case OBU_ATLAS_SEGMENT:
         decoded_payload_size =
@@ -3112,7 +3313,34 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
       case OBU_OPERATING_POINT_SET:
         decoded_payload_size =
             av2_read_operating_point_set_obu(pbi, cm->xlayer_id, &rb);
+        avm_set_current_operating_point(pbi, cm->xlayer_id);
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
+#if CONFIG_ANNEXF
+        if (pbi->sbe_state.extraction_enabled) {
+          if (cm->xlayer_id == GLOBAL_XLAYER_ID) {
+            // Check if the user-selected global OPS is now available
+            if (pbi->selected_ops_id >= 0 &&
+                pbi->selected_ops_id < MAX_NUM_OPS_ID) {
+              const struct OperatingPointSet *sel_ops =
+                  &pbi->ops_list[GLOBAL_XLAYER_ID][pbi->selected_ops_id];
+              if (sel_ops->valid) {
+                av2_sbe_process_global_ops(
+                    &pbi->sbe_state, sel_ops->ops_id, sel_ops->ops_cnt,
+                    pbi->selected_ops_id, pbi->selected_op_index,
+                    (sel_ops->ops_cnt > 0 && pbi->selected_op_index >= 0 &&
+                     pbi->selected_op_index < sel_ops->ops_cnt)
+                        ? sel_ops->op[pbi->selected_op_index].ops_xlayer_map
+                        : 0,
+                    sel_ops->ops_mlayer_info_idc);
+              }
+            }
+          } else {
+            av2_sbe_process_local_ops(&pbi->sbe_state, cm->xlayer_id,
+                                      pbi->dec_op_params.DecOpSetId,
+                                      pbi->dec_op_params.DecOpCount);
+          }
+        }
+#endif  // CONFIG_ANNEXF
         break;
       case OBU_CONTENT_INTERPRETATION:
         decoded_payload_size = av2_read_content_interpretation_obu(pbi, &rb);
@@ -3463,8 +3691,10 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
     }
   }
 
-  assert(current_frame_unit.display_order_hint != -1);
-  if (pbi->last_frame_unit.display_order_hint != -1 &&
+  // When SBE filters out all frame OBUs in a temporal unit, no frame was
+  // found: skip the consistency checks.
+  if (current_frame_unit.display_order_hint != -1 &&
+      pbi->last_frame_unit.display_order_hint != -1 &&
       (pbi->last_frame_unit.xlayer_id == current_frame_unit.xlayer_id)) {
     check_clk_in_a_layer(cm, &current_frame_unit, &pbi->last_frame_unit);
 

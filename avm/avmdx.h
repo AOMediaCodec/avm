@@ -289,15 +289,28 @@ enum avm_dec_control_id {
    */
   AV2D_SET_ROW_MT,
 
-  /*!\brief Codec control function to indicate which operating point to use,
-   * int parameter
-   *
-   * A scalable stream may define multiple operating points, each of which
-   * defines a set of temporal and spatial layers to be processed. The
-   * operating point index may take a value between 0 and
-   * operating_points_cnt_minus_1 (which is at most 31).
+  /*!\brief Codec control function to select a specfic OPS and operating point,
+   * int array [ops_id, op_index]
    */
-  AV2D_SET_OPERATING_POINT,
+  AV2D_SET_SELECTED_OPS,
+
+  /*!\brief Codec control function to enable sub-bitstream extraction,
+   * int parameter (0 = disable, 1 = enable)
+   *
+   * When enabled, the decoder filters OBUs based on the selected operating
+   * point as described in Annex F of the AV2 specification. Automatically
+   * enabled when AV2D_SET_SELECTED_OPS or AV2D_SET_SELECTED_LOCAL_OPS is used.
+   */
+  AV2D_SET_SUB_BITSTREAM_EXTRACTION,
+
+  /*!\brief Codec control function to select a local OPS for a specific
+   * extended layer, int array [xlayer_id, ops_id, op_index]
+   *
+   * This can be called multiple times to set local OPS selections for
+   * different extended layers. Each call specifies which operating point
+   * to use for filtering within that extended layer.
+   */
+  AV2D_SET_SELECTED_LOCAL_OPS,
 
   /*!\brief Codec control function to indicate whether to output one frame per
    * temporal unit (the default), or one frame per spatial layer. int parameter
@@ -487,8 +500,14 @@ AVM_CTRL_USE_TYPE(AV2D_SET_RANDOM_ACCESS, int)
 AVM_CTRL_USE_TYPE(AV2D_SET_BRU_OPT_MODE, int)
 #define AVM_CTRL_AV2D_SET_BRU_OPT_MODE
 
-AVM_CTRL_USE_TYPE(AV2D_SET_OPERATING_POINT, int)
-#define AVM_CTRL_AV2D_SET_OPERATING_POINT
+AVM_CTRL_USE_TYPE(AV2D_SET_SELECTED_OPS, int *)
+#define AVM_CTRL_AV2D_SET_SELECTED_OPS
+
+AVM_CTRL_USE_TYPE(AV2D_SET_SUB_BITSTREAM_EXTRACTION, int)
+#define AVM_CTRL_AV2D_SET_SUB_BITSTREAM_EXTRACTION
+
+AVM_CTRL_USE_TYPE(AV2D_SET_SELECTED_LOCAL_OPS, int *)
+#define AVM_CTRL_AV2D_SET_SELECTED_LOCAL_OPS
 
 AVM_CTRL_USE_TYPE(AV2D_SET_OUTPUT_ALL_LAYERS, int)
 #define AVM_CTRL_AV2D_SET_OUTPUT_ALL_LAYERS

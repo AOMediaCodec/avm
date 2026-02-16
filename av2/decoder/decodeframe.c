@@ -7068,7 +7068,7 @@ int av2_is_regular_vcl_obu(OBU_TYPE obu_type) {
           obu_type == OBU_SWITCH || obu_type == OBU_RAS_FRAME ||
           obu_type == OBU_OLK);
 }
-
+#if !CONFIG_ANNEXF
 static int is_layer_within_operating_point(AV2Decoder *pbi,
                                            const int current_tlayer_id,
                                            const int current_mlayer_id) {
@@ -7089,6 +7089,84 @@ static void create_operating_point_masks(AV2Decoder *pbi, int *tlayer_op_mask,
   *mlayer_op_mask = (pbi->current_operating_point >> MAX_NUM_TLAYERS) &
                     ((1 << MLAYER_BITS) - 1);
 }
+#else   // CONFIG_ANNEXF
+// Check if the current frame's layer is within the selected operating point
+// using the DecOperatingPointParams structure.
+static int is_layer_within_op_profiles(AV2Decoder *pbi,
+                                       const int current_tlayer_id,
+                                       const int current_mlayer_id) {
+  const DecOperatingPointParams *params = &pbi->dec_op_params;
+  if (!params->isValid || !params->dec_op) return 0;
+  const int xlayer_id = pbi->common.xlayer_id;
+  const OpsMLayerInfo *info = &params->dec_op->mlayer_info;
+  // Check if mlayer is in the OP
+  if (!((info->ops_mlayer_map[xlayer_id] >> current_mlayer_id) & 1)) return 0;
+  // Check if tlayer is in the OP for this mlayer
+  if (!((info->ops_tlayer_map[xlayer_id][current_mlayer_id] >>
+         current_tlayer_id) &
+        1))
+    return 0;
+  return 1;
+}
+
+// Derive operating point masks for mlayer and tlayer from the selected
+// operating point in DecOperatingPointParams.
+static void create_op_masks_from_profiles(AV2Decoder *pbi, int *tlayer_op_mask,
+                                          int *mlayer_op_mask) {
+  const DecOperatingPointParams *params = &pbi->dec_op_params;
+  const int xlayer_id = pbi->common.xlayer_id;
+  *mlayer_op_mask = params->dec_op->mlayer_info.ops_mlayer_map[xlayer_id];
+  // Compute combined tlayer mask: union of all per-mlayer tlayer maps
+  *tlayer_op_mask = 0;
+  for (int j = 0; j < MAX_NUM_MLAYERS; j++) {
+    if (*mlayer_op_mask & (1 << j)) {
+      *tlayer_op_mask |=
+          params->dec_op->mlayer_info.ops_tlayer_map[xlayer_id][j];
+    }
+  }
+}
+
+static void check_consistent_disp_order_hint_derivation(AV2Decoder *pbi,
+                                                        OBU_TYPE obu_type,
+                                                        bool random_accessed) {
+  AV2_COMMON *const cm = &pbi->common;
+
+  // Note: The following if block implements bitstream constraint checks for
+  // consistent display order hint derivation when (embedded or temporal)
+  // layers are selectively dropped based on operating points. The following
+  // code provides checks for all the possible operating point combinations
+  // and decoders may choose to simplify this check depending on the desired
+  // operating point(s) specified in the operating point set (OPS).
+  if (pbi->dec_op_params.isValid &&
+      is_layer_within_op_profiles(pbi, cm->tlayer_id, cm->mlayer_id)) {
+    CurrentFrame *const current_frame = &cm->current_frame;
+    const int disp_order_unconstrained = current_frame->display_order_hint;
+    int disp_order_op_constrained = 0;
+    // number of layer-drop masks
+    const int num_mlayer_masks = 1 << (cm->mlayer_id + 1);
+    const int num_tlayer_masks = 1 << (cm->tlayer_id + 1);
+    // derive operating point masks for mlayer and tlayer
+    int op_mlayer_mask, op_tlayer_mask;
+    create_op_masks_from_profiles(pbi, &op_tlayer_mask, &op_mlayer_mask);
+    // check consistency for all the subset of OPs according to the operating
+    // points in the bitstream.
+    for (int ml = 0; ml < num_mlayer_masks; ml++) {
+      for (int tl = 0; tl < num_tlayer_masks; tl++) {
+        int mlayer_mask = ml & op_mlayer_mask;
+        int tlayer_mask = tl & op_tlayer_mask;
+        disp_order_op_constrained = get_disp_order_hint(
+            cm, obu_type, random_accessed, /*is_op_constrained=*/true,
+            mlayer_mask, tlayer_mask);
+        if (disp_order_unconstrained != disp_order_op_constrained) {
+          avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+                             "Inconsistent display order hint derivation "
+                             "accross different operating points.");
+        }
+      }
+    }
+  }
+}
+#endif  // CONFIG_ANNEXF
 
 static int read_show_existing_frame(AV2Decoder *pbi, bool is_regular_obu,
                                     struct avm_read_bit_buffer *rb) {
@@ -7144,12 +7222,17 @@ static int read_show_existing_frame(AV2Decoder *pbi, bool is_regular_obu,
     current_frame->display_order_hint = get_disp_order_hint(
         cm, is_regular_obu ? OBU_REGULAR_SEF : OBU_LEADING_SEF, false, false,
         -1, -1);
+#if CONFIG_ANNEXF
+    check_consistent_disp_order_hint_derivation(
+        pbi, is_regular_obu ? OBU_REGULAR_SEF : OBU_LEADING_SEF,
+        /*random_accessed=*/false);
+#else
     // Note: The following if block implements bitstream constraint checks for
     // consistent display order hint derivation when (embedded or temporal)
     // layers are selectively dropped based on operating points. The following
     // code provides checks for all the possible operating point combinations
     // and decoders may choose to simplify this check depending on the desired
-    // operating point(s) specificed in the operating point set (OPS).
+    // operating point(s) specified in the operating point set (OPS).
     if (pbi->current_operating_point > 0 &&
         is_layer_within_operating_point(pbi, cm->tlayer_id, cm->mlayer_id)) {
       const int disp_order_unconstrained = current_frame->display_order_hint;
@@ -7160,7 +7243,7 @@ static int read_show_existing_frame(AV2Decoder *pbi, bool is_regular_obu,
       // derive operating point masks for mlayer and tlayer
       int op_mlayer_mask, op_tlayer_mask;
       create_operating_point_masks(pbi, &op_tlayer_mask, &op_mlayer_mask);
-      // check consistenct for all the subset of OPs according to the operating
+      // check consistency for all the subset of OPs according to the operating
       // points in the bitstream.
       for (int ml = 0; ml < num_mlayer_masks; ml++) {
         for (int tl = 0; tl < num_tlayer_masks; tl++) {
@@ -7177,6 +7260,7 @@ static int read_show_existing_frame(AV2Decoder *pbi, bool is_regular_obu,
         }
       }
     }
+#endif  // CONFIG_ANNEXF
     current_frame->frame_number = current_frame->order_hint;
     // Since a SEF frame is not used as a reference frame, its display order
     // hint cannot be used to derive display order hints of subsequent frames.
@@ -7598,6 +7682,7 @@ void update_num_restricted_ref(AV2_COMMON *const cm) {
     cm->ref_frames_info.num_valid_refs_with_restricted_ref = max_num_ref_frames;
 }
 
+#if !CONFIG_ANNEXF
 static avm_codec_err_t avm_get_num_layers_from_operating_point_idc(
     int operating_point_idc, unsigned int *number_mlayers,
     unsigned int *number_tlayers) {
@@ -7619,6 +7704,7 @@ static avm_codec_err_t avm_get_num_layers_from_operating_point_idc(
   }
   return AVM_CODEC_OK;
 }
+#endif  // !CONFIG_ANNEXF
 
 // Called if the cm->cur_mfh_id is zero.
 static void handle_zero_cur_mfh_id(AV2_COMMON *const cm) {
@@ -7760,15 +7846,12 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   }
 #endif
 
+#if !CONFIG_ANNEXF
   // The current decoder implementation supports all levels.
   // TODO: Replace this with a CLI option that allows to choose an operating
   // point by external means.
   if (pbi->ops_counter > 0) {
-#if CONFIG_AV2_PROFILES
-    pbi->operating_point = pbi->ops_list[0][0].ops_id;
-#else
     pbi->operating_point = pbi->ops_list[0].ops_id[0];
-#endif  // CONFIG_AV2_PROFILES
   } else {
     pbi->operating_point = 0;
   }
@@ -7779,6 +7862,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     cm->error.error_code = AVM_CODEC_ERROR;
     return 0;
   }
+#endif  // !CONFIG_ANNEXF
 
   cm->cur_mfh_id = setup_multiframe_header_id(cm, obu_type, rb);
 
@@ -7974,12 +8058,16 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
           rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
       current_frame->display_order_hint = get_disp_order_hint(
           cm, obu_type, pbi->random_accessed, false, -1, -1);
+#if CONFIG_ANNEXF
+      check_consistent_disp_order_hint_derivation(pbi, obu_type,
+                                                  pbi->random_accessed);
+#else
       // Note: The following if block implements bitstream constraint checks for
       // consistent display order hint derivation when (embedded or temporal)
       // layers are selectively dropped based on operating points. The following
       // code provides checks for all the possible operating point combinations
       // and decoders may choose to simplify this check depending on the desired
-      // operating point(s) specificed in the operating point set (OPS).
+      // operating point(s) specified in the operating point set (OPS).
       if (pbi->current_operating_point > 0 &&
           is_layer_within_operating_point(pbi, cm->tlayer_id, cm->mlayer_id)) {
         const int disp_order_unconstrained = current_frame->display_order_hint;
@@ -7990,7 +8078,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
         // derive operating point masks for mlayer and tlayer
         int op_mlayer_mask, op_tlayer_mask;
         create_operating_point_masks(pbi, &op_tlayer_mask, &op_mlayer_mask);
-        // check consistenct for all the subset of OPs according to the
+        // check consistency for all the subset of OPs according to the
         // operating points in the bitstream.
         for (int ml = 0; ml < num_mlayer_masks; ml++) {
           for (int tl = 0; tl < num_tlayer_masks; tl++) {
@@ -8007,6 +8095,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
           }
         }
       }
+#endif  // CONFIG_ANNEXF
       current_frame->frame_number = current_frame->order_hint;
       current_frame->display_order_hint_restricted =
           current_frame->display_order_hint;
@@ -8348,16 +8437,16 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
         av2_get_ref_frames(cm, current_frame->display_order_hint, 1, 0,
                            cm->ref_frame_map_pairs);
 
+#if CONFIG_ANNEXF
         // Note: The following if block implements bitstream constraint checks
         // for consistent reference frame mapping when (embedded or temporal)
         // layers are selectively dropped based on operating points. The
         // following code provides checks for possible operating point
         // combinations and decoders may choose to simplify this check depending
-        // on the desired operating point(s) specificed in the operating point
+        // on the desired operating point(s) specified in the operating point
         // set (OPS).
-        if (pbi->current_operating_point > 0 &&
-            is_layer_within_operating_point(pbi, cm->tlayer_id,
-                                            cm->mlayer_id)) {
+        if (pbi->dec_op_params.isValid &&
+            is_layer_within_op_profiles(pbi, cm->tlayer_id, cm->mlayer_id)) {
           int ref_index_list[INTER_REFS_PER_FRAME];
           int constrained_ref_index_list[INTER_REFS_PER_FRAME];
           // number of layer-drop masks
@@ -8365,14 +8454,14 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
           const int num_tlayer_masks = 1 << (cm->tlayer_id + 1);
           // derive operating point masks for mlayer and tlayer
           int op_mlayer_mask, op_tlayer_mask;
-          create_operating_point_masks(pbi, &op_tlayer_mask, &op_mlayer_mask);
-          // check consistenct for all the subset of OPs according to the
+          create_op_masks_from_profiles(pbi, &op_tlayer_mask, &op_mlayer_mask);
+          // check consistency for all the subset of OPs according to the
           // operating points in the bitstream.
           for (int ml = 0; ml < num_mlayer_masks; ml++) {
             for (int tl = 0; tl < num_tlayer_masks; tl++) {
               int mlayer_mask = ml & op_mlayer_mask;
               int tlayer_mask = tl & op_tlayer_mask;
-              // derive OP constrainted mapping and store in
+              // derive OP constrained mapping and store in
               // cm->op_remapped_ref_idx[]
               const int default_map_idx = av2_get_op_constrained_ref_frames(
                   cm, current_frame->display_order_hint, 0,
@@ -8401,6 +8490,61 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
             }
           }
         }
+#else
+        // Note: The following if block implements bitstream constraint checks
+        // for consistent reference frame mapping when (embedded or temporal)
+        // layers are selectively dropped based on operating points. The
+        // following code provides checks for possible operating point
+        // combinations and decoders may choose to simplify this check depending
+        // on the desired operating point(s) specified in the operating point
+        // set (OPS).
+        if (pbi->current_operating_point > 0 &&
+            is_layer_within_operating_point(pbi, cm->tlayer_id,
+                                            cm->mlayer_id)) {
+          int ref_index_list[INTER_REFS_PER_FRAME];
+          int constrained_ref_index_list[INTER_REFS_PER_FRAME];
+          // number of layer-drop masks
+          const int num_mlayer_masks = 1 << (cm->mlayer_id + 1);
+          const int num_tlayer_masks = 1 << (cm->tlayer_id + 1);
+          // derive operating point masks for mlayer and tlayer
+          int op_mlayer_mask, op_tlayer_mask;
+          create_operating_point_masks(pbi, &op_tlayer_mask, &op_mlayer_mask);
+          // check consistency for all the subset of OPs according to the
+          // operating points in the bitstream.
+          for (int ml = 0; ml < num_mlayer_masks; ml++) {
+            for (int tl = 0; tl < num_tlayer_masks; tl++) {
+              int mlayer_mask = ml & op_mlayer_mask;
+              int tlayer_mask = tl & op_tlayer_mask;
+              // derive OP constrained mapping and store in
+              // cm->op_remapped_ref_idx[]
+              const int default_map_idx = av2_get_op_constrained_ref_frames(
+                  cm, current_frame->display_order_hint, 0,
+                  cm->ref_frame_map_pairs, mlayer_mask, tlayer_mask);
+              for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
+                // get constrained mapped reference list
+                constrained_ref_index_list[i] = cm->op_remapped_ref_idx[i];
+                // set ref_index_list for lower operating points
+                const int map_idx = cm->remapped_ref_idx[i];
+                ref_index_list[i] = map_idx;
+                const RefFrameMapPair ref_info =
+                    cm->ref_frame_map_pairs[map_idx];
+                if (is_layer_dropped(ref_info.mlayer_id, mlayer_mask) ||
+                    is_layer_dropped(ref_info.tlayer_id, tlayer_mask)) {
+                  ref_index_list[i] = default_map_idx;
+                }
+              }
+              // check if reference mapping is consistent accross possible
+              // operating points
+              if (!is_reference_mapping_consistent(
+                      ref_index_list, constrained_ref_index_list)) {
+                avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+                                   "Inconsistent reference index mapping "
+                                   "accross different operating points.");
+              }
+            }
+          }
+        }
+#endif  // CONFIG_ANNEXF
       }
       // Check to make sure all reference frames have valid dimensions.
       for (int i = 0; i < cm->ref_frames_info.num_total_refs; ++i) {

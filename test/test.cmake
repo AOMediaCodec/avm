@@ -139,6 +139,7 @@ if(NOT BUILD_SHARED_LIBS)
       "${AVM_ROOT}/test/segment_binarization_sync.cc"
       "${AVM_ROOT}/test/sframe_test.cc"
       "${AVM_ROOT}/test/still_picture_test.cc"
+      "${AVM_ROOT}/test/sub_bitstream_extraction_test.cc"
       "${AVM_ROOT}/test/subgop_test.cc"
       "${AVM_ROOT}/test/superframe_test.cc"
       "${AVM_ROOT}/test/tile_config_test.cc"

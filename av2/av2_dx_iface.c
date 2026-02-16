@@ -54,7 +54,16 @@ struct avm_codec_alg_priv {
   int64_t random_access_point_index;
   int bru_opt_mode;
   unsigned int row_mt;
+#if CONFIG_ANNEXF
+  int selected_ops_id;
+  int selected_op_index;
+  int enable_sub_bitstream_extraction;
+  // Local OPS selections: [xlayer_id, ops_id, op_index] per entry
+  int local_ops_selections[MAX_NUM_XLAYERS - 1][3];
+  int num_local_ops_selections;
+#else
   int operating_point;
+#endif  // CONFIG_ANNEXF
   int output_all_layers;
 
   AVxWorker *frame_worker;
@@ -104,6 +113,13 @@ static avm_codec_err_t decoder_init(avm_codec_ctx_t *ctx) {
     priv->num_grain_image_frame_buffers = 0;
     // Turn row_mt off by default.
     priv->row_mt = 0;
+
+#if CONFIG_ANNEXF
+    priv->selected_ops_id = -1;
+    priv->selected_op_index = -1;
+    priv->enable_sub_bitstream_extraction = 0;
+    priv->num_local_ops_selections = 0;
+#endif  // CONFIG_ANNEXF
 
     init_ibp_info(ctx->priv->ibp_directional_weights);
   }
@@ -442,7 +458,26 @@ static avm_codec_err_t init_decoder(avm_codec_alg_priv_t *ctx) {
   // thread or loopfilter thread.
   frame_worker_data->pbi->max_threads = ctx->cfg.threads;
   frame_worker_data->pbi->inv_tile_order = ctx->invert_tile_order;
+#if CONFIG_ANNEXF
+  frame_worker_data->pbi->selected_ops_id = ctx->selected_ops_id;
+  frame_worker_data->pbi->selected_op_index = ctx->selected_op_index;
+  av2_sbe_init(&frame_worker_data->pbi->sbe_state);
+  frame_worker_data->pbi->sbe_state.extraction_enabled =
+      ctx->enable_sub_bitstream_extraction;
+  // Propagate local OPS selections to SBE state
+  for (int i = 0; i < ctx->num_local_ops_selections; i++) {
+    int xid = ctx->local_ops_selections[i][0];
+    if (xid >= 0 && xid < MAX_NUM_XLAYERS - 1) {
+      frame_worker_data->pbi->sbe_state.local_ops_selected[xid] = 1;
+      frame_worker_data->pbi->sbe_state.local_ops_id[xid] =
+          ctx->local_ops_selections[i][1];
+      frame_worker_data->pbi->sbe_state.local_op_idx[xid] =
+          ctx->local_ops_selections[i][2];
+    }
+  }
+#else
   frame_worker_data->pbi->operating_point = ctx->operating_point;
+#endif  // CONFIG_ANNEXF
   frame_worker_data->pbi->output_all_layers = ctx->output_all_layers;
   frame_worker_data->pbi->row_mt = ctx->row_mt;
   frame_worker_data->pbi->is_fwd_kf_present = 0;
@@ -1976,9 +2011,21 @@ static avm_codec_err_t ctrl_get_accounting(avm_codec_alg_priv_t *ctx,
 #endif
 }
 
+#if CONFIG_ANNEXF
+static avm_codec_err_t ctrl_set_selected_ops(avm_codec_alg_priv_t *ctx,
+                                             va_list args) {
+  int *ops_params = va_arg(args, int *);
+  ctx->selected_ops_id = ops_params[0];
+  ctx->selected_op_index = ops_params[1];
+  if (ctx->selected_ops_id < 0 || ctx->selected_op_index < 0)
+    return AVM_CODEC_INVALID_PARAM;
+  // Enable sub-bitstream extraction when an operating point is selected
+  ctx->enable_sub_bitstream_extraction = 1;
+#else
 static avm_codec_err_t ctrl_set_operating_point(avm_codec_alg_priv_t *ctx,
                                                 va_list args) {
   ctx->operating_point = va_arg(args, int);
+#endif  // CONFIG_ANNEXF
   return AVM_CODEC_OK;
 }
 
@@ -1987,6 +2034,34 @@ static avm_codec_err_t ctrl_set_output_all_layers(avm_codec_alg_priv_t *ctx,
   ctx->output_all_layers = va_arg(args, int);
   return AVM_CODEC_OK;
 }
+
+#if CONFIG_ANNEXF
+static avm_codec_err_t ctrl_set_sub_bitstream_extraction(
+    avm_codec_alg_priv_t *ctx, va_list args) {
+  ctx->enable_sub_bitstream_extraction = va_arg(args, int);
+  return AVM_CODEC_OK;
+}
+
+static avm_codec_err_t ctrl_set_selected_local_ops(avm_codec_alg_priv_t *ctx,
+                                                   va_list args) {
+  int *params = va_arg(args, int *);
+  int xlayer_id = params[0];
+  int ops_id = params[1];
+  int op_index = params[2];
+  if (xlayer_id < 0 || xlayer_id >= MAX_NUM_XLAYERS - 1 || ops_id < 0 ||
+      op_index < 0)
+    return AVM_CODEC_INVALID_PARAM;
+  if (ctx->num_local_ops_selections >= MAX_NUM_XLAYERS - 1)
+    return AVM_CODEC_INVALID_PARAM;
+  ctx->local_ops_selections[ctx->num_local_ops_selections][0] = xlayer_id;
+  ctx->local_ops_selections[ctx->num_local_ops_selections][1] = ops_id;
+  ctx->local_ops_selections[ctx->num_local_ops_selections][2] = op_index;
+  ctx->num_local_ops_selections++;
+  // Enable sub-bitstream extraction when local OPS is selected
+  ctx->enable_sub_bitstream_extraction = 1;
+  return AVM_CODEC_OK;
+}
+#endif  // CONFIG_ANNEXF
 
 static avm_codec_err_t ctrl_set_inspection_callback(avm_codec_alg_priv_t *ctx,
                                                     va_list args) {
@@ -2018,7 +2093,13 @@ static avm_codec_ctrl_fn_map_t decoder_ctrl_maps[] = {
   { AV2_INVERT_TILE_DECODE_ORDER, ctrl_set_invert_tile_order },
   { AV2_SET_BYTE_ALIGNMENT, ctrl_set_byte_alignment },
   { AV2_SET_SKIP_LOOP_FILTER, ctrl_set_skip_loop_filter },
+#if CONFIG_ANNEXF
+  { AV2D_SET_SELECTED_OPS, ctrl_set_selected_ops },
+  { AV2D_SET_SUB_BITSTREAM_EXTRACTION, ctrl_set_sub_bitstream_extraction },
+  { AV2D_SET_SELECTED_LOCAL_OPS, ctrl_set_selected_local_ops },
+#else
   { AV2D_SET_OPERATING_POINT, ctrl_set_operating_point },
+#endif  // CONFIG_ANNEXF
   { AV2D_SET_OUTPUT_ALL_LAYERS, ctrl_set_output_all_layers },
   { AV2_SET_INSPECTION_CALLBACK, ctrl_set_inspection_callback },
   { AV2D_SET_ROW_MT, ctrl_set_row_mt },
