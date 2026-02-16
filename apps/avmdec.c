@@ -117,8 +117,16 @@ static const arg_def_t framestatsarg =
     ARG_DEF(NULL, "framestats", 1, "Output per-frame stats (.csv format)");
 static const arg_def_t outbitdeptharg =
     ARG_DEF(NULL, "output-bit-depth", 1, "Output bit-depth for decoded frames");
+#if CONFIG_AV2_PROFILES
+static const arg_def_t selectopsarg = ARG_DEF(
+    NULL, "select-ops", 1,
+    "Select OPS and operating point (format: ops_id,op_index or ops_id, e.g., "
+    "--select-ops=1,2 (i.e., ops_id=1 op_index=2). default (0, 0) "
+    "[Max(15, 7)]");
+#else
 static const arg_def_t oppointarg = ARG_DEF(
     NULL, "oppoint", 1, "Select an operating point of a scalable bitstream");
+#endif  // CONFIG_AV2_PROFILES
 static const arg_def_t outallarg = ARG_DEF(
     NULL, "all-layers", 0, "Output all decoded frames of a scalable bitstream");
 static const arg_def_t skipfilmgrain =
@@ -140,7 +148,13 @@ static const arg_def_t *all_args[] = {
 #endif
   &threadsarg,     &verbosearg,    &scalearg,      &fb_arg,
   &md5arg,         &verifyarg,     &framestatsarg, &continuearg,
-  &outbitdeptharg, &oppointarg,    &outallarg,     &skipfilmgrain,
+  &outbitdeptharg,
+#if CONFIG_AV2_PROFILES
+  &selectopsarg,
+#else
+  &oppointarg,
+#endif  // CONFIG_AV2_PROFILES
+  &outallarg,     &skipfilmgrain,
   &randomaccess,   &bruoptmodearg, &icc_file,      NULL
 };
 
@@ -644,7 +658,12 @@ static int main_loop(int argc, const char **argv_) {
   int frames_corrupted = 0;
   int dec_flags = 0;
   int do_scale = 0;
+#if CONFIG_AV2_PROFILES
+  int selected_ops_id = 0;
+  int selected_op_index = 0;
+#else
   int operating_point = 0;
+#endif  // CONFIG_AV2_PROFILES
   int output_all_layers = 0;
   int skip_film_grain = 0;
   int random_access_point_index = -1;
@@ -784,8 +803,22 @@ static int main_loop(int argc, const char **argv_) {
       keep_going = 1;
     } else if (arg_match(&arg, &outbitdeptharg, argi)) {
       fixed_output_bit_depth = arg_parse_uint(&arg);
+#if CONFIG_AV2_PROFILES
+    } else if (arg_match(&arg, &selectopsarg, argi)) {
+      int ops_list[2] = { 0, 0 };
+      int num_ops = arg_parse_list(&arg, ops_list, 2);
+      if (num_ops >= 1) {
+        selected_ops_id = ops_list[0];
+      }
+      if (num_ops >= 2) {
+        selected_op_index = ops_list[1];
+      } else {
+        selected_op_index = 0;
+      }
+#else
     } else if (arg_match(&arg, &oppointarg, argi)) {
       operating_point = arg_parse_int(&arg);
+#endif  // CONFIG_AV2_PROFILES
     } else if (arg_match(&arg, &outallarg, argi)) {
       output_all_layers = 1;
     } else if (arg_match(&arg, &skipfilmgrain, argi)) {
@@ -925,12 +958,23 @@ static int main_loop(int argc, const char **argv_) {
 
   if (!quiet) fprintf(stderr, "%s\n", decoder.name);
 
+#if CONFIG_AV2_PROFILES
+  // Always set selected OPS
+  int ops_params[2] = { selected_ops_id, selected_op_index };
+  if (AVM_CODEC_CONTROL_TYPECHECKED(&decoder, AV2D_SET_SELECTED_OPS,
+                                    ops_params)) {
+    fprintf(stderr, "Failed to set selected OPS: %s\n",
+            avm_codec_error(&decoder));
+    goto fail;
+  }
+#else
   if (AVM_CODEC_CONTROL_TYPECHECKED(&decoder, AV2D_SET_OPERATING_POINT,
                                     operating_point)) {
     fprintf(stderr, "Failed to set operating_point: %s\n",
             avm_codec_error(&decoder));
     goto fail;
   }
+#endif  //  CONFIG_AV2_PROFILES
 
   if (AVM_CODEC_CONTROL_TYPECHECKED(&decoder, AV2D_SET_OUTPUT_ALL_LAYERS,
                                     output_all_layers)) {

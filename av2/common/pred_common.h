@@ -109,11 +109,13 @@ int av2_get_ref_frames(AV2_COMMON *cm, int cur_frame_disp,
 
 int is_layer_dropped(const int current_layer_id, const int max_layer_id);
 
+#if !CONFIG_AV2_PROFILES
 int av2_get_op_constrained_ref_frames(AV2_COMMON *cm, int cur_frame_disp,
                                       int key_frame_only,
                                       RefFrameMapPair *ref_frame_map_pairs,
                                       const int mlayer_mask,
                                       const int tlayer_mask);
+#endif  // !CONFIG_AV2_PROFILES
 
 // Derive the primary & secondary reference frame from the reference list based
 // on qindex and frame distances.

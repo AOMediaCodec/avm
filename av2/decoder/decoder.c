@@ -226,6 +226,11 @@ AV2Decoder *av2_decoder_create(BufferPool *const pool) {
     pbi->fgm_list[i].fgm_mlayer_id = -1;
   }
 
+#if CONFIG_AV2_PROFILES
+  pbi->selected_ops_id = -1;
+  pbi->selected_op_index = -1;
+#endif  // CONFIG_AV2_PROFILES
+
   memset(&pbi->last_frame_unit, -1, sizeof(pbi->last_frame_unit));
   memset(&pbi->last_displayable_frame_unit, -1,
          sizeof(pbi->last_displayable_frame_unit));
