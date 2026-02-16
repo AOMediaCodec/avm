@@ -1985,10 +1985,18 @@ static BITSTREAM_PROFILE get_lcr_profile(struct AV2Decoder *pbi) {
 }
 
 // Conformance check for the presence of MSDO and LCR
-bool conformance_check_msdo_lcr(struct AV2Decoder *pbi, int num_extended_layers,
-                                int num_embedded_layers, bool msdo_present,
-                                bool global_lcr_present,
+bool conformance_check_msdo_lcr(struct AV2Decoder *pbi, bool global_lcr_present,
                                 bool local_lcr_present) {
+  int msdo_present = pbi->multi_stream_mode;
+  int num_extended_layers = 0;
+  int num_embedded_layers = 0;
+
+  for (int i = 0; i < AVM_MAX_NUM_STREAMS - 1; i++) {
+    if (pbi->xlayer_id_map[i] > 0) num_extended_layers++;
+  }
+  for (int i = 0; i < MAX_NUM_MLAYERS; i++) {
+    if (pbi->mlayer_id_map[i] > 0) num_embedded_layers++;
+  }
   assert(num_extended_layers > 0 && num_embedded_layers > 0);
 
   if (num_extended_layers == 1 && num_embedded_layers == 1) {
@@ -2106,18 +2114,8 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
       cm->is_leading_picture = -1;
     if (pbi->random_accessed) {
 #if CONFIG_AV2_PROFILES
-      int num_xlayers = 0;
-      int num_mlayers = 0;
-      for (int i = 0; i < AVM_MAX_NUM_STREAMS - 1; i++) {
-        if (pbi->xlayer_id_map[i] >= 0) num_xlayers++;
-      }
-      for (int i = 0; i < MAX_NUM_MLAYERS; i++) {
-        if (pbi->mlayer_id_map[i] >= 0) num_mlayers++;
-      }
-
-      if (!conformance_check_msdo_lcr(
-              pbi, num_xlayers, num_mlayers, pbi->multi_stream_mode,
-              !cm->lcr_params.is_local_lcr, cm->lcr_params.is_local_lcr)) {
+      if (!conformance_check_msdo_lcr(pbi, !cm->lcr_params.is_local_lcr,
+                                      cm->lcr_params.is_local_lcr)) {
         avm_internal_error(
             &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
             "An MSDO or LCR OBU in the current CVS violates the requirements "
