@@ -28,6 +28,7 @@
 #include "common/webmdec.h"
 #include "av2/common/obu_util.h"
 #include "av2/common/blockd.h"
+#include "av2/common/enums.h"
 #include "avm_dsp/bitwriter_buffer.h"
 #include "avm_dsp/bitreader_buffer.h"
 #include "avm/avm_codec.h"

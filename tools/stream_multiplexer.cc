@@ -99,11 +99,11 @@ std::vector<uint8_t> WriteTU(const uint8_t *data, int length,
                              int *stream_buffer_units) {
   std::vector<uint8_t> tu_obus;
   const uint8_t *data_ptr = data;
-
   const int kObuHeaderSizeBytes = 1;
   const int kMinimumBytesRequired = 1 + kObuHeaderSizeBytes;
   int consumed = 0;
   int obu_overhead = 0;
+  int msdo_signaled = 0;
   ObuHeader obu_header;
   while (consumed < length) {
     const int remaining = length - consumed;
@@ -161,7 +161,15 @@ std::vector<uint8_t> WriteTU(const uint8_t *data, int length,
     std::vector<uint8_t> obu_tmp(data_ptr + length_field_size,
                                  data_ptr + obu_total_size + length_field_size);
 
-    if (obu_header.type == OBU_SEQUENCE_HEADER && seg_idx == 0) {
+    if (!msdo_signaled &&
+        (obu_header.type == OBU_LAYER_CONFIGURATION_RECORD ||
+         obu_header.type == OBU_OPERATING_POINT_SET ||
+         obu_header.type == OBU_ATLAS_SEGMENT ||
+         (obu_header.type == OBU_METADATA_GROUP &&
+          obu_header.obu_header_extension_flag &&
+          obu_header.obu_xlayer_id == GLOBAL_XLAYER_ID) ||
+         obu_header.type == OBU_SEQUENCE_HEADER) &&
+        (seg_idx == 0)) {
       std::vector<uint8_t> multi_stream_obu(num_streams * 2 + 4);
       int multi_header_obu_size = write_multi_stream_decoder_operation_obu(
           multi_stream_obu.data(), num_streams, stream_ids,
@@ -176,6 +184,7 @@ std::vector<uint8_t> WriteTU(const uint8_t *data, int length,
           multi_header_obu_size_data.begin() + multi_header_length_field_size);
       tu_obus.insert(tu_obus.end(), multi_stream_obu.begin(),
                      multi_stream_obu.begin() + multi_header_obu_size);
+      msdo_signaled = 1;
     }
 
     // Rewrite OBU header with signaling stream_id
