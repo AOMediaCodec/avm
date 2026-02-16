@@ -336,6 +336,22 @@ static void restore_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
   }
 }
 
+static void init_stream_info(StreamInfo *stream_info) {
+  stream_info->olk_encountered_buf = 0;
+  stream_info->random_access_point_index_buf = -1;
+  stream_info->random_access_point_count_buf = 0;
+  for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
+    stream_info->remapped_ref_idx_buf[i] = INVALID_IDX;
+  }
+  for (int i = 0; i < REF_FRAMES; i++) {
+    stream_info->ref_frame_map_buf[i] = NULL;
+  }
+  stream_info->mfh_valid_buf[0] = true;
+  for (int i = 1; i < MAX_MFH_NUM; i++) {
+    stream_info->mfh_valid_buf[i] = false;
+  }
+}
+
 static uint32_t read_multi_stream_decoder_operation_obu(
     AV2Decoder *pbi, struct avm_read_bit_buffer *rb) {
   AV2_COMMON *const cm = &pbi->common;
@@ -393,6 +409,9 @@ static uint32_t read_multi_stream_decoder_operation_obu(
   if (pbi->stream_info == NULL) {
     avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
                        "Memory allocation failed for pbi->stream_info\n");
+  }
+  for (int i = 0; i < num_streams; i++) {
+    init_stream_info(&pbi->stream_info[i]);
   }
 
   pbi->msdo_is_present_in_tu = 1;
