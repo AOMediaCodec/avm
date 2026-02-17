@@ -584,8 +584,8 @@ static avm_codec_err_t check_random_access_frame_unit(
   while (data_read < data + data_sz) {
     size_t payload_size = 0;
     size_t bytes_read = 0;
-    res = avm_read_obu_header_and_size(data_read, data_sz, &obu_header,
-                                       &payload_size, &bytes_read);
+    res = avm_read_obu_header_and_size(data_read, (data + data_sz) - data_read,
+                                       &obu_header, &payload_size, &bytes_read);
     if (res != AVM_CODEC_OK) return res;
     pbi->num_obus_with_frame_unit++;
     data_read += bytes_read + payload_size;
@@ -693,8 +693,8 @@ static avm_codec_err_t reset_last_frame_unit(struct AV2Decoder *pbi,
   while (data_read < data + data_sz) {
     size_t payload_size = 0;
     size_t bytes_read = 0;
-    res = avm_read_obu_header_and_size(data_read, data_sz, &obu_header,
-                                       &payload_size, &bytes_read);
+    res = avm_read_obu_header_and_size(data_read, (data + data_sz) - data_read,
+                                       &obu_header, &payload_size, &bytes_read);
     if (res != AVM_CODEC_OK) return res;
     pbi->num_obus_with_frame_unit++;
     data_read += bytes_read + payload_size;
@@ -721,8 +721,8 @@ static size_t get_size_of_frame_unit(const uint8_t *data, size_t data_sz) {
   while (data_read < data + data_sz) {
     size_t payload_size = 0;
     size_t bytes_read = 0;
-    res = avm_read_obu_header_and_size(data_read, data_sz, &obu_header,
-                                       &payload_size, &bytes_read);
+    res = avm_read_obu_header_and_size(data_read, (data + data_sz) - data_read,
+                                       &obu_header, &payload_size, &bytes_read);
     if (res != AVM_CODEC_OK) return 0;
     if (is_single_tile_vcl_obu(obu_header.type) ||
         is_multi_tile_vcl_obu(obu_header.type)) {
