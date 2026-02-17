@@ -808,8 +808,8 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
                                       pbi->common.lcr_params.is_local_lcr)) {
         avm_internal_error(
             &pbi->common.error, AVM_CODEC_UNSUP_BITSTREAM,
-            "An MSDO or LCR OBU in the last CVS violates the requirements of "
-            "bitstream conformance for MSDO and LCR");
+            "The last CVS violates the requirements of bitstream conformance "
+            "for MSDO and LCR to be present (or absent).");
       }
       return err;
     }
@@ -830,8 +830,8 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
                                         pbi->common.lcr_params.is_local_lcr)) {
           avm_internal_error(
               &pbi->common.error, AVM_CODEC_UNSUP_BITSTREAM,
-              "An MSDO or LCR OBU in the last CVS violates the requirements of "
-              "bitstream conformance for MSDO and LCR");
+              "The last CVS violates the requirements of bitstream conformance "
+              "for MSDO and LCR to be present (or absent).");
         }
       }
     }
