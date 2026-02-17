@@ -374,20 +374,8 @@ typedef struct AV2Decoder {
   avm_inspect_cb inspect_tip_cb;
   void *inspect_ctx;
 #endif
-#if CONFIG_AV2_PROFILES
-  // Operating point set id
-  int ops_id;
-  // Operating point index
-  int op_index;
-  // Selected operating point set id
-  int selected_ops_id;
-  // Selected operarint point id
-  int selected_op_index;
-  DecOperatingPointParams dec_op_params;
-#else
   int operating_point;
   int current_operating_point;
-#endif  // CONFIG_AV2_PROFILES
   int seen_frame_header;
   // The expected start_tile (tg_start syntax element) of the next tile group.
   int next_start_tile;

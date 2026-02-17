@@ -6896,7 +6896,6 @@ static int is_regular_non_olk_obu(OBU_TYPE obu_type) {
          obu_type == OBU_BRIDGE_FRAME || obu_type == OBU_REGULAR_TILE_GROUP;
 }
 
-#if !CONFIG_AV2_PROFILES
 static int is_layer_within_operating_point(AV2Decoder *pbi,
                                            const int current_tlayer_id,
                                            const int current_mlayer_id) {
@@ -6917,7 +6916,6 @@ static void create_operating_point_masks(AV2Decoder *pbi, int *tlayer_op_mask,
   *mlayer_op_mask = (pbi->current_operating_point >> MAX_NUM_TLAYERS) &
                     ((1 << MLAYER_BITS) - 1);
 }
-#endif  // !CONFIG_AV2_PROFILES
 
 static int read_show_existing_frame(AV2Decoder *pbi, bool is_regular_obu,
                                     struct avm_read_bit_buffer *rb) {
@@ -6967,7 +6965,6 @@ static int read_show_existing_frame(AV2Decoder *pbi, bool is_regular_obu,
     current_frame->display_order_hint = get_disp_order_hint(
         cm, is_regular_obu ? OBU_REGULAR_SEF : OBU_LEADING_SEF, false, false,
         -1, -1);
-#if 0   // av2-spec-internal issue #448
     // Note: The following if block implements bitstream constraint checks for
     // consistent display order hint derivation when (embedded or temporal)
     // layers are selectively dropped based on operating points. The following
@@ -7001,8 +6998,6 @@ static int read_show_existing_frame(AV2Decoder *pbi, bool is_regular_obu,
         }
       }
     }
-#endif  // av2-spec-internal issue #448
-
     current_frame->frame_number = current_frame->order_hint;
     // Since a SEF frame is not used as a reference frame, its display order
     // hint cannot be used to derive display order hints of subsequent frames.
@@ -7293,7 +7288,6 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   }
 }
 
-#if 0   // av2-spec-internal issue #448
 static int is_reference_mapping_consistent(
     int ref_list1[INTER_REFS_PER_FRAME], int ref_list2[INTER_REFS_PER_FRAME]) {
   for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
@@ -7303,7 +7297,6 @@ static int is_reference_mapping_consistent(
   }
   return 1;
 }
-#endif  // av2-spec-internal issue #448
 
 void update_num_restricted_ref(AV2_COMMON *const cm) {
   int num_total_refs = cm->ref_frames_info.num_total_refs;
@@ -7368,7 +7361,6 @@ void update_ref_frames_info(AV2Decoder *pbi, OBU_TYPE obu_type) {
   }
 }
 
-#if !CONFIG_AV2_PROFILES
 static avm_codec_err_t avm_get_num_layers_from_operating_point_idc(
     int operating_point_idc, unsigned int *number_mlayers,
     unsigned int *number_tlayers) {
@@ -7390,7 +7382,6 @@ static avm_codec_err_t avm_get_num_layers_from_operating_point_idc(
   }
   return AVM_CODEC_OK;
 }
-#endif  // !CONFIG_AV2_PROFILES
 
 // Called if the cm->cur_mfh_id is zero.
 static void handle_zero_cur_mfh_id(AV2_COMMON *const cm) {
@@ -7529,12 +7520,15 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   }
 #endif
 
-#if !CONFIG_AV2_PROFILES
   // The current decoder implementation supports all levels.
   // TODO: Replace this with a CLI option that allows to choose an operating
   // point by external means.
   if (pbi->ops_counter > 0) {
+#if CONFIG_AV2_PROFILES
+    pbi->operating_point = pbi->ops_list[0][0].ops_id;
+#else
     pbi->operating_point = pbi->ops_list[0].ops_id[0];
+#endif  // CONFIG_AV2_PROFILES
   } else {
     pbi->operating_point = 0;
   }
@@ -7545,7 +7539,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     cm->error.error_code = AVM_CODEC_ERROR;
     return 0;
   }
-#endif  // !CONFIG_AV2_PROFILES
 
   cm->cur_mfh_id = setup_multiframe_header_id(cm, obu_type, rb);
 
@@ -7734,7 +7727,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
           rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
       current_frame->display_order_hint = get_disp_order_hint(
           cm, obu_type, pbi->random_accessed, false, -1, -1);
-#if !CONFIG_AV2_PROFILES
       // Note: The following if block implements bitstream constraint checks for
       // consistent display order hint derivation when (embedded or temporal)
       // layers are selectively dropped based on operating points. The following
@@ -7768,7 +7760,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
           }
         }
       }
-#endif  // !CONFIG_AV2_PROFILES
       current_frame->frame_number = current_frame->order_hint;
       current_frame->display_order_hint_restricted =
           current_frame->display_order_hint;
@@ -8075,7 +8066,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
         av2_get_ref_frames(cm, current_frame->display_order_hint, 1, 0,
                            cm->ref_frame_map_pairs);
 
-#if 0   // av2-spec-internal issue #448
         // Note: The following if block implements bitstream constraint checks
         // for consistent reference frame mapping when (embedded or temporal)
         // layers are selectively dropped based on operating points. The
@@ -8129,7 +8119,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
             }
           }
         }
-#endif  // av2-spec-internal issue #448
 
         if (obu_type != OBU_RAS_FRAME) {
           update_ref_frames_info(pbi, obu_type);

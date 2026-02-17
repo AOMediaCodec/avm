@@ -289,12 +289,6 @@ enum avm_dec_control_id {
    */
   AV2D_SET_ROW_MT,
 
-#if CONFIG_AV2_PROFILES
-  /*!\brief Codec control function to select a specfic OPS and operating point,
-   * int array [ops_id, op_index]
-   */
-  AV2D_SET_SELECTED_OPS,
-#else
   /*!\brief Codec control function to indicate which operating point to use,
    * int parameter
    *
@@ -304,7 +298,6 @@ enum avm_dec_control_id {
    * operating_points_cnt_minus_1 (which is at most 31).
    */
   AV2D_SET_OPERATING_POINT,
-#endif  // CONFIG_AV2_PROFILES
 
   /*!\brief Codec control function to indicate whether to output one frame per
    * temporal unit (the default), or one frame per spatial layer. int parameter
@@ -494,13 +487,8 @@ AVM_CTRL_USE_TYPE(AV2D_SET_RANDOM_ACCESS, int)
 AVM_CTRL_USE_TYPE(AV2D_SET_BRU_OPT_MODE, int)
 #define AVM_CTRL_AV2D_SET_BRU_OPT_MODE
 
-#if CONFIG_AV2_PROFILES
-AVM_CTRL_USE_TYPE(AV2D_SET_SELECTED_OPS, int *)
-#define AVM_CTRL_AV2D_SET_SELECTED_OPS
-#else
 AVM_CTRL_USE_TYPE(AV2D_SET_OPERATING_POINT, int)
 #define AVM_CTRL_AV2D_SET_OPERATING_POINT
-#endif  // CONFIG_AV2_PROFILES
 
 AVM_CTRL_USE_TYPE(AV2D_SET_OUTPUT_ALL_LAYERS, int)
 #define AVM_CTRL_AV2D_SET_OUTPUT_ALL_LAYERS
