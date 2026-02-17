@@ -86,7 +86,7 @@ ml_encode_bitstream_0() {
       352 288 \
       $(yuv_raw_input_ml) \
       ${BITSTREAM_0} \
-      20 \
+      $4 \
       $1 $2 $3 \
 
   if [ ! -e "${BITSTREAM_0}" ]; then
@@ -105,7 +105,7 @@ ml_encode_bitstream_1() {
       352 288 \
       $(yuv_raw_input_ml) \
       ${BITSTREAM_1} \
-      20 \
+      $4 \
       $1 $2 $3 \
 
   if [ ! -e "${BITSTREAM_1}" ]; then
@@ -286,8 +286,8 @@ run_encode_mux_demux() {
   echo "Start multi layer streams"
 
   echo "(#temporal, #embedded) = (1 1)"
-  ml_encode_bitstream_0 1 1 0 || return 1
-  ml_encode_bitstream_1 1 1 0 || return 1
+  ml_encode_bitstream_0 1 1 0 10 || return 1
+  ml_encode_bitstream_1 1 1 0 10 || return 1
   decode_bitstream_0 || return 1
   decode_bitstream_1 || return 1
   mux_bitstreams || return 1
@@ -297,8 +297,8 @@ run_encode_mux_demux() {
   compare_md5 || return 1
 
   echo "(#temporal, #embedded) = (2 1)"
-  ml_encode_bitstream_0 2 1 0 || return 1
-  ml_encode_bitstream_1 2 1 0 || return 1
+  ml_encode_bitstream_0 2 1 0 10 || return 1
+  ml_encode_bitstream_1 2 1 0 10 || return 1
   decode_bitstream_0 || return 1
   decode_bitstream_1 || return 1
   mux_bitstreams || return 1
@@ -308,8 +308,8 @@ run_encode_mux_demux() {
   compare_md5 || return 1
 
   echo "(#temporal, #embedded) = (3 1)"
-  ml_encode_bitstream_0 3 1 0 || return 1
-  ml_encode_bitstream_1 3 1 0 || return 1
+  ml_encode_bitstream_0 3 1 0 10 || return 1
+  ml_encode_bitstream_1 3 1 0 10 || return 1
   decode_bitstream_0 || return 1
   decode_bitstream_1 || return 1
   mux_bitstreams || return 1
@@ -319,8 +319,8 @@ run_encode_mux_demux() {
   compare_md5 || return 1
 
   echo "(#temporal, #embedded) = (2 1) and (1, 1) for first/second stream"
-  ml_encode_bitstream_0 2 1 0 || return 1
-  ml_encode_bitstream_1 1 1 0 || return 1
+  ml_encode_bitstream_0 2 1 0 10 || return 1
+  ml_encode_bitstream_1 1 1 0 10 || return 1
   decode_bitstream_0 || return 1
   decode_bitstream_1 || return 1
   mux_bitstreams || return 1
@@ -330,8 +330,8 @@ run_encode_mux_demux() {
   compare_md5 || return 1
 
   echo "(#temporal, #embedded) = (3 1) and (1, 1) for first/second stream"
-  ml_encode_bitstream_0 3 1 0 || return 1
-  ml_encode_bitstream_1 1 1 0 || return 1
+  ml_encode_bitstream_0 3 1 0 10 || return 1
+  ml_encode_bitstream_1 1 1 0 10 || return 1
   decode_bitstream_0 || return 1
   decode_bitstream_1 || return 1
   mux_bitstreams || return 1
@@ -341,8 +341,8 @@ run_encode_mux_demux() {
   compare_md5 || return 1
 
   echo "(#temporal, #embedded) = (3 1) and (2, 1) for first/second stream"
-  ml_encode_bitstream_0 3 1 0 || return 1
-  ml_encode_bitstream_1 1 1 0 || return 1
+  ml_encode_bitstream_0 3 1 0 10 || return 1
+  ml_encode_bitstream_1 1 1 0 10 || return 1
   decode_bitstream_0 || return 1
   decode_bitstream_1 || return 1
   mux_bitstreams || return 1
@@ -352,8 +352,8 @@ run_encode_mux_demux() {
   compare_md5 || return 1
 
   echo "(#temporal, #embedded) = (2,1) for nonzero lag"
-  ml_encode_bitstream_0 2 1 15 || return 1
-  ml_encode_bitstream_1 2 1 15 || return 1
+  ml_encode_bitstream_0 2 1 15 20 || return 1
+  ml_encode_bitstream_1 2 1 15 20 || return 1
   decode_bitstream_0 || return 1
   decode_bitstream_1 || return 1
   mux_bitstreams || return 1
@@ -363,8 +363,8 @@ run_encode_mux_demux() {
   compare_md5 || return 1
 
   #echo "(#temporal, #embedded) = (1 2)"
-  #ml_encode_bitstream_0 1 2 0 || return 1
-  #ml_encode_bitstream_1 1 2 0 || return 1
+  #ml_encode_bitstream_0 1 2 0 10 || return 1
+  #ml_encode_bitstream_1 1 2 0 10 || return 1
   #decode_bitstream_0 || return 1
   #decode_bitstream_1 || return 1
   #mux_bitstreams || return 1
@@ -374,8 +374,8 @@ run_encode_mux_demux() {
   #compare_md5 || return 1
 
   #echo "(#temporal, #embedded) = (2 2)"
-  #ml_encode_bitstream_0 2 2 0 || return 1
-  #ml_encode_bitstream_1 2 2 0 || return 1
+  #ml_encode_bitstream_0 2 2 0 10 || return 1
+  #ml_encode_bitstream_1 2 2 0 10 || return 1
   #decode_bitstream_0 || return 1
   #decode_bitstream_1 || return 1
   #mux_bitstreams || return 1
@@ -385,8 +385,8 @@ run_encode_mux_demux() {
   #compare_md5 || return 1
 
   #echo "(#temporal, #embedded) = (1 2) and (2, 1) for first/second stream"
-  #ml_encode_bitstream_0 1 2 0 || return 1
-  #ml_encode_bitstream_1 2 1 0 || return 1
+  #ml_encode_bitstream_0 1 2 0 10 || return 1
+  #ml_encode_bitstream_1 2 1 0 10 || return 1
   #decode_bitstream_0 || return 1
   #decode_bitstream_1 || return 1
   #mux_bitstreams || return 1
@@ -396,8 +396,8 @@ run_encode_mux_demux() {
   #compare_md5 || return 1
 
   #echo "(#temporal, #embedded) = (3,3)"
-  #ml_encode_bitstream_0 3 3 0 || return 1
-  #ml_encode_bitstream_1 3 3 0 || return 1
+  #ml_encode_bitstream_0 3 3 0 10 || return 1
+  #ml_encode_bitstream_1 3 3 0 10 || return 1
   #decode_bitstream_0 || return 1
   #decode_bitstream_1 || return 1
   #mux_bitstreams || return 1
@@ -407,8 +407,8 @@ run_encode_mux_demux() {
   #compare_md5 || return 1
 
   #echo "(#temporal, #embedded) = (1,2) for nonzero lag"
-  #ml_encode_bitstream_0 1 2 15 || return 1
-  #ml_encode_bitstream_1 1 2 15 || return 1
+  #ml_encode_bitstream_0 1 2 15 20 || return 1
+  #ml_encode_bitstream_1 1 2 15 20 || return 1
   #decode_bitstream_0 || return 1
   #decode_bitstream_1 || return 1
   #mux_bitstreams || return 1
@@ -418,8 +418,8 @@ run_encode_mux_demux() {
   #compare_md5 || return 1
 
   #echo "(#temporal, #embedded) = (2,2) for nonzero lag"
-  #ml_encode_bitstream_0 2 2 15 || return 1
-  #ml_encode_bitstream_1 2 2 15 || return 1
+  #ml_encode_bitstream_0 2 2 15 20 || return 1
+  #ml_encode_bitstream_1 2 2 15 20|| return 1
   #decode_bitstream_0 || return 1
   #decode_bitstream_1 || return 1
   #mux_bitstreams || return 1
