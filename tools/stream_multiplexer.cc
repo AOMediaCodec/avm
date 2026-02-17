@@ -184,8 +184,9 @@ std::vector<uint8_t> WriteTU(const uint8_t *data, int length,
       size_t coded_obu_size;
       avm_uleb_encode(obu_total_size, sizeof(obu_total_size),
                       obu_size_data.data(), &coded_obu_size);
-      tu_obus.insert(tu_obus.end(), obu_size_data.begin(),
-                     obu_size_data.begin() + coded_obu_size);
+      if (length_field_size != coded_obu_size)
+        fprintf(stderr, "\nError: length_field_size != coded_obu_size\n");
+      tu_obus.insert(tu_obus.end(), obu_size_data.begin(), obu_size_data.end());
       tu_obus.insert(tu_obus.end(), obu_tmp.begin(), obu_tmp.end());
 
     } else {
