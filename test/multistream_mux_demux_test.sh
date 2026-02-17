@@ -88,6 +88,7 @@ ml_encode_bitstream_0() {
       ${BITSTREAM_0} \
       $4 \
       $1 $2 $3 \
+      ${devnull} || return 1
 
   if [ ! -e "${BITSTREAM_0}" ]; then
     elog "Encoding bitstream_0 failed."
@@ -107,6 +108,7 @@ ml_encode_bitstream_1() {
       ${BITSTREAM_1} \
       $4 \
       $1 $2 $3 \
+      ${devnull} || return 1
 
   if [ ! -e "${BITSTREAM_1}" ]; then
     elog "Encoding bitstream_1 failed."
