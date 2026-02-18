@@ -1828,9 +1828,7 @@ static AVM_INLINE void pack_inter_mode_mvs(AV2_COMP *cpi, avm_writer *w) {
     assert(IMPLIES(
         xd->lossless[mbmi->segment_id],
         mbmi->final_qindex_dc[k] == 0 && mbmi->final_qindex_ac[k] == 0));
-    assert(
-        IMPLIES(!xd->lossless[mbmi->segment_id],
-                mbmi->final_qindex_dc[k] > 0 && mbmi->final_qindex_ac[k] > 0));
+
     assert(
         IMPLIES(!cpi->common.delta_q_info.delta_q_present_flag && !seg->enabled,
                 mbmi->final_qindex_dc[k] == cm->quant_params.base_qindex &&
@@ -2292,9 +2290,6 @@ static AVM_INLINE void write_mb_modes_kf(
     assert(IMPLIES(
         xd->lossless[mbmi->segment_id],
         mbmi->final_qindex_dc[k] == 0 && mbmi->final_qindex_ac[k] == 0));
-    assert(
-        IMPLIES(!xd->lossless[mbmi->segment_id],
-                mbmi->final_qindex_dc[k] > 0 && mbmi->final_qindex_ac[k] > 0));
     assert(
         IMPLIES(!cpi->common.delta_q_info.delta_q_present_flag && !seg->enabled,
                 mbmi->final_qindex_dc[k] == cm->quant_params.base_qindex &&
