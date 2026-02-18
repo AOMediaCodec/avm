@@ -136,8 +136,8 @@ int main(int argc, char **argv) {
   cfg.g_timebase.num = info.time_base.numerator;
   cfg.g_timebase.den = info.time_base.denominator;
   cfg.rc_end_usage = AVM_Q;
-  cfg.rc_min_quantizer = 150;
-  cfg.rc_max_quantizer = 150;
+  cfg.rc_min_quantizer = 210;
+  cfg.rc_max_quantizer = 210;
   cfg.g_error_resilient = 0;
   cfg.g_lag_in_frames = lag;
   cfg.signal_td = 1;
