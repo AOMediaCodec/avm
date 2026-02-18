@@ -29,6 +29,8 @@ typedef struct {
   int obu_xlayer_id;
 } ObuHeader;
 
+// If avm_read_obu_header_and_size() returns AVM_CODEC_OK, it is guaranteed
+// that *bytes_read <= bytes_available.
 avm_codec_err_t avm_read_obu_header_and_size(const uint8_t *data,
                                              size_t bytes_available,
                                              ObuHeader *obu_header,

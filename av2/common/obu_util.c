@@ -16,6 +16,8 @@
 #include "avm_dsp/bitreader_buffer.h"
 #include "av2/common/enums.h"
 
+// If read_obu_size() returns AVM_CODEC_OK, it is guaranteed that
+// *length_field_size <= bytes_available.
 static avm_codec_err_t read_obu_size(const uint8_t *data,
                                      size_t bytes_available,
                                      size_t *const obu_size,
@@ -28,6 +30,7 @@ static avm_codec_err_t read_obu_size(const uint8_t *data,
 
   if (u_obu_size > UINT32_MAX) return AVM_CODEC_CORRUPT_FRAME;
   *obu_size = (size_t)u_obu_size;
+  assert(*length_field_size <= bytes_available);
   return AVM_CODEC_OK;
 }
 
@@ -88,5 +91,6 @@ avm_codec_err_t avm_read_obu_header_and_size(const uint8_t *data,
   *payload_size = obu_size - obu_header->size;
   *bytes_read = length_field_size_obu + obu_header->size;
 
+  assert(*bytes_read <= bytes_available);
   return AVM_CODEC_OK;
 }

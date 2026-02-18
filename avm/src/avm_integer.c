@@ -46,6 +46,7 @@ int avm_uleb_decode(const uint8_t *buffer, size_t available, uint64_t *value,
         // allocation size.
         if (*value > UINT32_MAX) return -1;
 
+        assert(!length || *length <= available);
         return 0;
       }
     }

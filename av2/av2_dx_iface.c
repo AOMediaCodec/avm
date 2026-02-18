@@ -229,7 +229,7 @@ static avm_codec_err_t decoder_peek_si_internal(const uint8_t *data,
   // OBU in the bitstream
   if (obu_header.type == OBU_TEMPORAL_DELIMITER) {
     // Skip any associated payload (there shouldn't be one, but just in case)
-    if (data_sz < bytes_read + payload_size) return AVM_CODEC_CORRUPT_FRAME;
+    if (data_sz - bytes_read < payload_size) return AVM_CODEC_CORRUPT_FRAME;
     data += bytes_read + payload_size;
     data_sz -= bytes_read + payload_size;
 
@@ -246,7 +246,8 @@ static avm_codec_err_t decoder_peek_si_internal(const uint8_t *data,
       // Sanity check on sequence header size
       if (data_sz < 2) return AVM_CODEC_CORRUPT_FRAME;
       // Read a few values from the sequence header payload
-      struct avm_read_bit_buffer rb = { data, data + data_sz, 0, NULL, NULL };
+      struct avm_read_bit_buffer rb = { data, data + payload_size, 0, NULL,
+                                        NULL };
 
       avm_rb_read_uvlc(&rb);  // seq_header_id
 
@@ -286,7 +287,8 @@ static avm_codec_err_t decoder_peek_si_internal(const uint8_t *data,
     } else if (obu_header.type == OBU_LEADING_TILE_GROUP ||
                obu_header.type == OBU_REGULAR_TILE_GROUP) {
       if (data_sz < 1) return AVM_CODEC_CORRUPT_FRAME;
-      struct avm_read_bit_buffer rb = { data, data + data_sz, 0, NULL, NULL };
+      struct avm_read_bit_buffer rb = { data, data + payload_size, 0, NULL,
+                                        NULL };
       int first_tile_group_in_frame = avm_rb_read_bit(&rb);
       if (!first_tile_group_in_frame) {
         avm_rb_read_bit(&rb);  // send_uncompressed_header_flag
@@ -582,20 +584,18 @@ static avm_codec_err_t check_random_access_frame_unit(
   bool obu_in_frame_unit_data[NUM_OBU_TYPES];
   for (int i = 0; i < NUM_OBU_TYPES; i++) obu_in_frame_unit_data[i] = false;
 
-  while (data_read < data + data_sz) {
+  while (bytes_available > 0) {
     size_t payload_size = 0;
     size_t bytes_read = 0;
     res = avm_read_obu_header_and_size(data_read, bytes_available, &obu_header,
                                        &payload_size, &bytes_read);
     if (res != AVM_CODEC_OK) return res;
-    data_read += bytes_read;
-    bytes_available -= bytes_read;
-    if (bytes_available < payload_size) {
+    if (bytes_available - bytes_read < payload_size) {
       return AVM_CODEC_CORRUPT_FRAME;
     }
-    data_read += payload_size;
-    bytes_available -= payload_size;
     pbi->num_obus_with_frame_unit++;
+    data_read += bytes_read + payload_size;
+    bytes_available -= bytes_read + payload_size;
     has_key_frames |= obu_header.type == OBU_CLK || obu_header.type == OBU_OLK;
     has_seq_header |= obu_header.type == OBU_SEQUENCE_HEADER;
     if (is_single_tile_vcl_obu(obu_header.type) ||
@@ -695,16 +695,21 @@ static avm_codec_err_t reset_last_frame_unit(struct AV2Decoder *pbi,
   // unit such as the first frame of a new CVS.
   bool reset_last_frame_units = false;
   const uint8_t *data_read = data;
+  size_t bytes_available = data_sz;
   ObuHeader obu_header;
   memset(&obu_header, 0, sizeof(obu_header));
-  while (data_read < data + data_sz) {
+  while (bytes_available > 0) {
     size_t payload_size = 0;
     size_t bytes_read = 0;
-    res = avm_read_obu_header_and_size(data_read, data_sz, &obu_header,
+    res = avm_read_obu_header_and_size(data_read, bytes_available, &obu_header,
                                        &payload_size, &bytes_read);
     if (res != AVM_CODEC_OK) return res;
+    if (bytes_available - bytes_read < payload_size) {
+      return AVM_CODEC_CORRUPT_FRAME;
+    }
     pbi->num_obus_with_frame_unit++;
     data_read += bytes_read + payload_size;
+    bytes_available -= bytes_read + payload_size;
     reset_last_frame_units =
         (is_tu_head_non_vcl_obu(obu_header.type, obu_header.obu_xlayer_id)) &&
         obu_header.type != OBU_TEMPORAL_DELIMITER;
@@ -723,16 +728,23 @@ static avm_codec_err_t reset_last_frame_unit(struct AV2Decoder *pbi,
 static size_t get_size_of_frame_unit(const uint8_t *data, size_t data_sz) {
   avm_codec_err_t res = AVM_CODEC_OK;
   const uint8_t *data_read = data;
+  size_t bytes_available = data_sz;
   ObuHeader obu_header;
   bool bfirst = true;
-  while (data_read < data + data_sz) {
+  while (bytes_available > 0) {
     size_t payload_size = 0;
     size_t bytes_read = 0;
-    res = avm_read_obu_header_and_size(data_read, data_sz, &obu_header,
+    res = avm_read_obu_header_and_size(data_read, bytes_available, &obu_header,
                                        &payload_size, &bytes_read);
     if (res != AVM_CODEC_OK) return 0;
+    if (bytes_available - bytes_read < payload_size) {
+      return 0;
+    }
     if (is_single_tile_vcl_obu(obu_header.type) ||
         is_multi_tile_vcl_obu(obu_header.type)) {
+      if (payload_size == 0) {
+        return 0;
+      }
       uint8_t first_byte_payload = data_read[bytes_read];
       bool is_first_tile = is_single_tile_vcl_obu(obu_header.type)
                                ? true
@@ -743,6 +755,7 @@ static size_t get_size_of_frame_unit(const uint8_t *data, size_t data_sz) {
       bfirst = false;
     }
     data_read += bytes_read + payload_size;
+    bytes_available -= bytes_read + payload_size;
   }
 
   return data_sz;
