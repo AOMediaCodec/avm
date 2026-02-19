@@ -364,6 +364,7 @@ static int get_mid_cost_lf_dc(int ci, tran_low_t abs_qc, int sign,
   return cost;
 }
 
+/*
 static int get_mid_cost_lf(tran_low_t abs_qc, int coeff_ctx,
                            const LV_MAP_COEFF_COST *txb_costs, int plane) {
   int cost = 0;
@@ -375,6 +376,7 @@ static int get_mid_cost_lf(tran_low_t abs_qc, int coeff_ctx,
   }
   return cost;
 }
+*/
 
 void av2_get_rate_dist_def_luma_avx2(const struct tcq_param_t *p,
                                      const struct prequant_t *pq,
@@ -939,7 +941,6 @@ void av2_get_rate_dist_lf_chroma_avx2(const struct LV_MAP_COEFF_COST *txb_costs,
   }
 }
 */
-
 
 /*
 void av2_get_rate_dist_def_chroma_avx2(
