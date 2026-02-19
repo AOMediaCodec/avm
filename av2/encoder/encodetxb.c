@@ -2224,15 +2224,15 @@ static AVM_FORCE_INLINE int get_two_coeff_cost_simple(
     if (abs_qc <= 3) {
       if (plane > 0) {
         // plane U/V
-        diff = (abs_qc == 0)
-                   ? 0
-                   : base_cost_uv_ptr[abs_qc] - base_cost_uv_ptr[abs_qc - 1];
+        diff = (abs_qc == 0) ? 0
+                             : base_cost_uv_ptr[coeff_ctx][abs_qc] -
+                                   base_cost_uv_ptr[coeff_ctx][abs_qc - 1];
 
       } else {
         // plane Y
-        diff = (abs_qc == 0)
-                   ? 0
-                   : base_cost_ptr[abs_qc] - base_cost_ptr[abs_qc - 1];
+        diff = (abs_qc == 0) ? 0
+                             : base_cost_ptr[coeff_ctx][0][abs_qc] -
+                                   base_cost_ptr[coeff_ctx][0][abs_qc - 1];
       }
     }
   }

@@ -892,10 +892,9 @@ std::array<std::array<int, 2>, 3> chroma_above_left_line_pairs = {
 std::array<std::array<int, 2>, 3> luma_above_left_line_pairs = {
   { { 0, 4 }, { 4, 0 }, { 4, 4 } }
 };
-#endif  // HAVE_AVX2
-
 const int chroma_tx_size[] = { 0, 1,  2,  3,  5,  6,  7,  8,
                                9, 10, 13, 14, 15, 16, 19, 20 };
+#endif  // HAVE_AVX2
 
 typedef void (*av2_mhccp_implicit_fetch_neighbor_chroma_fn)(
     const uint16_t *dst, int input_stride, TX_SIZE tx_size, int above_lines,
