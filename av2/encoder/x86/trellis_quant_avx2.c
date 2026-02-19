@@ -813,6 +813,7 @@ void av2_get_rate_dist_lf_luma_avx2(const struct tcq_param_t *p,
   }
 }
 
+/*
 void av2_get_rate_dist_lf_chroma_avx2(const struct LV_MAP_COEFF_COST *txb_costs,
                                       const struct prequant_t *pq,
                                       const struct tcq_coeff_ctx_t *coeff_ctx,
@@ -937,7 +938,10 @@ void av2_get_rate_dist_lf_chroma_avx2(const struct LV_MAP_COEFF_COST *txb_costs,
     rd->rate_eob[1] += eob_mid_cost1;
   }
 }
+*/
 
+
+/*
 void av2_get_rate_dist_def_chroma_avx2(
     const struct LV_MAP_COEFF_COST *txb_costs, const struct prequant_t *pq,
     const struct tcq_coeff_ctx_t *coeff_ctx, int blk_pos, int bwl,
@@ -1025,6 +1029,7 @@ void av2_get_rate_dist_def_chroma_avx2(
     rd->rate_eob[1] += eob_mid_cost1;
   }
 }
+*/
 
 // Pre-calculate eob bits (rate) for each EOB candidate position from 1
 // to the initial eob location. Store rate in array block_eob_rate[],
