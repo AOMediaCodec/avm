@@ -107,12 +107,16 @@ class MultiLayerTest : public ::libavm_test::CodecTestWithParam<int>,
           encoder->Control(AVME_SET_SCALEMODE, &mode);
         }
         embedded_layer_id_ = 0;
-        encoder->Control(AVME_SET_MLAYER_ID, 0);
+        if (cfg_.g_lag_in_frames == 0) {
+          encoder->Control(AVME_SET_MLAYER_ID, 0);
+        }
       } else {
         struct avm_scaling_mode mode = { AVME_NORMAL, AVME_NORMAL };
         encoder->Control(AVME_SET_SCALEMODE, &mode);
         embedded_layer_id_ = 1;
-        encoder->Control(AVME_SET_MLAYER_ID, 1);
+        if (cfg_.g_lag_in_frames == 0) {
+          encoder->Control(AVME_SET_MLAYER_ID, 1);
+        }
       }
     } else if (num_temporal_layers_ == 1 && num_embedded_layers_ == 3) {
       if (layer_frame_cnt_ % 3 == 0) {
@@ -139,7 +143,9 @@ class MultiLayerTest : public ::libavm_test::CodecTestWithParam<int>,
         }
         embedded_layer_id_ = 0;
         temporal_layer_id_ = 0;
-        encoder->Control(AVME_SET_MLAYER_ID, 0);
+        if (cfg_.g_lag_in_frames == 0) {
+          encoder->Control(AVME_SET_MLAYER_ID, 0);
+        }
         encoder->Control(AVME_SET_TLAYER_ID, 0);
       } else if (layer_frame_cnt_ % 2 == 0) {
         if (cfg_.g_lag_in_frames == 0) {
@@ -148,17 +154,23 @@ class MultiLayerTest : public ::libavm_test::CodecTestWithParam<int>,
         }
         embedded_layer_id_ = 0;
         temporal_layer_id_ = 1;
-        encoder->Control(AVME_SET_MLAYER_ID, 0);
+        if (cfg_.g_lag_in_frames == 0) {
+          encoder->Control(AVME_SET_MLAYER_ID, 0);
+        }
         encoder->Control(AVME_SET_TLAYER_ID, 1);
       } else if ((layer_frame_cnt_ - 1) % 4 == 0) {
         embedded_layer_id_ = 1;
         temporal_layer_id_ = 0;
-        encoder->Control(AVME_SET_MLAYER_ID, 1);
+        if (cfg_.g_lag_in_frames == 0) {
+          encoder->Control(AVME_SET_MLAYER_ID, 1);
+        }
         encoder->Control(AVME_SET_TLAYER_ID, 0);
       } else if ((layer_frame_cnt_ - 1) % 2 == 0) {
         embedded_layer_id_ = 1;
         temporal_layer_id_ = 1;
-        encoder->Control(AVME_SET_MLAYER_ID, 1);
+        if (cfg_.g_lag_in_frames == 0) {
+          encoder->Control(AVME_SET_MLAYER_ID, 1);
+        }
         encoder->Control(AVME_SET_TLAYER_ID, 1);
       }
     } else if (num_temporal_layers_ == 3 && num_embedded_layers_ == 3) {
@@ -635,6 +647,28 @@ TEST_P(MultiLayerTest, MultiLayerTest2EmbeddedLagEx2) {
   enable_explicit_ref_frame_map_ = false;
   enable_buffer_refresh_test_ = false;
   pyramid_level_one_ = false;
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
+}
+
+// Test the case of nonzero lag for 2 embedded layers (ml) with OLK (fwd kf)
+// added, for both show (S) and hidden (H) frames. For fixed gop with pyramid
+// height = 1.
+//
+// TODO: turn this on once decoder does not reset ref frame buffer at olk in
+// layer 1.
+TEST_P(MultiLayerTest, DISABLED_MultiLayerTest2EmbeddedLagFwdKfEx1) {
+  cfg_.g_lag_in_frames = 17;
+  cfg_.kf_max_dist = 16;
+  cfg_.kf_min_dist = 16;
+  cfg_.fwd_kf_enabled = 1;
+  ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
+  num_temporal_layers_ = 1;
+  num_embedded_layers_ = 2;
+  decode_base_only_ = false;
+  drop_sl2_ = false;
+  enable_explicit_ref_frame_map_ = false;
+  enable_buffer_refresh_test_ = false;
+  pyramid_level_one_ = true;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
 }
 

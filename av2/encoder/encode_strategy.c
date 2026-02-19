@@ -133,8 +133,16 @@ static void set_additional_frame_flags(const AV2_COMMON *const cm,
 
 static INLINE void update_keyframe_counters(AV2_COMP *cpi) {
   if (cpi->common.immediate_output_picture) {
-    cpi->rc.frames_since_key++;
-    cpi->rc.frames_to_key--;
+    if (!cpi->oxcf.unit_test_cfg.multi_layers_lag_test ||
+        cpi->common.number_mlayers == 1) {
+      cpi->rc.frames_since_key++;
+      cpi->rc.frames_to_key--;
+    } else {
+      if (cpi->common.mlayer_id == (int)cpi->common.number_mlayers - 1) {
+        cpi->rc.frames_since_key++;
+        cpi->rc.frames_to_key--;
+      }
+    }
   }
 }
 
@@ -177,9 +185,14 @@ static INLINE void update_gf_group_index(AV2_COMP *cpi) {
         gf_group->update_type[cpi->gf_group.index] == INTNL_ARF_UPDATE ||
         gf_group->update_type[cpi->gf_group.index] == KFFLT_UPDATE) {
       ++gf_group->index;
+      // Continue on the same mlayer.
       if (cpi->common.mlayer_id == 0) gf_group->arf_update_counter++;
     } else if (cpi->common.mlayer_id == 0 && cpi->gf_group.index > 0 &&
-               gf_group->update_type[cpi->gf_group.index] == LF_UPDATE &&
+               (gf_group->update_type[cpi->gf_group.index] == LF_UPDATE ||
+                gf_group->update_type[cpi->gf_group.index] ==
+                    FWD_KF_OVERLAY_UPDATE ||
+                gf_group->update_type[cpi->gf_group.index] ==
+                    FWD_KF_SUCCESSOR_UPDATE) &&
                (gf_group->update_type[cpi->gf_group.index - 1] == ARF_UPDATE ||
                 gf_group->update_type[cpi->gf_group.index - 1] ==
                     INTNL_ARF_UPDATE ||
@@ -193,10 +206,17 @@ static INLINE void update_gf_group_index(AV2_COMP *cpi) {
       // at the next ml layer.
       gf_group->index = gf_group->index - gf_group->arf_update_counter;
       gf_group->arf_update_counter = 0;
+      // Go to next mlayer
+      cpi->common.next_mlayer_id = 1;
     } else if ((unsigned int)cpi->common.mlayer_id ==
                cpi->common.number_mlayers - 1) {
       // Every regular frame is encoded with same source up to number_mlayers.
       ++gf_group->index;
+      // Go back to mlayer 0
+      cpi->common.next_mlayer_id = 0;
+    } else {
+      // Go to next mlayer
+      cpi->common.next_mlayer_id = 1;
     }
   }
 }
@@ -230,7 +250,10 @@ static void get_gop_cfg_enabled_refs(AV2_COMP *const cpi, int *ref_frame_flags,
   // The current display index stored has not yet been updated. We must add
   // The order offset to get the correct value here.
   const int cur_frame_disp =
-      cpi->common.current_frame.frame_number + order_offset;
+      (cpi->common.current_frame.frame_number + order_offset) /
+      (cpi->oxcf.unit_test_cfg.multi_layers_lag_test
+           ? cpi->common.number_mlayers
+           : 1);
 
   const SubGOPStepCfg *step_gop_cfg =
       get_subgop_step(&gf_group, gf_group.index);
@@ -596,6 +619,35 @@ int use_subgop_cfg(const GF_GROUP *const gf_group, int gf_index) {
   return 1;
 }
 
+static int get_free_ref_map_index_multi_layer(
+    RefFrameMapPair ref_map_pairs[REF_FRAMES], const int ref_frames,
+    int olk_flags_to_keep, int m_layer_id) {
+  // First check free space in the same m layer.  Then check for any other not
+  // used reference in other layers.  With multiple m layers, this might not be
+  // the best decision, but it ensures a somewhat reasonable refresh frame
+  // choice.
+  int fb_idx = INVALID_IDX;
+  for (int idx = 0; idx < ref_frames; ++idx) {
+    if (ref_map_pairs[idx].ref_frame_for_inference == -1) {
+      if ((olk_flags_to_keep >> idx) & 1u) continue;
+      if (ref_map_pairs[idx].mlayer_id >= 0 &&
+          m_layer_id != ref_map_pairs[idx].mlayer_id)
+        continue;
+      fb_idx = idx;
+      break;
+    }
+  }
+  if (fb_idx != INVALID_IDX) return fb_idx;
+  for (int idx = 0; idx < ref_frames; ++idx) {
+    if (ref_map_pairs[idx].ref_frame_for_inference == -1) {
+      if ((olk_flags_to_keep >> idx) & 1u) continue;
+      fb_idx = idx;
+      break;
+    }
+  }
+  return fb_idx;
+}
+
 static int get_free_ref_map_index(RefFrameMapPair ref_map_pairs[REF_FRAMES],
                                   const int ref_frames) {
   for (int idx = 0; idx < ref_frames; ++idx)
@@ -606,7 +658,8 @@ static int get_free_ref_map_index(RefFrameMapPair ref_map_pairs[REF_FRAMES],
 static int get_refresh_idx(int update_arf, int refresh_level,
                            int cur_frame_disp, int is_ras_frame,
                            RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
-                           const int ref_frames) {
+                           const int ref_frames, int olk_flags_to_keep,
+                           int is_multi_layers_lag_test) {
   // refresh_level = -1
   int arf_count = 0;
   int oldest_arf_order = INT32_MAX;
@@ -621,10 +674,19 @@ static int get_refresh_idx(int update_arf, int refresh_level,
     RefFrameMapPair ref_pair = ref_frame_map_pairs[map_idx];
     if (ref_pair.ref_frame_for_inference == -1) continue;
     if (is_ras_frame == 1 && ref_pair.frame_type == KEY_FRAME) continue;
+    if ((olk_flags_to_keep >> map_idx) & 1u) continue;
     const int frame_order = ref_pair.disp_order_removed;
     const int reference_frame_level = ref_pair.pyr_level;
-    // Keep future frames and three closest previous frames in output order
-    if (frame_order > cur_frame_disp - 3) continue;
+
+    if (is_multi_layers_lag_test) {
+      // For multi layer, need to manage the buffer more flexibly.
+      // Keep future frames and one closest previous frames in output order
+      if (frame_order > cur_frame_disp - 1) continue;
+    } else {
+      // Keep future frames and three closest previous frames in output order
+      if (frame_order > cur_frame_disp - 3) continue;
+    }
+
     // Keep track of the oldest reference frame matching the specified
     // refresh level from the subgop cfg
     if (refresh_level > 0 && refresh_level == reference_frame_level) {
@@ -663,7 +725,7 @@ static int get_refresh_idx(int update_arf, int refresh_level,
 static int get_refresh_frame_flags_subgop_cfg(
     const AV2_COMP *const cpi, int gf_index, int cur_disp_order,
     RefFrameMapPair ref_frame_map_pairs[REF_FRAMES], int refresh_mask,
-    int free_fb_index) {
+    int free_fb_index, int olk_flags_to_keep) {
   const SubGOPStepCfg *step_gop_cfg = get_subgop_step(&cpi->gf_group, gf_index);
   assert(step_gop_cfg != NULL);
   const int pyr_level = step_gop_cfg->pyr_level;
@@ -682,10 +744,11 @@ static int get_refresh_frame_flags_subgop_cfg(
   }
 
   const int update_arf = type_code == FRAME_TYPE_OOO_FILTERED && pyr_level == 1;
-  const int refresh_idx =
-      get_refresh_idx(update_arf, refresh_level, cur_disp_order,
-                      (cpi->oxcf.kf_cfg.sframe_type == RAS_FRAME),
-                      ref_frame_map_pairs, cpi->common.seq_params.ref_frames);
+  const int refresh_idx = get_refresh_idx(
+      update_arf, refresh_level, cur_disp_order,
+      (cpi->oxcf.kf_cfg.sframe_type == RAS_FRAME), ref_frame_map_pairs,
+      cpi->common.seq_params.ref_frames, olk_flags_to_keep,
+      cpi->oxcf.unit_test_cfg.multi_layers_lag_test);
   return 1 << refresh_idx;
 }
 
@@ -749,6 +812,15 @@ int av2_get_refresh_frame_flags(
     return refresh_mask_control;
   }
 
+  int olk_flags_to_keep = 0;
+  if (cpi->olk_encountered || cpi->common.is_leading_picture) {
+    for (int layer = 0; layer <= cpi->common.seq_params.max_mlayer_id;
+         layer++) {
+      if (cpi->common.olk_refresh_frame_flags[layer] == -1) continue;
+      olk_flags_to_keep |= cpi->common.olk_refresh_frame_flags[layer];
+    }
+  }
+
   // BRU frame, refresh flag is set to refresh BRU ref frame
   int free_fb_index = INVALID_IDX;
   if (cpi->common.bru.enabled) {
@@ -761,13 +833,19 @@ int av2_get_refresh_frame_flags(
       }
     }
   } else {
-    free_fb_index = get_free_ref_map_index(ref_frame_map_pairs,
-                                           cpi->common.seq_params.ref_frames);
+    if (cpi->oxcf.unit_test_cfg.multi_layers_lag_test) {
+      free_fb_index = get_free_ref_map_index_multi_layer(
+          ref_frame_map_pairs, cpi->common.seq_params.ref_frames,
+          olk_flags_to_keep, cpi->common.mlayer_id);
+    } else {
+      free_fb_index = get_free_ref_map_index(ref_frame_map_pairs,
+                                             cpi->common.seq_params.ref_frames);
+    }
   }
   if (use_subgop_cfg(&cpi->gf_group, gf_index)) {
     const int mask = get_refresh_frame_flags_subgop_cfg(
         cpi, gf_index, cur_disp_order, ref_frame_map_pairs, refresh_mask,
-        free_fb_index);
+        free_fb_index, olk_flags_to_keep);
     return mask;
   }
   // No refresh necessary for these frame types
@@ -785,7 +863,8 @@ int av2_get_refresh_frame_flags(
   const int update_arf = frame_update_type == ARF_UPDATE;
   const int refresh_idx = get_refresh_idx(
       update_arf, -1, cur_disp_order, cpi->oxcf.kf_cfg.sframe_type,
-      ref_frame_map_pairs, cpi->common.seq_params.ref_frames);
+      ref_frame_map_pairs, cpi->common.seq_params.ref_frames, olk_flags_to_keep,
+      cpi->oxcf.unit_test_cfg.multi_layers_lag_test);
 
   return 1 << refresh_idx;
 }
@@ -1169,7 +1248,10 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
 
   const int order_offset = gf_group->arf_src_offset[gf_group->index];
   const int cur_frame_disp =
-      cpi->common.current_frame.frame_number + order_offset;
+      (cpi->common.current_frame.frame_number + order_offset) /
+      (cpi->oxcf.unit_test_cfg.multi_layers_lag_test
+           ? cpi->common.number_mlayers
+           : 1);
 
   // Here, if tlayer_id is set to a non-zero value (pry_level),
   // tlayer_id affects reference list construction in both encoder and decoder.
@@ -1202,18 +1284,18 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
       }
     }
   }
-  if (cpi->olk_encountered &&
-      cm->olk_refresh_frame_flags[cm->mlayer_id] != INVALID_IDX &&
-      is_olk_overlay) {
+
+  int ref_flags_to_keep = 0;
+  for (int layer = 0; layer <= cm->seq_params.max_mlayer_id; layer++) {
+    if (cm->olk_refresh_frame_flags[layer] == -1) continue;
+    ref_flags_to_keep |= cm->olk_refresh_frame_flags[layer];
+  }
+  if (cpi->olk_encountered && ref_flags_to_keep != 0 && is_olk_overlay) {
     assert(cpi->gf_group.update_type[cpi->gf_group.index] == OVERLAY_UPDATE ||
            cpi->gf_group.update_type[cpi->gf_group.index] ==
                KFFLT_OVERLAY_UPDATE);
     // This is an OLK KF overlay. We need to clear all references except for the
     // OLK.
-    int ref_flags_to_keep = 0;
-    for (int layer = 0; layer <= cm->seq_params.max_mlayer_id; layer++) {
-      ref_flags_to_keep |= cm->olk_refresh_frame_flags[cm->mlayer_id];
-    }
     for (int ref_index = 0; ref_index < cm->seq_params.ref_frames;
          ref_index++) {
       if (!((ref_flags_to_keep >> ref_index) & 1u) &&
@@ -1474,6 +1556,7 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
   }
 #endif
 
+  cpi->common.next_mlayer_id = -1;
   if (!is_stat_generation_stage(cpi)) {
     set_additional_frame_flags(cm, frame_flags);
     update_rc_counts(cpi);

@@ -3244,10 +3244,19 @@ static avm_codec_err_t encoder_encode(avm_codec_alg_priv_t *ctx,
         avm_internal_error(&cpi->common.error, AVM_CODEC_ERROR, NULL);
       }
 
+      const int mlayer_id = cpi->common.mlayer_id;
+
       cpi->seq_params_locked = 1;
       is_frame_visible = cpi->common.immediate_output_picture;
+      int forced_implicit =
+          cpi->update_type_was_overlay &&
+          cpi->fb_idx_for_overlay != INVALID_IDX &&
+          cpi->common.ref_frame_map[cpi->fb_idx_for_overlay] != NULL &&
+          cpi->common.ref_frame_map[cpi->fb_idx_for_overlay]
+              ->implicit_output_picture;
       if (!cpi->is_olk_overlay && cpi->update_type_was_overlay) {
-        if (cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames) {
+        if (cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames &&
+            !forced_implicit) {
           is_frame_visible_null = 0;
           assert(cpi->common.show_existing_frame);
         } else {
@@ -3258,7 +3267,7 @@ static avm_codec_err_t encoder_encode(avm_codec_alg_priv_t *ctx,
       if (!is_frame_visible_null && frame_size == 0) is_frame_visible = 0;
       if (frame_size) {
         if (ctx->pending_cx_data == 0) ctx->pending_cx_data = cx_data;
-        if (ready_for_next_tu && cpi->common.mlayer_id == 0) {
+        if (ready_for_next_tu && mlayer_id == 0) {
           const uint32_t obu_payload_size = 0;
           const size_t length_field_size =
               avm_uleb_size_in_bytes(obu_payload_size);
@@ -3278,8 +3287,8 @@ static avm_codec_err_t encoder_encode(avm_codec_alg_priv_t *ctx,
           ready_for_next_tu = 0;
         }
 
-        if (!cpi->common.mlayer_id && (cpi->common.immediate_output_picture ||
-                                       cpi->common.implicit_output_picture)) {
+        if (mlayer_id == 0 && (cpi->common.immediate_output_picture ||
+                               cpi->common.implicit_output_picture)) {
           ready_for_next_tu = 1;
         }
 
@@ -3589,6 +3598,8 @@ static avm_codec_err_t ctrl_set_mlayer_id(avm_codec_alg_priv_t *ctx,
                                           va_list args) {
   const unsigned int mlayer_id = va_arg(args, unsigned int);
   if (mlayer_id >= MAX_NUM_MLAYERS) return AVM_CODEC_INVALID_PARAM;
+  // Overrider the encoder-decided mlayer_id of next frame.
+  ctx->cpi->common.next_mlayer_id = -1;
   ctx->cpi->common.mlayer_id = mlayer_id;
   return AVM_CODEC_OK;
 }

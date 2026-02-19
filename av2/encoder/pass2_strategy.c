@@ -1319,10 +1319,15 @@ static void calculate_gf_length(AV2_COMP *cpi, int max_gop_length,
     if (cut_here) {
       cur_last = i - 1;  // the current last frame in the gf group
       if (cpi->oxcf.kf_cfg.fwd_kf_enabled && rc->next_is_fwd_key) {
-        const int frames_left = rc->frames_to_key - i;
+        // If previous gop ended with fwd kf, then for this frame the
+        // frames_to_key should also count the last KF when considering
+        // MIN_FWD_KF_INTERVAL.
+        const int adj_frames_to_key =
+            rc->frames_to_key + (cpi->gf_state.olk_overlay_last == 1);
+        const int frames_left = adj_frames_to_key - cur_last;
         const int min_int = AVMMIN(MIN_FWD_KF_INTERVAL, active_min_gf_interval);
         if (frames_left < min_int) {
-          cur_last = rc->frames_to_key - min_int - 1;
+          cur_last = adj_frames_to_key - min_int;
         }
       }
       // only try shrinking if interval smaller than active_max_gf_interval
@@ -1545,24 +1550,28 @@ static INLINE void set_baseline_gf_interval(AV2_COMP *cpi, int arf_position,
 
   if (cpi->oxcf.kf_cfg.fwd_kf_enabled && use_alt_ref && !is_last_kf &&
       cpi->rc.next_is_fwd_key) {
-    if (arf_position == rc->frames_to_key) {
+    // If previous gop ended with fwd kf, then for this frame the frames_to_key
+    // should also count the last KF when considering MIN_FWD_KF_INTERVAL.
+    const int adj_frames_to_key =
+        rc->frames_to_key + (cpi->gf_state.olk_overlay_last == 1);
+    if (arf_position == adj_frames_to_key) {
       rc->baseline_gf_interval = arf_position;
       if (curr_frame_type != KEY_FRAME)
         rc->baseline_gf_interval = rc->baseline_gf_interval + 1;
       // if the last gf group will be smaller than MIN_FWD_KF_INTERVAL
-    } else if ((rc->frames_to_key - arf_position <
+    } else if ((adj_frames_to_key - arf_position <
                 AVMMAX(MIN_FWD_KF_INTERVAL, rc->min_gf_interval)) &&
-               (rc->frames_to_key != arf_position)) {
+               (adj_frames_to_key != arf_position)) {
       // if possible, merge the last two gf groups
-      if (rc->frames_to_key <= active_max_gf_interval) {
-        rc->baseline_gf_interval = rc->frames_to_key;
+      if (adj_frames_to_key <= active_max_gf_interval) {
+        rc->baseline_gf_interval = adj_frames_to_key;
         if (curr_frame_type != KEY_FRAME)
           rc->baseline_gf_interval = rc->baseline_gf_interval + 1;
         rc->intervals_till_gf_calculate_due = 0;
         // if merging the last two gf groups creates a group that is too long,
         // split them and force the last gf group to be the MIN_FWD_KF_INTERVAL
       } else {
-        rc->baseline_gf_interval = rc->frames_to_key - MIN_FWD_KF_INTERVAL;
+        rc->baseline_gf_interval = adj_frames_to_key - MIN_FWD_KF_INTERVAL;
         rc->intervals_till_gf_calculate_due = 0;
       }
     } else {
@@ -2257,6 +2266,11 @@ static int define_kf_interval(AV2_COMP *cpi, FIRSTPASS_STATS *this_frame,
     ++i;
   }
 
+  if (twopass->stats_in >= twopass->stats_buf_ctx->stats_in_end) {
+    // There's no more fwd key frames, reaching end of sequence.
+    rc->next_is_fwd_key = 0;
+  }
+
   if (kf_group_err != NULL)
     rc->num_stats_used_for_kf_boost = num_stats_used_for_kf_boost;
 
@@ -2881,31 +2895,42 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
   // regardless.
   if (rc->frames_to_key <= 0 &&
       (gf_group->index >= gf_group->size || oxcf->kf_cfg.key_freq_max <= 1)) {
-    assert(rc->frames_to_key >= -1);
     FIRSTPASS_STATS this_frame_copy;
     this_frame_copy = this_frame;
+    int ori_kf_freq_min = oxcf->kf_cfg.key_freq_min;
+    int ori_kf_freq_max = oxcf->kf_cfg.key_freq_max;
+    if (cpi->oxcf.unit_test_cfg.multi_layers_lag_test) {
+      oxcf->kf_cfg.key_freq_min *= cpi->common.number_mlayers;
+      oxcf->kf_cfg.key_freq_max *= cpi->common.number_mlayers;
+    }
     if (cpi->gf_state.olk_overlay_last) {
+      const int kf_offset = -rc->frames_to_key;
       // The olk key frame has been encoded. Next is the arf.
       frame_params->frame_type = INTER_FRAME;
       frame_params->frame_params_obu_type = NUM_OBU_TYPES;
-      int ori_kf_freq_min = oxcf->kf_cfg.key_freq_min;
-      int ori_kf_freq_max = oxcf->kf_cfg.key_freq_max;
       // Temporarily change decrease key frame interval since we've already seen
       // the key frame in the OLK.
-      oxcf->kf_cfg.key_freq_min = AVMMAX(0, oxcf->kf_cfg.key_freq_min - 1);
+      oxcf->kf_cfg.key_freq_min = AVMMAX(
+          0, oxcf->kf_cfg.key_freq_min - (int)cpi->common.number_mlayers);
       oxcf->kf_cfg.key_freq_max =
-          AVMMAX(oxcf->kf_cfg.key_freq_min, oxcf->kf_cfg.key_freq_max - 1);
+          AVMMAX(oxcf->kf_cfg.key_freq_min,
+                 oxcf->kf_cfg.key_freq_max - (int)cpi->common.number_mlayers);
       find_next_key_frame(cpi, &this_frame);
-      rc->frames_since_key++;
-      oxcf->kf_cfg.key_freq_min = ori_kf_freq_min;
-      oxcf->kf_cfg.key_freq_max = ori_kf_freq_max;
+      rc->frames_since_key += kf_offset * (int)cpi->common.number_mlayers;
     } else {
+      assert(rc->frames_to_key >= -1);
       frame_params->frame_type = KEY_FRAME;
       if (frame_params->frame_params_obu_type == NUM_OBU_TYPES)
         frame_params->frame_params_obu_type = OBU_CLOSED_LOOP_KEY;
       // Define next KF group and assign bits to it.
       find_next_key_frame(cpi, &this_frame);
     }
+    if (cpi->oxcf.unit_test_cfg.multi_layers_lag_test) {
+      rc->frames_to_key /= cpi->common.number_mlayers;
+      rc->frames_since_key /= cpi->common.number_mlayers;
+    }
+    oxcf->kf_cfg.key_freq_min = ori_kf_freq_min;
+    oxcf->kf_cfg.key_freq_max = ori_kf_freq_max;
     this_frame = this_frame_copy;
   } else {
     frame_params->frame_type = INTER_FRAME;

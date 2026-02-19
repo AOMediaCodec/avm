@@ -2864,6 +2864,11 @@ typedef struct AV2Common {
    */
   int mlayer_id;
   /*!
+   * Embedded layer ID of the next frame to be encoded
+   * (in the range 0 ... (number_mlayers - 1)). If -1 then not used.
+   */
+  int next_mlayer_id;
+  /*!
    * Number of extended layers: may be > 1 for SVC (scalable video coding).
    */
   unsigned int number_xlayers;
