@@ -414,16 +414,6 @@ if(CONFIG_AV2_DECODER AND ENABLE_EXAMPLES)
     $<TARGET_OBJECTS:avm_common_app_util>
     $<TARGET_OBJECTS:avm_decoder_app_util>)
 
-  if(CONFIG_ANALYZER)
-    add_executable(
-      analyzer
-      "${AVM_ROOT}/examples/analyzer.cc" $<TARGET_OBJECTS:avm_common_app_util>
-      $<TARGET_OBJECTS:avm_decoder_app_util>)
-    target_link_libraries(analyzer ${AVM_LIB_LINK_TYPE} ${wxWidgets_LIBRARIES})
-    list(APPEND AVM_APP_TARGETS analyzer)
-    list(APPEND AVM_DECODER_EXAMPLE_TARGETS analyzer)
-  endif()
-
   if(CONFIG_INSPECTION)
     add_executable(
       inspect

@@ -93,7 +93,6 @@ set_avm_config_var(CONFIG_EXCLUDE_SIMD_MISMATCH 1
 
 # AV2 feature flags.
 set_avm_config_var(CONFIG_ACCOUNTING 0 "Enables bit accounting.")
-set_avm_config_var(CONFIG_ANALYZER 0 "Enables bit stream analyzer.")
 set_avm_config_var(CONFIG_EXTRACT_PROTO 0
                    "Enables protobuf-based inspection tool.")
 set_avm_config_var(CONFIG_COEFFICIENT_RANGE_CHECKING 0

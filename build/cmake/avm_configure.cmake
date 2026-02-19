@@ -184,12 +184,6 @@ elseif("${AVM_TARGET_CPU}" MATCHES "arm")
   string(STRIP "${AVM_AS_FLAGS}" AVM_AS_FLAGS)
 endif()
 
-if(CONFIG_ANALYZER)
-  include(FindwxWidgets)
-  find_package(wxWidgets REQUIRED adv base core)
-  include(${wxWidgets_USE_FILE})
-endif()
-
 if(NOT MSVC AND CMAKE_C_COMPILER_ID MATCHES "GNU\|Clang")
   set(CONFIG_GCC 1)
 endif()

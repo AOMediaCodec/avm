@@ -17,10 +17,6 @@ set(AVM_BUILD_CMAKE_AVM_EXPERIMENT_DEPS_CMAKE_ 1)
 # experiments.
 macro(fix_experiment_configs)
 
-  if(CONFIG_ANALYZER)
-    change_config_and_warn(CONFIG_INSPECTION 1 CONFIG_ANALYZER)
-  endif()
-
   if(CONFIG_EXTRACT_PROTO)
     change_config_and_warn(CONFIG_ACCOUNTING 1 CONFIG_EXTRACT_PROTO)
     change_config_and_warn(CONFIG_INSPECTION 1 CONFIG_EXTRACT_PROTO)

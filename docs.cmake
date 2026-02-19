@@ -57,14 +57,6 @@ if(CONFIG_AV2_DECODER)
       ${AVM_DOXYGEN_SOURCES} "${AVM_ROOT}/avm/avmdx.h"
       "${AVM_ROOT}/usage_dx.dox" "${AVM_ROOT}/av2/decoder/decoder.h")
 
-  if(CONFIG_ANALYZER)
-    set(AVM_DOXYGEN_EXAMPLE_SOURCES ${AVM_DOXYGEN_EXAMPLE_SOURCES}
-                                    "${AVM_ROOT}/examples/analyzer.cc")
-
-    set(AVM_DOXYGEN_EXAMPLE_DESCRIPTIONS ${AVM_DOXYGEN_EXAMPLE_DESCRIPTIONS}
-                                         "Bitstream analyzer.")
-  endif()
-
   if(CONFIG_INSPECTION)
     set(AVM_DOXYGEN_EXAMPLE_SOURCES ${AVM_DOXYGEN_EXAMPLE_SOURCES}
                                     "${AVM_ROOT}/examples/inspect.c")
