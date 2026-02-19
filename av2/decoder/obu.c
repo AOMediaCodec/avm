@@ -371,6 +371,10 @@ static uint32_t read_multi_stream_decoder_operation_obu(
     avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
                        "Memory allocation failed for pbi->stream_info\n");
   }
+  memset(pbi->stream_info, 0, num_streams * sizeof(StreamInfo));
+  for (int i = 0; i < num_streams; i++) {
+    pbi->stream_info[i].random_access_point_index_buf = -1;
+  }
 
   pbi->msdo_is_present_in_tu = 1;
 
@@ -2071,10 +2075,15 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
     int num_xlayers = 0;
     int num_mlayers = 0;
     for (int i = 0; i < AVM_MAX_NUM_STREAMS - 1; i++) {
-      if (pbi->xlayer_id_map[i] > 0) num_xlayers++;
-    }
-    for (int i = 0; i < MAX_NUM_MLAYERS; i++) {
-      if (pbi->mlayer_id_map[i] > 0) num_mlayers++;
+      if (pbi->xlayer_id_map[i] > 0) {
+        num_xlayers++;
+        int mlayers_this_xlayer = 0;
+        for (int j = 0; j < MAX_NUM_MLAYERS; j++) {
+          if (pbi->mlayer_id_map[i][j] > 0) mlayers_this_xlayer++;
+        }
+        if (mlayers_this_xlayer > num_mlayers)
+          num_mlayers = mlayers_this_xlayer;
+      }
     }
 
     if (num_xlayers > 0 && num_mlayers > 0) {
@@ -2109,8 +2118,11 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
 #endif  // CONFIG_AV2_PROFILES
 
     // Reset maps for the current TU
-    for (int i = 0; i < AVM_MAX_NUM_STREAMS - 1; i++) pbi->xlayer_id_map[i] = 0;
-    for (int i = 0; i < MAX_NUM_MLAYERS; i++) pbi->mlayer_id_map[i] = 0;
+    for (int i = 0; i < AVM_MAX_NUM_STREAMS - 1; i++) {
+      pbi->xlayer_id_map[i] = 0;
+      for (int j = 0; j < MAX_NUM_MLAYERS; j++)
+        pbi->mlayer_id_map[i][j] = 0;
+    }
   }
 
   pbi->seen_frame_header = 0;
@@ -2180,7 +2192,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
     // Accumulate xlayer/mlayer IDs for the current TU.
     // The conformance check runs once per TU (before the loop above).
     pbi->xlayer_id_map[obu_header.obu_xlayer_id] = 1;
-    pbi->mlayer_id_map[obu_header.obu_mlayer_id] = 1;
+    pbi->mlayer_id_map[obu_header.obu_xlayer_id][obu_header.obu_mlayer_id] = 1;
 
     obu_info *const curr_obu_info = &obu_list[count_obus_with_frame_unit];
     curr_obu_info->obu_type = obu_header.type;

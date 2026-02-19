@@ -576,9 +576,9 @@ typedef struct AV2Decoder {
    */
   int xlayer_id_map[AVM_MAX_NUM_STREAMS];
   /*!
-   * Map to indicate which mlayer is present in the current CVS.
+   * Map to indicate which mlayer is present per xlayer in the current CVS.
    */
-  int mlayer_id_map[MAX_NUM_MLAYERS];
+  int mlayer_id_map[AVM_MAX_NUM_STREAMS][MAX_NUM_MLAYERS];
 } AV2Decoder;
 
 // Returns 0 on success. Sets pbi->common.error.error_code to a nonzero error

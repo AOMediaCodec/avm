@@ -821,10 +821,15 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
         int num_xlayers = 0;
         int num_mlayers = 0;
         for (int i = 0; i < AVM_MAX_NUM_STREAMS - 1; i++) {
-          if (pbi->xlayer_id_map[i] > 0) num_xlayers++;
-        }
-        for (int i = 0; i < MAX_NUM_MLAYERS; i++) {
-          if (pbi->mlayer_id_map[i] > 0) num_mlayers++;
+          if (pbi->xlayer_id_map[i] > 0) {
+            num_xlayers++;
+            int mlayers_this_xlayer = 0;
+            for (int j = 0; j < MAX_NUM_MLAYERS; j++) {
+              if (pbi->mlayer_id_map[i][j] > 0) mlayers_this_xlayer++;
+            }
+            if (mlayers_this_xlayer > num_mlayers)
+              num_mlayers = mlayers_this_xlayer;
+          }
         }
 
         bool global_lcr_present = false;
