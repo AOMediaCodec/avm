@@ -2055,6 +2055,67 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
   int frame_decoding_finished = 0;
   ObuHeader obu_header;
   memset(&obu_header, 0, sizeof(obu_header));
+
+  // Update multi_stream_mode from the previous TU's MSDO presence.
+  // Once activated, multi_stream_mode persists for the entire CVS
+  // (MSDO is only signaled in the first TU with the sequence header).
+  // This must run unconditionally (not gated on random_accessed) so that
+  // the flush-time conformance check in av2_dx_iface.c sees the correct value.
+  if (pbi->msdo_is_present_in_tu)
+    pbi->multi_stream_mode = 1;
+
+  // Per-TU conformance check: validate the PREVIOUS TU's accumulated
+  // xlayer/mlayer maps before resetting them for the current TU.
+  // This must run once per TU (here), not per-OBU (inside the loop).
+  if (pbi->random_accessed) {
+#if CONFIG_AV2_PROFILES
+    int num_xlayers = 0;
+    int num_mlayers = 0;
+    for (int i = 0; i < AVM_MAX_NUM_STREAMS - 1; i++) {
+      if (pbi->xlayer_id_map[i] > 0) num_xlayers++;
+    }
+    for (int i = 0; i < MAX_NUM_MLAYERS; i++) {
+      if (pbi->mlayer_id_map[i] > 0) num_mlayers++;
+    }
+
+    if (num_xlayers > 0 && num_mlayers > 0) {
+      bool global_lcr_present = false;
+      bool local_lcr_present = false;
+#if CONFIG_AV2_LCR_PROFILES
+      for (int j = 0; j < MAX_NUM_LCR; j++) {
+        if (pbi->lcr_list[GLOBAL_XLAYER_ID][j].valid)
+          global_lcr_present = true;
+      }
+      for (int i = 0; i < GLOBAL_XLAYER_ID && !local_lcr_present; i++) {
+        for (int j = 0; j < MAX_NUM_LCR; j++) {
+          if (pbi->lcr_list[i][j].valid) {
+            local_lcr_present = true;
+            break;
+          }
+        }
+      }
+#else
+      global_lcr_present = !cm->lcr_params.is_local_lcr;
+      local_lcr_present = cm->lcr_params.is_local_lcr;
+#endif  // CONFIG_AV2_LCR_PROFILES
+
+      if (!conformance_check_msdo_lcr(
+              pbi, num_xlayers, num_mlayers, pbi->multi_stream_mode,
+              global_lcr_present, local_lcr_present)) {
+        avm_internal_error(
+            &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+            "An MSDO or LCR OBU in the current CVS violates the requirements "
+            "of bitstream conformance for MSDO and LCR");
+      }
+    }
+#endif  // CONFIG_AV2_PROFILES
+
+    // Reset maps for the current TU
+    for (int i = 0; i < AVM_MAX_NUM_STREAMS - 1; i++)
+      pbi->xlayer_id_map[i] = 0;
+    for (int i = 0; i < MAX_NUM_MLAYERS; i++) pbi->mlayer_id_map[i] = 0;
+  }
+
   pbi->seen_frame_header = 0;
   pbi->next_start_tile = 0;
   pbi->num_tile_groups = 0;
@@ -2119,55 +2180,8 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
       cm->is_leading_picture = 0;
     else
       cm->is_leading_picture = -1;
-    if (pbi->random_accessed) {
-#if CONFIG_AV2_PROFILES
-      int num_xlayers = 0;
-      int num_mlayers = 0;
-      for (int i = 0; i < AVM_MAX_NUM_STREAMS - 1; i++) {
-        if (pbi->xlayer_id_map[i] > 0) num_xlayers++;
-      }
-      for (int i = 0; i < MAX_NUM_MLAYERS; i++) {
-        if (pbi->mlayer_id_map[i] > 0) num_mlayers++;
-      }
-
-      bool global_lcr_present = false;
-      bool local_lcr_present = false;
-#if CONFIG_AV2_LCR_PROFILES
-      for (int j = 0; j < MAX_NUM_LCR; j++) {
-        if (pbi->lcr_list[GLOBAL_XLAYER_ID][j].valid) global_lcr_present = true;
-      }
-      for (int i = 0; i < GLOBAL_XLAYER_ID && !local_lcr_present; i++) {
-        for (int j = 0; j < MAX_NUM_LCR; j++) {
-          if (pbi->lcr_list[i][j].valid) {
-            local_lcr_present = true;
-            break;
-          }
-        }
-      }
-#else
-      global_lcr_present = !cm->lcr_params.is_local_lcr;
-      local_lcr_present = cm->lcr_params.is_local_lcr;
-#endif  // CONFIG_AV2_LCR_PROFILES
-
-      if (!conformance_check_msdo_lcr(pbi, num_xlayers, num_mlayers,
-                                      pbi->multi_stream_mode,
-                                      global_lcr_present, local_lcr_present)) {
-        avm_internal_error(
-            &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-            "An MSDO or LCR OBU in the current CVS violates the requirements "
-            "of bitstream conformance for MSDO and LCR");
-      }
-#endif  // CONFIG_AV2_PROFILES
-
-      if (pbi->msdo_is_present_in_tu)
-        pbi->multi_stream_mode = 1;
-      else
-        pbi->multi_stream_mode = 0;
-      for (int i = 0; i < AVM_MAX_NUM_STREAMS - 1; i++)
-        pbi->xlayer_id_map[i] = 0;
-      for (int i = 0; i < MAX_NUM_MLAYERS; i++) pbi->mlayer_id_map[i] = 0;
-    }
-
+    // Accumulate xlayer/mlayer IDs for the current TU.
+    // The conformance check runs once per TU (before the loop above).
     pbi->xlayer_id_map[obu_header.obu_xlayer_id] = 1;
     pbi->mlayer_id_map[obu_header.obu_mlayer_id] = 1;
 
