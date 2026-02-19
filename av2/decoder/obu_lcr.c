@@ -84,7 +84,9 @@ static int read_lcr_embedded_layer_info(struct LCRXLayerInfo *xlayer_info,
       if (mlayer_params->lcr_layer_type[i] == AUX_LAYER)
         mlayer_params->lcr_auxiliary_type[i] = avm_rb_read_literal(rb, 8);
 
-      if (mlayer_params->lcr_layer_type[i] == VIEW_EXPLICIT) {
+      mlayer_params->lcr_view_type[i] = avm_rb_read_literal(rb, 8);
+
+      if (mlayer_params->lcr_view_type[i] == VIEW_EXPLICIT) {
         mlayer_params->lcr_view_id[i] = avm_rb_read_literal(rb, 8);
       }
       if (i > 0) {
@@ -117,6 +119,11 @@ static int read_lcr_rep_info(struct LCRXLayerInfo *xlayer_info,
   rep_params->lcr_format_info_present_flag = avm_rb_read_bit(rb);
 
   crop_win->crop_window_present_flag = avm_rb_read_bit(rb);
+
+  if (rep_params->lcr_format_info_present_flag) {
+    rep_params->lcr_bit_depth_idc = avm_rb_read_uvlc(rb);
+    rep_params->lcr_chroma_format_idc = avm_rb_read_uvlc(rb);
+  }
   if (crop_win->crop_window_present_flag) {
     crop_win->crop_win_left_offset = avm_rb_read_uvlc(rb);
     crop_win->crop_win_right_offset = avm_rb_read_uvlc(rb);
@@ -163,7 +170,7 @@ static void read_lcr_global_payload(struct GlobalLayerConfigurationRecord *glcr,
   int n = glcr->LcrXLayerID[i];  // actual ID
   if (glcr->lcr_dependent_xlayers_flag && n > 0) {
     glcr->lcr_num_dependent_xlayer_map[i] =
-        avm_rb_read_unsigned_literal(rb, 32);
+        avm_rb_read_literal(rb, n);
   }
   // xlayer info[i] corresponds to LcrXLayerID
   read_lcr_xlayer_info(&glcr->xlayer_info[i], true,

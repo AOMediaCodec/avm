@@ -85,7 +85,9 @@ static int write_lcr_embedded_layer_info(struct LCRXLayerInfo *xlayer_info,
       if (mlayer_params->lcr_layer_type[i] == AUX_LAYER)
         avm_wb_write_literal(wb, mlayer_params->lcr_auxiliary_type[i], 8);
 
-      if (mlayer_params->lcr_layer_type[i] == VIEW_EXPLICIT) {
+      avm_wb_write_literal(wb, mlayer_params->lcr_view_type[i], 8);
+
+      if (mlayer_params->lcr_view_type[i] == VIEW_EXPLICIT) {
         avm_wb_write_literal(wb, mlayer_params->lcr_view_id[i], 8);
       }
 
@@ -172,7 +174,7 @@ void write_lcr_global_payload(struct GlobalLayerConfigurationRecord *global_lcr,
 
   if (global_lcr->lcr_dependent_xlayers_flag && n > 0)
     avm_wb_write_unsigned_literal(
-        wb, global_lcr->lcr_num_dependent_xlayer_map[n], 32);
+        wb, global_lcr->lcr_num_dependent_xlayer_map[n], n);
 
   write_lcr_xlayer_info(&global_lcr->xlayer_info[n], true,
                         global_lcr->lcr_global_atlas_id_present_flag, wb);
@@ -430,7 +432,7 @@ void write_lcr_global_payload(AV2_COMP *cpi, int i, int sizePresent,
   int n = lcr_params.lcr_xLayer_id[i];
   if (lcr_params.lcr_dependent_xlayers_flag && n > 0)
     avm_wb_write_unsigned_literal(
-        wb, lcr_params.lcr_num_dependent_xlayer_map[n], 32);
+        wb, lcr_params.lcr_num_dependent_xlayer_map[n], n);
 
   write_lcr_xlayer_info(cpi, 1, n, wb);
 }
