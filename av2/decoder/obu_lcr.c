@@ -169,8 +169,7 @@ static void read_lcr_global_payload(struct GlobalLayerConfigurationRecord *glcr,
                                     int i, struct avm_read_bit_buffer *rb) {
   int n = glcr->LcrXLayerID[i];  // actual ID
   if (glcr->lcr_dependent_xlayers_flag && n > 0) {
-    glcr->lcr_num_dependent_xlayer_map[i] =
-        avm_rb_read_literal(rb, n);
+    glcr->lcr_num_dependent_xlayer_map[i] = avm_rb_read_literal(rb, n);
   }
   // xlayer info[i] corresponds to LcrXLayerID
   read_lcr_xlayer_info(&glcr->xlayer_info[i], true,

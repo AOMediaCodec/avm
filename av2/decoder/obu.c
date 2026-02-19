@@ -2134,8 +2134,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
       bool local_lcr_present = false;
 #if CONFIG_AV2_LCR_PROFILES
       for (int j = 0; j < MAX_NUM_LCR; j++) {
-        if (pbi->lcr_list[GLOBAL_XLAYER_ID][j].valid)
-          global_lcr_present = true;
+        if (pbi->lcr_list[GLOBAL_XLAYER_ID][j].valid) global_lcr_present = true;
       }
       for (int i = 0; i < GLOBAL_XLAYER_ID && !local_lcr_present; i++) {
         for (int j = 0; j < MAX_NUM_LCR; j++) {
@@ -2150,9 +2149,9 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
       local_lcr_present = cm->lcr_params.is_local_lcr;
 #endif  // CONFIG_AV2_LCR_PROFILES
 
-      if (!conformance_check_msdo_lcr(
-              pbi, num_xlayers, num_mlayers, pbi->multi_stream_mode,
-              global_lcr_present, local_lcr_present)) {
+      if (!conformance_check_msdo_lcr(pbi, num_xlayers, num_mlayers,
+                                      pbi->multi_stream_mode,
+                                      global_lcr_present, local_lcr_present)) {
         avm_internal_error(
             &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
             "An MSDO or LCR OBU in the current CVS violates the requirements "
