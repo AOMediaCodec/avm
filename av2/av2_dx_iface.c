@@ -818,24 +818,6 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
   /* Sanity checks */
   /* NULL data ptr allowed if data_sz is 0 too */
   if (data == NULL && data_sz == 0) {
-#if CONFIG_AV2_PROFILES
-    if (ctx->frame_worker) {
-      AVxWorker *const worker = ctx->frame_worker;
-      FrameWorkerData *const frame_worker_data =
-          (FrameWorkerData *)worker->data1;
-      struct AV2Decoder *pbi = frame_worker_data->pbi;
-      if (pbi) {
-        if (!conformance_check_msdo_lcr(pbi,
-                                        !pbi->common.lcr_params.is_local_lcr,
-                                        pbi->common.lcr_params.is_local_lcr)) {
-          avm_internal_error(
-              &pbi->common.error, AVM_CODEC_UNSUP_BITSTREAM,
-              "The last CVS violates the requirements of bitstream conformance "
-              "for MSDO and LCR to be present (or absent).");
-        }
-      }
-    }
-#endif  // CONFIG_AV2_PROFILES
     ctx->flushed = 1;
     return AVM_CODEC_OK;
   }
