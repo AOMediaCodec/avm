@@ -829,8 +829,12 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
 
         if (!conformance_check_msdo_lcr(pbi, num_xlayers, num_mlayers,
                                         pbi->multi_stream_mode,
+#if CONFIG_AV2_LCR_PROFILES
+                                        pbi->common.lcr_params.is_global, !pbi->common.lcr_params.is_global)) {
+#else
                                         !pbi->common.lcr_params.is_local_lcr,
                                         pbi->common.lcr_params.is_local_lcr)) {
+#endif  // CONFIG_AV2_LCR_PROFILES
           avm_internal_error(
               &pbi->common.error, AVM_CODEC_UNSUP_BITSTREAM,
               "An MSDO or LCR OBU in the last CVS violates the requirements of "

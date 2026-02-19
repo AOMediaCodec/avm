@@ -203,8 +203,16 @@ static void store_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
   for (int i = 0; i < MAX_MFH_NUM; i++) {
     pbi->stream_info[xlayer_id].mfh_params_buf[i] = cm->mfh_params[i];
   }
+
+#if CONFIG_AV2_LCR_PROFILES
+  for (int i = 0; i < MAX_NUM_XLAYERS; i++) {
+    for (int j = 0; j < MAX_NUM_LCR; j++) {
+      pbi->stream_info[xlayer_id].lcr_list_buf[i][j] = pbi->lcr_list[i][j];
+    }
+#else
   for (int i = 0; i < MAX_NUM_LCR; i++) {
     pbi->stream_info[xlayer_id].lcr_list_buf[i] = pbi->lcr_list[i];
+#endif  //  CONFIG_AV2_LCR_PROFILES
   }
   pbi->stream_info[xlayer_id].lcr_counter_buf = pbi->lcr_counter;
   for (int i = 0; i < MAX_NUM_ATLAS_SEG_ID; i++) {
@@ -260,8 +268,16 @@ static void restore_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
   for (int i = 0; i < MAX_MFH_NUM; i++) {
     cm->mfh_params[i] = pbi->stream_info[xlayer_id].mfh_params_buf[i];
   }
+
+#if CONFIG_AV2_LCR_PROFILES
+  for (int i = 0; i < MAX_NUM_XLAYERS; i++) {
+    for (int j = 0; j < MAX_NUM_LCR; j++) {
+      pbi->lcr_list[i][j] = pbi->stream_info[xlayer_id].lcr_list_buf[i][j];
+    }
+#else
   for (int i = 0; i < MAX_NUM_LCR; i++) {
     pbi->lcr_list[i] = pbi->stream_info[xlayer_id].lcr_list_buf[i];
+#endif  // CONFIG_AV2_LCR_PROFILES
   }
   pbi->lcr_counter = pbi->stream_info[xlayer_id].lcr_counter_buf;
   for (int i = 0; i < MAX_NUM_ATLAS_SEG_ID; i++) {
@@ -2116,7 +2132,11 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
 
       if (!conformance_check_msdo_lcr(
               pbi, num_xlayers, num_mlayers, pbi->multi_stream_mode,
+#if CONFIG_AV2_LCR_PROFILES
+              cm->lcr_params.is_global, !cm->lcr_params.is_global)) {
+#else
               !cm->lcr_params.is_local_lcr, cm->lcr_params.is_local_lcr)) {
+#endif  // CONFIG_AV2_LCR_PROFILES
         avm_internal_error(
             &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
             "An MSDO or LCR OBU in the current CVS violates the requirements "
