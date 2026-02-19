@@ -350,6 +350,10 @@ const av2_codec_arg_definitions_t g_av2_codec_arg_defs = {
   .enable_gdf = ARG_DEF(NULL, "enable-gdf", 1,
                         "Enable the guided detail filter (0: false, "
                         "1: true (default))"),
+  .gdf_unit_matches_sb =
+      ARG_DEF(NULL, "gdf-unit-matches-sb", 1,
+              "GDF unit size matches superblock size (0: false (default), "
+              "1: true)"),
   .enable_restoration = ARG_DEF(NULL, "enable-restoration", 1,
                                 "Enable the loop restoration filter (0: false, "
                                 "1: true (default))"),
@@ -362,6 +366,10 @@ const av2_codec_arg_definitions_t g_av2_codec_arg_defs = {
   .enable_ccso = ARG_DEF(NULL, "enable-ccso", 1,
                          "Enable cross component sample offset (0: false "
                          "1: true)"),
+  .ccso_unit_matches_sb =
+      ARG_DEF(NULL, "ccso-unit-matches-sb", 1,
+              "CCSO unit size matches superblock size (0: false (default), "
+              "1: true)"),
   .enable_lf_sub_pu = ARG_DEF(NULL, "enable-lf-sub-pu", 1,
                               "Enable the deblocking filter on sub prediction "
                               "block (0: false, 1: true (default))"),

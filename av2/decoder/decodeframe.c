@@ -6223,6 +6223,12 @@ void read_sequence_filter_group_tool_flags(struct SequenceHeader *seq_params,
   seq_params->disable_loopfilters_across_tiles = avm_rb_read_bit(rb);
   seq_params->enable_cdef = avm_rb_read_bit(rb);
   seq_params->enable_gdf = avm_rb_read_bit(rb);
+  if (seq_params->enable_gdf && seq_params->sb_size != BLOCK_256X256 &&
+      seq_params->sb_size != BLOCK_128X128) {
+    seq_params->gdf_unit_matches_sb_size = avm_rb_read_bit(rb);
+  } else {
+    seq_params->gdf_unit_matches_sb_size = 0;
+  }
   seq_params->enable_restoration = avm_rb_read_bit(rb);
   seq_params->lr_tools_disable_mask[0] = 0;
   seq_params->lr_tools_disable_mask[1] = 0;
@@ -6242,6 +6248,11 @@ void read_sequence_filter_group_tool_flags(struct SequenceHeader *seq_params,
     }
   }
   seq_params->enable_ccso = avm_rb_read_bit(rb);
+  if (seq_params->enable_ccso) {
+    seq_params->ccso_unit_matches_sb_size = avm_rb_read_bit(rb);
+  } else {
+    seq_params->ccso_unit_matches_sb_size = 0;
+  }
   if (seq_params->single_picture_header_flag) {
     seq_params->enable_cdef_on_skip_txfm = CDEF_ON_SKIP_TXFM_ADAPTIVE;
   } else {

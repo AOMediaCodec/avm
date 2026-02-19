@@ -1236,6 +1236,15 @@ enum avme_enc_control_id {
    * int parameter.
    */
   AV2E_SET_ENABLE_FLAG_MULTI_LAYER_LAG_TEST = 181,
+
+  /*!\brief Codec control function to specify that GDF unit size matches SB size
+   *
+   *
+   * - 0 = GDF unit size may not match SB size (default)
+   * - 1 = GDF unit size matches SB size
+   */
+  AV2E_SET_GDF_UNIT_SIZE_MATCHES_SB = 182,
+
 };
 
 /*!\brief avm 1-D scaling mode
@@ -1446,6 +1455,9 @@ AVM_CTRL_USE_TYPE(AV2E_SET_ENABLE_CDEF, unsigned int)
 
 AVM_CTRL_USE_TYPE(AV2E_SET_ENABLE_GDF, unsigned int)
 #define AVM_CTRL_AV2E_SET_ENABLE_GDF
+
+AVM_CTRL_USE_TYPE(AV2E_SET_GDF_UNIT_SIZE_MATCHES_SB, unsigned int)
+#define AVM_CTRL_AV2E_SET_GDF_UNIT_SIZE_MATCHES_SB
 
 AVM_CTRL_USE_TYPE(AV2E_SET_ENABLE_RESTORATION, unsigned int)
 #define AVM_CTRL_AV2E_SET_ENABLE_RESTORATION

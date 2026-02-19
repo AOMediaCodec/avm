@@ -403,6 +403,10 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_gdf;
+  /*!\brief GDF unit size matches superblock size
+   *
+   */
+  unsigned int gdf_unit_matches_sb;
   /*!\brief enable Loop Restoration Filter
    *
    */
@@ -419,6 +423,10 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_ccso;
+  /*!\brief CCSO unit size matches superblock size
+   *
+   */
+  unsigned int ccso_unit_matches_sb;
   /*!\brief enable loop filter on sub-block
    *
    */

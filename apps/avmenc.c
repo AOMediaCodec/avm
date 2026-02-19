@@ -140,6 +140,7 @@ static const int av2_arg_ctrl_map[] = { AVME_SET_CPUUSED,
                                         AV2E_SET_ENABLE_DEBLOCKING,
                                         AV2E_SET_ENABLE_CDEF,
                                         AV2E_SET_ENABLE_GDF,
+                                        AV2E_SET_GDF_UNIT_SIZE_MATCHES_SB,
                                         AV2E_SET_ENABLE_RESTORATION,
                                         AV2E_SET_ENABLE_RECT_PARTITIONS,
                                         AV2E_SET_ENABLE_1TO4_PARTITIONS,
@@ -335,6 +336,7 @@ const arg_def_t *av2_ctrl_args[] = {
   &g_av2_codec_arg_defs.enable_deblocking,
   &g_av2_codec_arg_defs.enable_cdef,
   &g_av2_codec_arg_defs.enable_gdf,
+  &g_av2_codec_arg_defs.gdf_unit_matches_sb,
   &g_av2_codec_arg_defs.enable_restoration,
   &g_av2_codec_arg_defs.enable_rect_partitions,
   &g_av2_codec_arg_defs.enable_uneven_4way_partitions,
@@ -461,6 +463,7 @@ const arg_def_t *av2_key_val_args[] = {
   &g_av2_codec_arg_defs.avg_cdf_type,
   &g_av2_codec_arg_defs.enable_opfl_refine,
   &g_av2_codec_arg_defs.enable_ccso,
+  &g_av2_codec_arg_defs.ccso_unit_matches_sb,
   &g_av2_codec_arg_defs.enable_lf_sub_pu,
   &g_av2_codec_arg_defs.reduced_ref_frame_mvs_mode,
   &g_av2_codec_arg_defs.enable_intrabc_ext,
@@ -655,10 +658,12 @@ static void init_config(cfg_options_t *config) {
   config->enable_deblocking = 1;
   config->enable_cdef = 1;
   config->enable_gdf = 1;
+  config->gdf_unit_matches_sb = 0;
   config->enable_restoration = 1;
   config->enable_pc_wiener = 1;
   config->enable_wiener_nonsep = 1;
   config->enable_ccso = 1;
+  config->ccso_unit_matches_sb = 0;
   config->enable_lf_sub_pu = 1;
   config->enable_warped_motion = 1;
   config->enable_warp_causal = 1;
@@ -1613,11 +1618,13 @@ static void show_stream_config(struct stream_state *stream,
   fprintf(stdout,
           "Tool setting (Loop filter)     : Deblocking (%d), CDEF (%d), "
           "CDEF on skip_txfm = 1(%d), CCSO (%d), "
-          "GDF (%d), "
+          "CCSO unit matches SB (%d), "
+          "GDF (%d), GDF unit matches SB (%d), "
           "LoopRestoration (%d: [PC Wiener: %d, NonSep Wiener: %d])\n",
           encoder_cfg->enable_deblocking, encoder_cfg->enable_cdef,
           encoder_cfg->enable_cdef_on_skip_txfm, encoder_cfg->enable_ccso,
-          encoder_cfg->enable_gdf, encoder_cfg->enable_restoration,
+          encoder_cfg->ccso_unit_matches_sb, encoder_cfg->enable_gdf,
+          encoder_cfg->gdf_unit_matches_sb, encoder_cfg->enable_restoration,
           encoder_cfg->enable_pc_wiener, encoder_cfg->enable_wiener_nonsep);
   fprintf(
       stdout, "Loopfilters across tiles       : %s\n",

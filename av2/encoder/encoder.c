@@ -576,8 +576,10 @@ void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
       tool_cfg->disable_loopfilters_across_tiles;
   seq->enable_cdef = tool_cfg->enable_cdef;
   seq->enable_gdf = tool_cfg->enable_gdf;
+  seq->gdf_unit_matches_sb_size = tool_cfg->gdf_unit_matches_sb;
   seq->enable_restoration = tool_cfg->enable_restoration;
   seq->enable_ccso = tool_cfg->enable_ccso;
+  seq->ccso_unit_matches_sb_size = tool_cfg->ccso_unit_matches_sb;
   seq->enable_lf_sub_pu =
       seq->single_picture_header_flag ? 0 : tool_cfg->enable_lf_sub_pu;
   seq->enable_opfl_refine = seq->single_picture_header_flag

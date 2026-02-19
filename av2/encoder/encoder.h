@@ -831,6 +831,8 @@ typedef struct {
   bool enable_cdef;
   // Indicates if GDF should be enabled.
   bool enable_gdf;
+  // Indicates if GDF unit size should match superblock size.
+  int gdf_unit_matches_sb;
   // Indicates if loop restoration filter should be enabled.
   bool enable_restoration;
   // Indicates if pc_wiener in loop restoration filter should be enabled.
@@ -839,6 +841,8 @@ typedef struct {
   bool enable_wiener_nonsep;
   // Indicates if ccso should be enabled.
   bool enable_ccso;
+  // Indicates if CCSO unit size should match superblock size.
+  int ccso_unit_matches_sb;
   bool enable_lf_sub_pu;
   // Indicates if deblocking on sub block should be enabled.
   // Indicates if adaptive MVD resolution should be enabled.

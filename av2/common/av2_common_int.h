@@ -1142,12 +1142,14 @@ typedef struct SequenceHeader {
   avm_opfl_refine_type enable_opfl_refine;  // optical flow refinement type for
                                             // this frame
   uint8_t disable_loopfilters_across_tiles;
-  uint8_t enable_cdef;         // To turn on/off CDEF
-  uint8_t enable_gdf;          // To turn on/off GDF
-  uint8_t enable_restoration;  // To turn on/off loop restoration
-  uint8_t enable_ccso;         // To turn on/off CCSO
-  uint8_t enable_lf_sub_pu;    // To turn on/off sub-block deblocking
-  uint8_t enable_refmvbank;    // To turn on/off Ref MV Bank
+  uint8_t enable_cdef;                // To turn on/off CDEF
+  uint8_t enable_gdf;                 // To turn on/off GDF
+  uint8_t gdf_unit_matches_sb_size;   // GDF unit size matches superblock size
+  uint8_t enable_restoration;         // To turn on/off loop restoration
+  uint8_t enable_ccso;                // To turn on/off CCSO
+  uint8_t ccso_unit_matches_sb_size;  // CCSO unit size matches superblock size
+  uint8_t enable_lf_sub_pu;           // To turn on/off sub-block deblocking
+  uint8_t enable_refmvbank;           // To turn on/off Ref MV Bank
   uint8_t enable_bru;          // To turn on/off backward reference updating
   uint8_t enable_drl_reorder;  // 0 - DRL reorder is disabled
                                // 1 - DRL reorder with constraints

@@ -134,10 +134,12 @@ typedef struct av2_codec_arg_definitions {
   arg_def_t enable_deblocking;
   arg_def_t enable_cdef;
   arg_def_t enable_gdf;
+  arg_def_t gdf_unit_matches_sb;
   arg_def_t enable_restoration;
   arg_def_t enable_pc_wiener;
   arg_def_t enable_wiener_nonsep;
   arg_def_t enable_ccso;
+  arg_def_t ccso_unit_matches_sb;
   arg_def_t enable_lf_sub_pu;
   arg_def_t disable_ml_partition_speed_features;
   arg_def_t erp_pruning_level;

@@ -45,12 +45,15 @@ void init_gdf(AV2_COMMON *cm) {
   gi->gdf_mode = 0;
   gi->gdf_pic_qp_idx = 0;
   gi->gdf_pic_scale_idx = 0;
-  gi->gdf_block_size = AVMMAX(cm->mib_size << MI_SIZE_LOG2, GDF_TEST_BLK_SIZE);
+  gi->gdf_block_size =
+      cm->seq_params.gdf_unit_matches_sb_size
+          ? cm->mib_size << MI_SIZE_LOG2
+          : AVMMAX(cm->mib_size << MI_SIZE_LOG2, GDF_TEST_BLK_SIZE);
   const int num_tile_rows = cm->tiles.rows;
   const int num_tile_cols = cm->tiles.cols;
 
   // if super_block size is 64x64
-  if (cm->mib_size == 16) {
+  if (cm->mib_size == 16 && !cm->seq_params.gdf_unit_matches_sb_size) {
     int e2 = 0;
     for (int i = 0; i < cm->tiles.cols - 1; ++i) {
       const int size =

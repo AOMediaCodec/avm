@@ -4747,6 +4747,10 @@ void write_sequence_filter_group_tool_flags(
   avm_wb_write_bit(wb, seq_params->disable_loopfilters_across_tiles);
   avm_wb_write_bit(wb, seq_params->enable_cdef);
   avm_wb_write_bit(wb, seq_params->enable_gdf);
+  if (seq_params->enable_gdf && seq_params->sb_size != BLOCK_256X256 &&
+      seq_params->sb_size != BLOCK_128X128) {
+    avm_wb_write_bit(wb, seq_params->gdf_unit_matches_sb_size);
+  }
   avm_wb_write_bit(wb, seq_params->enable_restoration);
   if (seq_params->enable_restoration) {
     for (int i = 1; i < RESTORE_SWITCHABLE_TYPES; ++i) {
@@ -4765,6 +4769,9 @@ void write_sequence_filter_group_tool_flags(
   }
 
   avm_wb_write_bit(wb, seq_params->enable_ccso);
+  if (seq_params->enable_ccso) {
+    avm_wb_write_bit(wb, seq_params->ccso_unit_matches_sb_size);
+  }
 
   if (seq_params->single_picture_header_flag) {
     assert(seq_params->enable_cdef_on_skip_txfm == CDEF_ON_SKIP_TXFM_ADAPTIVE);

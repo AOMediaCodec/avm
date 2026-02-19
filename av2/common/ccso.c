@@ -25,7 +25,10 @@
 int get_ccso_unit_size_log2_adaptive_tile(const AV2_COMMON *cm,
                                           int sb_size_log2,
                                           int unit_size_log2) {
-  if (cm->tiles.cols == 1 && cm->tiles.rows == 1) return unit_size_log2;
+  if (cm->seq_params.ccso_unit_matches_sb_size)
+    return sb_size_log2;
+  else if (cm->tiles.cols == 1 && cm->tiles.rows == 1)
+    return unit_size_log2;
   int unit_size = unit_size_log2;
   if (sb_size_log2 < unit_size_log2) {
     int e2 = 0, e4 = 0;

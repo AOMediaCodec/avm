@@ -69,10 +69,12 @@ struct av2_extracfg {
   unsigned int enable_deblocking;
   unsigned int enable_cdef;
   unsigned int enable_gdf;
+  unsigned int gdf_unit_matches_sb;
   unsigned int enable_restoration;
   unsigned int enable_pc_wiener;
   unsigned int enable_wiener_nonsep;
   unsigned int enable_ccso;
+  unsigned int ccso_unit_matches_sb;
   unsigned int enable_lf_sub_pu;
   unsigned int force_video_mode;
   unsigned int enable_trellis_quant;
@@ -400,10 +402,12 @@ static struct av2_extracfg default_extra_cfg = {
   1,                                         // enable_deblocking
   1,                                         // enable_cdef
   1,                                         // enable_gdf
+  0,                                         // gdf_unit_matches_sb
   1,                                         // enable_restoration
   1,                                         // enable_pc_wiener
   1,                                         // enable_wiener_nonsep
   1,                                         // enable_ccso
+  0,                                         // ccso_unit_matches_sb
   1,                            // enable_lf_sub_pu
   0,                            // force_video_mode
   3,                            // enable_trellis_quant
@@ -917,10 +921,12 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_deblocking = extra_cfg->enable_deblocking;
   cfg->enable_cdef = extra_cfg->enable_cdef;
   cfg->enable_gdf = extra_cfg->enable_gdf;
+  cfg->gdf_unit_matches_sb = extra_cfg->gdf_unit_matches_sb;
   cfg->enable_restoration = extra_cfg->enable_restoration;
   cfg->enable_pc_wiener = extra_cfg->enable_pc_wiener;
   cfg->enable_wiener_nonsep = extra_cfg->enable_wiener_nonsep;
   cfg->enable_ccso = extra_cfg->enable_ccso;
+  cfg->ccso_unit_matches_sb = extra_cfg->ccso_unit_matches_sb;
   cfg->enable_lf_sub_pu = extra_cfg->enable_lf_sub_pu;
   cfg->superblock_size =
       (extra_cfg->superblock_size == AVM_SUPERBLOCK_SIZE_64X64)     ? 64
@@ -1032,10 +1038,12 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_deblocking = cfg->enable_deblocking;
   extra_cfg->enable_cdef = cfg->enable_cdef;
   extra_cfg->enable_gdf = cfg->enable_gdf;
+  extra_cfg->gdf_unit_matches_sb = cfg->gdf_unit_matches_sb;
   extra_cfg->enable_restoration = cfg->enable_restoration;
   extra_cfg->enable_pc_wiener = cfg->enable_pc_wiener;
   extra_cfg->enable_wiener_nonsep = cfg->enable_wiener_nonsep;
   extra_cfg->enable_ccso = cfg->enable_ccso;
+  extra_cfg->ccso_unit_matches_sb = cfg->ccso_unit_matches_sb;
   extra_cfg->enable_lf_sub_pu = cfg->enable_lf_sub_pu;
   extra_cfg->superblock_size =
       (cfg->superblock_size == 64)    ? AVM_SUPERBLOCK_SIZE_64X64
@@ -1312,6 +1320,7 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   tool_cfg->enable_deblocking = extra_cfg->enable_deblocking;
   tool_cfg->enable_cdef = extra_cfg->enable_cdef;
   tool_cfg->enable_gdf = extra_cfg->enable_gdf;
+  tool_cfg->gdf_unit_matches_sb = extra_cfg->gdf_unit_matches_sb;
   tool_cfg->enable_restoration = extra_cfg->enable_restoration;
   tool_cfg->enable_pc_wiener =
       tool_cfg->enable_restoration & extra_cfg->enable_pc_wiener;
@@ -1320,6 +1329,7 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   tool_cfg->enable_restoration &=
       (tool_cfg->enable_pc_wiener | tool_cfg->enable_wiener_nonsep);
   tool_cfg->enable_ccso = extra_cfg->enable_ccso;
+  tool_cfg->ccso_unit_matches_sb = extra_cfg->ccso_unit_matches_sb;
   tool_cfg->enable_lf_sub_pu = extra_cfg->enable_lf_sub_pu;
   if (tool_cfg->enable_lf_sub_pu) {
     if (cfg->kf_max_dist == 0) {
@@ -2033,6 +2043,13 @@ static avm_codec_err_t ctrl_set_enable_gdf(avm_codec_alg_priv_t *ctx,
                                            va_list args) {
   struct av2_extracfg extra_cfg = ctx->extra_cfg;
   extra_cfg.enable_gdf = CAST(AV2E_SET_ENABLE_GDF, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+
+static avm_codec_err_t ctrl_set_gdf_unit_size_matches_sb(
+    avm_codec_alg_priv_t *ctx, va_list args) {
+  struct av2_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.gdf_unit_matches_sb = CAST(AV2E_SET_GDF_UNIT_SIZE_MATCHES_SB, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
@@ -3809,6 +3826,10 @@ static avm_codec_err_t encoder_set_option(avm_codec_alg_priv_t *ctx,
                                   err_string)) {
     extra_cfg.enable_gdf = avm_arg_parse_uint_helper(&arg, err_string);
   } else if (avm_arg_match_helper(&arg,
+                                  &g_av2_codec_arg_defs.gdf_unit_matches_sb,
+                                  argv, err_string)) {
+    extra_cfg.gdf_unit_matches_sb = avm_arg_parse_int_helper(&arg, err_string);
+  } else if (avm_arg_match_helper(&arg,
                                   &g_av2_codec_arg_defs.enable_restoration,
                                   argv, err_string)) {
     extra_cfg.enable_restoration = avm_arg_parse_uint_helper(&arg, err_string);
@@ -3823,6 +3844,10 @@ static avm_codec_err_t encoder_set_option(avm_codec_alg_priv_t *ctx,
   } else if (avm_arg_match_helper(&arg, &g_av2_codec_arg_defs.enable_ccso, argv,
                                   err_string)) {
     extra_cfg.enable_ccso = avm_arg_parse_int_helper(&arg, err_string);
+  } else if (avm_arg_match_helper(&arg,
+                                  &g_av2_codec_arg_defs.ccso_unit_matches_sb,
+                                  argv, err_string)) {
+    extra_cfg.ccso_unit_matches_sb = avm_arg_parse_int_helper(&arg, err_string);
   } else if (avm_arg_match_helper(&arg, &g_av2_codec_arg_defs.enable_lf_sub_pu,
                                   argv, err_string)) {
     extra_cfg.enable_lf_sub_pu = avm_arg_parse_uint_helper(&arg, err_string);
@@ -4421,6 +4446,7 @@ static avm_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV2E_SET_ENABLE_DEBLOCKING, ctrl_set_enable_deblocking },
   { AV2E_SET_ENABLE_CDEF, ctrl_set_enable_cdef },
   { AV2E_SET_ENABLE_GDF, ctrl_set_enable_gdf },
+  { AV2E_SET_GDF_UNIT_SIZE_MATCHES_SB, ctrl_set_gdf_unit_size_matches_sb },
   { AV2E_SET_ENABLE_RESTORATION, ctrl_set_enable_restoration },
   { AV2E_SET_FORCE_VIDEO_MODE, ctrl_set_force_video_mode },
   { AV2E_SET_ENABLE_TRELLIS_QUANT, ctrl_set_enable_trellis_quant },
@@ -4626,14 +4652,14 @@ static const avm_codec_enc_cfg_t encoder_usage_cfg[] = { {
         1,    1, 1,
         3,  // select_cfl_ds
         1,    1, 1, 1,
+        1,    1, 1, 0,
         1,    1, 1, 1,
         1,    1, 1, 1,
         1,    1, 1, 1,
+        1,    1, 1, 0,
+        0,    1, 1, 1,
         1,    1, 1, 1,
-        1,    1, 0, 0,
-        1,    1, 1, 1,
-        1,    1, 1, 1,
-        1,    1,
+        1,    1, 1,
         0,  // reduced_tx_part_set
         1,    1, 1, 1,
         3,    1,

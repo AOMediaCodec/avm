@@ -116,8 +116,10 @@ int parse_cfg(const char *file, cfg_options_t *config) {
     GET_PARAMS(enable_deblocking);
     GET_PARAMS(enable_cdef);
     GET_PARAMS(enable_gdf);
+    GET_PARAMS(gdf_unit_matches_sb);
     GET_PARAMS(enable_restoration);
     GET_PARAMS(enable_ccso);
+    GET_PARAMS(ccso_unit_matches_sb);
     GET_PARAMS(enable_lf_sub_pu);
     GET_PARAMS(enable_warped_motion);
     GET_PARAMS(enable_global_motion);
