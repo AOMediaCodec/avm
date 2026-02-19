@@ -64,9 +64,10 @@ uint32_t av2_write_atlas_segment_info_obu(AV2_COMP *const cpi,
 uint32_t av2_write_operating_point_set_obu(AV2_COMP *const cpi, int xlayer_id,
                                            int obu_xlayer_id,
                                            uint8_t *const dst);
-
+#if !CONFIG_AV2_LCR_PROFILES
 int av2_set_lcr_params(AV2_COMP *cpi, struct LayerConfigurationRecord *lcr,
                        int global_id, int xlayer_id);
+#endif  // CONFIG_AV2_LCR_PROFILES
 
 int av2_set_atlas_segment_info_params(AV2_COMP *cpi,
                                       struct AtlasSegmentInfo *atlas,

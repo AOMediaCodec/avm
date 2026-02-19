@@ -289,7 +289,11 @@ typedef struct {
   MultiFrameHeader mfh_params_buf[MAX_MFH_NUM];
   int valid_for_referencing_buf[REF_FRAMES];
   int long_term_ids_in_buffer_buf[REF_FRAMES];
+#if CONFIG_AV2_LCR_PROFILES
+  struct LayerConfigurationRecord lcr_list_buf[MAX_NUM_XLAYERS][MAX_NUM_LCR];
+#else
   struct LayerConfigurationRecord lcr_list_buf[MAX_NUM_LCR];
+#endif  // CONFIG_AV2_LCR_PROFILES
   int lcr_counter_buf;
   struct AtlasSegmentInfo atlas_list_buf[MAX_NUM_ATLAS_SEG_ID];
   int atlas_counter_buf;
@@ -443,7 +447,11 @@ typedef struct AV2Decoder {
   uint64_t frame_component_time[kTimingComponents];
 #endif
 
+#if CONFIG_AV2_LCR_PROFILES
+  struct LayerConfigurationRecord lcr_list[MAX_NUM_XLAYERS][MAX_NUM_LCR];
+#else
   struct LayerConfigurationRecord lcr_list[MAX_NUM_LCR];
+#endif  // CONFIG_AV2_LCR_PROFILES
   int lcr_counter;
   struct AtlasSegmentInfo atlas_list[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
   int atlas_counter[MAX_NUM_XLAYERS];

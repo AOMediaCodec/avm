@@ -79,7 +79,7 @@ static uint32_t write_ats_multistream_alpha_atlas_info(
     avm_wb_write_uvlc(wb, ats_basic_info->ats_segment_height[i]);
     if (ats_basic_info->ats_alpha_segments_present_flag == 1 &&
         i < NumSegments - 1)
-      avm_wb_write_uvlc(wb, ats_basic_info->ats_alpha_segment_flag[i]);
+      avm_wb_write_bit(wb, ats_basic_info->ats_alpha_segment_flag[i]);
   }
   return 0;
 }
@@ -197,7 +197,7 @@ uint32_t av2_write_atlas_segment_info_obu(AV2_COMP *cpi, uint8_t *const dst) {
         atlas_params->ats_basic_info->ats_num_atlas_segments_minus_1 + 1;
   } else if (atlas_params->atlas_segment_mode_idc == SINGLE_ATLAS) {
     atlas_params->ats_reg_seg_map.ats_num_atlas_segments_minus_1 = 0;
-    num_segments = 0;
+    num_segments = 1;
     avm_wb_write_uvlc(&wb, atlas_params->ats_nominal_width_minus1);
     avm_wb_write_uvlc(&wb, atlas_params->ats_nominal_height_minus1);
   } else if (atlas_params->atlas_segment_mode_idc == MULTISTREAM_ATLAS) {

@@ -391,11 +391,11 @@ typedef struct {
 } RefFrameMapPair;
 
 typedef struct BufferPool {
-// Protect BufferPool from being accessed by several FrameWorkers at
-// the same time during frame parallel decode.
-// TODO(hkuang): Try to use atomic variable instead of locking the whole pool.
-// TODO(wtc): Remove this. See
-// https://chromium-review.googlesource.com/c/webm/libvpx/+/560630.
+  // Protect BufferPool from being accessed by several FrameWorkers at
+  // the same time during frame parallel decode.
+  // TODO(hkuang): Try to use atomic variable instead of locking the whole pool.
+  // TODO(wtc): Remove this. See
+  // https://chromium-review.googlesource.com/c/webm/libvpx/+/560630.
 #if CONFIG_MULTITHREAD
   pthread_mutex_t pool_mutex;
 #endif
@@ -425,11 +425,11 @@ typedef struct {
   uint16_t
       gdf_save_above[GDF_TEST_EXTRA_VER_BORDER]
                     [RESTORATION_LINEBUFFER_WIDTH]; /*!< GDF temporary buffer to
-                                                       save/restore above */
+                                                     save/restore above */
   uint16_t
       gdf_save_below[GDF_TEST_EXTRA_VER_BORDER]
                     [RESTORATION_LINEBUFFER_WIDTH]; /*!< GDF temporary buffer to
-                                                       save/restore below */
+                                                     save/restore below */
 } GDFLineBuffers;
 
 #define GDF_TEST_BLK_SIZE 128
@@ -443,8 +443,8 @@ typedef struct {
  */
 typedef struct {
   int gdf_mode;       /*!< GDF frame flag (0 : disable,
-                                           1 : enable all block,
-                                           2 : enable with block level on/off */
+                       1 : enable all block,
+                       2 : enable with block level on/off */
   int gdf_pic_qp_idx; /*!< GDF frame parameter indicates quality (QP) bucket */
   int gdf_pic_scale_idx; /*!< GDF frame parameter indicates scale factor */
   int gdf_block_size;    /*!< GDF parameter indicates block size for on/off */
@@ -452,37 +452,37 @@ typedef struct {
   int gdf_block_num_h; /*!< GDF parameter indicates number of blocks vertically
                         */
   int gdf_block_num_w; /*!< GDF parameter indicates number of blocks
-                          horizontally */
+                        horizontally */
   int gdf_stripe_size; /*!< GDF parameter indicates stripe size */
   int gdf_unit_size;   /*!< GDF parameter indicates feature extract/error lookup
-                          size */
+                        size */
 
   int *gdf_block_flags; /*!< GDF array store block on/off flags, active if
-                           gdf_mode == 2 */
+                         gdf_mode == 2 */
 
   int err_height; /*!< Height of GDF memory storing look-uped expected coding
-                      error */
+                   error */
   int err_stride; /*!< Stride of GDF memory storing look-uped expected coding
-                     error */
+                   error */
   int lap_stride; /*!< Stride of GDF memory storing laplacian values */
   int cls_stride; /*!< Stride of GDF memory storing class values */
   uint16_t **lap_ptr; /*!< GDF poiter to memory storing laplacian values */
   uint32_t *cls_ptr;  /*!< GDF poiter to memory storing class values */
   int16_t *err_ptr;  /*!< GDF poiter to memory storing look-uped expected coding
-                        error */
+                      error */
   uint16_t *inp_ptr; /*!< GDF poiter to memory storing guided frame for GDF,
-                        i.e., before LF frame */
+                      i.e., before LF frame */
   uint16_t *inp_pad_ptr; /*!< Pointer to padded and actually allocated data
-                            into which inp_ptr points */
+                          into which inp_ptr points */
   int inp_stride;        /*!< Stride of GDF memory storing guided frame */
   GDFLineBuffers *glbs;  /*!< Line buffers needed by Guided detail filter */
   int gdf_vert_blks_per_tile[MAX_TILE_ROWS];    /*!< # vert blocks per tile */
   int gdf_horz_blks_per_tile[MAX_TILE_COLS];    /*!< # horz blocks per tile */
   int gdf_vert_stripes_per_tile[MAX_TILE_ROWS]; /*!< # stripes per tile */
   uint16_t *tmp_save_left;  /*!< pointer to memory storing pixels to
-                              left of tile boundary */
+                             left of tile boundary */
   uint16_t *tmp_save_right; /*!< pointer to memory storing pixels to
-                              right of tile boundary */
+                             right of tile boundary */
 } GdfInfo;
 
 /*!\brief Parameters related to CDEF */
@@ -689,6 +689,136 @@ typedef struct RepresentationInfo {
   int lcr_chroma_format_idc;
 } RepresentationInfo;
 
+#if CONFIG_AV2_LCR_PROFILES
+typedef struct LcrAggregateProfileTierLevelInfo {
+  int lcr_config_idc;           // f(6)
+  int lcr_aggregate_level_idx;  // f(5)
+  int lcr_max_tier_flag;        // f(1)
+  int lcr_max_interop;          // f(4)
+} LcrAggregateProfileTierLevelInfo;
+
+typedef struct LcrSeqProfileTierLevelInfo {
+  int lcr_seq_profile_idc;   // f(5)
+  int lcr_max_level_idx;     // f(5)
+  int lcr_tier_flag;         // f(1)
+  int lcr_max_mlayer_count;  // f(3)
+  int lcr_reserved_2bits;    // f(2)
+} LcrSeqProfileTierLevelInfo;
+
+typedef struct XLayerColorInfo {
+  int layer_color_description_idc;
+  int layer_color_primaries;
+  int layer_transfer_characteristics;
+  int layer_matrix_coefficients;
+  int layer_full_range_flag;
+} XLayerColorInfo;
+
+typedef struct EmbeddedLayerInfo {
+  int lcr_mlayer_map;
+  int lcr_tlayer_map[MAX_NUM_MLAYERS];
+  int lcr_layer_type[8];
+  int lcr_auxiliary_type[8];
+  int lcr_view_type[8];
+  int lcr_view_id[8];
+  int lcr_dependent_layer_map[8];
+  int lcr_crop_info_in_seq_flag[8];
+  int lcr_crop_max_width[8];   // remove
+  int lcr_crop_max_height[8];  // remove
+  int lcr_layer_atlas_segment_id[8];
+  int lcr_priority_order[8];
+  int lcr_rendering_method[8];
+  int LcrMlayerID[MAX_NUM_MLAYERS];
+  int TLayerCount[MAX_NUM_MLAYERS];
+  int LcrTlayerID[MAX_NUM_TLAYERS];
+  int MLayerCount;
+} EmbeddedLayerInfo;
+
+typedef struct LCRXLayerInfo {
+  int lcr_rep_info_present_flag;
+  struct RepresentationInfo rep_params;
+  struct CroppingWindow crop_win;
+
+  // XLayer purpose and color info
+  int lcr_xlayer_purpose_present_flag;
+  int lcr_xlayer_purpose_id;
+  int lcr_xlayer_color_info_present_flag;
+  struct XLayerColorInfo xlayer_col_params;
+
+  // Embedded layer info
+  int lcr_embedded_layer_info_present_flag;
+  struct EmbeddedLayerInfo mlayer_params;
+
+  // Atlas info (used when no embedded layer info)
+  int lcr_xlayer_atlas_segment_id;
+  int lcr_xlayer_priority_order;
+  int lcr_xlayer_rendering_method;
+} LCRXLayerInfo;
+
+// Global specific fields
+typedef struct GlobalLayerConfigurationRecord {
+  int lcr_global_config_record_id;  // 1-7
+  // int lcr_max_num_extended_layers_minus_1;
+  int lcr_xlayer_map;
+  int lcr_aggregate_profile_tier_level_info_present_flag;
+  int lcr_global_payload_present_flag;
+  int lcr_seq_profile_tier_level_info_present_flag;
+  int lcr_global_atlas_id_present_flag;
+  int lcr_reserved_zero_2bits;
+  int lcr_global_atlas_id;
+  int lcr_reserved_zero_3bits;
+  int lcr_reserved_zero_5bits;
+  int lcr_data_size_present_flag;
+  int lcr_global_purpose_id;
+  int lcr_dependent_xlayers_flag;
+
+  // Derived
+  int LcrMaxNumXLayerCount;  // NUmber of xlauers in this global LCR
+  int LcrXLayerID[31];       // number of xlayers in this global LCR
+
+#if CONFIG_TU_ALIGNMENT
+  int lcr_enforce_tu_alignment_flag;
+  int lcr_enforce_tile_alignment_flag;
+  int lcr_reserved_zero_6bits;
+#endif  // CONFIG_TU_ALIGNMENT
+  uint32_t lcr_data_size[MAX_NUM_XLAYERS];
+  int lcr_xlayer_id[MAX_NUM_XLAYERS];
+  uint32_t lcr_num_dependent_xlayer_map[MAX_NUM_XLAYERS];
+  // Xlayer infor for each extended layer in this global LCR
+  struct LCRXLayerInfo xlayer_info[MAX_NUM_XLAYERS];
+  struct LcrAggregateProfileTierLevelInfo aggregate_ptl;
+  struct LcrSeqProfileTierLevelInfo seq_ptl[31];
+} GlobalLayerConfigurationRecord;
+
+typedef struct LocalLayerConfigurationRecord {
+  int lcr_global_id;
+  int lcr_local_id;
+  int lcr_local_atlas_id_present_flag;
+  int lcr_profile_tier_level_info_present_flag;
+  int lcr_local_atlas_id;
+  int lcr_reserved_zero_3bits;
+  int lcr_reserved_zero_5bits;
+  // Xlayer info for this specific extended layer only
+  struct LCRXLayerInfo xlayer_info;
+  struct LcrSeqProfileTierLevelInfo seq_ptl;
+} LocalLayerConfigurationRecord;
+
+// Main LCR structure
+typedef struct LayerConfigurationRecord {
+  int valid;  // Whether this entry is valid
+  bool is_global;
+  int xlayer_id;  // Extended layer ID (0-31 for local, 31 for global
+  int lcr_id;     // LCR ID (1-7);
+
+  // Either global or local fields are used based on is_global flag
+  struct GlobalLayerConfigurationRecord global_lcr;
+  struct LocalLayerConfigurationRecord local_lcr;
+
+#if CONFIG_F414_OBU_EXTENSION
+  int lcr_extension_present_flag;
+#endif  // CONFIG_F414_OBU_EXTENSION
+} LayerConfigurationRecord;
+#else
+
 typedef struct XLayerColorInfo {
   int layer_color_description_idc[MAX_LCR_TYPES][MAX_NUM_XLAYERS];
   int layer_color_primaries[MAX_LCR_TYPES][MAX_NUM_XLAYERS];
@@ -761,6 +891,7 @@ typedef struct LayerConfigurationRecord {
   int lcr_extension_present_flag;
 #endif  // CONFIG_F414_OBU_EXTENSION
 } LayerConfigurationRecord;
+#endif  // CONFIG_AV2_LCR_PROFILES
 
 // Each AtlasSegmentInfo represents ONE atlas OBU
 // identified by obu_xlayer_id, atlas_segment_id) pair

@@ -267,6 +267,8 @@ enum {
 #define INTEROP_BITS 4
 #endif  // CONFIG_AV2_PROFILES
 #define PROFILE_BITS 5
+#define CONFIG_BITS 6
+#define INTEROP_BITS 4
 #if CONFIG_AV2_PROFILES
 // Refer to Table A.4 in annexA.c
 enum {
@@ -338,7 +340,9 @@ enum {
 enum {
   TEXTURE_LAYER = 0,
   AUX_LAYER = 1,
-  // Reserved: 2-15
+  STEREO_LAYER = 2,
+  DEPENDENT_LAYER = 3,
+  // Reserved: 4-15
   LAYER_TYPES = 16
 };
 

@@ -804,13 +804,34 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
       for (size_t j = 0; j < pbi->num_output_frames; j++) {
         decrease_ref_count(pbi->output_frames[j], pool);
       }
-      if (!conformance_check_msdo_lcr(pbi, !pbi->common.lcr_params.is_local_lcr,
-                                      pbi->common.lcr_params.is_local_lcr)) {
+      bool global_lcr_present = false;
+      bool local_lcr_present = false;
+#if CONFIG_AV2_LCR_PROFILES
+      for (int j = 0; j < MAX_NUM_LCR; j++) {
+        if (pbi->lcr_list[GLOBAL_XLAYER_ID][j].valid) global_lcr_present = true;
+      }
+      for (int i = 0; i < GLOBAL_XLAYER_ID && !local_lcr_present; i++) {
+        for (int j = 0; j < MAX_NUM_LCR; j++) {
+          if (pbi->lcr_list[i][j].valid) {
+            local_lcr_present = true;
+            break;
+          }
+        }
+      }
+#else
+      global_lcr_present = !pbi->common.lcr_params.is_local_lcr;
+      local_lcr_present = pbi->common.lcr_params.is_local_lcr;
+#endif  // CONFIG_AV2_LCR_PROFILES
+
+#if CONFIG_AV2_PROFILES
+      if (!conformance_check_msdo_lcr(pbi, global_lcr_present,
+                                      local_lcr_present)) {
         avm_internal_error(
             &pbi->common.error, AVM_CODEC_UNSUP_BITSTREAM,
             "The last CVS violates the requirements of bitstream conformance "
             "for MSDO and LCR to be present (or absent).");
       }
+#endif  // CONFIG_AV2_PROFILES
       return err;
     }
   }

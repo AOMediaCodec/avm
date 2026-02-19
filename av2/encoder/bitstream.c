@@ -6843,11 +6843,13 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
     const LayerCfg *const layer_cfg = &cpi->oxcf.layer_cfg;
     // Layer Configuration Record
     if (layer_cfg->enable_lcr) {
+#if !CONFIG_AV2_LCR_PROFILES
       struct LayerConfigurationRecord *lcr = &cpi->lcr_list[0];
       av2_set_lcr_params(cpi, lcr, 0, 0);
-      obu_header_size = av2_write_obu_header(
-          level_params, OBU_LAYER_CONFIGURATION_RECORD, 0, 0, data);
+#endif  // !CONFIG_AV2_LCR_PROFILES
       int xlayer_id = 0;
+      obu_header_size = av2_write_obu_header(
+          level_params, OBU_LAYER_CONFIGURATION_RECORD, 0, xlayer_id, data);
       obu_payload_size = av2_write_layer_configuration_record_obu(
           cpi, xlayer_id, data + obu_header_size);
       const size_t length_field_size =

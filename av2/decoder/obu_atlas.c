@@ -221,7 +221,8 @@ static uint32_t read_ats_multistream_atlas_info(
   int NumSegments = ats_basic_info->ats_num_atlas_segments_minus_1 + 1;
   if (NumSegments > MAX_NUM_ATLAS_SEGMENTS) {
     avm_internal_error(&pbi->common.error, AVM_CODEC_UNSUP_BITSTREAM,
-                       "The value of ats_num_atlas_segments_minus_1 "
+                       "xLayer %d atlas %d: The value of "
+                       "ats_num_atlas_segments_minus_1 "
                        "shall be in the range of 0 to %d, inclusive.",
                        obu_xLayer_id, xAId, (MAX_NUM_ATLAS_SEGMENTS - 1));
   }

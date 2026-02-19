@@ -164,7 +164,7 @@ static avm_codec_err_t check_chroma_format(int monochrome, int is_420,
 static avm_codec_err_t check_mlayer_count(int profile_idc, int seq_max_mcount) {
   const int max_allowed_mcount =
       av2_get_max_mlayer_cnt_from_profile(profile_idc);
-  if (max_allowed_mcount < 0 && seq_max_mcount > max_allowed_mcount) {
+  if (max_allowed_mcount < 0 || seq_max_mcount > max_allowed_mcount) {
     return AVM_CODEC_UNSUP_BITSTREAM;
   }
   return AVM_CODEC_OK;

@@ -22,6 +22,289 @@
 #include "av2/decoder/obu.h"
 #include "av2/common/enums.h"
 
+#if CONFIG_AV2_LCR_PROFILES
+static void read_lcr_aggregate_profile_tier_level_info(
+    struct LcrAggregateProfileTierLevelInfo *ptl,
+    struct avm_read_bit_buffer *rb) {
+  ptl->lcr_config_idc = avm_rb_read_literal(rb, CONFIG_BITS);
+  ptl->lcr_aggregate_level_idx = avm_rb_read_literal(rb, LEVEL_BITS);
+  ptl->lcr_max_tier_flag = avm_rb_read_bit(rb);
+  ptl->lcr_max_interop = avm_rb_read_literal(rb, INTEROP_BITS);
+}
+
+static void read_lcr_seq_profile_tier_level_info(
+    struct LcrSeqProfileTierLevelInfo *ptl, struct avm_read_bit_buffer *rb) {
+  ptl->lcr_seq_profile_idc = avm_rb_read_literal(rb, PROFILE_BITS);
+  ptl->lcr_max_level_idx = avm_rb_read_literal(rb, LEVEL_BITS);
+  ptl->lcr_tier_flag = avm_rb_read_bit(rb);
+  ptl->lcr_max_mlayer_count = avm_rb_read_literal(rb, 3);
+  ptl->lcr_reserved_2bits = avm_rb_read_literal(rb, 2);
+}
+
+static int read_lcr_xlayer_color_info(struct LCRXLayerInfo *xlayer_info,
+                                      struct avm_read_bit_buffer *rb) {
+  struct XLayerColorInfo *xlayer = &xlayer_info->xlayer_col_params;
+  xlayer->layer_color_description_idc = avm_rb_read_rice_golomb(rb, 2);
+  if (xlayer->layer_color_description_idc == AVM_COLOR_DESC_IDC_EXPLICIT) {
+    xlayer->layer_color_primaries = avm_rb_read_literal(rb, 8);
+    xlayer->layer_transfer_characteristics = avm_rb_read_literal(rb, 8);
+    xlayer->layer_matrix_coefficients = avm_rb_read_literal(rb, 8);
+  }
+  xlayer->layer_full_range_flag = avm_rb_read_bit(rb);
+  return 0;
+}
+
+static int read_lcr_embedded_layer_info(struct LCRXLayerInfo *xlayer_info,
+                                        int atlas_id_present,
+                                        struct avm_read_bit_buffer *rb) {
+  struct EmbeddedLayerInfo *mlayer_params = &xlayer_info->mlayer_params;
+  mlayer_params->MLayerCount = 0;
+  mlayer_params->lcr_mlayer_map = avm_rb_read_literal(rb, MAX_NUM_MLAYERS);
+  for (int i = 0; i < MAX_NUM_MLAYERS; i++) {
+    if ((mlayer_params->lcr_mlayer_map & (1 << i))) {
+      mlayer_params->LcrMlayerID[mlayer_params->MLayerCount] = i;
+      mlayer_params->lcr_tlayer_map[i] =
+          avm_rb_read_literal(rb, MAX_NUM_TLAYERS);
+
+      mlayer_params->TLayerCount[i] = 0;
+      for (int k = 0; k < MAX_NUM_TLAYERS; k++) {
+        if ((mlayer_params->lcr_tlayer_map[i] & (1 << k))) {
+          mlayer_params->LcrTlayerID[mlayer_params->TLayerCount[i]] = k;
+          mlayer_params->TLayerCount[i]++;
+        }
+      }
+      if (atlas_id_present) {
+        mlayer_params->lcr_layer_atlas_segment_id[i] =
+            avm_rb_read_literal(rb, 8);
+        mlayer_params->lcr_priority_order[i] = avm_rb_read_literal(rb, 8);
+        mlayer_params->lcr_rendering_method[i] = avm_rb_read_literal(rb, 8);
+      }
+      mlayer_params->lcr_layer_type[i] = avm_rb_read_literal(rb, 8);
+
+      if (mlayer_params->lcr_layer_type[i] == AUX_LAYER)
+        mlayer_params->lcr_auxiliary_type[i] = avm_rb_read_literal(rb, 8);
+
+      mlayer_params->lcr_view_type[i] = avm_rb_read_literal(rb, 8);
+
+      if (mlayer_params->lcr_view_type[i] == VIEW_EXPLICIT) {
+        mlayer_params->lcr_view_id[i] = avm_rb_read_literal(rb, 8);
+      }
+      if (i > 0) {
+        mlayer_params->lcr_dependent_layer_map[i] = avm_rb_read_literal(rb, i);
+      }
+
+      mlayer_params->lcr_crop_info_in_seq_flag[i] = avm_rb_read_bit(rb);
+      if (!mlayer_params->lcr_crop_info_in_seq_flag[i]) {
+        mlayer_params->lcr_crop_max_width[i] = avm_rb_read_uvlc(rb);
+        mlayer_params->lcr_crop_max_height[i] = avm_rb_read_uvlc(rb);
+      }
+      // Byte alignment
+      int remaining_bits = rb->bit_offset % 8;
+      if (remaining_bits != 0) {
+        avm_rb_read_literal(rb, (8 - remaining_bits));
+      }
+      mlayer_params->MLayerCount++;
+    }
+  }
+  return 0;
+}
+
+static int read_lcr_rep_info(struct LCRXLayerInfo *xlayer_info,
+                             struct avm_read_bit_buffer *rb) {
+  struct RepresentationInfo *rep_params = &xlayer_info->rep_params;
+  struct CroppingWindow *crop_win = &xlayer_info->crop_win;
+
+  rep_params->lcr_max_pic_width = avm_rb_read_uvlc(rb);
+  rep_params->lcr_max_pic_height = avm_rb_read_uvlc(rb);
+  rep_params->lcr_format_info_present_flag = avm_rb_read_bit(rb);
+
+  crop_win->crop_window_present_flag = avm_rb_read_bit(rb);
+
+  if (rep_params->lcr_format_info_present_flag) {
+    rep_params->lcr_bit_depth_idc = avm_rb_read_uvlc(rb);
+    rep_params->lcr_chroma_format_idc = avm_rb_read_uvlc(rb);
+  }
+  if (crop_win->crop_window_present_flag) {
+    crop_win->crop_win_left_offset = avm_rb_read_uvlc(rb);
+    crop_win->crop_win_right_offset = avm_rb_read_uvlc(rb);
+    crop_win->crop_win_top_offset = avm_rb_read_uvlc(rb);
+    crop_win->crop_win_bottom_offset = avm_rb_read_uvlc(rb);
+  }
+  return 0;
+}
+
+static int read_lcr_xlayer_info(struct LCRXLayerInfo *xlayer_info,
+                                bool is_global, int atlas_id_present,
+                                struct avm_read_bit_buffer *rb) {
+  xlayer_info->lcr_rep_info_present_flag = avm_rb_read_bit(rb);
+  xlayer_info->lcr_xlayer_purpose_present_flag = avm_rb_read_bit(rb);
+  xlayer_info->lcr_xlayer_color_info_present_flag = avm_rb_read_bit(rb);
+  xlayer_info->lcr_embedded_layer_info_present_flag = avm_rb_read_bit(rb);
+
+  if (xlayer_info->lcr_rep_info_present_flag)
+    read_lcr_rep_info(xlayer_info, rb);
+
+  if (xlayer_info->lcr_xlayer_purpose_present_flag)
+    xlayer_info->lcr_xlayer_purpose_id = avm_rb_read_literal(rb, 7);
+
+  if (xlayer_info->lcr_xlayer_color_info_present_flag)
+    read_lcr_xlayer_color_info(xlayer_info, rb);
+
+  // Byte alignment
+  avm_rb_read_literal(rb, (8 - rb->bit_offset % CHAR_BIT) % CHAR_BIT);
+
+  if (xlayer_info->lcr_embedded_layer_info_present_flag) {
+    read_lcr_embedded_layer_info(xlayer_info, atlas_id_present, rb);
+  } else {
+    if (is_global && atlas_id_present) {
+      xlayer_info->lcr_xlayer_atlas_segment_id = avm_rb_read_literal(rb, 8);
+      xlayer_info->lcr_xlayer_priority_order = avm_rb_read_literal(rb, 8);
+      xlayer_info->lcr_xlayer_rendering_method = avm_rb_read_literal(rb, 8);
+    }
+  }
+  return 0;
+}
+
+static void read_lcr_global_payload(struct GlobalLayerConfigurationRecord *glcr,
+                                    int i, struct avm_read_bit_buffer *rb) {
+  int n = glcr->LcrXLayerID[i];  // actual ID
+  if (glcr->lcr_dependent_xlayers_flag && n > 0) {
+    glcr->lcr_num_dependent_xlayer_map[i] = avm_rb_read_literal(rb, n);
+  }
+  // xlayer info[i] corresponds to LcrXLayerID
+  read_lcr_xlayer_info(&glcr->xlayer_info[i], true,
+                       glcr->lcr_global_atlas_id_present_flag, rb);
+}
+
+static void read_lcr_global_info(struct AV2Decoder *pbi,
+                                 struct avm_read_bit_buffer *rb) {
+  AV2_COMMON *const cm = &pbi->common;
+  int lcr_global_config_record_id = avm_rb_read_literal(rb, 3);
+  if (lcr_global_config_record_id == LCR_ID_UNSPECIFIED) {
+    avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+                       "Invalid lcr_global_config_record_id: "
+                       "LCR_ID_UNSPECIFIED (0) is not a valid LCR ID.");
+  }
+  LayerConfigurationRecord *lcr =
+      &pbi->lcr_list[GLOBAL_XLAYER_ID][lcr_global_config_record_id];
+  GlobalLayerConfigurationRecord *glcr = &lcr->global_lcr;
+
+  lcr->valid = 1;
+  lcr->is_global = 1;
+  lcr->xlayer_id = GLOBAL_XLAYER_ID;
+  lcr->lcr_id = lcr_global_config_record_id;
+
+  glcr->lcr_global_config_record_id = lcr_global_config_record_id;
+  glcr->lcr_xlayer_map = avm_rb_read_literal(rb, 31);
+  glcr->LcrMaxNumXLayerCount = 0;
+  for (int i = 0; i < 31; i++) {
+    if (glcr->lcr_xlayer_map & (1 << i)) {
+      glcr->LcrXLayerID[glcr->LcrMaxNumXLayerCount] = i;
+      glcr->LcrMaxNumXLayerCount++;
+    }
+  }
+  glcr->lcr_aggregate_profile_tier_level_info_present_flag =
+      avm_rb_read_bit(rb);
+  glcr->lcr_seq_profile_tier_level_info_present_flag = avm_rb_read_bit(rb);
+  glcr->lcr_global_payload_present_flag = avm_rb_read_bit(rb);
+  glcr->lcr_dependent_xlayers_flag = avm_rb_read_bit(rb);
+  glcr->lcr_global_atlas_id_present_flag = avm_rb_read_bit(rb);
+  glcr->lcr_global_purpose_id = avm_rb_read_literal(rb, 7);
+#if CONFIG_TU_ALIGNMENT
+  glcr->lcr_enforce_tu_alignment_flag = avm_rb_read_bit(rb);
+  glcr->lcr_enforce_tile_alignment_flag = avm_rb_read_bit(rb);
+#endif  // CONFIG_TU_ALIGNMENT
+  if (glcr->lcr_global_atlas_id_present_flag)
+    glcr->lcr_global_atlas_id = avm_rb_read_literal(rb, 3);
+  else
+    glcr->lcr_reserved_zero_3bits = avm_rb_read_literal(rb, 3);
+  glcr->lcr_reserved_zero_5bits = avm_rb_read_literal(rb, 5);
+
+  if (glcr->lcr_aggregate_profile_tier_level_info_present_flag)
+    read_lcr_aggregate_profile_tier_level_info(&glcr->aggregate_ptl, rb);
+
+  if (glcr->lcr_seq_profile_tier_level_info_present_flag) {
+    for (int i = 0; i < glcr->LcrMaxNumXLayerCount; i++) {
+      read_lcr_seq_profile_tier_level_info(&glcr->seq_ptl[i], rb);
+    }
+  }
+  if (glcr->lcr_global_payload_present_flag) {
+    int xlayer_count = glcr->LcrMaxNumXLayerCount;
+    for (int i = 0; i < xlayer_count; i++) {
+      glcr->lcr_data_size[i] = avm_rb_read_uleb(rb);
+      read_lcr_global_payload(glcr, i, rb);
+    }
+  }
+}
+
+static void read_lcr_local_info(struct AV2Decoder *pbi, int xlayer_id,
+                                struct avm_read_bit_buffer *rb) {
+  AV2_COMMON *const cm = &pbi->common;
+  int lcr_global_id = avm_rb_read_literal(rb, 3);
+  if (lcr_global_id == LCR_ID_UNSPECIFIED) {
+    avm_internal_error(
+        &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+        "Invalid lcr_global_id: LCR_ID_UNSPECIFIED (0) is not a valid LCR ID.");
+  }
+  int lcr_local_id = avm_rb_read_literal(rb, 3);
+  LayerConfigurationRecord *lcr = &pbi->lcr_list[xlayer_id][lcr_local_id];
+  LocalLayerConfigurationRecord *llcr = &lcr->local_lcr;
+
+  lcr->valid = 1;
+  lcr->is_global = false;
+  lcr->xlayer_id = xlayer_id;
+  llcr->lcr_global_id = lcr_global_id;
+  llcr->lcr_local_id = lcr_local_id;
+
+  llcr->lcr_profile_tier_level_info_present_flag = avm_rb_read_bit(rb);
+  llcr->lcr_local_atlas_id_present_flag = avm_rb_read_bit(rb);
+
+  if (llcr->lcr_profile_tier_level_info_present_flag)
+    read_lcr_seq_profile_tier_level_info(&llcr->seq_ptl, rb);
+
+  if (llcr->lcr_local_atlas_id_present_flag)
+    llcr->lcr_local_atlas_id = avm_rb_read_literal(rb, 3);
+  else
+    llcr->lcr_reserved_zero_3bits = avm_rb_read_literal(rb, 3);
+  llcr->lcr_reserved_zero_5bits = avm_rb_read_literal(rb, 5);
+
+  read_lcr_xlayer_info(&llcr->xlayer_info, false,
+                       llcr->lcr_local_atlas_id_present_flag, rb);
+}
+
+uint32_t av2_read_layer_configuration_record_obu(
+    struct AV2Decoder *pbi, int xlayer_id, struct avm_read_bit_buffer *rb) {
+  const uint32_t saved_bit_offset = rb->bit_offset;
+  assert(rb->error_handler);
+  if (xlayer_id == GLOBAL_XLAYER_ID)
+    read_lcr_global_info(pbi, rb);
+  else
+    read_lcr_local_info(pbi, xlayer_id, rb);
+
+#if CONFIG_F414_OBU_EXTENSION
+  size_t bits_before_ext = rb->bit_offset - saved_bit_offset;
+  int lcr_extension_present_flag = avm_rb_read_bit(rb);
+  if (lcr_extension_present_flag) {
+    // Extension data bits = total - bits_read_before_extension -1 (ext flag) -
+    // trailing bits
+    int extension_bits = read_obu_extension_bits(
+        rb->bit_buffer, rb->bit_buffer_end - rb->bit_buffer, bits_before_ext,
+        &pbi->common.error);
+    if (extension_bits > 0) {
+      rb->bit_offset += extension_bits;  // skip over the extension bits
+    } else {
+      // No extension data present
+    }
+  }
+#else
+  (void)lcr_params;
+#endif  // CONFIG_F414_OBU_EXTENSION
+  if (av2_check_trailing_bits(pbi, rb) != 0) {
+    return 0;
+  }
+  return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
+}
+#else
 // TODO(hegilmez) to be specified, depending on profile, tier definitions
 static int read_lcr_profile_tier_level(int isGlobal, int xId) {
 #if MULTILAYER_HLS_REMOVE_LOGS
@@ -380,3 +663,4 @@ uint32_t av2_read_layer_configuration_record_obu(
   }
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }
+#endif  // CONFIG_AV2_LCR_PROFILES
