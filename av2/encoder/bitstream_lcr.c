@@ -169,14 +169,15 @@ static int write_lcr_xlayer_info(struct LCRXLayerInfo *xlayer_info,
 
 void write_lcr_global_payload(struct GlobalLayerConfigurationRecord *global_lcr,
                               int i, struct avm_write_bit_buffer *wb) {
-  avm_wb_write_literal(wb, global_lcr->lcr_xlayer_id[i], XLAYER_BITS);
-  int n = global_lcr->lcr_xlayer_id[i];
+  // xlayer ID is derived from lcr_xlayer_map by the decoder (LcrXLayerID[i]),
+  // so it is NOT written to the bitstream here.
+  int n = global_lcr->LcrXLayerID[i];
 
   if (global_lcr->lcr_dependent_xlayers_flag && n > 0)
     avm_wb_write_unsigned_literal(
-        wb, global_lcr->lcr_num_dependent_xlayer_map[n], n);
+        wb, global_lcr->lcr_num_dependent_xlayer_map[i], n);
 
-  write_lcr_xlayer_info(&global_lcr->xlayer_info[n], true,
+  write_lcr_xlayer_info(&global_lcr->xlayer_info[i], true,
                         global_lcr->lcr_global_atlas_id_present_flag, wb);
 }
 
