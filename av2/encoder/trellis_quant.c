@@ -177,16 +177,16 @@ static INLINE int get_coeff_cost_def(tran_low_t abs_qc, int coeff_ctx,
   (void)sign;
   int base_ctx = get_base_diag_ctx(diag_ctx) + get_base_ctx(coeff_ctx);
   int mid_ctx = get_mid_ctx(coeff_ctx);
-  /* 
+  /*
   const int(*base_cost_ptr)[TCQ_CTXS][8] =
       plane > 0 ? txb_costs->base_cost_uv : txb_costs->base_cost;
   int cost = base_cost_ptr[base_ctx][q_i][AVMMIN(abs_qc, 3)];
 */
   const int(*base_cost_ptr)[TCQ_CTXS][8] = txb_costs->base_cost;
   const int(*base_cost_uv_ptr)[8] = txb_costs->base_cost_uv;
-  int cost = plane > 0 ? 
-    base_cost_uv_ptr[base_ctx][AVMMIN(abs_qc, 3)] : base_cost_ptr[base_ctx][q_i][AVMMIN(abs_qc, 3)];
-  
+  int cost = plane > 0 ? base_cost_uv_ptr[base_ctx][AVMMIN(abs_qc, 3)]
+                       : base_cost_ptr[base_ctx][q_i][AVMMIN(abs_qc, 3)];
+
   if (abs_qc != 0) {
     cost += av2_cost_literal(1);
     if (abs_qc > NUM_BASE_LEVELS) {
@@ -213,16 +213,20 @@ static INLINE int get_coeff_cost_general(int ci, tran_low_t abs_qc, int sign,
   // const int(*base_cost_ptr)[TCQ_CTXS][8] =
   //     plane > 0 ? txb_costs->base_cost_uv : txb_costs->base_cost;
 
-  const int(*base_lf_cost_ptr)[TCQ_CTXS][LF_BASE_SYMBOLS * 2] = txb_costs->base_lf_cost;
-  const int(*base_lf_cost_uv_ptr)[LF_BASE_SYMBOLS * 2] = txb_costs->base_lf_cost_uv; 
-  int base_lf_cost = plane > 0 ? base_lf_cost_uv_ptr[coeff_ctx][AVMMIN(abs_qc, LF_BASE_SYMBOLS - 1)]
-                                          : base_lf_cost_ptr[coeff_ctx][q_i][AVMMIN(abs_qc, LF_BASE_SYMBOLS - 1)]; 
-
+  const int(*base_lf_cost_ptr)[TCQ_CTXS][LF_BASE_SYMBOLS * 2] =
+      txb_costs->base_lf_cost;
+  const int(*base_lf_cost_uv_ptr)[LF_BASE_SYMBOLS * 2] =
+      txb_costs->base_lf_cost_uv;
+  int base_lf_cost =
+      plane > 0
+          ? base_lf_cost_uv_ptr[coeff_ctx][AVMMIN(abs_qc, LF_BASE_SYMBOLS - 1)]
+          : base_lf_cost_ptr[coeff_ctx][q_i]
+                            [AVMMIN(abs_qc, LF_BASE_SYMBOLS - 1)];
 
   const int(*base_cost_ptr)[TCQ_CTXS][8] = txb_costs->base_cost;
   const int(*base_cost_uv_ptr)[8] = txb_costs->base_cost_uv;
-  int base_cost =  plane > 0 ? base_cost_uv_ptr[coeff_ctx][AVMMIN(abs_qc, 3)] 
-    : base_cost_ptr[coeff_ctx][q_i][AVMMIN(abs_qc, 3)]; 
+  int base_cost = plane > 0 ? base_cost_uv_ptr[coeff_ctx][AVMMIN(abs_qc, 3)]
+                            : base_cost_ptr[coeff_ctx][q_i][AVMMIN(abs_qc, 3)];
 
   cost += limits ? base_lf_cost : base_cost;
 

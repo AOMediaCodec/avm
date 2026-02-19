@@ -176,9 +176,8 @@ static INLINE void read_coeffs_reverse_2d(
       if (limits) {
         const int coeff_ctx =
             get_lower_levels_ctx_lf_2d_chroma(levels, pos, bwl, plane);
-        level +=
-            avm_read_symbol(r, base_lf_uv_cdf[coeff_ctx], LF_BASE_SYMBOLS,
-                            ACCT_INFO("level", "base_lf_uv_cdf"));
+        level += avm_read_symbol(r, base_lf_uv_cdf[coeff_ctx], LF_BASE_SYMBOLS,
+                                 ACCT_INFO("level", "base_lf_uv_cdf"));
       } else {
         const int coeff_ctx =
             get_lower_levels_ctx_2d_chroma(levels, pos, bwl, plane);
@@ -234,9 +233,8 @@ static INLINE void read_coeffs_reverse(
       if (limits) {
         const int coeff_ctx =
             get_lower_levels_lf_ctx_chroma(levels, pos, bwl, tx_class, plane);
-        level +=
-            avm_read_symbol(r, base_lf_uv_cdf[coeff_ctx], LF_BASE_SYMBOLS,
-                            ACCT_INFO("level", "base_lf_uv_cdf"));
+        level += avm_read_symbol(r, base_lf_uv_cdf[coeff_ctx], LF_BASE_SYMBOLS,
+                                 ACCT_INFO("level", "base_lf_uv_cdf"));
       } else {
         const int coeff_ctx =
             get_lower_levels_ctx_chroma(levels, pos, bwl, tx_class, plane);
