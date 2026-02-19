@@ -3232,7 +3232,7 @@ static const avm_cdf_prob av2_default_coeff_base_multi_uv_cdfs[4][12][CDF_SIZE(4
       { AVM_CDF4( 4096, 12081, 19339),  77 },
       { AVM_CDF4(30583, 31894, 32331),  90 },
       { AVM_CDF4(18905, 31508, 32138),  25 },
-      { AVM_CDF4( 8192, 16384, 24576),   0 },    
+      { AVM_CDF4( 8192, 16384, 24576),   0 },
       { AVM_CDF4( 8192, 16384, 24576),   0 },
     },
 };
