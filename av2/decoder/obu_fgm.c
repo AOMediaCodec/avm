@@ -148,22 +148,25 @@ static void read_film_grain_model(struct film_grain_model *fgm, int chroma_idc,
     ++num_pos_chroma;
     int bits_per_ar_coeff_y_minus5 = avm_rb_read_literal(rb, 2);
     int BitsArY = bits_per_ar_coeff_y_minus5 + 5;
+    int midPointY = 1 << (BitsArY - 1);
     for (int i = 0; i < num_pos_luma; i++)
-      fgm->ar_coeffs_y[i] = avm_rb_read_literal(rb, BitsArY) - 128;
+      fgm->ar_coeffs_y[i] = avm_rb_read_literal(rb, BitsArY) - midPointY;
   }
 
   if (fgm->fgm_points[1] || fgm->fgm_scale_from_channel0_flag) {
     int bits_per_ar_coeff_cb_minus5 = avm_rb_read_literal(rb, 2);
     int BitsArCb = bits_per_ar_coeff_cb_minus5 + 5;
+    int midPointCb = 1 << (BitsArCb - 1);
     for (int i = 0; i < num_pos_chroma; i++)
-      fgm->ar_coeffs_cb[i] = avm_rb_read_literal(rb, BitsArCb) - 128;
+      fgm->ar_coeffs_cb[i] = avm_rb_read_literal(rb, BitsArCb) - midPointCb;
   }
 
   if (fgm->fgm_points[2] || fgm->fgm_scale_from_channel0_flag) {
     int bits_per_ar_coeff_cr_minus5 = avm_rb_read_literal(rb, 2);
     int BitsArCr = bits_per_ar_coeff_cr_minus5 + 5;
+    int midPointCr = 1 << (BitsArCr - 1);
     for (int i = 0; i < num_pos_chroma; i++)
-      fgm->ar_coeffs_cr[i] = avm_rb_read_literal(rb, BitsArCr) - 128;
+      fgm->ar_coeffs_cr[i] = avm_rb_read_literal(rb, BitsArCr) - midPointCr;
   }
 
   fgm->ar_coeff_shift = avm_rb_read_literal(rb, 2) + 6;  // 6 + value

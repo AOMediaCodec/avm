@@ -243,41 +243,52 @@ int write_fgm_obu(AV2_COMP *cpi, struct film_grain_model *fgm,
     int num_pos_luma = 2 * fgm->ar_coeff_lag * (fgm->ar_coeff_lag + 1);
     int num_pos_chroma = num_pos_luma;
     if (fgm->fgm_points[0] > 0) ++num_pos_chroma;
+
     if (fgm->fgm_points[0]) {
       int maxAr = -1;
+      int minAr = 0;
       for (int i = 0; i < num_pos_luma; i++) {
         if (maxAr < fgm->ar_coeffs_y[i]) maxAr = fgm->ar_coeffs_y[i];
+        if (minAr > fgm->ar_coeffs_y[i]) minAr = fgm->ar_coeffs_y[i];
       }
+      maxAr = AVMMAX(maxAr + 1, -minAr);
       // ceillog2
-      int bitArY = AVMMAX(5, maxAr == -1 ? 0 : avm_ceil_log2(maxAr + 1 + 128));
-      avm_wb_write_literal(&wb, bitArY - 5, 2);
+      int bitsArY = AVMMAX(5, avm_ceil_log2(maxAr) + 1);
+      avm_wb_write_literal(&wb, bitsArY - 5, 2);
+      int midPointY = 1 << (bitsArY - 1);
       for (int i = 0; i < num_pos_luma; i++)
-        avm_wb_write_literal(&wb, fgm->ar_coeffs_y[i] + 128, bitArY);
+        avm_wb_write_literal(&wb, fgm->ar_coeffs_y[i] + midPointY, bitsArY);
     }
     if (fgm->fgm_points[1] || fgm->fgm_scale_from_channel0_flag) {
       int maxAr = -1;
+      int minAr = 0;
       for (int i = 0; i < num_pos_chroma; i++) {
         if (maxAr < fgm->ar_coeffs_cb[i]) maxAr = fgm->ar_coeffs_cb[i];
+        if (minAr > fgm->ar_coeffs_cb[i]) minAr = fgm->ar_coeffs_cb[i];
       }
+      maxAr = AVMMAX(maxAr + 1, -minAr);
       // ceillog2
-      int bitsArCb =
-          AVMMAX(5, maxAr == -1 ? 0 : avm_ceil_log2(maxAr + 1 + 128));
+      int bitsArCb = AVMMAX(5, avm_ceil_log2(maxAr) + 1);
       avm_wb_write_literal(&wb, bitsArCb - 5, 2);
+      int midPointCb = 1 << (bitsArCb - 1);
       for (int i = 0; i < num_pos_chroma; i++)
-        avm_wb_write_literal(&wb, fgm->ar_coeffs_cb[i] + 128, bitsArCb);
+        avm_wb_write_literal(&wb, fgm->ar_coeffs_cb[i] + midPointCb, bitsArCb);
     }
 
     if (fgm->fgm_points[2] || fgm->fgm_scale_from_channel0_flag) {
       int maxAr = -1;
+      int minAr = 0;
       for (int i = 0; i < num_pos_chroma; i++) {
         if (maxAr < fgm->ar_coeffs_cr[i]) maxAr = fgm->ar_coeffs_cr[i];
+        if (minAr > fgm->ar_coeffs_cr[i]) minAr = fgm->ar_coeffs_cr[i];
       }
+      maxAr = AVMMAX(maxAr + 1, -minAr);
       // ceillog2
-      int bitsArCr =
-          AVMMAX(5, maxAr == -1 ? 0 : avm_ceil_log2(maxAr + 1 + 128));
+      int bitsArCr = AVMMAX(5, avm_ceil_log2(maxAr) + 1);
       avm_wb_write_literal(&wb, bitsArCr - 5, 2);
+      int midPointCr = 1 << (bitsArCr - 1);
       for (int i = 0; i < num_pos_chroma; i++)
-        avm_wb_write_literal(&wb, fgm->ar_coeffs_cr[i] + 128, bitsArCr);
+        avm_wb_write_literal(&wb, fgm->ar_coeffs_cr[i] + midPointCr, bitsArCr);
     }
 
     avm_wb_write_literal(&wb, fgm->ar_coeff_shift - 6, 2);  // 8 + value
