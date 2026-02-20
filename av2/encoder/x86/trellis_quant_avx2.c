@@ -278,6 +278,7 @@ void av2_get_coeff_ctx_avx2(const struct tcq_ctx_t *tcq_ctx, int col,
   _mm_storeu_si64(coeff_ctx->coef, ctx);
 }
 
+/*
 static INLINE int get_mid_cost_def(tran_low_t abs_qc, int coeff_ctx,
                                    const LV_MAP_COEFF_COST *txb_costs,
                                    int plane, int t_sign, int sign) {
@@ -295,6 +296,7 @@ static INLINE int get_mid_cost_def(tran_low_t abs_qc, int coeff_ctx,
   }
   return cost;
 }
+*/
 
 static INLINE int get_mid_cost_eob(int ci, int limits, int is_dc,
                                    tran_low_t abs_qc, int sign, int dc_sign_ctx,
