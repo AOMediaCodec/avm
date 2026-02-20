@@ -696,6 +696,11 @@ typedef struct {
   int buffer_refresh_multi_layers_test[REF_FRAMES];
   // Changes needed for multi layers tests with nonzero lag.
   int multi_layers_lag_test;
+  // Signal one sequence header for the entire sequence.
+  uint8_t single_seq_header_for_all_test;
+  // Insert a sequence header before the frame at this 0-based position within
+  // each GOP. 0 = disabled. No SH inserted if GOP is shorter than this value.
+  uint8_t add_seq_header_in_GOP_test;
 } UnitTestCfg;
 
 typedef struct {
@@ -2983,6 +2988,13 @@ typedef struct AV2_COMP {
    */
 
   struct film_grain_model fgm;
+  /*!
+   * write_sequence_header_flag= 1 indicates that the sequence header need to be
+   * written at all the CLKs. write_sequence_header_flag = 0 indicates that the
+   * sequence header is written only for the first CLK. This is mainly for the
+   * test purpose.
+   */
+  bool write_sequence_header_flag;
 
   /*!
    * Indicates that scan type info is present

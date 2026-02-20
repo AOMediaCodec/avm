@@ -88,6 +88,8 @@ struct av2_extracfg {
   unsigned int frame_multi_qmatrix_unit_test;
   unsigned int sef_with_order_hint_test;
   unsigned int multi_seq_header_test;
+  unsigned int single_seq_header_for_all_test;
+  unsigned int add_seq_header_in_GOP_test;
   unsigned int num_tg;
   unsigned int mtu_size;
 
@@ -421,6 +423,8 @@ static struct av2_extracfg default_extra_cfg = {
   0,                            // enable frame multi qmatrix unit test
   0,                            // enable show existing frame with order hint test;
   0,                            // multi_seq_header_test
+  0,                            // single_seq_header_for_all_test
+  0,                            // add_seq_header_in_GOP_test
   1,                            // max number of tile groups
   0,                            // mtu_size
   AVM_TIMING_UNSPECIFIED,       // No picture timing signaling in bitstream
@@ -827,6 +831,8 @@ static avm_codec_err_t validate_config(avm_codec_alg_priv_t *ctx,
   RANGE_CHECK_HI(extra_cfg, frame_multi_qmatrix_unit_test, 4);
   RANGE_CHECK_HI(extra_cfg, sef_with_order_hint_test, 2);
   RANGE_CHECK_HI(extra_cfg, multi_seq_header_test, 2);
+  RANGE_CHECK_HI(extra_cfg, single_seq_header_for_all_test, 2);
+  RANGE_CHECK_HI(extra_cfg, add_seq_header_in_GOP_test, 256);
   RANGE_CHECK(extra_cfg, coeff_cost_upd_freq, 0, 2);
   RANGE_CHECK(extra_cfg, mode_cost_upd_freq, 0, 2);
   RANGE_CHECK(extra_cfg, mv_cost_upd_freq, 0, 3);
@@ -1724,6 +1730,10 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   oxcf->unit_test_cfg.sef_with_order_hint_test =
       extra_cfg->sef_with_order_hint_test;
   oxcf->unit_test_cfg.multi_seq_header_test = extra_cfg->multi_seq_header_test;
+  oxcf->unit_test_cfg.single_seq_header_for_all_test =
+      extra_cfg->single_seq_header_for_all_test;
+  oxcf->unit_test_cfg.add_seq_header_in_GOP_test =
+      extra_cfg->add_seq_header_in_GOP_test;
   oxcf->unit_test_cfg.use_buffer_refresh_multi_layers_test =
       extra_cfg->use_buffer_refresh_multi_layers_test;
   for (int i = 0; i < REF_FRAMES; i++) {
@@ -2201,6 +2211,22 @@ static avm_codec_err_t ctrl_set_multi_seq_header_test(avm_codec_alg_priv_t *ctx,
                                                       va_list args) {
   struct av2_extracfg extra_cfg = ctx->extra_cfg;
   extra_cfg.multi_seq_header_test = CAST(AV2E_SET_MULTI_SEQ_HEADER_TEST, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+
+static avm_codec_err_t ctrl_set_single_seq_header_for_all_test(
+    avm_codec_alg_priv_t *ctx, va_list args) {
+  struct av2_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.single_seq_header_for_all_test =
+      CAST(AV2E_SET_SINGLE_SEQ_HEADER_TEST, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+
+static avm_codec_err_t ctrl_set_add_seq_header_in_GOP_test(
+    avm_codec_alg_priv_t *ctx, va_list args) {
+  struct av2_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.add_seq_header_in_GOP_test =
+      CAST(AV2E_SET_ADD_SEQ_HEADER_IN_GOP_TEST, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
@@ -4465,6 +4491,8 @@ static avm_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
     ctrl_set_frame_multi_qmatrix_unit_test },
   { AV2E_SET_SEF_WITH_ORDER_HINT_TEST, ctrl_set_sef_with_order_hint_test },
   { AV2E_SET_MULTI_SEQ_HEADER_TEST, ctrl_set_multi_seq_header_test },
+  { AV2E_SET_SINGLE_SEQ_HEADER_TEST, ctrl_set_single_seq_header_for_all_test },
+  { AV2E_SET_ADD_SEQ_HEADER_IN_GOP_TEST, ctrl_set_add_seq_header_in_GOP_test },
   { AV2E_SET_NUM_TG, ctrl_set_num_tg },
   { AV2E_SET_MTU, ctrl_set_mtu },
   { AV2E_SET_TIMING_INFO_TYPE, ctrl_set_timing_info_type },

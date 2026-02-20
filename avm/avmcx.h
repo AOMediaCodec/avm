@@ -1245,6 +1245,19 @@ enum avme_enc_control_id {
    */
   AV2E_SET_GDF_UNIT_SIZE_MATCHES_SB = 182,
 
+  /*!\brief Signal signle sequence header for one sequence
+   *
+   * \note This is used to test the case a single sequence header is signalled
+   */
+  AV2E_SET_SINGLE_SEQ_HEADER_TEST = 183,
+
+  /*!\brief Insert an extra sequence header at a given position within each GOP.
+   *
+   * \note When non-zero, a sequence header OBU is inserted before the frame
+   * at this position (0-based) within each GOP. If the GOP is shorter than
+   * the specified position, no extra SH is inserted. 0 = disabled (default).
+   */
+  AV2E_SET_ADD_SEQ_HEADER_IN_GOP_TEST = 184,
 };
 
 /*!\brief avm 1-D scaling mode
@@ -1500,6 +1513,12 @@ AVM_CTRL_USE_TYPE(AV2E_SET_SEF_WITH_ORDER_HINT_TEST, unsigned int)
 
 AVM_CTRL_USE_TYPE(AV2E_SET_MULTI_SEQ_HEADER_TEST, unsigned int)
 #define AVM_CTRL_SET_MULTI_SEQ_HEADER_TEST
+
+AVM_CTRL_USE_TYPE(AV2E_SET_SINGLE_SEQ_HEADER_TEST, unsigned int)
+#define AVM_CTRL_SET_SINGLE_SEQ_HEADER_TEST
+
+AVM_CTRL_USE_TYPE(AV2E_SET_ADD_SEQ_HEADER_IN_GOP_TEST, unsigned int)
+#define AVM_CTRL_SET_ADD_SEQ_HEADER_IN_GOP_TEST
 
 AVM_CTRL_USE_TYPE(AV2E_SET_NUM_TG, unsigned int)
 #define AVM_CTRL_AV2E_SET_NUM_TG

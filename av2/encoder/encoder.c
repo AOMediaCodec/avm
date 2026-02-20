@@ -491,7 +491,7 @@ void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
                                AV2_COMMON *cm, const AV2EncoderConfig *oxcf) {
   const FrameDimensionCfg *const frm_dim_cfg = &oxcf->frm_dim_cfg;
   const ToolCfg *const tool_cfg = &oxcf->tool_cfg;
-
+  cpi->write_sequence_header_flag = true;
   seq->still_picture =
       (tool_cfg->force_video_mode == 0) && (oxcf->input_cfg.limit == 1);
   seq->single_picture_header_flag = seq->still_picture;
@@ -4537,7 +4537,9 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
     cm->features.allow_local_intrabc = 0;
   }
   const bool compute_ds_filter =
-      cpi->common.current_frame.cm_obu_type == OBU_CLK;
+      cpi->oxcf.unit_test_cfg.single_seq_header_for_all_test
+          ? 0
+          : cpi->common.current_frame.cm_obu_type == OBU_CLK;
   if (compute_ds_filter) {
     av2_set_downsample_filter_options(cpi);
   }
@@ -4973,7 +4975,8 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
   if (av2_is_shown_keyframe(cpi, current_frame->frame_type) &&
       !cpi->update_type_was_overlay) {
     current_frame->key_frame_number += current_frame->frame_number;
-    current_frame->frame_number = 0;
+    if (!cpi->oxcf.unit_test_cfg.single_seq_header_for_all_test)
+      current_frame->frame_number = 0;
     if (cpi->oxcf.unit_test_cfg.multi_seq_header_test) {
       cm->seq_params.seq_header_id =
           (cm->seq_params.seq_header_id + 1) % MAX_SEQ_NUM;
