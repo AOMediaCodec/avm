@@ -376,7 +376,7 @@ demux_bitstream4() {
     elog "Bitstream demuxing to output 2 failed."
     return 1
   fi
-  
+
   echo "Successfully demuxed bitstream to bitstream_demuxed_2.bin"
 
    if [ ! -e "${DEMUXED_OUTPUT_3}" ]; then
@@ -527,7 +527,7 @@ compare_md5_4() {
 
 # Run complete encode, mux, and demux pipeline
 run_encode_mux_demux() {
- 
+
   echo "Start single layer stream"
 
   encode_bitstream_0 || return 1
