@@ -6996,10 +6996,13 @@ static void reset_buffer_other_than_OLK(AV2Decoder *pbi) {
   AV2_COMMON *const cm = &pbi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
   BufferPool *const pool = cm->buffer_pool;
+  if (pbi->this_is_first_vcl_obu_in_tu != 1) return;
   int ref_flags_to_keep = 0;
   for (int layer = 0; layer <= seq_params->max_mlayer_id; layer++) {
-    if (cm->olk_refresh_frame_flags[layer] == -1) continue;
-    ref_flags_to_keep |= cm->olk_refresh_frame_flags[layer];
+    if (cm->olk_refresh_frame_flags[layer] != -1)
+      ref_flags_to_keep |= cm->olk_refresh_frame_flags[layer];
+    if (cm->olk_co_vcl_refresh_frame_flags[layer] != -1)
+      ref_flags_to_keep |= cm->olk_co_vcl_refresh_frame_flags[layer];
   }
   for (int ref_index = 0; ref_index < seq_params->ref_frames; ref_index++) {
     if (!((ref_flags_to_keep >> ref_index) & 1u)) {
@@ -7009,8 +7012,12 @@ static void reset_buffer_other_than_OLK(AV2Decoder *pbi) {
     }
   }
 
-  for (int layer = 0; layer <= seq_params->max_mlayer_id; layer++)
+  for (int layer = 0; layer <= seq_params->max_mlayer_id; layer++) {
     cm->olk_refresh_frame_flags[layer] = -1;
+    cm->olk_co_vcl_refresh_frame_flags[layer] = -1;
+  }
+
+  pbi->olk_encountered = 0;
 }
 static int is_regular_non_olk_obu(OBU_TYPE obu_type) {
   return obu_type == OBU_REGULAR_SEF || obu_type == OBU_REGULAR_TIP ||
@@ -7045,11 +7052,6 @@ static int read_show_existing_frame(AV2Decoder *pbi, bool is_regular_obu,
   const SequenceHeader *const seq_params = &cm->seq_params;
   CurrentFrame *const current_frame = &cm->current_frame;
   BufferPool *const pool = cm->buffer_pool;
-  if (is_regular_obu && pbi->olk_encountered) {
-    pbi->olk_encountered = 0;
-    reset_buffer_other_than_OLK(pbi);
-    unlock_buffer_pool(pool);
-  }
   cm->show_existing_frame = 1;
   init_bru_params(cm);
   // Show an existing frame directly.
@@ -7166,6 +7168,14 @@ static int read_show_existing_frame(AV2Decoder *pbi, bool is_regular_obu,
         frame_to_show->order_hint;
     current_frame->display_order_hint = cm->cur_frame->display_order_hint =
         frame_to_show->display_order_hint;
+  }
+  if (is_regular_obu && pbi->olk_encountered) {
+    if (current_frame->display_order_hint < cm->last_olk_disp_order_hint) {
+      avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+                         "the reference frame should in the current GOP");
+      return 0;
+    }
+    reset_buffer_other_than_OLK(pbi);
   }
   lock_buffer_pool(pool);
   assert(frame_to_show->ref_count > 0);
@@ -7400,8 +7410,10 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   // redundant but will it harm?
   if (obu_type == OBU_CLK) {
     reset_ref_frame_map(cm);
-    for (int layer = 0; layer < MAX_NUM_MLAYERS; layer++)
+    for (int layer = 0; layer < MAX_NUM_MLAYERS; layer++) {
       cm->olk_refresh_frame_flags[layer] = -1;
+      cm->olk_co_vcl_refresh_frame_flags[layer] = -1;
+    }
   }
 
   // check bitstream conformance if sequence header is parsed
@@ -7700,9 +7712,11 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   }
 
   if (obu_type == OBU_BRIDGE_FRAME) {
+    cm->bridge_frame_info.is_bridge_frame = 1;
     cm->bridge_frame_info.bridge_frame_ref_idx =
         avm_rb_read_literal(rb, seq_params->ref_frames_log2);
   } else {
+    cm->bridge_frame_info.is_bridge_frame = 0;
     cm->bridge_frame_info.bridge_frame_ref_idx = INVALID_IDX;
   }
 
@@ -7742,19 +7756,8 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     cm->show_existing_frame = 0;
     if (obu_type == OBU_LEADING_SEF || obu_type == OBU_REGULAR_SEF)
       return read_show_existing_frame(pbi, obu_type == OBU_REGULAR_SEF, rb);
-    if (obu_type == OBU_CLK) {
+    if (obu_type == OBU_CLK || obu_type == OBU_OLK) {
       current_frame->frame_type = KEY_FRAME;
-      pbi->olk_encountered = 0;
-    } else if (obu_type == OBU_OLK) {
-      current_frame->frame_type = KEY_FRAME;
-      if (pbi->olk_encountered) {
-        // This is the case when the first regular frame is another OLK
-        // (0-4(K)-2-1-3-8(K)...
-        lock_buffer_pool(pool);
-        reset_buffer_other_than_OLK(pbi);
-        unlock_buffer_pool(pool);
-      }
-      pbi->olk_encountered = 1;
     } else if (obu_type == OBU_RAS_FRAME || obu_type == OBU_SWITCH) {
       current_frame->frame_type = S_FRAME;
       cm->restricted_prediction_switch = avm_rb_read_bit(rb);
@@ -7848,13 +7851,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   features->cross_frame_context = CROSS_FRAME_CONTEXT_FORWARD;
 
   if (!seq_params->single_picture_header_flag) {
-    if (pbi->olk_encountered && is_regular_non_olk_obu(obu_type)) {
-      pbi->olk_encountered = 0;
-      lock_buffer_pool(pool);
-      reset_buffer_other_than_OLK(pbi);
-      unlock_buffer_pool(pool);
-    }
-
     if (cm->bridge_frame_info.is_bridge_frame) {
       frame_size_override_flag = 1;
     } else {
@@ -7899,6 +7895,23 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       current_frame->frame_number = current_frame->order_hint;
       current_frame->display_order_hint_restricted =
           current_frame->display_order_hint;
+    }
+
+    if (obu_type == OBU_CLK)
+      pbi->olk_encountered = 0;
+    else if (obu_type == OBU_OLK) {
+      if (pbi->olk_encountered) {
+        // This is the case when the first regular frame is another OLK
+        // (0-4(K)-2-1-3-8(K)...
+        lock_buffer_pool(pool);
+        reset_buffer_other_than_OLK(pbi);
+        unlock_buffer_pool(pool);
+      }
+      pbi->olk_encountered = 1;
+    } else if (pbi->olk_encountered && is_regular_non_olk_obu(obu_type)) {
+      lock_buffer_pool(pool);
+      reset_buffer_other_than_OLK(pbi);
+      unlock_buffer_pool(pool);
     }
 
     if (!frame_is_sframe(cm) && !frame_is_intra_only(cm)) {
@@ -7946,9 +7959,8 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       }
     }
     if (obu_type == OBU_OLK) {
-      cm->last_olk_disp_order_hint[cm->mlayer_id] =
-          cm->current_frame.display_order_hint;
-      cm->last_olk_order_hint[cm->mlayer_id] = cm->current_frame.order_hint;
+      cm->last_olk_disp_order_hint = cm->current_frame.display_order_hint;
+      cm->last_olk_order_hint = cm->current_frame.order_hint;
       cm->olk_refresh_frame_flags[cm->mlayer_id] =
           current_frame->refresh_frame_flags;
     }
@@ -8060,6 +8072,17 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
                            idx, cm->olk_refresh_frame_flags[idx]);
       }
     }
+  }
+
+  // Record the refresh slots of regular VCL OBUs co-signalled with OLK in the
+  // same temporal unit so that reset_buffer_other_than_OLK() preserves them
+  // when the first regular temporal unit begins.
+  if (pbi->olk_encountered && is_regular_non_olk_obu(obu_type) &&
+      pbi->this_is_first_vcl_obu_in_tu == 0) {
+    if (cm->olk_co_vcl_refresh_frame_flags[cm->mlayer_id] == -1)
+      cm->olk_co_vcl_refresh_frame_flags[cm->mlayer_id] = 0;
+    cm->olk_co_vcl_refresh_frame_flags[cm->mlayer_id] |=
+        current_frame->refresh_frame_flags;
   }
 
   if (pbi->obu_type == OBU_RAS_FRAME) {

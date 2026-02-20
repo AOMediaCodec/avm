@@ -519,6 +519,14 @@ typedef struct AV2Decoder {
    */
   int this_is_first_keyframe_unit_in_tu;
   /*!
+   * Indicates if the current data chunk being decoded in avm_codec_decode()
+   * contains the first VCL OBU of the temporal unit. A VCL OBU is any OBU
+   * that carries coded picture data (CLK, OLK, tile groups, SEF, TIP,
+   * BRIDGE_FRAME, SWITCH, RAS_FRAME). This flag is 1 when the first VCL OBU
+   * of the current frame unit is also the first VCL OBU in the temporal unit.
+   */
+  int this_is_first_vcl_obu_in_tu;
+  /*!
    * Indicates mlayer_id of the current data chunk being decoded. This is used
    * only for determining first clk/olk in the tu.
    */

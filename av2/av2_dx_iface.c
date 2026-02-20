@@ -697,7 +697,7 @@ static size_t check_frame_unit_data(struct AV2Decoder *pbi, const uint8_t *data,
 // This function bridges set_this_is_first_keyframe_unit_in_tu() to
 // parse_to_order_hint_for_keyobu() in obu.c. "data" may contain many
 // different obus(MSDO,LCR,CI,QM,FGM etc). It sends payload, "data", to
-// parse_to_order_hint_for_keyobu(). On success, It returns 1.
+// parse_to_order_hint_for_vcl_obu(). On success, It returns 1.
 static int quick_parsing_to_order_hint(struct AV2Decoder *pbi,
                                        const uint8_t *data, size_t data_sz,
                                        int *current_is_shown,
@@ -707,6 +707,7 @@ static int quick_parsing_to_order_hint(struct AV2Decoder *pbi,
   ObuHeader obu_header;
 
   struct SequenceHeader seq_params;
+  seq_params.seq_header_id = -1;
   struct MultiFrameHeader mfh_list[MAX_MFH_NUM];
   for (int i = 0; i < MAX_MFH_NUM; i++) mfh_list[i].mfh_id = -1;
   while (data_read < data + data_sz) {
@@ -722,8 +723,20 @@ static int quick_parsing_to_order_hint(struct AV2Decoder *pbi,
       res = parse_sh(pbi, data_read + bytes_read, payload_size, &seq_params);
     } else if (obu_header.type == OBU_MULTI_FRAME_HEADER) {
       res = parse_mfh(pbi, data_read + bytes_read, payload_size, &mfh_list[0]);
-    } else if (obu_header.type == OBU_CLK || obu_header.type == OBU_OLK) {
-      res = parse_to_order_hint_for_keyobu(
+    } else if (obu_header.type == OBU_LEADING_SEF ||
+               obu_header.type == OBU_REGULAR_SEF) {
+      // SEF uses show-existing-frame syntax; handled by a dedicated parser.
+      res = parse_to_order_hint_for_sef(
+          pbi, data_read + bytes_read, payload_size, obu_header.type,
+          obu_header.obu_xlayer_id, obu_header.obu_tlayer_id,
+          obu_header.obu_mlayer_id, &seq_params, &mfh_list[0], current_is_shown,
+          current_order_hint);
+    } else if (is_multi_tile_vcl_obu(obu_header.type) ||
+               obu_header.type == OBU_LEADING_TIP ||
+               obu_header.type == OBU_REGULAR_TIP ||
+               obu_header.type == OBU_BRIDGE_FRAME) {
+      // All remaining VCL OBU types share the same consolidated parser.
+      res = parse_to_order_hint_for_vcl_obu(
           pbi, data_read + bytes_read, payload_size, obu_header.type,
           obu_header.obu_xlayer_id, obu_header.obu_tlayer_id,
           obu_header.obu_mlayer_id, &seq_params, &mfh_list[0], current_is_shown,
@@ -809,6 +822,81 @@ void set_this_is_first_keyframe_unit_in_tu(struct AV2Decoder *pbi,
   return;
 };
 
+// This function determines if the current frame unit contains the first VCL
+// OBU in the temporal unit. A VCL OBU is any OBU that carries coded picture
+// data (CLK, OLK, tile groups, SEF, TIP, BRIDGE_FRAME, SWITCH, RAS_FRAME).
+// Sets pbi->this_is_first_vcl_obu_in_tu = 1 if the first VCL OBU of the
+// current frame unit is the first VCL OBU of the temporal unit, 0 otherwise.
+// current_is_shown and current_order_hint must be set from
+// quick_parsing_to_order_hint() before calling this function.
+// This function does **NOT** assess the validity of the bitstream.
+static void set_this_is_first_vcl_obu_in_tu(struct AV2Decoder *pbi,
+                                            int tlayer_id, int mlayer_id,
+                                            int current_is_shown,
+                                            int current_order_hint) {
+  pbi->this_is_first_vcl_obu_in_tu = 0;
+
+  // Any VCL OBU type indicates the current frame unit carries coded picture
+  // data. Check for presence of any VCL OBU type in this frame unit.
+  bool has_vcl = false;
+  for (int type = 0; type < NUM_OBU_TYPES && !has_vcl; type++) {
+    if (is_single_tile_vcl_obu((OBU_TYPE)type) ||
+        is_multi_tile_vcl_obu((OBU_TYPE)type)) {
+      has_vcl = pbi->obus_in_frame_unit_data[tlayer_id][mlayer_id][type];
+    }
+  }
+  if (!has_vcl) return;
+
+  bool has_sh = pbi->obus_in_frame_unit_data[0][0][OBU_SEQUENCE_HEADER];
+  bool has_td = pbi->obus_in_frame_unit_data[0][0][OBU_TEMPORAL_DELIMITER];
+
+  // A sequence header or temporal delimiter always signals the start of a new
+  // temporal unit, so its first VCL OBU is the first in the TU.
+  if (has_sh || has_td) {
+    pbi->this_is_first_vcl_obu_in_tu = 1;
+    return;
+  }
+
+  bool has_clk = pbi->obus_in_frame_unit_data[tlayer_id][mlayer_id][OBU_CLK];
+  bool has_olk = pbi->obus_in_frame_unit_data[tlayer_id][mlayer_id][OBU_OLK];
+
+  // Mirror the mlayer-transition checks from
+  // set_this_is_first_keyframe_unit_in_tu: A transition where the last frame
+  // unit was at a higher mlayer and the current frame unit carries CLK/OLK
+  // means we wrapped back to a new TU.
+  if ((has_clk || has_olk) && (pbi->last_frame_unit.mlayer_id == mlayer_id) &&
+      ((pbi->last_frame_unit.obu_type != OBU_CLK && has_clk) ||
+       (pbi->last_frame_unit.obu_type != OBU_OLK && has_olk))) {
+    pbi->this_is_first_vcl_obu_in_tu = 1;
+    return;
+  }
+
+  // mlayer decreasing (e.g. layer 1 -> layer 0) always signals a new TU
+  // when a key OBU is present.
+  if ((has_clk || has_olk) && pbi->last_frame_unit.mlayer_id > mlayer_id) {
+    pbi->this_is_first_vcl_obu_in_tu = 1;
+    return;
+  }
+
+  // No TU boundary markers found. Use display_order_hint comparison to
+  // decide, mirroring the showable/hidden frame logic in
+  // set_this_is_first_keyframe_unit_in_tu:
+  //   HH: first_vcl = 0 (hidden frames within same TU)
+  //   HS: first_vcl = 0 (last was hidden, current is shown, same TU)
+  //   SH: first_vcl = 1 (last was shown -> new TU started with a hidden frame)
+  //   SS: compare display_order_hint
+  if (pbi->last_frame_unit.showable_frame == 0) {
+    pbi->this_is_first_vcl_obu_in_tu = 0;
+    return;
+  }
+  if (pbi->last_frame_unit.showable_frame == 1 && current_is_shown == 0) {
+    pbi->this_is_first_vcl_obu_in_tu = 1;
+    return;
+  }
+
+  pbi->this_is_first_vcl_obu_in_tu =
+      pbi->last_frame_unit.display_order_hint != current_order_hint;
+}
 // If the decoder starts decoding from the middle of the bitstream,
 // unwanted obus MUST BE already discarded up to the random access point in
 // read_frame(). decoder_decode() drops only leading frames. If the decoder
@@ -952,24 +1040,32 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
         pbi->obus_in_frame_unit_data[tlayer_id][mlayer_id][OBU_OLK];
     pbi->current_mlayer_id = mlayer_id;
     pbi->current_tlayer_id = tlayer_id;
+
+    // Parse the frame unit to get current_is_shown and current_order_hint.
+    // These are needed both for set_this_is_first_keyframe_unit_in_tu() and
+    // set_this_is_first_vcl_obu_in_tu(). quick_parsing_to_order_hint() now
+    // covers CLK/OLK as well as non-keyframe VCL OBUs.
+    int current_is_shown = -1;
+    int current_order_hint = -1;
+    if (reset_last) {
+      // When reset_last is set, a TU-head non-VCL OBU (TD, SH, LCR, ...) is
+      // present, so this is unambiguously the first frame unit in the TU.
+      current_order_hint = 0;
+    } else {
+      if (quick_parsing_to_order_hint(pbi, data_start, frame_unit_size,
+                                      &current_is_shown,
+                                      &current_order_hint) == 0) {
+        fprintf(stderr, "first keyobu decision error\n");
+        return AVM_CODEC_ERROR;
+      }
+    }
+
     // pbi->this_is_first_keyframe_unit_in_tu = 1 means it is keyobu && first
     // frame_unit in tu
     if (has_key_obu) {
-      // when reset_last = 1, the input to this function "data" contains one of
-      // obus with is_tu_head_non_vcl_obu()==1. In the case, it cannot be but,
-      // absolutely, the first frameobu in the temporal unit
-      int current_is_shown = -1;
-      int current_order_hint = -1;
       if (reset_last) {
-        current_order_hint = 0;
         pbi->this_is_first_keyframe_unit_in_tu = 1;
       } else {
-        if (quick_parsing_to_order_hint(pbi, data_start, frame_unit_size,
-                                        &current_is_shown,
-                                        &current_order_hint) == 0) {
-          fprintf(stderr, "first keyobu decision error\n");
-          return AVM_CODEC_ERROR;
-        }
         set_this_is_first_keyframe_unit_in_tu(
             pbi, tlayer_id, mlayer_id, current_is_shown, current_order_hint);
         if (pbi->this_is_first_keyframe_unit_in_tu == -1) {
@@ -979,8 +1075,13 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
       }
     } else {
       pbi->this_is_first_keyframe_unit_in_tu = 0;
-    }
 
+      // Determine if the first VCL OBU of the current frame unit is also the
+      // first VCL OBU of the temporal unit (applies to all VCL types, not just
+      // CLK/OLK).
+      set_this_is_first_vcl_obu_in_tu(pbi, tlayer_id, mlayer_id,
+                                      current_is_shown, current_order_hint);
+    }
     // droping leading obus if neccessary
     // pbi->random_accessed is set in main_loop() when parsing begins at a
     // random access point

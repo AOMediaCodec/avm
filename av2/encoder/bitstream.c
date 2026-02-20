@@ -5318,9 +5318,8 @@ static AVM_INLINE void write_uncompressed_header(
 
   if (obu_type == OBU_OLK) {
     cpi->olk_encountered = 1;
-    cm->last_olk_disp_order_hint[cm->mlayer_id] =
-        cm->current_frame.display_order_hint;
-    cm->last_olk_order_hint[cm->mlayer_id] = cm->current_frame.order_hint;
+    cm->last_olk_disp_order_hint = cm->current_frame.display_order_hint;
+    cm->last_olk_order_hint = cm->current_frame.order_hint;
     // it needs to be this way since ref_frame_map is not updated yet here not
     // as update_frame_buffers()
     // In this encoder, the OLK updates only one reference slot

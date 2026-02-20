@@ -3057,17 +3057,23 @@ typedef struct AV2Common {
   avm_metadata_temporal_point_info_t temporal_point_info_metadata;
 
   /*!
-   * Order hint of the last encountered OLK per layer
+   * Order hint of the last encountered OLK
    */
-  unsigned int last_olk_order_hint[MAX_NUM_MLAYERS];
+  unsigned int last_olk_order_hint;
   /*!
-   * Display order hint of the last encountered OLK per layer
+   * Display order hint of the last encountered OLK
    */
-  unsigned int last_olk_disp_order_hint[MAX_NUM_MLAYERS];
+  unsigned int last_olk_disp_order_hint;
   /*!
-   * Indices of the OLK in the reference list per layer
+   * Accumulated refresh_frame_flags of the OLK in the reference list per layer.
+   * Initialized to -1 (unset).
    */
   int olk_refresh_frame_flags[MAX_NUM_MLAYERS];
+  /*!
+   * Accumulated refresh_frame_flags of regular VCL OBUs co-signalled with an
+   * OLK in the same temporal unit, per mlayer. Initialized to -1 (unset).
+   */
+  int olk_co_vcl_refresh_frame_flags[MAX_NUM_MLAYERS];
   /*!
    * Indicates if the frame is a leading frame
    */

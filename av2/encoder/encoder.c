@@ -4650,8 +4650,7 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
     cpi->seq_params_locked = 1;
     cm->sef_ref_fb_idx = cpi->fb_idx_for_overlay;
 
-    if (cm->last_olk_disp_order_hint[cm->mlayer_id] >
-        cm->current_frame.display_order_hint) {
+    if (cm->last_olk_disp_order_hint > cm->current_frame.display_order_hint) {
       cm->is_leading_picture = 1;
     } else {
       cm->is_leading_picture = 0;
@@ -4729,15 +4728,13 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
     cm->is_leading_picture = -1;
     if (cpi->no_show_fwd_kf) {
       cpi->olk_encountered = 1;
-      cm->last_olk_order_hint[cm->mlayer_id] = cm->current_frame.order_hint;
-      cm->last_olk_disp_order_hint[cm->mlayer_id] =
-          cm->current_frame.display_order_hint;
+      cm->last_olk_order_hint = cm->current_frame.order_hint;
+      cm->last_olk_disp_order_hint = cm->current_frame.display_order_hint;
     } else {
       cpi->olk_encountered = 0;
     }
   } else {
-    if (cm->last_olk_disp_order_hint[cm->mlayer_id] >
-        cm->current_frame.display_order_hint) {
+    if (cm->last_olk_disp_order_hint > cm->current_frame.display_order_hint) {
       cm->is_leading_picture = 1;
     } else {
       cm->is_leading_picture = 0;

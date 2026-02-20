@@ -2342,16 +2342,30 @@ avm_codec_err_t parse_mfh(struct AV2Decoder *pbi, const uint8_t *data,
   mfh_list[mfh_id].mfh_seq_header_id = mfh_seq_header_id;
   return AVM_CODEC_OK;
 }
-// Parse given "data" to get immediate_output_frame,
-// implicit_output_frame, and order_hint. "data" contains the payload of
-// OBU_CLK/OLK. This function is called only for keyobus with
-// is_first_tile_group = 1. On sucess, returns AVM_CODEC_OK.
-avm_codec_err_t parse_to_order_hint_for_keyobu(
+// Lightweight parser for all VCL OBUs that carry a full uncompressed frame
+// header (CLK, OLK, LEADING/REGULAR_TILE_GROUP, SWITCH, RAS_FRAME,
+// LEADING/REGULAR_TIP, BRIDGE_FRAME).  SEF is excluded because it uses
+// show_existing_frame syntax and is handled by parse_to_order_hint_for_sef().
+//
+// Reads just enough of the OBU payload to determine current_is_shown and
+// current_order_hint without performing full decoding.
+//
+// For OBU types that signal is_first_tile_group (all types except TIP and
+// BRIDGE_FRAME), the function returns AVM_CODEC_OK immediately without
+// updating the output arguments when is_first_tile_group == 0.
+//
+// Returns AVM_CODEC_OK on success, or an error code if the bitstream is
+// corrupt.
+avm_codec_err_t parse_to_order_hint_for_vcl_obu(
     struct AV2Decoder *pbi, const uint8_t *data, size_t payload_size,
     OBU_TYPE obu_type, int xlayer_id, int tlayer_id, int mlayer_id,
     struct SequenceHeader *current_seq_params,
-    struct MultiFrameHeader *mfh_list, int *current_is_shown,
+    struct MultiFrameHeader *current_mfh, int *current_is_shown,
     int *current_order_hint) {
+  assert(is_multi_tile_vcl_obu(obu_type) || obu_type == OBU_LEADING_TIP ||
+         obu_type == OBU_REGULAR_TIP || obu_type == OBU_BRIDGE_FRAME);
+  assert(obu_type != OBU_LEADING_SEF && obu_type != OBU_REGULAR_SEF);
+
   struct avm_read_bit_buffer readbits;
   struct avm_read_bit_buffer *rb = &readbits;
   rb->bit_offset = 0;
@@ -2359,72 +2373,231 @@ avm_codec_err_t parse_to_order_hint_for_keyobu(
   rb->bit_buffer = data;
   rb->bit_buffer_end = data + payload_size;
 
-  int is_first_tile_group = avm_rb_read_bit(rb);
-  if (!is_first_tile_group) return AVM_CODEC_OK;  // skip
+  // TIP and BRIDGE_FRAME do not carry an is_first_tile_group bit; for all
+  // other VCL types the first payload bit is is_first_tile_group.
+  bool has_first_tile_group_bit =
+      (obu_type != OBU_LEADING_TIP && obu_type != OBU_REGULAR_TIP &&
+       obu_type != OBU_BRIDGE_FRAME);
+  if (has_first_tile_group_bit) {
+    int is_first_tile_group = avm_rb_read_bit(rb);
+    if (!is_first_tile_group) return AVM_CODEC_OK;
+  }
 
-  // read_uncompressed_header
-  int32_t cur_mfh_id = avm_rb_read_uvlc(rb);
+  // --- cur_mfh_id and seq_header_id (common to all remaining OBU types) ---
+  // BRIDGE_FRAME: cur_mfh_id is implicitly 0 (no bit in bitstream).
+  int32_t cur_mfh_id =
+      (obu_type == OBU_BRIDGE_FRAME) ? 0 : avm_rb_read_uvlc(rb);
   uint32_t seq_header_id_in_frame_header = 0;
-  if (cur_mfh_id == 0)
+  if (cur_mfh_id == 0) {
     seq_header_id_in_frame_header = avm_rb_read_uvlc(rb);
-  else {
+  } else {
     // check the newly signalled MFH first since new MFH may overwrite the
     // previous ones in common.mfh_params
-    if (mfh_list[cur_mfh_id].mfh_id != -1) {
-      assert(mfh_list[cur_mfh_id].mfh_id == cur_mfh_id);
-      seq_header_id_in_frame_header = mfh_list[cur_mfh_id].mfh_seq_header_id;
+    if (current_mfh[cur_mfh_id].mfh_id != -1) {
+      assert(current_mfh[cur_mfh_id].mfh_id == cur_mfh_id);
+      seq_header_id_in_frame_header = current_mfh[cur_mfh_id].mfh_seq_header_id;
     } else if (pbi->common.mfh_valid[cur_mfh_id]) {
       seq_header_id_in_frame_header =
           pbi->common.mfh_params[cur_mfh_id].mfh_seq_header_id;
     } else {
-      // cm->mfh_params[mfh_id_signalled+1] is not valid/present,
       return AVM_CODEC_CORRUPT_FRAME;
     }
   }
 
-  // select sequence header
+  // Select sequence header
   struct SequenceHeader *seq_params;
   if ((uint32_t)current_seq_params->seq_header_id ==
       seq_header_id_in_frame_header) {
-    // use new sh
     seq_params = current_seq_params;
   } else if (pbi->seq_list[xlayer_id][seq_header_id_in_frame_header]
                  .seq_header_id >= 0) {
-    // seq_list[seq_header_id_in_frame_header]
     seq_params = &pbi->seq_list[xlayer_id][seq_header_id_in_frame_header];
   } else {
-    // mfh_list[mfh_id_signalled+1] is not valid/present,
     return AVM_CODEC_CORRUPT_FRAME;
   }
 
-  // int long_term_id =
-  avm_rb_read_literal(rb, seq_params->number_of_bits_for_lt_frame_id);
+  // --- bridge_frame_ref_idx (BRIDGE_FRAME only) ---
+  if (obu_type == OBU_BRIDGE_FRAME) {
+    avm_rb_read_literal(rb, seq_params->ref_frames_log2);
+  }
 
-  bool immediate_output_picture = 0;
-  bool implicit_output_picture = 0;
-  if (obu_type == OBU_OLK)
+  // --- frame_type ---
+  // CLK/OLK: KEY_FRAME (implicit, no bit).
+  // TIP/BRIDGE: INTER_FRAME (implicit, no bit).
+  // SWITCH/RAS_FRAME: S_FRAME (implicit, no bit).
+  // All other tile groups: read 1 bit (INTER vs INTRA_ONLY).
+  int frame_type;
+  if (obu_type == OBU_CLK || obu_type == OBU_OLK) {
+    frame_type = KEY_FRAME;
+  } else if (obu_type == OBU_SWITCH || obu_type == OBU_RAS_FRAME) {
+    frame_type = S_FRAME;
+  } else if (obu_type == OBU_LEADING_TIP || obu_type == OBU_REGULAR_TIP ||
+             obu_type == OBU_BRIDGE_FRAME) {
+    frame_type = INTER_FRAME;
+  } else {
+    frame_type = avm_rb_read_bit(rb) ? INTER_FRAME : INTRA_ONLY_FRAME;
+  }
+
+  // --- restricted_prediction_switch (SWITCH and RAS_FRAME only) ---
+  // Must be read immediately after frame_type for S_FRAMEs, before
+  // long_term_id / ref_long_term_ids, matching read_uncompressed_header().
+  // When set, display_order_hint == order_hint directly (no DPB loop),
+  // matching get_disp_order_hint() for S_FRAMEs.
+  int restricted_prediction_switch = 0;
+  if (obu_type == OBU_SWITCH || obu_type == OBU_RAS_FRAME) {
+    restricted_prediction_switch = avm_rb_read_bit(rb);
+  }
+
+  // --- long_term_id / ref_long_term_ids ---
+  // CLK/OLK (KEY_FRAME): long_term_id.
+  // RAS_FRAME: num_ref_key_frames then each ref long_term_id.
+  // All others: nothing.
+  if (frame_type == KEY_FRAME) {
+    avm_rb_read_literal(rb, seq_params->number_of_bits_for_lt_frame_id);
+  } else if (obu_type == OBU_RAS_FRAME) {
+    int num_ref_key_frames = avm_rb_read_literal(rb, 3);
+    for (int i = 0; i < num_ref_key_frames; i++) {
+      avm_rb_read_literal(rb, seq_params->number_of_bits_for_lt_frame_id);
+    }
+  }
+
+  // --- immediate_output_picture / implicit_output_picture ---
+  // OLK and BRIDGE_FRAME: immediate_output_picture is implicitly 0.
+  // All others: read 1 bit.
+  bool immediate_output_picture;
+  if (obu_type == OBU_OLK || obu_type == OBU_BRIDGE_FRAME) {
     immediate_output_picture = 0;
-  else
+  } else {
     immediate_output_picture = avm_rb_read_bit(rb);
-
-  if (!immediate_output_picture) {
+  }
+  bool implicit_output_picture = 0;
+  // BRIDGE_FRAME: implicit_output_picture is implicitly 0 (no bit).
+  if (!immediate_output_picture && obu_type != OBU_BRIDGE_FRAME) {
     implicit_output_picture = avm_rb_read_bit(rb);
   }
   *current_is_shown = immediate_output_picture || implicit_output_picture;
 
-  if (!seq_params->single_picture_header_flag) {
-    avm_rb_read_bit(rb);  // bool frame_size_override_flag  =
+  // --- frame_size_override_flag ---
+  // BRIDGE_FRAME: implicitly 1 (no bit in the bitstream).
+  // S_FRAME (SWITCH/RAS): implicitly 1 (no bit).
+  // single_picture_header_flag: no bit.
+  // All others: read 1 bit.
+  if (obu_type != OBU_BRIDGE_FRAME && frame_type != S_FRAME &&
+      !seq_params->single_picture_header_flag) {
+    avm_rb_read_bit(rb);  // frame_size_override_flag
   }
+
+  // --- order_hint and display_order_hint derivation ---
   int order_hint = avm_rb_read_literal(
       rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
 
-  if (obu_type == OBU_CLK)
+  if (obu_type == OBU_CLK) {
+    // CLK: display_order_hint == order_hint directly.
     *current_order_hint = order_hint;
-  else {
+  } else if (frame_type == S_FRAME && restricted_prediction_switch) {
+    // S_FRAME with restricted_prediction_switch: display_order_hint ==
+    // order_hint directly (matching get_disp_order_hint() behaviour which
+    // get_disp_order_hint_keyobu() lacks).
+    *current_order_hint = order_hint;
+  } else {
+    // This functions(parse_to_order_hint_for_vcl_obu) is called before
+    // store_xlayer_context(). but this particular block is called only after at
+    // least one round of avm_decode_frame_from_obus()
+    int stream_idx = get_stream_index(&pbi->common, xlayer_id);
+    RefCntBuffer **ref_frame_map =
+        (stream_idx >= 0) ? pbi->stream_info[stream_idx].ref_frame_map_buf
+                          : pbi->common.ref_frame_map;
+    *current_order_hint = get_disp_order_hint_keyobu(
+        seq_params, obu_type, order_hint, tlayer_id, mlayer_id, ref_frame_map,
+        pbi->random_accessed, false, -1, -1);
+  }
+
+  return AVM_CODEC_OK;
+}
+
+// Parse an SEF (LEADING_SEF or REGULAR_SEF) OBU payload to extract
+// current_is_shown and current_order_hint. SEF uses show_existing_frame syntax
+// instead of a normal uncompressed frame header, so it cannot share the
+// parse_to_order_hint_for_vcl_obu() path. SEF frames are always output
+// (is_shown = 1).
+//
+// Two cases:
+//   derive_sef_order_hint == 0: order_hint is explicit; derive
+//   display_order_hint
+//                               via get_disp_order_hint_keyobu().
+//   derive_sef_order_hint == 1: inherit display_order_hint from the referenced
+//                               DPB slot (ref_frame_map[existing_frame_idx]).
+avm_codec_err_t parse_to_order_hint_for_sef(
+    struct AV2Decoder *pbi, const uint8_t *data, size_t payload_size,
+    OBU_TYPE obu_type, int xlayer_id, int tlayer_id, int mlayer_id,
+    struct SequenceHeader *current_seq_params,
+    struct MultiFrameHeader *current_mfh, int *current_is_shown,
+    int *current_order_hint) {
+  assert(obu_type == OBU_LEADING_SEF || obu_type == OBU_REGULAR_SEF);
+
+  struct avm_read_bit_buffer readbits;
+  struct avm_read_bit_buffer *rb = &readbits;
+  rb->bit_offset = 0;
+  rb->error_handler_data = NULL;
+  rb->bit_buffer = data;
+  rb->bit_buffer_end = data + payload_size;
+
+  // --- cur_mfh_id and seq_header_id ---
+  int32_t cur_mfh_id = avm_rb_read_uvlc(rb);
+  uint32_t seq_header_id_in_frame_header = 0;
+  if (cur_mfh_id == 0) {
+    seq_header_id_in_frame_header = avm_rb_read_uvlc(rb);
+  } else {
+    if (current_mfh[cur_mfh_id].mfh_id != -1) {
+      assert(current_mfh[cur_mfh_id].mfh_id == cur_mfh_id);
+      seq_header_id_in_frame_header = current_mfh[cur_mfh_id].mfh_seq_header_id;
+    } else if (pbi->common.mfh_valid[cur_mfh_id]) {
+      seq_header_id_in_frame_header =
+          pbi->common.mfh_params[cur_mfh_id].mfh_seq_header_id;
+    } else {
+      return AVM_CODEC_CORRUPT_FRAME;
+    }
+  }
+
+  // Select sequence header
+  struct SequenceHeader *seq_params;
+  if ((uint32_t)current_seq_params->seq_header_id ==
+      seq_header_id_in_frame_header) {
+    seq_params = current_seq_params;
+  } else if (pbi->seq_list[xlayer_id][seq_header_id_in_frame_header]
+                 .seq_header_id >= 0) {
+    seq_params = &pbi->seq_list[xlayer_id][seq_header_id_in_frame_header];
+  } else {
+    return AVM_CODEC_CORRUPT_FRAME;
+  }
+
+  // existing_frame_idx
+  int existing_frame_idx = avm_rb_read_literal(rb, seq_params->ref_frames_log2);
+
+  // derive_sef_order_hint
+  int derive_sef_order_hint = avm_rb_read_bit(rb);
+
+  // SEF frames are always shown
+  *current_is_shown = 1;
+
+  if (!derive_sef_order_hint) {
+    // Explicit order_hint in bitstream; derive display_order_hint normally.
+    int order_hint = avm_rb_read_literal(
+        rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
     *current_order_hint = get_disp_order_hint_keyobu(
         seq_params, obu_type, order_hint, tlayer_id, mlayer_id,
         pbi->common.ref_frame_map, pbi->random_accessed, false, -1, -1);
+  } else {
+    // Inherit display_order_hint from the referenced DPB slot.
+    if (existing_frame_idx < seq_params->ref_frames &&
+        pbi->common.ref_frame_map[existing_frame_idx] != NULL) {
+      *current_order_hint =
+          pbi->common.ref_frame_map[existing_frame_idx]->display_order_hint;
+    } else {
+      return AVM_CODEC_CORRUPT_FRAME;
+    }
   }
+
   return AVM_CODEC_OK;
 }
 
