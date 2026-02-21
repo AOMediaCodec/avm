@@ -6543,7 +6543,8 @@ static void write_frame_hash(AV2_COMP *const cpi,
 }
 
 static size_t write_scan_type_metadata(AV2_COMP *const cpi, uint8_t *dst,
-                                       ObuHeader *obu_header) {
+                                       ObuHeader *obu_header,
+                                       int use_short_metadata) {
   if (!cpi->source) return 0;
   AV2_COMMON *const cm = &cpi->common;
   unsigned char payload[1];
@@ -6567,10 +6568,29 @@ static size_t write_scan_type_metadata(AV2_COMP *const cpi, uint8_t *dst,
   metadata->persistence_idc = AVM_NO_PERSISTENCE;
   metadata->layer_idc = AVM_LAYER_CURRENT;
   metadata->sz = avm_wb_bytes_written(&wb);
-  total_bytes_written +=
-      av2_write_metadata_unit_header(metadata, dst, obu_header);
-  total_bytes_written +=
-      av2_write_metadata_unit(metadata, dst + total_bytes_written);
+
+  if (use_short_metadata) {
+    metadata->is_suffix = 1;
+    size_t obu_header_size =
+        av2_write_obu_header(&cpi->level_params, OBU_METADATA_SHORT, 0, 0, dst);
+    size_t obu_payload_size =
+        av2_write_metadata_obu(metadata, dst + obu_header_size);
+    size_t length_field_size =
+        obu_memmove(obu_header_size, obu_payload_size, dst);
+    if (av2_write_uleb_obu_size(obu_header_size, obu_payload_size, dst) ==
+        AVM_CODEC_OK) {
+      const size_t obu_size = obu_header_size + obu_payload_size;
+      total_bytes_written += obu_size + length_field_size;
+    } else {
+      avm_internal_error(&cpi->common.error, AVM_CODEC_ERROR,
+                         "Error writing metadata OBU size");
+    }
+  } else {
+    total_bytes_written +=
+        av2_write_metadata_unit_header(metadata, dst, obu_header);
+    total_bytes_written +=
+        av2_write_metadata_unit(metadata, dst + total_bytes_written);
+  }
   avm_img_metadata_free(metadata);
 
   return total_bytes_written;
@@ -7275,7 +7295,7 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
     avm_metadata_array_t arr;
     arr.sz = 1;
     avm_metadata_t metadata_base;
-    metadata_base.is_suffix = 0;
+    metadata_base.is_suffix = 1;
     metadata_base.necessity_idc = AVM_NECESSITY_ADVISORY;
     metadata_base.application_id = AVM_APPID_UNDEFINED;
     ObuHeader obu_header;
@@ -7286,24 +7306,7 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
 
     if (cpi->oxcf.tool_cfg.use_short_metadata) {
       // SHORT format: write single metadata as OBU_METADATA_SHORT
-      obu_header.type = OBU_METADATA_SHORT;
-      obu_header_size =
-          av2_write_obu_header(&cpi->level_params, obu_header.type, 0, 0, data);
-      obu_payload_size = (uint32_t)write_scan_type_metadata(
-          cpi, data + obu_header_size, &obu_header);
-      // Add trailing bits
-      data[obu_header_size + obu_payload_size] = 0x80;
-      obu_payload_size++;
-
-      size_t length_field_size =
-          obu_memmove(obu_header_size, obu_payload_size, data);
-      if (av2_write_uleb_obu_size(obu_header_size, obu_payload_size, data) ==
-          AVM_CODEC_OK) {
-        data += obu_header_size + length_field_size + obu_payload_size;
-      } else {
-        avm_internal_error(&cpi->common.error, AVM_CODEC_ERROR,
-                           "Error writing metadata OBU size");
-      }
+      data += write_scan_type_metadata(cpi, data, &obu_header, 1);
     } else {
       // GROUP format: write metadata in GROUP OBU
       obu_header.type = OBU_METADATA_GROUP;
@@ -7313,7 +7316,7 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
       obu_payload_size += av2_write_metadata_group_header(
           data + obu_header_size, arr.sz, &metadata_base);
       obu_payload_size += write_scan_type_metadata(
-          cpi, data + obu_header_size + obu_payload_size, &obu_header);
+          cpi, data + obu_header_size + obu_payload_size, &obu_header, 0);
 
       // trailing bits
       data[obu_header_size + obu_payload_size] = 0x80;
