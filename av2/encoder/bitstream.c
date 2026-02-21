@@ -6391,7 +6391,26 @@ static size_t av2_write_metadata_unit(const avm_metadata_t *metadata,
   size_t coded_metadata_size = 0;
   memcpy(dst + coded_metadata_size, metadata->payload, metadata->sz);
 
+#if CONFIG_CWG_G032
+  coded_metadata_size += metadata->sz;
+  // Write metadata_unit_remaining_bits (currently zero bits).
+  // Future versions of the specification may define extension data here.
+  const size_t metadata_unit_remaining_bits = 0;
+  if (metadata_unit_remaining_bits > 0) {
+    struct avm_write_bit_buffer wb = { dst + coded_metadata_size, 0 };
+    for (size_t i = 0; i < metadata_unit_remaining_bits; i++) {
+      avm_wb_write_bit(&wb, 0);
+    }
+    // Write byte_alignment() padding: zero bits until byte-aligned.
+    while (!avm_wb_is_byte_aligned(&wb)) {
+      avm_wb_write_bit(&wb, 0);
+    }
+    coded_metadata_size += avm_wb_bytes_written(&wb);
+  }
+  return (uint32_t)coded_metadata_size;
+#else
   return (uint32_t)(coded_metadata_size + metadata->sz);
+#endif  // CONFIG_CWG_G032
 }
 static size_t av2_write_metadata_obu(const avm_metadata_t *metadata,
                                      uint8_t *const dst) {
