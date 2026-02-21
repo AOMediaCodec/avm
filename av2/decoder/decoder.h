@@ -303,6 +303,8 @@ typedef struct {
   struct AtlasSegmentInfo *active_atlas_segment_info_buf;
   struct quantization_matrix_set qm_list_buf[NUM_CUSTOM_QMS];
   int qm_protected_buf[NUM_CUSTOM_QMS];
+  int qm_from_leading_buf[NUM_CUSTOM_QMS];
+  int fgm_from_leading_buf[MAX_FGM_NUM];
   int olk_encountered_buf;
   uint64_t random_access_point_index_buf;
   uint64_t random_access_point_count_buf;
@@ -493,6 +495,14 @@ typedef struct AV2Decoder {
   // when a new sequence header is activated since it is signalled with the
   // sequence header.
   int qm_protected[NUM_CUSTOM_QMS];
+  // qm_from_leading[i]==1 indicates qm_list[i] was last written by a leading
+  // frame QM OBU and has not yet been superseded by a regular frame QM OBU.
+  // Slots with this flag set that are not re-signalled in the first regular
+  // frame TU after leading frames are reset to predefined values.
+  int qm_from_leading[NUM_CUSTOM_QMS];
+  // fgm_from_leading[i]==1 indicates fgm_list[i] was last written by a leading
+  // frame FGM OBU. Same drop semantics as qm_from_leading.
+  int fgm_from_leading[MAX_FGM_NUM];
 
   /*!
    * list of stream info to store multiple variables per sub-stream

@@ -2785,6 +2785,14 @@ typedef struct AV2Common {
    * frames in the video.
    */
   BufferRemovalTimingInfo brt_info;
+#if CONFIG_CWG_G010
+  /*!
+   * brt_from_leading==1 indicates brt_info was last written by a leading frame
+   * BRT OBU. If the first regular frame TU does not carry its own BRT OBU the
+   * stale leading-frame timing data is cleared at the transition.
+   */
+  bool brt_from_leading;
+#endif  // CONFIG_CWG_G010
 
   /*!
    * Elements part of the multi-frame header, that are applicable for multiple
@@ -2795,6 +2803,11 @@ typedef struct AV2Common {
    * Array of booleans to indicate whether mfh_params[i] has been received.
    */
   bool mfh_valid[MAX_MFH_NUM];
+  /*! mfh_from_leading[i]==1 indicates mfh_params[i] was last written by a
+   *  leading frame MFH OBU. Slots not re-signalled in the first regular frame
+   * TU are invalidated (mfh_valid[i] set to false) at the transition.
+   */
+  bool mfh_from_leading[MAX_MFH_NUM];
 
   /*!
    * Elements part of the content interpretation, when present, applicable for
@@ -2802,6 +2815,11 @@ typedef struct AV2Common {
    * at the beginning of the decoder and at the random access point
    */
   ContentInterpretation ci_params_per_layer[MAX_NUM_MLAYERS];
+  /*! ci_from_leading[i]==1 indicates ci_params_per_layer[i] was last updated by
+   * a leading frame CI OBU. If not re-signalled in the first regular frame TU,
+   * ci_params_per_layer[i] is reset to its default at the transition.
+   */
+  bool ci_from_leading[MAX_NUM_MLAYERS];
 
   /*!
    * Content Interpretation params. Used by the encoder only.

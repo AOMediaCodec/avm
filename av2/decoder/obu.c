@@ -243,6 +243,12 @@ void av2_store_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm, int xlayer_id) {
     pbi->stream_info[stream_idx].qm_list_buf[i] = pbi->qm_list[i];
     pbi->stream_info[stream_idx].qm_protected_buf[i] = pbi->qm_protected[i];
   }
+  for (int i = 0; i < NUM_CUSTOM_QMS; i++)
+    pbi->stream_info[stream_idx].qm_from_leading_buf[i] =
+        pbi->qm_from_leading[i];
+  for (int i = 0; i < MAX_FGM_NUM; i++)
+    pbi->stream_info[stream_idx].fgm_from_leading_buf[i] =
+        pbi->fgm_from_leading[i];
   pbi->stream_info[stream_idx].olk_encountered_buf = pbi->olk_encountered;
   pbi->stream_info[stream_idx].random_access_point_index_buf =
       pbi->random_access_point_index;
@@ -311,6 +317,12 @@ void av2_restore_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
     pbi->qm_list[i] = pbi->stream_info[stream_idx].qm_list_buf[i];
     pbi->qm_protected[i] = pbi->stream_info[stream_idx].qm_protected_buf[i];
   }
+  for (int i = 0; i < NUM_CUSTOM_QMS; i++)
+    pbi->qm_from_leading[i] =
+        pbi->stream_info[stream_idx].qm_from_leading_buf[i];
+  for (int i = 0; i < MAX_FGM_NUM; i++)
+    pbi->fgm_from_leading[i] =
+        pbi->stream_info[stream_idx].fgm_from_leading_buf[i];
   pbi->olk_encountered = pbi->stream_info[stream_idx].olk_encountered_buf;
   pbi->random_access_point_index =
       pbi->stream_info[stream_idx].random_access_point_index_buf;
@@ -3084,6 +3096,95 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
                 (obu_header.type == OBU_CLK || obu_header.type == OBU_OLK);
           }
         }
+
+        // Drop picture unit HLS state that was derived exclusively from leading
+        // frame picture units when the first regular VCL OBU is encountered.
+        if (is_leading_vcl_obu(obu_header.type)) {
+          // Tag every QM/FGM/CI/MFH/BRT slot updated in this leading picture
+          // unit so we can identify and discard them at the transition.
+          const int leading_mlayer_id = cm->mlayer_id;
+          for (int i = 0; i < NUM_CUSTOM_QMS; i++)
+            if (acc_qm_id_bitmap & (1 << i)) pbi->qm_from_leading[i] = 1;
+          for (int i = 0; i < MAX_FGM_NUM; i++)
+            if (acc_fgm_id_bitmap & (1 << i)) pbi->fgm_from_leading[i] = 1;
+          if (pbi->obus_in_frame_unit_data[obu_header.obu_tlayer_id]
+                                          [leading_mlayer_id]
+                                          [OBU_CONTENT_INTERPRETATION])
+            cm->ci_from_leading[leading_mlayer_id] = true;
+          if (pbi->obus_in_frame_unit_data[obu_header.obu_tlayer_id]
+                                          [leading_mlayer_id]
+                                          [OBU_MULTI_FRAME_HEADER])
+            cm->mfh_from_leading[cm->cur_mfh_id] = true;
+#if CONFIG_CWG_G010
+          if (pbi->obus_in_frame_unit_data[obu_header.obu_tlayer_id]
+                                          [leading_mlayer_id]
+                                          [OBU_BUFFER_REMOVAL_TIMING])
+            cm->brt_from_leading = true;
+#endif  // CONFIG_CWG_G010
+        } else if (is_regular_vcl_obu(obu_header.type) &&
+                   (pbi->this_is_first_vcl_obu_in_tu == 1 ||
+                    pbi->this_is_first_keyframe_unit_in_tu == 1)) {
+          // First regular VCL Temporal unit after leading frames: drop all
+          // state that came exclusively from leading frame picture unit HLS
+          // OBUs and was not re-signalled in the current (regular) picture
+          // unit. NOTE: this part is tentative till issue1256_sh is integrated.
+          //"First regular TU" needs to be figured out for the case CLKs/OLKs
+          // TUs have non-keyframe VCL OBUs
+          const int regular_mlayer_id = cm->mlayer_id;
+          const int num_planes = av2_num_planes(cm);
+
+          for (int i = 0; i < NUM_CUSTOM_QMS; i++) {
+            if (pbi->qm_from_leading[i] && !(acc_qm_id_bitmap & (1 << i))) {
+              struct quantization_matrix_set *qmset = &pbi->qm_list[i];
+              qmset->qm_id = i;
+              qmset->qm_mlayer_id = -1;
+              qmset->qm_tlayer_id = -1;
+              qmset->quantizer_matrix_num_planes = num_planes;
+              qmset->is_user_defined_qm = false;
+              pbi->qm_protected[i] = 0;
+            }
+            pbi->qm_from_leading[i] = 0;
+          }
+
+          for (int i = 0; i < MAX_FGM_NUM; i++) {
+            if (pbi->fgm_from_leading[i] && !(acc_fgm_id_bitmap & (1 << i))) {
+              pbi->fgm_list[i].fgm_id = -1;
+              pbi->fgm_list[i].fgm_tlayer_id = -1;
+              pbi->fgm_list[i].fgm_mlayer_id = -1;
+            }
+            pbi->fgm_from_leading[i] = 0;
+          }
+
+          if (cm->ci_from_leading[regular_mlayer_id] &&
+              !pbi->obus_in_frame_unit_data[obu_header.obu_tlayer_id]
+                                           [regular_mlayer_id]
+                                           [OBU_CONTENT_INTERPRETATION]) {
+            av2_initialize_ci_params(
+                &cm->ci_params_per_layer[regular_mlayer_id]);
+          }
+          cm->ci_from_leading[regular_mlayer_id] = false;
+
+          for (int i = 0; i < MAX_MFH_NUM; i++) {
+            if (cm->mfh_from_leading[i] &&
+                !pbi->obus_in_frame_unit_data[obu_header.obu_tlayer_id]
+                                             [regular_mlayer_id]
+                                             [OBU_MULTI_FRAME_HEADER]) {
+              cm->mfh_valid[i] = false;
+            }
+            cm->mfh_from_leading[i] = false;
+          }
+
+#if CONFIG_CWG_G010
+          if (cm->brt_from_leading &&
+              !pbi->obus_in_frame_unit_data[obu_header.obu_tlayer_id]
+                                           [regular_mlayer_id]
+                                           [OBU_BUFFER_REMOVAL_TIMING]) {
+            memset(&cm->brt_info, 0, sizeof(cm->brt_info));
+          }
+          cm->brt_from_leading = false;
+#endif  // CONFIG_CWG_G010
+        }
+
         // It is a requirement that if multiple QM OBUs are present
         // consecutively prior to a coded frame, other than a QM OBU with
         // qm_bit_map equal to 0, such QM OBUs will not set the same QM ID more

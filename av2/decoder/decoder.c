@@ -212,6 +212,9 @@ AV2Decoder *av2_decoder_create(BufferPool *const pool) {
   for (int i = 0; i < NUM_CUSTOM_QMS; ++i) {
     pbi->qm_protected[i] = 0;
   }
+  for (int i = 0; i < NUM_CUSTOM_QMS; ++i) pbi->qm_from_leading[i] = 0;
+  for (int i = 0; i < MAX_FGM_NUM; ++i) pbi->fgm_from_leading[i] = 0;
+
   for (int i = 0; i < NUM_CUSTOM_QMS; ++i) {
     pbi->qm_list[i].qm_id = -1;
     pbi->qm_list[i].qm_tlayer_id = -1;
