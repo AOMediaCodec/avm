@@ -6616,17 +6616,16 @@ static size_t write_temporal_point_info_metadata(AV2_COMP *const cpi,
   }
 
   // Set up metadata fields for individual OBU_METADATA
-  metadata->is_suffix = 0;
+  metadata->is_suffix = 1;
   metadata->cancel_flag = 0;
   metadata->persistence_idc = AVM_NO_PERSISTENCE;
   metadata->layer_idc = AVM_LAYER_CURRENT;
 
   size_t total_bytes_written = 0;
-  OBU_TYPE obu_type = cpi->oxcf.tool_cfg.use_short_metadata
-                          ? OBU_METADATA_SHORT
-                          : OBU_METADATA_GROUP;
+  // Temporal point info metadata is only valid in SHORT format.
+  assert(cpi->oxcf.tool_cfg.use_short_metadata);
   size_t obu_header_size =
-      av2_write_obu_header(&cpi->level_params, obu_type, 0, 0, dst);
+      av2_write_obu_header(&cpi->level_params, OBU_METADATA_SHORT, 0, 0, dst);
   size_t obu_payload_size =
       av2_write_metadata_obu(metadata, dst + obu_header_size);
   size_t length_field_size =
