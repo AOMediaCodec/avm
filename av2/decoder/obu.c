@@ -278,7 +278,6 @@ static void store_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
         cm->olk_refresh_frame_flags[i];
   }
   pbi->stream_info[stream_idx].seq_params_buf = cm->seq_params;
-  pbi->stream_info[stream_idx].seq_header_count_buf = pbi->seq_header_count;
   for (int i = 0; i < MAX_MFH_NUM; i++) {
     pbi->stream_info[stream_idx].mfh_valid_buf[i] = cm->mfh_valid[i];
   }
@@ -360,7 +359,6 @@ static void restore_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
         pbi->stream_info[stream_idx].olk_refresh_frame_flags_buf[i];
   }
   cm->seq_params = pbi->stream_info[stream_idx].seq_params_buf;
-  pbi->seq_header_count = pbi->stream_info[stream_idx].seq_header_count_buf;
   for (int i = 0; i < MAX_MFH_NUM; i++) {
     cm->mfh_valid[i] = pbi->stream_info[stream_idx].mfh_valid_buf[i];
   }
