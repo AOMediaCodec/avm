@@ -2042,11 +2042,12 @@ static void check_lcr_layer_map_conformance(struct AV2Decoder *pbi,
   for (int lcr_id = 0; lcr_id < MAX_NUM_LCR; lcr_id++) {
     struct LayerConfigurationRecord *lcr_params =
         &pbi->lcr_list[xlayer_id][lcr_id];
-    if (lcr_params != NULL) continue;
+    if (lcr_params == NULL) continue;
     const LCRXLayerInfo *lcr_xlayer_info;
     int isGlobal = xlayer_id == GLOBAL_XLAYER_ID;
     if (isGlobal) {
       const GlobalLayerConfigurationRecord *glb_lcr = &lcr_params->global_lcr;
+      if (glb_lcr == NULL) return;
       for (int i = 0; i < glb_lcr->LcrMaxNumXLayerCount; i++) {
         int xLId = glb_lcr->lcr_xlayer_id[i];
         lcr_xlayer_info = &glb_lcr->xlayer_info[xLId];
@@ -2055,6 +2056,7 @@ static void check_lcr_layer_map_conformance(struct AV2Decoder *pbi,
       }
     } else {
       const LocalLayerConfigurationRecord *loc_lcr = &lcr_params->local_lcr;
+      if (loc_lcr == NULL) return;
       lcr_xlayer_info = &loc_lcr->xlayer_info;
       check_lcr_mlayer_tlayer_conformance(
           seq_header, &lcr_xlayer_info->mlayer_params, &cm->error);
