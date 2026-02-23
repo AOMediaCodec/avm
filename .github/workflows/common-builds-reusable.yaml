@@ -70,7 +70,7 @@ jobs:
           - nasm
           - no-examples
           - debug
-          - disable_12bit_profile
+          - disable-12bit-profile
 
   build-entropy-stats:
     name: Build (entropy-stats)
