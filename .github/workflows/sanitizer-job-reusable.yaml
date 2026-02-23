@@ -171,7 +171,7 @@ jobs:
           EOF
 
           cpu_cores=$(nproc)
-          total_shards=$((2*cpu_cores))
+          total_shards=$((8*cpu_cores))
           commands=/tmp/parallel.commands.$$
           exit_code=0
 
