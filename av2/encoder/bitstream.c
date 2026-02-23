@@ -4299,6 +4299,24 @@ static AVM_INLINE void write_tile_info(AV2_COMMON *const cm,
   if (cm->bridge_frame_info.is_bridge_frame) {
     return;
   }
+
+#if CONFIG_TILE_OVERWT
+  const TileInfoSyntax *const tile_params = find_effective_tile_params(
+      cm, cm->tiles.reuse_tile_info_flag);
+
+  if (cm->seq_params.seq_tile_info_present_flag) {
+    if (cm->seq_params.allow_tile_info_change) {
+      cm->tiles.reuse_tile_info_flag =
+          check_tile_equivalence(tile_params, &cm->tiles);
+      avm_wb_write_bit(wb, cm->tiles.reuse_tile_info_flag);
+    } else {
+      assert(cm->tiles.reuse_tile_info_flag == 1);
+    }
+    assert(IMPLIES(cm->tiles.reuse_tile_info_flag,
+                   check_tile_equivalence(tile_params, &cm->tiles)));
+  }
+  if (!cm->tiles.reuse_tile_info_flag)
+#else
   const TileInfoSyntax *const tile_params = find_effective_tile_params(cm);
   int reuse = 0;
   if (tile_params &&
@@ -4311,7 +4329,9 @@ static AVM_INLINE void write_tile_info(AV2_COMMON *const cm,
     }
     assert(IMPLIES(reuse, check_tile_equivalence(tile_params, &cm->tiles)));
   }
-  if (!reuse) write_tile_info_max_tile(&cm->tiles, wb);
+  if (!reuse)
+#endif
+    write_tile_info_max_tile(&cm->tiles, wb);
   *saved_wb = *wb;
   if (cm->tiles.rows * cm->tiles.cols > 1 &&
       cm->features.tip_frame_mode != TIP_FRAME_AS_OUTPUT) {
@@ -4463,7 +4483,9 @@ void av2_write_timing_info_header(const avm_timing_info_t *const timing_info,
 // Writes tile syntax
 void write_tile_syntax_info(const TileInfoSyntax *tile_params,
                             struct avm_write_bit_buffer *wb) {
+#if !CONFIG_TILE_OVERWT
   avm_wb_write_bit(wb, tile_params->allow_tile_info_change);
+#endif
   const CommonTileParams *tiles = &tile_params->tile_info;
   int size_sb, i;
   int tile_width_sb = tiles->sb_cols;
@@ -4881,7 +4903,12 @@ static AVM_INLINE void write_sequence_header(
   write_sequence_filter_group_tool_flags(seq_params, wb);
   avm_wb_write_bit(wb, seq_params->seq_tile_info_present_flag);
   if (seq_params->seq_tile_info_present_flag) {
+#if CONFIG_TILE_OVERWT
+    avm_wb_write_bit(wb, seq_params->allow_tile_info_change);
     write_tile_syntax_info(&seq_params->tile_params, wb);
+#else
+    write_tile_syntax_info(&seq_params->tile_params, wb);
+#endif
   }
 }
 

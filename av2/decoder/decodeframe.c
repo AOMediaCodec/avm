@@ -4101,6 +4101,13 @@ static void reconstruct_tile_info_max_tile(
   int width_sb = tile_info->sb_cols;
   int height_sb = tile_info->sb_rows;
 
+#if CONFIG_TILE_OVERWT
+  int seq_mi_cols = tile_info->mi_cols;
+  int seq_mi_rows = tile_info->mi_rows;
+  int frame_mi_cols = tiles->mi_cols;
+  int frame_mi_rows = tiles->mi_rows;
+#endif
+
   tiles->uniform_spacing = tile_info->uniform_spacing;
 
   // Read tile columns
@@ -4112,12 +4119,23 @@ static void reconstruct_tile_info_max_tile(
     for (i = 0, start_sb = 0; width_sb > 0 && i < MAX_TILE_COLS; i++) {
       const int size_sb =
           tile_info->col_start_sb[i + 1] - tile_info->col_start_sb[i];
+#if CONFIG_TILE_OVERWT
+      assert(size_sb > 1);
+      const int frame_size_sb = size_sb * frame_mi_cols / seq_mi_cols;
+      tiles->col_start_sb[i] = start_sb;
+      start_sb += frame_size_sb;
+#else
       tiles->col_start_sb[i] = start_sb;
       start_sb += size_sb;
+#endif
       width_sb -= size_sb;
     }
     tiles->cols = i;
+#if CONFIG_TILE_OVERWT
+    tiles->col_start_sb[i] = start_sb + width_sb * frame_mi_cols / seq_mi_cols;
+#else
     tiles->col_start_sb[i] = start_sb + width_sb;
+#endif
     assert(width_sb == 0);
   }
   av2_calculate_tile_cols(tiles);
@@ -4131,12 +4149,23 @@ static void reconstruct_tile_info_max_tile(
     for (i = 0, start_sb = 0; height_sb > 0 && i < MAX_TILE_ROWS; i++) {
       const int size_sb =
           tile_info->row_start_sb[i + 1] - tile_info->row_start_sb[i];
+#if CONFIG_TILE_OVERWT
+      assert(size_sb > 1);
+      const int frame_size_sb = size_sb * frame_mi_rows / seq_mi_rows;
+      tiles->row_start_sb[i] = start_sb;
+      start_sb += frame_size_sb;
+#else
       tiles->row_start_sb[i] = start_sb;
       start_sb += size_sb;
+#endif
       height_sb -= size_sb;
     }
     tiles->rows = i;
+#if CONFIG_TILE_OVERWT
+    tiles->row_start_sb[i] = start_sb + height_sb * frame_mi_rows / seq_mi_rows;
+#else
     tiles->row_start_sb[i] = start_sb + height_sb;
+#endif
     assert(height_sb == 0);
   }
   av2_calculate_tile_rows(tiles);
@@ -4213,6 +4242,20 @@ static AVM_INLINE void read_tile_info(AV2Decoder *const pbi,
 #endif  // CONFIG_G018
   );
 
+#if CONFIG_TILE_OVERWT
+  cm->tiles.reuse_tile_info_flag = 0;
+  if (cm->seq_params.seq_tile_info_present_flag) {
+    if (cm->seq_params.allow_tile_info_change) {
+      cm->tiles.reuse_tile_info_flag = avm_rb_read_bit(rb);
+    } else {
+      cm->tiles.reuse_tile_info_flag = 1;
+    }
+  }
+  const TileInfoSyntax *const tile_params = find_effective_tile_params(
+      cm, cm->tiles.reuse_tile_info_flag);
+  if (cm->tiles.reuse_tile_info_flag &&
+      is_frame_tile_config_reuse_eligible(tile_params, &cm->tiles, cm)) {
+#else
   const TileInfoSyntax *const tile_params = find_effective_tile_params(cm);
   int reuse = 0;
   if (tile_params &&
@@ -4223,6 +4266,7 @@ static AVM_INLINE void read_tile_info(AV2Decoder *const pbi,
       reuse = 1;
   }
   if (reuse) {
+#endif
     reconstruct_tile_info_max_tile(cm, tile_params);
   } else {
     read_tile_info_max_tile(cm, rb);
@@ -5913,7 +5957,9 @@ void av2_read_conformance_window(struct avm_read_bit_buffer *rb,
 
 void read_tile_syntax_info(TileInfoSyntax *tile_params,
                            struct avm_read_bit_buffer *rb) {
+#if !CONFIG_TILE_OVERWT
   tile_params->allow_tile_info_change = avm_rb_read_bit(rb);
+#endif
   CommonTileParams *tile_info = &tile_params->tile_info;
   tile_info->uniform_spacing = avm_rb_read_bit(rb);
 
@@ -5984,6 +6030,11 @@ void read_sequence_tile_info(struct SequenceHeader *seq_params,
 #endif  // CONFIG_G018
   );
   read_tile_syntax_info(&seq_params->tile_params, rb);
+#if CONFIG_TILE_OVERWT && CONFIG_G018
+  assert(av2_check_valid_tile_set(seq_params, &seq_params->tile_params,
+                                  seq_params->tile_params.tile_info.sb_cols,
+                                  seq_params->tile_params.tile_info.sb_rows));
+#endif  // CONFIG_TILE_OVERWT && CONFIG_G018
 }
 
 static void read_seg_syntax_info(struct SegmentationInfoSyntax *seg_params,
@@ -6349,7 +6400,11 @@ void read_sequence_segment_tool_flags(struct SequenceHeader *seq_params,
 void av2_read_sequence_header(struct avm_read_bit_buffer *rb,
                               SequenceHeader *seq_params) {
   seq_params->seq_tile_info_present_flag = 0;
+#if CONFIG_TILE_OVERWT
+  seq_params->allow_tile_info_change = 0;
+#else
   seq_params->tile_params.allow_tile_info_change = 0;
+#endif
   read_sequence_partition_group_tool_flags(seq_params, rb);
   read_sequence_segment_tool_flags(seq_params, rb);
   read_sequence_intra_group_tool_flags(seq_params, rb);
@@ -6359,6 +6414,9 @@ void av2_read_sequence_header(struct avm_read_bit_buffer *rb,
   read_sequence_filter_group_tool_flags(seq_params, rb);
   seq_params->seq_tile_info_present_flag = avm_rb_read_bit(rb);
   if (seq_params->seq_tile_info_present_flag) {
+#if CONFIG_TILE_OVERWT
+    seq_params->allow_tile_info_change = avm_rb_read_bit(rb);
+#endif
     read_sequence_tile_info(seq_params, rb);
   }
 }

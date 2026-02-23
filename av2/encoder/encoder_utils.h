@@ -974,10 +974,12 @@ static AVM_INLINE void av2_set_seq_tile_info(SequenceHeader *const seq_params,
   // For uniform tile spacing or if resize is disabled we currently do not
   // need to change tiling config per frame. This is an encoder side choice
   // and can be changed later.
+#if !CONFIG_TILE_OVERWT
   tile_params->allow_tile_info_change =
       !(oxcf->resize_cfg.resize_mode == RESIZE_NONE ||
         oxcf->tile_cfg.tile_width_count == 0 ||
         oxcf->tile_cfg.tile_height_count == 0);
+#endif
   int i, start_sb;
   av2_get_seq_tile_limits(tile_params, seq_params->max_frame_height,
                           seq_params->max_frame_width,
@@ -1024,6 +1026,10 @@ static AVM_INLINE void av2_set_seq_tile_info(SequenceHeader *const seq_params,
     tiles->row_start_sb[i] = sb_rows;
   }
   av2_calculate_tile_rows(tiles);
+#if CONFIG_TILE_OVERWT && CONFIG_G018
+  assert(av2_check_valid_tile_set(seq_params, tile_params, tiles->sb_cols,
+                                  tiles->sb_rows));
+#endif  // CONFIG_TILE_OVERWT && CONFIG_G018
 }
 
 static AVM_INLINE void av2_set_tile_info(AV2_COMMON *const cm,
@@ -1039,6 +1045,15 @@ static AVM_INLINE void av2_set_tile_info(AV2_COMMON *const cm,
                       cm->seq_params.seq_max_level_idx, cm->seq_params.seq_tier
 #endif  // CONFIG_G018
   );
+
+#if CONFIG_TILE_OVERWT
+  cm->tiles.reuse_tile_info_flag = 0;
+  if (cm->seq_params.seq_tile_info_present_flag) {
+    if (!cm->seq_params.allow_tile_info_change) {
+      cm->tiles.reuse_tile_info_flag = 1;
+    }
+  }
+#endif
 
   int sb_size_scale = 1;
   // Intra frame force to use SB size as 128x128 when encoder is configured with

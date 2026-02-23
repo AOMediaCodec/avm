@@ -546,6 +546,19 @@ void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
   seq->max_frame_height = frm_dim_cfg->forced_max_frame_height
                               ? frm_dim_cfg->forced_max_frame_height
                               : frm_dim_cfg->height;
+#if CONFIG_TILE_OVERWT
+  seq->allow_tile_info_change = 0;
+  if (!seq->still_picture && oxcf->kf_cfg.key_freq_max > 0) {
+    seq->allow_tile_info_change =
+        !(oxcf->resize_cfg.resize_mode == RESIZE_NONE ||
+          oxcf->tile_cfg.tile_width_count == 0 ||
+          oxcf->tile_cfg.tile_height_count == 0);
+    av2_set_seq_tile_info(seq, oxcf);
+    seq->seq_tile_info_present_flag = 1;
+  } else {
+    seq->seq_tile_info_present_flag = 0;
+  }
+#else
   seq->tile_params.allow_tile_info_change = 0;
   if (!seq->still_picture && oxcf->kf_cfg.key_freq_max > 0) {
     av2_set_seq_tile_info(seq, oxcf);
@@ -553,6 +566,7 @@ void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
   } else {
     seq->seq_tile_info_present_flag = 0;
   }
+#endif
 
   seq->seg_params.allow_seg_info_change = 1;
   if (!seq->still_picture && oxcf->kf_cfg.key_freq_max > 0) {

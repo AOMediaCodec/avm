@@ -629,6 +629,10 @@ typedef struct CommonTileParams {
    */
   uint8_t tile_active_bitmap[(MAX_TILE_ROWS * MAX_TILE_COLS + 7) / 8];
 
+#if CONFIG_TILE_OVERWT
+  uint8_t reuse_tile_info_flag;
+#endif
+
 } CommonTileParams;
 
 // This structure specifies cropping for the SH.
@@ -1204,7 +1208,12 @@ typedef struct SequenceHeader {
   uint8_t film_grain_params_present;
 
   uint8_t seq_tile_info_present_flag;  // whether seq level tile_info exists
+#if CONFIG_TILE_OVERWT
   TileInfoSyntax tile_params;
+  uint8_t allow_tile_info_change; /*!< whether to allow tile info change */
+#else
+  TileInfoSyntax tile_params;
+#endif
 
   // Operating point info.
   int operating_points_cnt_minus_1;
@@ -5881,21 +5890,51 @@ static INLINE avm_codec_err_t av2_get_chroma_subsampling(
 // Returns pointer to effective sequence level or multi-frame header level tile
 // info. Returns null if none exist
 static INLINE const TileInfoSyntax *find_effective_tile_params(
-    const AV2_COMMON *const cm) {
+    const AV2_COMMON *const cm
+#if CONFIG_TILE_OVERWT
+    ,
+    uint8_t reuse_tile_flag
+#endif
+) {
   // TODO(any): This function should return the effective mfh tile_params if it
   // exists, or the seq level tile_params if it exists, or NULL
+#if CONFIG_TILE_OVERWT
+  if (cm->seq_params.seq_tile_info_present_flag && reuse_tile_flag)
+    return &cm->seq_params.tile_params;
+#else
   if (cm->seq_params.seq_tile_info_present_flag)
     return &cm->seq_params.tile_params;
+#endif
   else
     return NULL;
 }
 
 static INLINE int is_frame_tile_config_reuse_eligible(
     const TileInfoSyntax *const tile_params,
-    const CommonTileParams *const tiles) {
+    const CommonTileParams *const tiles
+#if CONFIG_TILE_OVERWT
+    ,
+    const AV2_COMMON *const cm
+#endif
+) {
+#if CONFIG_TILE_OVERWT
+  // check_valid_set: for non-uniform tile sets, the tile set is only valid
+  // when the frame dimensions match the max frame dimensions from the
+  // sequence header.
+  (void)tiles;
+  if (!tile_params->tile_info.uniform_spacing) {
+    if ((cm->width != cm->seq_params.max_frame_width) ||
+        (cm->height != cm->seq_params.max_frame_height))
+      return 0;
+    else
+      return 1;
+  }
+  return 1;
+#else
   return (tile_params->tile_info.uniform_spacing ||
           (tile_params->tile_info.sb_rows == tiles->sb_rows &&
            tile_params->tile_info.sb_cols == tiles->sb_cols));
+#endif
 }
 
 static INLINE int is_frame_seg_config_reuse_eligible(

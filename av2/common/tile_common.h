@@ -123,6 +123,24 @@ static INLINE int tile_log2(int blk_size, int target) {
   return k;
 }
 
+#if CONFIG_TILE_OVERWT && CONFIG_G018
+// Compute the minimum and maximum tile widths in superblock units
+// for the given tile parameters. Returns 1 on success, 0 on failure.
+int av2_compute_tile_width_range(const struct TileInfoSyntax *tile_params,
+                                 int sb_cols, int *min_w, int *max_w);
+
+// Compute the minimum and maximum tile heights in superblock units
+// for the given tile parameters. Returns 1 on success, 0 on failure.
+int av2_compute_tile_height_range(const struct TileInfoSyntax *tile_params,
+                                  int sb_rows, int *min_h, int *max_h);
+
+// Validate that a tile set conforms to level/tier limits.
+// Returns 1 if valid, 0 if not.
+int av2_check_valid_tile_set(const struct SequenceHeader *seq_params,
+                             const struct TileInfoSyntax *tile_params,
+                             int sb_cols, int sb_rows);
+#endif  // CONFIG_TILE_OVERWT && CONFIG_G018
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
