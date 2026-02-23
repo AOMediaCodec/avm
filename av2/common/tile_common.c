@@ -347,17 +347,17 @@ int is_horz_tile_boundary(CommonTileParams *const tiles, int mi_row) {
 int av2_compute_tile_width_range(const TileInfoSyntax *tile_params, int sb_cols,
                                  int *min_w, int *max_w) {
   const CommonTileParams *const ti = &tile_params->tile_info;
+  int min_val = INT_MAX;
+  int max_val = 0;
   if (ti->uniform_spacing) {
-    const int tile_width_sb =
-        (sb_cols + (1 << ti->log2_cols) - 1) >> ti->log2_cols;
-    const int last_tile_width_sb =
-        sb_cols - tile_width_sb * ((1 << ti->log2_cols) - 1);
-    if (last_tile_width_sb <= 0) return 0;
-    *min_w = AVMMIN(tile_width_sb, last_tile_width_sb);
-    *max_w = AVMMAX(tile_width_sb, last_tile_width_sb);
+    // For uniform tiles, use the already-computed col_start_sb array
+    for (int i = 0; i < ti->cols; i++) {
+      const int size_sb = ti->col_start_sb[i + 1] - ti->col_start_sb[i];
+      if (size_sb <= 0) return 0;
+      min_val = AVMMIN(min_val, size_sb);
+      max_val = AVMMAX(max_val, size_sb);
+    }
   } else {
-    int min_val = INT_MAX;
-    int max_val = 0;
     const int seq_sb_cols = ti->sb_cols;
     for (int i = 0; i < ti->cols; i++) {
       int size_sb = ti->col_start_sb[i + 1] - ti->col_start_sb[i];
@@ -366,26 +366,27 @@ int av2_compute_tile_width_range(const TileInfoSyntax *tile_params, int sb_cols,
       min_val = AVMMIN(min_val, size_sb);
       max_val = AVMMAX(max_val, size_sb);
     }
-    *min_w = min_val;
-    *max_w = max_val;
   }
+  if (min_val == INT_MAX) return 0;
+  *min_w = min_val;
+  *max_w = max_val;
   return 1;
 }
 
 int av2_compute_tile_height_range(const TileInfoSyntax *tile_params,
                                   int sb_rows, int *min_h, int *max_h) {
   const CommonTileParams *const ti = &tile_params->tile_info;
+  int min_val = INT_MAX;
+  int max_val = 0;
   if (ti->uniform_spacing) {
-    const int tile_height_sb =
-        (sb_rows + (1 << ti->log2_rows) - 1) >> ti->log2_rows;
-    const int last_tile_height_sb =
-        sb_rows - tile_height_sb * ((1 << ti->log2_rows) - 1);
-    if (last_tile_height_sb <= 0) return 0;
-    *min_h = AVMMIN(tile_height_sb, last_tile_height_sb);
-    *max_h = AVMMAX(tile_height_sb, last_tile_height_sb);
+    // For uniform tiles, use the already-computed row_start_sb array
+    for (int i = 0; i < ti->rows; i++) {
+      const int size_sb = ti->row_start_sb[i + 1] - ti->row_start_sb[i];
+      if (size_sb <= 0) return 0;
+      min_val = AVMMIN(min_val, size_sb);
+      max_val = AVMMAX(max_val, size_sb);
+    }
   } else {
-    int min_val = INT_MAX;
-    int max_val = 0;
     const int seq_sb_rows = ti->sb_rows;
     for (int i = 0; i < ti->rows; i++) {
       int size_sb = ti->row_start_sb[i + 1] - ti->row_start_sb[i];
@@ -394,9 +395,10 @@ int av2_compute_tile_height_range(const TileInfoSyntax *tile_params,
       min_val = AVMMIN(min_val, size_sb);
       max_val = AVMMAX(max_val, size_sb);
     }
-    *min_h = min_val;
-    *max_h = max_val;
   }
+  if (min_val == INT_MAX) return 0;
+  *min_h = min_val;
+  *max_h = max_val;
   return 1;
 }
 
@@ -417,8 +419,7 @@ int av2_check_valid_tile_set(const SequenceHeader *seq_params,
     const int width_sf = av2_tile_width_scaling_factor[tier][level];
     const int area_sf = av2_tile_area_scaling_factor[tier][level];
     max_tile_width_limit = (width_sf * MAX_TILE_WIDTH) >> (sb_size_log2 + 2);
-    max_tile_area_limit =
-        (area_sf * MAX_TILE_AREA) >> (2 * sb_size_log2 + 2);
+    max_tile_area_limit = (area_sf * MAX_TILE_AREA) >> (2 * sb_size_log2 + 2);
   }
 
   int min_w, max_w;

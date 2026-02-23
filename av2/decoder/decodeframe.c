@@ -4251,8 +4251,8 @@ static AVM_INLINE void read_tile_info(AV2Decoder *const pbi,
       cm->tiles.reuse_tile_info_flag = 1;
     }
   }
-  const TileInfoSyntax *const tile_params = find_effective_tile_params(
-      cm, cm->tiles.reuse_tile_info_flag);
+  const TileInfoSyntax *const tile_params =
+      find_effective_tile_params(cm, cm->tiles.reuse_tile_info_flag);
   if (cm->tiles.reuse_tile_info_flag &&
       is_frame_tile_config_reuse_eligible(tile_params, &cm->tiles, cm)) {
 #else

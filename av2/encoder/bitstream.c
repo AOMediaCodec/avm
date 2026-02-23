@@ -4301,8 +4301,8 @@ static AVM_INLINE void write_tile_info(AV2_COMMON *const cm,
   }
 
 #if CONFIG_TILE_OVERWT
-  const TileInfoSyntax *const tile_params = find_effective_tile_params(
-      cm, cm->tiles.reuse_tile_info_flag);
+  const TileInfoSyntax *const tile_params =
+      find_effective_tile_params(cm, cm->tiles.reuse_tile_info_flag);
 
   if (cm->seq_params.seq_tile_info_present_flag) {
     if (cm->seq_params.allow_tile_info_change) {

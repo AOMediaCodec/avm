@@ -5910,8 +5910,7 @@ static INLINE const TileInfoSyntax *find_effective_tile_params(
 }
 
 static INLINE int is_frame_tile_config_reuse_eligible(
-    const TileInfoSyntax *const tile_params,
-    const CommonTileParams *const tiles
+    const TileInfoSyntax *const tile_params, const CommonTileParams *const tiles
 #if CONFIG_TILE_OVERWT
     ,
     const AV2_COMMON *const cm
