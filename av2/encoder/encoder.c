@@ -5030,19 +5030,6 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
           cm->ref_frame_map[i]->is_restricted = true;
       }
     }
-
-    int ref_frame_safe_to_use = 0;
-    for (int i = 0; i < cm->seq_params.ref_frames; i++) {
-      if (cm->ref_frame_map[i] != NULL) {
-        bool ref_unrestricted = (current_frame->frame_type == S_FRAME ||
-                                 current_frame->frame_type == KEY_FRAME ||
-                                 current_frame->frame_type == INTRA_ONLY_FRAME)
-                                    ? false
-                                    : !cm->ref_frame_map[i]->is_restricted;
-        ref_frame_safe_to_use |= ref_unrestricted << i;
-      }
-    }
-    cm->ref_frame_flags &= ref_frame_safe_to_use;
   }
   const int order_offset = cpi->gf_group.arf_src_offset[cpi->gf_group.index];
   const int cur_frame_disp =

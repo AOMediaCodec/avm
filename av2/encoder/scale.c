@@ -181,6 +181,8 @@ void av2_setup_frame_size(AV2_COMP *cpi) {
   cm->ref_frame_flags = (1 << cpi->common.ref_frames_info.num_total_refs) - 1;
   cm->cur_frame->num_ref_frames = cm->ref_frames_info.num_total_refs;
 
+  if (cm->restricted_prediction_switch) return;
+
   int ref_frame_safe_to_use = 0;
   for (int i = 0; i < cm->seq_params.ref_frames; i++) {
     if (cm->ref_frame_map[i] != NULL) {
