@@ -1619,6 +1619,14 @@ typedef struct MultiFrameHeader {
    */
   int mfh_frame_size_present_flag;
   /*!
+   * mlayer id for MFH
+   */
+  int mfh_mlayer_id;
+  /*!
+   * tlayer id for MFH
+   */
+  int mfh_tlayer_id;
+  /*!
    * Frame width bits
    */
   int mfh_frame_width_bits_minus1;

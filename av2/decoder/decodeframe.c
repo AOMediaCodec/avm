@@ -6431,6 +6431,8 @@ uint32_t av2_read_multi_frame_header(AV2_COMMON *cm,
 
   MultiFrameHeader *mfh_param = &cm->mfh_params[cur_mfh_id];
   mfh_param->mfh_seq_header_id = (int)mfh_seq_header_id;
+  mfh_param->mfh_mlayer_id = cm->mlayer_id;
+  mfh_param->mfh_tlayer_id = cm->tlayer_id;
   mfh_param->mfh_frame_width = cm->seq_params.max_frame_width;
   mfh_param->mfh_frame_height = cm->seq_params.max_frame_height;
   mfh_param->mfh_frame_size_present_flag = avm_rb_read_bit(rb);
@@ -7545,6 +7547,8 @@ static void handle_zero_cur_mfh_id(AV2_COMMON *const cm) {
   for (int i = 0; i < 4; i++) {
     cm->mfh_params[cm->cur_mfh_id].mfh_apply_deblocking_filter[i] = 0;
   }
+  cm->mfh_params[cm->cur_mfh_id].mfh_mlayer_id = cm->mlayer_id;
+  cm->mfh_params[cm->cur_mfh_id].mfh_tlayer_id = cm->tlayer_id;
   cm->mfh_valid[cm->cur_mfh_id] = true;
 }
 
@@ -7715,6 +7719,19 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
                            "header values.\n");
       }
     }
+  }
+  // Check conformance for MFH according to dependency maps
+  const int ref_mfh_mlayer_id = cm->mfh_params[cm->cur_mfh_id].mfh_mlayer_id;
+  const int ref_mfh_tlayer_id = cm->mfh_params[cm->cur_mfh_id].mfh_tlayer_id;
+  if (!seq_params->mlayer_dependency_map[cm->mlayer_id][ref_mfh_mlayer_id] ||
+      !seq_params->tlayer_dependency_map[cm->mlayer_id][cm->tlayer_id]
+                                        [ref_mfh_tlayer_id]) {
+    avm_internal_error(
+        &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+        "The MFH selection for the current layer with mlayer_id=%d, "
+        "tlayer_id=%d shall not depend on the MFH with mlayer_id=%d, "
+        "tlayer_id=%d according to the layer dependency maps.",
+        cm->mlayer_id, cm->tlayer_id, ref_mfh_mlayer_id, ref_mfh_tlayer_id);
   }
 
   if (obu_type == OBU_BRIDGE_FRAME) {
