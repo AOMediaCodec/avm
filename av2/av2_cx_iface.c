@@ -736,6 +736,10 @@ static avm_codec_err_t validate_config(avm_codec_alg_priv_t *ctx,
   RANGE_CHECK_HI(extra_cfg, arnr_strength, 6);
   RANGE_CHECK(extra_cfg, content, AVM_CONTENT_DEFAULT, AVM_CONTENT_INVALID - 1);
 
+  RANGE_CHECK_BOOL(extra_cfg, enable_palette);
+  RANGE_CHECK_BOOL(extra_cfg, enable_intrabc);
+  RANGE_CHECK(extra_cfg, enable_intrabc_ext, 0, 2);
+
 #if !CONFIG_AV2_PROFILES
   if (cfg->g_profile <= (unsigned int)PROFILE_1 &&
       cfg->g_bit_depth > AVM_BITS_10) {
