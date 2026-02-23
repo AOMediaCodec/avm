@@ -182,8 +182,10 @@ static uint32_t calculate_ops_data_size(AV2_COMP *cpi, int obu_xlayer_id,
 #endif  // CONFIG_CWG_G010
     write_ops_decoder_model_info(&op->decoder_model_info, &temp_wb);
 
+  assert(op->ops_initial_display_delay >= 1);
+  assert(op->ops_initial_display_delay <= BUFFER_POOL_MAX_SIZE);
   int ops_initial_display_delay_present_flag =
-      op->ops_initial_display_delay > 0;
+      op->ops_initial_display_delay != BUFFER_POOL_MAX_SIZE;
   avm_wb_write_bit(&temp_wb, ops_initial_display_delay_present_flag);
   if (ops_initial_display_delay_present_flag) {
     int ops_initial_display_delay_minus_1 = op->ops_initial_display_delay - 1;
@@ -496,8 +498,10 @@ uint32_t av2_write_operating_point_set_obu(AV2_COMP *cpi, int obu_xlayer_id,
       write_ops_decoder_model_info(&op->decoder_model_info, &wb);
     }
 
+    assert(op->ops_initial_display_delay >= 1);
+    assert(op->ops_initial_display_delay <= BUFFER_POOL_MAX_SIZE);
     int ops_initial_display_delay_present_flag =
-        op->ops_initial_display_delay > 0;
+        op->ops_initial_display_delay != BUFFER_POOL_MAX_SIZE;
     avm_wb_write_bit(&wb, ops_initial_display_delay_present_flag);
     if (ops_initial_display_delay_present_flag) {
       int ops_initial_display_delay_minus_1 = op->ops_initial_display_delay - 1;
@@ -669,6 +673,7 @@ void av2_set_ops_params(struct OperatingPointSet *ops, int xlayer_id,
   // Initialize default mlayer info and tlayer info for the xlayer id
   int count = ops_cnt < MAX_OPS_COUNT ? ops_cnt : MAX_OPS_COUNT;
   for (int i = 0; i < count; i++) {
+    ops->op[i].ops_initial_display_delay = BUFFER_POOL_MAX_SIZE;
     ops->op[i].mlayer_info.ops_mlayer_map[xlayer_id] = 1;
     ops->op[i].mlayer_info.ops_tlayer_map[xlayer_id][0] = 1;
     ops->op[i].mlayer_info.OPMLayerCount[xlayer_id] = 1;

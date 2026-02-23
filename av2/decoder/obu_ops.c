@@ -225,7 +225,7 @@ uint32_t av2_read_operating_point_set_obu(struct AV2Decoder *pbi,
         int ops_initial_display_delay_minus_1 = avm_rb_read_literal(rb, 4);
         op->ops_initial_display_delay = ops_initial_display_delay_minus_1 + 1;
       } else {
-        op->ops_initial_display_delay = 0;
+        op->ops_initial_display_delay = BUFFER_POOL_MAX_SIZE;
       }
 
       if (obu_xlayer_id == GLOBAL_XLAYER_ID) {
