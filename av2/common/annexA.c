@@ -232,9 +232,9 @@ int av2_check_profile_interop_conformance(
       }
       break;
     case MAIN_444_10:
-      // 444 profile: allow 4:2:0, 4:2:2, 4:4:4 and monochrome
+      // 444 profile: allow 4:2:0, 4:4:4 and monochrome
       err = check_chroma_format(monochrome, is_420, is_422, is_444,
-                                1 /* allow_420 */, 1 /* allow_422 */,
+                                1 /* allow_420 */, 0 /* allow_422 */,
                                 1 /* allow_444 */);
       if (err != AVM_CODEC_OK) {
         avm_internal_error(
