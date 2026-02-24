@@ -4951,6 +4951,15 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
         if (cm->ref_frame_map[i] != NULL)
           cm->ref_frame_map[i]->is_restricted = true;
       }
+#if CONFIG_G041
+      // NOTE: the quantization matrices should be reset at {the first VCL OBUs
+      // && the restricted switch frame.}
+      for (int qm_id = 0; qm_id < NUM_CUSTOM_QMS; qm_id++) {
+        cpi->use_user_defined_qm[qm_id] = false;
+      }
+      // Re-initialize gqmatrix/giqmatrix pointers to predefined tables
+      av2_qm_init(&cm->quant_params, av2_num_planes(cm));
+#endif
     }
   }
   const int order_offset = cpi->gf_group.arf_src_offset[cpi->gf_group.index];

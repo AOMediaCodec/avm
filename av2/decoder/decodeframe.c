@@ -7779,8 +7779,11 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   cm->seq_params = pbi->active_seq[xlayer_id];
 
   if (pbi->this_is_first_vcl_obu_in_tu) {
-    if (obu_type == OBU_CLOSED_LOOP_KEY || obu_type == OBU_OPEN_LOOP_KEY ||
-        obu_type == OBU_RAS_FRAME || obu_type == OBU_SWITCH) {
+    if (obu_type == OBU_CLOSED_LOOP_KEY || obu_type == OBU_OPEN_LOOP_KEY
+#if !CONFIG_G041
+        || obu_type == OBU_RAS_FRAME || obu_type == OBU_SWITCH
+#endif
+    ) {
       reset_qm_list(pbi);
     }
   }
@@ -8167,7 +8170,19 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
             cm->ref_frame_map[i]->frame_output_done = true;
           }
         }
+#if CONFIG_G041
+        if (!pbi->seen_restricted_switch_in_tu) {
+          reset_qm_list(pbi);
+          pbi->seen_restricted_switch_in_tu = 1;
+        }
+#endif
       }
+#if CONFIG_G041
+      // clean qm_protected
+      for (int i = 0; i < NUM_CUSTOM_QMS; ++i) {
+        pbi->qm_protected[i] = 0;
+      }
+#endif
     } else if (obu_type == OBU_REGULAR_TIP || obu_type == OBU_LEADING_TIP ||
                cm->bridge_frame_info.is_bridge_frame) {
       current_frame->frame_type = INTER_FRAME;

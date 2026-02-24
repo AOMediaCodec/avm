@@ -7077,7 +7077,7 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
     }
     data += obu_header_size + obu_payload_size + length_field_size_qm;
   }
-
+#if !CONFIG_G041
   if (cpi->oxcf.q_cfg.using_qm && cm->current_frame.frame_type == S_FRAME &&
       cm->restricted_prediction_switch) {
     // reset qm obus
@@ -7092,7 +7092,7 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
     }
     data += obu_header_size + obu_payload_size + length_field_size_qm;
   }
-
+#endif
   // Film Grain Model
   if ((cm->immediate_output_picture || cm->implicit_output_picture) &&
       cm->film_grain_params.apply_grain && !cm->show_existing_frame) {

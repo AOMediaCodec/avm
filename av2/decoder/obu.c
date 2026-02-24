@@ -2665,6 +2665,9 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         pbi->next_start_tile = 0;
         pbi->seen_vcl_obu_in_this_tu = 0;
         pbi->seen_keyframe_in_this_tu = 0;
+#if CONFIG_G041
+        pbi->seen_restricted_switch_in_tu = 0;
+#endif  // CONFIG_G041
         pbi->this_is_first_vcl_obu_in_tu = 0;
         break;
       case OBU_MULTI_STREAM_DECODER_OPERATION:

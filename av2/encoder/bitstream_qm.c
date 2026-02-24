@@ -288,7 +288,7 @@ uint32_t write_qm_obu(AV2_COMP *cpi, int signalled_obu_pos,
   size = avm_wb_bytes_written(&wb);
   return size;
 }
-
+#if !CONFIG_G041
 uint32_t write_reset_qm_obu(AV2_COMP *cpi, uint8_t *const dst) {
   struct avm_write_bit_buffer wb = { dst, 0 };
   uint32_t size = 0;
@@ -299,6 +299,7 @@ uint32_t write_reset_qm_obu(AV2_COMP *cpi, uint8_t *const dst) {
   size = avm_wb_bytes_written(&wb);
   return size;
 }
+#endif
 //-------//
 bool add_userqm_in_qmobulist(AV2_COMP *cpi) {
   bool obu_added = false;
