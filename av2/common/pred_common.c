@@ -405,16 +405,54 @@ int av2_get_ref_frames(AV2_COMMON *cm, int cur_frame_disp,
 
   cm->ref_frames_info.num_valid_refs_without_restricted_ref =
       cm->ref_frames_info.num_total_refs;
+#if 1  // ISSUE1333: include restricted refs in num_total_refs so the
+       // restricted S_FRAME can use their pixel buffers for inter prediction.
+       // The is_restricted flag blocks motion metadata (TMVP, global motion,
+       // CDF, MV scaling) through existing guards.
+       // Mirror the decoder-side logic in update_ref_frames_info().
+  for (int i = 0; i < cm->seq_params.ref_frames &&
+                  cm->ref_frames_info.num_total_refs < max_num_ref_frames;
+       i++) {
+    if (ref_frame_map_pairs[i].ref_frame_restricted != 1) continue;
+    const RefCntBuffer *const rbuf = cm->ref_frame_map[i];
+    if (rbuf == NULL) continue;
+    // Apply the same scalability guards the decoder uses.
+    if (!is_tlayer_scalable_and_dependent(
+            &cm->seq_params, cm->current_frame.tlayer_id, rbuf->tlayer_id,
+            cm->current_frame.mlayer_id))
+      continue;
+    if (!is_mlayer_scalable_and_dependent(
+            &cm->seq_params, cm->current_frame.mlayer_id, rbuf->mlayer_id))
+      continue;
+    // Check not already mapped (ref_frame_restricted slots are not in scores[])
+    int already_mapped = 0;
+    for (int j = 0;
+         j < cm->ref_frames_info.num_valid_refs_without_restricted_ref; j++) {
+      if (cm->remapped_ref_idx[j] == i) {
+        already_mapped = 1;
+        break;
+      }
+    }
+    if (already_mapped) continue;
+    cm->ref_frames_info.ref_frame_distance[cm->ref_frames_info.num_total_refs] =
+        INT_MAX;
+    cm->remapped_ref_idx[cm->ref_frames_info.num_total_refs] = i;
+    cm->ref_frames_info.num_total_refs++;
+  }
+#endif  // ISSUE1333
   cm->ref_frames_info.num_valid_refs_with_restricted_ref =
-      cm->ref_frames_info.num_total_refs +
-      cm->ref_frames_info.num_restricted_ref;
-
-  if (cm->ref_frames_info.num_valid_refs_with_restricted_ref >
-      max_num_ref_frames)
-    cm->ref_frames_info.num_valid_refs_with_restricted_ref = max_num_ref_frames;
-
-  cm->ref_frames_info.num_total_refs =
-      cm->ref_frames_info.num_valid_refs_with_restricted_ref;
+  cm->ref_frames_info.num_total_refs;
+//  cm->ref_frames_info.num_valid_refs_with_restricted_ref =
+//      cm->ref_frames_info.num_total_refs +
+//      cm->ref_frames_info.num_restricted_ref;
+//
+//  if (cm->ref_frames_info.num_valid_refs_with_restricted_ref >
+//      max_num_ref_frames)
+//    cm->ref_frames_info.num_valid_refs_with_restricted_ref = max_num_ref_frames;
+//
+//  cm->ref_frames_info.num_total_refs =
+//      cm->ref_frames_info.num_valid_refs_with_restricted_ref;
+//
 
   return n_ranked;
 }

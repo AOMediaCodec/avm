@@ -1762,7 +1762,15 @@ static AVM_INLINE void set_rel_frame_dist(
   for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ++ref_frame) {
     ref_frame_dist_info->ref_relative_dist[ref_frame] = 0;
     if (ref_frame_flags & (1 << ref_frame)) {
+#if 1  // ISSUE1333: restricted refs are now included in num_total_refs and
+       // ref_frame_flags for pixel access; skip distance computation for them.
+      if (cm->ref_frame_map[ref_frame] == NULL ||
+          cm->ref_frame_map[ref_frame]->is_restricted)
+        continue;
+#else
       if (cm->cur_frame->refs_restricted_status[ref_frame]) continue;
+#endif  // ISSUE1333
+
       int dist = av2_encoder_get_relative_dist(
           cm->cur_frame->ref_display_order_hint[ref_frame],
           cm->current_frame.display_order_hint);

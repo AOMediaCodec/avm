@@ -5028,9 +5028,19 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
         cm->ref_frame_map[i]->is_restricted = false;
     }
   }
-
   if (cm->restricted_prediction_switch) {
     if (current_frame->frame_type == S_FRAME) {
+      // Mark all pre-switch refs as restricted so that subsequent frames cannot
+      // use their motion information (TMVP, CDF, MV scaling).  Pixel buffers
+      // remain accessible for the switch frame's own inter prediction (see the
+      // is_restricted comment on RefCntBuffer), so ref_frame_flags is left
+      // unchanged: all reference slots stay enabled (non-zero) and the encoder
+      // may use inter prediction against any of the pre-switch buffers.
+      // Motion-info blocking is enforced separately:
+      //   - av2_setup_frame_buf_refs records ref_order_hints = -1 for every
+      //     restricted ref, disabling MV scaling and TMVP candidate projection.
+      //   - is_ref_motion_field_eligible_by_frame_type returns 0 for restricted
+      //     refs, preventing motion-field projection into future frames.
       for (int i = 0; i < cm->seq_params.ref_frames; i++) {
         if (cm->ref_frame_map[i] != NULL)
           cm->ref_frame_map[i]->is_restricted = true;
@@ -5052,6 +5062,12 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
     av2_get_ref_frames(cm, cur_frame_disp, 0, 0, cm->ref_frame_map_pairs);
     av2_get_ref_frames(cm, cur_frame_disp, 1, 0, cm->ref_frame_map_pairs);
   }
+#if 1  // ISSUE1333: re-sync num_ref_frames with the updated num_total_refs
+       // (which now includes restricted refs for restricted S_FRAMEs).  The
+       // first call in av2_encode_strategy set it from the pre-restriction
+       // count; this second call may change it via the ISSUE1333 append loop.
+  cm->cur_frame->num_ref_frames = cm->ref_frames_info.num_total_refs;
+#endif  // ISSUE1333
   current_frame->absolute_poc =
       current_frame->key_frame_number + current_frame->display_order_hint;
   if (current_frame->frame_type == KEY_FRAME) {

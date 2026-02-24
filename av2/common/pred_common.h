@@ -207,6 +207,18 @@ static INLINE int get_dir_rank(const AV2_COMMON *const cm, int refrank,
   // If refrank has the same distance as a reference return 0 (past)
   // but the dir_refrank[0] is -1
   if (cm->ref_frames_info.cur_refs[0] == refrank) return 0;
+#if 1  // ISSUE1333: restricted refs are appended to num_total_refs but are not
+       // placed in past_refs/future_refs/cur_refs (they are excluded in
+       // av2_get_past_future_cur_ref_lists).  Treat them as past refs with a
+       // high rank so get_dir_rank never returns -1 for a valid ref index.
+  {
+    const RefCntBuffer *const buf = get_ref_frame_buf(cm, refrank);
+    if (buf != NULL && buf->is_restricted) {
+      if (dir_refrank) dir_refrank[0] = cm->ref_frames_info.num_past_refs;
+      return 0;
+    }
+  }
+#endif  // ISSUE1333
   return -1;
 }
 

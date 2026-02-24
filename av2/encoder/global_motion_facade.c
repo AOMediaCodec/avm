@@ -290,6 +290,10 @@ static AVM_INLINE void update_valid_ref_frames_for_gm(
     if (buf == NULL ||
         (ref_disabled && cpi->sf.hl_sf.recode_loop != DISALLOW_RECODE)) {
       continue;
+#if 1  // ISSUE1333: skip global motion for restricted refs (pixel-only access)
+    } else if (buf->is_restricted) {
+      continue;
+#endif  // ISSUE1333
     } else {
       // Get the scaled buffer
       if (av2_is_scaled(get_ref_scale_factors(cm, frame)))
@@ -420,6 +424,9 @@ static AVM_INLINE void pick_base_gm_params(AV2_COMP *cpi) {
         (ref_disabled && cpi->sf.hl_sf.recode_loop != DISALLOW_RECODE)) {
       continue;
     }
+#if 1  // ISSUE1333: skip restricted refs (pixel-only, no motion metadata)
+    if (buf->is_restricted) continue;
+#endif  // ISSUE1333
 
     int their_num_refs = buf->num_ref_frames;
     for (int their_ref = 0; their_ref < their_num_refs; ++their_ref) {
@@ -447,6 +454,9 @@ static AVM_INLINE void pick_base_gm_params(AV2_COMP *cpi) {
 
         int temporal_distance;
         const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, frame);
+#if 1  // ISSUE1333: skip restricted refs (pixel-only, no motion metadata)
+        if (ref_buf->is_restricted) continue;
+#endif  // ISSUE1333
         const int ref_order_hint = ref_buf->display_order_hint;
         const int cur_order_hint = cm->cur_frame->display_order_hint;
         temporal_distance = get_relative_dist(&seq_params->order_hint_info,

@@ -3542,6 +3542,12 @@ static int motion_field_projection_side(AV2_COMMON *cm,
 
         MV_REFERENCE_FRAME end_frame = start_ref_map[ref_frame];
         if (end_frame == start_frame) continue;
+#if 1  // ISSUE1333: if the MV references a restricted ref, start_ref_map
+       // returns NONE_FRAME (the ref_display_order_hint was -1, so no DPB
+       // match was found).  Skip these entries to avoid incorrect TMVP
+       // projection with a zero scale factor.
+        if (end_frame == NONE_FRAME) continue;
+#endif  // ISSUE1333
 
         if (cm->seq_params.enable_mv_traj) {
           check_traj_intersect(cm, start_frame, end_frame, &ref_mv,
@@ -3685,6 +3691,10 @@ void calc_and_set_avg_lengths(AV2_COMMON *cm, int ref, int side) {
       if (mv_ref->ref_frame[side] != NONE_FRAME) {
         const int ref_hint =
             buf->ref_display_order_hint[mv_ref->ref_frame[side]];
+#if 1  // ISSUE1333: restricted refs are stored with ref_display_order_hint=-1;
+       // skip them to avoid passing a negative value to get_relative_dist.
+        if (ref_hint < 0) continue;
+#endif  // ISSUE1333
 
         const int dist = abs(get_relative_dist(&cm->seq_params.order_hint_info,
                                                buf_hint, ref_hint));
