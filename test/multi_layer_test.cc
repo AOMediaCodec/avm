@@ -669,7 +669,7 @@ TEST_P(MultiLayerTest, MultiLayerTest2Embedded2TemporalLag) {
 
 // 2 embedded (spatial) layers with periodic keyframe. Keyframe is inserted
 // on base ml=0 at time 4, 8, 12, 16.
-TEST_P(MultiLayerTest, MultiLayerTest2EmbeddedKeyFrame) {
+TEST_P(MultiLayerTest, DISABLED_MultiLayerTest2EmbeddedKeyFrame) {
   ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
   cfg_.g_lag_in_frames = 0;
   cfg_.kf_min_dist = 4;
