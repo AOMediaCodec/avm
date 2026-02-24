@@ -1781,11 +1781,9 @@ static AVM_FORCE_INLINE int warehouse_efficients_txb(
   const int(*base_lf_cost)[TCQ_CTXS][LF_BASE_SYMBOLS * 2] =
       coeff_costs->base_lf_cost;
   const int(*base_cost)[TCQ_CTXS][8] = coeff_costs->base_cost;
-  // const int(*base_lf_cost_uv)[TCQ_CTXS][LF_BASE_SYMBOLS * 2] =
-  //     coeff_costs->base_lf_cost_uv;
+
   const int(*base_lf_cost_uv)[LF_BASE_SYMBOLS * 2] =
       coeff_costs->base_lf_cost_uv;
-  // const int(*base_cost_uv)[TCQ_CTXS][8] = coeff_costs->base_cost_uv;
   const int(*base_cost_uv)[8] = coeff_costs->base_cost_uv;
 
   int hr_level_avg = hr_level >> 1;
@@ -2184,11 +2182,6 @@ static AVM_FORCE_INLINE int get_two_coeff_cost_simple(
   assert(ci > 0);
   int cost = 0;
 
-  // const int(*base_lf_cost_ptr)[TCQ_CTXS][LF_BASE_SYMBOLS * 2] =
-  //     plane > 0 ? txb_costs->base_lf_cost_uv : txb_costs->base_lf_cost;
-  // const int(*base_cost_ptr)[TCQ_CTXS][8] =
-  //     plane > 0 ? txb_costs->base_cost_uv : txb_costs->base_cost;
-
   const int(*base_lf_cost_ptr)[TCQ_CTXS][LF_BASE_SYMBOLS * 2] =
       txb_costs->base_lf_cost;
   const int(*base_lf_cost_uv_ptr)[LF_BASE_SYMBOLS * 2] =
@@ -2416,11 +2409,6 @@ static INLINE int get_coeff_cost_general(
                                       [AVMMIN(abs_qc, LF_BASE_SYMBOLS - 1) - 1]
                 : base_eob_cost_ptr[coeff_ctx][AVMMIN(abs_qc, 3) - 1];
   } else {
-    // const int(*base_lf_cost_ptr)[TCQ_CTXS][LF_BASE_SYMBOLS * 2] =
-    //     plane > 0 ? txb_costs->base_lf_cost_uv : txb_costs->base_lf_cost;
-    // const int(*base_cost_ptr)[TCQ_CTXS][8] =
-    //     plane > 0 ? txb_costs->base_cost_uv : txb_costs->base_cost;
-
     const int(*base_lf_cost_ptr)[TCQ_CTXS][LF_BASE_SYMBOLS * 2] =
         txb_costs->base_lf_cost;
     const int(*base_lf_cost_uv_ptr)[LF_BASE_SYMBOLS * 2] =
@@ -2601,10 +2589,6 @@ static INLINE void update_coeff_general(
       is_last, si, bwl, height, levels, ci, tx_class, plane);
   int hr_level = 0;
   int hr_level_low = 0;
-  // const int(*base_lf_cost_ptr)[TCQ_CTXS][LF_BASE_SYMBOLS * 2] =
-  //     plane > 0 ? txb_costs->base_lf_cost_uv : txb_costs->base_lf_cost;
-  // const int(*base_cost_ptr)[TCQ_CTXS][8] =
-  //     plane > 0 ? txb_costs->base_cost_uv : txb_costs->base_cost;
 
   const int(*base_lf_cost_ptr)[TCQ_CTXS][LF_BASE_SYMBOLS * 2] =
       txb_costs->base_lf_cost;
