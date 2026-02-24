@@ -345,9 +345,6 @@ static void set_good_speed_features_framesize_independent(
     sf->tx_sf.adaptive_tx_partition_type_search_idx = 4;
 
     sf->inter_sf.prune_comp_search_by_single_result = boosted ? 2 : 1;
-
-    sf->part_sf.disable_uneven_4way_partitions = true;
-    sf->part_sf.disable_ext_partitions = true;
   }
 
   if (speed >= 2) {
@@ -357,6 +354,9 @@ static void set_good_speed_features_framesize_independent(
     // simple_motion_search_split in partition search function and set the
     // speed feature accordingly
     sf->part_sf.simple_motion_search_split = allow_screen_content_tools ? 1 : 2;
+
+    sf->part_sf.disable_uneven_4way_partitions = true;
+    sf->part_sf.disable_ext_partitions = true;
 
     if (cpi->twopass.fr_content_type == FC_HIGHMOTION ||
         cpi->is_screen_content_type) {
@@ -379,17 +379,13 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.selective_ref_frame = 2;
     sf->inter_sf.skip_repeated_newmv = 1;
 
-    sf->interp_sf.use_interp_filter = 1;
     sf->intra_sf.prune_palette_search_level = 1;
-    sf->intra_sf.skip_intra_dip_search = true;
 
     sf->tx_sf.adaptive_tx_type_search_idx = 4;
     sf->tx_sf.adaptive_tx_partition_type_search_idx = 4;
     sf->tx_sf.model_based_prune_tx_search_level = 0;
     sf->tx_sf.tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_2;
-    sf->tx_sf.tx_type_search.skip_tx_search = 1;
 
-    sf->rd_sf.disable_tcq = 1;
     sf->rd_sf.perform_coeff_opt = boosted ? 2 : 3;
     sf->rd_sf.tx_domain_dist_level = boosted ? 1 : 2;
     sf->rd_sf.tx_domain_dist_thres_level = 1;
@@ -402,6 +398,14 @@ static void set_good_speed_features_framesize_independent(
   }
 
   if (speed >= 3) {
+    // These features are moved down from speed 2
+    // --- Start ---
+    sf->interp_sf.use_interp_filter = 1;
+    sf->tx_sf.tx_type_search.skip_tx_search = 1;
+    sf->intra_sf.skip_intra_dip_search = true;
+    sf->rd_sf.disable_tcq = 1;
+    // --- End ---
+
     sf->hl_sf.high_precision_mv_usage = CURRENT_Q;
     sf->hl_sf.recode_loop = ALLOW_RECODE_KFARFGF;
 
