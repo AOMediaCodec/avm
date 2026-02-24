@@ -177,11 +177,7 @@ static INLINE int get_coeff_cost_def(tran_low_t abs_qc, int coeff_ctx,
   (void)sign;
   int base_ctx = get_base_diag_ctx(diag_ctx) + get_base_ctx(coeff_ctx);
   int mid_ctx = get_mid_ctx(coeff_ctx);
-  /*
-  const int(*base_cost_ptr)[TCQ_CTXS][8] =
-      plane > 0 ? txb_costs->base_cost_uv : txb_costs->base_cost;
-  int cost = base_cost_ptr[base_ctx][q_i][AVMMIN(abs_qc, 3)];
-*/
+
   const int(*base_cost_ptr)[TCQ_CTXS][8] = txb_costs->base_cost;
   const int(*base_cost_uv_ptr)[8] = txb_costs->base_cost_uv;
   int cost = plane > 0 ? base_cost_uv_ptr[base_ctx][AVMMIN(abs_qc, 3)]
@@ -208,11 +204,6 @@ static INLINE int get_coeff_cost_general(int ci, tran_low_t abs_qc, int sign,
                                          const int32_t *tmp_sign, int plane,
                                          int limits, int q_i) {
   int cost = 0;
-  // const int(*base_lf_cost_ptr)[TCQ_CTXS][LF_BASE_SYMBOLS * 2] =
-  //     plane > 0 ? txb_costs->base_lf_cost_uv : txb_costs->base_lf_cost;
-  // const int(*base_cost_ptr)[TCQ_CTXS][8] =
-  //     plane > 0 ? txb_costs->base_cost_uv : txb_costs->base_cost;
-
   const int(*base_lf_cost_ptr)[TCQ_CTXS][LF_BASE_SYMBOLS * 2] =
       txb_costs->base_lf_cost;
   const int(*base_lf_cost_uv_ptr)[LF_BASE_SYMBOLS * 2] =
