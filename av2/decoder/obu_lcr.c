@@ -22,6 +22,21 @@
 #include "av2/decoder/obu.h"
 #include "av2/common/enums.h"
 
+static void validate_lcr_auxiliary_type(int lcr_aux_type, int layer_id,
+                                        struct avm_internal_error_info *error) {
+  if ((lcr_aux_type >= LCR_AUX_TYPE_RESERVED_START &&
+       lcr_aux_type <= LCR_AUX_TYPE_RESERVED_END) ||
+      (lcr_aux_type >= LCR_AUX_TYPE_RESERVED2_START &&
+       lcr_aux_type <= LCR_AUX_TYPE_RESERVED2_END)) {
+    avm_internal_error(
+        error, AVM_CODEC_UNSUP_BITSTREAM,
+        "Reserved lcr_auxiliary_type value %d for embedded layer %d. "
+        "Valid values are in range: %d-%d or unspecified range %d-%d",
+        lcr_aux_type, layer_id, LCR_ALPHA_AUX, GAIN_MAP_AUX,
+        LCR_AUX_TYPE_UNSPECIFIED_START, LCR_AUX_TYPE_UNSPECIFIED_END);
+  }
+}
+
 #if CONFIG_AV2_LCR_PROFILES
 static void read_lcr_aggregate_profile_tier_level_info(
     struct LcrAggregateProfileTierLevelInfo *ptl,
@@ -56,8 +71,9 @@ static int read_lcr_xlayer_color_info(struct LCRXLayerInfo *xlayer_info,
 
 static int read_lcr_embedded_layer_info(struct LCRXLayerInfo *xlayer_info,
                                         int atlas_id_present,
-                                        struct avm_read_bit_buffer *rb) {
-  struct EmbeddedLayerInfo *mlayer_params = &xlayer_info->mlayer_params;
+                                        struct avm_read_bit_buffer *rb,
+                                        struct avm_internal_error_info *error) {
+  EmbeddedLayerInfo *mlayer_params = &xlayer_info->mlayer_params;
   mlayer_params->MLayerCount = 0;
   mlayer_params->lcr_mlayer_map = avm_rb_read_literal(rb, MAX_NUM_MLAYERS);
   for (int i = 0; i < MAX_NUM_MLAYERS; i++) {
@@ -81,8 +97,11 @@ static int read_lcr_embedded_layer_info(struct LCRXLayerInfo *xlayer_info,
       }
       mlayer_params->lcr_layer_type[i] = avm_rb_read_literal(rb, 8);
 
-      if (mlayer_params->lcr_layer_type[i] == AUX_LAYER)
+      if (mlayer_params->lcr_layer_type[i] == AUX_LAYER) {
         mlayer_params->lcr_auxiliary_type[i] = avm_rb_read_literal(rb, 8);
+        validate_lcr_auxiliary_type(mlayer_params->lcr_auxiliary_type[i], i,
+                                    error);
+      }
 
       mlayer_params->lcr_view_type[i] = avm_rb_read_literal(rb, 8);
 
@@ -93,10 +112,10 @@ static int read_lcr_embedded_layer_info(struct LCRXLayerInfo *xlayer_info,
         mlayer_params->lcr_dependent_layer_map[i] = avm_rb_read_literal(rb, i);
       }
 
-      mlayer_params->lcr_crop_info_in_seq_flag[i] = avm_rb_read_bit(rb);
-      if (!mlayer_params->lcr_crop_info_in_seq_flag[i]) {
-        mlayer_params->lcr_crop_max_width[i] = avm_rb_read_uvlc(rb);
-        mlayer_params->lcr_crop_max_height[i] = avm_rb_read_uvlc(rb);
+      mlayer_params->lcr_same_sh_max_resolution_flag[i] = avm_rb_read_bit(rb);
+      if (!mlayer_params->lcr_same_sh_max_resolution_flag[i]) {
+        mlayer_params->lcr_max_expected_width[i] = avm_rb_read_uvlc(rb);
+        mlayer_params->lcr_max_expected_height[i] = avm_rb_read_uvlc(rb);
       }
       // Byte alignment
       int remaining_bits = rb->bit_offset % 8;
@@ -111,8 +130,8 @@ static int read_lcr_embedded_layer_info(struct LCRXLayerInfo *xlayer_info,
 
 static int read_lcr_rep_info(struct LCRXLayerInfo *xlayer_info,
                              struct avm_read_bit_buffer *rb) {
-  struct RepresentationInfo *rep_params = &xlayer_info->rep_params;
-  struct CroppingWindow *crop_win = &xlayer_info->crop_win;
+  RepresentationInfo *rep_params = &xlayer_info->rep_params;
+  CroppingWindow *crop_win = &xlayer_info->crop_win;
 
   rep_params->lcr_max_pic_width = avm_rb_read_uvlc(rb);
   rep_params->lcr_max_pic_height = avm_rb_read_uvlc(rb);
@@ -135,7 +154,8 @@ static int read_lcr_rep_info(struct LCRXLayerInfo *xlayer_info,
 
 static int read_lcr_xlayer_info(struct LCRXLayerInfo *xlayer_info,
                                 bool is_global, int atlas_id_present,
-                                struct avm_read_bit_buffer *rb) {
+                                struct avm_read_bit_buffer *rb,
+                                struct avm_internal_error_info *error) {
   xlayer_info->lcr_rep_info_present_flag = avm_rb_read_bit(rb);
   xlayer_info->lcr_xlayer_purpose_present_flag = avm_rb_read_bit(rb);
   xlayer_info->lcr_xlayer_color_info_present_flag = avm_rb_read_bit(rb);
@@ -154,7 +174,7 @@ static int read_lcr_xlayer_info(struct LCRXLayerInfo *xlayer_info,
   avm_rb_read_literal(rb, (8 - rb->bit_offset % CHAR_BIT) % CHAR_BIT);
 
   if (xlayer_info->lcr_embedded_layer_info_present_flag) {
-    read_lcr_embedded_layer_info(xlayer_info, atlas_id_present, rb);
+    read_lcr_embedded_layer_info(xlayer_info, atlas_id_present, rb, error);
   } else {
     if (is_global && atlas_id_present) {
       xlayer_info->lcr_xlayer_atlas_segment_id = avm_rb_read_literal(rb, 8);
@@ -166,14 +186,15 @@ static int read_lcr_xlayer_info(struct LCRXLayerInfo *xlayer_info,
 }
 
 static void read_lcr_global_payload(struct GlobalLayerConfigurationRecord *glcr,
-                                    int i, struct avm_read_bit_buffer *rb) {
+                                    int i, struct avm_read_bit_buffer *rb,
+                                    struct avm_internal_error_info *error) {
   int n = glcr->LcrXLayerID[i];  // actual ID
   if (glcr->lcr_dependent_xlayers_flag && n > 0) {
     glcr->lcr_num_dependent_xlayer_map[i] = avm_rb_read_literal(rb, n);
   }
   // xlayer info[i] corresponds to LcrXLayerID
   read_lcr_xlayer_info(&glcr->xlayer_info[i], true,
-                       glcr->lcr_global_atlas_id_present_flag, rb);
+                       glcr->lcr_global_atlas_id_present_flag, rb, error);
 }
 
 static void read_lcr_global_info(struct AV2Decoder *pbi,
@@ -232,7 +253,7 @@ static void read_lcr_global_info(struct AV2Decoder *pbi,
     int xlayer_count = glcr->LcrMaxNumXLayerCount;
     for (int i = 0; i < xlayer_count; i++) {
       glcr->lcr_data_size[i] = avm_rb_read_uleb(rb);
-      read_lcr_global_payload(glcr, i, rb);
+      read_lcr_global_payload(glcr, i, rb, &cm->error);
     }
   }
 }
@@ -269,7 +290,7 @@ static void read_lcr_local_info(struct AV2Decoder *pbi, int xlayer_id,
   llcr->lcr_reserved_zero_5bits = avm_rb_read_literal(rb, 5);
 
   read_lcr_xlayer_info(&llcr->xlayer_info, false,
-                       llcr->lcr_local_atlas_id_present_flag, rb);
+                       llcr->lcr_local_atlas_id_present_flag, rb, &cm->error);
 }
 
 uint32_t av2_read_layer_configuration_record_obu(
@@ -373,9 +394,13 @@ static int read_lcr_embedded_layer_info(
       mlayer_params->lcr_layer_type[isGlobal][xId][j] =
           avm_rb_read_literal(rb, 8);
 
-      if (mlayer_params->lcr_layer_type[isGlobal][xId][j] == AUX_LAYER)
+      if (mlayer_params->lcr_layer_type[isGlobal][xId][j] == AUX_LAYER) {
         mlayer_params->lcr_auxiliary_type[isGlobal][xId][j] =
             avm_rb_read_literal(rb, 8);
+        validate_lcr_auxiliary_type(
+            mlayer_params->lcr_auxiliary_type[isGlobal][xId][j], j,
+            &pbi->common.error);
+      }
 
       mlayer_params->lcr_view_type[isGlobal][xId][j] =
           avm_rb_read_literal(rb, 8);

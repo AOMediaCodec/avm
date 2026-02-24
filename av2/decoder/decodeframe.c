@@ -3977,6 +3977,21 @@ void av2_validate_frame_level_conformance(
   }
 }
 
+#if CONFIG_AV2_LCR_PROFILES
+static void check_lcr_frame_size_conformance_dec(AV2_COMMON *cm, int width,
+                                                 int height) {
+  int max_w, max_h, layer_id;
+  if (check_lcr_frame_size_conformance(cm, width, height, &max_w, &max_h,
+                                       &layer_id)) {
+    avm_internal_error(
+        &cm->error, AVM_CODEC_CORRUPT_FRAME,
+        "Frame dimensions (%dx%d) exceed LCR max expected dimensions (%dx%d) "
+        "for embedded layer %d",
+        width, height, max_w, max_h, layer_id);
+  }
+}
+#endif  // CONFIG_AV2_LCR_PROFILES
+
 static AVM_INLINE void setup_frame_size(AV2_COMMON *cm,
                                         int frame_size_override_flag,
                                         struct avm_read_bit_buffer *rb) {
@@ -4016,6 +4031,12 @@ static AVM_INLINE void setup_frame_size(AV2_COMMON *cm,
       }
     }
   }
+
+#if CONFIG_AV2_LCR_PROFILES
+  if (!cm->bridge_frame_info.is_bridge_frame) {
+    check_lcr_frame_size_conformance_dec(cm, width, height);
+  }
+#endif  // CONFIG_AV2_LCR_PROFILES
 
   resize_context_buffers(cm, width, height);
   setup_render_size(cm, rb);
@@ -4106,6 +4127,10 @@ static AVM_INLINE void setup_frame_size_with_refs(
   if (width <= 0 || height <= 0)
     avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
                        "Invalid frame size");
+
+#if CONFIG_AV2_LCR_PROFILES
+  check_lcr_frame_size_conformance_dec(cm, width, height);
+#endif  // CONFIG_AV2_LCR_PROFILES
 
   for (int i = 0; i < num_refs; ++i) {
     const RefCntBuffer *const ref_frame =
@@ -7324,20 +7349,26 @@ static void activate_layer_configuration_record(AV2Decoder *pbi,
                                                 int seq_lcr_id) {
   AV2_COMMON *const cm = &pbi->common;
 #if CONFIG_AV2_LCR_PROFILES
-  struct LayerConfigurationRecord *lcr = NULL;
-  // Step 1: Check if a local LCR with this ID is available for use in the
-  // current layer
-  int current_xlayer_id = cm->xlayer_id;
+  LayerConfigurationRecord *lcr = NULL;
+  // Option 1: search for a local LCR for the current layer whose
+  // lcr_global_id matches seq_lcr_id. seq_lcr_id is a global LCR ID, and
+  // local LCRs are linked to a global LCR via local_lcr->lcr_global_id.
+  const int current_xlayer_id = cm->xlayer_id;
   if (current_xlayer_id < GLOBAL_XLAYER_ID) {
-    struct LayerConfigurationRecord *local_lcr =
-        &pbi->lcr_list[current_xlayer_id][seq_lcr_id];
-    if (local_lcr->valid && !local_lcr->is_global) {
-      lcr = local_lcr;
+    for (int i = 0; i < MAX_NUM_LCR; i++) {
+      LayerConfigurationRecord *candidate =
+          &pbi->lcr_list[current_xlayer_id][i];
+      if (candidate->valid && !candidate->is_global &&
+          candidate->local_lcr.lcr_global_id == seq_lcr_id) {
+        lcr = candidate;
+        break;
+      }
     }
   }
-  // If no local LCR was found, fall back into the global LCR
+  // Option 2: no local LCR found for this layer; use the global LCR whose
+  // lcr_global_config_record_id matches seq_lcr_id directly.
   if (lcr == NULL) {
-    struct LayerConfigurationRecord *global_lcr =
+    LayerConfigurationRecord *global_lcr =
         &pbi->lcr_list[GLOBAL_XLAYER_ID][seq_lcr_id];
     if (global_lcr->valid && global_lcr->is_global) {
       lcr = global_lcr;
@@ -7346,6 +7377,39 @@ static void activate_layer_configuration_record(AV2Decoder *pbi,
   if (lcr != NULL) {
     pbi->active_lcr = lcr;
     cm->lcr_params = *pbi->active_lcr;
+    // If the activated LCR is a local LCR, also store the parent global LCR
+    // so that embedded layer info can fall back to it.
+    if (!lcr->is_global) {
+      int global_id = lcr->local_lcr.lcr_global_id;
+      struct LayerConfigurationRecord *parent_glcr =
+          &pbi->lcr_list[GLOBAL_XLAYER_ID][global_id];
+      if (parent_glcr->valid && parent_glcr->is_global) {
+        cm->global_lcr_params = *parent_glcr;
+        // Conformance: when a local LCR is present and its parent global LCR
+        // has xlayer_info for the same extended layer, the local LCR's
+        // xlayer_info shall be the same as the global LCR's xlayer_info.
+        const GlobalLayerConfigurationRecord *glcr = &parent_glcr->global_lcr;
+        for (int i = 0; i < glcr->LcrMaxNumXLayerCount; i++) {
+          if (glcr->LcrXLayerID[i] == lcr->xlayer_id) {
+            if (memcmp(&lcr->local_lcr.xlayer_info, &glcr->xlayer_info[i],
+                       sizeof(lcr->local_lcr.xlayer_info)) != 0) {
+              avm_internal_error(
+                  &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+                  "Local LCR xlayer_info for xlayer_id %d does not match "
+                  "the parent global LCR xlayer_info",
+                  lcr->xlayer_id);
+            }
+            break;
+          }
+        }
+      } else {
+        memset(&cm->global_lcr_params, 0,
+               sizeof(struct LayerConfigurationRecord));
+      }
+    } else {
+      memset(&cm->global_lcr_params, 0,
+             sizeof(struct LayerConfigurationRecord));
+    }
     activate_atlas_segment(pbi);
   } else {
     avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,

@@ -976,6 +976,9 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
   // Note that the lcr_local_id must match seq_lcr_id in the seq header for
   // proper activation
   cm->lcr_params.local_lcr.lcr_local_id = 1;
+  // Store the parent global LCR for fallback when the local LCR does not
+  // have embedded layer info.
+  cm->global_lcr_params = cpi->lcr_list[GLOBAL_XLAYER_ID][1];
 #else
   for (int i = 0; i < MAX_NUM_LCR; i++)
     memset(&cpi->lcr_list[i], 0, sizeof(struct LayerConfigurationRecord));

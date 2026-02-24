@@ -718,17 +718,17 @@ typedef struct XLayerColorInfo {
 typedef struct EmbeddedLayerInfo {
   int lcr_mlayer_map;
   int lcr_tlayer_map[MAX_NUM_MLAYERS];
-  int lcr_layer_type[8];
-  int lcr_auxiliary_type[8];
-  int lcr_view_type[8];
-  int lcr_view_id[8];
-  int lcr_dependent_layer_map[8];
-  int lcr_crop_info_in_seq_flag[8];
-  int lcr_crop_max_width[8];   // remove
-  int lcr_crop_max_height[8];  // remove
-  int lcr_layer_atlas_segment_id[8];
-  int lcr_priority_order[8];
-  int lcr_rendering_method[8];
+  int lcr_layer_type[MAX_NUM_MLAYERS];
+  int lcr_auxiliary_type[MAX_NUM_MLAYERS];
+  int lcr_view_type[MAX_NUM_MLAYERS];
+  int lcr_view_id[MAX_NUM_MLAYERS];
+  int lcr_dependent_layer_map[MAX_NUM_MLAYERS];
+  int lcr_same_sh_max_resolution_flag[MAX_NUM_MLAYERS];
+  int lcr_max_expected_width[MAX_NUM_MLAYERS];
+  int lcr_max_expected_height[MAX_NUM_MLAYERS];
+  int lcr_layer_atlas_segment_id[MAX_NUM_MLAYERS];
+  int lcr_priority_order[MAX_NUM_MLAYERS];
+  int lcr_rendering_method[MAX_NUM_MLAYERS];
   int LcrMlayerID[MAX_NUM_MLAYERS];
   int TLayerCount[MAX_NUM_MLAYERS];
   int LcrTlayerID[MAX_NUM_TLAYERS];
@@ -2758,6 +2758,13 @@ typedef struct AV2Common {
   LayerConfigurationRecord lcr_params;
 
   /*!
+   * Parent global LCR when the activated LCR is a local LCR.
+   * Used to fall back to the global LCR's embedded layer info when the
+   * local LCR does not have embedded layer info present.
+   */
+  LayerConfigurationRecord global_lcr_params;
+
+  /*!
    * Elements part of the atlas segment
    */
   AtlasSegmentInfo atlas_params;
@@ -3509,6 +3516,62 @@ static INLINE RefCntBuffer *get_primary_ref_frame_buf(
   else
     return cm->ref_frame_map[map_idx];
 }
+
+#if CONFIG_AV2_LCR_PROFILES
+// Looks up the EmbeddedLayerInfo for a given xlayer_id in a global LCR.
+// Returns NULL if the xlayer_id is not found or embedded layer info is absent.
+static INLINE const EmbeddedLayerInfo *get_embedded_layer_info_from_global_lcr(
+    const GlobalLayerConfigurationRecord *glcr, int xlayer_id) {
+  for (int i = 0; i < glcr->LcrMaxNumXLayerCount; i++) {
+    if (glcr->LcrXLayerID[i] == xlayer_id) {
+      if (!glcr->xlayer_info[i].lcr_embedded_layer_info_present_flag)
+        return NULL;
+      return &glcr->xlayer_info[i].mlayer_params;
+    }
+  }
+  return NULL;
+}
+
+// Returns the EmbeddedLayerInfo for the current extended layer from the
+// activated LCR, or NULL if embedded layer info is not present.
+// If the activated LCR is a local LCR and does not have embedded layer info,
+// falls back to the parent global LCR stored in cm->global_lcr_params.
+static INLINE const EmbeddedLayerInfo *get_active_embedded_layer_info(
+    const AV2_COMMON *cm) {
+  const LayerConfigurationRecord *lcr = &cm->lcr_params;
+  if (!lcr->valid) return NULL;
+  if (!lcr->is_global) {
+    if (lcr->local_lcr.xlayer_info.lcr_embedded_layer_info_present_flag)
+      return &lcr->local_lcr.xlayer_info.mlayer_params;
+    const LayerConfigurationRecord *glcr_rec = &cm->global_lcr_params;
+    if (!glcr_rec->valid) return NULL;
+    return get_embedded_layer_info_from_global_lcr(&glcr_rec->global_lcr,
+                                                   cm->xlayer_id);
+  } else {
+    return get_embedded_layer_info_from_global_lcr(&lcr->global_lcr,
+                                                   cm->xlayer_id);
+  }
+}
+
+// Checks whether FrameWidth and FrameHeight conform to the limits specified in
+// the activated LCR for the current embedded layer. Returns 1 if the frame size
+// exceeds the LCR max expected dimensions, 0 otherwise. On failure, the max
+// expected dimensions are written to *max_w and *max_h.
+static INLINE int check_lcr_frame_size_conformance(const AV2_COMMON *cm,
+                                                   int width, int height,
+                                                   int *max_w, int *max_h,
+                                                   int *layer_id) {
+  const EmbeddedLayerInfo *mlayer_params = get_active_embedded_layer_info(cm);
+  if (mlayer_params == NULL) return 0;
+  const int mlayer_id = cm->mlayer_id;
+  if (!(mlayer_params->lcr_mlayer_map & (1 << mlayer_id))) return 0;
+  if (mlayer_params->lcr_same_sh_max_resolution_flag[mlayer_id]) return 0;
+  *max_w = mlayer_params->lcr_max_expected_width[mlayer_id];
+  *max_h = mlayer_params->lcr_max_expected_height[mlayer_id];
+  *layer_id = mlayer_id;
+  return (width > *max_w || height > *max_h);
+}
+#endif  // CONFIG_AV2_LCR_PROFILES
 
 // Returns 1 if this frame might allow mvs from some reference frame.
 static INLINE int frame_might_allow_ref_frame_mvs(const AV2_COMMON *cm) {

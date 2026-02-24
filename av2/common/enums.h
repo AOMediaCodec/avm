@@ -347,6 +347,22 @@ enum {
 };
 
 enum {
+  LCR_ALPHA_AUX = 0,
+  LCR_DEPTH_AUX = 1,
+  LCR_SEGMENTATION_AUX = 2,
+  GAIN_MAP_AUX = 3,
+  // 4-127: Reserved (for future AOMedia use)
+  LCR_AUX_TYPE_RESERVED_START = 4,
+  LCR_AUX_TYPE_RESERVED_END = 127,
+  // 128-159: Unspecified (interpretation defined through external means)
+  LCR_AUX_TYPE_UNSPECIFIED_START = 128,
+  LCR_AUX_TYPE_UNSPECIFIED_END = 159,
+  // 160-255: Reserved (for future AOMedia use)
+  LCR_AUX_TYPE_RESERVED2_START = 160,
+  LCR_AUX_TYPE_RESERVED2_END = 255,
+};
+
+enum {
   VIEW_UNSPECIFIED = 0,
   VIEW_CENTER = 1,
   VIEW_LEFT = 2,

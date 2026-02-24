@@ -82,8 +82,14 @@ static int write_lcr_embedded_layer_info(struct LCRXLayerInfo *xlayer_info,
         avm_wb_write_literal(wb, mlayer_params->lcr_rendering_method[i], 8);
       }
       avm_wb_write_literal(wb, mlayer_params->lcr_layer_type[i], 8);
-      if (mlayer_params->lcr_layer_type[i] == AUX_LAYER)
+      if (mlayer_params->lcr_layer_type[i] == AUX_LAYER) {
+        assert(mlayer_params->lcr_auxiliary_type[i] <= GAIN_MAP_AUX ||
+               (mlayer_params->lcr_auxiliary_type[i] >=
+                    LCR_AUX_TYPE_UNSPECIFIED_START &&
+                mlayer_params->lcr_auxiliary_type[i] <=
+                    LCR_AUX_TYPE_UNSPECIFIED_END));
         avm_wb_write_literal(wb, mlayer_params->lcr_auxiliary_type[i], 8);
+      }
 
       avm_wb_write_literal(wb, mlayer_params->lcr_view_type[i], 8);
 
@@ -94,10 +100,10 @@ static int write_lcr_embedded_layer_info(struct LCRXLayerInfo *xlayer_info,
       if (i > 0) {
         avm_wb_write_literal(wb, mlayer_params->lcr_dependent_layer_map[i], i);
       }
-      avm_wb_write_bit(wb, mlayer_params->lcr_crop_info_in_seq_flag[i]);
-      if (!mlayer_params->lcr_crop_info_in_seq_flag[i]) {
-        avm_wb_write_uvlc(wb, mlayer_params->lcr_crop_max_width[i]);
-        avm_wb_write_uvlc(wb, mlayer_params->lcr_crop_max_height[i]);
+      avm_wb_write_bit(wb, mlayer_params->lcr_same_sh_max_resolution_flag[i]);
+      if (!mlayer_params->lcr_same_sh_max_resolution_flag[i]) {
+        avm_wb_write_uvlc(wb, mlayer_params->lcr_max_expected_width[i]);
+        avm_wb_write_uvlc(wb, mlayer_params->lcr_max_expected_height[i]);
       }
       // Byte alignment
       int remaining_bits = wb->bit_offset % 8;
@@ -326,9 +332,16 @@ int write_lcr_embedded_layer_info(AV2_COMP *cpi, int isGlobal, int xId,
       }
       avm_wb_write_literal(wb, mlayer_params->lcr_layer_type[isGlobal][xId][j],
                            8);
-      if (mlayer_params->lcr_layer_type[isGlobal][xId][j] == AUX_LAYER)
+      if (mlayer_params->lcr_layer_type[isGlobal][xId][j] == AUX_LAYER) {
+        assert(mlayer_params->lcr_auxiliary_type[isGlobal][xId][j] <=
+                   GAIN_MAP_AUX ||
+               (mlayer_params->lcr_auxiliary_type[isGlobal][xId][j] >=
+                    LCR_AUX_TYPE_UNSPECIFIED_START &&
+                mlayer_params->lcr_auxiliary_type[isGlobal][xId][j] <=
+                    LCR_AUX_TYPE_UNSPECIFIED_END));
         avm_wb_write_literal(
             wb, mlayer_params->lcr_auxiliary_type[isGlobal][xId][j], 8);
+      }
       avm_wb_write_literal(wb, mlayer_params->lcr_view_type[isGlobal][xId][j],
                            8);
       if (mlayer_params->lcr_view_type[isGlobal][xId][j] == VIEW_EXPLICIT)

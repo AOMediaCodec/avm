@@ -4332,6 +4332,19 @@ typedef struct TileBufferEnc {
   size_t size;
 } TileBufferEnc;
 
+#if CONFIG_AV2_LCR_PROFILES
+static void check_lcr_frame_size_conformance_enc(const AV2_COMMON *cm,
+                                                 int width, int height) {
+  int max_w, max_h, layer_id;
+  if (check_lcr_frame_size_conformance(cm, width, height, &max_w, &max_h,
+                                       &layer_id)) {
+    assert(0 && "Frame dimensions exceed LCR max expected dimensions");
+  }
+  (void)width;
+  (void)height;
+}
+#endif  // CONFIG_AV2_LCR_PROFILES
+
 static AVM_INLINE void write_frame_size(const AV2_COMMON *cm,
                                         int frame_size_override,
                                         struct avm_write_bit_buffer *wb) {
@@ -4352,6 +4365,10 @@ static AVM_INLINE void write_frame_size(const AV2_COMMON *cm,
     avm_wb_write_literal(wb, coded_width, num_bits_width);
     avm_wb_write_literal(wb, coded_height, num_bits_height);
   }
+
+#if CONFIG_AV2_LCR_PROFILES
+  check_lcr_frame_size_conformance_enc(cm, cm->width, cm->height);
+#endif  // CONFIG_AV2_LCR_PROFILES
 }
 
 static AVM_INLINE void write_frame_size_with_refs(
@@ -4387,6 +4404,10 @@ static AVM_INLINE void write_frame_size_with_refs(
     int frame_size_override = 1;  // Always equal to 1 in this function
     write_frame_size(cm, frame_size_override, wb);
   }
+
+#if CONFIG_AV2_LCR_PROFILES
+  check_lcr_frame_size_conformance_enc(cm, cm->width, cm->height);
+#endif  // CONFIG_AV2_LCR_PROFILES
 }
 
 static AVM_INLINE void write_profile(BITSTREAM_PROFILE profile,
