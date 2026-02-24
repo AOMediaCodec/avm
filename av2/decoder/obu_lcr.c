@@ -11,6 +11,7 @@
  */
 
 #include <assert.h>
+#include <string.h>
 
 #include "config/avm_config.h"
 #include "avm_dsp/bitreader_buffer.h"
@@ -208,6 +209,16 @@ static void read_lcr_global_info(struct AV2Decoder *pbi,
   }
   LayerConfigurationRecord *lcr =
       &pbi->lcr_list[GLOBAL_XLAYER_ID][lcr_global_config_record_id];
+
+  // Snapshot the active LCR's global record if it has the same ID, so we can
+  // verify the newly parsed copy is identical after parsing completes.
+  const int check_identity =
+      pbi->active_lcr != NULL && pbi->active_lcr->is_global &&
+      pbi->active_lcr->global_lcr.lcr_global_config_record_id ==
+          lcr_global_config_record_id;
+  GlobalLayerConfigurationRecord prev_glcr;
+  if (check_identity) prev_glcr = pbi->active_lcr->global_lcr;
+
   GlobalLayerConfigurationRecord *glcr = &lcr->global_lcr;
 
   lcr->valid = 1;
@@ -256,6 +267,16 @@ static void read_lcr_global_info(struct AV2Decoder *pbi,
       read_lcr_global_payload(glcr, i, rb, &cm->error);
     }
   }
+
+  // Conformance: if the active LCR has the same global config record ID, the
+  // newly parsed copy must be bit-identical to it.
+  if (check_identity &&
+      memcmp(&prev_glcr, glcr, sizeof(GlobalLayerConfigurationRecord)) != 0) {
+    avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+                       "Global LCR with lcr_global_config_record_id %d "
+                       "differs from the active LCR with the same ID.",
+                       lcr_global_config_record_id);
+  }
 }
 
 static void read_lcr_local_info(struct AV2Decoder *pbi, int xlayer_id,
@@ -269,6 +290,18 @@ static void read_lcr_local_info(struct AV2Decoder *pbi, int xlayer_id,
   }
   int lcr_local_id = avm_rb_read_literal(rb, 3);
   LayerConfigurationRecord *lcr = &pbi->lcr_list[xlayer_id][lcr_local_id];
+
+  // Snapshot the active LCR's local record if it matches this
+  // (xlayer_id, lcr_local_id, lcr_global_id), so we can verify the newly
+  // parsed copy is identical after parsing completes.
+  const int check_identity =
+      pbi->active_lcr != NULL && !pbi->active_lcr->is_global &&
+      pbi->active_lcr->xlayer_id == xlayer_id &&
+      pbi->active_lcr->local_lcr.lcr_local_id == lcr_local_id &&
+      pbi->active_lcr->local_lcr.lcr_global_id == lcr_global_id;
+  LocalLayerConfigurationRecord prev_llcr;
+  if (check_identity) prev_llcr = pbi->active_lcr->local_lcr;
+
   LocalLayerConfigurationRecord *llcr = &lcr->local_lcr;
 
   lcr->valid = 1;
@@ -291,6 +324,17 @@ static void read_lcr_local_info(struct AV2Decoder *pbi, int xlayer_id,
 
   read_lcr_xlayer_info(&llcr->xlayer_info, false,
                        llcr->lcr_local_atlas_id_present_flag, rb, &cm->error);
+
+  // Conformance: if the active LCR matches this local LCR's identity, the
+  // newly parsed copy must be bit-identical to it.
+  if (check_identity &&
+      memcmp(&prev_llcr, llcr, sizeof(LocalLayerConfigurationRecord)) != 0) {
+    avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+                       "Local LCR for xlayer_id %d with lcr_local_id %d and "
+                       "lcr_global_id %d differs from the active LCR with "
+                       "the same ID.",
+                       xlayer_id, lcr_local_id, lcr_global_id);
+  }
 }
 
 uint32_t av2_read_layer_configuration_record_obu(
