@@ -667,5 +667,21 @@ TEST_P(MultiLayerTest, MultiLayerTest2Embedded2TemporalLag) {
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
 }
 
+// 2 embedded (spatial) layers with periodic keyframe. Keyframe is inserted
+// on base ml=0 at time 4, 8, 12, 16.
+TEST_P(MultiLayerTest, MultiLayerTest2EmbeddedKeyFrame) {
+  ::libavm_test::Y4mVideoSource video_nonsc("park_joy_90p_8_420.y4m", 0, 20);
+  cfg_.g_lag_in_frames = 0;
+  cfg_.kf_min_dist = 4;
+  cfg_.kf_max_dist = 4;
+  num_temporal_layers_ = 1;
+  num_embedded_layers_ = 2;
+  decode_base_only_ = false;
+  drop_tl2_ = false;
+  enable_explicit_ref_frame_map_ = false;
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
+  EXPECT_EQ(num_mismatch_, 0);
+}
+
 AV2_INSTANTIATE_TEST_SUITE(MultiLayerTest, ::testing::Values(5));
 }  // namespace
