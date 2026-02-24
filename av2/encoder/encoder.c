@@ -5083,6 +5083,34 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
     current_frame->display_order_hint = current_frame->order_hint;
     current_frame->display_order_hint_restricted = current_frame->order_hint;
   }
+#if 1  // ISSUE1333
+  // Re-derive display_order_hint using the same DPB-based unwrapping that
+  // the decoder performs in get_disp_order_hint().  Without this, the encoder
+  // uses the absolute frame number (e.g. 129) while the decoder unwraps from
+  // the DPB anchor and gets a different value (e.g. 1) after a restricted
+  // S-frame resets the display_order_hint chain.
+  if (current_frame->frame_type != S_FRAME &&
+      current_frame->frame_type != KEY_FRAME) {
+    int max_disp_order_hint = 0;
+    for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+      const RefCntBuffer *const buf = cm->ref_frame_map[i];
+      if (buf == NULL ||
+          (!buf->implicit_output_picture && !buf->immediate_output_picture) ||
+          buf->is_restricted)
+        continue;
+      if ((int)buf->display_order_hint > max_disp_order_hint)
+        max_disp_order_hint = buf->display_order_hint;
+    }
+    int cur_disp_order_hint = current_frame->order_hint;
+    const int factor =
+        1 << (cm->seq_params.order_hint_info.order_hint_bits_minus_1 + 1);
+    while (abs(max_disp_order_hint - cur_disp_order_hint) >= (factor >> 1)) {
+      if (cur_disp_order_hint > max_disp_order_hint) break;
+      cur_disp_order_hint += factor;
+    }
+    current_frame->display_order_hint = cur_disp_order_hint;
+  }
+#endif  // ISSUE1333
   if (is_stat_generation_stage(cpi)) {
     av2_first_pass(cpi, frame_input->ts_duration);
   } else {

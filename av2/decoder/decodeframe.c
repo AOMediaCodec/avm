@@ -784,20 +784,6 @@ static AVM_INLINE void dec_build_inter_predictor(const AV2_COMMON *cm,
                             xd->plane[0].height, mbmi->mv[0].as_mv,
                             mbmi->mv[1].as_mv);
   }
-#if 1
-  if (cm->restricted_prediction_switch &&
-      cm->current_frame.frame_type == S_FRAME && is_inter_mode(mbmi->mode)) {
-    for (int r = 0; r < 2; ++r) {
-      if (mbmi->ref_frame[r] <= INTRA_FRAME) continue;
-      const RefCntBuffer *buf = get_ref_frame_buf(cm, mbmi->ref_frame[r]);
-      if (buf != NULL && buf->is_restricted) {
-        printf("[S_FRAME inter] mode=%d ref[%d]=%d is_restricted=1\n",
-               mbmi->mode, r, mbmi->ref_frame[r]);
-      }
-    }
-  }
-#endif
-
   for (int plane = 0; plane < num_planes; ++plane) {
     if (plane && !xd->is_chroma_ref) break;
     const int mi_x = mi_col * MI_SIZE;
@@ -8380,20 +8366,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
           avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
                              "Reference frame not valid for referencing");
       }  // cm->ref_frames_info.num_total_refs
-
-#if 1
-      printf(
-          "[%d] cm->remapped_ref_idx[i](num_total_refs(%d) "
-          "num_restricted_ref(%d) num_valid_refs_without_restricted_ref(%d)) ",
-          cm->current_frame.display_order_hint,
-          cm->ref_frames_info.num_total_refs,
-          cm->ref_frames_info.num_restricted_ref,
-          cm->ref_frames_info.num_valid_refs_without_restricted_ref);
-      for (int i = 0; i < cm->ref_frames_info.num_total_refs; ++i) {
-        printf("%d\t", cm->remapped_ref_idx[i]);
-      }
-      printf("\n");
-#endif
 
       if (cm->bru.update_ref_idx != -1) {
         for (int i = 0; i < cm->ref_frames_info.num_total_refs; ++i) {
