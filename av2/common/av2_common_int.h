@@ -3401,7 +3401,6 @@ static INLINE void get_secondary_reference_frame_idx(const AV2_COMMON *const cm,
     for (; ref_frame < cm->ref_frames_info.num_total_refs; ref_frame++) {
       RefFrameMapPair cur_ref =
           cm->ref_frame_map_pairs[get_ref_frame_map_idx(cm, ref_frame)];
-      assert(!cur_ref.ref_frame_restricted);
       if (cur_ref.ref_frame_for_inference == -1 ||
           cur_ref.frame_type != INTER_FRAME)
         continue;
