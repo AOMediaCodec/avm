@@ -205,6 +205,14 @@ avmenc_encode_test_fast_params() {
         --test-decode=fatal"
 }
 
+# Echoes "fast" encode params for use with avmenc, with nonzero lag
+avmenc_encode_test_fast_params_lag() {
+  echo "--cpu-used=2
+        --limit=${AV2_ENCODE_TEST_FRAME_LIMIT}
+        --lag-in-frames=10
+        --test-decode=fatal"
+}
+
 # Echoes yes to stdout when avm_config_option_enabled() reports yes for
 # CONFIG_WEBM_IO.
 webm_io_available() {
@@ -442,7 +450,7 @@ fi
 
 # Variables shared by tests.
 AV2_ENCODE_CPU_USED=${AV2_ENCODE_CPU_USED:-5}
-AV2_ENCODE_TEST_FRAME_LIMIT=${AV2_ENCODE_TEST_FRAME_LIMIT:-5}
+AV2_ENCODE_TEST_FRAME_LIMIT=${AV2_ENCODE_TEST_FRAME_LIMIT:-10}
 AV2_IVF_FILE="${AV2_IVF_FILE:-${AVM_TEST_OUTPUT_DIR}/av2.ivf}"
 AV2_OBU_FILE="${AV2_OBU_FILE:-${AVM_TEST_OUTPUT_DIR}/av2.obu}"
 AV2_OBU_LCR_OPS_ATLAS_FILE="${AV2_OBU_LCR_OPS_ATLAS_FILE:-${AVM_TEST_OUTPUT_DIR}/av2.lcr_ops_atlas.obu}"
