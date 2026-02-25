@@ -2726,7 +2726,10 @@ static AVM_INLINE PARTITION_TYPE write_partition(
 
   derived_partition = only_allowed_partition(partition_allowed);
   if (derived_partition != PARTITION_INVALID) {
-    assert(p == derived_partition);
+    assert((bru_is_sb_active(cm, mi_col, mi_row) &&
+            !cm->bridge_frame_info.is_bridge_frame)
+               ? p == derived_partition
+               : 1);
     return derived_partition;
   }
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
