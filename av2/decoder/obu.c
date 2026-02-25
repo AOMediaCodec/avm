@@ -269,8 +269,14 @@ static void store_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
   }
   pbi->stream_info[stream_idx].prev_frame_buf = cm->prev_frame;
   pbi->stream_info[stream_idx].last_frame_seg_map_buf = cm->last_frame_seg_map;
-  pbi->stream_info[stream_idx].ci_params_per_layer_buf[cm->mlayer_id] =
-      cm->ci_params_per_layer[cm->mlayer_id];
+  for (int i = 0; i < MAX_NUM_MLAYERS; i++) {
+    pbi->stream_info[stream_idx].ci_params_per_layer_buf[i] =
+        cm->ci_params_per_layer[i];
+  }
+  for (int i = 0; i < MAX_NUM_MLAYERS; i++) {
+    pbi->stream_info[stream_idx].olk_refresh_frame_flags_buf[i] =
+        cm->olk_refresh_frame_flags[i];
+  }
   pbi->stream_info[stream_idx].seq_params_buf = cm->seq_params;
   pbi->stream_info[stream_idx].seq_header_count_buf = pbi->seq_header_count;
   for (int i = 0; i < MAX_MFH_NUM; i++) {
@@ -345,8 +351,14 @@ static void restore_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
   }
   cm->prev_frame = pbi->stream_info[stream_idx].prev_frame_buf;
   cm->last_frame_seg_map = pbi->stream_info[stream_idx].last_frame_seg_map_buf;
-  cm->ci_params_per_layer[cm->mlayer_id] =
-      pbi->stream_info[stream_idx].ci_params_per_layer_buf[cm->mlayer_id];
+  for (int i = 0; i < MAX_NUM_MLAYERS; i++) {
+    cm->ci_params_per_layer[i] =
+        pbi->stream_info[stream_idx].ci_params_per_layer_buf[i];
+  }
+  for (int i = 0; i < MAX_NUM_MLAYERS; i++) {
+    cm->olk_refresh_frame_flags[i] =
+        pbi->stream_info[stream_idx].olk_refresh_frame_flags_buf[i];
+  }
   cm->seq_params = pbi->stream_info[stream_idx].seq_params_buf;
   pbi->seq_header_count = pbi->stream_info[stream_idx].seq_header_count_buf;
   for (int i = 0; i < MAX_MFH_NUM; i++) {
