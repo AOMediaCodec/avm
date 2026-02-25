@@ -6026,12 +6026,36 @@ static INLINE const TileInfoSyntax *find_effective_tile_params(
     return NULL;
 }
 
+// Checks if reusing the sequence-level tile configuration is valid for the
+// current frame dimensions. For non-uniform tiles, the superblock grid
+// dimensions must match. For uniform tiles, the rescaled tile grid must not
+// produce zero-size tiles.
 static INLINE int is_frame_tile_config_reuse_eligible(
     const TileInfoSyntax *const tile_params,
     const CommonTileParams *const tiles) {
-  return (tile_params->tile_info.uniform_spacing ||
-          (tile_params->tile_info.sb_rows == tiles->sb_rows &&
-           tile_params->tile_info.sb_cols == tiles->sb_cols));
+  // Handle non-uniform case.
+  if (!tile_params->tile_info.uniform_spacing) {
+    return (tile_params->tile_info.sb_rows == tiles->sb_rows &&
+            tile_params->tile_info.sb_cols == tiles->sb_cols);
+  }
+
+  // Uniform: check rescaled tile dimensions are non-zero.
+  const int sb_cols = tiles->sb_cols;
+  const int sb_rows = tiles->sb_rows;
+
+  const int tile_cols_log2 = tile_params->tile_info.log2_cols;
+  const int tile_cols = 1 << tile_cols_log2;
+  const int tile_width_sb = (sb_cols + tile_cols - 1) >> tile_cols_log2;
+  const int last_tile_width_sb = sb_cols - (tile_cols - 1) * tile_width_sb;
+  if (AVMMIN(tile_width_sb, last_tile_width_sb) < 1) return 0;
+
+  const int tile_rows_log2 = tile_params->tile_info.log2_rows;
+  const int tile_rows = 1 << tile_rows_log2;
+  const int tile_height_sb = (sb_rows + tile_rows - 1) >> tile_rows_log2;
+  const int last_tile_height_sb = sb_rows - (tile_rows - 1) * tile_height_sb;
+  if (AVMMIN(tile_height_sb, last_tile_height_sb) < 1) return 0;
+
+  return 1;
 }
 
 static INLINE int is_frame_seg_config_reuse_eligible(
