@@ -566,7 +566,7 @@ compare_md5_4() {
 # Run complete encode, mux, and demux pipeline
 run_encode_mux_demux() {
 
-  echo "Start single layer stream"
+  echo "Start single layer streams"
 
   echo "avmenc with lag = 0"
   encode_bitstream_0 || return 1
@@ -590,7 +590,7 @@ run_encode_mux_demux() {
   decode_muxed_bitstream || return 1
   compare_md5 || return 1
 
-  echo "Done avmenc single layer stream"
+  echo "Done avmenc single layer streams"
 
   echo "Start multi layer streams"
 
