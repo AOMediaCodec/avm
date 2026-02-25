@@ -228,7 +228,7 @@ static void store_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
 #if CONFIG_AV2_LCR_PROFILES
   for (int i = 0; i < MAX_NUM_XLAYERS; i++) {
     for (int j = 0; j < MAX_NUM_LCR; j++) {
-      pbi->stream_info[xlayer_id].lcr_list_buf[i][j] = pbi->lcr_list[i][j];
+      pbi->stream_info[stream_idx].lcr_list_buf[i][j] = pbi->lcr_list[i][j];
     }
   }
 #else
@@ -239,13 +239,13 @@ static void store_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
   pbi->stream_info[stream_idx].lcr_counter_buf = pbi->lcr_counter;
   for (int i = 0; i < MAX_NUM_ATLAS_SEG_ID; i++) {
     pbi->stream_info[stream_idx].atlas_list_buf[i] =
-        pbi->atlas_list[xlayer_id][i];
+        pbi->atlas_list[stream_idx][i];
   }
   pbi->stream_info[stream_idx].atlas_counter_buf =
-      pbi->atlas_counter[xlayer_id];
+      pbi->atlas_counter[stream_idx];
   for (int i = 0; i < MAX_NUM_OPS_ID; i++) {
 #if CONFIG_AV2_PROFILES
-    pbi->stream_info[stream_idx].ops_list_buf[i] = pbi->ops_list[xlayer_id][i];
+    pbi->stream_info[stream_idx].ops_list_buf[i] = pbi->ops_list[stream_idx][i];
 #else
     pbi->stream_info[stream_idx].ops_list_buf[i] = pbi->ops_list[i];
 #endif  // CONFIG_AV2_PROFILES
@@ -253,7 +253,7 @@ static void store_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
   pbi->stream_info[stream_idx].active_lcr_buf = pbi->active_lcr;
   pbi->stream_info[stream_idx].active_atlas_segment_info_buf =
       pbi->active_atlas_segment_info;
-  pbi->stream_info[xlayer_id].ops_counter_buf = pbi->ops_counter;
+  pbi->stream_info[stream_idx].ops_counter_buf = pbi->ops_counter;
 
   for (int i = 0; i < NUM_CUSTOM_QMS; i++) {
     pbi->stream_info[stream_idx].qm_list_buf[i] = pbi->qm_list[i];
@@ -269,12 +269,18 @@ static void store_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
   }
   pbi->stream_info[stream_idx].prev_frame_buf = cm->prev_frame;
   pbi->stream_info[stream_idx].last_frame_seg_map_buf = cm->last_frame_seg_map;
-  pbi->stream_info[stream_idx].ci_params_per_layer_buf[cm->mlayer_id] =
-      cm->ci_params_per_layer[cm->mlayer_id];
-  pbi->stream_info[xlayer_id].seq_params_buf = cm->seq_params;
-  pbi->stream_info[xlayer_id].seq_header_count_buf = pbi->seq_header_count;
+  for (int i = 0; i < MAX_NUM_MLAYERS; i++) {
+    pbi->stream_info[stream_idx].ci_params_per_layer_buf[i] =
+        cm->ci_params_per_layer[i];
+  }
+  for (int i = 0; i < MAX_NUM_MLAYERS; i++) {
+    pbi->stream_info[stream_idx].olk_refresh_frame_flags_buf[i] =
+        cm->olk_refresh_frame_flags[i];
+  }
+  pbi->stream_info[stream_idx].seq_params_buf = cm->seq_params;
+  pbi->stream_info[stream_idx].seq_header_count_buf = pbi->seq_header_count;
   for (int i = 0; i < MAX_MFH_NUM; i++) {
-    pbi->stream_info[xlayer_id].mfh_valid_buf[i] = cm->mfh_valid[i];
+    pbi->stream_info[stream_idx].mfh_valid_buf[i] = cm->mfh_valid[i];
   }
 }
 
@@ -305,7 +311,7 @@ static void restore_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
 #if CONFIG_AV2_LCR_PROFILES
   for (int i = 0; i < MAX_NUM_XLAYERS; i++) {
     for (int j = 0; j < MAX_NUM_LCR; j++) {
-      pbi->lcr_list[i][j] = pbi->stream_info[xlayer_id].lcr_list_buf[i][j];
+      pbi->lcr_list[i][j] = pbi->stream_info[stream_idx].lcr_list_buf[i][j];
     }
   }
 #else
@@ -315,14 +321,14 @@ static void restore_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
 #endif  // CONFIG_AV2_LCR_PROFILES
   pbi->lcr_counter = pbi->stream_info[stream_idx].lcr_counter_buf;
   for (int i = 0; i < MAX_NUM_ATLAS_SEG_ID; i++) {
-    pbi->atlas_list[xlayer_id][i] =
+    pbi->atlas_list[stream_idx][i] =
         pbi->stream_info[stream_idx].atlas_list_buf[i];
   }
-  pbi->atlas_counter[xlayer_id] =
+  pbi->atlas_counter[stream_idx] =
       pbi->stream_info[stream_idx].atlas_counter_buf;
   for (int i = 0; i < MAX_NUM_OPS_ID; i++) {
 #if CONFIG_AV2_PROFILES
-    pbi->ops_list[xlayer_id][i] = pbi->stream_info[stream_idx].ops_list_buf[i];
+    pbi->ops_list[stream_idx][i] = pbi->stream_info[stream_idx].ops_list_buf[i];
 #else
     pbi->ops_list[i] = pbi->stream_info[stream_idx].ops_list_buf[i];
 #endif  // CONFIG_AV2_PROFILES
@@ -330,7 +336,7 @@ static void restore_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
   pbi->active_lcr = pbi->stream_info[stream_idx].active_lcr_buf;
   pbi->active_atlas_segment_info =
       pbi->stream_info[stream_idx].active_atlas_segment_info_buf;
-  pbi->ops_counter = pbi->stream_info[xlayer_id].ops_counter_buf;
+  pbi->ops_counter = pbi->stream_info[stream_idx].ops_counter_buf;
   for (int i = 0; i < NUM_CUSTOM_QMS; i++) {
     pbi->qm_list[i] = pbi->stream_info[stream_idx].qm_list_buf[i];
     pbi->qm_protected[i] = pbi->stream_info[stream_idx].qm_protected_buf[i];
@@ -345,12 +351,18 @@ static void restore_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
   }
   cm->prev_frame = pbi->stream_info[stream_idx].prev_frame_buf;
   cm->last_frame_seg_map = pbi->stream_info[stream_idx].last_frame_seg_map_buf;
-  cm->ci_params_per_layer[cm->mlayer_id] =
-      pbi->stream_info[stream_idx].ci_params_per_layer_buf[cm->mlayer_id];
-  cm->seq_params = pbi->stream_info[xlayer_id].seq_params_buf;
-  pbi->seq_header_count = pbi->stream_info[xlayer_id].seq_header_count_buf;
+  for (int i = 0; i < MAX_NUM_MLAYERS; i++) {
+    cm->ci_params_per_layer[i] =
+        pbi->stream_info[stream_idx].ci_params_per_layer_buf[i];
+  }
+  for (int i = 0; i < MAX_NUM_MLAYERS; i++) {
+    cm->olk_refresh_frame_flags[i] =
+        pbi->stream_info[stream_idx].olk_refresh_frame_flags_buf[i];
+  }
+  cm->seq_params = pbi->stream_info[stream_idx].seq_params_buf;
+  pbi->seq_header_count = pbi->stream_info[stream_idx].seq_header_count_buf;
   for (int i = 0; i < MAX_MFH_NUM; i++) {
-    cm->mfh_valid[i] = pbi->stream_info[xlayer_id].mfh_valid_buf[i];
+    cm->mfh_valid[i] = pbi->stream_info[stream_idx].mfh_valid_buf[i];
   }
 }
 
@@ -2375,8 +2387,9 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
     if (obu_header.type == OBU_MSDO) {
       cm->xlayer_id = obu_header.obu_xlayer_id;
     } else {
-      if (obu_header.obu_xlayer_id == GLOBAL_XLAYER_ID &&
-          cm->xlayer_id == GLOBAL_XLAYER_ID) {
+      if (!pbi->multi_stream_mode ||
+          (obu_header.obu_xlayer_id == GLOBAL_XLAYER_ID &&
+           cm->xlayer_id == GLOBAL_XLAYER_ID)) {
         cm->xlayer_id = obu_header.obu_xlayer_id;
       } else if (cm->xlayer_id != GLOBAL_XLAYER_ID &&
                  obu_header.obu_xlayer_id == GLOBAL_XLAYER_ID) {
