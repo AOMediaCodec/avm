@@ -326,15 +326,25 @@ jobs:
         uses: mikepenz/action-junit-report@v5
         if: always()
         with:
+          check_name: ${{ github.job }} Junit Report
           report_paths: avm_nightly_build/report.*.xml
+          fail_on_failure: true
 
-      - name: Upload artifacts
+      - name: Upload coverage artifacts
         uses: actions/upload-artifact@v4.1.0
         if: always()
         with:
           name: coverage-html
           path: |
             coverage-html
+
+      - name: Upload junit reports artifacts
+        uses: actions/upload-artifact@v4.1.0
+        if: always()
+        with:
+          name: unit-test-junit-reports
+          path: |
+            avm_nightly_build/report.*.xml
 
   linux-unit-optim:
     name: Linux Unit Optim
@@ -425,6 +435,15 @@ jobs:
         with:
           check_name: ${{ github.job }} ${{ matrix.avm-optim-level }} Junit Report
           report_paths: avm_nightly_build/report.*.xml
+          fail_on_failure: true
+
+      - name: Upload junit reports artifacts
+        uses: actions/upload-artifact@v4.1.0
+        if: always()
+        with:
+          name: ${{ github.job }}-${{ matrix.avm-optim-level }}-junit-report
+          path: |
+            avm_nightly_build/report.*.xml
 
     strategy:
       fail-fast: false
