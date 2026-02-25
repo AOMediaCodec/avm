@@ -484,12 +484,13 @@ void add_postfix_stream_id(const char *input_filename, char *filename_with_id,
                            int stream_id) {
   const char *dot = strrchr(input_filename, '.');
   if (dot == NULL) {
-    sprintf(filename_with_id, "%s_%d", input_filename, stream_id);
+    snprintf(filename_with_id, PATH_MAX, "%s_%d", input_filename, stream_id);
   } else {
     size_t name_len = dot - input_filename;
     strncpy(filename_with_id, input_filename, name_len);
     filename_with_id[name_len] = '\0';
-    sprintf(filename_with_id + name_len, "_%d%s", stream_id, dot);
+    snprintf(filename_with_id + name_len, PATH_MAX - name_len, "_%d%s",
+             stream_id, dot);
   }
 }
 
@@ -1058,7 +1059,7 @@ static int main_loop(int argc, const char **argv_) {
 
       if (progress) show_progress(frame_in, frame_out, dx_time);
 
-      const int num_metadata = avm_img_num_metadata(img);
+      const int num_metadata = (int)avm_img_num_metadata(img);
       for (int m = 0; m < num_metadata; m++) {
         const avm_metadata_t *metadata = avm_img_get_metadata(img, m);
         switch (metadata->type) {
