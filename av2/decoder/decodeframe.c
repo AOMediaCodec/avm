@@ -6669,14 +6669,14 @@ static AVM_INLINE void validate_references(AV2Decoder *const pbi) {
   AV2_COMMON *const cm = &pbi->common;
   const int refresh_frame_flags = cm->current_frame.refresh_frame_flags;
   int first_ref_index;
-  const bool frame_refreshes_multiple_dpb_slots =
-      av2_frame_refreshes_multiple_dpb_slots(refresh_frame_flags,
-                                             &first_ref_index);
+  const bool clear_multiple_insert_in_one =
+      av2_frame_clears_multiple_inserted_in_one(
+          refresh_frame_flags, cm->current_frame.frame_type,
+          cm->seq_params.max_mlayer_id, &first_ref_index);
 
   for (int i = 0; i < cm->seq_params.ref_frames; i++) {
     if ((refresh_frame_flags >> i) & 1) {
-      if (av2_skip_reference_buffer_update(frame_refreshes_multiple_dpb_slots,
-                                           cm->seq_params.max_mlayer_id, i,
+      if (av2_skip_reference_buffer_update(clear_multiple_insert_in_one, i,
                                            first_ref_index)) {
         pbi->valid_for_referencing[i] = 0;
       } else {

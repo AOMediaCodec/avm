@@ -885,14 +885,14 @@ static AVM_INLINE void refresh_reference_frames(AV2_COMP *cpi) {
   cm->cur_frame->is_restricted = false;
   if (!cm->bru.enabled) {
     int first_ref_index;
-    const bool frame_refreshes_multiple_dpb_slots =
-        av2_frame_refreshes_multiple_dpb_slots(
-            cm->current_frame.refresh_frame_flags, &first_ref_index);
+    const bool clear_multiple_insert_in_one =
+        av2_frame_clears_multiple_inserted_in_one(
+            cm->current_frame.refresh_frame_flags, cm->current_frame.frame_type,
+            cm->seq_params.max_mlayer_id, &first_ref_index);
     for (int ref_frame = 0; ref_frame < cm->seq_params.ref_frames;
          ref_frame++) {
       if (((cm->current_frame.refresh_frame_flags >> ref_frame) & 1) == 1) {
-        if (av2_skip_reference_buffer_update(frame_refreshes_multiple_dpb_slots,
-                                             cm->seq_params.max_mlayer_id,
+        if (av2_skip_reference_buffer_update(clear_multiple_insert_in_one,
                                              ref_frame, first_ref_index)) {
           if (cm->ref_frame_map[ref_frame] != NULL) {
             --cm->ref_frame_map[ref_frame]->ref_count;
