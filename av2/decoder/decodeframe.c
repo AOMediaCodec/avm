@@ -2367,7 +2367,7 @@ static AVM_INLINE void setup_bru_active_info(AV2_COMMON *const cm,
   if (cm->bridge_frame_info.is_bridge_frame) {
     return;
   }
-  // need to reresh bru.active_mode_map every frame
+  // need to refresh bru.active_mode_map every frame
   memset(cm->bru.active_mode_map, 2, sizeof(uint8_t) * cm->bru.total_units);
   if (cm->seq_params.enable_bru) {
     cm->bru.enabled = avm_rb_read_bit(rb);
@@ -8245,6 +8245,15 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
                                  "Only one reference can be updated for BRU");
             }
           }
+        }
+        // The BRU reference buffer slot must be refreshed by this frame;
+        if (!(current_frame->refresh_frame_flags &
+              (1 << cm->bru.explicit_ref_idx))) {
+          avm_internal_error(&cm->error, AVM_CODEC_ERROR,
+                             "BRU ref (explicit_ref_idx=%d) must be included "
+                             "in refresh_frame_flags (0x%x)",
+                             cm->bru.explicit_ref_idx,
+                             current_frame->refresh_frame_flags);
         }
       }
       if (cm->bru.enabled) {
