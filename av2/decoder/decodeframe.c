@@ -6841,7 +6841,8 @@ static void set_primary_ref_frame_and_ctx(AV2Decoder *pbi) {
 
   if (!seq_params->single_picture_header_flag) {
     int tmp_ref_frame[2] = { 0 };
-    choose_primary_secondary_ref_frame(cm, tmp_ref_frame);
+    choose_primary_secondary_ref_frame(cm, tmp_ref_frame,
+                                       pbi->signal_primary_ref_frame);
     features->derived_primary_ref_frame = tmp_ref_frame[0];
     features->derived_secondary_ref_frame = tmp_ref_frame[1];
 
@@ -7817,6 +7818,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
         if (signal_primary_ref_frame) {
           features->primary_ref_frame =
               avm_rb_read_literal(rb, PRIMARY_REF_BITS);
+          features->derived_primary_ref_frame = features->primary_ref_frame;
         }
       }
     }

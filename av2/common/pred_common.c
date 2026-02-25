@@ -441,7 +441,8 @@ static int is_ref_better(const OrderHintInfo *oh, int cur_disp, int ref_disp,
 // Derive the primary & secondary reference frame from the reference list based
 // on qindex and frame distances.
 void choose_primary_secondary_ref_frame(const AV2_COMMON *const cm,
-                                        int *ref_frame) {
+                                        int *ref_frame,
+                                        int signal_primary_ref_frame) {
   const int intra_only = cm->current_frame.frame_type == KEY_FRAME ||
                          cm->current_frame.frame_type == INTRA_ONLY_FRAME;
   if (intra_only || frame_is_sframe(cm)) {
@@ -495,6 +496,10 @@ void choose_primary_secondary_ref_frame(const AV2_COMMON *const cm,
   ref_frame[0] = primary_cand.idx != -1 ? primary_cand.idx : PRIMARY_REF_NONE;
   ref_frame[1] =
       secondary_cand.idx != -1 ? secondary_cand.idx : PRIMARY_REF_NONE;
+
+  if (signal_primary_ref_frame == 1) {  // initial value is -1
+    ref_frame[0] = cm->features.primary_ref_frame;
+  }
 }
 
 // Returns a context number for the given MB prediction signal

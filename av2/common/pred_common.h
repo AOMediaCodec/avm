@@ -118,7 +118,8 @@ int av2_get_op_constrained_ref_frames(AV2_COMMON *cm, int cur_frame_disp,
 // Derive the primary & secondary reference frame from the reference list based
 // on qindex and frame distances.
 void choose_primary_secondary_ref_frame(const AV2_COMMON *const cm,
-                                        int *ref_frame);
+                                        int *ref_frame,
+                                        int signal_primary_ref_frame);
 
 // Find the reference that is furthest in the future
 static INLINE int get_furthest_future_ref_index(const AV2_COMMON *const cm) {
