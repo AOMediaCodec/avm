@@ -494,6 +494,7 @@ static const char *level_fail_messages[TARGET_LEVEL_FAIL_IDS] = {
 };
 
 static const double bitrate_profile_factor_table[] = { 1.0, 2.0, 3.0 };
+static const double picture_size_profile_factor_table[] = { 15.0, 30.0, 36.0 };
 
 static double get_max_bitrate(const AV2LevelSpec *const level_spec, int tier,
                               BITSTREAM_PROFILE profile
@@ -553,21 +554,22 @@ static double get_max_compressed_size(const AV2LevelSpec *const level_spec,
                             &chroma_format_idc);
   const int profile_scaling_factor =
       get_profile_scaling_factor(profile, chroma_format_idc);
-  double bitrate_profile_factor =
-      bitrate_profile_factor_table[profile_scaling_factor];
+  double picture_size_profile_factor =
+      picture_size_profile_factor_table[profile_scaling_factor];
 #else
-  const double bitrate_profile_factor =
-      profile == PROFILE_0 ? 1.0 : (profile == PROFILE_1 ? 2.0 : 3.0);
+  const double picture_size_profile_factor =
+      profile == PROFILE_0 ? 15.0 : (profile == PROFILE_1 ? 30.0 : 36.0);
 #endif  // CONFIG_AV2_PROFILES
 
   double max_compressed_size =
       ((long long)(frame_parsing_time * level_spec->max_decode_rate *
-                   bitrate_profile_factor) >>
+                   picture_size_profile_factor) >>
        3) /
       min_comp_basis;
 
   double limit =
-      ((long long)(luma_sample_count * bitrate_profile_factor) >> 3) * 1.25;
+      ((long long)(luma_sample_count * picture_size_profile_factor) >> 3) *
+      1.25;
 
   return AVMMIN(limit, max_compressed_size);
 }
@@ -1009,7 +1011,7 @@ void av2_decoder_model_process_frame(const AV2_COMP *const cpi,
     );
     decoder_model->compressed_size_satisfy =
         decoder_model->compressed_size_satisfy &&
-        (coded_bits <= compressed_size_limit);
+        ((coded_bits >> 3) <= compressed_size_limit);
 
     double frame_symbol_count_limit = get_max_frame_symbol_count(
         av2_level_defs + level, cpi->tier[0], seq_params->seq_profile_idc, dt
