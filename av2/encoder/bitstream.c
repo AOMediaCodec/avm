@@ -6616,7 +6616,7 @@ static size_t write_temporal_point_info_metadata(AV2_COMP *const cpi,
   }
 
   // Set up metadata fields for individual OBU_METADATA
-  metadata->is_suffix = 1;
+  metadata->is_suffix = 0;
   metadata->cancel_flag = 0;
   metadata->persistence_idc = AVM_NO_PERSISTENCE;
   metadata->layer_idc = AVM_LAYER_CURRENT;

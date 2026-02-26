@@ -1145,7 +1145,11 @@ static size_t read_metadata_unit_payload(AV2Decoder *pbi, const uint8_t *data,
     return sz;
   }
   // Temporal point info metadata is only valid in SHORT format, not GROUP.
-  assert(metadata_type != OBU_METADATA_TYPE_TEMPORAL_POINT_INFO);
+  if (metadata_type == OBU_METADATA_TYPE_TEMPORAL_POINT_INFO) {
+    avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
+                       "Temporal point info metadata shall only appear in "
+                       "OBU_METADATA_SHORT, not OBU_METADATA_GROUP");
+  }
   if (metadata_type == OBU_METADATA_TYPE_ITUT_T35) {
     read_metadata_itut_t35(pbi, data + type_length, sz - type_length);
     return sz;
