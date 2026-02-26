@@ -665,7 +665,7 @@ run_encode_mux_demux_ml_temporal() {
   echo "Done with multi layer streams"
 }
 
-run_encode_mux_demux_ml_spatial() {
+run_encode_mux_demux_ml_embedded() {
   echo "Start multi layer streams"
 
   echo "(#temporal, #embedded) = (1, 2)"
