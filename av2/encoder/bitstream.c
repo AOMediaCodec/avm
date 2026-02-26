@@ -2717,19 +2717,17 @@ static AVM_INLINE PARTITION_TYPE write_partition(
       mi_col, ssx, ssy, bsize, &ptree->chroma_ref_info);
   if (derived_partition != PARTITION_INVALID &&
       partition_allowed[derived_partition]) {
-    assert((bru_is_sb_active(cm, mi_col, mi_row) &&
-            !cm->bridge_frame_info.is_bridge_frame)
-               ? p == derived_partition
-               : 1);
+    assert(IMPLIES(bru_is_sb_active(cm, mi_col, mi_row) &&
+                       !cm->bridge_frame_info.is_bridge_frame,
+                   p == derived_partition));
     return derived_partition;
   }
 
   derived_partition = only_allowed_partition(partition_allowed);
   if (derived_partition != PARTITION_INVALID) {
-    assert((bru_is_sb_active(cm, mi_col, mi_row) &&
-            !cm->bridge_frame_info.is_bridge_frame)
-               ? p == derived_partition
-               : 1);
+    assert(IMPLIES(bru_is_sb_active(cm, mi_col, mi_row) &&
+                       !cm->bridge_frame_info.is_bridge_frame,
+                   p == derived_partition));
     return derived_partition;
   }
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
