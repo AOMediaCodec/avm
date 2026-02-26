@@ -1073,6 +1073,8 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
           return AVM_CODEC_ERROR;
         }
       }
+      pbi->this_is_first_vcl_obu_in_tu =
+          (pbi->this_is_first_keyframe_unit_in_tu == 1) ? 1 : 0;
     } else {
       pbi->this_is_first_keyframe_unit_in_tu = 0;
 
