@@ -12,6 +12,7 @@
 
 #include <stdint.h>
 
+#include "av2/encoder/ratectrl.h"
 #include "config/avm_config.h"
 #include "config/avm_scale_rtcd.h"
 
@@ -109,6 +110,8 @@ void av2_configure_buffer_updates(AV2_COMP *const cpi,
     case GF_UPDATE:
     case ARF_UPDATE:
     case KFFLT_UPDATE:
+    case FWD_KF_OVERLAY_UPDATE:
+    case FWD_KF_SUCCESSOR_UPDATE:
     case INTNL_ARF_UPDATE: break;
 
     default: assert(0); break;
@@ -728,6 +731,15 @@ int av2_get_refresh_frame_flags(
     return refresh_mask_control;
   }
 
+  int olk_flags_to_keep = 0;
+  if (cpi->olk_encountered || cpi->common.is_leading_picture) {
+    for (int layer = 0; layer <= cpi->common.seq_params.max_mlayer_id;
+         layer++) {
+      if (cpi->common.olk_refresh_frame_flags[layer] == -1) continue;
+      olk_flags_to_keep |= cpi->common.olk_refresh_frame_flags[layer];
+    }
+  }
+
   // BRU frame, refresh flag is set to refresh BRU ref frame
   int free_fb_index = INVALID_IDX;
   if (cpi->common.bru.enabled) {
@@ -993,6 +1005,13 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
   if (cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames) {
     cpi->common.implicit_output_picture = 0;
   }
+  if (gf_group->update_type[gf_group->index] == FWD_KF_OVERLAY_UPDATE ||
+      gf_group->update_type[gf_group->index] == FWD_KF_SUCCESSOR_UPDATE) {
+    // These have to use implicit output since they need to be
+    // coded_output_picture OBUs, to be put together with a hidden OLK obu in
+    // the same TU.
+    cpi->common.implicit_output_picture = 1;
+  }
 
   if (source == NULL) {  // If no source was found, we can't encode a frame.
     if (flush && oxcf->pass == 1 && !cpi->twopass.first_pass_done) {
@@ -1095,8 +1114,22 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
   if (cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames) {
     cm->implicit_output_picture = 0;
   }
+  if (gf_group->update_type[gf_group->index] == FWD_KF_OVERLAY_UPDATE ||
+      gf_group->update_type[gf_group->index] == FWD_KF_SUCCESSOR_UPDATE) {
+    // These have to use implicit output since they need to be
+    // coded_output_picture OBUs, to be put together with a hidden OLK obu in
+    // the same TU.
+    cpi->common.implicit_output_picture = 1;
+  }
 
   if (frame_params.frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) {
+    cm->allow_direct_use = 0;
+    cm->implicit_output_picture = 0;
+  }
+
+  if (cpi->no_show_fwd_kf && cpi->oxcf.kf_cfg.enable_keyframe_filtering > 1) {
+    // An overlay of the fwd kf is going to be added. The fwd kf cannot be
+    // directly displayed.
     cm->allow_direct_use = 0;
     cm->implicit_output_picture = 0;
   }
@@ -1181,9 +1214,12 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
     // encoded
     cpi->gf_state.olk_overlay_last = 1;
   }
+  int use_olk_ref_only =
+      cpi->gf_group.update_type[cpi->gf_group.index] == FWD_KF_OVERLAY_UPDATE ||
+      cpi->gf_group.update_type[cpi->gf_group.index] == FWD_KF_SUCCESSOR_UPDATE;
   init_ref_map_pair(&cpi->common, cm->ref_frame_map_pairs,
                     frame_params.frame_type == KEY_FRAME,
-                    cpi->switch_frame_mode == 1);
+                    cpi->switch_frame_mode == 1, use_olk_ref_only);
 
   if (!is_stat_generation_stage(cpi)) {
     cm->current_frame.frame_type = frame_params.frame_type;
@@ -1316,8 +1352,14 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
       const int frame_order = cpi->oxcf.kf_cfg.sframe_dist != 0
                                   ? (int)buf->display_order_hint_restricted
                                   : (int)buf->display_order_hint;
-      if (frame_order == cur_frame_disp)
+      if (frame_order == cur_frame_disp && cm->mlayer_id == buf->mlayer_id) {
         frame_params.fb_idx_for_overlay = frame;
+        if (buf->allow_direct_use) {
+          // If we have multiple reference frames at the same order hint, use
+          // the one that allows direct use.
+          break;
+        }
+      }
     }
 
     if (!is_stat_generation_stage(cpi)) {
@@ -1329,7 +1371,6 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
       // If this is a forward keyframe, mark as a show_existing_frame
       // TODO(bohanli): find a consistent condition for fwd keyframes
       if (oxcf->kf_cfg.fwd_kf_enabled &&
-          (gf_group->index == (gf_group->size - 1)) &&
           (gf_group->update_type[gf_group->index] == OVERLAY_UPDATE ||
            gf_group->update_type[gf_group->index] == KFFLT_OVERLAY_UPDATE) &&
           gf_group->arf_index >= 0 && cpi->rc.frames_to_key == 0) {

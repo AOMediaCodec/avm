@@ -4580,20 +4580,15 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
       cpi->update_type_was_overlay) {
     assign_frame_buffer_p(&cm->cur_frame,
                           cm->ref_frame_map[cpi->fb_idx_for_overlay]);
-    int enc_olk_fb_idx = 0;
-    for (int ref_pos = 0; ref_pos < seq_params->ref_frames; ref_pos++) {
-      if ((cm->olk_refresh_frame_flags[cm->mlayer_id] >> ref_pos) & 1) {
-        enc_olk_fb_idx = ref_pos;
-        break;
+    int ref_flags_to_keep = 0;
+    for (int layer = 0; layer <= seq_params->max_mlayer_id; layer++) {
+      if (cm->olk_refresh_frame_flags[layer] != -1) {
+        ref_flags_to_keep |= cm->olk_refresh_frame_flags[layer];
       }
     }
-    if (cpi->olk_encountered &&
-        cm->olk_refresh_frame_flags[cm->mlayer_id] != INVALID_IDX &&
-        enc_olk_fb_idx == cpi->fb_idx_for_overlay) {
-      int ref_flags_to_keep = 0;
-      for (int layer = 0; layer <= seq_params->max_mlayer_id; layer++) {
-        ref_flags_to_keep |= cm->olk_refresh_frame_flags[cm->mlayer_id];
-      }
+
+    if (cpi->olk_encountered && ref_flags_to_keep != 0 &&
+        ((ref_flags_to_keep >> cpi->fb_idx_for_overlay) & 1u)) {
       for (int ref_index = 0; ref_index < cm->seq_params.ref_frames;
            ref_index++) {
         if (!((ref_flags_to_keep >> ref_index) & 1u) &&
@@ -4623,20 +4618,12 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
 
   if (need_sef_obu_for_hidden_frame(cpi)) {
     // If this is an olk SEF, reset the buffers except for the olk.
-    int enc_olk_fb_idx = 0;
-    for (int ref_pos = 0; ref_pos < seq_params->ref_frames; ref_pos++) {
-      if ((cm->olk_refresh_frame_flags[cm->mlayer_id] >> ref_pos) & 1) {
-        enc_olk_fb_idx = ref_pos;
-        break;
-      }
+    int ref_flags_to_keep = 0;
+    for (int layer = 0; layer <= seq_params->max_mlayer_id; layer++) {
+      ref_flags_to_keep |= cm->olk_refresh_frame_flags[layer];
     }
-    if (cpi->olk_encountered &&
-        cm->olk_refresh_frame_flags[cm->mlayer_id] != INVALID_IDX &&
-        enc_olk_fb_idx == cpi->fb_idx_for_overlay) {
-      int ref_flags_to_keep = 0;
-      for (int layer = 0; layer <= seq_params->max_mlayer_id; layer++) {
-        ref_flags_to_keep |= cm->olk_refresh_frame_flags[cm->mlayer_id];
-      }
+    if (cpi->olk_encountered && ref_flags_to_keep != 0 &&
+        ((ref_flags_to_keep >> cpi->fb_idx_for_overlay) & 1u)) {
       for (int ref_index = 0; ref_index < cm->seq_params.ref_frames;
            ref_index++) {
         if (!((ref_flags_to_keep >> ref_index) & 1u) &&
@@ -5055,9 +5042,13 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
   const int cur_frame_disp =
       cpi->common.current_frame.frame_number + order_offset;
 
+  int use_olk_ref_only =
+      cpi->gf_group.update_type[cpi->gf_group.index] == FWD_KF_OVERLAY_UPDATE ||
+      cpi->gf_group.update_type[cpi->gf_group.index] == FWD_KF_SUCCESSOR_UPDATE;
   init_ref_map_pair(&cpi->common, cm->ref_frame_map_pairs,
                     current_frame->frame_type == KEY_FRAME,
-                    cpi->switch_frame_mode == 1);
+                    cpi->switch_frame_mode == 1, use_olk_ref_only);
+
   if (cm->seq_params.enable_explicit_ref_frame_map || frame_is_sframe(cm)) {
     av2_get_ref_frames_enc(cpi, cur_frame_disp, cm->ref_frame_map_pairs);
   } else {
@@ -5167,7 +5158,8 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
 
         init_ref_map_pair(&cpi->common, cm->ref_frame_map_pairs,
                           current_frame->frame_type == KEY_FRAME,
-                          cpi->switch_frame_mode == 1);
+                          cpi->switch_frame_mode == 1,
+                          /*use_olk_tu_ref_only=*/0);
 
         // Derive reference mapping in a resolution independent manner to
         // generate parameters needed in write_frame_size_with_refs

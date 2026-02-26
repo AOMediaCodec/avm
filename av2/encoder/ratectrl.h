@@ -64,10 +64,19 @@ enum {
   GF_UPDATE,
   ARF_UPDATE,
   OVERLAY_UPDATE,
-  INTNL_OVERLAY_UPDATE,  // Internal Overlay Frame
-  INTNL_ARF_UPDATE,      // Internal Altref Frame
-  KFFLT_UPDATE,          // Filtered KF w/ overlay update
-  KFFLT_OVERLAY_UPDATE,  // Overlay frame for filtered keyframe
+  INTNL_OVERLAY_UPDATE,   // Internal Overlay Frame
+  INTNL_ARF_UPDATE,       // Internal Altref Frame
+  KFFLT_UPDATE,           // Filtered KF w/ overlay update
+  KFFLT_OVERLAY_UPDATE,   // Overlay frame for filtered keyframe
+  FWD_KF_OVERLAY_UPDATE,  // This is a special case for a regular frame after a
+                          // hidden fwd kf to form a proper TU. It is not shown
+                          // immediately and should use implicit_output. It can
+                          // only refer to the fwd kf as reference. It is the
+                          // same display order as the fwd kf.
+  FWD_KF_SUCCESSOR_UPDATE,  // This is a special case for a regular frame after
+                            // a hidden fwd kf to form a proper TU. It is not
+                            // shown immediately and should use implicit_output.
+                            // It can only refer to the fwd kf as reference.
   FRAME_UPDATE_TYPES
 } UENUM1BYTE(FRAME_UPDATE_TYPE);
 

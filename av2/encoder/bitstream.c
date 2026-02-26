@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "av2/encoder/ratectrl.h"
 #include "avm/avm_encoder.h"
 #include "avm_dsp/avm_dsp_common.h"
 #include "av2/common/banding_metadata.h"
@@ -5353,10 +5354,21 @@ static AVM_INLINE void write_uncompressed_header(
     cm->olk_refresh_frame_flags[cm->mlayer_id] =
         current_frame->refresh_frame_flags;
   } else if (obu_type == OBU_CLK ||
-             cm->is_leading_picture ==
-                 0) {  // first regular frame, olk_encountered is set 0
+             (cm->is_leading_picture == 0 &&
+              cpi->gf_group.update_type[cpi->gf_group.index] !=
+                  FWD_KF_OVERLAY_UPDATE &&
+              cpi->gf_group.update_type[cpi->gf_group.index] !=
+                  FWD_KF_SUCCESSOR_UPDATE)) {  // first regular frame,
+                                               // olk_encountered is set 0
     cpi->olk_encountered = 0;
     cm->olk_refresh_frame_flags[cm->mlayer_id] = INVALID_IDX;
+    cm->olk_co_vcl_refresh_frame_flags[cm->mlayer_id] = INVALID_IDX;
+    cm->prev_olk_co_vcl_refresh_frame_flags[cm->mlayer_id] = INVALID_IDX;
+  } else if (cpi->olk_encountered && cm->current_frame.display_order_hint >=
+                                         cm->last_olk_disp_order_hint) {
+    // This is a frame within the same TU as the OLK. Cannot refresh it either.
+    cm->olk_refresh_frame_flags[cm->mlayer_id] |=
+        current_frame->refresh_frame_flags;
   }
 
   if (obu_type == OBU_CLK || obu_type == OBU_OLK) {

@@ -8313,9 +8313,9 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
                              av2_is_regular_non_olk_obu(obu_type) &&
                              pbi->this_is_first_vcl_obu_in_tu == 0;
       // Implicitly derive the reference mapping
-      init_ref_map_pair_dec(cm, cm->ref_frame_map_pairs,
-                            current_frame->frame_type == KEY_FRAME,
-                            pbi->obu_type == OBU_RAS_FRAME, use_olk_ref_only);
+      init_ref_map_pair(cm, cm->ref_frame_map_pairs,
+                        current_frame->frame_type == KEY_FRAME,
+                        pbi->obu_type == OBU_RAS_FRAME, use_olk_ref_only);
 
       if (cm->bridge_frame_info.is_bridge_frame) {
         current_frame->order_hint =

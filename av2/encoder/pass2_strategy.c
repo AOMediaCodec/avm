@@ -2795,8 +2795,11 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
 
     setup_target_rate(cpi);
     int src_index = gf_group->arf_src_offset[gf_group->index];
-    if (src_index == cpi->rc.frames_to_key && src_index != 0 &&
-        cpi->oxcf.kf_cfg.fwd_kf_enabled && gf_group->size > 1) {
+    if (src_index == cpi->rc.frames_to_key * (int)cpi->common.number_mlayers &&
+        src_index != 0 && cpi->oxcf.kf_cfg.fwd_kf_enabled &&
+        gf_group->size > 1 &&
+        gf_group->update_type[gf_group->index] != FWD_KF_OVERLAY_UPDATE &&
+        gf_group->update_type[gf_group->index] != FWD_KF_SUCCESSOR_UPDATE) {
       cpi->no_show_fwd_kf = 1;
     }
     // If this is an arf frame then we dont want to read the stats file or
@@ -2992,8 +2995,11 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
 
     cpi->no_show_fwd_kf = 0;
     int src_index = gf_group->arf_src_offset[gf_group->index];
-    if (src_index == cpi->rc.frames_to_key && src_index != 0 &&
-        cpi->oxcf.kf_cfg.fwd_kf_enabled && gf_group->size > 1) {
+    if (src_index == cpi->rc.frames_to_key * (int)cpi->common.number_mlayers &&
+        src_index != 0 && cpi->oxcf.kf_cfg.fwd_kf_enabled &&
+        gf_group->size > 1 &&
+        gf_group->update_type[gf_group->index] != FWD_KF_OVERLAY_UPDATE &&
+        gf_group->update_type[gf_group->index] != FWD_KF_SUCCESSOR_UPDATE) {
       cpi->no_show_fwd_kf = 1;
     }
     const int update_type = gf_group->update_type[gf_group->index];

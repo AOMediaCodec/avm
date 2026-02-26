@@ -990,7 +990,7 @@ static AVM_INLINE void init_gop_frames_for_tpl(
   RefFrameMapPair ref_frame_map_pairs[REF_FRAMES];
   init_ref_map_pair(cm, ref_frame_map_pairs,
                     init_frame_params->frame_type == KEY_FRAME,
-                    cpi->switch_frame_mode == 1);
+                    cpi->switch_frame_mode == 1, /*use_olk_tu_ref_only=*/0);
 
   EncodeFrameParams frame_params = *init_frame_params;
   TplParams *const tpl_data = &cpi->tpl_data;
@@ -1111,7 +1111,7 @@ static AVM_INLINE void init_gop_frames_for_tpl(
                            init_frame_params->immediate_output_picture);
     init_ref_map_pair(cm, ref_frame_map_pairs,
                       init_frame_params->frame_type == KEY_FRAME,
-                      cpi->switch_frame_mode == 1);
+                      cpi->switch_frame_mode == 1, /*use_olk_tu_ref_only=*/0);
     if (cm->seq_params.enable_explicit_ref_frame_map || frame_is_sframe(cm) ||
         cpi->switch_frame_mode == 1)
       av2_get_ref_frames_enc(cpi, true_disp, ref_frame_map_pairs);
@@ -1208,7 +1208,7 @@ static AVM_INLINE void init_gop_frames_for_tpl(
                          init_frame_params->immediate_output_picture);
   init_ref_map_pair(cm, ref_frame_map_pairs,
                     init_frame_params->frame_type == KEY_FRAME,
-                    cpi->switch_frame_mode == 1);
+                    cpi->switch_frame_mode == 1, /*use_olk_tu_ref_only=*/0);
   if (cm->seq_params.enable_explicit_ref_frame_map || frame_is_sframe(cm) ||
       cpi->switch_frame_mode == 1)
     av2_get_ref_frames_enc(cpi, true_disp, ref_frame_map_pairs);

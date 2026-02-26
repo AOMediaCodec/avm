@@ -22,10 +22,10 @@
 extern "C" {
 #endif
 
-static INLINE void init_ref_map_pair_dec(AV2_COMMON *cm,
-                                         RefFrameMapPair *ref_frame_map_pairs,
-                                         int is_key, int is_ras,
-                                         int use_olk_tu_ref_only) {
+static INLINE void init_ref_map_pair(AV2_COMMON *cm,
+                                     RefFrameMapPair *ref_frame_map_pairs,
+                                     int is_key, int is_ras,
+                                     int use_olk_tu_ref_only) {
   if (is_key) {
     memset(ref_frame_map_pairs, -1, sizeof(*ref_frame_map_pairs) * REF_FRAMES);
     return;
@@ -107,15 +107,6 @@ static INLINE void init_ref_map_pair_dec(AV2_COMMON *cm,
       }
     }
   }
-}
-
-// TODO: This function is introduced to separate enc & dec implementation when a
-// regular frame is in the same TU as an OLK. Once the encoder side is
-// implemented, this should be combined with init_ref_map_pair_dec.
-static INLINE void init_ref_map_pair(AV2_COMMON *cm,
-                                     RefFrameMapPair *ref_frame_map_pairs,
-                                     int is_key, int is_ras) {
-  init_ref_map_pair_dec(cm, ref_frame_map_pairs, is_key, is_ras, 0);
 }
 
 /*!\cond */

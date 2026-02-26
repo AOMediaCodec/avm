@@ -1037,7 +1037,9 @@ static int get_q_using_fixed_offsets(const AV2EncoderConfig *const oxcf,
   } else {  // Overlay frame.
     assert(update_type == OVERLAY_UPDATE ||
            update_type == KFFLT_OVERLAY_UPDATE ||
-           update_type == INTNL_OVERLAY_UPDATE);
+           update_type == INTNL_OVERLAY_UPDATE ||
+           update_type == FWD_KF_OVERLAY_UPDATE ||
+           update_type == FWD_KF_SUCCESSOR_UPDATE);
     return qp;  // Directly Return worst quality allowed.
   }
   assert(offset_idx >= 0 && offset_idx < FIXED_QP_OFFSET_COUNT);

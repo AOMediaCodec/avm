@@ -276,6 +276,8 @@ static int construct_multi_layer_gf_structure(
     ++cur_frame_index;
   }
 
+  int has_hidden_fwd_kf = 0;
+  int use_fwd_kf_overlay = 0;
   if (subgop_cfg) {
     gf_group->subgop_cfg = subgop_cfg;
     gf_group->is_user_specified = 1;
@@ -295,20 +297,71 @@ static int construct_multi_layer_gf_structure(
       gf_group->arf_boost[frame_index] = cpi->rc.gfu_boost;
       gf_group->max_layer_depth = 1;
       gf_group->arf_index = frame_index;
+
+      if (gf_group->arf_src_offset[frame_index] ==
+              cpi->rc.frames_to_key * (int)cpi->common.number_mlayers &&
+          gf_group->arf_src_offset[frame_index] != 0 &&
+          cpi->oxcf.kf_cfg.fwd_kf_enabled &&
+          (cpi->oxcf.kf_cfg.enable_keyframe_filtering > 1 ||
+           cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames)) {
+        // This is a no-show fw kf, and we either need to send an overlay or an
+        // SEF obu for it.
+        has_hidden_fwd_kf = 1;
+        if (cpi->oxcf.kf_cfg.enable_keyframe_filtering > 1) {
+          use_fwd_kf_overlay = 1;
+        }
+      }
+
       ++frame_index;
     } else {
       gf_group->arf_index = -1;
     }
+
+    if (has_hidden_fwd_kf) {
+      gf_group->update_type[frame_index] =
+          use_fwd_kf_overlay ? FWD_KF_OVERLAY_UPDATE : FWD_KF_SUCCESSOR_UPDATE;
+      gf_group->arf_src_offset[frame_index] =
+          cpi->common.number_mlayers *
+          ((use_fwd_kf_overlay ? 0 : 1) + gf_interval - cur_frame_index - 1);
+      gf_group->cur_frame_idx[frame_index] = cur_frame_index;
+      gf_group->layer_depth[frame_index] = MAX_ARF_LAYERS;
+      gf_group->arf_boost[frame_index] = NORMAL_BOOST;
+      ++frame_index;
+    }
+
     set_multi_layer_params(twopass, gf_group, rc, frame_info, cur_frame_index,
                            gf_interval - 1, &cur_frame_index, &frame_index,
                            use_altref + 1, cpi->common.number_mlayers);
-    if (use_altref) {
+    if (has_hidden_fwd_kf) {
+      // If use_fwd_kf_overlay = 1, then this added overlay is for the implicit
+      // output of that kf overlay.  If use_fwd_kf_overlay = 0, then we need an
+      // SEF for the fwd kf. This is for that SEF.
       gf_group->update_type[frame_index] = OVERLAY_UPDATE;
       gf_group->arf_src_offset[frame_index] = 0;
       gf_group->cur_frame_idx[frame_index] = cur_frame_index;
       gf_group->layer_depth[frame_index] = MAX_ARF_LAYERS;
       gf_group->arf_boost[frame_index] = NORMAL_BOOST;
       ++frame_index;
+      ++cur_frame_index;
+      if (!use_fwd_kf_overlay) {
+        // Add one more for the regular frame after the fwd kf sef (implicit
+        // output).
+        gf_group->update_type[frame_index] = OVERLAY_UPDATE;
+        gf_group->arf_src_offset[frame_index] = 0;
+        gf_group->cur_frame_idx[frame_index] = cur_frame_index;
+        gf_group->layer_depth[frame_index] = MAX_ARF_LAYERS;
+        gf_group->arf_boost[frame_index] = NORMAL_BOOST;
+        ++frame_index;
+        ++cur_frame_index;
+      }
+    } else if (use_altref) {
+      gf_group->update_type[frame_index] = OVERLAY_UPDATE;
+      gf_group->arf_src_offset[frame_index] = 0;
+      gf_group->cur_frame_idx[frame_index] = cur_frame_index;
+      gf_group->layer_depth[frame_index] = MAX_ARF_LAYERS;
+      gf_group->arf_boost[frame_index] = NORMAL_BOOST;
+      ++frame_index;
+      ++cur_frame_index;
     } else {
       for (; cur_frame_index < gf_interval; ++cur_frame_index) {
         gf_group->update_type[frame_index] = LF_UPDATE;
@@ -359,6 +412,7 @@ void av2_gop_setup_structure(AV2_COMP *cpi) {
   FRAME_INFO *const frame_info = &cpi->frame_info;
   const int key_frame =
       rc->frames_since_key == 0 && !cpi->gf_state.olk_overlay_last;
+
   const int use_altref = gf_group->max_layer_depth_allowed > 0;
   const FRAME_UPDATE_TYPE update_type = cpi->gf_state.arf_gf_boost_lst ||
                                                 use_altref ||

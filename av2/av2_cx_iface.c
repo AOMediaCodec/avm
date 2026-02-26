@@ -3244,6 +3244,8 @@ static avm_codec_err_t encoder_encode(avm_codec_alg_priv_t *ctx,
           cpi->subgop_stats.num_references[stat_idx] = -1;
       }
     }
+    int ready_for_next_tu = 1;
+
     while (cx_data_sz - index_size >= ctx->cx_data_sz / 2 &&
            !is_frame_visible) {
       uint64_t cx_time = 0;
@@ -3271,31 +3273,34 @@ static avm_codec_err_t encoder_encode(avm_codec_alg_priv_t *ctx,
         }
       }
       if (!is_frame_visible_null && frame_size == 0) is_frame_visible = 0;
-
       if (frame_size) {
         if (ctx->pending_cx_data == 0) ctx->pending_cx_data = cx_data;
-        const int write_temporal_delimiter =
-            !(ctx->oxcf.signal_td) ? 0
-                                   : (!cpi->common.mlayer_id &&
-                                      (cpi->common.immediate_output_picture ||
-                                       cpi->common.implicit_output_picture));
-        if (write_temporal_delimiter) {
-          const uint32_t obu_payload_size = 0;
-          const size_t length_field_size =
-              avm_uleb_size_in_bytes(obu_payload_size);
+        if (ready_for_next_tu && cpi->common.mlayer_id == 0) {
+          if (ctx->oxcf.signal_td) {
+            const uint32_t obu_payload_size = 0;
+            const size_t length_field_size =
+                avm_uleb_size_in_bytes(obu_payload_size);
 
-          uint8_t obu_header[2];
-          const uint32_t obu_header_size = av2_write_obu_header(
-              &cpi->level_params, OBU_TEMPORAL_DELIMITER, 0, 0, obu_header);
-          const size_t move_offset = obu_header_size + length_field_size;
-          memmove(cx_data + move_offset, cx_data, frame_size);
-          memcpy(cx_data, obu_header, obu_header_size);
-          if (av2_write_uleb_obu_size(obu_header_size, obu_payload_size,
-                                      cx_data) != AVM_CODEC_OK) {
-            avm_internal_error(&cpi->common.error, AVM_CODEC_ERROR, NULL);
+            uint8_t obu_header[2];
+            const uint32_t obu_header_size = av2_write_obu_header(
+                &cpi->level_params, OBU_TEMPORAL_DELIMITER, 0, 0, obu_header);
+            const size_t move_offset = obu_header_size + length_field_size;
+            memmove(cx_data + move_offset, cx_data, frame_size);
+            memcpy(cx_data, obu_header, obu_header_size);
+            if (av2_write_uleb_obu_size(obu_header_size, obu_payload_size,
+                                        cx_data) != AVM_CODEC_OK) {
+              avm_internal_error(&cpi->common.error, AVM_CODEC_ERROR, NULL);
+            }
+            // OBUs are preceded/succeeded by an unsigned leb128 coded integer.
+            frame_size +=
+                obu_header_size + obu_payload_size + length_field_size;
           }
-          // OBUs are preceded/succeeded by an unsigned leb128 coded integer.
-          frame_size += obu_header_size + obu_payload_size + length_field_size;
+          ready_for_next_tu = 0;
+        }
+
+        if (!cpi->common.mlayer_id && (cpi->common.immediate_output_picture ||
+                                       cpi->common.implicit_output_picture)) {
+          ready_for_next_tu = 1;
         }
 
         size_t curr_frame_size = frame_size;
