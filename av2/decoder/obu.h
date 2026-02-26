@@ -132,6 +132,11 @@ bool conformance_check_msdo_lcr(struct AV2Decoder *pbi, bool global_lcr_present,
                                 bool local_lcr_present);
 #endif  // CONFIG_AV2_PROFILES
 
+void av2_store_xlayer_context(struct AV2Decoder *pbi, AV2_COMMON *cm,
+                              int xlayer_id);
+void av2_restore_xlayer_context(struct AV2Decoder *pbi, AV2_COMMON *cm,
+                                int xlayer_id);
+
 void av2_read_color_info(int *color_description_idc, int *color_primaries,
                          int *transfer_characteristics,
                          int *matrix_coefficients, int *full_range_flag,

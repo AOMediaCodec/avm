@@ -949,10 +949,35 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
     // is useful when OBUs are lost due to channel errors or removed for
     // temporal scalability.
     if (data == NULL && data_sz == 0) {
-      avm_codec_err_t err = flush_remaining_frames(pbi);
-      for (size_t j = 0; j < pbi->num_output_frames; j++) {
-        decrease_ref_count(pbi->output_frames[j], pool);
+      AV2_COMMON *const cm = &pbi->common;
+      int original_xlayer_id = cm->xlayer_id;
+      avm_codec_err_t err = AVM_CODEC_OK;
+
+      // Flush frames from all extended layers
+      for (int xlayer = 0; xlayer < AVM_MAX_NUM_STREAMS; xlayer++) {
+        if (pbi->xlayer_id_map[xlayer] > 0) {
+          if (xlayer != cm->xlayer_id) {
+            av2_store_xlayer_context(pbi, cm, cm->xlayer_id);
+            cm->xlayer_id = xlayer;
+            av2_restore_xlayer_context(pbi, cm, xlayer);
+          }
+
+          err = flush_remaining_frames(pbi);
+          if (err != AVM_CODEC_OK) break;
+
+          for (size_t j = 0; j < pbi->num_output_frames; j++) {
+            decrease_ref_count(pbi->output_frames[j], pool);
+          }
+        }
       }
+
+      // Restore original layer context
+      if (cm->xlayer_id != original_xlayer_id) {
+        av2_store_xlayer_context(pbi, cm, cm->xlayer_id);
+        cm->xlayer_id = original_xlayer_id;
+        av2_restore_xlayer_context(pbi, cm, original_xlayer_id);
+      }
+
       bool global_lcr_present = false;
       bool local_lcr_present = false;
 #if CONFIG_AV2_LCR_PROFILES

@@ -202,8 +202,7 @@ int av2_get_stream_index(const AV2_COMMON *cm, int xlayer_id) {
   return -1;
 }
 
-static void store_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
-                                 int xlayer_id) {
+void av2_store_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm, int xlayer_id) {
   int stream_idx = av2_get_stream_index(cm, xlayer_id);
   if (stream_idx < 0) return;  // Invalid or GLOBAL_XLAYER_ID
 
@@ -284,8 +283,8 @@ static void store_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
 }
 
 // Helper function to restore xlayer context
-static void restore_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
-                                   int xlayer_id) {
+void av2_restore_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
+                                int xlayer_id) {
   int stream_idx = av2_get_stream_index(cm, xlayer_id);
   if (stream_idx < 0) return;  // Invalid or GLOBAL_XLAYER_ID
 
@@ -2664,8 +2663,8 @@ avm_codec_err_t parse_to_order_hint_for_vcl_obu(
     *current_order_hint = order_hint;
   } else {
     // This functions(parse_to_order_hint_for_vcl_obu) is called before
-    // store_xlayer_context(). but this particular block is called only after at
-    // least one round of avm_decode_frame_from_obus()
+    // av2_store_xlayer_context(). but this particular block is called only
+    // after at least one round of avm_decode_frame_from_obus()
     const int stream_idx = av2_get_stream_index(&pbi->common, xlayer_id);
     RefCntBuffer **ref_frame_map =
         (stream_idx >= 0) ? pbi->stream_info[stream_idx].ref_frame_map_buf
@@ -2984,19 +2983,19 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
       } else if (cm->xlayer_id != GLOBAL_XLAYER_ID &&
                  obu_header.obu_xlayer_id == GLOBAL_XLAYER_ID) {
         // Store xlayer context
-        store_xlayer_context(pbi, cm, cm->xlayer_id);
+        av2_store_xlayer_context(pbi, cm, cm->xlayer_id);
         cm->xlayer_id = obu_header.obu_xlayer_id;
       } else if (cm->xlayer_id == GLOBAL_XLAYER_ID &&
                  obu_header.obu_xlayer_id != GLOBAL_XLAYER_ID) {
         // Restore xlayer context
         cm->xlayer_id = obu_header.obu_xlayer_id;
-        restore_xlayer_context(pbi, cm, cm->xlayer_id);
+        av2_restore_xlayer_context(pbi, cm, cm->xlayer_id);
         pbi->stream_switched = 1;
       } else if (cm->xlayer_id != obu_header.obu_xlayer_id) {
         // Store and restore xlayer context
-        store_xlayer_context(pbi, cm, cm->xlayer_id);
+        av2_store_xlayer_context(pbi, cm, cm->xlayer_id);
         cm->xlayer_id = obu_header.obu_xlayer_id;
-        restore_xlayer_context(pbi, cm, cm->xlayer_id);
+        av2_restore_xlayer_context(pbi, cm, cm->xlayer_id);
         pbi->stream_switched = 1;
       }
       if (obu_header.type == OBU_LEADING_TILE_GROUP ||
