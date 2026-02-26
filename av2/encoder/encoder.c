@@ -4586,7 +4586,9 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
       }
       for (int ref_index = 0; ref_index < cm->seq_params.ref_frames;
            ref_index++) {
-        if (!((ref_flags_to_keep >> ref_index) & 1u)) {
+        if (!((ref_flags_to_keep >> ref_index) & 1u) &&
+            (cm->ref_frame_map[ref_index] == NULL ||
+             cm->ref_frame_map[ref_index]->long_term_id == -1)) {
           if (cm->ref_frame_map[ref_index] != NULL) {
             --cm->ref_frame_map[ref_index]->ref_count;
             cm->ref_frame_map[ref_index] = NULL;
@@ -4627,7 +4629,9 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
       }
       for (int ref_index = 0; ref_index < cm->seq_params.ref_frames;
            ref_index++) {
-        if (!((ref_flags_to_keep >> ref_index) & 1u)) {
+        if (!((ref_flags_to_keep >> ref_index) & 1u) &&
+            (cm->ref_frame_map[ref_index] == NULL ||
+             cm->ref_frame_map[ref_index]->long_term_id == -1)) {
           if (cm->ref_frame_map[ref_index] != NULL) {
             --cm->ref_frame_map[ref_index]->ref_count;
             cm->ref_frame_map[ref_index] = NULL;

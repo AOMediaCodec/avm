@@ -7010,7 +7010,8 @@ static void reset_buffer_other_than_OLK(AV2Decoder *pbi) {
       ref_flags_to_keep |= cm->olk_co_vcl_refresh_frame_flags[layer];
   }
   for (int ref_index = 0; ref_index < seq_params->ref_frames; ref_index++) {
-    if (!((ref_flags_to_keep >> ref_index) & 1u)) {
+    if (!((ref_flags_to_keep >> ref_index) & 1u) &&
+        pbi->long_term_ids_in_buffer[ref_index] == -1) {
       decrease_ref_count(cm->ref_frame_map[ref_index], pool);
       cm->ref_frame_map[ref_index] = NULL;
       if (pbi->random_accessed) pbi->valid_for_referencing[ref_index] = 1;
