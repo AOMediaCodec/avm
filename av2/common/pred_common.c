@@ -195,6 +195,8 @@ int av2_get_op_constrained_ref_frames(AV2_COMMON *cm, int cur_frame_disp,
         is_layer_dropped(ref_tlayer_id, tlayer_mask))
       continue;
 
+    if (cur_ref.ref_frame_restricted == 1) continue;
+
     // In error resilient mode, ref mapping must be independent of the
     // base_qindex to ensure decoding independency
     const int ref_base_qindex = cur_ref.base_qindex;

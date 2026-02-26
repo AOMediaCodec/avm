@@ -3296,6 +3296,9 @@ static int motion_field_projection_start_target(
     AV2_COMMON *cm, MV_REFERENCE_FRAME start_frame,
     MV_REFERENCE_FRAME target_frame) {
   const int cur_order_hint = cm->cur_frame->display_order_hint;
+
+  if (get_ref_frame_buf(cm, start_frame)->is_restricted) return 0;
+
   int start_order_hint = get_ref_frame_buf(cm, start_frame)->display_order_hint;
   int target_order_hint =
       get_ref_frame_buf(cm, target_frame)->display_order_hint;
@@ -3683,6 +3686,7 @@ void calc_and_set_avg_lengths(AV2_COMMON *cm, int ref, int side) {
     for (int c = 0; c < mvs_cols; c += 2) {
       const MV_REF *mv_ref = &buf->mvs[r * mvs_cols + c];
       if (mv_ref->ref_frame[side] != NONE_FRAME) {
+        if (buf->refs_restricted_status[mv_ref->ref_frame[side]]) continue;
         const int ref_hint =
             buf->ref_display_order_hint[mv_ref->ref_frame[side]];
 
@@ -4137,6 +4141,8 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
   // The idx of rf in sort_ref that is before current frame, and closest.
   int cur_frame_sort_idx = -1;
   for (int rf_idx = 0; rf_idx < cm->ref_frames_info.num_total_refs; rf_idx++) {
+    if (get_ref_frame_buf(cm, rf_idx)->is_restricted) continue;
+
     if (get_relative_dist(order_hint_info, disp_order[rf_idx], cur_disp_order) <
         0) {
       cur_frame_sort_idx = rf_idx;
@@ -4174,7 +4180,7 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
   int checked_ref[INTER_REFS_PER_FRAME][2] = { 0 };
   int checked_count = 0;
 
-  if (cm->seq_params.enable_tip) {
+  if (cm->seq_params.enable_tip && cur_frame_sort_idx != -1) {
     if (cm->has_both_sides_refs || cm->ref_frames_info.num_past_refs >= 2) {
       if (cm->has_both_sides_refs) {
         cm->tip_ref.ref_frame[0] = sort_ref[cur_frame_sort_idx];

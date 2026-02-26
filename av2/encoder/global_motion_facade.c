@@ -420,6 +420,7 @@ static AVM_INLINE void pick_base_gm_params(AV2_COMP *cpi) {
         (ref_disabled && cpi->sf.hl_sf.recode_loop != DISALLOW_RECODE)) {
       continue;
     }
+    if (buf->is_restricted) continue;
 
     int their_num_refs = buf->num_ref_frames;
     for (int their_ref = 0; their_ref < their_num_refs; ++their_ref) {
