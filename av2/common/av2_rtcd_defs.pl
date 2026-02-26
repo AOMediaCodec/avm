@@ -226,10 +226,8 @@ if (avm_config("CONFIG_AV2_ENCODER") eq "yes") {
 
   add_proto qw/void av2_get_rate_dist_def_luma/, "const struct tcq_param_t *p, const struct prequant_t *pq, const struct tcq_coeff_ctx_t *coeff_ctx, int blk_pos, int diag_ctx, int eob_rate, struct tcq_rate_t *rd";
   specialize qw/av2_get_rate_dist_def_luma avx2/;
-  add_proto qw/void av2_get_rate_dist_def_chroma/, "const struct LV_MAP_COEFF_COST* txb_costs, const struct prequant_t *pq, const struct tcq_coeff_ctx_t *coeff_ctx, int blk_pos, int bwl, TX_CLASS tx_class, int diag_ctx, int eob_rate, int plane, int t_sign, int sign, struct tcq_rate_t *rd";
   add_proto qw/void av2_get_rate_dist_lf_luma/, "const struct tcq_param_t *p, const struct prequant_t *pq, const struct tcq_coeff_ctx_t *coeff_ctx, int blk_pos, int diag_ctx, int eob_rate, int coeff_sign, struct tcq_rate_t *rd";
   specialize qw/av2_get_rate_dist_lf_luma avx2/;
-  add_proto qw/void av2_get_rate_dist_lf_chroma/, "const struct LV_MAP_COEFF_COST *txb_costs, const struct prequant_t *pq, const struct tcq_coeff_ctx_t *coeff_ctx, int blk_pos, int diag_ctx, int eob_rate, int dc_sign_ctx, const int32_t *tmp_sign, int bwl, TX_CLASS tx_class, int plane, int coeff_sign, struct tcq_rate_t *rd";
   add_proto qw/void av2_update_states/, "const struct tcq_node_t *decision, int col, struct tcq_ctx_t *tcq_ctx";
   specialize qw/av2_update_states avx2/;
   add_proto qw/void av2_calc_block_eob_rate/, "struct macroblock *x, int plane, TX_SIZE tx_size, int eob, uint16_t *block_eob_rate";
