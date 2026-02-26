@@ -1082,6 +1082,7 @@ static avm_image_t *add_grain_if_needed(avm_codec_alg_priv_t *ctx,
   grain_img->tlayer_id = img->tlayer_id;
   grain_img->mlayer_id = img->mlayer_id;
   grain_img->xlayer_id = img->xlayer_id;
+  grain_img->stream_id = img->stream_id;
   img->metadata = NULL;
   if (av2_add_film_grain(grain_params, img, grain_img)) {
     pool->release_fb_cb(pool->cb_priv, fb);
@@ -1163,6 +1164,7 @@ static avm_image_t *decoder_get_frame_(avm_codec_alg_priv_t *ctx,
         img->tlayer_id = output_frame_buf->tlayer_id;
         img->mlayer_id = output_frame_buf->mlayer_id;
         img->xlayer_id = output_frame_buf->xlayer_id;
+        img->stream_id = output_frame_buf->stream_id;
 
         if (pbi->skip_film_grain) grain_params->apply_grain = 0;
         avm_image_t *res =

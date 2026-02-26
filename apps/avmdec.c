@@ -1117,6 +1117,7 @@ static int main_loop(int argc, const char **argv_) {
               scaled_img->tlayer_id = img->tlayer_id;
               scaled_img->mlayer_id = img->mlayer_id;
               scaled_img->xlayer_id = img->xlayer_id;
+              scaled_img->stream_id = img->stream_id;
             }
           }
 
@@ -1161,9 +1162,16 @@ static int main_loop(int argc, const char **argv_) {
 
         int num_planes = (opt_raw && img->monochrome) ? 1 : 3;
         int xlayer_id = 0;
+        int stream_id = 0;
         if (num_streams > 1) {
           xlayer_id = img->xlayer_id;
-          if (!do_md5) outfile = outfile_substream[img->xlayer_id];
+          stream_id = img->stream_id;
+          if (stream_id < 0 || stream_id >= num_streams) {
+            fprintf(stderr, "Error: Invalid stream_id %d for xlayer_id %d\n",
+                    stream_id, xlayer_id);
+            goto fail;
+          }
+          if (!do_md5) outfile = outfile_substream[stream_id];
         }
         if (single_file) {
           if (use_y4m) {
@@ -1171,8 +1179,8 @@ static int main_loop(int argc, const char **argv_) {
             size_t len = 0;
             int first_frame_in_file =
                 num_streams == 1 ? (frame_out == 1)
-                                 : (substream_frame_out[xlayer_id] == 0);
-            substream_frame_out[xlayer_id]++;
+                                 : (substream_frame_out[stream_id] == 0);
+            substream_frame_out[stream_id]++;
             if (first_frame_in_file) {
               // Y4M file header
               len = y4m_write_file_header(
@@ -1186,7 +1194,7 @@ static int main_loop(int argc, const char **argv_) {
                         "Using a placeholder.\n");
               }
               if (do_md5) {
-                MD5Update(&md5_ctx_substream[xlayer_id], (md5byte *)y4m_buf,
+                MD5Update(&md5_ctx_substream[stream_id], (md5byte *)y4m_buf,
                           (unsigned int)len);
                 MD5Update(&md5_ctx, (md5byte *)y4m_buf, (unsigned int)len);
               } else {
@@ -1206,8 +1214,8 @@ static int main_loop(int argc, const char **argv_) {
           } else {
             int first_frame_in_file =
                 num_streams == 1 ? (frame_out == 1)
-                                 : (substream_frame_out[xlayer_id] == 0);
-            substream_frame_out[xlayer_id]++;
+                                 : (substream_frame_out[stream_id] == 0);
+            substream_frame_out[stream_id]++;
             if (first_frame_in_file) {
               // Check if --yv12 or --i420 options are consistent with the
               // bit-stream decoded
@@ -1229,7 +1237,7 @@ static int main_loop(int argc, const char **argv_) {
                 }
               }
               raw_update_image_md5(img, planes, num_planes,
-                                   &md5_ctx_substream[xlayer_id]);
+                                   &md5_ctx_substream[stream_id]);
             }
             if (do_md5) {
               raw_update_image_md5(img, planes, num_planes, &md5_ctx);
@@ -1241,17 +1249,17 @@ static int main_loop(int argc, const char **argv_) {
           generate_filename(outfile_pattern, outfile_name, PATH_MAX, img->d_w,
                             img->d_h, frame_in);
           if (do_md5) {
-            MD5Init(&md5_ctx_substream[xlayer_id]);
+            MD5Init(&md5_ctx_substream[stream_id]);
             if (use_y4m) {
-              y4m_update_image_md5(img, planes, &md5_ctx_substream[xlayer_id]);
+              y4m_update_image_md5(img, planes, &md5_ctx_substream[stream_id]);
             } else {
               raw_update_image_md5(img, planes, num_planes,
-                                   &md5_ctx_substream[xlayer_id]);
+                                   &md5_ctx_substream[stream_id]);
             }
-            MD5Final(md5_digest_substream[xlayer_id],
-                     &md5_ctx_substream[xlayer_id]);
-            fprint_md5(outfile_substream[xlayer_id],
-                       md5_digest_substream[xlayer_id]);
+            MD5Final(md5_digest_substream[stream_id],
+                     &md5_ctx_substream[stream_id]);
+            fprint_md5(outfile_substream[stream_id],
+                       md5_digest_substream[stream_id]);
             MD5Init(&md5_ctx);
             if (use_y4m) {
               y4m_update_image_md5(img, planes, &md5_ctx);

@@ -448,6 +448,7 @@ void avm_shift_img(unsigned int output_bit_depth, avm_image_t **img_ptr,
       img_shifted->tlayer_id = img->tlayer_id;
       img_shifted->mlayer_id = img->mlayer_id;
       img_shifted->xlayer_id = img->xlayer_id;
+      img_shifted->stream_id = img->stream_id;
     } else {
       // TODO: Does this change during rpr
       img_shifted->w_conf_win_left_offset = 0;
@@ -459,6 +460,7 @@ void avm_shift_img(unsigned int output_bit_depth, avm_image_t **img_ptr,
       img_shifted->tlayer_id = img->tlayer_id;
       img_shifted->mlayer_id = img->mlayer_id;
       img_shifted->xlayer_id = img->xlayer_id;
+      img_shifted->stream_id = img->stream_id;
     }
 
     // img_shifted->x_chroma_shift = img->x_chroma_shift;

@@ -283,6 +283,8 @@ typedef struct RefCntBuffer {
   int ref_display_order_hint[INTER_REFS_PER_FRAME];
   int mlayer_id;
   int xlayer_id;
+  int stream_id;  // Index into stream_info array [0..num_streams-1], -1 for
+                  // GLOBAL
   int ref_mlayer_ids[INTER_REFS_PER_FRAME];
 
   // These variables are used only in encoder and compare the absolute

@@ -184,8 +184,8 @@ void av2_read_color_info(int *color_description_idc, int *color_primaries,
 }
 
 // Helper function to store xlayer context
-// Helper function to map xlayer_id to stream_info array index
-static int get_stream_index(const AV2_COMMON *cm, int xlayer_id) {
+// Helper function to map xlayer_id to stream_id array index
+int av2_get_stream_index(const AV2_COMMON *cm, int xlayer_id) {
   // GLOBAL_XLAYER_ID doesn't use stream_info
   if (xlayer_id == GLOBAL_XLAYER_ID) {
     return -1;
@@ -204,7 +204,7 @@ static int get_stream_index(const AV2_COMMON *cm, int xlayer_id) {
 
 static void store_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
                                  int xlayer_id) {
-  int stream_idx = get_stream_index(cm, xlayer_id);
+  int stream_idx = av2_get_stream_index(cm, xlayer_id);
   if (stream_idx < 0) return;  // Invalid or GLOBAL_XLAYER_ID
 
   for (int i = 0; i < REF_FRAMES; i++) {
@@ -286,7 +286,7 @@ static void store_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
 // Helper function to restore xlayer context
 static void restore_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
                                    int xlayer_id) {
-  int stream_idx = get_stream_index(cm, xlayer_id);
+  int stream_idx = av2_get_stream_index(cm, xlayer_id);
   if (stream_idx < 0) return;  // Invalid or GLOBAL_XLAYER_ID
 
   for (int i = 0; i < REF_FRAMES; i++) {

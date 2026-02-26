@@ -75,6 +75,7 @@
 #include "av2/decoder/decoder.h"
 #include "av2/decoder/decodetxb.h"
 #include "av2/decoder/detokenize.h"
+#include "av2/decoder/obu.h"
 
 #define AVM_MIN_THREADS_PER_TILE 1
 #define AVM_MAX_THREADS_PER_TILE 2
@@ -7080,6 +7081,7 @@ static int read_show_existing_frame(AV2Decoder *pbi, bool is_regular_obu,
   cm->derive_sef_order_hint = avm_rb_read_bit(rb);
   cm->cur_frame->mlayer_id = cm->mlayer_id;
   cm->cur_frame->xlayer_id = cm->xlayer_id;
+  cm->cur_frame->stream_id = av2_get_stream_index(cm, cm->xlayer_id);
 
   if (!cm->derive_sef_order_hint) {
     current_frame->order_hint = avm_rb_read_literal(
@@ -8558,6 +8560,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   cm->cur_frame->frame_type = current_frame->frame_type;
   cm->cur_frame->mlayer_id = cm->mlayer_id;
   cm->cur_frame->xlayer_id = cm->xlayer_id;
+  cm->cur_frame->stream_id = av2_get_stream_index(cm, cm->xlayer_id);
   validate_refereces(pbi);
 
   cm->cur_frame->buf.bit_depth = seq_params->bit_depth;
