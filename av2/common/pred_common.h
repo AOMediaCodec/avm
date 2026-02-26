@@ -22,13 +22,32 @@
 extern "C" {
 #endif
 
-static INLINE void init_ref_map_pair(AV2_COMMON *cm,
-                                     RefFrameMapPair *ref_frame_map_pairs,
-                                     int is_key, int is_ras) {
+static INLINE void init_ref_map_pair_dec(AV2_COMMON *cm,
+                                         RefFrameMapPair *ref_frame_map_pairs,
+                                         int is_key, int is_ras,
+                                         int use_olk_tu_ref_only) {
   if (is_key) {
     memset(ref_frame_map_pairs, -1, sizeof(*ref_frame_map_pairs) * REF_FRAMES);
     return;
   }
+
+  int olk_ref_flags = 0;
+  for (int layer = 0; layer <= cm->seq_params.max_mlayer_id; layer++) {
+    if (cm->olk_refresh_frame_flags[layer] == -1) continue;
+    olk_ref_flags |= cm->olk_refresh_frame_flags[layer];
+  }
+  // For the decoder, at this point cm->olk_co_vcl_refresh_frame_flags is
+  // already set with the current frame's refresh flags. Use
+  // cm->prev_olk_co_vcl_refresh_frame_flags since that is without the refresh
+  // flag of the current frame.
+  //
+  // At the encoder side either of them is set, but all such
+  // flags are in combined in cm->olk_refresh_frame_flags.
+  for (int layer = 0; layer <= cm->seq_params.max_mlayer_id; layer++) {
+    if (cm->prev_olk_co_vcl_refresh_frame_flags[layer] == -1) continue;
+    olk_ref_flags |= cm->prev_olk_co_vcl_refresh_frame_flags[layer];
+  }
+
   memset(ref_frame_map_pairs, 0, sizeof(*ref_frame_map_pairs) * REF_FRAMES);
   for (int map_idx = 0; map_idx < cm->seq_params.ref_frames; map_idx++) {
     // Get reference frame buffer
@@ -37,6 +56,14 @@ static INLINE void init_ref_map_pair(AV2_COMMON *cm,
       ref_frame_map_pairs[map_idx].ref_frame_restricted = 1;
       continue;
     }
+
+    if (use_olk_tu_ref_only && !((olk_ref_flags >> map_idx) & 1u)) {
+      // This is a frame in the same TU as OLK. It can only refer to the frames
+      // on / after the OLK.
+      ref_frame_map_pairs[map_idx].ref_frame_for_inference = -1;
+      continue;
+    }
+
     if (buf) {
       ref_frame_map_pairs[map_idx].width = buf->buf.y_crop_width;
       ref_frame_map_pairs[map_idx].height = buf->buf.y_crop_height;
@@ -80,6 +107,15 @@ static INLINE void init_ref_map_pair(AV2_COMMON *cm,
       }
     }
   }
+}
+
+// TODO: This function is introduced to separate enc & dec implementation when a
+// regular frame is in the same TU as an OLK. Once the encoder side is
+// implemented, this should be combined with init_ref_map_pair_dec.
+static INLINE void init_ref_map_pair(AV2_COMMON *cm,
+                                     RefFrameMapPair *ref_frame_map_pairs,
+                                     int is_key, int is_ras) {
+  init_ref_map_pair_dec(cm, ref_frame_map_pairs, is_key, is_ras, 0);
 }
 
 /*!\cond */

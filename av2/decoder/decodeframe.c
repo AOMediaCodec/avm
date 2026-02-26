@@ -7047,6 +7047,7 @@ static void reset_buffer_other_than_OLK(AV2Decoder *pbi) {
   for (int layer = 0; layer <= seq_params->max_mlayer_id; layer++) {
     cm->olk_refresh_frame_flags[layer] = -1;
     cm->olk_co_vcl_refresh_frame_flags[layer] = -1;
+    cm->prev_olk_co_vcl_refresh_frame_flags[layer] = -1;
   }
 }
 
@@ -7505,6 +7506,7 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     for (int layer = 0; layer < MAX_NUM_MLAYERS; layer++) {
       cm->olk_refresh_frame_flags[layer] = -1;
       cm->olk_co_vcl_refresh_frame_flags[layer] = -1;
+      cm->prev_olk_co_vcl_refresh_frame_flags[layer] = -1;
     }
   }
 
@@ -8195,6 +8197,8 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   // when the first regular temporal unit begins.
   if (pbi->olk_encountered && av2_is_regular_non_olk_obu(obu_type) &&
       pbi->this_is_first_vcl_obu_in_tu == 0) {
+    cm->prev_olk_co_vcl_refresh_frame_flags[cm->mlayer_id] =
+        cm->olk_co_vcl_refresh_frame_flags[cm->mlayer_id];
     if (cm->olk_co_vcl_refresh_frame_flags[cm->mlayer_id] == -1)
       cm->olk_co_vcl_refresh_frame_flags[cm->mlayer_id] = 0;
     cm->olk_co_vcl_refresh_frame_flags[cm->mlayer_id] |=
@@ -8234,10 +8238,14 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       cm->cur_frame->num_ref_frames = 0;
 
     } else if (pbi->need_resync != 1) { /* Skip if need resync */
+      int use_olk_ref_only = pbi->olk_encountered &&
+                             is_regular_non_olk_obu(obu_type) &&
+                             pbi->this_is_first_vcl_obu_in_tu == 0;
       // Implicitly derive the reference mapping
-      init_ref_map_pair(cm, cm->ref_frame_map_pairs,
-                        current_frame->frame_type == KEY_FRAME,
-                        pbi->obu_type == OBU_RAS_FRAME);
+      init_ref_map_pair_dec(cm, cm->ref_frame_map_pairs,
+                            current_frame->frame_type == KEY_FRAME,
+                            pbi->obu_type == OBU_RAS_FRAME, use_olk_ref_only);
+
       if (cm->bridge_frame_info.is_bridge_frame) {
         current_frame->order_hint =
             cm->ref_frame_map[cm->bridge_frame_info.bridge_frame_ref_idx]
