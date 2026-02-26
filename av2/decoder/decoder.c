@@ -707,7 +707,11 @@ static void update_frame_buffers(AV2Decoder *pbi, int frame_decoded) {
   if (frame_decoded) {
     lock_buffer_pool(pool);
 
-    cm->cur_frame->is_restricted = false;
+    // Don't clear is_restricted for bridge frames - they should maintain
+    // the restricted status inherited from their reference frame
+    if (!cm->bridge_frame_info.is_bridge_frame) {
+      cm->cur_frame->is_restricted = false;
+    }
 
     int first_ref_index;
     const bool clear_multiple_insert_in_one =

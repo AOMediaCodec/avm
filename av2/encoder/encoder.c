@@ -5123,6 +5123,12 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
           if (buf != NULL && buf->display_order_hint == 0) {
             cm->bridge_frame_info.bridge_frame_ref_idx = map_idx;
 
+            // Copy order hints from reference frame to bridge frame
+            cm->current_frame.display_order_hint = buf->display_order_hint;
+            cm->current_frame.absolute_poc = buf->absolute_poc;
+            cm->current_frame.order_hint = buf->order_hint;
+            cm->current_frame.frame_number = buf->order_hint;
+
             cm->quant_params.base_qindex = buf->base_qindex;
             if (av2_num_planes(cm) > 1) {
               cm->quant_params.u_ac_delta_q = buf->u_ac_delta_q;
@@ -5134,6 +5140,9 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
             cm->cur_frame->u_ac_delta_q = cm->quant_params.u_ac_delta_q;
             cm->cur_frame->v_ac_delta_q = cm->quant_params.v_ac_delta_q;
 
+            // Bridge frames should inherit the restricted status from their
+            // reference
+            cm->cur_frame->is_restricted = buf->is_restricted;
             break;
           }
         }

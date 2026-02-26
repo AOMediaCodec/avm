@@ -882,7 +882,13 @@ static AVM_INLINE void release_scaled_references(AV2_COMP *cpi) {
 // Refresh reference frame buffers according to refresh_frame_flags.
 static AVM_INLINE void refresh_reference_frames(AV2_COMP *cpi) {
   AV2_COMMON *const cm = &cpi->common;
-  cm->cur_frame->is_restricted = false;
+
+  // Don't clear is_restricted for bridge frames - they should maintain
+  // the restricted status inherited from their reference frame
+  if (!cm->bridge_frame_info.is_bridge_frame) {
+    cm->cur_frame->is_restricted = false;
+  }
+
   if (!cm->bru.enabled) {
     int first_ref_index;
     const bool clear_multiple_insert_in_one =
