@@ -4576,7 +4576,11 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
   //    gf_group->update_type[gf_group->size] = GF_UPDATE;
   //  }
 
-  if (!cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames &&
+  int forced_implicit =
+      cpi->update_type_was_overlay &&
+      cm->ref_frame_map[cpi->fb_idx_for_overlay]->implicit_output_picture;
+
+  if ((!cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames || forced_implicit) &&
       cpi->update_type_was_overlay) {
     assign_frame_buffer_p(&cm->cur_frame,
                           cm->ref_frame_map[cpi->fb_idx_for_overlay]);

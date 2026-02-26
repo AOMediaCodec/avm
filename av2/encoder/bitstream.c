@@ -5280,6 +5280,8 @@ static AVM_INLINE void write_uncompressed_header(
     } else {
       cm->implicit_output_picture = 0;
     }
+    cm->cur_frame->immediate_output_picture = cm->immediate_output_picture;
+    cm->cur_frame->implicit_output_picture = cm->implicit_output_picture;
   }
   int frame_size_override_flag = 0;
 
