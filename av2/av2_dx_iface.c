@@ -962,10 +962,12 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
             av2_restore_xlayer_context(pbi, cm, xlayer);
           }
 
+          size_t num_frames_before = pbi->num_output_frames;
           err = flush_remaining_frames(pbi);
           if (err != AVM_CODEC_OK) break;
 
-          for (size_t j = 0; j < pbi->num_output_frames; j++) {
+          // Only decrease ref count for frames added by this layer's flush
+          for (size_t j = num_frames_before; j < pbi->num_output_frames; j++) {
             decrease_ref_count(pbi->output_frames[j], pool);
           }
         }
