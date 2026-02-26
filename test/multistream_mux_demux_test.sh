@@ -51,6 +51,7 @@ encode_bitstream_0() {
   eval "${encoder}" \
     $(avmenc_encode_test_fast_params) \
     $(yuv_raw_input) \
+    --limit=$1 \
     --obu \
     --output=${BITSTREAM_0} \
     ${devnull} || return 1
@@ -70,6 +71,7 @@ encode_bitstream_1() {
   eval "${encoder}" \
     $(avmenc_encode_test_fast_params) \
     $(yuv_raw_input) \
+    --limit=$1 \
     --obu \
     --output=${BITSTREAM_1} \
     ${devnull} || return 1
@@ -89,6 +91,7 @@ encode_lag_bitstream_0() {
   eval "${encoder}" \
     $(avmenc_encode_test_fast_params_lag) \
     $(yuv_raw_input) \
+    --limit=$1 \
     --obu \
     --output=${BITSTREAM_0} \
     ${devnull} || return 1
@@ -108,6 +111,7 @@ encode_lag_bitstream_1() {
   eval "${encoder}" \
     $(avmenc_encode_test_fast_params_lag) \
     $(yuv_raw_input) \
+    --limit=$1 \
     --obu \
     --output=${BITSTREAM_1} \
     ${devnull} || return 1
@@ -569,8 +573,8 @@ run_encode_mux_demux_avmenc() {
   echo "Start single layer run_encode_mux_demux_ml_4streams"
 
   echo "avmenc with lag = 0"
-  encode_bitstream_0 || return 1
-  encode_bitstream_1 || return 1
+  encode_bitstream_0 5 || return 1
+  encode_bitstream_1 5 || return 1
   decode_bitstream_0 || return 1
   decode_bitstream_1 || return 1
   mux_bitstreams || return 1
@@ -580,8 +584,8 @@ run_encode_mux_demux_avmenc() {
   compare_md5 || return 1
 
   echo "avmenc with nonzero lag"
-  encode_lag_bitstream_0 || return 1
-  encode_lag_bitstream_1 || return 1
+  encode_lag_bitstream_0 10 || return 1
+  encode_lag_bitstream_1 10 || return 1
   decode_bitstream_0 || return 1
   decode_bitstream_1 || return 1
   mux_bitstreams || return 1
