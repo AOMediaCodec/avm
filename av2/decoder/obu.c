@@ -1985,11 +1985,14 @@ static void check_layerid_showable_frame_units(
   }
 }
 
+// This function provides conformance checks for the LCR, where the mlayer and
+// tlayer presence information in lcr_mlayer_map and lcr_tlayer_map do not
+// contradict with the dependency map information from the sequence header.
 static void check_lcr_mlayer_tlayer_conformance(
     const struct SequenceHeader *const seq_header,
     const struct EmbeddedLayerInfo *mlayer_params,
     struct avm_internal_error_info *info) {
-  int mlayer_map = mlayer_params->lcr_mlayer_map;
+  const int mlayer_map = mlayer_params->lcr_mlayer_map;
   for (int cur_mlayer_id = 0; cur_mlayer_id < MAX_NUM_MLAYERS;
        cur_mlayer_id++) {
     for (int ref_mlayer_id = 0; ref_mlayer_id < cur_mlayer_id;
@@ -2010,7 +2013,7 @@ static void check_lcr_mlayer_tlayer_conformance(
         }
       }
     }
-    int tlayer_map = mlayer_params->lcr_tlayer_map[cur_mlayer_id];
+    const int tlayer_map = mlayer_params->lcr_tlayer_map[cur_mlayer_id];
     for (int cur_tlayer_id = 0; cur_tlayer_id < MAX_NUM_TLAYERS;
          cur_tlayer_id++) {
       for (int ref_tlayer_id = 0; ref_tlayer_id < cur_tlayer_id;
@@ -2035,6 +2038,8 @@ static void check_lcr_mlayer_tlayer_conformance(
   }
 }
 
+// This function calls check_lcr_mlayer_tlayer_conformance function to perform
+// conformance checks accross the LCRs and xlayers present in the bitstream.
 static void check_lcr_layer_map_conformance(struct AV2Decoder *pbi,
                                             const int xlayer_id) {
   AV2_COMMON *const cm = &pbi->common;
@@ -2064,11 +2069,14 @@ static void check_lcr_layer_map_conformance(struct AV2Decoder *pbi,
   }
 }
 
+// This function provides conformance checks for the OPS, where the mlayer and
+// tlayer presence information in ops_mlayer_map and ops_tlayer_map do not
+// contradict with the dependency map information from the sequence header.
 static void check_ops_mlayer_tlayer_conformance(
     const struct SequenceHeader *const seq_header,
     const struct OpsMLayerInfo *const ops_mlayer_info, int xLId,
     struct avm_internal_error_info *info) {
-  int mlayer_map = ops_mlayer_info->ops_mlayer_map[xLId];
+  const int mlayer_map = ops_mlayer_info->ops_mlayer_map[xLId];
   for (int cur_mlayer_id = 0; cur_mlayer_id < MAX_NUM_MLAYERS;
        cur_mlayer_id++) {
     for (int ref_mlayer_id = 0; ref_mlayer_id < cur_mlayer_id;
@@ -2089,7 +2097,7 @@ static void check_ops_mlayer_tlayer_conformance(
         }
       }
     }
-    int tlayer_map = ops_mlayer_info->ops_tlayer_map[xLId][cur_mlayer_id];
+    const int tlayer_map = ops_mlayer_info->ops_tlayer_map[xLId][cur_mlayer_id];
     for (int cur_tlayer_id = 0; cur_tlayer_id < MAX_NUM_TLAYERS;
          cur_tlayer_id++) {
       for (int ref_tlayer_id = 0; ref_tlayer_id < cur_tlayer_id;
@@ -2114,6 +2122,8 @@ static void check_ops_mlayer_tlayer_conformance(
   }
 }
 
+// This function calls check_ops_mlayer_tlayer_conformance function to perform
+// conformance checks accross the OPSes and xlayers present in the bitstream.
 static void check_ops_layer_map_conformance(struct AV2Decoder *pbi,
                                             const int xlayer_id) {
   AV2_COMMON *const cm = &pbi->common;
