@@ -597,6 +597,9 @@ avm_codec_err_t flush_remaining_frames(struct AV2Decoder *pbi) {
       }
     }
     if (output_candidate != NULL) {
+      if (pbi->num_output_frames >= (REF_FRAMES + 1) * AVM_MAX_NUM_STREAMS) {
+        return AVM_CODEC_MEM_ERROR;
+      }
       assign_output_frame_buffer_p(
           &pbi->output_frames[pbi->num_output_frames++], output_candidate);
       output_candidate->frame_output_done = 1;
