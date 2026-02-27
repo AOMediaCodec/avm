@@ -385,6 +385,7 @@ int av2_get_ref_frames(AV2_COMMON *cm, int cur_frame_disp,
          i < cm->ref_frames_info.num_total_refs +
                  cm->ref_frames_info.num_restricted_ref;
          ++i) {
+      if (i + cm->ref_frames_info.num_total_refs >= INTER_REFS_PER_FRAME) break;
       if (cm->remapped_ref_idx[i] ==
           cm->bridge_frame_info.bridge_frame_ref_idx) {
         cm->bridge_frame_info.bridge_frame_ref_idx_remapped = i;

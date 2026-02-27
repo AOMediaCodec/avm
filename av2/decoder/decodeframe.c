@@ -8313,7 +8313,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
           avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
                              "Referenced frame has invalid size");
       }
-
       if (obu_type != OBU_LEADING_TIP && obu_type != OBU_REGULAR_TIP &&
           current_frame->frame_type == INTER_FRAME) {
         setup_bru_active_info(cm, rb);
