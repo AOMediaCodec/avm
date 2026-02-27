@@ -154,7 +154,6 @@ struct av2_extracfg {
   int min_partition_size;        // min partition size [4,8,16,32,64,128]
   int max_partition_size;        // max partition size [4,8,16,32,64,128]
   int enable_intra_edge_filter;  // enable intra-edge filter for sequence
-  int enable_tx64;               // enable 64-pt transform usage for sequence
   int reduced_tx_part_set;       // enable reduced transform block partition set
   int enable_flip_idtx;          // enable flip and identity transform types
   int max_reference_frames;      // maximum number of references per frame
@@ -481,7 +480,6 @@ static struct av2_extracfg default_extra_cfg = {
   4,    // min_partition_size
   256,  // max_partition_size
   1,    // enable intra edge filter
-  1,    // enable 64-pt transform usage
   0,    // enable reduced transform block partition set
   1,    // enable flip and identity transform
   7,  // max_reference_frames
@@ -981,7 +979,6 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->max_partition_size = extra_cfg->max_partition_size;
   cfg->min_partition_size = extra_cfg->min_partition_size;
   cfg->enable_intra_edge_filter = extra_cfg->enable_intra_edge_filter;
-  cfg->enable_tx64 = extra_cfg->enable_tx64;
   cfg->reduced_tx_part_set = extra_cfg->reduced_tx_part_set;
   cfg->enable_flip_idtx = extra_cfg->enable_flip_idtx;
   cfg->enable_masked_comp = extra_cfg->enable_masked_comp;
@@ -1099,7 +1096,6 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->max_partition_size = cfg->max_partition_size;
   extra_cfg->min_partition_size = cfg->min_partition_size;
   extra_cfg->enable_intra_edge_filter = cfg->enable_intra_edge_filter;
-  extra_cfg->enable_tx64 = cfg->enable_tx64;
   extra_cfg->reduced_tx_part_set = cfg->reduced_tx_part_set;
   extra_cfg->enable_flip_idtx = cfg->enable_flip_idtx;
   extra_cfg->enable_masked_comp = cfg->enable_masked_comp;
@@ -1670,7 +1666,6 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   intra_mode_cfg->enable_ibp = extra_cfg->enable_ibp;
 
   // Set transform size/type configuration.
-  txfm_cfg->enable_tx64 = extra_cfg->enable_tx64;
   txfm_cfg->reduced_tx_part_set = extra_cfg->reduced_tx_part_set;
   txfm_cfg->enable_flip_idtx = extra_cfg->enable_flip_idtx;
   txfm_cfg->reduced_tx_type_set = extra_cfg->reduced_tx_type_set;
@@ -2265,13 +2260,6 @@ static avm_codec_err_t ctrl_set_enable_intra_edge_filter(
   struct av2_extracfg extra_cfg = ctx->extra_cfg;
   extra_cfg.enable_intra_edge_filter =
       CAST(AV2E_SET_ENABLE_INTRA_EDGE_FILTER, args);
-  return update_extra_cfg(ctx, &extra_cfg);
-}
-
-static avm_codec_err_t ctrl_set_enable_tx64(avm_codec_alg_priv_t *ctx,
-                                            va_list args) {
-  struct av2_extracfg extra_cfg = ctx->extra_cfg;
-  extra_cfg.enable_tx64 = CAST(AV2E_SET_ENABLE_TX64, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
@@ -4088,9 +4076,6 @@ static avm_codec_err_t encoder_set_option(avm_codec_alg_priv_t *ctx,
                  err_string)) {
     extra_cfg.enable_intra_edge_filter =
         avm_arg_parse_uint_helper(&arg, err_string);
-  } else if (avm_arg_match_helper(&arg, &g_av2_codec_arg_defs.enable_tx64, argv,
-                                  err_string)) {
-    extra_cfg.enable_tx64 = avm_arg_parse_int_helper(&arg, err_string);
   } else if (avm_arg_match_helper(&arg,
                                   &g_av2_codec_arg_defs.reduced_tx_part_set,
                                   argv, err_string)) {
@@ -4477,7 +4462,6 @@ static avm_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV2E_SET_MAX_PARTITION_SIZE, ctrl_set_max_partition_size },
   { AV2E_SET_ENABLE_CHROMA_DELTAQ, ctrl_set_enable_chroma_deltaq },
   { AV2E_SET_ENABLE_INTRA_EDGE_FILTER, ctrl_set_enable_intra_edge_filter },
-  { AV2E_SET_ENABLE_TX64, ctrl_set_enable_tx64 },
   { AV2E_SET_ENABLE_FLIP_IDTX, ctrl_set_enable_flip_idtx },
   { AV2E_SET_MAX_REFERENCE_FRAMES, ctrl_set_max_reference_frames },
   { AV2E_SET_REDUCED_REFERENCE_SET, ctrl_set_enable_reduced_reference_set },
@@ -4663,7 +4647,7 @@ static const avm_codec_enc_cfg_t encoder_usage_cfg[] = { {
         1,    1, 1, 1,
         0,    0, 1, 1,
         1,    1, 1, 1,
-        1,    1, 1, 1,
+        1,    1, 1,
         0,  // reduced_tx_part_set
         1,    1, 1, 1,
         3,    1,

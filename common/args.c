@@ -142,7 +142,6 @@ int parse_cfg(const char *file, cfg_options_t *config) {
     GET_PARAMS(enable_angle_delta);
     GET_PARAMS(enable_opfl_refine);
     GET_PARAMS(enable_intra_edge_filter);
-    GET_PARAMS(enable_tx64);
     GET_PARAMS(reduced_tx_part_set);
     GET_PARAMS(enable_smooth_interintra);
     GET_PARAMS(enable_interinter_wedge);

@@ -3243,38 +3243,6 @@ static AVM_INLINE void choose_largest_tx_size(const AV2_COMP *const cpi,
   const TxfmSearchParams *txfm_params = &x->txfm_search_params;
   mbmi->tx_size = tx_size_from_tx_mode(bs, txfm_params->tx_mode_search_type);
 
-  // If tx64 is not enabled, we need to go down to the next available size
-  if (!cpi->oxcf.txfm_cfg.enable_tx64) {
-    static const TX_SIZE tx_size_max_32[TX_SIZES_ALL] = {
-      TX_4X4,    // 4x4 transform
-      TX_8X8,    // 8x8 transform
-      TX_16X16,  // 16x16 transform
-      TX_32X32,  // 32x32 transform
-      TX_32X32,  // 64x64 transform
-      TX_4X8,    // 4x8 transform
-      TX_8X4,    // 8x4 transform
-      TX_8X16,   // 8x16 transform
-      TX_16X8,   // 16x8 transform
-      TX_16X32,  // 16x32 transform
-      TX_32X16,  // 32x16 transform
-      TX_32X32,  // 32x64 transform
-      TX_32X32,  // 64x32 transform
-      TX_4X16,   // 4x16 transform
-      TX_16X4,   // 16x4 transform
-      TX_8X32,   // 8x32 transform
-      TX_32X8,   // 32x8 transform
-      TX_16X32,  // 16x64 transform
-      TX_32X16,  // 64x16 transform
-      TX_4X32,   // 4x32 transform
-      TX_32X4,   // 32x4 transform
-      TX_8X32,   // 8x64 transform
-      TX_32X8,   // 64x8 transform
-      TX_4X32,   // 4x64 transform
-      TX_32X4,   // 64x4 transform
-    };
-
-    mbmi->tx_size = tx_size_max_32[mbmi->tx_size];
-  }
   memset(mbmi->tx_partition_type, TX_PARTITION_NONE,
          sizeof(mbmi->tx_partition_type));
 
@@ -3413,10 +3381,6 @@ static void choose_tx_size_type_from_rd(const AV2_COMP *const cpi,
         continue;
     }
 #endif
-    if (!cpi->oxcf.txfm_cfg.enable_tx64 &&
-        txsize_sqr_up_map[cur_tx_size] == TX_64X64) {
-      continue;
-    }
 
     if ((type == TX_PARTITION_HORZ4 &&
          best_tx_partition_type == TX_PARTITION_VERT) ||
@@ -3753,12 +3717,6 @@ void av2_txfm_rd_joint_uv(MACROBLOCK *x, const AV2_COMP *cpi,
                           int64_t current_rd, BLOCK_SIZE plane_bsize,
                           TX_SIZE tx_size, FAST_TX_SEARCH_MODE ftxs_mode,
                           int skip_trellis) {
-  if (!cpi->oxcf.txfm_cfg.enable_tx64 &&
-      txsize_sqr_up_map[tx_size] == TX_64X64) {
-    av2_invalid_rd_stats(rd_stats);
-    return;
-  }
-
   MACROBLOCKD *const xd = &x->e_mbd;
   struct rdcost_block_args args;
   av2_zero(args);
@@ -4131,12 +4089,6 @@ void av2_txfm_rd_in_plane(MACROBLOCK *x, const AV2_COMP *cpi,
                           int64_t current_rd, int plane, BLOCK_SIZE plane_bsize,
                           TX_SIZE tx_size, FAST_TX_SEARCH_MODE ftxs_mode,
                           int skip_trellis) {
-  if (!cpi->oxcf.txfm_cfg.enable_tx64 &&
-      txsize_sqr_up_map[tx_size] == TX_64X64) {
-    av2_invalid_rd_stats(rd_stats);
-    return;
-  }
-
   if (current_rd > ref_best_rd) {
     av2_invalid_rd_stats(rd_stats);
     return;

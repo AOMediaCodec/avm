@@ -516,10 +516,6 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_intra_edge_filter;
-  /*!\brief enable 64x64 transform
-   *
-   */
-  unsigned int enable_tx64;
   /*!\brief enable reduced transform block partition set
    *
    */

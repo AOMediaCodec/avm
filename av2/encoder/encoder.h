@@ -308,10 +308,6 @@ typedef struct {
    */
   bool enable_tx_partition;
   /*!
-   * Flag to indicate if 64-pt transform should be enabled.
-   */
-  bool enable_tx64;
-  /*!
    * Flag to indicate if reduced transform block partition set should be
    * enabled.
    */

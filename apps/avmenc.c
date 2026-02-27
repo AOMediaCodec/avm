@@ -344,7 +344,6 @@ const arg_def_t *av2_ctrl_args[] = {
   &g_av2_codec_arg_defs.max_partition_size,
   &g_av2_codec_arg_defs.enable_chroma_deltaq,
   &g_av2_codec_arg_defs.enable_intra_edge_filter,
-  &g_av2_codec_arg_defs.enable_tx64,
   &g_av2_codec_arg_defs.enable_flip_idtx,
   &g_av2_codec_arg_defs.enable_masked_comp,
   &g_av2_codec_arg_defs.enable_onesided_comp,
@@ -688,7 +687,6 @@ static void init_config(cfg_options_t *config) {
   config->explicit_ref_frame_map = 0;
   config->add_sef_for_hidden_frames = 0;
   config->enable_intra_edge_filter = 1;
-  config->enable_tx64 = 1;
   config->reduced_tx_part_set = 0;
   config->enable_smooth_interintra = 1;
   config->enable_interinter_wedge = 1;
@@ -1610,10 +1608,9 @@ static void show_stream_config(struct stream_state *stream,
   fprintf(stdout,
           "Tool setting (Transform)       : Flip & IDT (%d), "
           "CCTX (%d), "
-          "Reduced TX partition set (%d), "
-          "TX_64 (%d)\n",
+          "Reduced TX partition set (%d)\n",
           encoder_cfg->enable_flip_idtx, encoder_cfg->enable_cctx,
-          encoder_cfg->reduced_tx_part_set, encoder_cfg->enable_tx64);
+          encoder_cfg->reduced_tx_part_set);
 
   fprintf(stdout,
           "Tool setting (Loop filter)     : Deblocking (%d), CDEF (%d), "

@@ -2289,7 +2289,6 @@ static AVM_INLINE void encode_frame_internal(AV2_COMP *cpi) {
           : DEFAULT_EVAL;
   const TX_SIZE_SEARCH_METHOD tx_search_type =
       cpi->winner_mode_params.tx_size_search_methods[eval_type];
-  assert(oxcf->txfm_cfg.enable_tx64 || tx_search_type != USE_LARGESTALL);
   features->tx_mode = select_tx_mode(cm, tx_search_type);
 
   if (cpi->sf.tx_sf.tx_type_search.prune_tx_type_using_stats) {

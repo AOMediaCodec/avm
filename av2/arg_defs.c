@@ -507,9 +507,6 @@ const av2_codec_arg_definitions_t g_av2_codec_arg_defs = {
   .enable_intra_edge_filter = ARG_DEF(NULL, "enable-intra-edge-filter", 1,
                                       "Enable intra edge filtering "
                                       "(0: false, 1: true (default))"),
-  .enable_tx64 =
-      ARG_DEF(NULL, "enable-tx64", 1,
-              "Enable 64-pt transform (0: false, 1: true (default))"),
   .reduced_tx_part_set = ARG_DEF(NULL, "reduced-tx-part-set", 1,
                                  "Use reduced transform block partition set "
                                  "(0: false (default), 1: true)"),
