@@ -2932,10 +2932,10 @@ static AVM_INLINE void init_allowed_partitions(
   part_search_state->is_block_splittable = is_partition_point(bsize);
   part_search_state->partition_none_allowed = partition_allowed[PARTITION_NONE];
   part_search_state->partition_rect_allowed[HORZ] =
-      partition_allowed[PARTITION_HORZ] && part_cfg->enable_rect_partitions &&
+      partition_allowed[PARTITION_HORZ] && allow_rect &&
       is_bsize_geq(horz_subsize, min_partition_size);
   part_search_state->partition_rect_allowed[VERT] =
-      partition_allowed[PARTITION_VERT] && part_cfg->enable_rect_partitions &&
+      partition_allowed[PARTITION_VERT] && allow_rect &&
       is_bsize_geq(vert_subsize, min_partition_size);
 
   part_search_state->partition_3_allowed[HORZ] =
