@@ -5042,8 +5042,14 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
       //   - is_ref_motion_field_eligible_by_frame_type returns 0 for restricted
       //     refs, preventing motion-field projection into future frames.
       for (int i = 0; i < cm->seq_params.ref_frames; i++) {
-        if (cm->ref_frame_map[i] != NULL)
+        if (cm->ref_frame_map[i] != NULL) {
           cm->ref_frame_map[i]->is_restricted = true;
+          // Mirror the decoder (get_disp_order_hint): set display_order_hint
+          // to REF_RESTRICTED_DOH so that any code path reading
+          // buf->display_order_hint without an is_restricted guard produces
+          // the same result on both encoder and decoder sides.
+          cm->ref_frame_map[i]->display_order_hint = REF_RESTRICTED_DOH;
+        }
       }
     }
   }

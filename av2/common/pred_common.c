@@ -263,7 +263,9 @@ int av2_get_ref_frames(AV2_COMMON *cm, int cur_frame_disp,
     if (!resolution_available) cm->remapped_ref_idx_res_indep[i] = INVALID_IDX;
     cm->remapped_ref_idx[i] = INVALID_IDX;
   }
+#if 0   // ISSUE1333
   int remap_idx_sframe[REF_FRAMES] = { 0 };
+#endif  // ISSUE1333
   int n_ranked = 0;
   cm->ref_frames_info.num_restricted_ref = 0;
 
@@ -281,7 +283,9 @@ int av2_get_ref_frames(AV2_COMMON *cm, int cur_frame_disp,
     // Get reference frame buffer
     RefFrameMapPair cur_ref = ref_frame_map_pairs[i];
     if (cur_ref.ref_frame_restricted == 1) {
+#if 0   // ISSUE1333
       remap_idx_sframe[cm->ref_frames_info.num_restricted_ref] = i;
+#endif  // ISSUE1333
       cm->ref_frames_info.num_restricted_ref++;
       continue;
     }
@@ -369,6 +373,7 @@ int av2_get_ref_frames(AV2_COMMON *cm, int cur_frame_disp,
     }
   }
 
+#if 0   // ISSUE1333
   for (int i = 0; i < cm->ref_frames_info.num_restricted_ref; ++i) {
     if (i + cm->ref_frames_info.num_total_refs >= INTER_REFS_PER_FRAME) break;
     cm->remapped_ref_idx[i + cm->ref_frames_info.num_total_refs] =
@@ -376,6 +381,7 @@ int av2_get_ref_frames(AV2_COMMON *cm, int cur_frame_disp,
     cm->ref_frames_info
         .ref_frame_distance[i + cm->ref_frames_info.num_total_refs] = INT_MAX;
   }
+#endif  // ISSUE1333
 
   if (cm->bridge_frame_info.is_bridge_frame &&
       !bridge_frame_ref_idx_remapped_found) {
@@ -439,9 +445,22 @@ int av2_get_ref_frames(AV2_COMMON *cm, int cur_frame_disp,
     cm->remapped_ref_idx[cm->ref_frames_info.num_total_refs] = i;
     cm->ref_frames_info.num_total_refs++;
   }
-#endif  // ISSUE1333
+
   cm->ref_frames_info.num_valid_refs_with_restricted_ref =
       cm->ref_frames_info.num_total_refs;
+#else
+  cm->ref_frames_info.num_valid_refs_with_restricted_ref =
+      cm->ref_frames_info.num_total_refs +
+      cm->ref_frames_info.num_restricted_ref;
+
+  if (cm->ref_frames_info.num_valid_refs_with_restricted_ref >
+      max_num_ref_frames)
+    cm->ref_frames_info.num_valid_refs_with_restricted_ref = max_num_ref_frames;
+
+  cm->ref_frames_info.num_total_refs =
+      cm->ref_frames_info.num_valid_refs_with_restricted_ref;
+
+#endif  // ISSUE1333
 
   return n_ranked;
 }
