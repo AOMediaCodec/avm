@@ -4924,6 +4924,7 @@ static void write_frame_max_bvp_drl_bits(AV2_COMMON *const cm,
 static AVM_INLINE void write_multi_frame_header(
     const MultiFrameHeader *const mfh_param, struct avm_write_bit_buffer *wb) {
   avm_wb_write_uvlc(wb, mfh_param->mfh_seq_header_id);
+  assert(mfh_param->mfh_id >= 1);
   avm_wb_write_uvlc(wb, mfh_param->mfh_id - 1);
   avm_wb_write_bit(wb, mfh_param->mfh_frame_size_present_flag);
   if (mfh_param->mfh_frame_size_present_flag) {
@@ -6706,6 +6707,7 @@ static void set_multi_frame_header_with_keyframe(AV2_COMP *cpi,
   SequenceHeader *const seq_params = &cpi->common.seq_params;
 
   mfh_params->mfh_seq_header_id = 0;
+  mfh_params->mfh_id = cm->cur_mfh_id;
   mfh_params->mfh_frame_size_present_flag =
       cm->width != cm->seq_params.max_frame_width ||
       cm->height != cm->seq_params.max_frame_height;
