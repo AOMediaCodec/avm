@@ -3221,7 +3221,10 @@ static void set_primary_ref_frame_for_error_resilient(AV2_COMP *cpi) {
     cpi->signal_primary_ref_frame = cm->features.primary_ref_frame !=
                                     cm->features.derived_primary_ref_frame;
     if (cpi->signal_primary_ref_frame) {
-      cm->features.derived_primary_ref_frame = cm->features.primary_ref_frame;
+      int tmp_ref_frame[2];
+      choose_primary_secondary_ref_frame(cm, tmp_ref_frame, 1);
+      cm->features.derived_primary_ref_frame = tmp_ref_frame[0];
+      cm->features.derived_secondary_ref_frame = tmp_ref_frame[1];
     }
     if (cm->features.primary_ref_frame == PRIMARY_REF_NONE)
       av2_setup_past_independence(cm);
@@ -3255,6 +3258,7 @@ static void set_primary_ref_frame(AV2_COMP *cpi) {
     cpi->signal_primary_ref_frame = 1;
     choose_primary_secondary_ref_frame(cm, tmp_ref_frame, 1);
     cm->features.derived_primary_ref_frame = tmp_ref_frame[0];
+    cm->features.derived_secondary_ref_frame = tmp_ref_frame[1];
   }
 }
 
@@ -4190,7 +4194,10 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
     cpi->signal_primary_ref_frame = cm->features.derived_primary_ref_frame !=
                                     cm->features.primary_ref_frame;
     if (cpi->signal_primary_ref_frame) {
-      cm->features.derived_primary_ref_frame = cm->features.primary_ref_frame;
+      int tmp_ref_frame[2];
+      choose_primary_secondary_ref_frame(cm, tmp_ref_frame, 1);
+      cm->features.derived_primary_ref_frame = tmp_ref_frame[0];
+      cm->features.derived_secondary_ref_frame = tmp_ref_frame[1];
     }
 
     const int map_idx =

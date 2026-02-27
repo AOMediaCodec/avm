@@ -496,6 +496,9 @@ void choose_primary_secondary_ref_frame(const AV2_COMMON *const cm,
       secondary_cand.idx != -1 ? secondary_cand.idx : PRIMARY_REF_NONE;
 
   if (signal_primary_ref_frame == 1) {  // initial value is -1
+    ref_frame[1] = (ref_frame[1] == cm->features.primary_ref_frame)
+                       ? ref_frame[0]
+                       : ref_frame[1];
     ref_frame[0] = cm->features.primary_ref_frame;
   }
 }
