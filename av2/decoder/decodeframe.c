@@ -4067,7 +4067,7 @@ static AVM_INLINE void setup_frame_size_with_refs(
       const RefCntBuffer *const ref_buf =
           explicit_ref_frame_map ? get_ref_frame_buf(cm, i)
                                  : get_ref_frame_buf_res_indep(cm, i);
-#if 1  // ISSUE1332
+#if 1  // ISSUE1333
        //  A restricted switch frame may still inherit its dimensions from a
        //  restricted reference because the buffer geometry remains valid even
        //  when motion information from that buffer is suppressed.

@@ -1171,7 +1171,7 @@ static INLINE int is_ref_motion_field_eligible_by_frame_type(
   if (start_frame_buf->frame_type == KEY_FRAME ||
       start_frame_buf->frame_type == INTRA_ONLY_FRAME)
     return 0;
-#if 0  // ISSUE1332
+#if 0  // ISSUE1333
   // Restricted refs contribute no motion information (pixels are still usable).
   if (start_frame_buf->is_restricted) return 0;
 #endif

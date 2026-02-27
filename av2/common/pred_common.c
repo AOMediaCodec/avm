@@ -441,18 +441,7 @@ int av2_get_ref_frames(AV2_COMMON *cm, int cur_frame_disp,
   }
 #endif  // ISSUE1333
   cm->ref_frames_info.num_valid_refs_with_restricted_ref =
-  cm->ref_frames_info.num_total_refs;
-//  cm->ref_frames_info.num_valid_refs_with_restricted_ref =
-//      cm->ref_frames_info.num_total_refs +
-//      cm->ref_frames_info.num_restricted_ref;
-//
-//  if (cm->ref_frames_info.num_valid_refs_with_restricted_ref >
-//      max_num_ref_frames)
-//    cm->ref_frames_info.num_valid_refs_with_restricted_ref = max_num_ref_frames;
-//
-//  cm->ref_frames_info.num_total_refs =
-//      cm->ref_frames_info.num_valid_refs_with_restricted_ref;
-//
+      cm->ref_frames_info.num_total_refs;
 
   return n_ranked;
 }

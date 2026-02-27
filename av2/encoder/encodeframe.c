@@ -1764,9 +1764,8 @@ static AVM_INLINE void set_rel_frame_dist(
     if (ref_frame_flags & (1 << ref_frame)) {
 #if 1  // ISSUE1333: restricted refs are now included in num_total_refs and
        // ref_frame_flags for pixel access; skip distance computation for them.
-      if (cm->ref_frame_map[ref_frame] == NULL ||
-          cm->ref_frame_map[ref_frame]->is_restricted)
-        continue;
+      const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
+      if (buf == NULL || buf->is_restricted) continue;
 #else
       if (cm->cur_frame->refs_restricted_status[ref_frame]) continue;
 #endif  // ISSUE1333
