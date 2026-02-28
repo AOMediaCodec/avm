@@ -297,7 +297,6 @@ int main(int argc, char **argv) {
 
   // Flush encoder.
   while (1) {
-    printf("flush encoder \n");
     int success_encode = 1;
     for (int sl = 0; sl < num_embedded_layers; sl++) {
       set_layer_ids(num_temporal_layers, num_embedded_layers, frames_encoded,
