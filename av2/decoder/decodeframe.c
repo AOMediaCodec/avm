@@ -8373,6 +8373,44 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
         if (pbi->valid_for_referencing[ref] == 0)
           avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
                              "Reference frame not valid for referencing");
+        // Check that co-VCL frames in an OLK TU only reference frames written
+        // in the current TU.
+        if (pbi->olk_encountered && !pbi->this_is_first_vcl_obu_in_tu) {
+          const RefCntBuffer *const ref_buf = cm->ref_frame_map[ref];
+          const int ref_mlayer_id = ref_buf->mlayer_id;
+          const int ref_tlayer_id = ref_buf->tlayer_id;
+          const int cur_mlayer_id = current_frame->mlayer_id;
+          const int cur_tlayer_id = current_frame->tlayer_id;
+          // Only check references from layers the current frame depends on.
+          if (is_mlayer_scalable_and_dependent(&cm->seq_params, cur_mlayer_id,
+                                               ref_mlayer_id) &&
+              is_tlayer_scalable_and_dependent(&cm->seq_params, cur_tlayer_id,
+                                               ref_tlayer_id, cur_mlayer_id)) {
+            // Build a bitmask of DPB slots written in the current TU from all
+            // mlayers that the current frame depends on.
+            int current_tu_ref_flags = 0;
+            for (int layer = 0; layer <= cm->seq_params.max_mlayer_id;
+                 layer++) {
+              if (!is_mlayer_scalable_and_dependent(&cm->seq_params,
+                                                    cur_mlayer_id, layer))
+                continue;
+              if (cm->olk_refresh_frame_flags[layer] != -1)
+                current_tu_ref_flags |= cm->olk_refresh_frame_flags[layer];
+              if (cm->olk_co_vcl_refresh_frame_flags[layer] != -1)
+                current_tu_ref_flags |=
+                    cm->olk_co_vcl_refresh_frame_flags[layer];
+            }
+            if (!((current_tu_ref_flags >> ref) & 1)) {
+              avm_internal_error(
+                  &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+                  "Co-VCL frame (doh=%d, mlayer=%d) in OLK TU references DPB "
+                  "slot %d (mlayer=%d, tlayer=%d) which was not written in the "
+                  "current temporal unit",
+                  current_frame->display_order_hint, cur_mlayer_id, ref,
+                  ref_mlayer_id, ref_tlayer_id);
+            }
+          }
+        }
       }
       if (cm->bru.update_ref_idx != -1) {
         for (int i = 0; i < cm->ref_frames_info.num_total_refs; ++i) {
