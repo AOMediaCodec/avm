@@ -61,6 +61,106 @@ static int encode_frame(avm_codec_ctx_t *codec, avm_image_t *img,
   return got_pkts;
 }
 
+void set_layer_ids(const int num_temporal_layers, const int num_embedded_layers,
+                   const int frames_encoded, const int temp_unit_counter,
+                   const int lag, avm_codec_ctx_t *codec) {
+  // Add more cases and move/refactor, up to (3,3).
+  if (num_temporal_layers == 2 && num_embedded_layers == 1) {
+    if (frames_encoded % 2 == 0) {
+      avm_codec_control(codec, AVME_SET_TLAYER_ID, 0);
+    } else {
+      avm_codec_control(codec, AVME_SET_TLAYER_ID, 1);
+    }
+  } else if (num_temporal_layers == 1 && num_embedded_layers == 2) {
+    if (frames_encoded % 2 == 0) {
+      if (lag == 0) {
+        // Look into why scaling case fails for nonzero lag.
+        struct avm_scaling_mode mode = { AVME_ONETWO, AVME_ONETWO };
+        avm_codec_control(codec, AVME_SET_SCALEMODE, &mode);
+      }
+      avm_codec_control(codec, AVME_SET_MLAYER_ID, 0);
+    } else {
+      struct avm_scaling_mode mode = { AVME_NORMAL, AVME_NORMAL };
+      avm_codec_control(codec, AVME_SET_SCALEMODE, &mode);
+      avm_codec_control(codec, AVME_SET_MLAYER_ID, 1);
+    }
+  } else if (num_temporal_layers == 2 && num_embedded_layers == 2) {
+    if (frames_encoded % 4 == 0) {
+      if (lag == 0) {
+        struct avm_scaling_mode mode = { AVME_ONETWO, AVME_ONETWO };
+        avm_codec_control(codec, AVME_SET_SCALEMODE, &mode);
+      }
+      avm_codec_control(codec, AVME_SET_MLAYER_ID, 0);
+      avm_codec_control(codec, AVME_SET_TLAYER_ID, 0);
+    } else if (frames_encoded % 2 == 0) {
+      if (lag == 0) {
+        struct avm_scaling_mode mode = { AVME_ONETWO, AVME_ONETWO };
+        avm_codec_control(codec, AVME_SET_SCALEMODE, &mode);
+      }
+      avm_codec_control(codec, AVME_SET_MLAYER_ID, 0);
+      avm_codec_control(codec, AVME_SET_TLAYER_ID, 1);
+    } else if ((frames_encoded - 1) % 4 == 0) {
+      avm_codec_control(codec, AVME_SET_MLAYER_ID, 1);
+      avm_codec_control(codec, AVME_SET_TLAYER_ID, 0);
+    } else if ((frames_encoded - 1) % 2 == 0) {
+      avm_codec_control(codec, AVME_SET_MLAYER_ID, 1);
+      avm_codec_control(codec, AVME_SET_TLAYER_ID, 1);
+    }
+  } else if (num_temporal_layers == 3 && num_embedded_layers == 1) {
+    if (frames_encoded % 4 == 0) {
+      avm_codec_control(codec, AVME_SET_MLAYER_ID, 0);
+      avm_codec_control(codec, AVME_SET_TLAYER_ID, 0);
+    } else if (frames_encoded % 2 == 0) {
+      avm_codec_control(codec, AVME_SET_MLAYER_ID, 0);
+      avm_codec_control(codec, AVME_SET_TLAYER_ID, 1);
+    } else {
+      avm_codec_control(codec, AVME_SET_MLAYER_ID, 0);
+      avm_codec_control(codec, AVME_SET_TLAYER_ID, 2);
+    }
+  } else if (num_temporal_layers == 1 && num_embedded_layers == 3) {
+    if (frames_encoded % 3 == 0) {
+      struct avm_scaling_mode mode = { AVME_ONEFOUR, AVME_ONEFOUR };
+      avm_codec_control(codec, AVME_SET_SCALEMODE, &mode);
+      avm_codec_control(codec, AVME_SET_MLAYER_ID, 0);
+      avm_codec_control(codec, AVME_SET_TLAYER_ID, 0);
+    } else if ((frames_encoded - 1) % 3 == 0) {
+      struct avm_scaling_mode mode = { AVME_ONETWO, AVME_ONETWO };
+      avm_codec_control(codec, AVME_SET_SCALEMODE, &mode);
+      avm_codec_control(codec, AVME_SET_MLAYER_ID, 1);
+      avm_codec_control(codec, AVME_SET_TLAYER_ID, 0);
+    } else if ((frames_encoded - 2) % 3 == 0) {
+      struct avm_scaling_mode mode = { AVME_NORMAL, AVME_NORMAL };
+      avm_codec_control(codec, AVME_SET_SCALEMODE, &mode);
+      avm_codec_control(codec, AVME_SET_MLAYER_ID, 2);
+      avm_codec_control(codec, AVME_SET_TLAYER_ID, 0);
+    }
+  } else if (num_temporal_layers == 3 && num_embedded_layers == 3) {
+    int embedded_layer_id = (frames_encoded % 3 == 0)         ? 0
+                            : ((frames_encoded - 1) % 3 == 0) ? 1
+                                                              : 2;
+    if (embedded_layer_id == 0) {
+      struct avm_scaling_mode mode = { AVME_ONEFOUR, AVME_ONEFOUR };
+      avm_codec_control(codec, AVME_SET_SCALEMODE, &mode);
+      avm_codec_control(codec, AVME_SET_MLAYER_ID, 0);
+    } else if (embedded_layer_id == 1) {
+      struct avm_scaling_mode mode = { AVME_ONETWO, AVME_ONETWO };
+      avm_codec_control(codec, AVME_SET_SCALEMODE, &mode);
+      avm_codec_control(codec, AVME_SET_MLAYER_ID, 1);
+    } else if (embedded_layer_id == 2) {
+      struct avm_scaling_mode mode = { AVME_NORMAL, AVME_NORMAL };
+      avm_codec_control(codec, AVME_SET_SCALEMODE, &mode);
+      avm_codec_control(codec, AVME_SET_MLAYER_ID, 2);
+    }
+    if (temp_unit_counter % 4 == 0) {
+      avm_codec_control(codec, AVME_SET_TLAYER_ID, 0);
+    } else if ((temp_unit_counter - 1) % 2 == 0) {
+      avm_codec_control(codec, AVME_SET_TLAYER_ID, 2);
+    } else if ((temp_unit_counter - 2) % 4 == 0) {
+      avm_codec_control(codec, AVME_SET_TLAYER_ID, 1);
+    }
+  }
+}
+
 int main(int argc, char **argv) {
   FILE *infile0 = NULL;
   avm_codec_enc_cfg_t cfg;
@@ -182,101 +282,8 @@ int main(int argc, char **argv) {
     // For embedded layers: call the encoder num_embedded_layers times with same
     // input at different scales. So the example here is spatial layers.
     for (int sl = 0; sl < num_embedded_layers; sl++) {
-      // Add more cases and move/refactor, up to (3,3).
-      if (num_temporal_layers == 2 && num_embedded_layers == 1) {
-        if (frames_encoded % 2 == 0) {
-          avm_codec_control(&codec, AVME_SET_TLAYER_ID, 0);
-        } else {
-          avm_codec_control(&codec, AVME_SET_TLAYER_ID, 1);
-        }
-      } else if (num_temporal_layers == 1 && num_embedded_layers == 2) {
-        if (frames_encoded % 2 == 0) {
-          if (lag == 0) {
-            // Look into why scaling case fails for nonzero lag.
-            struct avm_scaling_mode mode = { AVME_ONETWO, AVME_ONETWO };
-            avm_codec_control(&codec, AVME_SET_SCALEMODE, &mode);
-          }
-          avm_codec_control(&codec, AVME_SET_MLAYER_ID, 0);
-        } else {
-          struct avm_scaling_mode mode = { AVME_NORMAL, AVME_NORMAL };
-          avm_codec_control(&codec, AVME_SET_SCALEMODE, &mode);
-          avm_codec_control(&codec, AVME_SET_MLAYER_ID, 1);
-        }
-      } else if (num_temporal_layers == 2 && num_embedded_layers == 2) {
-        if (frames_encoded % 4 == 0) {
-          if (lag == 0) {
-            struct avm_scaling_mode mode = { AVME_ONETWO, AVME_ONETWO };
-            avm_codec_control(&codec, AVME_SET_SCALEMODE, &mode);
-          }
-          avm_codec_control(&codec, AVME_SET_MLAYER_ID, 0);
-          avm_codec_control(&codec, AVME_SET_TLAYER_ID, 0);
-        } else if (frames_encoded % 2 == 0) {
-          if (lag == 0) {
-            struct avm_scaling_mode mode = { AVME_ONETWO, AVME_ONETWO };
-            avm_codec_control(&codec, AVME_SET_SCALEMODE, &mode);
-          }
-          avm_codec_control(&codec, AVME_SET_MLAYER_ID, 0);
-          avm_codec_control(&codec, AVME_SET_TLAYER_ID, 1);
-        } else if ((frames_encoded - 1) % 4 == 0) {
-          avm_codec_control(&codec, AVME_SET_MLAYER_ID, 1);
-          avm_codec_control(&codec, AVME_SET_TLAYER_ID, 0);
-        } else if ((frames_encoded - 1) % 2 == 0) {
-          avm_codec_control(&codec, AVME_SET_MLAYER_ID, 1);
-          avm_codec_control(&codec, AVME_SET_TLAYER_ID, 1);
-        }
-      } else if (num_temporal_layers == 3 && num_embedded_layers == 1) {
-        if (frames_encoded % 4 == 0) {
-          avm_codec_control(&codec, AVME_SET_MLAYER_ID, 0);
-          avm_codec_control(&codec, AVME_SET_TLAYER_ID, 0);
-        } else if (frames_encoded % 2 == 0) {
-          avm_codec_control(&codec, AVME_SET_MLAYER_ID, 0);
-          avm_codec_control(&codec, AVME_SET_TLAYER_ID, 1);
-        } else {
-          avm_codec_control(&codec, AVME_SET_MLAYER_ID, 0);
-          avm_codec_control(&codec, AVME_SET_TLAYER_ID, 2);
-        }
-      } else if (num_temporal_layers == 1 && num_embedded_layers == 3) {
-        if (frames_encoded % 3 == 0) {
-          struct avm_scaling_mode mode = { AVME_ONEFOUR, AVME_ONEFOUR };
-          avm_codec_control(&codec, AVME_SET_SCALEMODE, &mode);
-          avm_codec_control(&codec, AVME_SET_MLAYER_ID, 0);
-          avm_codec_control(&codec, AVME_SET_TLAYER_ID, 0);
-        } else if ((frames_encoded - 1) % 3 == 0) {
-          struct avm_scaling_mode mode = { AVME_ONETWO, AVME_ONETWO };
-          avm_codec_control(&codec, AVME_SET_SCALEMODE, &mode);
-          avm_codec_control(&codec, AVME_SET_MLAYER_ID, 1);
-          avm_codec_control(&codec, AVME_SET_TLAYER_ID, 0);
-        } else if ((frames_encoded - 2) % 3 == 0) {
-          struct avm_scaling_mode mode = { AVME_NORMAL, AVME_NORMAL };
-          avm_codec_control(&codec, AVME_SET_SCALEMODE, &mode);
-          avm_codec_control(&codec, AVME_SET_MLAYER_ID, 2);
-          avm_codec_control(&codec, AVME_SET_TLAYER_ID, 0);
-        }
-      } else if (num_temporal_layers == 3 && num_embedded_layers == 3) {
-        int embedded_layer_id = (frames_encoded % 3 == 0)         ? 0
-                                : ((frames_encoded - 1) % 3 == 0) ? 1
-                                                                  : 2;
-        if (embedded_layer_id == 0) {
-          struct avm_scaling_mode mode = { AVME_ONEFOUR, AVME_ONEFOUR };
-          avm_codec_control(&codec, AVME_SET_SCALEMODE, &mode);
-          avm_codec_control(&codec, AVME_SET_MLAYER_ID, 0);
-        } else if (embedded_layer_id == 1) {
-          struct avm_scaling_mode mode = { AVME_ONETWO, AVME_ONETWO };
-          avm_codec_control(&codec, AVME_SET_SCALEMODE, &mode);
-          avm_codec_control(&codec, AVME_SET_MLAYER_ID, 1);
-        } else if (embedded_layer_id == 2) {
-          struct avm_scaling_mode mode = { AVME_NORMAL, AVME_NORMAL };
-          avm_codec_control(&codec, AVME_SET_SCALEMODE, &mode);
-          avm_codec_control(&codec, AVME_SET_MLAYER_ID, 2);
-        }
-        if (temp_unit_counter % 4 == 0) {
-          avm_codec_control(&codec, AVME_SET_TLAYER_ID, 0);
-        } else if ((temp_unit_counter - 1) % 2 == 0) {
-          avm_codec_control(&codec, AVME_SET_TLAYER_ID, 2);
-        } else if ((temp_unit_counter - 2) % 4 == 0) {
-          avm_codec_control(&codec, AVME_SET_TLAYER_ID, 1);
-        }
-      }
+      set_layer_ids(num_temporal_layers, num_embedded_layers, frames_encoded,
+                    temp_unit_counter, lag, &codec);
 
       encode_frame(&codec, &raw0, frame_count++, flags, outfile);
 
@@ -289,7 +296,22 @@ int main(int argc, char **argv) {
   }
 
   // Flush encoder.
-  while (encode_frame(&codec, NULL, -1, 0, outfile)) continue;
+  while (1) {
+    printf("flush encoder \n");
+    int success_encode = 1;
+    for (int sl = 0; sl < num_embedded_layers; sl++) {
+      set_layer_ids(num_temporal_layers, num_embedded_layers, frames_encoded,
+                    temp_unit_counter, lag, &codec);
+
+      if (!encode_frame(&codec, NULL, -1, 0, outfile)) {
+        success_encode = 0;
+        break;
+      }
+      frames_encoded++;
+    }
+    if (!success_encode) break;
+    temp_unit_counter++;
+  }
 
   printf("\n");
   fclose(infile0);
