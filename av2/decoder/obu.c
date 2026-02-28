@@ -217,34 +217,35 @@ void av2_store_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm, int xlayer_id) {
     pbi->stream_info[stream_idx].remapped_ref_idx_buf[i] =
         cm->remapped_ref_idx[i];
   }
-  for (int i = 0; i < MAX_SEQ_NUM; i++) {
-    pbi->stream_info[stream_idx].seq_list_buf[i] = pbi->seq_list[xlayer_id][i];
-  }
+  //for (int i = 0; i < MAX_SEQ_NUM; i++) {
+  //  pbi->stream_info[stream_idx].seq_list_buf[i] = pbi->seq_list[xlayer_id][i];
+  //}
   for (int i = 0; i < MAX_MFH_NUM; i++) {
     pbi->stream_info[stream_idx].mfh_params_buf[i] = cm->mfh_params[i];
   }
 
 #if CONFIG_AV2_LCR_PROFILES
-  for (int i = 0; i < MAX_NUM_XLAYERS; i++) {
-    for (int j = 0; j < MAX_NUM_LCR; j++) {
-      pbi->stream_info[stream_idx].lcr_list_buf[i][j] = pbi->lcr_list[i][j];
-    }
-  }
+  //for (int i = 0; i < MAX_NUM_XLAYERS; i++) {
+  //  for (int j = 0; j < MAX_NUM_LCR; j++) {
+  //    pbi->stream_info[stream_idx].lcr_list_buf[i][j] = pbi->lcr_list[i][j];
+  //  }
+  //}
 #else
   for (int i = 0; i < MAX_NUM_LCR; i++) {
     pbi->stream_info[stream_idx].lcr_list_buf[i] = pbi->lcr_list[i];
   }
 #endif  // CONFIG_AV2_LCR_PROFILES
   pbi->stream_info[stream_idx].lcr_counter_buf = pbi->lcr_counter;
-  for (int i = 0; i < MAX_NUM_ATLAS_SEG_ID; i++) {
-    pbi->stream_info[stream_idx].atlas_list_buf[i] =
-        pbi->atlas_list[stream_idx][i];
-  }
-  pbi->stream_info[stream_idx].atlas_counter_buf =
-      pbi->atlas_counter[stream_idx];
+  //for (int i = 0; i < MAX_NUM_ATLAS_SEG_ID; i++) {
+  //  pbi->stream_info[stream_idx].atlas_list_buf[i] =
+  //      pbi->atlas_list[stream_idx][i];
+  //}
+  //pbi->stream_info[stream_idx].atlas_counter_buf =
+  //    pbi->atlas_counter[stream_idx];
   for (int i = 0; i < MAX_NUM_OPS_ID; i++) {
 #if CONFIG_AV2_PROFILES
-    pbi->stream_info[stream_idx].ops_list_buf[i] = pbi->ops_list[stream_idx][i];
+    //pbi->stream_info[stream_idx].ops_list_buf[i] = pbi->ops_list[stream_idx][i];
+    ;
 #else
     pbi->stream_info[stream_idx].ops_list_buf[i] = pbi->ops_list[i];
 #endif  // CONFIG_AV2_PROFILES
@@ -299,34 +300,35 @@ void av2_restore_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
     cm->remapped_ref_idx[i] =
         pbi->stream_info[stream_idx].remapped_ref_idx_buf[i];
   }
-  for (int i = 0; i < MAX_SEQ_NUM; i++) {
-    pbi->seq_list[xlayer_id][i] = pbi->stream_info[stream_idx].seq_list_buf[i];
-  }
+  //for (int i = 0; i < MAX_SEQ_NUM; i++) {
+  //  pbi->seq_list[xlayer_id][i] = pbi->stream_info[stream_idx].seq_list_buf[i];
+  //}
   for (int i = 0; i < MAX_MFH_NUM; i++) {
     cm->mfh_params[i] = pbi->stream_info[stream_idx].mfh_params_buf[i];
   }
 
 #if CONFIG_AV2_LCR_PROFILES
-  for (int i = 0; i < MAX_NUM_XLAYERS; i++) {
-    for (int j = 0; j < MAX_NUM_LCR; j++) {
-      pbi->lcr_list[i][j] = pbi->stream_info[stream_idx].lcr_list_buf[i][j];
-    }
-  }
+  //for (int i = 0; i < MAX_NUM_XLAYERS; i++) {
+  //  for (int j = 0; j < MAX_NUM_LCR; j++) {
+  //    pbi->lcr_list[i][j] = pbi->stream_info[stream_idx].lcr_list_buf[i][j];
+  //  }
+  //}
 #else
   for (int i = 0; i < MAX_NUM_LCR; i++) {
     pbi->lcr_list[i] = pbi->stream_info[stream_idx].lcr_list_buf[i];
   }
 #endif  // CONFIG_AV2_LCR_PROFILES
   pbi->lcr_counter = pbi->stream_info[stream_idx].lcr_counter_buf;
-  for (int i = 0; i < MAX_NUM_ATLAS_SEG_ID; i++) {
-    pbi->atlas_list[stream_idx][i] =
-        pbi->stream_info[stream_idx].atlas_list_buf[i];
-  }
-  pbi->atlas_counter[stream_idx] =
-      pbi->stream_info[stream_idx].atlas_counter_buf;
+  //for (int i = 0; i < MAX_NUM_ATLAS_SEG_ID; i++) {
+  //  pbi->atlas_list[stream_idx][i] =
+  //      pbi->stream_info[stream_idx].atlas_list_buf[i];
+  //}
+  //pbi->atlas_counter[stream_idx] =
+  //    pbi->stream_info[stream_idx].atlas_counter_buf;
   for (int i = 0; i < MAX_NUM_OPS_ID; i++) {
 #if CONFIG_AV2_PROFILES
-    pbi->ops_list[stream_idx][i] = pbi->stream_info[stream_idx].ops_list_buf[i];
+    //pbi->ops_list[stream_idx][i] = pbi->stream_info[stream_idx].ops_list_buf[i];
+    ;
 #else
     pbi->ops_list[i] = pbi->stream_info[stream_idx].ops_list_buf[i];
 #endif  // CONFIG_AV2_PROFILES
