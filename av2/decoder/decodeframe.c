@@ -7874,6 +7874,22 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   features->cross_frame_context = CROSS_FRAME_CONTEXT_FORWARD;
 
   if (!seq_params->single_picture_header_flag) {
+    if (obu_type == OBU_CLK)
+      pbi->olk_encountered = 0;
+    else if (obu_type == OBU_OLK) {
+      if (pbi->olk_encountered) {
+        // This is the case when the first regular frame is another OLK
+        // (0-4(K)-2-1-3-8(K)...
+        lock_buffer_pool(pool);
+        reset_buffer_other_than_OLK(pbi);
+        unlock_buffer_pool(pool);
+      }
+      pbi->olk_encountered = 1;
+    } else if (pbi->olk_encountered && is_regular_non_olk_obu(obu_type)) {
+      lock_buffer_pool(pool);
+      reset_buffer_other_than_OLK(pbi);
+      unlock_buffer_pool(pool);
+    }
     if (cm->bridge_frame_info.is_bridge_frame) {
       frame_size_override_flag = 1;
     } else {
@@ -7918,23 +7934,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       current_frame->frame_number = current_frame->order_hint;
       current_frame->display_order_hint_restricted =
           current_frame->display_order_hint;
-    }
-
-    if (obu_type == OBU_CLK)
-      pbi->olk_encountered = 0;
-    else if (obu_type == OBU_OLK) {
-      if (pbi->olk_encountered) {
-        // This is the case when the first regular frame is another OLK
-        // (0-4(K)-2-1-3-8(K)...
-        lock_buffer_pool(pool);
-        reset_buffer_other_than_OLK(pbi);
-        unlock_buffer_pool(pool);
-      }
-      pbi->olk_encountered = 1;
-    } else if (pbi->olk_encountered && is_regular_non_olk_obu(obu_type)) {
-      lock_buffer_pool(pool);
-      reset_buffer_other_than_OLK(pbi);
-      unlock_buffer_pool(pool);
     }
 
     if (!frame_is_sframe(cm) && !frame_is_intra_only(cm)) {
