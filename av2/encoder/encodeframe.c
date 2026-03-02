@@ -1955,7 +1955,9 @@ void av2_set_lossless(AV2_COMP *cpi) {
   const CommonQuantParams *quant_params = &cm->quant_params;
   cm->features.has_lossless_segment = 0;
   cpi->enc_seg.has_lossless_segment = 0;
-  for (int i = 0; i < MAX_SEGMENTS; ++i) {
+  const int max_seg_num =
+      cm->seg.enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
+  for (int i = 0; i < max_seg_num; ++i) {
     const int qindex =
         cm->seg.enabled ? av2_get_qindex(&cm->seg, i, quant_params->base_qindex,
                                          cm->seq_params.bit_depth)
