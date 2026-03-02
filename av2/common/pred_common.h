@@ -393,12 +393,8 @@ static INLINE int get_comp_group_idx_context(const AV2_COMMON *cm,
   const RefCntBuffer *const fwd_buf = get_ref_frame_buf(cm, mbmi->ref_frame[1]);
   int bck_frame_index = 0, fwd_frame_index = 0;
   int cur_frame_index = cm->cur_frame->display_order_hint;
-  if (bck_buf != NULL) {
-    if (!bck_buf->is_restricted) bck_frame_index = bck_buf->display_order_hint;
-  }
-  if (fwd_buf != NULL) {
-    if (!fwd_buf->is_restricted) fwd_frame_index = fwd_buf->display_order_hint;
-  }
+  if (bck_buf != NULL) bck_frame_index = bck_buf->display_order_hint;
+  if (fwd_buf != NULL) fwd_frame_index = fwd_buf->display_order_hint;
 
   int fwd = abs(get_relative_dist(&cm->seq_params.order_hint_info,
                                   fwd_frame_index, cur_frame_index));
