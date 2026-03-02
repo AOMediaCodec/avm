@@ -746,16 +746,7 @@ enum avme_enc_control_id {
    */
   AV2E_SET_ENABLE_INTRA_EDGE_FILTER = 78,
 
-  /*!\brief Codec control function to turn on / off 64-length transforms, int
-   * parameter
-   *
-   * This will enable or disable usage of length 64 transforms in any
-   * direction.
-   *
-   * - 0 = disable
-   * - 1 = enable (default)
-   */
-  AV2E_SET_ENABLE_TX64 = 80,
+  /* Note: enum values 79-80 unused */
 
   /*!\brief Codec control function to turn on / off flip and identity
    * transforms, int parameter
@@ -1524,9 +1515,6 @@ AVM_CTRL_USE_TYPE(AV2E_SET_MAX_PARTITION_SIZE, int)
 
 AVM_CTRL_USE_TYPE(AV2E_SET_ENABLE_INTRA_EDGE_FILTER, int)
 #define AVM_CTRL_AV2E_SET_ENABLE_INTRA_EDGE_FILTER
-
-AVM_CTRL_USE_TYPE(AV2E_SET_ENABLE_TX64, int)
-#define AVM_CTRL_AV2E_SET_ENABLE_TX64
 
 AVM_CTRL_USE_TYPE(AV2E_SET_ENABLE_FLIP_IDTX, int)
 #define AVM_CTRL_AV2E_SET_ENABLE_FLIP_IDTX
