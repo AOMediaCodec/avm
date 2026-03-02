@@ -13,7 +13,6 @@
 #ifndef AVM_AV2_ENCODER_TRANSFORM_SEARCH_H_
 #define AVM_AV2_ENCODER_TRANSFORM_SEARCH_H_
 
-#include "av2/common/pred_common.h"
 #include "av2/encoder/encoder.h"
 
 #ifdef __cplusplus
@@ -257,7 +256,6 @@ int av2_txfm_uvrd(const AV2_COMP *const cpi, MACROBLOCK *x, RD_STATS *rd_stats,
  * \param[in]    plane          Plane index
  * \param[in]    plane_bsize    Size of the current macroblock considering
                                 sup-sampling
- * \param[in]    tx_size        The given transform size
  * \param[in]    ftxs_mode      Transform search mode specifying desired speed
                                 and quality tradeoff
  * \param[in]    skip_trellis   Binary flag indicating if trellis optimization
@@ -268,8 +266,7 @@ int av2_txfm_uvrd(const AV2_COMP *const cpi, MACROBLOCK *x, RD_STATS *rd_stats,
 void av2_txfm_rd_in_plane(MACROBLOCK *x, const AV2_COMP *cpi,
                           RD_STATS *rd_stats, int64_t ref_best_rd,
                           int64_t current_rd, int plane, BLOCK_SIZE plane_bsize,
-                          TX_SIZE tx_size, FAST_TX_SEARCH_MODE ftxs_mode,
-                          int skip_trellis);
+                          FAST_TX_SEARCH_MODE ftxs_mode, int skip_trellis);
 
 /*!\brief Recursive transform size and type search.
  *

@@ -354,7 +354,7 @@ int prune_intra_y_mode(int64_t this_model_rd, int64_t *best_model_rd,
 #define PLANE_SIGN_TO_JOINT_SIGN(plane, a, b) \
   (plane == CFL_PRED_U ? a * CFL_SIGNS + b - 1 : b * CFL_SIGNS + a - 1)
 static int cfl_rd_pick_alpha(MACROBLOCK *const x, const AV2_COMP *const cpi,
-                             TX_SIZE tx_size, int64_t best_rd) {
+                             int64_t best_rd) {
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   const MACROBLOCKD_PLANE *pd = &xd->plane[AVM_PLANE_U];
@@ -367,11 +367,6 @@ static int cfl_rd_pick_alpha(MACROBLOCK *const x, const AV2_COMP *const cpi,
           is_mhccp_allowed(&cpi->common, xd)));
 
   assert(plane_bsize < BLOCK_SIZES_ALL);
-  if (!xd->lossless[mbmi->segment_id]) {
-    assert(block_size_wide[plane_bsize] == tx_size_wide[tx_size]);
-    assert(block_size_high[plane_bsize] == tx_size_high[tx_size]);
-  }
-
   xd->cfl.use_dc_pred_cache = 1;
   xd->cfl.dc_pred_is_cached[0] = 0;
   xd->cfl.dc_pred_is_cached[1] = 0;
@@ -401,7 +396,7 @@ static int cfl_rd_pick_alpha(MACROBLOCK *const x, const AV2_COMP *const cpi,
         PLANE_SIGN_TO_JOINT_SIGN(CFL_PRED_U, CFL_SIGN_ZERO, i);
     mbmi->cfl_alpha_idx = 0;
     mbmi->cfl_alpha_signs = joint_sign;
-    av2_txfm_rd_in_plane(x, cpi, &rd_stats, best_rd, 0, 1, plane_bsize, tx_size,
+    av2_txfm_rd_in_plane(x, cpi, &rd_stats, best_rd, 0, 1, plane_bsize,
                          FTXS_NONE, skip_trellis);
     if (rd_stats.rate == INT_MAX) break;
     const int alpha_rate = mode_costs->cfl_cost[joint_sign][CFL_PRED_U][0];
@@ -421,7 +416,7 @@ static int cfl_rd_pick_alpha(MACROBLOCK *const x, const AV2_COMP *const cpi,
         mbmi->cfl_alpha_idx = (c << CFL_ALPHABET_SIZE_LOG2) + c;
         mbmi->cfl_alpha_signs = joint_sign;
         av2_txfm_rd_in_plane(x, cpi, &rd_stats, best_rd, 0, 1, plane_bsize,
-                             tx_size, FTXS_NONE, skip_trellis);
+                             FTXS_NONE, skip_trellis);
         if (rd_stats.rate == INT_MAX) break;
         const int alpha_rate = mode_costs->cfl_cost[joint_sign][CFL_PRED_U][c];
         int64_t this_rd =
@@ -443,8 +438,8 @@ static int cfl_rd_pick_alpha(MACROBLOCK *const x, const AV2_COMP *const cpi,
   // Collect RD stats for all alpha values and joint_signs for CFL_PRED_V
   // taking into consideration the best alpha for CFL_PRED_U for that
   // joint_sign. This is necessary due to cross component dependency.
-  // The combined (CFL_PRED_U and CFL_PRED_V) RDCOST will be used to decide the
-  // best_joint_sign.
+  // The combined (CFL_PRED_U and CFL_PRED_V) RDCOST will be used to decide
+  // the best_joint_sign.
   for (int joint_sign = 0; joint_sign < CFL_JOINT_SIGNS; joint_sign++) {
     int progress = 0;
     for (int c = 0; c < CFL_ALPHABET_SIZE; c++) {
@@ -455,9 +450,9 @@ static int cfl_rd_pick_alpha(MACROBLOCK *const x, const AV2_COMP *const cpi,
           (best_c[joint_sign][CFL_PRED_U] << CFL_ALPHABET_SIZE_LOG2) + c;
       mbmi->cfl_alpha_signs = joint_sign;
       av2_txfm_rd_in_plane(x, cpi, &rd_stats, best_rd, 0, 1, plane_bsize,
-                           tx_size, FTXS_NONE, skip_trellis);
+                           FTXS_NONE, skip_trellis);
       av2_txfm_rd_in_plane(x, cpi, &rd_stats, best_rd, 0, 2, plane_bsize,
-                           tx_size, FTXS_NONE, skip_trellis);
+                           FTXS_NONE, skip_trellis);
       if (rd_stats.rate == INT_MAX) break;
       const int alpha_rate = mode_costs->cfl_cost[joint_sign][CFL_PRED_V][c];
       int64_t this_rd =
@@ -715,9 +710,8 @@ int64_t av2_rd_pick_intra_sbuv_mode(const AV2_COMP *const cpi, MACROBLOCK *x,
 
         if (mbmi->cfl_idx == CFL_MULTI_PARAM && !is_mhccp_allowed(cm, xd))
           continue;
-        const TX_SIZE uv_tx_size = av2_get_tx_size(AVM_PLANE_U, xd);
         if (mbmi->cfl_idx == 0)
-          cfl_alpha_rate = cfl_rd_pick_alpha(x, cpi, uv_tx_size, best_rd);
+          cfl_alpha_rate = cfl_rd_pick_alpha(x, cpi, best_rd);
         if (is_mhccp_allowed(cm, xd)) {
           if (intra_mode_cfg->enable_cfl_intra)
             cfl_idx_rate +=

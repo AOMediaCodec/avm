@@ -3259,7 +3259,7 @@ static AVM_INLINE void choose_largest_tx_size(const AV2_COMP *const cpi,
   const int skip_trellis = 0;
   av2_txfm_rd_in_plane(x, cpi, rd_stats, ref_best_rd,
                        AVMMIN(no_skip_txfm_rd, skip_txfm_rd), AVM_PLANE_Y, bs,
-                       mbmi->tx_size, FTXS_NONE, skip_trellis);
+                       FTXS_NONE, skip_trellis);
 }
 
 static AVM_INLINE void choose_lossless_tx_size(const AV2_COMP *const cpi,
@@ -3284,8 +3284,8 @@ static AVM_INLINE void choose_lossless_tx_size(const AV2_COMP *const cpi,
     memset(mbmi->tx_partition_type, TX_PARTITION_NONE,
            sizeof(mbmi->tx_partition_type));
     // TODO(any) : Pass this_rd based on skip/non-skip cost
-    av2_txfm_rd_in_plane(x, cpi, rd_stats, ref_best_rd, 0, 0, bs, mbmi->tx_size,
-                         FTXS_NONE, skip_trellis);
+    av2_txfm_rd_in_plane(x, cpi, rd_stats, ref_best_rd, 0, 0, bs, FTXS_NONE,
+                         skip_trellis);
     rate_tx_large = rd_stats->rate;
   }
 
@@ -3293,8 +3293,8 @@ static AVM_INLINE void choose_lossless_tx_size(const AV2_COMP *const cpi,
   memset(mbmi->tx_partition_type, TX_PARTITION_NONE,
          sizeof(mbmi->tx_partition_type));
   // TODO(any) : Pass this_rd based on skip/non-skip cost
-  av2_txfm_rd_in_plane(x, cpi, rd_stats, ref_best_rd, 0, 0, bs, mbmi->tx_size,
-                       FTXS_NONE, skip_trellis);
+  av2_txfm_rd_in_plane(x, cpi, rd_stats, ref_best_rd, 0, 0, bs, FTXS_NONE,
+                       skip_trellis);
   rate_tx_4x4 = rd_stats->rate;
 
   const int bsize_group = size_group_lookup[bs];
@@ -3319,8 +3319,8 @@ static AVM_INLINE void choose_lossless_tx_size(const AV2_COMP *const cpi,
       memset(mbmi->tx_partition_type, TX_PARTITION_NONE,
              sizeof(mbmi->tx_partition_type));
       // TODO(any) : Pass this_rd based on skip/non-skip cost
-      av2_txfm_rd_in_plane(x, cpi, rd_stats, ref_best_rd, 0, 0, bs,
-                           mbmi->tx_size, FTXS_NONE, skip_trellis);
+      av2_txfm_rd_in_plane(x, cpi, rd_stats, ref_best_rd, 0, 0, bs, FTXS_NONE,
+                           skip_trellis);
       rd_stats->rate += tx_size_costs[1];
     }
   }
@@ -3582,7 +3582,7 @@ int64_t av2_uniform_txfm_yrd(const AV2_COMP *const cpi, MACROBLOCK *x,
   mbmi->tx_size = mbmi->sub_txs[mbmi->txb_pos.n_partitions - 1];
   av2_txfm_rd_in_plane(x, cpi, rd_stats, ref_best_rd,
                        AVMMIN(no_this_rd, skip_txfm_rd), AVM_PLANE_Y, bs,
-                       tx_size, ftxs_mode, skip_trellis);
+                       ftxs_mode, skip_trellis);
 
   if (rd_stats->rate == INT_MAX) return INT64_MAX;
 
@@ -3715,8 +3715,7 @@ static AVM_INLINE void block_rd_txfm_joint_uv(int dummy_plane, int block,
 void av2_txfm_rd_joint_uv(MACROBLOCK *x, const AV2_COMP *cpi,
                           RD_STATS *rd_stats, int64_t ref_best_rd,
                           int64_t current_rd, BLOCK_SIZE plane_bsize,
-                          TX_SIZE tx_size, FAST_TX_SEARCH_MODE ftxs_mode,
-                          int skip_trellis) {
+                          FAST_TX_SEARCH_MODE ftxs_mode, int skip_trellis) {
   MACROBLOCKD *const xd = &x->e_mbd;
   struct rdcost_block_args args;
   av2_zero(args);
@@ -4029,7 +4028,6 @@ int av2_txfm_uvrd(const AV2_COMP *const cpi, MACROBLOCK *x, RD_STATS *rd_stats,
       xd, mbmi, AVM_PLANE_U, pd->subsampling_x, pd->subsampling_y);
 
   const int skip_trellis = 0;
-  const TX_SIZE uv_tx_size = av2_get_tx_size(AVM_PLANE_U, xd);
   int is_cost_valid = 1;
   if (is_cctx_allowed(&cpi->common, xd) &&
       !cpi->sf.tx_sf.tx_type_search.skip_cctx_search) {
@@ -4039,7 +4037,7 @@ int av2_txfm_uvrd(const AV2_COMP *const cpi, MACROBLOCK *x, RD_STATS *rd_stats,
         chroma_ref_best_rd != INT64_MAX)
       chroma_ref_best_rd = ref_best_rd - AVMMIN(this_rd, skip_txfm_rd);
     av2_txfm_rd_joint_uv(x, cpi, &this_rd_stats, chroma_ref_best_rd, 0,
-                         plane_bsize, uv_tx_size, FTXS_NONE, skip_trellis);
+                         plane_bsize, FTXS_NONE, skip_trellis);
     if (this_rd_stats.rate == INT_MAX) {
       is_cost_valid = 0;
     } else {
@@ -4061,7 +4059,7 @@ int av2_txfm_uvrd(const AV2_COMP *const cpi, MACROBLOCK *x, RD_STATS *rd_stats,
           is_inter && chroma_ref_best_rd != INT64_MAX)
         chroma_ref_best_rd = ref_best_rd - AVMMIN(this_rd, skip_txfm_rd);
       av2_txfm_rd_in_plane(x, cpi, &this_rd_stats, chroma_ref_best_rd, 0, plane,
-                           plane_bsize, uv_tx_size, FTXS_NONE, skip_trellis);
+                           plane_bsize, FTXS_NONE, skip_trellis);
       if (this_rd_stats.rate == INT_MAX) {
         is_cost_valid = 0;
         break;
@@ -4087,8 +4085,7 @@ int av2_txfm_uvrd(const AV2_COMP *const cpi, MACROBLOCK *x, RD_STATS *rd_stats,
 void av2_txfm_rd_in_plane(MACROBLOCK *x, const AV2_COMP *cpi,
                           RD_STATS *rd_stats, int64_t ref_best_rd,
                           int64_t current_rd, int plane, BLOCK_SIZE plane_bsize,
-                          TX_SIZE tx_size, FAST_TX_SEARCH_MODE ftxs_mode,
-                          int skip_trellis) {
+                          FAST_TX_SEARCH_MODE ftxs_mode, int skip_trellis) {
   if (current_rd > ref_best_rd) {
     av2_invalid_rd_stats(rd_stats);
     return;
