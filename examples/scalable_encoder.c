@@ -220,7 +220,7 @@ int main(int argc, char **argv) {
   // (lag - 1) is the number of buffered frames, so this must be a multiple
   // of the number of embedded layers, for now at most 2 is allowed, so fix
   // for that case.
-  if (num_embedded_layers == 2 && (lag -1) % 2 != 0) lag = lag + 1;
+  if (num_embedded_layers == 2 && (lag - 1) % 2 != 0) lag = lag + 1;
 
   if (!avm_img_alloc(&raw0, AVM_IMG_FMT_I420, info.frame_width,
                      info.frame_height, 1)) {
