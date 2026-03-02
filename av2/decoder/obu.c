@@ -3211,9 +3211,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
     if (obu_header.type == OBU_PADDING) {
       decoded_payload_size = read_padding(cm, data, payload_size);
       obu_info *const curr_obu_info = &obu_list[count_obus_with_frame_unit];
-      assert(curr_obu_info->xlayer_id == obu_header.obu_mlayer_id);
-      assert(curr_obu_info->mlayer_id == obu_header.obu_tlayer_id);
-      assert(curr_obu_info->tlayer_id == obu_header.obu_xlayer_id);
       curr_obu_info->obu_type = obu_header.type;
       curr_obu_info->first_tile_group = -1;
       curr_obu_info->immediate_output_picture = -1;
@@ -3242,9 +3239,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
       }
       obu_info *const curr_obu_info = &obu_list[count_obus_with_frame_unit];
       curr_obu_info->obu_type = obu_header.type;
-      assert(curr_obu_info->xlayer_id == obu_header.obu_mlayer_id);
-      assert(curr_obu_info->mlayer_id == obu_header.obu_tlayer_id);
-      assert(curr_obu_info->tlayer_id == obu_header.obu_xlayer_id);
       curr_obu_info->first_tile_group = -1;
       curr_obu_info->immediate_output_picture = -1;
       curr_obu_info->showable_frame = -1;
