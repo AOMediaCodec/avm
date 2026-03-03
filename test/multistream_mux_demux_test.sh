@@ -719,7 +719,7 @@ run_encode_mux_demux_ml_embedded() {
   echo "Done with multi layer streams"
 }
 
-run_encode_mux_demux_ml_lag() {
+run_encode_mux_demux_ml_lag_ex1() {
   echo "Start multi layer streams"
 
   echo "(#temporal, #embedded) = (2, 1) for nonzero lag"
@@ -754,6 +754,12 @@ run_encode_mux_demux_ml_lag() {
   compare_bitstreams || return 1
   decode_muxed_bitstream || return 1
   compare_md5 || return 1
+
+ echo "Done with multi layer streams"
+}
+
+run_encode_mux_demux_ml_lag_ex2() {
+  echo "Start multi layer streams"
 
   echo "(#temporal, #embedded) = (2, 1) vs (2, 2) for nonzero lag"
   ml_encode_bitstream_0 2 1 10 15|| return 1
@@ -791,6 +797,12 @@ run_encode_mux_demux_ml_4streams() {
   decode_muxed_bitstream4 || return 1
   compare_md5_4 || return 1
 
+ echo "Done with multi layer streams"
+}
+
+run_encode_mux_demux_ml_4streams_lag() {
+  echo "Start multi layer streams"
+
   echo "test 4 multi layer streams: all with lag"
   echo "1. (#temporal, #embedded) = (2, 1)"
   echo "2. (#temporal, #embedded) = (1, 2)"
@@ -817,8 +829,10 @@ run_encode_mux_demux_ml_4streams() {
 mux_demux_tests="run_encode_mux_demux_avmenc
                  run_encode_mux_demux_ml_temporal
                  run_encode_mux_demux_ml_embedded
-                 run_encode_mux_demux_ml_lag
-                 run_encode_mux_demux_ml_4streams"
+                 run_encode_mux_demux_ml_lag_ex1
+                 run_encode_mux_demux_ml_lag_ex2
+                 run_encode_mux_demux_ml_4streams
+                 run_encode_mux_demux_ml_4streams_lag"
 
 # Execute tests
 run_tests mux_demux_verify_environment "${mux_demux_tests}"
