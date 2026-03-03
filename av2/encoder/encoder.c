@@ -5087,7 +5087,7 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
     const int current_frame_frame_number = cm->current_frame.frame_number;
     const bool current_disable_cdf_update = features->disable_cdf_update;
     const bool current_allow_lf_sub_pu = features->allow_lf_sub_pu;
-    const bool current_allow_ref_frame_mvs = features->allow_ref_frame_mvs;
+    bool current_allow_ref_frame_mvs = features->allow_ref_frame_mvs;
     const bool current_all_lossless = features->all_lossless;
     const OPTFLOW_REFINE_TYPE current_opfl_refine_type =
         features->opfl_refine_type;
@@ -5170,6 +5170,13 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
         AVM_CODEC_OK) {
       return AVM_CODEC_ERROR;
     }
+
+    if (!(resize_cfg->resize_mode == RESIZE_BRIDGE_FRAME_PATTERN &&
+          cpi->gf_group.update_type[cpi->gf_group.index] != OVERLAY_UPDATE &&
+          cm->bridge_frame_info.frame_count == 1)) {
+      current_allow_ref_frame_mvs = features->allow_ref_frame_mvs;
+    }
+
     cm->bridge_frame_info.frame_count++;
     if (cm->bridge_frame_info.is_bridge_frame) {
       features->disable_cdf_update = current_disable_cdf_update;

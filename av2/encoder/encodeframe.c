@@ -2034,6 +2034,15 @@ void av2_enc_setup_ph_frame(AV2_COMP *cpi) {
     cm->features.allow_parity_hiding = true;
 }
 
+static AVM_INLINE void set_allow_ref_frame_mvs(AV2_COMMON *const cm) {
+  for (int i = 0; i < cm->ref_frames_info.num_total_refs; i++) {
+    if (get_ref_frame_buf(cm, i)->is_restricted) {
+      cm->features.allow_ref_frame_mvs = 0;
+      return;
+    }
+  }
+}
+
 /*!\brief Encoder setup(only for the current frame), encoding, and recontruction
  * for a single frame
  *
@@ -2228,6 +2237,7 @@ static AVM_INLINE void encode_frame_internal(AV2_COMP *cpi) {
   start_timing(cpi, av2_setup_motion_field_time);
 #endif
 
+  set_allow_ref_frame_mvs(cm);
   cm->tmvp_sample_step = 1;
   cm->tmvp_sample_stepl2 = 0;
   if (features->allow_ref_frame_mvs) {

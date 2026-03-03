@@ -1184,14 +1184,12 @@ void av2_get_optflow_based_mv(const AV2_COMMON *cm, MACROBLOCKD *xd, int plane,
     const RefCntBuffer *const r1_buf =
         get_ref_frame_buf(cm, mbmi->ref_frame[1]);
 
-    if (!(r0_buf->is_restricted || r1_buf->is_restricted)) {
-      d0 = get_relative_dist(&cm->seq_params.order_hint_info,
-                             cm->cur_frame->display_order_hint,
-                             r0_buf->display_order_hint);
-      d1 = get_relative_dist(&cm->seq_params.order_hint_info,
-                             cm->cur_frame->display_order_hint,
-                             r1_buf->display_order_hint);
-    }
+    d0 = get_relative_dist(&cm->seq_params.order_hint_info,
+                           cm->cur_frame->display_order_hint,
+                           r0_buf->display_order_hint);
+    d1 = get_relative_dist(&cm->seq_params.order_hint_info,
+                           cm->cur_frame->display_order_hint,
+                           r1_buf->display_order_hint);
   }
 
   if (d0 == 0 || d1 == 0) {

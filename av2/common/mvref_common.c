@@ -1879,13 +1879,6 @@ static AVM_INLINE void add_tmvp_candidate(
   MV_REFERENCE_FRAME rf[2];
   av2_set_ref_frame(rf, ref_frame);
 
-  const RefCntBuffer *ref0_buf = get_ref_frame_buf(cm, rf[0]);
-  const RefCntBuffer *ref1_buf = get_ref_frame_buf(cm, rf[1]);
-  if (ref0_buf)
-    if (ref0_buf->is_restricted) return;
-  if (ref1_buf)
-    if (ref1_buf->is_restricted) return;
-
   if (cm->features.allow_ref_frame_mvs &&
       (xd->mi[0]->skip_mode || rf[0] != rf[1]) &&
       !xd->mi[0]->use_intrabc[xd->tree_type == CHROMA_PART]) {
@@ -3297,8 +3290,6 @@ static int motion_field_projection_start_target(
     MV_REFERENCE_FRAME target_frame) {
   const int cur_order_hint = cm->cur_frame->display_order_hint;
 
-  if (get_ref_frame_buf(cm, start_frame)->is_restricted) return 0;
-
   int start_order_hint = get_ref_frame_buf(cm, start_frame)->display_order_hint;
   int target_order_hint =
       get_ref_frame_buf(cm, target_frame)->display_order_hint;
@@ -3483,7 +3474,22 @@ static int motion_field_projection_side(AV2_COMMON *cm,
   const int *const ref_order_hints =
       &start_frame_buf->ref_display_order_hint[0];
   for (MV_REFERENCE_FRAME rf = 0; rf < INTER_REFS_PER_FRAME; ++rf) {
-    if (start_frame_buf->refs_restricted_status[rf] == 1) continue;
+    if (start_frame_buf->refs_restricted_status[rf] == 1) {
+      // Avoid using TMVP from the start_frame reference frame if it is
+      // restricted.
+      // Reason: When saving motion vectors for future frames’ TMVP, the
+      // implementation does not use the frame-level control flag
+      // allow_ref_frame_mvs. Instead, it relies on the sequence-level control
+      // flag enable_ref_frame_mvs. As a result, the code still stores motion
+      // vectors of the restricted ref frame for future-frame TMVP even when
+      // allow_ref_frame_mvs is set to 0 because one of the reference frames
+      // is restricted. Therefore, it is necessary to check whether the
+      // reference frame of the reference frame is restricted, even if the
+      // immediate reference frame itself is not restricted, and avoid using
+      // TMVP from that reference frame if it is restricted.
+      ref_abs_offset[rf] = MAX_FRAME_DISTANCE + 1;
+      continue;
+    }
     if (ref_order_hints[rf] != -1) {
       ref_offset[rf] =
           get_relative_dist(&cm->seq_params.order_hint_info,
@@ -3725,7 +3731,7 @@ void determine_tmvp_sample_step(AV2_COMMON *cm,
     for (int j = 0; j < 2; j++) {
       if (!checked_ref[i][j]) continue;
       const RefCntBuffer *buf = get_ref_frame_buf(cm, i);
-      if (buf == NULL || buf->is_restricted) continue;
+      if (buf == NULL) continue;
       const int buf_hint = buf->display_order_hint;
       if (!is_ref_motion_field_eligible(cm, buf)) continue;
       calc_and_set_avg_lengths(cm, i, j);
@@ -3917,7 +3923,7 @@ static void fill_id_offset_sample_gap(AV2_COMMON *cm) {
   const int sb_tmvp_size_log2 = mf_sb_size_log2 - TMVP_MI_SZ_LOG2;
   for (int rf = 0; rf < cm->ref_frames_info.num_total_refs; rf++) {
     const RefCntBuffer *buf = get_ref_frame_buf(cm, rf);
-    if (buf == NULL || buf->is_restricted) continue;
+    if (buf == NULL) continue;
     for (int r = 0; r < mvs_rows; r += cm->tmvp_sample_step) {
       for (int c = 0; c < mvs_cols; c += cm->tmvp_sample_step) {
         if (cm->id_offset_map_rows[rf][r][c].as_int == INVALID_MV) continue;
@@ -4109,7 +4115,7 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
   bool is_overlay[INTER_REFS_PER_FRAME] = { false };
   for (int rf = cm->ref_frames_info.num_total_refs - 1; rf >= 0; rf--) {
     const RefCntBuffer *const buf = get_ref_frame_buf(cm, rf);
-    if (buf != NULL && buf->is_restricted) {
+    if (buf != NULL) {
       continue;
     }
     if (is_ref_overlay(cm, rf) &&
@@ -4124,9 +4130,8 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
   // Sort the points by x.
   for (int i = 0; i < cm->ref_frames_info.num_total_refs; i++) {
     for (int j = i + 1; j < cm->ref_frames_info.num_total_refs; j++) {
-      if (!get_ref_frame_buf(cm, sort_ref[j])->is_restricted &&
-          get_relative_dist(order_hint_info, disp_order[j], disp_order[i]) <
-              0) {
+      if (get_relative_dist(order_hint_info, disp_order[j], disp_order[i]) <
+          0) {
         int tmp = disp_order[i];
         disp_order[i] = disp_order[j];
         disp_order[j] = tmp;
@@ -4141,8 +4146,6 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
   // The idx of rf in sort_ref that is before current frame, and closest.
   int cur_frame_sort_idx = -1;
   for (int rf_idx = 0; rf_idx < cm->ref_frames_info.num_total_refs; rf_idx++) {
-    if (get_ref_frame_buf(cm, sort_ref[rf_idx])->is_restricted) continue;
-
     if (get_relative_dist(order_hint_info, disp_order[rf_idx], cur_disp_order) <
         0) {
       cur_frame_sort_idx = rf_idx;
@@ -4155,7 +4158,6 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
   int visited[INTER_REFS_PER_FRAME] = { 0 };
   int stack_count = 0;
   for (int rf = 0; rf < cm->ref_frames_info.num_total_refs; rf++) {
-    if (get_ref_frame_buf(cm, rf)->is_restricted) continue;
     if (visited[rf] == 0) {
       recur_topo_sort_refs(cm, is_overlay, rf_stack, visited, &stack_count, rf);
     }
@@ -4166,7 +4168,6 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
   int rf_topo_stack_idx[INTER_REFS_PER_FRAME];
   for (int rf = 0; rf < cm->ref_frames_info.num_total_refs; rf++) {
     rf_topo_stack_idx[rf] = -1;
-    if (get_ref_frame_buf(cm, rf)->is_restricted) continue;
     for (int stack_idx = 0; stack_idx < stack_count; stack_idx++) {
       if (rf_stack[stack_idx] == rf) {
         rf_topo_stack_idx[rf] = stack_idx;
@@ -4199,8 +4200,6 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
         start_frame = cm->tip_ref.ref_frame[1];
         target_frame = cm->tip_ref.ref_frame[0];
       }
-      assert(!(get_ref_frame_buf(cm, start_frame)->is_restricted) &&
-             !(get_ref_frame_buf(cm, target_frame)->is_restricted));
       int dist_diff = get_relative_dist(
           order_hint_info,
           get_ref_frame_buf(cm, start_frame)->display_order_hint,
@@ -4339,6 +4338,17 @@ void av2_setup_ref_frame_sides(AV2_COMMON *cm) {
   memset(cm->ref_frame_side, 0, sizeof(cm->ref_frame_side));
   memset(cm->ref_frame_relative_dist, 0, sizeof(cm->ref_frame_relative_dist));
   if (order_hint_info->order_hint_bits_minus_1 < 0) return;
+
+  TPL_MV_REF *tpl_mvs_base = cm->tpl_mvs;
+  const int mvs_rows =
+      ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, TMVP_SHIFT_BITS);
+  const int mvs_cols =
+      ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
+  int size = mvs_rows * mvs_cols;
+  for (int idx = 0; idx < size; ++idx) {
+    tpl_mvs_base[idx].mfmv0.as_int = INVALID_MV;
+    tpl_mvs_base[idx].ref_frame_offset = 0;
+  }
 
   const int cur_order_hint = cm->cur_frame->display_order_hint;
 

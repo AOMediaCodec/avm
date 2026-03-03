@@ -9231,6 +9231,17 @@ int32_t av2_read_tilegroup_header(
 
     cm->mi_params.setup_mi(&cm->mi_params);
 
+    if (cm->features.allow_ref_frame_mvs) {
+      for (int i = 0; i < cm->ref_frames_info.num_total_refs; i++) {
+        if (get_ref_frame_buf(cm, i)->is_restricted) {
+          avm_internal_error(&cm->error, AVM_CODEC_ERROR,
+                             "allow_ref_frame_mvs not allowed to be true when "
+                             "any ref frame %d is restricted",
+                             i);
+        }
+      }
+    }
+
     if (cm->features.allow_ref_frame_mvs)
       av2_setup_motion_field(cm);
     else
