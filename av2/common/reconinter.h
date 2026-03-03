@@ -723,9 +723,6 @@ static INLINE int is_refinemv_allowed_reference(const AV2_COMMON *cm,
     if (!has_second_ref(mbmi)) return 0;
     const RefCntBuffer *const ref0 = get_ref_frame_buf(cm, mbmi->ref_frame[0]);
     const RefCntBuffer *const ref1 = get_ref_frame_buf(cm, mbmi->ref_frame[1]);
-
-    if (ref0->is_restricted || ref1->is_restricted) return 0;
-
     d0 = get_relative_dist(&cm->seq_params.order_hint_info, cur_index,
                            ref0->display_order_hint);
     d1 = get_relative_dist(&cm->seq_params.order_hint_info, cur_index,

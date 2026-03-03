@@ -1879,13 +1879,6 @@ static AVM_INLINE void add_tmvp_candidate(
   MV_REFERENCE_FRAME rf[2];
   av2_set_ref_frame(rf, ref_frame);
 
-  const RefCntBuffer *ref0_buf = get_ref_frame_buf(cm, rf[0]);
-  const RefCntBuffer *ref1_buf = get_ref_frame_buf(cm, rf[1]);
-  if (ref0_buf)
-    if (ref0_buf->is_restricted) return;
-  if (ref1_buf)
-    if (ref1_buf->is_restricted) return;
-
   if (cm->features.allow_ref_frame_mvs &&
       (xd->mi[0]->skip_mode || rf[0] != rf[1]) &&
       !xd->mi[0]->use_intrabc[xd->tree_type == CHROMA_PART]) {
