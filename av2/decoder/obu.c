@@ -2733,6 +2733,39 @@ avm_codec_err_t parse_to_order_hint_for_sef(
   return AVM_CODEC_OK;
 }
 
+// Flush frames whose display_order_hint is strictly less than
+// last_olk_tu_display_order_hint. These are leading frames that precede the
+// OLK TU in display order and must be output before
+// reset_buffer_other_than_OLK() discards their DPB slots.
+// If last_olk_tu_display_order_hint is -1 (hidden OLK, threshold not yet
+// determined), no frames are flushed.
+static void flush_remaining_leading_frames(AV2Decoder *pbi) {
+  if (pbi->last_olk_tu_display_order_hint == -1) return;
+  AV2_COMMON *const cm = &pbi->common;
+  const int olk_doh = pbi->last_olk_tu_display_order_hint;
+  RefCntBuffer *output_candidate = NULL;
+  do {
+    output_candidate = NULL;
+    for (int i = 0; i < REF_FRAMES; i++) {
+      RefCntBuffer *const buf = cm->ref_frame_map[i];
+      if (!is_frame_eligible_for_output(buf)) continue;
+      if ((int)buf->display_order_hint >= olk_doh) continue;
+      if (output_candidate == NULL ||
+          derive_output_order_idx(cm, buf) <=
+              derive_output_order_idx(cm, output_candidate)) {
+        output_candidate = buf;
+      }
+    }
+    if (output_candidate != NULL) {
+      if (pbi->num_output_frames < (REF_FRAMES + 1) * AVM_MAX_NUM_STREAMS) {
+        assign_output_frame_buffer_p(
+            &pbi->output_frames[pbi->num_output_frames++], output_candidate);
+        output_candidate->frame_output_done = 1;
+      }
+    }
+  } while (output_candidate != NULL);
+}
+
 // On success, sets *p_data_end and returns a boolean that indicates whether
 // the decoding of the current frame is finished. On failure, sets
 // cm->error.error_code and returns -1.
@@ -2994,6 +3027,13 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
     if (pbi->this_is_first_keyframe_unit_in_tu &&
         pbi->obus_in_frame_unit_data[cm->tlayer_id][cm->mlayer_id][OBU_CLK]) {
       flush_remaining_frames(pbi);
+    }
+    // Flush leading frames (doh < last_olk_tu_display_order_hint) at the start
+    // of the first regular temporal unit after an OLK, before
+    // reset_buffer_other_than_OLK() clears their DPB slots.
+    if (pbi->olk_encountered && pbi->this_is_first_vcl_obu_in_tu &&
+        cm->is_leading_picture == 0) {
+      flush_remaining_leading_frames(pbi);
     }
 
     av2_init_read_bit_buffer(pbi, &rb, data, data + payload_size);
