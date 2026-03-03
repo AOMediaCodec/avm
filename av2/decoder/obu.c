@@ -217,12 +217,19 @@ void av2_store_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm, int xlayer_id) {
     pbi->stream_info[stream_idx].remapped_ref_idx_buf[i] =
         cm->remapped_ref_idx[i];
   }
+  for (int i = 0; i < MAX_SEQ_NUM; i++) {
+    pbi->stream_info[stream_idx].seq_list_buf[i] = pbi->seq_list[xlayer_id][i];
+  }
   for (int i = 0; i < MAX_MFH_NUM; i++) {
     pbi->stream_info[stream_idx].mfh_params_buf[i] = cm->mfh_params[i];
   }
 
 #if CONFIG_AV2_LCR_PROFILES
-  // Global OBUs (xlayer_id=31) excluded from per-layer save/restore
+  for (int i = 0; i < MAX_NUM_XLAYERS; i++) {
+    for (int j = 0; j < MAX_NUM_LCR; j++) {
+      pbi->stream_info[stream_idx].lcr_list_buf[i][j] = pbi->lcr_list[i][j];
+    }
+  }
 #else
   for (int i = 0; i < MAX_NUM_LCR; i++) {
     pbi->stream_info[stream_idx].lcr_list_buf[i] = pbi->lcr_list[i];
@@ -284,12 +291,19 @@ void av2_restore_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
     cm->remapped_ref_idx[i] =
         pbi->stream_info[stream_idx].remapped_ref_idx_buf[i];
   }
+  for (int i = 0; i < MAX_SEQ_NUM; i++) {
+    pbi->seq_list[xlayer_id][i] = pbi->stream_info[stream_idx].seq_list_buf[i];
+  }
   for (int i = 0; i < MAX_MFH_NUM; i++) {
     cm->mfh_params[i] = pbi->stream_info[stream_idx].mfh_params_buf[i];
   }
 
 #if CONFIG_AV2_LCR_PROFILES
-  // Global OBUs (xlayer_id=31) excluded from per-layer save/restore
+  for (int i = 0; i < MAX_NUM_XLAYERS; i++) {
+    for (int j = 0; j < MAX_NUM_LCR; j++) {
+      pbi->lcr_list[i][j] = pbi->stream_info[stream_idx].lcr_list_buf[i][j];
+    }
+  }
 #else
   for (int i = 0; i < MAX_NUM_LCR; i++) {
     pbi->lcr_list[i] = pbi->stream_info[stream_idx].lcr_list_buf[i];
