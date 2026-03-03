@@ -3427,7 +3427,8 @@ static INLINE void get_secondary_reference_frame_idx(const AV2_COMMON *const cm,
         continue;
       break;
     }
-    if (ref_frame == cm->features.primary_ref_frame) {
+    if (ref_frame == cm->features.primary_ref_frame ||
+        ref_frame >= cm->ref_frames_info.num_total_refs) {
       *secondary_map_idx = INVALID_IDX;
       *ref_frame_used = PRIMARY_REF_NONE;
     } else {
