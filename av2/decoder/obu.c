@@ -2761,6 +2761,8 @@ static void flush_remaining_leading_frames(AV2Decoder *pbi) {
         assign_output_frame_buffer_p(
             &pbi->output_frames[pbi->num_output_frames++], output_candidate);
         output_candidate->frame_output_done = 1;
+      } else {
+        break;
       }
     }
   } while (output_candidate != NULL);
