@@ -533,6 +533,15 @@ typedef struct AV2Decoder {
    */
   int this_is_first_vcl_obu_in_tu;
   /*!
+   * Display order hint of the last OLK encountered. If the OLK is a shown
+   * frame (implicit_output_picture=1), this is set to the OLK's own
+   * display_order_hint. If the OLK is hidden (implicit_output_picture=0 and
+   * immediate_output_picture=0), this is set to -1 until the first non-hidden
+   * regular frame is encountered, at which point it is updated to that frame's
+   * display_order_hint.
+   */
+  int last_olk_tu_display_order_hint;
+  /*!
    * Indicates mlayer_id of the current data chunk being decoded. This is used
    * only for determining first clk/olk in the tu.
    */
