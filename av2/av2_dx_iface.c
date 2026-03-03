@@ -823,7 +823,7 @@ void set_this_is_first_keyframe_unit_in_tu(struct AV2Decoder *pbi,
   }
 
   pbi->this_is_first_keyframe_unit_in_tu =
-      pbi->last_frame_unit.display_order_hint != current_order_hint;
+      pbi->last_displayable_frame_unit.display_order_hint != current_order_hint;
   return;
 };
 
