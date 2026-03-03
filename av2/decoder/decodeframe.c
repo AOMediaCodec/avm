@@ -7178,13 +7178,22 @@ static int read_show_existing_frame(AV2Decoder *pbi, bool is_regular_obu,
         frame_to_show->display_order_hint;
   }
   if (is_regular_obu && pbi->olk_encountered) {
-    if (current_frame->display_order_hint < cm->last_olk_disp_order_hint) {
+    if (pbi->last_olk_tu_display_order_hint == -1 &&
+        !pbi->this_is_first_vcl_obu_in_tu) {
+      // First non-hidden regular frame after a hidden OLK is this SEF (SEFs
+      // are always shown).
+      pbi->last_olk_tu_display_order_hint = current_frame->display_order_hint;
+    }
+    if ((int)current_frame->display_order_hint <
+        pbi->last_olk_tu_display_order_hint) {
+      // last_olk_tu_display_order_hint cannot be -1 at this point
       avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
                          "the reference frame should in the current GOP");
       return 0;
     }
     reset_buffer_other_than_OLK(pbi);
   }
+
   lock_buffer_pool(pool);
   assert(frame_to_show->ref_count > 0);
   // cm->cur_frame should be the buffer referenced by the return value
@@ -7936,6 +7945,26 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
           current_frame->display_order_hint;
     }
 
+    if (obu_type == OBU_OLK) {
+      if (cm->implicit_output_picture) {
+        pbi->last_olk_tu_display_order_hint = current_frame->display_order_hint;
+      } else {
+        // prevent resetting it to -1 when {OLK(s) - OLK(h)} when a hidden OLK
+        // comes after a shown OLK
+        if (pbi->this_is_first_keyframe_unit_in_tu ||
+            pbi->last_olk_tu_display_order_hint == -1) {
+          pbi->last_olk_tu_display_order_hint = -1;
+        }
+      }
+    } else if (pbi->olk_encountered && is_regular_non_olk_obu(obu_type)) {
+      if (pbi->last_olk_tu_display_order_hint == -1 &&
+          !pbi->this_is_first_vcl_obu_in_tu &&
+          (cm->implicit_output_picture || cm->immediate_output_picture)) {
+        // regular frame in the same temporal unit with a hidden olk
+        pbi->last_olk_tu_display_order_hint = current_frame->display_order_hint;
+      }
+    }
+
     if (!frame_is_sframe(cm) && !frame_is_intra_only(cm)) {
       if (!cm->bridge_frame_info.is_bridge_frame) {
         signal_primary_ref_frame = avm_rb_read_bit(rb);
@@ -7981,8 +8010,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       }
     }
     if (obu_type == OBU_OLK) {
-      cm->last_olk_disp_order_hint = cm->current_frame.display_order_hint;
-      cm->last_olk_order_hint = cm->current_frame.order_hint;
       cm->olk_refresh_frame_flags[cm->mlayer_id] =
           current_frame->refresh_frame_flags;
     }
