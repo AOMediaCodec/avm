@@ -900,7 +900,7 @@ static void set_this_is_first_vcl_obu_in_tu(struct AV2Decoder *pbi,
   }
 
   pbi->this_is_first_vcl_obu_in_tu =
-      pbi->last_frame_unit.display_order_hint != current_order_hint;
+      pbi->last_displayable_frame_unit.display_order_hint != current_order_hint;
 }
 // If the decoder starts decoding from the middle of the bitstream,
 // unwanted obus MUST BE already discarded up to the random access point in
