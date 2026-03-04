@@ -1056,6 +1056,34 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
     picture_unit_with_one_vcl += obu_size;
     if (!is_vcl) continue;
 
+    // Batch all tile groups of one picture unit into a single decode_one()
+    // call. A picture unit ends here only when the next VCL in fu_info
+    // starts a new picture unit (is_first_tilegroup == 1). Continuation
+    // tile groups (is_first_tilegroup == 0) belong to the same picture
+    // unit and must not trigger a separate decode here.
+    bool is_pu_boundary = true;
+    for (int j = obu_idx + 1; j < fu_count; j++) {
+      if (is_multi_tile_vcl_obu(fu_info[j].obu_type) ||
+          is_single_tile_vcl_obu(fu_info[j].obu_type)) {
+        is_pu_boundary = (fu_info[j].is_first_tilegroup == 1);
+        break;
+      }
+    }
+    if (!is_pu_boundary) continue;
+
+    // Include any trailing suffix metadata / padding OBUs (they are part
+    // of this picture unit and must be decoded in the same call).
+    for (int j = obu_idx + 1; j < fu_count; j++) {
+      if (is_multi_tile_vcl_obu(fu_info[j].obu_type) ||
+          is_single_tile_vcl_obu(fu_info[j].obu_type))
+        break;
+      if (fu_info[j].obu_type != OBU_PADDING &&
+          fu_info[j].metadata_is_suffix != 1)
+        break;
+      picture_unit_with_one_vcl += fu_info[j].obu_size;
+      obu_idx++;
+    }
+
     // Decode in serial mode.
     res = decode_one(ctx, &data_start, picture_unit_with_one_vcl, user_priv);
     picture_unit_with_one_vcl = 0;
