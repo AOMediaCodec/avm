@@ -3866,8 +3866,11 @@ static void split_partition_search(
     const int y_idx = (idx >> 1) * blk_params.mi_step;
 
     if (mi_row + y_idx >= mi_params->mi_rows ||
-        mi_col + x_idx >= mi_params->mi_cols)
+        mi_col + x_idx >= mi_params->mi_cols) {
+      av2_mark_block_as_pseudo_coded(&x->e_mbd, mi_row + y_idx, mi_col + x_idx,
+                                     subsize, cm->sb_size);
       continue;
+    }
     if (pc_tree->split[pc_tree->region_type][idx] == NULL) {
       pc_tree->split[pc_tree->region_type][idx] = av2_alloc_pc_tree_node(
           x->e_mbd.tree_type, mi_row + y_idx, mi_col + x_idx, cm->sb_size,
@@ -5012,7 +5015,11 @@ static void search_partition_horz_4a(
   for (int i = 0; i < 4; ++i) {
     const int this_mi_row = mi_row + eighth_step * cum_step_multipliers_4a[i];
 
-    if (i > 0 && this_mi_row >= cm->mi_params.mi_rows) break;
+    if (i > 0 && this_mi_row >= cm->mi_params.mi_rows) {
+      av2_mark_block_as_pseudo_coded(xd, this_mi_row, mi_col, subblock_sizes[i],
+                                     cm->sb_size);
+      continue;
+    }
 
     SUBBLOCK_RDO_DATA rdo_data = { pc_tree->horizontal4a[cur_region_type][i],
                                    get_partition_subtree_const(ptree_luma, i),
@@ -5125,7 +5132,11 @@ static void search_partition_horz_4b(
   for (int i = 0; i < 4; ++i) {
     const int this_mi_row = mi_row + eighth_step * cum_step_multipliers_4b[i];
 
-    if (i > 0 && this_mi_row >= cm->mi_params.mi_rows) break;
+    if (i > 0 && this_mi_row >= cm->mi_params.mi_rows) {
+      av2_mark_block_as_pseudo_coded(xd, this_mi_row, mi_col, subblock_sizes[i],
+                                     cm->sb_size);
+      continue;
+    }
 
     SUBBLOCK_RDO_DATA rdo_data = { pc_tree->horizontal4b[cur_region_type][i],
                                    get_partition_subtree_const(ptree_luma, i),
@@ -5238,7 +5249,11 @@ static void search_partition_vert_4a(
   for (int i = 0; i < 4; ++i) {
     const int this_mi_col = mi_col + eighth_step * cum_step_multipliers_4a[i];
 
-    if (i > 0 && this_mi_col >= cm->mi_params.mi_cols) break;
+    if (i > 0 && this_mi_col >= cm->mi_params.mi_cols) {
+      av2_mark_block_as_pseudo_coded(xd, mi_row, this_mi_col, subblock_sizes[i],
+                                     cm->sb_size);
+      continue;
+    }
 
     SUBBLOCK_RDO_DATA rdo_data = { pc_tree->vertical4a[cur_region_type][i],
                                    get_partition_subtree_const(ptree_luma, i),
@@ -5351,7 +5366,11 @@ static void search_partition_vert_4b(
   for (int i = 0; i < 4; ++i) {
     const int this_mi_col = mi_col + eighth_step * cum_step_multipliers_4b[i];
 
-    if (i > 0 && this_mi_col >= cm->mi_params.mi_cols) break;
+    if (i > 0 && this_mi_col >= cm->mi_params.mi_cols) {
+      av2_mark_block_as_pseudo_coded(xd, mi_row, this_mi_col, subblock_sizes[i],
+                                     cm->sb_size);
+      continue;
+    }
 
     SUBBLOCK_RDO_DATA rdo_data = { pc_tree->vertical4b[cur_region_type][i],
                                    get_partition_subtree_const(ptree_luma, i),
@@ -5469,7 +5488,11 @@ static INLINE void search_partition_horz_3(
     const int this_mi_row = mi_row + offset_mr[i];
     const int this_mi_col = mi_col + offset_mc[i];
 
-    if (i > 0 && this_mi_row >= cm->mi_params.mi_rows) break;
+    if (i > 0 && this_mi_row >= cm->mi_params.mi_rows) {
+      av2_mark_block_as_pseudo_coded(xd, this_mi_row, this_mi_col,
+                                     subblock_sizes[i], cm->sb_size);
+      continue;
+    }
 
     SUBBLOCK_RDO_DATA rdo_data = { pc_tree->horizontal3[cur_region_type][i],
                                    get_partition_subtree_const(ptree_luma, i),
@@ -5588,7 +5611,11 @@ static INLINE void search_partition_vert_3(
     const int this_mi_row = mi_row + offset_mr[i];
     const int this_mi_col = mi_col + offset_mc[i];
 
-    if (i > 0 && this_mi_col >= cm->mi_params.mi_cols) break;
+    if (i > 0 && this_mi_col >= cm->mi_params.mi_cols) {
+      av2_mark_block_as_pseudo_coded(xd, this_mi_row, this_mi_col,
+                                     subblock_sizes[i], cm->sb_size);
+      continue;
+    }
 
     SUBBLOCK_RDO_DATA rdo_data = { pc_tree->vertical3[cur_region_type][i],
                                    get_partition_subtree_const(ptree_luma, i),
