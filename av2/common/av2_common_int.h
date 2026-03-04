@@ -3082,6 +3082,14 @@ typedef struct AV2Common {
    * OLK in the same temporal unit, per mlayer. Initialized to -1 (unset).
    */
   int olk_co_vcl_refresh_frame_flags[MAX_NUM_MLAYERS];
+#if CONFIG_AV2_PROFILES
+  /*!
+   * Bitmask tracking which embedded layer IDs have been observed in VCL OBUs
+   * within the current coded video sequence. Bit i is set when a VCL OBU with
+   * obu_mlayer_id == i is encountered. Reset to 0 on new sequence activation.
+   */
+  uint8_t mlayer_seen_map;
+#endif  // CONFIG_AV2_PROFILES
   /*!
    * Indicates if the frame is a leading frame
    */

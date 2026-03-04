@@ -7408,6 +7408,12 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     return;
   }
 
+#if CONFIG_AV2_PROFILES
+  if (obu_type == OBU_CLK || (obu_type == OBU_OLK && pbi->random_accessed)) {
+    cm->mlayer_seen_map = 0;
+  }
+#endif  // CONFIG_AV2_PROFILES
+
   // NOTE: at this point, the current obu is first CLK/OLK in the temporal unit
   // cm->seq_params is the currently active sequence header
   assert(obu_type == OBU_CLK || obu_type == OBU_OLK || pbi->stream_switched);

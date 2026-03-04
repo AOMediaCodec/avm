@@ -312,6 +312,9 @@ typedef struct {
   ContentInterpretation ci_params_per_layer_buf[MAX_NUM_MLAYERS];
   int olk_refresh_frame_flags_buf[MAX_NUM_MLAYERS];
   int olk_co_vcl_refresh_frame_flags_buf[MAX_NUM_MLAYERS];
+#if CONFIG_AV2_PROFILES
+  uint8_t mlayer_seen_map_buf;
+#endif  // CONFIG_AV2_PROFILES
   SequenceHeader seq_params_buf;
   int seq_header_count_buf;
   bool mfh_valid_buf[MAX_MFH_NUM];

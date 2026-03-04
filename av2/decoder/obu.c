@@ -263,6 +263,9 @@ void av2_store_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm, int xlayer_id) {
     pbi->stream_info[stream_idx].olk_co_vcl_refresh_frame_flags_buf[i] =
         cm->olk_co_vcl_refresh_frame_flags[i];
   }
+#if CONFIG_AV2_PROFILES
+  pbi->stream_info[stream_idx].mlayer_seen_map_buf = cm->mlayer_seen_map;
+#endif  // CONFIG_AV2_PROFILES
   pbi->stream_info[stream_idx].seq_params_buf = cm->seq_params;
   for (int i = 0; i < MAX_MFH_NUM; i++) {
     pbi->stream_info[stream_idx].mfh_valid_buf[i] = cm->mfh_valid[i];
@@ -331,6 +334,9 @@ void av2_restore_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
     cm->olk_co_vcl_refresh_frame_flags[i] =
         pbi->stream_info[stream_idx].olk_co_vcl_refresh_frame_flags_buf[i];
   }
+#if CONFIG_AV2_PROFILES
+  cm->mlayer_seen_map = pbi->stream_info[stream_idx].mlayer_seen_map_buf;
+#endif  // CONFIG_AV2_PROFILES
   cm->seq_params = pbi->stream_info[stream_idx].seq_params_buf;
   for (int i = 0; i < MAX_MFH_NUM; i++) {
     cm->mfh_valid[i] = pbi->stream_info[stream_idx].mfh_valid_buf[i];
@@ -2947,6 +2953,23 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
 
     cm->tlayer_id = obu_header.obu_tlayer_id;
     cm->mlayer_id = obu_header.obu_mlayer_id;
+#if CONFIG_AV2_PROFILES
+    if (is_single_tile_vcl_obu(obu_header.type) ||
+        is_multi_tile_vcl_obu(obu_header.type)) {
+      cm->mlayer_seen_map |= (1 << cm->mlayer_id);
+      int mlayer_cnt = 0;
+      for (int b = 0; b < MAX_NUM_MLAYERS; b++) {
+        if (cm->mlayer_seen_map & (1 << b)) mlayer_cnt++;
+      }
+      if (mlayer_cnt > cm->seq_params.seq_max_mlayer_cnt) {
+        avm_internal_error(
+            &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+            "Number of distinct embedded layer IDs (%d) exceeds "
+            "seq_max_mlayer_cnt (%d)",
+            mlayer_cnt, cm->seq_params.seq_max_mlayer_cnt);
+      }
+    }
+#endif  // CONFIG_AV2_PROFILES
     if (obu_header.type == OBU_MSDO) {
       cm->xlayer_id = obu_header.obu_xlayer_id;
     } else {
