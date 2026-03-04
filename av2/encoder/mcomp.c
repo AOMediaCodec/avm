@@ -4791,20 +4791,19 @@ unsigned int av2_refine_warped_mv(MACROBLOCKD *xd, const AV2_COMMON *const cm,
         memcpy(pts_inref, pts_inref0, total_samples * 2 * sizeof(*pts_inref0));
         if (total_samples > 1) mbmi->num_proj_ref[ref] = total_samples;
 
-        if (!av2_find_projection(mbmi->num_proj_ref[ref], pts, pts_inref, bsize,
-                                 this_mv, &mbmi->wm_params[ref], mi_row, mi_col,
-                                 get_ref_scale_factors((AV2_COMMON *const)cm,
-                                                       mbmi->ref_frame[ref])
+        av2_find_projection(
+            mbmi->num_proj_ref[ref], pts, pts_inref, bsize, this_mv,
+            &mbmi->wm_params[ref], mi_row, mi_col,
+            get_ref_scale_factors((AV2_COMMON *const)cm, mbmi->ref_frame[ref])
 
-                                     )) {
-          thismse = compute_motion_cost(xd, cm, ms_params, bsize, &this_mv, 1);
+        );
+        thismse = compute_motion_cost(xd, cm, ms_params, bsize, &this_mv, 1);
 
-          if (thismse < bestmse) {
-            best_idx = idx;
-            best_wm_params = mbmi->wm_params[ref];
-            best_num_proj_ref = mbmi->num_proj_ref[ref];
-            bestmse = thismse;
-          }
+        if (thismse < bestmse) {
+          best_idx = idx;
+          best_wm_params = mbmi->wm_params[ref];
+          best_num_proj_ref = mbmi->num_proj_ref[ref];
+          bestmse = thismse;
         }
       }
     }

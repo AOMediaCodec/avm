@@ -212,9 +212,9 @@ void av2_warp_plane(WarpedMotionParams *wm, int bd, const uint16_t *ref,
                     ,
                     int use_warp_bd_box, PadBlock *warp_bd_box);
 
-int av2_find_projection(int np, const int *pts1, const int *pts2,
-                        BLOCK_SIZE bsize, MV mv, WarpedMotionParams *wm_params,
-                        int mi_row, int mi_col, const struct scale_factors *sf
+void av2_find_projection(int np, const int *pts1, const int *pts2,
+                         BLOCK_SIZE bsize, MV mv, WarpedMotionParams *wm_params,
+                         int mi_row, int mi_col, const struct scale_factors *sf
 
 );
 

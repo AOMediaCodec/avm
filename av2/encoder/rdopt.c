@@ -2527,7 +2527,7 @@ static int64_t motion_mode_rd(
                      total_samples0 * 2 * sizeof(*pts_inref0));
               // Compute the warped motion parameters with a least squares fit
               //  using the collected samples
-              mbmi->wm_params[0].invalid = l0_invalid = av2_find_projection(
+              av2_find_projection(
                   mbmi->num_proj_ref[0], pts, pts_inref, bsize,
                   mbmi->mv[0].as_mv, &mbmi->wm_params[0], mi_row, mi_col
 
@@ -2535,6 +2535,7 @@ static int64_t motion_mode_rd(
                   get_ref_scale_factors_const(cm, mbmi->ref_frame[0])
 
               );
+              mbmi->wm_params[0].invalid = l0_invalid = 0;
 
               if (has_second_ref(mbmi)) {
                 memcpy(pts, pts1, total_samples1 * 2 * sizeof(*pts1));
@@ -2543,7 +2544,7 @@ static int64_t motion_mode_rd(
                 //  Compute the warped motion parameters with a least squares
                 //  fit
                 //   using the collected samples
-                mbmi->wm_params[1].invalid = l1_invalid = av2_find_projection(
+                av2_find_projection(
                     mbmi->num_proj_ref[1], pts, pts_inref, bsize,
                     mbmi->mv[1].as_mv, &mbmi->wm_params[1], mi_row, mi_col
 
@@ -2551,6 +2552,7 @@ static int64_t motion_mode_rd(
                     get_ref_scale_factors_const(cm, mbmi->ref_frame[1])
 
                 );
+                mbmi->wm_params[1].invalid = l1_invalid = 0;
               }
 
               if (!l0_invalid && (!has_second_ref(mbmi) || !l1_invalid)) {

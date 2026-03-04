@@ -1327,10 +1327,10 @@ static int32_t get_mult_shift_diag(int64_t Px, int16_t iDet, int shift) {
 }
 #endif  // USE_LIMITED_PREC_MULT
 
-static int find_affine_int(int np, const int *pts1, const int *pts2,
-                           BLOCK_SIZE bsize, MV mv, WarpedMotionParams *wm,
-                           int mi_row, int mi_col,
-                           const struct scale_factors *sf
+static void find_affine_int(int np, const int *pts1, const int *pts2,
+                            BLOCK_SIZE bsize, MV mv, WarpedMotionParams *wm,
+                            int mi_row, int mi_col,
+                            const struct scale_factors *sf
 
 ) {
   int32_t A[2][2] = { { 0, 0 }, { 0, 0 } };
@@ -1408,7 +1408,6 @@ static int find_affine_int(int np, const int *pts1, const int *pts2,
     wm->wmmat[7] = 0;
     av2_get_shear_params(wm, sf);
     av2_set_warp_translation(mi_row, mi_col, bsize, mv, wm);
-    return 0;
   }
 
   int16_t shift;
@@ -1439,25 +1438,16 @@ static int find_affine_int(int np, const int *pts1, const int *pts2,
   av2_get_shear_params(wm, sf);
   av2_set_warp_translation(mi_row, mi_col, bsize, mv, wm);
   wm->wmmat[6] = wm->wmmat[7] = 0;
-  return 0;
 }
 
-int av2_find_projection(int np, const int *pts1, const int *pts2,
-                        BLOCK_SIZE bsize, MV mv, WarpedMotionParams *wm_params,
-                        int mi_row, int mi_col, const struct scale_factors *sf
+void av2_find_projection(int np, const int *pts1, const int *pts2,
+                         BLOCK_SIZE bsize, MV mv, WarpedMotionParams *wm_params,
+                         int mi_row, int mi_col, const struct scale_factors *sf
 
 ) {
   assert(wm_params->wmtype <= AFFINE);
-
-  if (find_affine_int(np, pts1, pts2, bsize, mv, wm_params, mi_row, mi_col, sf
-
-                      )) {
-    wm_params->invalid = 1;
-    return 1;
-  }
+  find_affine_int(np, pts1, pts2, bsize, mv, wm_params, mi_row, mi_col, sf);
   wm_params->invalid = 0;
-
-  return 0;
 }
 
 /* Given a neighboring block's warp model and the motion vector at the center
