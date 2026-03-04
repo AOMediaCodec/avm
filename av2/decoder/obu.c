@@ -3059,8 +3059,8 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
       case OBU_MULTI_FRAME_HEADER:
         decoded_payload_size = read_multi_frame_header_obu(pbi, &rb);
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
-        break;
         pbi->seen_multi_frame_header = 1;
+        break;
       case OBU_CLK:
       case OBU_OLK:
       case OBU_LEADING_TILE_GROUP:
