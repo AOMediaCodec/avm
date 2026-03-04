@@ -96,7 +96,7 @@ static void write_obu_header_with_stream_id(uint8_t *const dst,
 std::vector<uint8_t> WriteTU(const uint8_t *data, int length,
                              int *obu_overhead_bytes, int seg_idx,
                              int num_streams, int *stream_ids,
-                             int *stream_buffer_units) {
+                             int *stream_buffer_units, bool redundant_msdo) {
   std::vector<uint8_t> tu_obus;
   const uint8_t *data_ptr = data;
   const int kObuHeaderSizeBytes = 1;
@@ -105,6 +105,7 @@ std::vector<uint8_t> WriteTU(const uint8_t *data, int length,
   int obu_overhead = 0;
   int msdo_signaled = 0;
   ObuHeader obu_header;
+
   while (consumed < length) {
     const int remaining = length - consumed;
     if (remaining < kMinimumBytesRequired) {
@@ -162,15 +163,16 @@ std::vector<uint8_t> WriteTU(const uint8_t *data, int length,
                                  data_ptr + obu_total_size + length_field_size);
 
     if (!msdo_signaled &&
-        (obu_header.type == OBU_LAYER_CONFIGURATION_RECORD ||
-         obu_header.type == OBU_OPERATING_POINT_SET ||
-         obu_header.type == OBU_ATLAS_SEGMENT ||
-         ((obu_header.type == OBU_METADATA_SHORT ||
-           obu_header.type == OBU_METADATA_GROUP) &&
-          obu_header.obu_header_extension_flag &&
-          obu_header.obu_xlayer_id == GLOBAL_XLAYER_ID) ||
-         obu_header.type == OBU_SEQUENCE_HEADER) &&
-        (seg_idx == 0)) {
+        (redundant_msdo ||
+         ((obu_header.type == OBU_LAYER_CONFIGURATION_RECORD ||
+           obu_header.type == OBU_OPERATING_POINT_SET ||
+           obu_header.type == OBU_ATLAS_SEGMENT ||
+           ((obu_header.type == OBU_METADATA_SHORT ||
+             obu_header.type == OBU_METADATA_GROUP) &&
+            obu_header.obu_header_extension_flag &&
+            obu_header.obu_xlayer_id == GLOBAL_XLAYER_ID) ||
+           obu_header.type == OBU_SEQUENCE_HEADER) &&
+          seg_idx == 0))) {
       std::vector<uint8_t> multi_stream_obu(num_streams * 2 + 4);
       int multi_header_obu_size = write_multi_stream_decoder_operation_obu(
           multi_stream_obu.data(), num_streams, stream_ids,
@@ -226,24 +228,34 @@ std::vector<uint8_t> WriteTU(const uint8_t *data, int length,
 }
 
 int main(int argc, const char *argv[]) {
-  if (argc < 3 || (argc - 2) % 3) {
+  bool redundant_msdo = false;
+  int arg_offset = 0;
+
+  // Check for --redundant-msdo flag
+  if (argc > 1 && strcmp(argv[1], "--redundant-msdo") == 0) {
+    redundant_msdo = true;
+    arg_offset = 1;
+  }
+
+  if (argc - arg_offset < 3 || (argc - arg_offset - 2) % 3) {
     fprintf(stderr,
-            "command: %s [input file1], [stream ID 1], [unit size 1], [input "
+            "command: %s [--redundant-msdo] [input file1], [stream ID 1], "
+            "[unit size 1], [input "
             "file2], [stream ID 2], [unit size 2], ... [outfile]\n",
             argv[0]);
     return -1;
-  } else if (argc > (AVM_MAX_NUM_STREAMS * 3 + 2)) {
+  } else if (argc - arg_offset > (AVM_MAX_NUM_STREAMS * 3 + 2)) {
     fprintf(stderr,
             "The number of input files cannot exceed the maximum number of "
             "streams (8)\n");
     return -1;
   }
 
-  int num_streams = (argc - 2) / 3;
+  int num_streams = (argc - arg_offset - 2) / 3;
   int sum_buffer_units = 0;
 
   for (int i = 0; i < num_streams; ++i) {
-    int stream_id = atoi(argv[i * 3 + 2]);
+    int stream_id = atoi(argv[arg_offset + i * 3 + 2]);
     if (stream_id > 7) {
       fprintf(stderr,
               "The value of stream_id cannot exceed the max value (7)\n");
@@ -251,7 +263,7 @@ int main(int argc, const char *argv[]) {
     }
   }
   for (int i = 0; i < num_streams; ++i) {
-    sum_buffer_units += atoi(argv[i * 3 + 3]);
+    sum_buffer_units += atoi(argv[arg_offset + i * 3 + 3]);
   }
   if (sum_buffer_units > 8) {
     fprintf(stderr,
@@ -278,7 +290,7 @@ int main(int argc, const char *argv[]) {
 
   // Initialize file read for each stream
   for (int i = 0; i < num_streams; ++i) {
-    fin[i] = fopen(argv[i * 3 + 1], "rb");
+    fin[i] = fopen(argv[arg_offset + i * 3 + 1], "rb");
     if (fin[i] == nullptr) {
       fprintf(stderr, "Error: failed to open the input file\n");
     }
@@ -313,7 +325,7 @@ int main(int argc, const char *argv[]) {
   printf("  Stream IDs: ");
 #endif  // PRINT_TU_INFO
   for (int i = 0; i < num_streams; ++i) {
-    stream_ids[i] = atoi(argv[i * 3 + 2]);
+    stream_ids[i] = atoi(argv[arg_offset + i * 3 + 2]);
 #if PRINT_TU_INFO
     printf("[%d] ", stream_ids[i]);
 #endif  // PRINT_TU_INFO
@@ -325,7 +337,7 @@ int main(int argc, const char *argv[]) {
   // Set the values of unit sizes of streams
   int stream_buffer_units[AVM_MAX_NUM_STREAMS];
   for (int i = 0; i < num_streams; ++i) {
-    stream_buffer_units[i] = atoi(argv[i * 3 + 3]);
+    stream_buffer_units[i] = atoi(argv[arg_offset + i * 3 + 3]);
 #if PRINT_TU_INFO
     printf("[%d] ", stream_buffer_units[i]);
 #endif  // PRINT_TU_INFO
@@ -353,7 +365,7 @@ int main(int argc, const char *argv[]) {
         segments =
             WriteTU(input_ctx[i].unit_buffer, static_cast<int>(unit_size),
                     &obu_overhead_current_unit, i, num_streams, stream_ids,
-                    stream_buffer_units);
+                    stream_buffer_units, redundant_msdo);
         fwrite(segments.data(), 1, segments.size(), fout);
 #if PRINT_TU_INFO
         printf("  TU overhead:    %d\n", obu_overhead_current_unit);
