@@ -3422,13 +3422,13 @@ static INLINE void get_secondary_reference_frame_idx(const AV2_COMMON *const cm,
     for (; ref_frame < cm->ref_frames_info.num_total_refs; ref_frame++) {
       RefFrameMapPair cur_ref =
           cm->ref_frame_map_pairs[get_ref_frame_map_idx(cm, ref_frame)];
-      if (cur_ref.ref_frame_for_inference == -1 ||
+      if (ref_frame == cm->features.primary_ref_frame ||
+          cur_ref.ref_frame_for_inference == -1 ||
           cur_ref.frame_type != INTER_FRAME)
         continue;
       break;
     }
-    if (ref_frame == cm->features.primary_ref_frame ||
-        ref_frame >= cm->ref_frames_info.num_total_refs) {
+    if (ref_frame >= cm->ref_frames_info.num_total_refs) {
       *secondary_map_idx = INVALID_IDX;
       *ref_frame_used = PRIMARY_REF_NONE;
     } else {
