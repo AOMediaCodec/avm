@@ -1408,6 +1408,7 @@ static void find_affine_int(int np, const int *pts1, const int *pts2,
     wm->wmmat[7] = 0;
     av2_get_shear_params(wm, sf);
     av2_set_warp_translation(mi_row, mi_col, bsize, mv, wm);
+    return;
   }
 
   int16_t shift;
