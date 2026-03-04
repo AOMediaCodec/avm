@@ -319,6 +319,17 @@ typedef struct {
   bool mfh_valid_buf[MAX_MFH_NUM];
 } StreamInfo;
 
+/*!
+ * \brief MSDO configuration snapshot for change detection
+ */
+typedef struct MsdoConfig {
+  BITSTREAM_PROFILE multistream_profile_idc;
+  AV2_LEVEL multistream_level_idx;
+  uint8_t multistream_tier_idx;
+  int num_streams;
+  int stream_ids[AVM_MAX_NUM_STREAMS];
+} MsdoConfig;
+
 typedef struct AV2Decoder {
   DecoderCodingBlock dcb;
 

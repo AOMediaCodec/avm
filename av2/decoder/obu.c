@@ -281,6 +281,11 @@ void av2_restore_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
   int stream_idx = av2_get_stream_index(cm, xlayer_id);
   if (stream_idx < 0) return;  // Invalid or GLOBAL_XLAYER_ID
 
+  // Check if stream_info is valid
+  if (pbi->stream_info == NULL) {
+    return;
+  }
+
   for (int i = 0; i < REF_FRAMES; i++) {
     cm->ref_frame_map[i] = pbi->stream_info[stream_idx].ref_frame_map_buf[i];
     pbi->valid_for_referencing[i] =
@@ -368,6 +373,32 @@ static void init_stream_info(StreamInfo *stream_info) {
   }
 }
 
+/*!
+ * \brief Save current MSDO configuration
+ */
+static void save_msdo_config(const AV2Decoder *pbi, MsdoConfig *config) {
+  const AV2_COMMON *const cm = &pbi->common;
+  config->multistream_profile_idc =
+      pbi->common.msdo_params.multistream_profile_idc;
+  config->multistream_tier_idx = pbi->common.msdo_params.multistream_tier_idx;
+  config->multistream_level_idx = pbi->common.msdo_params.multistream_level_idx;
+  config->num_streams = cm->num_streams;
+  memcpy(config->stream_ids, cm->stream_ids, cm->num_streams * sizeof(int));
+}
+
+/*!
+ * \brief Compare two MSDO configurations
+ * \return true if configurations are identical, false otherwise
+ */
+static bool msdo_config_equal(const MsdoConfig *a, const MsdoConfig *b) {
+  if (a->multistream_profile_idc != b->multistream_profile_idc) return false;
+  if (a->multistream_tier_idx != b->multistream_tier_idx) return false;
+  if (a->multistream_level_idx != b->multistream_level_idx) return false;
+  if (a->num_streams != b->num_streams) return false;
+
+  return true;
+}
+
 static uint32_t read_multi_stream_decoder_operation_obu(
     AV2Decoder *pbi, struct avm_read_bit_buffer *rb) {
   AV2_COMMON *const cm = &pbi->common;
@@ -375,6 +406,16 @@ static uint32_t read_multi_stream_decoder_operation_obu(
 
   // Verify rb has been configured to report errors.
   assert(rb->error_handler);
+
+  // Save previous configuration if it exists
+  MsdoConfig prev_config;
+  bool has_previous = false;
+
+  if (pbi->stream_info != NULL) {
+    save_msdo_config(pbi, &prev_config);
+    has_previous = true;
+  }
+
   const int num_streams =
       avm_rb_read_literal(rb, 3) + 2;  // read number of streams
   if (num_streams > AVM_MAX_NUM_STREAMS) {
@@ -416,19 +457,32 @@ static uint32_t read_multi_stream_decoder_operation_obu(
         avm_rb_read_bit(rb);  // read tier of multistream
     (void)substream_tier_idx;
   }
-  // Allocate intermediate buffers to store internal variables per sub-stream
-  if (pbi->stream_info != NULL) {
+
+  // Check if configuration changed
+  MsdoConfig new_config;
+  save_msdo_config(pbi, &new_config);
+  bool config_changed =
+      !has_previous || !msdo_config_equal(&prev_config, &new_config);
+
+  // Only free if stream_info exists AND config changed
+  if (pbi->stream_info != NULL && config_changed) {
     avm_free(pbi->stream_info);
     pbi->stream_info = NULL;
   }
-  pbi->stream_info = (StreamInfo *)avm_malloc(num_streams * sizeof(StreamInfo));
+
+  // Only allocate if stream_info is NULL (first time OR after freeing due to
+  // config change)
   if (pbi->stream_info == NULL) {
-    avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
-                       "Memory allocation failed for pbi->stream_info\n");
-  }
-  memset(pbi->stream_info, 0, num_streams * sizeof(StreamInfo));
-  for (int i = 0; i < num_streams; i++) {
-    init_stream_info(&pbi->stream_info[i]);
+    pbi->stream_info =
+        (StreamInfo *)avm_malloc(num_streams * sizeof(StreamInfo));
+    if (pbi->stream_info == NULL) {
+      avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
+                         "Memory allocation failed for pbi->stream_info\n");
+    }
+    memset(pbi->stream_info, 0, num_streams * sizeof(StreamInfo));
+    for (int i = 0; i < num_streams; i++) {
+      init_stream_info(&pbi->stream_info[i]);
+    }
   }
 
   pbi->msdo_is_present_in_tu = 1;
@@ -2957,40 +3011,38 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
 
     cm->tlayer_id = obu_header.obu_tlayer_id;
     cm->mlayer_id = obu_header.obu_mlayer_id;
-    if (obu_header.type == OBU_MSDO) {
+
+    if (!pbi->multi_stream_mode ||
+        (obu_header.obu_xlayer_id == GLOBAL_XLAYER_ID &&
+         cm->xlayer_id == GLOBAL_XLAYER_ID)) {
       cm->xlayer_id = obu_header.obu_xlayer_id;
-    } else {
-      if (!pbi->multi_stream_mode ||
-          (obu_header.obu_xlayer_id == GLOBAL_XLAYER_ID &&
-           cm->xlayer_id == GLOBAL_XLAYER_ID)) {
-        cm->xlayer_id = obu_header.obu_xlayer_id;
-      } else if (cm->xlayer_id != GLOBAL_XLAYER_ID &&
-                 obu_header.obu_xlayer_id == GLOBAL_XLAYER_ID) {
-        // Store xlayer context
-        av2_store_xlayer_context(pbi, cm, cm->xlayer_id);
-        cm->xlayer_id = obu_header.obu_xlayer_id;
-      } else if (cm->xlayer_id == GLOBAL_XLAYER_ID &&
-                 obu_header.obu_xlayer_id != GLOBAL_XLAYER_ID) {
-        // Restore xlayer context
-        cm->xlayer_id = obu_header.obu_xlayer_id;
-        av2_restore_xlayer_context(pbi, cm, cm->xlayer_id);
-      } else if (cm->xlayer_id != obu_header.obu_xlayer_id) {
-        // Store and restore xlayer context
-        av2_store_xlayer_context(pbi, cm, cm->xlayer_id);
-        cm->xlayer_id = obu_header.obu_xlayer_id;
-        av2_restore_xlayer_context(pbi, cm, cm->xlayer_id);
-      }
-      if (obu_header.type == OBU_LEADING_TILE_GROUP ||
-          obu_header.type == OBU_REGULAR_TILE_GROUP) {
-        if (prev_obu_xlayer_id == -1) {
-          prev_obu_xlayer_id = obu_header.obu_xlayer_id;
-        } else {
-          if (pbi->multi_stream_mode && prev_obu_xlayer_id >= 0 &&
-              obu_header.obu_xlayer_id != prev_obu_xlayer_id) {
-            avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-                               "tile group OBUs with the same stream_id shall "
-                               "be contiguous within a temporal unit");
-          }
+    } else if (cm->xlayer_id != GLOBAL_XLAYER_ID &&
+               obu_header.obu_xlayer_id == GLOBAL_XLAYER_ID) {
+      // Store xlayer context
+      av2_store_xlayer_context(pbi, cm, cm->xlayer_id);
+      cm->xlayer_id = obu_header.obu_xlayer_id;
+    } else if (cm->xlayer_id == GLOBAL_XLAYER_ID &&
+               obu_header.obu_xlayer_id != GLOBAL_XLAYER_ID) {
+      // Restore xlayer context
+      cm->xlayer_id = obu_header.obu_xlayer_id;
+      av2_restore_xlayer_context(pbi, cm, cm->xlayer_id);
+    } else if (cm->xlayer_id != obu_header.obu_xlayer_id) {
+      // Store and restore xlayer context
+      av2_store_xlayer_context(pbi, cm, cm->xlayer_id);
+      cm->xlayer_id = obu_header.obu_xlayer_id;
+      av2_restore_xlayer_context(pbi, cm, cm->xlayer_id);
+    }
+
+    if (obu_header.type == OBU_LEADING_TILE_GROUP ||
+        obu_header.type == OBU_REGULAR_TILE_GROUP) {
+      if (prev_obu_xlayer_id == -1) {
+        prev_obu_xlayer_id = obu_header.obu_xlayer_id;
+      } else {
+        if (pbi->multi_stream_mode && prev_obu_xlayer_id >= 0 &&
+            obu_header.obu_xlayer_id != prev_obu_xlayer_id) {
+          avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+                             "tile group OBUs with the same stream_id shall "
+                             "be contiguous within a temporal unit");
         }
       }
     }
