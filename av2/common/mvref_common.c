@@ -4789,67 +4789,62 @@ static INLINE void update_warp_param_bank(const MB_MODE_INFO *const mbmi,
   const int can_use_second_model = is_inter_compound_mode(mbmi->mode);
 #endif  // COMPOUND_WARP_LINE_BUFFER_REDUCTION
   for (int ref_idx = 0; ref_idx < 1 + can_use_second_model; ref_idx++) {
-    if (!mbmi->wm_params[ref_idx].invalid) {
-      const MV_REFERENCE_FRAME ref_frame = mbmi->ref_frame[ref_idx];
-      WarpedMotionParams *queue = warp_param_bank->wpb_buffer[ref_frame];
-      const int start_idx = warp_param_bank->wpb_start_idx[ref_frame];
-      const int count = warp_param_bank->wpb_count[ref_frame];
-      int found = -1;
+    const MV_REFERENCE_FRAME ref_frame = mbmi->ref_frame[ref_idx];
+    WarpedMotionParams *queue = warp_param_bank->wpb_buffer[ref_frame];
+    const int start_idx = warp_param_bank->wpb_start_idx[ref_frame];
+    const int count = warp_param_bank->wpb_count[ref_frame];
+    int found = -1;
 
-      // If max hits have been reached return.
-      if (warp_param_bank->wpb_sb_hits >= MAX_WARP_SB_HITS) return;
-      // else increment count and proceed with updating.
-      ++warp_param_bank->wpb_sb_hits;
+    // If max hits have been reached return.
+    if (warp_param_bank->wpb_sb_hits >= MAX_WARP_SB_HITS) return;
+    // else increment count and proceed with updating.
+    ++warp_param_bank->wpb_sb_hits;
 
-      // Check if current warp parameters is already existing in the buffer.
-      for (int i = 0; i < count; ++i) {
-        const int idx = (start_idx + i) % WARP_PARAM_BANK_SIZE;
-        int same_param =
-            (mbmi->wm_params[ref_idx].wmmat[2] == queue[idx].wmmat[2]);
-        same_param &=
-            (mbmi->wm_params[ref_idx].wmmat[3] == queue[idx].wmmat[3]);
+    // Check if current warp parameters is already existing in the buffer.
+    for (int i = 0; i < count; ++i) {
+      const int idx = (start_idx + i) % WARP_PARAM_BANK_SIZE;
+      int same_param =
+          (mbmi->wm_params[ref_idx].wmmat[2] == queue[idx].wmmat[2]);
+      same_param &= (mbmi->wm_params[ref_idx].wmmat[3] == queue[idx].wmmat[3]);
 
-        same_param &=
-            (mbmi->wm_params[ref_idx].wmmat[4] == queue[idx].wmmat[4]);
-        same_param &=
-            (mbmi->wm_params[ref_idx].wmmat[5] == queue[idx].wmmat[5]);
-        if (same_param) {
-          found = i;
-          break;
-        }
+      same_param &= (mbmi->wm_params[ref_idx].wmmat[4] == queue[idx].wmmat[4]);
+      same_param &= (mbmi->wm_params[ref_idx].wmmat[5] == queue[idx].wmmat[5]);
+      if (same_param) {
+        found = i;
+        break;
       }
+    }
 
-      // If current warp parameters is found in the buffer, move it to the end
-      // of the buffer.
-      if (found >= 0) {
-        const int idx = (start_idx + found) % WARP_PARAM_BANK_SIZE;
-        const WarpedMotionParams cand = queue[idx];
-        for (int i = found; i < count - 1; ++i) {
-          const int idx0 = (start_idx + i) % WARP_PARAM_BANK_SIZE;
-          const int idx1 = (start_idx + i + 1) % WARP_PARAM_BANK_SIZE;
-          queue[idx0] = queue[idx1];
-        }
-        const int tail = (start_idx + count - 1) % WARP_PARAM_BANK_SIZE;
-        queue[tail] = cand;
-        continue;
+    // If current warp parameters is found in the buffer, move it to the end
+    // of the buffer.
+    if (found >= 0) {
+      const int idx = (start_idx + found) % WARP_PARAM_BANK_SIZE;
+      const WarpedMotionParams cand = queue[idx];
+      for (int i = found; i < count - 1; ++i) {
+        const int idx0 = (start_idx + i) % WARP_PARAM_BANK_SIZE;
+        const int idx1 = (start_idx + i + 1) % WARP_PARAM_BANK_SIZE;
+        queue[idx0] = queue[idx1];
       }
+      const int tail = (start_idx + count - 1) % WARP_PARAM_BANK_SIZE;
+      queue[tail] = cand;
+      continue;
+    }
 
-      // If current warp parameter is not found in the buffer, append it to the
-      // end of the buffer, and update the count and start_idx accordingly.
-      const int idx = (start_idx + count) % WARP_PARAM_BANK_SIZE;
-      queue[idx].wmtype = mbmi->wm_params[ref_idx].wmtype;
-      queue[idx].wmmat[0] = mbmi->wm_params[ref_idx].wmmat[0];
-      queue[idx].wmmat[1] = mbmi->wm_params[ref_idx].wmmat[1];
-      queue[idx].wmmat[2] = mbmi->wm_params[ref_idx].wmmat[2];
-      queue[idx].wmmat[3] = mbmi->wm_params[ref_idx].wmmat[3];
-      queue[idx].wmmat[4] = mbmi->wm_params[ref_idx].wmmat[4];
-      queue[idx].wmmat[5] = mbmi->wm_params[ref_idx].wmmat[5];
+    // If current warp parameter is not found in the buffer, append it to the
+    // end of the buffer, and update the count and start_idx accordingly.
+    const int idx = (start_idx + count) % WARP_PARAM_BANK_SIZE;
+    queue[idx].wmtype = mbmi->wm_params[ref_idx].wmtype;
+    queue[idx].wmmat[0] = mbmi->wm_params[ref_idx].wmmat[0];
+    queue[idx].wmmat[1] = mbmi->wm_params[ref_idx].wmmat[1];
+    queue[idx].wmmat[2] = mbmi->wm_params[ref_idx].wmmat[2];
+    queue[idx].wmmat[3] = mbmi->wm_params[ref_idx].wmmat[3];
+    queue[idx].wmmat[4] = mbmi->wm_params[ref_idx].wmmat[4];
+    queue[idx].wmmat[5] = mbmi->wm_params[ref_idx].wmmat[5];
 
-      if (count < WARP_PARAM_BANK_SIZE) {
-        ++warp_param_bank->wpb_count[ref_frame];
-      } else {
-        ++warp_param_bank->wpb_start_idx[ref_frame];
-      }
+    if (count < WARP_PARAM_BANK_SIZE) {
+      ++warp_param_bank->wpb_count[ref_frame];
+    } else {
+      ++warp_param_bank->wpb_start_idx[ref_frame];
     }
   }
 }

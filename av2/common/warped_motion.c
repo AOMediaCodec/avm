@@ -1568,7 +1568,7 @@ int_mv get_warp_motion_vector_xy_pos(const MACROBLOCKD *xd,
   int_mv res;
   int tx, ty;
 
-  if (model->invalid || model->wmtype == IDENTITY) {
+  if (model->wmtype == IDENTITY) {
     res.as_int = 0;
     return res;
   }
