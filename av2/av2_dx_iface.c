@@ -743,9 +743,9 @@ static int check_frame_unit_data(struct AV2Decoder *pbi,
       }
     }
 #if 0
-    printf("<<%s>> shown_frame:%d order_hint:%d\n",
+    printf("<<%s>> %s shown_frame:%d order_hint:%d (%d,%d,%d)\n", __func__,
            avm_obu_type_to_string(obu_header.type), current_is_shown,
-           current_order_hint);
+           current_order_hint, obu_header.obu_xlayer_id, obu_header.obu_mlayer_id, obu_header.obu_tlayer_id);
 #endif
     // Grow the FrameUnitInfo array as needed.
     if (fu_count >= fu_capacity) {
@@ -1005,8 +1005,14 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
 
   bool check_if_first_pu = false;
   size_t picture_unit_with_one_vcl = 0;
+  int pu_start_obu_idx = 0;
   pbi->obu_list = (obu_info *)malloc(sizeof(obu_info) * fu_count);
-
+#if 0
+  for (int obu_idx = 0; obu_idx < fu_count; obu_idx++) {
+    printf("[%d]\t%s\t%d,%d,%d\n", obu_idx, avm_obu_type_to_string(fu_info[obu_idx].obu_type),
+           fu_info[obu_idx].xlayer_id, fu_info[obu_idx].mlayer_id, fu_info[obu_idx].tlayer_id);
+  }
+#endif
   for (int obu_idx = 0; obu_idx < fu_count; obu_idx++) {
     bool is_vcl = (is_multi_tile_vcl_obu(fu_info[obu_idx].obu_type) ||
                    is_single_tile_vcl_obu(fu_info[obu_idx].obu_type));
@@ -1027,21 +1033,24 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
           pbi->this_is_first_vcl_obu_in_tu;
       check_if_first_pu = true;
     }
-#if 0
-    printf("\t\t[%s] ->> first_pu_in_tu:%d\n",
-           avm_obu_type_to_string(fu_info[obu_idx].obu_type),
-           pbi->this_is_first_vcl_obu_in_tu);
-#endif
 
     int mlayer_id = pbi->current_mlayer_id = fu_info[obu_idx].mlayer_id;
     int tlayer_id = pbi->current_tlayer_id = fu_info[obu_idx].tlayer_id;
     int xlayer_id = fu_info[obu_idx].xlayer_id;
     size_t obu_size = fu_info[obu_idx].obu_size;
-    memset(&pbi->obu_list[obu_idx], -1, sizeof(obu_info));
-    pbi->obu_list[obu_idx].xlayer_id = xlayer_id;
-    pbi->obu_list[obu_idx].mlayer_id = mlayer_id;
-    pbi->obu_list[obu_idx].tlayer_id = tlayer_id;
-
+    int pu_rel_idx = obu_idx - pu_start_obu_idx;
+    memset(&pbi->obu_list[pu_rel_idx], -1, sizeof(obu_info));
+    pbi->obu_list[pu_rel_idx].xlayer_id = xlayer_id;
+    pbi->obu_list[pu_rel_idx].mlayer_id = mlayer_id;
+    pbi->obu_list[pu_rel_idx].tlayer_id = tlayer_id;
+#if 0
+    printf("\t\t[%s] %d ->> first_pu_in_tu:%d (%d,%d,%d) vs (%d,%d,%d)\n",
+           avm_obu_type_to_string(fu_info[obu_idx].obu_type), obu_idx,
+           pbi->this_is_first_vcl_obu_in_tu, fu_info[obu_idx].xlayer_id, fu_info[obu_idx].mlayer_id, fu_info[obu_idx].tlayer_id,
+           pbi->obu_list[pu_rel_idx].xlayer_id,
+           pbi->obu_list[pu_rel_idx].mlayer_id,
+           pbi->obu_list[pu_rel_idx].tlayer_id);
+#endif
     // Drop leading frames when random-accessing.
     // pbi->random_accessed is set in main_loop() when parsing begins at a
     // random access point.
@@ -1085,6 +1094,7 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
     }
 
     // Decode in serial mode.
+    pbi->num_obus_with_frame_unit = obu_idx - pu_start_obu_idx + 1;
     res = decode_one(ctx, &data_start, picture_unit_with_one_vcl, user_priv);
     picture_unit_with_one_vcl = 0;
     if (res != AVM_CODEC_OK) {
@@ -1093,6 +1103,7 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
     }
 
     set_last_frame_unit(pbi);
+    pu_start_obu_idx = obu_idx + 1;
   }
 
   pbi->num_obus_with_frame_unit = 0;
