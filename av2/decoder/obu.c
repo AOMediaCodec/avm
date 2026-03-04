@@ -2962,11 +2962,10 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         if (cm->mlayer_seen_map & (1 << b)) mlayer_cnt++;
       }
       if (mlayer_cnt > cm->seq_params.seq_max_mlayer_cnt) {
-        avm_internal_error(
-            &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-            "Number of distinct embedded layer IDs (%d) exceeds "
-            "seq_max_mlayer_cnt (%d)",
-            mlayer_cnt, cm->seq_params.seq_max_mlayer_cnt);
+        avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+                           "Number of distinct embedded layer IDs (%d) exceeds "
+                           "seq_max_mlayer_cnt (%d)",
+                           mlayer_cnt, cm->seq_params.seq_max_mlayer_cnt);
       }
     }
 #endif  // CONFIG_AV2_PROFILES
