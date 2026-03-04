@@ -204,10 +204,7 @@ int64_t av2_warp_error(WarpedMotionParams *wm, int bd, const uint16_t *ref,
                        int segment_map_stride) {
   if (wm->wmtype <= AFFINE) {
     av2_reduce_warp_model(wm);
-    if (!av2_get_shear_params(wm, NULL
-
-                              ))
-      return INT64_MAX;
+    av2_get_shear_params(wm, NULL);
   }
 
   return highbd_warp_error(wm, ref, width, height, stride, dst, p_col, p_row,
@@ -326,12 +323,7 @@ int64_t av2_refine_integerized_param(
 
   wm->wmtype = get_wmtype(wm);
   // Recompute shear params for the refined model
-  // This should never fail, because we only ever consider warp-able models
-  if (!av2_get_shear_params(wm, sf
-
-                            )) {
-    assert(0);
-  }
+  av2_get_shear_params(wm, sf);
   return best_error;
 }
 

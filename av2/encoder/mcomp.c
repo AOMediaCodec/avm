@@ -5262,12 +5262,9 @@ int av2_pick_warp_delta(const AV2_COMMON *const cm, MACROBLOCKD *xd,
           params->wmmat[4] = -params->wmmat[3];
           params->wmmat[5] = params->wmmat[2];
         }
-        valid = av2_is_warp_model_reduced(params) && av2_get_shear_params(params
+        valid = av2_is_warp_model_reduced(params);
+        av2_get_shear_params(params, sf);
 
-                                                                          ,
-                                                                          sf
-
-                                                     );
         if (valid) {
           av2_set_warp_translation(mi_row, mi_col, bsize, center_mv.as_mv,
                                    params);
@@ -5297,12 +5294,8 @@ int av2_pick_warp_delta(const AV2_COMMON *const cm, MACROBLOCKD *xd,
           params->wmmat[4] = -params->wmmat[3];
           params->wmmat[5] = params->wmmat[2];
         }
-        valid = av2_is_warp_model_reduced(params) && av2_get_shear_params(params
-
-                                                                          ,
-                                                                          sf
-
-                                                     );
+        valid = av2_is_warp_model_reduced(params);
+        av2_get_shear_params(params, sf);
         if (valid) {
           av2_set_warp_translation(mi_row, mi_col, bsize, center_mv.as_mv,
                                    params);
@@ -5391,18 +5384,13 @@ int av2_refine_mv_for_base_param_warp_model(
   *params = base_params;
 
   av2_set_warp_translation(mi_row, mi_col, bsize, center_mv.as_mv, params);
-  int valid =
-      av2_get_shear_params(params
+  av2_get_shear_params(params
 
-                           ,
-                           get_ref_scale_factors_const(cm, mbmi->ref_frame[0])
+                       ,
+                       get_ref_scale_factors_const(cm, mbmi->ref_frame[0])
 
-      );
-  params->invalid = !valid;
-  if (!valid) {
-    // Don't try to refine from a broken starting point
-    return 0;
-  }
+  );
+  params->invalid = 0;
 
   // parameters are valid however, mv refinement is not supported
   if (!can_refine_mv) return 1;  // returning 1 means valid model is found
@@ -5450,14 +5438,12 @@ int av2_refine_mv_for_base_param_warp_model(
         // Update model and costs according to the motion vector which
         // is being tried out this iteration
         av2_set_warp_translation(mi_row, mi_col, bsize, this_mv, params);
-        if (!av2_get_shear_params(
-                params
+        av2_get_shear_params(params
 
-                ,
-                get_ref_scale_factors_const(cm, mbmi->ref_frame[0])
+                             ,
+                             get_ref_scale_factors_const(cm, mbmi->ref_frame[0])
 
-                    ))
-          continue;
+        );
 
         unsigned int this_sse = compute_motion_cost(xd, cm, ms_params, bsize,
                                                     &this_mv, can_refine_mv);

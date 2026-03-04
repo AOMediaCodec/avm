@@ -218,7 +218,7 @@ int av2_find_projection(int np, const int *pts1, const int *pts2,
 
 );
 
-int av2_get_shear_params(WarpedMotionParams *wm, const struct scale_factors *sf
+void av2_get_shear_params(WarpedMotionParams *wm, const struct scale_factors *sf
 
 );
 

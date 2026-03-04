@@ -6559,13 +6559,12 @@ static int read_global_motion_params(WarpedMotionParams *params,
 
   if (params->wmtype <= AFFINE) {
     av2_reduce_warp_model(params);
-    int good_shear_params = av2_get_shear_params(params
+    av2_get_shear_params(params
 
-                                                 ,
-                                                 sf
+                         ,
+                         sf
 
     );
-    if (!good_shear_params) return 0;
   }
 
   return 1;

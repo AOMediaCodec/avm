@@ -126,12 +126,10 @@ static AVM_INLINE void compute_global_motion_for_ref_frame(
       tmp_wm_params.wmtype = get_wmtype(&tmp_wm_params);
       tmp_wm_params.invalid = 0;
 
-      // Check that the generated model is warp-able
-      if (!av2_get_shear_params(
-              &tmp_wm_params, get_ref_scale_factors_const(cm, frame)
+      av2_get_shear_params(
+          &tmp_wm_params, get_ref_scale_factors_const(cm, frame)
 
-                  ))
-        continue;
+      );
 
       // Skip models that we won't use (IDENTITY or TRANSLATION)
       //
