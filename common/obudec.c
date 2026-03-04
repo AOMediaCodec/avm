@@ -172,6 +172,13 @@ int file_is_obu(struct ObuDecInputContext *obu_ctx) {
     return 0;
   }
 
+  // Track distinct VCL mlayer_id values across the whole file.
+  int mlayer_seen[MAX_NUM_MLAYERS] = { 0 };
+  int num_mlayers = 0;
+  // Track distinct VCL xlayer_id values (excluding GLOBAL_XLAYER_ID).
+  int xlayer_seen[MAX_NUM_XLAYERS] = { 0 };
+  int num_xlayers = 0;
+
   while (1) {
     {
       size_t obu_size_bytelength = 0;
@@ -195,6 +202,20 @@ int file_is_obu(struct ObuDecInputContext *obu_ctx) {
       } else if (obu_header_size == -1) {  // end of file
         break;
       }
+      if (is_single_tile_vcl_obu(obu_header.type) ||
+          is_multi_tile_vcl_obu(obu_header.type)) {
+        int mid = obu_header.obu_mlayer_id;
+        if (mid >= 0 && mid < MAX_NUM_MLAYERS && !mlayer_seen[mid]) {
+          mlayer_seen[mid] = 1;
+          num_mlayers++;
+        }
+        int xid = obu_header.obu_xlayer_id;
+        if (xid >= 0 && xid < MAX_NUM_XLAYERS && xid != GLOBAL_XLAYER_ID &&
+            !xlayer_seen[xid]) {
+          xlayer_seen[xid] = 1;
+          num_xlayers++;
+        }
+      }
       if (fseeko(f, (FileOffset)obu_size - obu_header_size, SEEK_CUR) != 0) {
         fprintf(stderr, "file_type: Failure seeking to end of OBU.\n");
         rewind(f);
@@ -202,6 +223,9 @@ int file_is_obu(struct ObuDecInputContext *obu_ctx) {
       }
     }
   }  // while
+
+  obu_ctx->num_mlayers = num_mlayers;
+  obu_ctx->num_xlayers = num_xlayers;
 
   // move the file pointer back to the beginning
   rewind(f);
@@ -222,14 +246,22 @@ int obudec_read_frame_unit(struct ObuDecInputContext *obu_ctx, uint8_t **buffer,
   size_t tu_size = 0;
   FileOffset fpos = ftello(f);
   uint8_t detect_buf[OBU_DETECTION_SIZE] = { 0 };
-  // vcl_obu_count indicates the number of video coding layer obus in this data
-  // chunk to be fed to avm_codec_decode() the data chunk consists of temporal
-  // delimiter(if present), configuration records(if present), qm obus(if
-  // present), fgm obus(if present), metadata obus(if present),
-  // single_tilegroup_obu(show or showable) or multiple
-  // multi_tilegroup_obus(show or showable), and metadata suffix obus(if
-  // present)
+  // The buffer returned by this function contains:
+  //   - Global HLS OBUs (TD, SH, LCR, MSDO, OP_SET, global metadata)
+  //   - Local HLS OBUs (MFH, CI, QM, BRT, FGM) at the same obu_mlayer_id
+  //   - All VCL picture units (hidden and shown) at the same obu_mlayer_id
+  //   - Suffix metadata OBUs at the same obu_mlayer_id
+  //   - OBU_PADDING
+  // A new buffer starts (decoding_unit_token fires) when:
+  //   - A VCL OBU with first_tile_group_in_frame=1 arrives at a different
+  //     obu_mlayer_id
+  //   - A global TU-head non-VCL OBU arrives (always fires regardless of
+  //     mlayer_id, since it unambiguously signals a new temporal unit)
+  //   - A local frame-head non-VCL OBU arrives at a different obu_mlayer_id
+  //   - A prefix metadata OBU arrives at a different obu_mlayer_id
   int vcl_obu_count = 0;
+  int last_vcl_mlayer_id = -1;
+  int last_vcl_xlayer_id = -1;
   while (1) {
     ObuHeader obu_header;
     memset(&obu_header, 0, sizeof(obu_header));
@@ -272,23 +304,75 @@ int obudec_read_frame_unit(struct ObuDecInputContext *obu_ctx, uint8_t **buffer,
     // `is_coded_frame`, except `type == OBU_BRIDGE_FRAME` condition. Need to
     // refactor after macros are cleaned up.
 
-    int decoding_unit_token =
-        ((vcl_obu_count > 0 &&
+    // decoding_unit_token fires to end the current buffer and start a new one.
+    //
+    // Single-layer/stream (num_mlayers <= 1 && num_xlayers <= 1): each picture
+    // unit is its own buffer, matching the classic per-frame splitting
+    // behaviour.
+    //
+    // Multi-layer or multi-stream: the buffer accumulates all picture units
+    // with the same (obu_mlayer_id, obu_xlayer_id) pair.  A new buffer starts:
+    //   - A VCL OBU arrives at a different (mlayer, xlayer) pair
+    //   - A global TU-head non-VCL OBU arrives (always, any mlayer/xlayer)
+    //   - A local frame-head non-VCL OBU arrives at a different (mlayer,
+    //   xlayer)
+    //   - A prefix metadata OBU arrives at a different (mlayer, xlayer)
+    int decoding_unit_token;
+    if (obu_ctx->num_mlayers <= 1 && obu_ctx->num_xlayers <= 1) {
+      // Single-layer/stream: split on every new picture unit.
+      decoding_unit_token = ((vcl_obu_count > 0 &&
+                              (is_multi_tile_vcl_obu(obu_header.type) ||
+                               is_single_tile_vcl_obu(obu_header.type)) &&
+                              first_tile_group_in_frame) ||
+                             (vcl_obu_count > 0 &&
+                              is_fu_head_non_vcl_obu(
+                                  obu_header.type, obu_header.obu_xlayer_id)) ||
+                             (vcl_obu_count > 0 &&
+                              (obu_header.type == OBU_METADATA_SHORT ||
+                               obu_header.type == OBU_METADATA_GROUP) &&
+                              prefix_metadata == 1));
+      if (last_vcl_mlayer_id != -1 &&
           (is_multi_tile_vcl_obu(obu_header.type) ||
-           is_single_tile_vcl_obu(obu_header.type)) &&
-          first_tile_group_in_frame) ||
-         (vcl_obu_count > 0 &&
-          is_fu_head_non_vcl_obu(obu_header.type, obu_header.obu_xlayer_id)) ||
-         (vcl_obu_count > 0 &&
-          (obu_header.type == OBU_METADATA_SHORT ||
-           obu_header.type == OBU_METADATA_GROUP) &&
-          prefix_metadata == 1));
+           is_single_tile_vcl_obu(obu_header.type))) {
+        assert(obu_header.obu_mlayer_id == last_vcl_mlayer_id);
+        assert(obu_header.obu_xlayer_id == last_vcl_xlayer_id);
+      }
+    } else {
+      // Multi-layer or multi-stream: split on (mlayer, xlayer) change or
+      // global TU-head OBU.
+      int layer_changed = obu_header.obu_mlayer_id != last_vcl_mlayer_id ||
+                          obu_header.obu_xlayer_id != last_vcl_xlayer_id;
+      decoding_unit_token =
+          // VCL at a different (mlayer, xlayer): all picture units with the
+          // same pair are accumulated; only a pair switch fires the token.
+          ((vcl_obu_count > 0 &&
+            (is_multi_tile_vcl_obu(obu_header.type) ||
+             is_single_tile_vcl_obu(obu_header.type)) &&
+            layer_changed) ||
+           // Non-VCL frame-head: global TU-head always fires; local frame-head
+           // fires only when it belongs to a different (mlayer, xlayer).
+           (vcl_obu_count > 0 &&
+            is_fu_head_non_vcl_obu(obu_header.type, obu_header.obu_xlayer_id) &&
+            (is_tu_head_non_vcl_obu(obu_header.type,
+                                    obu_header.obu_xlayer_id) ||
+             layer_changed)) ||
+           // Prefix metadata for a different (mlayer, xlayer)
+           (vcl_obu_count > 0 &&
+            (obu_header.type == OBU_METADATA_SHORT ||
+             obu_header.type == OBU_METADATA_GROUP) &&
+            prefix_metadata == 1 && layer_changed));
+    }
     if (decoding_unit_token) {
       break;
     } else {
       if (is_multi_tile_vcl_obu(obu_header.type) ||
-          is_single_tile_vcl_obu(obu_header.type))
+          is_single_tile_vcl_obu(obu_header.type)) {
         vcl_obu_count++;
+        if (first_tile_group_in_frame) {
+          last_vcl_mlayer_id = obu_header.obu_mlayer_id;
+          last_vcl_xlayer_id = obu_header.obu_xlayer_id;
+        }
+      }
       if (fseeko(f, (FileOffset)obu_size, SEEK_CUR) != 0) {
         fprintf(stderr, "obudec: Failure seeking to end of OBU.\n");
         return -1;

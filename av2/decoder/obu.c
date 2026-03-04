@@ -3449,7 +3449,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
 
     if (this_obu->first_tile_group == 1) {
       current_frame_unit = *this_obu;
-      pbi->num_displayable_frame_unit[this_obu->mlayer_id]++;
     }
     if (is_multi_tile_vcl_obu(this_obu->obu_type) &&
         this_obu->first_tile_group == 0) {

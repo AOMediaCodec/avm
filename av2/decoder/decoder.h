@@ -579,12 +579,6 @@ typedef struct AV2Decoder {
   int current_order_hint_bits;
 
   /*!
-   * Indicates the number of displayable_frame_unit  per layer between layer_id
-   * change num_displayable_frame_unit[i] can be maximum 1.   *
-   */
-  int num_displayable_frame_unit[MAX_NUM_MLAYERS];
-
-  /*!
    * Indicates an OLK is encountered in any layer
    * It is initialized as 0 and set 1 when the first olk is decoded and set 0
    * when the first regular frame or the first CLK after the olk is decoded.

@@ -23,6 +23,13 @@ struct ObuDecInputContext {
   uint8_t *buffer;
   size_t buffer_capacity;
   size_t bytes_buffered;
+  // Number of distinct VCL obu_mlayer_id values found by file_is_obu().
+  // 0 = not yet scanned, 1 = single-layer stream, >1 = multi-layer stream.
+  int num_mlayers;
+  // Number of distinct VCL obu_xlayer_id values (excluding GLOBAL_XLAYER_ID)
+  // found by file_is_obu().
+  // 0 = not yet scanned, 1 = single-stream, >1 = multi-stream.
+  int num_xlayers;
 };
 
 // Returns 1 when file data starts (if Annex B stream, after reading the

@@ -685,7 +685,7 @@ static int main_loop(int argc, const char **argv_) {
   memset(&webm_ctx, 0, sizeof(webm_ctx));
   input.webm_ctx = &webm_ctx;
 #endif
-  struct ObuDecInputContext obu_ctx = { NULL, NULL, 0, 0 };
+  struct ObuDecInputContext obu_ctx = { NULL, NULL, 0, 0, 0, 0 };
   int is_ivf = 0;
 
   obu_ctx.avx_ctx = &avm_input_ctx;
@@ -959,6 +959,15 @@ static int main_loop(int argc, const char **argv_) {
     fprintf(stderr, "Failed to set bru_opt_mode: %s\n",
             avm_codec_error(&decoder));
     goto fail;
+  }
+
+  if (input.avm_input_ctx->file_type == FILE_TYPE_OBU) {
+    if (AVM_CODEC_CONTROL_TYPECHECKED(&decoder, AV2D_SET_NUM_MLAYERS,
+                                      obu_ctx.num_mlayers)) {
+      fprintf(stderr, "Failed to set num_mlayers: %s\n",
+              avm_codec_error(&decoder));
+      goto fail;
+    }
   }
 
   if (arg_skip) fprintf(stderr, "Skipping first %d frames.\n", arg_skip);
