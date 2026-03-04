@@ -566,9 +566,11 @@ static void set_last_frame_unit(struct AV2Decoder *pbi) {
   for (int obu_idx = 0; obu_idx < pbi->num_obus_with_frame_unit; obu_idx++) {
     if (pbi->obu_list[obu_idx].is_vcl == 1 &&
         pbi->obu_list[obu_idx].first_tile_group == 1) {
-      if (pbi->obu_list[obu_idx].showable_frame == 0 &&
-          pbi->last_frame_unit.showable_frame == 1) {
-        pbi->last_displayable_frame_unit = pbi->last_frame_unit;
+      // Track the most recently seen showable frame unit so that subsequent
+      // showable frames at higher mlayer_id within the same TU compare equal
+      // DOH in the SS case and are not mistaken for a new TU boundary.
+      if (pbi->obu_list[obu_idx].showable_frame == 1) {
+        pbi->last_displayable_frame_unit = pbi->obu_list[obu_idx];
       }
       pbi->last_frame_unit = pbi->obu_list[obu_idx];
     } else if (pbi->obu_list[obu_idx].is_vcl == 1) {
