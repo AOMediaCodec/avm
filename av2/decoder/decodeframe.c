@@ -8695,6 +8695,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
                        "Keyframe / intra-only frame required to reset decoder"
                        " state");
   }
+  xd->bd = (int)seq_params->bit_depth;
   if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame) {
     // Set parameters corresponding to no filtering.
     struct loopfilter *lf = &cm->lf;
@@ -8749,7 +8750,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     // Bridge frames should inherit the restricted status from their reference
     cm->cur_frame->is_restricted = ref_buf->is_restricted;
 
-    xd->bd = (int)seq_params->bit_depth;
     set_primary_ref_frame_and_ctx(pbi);
 
     CommonContexts *const above_contexts = &cm->above_contexts;
@@ -8801,7 +8801,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     cm->cur_frame->base_qindex = quant_params->base_qindex;
     cm->cur_frame->u_ac_delta_q = quant_params->u_ac_delta_q;
     cm->cur_frame->v_ac_delta_q = quant_params->v_ac_delta_q;
-    xd->bd = (int)seq_params->bit_depth;
 
     set_primary_ref_frame_and_ctx(pbi);
 
@@ -8958,6 +8957,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       read_tile_info(pbi, rb);
     }
     setup_film_grain(pbi, rb);
+    features->enable_imp_msk_bld = seq_params->enable_imp_msk_bld;
     // TIP frame will be output for displaying
     // No futher processing needed
     return 0;
@@ -9285,6 +9285,9 @@ int32_t av2_read_tilegroup_header(
 
     cm->mi_params.setup_mi(&cm->mi_params);
 
+    av2_setup_block_planes(xd, cm->seq_params.subsampling_x,
+                           cm->seq_params.subsampling_y, av2_num_planes(cm));
+
     if (cm->features.allow_ref_frame_mvs)
       av2_setup_motion_field(cm);
     else
@@ -9359,8 +9362,6 @@ int32_t av2_read_tilegroup_header(
       return uncomp_hdr_size;
     }
 
-    av2_setup_block_planes(xd, cm->seq_params.subsampling_x,
-                           cm->seq_params.subsampling_y, av2_num_planes(cm));
     if (cm->features.primary_ref_frame == PRIMARY_REF_NONE ||
         cm->features.cross_frame_context == CROSS_FRAME_CONTEXT_DISABLED) {
       // use the default frame context values
