@@ -7728,17 +7728,19 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     }
   }
   // Check conformance for MFH according to dependency maps
-  const int ref_mfh_mlayer_id = cm->mfh_params[cm->cur_mfh_id].mfh_mlayer_id;
-  const int ref_mfh_tlayer_id = cm->mfh_params[cm->cur_mfh_id].mfh_tlayer_id;
-  if (!seq_params->mlayer_dependency_map[cm->mlayer_id][ref_mfh_mlayer_id] ||
-      !seq_params->tlayer_dependency_map[cm->mlayer_id][cm->tlayer_id]
-                                        [ref_mfh_tlayer_id]) {
-    avm_internal_error(
-        &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-        "The MFH selection for the current layer with mlayer_id=%d, "
-        "tlayer_id=%d shall not depend on the MFH with mlayer_id=%d, "
-        "tlayer_id=%d according to the layer dependency maps.",
-        cm->mlayer_id, cm->tlayer_id, ref_mfh_mlayer_id, ref_mfh_tlayer_id);
+  if (pbi->seen_multi_frame_header) {
+    const int ref_mfh_mlayer_id = cm->mfh_params[cm->cur_mfh_id].mfh_mlayer_id;
+    const int ref_mfh_tlayer_id = cm->mfh_params[cm->cur_mfh_id].mfh_tlayer_id;
+    if (!seq_params->mlayer_dependency_map[cm->mlayer_id][ref_mfh_mlayer_id] ||
+        !seq_params->tlayer_dependency_map[cm->mlayer_id][cm->tlayer_id]
+                                          [ref_mfh_tlayer_id]) {
+      avm_internal_error(
+          &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+          "The MFH selection for the current layer with mlayer_id=%d, "
+          "tlayer_id=%d shall not depend on the MFH with mlayer_id=%d, "
+          "tlayer_id=%d according to the layer dependency maps.",
+          cm->mlayer_id, cm->tlayer_id, ref_mfh_mlayer_id, ref_mfh_tlayer_id);
+    }
   }
 
   if (obu_type == OBU_BRIDGE_FRAME) {

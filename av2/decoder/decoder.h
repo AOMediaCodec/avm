@@ -391,6 +391,7 @@ typedef struct AV2Decoder {
   int operating_point;
   int current_operating_point;
   int seen_frame_header;
+  int seen_multi_frame_header;
   // The expected start_tile (tg_start syntax element) of the next tile group.
   int next_start_tile;
 
