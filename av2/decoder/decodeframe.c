@@ -7224,13 +7224,6 @@ static int read_show_existing_frame(AV2Decoder *pbi, bool is_regular_obu,
       // are always shown).
       pbi->last_olk_tu_display_order_hint = current_frame->display_order_hint;
     }
-    if ((int)current_frame->display_order_hint <
-        pbi->last_olk_tu_display_order_hint) {
-      // last_olk_tu_display_order_hint cannot be -1 at this point
-      avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-                         "the reference frame should in the current GOP");
-      return 0;
-    }
     pbi->olk_encountered = 0;
   }
 
