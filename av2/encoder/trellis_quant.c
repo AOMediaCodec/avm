@@ -1034,9 +1034,7 @@ int av2_trellis_quant(const struct AV2_COMP *cpi, MACROBLOCK *x, int plane,
 
   const MB_MODE_INFO *mbmi = xd->mi[0];
   const int bwl = get_txb_bwl(tx_size);
-  // const int width = get_txb_wide(tx_size);
   const int height = get_txb_high(tx_size);
-  // assert(width == (1 << bwl));
   assert(get_txb_wide(tx_size) == (1 << bwl));
 
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
@@ -1095,8 +1093,6 @@ int av2_trellis_quant(const struct AV2_COMP *cpi, MACROBLOCK *x, int plane,
   // Start of TCQ
   int first_scan_pos = si;
   int scan_hi = first_scan_pos - 1;
-  // int is_luma_2d = plane == 0 && tx_class == TX_CLASS_2D;
-  //  assert(is_luma_2d && "Expected 2D luma block for TCQ");
 
   // verify that this is a 2D luma block
   assert(plane == 0 && tx_class == TX_CLASS_2D &&
