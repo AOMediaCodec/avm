@@ -731,15 +731,6 @@ int av2_get_refresh_frame_flags(
     return refresh_mask_control;
   }
 
-  int olk_flags_to_keep = 0;
-  if (cpi->olk_encountered || cpi->common.is_leading_picture) {
-    for (int layer = 0; layer <= cpi->common.seq_params.max_mlayer_id;
-         layer++) {
-      if (cpi->common.olk_refresh_frame_flags[layer] == -1) continue;
-      olk_flags_to_keep |= cpi->common.olk_refresh_frame_flags[layer];
-    }
-  }
-
   // BRU frame, refresh flag is set to refresh BRU ref frame
   int free_fb_index = INVALID_IDX;
   if (cpi->common.bru.enabled) {
