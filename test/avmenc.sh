@@ -313,6 +313,25 @@ avmenc_av2_obu_temporal_delimiter() {
       elog "Output sizes do not differ by ${expected_diff} bytes. size1=${size1}, size2=${size2}"
       return 1
     fi
+
+    local dump_obu_bin="$(avm_tool_path dump_obu)"
+    if [ -n "${dump_obu_bin}" ]; then
+      local td_count1=$(eval "${AVM_TEST_PREFIX}" "${dump_obu_bin}" "${output1}" 2>&1 | grep -c "OBU_TEMPORAL_DELIMITER" || true)
+      local td_count2=$(eval "${AVM_TEST_PREFIX}" "${dump_obu_bin}" "${output2}" 2>&1 | grep -c "OBU_TEMPORAL_DELIMITER" || true)
+
+      if [ "${td_count1}" -ne 0 ]; then
+        elog "Expected 0 temporal delimiters in ${output1}, found ${td_count1}"
+        return 1
+      fi
+
+      local expected_td_count=${AV2_ENCODE_TEST_FRAME_LIMIT}
+      if [ "${td_count2}" -ne "${expected_td_count}" ]; then
+        elog "Expected ${expected_td_count} temporal delimiters in ${output2}, found ${td_count2}"
+        return 1
+      fi
+    else
+      elog "dump_obu not found. Skipping temporal delimiter count check."
+    fi
   fi
 }
 
@@ -369,6 +388,25 @@ avmenc_av2_obu_temporal_delimiter_lag() {
     if [ $(( size2 - size1 )) -ne ${expected_diff} ]; then
       elog "Output sizes do not differ by ${expected_diff} bytes. size1=${size1}, size2=${size2}"
       return 1
+    fi
+
+    local dump_obu_bin="$(avm_tool_path dump_obu)"
+    if [ -n "${dump_obu_bin}" ]; then
+      local td_count1=$(eval "${AVM_TEST_PREFIX}" "${dump_obu_bin}" "${output1}" 2>&1 | grep -c "OBU_TEMPORAL_DELIMITER" || true)
+      local td_count2=$(eval "${AVM_TEST_PREFIX}" "${dump_obu_bin}" "${output2}" 2>&1 | grep -c "OBU_TEMPORAL_DELIMITER" || true)
+
+      if [ "${td_count1}" -ne 0 ]; then
+        elog "Expected 0 temporal delimiters in ${output1}, found ${td_count1}"
+        return 1
+      fi
+
+      local expected_td_count=${AV2_ENCODE_TEST_FRAME_LIMIT}
+      if [ "${td_count2}" -ne "${expected_td_count}" ]; then
+        elog "Expected ${expected_td_count} temporal delimiters in ${output2}, found ${td_count2}"
+        return 1
+      fi
+    else
+      elog "dump_obu not found. Skipping temporal delimiter count check."
     fi
   fi
 }
