@@ -261,72 +261,25 @@ avmenc_av2_webm_cdf_update_mode() {
 
 avmenc_av2_obu_temporal_delimiter() {
   if [ "$(avmenc_can_encode_av2)" = "yes" ]; then
-    local output1="${AVM_TEST_OUTPUT_DIR}/av2_test_td0.obu"
-    local output2="${AVM_TEST_OUTPUT_DIR}/av2_test_td1.obu"
+    local output="${AVM_TEST_OUTPUT_DIR}/av2_test_td.obu"
 
     avmenc $(yuv_raw_input) \
       $(avmenc_encode_test_fast_params) \
-      --use-temporal-delimiter=0 \
       --obu \
-      --output="${output1}" || return 1
+      --output="${output}" || return 1
 
-    if [ ! -e "${output1}" ]; then
-      elog "Output file 1 does not exist."
-      return 1
-    fi
-
-    avmenc $(yuv_raw_input) \
-      $(avmenc_encode_test_fast_params) \
-      --use-temporal-delimiter=1 \
-      --obu \
-      --output="${output2}" || return 1
-
-    if [ ! -e "${output2}" ]; then
-      elog "Output file 2 does not exist."
-      return 1
-    fi
-
-    local decoder="$(avm_tool_path avmdec)"
-    if [ -z "${decoder}" ]; then
-      elog "avmdec not found."
-      return 1
-    fi
-
-    local decoded1="${AVM_TEST_OUTPUT_DIR}/av2_test_td0.yuv"
-    local decoded2="${AVM_TEST_OUTPUT_DIR}/av2_test_td1.yuv"
-
-    eval "${AVM_TEST_PREFIX}" "${decoder}" "${output1}" -o "${decoded1}" ${devnull} || return 1
-    eval "${AVM_TEST_PREFIX}" "${decoder}" "${output2}" -o "${decoded2}" ${devnull} || return 1
-
-    if [ ! -e "${decoded1}" ] || [ ! -e "${decoded2}" ]; then
-      elog "Decoded files do not exist."
-      return 1
-    fi
-
-    cmp "${decoded1}" "${decoded2}" || return 1
-
-    local expected_diff=$(( 2 * ${AV2_ENCODE_TEST_FRAME_LIMIT} ))
-    local size1=$(wc -c < "${output1}")
-    local size2=$(wc -c < "${output2}")
-
-    if [ $(( size2 - size1 )) -ne ${expected_diff} ]; then
-      elog "Output sizes do not differ by ${expected_diff} bytes. size1=${size1}, size2=${size2}"
+    if [ ! -e "${output}" ]; then
+      elog "Output file does not exist."
       return 1
     fi
 
     local dump_obu_bin="$(avm_tool_path dump_obu)"
     if [ -n "${dump_obu_bin}" ]; then
-      local td_count1=$(eval "${AVM_TEST_PREFIX}" "${dump_obu_bin}" "${output1}" 2>&1 | grep -c "OBU_TEMPORAL_DELIMITER" || true)
-      local td_count2=$(eval "${AVM_TEST_PREFIX}" "${dump_obu_bin}" "${output2}" 2>&1 | grep -c "OBU_TEMPORAL_DELIMITER" || true)
-
-      if [ "${td_count1}" -ne 0 ]; then
-        elog "Expected 0 temporal delimiters in ${output1}, found ${td_count1}"
-        return 1
-      fi
+      local td_count=$(eval "${AVM_TEST_PREFIX}" "${dump_obu_bin}" "${output}" 2>&1 | grep -c "OBU_TEMPORAL_DELIMITER" || true)
 
       local expected_td_count=${AV2_ENCODE_TEST_FRAME_LIMIT}
-      if [ "${td_count2}" -ne "${expected_td_count}" ]; then
-        elog "Expected ${expected_td_count} temporal delimiters in ${output2}, found ${td_count2}"
+      if [ "${td_count}" -ne "${expected_td_count}" ]; then
+        elog "Expected ${expected_td_count} temporal delimiters in ${output}, found ${td_count}"
         return 1
       fi
     else
@@ -337,72 +290,25 @@ avmenc_av2_obu_temporal_delimiter() {
 
 avmenc_av2_obu_temporal_delimiter_lag() {
   if [ "$(avmenc_can_encode_av2)" = "yes" ]; then
-    local output1="${AVM_TEST_OUTPUT_DIR}/av2_test_td0_lag.obu"
-    local output2="${AVM_TEST_OUTPUT_DIR}/av2_test_td1_lag.obu"
+    local output="${AVM_TEST_OUTPUT_DIR}/av2_test_td_lag.obu"
 
     avmenc $(yuv_raw_input) \
       $(avmenc_encode_test_fast_params_lag) \
-      --use-temporal-delimiter=0 \
       --obu \
-      --output="${output1}" || return 1
+      --output="${output}" || return 1
 
-    if [ ! -e "${output1}" ]; then
-      elog "Output file 1 does not exist."
-      return 1
-    fi
-
-    avmenc $(yuv_raw_input) \
-      $(avmenc_encode_test_fast_params_lag) \
-      --use-temporal-delimiter=1 \
-      --obu \
-      --output="${output2}" || return 1
-
-    if [ ! -e "${output2}" ]; then
-      elog "Output file 2 does not exist."
-      return 1
-    fi
-
-    local decoder="$(avm_tool_path avmdec)"
-    if [ -z "${decoder}" ]; then
-      elog "avmdec not found."
-      return 1
-    fi
-
-    local decoded1="${AVM_TEST_OUTPUT_DIR}/av2_test_td0_lag.yuv"
-    local decoded2="${AVM_TEST_OUTPUT_DIR}/av2_test_td1_lag.yuv"
-
-    eval "${AVM_TEST_PREFIX}" "${decoder}" "${output1}" -o "${decoded1}" ${devnull} || return 1
-    eval "${AVM_TEST_PREFIX}" "${decoder}" "${output2}" -o "${decoded2}" ${devnull} || return 1
-
-    if [ ! -e "${decoded1}" ] || [ ! -e "${decoded2}" ]; then
-      elog "Decoded files do not exist."
-      return 1
-    fi
-
-    cmp "${decoded1}" "${decoded2}" || return 1
-
-    local expected_diff=$(( 2 * ${AV2_ENCODE_TEST_FRAME_LIMIT} ))
-    local size1=$(wc -c < "${output1}")
-    local size2=$(wc -c < "${output2}")
-
-    if [ $(( size2 - size1 )) -ne ${expected_diff} ]; then
-      elog "Output sizes do not differ by ${expected_diff} bytes. size1=${size1}, size2=${size2}"
+    if [ ! -e "${output}" ]; then
+      elog "Output file does not exist."
       return 1
     fi
 
     local dump_obu_bin="$(avm_tool_path dump_obu)"
     if [ -n "${dump_obu_bin}" ]; then
-      local td_count1=$(eval "${AVM_TEST_PREFIX}" "${dump_obu_bin}" "${output1}" 2>&1 | grep -c "OBU_TEMPORAL_DELIMITER" || true)
-      local td_count2=$(eval "${AVM_TEST_PREFIX}" "${dump_obu_bin}" "${output2}" 2>&1 | grep -c "OBU_TEMPORAL_DELIMITER" || true)
-
-      if [ "${td_count1}" -ne 0 ]; then
-        elog "Expected 0 temporal delimiters in ${output1}, found ${td_count1}"
-        return 1
-      fi
+      local td_count=$(eval "${AVM_TEST_PREFIX}" "${dump_obu_bin}" "${output}" 2>&1 | grep -c "OBU_TEMPORAL_DELIMITER" || true)
 
       local expected_td_count=${AV2_ENCODE_TEST_FRAME_LIMIT}
-      if [ "${td_count2}" -ne "${expected_td_count}" ]; then
-        elog "Expected ${expected_td_count} temporal delimiters in ${output2}, found ${td_count2}"
+      if [ "${td_count}" -ne "${expected_td_count}" ]; then
+        elog "Expected ${expected_td_count} temporal delimiters in ${output}, found ${td_count}"
         return 1
       fi
     else

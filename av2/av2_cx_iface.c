@@ -1703,7 +1703,6 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
     dec_model_cfg->timing_info_present = 0;
   }
 
-  oxcf->signal_td = cfg->signal_td;
   layer_cfg->enable_lcr = cfg->enable_lcr;
   layer_cfg->enable_ops = cfg->enable_ops;
   layer_cfg->num_ops = cfg->num_ops > 0 ? cfg->num_ops : 1;
@@ -3279,25 +3278,23 @@ static avm_codec_err_t encoder_encode(avm_codec_alg_priv_t *ctx,
       if (frame_size) {
         if (ctx->pending_cx_data == 0) ctx->pending_cx_data = cx_data;
         if (ready_for_next_tu && cpi->common.mlayer_id == 0) {
-          if (ctx->oxcf.signal_td) {
-            const uint32_t obu_payload_size = 0;
-            const size_t length_field_size =
-                avm_uleb_size_in_bytes(obu_payload_size);
+          const uint32_t obu_payload_size = 0;
+          const size_t length_field_size =
+              avm_uleb_size_in_bytes(obu_payload_size);
 
-            uint8_t obu_header[2];
-            const uint32_t obu_header_size = av2_write_obu_header(
-                &cpi->level_params, OBU_TEMPORAL_DELIMITER, 0, 0, obu_header);
-            const size_t move_offset = obu_header_size + length_field_size;
-            memmove(cx_data + move_offset, cx_data, frame_size);
-            memcpy(cx_data, obu_header, obu_header_size);
-            if (av2_write_uleb_obu_size(obu_header_size, obu_payload_size,
-                                        cx_data) != AVM_CODEC_OK) {
-              avm_internal_error(&cpi->common.error, AVM_CODEC_ERROR, NULL);
-            }
-            // OBUs are preceded/succeeded by an unsigned leb128 coded integer.
-            frame_size +=
-                obu_header_size + obu_payload_size + length_field_size;
+          uint8_t obu_header[2];
+          const uint32_t obu_header_size = av2_write_obu_header(
+              &cpi->level_params, OBU_TEMPORAL_DELIMITER, 0, 0, obu_header);
+          const size_t move_offset = obu_header_size + length_field_size;
+          memmove(cx_data + move_offset, cx_data, frame_size);
+          memcpy(cx_data, obu_header, obu_header_size);
+          if (av2_write_uleb_obu_size(obu_header_size, obu_payload_size,
+                                      cx_data) != AVM_CODEC_OK) {
+            avm_internal_error(&cpi->common.error, AVM_CODEC_ERROR, NULL);
           }
+          // OBUs are preceded/succeeded by an unsigned leb128 coded integer.
+          frame_size +=
+              obu_header_size + obu_payload_size + length_field_size;
           ready_for_next_tu = 0;
         }
 
@@ -4610,7 +4607,6 @@ static const avm_codec_enc_cfg_t encoder_usage_cfg[] = { {
     0,                           // monochrome
     0,                           // full_still_picture_hdr
     1,                           // enable_tcq
-    0,                           // signal_td
     0,                           // enable_lcr
     0,                           // enable_ops
     1,                           // num_ops

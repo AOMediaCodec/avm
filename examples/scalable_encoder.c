@@ -245,7 +245,6 @@ int main(int argc, char **argv) {
   cfg.g_error_resilient = 0;
   cfg.g_lag_in_frames = lag;
   cfg.g_profile = MAIN_420_10;
-  cfg.signal_td = 1;
   cfg.enable_ops = 1;
   cfg.enable_lcr = 1;
   outfile = fopen(outfile_arg, "wb");

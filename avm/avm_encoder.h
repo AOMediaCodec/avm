@@ -1073,12 +1073,6 @@ typedef struct avm_codec_enc_cfg {
    */
   unsigned int enable_tcq;
 
-  /*!\brief Signal temporal delimiters
-   *
-   * This value indicates temporal delimiter is signaled
-   */
-  unsigned int signal_td;
-
   /*!\brief Signal layer config record (LCR) OBU.
    *
    * This value indicates LCR OBU is signaled.
