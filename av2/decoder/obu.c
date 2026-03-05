@@ -3376,6 +3376,20 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
                 (obu_header.type == OBU_CLK || obu_header.type == OBU_OLK);
           }
         }
+#if CONFIG_AV2_PROFILES
+        int num_mlayers = 0;
+        for (int i = 0; i < MAX_NUM_MLAYERS; ++i) {
+          if (pbi->mlayer_id_map[i] == 1) num_mlayers++;
+        }
+        if (num_mlayers > 1 &&
+            num_mlayers > cm->seq_params.seq_max_mlayer_cnt) {
+          avm_internal_error(
+              &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+              "The number of embedded layers (%d) in the current video "
+              "sequence is larger than the seq_max_mlayer_cnt (%d).",
+              num_mlayers, cm->seq_params.seq_max_mlayer_cnt);
+        }
+#endif  // CONFIG_AV2_PROFILES
 
         // Drop picture unit HLS state that was derived exclusively from leading
         // frame picture units when the first regular VCL OBU is encountered.
@@ -3556,6 +3570,17 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         break;
     }
 
+    // Spec 6.2.2:
+    // "At the end of reading the OBU, it is a requirement of bitstream "
+    // "conformance that obu_mlayer_id is less than or equal to max_mlayer_id."
+    if (obu_header.obu_mlayer_id > cm->seq_params.max_mlayer_id) {
+      avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+                         "obu_mlayer_id (%d) must be less than or equal to "
+                         "max_mlayer_id (%d).",
+                         obu_header.obu_mlayer_id,
+                         cm->seq_params.max_mlayer_id);
+    }
+
     // Check that the signalled OBU size matches the actual amount of data read
     if (decoded_payload_size > payload_size) {
       cm->error.error_code = AVM_CODEC_CORRUPT_FRAME;
@@ -3645,6 +3670,17 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
       count_obus_with_frame_unit++;
     }
     if (cm->error.error_code != AVM_CODEC_OK) return -1;
+
+    // Spec 6.2.2:
+    // "At the end of reading the OBU, it is a requirement of bitstream "
+    // "conformance that obu_mlayer_id is less than or equal to max_mlayer_id."
+    if (obu_header.obu_mlayer_id > cm->seq_params.max_mlayer_id) {
+      avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+                         "obu_mlayer_id (%d) must be less than or equal to "
+                         "max_mlayer_id (%d).",
+                         obu_header.obu_mlayer_id,
+                         cm->seq_params.max_mlayer_id);
+    }
 
     // Check that the signalled OBU size matches the actual amount of data read
     if (decoded_payload_size > payload_size) {

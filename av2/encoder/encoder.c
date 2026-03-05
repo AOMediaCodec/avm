@@ -685,7 +685,7 @@ void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
   setup_default_temporal_layer_dependency_structure(seq);
   setup_default_embedded_layer_dependency_structure(seq);
 #if CONFIG_AV2_PROFILES
-  seq->seq_max_mlayer_cnt = 1;
+  seq->seq_max_mlayer_cnt = cm->number_mlayers;
 #endif  // CONFIG_AV2_PROFILES
 
   // delta_q
