@@ -379,7 +379,6 @@ typedef struct AV2Decoder {
   int acct_enabled;
   Accounting accounting;
 #endif
-  int stream_switched;
 #if CONFIG_INSPECTION
   // Inspection callback at the end of each frame.
   avm_inspect_cb inspect_cb;

@@ -7374,8 +7374,7 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
                                    int xlayer_id, int seq_header_id) {
   AV2_COMMON *const cm = &pbi->common;
   bool keyframe_unit_in_tu = ((obu_type == OBU_CLK || obu_type == OBU_OLK) &&
-                              pbi->this_is_first_keyframe_unit_in_tu) ||
-                             pbi->stream_switched;
+                              pbi->this_is_first_keyframe_unit_in_tu);
 
   if (pbi->decoding_first_frame &&
       !(obu_type == OBU_CLK || obu_type == OBU_OLK)) {
@@ -7410,7 +7409,7 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
 
   // NOTE: at this point, the current obu is first CLK/OLK in the temporal unit
   // cm->seq_params is the currently active sequence header
-  assert(obu_type == OBU_CLK || obu_type == OBU_OLK || pbi->stream_switched);
+  assert(obu_type == OBU_CLK || obu_type == OBU_OLK);
 
   if (obu_type == OBU_OLK && !pbi->random_accessed) {
     if (!are_seq_headers_consistent(&cm->seq_params, seq_from_uch)) {
@@ -7459,8 +7458,7 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   const bool is_ci_present =
       pbi->obus_in_frame_unit_data[cm->tlayer_id][cm->mlayer_id]
                                   [OBU_CONTENT_INTERPRETATION];
-  if ((!is_ci_present && obu_type == OBU_CLK) ||
-      (!is_ci_present && pbi->stream_switched)) {
+  if (!is_ci_present && obu_type == OBU_CLK) {
     // Initialize to default first
     av2_initialize_ci_params(&cm->ci_params_per_layer[cm->mlayer_id]);
 
@@ -7775,13 +7773,8 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     cm->cur_frame->immediate_output_picture = 1;
     cm->cur_frame->implicit_output_picture = 0;
     current_frame->frame_type = KEY_FRAME;
-    if (pbi->stream_switched) {
-      pbi->stream_switched = 0;
-      reset_frame_buffers(cm);
-    } else {
-      pbi->decoding_first_frame = 1;
-      reset_frame_buffers(cm);
-    }
+    pbi->decoding_first_frame = 1;
+    reset_frame_buffers(cm);
     cm->cur_frame->frame_output_done = 0;
   } else {
     pbi->reset_decoder_state = 0;
@@ -7830,10 +7823,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       }
     }
 
-    if (pbi->stream_switched) {
-      pbi->stream_switched = 0;
-      reset_frame_buffers(cm);
-    }
     if (cm->bridge_frame_info.is_bridge_frame) {
       cm->immediate_output_picture = 0;
     } else {
