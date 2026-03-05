@@ -1702,7 +1702,6 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
     dec_model_cfg->timing_info_present = 0;
   }
 
-  oxcf->signal_td = cfg->signal_td;
   layer_cfg->enable_lcr = cfg->enable_lcr;
   layer_cfg->enable_ops = cfg->enable_ops;
   layer_cfg->num_ops = cfg->num_ops > 0 ? cfg->num_ops : 1;
@@ -3275,10 +3274,8 @@ static avm_codec_err_t encoder_encode(avm_codec_alg_priv_t *ctx,
       if (frame_size) {
         if (ctx->pending_cx_data == 0) ctx->pending_cx_data = cx_data;
         const int write_temporal_delimiter =
-            !(ctx->oxcf.signal_td) ? 0
-                                   : (!cpi->common.mlayer_id &&
-                                      (cpi->common.immediate_output_picture ||
-                                       cpi->common.implicit_output_picture));
+            (!cpi->common.mlayer_id && (cpi->common.immediate_output_picture ||
+                                        cpi->common.implicit_output_picture));
         if (write_temporal_delimiter) {
           const uint32_t obu_payload_size = 0;
           const size_t length_field_size =
@@ -4592,16 +4589,16 @@ static const avm_codec_enc_cfg_t encoder_usage_cfg[] = { {
     2000,  // rc_two_pass_vbrmax_section
 
     // keyframing settings (kf)
-    0,                           // fwd_kf_enabled
-    AVM_KF_AUTO,                 // kf_mode
-    0,                           // kf_min_dist
-    9999,                        // kf_max_dist
-    0,                           // sframe_dist
-    1,                           // sframe_mode
-    0,                           // monochrome
-    0,                           // full_still_picture_hdr
-    1,                           // enable_tcq
-    0,                           // signal_td
+    0,            // fwd_kf_enabled
+    AVM_KF_AUTO,  // kf_mode
+    0,            // kf_min_dist
+    9999,         // kf_max_dist
+    0,            // sframe_dist
+    1,            // sframe_mode
+    0,            // monochrome
+    0,            // full_still_picture_hdr
+    1,            // enable_tcq
+
     0,                           // enable_lcr
     0,                           // enable_ops
     1,                           // num_ops
