@@ -8477,7 +8477,8 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
                              "Reference frame not valid for referencing");
         // Check that co-VCL frames in an OLK TU only reference frames written
         // in the current TU.
-        if (pbi->olk_encountered && !pbi->this_is_first_vcl_obu_in_tu) {
+        if (pbi->olk_encountered && !pbi->this_is_first_vcl_obu_in_tu &&
+            is_regular_non_olk_obu(obu_type)) {
           const RefCntBuffer *const ref_buf = cm->ref_frame_map[ref];
           const int ref_mlayer_id = ref_buf->mlayer_id;
           const int ref_tlayer_id = ref_buf->tlayer_id;
@@ -8498,9 +8499,9 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
                 continue;
               if (cm->olk_refresh_frame_flags[layer] != -1)
                 current_tu_ref_flags |= cm->olk_refresh_frame_flags[layer];
-              if (cm->olk_co_vcl_refresh_frame_flags[layer] != -1)
+              if (cm->prev_olk_co_vcl_refresh_frame_flags[layer] != -1)
                 current_tu_ref_flags |=
-                    cm->olk_co_vcl_refresh_frame_flags[layer];
+                    cm->prev_olk_co_vcl_refresh_frame_flags[layer];
             }
             if (!((current_tu_ref_flags >> ref) & 1)) {
               avm_internal_error(

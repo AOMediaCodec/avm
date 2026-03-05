@@ -3107,6 +3107,10 @@ typedef struct AV2Common {
    * OLK in the same temporal unit, per mlayer. Initialized to -1 (unset).
    */
   int olk_co_vcl_refresh_frame_flags[MAX_NUM_MLAYERS];
+  /*!
+   * The refresh flags of co-signalled regular VCL OBUs, without the refresh
+   * frame change of this frame.
+   */
   int prev_olk_co_vcl_refresh_frame_flags[MAX_NUM_MLAYERS];
   /*!
    * Indicates if the frame is a leading frame
