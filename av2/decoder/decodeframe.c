@@ -7052,10 +7052,18 @@ static void reset_buffer_other_than_OLK(AV2Decoder *pbi) {
 
   pbi->olk_encountered = 0;
 }
-static int is_regular_non_olk_obu(OBU_TYPE obu_type) {
+
+int av2_is_regular_non_olk_obu(OBU_TYPE obu_type) {
   return obu_type == OBU_REGULAR_SEF || obu_type == OBU_REGULAR_TIP ||
          obu_type == OBU_SWITCH || obu_type == OBU_RAS_FRAME ||
          obu_type == OBU_BRIDGE_FRAME || obu_type == OBU_REGULAR_TILE_GROUP;
+}
+
+int av2_is_regular_vcl_obu(OBU_TYPE obu_type) {
+  return (obu_type == OBU_REGULAR_SEF || obu_type == OBU_REGULAR_TIP ||
+          obu_type == OBU_REGULAR_TILE_GROUP || obu_type == OBU_BRIDGE_FRAME ||
+          obu_type == OBU_SWITCH || obu_type == OBU_RAS_FRAME ||
+          obu_type == OBU_OLK);
 }
 
 static int is_layer_within_operating_point(AV2Decoder *pbi,
@@ -7947,7 +7955,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
         unlock_buffer_pool(pool);
       }
       pbi->olk_encountered = 1;
-    } else if (pbi->olk_encountered && is_regular_non_olk_obu(obu_type)) {
+    } else if (pbi->olk_encountered && av2_is_regular_non_olk_obu(obu_type)) {
       lock_buffer_pool(pool);
       reset_buffer_other_than_OLK(pbi);
       unlock_buffer_pool(pool);
@@ -8009,7 +8017,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
           pbi->last_olk_tu_display_order_hint = -1;
         }
       }
-    } else if (pbi->olk_encountered && is_regular_non_olk_obu(obu_type)) {
+    } else if (pbi->olk_encountered && av2_is_regular_non_olk_obu(obu_type)) {
       if (pbi->last_olk_tu_display_order_hint == -1 &&
           !pbi->this_is_first_vcl_obu_in_tu &&
           (cm->implicit_output_picture || cm->immediate_output_picture)) {
@@ -8179,7 +8187,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   // Record the refresh slots of regular VCL OBUs co-signalled with OLK in the
   // same temporal unit so that reset_buffer_other_than_OLK() preserves them
   // when the first regular temporal unit begins.
-  if (pbi->olk_encountered && is_regular_non_olk_obu(obu_type) &&
+  if (pbi->olk_encountered && av2_is_regular_non_olk_obu(obu_type) &&
       pbi->this_is_first_vcl_obu_in_tu == 0) {
     if (cm->olk_co_vcl_refresh_frame_flags[cm->mlayer_id] == -1)
       cm->olk_co_vcl_refresh_frame_flags[cm->mlayer_id] = 0;

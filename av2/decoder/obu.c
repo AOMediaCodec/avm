@@ -1573,12 +1573,6 @@ static int is_leading_vcl_obu(OBU_TYPE obu_type) {
           obu_type == OBU_LEADING_TIP);
 }
 
-static int is_regular_vcl_obu(OBU_TYPE obu_type) {
-  return (obu_type == OBU_REGULAR_SEF || obu_type == OBU_REGULAR_TIP ||
-          obu_type == OBU_REGULAR_TILE_GROUP || obu_type == OBU_BRIDGE_FRAME ||
-          obu_type == OBU_SWITCH || obu_type == OBU_RAS_FRAME);
-}
-
 // Check if any obu is present between two tile groups of one frame unit.
 static void check_tilegroup_obus_in_a_frame_unit(AV2_COMMON *const cm,
                                                  obu_info *current_obu,
@@ -2873,7 +2867,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
 
     if (is_leading_vcl_obu(obu_header.type))
       cm->is_leading_picture = 1;
-    else if (is_regular_vcl_obu(obu_header.type))
+    else if (av2_is_regular_vcl_obu(obu_header.type))
       cm->is_leading_picture = 0;
     else
       cm->is_leading_picture = -1;
@@ -3022,7 +3016,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
     // of the first regular temporal unit after an OLK, before
     // reset_buffer_other_than_OLK() clears their DPB slots.
     if (pbi->olk_encountered && pbi->this_is_first_vcl_obu_in_tu &&
-        cm->is_leading_picture == 0) {
+        !pbi->seen_frame_header && cm->is_leading_picture == 0) {
       flush_remaining_frames(pbi, pbi->last_olk_tu_display_order_hint);
     }
 

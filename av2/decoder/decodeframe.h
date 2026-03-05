@@ -33,6 +33,10 @@ struct AV2Decoder;
 struct avm_read_bit_buffer;
 struct ThreadData;
 
+int av2_is_regular_non_olk_obu(OBU_TYPE obu_type);
+
+int av2_is_regular_vcl_obu(OBU_TYPE obu_type);
+
 void av2_read_conformance_window(struct avm_read_bit_buffer *rb,
                                  struct SequenceHeader *seq_params);
 
