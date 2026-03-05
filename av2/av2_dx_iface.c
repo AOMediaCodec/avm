@@ -1002,10 +1002,7 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
 #if CONFIG_AV2_PROFILES
       if (!conformance_check_msdo_lcr(pbi, global_lcr_present,
                                       local_lcr_present)) {
-        avm_internal_error(
-            &pbi->common.error, AVM_CODEC_UNSUP_BITSTREAM,
-            "The last CVS violates the requirements of bitstream conformance "
-            "for MSDO and LCR to be present (or absent).");
+        return AVM_CODEC_UNSUP_BITSTREAM;
       }
 #endif  // CONFIG_AV2_PROFILES
       return err;
