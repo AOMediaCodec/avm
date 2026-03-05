@@ -24,16 +24,6 @@
 #include "av2/encoder/rdopt.h"
 #include "av2/encoder/tokenize.h"
 
-typedef struct {
-  uint8_t *base;
-  int bufsize;
-  int idx;
-} tcq_levels_t;
-
-static uint8_t *tcq_levels_cur(const tcq_levels_t *lev, int st) {
-  return &lev->base[(2 * st + !lev->idx) * lev->bufsize];
-}
-
 static AVM_INLINE void init_tcq_decision(tcq_node_t *decision) {
   static const tcq_node_t def = { INT64_MAX >> 10, 0, -1, -2 };
   for (int state = 0; state < TCQ_N_STATES; state++) {
@@ -60,26 +50,6 @@ static AVM_INLINE void init_tcq_ctx(struct tcq_ctx_t *tcq_ctx) {
   int n_elem = sizeof(tcq_ctx->prev_st) / sizeof(tcq_ctx->prev_st[0]);
   for (int i = 0; i < n_elem; i += 4) {
     memcpy(tcq_ctx->prev_st[i], init_st, sizeof(init_st));
-  }
-}
-
-// Update context buffer for the current node
-static AVM_INLINE void set_levels_buf(int prevId, int absLevel, uint8_t *levels,
-                                      const int16_t *scan, const int eob_minus1,
-                                      const int scan_pos, const int bwl,
-                                      const int sharpness) {
-  if (prevId == -2) {
-    return;
-  }
-  // update current abs level
-  levels[get_padded_idx(scan[scan_pos], bwl)] = AVMMIN(absLevel, INT8_MAX);
-  // check current node is a new start position? if so, set all previous
-  // position to 0. prevId == -1 means a new start, prevId == -2 ?
-  bool new_eob = prevId < 0 && scan_pos + 1 <= eob_minus1 && sharpness == 0;
-  if (new_eob) {
-    for (int si = scan_pos + 1; si <= eob_minus1; si++) {
-      levels[get_padded_idx(scan[si], bwl)] = 0;
-    }
   }
 }
 
@@ -558,8 +528,7 @@ void av2_update_nbr_diagonal_c(struct tcq_ctx_t *tcq_ctx, int row, int col,
 }
 
 // Process the first position
-void trellis_first_pos(const tcq_param_t *p, int scan_pos,
-                       tcq_levels_t *tcq_lev, tcq_ctx_t *tcq_ctx,
+void trellis_first_pos(const tcq_param_t *p, int scan_pos, tcq_ctx_t *tcq_ctx,
                        tcq_node_t *trellis) {
   int plane = p->plane;
   TX_SIZE tx_size = p->tx_size;
@@ -627,14 +596,6 @@ void trellis_first_pos(const tcq_param_t *p, int scan_pos,
     if ((col == 0 && row != 0) || row == height - 1) {
       av2_update_nbr_diagonal(tcq_ctx, row, col, bwl);
     }
-  }
-  if (tcq_lev) {
-    uint8_t *levels0 = tcq_levels_cur(tcq_lev, state0);
-    uint8_t *levels1 = tcq_levels_cur(tcq_lev, state1);
-    set_levels_buf(decision[state0].prevId, decision[state0].absLevel, levels0,
-                   scan, scan_pos, scan_pos, bwl, 0);
-    set_levels_buf(decision[state1].prevId, decision[state1].absLevel, levels1,
-                   scan, scan_pos, scan_pos, bwl, 0);
   }
 }
 
@@ -1076,6 +1037,7 @@ int av2_trellis_quant(const struct AV2_COMP *cpi, MACROBLOCK *x, int plane,
   // const int width = get_txb_wide(tx_size);
   const int height = get_txb_high(tx_size);
   // assert(width == (1 << bwl));
+  assert(get_txb_wide(tx_size) == (1 << bwl));
 
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
   const int bob_code = p->bobs[block];
@@ -1133,51 +1095,24 @@ int av2_trellis_quant(const struct AV2_COMP *cpi, MACROBLOCK *x, int plane,
   // Start of TCQ
   int first_scan_pos = si;
   int scan_hi = first_scan_pos - 1;
-  int is_luma_2d = plane == 0 && tx_class == TX_CLASS_2D;
+  // int is_luma_2d = plane == 0 && tx_class == TX_CLASS_2D;
+  //  assert(is_luma_2d && "Expected 2D luma block for TCQ");
 
-  // Use faster path for 2D-luma blocks.
-  // Otherwise, use generic trellis code.
-  if (is_luma_2d) {
-    // Buffers for diagonal contexts.
-    tcq_ctx_t tcq_ctx;
-    init_tcq_ctx(&tcq_ctx);
+  // verify that this is a 2D luma block
+  assert(plane == 0 && tx_class == TX_CLASS_2D &&
+         "Expected 2D luma block for TCQ");
 
-    // Process the first position
-    trellis_first_pos(&param, first_scan_pos, 0, &tcq_ctx, trellis);
+  // Buffers for diagonal contexts.
+  tcq_ctx_t tcq_ctx;
+  init_tcq_ctx(&tcq_ctx);
 
-    // Speed-up version for 2D Luma by exploiting parallelism
-    // Process coeffs diagonal-by-diagonal.
-    if (scan_hi >= 0) {
-      trellis_loop_diagonal_st8(&param, scan_hi, 0, &tcq_ctx, trellis);
-    }
-  } else {
-    fprintf(stderr, "Error: TCQ is only supported for luma 2D blocks\n");
-    exit(1);
+  // Process the first position
+  trellis_first_pos(&param, first_scan_pos, &tcq_ctx, trellis);
 
-    /*
-    // Coeff level buffers.
-    int bufsize = (width + 4) * (height + 4) + TX_PAD_END;
-    int mem_tcq_sz = sizeof(uint8_t) * bufsize * (2 << TCQ_N_STATES_LOG);
-    uint8_t *mem_tcq = (uint8_t *)malloc(mem_tcq_sz);
-    if (!mem_tcq) {
-      exit(1);
-    }
-    if (eob > 1) {
-      memset(mem_tcq, 0, mem_tcq_sz);
-    }
-    tcq_levels_t tcq_lev;
-    tcq_levels_init(&tcq_lev, mem_tcq, bufsize);
-
-    // Process the first position
-    trellis_first_pos(&param, first_scan_pos, &tcq_lev, 0, trellis);
-
-    if (scan_hi >= 0) {
-      // Generic trellis loop
-      trellis_loop(&param, first_scan_pos, scan_hi, 0, &tcq_lev, trellis);
-    }
-
-    free(mem_tcq);
-    */
+  // Speed-up version for 2D Luma by exploiting parallelism
+  // Process coeffs diagonal-by-diagonal.
+  if (scan_hi >= 0) {
+    trellis_loop_diagonal_st8(&param, scan_hi, 0, &tcq_ctx, trellis);
   }
 
   // find best path
