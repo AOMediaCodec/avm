@@ -1488,7 +1488,9 @@ int av2_check_keyframe_overlay(int gf_index, GF_GROUP *gf_group,
                                int frame_since_key) {
   if (gf_index < 1) return 0;
   (void)frame_since_key;
-  return gf_group->update_type[gf_index] == KFFLT_OVERLAY_UPDATE;
+  return gf_group->update_type[gf_index] == KFFLT_OVERLAY_UPDATE ||
+         gf_group->update_type[gf_index] == FWD_KF_OVERLAY_UPDATE ||
+         gf_group->update_type[gf_index] == FWD_KF_SUCCESSOR_UPDATE;
   /*
   return gf_group->update_type[gf_index - 1] == ARF_UPDATE &&
          gf_group->update_type[gf_index] == OVERLAY_UPDATE &&
