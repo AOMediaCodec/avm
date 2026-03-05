@@ -7381,7 +7381,7 @@ static void activate_layer_configuration_record(AV2Decoder *pbi,
     // so that embedded layer info can fall back to it.
     if (!lcr->is_global) {
       int global_id = lcr->local_lcr.lcr_global_id;
-      struct LayerConfigurationRecord *parent_glcr =
+      LayerConfigurationRecord *parent_glcr =
           &pbi->lcr_list[GLOBAL_XLAYER_ID][global_id];
       if (parent_glcr->valid && parent_glcr->is_global) {
         cm->global_lcr_params = *parent_glcr;
@@ -7403,12 +7403,10 @@ static void activate_layer_configuration_record(AV2Decoder *pbi,
           }
         }
       } else {
-        memset(&cm->global_lcr_params, 0,
-               sizeof(struct LayerConfigurationRecord));
+        memset(&cm->global_lcr_params, 0, sizeof(cm->global_lcr_params));
       }
     } else {
-      memset(&cm->global_lcr_params, 0,
-             sizeof(struct LayerConfigurationRecord));
+      memset(&cm->global_lcr_params, 0, sizeof(cm->global_lcr_params));
     }
     activate_atlas_segment(pbi);
   } else {

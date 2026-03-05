@@ -83,7 +83,7 @@ static int write_lcr_embedded_layer_info(struct LCRXLayerInfo *xlayer_info,
       }
       avm_wb_write_literal(wb, mlayer_params->lcr_layer_type[i], 8);
       if (mlayer_params->lcr_layer_type[i] == AUX_LAYER) {
-        assert(mlayer_params->lcr_auxiliary_type[i] <= GAIN_MAP_AUX ||
+        assert(mlayer_params->lcr_auxiliary_type[i] <= LCR_GAIN_MAP_AUX ||
                (mlayer_params->lcr_auxiliary_type[i] >=
                     LCR_AUX_TYPE_UNSPECIFIED_START &&
                 mlayer_params->lcr_auxiliary_type[i] <=
@@ -334,7 +334,7 @@ int write_lcr_embedded_layer_info(AV2_COMP *cpi, int isGlobal, int xId,
                            8);
       if (mlayer_params->lcr_layer_type[isGlobal][xId][j] == AUX_LAYER) {
         assert(mlayer_params->lcr_auxiliary_type[isGlobal][xId][j] <=
-                   GAIN_MAP_AUX ||
+                   LCR_GAIN_MAP_AUX ||
                (mlayer_params->lcr_auxiliary_type[isGlobal][xId][j] >=
                     LCR_AUX_TYPE_UNSPECIFIED_START &&
                 mlayer_params->lcr_auxiliary_type[isGlobal][xId][j] <=

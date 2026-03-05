@@ -350,7 +350,7 @@ enum {
   LCR_ALPHA_AUX = 0,
   LCR_DEPTH_AUX = 1,
   LCR_SEGMENTATION_AUX = 2,
-  GAIN_MAP_AUX = 3,
+  LCR_GAIN_MAP_AUX = 3,
   // 4-127: Reserved (for future AOMedia use)
   LCR_AUX_TYPE_RESERVED_START = 4,
   LCR_AUX_TYPE_RESERVED_END = 127,

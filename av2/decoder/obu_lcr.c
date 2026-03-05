@@ -32,7 +32,7 @@ static void validate_lcr_auxiliary_type(int lcr_aux_type, int layer_id,
         error, AVM_CODEC_UNSUP_BITSTREAM,
         "Reserved lcr_auxiliary_type value %d for embedded layer %d. "
         "Valid values are in range: %d-%d or unspecified range %d-%d",
-        lcr_aux_type, layer_id, LCR_ALPHA_AUX, GAIN_MAP_AUX,
+        lcr_aux_type, layer_id, LCR_ALPHA_AUX, LCR_GAIN_MAP_AUX,
         LCR_AUX_TYPE_UNSPECIFIED_START, LCR_AUX_TYPE_UNSPECIFIED_END);
   }
 }
