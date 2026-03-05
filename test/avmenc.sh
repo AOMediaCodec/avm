@@ -259,6 +259,63 @@ avmenc_av2_webm_cdf_update_mode() {
   fi
 }
 
+avmenc_av2_obu_temporal_delimiter() {
+  if [ "$(avmenc_can_encode_av2)" = "yes" ]; then
+    local output1="${AVM_TEST_OUTPUT_DIR}/av2_test_td0.obu"
+    local output2="${AVM_TEST_OUTPUT_DIR}/av2_test_td1.obu"
+
+    avmenc $(yuv_raw_input) \
+      $(avmenc_encode_test_fast_params) \
+      --use-temporal-delimiter=0 \
+      --obu \
+      --output="${output1}" || return 1
+
+    if [ ! -e "${output1}" ]; then
+      elog "Output file 1 does not exist."
+      return 1
+    fi
+
+    avmenc $(yuv_raw_input) \
+      $(avmenc_encode_test_fast_params) \
+      --use-temporal-delimiter=1 \
+      --obu \
+      --output="${output2}" || return 1
+
+    if [ ! -e "${output2}" ]; then
+      elog "Output file 2 does not exist."
+      return 1
+    fi
+
+    local decoder="$(avm_tool_path avmdec)"
+    if [ -z "${decoder}" ]; then
+      elog "avmdec not found."
+      return 1
+    fi
+
+    local decoded1="${AVM_TEST_OUTPUT_DIR}/av2_test_td0.yuv"
+    local decoded2="${AVM_TEST_OUTPUT_DIR}/av2_test_td1.yuv"
+
+    eval "${AVM_TEST_PREFIX}" "${decoder}" "${output1}" -o "${decoded1}" ${devnull} || return 1
+    eval "${AVM_TEST_PREFIX}" "${decoder}" "${output2}" -o "${decoded2}" ${devnull} || return 1
+
+    if [ ! -e "${decoded1}" ] || [ ! -e "${decoded2}" ]; then
+      elog "Decoded files do not exist."
+      return 1
+    fi
+
+    cmp "${decoded1}" "${decoded2}" || return 1
+
+    local expected_diff=$(( 2 * ${AV2_ENCODE_TEST_FRAME_LIMIT} ))
+    local size1=$(wc -c < "${output1}")
+    local size2=$(wc -c < "${output2}")
+
+    if [ $(( size2 - size1 )) -ne ${expected_diff} ]; then
+      elog "Output sizes do not differ by ${expected_diff} bytes. size1=${size1}, size2=${size2}"
+      return 1
+    fi
+  fi
+}
+
 avmenc_tests="avmenc_av2_ivf
               avmenc_av2_obu
               avmenc_av2_obu_lcr_ops_atlas
@@ -268,6 +325,7 @@ avmenc_tests="avmenc_av2_ivf
               avmenc_av2_ivf_minq0_maxq0
               avmenc_av2_webm_lag5_frames10
               avmenc_av2_webm_non_square_par
-              avmenc_av2_webm_cdf_update_mode"
+              avmenc_av2_webm_cdf_update_mode
+              avmenc_av2_obu_temporal_delimiter"
 
 run_tests avmenc_verify_environment "${avmenc_tests}"
