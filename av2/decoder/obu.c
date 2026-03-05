@@ -351,6 +351,9 @@ static void init_stream_info(StreamInfo *stream_info) {
   for (int i = 1; i < MAX_MFH_NUM; i++) {
     stream_info->mfh_valid_buf[i] = false;
   }
+  for (int i = 0; i < MAX_NUM_MLAYERS; i++) {
+    av2_initialize_ci_params(&stream_info->ci_params_per_layer_buf[i]);
+  }
 }
 
 static uint32_t read_multi_stream_decoder_operation_obu(
