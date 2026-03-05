@@ -129,10 +129,10 @@ uint32_t av2_read_operating_point_set_obu(struct AV2Decoder *pbi,
   const uint32_t saved_bit_offset = rb->bit_offset;
 
   int ops_reset_flag = avm_rb_read_bit(rb);
-  int ops_id = avm_rb_read_literal(rb, OPS_ID_BITS);
+  const int ops_id = avm_rb_read_literal(rb, OPS_ID_BITS);
 
 #if CONFIG_AV2_PROFILES
-  int ops_cnt = avm_rb_read_literal(rb, OPS_COUNT_BITS);
+  const int ops_cnt = avm_rb_read_literal(rb, OPS_COUNT_BITS);
 
   // Apply reset semantics before writing to any slot (spec
   // #ops_general_semantics):
@@ -146,20 +146,20 @@ uint32_t av2_read_operating_point_set_obu(struct AV2Decoder *pbi,
       // Cases 1 & 2 (global): clear all slots across all extended layers
       for (int x = 0; x < MAX_NUM_XLAYERS; x++)
         for (int k = 0; k < MAX_NUM_OPS_ID; k++)
-          memset(&pbi->ops_list[x][k], 0, sizeof(struct OperatingPointSet));
+          memset(&pbi->ops_list[x][k], 0, sizeof(pbi->ops_list[x][k]));
     } else {
       // Cases 1 & 2 (local): clear all slots for this extended layer only
       for (int k = 0; k < MAX_NUM_OPS_ID; k++)
         memset(&pbi->ops_list[obu_xlayer_id][k], 0,
-               sizeof(struct OperatingPointSet));
+               sizeof(pbi->ops_list[obu_xlayer_id][k]));
     }
   } else if (ops_cnt == 0) {
     // Case 3: clear only the targeted OPS slot
     memset(&pbi->ops_list[obu_xlayer_id][ops_id], 0,
-           sizeof(struct OperatingPointSet));
+           sizeof(pbi->ops_list[obu_xlayer_id][ops_id]));
   }
 
-  struct OperatingPointSet *ops = &pbi->ops_list[obu_xlayer_id][ops_id];
+  OperatingPointSet *ops = &pbi->ops_list[obu_xlayer_id][ops_id];
   ops->obu_xlayer_id = obu_xlayer_id;
   ops->ops_reset_flag = ops_reset_flag;
   ops->ops_id = ops_id;
