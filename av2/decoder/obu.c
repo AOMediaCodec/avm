@@ -3115,7 +3115,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
                                           [OBU_BUFFER_REMOVAL_TIMING])
             cm->brt_from_leading = true;
 #endif  // CONFIG_CWG_G010
-        } else if (is_regular_vcl_obu(obu_header.type) &&
+        } else if (av2_is_regular_vcl_obu(obu_header.type) &&
                    (pbi->this_is_first_vcl_obu_in_tu == 1 ||
                     pbi->this_is_first_keyframe_unit_in_tu == 1)) {
           // First regular VCL Temporal unit after leading frames: drop all
