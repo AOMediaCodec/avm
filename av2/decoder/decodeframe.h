@@ -125,17 +125,12 @@ struct avm_read_bit_buffer *av2_init_read_bit_buffer(
 void av2_free_mc_tmp_buf(struct ThreadData *thread_data);
 void av2_free_opfl_tmp_bufs(struct ThreadData *thread_data);
 
+int ras_frame_refresh_frame_flags_derivation(struct AV2Decoder *pbi);
+
 void av2_validate_frame_level_conformance(
     const struct SequenceHeader *seq_params, int frame_width, int frame_height,
     struct avm_internal_error_info *error_info);
 
-// This function is used to dervie DOH to check the first keyobu of the temporal
-// unit. This function must be updated with the get_disp_order_hint()
-int get_disp_order_hint_keyobu(SequenceHeader *seq_params, OBU_TYPE obu_type,
-                               int order_hint, int tlayer_id, int mlayer_id,
-                               RefCntBuffer **ref_frame_map,
-                               bool random_accessed, bool is_op_constrained,
-                               const int mlayer_mask, const int tlayer_mask);
 #ifdef __cplusplus
 }  // extern "C"
 #endif

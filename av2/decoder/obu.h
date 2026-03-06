@@ -26,6 +26,24 @@ avm_codec_err_t parse_sh(struct AV2Decoder *pbi, const uint8_t *data,
 avm_codec_err_t parse_mfh(struct AV2Decoder *pbi, const uint8_t *data,
                           size_t payload_size, struct MultiFrameHeader *mfh);
 
+// Per-picture-unit analysis produced by the first pass of decoder_decode().
+// Carries the TU-boundary flags computed before any decoding starts.
+// Also used as lightweight DPB entries in replica_reference_list for pre-scan
+// parsing.
+typedef struct {
+  size_t obu_size;
+  int xlayer_id;
+  int mlayer_id;
+  int tlayer_id;
+  int display_order_hint;  //-2:D.C it is the first pu in tu
+  int is_shown;
+  int is_restricted;
+  OBU_TYPE obu_type;
+  int is_first_tilegroup;  //-1.N.A
+  int metadata_is_suffix;  //-1.N.A
+  int refresh_frame_flags;
+} FrameUnitInfo;
+
 // Lightweight parser for all VCL OBUs that carry a full uncompressed frame
 // header (CLK, OLK, tile groups, SWITCH, RAS_FRAME, TIP, BRIDGE_FRAME).
 // SEF is excluded; use parse_to_order_hint_for_sef() for LEADING/REGULAR_SEF.
@@ -37,7 +55,7 @@ avm_codec_err_t parse_to_order_hint_for_vcl_obu(
     OBU_TYPE obu_type, int xlayer_id, int tlayer_id, int mlayer_id,
     struct SequenceHeader *current_seq_params,
     struct MultiFrameHeader *current_mfh, int *current_is_shown,
-    int *current_order_hint);
+    int *current_order_hint, FrameUnitInfo *replica_reference_list);
 
 // Parse an SEF (LEADING or REGULAR) OBU payload to extract current_is_shown
 // and current_order_hint. SEF payloads have no is_first_tile_group bit and
@@ -47,7 +65,7 @@ avm_codec_err_t parse_to_order_hint_for_sef(
     OBU_TYPE obu_type, int xlayer_id, int tlayer_id, int mlayer_id,
     struct SequenceHeader *current_seq_params,
     struct MultiFrameHeader *current_mfh, int *current_is_shown,
-    int *current_order_hint);
+    int *current_order_hint, FrameUnitInfo *replica_reference_list);
 
 // Try to decode one frame from a buffer.
 // Returns 1 if we decoded a frame,

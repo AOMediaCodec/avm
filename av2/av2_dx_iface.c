@@ -500,12 +500,13 @@ static avm_codec_err_t decode_one(avm_codec_alg_priv_t *ctx,
   if (!ctx->si.h) {
     int is_intra_only = 0;
     int is_hls_only = 0;
-    const avm_codec_err_t res =
-        decoder_peek_si_internal(*data, data_sz, &ctx->si, &is_intra_only, &is_hls_only);
+    const avm_codec_err_t res = decoder_peek_si_internal(
+        *data, data_sz, &ctx->si, &is_intra_only, &is_hls_only);
     if (res != AVM_CODEC_OK) return res;
 
     // HLS-only input (no VCL) is a valid decode_one() call.
-    if (!ctx->si.is_kf && !is_intra_only && !is_hls_only) return AVM_CODEC_ERROR;
+    if (!ctx->si.is_kf && !is_intra_only && !is_hls_only)
+      return AVM_CODEC_ERROR;
   }
 
   AVxWorker *const worker = ctx->frame_worker;
@@ -594,7 +595,8 @@ static void set_last_frame_unit(struct AV2Decoder *pbi) {
 static int quick_parsing_to_order_hint(struct AV2Decoder *pbi,
                                        const uint8_t *data, size_t data_sz,
                                        int *current_is_shown,
-                                       int *current_order_hint) {
+                                       int *current_order_hint,
+                                       FrameUnitInfo *replica_reference_list) {
   avm_codec_err_t res = AVM_CODEC_OK;
   const uint8_t *data_read = data;
   ObuHeader obu_header;
@@ -621,7 +623,7 @@ static int quick_parsing_to_order_hint(struct AV2Decoder *pbi,
           pbi, data_read + bytes_read, payload_size, obu_header.type,
           obu_header.obu_xlayer_id, obu_header.obu_tlayer_id,
           obu_header.obu_mlayer_id, &seq_params, &mfh_list[0], current_is_shown,
-          current_order_hint);
+          current_order_hint, replica_reference_list);
     } else if (is_multi_tile_vcl_obu(obu_header.type) ||
                obu_header.type == OBU_LEADING_TIP ||
                obu_header.type == OBU_REGULAR_TIP ||
@@ -631,27 +633,13 @@ static int quick_parsing_to_order_hint(struct AV2Decoder *pbi,
           pbi, data_read + bytes_read, payload_size, obu_header.type,
           obu_header.obu_xlayer_id, obu_header.obu_tlayer_id,
           obu_header.obu_mlayer_id, &seq_params, &mfh_list[0], current_is_shown,
-          current_order_hint);
+          current_order_hint, replica_reference_list);
     }
     if (res != AVM_CODEC_OK) return 0;
     data_read += bytes_read + payload_size;
   }
   return 1;
 }
-
-// Per-picture-unit analysis produced by the first pass of decoder_decode().
-// Carries the TU-boundary flags computed before any decoding starts.
-typedef struct {
-  size_t obu_size;
-  int xlayer_id;
-  int mlayer_id;
-  int tlayer_id;
-  int order_hint;  //-2:D.C it is the first pu in tu
-  int is_shown;
-  OBU_TYPE obu_type;
-  int is_first_tilegroup;  //-1.N.A
-  int metadata_is_suffix;  //-1.N.A
-} FrameUnitInfo;
 
 bool get_reset_last(struct AV2Decoder *pbi, int tlayer_id, int mlayer_id,
                     int xlayer_id) {
@@ -697,6 +685,10 @@ static int check_frame_unit_data(struct AV2Decoder *pbi,
   FrameUnitInfo *fu_info = *fu_info_out;
   const uint8_t *data_read = data;
   ObuHeader obu_header;
+  FrameUnitInfo replica_reference_list[REF_FRAMES];
+  int replica_reference_list_initialized = 0;
+  for (int i = 0; i < REF_FRAMES; i++)
+    replica_reference_list[i].display_order_hint = -1;
 
   while (data_read < data + data_sz) {
     size_t payload_size = 0;
@@ -738,9 +730,36 @@ static int check_frame_unit_data(struct AV2Decoder *pbi,
     if (reset_last) {
       current_order_hint = -2;
     } else if (is_vcl) {
+      // Initialize replica reference list once from the correct per-stream DPB
+      if (!replica_reference_list_initialized) {
+        const int stream_idx =
+            av2_get_stream_index(&pbi->common, obu_header.obu_xlayer_id);
+        const RefCntBuffer *const *src_dpb =
+            (stream_idx >= 0)
+                ? (const RefCntBuffer *const *)pbi->stream_info[stream_idx]
+                      .ref_frame_map_buf
+                : (const RefCntBuffer *const *)pbi->common.ref_frame_map;
+        for (int i = 0; i < REF_FRAMES; i++) {
+          if (src_dpb[i] != NULL) {
+            replica_reference_list[i].display_order_hint =
+                src_dpb[i]->display_order_hint;
+            replica_reference_list[i].is_shown =
+                src_dpb[i]->implicit_output_picture ||
+                src_dpb[i]->immediate_output_picture;
+            replica_reference_list[i].is_restricted = src_dpb[i]->is_restricted;
+            replica_reference_list[i].tlayer_id = src_dpb[i]->tlayer_id;
+            replica_reference_list[i].mlayer_id = src_dpb[i]->mlayer_id;
+          } else {
+            memset(&replica_reference_list[i], 0,
+                   sizeof(replica_reference_list[i]));
+            replica_reference_list[i].display_order_hint = -1;
+          }
+        }
+        replica_reference_list_initialized = 1;
+      }
       if (quick_parsing_to_order_hint(pbi, data_read, frame_unit_size,
-                                      &current_is_shown,
-                                      &current_order_hint) == 0) {
+                                      &current_is_shown, &current_order_hint,
+                                      replica_reference_list) == 0) {
         fprintf(stderr, "first keyobu decision error\n");
         free(fu_info);
         return -1;
@@ -768,7 +787,7 @@ static int check_frame_unit_data(struct AV2Decoder *pbi,
     fu_info[fu_count].mlayer_id = obu_header.obu_mlayer_id;
     fu_info[fu_count].tlayer_id = obu_header.obu_tlayer_id;
     fu_info[fu_count].obu_type = obu_header.type;
-    fu_info[fu_count].order_hint = current_order_hint;
+    fu_info[fu_count].display_order_hint = current_order_hint;
     fu_info[fu_count].is_shown = current_is_shown;
     fu_info[fu_count].is_first_tilegroup = is_first_tilegroup;
     fu_info[fu_count].metadata_is_suffix = metadata_is_suffix;
@@ -789,7 +808,31 @@ static void set_first_pu_in_tu_flags(struct AV2Decoder *pbi, int curret_fu_idx,
   assert(is_multi_tile_vcl_obu(fu_info[curret_fu_idx].obu_type) ||
          is_single_tile_vcl_obu(fu_info[curret_fu_idx].obu_type));
 
-  // This function does **NOT** assess the validity of the bitstream.
+  // xlayer_id decreasing signals a new temporal unit since local temporal
+  // units within an aligned global temporal unit appear in ascending
+  // obu_xlayer_id order.
+  if (pbi->last_frame_unit.xlayer_id > fu_info[curret_fu_idx].xlayer_id) {
+    pbi->this_is_first_vcl_obu_in_tu = 1;
+    return;
+  }
+
+  // When the previous VCL OBU is a hidden frame, only same-mlayer transitions
+  // are valid (NOT NEW TU). Any mlayer change (increase or decrease) from a
+  // hidden frame is an invalid bitstream.
+  if (pbi->last_frame_unit.showable_frame == 0) {
+    if (pbi->last_frame_unit.mlayer_id != fu_info[curret_fu_idx].mlayer_id) {
+      avm_internal_error(&pbi->common.error, AVM_CODEC_CORRUPT_FRAME,
+                         "Invalid bitstream: mlayer_id changed from %d to %d "
+                         "after a hidden frame",
+                         pbi->last_frame_unit.mlayer_id,
+                         fu_info[curret_fu_idx].mlayer_id);
+      pbi->this_is_first_vcl_obu_in_tu = -1;
+      return;
+    }
+    pbi->this_is_first_vcl_obu_in_tu = 0;
+    return;
+  }
+
   // mlayer decreasing (e.g. layer 1 -> layer 0) always signals a new TU
   // when a key OBU is present.
   if (pbi->last_frame_unit.mlayer_id > fu_info[curret_fu_idx].mlayer_id) {
@@ -797,28 +840,20 @@ static void set_first_pu_in_tu_flags(struct AV2Decoder *pbi, int curret_fu_idx,
     return;
   }
 
-  // From this point, current mlayer is equalt to or less than
-  // pbi->last_frame_unit.mlayer_id. H(prev)H(current), H(prev)S(current) : This
-  // cannot happen since this function assumes valid bitstream
-  if (pbi->last_frame_unit.showable_frame == 0) {
-    pbi->this_is_first_vcl_obu_in_tu = 0;
-    return;
-  }
-
   if (fu_info[curret_fu_idx].is_shown) {
     pbi->this_is_first_vcl_obu_in_tu =
         pbi->last_displayable_frame_unit.display_order_hint !=
-        fu_info[curret_fu_idx].order_hint;
+        fu_info[curret_fu_idx].display_order_hint;
   } else {
     int shown_display_order_hint = -1;
     for (int i = curret_fu_idx + 1; i < total_fu_count; i++) {
       if (fu_info[i].is_shown) {
-        shown_display_order_hint = fu_info[i].order_hint;
+        shown_display_order_hint = fu_info[i].display_order_hint;
         break;
       }
     }
     pbi->this_is_first_vcl_obu_in_tu =
-        shown_display_order_hint != fu_info[curret_fu_idx].order_hint;
+        shown_display_order_hint != fu_info[curret_fu_idx].display_order_hint;
   }
 }
 // If the decoder starts decoding from the middle of the bitstream,
@@ -1055,11 +1090,16 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
       } else {
         set_first_pu_in_tu_flags(pbi, obu_idx, fu_info, fu_count);
       }
+      if (pbi->this_is_first_vcl_obu_in_tu == -1) {
+        free(pbi->obu_list);
+        free(fu_info);
+        return AVM_CODEC_ERROR;
+      }
 
       pbi->this_is_first_keyframe_unit_in_tu =
           (fu_info[obu_idx].obu_type == OBU_CLK ||
            fu_info[obu_idx].obu_type == OBU_OLK) &&
-          pbi->this_is_first_vcl_obu_in_tu;
+          pbi->this_is_first_vcl_obu_in_tu == 1;
       check_if_first_vcl_obu = true;
     }
 

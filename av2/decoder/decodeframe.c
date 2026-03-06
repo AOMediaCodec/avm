@@ -6734,80 +6734,6 @@ static INLINE void reset_frame_buffers(AV2_COMMON *cm) {
   unlock_buffer_pool(cm->buffer_pool);
 }
 
-// This function is used to dervie DOH to check the first keyobu of the temporal
-// unit. This function must be updated with the get_disp_order_hint()
-int get_disp_order_hint_keyobu(SequenceHeader *seq_params, OBU_TYPE obu_type,
-                               int order_hint, int tlayer_id, int mlayer_id,
-                               RefCntBuffer **ref_frame_map,
-                               bool random_accessed, bool is_op_constrained,
-                               const int mlayer_mask, const int tlayer_mask) {
-  if (is_op_constrained) {
-    // This configuration is only used for conformance checking in the AVM
-    // reference software.
-    assert(mlayer_mask >= 0 && mlayer_mask < (1 << MAX_NUM_MLAYERS));
-    assert(tlayer_mask >= 0 && tlayer_mask < (1 << MAX_NUM_TLAYERS));
-  } else {
-    // This configuration is used in actual decoding process. Thus,
-    // op_max_mlayer_id and op_max_tlayer_id are not needed and should be set to
-    // -1 if is_op_constrained is false.
-    assert(mlayer_mask == -1 && mlayer_mask == -1);
-  }
-
-  if (obu_type == OBU_CLK) {
-    return order_hint;
-  } else if (obu_type == OBU_OLK) {
-    if (random_accessed) return order_hint;
-  }
-
-  // Derive the exact display order hint from the signaled order_hint.
-  // This requires scaling up order_hints corresponding to frame
-  // numbers that exceed the number of bits available to send the order_hints.
-
-  // Find the reference frame with the largest order_hint
-  int max_disp_order_hint = 0;
-  for (int map_idx = 0; map_idx < seq_params->ref_frames; map_idx++) {
-    // Get reference frame buffer
-    const RefCntBuffer *const buf = ref_frame_map[map_idx];
-    if (buf == NULL ||
-        (!buf->implicit_output_picture && !buf->immediate_output_picture) ||
-        buf->is_restricted ||
-        !is_tlayer_scalable_and_dependent(seq_params, tlayer_id, buf->tlayer_id,
-                                          mlayer_id) ||
-        !is_mlayer_scalable_and_dependent(seq_params, mlayer_id,
-                                          buf->mlayer_id))
-      continue;
-    // Note: Exercising this condition is only used for the bitstream
-    // conformance check in the AVM reference software. Decoder implementations
-    // may skip this check since this conditional check shall not change the
-    // display order hint derivation.
-    if (is_op_constrained && (is_layer_dropped(buf->mlayer_id, mlayer_mask) ||
-                              is_layer_dropped(buf->tlayer_id, tlayer_mask)))
-      continue;
-
-    if ((int)buf->display_order_hint > max_disp_order_hint)
-      max_disp_order_hint = buf->display_order_hint;
-  }
-
-  int cur_disp_order_hint = order_hint;
-  int display_order_hint_factor =
-      1 << (seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
-
-  while (abs(max_disp_order_hint - cur_disp_order_hint) >=
-         (display_order_hint_factor >> 1)) {
-    if (cur_disp_order_hint > max_disp_order_hint) return cur_disp_order_hint;
-    cur_disp_order_hint += display_order_hint_factor;
-  }
-  // We restrict the derived display order hint to a range, to avoid 32 bit
-  // integer overflow and some corner cases when display order hint operations
-  // are performed in DISPLAY_ORDER_HINT_BITS bit range
-  struct avm_internal_error_info error_info;
-  error_info.error_code = AVM_CODEC_OK;
-  if (cur_disp_order_hint >= (1 << (DISPLAY_ORDER_HINT_BITS - 1)))
-    avm_internal_error(&error_info, AVM_CODEC_ERROR,
-                       "Derived display order hint is invalid");
-  return cur_disp_order_hint;
-}
-
 static INLINE int get_disp_order_hint(AV2_COMMON *const cm, OBU_TYPE obu_type,
                                       bool random_accessed,
                                       bool is_op_constrained,
@@ -7218,7 +7144,7 @@ static int read_show_existing_frame(AV2Decoder *pbi, bool is_regular_obu,
 
   if (is_regular_obu && pbi->olk_encountered) {
     if (pbi->last_olk_tu_display_order_hint == -1 &&
-        !pbi->this_is_first_vcl_obu_in_tu) {
+        pbi->this_is_first_vcl_obu_in_tu == 0) {
       // First non-hidden regular frame after a hidden OLK is this SEF (SEFs
       // are always shown).
       pbi->last_olk_tu_display_order_hint = current_frame->display_order_hint;
@@ -8025,7 +7951,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       }
     } else if (pbi->olk_encountered && av2_is_regular_non_olk_obu(obu_type)) {
       if (pbi->last_olk_tu_display_order_hint == -1 &&
-          !pbi->this_is_first_vcl_obu_in_tu &&
+          pbi->this_is_first_vcl_obu_in_tu == 0 &&
           (cm->implicit_output_picture || cm->immediate_output_picture)) {
         // regular frame in the same temporal unit with a hidden olk
         pbi->last_olk_tu_display_order_hint = current_frame->display_order_hint;
@@ -8469,7 +8395,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
                              "Reference frame not valid for referencing");
         // Check that co-VCL frames in an OLK TU only reference frames written
         // in the current TU.
-        if (pbi->olk_encountered && !pbi->this_is_first_vcl_obu_in_tu) {
+        if (pbi->olk_encountered && pbi->this_is_first_vcl_obu_in_tu == 0) {
           const RefCntBuffer *const ref_buf = cm->ref_frame_map[ref];
           const int ref_mlayer_id = ref_buf->mlayer_id;
           const int ref_tlayer_id = ref_buf->tlayer_id;
