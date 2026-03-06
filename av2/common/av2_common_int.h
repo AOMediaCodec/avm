@@ -5570,12 +5570,7 @@ static INLINE int is_coded_lossless(const AV2_COMMON *cm,
 }
 
 static INLINE int is_valid_seq_level_idx(AV2_LEVEL seq_level_idx) {
-  return seq_level_idx == SEQ_LEVEL_MAX ||
-         (seq_level_idx < SEQ_LEVELS &&
-          // The following levels are currently undefined.
-          seq_level_idx != SEQ_LEVEL_2_2 && seq_level_idx != SEQ_LEVEL_2_3 &&
-          seq_level_idx != SEQ_LEVEL_3_2 && seq_level_idx != SEQ_LEVEL_3_3 &&
-          seq_level_idx != SEQ_LEVEL_4_2 && seq_level_idx != SEQ_LEVEL_4_3);
+  return seq_level_idx == SEQ_LEVEL_MAX || (seq_level_idx < SEQ_LEVELS);
 }
 
 // Intra derivative for directional predictions.

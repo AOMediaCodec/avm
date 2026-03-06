@@ -66,21 +66,21 @@ AV2PixelRect av2_get_tile_rect(const TileInfo *tile_info,
 static const int av2_tile_width_scaling_factor[2][SEQ_LEVEL_MAX] = {
   // Tier 0
   { 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-    4, 4, 4, 4, 4, 4, 4, 4, 8, 8, 8, 8, 0, 0, 0 },  // 28 - 30 reserved
+    4, 4, 8, 8, 8, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0 },  // 22-30 reserved
   // Tier 1
-  { 4, 4, 4, 4, 4, 4, 4, 4, 4,  4,  4,  4,  4, 4, 4, 4,
-    4, 4, 4, 4, 4, 4, 4, 4, 16, 16, 16, 16, 0, 0, 0 }  // 28-30 reserved
+  { 4, 4, 4,  4,  4,  4,  4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+    4, 4, 16, 16, 16, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0 }  // 22-30 reserved
 };
 
 // Tile area scaling factors for different levels and tiers
 // [tier][lev] - values are multiplied by MAX_TILE_AREA and divided by 4
 static const int av2_tile_area_scaling_factor[2][SEQ_LEVEL_MAX] = {
   // Tier 0
-  { 4, 4, 4, 4, 4, 4, 4, 4, 4,  4,  4,  4,  4, 4, 4, 4,
-    4, 4, 4, 4, 8, 8, 8, 8, 16, 16, 16, 16, 0, 0, 0 },  // 28-30 reserved
+  { 4, 4, 4,  4,  4,  4,  4, 4, 4, 4, 4, 4, 4, 4, 8, 8,
+    8, 8, 16, 16, 16, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0 },  // 22-30 reserved
   // Tier 1
-  { 4, 4, 4, 4, 4,  4,  4,  4,  4,  4,  4,  4,  4, 4, 4, 4,
-    4, 4, 4, 4, 16, 16, 16, 16, 32, 32, 32, 32, 0, 0, 0 },  // 28-30 reserved
+  { 4,  4,  4,  4,  4,  4,  4, 4, 4, 4, 4, 4, 4, 4, 16, 16,
+    16, 16, 32, 32, 32, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0 },  // 22-30 reserved
 };
 #endif  // CONFIG_G018
 

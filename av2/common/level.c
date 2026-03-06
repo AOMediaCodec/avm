@@ -60,8 +60,6 @@ static const AV2LevelSpec av2_level_defs[SEQ_LEVELS] = {
     .high_cr = 0,
     .max_tiles = 8,
     .max_tile_cols = 4 },
-  UNDEFINED_LEVEL,
-  UNDEFINED_LEVEL,
   { .level = SEQ_LEVEL_3_0,
     .max_picture_size = 665856,
     .max_h_size = 1360,
@@ -88,8 +86,6 @@ static const AV2LevelSpec av2_level_defs[SEQ_LEVELS] = {
     .high_cr = 0,
     .max_tiles = 16,
     .max_tile_cols = 6 },
-  UNDEFINED_LEVEL,
-  UNDEFINED_LEVEL,
   { .level = SEQ_LEVEL_4_0,
     .max_picture_size = 2359296,
     .max_h_size = 2560,
@@ -116,8 +112,6 @@ static const AV2LevelSpec av2_level_defs[SEQ_LEVELS] = {
     .high_cr = 4.0,
     .max_tiles = 32,
     .max_tile_cols = 8 },
-  UNDEFINED_LEVEL,
-  UNDEFINED_LEVEL,
   { .level = SEQ_LEVEL_5_0,
     .max_picture_size = 8912896,
     .max_h_size = 4975,
@@ -1153,7 +1147,8 @@ void av2_decoder_model_process_frame(const AV2_COMP *const cpi,
 // Get the index of the level parameter entry in av2_substream_level_defs for
 // sub-stream case given the level and the scaling factor.
 int level_to_sub_stream_level_index(AV2_LEVEL level, double scaling_factor_x) {
-  int level_base = (level - SEQ_LEVEL_4_0) >> 2;
+  int level_base = level < SEQ_LEVEL_5_0 ? (level - SEQ_LEVEL_4_0) >> 1
+                                         : ((level - SEQ_LEVEL_5_0) >> 2) + 1;
   int offset = scaling_factor_x == 1.5 ? 0 : (scaling_factor_x == 4.0 ? 1 : 2);
   return 3 * level_base + offset;
 }
