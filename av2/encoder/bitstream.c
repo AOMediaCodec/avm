@@ -5294,6 +5294,7 @@ static AVM_INLINE void write_uncompressed_header(
     }
 
     if (cm->bridge_frame_info.is_bridge_frame) {
+#if !CONFIG_G052
       const RefCntBuffer *ref_buf = get_ref_frame_buf(
           cm, cm->bridge_frame_info.bridge_frame_ref_idx_remapped);
       if (current_frame->order_hint != ref_buf->order_hint) {
@@ -5311,6 +5312,7 @@ static AVM_INLINE void write_uncompressed_header(
             &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
             "Bridge frame frame_number is not equal to ref_buf order_hint");
       }
+#endif
 #if CONFIG_G052
       avm_wb_write_literal(
           wb, current_frame->order_hint,

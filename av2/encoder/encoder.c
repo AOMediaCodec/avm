@@ -1655,6 +1655,11 @@ AV2_COMP *av2_create_compressor(AV2EncoderConfig *oxcf, BufferPool *const pool,
 
   av2_zero(*cpi);
 
+#if CONFIG_G052
+  for (int i = 0; i < MAX_NUM_MLAYERS; i++)
+    cm->bridge_frame_info.tu_order_hint[i] = -1;
+#endif
+
   // The jmp_buf is valid only for the duration of the function that calls
   // setjmp(). Therefore, this function must reset the 'setjmp' field to 0
   // before it returns.
@@ -5002,6 +5007,22 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
       current_frame->frame_number + frame_params->order_offset;
   current_frame->display_order_hint = current_frame->order_hint;
 
+#if CONFIG_G052
+  // G052: hidden (non-output) frames carry the same order_hint as the shown
+  // frame in their temporal unit.  If a bridge frame has set tu_order_hint for
+  // this mlayer, subsequent hidden frames reuse it.  A shown frame clears it.
+  if (cm->immediate_output_picture || cm->implicit_output_picture ||
+      cm->show_existing_frame) {
+    // Shown frame: clear the saved TU order_hint.
+    cm->bridge_frame_info.tu_order_hint[cm->mlayer_id] = -1;
+  } else if (cm->bridge_frame_info.tu_order_hint[cm->mlayer_id] >= 0) {
+    // Hidden frame with a valid saved TU order_hint: reuse it.
+    current_frame->order_hint =
+        cm->bridge_frame_info.tu_order_hint[cm->mlayer_id];
+    current_frame->display_order_hint = current_frame->order_hint;
+  }
+#endif
+
   // scan the reference list. if all the display_order_hint of the reference
   // frame is smaller than the current display_order_hint,
   // duplicate_existing_frame is not applicable.
@@ -5112,6 +5133,16 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
       int chunk_size = cm->bridge_frame_info.frame_count;
       if (chunk_size == 1) {
         cm->bridge_frame_info.is_bridge_frame = 1;
+#if CONFIG_G052
+        // Save the current frame's order hints — under G052 the bridge frame
+        // keeps these values (same as the shown frame in this TU) instead of
+        // copying from the reference.
+        const unsigned int saved_order_hint = cm->current_frame.order_hint;
+        const unsigned int saved_display_order_hint =
+            cm->current_frame.display_order_hint;
+        const unsigned int saved_absolute_poc = cm->current_frame.absolute_poc;
+        const unsigned int saved_frame_number = cm->current_frame.frame_number;
+#endif
         cm->current_frame.display_order_hint = 0;
         cm->current_frame.absolute_poc = 0;
         cm->immediate_output_picture = 0;
@@ -5160,6 +5191,16 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
             break;
           }
         }
+#if CONFIG_G052
+        // Under G052, the bridge frame carries the same order_hint as the
+        // shown frame in its TU, not the reference's order_hint.
+        cm->current_frame.order_hint = saved_order_hint;
+        cm->current_frame.display_order_hint = saved_display_order_hint;
+        cm->current_frame.absolute_poc = saved_absolute_poc;
+        cm->current_frame.frame_number = saved_frame_number;
+        cm->bridge_frame_info.tu_order_hint[cm->mlayer_id] =
+            (int)saved_order_hint;
+#endif
         if (cm->bridge_frame_info.bridge_frame_ref_idx == INVALID_IDX) {
           avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
                              "Cannot find bridge frame reference frame");

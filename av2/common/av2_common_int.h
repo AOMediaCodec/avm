@@ -2270,6 +2270,14 @@ typedef struct BridgeFrame_Info {
    * idenitfy bridge frame in encoder log
    */
   int print_bridge_frame_in_log;
+#if CONFIG_G052
+  /*!
+   * Per-mlayer order_hint for hidden frames in the current TU.
+   * Set when a bridge frame is created; subsequent hidden frames in the same
+   * TU reuse this value.  -1 means not valid.
+   */
+  int tu_order_hint[MAX_NUM_MLAYERS];
+#endif
 } BridgeFrameInfo;
 
 /*!
