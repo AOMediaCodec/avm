@@ -11,7 +11,6 @@
  */
 
 #include <assert.h>
-#include <string.h>
 
 #include "config/avm_config.h"
 #include "avm_dsp/bitreader_buffer.h"
@@ -212,7 +211,7 @@ static void read_lcr_global_info(struct AV2Decoder *pbi,
 
   // Snapshot the active LCR's global record if it has the same ID, so we can
   // verify the newly parsed copy is identical after parsing completes.
-  const int check_identity =
+  const bool check_identity =
       pbi->active_lcr != NULL && pbi->active_lcr->is_global &&
       pbi->active_lcr->global_lcr.lcr_global_config_record_id ==
           lcr_global_config_record_id;
@@ -270,8 +269,7 @@ static void read_lcr_global_info(struct AV2Decoder *pbi,
 
   // Conformance: if the active LCR has the same global config record ID, the
   // newly parsed copy must be bit-identical to it.
-  if (check_identity &&
-      memcmp(&prev_glcr, glcr, sizeof(GlobalLayerConfigurationRecord)) != 0) {
+  if (check_identity && memcmp(&prev_glcr, glcr, sizeof(prev_glcr)) != 0) {
     avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
                        "Global LCR with lcr_global_config_record_id %d "
                        "differs from the active LCR with the same ID.",
@@ -294,7 +292,7 @@ static void read_lcr_local_info(struct AV2Decoder *pbi, int xlayer_id,
   // Snapshot the active LCR's local record if it matches this
   // (xlayer_id, lcr_local_id, lcr_global_id), so we can verify the newly
   // parsed copy is identical after parsing completes.
-  const int check_identity =
+  const bool check_identity =
       pbi->active_lcr != NULL && !pbi->active_lcr->is_global &&
       pbi->active_lcr->xlayer_id == xlayer_id &&
       pbi->active_lcr->local_lcr.lcr_local_id == lcr_local_id &&
@@ -327,8 +325,7 @@ static void read_lcr_local_info(struct AV2Decoder *pbi, int xlayer_id,
 
   // Conformance: if the active LCR matches this local LCR's identity, the
   // newly parsed copy must be bit-identical to it.
-  if (check_identity &&
-      memcmp(&prev_llcr, llcr, sizeof(LocalLayerConfigurationRecord)) != 0) {
+  if (check_identity && memcmp(&prev_llcr, llcr, sizeof(prev_llcr)) != 0) {
     avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
                        "Local LCR for xlayer_id %d with lcr_local_id %d and "
                        "lcr_global_id %d differs from the active LCR with "
