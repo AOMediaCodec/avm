@@ -7138,7 +7138,6 @@ static int read_show_existing_frame(AV2Decoder *pbi, bool is_regular_obu,
   if (!cm->derive_sef_order_hint) {
     current_frame->order_hint = avm_rb_read_literal(
         rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
-
     current_frame->display_order_hint = get_disp_order_hint(
         cm, is_regular_obu ? OBU_REGULAR_SEF : OBU_LEADING_SEF, false, false,
         -1, -1);
@@ -7743,6 +7742,9 @@ int read_obu_extension_bits(const uint8_t *obu_payload, size_t payload_size,
 static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
                                     int obu_xlayer_id,
                                     struct avm_read_bit_buffer *rb) {
+#if 1
+  printf("<<%s>>\n", avm_obu_type_to_string(obu_type));
+#endif
   AV2_COMMON *const cm = &pbi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
   const ContentInterpretation *const ci_params =

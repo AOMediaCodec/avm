@@ -4580,7 +4580,9 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
   //    // an overlay frame
   //    gf_group->update_type[gf_group->size] = GF_UPDATE;
   //  }
-
+#if 1
+    printf("need_sef_obu_for_hidden_frame: %d, %d\n", cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames, cpi->update_type_was_overlay);
+#endif
   if (!cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames &&
       cpi->update_type_was_overlay) {
     assign_frame_buffer_p(&cm->cur_frame,
@@ -5008,9 +5010,8 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
   current_frame->display_order_hint = current_frame->order_hint;
 
 #if CONFIG_G052
-  // G052: hidden (non-output) frames carry the same order_hint as the shown
-  // frame in their temporal unit.  If a bridge frame has set tu_order_hint for
-  // this mlayer, subsequent hidden frames reuse it.  A shown frame clears it.
+  // G052: hidden (non-output) frames carry the same order_hint as the first
+  // hidden frame in their temporal unit.  A shown frame clears the saved value.
   if (cm->immediate_output_picture || cm->implicit_output_picture ||
       cm->show_existing_frame) {
     // Shown frame: clear the saved TU order_hint.
@@ -5020,6 +5021,11 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
     current_frame->order_hint =
         cm->bridge_frame_info.tu_order_hint[cm->mlayer_id];
     current_frame->display_order_hint = current_frame->order_hint;
+  } else {
+    // First hidden frame in this TU: save its order_hint for subsequent
+    // hidden frames.
+    cm->bridge_frame_info.tu_order_hint[cm->mlayer_id] =
+        (int)current_frame->order_hint;
   }
 #endif
 
