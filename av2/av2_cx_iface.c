@@ -3275,9 +3275,10 @@ static avm_codec_err_t encoder_encode(avm_codec_alg_priv_t *ctx,
       if (frame_size) {
         if (ctx->pending_cx_data == 0) ctx->pending_cx_data = cx_data;
         const bool write_td_requested = cpi->oxcf.signal_td;
-        const bool write_td_forced = cpi->common.xlayer_id == GLOBAL_XLAYER_ID;
+        const bool write_td_forced =
+            cpi->common.number_mlayers > 1 || cpi->common.number_xlayers > 1;
         const bool write_temporal_delimiter =
-            (write_td_requested || write_td_forced) && !cpi->common.mlayer_id &&
+            (write_td_requested || write_td_forced) &&
             (cpi->common.immediate_output_picture ||
              cpi->common.implicit_output_picture);
         if (write_temporal_delimiter) {
