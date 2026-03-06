@@ -265,6 +265,7 @@ avmenc_av2_obu_temporal_delimiter() {
 
     avmenc $(yuv_raw_input) \
       $(avmenc_encode_test_fast_params) \
+      --use-temporal-delimiter=1 \
       --obu \
       --output="${output}" || return 1
 
@@ -294,6 +295,7 @@ avmenc_av2_obu_temporal_delimiter_lag() {
 
     avmenc $(yuv_raw_input) \
       $(avmenc_encode_test_fast_params_lag) \
+      --use-temporal-delimiter=1 \
       --obu \
       --output="${output}" || return 1
 

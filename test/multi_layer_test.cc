@@ -34,7 +34,7 @@ class MultiLayerTest : public ::libavm_test::CodecTestWithParam<int>,
     cfg_.g_profile = 0;
     cfg_.g_lag_in_frames = 0;
     cfg_.g_bit_depth = AVM_BITS_8;
-
+    cfg_.signal_td = 1;
     top_width_ = 160;
     top_height_ = 90;
     num_mismatch_ = 0;

@@ -1702,6 +1702,7 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
     dec_model_cfg->timing_info_present = 0;
   }
 
+  oxcf->signal_td = cfg->signal_td;
   layer_cfg->enable_lcr = cfg->enable_lcr;
   layer_cfg->enable_ops = cfg->enable_ops;
   layer_cfg->num_ops = cfg->num_ops > 0 ? cfg->num_ops : 1;
@@ -3273,17 +3274,21 @@ static avm_codec_err_t encoder_encode(avm_codec_alg_priv_t *ctx,
 
       if (frame_size) {
         if (ctx->pending_cx_data == 0) ctx->pending_cx_data = cx_data;
-        const int write_temporal_delimiter =
-            (!cpi->common.mlayer_id && (cpi->common.immediate_output_picture ||
-                                        cpi->common.implicit_output_picture));
+        const bool write_td_requested = cpi->oxcf.signal_td;
+        const bool write_td_forced = cpi->common.xlayer_id == GLOBAL_XLAYER_ID;
+        const bool write_temporal_delimiter =
+            (write_td_requested || write_td_forced) && !cpi->common.mlayer_id &&
+            (cpi->common.immediate_output_picture ||
+             cpi->common.implicit_output_picture);
         if (write_temporal_delimiter) {
           const uint32_t obu_payload_size = 0;
           const size_t length_field_size =
               avm_uleb_size_in_bytes(obu_payload_size);
 
           uint8_t obu_header[2];
-          const uint32_t obu_header_size = av2_write_obu_header(
-              &cpi->level_params, OBU_TEMPORAL_DELIMITER, 0, 0, obu_header);
+          const uint32_t obu_header_size =
+              av2_write_obu_header(&cpi->level_params, OBU_TEMPORAL_DELIMITER,
+                                   0, cpi->common.xlayer_id, obu_header);
           const size_t move_offset = obu_header_size + length_field_size;
           memmove(cx_data + move_offset, cx_data, frame_size);
           memcpy(cx_data, obu_header, obu_header_size);
@@ -4589,16 +4594,16 @@ static const avm_codec_enc_cfg_t encoder_usage_cfg[] = { {
     2000,  // rc_two_pass_vbrmax_section
 
     // keyframing settings (kf)
-    0,            // fwd_kf_enabled
-    AVM_KF_AUTO,  // kf_mode
-    0,            // kf_min_dist
-    9999,         // kf_max_dist
-    0,            // sframe_dist
-    1,            // sframe_mode
-    0,            // monochrome
-    0,            // full_still_picture_hdr
-    1,            // enable_tcq
-
+    0,                           // fwd_kf_enabled
+    AVM_KF_AUTO,                 // kf_mode
+    0,                           // kf_min_dist
+    9999,                        // kf_max_dist
+    0,                           // sframe_dist
+    1,                           // sframe_mode
+    0,                           // monochrome
+    0,                           // full_still_picture_hdr
+    1,                           // enable_tcq
+    0,                           // signal_td
     0,                           // enable_lcr
     0,                           // enable_ops
     1,                           // num_ops
