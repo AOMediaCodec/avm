@@ -7126,7 +7126,11 @@ static int read_show_existing_frame(AV2Decoder *pbi, bool is_regular_obu,
                        "Invalid SEF Ref: restricted reference buffer");
   }
   cm->sef_ref_fb_idx = existing_frame_idx;
+#if CONFIG_G052
+  cm->derive_sef_order_hint = 0;
+#else
   cm->derive_sef_order_hint = avm_rb_read_bit(rb);
+#endif
   cm->cur_frame->mlayer_id = cm->mlayer_id;
   cm->cur_frame->xlayer_id = cm->xlayer_id;
   cm->cur_frame->stream_id = av2_get_stream_index(cm, cm->xlayer_id);
@@ -7202,6 +7206,7 @@ static int read_show_existing_frame(AV2Decoder *pbi, bool is_regular_obu,
     setup_buffer_pool(cm);
     avm_yv12_copy_frame(&frame_to_show->buf, &cm->cur_frame->buf,
                         av2_num_planes(cm));
+#if !CONFIG_G052
   } else {
     if (frame_to_show->implicit_output_picture ||
         frame_to_show->immediate_output_picture) {
@@ -7214,6 +7219,7 @@ static int read_show_existing_frame(AV2Decoder *pbi, bool is_regular_obu,
         frame_to_show->order_hint;
     current_frame->display_order_hint = cm->cur_frame->display_order_hint =
         frame_to_show->display_order_hint;
+#endif
   }
 
   if (is_regular_obu && pbi->olk_encountered) {
@@ -7968,6 +7974,15 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     }
     if (cm->bridge_frame_info.is_bridge_frame) {
       frame_size_override_flag = 1;
+#if CONFIG_G052
+      current_frame->order_hint = avm_rb_read_literal(
+          rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
+      current_frame->display_order_hint = get_disp_order_hint(
+          cm, obu_type, pbi->random_accessed, false, -1, -1);
+      current_frame->frame_number = current_frame->order_hint;
+      current_frame->display_order_hint_restricted =
+          current_frame->display_order_hint;
+#endif
     } else {
       frame_size_override_flag = frame_is_sframe(cm) ? 1 : avm_rb_read_bit(rb);
       current_frame->order_hint = avm_rb_read_literal(
@@ -8238,6 +8253,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       init_ref_map_pair(cm, cm->ref_frame_map_pairs,
                         current_frame->frame_type == KEY_FRAME,
                         pbi->obu_type == OBU_RAS_FRAME);
+#if !CONFIG_G052
       if (cm->bridge_frame_info.is_bridge_frame) {
         current_frame->order_hint =
             cm->ref_frame_map[cm->bridge_frame_info.bridge_frame_ref_idx]
@@ -8249,6 +8265,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
             cm->ref_frame_map[cm->bridge_frame_info.bridge_frame_ref_idx]
                 ->order_hint;
       }
+#endif
 
       // For implicit reference mode, the reference mapping is derived without
       // considering the resolution first. Later, setup_frame_size_with_refs

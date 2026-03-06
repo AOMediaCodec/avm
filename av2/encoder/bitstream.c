@@ -5173,12 +5173,18 @@ static AVM_INLINE void write_show_existing_frame(
   AV2_COMMON *const cm = &cpi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
   avm_wb_write_literal(wb, cm->sef_ref_fb_idx, cm->seq_params.ref_frames_log2);
+#if CONFIG_G052
+  avm_wb_write_literal(
+      wb, cm->current_frame.order_hint,
+      seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
+#else
   avm_wb_write_bit(wb, cm->derive_sef_order_hint);
   if (!cm->derive_sef_order_hint) {
     avm_wb_write_literal(
         wb, cm->current_frame.order_hint,
         seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
   }
+#endif
   if (seq_params->film_grain_params_present) encode_film_grain(cpi, wb);
 
   return;
@@ -5305,6 +5311,11 @@ static AVM_INLINE void write_uncompressed_header(
             &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
             "Bridge frame frame_number is not equal to ref_buf order_hint");
       }
+#if CONFIG_G052
+      avm_wb_write_literal(
+          wb, current_frame->order_hint,
+          seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
+#endif
     } else {
       frame_size_override_flag =
           frame_is_sframe(cm) ? 1

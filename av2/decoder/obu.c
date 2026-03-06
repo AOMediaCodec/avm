@@ -2571,6 +2571,14 @@ avm_codec_err_t parse_to_order_hint_for_vcl_obu(
   }
 
   // --- order_hint and display_order_hint derivation ---
+#if !CONFIG_G052
+  // When CONFIG_G052 is off, bridge frames do not carry order_hint in the
+  // bitstream (it is derived from the reference), so skip reading.
+  if (obu_type == OBU_BRIDGE_FRAME) {
+    *current_order_hint = 0;
+    return AVM_CODEC_OK;
+  }
+#endif
   int order_hint = avm_rb_read_literal(
       rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
 
@@ -2658,7 +2666,11 @@ avm_codec_err_t parse_to_order_hint_for_sef(
   int existing_frame_idx = avm_rb_read_literal(rb, seq_params->ref_frames_log2);
 
   // derive_sef_order_hint
+#if CONFIG_G052
+  int derive_sef_order_hint = 0;
+#else
   int derive_sef_order_hint = avm_rb_read_bit(rb);
+#endif
 
   // SEF frames are always shown
   *current_is_shown = 1;
@@ -2670,6 +2682,7 @@ avm_codec_err_t parse_to_order_hint_for_sef(
     *current_order_hint = get_disp_order_hint_keyobu(
         seq_params, obu_type, order_hint, tlayer_id, mlayer_id,
         pbi->common.ref_frame_map, pbi->random_accessed, false, -1, -1);
+#if !CONFIG_G052
   } else {
     // Inherit display_order_hint from the referenced DPB slot.
     if (existing_frame_idx < seq_params->ref_frames &&
@@ -2679,6 +2692,7 @@ avm_codec_err_t parse_to_order_hint_for_sef(
     } else {
       return AVM_CODEC_CORRUPT_FRAME;
     }
+#endif
   }
 
   return AVM_CODEC_OK;

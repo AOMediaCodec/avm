@@ -4656,7 +4656,11 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
 
     // Add SEF_OBU with the display order hint derivation
     cm->show_existing_frame = 1;
+#if CONFIG_G052
+    cm->derive_sef_order_hint = 0;
+#else
     cm->derive_sef_order_hint = 1;
+#endif
     cm->immediate_output_picture = 1;
     cm->implicit_output_picture = 0;
     cm->allow_direct_use = 0;
