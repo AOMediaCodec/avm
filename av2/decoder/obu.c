@@ -2881,6 +2881,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
   uint32_t acc_fgm_id_bitmap = 0;
   int prev_obu_xlayer_id = -1;
   int keyframe_present = 0;
+  bool vcl_present = false;
 
   // prev_obu_type, prev_xlayer_id and tu_validation_state are used to compare
   // obus in this "data"
@@ -3133,6 +3134,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
       case OBU_REGULAR_TIP:
       case OBU_RAS_FRAME:
       case OBU_BRIDGE_FRAME:
+        vcl_present = true;
         keyframe_present =
             (obu_header.type == OBU_CLK || obu_header.type == OBU_OLK);
         for (int i = 0; i < NUM_CUSTOM_QMS; i++) {
@@ -3340,7 +3342,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
     count_obus_with_frame_unit++;
   }
 
-  if (pbi->decoding_first_frame && keyframe_present == 0) {
+  if (vcl_present && pbi->decoding_first_frame && keyframe_present == 0) {
     avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
                        "the first frame of a bitstream shall be a keyframe");
   }
@@ -3442,38 +3444,40 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
   }
 #endif
 
-  obu_info current_frame_unit;
-  memset(&current_frame_unit, -1, sizeof(current_frame_unit));
-  for (int obu_idx = 0; obu_idx < count_obus_with_frame_unit; obu_idx++) {
-    obu_info *this_obu = &obu_list[obu_idx];
+  if (vcl_present) {
+    obu_info current_frame_unit;
+    memset(&current_frame_unit, -1, sizeof(current_frame_unit));
+    for (int obu_idx = 0; obu_idx < count_obus_with_frame_unit; obu_idx++) {
+      obu_info *this_obu = &obu_list[obu_idx];
 
-    if (this_obu->first_tile_group == 1) {
-      current_frame_unit = *this_obu;
-    }
-    if (is_multi_tile_vcl_obu(this_obu->obu_type) &&
-        this_obu->first_tile_group == 0) {
-      if (obu_idx == 0) {
-        avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-                           "The first OBU in a frame unit cannot be a tile "
-                           "group with is_first_tile_group == 0");
+      if (this_obu->first_tile_group == 1) {
+        current_frame_unit = *this_obu;
       }
-      check_tilegroup_obus_in_a_frame_unit(cm, this_obu,
-                                           &obu_list[obu_idx - 1]);
+      if (is_multi_tile_vcl_obu(this_obu->obu_type) &&
+          this_obu->first_tile_group == 0) {
+        if (obu_idx == 0) {
+          avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+                             "The first OBU in a frame unit cannot be a tile "
+                             "group with is_first_tile_group == 0");
+        }
+        check_tilegroup_obus_in_a_frame_unit(cm, this_obu,
+                                             &obu_list[obu_idx - 1]);
+      }
     }
-  }
 
-  assert(current_frame_unit.display_order_hint != -1);
-  if (pbi->last_frame_unit.display_order_hint != -1 &&
-      (pbi->last_frame_unit.xlayer_id == current_frame_unit.xlayer_id)) {
-    check_clk_in_a_layer(cm, &current_frame_unit, &pbi->last_frame_unit);
+    assert(current_frame_unit.display_order_hint != -1);
+    if (pbi->last_frame_unit.display_order_hint != -1 &&
+        (pbi->last_frame_unit.xlayer_id == current_frame_unit.xlayer_id)) {
+      check_clk_in_a_layer(cm, &current_frame_unit, &pbi->last_frame_unit);
 
-    if (current_frame_unit.showable_frame == 0) {
-      check_layerid_hidden_frame_units(cm, &current_frame_unit,
-                                       &pbi->last_frame_unit);
-    } else {
-      check_layerid_showable_frame_units(cm, &current_frame_unit,
-                                         &pbi->last_frame_unit,
-                                         &pbi->last_displayable_frame_unit);
+      if (current_frame_unit.showable_frame == 0) {
+        check_layerid_hidden_frame_units(cm, &current_frame_unit,
+                                         &pbi->last_frame_unit);
+      } else {
+        check_layerid_showable_frame_units(cm, &current_frame_unit,
+                                           &pbi->last_frame_unit,
+                                           &pbi->last_displayable_frame_unit);
+      }
     }
   }
 

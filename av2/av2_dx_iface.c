@@ -206,7 +206,8 @@ static avm_codec_err_t parse_chroma_format_bitdepth(
 static avm_codec_err_t decoder_peek_si_internal(const uint8_t *data,
                                                 size_t data_sz,
                                                 avm_codec_stream_info_t *si,
-                                                int *is_intra_only) {
+                                                int *is_intra_only,
+                                                int *is_hls_only) {
   int intra_only_flag = 0;
   int got_sequence_header = 0;
   int found_keyframe = 0;
@@ -319,12 +320,13 @@ static avm_codec_err_t decoder_peek_si_internal(const uint8_t *data,
   }
   if (got_sequence_header && found_keyframe) si->is_kf = 1;
   if (is_intra_only != NULL) *is_intra_only = intra_only_flag;
+  if (is_hls_only != NULL) *is_hls_only = got_sequence_header;
   return AVM_CODEC_OK;
 }
 
 static avm_codec_err_t decoder_peek_si(const uint8_t *data, size_t data_sz,
                                        avm_codec_stream_info_t *si) {
-  return decoder_peek_si_internal(data, data_sz, si, NULL);
+  return decoder_peek_si_internal(data, data_sz, si, NULL, NULL);
 }
 
 static avm_codec_err_t decoder_get_si(avm_codec_alg_priv_t *ctx,
@@ -497,11 +499,13 @@ static avm_codec_err_t decode_one(avm_codec_alg_priv_t *ctx,
   // of the heap.
   if (!ctx->si.h) {
     int is_intra_only = 0;
+    int is_hls_only = 0;
     const avm_codec_err_t res =
-        decoder_peek_si_internal(*data, data_sz, &ctx->si, &is_intra_only);
+        decoder_peek_si_internal(*data, data_sz, &ctx->si, &is_intra_only, &is_hls_only);
     if (res != AVM_CODEC_OK) return res;
 
-    if (!ctx->si.is_kf && !is_intra_only) return AVM_CODEC_ERROR;
+    // HLS-only input (no VCL) is a valid decode_one() call.
+    if (!ctx->si.is_kf && !is_intra_only && !is_hls_only) return AVM_CODEC_ERROR;
   }
 
   AVxWorker *const worker = ctx->frame_worker;
@@ -983,17 +987,29 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
   bool has_leading_frame = false;
   bool has_td = false;
   bool has_global_hls = false;
-  for (int fu_idx = 0; fu_idx < fu_count; fu_idx++) {
-    has_seq_header |= fu_info[fu_idx].obu_type == OBU_SEQUENCE_HEADER;
-    has_key_obu |= fu_info[fu_idx].obu_type == OBU_CLK ||
-                   fu_info[fu_idx].obu_type == OBU_OLK;
-    has_leading_frame |= fu_info[fu_idx].obu_type == OBU_LEADING_TILE_GROUP ||
-                         fu_info[fu_idx].obu_type == OBU_LEADING_SEF ||
-                         fu_info[fu_idx].obu_type == OBU_LEADING_TIP;
-    has_td |= fu_info[fu_idx].obu_type == OBU_TEMPORAL_DELIMITER;
-    has_global_hls |= is_tu_head_non_vcl_obu(fu_info[fu_idx].obu_type,
-                                             fu_info[fu_idx].xlayer_id);
+  int first_pu_obu_idx = -1;
+  size_t hls_byte_size = 0;
+  for (int pu_idx = 0; pu_idx < fu_count; pu_idx++) {
+    has_seq_header |= fu_info[pu_idx].obu_type == OBU_SEQUENCE_HEADER;
+    has_key_obu |= fu_info[pu_idx].obu_type == OBU_CLK ||
+                   fu_info[pu_idx].obu_type == OBU_OLK;
+    has_leading_frame |= fu_info[pu_idx].obu_type == OBU_LEADING_TILE_GROUP ||
+                         fu_info[pu_idx].obu_type == OBU_LEADING_SEF ||
+                         fu_info[pu_idx].obu_type == OBU_LEADING_TIP;
+    has_td |= fu_info[pu_idx].obu_type == OBU_TEMPORAL_DELIMITER;
+    has_global_hls |= is_tu_head_non_vcl_obu(fu_info[pu_idx].obu_type,
+                                             fu_info[pu_idx].xlayer_id);
+    // Locate where picture-unit(CI,MFH,FGM,QM) data begins.
+    if (first_pu_obu_idx == -1) {
+      if (is_tu_head_non_vcl_obu(fu_info[pu_idx].obu_type,
+                                 fu_info[pu_idx].xlayer_id)) {
+        hls_byte_size += fu_info[pu_idx].obu_size;
+      } else {
+        first_pu_obu_idx = pu_idx;
+      }
+    }
   }
+  if (first_pu_obu_idx == -1) first_pu_obu_idx = fu_count;  // all HLS, no PU
 
   // When this buffer starts a new CVS (sequence header + keyframe), reset the
   // last-frame-unit bookkeeping once, before any decoding in this buffer.
@@ -1003,24 +1019,37 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
            sizeof(pbi->last_displayable_frame_unit));
   }
 
-  bool check_if_first_pu = false;
-  size_t picture_unit_with_one_vcl = 0;
-  int pu_start_obu_idx = 0;
   pbi->obu_list = (obu_info *)malloc(sizeof(obu_info) * fu_count);
-#if 0
-  for (int obu_idx = 0; obu_idx < fu_count; obu_idx++) {
-    printf("[%d]\t%s\t%d,%d,%d\n", obu_idx, avm_obu_type_to_string(fu_info[obu_idx].obu_type),
-           fu_info[obu_idx].xlayer_id, fu_info[obu_idx].mlayer_id, fu_info[obu_idx].tlayer_id);
+
+  // --- Decode global HLS OBUs and SH (TD, SH, LCR, ATLAS, OPS, MSDO, etc.) ---
+  if (hls_byte_size > 0) {
+    for (int i = 0; i < first_pu_obu_idx; i++) {
+      memset(&pbi->obu_list[i], -1, sizeof(obu_info));
+      pbi->obu_list[i].xlayer_id = fu_info[i].xlayer_id;
+      pbi->obu_list[i].mlayer_id = fu_info[i].mlayer_id;
+      pbi->obu_list[i].tlayer_id = fu_info[i].tlayer_id;
+    }
+    pbi->num_obus_with_frame_unit = first_pu_obu_idx;
+    res = decode_one(ctx, &data_start, hls_byte_size, user_priv);
+    if (res != AVM_CODEC_OK) {
+      free(pbi->obu_list);
+      free(fu_info);
+      return res;
+    }
   }
-#endif
-  for (int obu_idx = 0; obu_idx < fu_count; obu_idx++) {
+
+  // --- Decode picture units ---
+  bool check_if_first_vcl_obu = false;
+  size_t picture_unit_with_one_vcl = 0;
+  int pu_start_obu_idx = first_pu_obu_idx;
+  for (int obu_idx = first_pu_obu_idx; obu_idx < fu_count; obu_idx++) {
     bool is_vcl = (is_multi_tile_vcl_obu(fu_info[obu_idx].obu_type) ||
                    is_single_tile_vcl_obu(fu_info[obu_idx].obu_type));
     pbi->this_is_first_keyframe_unit_in_tu = 0;
     pbi->this_is_first_vcl_obu_in_tu = 0;
     // The first VCL in this list is potentially the first PU in TU, otherwise
     // always 0
-    if (!check_if_first_pu && is_vcl) {
+    if (!check_if_first_vcl_obu && is_vcl) {
       if (has_seq_header || has_td || has_global_hls) {
         pbi->this_is_first_vcl_obu_in_tu = 1;
       } else {
@@ -1031,7 +1060,7 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
           (fu_info[obu_idx].obu_type == OBU_CLK ||
            fu_info[obu_idx].obu_type == OBU_OLK) &&
           pbi->this_is_first_vcl_obu_in_tu;
-      check_if_first_pu = true;
+      check_if_first_vcl_obu = true;
     }
 
     int mlayer_id = pbi->current_mlayer_id = fu_info[obu_idx].mlayer_id;
@@ -1043,14 +1072,7 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
     pbi->obu_list[pu_rel_idx].xlayer_id = xlayer_id;
     pbi->obu_list[pu_rel_idx].mlayer_id = mlayer_id;
     pbi->obu_list[pu_rel_idx].tlayer_id = tlayer_id;
-#if 0
-    printf("\t\t[%s] %d ->> first_pu_in_tu:%d (%d,%d,%d) vs (%d,%d,%d)\n",
-           avm_obu_type_to_string(fu_info[obu_idx].obu_type), obu_idx,
-           pbi->this_is_first_vcl_obu_in_tu, fu_info[obu_idx].xlayer_id, fu_info[obu_idx].mlayer_id, fu_info[obu_idx].tlayer_id,
-           pbi->obu_list[pu_rel_idx].xlayer_id,
-           pbi->obu_list[pu_rel_idx].mlayer_id,
-           pbi->obu_list[pu_rel_idx].tlayer_id);
-#endif
+
     // Drop leading frames when random-accessing.
     // pbi->random_accessed is set in main_loop() when parsing begins at a
     // random access point.
@@ -1098,6 +1120,7 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
     res = decode_one(ctx, &data_start, picture_unit_with_one_vcl, user_priv);
     picture_unit_with_one_vcl = 0;
     if (res != AVM_CODEC_OK) {
+      free(pbi->obu_list);
       free(fu_info);
       return res;
     }
