@@ -2639,7 +2639,7 @@ avm_codec_err_t parse_to_order_hint_for_vcl_obu(
   assert(is_multi_tile_vcl_obu(obu_type) || obu_type == OBU_LEADING_TIP ||
          obu_type == OBU_REGULAR_TIP || obu_type == OBU_BRIDGE_FRAME);
   assert(obu_type != OBU_LEADING_SEF && obu_type != OBU_REGULAR_SEF);
-
+  (void) xlayer_id;
   struct avm_read_bit_buffer readbits;
   struct avm_read_bit_buffer *rb = &readbits;
   rb->bit_offset = 0;
