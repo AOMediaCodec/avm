@@ -8232,7 +8232,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
 
     } else if (pbi->need_resync != 1) { /* Skip if need resync */
       int use_olk_ref_only = pbi->olk_encountered &&
-                             is_regular_non_olk_obu(obu_type) &&
+                             av2_is_regular_non_olk_obu(obu_type) &&
                              pbi->this_is_first_vcl_obu_in_tu == 0;
       // Implicitly derive the reference mapping
       init_ref_map_pair_dec(cm, cm->ref_frame_map_pairs,
@@ -8471,7 +8471,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
         // Check that co-VCL frames in an OLK TU only reference frames written
         // in the current TU.
         if (pbi->olk_encountered && !pbi->this_is_first_vcl_obu_in_tu &&
-            is_regular_non_olk_obu(obu_type)) {
+            av2_is_regular_non_olk_obu(obu_type)) {
           const RefCntBuffer *const ref_buf = cm->ref_frame_map[ref];
           const int ref_mlayer_id = ref_buf->mlayer_id;
           const int ref_tlayer_id = ref_buf->tlayer_id;
