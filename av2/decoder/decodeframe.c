@@ -6042,6 +6042,14 @@ void read_sequence_tile_info(struct SequenceHeader *seq_params,
   read_tile_syntax_info(&seq_params->tile_params, rb);
 }
 
+void read_sequence_tile_config(struct SequenceHeader *seq_params,
+                               struct avm_read_bit_buffer *rb) {
+  seq_params->seq_tile_info_present_flag = avm_rb_read_bit(rb);
+  if (seq_params->seq_tile_info_present_flag) {
+    read_sequence_tile_info(seq_params, rb);
+  }
+}
+
 static void read_seg_syntax_info(struct SegmentationInfoSyntax *seg_params,
                                  struct avm_read_bit_buffer *rb) {
   seg_params->allow_seg_info_change = avm_rb_read_bit(rb);
@@ -6424,10 +6432,7 @@ void av2_read_sequence_header(struct avm_read_bit_buffer *rb,
   read_sequence_scc_group_tool_flags(seq_params, rb);
   read_sequence_transform_quant_entropy_group_tool_flags(seq_params, rb);
   read_sequence_filter_group_tool_flags(seq_params, rb);
-  seq_params->seq_tile_info_present_flag = avm_rb_read_bit(rb);
-  if (seq_params->seq_tile_info_present_flag) {
-    read_sequence_tile_info(seq_params, rb);
-  }
+  read_sequence_tile_config(seq_params, rb);
 }
 
 static AVM_INLINE void read_multi_frame_header_seg_info(

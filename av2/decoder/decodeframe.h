@@ -59,6 +59,10 @@ void copy_fgm_from_list(AV2_COMMON *cm, avm_film_grain_t *pars,
 void av2_read_sequence_header(struct avm_read_bit_buffer *rb,
                               SequenceHeader *seq_params);
 
+// Reads the tile configuration in the sequence header
+void read_sequence_tile_config(struct SequenceHeader *seq_params,
+                               struct avm_read_bit_buffer *rb);
+
 // Reads the tile information in the sequence header
 void read_sequence_tile_info(struct SequenceHeader *seq_params,
                              struct avm_read_bit_buffer *rb);
