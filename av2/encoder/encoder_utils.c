@@ -877,6 +877,10 @@ void direct_existing_frames_to_current(AV2_COMP *const cpi) {
   // copy from current_frame
   cm->cur_frame->order_hint = cm->current_frame.order_hint;
   cm->cur_frame->display_order_hint = cm->current_frame.display_order_hint;
+#if CONFIG_G052
+  cm->cur_frame->original_display_order_hint =
+      cm->current_frame.original_display_order_hint;
+#endif
   cm->cur_frame->absolute_poc = cm->current_frame.absolute_poc;
   cm->cur_frame->pyramid_level = cm->current_frame.pyramid_level;
   cm->cur_frame->tlayer_id = cm->current_frame.tlayer_id;

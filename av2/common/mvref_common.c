@@ -2928,6 +2928,10 @@ void av2_find_mv_refs(
 void av2_setup_frame_buf_refs(AV2_COMMON *cm) {
   cm->cur_frame->order_hint = cm->current_frame.order_hint;
   cm->cur_frame->display_order_hint = cm->current_frame.display_order_hint;
+#if CONFIG_G052
+  cm->cur_frame->original_display_order_hint =
+      cm->current_frame.original_display_order_hint;
+#endif
   cm->cur_frame->display_order_hint_restricted =
       cm->current_frame.display_order_hint_restricted;
   cm->cur_frame->long_term_id = cm->current_frame.long_term_id;

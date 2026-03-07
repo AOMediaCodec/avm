@@ -292,6 +292,11 @@ typedef struct RefCntBuffer {
   // the limitation of get_relative_dist() which returns incorrect
   // distance when a very old frame is used as a reference.
   unsigned int display_order_hint;
+#if CONFIG_G052
+  // Original display_order_hint before G052 remapping for hidden frames.
+  // Used by the encoder to find the correct reference for SEF overlays.
+  unsigned int original_display_order_hint;
+#endif
   unsigned int display_order_hint_restricted;
   unsigned int absolute_poc;
   int long_term_id;
@@ -1390,6 +1395,9 @@ typedef struct {
   unsigned int order_hint;
   unsigned int display_order_hint;
   unsigned int display_order_hint_restricted;
+#if CONFIG_G052
+  unsigned int original_display_order_hint;
+#endif
   int long_term_id;
   // Frame's level within the hierarchical structure
   unsigned int pyramid_level;
@@ -2270,14 +2278,6 @@ typedef struct BridgeFrame_Info {
    * idenitfy bridge frame in encoder log
    */
   int print_bridge_frame_in_log;
-#if CONFIG_G052
-  /*!
-   * Per-mlayer order_hint for hidden frames in the current TU.
-   * Set when a bridge frame is created; subsequent hidden frames in the same
-   * TU reuse this value.  -1 means not valid.
-   */
-  int tu_order_hint[MAX_NUM_MLAYERS];
-#endif
 } BridgeFrameInfo;
 
 /*!

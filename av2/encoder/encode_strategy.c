@@ -1145,7 +1145,11 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
       if (buf == NULL) continue;
       const int frame_order = cpi->oxcf.kf_cfg.sframe_dist != 0
                                   ? (int)buf->display_order_hint_restricted
+#if CONFIG_G052
+                                  : (int)buf->original_display_order_hint;
+#else
                                   : (int)buf->display_order_hint;
+#endif
       if (frame_order == cur_frame_disp) {
         is_olk_overlay =
             (cm->olk_refresh_frame_flags[cm->mlayer_id] >> frame) & 1;
@@ -1315,7 +1319,11 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
       if (buf == NULL) continue;
       const int frame_order = cpi->oxcf.kf_cfg.sframe_dist != 0
                                   ? (int)buf->display_order_hint_restricted
+#if CONFIG_G052
+                                  : (int)buf->original_display_order_hint;
+#else
                                   : (int)buf->display_order_hint;
+#endif
       if (frame_order == cur_frame_disp)
         frame_params.fb_idx_for_overlay = frame;
     }

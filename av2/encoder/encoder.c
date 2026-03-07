@@ -1655,11 +1655,6 @@ AV2_COMP *av2_create_compressor(AV2EncoderConfig *oxcf, BufferPool *const pool,
 
   av2_zero(*cpi);
 
-#if CONFIG_G052
-  for (int i = 0; i < MAX_NUM_MLAYERS; i++)
-    cm->bridge_frame_info.tu_order_hint[i] = -1;
-#endif
-
   // The jmp_buf is valid only for the duration of the function that calls
   // setjmp(). Therefore, this function must reset the 'setjmp' field to 0
   // before it returns.
@@ -5010,22 +5005,20 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
   current_frame->display_order_hint = current_frame->order_hint;
 
 #if CONFIG_G052
-  // G052: hidden (non-output) frames carry the same order_hint as the first
-  // hidden frame in their temporal unit.  A shown frame clears the saved value.
-  if (cm->immediate_output_picture || cm->implicit_output_picture ||
-      cm->show_existing_frame) {
-    // Shown frame: clear the saved TU order_hint.
-    cm->bridge_frame_info.tu_order_hint[cm->mlayer_id] = -1;
-  } else if (cm->bridge_frame_info.tu_order_hint[cm->mlayer_id] >= 0) {
-    // Hidden frame with a valid saved TU order_hint: reuse it.
-    current_frame->order_hint =
-        cm->bridge_frame_info.tu_order_hint[cm->mlayer_id];
+  // Save the original display_order_hint before G052 remapping.
+  // The overlay reference search needs the true POC-based value.
+  current_frame->original_display_order_hint =
+      current_frame->display_order_hint;
+
+  // G052: hidden (non-output) frames carry the same order_hint as the
+  // shown frame in their temporal unit.  The shown frame has arf_src_offset=0,
+  // so its order_hint equals frame_number.  Since frame_number only increments
+  // after a shown frame is encoded, all hidden frames in the TU already share
+  // the same frame_number.
+  if (!cm->immediate_output_picture && !cm->implicit_output_picture &&
+      !cm->show_existing_frame) {
+    current_frame->order_hint = current_frame->frame_number;
     current_frame->display_order_hint = current_frame->order_hint;
-  } else {
-    // First hidden frame in this TU: save its order_hint for subsequent
-    // hidden frames.
-    cm->bridge_frame_info.tu_order_hint[cm->mlayer_id] =
-        (int)current_frame->order_hint;
   }
 #endif
 
@@ -5204,8 +5197,6 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
         cm->current_frame.display_order_hint = saved_display_order_hint;
         cm->current_frame.absolute_poc = saved_absolute_poc;
         cm->current_frame.frame_number = saved_frame_number;
-        cm->bridge_frame_info.tu_order_hint[cm->mlayer_id] =
-            (int)saved_order_hint;
 #endif
         if (cm->bridge_frame_info.bridge_frame_ref_idx == INVALID_IDX) {
           avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,

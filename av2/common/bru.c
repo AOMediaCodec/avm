@@ -347,6 +347,10 @@ RefCntBuffer *bru_swap_common(AV2_COMMON *cm) {
     RefCntBuffer *tmp_buf = cm->cur_frame;
     ref_buf->order_hint = cm->cur_frame->order_hint;
     ref_buf->display_order_hint = cm->cur_frame->display_order_hint;
+#if CONFIG_G052
+    ref_buf->original_display_order_hint =
+        cm->cur_frame->original_display_order_hint;
+#endif
     ref_buf->display_order_hint_restricted =
         cm->cur_frame->display_order_hint_restricted;
     ref_buf->long_term_id = cm->cur_frame->long_term_id;
