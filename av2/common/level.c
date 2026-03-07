@@ -490,6 +490,15 @@ static const char *level_fail_messages[TARGET_LEVEL_FAIL_IDS] = {
 static const double bitrate_profile_factor_table[] = { 1.0, 2.0, 3.0 };
 static const double picture_size_profile_factor_table[] = { 15.0, 30.0, 36.0 };
 
+static const char level_string[SEQ_LEVEL_MAX + 1][9] = {
+  "2.0",      "2.1",      "3.0",      "3.1",      "4.0",      "4.1",
+  "5.0",      "5.1",      "5.2",      "5.3",      "6.0",      "6.1",
+  "6.2",      "6.3",      "7.0",      "7.1",      "7.2",      "7.3",
+  "8.0",      "8.1",      "8.2",      "8.3",      "reserved", "reserved",
+  "reserved", "reserved", "reserved", "reserved", "reserved", "reserved",
+  "reserved", "31"
+};
+
 static double get_max_bitrate(const AV2LevelSpec *const level_spec, int tier,
                               BITSTREAM_PROFILE profile
 #if CONFIG_AV2_PROFILES
@@ -1759,11 +1768,9 @@ void av2_update_level_info(AV2_COMP *cpi, size_t size, int64_t ts_start,
 #endif  // CONFIG_AV2_PROFILES
       );
       if (fail_id != TARGET_LEVEL_OK) {
-        const int target_level_major = 2 + (target_level >> 2);
-        const int target_level_minor = target_level & 3;
         avm_internal_error(&cm->error, AVM_CODEC_ERROR,
-                           "Failed to encode to the target level %d_%d. %s",
-                           target_level_major, target_level_minor,
+                           "Failed to encode to the target level %s. %s",
+                           level_string[target_level],
                            level_fail_messages[fail_id]);
       }
     }
