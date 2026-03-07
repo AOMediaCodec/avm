@@ -135,6 +135,7 @@ void av2_calculate_tile_cols(CommonTileParams *const tiles) {
       if (extra_sbs > 0) extra_sbs--;
     }
     tiles->cols = i;
+    tiles->log2_cols = tile_log2(1, tiles->cols);
     tiles->col_start_sb[i] = sb_cols;
     tiles->min_log2_rows = AVMMAX(tiles->min_log2 - tiles->log2_cols, 0);
     tiles->max_height_sb = sb_rows >> tiles->min_log2_rows;
@@ -195,6 +196,7 @@ void av2_calculate_tile_rows(CommonTileParams *const tiles) {
       if (extra_sbs > 0) extra_sbs--;
     }
     tiles->rows = i;
+    tiles->log2_rows = tile_log2(1, tiles->rows);
     tiles->row_start_sb[i] = sb_rows;
 
     tiles->height = size_sb << mib_size_log2;
