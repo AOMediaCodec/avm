@@ -53,9 +53,9 @@ typedef struct {
 avm_codec_err_t parse_to_order_hint_for_vcl_obu(
     struct AV2Decoder *pbi, const uint8_t *data, size_t payload_size,
     OBU_TYPE obu_type, int xlayer_id, int tlayer_id, int mlayer_id,
-    struct SequenceHeader *current_seq_params,
-    struct MultiFrameHeader *current_mfh, int *current_is_shown,
-    int *current_order_hint, FrameUnitInfo *replica_reference_list);
+    struct SequenceHeader *sh_list, struct MultiFrameHeader *mfh_list,
+    int *current_is_shown, int *current_order_hint,
+    FrameUnitInfo *replica_reference_list);
 
 // Parse an SEF (LEADING or REGULAR) OBU payload to extract current_is_shown
 // and current_order_hint. SEF payloads have no is_first_tile_group bit and
@@ -63,9 +63,9 @@ avm_codec_err_t parse_to_order_hint_for_vcl_obu(
 avm_codec_err_t parse_to_order_hint_for_sef(
     struct AV2Decoder *pbi, const uint8_t *data, size_t payload_size,
     OBU_TYPE obu_type, int xlayer_id, int tlayer_id, int mlayer_id,
-    struct SequenceHeader *current_seq_params,
-    struct MultiFrameHeader *current_mfh, int *current_is_shown,
-    int *current_order_hint, FrameUnitInfo *replica_reference_list);
+    struct SequenceHeader *sh_list, struct MultiFrameHeader *current_mfh,
+    int *current_is_shown, int *current_order_hint,
+    FrameUnitInfo *replica_reference_list);
 
 // Try to decode one frame from a buffer.
 // Returns 1 if we decoded a frame,

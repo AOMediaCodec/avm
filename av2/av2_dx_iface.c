@@ -587,13 +587,11 @@ static void set_last_frame_unit(struct AV2Decoder *pbi) {
   }
 }
 
-
-// This function bridges set_this_is_first_keyframe_unit_in_tu() to
-// parse_to_order_hint_for_keyobu() in obu.c. "data" may contain many
-// different obus(MSDO,LCR,CI,QM,FGM etc). It sends payload, "data", to
-// parse_to_order_hint_for_vcl_obu(). On success, It returns 1.
+// This function parses a VCL OBU to get a display order hint.
 static int quick_parsing_to_order_hint(struct AV2Decoder *pbi,
                                        const uint8_t *data, size_t data_sz,
+                                       struct SequenceHeader *sh_list,
+                                       struct MultiFrameHeader *mfh_list,
                                        int *current_is_shown,
                                        int *current_order_hint,
                                        FrameUnitInfo *replica_reference_list) {
@@ -601,10 +599,6 @@ static int quick_parsing_to_order_hint(struct AV2Decoder *pbi,
   const uint8_t *data_read = data;
   ObuHeader obu_header;
 
-  struct SequenceHeader seq_params;
-  seq_params.seq_header_id = -1;
-  struct MultiFrameHeader mfh_list[MAX_MFH_NUM];
-  for (int i = 0; i < MAX_MFH_NUM; i++) mfh_list[i].mfh_id = -1;
   while (data_read < data + data_sz) {
     size_t payload_size = 0;
     size_t bytes_read = 0;
@@ -612,17 +606,13 @@ static int quick_parsing_to_order_hint(struct AV2Decoder *pbi,
                                        &payload_size, &bytes_read);
     if (res != AVM_CODEC_OK) return 0;
 
-    if (obu_header.type == OBU_SEQUENCE_HEADER) {
-      res = parse_sh(pbi, data_read + bytes_read, payload_size, &seq_params);
-    } else if (obu_header.type == OBU_MULTI_FRAME_HEADER) {
-      res = parse_mfh(pbi, data_read + bytes_read, payload_size, &mfh_list[0]);
-    } else if (obu_header.type == OBU_LEADING_SEF ||
-               obu_header.type == OBU_REGULAR_SEF) {
+    if (obu_header.type == OBU_LEADING_SEF ||
+        obu_header.type == OBU_REGULAR_SEF) {
       // SEF uses show-existing-frame syntax; handled by a dedicated parser.
       res = parse_to_order_hint_for_sef(
           pbi, data_read + bytes_read, payload_size, obu_header.type,
           obu_header.obu_xlayer_id, obu_header.obu_tlayer_id,
-          obu_header.obu_mlayer_id, &seq_params, &mfh_list[0], current_is_shown,
+          obu_header.obu_mlayer_id, sh_list, mfh_list, current_is_shown,
           current_order_hint, replica_reference_list);
     } else if (is_multi_tile_vcl_obu(obu_header.type) ||
                obu_header.type == OBU_LEADING_TIP ||
@@ -632,7 +622,7 @@ static int quick_parsing_to_order_hint(struct AV2Decoder *pbi,
       res = parse_to_order_hint_for_vcl_obu(
           pbi, data_read + bytes_read, payload_size, obu_header.type,
           obu_header.obu_xlayer_id, obu_header.obu_tlayer_id,
-          obu_header.obu_mlayer_id, &seq_params, &mfh_list[0], current_is_shown,
+          obu_header.obu_mlayer_id, sh_list, mfh_list, current_is_shown,
           current_order_hint, replica_reference_list);
     }
     if (res != AVM_CODEC_OK) return 0;
@@ -686,9 +676,16 @@ static int check_frame_unit_data(struct AV2Decoder *pbi,
   const uint8_t *data_read = data;
   ObuHeader obu_header;
   FrameUnitInfo replica_reference_list[REF_FRAMES];
+  struct SequenceHeader replica_sh_list[MAX_SEQ_NUM];
+  struct MultiFrameHeader replica_mfh_list[MAX_MFH_NUM];
+  int prescan_context_initialized = 0;
   int replica_reference_list_initialized = 0;
+  int last_first_tg_is_shown = -1;
+  int last_first_tg_order_hint = -1;
   for (int i = 0; i < REF_FRAMES; i++)
     replica_reference_list[i].display_order_hint = -1;
+  for (int i = 0; i < MAX_SEQ_NUM; i++) replica_sh_list[i].seq_header_id = -1;
+  for (int i = 0; i < MAX_MFH_NUM; i++) replica_mfh_list[i].mfh_id = -1;
 
   while (data_read < data + data_sz) {
     size_t payload_size = 0;
@@ -727,9 +724,62 @@ static int check_frame_unit_data(struct AV2Decoder *pbi,
     bool reset_last =
         get_reset_last(pbi, obu_header.obu_tlayer_id, obu_header.obu_mlayer_id,
                        obu_header.obu_xlayer_id);
+
+    if (!prescan_context_initialized) {
+      const int stream_idx =
+          av2_get_stream_index(&pbi->common, obu_header.obu_xlayer_id);
+      if (stream_idx >= 0) {
+        // Copy all valid SH entries from pbi->seq_list for this stream's xlayer
+        const int xlayer = pbi->common.stream_ids[stream_idx];
+        for (int i = 0; i < MAX_SEQ_NUM; i++) {
+          if (pbi->seq_list[xlayer][i].seq_header_id >= 0)
+            replica_sh_list[i] = pbi->seq_list[xlayer][i];
+        }
+        for (int i = 0; i < MAX_MFH_NUM; i++) {
+          if (pbi->stream_info[stream_idx].mfh_valid_buf[i])
+            replica_mfh_list[i] =
+                pbi->stream_info[stream_idx].mfh_params_buf[i];
+        }
+      } else {
+        // Non-multi-stream: copy all valid SH entries for current xlayer
+        const int xlayer = pbi->common.xlayer_id;
+        for (int i = 0; i < MAX_SEQ_NUM; i++) {
+          if (pbi->seq_list[xlayer][i].seq_header_id >= 0)
+            replica_sh_list[i] = pbi->seq_list[xlayer][i];
+        }
+        for (int i = 0; i < MAX_MFH_NUM; i++) {
+          if (pbi->common.mfh_valid[i])
+            replica_mfh_list[i] = pbi->common.mfh_params[i];
+        }
+      }
+      prescan_context_initialized = 1;
+    }
+    // Update replica SH/MFH when new ones are signalled in this buffer.
+    if (obu_header.type == OBU_SEQUENCE_HEADER) {
+      // parse_sh() writes into the single struct it receives, so parse into a
+      // temporary and then place at the correct array index (keyed by the
+      // seq_header_id read from the bitstream).  This mirrors parse_mfh()
+      // which self-indexes into the array.
+      struct SequenceHeader tmp_sh;
+      memset(&tmp_sh, 0, sizeof(tmp_sh));
+      tmp_sh.seq_header_id = -1;
+      parse_sh(pbi, data_read + bytes_read, payload_size, &tmp_sh);
+      if (tmp_sh.seq_header_id >= 0 && tmp_sh.seq_header_id < MAX_SEQ_NUM)
+        replica_sh_list[tmp_sh.seq_header_id] = tmp_sh;
+    } else if (obu_header.type == OBU_MULTI_FRAME_HEADER) {
+      struct MultiFrameHeader tmp_mfh;
+      memset(&tmp_mfh, 0, sizeof(tmp_mfh));
+      parse_mfh(pbi, data_read + bytes_read, payload_size, &tmp_mfh);
+      if (tmp_mfh.mfh_id >= 0 && tmp_mfh.mfh_id < MAX_MFH_NUM)
+        replica_mfh_list[tmp_mfh.mfh_id] = tmp_mfh;
+    }
     if (reset_last) {
       current_order_hint = -2;
-    } else if (is_vcl) {
+    } else if (is_vcl && is_first_tilegroup != 1) {
+      // Non-first tile group: copy from the first tile group of this picture.
+      current_is_shown = last_first_tg_is_shown;
+      current_order_hint = last_first_tg_order_hint;
+    } else if (is_vcl && is_first_tilegroup == 1) {
       // Initialize replica reference list once from the correct per-stream DPB
       if (!replica_reference_list_initialized) {
         const int stream_idx =
@@ -758,12 +808,15 @@ static int check_frame_unit_data(struct AV2Decoder *pbi,
         replica_reference_list_initialized = 1;
       }
       if (quick_parsing_to_order_hint(pbi, data_read, frame_unit_size,
+                                      replica_sh_list, replica_mfh_list,
                                       &current_is_shown, &current_order_hint,
                                       replica_reference_list) == 0) {
-        fprintf(stderr, "first keyobu decision error\n");
+        fprintf(stderr, "parsing order hint error\n");
         free(fu_info);
         return -1;
       }
+      last_first_tg_is_shown = current_is_shown;
+      last_first_tg_order_hint = current_order_hint;
     }
 #if 0
     printf("<<%s>> %s shown_frame:%d order_hint:%d (%d,%d,%d)\n", __func__,
@@ -840,20 +893,23 @@ static void set_first_pu_in_tu_flags(struct AV2Decoder *pbi, int curret_fu_idx,
     return;
   }
 
-  if (fu_info[curret_fu_idx].is_shown) {
+  if (fu_info[curret_fu_idx].is_shown == 1) {
     pbi->this_is_first_vcl_obu_in_tu =
         pbi->last_displayable_frame_unit.display_order_hint !=
         fu_info[curret_fu_idx].display_order_hint;
-  } else {
+  } else if (fu_info[curret_fu_idx].is_shown == 0) {
     int shown_display_order_hint = -1;
     for (int i = curret_fu_idx + 1; i < total_fu_count; i++) {
-      if (fu_info[i].is_shown) {
+      if (fu_info[i].is_shown == 1) {
         shown_display_order_hint = fu_info[i].display_order_hint;
         break;
       }
     }
     pbi->this_is_first_vcl_obu_in_tu =
         shown_display_order_hint != fu_info[curret_fu_idx].display_order_hint;
+  } else {
+    // This function is called only when is_shown==0 or is_shown==1
+    assert(0);
   }
 }
 // If the decoder starts decoding from the middle of the bitstream,

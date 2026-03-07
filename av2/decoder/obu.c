@@ -2572,7 +2572,7 @@ static int get_disp_order_hint_replica(
   int max_disp_order_hint = 0;
   for (int map_idx = 0; map_idx < seq_params->ref_frames; map_idx++) {
     const FrameUnitInfo *const entry = &replica_reference_list[map_idx];
-    if (entry->display_order_hint < 0 || !entry->is_shown ||
+    if (entry->display_order_hint < 0 || entry->is_shown == 0 ||
         entry->is_restricted ||
         !is_tlayer_scalable_and_dependent(seq_params, tlayer_id,
                                           entry->tlayer_id, mlayer_id) ||
@@ -2633,9 +2633,9 @@ static void update_replica_reference_list(FrameUnitInfo *replica_reference_list,
 avm_codec_err_t parse_to_order_hint_for_vcl_obu(
     struct AV2Decoder *pbi, const uint8_t *data, size_t payload_size,
     OBU_TYPE obu_type, int xlayer_id, int tlayer_id, int mlayer_id,
-    struct SequenceHeader *current_seq_params,
-    struct MultiFrameHeader *current_mfh, int *current_is_shown,
-    int *current_order_hint, FrameUnitInfo *replica_reference_list) {
+    struct SequenceHeader *sh_list, struct MultiFrameHeader *mfh_list,
+    int *current_is_shown, int *current_order_hint,
+    FrameUnitInfo *replica_reference_list) {
   assert(is_multi_tile_vcl_obu(obu_type) || obu_type == OBU_LEADING_TIP ||
          obu_type == OBU_REGULAR_TIP || obu_type == OBU_BRIDGE_FRAME);
   assert(obu_type != OBU_LEADING_SEF && obu_type != OBU_REGULAR_SEF);
@@ -2665,27 +2665,18 @@ avm_codec_err_t parse_to_order_hint_for_vcl_obu(
   if (cur_mfh_id == 0) {
     seq_header_id_in_frame_header = avm_rb_read_uvlc(rb);
   } else {
-    // check the newly signalled MFH first since new MFH may overwrite the
-    // previous ones in common.mfh_params
-    if (current_mfh[cur_mfh_id].mfh_id != -1) {
-      assert(current_mfh[cur_mfh_id].mfh_id == cur_mfh_id);
-      seq_header_id_in_frame_header = current_mfh[cur_mfh_id].mfh_seq_header_id;
-    } else if (pbi->common.mfh_valid[cur_mfh_id]) {
-      seq_header_id_in_frame_header =
-          pbi->common.mfh_params[cur_mfh_id].mfh_seq_header_id;
+    if (mfh_list[cur_mfh_id].mfh_id != -1) {
+      assert(mfh_list[cur_mfh_id].mfh_id == cur_mfh_id);
+      seq_header_id_in_frame_header = mfh_list[cur_mfh_id].mfh_seq_header_id;
     } else {
       return AVM_CODEC_CORRUPT_FRAME;
     }
   }
 
-  // Select sequence header
+  // Select sequence header from the replica list.
   struct SequenceHeader *seq_params;
-  if ((uint32_t)current_seq_params->seq_header_id ==
-      seq_header_id_in_frame_header) {
-    seq_params = current_seq_params;
-  } else if (pbi->seq_list[xlayer_id][seq_header_id_in_frame_header]
-                 .seq_header_id >= 0) {
-    seq_params = &pbi->seq_list[xlayer_id][seq_header_id_in_frame_header];
+  if (sh_list[seq_header_id_in_frame_header].seq_header_id >= 0) {
+    seq_params = &sh_list[seq_header_id_in_frame_header];
   } else {
     return AVM_CODEC_CORRUPT_FRAME;
   }
@@ -2721,6 +2712,20 @@ avm_codec_err_t parse_to_order_hint_for_vcl_obu(
   int restricted_prediction_switch = 0;
   if (obu_type == OBU_SWITCH || obu_type == OBU_RAS_FRAME) {
     restricted_prediction_switch = avm_rb_read_bit(rb);
+  }
+  // Mirror decodeframe.c read_uncompressed_header(): when
+  // restricted_prediction_switch is set, mark scalable-dependent references
+  // as restricted so that get_disp_order_hint_replica() skips them.
+  if (restricted_prediction_switch) {
+    for (int i = 0; i < seq_params->ref_frames; i++) {
+      if (replica_reference_list[i].display_order_hint < 0) continue;
+      if (is_tlayer_scalable_and_dependent(seq_params, tlayer_id,
+                                           replica_reference_list[i].tlayer_id,
+                                           mlayer_id) &&
+          is_mlayer_scalable_and_dependent(seq_params, mlayer_id,
+                                           replica_reference_list[i].mlayer_id))
+        replica_reference_list[i].is_restricted = 1;
+    }
   }
 
   // --- long_term_id / ref_long_term_ids ---
@@ -2852,9 +2857,9 @@ avm_codec_err_t parse_to_order_hint_for_vcl_obu(
 avm_codec_err_t parse_to_order_hint_for_sef(
     struct AV2Decoder *pbi, const uint8_t *data, size_t payload_size,
     OBU_TYPE obu_type, int xlayer_id, int tlayer_id, int mlayer_id,
-    struct SequenceHeader *current_seq_params,
-    struct MultiFrameHeader *current_mfh, int *current_is_shown,
-    int *current_order_hint, FrameUnitInfo *replica_reference_list) {
+    struct SequenceHeader *sh_list, struct MultiFrameHeader *mfh_list,
+    int *current_is_shown, int *current_order_hint,
+    FrameUnitInfo *replica_reference_list) {
   assert(obu_type == OBU_LEADING_SEF || obu_type == OBU_REGULAR_SEF);
 
   struct avm_read_bit_buffer readbits;
@@ -2870,25 +2875,18 @@ avm_codec_err_t parse_to_order_hint_for_sef(
   if (cur_mfh_id == 0) {
     seq_header_id_in_frame_header = avm_rb_read_uvlc(rb);
   } else {
-    if (current_mfh[cur_mfh_id].mfh_id != -1) {
-      assert(current_mfh[cur_mfh_id].mfh_id == cur_mfh_id);
-      seq_header_id_in_frame_header = current_mfh[cur_mfh_id].mfh_seq_header_id;
-    } else if (pbi->common.mfh_valid[cur_mfh_id]) {
-      seq_header_id_in_frame_header =
-          pbi->common.mfh_params[cur_mfh_id].mfh_seq_header_id;
+    if (mfh_list[cur_mfh_id].mfh_id != -1) {
+      assert(mfh_list[cur_mfh_id].mfh_id == cur_mfh_id);
+      seq_header_id_in_frame_header = mfh_list[cur_mfh_id].mfh_seq_header_id;
     } else {
       return AVM_CODEC_CORRUPT_FRAME;
     }
   }
 
-  // Select sequence header
+  // Select sequence header from the replica list.
   struct SequenceHeader *seq_params;
-  if ((uint32_t)current_seq_params->seq_header_id ==
-      seq_header_id_in_frame_header) {
-    seq_params = current_seq_params;
-  } else if (pbi->seq_list[xlayer_id][seq_header_id_in_frame_header]
-                 .seq_header_id >= 0) {
-    seq_params = &pbi->seq_list[xlayer_id][seq_header_id_in_frame_header];
+  if (sh_list[seq_header_id_in_frame_header].seq_header_id >= 0) {
+    seq_params = &sh_list[seq_header_id_in_frame_header];
   } else {
     return AVM_CODEC_CORRUPT_FRAME;
   }
