@@ -7802,9 +7802,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
                            "header values.\n");
       }
     }
-  }
-  // Check conformance for MFH according to dependency maps
-  if (pbi->seen_multi_frame_header) {
+    // Check conformance for MFH according to dependency maps
     const int ref_mfh_mlayer_id = cm->mfh_params[cm->cur_mfh_id].mfh_mlayer_id;
     const int ref_mfh_tlayer_id = cm->mfh_params[cm->cur_mfh_id].mfh_tlayer_id;
     if (!seq_params->mlayer_dependency_map[cm->mlayer_id][ref_mfh_mlayer_id] ||
