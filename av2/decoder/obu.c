@@ -2374,34 +2374,71 @@ avm_codec_err_t parse_sh(struct AV2Decoder *pbi, const uint8_t *data,
   rb->bit_buffer_end = data + payload_size;
 
   seq_params->seq_header_id = avm_rb_read_uvlc(rb);
+  //---
   seq_params->seq_profile_idc = av2_read_profile(rb);
-  seq_params->single_picture_header_flag = avm_rb_read_bit(rb);
-  if (!seq_params->single_picture_header_flag) {
-    int seq_lcr_id = avm_rb_read_literal(rb, 3);
-    seq_params->seq_lcr_id = seq_lcr_id;
-    seq_params->still_picture = avm_rb_read_bit(rb);
+  if (seq_params->seq_profile_idc >= MAX_PROFILES) {
+    return AVM_CODEC_UNSUP_BITSTREAM;
   }
-  read_bitstream_level(&seq_params->seq_max_level_idx, rb);
 
+  seq_params->single_picture_header_flag = avm_rb_read_bit(rb);
+  if (!read_bitstream_level(&seq_params->seq_max_level_idx, rb)) {
+    return AVM_CODEC_UNSUP_BITSTREAM;
+  }
   if (seq_params->seq_max_level_idx >= SEQ_LEVEL_4_0 &&
       !seq_params->single_picture_header_flag)
     seq_params->seq_tier = avm_rb_read_bit(rb);
   else
     seq_params->seq_tier = 0;
+  av2_read_chroma_format_bitdepth(rb, seq_params, &error_info);
+  if (seq_params->single_picture_header_flag) {
+    seq_params->seq_lcr_id = LCR_ID_UNSPECIFIED;
+    seq_params->still_picture = 1;
+    seq_params->max_tlayer_id = 0;
+    seq_params->max_mlayer_id = 0;
+    seq_params->seq_max_mlayer_cnt = 1;
+  } else {
+    int seq_lcr_id = avm_rb_read_literal(rb, 3);
+    if (seq_lcr_id > MAX_NUM_SEQ_LCR_ID) {
+      fprintf(stderr, "Unsupported LCR id in the Sequence Header.\n");
+      return AVM_CODEC_UNSUP_BITSTREAM;
+    }
+    seq_params->seq_lcr_id = seq_lcr_id;
+    seq_params->still_picture = avm_rb_read_bit(rb);
+    seq_params->max_tlayer_id = avm_rb_read_literal(rb, TLAYER_BITS);
+    seq_params->max_mlayer_id = avm_rb_read_literal(rb, MLAYER_BITS);
+    if (seq_params->max_mlayer_id > 0) {
+      int n = avm_ceil_log2(seq_params->max_mlayer_id + 1);
+      int seq_max_mlayer_cnt_minus_1 = avm_rb_read_literal(rb, n);
+      if (seq_max_mlayer_cnt_minus_1 > seq_params->max_mlayer_id) {
+        fprintf(
+            stderr,
+            "seq_max_mlayer_cnt_minus_1 %d is greater than max_mlayer_id %d",
+            seq_max_mlayer_cnt_minus_1, seq_params->max_mlayer_id);
+        return AVM_CODEC_UNSUP_BITSTREAM;
+      }
+      seq_params->seq_max_mlayer_cnt = seq_max_mlayer_cnt_minus_1 + 1;
+    } else {
+      seq_params->seq_max_mlayer_cnt = 1;
+    }
+  }
 
-  seq_params->num_bits_width = avm_rb_read_literal(rb, 4) + 1;
-  seq_params->num_bits_height = avm_rb_read_literal(rb, 4) + 1;
-  seq_params->max_frame_width =
-      avm_rb_read_literal(rb, seq_params->num_bits_width) + 1;
-  seq_params->max_frame_height =
-      avm_rb_read_literal(rb, seq_params->num_bits_height) + 1;
+  const int num_bits_width = avm_rb_read_literal(rb, 4) + 1;
+  const int num_bits_height = avm_rb_read_literal(rb, 4) + 1;
+  const int max_frame_width = avm_rb_read_literal(rb, num_bits_width) + 1;
+  const int max_frame_height = avm_rb_read_literal(rb, num_bits_height) + 1;
+
+  seq_params->num_bits_width = num_bits_width;
+  seq_params->num_bits_height = num_bits_height;
+  seq_params->max_frame_width = max_frame_width;
+  seq_params->max_frame_height = max_frame_height;
 
   av2_read_conformance_window(rb, seq_params);
-  // av2_validate_seq_conformance_window(seq_params, &cm->error);
+  av2_validate_seq_conformance_window(seq_params, &error_info);
 
-  av2_read_chroma_format_bitdepth(rb, seq_params, &error_info);
-
-  if (!seq_params->single_picture_header_flag) {
+  if (seq_params->single_picture_header_flag) {
+    seq_params->decoder_model_info_present_flag = 0;
+    seq_params->display_model_info_present_flag = 0;
+  } else {
     seq_params->seq_max_display_model_info_present_flag = avm_rb_read_bit(rb);
     seq_params->seq_max_initial_display_delay_minus_1 =
         BUFFER_POOL_MAX_SIZE - 1;
@@ -2428,32 +2465,29 @@ avm_codec_err_t parse_sh(struct AV2Decoder *pbi, const uint8_t *data,
       seq_params->seq_max_encoder_buffer_delay = 20000;
       seq_params->seq_max_low_delay_mode_flag = 0;
     }
-    // int64_t seq_bitrate =
-    av2_max_level_bitrate(seq_params->seq_profile_idc,
-                          seq_params->seq_max_level_idx, seq_params->seq_tier
+    int64_t seq_bitrate = av2_max_level_bitrate(
+        seq_params->seq_profile_idc, seq_params->seq_max_level_idx,
+        seq_params->seq_tier
 #if CONFIG_AV2_PROFILES
-                          ,
-                          seq_params->subsampling_x, seq_params->subsampling_y,
-                          seq_params->monochrome
+        ,
+        seq_params->subsampling_x, seq_params->subsampling_y,
+        seq_params->monochrome
 #endif  // CONFIG_AV2_PROFILES
     );
-  }
-
-  if (seq_params->single_picture_header_flag) {
-    seq_params->max_tlayer_id = 0;
-    seq_params->max_mlayer_id = 0;
-#if CONFIG_AV2_PROFILES
-    seq_params->seq_max_mlayer_cnt = 1;
-#endif  // CONFIG_AV2_PROFILES
-  } else {
-    seq_params->max_tlayer_id = avm_rb_read_literal(rb, TLAYER_BITS);
-    seq_params->max_mlayer_id = avm_rb_read_literal(rb, MLAYER_BITS);
-#if CONFIG_AV2_PROFILES
-    if (seq_params->max_mlayer_id > 0) {
-      int n = avm_ceil_log2(seq_params->max_mlayer_id + 1);
-      seq_params->seq_max_mlayer_cnt = avm_rb_read_literal(rb, n);
+    if (seq_bitrate == 0) {
+      fprintf(
+          stderr,
+          "AV2 does not support this combination of profile, level, and tier.");
+      return AVM_CODEC_UNSUP_BITSTREAM;
     }
-#endif  // CONFIG_AV2_PROFILES
+    // Buffer size in bits/s is bitrate in bits/s * 1 s
+    int64_t buffer_size = seq_bitrate;
+    if (buffer_size == 0) {
+      fprintf(
+          stderr,
+          "AV2 does not support this combination of profile, level, and tier.");
+      return AVM_CODEC_UNSUP_BITSTREAM;
+    }
   }
 
   // setup default embedded layer dependency
@@ -2486,6 +2520,8 @@ avm_codec_err_t parse_sh(struct AV2Decoder *pbi, const uint8_t *data,
 
 #if CONFIG_AV2_PROFILES
   if (!av2_check_profile_interop_conformance(seq_params, &error_info, 1)) {
+    fprintf(stderr,
+            "Unsupported Bitdepth, Chroma format or number of embedded layers");
     return AVM_CODEC_UNSUP_BITSTREAM;
   }
 #endif  // CONFIG_AV2_PROFILES
@@ -2639,7 +2675,7 @@ avm_codec_err_t parse_to_order_hint_for_vcl_obu(
   assert(is_multi_tile_vcl_obu(obu_type) || obu_type == OBU_LEADING_TIP ||
          obu_type == OBU_REGULAR_TIP || obu_type == OBU_BRIDGE_FRAME);
   assert(obu_type != OBU_LEADING_SEF && obu_type != OBU_REGULAR_SEF);
-  (void) xlayer_id;
+  (void)xlayer_id;
   struct avm_read_bit_buffer readbits;
   struct avm_read_bit_buffer *rb = &readbits;
   rb->bit_offset = 0;
@@ -2860,6 +2896,7 @@ avm_codec_err_t parse_to_order_hint_for_sef(
     struct SequenceHeader *sh_list, struct MultiFrameHeader *mfh_list,
     int *current_is_shown, int *current_order_hint,
     FrameUnitInfo *replica_reference_list) {
+  (void)xlayer_id;
   assert(obu_type == OBU_LEADING_SEF || obu_type == OBU_REGULAR_SEF);
 
   struct avm_read_bit_buffer readbits;
