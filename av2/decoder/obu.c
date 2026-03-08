@@ -538,13 +538,8 @@ static uint32_t read_sequence_header_obu(
     seq_params->seq_tier = avm_rb_read_bit(rb);
   else
     seq_params->seq_tier = 0;
-<<<<<<< HEAD
   av2_read_chroma_format_bitdepth(rb, seq_params, error_info);
   if (error_info->error_code) return 0;
-=======
-  av2_read_chroma_format_bitdepth(rb, seq_params, error_info->error_code);
-  if (error_info->error_code != AVM_CODEC_OK) return 0;
->>>>>>> 588944fa8c (update style)
   if (seq_params->single_picture_header_flag) {
     seq_params->seq_lcr_id = LCR_ID_UNSPECIFIED;
     seq_params->still_picture = 1;
