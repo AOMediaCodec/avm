@@ -4483,14 +4483,6 @@ void av2_write_timing_info_header(const avm_timing_info_t *const timing_info,
 }
 
 // Writes tile syntax
-static AVM_INLINE void write_sequence_tile_config(
-    const SequenceHeader *const seq_params, struct avm_write_bit_buffer *wb) {
-  avm_wb_write_bit(wb, seq_params->seq_tile_info_present_flag);
-  if (seq_params->seq_tile_info_present_flag) {
-    write_tile_syntax_info(&seq_params->tile_params, wb);
-  }
-}
-
 void write_tile_syntax_info(const TileInfoSyntax *tile_params,
                             struct avm_write_bit_buffer *wb) {
   avm_wb_write_bit(wb, tile_params->allow_tile_info_change);
@@ -4534,6 +4526,14 @@ void write_tile_syntax_info(const TileInfoSyntax *tile_params,
       tile_height_sb -= size_sb;
     }
     assert(tile_height_sb == 0);
+  }
+}
+
+static AVM_INLINE void write_sequence_tile_config(
+    const SequenceHeader *const seq_params, struct avm_write_bit_buffer *wb) {
+  avm_wb_write_bit(wb, seq_params->seq_tile_info_present_flag);
+  if (seq_params->seq_tile_info_present_flag) {
+    write_tile_syntax_info(&seq_params->tile_params, wb);
   }
 }
 
