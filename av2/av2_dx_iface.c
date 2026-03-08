@@ -896,7 +896,8 @@ static void set_first_pu_in_tu_flags(struct AV2Decoder *pbi, int curret_fu_idx,
       }
     }
     pbi->this_is_first_vcl_obu_in_tu =
-        shown_display_order_hint != fu_info[curret_fu_idx].display_order_hint;
+        pbi->last_displayable_frame_unit.display_order_hint !=
+        shown_display_order_hint;
   } else {
     // This function is called only when is_shown==0 or is_shown==1
     assert(0);
