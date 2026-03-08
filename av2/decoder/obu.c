@@ -496,9 +496,13 @@ static uint32_t read_multi_stream_decoder_operation_obu(
 
 // On success, returns the number of bytes read from 'rb'.
 // On failure, sets pbi->common.error.error_code and returns 0.
-static uint32_t read_sequence_header_obu(AV2Decoder *pbi, int xlayer_id,
-                                         struct avm_read_bit_buffer *rb) {
-  AV2_COMMON *const cm = &pbi->common;
+static uint32_t read_sequence_header_obu(AV2Decoder *pbi, int xlayer_id, struct avm_read_bit_buffer *rb,
+                                         struct SequenceHeader *input_seq_params) {
+  struct avm_internal_error_info local_error;
+  memset(&local_error, 0, sizeof(local_error));
+  struct avm_internal_error_info *error_info =
+      input_seq_params ? &local_error : &pbi->common.error;
+
   const uint32_t saved_bit_offset = rb->bit_offset;
 
   // Verify rb has been configured to report errors.
@@ -508,22 +512,24 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi, int xlayer_id,
   // decode. At the end, if no errors have occurred, cm->seq_params is updated.
   uint32_t seq_header_id = avm_rb_read_uvlc(rb);
   if (seq_header_id >= MAX_SEQ_NUM) {
-    cm->error.error_code = AVM_CODEC_UNSUP_BITSTREAM;
+    error_info->error_code = AVM_CODEC_UNSUP_BITSTREAM;
     return 0;
   }
 
-  struct SequenceHeader *seq_params = &pbi->seq_list[xlayer_id][seq_header_id];
+  struct SequenceHeader *seq_params =
+      input_seq_params ? input_seq_params
+                       : &pbi->seq_list[xlayer_id][seq_header_id];
   seq_params->seq_header_id = seq_header_id;
 
   seq_params->seq_profile_idc = av2_read_profile(rb);
   if (seq_params->seq_profile_idc >= MAX_PROFILES) {
-    cm->error.error_code = AVM_CODEC_UNSUP_BITSTREAM;
+    error_info->error_code = AVM_CODEC_UNSUP_BITSTREAM;
     return 0;
   }
 
   seq_params->single_picture_header_flag = avm_rb_read_bit(rb);
   if (!read_bitstream_level(&seq_params->seq_max_level_idx, rb)) {
-    cm->error.error_code = AVM_CODEC_UNSUP_BITSTREAM;
+    error_info->error_code = AVM_CODEC_UNSUP_BITSTREAM;
     return 0;
   }
   if (seq_params->seq_max_level_idx >= SEQ_LEVEL_4_0 &&
@@ -531,7 +537,8 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi, int xlayer_id,
     seq_params->seq_tier = avm_rb_read_bit(rb);
   else
     seq_params->seq_tier = 0;
-  av2_read_chroma_format_bitdepth(rb, seq_params, &cm->error);
+  av2_read_chroma_format_bitdepth(rb, seq_params, error_info);
+  if (error_info->error_code) return 0;
   if (seq_params->single_picture_header_flag) {
     seq_params->seq_lcr_id = LCR_ID_UNSPECIFIED;
     seq_params->still_picture = 1;
@@ -541,8 +548,9 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi, int xlayer_id,
   } else {
     int seq_lcr_id = avm_rb_read_literal(rb, 3);
     if (seq_lcr_id > MAX_NUM_SEQ_LCR_ID) {
-      avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+      avm_internal_error(error_info, AVM_CODEC_UNSUP_BITSTREAM,
                          "Unsupported LCR id in the Sequence Header.\n");
+      return 0;
     }
     seq_params->seq_lcr_id = seq_lcr_id;
     seq_params->still_picture = avm_rb_read_bit(rb);
@@ -553,9 +561,10 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi, int xlayer_id,
       int seq_max_mlayer_cnt_minus_1 = avm_rb_read_literal(rb, n);
       if (seq_max_mlayer_cnt_minus_1 > seq_params->max_mlayer_id) {
         avm_internal_error(
-            &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+            error_info, AVM_CODEC_UNSUP_BITSTREAM,
             "seq_max_mlayer_cnt_minus_1 %d is greater than max_mlayer_id %d",
             seq_max_mlayer_cnt_minus_1, seq_params->max_mlayer_id);
+        return 0;
       }
       seq_params->seq_max_mlayer_cnt = seq_max_mlayer_cnt_minus_1 + 1;
     } else {
@@ -574,8 +583,8 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi, int xlayer_id,
   seq_params->max_frame_height = max_frame_height;
 
   av2_read_conformance_window(rb, seq_params);
-  av2_validate_seq_conformance_window(seq_params, &cm->error);
-
+  av2_validate_seq_conformance_window(seq_params, error_info);
+  if (error_info->error_code) return 0;
   if (seq_params->single_picture_header_flag) {
     seq_params->decoder_model_info_present_flag = 0;
     seq_params->display_model_info_present_flag = 0;
@@ -615,16 +624,20 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi, int xlayer_id,
         seq_params->monochrome
 #endif  // CONFIG_AV2_PROFILES
     );
-    if (seq_bitrate == 0)
-      avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+    if (seq_bitrate == 0) {
+      avm_internal_error(error_info, AVM_CODEC_UNSUP_BITSTREAM,
                          "AV2 does not support this combination of "
                          "profile, level, and tier.");
+      return 0;
+    }
     // Buffer size in bits/s is bitrate in bits/s * 1 s
     int64_t buffer_size = seq_bitrate;
-    if (buffer_size == 0)
-      avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+    if (buffer_size == 0) {
+      avm_internal_error(error_info, AVM_CODEC_UNSUP_BITSTREAM,
                          "AV2 does not support this combination of "
                          "profile, level, and tier.");
+      return 0;
+    }
   }
 
   // setup default embedded layer dependency
@@ -656,10 +669,11 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi, int xlayer_id,
   }
 
 #if CONFIG_AV2_PROFILES
-  if (!av2_check_profile_interop_conformance(seq_params, &cm->error, 1)) {
+  if (!av2_check_profile_interop_conformance(seq_params, error_info, 1)) {
     avm_internal_error(
-        &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+        error_info, AVM_CODEC_UNSUP_BITSTREAM,
         "Unsupported Bitdepth, Chroma format or number of embedded layers");
+    return 0;
   }
 #endif  // CONFIG_AV2_PROFILES
 
@@ -674,7 +688,7 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi, int xlayer_id,
     // trailing bits
     int extension_bits = read_obu_extension_bits(
         rb->bit_buffer, rb->bit_buffer_end - rb->bit_buffer, bits_before_ext,
-        &cm->error);
+        error_info);
     if (extension_bits > 0) {
       // skip over the extension bits
       rb->bit_offset += extension_bits;
@@ -684,9 +698,18 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi, int xlayer_id,
   }
 #endif  // CONFIG_F414_OBU_EXTENSION
 
-  if (av2_check_trailing_bits(pbi, rb) != 0) {
-    // cm->error.error_code is already set.
-    return 0;
+  if (!input_seq_params) {
+    if (av2_check_trailing_bits(pbi, rb) != 0) {
+      // error_info->error_code is already set.
+      return 0;
+    }
+  } else {
+    // av2_check_trailing_bits without error code
+    int bits_before_alignment = 8 - rb->bit_offset % 8;
+    int trailing = avm_rb_read_literal(rb, bits_before_alignment);
+    if (trailing != (1 << (bits_before_alignment - 1))) {
+      return 0;
+    }
   }
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }
@@ -2372,149 +2395,9 @@ avm_codec_err_t parse_sh(struct AV2Decoder *pbi, const uint8_t *data,
   rb->error_handler_data = NULL;
   rb->bit_buffer = data;
   rb->bit_buffer_end = data + payload_size;
+  uint32_t bytes_read = read_sequence_header_obu(pbi, 0, rb, seq_params);
+  if (bytes_read == 0) return AVM_CODEC_UNSUP_BITSTREAM;
 
-  seq_params->seq_header_id = avm_rb_read_uvlc(rb);
-  seq_params->seq_profile_idc = av2_read_profile(rb);
-  seq_params->single_picture_header_flag = avm_rb_read_bit(rb);
-  if (!seq_params->single_picture_header_flag) {
-    int seq_lcr_id = avm_rb_read_literal(rb, 3);
-    seq_params->seq_lcr_id = seq_lcr_id;
-    seq_params->still_picture = avm_rb_read_bit(rb);
-  }
-  read_bitstream_level(&seq_params->seq_max_level_idx, rb);
-
-  if (seq_params->seq_max_level_idx >= SEQ_LEVEL_4_0 &&
-      !seq_params->single_picture_header_flag)
-    seq_params->seq_tier = avm_rb_read_bit(rb);
-  else
-    seq_params->seq_tier = 0;
-
-  seq_params->num_bits_width = avm_rb_read_literal(rb, 4) + 1;
-  seq_params->num_bits_height = avm_rb_read_literal(rb, 4) + 1;
-  seq_params->max_frame_width =
-      avm_rb_read_literal(rb, seq_params->num_bits_width) + 1;
-  seq_params->max_frame_height =
-      avm_rb_read_literal(rb, seq_params->num_bits_height) + 1;
-
-  av2_read_conformance_window(rb, seq_params);
-  // av2_validate_seq_conformance_window(seq_params, &cm->error);
-
-  av2_read_chroma_format_bitdepth(rb, seq_params, &error_info);
-
-  if (!seq_params->single_picture_header_flag) {
-    seq_params->seq_max_display_model_info_present_flag = avm_rb_read_bit(rb);
-    seq_params->seq_max_initial_display_delay_minus_1 =
-        BUFFER_POOL_MAX_SIZE - 1;
-    if (seq_params->seq_max_display_model_info_present_flag)
-      seq_params->seq_max_initial_display_delay_minus_1 =
-          avm_rb_read_literal(rb, 4);
-    seq_params->decoder_model_info_present_flag = avm_rb_read_bit(rb);
-    if (seq_params->decoder_model_info_present_flag) {
-      seq_params->decoder_model_info.num_units_in_decoding_tick =
-          avm_rb_read_unsigned_literal(rb, 32);
-      seq_params->seq_max_decoder_model_present_flag = avm_rb_read_bit(rb);
-      if (seq_params->seq_max_decoder_model_present_flag) {
-        seq_params->seq_max_decoder_buffer_delay = avm_rb_read_uvlc(rb);
-        seq_params->seq_max_encoder_buffer_delay = avm_rb_read_uvlc(rb);
-        seq_params->seq_max_low_delay_mode_flag = avm_rb_read_bit(rb);
-      } else {
-        seq_params->seq_max_decoder_buffer_delay = 70000;
-        seq_params->seq_max_encoder_buffer_delay = 20000;
-        seq_params->seq_max_low_delay_mode_flag = 0;
-      }
-    } else {
-      seq_params->decoder_model_info.num_units_in_decoding_tick = 1;
-      seq_params->seq_max_decoder_buffer_delay = 70000;
-      seq_params->seq_max_encoder_buffer_delay = 20000;
-      seq_params->seq_max_low_delay_mode_flag = 0;
-    }
-    // int64_t seq_bitrate =
-    av2_max_level_bitrate(seq_params->seq_profile_idc,
-                          seq_params->seq_max_level_idx, seq_params->seq_tier
-#if CONFIG_AV2_PROFILES
-                          ,
-                          seq_params->subsampling_x, seq_params->subsampling_y,
-                          seq_params->monochrome
-#endif  // CONFIG_AV2_PROFILES
-    );
-  }
-
-  if (seq_params->single_picture_header_flag) {
-    seq_params->max_tlayer_id = 0;
-    seq_params->max_mlayer_id = 0;
-#if CONFIG_AV2_PROFILES
-    seq_params->seq_max_mlayer_cnt = 1;
-#endif  // CONFIG_AV2_PROFILES
-  } else {
-    seq_params->max_tlayer_id = avm_rb_read_literal(rb, TLAYER_BITS);
-    seq_params->max_mlayer_id = avm_rb_read_literal(rb, MLAYER_BITS);
-#if CONFIG_AV2_PROFILES
-    if (seq_params->max_mlayer_id > 0) {
-      int n = avm_ceil_log2(seq_params->max_mlayer_id + 1);
-      seq_params->seq_max_mlayer_cnt = avm_rb_read_literal(rb, n);
-    }
-#endif  // CONFIG_AV2_PROFILES
-  }
-
-  // setup default embedded layer dependency
-  setup_default_embedded_layer_dependency_structure(seq_params);
-  // setup default temporal layer dependency
-  setup_default_temporal_layer_dependency_structure(seq_params);
-
-  // mlayer dependency description
-  seq_params->mlayer_dependency_present_flag = 0;
-  if (seq_params->max_mlayer_id > 0) {
-    seq_params->mlayer_dependency_present_flag = avm_rb_read_bit(rb);
-    if (seq_params->mlayer_dependency_present_flag) {
-      av2_read_mlayer_dependency_info(seq_params, rb);
-    }
-  }
-
-  // tlayer dependency description
-  seq_params->tlayer_dependency_present_flag = 0;
-  seq_params->multi_tlayer_dependency_map_present_flag = 0;
-  if (seq_params->max_tlayer_id > 0) {
-    seq_params->tlayer_dependency_present_flag = avm_rb_read_bit(rb);
-    if (seq_params->tlayer_dependency_present_flag) {
-      if (seq_params->max_mlayer_id > 0) {
-        seq_params->multi_tlayer_dependency_map_present_flag =
-            avm_rb_read_bit(rb);
-      }
-      av2_read_tlayer_dependency_info(seq_params, rb);
-    }
-  }
-
-#if CONFIG_AV2_PROFILES
-  if (!av2_check_profile_interop_conformance(seq_params, &error_info, 1)) {
-    return AVM_CODEC_UNSUP_BITSTREAM;
-  }
-#endif  // CONFIG_AV2_PROFILES
-
-  av2_read_sequence_header(rb, seq_params);
-  seq_params->film_grain_params_present = avm_rb_read_bit(rb);
-
-#if CONFIG_F414_OBU_EXTENSION
-  size_t bits_before_ext = rb->bit_offset - saved_bit_offset;
-  seq_params->seq_extension_present_flag = avm_rb_read_bit(rb);
-  if (seq_params->seq_extension_present_flag) {
-    // Extension data bits = total - bits_read_before_extension -1 (ext flag) -
-    // trailing bits
-    int extension_bits = read_obu_extension_bits(
-        rb->bit_buffer, rb->bit_buffer_end - rb->bit_buffer, bits_before_ext,
-        &error_info);
-    if (extension_bits > 0) {
-      // skip over the extension bits
-      rb->bit_offset += extension_bits;
-    } else {
-      // No extension data is present
-    }
-  }
-#endif  // CONFIG_F414_OBU_EXTENSION
-
-  if (av2_check_trailing_bits(pbi, rb) != 0) {
-    // cm->error.error_code is already set.
-    return AVM_CODEC_CORRUPT_FRAME;
-  }
   return AVM_CODEC_OK;
 }
 
@@ -3087,7 +2970,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
       case OBU_SEQUENCE_HEADER:
         cm->xlayer_id = obu_header.obu_xlayer_id;
         decoded_payload_size =
-            read_sequence_header_obu(pbi, obu_header.obu_xlayer_id, &rb);
+            read_sequence_header_obu(pbi, obu_header.obu_xlayer_id, &rb, NULL);
         // check dependency map consistency for LCR
         check_lcr_layer_map_conformance(pbi, cm->xlayer_id);
         // check dependency map consistency for OPS
