@@ -897,6 +897,7 @@ void direct_existing_frames_to_current(AV2_COMP *const cpi) {
 void av2_finalize_encoded_frame(AV2_COMP *const cpi) {
   AV2_COMMON *const cm = &cpi->common;
   cm->cur_frame->allow_direct_use = cm->allow_direct_use;
+  cm->cur_frame->implicit_output_picture = cm->implicit_output_picture;
 
   if (!cm->seq_params.single_picture_header_flag && cm->show_existing_frame &&
       !cm->derive_sef_order_hint) {
