@@ -4493,7 +4493,9 @@ static bool need_sef_obu_for_hidden_frame(AV2_COMP *cpi) {
   return cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames &&
          cpi->update_type_was_overlay &&
          cpi->fb_idx_for_overlay != INVALID_IDX &&
-         cpi->common.ref_frame_map[cpi->fb_idx_for_overlay] != NULL;
+         cpi->common.ref_frame_map[cpi->fb_idx_for_overlay] != NULL &&
+         !cpi->common.ref_frame_map[cpi->fb_idx_for_overlay]
+              ->implicit_output_picture;
 }
 
 /*!\brief Run the final pass encoding for 1-pass/2-pass encoding mode, and pack
@@ -4575,7 +4577,11 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
   //    // an overlay frame
   //    gf_group->update_type[gf_group->size] = GF_UPDATE;
   //  }
-  if (!cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames &&
+  if ((!cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames ||
+       (cpi->fb_idx_for_overlay != INVALID_IDX &&
+        cpi->common.ref_frame_map[cpi->fb_idx_for_overlay] != NULL &&
+        cpi->common.ref_frame_map[cpi->fb_idx_for_overlay]
+            ->implicit_output_picture)) &&
       cpi->update_type_was_overlay) {
     assign_frame_buffer_p(&cm->cur_frame,
                           cm->ref_frame_map[cpi->fb_idx_for_overlay]);
@@ -4611,6 +4617,19 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
     }
     cpi->seq_params_locked = 1;
     if (cm->immediate_output_picture) cpi->last_show_frame_buf = cm->cur_frame;
+
+#if CONFIG_G052
+    // When add_sef_for_hidden_frames is enabled but the overlay reference
+    // was made implicit by CONFIG_G052 (ARF_UPDATE keeps implicit_output),
+    // make the overlay invisible to cx_iface. Without this, a NULL_PKT
+    // would be generated that the decoder can't handle because the implicit
+    // frame hasn't been output yet. The decoder will output it automatically
+    // via its implicit output mechanism (DPB eviction or successive output).
+    if (cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames) {
+      cm->immediate_output_picture = 0;
+      cpi->update_type_was_overlay = false;
+    }
+#endif
 
     // current_frame->frame_number is incremented already for
     // keyframe overlays.
@@ -4688,7 +4707,14 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
     av2_finalize_encoded_frame(cpi);
     if (av2_pack_bitstream(cpi, dest, size, &largest_tile_id) != AVM_CODEC_OK)
       return AVM_CODEC_ERROR;
+#if CONFIG_G052
+    if (cm->derive_sef_order_hint)
+      cpi->last_show_frame_buf = cm->cur_frame;
+    else
+      cpi->last_show_frame_buf = cm->ref_frame_map[cm->sef_ref_fb_idx];
+#else
     cpi->last_show_frame_buf = cm->cur_frame;
+#endif
     if (!av2_check_keyframe_overlay(cpi->gf_group.index, &cpi->gf_group,
                                     cpi->rc.frames_since_key))
       ++current_frame->frame_number;

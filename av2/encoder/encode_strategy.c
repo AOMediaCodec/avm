@@ -881,7 +881,10 @@ static int denoise_and_encode(AV2_COMP *const cpi, uint8_t *const dest,
 
     cm->implicit_output_picture = cm->allow_direct_use;
     if (cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames) {
-      cm->implicit_output_picture = 0;
+#if CONFIG_G052
+      if (get_frame_update_type(&cpi->gf_group) != ARF_UPDATE)
+#endif
+        cm->implicit_output_picture = 0;
     }
 
     if (code_arf) {
