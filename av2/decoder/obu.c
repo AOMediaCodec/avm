@@ -507,7 +507,7 @@ static uint32_t read_sequence_header_obu(
   const uint32_t saved_bit_offset = rb->bit_offset;
 
   // Verify rb has been configured to report errors.
-  assert(rb->error_handler);
+  if (input_seq_params == NULL) assert(rb->error_handler);
 
   // Use an element in the pbi->seq_list array to store the information as we
   // decode. At the end, if no errors have occurred, cm->seq_params is updated.
@@ -2388,8 +2388,6 @@ bool conformance_check_msdo_lcr(struct AV2Decoder *pbi, bool global_lcr_present,
 avm_codec_err_t parse_sh(struct AV2Decoder *pbi, const uint8_t *data,
                          size_t payload_size,
                          struct SequenceHeader *seq_params) {
-  const uint32_t saved_bit_offset = 0;
-  struct avm_internal_error_info error_info;
   struct avm_read_bit_buffer readbits;
   struct avm_read_bit_buffer *rb = &readbits;
   rb->bit_offset = 0;
