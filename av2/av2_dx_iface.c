@@ -598,8 +598,8 @@ static int quick_parsing_to_order_hint(struct AV2Decoder *pbi,
   ObuHeader obu_header;
   size_t payload_size = 0;
   size_t bytes_read = 0;
-  avm_codec_err_t res = avm_read_obu_header_and_size(data, data_sz, &obu_header,
-                                                     &payload_size, &bytes_read);
+  avm_codec_err_t res = avm_read_obu_header_and_size(
+      data, data_sz, &obu_header, &payload_size, &bytes_read);
   if (res != AVM_CODEC_OK) return 0;
 
   if (obu_header.type == OBU_LEADING_SEF ||
@@ -669,7 +669,7 @@ static int check_frame_unit_data(struct AV2Decoder *pbi,
   FrameUnitInfo replica_reference_list[REF_FRAMES];
   struct SequenceHeader replica_sh_list[MAX_SEQ_NUM];
   struct MultiFrameHeader replica_mfh_list[MAX_MFH_NUM];
-  int prescan_context_initialized = 0;
+  int prescan_context_xlayer = -1;
   int replica_reference_list_initialized = 0;
   int last_first_tg_is_shown = -1;
   int last_first_tg_order_hint = -1;
@@ -683,11 +683,6 @@ static int check_frame_unit_data(struct AV2Decoder *pbi,
     size_t bytes_read = 0;
     res = avm_read_obu_header_and_size(data_read, data_sz, &obu_header,
                                        &payload_size, &bytes_read);
-#if 1
-    printf("<<%s>> %d, mlayer %d, tlayer %d\n", avm_obu_type_to_string(obu_header.type), obu_header.obu_xlayer_id,
-           obu_header.obu_mlayer_id,
-           obu_header.obu_tlayer_id);
-#endif
     if (res != AVM_CODEC_OK) {
       fprintf(stderr, "%s avm_read_obu_header_and_size() error\n", __func__);
       return -1;
@@ -720,11 +715,15 @@ static int check_frame_unit_data(struct AV2Decoder *pbi,
         get_reset_last(pbi, obu_header.obu_tlayer_id, obu_header.obu_mlayer_id,
                        obu_header.obu_xlayer_id);
 
-    if (!prescan_context_initialized) {
+    if (obu_header.obu_xlayer_id != GLOBAL_XLAYER_ID &&
+        obu_header.obu_xlayer_id != prescan_context_xlayer) {
+      // Reinitialize replica SH/MFH lists for the new xlayer.
+      for (int i = 0; i < MAX_SEQ_NUM; i++)
+        replica_sh_list[i].seq_header_id = -1;
+      for (int i = 0; i < MAX_MFH_NUM; i++) replica_mfh_list[i].mfh_id = -1;
       const int stream_idx =
           av2_get_stream_index(&pbi->common, obu_header.obu_xlayer_id);
       if (stream_idx >= 0) {
-        // Copy all valid SH entries from pbi->seq_list for this stream's xlayer
         const int xlayer = pbi->common.stream_ids[stream_idx];
         for (int i = 0; i < MAX_SEQ_NUM; i++) {
           if (pbi->seq_list[xlayer][i].seq_header_id >= 0)
@@ -736,7 +735,6 @@ static int check_frame_unit_data(struct AV2Decoder *pbi,
                 pbi->stream_info[stream_idx].mfh_params_buf[i];
         }
       } else {
-        // Non-multi-stream: copy all valid SH entries for current xlayer
         const int xlayer = pbi->common.xlayer_id;
         for (int i = 0; i < MAX_SEQ_NUM; i++) {
           if (pbi->seq_list[xlayer][i].seq_header_id >= 0)
@@ -747,7 +745,8 @@ static int check_frame_unit_data(struct AV2Decoder *pbi,
             replica_mfh_list[i] = pbi->common.mfh_params[i];
         }
       }
-      prescan_context_initialized = 1;
+      prescan_context_xlayer = obu_header.obu_xlayer_id;
+      replica_reference_list_initialized = 0;
     }
     // Update replica SH/MFH when new ones are signalled in this buffer.
     if (obu_header.type == OBU_SEQUENCE_HEADER) {
