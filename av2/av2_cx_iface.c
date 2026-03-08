@@ -2945,7 +2945,8 @@ static void report_stats(AV2_COMP *cpi, size_t frame_size, uint64_t cx_time) {
                 "%2.4f dB(V), "
                 "%2.4f dB(Avg)",
                 cm->cur_frame->absolute_poc,
-                frameType[cm->current_frame.frame_type], cm->bru.enabled,
+                cm->show_existing_frame ? " SEF " : frameType[cm->current_frame.frame_type],
+                cm->bru.enabled,
                 cm->bru.update_ref_idx, cm->cur_frame->pyramid_level,
                 base_qindex, (uint64_t)frame_size, cx_time / 1000.0,
                 use_hbd_psnr ? psnr.psnr_hbd[1] : psnr.psnr[1],
@@ -2960,7 +2961,7 @@ static void report_stats(AV2_COMP *cpi, size_t frame_size, uint64_t cx_time) {
                 "%2.4f dB(V), "
                 "%2.4f dB(Avg)",
                 cm->cur_frame->absolute_poc,
-                frameType[cm->current_frame.frame_type],
+                cm->show_existing_frame ? " SEF " : frameType[cm->current_frame.frame_type],
                 cm->cur_frame->pyramid_level, base_qindex, (uint64_t)frame_size,
                 cx_time / 1000.0,
                 use_hbd_psnr ? psnr.psnr_hbd[1] : psnr.psnr[1],
@@ -2975,7 +2976,8 @@ static void report_stats(AV2_COMP *cpi, size_t frame_size, uint64_t cx_time) {
                 " Bytes, "
                 "%6.1fms",
                 cm->cur_frame->absolute_poc,
-                frameType[cm->current_frame.frame_type], cm->bru.enabled,
+                cm->show_existing_frame ? " SEF " : frameType[cm->current_frame.frame_type],
+                cm->bru.enabled,
                 cm->bru.update_ref_idx, cm->cur_frame->pyramid_level,
                 base_qindex, (uint64_t)frame_size, cx_time / 1000.0);
       } else {
@@ -2984,7 +2986,7 @@ static void report_stats(AV2_COMP *cpi, size_t frame_size, uint64_t cx_time) {
                 " Bytes, "
                 "%6.1fms",
                 cm->cur_frame->absolute_poc,
-                frameType[cm->current_frame.frame_type],
+                cm->show_existing_frame ? " SEF " : frameType[cm->current_frame.frame_type],
                 cm->cur_frame->pyramid_level, base_qindex, (uint64_t)frame_size,
                 cx_time / 1000.0);
       }
