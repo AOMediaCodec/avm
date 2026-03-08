@@ -7280,7 +7280,9 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
         (cm->is_leading_picture == 1 ? OBU_LEADING_SEF : OBU_REGULAR_SEF);
     if (cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames &&
         cpi->oxcf.unit_test_cfg.sef_with_order_hint_test) {
+#if !CONFIG_G052
       cm->derive_sef_order_hint = 0;
+#endif
     }
   }
 

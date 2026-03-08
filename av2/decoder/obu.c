@@ -2663,7 +2663,8 @@ avm_codec_err_t parse_to_order_hint_for_sef(
   }
 
   // existing_frame_idx
-  int existing_frame_idx = avm_rb_read_literal(rb, seq_params->ref_frames_log2);
+  //int existing_frame_idx =
+  avm_rb_read_literal(rb, seq_params->ref_frames_log2);
 
   // derive_sef_order_hint
 #if CONFIG_G052

@@ -4575,9 +4575,6 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
   //    // an overlay frame
   //    gf_group->update_type[gf_group->size] = GF_UPDATE;
   //  }
-#if 1
-    printf("need_sef_obu_for_hidden_frame: %d, %d\n", cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames, cpi->update_type_was_overlay);
-#endif
   if (!cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames &&
       cpi->update_type_was_overlay) {
     assign_frame_buffer_p(&cm->cur_frame,
@@ -4669,6 +4666,16 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
     cm->ref_frame_flags = 0;
     cpi->seq_params_locked = 1;
     cm->sef_ref_fb_idx = cpi->fb_idx_for_overlay;
+#if CONFIG_G052
+    // G052: the SEF's order_hint must be the hidden frame's original
+    // display order (before G052 remapping), so that the decoder outputs
+    // it at the correct position.
+    current_frame->order_hint =
+        cm->ref_frame_map[cpi->fb_idx_for_overlay]
+            ->original_display_order_hint %
+        (1 << (seq_params->order_hint_info.order_hint_bits_minus_1 + 1));
+    current_frame->display_order_hint = current_frame->order_hint;
+#endif
 
     if (cm->last_olk_disp_order_hint > cm->current_frame.display_order_hint) {
       cm->is_leading_picture = 1;
@@ -5075,9 +5082,18 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
       }
     }
   }
+#if CONFIG_G052
+  // G052: use the (possibly remapped) display_order_hint so that cur_frame_disp
+  // is consistent with DPB entries' display_order_hint stored in
+  // ref_frame_map_pairs.  Without this, hidden frames would have
+  // cur_frame_disp = original POC while DPB entries carry remapped values,
+  // causing incorrect past/future classification and assertion failures.
+  const int cur_frame_disp = (int)current_frame->display_order_hint;
+#else
   const int order_offset = cpi->gf_group.arf_src_offset[cpi->gf_group.index];
   const int cur_frame_disp =
       cpi->common.current_frame.frame_number + order_offset;
+#endif
 
   init_ref_map_pair(&cpi->common, cm->ref_frame_map_pairs,
                     current_frame->frame_type == KEY_FRAME,
