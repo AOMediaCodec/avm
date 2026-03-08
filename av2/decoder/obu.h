@@ -63,7 +63,7 @@ avm_codec_err_t parse_to_order_hint_for_vcl_obu(
 avm_codec_err_t parse_to_order_hint_for_sef(
     struct AV2Decoder *pbi, const uint8_t *data, size_t payload_size,
     OBU_TYPE obu_type, int xlayer_id, int tlayer_id, int mlayer_id,
-    struct SequenceHeader *sh_list, struct MultiFrameHeader *current_mfh,
+    struct SequenceHeader *sh_list, struct MultiFrameHeader *mfh_list,
     int *current_is_shown, int *current_order_hint,
     FrameUnitInfo *replica_reference_list);
 

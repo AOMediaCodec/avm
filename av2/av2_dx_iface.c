@@ -767,11 +767,7 @@ static int check_frame_unit_data(struct AV2Decoder *pbi,
       if (tmp_sh.seq_header_id >= 0 && tmp_sh.seq_header_id < MAX_SEQ_NUM)
         replica_sh_list[tmp_sh.seq_header_id] = tmp_sh;
     } else if (obu_header.type == OBU_MULTI_FRAME_HEADER) {
-      struct MultiFrameHeader tmp_mfh;
-      memset(&tmp_mfh, 0, sizeof(tmp_mfh));
-      parse_mfh(pbi, data_read + bytes_read, payload_size, &tmp_mfh);
-      if (tmp_mfh.mfh_id >= 0 && tmp_mfh.mfh_id < MAX_MFH_NUM)
-        replica_mfh_list[tmp_mfh.mfh_id] = tmp_mfh;
+      parse_mfh(pbi, data_read + bytes_read, payload_size, replica_mfh_list);
     }
     if (reset_last) {
       current_order_hint = -2;
