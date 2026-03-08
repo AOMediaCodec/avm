@@ -1096,7 +1096,10 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
     source->disp_order_hint = 0;
   }
   if (cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames) {
-    cm->implicit_output_picture = 0;
+#if CONFIG_G052
+    if (get_frame_update_type(&cpi->gf_group) != ARF_UPDATE)
+#endif
+      cm->implicit_output_picture = 0;
   }
 
   if (frame_params.frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) {

@@ -2016,8 +2016,6 @@ static void test_decode(struct stream_state *stream,
                         enum TestDecodeFatality fatal) {
   avm_image_t enc_img, dec_img;
 
-  // fprintf(stderr, "DEBUG: Running test_decode at POC: %d\n",
-  //         stream->frames_out - 1);
   if (stream->mismatch_seen) return;
 
   /* Get the internal reference frame */

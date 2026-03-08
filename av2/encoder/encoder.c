@@ -5038,6 +5038,16 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
   current_frame->display_order_hint = current_frame->order_hint;
 
 #if CONFIG_G052
+  // OLK (no-show forward keyframe) keeps its natural display_order_hint
+  // (not remapped to frame_number) by setting implicit_output_picture = 1.
+  // This makes is_leading_picture work correctly for hidden frames after
+  // the OLK, and lets the decoder output it implicitly at the right order.
+  if (cpi->no_show_fwd_kf && current_frame->frame_type == KEY_FRAME) {
+    cm->implicit_output_picture = 1;
+  }
+#endif
+
+#if CONFIG_G052
   // Save the original display_order_hint before G052 remapping.
   // The overlay reference search needs the true POC-based value.
   current_frame->original_display_order_hint =
