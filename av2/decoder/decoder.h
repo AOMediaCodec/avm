@@ -330,6 +330,25 @@ typedef struct MsdoConfig {
   int stream_ids[AVM_MAX_NUM_STREAMS];
 } MsdoConfig;
 
+// Lightweight replica of SequenceHeader containing only the fields needed by
+// the pre-scan order-hint parsing path (parse_to_order_hint_for_vcl_obu and
+// parse_to_order_hint_for_sef).  Populated by parse_sh().
+typedef struct {
+  int seq_header_id;  // -1 = uninitialised sentinel
+  int ref_frames;
+  int ref_frames_log2;
+  int order_hint_bits_minus_1;
+  int number_of_bits_for_lt_frame_id;
+  int single_picture_header_flag;
+  int max_mlayer_id;
+  int max_tlayer_id;
+  int enable_short_refresh_frame_flags;
+  int tlayer_dependency_present_flag;
+  int multi_tlayer_dependency_map_present_flag;
+  int tlayer_dependency_map[MAX_NUM_MLAYERS][MAX_NUM_TLAYERS][MAX_NUM_TLAYERS];
+  int mlayer_dependency_map[MAX_NUM_MLAYERS][MAX_NUM_MLAYERS];
+} SeqHeaderInfo;
+
 typedef struct AV2Decoder {
   DecoderCodingBlock dcb;
 
@@ -494,6 +513,13 @@ typedef struct AV2Decoder {
    * list of sequence headers
    */
   struct SequenceHeader seq_list[MAX_NUM_XLAYERS][MAX_SEQ_NUM];
+
+  /*!
+   * Lightweight replica of sequence headers for pre-scan parsing.
+   * Indexed by [xlayer_id][seq_header_id].  Populated by parse_sh() during
+   * check_frame_unit_data() and persisted across decoder_decode() calls.
+   */
+  SeqHeaderInfo replica_sh_list[MAX_NUM_XLAYERS][MAX_SEQ_NUM];
 
   /*!
    * active sequence header for each xlayer_id

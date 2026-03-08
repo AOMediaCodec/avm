@@ -590,7 +590,7 @@ static void set_last_frame_unit(struct AV2Decoder *pbi) {
 // This function parses a VCL OBU to get a display order hint.
 static int quick_parsing_to_order_hint(struct AV2Decoder *pbi,
                                        const uint8_t *data, size_t data_sz,
-                                       struct SequenceHeader *sh_list,
+                                       SeqHeaderInfo *sh_list,
                                        struct MultiFrameHeader *mfh_list,
                                        int *current_is_shown,
                                        int *current_order_hint,
@@ -667,7 +667,6 @@ static int check_frame_unit_data(struct AV2Decoder *pbi,
   const uint8_t *data_read = data;
   ObuHeader obu_header;
   FrameUnitInfo replica_reference_list[REF_FRAMES];
-  struct SequenceHeader replica_sh_list[MAX_SEQ_NUM];
   struct MultiFrameHeader replica_mfh_list[MAX_MFH_NUM];
   int prescan_context_xlayer = -1;
   int replica_reference_list_initialized = 0;
@@ -675,7 +674,6 @@ static int check_frame_unit_data(struct AV2Decoder *pbi,
   int last_first_tg_order_hint = -1;
   for (int i = 0; i < REF_FRAMES; i++)
     replica_reference_list[i].display_order_hint = -1;
-  for (int i = 0; i < MAX_SEQ_NUM; i++) replica_sh_list[i].seq_header_id = -1;
   for (int i = 0; i < MAX_MFH_NUM; i++) replica_mfh_list[i].mfh_id = -1;
 
   while (data_read < data + data_sz) {
@@ -717,29 +715,17 @@ static int check_frame_unit_data(struct AV2Decoder *pbi,
 
     if (obu_header.obu_xlayer_id != GLOBAL_XLAYER_ID &&
         obu_header.obu_xlayer_id != prescan_context_xlayer) {
-      // Reinitialize replica SH/MFH lists for the new xlayer.
-      for (int i = 0; i < MAX_SEQ_NUM; i++)
-        replica_sh_list[i].seq_header_id = -1;
+      // Reinitialize replica MFH list for the new xlayer.
       for (int i = 0; i < MAX_MFH_NUM; i++) replica_mfh_list[i].mfh_id = -1;
       const int stream_idx =
           av2_get_stream_index(&pbi->common, obu_header.obu_xlayer_id);
       if (stream_idx >= 0) {
-        const int xlayer = pbi->common.stream_ids[stream_idx];
-        for (int i = 0; i < MAX_SEQ_NUM; i++) {
-          if (pbi->seq_list[xlayer][i].seq_header_id >= 0)
-            replica_sh_list[i] = pbi->seq_list[xlayer][i];
-        }
         for (int i = 0; i < MAX_MFH_NUM; i++) {
           if (pbi->stream_info[stream_idx].mfh_valid_buf[i])
             replica_mfh_list[i] =
                 pbi->stream_info[stream_idx].mfh_params_buf[i];
         }
       } else {
-        const int xlayer = pbi->common.xlayer_id;
-        for (int i = 0; i < MAX_SEQ_NUM; i++) {
-          if (pbi->seq_list[xlayer][i].seq_header_id >= 0)
-            replica_sh_list[i] = pbi->seq_list[xlayer][i];
-        }
         for (int i = 0; i < MAX_MFH_NUM; i++) {
           if (pbi->common.mfh_valid[i])
             replica_mfh_list[i] = pbi->common.mfh_params[i];
@@ -750,16 +736,8 @@ static int check_frame_unit_data(struct AV2Decoder *pbi,
     }
     // Update replica SH/MFH when new ones are signalled in this buffer.
     if (obu_header.type == OBU_SEQUENCE_HEADER) {
-      // parse_sh() writes into the single struct it receives, so parse into a
-      // temporary and then place at the correct array index (keyed by the
-      // seq_header_id read from the bitstream).  This mirrors parse_mfh()
-      // which self-indexes into the array.
-      struct SequenceHeader tmp_sh;
-      memset(&tmp_sh, 0, sizeof(tmp_sh));
-      tmp_sh.seq_header_id = -1;
-      parse_sh(pbi, data_read + bytes_read, payload_size, &tmp_sh);
-      if (tmp_sh.seq_header_id >= 0 && tmp_sh.seq_header_id < MAX_SEQ_NUM)
-        replica_sh_list[tmp_sh.seq_header_id] = tmp_sh;
+      parse_sh(pbi, data_read + bytes_read, payload_size,
+               pbi->replica_sh_list[obu_header.obu_xlayer_id]);
     } else if (obu_header.type == OBU_MULTI_FRAME_HEADER) {
       parse_mfh(pbi, data_read + bytes_read, payload_size, replica_mfh_list);
     }
@@ -797,10 +775,11 @@ static int check_frame_unit_data(struct AV2Decoder *pbi,
         }
         replica_reference_list_initialized = 1;
       }
-      if (quick_parsing_to_order_hint(pbi, data_read, frame_unit_size,
-                                      replica_sh_list, replica_mfh_list,
-                                      &current_is_shown, &current_order_hint,
-                                      replica_reference_list) == 0) {
+      if (quick_parsing_to_order_hint(
+              pbi, data_read, frame_unit_size,
+              pbi->replica_sh_list[obu_header.obu_xlayer_id], replica_mfh_list,
+              &current_is_shown, &current_order_hint,
+              replica_reference_list) == 0) {
         fprintf(stderr, "parsing order hint error\n");
         free(fu_info);
         return -1;

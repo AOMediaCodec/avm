@@ -2362,8 +2362,12 @@ bool conformance_check_msdo_lcr(struct AV2Decoder *pbi, bool global_lcr_present,
 
 // Parse given "data" to get long_term_frame_id_bits and OrderHintBits.
 avm_codec_err_t parse_sh(struct AV2Decoder *pbi, const uint8_t *data,
-                         size_t payload_size,
-                         struct SequenceHeader *seq_params) {
+                         size_t payload_size, SeqHeaderInfo *sh_list) {
+  struct SequenceHeader tmp_seq;
+  struct SequenceHeader *seq_params = &tmp_seq;
+  memset(seq_params, 0, sizeof(*seq_params));
+  seq_params->seq_header_id = -1;
+
   const uint32_t saved_bit_offset = 0;
   struct avm_internal_error_info error_info;
   struct avm_read_bit_buffer readbits;
@@ -2551,6 +2555,34 @@ avm_codec_err_t parse_sh(struct AV2Decoder *pbi, const uint8_t *data,
     // cm->error.error_code is already set.
     return AVM_CODEC_CORRUPT_FRAME;
   }
+
+  // Populate lightweight replica in sh_list at the parsed seq_header_id index.
+  if (seq_params->seq_header_id >= 0 &&
+      seq_params->seq_header_id < MAX_SEQ_NUM) {
+    SeqHeaderInfo *sh_info = &sh_list[seq_params->seq_header_id];
+    sh_info->seq_header_id = seq_params->seq_header_id;
+    sh_info->ref_frames = seq_params->ref_frames;
+    sh_info->ref_frames_log2 = seq_params->ref_frames_log2;
+    sh_info->order_hint_bits_minus_1 =
+        seq_params->order_hint_info.order_hint_bits_minus_1;
+    sh_info->number_of_bits_for_lt_frame_id =
+        seq_params->number_of_bits_for_lt_frame_id;
+    sh_info->single_picture_header_flag =
+        seq_params->single_picture_header_flag;
+    sh_info->max_mlayer_id = seq_params->max_mlayer_id;
+    sh_info->max_tlayer_id = seq_params->max_tlayer_id;
+    sh_info->enable_short_refresh_frame_flags =
+        seq_params->enable_short_refresh_frame_flags;
+    sh_info->tlayer_dependency_present_flag =
+        seq_params->tlayer_dependency_present_flag;
+    sh_info->multi_tlayer_dependency_map_present_flag =
+        seq_params->multi_tlayer_dependency_map_present_flag;
+    memcpy(sh_info->tlayer_dependency_map, seq_params->tlayer_dependency_map,
+           sizeof(sh_info->tlayer_dependency_map));
+    memcpy(sh_info->mlayer_dependency_map, seq_params->mlayer_dependency_map,
+           sizeof(sh_info->mlayer_dependency_map));
+  }
+
   return AVM_CODEC_OK;
 }
 
@@ -2593,9 +2625,29 @@ avm_codec_err_t parse_mfh(struct AV2Decoder *pbi, const uint8_t *data,
 // Returns AVM_CODEC_OK on success, or an error code if the bitstream is
 // corrupt.
 
+// Lightweight dependency checks using SeqHeaderInfo (mirrors
+// is_tlayer_scalable_and_dependent / is_mlayer_scalable_and_dependent
+// from av2_common_int.h which take SequenceHeader*).
+static INLINE int sh_info_tlayer_dep(const SeqHeaderInfo *sh_info,
+                                     int curr_tlayer_id, int ref_tlayer_id,
+                                     int curr_mlayer_id) {
+  if (sh_info->tlayer_dependency_present_flag) {
+    return sh_info
+        ->tlayer_dependency_map[curr_mlayer_id][curr_tlayer_id][ref_tlayer_id];
+  } else {
+    return curr_tlayer_id >= ref_tlayer_id;
+  }
+}
+
+static INLINE int sh_info_mlayer_dep(const SeqHeaderInfo *sh_info,
+                                     int curr_layer_id, int ref_layer_id) {
+  if (curr_layer_id == ref_layer_id) return 0;
+  return sh_info->mlayer_dependency_map[curr_layer_id][ref_layer_id];
+}
+
 // Uses FrameUnitInfo entries instead of RefCntBuffer pointers.
 static int get_disp_order_hint_replica(
-    SequenceHeader *seq_params, OBU_TYPE obu_type, int order_hint,
+    const SeqHeaderInfo *sh_info, OBU_TYPE obu_type, int order_hint,
     int tlayer_id, int mlayer_id, const FrameUnitInfo *replica_reference_list,
     bool random_accessed) {
   if (obu_type == OBU_CLK) {
@@ -2606,14 +2658,12 @@ static int get_disp_order_hint_replica(
 
   // Find the reference frame with the largest display_order_hint
   int max_disp_order_hint = 0;
-  for (int map_idx = 0; map_idx < seq_params->ref_frames; map_idx++) {
+  for (int map_idx = 0; map_idx < sh_info->ref_frames; map_idx++) {
     const FrameUnitInfo *const entry = &replica_reference_list[map_idx];
     if (entry->display_order_hint < 0 || entry->is_shown == 0 ||
         entry->is_restricted ||
-        !is_tlayer_scalable_and_dependent(seq_params, tlayer_id,
-                                          entry->tlayer_id, mlayer_id) ||
-        !is_mlayer_scalable_and_dependent(seq_params, mlayer_id,
-                                          entry->mlayer_id))
+        !sh_info_tlayer_dep(sh_info, tlayer_id, entry->tlayer_id, mlayer_id) ||
+        !sh_info_mlayer_dep(sh_info, mlayer_id, entry->mlayer_id))
       continue;
 
     if (entry->display_order_hint > max_disp_order_hint)
@@ -2621,8 +2671,7 @@ static int get_disp_order_hint_replica(
   }
 
   int cur_disp_order_hint = order_hint;
-  int display_order_hint_factor =
-      1 << (seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
+  int display_order_hint_factor = 1 << (sh_info->order_hint_bits_minus_1 + 1);
 
   while (abs(max_disp_order_hint - cur_disp_order_hint) >=
          (display_order_hint_factor >> 1)) {
@@ -2669,7 +2718,7 @@ static void update_replica_reference_list(FrameUnitInfo *replica_reference_list,
 avm_codec_err_t parse_to_order_hint_for_vcl_obu(
     struct AV2Decoder *pbi, const uint8_t *data, size_t payload_size,
     OBU_TYPE obu_type, int xlayer_id, int tlayer_id, int mlayer_id,
-    struct SequenceHeader *sh_list, struct MultiFrameHeader *mfh_list,
+    SeqHeaderInfo *sh_list, struct MultiFrameHeader *mfh_list,
     int *current_is_shown, int *current_order_hint,
     FrameUnitInfo *replica_reference_list) {
   assert(is_multi_tile_vcl_obu(obu_type) || obu_type == OBU_LEADING_TIP ||
@@ -2709,10 +2758,10 @@ avm_codec_err_t parse_to_order_hint_for_vcl_obu(
     }
   }
 
-  // Select sequence header from the replica list.
-  struct SequenceHeader *seq_params;
+  // Select sequence header info from the replica list.
+  SeqHeaderInfo *sh_info;
   if (sh_list[seq_header_id_in_frame_header].seq_header_id >= 0) {
-    seq_params = &sh_list[seq_header_id_in_frame_header];
+    sh_info = &sh_list[seq_header_id_in_frame_header];
   } else {
     return AVM_CODEC_CORRUPT_FRAME;
   }
@@ -2720,7 +2769,7 @@ avm_codec_err_t parse_to_order_hint_for_vcl_obu(
   // --- bridge_frame_ref_idx (BRIDGE_FRAME only) ---
   int bridge_frame_ref_idx = 0;
   if (obu_type == OBU_BRIDGE_FRAME) {
-    bridge_frame_ref_idx = avm_rb_read_literal(rb, seq_params->ref_frames_log2);
+    bridge_frame_ref_idx = avm_rb_read_literal(rb, sh_info->ref_frames_log2);
   }
 
   // --- frame_type ---
@@ -2753,13 +2802,12 @@ avm_codec_err_t parse_to_order_hint_for_vcl_obu(
   // restricted_prediction_switch is set, mark scalable-dependent references
   // as restricted so that get_disp_order_hint_replica() skips them.
   if (restricted_prediction_switch) {
-    for (int i = 0; i < seq_params->ref_frames; i++) {
+    for (int i = 0; i < sh_info->ref_frames; i++) {
       if (replica_reference_list[i].display_order_hint < 0) continue;
-      if (is_tlayer_scalable_and_dependent(seq_params, tlayer_id,
-                                           replica_reference_list[i].tlayer_id,
-                                           mlayer_id) &&
-          is_mlayer_scalable_and_dependent(seq_params, mlayer_id,
-                                           replica_reference_list[i].mlayer_id))
+      if (sh_info_tlayer_dep(sh_info, tlayer_id,
+                             replica_reference_list[i].tlayer_id, mlayer_id) &&
+          sh_info_mlayer_dep(sh_info, mlayer_id,
+                             replica_reference_list[i].mlayer_id))
         replica_reference_list[i].is_restricted = 1;
     }
   }
@@ -2769,13 +2817,13 @@ avm_codec_err_t parse_to_order_hint_for_vcl_obu(
   // RAS_FRAME: num_ref_key_frames then each ref long_term_id.
   // All others: nothing.
   if (frame_type == KEY_FRAME) {
-    avm_rb_read_literal(rb, seq_params->number_of_bits_for_lt_frame_id);
+    avm_rb_read_literal(rb, sh_info->number_of_bits_for_lt_frame_id);
   } else if (obu_type == OBU_RAS_FRAME) {
     int num_ref_key_frames = avm_rb_read_literal(rb, 3);
     pbi->common.num_ref_key_frames = num_ref_key_frames;
     for (int i = 0; i < num_ref_key_frames; i++) {
       pbi->common.ref_long_term_ids[i] =
-          avm_rb_read_literal(rb, seq_params->number_of_bits_for_lt_frame_id);
+          avm_rb_read_literal(rb, sh_info->number_of_bits_for_lt_frame_id);
     }
   }
 
@@ -2801,13 +2849,13 @@ avm_codec_err_t parse_to_order_hint_for_vcl_obu(
   // single_picture_header_flag: no bit.
   // All others: read 1 bit.
   if (obu_type != OBU_BRIDGE_FRAME && frame_type != S_FRAME &&
-      !seq_params->single_picture_header_flag) {
+      !sh_info->single_picture_header_flag) {
     avm_rb_read_bit(rb);  // frame_size_override_flag
   }
 
   // --- order_hint and display_order_hint derivation ---
-  int order_hint = avm_rb_read_literal(
-      rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
+  int order_hint =
+      avm_rb_read_literal(rb, sh_info->order_hint_bits_minus_1 + 1);
 
   if (obu_type == OBU_CLK) {
     // CLK: display_order_hint == order_hint directly.
@@ -2822,7 +2870,7 @@ avm_codec_err_t parse_to_order_hint_for_vcl_obu(
     // av2_store_xlayer_context(). but this particular block is called only
     // after at least one round of avm_decode_frame_from_obus()
     *current_order_hint = get_disp_order_hint_replica(
-        seq_params, obu_type, order_hint, tlayer_id, mlayer_id,
+        sh_info, obu_type, order_hint, tlayer_id, mlayer_id,
         replica_reference_list, pbi->random_accessed);
   }
 
@@ -2847,34 +2895,34 @@ avm_codec_err_t parse_to_order_hint_for_vcl_obu(
 
   int refresh_frame_flags = 0;
   if (frame_type == KEY_FRAME) {
-    if (obu_type == OBU_CLK && seq_params->max_mlayer_id == 0) {
-      refresh_frame_flags = (1 << seq_params->ref_frames) - 1;
-    } else if (seq_params->enable_short_refresh_frame_flags) {
-      int idx = avm_rb_read_literal(rb, seq_params->ref_frames_log2);
+    if (obu_type == OBU_CLK && sh_info->max_mlayer_id == 0) {
+      refresh_frame_flags = (1 << sh_info->ref_frames) - 1;
+    } else if (sh_info->enable_short_refresh_frame_flags) {
+      int idx = avm_rb_read_literal(rb, sh_info->ref_frames_log2);
       refresh_frame_flags = 1 << idx;
     } else {
-      refresh_frame_flags = avm_rb_read_literal(rb, seq_params->ref_frames);
+      refresh_frame_flags = avm_rb_read_literal(rb, sh_info->ref_frames);
     }
   } else if (obu_type == OBU_BRIDGE_FRAME && !bridge_frame_overwrite_flag) {
     refresh_frame_flags = 1 << bridge_frame_ref_idx;
   } else if (obu_type == OBU_RAS_FRAME) {
     refresh_frame_flags = ras_frame_refresh_frame_flags_derivation(pbi);
   } else if (frame_type == S_FRAME) {
-    refresh_frame_flags = avm_rb_read_literal(rb, seq_params->ref_frames);
-  } else if (seq_params->enable_short_refresh_frame_flags) {
+    refresh_frame_flags = avm_rb_read_literal(rb, sh_info->ref_frames);
+  } else if (sh_info->enable_short_refresh_frame_flags) {
     int has = avm_rb_read_bit(rb);
     if (has) {
-      int idx = avm_rb_read_literal(rb, seq_params->ref_frames_log2);
+      int idx = avm_rb_read_literal(rb, sh_info->ref_frames_log2);
       refresh_frame_flags = 1 << idx;
     }
   } else {
-    refresh_frame_flags = avm_rb_read_literal(rb, seq_params->ref_frames);
+    refresh_frame_flags = avm_rb_read_literal(rb, sh_info->ref_frames);
   }
 
   update_replica_reference_list(replica_reference_list, refresh_frame_flags,
                                 *current_order_hint, *current_is_shown,
                                 tlayer_id, mlayer_id, frame_type,
-                                seq_params->max_mlayer_id);
+                                sh_info->max_mlayer_id);
   return AVM_CODEC_OK;
 }
 
@@ -2893,7 +2941,7 @@ avm_codec_err_t parse_to_order_hint_for_vcl_obu(
 avm_codec_err_t parse_to_order_hint_for_sef(
     struct AV2Decoder *pbi, const uint8_t *data, size_t payload_size,
     OBU_TYPE obu_type, int xlayer_id, int tlayer_id, int mlayer_id,
-    struct SequenceHeader *sh_list, struct MultiFrameHeader *mfh_list,
+    SeqHeaderInfo *sh_list, struct MultiFrameHeader *mfh_list,
     int *current_is_shown, int *current_order_hint,
     FrameUnitInfo *replica_reference_list) {
   (void)xlayer_id;
@@ -2920,16 +2968,16 @@ avm_codec_err_t parse_to_order_hint_for_sef(
     }
   }
 
-  // Select sequence header from the replica list.
-  struct SequenceHeader *seq_params;
+  // Select sequence header info from the replica list.
+  SeqHeaderInfo *sh_info;
   if (sh_list[seq_header_id_in_frame_header].seq_header_id >= 0) {
-    seq_params = &sh_list[seq_header_id_in_frame_header];
+    sh_info = &sh_list[seq_header_id_in_frame_header];
   } else {
     return AVM_CODEC_CORRUPT_FRAME;
   }
 
   // existing_frame_idx
-  int existing_frame_idx = avm_rb_read_literal(rb, seq_params->ref_frames_log2);
+  int existing_frame_idx = avm_rb_read_literal(rb, sh_info->ref_frames_log2);
 
   // derive_sef_order_hint
   int derive_sef_order_hint = avm_rb_read_bit(rb);
@@ -2939,14 +2987,14 @@ avm_codec_err_t parse_to_order_hint_for_sef(
 
   if (!derive_sef_order_hint) {
     // Explicit order_hint in bitstream; derive display_order_hint normally.
-    int order_hint = avm_rb_read_literal(
-        rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
+    int order_hint =
+        avm_rb_read_literal(rb, sh_info->order_hint_bits_minus_1 + 1);
     *current_order_hint = get_disp_order_hint_replica(
-        seq_params, obu_type, order_hint, tlayer_id, mlayer_id,
+        sh_info, obu_type, order_hint, tlayer_id, mlayer_id,
         replica_reference_list, pbi->random_accessed);
   } else {
     // Inherit display_order_hint from the referenced DPB slot.
-    if (existing_frame_idx < seq_params->ref_frames &&
+    if (existing_frame_idx < sh_info->ref_frames &&
         replica_reference_list[existing_frame_idx].display_order_hint >= 0) {
       *current_order_hint =
           replica_reference_list[existing_frame_idx].display_order_hint;

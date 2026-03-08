@@ -17,15 +17,6 @@
 #include "avm_dsp/bitreader_buffer.h"
 #include "av2/decoder/decoder.h"
 
-// Parse given "data" to get long_term_frame_id_bits and OrderHintBits.
-avm_codec_err_t parse_sh(struct AV2Decoder *pbi, const uint8_t *data,
-                         size_t payload_size,
-                         struct SequenceHeader *seq_params);
-
-// Parse given "data" to get mfh_seq_header_id
-avm_codec_err_t parse_mfh(struct AV2Decoder *pbi, const uint8_t *data,
-                          size_t payload_size, struct MultiFrameHeader *mfh);
-
 // Per-picture-unit analysis produced by the first pass of decoder_decode().
 // Carries the TU-boundary flags computed before any decoding starts.
 // Also used as lightweight DPB entries in replica_reference_list for pre-scan
@@ -44,6 +35,15 @@ typedef struct {
   int refresh_frame_flags;
 } FrameUnitInfo;
 
+// Parse given "data" to populate the lightweight SeqHeaderInfo replica
+// in sh_list at the parsed seq_header_id index.
+avm_codec_err_t parse_sh(struct AV2Decoder *pbi, const uint8_t *data,
+                         size_t payload_size, SeqHeaderInfo *sh_list);
+
+// Parse given "data" to get mfh_seq_header_id
+avm_codec_err_t parse_mfh(struct AV2Decoder *pbi, const uint8_t *data,
+                          size_t payload_size, struct MultiFrameHeader *mfh);
+
 // Lightweight parser for all VCL OBUs that carry a full uncompressed frame
 // header (CLK, OLK, tile groups, SWITCH, RAS_FRAME, TIP, BRIDGE_FRAME).
 // SEF is excluded; use parse_to_order_hint_for_sef() for LEADING/REGULAR_SEF.
@@ -53,7 +53,7 @@ typedef struct {
 avm_codec_err_t parse_to_order_hint_for_vcl_obu(
     struct AV2Decoder *pbi, const uint8_t *data, size_t payload_size,
     OBU_TYPE obu_type, int xlayer_id, int tlayer_id, int mlayer_id,
-    struct SequenceHeader *sh_list, struct MultiFrameHeader *mfh_list,
+    SeqHeaderInfo *sh_list, struct MultiFrameHeader *mfh_list,
     int *current_is_shown, int *current_order_hint,
     FrameUnitInfo *replica_reference_list);
 
@@ -63,7 +63,7 @@ avm_codec_err_t parse_to_order_hint_for_vcl_obu(
 avm_codec_err_t parse_to_order_hint_for_sef(
     struct AV2Decoder *pbi, const uint8_t *data, size_t payload_size,
     OBU_TYPE obu_type, int xlayer_id, int tlayer_id, int mlayer_id,
-    struct SequenceHeader *sh_list, struct MultiFrameHeader *mfh_list,
+    SeqHeaderInfo *sh_list, struct MultiFrameHeader *mfh_list,
     int *current_is_shown, int *current_order_hint,
     FrameUnitInfo *replica_reference_list);
 

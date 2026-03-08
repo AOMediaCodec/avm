@@ -243,6 +243,10 @@ AV2Decoder *av2_decoder_create(BufferPool *const pool) {
     for (int i = 0; i < MAX_SEQ_NUM; i++)
       pbi->seq_list[xlayer][i].seq_header_id = -1;
 
+  for (int xlayer = 0; xlayer < MAX_NUM_XLAYERS; xlayer++)
+    for (int i = 0; i < MAX_SEQ_NUM; i++)
+      pbi->replica_sh_list[xlayer][i].seq_header_id = -1;
+
 #if CONFIG_ACCOUNTING
   pbi->acct_enabled = 1;
   avm_accounting_init(&pbi->accounting);
