@@ -595,40 +595,31 @@ static int quick_parsing_to_order_hint(struct AV2Decoder *pbi,
                                        int *current_is_shown,
                                        int *current_order_hint,
                                        FrameUnitInfo *replica_reference_list) {
-  avm_codec_err_t res = AVM_CODEC_OK;
-  const uint8_t *data_read = data;
   ObuHeader obu_header;
+  size_t payload_size = 0;
+  size_t bytes_read = 0;
+  avm_codec_err_t res = avm_read_obu_header_and_size(data, data_sz, &obu_header,
+                                                     &payload_size, &bytes_read);
+  if (res != AVM_CODEC_OK) return 0;
 
-  while (data_read < data + data_sz) {
-    size_t payload_size = 0;
-    size_t bytes_read = 0;
-    res = avm_read_obu_header_and_size(data_read, data_sz, &obu_header,
-                                       &payload_size, &bytes_read);
-    if (res != AVM_CODEC_OK) return 0;
-
-    if (obu_header.type == OBU_LEADING_SEF ||
-        obu_header.type == OBU_REGULAR_SEF) {
-      // SEF uses show-existing-frame syntax; handled by a dedicated parser.
-      res = parse_to_order_hint_for_sef(
-          pbi, data_read + bytes_read, payload_size, obu_header.type,
-          obu_header.obu_xlayer_id, obu_header.obu_tlayer_id,
-          obu_header.obu_mlayer_id, sh_list, mfh_list, current_is_shown,
-          current_order_hint, replica_reference_list);
-    } else if (is_multi_tile_vcl_obu(obu_header.type) ||
-               obu_header.type == OBU_LEADING_TIP ||
-               obu_header.type == OBU_REGULAR_TIP ||
-               obu_header.type == OBU_BRIDGE_FRAME) {
-      // All remaining VCL OBU types share the same consolidated parser.
-      res = parse_to_order_hint_for_vcl_obu(
-          pbi, data_read + bytes_read, payload_size, obu_header.type,
-          obu_header.obu_xlayer_id, obu_header.obu_tlayer_id,
-          obu_header.obu_mlayer_id, sh_list, mfh_list, current_is_shown,
-          current_order_hint, replica_reference_list);
-    }
-    if (res != AVM_CODEC_OK) return 0;
-    data_read += bytes_read + payload_size;
+  if (obu_header.type == OBU_LEADING_SEF ||
+      obu_header.type == OBU_REGULAR_SEF) {
+    res = parse_to_order_hint_for_sef(
+        pbi, data + bytes_read, payload_size, obu_header.type,
+        obu_header.obu_xlayer_id, obu_header.obu_tlayer_id,
+        obu_header.obu_mlayer_id, sh_list, mfh_list, current_is_shown,
+        current_order_hint, replica_reference_list);
+  } else if (is_multi_tile_vcl_obu(obu_header.type) ||
+             obu_header.type == OBU_LEADING_TIP ||
+             obu_header.type == OBU_REGULAR_TIP ||
+             obu_header.type == OBU_BRIDGE_FRAME) {
+    res = parse_to_order_hint_for_vcl_obu(
+        pbi, data + bytes_read, payload_size, obu_header.type,
+        obu_header.obu_xlayer_id, obu_header.obu_tlayer_id,
+        obu_header.obu_mlayer_id, sh_list, mfh_list, current_is_shown,
+        current_order_hint, replica_reference_list);
   }
-  return 1;
+  return (res == AVM_CODEC_OK) ? 1 : 0;
 }
 
 bool get_reset_last(struct AV2Decoder *pbi, int tlayer_id, int mlayer_id,
@@ -692,7 +683,11 @@ static int check_frame_unit_data(struct AV2Decoder *pbi,
     size_t bytes_read = 0;
     res = avm_read_obu_header_and_size(data_read, data_sz, &obu_header,
                                        &payload_size, &bytes_read);
-
+#if 1
+    printf("<<%s>> %d, mlayer %d, tlayer %d\n", avm_obu_type_to_string(obu_header.type), obu_header.obu_xlayer_id,
+           obu_header.obu_mlayer_id,
+           obu_header.obu_tlayer_id);
+#endif
     if (res != AVM_CODEC_OK) {
       fprintf(stderr, "%s avm_read_obu_header_and_size() error\n", __func__);
       return -1;
