@@ -206,9 +206,9 @@ static INLINE int get_dir_rank(const AV2_COMMON *const cm, int refrank,
   }
   // If refrank has the same distance as a reference return 0 (past)
   // but the dir_refrank[0] is -1
-#if CONFIG_G052 //bugfix for --add-sef-for-output=1
+#if CONFIG_G052  // bugfix for --add-sef-for-output=1
   for (int i = 0; i < cm->ref_frames_info.num_cur_refs; ++i) {
-      if (cm->ref_frames_info.cur_refs[i] == refrank) return 0;
+    if (cm->ref_frames_info.cur_refs[i] == refrank) return 0;
   }
 #else
   if (cm->ref_frames_info.cur_refs[0] == refrank) return 0;

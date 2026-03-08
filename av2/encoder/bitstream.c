@@ -5174,9 +5174,8 @@ static AVM_INLINE void write_show_existing_frame(
   const SequenceHeader *const seq_params = &cm->seq_params;
   avm_wb_write_literal(wb, cm->sef_ref_fb_idx, cm->seq_params.ref_frames_log2);
 #if CONFIG_G052
-  avm_wb_write_literal(
-      wb, cm->current_frame.order_hint,
-      seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
+  avm_wb_write_literal(wb, cm->current_frame.order_hint,
+                       seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
 #else
   avm_wb_write_bit(wb, cm->derive_sef_order_hint);
   if (!cm->derive_sef_order_hint) {

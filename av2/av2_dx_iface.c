@@ -759,9 +759,9 @@ static int quick_parsing_to_order_hint(struct AV2Decoder *pbi,
 // This function assess if the current frame unit is the first clk/olk in the
 // temporal unit. If so, set pbi->this_is_first_keyframe_unit_in_tu = 1.
 static int set_this_is_first_vcl_obu_in_tu(struct AV2Decoder *pbi,
-                                            int tlayer_id, int mlayer_id,
-                                            int current_is_shown,
-                                            int current_order_hint) {
+                                           int tlayer_id, int mlayer_id,
+                                           int current_is_shown,
+                                           int current_order_hint) {
   int this_is_first_vcl_obu_in_tu = -1;
 
   // Any VCL OBU type indicates the current frame unit carries coded picture
@@ -790,39 +790,41 @@ static int set_this_is_first_vcl_obu_in_tu(struct AV2Decoder *pbi,
   if (pbi->last_frame_unit.mlayer_id > mlayer_id) {
     this_is_first_vcl_obu_in_tu = 1;
     return this_is_first_vcl_obu_in_tu;
-  } else if(pbi->last_frame_unit.mlayer_id == mlayer_id){
-    if(current_is_shown == 1){
+  } else if (pbi->last_frame_unit.mlayer_id == mlayer_id) {
+    if (current_is_shown == 1) {
       this_is_first_vcl_obu_in_tu = 1;
       return this_is_first_vcl_obu_in_tu;
-    }else {
-      if(pbi->last_frame_unit.showable_frame == 1){
+    } else {
+      if (pbi->last_frame_unit.showable_frame == 1) {
         //[S][H]
-        this_is_first_vcl_obu_in_tu = 1; //assuming the bitstream is valid
+        this_is_first_vcl_obu_in_tu = 1;  // assuming the bitstream is valid
         return this_is_first_vcl_obu_in_tu;
-      }else{
+      } else {
         //[H]-[H]
-        //need further checking
+        // need further checking
       }
-    } //current is shown or hidden
+    }  // current is shown or hidden
   } else {
-    if(current_is_shown == 1){
+    if (current_is_shown == 1) {
       this_is_first_vcl_obu_in_tu = 1;
       return this_is_first_vcl_obu_in_tu;
-    }else {
-      if(pbi->last_frame_unit.showable_frame == 1){
+    } else {
+      if (pbi->last_frame_unit.showable_frame == 1) {
         //[S][H]
-        //need further checking
-      }else{
+        // need further checking
+      } else {
         //[H]-[H]
-        this_is_first_vcl_obu_in_tu = -1; // invalid bitsream. last H is the last obu of the layer
+        this_is_first_vcl_obu_in_tu =
+            -1;  // invalid bitsream. last H is the last obu of the layer
         return this_is_first_vcl_obu_in_tu;
       }
     }
   }
 
   assert(pbi->last_frame_unit.mlayer_id <= mlayer_id);
-  //2 cases : 1. [S(mlayer_id=N)][S(mlayer_id=N+)] 2. [S(mlayer_id=N)][H(mlayer_id=N+)]
-  //last_displayable_frame_unit is the same as last_frame_unit if the prev is shown.
+  // 2 cases : 1. [S(mlayer_id=N)][S(mlayer_id=N+)] 2.
+  // [S(mlayer_id=N)][H(mlayer_id=N+)] last_displayable_frame_unit is the same
+  // as last_frame_unit if the prev is shown.
   this_is_first_vcl_obu_in_tu =
       pbi->last_displayable_frame_unit.display_order_hint != current_order_hint;
   return this_is_first_vcl_obu_in_tu;
@@ -831,17 +833,17 @@ static int set_this_is_first_vcl_obu_in_tu(struct AV2Decoder *pbi,
 // This function assess if the current frame unit is the first clk/olk in the
 // temporal unit. If so, set pbi->this_is_first_keyframe_unit_in_tu = 1.
 // This function does **NOT** assess the validity of the bitstream
-int set_this_is_first_keyframe_unit_in_tu(struct AV2Decoder *pbi,
-                                           int tlayer_id, int mlayer_id,
-                                           int current_is_shown,
-                                           int current_order_hint) {
+int set_this_is_first_keyframe_unit_in_tu(struct AV2Decoder *pbi, int tlayer_id,
+                                          int mlayer_id, int current_is_shown,
+                                          int current_order_hint) {
   int this_is_first_unit_in_tu = -1;
   bool has_clk = pbi->obus_in_frame_unit_data[tlayer_id][mlayer_id][OBU_CLK];
   bool has_olk = pbi->obus_in_frame_unit_data[tlayer_id][mlayer_id][OBU_OLK];
   if (!has_clk && !has_olk) {
     return 0;
   }
-  this_is_first_unit_in_tu = set_this_is_first_vcl_obu_in_tu(pbi, tlayer_id, mlayer_id, current_is_shown, current_order_hint);
+  this_is_first_unit_in_tu = set_this_is_first_vcl_obu_in_tu(
+      pbi, tlayer_id, mlayer_id, current_is_shown, current_order_hint);
 
   return this_is_first_unit_in_tu;
 };
@@ -1040,8 +1042,9 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
         pbi->this_is_first_keyframe_unit_in_tu = 1;
       } else {
         pbi->this_is_first_keyframe_unit_in_tu =
-        set_this_is_first_keyframe_unit_in_tu(
-            pbi, tlayer_id, mlayer_id, current_is_shown, current_order_hint);
+            set_this_is_first_keyframe_unit_in_tu(pbi, tlayer_id, mlayer_id,
+                                                  current_is_shown,
+                                                  current_order_hint);
         if (pbi->this_is_first_keyframe_unit_in_tu == -1) {
           fprintf(stderr, "one of CLK and OLK should be present.\n");
           return AVM_CODEC_ERROR;
@@ -1055,9 +1058,8 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
       // Determine if the first VCL OBU of the current frame unit is also the
       // first VCL OBU of the temporal unit (applies to all VCL types, not just
       // CLK/OLK).
-      pbi->this_is_first_vcl_obu_in_tu =
-      set_this_is_first_vcl_obu_in_tu(pbi, tlayer_id, mlayer_id,
-                                      current_is_shown, current_order_hint);
+      pbi->this_is_first_vcl_obu_in_tu = set_this_is_first_vcl_obu_in_tu(
+          pbi, tlayer_id, mlayer_id, current_is_shown, current_order_hint);
     }
     // droping leading obus if neccessary
     // pbi->random_accessed is set in main_loop() when parsing begins at a

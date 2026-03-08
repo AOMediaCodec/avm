@@ -7742,7 +7742,6 @@ int read_obu_extension_bits(const uint8_t *obu_payload, size_t payload_size,
 static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
                                     int obu_xlayer_id,
                                     struct avm_read_bit_buffer *rb) {
-
   AV2_COMMON *const cm = &pbi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
   const ContentInterpretation *const ci_params =

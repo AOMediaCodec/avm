@@ -2938,36 +2938,38 @@ static void report_stats(AV2_COMP *cpi, size_t frame_size, uint64_t cx_time) {
     if (cpi->b_calculate_psnr >= 1) {
       const bool use_hbd_psnr = (cpi->b_calculate_psnr == 2);
       if (cpi->oxcf.tool_cfg.enable_bru) {
-        fprintf(stdout,
-                "POC:%6d [%s][BRU%1d:%1d][Level:%d][Q:%3d]: %10" PRIu64
-                " Bytes, "
-                "%6.1fms, %2.4f dB(Y), %2.4f dB(U), "
-                "%2.4f dB(V), "
-                "%2.4f dB(Avg)",
-                cm->cur_frame->absolute_poc,
-                cm->show_existing_frame ? " SEF " : frameType[cm->current_frame.frame_type],
-                cm->bru.enabled,
-                cm->bru.update_ref_idx, cm->cur_frame->pyramid_level,
-                base_qindex, (uint64_t)frame_size, cx_time / 1000.0,
-                use_hbd_psnr ? psnr.psnr_hbd[1] : psnr.psnr[1],
-                use_hbd_psnr ? psnr.psnr_hbd[2] : psnr.psnr[2],
-                use_hbd_psnr ? psnr.psnr_hbd[3] : psnr.psnr[3],
-                use_hbd_psnr ? psnr.psnr_hbd[0] : psnr.psnr[0]);
+        fprintf(
+            stdout,
+            "POC:%6d [%s][BRU%1d:%1d][Level:%d][Q:%3d]: %10" PRIu64
+            " Bytes, "
+            "%6.1fms, %2.4f dB(Y), %2.4f dB(U), "
+            "%2.4f dB(V), "
+            "%2.4f dB(Avg)",
+            cm->cur_frame->absolute_poc,
+            cm->show_existing_frame ? " SEF "
+                                    : frameType[cm->current_frame.frame_type],
+            cm->bru.enabled, cm->bru.update_ref_idx,
+            cm->cur_frame->pyramid_level, base_qindex, (uint64_t)frame_size,
+            cx_time / 1000.0, use_hbd_psnr ? psnr.psnr_hbd[1] : psnr.psnr[1],
+            use_hbd_psnr ? psnr.psnr_hbd[2] : psnr.psnr[2],
+            use_hbd_psnr ? psnr.psnr_hbd[3] : psnr.psnr[3],
+            use_hbd_psnr ? psnr.psnr_hbd[0] : psnr.psnr[0]);
       } else {
-        fprintf(stdout,
-                "POC:%6d [%s][Level:%d][Q:%3d]: %10" PRIu64
-                " Bytes, "
-                "%6.1fms, %2.4f dB(Y), %2.4f dB(U), "
-                "%2.4f dB(V), "
-                "%2.4f dB(Avg)",
-                cm->cur_frame->absolute_poc,
-                cm->show_existing_frame ? " SEF " : frameType[cm->current_frame.frame_type],
-                cm->cur_frame->pyramid_level, base_qindex, (uint64_t)frame_size,
-                cx_time / 1000.0,
-                use_hbd_psnr ? psnr.psnr_hbd[1] : psnr.psnr[1],
-                use_hbd_psnr ? psnr.psnr_hbd[2] : psnr.psnr[2],
-                use_hbd_psnr ? psnr.psnr_hbd[3] : psnr.psnr[3],
-                use_hbd_psnr ? psnr.psnr_hbd[0] : psnr.psnr[0]);
+        fprintf(
+            stdout,
+            "POC:%6d [%s][Level:%d][Q:%3d]: %10" PRIu64
+            " Bytes, "
+            "%6.1fms, %2.4f dB(Y), %2.4f dB(U), "
+            "%2.4f dB(V), "
+            "%2.4f dB(Avg)",
+            cm->cur_frame->absolute_poc,
+            cm->show_existing_frame ? " SEF "
+                                    : frameType[cm->current_frame.frame_type],
+            cm->cur_frame->pyramid_level, base_qindex, (uint64_t)frame_size,
+            cx_time / 1000.0, use_hbd_psnr ? psnr.psnr_hbd[1] : psnr.psnr[1],
+            use_hbd_psnr ? psnr.psnr_hbd[2] : psnr.psnr[2],
+            use_hbd_psnr ? psnr.psnr_hbd[3] : psnr.psnr[3],
+            use_hbd_psnr ? psnr.psnr_hbd[0] : psnr.psnr[0]);
       }
     } else {
       if (cpi->oxcf.tool_cfg.enable_bru) {
@@ -2976,17 +2978,21 @@ static void report_stats(AV2_COMP *cpi, size_t frame_size, uint64_t cx_time) {
                 " Bytes, "
                 "%6.1fms",
                 cm->cur_frame->absolute_poc,
-                cm->show_existing_frame ? " SEF " : frameType[cm->current_frame.frame_type],
-                cm->bru.enabled,
-                cm->bru.update_ref_idx, cm->cur_frame->pyramid_level,
-                base_qindex, (uint64_t)frame_size, cx_time / 1000.0);
+                cm->show_existing_frame
+                    ? " SEF "
+                    : frameType[cm->current_frame.frame_type],
+                cm->bru.enabled, cm->bru.update_ref_idx,
+                cm->cur_frame->pyramid_level, base_qindex, (uint64_t)frame_size,
+                cx_time / 1000.0);
       } else {
         fprintf(stdout,
                 "POC:%6d [%s][Level:%d][Q:%3d]: %10" PRIu64
                 " Bytes, "
                 "%6.1fms",
                 cm->cur_frame->absolute_poc,
-                cm->show_existing_frame ? " SEF " : frameType[cm->current_frame.frame_type],
+                cm->show_existing_frame
+                    ? " SEF "
+                    : frameType[cm->current_frame.frame_type],
                 cm->cur_frame->pyramid_level, base_qindex, (uint64_t)frame_size,
                 cx_time / 1000.0);
       }

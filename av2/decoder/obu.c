@@ -496,8 +496,9 @@ static uint32_t read_multi_stream_decoder_operation_obu(
 
 // On success, returns the number of bytes read from 'rb'.
 // On failure, sets pbi->common.error.error_code and returns 0.
-static uint32_t read_sequence_header_obu(AV2Decoder *pbi, int xlayer_id, struct avm_read_bit_buffer *rb,
-                                         struct SequenceHeader *input_seq_params) {
+static uint32_t read_sequence_header_obu(
+    AV2Decoder *pbi, int xlayer_id, struct avm_read_bit_buffer *rb,
+    struct SequenceHeader *input_seq_params) {
   struct avm_internal_error_info local_error;
   memset(&local_error, 0, sizeof(local_error));
   struct avm_internal_error_info *error_info =
@@ -537,8 +538,13 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi, int xlayer_id, struct 
     seq_params->seq_tier = avm_rb_read_bit(rb);
   else
     seq_params->seq_tier = 0;
+<<<<<<< HEAD
   av2_read_chroma_format_bitdepth(rb, seq_params, error_info);
   if (error_info->error_code) return 0;
+=======
+  av2_read_chroma_format_bitdepth(rb, seq_params, error_info->error_code);
+  if (error_info->error_code != AVM_CODEC_OK) return 0;
+>>>>>>> 588944fa8c (update style)
   if (seq_params->single_picture_header_flag) {
     seq_params->seq_lcr_id = LCR_ID_UNSPECIFIED;
     seq_params->still_picture = 1;
@@ -2663,7 +2669,7 @@ avm_codec_err_t parse_to_order_hint_for_sef(
   }
 
   // existing_frame_idx
-  //int existing_frame_idx =
+  // int existing_frame_idx =
   avm_rb_read_literal(rb, seq_params->ref_frames_log2);
 
   // derive_sef_order_hint
