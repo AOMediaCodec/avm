@@ -1692,7 +1692,11 @@ static void define_gf_group(AV2_COMP *cpi, FIRSTPASS_STATS *this_frame,
     // read in the next frame
     if (EOF == input_stats(twopass, &next_frame)) {
       // Avoid baseline_gf_interval being set as 0 at EOF
+#if CONFIG_G052
+      if (i == 1) i++;
+#else
       if (rc->frames_to_key <= 1 && i == 1) i++;
+#endif
       break;
     }
 

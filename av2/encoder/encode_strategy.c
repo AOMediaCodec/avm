@@ -587,6 +587,9 @@ static int get_free_ref_map_index(RefFrameMapPair ref_map_pairs[REF_FRAMES],
 static int get_refresh_idx(int update_arf, int refresh_level,
                            int cur_frame_disp, int switch_frame_mode,
                            RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
+#if CONFIG_G052
+                           RefCntBuffer *const *ref_frame_map,
+#endif
                            const int ref_frames) {
   // refresh_level = -1
   int arf_count = 0;
@@ -602,7 +605,16 @@ static int get_refresh_idx(int update_arf, int refresh_level,
     RefFrameMapPair ref_pair = ref_frame_map_pairs[map_idx];
     if (ref_pair.ref_frame_for_inference == -1) continue;
     if (switch_frame_mode == 1 && ref_pair.frame_type == KEY_FRAME) continue;
+#if CONFIG_G052
+    // G052 remaps display_order_hint to frame_number for hidden frames,
+    // which makes future references look like old past frames in
+    // disp_order_removed.  Use the original (pre-remap) display order
+    // so that the eviction logic correctly identifies temporal distance.
+    const int frame_order =
+        (int)ref_frame_map[map_idx]->original_display_order_hint;
+#else
     const int frame_order = ref_pair.disp_order_removed;
+#endif
     const int reference_frame_level = ref_pair.pyr_level;
     // Keep future frames and three closest previous frames in output order
     if (frame_order > cur_frame_disp - 3) continue;
@@ -663,9 +675,13 @@ static int get_refresh_frame_flags_subgop_cfg(
   }
 
   const int update_arf = type_code == FRAME_TYPE_OOO_FILTERED && pyr_level == 1;
-  const int refresh_idx = get_refresh_idx(
-      update_arf, refresh_level, cur_disp_order, cpi->switch_frame_mode,
-      ref_frame_map_pairs, cpi->common.seq_params.ref_frames);
+  const int refresh_idx =
+      get_refresh_idx(update_arf, refresh_level, cur_disp_order,
+                      cpi->switch_frame_mode, ref_frame_map_pairs,
+#if CONFIG_G052
+                      cpi->common.ref_frame_map,
+#endif
+                      cpi->common.seq_params.ref_frames);
   return 1 << refresh_idx;
 }
 
@@ -764,7 +780,11 @@ int av2_get_refresh_frame_flags(
   const int update_arf = frame_update_type == ARF_UPDATE;
   const int refresh_idx =
       get_refresh_idx(update_arf, -1, cur_disp_order, cpi->switch_frame_mode,
-                      ref_frame_map_pairs, cpi->common.seq_params.ref_frames);
+                      ref_frame_map_pairs,
+#if CONFIG_G052
+                      cpi->common.ref_frame_map,
+#endif
+                      cpi->common.seq_params.ref_frames);
 
   return 1 << refresh_idx;
 }
