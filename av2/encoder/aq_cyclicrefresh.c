@@ -162,7 +162,8 @@ int av2_cyclic_refresh_rc_bits_per_mb(const AV2_COMP *cpi, int i,
 void av2_cyclic_refresh_update_segment(const AV2_COMP *cpi,
                                        MB_MODE_INFO *const mbmi, int mi_row,
                                        int mi_col, BLOCK_SIZE bsize,
-                                       int64_t rate, int64_t dist, int skip) {
+                                       int64_t rate, int64_t dist, int skip,
+                                       const uint8_t *lossless) {
   const AV2_COMMON *const cm = &cpi->common;
   CYCLIC_REFRESH *const cr = cpi->cyclic_refresh;
   const int bw = mi_size_wide[bsize];
@@ -178,9 +179,11 @@ void av2_cyclic_refresh_update_segment(const AV2_COMP *cpi,
   // If this block is labeled for refresh, check if we should reset the
   // segment_id.
   if (cyclic_refresh_segment_id_boosted(mbmi->segment_id)) {
-    mbmi->segment_id = refresh_this_block;
+    if (lossless[refresh_this_block] == lossless[mbmi->segment_id])
+      mbmi->segment_id = refresh_this_block;
     // Reset segment_id if will be skipped.
-    if (skip) mbmi->segment_id = CR_SEGMENT_ID_BASE;
+    if (skip && lossless[CR_SEGMENT_ID_BASE] == lossless[mbmi->segment_id])
+      mbmi->segment_id = CR_SEGMENT_ID_BASE;
   }
 
   // Update the cyclic refresh map, to be used for setting segmentation map

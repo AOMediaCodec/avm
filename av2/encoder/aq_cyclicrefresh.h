@@ -185,7 +185,8 @@ int av2_cyclic_refresh_rc_bits_per_mb(const struct AV2_COMP *cpi, int i,
 void av2_cyclic_refresh_update_segment(const struct AV2_COMP *cpi,
                                        MB_MODE_INFO *const mbmi, int mi_row,
                                        int mi_col, BLOCK_SIZE bsize,
-                                       int64_t rate, int64_t dist, int skip);
+                                       int64_t rate, int64_t dist, int skip,
+                                       const uint8_t *lossless);
 
 /*!\brief Update stats after encoding frame.
  *
