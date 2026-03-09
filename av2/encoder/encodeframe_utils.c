@@ -297,6 +297,17 @@ void av2_update_state(const AV2_COMP *const cpi, ThreadData *td,
         !is_mhccp_allowed(cm, xd)) {
       mi_addr->uv_mode = UV_DC_PRED;
     }
+
+    if (!seg->segid_preskip && seg->update_map &&
+        xd->tree_type != CHROMA_PART) {
+      if (txfm_info->skip_txfm && !cm->features.has_lossless_segment) {
+        int cdf_num;
+        const int pred = av2_get_spatial_seg_pred(cm, xd, &cdf_num, 1);
+        assert(is_inter_block(mi_addr, xd->tree_type) ||
+               !cpi->enc_seg.has_lossless_segment);
+        mi_addr->segment_id = pred;
+      }
+    }
   }
   for (i = (xd->tree_type == CHROMA_PART); i < num_planes; ++i) {
     p[i].coeff = ctx->coeff[i];

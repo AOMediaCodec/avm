@@ -1247,24 +1247,6 @@ void av2_encode_sb(const struct AV2_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
     av2_init_txk_skip_array(cm, xd->mi_row, xd->mi_col, sb_type, 1,
                             xd->tree_type, &mbmi->chroma_ref_info, plane_start,
                             plane_end);
-
-    if (cpi->oxcf.q_cfg.aq_mode != NO_AQ) {
-      int current_base_qindex = cpi->common.delta_q_info.delta_q_present_flag
-                                    ? xd->current_base_qindex
-                                    : cpi->common.quant_params.base_qindex;
-      if (mbmi->skip_txfm[xd->tree_type == CHROMA_PART] &&
-          !cm->features.has_lossless_segment && cm->seg.update_map) {
-        assert(is_inter_block(mbmi, xd->tree_type));
-        int cdf_num;
-        int pred = av2_get_spatial_seg_pred(cm, xd, &cdf_num, 1);
-        mbmi->segment_id = pred;
-        int seg_qindex =
-            av2_get_qindex(&cm->seg, mbmi->segment_id, current_base_qindex,
-                           cm->seq_params.bit_depth);
-        get_qindex_with_offsets(cm, seg_qindex, mbmi->final_qindex_dc,
-                                mbmi->final_qindex_ac);
-      }
-    }
   }
 
   if (x->txfm_search_info.skip_txfm) return;
