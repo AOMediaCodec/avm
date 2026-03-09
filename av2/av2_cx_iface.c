@@ -3275,10 +3275,10 @@ static avm_codec_err_t encoder_encode(avm_codec_alg_priv_t *ctx,
       if (frame_size) {
         if (ctx->pending_cx_data == 0) ctx->pending_cx_data = cx_data;
         const int write_temporal_delimiter =
-            !(ctx->oxcf.signal_td) ? 0
-                                   : (!cpi->common.mlayer_id &&
-                                      (cpi->common.immediate_output_picture ||
-                                       cpi->common.implicit_output_picture));
+            (cpi->common.immediate_output_picture ||
+             cpi->common.implicit_output_picture) &&
+            ((cpi->common.seq_params.max_mlayer_id != 0) ||
+             ctx->oxcf.signal_td);
         if (write_temporal_delimiter) {
           const uint32_t obu_payload_size = 0;
           const size_t length_field_size =

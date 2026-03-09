@@ -26,29 +26,6 @@ avm_codec_err_t parse_sh(struct AV2Decoder *pbi, const uint8_t *data,
 avm_codec_err_t parse_mfh(struct AV2Decoder *pbi, const uint8_t *data,
                           size_t payload_size, struct MultiFrameHeader *mfh);
 
-// Lightweight parser for all VCL OBUs that carry a full uncompressed frame
-// header (CLK, OLK, tile groups, SWITCH, RAS_FRAME, TIP, BRIDGE_FRAME).
-// SEF is excluded; use parse_to_order_hint_for_sef() for LEADING/REGULAR_SEF.
-// For OBU types that signal is_first_tile_group (all except TIP and
-// BRIDGE_FRAME), outputs are unchanged and AVM_CODEC_OK is returned when
-// is_first_tile_group == 0.
-avm_codec_err_t parse_to_order_hint_for_vcl_obu(
-    struct AV2Decoder *pbi, const uint8_t *data, size_t payload_size,
-    OBU_TYPE obu_type, int xlayer_id, int tlayer_id, int mlayer_id,
-    struct SequenceHeader *current_seq_params,
-    struct MultiFrameHeader *current_mfh, int *current_is_shown,
-    int *current_order_hint);
-
-// Parse an SEF (LEADING or REGULAR) OBU payload to extract current_is_shown
-// and current_order_hint. SEF payloads have no is_first_tile_group bit and
-// use show-existing-frame syntax. SEF frames are always output (is_shown = 1).
-avm_codec_err_t parse_to_order_hint_for_sef(
-    struct AV2Decoder *pbi, const uint8_t *data, size_t payload_size,
-    OBU_TYPE obu_type, int xlayer_id, int tlayer_id, int mlayer_id,
-    struct SequenceHeader *current_seq_params,
-    struct MultiFrameHeader *current_mfh, int *current_is_shown,
-    int *current_order_hint);
-
 // Try to decode one frame from a buffer.
 // Returns 1 if we decoded a frame,
 //         0 if we didn't decode a frame but that's okay
