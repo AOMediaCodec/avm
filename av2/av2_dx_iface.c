@@ -742,12 +742,17 @@ static void set_this_is_first_keyframe_unit_in_tu(struct AV2Decoder *pbi,
                                                   int tlayer_id,
                                                   int mlayer_id) {
   pbi->this_is_first_keyframe_unit_in_tu = 0;
-  bool has_clk =
+  const bool has_clk =
       pbi->obus_in_frame_unit_data[tlayer_id][mlayer_id][OBU_CLOSED_LOOP_KEY];
-  bool has_olk =
+  const bool has_olk =
       pbi->obus_in_frame_unit_data[tlayer_id][mlayer_id][OBU_OPEN_LOOP_KEY];
 
-  if ((has_clk && has_olk) || (!has_clk && !has_olk)) {
+  // Caller only calls this function when `has_key_obu` is true, so it knows the
+  // frame unit has a CLK or an OLK.
+  assert(has_clk || has_olk);
+
+  // Add an error message if both CLK and OLK are present.
+  if (has_clk && has_olk) {
     pbi->this_is_first_keyframe_unit_in_tu = -1;
     return;
   }
@@ -779,9 +784,9 @@ static void set_this_is_first_vcl_obu_in_tu(struct AV2Decoder *pbi,
   }
   if (!has_vcl) return;
 
-  if (!pbi->seen_vcl_in_this_tu) {
+  if (!pbi->seen_vcl_obu_in_this_tu) {
     pbi->this_is_first_vcl_obu_in_tu = 1;
-    pbi->seen_vcl_in_this_tu = 1;
+    pbi->seen_vcl_obu_in_this_tu = 1;
   }
 }
 // If the decoder starts decoding from the middle of the bitstream,
@@ -956,7 +961,7 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
     bool has_td = pbi->obus_in_frame_unit_data[0][0][OBU_TEMPORAL_DELIMITER];
 
     if (has_td) {
-      pbi->seen_vcl_in_this_tu = 0;
+      pbi->seen_vcl_obu_in_this_tu = 0;
       pbi->seen_keyframe_in_this_tu = 0;
     }
 
@@ -976,7 +981,7 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
       pbi->this_is_first_vcl_obu_in_tu =
           (pbi->this_is_first_keyframe_unit_in_tu == 1) ? 1 : 0;
       if (pbi->this_is_first_vcl_obu_in_tu) {
-        pbi->seen_vcl_in_this_tu = 1;
+        pbi->seen_vcl_obu_in_this_tu = 1;
       }
     } else {
       pbi->this_is_first_keyframe_unit_in_tu = 0;

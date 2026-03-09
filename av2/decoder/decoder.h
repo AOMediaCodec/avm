@@ -571,9 +571,9 @@ typedef struct AV2Decoder {
    * Indicates if a VCL OBU has been seen in the current Temporal Unit.
    * Reset to 0 when a Temporal Delimiter is encountered.
    */
-  int seen_vcl_in_this_tu;
+  int seen_vcl_obu_in_this_tu;
   /*!
-   * Indicates if a Keyframe (CLK or intra-only frame) has been seen in the
+   * Indicates if a Keyframe (CLK or OLK frame) has been seen in the
    * current Temporal Unit. Reset to 0 when a Temporal Delimiter is encountered.
    */
   int seen_keyframe_in_this_tu;
