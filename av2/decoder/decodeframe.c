@@ -8068,7 +8068,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
             avm_rb_read_literal(rb, refresh_frame_flags_bits);
       }
     }
-    if (obu_type == OBU_CLK) {
+    if (obu_type == OBU_CLK && pbi->this_is_first_vcl_obu_in_tu) {
       for (int ref_pos = 0; ref_pos < seq_params->ref_frames; ref_pos++) {
         if (!(current_frame->refresh_frame_flags >> ref_pos & 1u)) {
           decrease_ref_count(cm->ref_frame_map[ref_pos], pool);
