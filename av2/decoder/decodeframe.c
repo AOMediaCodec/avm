@@ -7279,13 +7279,6 @@ static int read_show_existing_frame(AV2Decoder *pbi, bool is_regular_obu,
       if (buf->display_order_hint > max_disp_order_hint)
         max_disp_order_hint = buf->display_order_hint;
     }
-    if (max_disp_order_hint < current_frame->display_order_hint) {
-      avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-                         "display order hint of SEF(%d) is bigger than "
-                         "max_disp_order_hint(%d) in the ref_frame_map",
-                         current_frame->display_order_hint,
-                         max_disp_order_hint);
-    }
     cm->cur_frame->order_hint = current_frame->order_hint;
     cm->cur_frame->display_order_hint = current_frame->display_order_hint;
     resize_context_buffers(cm, frame_to_show->width, frame_to_show->height);
