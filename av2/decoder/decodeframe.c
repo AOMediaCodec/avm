@@ -6042,8 +6042,8 @@ void read_sequence_tile_info(struct SequenceHeader *seq_params,
   read_tile_syntax_info(&seq_params->tile_params, rb);
 }
 
-void read_sequence_tile_config(struct SequenceHeader *seq_params,
-                               struct avm_read_bit_buffer *rb) {
+static void read_sequence_tile_config(struct SequenceHeader *seq_params,
+                                      struct avm_read_bit_buffer *rb) {
   seq_params->seq_tile_info_present_flag = avm_rb_read_bit(rb);
   if (seq_params->seq_tile_info_present_flag) {
     read_sequence_tile_info(seq_params, rb);
