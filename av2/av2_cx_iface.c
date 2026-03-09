@@ -3254,6 +3254,9 @@ static avm_codec_err_t encoder_encode(avm_codec_alg_priv_t *ctx,
     }
     while (cx_data_sz - index_size >= ctx->cx_data_sz / 2 &&
            !is_frame_visible) {
+#if CONFIG_G052
+      is_frame_visible_null = 0;
+#endif
       uint64_t cx_time = 0;
       avm_usec_timer_start(&timer);
 

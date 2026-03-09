@@ -4627,7 +4627,7 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
     // via its implicit output mechanism (DPB eviction or successive output).
     if (cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames) {
       cm->immediate_output_picture = 0;
-      cpi->update_type_was_overlay = false;
+      // cpi->update_type_was_overlay = false;
     }
 #endif
 

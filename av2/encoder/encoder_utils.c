@@ -892,6 +892,30 @@ void direct_existing_frames_to_current(AV2_COMP *const cpi) {
                        "Buffer does not contain a reconstructed frame");
   }
   cm->cur_frame->frame_type = frame_to_show->frame_type;
+#if CONFIG_G052
+  const SequenceHeader *const seq_params = &cm->seq_params;
+  if (avm_realloc_frame_buffer(
+          &cm->cur_frame->buf, frame_to_show->buf.y_crop_width,
+          frame_to_show->buf.y_crop_height, seq_params->subsampling_x,
+          seq_params->subsampling_y, cpi->oxcf.border_in_pixels,
+          cm->features.byte_alignment, NULL, NULL, NULL, false))
+    avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
+                       "Failed to allocate frame buffer for SEF preview");
+  avm_yv12_copy_frame(&frame_to_show->buf, &cm->cur_frame->buf,
+                      av2_num_planes(cm));
+  cm->cur_frame->buf.color_primaries = frame_to_show->buf.color_primaries;
+  cm->cur_frame->buf.transfer_characteristics =
+      frame_to_show->buf.transfer_characteristics;
+  cm->cur_frame->buf.matrix_coefficients =
+      frame_to_show->buf.matrix_coefficients;
+  cm->cur_frame->buf.monochrome = frame_to_show->buf.monochrome;
+  cm->cur_frame->buf.bit_depth = frame_to_show->buf.bit_depth;
+  cm->cur_frame->buf.color_range = frame_to_show->buf.color_range;
+  cm->cur_frame->buf.chroma_sample_position =
+      frame_to_show->buf.chroma_sample_position;
+  cm->cur_frame->buf.render_width = frame_to_show->buf.render_width;
+  cm->cur_frame->buf.render_height = frame_to_show->buf.render_height;
+#endif
 }
 
 void av2_finalize_encoded_frame(AV2_COMP *const cpi) {

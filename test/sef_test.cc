@@ -12,6 +12,8 @@
 
 #include <ostream>
 
+#include "config/avm_config.h"
+
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 #include "test/codec_factory.h"
 #include "test/encode_test_driver.h"
@@ -20,6 +22,17 @@
 
 namespace {
 
+#if CONFIG_G052
+static const struct SEFTestParam {
+  int output_sef;
+  double psnr_thresh;
+} sefTestParams[] = {
+  // Don't output SEF (show-existing-frame) OBU.
+  { 0, 22.0 },
+  // Output SEF OBU.
+  { 1, 22.0 },
+};
+#else
 static const struct SEFTestParam {
   int output_sef;
   int sef_with_order_hint;
@@ -32,6 +45,7 @@ static const struct SEFTestParam {
   // Output SEF OBU, where order hint is explicitly signaled.
   { 1, 1, 22.0 },
 };
+#endif
 
 // Compiler may decide to add some padding to the struct above for alignment,
 // which the gtest may try to print (on error for example). This would cause
@@ -40,7 +54,9 @@ static const struct SEFTestParam {
 // This also makes '--gtest_list_tests' output more understandable.
 std::ostream &operator<<(std::ostream &os, const SEFTestParam &p) {
   os << "SEFTestParam { " << "output_sef = " << p.output_sef << ", "
-     << "sef_with_order_hint = " << p.sef_with_order_hint
+#if !CONFIG_G052
+     << "sef_with_order_hint = " << p.sef_with_order_hint << ", "
+#endif
      << "psnr_thresh = " << p.psnr_thresh << " }";
   return os;
 }
@@ -55,7 +71,9 @@ class SEFTest
       : EncoderTest(GET_PARAM(0)), encoding_mode_(GET_PARAM(1)),
         rc_mode_(GET_PARAM(2)) {
     output_sef_ = GET_PARAM(3).output_sef;
+#if !CONFIG_G052
     sef_with_order_hint_ = GET_PARAM(3).sef_with_order_hint;
+#endif
     psnr_threshold_ = GET_PARAM(3).psnr_thresh;
   }
   virtual ~SEFTest() {}
@@ -93,10 +111,12 @@ class SEFTest
       encoder->Control(AVME_SET_ARNR_MAXFRAMES, 7);
       encoder->Control(AVME_SET_ARNR_STRENGTH, 5);
       encoder->SetOption("add-sef-for-output", output_sef_ ? "1" : "0");
+#if !CONFIG_G052
       if (output_sef_) {
         encoder->Control(AV2E_SET_SEF_WITH_ORDER_HINT_TEST,
                          sef_with_order_hint_);
       }
+#endif
     }
   }
 
@@ -110,7 +130,9 @@ class SEFTest
   ::libavm_test::TestMode encoding_mode_;
   avm_rc_mode rc_mode_;
   int output_sef_;
+#if !CONFIG_G052
   int sef_with_order_hint_;
+#endif
   double psnr_threshold_;
   int cpu_used_;
   int nframes_;
@@ -123,8 +145,7 @@ TEST_P(SEFTest, TestShowExistingFrame) {
                                      0, 32);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   EXPECT_GT(GetAveragePsnr(), GetPsnrThreshold())
-      << "Output SEF = " << output_sef_ << ", "
-      << "SEF with order hint = " << sef_with_order_hint_;
+      << "Output SEF = " << output_sef_;
 }
 
 AV2_INSTANTIATE_TEST_SUITE(SEFTest, GOODQUALITY_TEST_MODES,
