@@ -507,7 +507,7 @@ static uint32_t read_sequence_header_obu(
   const uint32_t saved_bit_offset = rb->bit_offset;
 
   // Verify rb has been configured to report errors.
-  if (input_seq_params == NULL) assert(rb->error_handler);
+  if (input_seq_params != NULL) assert(rb->error_handler);
 
   // Use an element in the pbi->seq_list array to store the information as we
   // decode. At the end, if no errors have occurred, cm->seq_params is updated.
