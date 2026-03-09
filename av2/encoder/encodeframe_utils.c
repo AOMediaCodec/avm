@@ -277,7 +277,7 @@ void av2_update_state(const AV2_COMP *const cpi, ThreadData *td,
         xd->tree_type != CHROMA_PART) {
       const uint8_t *const map =
           seg->update_map ? cpi->enc_seg.map : cm->last_frame_seg_map;
-      uint8_t new_segment_id =
+      const uint8_t new_segment_id =
           map ? get_segment_id(mi_params, map, bsize, mi_row, mi_col) : 0;
       if (xd->lossless[new_segment_id] == xd->lossless[mi_addr->segment_id])
         mi_addr->segment_id = new_segment_id;

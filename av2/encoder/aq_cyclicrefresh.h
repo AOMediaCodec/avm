@@ -177,7 +177,8 @@ int av2_cyclic_refresh_rc_bits_per_mb(const struct AV2_COMP *cpi, int i,
  * \param[in]   bsize     Block size
  * \param[in]   rate      Projected block rate from pickmode
  * \param[in]   dist      Projected block dist from pickmode
- * \param[in]  skip       Skip flag set from picmode
+ * \param[in]   skip      Skip flag set from pickmode
+ * \param[in]   lossless  Pointer to the lossless flags of all segments
  *
  * Updates the \c mbmi->segment_id, the \c cpi->cyclic_refresh and
  * the \c cm->cpi->enc_seg.map.
