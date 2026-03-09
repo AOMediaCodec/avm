@@ -2218,9 +2218,10 @@ void av2_loop_restoration_filter_frame_init(AV2LrStruct *lr_ctxt,
   const int frame_width = frame->widths[0];
   const int frame_height = frame->heights[0];
   if (avm_realloc_frame_buffer(
-          lr_ctxt->dst, frame_width, frame_height, seq_params->seq_subsampling_x,
-          seq_params->seq_subsampling_y, AVM_RESTORATION_FRAME_BORDER,
-          cm->features.byte_alignment, NULL, NULL, NULL, false) < 0)
+          lr_ctxt->dst, frame_width, frame_height,
+          seq_params->seq_subsampling_x, seq_params->seq_subsampling_y,
+          AVM_RESTORATION_FRAME_BORDER, cm->features.byte_alignment, NULL, NULL,
+          NULL, false) < 0)
     avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
                        "Failed to allocate restoration dst buffer");
 

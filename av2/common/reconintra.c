@@ -2028,8 +2028,9 @@ void mhccp_implicit_fetch_neighbor_luma(const AV2_COMMON *cm,
     if (sub_x && sub_y) {
       av2_mhccp_implicit_fetch_neighbor_luma_420(
           input, input_stride, *above_lines, *left_lines, is_top_sb_boundary,
-          *ref_width, *ref_height, sub_y, cm->seq_params.seq_cfl_ds_filter_index,
-          width, height, output_q3, output_stride);
+          *ref_width, *ref_height, sub_y,
+          cm->seq_params.seq_cfl_ds_filter_index, width, height, output_q3,
+          output_stride);
     } else if (sub_x) {
       for (int h = 0; h < (*ref_height); h++) {
         for (int i = 0; i < (*ref_width); i += 2) {
@@ -2160,7 +2161,8 @@ void av2_predict_intra_block_facade(const AV2_COMMON *cm, MACROBLOCKD *xd,
   if (plane != AVM_PLANE_Y) mbmi->txb_idx = 0;
 
   if (plane != AVM_PLANE_Y && mbmi->uv_mode == UV_CFL_PRED &&
-      (cm->seq_params.seq_enable_cfl_intra || cm->seq_params.seq_enable_mhccp)) {
+      (cm->seq_params.seq_enable_cfl_intra ||
+       cm->seq_params.seq_enable_mhccp)) {
 #if CONFIG_DEBUG
     const BLOCK_SIZE plane_bsize = get_mb_plane_block_size(
         xd, mbmi, plane, pd->subsampling_x, pd->subsampling_y);

@@ -233,8 +233,8 @@ static int predict_skip_txfm(const AV2_COMMON *cm, MACROBLOCK *x,
   const MACROBLOCKD *xd = &x->e_mbd;
   (void)cm;
 
-  const int32_t dc_q =
-      av2_dc_quant_QTX(x->qindex, 0, cm->seq_params.seq_base_y_dc_delta_q, xd->bd);
+  const int32_t dc_q = av2_dc_quant_QTX(
+      x->qindex, 0, cm->seq_params.seq_base_y_dc_delta_q, xd->bd);
 
   *dist = pixel_diff_dist(cm, x, 0, 0, 0, bsize, block_size_wide[bsize],
                           block_size_high[bsize], NULL);
@@ -2312,12 +2312,12 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
       av2_subtract_txb(x, plane, plane_bsize, blk_col, blk_row, tx_size,
                        cm->width, cm->height, primary_tx_type);
     bool skip_idx = false;
-    xd->enable_ist =
-        (is_inter_block(mbmi, xd->tree_type) ? cm->seq_params.seq_enable_inter_ist
-                                             : cm->seq_params.seq_enable_ist) &&
-        !cpi->sf.tx_sf.tx_type_search.skip_stx_search &&
-        !mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
-        !xd->lossless[mbmi->segment_id];
+    xd->enable_ist = (is_inter_block(mbmi, xd->tree_type)
+                          ? cm->seq_params.seq_enable_inter_ist
+                          : cm->seq_params.seq_enable_ist) &&
+                     !cpi->sf.tx_sf.tx_type_search.skip_stx_search &&
+                     !mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
+                     !xd->lossless[mbmi->segment_id];
 
     const PREDICTION_MODE intra_mode = get_intra_mode(mbmi, plane);
     bool skip_stx =

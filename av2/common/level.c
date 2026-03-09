@@ -1685,8 +1685,8 @@ void av2_update_level_info(AV2_COMP *cpi, size_t size, int64_t ts_start,
   // update level_stats
   // TODO(kyslov@) fix the implementation according to buffer model
   for (int i = 0; i < seq_params->seq_operating_points_cnt_minus_1 + 1; ++i) {
-    if (!is_in_operating_point(seq_params->seq_operating_point_idc[i], tlayer_id,
-                               mlayer_id) ||
+    if (!is_in_operating_point(seq_params->seq_operating_point_idc[i],
+                               tlayer_id, mlayer_id) ||
         !((level_params->keep_level_stats >> i) & 1)) {
       continue;
     }
@@ -1782,7 +1782,8 @@ avm_codec_err_t av2_get_seq_level_idx(const AV2_COMP *cpi,
                                       int *seq_level_idx) {
   const int is_still_picture = seq_params->seq_still_picture;
   const BITSTREAM_PROFILE profile = seq_params->seq_profile_idc;
-  for (int op = 0; op < seq_params->seq_operating_points_cnt_minus_1 + 1; ++op) {
+  for (int op = 0; op < seq_params->seq_operating_points_cnt_minus_1 + 1;
+       ++op) {
     seq_level_idx[op] = (int)SEQ_LEVEL_MAX;
     if (!((level_params->keep_level_stats >> op) & 1)) continue;
     const int tier = cpi->tier[op];

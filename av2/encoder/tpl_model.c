@@ -1112,8 +1112,8 @@ static AVM_INLINE void init_gop_frames_for_tpl(
     init_ref_map_pair(cm, ref_frame_map_pairs,
                       init_frame_params->frame_type == KEY_FRAME,
                       cpi->switch_frame_mode == 1);
-    if (cm->seq_params.seq_enable_explicit_ref_frame_map || frame_is_sframe(cm) ||
-        cpi->switch_frame_mode == 1)
+    if (cm->seq_params.seq_enable_explicit_ref_frame_map ||
+        frame_is_sframe(cm) || cpi->switch_frame_mode == 1)
       av2_get_ref_frames_enc(cpi, true_disp, ref_frame_map_pairs);
     else
       av2_get_ref_frames(cm, true_disp, 1, 0, ref_frame_map_pairs);
@@ -1164,8 +1164,8 @@ static AVM_INLINE void init_gop_frames_for_tpl(
     const int true_disp =
         (int)(tpl_frame->frame_display_index) -
         (gf_group->subgop_cfg != NULL && frame_params.immediate_output_picture);
-    if (cm->seq_params.seq_enable_explicit_ref_frame_map || frame_is_sframe(cm) ||
-        cpi->switch_frame_mode == 1)
+    if (cm->seq_params.seq_enable_explicit_ref_frame_map ||
+        frame_is_sframe(cm) || cpi->switch_frame_mode == 1)
       av2_get_ref_frames_enc(cpi, true_disp, ref_frame_map_pairs);
     else
       av2_get_ref_frames(cm, true_disp, 1, 0, ref_frame_map_pairs);

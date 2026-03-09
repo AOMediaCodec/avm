@@ -201,7 +201,8 @@ static void tip_blk_average_filter_mv(AV2_COMMON *cm) {
 
 static void tip_config_tip_parameter(AV2_COMMON *cm) {
   TIP *tip_ref = &cm->tip_ref;
-  const OrderHintInfo *const order_hint_info = &cm->seq_params.seq_order_hint_info;
+  const OrderHintInfo *const order_hint_info =
+      &cm->seq_params.seq_order_hint_info;
   const int cur_order_hint = cm->cur_frame->display_order_hint;
 
   MV_REFERENCE_FRAME nearest_rf[2] = { tip_ref->ref_frame[0],
@@ -316,7 +317,8 @@ static void enc_decide_tip_mode(AV2_COMMON *cm) {
     enc_check_enable_tip_mode(cm);
 
     if (cm->features.tip_frame_mode) {
-      cm->features.allow_tip_hole_fill = cm->seq_params.seq_enable_tip_hole_fill;
+      cm->features.allow_tip_hole_fill =
+          cm->seq_params.seq_enable_tip_hole_fill;
     }
   } else {
     cm->features.tip_frame_mode = TIP_FRAME_DISABLED;
@@ -638,9 +640,9 @@ static AVM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
                         2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES))];
 
   const int apply_refinemv =
-      (cm->seq_params.seq_enable_refinemv && cm->seq_params.seq_enable_tip_refinemv &&
-       plane == 0 && has_both_sides_refs && is_compound &&
-       tip_weight == TIP_EQUAL_WTD);
+      (cm->seq_params.seq_enable_refinemv &&
+       cm->seq_params.seq_enable_tip_refinemv && plane == 0 &&
+       has_both_sides_refs && is_compound && tip_weight == TIP_EQUAL_WTD);
 
   ReferenceArea ref_area[2];
   const int do_opfl = cm->features.opfl_refine_type != REFINE_NONE &&
@@ -932,11 +934,12 @@ static AVM_INLINE void tip_setup_tip_frame_planes(
     int blk_row_end, int blk_col_end, int mvs_stride, uint16_t **mc_buf,
     CONV_BUF_TYPE *tmp_conv_dst, CalcSubpelParamsFunc calc_subpel_params_func,
     int copy_refined_mvs) {
-  int unit_blk_size = (get_unit_bsize_for_tip_frame(
-                           cm->features.tip_frame_mode, cm->tip_interp_filter,
-                           cm->seq_params.seq_enable_tip_refinemv) == BLOCK_16X16)
-                          ? 16
-                          : 8;
+  int unit_blk_size =
+      (get_unit_bsize_for_tip_frame(
+           cm->features.tip_frame_mode, cm->tip_interp_filter,
+           cm->seq_params.seq_enable_tip_refinemv) == BLOCK_16X16)
+          ? 16
+          : 8;
   tip_setup_tip_frame_plane(cm, xd, blk_row_start, blk_col_start, blk_row_end,
                             blk_col_end, mvs_stride, unit_blk_size,
                             MAX_BLOCK_SIZE_WITH_SAME_MV, mc_buf, tmp_conv_dst,

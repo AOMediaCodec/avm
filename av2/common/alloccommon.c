@@ -230,7 +230,8 @@ void av2_alloc_cdef_buffers(AV2_COMMON *const cm,
     // Calculate src buffer size
     new_srcbuf_size = sizeof(*cdef_info->srcbuf) * CDEF_INBUF_SIZE;
     for (int plane = 0; plane < num_planes; plane++) {
-      const int shift = plane == AVM_PLANE_Y ? 0 : cm->seq_params.seq_subsampling_x;
+      const int shift =
+          plane == AVM_PLANE_Y ? 0 : cm->seq_params.seq_subsampling_x;
       // Calculate top and bottom line buffer size
       new_linebuf_size[plane] = sizeof(*cdef_info->linebuf) * num_bufs *
                                 (CDEF_VBORDER << 1) * (luma_stride >> shift);

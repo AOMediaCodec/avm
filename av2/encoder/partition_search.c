@@ -1308,8 +1308,9 @@ static void update_stats(const AV2_COMMON *const cm, ThreadData *td) {
                (mbmi->motion_mode == SIMPLE_TRANSLATION ||
                 is_compound_warp_causal_allowed(cm, xd, mbmi)));
 
-        const int masked_compound_used = is_any_masked_compound_used(bsize) &&
-                                         cm->seq_params.seq_enable_masked_compound;
+        const int masked_compound_used =
+            is_any_masked_compound_used(bsize) &&
+            cm->seq_params.seq_enable_masked_compound;
         if (masked_compound_used) {
           const int comp_group_idx_ctx = get_comp_group_idx_context(cm, xd);
 #if CONFIG_ENTROPY_STATS
@@ -1965,7 +1966,8 @@ static void encode_sb(const AV2_COMP *const cpi, ThreadData *td,
         is_cfl_allowed_for_sdp(cm, xd, ptree_luma, partition, bsize);
     CFL_ALLOWED_FOR_SDP_TYPE is_cfl_allowed_in_sdp =
         ptree->is_cfl_allowed_for_this_chroma_partition;
-    if (!cm->seq_params.seq_enable_cfl_intra && !cm->seq_params.seq_enable_mhccp) {
+    if (!cm->seq_params.seq_enable_cfl_intra &&
+        !cm->seq_params.seq_enable_mhccp) {
       is_cfl_allowed_in_sdp = CFL_DISALLOWED_FOR_CHROMA;
     }
     if (partition == PARTITION_NONE) {
@@ -2019,7 +2021,8 @@ static void encode_sb(const AV2_COMP *const cpi, ThreadData *td,
         break;
       default: break;
     }
-    if (!cm->seq_params.seq_enable_cfl_intra && !cm->seq_params.seq_enable_mhccp) {
+    if (!cm->seq_params.seq_enable_cfl_intra &&
+        !cm->seq_params.seq_enable_mhccp) {
       xd->is_cfl_allowed_in_sdp = CFL_DISALLOWED_FOR_CHROMA;
     }
   }
@@ -2673,7 +2676,8 @@ void av2_rd_use_partition(AV2_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
     ptree->is_cfl_allowed_for_this_chroma_partition = CFL_DISALLOWED_FOR_CHROMA;
   }
 
-  if (!cm->seq_params.seq_enable_cfl_intra && !cm->seq_params.seq_enable_mhccp) {
+  if (!cm->seq_params.seq_enable_cfl_intra &&
+      !cm->seq_params.seq_enable_mhccp) {
     xd->is_cfl_allowed_in_sdp = CFL_DISALLOWED_FOR_CHROMA;
   }
   switch (partition) {
@@ -3701,7 +3705,8 @@ static void none_partition_search(
   x->e_mbd.is_cfl_allowed_in_sdp =
       pc_tree->is_cfl_allowed_for_this_chroma |
       is_cfl_allowed_for_sdp(cm, &x->e_mbd, ptree_luma, PARTITION_NONE, bsize);
-  if (!cm->seq_params.seq_enable_cfl_intra && !cm->seq_params.seq_enable_mhccp) {
+  if (!cm->seq_params.seq_enable_cfl_intra &&
+      !cm->seq_params.seq_enable_mhccp) {
     x->e_mbd.is_cfl_allowed_in_sdp = CFL_DISALLOWED_FOR_CHROMA;
   }
   REGION_TYPE cur_region_type = pc_tree->region_type;

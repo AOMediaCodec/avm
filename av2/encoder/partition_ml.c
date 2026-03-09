@@ -300,7 +300,8 @@ static AVM_INLINE void av2_ml_part_split_features(AV2_COMP *const cpi,
   if (out_features) {
     // Q_INDEX
     const int dc_q =
-        av2_dc_quant_QTX(x->qindex, 0, cpi->common.seq_params.seq_base_y_dc_delta_q,
+        av2_dc_quant_QTX(x->qindex, 0,
+                         cpi->common.seq_params.seq_base_y_dc_delta_q,
                          xd->bd) >>
         (xd->bd - 8);
     out_features[FEATURE_INTRA_LOG_QP_SQUARED] =

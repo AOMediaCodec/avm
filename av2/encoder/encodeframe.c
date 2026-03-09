@@ -1050,8 +1050,9 @@ static AVM_INLINE void bridge_frame_decode_partition(
 
   if (!is_sb_root && parent) {
     if (parent->extended_sdp_allowed_flag)
-      ptree->extended_sdp_allowed_flag = is_extended_sdp_allowed(
-          cm->seq_params.seq_enable_extended_sdp, parent->bsize, parent->partition);
+      ptree->extended_sdp_allowed_flag =
+          is_extended_sdp_allowed(cm->seq_params.seq_enable_extended_sdp,
+                                  parent->bsize, parent->partition);
     else
       ptree->extended_sdp_allowed_flag = 0;
 
@@ -1447,8 +1448,8 @@ static AVM_INLINE void encode_sb_row(AV2_COMP *cpi, ThreadData *td,
           BLOCK_INVALID, PARTITION_NONE, xd->plane[1].subsampling_x,
           xd->plane[1].subsampling_y);
       av2_set_offsets_without_segment_id(cpi, &tile_data->tile_info, &td->mb,
-                                         mi_row, mi_col, cm->seq_params.seq_sb_size,
-                                         NULL);
+                                         mi_row, mi_col,
+                                         cm->seq_params.seq_sb_size, NULL);
       set_sb_mbmi_bru_mode(cm, xd, mi_col, mi_row, cm->seq_params.seq_sb_size,
                            BRU_INACTIVE_SB);
       initialize_chroma_ref_info(mi_row, mi_col, cm->seq_params.seq_sb_size,
@@ -1461,7 +1462,8 @@ static AVM_INLINE void encode_sb_row(AV2_COMP *cpi, ThreadData *td,
       const int y_inside_boundary = AVMMIN(h, cm->mi_params.mi_rows - mi_row);
       bru_zero_sb_mvs(cm, -1, mi_row, mi_col, x_inside_boundary,
                       y_inside_boundary);
-      av2_reset_entropy_context(xd, cm->seq_params.seq_sb_size, av2_num_planes(cm));
+      av2_reset_entropy_context(xd, cm->seq_params.seq_sb_size,
+                                av2_num_planes(cm));
       bridge_frame_decode_partition_sb(cpi, td, &tile_data->tile_info, mi_row,
                                        mi_col, cm->seq_params.seq_sb_size);
     } else
@@ -1800,10 +1802,10 @@ static int check_skip_mode_enabled(AV2_COMP *const cpi) {
   const int cur_offset = (int)cm->current_frame.display_order_hint;
   int ref_offset[2];
   get_skip_mode_ref_offsets(cm, ref_offset);
-  const int cur_to_ref0 = abs(get_relative_dist(&cm->seq_params.seq_order_hint_info,
-                                                cur_offset, ref_offset[0]));
-  const int cur_to_ref1 = abs(get_relative_dist(&cm->seq_params.seq_order_hint_info,
-                                                cur_offset, ref_offset[1]));
+  const int cur_to_ref0 = abs(get_relative_dist(
+      &cm->seq_params.seq_order_hint_info, cur_offset, ref_offset[0]));
+  const int cur_to_ref1 = abs(get_relative_dist(
+      &cm->seq_params.seq_order_hint_info, cur_offset, ref_offset[1]));
   if (abs(cur_to_ref0 - cur_to_ref1) > 1) return 0;
 
   // High Latency: Turn off skip mode if all refs are fwd.
@@ -1964,11 +1966,16 @@ void av2_set_lossless(AV2_COMP *cpi) {
                         : quant_params->base_qindex;
     xd->lossless[i] =
         qindex == 0 && cm->delta_q_info.delta_q_present_flag == 0 &&
-        (quant_params->y_dc_delta_q + cm->seq_params.seq_base_y_dc_delta_q <= 0) &&
-        (quant_params->u_dc_delta_q + cm->seq_params.seq_base_uv_dc_delta_q <= 0) &&
-        (quant_params->v_dc_delta_q + cm->seq_params.seq_base_uv_dc_delta_q <= 0) &&
-        (quant_params->u_ac_delta_q + cm->seq_params.seq_base_uv_ac_delta_q <= 0) &&
-        (quant_params->v_ac_delta_q + cm->seq_params.seq_base_uv_ac_delta_q <= 0);
+        (quant_params->y_dc_delta_q + cm->seq_params.seq_base_y_dc_delta_q <=
+         0) &&
+        (quant_params->u_dc_delta_q + cm->seq_params.seq_base_uv_dc_delta_q <=
+         0) &&
+        (quant_params->v_dc_delta_q + cm->seq_params.seq_base_uv_dc_delta_q <=
+         0) &&
+        (quant_params->u_ac_delta_q + cm->seq_params.seq_base_uv_ac_delta_q <=
+         0) &&
+        (quant_params->v_ac_delta_q + cm->seq_params.seq_base_uv_ac_delta_q <=
+         0);
 
     cm->features.lossless_segment[i] = xd->lossless[i];
     if (xd->lossless[i]) cm->features.has_lossless_segment = 1;
@@ -2245,7 +2252,8 @@ static AVM_INLINE void encode_frame_internal(AV2_COMP *cpi) {
 #endif
 
   const int sub_pu_qp_thr =
-      SUB_PU_QTHR + (cm->seq_params.seq_bit_depth - AVM_BITS_8) * SUB_PU_BD_FACTOR;
+      SUB_PU_QTHR +
+      (cm->seq_params.seq_bit_depth - AVM_BITS_8) * SUB_PU_BD_FACTOR;
   if (cm->seq_params.seq_enable_lf_sub_pu &&
       (cm->quant_params.base_qindex >= sub_pu_qp_thr) &&
       (cm->current_frame.frame_type == INTER_FRAME || frame_is_sframe(cm)))

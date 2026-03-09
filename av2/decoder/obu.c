@@ -45,7 +45,8 @@ static void av2_read_tlayer_dependency_info(SequenceHeader *const seq,
                                             struct avm_read_bit_buffer *rb) {
   const int max_mlayer_id = seq->seq_max_mlayer_id;
   const int max_tlayer_id = seq->seq_max_tlayer_id;
-  const int multi_tlayer_flag = seq->seq_multi_tlayer_dependency_map_present_flag;
+  const int multi_tlayer_flag =
+      seq->seq_multi_tlayer_dependency_map_present_flag;
   for (int curr_mlayer_id = 0; curr_mlayer_id <= max_mlayer_id;
        curr_mlayer_id++) {
     for (int curr_tlayer_id = 1; curr_tlayer_id <= max_tlayer_id;
@@ -54,10 +55,10 @@ static void av2_read_tlayer_dependency_info(SequenceHeader *const seq,
            ref_tlayer_id--) {
         if (multi_tlayer_flag > 0 || curr_mlayer_id == 0) {
           seq->seq_tlayer_dependency_map[curr_mlayer_id][curr_tlayer_id]
-                                    [ref_tlayer_id] = avm_rb_read_bit(rb);
+                                        [ref_tlayer_id] = avm_rb_read_bit(rb);
         } else {
           seq->seq_tlayer_dependency_map[curr_mlayer_id][curr_tlayer_id]
-                                    [ref_tlayer_id] =
+                                        [ref_tlayer_id] =
               seq->seq_tlayer_dependency_map[0][curr_tlayer_id][ref_tlayer_id];
         }
       }
@@ -2056,7 +2057,7 @@ static void check_lcr_mlayer_tlayer_conformance(
       for (int ref_tlayer_id = 0; ref_tlayer_id < cur_tlayer_id;
            ref_tlayer_id++) {
         if (seq_header->seq_tlayer_dependency_map[cur_mlayer_id][cur_tlayer_id]
-                                             [ref_tlayer_id] == 1) {
+                                                 [ref_tlayer_id] == 1) {
           if ((tlayer_map & (1 << cur_tlayer_id)) &&
               (tlayer_map & (1 << ref_tlayer_id)) == 0) {
             avm_internal_error(
@@ -2140,7 +2141,7 @@ static void check_ops_mlayer_tlayer_conformance(
       for (int ref_tlayer_id = 0; ref_tlayer_id < cur_tlayer_id;
            ref_tlayer_id++) {
         if (seq_header->seq_tlayer_dependency_map[cur_mlayer_id][cur_tlayer_id]
-                                             [ref_tlayer_id] == 1) {
+                                                 [ref_tlayer_id] == 1) {
           if ((tlayer_map & (1 << cur_tlayer_id)) &&
               (tlayer_map & (1 << ref_tlayer_id)) == 0) {
             avm_internal_error(
@@ -2433,7 +2434,8 @@ avm_codec_err_t parse_sh(struct AV2Decoder *pbi, const uint8_t *data,
                           seq_params->seq_max_level_idx, seq_params->seq_tier
 #if CONFIG_AV2_PROFILES
                           ,
-                          seq_params->seq_subsampling_x, seq_params->seq_subsampling_y,
+                          seq_params->seq_subsampling_x,
+                          seq_params->seq_subsampling_y,
                           seq_params->seq_monochrome
 #endif  // CONFIG_AV2_PROFILES
     );
@@ -2772,7 +2774,8 @@ avm_codec_err_t parse_to_order_hint_for_sef(
   }
 
   // existing_frame_idx
-  int existing_frame_idx = avm_rb_read_literal(rb, seq_params->seq_ref_frames_log2);
+  int existing_frame_idx =
+      avm_rb_read_literal(rb, seq_params->seq_ref_frames_log2);
 
   // derive_sef_order_hint
   int derive_sef_order_hint = avm_rb_read_bit(rb);

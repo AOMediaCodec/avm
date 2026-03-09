@@ -697,26 +697,30 @@ int av2_compute_rd_mult(const AV2_COMP *cpi, int qindex) {
 
 int av2_get_deltaq_offset(const AV2_COMP *cpi, int qindex, double beta) {
   assert(beta > 0.0);
-  int q = av2_dc_quant_QTX(qindex, 0, cpi->common.seq_params.seq_base_y_dc_delta_q,
-                           cpi->common.seq_params.seq_bit_depth);
+  int q =
+      av2_dc_quant_QTX(qindex, 0, cpi->common.seq_params.seq_base_y_dc_delta_q,
+                       cpi->common.seq_params.seq_bit_depth);
   int newq = (int)rint(q / sqrt(beta));
   int orig_qindex = qindex;
   if (newq < q) {
     do {
       qindex--;
-      q = av2_dc_quant_QTX(qindex, 0, cpi->common.seq_params.seq_base_y_dc_delta_q,
+      q = av2_dc_quant_QTX(qindex, 0,
+                           cpi->common.seq_params.seq_base_y_dc_delta_q,
                            cpi->common.seq_params.seq_bit_depth);
     } while (newq < q && qindex > 0);
   } else {
     do {
       qindex++;
-      q = av2_dc_quant_QTX(qindex, 0, cpi->common.seq_params.seq_base_y_dc_delta_q,
+      q = av2_dc_quant_QTX(qindex, 0,
+                           cpi->common.seq_params.seq_base_y_dc_delta_q,
                            cpi->common.seq_params.seq_bit_depth);
-    } while (newq > q &&
-             (qindex <
-              (cpi->common.seq_params.seq_bit_depth == AVM_BITS_8    ? MAXQ_8_BITS
-               : cpi->common.seq_params.seq_bit_depth == AVM_BITS_10 ? MAXQ_10_BITS
-                                                                 : MAXQ)));
+    } while (
+        newq > q &&
+        (qindex <
+         (cpi->common.seq_params.seq_bit_depth == AVM_BITS_8    ? MAXQ_8_BITS
+          : cpi->common.seq_params.seq_bit_depth == AVM_BITS_10 ? MAXQ_10_BITS
+                                                                : MAXQ)));
   }
   return qindex - orig_qindex;
 }
@@ -815,10 +819,11 @@ static void set_block_thresholds(const AV2_COMMON *cm, RD_OPT *rd) {
               0,
               cm->seq_params.seq_bit_depth == AVM_BITS_8    ? MAXQ_8_BITS
               : cm->seq_params.seq_bit_depth == AVM_BITS_10 ? MAXQ_10_BITS
-                                                        : MAXQ);
+                                                            : MAXQ);
 
-    const int q = compute_rd_thresh_factor(
-        qindex, cm->seq_params.seq_base_y_dc_delta_q, cm->seq_params.seq_bit_depth);
+    const int q =
+        compute_rd_thresh_factor(qindex, cm->seq_params.seq_base_y_dc_delta_q,
+                                 cm->seq_params.seq_bit_depth);
 
     for (bsize = 0; bsize < BLOCK_SIZES_ALL; ++bsize) {
       // Threshold here seems unnecessarily harsh but fine given actual

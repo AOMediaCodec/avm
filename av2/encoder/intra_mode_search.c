@@ -155,8 +155,8 @@ static int rd_pick_intra_dip_sby(const AV2_COMP *const cpi, ThreadData *td,
 
   *mbmi = base_mbmi;
   const int dc_q =
-      av2_dc_quant_QTX(x->qindex, 0, cpi->common.seq_params.seq_base_y_dc_delta_q,
-                       xd->bd) >>
+      av2_dc_quant_QTX(x->qindex, 0,
+                       cpi->common.seq_params.seq_base_y_dc_delta_q, xd->bd) >>
       (xd->bd - 8);
 
   // Clamp all RD values to a minimum of 1 to avoid arithmetic exceptions.
@@ -752,8 +752,8 @@ int64_t av2_rd_pick_intra_sbuv_mode(const AV2_COMP *const cpi, MACROBLOCK *x,
       }
       this_rate = tokenonly_rd_stats.rate + mode_cost;
 
-      if (mode == UV_CFL_PRED &&
-          (cm->seq_params.seq_enable_cfl_intra || cm->seq_params.seq_enable_mhccp)) {
+      if (mode == UV_CFL_PRED && (cm->seq_params.seq_enable_cfl_intra ||
+                                  cm->seq_params.seq_enable_mhccp)) {
         assert((is_cfl_allowed(cm->seq_params.seq_enable_cfl_intra, xd) &&
                 intra_mode_cfg->enable_cfl_intra) ||
                is_mhccp_allowed(cm, xd));
@@ -1271,7 +1271,8 @@ int64_t av2_handle_intra_mode(IntraModeSearchState *intra_search_state,
   if (num_planes > 1 && xd->is_chroma_ref) {
     const int uv_mode_cost = get_uv_mode_cost(
         mbmi, x->mode_costs, xd,
-        is_cfl_allowed(cm->seq_params.seq_enable_cfl_intra, xd), mbmi->uv_mode_idx);
+        is_cfl_allowed(cm->seq_params.seq_enable_cfl_intra, xd),
+        mbmi->uv_mode_idx);
     rd_stats->rate += rd_stats_uv->rate + uv_mode_cost;
   }
 

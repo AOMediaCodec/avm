@@ -200,8 +200,8 @@ static AVM_INLINE void palette_rd_y(
   }
   PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
   for (int i = 0; i < num_unique_colors; ++i) {
-    pmi->palette_colors[i] =
-        clip_pixel_highbd((int)centroids[i], cpi->common.seq_params.seq_bit_depth);
+    pmi->palette_colors[i] = clip_pixel_highbd(
+        (int)centroids[i], cpi->common.seq_params.seq_bit_depth);
   }
   pmi->palette_size[0] = num_unique_colors;
   MACROBLOCKD *const xd = &x->e_mbd;

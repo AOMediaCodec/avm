@@ -71,8 +71,8 @@ static void update_subgop_stats(const AV2_COMMON *const cm,
   subgop_stats->qindex[subgop_stats->stat_count] = cm->quant_params.base_qindex;
   subgop_stats->refresh_frame_flags[subgop_stats->stat_count] =
       cm->current_frame.refresh_frame_flags;
-  for (MV_REFERENCE_FRAME ref_frame = 0; ref_frame < cm->seq_params.seq_ref_frames;
-       ++ref_frame)
+  for (MV_REFERENCE_FRAME ref_frame = 0;
+       ref_frame < cm->seq_params.seq_ref_frames; ++ref_frame)
     if (cm->ref_frame_map[ref_frame] != NULL) {
       subgop_stats->ref_frame_map[subgop_stats->stat_count][ref_frame] =
           cm->ref_frame_map[ref_frame]->order_hint;

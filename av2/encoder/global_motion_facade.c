@@ -432,8 +432,8 @@ static AVM_INLINE void pick_base_gm_params(AV2_COMP *cpi) {
       const int our_ref_order_hint = buf->display_order_hint;
       const int their_ref_order_hint = buf->ref_display_order_hint[their_ref];
       int base_temporal_distance =
-          get_relative_dist(&seq_params->seq_order_hint_info, our_ref_order_hint,
-                            their_ref_order_hint);
+          get_relative_dist(&seq_params->seq_order_hint_info,
+                            our_ref_order_hint, their_ref_order_hint);
 
       int this_num_models = 0;
       int this_cost =

@@ -57,7 +57,8 @@ const SubGOPStepCfg *get_subgop_step(const GF_GROUP *const gf_group,
 void av2_get_ref_frames_enc(AV2_COMP *const cpi, int cur_frame_disp,
                             RefFrameMapPair *ref_frame_map_pairs) {
   AV2_COMMON *const cm = &cpi->common;
-  assert(cm->seq_params.seq_enable_explicit_ref_frame_map || frame_is_sframe(cm));
+  assert(cm->seq_params.seq_enable_explicit_ref_frame_map ||
+         frame_is_sframe(cm));
   // With explicit_ref_frame_map or switch_frame_mode on, an encoder-only
   // ranking scheme can be implemented here. For now, av2_get_ref_frames is used
   // as a placeholder.
@@ -740,8 +741,8 @@ int av2_get_refresh_frame_flags(
       }
     }
   } else {
-    free_fb_index = get_free_ref_map_index(ref_frame_map_pairs,
-                                           cpi->common.seq_params.seq_ref_frames);
+    free_fb_index = get_free_ref_map_index(
+        ref_frame_map_pairs, cpi->common.seq_params.seq_ref_frames);
   }
   if (use_subgop_cfg(&cpi->gf_group, gf_index)) {
     const int mask = get_refresh_frame_flags_subgop_cfg(
@@ -762,9 +763,9 @@ int av2_get_refresh_frame_flags(
   }
 
   const int update_arf = frame_update_type == ARF_UPDATE;
-  const int refresh_idx =
-      get_refresh_idx(update_arf, -1, cur_disp_order, cpi->switch_frame_mode,
-                      ref_frame_map_pairs, cpi->common.seq_params.seq_ref_frames);
+  const int refresh_idx = get_refresh_idx(
+      update_arf, -1, cur_disp_order, cpi->switch_frame_mode,
+      ref_frame_map_pairs, cpi->common.seq_params.seq_ref_frames);
 
   return 1 << refresh_idx;
 }
@@ -1036,9 +1037,10 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
     adjust_frame_rate(cpi, source->ts_start, source->ts_end);
   if (!frame_params.duplicate_existing_frame) {
     if (cpi->film_grain_table) {
-      cm->seq_params.seq_film_grain_params_present = avm_film_grain_table_lookup(
-          cpi->film_grain_table, *time_stamp, *time_end, 0 /* =erase */,
-          &cm->film_grain_params);
+      cm->seq_params.seq_film_grain_params_present =
+          avm_film_grain_table_lookup(cpi->film_grain_table, *time_stamp,
+                                      *time_end, 0 /* =erase */,
+                                      &cm->film_grain_params);
     }
     // only one operating point supported now
     const int64_t pts64 = ticks_to_timebase_units(timestamp_ratio, *time_stamp);
@@ -1243,7 +1245,8 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
     } else {
       cm->features.tip_frame_mode = TIP_FRAME_DISABLED;
     }
-    if (cm->seq_params.seq_enable_explicit_ref_frame_map || frame_is_sframe(cm)) {
+    if (cm->seq_params.seq_enable_explicit_ref_frame_map ||
+        frame_is_sframe(cm)) {
       av2_get_ref_frames_enc(cpi, cur_frame_disp, cm->ref_frame_map_pairs);
     } else {
       // Derive reference mapping in a resolution independent manner, to
@@ -1372,9 +1375,12 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
   cpi->td.mb.delta_qindex = 0;
   if (!frame_params.duplicate_existing_frame) {
     cm->quant_params.using_qmatrix = oxcf->q_cfg.using_qm;
-    av2_set_lr_tools(cm->seq_params.seq_lr_tools_disable_mask[0], 0, &cm->features);
-    av2_set_lr_tools(cm->seq_params.seq_lr_tools_disable_mask[1], 1, &cm->features);
-    av2_set_lr_tools(cm->seq_params.seq_lr_tools_disable_mask[1], 2, &cm->features);
+    av2_set_lr_tools(cm->seq_params.seq_lr_tools_disable_mask[0], 0,
+                     &cm->features);
+    av2_set_lr_tools(cm->seq_params.seq_lr_tools_disable_mask[1], 1,
+                     &cm->features);
+    av2_set_lr_tools(cm->seq_params.seq_lr_tools_disable_mask[1], 2,
+                     &cm->features);
   }
   if (cm->quant_params.using_qmatrix) {
     if (oxcf->q_cfg.using_qm && oxcf->q_cfg.user_defined_qmatrix) {

@@ -66,9 +66,11 @@ void set_film_grain_model(const AV2_COMP *const cpi,
   fgm_current->fgm_chroma_idc = CHROMA_FORMAT_420;
   if (seq_params->seq_monochrome)
     fgm_current->fgm_chroma_idc = CHROMA_FORMAT_400;
-  else if (seq_params->seq_subsampling_x == 0 && seq_params->seq_subsampling_y == 1)
+  else if (seq_params->seq_subsampling_x == 0 &&
+           seq_params->seq_subsampling_y == 1)
     fgm_current->fgm_chroma_idc = CHROMA_FORMAT_444;
-  else if (seq_params->seq_subsampling_x == 1 && seq_params->seq_subsampling_y == 0)
+  else if (seq_params->seq_subsampling_x == 1 &&
+           seq_params->seq_subsampling_y == 0)
     fgm_current->fgm_chroma_idc = CHROMA_FORMAT_422;
   for (int c = 0; c < 3; c++) {
     fgm_current->fgm_points[c] = pars->fgm_points[c];

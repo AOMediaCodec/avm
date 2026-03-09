@@ -1042,7 +1042,8 @@ void av2_set_speed_features_framesize_independent(AV2_COMP *cpi, int speed) {
     set_good_speed_features_framesize_independent(cpi, sf, speed);
 
   if (!cpi->seq_params_locked) {
-    cpi->common.seq_params.seq_enable_restoration &= !sf->lpf_sf.disable_lr_filter;
+    cpi->common.seq_params.seq_enable_restoration &=
+        !sf->lpf_sf.disable_lr_filter;
 
     cpi->common.seq_params.seq_enable_masked_compound &=
         !sf->inter_sf.disable_masked_comp;

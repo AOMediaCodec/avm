@@ -149,9 +149,9 @@ int av2_cyclic_refresh_rc_bits_per_mb(const AV2_COMP *cpi, int i,
   // Take segment weighted average for bits per mb.
   bits_per_mb =
       (int)((1.0 - weight_segment) *
-                av2_rc_bits_per_mb(cm->current_frame.frame_type, i,
-                                   correction_factor, cm->seq_params.seq_bit_depth,
-                                   cpi->is_screen_content_type) +
+                av2_rc_bits_per_mb(
+                    cm->current_frame.frame_type, i, correction_factor,
+                    cm->seq_params.seq_bit_depth, cpi->is_screen_content_type) +
             weight_segment * av2_rc_bits_per_mb(cm->current_frame.frame_type,
                                                 i + deltaq, correction_factor,
                                                 cm->seq_params.seq_bit_depth,
@@ -427,7 +427,7 @@ void av2_cyclic_refresh_setup(AV2_COMP *const cpi) {
         cr->last_coded_q_map[i] =
             cm->seq_params.seq_bit_depth == AVM_BITS_8    ? MAXQ_8_BITS
             : cm->seq_params.seq_bit_depth == AVM_BITS_10 ? MAXQ_10_BITS
-                                                      : MAXQ;
+                                                          : MAXQ;
 
       cr->sb_index = 0;
     }
@@ -477,7 +477,7 @@ void av2_cyclic_refresh_setup(AV2_COMP *const cpi) {
         0,
         cm->seq_params.seq_bit_depth == AVM_BITS_8    ? MAXQ_8_BITS
         : cm->seq_params.seq_bit_depth == AVM_BITS_10 ? MAXQ_10_BITS
-                                                  : MAXQ);
+                                                      : MAXQ);
 
     cr->rdmult = av2_compute_rd_mult(cpi, qindex2);
 

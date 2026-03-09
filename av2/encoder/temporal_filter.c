@@ -849,8 +849,9 @@ static INLINE int get_num_blocks(const int frame_length, const int mb_length) {
 static INLINE int get_q(const AV2_COMP *cpi) {
   const FRAME_TYPE frame_type =
       (cpi->common.current_frame.frame_number > 1) ? INTER_FRAME : KEY_FRAME;
-  const int q = (int)av2_convert_qindex_to_q(
-      cpi->rc.avg_frame_qindex[frame_type], cpi->common.seq_params.seq_bit_depth);
+  const int q =
+      (int)av2_convert_qindex_to_q(cpi->rc.avg_frame_qindex[frame_type],
+                                   cpi->common.seq_params.seq_bit_depth);
   return q;
 }
 

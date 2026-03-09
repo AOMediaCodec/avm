@@ -987,7 +987,8 @@ static AVM_INLINE void av2_set_seq_tile_info(SequenceHeader *const seq_params,
   int i, start_sb;
   av2_get_seq_tile_limits(tile_params, seq_params->seq_max_frame_height,
                           seq_params->seq_max_frame_width,
-                          seq_params->seq_mib_size_log2, seq_params->seq_mib_size_log2
+                          seq_params->seq_mib_size_log2,
+                          seq_params->seq_mib_size_log2
 #if CONFIG_G018
                           ,
                           seq_params->seq_max_level_idx, seq_params->seq_tier

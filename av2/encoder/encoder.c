@@ -483,7 +483,8 @@ static void set_bitstream_level_tier(AV2_COMP *cpi, AV2_COMMON *cm, int width,
           &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
           "AV2 does not support this combination of profile, level, and tier.");
     // Buffer size in bits/s is bitrate in bits/s * 1 s
-    seq_params->seq_op_params[i].buffer_size = seq_params->seq_op_params[i].bitrate;
+    seq_params->seq_op_params[i].buffer_size =
+        seq_params->seq_op_params[i].bitrate;
   }
 }
 
@@ -514,7 +515,8 @@ void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
   else
     seq->seq_order_hint_info.order_hint_bits_minus_1 =
         DEFAULT_EXPLICIT_ORDER_HINT_BITS - 1;
-  seq->seq_enable_bru = seq->seq_single_picture_header_flag ? 0 : tool_cfg->enable_bru;
+  seq->seq_enable_bru =
+      seq->seq_single_picture_header_flag ? 0 : tool_cfg->enable_bru;
   seq->seq_enable_explicit_ref_frame_map =
       seq->seq_single_picture_header_flag
           ? 0
@@ -541,11 +543,11 @@ void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
       seq->seq_single_picture_header_flag ? 0 : SAME_REF_COMPOUND_PRUNE;
 
   seq->seq_max_frame_width = frm_dim_cfg->forced_max_frame_width
-                             ? frm_dim_cfg->forced_max_frame_width
-                             : frm_dim_cfg->width;
+                                 ? frm_dim_cfg->forced_max_frame_width
+                                 : frm_dim_cfg->width;
   seq->seq_max_frame_height = frm_dim_cfg->forced_max_frame_height
-                              ? frm_dim_cfg->forced_max_frame_height
-                              : frm_dim_cfg->height;
+                                  ? frm_dim_cfg->forced_max_frame_height
+                                  : frm_dim_cfg->height;
   seq->seq_tile_params.allow_tile_info_change = 0;
   if (!seq->seq_still_picture && oxcf->kf_cfg.key_freq_max > 0) {
     av2_set_seq_tile_info(seq, oxcf);
@@ -562,14 +564,17 @@ void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
     seq->seq_seg_info_present_flag = 0;
   }
 
-  seq->seq_num_bits_width =
-      (seq->seq_max_frame_width > 1) ? get_msb(seq->seq_max_frame_width - 1) + 1 : 1;
-  seq->seq_num_bits_height =
-      (seq->seq_max_frame_height > 1) ? get_msb(seq->seq_max_frame_height - 1) + 1 : 1;
+  seq->seq_num_bits_width = (seq->seq_max_frame_width > 1)
+                                ? get_msb(seq->seq_max_frame_width - 1) + 1
+                                : 1;
+  seq->seq_num_bits_height = (seq->seq_max_frame_height > 1)
+                                 ? get_msb(seq->seq_max_frame_height - 1) + 1
+                                 : 1;
   assert(seq->seq_num_bits_width <= 16);
   assert(seq->seq_num_bits_height <= 16);
 
-  seq->seq_order_hint_info.enable_ref_frame_mvs = tool_cfg->ref_frame_mvs_present;
+  seq->seq_order_hint_info.enable_ref_frame_mvs =
+      tool_cfg->ref_frame_mvs_present;
   seq->seq_order_hint_info.reduced_ref_frame_mvs_mode =
       tool_cfg->reduced_ref_frame_mvs_mode;
   seq->seq_disable_loopfilters_across_tiles =
@@ -583,16 +588,18 @@ void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
   seq->seq_enable_lf_sub_pu =
       seq->seq_single_picture_header_flag ? 0 : tool_cfg->enable_lf_sub_pu;
   seq->seq_enable_opfl_refine = seq->seq_single_picture_header_flag
-                                ? AVM_OPFL_REFINE_NONE
-                                : tool_cfg->enable_opfl_refine;
-  seq->seq_enable_tip = seq->seq_single_picture_header_flag ? 0 : tool_cfg->enable_tip;
+                                    ? AVM_OPFL_REFINE_NONE
+                                    : tool_cfg->enable_opfl_refine;
+  seq->seq_enable_tip =
+      seq->seq_single_picture_header_flag ? 0 : tool_cfg->enable_tip;
   seq->seq_enable_tip_refinemv = tool_cfg->enable_tip_refinemv;
   seq->seq_enable_tip_hole_fill = seq->seq_enable_tip != 0;
   seq->seq_enable_tip_explicit_qp = 0;
   seq->seq_enable_mv_traj =
       seq->seq_single_picture_header_flag ? 0 : tool_cfg->enable_mv_traj;
   seq->seq_enable_bawp = tool_cfg->enable_bawp;
-  seq->seq_enable_cwp = seq->seq_single_picture_header_flag ? 0 : tool_cfg->enable_cwp;
+  seq->seq_enable_cwp =
+      seq->seq_single_picture_header_flag ? 0 : tool_cfg->enable_cwp;
   seq->seq_enable_imp_msk_bld =
       seq->seq_single_picture_header_flag ? 0 : tool_cfg->enable_imp_msk_bld;
   seq->seq_enabled_motion_modes =
@@ -613,12 +620,14 @@ void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
   seq->seq_max_pb_aspect_ratio_log2_m1 =
       max_ratio == 2 ? 0 : (max_ratio == 4 ? 1 : 2);
   seq->seq_enable_masked_compound = oxcf->comp_type_cfg.enable_masked_comp;
-  seq->seq_enable_intra_edge_filter = oxcf->intra_mode_cfg.enable_intra_edge_filter;
+  seq->seq_enable_intra_edge_filter =
+      oxcf->intra_mode_cfg.enable_intra_edge_filter;
   seq->seq_enable_intra_dip = oxcf->intra_mode_cfg.enable_intra_dip;
 
   seq->seq_enable_sdp = oxcf->part_cfg.enable_sdp;
-  seq->seq_enable_extended_sdp =
-      seq->seq_single_picture_header_flag ? 0 : oxcf->part_cfg.enable_extended_sdp;
+  seq->seq_enable_extended_sdp = seq->seq_single_picture_header_flag
+                                     ? 0
+                                     : oxcf->part_cfg.enable_extended_sdp;
   seq->seq_enable_mrls = oxcf->intra_mode_cfg.enable_mrls;
   seq->seq_enable_fsc = oxcf->intra_mode_cfg.enable_fsc;
   if (!seq->seq_enable_fsc) {
@@ -644,8 +653,9 @@ void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
   seq->seq_enable_joint_mvd = tool_cfg->enable_joint_mvd;
   seq->seq_enable_refinemv =
       seq->seq_single_picture_header_flag ? 0 : tool_cfg->enable_refinemv;
-  seq->seq_enable_mvd_sign_derive =
-      seq->seq_single_picture_header_flag ? 0 : tool_cfg->enable_mvd_sign_derive;
+  seq->seq_enable_mvd_sign_derive = seq->seq_single_picture_header_flag
+                                        ? 0
+                                        : tool_cfg->enable_mvd_sign_derive;
 
   set_bitstream_level_tier(cpi, cm, frm_dim_cfg->width, frm_dim_cfg->height,
                            oxcf->input_cfg.init_framerate
@@ -719,10 +729,10 @@ void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
     seq->seq_base_uv_ac_delta_q = 0;
   }
   assert(IMPLIES(seq->seq_equal_ac_dc_q, seq->seq_y_dc_delta_q_enabled == 0 &&
-                                         seq->seq_base_y_dc_delta_q == 0));
-  assert(IMPLIES(seq->seq_equal_ac_dc_q,
-                 seq->seq_uv_dc_delta_q_enabled == 0 &&
-                     seq->seq_base_uv_dc_delta_q == seq->seq_base_uv_ac_delta_q));
+                                             seq->seq_base_y_dc_delta_q == 0));
+  assert(IMPLIES(seq->seq_equal_ac_dc_q, seq->seq_uv_dc_delta_q_enabled == 0 &&
+                                             seq->seq_base_uv_dc_delta_q ==
+                                                 seq->seq_base_uv_ac_delta_q));
 
   seq->seq_enable_refmvbank = tool_cfg->enable_refmvbank;
   seq->seq_enable_drl_reorder = tool_cfg->enable_drl_reorder;
@@ -732,7 +742,8 @@ void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
     seq->seq_conf.conf_win_left_offset = oxcf->tool_cfg.crop_win_left_offset;
     seq->seq_conf.conf_win_top_offset = oxcf->tool_cfg.crop_win_top_offset;
     seq->seq_conf.conf_win_right_offset = oxcf->tool_cfg.crop_win_right_offset;
-    seq->seq_conf.conf_win_bottom_offset = oxcf->tool_cfg.crop_win_bottom_offset;
+    seq->seq_conf.conf_win_bottom_offset =
+        oxcf->tool_cfg.crop_win_bottom_offset;
   } else {
     seq->seq_conf.conf_win_left_offset = 0;
     seq->seq_conf.conf_win_top_offset = 0;
@@ -741,8 +752,8 @@ void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
   }
 
   seq->seq_enable_cdef_on_skip_txfm = seq->seq_single_picture_header_flag
-                                      ? CDEF_ON_SKIP_TXFM_ADAPTIVE
-                                      : tool_cfg->enable_cdef_on_skip_txfm;
+                                          ? CDEF_ON_SKIP_TXFM_ADAPTIVE
+                                          : tool_cfg->enable_cdef_on_skip_txfm;
   // If seq->seq_single_picture_header_flag is equal to 1, setting both
   // enable_avg_cdf and avg_cdf_type to 1 allows us to omit the
   // context_update_tile_id syntax element in tile_info(), which is part of
@@ -753,13 +764,14 @@ void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
       seq->seq_single_picture_header_flag ? 1 : tool_cfg->avg_cdf_type;
   seq->seq_enable_tcq =
       is_lossless_requested(&oxcf->rc_cfg) ? 0 : tool_cfg->enable_tcq;
-  if (seq->seq_enable_tcq != TCQ_DISABLE && seq->seq_single_picture_header_flag) {
+  if (seq->seq_enable_tcq != TCQ_DISABLE &&
+      seq->seq_single_picture_header_flag) {
     seq->seq_enable_tcq = TCQ_8ST;
   }
   if (seq->seq_enable_tcq == TCQ_DISABLE || seq->seq_enable_tcq >= TCQ_8ST_FR) {
     seq->seq_enable_parity_hiding = is_lossless_requested(&oxcf->rc_cfg)
-                                    ? 0
-                                    : tool_cfg->enable_parity_hiding;
+                                        ? 0
+                                        : tool_cfg->enable_parity_hiding;
   } else {
     seq->seq_enable_parity_hiding = 0;
   }
@@ -772,9 +784,11 @@ void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
       seq->seq_single_picture_header_flag
           ? 0
           : tool_cfg->enable_short_refresh_frame_flags;
-  seq->seq_number_of_bits_for_lt_frame_id = seq->seq_single_picture_header_flag ? 0 : 3;
+  seq->seq_number_of_bits_for_lt_frame_id =
+      seq->seq_single_picture_header_flag ? 0 : 3;
   seq->seq_enable_ext_seg = tool_cfg->enable_ext_seg;
-  seq->seq_ref_frames = seq->seq_single_picture_header_flag ? 2 : tool_cfg->dpb_size;
+  seq->seq_ref_frames =
+      seq->seq_single_picture_header_flag ? 2 : tool_cfg->dpb_size;
   seq->seq_ref_frames_log2 = avm_ceil_log2(seq->seq_ref_frames);
 }
 
@@ -1125,16 +1139,16 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
   uint32_t seq_chroma_format_idc = 0;
   avm_codec_err_t err =
 #if CONFIG_AV2_PROFILES
-      av2_get_chroma_format_idc(seq_params->seq_subsampling_x,
-                                seq_params->seq_subsampling_y,
-                                seq_params->seq_monochrome, &seq_chroma_format_idc);
+      av2_get_chroma_format_idc(
+          seq_params->seq_subsampling_x, seq_params->seq_subsampling_y,
+          seq_params->seq_monochrome, &seq_chroma_format_idc);
 #else
       av2_get_chroma_format_idc(seq_params, &seq_chroma_format_idc);
 #endif  // CONFIG_AV2_PROFILES
   if (err != AVM_CODEC_OK) {
-    avm_internal_error(&cm->error, err,
-                       "Unsupported subsampling_x = %d, subsampling_y = %d.",
-                       seq_params->seq_subsampling_x, seq_params->seq_subsampling_y);
+    avm_internal_error(
+        &cm->error, err, "Unsupported subsampling_x = %d, subsampling_y = %d.",
+        seq_params->seq_subsampling_x, seq_params->seq_subsampling_y);
   }
 
   set_content_interpreation_params(cpi, oxcf, seq_chroma_format_idc);
@@ -1300,9 +1314,9 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
       av2_get_chroma_format_idc(seq_params, &chroma_format_idc);
 #endif  // CONFIG_AV2_PROFILES
   if (err != AVM_CODEC_OK) {
-    avm_internal_error(&cm->error, err,
-                       "Unsupported subsampling_x = %d, subsampling_y = %d.",
-                       seq_params->seq_subsampling_x, seq_params->seq_subsampling_y);
+    avm_internal_error(
+        &cm->error, err, "Unsupported subsampling_x = %d, subsampling_y = %d.",
+        seq_params->seq_subsampling_x, seq_params->seq_subsampling_y);
   }
   set_content_interpreation_params(cpi, oxcf, chroma_format_idc);
 
@@ -1561,7 +1575,8 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
   // This should not be called after the first key frame.
   if (!cpi->seq_params_locked) {
     av2_init_seq_coding_tools(cpi, &cm->seq_params, cm, oxcf);
-    if (seq_params->seq_enable_restoration) set_seq_lr_tools_mask(seq_params, oxcf);
+    if (seq_params->seq_enable_restoration)
+      set_seq_lr_tools_mask(seq_params, oxcf);
   }
 
   // restore the value of lag_in_frame for LAP stage.
@@ -2686,9 +2701,10 @@ static void setup_tip_frame_size(AV2_COMP *cpi) {
   RefCntBuffer *tip_frame = cm->tip_ref.tip_frame;
   // Reset the frame pointers to the current frame size.
   if (avm_realloc_frame_buffer(
-          &tip_frame->buf, cm->width, cm->height, cm->seq_params.seq_subsampling_x,
-          cm->seq_params.seq_subsampling_y, cpi->oxcf.border_in_pixels,
-          cm->features.byte_alignment, NULL, NULL, NULL, false)) {
+          &tip_frame->buf, cm->width, cm->height,
+          cm->seq_params.seq_subsampling_x, cm->seq_params.seq_subsampling_y,
+          cpi->oxcf.border_in_pixels, cm->features.byte_alignment, NULL, NULL,
+          NULL, false)) {
     avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
                        "Failed to allocate frame buffer");
   }
@@ -2697,9 +2713,10 @@ static void setup_tip_frame_size(AV2_COMP *cpi) {
 
   tip_frame = cm->tip_ref.tmp_tip_frame;
   if (avm_realloc_frame_buffer(
-          &tip_frame->buf, cm->width, cm->height, cm->seq_params.seq_subsampling_x,
-          cm->seq_params.seq_subsampling_y, cpi->oxcf.border_in_pixels,
-          cm->features.byte_alignment, NULL, NULL, NULL, false)) {
+          &tip_frame->buf, cm->width, cm->height,
+          cm->seq_params.seq_subsampling_x, cm->seq_params.seq_subsampling_y,
+          cpi->oxcf.border_in_pixels, cm->features.byte_alignment, NULL, NULL,
+          NULL, false)) {
     avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
                        "Failed to allocate frame buffer");
   }
@@ -2748,13 +2765,15 @@ void av2_set_frame_size(AV2_COMP *cpi, int width, int height) {
 
   // Reset the frame pointers to the current frame size.
   if (avm_realloc_frame_buffer(
-          &cm->cur_frame->buf, cm->width, cm->height, seq_params->seq_subsampling_x,
-          seq_params->seq_subsampling_y, cpi->oxcf.border_in_pixels,
-          cm->features.byte_alignment, NULL, NULL, NULL, cpi->alloc_pyramid))
+          &cm->cur_frame->buf, cm->width, cm->height,
+          seq_params->seq_subsampling_x, seq_params->seq_subsampling_y,
+          cpi->oxcf.border_in_pixels, cm->features.byte_alignment, NULL, NULL,
+          NULL, cpi->alloc_pyramid))
     avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
                        "Failed to allocate frame buffer");
-  // Don't use cm->seq_params.seq_enable_cdef because cm->seq_params.seq_enable_cdef may
-  // be changed to 0 when encoding the frame for single_picture_header_flag.
+  // Don't use cm->seq_params.seq_enable_cdef because
+  // cm->seq_params.seq_enable_cdef may be changed to 0 when encoding the frame
+  // for single_picture_header_flag.
   const int use_cdef = cpi->oxcf.tool_cfg.enable_cdef;
   if (!is_stat_generation_stage(cpi) && use_cdef) {
     AV2CdefWorkerData *cdef_worker = NULL;
@@ -3269,7 +3288,8 @@ static void cdef_restoration_frame(AV2_COMP *cpi, AV2_COMMON *cm,
     if (cm->rst_info[0].frame_restoration_type != RESTORE_NONE ||
         cm->rst_info[1].frame_restoration_type != RESTORE_NONE ||
         cm->rst_info[2].frame_restoration_type != RESTORE_NONE) {
-      if (num_workers > 1 && !cm->seq_params.seq_disable_loopfilters_across_tiles)
+      if (num_workers > 1 &&
+          !cm->seq_params.seq_disable_loopfilters_across_tiles)
         av2_loop_restoration_filter_frame_mt(
             &cm->cur_frame->buf, cm, 0, mt_info->workers, num_workers,
             &mt_info->lr_row_sync, &cpi->lr_ctxt);
@@ -3960,7 +3980,8 @@ static INLINE int compute_tip_direct_output_mode_RD(AV2_COMP *cpi,
         av2_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
                             av2_enc_calc_subpel_params, 0 /* copy_refined_mvs */
         );
-        if (cm->seq_params.seq_enable_lf_sub_pu && cm->features.allow_lf_sub_pu) {
+        if (cm->seq_params.seq_enable_lf_sub_pu &&
+            cm->features.allow_lf_sub_pu) {
           loop_filter_tip_frame(cm, &td->mb.e_mbd, 0, av2_num_planes(cm));
         }
 
@@ -3976,7 +3997,8 @@ static INLINE int compute_tip_direct_output_mode_RD(AV2_COMP *cpi,
 
         sym_rate_cost = 13;
         this_sse = (int64_t)RDCOST_DBL_WITH_NATIVE_BD_DIST(
-            rdmult, (sym_rate_cost << 5), this_sse, cm->seq_params.seq_bit_depth);
+            rdmult, (sym_rate_cost << 5), this_sse,
+            cm->seq_params.seq_bit_depth);
         if (this_sse < best_sse) {
           best_mv = ref_mv;
           best_sse = this_sse;
@@ -4065,7 +4087,8 @@ static INLINE int finalize_tip_mode(AV2_COMP *cpi, uint8_t *dest, size_t *size,
   const double normal_coding_rdcost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
       rdmult, tip_as_ref_rate, tip_as_ref_sse, cm->seq_params.seq_bit_depth);
   const double tip_direct_output_rdcost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-      rdmult, tip_as_output_rate, tip_as_output_sse, cm->seq_params.seq_bit_depth);
+      rdmult, tip_as_output_rate, tip_as_output_sse,
+      cm->seq_params.seq_bit_depth);
   if (tip_direct_output_rdcost < normal_coding_rdcost &&
       (!cm->features.coded_lossless || tip_as_output_sse == 0)) {
     cm->features.tip_frame_mode = TIP_FRAME_AS_OUTPUT;
@@ -4404,7 +4427,8 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
             (ref_frame_used != cm->features.primary_ref_frame) &&
             (!cm->bru.frame_inactive_flag) &&
             (!cm->bridge_frame_info.is_bridge_frame) &&
-            (cm->seq_params.seq_enable_avg_cdf && !cm->seq_params.seq_avg_cdf_type) &&
+            (cm->seq_params.seq_enable_avg_cdf &&
+             !cm->seq_params.seq_avg_cdf_type) &&
             !frame_is_sframe(cm) && (ref_frame_used != PRIMARY_REF_NONE)) {
           av2_avg_cdf_symbols(cm->fc, &cm->bru.update_ref_fc,
                               AVG_CDF_WEIGHT_PRIMARY,
@@ -5125,7 +5149,8 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
         features->allow_ref_frame_mvs = false;
         features->all_lossless = false;
         features->opfl_refine_type = REFINE_NONE;
-        for (int map_idx = 0; map_idx < cm->seq_params.seq_ref_frames; map_idx++) {
+        for (int map_idx = 0; map_idx < cm->seq_params.seq_ref_frames;
+             map_idx++) {
           // Get reference frame buffer
           const RefCntBuffer *const buf = cm->ref_frame_map[map_idx];
           if (buf != NULL && cm->ref_frame_map[map_idx]->is_restricted)
@@ -5290,7 +5315,8 @@ int av2_receive_raw_frame(AV2_COMP *cpi, avm_enc_frame_flags_t frame_flags,
     res = -1;
   }
 #else
-  if ((seq_params->seq_profile_idc == PROFILE_0) && !seq_params->seq_monochrome &&
+  if ((seq_params->seq_profile_idc == PROFILE_0) &&
+      !seq_params->seq_monochrome &&
       (subsampling_x != 1 || subsampling_y != 1)) {
     avm_internal_error(&cm->error, AVM_CODEC_INVALID_PARAM,
                        "Non-4:2:0 color format requires profile 1 or 2");

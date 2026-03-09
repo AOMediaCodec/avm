@@ -149,8 +149,8 @@ void av2_caq_select_segment(const AV2_COMP *cpi, MACROBLOCK *mb, BLOCK_SIZE bs,
   const int target_rate = (int)(num / denom);
   double logvar;
   double low_var_thresh;
-  const int aq_strength =
-      get_aq_c_strength(cm->quant_params.base_qindex, cm->seq_params.seq_bit_depth);
+  const int aq_strength = get_aq_c_strength(cm->quant_params.base_qindex,
+                                            cm->seq_params.seq_bit_depth);
 
   avm_clear_system_state();
   low_var_thresh = DEFAULT_LV_THRESH;

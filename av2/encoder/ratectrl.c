@@ -610,9 +610,9 @@ static int get_bits_per_mb(const AV2_COMP *cpi, int use_cyclic_refresh,
   const AV2_COMMON *const cm = &cpi->common;
   return use_cyclic_refresh
              ? av2_cyclic_refresh_rc_bits_per_mb(cpi, q, correction_factor)
-             : av2_rc_bits_per_mb(cm->current_frame.frame_type, q,
-                                  correction_factor, cm->seq_params.seq_bit_depth,
-                                  cpi->is_screen_content_type);
+             : av2_rc_bits_per_mb(
+                   cm->current_frame.frame_type, q, correction_factor,
+                   cm->seq_params.seq_bit_depth, cpi->is_screen_content_type);
 }
 
 /*!\brief Searches for a Q index value predicted to give an average macro
@@ -1776,7 +1776,8 @@ void av2_rc_postencode_update(AV2_COMP *cpi, uint64_t bytes_used) {
       rc->avg_frame_qindex[INTER_FRAME] =
           ROUND_POWER_OF_TWO(3 * rc->avg_frame_qindex[INTER_FRAME] + qindex, 2);
       rc->ni_frames++;
-      rc->tot_q += av2_convert_qindex_to_q(qindex, cm->seq_params.seq_bit_depth);
+      rc->tot_q +=
+          av2_convert_qindex_to_q(qindex, cm->seq_params.seq_bit_depth);
       rc->avg_q = rc->tot_q / rc->ni_frames;
       // Calculate the average Q for normal inter frames (not key or GFU
       // frames).

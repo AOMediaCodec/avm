@@ -292,13 +292,13 @@ static void pick_cdef_from_qp(AV2_COMMON *const cm) {
   CdefInfo *const cdef_info = &cm->cdef_info;
   cdef_info->nb_cdef_strengths = 1;
 
-  int damping_offset =
-      clamp(cm->quant_params.base_qindex -
-                (cm->seq_params.seq_bit_depth == AVM_BITS_8    ? 0
-                 : cm->seq_params.seq_bit_depth == AVM_BITS_10 ? 2 * MAXQ_OFFSET
-                                                           : 4 * MAXQ_OFFSET),
-            MINQ, MAXQ_8_BITS) >>
-      6;
+  int damping_offset = clamp(cm->quant_params.base_qindex -
+                                 (cm->seq_params.seq_bit_depth == AVM_BITS_8 ? 0
+                                  : cm->seq_params.seq_bit_depth == AVM_BITS_10
+                                      ? 2 * MAXQ_OFFSET
+                                      : 4 * MAXQ_OFFSET),
+                             MINQ, MAXQ_8_BITS) >>
+                       6;
   cdef_info->cdef_damping = AVMMIN(3 + damping_offset, 6);
 
   int predicted_y_f1 = 0;
@@ -421,7 +421,8 @@ void av2_cdef_search(const YV12_BUFFER_CONFIG *frame,
                      ThreadData *td,
 #endif  // CONFIG_ENTROPY_STATS
                      CDEF_PICK_METHOD pick_method, int rdmult) {
-  if (cm->seq_params.seq_enable_cdef_on_skip_txfm == CDEF_ON_SKIP_TXFM_DISABLED) {
+  if (cm->seq_params.seq_enable_cdef_on_skip_txfm ==
+      CDEF_ON_SKIP_TXFM_DISABLED) {
     cm->cdef_info.cdef_on_skip_txfm_frame_enable = 0;
   } else {
     cm->cdef_info.cdef_on_skip_txfm_frame_enable = 1;
@@ -447,13 +448,13 @@ void av2_cdef_search(const YV12_BUFFER_CONFIG *frame,
   const int nhfb = (mi_params->mi_cols + MI_SIZE_64X64 - 1) / MI_SIZE_64X64;
   int *sb_index = avm_malloc(nvfb * nhfb * sizeof(*sb_index));
 
-  int damping_offset =
-      clamp(cm->quant_params.base_qindex -
-                (cm->seq_params.seq_bit_depth == AVM_BITS_8    ? 0
-                 : cm->seq_params.seq_bit_depth == AVM_BITS_10 ? 2 * MAXQ_OFFSET
-                                                           : 4 * MAXQ_OFFSET),
-            MINQ, MAXQ_8_BITS) >>
-      6;
+  int damping_offset = clamp(cm->quant_params.base_qindex -
+                                 (cm->seq_params.seq_bit_depth == AVM_BITS_8 ? 0
+                                  : cm->seq_params.seq_bit_depth == AVM_BITS_10
+                                      ? 2 * MAXQ_OFFSET
+                                      : 4 * MAXQ_OFFSET),
+                             MINQ, MAXQ_8_BITS) >>
+                       6;
   const int damping = AVMMIN(3 + damping_offset, 6);
   const int fast = (pick_method >= CDEF_FAST_SEARCH_LVL1 &&
                     pick_method <= CDEF_FAST_SEARCH_LVL3);

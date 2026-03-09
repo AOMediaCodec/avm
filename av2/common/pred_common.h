@@ -99,7 +99,8 @@ static INLINE void init_ref_map_pair_dec(AV2_COMMON *cm,
       // matching the current are considered "free" slots. This will find
       // the next occurance of the current pointer if ref_count indicates
       // there are multiple instances of it and mark it as free.
-      for (int idx2 = map_idx + 1; idx2 < cm->seq_params.seq_ref_frames; ++idx2) {
+      for (int idx2 = map_idx + 1; idx2 < cm->seq_params.seq_ref_frames;
+           ++idx2) {
         const RefCntBuffer *const buf2 = cm->ref_frame_map[idx2];
         if (buf2 == buf) {
           ref_frame_map_pairs[idx2].ref_frame_for_inference = -1;

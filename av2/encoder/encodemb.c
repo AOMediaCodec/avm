@@ -776,10 +776,11 @@ void av2_setup_xform(const AV2_COMMON *cm, MACROBLOCK *x, int plane,
   const int width = tx_size_wide[tx_size];
   const int height = tx_size_high[tx_size];
   bool mode_dependent_condition =
-      (txfm_param->is_inter ? (txfm_param->tx_type == DCT_DCT && width >= 16 &&
-                               height >= 16 && cm->seq_params.seq_enable_inter_ist)
-                            : (txfm_param->intra_mode < PAETH_PRED &&
-                               cm->seq_params.seq_enable_ist));
+      (txfm_param->is_inter
+           ? (txfm_param->tx_type == DCT_DCT && width >= 16 && height >= 16 &&
+              cm->seq_params.seq_enable_inter_ist)
+           : (txfm_param->intra_mode < PAETH_PRED &&
+              cm->seq_params.seq_enable_ist));
   if (mode_dependent_condition && !xd->lossless[mbmi->segment_id] &&
       !(mbmi->fsc_mode[xd->tree_type == CHROMA_PART])) {
     txfm_param->sec_tx_set = get_secondary_tx_set(tx_type);

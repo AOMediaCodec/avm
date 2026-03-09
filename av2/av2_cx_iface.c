@@ -3153,8 +3153,9 @@ static avm_codec_err_t encoder_encode(avm_codec_alg_priv_t *ctx,
             subsampling_x, subsampling_y, lag_in_frames,
             cpi->oxcf.border_in_pixels, cpi->common.features.byte_alignment,
             ctx->num_lap_buffers,
-            cpi->common.seq_params.seq_enable_bru ? BRU_ENC_LOOKAHEAD_DIST_MINUS_1
-                                              : 0,
+            cpi->common.seq_params.seq_enable_bru
+                ? BRU_ENC_LOOKAHEAD_DIST_MINUS_1
+                : 0,
             cpi->oxcf.tool_cfg.enable_global_motion);
       }
       if (!cpi->lookahead)

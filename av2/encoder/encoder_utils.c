@@ -469,11 +469,12 @@ void av2_scale_references(AV2_COMP *cpi, const InterpFilter filter,
 
         if (force_scaling || new_fb->buf.y_crop_width != cm->width ||
             new_fb->buf.y_crop_height != cm->height) {
-          if (avm_realloc_frame_buffer(
-                  &new_fb->buf, cm->width, cm->height,
-                  cm->seq_params.seq_subsampling_x, cm->seq_params.seq_subsampling_y,
-                  AVM_BORDER_IN_PIXELS, cm->features.byte_alignment, NULL, NULL,
-                  NULL, cpi->alloc_pyramid)) {
+          if (avm_realloc_frame_buffer(&new_fb->buf, cm->width, cm->height,
+                                       cm->seq_params.seq_subsampling_x,
+                                       cm->seq_params.seq_subsampling_y,
+                                       AVM_BORDER_IN_PIXELS,
+                                       cm->features.byte_alignment, NULL, NULL,
+                                       NULL, cpi->alloc_pyramid)) {
             if (force_scaling) {
               // Release the reference acquired in the get_free_fb() call above.
               --new_fb->ref_count;
@@ -481,12 +482,14 @@ void av2_scale_references(AV2_COMP *cpi, const InterpFilter filter,
             avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
                                "Failed to allocate frame buffer");
           }
-          if (use_optimized_scaler && cm->seq_params.seq_bit_depth == AVM_BITS_8)
+          if (use_optimized_scaler &&
+              cm->seq_params.seq_bit_depth == AVM_BITS_8)
             av2_resize_and_extend_frame(ref, &new_fb->buf, filter, phase,
                                         num_planes);
           else
             av2_resize_and_extend_frame_nonnormative(
-                ref, &new_fb->buf, (int)cm->seq_params.seq_bit_depth, num_planes);
+                ref, &new_fb->buf, (int)cm->seq_params.seq_bit_depth,
+                num_planes);
           cpi->scaled_ref_buf[ref_frame] = new_fb;
           alloc_frame_mvs(cm, new_fb);
         }
@@ -894,8 +897,8 @@ void av2_finalize_encoded_frame(AV2_COMP *const cpi) {
   AV2_COMMON *const cm = &cpi->common;
   cm->cur_frame->allow_direct_use = cm->allow_direct_use;
 
-  if (!cm->seq_params.seq_single_picture_header_flag && cm->show_existing_frame &&
-      !cm->derive_sef_order_hint) {
+  if (!cm->seq_params.seq_single_picture_header_flag &&
+      cm->show_existing_frame && !cm->derive_sef_order_hint) {
     direct_existing_frames_to_current(cpi);
   } else if (cm->show_existing_frame && cm->derive_sef_order_hint) {
     RefCntBuffer *const frame_to_show = cm->ref_frame_map[cm->sef_ref_fb_idx];
@@ -907,7 +910,8 @@ void av2_finalize_encoded_frame(AV2_COMP *const cpi) {
     assign_frame_buffer_p(&cm->cur_frame, frame_to_show);
   }
 
-  if (!cm->show_existing_frame && cm->seq_params.seq_film_grain_params_present &&
+  if (!cm->show_existing_frame &&
+      cm->seq_params.seq_film_grain_params_present &&
       (cm->immediate_output_picture || cm->implicit_output_picture)) {
     // Copy the current frame's film grain params to the its corresponding
     // RefCntBuffer slot.

@@ -1292,7 +1292,8 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV2_COMMON *cm, const int plane,
             // before the below loop starts, later use the same in the
             // ccso_pre_compute_class_err calls.
             if (!ccso_bo_only && (init_shift_bits == -1)) {
-              init_shift_bits = cm->seq_params.seq_bit_depth - (num_band_iter - 1);
+              init_shift_bits =
+                  cm->seq_params.seq_bit_depth - (num_band_iter - 1);
               const int max_band = 1 << (num_band_iter - 1);
               for (int d0 = 0; d0 < max_edge_interval; d0++) {
                 for (int d1 = 0; d1 < max_edge_interval; d1++) {
@@ -1313,7 +1314,8 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV2_COMMON *cm, const int plane,
 
             for (int max_band_log2 = 0; max_band_log2 < num_band_iter;
                  max_band_log2++) {
-              const int shift_bits = cm->seq_params.seq_bit_depth - max_band_log2;
+              const int shift_bits =
+                  cm->seq_params.seq_bit_depth - max_band_log2;
               const int max_band = 1 << max_band_log2;
               if (ccso_bo_only) {
                 for (int band_num = 0; band_num < CCSO_BAND_NUM; band_num++) {

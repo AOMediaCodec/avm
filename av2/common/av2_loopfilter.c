@@ -586,7 +586,8 @@ static TX_SIZE set_lpf_parameters(
   if (mbmi == NULL) return TX_INVALID;
 
   // SDP is always disabled for monochrome.
-  assert(IMPLIES(cm->seq_params.seq_enable_sdp, !cm->seq_params.seq_monochrome));
+  assert(
+      IMPLIES(cm->seq_params.seq_enable_sdp, !cm->seq_params.seq_monochrome));
   const bool is_sdp_eligible =
       cm->seq_params.seq_enable_sdp && mbmi->region_type == INTRA_REGION;
   if (is_sdp_eligible) {
@@ -626,8 +627,8 @@ static TX_SIZE set_lpf_parameters(
     }
     // prepare outer edge parameters. deblock the edge if it's an edge of a TU
     {
-      const uint32_t curr_q = av2_get_filter_q(&cm->lf_info, edge_dir, plane,
-                                               mbmi, cm->seq_params.seq_bit_depth);
+      const uint32_t curr_q = av2_get_filter_q(
+          &cm->lf_info, edge_dir, plane, mbmi, cm->seq_params.seq_bit_depth);
       const uint32_t curr_side = av2_get_filter_side(
           &cm->lf_info, edge_dir, plane, mbmi, cm->seq_params.seq_bit_depth);
 
@@ -645,7 +646,8 @@ static TX_SIZE set_lpf_parameters(
 
           TREE_TYPE prev_tree_type = SHARED_PART;
           const bool is_prev_sdp_eligible =
-              cm->seq_params.seq_enable_sdp && mi_prev->region_type == INTRA_REGION;
+              cm->seq_params.seq_enable_sdp &&
+              mi_prev->region_type == INTRA_REGION;
           // With SDP in inter frames, the tree type of current block can be
           // different with previous block, so we can't copy the tree type of
           // current block to previous block, and we need to fetch the tree type
@@ -667,10 +669,12 @@ static TX_SIZE set_lpf_parameters(
           check_sub_pu_edge(cm, xd, mi_prev, plane, prev_tree_type, scale_horz,
                             scale_vert, edge_dir, 0, &pv_ts, &pv_sub_pu_edge,
                             &pv_tx_m_partition_size);
-          const uint32_t pv_q = av2_get_filter_q(
-              &cm->lf_info, edge_dir, plane, mi_prev, cm->seq_params.seq_bit_depth);
-          const uint32_t pv_side = av2_get_filter_side(
-              &cm->lf_info, edge_dir, plane, mi_prev, cm->seq_params.seq_bit_depth);
+          const uint32_t pv_q =
+              av2_get_filter_q(&cm->lf_info, edge_dir, plane, mi_prev,
+                               cm->seq_params.seq_bit_depth);
+          const uint32_t pv_side =
+              av2_get_filter_side(&cm->lf_info, edge_dir, plane, mi_prev,
+                                  cm->seq_params.seq_bit_depth);
 
           const uint32_t pu_starting_coord = get_pu_starting_cooord(
               mbmi, plane, tree_type, scale_horz, scale_vert, edge_dir);

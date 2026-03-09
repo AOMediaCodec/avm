@@ -555,7 +555,8 @@ static avm_codec_err_t decoder_inspect(avm_codec_alg_priv_t *ctx,
 
   data2->idx = -1;
 
-  for (int i = 0; i < frame_worker_data->pbi->common.seq_params.seq_ref_frames; ++i)
+  for (int i = 0; i < frame_worker_data->pbi->common.seq_params.seq_ref_frames;
+       ++i)
     if (cm->ref_frame_map[i] == cm->cur_frame) data2->idx = i;
   data2->buf = data;
   return res;

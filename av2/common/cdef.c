@@ -181,7 +181,8 @@ static void cdef_prepare_fb(AV2_COMMON *const cm, CdefBlockInfo *const fb_info,
   const uint16_t *bot_linebuf = fb_info->bot_linebuf[plane];
   const int bot_offset = (vsize + CDEF_VBORDER) * CDEF_BSTRIDE;
   const int stride =
-      luma_stride >> (plane == AVM_PLANE_Y ? 0 : cm->seq_params.seq_subsampling_x);
+      luma_stride >>
+      (plane == AVM_PLANE_Y ? 0 : cm->seq_params.seq_subsampling_x);
 
   if (fbc == nhfb - 1)
     cend = hsize;

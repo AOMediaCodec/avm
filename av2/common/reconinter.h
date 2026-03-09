@@ -808,8 +808,9 @@ static AVM_INLINE bool is_tip_coded_as_16x16_block(const AV2_COMMON *cm,
   const int bw = block_size_wide[mi->sb_type[0]];
   const int bh = block_size_high[mi->sb_type[0]];
 
-  bool is_tip_16_16 = disable_opfl_for_16x16_tip_ref(
-      cm->features.tip_frame_mode, bw, bh, cm->seq_params.seq_enable_tip_refinemv);
+  bool is_tip_16_16 =
+      disable_opfl_for_16x16_tip_ref(cm->features.tip_frame_mode, bw, bh,
+                                     cm->seq_params.seq_enable_tip_refinemv);
   is_tip_16_16 |= disable_opfl_for_tip_direct(
       cm->features.tip_frame_mode, cm->tip_interp_filter,
       cm->seq_params.seq_enable_tip_refinemv);
@@ -848,7 +849,8 @@ static INLINE void set_tip_interp_weight_factor(
 static INLINE int is_refinemv_allowed_tip_blocks(const AV2_COMMON *const cm,
                                                  const MB_MODE_INFO *mbmi) {
   assert(is_tip_ref_frame(mbmi->ref_frame[0]));
-  return cm->seq_params.seq_enable_refinemv && cm->seq_params.seq_enable_tip_refinemv &&
+  return cm->seq_params.seq_enable_refinemv &&
+         cm->seq_params.seq_enable_tip_refinemv &&
          is_refinemv_allowed_reference(cm, mbmi) &&
          (cm->features.tip_frame_mode != TIP_FRAME_AS_OUTPUT);
 }

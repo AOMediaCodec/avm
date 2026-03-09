@@ -489,8 +489,8 @@ static AVM_INLINE void simple_motion_search_prune_part_features(
 
   // Q_INDEX
   const int dc_q =
-      av2_dc_quant_QTX(x->qindex, 0, cpi->common.seq_params.seq_base_y_dc_delta_q,
-                       xd->bd) >>
+      av2_dc_quant_QTX(x->qindex, 0,
+                       cpi->common.seq_params.seq_base_y_dc_delta_q, xd->bd) >>
       (xd->bd - 8);
   features[f_idx++] = logf(1.0f + (float)((int64_t)dc_q * (int64_t)dc_q) /
                                       (256 << (2 * QUANT_TABLE_BITS)));
@@ -644,9 +644,10 @@ void av2_get_max_min_partition_features(AV2_COMP *const cpi, MACROBLOCK *x,
   assert(sb_size == BLOCK_128X128);
 
   int f_idx = 0;
-  const int dc_q = av2_dc_quant_QTX(x->qindex, 0,
-                                    cm->seq_params.seq_base_y_dc_delta_q, xd->bd) >>
-                   (xd->bd - 8);
+  const int dc_q =
+      av2_dc_quant_QTX(x->qindex, 0, cm->seq_params.seq_base_y_dc_delta_q,
+                       xd->bd) >>
+      (xd->bd - 8);
   avm_clear_system_state();
   const float log_q_sq = logf(1.0f + (float)((int64_t)dc_q * (int64_t)dc_q) /
                                          (256 << (2 * QUANT_TABLE_BITS)));

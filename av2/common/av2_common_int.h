@@ -1201,60 +1201,67 @@ typedef struct SequenceHeader {
   int seq_mib_size;        // Size of the superblock in units of MI blocks
   int seq_mib_size_log2;   // Log 2 of above.
 
-  int seq_enable_explicit_ref_frame_map;  // Explicitly signal the reference frame
-                                      // mapping
+  int seq_enable_explicit_ref_frame_map;  // Explicitly signal the reference
+                                          // frame mapping
 
-  int seq_def_max_drl_bits;                  // default max drl bits for MVs
-  uint8_t seq_allow_frame_max_drl_bits;      // whether to allow frame level update
-  int seq_def_max_bvp_drl_bits;              // default max ibc drl bits for MVs
-  uint8_t seq_allow_frame_max_bvp_drl_bits;  // whether to allow frame level update
-  int seq_num_same_ref_compound;  // Number of the allowed same reference frames for
-                              // the compound mode
-  int seq_ref_frames;             // number of all decoded picture buffers
-  int seq_ref_frames_log2;        // ceiling of the log2 value of the number of all
-                              // decoded picture buffers (seq_ref_frames)
+  int seq_def_max_drl_bits;              // default max drl bits for MVs
+  uint8_t seq_allow_frame_max_drl_bits;  // whether to allow frame level update
+  int seq_def_max_bvp_drl_bits;          // default max ibc drl bits for MVs
+  uint8_t
+      seq_allow_frame_max_bvp_drl_bits;  // whether to allow frame level update
+  int seq_num_same_ref_compound;  // Number of the allowed same reference frames
+                                  // for the compound mode
+  int seq_ref_frames;       // number of all decoded picture buffers
+  int seq_ref_frames_log2;  // ceiling of the log2 value of the number of all
+                            // decoded picture buffers (seq_ref_frames)
 
   OrderHintInfo seq_order_hint_info;
 
   uint8_t seq_force_screen_content_tools;  // 0 - force off
-                                       // 1 - force on
-                                       // 2 - adaptive
-  uint8_t seq_still_picture;               // Video is a single frame still picture
-  uint8_t seq_single_picture_header_flag;  // Use reduced header for still picture
-  uint8_t seq_force_integer_mv;            // 0 - Don't force. MV can use subpel
+                                           // 1 - force on
+                                           // 2 - adaptive
+  uint8_t seq_still_picture;  // Video is a single frame still picture
+  uint8_t
+      seq_single_picture_header_flag;  // Use reduced header for still picture
+  uint8_t seq_force_integer_mv;        // 0 - Don't force. MV can use subpel
                                        // 1 - force to integer
                                        // 2 - adaptive
-  uint8_t seq_enable_tcq;  // Seq: 0 - disable, 1: 8-state, 2: 8-state (frame adap)
+  uint8_t
+      seq_enable_tcq;  // Seq: 0 - disable, 1: 8-state, 2: 8-state (frame adap)
   uint8_t seq_enable_sdp;  // enables/disables semi-decoupled partitioning
   uint8_t seq_enable_extended_sdp;  // enables/disables extended semi-decoupled
-                                // partitioning
-  uint8_t seq_enable_mrls;  // enables/disables multiple reference line selection
-  uint8_t seq_enable_tip;   // enables/disables temporal interpolated prediction
-  uint8_t seq_enable_tip_hole_fill;    // enables/disables hole fill for TIP
-  uint8_t seq_enable_tip_refinemv;     // enables/disables RefineMv and OPFL for TIP
+                                    // partitioning
+  uint8_t
+      seq_enable_mrls;     // enables/disables multiple reference line selection
+  uint8_t seq_enable_tip;  // enables/disables temporal interpolated prediction
+  uint8_t seq_enable_tip_hole_fill;  // enables/disables hole fill for TIP
+  uint8_t
+      seq_enable_tip_refinemv;  // enables/disables RefineMv and OPFL for TIP
   uint8_t seq_enable_tip_explicit_qp;  // enables/disables explicit qp for TIP
-  uint8_t seq_enable_mv_traj;          // enables/disables mv trajectory tracking
-  uint8_t seq_enable_bawp;  // enables/disables block adaptive weighted prediction
-  uint8_t seq_enable_cwp;   // enables/disables compound weighted prediction
+  uint8_t seq_enable_mv_traj;  // enables/disables mv trajectory tracking
+  uint8_t
+      seq_enable_bawp;  // enables/disables block adaptive weighted prediction
+  uint8_t seq_enable_cwp;  // enables/disables compound weighted prediction
   uint8_t seq_enable_imp_msk_bld;  // enable implicit masked blending
 
   uint8_t seq_enable_fsc;                // enables/disables forward skip coding
   uint8_t seq_enable_idtx_intra;         // enables/disables idtx for intra
   uint8_t seq_enable_intra_dip;          // enables/disables intra_dip
   uint8_t seq_enable_intra_edge_filter;  // enables/disables edge upsampling
-  uint8_t seq_enable_ist;             // enables/disables intra secondary transform
-  uint8_t seq_enable_inter_ist;       // enables/disables inter secondary transform
+  uint8_t seq_enable_ist;        // enables/disables intra secondary transform
+  uint8_t seq_enable_inter_ist;  // enables/disables inter secondary transform
   uint8_t seq_enable_chroma_dctonly;  // enables/disables dct only for chroma
   uint8_t seq_enable_cfl_intra;       // enables/disables CFL
   uint8_t seq_enable_mhccp;           // enables/disables MHCCP
-  uint8_t seq_enable_inter_ddt;     // enables/disables inter data-driven transform
+  uint8_t seq_enable_inter_ddt;  // enables/disables inter data-driven transform
   uint8_t seq_reduced_tx_part_set;  // use reduced transform block partition set
   uint8_t seq_enable_cctx;  // enables/disables cross-chroma component transform
   uint8_t seq_enable_ibp;   // enables/disables intra bi-prediction(IBP)
   uint8_t seq_enable_adaptive_mvd;  // enables/disables adaptive MVD resolution
   uint8_t seq_enable_flex_mvres;    // enables/disables flexible MV resolution
 
-  uint8_t seq_cfl_ds_filter_index;  // enable/disables adaptive downsampling filter
+  uint8_t
+      seq_cfl_ds_filter_index;  // enable/disables adaptive downsampling filter
 
   uint8_t seq_enable_joint_mvd;  // enables/disables joint MVD coding
 
@@ -1269,38 +1276,42 @@ typedef struct SequenceHeader {
       seq_frame_motion_modes_present_flag;  // Flag to enable signaling of
                                             // motion modes in the frame header
 
-  int seq_enable_six_param_warp_delta;  // enables/disables six parameter warp delta
+  int seq_enable_six_param_warp_delta;  // enables/disables six parameter warp
+                                        // delta
 
-  uint8_t seq_enable_masked_compound;           // enables/disables masked compound
-  avm_opfl_refine_type seq_enable_opfl_refine;  // optical flow refinement type for
-                                            // this frame
+  uint8_t seq_enable_masked_compound;  // enables/disables masked compound
+  avm_opfl_refine_type seq_enable_opfl_refine;  // optical flow refinement type
+                                                // for this frame
   uint8_t seq_disable_loopfilters_across_tiles;
-  uint8_t seq_enable_cdef;                // To turn on/off CDEF
-  uint8_t seq_enable_gdf;                 // To turn on/off GDF
-  uint8_t seq_gdf_unit_matches_sb_size;   // GDF unit size matches superblock size
-  uint8_t seq_enable_restoration;         // To turn on/off loop restoration
-  uint8_t seq_enable_ccso;                // To turn on/off CCSO
-  uint8_t seq_ccso_unit_matches_sb_size;  // CCSO unit size matches superblock size
-  uint8_t seq_enable_lf_sub_pu;           // To turn on/off sub-block deblocking
-  uint8_t seq_enable_refmvbank;           // To turn on/off Ref MV Bank
+  uint8_t seq_enable_cdef;  // To turn on/off CDEF
+  uint8_t seq_enable_gdf;   // To turn on/off GDF
+  uint8_t
+      seq_gdf_unit_matches_sb_size;  // GDF unit size matches superblock size
+  uint8_t seq_enable_restoration;    // To turn on/off loop restoration
+  uint8_t seq_enable_ccso;           // To turn on/off CCSO
+  uint8_t
+      seq_ccso_unit_matches_sb_size;  // CCSO unit size matches superblock size
+  uint8_t seq_enable_lf_sub_pu;       // To turn on/off sub-block deblocking
+  uint8_t seq_enable_refmvbank;       // To turn on/off Ref MV Bank
   uint8_t seq_enable_bru;          // To turn on/off backward reference updating
   uint8_t seq_enable_drl_reorder;  // 0 - DRL reorder is disabled
-                               // 1 - DRL reorder with constraints
-                               // 2 - Always reorder DRL
-  uint8_t seq_enable_cdef_on_skip_txfm;  // 0 - CDEF on skip_txfm = 1 is disabled
+                                   // 1 - DRL reorder with constraints
+                                   // 2 - Always reorder DRL
+  uint8_t
+      seq_enable_cdef_on_skip_txfm;  // 0 - CDEF on skip_txfm = 1 is disabled
   // 1 - CDEF on skip_txfm = 1 is always on
   // 2 - Allow to turn on or off the CDEF on skip_txfm = 1 at the frame level
   uint8_t seq_enable_avg_cdf;  // enable CDF averaging
   uint8_t seq_avg_cdf_type;    // 0 - Frame averaging for CDF initialization
-                           // 1 - Tile averaging for CDF initialization
+                               // 1 - Tile averaging for CDF initialization
   uint8_t seq_lr_tools_disable_mask[2];  // mask of lr tool(s) to disable.
-                                     // To disable tool i in RestorationType
-                                     // enum where:
-                                     // 1 <= i <= RESTORE_SWITCHABLE_TYPES, set
-                                     // the ith bit in least to most significant
-                                     // order to 1.
-  uint8_t seq_enable_parity_hiding;      // To turn on/off PAR_HIDING
-  uint8_t seq_enable_ext_partitions;     // enable extended partitions
+                                         // To disable tool i in RestorationType
+                                         // enum where:
+                                         // 1 <= i <= RESTORE_SWITCHABLE_TYPES,
+                                         // set the ith bit in least to most
+                                         // significant order to 1.
+  uint8_t seq_enable_parity_hiding;           // To turn on/off PAR_HIDING
+  uint8_t seq_enable_ext_partitions;          // enable extended partitions
   uint8_t seq_enable_uneven_4way_partitions;  // enable uneven 4way partition
   uint8_t seq_max_pb_aspect_ratio_log2_m1;    // Can be 0, 1, or 2.
   bool seq_enable_global_motion;
@@ -1323,12 +1334,14 @@ typedef struct SequenceHeader {
 #endif  // CONFIG_AV2_PROFILES
 
   // Color config.
-  avm_bit_depth_t seq_bit_depth;  // AVM_BITS_8 in profile 0 or 1,
-                              // AVM_BITS_10 or AVM_BITS_12 in profile 2 or 3.
-  uint8_t seq_monochrome;         // Monochorme video
-  int seq_subsampling_x;          // Chroma subsampling for x
-  int seq_subsampling_y;          // Chroma subsampling for y
-  uint8_t seq_equal_ac_dc_q;  // force ac, dc quantizers in each plane to be equal
+  avm_bit_depth_t
+      seq_bit_depth;       // AVM_BITS_8 in profile 0 or 1,
+                           // AVM_BITS_10 or AVM_BITS_12 in profile 2 or 3.
+  uint8_t seq_monochrome;  // Monochorme video
+  int seq_subsampling_x;   // Chroma subsampling for x
+  int seq_subsampling_y;   // Chroma subsampling for y
+  uint8_t
+      seq_equal_ac_dc_q;  // force ac, dc quantizers in each plane to be equal
   uint8_t seq_separate_uv_delta_q;
   int8_t seq_base_y_dc_delta_q;
   int8_t seq_base_uv_dc_delta_q;
@@ -1355,7 +1368,8 @@ typedef struct SequenceHeader {
   int seq_tlayer_dependency_present_flag;
   int seq_mlayer_dependency_present_flag;
   // Layer dependency structure arrays
-  int seq_tlayer_dependency_map[MAX_NUM_MLAYERS][MAX_NUM_TLAYERS][MAX_NUM_TLAYERS];
+  int seq_tlayer_dependency_map[MAX_NUM_MLAYERS][MAX_NUM_TLAYERS]
+                               [MAX_NUM_TLAYERS];
   int seq_mlayer_dependency_map[MAX_NUM_MLAYERS][MAX_NUM_MLAYERS];
   // Flag indicating tlayer map signaling per mlayer
   int seq_multi_tlayer_dependency_map_present_flag;
@@ -1369,8 +1383,8 @@ typedef struct SequenceHeader {
 #if CONFIG_F414_OBU_EXTENSION
   int seq_extension_present_flag;
 #endif  // CONFIG_F414_OBU_EXTENSION
-  // IMPORTANT: the seq_op_params member must be at the end of the struct so that
-  // are_seq_headers_consistent() can be implemented with a memcmp() call.
+  // IMPORTANT: the seq_op_params member must be at the end of the struct so
+  // that are_seq_headers_consistent() can be implemented with a memcmp() call.
   // TODO(urvang): We probably don't need the +1 here.
   avm_dec_model_op_parameters_t seq_op_params[MAX_NUM_OPERATING_POINTS + 1];
 } SequenceHeader;
@@ -3200,11 +3214,14 @@ static INLINE avm_codec_err_t av2_get_chroma_format_idc(
     const SequenceHeader *const seq_params, uint32_t *seq_chroma_format_idc) {
   if (seq_params->seq_monochrome) {
     *seq_chroma_format_idc = CHROMA_FORMAT_400;
-  } else if (seq_params->seq_subsampling_x == 1 && seq_params->seq_subsampling_y == 1) {
+  } else if (seq_params->seq_subsampling_x == 1 &&
+             seq_params->seq_subsampling_y == 1) {
     *seq_chroma_format_idc = CHROMA_FORMAT_420;
-  } else if (seq_params->seq_subsampling_x == 1 && seq_params->seq_subsampling_y == 0) {
+  } else if (seq_params->seq_subsampling_x == 1 &&
+             seq_params->seq_subsampling_y == 0) {
     *seq_chroma_format_idc = CHROMA_FORMAT_422;
-  } else if (seq_params->seq_subsampling_x == 0 && seq_params->seq_subsampling_y == 0) {
+  } else if (seq_params->seq_subsampling_x == 0 &&
+             seq_params->seq_subsampling_y == 0) {
     *seq_chroma_format_idc = CHROMA_FORMAT_444;
   } else {
     return AVM_CODEC_UNSUP_BITSTREAM;
@@ -3351,14 +3368,15 @@ static INLINE void setup_default_temporal_layer_dependency_structure(
     SequenceHeader *const seq) {
   const int max_mlayer_id = seq->seq_max_mlayer_id;
   const int max_tlayer_id = seq->seq_max_tlayer_id;
-  memset(seq->seq_tlayer_dependency_map, 0, sizeof seq->seq_tlayer_dependency_map);
+  memset(seq->seq_tlayer_dependency_map, 0,
+         sizeof seq->seq_tlayer_dependency_map);
   for (int mlayer_id = 0; mlayer_id <= max_mlayer_id; mlayer_id++) {
     for (int curr_tlayer_id = 0; curr_tlayer_id <= max_tlayer_id;
          curr_tlayer_id++) {
       for (int ref_tlayer_id = 0; ref_tlayer_id <= curr_tlayer_id;
            ref_tlayer_id++) {
-        seq->seq_tlayer_dependency_map[mlayer_id][curr_tlayer_id][ref_tlayer_id] =
-            1;
+        seq->seq_tlayer_dependency_map[mlayer_id][curr_tlayer_id]
+                                      [ref_tlayer_id] = 1;
       }
     }
   }
@@ -3386,8 +3404,8 @@ static INLINE int is_tlayer_scalable_and_dependent(
   */
   // clang-format on
   if (seq->seq_tlayer_dependency_present_flag) {
-    return seq
-        ->seq_tlayer_dependency_map[curr_mlayer_id][curr_tlayer_id][ref_tlayer_id];
+    return seq->seq_tlayer_dependency_map[curr_mlayer_id][curr_tlayer_id]
+                                         [ref_tlayer_id];
   } else {
     return curr_tlayer_id >= ref_tlayer_id;
   }
@@ -3396,7 +3414,8 @@ static INLINE int is_tlayer_scalable_and_dependent(
 static INLINE void setup_default_embedded_layer_dependency_structure(
     SequenceHeader *const seq) {
   const int max_layer_id = seq->seq_max_mlayer_id;
-  memset(seq->seq_mlayer_dependency_map, 0, sizeof seq->seq_mlayer_dependency_map);
+  memset(seq->seq_mlayer_dependency_map, 0,
+         sizeof seq->seq_mlayer_dependency_map);
   for (int curr_layer_id = 0; curr_layer_id <= max_layer_id; curr_layer_id++) {
     for (int ref_layer_id = 0; ref_layer_id <= curr_layer_id; ref_layer_id++) {
       seq->seq_mlayer_dependency_map[curr_layer_id][ref_layer_id] = 1;
@@ -3647,14 +3666,14 @@ static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV2_COMMON *cm) {
           pli == 0 ? ccso_blk_size
                    : ccso_blk_size - cm->seq_params.seq_subsampling_x;
 
-      const int ccso_nvfb =
-          ((cm->mi_params.mi_rows >> (pli ? cm->seq_params.seq_subsampling_y : 0)) +
-           (1 << log2_filter_unit_size_y >> 2) - 1) /
-          (1 << log2_filter_unit_size_y >> 2);
-      const int ccso_nhfb =
-          ((cm->mi_params.mi_cols >> (pli ? cm->seq_params.seq_subsampling_x : 0)) +
-           (1 << log2_filter_unit_size_x >> 2) - 1) /
-          (1 << log2_filter_unit_size_x >> 2);
+      const int ccso_nvfb = ((cm->mi_params.mi_rows >>
+                              (pli ? cm->seq_params.seq_subsampling_y : 0)) +
+                             (1 << log2_filter_unit_size_y >> 2) - 1) /
+                            (1 << log2_filter_unit_size_y >> 2);
+      const int ccso_nhfb = ((cm->mi_params.mi_cols >>
+                              (pli ? cm->seq_params.seq_subsampling_x : 0)) +
+                             (1 << log2_filter_unit_size_x >> 2) - 1) /
+                            (1 << log2_filter_unit_size_x >> 2);
       const int sb_count = ccso_nvfb * ccso_nhfb;
       CHECK_MEM_ERROR(
           cm, buf->ccso_info.sb_filter_control[pli],
@@ -6008,7 +6027,8 @@ static INLINE int motion_mode_allowed(const AV2_COMMON *cm,
 static INLINE int disable_pcwiener_filters_in_framefilters(
     const SequenceHeader *seq) {
   (void)seq;
-  return ((seq->seq_lr_tools_disable_mask[AVM_PLANE_Y] >> RESTORE_PC_WIENER) & 1);
+  return ((seq->seq_lr_tools_disable_mask[AVM_PLANE_Y] >> RESTORE_PC_WIENER) &
+          1);
 }
 
 static INLINE int is_new_nearmv_pred_mode_disallowed(const MB_MODE_INFO *mbmi) {

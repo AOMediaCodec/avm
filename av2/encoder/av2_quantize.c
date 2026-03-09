@@ -413,14 +413,15 @@ void av2_init_plane_quantizers(const AV2_COMP *cpi, MACROBLOCK *x,
   const QUANTS *const quants = &cpi->enc_quant_dequant_params.quants;
   const Dequants *const dequants = &cpi->enc_quant_dequant_params.dequants;
 
-  int current_qindex = AVMMAX(
-      0, AVMMIN(cm->seq_params.seq_bit_depth == AVM_BITS_8 ? QINDEX_RANGE_8_BITS - 1
-                : cm->seq_params.seq_bit_depth == AVM_BITS_10
-                    ? QINDEX_RANGE_10_BITS - 1
-                    : QINDEX_RANGE - 1,
-                cm->delta_q_info.delta_q_present_flag
-                    ? quant_params->base_qindex + x->delta_qindex
-                    : quant_params->base_qindex));
+  int current_qindex =
+      AVMMAX(0, AVMMIN(cm->seq_params.seq_bit_depth == AVM_BITS_8
+                           ? QINDEX_RANGE_8_BITS - 1
+                       : cm->seq_params.seq_bit_depth == AVM_BITS_10
+                           ? QINDEX_RANGE_10_BITS - 1
+                           : QINDEX_RANGE - 1,
+                       cm->delta_q_info.delta_q_present_flag
+                           ? quant_params->base_qindex + x->delta_qindex
+                           : quant_params->base_qindex));
 
   x->qindex_without_seg_delta = current_qindex;
   const int qindex = av2_get_qindex(&cm->seg, segment_id, current_qindex,

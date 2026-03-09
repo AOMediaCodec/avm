@@ -1509,7 +1509,7 @@ static void read_delta_q_params(AV2_COMMON *const cm, MACROBLOCKD *const xd,
         clamp(xd->current_base_qindex, 1,
               cm->seq_params.seq_bit_depth == AVM_BITS_8    ? MAXQ_8_BITS
               : cm->seq_params.seq_bit_depth == AVM_BITS_10 ? MAXQ_10_BITS
-                                                        : MAXQ);
+                                                            : MAXQ);
   }
 }
 
@@ -1693,7 +1693,8 @@ static void read_intra_frame_mode_info(AV2_COMMON *const cm,
     if (xd->lossless[mbmi->segment_id]) {
       if (mbmi->use_dpcm_y == 0) {
         mbmi->mrl_index =
-            (cm->seq_params.seq_enable_mrls && av2_is_directional_mode(mbmi->mode))
+            (cm->seq_params.seq_enable_mrls &&
+             av2_is_directional_mode(mbmi->mode))
                 ? read_mrl_index(ec_ctx, r, xd->neighbors[0], xd->neighbors[1])
                 : 0;
         if (mbmi->mrl_index) {
@@ -1708,7 +1709,8 @@ static void read_intra_frame_mode_info(AV2_COMMON *const cm,
       }
     } else {
       mbmi->mrl_index =
-          (cm->seq_params.seq_enable_mrls && av2_is_directional_mode(mbmi->mode))
+          (cm->seq_params.seq_enable_mrls &&
+           av2_is_directional_mode(mbmi->mode))
               ? read_mrl_index(ec_ctx, r, xd->neighbors[0], xd->neighbors[1])
               : 0;
       if (mbmi->mrl_index) {
@@ -2199,7 +2201,8 @@ static void read_intra_block_mode_info(AV2_COMMON *const cm,
     if (xd->lossless[mbmi->segment_id]) {
       if (mbmi->use_dpcm_y == 0) {
         mbmi->mrl_index =
-            (cm->seq_params.seq_enable_mrls && av2_is_directional_mode(mbmi->mode))
+            (cm->seq_params.seq_enable_mrls &&
+             av2_is_directional_mode(mbmi->mode))
                 ? read_mrl_index(ec_ctx, r, xd->neighbors[0], xd->neighbors[1])
                 : 0;
         if (mbmi->mrl_index) {
@@ -2214,7 +2217,8 @@ static void read_intra_block_mode_info(AV2_COMMON *const cm,
       }
     } else {
       mbmi->mrl_index =
-          (cm->seq_params.seq_enable_mrls && av2_is_directional_mode(mbmi->mode))
+          (cm->seq_params.seq_enable_mrls &&
+           av2_is_directional_mode(mbmi->mode))
               ? read_mrl_index(ec_ctx, r, xd->neighbors[0], xd->neighbors[1])
               : 0;
       if (mbmi->mrl_index) {
@@ -2249,10 +2253,11 @@ static void read_intra_block_mode_info(AV2_COMMON *const cm,
     } else {
       mbmi->use_dpcm_uv = 0;
       mbmi->dpcm_mode_uv = 0;
-      read_intra_uv_mode(xd,
-                         is_cfl_allowed(cm->seq_params.seq_enable_cfl_intra, xd) ||
-                             is_mhccp_allowed(cm, xd),
-                         r);
+      read_intra_uv_mode(
+          xd,
+          is_cfl_allowed(cm->seq_params.seq_enable_cfl_intra, xd) ||
+              is_mhccp_allowed(cm, xd),
+          r);
     }
 
     if (mbmi->uv_mode == UV_CFL_PRED) {
@@ -2728,7 +2733,8 @@ static void read_inter_block_mode_info(AV2Decoder *const pbi,
         mbmi->mode = read_inter_mode(ec_ctx, r, mode_ctx, cm, xd, mbmi, bsize);
 
       mbmi->use_amvd = 0;
-      if (cm->seq_params.seq_enable_adaptive_mvd && allow_amvd_mode(mbmi->mode)) {
+      if (cm->seq_params.seq_enable_adaptive_mvd &&
+          allow_amvd_mode(mbmi->mode)) {
         int amvd_index = amvd_mode_to_index(mbmi->mode);
         assert(amvd_index >= 0);
         int amvd_ctx = get_amvd_context(xd);

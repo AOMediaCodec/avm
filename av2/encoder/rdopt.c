@@ -8636,7 +8636,8 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
                               ref_frames, &sf_args))
             continue;
 
-          if (cm->seq_params.seq_enable_adaptive_mvd == 0 && mbmi->use_amvd == 1)
+          if (cm->seq_params.seq_enable_adaptive_mvd == 0 &&
+              mbmi->use_amvd == 1)
             continue;
 
           if (is_joint_mvd_coding_mode(this_mode) &&

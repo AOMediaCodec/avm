@@ -69,14 +69,14 @@ static INLINE void check_frame_mv_slot(const AV2_COMMON *const cm, MV_REF *mv) {
     int cur_display_order = cm->cur_frame->display_order_hint;
 
     const int diff_0_cur =
-        get_relative_dist(&cm->seq_params.seq_order_hint_info, ref_display_order[0],
-                          cur_display_order);
+        get_relative_dist(&cm->seq_params.seq_order_hint_info,
+                          ref_display_order[0], cur_display_order);
     const int diff_1_cur =
-        get_relative_dist(&cm->seq_params.seq_order_hint_info, ref_display_order[1],
-                          cur_display_order);
+        get_relative_dist(&cm->seq_params.seq_order_hint_info,
+                          ref_display_order[1], cur_display_order);
     const int diff_0_1 =
-        get_relative_dist(&cm->seq_params.seq_order_hint_info, ref_display_order[0],
-                          ref_display_order[1]);
+        get_relative_dist(&cm->seq_params.seq_order_hint_info,
+                          ref_display_order[0], ref_display_order[1]);
 
     bool to_switch = false;
     if (diff_0_cur < 0 && diff_1_cur < 0) {
@@ -1023,7 +1023,8 @@ static AVM_INLINE void add_ref_mv_candidate(
 
         int this_tpl_row = mi_row >> 1;
         int this_tpl_col = mi_col >> 1;
-        if (cm->seq_params.seq_enable_mv_traj && cm->features.allow_ref_frame_mvs &&
+        if (cm->seq_params.seq_enable_mv_traj &&
+            cm->features.allow_ref_frame_mvs &&
             cm->id_offset_map_rows[rf[0]][this_tpl_row][this_tpl_col].as_int !=
                 INVALID_MV &&
             cm->id_offset_map_rows[cand_ref_frame][this_tpl_row][this_tpl_col]
@@ -1194,9 +1195,9 @@ static AVM_INLINE void add_ref_mv_candidate(
         if (have_newmv_in_inter_mode(candidate->mode)) ++*newmv_count;
         ++*ref_match_count;
       } else if (add_more_mvs) {
-        if (cm->seq_params.seq_enable_mv_traj && cm->features.allow_ref_frame_mvs &&
-            rf[0] != rf[1] && is_inter_ref_frame(rf[0]) &&
-            is_inter_ref_frame(rf[1])) {
+        if (cm->seq_params.seq_enable_mv_traj &&
+            cm->features.allow_ref_frame_mvs && rf[0] != rf[1] &&
+            is_inter_ref_frame(rf[0]) && is_inter_ref_frame(rf[1])) {
           for (ref = 0; ref < 2; ref++) {
             if (!is_inter_ref_frame(candidate->ref_frame[ref]) ||
                 is_tip_ref_frame(candidate->ref_frame[ref]))
@@ -1627,8 +1628,8 @@ static AVM_INLINE int compute_cur_to_ref_dist(const AV2_COMMON *cm,
   const int cur_frame_index = cm->cur_frame->display_order_hint;
   const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
   const int frame_index = buf->display_order_hint;
-  const int cur_ref_offset = get_relative_dist(&cm->seq_params.seq_order_hint_info,
-                                               cur_frame_index, frame_index);
+  const int cur_ref_offset = get_relative_dist(
+      &cm->seq_params.seq_order_hint_info, cur_frame_index, frame_index);
   return cur_ref_offset;
 }
 
@@ -1685,8 +1686,8 @@ static int add_tpl_ref_mv(const AV2_COMMON *cm, const MACROBLOCKD *xd,
   const int cur_frame_index = cm->cur_frame->display_order_hint;
   const RefCntBuffer *const buf_0 = get_ref_frame_buf(cm, rf[0]);
   const int frame0_index = buf_0->display_order_hint;
-  const int cur_offset_0 = get_relative_dist(&cm->seq_params.seq_order_hint_info,
-                                             cur_frame_index, frame0_index);
+  const int cur_offset_0 = get_relative_dist(
+      &cm->seq_params.seq_order_hint_info, cur_frame_index, frame0_index);
   int idx;
 
   int_mv this_refmv;
@@ -2972,7 +2973,8 @@ static INLINE int get_dist_to_closest_interp_ref(const AV2_COMMON *const cm,
                                                  MV_REFERENCE_FRAME start_frame,
                                                  const int find_forward_ref) {
   if (start_frame == -1) return INT_MAX;
-  const OrderHintInfo *const order_hint_info = &cm->seq_params.seq_order_hint_info;
+  const OrderHintInfo *const order_hint_info =
+      &cm->seq_params.seq_order_hint_info;
 
   const RefCntBuffer *const start_frame_buf =
       get_ref_frame_buf(cm, start_frame);
@@ -3008,7 +3010,8 @@ static INLINE int get_dist_to_closest_interp_ref(const AV2_COMMON *const cm,
 // Check if a reference frame is an overlay frame (i.e., has the same
 // order_hint as the current frame).
 static INLINE int is_ref_overlay(const AV2_COMMON *const cm, int ref) {
-  const OrderHintInfo *const order_hint_info = &cm->seq_params.seq_order_hint_info;
+  const OrderHintInfo *const order_hint_info =
+      &cm->seq_params.seq_order_hint_info;
   if (order_hint_info->order_hint_bits_minus_1 < 0) return 0;
   const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref);
   if (buf == NULL) return -1;
@@ -3112,8 +3115,9 @@ static void check_and_add_process_ref(const AV2_COMMON *cm, int max_check,
 
   const int start_frame_order_hint = start_frame_buf->display_order_hint;
   const int cur_order_hint = cm->cur_frame->display_order_hint;
-  int start_to_current_frame_offset = get_relative_dist(
-      &cm->seq_params.seq_order_hint_info, start_frame_order_hint, cur_order_hint);
+  int start_to_current_frame_offset =
+      get_relative_dist(&cm->seq_params.seq_order_hint_info,
+                        start_frame_order_hint, cur_order_hint);
   if (abs(start_to_current_frame_offset) > MAX_FRAME_DISTANCE) return;
 
   if (cm->bru.enabled && cm->bru.update_ref_idx != -1) {
@@ -3463,8 +3467,9 @@ static int motion_field_projection_side(AV2_COMMON *cm,
       get_ref_frame_buf(cm, start_frame);
   const int start_frame_order_hint = start_frame_buf->display_order_hint;
   const int cur_order_hint = cm->cur_frame->display_order_hint;
-  int start_to_current_frame_offset = get_relative_dist(
-      &cm->seq_params.seq_order_hint_info, start_frame_order_hint, cur_order_hint);
+  int start_to_current_frame_offset =
+      get_relative_dist(&cm->seq_params.seq_order_hint_info,
+                        start_frame_order_hint, cur_order_hint);
 
   int temporal_scale_factor[REF_FRAMES] = { 0 };
   int ref_temporal_scale_factor[REF_FRAMES] = { 0 };
@@ -3683,8 +3688,8 @@ void calc_and_set_avg_lengths(AV2_COMMON *cm, int ref, int side) {
         const int ref_hint =
             buf->ref_display_order_hint[mv_ref->ref_frame[side]];
 
-        const int dist = abs(get_relative_dist(&cm->seq_params.seq_order_hint_info,
-                                               buf_hint, ref_hint));
+        const int dist = abs(get_relative_dist(
+            &cm->seq_params.seq_order_hint_info, buf_hint, ref_hint));
 
         if (dist != 0) {
           MV ref_mv = mv_ref->mv[side].as_mv;
@@ -3722,8 +3727,8 @@ void determine_tmvp_sample_step(AV2_COMMON *cm,
       const int buf_hint = buf->display_order_hint;
       if (!is_ref_motion_field_eligible(cm, buf)) continue;
       calc_and_set_avg_lengths(cm, i, j);
-      const int dist = abs(get_relative_dist(&cm->seq_params.seq_order_hint_info,
-                                             cur_hint, buf_hint));
+      const int dist = abs(get_relative_dist(
+          &cm->seq_params.seq_order_hint_info, cur_hint, buf_hint));
       if (buf->avg_row[j] * dist / 16 > 8 || buf->avg_col[j] * dist / 16 > 16) {
         large_count++;
       } else {
@@ -4017,7 +4022,8 @@ static void fill_id_offset_sample_gap(AV2_COMMON *cm) {
 }
 
 void av2_setup_motion_field(AV2_COMMON *cm) {
-  const OrderHintInfo *const order_hint_info = &cm->seq_params.seq_order_hint_info;
+  const OrderHintInfo *const order_hint_info =
+      &cm->seq_params.seq_order_hint_info;
 
   memset(cm->ref_frame_side, 0, sizeof(cm->ref_frame_side));
   memset(cm->ref_frame_relative_dist, 0, sizeof(cm->ref_frame_relative_dist));
@@ -4327,7 +4333,8 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
 }
 
 void av2_setup_ref_frame_sides(AV2_COMMON *cm) {
-  const OrderHintInfo *const order_hint_info = &cm->seq_params.seq_order_hint_info;
+  const OrderHintInfo *const order_hint_info =
+      &cm->seq_params.seq_order_hint_info;
 
   memset(cm->ref_frame_side, 0, sizeof(cm->ref_frame_side));
   memset(cm->ref_frame_relative_dist, 0, sizeof(cm->ref_frame_relative_dist));
