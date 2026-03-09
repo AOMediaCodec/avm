@@ -108,7 +108,7 @@ static int search_filter_offsets(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
                                  double *best_cost_ret, int plane,
                                  int search_side_offset, int dir) {
   const AV2_COMMON *const cm = &cpi->common;
-  const uint8_t df_par_bits = cm->seq_params.df_par_bits_minus2 + 2;
+  const uint8_t df_par_bits = cm->seq_params.seq_df_par_bits_minus2 + 2;
   const int df_par_min_val = (-(1 << (df_par_bits - 1)));
   const int df_par_max_val = ((1 << (df_par_bits - 1)) - 1);
   const int min_filter_offset = df_par_min_val;
@@ -256,10 +256,10 @@ static int search_filter_offsets(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
 
   double best_cost =
       RDCOST_DBL_WITH_NATIVE_BD_DIST(x->rdmult * chroma_lambda_mult, best_bits,
-                                     best_err, cm->seq_params.bit_depth);
+                                     best_err, cm->seq_params.seq_bit_depth);
   double start_cost =
       RDCOST_DBL_WITH_NATIVE_BD_DIST(x->rdmult * chroma_lambda_mult, start_bits,
-                                     start_err, cm->seq_params.bit_depth);
+                                     start_err, cm->seq_params.seq_bit_depth);
 
   if (best_cost_ret) *best_cost_ret = AVMMIN(best_cost, start_cost);
 
@@ -292,7 +292,7 @@ void av2_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
             : avm_get_sse_plane(cpi->source, &cm->cur_frame->buf, i);
     no_deblocking_cost[i] = RDCOST_DBL_WITH_NATIVE_BD_DIST(
         cpi->td.mb.rdmult * chroma_lambda_mult, 0, no_deblocking_sse,
-        cm->seq_params.bit_depth);
+        cm->seq_params.seq_bit_depth);
   }
 
   if (method == LPF_PICK_MINIMAL_LPF) {
@@ -405,20 +405,20 @@ void av2_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
       // to switch off filters if offsets are zero
       if (!df_quant_from_qindex(cm->quant_params.base_qindex +
                                     cm->lf.delta_q_luma[0] * DF_DELTA_SCALE,
-                                cm->seq_params.bit_depth) ||
+                                cm->seq_params.seq_bit_depth) ||
           !df_side_from_qindex(cm->quant_params.base_qindex +
                                    cm->lf.delta_side_luma[0] * DF_DELTA_SCALE,
-                               cm->seq_params.bit_depth)) {
+                               cm->seq_params.seq_bit_depth)) {
         lf->apply_deblocking_filter[0] = 0;
         cm->lf.delta_q_luma[0] = 0;
         cm->lf.delta_side_luma[0] = 0;
       }
       if (!df_quant_from_qindex(cm->quant_params.base_qindex +
                                     cm->lf.delta_q_luma[1] * DF_DELTA_SCALE,
-                                cm->seq_params.bit_depth) ||
+                                cm->seq_params.seq_bit_depth) ||
           !df_side_from_qindex(cm->quant_params.base_qindex +
                                    cm->lf.delta_side_luma[1] * DF_DELTA_SCALE,
-                               cm->seq_params.bit_depth)) {
+                               cm->seq_params.seq_bit_depth)) {
         lf->apply_deblocking_filter[1] = 0;
         cm->lf.delta_q_luma[1] = 0;
         cm->lf.delta_side_luma[1] = 0;
@@ -434,28 +434,28 @@ void av2_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
       } else {
         if (!df_quant_from_qindex(cm->quant_params.base_qindex +
                                       cm->quant_params.u_ac_delta_q +
-                                      cm->seq_params.base_uv_ac_delta_q +
+                                      cm->seq_params.seq_base_uv_ac_delta_q +
                                       cm->lf.delta_q_u * DF_DELTA_SCALE,
-                                  cm->seq_params.bit_depth) ||
+                                  cm->seq_params.seq_bit_depth) ||
             !df_side_from_qindex(cm->quant_params.base_qindex +
                                      cm->quant_params.u_ac_delta_q +
-                                     cm->seq_params.base_uv_ac_delta_q +
+                                     cm->seq_params.seq_base_uv_ac_delta_q +
                                      cm->lf.delta_side_u * DF_DELTA_SCALE,
-                                 cm->seq_params.bit_depth)) {
+                                 cm->seq_params.seq_bit_depth)) {
           lf->apply_deblocking_filter_u = 0;
           cm->lf.delta_q_u = 0;
           cm->lf.delta_side_u = 0;
         }
         if (!df_quant_from_qindex(cm->quant_params.base_qindex +
                                       cm->quant_params.v_ac_delta_q +
-                                      cm->seq_params.base_uv_ac_delta_q +
+                                      cm->seq_params.seq_base_uv_ac_delta_q +
                                       cm->lf.delta_q_v * DF_DELTA_SCALE,
-                                  cm->seq_params.bit_depth) ||
+                                  cm->seq_params.seq_bit_depth) ||
             !df_side_from_qindex(cm->quant_params.base_qindex +
                                      cm->quant_params.v_ac_delta_q +
-                                     cm->seq_params.base_uv_ac_delta_q +
+                                     cm->seq_params.seq_base_uv_ac_delta_q +
                                      cm->lf.delta_side_v * DF_DELTA_SCALE,
-                                 cm->seq_params.bit_depth)) {
+                                 cm->seq_params.seq_bit_depth)) {
           lf->apply_deblocking_filter_v = 0;
           cm->lf.delta_q_v = 0;
           cm->lf.delta_side_v = 0;
@@ -486,7 +486,7 @@ static double try_filter_tip_frame(AV2_COMP *const cpi, int tip_delta) {
   }
 
   filter_cost += RDCOST_DBL_WITH_NATIVE_BD_DIST(
-      cpi->td.mb.rdmult, 3, filter_sse, cm->seq_params.bit_depth);
+      cpi->td.mb.rdmult, 3, filter_sse, cm->seq_params.seq_bit_depth);
 
   // Re-instate the unfiltered frame
   for (int i = 0; i < num_planes; i++) {
@@ -510,7 +510,7 @@ void search_tip_filter_level(AV2_COMP *cpi, struct AV2Common *cm) {
     unfilter_sse += cur_sse;
   }
   double unfilter_cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-      cpi->td.mb.rdmult, 1, unfilter_sse, cm->seq_params.bit_depth);
+      cpi->td.mb.rdmult, 1, unfilter_sse, cm->seq_params.seq_bit_depth);
 
   // check filtered cost
   cm->lf.tip_delta = 0;

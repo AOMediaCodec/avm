@@ -328,7 +328,7 @@ static int64_t try_restoration_unit(const RestSearchCtxt *rsc,
   RestorationLineBuffers *rlbs = avm_malloc(sizeof(RestorationLineBuffers));
   if (rlbs == NULL)
     fprintf(stderr, "rlbs buffer does not allocate successfully\n");
-  const int bit_depth = cm->seq_params.bit_depth;
+  const int bit_depth = cm->seq_params.seq_bit_depth;
 
   const YV12_BUFFER_CONFIG *fts = &cm->cur_frame->buf;
   // TODO(yunqing): For now, only use optimized LR filter in decoder. Can be
@@ -336,10 +336,10 @@ static int64_t try_restoration_unit(const RestSearchCtxt *rsc,
   const int optimized_lr = 0;
   av2_loop_restoration_filter_unit(
       limits, rui, &rsi->boundaries, rlbs, tile_rect, rsc->tile_stripe0,
-      is_uv && cm->seq_params.subsampling_x,
-      is_uv && cm->seq_params.subsampling_y, bit_depth, fts->buffers[plane],
+      is_uv && cm->seq_params.seq_subsampling_x,
+      is_uv && cm->seq_params.seq_subsampling_y, bit_depth, fts->buffers[plane],
       fts->strides[is_uv], rsc->dst->buffers[plane], rsc->dst->strides[is_uv],
-      rsc->plane_width, cm->seq_params.disable_loopfilters_across_tiles,
+      rsc->plane_width, cm->seq_params.seq_disable_loopfilters_across_tiles,
       optimized_lr);
 
   if (rlbs != NULL) avm_free(rlbs);
@@ -386,13 +386,13 @@ static AVM_INLINE void search_pc_wiener_visitor(
   RestSearchCtxt *rsc = (RestSearchCtxt *)priv;
   RestUnitSearchInfo *rusi = &rsc->rusi[rest_unit_idx];
 
-  const int bit_depth = rsc->cm->seq_params.bit_depth;
+  const int bit_depth = rsc->cm->seq_params.seq_bit_depth;
   const MACROBLOCK *const x = rsc->x;
   const int64_t bits_none = x->mode_costs.pc_wiener_restore_cost[0];
 
   const int pcwiener_disabled =
       rsc->plane > 0 ||
-      (rsc->cm->seq_params.lr_tools_disable_mask[AVM_PLANE_Y] &
+      (rsc->cm->seq_params.seq_lr_tools_disable_mask[AVM_PLANE_Y] &
        (1 << RESTORE_PC_WIENER));
 
   // This routine is called (i) when the rtype = RESTORE_PC_WIENER or (ii) when
@@ -417,8 +417,8 @@ static AVM_INLINE void search_pc_wiener_visitor(
 
   RestorationUnitInfo rui;
   initialize_rui_for_nonsep_search(rsc, &rui);
-  const int ss_x = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_x;
-  const int ss_y = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_y;
+  const int ss_x = (rsc->plane > 0) && rsc->cm->seq_params.seq_subsampling_x;
+  const int ss_y = (rsc->plane > 0) && rsc->cm->seq_params.seq_subsampling_y;
   const int start_mi_x = limits->h_start >> (MI_SIZE_LOG2 - ss_x);
   const int start_mi_y = limits->v_start >> (MI_SIZE_LOG2 - ss_y);
   const int mbmi_idx =
@@ -468,8 +468,8 @@ static int64_t calc_finer_tile_search_error(const RestSearchCtxt *rsc,
                                             RestorationUnitInfo *rui) {
   int64_t err = 0;
   if (limits != NULL) {
-    const int ss_x = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_x;
-    const int ss_y = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_y;
+    const int ss_x = (rsc->plane > 0) && rsc->cm->seq_params.seq_subsampling_x;
+    const int ss_y = (rsc->plane > 0) && rsc->cm->seq_params.seq_subsampling_y;
     const int start_mi_x = limits->h_start >> (MI_SIZE_LOG2 - ss_x);
     const int start_mi_y = limits->v_start >> (MI_SIZE_LOG2 - ss_y);
     const int mbmi_idx =
@@ -489,8 +489,8 @@ static int64_t calc_finer_tile_search_error(const RestSearchCtxt *rsc,
     VECTOR_FOR_EACH(current_unit_stack, listed_unit) {
       RstUnitSnapshot *old_unit = (RstUnitSnapshot *)(listed_unit.pointer);
       if (old_unit->rest_unit_idx == idx && !rsc->rusi[idx].bru_unit_skipped) {
-        const int ss_x = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_x;
-        const int ss_y = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_y;
+        const int ss_x = (rsc->plane > 0) && rsc->cm->seq_params.seq_subsampling_x;
+        const int ss_y = (rsc->plane > 0) && rsc->cm->seq_params.seq_subsampling_y;
         const int start_mi_x =
             old_unit->limits.h_start >> (MI_SIZE_LOG2 - ss_x);
         const int start_mi_y =
@@ -543,8 +543,8 @@ static int64_t reset_unit_stack_dst_buffers(const RestSearchCtxt *rsc,
           // Revert to old unit's filters.
           copy_nsfilter_taps(&rui->wienerns_info, &old_rusi->wienerns_info);
         }
-        const int ss_x = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_x;
-        const int ss_y = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_y;
+        const int ss_x = (rsc->plane > 0) && rsc->cm->seq_params.seq_subsampling_x;
+        const int ss_y = (rsc->plane > 0) && rsc->cm->seq_params.seq_subsampling_y;
         const int start_mi_x =
             old_unit->limits.h_start >> (MI_SIZE_LOG2 - ss_x);
         const int start_mi_y =
@@ -815,7 +815,7 @@ static int64_t finer_tile_search_wienerns(
       count_wienerns_bits_set(rsc->plane, &x->mode_costs, &rui->wienerns_info,
                               cur_bank_ptr, nsfilter_params, wiener_class_id);
   double best_cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-      x->rdmult, best_bits >> 4, best_err, rsc->cm->seq_params.bit_depth);
+      x->rdmult, best_bits >> 4, best_err, rsc->cm->seq_params.seq_bit_depth);
 
   const int(*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
   int ncoeffs1, ncoeffs2;
@@ -845,7 +845,7 @@ static int64_t finer_tile_search_wienerns(
           rsc->plane, &x->mode_costs, &rui->wienerns_info, cur_bank_ptr,
           nsfilter_params, ALL_WIENERNS_CLASSES);
       const double cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-          x->rdmult, bits >> 4, err, rsc->cm->seq_params.bit_depth);
+          x->rdmult, bits >> 4, err, rsc->cm->seq_params.seq_bit_depth);
       if (cost < best_cost) {
         best_err = err;
         best_cost = cost;
@@ -935,7 +935,7 @@ static int64_t finer_tile_search_wienerns(
                 rsc->plane, &x->mode_costs, &rui->wienerns_info, cur_bank_ptr,
                 nsfilter_params, c_id_for_bits);
             const double cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-                x->rdmult, bits >> 4, err, rsc->cm->seq_params.bit_depth);
+                x->rdmult, bits >> 4, err, rsc->cm->seq_params.seq_bit_depth);
             if (cost < best_cost) {
               no_improv = 0;
               best_err = err;
@@ -996,7 +996,7 @@ static int64_t finer_tile_search_wienerns(
               rsc->plane, &x->mode_costs, &rui->wienerns_info, cur_bank_ptr,
               nsfilter_params, c_id_for_bits);
           const double cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-              x->rdmult, bits >> 4, err, rsc->cm->seq_params.bit_depth);
+              x->rdmult, bits >> 4, err, rsc->cm->seq_params.seq_bit_depth);
           if (cost < best_cost) {
             no_improv = 0;
             best_err = err;
@@ -1071,7 +1071,7 @@ static int64_t finer_tile_search_wienerns(
           rsc->plane, &x->mode_costs, &rui->wienerns_info, cur_bank_ptr,
           nsfilter_params, c_id_for_bits);
       const double cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-          x->rdmult, bits >> 4, err, rsc->cm->seq_params.bit_depth);
+          x->rdmult, bits >> 4, err, rsc->cm->seq_params.seq_bit_depth);
       if (cost < best_cost) {
         best_err = err;
         best_cost = cost;
@@ -1126,7 +1126,7 @@ static int64_t finer_tile_search_wienerns(
           rsc->plane, &x->mode_costs, &rui->wienerns_info, cur_bank_ptr,
           nsfilter_params, c_id_for_bits);
       const double cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-          x->rdmult, bits >> 4, err, rsc->cm->seq_params.bit_depth);
+          x->rdmult, bits >> 4, err, rsc->cm->seq_params.seq_bit_depth);
       if (cost < best_cost) {
         best_err = err;
         best_cost = cost;
@@ -1201,7 +1201,7 @@ static int64_t finer_tile_search_wienerns(
               rsc->plane, &x->mode_costs, &rui->wienerns_info, cur_bank_ptr,
               nsfilter_params, c_id_for_bits);
           const double cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-              x->rdmult, bits >> 4, err, rsc->cm->seq_params.bit_depth);
+              x->rdmult, bits >> 4, err, rsc->cm->seq_params.seq_bit_depth);
           if (cost < best_cost) {
             no_improv = 0;
             best_err = err;
@@ -1561,7 +1561,7 @@ static int compute_wienerns_filter_select_master_basic(
           rsc->plane, &rsc->x->mode_costs, filter, NULL, nsfilter_params, c_id);
       cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(rsc->x->rdmult, bits >> 4,
                                             (int64_t)err,
-                                            rsc->cm->seq_params.bit_depth);
+                                            rsc->cm->seq_params.seq_bit_depth);
       memcpy(nsfilter_bak, nsfilter, num_feat * sizeof(*nsfilter));
     }
     memset(nsfilter, 0, num_feat * sizeof(*nsfilter));
@@ -1575,7 +1575,7 @@ static int compute_wienerns_filter_select_master_basic(
     const int64_t bits = count_wienerns_bits_set(
         rsc->plane, &rsc->x->mode_costs, filter, NULL, nsfilter_params, c_id);
     cost_sym = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-        rsc->x->rdmult, bits >> 4, (int64_t)err, rsc->cm->seq_params.bit_depth);
+        rsc->x->rdmult, bits >> 4, (int64_t)err, rsc->cm->seq_params.seq_bit_depth);
   }
   if (!linsolve_successful && !linsolve_successful_sym) return 0;
   if (cost < cost_sym || (linsolve_successful && !linsolve_successful_sym)) {
@@ -1613,7 +1613,7 @@ static int compute_wienerns_filter_select_master(
           rsc->plane, &rsc->x->mode_costs, &rui->wienerns_info,
           &rsc->wienerns_bank, nsfilter_params, c_id);
       cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(rsc->x->rdmult, bits >> 4, err,
-                                            rsc->cm->seq_params.bit_depth);
+                                            rsc->cm->seq_params.seq_bit_depth);
       // printf("[%d] Asym: e %" PRId64 " b %" PRId64 " cost %f\n", ru_size,
       // err,
       //        bits, cost);
@@ -1631,7 +1631,7 @@ static int compute_wienerns_filter_select_master(
         rsc->plane, &rsc->x->mode_costs, &rui->wienerns_info,
         &rsc->wienerns_bank, nsfilter_params, c_id);
     cost_sym = RDCOST_DBL_WITH_NATIVE_BD_DIST(rsc->x->rdmult, bits >> 4, err,
-                                              rsc->cm->seq_params.bit_depth);
+                                              rsc->cm->seq_params.seq_bit_depth);
     // printf("[%d] Sym:  e %" PRId64 " b %" PRId64 " cost %f\n", ru_size, err,
     //        bits, cost_sym);
   }
@@ -1788,7 +1788,7 @@ static int compute_quantized_wienerns_filter(
             &rsc->wienerns_bank, nsfilter_params, ALL_WIENERNS_CLASSES);
         double cost =
             RDCOST_DBL_WITH_NATIVE_BD_DIST(rsc->x->rdmult, bits >> 4, real_errq,
-                                           rsc->cm->seq_params.bit_depth);
+                                           rsc->cm->seq_params.seq_bit_depth);
         // Check if found filter is worse than no filtering.
         if (real_errq <= real_sse && cost < best_cost) {
           best_cost = cost;
@@ -1871,7 +1871,7 @@ double set_cand_merge_sse_and_bits(
       ((RstUnitSnapshot *)avm_vector_back(current_unit_stack))->rest_unit_idx;
   const int is_uv = (rsc->plane != AVM_PLANE_Y);
   const MACROBLOCK *const x = rsc->x;
-  const int bit_depth = rsc->cm->seq_params.bit_depth;
+  const int bit_depth = rsc->cm->seq_params.seq_bit_depth;
 
   double cost_merge_cand = 0;
   int equal_ref_for_class[WIENERNS_MAX_CLASSES] = { 0 };
@@ -1892,8 +1892,8 @@ double set_cand_merge_sse_and_bits(
     if (old_rusi->bru_unit_skipped) {
       old_unit->merge_sse_cand = 0;
     } else {
-      const int ss_x = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_x;
-      const int ss_y = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_y;
+      const int ss_x = (rsc->plane > 0) && rsc->cm->seq_params.seq_subsampling_x;
+      const int ss_y = (rsc->plane > 0) && rsc->cm->seq_params.seq_subsampling_y;
       const int old_start_mi_x =
           old_unit->limits.h_start >> (MI_SIZE_LOG2 - ss_x);
       const int old_start_mi_y =
@@ -1976,7 +1976,7 @@ double accumulate_merge_stats(const RestSearchCtxt *rsc,
   const int last_idx =
       ((RstUnitSnapshot *)avm_vector_back(current_unit_stack))->rest_unit_idx;
   const MACROBLOCK *const x = rsc->x;
-  const int bit_depth = rsc->cm->seq_params.bit_depth;
+  const int bit_depth = rsc->cm->seq_params.seq_bit_depth;
   double cost_nomerge_cand = 0;
   bool has_begun = false;
   int num_units = 0;
@@ -2035,8 +2035,8 @@ static void gather_stats_wienerns(const RestorationTileLimits *limits,
       rsc->cm->quant_params.base_qindex, rsc->plane != AVM_PLANE_Y);
   assert(rsc->num_filter_classes == rsc->wienerns_bank.filter[0].num_classes);
 
-  const int ss_x = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_x;
-  const int ss_y = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_y;
+  const int ss_x = (rsc->plane > 0) && rsc->cm->seq_params.seq_subsampling_x;
+  const int ss_y = (rsc->plane > 0) && rsc->cm->seq_params.seq_subsampling_y;
   const int start_mi_x = limits->h_start >> (MI_SIZE_LOG2 - ss_x);
   const int start_mi_y = limits->v_start >> (MI_SIZE_LOG2 - ss_y);
   const int mbmi_idx =
@@ -2054,7 +2054,7 @@ static void gather_stats_wienerns(const RestorationTileLimits *limits,
   if (!rusi->bru_unit_skipped) {
     unit_stats.real_sse = compute_stats_for_wienerns_filter(
         rsc->dgd_buffer, rsc->src_buffer, limits, rsc->dgd_stride,
-        rsc->src_stride, &rui, rsc->cm->seq_params.bit_depth, unit_stats.A,
+        rsc->src_stride, &rui, rsc->cm->seq_params.seq_bit_depth, unit_stats.A,
         unit_stats.b, unit_stats.num_pixels_in_class, nsfilter_params,
         rsc->num_stats_classes);
   }
@@ -2109,7 +2109,7 @@ static int64_t decide_wienerns_on_off(RestSearchCtxt *rsc, int rest_unit_idx,
   const WienernsFilterParameters *nsfilter_params = get_wienerns_parameters(
       rsc->cm->quant_params.base_qindex, rsc->plane != AVM_PLANE_Y);
   const MACROBLOCK *const x = rsc->x;
-  const int bit_depth = rsc->cm->seq_params.bit_depth;
+  const int bit_depth = rsc->cm->seq_params.seq_bit_depth;
 
   const WienerNonsepInfoBank *bank_to_use = &rsc->frame_filter_bank;
 
@@ -2168,14 +2168,14 @@ static void search_wienerns_visitor(const RestorationTileLimits *limits,
 
   const MACROBLOCK *const x = rsc->x;
   const int64_t bits_none = x->mode_costs.wienerns_restore_cost[0];
-  const int bit_depth = rsc->cm->seq_params.bit_depth;
+  const int bit_depth = rsc->cm->seq_params.seq_bit_depth;
   double cost_none = RDCOST_DBL_WITH_NATIVE_BD_DIST(
       x->rdmult, bits_none >> 4, rusi->sse[RESTORE_NONE], bit_depth);
 
   RestorationUnitInfo rui;
   initialize_rui_for_nonsep_search(rsc, &rui);
-  const int ss_x = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_x;
-  const int ss_y = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_y;
+  const int ss_x = (rsc->plane > 0) && rsc->cm->seq_params.seq_subsampling_x;
+  const int ss_y = (rsc->plane > 0) && rsc->cm->seq_params.seq_subsampling_y;
   const int start_mi_x = limits->h_start >> (MI_SIZE_LOG2 - ss_x);
   const int start_mi_y = limits->v_start >> (MI_SIZE_LOG2 - ss_y);
   const int mbmi_idx =
@@ -2706,7 +2706,7 @@ static void search_switchable_visitor(const RestorationTileLimits *limits,
     const int64_t sse = rusi->sse[r];
     int64_t bits = count_switchable_bits(r, rsc, rusi);
     double cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(x->rdmult, bits >> 4, sse,
-                                                 rsc->cm->seq_params.bit_depth);
+                                                 rsc->cm->seq_params.seq_bit_depth);
     if (r == 0 || cost < best_cost) {
       best_cost = cost;
       best_bits = bits;
@@ -2806,8 +2806,8 @@ static AVM_INLINE void bru_set_sru_skip(RestSearchCtxt *rsc, int rrow0,
   const RestorationInfo *rsi = &rsc->cm->rst_info[rsc->plane];
   const int ru_size = rsi->restoration_unit_size;
   const int is_uv = rsc->plane > 0;
-  const int ss_x = is_uv && rsc->cm->seq_params.subsampling_x;
-  const int ss_y = is_uv && rsc->cm->seq_params.subsampling_y;
+  const int ss_x = is_uv && rsc->cm->seq_params.seq_subsampling_x;
+  const int ss_y = is_uv && rsc->cm->seq_params.seq_subsampling_y;
   const int rstride = rsi->horz_units_per_frame;
   for (int rrow = rrow0; rrow < rrow1; ++rrow) {
     for (int rcol = rcol0; rcol < rcol1; ++rcol) {
@@ -2843,7 +2843,7 @@ static AVM_INLINE void bru_set_sru_skip(RestSearchCtxt *rsc, int rrow0,
 static void process_one_rutile(RestSearchCtxt *rsc, int tile_row, int tile_col,
                                int *processed, rest_unit_visitor_t fun) {
   const int is_uv = rsc->plane > 0;
-  const int ss_y = is_uv && rsc->cm->seq_params.subsampling_y;
+  const int ss_y = is_uv && rsc->cm->seq_params.seq_subsampling_y;
   const RestorationInfo *rsi = &rsc->cm->rst_info[rsc->plane];
   const int ru_size = rsi->restoration_unit_size;
   TileInfo tile_info;
@@ -2907,7 +2907,7 @@ static double process_rd_by_rutile(RestSearchCtxt *rsc,
   }
   return RDCOST_DBL_WITH_NATIVE_BD_DIST(rsc->x->rdmult, total_bits >> 4,
                                         total_sse,
-                                        rsc->cm->seq_params.bit_depth);
+                                        rsc->cm->seq_params.seq_bit_depth);
 }
 
 static void gather_stats_rest_type(RestSearchCtxt *rsc, RestorationType rtype) {
@@ -2976,7 +2976,7 @@ const uint8_t *get_class_converter(const RestSearchCtxt *rsc,
     qindex_offset =
         (rsc->plane == AVM_PLANE_U ? rsc->cm->quant_params.u_ac_delta_q
                                    : rsc->cm->quant_params.v_ac_delta_q) +
-        rsc->cm->seq_params.base_uv_ac_delta_q;
+        rsc->cm->seq_params.seq_base_uv_ac_delta_q;
   else
     qindex_offset = 0;
   const int set_index =
@@ -3149,7 +3149,7 @@ static double calculate_frame_filters_cost(const RestSearchCtxt *rsc,
 
   *filter_bits = bits;
   double cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(rsc->x->rdmult, bits >> 4, 0,
-                                               rsc->cm->seq_params.bit_depth);
+                                               rsc->cm->seq_params.seq_bit_depth);
   return cost;
 }
 
@@ -3272,8 +3272,8 @@ static RdResults update_cost_and_weights_wienerns(RestSearchCtxt *rsc,
     int64_t distortion = INT64_MAX;
     int64_t distortion_none = 0;
     if (!rsc->rusi[unit_stats_ptr->ru_idx].bru_unit_skipped) {
-      const int ss_x = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_x;
-      const int ss_y = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_y;
+      const int ss_x = (rsc->plane > 0) && rsc->cm->seq_params.seq_subsampling_x;
+      const int ss_y = (rsc->plane > 0) && rsc->cm->seq_params.seq_subsampling_y;
       const int start_mi_x =
           unit_stats_ptr->limits.h_start >> (MI_SIZE_LOG2 - ss_x);
       const int start_mi_y =
@@ -3293,10 +3293,10 @@ static RdResults update_cost_and_weights_wienerns(RestSearchCtxt *rsc,
 
     const double cost_wienerns = RDCOST_DBL_WITH_NATIVE_BD_DIST(
         rsc->x->rdmult, bits_wienerns >> 4, distortion,
-        rsc->cm->seq_params.bit_depth);
+        rsc->cm->seq_params.seq_bit_depth);
     const double cost_none = RDCOST_DBL_WITH_NATIVE_BD_DIST(
         rsc->x->rdmult, bits_none >> 4, distortion_none,
-        rsc->cm->seq_params.bit_depth);
+        rsc->cm->seq_params.seq_bit_depth);
 
     const double cost_diff = cost_wienerns - cost_none;
     work_cost_array[stat_slot] = cost_diff;
@@ -3349,7 +3349,7 @@ static double obtain_temp_pred_frame_filters_cost(RestSearchCtxt *rsc,
 
   double cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
       rsc->x->rdmult, rd_results.total_bits >> 4, rd_results.total_distortion,
-      rsc->cm->seq_params.bit_depth);
+      rsc->cm->seq_params.seq_bit_depth);
   // cost += frame level infor cos, to be added;
   avm_free(work_cost_array);
   return cost;
@@ -3411,7 +3411,7 @@ static double optimize_frame_filters_for_target_classes(
 
     double cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
         rsc->x->rdmult, rd_results.total_bits >> 4, rd_results.total_distortion,
-        rsc->cm->seq_params.bit_depth);
+        rsc->cm->seq_params.seq_bit_depth);
     initialize_bank_with_best_frame_filter_match(rsc, &tmp_filter, &bank, 1);
     int64_t filter_bits = 0;
     cost += calculate_frame_filters_cost(rsc, &bank, &tmp_filter, &filter_bits);
@@ -3532,7 +3532,7 @@ static double optimize_frame_filters_with_rounding(
   initialize_bank_with_best_frame_filter_match(rsc, best_filter, &tmp_bank, 1);
   double cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
       rsc->x->rdmult, rd_results.total_bits >> 4, rd_results.total_distortion,
-      rsc->cm->seq_params.bit_depth);
+      rsc->cm->seq_params.seq_bit_depth);
   int64_t filter_bits = 0;
   const double filter_cost =
       calculate_frame_filters_cost(rsc, &tmp_bank, best_filter, &filter_bits);
@@ -3696,7 +3696,7 @@ static int rest_tiles_in_plane(const AV2_COMMON *cm, int plane) {
 void av2_reset_restoration_struct(AV2_COMMON *cm, RestorationInfo *rsi,
                                   int is_uv) {
   const int unit_size = rsi->restoration_unit_size;
-  const int ss_y = is_uv && cm->seq_params.subsampling_y;
+  const int ss_y = is_uv && cm->seq_params.seq_subsampling_y;
   AV2PixelRect tile_rect;
   TileInfo tile_info;
   rsi->vert_units_per_frame = 0;
@@ -3827,10 +3827,10 @@ void av2_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV2_COMP *cpi) {
       dgd->buffers[AVM_PLANE_Y], dgd->heights[AVM_PLANE_Y],
       dgd->widths[AVM_PLANE_Y], dgd->strides[AVM_PLANE_Y], &luma,
       dgd->heights[1], dgd->widths[1], WIENERNS_UV_BRD, rsc.luma_stride,
-      cm->seq_params.bit_depth
+      cm->seq_params.seq_bit_depth
 #if WIENERNS_CROSS_FILT_LUMA_TYPE == 2
       ,
-      cm->seq_params.cfl_ds_filter_index
+      cm->seq_params.seq_cfl_ds_filter_index
 #endif
   );
   assert(luma_buf != NULL);
@@ -3875,7 +3875,7 @@ void av2_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV2_COMP *cpi) {
          unit_size <<= 1) {
       // ru_size can be not smaller than stripe size, this process could only be
       // triggered for 422 coding.
-      if (plane > 0 && unit_size < (64 >> cm->seq_params.subsampling_y)) {
+      if (plane > 0 && unit_size < (64 >> cm->seq_params.seq_subsampling_y)) {
         continue;
       }
 

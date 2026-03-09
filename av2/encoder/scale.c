@@ -70,7 +70,7 @@ static uint8_t calculate_next_resize_scale(const AV2_COMP *cpi) {
   const int display_order_hint = cpi->common.current_frame.display_order_hint;
   const uint8_t is_low_delay_enc = (cpi->oxcf.gf_cfg.lag_in_frames == 0);
 
-  if (cpi->common.seq_params.single_picture_header_flag) return SCALE_NUMERATOR;
+  if (cpi->common.seq_params.seq_single_picture_header_flag) return SCALE_NUMERATOR;
   switch (resize_cfg->resize_mode) {
     case RESIZE_NONE: new_denom = SCALE_NUMERATOR; break;
     case RESIZE_FIXED:
@@ -184,7 +184,7 @@ void av2_setup_frame_size(AV2_COMP *cpi) {
   if (cm->restricted_prediction_switch) return;
 
   int ref_frame_safe_to_use = 0;
-  for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+  for (int i = 0; i < cm->seq_params.seq_ref_frames; i++) {
     if (cm->ref_frame_map[i] != NULL) {
       bool ref_unrestricted = (current_frame->frame_type == S_FRAME ||
                                current_frame->frame_type == KEY_FRAME ||

@@ -234,7 +234,7 @@ static int predict_skip_txfm(const AV2_COMMON *cm, MACROBLOCK *x,
   (void)cm;
 
   const int32_t dc_q =
-      av2_dc_quant_QTX(x->qindex, 0, cm->seq_params.base_y_dc_delta_q, xd->bd);
+      av2_dc_quant_QTX(x->qindex, 0, cm->seq_params.seq_base_y_dc_delta_q, xd->bd);
 
   *dist = pixel_diff_dist(cm, x, 0, 0, 0, bsize, block_size_wide[bsize],
                           block_size_high[bsize], NULL);
@@ -267,7 +267,7 @@ static int predict_skip_txfm(const AV2_COMMON *cm, MACROBLOCK *x,
   param.bd = xd->bd;
   param.lossless = 0;
   param.use_ddt =
-      replace_adst_by_ddt(cm->seq_params.enable_inter_ddt,
+      replace_adst_by_ddt(cm->seq_params.seq_enable_inter_ddt,
                           cm->features.allow_screen_content_tools, xd);
   param.tx_set_type = av2_get_ext_tx_set_type(
       param.tx_size, is_inter_block(xd->mi[0], xd->tree_type), reduced_tx_set);
@@ -339,7 +339,7 @@ static AVM_INLINE void set_skip_txfm(MACROBLOCK *x, RD_STATS *rd_stats,
   TXB_CTX txb_ctx;
   get_txb_ctx(bsize, tx_size, 0, ta, tl, &txb_ctx,
               mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
-                  cm->seq_params.enable_fsc);
+                  cm->seq_params.seq_enable_fsc);
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
   const int pred_mode_ctx =
       (is_inter || mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) ? 1 : 0;
@@ -923,7 +923,7 @@ static INLINE void recon_intra(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
       av2_xform_quant(cm, x, plane, block, blk_row, blk_col, plane_bsize,
                       &txfm_param_intra, &quant_param_intra);
       const uint8_t fsc_mode =
-          ((cm->seq_params.enable_fsc &&
+          ((cm->seq_params.seq_enable_fsc &&
             xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
             plane == PLANE_TYPE_Y) ||
            use_inter_fsc(cm, plane, best_tx_type, 0 /*is_inter*/));
@@ -959,19 +959,19 @@ static INLINE void recon_intra(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
                                     xd->bd);
       inverse_transform_block_facade(
           x, AVM_PLANE_U, block, blk_row, blk_col, max_chroma_eob, tx_size,
-          replace_adst_by_ddt(cm->seq_params.enable_inter_ddt,
+          replace_adst_by_ddt(cm->seq_params.seq_enable_inter_ddt,
                               cm->features.allow_screen_content_tools, xd),
           cm->features.reduced_tx_set_used);
       inverse_transform_block_facade(
           x, AVM_PLANE_V, block, blk_row, blk_col, max_chroma_eob, tx_size,
-          replace_adst_by_ddt(cm->seq_params.enable_inter_ddt,
+          replace_adst_by_ddt(cm->seq_params.seq_enable_inter_ddt,
                               cm->features.allow_screen_content_tools, xd),
           cm->features.reduced_tx_set_used);
     } else if (plane == AVM_PLANE_Y) {
       inverse_transform_block_facade(
           x, plane, block, blk_row, blk_col, x->plane[plane].eobs[block],
           tx_size,
-          replace_adst_by_ddt(cm->seq_params.enable_inter_ddt,
+          replace_adst_by_ddt(cm->seq_params.seq_enable_inter_ddt,
                               cm->features.allow_screen_content_tools, xd),
           cm->features.reduced_tx_set_used);
     }
@@ -1059,7 +1059,7 @@ static INLINE int64_t dist_block_px_domain(const AV2_COMP *cpi, MACROBLOCK *x,
                       is_reduced_tx_set_used(&cpi->common, plane_type));
   av2_inverse_transform_block(
       xd, dqcoeff, plane, tx_type, tx_size, recon, MAX_TX_SIZE, eob,
-      replace_adst_by_ddt(cpi->common.seq_params.enable_inter_ddt,
+      replace_adst_by_ddt(cpi->common.seq_params.seq_enable_inter_ddt,
                           cpi->common.features.allow_screen_content_tools, xd),
       cpi->common.features.reduced_tx_set_used);
 
@@ -1125,13 +1125,13 @@ static INLINE int64_t joint_uv_dist_block_px_domain(const AV2_COMP *cpi,
   av2_inverse_transform_block(
       xd, tmp_dqcoeff_c1, AVM_PLANE_U, tx_type, tx_size, recon_c1, MAX_TX_SIZE,
       max_chroma_eob,
-      replace_adst_by_ddt(cpi->common.seq_params.enable_inter_ddt,
+      replace_adst_by_ddt(cpi->common.seq_params.seq_enable_inter_ddt,
                           cpi->common.features.allow_screen_content_tools, xd),
       cpi->common.features.reduced_tx_set_used);
   av2_inverse_transform_block(
       xd, tmp_dqcoeff_c2, AVM_PLANE_V, tx_type, tx_size, recon_c2, MAX_TX_SIZE,
       max_chroma_eob,
-      replace_adst_by_ddt(cpi->common.seq_params.enable_inter_ddt,
+      replace_adst_by_ddt(cpi->common.seq_params.seq_enable_inter_ddt,
                           cpi->common.features.allow_screen_content_tools, xd),
       cpi->common.features.reduced_tx_set_used);
   avm_free(tmp_dqcoeff_c1);
@@ -2052,7 +2052,7 @@ static INLINE void predict_dc_only_block(
     const PLANE_TYPE plane_type = get_plane_type(plane);
     get_txb_ctx(plane_bsize, tx_size, plane, ta, tl, &txb_ctx_tmp,
                 mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
-                    cm->seq_params.enable_fsc);
+                    cm->seq_params.seq_enable_fsc);
     int zero_blk_rate = 0;
     if (plane == AVM_PLANE_Y || plane == AVM_PLANE_U) {
       const int is_inter = is_inter_block(mbmi, xd->tree_type);
@@ -2208,7 +2208,7 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
       (txsize_sqr_up_map[tx_size] != TX_64X64) &&
       // Use pixel domain distortion for IST
       // TODO(any): Make IST compatible with tx domain distortion
-      !(cm->seq_params.enable_ist || cm->seq_params.enable_inter_ist) &&
+      !(cm->seq_params.seq_enable_ist || cm->seq_params.seq_enable_inter_ist) &&
       // Use pixel domain distortion for DC only blocks
       !dc_only_blk;
   // Flag to indicate if an extra calculation of distortion in the pixel domain
@@ -2313,8 +2313,8 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
                        cm->width, cm->height, primary_tx_type);
     bool skip_idx = false;
     xd->enable_ist =
-        (is_inter_block(mbmi, xd->tree_type) ? cm->seq_params.enable_inter_ist
-                                             : cm->seq_params.enable_ist) &&
+        (is_inter_block(mbmi, xd->tree_type) ? cm->seq_params.seq_enable_inter_ist
+                                             : cm->seq_params.seq_enable_ist) &&
         !cpi->sf.tx_sf.tx_type_search.skip_stx_search &&
         !mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
         !xd->lossless[mbmi->segment_id];
@@ -2417,7 +2417,7 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
                   txfm_params->coeff_opt_satd_threshold, skip_trellis_in,
                   dc_only_blk);
 
-        uint8_t fsc_mode_in = ((cm->seq_params.enable_fsc &&
+        uint8_t fsc_mode_in = ((cm->seq_params.seq_enable_fsc &&
                                 mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
                                 plane == PLANE_TYPE_Y) ||
                                use_inter_fsc(cm, plane, tx_type, is_inter));
@@ -2714,7 +2714,7 @@ static void search_cctx_type(const AV2_COMP *cpi, MACROBLOCK *x, int block,
   const int max_sb_square_y = 1 << num_pels_log2_lookup[cm->sb_size];
   const int max_sb_square_uv =
       max_sb_square_y >>
-      (cm->seq_params.subsampling_x + cm->seq_params.subsampling_y);
+      (cm->seq_params.seq_subsampling_x + cm->seq_params.seq_subsampling_y);
   tran_low_t *this_dqcoeff_c1 =
       avm_memalign(32, max_sb_square_uv * sizeof(tran_low_t));
   tran_low_t *this_dqcoeff_c2 =
@@ -2764,7 +2764,7 @@ static void search_cctx_type(const AV2_COMP *cpi, MACROBLOCK *x, int block,
       if (skip_cctx_eval) break;
 
       // Calculate rate cost of quantized coefficients.
-      uint8_t fsc_mode = ((cm->seq_params.enable_fsc &&
+      uint8_t fsc_mode = ((cm->seq_params.seq_enable_fsc &&
                            mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
                            plane == PLANE_TYPE_Y) ||
                           use_inter_fsc(cm, plane, tx_type, is_inter));
@@ -2925,7 +2925,7 @@ static AVM_INLINE void try_tx_block_no_split(
   TXB_CTX txb_ctx;
   get_txb_ctx(plane_bsize, tx_size, 0, pta, ptl, &txb_ctx,
               mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
-                  cm->seq_params.enable_fsc);
+                  cm->seq_params.seq_enable_fsc);
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
   const int pred_mode_ctx =
       (is_inter || mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) ? 1 : 0;
@@ -3048,7 +3048,7 @@ static void select_tx_partition_type(
   uint8_t full_blk_skip[MAX_TX_PARTITIONS] = { 0 };
 
   for (TX_PARTITION_TYPE type = 0; type < TX_PARTITION_TYPES; ++type) {
-    if (cpi->common.seq_params.reduced_tx_part_set &&
+    if (cpi->common.seq_params.seq_reduced_tx_part_set &&
         type > TX_PARTITION_VERT) {
       break;
     }
@@ -3362,7 +3362,7 @@ static void choose_tx_size_type_from_rd(const AV2_COMP *const cpi,
   int64_t cur_rd = INT64_MAX;
   const bool is_rect = is_rect_tx(max_tx_size);
   for (TX_PARTITION_TYPE type = 0; type < TX_PARTITION_TYPES; ++type) {
-    if (cpi->common.seq_params.reduced_tx_part_set &&
+    if (cpi->common.seq_params.seq_reduced_tx_part_set &&
         type > TX_PARTITION_VERT) {
       break;
     }
@@ -3489,7 +3489,7 @@ static AVM_INLINE void block_rd_txfm(int plane, int block, int blk_row,
   TXB_CTX txb_ctx;
   get_txb_ctx(plane_bsize, tx_size, plane, a, l, &txb_ctx,
               xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
-                  cm->seq_params.enable_fsc);
+                  cm->seq_params.seq_enable_fsc);
   int dummy = 0;
   search_tx_type(cpi, x, plane, block, blk_row, blk_col, plane_bsize, tx_size,
                  &dummy, &txb_ctx, args->ftxs_mode, args->skip_trellis,
@@ -3660,7 +3660,7 @@ static AVM_INLINE void block_rd_txfm_joint_uv(int dummy_plane, int block,
 
     get_txb_ctx(plane_bsize, tx_size, plane, a, l, txb_ctx,
                 xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
-                    cm->seq_params.enable_fsc);
+                    cm->seq_params.seq_enable_fsc);
 
     // Obtain stats for CCTX_NONE
     search_tx_type(cpi, x, plane, block, blk_row, blk_col, plane_bsize, tx_size,

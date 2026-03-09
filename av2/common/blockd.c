@@ -610,7 +610,7 @@ void av2_reset_txk_skip_array(AV2_COMMON *cm) {
   for (int plane = 0; plane < MAX_MB_PLANE; plane++) {
     int h = cm->mi_params.mi_rows << MI_SIZE_LOG2;
     h = ((h + MAX_SB_SIZE - 1) >> MAX_SB_SIZE_LOG2) << MAX_SB_SIZE_LOG2;
-    h >>= ((plane == 0) ? 0 : cm->seq_params.subsampling_y);
+    h >>= ((plane == 0) ? 0 : cm->seq_params.seq_subsampling_y);
     int stride = cm->mi_params.tx_skip_stride[plane];
     int rows = (h + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;
     memset(cm->mi_params.tx_skip[plane], ILLEGAL_TXK_SKIP_VALUE, rows * stride);
@@ -646,15 +646,15 @@ void av2_init_txk_skip_array(const AV2_COMMON *cm, int mi_row, int mi_col,
                                       : bsize;
     int stride = cm->mi_params.tx_skip_stride[plane];
     int x = (plane_mi_col << MI_SIZE_LOG2) >>
-            ((plane == 0) ? 0 : cm->seq_params.subsampling_x);
+            ((plane == 0) ? 0 : cm->seq_params.seq_subsampling_x);
     int y = (plane_mi_row << MI_SIZE_LOG2) >>
-            ((plane == 0) ? 0 : cm->seq_params.subsampling_y);
+            ((plane == 0) ? 0 : cm->seq_params.seq_subsampling_y);
     int row = y >> MIN_TX_SIZE_LOG2;
     int col = x >> MIN_TX_SIZE_LOG2;
     int blk_w = block_size_wide[bsize_base] >>
-                ((plane == 0) ? 0 : cm->seq_params.subsampling_x);
+                ((plane == 0) ? 0 : cm->seq_params.seq_subsampling_x);
     int blk_h = block_size_high[bsize_base] >>
-                ((plane == 0) ? 0 : cm->seq_params.subsampling_y);
+                ((plane == 0) ? 0 : cm->seq_params.seq_subsampling_y);
     blk_w >>= MIN_TX_SIZE_LOG2;
     blk_h >>= MIN_TX_SIZE_LOG2;
 
@@ -692,9 +692,9 @@ void av2_update_txk_skip_array(const AV2_COMMON *cm, int mi_row, int mi_col,
   int cols = tx_w >> MIN_TX_SIZE_LOG2;
   int rows = tx_h >> MIN_TX_SIZE_LOG2;
   int x = (mi_col << MI_SIZE_LOG2) >>
-          ((plane == 0) ? 0 : cm->seq_params.subsampling_x);
+          ((plane == 0) ? 0 : cm->seq_params.seq_subsampling_x);
   int y = (mi_row << MI_SIZE_LOG2) >>
-          ((plane == 0) ? 0 : cm->seq_params.subsampling_y);
+          ((plane == 0) ? 0 : cm->seq_params.seq_subsampling_y);
   x = (x + blk_col) >> MIN_TX_SIZE_LOG2;
   y = (y + blk_row) >> MIN_TX_SIZE_LOG2;
   for (int r = 0; r < rows; r++) {
@@ -720,9 +720,9 @@ uint8_t av2_get_txk_skip(const AV2_COMMON *cm, int mi_row, int mi_col,
                : mi_col;
   int stride = cm->mi_params.tx_skip_stride[plane];
   int x = (mi_col << MI_SIZE_LOG2) >>
-          ((plane == 0) ? 0 : cm->seq_params.subsampling_x);
+          ((plane == 0) ? 0 : cm->seq_params.seq_subsampling_x);
   int y = (mi_row << MI_SIZE_LOG2) >>
-          ((plane == 0) ? 0 : cm->seq_params.subsampling_y);
+          ((plane == 0) ? 0 : cm->seq_params.seq_subsampling_y);
   x = (x + blk_col) >> MIN_TX_SIZE_LOG2;
   y = (y + blk_row) >> MIN_TX_SIZE_LOG2;
   uint32_t idx = y * stride + x;

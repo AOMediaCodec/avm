@@ -290,7 +290,7 @@ void av2_update_state(const AV2_COMP *const cpi, ThreadData *td,
     }
 
     if (mi_addr->uv_mode == UV_CFL_PRED &&
-        !is_cfl_allowed(cm->seq_params.enable_cfl_intra, xd) &&
+        !is_cfl_allowed(cm->seq_params.seq_enable_cfl_intra, xd) &&
         !is_mhccp_allowed(cm, xd)) {
       mi_addr->uv_mode = UV_DC_PRED;
     }
@@ -518,7 +518,7 @@ void av2_sum_intra_stats(const AV2_COMMON *const cm, FRAME_COUNTS *counts,
                    counts,
 #endif  // CONFIG_ENTROPY_STATS
                    intraonly);
-    if (cm->seq_params.enable_mrls && av2_is_directional_mode(mbmi->mode)) {
+    if (cm->seq_params.seq_enable_mrls && av2_is_directional_mode(mbmi->mode)) {
       if (xd->lossless[mbmi->segment_id]) {
         if (mbmi->use_dpcm_y == 0) {
           int mrl_ctx = get_mrl_index_ctx(xd->neighbors[0], xd->neighbors[1]);
@@ -582,7 +582,7 @@ void av2_sum_intra_stats(const AV2_COMMON *const cm, FRAME_COUNTS *counts,
   if (xd->tree_type != LUMA_PART) {
     const UV_PREDICTION_MODE uv_mode = mbmi->uv_mode;
     const CFL_ALLOWED_TYPE cfl_allowed =
-        is_cfl_allowed(cm->seq_params.enable_cfl_intra, xd) ||
+        is_cfl_allowed(cm->seq_params.seq_enable_cfl_intra, xd) ||
         is_mhccp_allowed(cm, xd);
     const int uv_context = av2_is_directional_mode(mbmi->mode) ? 1 : 0;
 #if CONFIG_ENTROPY_STATS
@@ -661,7 +661,7 @@ void av2_sum_intra_stats(const AV2_COMMON *const cm, FRAME_COUNTS *counts,
           update_cdf(fc->cfl_index_cdf, mbmi->cfl_idx, CFL_TYPE_COUNT - 1);
         }
       } else {
-        if (cm->seq_params.enable_cfl_intra)
+        if (cm->seq_params.seq_enable_cfl_intra)
           update_cdf(fc->cfl_index_cdf, mbmi->cfl_idx, CFL_TYPE_COUNT - 1);
       }
     }
@@ -1058,8 +1058,8 @@ int av2_get_q_for_deltaq_objective(AV2_COMP *const cpi, BLOCK_SIZE bsize,
   int qindex = cm->quant_params.base_qindex + offset;
 
   qindex =
-      AVMMIN(qindex, cm->seq_params.bit_depth == AVM_BITS_8    ? MAXQ_8_BITS
-                     : cm->seq_params.bit_depth == AVM_BITS_10 ? MAXQ_10_BITS
+      AVMMIN(qindex, cm->seq_params.seq_bit_depth == AVM_BITS_8    ? MAXQ_8_BITS
+                     : cm->seq_params.seq_bit_depth == AVM_BITS_10 ? MAXQ_10_BITS
                                                                : MAXQ);
   qindex = AVMMAX(qindex, MINQ);
 

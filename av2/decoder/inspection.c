@@ -73,7 +73,7 @@ int ifd_inspect_superblock(insp_frame_data *fd, void *decoder) {
   }
 
   int frame_type = pbi->common.current_frame.frame_type;
-  int sb_size = cm->seq_params.sb_size;
+  int sb_size = cm->seq_params.seq_sb_size;
   // 256x256 superblocks are disabled for intra frames.
   if (sb_size == BLOCK_256X256 && frame_type == 0) {
     sb_size = BLOCK_128X128;
@@ -127,7 +127,7 @@ int ifd_inspect(insp_frame_data *fd, void *decoder, int skip_not_transform) {
   fd->base_qindex = quant_params->base_qindex;
   fd->tip_frame_mode = cm->features.tip_frame_mode;
 
-  int sb_size = cm->seq_params.sb_size;
+  int sb_size = cm->seq_params.seq_sb_size;
   // 256x256 superblocks are disabled for intra frames.
   if (sb_size == BLOCK_256X256 && fd->frame_type == 0) {
     sb_size = BLOCK_128X128;
@@ -142,7 +142,7 @@ int ifd_inspect(insp_frame_data *fd, void *decoder, int skip_not_transform) {
   fd->tile_mi_rows = tile_info.mi_row_end - tile_info.mi_row_start;
   fd->delta_q_present_flag = cm->delta_q_info.delta_q_present_flag;
   fd->delta_q_res = cm->delta_q_info.delta_q_res;
-  fd->bit_depth = cm->seq_params.bit_depth;
+  fd->bit_depth = cm->seq_params.seq_bit_depth;
   fd->width = cm->width;
   fd->height = cm->height;
   fd->render_width = cm->render_width;

@@ -459,7 +459,7 @@ void av2_copy_pc_tree_recursive(MACROBLOCKD *xd, const AV2_COMMON *cm,
 #endif  // COMPOUND_WARP_LINE_BUFFER_REDUCTION
                                      &dst->none[cur_region_type]->mic);
 #endif  // WARP_CU_BANK
-          if (cm->seq_params.enable_refmvbank) {
+          if (cm->seq_params.seq_enable_refmvbank) {
             av2_update_ref_mv_bank(cm, xd, 1, &dst->none[cur_region_type]->mic);
           }
         } else {

@@ -195,7 +195,7 @@ static void ccso_pre_compute_class_err(
   // Error and count of previously computed bands are reused to compute
   // error and count of the new lower bands.
   if ((init_shift_bits != shift_bits) && reuse_ccso_class_info(cm)) {
-    const int max_band = 1 << (cm->seq_params.bit_depth - shift_bits);
+    const int max_band = 1 << (cm->seq_params.seq_bit_depth - shift_bits);
     const int num_bins_to_be_summed = 1 << (shift_bits - init_shift_bits);
     for (int d0 = 0; d0 < CCSO_INPUT_INTERVAL; d0++) {
       for (int d1 = 0; d1 < CCSO_INPUT_INTERVAL; d1++) {
@@ -493,7 +493,7 @@ void ccso_try_luma_filter(CcsoCtx *ctx, AV2_COMMON *cm, MACROBLOCKD *xd,
                           int ccso_stride_ext) {
   const int pic_height = xd->plane[plane].dst.height;
   const int pic_width = xd->plane[plane].dst.width;
-  const int max_val = (1 << cm->seq_params.bit_depth) - 1;
+  const int max_val = (1 << cm->seq_params.seq_bit_depth) - 1;
   const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(
       cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
   const int blk_log2 = ccso_blk_size - xd->plane[plane].subsampling_y;
@@ -570,7 +570,7 @@ static void ccso_try_chroma_filter(
   const int pic_width = xd->plane[plane].dst.width;
   const int y_uv_hscale = xd->plane[plane].subsampling_x;
   const int y_uv_vscale = xd->plane[plane].subsampling_y;
-  const int max_val = (1 << cm->seq_params.bit_depth) - 1;
+  const int max_val = (1 << cm->seq_params.seq_bit_depth) - 1;
   const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(
       cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
   const int blk_log2_y = ccso_blk_size - xd->plane[plane].subsampling_y;
@@ -1292,7 +1292,7 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV2_COMMON *cm, const int plane,
             // before the below loop starts, later use the same in the
             // ccso_pre_compute_class_err calls.
             if (!ccso_bo_only && (init_shift_bits == -1)) {
-              init_shift_bits = cm->seq_params.bit_depth - (num_band_iter - 1);
+              init_shift_bits = cm->seq_params.seq_bit_depth - (num_band_iter - 1);
               const int max_band = 1 << (num_band_iter - 1);
               for (int d0 = 0; d0 < max_edge_interval; d0++) {
                 for (int d1 = 0; d1 < max_edge_interval; d1++) {
@@ -1313,7 +1313,7 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV2_COMMON *cm, const int plane,
 
             for (int max_band_log2 = 0; max_band_log2 < num_band_iter;
                  max_band_log2++) {
-              const int shift_bits = cm->seq_params.bit_depth - max_band_log2;
+              const int shift_bits = cm->seq_params.seq_bit_depth - max_band_log2;
               const int max_band = 1 << max_band_log2;
               if (ccso_bo_only) {
                 for (int band_num = 0; band_num < CCSO_BAND_NUM; band_num++) {

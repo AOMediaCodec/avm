@@ -64,11 +64,11 @@ void set_film_grain_model(const AV2_COMP *const cpi,
 
   fgm_current->fgm_id = 0;
   fgm_current->fgm_chroma_idc = CHROMA_FORMAT_420;
-  if (seq_params->monochrome)
+  if (seq_params->seq_monochrome)
     fgm_current->fgm_chroma_idc = CHROMA_FORMAT_400;
-  else if (seq_params->subsampling_x == 0 && seq_params->subsampling_y == 1)
+  else if (seq_params->seq_subsampling_x == 0 && seq_params->seq_subsampling_y == 1)
     fgm_current->fgm_chroma_idc = CHROMA_FORMAT_444;
-  else if (seq_params->subsampling_x == 1 && seq_params->subsampling_y == 0)
+  else if (seq_params->seq_subsampling_x == 1 && seq_params->seq_subsampling_y == 0)
     fgm_current->fgm_chroma_idc = CHROMA_FORMAT_422;
   for (int c = 0; c < 3; c++) {
     fgm_current->fgm_points[c] = pars->fgm_points[c];
@@ -175,19 +175,19 @@ int write_fgm_obu(AV2_COMP *cpi, struct film_grain_model *fgm,
   int fgm_bit_map = 1 << (fgm->fgm_id);
   avm_wb_write_literal(&wb, fgm_bit_map, MAX_FGM_NUM);
   int chroma_format_idc = CHROMA_FORMAT_420;
-  if (cm->seq_params.monochrome)
+  if (cm->seq_params.seq_monochrome)
     chroma_format_idc = CHROMA_FORMAT_400;
-  else if (cm->seq_params.subsampling_x == 0 &&
-           cm->seq_params.subsampling_y == 1)
+  else if (cm->seq_params.seq_subsampling_x == 0 &&
+           cm->seq_params.seq_subsampling_y == 1)
     chroma_format_idc = CHROMA_FORMAT_444;
-  else if (cm->seq_params.subsampling_x == 1 &&
-           cm->seq_params.subsampling_y == 0)
+  else if (cm->seq_params.seq_subsampling_x == 1 &&
+           cm->seq_params.seq_subsampling_y == 0)
     chroma_format_idc = CHROMA_FORMAT_422;
   avm_wb_write_uvlc(&wb, chroma_format_idc);
 
   for (int fgm_pos = 0; fgm_pos < 1; fgm_pos++) {
     // Scaling functions parameters
-    int fgmNumChannels = cm->seq_params.monochrome ? 1 : 3;
+    int fgmNumChannels = cm->seq_params.seq_monochrome ? 1 : 3;
 
     if (fgmNumChannels > 1) {
       avm_wb_write_bit(&wb, fgm->fgm_scale_from_channel0_flag);

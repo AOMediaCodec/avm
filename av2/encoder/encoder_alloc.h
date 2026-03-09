@@ -87,7 +87,7 @@ static AVM_INLINE void alloc_compressor_data(AV2_COMP *cpi) {
   av2_setup_sms_bufs(&cpi->common, &cpi->td);
   cpi->td.firstpass_ctx =
       av2_alloc_pmc(cm, SHARED_PART, 0, 0, BLOCK_16X16, NULL, PARTITION_NONE, 0,
-                    cm->seq_params.subsampling_x, cm->seq_params.subsampling_y,
+                    cm->seq_params.seq_subsampling_x, cm->seq_params.seq_subsampling_y,
                     &cpi->td.shared_coeff_buf);
 }
 
@@ -105,7 +105,7 @@ static AVM_INLINE void realloc_segmentation_maps(AV2_COMP *cpi) {
   CHECK_MEM_ERROR(
       cm, cpi->cyclic_refresh,
       av2_cyclic_refresh_alloc(mi_params->mi_rows, mi_params->mi_cols,
-                               cm->seq_params.bit_depth));
+                               cm->seq_params.seq_bit_depth));
 
   // Create a map used to mark inactive areas.
   avm_free(cpi->active_map.map);
@@ -307,8 +307,8 @@ static AVM_INLINE void alloc_altref_frame_buffer(AV2_COMP *cpi) {
   // TODO(agrange) Check if ARF is enabled and skip allocation if not.
   if (avm_realloc_frame_buffer(
           &cpi->alt_ref_buffer, oxcf->frm_dim_cfg.width,
-          oxcf->frm_dim_cfg.height, seq_params->subsampling_x,
-          seq_params->subsampling_y, cpi->oxcf.border_in_pixels,
+          oxcf->frm_dim_cfg.height, seq_params->seq_subsampling_x,
+          seq_params->seq_subsampling_y, cpi->oxcf.border_in_pixels,
           cm->features.byte_alignment, NULL, NULL, NULL, cpi->alloc_pyramid))
     avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
                        "Failed to allocate altref buffer");
@@ -319,30 +319,30 @@ static AVM_INLINE void alloc_util_frame_buffers(AV2_COMP *cpi) {
   const SequenceHeader *const seq_params = &cm->seq_params;
   const int byte_alignment = cm->features.byte_alignment;
   if (avm_realloc_frame_buffer(
-          &cpi->last_frame_uf, cm->width, cm->height, seq_params->subsampling_x,
-          seq_params->subsampling_y, cpi->oxcf.border_in_pixels, byte_alignment,
+          &cpi->last_frame_uf, cm->width, cm->height, seq_params->seq_subsampling_x,
+          seq_params->seq_subsampling_y, cpi->oxcf.border_in_pixels, byte_alignment,
           NULL, NULL, NULL, false))
     avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
                        "Failed to allocate last frame buffer");
 
   if (avm_realloc_frame_buffer(&cpi->trial_frame_rst, cm->width, cm->height,
-                               seq_params->subsampling_x,
-                               seq_params->subsampling_y,
+                               seq_params->seq_subsampling_x,
+                               seq_params->seq_subsampling_y,
                                AVM_RESTORATION_FRAME_BORDER, byte_alignment,
                                NULL, NULL, NULL, false))
     avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
                        "Failed to allocate trial restored frame buffer");
 
   if (avm_realloc_frame_buffer(
-          &cpi->scaled_source, cm->width, cm->height, seq_params->subsampling_x,
-          seq_params->subsampling_y, cpi->oxcf.border_in_pixels, byte_alignment,
+          &cpi->scaled_source, cm->width, cm->height, seq_params->seq_subsampling_x,
+          seq_params->seq_subsampling_y, cpi->oxcf.border_in_pixels, byte_alignment,
           NULL, NULL, NULL, cpi->alloc_pyramid))
     avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
                        "Failed to allocate scaled source buffer");
 
   if (avm_realloc_frame_buffer(&cpi->scaled_last_source, cm->width, cm->height,
-                               seq_params->subsampling_x,
-                               seq_params->subsampling_y,
+                               seq_params->seq_subsampling_x,
+                               seq_params->seq_subsampling_y,
                                cpi->oxcf.border_in_pixels, byte_alignment, NULL,
                                NULL, NULL, cpi->alloc_pyramid))
     avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
@@ -361,7 +361,7 @@ static AVM_INLINE YV12_BUFFER_CONFIG *realloc_and_scale_source(
 
   if (avm_realloc_frame_buffer(
           &cpi->scaled_source, scaled_width, scaled_height,
-          cm->seq_params.subsampling_x, cm->seq_params.subsampling_y,
+          cm->seq_params.seq_subsampling_x, cm->seq_params.seq_subsampling_y,
           AVM_BORDER_IN_PIXELS, cm->features.byte_alignment, NULL, NULL, NULL,
           cpi->alloc_pyramid))
     avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
@@ -369,7 +369,7 @@ static AVM_INLINE YV12_BUFFER_CONFIG *realloc_and_scale_source(
   assert(cpi->scaled_source.y_crop_width == scaled_width);
   assert(cpi->scaled_source.y_crop_height == scaled_height);
   av2_resize_and_extend_frame_nonnormative(
-      cpi->unscaled_source, &cpi->scaled_source, (int)cm->seq_params.bit_depth,
+      cpi->unscaled_source, &cpi->scaled_source, (int)cm->seq_params.seq_bit_depth,
       num_planes);
   return &cpi->scaled_source;
 }

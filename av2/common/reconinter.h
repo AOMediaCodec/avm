@@ -278,7 +278,7 @@ static INLINE void get_warp_model_steps(const MB_MODE_INFO *mbmi,
 // Get the default value of the six_param_flag
 static INLINE int get_default_six_param_flag(const AV2_COMMON *const cm,
                                              const MB_MODE_INFO *mbmi) {
-  return (cm->seq_params.enable_six_param_warp_delta &&
+  return (cm->seq_params.seq_enable_six_param_warp_delta &&
 
           mbmi->warp_ref_idx == 1)
              ? 1
@@ -341,7 +341,7 @@ static INLINE int enable_adaptive_mvd_resolution(const AV2_COMMON *const cm,
                                                  const MB_MODE_INFO *mbmi) {
   const int mode = mbmi->mode;
   if (allow_amvd_mode(mode) == 0) return 0;
-  if (cm->seq_params.enable_adaptive_mvd == 0) return 0;
+  if (cm->seq_params.seq_enable_adaptive_mvd == 0) return 0;
 
   return mbmi->use_amvd;
 }
@@ -603,7 +603,7 @@ static INLINE int is_translational_refinement_allowed(const AV2_COMMON *cm,
                                                       BLOCK_SIZE bsize,
                                                       const MACROBLOCKD *xd,
                                                       const int mode) {
-  assert(cm->seq_params.enable_opfl_refine);
+  assert(cm->seq_params.seq_enable_opfl_refine);
   (void)cm;
   if (mode < NEAR_NEARMV_OPTFLOW) return 0;
   if (is_thin_4xn_nx4_block(bsize)) return 0;
@@ -690,7 +690,7 @@ static INLINE int default_refinemv_modes(const MB_MODE_INFO *mbmi) {
 // Check if the compound and equal distance references
 static INLINE int is_refinemv_allowed_reference(const AV2_COMMON *cm,
                                                 const MB_MODE_INFO *mbmi) {
-  if (!cm->seq_params.enable_refinemv) return 0;
+  if (!cm->seq_params.seq_enable_refinemv) return 0;
   const unsigned int cur_index = cm->cur_frame->display_order_hint;
   int d0, d1;
   int is_tip = (mbmi->ref_frame[0] == TIP_FRAME);
@@ -723,9 +723,9 @@ static INLINE int is_refinemv_allowed_reference(const AV2_COMMON *cm,
     if (!has_second_ref(mbmi)) return 0;
     const RefCntBuffer *const ref0 = get_ref_frame_buf(cm, mbmi->ref_frame[0]);
     const RefCntBuffer *const ref1 = get_ref_frame_buf(cm, mbmi->ref_frame[1]);
-    d0 = get_relative_dist(&cm->seq_params.order_hint_info, cur_index,
+    d0 = get_relative_dist(&cm->seq_params.seq_order_hint_info, cur_index,
                            ref0->display_order_hint);
-    d1 = get_relative_dist(&cm->seq_params.order_hint_info, cur_index,
+    d1 = get_relative_dist(&cm->seq_params.seq_order_hint_info, cur_index,
                            ref1->display_order_hint);
   }
 
@@ -742,7 +742,7 @@ static INLINE int is_refinemv_allowed_reference(const AV2_COMMON *cm,
 static INLINE int is_refinemv_allowed(const AV2_COMMON *const cm,
                                       const MB_MODE_INFO *mbmi,
                                       BLOCK_SIZE bsize) {
-  if (!cm->seq_params.enable_refinemv) return 0;
+  if (!cm->seq_params.seq_enable_refinemv) return 0;
   int is_tip = is_tip_ref_frame(mbmi->ref_frame[0]);
   if (is_tip) return 0;
   assert(!mbmi->skip_mode);
@@ -760,10 +760,10 @@ static INLINE int is_any_mv_refinement_allowed_in_tip(
   if (!cm->has_both_sides_refs) return 0;
 
   if (cm->features.opfl_refine_type == REFINE_NONE &&
-      !cm->seq_params.enable_refinemv)
+      !cm->seq_params.seq_enable_refinemv)
     return 0;
 
-  if (!cm->seq_params.enable_tip_refinemv) return 0;
+  if (!cm->seq_params.seq_enable_tip_refinemv) return 0;
 
   const int tip_wtd_index = cm->tip_global_wtd_index;
   const int8_t tip_weight = tip_weighting_factors[tip_wtd_index];
@@ -784,7 +784,7 @@ static INLINE int is_tip_block_with_mv_refinement(const AV2_COMMON *const cm,
 
     // No subblock MV refinement on TIP direct output mode when the
     // interpolation filter is MULTITAP_SHARP
-    if (cm->seq_params.enable_opfl_refine == AVM_OPFL_REFINE_NONE) return 0;
+    if (cm->seq_params.seq_enable_opfl_refine == AVM_OPFL_REFINE_NONE) return 0;
   }
 
   if (cm->features.tip_frame_mode == TIP_FRAME_AS_REF) {
@@ -794,7 +794,7 @@ static INLINE int is_tip_block_with_mv_refinement(const AV2_COMMON *const cm,
 
     const int bw = block_size_wide[mi->sb_type[xd->tree_type == CHROMA_PART]];
     const int bh = block_size_high[mi->sb_type[xd->tree_type == CHROMA_PART]];
-    if (bw >= 256 && bh >= 256 && !cm->seq_params.enable_refinemv) return 0;
+    if (bw >= 256 && bh >= 256 && !cm->seq_params.seq_enable_refinemv) return 0;
   }
 
   return 1;
@@ -809,10 +809,10 @@ static AVM_INLINE bool is_tip_coded_as_16x16_block(const AV2_COMMON *cm,
   const int bh = block_size_high[mi->sb_type[0]];
 
   bool is_tip_16_16 = disable_opfl_for_16x16_tip_ref(
-      cm->features.tip_frame_mode, bw, bh, cm->seq_params.enable_tip_refinemv);
+      cm->features.tip_frame_mode, bw, bh, cm->seq_params.seq_enable_tip_refinemv);
   is_tip_16_16 |= disable_opfl_for_tip_direct(
       cm->features.tip_frame_mode, cm->tip_interp_filter,
-      cm->seq_params.enable_tip_refinemv);
+      cm->seq_params.seq_enable_tip_refinemv);
   return is_tip_16_16;
 }
 
@@ -820,10 +820,10 @@ static AVM_INLINE bool is_tip_coded_as_16x16_block(const AV2_COMMON *cm,
 static INLINE int is_unequal_weighted_tip_allowed(const AV2_COMMON *const cm) {
   if (!cm->has_both_sides_refs) return 1;
 
-  if (!cm->seq_params.enable_tip_refinemv) return 1;
+  if (!cm->seq_params.seq_enable_tip_refinemv) return 1;
 
   if (cm->features.opfl_refine_type == REFINE_NONE &&
-      !cm->seq_params.enable_refinemv)
+      !cm->seq_params.seq_enable_refinemv)
     return 1;
 
   return 0;
@@ -848,7 +848,7 @@ static INLINE void set_tip_interp_weight_factor(
 static INLINE int is_refinemv_allowed_tip_blocks(const AV2_COMMON *const cm,
                                                  const MB_MODE_INFO *mbmi) {
   assert(is_tip_ref_frame(mbmi->ref_frame[0]));
-  return cm->seq_params.enable_refinemv && cm->seq_params.enable_tip_refinemv &&
+  return cm->seq_params.seq_enable_refinemv && cm->seq_params.seq_enable_tip_refinemv &&
          is_refinemv_allowed_reference(cm, mbmi) &&
          (cm->features.tip_frame_mode != TIP_FRAME_AS_OUTPUT);
 }
@@ -862,7 +862,7 @@ static INLINE int is_refinemv_allowed_skip_mode(const AV2_COMMON *const cm,
 }
 static INLINE int get_default_refinemv_flag(const AV2_COMMON *const cm,
                                             const MB_MODE_INFO *mbmi) {
-  if (!cm->seq_params.enable_refinemv) return 0;
+  if (!cm->seq_params.seq_enable_refinemv) return 0;
   int is_refinemv =
       (mbmi->skip_mode
            ? is_refinemv_allowed_skip_mode(cm, mbmi)
@@ -876,7 +876,7 @@ static INLINE int get_default_refinemv_flag(const AV2_COMMON *const cm,
 // check if the refinemv mode is switchable for a given block
 static INLINE int switchable_refinemv_flag(const AV2_COMMON *const cm,
                                            const MB_MODE_INFO *mbmi) {
-  if (!cm->seq_params.enable_refinemv) return 0;
+  if (!cm->seq_params.seq_enable_refinemv) return 0;
   int is_refinemv =
       (mbmi->skip_mode
            ? is_refinemv_allowed_skip_mode(cm, mbmi)
@@ -1314,7 +1314,7 @@ static INLINE int get_derive_sign_nzero_th(const MB_MODE_INFO *mbmi) {
 static INLINE int is_mvd_sign_derive_allowed(const AV2_COMMON *const cm,
                                              const MACROBLOCKD *const xd,
                                              const MB_MODE_INFO *mbmi) {
-  if (!cm->seq_params.enable_mvd_sign_derive ||
+  if (!cm->seq_params.seq_enable_mvd_sign_derive ||
       mbmi->motion_mode != SIMPLE_TRANSLATION ||
       is_intrabc_block(mbmi, xd->tree_type) ||
       enable_adaptive_mvd_resolution(cm, mbmi) || mbmi->skip_mode ||

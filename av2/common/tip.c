@@ -52,7 +52,7 @@ static void compute_tmvp_mi_info(const AV2_COMMON *cm, int *mvs_rows,
 
   const SequenceHeader *const seq_params = &cm->seq_params;
   const int mf_sb_size_log2 =
-      get_mf_sb_size_log2(block_size_high[seq_params->sb_size],
+      get_mf_sb_size_log2(block_size_high[seq_params->seq_sb_size],
                           cm->mib_size_log2, cm->tmvp_sample_step);
 
   const int mf_sb_size = (1 << mf_sb_size_log2);
@@ -201,7 +201,7 @@ static void tip_blk_average_filter_mv(AV2_COMMON *cm) {
 
 static void tip_config_tip_parameter(AV2_COMMON *cm) {
   TIP *tip_ref = &cm->tip_ref;
-  const OrderHintInfo *const order_hint_info = &cm->seq_params.order_hint_info;
+  const OrderHintInfo *const order_hint_info = &cm->seq_params.seq_order_hint_info;
   const int cur_order_hint = cm->cur_frame->display_order_hint;
 
   MV_REFERENCE_FRAME nearest_rf[2] = { tip_ref->ref_frame[0],
@@ -316,7 +316,7 @@ static void enc_decide_tip_mode(AV2_COMMON *cm) {
     enc_check_enable_tip_mode(cm);
 
     if (cm->features.tip_frame_mode) {
-      cm->features.allow_tip_hole_fill = cm->seq_params.enable_tip_hole_fill;
+      cm->features.allow_tip_hole_fill = cm->seq_params.seq_enable_tip_hole_fill;
     }
   } else {
     cm->features.tip_frame_mode = TIP_FRAME_DISABLED;
@@ -406,10 +406,10 @@ static AVM_INLINE void tip_build_inter_predictors_8x8(
   int bw = block_size_wide[unit_bsize];
   int bh = block_size_high[unit_bsize];
 
-  const int bd = cm->seq_params.bit_depth;
+  const int bd = cm->seq_params.seq_bit_depth;
 
-  const int ss_x = plane ? cm->seq_params.subsampling_x : 0;
-  const int ss_y = plane ? cm->seq_params.subsampling_y : 0;
+  const int ss_x = plane ? cm->seq_params.seq_subsampling_x : 0;
+  const int ss_y = plane ? cm->seq_params.seq_subsampling_y : 0;
   const int comp_pixel_x = (mi_x >> ss_x);
   const int comp_pixel_y = (mi_y >> ss_y);
   const int comp_bw = bw >> ss_x;
@@ -612,8 +612,8 @@ static AVM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
   xd->mb_to_bottom_edge = GET_MV_SUBPEL(height - bh - mi_y);
   xd->mb_to_left_edge = -GET_MV_SUBPEL(mi_x);
   xd->mb_to_right_edge = GET_MV_SUBPEL(width - bw - mi_x);
-  const int ss_x = plane ? cm->seq_params.subsampling_x : 0;
-  const int ss_y = plane ? cm->seq_params.subsampling_y : 0;
+  const int ss_x = plane ? cm->seq_params.seq_subsampling_x : 0;
+  const int ss_y = plane ? cm->seq_params.seq_subsampling_y : 0;
   const int comp_pixel_x = (mi_x >> ss_x);
   const int comp_pixel_y = (mi_y >> ss_y);
   const int comp_bw = bw >> ss_x;
@@ -638,19 +638,19 @@ static AVM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
                         2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES))];
 
   const int apply_refinemv =
-      (cm->seq_params.enable_refinemv && cm->seq_params.enable_tip_refinemv &&
+      (cm->seq_params.seq_enable_refinemv && cm->seq_params.seq_enable_tip_refinemv &&
        plane == 0 && has_both_sides_refs && is_compound &&
        tip_weight == TIP_EQUAL_WTD);
 
   ReferenceArea ref_area[2];
   const int do_opfl = cm->features.opfl_refine_type != REFINE_NONE &&
-                      cm->seq_params.enable_tip_refinemv &&
+                      cm->seq_params.seq_enable_tip_refinemv &&
                       cm->features.use_optflow_tip && plane == 0;
   int is_tip_mv_refine_disabled_for_unit_size_16x16 =
       is_tip_mv_refinement_disabled_for_unit_size_16x16(
-          unit_bh, cm->seq_params.enable_tip_refinemv,
+          unit_bh, cm->seq_params.seq_enable_tip_refinemv,
           cm->features.tip_frame_mode);
-  const int do_ref_area_pad = cm->seq_params.enable_tip_refinemv &&
+  const int do_ref_area_pad = cm->seq_params.seq_enable_tip_refinemv &&
                               cm->has_both_sides_refs &&
                               !is_tip_mv_refine_disabled_for_unit_size_16x16;
   if (do_ref_area_pad) {
@@ -701,7 +701,7 @@ static AVM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
     return;
   }
 
-  const int bd = cm->seq_params.bit_depth;
+  const int bd = cm->seq_params.seq_bit_depth;
 
   if (plane == 0) {
     xd->mv_refined[0].as_mv = convert_mv_to_1_16th_pel(&mv[0]);
@@ -791,8 +791,8 @@ static AVM_INLINE void tip_component_setup_dst_planes(
   int subsampling_y = 0;
   if (plane > 0) {
     is_uv = 1;
-    subsampling_x = cm->seq_params.subsampling_x;
-    subsampling_y = cm->seq_params.subsampling_y;
+    subsampling_x = cm->seq_params.seq_subsampling_x;
+    subsampling_y = cm->seq_params.seq_subsampling_y;
   }
   tip_setup_pred_plane(&pd->dst, src->buffers[plane], src->widths[is_uv],
                        src->heights[is_uv], src->crop_widths[is_uv],
@@ -809,7 +809,7 @@ void av2_tip_setup_tip_frame_row(AV2_COMMON *cm, MACROBLOCKD *xd, int blk_row,
                                  int copy_refined_mvs) {
   TIP *tip_ref = &cm->tip_ref;
   const TPL_MV_REF *tpl_mvs_base = cm->tpl_mvs;
-  int enable_tip_refinemv = cm->seq_params.enable_tip_refinemv;
+  int enable_tip_refinemv = cm->seq_params.seq_enable_tip_refinemv;
 
   MV zero_mv[2];
   memset(zero_mv, 0, sizeof(zero_mv));
@@ -894,7 +894,7 @@ void av2_tip_setup_tip_frame_row(AV2_COMMON *cm, MACROBLOCKD *xd, int blk_row,
         const int y_inside_boundary =
             AVMMIN(step << TMVP_SHIFT_BITS, (blk_row_end - blk_row)
                                                 << TMVP_SHIFT_BITS);
-        if (cm->seq_params.order_hint_info.enable_ref_frame_mvs) {
+        if (cm->seq_params.seq_order_hint_info.enable_ref_frame_mvs) {
           if (enable_refined_mvs_in_tmvp(cm, xd, &mbmi)) {
             av2_copy_frame_refined_mvs(cm, xd, &mbmi,
                                        blk_row << TMVP_SHIFT_BITS,
@@ -934,7 +934,7 @@ static AVM_INLINE void tip_setup_tip_frame_planes(
     int copy_refined_mvs) {
   int unit_blk_size = (get_unit_bsize_for_tip_frame(
                            cm->features.tip_frame_mode, cm->tip_interp_filter,
-                           cm->seq_params.enable_tip_refinemv) == BLOCK_16X16)
+                           cm->seq_params.seq_enable_tip_refinemv) == BLOCK_16X16)
                           ? 16
                           : 8;
   tip_setup_tip_frame_plane(cm, xd, blk_row_start, blk_col_start, blk_row_end,

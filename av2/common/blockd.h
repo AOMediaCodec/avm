@@ -2174,7 +2174,7 @@ typedef struct macroblockd {
   FRAME_CONTEXT *tile_ctx;
 
   /*!
-   * Bit depth: copied from cm->seq_params.bit_depth for convenience.
+   * Bit depth: copied from cm->seq_params.seq_bit_depth for convenience.
    */
   int bd;
 

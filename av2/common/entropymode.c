@@ -152,7 +152,7 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
            default_txfm_2or3_way_partition_type_cdf);
   av2_copy(fc->txfm_4way_partition_type_cdf,
            default_txfm_4way_partition_type_cdf);
-  if (seq_params->reduced_tx_part_set) {
+  if (seq_params->seq_reduced_tx_part_set) {
     av2_copy(fc->txfm_4way_partition_type_cdf,
              default_txfm_4way_partition_type_reduced_cdf);
   }

@@ -149,12 +149,12 @@ void get_qindex_with_offsets(const struct AV2Common *cm, int seg_qindex,
 
     final_qindex_dc[j] =
         av2_q_clamped(seg_qindex, dc_delta_q,
-                      j == 0 ? cm->seq_params.base_y_dc_delta_q
-                             : cm->seq_params.base_uv_dc_delta_q,
-                      cm->seq_params.bit_depth);
+                      j == 0 ? cm->seq_params.seq_base_y_dc_delta_q
+                             : cm->seq_params.seq_base_uv_dc_delta_q,
+                      cm->seq_params.seq_bit_depth);
     final_qindex_ac[j] = av2_q_clamped(
-        seg_qindex, ac_delta_q, j == 0 ? 0 : cm->seq_params.base_uv_ac_delta_q,
-        cm->seq_params.bit_depth);
+        seg_qindex, ac_delta_q, j == 0 ? 0 : cm->seq_params.seq_base_uv_ac_delta_q,
+        cm->seq_params.seq_bit_depth);
   }
 }
 

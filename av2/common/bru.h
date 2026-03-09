@@ -117,7 +117,7 @@ static INLINE void free_bru_info(AV2_COMMON const *cm) {
 /* Check if current mi is the start mi of the super block*/
 static INLINE int is_sb_start_mi(const AV2_COMMON *cm, const int mi_col,
                                  const int mi_row) {
-  const int sb_mask = (cm->seq_params.mib_size - 1);
+  const int sb_mask = (cm->seq_params.seq_mib_size - 1);
   // Check if current block is SB start MI
   if ((mi_row & sb_mask) == 0 && (mi_col & sb_mask) == 0) return 1;
   return 0;
@@ -176,7 +176,7 @@ static INLINE BruActiveMode enc_get_cur_sb_active_mode(const AV2_COMMON *cm,
                                                        const int mi_row) {
   if (!cm->bru.enabled) return BRU_ACTIVE_SB;
   uint8_t *const active_mode_map = cm->bru.active_mode_map;
-  const int mib_size_log2 = cm->seq_params.mib_size_log2;
+  const int mib_size_log2 = cm->seq_params.seq_mib_size_log2;
   const int sb_stride = cm->bru.unit_cols;
   int sb_idx =
       (mi_row >> mib_size_log2) * sb_stride + (mi_col >> mib_size_log2);
@@ -189,7 +189,7 @@ static INLINE BruActiveMode set_active_map(const AV2_COMMON *cm,
                                            int sb_active_mode) {
   if (!cm->bru.enabled) return BRU_ACTIVE_SB;
   uint8_t *const active_mode_map = cm->bru.active_mode_map;
-  const int mib_size_log2 = cm->seq_params.mib_size_log2;
+  const int mib_size_log2 = cm->seq_params.seq_mib_size_log2;
   const int sb_stride = cm->bru.unit_cols;
   int sb_idx =
       (mi_row >> mib_size_log2) * sb_stride + (mi_col >> mib_size_log2);
@@ -295,8 +295,8 @@ static INLINE bool is_ru_bru_skip(const AV2_COMMON *cm, AV2PixelRect *ru_rect) {
   if (!cm->bru.enabled) return 0;
   // convert to mi unit
   // make sure all units are in luma mi size
-  const int sb_mi_size = cm->seq_params.mib_size;
-  const int mib_size_log2 = cm->seq_params.mib_size_log2;
+  const int sb_mi_size = cm->seq_params.seq_mib_size;
+  const int mib_size_log2 = cm->seq_params.seq_mib_size_log2;
   bool bru_skip = true;
   // adjust height and width according to frame size
   const int mi_sb_x_start = (ru_rect->left >> (MI_SIZE_LOG2 + mib_size_log2))

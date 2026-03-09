@@ -1192,75 +1192,75 @@ typedef struct SequenceHeader {
 
   int seq_lcr_id;
 
-  int num_bits_width;
-  int num_bits_height;
-  int max_frame_width;
-  int max_frame_height;
+  int seq_num_bits_width;
+  int seq_num_bits_height;
+  int seq_max_frame_width;
+  int seq_max_frame_height;
 
-  BLOCK_SIZE sb_size;  // Size of the superblock used for this frame
-  int mib_size;        // Size of the superblock in units of MI blocks
-  int mib_size_log2;   // Log 2 of above.
+  BLOCK_SIZE seq_sb_size;  // Size of the superblock used for this frame
+  int seq_mib_size;        // Size of the superblock in units of MI blocks
+  int seq_mib_size_log2;   // Log 2 of above.
 
-  int enable_explicit_ref_frame_map;  // Explicitly signal the reference frame
+  int seq_enable_explicit_ref_frame_map;  // Explicitly signal the reference frame
                                       // mapping
 
-  int def_max_drl_bits;                  // default max drl bits for MVs
-  uint8_t allow_frame_max_drl_bits;      // whether to allow frame level update
-  int def_max_bvp_drl_bits;              // default max ibc drl bits for MVs
-  uint8_t allow_frame_max_bvp_drl_bits;  // whether to allow frame level update
-  int num_same_ref_compound;  // Number of the allowed same reference frames for
+  int seq_def_max_drl_bits;                  // default max drl bits for MVs
+  uint8_t seq_allow_frame_max_drl_bits;      // whether to allow frame level update
+  int seq_def_max_bvp_drl_bits;              // default max ibc drl bits for MVs
+  uint8_t seq_allow_frame_max_bvp_drl_bits;  // whether to allow frame level update
+  int seq_num_same_ref_compound;  // Number of the allowed same reference frames for
                               // the compound mode
-  int ref_frames;             // number of all decoded picture buffers
-  int ref_frames_log2;        // ceiling of the log2 value of the number of all
-                              // decoded picture buffers (ref_frames)
+  int seq_ref_frames;             // number of all decoded picture buffers
+  int seq_ref_frames_log2;        // ceiling of the log2 value of the number of all
+                              // decoded picture buffers (seq_ref_frames)
 
-  OrderHintInfo order_hint_info;
+  OrderHintInfo seq_order_hint_info;
 
-  uint8_t force_screen_content_tools;  // 0 - force off
+  uint8_t seq_force_screen_content_tools;  // 0 - force off
                                        // 1 - force on
                                        // 2 - adaptive
-  uint8_t still_picture;               // Video is a single frame still picture
-  uint8_t single_picture_header_flag;  // Use reduced header for still picture
-  uint8_t force_integer_mv;            // 0 - Don't force. MV can use subpel
+  uint8_t seq_still_picture;               // Video is a single frame still picture
+  uint8_t seq_single_picture_header_flag;  // Use reduced header for still picture
+  uint8_t seq_force_integer_mv;            // 0 - Don't force. MV can use subpel
                                        // 1 - force to integer
                                        // 2 - adaptive
-  uint8_t enable_tcq;  // Seq: 0 - disable, 1: 8-state, 2: 8-state (frame adap)
-  uint8_t enable_sdp;  // enables/disables semi-decoupled partitioning
-  uint8_t enable_extended_sdp;  // enables/disables extended semi-decoupled
+  uint8_t seq_enable_tcq;  // Seq: 0 - disable, 1: 8-state, 2: 8-state (frame adap)
+  uint8_t seq_enable_sdp;  // enables/disables semi-decoupled partitioning
+  uint8_t seq_enable_extended_sdp;  // enables/disables extended semi-decoupled
                                 // partitioning
-  uint8_t enable_mrls;  // enables/disables multiple reference line selection
-  uint8_t enable_tip;   // enables/disables temporal interpolated prediction
-  uint8_t enable_tip_hole_fill;    // enables/disables hole fill for TIP
-  uint8_t enable_tip_refinemv;     // enables/disables RefineMv and OPFL for TIP
-  uint8_t enable_tip_explicit_qp;  // enables/disables explicit qp for TIP
-  uint8_t enable_mv_traj;          // enables/disables mv trajectory tracking
-  uint8_t enable_bawp;  // enables/disables block adaptive weighted prediction
-  uint8_t enable_cwp;   // enables/disables compound weighted prediction
-  uint8_t enable_imp_msk_bld;  // enable implicit masked blending
+  uint8_t seq_enable_mrls;  // enables/disables multiple reference line selection
+  uint8_t seq_enable_tip;   // enables/disables temporal interpolated prediction
+  uint8_t seq_enable_tip_hole_fill;    // enables/disables hole fill for TIP
+  uint8_t seq_enable_tip_refinemv;     // enables/disables RefineMv and OPFL for TIP
+  uint8_t seq_enable_tip_explicit_qp;  // enables/disables explicit qp for TIP
+  uint8_t seq_enable_mv_traj;          // enables/disables mv trajectory tracking
+  uint8_t seq_enable_bawp;  // enables/disables block adaptive weighted prediction
+  uint8_t seq_enable_cwp;   // enables/disables compound weighted prediction
+  uint8_t seq_enable_imp_msk_bld;  // enable implicit masked blending
 
-  uint8_t enable_fsc;                // enables/disables forward skip coding
-  uint8_t enable_idtx_intra;         // enables/disables idtx for intra
-  uint8_t enable_intra_dip;          // enables/disables intra_dip
-  uint8_t enable_intra_edge_filter;  // enables/disables edge upsampling
-  uint8_t enable_ist;             // enables/disables intra secondary transform
-  uint8_t enable_inter_ist;       // enables/disables inter secondary transform
-  uint8_t enable_chroma_dctonly;  // enables/disables dct only for chroma
-  uint8_t enable_cfl_intra;       // enables/disables CFL
-  uint8_t enable_mhccp;           // enables/disables MHCCP
-  uint8_t enable_inter_ddt;     // enables/disables inter data-driven transform
-  uint8_t reduced_tx_part_set;  // use reduced transform block partition set
-  uint8_t enable_cctx;  // enables/disables cross-chroma component transform
-  uint8_t enable_ibp;   // enables/disables intra bi-prediction(IBP)
-  uint8_t enable_adaptive_mvd;  // enables/disables adaptive MVD resolution
-  uint8_t enable_flex_mvres;    // enables/disables flexible MV resolution
+  uint8_t seq_enable_fsc;                // enables/disables forward skip coding
+  uint8_t seq_enable_idtx_intra;         // enables/disables idtx for intra
+  uint8_t seq_enable_intra_dip;          // enables/disables intra_dip
+  uint8_t seq_enable_intra_edge_filter;  // enables/disables edge upsampling
+  uint8_t seq_enable_ist;             // enables/disables intra secondary transform
+  uint8_t seq_enable_inter_ist;       // enables/disables inter secondary transform
+  uint8_t seq_enable_chroma_dctonly;  // enables/disables dct only for chroma
+  uint8_t seq_enable_cfl_intra;       // enables/disables CFL
+  uint8_t seq_enable_mhccp;           // enables/disables MHCCP
+  uint8_t seq_enable_inter_ddt;     // enables/disables inter data-driven transform
+  uint8_t seq_reduced_tx_part_set;  // use reduced transform block partition set
+  uint8_t seq_enable_cctx;  // enables/disables cross-chroma component transform
+  uint8_t seq_enable_ibp;   // enables/disables intra bi-prediction(IBP)
+  uint8_t seq_enable_adaptive_mvd;  // enables/disables adaptive MVD resolution
+  uint8_t seq_enable_flex_mvres;    // enables/disables flexible MV resolution
 
-  uint8_t cfl_ds_filter_index;  // enable/disables adaptive downsampling filter
+  uint8_t seq_cfl_ds_filter_index;  // enable/disables adaptive downsampling filter
 
-  uint8_t enable_joint_mvd;  // enables/disables joint MVD coding
+  uint8_t seq_enable_joint_mvd;  // enables/disables joint MVD coding
 
-  uint8_t enable_refinemv;  // enables/disables refineMV mode
+  uint8_t seq_enable_refinemv;  // enables/disables refineMV mode
 
-  uint8_t enable_mvd_sign_derive;  // enables/disables MVD sign derivation
+  uint8_t seq_enable_mvd_sign_derive;  // enables/disables MVD sign derivation
 
   int seq_enabled_motion_modes;  // Bit mask of enabled motion modes for
                                  // sequence
@@ -1269,44 +1269,44 @@ typedef struct SequenceHeader {
       seq_frame_motion_modes_present_flag;  // Flag to enable signaling of
                                             // motion modes in the frame header
 
-  int enable_six_param_warp_delta;  // enables/disables six parameter warp delta
+  int seq_enable_six_param_warp_delta;  // enables/disables six parameter warp delta
 
-  uint8_t enable_masked_compound;           // enables/disables masked compound
-  avm_opfl_refine_type enable_opfl_refine;  // optical flow refinement type for
+  uint8_t seq_enable_masked_compound;           // enables/disables masked compound
+  avm_opfl_refine_type seq_enable_opfl_refine;  // optical flow refinement type for
                                             // this frame
-  uint8_t disable_loopfilters_across_tiles;
-  uint8_t enable_cdef;                // To turn on/off CDEF
-  uint8_t enable_gdf;                 // To turn on/off GDF
-  uint8_t gdf_unit_matches_sb_size;   // GDF unit size matches superblock size
-  uint8_t enable_restoration;         // To turn on/off loop restoration
-  uint8_t enable_ccso;                // To turn on/off CCSO
-  uint8_t ccso_unit_matches_sb_size;  // CCSO unit size matches superblock size
-  uint8_t enable_lf_sub_pu;           // To turn on/off sub-block deblocking
-  uint8_t enable_refmvbank;           // To turn on/off Ref MV Bank
-  uint8_t enable_bru;          // To turn on/off backward reference updating
-  uint8_t enable_drl_reorder;  // 0 - DRL reorder is disabled
+  uint8_t seq_disable_loopfilters_across_tiles;
+  uint8_t seq_enable_cdef;                // To turn on/off CDEF
+  uint8_t seq_enable_gdf;                 // To turn on/off GDF
+  uint8_t seq_gdf_unit_matches_sb_size;   // GDF unit size matches superblock size
+  uint8_t seq_enable_restoration;         // To turn on/off loop restoration
+  uint8_t seq_enable_ccso;                // To turn on/off CCSO
+  uint8_t seq_ccso_unit_matches_sb_size;  // CCSO unit size matches superblock size
+  uint8_t seq_enable_lf_sub_pu;           // To turn on/off sub-block deblocking
+  uint8_t seq_enable_refmvbank;           // To turn on/off Ref MV Bank
+  uint8_t seq_enable_bru;          // To turn on/off backward reference updating
+  uint8_t seq_enable_drl_reorder;  // 0 - DRL reorder is disabled
                                // 1 - DRL reorder with constraints
                                // 2 - Always reorder DRL
-  uint8_t enable_cdef_on_skip_txfm;  // 0 - CDEF on skip_txfm = 1 is disabled
+  uint8_t seq_enable_cdef_on_skip_txfm;  // 0 - CDEF on skip_txfm = 1 is disabled
   // 1 - CDEF on skip_txfm = 1 is always on
   // 2 - Allow to turn on or off the CDEF on skip_txfm = 1 at the frame level
-  uint8_t enable_avg_cdf;  // enable CDF averaging
-  uint8_t avg_cdf_type;    // 0 - Frame averaging for CDF initialization
+  uint8_t seq_enable_avg_cdf;  // enable CDF averaging
+  uint8_t seq_avg_cdf_type;    // 0 - Frame averaging for CDF initialization
                            // 1 - Tile averaging for CDF initialization
-  uint8_t lr_tools_disable_mask[2];  // mask of lr tool(s) to disable.
+  uint8_t seq_lr_tools_disable_mask[2];  // mask of lr tool(s) to disable.
                                      // To disable tool i in RestorationType
                                      // enum where:
                                      // 1 <= i <= RESTORE_SWITCHABLE_TYPES, set
                                      // the ith bit in least to most significant
                                      // order to 1.
-  uint8_t enable_parity_hiding;      // To turn on/off PAR_HIDING
-  uint8_t enable_ext_partitions;     // enable extended partitions
-  uint8_t enable_uneven_4way_partitions;  // enable uneven 4way partition
-  uint8_t max_pb_aspect_ratio_log2_m1;    // Can be 0, 1, or 2.
-  bool enable_global_motion;
-  uint8_t enable_short_refresh_frame_flags;
-  uint8_t number_of_bits_for_lt_frame_id;
-  uint8_t enable_ext_seg;
+  uint8_t seq_enable_parity_hiding;      // To turn on/off PAR_HIDING
+  uint8_t seq_enable_ext_partitions;     // enable extended partitions
+  uint8_t seq_enable_uneven_4way_partitions;  // enable uneven 4way partition
+  uint8_t seq_max_pb_aspect_ratio_log2_m1;    // Can be 0, 1, or 2.
+  bool seq_enable_global_motion;
+  uint8_t seq_enable_short_refresh_frame_flags;
+  uint8_t seq_number_of_bits_for_lt_frame_id;
+  uint8_t seq_enable_ext_seg;
 
   AV2_LEVEL seq_max_level_idx;
   uint8_t seq_tier;
@@ -1323,56 +1323,56 @@ typedef struct SequenceHeader {
 #endif  // CONFIG_AV2_PROFILES
 
   // Color config.
-  avm_bit_depth_t bit_depth;  // AVM_BITS_8 in profile 0 or 1,
+  avm_bit_depth_t seq_bit_depth;  // AVM_BITS_8 in profile 0 or 1,
                               // AVM_BITS_10 or AVM_BITS_12 in profile 2 or 3.
-  uint8_t monochrome;         // Monochorme video
-  int subsampling_x;          // Chroma subsampling for x
-  int subsampling_y;          // Chroma subsampling for y
-  uint8_t equal_ac_dc_q;  // force ac, dc quantizers in each plane to be equal
-  uint8_t separate_uv_delta_q;
-  int8_t base_y_dc_delta_q;
-  int8_t base_uv_dc_delta_q;
-  int8_t base_uv_ac_delta_q;
-  uint8_t y_dc_delta_q_enabled;
-  uint8_t uv_dc_delta_q_enabled;
-  uint8_t uv_ac_delta_q_enabled;
-  uint8_t film_grain_params_present;
+  uint8_t seq_monochrome;         // Monochorme video
+  int seq_subsampling_x;          // Chroma subsampling for x
+  int seq_subsampling_y;          // Chroma subsampling for y
+  uint8_t seq_equal_ac_dc_q;  // force ac, dc quantizers in each plane to be equal
+  uint8_t seq_separate_uv_delta_q;
+  int8_t seq_base_y_dc_delta_q;
+  int8_t seq_base_uv_dc_delta_q;
+  int8_t seq_base_uv_ac_delta_q;
+  uint8_t seq_y_dc_delta_q_enabled;
+  uint8_t seq_uv_dc_delta_q_enabled;
+  uint8_t seq_uv_ac_delta_q_enabled;
+  uint8_t seq_film_grain_params_present;
 
   uint8_t seq_tile_info_present_flag;  // whether seq level tile_info exists
-  TileInfoSyntax tile_params;
+  TileInfoSyntax seq_tile_params;
 
   // Operating point info.
-  int operating_points_cnt_minus_1;
-  int operating_point_idc[MAX_NUM_OPERATING_POINTS];
-  uint8_t decoder_model_info_present_flag;
-  avm_dec_model_info_t decoder_model_info;
-  uint8_t display_model_info_present_flag;
+  int seq_operating_points_cnt_minus_1;
+  int seq_operating_point_idc[MAX_NUM_OPERATING_POINTS];
+  uint8_t seq_decoder_model_info_present_flag;
+  avm_dec_model_info_t seq_decoder_model_info;
+  uint8_t seq_display_model_info_present_flag;
 
   // Layer dependency structure descriptors
-  int max_tlayer_id;
-  int max_mlayer_id;
+  int seq_max_tlayer_id;
+  int seq_max_mlayer_id;
   // Layer dependency signaling present flag
-  int tlayer_dependency_present_flag;
-  int mlayer_dependency_present_flag;
+  int seq_tlayer_dependency_present_flag;
+  int seq_mlayer_dependency_present_flag;
   // Layer dependency structure arrays
-  int tlayer_dependency_map[MAX_NUM_MLAYERS][MAX_NUM_TLAYERS][MAX_NUM_TLAYERS];
-  int mlayer_dependency_map[MAX_NUM_MLAYERS][MAX_NUM_MLAYERS];
+  int seq_tlayer_dependency_map[MAX_NUM_MLAYERS][MAX_NUM_TLAYERS][MAX_NUM_TLAYERS];
+  int seq_mlayer_dependency_map[MAX_NUM_MLAYERS][MAX_NUM_MLAYERS];
   // Flag indicating tlayer map signaling per mlayer
-  int multi_tlayer_dependency_map_present_flag;
+  int seq_multi_tlayer_dependency_map_present_flag;
 
-  uint8_t df_par_bits_minus2;
+  uint8_t seq_df_par_bits_minus2;
 
-  CropWindow conf;
+  CropWindow seq_conf;
   uint8_t seq_seg_info_present_flag;
-  SegmentationInfoSyntax seg_params;
-  int allow_seg_info_change;
+  SegmentationInfoSyntax seq_seg_params;
+  int seq_allow_seg_info_change;
 #if CONFIG_F414_OBU_EXTENSION
   int seq_extension_present_flag;
 #endif  // CONFIG_F414_OBU_EXTENSION
-  // IMPORTANT: the op_params member must be at the end of the struct so that
+  // IMPORTANT: the seq_op_params member must be at the end of the struct so that
   // are_seq_headers_consistent() can be implemented with a memcmp() call.
   // TODO(urvang): We probably don't need the +1 here.
-  avm_dec_model_op_parameters_t op_params[MAX_NUM_OPERATING_POINTS + 1];
+  avm_dec_model_op_parameters_t seq_op_params[MAX_NUM_OPERATING_POINTS + 1];
 } SequenceHeader;
 
 typedef struct {
@@ -1880,12 +1880,12 @@ struct CommonQuantParams {
 
   /*!
    * Delta of qindex (from base_qindex) for V plane DC coefficients.
-   * Same as those for U plane if cm->seq_params.separate_uv_delta_q == 0.
+   * Same as those for U plane if cm->seq_params.seq_separate_uv_delta_q == 0.
    */
   int u_ac_delta_q;
   /*!
    * Delta of qindex (from base_qindex) for V plane AC coefficients.
-   * Same as those for U plane if cm->seq_params.separate_uv_delta_q == 0.
+   * Same as those for U plane if cm->seq_params.seq_separate_uv_delta_q == 0.
    */
   int v_ac_delta_q;
 
@@ -3198,13 +3198,13 @@ av2_get_chroma_format_idc(int subsampling_x, int subsampling_y, int monochrome,
 // chroma format idc. Returns error in case of invalid subsampling format.
 static INLINE avm_codec_err_t av2_get_chroma_format_idc(
     const SequenceHeader *const seq_params, uint32_t *seq_chroma_format_idc) {
-  if (seq_params->monochrome) {
+  if (seq_params->seq_monochrome) {
     *seq_chroma_format_idc = CHROMA_FORMAT_400;
-  } else if (seq_params->subsampling_x == 1 && seq_params->subsampling_y == 1) {
+  } else if (seq_params->seq_subsampling_x == 1 && seq_params->seq_subsampling_y == 1) {
     *seq_chroma_format_idc = CHROMA_FORMAT_420;
-  } else if (seq_params->subsampling_x == 1 && seq_params->subsampling_y == 0) {
+  } else if (seq_params->seq_subsampling_x == 1 && seq_params->seq_subsampling_y == 0) {
     *seq_chroma_format_idc = CHROMA_FORMAT_422;
-  } else if (seq_params->subsampling_x == 0 && seq_params->subsampling_y == 0) {
+  } else if (seq_params->seq_subsampling_x == 0 && seq_params->seq_subsampling_y == 0) {
     *seq_chroma_format_idc = CHROMA_FORMAT_444;
   } else {
     return AVM_CODEC_UNSUP_BITSTREAM;
@@ -3236,7 +3236,7 @@ static void unlock_buffer_pool(BufferPool *const pool) {
 
 static INLINE YV12_BUFFER_CONFIG *get_ref_frame(AV2_COMMON *cm, int index) {
   if (is_tip_ref_frame(index)) return &cm->tip_ref.tip_frame->buf;
-  if (index < 0 || index >= cm->seq_params.ref_frames) return NULL;
+  if (index < 0 || index >= cm->seq_params.seq_ref_frames) return NULL;
   if (cm->ref_frame_map[index] == NULL) return NULL;
   return &cm->ref_frame_map[index]->buf;
 }
@@ -3349,15 +3349,15 @@ static INLINE int get_ref_frame_map_idx(const AV2_COMMON *const cm,
 
 static INLINE void setup_default_temporal_layer_dependency_structure(
     SequenceHeader *const seq) {
-  const int max_mlayer_id = seq->max_mlayer_id;
-  const int max_tlayer_id = seq->max_tlayer_id;
-  memset(seq->tlayer_dependency_map, 0, sizeof seq->tlayer_dependency_map);
+  const int max_mlayer_id = seq->seq_max_mlayer_id;
+  const int max_tlayer_id = seq->seq_max_tlayer_id;
+  memset(seq->seq_tlayer_dependency_map, 0, sizeof seq->seq_tlayer_dependency_map);
   for (int mlayer_id = 0; mlayer_id <= max_mlayer_id; mlayer_id++) {
     for (int curr_tlayer_id = 0; curr_tlayer_id <= max_tlayer_id;
          curr_tlayer_id++) {
       for (int ref_tlayer_id = 0; ref_tlayer_id <= curr_tlayer_id;
            ref_tlayer_id++) {
-        seq->tlayer_dependency_map[mlayer_id][curr_tlayer_id][ref_tlayer_id] =
+        seq->seq_tlayer_dependency_map[mlayer_id][curr_tlayer_id][ref_tlayer_id] =
             1;
       }
     }
@@ -3367,9 +3367,9 @@ static INLINE void setup_default_temporal_layer_dependency_structure(
 static INLINE int is_tlayer_scalable_and_dependent(
     const SequenceHeader *const seq, const int curr_tlayer_id,
     const int ref_tlayer_id, const int curr_mlayer_id) {
-  assert(seq->max_tlayer_id >= curr_tlayer_id &&
-         seq->max_tlayer_id >= ref_tlayer_id);
-  assert(seq->max_mlayer_id >= curr_mlayer_id);
+  assert(seq->seq_max_tlayer_id >= curr_tlayer_id &&
+         seq->seq_max_tlayer_id >= ref_tlayer_id);
+  assert(seq->seq_max_mlayer_id >= curr_mlayer_id);
   // clang-format off
   /* The additional conditional check based on 'tlayer_dependency_present_flag' is
   redundant, since tlayer_dependency_map[][] equivalently implements
@@ -3382,12 +3382,12 @@ static INLINE int is_tlayer_scalable_and_dependent(
                                          };
   The reference software implementation is done this way to be more descriptive.
   The following lines can be replaced with a single line of code:
-       `return seq->tlayer_dependency_map[curr_layer_id][ref_layer_id];`
+       `return seq->seq_tlayer_dependency_map[curr_layer_id][ref_layer_id];`
   */
   // clang-format on
-  if (seq->tlayer_dependency_present_flag) {
+  if (seq->seq_tlayer_dependency_present_flag) {
     return seq
-        ->tlayer_dependency_map[curr_mlayer_id][curr_tlayer_id][ref_tlayer_id];
+        ->seq_tlayer_dependency_map[curr_mlayer_id][curr_tlayer_id][ref_tlayer_id];
   } else {
     return curr_tlayer_id >= ref_tlayer_id;
   }
@@ -3395,11 +3395,11 @@ static INLINE int is_tlayer_scalable_and_dependent(
 
 static INLINE void setup_default_embedded_layer_dependency_structure(
     SequenceHeader *const seq) {
-  const int max_layer_id = seq->max_mlayer_id;
-  memset(seq->mlayer_dependency_map, 0, sizeof seq->mlayer_dependency_map);
+  const int max_layer_id = seq->seq_max_mlayer_id;
+  memset(seq->seq_mlayer_dependency_map, 0, sizeof seq->seq_mlayer_dependency_map);
   for (int curr_layer_id = 0; curr_layer_id <= max_layer_id; curr_layer_id++) {
     for (int ref_layer_id = 0; ref_layer_id <= curr_layer_id; ref_layer_id++) {
-      seq->mlayer_dependency_map[curr_layer_id][ref_layer_id] = 1;
+      seq->seq_mlayer_dependency_map[curr_layer_id][ref_layer_id] = 1;
     }
   }
 }
@@ -3407,8 +3407,8 @@ static INLINE void setup_default_embedded_layer_dependency_structure(
 static INLINE int is_mlayer_scalable_and_dependent(
     const SequenceHeader *const seq, const int curr_layer_id,
     const int ref_layer_id) {
-  assert(seq->max_mlayer_id >= curr_layer_id &&
-         seq->max_mlayer_id >= ref_layer_id);
+  assert(seq->seq_max_mlayer_id >= curr_layer_id &&
+         seq->seq_max_mlayer_id >= ref_layer_id);
   // clang-format off
   /*
   The additional conditional check based on 'mlayer_dependency_present_flag' is
@@ -3422,11 +3422,11 @@ static INLINE int is_mlayer_scalable_and_dependent(
                                          };
   The reference software implementation is done this way to be more descriptive.
   The following lines can be replaced with a single line of code:
-       `return seq->mlayer_dependency_map[curr_layer_id][ref_layer_id];`
+       `return seq->seq_mlayer_dependency_map[curr_layer_id][ref_layer_id];`
   */
   // clang-format on
-  if (seq->mlayer_dependency_present_flag) {
-    return seq->mlayer_dependency_map[curr_layer_id][ref_layer_id];
+  if (seq->seq_mlayer_dependency_present_flag) {
+    return seq->seq_mlayer_dependency_map[curr_layer_id][ref_layer_id];
   } else {
     return curr_layer_id >= ref_layer_id;
   }
@@ -3475,7 +3475,7 @@ static INLINE void avg_primary_secondary_references(const AV2_COMMON *const cm,
       (ref_frame_used != cm->features.primary_ref_frame) &&
       (!cm->bru.frame_inactive_flag) &&
       (!cm->bridge_frame_info.is_bridge_frame) &&
-      (cm->seq_params.enable_avg_cdf && !cm->seq_params.avg_cdf_type) &&
+      (cm->seq_params.seq_enable_avg_cdf && !cm->seq_params.seq_avg_cdf_type) &&
       !frame_is_sframe(cm) && (ref_frame_used != PRIMARY_REF_NONE)) {
     av2_avg_cdf_symbols(cm->fc, &cm->ref_frame_map[map_idx]->frame_context,
                         AVG_CDF_WEIGHT_PRIMARY, AVG_CDF_WEIGHT_NON_PRIMARY);
@@ -3599,7 +3599,7 @@ static INLINE int check_lcr_frame_size_conformance(const AV2_COMMON *cm,
 // Returns 1 if this frame might allow mvs from some reference frame.
 static INLINE int frame_might_allow_ref_frame_mvs(const AV2_COMMON *cm) {
   return !frame_is_sframe(cm) &&
-         cm->seq_params.order_hint_info.enable_ref_frame_mvs &&
+         cm->seq_params.seq_order_hint_info.enable_ref_frame_mvs &&
          !cm->bridge_frame_info.is_bridge_frame && !frame_is_intra_only(cm);
 }
 
@@ -3630,8 +3630,8 @@ static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV2_COMMON *cm) {
 
   if (buf->ccso_info.sb_filter_control[0] == NULL ||
       buf_rows != mi_params->mi_rows || buf_cols != mi_params->mi_cols ||
-      buf->buf.subsampling_x != cm->seq_params.subsampling_x ||
-      buf->buf.subsampling_y != cm->seq_params.subsampling_y) {
+      buf->buf.subsampling_x != cm->seq_params.seq_subsampling_x ||
+      buf->buf.subsampling_y != cm->seq_params.seq_subsampling_y) {
     for (int pli = 0; pli < 3; pli++) {
       if (buf->ccso_info.sb_filter_control[pli]) {
         avm_free(buf->ccso_info.sb_filter_control[pli]);
@@ -3642,17 +3642,17 @@ static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV2_COMMON *cm) {
       const int ccso_blk_size = 6;
       const int log2_filter_unit_size_y =
           pli == 0 ? ccso_blk_size
-                   : ccso_blk_size - cm->seq_params.subsampling_y;
+                   : ccso_blk_size - cm->seq_params.seq_subsampling_y;
       const int log2_filter_unit_size_x =
           pli == 0 ? ccso_blk_size
-                   : ccso_blk_size - cm->seq_params.subsampling_x;
+                   : ccso_blk_size - cm->seq_params.seq_subsampling_x;
 
       const int ccso_nvfb =
-          ((cm->mi_params.mi_rows >> (pli ? cm->seq_params.subsampling_y : 0)) +
+          ((cm->mi_params.mi_rows >> (pli ? cm->seq_params.seq_subsampling_y : 0)) +
            (1 << log2_filter_unit_size_y >> 2) - 1) /
           (1 << log2_filter_unit_size_y >> 2);
       const int ccso_nhfb =
-          ((cm->mi_params.mi_cols >> (pli ? cm->seq_params.subsampling_x : 0)) +
+          ((cm->mi_params.mi_cols >> (pli ? cm->seq_params.seq_subsampling_x : 0)) +
            (1 << log2_filter_unit_size_x >> 2) - 1) /
           (1 << log2_filter_unit_size_x >> 2);
       const int sb_count = ccso_nvfb * ccso_nhfb;
@@ -3713,7 +3713,7 @@ static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV2_COMMON *cm) {
 void av2_cfl_init(CFL_CTX *cfl, const SequenceHeader *seq_params);
 
 static INLINE int av2_num_planes(const AV2_COMMON *cm) {
-  return cm->seq_params.monochrome ? 1 : MAX_MB_PLANE;
+  return cm->seq_params.seq_monochrome ? 1 : MAX_MB_PLANE;
 }
 
 static INLINE void av2_init_above_context(CommonContexts *above_contexts,
@@ -4231,8 +4231,8 @@ static INLINE void av2_zero_above_context(AV2_COMMON *const cm,
   const int aligned_width = ALIGN_POWER_OF_TWO(width, cm->mib_size_log2);
   const int offset_y = mi_col_start;
   const int width_y = aligned_width;
-  const int offset_uv = offset_y >> seq_params->subsampling_x;
-  const int width_uv = width_y >> seq_params->subsampling_x;
+  const int offset_uv = offset_y >> seq_params->seq_subsampling_x;
+  const int width_uv = width_y >> seq_params->seq_subsampling_x;
   CommonContexts *const above_contexts = &cm->above_contexts;
 
   av2_zero_array(above_contexts->entropy[0][tile_row] + offset_y, width_y);
@@ -4376,7 +4376,7 @@ static INLINE void av2_reset_refmv_bank(const AV2_COMMON *const cm,
   if (frame_is_intra_only(cm)) return;
 
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
-  const int reset_unit_mi_size = cm->seq_params.mib_size;
+  const int reset_unit_mi_size = cm->seq_params.seq_mib_size;
 
   const int block_mi_wide =
       AVMMIN(reset_unit_mi_size, cm->mi_params.mi_cols - sb_mi_col);
@@ -4415,8 +4415,8 @@ static INLINE void av2_reset_refmv_bank(const AV2_COMMON *const cm,
 }
 
 static AVM_INLINE int is_sdp_enabled_in_keyframe(const AV2_COMMON *const cm) {
-  return (frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
-          cm->seq_params.enable_sdp);
+  return (frame_is_intra_only(cm) && !cm->seq_params.seq_monochrome &&
+          cm->seq_params.seq_enable_sdp);
 }
 
 // The blocksize above which chroma and luma partitions will stayed coupled.
@@ -4559,7 +4559,7 @@ static AVM_INLINE CFL_ALLOWED_FOR_SDP_TYPE is_cfl_allowed_for_sdp(
     AV2_COMMON const *cm, const MACROBLOCKD *const xd,
     const PARTITION_TREE *ptree_luma, PARTITION_TYPE current_partition,
     BLOCK_SIZE bsize_luma) {
-  if (!cm->seq_params.enable_cfl_intra && !cm->seq_params.enable_mhccp)
+  if (!cm->seq_params.seq_enable_cfl_intra && !cm->seq_params.seq_enable_mhccp)
     return CFL_DISALLOWED_FOR_CHROMA;
 
   if (!frame_is_intra_only(cm)) return CFL_ALLOWED_FOR_CHROMA;
@@ -4578,7 +4578,7 @@ static AVM_INLINE CFL_ALLOWED_FOR_SDP_TYPE is_cfl_allowed_for_sdp(
   if (ptree_luma) {
     assert(bsize_luma == BLOCK_64X64);
     return is_cfl_allowed_for_this_luma_partition(
-        cm->seq_params.enable_cfl_intra || cm->seq_params.enable_mhccp,
+        cm->seq_params.seq_enable_cfl_intra || cm->seq_params.seq_enable_mhccp,
         ptree_luma->partition, current_partition);
   }
 
@@ -4785,7 +4785,7 @@ static AVM_INLINE bool is_chroma_ref_within_boundary(
     const AV2_COMMON *const cm, TREE_TYPE tree_type, bool is_chroma_ref,
     int mi_row, int mi_col, BLOCK_SIZE bsize, PARTITION_TYPE partition,
     int subsampling_x, int subsampling_y) {
-  if ((tree_type != SHARED_PART) || cm->seq_params.monochrome ||
+  if ((tree_type != SHARED_PART) || cm->seq_params.seq_monochrome ||
       !is_chroma_ref ||
       !have_nz_chroma_ref_offset(bsize, partition, subsampling_x,
                                  subsampling_y)) {
@@ -4869,7 +4869,7 @@ static AVM_INLINE void init_allowed_partitions_for_signaling(
                                     mi_col, bsize, PARTITION_VERT, ss_x, ss_y);
 
   const bool ext_partition_allowed =
-      is_block_splittable && cm->seq_params.enable_ext_partitions;
+      is_block_splittable && cm->seq_params.seq_enable_ext_partitions;
 
   partition_allowed[PARTITION_HORZ_3] =
       ext_partition_allowed && implied_rect_type != VERT &&
@@ -4896,7 +4896,7 @@ static AVM_INLINE void init_allowed_partitions_for_signaling(
                                     ss_y);
 
   const bool uneven_4way_partition_allowed =
-      ext_partition_allowed && cm->seq_params.enable_uneven_4way_partitions;
+      ext_partition_allowed && cm->seq_params.seq_enable_uneven_4way_partitions;
   partition_allowed[PARTITION_HORZ_4A] =
       uneven_4way_partition_allowed && implied_rect_type != VERT &&
       is_uneven_4way_partition_allowed(bsize, HORZ, tree_type) &&
@@ -4955,7 +4955,7 @@ static AVM_INLINE void init_allowed_partitions_for_signaling(
 
   // Validate partition modes based on aspect ratio constraints.
   const int max_aspect_ratio =
-      1 << (cm->seq_params.max_pb_aspect_ratio_log2_m1 + 1);
+      1 << (cm->seq_params.seq_max_pb_aspect_ratio_log2_m1 + 1);
   assert(max_aspect_ratio == 2 || max_aspect_ratio == 4 ||
          max_aspect_ratio == 8);
   int num_allowed_partitions = 0;
@@ -5486,9 +5486,9 @@ static AVM_INLINE void av2_set_frame_sb_size(AV2_COMMON *cm,
 
 static INLINE void set_sb_size(AV2_COMMON *cm, BLOCK_SIZE sb_size) {
   SequenceHeader *const seq_params = &cm->seq_params;
-  seq_params->sb_size = sb_size;
-  seq_params->mib_size = mi_size_wide[sb_size];
-  seq_params->mib_size_log2 = mi_size_wide_log2[sb_size];
+  seq_params->seq_sb_size = sb_size;
+  seq_params->seq_mib_size = mi_size_wide[sb_size];
+  seq_params->seq_mib_size_log2 = mi_size_wide_log2[sb_size];
 
   av2_set_frame_sb_size(cm, sb_size);
 }
@@ -5686,11 +5686,11 @@ static INLINE int get_relative_dist(const OrderHintInfo *oh, int a, int b) {
 static INLINE int opfl_allowed_cur_refs_bsize(const AV2_COMMON *cm,
                                               const MACROBLOCKD *xd,
                                               const MB_MODE_INFO *mbmi) {
-  if (cm->seq_params.enable_opfl_refine == AVM_OPFL_REFINE_NONE ||
+  if (cm->seq_params.seq_enable_opfl_refine == AVM_OPFL_REFINE_NONE ||
       cm->features.opfl_refine_type == REFINE_NONE)
     return 0;
 
-  if (!cm->seq_params.enable_tip_refinemv &&
+  if (!cm->seq_params.seq_enable_tip_refinemv &&
       is_tip_ref_frame(mbmi->ref_frame[0]))
     return 0;
 
@@ -5716,9 +5716,9 @@ static INLINE int opfl_allowed_cur_refs_bsize(const AV2_COMMON *cm,
   } else {
     const RefCntBuffer *const ref0 = get_ref_frame_buf(cm, mbmi->ref_frame[0]);
     const RefCntBuffer *const ref1 = get_ref_frame_buf(cm, mbmi->ref_frame[1]);
-    d0 = get_relative_dist(&cm->seq_params.order_hint_info, cur_index,
+    d0 = get_relative_dist(&cm->seq_params.seq_order_hint_info, cur_index,
                            ref0->display_order_hint);
-    d1 = get_relative_dist(&cm->seq_params.order_hint_info, cur_index,
+    d1 = get_relative_dist(&cm->seq_params.seq_order_hint_info, cur_index,
                            ref1->display_order_hint);
   }
 
@@ -5828,7 +5828,7 @@ static AVM_INLINE int is_optflow_refinement_enabled(const AV2_COMMON *cm,
                                                     const MB_MODE_INFO *mi,
                                                     int plane,
                                                     int tip_ref_frame) {
-  if (cm->seq_params.enable_opfl_refine == AVM_OPFL_REFINE_NONE ||
+  if (cm->seq_params.seq_enable_opfl_refine == AVM_OPFL_REFINE_NONE ||
       cm->features.opfl_refine_type == REFINE_NONE)
     return 0;
 
@@ -5837,10 +5837,10 @@ static AVM_INLINE int is_optflow_refinement_enabled(const AV2_COMMON *cm,
     const int bh = block_size_high[mi->sb_type[xd->tree_type == CHROMA_PART]];
     bool disable_opfl =
         disable_opfl_for_16x16_tip_ref(cm->features.tip_frame_mode, bw, bh,
-                                       cm->seq_params.enable_tip_refinemv);
+                                       cm->seq_params.seq_enable_tip_refinemv);
     disable_opfl |= disable_opfl_for_tip_direct(
         cm->features.tip_frame_mode, cm->tip_interp_filter,
-        cm->seq_params.enable_tip_refinemv);
+        cm->seq_params.seq_enable_tip_refinemv);
     if (disable_opfl) return 0;
 
     const int tip_wtd_index = cm->tip_global_wtd_index;
@@ -6008,7 +6008,7 @@ static INLINE int motion_mode_allowed(const AV2_COMMON *cm,
 static INLINE int disable_pcwiener_filters_in_framefilters(
     const SequenceHeader *seq) {
   (void)seq;
-  return ((seq->lr_tools_disable_mask[AVM_PLANE_Y] >> RESTORE_PC_WIENER) & 1);
+  return ((seq->seq_lr_tools_disable_mask[AVM_PLANE_Y] >> RESTORE_PC_WIENER) & 1);
 }
 
 static INLINE int is_new_nearmv_pred_mode_disallowed(const MB_MODE_INFO *mbmi) {
@@ -6045,7 +6045,7 @@ static INLINE int is_reduced_tx_set_used(const AV2_COMMON *const cm,
                                          const PLANE_TYPE plane_type) {
   const uint8_t reduced_tx_set_used =
       plane_type == PLANE_TYPE_Y ? cm->features.reduced_tx_set_used
-                                 : cm->seq_params.enable_chroma_dctonly;
+                                 : cm->seq_params.seq_enable_chroma_dctonly;
   return reduced_tx_set_used;
 }
 
@@ -6058,8 +6058,8 @@ static INLINE MB_MODE_INFO **get_mi_location_from_collocated_mi(
     // 1. Decoupled luma/chroma tree OR
     // 2. Shared luma/chroma tree.
     // Need to get appropriate 'mi' location differently for each case.
-    const bool is_sdp_eligible = cm->seq_params.enable_sdp &&
-                                 !cm->seq_params.monochrome &&
+    const bool is_sdp_eligible = cm->seq_params.seq_enable_sdp &&
+                                 !cm->seq_params.seq_monochrome &&
                                  this_mi[0]->region_type == INTRA_REGION;
     if (is_sdp_eligible) {
       // 1. Decoupled luma/chroma tree:
@@ -6129,7 +6129,7 @@ static INLINE const TileInfoSyntax *find_effective_tile_params(
   // TODO(any): This function should return the effective mfh tile_params if it
   // exists, or the seq level tile_params if it exists, or NULL
   if (cm->seq_params.seq_tile_info_present_flag)
-    return &cm->seq_params.tile_params;
+    return &cm->seq_params.seq_tile_params;
   else
     return NULL;
 }
@@ -6186,7 +6186,7 @@ static INLINE const SegmentationInfoSyntax *find_effective_seg_params(
     return &cm->mfh_params[cm->cur_mfh_id].mfh_seg_params;
   }
   if (cm->seq_params.seq_seg_info_present_flag)
-    return &cm->seq_params.seg_params;
+    return &cm->seq_params.seq_seg_params;
   else
     return NULL;
 }
@@ -6194,7 +6194,7 @@ static INLINE const SegmentationInfoSyntax *find_effective_seg_params(
 // This function derives the order of frame output with layer IDs
 static INLINE uint64_t derive_output_order_idx(AV2_COMMON *cm,
                                                RefCntBuffer *output_candidate) {
-  uint64_t max_mlayer_id = cm->seq_params.max_mlayer_id;
+  uint64_t max_mlayer_id = cm->seq_params.seq_max_mlayer_id;
   uint64_t mlayer_id = output_candidate->mlayer_id;
   uint64_t display_order = output_candidate->display_order_hint;
   return ((max_mlayer_id + 1) * display_order) + mlayer_id;

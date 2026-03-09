@@ -46,14 +46,14 @@ void init_gdf(AV2_COMMON *cm) {
   gi->gdf_pic_qp_idx = 0;
   gi->gdf_pic_scale_idx = 0;
   gi->gdf_block_size =
-      cm->seq_params.gdf_unit_matches_sb_size
+      cm->seq_params.seq_gdf_unit_matches_sb_size
           ? cm->mib_size << MI_SIZE_LOG2
           : AVMMAX(cm->mib_size << MI_SIZE_LOG2, GDF_TEST_BLK_SIZE);
   const int num_tile_rows = cm->tiles.rows;
   const int num_tile_cols = cm->tiles.cols;
 
   // if super_block size is 64x64
-  if (cm->mib_size == 16 && !cm->seq_params.gdf_unit_matches_sb_size) {
+  if (cm->mib_size == 16 && !cm->seq_params.seq_gdf_unit_matches_sb_size) {
     int e2 = 0;
     for (int i = 0; i < cm->tiles.cols - 1; ++i) {
       const int size =
@@ -574,7 +574,7 @@ void gdf_filter_frame(AV2_COMMON *cm) {
                         tile_rect.top;
 
             int copy_above = 1, copy_below = 1;
-            if (cm->seq_params.disable_loopfilters_across_tiles == 0) {
+            if (cm->seq_params.seq_disable_loopfilters_across_tiles == 0) {
               // tile top but not picture top
               if (v_pos == -GDF_TEST_STRIPE_OFF && tile_row != 0)
                 copy_above = 0;
@@ -597,11 +597,11 @@ void gdf_filter_frame(AV2_COMMON *cm) {
                                  tile_width - GDF_TEST_FRAME_BOUNDARY_SIZE) +
                           tile_rect.left;
               int tile_boundary_left =
-                  cm->seq_params.disable_loopfilters_across_tiles
+                  cm->seq_params.seq_disable_loopfilters_across_tiles
                       ? (j_min == tile_rect.left)
                       : (j_min == 0);
               int tile_boundary_right =
-                  cm->seq_params.disable_loopfilters_across_tiles
+                  cm->seq_params.seq_disable_loopfilters_across_tiles
                       ? (j_max == tile_rect.right)
                       : (j_max == cm->cur_frame->buf.y_width);
 

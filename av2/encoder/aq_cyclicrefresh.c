@@ -94,7 +94,7 @@ static int compute_deltaq(const AV2_COMP *cpi, int q, double rate_factor) {
   const RATE_CONTROL *const rc = &cpi->rc;
   int deltaq = av2_compute_qdelta_by_rate(
       rc, cpi->common.current_frame.frame_type, q, rate_factor,
-      cpi->is_screen_content_type, cpi->common.seq_params.bit_depth);
+      cpi->is_screen_content_type, cpi->common.seq_params.seq_bit_depth);
   if ((-deltaq) > cr->max_qdelta_perc * q / 100) {
     deltaq = -cr->max_qdelta_perc * q / 100;
   }
@@ -106,7 +106,7 @@ int av2_cyclic_refresh_estimate_bits_at_q(const AV2_COMP *cpi,
   const AV2_COMMON *const cm = &cpi->common;
   const FRAME_TYPE frame_type = cm->current_frame.frame_type;
   const int base_qindex = cm->quant_params.base_qindex;
-  const int bit_depth = cm->seq_params.bit_depth;
+  const int bit_depth = cm->seq_params.seq_bit_depth;
   const CYCLIC_REFRESH *const cr = cpi->cyclic_refresh;
   const int mbs = cm->mi_params.MBs;
   const int num4x4bl = mbs << 4;
@@ -150,11 +150,11 @@ int av2_cyclic_refresh_rc_bits_per_mb(const AV2_COMP *cpi, int i,
   bits_per_mb =
       (int)((1.0 - weight_segment) *
                 av2_rc_bits_per_mb(cm->current_frame.frame_type, i,
-                                   correction_factor, cm->seq_params.bit_depth,
+                                   correction_factor, cm->seq_params.seq_bit_depth,
                                    cpi->is_screen_content_type) +
             weight_segment * av2_rc_bits_per_mb(cm->current_frame.frame_type,
                                                 i + deltaq, correction_factor,
-                                                cm->seq_params.bit_depth,
+                                                cm->seq_params.seq_bit_depth,
                                                 cpi->is_screen_content_type));
   return bits_per_mb;
 }
@@ -296,7 +296,7 @@ static void cyclic_refresh_update_map(AV2_COMP *const cpi) {
     int qindex_thresh = cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN
                             ? av2_get_qindex(&cm->seg, CR_SEGMENT_ID_BOOST2,
                                              cm->quant_params.base_qindex,
-                                             cm->seq_params.bit_depth)
+                                             cm->seq_params.seq_bit_depth)
 
                             : 0;
     assert(mi_row >= 0 && mi_row < mi_params->mi_rows);
@@ -425,8 +425,8 @@ void av2_cyclic_refresh_setup(AV2_COMP *const cpi) {
     if (cm->current_frame.frame_type == KEY_FRAME) {
       for (int i = 0; i <= (cm->mi_params.mi_rows * cm->mi_params.mi_cols); i++)
         cr->last_coded_q_map[i] =
-            cm->seq_params.bit_depth == AVM_BITS_8    ? MAXQ_8_BITS
-            : cm->seq_params.bit_depth == AVM_BITS_10 ? MAXQ_10_BITS
+            cm->seq_params.seq_bit_depth == AVM_BITS_8    ? MAXQ_8_BITS
+            : cm->seq_params.seq_bit_depth == AVM_BITS_10 ? MAXQ_10_BITS
                                                       : MAXQ;
 
       cr->sb_index = 0;
@@ -434,7 +434,7 @@ void av2_cyclic_refresh_setup(AV2_COMP *const cpi) {
     return;
   } else {
     const double q = av2_convert_qindex_to_q(cm->quant_params.base_qindex,
-                                             cm->seq_params.bit_depth);
+                                             cm->seq_params.seq_bit_depth);
     avm_clear_system_state();
     // Set rate threshold to some multiple (set to 2 for now) of the target
     // rate (target is given by sb64_target_rate and scaled by 256).
@@ -475,8 +475,8 @@ void av2_cyclic_refresh_setup(AV2_COMP *const cpi) {
     const int qindex2 = clamp(
         quant_params->base_qindex + quant_params->y_dc_delta_q + qindex_delta,
         0,
-        cm->seq_params.bit_depth == AVM_BITS_8    ? MAXQ_8_BITS
-        : cm->seq_params.bit_depth == AVM_BITS_10 ? MAXQ_10_BITS
+        cm->seq_params.seq_bit_depth == AVM_BITS_8    ? MAXQ_8_BITS
+        : cm->seq_params.seq_bit_depth == AVM_BITS_10 ? MAXQ_10_BITS
                                                   : MAXQ);
 
     cr->rdmult = av2_compute_rd_mult(cpi, qindex2);

@@ -294,7 +294,7 @@ uint32_t write_reset_qm_obu(AV2_COMP *cpi, uint8_t *const dst) {
   uint32_t size = 0;
   int qm_bit_map = 0;
   avm_wb_write_literal(&wb, qm_bit_map, NUM_CUSTOM_QMS);
-  avm_wb_write_bit(&wb, cpi->common.seq_params.monochrome ? 0 : 1);
+  avm_wb_write_bit(&wb, cpi->common.seq_params.seq_monochrome ? 0 : 1);
   av2_add_trailing_bits(&wb);
   size = avm_wb_bytes_written(&wb);
   return size;
@@ -303,7 +303,7 @@ uint32_t write_reset_qm_obu(AV2_COMP *cpi, uint8_t *const dst) {
 bool add_userqm_in_qmobulist(AV2_COMP *cpi) {
   bool obu_added = false;
   AV2_COMMON *const cm = &cpi->common;
-  int num_planes = cm->seq_params.monochrome ? 1 : 3;
+  int num_planes = cm->seq_params.seq_monochrome ? 1 : 3;
   int qmobu_pos = cpi->total_signalled_qmobu_count;
   int qm_bit_map = 0;
   for (int qm_id = 0; qm_id < NUM_CUSTOM_QMS; qm_id++) {
@@ -328,7 +328,7 @@ bool add_userqm_in_qmobulist(AV2_COMP *cpi) {
   }
   cpi->qmobu_list[qmobu_pos].qm_bit_map = qm_bit_map;
   cpi->qmobu_list[qmobu_pos].qm_chroma_info_present_flag =
-      !cm->seq_params.monochrome;
+      !cm->seq_params.seq_monochrome;
   if (obu_added) cpi->total_signalled_qmobu_count++;
   return obu_added;
 }

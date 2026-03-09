@@ -69,13 +69,13 @@ static INLINE void check_frame_mv_slot(const AV2_COMMON *const cm, MV_REF *mv) {
     int cur_display_order = cm->cur_frame->display_order_hint;
 
     const int diff_0_cur =
-        get_relative_dist(&cm->seq_params.order_hint_info, ref_display_order[0],
+        get_relative_dist(&cm->seq_params.seq_order_hint_info, ref_display_order[0],
                           cur_display_order);
     const int diff_1_cur =
-        get_relative_dist(&cm->seq_params.order_hint_info, ref_display_order[1],
+        get_relative_dist(&cm->seq_params.seq_order_hint_info, ref_display_order[1],
                           cur_display_order);
     const int diff_0_1 =
-        get_relative_dist(&cm->seq_params.order_hint_info, ref_display_order[0],
+        get_relative_dist(&cm->seq_params.seq_order_hint_info, ref_display_order[0],
                           ref_display_order[1]);
 
     bool to_switch = false;
@@ -370,7 +370,7 @@ void av2_copy_frame_refined_mvs(const AV2_COMMON *const cm,
                                 const MB_MODE_INFO *const mi, int mi_row,
                                 int mi_col, int x_inside_boundary,
                                 int y_inside_boundary) {
-  if (cm->seq_params.enable_tip && cm->features.tip_frame_mode) {
+  if (cm->seq_params.seq_enable_tip && cm->features.tip_frame_mode) {
     av2_copy_frame_refined_mvs_tip_frame_mode(
         cm, xd, mi, mi_row, mi_col, x_inside_boundary, y_inside_boundary);
     return;
@@ -550,7 +550,7 @@ void bru_zero_sb_mvs(const AV2_COMMON *const cm, int dst_ref_idx, int mi_row,
 void av2_copy_frame_mvs(const AV2_COMMON *const cm, const MACROBLOCKD *const xd,
                         const MB_MODE_INFO *const mi, int mi_row, int mi_col,
                         int x_inside_boundary, int y_inside_boundary) {
-  if (cm->seq_params.enable_tip && cm->features.tip_frame_mode) {
+  if (cm->seq_params.seq_enable_tip && cm->features.tip_frame_mode) {
     av2_copy_frame_mvs_tip_frame_mode(cm, xd, mi, mi_row, mi_col,
                                       x_inside_boundary, y_inside_boundary);
     return;
@@ -1023,7 +1023,7 @@ static AVM_INLINE void add_ref_mv_candidate(
 
         int this_tpl_row = mi_row >> 1;
         int this_tpl_col = mi_col >> 1;
-        if (cm->seq_params.enable_mv_traj && cm->features.allow_ref_frame_mvs &&
+        if (cm->seq_params.seq_enable_mv_traj && cm->features.allow_ref_frame_mvs &&
             cm->id_offset_map_rows[rf[0]][this_tpl_row][this_tpl_col].as_int !=
                 INVALID_MV &&
             cm->id_offset_map_rows[cand_ref_frame][this_tpl_row][this_tpl_col]
@@ -1194,7 +1194,7 @@ static AVM_INLINE void add_ref_mv_candidate(
         if (have_newmv_in_inter_mode(candidate->mode)) ++*newmv_count;
         ++*ref_match_count;
       } else if (add_more_mvs) {
-        if (cm->seq_params.enable_mv_traj && cm->features.allow_ref_frame_mvs &&
+        if (cm->seq_params.seq_enable_mv_traj && cm->features.allow_ref_frame_mvs &&
             rf[0] != rf[1] && is_inter_ref_frame(rf[0]) &&
             is_inter_ref_frame(rf[1])) {
           for (ref = 0; ref < 2; ref++) {
@@ -1627,7 +1627,7 @@ static AVM_INLINE int compute_cur_to_ref_dist(const AV2_COMMON *cm,
   const int cur_frame_index = cm->cur_frame->display_order_hint;
   const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
   const int frame_index = buf->display_order_hint;
-  const int cur_ref_offset = get_relative_dist(&cm->seq_params.order_hint_info,
+  const int cur_ref_offset = get_relative_dist(&cm->seq_params.seq_order_hint_info,
                                                cur_frame_index, frame_index);
   return cur_ref_offset;
 }
@@ -1668,12 +1668,12 @@ static int add_tpl_ref_mv(const AV2_COMMON *cm, const MACROBLOCKD *xd,
 
   bool linear_available = prev_frame_mvs->mfmv0.as_int != INVALID_MV;
   bool mvtj_available[2] = { true, true };
-  if (!cm->seq_params.enable_mv_traj || rf[0] == NONE_FRAME ||
+  if (!cm->seq_params.seq_enable_mv_traj || rf[0] == NONE_FRAME ||
       rf[0] >= cm->ref_frames_info.num_total_refs ||
       cm->id_offset_map_rows[rf[0]][tpl_row][tpl_col].as_int == INVALID_MV) {
     mvtj_available[0] = false;
   }
-  if (!cm->seq_params.enable_mv_traj || rf[1] == NONE_FRAME ||
+  if (!cm->seq_params.seq_enable_mv_traj || rf[1] == NONE_FRAME ||
       rf[1] >= cm->ref_frames_info.num_total_refs ||
       cm->id_offset_map_rows[rf[1]][tpl_row][tpl_col].as_int == INVALID_MV) {
     mvtj_available[1] = false;
@@ -1685,7 +1685,7 @@ static int add_tpl_ref_mv(const AV2_COMMON *cm, const MACROBLOCKD *xd,
   const int cur_frame_index = cm->cur_frame->display_order_hint;
   const RefCntBuffer *const buf_0 = get_ref_frame_buf(cm, rf[0]);
   const int frame0_index = buf_0->display_order_hint;
-  const int cur_offset_0 = get_relative_dist(&cm->seq_params.order_hint_info,
+  const int cur_offset_0 = get_relative_dist(&cm->seq_params.seq_order_hint_info,
                                              cur_frame_index, frame0_index);
   int idx;
 
@@ -1743,7 +1743,7 @@ static int add_tpl_ref_mv(const AV2_COMMON *cm, const MACROBLOCKD *xd,
       const RefCntBuffer *const buf_1 = get_ref_frame_buf(cm, rf[1]);
       const int frame1_index = buf_1->display_order_hint;
       const int cur_offset_1 = get_relative_dist(
-          &cm->seq_params.order_hint_info, cur_frame_index, frame1_index);
+          &cm->seq_params.seq_order_hint_info, cur_frame_index, frame1_index);
       get_mv_projection(&comp_refmv.as_mv, prev_frame_mvs->mfmv0.as_mv,
                         cur_offset_1, prev_frame_mvs->ref_frame_offset);
     }
@@ -1919,7 +1919,7 @@ static AVM_INLINE int assign_tmvp_high_priority(const AV2_COMMON *cm,
                                                 MV_REFERENCE_FRAME rf[2]) {
   if (cm->features.allow_ref_frame_mvs == 0) return 0;
 
-  if (cm->seq_params.enable_drl_reorder == DRL_REORDER_ALWAYS) return 0;
+  if (cm->seq_params.seq_enable_drl_reorder == DRL_REORDER_ALWAYS) return 0;
 
   if (!cm->has_both_sides_refs &&
       (rf[1] == NONE_FRAME && is_inter_ref_frame(rf[0]) &&
@@ -2482,8 +2482,8 @@ static AVM_INLINE void setup_ref_mv_list(
     }
   }
 
-  if (cm->seq_params.enable_drl_reorder == DRL_REORDER_ALWAYS ||
-      (cm->seq_params.enable_drl_reorder == DRL_REORDER_CONSTRAINT &&
+  if (cm->seq_params.seq_enable_drl_reorder == DRL_REORDER_ALWAYS ||
+      (cm->seq_params.seq_enable_drl_reorder == DRL_REORDER_CONSTRAINT &&
        (!is_tmvp_high_priority && nearest_refmv_count >= 4))) {
     if (nearest_refmv_count > 1) {
       int max_weight = ref_mv_weight[0];
@@ -2511,11 +2511,11 @@ static AVM_INLINE void setup_ref_mv_list(
     add_derived_smvp_candidates(cm, xd, rf, refmv_count, ref_mv_stack,
                                 ref_mv_weight, derived_mv_stack,
                                 derived_mv_count, &drl_pr_count);
-    if (cm->seq_params.enable_refmvbank)
+    if (cm->seq_params.seq_enable_refmvbank)
       add_ref_mv_bank_candidates(cm, xd, rf, ref_frame, refmv_count,
                                  ref_mv_stack, ref_mv_weight, &drl_pr_count);
   } else {
-    if (cm->seq_params.enable_refmvbank)
+    if (cm->seq_params.seq_enable_refmvbank)
       add_ref_mv_bank_candidates(cm, xd, rf, ref_frame, refmv_count,
                                  ref_mv_stack, ref_mv_weight, &drl_pr_count);
     add_derived_smvp_candidates(cm, xd, rf, refmv_count, ref_mv_stack,
@@ -2972,7 +2972,7 @@ static INLINE int get_dist_to_closest_interp_ref(const AV2_COMMON *const cm,
                                                  MV_REFERENCE_FRAME start_frame,
                                                  const int find_forward_ref) {
   if (start_frame == -1) return INT_MAX;
-  const OrderHintInfo *const order_hint_info = &cm->seq_params.order_hint_info;
+  const OrderHintInfo *const order_hint_info = &cm->seq_params.seq_order_hint_info;
 
   const RefCntBuffer *const start_frame_buf =
       get_ref_frame_buf(cm, start_frame);
@@ -3008,7 +3008,7 @@ static INLINE int get_dist_to_closest_interp_ref(const AV2_COMMON *const cm,
 // Check if a reference frame is an overlay frame (i.e., has the same
 // order_hint as the current frame).
 static INLINE int is_ref_overlay(const AV2_COMMON *const cm, int ref) {
-  const OrderHintInfo *const order_hint_info = &cm->seq_params.order_hint_info;
+  const OrderHintInfo *const order_hint_info = &cm->seq_params.seq_order_hint_info;
   if (order_hint_info->order_hint_bits_minus_1 < 0) return 0;
   const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref);
   if (buf == NULL) return -1;
@@ -3039,7 +3039,7 @@ static void recur_topo_sort_refs(const AV2_COMMON *cm, const bool *is_overlay,
       int found_rf = -1;
       for (int j = 0; j < cm->ref_frames_info.num_total_refs; j++) {
         const int ref_hint = get_ref_frame_buf(cm, j)->display_order_hint;
-        if (get_relative_dist(&cm->seq_params.order_hint_info, ref_hint,
+        if (get_relative_dist(&cm->seq_params.seq_order_hint_info, ref_hint,
                               target_ref_hint) == 0) {
           if (is_overlay[j]) continue;
           found_rf = j;
@@ -3065,7 +3065,7 @@ static int has_future_ref(const AV2_COMMON *cm, int rf) {
   for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
     if (buf->refs_restricted_status[i]) continue;
     const int ref_hint = buf->ref_display_order_hint[i];
-    if (ref_hint >= 0 && get_relative_dist(&cm->seq_params.order_hint_info,
+    if (ref_hint >= 0 && get_relative_dist(&cm->seq_params.seq_order_hint_info,
                                            ref_hint, cur_hint) > 0) {
       return 1;
     }
@@ -3081,7 +3081,7 @@ static int has_past_ref(const AV2_COMMON *cm, int rf) {
   for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
     if (buf->refs_restricted_status[i]) continue;
     const int ref_hint = buf->ref_display_order_hint[i];
-    if (ref_hint >= 0 && get_relative_dist(&cm->seq_params.order_hint_info,
+    if (ref_hint >= 0 && get_relative_dist(&cm->seq_params.seq_order_hint_info,
                                            ref_hint, cur_hint) < 0) {
       return 1;
     }
@@ -3113,7 +3113,7 @@ static void check_and_add_process_ref(const AV2_COMMON *cm, int max_check,
   const int start_frame_order_hint = start_frame_buf->display_order_hint;
   const int cur_order_hint = cm->cur_frame->display_order_hint;
   int start_to_current_frame_offset = get_relative_dist(
-      &cm->seq_params.order_hint_info, start_frame_order_hint, cur_order_hint);
+      &cm->seq_params.seq_order_hint_info, start_frame_order_hint, cur_order_hint);
   if (abs(start_to_current_frame_offset) > MAX_FRAME_DISTANCE) return;
 
   if (cm->bru.enabled && cm->bru.update_ref_idx != -1) {
@@ -3296,7 +3296,7 @@ static int motion_field_projection_start_target(
   int target_order_hint =
       get_ref_frame_buf(cm, target_frame)->display_order_hint;
 
-  OrderHintInfo *order_hint_info = &cm->seq_params.order_hint_info;
+  OrderHintInfo *order_hint_info = &cm->seq_params.seq_order_hint_info;
 
   int ref_frame_offset =
       get_relative_dist(order_hint_info, start_order_hint, target_order_hint);
@@ -3360,7 +3360,7 @@ static int motion_field_projection_start_target(
           int scaled_blk_col = blk_col;
           int scaled_blk_row = blk_row;
 
-          if (cm->seq_params.enable_mv_traj) {
+          if (cm->seq_params.seq_enable_mv_traj) {
             check_traj_intersect(cm, start_frame, target_frame, &ref_mv,
                                  scaled_blk_row, scaled_blk_col, mvs_cols);
           }
@@ -3388,7 +3388,7 @@ static int motion_field_projection_start_target(
 
           if (pos_valid) {
             if (cm->tpl_mvs_rows[mi_r][mi_c].mfmv0.as_int == INVALID_MV) {
-              if (cm->seq_params.enable_mv_traj) {
+              if (cm->seq_params.seq_enable_mv_traj) {
                 int blk_id_k = get_blk_id_k(mi_c, cm->tmvp_proc_sizel2);
                 int_mv ***blk_id_map_rows = cm->blk_id_map_rows[blk_id_k];
                 cm->id_offset_map_rows[start_frame][mi_r][mi_c].as_mv.row =
@@ -3464,7 +3464,7 @@ static int motion_field_projection_side(AV2_COMMON *cm,
   const int start_frame_order_hint = start_frame_buf->display_order_hint;
   const int cur_order_hint = cm->cur_frame->display_order_hint;
   int start_to_current_frame_offset = get_relative_dist(
-      &cm->seq_params.order_hint_info, start_frame_order_hint, cur_order_hint);
+      &cm->seq_params.seq_order_hint_info, start_frame_order_hint, cur_order_hint);
 
   int temporal_scale_factor[REF_FRAMES] = { 0 };
   int ref_temporal_scale_factor[REF_FRAMES] = { 0 };
@@ -3479,7 +3479,7 @@ static int motion_field_projection_side(AV2_COMMON *cm,
     if (start_frame_buf->refs_restricted_status[rf] == 1) continue;
     if (ref_order_hints[rf] != -1) {
       ref_offset[rf] =
-          get_relative_dist(&cm->seq_params.order_hint_info,
+          get_relative_dist(&cm->seq_params.seq_order_hint_info,
                             start_frame_order_hint, ref_order_hints[rf]);
       ref_abs_offset[rf] = abs(ref_offset[rf]);
       temporal_scale_factor[rf] = tip_derive_scale_factor(
@@ -3497,14 +3497,14 @@ static int motion_field_projection_side(AV2_COMMON *cm,
 
     const int ref_k_hint = start_frame_buf->ref_display_order_hint[k];
     if (ref_k_hint < 0) continue;
-    if (get_relative_dist(&cm->seq_params.order_hint_info,
+    if (get_relative_dist(&cm->seq_params.seq_order_hint_info,
                           start_frame_order_hint, ref_k_hint) == 0) {
       continue;
     }
     for (int rf = 0; rf < cm->ref_frames_info.num_total_refs; rf++) {
       const int rf_hint = get_ref_frame_buf(cm, rf)->display_order_hint;
       if (rf_hint >= 0 && ref_k_hint >= 0 &&
-          get_relative_dist(&cm->seq_params.order_hint_info, rf_hint,
+          get_relative_dist(&cm->seq_params.seq_order_hint_info, rf_hint,
                             ref_k_hint) == 0) {
         start_ref_map[k] = rf;
         break;
@@ -3539,7 +3539,7 @@ static int motion_field_projection_side(AV2_COMMON *cm,
         MV_REFERENCE_FRAME end_frame = start_ref_map[ref_frame];
         if (end_frame == start_frame) continue;
 
-        if (cm->seq_params.enable_mv_traj) {
+        if (cm->seq_params.seq_enable_mv_traj) {
           check_traj_intersect(cm, start_frame, end_frame, &ref_mv,
                                scaled_blk_row, scaled_blk_col, mvs_cols);
         }
@@ -3574,7 +3574,7 @@ static int motion_field_projection_side(AV2_COMMON *cm,
                 (target_frame != -1 && end_frame == target_frame &&
                  cm->tpl_mvs_rows[mi_r][mi_c].ref_frame_offset !=
                      ref_abs_offset[ref_frame])) {
-              if (cm->seq_params.enable_mv_traj) {
+              if (cm->seq_params.seq_enable_mv_traj) {
                 int blk_id_k = get_blk_id_k(mi_c, cm->tmvp_proc_sizel2);
                 int_mv ***blk_id_map_rows = cm->blk_id_map_rows[blk_id_k];
 
@@ -3683,7 +3683,7 @@ void calc_and_set_avg_lengths(AV2_COMMON *cm, int ref, int side) {
         const int ref_hint =
             buf->ref_display_order_hint[mv_ref->ref_frame[side]];
 
-        const int dist = abs(get_relative_dist(&cm->seq_params.order_hint_info,
+        const int dist = abs(get_relative_dist(&cm->seq_params.seq_order_hint_info,
                                                buf_hint, ref_hint));
 
         if (dist != 0) {
@@ -3707,7 +3707,7 @@ void determine_tmvp_sample_step(AV2_COMMON *cm,
   cm->tmvp_sample_step = 1;
   cm->tmvp_sample_stepl2 = 0;
   const SequenceHeader *const seq_params = &cm->seq_params;
-  const int sb_size = block_size_high[seq_params->sb_size];
+  const int sb_size = block_size_high[seq_params->seq_sb_size];
   if (sb_size == 64) {
     return;
   }
@@ -3722,7 +3722,7 @@ void determine_tmvp_sample_step(AV2_COMMON *cm,
       const int buf_hint = buf->display_order_hint;
       if (!is_ref_motion_field_eligible(cm, buf)) continue;
       calc_and_set_avg_lengths(cm, i, j);
-      const int dist = abs(get_relative_dist(&cm->seq_params.order_hint_info,
+      const int dist = abs(get_relative_dist(&cm->seq_params.seq_order_hint_info,
                                              cur_hint, buf_hint));
       if (buf->avg_row[j] * dist / 16 > 8 || buf->avg_col[j] * dist / 16 > 16) {
         large_count++;
@@ -3749,7 +3749,7 @@ void av2_fill_tpl_mvs_sample_gap(AV2_COMMON *cm) {
       ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
 
   const SequenceHeader *const seq_params = &cm->seq_params;
-  const int sb_size = block_size_high[seq_params->sb_size];
+  const int sb_size = block_size_high[seq_params->seq_sb_size];
   const int mf_sb_size_log2 =
       get_mf_sb_size_log2(sb_size, cm->mib_size_log2, cm->tmvp_sample_step);
   const int mf_sb_size = (1 << mf_sb_size_log2);
@@ -3902,7 +3902,7 @@ static void fill_id_offset_sample_gap(AV2_COMMON *cm) {
   const int mvs_cols =
       ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
   const SequenceHeader *const seq_params = &cm->seq_params;
-  const int sb_size = block_size_high[seq_params->sb_size];
+  const int sb_size = block_size_high[seq_params->seq_sb_size];
   const int mf_sb_size_log2 =
       get_mf_sb_size_log2(sb_size, cm->mib_size_log2, cm->tmvp_sample_step);
   const int mf_sb_size = (1 << mf_sb_size_log2);
@@ -4017,7 +4017,7 @@ static void fill_id_offset_sample_gap(AV2_COMMON *cm) {
 }
 
 void av2_setup_motion_field(AV2_COMMON *cm) {
-  const OrderHintInfo *const order_hint_info = &cm->seq_params.order_hint_info;
+  const OrderHintInfo *const order_hint_info = &cm->seq_params.seq_order_hint_info;
 
   memset(cm->ref_frame_side, 0, sizeof(cm->ref_frame_side));
   memset(cm->ref_frame_relative_dist, 0, sizeof(cm->ref_frame_relative_dist));
@@ -4084,7 +4084,7 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
                             (cm->ref_frames_info.num_past_refs > 0);
 
   (void)ref_buf;
-  if (cm->seq_params.enable_mv_traj) {
+  if (cm->seq_params.seq_enable_mv_traj) {
     for (int rf = 0; rf < INTER_REFS_PER_FRAME; rf++) {
       for (int i = 0; i < mvs_rows * mvs_cols; i++) {
         cm->id_offset_map[rf][i].as_int = INVALID_MV;
@@ -4173,7 +4173,7 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
   int checked_ref[INTER_REFS_PER_FRAME][2] = { 0 };
   int checked_count = 0;
 
-  if (cm->seq_params.enable_tip && cur_frame_sort_idx != -1) {
+  if (cm->seq_params.seq_enable_tip && cur_frame_sort_idx != -1) {
     if (cm->has_both_sides_refs || cm->ref_frames_info.num_past_refs >= 2) {
       if (cm->has_both_sides_refs) {
         cm->tip_ref.ref_frame[0] = sort_ref[cur_frame_sort_idx];
@@ -4321,13 +4321,13 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
     }
   }
 
-  if (cm->seq_params.enable_mv_traj) {
+  if (cm->seq_params.seq_enable_mv_traj) {
     fill_id_offset_sample_gap(cm);
   }
 }
 
 void av2_setup_ref_frame_sides(AV2_COMMON *cm) {
-  const OrderHintInfo *const order_hint_info = &cm->seq_params.order_hint_info;
+  const OrderHintInfo *const order_hint_info = &cm->seq_params.seq_order_hint_info;
 
   memset(cm->ref_frame_side, 0, sizeof(cm->ref_frame_side));
   memset(cm->ref_frame_relative_dist, 0, sizeof(cm->ref_frame_relative_dist));
@@ -4577,12 +4577,12 @@ void av2_setup_skip_mode_allowed(AV2_COMMON *cm) {
     const int cur_to_ref0 =
         (get_ref_frame_buf(cm, skip_mode_info->ref_frame_idx_0)->is_restricted)
             ? 0
-            : abs(get_relative_dist(&cm->seq_params.order_hint_info,
+            : abs(get_relative_dist(&cm->seq_params.seq_order_hint_info,
                                     cur_order_hint, ref_offset[0]));
     const int cur_to_ref1 =
         (get_ref_frame_buf(cm, skip_mode_info->ref_frame_idx_1)->is_restricted)
             ? 0
-            : abs(get_relative_dist(&cm->seq_params.order_hint_info,
+            : abs(get_relative_dist(&cm->seq_params.seq_order_hint_info,
                                     cur_order_hint, ref_offset[1]));
     if (abs(cur_to_ref0 - cur_to_ref1) > 1) {
       skip_mode_info->ref_frame_idx_0 = 0;
@@ -4606,7 +4606,7 @@ void av2_setup_skip_mode_allowed(AV2_COMMON *cm) {
 void decide_rmb_unit_update_count(const AV2_COMMON *const cm,
                                   MACROBLOCKD *const xd,
                                   const MB_MODE_INFO *const mbmi) {
-  if (!cm->seq_params.enable_refmvbank) return;
+  if (!cm->seq_params.seq_enable_refmvbank) return;
   if (xd->tree_type == CHROMA_PART) return;
   const int mi_sb_size = cm->mib_size;
   const int mi_sb_size_log2 = cm->mib_size_log2;

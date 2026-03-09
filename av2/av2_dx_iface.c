@@ -463,7 +463,7 @@ static avm_codec_err_t init_decoder(avm_codec_alg_priv_t *ctx) {
   for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
     frame_worker_data->pbi->common.remapped_ref_idx[i] = INVALID_IDX;
   }
-  for (int i = 0; i < frame_worker_data->pbi->common.seq_params.ref_frames;
+  for (int i = 0; i < frame_worker_data->pbi->common.seq_params.seq_ref_frames;
        i++) {
     frame_worker_data->pbi->common.ref_frame_map[i] = NULL;
   }
@@ -555,7 +555,7 @@ static avm_codec_err_t decoder_inspect(avm_codec_alg_priv_t *ctx,
 
   data2->idx = -1;
 
-  for (int i = 0; i < frame_worker_data->pbi->common.seq_params.ref_frames; ++i)
+  for (int i = 0; i < frame_worker_data->pbi->common.seq_params.seq_ref_frames; ++i)
     if (cm->ref_frame_map[i] == cm->cur_frame) data2->idx = i;
   data2->buf = data;
   return res;
@@ -1609,9 +1609,9 @@ static avm_codec_err_t ctrl_get_still_picture(avm_codec_alg_priv_t *ctx,
           (FrameWorkerData *)worker->data1;
       const AV2Decoder *pbi = frame_worker_data->pbi;
       still_picture_info->is_still_picture =
-          (int)pbi->common.seq_params.still_picture;
+          (int)pbi->common.seq_params.seq_still_picture;
       still_picture_info->is_single_picture_header_flag =
-          (int)(pbi->common.seq_params.single_picture_header_flag);
+          (int)(pbi->common.seq_params.seq_single_picture_header_flag);
       return AVM_CODEC_OK;
     } else {
       return AVM_CODEC_ERROR;
@@ -1708,7 +1708,7 @@ static avm_codec_err_t ctrl_get_dec_frame_info(avm_codec_alg_priv_t *ctx,
     step_data->refresh_frame_flags =
         subgop_stats->refresh_frame_flags[step_idx];
     for (MV_REFERENCE_FRAME ref_frame = 0;
-         ref_frame < frame_worker_data->pbi->common.seq_params.ref_frames;
+         ref_frame < frame_worker_data->pbi->common.seq_params.seq_ref_frames;
          ++ref_frame)
       step_data->ref_frame_map[ref_frame] =
           subgop_stats->ref_frame_map[step_idx][ref_frame];
@@ -1792,7 +1792,7 @@ static avm_codec_err_t ctrl_get_bit_depth(avm_codec_alg_priv_t *ctx,
       FrameWorkerData *const frame_worker_data =
           (FrameWorkerData *)worker->data1;
       const AV2_COMMON *const cm = &frame_worker_data->pbi->common;
-      *bit_depth = cm->seq_params.bit_depth;
+      *bit_depth = cm->seq_params.seq_bit_depth;
       return AVM_CODEC_OK;
     } else {
       return AVM_CODEC_ERROR;
@@ -1827,8 +1827,8 @@ static avm_codec_err_t ctrl_get_img_format(avm_codec_alg_priv_t *ctx,
           (FrameWorkerData *)worker->data1;
       const AV2_COMMON *const cm = &frame_worker_data->pbi->common;
 
-      *img_fmt = get_img_format(cm->seq_params.subsampling_x,
-                                cm->seq_params.subsampling_y);
+      *img_fmt = get_img_format(cm->seq_params.seq_subsampling_x,
+                                cm->seq_params.seq_subsampling_y);
       return AVM_CODEC_OK;
     } else {
       return AVM_CODEC_ERROR;

@@ -184,12 +184,12 @@ void set_ard_active_map(AV2_COMP *cpi) {
   const int mi_rows = cpi->common.mi_params.mi_rows;
   const int mi_cols = cpi->common.mi_params.mi_cols;
   BruInfo *bru_info = &cpi->common.bru;
-  if (cpi->common.seq_params.enable_bru) {
+  if (cpi->common.seq_params.seq_enable_bru) {
     if (cpi->active_map.update) {
       const int unit_rows = cpi->common.bru.unit_rows;
       const int unit_cols = cpi->common.bru.unit_cols;
       if (cpi->active_map.enabled) {
-        const int unit_size = cpi->common.seq_params.mib_size;
+        const int unit_size = cpi->common.seq_params.seq_mib_size;
         uint8_t *const active_mode_map = bru_info->active_mode_map;
 
         // outer loops for superblock
@@ -377,14 +377,14 @@ void av2_update_film_grain_parameters(struct AV2_COMP *cpi,
   }
 
   if (tune_cfg->film_grain_test_vector) {
-    cm->seq_params.film_grain_params_present = 1;
+    cm->seq_params.seq_film_grain_params_present = 1;
     if (cm->current_frame.frame_type == KEY_FRAME) {
       memcpy(&cm->film_grain_params,
              film_grain_test_vectors + tune_cfg->film_grain_test_vector - 1,
              sizeof(cm->film_grain_params));
       if (oxcf->tool_cfg.enable_monochrome)
         reset_film_grain_chroma_params(&cm->film_grain_params);
-      cm->film_grain_params.bit_depth = cm->seq_params.bit_depth;
+      cm->film_grain_params.bit_depth = cm->seq_params.seq_bit_depth;
       if (cm->ci_params_encoder.color_info.full_range_flag ==
           AVM_CR_FULL_RANGE) {
         cm->film_grain_params.clip_to_restricted_range = 0;
@@ -402,7 +402,7 @@ void av2_update_film_grain_parameters(struct AV2_COMP *cpi,
         cm->film_grain_params.mc_identity = 0;
     }
   } else if (tune_cfg->film_grain_table_filename) {
-    cm->seq_params.film_grain_params_present = 1;
+    cm->seq_params.seq_film_grain_params_present = 1;
 
     cpi->film_grain_table = avm_malloc(sizeof(*cpi->film_grain_table));
     memset(cpi->film_grain_table, 0, sizeof(avm_film_grain_table_t));
@@ -411,9 +411,9 @@ void av2_update_film_grain_parameters(struct AV2_COMP *cpi,
                               tune_cfg->film_grain_table_filename, &cm->error);
   } else {
 #if CONFIG_DENOISE
-    cm->seq_params.film_grain_params_present = (cpi->oxcf.noise_level > 0);
+    cm->seq_params.seq_film_grain_params_present = (cpi->oxcf.noise_level > 0);
 #else
-    cm->seq_params.film_grain_params_present = 0;
+    cm->seq_params.seq_film_grain_params_present = 0;
 #endif
     memset(&cm->film_grain_params, 0, sizeof(cm->film_grain_params));
     cm->film_grain_params.block_size = tune_cfg->film_grain_block_size;
@@ -471,7 +471,7 @@ void av2_scale_references(AV2_COMP *cpi, const InterpFilter filter,
             new_fb->buf.y_crop_height != cm->height) {
           if (avm_realloc_frame_buffer(
                   &new_fb->buf, cm->width, cm->height,
-                  cm->seq_params.subsampling_x, cm->seq_params.subsampling_y,
+                  cm->seq_params.seq_subsampling_x, cm->seq_params.seq_subsampling_y,
                   AVM_BORDER_IN_PIXELS, cm->features.byte_alignment, NULL, NULL,
                   NULL, cpi->alloc_pyramid)) {
             if (force_scaling) {
@@ -481,12 +481,12 @@ void av2_scale_references(AV2_COMP *cpi, const InterpFilter filter,
             avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
                                "Failed to allocate frame buffer");
           }
-          if (use_optimized_scaler && cm->seq_params.bit_depth == AVM_BITS_8)
+          if (use_optimized_scaler && cm->seq_params.seq_bit_depth == AVM_BITS_8)
             av2_resize_and_extend_frame(ref, &new_fb->buf, filter, phase,
                                         num_planes);
           else
             av2_resize_and_extend_frame_nonnormative(
-                ref, &new_fb->buf, (int)cm->seq_params.bit_depth, num_planes);
+                ref, &new_fb->buf, (int)cm->seq_params.seq_bit_depth, num_planes);
           cpi->scaled_ref_buf[ref_frame] = new_fb;
           alloc_frame_mvs(cm, new_fb);
         }
@@ -573,8 +573,8 @@ void reallocate_sb_size_dependent_buffers(AV2_COMP *cpi) {
   const int frame_height = cm->height;
 
   set_restoration_unit_size(cm, frame_width, frame_height,
-                            seq_params->subsampling_x,
-                            seq_params->subsampling_y, cm->rst_info);
+                            seq_params->seq_subsampling_x,
+                            seq_params->seq_subsampling_y, cm->rst_info);
   if (old_restoration_unit_size != cm->rst_info[0].restoration_unit_size) {
     for (int i = 0; i < num_planes; ++i)
       cm->rst_info[i].frame_restoration_type = RESTORE_NONE;
@@ -621,7 +621,7 @@ void av2_setup_frame(AV2_COMP *cpi) {
       avg_primary_secondary_references(cm, ref_frame_used, map_idx);
     }
   }
-  av2_set_frame_sb_size(cm, cm->seq_params.sb_size);
+  av2_set_frame_sb_size(cm, cm->seq_params.seq_sb_size);
   cpi->td.sb_size = cm->sb_size;
   av2_set_tile_info(cm, &cpi->oxcf.tile_cfg);
   if (cm->sb_size != old_sb_size) {
@@ -812,7 +812,7 @@ void av2_determine_sc_tools_with_encoding(AV2_COMP *cpi, const int q_orig) {
   // When cm->seg.enabled is false, cm->seg.enable_ext_seg is reset as 0,
   // and whoever using cm->seg.enable_ext_seg later causes mismatch.
   // Hence settting this before segfeatures_copy().
-  cm->seg.enable_ext_seg = cm->seq_params.enable_ext_seg;
+  cm->seg.enable_ext_seg = cm->seq_params.seq_enable_ext_seg;
   segfeatures_copy(&cm->cur_frame->seg, &cm->seg);
   cm->cur_frame->seg.enabled = cm->seg.enabled;
 
@@ -894,7 +894,7 @@ void av2_finalize_encoded_frame(AV2_COMP *const cpi) {
   AV2_COMMON *const cm = &cpi->common;
   cm->cur_frame->allow_direct_use = cm->allow_direct_use;
 
-  if (!cm->seq_params.single_picture_header_flag && cm->show_existing_frame &&
+  if (!cm->seq_params.seq_single_picture_header_flag && cm->show_existing_frame &&
       !cm->derive_sef_order_hint) {
     direct_existing_frames_to_current(cpi);
   } else if (cm->show_existing_frame && cm->derive_sef_order_hint) {
@@ -907,7 +907,7 @@ void av2_finalize_encoded_frame(AV2_COMP *const cpi) {
     assign_frame_buffer_p(&cm->cur_frame, frame_to_show);
   }
 
-  if (!cm->show_existing_frame && cm->seq_params.film_grain_params_present &&
+  if (!cm->show_existing_frame && cm->seq_params.seq_film_grain_params_present &&
       (cm->immediate_output_picture || cm->implicit_output_picture)) {
     // Copy the current frame's film grain params to the its corresponding
     // RefCntBuffer slot.
@@ -917,7 +917,7 @@ void av2_finalize_encoded_frame(AV2_COMP *const cpi) {
     if (cm->film_grain_params.random_seed == 0)
       cm->film_grain_params.random_seed = 7391;
   } else if (cm->show_existing_frame &&
-             cm->seq_params.film_grain_params_present) {
+             cm->seq_params.seq_film_grain_params_present) {
     cm->cur_frame->film_grain_params =
         cm->ref_frame_map[cm->sef_ref_fb_idx]->film_grain_params;
     cm->cur_frame->fgm_id = cm->ref_frame_map[cm->sef_ref_fb_idx]->fgm_id;
@@ -1104,7 +1104,7 @@ void active_region_detection(AV2_COMP *cpi,
   unsigned char *const active_map = cpi->active_map.map;
   const int mi_rows = cpi->common.mi_params.mi_rows;
   const int mi_cols = cpi->common.mi_params.mi_cols;
-  const int num_comps = cm->seq_params.monochrome ? 1 : 3;
+  const int num_comps = cm->seq_params.seq_monochrome ? 1 : 3;
   BruInfo *bru_info = &cm->bru;
 
   // Local ARD queue variables (moved from global cpi->enc_act_sb_queue)

@@ -1039,7 +1039,7 @@ int av2_trellis_quant(const struct AV2_COMP *cpi, MACROBLOCK *x, int plane,
 
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
   const int bob_code = p->bobs[block];
-  const int is_fsc = ((cm->seq_params.enable_fsc &&
+  const int is_fsc = ((cm->seq_params.seq_enable_fsc &&
                        xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
                        plane == PLANE_TYPE_Y) ||
                       use_inter_fsc(&cpi->common, plane, tx_type, is_inter));

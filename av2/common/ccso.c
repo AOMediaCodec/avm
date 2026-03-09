@@ -25,7 +25,7 @@
 int get_ccso_unit_size_log2_adaptive_tile(const AV2_COMMON *cm,
                                           int sb_size_log2,
                                           int unit_size_log2) {
-  if (cm->seq_params.ccso_unit_matches_sb_size)
+  if (cm->seq_params.seq_ccso_unit_matches_sb_size)
     return sb_size_log2;
   else if (cm->tiles.cols == 1 && cm->tiles.rows == 1)
     return unit_size_log2;
@@ -181,8 +181,8 @@ INLINE static AV2PixelRect av2_get_tile_rect_ccso(const TileInfo *tile_info,
   r.bottom = AVMMIN(r.bottom, frame_h);
 
   // Convert to coordinates in the appropriate plane
-  const int ss_x = is_uv && cm->seq_params.subsampling_x;
-  const int ss_y = is_uv && cm->seq_params.subsampling_y;
+  const int ss_x = is_uv && cm->seq_params.seq_subsampling_x;
+  const int ss_y = is_uv && cm->seq_params.seq_subsampling_y;
 
   r.left = ROUND_POWER_OF_TWO(r.left, ss_x);
   r.right = ROUND_POWER_OF_TWO(r.right, ss_x);
@@ -342,8 +342,8 @@ void av2_apply_ccso_filter_for_row(AV2_COMMON *cm, MACROBLOCKD *xd,
   const int pic_width = xd->plane[plane].dst.width;
   const int neg_thr = thr * -1;
   const bool is_single_band = !max_band_log2;
-  const uint8_t shift_bits = cm->seq_params.bit_depth - max_band_log2;
-  const int max_val = (1 << cm->seq_params.bit_depth) - 1;
+  const uint8_t shift_bits = cm->seq_params.seq_bit_depth - max_band_log2;
+  const int max_val = (1 << cm->seq_params.seq_bit_depth) - 1;
   const int edge_clf = cm->ccso_info.edge_clf[plane];
   const int y_uv_hscale = xd->plane[plane].subsampling_x;
   const int y_uv_vscale = xd->plane[plane].subsampling_y;
@@ -432,15 +432,15 @@ void apply_ccso_filter(AV2_COMMON *cm, MACROBLOCKD *xd, int plane,
   const int unit_log2_x = AVMMIN(proc_unit_log2, blk_log2_x);
   const int unit_log2_y = AVMMIN(proc_unit_log2, blk_log2_y);
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
-  const uint8_t shift_bits = cm->seq_params.bit_depth - max_band_log2;
+  const uint8_t shift_bits = cm->seq_params.seq_bit_depth - max_band_log2;
   const bool is_single_band = !max_band_log2;
-  const int max_val = (1 << cm->seq_params.bit_depth) - 1;
+  const int max_val = (1 << cm->seq_params.seq_bit_depth) - 1;
   const int neg_thr = thr * -1;
   const int unit_size_x = 1 << unit_log2_x;
   const int unit_size_y = 1 << unit_log2_y;
   const int blk_size_x = 1 << blk_log2_x;
   const int blk_size_y = 1 << blk_log2_y;
-  if (cm->seq_params.disable_loopfilters_across_tiles) {
+  if (cm->seq_params.seq_disable_loopfilters_across_tiles) {
     int tile_rows = cm->tiles.rows;
     int tile_cols = cm->tiles.cols;
     TileInfo tile_info_y;

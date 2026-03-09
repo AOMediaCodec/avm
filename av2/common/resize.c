@@ -1012,17 +1012,17 @@ YV12_BUFFER_CONFIG *av2_scale_if_required(AV2_COMMON *cm,
                             &scale_num, &scale_denom);
     if (scale_denom > 0 && scale_num > 0) {
       av2_resize_lanczos_and_extend_frame(
-          unscaled, scaled, (int)cm->seq_params.bit_depth, num_planes,
+          unscaled, scaled, (int)cm->seq_params.seq_bit_depth, num_planes,
           unscaled->subsampling_x, unscaled->subsampling_y, scale_denom,
           scale_num);
     } else {
 #endif  // CONFIG_LANCZOS_RESAMPLE
-      if (use_optimized_scaler && cm->seq_params.bit_depth == AVM_BITS_8) {
+      if (use_optimized_scaler && cm->seq_params.seq_bit_depth == AVM_BITS_8) {
         av2_resize_and_extend_frame(unscaled, scaled, filter, phase,
                                     num_planes);
       } else {
         av2_resize_and_extend_frame_nonnormative(
-            unscaled, scaled, (int)cm->seq_params.bit_depth, num_planes);
+            unscaled, scaled, (int)cm->seq_params.seq_bit_depth, num_planes);
       }
 #if CONFIG_LANCZOS_RESAMPLE
     }

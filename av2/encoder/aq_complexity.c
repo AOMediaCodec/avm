@@ -80,7 +80,7 @@ void av2_setup_in_frame_q_adj(AV2_COMP *cpi) {
   if (is_frame_aq_enabled(cpi)) {
     int segment;
     const int aq_strength =
-        get_aq_c_strength(base_qindex, cm->seq_params.bit_depth);
+        get_aq_c_strength(base_qindex, cm->seq_params.seq_bit_depth);
 
     // Clear down the segment map.
     memset(cpi->enc_seg.map, DEFAULT_AQ2_SEG,
@@ -107,7 +107,7 @@ void av2_setup_in_frame_q_adj(AV2_COMP *cpi) {
       qindex_delta = av2_compute_qdelta_by_rate(
           &cpi->rc, cm->current_frame.frame_type, base_qindex,
           aq_c_q_adj_factor[aq_strength][segment], cpi->is_screen_content_type,
-          cm->seq_params.bit_depth);
+          cm->seq_params.seq_bit_depth);
 
       // For AQ complexity mode, we dont allow Q0 in a segment if the base
       // Q is not 0. Q0 (lossless) implies 4x4 only and in AQ mode 2 a segment
@@ -150,7 +150,7 @@ void av2_caq_select_segment(const AV2_COMP *cpi, MACROBLOCK *mb, BLOCK_SIZE bs,
   double logvar;
   double low_var_thresh;
   const int aq_strength =
-      get_aq_c_strength(cm->quant_params.base_qindex, cm->seq_params.bit_depth);
+      get_aq_c_strength(cm->quant_params.base_qindex, cm->seq_params.seq_bit_depth);
 
   avm_clear_system_state();
   low_var_thresh = DEFAULT_LV_THRESH;

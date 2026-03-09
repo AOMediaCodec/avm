@@ -244,7 +244,7 @@ static int get_twopass_worst_quality(AV2_COMP *cpi, const double av_frame_err,
     // Try and pick a max Q that will be high enough to encode the
     // content at the given rate.
     int q = find_qindex_by_rate_with_correction(
-        target_norm_bits_per_mb, cpi->common.seq_params.bit_depth,
+        target_norm_bits_per_mb, cpi->common.seq_params.seq_bit_depth,
         av_err_per_mb, group_weight_factor, rate_err_tol, rc->best_quality,
         rc->worst_quality);
 
@@ -778,9 +778,9 @@ static int adjust_boost_bits_for_target_level(const AV2_COMP *const cpi,
   const SequenceHeader *const seq_params = &cm->seq_params;
   const int tlayer_id = cm->tlayer_id;
   const int mlayer_id = cm->mlayer_id;
-  for (int index = 0; index < seq_params->operating_points_cnt_minus_1 + 1;
+  for (int index = 0; index < seq_params->seq_operating_points_cnt_minus_1 + 1;
        ++index) {
-    if (!is_in_operating_point(seq_params->operating_point_idc[index],
+    if (!is_in_operating_point(seq_params->seq_operating_point_idc[index],
                                tlayer_id, mlayer_id)) {
       continue;
     }
@@ -795,8 +795,8 @@ static int adjust_boost_bits_for_target_level(const AV2_COMP *const cpi,
         target_level, seq_params->seq_tier, seq_params->seq_profile_idc
 #if CONFIG_AV2_PROFILES
         ,
-        seq_params->subsampling_x, seq_params->subsampling_y,
-        seq_params->monochrome
+        seq_params->seq_subsampling_x, seq_params->seq_subsampling_y,
+        seq_params->seq_monochrome
 #endif  // CONFIG_AV2_PROFILES
 #if CONFIG_F428_MULTISTREAM
         ,
@@ -2729,7 +2729,7 @@ static void process_first_pass_stats(AV2_COMP *cpi,
     rc->active_worst_quality = tmp_q;
     rc->ni_av_qi = tmp_q;
     rc->last_q[INTER_FRAME] = tmp_q;
-    rc->avg_q = av2_convert_qindex_to_q(tmp_q, cm->seq_params.bit_depth);
+    rc->avg_q = av2_convert_qindex_to_q(tmp_q, cm->seq_params.seq_bit_depth);
     rc->avg_frame_qindex[INTER_FRAME] = tmp_q;
     rc->last_q[KEY_FRAME] = (tmp_q + cpi->oxcf.rc_cfg.best_allowed_q) / 2;
     rc->avg_frame_qindex[KEY_FRAME] = rc->last_q[KEY_FRAME];
@@ -2810,7 +2810,7 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
       } else {
         frame_params->frame_type = INTER_FRAME;
         update_subgop_stats(&cpi->gf_group, &cpi->subgop_stats,
-                            &cpi->common.seq_params.order_hint_info,
+                            &cpi->common.seq_params.seq_order_hint_info,
                             cpi->oxcf.kf_cfg.key_freq_max,
                             oxcf->unit_test_cfg.enable_subgop_stats);
       }
@@ -3043,7 +3043,7 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
   assert(gf_group->index < gf_group->size);
   if (frame_params->frame_type != KEY_FRAME)
     update_subgop_stats(&cpi->gf_group, &cpi->subgop_stats,
-                        &cpi->common.seq_params.order_hint_info,
+                        &cpi->common.seq_params.seq_order_hint_info,
                         cpi->oxcf.kf_cfg.key_freq_max,
                         oxcf->unit_test_cfg.enable_subgop_stats);
 

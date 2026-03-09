@@ -71,7 +71,7 @@ static void update_subgop_stats(const AV2_COMMON *const cm,
   subgop_stats->qindex[subgop_stats->stat_count] = cm->quant_params.base_qindex;
   subgop_stats->refresh_frame_flags[subgop_stats->stat_count] =
       cm->current_frame.refresh_frame_flags;
-  for (MV_REFERENCE_FRAME ref_frame = 0; ref_frame < cm->seq_params.ref_frames;
+  for (MV_REFERENCE_FRAME ref_frame = 0; ref_frame < cm->seq_params.seq_ref_frames;
        ++ref_frame)
     if (cm->ref_frame_map[ref_frame] != NULL) {
       subgop_stats->ref_frame_map[subgop_stats->stat_count][ref_frame] =
@@ -198,7 +198,7 @@ AV2Decoder *av2_decoder_create(BufferPool *const pool) {
   pbi->decoding_first_frame = 1;
   pbi->common.buffer_pool = pool;
 
-  cm->seq_params.bit_depth = AVM_BITS_8;
+  cm->seq_params.seq_bit_depth = AVM_BITS_8;
   cm->mi_params.free_mi = dec_free_mi;
   cm->mi_params.setup_mi = dec_setup_mi;
   cm->mi_params.set_mb_mi = dec_set_mb_mi;
@@ -636,7 +636,7 @@ void output_frame_buffers(AV2Decoder *pbi, int ref_idx) {
   // Add the previous frames into the output queue.
   do {
     output_candidate = trigger_frame;
-    for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+    for (int i = 0; i < cm->seq_params.seq_ref_frames; i++) {
       if (is_frame_eligible_for_output(cm->ref_frame_map[i]) &&
           derive_output_order_idx(cm, cm->ref_frame_map[i]) <
               derive_output_order_idx(cm, output_candidate)) {
@@ -678,11 +678,11 @@ void output_frame_buffers(AV2Decoder *pbi, int ref_idx) {
       derive_output_order_idx(cm, trigger_frame);
 
   int successive_output = 1;
-  for (int k = 1; k <= cm->seq_params.ref_frames && successive_output > 0;
+  for (int k = 1; k <= cm->seq_params.seq_ref_frames && successive_output > 0;
        k++) {
     uint64_t next_frame_output_order = trigger_frame_output_order + k;
     successive_output = 0;
-    for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+    for (int i = 0; i < cm->seq_params.seq_ref_frames; i++) {
       if (is_frame_eligible_for_output(cm->ref_frame_map[i]) &&
           derive_output_order_idx(cm, cm->ref_frame_map[i]) ==
               next_frame_output_order) {
@@ -728,7 +728,7 @@ static void update_frame_buffers(AV2Decoder *pbi, int frame_decoded) {
     const bool clear_multiple_insert_in_one =
         av2_frame_clears_multiple_inserted_in_one(
             cm->current_frame.refresh_frame_flags, cm->current_frame.frame_type,
-            cm->seq_params.max_mlayer_id, &first_ref_index);
+            cm->seq_params.seq_max_mlayer_id, &first_ref_index);
 
     // The following for loop needs to release the reference stored in
     // cm->ref_frame_map[ref_index] before storing a reference to
@@ -788,8 +788,8 @@ static AVM_INLINE void update_long_term_frame_id(AV2Decoder *const pbi) {
   const bool clear_multiple_insert_in_one =
       av2_frame_clears_multiple_inserted_in_one(
           refresh_frame_flags, cm->current_frame.frame_type,
-          cm->seq_params.max_mlayer_id, &first_ref_index);
-  for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+          cm->seq_params.seq_max_mlayer_id, &first_ref_index);
+  for (int i = 0; i < cm->seq_params.seq_ref_frames; i++) {
     if ((refresh_frame_flags >> i) & 1) {
       if (av2_skip_reference_buffer_update(clear_multiple_insert_in_one, i,
                                            first_ref_index)) {

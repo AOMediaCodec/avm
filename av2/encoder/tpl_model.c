@@ -110,7 +110,7 @@ void setup_tpl_buffers(AV2_COMMON *const cm, TplParams *const tpl_data,
                    sizeof(*tpl_data->tpl_stats_buffer[frame].tpl_stats_ptr)));
     if (avm_alloc_frame_buffer(
             &tpl_data->tpl_rec_pool[frame], cm->width, cm->height,
-            cm->seq_params.subsampling_x, cm->seq_params.subsampling_y,
+            cm->seq_params.seq_subsampling_x, cm->seq_params.seq_subsampling_y,
             tpl_data->border_in_pixels, cm->features.byte_alignment, false))
       avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
                          "Failed to allocate frame buffer");
@@ -241,7 +241,7 @@ static uint32_t motion_estimation(AV2_COMP *cpi, MACROBLOCK *x,
   SEARCH_METHODS search_method = tpl_sf->search_method;
   // MV search of flex MV precision is supported only for NSTEP or DIAMOND
   // search
-  if (cpi->common.seq_params.enable_flex_mvres &&
+  if (cpi->common.seq_params.seq_enable_flex_mvres &&
       (search_method != NSTEP && search_method != DIAMOND))
     search_method = NSTEP;
 
@@ -996,8 +996,8 @@ static AVM_INLINE void init_gop_frames_for_tpl(
   TplParams *const tpl_data = &cpi->tpl_data;
 
   int ref_picture_map[REF_FRAMES];
-  assert(cm->seq_params.ref_frames > 0);
-  for (int i = 0; i < cm->seq_params.ref_frames; ++i) {
+  assert(cm->seq_params.seq_ref_frames > 0);
+  for (int i = 0; i < cm->seq_params.seq_ref_frames; ++i) {
     if (frame_params.frame_type == KEY_FRAME || gop_eval ||
         cm->ref_frame_map[i] == NULL) {
       tpl_data->tpl_frame[-i - 1].gf_picture = NULL;
@@ -1072,7 +1072,7 @@ static AVM_INLINE void init_gop_frames_for_tpl(
     const int true_disp =
         (int)(tpl_frame->frame_display_index) -
         (gf_group->subgop_cfg != NULL && frame_params.immediate_output_picture);
-    if (cm->seq_params.enable_explicit_ref_frame_map || frame_is_sframe(cm))
+    if (cm->seq_params.seq_enable_explicit_ref_frame_map || frame_is_sframe(cm))
       av2_get_ref_frames_enc(cpi, true_disp, ref_frame_map_pairs);
     else
       av2_get_ref_frames(cm, true_disp, 1, 0, ref_frame_map_pairs);
@@ -1082,7 +1082,7 @@ static AVM_INLINE void init_gop_frames_for_tpl(
 
     int refresh_frame_map_index =
         av2_get_refresh_ref_frame_map(cm, refresh_mask);
-    if (refresh_frame_map_index < cm->seq_params.ref_frames) {
+    if (refresh_frame_map_index < cm->seq_params.seq_ref_frames) {
       ref_frame_map_pairs[refresh_frame_map_index].disp_order =
           AVMMAX(0, true_disp);
       ref_frame_map_pairs[refresh_frame_map_index].pyr_level =
@@ -1112,7 +1112,7 @@ static AVM_INLINE void init_gop_frames_for_tpl(
     init_ref_map_pair(cm, ref_frame_map_pairs,
                       init_frame_params->frame_type == KEY_FRAME,
                       cpi->switch_frame_mode == 1);
-    if (cm->seq_params.enable_explicit_ref_frame_map || frame_is_sframe(cm) ||
+    if (cm->seq_params.seq_enable_explicit_ref_frame_map || frame_is_sframe(cm) ||
         cpi->switch_frame_mode == 1)
       av2_get_ref_frames_enc(cpi, true_disp, ref_frame_map_pairs);
     else
@@ -1164,7 +1164,7 @@ static AVM_INLINE void init_gop_frames_for_tpl(
     const int true_disp =
         (int)(tpl_frame->frame_display_index) -
         (gf_group->subgop_cfg != NULL && frame_params.immediate_output_picture);
-    if (cm->seq_params.enable_explicit_ref_frame_map || frame_is_sframe(cm) ||
+    if (cm->seq_params.seq_enable_explicit_ref_frame_map || frame_is_sframe(cm) ||
         cpi->switch_frame_mode == 1)
       av2_get_ref_frames_enc(cpi, true_disp, ref_frame_map_pairs);
     else
@@ -1178,7 +1178,7 @@ static AVM_INLINE void init_gop_frames_for_tpl(
                                     true_disp, ref_frame_map_pairs);
     int refresh_frame_map_index =
         av2_get_refresh_ref_frame_map(cm, refresh_mask);
-    if (refresh_frame_map_index < cm->seq_params.ref_frames) {
+    if (refresh_frame_map_index < cm->seq_params.seq_ref_frames) {
       ref_frame_map_pairs[refresh_frame_map_index].disp_order =
           AVMMAX(0, true_disp);
       ref_frame_map_pairs[refresh_frame_map_index].pyr_level =
@@ -1209,7 +1209,7 @@ static AVM_INLINE void init_gop_frames_for_tpl(
   init_ref_map_pair(cm, ref_frame_map_pairs,
                     init_frame_params->frame_type == KEY_FRAME,
                     cpi->switch_frame_mode == 1);
-  if (cm->seq_params.enable_explicit_ref_frame_map || frame_is_sframe(cm) ||
+  if (cm->seq_params.seq_enable_explicit_ref_frame_map || frame_is_sframe(cm) ||
       cpi->switch_frame_mode == 1)
     av2_get_ref_frames_enc(cpi, true_disp, ref_frame_map_pairs);
   else

@@ -714,8 +714,8 @@ uint8_t av2_read_coeffs_txb(const AV2_COMMON *const cm, DecoderCodingBlock *dcb,
   // Only y plane's sec_tx_type is transmitted
   if ((plane == AVM_PLANE_Y) &&
       (is_inter_block(mbmi, xd->tree_type)
-           ? (*eob > 3 && cm->seq_params.enable_inter_ist)
-           : (*eob != 1 && cm->seq_params.enable_ist &&
+           ? (*eob > 3 && cm->seq_params.seq_enable_inter_ist)
+           : (*eob != 1 && cm->seq_params.seq_enable_ist &&
               !xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART]))) {
     av2_read_sec_tx_type(cm, xd, blk_row, blk_col, tx_size, eob, r);
   }
@@ -994,7 +994,7 @@ void av2_read_coeffs_txb_facade(const AV2_COMMON *const cm,
   get_txb_ctx(plane_bsize, tx_size, plane, pd->above_entropy_context + col,
               pd->left_entropy_context + row, &txb_ctx,
               mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
-                  cm->seq_params.enable_fsc);
+                  cm->seq_params.seq_enable_fsc);
 
   const uint8_t decode_rest =
       av2_read_sig_txtype(cm, dcb, r, row, col, plane, &txb_ctx, tx_size);
@@ -1006,7 +1006,7 @@ void av2_read_coeffs_txb_facade(const AV2_COMMON *const cm,
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
   uint8_t cul_level = 0;
   if (decode_rest) {
-    if (((cm->seq_params.enable_fsc &&
+    if (((cm->seq_params.seq_enable_fsc &&
           mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
           get_primary_tx_type(tx_type) == IDTX && plane == PLANE_TYPE_Y) ||
          use_inter_fsc(cm, plane, tx_type, is_inter))) {

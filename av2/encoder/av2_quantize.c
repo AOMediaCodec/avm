@@ -397,12 +397,12 @@ void av2_init_quantizer(SequenceHeader *seq_params,
   const CommonQuantParams *quant_params = &cm->quant_params;
   QUANTS *const quants = &enc_quant_dequant_params->quants;
   Dequants *const dequants = &enc_quant_dequant_params->dequants;
-  av2_build_quantizer(seq_params->bit_depth, quant_params->y_dc_delta_q,
+  av2_build_quantizer(seq_params->seq_bit_depth, quant_params->y_dc_delta_q,
                       quant_params->u_dc_delta_q, quant_params->u_ac_delta_q,
                       quant_params->v_dc_delta_q, quant_params->v_ac_delta_q,
-                      seq_params->base_y_dc_delta_q,
-                      seq_params->base_uv_dc_delta_q,
-                      seq_params->base_uv_ac_delta_q, quants, dequants);
+                      seq_params->seq_base_y_dc_delta_q,
+                      seq_params->seq_base_uv_dc_delta_q,
+                      seq_params->seq_base_uv_ac_delta_q, quants, dequants);
 }
 
 void av2_init_plane_quantizers(const AV2_COMP *cpi, MACROBLOCK *x,
@@ -414,8 +414,8 @@ void av2_init_plane_quantizers(const AV2_COMP *cpi, MACROBLOCK *x,
   const Dequants *const dequants = &cpi->enc_quant_dequant_params.dequants;
 
   int current_qindex = AVMMAX(
-      0, AVMMIN(cm->seq_params.bit_depth == AVM_BITS_8 ? QINDEX_RANGE_8_BITS - 1
-                : cm->seq_params.bit_depth == AVM_BITS_10
+      0, AVMMIN(cm->seq_params.seq_bit_depth == AVM_BITS_8 ? QINDEX_RANGE_8_BITS - 1
+                : cm->seq_params.seq_bit_depth == AVM_BITS_10
                     ? QINDEX_RANGE_10_BITS - 1
                     : QINDEX_RANGE - 1,
                 cm->delta_q_info.delta_q_present_flag
@@ -424,7 +424,7 @@ void av2_init_plane_quantizers(const AV2_COMP *cpi, MACROBLOCK *x,
 
   x->qindex_without_seg_delta = current_qindex;
   const int qindex = av2_get_qindex(&cm->seg, segment_id, current_qindex,
-                                    cm->seq_params.bit_depth);
+                                    cm->seq_params.seq_bit_depth);
 
   const int rdmult =
       av2_compute_rd_mult(cpi, qindex + quant_params->y_dc_delta_q);
@@ -560,7 +560,7 @@ static void set_qm_test_params(AV2_COMMON *const cm,
         quant_params->qm_v[i] = quant_params->qm_y[i];
       } else {
         quant_params->qm_u[i] = min_qmlevel + rand() % qm_range;
-        quant_params->qm_v[i] = cm->seq_params.separate_uv_delta_q
+        quant_params->qm_v[i] = cm->seq_params.seq_separate_uv_delta_q
                                     ? min_qmlevel + rand() % qm_range
                                     : quant_params->qm_u[i];
       }
@@ -605,16 +605,16 @@ static void set_qm_params(AV2_COMMON *const cm,
                           CommonQuantParams *const quant_params,
                           int min_qmlevel, int max_qmlevel) {
   int qm_y = avm_get_qmlevel(quant_params->base_qindex, min_qmlevel,
-                             max_qmlevel, cm->seq_params.bit_depth);
+                             max_qmlevel, cm->seq_params.seq_bit_depth);
   int qm_u =
       avm_get_qmlevel(quant_params->base_qindex + quant_params->u_ac_delta_q,
-                      min_qmlevel, max_qmlevel, cm->seq_params.bit_depth);
+                      min_qmlevel, max_qmlevel, cm->seq_params.seq_bit_depth);
 
   int qm_v = qm_u;
-  if (cm->seq_params.separate_uv_delta_q) {
+  if (cm->seq_params.seq_separate_uv_delta_q) {
     qm_v =
         avm_get_qmlevel(quant_params->base_qindex + quant_params->v_ac_delta_q,
-                        min_qmlevel, max_qmlevel, cm->seq_params.bit_depth);
+                        min_qmlevel, max_qmlevel, cm->seq_params.seq_bit_depth);
   }
 
   quant_params->pic_qm_num = 1;

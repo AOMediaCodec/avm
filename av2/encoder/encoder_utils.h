@@ -530,7 +530,7 @@ MAKE_SDSF_SKIP_SAD_4D_WRAPPER(avm_highbd_sad_skip_32x4x4d)
 
 static AVM_INLINE void highbd_set_var_fns(AV2_COMP *const cpi) {
   AV2_COMMON *const cm = &cpi->common;
-  switch (cm->seq_params.bit_depth) {
+  switch (cm->seq_params.seq_bit_depth) {
     case AVM_BITS_8:
       HIGHBD_BFP_WRAPPER(64, 16, 8)
       HIGHBD_BFP_WRAPPER(16, 64, 8)
@@ -815,7 +815,7 @@ static AVM_INLINE void highbd_set_var_fns(AV2_COMP *const cpi) {
 
     default:
       assert(0 &&
-             "cm->seq_params.bit_depth should be AVM_BITS_8, "
+             "cm->seq_params.seq_bit_depth should be AVM_BITS_8, "
              "AVM_BITS_10 or AVM_BITS_12");
   }
 }
@@ -894,8 +894,8 @@ static AVM_INLINE void refresh_reference_frames(AV2_COMP *cpi) {
     const bool clear_multiple_insert_in_one =
         av2_frame_clears_multiple_inserted_in_one(
             cm->current_frame.refresh_frame_flags, cm->current_frame.frame_type,
-            cm->seq_params.max_mlayer_id, &first_ref_index);
-    for (int ref_frame = 0; ref_frame < cm->seq_params.ref_frames;
+            cm->seq_params.seq_max_mlayer_id, &first_ref_index);
+    for (int ref_frame = 0; ref_frame < cm->seq_params.seq_ref_frames;
          ref_frame++) {
       if (((cm->current_frame.refresh_frame_flags >> ref_frame) & 1) == 1) {
         if (av2_skip_reference_buffer_update(clear_multiple_insert_in_one,
@@ -975,8 +975,8 @@ void active_region_detection(AV2_COMP *cpi,
 static AVM_INLINE void av2_set_seq_tile_info(SequenceHeader *const seq_params,
                                              const AV2EncoderConfig *oxcf) {
   const TileConfig *const tile_cfg = &oxcf->tile_cfg;
-  TileInfoSyntax *tile_params = &seq_params->tile_params;
-  CommonTileParams *tiles = &seq_params->tile_params.tile_info;
+  TileInfoSyntax *tile_params = &seq_params->seq_tile_params;
+  CommonTileParams *tiles = &seq_params->seq_tile_params.tile_info;
   // For uniform tile spacing or if resize is disabled we currently do not
   // need to change tiling config per frame. This is an encoder side choice
   // and can be changed later.
@@ -985,9 +985,9 @@ static AVM_INLINE void av2_set_seq_tile_info(SequenceHeader *const seq_params,
         oxcf->tile_cfg.tile_width_count == 0 ||
         oxcf->tile_cfg.tile_height_count == 0);
   int i, start_sb;
-  av2_get_seq_tile_limits(tile_params, seq_params->max_frame_height,
-                          seq_params->max_frame_width,
-                          seq_params->mib_size_log2, seq_params->mib_size_log2
+  av2_get_seq_tile_limits(tile_params, seq_params->seq_max_frame_height,
+                          seq_params->seq_max_frame_width,
+                          seq_params->seq_mib_size_log2, seq_params->seq_mib_size_log2
 #if CONFIG_G018
                           ,
                           seq_params->seq_max_level_idx, seq_params->seq_tier
@@ -1039,7 +1039,7 @@ static AVM_INLINE void av2_set_tile_info(AV2_COMMON *const cm,
   int i, start_sb;
 
   av2_get_tile_limits(&cm->tiles, mi_params->mi_rows, mi_params->mi_cols,
-                      cm->mib_size_log2, cm->seq_params.mib_size_log2
+                      cm->mib_size_log2, cm->seq_params.seq_mib_size_log2
 #if CONFIG_G018
                       ,
                       cm->seq_params.seq_max_level_idx, cm->seq_params.seq_tier
@@ -1052,7 +1052,7 @@ static AVM_INLINE void av2_set_tile_info(AV2_COMMON *const cm,
   // calculated based on the SB size, the tile size of intra and inter frames do
   // not match. Hence, this scaling factor is used to adjust tile configuration
   // for intra frames to be identical with inter frames.
-  if (frame_is_intra_only(cm) && cm->seq_params.sb_size == BLOCK_256X256 &&
+  if (frame_is_intra_only(cm) && cm->seq_params.seq_sb_size == BLOCK_256X256 &&
       cm->sb_size == BLOCK_128X128)
     sb_size_scale = 2;
 

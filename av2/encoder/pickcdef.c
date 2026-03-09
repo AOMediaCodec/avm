@@ -286,7 +286,7 @@ static int sb_all_skip(const CommonModeInfoParams *const mi_params, int mi_row,
 }
 
 static void pick_cdef_from_qp(AV2_COMMON *const cm) {
-  const int bd = cm->seq_params.bit_depth;
+  const int bd = cm->seq_params.seq_bit_depth;
   const int q = av2_ac_quant_QTX(cm->quant_params.base_qindex, 0, 0, bd) >>
                 (bd - 8 + QUANT_TABLE_BITS);
   CdefInfo *const cdef_info = &cm->cdef_info;
@@ -294,8 +294,8 @@ static void pick_cdef_from_qp(AV2_COMMON *const cm) {
 
   int damping_offset =
       clamp(cm->quant_params.base_qindex -
-                (cm->seq_params.bit_depth == AVM_BITS_8    ? 0
-                 : cm->seq_params.bit_depth == AVM_BITS_10 ? 2 * MAXQ_OFFSET
+                (cm->seq_params.seq_bit_depth == AVM_BITS_8    ? 0
+                 : cm->seq_params.seq_bit_depth == AVM_BITS_10 ? 2 * MAXQ_OFFSET
                                                            : 4 * MAXQ_OFFSET),
             MINQ, MAXQ_8_BITS) >>
       6;
@@ -421,7 +421,7 @@ void av2_cdef_search(const YV12_BUFFER_CONFIG *frame,
                      ThreadData *td,
 #endif  // CONFIG_ENTROPY_STATS
                      CDEF_PICK_METHOD pick_method, int rdmult) {
-  if (cm->seq_params.enable_cdef_on_skip_txfm == CDEF_ON_SKIP_TXFM_DISABLED) {
+  if (cm->seq_params.seq_enable_cdef_on_skip_txfm == CDEF_ON_SKIP_TXFM_DISABLED) {
     cm->cdef_info.cdef_on_skip_txfm_frame_enable = 0;
   } else {
     cm->cdef_info.cdef_on_skip_txfm_frame_enable = 1;
@@ -449,8 +449,8 @@ void av2_cdef_search(const YV12_BUFFER_CONFIG *frame,
 
   int damping_offset =
       clamp(cm->quant_params.base_qindex -
-                (cm->seq_params.bit_depth == AVM_BITS_8    ? 0
-                 : cm->seq_params.bit_depth == AVM_BITS_10 ? 2 * MAXQ_OFFSET
+                (cm->seq_params.seq_bit_depth == AVM_BITS_8    ? 0
+                 : cm->seq_params.seq_bit_depth == AVM_BITS_10 ? 2 * MAXQ_OFFSET
                                                            : 4 * MAXQ_OFFSET),
             MINQ, MAXQ_8_BITS) >>
       6;
@@ -491,7 +491,7 @@ void av2_cdef_search(const YV12_BUFFER_CONFIG *frame,
 
   DECLARE_ALIGNED(32, uint16_t, inbuf[CDEF_INBUF_SIZE]);
   uint16_t *const in = inbuf + CDEF_VBORDER * CDEF_BSTRIDE + CDEF_HBORDER;
-  const int coeff_shift = AVMMAX(cm->seq_params.bit_depth - 8, 0);
+  const int coeff_shift = AVMMAX(cm->seq_params.seq_bit_depth - 8, 0);
   int sb_count = 0;
   for (int fbr = 0; fbr < nvfb; ++fbr) {
     for (int fbc = 0; fbc < nhfb; ++fbc) {

@@ -231,7 +231,7 @@ static AVM_INLINE int intra_mode_info_cost_y(const AV2_COMP *cpi,
       const int n_cache = av2_get_palette_cache(xd, 0, color_cache);
       palette_mode_cost +=
           av2_palette_color_cost_y(&mbmi->palette_mode_info, color_cache,
-                                   n_cache, cpi->common.seq_params.bit_depth);
+                                   n_cache, cpi->common.seq_params.seq_bit_depth);
       palette_mode_cost +=
           av2_cost_color_map(x, 0, bsize, mbmi->tx_size, PALETTE_MAP);
       total_rate += palette_mode_cost;

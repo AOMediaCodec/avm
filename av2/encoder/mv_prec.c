@@ -369,7 +369,7 @@ static AVM_INLINE void collect_mv_stats_b(MV_STATS *mv_stats,
   const int num_cols = block_size_wide[bsize];
   const int y_stride = cpi->source->y_stride;
   const int px_row = 4 * mi_row, px_col = 4 * mi_col;
-  const int bd = cm->seq_params.bit_depth;
+  const int bd = cm->seq_params.seq_bit_depth;
   uint16_t *source_buf = cpi->source->y_buffer + px_row * y_stride + px_col;
   for (int row = 0; row < num_rows - 1; row++) {
     for (int col = 0; col < num_cols - 1; col++) {
@@ -609,7 +609,7 @@ void av2_pick_and_set_high_precision_mv(AV2_COMP *cpi, int qindex) {
     cpi->common.features.use_pb_mv_precision = 0;
   } else {
     cpi->common.features.use_pb_mv_precision =
-        cpi->common.seq_params.enable_flex_mvres;
+        cpi->common.seq_params.seq_enable_flex_mvres;
   }
   cpi->common.features.most_probable_fr_mv_precision =
       cpi->common.features.fr_mv_precision;

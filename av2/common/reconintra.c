@@ -1746,7 +1746,7 @@ void av2_predict_intra_block(const AV2_COMMON *cm, const MACROBLOCKD *xd,
       (yd > 0) && (mi_row + ((row_off + txh) << ss_y) < xd->tile.mi_row_end);
 
   const bool is_ibp_allowed_blk_sz = tx_size != TX_4X4;
-  const int apply_ibp = cm->seq_params.enable_ibp && is_ibp_allowed_blk_sz;
+  const int apply_ibp = cm->seq_params.seq_enable_ibp && is_ibp_allowed_blk_sz;
   const int is_dr_mode = av2_is_directional_mode(mode);
   const int use_intra_dip = mbmi->use_intra_dip && plane == PLANE_TYPE_Y;
   int need_top_right =
@@ -1798,7 +1798,7 @@ void av2_predict_intra_block(const AV2_COMMON *cm, const MACROBLOCKD *xd,
                             ss_y, yd, &px_bottom_left, bsize != init_bsize)
           : -1;
 
-  const int disable_edge_filter = !cm->seq_params.enable_intra_edge_filter;
+  const int disable_edge_filter = !cm->seq_params.seq_enable_intra_edge_filter;
 
   const int is_sb_boundary =
       (mi_row % cm->mib_size == 0 && row_off == 0) ? 1 : 0;
@@ -1810,7 +1810,7 @@ void av2_predict_intra_block(const AV2_COMMON *cm, const MACROBLOCKD *xd,
         xd, ref, ref_stride, dst, dst_stride, mode, p_angle, angle_delta,
         tx_size, disable_edge_filter, have_top ? AVMMIN(txwpx, xr + txwpx) : 0,
         n_topright_px, have_left ? AVMMIN(txhpx, yd + txhpx) : 0,
-        n_bottomleft_px, plane, is_sb_boundary, cm->seq_params.enable_ibp,
+        n_bottomleft_px, plane, is_sb_boundary, cm->seq_params.seq_enable_ibp,
         cm->ibp_directional_weights, mrl_index);
   } else {
     const int n_topright_px =
@@ -2028,12 +2028,12 @@ void mhccp_implicit_fetch_neighbor_luma(const AV2_COMMON *cm,
     if (sub_x && sub_y) {
       av2_mhccp_implicit_fetch_neighbor_luma_420(
           input, input_stride, *above_lines, *left_lines, is_top_sb_boundary,
-          *ref_width, *ref_height, sub_y, cm->seq_params.cfl_ds_filter_index,
+          *ref_width, *ref_height, sub_y, cm->seq_params.seq_cfl_ds_filter_index,
           width, height, output_q3, output_stride);
     } else if (sub_x) {
       for (int h = 0; h < (*ref_height); h++) {
         for (int i = 0; i < (*ref_width); i += 2) {
-          const int filter_type = cm->seq_params.cfl_ds_filter_index;
+          const int filter_type = cm->seq_params.seq_cfl_ds_filter_index;
           int ref_h_c_off = 0;
           int ref_w_off = 0;
           if (*above_lines == (LINE_NUM + 1)) {
@@ -2160,7 +2160,7 @@ void av2_predict_intra_block_facade(const AV2_COMMON *cm, MACROBLOCKD *xd,
   if (plane != AVM_PLANE_Y) mbmi->txb_idx = 0;
 
   if (plane != AVM_PLANE_Y && mbmi->uv_mode == UV_CFL_PRED &&
-      (cm->seq_params.enable_cfl_intra || cm->seq_params.enable_mhccp)) {
+      (cm->seq_params.seq_enable_cfl_intra || cm->seq_params.seq_enable_mhccp)) {
 #if CONFIG_DEBUG
     const BLOCK_SIZE plane_bsize = get_mb_plane_block_size(
         xd, mbmi, plane, pd->subsampling_x, pd->subsampling_y);
@@ -2192,7 +2192,7 @@ void av2_predict_intra_block_facade(const AV2_COMMON *cm, MACROBLOCKD *xd,
         (row_offset * luma_pd->dst.stride + col_offset) << MI_SIZE_LOG2)];
     cfl_store(xd, cfl, luma_dst, luma_pd->dst.stride, 0, 0,
               block_size_wide[chroma_bsize], block_size_high[chroma_bsize],
-              cm->seq_params.cfl_ds_filter_index);
+              cm->seq_params.seq_cfl_ds_filter_index);
 
     CFL_PRED_TYPE pred_plane = get_cfl_pred_type(plane);
     if (mbmi->cfl_idx == CFL_DERIVED_ALPHA) {
@@ -2253,8 +2253,8 @@ void av2_predict_intra_block_facade(const AV2_COMMON *cm, MACROBLOCKD *xd,
                                         is_top_sb_boundary);
       }
     }
-    av2_cfl_predict_block(cm->seq_params.enable_cfl_intra,
-                          cm->seq_params.enable_mhccp, xd, dst, dst_stride,
+    av2_cfl_predict_block(cm->seq_params.seq_enable_cfl_intra,
+                          cm->seq_params.seq_enable_mhccp, xd, dst, dst_stride,
                           tx_size, plane, above_lines > 0, left_lines > 0,
                           above_lines, left_lines);
 

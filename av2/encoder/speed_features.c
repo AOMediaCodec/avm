@@ -135,7 +135,7 @@ static void set_good_speed_feature_framesize_dependent(
   const int is_720p_or_larger = AVMMIN(cm->width, cm->height) >= 720;
   const int is_1080p_or_larger = AVMMIN(cm->width, cm->height) >= 1080;
   const int is_4k_or_larger = AVMMIN(cm->width, cm->height) >= 2160;
-  if (cm->seq_params.enable_flex_mvres) {
+  if (cm->seq_params.seq_enable_flex_mvres) {
     if (is_1080p_or_larger) {
       sf->hl_sf.high_precision_mv_usage = QTR_ONLY;
     }
@@ -280,7 +280,7 @@ static void set_good_speed_features_framesize_independent(
 
   sf->hl_sf.high_precision_mv_usage = LAST_MV_DATA;
 
-  if (cm->seq_params.enable_flex_mvres) {
+  if (cm->seq_params.seq_enable_flex_mvres) {
     sf->flexmv_sf.terminate_early_4_pel_precision = 1;
     sf->flexmv_sf.skip_similar_ref_mv = 1;
     sf->flexmv_sf.skip_repeated_newmv_low_prec = 1;
@@ -1042,20 +1042,20 @@ void av2_set_speed_features_framesize_independent(AV2_COMP *cpi, int speed) {
     set_good_speed_features_framesize_independent(cpi, sf, speed);
 
   if (!cpi->seq_params_locked) {
-    cpi->common.seq_params.enable_restoration &= !sf->lpf_sf.disable_lr_filter;
+    cpi->common.seq_params.seq_enable_restoration &= !sf->lpf_sf.disable_lr_filter;
 
-    cpi->common.seq_params.enable_masked_compound &=
+    cpi->common.seq_params.seq_enable_masked_compound &=
         !sf->inter_sf.disable_masked_comp;
 
     if (sf->inter_sf.disable_wedge_interintra_search) {
       cpi->common.seq_params.seq_enabled_motion_modes &= ~(1 << INTERINTRA);
     }
     if (sf->intra_sf.skip_intra_dip_search) {
-      cpi->common.seq_params.enable_intra_dip = 0;
+      cpi->common.seq_params.seq_enable_intra_dip = 0;
     }
     // Disable tcq modes in sequence header when cpu-used >= 2
     if (sf->rd_sf.disable_tcq) {
-      cpi->common.seq_params.enable_tcq = TCQ_DISABLE;
+      cpi->common.seq_params.seq_enable_tcq = TCQ_DISABLE;
       cpi->common.features.tcq_mode = TCQ_DISABLE;
     }
   }
@@ -1182,7 +1182,7 @@ static AVM_INLINE void set_erp_speed_features_qindex_dependent(AV2_COMP *cpi) {
   const unsigned int erp_pruning_level = cpi->oxcf.part_cfg.erp_pruning_level;
   const int boosted = frame_is_boosted(cpi);
 
-  const int qindex_offset = MAXQ_OFFSET * (cm->seq_params.bit_depth - 8);
+  const int qindex_offset = MAXQ_OFFSET * (cm->seq_params.seq_bit_depth - 8);
   const int qindex_thresh2 = 113 + qindex_offset;
   const int qindex_thresh3 = 135 + qindex_offset;
 
@@ -1219,7 +1219,7 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
   const int is_720p_or_larger = AVMMIN(cm->width, cm->height) >= 720;
   const int is_1080p_or_larger = AVMMIN(cm->width, cm->height) >= 1080;
 
-  const int qindex_offset = MAXQ_OFFSET * (cm->seq_params.bit_depth - 8);
+  const int qindex_offset = MAXQ_OFFSET * (cm->seq_params.seq_bit_depth - 8);
 
   if (cpi->oxcf.mode == GOOD && speed == 0) {
     const int qindex_thresh = 124 + qindex_offset;

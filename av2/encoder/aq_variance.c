@@ -94,7 +94,7 @@ void av2_vaq_frame_setup(AV2_COMP *cpi) {
       int qindex_delta = av2_compute_qdelta_by_rate(
           &cpi->rc, cm->current_frame.frame_type, base_qindex,
           rate_ratio[i] / avg_ratio, cpi->is_screen_content_type,
-          cm->seq_params.bit_depth);
+          cm->seq_params.seq_bit_depth);
       // We don't allow qindex 0 in a segment if the base value is not 0.
       // Q index 0 (lossless) implies 4x4 encoding only and in AQ mode a segment
       // Q delta is sometimes applied without going back around the rd loop.
@@ -118,7 +118,7 @@ void av2_vaq_frame_setup(AV2_COMP *cpi) {
     //   mbmi->segment_id = energy;
 
     SequenceHeader *const seq_params = &cm->seq_params;
-    cm->seg.enable_ext_seg = seq_params->enable_ext_seg;
+    cm->seg.enable_ext_seg = seq_params->seq_enable_ext_seg;
 
     if (cm->seg.enable_ext_seg) {
       for (i = MAX_SEGMENTS_8; i < MAX_SEGMENTS; ++i) {
@@ -242,7 +242,7 @@ int av2_compute_q_from_energy_level_deltaq_mode(const AV2_COMP *const cpi,
   int qindex_delta = av2_compute_qdelta_by_rate(
       &cpi->rc, cm->current_frame.frame_type, base_qindex,
       deltaq_rate_ratio[rate_level], cpi->is_screen_content_type,
-      cm->seq_params.bit_depth);
+      cm->seq_params.seq_bit_depth);
 
   if ((base_qindex != 0) && ((base_qindex + qindex_delta) == 0)) {
     qindex_delta = -base_qindex + 1;

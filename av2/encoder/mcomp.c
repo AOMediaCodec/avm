@@ -99,7 +99,7 @@ void av2_make_default_fullpel_ms_params(
   }
   // MV search of flex MV precision is supported only for NSTEP or DIAMOND
   // search
-  if (cpi->common.seq_params.enable_flex_mvres &&
+  if (cpi->common.seq_params.seq_enable_flex_mvres &&
       (search_method != NSTEP && search_method != DIAMOND))
     search_method = NSTEP;
 

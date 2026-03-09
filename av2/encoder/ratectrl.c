@@ -555,7 +555,7 @@ void av2_rc_update_rate_correction_factors(AV2_COMP *cpi, int width,
   } else {
     projected_size_based_on_q = av2_estimate_bits_at_q(
         cm->current_frame.frame_type, cm->quant_params.base_qindex, MBs,
-        rate_correction_factor, cm->seq_params.bit_depth,
+        rate_correction_factor, cm->seq_params.seq_bit_depth,
         cpi->is_screen_content_type);
   }
   // Work out a size correction factor.
@@ -611,7 +611,7 @@ static int get_bits_per_mb(const AV2_COMP *cpi, int use_cyclic_refresh,
   return use_cyclic_refresh
              ? av2_cyclic_refresh_rc_bits_per_mb(cpi, q, correction_factor)
              : av2_rc_bits_per_mb(cm->current_frame.frame_type, q,
-                                  correction_factor, cm->seq_params.bit_depth,
+                                  correction_factor, cm->seq_params.seq_bit_depth,
                                   cpi->is_screen_content_type);
 }
 
@@ -846,7 +846,7 @@ static int calc_active_best_quality_no_stats_cbr(const AV2_COMP *cpi,
   const int level = gf_group->layer_depth[gf_group->index];
   const CurrentFrame *const current_frame = &cm->current_frame;
   int *rtc_minq;
-  const int bit_depth = cm->seq_params.bit_depth;
+  const int bit_depth = cm->seq_params.seq_bit_depth;
   int active_best_quality = rc->best_quality;
   ASSIGN_MINQ_TABLE(bit_depth, rtc_minq);
 
@@ -922,7 +922,7 @@ static int rc_pick_q_and_bounds_no_stats_cbr(const AV2_COMP *cpi, int width,
   const RATE_CONTROL *const rc = &cpi->rc;
   const CurrentFrame *const current_frame = &cm->current_frame;
   int q;
-  const int bit_depth = cm->seq_params.bit_depth;
+  const int bit_depth = cm->seq_params.seq_bit_depth;
   int active_worst_quality = calc_active_worst_quality_no_stats_cbr(cpi);
   int active_best_quality = calc_active_best_quality_no_stats_cbr(
       cpi, active_worst_quality, width, height);
@@ -1006,7 +1006,7 @@ static int get_active_qp(const RATE_CONTROL *rc,
  *                          \c oxcf->qp, or slightly modified for some
  *                          special cases)
  * \param[in]   bit_depth   Bit depth of the codec (same as
- *                          \c cm->seq_params.bit_depth)
+ *                          \c cm->seq_params.seq_bit_depth)
  * \return Returns selected q index to be used for encoding this frame.
  */
 static int get_q_using_fixed_offsets(const AV2EncoderConfig *const oxcf,
@@ -1058,7 +1058,7 @@ static int apply_tcq_qp_offset(const AV2_COMP *cpi, int qp_tcq) {
   // No qindex adjustment for lossless encoding
   if (qp_tcq == 0) return qp_tcq;
   int tcq_qp_offset_shift = 0;
-  const int bit_depth = cpi->common.seq_params.bit_depth;
+  const int bit_depth = cpi->common.seq_params.seq_bit_depth;
   if (frame_is_intra_only(&cpi->common)) {
     tcq_qp_offset_shift = bit_depth == AVM_BITS_8 ? 2
                           : AVM_BITS_10           ? 4
@@ -1119,7 +1119,7 @@ static int rc_pick_q_and_bounds_no_stats(const AV2_COMP *cpi, int width,
                      gf_group->update_type[gf_index] == KFFLT_UPDATE));
 
   const int qp = get_active_qp(rc, oxcf, frame_is_intra_only(cm));
-  const int bit_depth = cm->seq_params.bit_depth;
+  const int bit_depth = cm->seq_params.seq_bit_depth;
 
   if (oxcf->q_cfg.use_fixed_qp_offsets) {
     int qp_tcq =
@@ -1272,7 +1272,7 @@ int av2_frame_type_qdelta(const AV2_COMP *cpi, int q) {
   rate_factor = rate_factor_deltas[rf_lvl];
   return av2_compute_qdelta_by_rate(&cpi->rc, frame_type, q, rate_factor,
                                     cpi->is_screen_content_type,
-                                    cpi->common.seq_params.bit_depth);
+                                    cpi->common.seq_params.seq_bit_depth);
 }
 
 // This unrestricted Q selection on CQ mode is useful when testing new features,
@@ -1285,7 +1285,7 @@ static int rc_pick_q_and_bounds_no_stats_cq(const AV2_COMP *cpi, int width,
   const RATE_CONTROL *const rc = &cpi->rc;
   const AV2EncoderConfig *const oxcf = &cpi->oxcf;
   const int qp = get_active_qp(rc, oxcf, frame_is_intra_only(cm));
-  const int bit_depth = cm->seq_params.bit_depth;
+  const int bit_depth = cm->seq_params.seq_bit_depth;
   const int q = (int)av2_convert_qindex_to_q(qp, bit_depth);
   (void)width;
   (void)height;
@@ -1308,7 +1308,7 @@ static void get_intra_q_and_bounds(const AV2_COMP *cpi, int width, int height,
   const AV2EncoderConfig *const oxcf = &cpi->oxcf;
   int active_best_quality;
   int active_worst_quality = *active_worst;
-  const int bit_depth = cm->seq_params.bit_depth;
+  const int bit_depth = cm->seq_params.seq_bit_depth;
 
   if (rc->frames_to_key <= 1 && oxcf->rc_cfg.mode == AVM_Q) {
     // If the next frame is also a key frame or the current frame is the
@@ -1372,7 +1372,7 @@ static void adjust_active_best_and_worst_quality(const AV2_COMP *cpi,
   const RATE_CONTROL *const rc = &cpi->rc;
   const GF_GROUP *const gf_group = &cpi->gf_group;
   const int level = gf_group->layer_depth[gf_group->index];
-  const int bit_depth = cpi->common.seq_params.bit_depth;
+  const int bit_depth = cpi->common.seq_params.seq_bit_depth;
   int active_best_quality = *active_best;
   int active_worst_quality = *active_worst;
   // Extension to max or min Q if undershoot or overshoot is outside
@@ -1479,7 +1479,7 @@ static int get_active_best_quality(const AV2_COMP *const cpi,
                                    const int active_worst_quality, const int qp,
                                    const int gf_index, int *const level1_qp) {
   const AV2_COMMON *const cm = &cpi->common;
-  const int bit_depth = cm->seq_params.bit_depth;
+  const int bit_depth = cm->seq_params.seq_bit_depth;
   const RATE_CONTROL *const rc = &cpi->rc;
   const AV2EncoderConfig *const oxcf = &cpi->oxcf;
   const GF_GROUP *gf_group = &cpi->gf_group;
@@ -1579,7 +1579,7 @@ static int rc_pick_q_and_bounds(const AV2_COMP *cpi, int width, int height,
                      gf_group->update_type[gf_index] != ARF_UPDATE &&
                      gf_group->update_type[gf_index] != KFFLT_UPDATE));
   const int qp = get_active_qp(rc, oxcf, frame_is_intra_only(cm));
-  const int bit_depth = cm->seq_params.bit_depth;
+  const int bit_depth = cm->seq_params.seq_bit_depth;
 
   if (oxcf->q_cfg.use_fixed_qp_offsets) {
     int qp_tcq = get_q_using_fixed_offsets(oxcf, rc, gf_group, gf_group->index,
@@ -1776,7 +1776,7 @@ void av2_rc_postencode_update(AV2_COMP *cpi, uint64_t bytes_used) {
       rc->avg_frame_qindex[INTER_FRAME] =
           ROUND_POWER_OF_TWO(3 * rc->avg_frame_qindex[INTER_FRAME] + qindex, 2);
       rc->ni_frames++;
-      rc->tot_q += av2_convert_qindex_to_q(qindex, cm->seq_params.bit_depth);
+      rc->tot_q += av2_convert_qindex_to_q(qindex, cm->seq_params.seq_bit_depth);
       rc->avg_q = rc->tot_q / rc->ni_frames;
       // Calculate the average Q for normal inter frames (not key or GFU
       // frames).

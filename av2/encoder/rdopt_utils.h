@@ -396,7 +396,7 @@ static INLINE CFL_ALLOWED_TYPE store_cfl_required_rdo(const AV2_COMMON *cm,
                                                       const MACROBLOCK *x) {
   const MACROBLOCKD *xd = &x->e_mbd;
 
-  if (cm->seq_params.monochrome || !xd->is_chroma_ref) return CFL_DISALLOWED;
+  if (cm->seq_params.seq_monochrome || !xd->is_chroma_ref) return CFL_DISALLOWED;
 
   if (!xd->is_chroma_ref) {
     // CfL is available to luma partitions lesser than or equal to 32x32.
@@ -408,7 +408,7 @@ static INLINE CFL_ALLOWED_TYPE store_cfl_required_rdo(const AV2_COMMON *cm,
   // For chroma reference blocks, we should store data in the encoder iff we're
   // allowed to try out CfL.
 
-  return is_cfl_allowed(cm->seq_params.enable_cfl_intra, xd) ||
+  return is_cfl_allowed(cm->seq_params.seq_enable_cfl_intra, xd) ||
          is_mhccp_allowed(cm, xd);
 }
 

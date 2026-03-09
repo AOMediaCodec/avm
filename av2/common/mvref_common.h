@@ -87,7 +87,7 @@ static AVM_INLINE int get_block_position(const AV2_COMMON *cm, int *mi_r,
 
 static AVM_INLINE void get_proc_size_and_offset(AV2_COMMON *cm) {
   const SequenceHeader *const seq_params = &cm->seq_params;
-  const int sb_size = block_size_high[seq_params->sb_size];
+  const int sb_size = block_size_high[seq_params->seq_sb_size];
   const int mf_sb_size_log2 =
       get_mf_sb_size_log2(sb_size, cm->mib_size_log2, cm->tmvp_sample_step);
   const int mf_sb_size = (1 << mf_sb_size_log2);
@@ -897,7 +897,7 @@ static INLINE int av2_is_dv_valid(const MV dv, const AV2_COMMON *cm,
 
   // Special case for sub 8x8 chroma cases, to prevent referring to chroma
   // pixels outside current tile.
-  if (!cm->seq_params.enable_sdp || !frame_is_intra_only(cm)) {
+  if (!cm->seq_params.seq_enable_sdp || !frame_is_intra_only(cm)) {
     if (xd->is_chroma_ref && av2_num_planes(cm) > 1) {
       const struct macroblockd_plane *const pd = &xd->plane[1];
       if (xd->mi && xd->mi[0]) {
@@ -930,7 +930,7 @@ static INLINE int av2_is_dv_valid(const MV dv, const AV2_COMMON *cm,
       int tmp_col = mi_col;
       int tmp_bh = bh;
       int tmp_bw = bw;
-      if (!cm->seq_params.enable_sdp || !frame_is_intra_only(cm)) {
+      if (!cm->seq_params.seq_enable_sdp || !frame_is_intra_only(cm)) {
         if (xd->is_chroma_ref && av2_num_planes(cm) > 1) {
           if (xd->mi && xd->mi[0]) {
             const CHROMA_REF_INFO *chroma_ref_info =

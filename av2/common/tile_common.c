@@ -259,8 +259,8 @@ AV2PixelRect av2_get_tile_rect(const TileInfo *tile_info, const AV2_COMMON *cm,
   r.bottom = AVMMIN(r.bottom, frame_h);
 
   // Convert to coordinates in the appropriate plane
-  const int ss_x = is_uv && cm->seq_params.subsampling_x;
-  const int ss_y = is_uv && cm->seq_params.subsampling_y;
+  const int ss_x = is_uv && cm->seq_params.seq_subsampling_x;
+  const int ss_y = is_uv && cm->seq_params.seq_subsampling_y;
 
   r.left = ROUND_POWER_OF_TWO(r.left, ss_x);
   r.right = ROUND_POWER_OF_TWO(r.right, ss_x);

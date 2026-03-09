@@ -1313,7 +1313,7 @@ static int64_t handle_newmv(const AV2_COMP *const cpi, MACROBLOCK *const x,
 
         );
       }
-      if (cm->seq_params.enable_adaptive_mvd) {
+      if (cm->seq_params.seq_enable_adaptive_mvd) {
         if (reuse_comp_mv_for_opfl(cm, x, args, cur_mv, rate_mv)) {
           return 0;
         }
@@ -1347,7 +1347,7 @@ static int64_t handle_newmv(const AV2_COMP *const cpi, MACROBLOCK *const x,
         }
       }
     } else if (is_joint_mvd_coding_mode(this_mode)) {
-      if (!cm->seq_params.enable_joint_mvd) return INT64_MAX;
+      if (!cm->seq_params.seq_enable_joint_mvd) return INT64_MAX;
       const int same_side = is_ref_frame_same_side(cm, mbmi);
       // skip JOINT_NEWMV mode when two reference frames are from same side
       if (same_side) return INT64_MAX;
@@ -1400,7 +1400,7 @@ static int64_t handle_newmv(const AV2_COMP *const cpi, MACROBLOCK *const x,
 
         );
       }
-      if (cm->seq_params.enable_adaptive_mvd) {
+      if (cm->seq_params.seq_enable_adaptive_mvd) {
         av2_compound_single_motion_search_interinter(cpi, x, bsize, cur_mv,
                                                      NULL, 0, rate_mv, 0);
         if (cur_mv->as_int == INVALID_MV) return INT64_MAX;
@@ -2976,7 +2976,7 @@ static int64_t motion_mode_rd(
                     mode_costs
                         ->explicit_bawp_scale_cost[mbmi->bawp_flag[0] - 2];
             }
-            if (!cm->seq_params.monochrome && xd->is_chroma_ref &&
+            if (!cm->seq_params.seq_monochrome && xd->is_chroma_ref &&
                 mbmi->bawp_flag[0]) {
               rd_stats->rate +=
                   mode_costs->bawp_flg_cost[1][mbmi->bawp_flag[1] == 1];
@@ -4271,7 +4271,7 @@ static int process_compound_inter_mode(
   const AV2_COMMON *cm = &cpi->common;
   const int masked_compound_used =
       is_any_masked_compound_used(bsize) &&
-      cm->seq_params.enable_masked_compound &&
+      cm->seq_params.seq_enable_masked_compound &&
       (!mbmi->refinemv_flag || !switchable_refinemv_flag(cm, mbmi)) &&
       !opfl_allowed_cur_pred_mode(cm, xd, mbmi);
   int mode_search_mask =
@@ -4945,7 +4945,7 @@ static int64_t handle_inter_mode(
               for (int bawp_flag_uv = 0; bawp_flag_uv <= AVMMIN(1, bawp_flag);
                    bawp_flag_uv++) {
                 if (bawp_flag_uv &&
-                    (!xd->is_chroma_ref || cm->seq_params.monochrome)) {
+                    (!xd->is_chroma_ref || cm->seq_params.seq_monochrome)) {
                   mbmi->bawp_flag[1] = 0;
                   continue;
                 }
@@ -6948,7 +6948,7 @@ static AVM_INLINE void set_params_rd_pick_inter_mode(
   x->mbmi_ext->mode_context[TIP_FRAME] = 0;
   mbmi_ext->ref_mv_count[TIP_FRAME] = UINT8_MAX;
   x->pred_mv_sad[TIP_FRAME_INDEX] = INT_MAX;
-  if (cm->seq_params.enable_tip && cm->features.tip_frame_mode) {
+  if (cm->seq_params.seq_enable_tip && cm->features.tip_frame_mode) {
     assert(get_ref_frame_yv12_buf(cm, TIP_FRAME) != NULL);
     setup_buffer_ref_mvs_inter(cpi, x, TIP_FRAME, bsize, yv12_mb);
   }
@@ -8636,11 +8636,11 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
                               ref_frames, &sf_args))
             continue;
 
-          if (cm->seq_params.enable_adaptive_mvd == 0 && mbmi->use_amvd == 1)
+          if (cm->seq_params.seq_enable_adaptive_mvd == 0 && mbmi->use_amvd == 1)
             continue;
 
           if (is_joint_mvd_coding_mode(this_mode) &&
-              cm->seq_params.enable_joint_mvd == 0)
+              cm->seq_params.seq_enable_joint_mvd == 0)
             continue;
 
           // Select prediction reference frames.
@@ -8844,7 +8844,7 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
     for (int fsc_mode = 0;
          fsc_mode < (allow_fsc_intra(cm, bsize, mbmi) ? FSC_MODES : 1);
          fsc_mode++) {
-      uint8_t enable_mrls_flag = cm->seq_params.enable_mrls && !fsc_mode;
+      uint8_t enable_mrls_flag = cm->seq_params.seq_enable_mrls && !fsc_mode;
       ModeRDInfoUV mode_rd_info_uv = { { false }, { 0 }, { 0 } };
       // When fsc_mode is enabled, rate of the chroma mode across luma modes is
       // different. Hence, the reuse of chroma mode rd_info is not applicable

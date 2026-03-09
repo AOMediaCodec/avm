@@ -113,7 +113,7 @@ void av2_intra_mode_cnn_partition(const AV2_COMMON *const cm, MACROBLOCK *x,
     const MACROBLOCKD *xd = &x->e_mbd;
     const int bit_depth = xd->bd;
     const int dc_q =
-        av2_dc_quant_QTX(x->qindex, 0, cm->seq_params.base_y_dc_delta_q,
+        av2_dc_quant_QTX(x->qindex, 0, cm->seq_params.seq_base_y_dc_delta_q,
                          bit_depth) >>
         (bit_depth - 8);
     part_info->log_q = logf(1.0f + (float)((int64_t)dc_q * (int64_t)dc_q) /
@@ -489,7 +489,7 @@ static AVM_INLINE void simple_motion_search_prune_part_features(
 
   // Q_INDEX
   const int dc_q =
-      av2_dc_quant_QTX(x->qindex, 0, cpi->common.seq_params.base_y_dc_delta_q,
+      av2_dc_quant_QTX(x->qindex, 0, cpi->common.seq_params.seq_base_y_dc_delta_q,
                        xd->bd) >>
       (xd->bd - 8);
   features[f_idx++] = logf(1.0f + (float)((int64_t)dc_q * (int64_t)dc_q) /
@@ -645,7 +645,7 @@ void av2_get_max_min_partition_features(AV2_COMP *const cpi, MACROBLOCK *x,
 
   int f_idx = 0;
   const int dc_q = av2_dc_quant_QTX(x->qindex, 0,
-                                    cm->seq_params.base_y_dc_delta_q, xd->bd) >>
+                                    cm->seq_params.seq_base_y_dc_delta_q, xd->bd) >>
                    (xd->bd - 8);
   avm_clear_system_state();
   const float log_q_sq = logf(1.0f + (float)((int64_t)dc_q * (int64_t)dc_q) /

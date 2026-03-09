@@ -663,14 +663,14 @@ int av2_compute_rd_mult_based_on_qindex(const AV2_COMP *cpi, int qindex) {
            : (cpi->oxcf.gf_cfg.lag_in_frames == 0 ? RDMULT_FROM_Q2_NUM_LD
                                                   : RDMULT_FROM_Q2_NUM));
   const int q =
-      av2_dc_quant_QTX(qindex, 0, cpi->common.seq_params.base_y_dc_delta_q,
-                       cpi->common.seq_params.bit_depth);
+      av2_dc_quant_QTX(qindex, 0, cpi->common.seq_params.seq_base_y_dc_delta_q,
+                       cpi->common.seq_params.seq_bit_depth);
 
   int64_t rdmult = ROUND_POWER_OF_TWO_64(
       (int64_t)((int64_t)q * q * rdmult_from_q2_num / RDMULT_FROM_Q2_DEN),
       2 * QUANT_TABLE_BITS);
 
-  switch (cpi->common.seq_params.bit_depth) {
+  switch (cpi->common.seq_params.seq_bit_depth) {
     case AVM_BITS_8: break;
     case AVM_BITS_10: rdmult = ROUND_POWER_OF_TWO(rdmult, 4); break;
     case AVM_BITS_12: rdmult = ROUND_POWER_OF_TWO(rdmult, 8); break;
@@ -697,25 +697,25 @@ int av2_compute_rd_mult(const AV2_COMP *cpi, int qindex) {
 
 int av2_get_deltaq_offset(const AV2_COMP *cpi, int qindex, double beta) {
   assert(beta > 0.0);
-  int q = av2_dc_quant_QTX(qindex, 0, cpi->common.seq_params.base_y_dc_delta_q,
-                           cpi->common.seq_params.bit_depth);
+  int q = av2_dc_quant_QTX(qindex, 0, cpi->common.seq_params.seq_base_y_dc_delta_q,
+                           cpi->common.seq_params.seq_bit_depth);
   int newq = (int)rint(q / sqrt(beta));
   int orig_qindex = qindex;
   if (newq < q) {
     do {
       qindex--;
-      q = av2_dc_quant_QTX(qindex, 0, cpi->common.seq_params.base_y_dc_delta_q,
-                           cpi->common.seq_params.bit_depth);
+      q = av2_dc_quant_QTX(qindex, 0, cpi->common.seq_params.seq_base_y_dc_delta_q,
+                           cpi->common.seq_params.seq_bit_depth);
     } while (newq < q && qindex > 0);
   } else {
     do {
       qindex++;
-      q = av2_dc_quant_QTX(qindex, 0, cpi->common.seq_params.base_y_dc_delta_q,
-                           cpi->common.seq_params.bit_depth);
+      q = av2_dc_quant_QTX(qindex, 0, cpi->common.seq_params.seq_base_y_dc_delta_q,
+                           cpi->common.seq_params.seq_bit_depth);
     } while (newq > q &&
              (qindex <
-              (cpi->common.seq_params.bit_depth == AVM_BITS_8    ? MAXQ_8_BITS
-               : cpi->common.seq_params.bit_depth == AVM_BITS_10 ? MAXQ_10_BITS
+              (cpi->common.seq_params.seq_bit_depth == AVM_BITS_8    ? MAXQ_8_BITS
+               : cpi->common.seq_params.seq_bit_depth == AVM_BITS_10 ? MAXQ_10_BITS
                                                                  : MAXQ)));
   }
   return qindex - orig_qindex;
@@ -730,11 +730,11 @@ int av2_get_adaptive_rdmult(const AV2_COMP *cpi, double beta) {
                                                   : RDMULT_FROM_Q2_NUM));
   const AV2_COMMON *cm = &cpi->common;
   int64_t q = av2_dc_quant_QTX(cm->quant_params.base_qindex, 0,
-                               cm->seq_params.base_y_dc_delta_q,
-                               cm->seq_params.bit_depth);
+                               cm->seq_params.seq_base_y_dc_delta_q,
+                               cm->seq_params.seq_bit_depth);
   int64_t rdmult = 0;
 
-  switch (cm->seq_params.bit_depth) {
+  switch (cm->seq_params.seq_bit_depth) {
     case AVM_BITS_8:
       rdmult = ROUND_POWER_OF_TWO_64(
           (int64_t)((rdmult_from_q2_num * (double)q * q / beta) /
@@ -750,7 +750,7 @@ int av2_get_adaptive_rdmult(const AV2_COMP *cpi, double beta) {
       break;
     case AVM_BITS_12:
     default:
-      assert(cm->seq_params.bit_depth == AVM_BITS_12);
+      assert(cm->seq_params.seq_bit_depth == AVM_BITS_12);
       rdmult = ROUND_POWER_OF_TWO_64(
           (int64_t)((rdmult_from_q2_num * (double)q * q / beta) /
                     RDMULT_FROM_Q2_DEN),
@@ -795,7 +795,7 @@ static int compute_rd_thresh_factor(int qindex, int base_y_dc_delta_q,
 }
 
 void av2_set_sad_per_bit(const AV2_COMP *cpi, MvCosts *mv_costs, int qindex) {
-  switch (cpi->common.seq_params.bit_depth) {
+  switch (cpi->common.seq_params.seq_bit_depth) {
     case AVM_BITS_8: mv_costs->sadperbit = sad_per_bit_lut_8[qindex]; break;
     case AVM_BITS_10: mv_costs->sadperbit = sad_per_bit_lut_10[qindex]; break;
     case AVM_BITS_12: mv_costs->sadperbit = sad_per_bit_lut_12[qindex]; break;
@@ -810,15 +810,15 @@ static void set_block_thresholds(const AV2_COMMON *cm, RD_OPT *rd) {
   for (segment_id = 0; segment_id < MAX_SEGMENTS; ++segment_id) {
     const int qindex =
         clamp(av2_get_qindex(&cm->seg, segment_id, cm->quant_params.base_qindex,
-                             cm->seq_params.bit_depth) +
+                             cm->seq_params.seq_bit_depth) +
                   cm->quant_params.y_dc_delta_q,
               0,
-              cm->seq_params.bit_depth == AVM_BITS_8    ? MAXQ_8_BITS
-              : cm->seq_params.bit_depth == AVM_BITS_10 ? MAXQ_10_BITS
+              cm->seq_params.seq_bit_depth == AVM_BITS_8    ? MAXQ_8_BITS
+              : cm->seq_params.seq_bit_depth == AVM_BITS_10 ? MAXQ_10_BITS
                                                         : MAXQ);
 
     const int q = compute_rd_thresh_factor(
-        qindex, cm->seq_params.base_y_dc_delta_q, cm->seq_params.bit_depth);
+        qindex, cm->seq_params.seq_base_y_dc_delta_q, cm->seq_params.seq_bit_depth);
 
     for (bsize = 0; bsize < BLOCK_SIZES_ALL; ++bsize) {
       // Threshold here seems unnecessarily harsh but fine given actual

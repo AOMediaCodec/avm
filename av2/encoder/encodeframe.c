@@ -505,8 +505,8 @@ static AVM_INLINE void perform_one_partition_pass(
   SuperBlockEnc *sb_enc = &x->sb_enc;
   SIMPLE_MOTION_DATA_TREE *const sms_root = td->sms_root;
   const BLOCK_SIZE sb_size = cm->sb_size;
-  const int ss_x = cm->seq_params.subsampling_x;
-  const int ss_y = cm->seq_params.subsampling_y;
+  const int ss_x = cm->seq_params.seq_subsampling_x;
+  const int ss_y = cm->seq_params.seq_subsampling_y;
   RD_STATS dummy_rdc;
   av2_invalid_rd_stats(&dummy_rdc);
   const int intra_sdp_enabled = is_sdp_enabled_in_keyframe(cm);
@@ -702,8 +702,8 @@ static AVM_INLINE void encode_rd_sb(AV2_COMP *cpi, ThreadData *td,
   int64_t dummy_dist;
   RD_STATS dummy_rdc;
   SIMPLE_MOTION_DATA_TREE *const sms_root = td->sms_root;
-  const int ss_x = cm->seq_params.subsampling_x;
-  const int ss_y = cm->seq_params.subsampling_y;
+  const int ss_x = cm->seq_params.seq_subsampling_x;
+  const int ss_y = cm->seq_params.seq_subsampling_y;
   (void)tile_info;
   (void)num_planes;
   (void)mi;
@@ -945,8 +945,8 @@ static PARTITION_TYPE bridge_frame_read_partition(
     const PARTITION_TREE *ptree_luma, BLOCK_SIZE bsize) {
   (void)has_rows;
   (void)has_cols;
-  const int ssx = cm->seq_params.subsampling_x;
-  const int ssy = cm->seq_params.subsampling_y;
+  const int ssx = cm->seq_params.seq_subsampling_x;
+  const int ssy = cm->seq_params.seq_subsampling_y;
   PARTITION_TYPE derived_partition = av2_get_normative_forced_partition_type(
       &cm->mi_params, xd->tree_type, ssx, ssy, mi_row, mi_col, bsize,
       ptree_luma);
@@ -1000,7 +1000,7 @@ static AVM_INLINE void bridge_frame_decode_partition(
         is_cfl_allowed_for_sdp(cm, xd, ptree_luma, PARTITION_NONE, bsize);
     ptree->is_cfl_allowed_for_this_chroma_partition = CFL_DISALLOWED_FOR_CHROMA;
     ptree->region_type = MIXED_INTER_INTRA_REGION;
-    ptree->extended_sdp_allowed_flag = cm->seq_params.enable_extended_sdp;
+    ptree->extended_sdp_allowed_flag = cm->seq_params.seq_enable_extended_sdp;
   }
 
   if (is_sb_root) {
@@ -1051,7 +1051,7 @@ static AVM_INLINE void bridge_frame_decode_partition(
   if (!is_sb_root && parent) {
     if (parent->extended_sdp_allowed_flag)
       ptree->extended_sdp_allowed_flag = is_extended_sdp_allowed(
-          cm->seq_params.enable_extended_sdp, parent->bsize, parent->partition);
+          cm->seq_params.seq_enable_extended_sdp, parent->bsize, parent->partition);
     else
       ptree->extended_sdp_allowed_flag = 0;
 
@@ -1307,7 +1307,7 @@ static AVM_INLINE void bridge_frame_decode_partition(
 
   parent = ptree->parent;
   if (!is_sb_root && parent) {
-    if (!frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
+    if (!frame_is_intra_only(cm) && !cm->seq_params.seq_monochrome &&
         ptree->partition && parent->region_type != INTRA_REGION &&
         ptree->region_type == INTRA_REGION) {
       // decode chroma part in one intra region
@@ -1441,29 +1441,29 @@ static AVM_INLINE void encode_sb_row(AV2_COMP *cpi, ThreadData *td,
       xd->sbi->ptree_root[av2_get_sdp_idx(xd->tree_type)]->partition =
           PARTITION_NONE;
       set_chroma_ref_info(
-          xd->tree_type, mi_row, mi_col, 0, cm->seq_params.sb_size,
+          xd->tree_type, mi_row, mi_col, 0, cm->seq_params.seq_sb_size,
           &chroma_ref_info,
           &xd->sbi->ptree_root[av2_get_sdp_idx(xd->tree_type)]->chroma_ref_info,
           BLOCK_INVALID, PARTITION_NONE, xd->plane[1].subsampling_x,
           xd->plane[1].subsampling_y);
       av2_set_offsets_without_segment_id(cpi, &tile_data->tile_info, &td->mb,
-                                         mi_row, mi_col, cm->seq_params.sb_size,
+                                         mi_row, mi_col, cm->seq_params.seq_sb_size,
                                          NULL);
-      set_sb_mbmi_bru_mode(cm, xd, mi_col, mi_row, cm->seq_params.sb_size,
+      set_sb_mbmi_bru_mode(cm, xd, mi_col, mi_row, cm->seq_params.seq_sb_size,
                            BRU_INACTIVE_SB);
-      initialize_chroma_ref_info(mi_row, mi_col, cm->seq_params.sb_size,
+      initialize_chroma_ref_info(mi_row, mi_col, cm->seq_params.seq_sb_size,
                                  &xd->mi[0]->chroma_ref_info);
       bru_set_default_inter_mb_mode_info(cm, xd, xd->mi[0],
-                                         cm->seq_params.sb_size);
+                                         cm->seq_params.seq_sb_size);
       const int w = mi_size_wide[sb_size];
       const int h = mi_size_high[sb_size];
       const int x_inside_boundary = AVMMIN(w, cm->mi_params.mi_cols - mi_col);
       const int y_inside_boundary = AVMMIN(h, cm->mi_params.mi_rows - mi_row);
       bru_zero_sb_mvs(cm, -1, mi_row, mi_col, x_inside_boundary,
                       y_inside_boundary);
-      av2_reset_entropy_context(xd, cm->seq_params.sb_size, av2_num_planes(cm));
+      av2_reset_entropy_context(xd, cm->seq_params.seq_sb_size, av2_num_planes(cm));
       bridge_frame_decode_partition_sb(cpi, td, &tile_data->tile_info, mi_row,
-                                       mi_col, cm->seq_params.sb_size);
+                                       mi_col, cm->seq_params.seq_sb_size);
     } else
       // use for lpf only, use causal restriction only
       if (cm->bru.enabled && (cur_sb_active_mode != BRU_ACTIVE_SB)) {
@@ -1473,7 +1473,7 @@ static AVM_INLINE void encode_sb_row(AV2_COMP *cpi, ThreadData *td,
         xd->sbi->ptree_root[av2_get_sdp_idx(xd->tree_type)]->partition =
             PARTITION_NONE;
         set_chroma_ref_info(xd->tree_type, mi_row, mi_col, 0,
-                            cm->seq_params.sb_size, &chroma_ref_info,
+                            cm->seq_params.seq_sb_size, &chroma_ref_info,
                             &xd->sbi->ptree_root[av2_get_sdp_idx(xd->tree_type)]
                                  ->chroma_ref_info,
                             BLOCK_INVALID, PARTITION_NONE,
@@ -1481,13 +1481,13 @@ static AVM_INLINE void encode_sb_row(AV2_COMP *cpi, ThreadData *td,
                             xd->plane[1].subsampling_y);
         av2_set_offsets_without_segment_id(cpi, &tile_data->tile_info, &td->mb,
                                            mi_row, mi_col,
-                                           cm->seq_params.sb_size, NULL);
-        set_sb_mbmi_bru_mode(cm, xd, mi_col, mi_row, cm->seq_params.sb_size,
+                                           cm->seq_params.seq_sb_size, NULL);
+        set_sb_mbmi_bru_mode(cm, xd, mi_col, mi_row, cm->seq_params.seq_sb_size,
                              cur_sb_active_mode);
-        initialize_chroma_ref_info(mi_row, mi_col, cm->seq_params.sb_size,
+        initialize_chroma_ref_info(mi_row, mi_col, cm->seq_params.seq_sb_size,
                                    &xd->mi[0]->chroma_ref_info);
         bru_set_default_inter_mb_mode_info(cm, xd, xd->mi[0],
-                                           cm->seq_params.sb_size);
+                                           cm->seq_params.seq_sb_size);
         const int w = mi_size_wide[sb_size];
         const int h = mi_size_high[sb_size];
         const int x_inside_boundary = AVMMIN(w, cm->mi_params.mi_cols - mi_col);
@@ -1500,7 +1500,7 @@ static AVM_INLINE void encode_sb_row(AV2_COMP *cpi, ThreadData *td,
         if (cur_sb_active_mode == BRU_SUPPORT_SB) {
           bru_copy_sb(cm, mi_col, mi_row);
         }
-        av2_reset_entropy_context(xd, cm->seq_params.sb_size,
+        av2_reset_entropy_context(xd, cm->seq_params.seq_sb_size,
                                   av2_num_planes(cm));
       } else
         // encode the superblock
@@ -1533,8 +1533,8 @@ static AVM_INLINE void init_encode_frame_mb_context(AV2_COMP *cpi) {
   // Copy data over into macro block data structures.
   av2_setup_src_planes(x, cpi->source, 0, 0, num_planes, NULL);
 
-  av2_setup_block_planes(xd, cm->seq_params.subsampling_x,
-                         cm->seq_params.subsampling_y, num_planes);
+  av2_setup_block_planes(xd, cm->seq_params.seq_subsampling_x,
+                         cm->seq_params.seq_subsampling_y, num_planes);
 }
 
 void av2_alloc_tile_data(AV2_COMP *cpi) {
@@ -1800,9 +1800,9 @@ static int check_skip_mode_enabled(AV2_COMP *const cpi) {
   const int cur_offset = (int)cm->current_frame.display_order_hint;
   int ref_offset[2];
   get_skip_mode_ref_offsets(cm, ref_offset);
-  const int cur_to_ref0 = abs(get_relative_dist(&cm->seq_params.order_hint_info,
+  const int cur_to_ref0 = abs(get_relative_dist(&cm->seq_params.seq_order_hint_info,
                                                 cur_offset, ref_offset[0]));
-  const int cur_to_ref1 = abs(get_relative_dist(&cm->seq_params.order_hint_info,
+  const int cur_to_ref1 = abs(get_relative_dist(&cm->seq_params.seq_order_hint_info,
                                                 cur_offset, ref_offset[1]));
   if (abs(cur_to_ref0 - cur_to_ref1) > 1) return 0;
 
@@ -1910,7 +1910,7 @@ static AVM_INLINE void av2_enc_setup_tip_frame(AV2_COMP *cpi) {
   cm->tip_interp_filter = MULTITAP_SHARP;
   cm->tip_global_wtd_index = 0;
 
-  if (cm->seq_params.enable_tip && could_tip_mode_be_selected(cpi)) {
+  if (cm->seq_params.seq_enable_tip && could_tip_mode_be_selected(cpi)) {
     if (cm->features.allow_ref_frame_mvs &&
         (cm->has_both_sides_refs || cm->ref_frames_info.num_past_refs >= 2)) {
 #if CONFIG_COLLECT_COMPONENT_TIMING
@@ -1960,15 +1960,15 @@ void av2_set_lossless(AV2_COMP *cpi) {
   for (int i = 0; i < max_seg_num; ++i) {
     const int qindex =
         cm->seg.enabled ? av2_get_qindex(&cm->seg, i, quant_params->base_qindex,
-                                         cm->seq_params.bit_depth)
+                                         cm->seq_params.seq_bit_depth)
                         : quant_params->base_qindex;
     xd->lossless[i] =
         qindex == 0 && cm->delta_q_info.delta_q_present_flag == 0 &&
-        (quant_params->y_dc_delta_q + cm->seq_params.base_y_dc_delta_q <= 0) &&
-        (quant_params->u_dc_delta_q + cm->seq_params.base_uv_dc_delta_q <= 0) &&
-        (quant_params->v_dc_delta_q + cm->seq_params.base_uv_dc_delta_q <= 0) &&
-        (quant_params->u_ac_delta_q + cm->seq_params.base_uv_ac_delta_q <= 0) &&
-        (quant_params->v_ac_delta_q + cm->seq_params.base_uv_ac_delta_q <= 0);
+        (quant_params->y_dc_delta_q + cm->seq_params.seq_base_y_dc_delta_q <= 0) &&
+        (quant_params->u_dc_delta_q + cm->seq_params.seq_base_uv_dc_delta_q <= 0) &&
+        (quant_params->v_dc_delta_q + cm->seq_params.seq_base_uv_dc_delta_q <= 0) &&
+        (quant_params->u_ac_delta_q + cm->seq_params.seq_base_uv_ac_delta_q <= 0) &&
+        (quant_params->v_ac_delta_q + cm->seq_params.seq_base_uv_ac_delta_q <= 0);
 
     cm->features.lossless_segment[i] = xd->lossless[i];
     if (xd->lossless[i]) cm->features.has_lossless_segment = 1;
@@ -2014,11 +2014,11 @@ void av2_set_frame_tcq_mode(AV2_COMP *cpi) {
     // Disable TCQ for lossless since TCQ may not be reversible
     cm->features.tcq_mode = 0;
   } else {
-    if (cm->seq_params.enable_tcq >= TCQ_8ST_FR) {
+    if (cm->seq_params.seq_enable_tcq >= TCQ_8ST_FR) {
       cm->features.tcq_mode =
           frame_is_intra_only(cm) || cm->current_frame.pyramid_level <= 1;
     } else {
-      cm->features.tcq_mode = cm->seq_params.enable_tcq;
+      cm->features.tcq_mode = cm->seq_params.seq_enable_tcq;
     }
   }
 }
@@ -2027,7 +2027,7 @@ void av2_enc_setup_ph_frame(AV2_COMP *cpi) {
   // Note parity_hiding is to be set for a frame after lossless and tcq_mode
   // are set
   AV2_COMMON *const cm = &cpi->common;
-  if (cm->features.coded_lossless || !cm->seq_params.enable_parity_hiding ||
+  if (cm->features.coded_lossless || !cm->seq_params.seq_enable_parity_hiding ||
       cm->features.tcq_mode)
     cm->features.allow_parity_hiding = false;
   else
@@ -2245,8 +2245,8 @@ static AVM_INLINE void encode_frame_internal(AV2_COMP *cpi) {
 #endif
 
   const int sub_pu_qp_thr =
-      SUB_PU_QTHR + (cm->seq_params.bit_depth - AVM_BITS_8) * SUB_PU_BD_FACTOR;
-  if (cm->seq_params.enable_lf_sub_pu &&
+      SUB_PU_QTHR + (cm->seq_params.seq_bit_depth - AVM_BITS_8) * SUB_PU_BD_FACTOR;
+  if (cm->seq_params.seq_enable_lf_sub_pu &&
       (cm->quant_params.base_qindex >= sub_pu_qp_thr) &&
       (cm->current_frame.frame_type == INTER_FRAME || frame_is_sframe(cm)))
     cm->features.allow_lf_sub_pu = 1;
@@ -2400,18 +2400,18 @@ void av2_encode_frame(AV2_COMP *cpi) {
     rdc->compound_ref_used_flag = 0;
     rdc->skip_mode_used_flag = 0;
 
-    if (cm->seq_params.enable_opfl_refine == AVM_OPFL_REFINE_AUTO) {
+    if (cm->seq_params.seq_enable_opfl_refine == AVM_OPFL_REFINE_AUTO) {
       // Auto mode: encoder decides which refine type to use for each frame.
       // For now, set all frame to REFINE_SWITCHABLE. The search or heuristic
       // that encoder can use is left for future work.
       features->opfl_refine_type = REFINE_SWITCHABLE;
-      if (cm->seq_params.enable_tip &&
+      if (cm->seq_params.seq_enable_tip &&
           features->tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
         features->opfl_refine_type = REFINE_ALL;
       }
     } else {
       // 0: REFINE_NONE, 1: REFINE_SWTICHABLE, 2: REFINE_ALL
-      features->opfl_refine_type = cm->seq_params.enable_opfl_refine;
+      features->opfl_refine_type = cm->seq_params.seq_enable_opfl_refine;
     }
 
     encode_frame_internal(cpi);

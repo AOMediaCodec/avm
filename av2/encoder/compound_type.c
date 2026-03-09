@@ -337,7 +337,7 @@ static int64_t pick_interinter_wedge(
   int8_t wedge_sign = 0;
 
   assert(is_interinter_compound_used(COMPOUND_WEDGE, bsize));
-  assert(cpi->common.seq_params.enable_masked_compound);
+  assert(cpi->common.seq_params.seq_enable_masked_compound);
 
   if (cpi->sf.inter_sf.fast_wedge_sign_estimate) {
     wedge_sign = estimate_wedge_sign(cpi, x, bsize, p0, bw, p1, bw);

@@ -181,7 +181,7 @@ static void cdef_prepare_fb(AV2_COMMON *const cm, CdefBlockInfo *const fb_info,
   const uint16_t *bot_linebuf = fb_info->bot_linebuf[plane];
   const int bot_offset = (vsize + CDEF_VBORDER) * CDEF_BSTRIDE;
   const int stride =
-      luma_stride >> (plane == AVM_PLANE_Y ? 0 : cm->seq_params.subsampling_x);
+      luma_stride >> (plane == AVM_PLANE_Y ? 0 : cm->seq_params.seq_subsampling_x);
 
   if (fbc == nhfb - 1)
     cend = hsize;
@@ -198,7 +198,7 @@ static void cdef_prepare_fb(AV2_COMMON *const cm, CdefBlockInfo *const fb_info,
   int tile_bottom = fb_info->frame_boundary[BOTTOM];
   int tile_right = fb_info->frame_boundary[RIGHT];
 
-  if (cm->seq_params.disable_loopfilters_across_tiles) {
+  if (cm->seq_params.seq_disable_loopfilters_across_tiles) {
     if (is_horz_tile_boundary(&cm->tiles, MI_SIZE_64X64 * fbr)) tile_top = 1;
 
     if (is_vert_tile_boundary(&cm->tiles, MI_SIZE_64X64 * fbc)) tile_left = 1;
@@ -279,7 +279,7 @@ static void cdef_prepare_fb(AV2_COMMON *const cm, CdefBlockInfo *const fb_info,
   copy_rect(colbuf[plane], CDEF_HBORDER, src + hsize, CDEF_BSTRIDE,
             rend + CDEF_VBORDER, CDEF_HBORDER);
 
-  // if (!cm->seq_params.disable_loopfilters_across_tiles)
+  // if (!cm->seq_params.seq_disable_loopfilters_across_tiles)
   // tile boundary is set to frame boundary
   if (tile_top) {
     fill_rect(src, CDEF_BSTRIDE, CDEF_VBORDER, hsize + 2 * CDEF_HBORDER,
@@ -427,7 +427,7 @@ void av2_cdef_init_fb_row(AV2_COMMON *const cm, MACROBLOCKD *const xd,
 
   fb_info->src = src;
   fb_info->damping = cm->cdef_info.cdef_damping;
-  fb_info->coeff_shift = AVMMAX(cm->seq_params.bit_depth - 8, 0);
+  fb_info->coeff_shift = AVMMAX(cm->seq_params.seq_bit_depth - 8, 0);
   av2_zero(fb_info->dir);
   av2_zero(fb_info->var);
 

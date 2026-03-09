@@ -178,8 +178,8 @@ const WienernsFilterParameters wienerns_filter_uv =
 AV2PixelRect av2_whole_frame_rect(const AV2_COMMON *cm, int is_uv) {
   AV2PixelRect rect;
 
-  int ss_x = is_uv && cm->seq_params.subsampling_x;
-  int ss_y = is_uv && cm->seq_params.subsampling_y;
+  int ss_x = is_uv && cm->seq_params.seq_subsampling_x;
+  int ss_y = is_uv && cm->seq_params.seq_subsampling_y;
 
   rect.top = 0;
   rect.bottom = cm->mi_params.mi_rows * MI_SIZE >> ss_y;
@@ -246,8 +246,8 @@ AV2PixelRect av2_get_rutile_rect(const AV2_COMMON *cm, int plane,
   AV2PixelRect rect;
   const RestorationInfo *rsi = &cm->rst_info[plane];
 
-  int ss_x = plane && cm->seq_params.subsampling_x;
-  int ss_y = plane && cm->seq_params.subsampling_y;
+  int ss_x = plane && cm->seq_params.seq_subsampling_x;
+  int ss_y = plane && cm->seq_params.seq_subsampling_y;
   // Use cropped height for sse calculation at encoder
   const int plane_height = ROUND_POWER_OF_TWO(cm->height, ss_y);
   // Use cropped width for sse calculation at encoder
@@ -300,7 +300,7 @@ void av2_alloc_restoration_struct(AV2_COMMON *cm, RestorationInfo *rsi,
   // to do the computation ourselves, iterating over the tiles and keeping
   // track of the largest width and height.
   const int unit_size = rsi->restoration_unit_size;
-  const int ss_y = is_uv && cm->seq_params.subsampling_y;
+  const int ss_y = is_uv && cm->seq_params.seq_subsampling_y;
   AV2PixelRect tile_rect;
   TileInfo tile_info;
   rsi->vert_units_per_frame = 0;
@@ -1685,7 +1685,7 @@ uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV2Common *cm,
   int resized_luma_stride = width_uv + 2 * WIENERNS_UV_BRD;
   int out_stride = resized_luma_stride;
 #if WIENERNS_CROSS_FILT_LUMA_TYPE == 2
-  int ds_type = cm->seq_params.cfl_ds_filter_index;
+  int ds_type = cm->seq_params.seq_cfl_ds_filter_index;
 #endif
   int process_unit_rows = rsi->vert_stripes_per_frame;
   int resized_luma_height = height_uv + 2 * WIENERNS_UV_BRD * process_unit_rows;
@@ -1700,8 +1700,8 @@ uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV2Common *cm,
 
   *luma_hbd = *luma;
 
-  const int ss_x = cm->seq_params.subsampling_x;
-  const int ss_y = cm->seq_params.subsampling_y;
+  const int ss_x = cm->seq_params.seq_subsampling_x;
+  const int ss_y = cm->seq_params.seq_subsampling_y;
   const int num_tile_rows = cm->tiles.rows;
   int tile_stripe0 = 0;
   uint16_t *curr_luma = *luma;
@@ -1735,7 +1735,7 @@ uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV2Common *cm,
                        ((y0 > 0) + (y1 < height_y)) * WIENERNS_UV_BRD;
 
       int copy_above = 1, copy_below = 1;
-      if (cm->seq_params.disable_loopfilters_across_tiles == 0) {
+      if (cm->seq_params.seq_disable_loopfilters_across_tiles == 0) {
         // tile top but not picture top
         if (tile_boundary_above) copy_above = 0;
         // tile bottom but not picture bottom
@@ -2212,14 +2212,14 @@ void av2_loop_restoration_filter_frame_init(AV2LrStruct *lr_ctxt,
                                             AV2_COMMON *cm, int optimized_lr,
                                             int num_planes) {
   const SequenceHeader *const seq_params = &cm->seq_params;
-  const int bit_depth = seq_params->bit_depth;
+  const int bit_depth = seq_params->seq_bit_depth;
   lr_ctxt->dst = &cm->rst_frame;
   lr_ctxt->tiles = &cm->tiles;
   const int frame_width = frame->widths[0];
   const int frame_height = frame->heights[0];
   if (avm_realloc_frame_buffer(
-          lr_ctxt->dst, frame_width, frame_height, seq_params->subsampling_x,
-          seq_params->subsampling_y, AVM_RESTORATION_FRAME_BORDER,
+          lr_ctxt->dst, frame_width, frame_height, seq_params->seq_subsampling_x,
+          seq_params->seq_subsampling_y, AVM_RESTORATION_FRAME_BORDER,
           cm->features.byte_alignment, NULL, NULL, NULL, false) < 0)
     avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
                        "Failed to allocate restoration dst buffer");
@@ -2245,8 +2245,8 @@ void av2_loop_restoration_filter_frame_init(AV2LrStruct *lr_ctxt,
                      RESTORATION_BORDER_VERT);
 
     lr_plane_ctxt->rsi = rsi;
-    lr_plane_ctxt->ss_x = is_uv && seq_params->subsampling_x;
-    lr_plane_ctxt->ss_y = is_uv && seq_params->subsampling_y;
+    lr_plane_ctxt->ss_x = is_uv && seq_params->seq_subsampling_x;
+    lr_plane_ctxt->ss_y = is_uv && seq_params->seq_subsampling_y;
     lr_plane_ctxt->bit_depth = bit_depth;
     lr_plane_ctxt->data8 = frame->buffers[plane];
     lr_plane_ctxt->dst8 = lr_ctxt->dst->buffers[plane];
@@ -2264,7 +2264,7 @@ void av2_loop_restoration_filter_frame_init(AV2LrStruct *lr_ctxt,
     lr_plane_ctxt->lossless_segment = &cm->features.lossless_segment[0];
     lr_plane_ctxt->cm = cm;
     lr_plane_ctxt->disable_loopfilters_across_tiles =
-        seq_params->disable_loopfilters_across_tiles;
+        seq_params->seq_disable_loopfilters_across_tiles;
   }
 }
 
@@ -2310,7 +2310,7 @@ static void foreach_rest_unit_in_planes(AV2LrStruct *lr_ctxt, AV2_COMMON *cm,
       ctxt[plane].qindex_offset =
           (plane == AVM_PLANE_U ? cm->quant_params.u_ac_delta_q
                                 : cm->quant_params.v_ac_delta_q) +
-          cm->seq_params.base_uv_ac_delta_q;
+          cm->seq_params.seq_base_uv_ac_delta_q;
     else
       ctxt[plane].qindex_offset = 0;
     ctxt[plane].wiener_class_id = cm->mi_params.wiener_class_id[plane];
@@ -2837,7 +2837,7 @@ void av2_foreach_rest_unit_in_plane(const struct AV2Common *cm, int plane,
                                     void *priv, AV2PixelRect *tile_rect) {
   (void)tile_rect;
   const int is_uv = plane > 0;
-  const int ss_y = is_uv && cm->seq_params.subsampling_y;
+  const int ss_y = is_uv && cm->seq_params.seq_subsampling_y;
 
   const RestorationInfo *rsi = &cm->rst_info[plane];
   int unit_idx0;
@@ -2901,8 +2901,8 @@ int av2_loop_restoration_corners_in_sb(const struct AV2Common *cm, int plane,
   const int vert_units = av2_lr_count_units_in_tile(size, tile_h);
 
   // The size of an MI-unit on this plane of the image
-  const int ss_x = is_uv && cm->seq_params.subsampling_x;
-  const int ss_y = is_uv && cm->seq_params.subsampling_y;
+  const int ss_x = is_uv && cm->seq_params.seq_subsampling_x;
+  const int ss_y = is_uv && cm->seq_params.seq_subsampling_y;
   const int mi_size_x = MI_SIZE >> ss_x;
   const int mi_size_y = MI_SIZE >> ss_y;
 
@@ -3025,7 +3025,7 @@ static void save_cdef_boundary_lines(const YV12_BUFFER_CONFIG *frame,
 void save_tile_row_boundary_lines(const YV12_BUFFER_CONFIG *frame, int plane,
                                   AV2_COMMON *cm, int after_cdef) {
   const int is_uv = plane > 0;
-  const int ss_y = is_uv && cm->seq_params.subsampling_y;
+  const int ss_y = is_uv && cm->seq_params.seq_subsampling_y;
   const int stripe_height = RESTORATION_PROC_UNIT_SIZE >> ss_y;
   const int stripe_off = RESTORATION_UNIT_OFFSET >> ss_y;
 
@@ -3062,11 +3062,11 @@ void save_tile_row_boundary_lines(const YV12_BUFFER_CONFIG *frame, int plane,
       // Stripe boundaries that are not tile boundaries always use deblocked
       // pixels.
       const int use_deblock_above =
-          cm->seq_params.disable_loopfilters_across_tiles
+          cm->seq_params.seq_disable_loopfilters_across_tiles
               ? (rel_tile_stripe > 0)
               : (frame_stripe > 0);
       const int use_deblock_below =
-          cm->seq_params.disable_loopfilters_across_tiles
+          cm->seq_params.seq_disable_loopfilters_across_tiles
               ? (y1 < tile_rect.bottom)
               : (y1 < plane_height);
 

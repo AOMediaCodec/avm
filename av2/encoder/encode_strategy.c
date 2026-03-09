@@ -57,7 +57,7 @@ const SubGOPStepCfg *get_subgop_step(const GF_GROUP *const gf_group,
 void av2_get_ref_frames_enc(AV2_COMP *const cpi, int cur_frame_disp,
                             RefFrameMapPair *ref_frame_map_pairs) {
   AV2_COMMON *const cm = &cpi->common;
-  assert(cm->seq_params.enable_explicit_ref_frame_map || frame_is_sframe(cm));
+  assert(cm->seq_params.seq_enable_explicit_ref_frame_map || frame_is_sframe(cm));
   // With explicit_ref_frame_map or switch_frame_mode on, an encoder-only
   // ranking scheme can be implemented here. For now, av2_get_ref_frames is used
   // as a placeholder.
@@ -78,7 +78,7 @@ void av2_get_ref_frames_enc(AV2_COMP *const cpi, int cur_frame_disp,
 
 void av2_set_seq_seg_info(SequenceHeader *seq_params,
                           struct segmentation *seg) {
-  SegmentationInfoSyntax *seg_params = &seq_params->seg_params;
+  SegmentationInfoSyntax *seg_params = &seq_params->seq_seg_params;
   seg_params->allow_seg_info_change = 1;
   const int max_seg_num = seg->enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
   for (int i = 0; i < max_seg_num; i++) {
@@ -89,7 +89,7 @@ void av2_set_seq_seg_info(SequenceHeader *seq_params,
   }
   seg_params->segid_preskip = seg->segid_preskip;
   seg_params->last_active_segid = seg->last_active_segid;
-  seg_params->enable_ext_seg = seq_params->enable_ext_seg;
+  seg_params->enable_ext_seg = seq_params->seq_enable_ext_seg;
 }
 
 void av2_configure_buffer_updates(AV2_COMP *const cpi,
@@ -320,7 +320,7 @@ static void get_gop_cfg_enabled_refs(AV2_COMP *const cpi, int *ref_frame_flags,
 static void bru_lookahead_update(AV2_COMP *const cpi,
                                  const int bru_ref_buf_offset,
                                  struct lookahead_entry **bru_ref_source) {
-  if (cpi->common.seq_params.enable_bru) {
+  if (cpi->common.seq_params.seq_enable_bru) {
     AV2_COMMON *const cm = &cpi->common;
     const int n_refs = cm->ref_frames_info.num_total_refs;
     if (n_refs >= BRU_ENC_LOOKAHEAD_DIST_MINUS_1 + BRU_ENC_REF_DELAY)
@@ -459,7 +459,7 @@ static struct lookahead_entry *choose_frame_source(
       *last_source =
           av2_lookahead_peek(cpi->lookahead, -1, cpi->compressor_stage);
     }
-    if (cpi->common.seq_params.enable_bru) {
+    if (cpi->common.seq_params.seq_enable_bru) {
       bru_lookahead_update(cpi, bru_ref_buf_offset, bru_ref_source);
     }
     // Read in the source frame.
@@ -562,7 +562,7 @@ static void dump_ref_frame_images(AV2_COMP *cpi) {
 
 int av2_get_refresh_ref_frame_map(AV2_COMMON *cm, int refresh_frame_flags) {
   int ref_map_index = INVALID_IDX;
-  for (ref_map_index = 0; ref_map_index < cm->seq_params.ref_frames;
+  for (ref_map_index = 0; ref_map_index < cm->seq_params.seq_ref_frames;
        ++ref_map_index) {
     if ((refresh_frame_flags >> ref_map_index) & 1) break;
   }
@@ -665,7 +665,7 @@ static int get_refresh_frame_flags_subgop_cfg(
   const int update_arf = type_code == FRAME_TYPE_OOO_FILTERED && pyr_level == 1;
   const int refresh_idx = get_refresh_idx(
       update_arf, refresh_level, cur_disp_order, cpi->switch_frame_mode,
-      ref_frame_map_pairs, cpi->common.seq_params.ref_frames);
+      ref_frame_map_pairs, cpi->common.seq_params.seq_ref_frames);
   return 1 << refresh_idx;
 }
 
@@ -675,9 +675,9 @@ int av2_get_refresh_frame_flags(
     RefFrameMapPair ref_frame_map_pairs[REF_FRAMES]) {
   if (cpi->switch_frame_mode == 1) {
     AV2_COMMON *const cm = &cpi->common;
-    int refresh_frame_flags = (1 << cpi->common.seq_params.ref_frames) - 1;
+    int refresh_frame_flags = (1 << cpi->common.seq_params.seq_ref_frames) - 1;
     cm->num_ref_key_frames = 0;
-    for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+    for (int i = 0; i < cm->seq_params.seq_ref_frames; i++) {
       if (cm->ref_frame_map[i]->long_term_id >= 0) {
         int new_long_term_id = 1;
         refresh_frame_flags &= ~(1 << i);
@@ -697,10 +697,10 @@ int av2_get_refresh_frame_flags(
 
   // Switch frames and shown key-frames overwrite all reference slots
   if ((av2_is_shown_keyframe(cpi, frame_params->frame_type) &&
-       cpi->common.seq_params.max_mlayer_id == 0) ||
+       cpi->common.seq_params.seq_max_mlayer_id == 0) ||
       (cpi->oxcf.kf_cfg.sframe_mode != 0 &&
        frame_params->frame_type == S_FRAME)) {
-    return (1 << cpi->common.seq_params.ref_frames) - 1;
+    return (1 << cpi->common.seq_params.seq_ref_frames) - 1;
   }
 
   if (frame_params->duplicate_existing_frame) {
@@ -721,7 +721,7 @@ int av2_get_refresh_frame_flags(
     // This logic is currently only used with the control
     // AV2E_SET_ENABLE_BUFFER_REFRESH_TEST.
     int refresh_mask_control = 0;
-    for (int i = 0; i < cpi->common.seq_params.ref_frames; i++) {
+    for (int i = 0; i < cpi->common.seq_params.seq_ref_frames; i++) {
       refresh_mask_control |=
           cpi->oxcf.unit_test_cfg.buffer_refresh_multi_layers_test[i] << i;
     }
@@ -733,7 +733,7 @@ int av2_get_refresh_frame_flags(
   if (cpi->common.bru.enabled) {
     const int bru_disp_order = cpi->common.bru.ref_disp_order;
     assert(bru_disp_order >= 0);
-    for (int idx = 0; idx < cpi->common.seq_params.ref_frames; ++idx) {
+    for (int idx = 0; idx < cpi->common.seq_params.seq_ref_frames; ++idx) {
       if (ref_frame_map_pairs[idx].disp_order == bru_disp_order) {
         free_fb_index = idx;  // get the first one
         break;
@@ -741,7 +741,7 @@ int av2_get_refresh_frame_flags(
     }
   } else {
     free_fb_index = get_free_ref_map_index(ref_frame_map_pairs,
-                                           cpi->common.seq_params.ref_frames);
+                                           cpi->common.seq_params.seq_ref_frames);
   }
   if (use_subgop_cfg(&cpi->gf_group, gf_index)) {
     const int mask = get_refresh_frame_flags_subgop_cfg(
@@ -764,7 +764,7 @@ int av2_get_refresh_frame_flags(
   const int update_arf = frame_update_type == ARF_UPDATE;
   const int refresh_idx =
       get_refresh_idx(update_arf, -1, cur_disp_order, cpi->switch_frame_mode,
-                      ref_frame_map_pairs, cpi->common.seq_params.ref_frames);
+                      ref_frame_map_pairs, cpi->common.seq_params.seq_ref_frames);
 
   return 1 << refresh_idx;
 }
@@ -777,8 +777,8 @@ void setup_mi(AV2_COMP *const cpi, YV12_BUFFER_CONFIG *src) {
 
   av2_setup_src_planes(x, src, 0, 0, num_planes, NULL);
 
-  av2_setup_block_planes(xd, cm->seq_params.subsampling_x,
-                         cm->seq_params.subsampling_y, num_planes);
+  av2_setup_block_planes(xd, cm->seq_params.seq_subsampling_x,
+                         cm->seq_params.seq_subsampling_y, num_planes);
 
   set_mi_offsets(&cm->mi_params, xd, 0, 0, 0, 0);
 }
@@ -812,7 +812,7 @@ static int denoise_and_encode(AV2_COMP *const cpi, uint8_t *const dest,
 
     if (allow_kf_filtering) {
       const double y_noise_level = av2_estimate_noise_from_single_plane(
-          frame_input->source, 0, cm->seq_params.bit_depth);
+          frame_input->source, 0, cm->seq_params.seq_bit_depth);
       apply_filtering = y_noise_level > 0;
     } else {
       apply_filtering = 0;
@@ -1036,7 +1036,7 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
     adjust_frame_rate(cpi, source->ts_start, source->ts_end);
   if (!frame_params.duplicate_existing_frame) {
     if (cpi->film_grain_table) {
-      cm->seq_params.film_grain_params_present = avm_film_grain_table_lookup(
+      cm->seq_params.seq_film_grain_params_present = avm_film_grain_table_lookup(
           cpi->film_grain_table, *time_stamp, *time_end, 0 /* =erase */,
           &cm->film_grain_params);
     }
@@ -1140,7 +1140,7 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
        cpi->gf_group.update_type[cpi->gf_group.index] ==
            KFFLT_OVERLAY_UPDATE) &&
       cm->olk_refresh_frame_flags[cm->mlayer_id] != INVALID_IDX) {
-    for (int frame = 0; frame < cm->seq_params.ref_frames; frame++) {
+    for (int frame = 0; frame < cm->seq_params.seq_ref_frames; frame++) {
       const RefCntBuffer *const buf = cm->ref_frame_map[frame];
       if (buf == NULL) continue;
       const int frame_order = cpi->oxcf.kf_cfg.sframe_dist != 0
@@ -1162,10 +1162,10 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
     // This is an OLK KF overlay. We need to clear all references except for the
     // OLK.
     int ref_flags_to_keep = 0;
-    for (int layer = 0; layer <= cm->seq_params.max_mlayer_id; layer++) {
+    for (int layer = 0; layer <= cm->seq_params.seq_max_mlayer_id; layer++) {
       ref_flags_to_keep |= cm->olk_refresh_frame_flags[cm->mlayer_id];
     }
-    for (int ref_index = 0; ref_index < cm->seq_params.ref_frames;
+    for (int ref_index = 0; ref_index < cm->seq_params.seq_ref_frames;
          ref_index++) {
       if (!((ref_flags_to_keep >> ref_index) & 1u) &&
           (cm->ref_frame_map[ref_index] == NULL ||
@@ -1198,7 +1198,7 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
         if (buf) {
           int ref_disp = (int)buf->display_order_hint;
           const int disp_diff = get_relative_dist(
-              &cm->seq_params.order_hint_info, cur_frame_disp, ref_disp);
+              &cm->seq_params.seq_order_hint_info, cur_frame_disp, ref_disp);
           if (disp_diff < 0) {
             n_future++;
             break;
@@ -1243,7 +1243,7 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
     } else {
       cm->features.tip_frame_mode = TIP_FRAME_DISABLED;
     }
-    if (cm->seq_params.enable_explicit_ref_frame_map || frame_is_sframe(cm)) {
+    if (cm->seq_params.seq_enable_explicit_ref_frame_map || frame_is_sframe(cm)) {
       av2_get_ref_frames_enc(cpi, cur_frame_disp, cm->ref_frame_map_pairs);
     } else {
       // Derive reference mapping in a resolution independent manner, to
@@ -1253,7 +1253,7 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
       // Derive the reference mapping excluding frames of invalid resolutions
       av2_get_ref_frames(cm, cur_frame_disp, 1, 0, cm->ref_frame_map_pairs);
     }
-    if (!cm->seq_params.enable_explicit_ref_frame_map && cm->bru.enabled) {
+    if (!cm->seq_params.seq_enable_explicit_ref_frame_map && cm->bru.enabled) {
       const int num_past_refs = cm->ref_frames_info.num_past_refs;
       if (cm->bru.ref_disp_order >= 0) {
         cm->bru.update_ref_idx = -1;
@@ -1287,7 +1287,7 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
       cm->cur_frame->v_ac_delta_q = cm->quant_params.v_ac_delta_q;
     }
     cm->ref_frames_info.num_same_ref_compound =
-        AVMMIN(cm->seq_params.num_same_ref_compound,
+        AVMMIN(cm->seq_params.seq_num_same_ref_compound,
                cm->ref_frames_info.num_total_refs);
     cm->cur_frame->num_ref_frames = cm->ref_frames_info.num_total_refs;
 
@@ -1310,7 +1310,7 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
         cur_frame_disp, cm->ref_frame_map_pairs);
     frame_params.fb_idx_for_overlay = INVALID_IDX;
 
-    for (int frame = 0; frame < cm->seq_params.ref_frames; frame++) {
+    for (int frame = 0; frame < cm->seq_params.seq_ref_frames; frame++) {
       const RefCntBuffer *const buf = cm->ref_frame_map[frame];
       if (buf == NULL) continue;
       const int frame_order = cpi->oxcf.kf_cfg.sframe_dist != 0
@@ -1372,16 +1372,16 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
   cpi->td.mb.delta_qindex = 0;
   if (!frame_params.duplicate_existing_frame) {
     cm->quant_params.using_qmatrix = oxcf->q_cfg.using_qm;
-    av2_set_lr_tools(cm->seq_params.lr_tools_disable_mask[0], 0, &cm->features);
-    av2_set_lr_tools(cm->seq_params.lr_tools_disable_mask[1], 1, &cm->features);
-    av2_set_lr_tools(cm->seq_params.lr_tools_disable_mask[1], 2, &cm->features);
+    av2_set_lr_tools(cm->seq_params.seq_lr_tools_disable_mask[0], 0, &cm->features);
+    av2_set_lr_tools(cm->seq_params.seq_lr_tools_disable_mask[1], 1, &cm->features);
+    av2_set_lr_tools(cm->seq_params.seq_lr_tools_disable_mask[1], 2, &cm->features);
   }
   if (cm->quant_params.using_qmatrix) {
     if (oxcf->q_cfg.using_qm && oxcf->q_cfg.user_defined_qmatrix) {
       for (int qm_id = 0; qm_id < NUM_CUSTOM_QMS; qm_id++) {
         if (cpi->use_user_defined_qm[qm_id]) {
           av2_qm_frame_update(&cm->quant_params,
-                              cm->seq_params.monochrome ? 1 : 3, qm_id,
+                              cm->seq_params.seq_monochrome ? 1 : 3, qm_id,
                               cpi->user_defined_qm_list[qm_id]);
         }
       }

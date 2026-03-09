@@ -519,8 +519,8 @@ static void enqueue_ccso_jobs(AV2CcsoSync *ccso_sync, AV2_COMMON *cm,
     int blk_log2_x = blk_log2;
     int blk_log2_y = blk_log2;
     if (plane != 0) {
-      blk_log2_x -= cm->seq_params.subsampling_x;
-      blk_log2_y -= cm->seq_params.subsampling_y;
+      blk_log2_x -= cm->seq_params.seq_subsampling_x;
+      blk_log2_y -= cm->seq_params.seq_subsampling_y;
     }
     if (cm->ccso_info.ccso_enable[plane]) {
       for (int row = 0; row < pic_height; row += inc_row) {
@@ -600,8 +600,8 @@ static INLINE void process_ccso_rows(AV2_COMMON *const cm, MACROBLOCKD *xd,
     const int y_uv_vscale = xd->plane[plane].subsampling_y;
     derive_ccso_sample_pos(src_loc, ccso_ext_stride, filter_sup);
     if (plane != 0) {
-      blk_log2_x -= cm->seq_params.subsampling_x;
-      blk_log2_y -= cm->seq_params.subsampling_y;
+      blk_log2_x -= cm->seq_params.seq_subsampling_x;
+      blk_log2_y -= cm->seq_params.seq_subsampling_y;
     }
     const int unit_log2_x = AVMMIN(proc_unit_log2, blk_log2_x);
     const int unit_log2_y = AVMMIN(proc_unit_log2, blk_log2_y);
@@ -715,7 +715,7 @@ static INLINE void process_tip_rows(
   const int unit_blk_size =
       (get_unit_bsize_for_tip_frame(
            cm->features.tip_frame_mode, cm->tip_interp_filter,
-           cm->seq_params.enable_tip_refinemv) == BLOCK_16X16)
+           cm->seq_params.seq_enable_tip_refinemv) == BLOCK_16X16)
           ? 16
           : 8;
 
@@ -805,7 +805,7 @@ void av2_setup_tip_frame_mt(AV2_COMMON *cm,
   const int unit_blk_size =
       (get_unit_bsize_for_tip_frame(
            cm->features.tip_frame_mode, cm->tip_interp_filter,
-           cm->seq_params.enable_tip_refinemv) == BLOCK_16X16)
+           cm->seq_params.seq_enable_tip_refinemv) == BLOCK_16X16)
           ? 16
           : 8;
   const int mvs_rows =
@@ -936,7 +936,7 @@ static void enqueue_lr_jobs(AV2LrSync *lr_sync, AV2LrStruct *lr_ctxt,
   for (int plane = 0; plane < num_planes; plane++) {
     if (cm->rst_info[plane].frame_restoration_type == RESTORE_NONE) continue;
     const int is_uv = plane > 0;
-    const int ss_y = is_uv && cm->seq_params.subsampling_y;
+    const int ss_y = is_uv && cm->seq_params.seq_subsampling_y;
     const int unit_size = ctxt[plane].rsi->restoration_unit_size;
 
     for (int tile_row = 0; tile_row < num_tile_rows; ++tile_row) {
@@ -1139,7 +1139,7 @@ static void foreach_rest_unit_in_planes_mt(AV2LrStruct *lr_ctxt,
     ctxt[plane].tskip_zero_flag = 0;
 
     TileInfo tile_info;
-    const int ss_y = is_uv && cm->seq_params.subsampling_y;
+    const int ss_y = is_uv && cm->seq_params.seq_subsampling_y;
     for (int tile_row = 0; tile_row < num_tile_rows; ++tile_row) {
       for (int tile_col = 0; tile_col < num_tile_cols; ++tile_col) {
         av2_tile_init(&tile_info, cm, tile_row, tile_col);
@@ -1380,7 +1380,7 @@ void av2_cdef_init_fb_row_mt(AV2_COMMON *const cm, MACROBLOCKD *const xd,
 
   fb_info->src = src;
   fb_info->damping = cm->cdef_info.cdef_damping;
-  fb_info->coeff_shift = AVMMAX(cm->seq_params.bit_depth - 8, 0);
+  fb_info->coeff_shift = AVMMAX(cm->seq_params.seq_bit_depth - 8, 0);
   av2_zero(fb_info->dir);
   av2_zero(fb_info->var);
 

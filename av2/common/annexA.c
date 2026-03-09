@@ -175,8 +175,8 @@ int av2_check_profile_interop_conformance(
     struct SequenceHeader *seq_params,
     struct avm_internal_error_info *error_info, int is_decoder) {
   const BITSTREAM_PROFILE profile = seq_params->seq_profile_idc;
-  const avm_bit_depth_t bit_depth = seq_params->bit_depth;
-  const uint8_t monochrome = seq_params->monochrome;
+  const avm_bit_depth_t bit_depth = seq_params->seq_bit_depth;
+  const uint8_t monochrome = seq_params->seq_monochrome;
   const int seq_max_mcount = seq_params->seq_max_mlayer_cnt;
 
 #if CONFIG_TESTONLY_12BIT_SUPPORT
@@ -185,7 +185,7 @@ int av2_check_profile_interop_conformance(
 
   uint32_t chroma_format_idc = CHROMA_FORMAT_420;
   avm_codec_err_t err = av2_get_chroma_format_idc(
-      seq_params->subsampling_x, seq_params->subsampling_y, monochrome,
+      seq_params->seq_subsampling_x, seq_params->seq_subsampling_y, monochrome,
       &chroma_format_idc);
   (void)err;
 

@@ -309,7 +309,7 @@ void ccso_filter_block_hbd_wo_buf_avx2(
       }
 
       // uint16_t val = clamp(offset_val + dst_rec2[xOff], 0, (1 <<
-      // cm->seq_params.bit_depth) - 1);
+      // cm->seq_params.seq_bit_depth) - 1);
       __m256i recon = _mm256_add_epi16(offset, dst_rec);
       recon = _mm256_min_epi16(recon, allmax);
       recon = _mm256_max_epi16(recon, all0);
@@ -599,7 +599,7 @@ void ccso_filter_block_hbd_with_buf_bo_only_avx2(
       __m256i offset = _mm256_loadu_si256((const __m256i *)offset_array);
 
       // uint16_t val = clamp(offset_val + dst_rec2[xOff], 0, (1 <<
-      // cm->seq_params.bit_depth) - 1);
+      // cm->seq_params.seq_bit_depth) - 1);
       __m256i recon = _mm256_add_epi16(offset, dst_rec);
       recon = _mm256_min_epi16(recon, allmax);
       recon = _mm256_max_epi16(recon, all0);
@@ -755,7 +755,7 @@ void ccso_filter_block_hbd_with_buf_avx2(
       __m256i offset = _mm256_loadu_si256((const __m256i *)offset_array);
 
       // uint16_t val = clamp(offset_val + dst_rec2[xOff], 0, (1 <<
-      // cm->seq_params.bit_depth) - 1);
+      // cm->seq_params.seq_bit_depth) - 1);
       __m256i recon = _mm256_add_epi16(offset, dst_rec);
       recon = _mm256_min_epi16(recon, allmax);
       recon = _mm256_max_epi16(recon, all0);

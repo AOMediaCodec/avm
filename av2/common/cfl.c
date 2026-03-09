@@ -74,8 +74,8 @@ void av2_cfl_init(CFL_CTX *cfl, const SequenceHeader *seq_params) {
 
   memset(&cfl->recon_buf_q3, 0, sizeof(cfl->recon_buf_q3));
   memset(&cfl->ac_buf_q3, 0, sizeof(cfl->ac_buf_q3));
-  cfl->subsampling_x = seq_params->subsampling_x;
-  cfl->subsampling_y = seq_params->subsampling_y;
+  cfl->subsampling_x = seq_params->seq_subsampling_x;
+  cfl->subsampling_y = seq_params->seq_subsampling_y;
   cfl->are_parameters_computed = 0;
   cfl->store_y = 0;
   // The DC_PRED cache is disabled by default and is only enabled in
@@ -266,7 +266,7 @@ void cfl_implicit_fetch_neighbor_luma(const AV2_COMMON *cm,
       uint16_t *input = dst - top_offset * input_stride;
       for (int i = 0; i < width; i += 2) {
         const int bot = i + bottom_offset * input_stride;
-        const int filter_type = cm->seq_params.cfl_ds_filter_index;
+        const int filter_type = cm->seq_params.seq_cfl_ds_filter_index;
         if (filter_type == 1) {
           output_q3[i >> 1] = input[AVMMAX(0, i - 1)] + 2 * input[i] +
                               input[i + 1] + input[bot + AVMMAX(-1, -i)] +
@@ -286,7 +286,7 @@ void cfl_implicit_fetch_neighbor_luma(const AV2_COMMON *cm,
     } else if (sub_x) {
       uint16_t *input = dst - input_stride;
       for (int i = 0; i < width; i += 2) {
-        const int filter_type = cm->seq_params.cfl_ds_filter_index;
+        const int filter_type = cm->seq_params.seq_cfl_ds_filter_index;
         if (filter_type == 1) {
           output_q3[i >> 1] =
               (input[AVMMAX(0, i - 1)] + 2 * input[i] + input[i + 1]) << 1;
@@ -327,7 +327,7 @@ void cfl_implicit_fetch_neighbor_luma(const AV2_COMMON *cm,
       uint16_t *input = dst - 2;
       for (int j = 0; j < height; j += 2) {
         const int bot = input_stride;
-        const int filter_type = cm->seq_params.cfl_ds_filter_index;
+        const int filter_type = cm->seq_params.seq_cfl_ds_filter_index;
         if (filter_type == 1) {
           output_q3[j >> 1] = input[-1] + 2 * input[0] + input[1] +
                               input[bot - 1] + 2 * input[bot] + input[bot + 1];
@@ -344,7 +344,7 @@ void cfl_implicit_fetch_neighbor_luma(const AV2_COMMON *cm,
     } else if (sub_x) {
       uint16_t *input = dst - 2;
       for (int j = 0; j < height; ++j) {
-        const int filter_type = cm->seq_params.cfl_ds_filter_index;
+        const int filter_type = cm->seq_params.seq_cfl_ds_filter_index;
         if (filter_type == 1) {
           output_q3[j] = (input[-1] + 2 * input[0] + input[1]) << 1;
         } else if (filter_type == 2) {

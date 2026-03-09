@@ -219,7 +219,7 @@ static AVM_INLINE int set_segment_rdmult(const AV2_COMP *const cpi,
 
   int segment_qindex =
       av2_get_qindex(&cm->seg, segment_id, cm->quant_params.base_qindex,
-                     cm->seq_params.bit_depth);
+                     cm->seq_params.seq_bit_depth);
   return av2_compute_rd_mult(cpi,
                              segment_qindex + cm->quant_params.y_dc_delta_q);
 }

@@ -850,7 +850,7 @@ static INLINE int get_q(const AV2_COMP *cpi) {
   const FRAME_TYPE frame_type =
       (cpi->common.current_frame.frame_number > 1) ? INTER_FRAME : KEY_FRAME;
   const int q = (int)av2_convert_qindex_to_q(
-      cpi->rc.avg_frame_qindex[frame_type], cpi->common.seq_params.bit_depth);
+      cpi->rc.avg_frame_qindex[frame_type], cpi->common.seq_params.seq_bit_depth);
   return q;
 }
 
@@ -1115,7 +1115,7 @@ static void tf_setup_filtering_buffer(const AV2_COMP *cpi,
   const int num_planes = av2_num_planes(&cpi->common);
   for (int plane = 0; plane < num_planes; ++plane) {
     noise_levels[plane] = av2_estimate_noise_from_single_plane(
-        to_filter_frame, plane, cpi->common.seq_params.bit_depth);
+        to_filter_frame, plane, cpi->common.seq_params.seq_bit_depth);
   }
   // Get quantization factor.
   const int q = get_q(cpi);
@@ -1306,7 +1306,7 @@ int av2_temporal_filter(AV2_COMP *cpi, const int filter_frame_lookahead_idx,
         cpi->oxcf.frm_dim_cfg.height, group_idx, &bottom_index, &top_index);
 
     const int ac_q = ROUND_POWER_OF_TWO(
-        av2_ac_quant_QTX(q, 0, 0, cpi->common.seq_params.bit_depth),
+        av2_ac_quant_QTX(q, 0, 0, cpi->common.seq_params.seq_bit_depth),
         QUANT_TABLE_BITS);
 
     const float threshold = 0.7f * ac_q * ac_q;

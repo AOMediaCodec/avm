@@ -645,14 +645,14 @@ void InspectTipFrame(void *pbi, void *data) {
   StreamParams *stream_params = ctx->stream_params;
   Frame frame;
   *frame.mutable_stream_params() = *stream_params;
-  const int bit_depth = cm->seq_params.bit_depth;
+  const int bit_depth = cm->seq_params.seq_bit_depth;
   if (ctx->orig_yuv_bit_depth == -1) {
     ctx->orig_yuv_bit_depth = bit_depth;
   }
   const size_t frame_width = cm->width;
   const size_t frame_height = cm->height;
-  const int subsampling_x = cm->seq_params.subsampling_x;
-  const int subsampling_y = cm->seq_params.subsampling_y;
+  const int subsampling_x = cm->seq_params.seq_subsampling_x;
+  const int subsampling_y = cm->seq_params.seq_subsampling_y;
   YuvFrameSizeInfo frame_size_info =
       GetYuvFrameSizeInfo(ctx->orig_yuv_bit_depth, frame_width, frame_height,
                           subsampling_x, subsampling_y);
@@ -719,8 +719,8 @@ void InspectFrame(void *pbi, void *data) {
   *frame.mutable_stream_params() = *stream_params;
   const size_t frame_width = frame_data.width;
   const size_t frame_height = frame_data.height;
-  const int subsampling_x = cm->seq_params.subsampling_x;
-  const int subsampling_y = cm->seq_params.subsampling_y;
+  const int subsampling_x = cm->seq_params.seq_subsampling_x;
+  const int subsampling_y = cm->seq_params.seq_subsampling_y;
   YuvFrameSizeInfo frame_size_info =
       GetYuvFrameSizeInfo(ctx->orig_yuv_bit_depth, frame_width, frame_height,
                           subsampling_x, subsampling_y);

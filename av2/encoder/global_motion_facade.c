@@ -92,7 +92,7 @@ static AVM_INLINE void compute_global_motion_for_ref_frame(
 
   avm_clear_system_state();
 
-  int bit_depth = cpi->common.seq_params.bit_depth;
+  int bit_depth = cpi->common.seq_params.seq_bit_depth;
   GlobalMotionMethod global_motion_method = default_global_motion_method;
   int downsample_level = cpi->sf.gm_sf.downsample_level;
   int num_refinements = cpi->sf.gm_sf.num_refinement_steps;
@@ -432,7 +432,7 @@ static AVM_INLINE void pick_base_gm_params(AV2_COMP *cpi) {
       const int our_ref_order_hint = buf->display_order_hint;
       const int their_ref_order_hint = buf->ref_display_order_hint[their_ref];
       int base_temporal_distance =
-          get_relative_dist(&seq_params->order_hint_info, our_ref_order_hint,
+          get_relative_dist(&seq_params->seq_order_hint_info, our_ref_order_hint,
                             their_ref_order_hint);
 
       int this_num_models = 0;
@@ -450,7 +450,7 @@ static AVM_INLINE void pick_base_gm_params(AV2_COMP *cpi) {
         const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, frame);
         const int ref_order_hint = ref_buf->display_order_hint;
         const int cur_order_hint = cm->cur_frame->display_order_hint;
-        temporal_distance = get_relative_dist(&seq_params->order_hint_info,
+        temporal_distance = get_relative_dist(&seq_params->seq_order_hint_info,
                                               cur_order_hint, ref_order_hint);
 
         if (temporal_distance == 0) {

@@ -468,22 +468,22 @@ static void set_bitstream_level_tier(AV2_COMP *cpi, AV2_COMMON *cm, int width,
     cpi->level_idx[i] = level;
     // Set the maximum parameters for bitrate and buffer size for this profile,
     // level, and tier
-    seq_params->op_params[i].bitrate = av2_max_level_bitrate(
+    seq_params->seq_op_params[i].bitrate = av2_max_level_bitrate(
         cm->seq_params.seq_profile_idc, cpi->level_idx[i], cpi->tier[i]
 #if CONFIG_AV2_PROFILES
         ,
-        cm->seq_params.subsampling_x, cm->seq_params.subsampling_y,
-        cm->seq_params.monochrome
+        cm->seq_params.seq_subsampling_x, cm->seq_params.seq_subsampling_y,
+        cm->seq_params.seq_monochrome
 #endif  // CONFIG_AV2_PROFILES
     );
     // Level with seq_level_idx = 31 returns a high "dummy" bitrate to pass the
     // check
-    if (seq_params->op_params[i].bitrate == 0)
+    if (seq_params->seq_op_params[i].bitrate == 0)
       avm_internal_error(
           &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
           "AV2 does not support this combination of profile, level, and tier.");
     // Buffer size in bits/s is bitrate in bits/s * 1 s
-    seq_params->op_params[i].buffer_size = seq_params->op_params[i].bitrate;
+    seq_params->seq_op_params[i].buffer_size = seq_params->seq_op_params[i].bitrate;
   }
 }
 
@@ -492,109 +492,109 @@ void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
   const FrameDimensionCfg *const frm_dim_cfg = &oxcf->frm_dim_cfg;
   const ToolCfg *const tool_cfg = &oxcf->tool_cfg;
 
-  seq->still_picture =
+  seq->seq_still_picture =
       (tool_cfg->force_video_mode == 0) && (oxcf->input_cfg.limit == 1);
-  seq->single_picture_header_flag = seq->still_picture;
-  seq->single_picture_header_flag &= !tool_cfg->full_still_picture_hdr;
-  seq->force_screen_content_tools = 2;
-  seq->force_integer_mv = 2;
-  if (seq->still_picture && seq->single_picture_header_flag) {
-    seq->force_screen_content_tools = 2;
-    seq->force_integer_mv = 2;
+  seq->seq_single_picture_header_flag = seq->seq_still_picture;
+  seq->seq_single_picture_header_flag &= !tool_cfg->full_still_picture_hdr;
+  seq->seq_force_screen_content_tools = 2;
+  seq->seq_force_integer_mv = 2;
+  if (seq->seq_still_picture && seq->seq_single_picture_header_flag) {
+    seq->seq_force_screen_content_tools = 2;
+    seq->seq_force_integer_mv = 2;
   }
   if (oxcf->kf_cfg.key_freq_min == 9999 && oxcf->kf_cfg.key_freq_max == 9999 &&
       oxcf->kf_cfg.sframe_mode != 0)
-    seq->order_hint_info.order_hint_bits_minus_1 =
+    seq->seq_order_hint_info.order_hint_bits_minus_1 =
         DEFAULT_EXPLICIT_ORDER_HINT_BITS - 4;
   else if (oxcf->kf_cfg.key_freq_min == 65 && oxcf->kf_cfg.key_freq_max == 65)
-    seq->order_hint_info.order_hint_bits_minus_1 =
+    seq->seq_order_hint_info.order_hint_bits_minus_1 =
         DEFAULT_EXPLICIT_ORDER_HINT_BITS - 1;  // 7
   else if (oxcf->kf_cfg.key_freq_min == 0 && oxcf->kf_cfg.key_freq_max == 0)
-    seq->order_hint_info.order_hint_bits_minus_1 = 0;  // 1 bit
+    seq->seq_order_hint_info.order_hint_bits_minus_1 = 0;  // 1 bit
   else
-    seq->order_hint_info.order_hint_bits_minus_1 =
+    seq->seq_order_hint_info.order_hint_bits_minus_1 =
         DEFAULT_EXPLICIT_ORDER_HINT_BITS - 1;
-  seq->enable_bru = seq->single_picture_header_flag ? 0 : tool_cfg->enable_bru;
-  seq->enable_explicit_ref_frame_map =
-      seq->single_picture_header_flag
+  seq->seq_enable_bru = seq->seq_single_picture_header_flag ? 0 : tool_cfg->enable_bru;
+  seq->seq_enable_explicit_ref_frame_map =
+      seq->seq_single_picture_header_flag
           ? 0
           : oxcf->ref_frm_cfg.explicit_ref_frame_map;
   if (oxcf->tool_cfg.max_drl_refmvs == 0) {
-    seq->def_max_drl_bits = DEF_MAX_DRL_REFMVS - 1;
+    seq->seq_def_max_drl_bits = DEF_MAX_DRL_REFMVS - 1;
   } else {
-    seq->def_max_drl_bits = oxcf->tool_cfg.max_drl_refmvs - 1;
+    seq->seq_def_max_drl_bits = oxcf->tool_cfg.max_drl_refmvs - 1;
   }
   // Disable frame by frame update for now. Can be changed later.
-  seq->allow_frame_max_drl_bits = 0;
-  if (seq->single_picture_header_flag) {
-    seq->def_max_drl_bits = MIN_MAX_DRL_BITS;
-    seq->allow_frame_max_drl_bits = 0;
+  seq->seq_allow_frame_max_drl_bits = 0;
+  if (seq->seq_single_picture_header_flag) {
+    seq->seq_def_max_drl_bits = MIN_MAX_DRL_BITS;
+    seq->seq_allow_frame_max_drl_bits = 0;
   }
   if (oxcf->tool_cfg.max_drl_refbvs == 0) {
-    seq->def_max_bvp_drl_bits = DEF_MAX_DRL_REFBVS - 1;
+    seq->seq_def_max_bvp_drl_bits = DEF_MAX_DRL_REFBVS - 1;
   } else {
-    seq->def_max_bvp_drl_bits = oxcf->tool_cfg.max_drl_refbvs - 1;
+    seq->seq_def_max_bvp_drl_bits = oxcf->tool_cfg.max_drl_refbvs - 1;
   }
   // Disable frame by frame update for now. Can be changed later.
-  seq->allow_frame_max_bvp_drl_bits = 0;
-  seq->num_same_ref_compound =
-      seq->single_picture_header_flag ? 0 : SAME_REF_COMPOUND_PRUNE;
+  seq->seq_allow_frame_max_bvp_drl_bits = 0;
+  seq->seq_num_same_ref_compound =
+      seq->seq_single_picture_header_flag ? 0 : SAME_REF_COMPOUND_PRUNE;
 
-  seq->max_frame_width = frm_dim_cfg->forced_max_frame_width
+  seq->seq_max_frame_width = frm_dim_cfg->forced_max_frame_width
                              ? frm_dim_cfg->forced_max_frame_width
                              : frm_dim_cfg->width;
-  seq->max_frame_height = frm_dim_cfg->forced_max_frame_height
+  seq->seq_max_frame_height = frm_dim_cfg->forced_max_frame_height
                               ? frm_dim_cfg->forced_max_frame_height
                               : frm_dim_cfg->height;
-  seq->tile_params.allow_tile_info_change = 0;
-  if (!seq->still_picture && oxcf->kf_cfg.key_freq_max > 0) {
+  seq->seq_tile_params.allow_tile_info_change = 0;
+  if (!seq->seq_still_picture && oxcf->kf_cfg.key_freq_max > 0) {
     av2_set_seq_tile_info(seq, oxcf);
     seq->seq_tile_info_present_flag = 1;
   } else {
     seq->seq_tile_info_present_flag = 0;
   }
 
-  seq->seg_params.allow_seg_info_change = 1;
-  if (!seq->still_picture && oxcf->kf_cfg.key_freq_max > 0) {
+  seq->seq_seg_params.allow_seg_info_change = 1;
+  if (!seq->seq_still_picture && oxcf->kf_cfg.key_freq_max > 0) {
     seq->seq_seg_info_present_flag = 1;
   } else {
     // For image coding turn seq level seg features off
     seq->seq_seg_info_present_flag = 0;
   }
 
-  seq->num_bits_width =
-      (seq->max_frame_width > 1) ? get_msb(seq->max_frame_width - 1) + 1 : 1;
-  seq->num_bits_height =
-      (seq->max_frame_height > 1) ? get_msb(seq->max_frame_height - 1) + 1 : 1;
-  assert(seq->num_bits_width <= 16);
-  assert(seq->num_bits_height <= 16);
+  seq->seq_num_bits_width =
+      (seq->seq_max_frame_width > 1) ? get_msb(seq->seq_max_frame_width - 1) + 1 : 1;
+  seq->seq_num_bits_height =
+      (seq->seq_max_frame_height > 1) ? get_msb(seq->seq_max_frame_height - 1) + 1 : 1;
+  assert(seq->seq_num_bits_width <= 16);
+  assert(seq->seq_num_bits_height <= 16);
 
-  seq->order_hint_info.enable_ref_frame_mvs = tool_cfg->ref_frame_mvs_present;
-  seq->order_hint_info.reduced_ref_frame_mvs_mode =
+  seq->seq_order_hint_info.enable_ref_frame_mvs = tool_cfg->ref_frame_mvs_present;
+  seq->seq_order_hint_info.reduced_ref_frame_mvs_mode =
       tool_cfg->reduced_ref_frame_mvs_mode;
-  seq->disable_loopfilters_across_tiles =
+  seq->seq_disable_loopfilters_across_tiles =
       tool_cfg->disable_loopfilters_across_tiles;
-  seq->enable_cdef = tool_cfg->enable_cdef;
-  seq->enable_gdf = tool_cfg->enable_gdf;
-  seq->gdf_unit_matches_sb_size = tool_cfg->gdf_unit_matches_sb;
-  seq->enable_restoration = tool_cfg->enable_restoration;
-  seq->enable_ccso = tool_cfg->enable_ccso;
-  seq->ccso_unit_matches_sb_size = tool_cfg->ccso_unit_matches_sb;
-  seq->enable_lf_sub_pu =
-      seq->single_picture_header_flag ? 0 : tool_cfg->enable_lf_sub_pu;
-  seq->enable_opfl_refine = seq->single_picture_header_flag
+  seq->seq_enable_cdef = tool_cfg->enable_cdef;
+  seq->seq_enable_gdf = tool_cfg->enable_gdf;
+  seq->seq_gdf_unit_matches_sb_size = tool_cfg->gdf_unit_matches_sb;
+  seq->seq_enable_restoration = tool_cfg->enable_restoration;
+  seq->seq_enable_ccso = tool_cfg->enable_ccso;
+  seq->seq_ccso_unit_matches_sb_size = tool_cfg->ccso_unit_matches_sb;
+  seq->seq_enable_lf_sub_pu =
+      seq->seq_single_picture_header_flag ? 0 : tool_cfg->enable_lf_sub_pu;
+  seq->seq_enable_opfl_refine = seq->seq_single_picture_header_flag
                                 ? AVM_OPFL_REFINE_NONE
                                 : tool_cfg->enable_opfl_refine;
-  seq->enable_tip = seq->single_picture_header_flag ? 0 : tool_cfg->enable_tip;
-  seq->enable_tip_refinemv = tool_cfg->enable_tip_refinemv;
-  seq->enable_tip_hole_fill = seq->enable_tip != 0;
-  seq->enable_tip_explicit_qp = 0;
-  seq->enable_mv_traj =
-      seq->single_picture_header_flag ? 0 : tool_cfg->enable_mv_traj;
-  seq->enable_bawp = tool_cfg->enable_bawp;
-  seq->enable_cwp = seq->single_picture_header_flag ? 0 : tool_cfg->enable_cwp;
-  seq->enable_imp_msk_bld =
-      seq->single_picture_header_flag ? 0 : tool_cfg->enable_imp_msk_bld;
+  seq->seq_enable_tip = seq->seq_single_picture_header_flag ? 0 : tool_cfg->enable_tip;
+  seq->seq_enable_tip_refinemv = tool_cfg->enable_tip_refinemv;
+  seq->seq_enable_tip_hole_fill = seq->seq_enable_tip != 0;
+  seq->seq_enable_tip_explicit_qp = 0;
+  seq->seq_enable_mv_traj =
+      seq->seq_single_picture_header_flag ? 0 : tool_cfg->enable_mv_traj;
+  seq->seq_enable_bawp = tool_cfg->enable_bawp;
+  seq->seq_enable_cwp = seq->seq_single_picture_header_flag ? 0 : tool_cfg->enable_cwp;
+  seq->seq_enable_imp_msk_bld =
+      seq->seq_single_picture_header_flag ? 0 : tool_cfg->enable_imp_msk_bld;
   seq->seq_enabled_motion_modes =
       oxcf->motion_mode_cfg.seq_enabled_motion_modes;
 
@@ -602,50 +602,50 @@ void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
       (seq->seq_enabled_motion_modes & (1 << WARP_DELTA)) != 0 ? 1 : 0;
   ;
   seq->seq_frame_motion_modes_present_flag = 0;  // in CTC set that flag to 0
-  seq->enable_six_param_warp_delta =
+  seq->seq_enable_six_param_warp_delta =
       warp_delta_enabled ? oxcf->motion_mode_cfg.enable_six_param_warp_delta
                          : 0;
 
-  seq->enable_ext_partitions = oxcf->part_cfg.enable_ext_partitions;
-  seq->enable_uneven_4way_partitions =
+  seq->seq_enable_ext_partitions = oxcf->part_cfg.enable_ext_partitions;
+  seq->seq_enable_uneven_4way_partitions =
       oxcf->part_cfg.enable_uneven_4way_partitions;
   const int max_ratio = oxcf->part_cfg.max_partition_aspect_ratio;
-  seq->max_pb_aspect_ratio_log2_m1 =
+  seq->seq_max_pb_aspect_ratio_log2_m1 =
       max_ratio == 2 ? 0 : (max_ratio == 4 ? 1 : 2);
-  seq->enable_masked_compound = oxcf->comp_type_cfg.enable_masked_comp;
-  seq->enable_intra_edge_filter = oxcf->intra_mode_cfg.enable_intra_edge_filter;
-  seq->enable_intra_dip = oxcf->intra_mode_cfg.enable_intra_dip;
+  seq->seq_enable_masked_compound = oxcf->comp_type_cfg.enable_masked_comp;
+  seq->seq_enable_intra_edge_filter = oxcf->intra_mode_cfg.enable_intra_edge_filter;
+  seq->seq_enable_intra_dip = oxcf->intra_mode_cfg.enable_intra_dip;
 
-  seq->enable_sdp = oxcf->part_cfg.enable_sdp;
-  seq->enable_extended_sdp =
-      seq->single_picture_header_flag ? 0 : oxcf->part_cfg.enable_extended_sdp;
-  seq->enable_mrls = oxcf->intra_mode_cfg.enable_mrls;
-  seq->enable_fsc = oxcf->intra_mode_cfg.enable_fsc;
-  if (!seq->enable_fsc) {
-    seq->enable_idtx_intra = oxcf->intra_mode_cfg.enable_idtx_intra;
+  seq->seq_enable_sdp = oxcf->part_cfg.enable_sdp;
+  seq->seq_enable_extended_sdp =
+      seq->seq_single_picture_header_flag ? 0 : oxcf->part_cfg.enable_extended_sdp;
+  seq->seq_enable_mrls = oxcf->intra_mode_cfg.enable_mrls;
+  seq->seq_enable_fsc = oxcf->intra_mode_cfg.enable_fsc;
+  if (!seq->seq_enable_fsc) {
+    seq->seq_enable_idtx_intra = oxcf->intra_mode_cfg.enable_idtx_intra;
   } else {
-    seq->enable_idtx_intra = 1;
+    seq->seq_enable_idtx_intra = 1;
   }
-  seq->enable_ist = oxcf->txfm_cfg.enable_ist;
-  seq->enable_inter_ist = oxcf->txfm_cfg.enable_inter_ist;
-  seq->enable_chroma_dctonly = oxcf->txfm_cfg.enable_chroma_dctonly;
-  seq->enable_cfl_intra = oxcf->intra_mode_cfg.enable_cfl_intra;
-  seq->enable_mhccp = oxcf->intra_mode_cfg.enable_mhccp;
-  seq->enable_inter_ddt =
-      seq->single_picture_header_flag ? 0 : oxcf->txfm_cfg.enable_inter_ddt;
-  seq->reduced_tx_part_set = oxcf->txfm_cfg.reduced_tx_part_set;
-  seq->enable_cctx = oxcf->txfm_cfg.enable_cctx;
-  seq->enable_ibp = oxcf->intra_mode_cfg.enable_ibp;
-  seq->enable_adaptive_mvd =
-      seq->single_picture_header_flag ? 0 : tool_cfg->enable_adaptive_mvd;
-  seq->enable_flex_mvres =
-      seq->single_picture_header_flag ? 0 : tool_cfg->enable_flex_mvres;
-  seq->cfl_ds_filter_index = tool_cfg->select_cfl_ds_filter;
-  seq->enable_joint_mvd = tool_cfg->enable_joint_mvd;
-  seq->enable_refinemv =
-      seq->single_picture_header_flag ? 0 : tool_cfg->enable_refinemv;
-  seq->enable_mvd_sign_derive =
-      seq->single_picture_header_flag ? 0 : tool_cfg->enable_mvd_sign_derive;
+  seq->seq_enable_ist = oxcf->txfm_cfg.enable_ist;
+  seq->seq_enable_inter_ist = oxcf->txfm_cfg.enable_inter_ist;
+  seq->seq_enable_chroma_dctonly = oxcf->txfm_cfg.enable_chroma_dctonly;
+  seq->seq_enable_cfl_intra = oxcf->intra_mode_cfg.enable_cfl_intra;
+  seq->seq_enable_mhccp = oxcf->intra_mode_cfg.enable_mhccp;
+  seq->seq_enable_inter_ddt =
+      seq->seq_single_picture_header_flag ? 0 : oxcf->txfm_cfg.enable_inter_ddt;
+  seq->seq_reduced_tx_part_set = oxcf->txfm_cfg.reduced_tx_part_set;
+  seq->seq_enable_cctx = oxcf->txfm_cfg.enable_cctx;
+  seq->seq_enable_ibp = oxcf->intra_mode_cfg.enable_ibp;
+  seq->seq_enable_adaptive_mvd =
+      seq->seq_single_picture_header_flag ? 0 : tool_cfg->enable_adaptive_mvd;
+  seq->seq_enable_flex_mvres =
+      seq->seq_single_picture_header_flag ? 0 : tool_cfg->enable_flex_mvres;
+  seq->seq_cfl_ds_filter_index = tool_cfg->select_cfl_ds_filter;
+  seq->seq_enable_joint_mvd = tool_cfg->enable_joint_mvd;
+  seq->seq_enable_refinemv =
+      seq->seq_single_picture_header_flag ? 0 : tool_cfg->enable_refinemv;
+  seq->seq_enable_mvd_sign_derive =
+      seq->seq_single_picture_header_flag ? 0 : tool_cfg->enable_mvd_sign_derive;
 
   set_bitstream_level_tier(cpi, cm, frm_dim_cfg->width, frm_dim_cfg->height,
                            oxcf->input_cfg.init_framerate
@@ -657,19 +657,19 @@ void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
 
   seq->seq_max_level_idx = cpi->level_idx[0];
 
-  if (seq->operating_points_cnt_minus_1 == 0) {
-    seq->operating_point_idc[0] = 0;
+  if (seq->seq_operating_points_cnt_minus_1 == 0) {
+    seq->seq_operating_point_idc[0] = 0;
   } else {
     // Set operating_point_idc[] such that the i=0 point corresponds to the
     // highest quality operating point (all layers), and subsequent
     // operarting points (i > 0) are lower quality corresponding to
     // skip decoding enhancement  layers (temporal first).
     int i = 0;
-    assert(seq->operating_points_cnt_minus_1 ==
+    assert(seq->seq_operating_points_cnt_minus_1 ==
            (int)(cm->number_mlayers * cm->number_tlayers - 1));
     for (unsigned int sl = 0; sl < cm->number_mlayers; sl++) {
       for (unsigned int tl = 0; tl < cm->number_tlayers; tl++) {
-        seq->operating_point_idc[i] =
+        seq->seq_operating_point_idc[i] =
             (~(~0u << (cm->number_mlayers - sl)) << MAX_NUM_TLAYERS) |
             ~(~0u << (cm->number_tlayers - tl));
         i++;
@@ -678,10 +678,10 @@ void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
   }
 
   // layer dependency information
-  seq->max_tlayer_id = cm->number_tlayers - 1;
-  seq->max_mlayer_id = cm->number_mlayers - 1;
-  seq->tlayer_dependency_present_flag = 0;
-  seq->mlayer_dependency_present_flag = 0;
+  seq->seq_max_tlayer_id = cm->number_tlayers - 1;
+  seq->seq_max_mlayer_id = cm->number_mlayers - 1;
+  seq->seq_tlayer_dependency_present_flag = 0;
+  seq->seq_mlayer_dependency_present_flag = 0;
   setup_default_temporal_layer_dependency_structure(seq);
   setup_default_embedded_layer_dependency_structure(seq);
 #if CONFIG_AV2_PROFILES
@@ -689,93 +689,93 @@ void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
 #endif  // CONFIG_AV2_PROFILES
 
   // delta_q
-  seq->base_y_dc_delta_q = 0;
-  seq->base_uv_dc_delta_q = 0;
+  seq->seq_base_y_dc_delta_q = 0;
+  seq->seq_base_uv_dc_delta_q = 0;
   // Note if equal_ac_dc_q is on, then:
-  // seq->y_dc_delta_q_enabled == 0
-  // seq->uv_dc_delta_q_enabled == 0
-  // seq->base_uv_dc_delta_q == seq->base_uv_ac_delta_q
-  seq->equal_ac_dc_q = 1;
+  // seq->seq_y_dc_delta_q_enabled == 0
+  // seq->seq_uv_dc_delta_q_enabled == 0
+  // seq->seq_base_uv_dc_delta_q == seq->seq_base_uv_ac_delta_q
+  seq->seq_equal_ac_dc_q = 1;
 
-  seq->base_uv_ac_delta_q = 0;
-  seq->y_dc_delta_q_enabled = 0;
-  seq->uv_dc_delta_q_enabled = 0;
-  seq->uv_ac_delta_q_enabled = 0;
+  seq->seq_base_uv_ac_delta_q = 0;
+  seq->seq_y_dc_delta_q_enabled = 0;
+  seq->seq_uv_dc_delta_q_enabled = 0;
+  seq->seq_uv_ac_delta_q_enabled = 0;
   const int is_360p_or_larger =
-      AVMMIN(seq->max_frame_width, seq->max_frame_height) >= 360;
+      AVMMIN(seq->seq_max_frame_width, seq->seq_max_frame_height) >= 360;
   const int is_720p_or_larger =
-      AVMMIN(seq->max_frame_width, seq->max_frame_height) >= 720;
+      AVMMIN(seq->seq_max_frame_width, seq->seq_max_frame_height) >= 720;
   if (!is_360p_or_larger) {
-    seq->base_y_dc_delta_q = 0;
-    seq->base_uv_dc_delta_q = 0;
-    seq->base_uv_ac_delta_q = 0;
+    seq->seq_base_y_dc_delta_q = 0;
+    seq->seq_base_uv_dc_delta_q = 0;
+    seq->seq_base_uv_ac_delta_q = 0;
   } else if (!is_720p_or_larger) {
-    seq->base_y_dc_delta_q = 0;
-    seq->base_uv_dc_delta_q = 0;
-    seq->base_uv_ac_delta_q = 0;
+    seq->seq_base_y_dc_delta_q = 0;
+    seq->seq_base_uv_dc_delta_q = 0;
+    seq->seq_base_uv_ac_delta_q = 0;
   } else {
-    seq->base_y_dc_delta_q = 0;
-    seq->base_uv_dc_delta_q = 0;
-    seq->base_uv_ac_delta_q = 0;
+    seq->seq_base_y_dc_delta_q = 0;
+    seq->seq_base_uv_dc_delta_q = 0;
+    seq->seq_base_uv_ac_delta_q = 0;
   }
-  assert(IMPLIES(seq->equal_ac_dc_q, seq->y_dc_delta_q_enabled == 0 &&
-                                         seq->base_y_dc_delta_q == 0));
-  assert(IMPLIES(seq->equal_ac_dc_q,
-                 seq->uv_dc_delta_q_enabled == 0 &&
-                     seq->base_uv_dc_delta_q == seq->base_uv_ac_delta_q));
+  assert(IMPLIES(seq->seq_equal_ac_dc_q, seq->seq_y_dc_delta_q_enabled == 0 &&
+                                         seq->seq_base_y_dc_delta_q == 0));
+  assert(IMPLIES(seq->seq_equal_ac_dc_q,
+                 seq->seq_uv_dc_delta_q_enabled == 0 &&
+                     seq->seq_base_uv_dc_delta_q == seq->seq_base_uv_ac_delta_q));
 
-  seq->enable_refmvbank = tool_cfg->enable_refmvbank;
-  seq->enable_drl_reorder = tool_cfg->enable_drl_reorder;
+  seq->seq_enable_refmvbank = tool_cfg->enable_refmvbank;
+  seq->seq_enable_drl_reorder = tool_cfg->enable_drl_reorder;
 
-  seq->conf.conf_win_enabled_flag = oxcf->tool_cfg.enable_cropping_window;
-  if (seq->conf.conf_win_enabled_flag) {
-    seq->conf.conf_win_left_offset = oxcf->tool_cfg.crop_win_left_offset;
-    seq->conf.conf_win_top_offset = oxcf->tool_cfg.crop_win_top_offset;
-    seq->conf.conf_win_right_offset = oxcf->tool_cfg.crop_win_right_offset;
-    seq->conf.conf_win_bottom_offset = oxcf->tool_cfg.crop_win_bottom_offset;
+  seq->seq_conf.conf_win_enabled_flag = oxcf->tool_cfg.enable_cropping_window;
+  if (seq->seq_conf.conf_win_enabled_flag) {
+    seq->seq_conf.conf_win_left_offset = oxcf->tool_cfg.crop_win_left_offset;
+    seq->seq_conf.conf_win_top_offset = oxcf->tool_cfg.crop_win_top_offset;
+    seq->seq_conf.conf_win_right_offset = oxcf->tool_cfg.crop_win_right_offset;
+    seq->seq_conf.conf_win_bottom_offset = oxcf->tool_cfg.crop_win_bottom_offset;
   } else {
-    seq->conf.conf_win_left_offset = 0;
-    seq->conf.conf_win_top_offset = 0;
-    seq->conf.conf_win_right_offset = 0;
-    seq->conf.conf_win_bottom_offset = 0;
+    seq->seq_conf.conf_win_left_offset = 0;
+    seq->seq_conf.conf_win_top_offset = 0;
+    seq->seq_conf.conf_win_right_offset = 0;
+    seq->seq_conf.conf_win_bottom_offset = 0;
   }
 
-  seq->enable_cdef_on_skip_txfm = seq->single_picture_header_flag
+  seq->seq_enable_cdef_on_skip_txfm = seq->seq_single_picture_header_flag
                                       ? CDEF_ON_SKIP_TXFM_ADAPTIVE
                                       : tool_cfg->enable_cdef_on_skip_txfm;
-  // If seq->single_picture_header_flag is equal to 1, setting both
+  // If seq->seq_single_picture_header_flag is equal to 1, setting both
   // enable_avg_cdf and avg_cdf_type to 1 allows us to omit the
   // context_update_tile_id syntax element in tile_info(), which is part of
   // uncompressed_header().
-  seq->enable_avg_cdf =
-      seq->single_picture_header_flag ? 1 : tool_cfg->enable_avg_cdf;
-  seq->avg_cdf_type =
-      seq->single_picture_header_flag ? 1 : tool_cfg->avg_cdf_type;
-  seq->enable_tcq =
+  seq->seq_enable_avg_cdf =
+      seq->seq_single_picture_header_flag ? 1 : tool_cfg->enable_avg_cdf;
+  seq->seq_avg_cdf_type =
+      seq->seq_single_picture_header_flag ? 1 : tool_cfg->avg_cdf_type;
+  seq->seq_enable_tcq =
       is_lossless_requested(&oxcf->rc_cfg) ? 0 : tool_cfg->enable_tcq;
-  if (seq->enable_tcq != TCQ_DISABLE && seq->single_picture_header_flag) {
-    seq->enable_tcq = TCQ_8ST;
+  if (seq->seq_enable_tcq != TCQ_DISABLE && seq->seq_single_picture_header_flag) {
+    seq->seq_enable_tcq = TCQ_8ST;
   }
-  if (seq->enable_tcq == TCQ_DISABLE || seq->enable_tcq >= TCQ_8ST_FR) {
-    seq->enable_parity_hiding = is_lossless_requested(&oxcf->rc_cfg)
+  if (seq->seq_enable_tcq == TCQ_DISABLE || seq->seq_enable_tcq >= TCQ_8ST_FR) {
+    seq->seq_enable_parity_hiding = is_lossless_requested(&oxcf->rc_cfg)
                                     ? 0
                                     : tool_cfg->enable_parity_hiding;
   } else {
-    seq->enable_parity_hiding = 0;
+    seq->seq_enable_parity_hiding = 0;
   }
   // TODO(rachelbarker): Check if cpi->sf.gm_sf.gm_search_type is set by this
   // point, and set to 0 if cpi->sf.gm_sf.gm_search_type == GM_DISABLE_SEARCH
   // if possible
-  seq->enable_global_motion =
-      tool_cfg->enable_global_motion && !seq->single_picture_header_flag;
-  seq->enable_short_refresh_frame_flags =
-      seq->single_picture_header_flag
+  seq->seq_enable_global_motion =
+      tool_cfg->enable_global_motion && !seq->seq_single_picture_header_flag;
+  seq->seq_enable_short_refresh_frame_flags =
+      seq->seq_single_picture_header_flag
           ? 0
           : tool_cfg->enable_short_refresh_frame_flags;
-  seq->number_of_bits_for_lt_frame_id = seq->single_picture_header_flag ? 0 : 3;
-  seq->enable_ext_seg = tool_cfg->enable_ext_seg;
-  seq->ref_frames = seq->single_picture_header_flag ? 2 : tool_cfg->dpb_size;
-  seq->ref_frames_log2 = avm_ceil_log2(seq->ref_frames);
+  seq->seq_number_of_bits_for_lt_frame_id = seq->seq_single_picture_header_flag ? 0 : 3;
+  seq->seq_enable_ext_seg = tool_cfg->enable_ext_seg;
+  seq->seq_ref_frames = seq->seq_single_picture_header_flag ? 2 : tool_cfg->dpb_size;
+  seq->seq_ref_frames_log2 = avm_ceil_log2(seq->seq_ref_frames);
 }
 
 static void set_content_interpreation_params(struct AV2_COMP *cpi,
@@ -1039,31 +1039,31 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
   }
 
   seq_params->seq_profile_idc = oxcf->profile;
-  seq_params->bit_depth = oxcf->tool_cfg.bit_depth;
-  seq_params->monochrome = oxcf->tool_cfg.enable_monochrome;
-  seq_params->display_model_info_present_flag =
+  seq_params->seq_bit_depth = oxcf->tool_cfg.bit_depth;
+  seq_params->seq_monochrome = oxcf->tool_cfg.enable_monochrome;
+  seq_params->seq_display_model_info_present_flag =
       dec_model_cfg->display_model_info_present_flag;
-  seq_params->decoder_model_info_present_flag =
+  seq_params->seq_decoder_model_info_present_flag =
       dec_model_cfg->decoder_model_info_present_flag;
   if (dec_model_cfg->decoder_model_info_present_flag) {
     // set the decoder model parameters in schedule mode
-    seq_params->decoder_model_info.num_units_in_decoding_tick =
+    seq_params->seq_decoder_model_info.num_units_in_decoding_tick =
         dec_model_cfg->num_units_in_decoding_tick;
-    av2_set_avm_dec_model_info(&seq_params->decoder_model_info);
-    av2_set_dec_model_op_parameters(&seq_params->op_params[0]);
+    av2_set_avm_dec_model_info(&seq_params->seq_decoder_model_info);
+    av2_set_dec_model_op_parameters(&seq_params->seq_op_params[0]);
   } else if (dec_model_cfg->timing_info_present &&
              dec_model_cfg->timing_info.equal_elemental_interval &&
              !dec_model_cfg->decoder_model_info_present_flag) {
     // set the decoder model parameters in resource availability mode
-    av2_set_resource_availability_parameters(&seq_params->op_params[0]);
+    av2_set_resource_availability_parameters(&seq_params->seq_op_params[0]);
   } else {
-    seq_params->op_params[0].initial_display_delay =
+    seq_params->seq_op_params[0].initial_display_delay =
         10;  // Default value (not signaled)
   }
 
   seq_params->seq_max_display_model_info_present_flag = 0;
   seq_params->seq_max_initial_display_delay_minus_1 = 0;
-  if (seq_params->decoder_model_info_present_flag) {
+  if (seq_params->seq_decoder_model_info_present_flag) {
     seq_params->seq_max_decoder_model_present_flag = 0;
     if (seq_params->seq_max_decoder_model_present_flag) {
       seq_params->seq_max_decoder_buffer_delay = 0;
@@ -1075,29 +1075,29 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
   seq_params->seq_extension_present_flag = 0;
 #endif  // CONFIG_F414_OBU_EXTENSION
 
-  if (seq_params->monochrome) {
-    seq_params->subsampling_x = 1;
-    seq_params->subsampling_y = 1;
+  if (seq_params->seq_monochrome) {
+    seq_params->seq_subsampling_x = 1;
+    seq_params->seq_subsampling_y = 1;
   } else if (color_cfg->color_primaries == AVM_CICP_CP_BT_709 &&
              color_cfg->transfer_characteristics == AVM_CICP_TC_SRGB &&
              color_cfg->matrix_coefficients == AVM_CICP_MC_IDENTITY) {
-    seq_params->subsampling_x = 0;
-    seq_params->subsampling_y = 0;
+    seq_params->seq_subsampling_x = 0;
+    seq_params->seq_subsampling_y = 0;
 #if CONFIG_AV2_PROFILES
   } else {
     if (seq_params->seq_profile_idc <= MAIN_420_10) {
-      seq_params->subsampling_x = 1;
-      seq_params->subsampling_y = 1;
+      seq_params->seq_subsampling_x = 1;
+      seq_params->seq_subsampling_y = 1;
     } else if (seq_params->seq_profile_idc == MAIN_422_10) {
-      seq_params->subsampling_x = 1;
-      seq_params->subsampling_y = 0;
+      seq_params->seq_subsampling_x = 1;
+      seq_params->seq_subsampling_y = 0;
     } else if (seq_params->seq_profile_idc == MAIN_444_10) {
-      seq_params->subsampling_x = 0;
-      seq_params->subsampling_y = 0;
+      seq_params->seq_subsampling_x = 0;
+      seq_params->seq_subsampling_y = 0;
 #if CONFIG_TESTONLY_12BIT_SUPPORT
     } else if (seq_params->seq_profile_idc == TEST_ONLY_12BIT_PROFILE) {
-      seq_params->subsampling_x = oxcf->input_cfg.chroma_subsampling_x;
-      seq_params->subsampling_y = oxcf->input_cfg.chroma_subsampling_y;
+      seq_params->seq_subsampling_x = oxcf->input_cfg.chroma_subsampling_x;
+      seq_params->seq_subsampling_y = oxcf->input_cfg.chroma_subsampling_y;
 #endif  // CONFIG_TESTONLY_12BIT_SUPPORT
     } else {
       assert(0 && "Invalid seq_params->seq_profile_idc");
@@ -1105,18 +1105,18 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
 #else
   } else {
     if (seq_params->seq_profile_idc == 0) {
-      seq_params->subsampling_x = 1;
-      seq_params->subsampling_y = 1;
+      seq_params->seq_subsampling_x = 1;
+      seq_params->seq_subsampling_y = 1;
     } else if (seq_params->seq_profile_idc == 1) {
-      seq_params->subsampling_x = 0;
-      seq_params->subsampling_y = 0;
+      seq_params->seq_subsampling_x = 0;
+      seq_params->seq_subsampling_y = 0;
     } else {
-      if (seq_params->bit_depth == AVM_BITS_12) {
-        seq_params->subsampling_x = oxcf->input_cfg.chroma_subsampling_x;
-        seq_params->subsampling_y = oxcf->input_cfg.chroma_subsampling_y;
+      if (seq_params->seq_bit_depth == AVM_BITS_12) {
+        seq_params->seq_subsampling_x = oxcf->input_cfg.chroma_subsampling_x;
+        seq_params->seq_subsampling_y = oxcf->input_cfg.chroma_subsampling_y;
       } else {
-        seq_params->subsampling_x = 1;
-        seq_params->subsampling_y = 0;
+        seq_params->seq_subsampling_x = 1;
+        seq_params->seq_subsampling_y = 0;
       }
     }
 #endif  // CONFIG_AV2_PROFILES
@@ -1125,16 +1125,16 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
   uint32_t seq_chroma_format_idc = 0;
   avm_codec_err_t err =
 #if CONFIG_AV2_PROFILES
-      av2_get_chroma_format_idc(seq_params->subsampling_x,
-                                seq_params->subsampling_y,
-                                seq_params->monochrome, &seq_chroma_format_idc);
+      av2_get_chroma_format_idc(seq_params->seq_subsampling_x,
+                                seq_params->seq_subsampling_y,
+                                seq_params->seq_monochrome, &seq_chroma_format_idc);
 #else
       av2_get_chroma_format_idc(seq_params, &seq_chroma_format_idc);
 #endif  // CONFIG_AV2_PROFILES
   if (err != AVM_CODEC_OK) {
     avm_internal_error(&cm->error, err,
                        "Unsupported subsampling_x = %d, subsampling_y = %d.",
-                       seq_params->subsampling_x, seq_params->subsampling_y);
+                       seq_params->seq_subsampling_x, seq_params->seq_subsampling_y);
   }
 
   set_content_interpreation_params(cpi, oxcf, seq_chroma_format_idc);
@@ -1217,8 +1217,8 @@ int avm_strcmp(const char *a, const char *b) {
 static void set_max_drl_bits(struct AV2_COMP *cpi) {
   AV2_COMMON *const cm = &cpi->common;
   // Add logic to choose this in the range [MIN_MAX_DRL_BITS, MAX_MAX_DRL_BITS]
-  if (!cm->seq_params.allow_frame_max_drl_bits) {
-    cm->features.max_drl_bits = cm->seq_params.def_max_drl_bits;
+  if (!cm->seq_params.seq_allow_frame_max_drl_bits) {
+    cm->features.max_drl_bits = cm->seq_params.seq_def_max_drl_bits;
   } else {  // Can be changed with logic later
     if (cpi->oxcf.tool_cfg.max_drl_refmvs == 0) {
       cm->features.max_drl_bits = DEF_MAX_DRL_REFMVS - 1;
@@ -1234,8 +1234,8 @@ static void set_max_bvp_drl_bits(struct AV2_COMP *cpi) {
   AV2_COMMON *const cm = &cpi->common;
   // Add logic to choose this in the range [MIN_MAX_IBC_DRL_BITS,
   // MAX_MAX_IBC_DRL_BITS]
-  if (!cm->seq_params.allow_frame_max_bvp_drl_bits) {
-    cm->features.max_bvp_drl_bits = cm->seq_params.def_max_bvp_drl_bits;
+  if (!cm->seq_params.seq_allow_frame_max_bvp_drl_bits) {
+    cm->features.max_bvp_drl_bits = cm->seq_params.seq_def_max_bvp_drl_bits;
   } else {  // Can be changed with logic later
     if (cpi->oxcf.tool_cfg.max_drl_refbvs == 0) {
       cm->features.max_bvp_drl_bits = DEF_MAX_DRL_REFBVS - 1;
@@ -1250,20 +1250,20 @@ static void set_max_bvp_drl_bits(struct AV2_COMP *cpi) {
 static void set_seq_lr_tools_mask(SequenceHeader *const seq_params,
                                   const AV2EncoderConfig *oxcf) {
   const ToolCfg *const tool_cfg = &oxcf->tool_cfg;
-  seq_params->lr_tools_disable_mask[0] = 0;  // default - no tools disabled
-  seq_params->lr_tools_disable_mask[1] = 0;  // default - no tools disabled
+  seq_params->seq_lr_tools_disable_mask[0] = 0;  // default - no tools disabled
+  seq_params->seq_lr_tools_disable_mask[1] = 0;  // default - no tools disabled
 
   // Parse oxcf here to disable tools as requested through cmd lines
   if (!tool_cfg->enable_pc_wiener) {
-    seq_params->lr_tools_disable_mask[0] |= (1 << RESTORE_PC_WIENER);
-    seq_params->lr_tools_disable_mask[1] |= (1 << RESTORE_PC_WIENER);
+    seq_params->seq_lr_tools_disable_mask[0] |= (1 << RESTORE_PC_WIENER);
+    seq_params->seq_lr_tools_disable_mask[1] |= (1 << RESTORE_PC_WIENER);
   }
   if (!tool_cfg->enable_wiener_nonsep) {
-    seq_params->lr_tools_disable_mask[0] |= (1 << RESTORE_WIENER_NONSEP);
-    seq_params->lr_tools_disable_mask[1] |= (1 << RESTORE_WIENER_NONSEP);
+    seq_params->seq_lr_tools_disable_mask[0] |= (1 << RESTORE_WIENER_NONSEP);
+    seq_params->seq_lr_tools_disable_mask[1] |= (1 << RESTORE_WIENER_NONSEP);
   }
 
-  seq_params->lr_tools_disable_mask[1] |= DEF_UV_LR_TOOLS_DISABLE_MASK;
+  seq_params->seq_lr_tools_disable_mask[1] |= DEF_UV_LR_TOOLS_DISABLE_MASK;
 }
 
 void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
@@ -1289,20 +1289,20 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
 
   if (seq_params->seq_profile_idc != oxcf->profile)
     seq_params->seq_profile_idc = oxcf->profile;
-  seq_params->bit_depth = oxcf->tool_cfg.bit_depth;
+  seq_params->seq_bit_depth = oxcf->tool_cfg.bit_depth;
   uint32_t chroma_format_idc = 0;
   avm_codec_err_t err =
 #if CONFIG_AV2_PROFILES
-      av2_get_chroma_format_idc(seq_params->subsampling_x,
-                                seq_params->subsampling_y,
-                                seq_params->monochrome, &chroma_format_idc);
+      av2_get_chroma_format_idc(seq_params->seq_subsampling_x,
+                                seq_params->seq_subsampling_y,
+                                seq_params->seq_monochrome, &chroma_format_idc);
 #else
       av2_get_chroma_format_idc(seq_params, &chroma_format_idc);
 #endif  // CONFIG_AV2_PROFILES
   if (err != AVM_CODEC_OK) {
     avm_internal_error(&cm->error, err,
                        "Unsupported subsampling_x = %d, subsampling_y = %d.",
-                       seq_params->subsampling_x, seq_params->subsampling_y);
+                       seq_params->seq_subsampling_x, seq_params->seq_subsampling_y);
   }
   set_content_interpreation_params(cpi, oxcf, chroma_format_idc);
 
@@ -1318,26 +1318,26 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
   }
 #else
   assert(IMPLIES(seq_params->seq_profile_idc <= MAIN_444_10,
-                 seq_params->bit_depth <= AVM_BITS_10));
+                 seq_params->seq_bit_depth <= AVM_BITS_10));
 #endif  // CONFIG_AV2_PROFILES
 
-  seq_params->display_model_info_present_flag =
+  seq_params->seq_display_model_info_present_flag =
       dec_model_cfg->display_model_info_present_flag;
-  seq_params->decoder_model_info_present_flag =
+  seq_params->seq_decoder_model_info_present_flag =
       dec_model_cfg->decoder_model_info_present_flag;
   if (dec_model_cfg->decoder_model_info_present_flag) {
     // set the decoder model parameters in schedule mode
-    seq_params->decoder_model_info.num_units_in_decoding_tick =
+    seq_params->seq_decoder_model_info.num_units_in_decoding_tick =
         dec_model_cfg->num_units_in_decoding_tick;
-    av2_set_avm_dec_model_info(&seq_params->decoder_model_info);
-    av2_set_dec_model_op_parameters(&seq_params->op_params[0]);
+    av2_set_avm_dec_model_info(&seq_params->seq_decoder_model_info);
+    av2_set_dec_model_op_parameters(&seq_params->seq_op_params[0]);
   } else if (dec_model_cfg->timing_info_present &&
              dec_model_cfg->timing_info.equal_elemental_interval &&
              !dec_model_cfg->decoder_model_info_present_flag) {
     // set the decoder model parameters in resource availability mode
-    av2_set_resource_availability_parameters(&seq_params->op_params[0]);
+    av2_set_resource_availability_parameters(&seq_params->seq_op_params[0]);
   } else {
-    seq_params->op_params[0].initial_display_delay =
+    seq_params->seq_op_params[0].initial_display_delay =
         10;  // Default value (not signaled)
   }
 
@@ -1361,7 +1361,7 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
   }
 #endif  // CONFIG_AV2_PROFILES
 
-  x->e_mbd.bd = (int)seq_params->bit_depth;
+  x->e_mbd.bd = (int)seq_params->seq_bit_depth;
   x->e_mbd.global_motion = cm->global_motion;
 
   memcpy(level_params->target_seq_level_idx, cpi->oxcf.target_seq_level_idx,
@@ -1561,7 +1561,7 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
   // This should not be called after the first key frame.
   if (!cpi->seq_params_locked) {
     av2_init_seq_coding_tools(cpi, &cm->seq_params, cm, oxcf);
-    if (seq_params->enable_restoration) set_seq_lr_tools_mask(seq_params, oxcf);
+    if (seq_params->seq_enable_restoration) set_seq_lr_tools_mask(seq_params, oxcf);
   }
 
   // restore the value of lag_in_frame for LAP stage.
@@ -1626,9 +1626,9 @@ static INLINE void init_frame_info(FRAME_INFO *frame_info,
   frame_info->mb_cols = mi_params->mb_cols;
   frame_info->mb_rows = mi_params->mb_rows;
   frame_info->num_mbs = mi_params->MBs;
-  frame_info->bit_depth = seq_params->bit_depth;
-  frame_info->subsampling_x = seq_params->subsampling_x;
-  frame_info->subsampling_y = seq_params->subsampling_y;
+  frame_info->bit_depth = seq_params->seq_bit_depth;
+  frame_info->subsampling_x = seq_params->seq_subsampling_x;
+  frame_info->subsampling_y = seq_params->seq_subsampling_y;
 }
 
 static INLINE void init_tip_ref_frame(AV2_COMMON *const cm) {
@@ -1872,7 +1872,7 @@ AV2_COMP *av2_create_compressor(AV2EncoderConfig *oxcf, BufferPool *const pool,
   av2_init_quantizer(&cm->seq_params, &cpi->enc_quant_dequant_params, cm);
 
   av2_qm_init(&cm->quant_params, av2_num_planes(cm));
-  cm->seq_params.df_par_bits_minus2 = DF_PAR_BITS - 2;
+  cm->seq_params.seq_df_par_bits_minus2 = DF_PAR_BITS - 2;
   av2_loop_filter_init(cm);
 
   // The buffers related to TIP are not used during LAP stage. Hence,
@@ -2274,7 +2274,7 @@ static void set_hole_fill_decision(AV2_COMP *cpi, int width, int height,
   (void)counts_1;
   (void)counts_2;
   AV2_COMMON *const cm = &cpi->common;
-  cm->seq_params.enable_tip_hole_fill = 1;
+  cm->seq_params.seq_enable_tip_hole_fill = 1;
 }
 
 static void subtract_average_c(uint16_t *src, int16_t *dst, int width,
@@ -2372,14 +2372,14 @@ void av2_set_downsample_filter_options(AV2_COMP *cpi) {
   const int stride = cpi->unfiltered_source->y_stride;
   const int width = cpi->unfiltered_source->y_width;
   const int height = cpi->unfiltered_source->y_height;
-  const int bd = cm->seq_params.bit_depth;
+  const int bd = cm->seq_params.seq_bit_depth;
 
   const int chroma_stride = cpi->unfiltered_source->uv_stride;
   const int subsampling_x = cpi->unfiltered_source->subsampling_x;
   const int subsampling_y = cpi->unfiltered_source->subsampling_y;
 
   if (subsampling_x == 0 && subsampling_y == 0) {
-    cm->seq_params.cfl_ds_filter_index =
+    cm->seq_params.seq_cfl_ds_filter_index =
         0;  // For 4:4:4 chroma format, downsampling filter is not used. There
             // is a redundant that the filter index is still signalled for
             // 4:4:4. Should we remove the index signalling for 4:4:4 with this
@@ -2387,7 +2387,7 @@ void av2_set_downsample_filter_options(AV2_COMP *cpi) {
     return;
   }
   if (cpi->oxcf.tool_cfg.select_cfl_ds_filter < 3) {
-    cm->seq_params.cfl_ds_filter_index =
+    cm->seq_params.seq_cfl_ds_filter_index =
         cpi->oxcf.tool_cfg.select_cfl_ds_filter;
     return;
   }
@@ -2455,7 +2455,7 @@ void av2_set_downsample_filter_options(AV2_COMP *cpi) {
   for (int i = 0; i < 3; ++i) {
     if (cost[i] < min_cost) {
       min_cost = cost[i];
-      cm->seq_params.cfl_ds_filter_index = i;
+      cm->seq_params.seq_cfl_ds_filter_index = i;
     }
   }
 }
@@ -2469,7 +2469,7 @@ void av2_set_screen_content_options(AV2_COMP *cpi, FeatureFlags *features) {
   const int stride = cpi->unfiltered_source->y_stride;
   const int width = cpi->unfiltered_source->y_width;
   const int height = cpi->unfiltered_source->y_height;
-  const int bd = cm->seq_params.bit_depth;
+  const int bd = cm->seq_params.seq_bit_depth;
   const int blk_w = 16;
   const int blk_h = 16;
   // These threshold values are selected experimentally.
@@ -2522,17 +2522,17 @@ void av2_set_screen_content_options(AV2_COMP *cpi, FeatureFlags *features) {
     return;
   }
 
-  if (cm->seq_params.force_screen_content_tools > 0) {
+  if (cm->seq_params.seq_force_screen_content_tools > 0) {
     features->allow_intrabc = 1;
     return;
   }
-  if (cm->seq_params.force_screen_content_tools != 2) {
+  if (cm->seq_params.seq_force_screen_content_tools != 2) {
     features->allow_screen_content_tools = features->allow_intrabc =
-        cm->seq_params.force_screen_content_tools;
+        cm->seq_params.seq_force_screen_content_tools;
     return;
   }
 
-  if (frame_is_intra_only(cm) && cm->seq_params.enable_tip) {
+  if (frame_is_intra_only(cm) && cm->seq_params.seq_enable_tip) {
     set_hole_fill_decision(cpi, width, height, blk_w, blk_h, counts_1,
                            counts_2);
   }
@@ -2598,7 +2598,7 @@ static void init_ref_frame_bufs(AV2_COMP *cpi) {
   int i;
   BufferPool *const pool = cm->buffer_pool;
   cm->cur_frame = NULL;
-  for (i = 0; i < cm->seq_params.ref_frames; ++i) {
+  for (i = 0; i < cm->seq_params.seq_ref_frames; ++i) {
     cm->ref_frame_map[i] = NULL;
   }
   for (i = 0; i < FRAME_BUFFERS; ++i) {
@@ -2613,10 +2613,10 @@ void av2_check_initial_width(AV2_COMP *cpi, int subsampling_x,
   InitialDimensions *const initial_dimensions = &cpi->initial_dimensions;
 
   if (!initial_dimensions->width ||
-      seq_params->subsampling_x != subsampling_x ||
-      seq_params->subsampling_y != subsampling_y) {
-    seq_params->subsampling_x = subsampling_x;
-    seq_params->subsampling_y = subsampling_y;
+      seq_params->seq_subsampling_x != subsampling_x ||
+      seq_params->seq_subsampling_y != subsampling_y) {
+    seq_params->seq_subsampling_x = subsampling_x;
+    seq_params->seq_subsampling_y = subsampling_y;
 
     av2_set_speed_features_framesize_independent(cpi, cpi->oxcf.speed);
     av2_set_speed_features_framesize_dependent(cpi, cpi->oxcf.speed);
@@ -2638,8 +2638,8 @@ void av2_check_initial_width(AV2_COMP *cpi, int subsampling_x,
 // Returns 1 if the assigned width or height was <= 0.
 int av2_set_size_literal(AV2_COMP *cpi, int width, int height) {
   AV2_COMMON *cm = &cpi->common;
-  av2_check_initial_width(cpi, cm->seq_params.subsampling_x,
-                          cm->seq_params.subsampling_y);
+  av2_check_initial_width(cpi, cm->seq_params.seq_subsampling_x,
+                          cm->seq_params.seq_subsampling_y);
 
   if (width <= 0 || height <= 0) return 1;
 
@@ -2686,8 +2686,8 @@ static void setup_tip_frame_size(AV2_COMP *cpi) {
   RefCntBuffer *tip_frame = cm->tip_ref.tip_frame;
   // Reset the frame pointers to the current frame size.
   if (avm_realloc_frame_buffer(
-          &tip_frame->buf, cm->width, cm->height, cm->seq_params.subsampling_x,
-          cm->seq_params.subsampling_y, cpi->oxcf.border_in_pixels,
+          &tip_frame->buf, cm->width, cm->height, cm->seq_params.seq_subsampling_x,
+          cm->seq_params.seq_subsampling_y, cpi->oxcf.border_in_pixels,
           cm->features.byte_alignment, NULL, NULL, NULL, false)) {
     avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
                        "Failed to allocate frame buffer");
@@ -2697,8 +2697,8 @@ static void setup_tip_frame_size(AV2_COMP *cpi) {
 
   tip_frame = cm->tip_ref.tmp_tip_frame;
   if (avm_realloc_frame_buffer(
-          &tip_frame->buf, cm->width, cm->height, cm->seq_params.subsampling_x,
-          cm->seq_params.subsampling_y, cpi->oxcf.border_in_pixels,
+          &tip_frame->buf, cm->width, cm->height, cm->seq_params.seq_subsampling_x,
+          cm->seq_params.seq_subsampling_y, cpi->oxcf.border_in_pixels,
           cm->features.byte_alignment, NULL, NULL, NULL, false)) {
     avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
                        "Failed to allocate frame buffer");
@@ -2748,12 +2748,12 @@ void av2_set_frame_size(AV2_COMP *cpi, int width, int height) {
 
   // Reset the frame pointers to the current frame size.
   if (avm_realloc_frame_buffer(
-          &cm->cur_frame->buf, cm->width, cm->height, seq_params->subsampling_x,
-          seq_params->subsampling_y, cpi->oxcf.border_in_pixels,
+          &cm->cur_frame->buf, cm->width, cm->height, seq_params->seq_subsampling_x,
+          seq_params->seq_subsampling_y, cpi->oxcf.border_in_pixels,
           cm->features.byte_alignment, NULL, NULL, NULL, cpi->alloc_pyramid))
     avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
                        "Failed to allocate frame buffer");
-  // Don't use cm->seq_params.enable_cdef because cm->seq_params.enable_cdef may
+  // Don't use cm->seq_params.seq_enable_cdef because cm->seq_params.seq_enable_cdef may
   // be changed to 0 when encoding the frame for single_picture_header_flag.
   const int use_cdef = cpi->oxcf.tool_cfg.enable_cdef;
   if (!is_stat_generation_stage(cpi) && use_cdef) {
@@ -2766,8 +2766,8 @@ void av2_set_frame_size(AV2_COMP *cpi, int width, int height) {
   const int frame_width = cm->width;
   const int frame_height = cm->height;
   set_restoration_unit_size(cm, frame_width, frame_height,
-                            seq_params->subsampling_x,
-                            seq_params->subsampling_y, cm->rst_info);
+                            seq_params->seq_subsampling_x,
+                            seq_params->seq_subsampling_y, cm->rst_info);
   for (int i = 0; i < num_planes; ++i)
     cm->rst_info[i].frame_restoration_type = RESTORE_NONE;
 
@@ -2786,7 +2786,7 @@ void av2_set_frame_size(AV2_COMP *cpi, int width, int height) {
     }
   }
 
-  if (!is_stat_generation_stage(cpi) && cm->seq_params.enable_tip) {
+  if (!is_stat_generation_stage(cpi) && cm->seq_params.seq_enable_tip) {
     setup_tip_frame_size(cpi);
     RefCntBuffer *buf = get_ref_frame_buf(cm, TIP_FRAME);
 
@@ -2817,7 +2817,7 @@ void gdf_optimizer(AV2_COMP *cpi, AV2_COMMON *cm) {
   const int rec_width = cm->cur_frame->buf.y_width;
   const int rec_stride = cm->cur_frame->buf.y_stride;
 
-  const int bit_depth = cm->seq_params.bit_depth;
+  const int bit_depth = cm->seq_params.seq_bit_depth;
   const int pxl_max = (1 << cm->cur_frame->buf.bit_depth) - 1;
   const int pxl_shift = GDF_TEST_INP_PREC -
                         AVMMIN(cm->cur_frame->buf.bit_depth, GDF_TEST_INP_PREC);
@@ -2908,7 +2908,7 @@ void gdf_optimizer(AV2_COMP *cpi, AV2_COMMON *cm) {
                         tile_rect.top;
 
             int copy_above = 1, copy_below = 1;
-            if (cm->seq_params.disable_loopfilters_across_tiles == 0) {
+            if (cm->seq_params.seq_disable_loopfilters_across_tiles == 0) {
               // tile top but not picture top
               if (v_pos == -GDF_TEST_STRIPE_OFF && tile_row != 0)
                 copy_above = 0;
@@ -2936,11 +2936,11 @@ void gdf_optimizer(AV2_COMP *cpi, AV2_COMMON *cm) {
                 continue;
               }
               int tile_boundary_left =
-                  cm->seq_params.disable_loopfilters_across_tiles
+                  cm->seq_params.seq_disable_loopfilters_across_tiles
                       ? (j_min == tile_rect.left)
                       : (j_min == 0);
               int tile_boundary_right =
-                  cm->seq_params.disable_loopfilters_across_tiles
+                  cm->seq_params.seq_disable_loopfilters_across_tiles
                       ? (j_max == tile_rect.right)
                       : (j_max == cm->cur_frame->buf.y_width);
 
@@ -3134,7 +3134,7 @@ static void cdef_restoration_frame(AV2_COMP *cpi, AV2_COMMON *cm,
   int ref_stride;
   const int use_ccso =
       !cm->features.coded_lossless && !cm->bru.frame_inactive_flag &&
-      !cm->bridge_frame_info.is_bridge_frame && cm->seq_params.enable_ccso;
+      !cm->bridge_frame_info.is_bridge_frame && cm->seq_params.seq_enable_ccso;
   const int num_planes = av2_num_planes(cm);
   av2_setup_dst_planes(xd->plane, &cm->cur_frame->buf, 0, 0, 0, num_planes,
                        NULL);
@@ -3269,7 +3269,7 @@ static void cdef_restoration_frame(AV2_COMP *cpi, AV2_COMMON *cm,
     if (cm->rst_info[0].frame_restoration_type != RESTORE_NONE ||
         cm->rst_info[1].frame_restoration_type != RESTORE_NONE ||
         cm->rst_info[2].frame_restoration_type != RESTORE_NONE) {
-      if (num_workers > 1 && !cm->seq_params.disable_loopfilters_across_tiles)
+      if (num_workers > 1 && !cm->seq_params.seq_disable_loopfilters_across_tiles)
         av2_loop_restoration_filter_frame_mt(
             &cm->cur_frame->buf, cm, 0, mt_info->workers, num_workers,
             &mt_info->lr_row_sync, &cpi->lr_ctxt);
@@ -3311,13 +3311,13 @@ static void loopfilter_frame(AV2_COMP *cpi, AV2_COMMON *cm) {
                              !cm->bru.frame_inactive_flag &&
                              cpi->oxcf.tool_cfg.enable_deblocking;
   const int use_cdef =
-      cm->seq_params.enable_cdef && !cm->bru.frame_inactive_flag &&
+      cm->seq_params.seq_enable_cdef && !cm->bru.frame_inactive_flag &&
       !cm->bridge_frame_info.is_bridge_frame && !cm->features.coded_lossless;
   const int use_gdf =
-      cm->seq_params.enable_gdf && !cm->bru.frame_inactive_flag &&
+      cm->seq_params.seq_enable_gdf && !cm->bru.frame_inactive_flag &&
       !cm->bridge_frame_info.is_bridge_frame && !cm->features.all_lossless;
   const int use_restoration =
-      cm->seq_params.enable_restoration && !cm->bru.frame_inactive_flag &&
+      cm->seq_params.seq_enable_restoration && !cm->bru.frame_inactive_flag &&
       !cm->bridge_frame_info.is_bridge_frame && !cm->features.all_lossless;
 
   struct loopfilter *lf = &cm->lf;
@@ -3566,7 +3566,7 @@ static int encode_without_recode(AV2_COMP *cpi) {
   } else {
     memset(&cm->seg, 0, sizeof(cm->seg));
   }
-  cm->seg.enable_ext_seg = cm->seq_params.enable_ext_seg;
+  cm->seg.enable_ext_seg = cm->seq_params.seq_enable_ext_seg;
   segfeatures_copy(&cm->cur_frame->seg, &cm->seg);
   cm->cur_frame->seg.enabled = cm->seg.enabled;
 
@@ -3754,7 +3754,7 @@ static int encode_with_recode_loop(AV2_COMP *cpi, size_t *size, uint8_t *dest) {
     } else {
       memset(&cm->seg, 0, sizeof(cm->seg));
     }
-    cm->seg.enable_ext_seg = cm->seq_params.enable_ext_seg;
+    cm->seg.enable_ext_seg = cm->seq_params.seq_enable_ext_seg;
     segfeatures_copy(&cm->cur_frame->seg, &cm->seg);
     cm->cur_frame->seg.enabled = cm->seg.enabled;
 
@@ -3859,7 +3859,7 @@ static int encode_with_recode_loop(AV2_COMP *cpi, size_t *size, uint8_t *dest) {
 }
 
 static INLINE bool allow_tip_direct_output(AV2_COMMON *const cm) {
-  if (!frame_is_intra_only(cm) && cm->seq_params.enable_tip == 1 &&
+  if (!frame_is_intra_only(cm) && cm->seq_params.seq_enable_tip == 1 &&
       cm->features.tip_frame_mode && !cm->bru.enabled) {
     return true;
   }
@@ -3884,11 +3884,11 @@ static INLINE int compute_tip_direct_output_mode_RD(AV2_COMP *cpi,
     const int64_t rdmult =
         av2_compute_rd_mult(cpi, cm->quant_params.base_qindex);
 
-    if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu) {
+    if (cm->seq_params.seq_enable_lf_sub_pu && cm->features.allow_lf_sub_pu) {
       const int u_ac_delta_q_backup = cm->quant_params.u_ac_delta_q;
       const int v_ac_delta_q_backup = cm->quant_params.v_ac_delta_q;
       const int base_qindex_backup = cm->quant_params.base_qindex;
-      if (cm->seq_params.enable_tip_explicit_qp == 0) {
+      if (cm->seq_params.seq_enable_tip_explicit_qp == 0) {
         const int avg_u_ac_delta_q =
             (cm->tip_ref.ref_frame_buffer[0]->u_ac_delta_q +
              cm->tip_ref.ref_frame_buffer[1]->u_ac_delta_q + 1) >>
@@ -3911,7 +3911,7 @@ static INLINE int compute_tip_direct_output_mode_RD(AV2_COMP *cpi,
       search_tip_filter_level(cpi, cm);
       init_tip_lf_parameter(cm, 0, av2_num_planes(cm));
       loop_filter_tip_frame(cm, &td->mb.e_mbd, 0, av2_num_planes(cm));
-      if (cm->seq_params.enable_tip_explicit_qp == 0) {
+      if (cm->seq_params.seq_enable_tip_explicit_qp == 0) {
         cm->cur_frame->u_ac_delta_q = cm->quant_params.u_ac_delta_q =
             u_ac_delta_q_backup;
         cm->cur_frame->v_ac_delta_q = cm->quant_params.v_ac_delta_q =
@@ -3945,7 +3945,7 @@ static INLINE int compute_tip_direct_output_mode_RD(AV2_COMP *cpi,
     int sym_rate_cost = 1;
     int_mv best_mv = ref_mv;
     best_sse = (int64_t)RDCOST_DBL_WITH_NATIVE_BD_DIST(
-        rdmult, (sym_rate_cost << 5), best_sse, cm->seq_params.bit_depth);
+        rdmult, (sym_rate_cost << 5), best_sse, cm->seq_params.seq_bit_depth);
     int best_center[2] = { 0, 0 };
 
     int search_step = 8;
@@ -3960,7 +3960,7 @@ static INLINE int compute_tip_direct_output_mode_RD(AV2_COMP *cpi,
         av2_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
                             av2_enc_calc_subpel_params, 0 /* copy_refined_mvs */
         );
-        if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu) {
+        if (cm->seq_params.seq_enable_lf_sub_pu && cm->features.allow_lf_sub_pu) {
           loop_filter_tip_frame(cm, &td->mb.e_mbd, 0, av2_num_planes(cm));
         }
 
@@ -3976,7 +3976,7 @@ static INLINE int compute_tip_direct_output_mode_RD(AV2_COMP *cpi,
 
         sym_rate_cost = 13;
         this_sse = (int64_t)RDCOST_DBL_WITH_NATIVE_BD_DIST(
-            rdmult, (sym_rate_cost << 5), this_sse, cm->seq_params.bit_depth);
+            rdmult, (sym_rate_cost << 5), this_sse, cm->seq_params.seq_bit_depth);
         if (this_sse < best_sse) {
           best_mv = ref_mv;
           best_sse = this_sse;
@@ -3998,7 +3998,7 @@ static INLINE int compute_tip_direct_output_mode_RD(AV2_COMP *cpi,
       av2_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
                           av2_enc_calc_subpel_params, 0 /* copy_refined_mvs */
       );
-      if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu) {
+      if (cm->seq_params.seq_enable_lf_sub_pu && cm->features.allow_lf_sub_pu) {
         loop_filter_tip_frame(cm, &td->mb.e_mbd, 0, av2_num_planes(cm));
       }
 
@@ -4063,9 +4063,9 @@ static INLINE int finalize_tip_mode(AV2_COMP *cpi, uint8_t *dest, size_t *size,
   const int64_t rdmult = av2_compute_rd_mult(cpi, cm->quant_params.base_qindex);
 
   const double normal_coding_rdcost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-      rdmult, tip_as_ref_rate, tip_as_ref_sse, cm->seq_params.bit_depth);
+      rdmult, tip_as_ref_rate, tip_as_ref_sse, cm->seq_params.seq_bit_depth);
   const double tip_direct_output_rdcost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-      rdmult, tip_as_output_rate, tip_as_output_sse, cm->seq_params.bit_depth);
+      rdmult, tip_as_output_rate, tip_as_output_sse, cm->seq_params.seq_bit_depth);
   if (tip_direct_output_rdcost < normal_coding_rdcost &&
       (!cm->features.coded_lossless || tip_as_output_sse == 0)) {
     cm->features.tip_frame_mode = TIP_FRAME_AS_OUTPUT;
@@ -4079,7 +4079,7 @@ static INLINE int finalize_tip_mode(AV2_COMP *cpi, uint8_t *dest, size_t *size,
       cpi->tip_mode_count[cur_order_hint] = mvs_rows * mvs_cols;
     }
 
-    if (cm->seq_params.enable_tip_explicit_qp == 0) {
+    if (cm->seq_params.seq_enable_tip_explicit_qp == 0) {
       const int avg_u_ac_delta_q =
           (cm->tip_ref.ref_frame_buffer[0]->u_ac_delta_q +
            cm->tip_ref.ref_frame_buffer[1]->u_ac_delta_q + 1) >>
@@ -4119,7 +4119,7 @@ static INLINE int finalize_tip_mode(AV2_COMP *cpi, uint8_t *dest, size_t *size,
     av2_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
                         av2_enc_calc_subpel_params, 1 /* copy_refined_mvs */
     );
-    if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu) {
+    if (cm->seq_params.seq_enable_lf_sub_pu && cm->features.allow_lf_sub_pu) {
       init_tip_lf_parameter(cm, 0, av2_num_planes(cm));
       loop_filter_tip_frame(cm, &td->mb.e_mbd, 0, av2_num_planes(cm));
       avm_extend_frame_borders(&cm->tip_ref.tip_frame->buf, av2_num_planes(cm),
@@ -4275,17 +4275,17 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
   cm->cur_frame->buf.transfer_characteristics =
       color_info->transfer_characteristics;
   cm->cur_frame->buf.matrix_coefficients = color_info->matrix_coefficients;
-  cm->cur_frame->buf.monochrome = seq_params->monochrome;
+  cm->cur_frame->buf.monochrome = seq_params->seq_monochrome;
   cm->cur_frame->buf.chroma_sample_position =
       cm->ci_params_encoder.ci_chroma_sample_position[0];
   cm->cur_frame->buf.color_range = color_info->full_range_flag;
   cm->cur_frame->buf.render_width = cm->render_width;
   cm->cur_frame->buf.render_height = cm->render_height;
-  cm->cur_frame->buf.bit_depth = (unsigned int)seq_params->bit_depth;
+  cm->cur_frame->buf.bit_depth = (unsigned int)seq_params->seq_bit_depth;
 
   uint8_t master_lr_tools_disable_mask[2] = {
-    cm->seq_params.lr_tools_disable_mask[0],
-    cm->seq_params.lr_tools_disable_mask[1]
+    cm->seq_params.seq_lr_tools_disable_mask[0],
+    cm->seq_params.seq_lr_tools_disable_mask[1]
   };
   av2_set_lr_tools(master_lr_tools_disable_mask[0], 0, &cm->features);
   av2_set_lr_tools(master_lr_tools_disable_mask[1], 1, &cm->features);
@@ -4404,7 +4404,7 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
             (ref_frame_used != cm->features.primary_ref_frame) &&
             (!cm->bru.frame_inactive_flag) &&
             (!cm->bridge_frame_info.is_bridge_frame) &&
-            (cm->seq_params.enable_avg_cdf && !cm->seq_params.avg_cdf_type) &&
+            (cm->seq_params.seq_enable_avg_cdf && !cm->seq_params.seq_avg_cdf_type) &&
             !frame_is_sframe(cm) && (ref_frame_used != PRIMARY_REF_NONE)) {
           av2_avg_cdf_symbols(cm->fc, &cm->bru.update_ref_fc,
                               AVG_CDF_WEIGHT_PRIMARY,
@@ -4559,14 +4559,14 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
 
   features->allow_warpmv_mode = features->enabled_motion_modes;
   // temporal set of frame level enable_bawp flag.
-  features->enable_bawp = seq_params->enable_bawp;
-  features->enable_intra_bawp = seq_params->enable_bawp;
-  features->enable_cwp = seq_params->enable_cwp;
+  features->enable_bawp = seq_params->seq_enable_bawp;
+  features->enable_intra_bawp = seq_params->seq_enable_bawp;
+  features->enable_cwp = seq_params->seq_enable_cwp;
 
-  features->enable_imp_msk_bld = seq_params->enable_imp_msk_bld;
+  features->enable_imp_msk_bld = seq_params->seq_enable_imp_msk_bld;
 
-  features->enable_ext_seg = seq_params->enable_ext_seg;
-  cm->seg.enable_ext_seg = seq_params->enable_ext_seg;
+  features->enable_ext_seg = seq_params->seq_enable_ext_seg;
+  cm->seg.enable_ext_seg = seq_params->seq_enable_ext_seg;
   // TODO: Does it need to keep GF_UPDATE?
   //  if (frame_is_sframe(cm)) {
   //    GF_GROUP *gf_group = &cpi->gf_group;
@@ -4581,7 +4581,7 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
     assign_frame_buffer_p(&cm->cur_frame,
                           cm->ref_frame_map[cpi->fb_idx_for_overlay]);
     int enc_olk_fb_idx = 0;
-    for (int ref_pos = 0; ref_pos < seq_params->ref_frames; ref_pos++) {
+    for (int ref_pos = 0; ref_pos < seq_params->seq_ref_frames; ref_pos++) {
       if ((cm->olk_refresh_frame_flags[cm->mlayer_id] >> ref_pos) & 1) {
         enc_olk_fb_idx = ref_pos;
         break;
@@ -4591,10 +4591,10 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
         cm->olk_refresh_frame_flags[cm->mlayer_id] != INVALID_IDX &&
         enc_olk_fb_idx == cpi->fb_idx_for_overlay) {
       int ref_flags_to_keep = 0;
-      for (int layer = 0; layer <= seq_params->max_mlayer_id; layer++) {
+      for (int layer = 0; layer <= seq_params->seq_max_mlayer_id; layer++) {
         ref_flags_to_keep |= cm->olk_refresh_frame_flags[cm->mlayer_id];
       }
-      for (int ref_index = 0; ref_index < cm->seq_params.ref_frames;
+      for (int ref_index = 0; ref_index < cm->seq_params.seq_ref_frames;
            ref_index++) {
         if (!((ref_flags_to_keep >> ref_index) & 1u) &&
             (cm->ref_frame_map[ref_index] == NULL ||
@@ -4624,7 +4624,7 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
   if (need_sef_obu_for_hidden_frame(cpi)) {
     // If this is an olk SEF, reset the buffers except for the olk.
     int enc_olk_fb_idx = 0;
-    for (int ref_pos = 0; ref_pos < seq_params->ref_frames; ref_pos++) {
+    for (int ref_pos = 0; ref_pos < seq_params->seq_ref_frames; ref_pos++) {
       if ((cm->olk_refresh_frame_flags[cm->mlayer_id] >> ref_pos) & 1) {
         enc_olk_fb_idx = ref_pos;
         break;
@@ -4634,10 +4634,10 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
         cm->olk_refresh_frame_flags[cm->mlayer_id] != INVALID_IDX &&
         enc_olk_fb_idx == cpi->fb_idx_for_overlay) {
       int ref_flags_to_keep = 0;
-      for (int layer = 0; layer <= seq_params->max_mlayer_id; layer++) {
+      for (int layer = 0; layer <= seq_params->seq_max_mlayer_id; layer++) {
         ref_flags_to_keep |= cm->olk_refresh_frame_flags[cm->mlayer_id];
       }
-      for (int ref_index = 0; ref_index < cm->seq_params.ref_frames;
+      for (int ref_index = 0; ref_index < cm->seq_params.seq_ref_frames;
            ref_index++) {
         if (!((ref_flags_to_keep >> ref_index) & 1u) &&
             (cm->ref_frame_map[ref_index] == NULL ||
@@ -4759,7 +4759,7 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
   if (!is_stat_generation_stage(cpi) &&
       cpi->common.features.allow_screen_content_tools &&
       !frame_is_intra_only(cm)) {
-    if (cpi->common.seq_params.force_integer_mv == 2) {
+    if (cpi->common.seq_params.seq_force_integer_mv == 2) {
       // Adaptive mode: see what previous frame encoded did
       if (cpi->unscaled_last_source != NULL) {
         features->cur_frame_force_integer_mv = av2_is_integer_mv(
@@ -4769,7 +4769,7 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
       }
     } else {
       cpi->common.features.cur_frame_force_integer_mv =
-          cpi->common.seq_params.force_integer_mv;
+          cpi->common.seq_params.seq_force_integer_mv;
     }
   } else {
     cpi->common.features.cur_frame_force_integer_mv = 0;
@@ -4838,7 +4838,7 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
       break;
   }
   cm->ci_params_encoder.ci_timing_info_present_flag &=
-      !seq_params->single_picture_header_flag;
+      !seq_params->seq_single_picture_header_flag;
   switch (oxcf->algo_cfg.cross_frame_cdf_init_mode) {
     case 0:  // Disable cross frame CDF initialization
       features->cross_frame_context = CROSS_FRAME_CONTEXT_DISABLED;
@@ -4891,7 +4891,7 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
   // NOTE: Save the new show frame buffer index for --test-code=warn, i.e.,
   //       for the purpose to verify no mismatch between encoder and decoder.
   if (cm->immediate_output_picture) cpi->last_show_frame_buf = cm->cur_frame;
-  if (cm->seq_params.enable_bru && !cm->bru.enabled &&
+  if (cm->seq_params.seq_enable_bru && !cm->bru.enabled &&
       cm->current_frame.frame_type == INTER_FRAME) {
     bru_lookahead_buf_refresh(cpi->lookahead,
                               cm->current_frame.refresh_frame_flags,
@@ -4904,7 +4904,7 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
 #endif  // CONFIG_ENTROPY_STATS
   if (!(features->tip_frame_mode == TIP_FRAME_AS_OUTPUT) &&
       !cm->bru.frame_inactive_flag && !cm->bridge_frame_info.is_bridge_frame) {
-    if (cm->seq_params.enable_avg_cdf && cm->seq_params.avg_cdf_type &&
+    if (cm->seq_params.seq_enable_avg_cdf && cm->seq_params.seq_avg_cdf_type &&
         cm->tiles.rows * cm->tiles.cols > 1) {
       encoder_avg_tiles_cdfs(cpi);
     } else {
@@ -5004,7 +5004,7 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
   cm->derive_sef_order_hint = false;
   if (cm->show_existing_frame) {
     bool valid_duplicate_existing_frame = false;
-    for (int ref_idx = 0; ref_idx < cm->seq_params.ref_frames; ref_idx++) {
+    for (int ref_idx = 0; ref_idx < cm->seq_params.seq_ref_frames; ref_idx++) {
       if (cm->ref_frame_map[ref_idx] != NULL) {
         if (!is_tlayer_scalable_and_dependent(
                 &cm->seq_params, current_frame->tlayer_id,
@@ -5037,7 +5037,7 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
   cm->restricted_prediction_switch =
       cpi->oxcf.kf_cfg.sframe_dist != 0 && cpi->oxcf.kf_cfg.sframe_mode == 0;
   if (current_frame->frame_type == KEY_FRAME) {
-    for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+    for (int i = 0; i < cm->seq_params.seq_ref_frames; i++) {
       if (cm->ref_frame_map[i] != NULL)
         cm->ref_frame_map[i]->is_restricted = false;
     }
@@ -5045,7 +5045,7 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
 
   if (cm->restricted_prediction_switch) {
     if (current_frame->frame_type == S_FRAME) {
-      for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+      for (int i = 0; i < cm->seq_params.seq_ref_frames; i++) {
         if (cm->ref_frame_map[i] != NULL)
           cm->ref_frame_map[i]->is_restricted = true;
       }
@@ -5058,7 +5058,7 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
   init_ref_map_pair(&cpi->common, cm->ref_frame_map_pairs,
                     current_frame->frame_type == KEY_FRAME,
                     cpi->switch_frame_mode == 1);
-  if (cm->seq_params.enable_explicit_ref_frame_map || frame_is_sframe(cm)) {
+  if (cm->seq_params.seq_enable_explicit_ref_frame_map || frame_is_sframe(cm)) {
     av2_get_ref_frames_enc(cpi, cur_frame_disp, cm->ref_frame_map_pairs);
   } else {
     // Derive reference mapping in a resolution independent manner to generate
@@ -5074,7 +5074,7 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
     current_frame->long_term_id = -1;
   }
   current_frame->order_hint %=
-      (1 << (cm->seq_params.order_hint_info.order_hint_bits_minus_1 + 1));
+      (1 << (cm->seq_params.seq_order_hint_info.order_hint_bits_minus_1 + 1));
 
   // Note this is placed here to keep the same pyramid_level
   if (current_frame->frame_type == S_FRAME) {
@@ -5125,7 +5125,7 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
         features->allow_ref_frame_mvs = false;
         features->all_lossless = false;
         features->opfl_refine_type = REFINE_NONE;
-        for (int map_idx = 0; map_idx < cm->seq_params.ref_frames; map_idx++) {
+        for (int map_idx = 0; map_idx < cm->seq_params.seq_ref_frames; map_idx++) {
           // Get reference frame buffer
           const RefCntBuffer *const buf = cm->ref_frame_map[map_idx];
           if (buf != NULL && cm->ref_frame_map[map_idx]->is_restricted)
@@ -5201,7 +5201,7 @@ static int apply_denoise_2d(AV2_COMP *cpi, YV12_BUFFER_CONFIG *sd,
   AV2_COMMON *const cm = &cpi->common;
   if (!cpi->denoise_and_model) {
     cpi->denoise_and_model = avm_denoise_and_model_alloc(
-        cm->seq_params.bit_depth, block_size, noise_level);
+        cm->seq_params.seq_bit_depth, block_size, noise_level);
     if (!cpi->denoise_and_model) {
       avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
                          "Error allocating denoise and model");
@@ -5290,7 +5290,7 @@ int av2_receive_raw_frame(AV2_COMP *cpi, avm_enc_frame_flags_t frame_flags,
     res = -1;
   }
 #else
-  if ((seq_params->seq_profile_idc == PROFILE_0) && !seq_params->monochrome &&
+  if ((seq_params->seq_profile_idc == PROFILE_0) && !seq_params->seq_monochrome &&
       (subsampling_x != 1 || subsampling_y != 1)) {
     avm_internal_error(&cm->error, AVM_CODEC_INVALID_PARAM,
                        "Non-4:2:0 color format requires profile 1 or 2");
@@ -5303,7 +5303,7 @@ int av2_receive_raw_frame(AV2_COMP *cpi, avm_enc_frame_flags_t frame_flags,
     res = -1;
   }
   if ((seq_params->seq_profile_idc == PROFILE_2) &&
-      (seq_params->bit_depth <= AVM_BITS_10) &&
+      (seq_params->seq_bit_depth <= AVM_BITS_10) &&
       !(subsampling_x == 1 && subsampling_y == 0)) {
     avm_internal_error(&cm->error, AVM_CODEC_INVALID_PARAM,
                        "Profile 2 bit-depth <= 10 requires 4:2:2 color format");
@@ -5467,8 +5467,8 @@ int av2_get_preview_raw_frame(AV2_COMP *cpi, YV12_BUFFER_CONFIG *dest) {
       *dest = cm->cur_frame->buf;
       dest->y_width = cm->width;
       dest->y_height = cm->height;
-      dest->uv_width = cm->width >> cm->seq_params.subsampling_x;
-      dest->uv_height = cm->height >> cm->seq_params.subsampling_y;
+      dest->uv_width = cm->width >> cm->seq_params.seq_subsampling_x;
+      dest->uv_height = cm->height >> cm->seq_params.seq_subsampling_y;
       ret = 0;
     } else {
       ret = -1;
@@ -5656,7 +5656,7 @@ void enc_bru_swap_ref(AV2_COMMON *const cm) {
   // restrict ref by bru ref_idx
   int replaced_bru_ref_idx = -1;
   const int num_past_refs = cm->ref_frames_info.num_past_refs;
-  if (cm->seq_params.enable_bru) {
+  if (cm->seq_params.seq_enable_bru) {
     if (cm->bru.enabled) {
       if (cm->bru.ref_disp_order >= 0) {
         cm->bru.update_ref_idx = -1;
@@ -5718,7 +5718,7 @@ void enc_bru_swap_stage(AV2_COMP *cpi) {
     } else {
       // here need to update refresh flag for all the pointer to bru ref
       int refresh_mask = 0;
-      for (int idx = 0; idx < cpi->common.seq_params.ref_frames; ++idx) {
+      for (int idx = 0; idx < cpi->common.seq_params.seq_ref_frames; ++idx) {
         if (cm->ref_frame_map_pairs[idx].disp_order == cm->bru.ref_disp_order) {
           refresh_mask |= (1 << idx);
         }

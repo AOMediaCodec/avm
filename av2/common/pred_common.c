@@ -152,7 +152,7 @@ int av2_get_op_constrained_ref_frames(AV2_COMMON *cm, int cur_frame_disp,
   assert(tlayer_mask >= 0 && tlayer_mask < (1 << MAX_NUM_TLAYERS));
   RefScoreData scores[REF_FRAMES];
   memset(scores, 0, REF_FRAMES * sizeof(*scores));
-  for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+  for (int i = 0; i < cm->seq_params.seq_ref_frames; i++) {
     scores[i].score = INT_MAX;
   }
   for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
@@ -162,14 +162,14 @@ int av2_get_op_constrained_ref_frames(AV2_COMMON *cm, int cur_frame_disp,
 
   // Give more weight to base_qindex if all references are from the past
   int max_disp = 0;
-  for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+  for (int i = 0; i < cm->seq_params.seq_ref_frames; i++) {
     RefFrameMapPair cur_ref = ref_frame_map_pairs[i];
     if (cur_ref.ref_frame_for_inference == -1) continue;
     max_disp = AVMMAX(max_disp, cur_ref.disp_order);
   }
 
   // Compute a score for each reference buffer
-  for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+  for (int i = 0; i < cm->seq_params.seq_ref_frames; i++) {
     // Get reference frame buffer
     RefFrameMapPair cur_ref = ref_frame_map_pairs[i];
     if (cur_ref.ref_frame_for_inference == -1) continue;
@@ -200,7 +200,7 @@ int av2_get_op_constrained_ref_frames(AV2_COMMON *cm, int cur_frame_disp,
     // In error resilient mode, ref mapping must be independent of the
     // base_qindex to ensure decoding independency
     const int ref_base_qindex = cur_ref.base_qindex;
-    const int disp_diff = get_relative_dist(&cm->seq_params.order_hint_info,
+    const int disp_diff = get_relative_dist(&cm->seq_params.seq_order_hint_info,
                                             cur_frame_disp, ref_disp);
     // The log2 ratio of current and reference frame resolution is
     // log2(num_pixel_cur) - log2(num_pixel_ref), where the first term is a
@@ -258,7 +258,7 @@ int av2_get_ref_frames(AV2_COMMON *cm, int cur_frame_disp,
                        RefFrameMapPair *ref_frame_map_pairs) {
   RefScoreData scores[REF_FRAMES];
   memset(scores, 0, REF_FRAMES * sizeof(*scores));
-  for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+  for (int i = 0; i < cm->seq_params.seq_ref_frames; i++) {
     scores[i].score = INT_MAX;
   }
   for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
@@ -271,7 +271,7 @@ int av2_get_ref_frames(AV2_COMMON *cm, int cur_frame_disp,
 
   // Give more weight to base_qindex if all references are from the past
   int max_disp = 0;
-  for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+  for (int i = 0; i < cm->seq_params.seq_ref_frames; i++) {
     RefFrameMapPair cur_ref = ref_frame_map_pairs[i];
     if (cur_ref.ref_frame_restricted == 1) continue;
     if (cur_ref.ref_frame_for_inference == -1) continue;
@@ -279,7 +279,7 @@ int av2_get_ref_frames(AV2_COMMON *cm, int cur_frame_disp,
   }
 
   // Compute a score for each reference buffer
-  for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+  for (int i = 0; i < cm->seq_params.seq_ref_frames; i++) {
     // Get reference frame buffer
     RefFrameMapPair cur_ref = ref_frame_map_pairs[i];
     if (cur_ref.ref_frame_restricted == 1) {
@@ -314,7 +314,7 @@ int av2_get_ref_frames(AV2_COMMON *cm, int cur_frame_disp,
     // In error resilient mode, ref mapping must be independent of the
     // base_qindex to ensure decoding independency
     const int ref_base_qindex = cur_ref.base_qindex;
-    const int disp_diff = get_relative_dist(&cm->seq_params.order_hint_info,
+    const int disp_diff = get_relative_dist(&cm->seq_params.seq_order_hint_info,
                                             cur_frame_disp, ref_disp);
     // The log2 ratio of current and reference frame resolution is
     // log2(num_pixel_cur) - log2(num_pixel_ref), where the first term is a
@@ -354,7 +354,7 @@ int av2_get_ref_frames(AV2_COMMON *cm, int cur_frame_disp,
   bubble_sort_ref_scores(scores, n_ranked);
 
   const int max_num_ref_frames =
-      AVMMIN(cm->seq_params.ref_frames, INTER_REFS_PER_FRAME);
+      AVMMIN(cm->seq_params.seq_ref_frames, INTER_REFS_PER_FRAME);
   cm->ref_frames_info.num_total_refs = AVMMIN(n_ranked, max_num_ref_frames);
   if (!resolution_available)
     cm->ref_frames_info.num_total_refs_res_indep =
@@ -481,7 +481,7 @@ void choose_primary_secondary_ref_frame(const AV2_COMMON *const cm,
 
   const int current_qp = cm->quant_params.base_qindex;
   const int cur_frame_disp = cm->current_frame.display_order_hint;
-  const OrderHintInfo *oh = &cm->seq_params.order_hint_info;
+  const OrderHintInfo *oh = &cm->seq_params.seq_order_hint_info;
 
   const int n_refs = cm->ref_frames_info.num_total_refs;
   const RefFrameMapPair *ref_frame_map_pairs = cm->ref_frame_map_pairs;

@@ -32,7 +32,7 @@ static INLINE void init_ref_map_pair_dec(AV2_COMMON *cm,
   }
 
   int olk_ref_flags = 0;
-  for (int layer = 0; layer <= cm->seq_params.max_mlayer_id; layer++) {
+  for (int layer = 0; layer <= cm->seq_params.seq_max_mlayer_id; layer++) {
     if (cm->olk_refresh_frame_flags[layer] == -1) continue;
     olk_ref_flags |= cm->olk_refresh_frame_flags[layer];
   }
@@ -43,13 +43,13 @@ static INLINE void init_ref_map_pair_dec(AV2_COMMON *cm,
   //
   // At the encoder side either of them is set, but all such
   // flags are in combined in cm->olk_refresh_frame_flags.
-  for (int layer = 0; layer <= cm->seq_params.max_mlayer_id; layer++) {
+  for (int layer = 0; layer <= cm->seq_params.seq_max_mlayer_id; layer++) {
     if (cm->prev_olk_co_vcl_refresh_frame_flags[layer] == -1) continue;
     olk_ref_flags |= cm->prev_olk_co_vcl_refresh_frame_flags[layer];
   }
 
   memset(ref_frame_map_pairs, 0, sizeof(*ref_frame_map_pairs) * REF_FRAMES);
-  for (int map_idx = 0; map_idx < cm->seq_params.ref_frames; map_idx++) {
+  for (int map_idx = 0; map_idx < cm->seq_params.seq_ref_frames; map_idx++) {
     // Get reference frame buffer
     const RefCntBuffer *const buf = cm->ref_frame_map[map_idx];
     if (buf != NULL && buf->is_restricted) {
@@ -99,7 +99,7 @@ static INLINE void init_ref_map_pair_dec(AV2_COMMON *cm,
       // matching the current are considered "free" slots. This will find
       // the next occurance of the current pointer if ref_count indicates
       // there are multiple instances of it and mark it as free.
-      for (int idx2 = map_idx + 1; idx2 < cm->seq_params.ref_frames; ++idx2) {
+      for (int idx2 = map_idx + 1; idx2 < cm->seq_params.seq_ref_frames; ++idx2) {
         const RefCntBuffer *const buf2 = cm->ref_frame_map[idx2];
         if (buf2 == buf) {
           ref_frame_map_pairs[idx2].ref_frame_for_inference = -1;
@@ -432,9 +432,9 @@ static INLINE int get_comp_group_idx_context(const AV2_COMMON *cm,
   if (bck_buf != NULL) bck_frame_index = bck_buf->display_order_hint;
   if (fwd_buf != NULL) fwd_frame_index = fwd_buf->display_order_hint;
 
-  int fwd = abs(get_relative_dist(&cm->seq_params.order_hint_info,
+  int fwd = abs(get_relative_dist(&cm->seq_params.seq_order_hint_info,
                                   fwd_frame_index, cur_frame_index));
-  int bck = abs(get_relative_dist(&cm->seq_params.order_hint_info,
+  int bck = abs(get_relative_dist(&cm->seq_params.seq_order_hint_info,
                                   cur_frame_index, bck_frame_index));
   const int offset = (fwd == bck);
 
@@ -504,7 +504,7 @@ static INLINE int get_morph_pred_ctx(const MACROBLOCKD *xd) {
 
 static INLINE int is_cctx_enabled(const AV2_COMMON *cm, const MACROBLOCKD *xd) {
   const MB_MODE_INFO *const mbmi = xd->mi[0];
-  return cm->seq_params.enable_cctx && !xd->lossless[mbmi->segment_id];
+  return cm->seq_params.seq_enable_cctx && !xd->lossless[mbmi->segment_id];
 }
 
 // Determine whether to allow cctx or not for a given block

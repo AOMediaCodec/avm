@@ -31,16 +31,16 @@ static void bru_update_txk_skip_array(const AV2_COMMON *cm, int mi_row,
   if (mi_row + blk_h > cm->mi_params.mi_rows)
     blk_h = cm->mi_params.mi_rows - mi_row;
 
-  blk_w = blk_w >> ((plane == 0) ? 0 : cm->seq_params.subsampling_x);
-  blk_h = blk_h >> ((plane == 0) ? 0 : cm->seq_params.subsampling_y);
+  blk_w = blk_w >> ((plane == 0) ? 0 : cm->seq_params.seq_subsampling_x);
+  blk_h = blk_h >> ((plane == 0) ? 0 : cm->seq_params.seq_subsampling_y);
 
   const uint32_t stride = cm->mi_params.tx_skip_stride[plane];
   const int cols = (blk_w << MI_SIZE_LOG2) >> MIN_TX_SIZE_LOG2;
   const int rows = (blk_h << MI_SIZE_LOG2) >> MIN_TX_SIZE_LOG2;
   int x = (mi_col << MI_SIZE_LOG2) >>
-          ((plane == 0) ? 0 : cm->seq_params.subsampling_x);
+          ((plane == 0) ? 0 : cm->seq_params.seq_subsampling_x);
   int y = (mi_row << MI_SIZE_LOG2) >>
-          ((plane == 0) ? 0 : cm->seq_params.subsampling_y);
+          ((plane == 0) ? 0 : cm->seq_params.seq_subsampling_y);
   x = x >> MIN_TX_SIZE_LOG2;
   y = y >> MIN_TX_SIZE_LOG2;
   for (int r = 0; r < rows; r++) {
@@ -123,7 +123,7 @@ void bru_copy_sb(const struct AV2Common *cm, const int mi_col,
                  const int mi_row) {
   if (cm->bru.update_ref_idx < 0)
     return;  // now ref_idx is the sole indicator of frame level bru
-  const int sb_size = cm->seq_params.sb_size;
+  const int sb_size = cm->seq_params.seq_sb_size;
   const int w = mi_size_wide[sb_size];
   const int h = mi_size_high[sb_size];
   RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, cm->bru.update_ref_idx);
@@ -150,7 +150,7 @@ void bru_copy_sb(const struct AV2Common *cm, const int mi_col,
               y_inside_boundary >> subsample_y, ref_data + ref_offset,
               ref_stride, rec_data + rec_offset, rec_stride);
   }
-  if (cm->seq_params.order_hint_info.enable_ref_frame_mvs) {
+  if (cm->seq_params.seq_order_hint_info.enable_ref_frame_mvs) {
     // set cur_frame mvs to 0
     bru_zero_sb_mvs(cm, -1, mi_row, mi_col, x_inside_boundary >> MI_SIZE_LOG2,
                     y_inside_boundary >> MI_SIZE_LOG2);
@@ -168,7 +168,7 @@ void bru_update_sb(const struct AV2Common *cm, const int mi_col,
   // just swap these two
   YV12_BUFFER_CONFIG *const rec_dst = &ref_buf->buf;
   YV12_BUFFER_CONFIG *const ref_src = &cm->cur_frame->buf;
-  const int sb_size = cm->seq_params.sb_size;
+  const int sb_size = cm->seq_params.seq_sb_size;
   const int w = mi_size_wide[sb_size];
   const int h = mi_size_high[sb_size];
   const int x_inside_boundary = AVMMIN(w, cm->mi_params.mi_cols - mi_col)
@@ -194,7 +194,7 @@ void bru_update_sb(const struct AV2Common *cm, const int mi_col,
               ref_stride, rec_data + rec_offset, rec_stride);
   }
 
-  if (cm->seq_params.order_hint_info.enable_ref_frame_mvs) {
+  if (cm->seq_params.seq_order_hint_info.enable_ref_frame_mvs) {
     // copy mvs from cur frame to ref frame
     // It is ok to copy since all TMVP are collocated now
     bru_copy_sb_mvs(cm, -1, cm->bru.update_ref_idx, mi_row, mi_col,
@@ -280,15 +280,15 @@ void bru_set_default_inter_mb_mode_info(const AV2_COMMON *const cm,
   mbmi->current_qindex = xd->current_base_qindex;
   int seg_qindex =
       av2_get_qindex(&cm->seg, mbmi->segment_id, xd->current_base_qindex,
-                     cm->seq_params.bit_depth);
+                     cm->seq_params.seq_bit_depth);
   get_qindex_with_offsets(cm, seg_qindex, mbmi->final_qindex_dc,
                           mbmi->final_qindex_ac);
   set_default_max_mv_precision(mbmi, xd->sbi->sb_mv_precision);
   /// bru use only pixel precision
   set_mv_precision(mbmi, MV_PRECISION_ONE_PEL);
   // set_mv_precision(mbmi, mbmi->max_mv_precision);
-  set_default_precision_set(cm, mbmi, cm->seq_params.sb_size);
-  set_most_probable_mv_precision(cm, mbmi, cm->seq_params.sb_size);
+  set_default_precision_set(cm, mbmi, cm->seq_params.seq_sb_size);
+  set_most_probable_mv_precision(cm, mbmi, cm->seq_params.seq_sb_size);
   mbmi->interp_fltr = MULTITAP_SHARP;
 
   if (is_bru_not_active_and_not_on_partial_border(cm, xd->mi_col, xd->mi_row,
@@ -384,26 +384,26 @@ RefCntBuffer *bru_swap_common(AV2_COMMON *cm) {
       ref_buf->ccso_info.ccso_ref_idx[plane] =
           tmp_buf->ccso_info.ccso_ref_idx[plane];
       ref_buf->ccso_info.subsampling_x[plane] =
-          plane > 0 ? cm->seq_params.subsampling_x : 0;
+          plane > 0 ? cm->seq_params.seq_subsampling_x : 0;
       ref_buf->ccso_info.subsampling_y[plane] =
-          plane > 0 ? cm->seq_params.subsampling_y : 0;
+          plane > 0 ? cm->seq_params.seq_subsampling_y : 0;
       ref_buf->ccso_info.reuse_root_ref[plane] =
           tmp_buf->ccso_info.reuse_root_ref[plane];
       const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(
           cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
       const int log2_filter_unit_size_y =
           plane == 0 ? ccso_blk_size
-                     : ccso_blk_size - cm->seq_params.subsampling_y;
+                     : ccso_blk_size - cm->seq_params.seq_subsampling_y;
       const int log2_filter_unit_size_x =
           plane == 0 ? ccso_blk_size
-                     : ccso_blk_size - cm->seq_params.subsampling_x;
+                     : ccso_blk_size - cm->seq_params.seq_subsampling_x;
       ref_buf->ccso_info.ccso_blk_size = ccso_blk_size;
       const int ccso_nvfb = ((cm->mi_params.mi_rows >>
-                              (plane ? cm->seq_params.subsampling_y : 0)) +
+                              (plane ? cm->seq_params.seq_subsampling_y : 0)) +
                              (1 << log2_filter_unit_size_y >> 2) - 1) /
                             (1 << log2_filter_unit_size_y >> 2);
       const int ccso_nhfb = ((cm->mi_params.mi_cols >>
-                              (plane ? cm->seq_params.subsampling_x : 0)) +
+                              (plane ? cm->seq_params.seq_subsampling_x : 0)) +
                              (1 << log2_filter_unit_size_x >> 2) - 1) /
                             (1 << log2_filter_unit_size_x >> 2);
       const int sb_count = ccso_nvfb * ccso_nhfb;

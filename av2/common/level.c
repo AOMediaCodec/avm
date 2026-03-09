@@ -689,7 +689,7 @@ static void update_ref_buffers(const AV2_COMMON *const cm,
                                DECODER_MODEL *const decoder_model, int idx,
                                int refresh_frame_flags) {
   FRAME_BUFFER *const this_buffer = &decoder_model->frame_buffer_pool[idx];
-  for (int i = 0; i < cm->seq_params.ref_frames; ++i) {
+  for (int i = 0; i < cm->seq_params.seq_ref_frames; ++i) {
     if (refresh_frame_flags & (1 << i)) {
       const int pre_idx = decoder_model->vbi[i];
       if (pre_idx != -1) {
@@ -730,8 +730,8 @@ static double time_to_decode_frame(const AV2_COMMON *const cm,
       luma_samples = cm->width * cm->height;
   } else {
     const SequenceHeader *const seq_params = &cm->seq_params;
-    const int max_frame_width = seq_params->max_frame_width;
-    const int max_frame_height = seq_params->max_frame_height;
+    const int max_frame_width = seq_params->seq_max_frame_width;
+    const int max_frame_height = seq_params->seq_max_frame_height;
     luma_samples = max_frame_width * max_frame_height;
   }
 
@@ -852,8 +852,8 @@ void av2_decoder_model_init(const AV2_COMP *const cpi, AV2_LEVEL level,
       av2_level_defs + level, cpi->tier[op_index], seq_params->seq_profile_idc
 #if CONFIG_AV2_PROFILES
       ,
-      seq_params->subsampling_x, seq_params->subsampling_y,
-      seq_params->monochrome
+      seq_params->seq_subsampling_x, seq_params->seq_subsampling_y,
+      seq_params->seq_monochrome
 #endif  // CONFIG_AV2_PROFILES
 #if CONFIG_F428_MULTISTREAM
       ,
@@ -886,7 +886,7 @@ void av2_decoder_model_init(const AV2_COMP *const cpi, AV2_LEVEL level,
   decoder_model->num_shown_frame = -1;
   decoder_model->current_time = 0.0;
 
-  initialize_buffer_pool(decoder_model, cm->seq_params.ref_frames);
+  initialize_buffer_pool(decoder_model, cm->seq_params.seq_ref_frames);
 
   DFG_INTERVAL_QUEUE *const dfg_interval_queue =
       &decoder_model->dfg_interval_queue;
@@ -906,7 +906,7 @@ void av2_decoder_model_init(const AV2_COMP *const cpi, AV2_LEVEL level,
   }
 
   decoder_model->initial_display_delay =
-      seq_params->op_params[op_index].initial_display_delay;
+      seq_params->seq_op_params[op_index].initial_display_delay;
   decoder_model->initial_presentation_delay = INVALID_TIME;
   decoder_model->decode_rate = av2_level_defs[level].max_decode_rate;
 }
@@ -914,12 +914,12 @@ void av2_decoder_model_init(const AV2_COMP *const cpi, AV2_LEVEL level,
 int av2_get_max_level_ref_frames(const AV2_COMMON *const cm, OBU_TYPE obu_type,
                                  AV2_LEVEL level_index) {
   const SequenceHeader *const seq_params = &cm->seq_params;
-  const int cap = (seq_params->ref_frames != 8) ? 16 : 8;
+  const int cap = (seq_params->seq_ref_frames != 8) ? 16 : 8;
 
   const int max_picture_size = av2_level_defs[level_index].max_picture_size;
 
   const int64_t current_picture_size =
-      seq_params->max_frame_width * seq_params->max_frame_height;
+      seq_params->seq_max_frame_width * seq_params->seq_max_frame_height;
 
   int64_t limit = (int64_t)(max_picture_size * 8) / current_picture_size;
 
@@ -927,7 +927,7 @@ int av2_get_max_level_ref_frames(const AV2_COMMON *const cm, OBU_TYPE obu_type,
       cm->features.allow_global_intrabc && is_filter_enabled_frame(cm) ? 2 : 1;
 
   if (decode_count == 2 &&
-      (obu_type != OBU_CLK || seq_params->max_mlayer_id != 0)) {
+      (obu_type != OBU_CLK || seq_params->seq_max_mlayer_id != 0)) {
     limit -= 1;
   }
   const int max_level_ref_frames = (int)AVMMIN(cap, limit);
@@ -1006,8 +1006,8 @@ void av2_decoder_model_process_frame(const AV2_COMP *const cpi,
         luma_pic_size, dt
 #if CONFIG_AV2_PROFILES
         ,
-        seq_params->subsampling_x, seq_params->subsampling_y,
-        seq_params->monochrome
+        seq_params->seq_subsampling_x, seq_params->seq_subsampling_y,
+        seq_params->seq_monochrome
 #endif
     );
     decoder_model->compressed_size_satisfy =
@@ -1018,8 +1018,8 @@ void av2_decoder_model_process_frame(const AV2_COMP *const cpi,
         av2_level_defs + level, cpi->tier[0], seq_params->seq_profile_idc, dt
 #if CONFIG_AV2_PROFILES
         ,
-        seq_params->subsampling_x, seq_params->subsampling_y,
-        seq_params->monochrome
+        seq_params->seq_subsampling_x, seq_params->seq_subsampling_y,
+        seq_params->seq_monochrome
 #endif
 #if CONFIG_F428_MULTISTREAM
         ,
@@ -1621,9 +1621,9 @@ double av2_get_compression_ratio(const AV2_COMMON *const cm,
 #if CONFIG_AV2_PROFILES
   uint32_t chroma_format_idc = CHROMA_FORMAT_420;
 
-  av2_get_chroma_format_idc(cm->seq_params.subsampling_x,
-                            cm->seq_params.subsampling_y,
-                            cm->seq_params.monochrome, &chroma_format_idc);
+  av2_get_chroma_format_idc(cm->seq_params.seq_subsampling_x,
+                            cm->seq_params.seq_subsampling_y,
+                            cm->seq_params.seq_monochrome, &chroma_format_idc);
   const int profile_scaling_factor =
       get_profile_scaling_factor(profile, chroma_format_idc);
   const int picture_size_profile_factor =
@@ -1681,11 +1681,11 @@ void av2_update_level_info(AV2_COMP *cpi, size_t size, int64_t ts_start,
   (void)xlayer_id;
   const SequenceHeader *const seq_params = &cm->seq_params;
   const BITSTREAM_PROFILE profile = seq_params->seq_profile_idc;
-  const int is_still_picture = seq_params->still_picture;
+  const int is_still_picture = seq_params->seq_still_picture;
   // update level_stats
   // TODO(kyslov@) fix the implementation according to buffer model
-  for (int i = 0; i < seq_params->operating_points_cnt_minus_1 + 1; ++i) {
-    if (!is_in_operating_point(seq_params->operating_point_idc[i], tlayer_id,
+  for (int i = 0; i < seq_params->seq_operating_points_cnt_minus_1 + 1; ++i) {
+    if (!is_in_operating_point(seq_params->seq_operating_point_idc[i], tlayer_id,
                                mlayer_id) ||
         !((level_params->keep_level_stats >> i) & 1)) {
       continue;
@@ -1759,8 +1759,8 @@ void av2_update_level_info(AV2_COMP *cpi, size_t size, int64_t ts_start,
           level_info, target_level, tier, is_still_picture, profile, 0
 #if CONFIG_AV2_PROFILES
           ,
-          cm->seq_params.subsampling_x, cm->seq_params.subsampling_y,
-          cm->seq_params.monochrome
+          cm->seq_params.seq_subsampling_x, cm->seq_params.seq_subsampling_y,
+          cm->seq_params.seq_monochrome
 #endif  // CONFIG_AV2_PROFILES
       );
       if (fail_id != TARGET_LEVEL_OK) {
@@ -1780,9 +1780,9 @@ avm_codec_err_t av2_get_seq_level_idx(const AV2_COMP *cpi,
 
                                       const AV2LevelParams *level_params,
                                       int *seq_level_idx) {
-  const int is_still_picture = seq_params->still_picture;
+  const int is_still_picture = seq_params->seq_still_picture;
   const BITSTREAM_PROFILE profile = seq_params->seq_profile_idc;
-  for (int op = 0; op < seq_params->operating_points_cnt_minus_1 + 1; ++op) {
+  for (int op = 0; op < seq_params->seq_operating_points_cnt_minus_1 + 1; ++op) {
     seq_level_idx[op] = (int)SEQ_LEVEL_MAX;
     if (!((level_params->keep_level_stats >> op) & 1)) continue;
     const int tier = cpi->tier[op];
@@ -1797,8 +1797,8 @@ avm_codec_err_t av2_get_seq_level_idx(const AV2_COMP *cpi,
           level_info, level, tier, is_still_picture, profile, 1
 #if CONFIG_AV2_PROFILES
           ,
-          seq_params->subsampling_x, seq_params->subsampling_y,
-          seq_params->monochrome
+          seq_params->seq_subsampling_x, seq_params->seq_subsampling_y,
+          seq_params->seq_monochrome
 #endif  // CONFIG_AV2_PROFILES
       );
       if (fail_id == TARGET_LEVEL_OK) {

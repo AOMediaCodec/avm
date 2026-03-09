@@ -155,7 +155,7 @@ static int rd_pick_intra_dip_sby(const AV2_COMP *const cpi, ThreadData *td,
 
   *mbmi = base_mbmi;
   const int dc_q =
-      av2_dc_quant_QTX(x->qindex, 0, cpi->common.seq_params.base_y_dc_delta_q,
+      av2_dc_quant_QTX(x->qindex, 0, cpi->common.seq_params.seq_base_y_dc_delta_q,
                        xd->bd) >>
       (xd->bd - 8);
 
@@ -676,7 +676,7 @@ int64_t av2_rd_pick_intra_sbuv_mode(const AV2_COMP *const cpi, MACROBLOCK *x,
       if (mbmi->use_dpcm_uv == 0) {
         mode_cost += get_uv_mode_cost(
             mbmi, x->mode_costs, xd,
-            is_cfl_allowed(cm->seq_params.enable_cfl_intra, xd) ||
+            is_cfl_allowed(cm->seq_params.seq_enable_cfl_intra, xd) ||
                 is_mhccp_allowed(cm, xd),
             mbmi->uv_mode_idx);
       } else {
@@ -703,7 +703,7 @@ int64_t av2_rd_pick_intra_sbuv_mode(const AV2_COMP *const cpi, MACROBLOCK *x,
       int filter_dir_rate = 0;
       int cfl_idx_rate = 0;
       if (mode == UV_CFL_PRED) {
-        if (!is_cfl_allowed(cm->seq_params.enable_cfl_intra, xd) &&
+        if (!is_cfl_allowed(cm->seq_params.seq_enable_cfl_intra, xd) &&
             (mbmi->cfl_idx == CFL_EXPLICIT ||
              mbmi->cfl_idx == CFL_DERIVED_ALPHA))
           continue;
@@ -753,8 +753,8 @@ int64_t av2_rd_pick_intra_sbuv_mode(const AV2_COMP *const cpi, MACROBLOCK *x,
       this_rate = tokenonly_rd_stats.rate + mode_cost;
 
       if (mode == UV_CFL_PRED &&
-          (cm->seq_params.enable_cfl_intra || cm->seq_params.enable_mhccp)) {
-        assert((is_cfl_allowed(cm->seq_params.enable_cfl_intra, xd) &&
+          (cm->seq_params.seq_enable_cfl_intra || cm->seq_params.seq_enable_mhccp)) {
+        assert((is_cfl_allowed(cm->seq_params.seq_enable_cfl_intra, xd) &&
                 intra_mode_cfg->enable_cfl_intra) ||
                is_mhccp_allowed(cm, xd));
       }
@@ -1078,11 +1078,11 @@ int64_t av2_handle_intra_mode(IntraModeSearchState *intra_search_state,
   int mrl_ctx = get_mrl_index_ctx(xd->neighbors[0], xd->neighbors[1]);
   int mrl_idx_cost =
       (av2_is_directional_mode(mbmi->mode) &&
-       cpi->common.seq_params.enable_mrls)
+       cpi->common.seq_params.seq_enable_mrls)
           ? x->mode_costs.mrl_index_cost[mrl_ctx][mbmi->mrl_index]
           : 0;
   if (av2_is_directional_mode(mbmi->mode) &&
-      cpi->common.seq_params.enable_mrls && mbmi->mrl_index) {
+      cpi->common.seq_params.seq_enable_mrls && mbmi->mrl_index) {
     int multi_line_mrl_ctx =
         get_multi_line_mrl_index_ctx(xd->neighbors[0], xd->neighbors[1]);
     mrl_idx_cost +=
@@ -1138,7 +1138,7 @@ int64_t av2_handle_intra_mode(IntraModeSearchState *intra_search_state,
 
   const int intra_cost_penalty = av2_get_intra_cost_penalty(
       cm->quant_params.base_qindex, cm->quant_params.y_dc_delta_q,
-      cm->seq_params.base_y_dc_delta_q, cm->seq_params.bit_depth);
+      cm->seq_params.seq_base_y_dc_delta_q, cm->seq_params.seq_bit_depth);
 
   int known_rate = mode_cost;
   if (mode != DC_PRED && mode != PAETH_PRED) known_rate += intra_cost_penalty;
@@ -1271,7 +1271,7 @@ int64_t av2_handle_intra_mode(IntraModeSearchState *intra_search_state,
   if (num_planes > 1 && xd->is_chroma_ref) {
     const int uv_mode_cost = get_uv_mode_cost(
         mbmi, x->mode_costs, xd,
-        is_cfl_allowed(cm->seq_params.enable_cfl_intra, xd), mbmi->uv_mode_idx);
+        is_cfl_allowed(cm->seq_params.seq_enable_cfl_intra, xd), mbmi->uv_mode_idx);
     rd_stats->rate += rd_stats_uv->rate + uv_mode_cost;
   }
 
@@ -1320,7 +1320,7 @@ void search_fsc_mode(const AV2_COMP *const cpi, MACROBLOCK *x, int *rate,
   TX_TYPE best_tx_type_map[MAX_MIB_SIZE * MAX_MIB_SIZE];
   int8_t best_angle_delta = best_mbmi->angle_delta[PLANE_TYPE_Y];
   uint8_t best_mrl = best_mbmi->mrl_index;
-  uint8_t enable_mrls_flag = cpi->common.seq_params.enable_mrls;
+  uint8_t enable_mrls_flag = cpi->common.seq_params.seq_enable_mrls;
   uint8_t mrl_loop = (enable_mrls_flag && best_mrl) ? 2 : 1;
   uint8_t best_multi_line_mrl = best_mbmi->multi_line_mrl;
   uint8_t multi_line_mrl_loop = (enable_mrls_flag && best_mrl) ? 2 : 1;
@@ -1587,7 +1587,7 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
   for (int i = 0; i < TOP_TX_PART_COUNT; i++) {
     x->top_tx_part_rd[i] = INT64_MAX;
   }
-  uint8_t enable_mrls_flag = cpi->common.seq_params.enable_mrls;
+  uint8_t enable_mrls_flag = cpi->common.seq_params.seq_enable_mrls;
   int dpcm_loop_num = 1;
   if (xd->lossless[mbmi->segment_id]) {
     dpcm_loop_num = 2;

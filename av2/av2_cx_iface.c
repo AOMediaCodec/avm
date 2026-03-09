@@ -2125,7 +2125,7 @@ static avm_codec_err_t ctrl_set_user_defined_qmatrix(avm_codec_alg_priv_t *ctx,
   }
 
   AV2_COMP *cpi = ctx->cpi;
-  if (num_planes != (cpi->common.seq_params.monochrome ? 1 : 3)) {
+  if (num_planes != (cpi->common.seq_params.seq_monochrome ? 1 : 3)) {
     return AVM_CODEC_INVALID_PARAM;
   }
   cpi->use_user_defined_qm[level] = true;
@@ -2688,7 +2688,7 @@ static avm_codec_err_t ctrl_get_enable_bru(avm_codec_alg_priv_t *ctx,
                                            va_list args) {
   int *const arg = va_arg(args, int *);
   if (arg == NULL) return AVM_CODEC_INVALID_PARAM;
-  *arg = ctx->cpi->common.seq_params.enable_bru;
+  *arg = ctx->cpi->common.seq_params.seq_enable_bru;
   return AVM_CODEC_OK;
 }
 
@@ -3153,7 +3153,7 @@ static avm_codec_err_t encoder_encode(avm_codec_alg_priv_t *ctx,
             subsampling_x, subsampling_y, lag_in_frames,
             cpi->oxcf.border_in_pixels, cpi->common.features.byte_alignment,
             ctx->num_lap_buffers,
-            cpi->common.seq_params.enable_bru ? BRU_ENC_LOOKAHEAD_DIST_MINUS_1
+            cpi->common.seq_params.seq_enable_bru ? BRU_ENC_LOOKAHEAD_DIST_MINUS_1
                                               : 0,
             cpi->oxcf.tool_cfg.enable_global_motion);
       }
@@ -3346,8 +3346,8 @@ static avm_codec_err_t encoder_encode(avm_codec_alg_priv_t *ctx,
             int w = widths[plane];
             int h = heights[plane];
             int mi_size_plane = plane ? (MI_SIZE >> 1) : MI_SIZE;
-            int scale_horz = plane && cpi->common.seq_params.subsampling_x;
-            int scale_vert = plane && cpi->common.seq_params.subsampling_y;
+            int scale_horz = plane && cpi->common.seq_params.seq_subsampling_x;
+            int scale_vert = plane && cpi->common.seq_params.seq_subsampling_y;
             for (int row = 0; row < h; row += mi_size_plane) {
               for (int col = 0; col < w; col += mi_size_plane) {
                 int blk_width = AVMMIN(mi_size_plane, w - col);

@@ -218,7 +218,7 @@ void av2_alloc_cdef_buffers(AV2_COMMON *const cm,
       (cm->mi_params.mi_rows + MI_SIZE_64X64 - 1) / MI_SIZE_64X64;
   const int is_num_workers_changed =
       cdef_info->allocated_num_workers != num_workers;
-  const int is_cdef_enabled = cm->seq_params.enable_cdef;
+  const int is_cdef_enabled = cm->seq_params.seq_enable_cdef;
   // num-bufs=3 represents ping-pong buffers for top linebuf,
   // followed by bottom linebuf.
   // ping-pong is to avoid top linebuf over-write by consecutive row.
@@ -230,7 +230,7 @@ void av2_alloc_cdef_buffers(AV2_COMMON *const cm,
     // Calculate src buffer size
     new_srcbuf_size = sizeof(*cdef_info->srcbuf) * CDEF_INBUF_SIZE;
     for (int plane = 0; plane < num_planes; plane++) {
-      const int shift = plane == AVM_PLANE_Y ? 0 : cm->seq_params.subsampling_x;
+      const int shift = plane == AVM_PLANE_Y ? 0 : cm->seq_params.seq_subsampling_x;
       // Calculate top and bottom line buffer size
       new_linebuf_size[plane] = sizeof(*cdef_info->linebuf) * num_bufs *
                                 (CDEF_VBORDER << 1) * (luma_stride >> shift);
@@ -345,7 +345,7 @@ void av2_alloc_restoration_boundary_buffers(struct AV2Common *cm,
 
   for (int p = 0; p < num_planes; ++p) {
     const int is_uv = p > 0;
-    const int ss_x = is_uv && cm->seq_params.subsampling_x;
+    const int ss_x = is_uv && cm->seq_params.seq_subsampling_x;
     const int plane_w =
         ((frame_w + ss_x) >> ss_x) + 2 * RESTORATION_BORDER_HORZ;
     const int stride = ALIGN_POWER_OF_TWO(plane_w, 5);

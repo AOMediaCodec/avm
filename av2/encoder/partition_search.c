@@ -333,10 +333,10 @@ static void encode_superblock(const AV2_COMP *const cpi, TileDataEnc *tile_data,
   }
 
   if (is_inter_block(mbmi, xd->tree_type) && !xd->is_chroma_ref &&
-      (is_cfl_allowed(cm->seq_params.enable_cfl_intra, xd) ||
+      (is_cfl_allowed(cm->seq_params.seq_enable_cfl_intra, xd) ||
        is_mhccp_allowed(cm, xd))) {
     av2_cfl_store_block(xd, mbmi->sb_type[xd->tree_type == CHROMA_PART],
-                        mbmi->tx_size, cm->seq_params.cfl_ds_filter_index);
+                        mbmi->tx_size, cm->seq_params.seq_cfl_ds_filter_index);
   }
   if (xd->tree_type == LUMA_PART) {
     const CommonModeInfoParams *const mi_params = &cm->mi_params;
@@ -539,7 +539,7 @@ static void pick_sb_modes(AV2_COMP *const cpi, ThreadData *td,
   // set tree_type for each mbmi
   xd->mi[0]->tree_type = xd->tree_type;
   xd->mi[0]->sb_root_partition_info = sb_root_partition_info;
-  xd->reduced_tx_part_set = cm->seq_params.reduced_tx_part_set;
+  xd->reduced_tx_part_set = cm->seq_params.seq_reduced_tx_part_set;
 
   if (ctx->rd_mode_is_ready) {
     assert(ctx->mic.sb_type[plane_type] == bsize);
@@ -548,7 +548,7 @@ static void pick_sb_modes(AV2_COMP *const cpi, ThreadData *td,
     rd_cost->dist = ctx->rd_stats.dist;
     rd_cost->rdcost = ctx->rd_stats.rdcost;
     const int is_inter = is_inter_block(&ctx->mic, xd->tree_type);
-    if (cm->seq_params.enable_refmvbank && is_inter) {
+    if (cm->seq_params.seq_enable_refmvbank && is_inter) {
       av2_update_ref_mv_bank(cm, xd, 1, &ctx->mic);
     } else {
       decide_rmb_unit_update_count(cm, xd, &ctx->mic);
@@ -668,7 +668,7 @@ static void pick_sb_modes(AV2_COMP *const cpi, ThreadData *td,
   }
 
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
-  if (cm->seq_params.enable_refmvbank && is_inter) {
+  if (cm->seq_params.seq_enable_refmvbank && is_inter) {
     av2_update_ref_mv_bank(cm, xd, 1, mbmi);
   } else {
     decide_rmb_unit_update_count(cm, xd, mbmi);
@@ -1145,7 +1145,7 @@ static void update_stats(const AV2_COMMON *const cm, ThreadData *td) {
                        EXPLICIT_BAWP_SCALE_CNT);
           }
         }
-        if (!cm->seq_params.monochrome && xd->is_chroma_ref &&
+        if (!cm->seq_params.seq_monochrome && xd->is_chroma_ref &&
             mbmi->bawp_flag[0]) {
           update_cdf(fc->bawp_cdf[1], mbmi->bawp_flag[1] == 1, 2);
         }
@@ -1309,7 +1309,7 @@ static void update_stats(const AV2_COMMON *const cm, ThreadData *td) {
                 is_compound_warp_causal_allowed(cm, xd, mbmi)));
 
         const int masked_compound_used = is_any_masked_compound_used(bsize) &&
-                                         cm->seq_params.enable_masked_compound;
+                                         cm->seq_params.seq_enable_masked_compound;
         if (masked_compound_used) {
           const int comp_group_idx_ctx = get_comp_group_idx_context(cm, xd);
 #if CONFIG_ENTROPY_STATS
@@ -1589,7 +1589,7 @@ static void encode_b(const AV2_COMP *const cpi, TileDataEnc *tile_data,
 
   encode_superblock(cpi, tile_data, td, tp, dry_run, bsize, plane_start,
                     plane_end, rate);
-  if (!dry_run && cm->seq_params.order_hint_info.enable_ref_frame_mvs) {
+  if (!dry_run && cm->seq_params.seq_order_hint_info.enable_ref_frame_mvs) {
     const MB_MODE_INFO *const mi = &ctx->mic;
     const int bw = mi_size_wide[mi->sb_type[xd->tree_type == CHROMA_PART]];
     const int bh = mi_size_high[mi->sb_type[xd->tree_type == CHROMA_PART]];
@@ -1637,7 +1637,7 @@ static void encode_b(const AV2_COMP *const cpi, TileDataEnc *tile_data,
       mbmi->current_qindex = xd->current_base_qindex;
       int seg_qindex =
           av2_get_qindex(&cm->seg, mbmi->segment_id, xd->current_base_qindex,
-                         cm->seq_params.bit_depth);
+                         cm->seq_params.seq_bit_depth);
 
       get_qindex_with_offsets(cm, seg_qindex, mbmi->final_qindex_dc,
                               mbmi->final_qindex_ac);
@@ -1936,7 +1936,7 @@ static void encode_sb(const AV2_COMP *const cpi, ThreadData *td,
     if (parent) {
       if (parent->extended_sdp_allowed_flag)
         ptree->extended_sdp_allowed_flag =
-            is_extended_sdp_allowed(cm->seq_params.enable_extended_sdp,
+            is_extended_sdp_allowed(cm->seq_params.seq_enable_extended_sdp,
                                     parent->bsize, parent->partition);
       else
         ptree->extended_sdp_allowed_flag = 0;
@@ -1946,7 +1946,7 @@ static void encode_sb(const AV2_COMP *const cpi, ThreadData *td,
     if (!frame_is_intra_only(cm) && !is_sb_root &&
         partition != PARTITION_NONE && parent &&
         parent->region_type != INTRA_REGION && xd->tree_type != CHROMA_PART &&
-        cm->seq_params.enable_extended_sdp &&
+        cm->seq_params.seq_enable_extended_sdp &&
         ptree->extended_sdp_allowed_flag &&
         is_bsize_allowed_for_extended_sdp(bsize, partition)) {
       assert(xd->tree_type != CHROMA_PART);
@@ -1965,7 +1965,7 @@ static void encode_sb(const AV2_COMP *const cpi, ThreadData *td,
         is_cfl_allowed_for_sdp(cm, xd, ptree_luma, partition, bsize);
     CFL_ALLOWED_FOR_SDP_TYPE is_cfl_allowed_in_sdp =
         ptree->is_cfl_allowed_for_this_chroma_partition;
-    if (!cm->seq_params.enable_cfl_intra && !cm->seq_params.enable_mhccp) {
+    if (!cm->seq_params.seq_enable_cfl_intra && !cm->seq_params.seq_enable_mhccp) {
       is_cfl_allowed_in_sdp = CFL_DISALLOWED_FOR_CHROMA;
     }
     if (partition == PARTITION_NONE) {
@@ -2019,7 +2019,7 @@ static void encode_sb(const AV2_COMP *const cpi, ThreadData *td,
         break;
       default: break;
     }
-    if (!cm->seq_params.enable_cfl_intra && !cm->seq_params.enable_mhccp) {
+    if (!cm->seq_params.seq_enable_cfl_intra && !cm->seq_params.seq_enable_mhccp) {
       xd->is_cfl_allowed_in_sdp = CFL_DISALLOWED_FOR_CHROMA;
     }
   }
@@ -2030,8 +2030,8 @@ static void encode_sb(const AV2_COMP *const cpi, ThreadData *td,
   if (track_ptree_luma) {
     assert(partition ==
            sdp_chroma_part_from_luma(bsize, ptree_luma->partition,
-                                     cm->seq_params.subsampling_x,
-                                     cm->seq_params.subsampling_x));
+                                     cm->seq_params.seq_subsampling_x,
+                                     cm->seq_params.seq_subsampling_x));
     if (partition != PARTITION_NONE) {
       assert(ptree_luma);
       assert(ptree_luma->sub_tree);
@@ -2189,7 +2189,7 @@ static void encode_sb(const AV2_COMP *const cpi, ThreadData *td,
   }
 
   // encode the chroma blocks under one intra region in inter frame
-  if (encode_sdp_intra_region_yuv && !cm->seq_params.monochrome) {
+  if (encode_sdp_intra_region_yuv && !cm->seq_params.seq_monochrome) {
     xd->tree_type = CHROMA_PART;
     encode_b(cpi, tile_data, td, tp, mi_row, mi_col, dry_run, bsize,
              PARTITION_NONE, pc_tree->none_chroma, rate);
@@ -2208,8 +2208,8 @@ static void build_one_split_tree(AV2_COMMON *const cm, TREE_TYPE tree_type,
   if (mi_row >= cm->mi_params.mi_rows || mi_col >= cm->mi_params.mi_cols)
     return;
 
-  const int ss_x = cm->seq_params.subsampling_x;
-  const int ss_y = cm->seq_params.subsampling_y;
+  const int ss_x = cm->seq_params.seq_subsampling_x;
+  const int ss_y = cm->seq_params.seq_subsampling_y;
   ptree->bsize = bsize;
 
   PARTITION_TREE *parent = ptree->parent;
@@ -2673,7 +2673,7 @@ void av2_rd_use_partition(AV2_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
     ptree->is_cfl_allowed_for_this_chroma_partition = CFL_DISALLOWED_FOR_CHROMA;
   }
 
-  if (!cm->seq_params.enable_cfl_intra && !cm->seq_params.enable_mhccp) {
+  if (!cm->seq_params.seq_enable_cfl_intra && !cm->seq_params.seq_enable_mhccp) {
     xd->is_cfl_allowed_in_sdp = CFL_DISALLOWED_FOR_CHROMA;
   }
   switch (partition) {
@@ -2876,8 +2876,8 @@ static AVM_INLINE PARTITION_TYPE get_forced_partition_type(
     const bool *partition_allowed) {
   // Partition types forced by bitstream syntax.
   const MACROBLOCKD *xd = &x->e_mbd;
-  const bool ss_x = cm->seq_params.subsampling_x;
-  const bool ss_y = cm->seq_params.subsampling_y;
+  const bool ss_x = cm->seq_params.seq_subsampling_x;
+  const bool ss_y = cm->seq_params.seq_subsampling_y;
   const PARTITION_TYPE derived_partition =
       av2_get_normative_forced_partition_type(&cm->mi_params, xd->tree_type,
                                               ss_x, ss_y, mi_row, mi_col, bsize,
@@ -3072,8 +3072,8 @@ static void init_partition_search_state_params(
   av2_zero(part_search_state->prune_partition_4a);
   av2_zero(part_search_state->prune_partition_4b);
 
-  const bool ss_x = cm->seq_params.subsampling_x;
-  const bool ss_y = cm->seq_params.subsampling_y;
+  const bool ss_x = cm->seq_params.seq_subsampling_x;
+  const bool ss_y = cm->seq_params.seq_subsampling_y;
   bool partition_allowed[ALL_PARTITION_TYPES];
   init_allowed_partitions_for_signaling(
       partition_allowed, cm, tree_type,
@@ -3123,7 +3123,7 @@ static void rd_pick_rect_partition(
 
   sum_rdc->rate = part_search_state->partition_cost[partition_type];
   if (pc_tree->region_type == MIXED_INTER_INTRA_REGION && pc_tree->parent &&
-      is_extended_sdp_allowed(cpi->common.seq_params.enable_extended_sdp,
+      is_extended_sdp_allowed(cpi->common.seq_params.seq_enable_extended_sdp,
                               pc_tree->parent->block_size, parent_partition) &&
       is_bsize_allowed_for_extended_sdp(bsize, PARTITION_HORZ))
     sum_rdc->rate +=
@@ -3668,7 +3668,7 @@ static void none_partition_search(
   const int bw = block_size_wide[bsize];
   const int bh = block_size_high[bsize];
   const int max_aspect_ratio =
-      1 << (cpi->common.seq_params.max_pb_aspect_ratio_log2_m1 + 1);
+      1 << (cpi->common.seq_params.seq_max_pb_aspect_ratio_log2_m1 + 1);
   if (bw > bh * max_aspect_ratio || bh > bw * max_aspect_ratio) {
     return;
   }
@@ -3701,7 +3701,7 @@ static void none_partition_search(
   x->e_mbd.is_cfl_allowed_in_sdp =
       pc_tree->is_cfl_allowed_for_this_chroma |
       is_cfl_allowed_for_sdp(cm, &x->e_mbd, ptree_luma, PARTITION_NONE, bsize);
-  if (!cm->seq_params.enable_cfl_intra && !cm->seq_params.enable_mhccp) {
+  if (!cm->seq_params.seq_enable_cfl_intra && !cm->seq_params.seq_enable_mhccp) {
     x->e_mbd.is_cfl_allowed_in_sdp = CFL_DISALLOWED_FOR_CHROMA;
   }
   REGION_TYPE cur_region_type = pc_tree->region_type;
@@ -4651,7 +4651,7 @@ static INLINE void search_intra_region_partitioning(
     av2_invalid_rd_stats(sum_rdc);
   }
   // Encoder RDO for chroma component in intra region
-  if (this_rdc.rdcost != INT64_MAX && !cm->seq_params.monochrome) {
+  if (this_rdc.rdcost != INT64_MAX && !cm->seq_params.seq_monochrome) {
     sum_rdc->rate += this_rdc.rate;
     sum_rdc->dist += this_rdc.dist;
     av2_rd_cost_update(x->rdmult, sum_rdc);
@@ -4977,7 +4977,7 @@ static void search_partition_horz_4a(
 
   sum_rdc.rate = search_state->partition_cost[PARTITION_HORZ_4A];
   if (pc_tree->region_type == MIXED_INTER_INTRA_REGION && pc_tree->parent &&
-      is_extended_sdp_allowed(cpi->common.seq_params.enable_extended_sdp,
+      is_extended_sdp_allowed(cpi->common.seq_params.seq_enable_extended_sdp,
                               pc_tree->parent->block_size,
                               pc_tree->parent->partitioning) &&
       is_bsize_allowed_for_extended_sdp(bsize, PARTITION_HORZ_4A))
@@ -5096,7 +5096,7 @@ static void search_partition_horz_4b(
 
   sum_rdc.rate = search_state->partition_cost[PARTITION_HORZ_4B];
   if (pc_tree->region_type == MIXED_INTER_INTRA_REGION && pc_tree->parent &&
-      is_extended_sdp_allowed(cpi->common.seq_params.enable_extended_sdp,
+      is_extended_sdp_allowed(cpi->common.seq_params.seq_enable_extended_sdp,
                               pc_tree->parent->block_size,
                               pc_tree->parent->partitioning) &&
       is_bsize_allowed_for_extended_sdp(bsize, PARTITION_HORZ_4A))
@@ -5213,7 +5213,7 @@ static void search_partition_vert_4a(
 
   sum_rdc.rate = search_state->partition_cost[PARTITION_VERT_4A];
   if (pc_tree->region_type == MIXED_INTER_INTRA_REGION && pc_tree->parent &&
-      is_extended_sdp_allowed(cpi->common.seq_params.enable_extended_sdp,
+      is_extended_sdp_allowed(cpi->common.seq_params.seq_enable_extended_sdp,
                               pc_tree->parent->block_size,
                               pc_tree->parent->partitioning) &&
       is_bsize_allowed_for_extended_sdp(bsize, PARTITION_VERT_4A))
@@ -5330,7 +5330,7 @@ static void search_partition_vert_4b(
 
   sum_rdc.rate = search_state->partition_cost[PARTITION_VERT_4B];
   if (pc_tree->region_type == MIXED_INTER_INTRA_REGION && pc_tree->parent &&
-      is_extended_sdp_allowed(cpi->common.seq_params.enable_extended_sdp,
+      is_extended_sdp_allowed(cpi->common.seq_params.seq_enable_extended_sdp,
                               pc_tree->parent->block_size,
                               pc_tree->parent->partitioning) &&
       is_bsize_allowed_for_extended_sdp(bsize, PARTITION_VERT_4B))
@@ -5450,7 +5450,7 @@ static INLINE void search_partition_horz_3(
 
   sum_rdc.rate = search_state->partition_cost[PARTITION_HORZ_3];
   if (pc_tree->region_type == MIXED_INTER_INTRA_REGION && pc_tree->parent &&
-      is_extended_sdp_allowed(cpi->common.seq_params.enable_extended_sdp,
+      is_extended_sdp_allowed(cpi->common.seq_params.seq_enable_extended_sdp,
                               pc_tree->parent->block_size,
                               pc_tree->parent->partitioning) &&
       is_bsize_allowed_for_extended_sdp(bsize, PARTITION_HORZ_3))
@@ -5573,7 +5573,7 @@ static INLINE void search_partition_vert_3(
 
   sum_rdc.rate = search_state->partition_cost[PARTITION_VERT_3];
   if (pc_tree->region_type == MIXED_INTER_INTRA_REGION && pc_tree->parent &&
-      is_extended_sdp_allowed(cpi->common.seq_params.enable_extended_sdp,
+      is_extended_sdp_allowed(cpi->common.seq_params.seq_enable_extended_sdp,
                               pc_tree->parent->block_size,
                               pc_tree->parent->partitioning) &&
       is_bsize_allowed_for_extended_sdp(bsize, PARTITION_VERT_3))
@@ -6075,8 +6075,8 @@ BEGIN_PARTITION_SEARCH:
   // find a valid one under the cost limit after pruning, reset the
   // limitations on partition types.
   if (x->must_find_valid_partition) {
-    const bool ss_x = cm->seq_params.subsampling_x;
-    const bool ss_y = cm->seq_params.subsampling_y;
+    const bool ss_x = cm->seq_params.seq_subsampling_x;
+    const bool ss_y = cm->seq_params.seq_subsampling_y;
     bool partition_allowed[ALL_PARTITION_TYPES];
     init_allowed_partitions_for_signaling(
         partition_allowed, cm, xd->tree_type,
@@ -6395,7 +6395,7 @@ BEGIN_PARTITION_SEARCH:
   if (frame_is_intra_only(cm)) pc_tree->extended_sdp_allowed_flag = 0;
   if (!frame_is_intra_only(cm) &&
       pc_tree->region_type == MIXED_INTER_INTRA_REGION && pc_tree->parent &&
-      cm->seq_params.enable_extended_sdp &&
+      cm->seq_params.seq_enable_extended_sdp &&
       pc_tree->extended_sdp_allowed_flag &&
       is_bsize_allowed_for_extended_sdp(bsize, PARTITION_HORZ) &&
       multi_pass_mode != SB_DRY_PASS) {

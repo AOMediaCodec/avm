@@ -49,8 +49,8 @@ static AVM_INLINE void config_target_level(AV2_COMP *const cpi,
       target_level, tier, profile
 #if CONFIG_AV2_PROFILES
       ,
-      seq_params->subsampling_x, seq_params->subsampling_y,
-      seq_params->monochrome
+      seq_params->seq_subsampling_x, seq_params->seq_subsampling_y,
+      seq_params->seq_monochrome
 #endif  // CONFIG_AV2_PROFILES
 #if CONFIG_F428_MULTISTREAM
       ,
@@ -314,11 +314,11 @@ static AVM_INLINE void recode_loop_update_q(
       if (*q == *q_high &&
           rc->projected_frame_size >= rc->max_frame_bandwidth) {
         const double q_val_high_current =
-            av2_convert_qindex_to_q(*q_high, cm->seq_params.bit_depth);
+            av2_convert_qindex_to_q(*q_high, cm->seq_params.seq_bit_depth);
         const double q_val_high_new =
             q_val_high_current *
             ((double)rc->projected_frame_size / rc->max_frame_bandwidth);
-        *q_high = av2_find_qindex(q_val_high_new, cm->seq_params.bit_depth,
+        *q_high = av2_find_qindex(q_val_high_new, cm->seq_params.seq_bit_depth,
                                   rc->best_quality, rc->worst_quality);
       }
 

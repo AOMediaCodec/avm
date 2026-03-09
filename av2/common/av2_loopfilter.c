@@ -440,7 +440,7 @@ static AVM_INLINE void check_sub_pu_edge(
 
   int scale = edge_dir == VERT_EDGE ? scale_horz : scale_vert;
   check_tip_edge(mbmi, scale, &temp_ts, &temp_edge,
-                 cm->seq_params.enable_tip_refinemv);
+                 cm->seq_params.seq_enable_tip_refinemv);
   if (!temp_edge)
     check_opfl_edge(cm, plane, xd, mbmi, scale, &temp_ts, &temp_edge);
   if (!temp_edge)
@@ -586,9 +586,9 @@ static TX_SIZE set_lpf_parameters(
   if (mbmi == NULL) return TX_INVALID;
 
   // SDP is always disabled for monochrome.
-  assert(IMPLIES(cm->seq_params.enable_sdp, !cm->seq_params.monochrome));
+  assert(IMPLIES(cm->seq_params.seq_enable_sdp, !cm->seq_params.seq_monochrome));
   const bool is_sdp_eligible =
-      cm->seq_params.enable_sdp && mbmi->region_type == INTRA_REGION;
+      cm->seq_params.seq_enable_sdp && mbmi->region_type == INTRA_REGION;
   if (is_sdp_eligible) {
     tree_type = (plane == AVM_PLANE_Y) ? LUMA_PART : CHROMA_PART;
   }
@@ -611,7 +611,7 @@ static TX_SIZE set_lpf_parameters(
     check_sub_pu_edge(cm, xd, mbmi, plane, tree_type, scale_horz, scale_vert,
                       edge_dir, coord, &ts, &sub_pu_edge, &tx_m_partition_size);
     if (!tu_edge && !sub_pu_edge) return ts;
-    if (cm->seq_params.disable_loopfilters_across_tiles) {
+    if (cm->seq_params.seq_disable_loopfilters_across_tiles) {
       if (edge_dir == VERT_EDGE)
         if (is_vert_tile_boundary(&cm->tiles, mi_col)) return ts;
       if (edge_dir == HORZ_EDGE)
@@ -627,9 +627,9 @@ static TX_SIZE set_lpf_parameters(
     // prepare outer edge parameters. deblock the edge if it's an edge of a TU
     {
       const uint32_t curr_q = av2_get_filter_q(&cm->lf_info, edge_dir, plane,
-                                               mbmi, cm->seq_params.bit_depth);
+                                               mbmi, cm->seq_params.seq_bit_depth);
       const uint32_t curr_side = av2_get_filter_side(
-          &cm->lf_info, edge_dir, plane, mbmi, cm->seq_params.bit_depth);
+          &cm->lf_info, edge_dir, plane, mbmi, cm->seq_params.seq_bit_depth);
 
       const int curr_skipped =
           mbmi->skip_txfm[plane_type] && is_inter_block(mbmi, tree_type);
@@ -645,7 +645,7 @@ static TX_SIZE set_lpf_parameters(
 
           TREE_TYPE prev_tree_type = SHARED_PART;
           const bool is_prev_sdp_eligible =
-              cm->seq_params.enable_sdp && mi_prev->region_type == INTRA_REGION;
+              cm->seq_params.seq_enable_sdp && mi_prev->region_type == INTRA_REGION;
           // With SDP in inter frames, the tree type of current block can be
           // different with previous block, so we can't copy the tree type of
           // current block to previous block, and we need to fetch the tree type
@@ -668,9 +668,9 @@ static TX_SIZE set_lpf_parameters(
                             scale_vert, edge_dir, 0, &pv_ts, &pv_sub_pu_edge,
                             &pv_tx_m_partition_size);
           const uint32_t pv_q = av2_get_filter_q(
-              &cm->lf_info, edge_dir, plane, mi_prev, cm->seq_params.bit_depth);
+              &cm->lf_info, edge_dir, plane, mi_prev, cm->seq_params.seq_bit_depth);
           const uint32_t pv_side = av2_get_filter_side(
-              &cm->lf_info, edge_dir, plane, mi_prev, cm->seq_params.bit_depth);
+              &cm->lf_info, edge_dir, plane, mi_prev, cm->seq_params.seq_bit_depth);
 
           const uint32_t pu_starting_coord = get_pu_starting_cooord(
               mbmi, plane, tree_type, scale_horz, scale_vert, edge_dir);
@@ -863,7 +863,7 @@ void av2_filter_block_plane_vert(AV2_COMMON *const cm,
         cur_tx_size = TX_4X4;
       }
 
-      const avm_bit_depth_t bit_depth = cm->seq_params.bit_depth;
+      const avm_bit_depth_t bit_depth = cm->seq_params.seq_bit_depth;
       bool is_lossless_current_block = get_lossless_flag(
           cm, curr_x, curr_y, scale_horz, scale_vert, plane, plane_ptr);
       bool is_lossless_prev_block = get_lossless_flag(
@@ -872,7 +872,7 @@ void av2_filter_block_plane_vert(AV2_COMMON *const cm,
           is_lossless_current_block && is_lossless_prev_block;
 
       int do_filter = 1;
-      if (cm->seq_params.disable_loopfilters_across_tiles) {
+      if (cm->seq_params.seq_disable_loopfilters_across_tiles) {
         if (is_vert_tile_boundary(&cm->tiles, mi_col + (x << scale_horz)))
           do_filter = 0;
       }
@@ -968,12 +968,12 @@ void av2_filter_block_plane_horz(AV2_COMMON *const cm,
           is_lossless_current_block && is_lossless_prev_block;
 
       int do_filter = 1;
-      if (cm->seq_params.disable_loopfilters_across_tiles) {
+      if (cm->seq_params.seq_disable_loopfilters_across_tiles) {
         if (is_horz_tile_boundary(&cm->tiles, mi_row + (y << scale_vert)))
           do_filter = 0;
       }
       if (do_filter) {
-        const avm_bit_depth_t bit_depth = cm->seq_params.bit_depth;
+        const avm_bit_depth_t bit_depth = cm->seq_params.seq_bit_depth;
         if (!skip_deblock_lossless &&
             (params->filter_length_neg || params->filter_length_pos)) {
           if (!(is_lossless_current_block || is_lossless_prev_block)) {
@@ -1147,18 +1147,18 @@ AVM_INLINE void loop_filter_tip_plane(AV2_COMMON *cm, const int plane,
   const uint16_t side_horz = lfi->tip_side_thr[plane][HORZ_EDGE];
   const uint16_t q_vert = lfi->tip_q_thr[plane][VERT_EDGE];
   const uint16_t side_vert = lfi->tip_side_thr[plane][VERT_EDGE];
-  const int bit_depth = cm->seq_params.bit_depth;
+  const int bit_depth = cm->seq_params.seq_bit_depth;
   int sub_bw = get_unit_bsize_for_tip_frame(
                    cm->features.tip_frame_mode, cm->tip_interp_filter,
-                   cm->seq_params.enable_tip_refinemv) == BLOCK_16X16
+                   cm->seq_params.seq_enable_tip_refinemv) == BLOCK_16X16
                    ? 16
                    : 8;
   int sub_bh = sub_bw;
   int subsampling_x = 0;
   int subsampling_y = 0;
   if (plane > 0) {
-    subsampling_x = cm->seq_params.subsampling_x;
-    subsampling_y = cm->seq_params.subsampling_y;
+    subsampling_x = cm->seq_params.seq_subsampling_x;
+    subsampling_y = cm->seq_params.seq_subsampling_y;
     sub_bw >>= subsampling_x;
     sub_bh >>= subsampling_y;
   }
@@ -1171,7 +1171,7 @@ AVM_INLINE void loop_filter_tip_plane(AV2_COMMON *cm, const int plane,
     uint16_t *p = dst + j * dst_stride;
     for (int i = 0; i < w; i += sub_bw) {
       // filter vertical boundary
-      if (cm->seq_params.disable_loopfilters_across_tiles) {
+      if (cm->seq_params.seq_disable_loopfilters_across_tiles) {
         if (is_vert_tile_boundary(&cm->tiles,
                                   (i << subsampling_x) >> MI_SIZE_LOG2)) {
           p += sub_bw;
@@ -1196,7 +1196,7 @@ AVM_INLINE void loop_filter_tip_plane(AV2_COMMON *cm, const int plane,
     uint16_t *p = dst + i;
     for (int j = 0; j < h; j += sub_bh) {
       // filter horizontal boundary
-      if (cm->seq_params.disable_loopfilters_across_tiles) {
+      if (cm->seq_params.seq_disable_loopfilters_across_tiles) {
         if (is_horz_tile_boundary(&cm->tiles,
                                   (j << subsampling_y) >> MI_SIZE_LOG2)) {
           p += sub_bh * dst_stride;
@@ -1246,8 +1246,8 @@ AVM_INLINE void setup_tip_dst_planes(AV2_COMMON *const cm, MACROBLOCKD *xd,
   int subsampling_y = 0;
   if (plane > 0) {
     is_uv = 1;
-    subsampling_x = cm->seq_params.subsampling_x;
-    subsampling_y = cm->seq_params.subsampling_y;
+    subsampling_x = cm->seq_params.seq_subsampling_x;
+    subsampling_y = cm->seq_params.seq_subsampling_y;
   }
   setup_tip_dst_plane(&pd->dst, src->buffers[plane], src->widths[is_uv],
                       src->heights[is_uv], src->strides[is_uv], tpl_row,
@@ -1270,11 +1270,11 @@ void init_tip_lf_parameter(struct AV2Common *cm, int plane_start,
   q_ind[0] = side_ind[0] = base_qindex + tip_delta_luma * tip_delta_scale;
 
   q_ind[1] = side_ind[1] = base_qindex + u_ac_delta_q +
-                           cm->seq_params.base_uv_ac_delta_q +
+                           cm->seq_params.seq_base_uv_ac_delta_q +
                            tip_delta_chroma * tip_delta_scale;
 
   q_ind[2] = side_ind[2] = base_qindex + v_ac_delta_q +
-                           cm->seq_params.base_uv_ac_delta_q +
+                           cm->seq_params.seq_base_uv_ac_delta_q +
                            tip_delta_chroma * tip_delta_scale;
 
   assert(plane_start >= AVM_PLANE_Y);
@@ -1286,9 +1286,9 @@ void init_tip_lf_parameter(struct AV2Common *cm, int plane_start,
       const int side_ind_plane = side_ind[plane];
 
       const int q_thr =
-          df_quant_from_qindex(q_ind_plane, cm->seq_params.bit_depth);
+          df_quant_from_qindex(q_ind_plane, cm->seq_params.seq_bit_depth);
       const int side_thr =
-          df_side_from_qindex(side_ind_plane, cm->seq_params.bit_depth);
+          df_side_from_qindex(side_ind_plane, cm->seq_params.seq_bit_depth);
       lfi->tip_q_thr[plane][dir] = q_thr;
       lfi->tip_side_thr[plane][dir] = side_thr;
     }

@@ -97,7 +97,7 @@ static INLINE MHCCP_ALLOWED_TYPE is_mhccp_allowed(const AV2_COMMON *const cm,
                                                   const MACROBLOCKD *xd) {
   const MB_MODE_INFO *mbmi = xd->mi[0];
   if (xd->tree_type == LUMA_PART) return MHCCP_DISALLOWED;
-  if (!cm->seq_params.enable_mhccp) return MHCCP_DISALLOWED;
+  if (!cm->seq_params.seq_enable_mhccp) return MHCCP_DISALLOWED;
 
   assert(xd->is_cfl_allowed_in_sdp < CFL_ALLOWED_TYPES_FOR_SDP);
   if (xd->is_cfl_allowed_in_sdp != CFL_ALLOWED_FOR_CHROMA) {
@@ -153,7 +153,7 @@ static INLINE CFL_ALLOWED_TYPE store_cfl_required(const AV2_COMMON *cm,
                                                   const MACROBLOCKD *xd) {
   const MB_MODE_INFO *mbmi = xd->mi[0];
 
-  if (cm->seq_params.monochrome) return CFL_DISALLOWED;
+  if (cm->seq_params.seq_monochrome) return CFL_DISALLOWED;
 
   if (!xd->is_chroma_ref) {
     // CfL is available to luma partitions lesser than or equal to 32x32.

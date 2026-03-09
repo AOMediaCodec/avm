@@ -367,13 +367,13 @@ static int firstpass_intra_prediction(
 
   av2_encode_intra_block_plane(cpi, x, bsize, 0, DRY_RUN_NORMAL, 0);
   int this_intra_error = avm_get_mb_ss(x->plane[0].src_diff);
-  switch (seq_params->bit_depth) {
+  switch (seq_params->seq_bit_depth) {
     case AVM_BITS_8: break;
     case AVM_BITS_10: this_intra_error >>= 4; break;
     case AVM_BITS_12: this_intra_error >>= 8; break;
     default:
       assert(0 &&
-             "seq_params->bit_depth should be AVM_BITS_8, "
+             "seq_params->seq_bit_depth should be AVM_BITS_8, "
              "AVM_BITS_10 or AVM_BITS_12");
       return -1;
   }
@@ -395,13 +395,13 @@ static int firstpass_intra_prediction(
   int level_sample;
   level_sample = x->plane[0].src.buf[0];
 
-  switch (seq_params->bit_depth) {
+  switch (seq_params->seq_bit_depth) {
     case AVM_BITS_8: break;
     case AVM_BITS_10: level_sample >>= 2; break;
     case AVM_BITS_12: level_sample >>= 4; break;
     default:
       assert(0 &&
-             "seq_params->bit_depth should be AVM_BITS_8, "
+             "seq_params->seq_bit_depth should be AVM_BITS_8, "
              "AVM_BITS_10 or AVM_BITS_12");
       return -1;
   }
@@ -920,7 +920,7 @@ void av2_first_pass_row(AV2_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   const int num_planes = av2_num_planes(cm);
   MACROBLOCKD *const xd = &x->e_mbd;
   TileInfo *tile = &tile_data->tile_info;
-  const int qindex = find_fp_qindex(seq_params->bit_depth);
+  const int qindex = find_fp_qindex(seq_params->seq_bit_depth);
   // First pass coding proceeds in raster scan order with unit size of 16x16.
   const BLOCK_SIZE fp_block_size = BLOCK_16X16;
   const int fp_block_size_width = block_size_high[fp_block_size];
@@ -1059,7 +1059,7 @@ void av2_first_pass(AV2_COMP *cpi, const int64_t ts_duration) {
   const SequenceHeader *const seq_params = &cm->seq_params;
   const int num_planes = av2_num_planes(cm);
   MACROBLOCKD *const xd = &x->e_mbd;
-  const int qindex = find_fp_qindex(seq_params->bit_depth);
+  const int qindex = find_fp_qindex(seq_params->seq_bit_depth);
   // Detect if the key frame is screen content type.
   if (frame_is_intra_only(cm)) {
     FeatureFlags *const features = &cm->features;
@@ -1116,8 +1116,8 @@ void av2_first_pass(AV2_COMP *cpi, const int64_t ts_duration) {
                     cpi->oxcf.q_cfg.qm_maxlevel, qindex,
                     cpi->oxcf.q_cfg.enable_chroma_deltaq);
 
-  av2_setup_block_planes(xd, seq_params->subsampling_x,
-                         seq_params->subsampling_y, num_planes);
+  av2_setup_block_planes(xd, seq_params->seq_subsampling_x,
+                         seq_params->seq_subsampling_y, num_planes);
 
   av2_setup_src_planes(x, cpi->source, 0, 0, num_planes, NULL);
   av2_setup_dst_planes(xd->plane, this_frame, 0, 0, 0, num_planes, NULL);

@@ -272,5 +272,5 @@ void av2_reset_segment_features(AV2_COMMON *cm) {
   seg->update_map = 0;
   seg->update_data = 0;
   av2_clearall_segfeatures(seg);
-  seg->enable_ext_seg = cm->seq_params.enable_ext_seg;
+  seg->enable_ext_seg = cm->seq_params.seq_enable_ext_seg;
 }

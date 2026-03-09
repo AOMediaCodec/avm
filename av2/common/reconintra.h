@@ -101,7 +101,7 @@ static INLINE int av2_allow_intrabc(const AV2_COMMON *const cm,
 
 static INLINE int allow_fsc_intra(const AV2_COMMON *const cm, BLOCK_SIZE bs,
                                   const MB_MODE_INFO *const mbmi) {
-  bool allow_fsc = cm->seq_params.enable_idtx_intra &&
+  bool allow_fsc = cm->seq_params.seq_enable_idtx_intra &&
                    !is_inter_block(mbmi, PLANE_TYPE_Y) &&
                    (block_size_wide[bs] <= FSC_MAXWIDTH) &&
                    (block_size_high[bs] <= FSC_MAXHEIGHT) &&
@@ -113,14 +113,14 @@ static INLINE int allow_fsc_intra(const AV2_COMMON *const cm, BLOCK_SIZE bs,
 static INLINE int use_inter_fsc(const AV2_COMMON *const cm,
                                 PLANE_TYPE plane_type, TX_TYPE tx_type,
                                 int is_inter) {
-  bool allow_fsc = cm->seq_params.enable_fsc && plane_type == PLANE_TYPE_Y &&
+  bool allow_fsc = cm->seq_params.seq_enable_fsc && plane_type == PLANE_TYPE_Y &&
                    is_inter && tx_type == IDTX;
   return allow_fsc;
 }
 
 static INLINE int av2_intra_dip_allowed_bsize(const AV2_COMMON *const cm,
                                               BLOCK_SIZE bs) {
-  if (!cm->seq_params.enable_intra_dip || bs == BLOCK_INVALID) return 0;
+  if (!cm->seq_params.seq_enable_intra_dip || bs == BLOCK_INVALID) return 0;
   int width = block_size_wide[bs];
   int height = block_size_high[bs];
   int equal_or_greater_rect_16x8 = width * height >= (8 * 16);

@@ -1184,10 +1184,10 @@ void av2_get_optflow_based_mv(const AV2_COMMON *cm, MACROBLOCKD *xd, int plane,
     const RefCntBuffer *const r1_buf =
         get_ref_frame_buf(cm, mbmi->ref_frame[1]);
 
-    d0 = get_relative_dist(&cm->seq_params.order_hint_info,
+    d0 = get_relative_dist(&cm->seq_params.seq_order_hint_info,
                            cm->cur_frame->display_order_hint,
                            r0_buf->display_order_hint);
-    d1 = get_relative_dist(&cm->seq_params.order_hint_info,
+    d1 = get_relative_dist(&cm->seq_params.seq_order_hint_info,
                            cm->cur_frame->display_order_hint,
                            r1_buf->display_order_hint);
   }
@@ -2751,9 +2751,9 @@ void apply_mv_refinement(const AV2_COMMON *cm, MACROBLOCKD *xd, int plane,
 
   const MV center_mvs[2] = { best_mv_ref[0], best_mv_ref[1] };
   assert(mi->refinemv_flag < REFINEMV_NUM_MODES);
-  assert(cm->seq_params.enable_refinemv);
+  assert(cm->seq_params.seq_enable_refinemv);
   assert(IMPLIES(is_tip_ref_frame(mi->ref_frame[0]),
-                 cm->seq_params.enable_tip_refinemv));
+                 cm->seq_params.seq_enable_tip_refinemv));
 
   // Generate MV independent inter_pred_params
   // for both references
@@ -2904,10 +2904,10 @@ void apply_mv_refinement(const AV2_COMMON *cm, MACROBLOCKD *xd, int plane,
 static AVM_INLINE int is_sub_block_refinemv_enabled(const AV2_COMMON *cm,
                                                     const MB_MODE_INFO *mi,
                                                     int tip_ref_frame) {
-  if (!cm->seq_params.enable_refinemv) return 0;
+  if (!cm->seq_params.seq_enable_refinemv) return 0;
 
   if (tip_ref_frame) {
-    if (!cm->seq_params.enable_tip_refinemv) return 0;
+    if (!cm->seq_params.seq_enable_tip_refinemv) return 0;
     const int tip_wtd_index = cm->tip_global_wtd_index;
     const int8_t tip_weight = tip_weighting_factors[tip_wtd_index];
     return (cm->has_both_sides_refs && tip_weight == TIP_EQUAL_WTD);
@@ -2969,7 +2969,7 @@ static AVM_INLINE int skip_opfl_refine_with_tip(
                                    mc_buf, &params1, calc_subpel_params_func, 1,
                                    dst1, &best_mv_ref[1], pu_width, pu_height);
   }
-  const int bd = cm->seq_params.bit_depth;
+  const int bd = cm->seq_params.seq_bit_depth;
   const unsigned int sad_thres =
       cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT ? 15 : 6;
 
@@ -3662,7 +3662,7 @@ static void build_inter_predictors_8x8_and_bigger_facade(
   if (tip_ref_frame) {
     const int width = xd->width << MI_SIZE_LOG2;
     const int height = xd->height << MI_SIZE_LOG2;
-    int enable_tip_refinemv = cm->seq_params.enable_tip_refinemv;
+    int enable_tip_refinemv = cm->seq_params.seq_enable_tip_refinemv;
     const BLOCK_SIZE unit_bsize = get_unit_bsize_for_tip_ref(
         TIP_FRAME_AS_REF, width, height, enable_tip_refinemv);
     const int unit_blk_size = block_size_wide[unit_bsize];
@@ -4068,7 +4068,7 @@ int is_pb_mv_precision_active(const AV2_COMMON *const cm,
                               const BLOCK_SIZE bsize) {
   (void)bsize;
   if (enable_adaptive_mvd_resolution(cm, mbmi)) return 0;
-  return cm->seq_params.enable_flex_mvres &&
+  return cm->seq_params.seq_enable_flex_mvres &&
          (mbmi->max_mv_precision >= MV_PRECISION_HALF_PEL) &&
          cm->features.use_pb_mv_precision &&
          have_newmv_in_inter_mode(mbmi->mode);

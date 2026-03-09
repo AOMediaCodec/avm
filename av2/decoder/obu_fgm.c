@@ -29,7 +29,7 @@
 void copy_fgm_from_list(AV2_COMMON *cm, avm_film_grain_t *pars,
                         const struct film_grain_model *fgm) {
   const SequenceHeader *const seq_params = &cm->seq_params;
-  pars->bit_depth = seq_params->bit_depth;
+  pars->bit_depth = seq_params->seq_bit_depth;
   for (int c = 0; c < 3; c++) {
     pars->fgm_points[c] = fgm->fgm_points[c];
   }

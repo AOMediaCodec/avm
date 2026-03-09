@@ -191,7 +191,7 @@ static AVM_INLINE void palette_rd_y(
     int *beat_best_rd, PICK_MODE_CONTEXT *ctx, uint8_t *blk_skip,
     TX_TYPE *tx_type_map, int *beat_best_palette_rd) {
   optimize_palette_colors(color_cache, n_cache, n, 1, centroids,
-                          cpi->common.seq_params.bit_depth);
+                          cpi->common.seq_params.seq_bit_depth);
   const int num_unique_colors = av2_remove_duplicates(centroids, n);
   if (num_unique_colors < PALETTE_MIN_SIZE) {
     // Too few unique colors to create a palette. And DC_PRED will work
@@ -201,7 +201,7 @@ static AVM_INLINE void palette_rd_y(
   PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
   for (int i = 0; i < num_unique_colors; ++i) {
     pmi->palette_colors[i] =
-        clip_pixel_highbd((int)centroids[i], cpi->common.seq_params.bit_depth);
+        clip_pixel_highbd((int)centroids[i], cpi->common.seq_params.seq_bit_depth);
   }
   pmi->palette_size[0] = num_unique_colors;
   MACROBLOCKD *const xd = &x->e_mbd;
@@ -397,7 +397,7 @@ void av2_rd_pick_palette_intra_sby(
   av2_get_block_dimensions(bsize, 0, xd, &block_width, &block_height, &rows,
                            &cols);
   const SequenceHeader *const seq_params = &cpi->common.seq_params;
-  const int bit_depth = seq_params->bit_depth;
+  const int bit_depth = seq_params->seq_bit_depth;
   int unused;
 
   int count_buf[1 << 12];      // Maximum (1 << 12) color levels.
