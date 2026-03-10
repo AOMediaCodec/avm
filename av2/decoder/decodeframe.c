@@ -8267,8 +8267,9 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   // when the first regular temporal unit begins.
   if (pbi->olk_encountered && av2_is_regular_non_olk_obu(obu_type) &&
       pbi->this_is_first_vcl_obu_in_tu == 0) {
-    cm->prev_olk_co_vcl_refresh_frame_flags[cm->mlayer_id] =
-        cm->olk_co_vcl_refresh_frame_flags[cm->mlayer_id];
+    memcpy(&cm->prev_olk_co_vcl_refresh_frame_flags[0],
+           &cm->olk_co_vcl_refresh_frame_flags[0],
+           MAX_NUM_MLAYERS * sizeof(cm->olk_co_vcl_refresh_frame_flags[0]));
     if (cm->olk_co_vcl_refresh_frame_flags[cm->mlayer_id] == -1)
       cm->olk_co_vcl_refresh_frame_flags[cm->mlayer_id] = 0;
     cm->olk_co_vcl_refresh_frame_flags[cm->mlayer_id] |=
