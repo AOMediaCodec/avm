@@ -1523,7 +1523,7 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   kf_cfg->key_freq_max = cfg->kf_max_dist;
   kf_cfg->sframe_dist = cfg->sframe_dist;
   kf_cfg->sframe_mode = cfg->sframe_mode;
-  kf_cfg->enable_ras_frame = cfg->enable_ras_frame;
+  kf_cfg->switch_frame_type = cfg->switch_frame_type;
   kf_cfg->enable_sframe = extra_cfg->s_frame_mode;
 
   kf_cfg->enable_keyframe_filtering = extra_cfg->enable_keyframe_filtering;
@@ -4606,7 +4606,7 @@ static const avm_codec_enc_cfg_t encoder_usage_cfg[] = { {
     9999,                        // kf_max_dist
     0,                           // sframe_dist
     1,                           // sframe_mode
-    0,                           // enable_ras_frame
+    0,                           // switch_frame_type
     0,                           // monochrome
     0,                           // full_still_picture_hdr
     1,                           // enable_tcq
