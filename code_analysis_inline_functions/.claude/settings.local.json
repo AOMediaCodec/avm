@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(grep:*)",
+      "Bash(cmake:*)",
+      "Bash(size:*)",
+      "Bash(nm --size-sort:*)",
+      "Bash(sort:*)",
+      "Bash(nm:*)",
+      "Bash(llvm-nm:*)",
+      "Bash(for obj in variance.c.o intrapred.c.o decodeframe.c.o entropymode.c.o bitstream.c.o encoder.c.o reconinter.c.o mvref_common.c.o partition_search.c.o encodetxb.c.o mcomp.c.o)",
+      "Bash(do echo \"=== $obj ===\")",
+      "Bash(perl:*)",
+      "Bash(done)",
+      "Bash(for hdr in av2_common_int blockd reconinter mvref_common pred_common entropymode cfl encoder.h)",
+      "Bash(do echo \"=== $hdr.h ===\")",
+      "Bash(for hdr in av2_common_int blockd reconinter mvref_common pred_common entropymode cfl)",
+      "Bash(do echo \"=== $hdr.h \\(.c files only\\) ===\")",
+      "Bash(for hdr in encoder decoder)",
+      "Bash(do echo \"=== av2/$hdr/$hdr.h \\(.c files only\\) ===\")"
+    ]
+  }
+}

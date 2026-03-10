@@ -162,7 +162,7 @@ void av2_enc_build_inter_predictor(const AV2_COMMON *cm, MACROBLOCKD *xd,
   const int mi_luma_y = mi_row * MI_SIZE;
   for (int plane = plane_from; plane <= plane_to; ++plane) {
     if (plane && !xd->is_chroma_ref) break;
-    if (mbmi->bawp_flag[0] && (plane == 0 || mbmi->bawp_flag[1])) {
+    if ((plane == 0 && mbmi->bawp_flag[0]) || (plane && mbmi->bawp_flag[1])) {
       struct macroblockd_plane *const pd = &xd->plane[plane];
       const int x_off = GET_MV_RAWPEL(mbmi->mv[0].as_mv.col);
       const int y_off = GET_MV_RAWPEL(mbmi->mv[0].as_mv.row);
