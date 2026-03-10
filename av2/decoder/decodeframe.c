@@ -7754,11 +7754,13 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
                                    int xlayer_id, int seq_header_id) {
   AV2_COMMON *const cm = &pbi->common;
   bool keyframe_unit_in_tu =
-      ((obu_type == OBU_CLOSED_LOOP_KEY || obu_type == OBU_OPEN_LOOP_KEY) &&
+      ((obu_type == OBU_CLOSED_LOOP_KEY || obu_type == OBU_OPEN_LOOP_KEY ||
+        obu_type == OBU_RAS_FRAME) &&
        pbi->this_is_first_keyframe_unit_in_tu);
 
   if (pbi->decoding_first_frame &&
-      !(obu_type == OBU_CLOSED_LOOP_KEY || obu_type == OBU_OPEN_LOOP_KEY)) {
+      !(obu_type == OBU_CLOSED_LOOP_KEY || obu_type == OBU_OPEN_LOOP_KEY ||
+        obu_type == OBU_RAS_FRAME)) {
     avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
                        "the first frame of a bitstream shall be a keyframe");
   }
@@ -7801,7 +7803,8 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
 
   // NOTE: at this point, the current obu is first CLK/OLK in the temporal unit
   // cm->seq_params is the currently active sequence header
-  assert(obu_type == OBU_CLOSED_LOOP_KEY || obu_type == OBU_OPEN_LOOP_KEY);
+  assert(obu_type == OBU_CLOSED_LOOP_KEY || obu_type == OBU_OPEN_LOOP_KEY ||
+         obu_type == OBU_RAS_FRAME);
 
   if (obu_type == OBU_OPEN_LOOP_KEY && !pbi->random_accessed) {
     if (!are_seq_headers_consistent(&cm->seq_params, seq_from_uch)) {

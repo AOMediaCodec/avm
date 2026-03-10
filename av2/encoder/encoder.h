@@ -412,10 +412,15 @@ typedef struct {
 
   /*!
    * Indicates how an S-Frame should be inserted.
-   * 1: the considered frame will be made into an S-Frame only if it is an
-   * altref frame. 2: the next altref frame will be made into an S-Frame.
+   * 0: the considered frame will be made into an S-Frame only if it is an
+   * altref frame. 1: the next altref frame will be made into an S-Frame.
    */
   int sframe_mode;
+
+  /*!
+   * Indicates whether a switch frame is coded as an RAS-Frame.
+   */
+  int enable_ras_frame;
 
   /*!
    * Indicates if encoder should autodetect cut scenes and set the keyframes.
@@ -2934,8 +2939,9 @@ typedef struct AV2_COMP {
 
   /*!
    * determine the mode of the switch frame
+   * 0: Switch frame, 1: RAS frame
    */
-  int switch_frame_mode;
+  int is_ras_frame;
 
   /*!
    * a list of OBU_QUANTIZATION_MATRIX

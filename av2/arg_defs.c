@@ -283,6 +283,8 @@ const av2_codec_arg_definitions_t g_av2_codec_arg_defs = {
   .sframe_dist = ARG_DEF(NULL, "sframe-dist", 1, "S-Frame interval (frames)"),
   .sframe_mode =
       ARG_DEF(NULL, "sframe-mode", 1, "S-Frame insertion mode (0..2)"),
+  .enable_ras_frame = ARG_DEF(NULL, "enable-ras-frame", 1,
+                              "RAS-Frame mode (0: off (default), 1: on)"),
   .signal_td =
       ARG_DEF(NULL, "use-temporal-delimiter", 1, "Signal temproal delimiters"),
   .enable_lcr =

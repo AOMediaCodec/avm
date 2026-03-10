@@ -502,8 +502,11 @@ void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
     seq->force_screen_content_tools = 2;
     seq->force_integer_mv = 2;
   }
-  if (oxcf->kf_cfg.key_freq_min == 9999 && oxcf->kf_cfg.key_freq_max == 9999 &&
-      oxcf->kf_cfg.sframe_mode != 0)
+  if (oxcf->kf_cfg.enable_ras_frame == 1)
+    seq->order_hint_info.order_hint_bits_minus_1 =
+        DEFAULT_EXPLICIT_ORDER_HINT_BITS - 1;  // 7
+  else if (oxcf->kf_cfg.key_freq_min == 9999 &&
+           oxcf->kf_cfg.key_freq_max == 9999 && oxcf->kf_cfg.sframe_mode != 0)
     seq->order_hint_info.order_hint_bits_minus_1 =
         DEFAULT_EXPLICIT_ORDER_HINT_BITS - 4;
   else if (oxcf->kf_cfg.key_freq_min == 65 && oxcf->kf_cfg.key_freq_max == 65)
@@ -769,7 +772,7 @@ void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
   seq->enable_global_motion =
       tool_cfg->enable_global_motion && !seq->single_picture_header_flag;
   seq->enable_short_refresh_frame_flags =
-      seq->single_picture_header_flag
+      seq->single_picture_header_flag || oxcf->kf_cfg.enable_ras_frame
           ? 0
           : tool_cfg->enable_short_refresh_frame_flags;
   seq->number_of_bits_for_lt_frame_id = seq->single_picture_header_flag ? 0 : 3;
@@ -5064,7 +5067,7 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
       cpi->gf_group.update_type[cpi->gf_group.index] == FWD_KF_SUCCESSOR_UPDATE;
   init_ref_map_pair(&cpi->common, cm->ref_frame_map_pairs,
                     current_frame->frame_type == KEY_FRAME,
-                    cpi->switch_frame_mode == 1, use_olk_ref_only);
+                    cpi->is_ras_frame == 1, use_olk_ref_only);
 
   if (cm->seq_params.enable_explicit_ref_frame_map || frame_is_sframe(cm)) {
     av2_get_ref_frames_enc(cpi, cur_frame_disp, cm->ref_frame_map_pairs);
@@ -5077,7 +5080,11 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
   current_frame->absolute_poc =
       current_frame->key_frame_number + current_frame->display_order_hint;
   if (current_frame->frame_type == KEY_FRAME) {
-    current_frame->long_term_id = 0;
+    if (cpi->oxcf.kf_cfg.enable_ras_frame)
+      current_frame->long_term_id =
+          cpi->common.current_frame.frame_number % MAX_NUM_LONG_TERM_FRAMES;
+    else
+      current_frame->long_term_id = 0;
   } else {
     current_frame->long_term_id = -1;
   }
@@ -5172,10 +5179,9 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
         cm->bridge_frame_info.bridge_frame_overwrite_flag = 1;
         cm->current_frame.refresh_frame_flags =
             (1 << cm->bridge_frame_info.bridge_frame_ref_idx);
-
         init_ref_map_pair(&cpi->common, cm->ref_frame_map_pairs,
                           current_frame->frame_type == KEY_FRAME,
-                          cpi->switch_frame_mode == 1,
+                          cpi->is_ras_frame == 1,
                           /*use_olk_tu_ref_only=*/0);
 
         // Derive reference mapping in a resolution independent manner to
@@ -5416,6 +5422,7 @@ int av2_get_compressed_data(AV2_COMP *cpi, unsigned int *frame_flags,
 
   // Initialize fields related to forward keyframes
   cpi->no_show_fwd_kf = 0;
+
   check_ref_count_status_enc(cpi);
   if (assign_cur_frame_new_fb(cm) == NULL) return AVM_CODEC_ERROR;
 

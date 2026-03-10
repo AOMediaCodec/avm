@@ -1523,6 +1523,7 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   kf_cfg->key_freq_max = cfg->kf_max_dist;
   kf_cfg->sframe_dist = cfg->sframe_dist;
   kf_cfg->sframe_mode = cfg->sframe_mode;
+  kf_cfg->enable_ras_frame = cfg->enable_ras_frame;
   kf_cfg->enable_sframe = extra_cfg->s_frame_mode;
 
   kf_cfg->enable_keyframe_filtering = extra_cfg->enable_keyframe_filtering;
@@ -2900,8 +2901,8 @@ static void calculate_psnr(AV2_COMP *cpi, PSNR_STATS *psnr) {
 static void report_stats(AV2_COMP *cpi, size_t frame_size, uint64_t cx_time) {
   const AV2_COMMON *const cm = &cpi->common;
   const int base_qindex = cm->quant_params.base_qindex;
-  const char frameType[5][20] = {
-    " KEY ", "INTER", "INTRA", "  S  ", " UNK ",
+  const char frameType[6][20] = {
+    " KEY ", "INTER", "INTRA", "  S  ", "RAS", " UNK ",
   };
 
   PSNR_STATS psnr;
@@ -2945,9 +2946,10 @@ static void report_stats(AV2_COMP *cpi, size_t frame_size, uint64_t cx_time) {
                 "%2.4f dB(V), "
                 "%2.4f dB(Avg)",
                 cm->cur_frame->absolute_poc,
-                frameType[cm->current_frame.frame_type], cm->bru.enabled,
-                cm->bru.update_ref_idx, cm->cur_frame->pyramid_level,
-                base_qindex, (uint64_t)frame_size, cx_time / 1000.0,
+                frameType[cm->current_frame.frame_type + cpi->is_ras_frame],
+                cm->bru.enabled, cm->bru.update_ref_idx,
+                cm->cur_frame->pyramid_level, base_qindex, (uint64_t)frame_size,
+                cx_time / 1000.0,
                 use_hbd_psnr ? psnr.psnr_hbd[1] : psnr.psnr[1],
                 use_hbd_psnr ? psnr.psnr_hbd[2] : psnr.psnr[2],
                 use_hbd_psnr ? psnr.psnr_hbd[3] : psnr.psnr[3],
@@ -2960,7 +2962,7 @@ static void report_stats(AV2_COMP *cpi, size_t frame_size, uint64_t cx_time) {
                 "%2.4f dB(V), "
                 "%2.4f dB(Avg)",
                 cm->cur_frame->absolute_poc,
-                frameType[cm->current_frame.frame_type],
+                frameType[cm->current_frame.frame_type + cpi->is_ras_frame],
                 cm->cur_frame->pyramid_level, base_qindex, (uint64_t)frame_size,
                 cx_time / 1000.0,
                 use_hbd_psnr ? psnr.psnr_hbd[1] : psnr.psnr[1],
@@ -2975,16 +2977,17 @@ static void report_stats(AV2_COMP *cpi, size_t frame_size, uint64_t cx_time) {
                 " Bytes, "
                 "%6.1fms",
                 cm->cur_frame->absolute_poc,
-                frameType[cm->current_frame.frame_type], cm->bru.enabled,
-                cm->bru.update_ref_idx, cm->cur_frame->pyramid_level,
-                base_qindex, (uint64_t)frame_size, cx_time / 1000.0);
+                frameType[cm->current_frame.frame_type + cpi->is_ras_frame],
+                cm->bru.enabled, cm->bru.update_ref_idx,
+                cm->cur_frame->pyramid_level, base_qindex, (uint64_t)frame_size,
+                cx_time / 1000.0);
       } else {
         fprintf(stdout,
                 "POC:%6d [%s][Level:%d][Q:%3d]: %10" PRIu64
                 " Bytes, "
                 "%6.1fms",
                 cm->cur_frame->absolute_poc,
-                frameType[cm->current_frame.frame_type],
+                frameType[cm->current_frame.frame_type + cpi->is_ras_frame],
                 cm->cur_frame->pyramid_level, base_qindex, (uint64_t)frame_size,
                 cx_time / 1000.0);
       }
@@ -4603,6 +4606,7 @@ static const avm_codec_enc_cfg_t encoder_usage_cfg[] = { {
     9999,                        // kf_max_dist
     0,                           // sframe_dist
     1,                           // sframe_mode
+    0,                           // enable_ras_frame
     0,                           // monochrome
     0,                           // full_still_picture_hdr
     1,                           // enable_tcq

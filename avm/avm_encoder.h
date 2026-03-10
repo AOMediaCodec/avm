@@ -1042,6 +1042,12 @@ typedef struct avm_codec_enc_cfg {
    */
   unsigned int sframe_mode;
 
+  /*!\brief enable_ras_frame
+   *
+   * This value indicates a switch frame is coded as RAS frame.
+   */
+  unsigned int enable_ras_frame;
+
   /*!\brief Monochrome mode
    *
    * If this is nonzero, the encoder will generate a monochrome stream

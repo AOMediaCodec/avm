@@ -789,6 +789,7 @@ static void update_frame_buffers(AV2Decoder *pbi, int frame_decoded) {
 static AVM_INLINE void update_long_term_frame_id(AV2Decoder *const pbi) {
   AV2_COMMON *const cm = &pbi->common;
   const int refresh_frame_flags = cm->current_frame.refresh_frame_flags;
+  int marked = 0;
   int first_ref_index;
   const bool clear_multiple_insert_in_one =
       av2_frame_clears_multiple_inserted_in_one(
@@ -797,12 +798,14 @@ static AVM_INLINE void update_long_term_frame_id(AV2Decoder *const pbi) {
   for (int i = 0; i < cm->seq_params.ref_frames; i++) {
     if ((refresh_frame_flags >> i) & 1) {
       if (av2_skip_reference_buffer_update(clear_multiple_insert_in_one, i,
-                                           first_ref_index)) {
+                                           first_ref_index) &&
+          marked) {
         pbi->long_term_ids_in_buffer[i] = -1;
         pbi->valid_for_referencing[i] = 0;
       } else {
         pbi->long_term_ids_in_buffer[i] = cm->cur_frame->long_term_id;
         pbi->valid_for_referencing[i] = 1;
+        marked = 1;
       }
     }
   }

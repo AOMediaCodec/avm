@@ -990,7 +990,7 @@ static AVM_INLINE void init_gop_frames_for_tpl(
   RefFrameMapPair ref_frame_map_pairs[REF_FRAMES];
   init_ref_map_pair(cm, ref_frame_map_pairs,
                     init_frame_params->frame_type == KEY_FRAME,
-                    cpi->switch_frame_mode == 1, /*use_olk_tu_ref_only=*/0);
+                    cpi->is_ras_frame == 1, /*use_olk_tu_ref_only=*/0);
 
   EncodeFrameParams frame_params = *init_frame_params;
   TplParams *const tpl_data = &cpi->tpl_data;
@@ -1111,9 +1111,9 @@ static AVM_INLINE void init_gop_frames_for_tpl(
                            init_frame_params->immediate_output_picture);
     init_ref_map_pair(cm, ref_frame_map_pairs,
                       init_frame_params->frame_type == KEY_FRAME,
-                      cpi->switch_frame_mode == 1, /*use_olk_tu_ref_only=*/0);
+                      cpi->is_ras_frame == 1, /*use_olk_tu_ref_only=*/0);
     if (cm->seq_params.enable_explicit_ref_frame_map || frame_is_sframe(cm) ||
-        cpi->switch_frame_mode == 1)
+        cpi->is_ras_frame == 1)
       av2_get_ref_frames_enc(cpi, true_disp, ref_frame_map_pairs);
     else
       av2_get_ref_frames(cm, true_disp, 1, 0, ref_frame_map_pairs);
@@ -1165,7 +1165,7 @@ static AVM_INLINE void init_gop_frames_for_tpl(
         (int)(tpl_frame->frame_display_index) -
         (gf_group->subgop_cfg != NULL && frame_params.immediate_output_picture);
     if (cm->seq_params.enable_explicit_ref_frame_map || frame_is_sframe(cm) ||
-        cpi->switch_frame_mode == 1)
+        cpi->is_ras_frame == 1)
       av2_get_ref_frames_enc(cpi, true_disp, ref_frame_map_pairs);
     else
       av2_get_ref_frames(cm, true_disp, 1, 0, ref_frame_map_pairs);
@@ -1208,9 +1208,9 @@ static AVM_INLINE void init_gop_frames_for_tpl(
                          init_frame_params->immediate_output_picture);
   init_ref_map_pair(cm, ref_frame_map_pairs,
                     init_frame_params->frame_type == KEY_FRAME,
-                    cpi->switch_frame_mode == 1, /*use_olk_tu_ref_only=*/0);
+                    cpi->is_ras_frame == 1, /*use_olk_tu_ref_only=*/0);
   if (cm->seq_params.enable_explicit_ref_frame_map || frame_is_sframe(cm) ||
-      cpi->switch_frame_mode == 1)
+      cpi->is_ras_frame == 1)
     av2_get_ref_frames_enc(cpi, true_disp, ref_frame_map_pairs);
   else
     av2_get_ref_frames(cm, true_disp, 1, 0, ref_frame_map_pairs);

@@ -2788,7 +2788,7 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
   AV2EncoderConfig *const oxcf = &cpi->oxcf;
 
   if (is_stat_consumption_stage(cpi) && !twopass->stats_in) return;
-  cpi->switch_frame_mode = 0;
+  cpi->is_ras_frame = 0;
   if (gf_group->index < gf_group->size) {
     assert(gf_group->index < gf_group->size);
     const int update_type = gf_group->update_type[gf_group->index];
@@ -2832,27 +2832,24 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
       CurrentFrame *const current_frame = &cpi->common.current_frame;
       // ARF_UPDATE and KFFLT_UPDATE is set as S_FRAME in the RA case
       if (sframe_dist) {
-        if (oxcf->gf_cfg.lag_in_frames == 0) {
-          if (current_frame->frame_number % sframe_dist == 0 &&
-              current_frame->frame_number)
+        if (sframe_mode == 0) {
+          if (update_type == ARF_UPDATE || update_type == KFFLT_UPDATE) {
+            cpi->is_ras_frame = oxcf->kf_cfg.enable_ras_frame;
             frame_params->frame_type = S_FRAME;
+          }
         } else {
-          if (sframe_mode == 0) {
-            if (update_type == ARF_UPDATE || update_type == KFFLT_UPDATE) {
-              frame_params->frame_type = S_FRAME;
-            }
+          rc->sframe_due = 1;
+          if (current_frame->frame_number % sframe_dist == 0 &&
+              current_frame->frame_number && update_type != INTNL_ARF_UPDATE &&
+              update_type != KF_UPDATE) {
+            cpi->is_ras_frame = oxcf->kf_cfg.enable_ras_frame;
+            frame_params->frame_type = S_FRAME;
           } else {
-            rc->sframe_due = 1;
-            if (current_frame->frame_number % sframe_dist == 0 &&
-                current_frame->frame_number &&
-                update_type != INTNL_ARF_UPDATE && update_type != KF_UPDATE) {
+            if ((update_type == ARF_UPDATE || update_type == KFFLT_UPDATE) &&
+                rc->sframe_due) {
+              cpi->is_ras_frame = oxcf->kf_cfg.enable_ras_frame;
               frame_params->frame_type = S_FRAME;
-            } else {
-              if ((update_type == ARF_UPDATE || update_type == KFFLT_UPDATE) &&
-                  rc->sframe_due) {
-                frame_params->frame_type = S_FRAME;
-                rc->sframe_due = 0;
-              }
+              rc->sframe_due = 0;
             }
           }
         }
@@ -2926,6 +2923,7 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
       if (sframe_mode == 0 && oxcf->gf_cfg.lag_in_frames != 0) {
         if (update_type == ARF_UPDATE || update_type == KFFLT_UPDATE) {
           frame_params->frame_type = S_FRAME;
+          cpi->is_ras_frame = oxcf->kf_cfg.enable_ras_frame;
         }
       } else if (altref_enabled) {
         if (sframe_mode == 1) {
@@ -2934,6 +2932,7 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
               current_frame->frame_number != 0 &&
               (update_type == ARF_UPDATE || update_type == KFFLT_UPDATE)) {
             frame_params->frame_type = S_FRAME;
+            cpi->is_ras_frame = oxcf->kf_cfg.enable_ras_frame;
           }
         } else {
           // sframe_mode == 0: if sframe will be inserted at the next
@@ -2946,12 +2945,14 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
               (update_type == ARF_UPDATE || update_type == KFFLT_UPDATE)) {
             frame_params->frame_type = S_FRAME;
             rc->sframe_due = 0;
+            cpi->is_ras_frame = oxcf->kf_cfg.enable_ras_frame;
           }
         }
       } else {
         if (current_frame->frame_number % sframe_dist == 0 &&
             current_frame->frame_number != 0) {
           frame_params->frame_type = S_FRAME;
+          cpi->is_ras_frame = oxcf->kf_cfg.enable_ras_frame;
         }
       }
     }

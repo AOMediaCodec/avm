@@ -895,17 +895,20 @@ static AVM_INLINE void refresh_reference_frames(AV2_COMP *cpi) {
         av2_frame_clears_multiple_inserted_in_one(
             cm->current_frame.refresh_frame_flags, cm->current_frame.frame_type,
             cm->seq_params.max_mlayer_id, &first_ref_index);
+    int marked = 0;
     for (int ref_frame = 0; ref_frame < cm->seq_params.ref_frames;
          ref_frame++) {
       if (((cm->current_frame.refresh_frame_flags >> ref_frame) & 1) == 1) {
         if (av2_skip_reference_buffer_update(clear_multiple_insert_in_one,
-                                             ref_frame, first_ref_index)) {
+                                             ref_frame, first_ref_index) &&
+            marked) {
           if (cm->ref_frame_map[ref_frame] != NULL) {
             --cm->ref_frame_map[ref_frame]->ref_count;
             cm->ref_frame_map[ref_frame] = NULL;
           }
         } else {
           assign_frame_buffer_p(&cm->ref_frame_map[ref_frame], cm->cur_frame);
+          marked = 1;
         }
       }
     }

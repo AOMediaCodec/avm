@@ -5254,7 +5254,7 @@ static AVM_INLINE void write_uncompressed_header(
     if (current_frame->frame_type == KEY_FRAME) {
       avm_wb_write_literal(wb, current_frame->long_term_id,
                            seq_params->number_of_bits_for_lt_frame_id);
-    } else if (cpi->switch_frame_mode == 1) {
+    } else if (cpi->is_ras_frame == 1) {
       avm_wb_write_literal(wb, cm->num_ref_key_frames, 3);
       for (int i = 0; i < cm->num_ref_key_frames; i++) {
         avm_wb_write_literal(wb, cm->ref_long_term_ids[i],
@@ -5421,9 +5421,8 @@ static AVM_INLINE void write_uncompressed_header(
       // frames.  For all other frame types, we need to write
       // refresh_frame_flags.
       if ((current_frame->frame_type == INTER_FRAME &&
-           cpi->switch_frame_mode != 1) ||
-          (current_frame->frame_type == S_FRAME &&
-           cpi->switch_frame_mode != 1) ||
+           cpi->is_ras_frame != 1) ||
+          (current_frame->frame_type == S_FRAME && cpi->is_ras_frame != 1) ||
           current_frame->frame_type == INTRA_ONLY_FRAME) {
         if (cm->seq_params.enable_short_refresh_frame_flags &&
             !(current_frame->frame_type == KEY_FRAME &&
@@ -5467,7 +5466,7 @@ static AVM_INLINE void write_uncompressed_header(
       // signaling happens only when enabled by the command line flag or in
       // error resilient mode
       const int explicit_ref_frame_map =
-          (cpi->switch_frame_mode == 1 || frame_is_sframe(cm) ||
+          (cpi->is_ras_frame == 1 || frame_is_sframe(cm) ||
            seq_params->enable_explicit_ref_frame_map) &&
           !cm->bridge_frame_info.is_bridge_frame;
       if (!frame_is_intra_only(cm) && !frame_is_sframe(cm) &&
@@ -7285,7 +7284,8 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
                                                   : OBU_REGULAR_TILE_GROUP;
   if (cm->current_frame.frame_type == KEY_FRAME)
     obu_type = cpi->no_show_fwd_kf ? OBU_OPEN_LOOP_KEY : OBU_CLOSED_LOOP_KEY;
-  if (cm->current_frame.frame_type == S_FRAME) obu_type = OBU_SWITCH;
+  if (cm->current_frame.frame_type == S_FRAME)
+    obu_type = (cpi->is_ras_frame == 1) ? OBU_RAS_FRAME : OBU_SWITCH;
 
   if (cm->current_frame.frame_type == INTER_FRAME &&
       cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT)

@@ -59,12 +59,12 @@ void av2_get_ref_frames_enc(AV2_COMP *const cpi, int cur_frame_disp,
                             RefFrameMapPair *ref_frame_map_pairs) {
   AV2_COMMON *const cm = &cpi->common;
   assert(cm->seq_params.enable_explicit_ref_frame_map || frame_is_sframe(cm));
-  // With explicit_ref_frame_map or switch_frame_mode on, an encoder-only
+  // With explicit_ref_frame_map or is_ras_frame on, an encoder-only
   // ranking scheme can be implemented here. For now, av2_get_ref_frames is used
   // as a placeholder.
   // Do a dry run to obtain variables in resolution independent reference
   // mapping that will be used in write_frame_size_with_refs
-  if (cpi->switch_frame_mode == 1) {
+  if (cpi->is_ras_frame == 1) {
     av2_get_ref_frames(cm, cur_frame_disp, 0, 1, ref_frame_map_pairs);
     av2_get_ref_frames(cm, cur_frame_disp, 1, 1, ref_frame_map_pairs);
   } else {
@@ -588,7 +588,7 @@ static int get_free_ref_map_index(RefFrameMapPair ref_map_pairs[REF_FRAMES],
 }
 
 static int get_refresh_idx(int update_arf, int refresh_level,
-                           int cur_frame_disp, int switch_frame_mode,
+                           int cur_frame_disp, int is_ras_frame,
                            RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
                            const int ref_frames) {
   // refresh_level = -1
@@ -604,7 +604,7 @@ static int get_refresh_idx(int update_arf, int refresh_level,
   for (int map_idx = 0; map_idx < ref_frames; map_idx++) {
     RefFrameMapPair ref_pair = ref_frame_map_pairs[map_idx];
     if (ref_pair.ref_frame_for_inference == -1) continue;
-    if (switch_frame_mode == 1 && ref_pair.frame_type == KEY_FRAME) continue;
+    if (is_ras_frame == 1 && ref_pair.frame_type == KEY_FRAME) continue;
     const int frame_order = ref_pair.disp_order_removed;
     const int reference_frame_level = ref_pair.pyr_level;
     // Keep future frames and three closest previous frames in output order
@@ -666,9 +666,10 @@ static int get_refresh_frame_flags_subgop_cfg(
   }
 
   const int update_arf = type_code == FRAME_TYPE_OOO_FILTERED && pyr_level == 1;
-  const int refresh_idx = get_refresh_idx(
-      update_arf, refresh_level, cur_disp_order, cpi->switch_frame_mode,
-      ref_frame_map_pairs, cpi->common.seq_params.ref_frames);
+  const int refresh_idx =
+      get_refresh_idx(update_arf, refresh_level, cur_disp_order,
+                      cpi->oxcf.kf_cfg.enable_ras_frame, ref_frame_map_pairs,
+                      cpi->common.seq_params.ref_frames);
   return 1 << refresh_idx;
 }
 
@@ -676,17 +677,26 @@ int av2_get_refresh_frame_flags(
     AV2_COMP *const cpi, const EncodeFrameParams *const frame_params,
     FRAME_UPDATE_TYPE frame_update_type, int gf_index, int cur_disp_order,
     RefFrameMapPair ref_frame_map_pairs[REF_FRAMES]) {
-  if (cpi->switch_frame_mode == 1) {
+  // Shown key-frames overwrite all reference slots
+  if (av2_is_shown_keyframe(cpi, frame_params->frame_type) &&
+      cpi->common.seq_params.max_mlayer_id == 0 && !cpi->no_show_fwd_kf) {
+    return (1 << cpi->common.seq_params.ref_frames) - 1;
+  }
+
+  if (frame_params->frame_type == S_FRAME ||
+      frame_params->frame_type == KEY_FRAME) {
     AV2_COMMON *const cm = &cpi->common;
     int refresh_frame_flags = (1 << cpi->common.seq_params.ref_frames) - 1;
     cm->num_ref_key_frames = 0;
     for (int i = 0; i < cm->seq_params.ref_frames; i++) {
-      if (cm->ref_frame_map[i]->long_term_id >= 0) {
+      if (cm->ref_frame_map[i] != NULL &&
+          cm->ref_frame_map[i]->long_term_id >= 0) {
         int new_long_term_id = 1;
         refresh_frame_flags &= ~(1 << i);
         for (int j = 0; j < cm->num_ref_key_frames; j++) {
-          if (cm->ref_frame_map[i]->long_term_id == cm->ref_long_term_ids[j])
+          if (cm->ref_frame_map[i]->long_term_id == cm->ref_long_term_ids[j]) {
             new_long_term_id = 0;
+          }
         }
         if (new_long_term_id) {
           cm->ref_long_term_ids[cm->num_ref_key_frames] =
@@ -696,14 +706,6 @@ int av2_get_refresh_frame_flags(
       }
     }
     return refresh_frame_flags;
-  }
-
-  // Switch frames and shown key-frames overwrite all reference slots
-  if ((av2_is_shown_keyframe(cpi, frame_params->frame_type) &&
-       cpi->common.seq_params.max_mlayer_id == 0) ||
-      (cpi->oxcf.kf_cfg.sframe_mode != 0 &&
-       frame_params->frame_type == S_FRAME)) {
-    return (1 << cpi->common.seq_params.ref_frames) - 1;
   }
 
   if (frame_params->duplicate_existing_frame) {
@@ -765,9 +767,9 @@ int av2_get_refresh_frame_flags(
   }
 
   const int update_arf = frame_update_type == ARF_UPDATE;
-  const int refresh_idx =
-      get_refresh_idx(update_arf, -1, cur_disp_order, cpi->switch_frame_mode,
-                      ref_frame_map_pairs, cpi->common.seq_params.ref_frames);
+  const int refresh_idx = get_refresh_idx(
+      update_arf, -1, cur_disp_order, cpi->oxcf.kf_cfg.enable_ras_frame,
+      ref_frame_map_pairs, cpi->common.seq_params.ref_frames);
 
   return 1 << refresh_idx;
 }
@@ -1158,7 +1160,6 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
 
   cm->current_frame.tlayer_id = cm->tlayer_id;
   cm->current_frame.mlayer_id = cm->mlayer_id;
-
   int is_olk_overlay = 0;
   if ((cpi->gf_group.update_type[cpi->gf_group.index] == OVERLAY_UPDATE ||
        cpi->gf_group.update_type[cpi->gf_group.index] ==
@@ -1182,7 +1183,6 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
     assert(cpi->gf_group.update_type[cpi->gf_group.index] == OVERLAY_UPDATE ||
            cpi->gf_group.update_type[cpi->gf_group.index] ==
                KFFLT_OVERLAY_UPDATE);
-
     // This is an OLK KF overlay. We need to clear all references except for the
     // OLK.
     int ref_flags_to_keep = 0;
@@ -1200,7 +1200,6 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
         }
       }
     }
-
     // Set gf_state flag so the next gf group knows that the OLK has been
     // encoded
     cpi->gf_state.olk_overlay_last = 1;
@@ -1210,7 +1209,7 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
       cpi->gf_group.update_type[cpi->gf_group.index] == FWD_KF_SUCCESSOR_UPDATE;
   init_ref_map_pair(&cpi->common, cm->ref_frame_map_pairs,
                     frame_params.frame_type == KEY_FRAME,
-                    cpi->switch_frame_mode == 1, use_olk_ref_only);
+                    cpi->is_ras_frame == 1, use_olk_ref_only);
 
   if (!is_stat_generation_stage(cpi)) {
     cm->current_frame.frame_type = frame_params.frame_type;
@@ -1331,7 +1330,6 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
       get_gop_cfg_enabled_refs(cpi, &frame_params.ref_frame_flags,
                                frame_params.order_offset);
     }
-
     frame_params.refresh_frame_flags = av2_get_refresh_frame_flags(
         cpi, &frame_params, frame_update_type, cpi->gf_group.index,
         cur_frame_disp, cm->ref_frame_map_pairs);
