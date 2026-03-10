@@ -15,6 +15,7 @@
 #include "test/encode_test_driver.h"
 #include "test/y4m_video_source.h"
 #include "test/util.h"
+#include "av2/common/enums.h"
 
 namespace {
 // This class is used to test temporal and embedded layers.

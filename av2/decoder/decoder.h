@@ -13,6 +13,7 @@
 #ifndef AVM_AV2_DECODER_DECODER_H_
 #define AVM_AV2_DECODER_DECODER_H_
 
+#include "avm/avm_frame_buffer.h"
 #include "config/avm_config.h"
 
 #include "avm/avm_codec.h"
@@ -652,7 +653,7 @@ typedef struct AV2Decoder {
   /*!
    * Map to indicate which mlayer is present in the current CVS.
    */
-  int mlayer_id_map[MAX_NUM_MLAYERS];
+  int mlayer_id_map[AVM_MAX_NUM_STREAMS][MAX_NUM_MLAYERS];
 } AV2Decoder;
 
 // Returns 0 on success. Sets pbi->common.error.error_code to a nonzero error

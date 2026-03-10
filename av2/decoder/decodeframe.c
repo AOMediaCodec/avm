@@ -7536,7 +7536,10 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   if (obu_type == OBU_CLK || (obu_type == OBU_OLK && pbi->random_accessed)) {
     pbi->active_seq[xlayer_id] = *seq_from_uch;
     // Reset malyer_id_map
-    for (int i = 0; i < MAX_NUM_MLAYERS; i++) pbi->mlayer_id_map[i] = 0;
+    for (int i = 0; i < MAX_NUM_MLAYERS; i++)
+      pbi->mlayer_id_map[xlayer_id][i] = 0;
+    // Restore
+    pbi->mlayer_id_map[xlayer_id][cm->mlayer_id] = 1;
   }
 
   // NOTE: cm->seq_params is a intermediate variable not to change the code too
