@@ -7932,18 +7932,8 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       if (cm->restricted_prediction_switch) {
         for (int i = 0; i < REF_FRAMES; i++) {
           if (cm->ref_frame_map[i] != NULL) {
-            const int cur_mlayer_id = cm->current_frame.mlayer_id;
-            const int cur_tlayer_id = cm->current_frame.tlayer_id;
-            const int ref_mlayer_id = cm->ref_frame_map[i]->mlayer_id;
-            const int ref_tlayer_id = cm->ref_frame_map[i]->tlayer_id;
-            if (is_tlayer_scalable_and_dependent(&cm->seq_params, cur_tlayer_id,
-                                                 ref_tlayer_id,
-                                                 cur_mlayer_id) &&
-                is_mlayer_scalable_and_dependent(&cm->seq_params, cur_mlayer_id,
-                                                 ref_mlayer_id)) {
-              cm->ref_frame_map[i]->is_restricted = true;
-              cm->ref_frame_map[i]->frame_output_done = true;
-            }
+            cm->ref_frame_map[i]->is_restricted = true;
+            cm->ref_frame_map[i]->frame_output_done = true;
           }
         }
       }
