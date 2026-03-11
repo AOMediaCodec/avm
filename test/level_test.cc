@@ -95,12 +95,11 @@ TEST_P(LevelTestLarge, TestTargetLevelApi) {
   EXPECT_EQ(AVM_CODEC_OK, avm_codec_destroy(&enc));
 }
 
-TEST_P(LevelTestLarge, TestTargetLevel19) {
+TEST_P(LevelTestLarge, TestTargetLevel6_3) {
   std::unique_ptr<libavm_test::VideoSource> video;
   video.reset(new libavm_test::Y4mVideoSource("park_joy_90p_8_420.y4m", 0, 10));
   ASSERT_TRUE(video.get() != NULL);
-  // Level index 19 corresponding to level 6.3.
-  target_level_ = 19;
+  target_level_ = SEQ_LEVEL_6_3;
   ASSERT_NO_FATAL_FAILURE(RunLoop(video.get()));
 }
 
