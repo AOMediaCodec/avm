@@ -1196,42 +1196,44 @@ static size_t read_metadata_unit_payload(AV2Decoder *pbi, const uint8_t *data,
                        "OBU_METADATA_SHORT, not OBU_METADATA_GROUP");
   }
 #if CONFIG_CWG_G032
-  // Track bytes consumed by the type-specific metadata reader.
-  size_t parsed_payload_bytes = 0;
-  int uses_rb = 0;
+  // Track bits consumed by the type-specific metadata reader, matching the
+  // proposal's parsedPayloadBits = currentPosition - startPosition.
+  size_t parsed_payload_bits = 0;
   struct avm_read_bit_buffer rb;
 #endif  // CONFIG_CWG_G032
   if (metadata_type == OBU_METADATA_TYPE_ITUT_T35) {
     read_metadata_itut_t35(pbi, data + type_length, sz - type_length);
 #if CONFIG_CWG_G032
-    parsed_payload_bytes = sz;
+    parsed_payload_bits = sz * 8;
 #else
     return sz;
 #endif  // CONFIG_CWG_G032
   } else if (metadata_type == OBU_METADATA_TYPE_HDR_CLL) {
 #if CONFIG_CWG_G032
-    parsed_payload_bytes =
-        type_length +
-#endif  // CONFIG_CWG_G032
-        read_metadata_hdr_cll(pbi, data + type_length, sz - type_length);
-#if !CONFIG_CWG_G032
+    parsed_payload_bits =
+        (type_length +
+         read_metadata_hdr_cll(pbi, data + type_length, sz - type_length)) *
+        8;
+#else
+    read_metadata_hdr_cll(pbi, data + type_length, sz - type_length);
     return sz;
-#endif  // !CONFIG_CWG_G032
+#endif  // CONFIG_CWG_G032
   } else if (metadata_type == OBU_METADATA_TYPE_HDR_MDCV) {
 #if CONFIG_CWG_G032
-    parsed_payload_bytes =
-        type_length +
-#endif  // CONFIG_CWG_G032
-        read_metadata_hdr_mdcv(pbi, data + type_length, sz - type_length);
-#if !CONFIG_CWG_G032
+    parsed_payload_bits =
+        (type_length +
+         read_metadata_hdr_mdcv(pbi, data + type_length, sz - type_length)) *
+        8;
+#else
+    read_metadata_hdr_mdcv(pbi, data + type_length, sz - type_length);
     return sz;
-#endif  // !CONFIG_CWG_G032
+#endif  // CONFIG_CWG_G032
   } else if (metadata_type == OBU_METADATA_TYPE_BANDING_HINTS) {
     read_metadata_banding_hints(pbi, data + type_length, sz - type_length);
 #if CONFIG_CWG_G032
-    uses_rb = 1;
     av2_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
     read_metadata_banding_hints_from_rb(pbi, &rb);
+    parsed_payload_bits = rb.bit_offset;
 #endif  // CONFIG_CWG_G032
   } else if (metadata_type == OBU_METADATA_TYPE_SCAN_TYPE) {
 #if !CONFIG_CWG_G032
@@ -1240,7 +1242,7 @@ static size_t read_metadata_unit_payload(AV2Decoder *pbi, const uint8_t *data,
     av2_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
     read_metadata_scan_type(pbi, &rb);
 #if CONFIG_CWG_G032
-    uses_rb = 1;
+    parsed_payload_bits = rb.bit_offset;
 #else
     return sz;
 #endif  // CONFIG_CWG_G032
@@ -1251,14 +1253,14 @@ static size_t read_metadata_unit_payload(AV2Decoder *pbi, const uint8_t *data,
     av2_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
     read_metadata_temporal_point_info(pbi, &rb);
 #if CONFIG_CWG_G032
-    uses_rb = 1;
+    parsed_payload_bits = rb.bit_offset;
 #else
     return sz;
 #endif  // CONFIG_CWG_G032
   } else if (metadata_type == OBU_METADATA_TYPE_ICC_PROFILE) {
     read_metadata_icc_profile(pbi, data + type_length, sz - type_length);
 #if CONFIG_CWG_G032
-    parsed_payload_bytes = sz;
+    parsed_payload_bits = sz * 8;
 #else
     return sz;
 #endif  // CONFIG_CWG_G032
@@ -1266,7 +1268,7 @@ static size_t read_metadata_unit_payload(AV2Decoder *pbi, const uint8_t *data,
     read_metadata_user_data_unregistered(pbi, data + type_length,
                                          sz - type_length);
 #if CONFIG_CWG_G032
-    parsed_payload_bytes = sz;
+    parsed_payload_bits = sz * 8;
 #else
     return sz;
 #endif  // CONFIG_CWG_G032
@@ -1275,9 +1277,8 @@ static size_t read_metadata_unit_payload(AV2Decoder *pbi, const uint8_t *data,
 #if CONFIG_CWG_G032
   // For types not fully handled above (TIMECODE, DECODED_FRAME_HASH,
   // SCALABILITY), initialize rb and dispatch.
-  if (!uses_rb && parsed_payload_bytes == 0) {
+  if (parsed_payload_bits == 0) {
     av2_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
-    uses_rb = 1;
 #if !CONFIG_CWG_F438
     if (metadata_type == OBU_METADATA_TYPE_SCALABILITY) {
       read_metadata_scalability(&rb);
@@ -1291,33 +1292,26 @@ static size_t read_metadata_unit_payload(AV2Decoder *pbi, const uint8_t *data,
         assert(metadata_type == OBU_METADATA_TYPE_TIMECODE);
         read_metadata_timecode(&rb);
       }
+    parsed_payload_bits = rb.bit_offset;
   }
 
-  if (uses_rb) {
-    // Compute remaining payload bits and skip them.
-    const size_t parsed_payload_bits = rb.bit_offset;
-    const size_t total_payload_bits = (sz - type_length) * 8;
-    if (parsed_payload_bits < total_payload_bits) {
-      size_t remaining_bits = total_payload_bits - parsed_payload_bits;
-      // Skip metadata_unit_remaining_bits: decoders conforming to this version
-      // of the specification shall ignore metadata_unit_remaining_bits.
-      while (remaining_bits > 0) {
-        const int chunk = (remaining_bits > 31) ? 31 : (int)remaining_bits;
-        avm_rb_read_literal(&rb, chunk);
-        remaining_bits -= chunk;
-      }
-    }
-    assert((rb.bit_offset & 7) == 0);
-    return type_length + (rb.bit_offset >> 3);
-  }
-
-  // For byte-aligned types, skip any remaining payload bytes.
-  if (parsed_payload_bytes < sz) {
-    // metadata_unit_remaining_bits: decoders conforming to this version
+  // Compute remaining payload bits and skip them.
+  // RemainingMuPayloadBits = metadataPayloadSize * 8 - parsedPayloadBits
+  const size_t total_payload_bits = (sz - type_length) * 8;
+  if (parsed_payload_bits < total_payload_bits) {
+    size_t remaining_bits = total_payload_bits - parsed_payload_bits;
+    // Skip metadata_unit_remaining_bits: decoders conforming to this version
     // of the specification shall ignore metadata_unit_remaining_bits.
-    parsed_payload_bytes = sz;
+    av2_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
+    rb.bit_offset = parsed_payload_bits;
+    while (remaining_bits > 0) {
+      const int chunk = (remaining_bits > 31) ? 31 : (int)remaining_bits;
+      avm_rb_read_literal(&rb, chunk);
+      remaining_bits -= chunk;
+    }
   }
-  return parsed_payload_bytes;
+
+  return sz;
 #else
   AV2_COMMON *const cm = &pbi->common;
   struct avm_read_bit_buffer rb;
