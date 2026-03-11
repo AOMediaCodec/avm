@@ -52,8 +52,14 @@ static INLINE void init_ref_map_pair(AV2_COMMON *cm,
   for (int map_idx = 0; map_idx < cm->seq_params.ref_frames; map_idx++) {
     // Get reference frame buffer
     const RefCntBuffer *const buf = cm->ref_frame_map[map_idx];
-    if (buf != NULL && buf->is_restricted) {
-      ref_frame_map_pairs[map_idx].ref_frame_restricted = 1;
+    if (buf == NULL ||
+        !is_tlayer_scalable_and_dependent(
+            &cm->seq_params, cm->current_frame.tlayer_id, buf->tlayer_id,
+            cm->current_frame.mlayer_id) ||
+        !is_mlayer_scalable_and_dependent(
+            &cm->seq_params, cm->current_frame.mlayer_id, buf->mlayer_id) ||
+        (is_ras && buf->frame_type != KEY_FRAME)) {
+      ref_frame_map_pairs[map_idx].ref_frame_for_inference = -1;
       continue;
     }
 
@@ -61,6 +67,11 @@ static INLINE void init_ref_map_pair(AV2_COMMON *cm,
       // This is a frame in the same TU as OLK. It can only refer to the frames
       // on / after the OLK.
       ref_frame_map_pairs[map_idx].ref_frame_for_inference = -1;
+      continue;
+    }
+
+    if (buf != NULL && buf->is_restricted) {
+      ref_frame_map_pairs[map_idx].ref_frame_restricted = 1;
       continue;
     }
 
@@ -78,16 +89,7 @@ static INLINE void init_ref_map_pair(AV2_COMMON *cm,
     }
     if (ref_frame_map_pairs[map_idx].ref_frame_for_inference == -1) continue;
     ref_frame_map_pairs[map_idx].ref_frame_for_inference = 1;
-    if (buf == NULL ||
-        !is_tlayer_scalable_and_dependent(
-            &cm->seq_params, cm->current_frame.tlayer_id, buf->tlayer_id,
-            cm->current_frame.mlayer_id) ||
-        !is_mlayer_scalable_and_dependent(
-            &cm->seq_params, cm->current_frame.mlayer_id, buf->mlayer_id) ||
-        (is_ras && buf->frame_type != KEY_FRAME)) {
-      ref_frame_map_pairs[map_idx].ref_frame_for_inference = -1;
-      continue;
-    }
+
     if (cm->bridge_frame_info.is_bridge_frame &&
         map_idx != cm->bridge_frame_info.bridge_frame_ref_idx) {
       ref_frame_map_pairs[map_idx].ref_frame_for_inference = -1;
