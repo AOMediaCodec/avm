@@ -1884,52 +1884,6 @@ int check_temporal_unit_structure(temporal_unit_state_t *state, int obu_type,
   }
 }
 
-// Validates a completed temporal unit. Returns 1 if valid, 0 if invalid.
-// Called after processing all OBUs in the temporal unit.
-int validate_temporal_unit_completion(const mlayer_validation_state_t *state) {
-  // Validate input parameter
-  if (!state) return 0;
-
-  // At least one coded showable picture unit shall be present in this TU
-  if (!state->has_any_showable_unit)
-    return 0;  // No showable pictures found in temporal unit
-
-  // If hidden is present, then showable must also be present in same layer.
-  for (int i = 0; i < 8; i++) {  // MAX_NUM_MLAYERS = 8
-    const mlayer_frame_state_t *layer = &state->layers[i];
-
-    if (!layer->first_picture_unit_processed) continue;
-
-    if (layer->hidden_picture_count > 0 && layer->showable_picture_count == 0) {
-      return 0;  // Hidden pictures without showable pictures in same layer
-    }
-  }
-
-  if (state->clk_olk_exclusion_violated)
-    return 0;  // CLK/OLK mutual exclusion was violated
-
-  // Verify that all processed layers have valid DisplayOrderHint consistency
-  int found_showable_layer = 0;
-  for (int i = 0; i < 8; i++) {
-    const mlayer_frame_state_t *layer = &state->layers[i];
-
-    if (!layer->first_picture_unit_processed) continue;
-
-    if (layer->showable_picture_count > 0) {
-      found_showable_layer = 1;
-
-      if (layer->display_order_hint != state->global_display_order_hint)
-        return 0;  // DisplayOrderHint inconsistency detected
-    }
-  }
-
-  // If showable units exist, at least one showable layer must be present
-  if (state->has_any_showable_unit && !found_showable_layer)
-    return 0;  // Inconsistent showable state
-
-  return 1;  // Temporal unit validation successful
-}
-
 // Check if the CLK is the first frame of a mlayer.
 static void check_clk_in_a_layer(AV2_COMMON *const cm,
                                  obu_info *current_frame_unit,

@@ -123,9 +123,6 @@ typedef struct {
 int check_temporal_unit_structure(temporal_unit_state_t *state, int obu_type,
                                   int xlayer_id, int metadata_is_suffix,
                                   int prev_obu_type);
-int check_mlayer_frame_structure(mlayer_validation_state_t *state,
-                                 const test_obu_info_t *obu_info);
-int validate_temporal_unit_completion(const mlayer_validation_state_t *state);
 
 #if CONFIG_AV2_PROFILES
 bool conformance_check_msdo_lcr(struct AV2Decoder *pbi, bool global_lcr_present,
