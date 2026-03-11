@@ -729,7 +729,10 @@ void set_this_is_first_keyframe_unit_in_tu(struct AV2Decoder *pbi,
     return;
   }
 
-  if (pbi->common.seq_params.max_mlayer_id == 0) {
+  if (pbi->common.seq_params.max_mlayer_id == 0 &&
+      (pbi->last_frame_unit.display_order_hint == -1 ||
+       pbi->last_frame_unit.showable_frame ||
+       pbi->last_frame_unit.immediate_output_picture)) {
     pbi->this_is_first_keyframe_unit_in_tu = 1;
     return;
   }
@@ -774,7 +777,10 @@ static void set_this_is_first_vcl_obu_in_tu(struct AV2Decoder *pbi,
     return;
   }
 
-  if (pbi->common.seq_params.max_mlayer_id == 0) {
+  if (pbi->common.seq_params.max_mlayer_id == 0 &&
+      (pbi->last_frame_unit.display_order_hint == -1 ||
+       pbi->last_frame_unit.showable_frame ||
+       pbi->last_frame_unit.immediate_output_picture)) {
     pbi->this_is_first_vcl_obu_in_tu = 1;
     return;
   }
