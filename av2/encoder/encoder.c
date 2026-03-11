@@ -502,7 +502,7 @@ void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
     seq->force_screen_content_tools = 2;
     seq->force_integer_mv = 2;
   }
-  if (oxcf->kf_cfg.switch_frame_type == RAS_FRAME)
+  if (oxcf->kf_cfg.sframe_type == RAS_FRAME)
     seq->order_hint_info.order_hint_bits_minus_1 =
         DEFAULT_EXPLICIT_ORDER_HINT_BITS - 1;  // 7
   else if (oxcf->kf_cfg.key_freq_min == 9999 &&
@@ -772,8 +772,7 @@ void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
   seq->enable_global_motion =
       tool_cfg->enable_global_motion && !seq->single_picture_header_flag;
   seq->enable_short_refresh_frame_flags =
-      seq->single_picture_header_flag ||
-              (oxcf->kf_cfg.switch_frame_type == RAS_FRAME)
+      seq->single_picture_header_flag || (oxcf->kf_cfg.sframe_type == RAS_FRAME)
           ? 0
           : tool_cfg->enable_short_refresh_frame_flags;
   seq->number_of_bits_for_lt_frame_id = seq->single_picture_header_flag ? 0 : 3;
@@ -5081,7 +5080,7 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
   current_frame->absolute_poc =
       current_frame->key_frame_number + current_frame->display_order_hint;
   if (current_frame->frame_type == KEY_FRAME) {
-    if (cpi->oxcf.kf_cfg.switch_frame_type == RAS_FRAME)
+    if (cpi->oxcf.kf_cfg.sframe_type == RAS_FRAME)
       current_frame->long_term_id =
           cpi->common.current_frame.frame_number % MAX_NUM_LONG_TERM_FRAMES;
     else

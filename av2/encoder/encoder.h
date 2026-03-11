@@ -420,7 +420,7 @@ typedef struct {
   /*!
    * Indicates whether a switch frame is coded as an RAS-Frame.
    */
-  int switch_frame_type;
+  int sframe_type;
 
   /*!
    * Indicates if encoder should autodetect cut scenes and set the keyframes.

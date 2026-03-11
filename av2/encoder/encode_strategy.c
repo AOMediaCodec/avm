@@ -668,7 +668,7 @@ static int get_refresh_frame_flags_subgop_cfg(
   const int update_arf = type_code == FRAME_TYPE_OOO_FILTERED && pyr_level == 1;
   const int refresh_idx =
       get_refresh_idx(update_arf, refresh_level, cur_disp_order,
-                      (cpi->oxcf.kf_cfg.switch_frame_type == RAS_FRAME),
+                      (cpi->oxcf.kf_cfg.sframe_type == RAS_FRAME),
                       ref_frame_map_pairs, cpi->common.seq_params.ref_frames);
   return 1 << refresh_idx;
 }
@@ -768,7 +768,7 @@ int av2_get_refresh_frame_flags(
 
   const int update_arf = frame_update_type == ARF_UPDATE;
   const int refresh_idx = get_refresh_idx(
-      update_arf, -1, cur_disp_order, cpi->oxcf.kf_cfg.switch_frame_type,
+      update_arf, -1, cur_disp_order, cpi->oxcf.kf_cfg.sframe_type,
       ref_frame_map_pairs, cpi->common.seq_params.ref_frames);
 
   return 1 << refresh_idx;

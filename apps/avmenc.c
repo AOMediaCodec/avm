@@ -305,10 +305,10 @@ const arg_def_t *rc_args[] = { &g_av2_codec_arg_defs.dropframe_thresh,
                                NULL };
 
 const arg_def_t *kf_args[] = {
-  &g_av2_codec_arg_defs.fwd_kf_enabled,    &g_av2_codec_arg_defs.kf_min_dist,
-  &g_av2_codec_arg_defs.kf_max_dist,       &g_av2_codec_arg_defs.kf_disabled,
-  &g_av2_codec_arg_defs.sframe_dist,       &g_av2_codec_arg_defs.sframe_mode,
-  &g_av2_codec_arg_defs.switch_frame_type, NULL
+  &g_av2_codec_arg_defs.fwd_kf_enabled, &g_av2_codec_arg_defs.kf_min_dist,
+  &g_av2_codec_arg_defs.kf_max_dist,    &g_av2_codec_arg_defs.kf_disabled,
+  &g_av2_codec_arg_defs.sframe_dist,    &g_av2_codec_arg_defs.sframe_mode,
+  &g_av2_codec_arg_defs.sframe_type,    NULL
 };
 
 // TODO(bohanli): Currently all options are supported by the key & value API.
@@ -1250,8 +1250,8 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
       config->cfg.sframe_dist = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &g_av2_codec_arg_defs.sframe_mode, argi)) {
       config->cfg.sframe_mode = arg_parse_uint(&arg);
-    } else if (arg_match(&arg, &g_av2_codec_arg_defs.switch_frame_type, argi)) {
-      config->cfg.switch_frame_type = arg_parse_uint(&arg);
+    } else if (arg_match(&arg, &g_av2_codec_arg_defs.sframe_type, argi)) {
+      config->cfg.sframe_type = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &g_av2_codec_arg_defs.signal_td, argi)) {
       config->cfg.signal_td = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &g_av2_codec_arg_defs.enable_lcr, argi)) {

@@ -2834,7 +2834,7 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
       if (sframe_dist) {
         if (sframe_mode == 0) {
           if (update_type == ARF_UPDATE || update_type == KFFLT_UPDATE) {
-            cpi->is_ras_frame = (oxcf->kf_cfg.switch_frame_type == RAS_FRAME);
+            cpi->is_ras_frame = (oxcf->kf_cfg.sframe_type == RAS_FRAME);
             frame_params->frame_type = S_FRAME;
           }
         } else {
@@ -2842,12 +2842,12 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
           if (current_frame->frame_number % sframe_dist == 0 &&
               current_frame->frame_number && update_type != INTNL_ARF_UPDATE &&
               update_type != KF_UPDATE) {
-            cpi->is_ras_frame = (oxcf->kf_cfg.switch_frame_type == RAS_FRAME);
+            cpi->is_ras_frame = (oxcf->kf_cfg.sframe_type == RAS_FRAME);
             frame_params->frame_type = S_FRAME;
           } else {
             if ((update_type == ARF_UPDATE || update_type == KFFLT_UPDATE) &&
                 rc->sframe_due) {
-              cpi->is_ras_frame = (oxcf->kf_cfg.switch_frame_type == RAS_FRAME);
+              cpi->is_ras_frame = (oxcf->kf_cfg.sframe_type == RAS_FRAME);
               frame_params->frame_type = S_FRAME;
               rc->sframe_due = 0;
             }
@@ -2923,7 +2923,7 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
       if (sframe_mode == 0 && oxcf->gf_cfg.lag_in_frames != 0) {
         if (update_type == ARF_UPDATE || update_type == KFFLT_UPDATE) {
           frame_params->frame_type = S_FRAME;
-          cpi->is_ras_frame = (oxcf->kf_cfg.switch_frame_type == RAS_FRAME);
+          cpi->is_ras_frame = (oxcf->kf_cfg.sframe_type == RAS_FRAME);
         }
       } else if (altref_enabled) {
         if (sframe_mode == 1) {
@@ -2932,7 +2932,7 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
               current_frame->frame_number != 0 &&
               (update_type == ARF_UPDATE || update_type == KFFLT_UPDATE)) {
             frame_params->frame_type = S_FRAME;
-            cpi->is_ras_frame = (oxcf->kf_cfg.switch_frame_type == RAS_FRAME);
+            cpi->is_ras_frame = (oxcf->kf_cfg.sframe_type == RAS_FRAME);
           }
         } else {
           // sframe_mode == 0: if sframe will be inserted at the next
@@ -2945,14 +2945,14 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
               (update_type == ARF_UPDATE || update_type == KFFLT_UPDATE)) {
             frame_params->frame_type = S_FRAME;
             rc->sframe_due = 0;
-            cpi->is_ras_frame = (oxcf->kf_cfg.switch_frame_type == RAS_FRAME);
+            cpi->is_ras_frame = (oxcf->kf_cfg.sframe_type == RAS_FRAME);
           }
         }
       } else {
         if (current_frame->frame_number % sframe_dist == 0 &&
             current_frame->frame_number != 0) {
           frame_params->frame_type = S_FRAME;
-          cpi->is_ras_frame = (oxcf->kf_cfg.switch_frame_type == RAS_FRAME);
+          cpi->is_ras_frame = (oxcf->kf_cfg.sframe_type == RAS_FRAME);
         }
       }
     }
