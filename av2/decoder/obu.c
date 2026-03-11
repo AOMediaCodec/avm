@@ -1195,86 +1195,45 @@ static size_t read_metadata_unit_payload(AV2Decoder *pbi, const uint8_t *data,
                        "Temporal point info metadata shall only appear in "
                        "OBU_METADATA_SHORT, not OBU_METADATA_GROUP");
   }
-#if CONFIG_CWG_G032
   // Track bits consumed by the type-specific metadata reader, matching the
   // proposal's parsedPayloadBits = currentPosition - startPosition.
   size_t parsed_payload_bits = 0;
   struct avm_read_bit_buffer rb;
-#endif  // CONFIG_CWG_G032
   if (metadata_type == OBU_METADATA_TYPE_ITUT_T35) {
     read_metadata_itut_t35(pbi, data + type_length, sz - type_length);
-#if CONFIG_CWG_G032
     parsed_payload_bits = sz * 8;
-#else
-    return sz;
-#endif  // CONFIG_CWG_G032
   } else if (metadata_type == OBU_METADATA_TYPE_HDR_CLL) {
-#if CONFIG_CWG_G032
     parsed_payload_bits =
         (type_length +
          read_metadata_hdr_cll(pbi, data + type_length, sz - type_length)) *
         8;
-#else
-    read_metadata_hdr_cll(pbi, data + type_length, sz - type_length);
-    return sz;
-#endif  // CONFIG_CWG_G032
   } else if (metadata_type == OBU_METADATA_TYPE_HDR_MDCV) {
-#if CONFIG_CWG_G032
     parsed_payload_bits =
         (type_length +
          read_metadata_hdr_mdcv(pbi, data + type_length, sz - type_length)) *
         8;
-#else
-    read_metadata_hdr_mdcv(pbi, data + type_length, sz - type_length);
-    return sz;
-#endif  // CONFIG_CWG_G032
   } else if (metadata_type == OBU_METADATA_TYPE_BANDING_HINTS) {
     read_metadata_banding_hints(pbi, data + type_length, sz - type_length);
-#if CONFIG_CWG_G032
     av2_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
     read_metadata_banding_hints_from_rb(pbi, &rb);
     parsed_payload_bits = rb.bit_offset;
-#endif  // CONFIG_CWG_G032
   } else if (metadata_type == OBU_METADATA_TYPE_SCAN_TYPE) {
-#if !CONFIG_CWG_G032
-    struct avm_read_bit_buffer rb;
-#endif  // !CONFIG_CWG_G032
     av2_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
     read_metadata_scan_type(pbi, &rb);
-#if CONFIG_CWG_G032
     parsed_payload_bits = rb.bit_offset;
-#else
-    return sz;
-#endif  // CONFIG_CWG_G032
   } else if (metadata_type == OBU_METADATA_TYPE_TEMPORAL_POINT_INFO) {
-#if !CONFIG_CWG_G032
-    struct avm_read_bit_buffer rb;
-#endif  // !CONFIG_CWG_G032
     av2_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
     read_metadata_temporal_point_info(pbi, &rb);
-#if CONFIG_CWG_G032
     parsed_payload_bits = rb.bit_offset;
-#else
-    return sz;
-#endif  // CONFIG_CWG_G032
   } else if (metadata_type == OBU_METADATA_TYPE_ICC_PROFILE) {
     read_metadata_icc_profile(pbi, data + type_length, sz - type_length);
-#if CONFIG_CWG_G032
     parsed_payload_bits = sz * 8;
-#else
-    return sz;
-#endif  // CONFIG_CWG_G032
   } else if (metadata_type == OBU_METADATA_TYPE_USER_DATA_UNREGISTERED) {
     read_metadata_user_data_unregistered(pbi, data + type_length,
                                          sz - type_length);
-#if CONFIG_CWG_G032
     parsed_payload_bits = sz * 8;
-#else
-    return sz;
-#endif  // CONFIG_CWG_G032
   }
 
-#if CONFIG_CWG_G032
   // For types not fully handled above (TIMECODE, DECODED_FRAME_HASH,
   // SCALABILITY), initialize rb and dispatch.
   if (parsed_payload_bits == 0) {
@@ -1312,34 +1271,6 @@ static size_t read_metadata_unit_payload(AV2Decoder *pbi, const uint8_t *data,
   }
 
   return sz;
-#else
-  AV2_COMMON *const cm = &pbi->common;
-  struct avm_read_bit_buffer rb;
-  av2_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
-#if !CONFIG_CWG_F438
-  if (metadata_type == OBU_METADATA_TYPE_SCALABILITY) {
-    read_metadata_scalability(&rb);
-  } else
-#endif  // !CONFIG_CWG_F438
-    if (metadata_type == OBU_METADATA_TYPE_DECODED_FRAME_HASH) {
-      if (read_metadata_frame_hash(pbi, &rb)) {
-        return sz;
-      }
-    } else if (metadata_type == OBU_METADATA_TYPE_BANDING_HINTS) {
-      // Banding hints metadata is variable bits, not byte-aligned
-      read_metadata_banding_hints_from_rb(pbi, &rb);
-    } else {
-      assert(metadata_type == OBU_METADATA_TYPE_TIMECODE);
-      read_metadata_timecode(&rb);
-    }
-  // Consume byte_alignment() bits as required by metadata_unit() spec.
-  if (av2_check_byte_alignment(cm, &rb) != 0) {
-    // cm->error.error_code is already set.
-    return 0;
-  }
-  assert((rb.bit_offset & 7) == 0);
-  return type_length + (rb.bit_offset >> 3);
-#endif  // CONFIG_CWG_G032
 }
 
 static size_t read_metadata_obsp(AV2Decoder *pbi, const uint8_t *data,
@@ -1622,9 +1553,6 @@ static size_t read_metadata_short(AV2Decoder *pbi, const uint8_t *data,
     }
     av2_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
     read_metadata_scan_type(pbi, &rb);
-#if !CONFIG_CWG_G032
-    return sz;
-#endif  // !CONFIG_CWG_G032
   } else if (metadata_type == OBU_METADATA_TYPE_TEMPORAL_POINT_INFO) {
     const size_t kMinTemporalPointInfoHeaderSize = 1;
     if (sz < kMinTemporalPointInfoHeaderSize) {
@@ -1633,9 +1561,6 @@ static size_t read_metadata_short(AV2Decoder *pbi, const uint8_t *data,
     }
     av2_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
     read_metadata_temporal_point_info(pbi, &rb);
-#if !CONFIG_CWG_G032
-    return sz;
-#endif  // !CONFIG_CWG_G032
   }
 
   // Types already fully parsed above (scan_type, temporal_point_info) should
@@ -1696,7 +1621,6 @@ static size_t read_metadata_short(AV2Decoder *pbi, const uint8_t *data,
         read_metadata_timecode(&rb);
       }
   }  // end if (not scan_type/temporal_point_info)
-#if CONFIG_CWG_G032
   {
     // Compute remaining payload bits and skip them.
     // Subtract 1 from sz to exclude the trailing 0x80 byte, which is part of
@@ -1714,12 +1638,6 @@ static size_t read_metadata_short(AV2Decoder *pbi, const uint8_t *data,
       }
     }
   }
-#else
-  // Consume byte_alignment() bits as required by metadata_unit() spec.
-  if (av2_check_byte_alignment(cm, &rb) != 0) {
-    return 0;
-  }
-#endif  // CONFIG_CWG_G032
   if (av2_check_trailing_bits(pbi, &rb) != 0) {
     // cm->error.error_code is already set.
     return 0;

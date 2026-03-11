@@ -6391,7 +6391,6 @@ static size_t av2_write_metadata_unit(const avm_metadata_t *metadata,
   size_t coded_metadata_size = 0;
   memcpy(dst + coded_metadata_size, metadata->payload, metadata->sz);
 
-#if CONFIG_CWG_G032
   coded_metadata_size += metadata->sz;
   // Write metadata_unit_remaining_bits (currently zero bits).
   // Future versions of the specification may define extension data here.
@@ -6408,9 +6407,6 @@ static size_t av2_write_metadata_unit(const avm_metadata_t *metadata,
     coded_metadata_size += avm_wb_bytes_written(&wb);
   }
   return (uint32_t)coded_metadata_size;
-#else
-  return (uint32_t)(coded_metadata_size + metadata->sz);
-#endif  // CONFIG_CWG_G032
 }
 static size_t av2_write_metadata_obu(const avm_metadata_t *metadata,
                                      uint8_t *const dst) {
