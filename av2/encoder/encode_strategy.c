@@ -477,6 +477,13 @@ static struct lookahead_entry *choose_frame_source(
         cm->allow_direct_use = 0;
 
       cm->implicit_output_picture = cm->allow_direct_use;
+      // When S-frames prevent show_existing_frame for overlays, the hidden
+      // altref must not be implicitly output to avoid duplicate frames.
+      if (cm->implicit_output_picture &&
+          (cpi->oxcf.kf_cfg.enable_sframe ||
+           cpi->oxcf.tool_cfg.g_error_resilient_mode)) {
+        cm->implicit_output_picture = 0;
+      }
     }
   }
   return source;
@@ -491,9 +498,18 @@ static int allow_show_existing(const AV2_COMP *const cpi,
 
   const struct lookahead_entry *lookahead_src =
       av2_lookahead_peek(cpi->lookahead, 0, cpi->compressor_stage);
-  if (lookahead_src == NULL) return 1;
+  if (lookahead_src == NULL) {
+    // When lookahead is exhausted, still disallow show_existing_frame if
+    // S-frames are enabled or global error resilient mode is on, since
+    // S-frames reset reference frame buffers.
+    if (cpi->oxcf.kf_cfg.enable_sframe ||
+        cpi->oxcf.tool_cfg.g_error_resilient_mode)
+      return 0;
+    return 1;
+  }
 
   const int is_s_frame = cpi->oxcf.kf_cfg.enable_sframe ||
+                         cpi->oxcf.tool_cfg.g_error_resilient_mode ||
                          (lookahead_src->flags & AVM_EFLAG_SET_S_FRAME);
   const int is_key_frame =
       (cpi->rc.frames_to_key == 0) || (frame_flags & FRAMEFLAGS_KEY);
@@ -886,6 +902,15 @@ static int denoise_and_encode(AV2_COMP *const cpi, uint8_t *const dest,
 
     cm->implicit_output_picture = cm->allow_direct_use;
     if (cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames) {
+      cm->implicit_output_picture = 0;
+    }
+    // When S-frames prevent show_existing_frame for overlays, the overlay
+    // will be fully coded and produce its own output. The hidden altref
+    // must not be implicitly output, otherwise the decoder outputs both
+    // the evicted altref and the overlay, causing duplicate frames.
+    if (cm->implicit_output_picture &&
+        (cpi->oxcf.kf_cfg.enable_sframe ||
+         cpi->oxcf.tool_cfg.g_error_resilient_mode)) {
       cm->implicit_output_picture = 0;
     }
 
