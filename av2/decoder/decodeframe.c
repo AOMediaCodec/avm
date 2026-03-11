@@ -7512,6 +7512,174 @@ static void activate_layer_configuration_record(AV2Decoder *pbi,
 #endif  // CONFIG_AV2_LCR_PROFILES
 }
 
+// This function provides conformance checks for the LCR, where the mlayer and
+// tlayer presence information in lcr_mlayer_map and lcr_tlayer_map do not
+// contradict with the dependency map information from the sequence header.
+static void check_lcr_mlayer_tlayer_conformance(
+    const struct SequenceHeader *const seq_header,
+    const struct EmbeddedLayerInfo *mlayer_params,
+    struct avm_internal_error_info *info) {
+  const int mlayer_map = mlayer_params->lcr_mlayer_map;
+  for (int cur_mlayer_id = 0; cur_mlayer_id < MAX_NUM_MLAYERS;
+       cur_mlayer_id++) {
+    for (int ref_mlayer_id = 0; ref_mlayer_id < cur_mlayer_id;
+         ref_mlayer_id++) {
+      if (seq_header->mlayer_dependency_map[cur_mlayer_id][ref_mlayer_id] ==
+          1) {
+        if ((mlayer_map & (1 << cur_mlayer_id)) &&
+            (mlayer_map & (1 << ref_mlayer_id)) == 0) {
+          avm_internal_error(
+              info, AVM_CODEC_UNSUP_BITSTREAM,
+              "Inconsistent mlayer dependency: In the activated sequence "
+              "header, mlayer_dependency_map[%d][%d] is equal to 1, indicating "
+              "an mlayer with ID=%d depends on an mlayer with ID=%d, while "
+              "lcr_mlayer_map indicates that an mlayer with ID=%d is "
+              "not present.",
+              cur_mlayer_id, ref_mlayer_id, cur_mlayer_id, ref_mlayer_id,
+              ref_mlayer_id);
+        }
+      }
+    }
+    const int tlayer_map = mlayer_params->lcr_tlayer_map[cur_mlayer_id];
+    for (int cur_tlayer_id = 0; cur_tlayer_id < MAX_NUM_TLAYERS;
+         cur_tlayer_id++) {
+      for (int ref_tlayer_id = 0; ref_tlayer_id < cur_tlayer_id;
+           ref_tlayer_id++) {
+        if (seq_header->tlayer_dependency_map[cur_mlayer_id][cur_tlayer_id]
+                                             [ref_tlayer_id] == 1) {
+          if ((tlayer_map & (1 << cur_tlayer_id)) &&
+              (tlayer_map & (1 << ref_tlayer_id)) == 0) {
+            avm_internal_error(
+                info, AVM_CODEC_UNSUP_BITSTREAM,
+                "Inconsistent tlayer dependency: In the activated sequence "
+                "header, tlayer_dependency_map[%d][%d][%d] is equal to 1, "
+                "indicating a tlayer with ID=%d depends on a tlayer with "
+                "ID=%d, while lcr_tlayer_map[%d] indicates that a "
+                "tlayer with ID=%d is not present.",
+                cur_mlayer_id, cur_tlayer_id, ref_tlayer_id, cur_tlayer_id,
+                ref_tlayer_id, cur_mlayer_id, ref_tlayer_id);
+          }
+        }
+      }
+    }
+  }
+}
+
+// This function calls check_lcr_mlayer_tlayer_conformance function to perform
+// conformance checks accross the LCRs and xlayers present in the bitstream.
+static void check_lcr_layer_map_conformance(struct AV2Decoder *pbi,
+                                            const int xlayer_id) {
+  AV2_COMMON *const cm = &pbi->common;
+  struct SequenceHeader *const seq_header = &cm->seq_params;
+  for (int lcr_id = 0; lcr_id < MAX_NUM_LCR; lcr_id++) {
+    struct LayerConfigurationRecord *lcr_params =
+        &pbi->lcr_list[xlayer_id][lcr_id];
+    if (lcr_params == NULL) continue;
+    const LCRXLayerInfo *lcr_xlayer_info;
+    int isGlobal = xlayer_id == GLOBAL_XLAYER_ID;
+    if (isGlobal) {
+      const GlobalLayerConfigurationRecord *glb_lcr = &lcr_params->global_lcr;
+      if (glb_lcr == NULL) return;
+      for (int i = 0; i < glb_lcr->LcrMaxNumXLayerCount; i++) {
+        int xLId = glb_lcr->lcr_xlayer_id[i];
+        lcr_xlayer_info = &glb_lcr->xlayer_info[xLId];
+        check_lcr_mlayer_tlayer_conformance(
+            seq_header, &lcr_xlayer_info->mlayer_params, &cm->error);
+      }
+    } else {
+      const LocalLayerConfigurationRecord *loc_lcr = &lcr_params->local_lcr;
+      if (loc_lcr == NULL) return;
+      lcr_xlayer_info = &loc_lcr->xlayer_info;
+      check_lcr_mlayer_tlayer_conformance(
+          seq_header, &lcr_xlayer_info->mlayer_params, &cm->error);
+    }
+  }
+}
+
+// This function provides conformance checks for the OPS, where the mlayer and
+// tlayer presence information in ops_mlayer_map and ops_tlayer_map do not
+// contradict with the dependency map information from the sequence header.
+static void check_ops_mlayer_tlayer_conformance(
+    const struct SequenceHeader *const seq_header,
+    const struct OpsMLayerInfo *const ops_mlayer_info, int xLId,
+    struct avm_internal_error_info *info) {
+  const int mlayer_map = ops_mlayer_info->ops_mlayer_map[xLId];
+  for (int cur_mlayer_id = 0; cur_mlayer_id < MAX_NUM_MLAYERS;
+       cur_mlayer_id++) {
+    for (int ref_mlayer_id = 0; ref_mlayer_id < cur_mlayer_id;
+         ref_mlayer_id++) {
+      if (seq_header->mlayer_dependency_map[cur_mlayer_id][ref_mlayer_id] ==
+          1) {
+        if ((mlayer_map & (1 << cur_mlayer_id)) &&
+            (mlayer_map & (1 << ref_mlayer_id)) == 0) {
+          avm_internal_error(
+              info, AVM_CODEC_UNSUP_BITSTREAM,
+              "Inconsistent mlayer dependency: In the activated sequence "
+              "header, mlayer_dependency_map[%d][%d] is equal to 1, indicating "
+              "an mlayer with ID=%d depends on an mlayer with ID=%d, while "
+              "ops_mlayer_map[%d] indicates that an mlayer with ID=%d is not "
+              "present.",
+              cur_mlayer_id, ref_mlayer_id, cur_mlayer_id, ref_mlayer_id, xLId,
+              ref_mlayer_id);
+        }
+      }
+    }
+    const int tlayer_map = ops_mlayer_info->ops_tlayer_map[xLId][cur_mlayer_id];
+    for (int cur_tlayer_id = 0; cur_tlayer_id < MAX_NUM_TLAYERS;
+         cur_tlayer_id++) {
+      for (int ref_tlayer_id = 0; ref_tlayer_id < cur_tlayer_id;
+           ref_tlayer_id++) {
+        if (seq_header->tlayer_dependency_map[cur_mlayer_id][cur_tlayer_id]
+                                             [ref_tlayer_id] == 1) {
+          if ((tlayer_map & (1 << cur_tlayer_id)) &&
+              (tlayer_map & (1 << ref_tlayer_id)) == 0) {
+            avm_internal_error(
+                info, AVM_CODEC_UNSUP_BITSTREAM,
+                "Inconsistent tlayer dependency: In the activated sequence "
+                "header, tlayer_dependency_map[%d][%d][%d] is equal to 1, "
+                "indicating a tlayer with ID=%d depends on a tlayer with "
+                "ID=%d, while ops_tlayer_map[%d][%d] indicates that a tlayer "
+                "with ID=%d is not present.",
+                cur_mlayer_id, cur_tlayer_id, ref_tlayer_id, cur_tlayer_id,
+                ref_tlayer_id, xLId, cur_mlayer_id, ref_tlayer_id);
+          }
+        }
+      }
+    }
+  }
+}
+
+// This function calls check_ops_mlayer_tlayer_conformance function to perform
+// conformance checks accross the OPSes and xlayers present in the bitstream.
+static void check_ops_layer_map_conformance(struct AV2Decoder *pbi,
+                                            const int xlayer_id) {
+  AV2_COMMON *const cm = &pbi->common;
+  struct SequenceHeader *const seq_header = &cm->seq_params;
+  for (int ops_id = 0; ops_id < MAX_NUM_OPS_ID; ops_id++) {
+    struct OperatingPointSet *ops = &pbi->ops_list[xlayer_id][ops_id];
+    if (ops == NULL) continue;
+    for (int i = 0; i < ops->ops_cnt; i++) {
+      OperatingPoint *op = &ops->op[i];
+      if (op == NULL) continue;
+      if (xlayer_id == GLOBAL_XLAYER_ID) {
+        for (int xLId = 0; xLId < MAX_NUM_XLAYERS - 1; xLId++) {
+          if ((op->ops_xlayer_map & (1 << xLId))) {
+            if (ops->ops_mlayer_info_idc == 1 ||
+                (ops->ops_mlayer_info_idc == 2 &&
+                 op->ops_mlayer_explicit_info_flag[xLId])) {
+              check_ops_mlayer_tlayer_conformance(seq_header, &op->mlayer_info,
+                                                  xLId, &cm->error);
+            }
+          }
+        }
+      } else {
+        check_ops_mlayer_tlayer_conformance(seq_header, &op->mlayer_info,
+                                            xlayer_id, &cm->error);
+      }
+    }
+  }
+}
+
 static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
                                    int xlayer_id, int seq_header_id) {
   AV2_COMMON *const cm = &pbi->common;
@@ -7638,6 +7806,10 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   for (int i = 0; i < NUM_CUSTOM_QMS; ++i) {
     pbi->qm_protected[i] = 0;
   }
+  // check dependency map consistency for LCR
+  check_lcr_layer_map_conformance(pbi, xlayer_id);
+  // check dependency map consistency for OPS
+  check_ops_layer_map_conformance(pbi, xlayer_id);
 }
 
 static int is_reference_mapping_consistent(
