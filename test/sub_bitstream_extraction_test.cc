@@ -289,7 +289,6 @@ class SBECodecControlTest : public ::libavm_test::CodecTestWithParam<int>,
     cfg_.g_profile = 0;
     cfg_.g_lag_in_frames = 0;
     cfg_.g_bit_depth = AVM_BITS_8;
-    cfg_.signal_td = 1;
     cfg_.enable_lcr = 1;
     cfg_.enable_ops = 1;
     cfg_.num_ops = 1;
@@ -433,7 +432,6 @@ class SubBitstreamExtractionEncDecTest
     cfg_.g_profile = 0;
     cfg_.g_lag_in_frames = 0;
     cfg_.g_bit_depth = AVM_BITS_8;
-    cfg_.signal_td = 1;
     cfg_.enable_lcr = 1;
     cfg_.enable_ops = 1;
     cfg_.num_ops = 1;
@@ -588,7 +586,6 @@ class SBEFilteringTest : public ::libavm_test::CodecTestWithParam<int>,
     cfg_.g_profile = 0;
     cfg_.g_lag_in_frames = 0;
     cfg_.g_bit_depth = AVM_BITS_8;
-    cfg_.signal_td = 1;
     cfg_.enable_lcr = 1;
     cfg_.enable_ops = 1;
     cfg_.num_ops = 1;
