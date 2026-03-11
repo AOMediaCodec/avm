@@ -174,15 +174,10 @@ int write_fgm_obu(AV2_COMP *cpi, struct film_grain_model *fgm,
 
   int fgm_bit_map = 1 << (fgm->fgm_id);
   avm_wb_write_literal(&wb, fgm_bit_map, MAX_FGM_NUM);
-  int chroma_format_idc = CHROMA_FORMAT_420;
-  if (cm->seq_params.monochrome)
-    chroma_format_idc = CHROMA_FORMAT_400;
-  else if (cm->seq_params.subsampling_x == 0 &&
-           cm->seq_params.subsampling_y == 1)
-    chroma_format_idc = CHROMA_FORMAT_444;
-  else if (cm->seq_params.subsampling_x == 1 &&
-           cm->seq_params.subsampling_y == 0)
-    chroma_format_idc = CHROMA_FORMAT_422;
+  uint32_t chroma_format_idc = CHROMA_FORMAT_420;
+  av2_get_chroma_format_idc(cm->seq_params.subsampling_x,
+                            cm->seq_params.subsampling_y,
+                            cm->seq_params.monochrome, &chroma_format_idc);
   avm_wb_write_uvlc(&wb, chroma_format_idc);
 
   for (int fgm_pos = 0; fgm_pos < 1; fgm_pos++) {
