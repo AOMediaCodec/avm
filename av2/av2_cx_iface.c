@@ -3293,8 +3293,7 @@ static avm_codec_err_t encoder_encode(avm_codec_alg_priv_t *ctx,
             avm_internal_error(&cpi->common.error, AVM_CODEC_ERROR, NULL);
           }
           // OBUs are preceded/succeeded by an unsigned leb128 coded integer.
-          frame_size +=
-              obu_header_size + obu_payload_size + length_field_size;
+          frame_size += obu_header_size + obu_payload_size + length_field_size;
           ready_for_next_tu = 0;
         }
 
