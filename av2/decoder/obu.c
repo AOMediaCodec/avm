@@ -2608,7 +2608,14 @@ avm_codec_err_t parse_sh(struct AV2Decoder *pbi, const uint8_t *data,
 #if CONFIG_AV2_PROFILES
     if (seq_params->max_mlayer_id > 0) {
       int n = avm_ceil_log2(seq_params->max_mlayer_id + 1);
-      seq_params->seq_max_mlayer_cnt = avm_rb_read_literal(rb, n);
+      int seq_max_mlayer_cnt_minus_1 = avm_rb_read_literal(rb, n);
+      if (seq_max_mlayer_cnt_minus_1 > seq_params->max_mlayer_id) {
+        avm_internal_error(
+            &pbi->common.error, AVM_CODEC_UNSUP_BITSTREAM,
+            "seq_max_mlayer_cnt_minus_1 %d is greater than max_mlayer_id %d",
+            seq_max_mlayer_cnt_minus_1, seq_params->max_mlayer_id);
+      }
+      seq_params->seq_max_mlayer_cnt = seq_max_mlayer_cnt_minus_1 + 1;
     }
 #endif  // CONFIG_AV2_PROFILES
   }
