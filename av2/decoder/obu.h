@@ -13,18 +13,8 @@
 #ifndef AVM_AV2_DECODER_OBU_H_
 #define AVM_AV2_DECODER_OBU_H_
 
-#include "avm/avm_codec.h"
 #include "avm_dsp/bitreader_buffer.h"
 #include "av2/decoder/decoder.h"
-
-// Parse given "data" to get long_term_frame_id_bits and OrderHintBits.
-avm_codec_err_t parse_sh(struct AV2Decoder *pbi, const uint8_t *data,
-                         size_t payload_size,
-                         struct SequenceHeader *seq_params);
-
-// Parse given "data" to get mfh_seq_header_id
-avm_codec_err_t parse_mfh(struct AV2Decoder *pbi, const uint8_t *data,
-                          size_t payload_size, struct MultiFrameHeader *mfh);
 
 // Try to decode one frame from a buffer.
 // Returns 1 if we decoded a frame,
