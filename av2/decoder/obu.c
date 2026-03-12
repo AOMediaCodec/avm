@@ -907,6 +907,25 @@ static size_t read_metadata_hdr_mdcv(AV2Decoder *const pbi, const uint8_t *data,
   return kMdcvPayloadSize;
 }
 
+// On success, returns the number of bytes read from 'data'. On failure, calls
+// avm_internal_error() and does not return.
+static size_t read_metadata_banding_hints(AV2Decoder *const pbi,
+                                          const uint8_t *data, size_t sz) {
+  AV2_COMMON *const cm = &pbi->common;
+
+  // Validate minimum payload size (at least 3 bits for basic flags)
+  if (sz == 0) {
+    avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
+                       "Empty banding hints metadata payload");
+  }
+
+  // Store the raw payload in the generic metadata array
+  alloc_read_metadata(pbi, OBU_METADATA_TYPE_BANDING_HINTS, data, sz,
+                      AVM_MIF_ANY_FRAME);
+
+  return sz;
+}
+
 // Helper function to read banding hints from a bit buffer
 static void read_metadata_banding_hints_from_rb(
     AV2Decoder *const pbi, struct avm_read_bit_buffer *rb) {
@@ -1148,6 +1167,21 @@ static uint8_t get_last_nonzero_byte(const uint8_t *data, size_t sz) {
   return 0;
 }
 
+// Skip metadata_unit_remaining_bits: decoders conforming to this version of
+// the specification shall ignore metadata_unit_remaining_bits.
+static void skip_remaining_mu_payload_bits(struct avm_read_bit_buffer *rb,
+                                           size_t parsed_payload_bits,
+                                           size_t total_payload_bits) {
+  if (parsed_payload_bits < total_payload_bits) {
+    size_t remaining_bits = total_payload_bits - parsed_payload_bits;
+    while (remaining_bits > 0) {
+      const int chunk = (remaining_bits > 31) ? 31 : (int)remaining_bits;
+      avm_rb_read_literal(rb, chunk);
+      remaining_bits -= chunk;
+    }
+  }
+}
+
 // Checks the metadata for correct syntax but ignores the parsed metadata.
 //
 // On success, returns the number of bytes read from 'data'. On failure, sets
@@ -1190,9 +1224,7 @@ static size_t read_metadata_unit_payload(AV2Decoder *pbi, const uint8_t *data,
     read_metadata_hdr_mdcv(pbi, data + type_length, sz - type_length);
     parsed_payload_bits = sz * 8;
   } else if (metadata_type == OBU_METADATA_TYPE_BANDING_HINTS) {
-    alloc_read_metadata(pbi, OBU_METADATA_TYPE_BANDING_HINTS,
-                        data + type_length, sz - type_length,
-                        AVM_MIF_ANY_FRAME);
+    read_metadata_banding_hints(pbi, data + type_length, sz - type_length);
     av2_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
     read_metadata_banding_hints_from_rb(pbi, &rb);
     parsed_payload_bits = rb.bit_offset;
@@ -1211,11 +1243,8 @@ static size_t read_metadata_unit_payload(AV2Decoder *pbi, const uint8_t *data,
     read_metadata_user_data_unregistered(pbi, data + type_length,
                                          sz - type_length);
     parsed_payload_bits = sz * 8;
-  }
-
-  // For types not fully handled above (TIMECODE, DECODED_FRAME_HASH,
-  // SCALABILITY), initialize rb and dispatch.
-  if (parsed_payload_bits == 0) {
+  } else {
+    // Remaining types: TIMECODE, DECODED_FRAME_HASH, SCALABILITY.
     av2_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
 #if !CONFIG_CWG_F438
     if (metadata_type == OBU_METADATA_TYPE_SCALABILITY) {
@@ -1237,20 +1266,10 @@ static size_t read_metadata_unit_payload(AV2Decoder *pbi, const uint8_t *data,
   }
 
   // Compute remaining payload bits and skip them.
-  // RemainingMuPayloadBits = metadataPayloadSize * 8 - parsedPayloadBits
   const size_t total_payload_bits = (sz - type_length) * 8;
-  if (parsed_payload_bits < total_payload_bits) {
-    size_t remaining_bits = total_payload_bits - parsed_payload_bits;
-    // Skip metadata_unit_remaining_bits: decoders conforming to this version
-    // of the specification shall ignore metadata_unit_remaining_bits.
-    av2_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
-    rb.bit_offset = (uint32_t)parsed_payload_bits;
-    while (remaining_bits > 0) {
-      const int chunk = (remaining_bits > 31) ? 31 : (int)remaining_bits;
-      avm_rb_read_literal(&rb, chunk);
-      remaining_bits -= chunk;
-    }
-  }
+  av2_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
+  rb.bit_offset = (uint32_t)parsed_payload_bits;
+  skip_remaining_mu_payload_bits(&rb, parsed_payload_bits, total_payload_bits);
 
   return sz;
 }
@@ -1608,16 +1627,8 @@ static size_t read_metadata_short(AV2Decoder *pbi, const uint8_t *data,
     // metadata_short_obu() trailing_bits() syntax, not metadata_unit() payload.
     const size_t parsed_payload_bits = rb.bit_offset;
     const size_t total_payload_bits = (sz - type_length - 1) * 8;
-    if (parsed_payload_bits < total_payload_bits) {
-      size_t remaining_bits = total_payload_bits - parsed_payload_bits;
-      // Skip metadata_unit_remaining_bits: decoders conforming to this version
-      // of the specification shall ignore metadata_unit_remaining_bits.
-      while (remaining_bits > 0) {
-        const int chunk = (remaining_bits > 31) ? 31 : (int)remaining_bits;
-        avm_rb_read_literal(&rb, chunk);
-        remaining_bits -= chunk;
-      }
-    }
+    skip_remaining_mu_payload_bits(&rb, parsed_payload_bits,
+                                   total_payload_bits);
   }
   if (av2_check_trailing_bits(pbi, &rb) != 0) {
     // cm->error.error_code is already set.
