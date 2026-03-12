@@ -126,7 +126,7 @@ TEST_P(LevelTestLarge, TestLevelMonitoringHighBitrate) {
     cfg_.rc_target_bitrate = 4000;
     cfg_.g_limit = num_frames;
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
-    ASSERT_EQ(level_[0], 4);
+    ASSERT_EQ(level_[0], SEQ_LEVEL_3_0);
   }
 }
 
