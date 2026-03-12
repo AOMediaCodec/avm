@@ -624,8 +624,7 @@ static void set_last_frame_unit(struct AV2Decoder *pbi) {
 //
 static size_t check_frame_unit_data(struct AV2Decoder *pbi, const uint8_t *data,
                                     size_t data_sz, int *xlayer_id,
-                                    int *mlayer_id, int *tlayer_id,
-                                    bool *reset_last) {
+                                    int *mlayer_id, int *tlayer_id) {
   for (int tid = 0; tid < MAX_NUM_TLAYERS; tid++)
     for (int mid = 0; mid < MAX_NUM_MLAYERS; mid++)
       for (int type = 0; type < NUM_OBU_TYPES; type++)
@@ -642,7 +641,6 @@ static size_t check_frame_unit_data(struct AV2Decoder *pbi, const uint8_t *data,
   *xlayer_id = -1;
   *mlayer_id = -1;
   *tlayer_id = -1;
-  *reset_last = false;
 
   while (data_read < data + data_sz) {
     size_t payload_size = 0;
@@ -676,13 +674,6 @@ static size_t check_frame_unit_data(struct AV2Decoder *pbi, const uint8_t *data,
         *xlayer_id = obu_header.obu_xlayer_id;
       }
     } else {
-      // Non-VCL OBU
-      // Check for temporal unit head OBUs that can reset state
-      bool is_tu_head =
-          is_tu_head_non_vcl_obu(obu_header.type, obu_header.obu_xlayer_id) &&
-          obu_header.type != OBU_TEMPORAL_DELIMITER;
-      *reset_last |= is_tu_head;
-
       // Special case: Temporal delimiter after VCL always starts new TU
       if (obu_header.type == OBU_TEMPORAL_DELIMITER && vcl_found) {
         // Boundary detected! Return WITHOUT including this TD
@@ -940,10 +931,9 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
     int xlayer_id = -1;
     int mlayer_id = -1;  // vcl obu's mlayer_id
     int tlayer_id = -1;
-    bool reset_last = false;
     size_t frame_unit_size =
         check_frame_unit_data(pbi, data_start, data_end - data_start,
-                              &xlayer_id, &mlayer_id, &tlayer_id, &reset_last);
+                              &xlayer_id, &mlayer_id, &tlayer_id);
     if (frame_unit_size == 0 || frame_unit_size == SIZE_MAX) {
       return AVM_CODEC_ERROR;
     }
@@ -966,12 +956,7 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
     }
 
     if (has_key_obu) {
-      if (reset_last) {
-        pbi->this_is_first_keyframe_unit_in_tu = 1;
-        pbi->seen_keyframe_in_this_tu = 1;
-      } else {
-        set_this_is_first_keyframe_unit_in_tu(pbi, tlayer_id, mlayer_id);
-      }
+      set_this_is_first_keyframe_unit_in_tu(pbi, tlayer_id, mlayer_id);
       pbi->this_is_first_vcl_obu_in_tu = pbi->this_is_first_keyframe_unit_in_tu;
       if (pbi->this_is_first_vcl_obu_in_tu) {
         pbi->seen_vcl_obu_in_this_tu = 1;
