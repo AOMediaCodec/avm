@@ -551,6 +551,7 @@ TEST_P(SubBitstreamExtractionEncDecTest, TwoEmbeddedLayersWithOps) {
   ::libavm_test::Y4mVideoSource video("park_joy_90p_8_420.y4m", 0, 10);
   num_temporal_layers_ = 1;
   num_embedded_layers_ = 2;
+  cfg_.g_profile = 1;  // Profile 1 supports max_mlayer_cnt = 2
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   EXPECT_EQ(num_mismatch_, 0);
 }
@@ -559,6 +560,7 @@ TEST_P(SubBitstreamExtractionEncDecTest, TwoTempTwoEmbedWithOps) {
   ::libavm_test::Y4mVideoSource video("park_joy_90p_8_420.y4m", 0, 10);
   num_temporal_layers_ = 2;
   num_embedded_layers_ = 2;
+  cfg_.g_profile = 1;  // Profile 1 supports max_mlayer_cnt = 2
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   EXPECT_EQ(num_mismatch_, 0);
 }
@@ -745,6 +747,7 @@ TEST_P(SBEFilteringTest, TwoEmbeddedWithSBE) {
   ::libavm_test::Y4mVideoSource video("park_joy_90p_8_420.y4m", 0, 10);
   num_temporal_layers_ = 1;
   num_embedded_layers_ = 2;
+  cfg_.g_profile = 1;  // Profile 1 supports max_mlayer_cnt = 2
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   EXPECT_TRUE(decode_ok_);
   // Default OPS selects only mlayer=0, tlayer=0.
