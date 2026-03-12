@@ -7680,6 +7680,27 @@ static void check_ops_layer_map_conformance(struct AV2Decoder *pbi,
   }
 }
 
+static void reset_qm_list(AV2Decoder *pbi) {
+  AV2_COMMON *const cm = &pbi->common;
+  // reset QM to default: for both OLK and CLK
+  const int num_planes = av2_num_planes(cm);
+  for (int qm_pos = 0; qm_pos < NUM_CUSTOM_QMS; qm_pos++) {
+    // qm_protected[qm_pos] == 1 indicates the pbi->qm_list[qm_pos] is signalled
+    // with CLK/OLK. those quantizer matrices are not reset to the predefined.
+    if (pbi->qm_protected[qm_pos]) continue;
+    // copy from predefined
+    struct quantization_matrix_set *qmset = &pbi->qm_list[qm_pos];
+    qmset->qm_id = qm_pos;
+    qmset->qm_mlayer_id = -1;
+    qmset->qm_tlayer_id = -1;
+    qmset->quantizer_matrix_num_planes = num_planes;
+    qmset->is_user_defined_qm = false;
+  }
+  for (int i = 0; i < NUM_CUSTOM_QMS; ++i) {
+    pbi->qm_protected[i] = 0;
+  }
+}
+
 static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
                                    int xlayer_id, int seq_header_id) {
   AV2_COMMON *const cm = &pbi->common;
@@ -7713,6 +7734,10 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   // NOTE: cm->seq_params is a intermediate variable not to change the code too
   // much
   cm->seq_params = pbi->active_seq[xlayer_id];
+
+  if (obu_type == OBU_CLK || obu_type == OBU_OLK || obu_type == OBU_RAS_FRAME ||
+      obu_type == OBU_SWITCH)
+    reset_qm_list(pbi);
 
   if (!keyframe_unit_in_tu) {
     if (!are_seq_headers_consistent(&cm->seq_params, seq_from_uch)) {
@@ -7789,23 +7814,6 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     }
   }
 
-  // reset QM to default: for both OLK and CLK
-  const int num_planes = av2_num_planes(cm);
-  for (int qm_pos = 0; qm_pos < NUM_CUSTOM_QMS; qm_pos++) {
-    // qm_protected[qm_pos] == 1 indicates the pbi->qm_list[qm_pos] is signalled
-    // with CLK/OLK. those quantizer matrices are not reset to the predefined.
-    if (pbi->qm_protected[qm_pos]) continue;
-    // copy from predefined
-    struct quantization_matrix_set *qmset = &pbi->qm_list[qm_pos];
-    qmset->qm_id = qm_pos;
-    qmset->qm_mlayer_id = -1;
-    qmset->qm_tlayer_id = -1;
-    qmset->quantizer_matrix_num_planes = num_planes;
-    qmset->is_user_defined_qm = false;
-  }
-  for (int i = 0; i < NUM_CUSTOM_QMS; ++i) {
-    pbi->qm_protected[i] = 0;
-  }
   // check dependency map consistency for LCR
   check_lcr_layer_map_conformance(pbi, xlayer_id);
   // check dependency map consistency for OPS

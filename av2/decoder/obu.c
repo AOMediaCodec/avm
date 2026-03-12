@@ -3217,7 +3217,9 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         for (int i = 0; i < NUM_CUSTOM_QMS; i++) {
           if (acc_qm_id_bitmap & (1 << i)) {
             pbi->qm_protected[i] &=
-                (obu_header.type == OBU_CLK || obu_header.type == OBU_OLK);
+                (obu_header.type == OBU_CLK || obu_header.type == OBU_OLK ||
+                 obu_header.type == OBU_RAS_FRAME ||
+                 obu_header.type == OBU_SWITCH);
           }
         }
 #if CONFIG_AV2_PROFILES
