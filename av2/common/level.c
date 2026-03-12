@@ -33,7 +33,7 @@
     .max_tile_cols = 0 }
 /* clang-format on */
 
-static const AV2LevelSpec av2_level_defs[SEQ_LEVELS] = {
+const AV2LevelSpec av2_level_defs[SEQ_LEVELS] = {
   { .level = SEQ_LEVEL_2_0,
     .max_picture_size = 147456,
     .max_h_size = 640,

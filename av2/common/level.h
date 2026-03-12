@@ -35,6 +35,8 @@ typedef struct {
   double high_cr;
 } AV2LevelSpec;
 
+extern const AV2LevelSpec av2_level_defs[SEQ_LEVELS];
+
 // AV2 Substream Level Specifications
 typedef struct {
   int max_picture_size;

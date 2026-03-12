@@ -775,6 +775,22 @@ void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
   seq->number_of_bits_for_lt_frame_id = seq->single_picture_header_flag ? 0 : 3;
   seq->enable_ext_seg = tool_cfg->enable_ext_seg;
   seq->ref_frames = seq->single_picture_header_flag ? 2 : tool_cfg->dpb_size;
+  // Clamp ref_frames to the maximum allowed by the level constraints.
+  const AV2_LEVEL level_idx = cpi->level_idx[0];
+  if (level_idx < SEQ_LEVELS) {
+    const int64_t max_level_pic_size =
+        av2_level_defs[level_idx].max_picture_size;
+    const int64_t cur_pic_size =
+        (int64_t)seq->max_frame_width * seq->max_frame_height;
+    if (max_level_pic_size > 0 && cur_pic_size > 0) {
+      const int default_dpb_size = (1 << MAX_REFS_PER_FRAME_LOG2);
+      const int explicit_num_ref_frames = (seq->ref_frames != default_dpb_size);
+      const int max_dpb =
+          (int)AVMMIN(default_dpb_size << explicit_num_ref_frames,
+                      max_level_pic_size * default_dpb_size / cur_pic_size);
+      seq->ref_frames = AVMMIN(seq->ref_frames, max_dpb);
+    }
+  }
   seq->ref_frames_log2 = avm_ceil_log2(seq->ref_frames);
 }
 
