@@ -36,7 +36,7 @@ class LevelTestLarge
  protected:
   LevelTestLarge()
       : EncoderTest(GET_PARAM(0)), encoding_mode_(GET_PARAM(1)),
-        cpu_used_(GET_PARAM(2)), target_level_(31) {}
+        cpu_used_(GET_PARAM(2)), target_level_(SEQ_LEVEL_MAX) {}
 
   virtual ~LevelTestLarge() {}
 
@@ -59,7 +59,7 @@ class LevelTestLarge
 
     encoder->Control(AV2E_GET_SEQ_LEVEL_IDX, level_);
     ASSERT_LE(level_[0], SEQ_LEVEL_MAX);
-    ASSERT_GE(level_[0], 0);
+    ASSERT_GE(level_[0], SEQ_LEVEL_2_0);
   }
 
   libavm_test::TestMode encoding_mode_;
@@ -112,7 +112,7 @@ TEST_P(LevelTestLarge, TestLevelMonitoringLowBitrate) {
     cfg_.rc_target_bitrate = 400;
     cfg_.g_limit = 20;
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
-    ASSERT_EQ(level_[0], 0);
+    ASSERT_EQ(level_[0], SEQ_LEVEL_2_0);
   }
 }
 
