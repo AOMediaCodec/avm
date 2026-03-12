@@ -2891,8 +2891,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
   // grain models signalled before a coded frame have the same fgm_id
   uint32_t acc_fgm_id_bitmap = 0;
   int prev_obu_xlayer_id = -1;
-  int keyframe_present = 0;
-
   // prev_obu_type, prev_xlayer_id and tu_validation_state are used to compare
   // obus in this "data"
   OBU_TYPE prev_obu_type = NUM_OBU_TYPES;
@@ -3212,8 +3210,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
       case OBU_REGULAR_TIP:
       case OBU_RAS_FRAME:
       case OBU_BRIDGE_FRAME:
-        keyframe_present =
-            (obu_header.type == OBU_CLK || obu_header.type == OBU_OLK);
         for (int i = 0; i < NUM_CUSTOM_QMS; i++) {
           if (acc_qm_id_bitmap & (1 << i)) {
             pbi->qm_protected[i] &=
@@ -3445,11 +3441,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
 
     data += payload_size;
     count_obus_with_frame_unit++;
-  }
-
-  if (pbi->decoding_first_frame && keyframe_present == 0) {
-    avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
-                       "the first frame of a bitstream shall be a keyframe");
   }
 
   // check whether suffix metadata OBUs are present
