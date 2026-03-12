@@ -1262,7 +1262,7 @@ static size_t read_metadata_unit_payload(AV2Decoder *pbi, const uint8_t *data,
     // Skip metadata_unit_remaining_bits: decoders conforming to this version
     // of the specification shall ignore metadata_unit_remaining_bits.
     av2_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
-    rb.bit_offset = parsed_payload_bits;
+    rb.bit_offset = (uint32_t)parsed_payload_bits;
     while (remaining_bits > 0) {
       const int chunk = (remaining_bits > 31) ? 31 : (int)remaining_bits;
       avm_rb_read_literal(&rb, chunk);
