@@ -7116,6 +7116,39 @@ static void create_op_masks_from_profiles(AV2Decoder *pbi, int *tlayer_op_mask,
   }
 }
 
+// Returns 1 if the given layer subset has a missing dependency, i.e. a
+// retained layer depends on a dropped layer according to the dependency maps.
+static int check_missing_layer_dependency(const AV2_COMMON *cm, int mlayer_mask,
+                                          int tlayer_mask) {
+  for (int cur_mlayer_id = 0; cur_mlayer_id <= cm->mlayer_id; cur_mlayer_id++) {
+    if (!is_layer_dropped(cur_mlayer_id, mlayer_mask)) {
+      for (int ref_mlayer_id = 0; ref_mlayer_id < cur_mlayer_id;
+           ref_mlayer_id++) {
+        if (cm->seq_params
+                .mlayer_dependency_map[cur_mlayer_id][ref_mlayer_id] &&
+            is_layer_dropped(ref_mlayer_id, mlayer_mask)) {
+          return 1;
+        }
+      }
+      for (int cur_tlayer_id = 0; cur_tlayer_id <= cm->tlayer_id;
+           cur_tlayer_id++) {
+        if (!is_layer_dropped(cur_tlayer_id, tlayer_mask)) {
+          for (int ref_tlayer_id = 0; ref_tlayer_id < cur_tlayer_id;
+               ref_tlayer_id++) {
+            if (cm->seq_params
+                    .tlayer_dependency_map[cur_mlayer_id][cur_tlayer_id]
+                                          [ref_tlayer_id] &&
+                is_layer_dropped(ref_tlayer_id, tlayer_mask)) {
+              return 1;
+            }
+          }
+        }
+      }
+    }
+  }
+  return 0;
+}
+
 static void check_consistent_disp_order_hint_derivation(AV2Decoder *pbi,
                                                         OBU_TYPE obu_type,
                                                         bool random_accessed) {
@@ -7138,12 +7171,20 @@ static void check_consistent_disp_order_hint_derivation(AV2Decoder *pbi,
     // derive operating point masks for mlayer and tlayer
     int op_mlayer_mask, op_tlayer_mask;
     create_op_masks_from_profiles(pbi, &op_tlayer_mask, &op_mlayer_mask);
-    // check consistency for all the subset of OPs according to the operating
-    // points in the bitstream.
+    // Check consistency for subsets of OPs that would include the current
+    // frame. Skip subsets where the current frame's layer would be dropped,
+    // as those do not correspond to valid operating points for this frame.
     for (int ml = 0; ml < num_mlayer_masks; ml++) {
       for (int tl = 0; tl < num_tlayer_masks; tl++) {
         int mlayer_mask = ml & op_mlayer_mask;
         int tlayer_mask = tl & op_tlayer_mask;
+        // Skip subsets that would drop the current frame's layer.
+        if (is_layer_dropped(cm->mlayer_id, mlayer_mask) ||
+            is_layer_dropped(cm->tlayer_id, tlayer_mask))
+          continue;
+        // Skip subsets with unsatisfied layer dependencies.
+        if (check_missing_layer_dependency(cm, mlayer_mask, tlayer_mask))
+          continue;
         disp_order_op_constrained = get_disp_order_hint(
             cm, obu_type, random_accessed, /*is_op_constrained=*/true,
             mlayer_mask, tlayer_mask);
@@ -7233,12 +7274,20 @@ static int read_show_existing_frame(AV2Decoder *pbi, bool is_regular_obu,
       // derive operating point masks for mlayer and tlayer
       int op_mlayer_mask, op_tlayer_mask;
       create_operating_point_masks(pbi, &op_tlayer_mask, &op_mlayer_mask);
-      // check consistency for all the subset of OPs according to the operating
-      // points in the bitstream.
+      // Check consistency for subsets of OPs that would include the current
+      // frame. Skip subsets where the current frame's layer would be dropped,
+      // as those do not correspond to valid operating points for this frame.
       for (int ml = 0; ml < num_mlayer_masks; ml++) {
         for (int tl = 0; tl < num_tlayer_masks; tl++) {
           int mlayer_mask = ml & op_mlayer_mask;
           int tlayer_mask = tl & op_tlayer_mask;
+          // Skip subsets that would drop the current frame's layer.
+          if (is_layer_dropped(cm->mlayer_id, mlayer_mask) ||
+              is_layer_dropped(cm->tlayer_id, tlayer_mask))
+            continue;
+          // Skip subsets with unsatisfied layer dependencies.
+          if (check_missing_layer_dependency(cm, mlayer_mask, tlayer_mask))
+            continue;
           disp_order_op_constrained = get_disp_order_hint(
               cm, is_regular_obu ? OBU_REGULAR_SEF : OBU_LEADING_SEF, false,
               true, mlayer_mask, tlayer_mask);
@@ -8237,12 +8286,19 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
         // derive operating point masks for mlayer and tlayer
         int op_mlayer_mask, op_tlayer_mask;
         create_operating_point_masks(pbi, &op_tlayer_mask, &op_mlayer_mask);
-        // check consistency for all the subset of OPs according to the
-        // operating points in the bitstream.
+        // Check consistency for subsets of OPs that would include the current
+        // frame. Skip subsets where the current frame's layer would be dropped.
         for (int ml = 0; ml < num_mlayer_masks; ml++) {
           for (int tl = 0; tl < num_tlayer_masks; tl++) {
             int mlayer_mask = ml & op_mlayer_mask;
             int tlayer_mask = tl & op_tlayer_mask;
+            // Skip subsets that would drop the current frame's layer.
+            if (is_layer_dropped(cm->mlayer_id, mlayer_mask) ||
+                is_layer_dropped(cm->tlayer_id, tlayer_mask))
+              continue;
+            // Skip subsets with unsatisfied layer dependencies.
+            if (check_missing_layer_dependency(cm, mlayer_mask, tlayer_mask))
+              continue;
             disp_order_op_constrained =
                 get_disp_order_hint(cm, obu_type, pbi->random_accessed, true,
                                     mlayer_mask, tlayer_mask);
@@ -8615,12 +8671,20 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
           // derive operating point masks for mlayer and tlayer
           int op_mlayer_mask, op_tlayer_mask;
           create_op_masks_from_profiles(pbi, &op_tlayer_mask, &op_mlayer_mask);
-          // check consistency for all the subset of OPs according to the
-          // operating points in the bitstream.
+          // Check consistency for subsets of OPs that would include the current
+          // frame. Skip subsets where the current frame's layer would be
+          // dropped.
           for (int ml = 0; ml < num_mlayer_masks; ml++) {
             for (int tl = 0; tl < num_tlayer_masks; tl++) {
               int mlayer_mask = ml & op_mlayer_mask;
               int tlayer_mask = tl & op_tlayer_mask;
+              // Skip subsets that would drop the current frame's layer.
+              if (is_layer_dropped(cm->mlayer_id, mlayer_mask) ||
+                  is_layer_dropped(cm->tlayer_id, tlayer_mask))
+                continue;
+              // Skip subsets with unsatisfied layer dependencies.
+              if (check_missing_layer_dependency(cm, mlayer_mask, tlayer_mask))
+                continue;
               // derive OP constrained mapping and store in
               // cm->op_remapped_ref_idx[]
               const int default_map_idx = av2_get_op_constrained_ref_frames(
@@ -8669,12 +8733,20 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
           // derive operating point masks for mlayer and tlayer
           int op_mlayer_mask, op_tlayer_mask;
           create_operating_point_masks(pbi, &op_tlayer_mask, &op_mlayer_mask);
-          // check consistency for all the subset of OPs according to the
-          // operating points in the bitstream.
+          // Check consistency for subsets of OPs that would include the current
+          // frame. Skip subsets where the current frame's layer would be
+          // dropped.
           for (int ml = 0; ml < num_mlayer_masks; ml++) {
             for (int tl = 0; tl < num_tlayer_masks; tl++) {
               int mlayer_mask = ml & op_mlayer_mask;
               int tlayer_mask = tl & op_tlayer_mask;
+              // Skip subsets that would drop the current frame's layer.
+              if (is_layer_dropped(cm->mlayer_id, mlayer_mask) ||
+                  is_layer_dropped(cm->tlayer_id, tlayer_mask))
+                continue;
+              // Skip subsets with unsatisfied layer dependencies.
+              if (check_missing_layer_dependency(cm, mlayer_mask, tlayer_mask))
+                continue;
               // derive OP constrained mapping and store in
               // cm->op_remapped_ref_idx[]
               const int default_map_idx = av2_get_op_constrained_ref_frames(
