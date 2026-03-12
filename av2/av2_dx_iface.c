@@ -986,14 +986,11 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
       pbi->random_accessed = false;
     }
 
-    // When the to-be-decoded data(data_start to data_start+frame_unit_size) is
-    // the first frame unit in the BITSTREAM (reset_last=1), last_frame_unit and
-    // last_displayable_frame_unit be reset to -1. For example, the first frame
-    // of the bitstream, the first frame of a new CVS.
-    // THIS PART IS ****PURELY**** FOR THE S/W TO RESET last_frame_unit and
-    // last_displayable_frame_unit.
-    // currently has_seq_header is determined by the presence of SH. this
-    // may need to be updated for the case of out-of-band SH
+    // When we have sequence header and keyframe OBUs (which indicate the first
+    // frame of the bitstream or the first frame of a new CVS), last_frame_unit
+    // and last_displayable_frame_unit need to be reset to -1.
+    // TODO(any): currently, has_seq_header is determined by the presence of SH.
+    // This may need to be updated for the case of out-of-band SH.
     (void)has_mf_header;
     if (has_seq_header && has_key_obu) {
       memset(&pbi->last_frame_unit, -1, sizeof(pbi->last_frame_unit));
