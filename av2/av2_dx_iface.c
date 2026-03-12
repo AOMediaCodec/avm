@@ -753,8 +753,8 @@ static void set_this_is_first_keyframe_unit_in_tu(struct AV2Decoder *pbi,
 
   // Add an error message if both CLK and OLK are present.
   if (has_clk && has_olk) {
-    pbi->this_is_first_keyframe_unit_in_tu = -1;
-    return;
+    avm_internal_error(&pbi->common.error, AVM_CODEC_CORRUPT_FRAME,
+                       "Both CLK and OLK are present.\n");
   }
 
   if (!pbi->seen_keyframe_in_this_tu) {
@@ -965,21 +965,14 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
       pbi->seen_keyframe_in_this_tu = 0;
     }
 
-    // pbi->this_is_first_keyframe_unit_in_tu = 1 means it is keyobu && first
-    // frame_unit in tu
     if (has_key_obu) {
-      if (reset_last || has_td) {
+      if (reset_last) {
         pbi->this_is_first_keyframe_unit_in_tu = 1;
         pbi->seen_keyframe_in_this_tu = 1;
       } else {
         set_this_is_first_keyframe_unit_in_tu(pbi, tlayer_id, mlayer_id);
-        if (pbi->this_is_first_keyframe_unit_in_tu == -1) {
-          fprintf(stderr, "one of CLK and OLK should be present.\n");
-          return AVM_CODEC_ERROR;
-        }
       }
-      pbi->this_is_first_vcl_obu_in_tu =
-          (pbi->this_is_first_keyframe_unit_in_tu == 1) ? 1 : 0;
+      pbi->this_is_first_vcl_obu_in_tu = pbi->this_is_first_keyframe_unit_in_tu;
       if (pbi->this_is_first_vcl_obu_in_tu) {
         pbi->seen_vcl_obu_in_this_tu = 1;
       }
