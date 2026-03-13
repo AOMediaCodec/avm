@@ -2150,8 +2150,13 @@ bool conformance_check_msdo_lcr(struct AV2Decoder *pbi, bool global_lcr_present,
   if (msdo_present && msdo_prof > MAIN_420_10_IP2) return true;
   if (global_lcr_present && glcr_prof > MAIN_420_10_IP2) return true;
   if (!msdo_present && !global_lcr_present && local_lcr_present &&
-      llcr_prof > MAIN_420_10_IP2)
+      llcr_prof > MAIN_420_10_IP2) {
     return true;
+  }
+  if (!msdo_present && !global_lcr_present && !local_lcr_present &&
+      pbi->common.seq_params.seq_profile_idc > MAIN_420_10_IP2) {
+    return true;
+  }
 
   if (num_extended_layers == 1 && num_embedded_layers == 1) {
     if (!msdo_present) return true;
