@@ -7788,9 +7788,12 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   // much
   cm->seq_params = pbi->active_seq[xlayer_id];
 
-  if (obu_type == OBU_CLOSED_LOOP_KEY || obu_type == OBU_OPEN_LOOP_KEY ||
-      obu_type == OBU_RAS_FRAME || obu_type == OBU_SWITCH)
-    reset_qm_list(pbi);
+  if (pbi->this_is_first_vcl_obu_in_tu) {
+    if (obu_type == OBU_CLOSED_LOOP_KEY || obu_type == OBU_OPEN_LOOP_KEY ||
+        obu_type == OBU_RAS_FRAME || obu_type == OBU_SWITCH) {
+      reset_qm_list(pbi);
+    }
+  }
 
   if (!keyframe_unit_in_tu) {
     if (!are_seq_headers_consistent(&cm->seq_params, seq_from_uch)) {
