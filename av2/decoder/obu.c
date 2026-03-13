@@ -682,6 +682,9 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi, int xlayer_id,
     // cm->error.error_code is already set.
     return 0;
   }
+  if (xlayer_id == pbi->common.xlayer_id) {
+    pbi->common.seq_params = *seq_params;
+  }
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }
 
