@@ -343,7 +343,6 @@ uint32_t av2_read_layer_configuration_record_obu(
   else
     read_lcr_local_info(pbi, xlayer_id, rb);
 
-#if CONFIG_F414_OBU_EXTENSION
   size_t bits_before_ext = rb->bit_offset - saved_bit_offset;
   int lcr_extension_present_flag = avm_rb_read_bit(rb);
   if (lcr_extension_present_flag) {
@@ -358,9 +357,6 @@ uint32_t av2_read_layer_configuration_record_obu(
       // No extension data present
     }
   }
-#else
-  (void)lcr_params;
-#endif  // CONFIG_F414_OBU_EXTENSION
   if (av2_check_trailing_bits(pbi, rb) != 0) {
     return 0;
   }
@@ -706,7 +702,6 @@ uint32_t av2_read_layer_configuration_record_obu(
   else
     lcr_params = read_lcr_local_info(pbi, xlayer_id, rb);
 
-#if CONFIG_F414_OBU_EXTENSION
   size_t bits_before_ext = rb->bit_offset - saved_bit_offset;
   lcr_params->lcr_extension_present_flag = avm_rb_read_bit(rb);
   if (lcr_params->lcr_extension_present_flag) {
@@ -721,9 +716,6 @@ uint32_t av2_read_layer_configuration_record_obu(
       // No extension data present
     }
   }
-#else
-  (void)lcr_params;
-#endif  // CONFIG_F414_OBU_EXTENSION
   if (av2_check_trailing_bits(pbi, rb) != 0) {
     return 0;
   }

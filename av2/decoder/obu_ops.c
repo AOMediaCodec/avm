@@ -316,7 +316,6 @@ uint32_t av2_read_operating_point_set_obu(struct AV2Decoder *pbi,
       }
     }
   }
-#if CONFIG_F414_OBU_EXTENSION
   size_t bits_before_ext = rb->bit_offset - saved_bit_offset;
   ops->ops_extension_present_flag = avm_rb_read_bit(rb);
   if (ops->ops_extension_present_flag) {
@@ -331,7 +330,6 @@ uint32_t av2_read_operating_point_set_obu(struct AV2Decoder *pbi,
       // No extension data present
     }
   }
-#endif  // CONFIG_F414_OBU_EXTENSION
 #else
   struct OperatingPointSet *ops_params = NULL;
   int ops_pos = -1;
@@ -529,7 +527,6 @@ uint32_t av2_read_operating_point_set_obu(struct AV2Decoder *pbi,
     }
   }
 
-#if CONFIG_F414_OBU_EXTENSION
   size_t bits_before_ext = rb->bit_offset - saved_bit_offset;
   ops_params->ops_extension_present_flag = avm_rb_read_bit(rb);
   if (ops_params->ops_extension_present_flag) {
@@ -544,7 +541,6 @@ uint32_t av2_read_operating_point_set_obu(struct AV2Decoder *pbi,
       // No extension data present
     }
   }
-#endif  // CONFIG_F414_OBU_EXTENSION
 #endif  // CONFIG_AV2_PROFILES
 
   if (av2_check_trailing_bits(pbi, rb) != 0) {

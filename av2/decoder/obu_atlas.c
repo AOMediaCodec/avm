@@ -313,7 +313,6 @@ uint32_t av2_read_atlas_segment_info_obu(struct AV2Decoder *pbi,
   }
   // Label each atlas segment
   read_ats_label_segment_info(pbi, atlas_params, num_segments, rb);
-#if CONFIG_F414_OBU_EXTENSION
   size_t bits_before_ext = rb->bit_offset - saved_bit_offset;
   atlas_params->ats_extension_present_flag = avm_rb_read_bit(rb);
   if (atlas_params->ats_extension_present_flag) {
@@ -329,7 +328,6 @@ uint32_t av2_read_atlas_segment_info_obu(struct AV2Decoder *pbi,
       // No extension data present
     }
   }
-#endif  // CONFIG_F414_OBU_EXTENSION
   if (av2_check_trailing_bits(pbi, rb) != 0) {
     return 0;
   }

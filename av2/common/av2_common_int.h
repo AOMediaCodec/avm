@@ -814,10 +814,7 @@ typedef struct LayerConfigurationRecord {
   // Either global or local fields are used based on is_global flag
   struct GlobalLayerConfigurationRecord global_lcr;
   struct LocalLayerConfigurationRecord local_lcr;
-
-#if CONFIG_F414_OBU_EXTENSION
   int lcr_extension_present_flag;
-#endif  // CONFIG_F414_OBU_EXTENSION
 } LayerConfigurationRecord;
 #else
 
@@ -889,9 +886,7 @@ typedef struct LayerConfigurationRecord {
   struct RepresentationInfo rep_list[MAX_LCR_TYPES][MAX_NUM_XLAYERS];
   struct XLayerColorInfo xlayer_col_params;
   struct EmbeddedLayerInfo mlayer_params;
-#if CONFIG_F414_OBU_EXTENSION
   int lcr_extension_present_flag;
-#endif  // CONFIG_F414_OBU_EXTENSION
 } LayerConfigurationRecord;
 #endif  // CONFIG_AV2_LCR_PROFILES
 
@@ -965,9 +960,7 @@ typedef struct AtlasSegmentInfo {
   struct AtlasBasicInfo ats_basic_info_s;
   struct AtlasRegionToSegmentMapping ats_reg_seg_map;
   struct AtlasLabelSegmentInfo ats_label_seg;
-#if CONFIG_F414_OBU_EXTENSION
   int ats_extension_present_flag;
-#endif  // CONFIG_F414_OBU_EXTENSION
 } AtlasSegmentInfo;
 
 #if CONFIG_AV2_PROFILES
@@ -1055,9 +1048,7 @@ typedef struct OperatingPointSet {
   // ops_cnt elements of the op array are used.
   OperatingPoint op[MAX_OPS_COUNT];
 
-#if CONFIG_F414_OBU_EXTENSION
   int ops_extension_present_flag;
-#endif  // CONFIG_F414_OBU_EXTENSION
 } OperatingPointSet;
 #else  // CONFIG_AV2_PROFILES
 typedef struct OpsColorInfo {
@@ -1137,9 +1128,7 @@ typedef struct OperatingPointSet {
   struct OpsColorInfo ops_col_info_s;
   struct OpsDecoderModelInfo *ops_decoder_model_info;
   struct OpsDecoderModelInfo ops_decoder_model_info_s;
-#if CONFIG_F414_OBU_EXTENSION
   int ops_extension_present_flag;
-#endif  // CONFIG_F414_OBU_EXTENSION
 } OperatingPointSet;
 #endif  // CONFIG_AV2_PROFILES
 
@@ -1382,9 +1371,7 @@ typedef struct SequenceHeader {
   uint8_t seq_seg_info_present_flag;
   SegmentationInfoSyntax seg_params;
   int allow_seg_info_change;
-#if CONFIG_F414_OBU_EXTENSION
   int seq_extension_present_flag;
-#endif  // CONFIG_F414_OBU_EXTENSION
   // IMPORTANT: the op_params member must be at the end of the struct so that
   // are_seq_headers_consistent() can be implemented with a memcmp() call.
   // TODO(urvang): We probably don't need the +1 here.
@@ -1685,12 +1672,10 @@ typedef struct MultiFrameHeader {
    * enable_seg_flag for MFH
    */
   int mfh_ext_seg_flag;
-#if CONFIG_F414_OBU_EXTENSION
   /*!
    * Extension present flag
    */
   int mfh_extension_present_flag;
-#endif  // CONFIG_F414_OBU_EXTENSION
 } MultiFrameHeader;
 
 typedef struct CommonModeInfoParams CommonModeInfoParams;

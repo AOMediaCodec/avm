@@ -1087,10 +1087,7 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
       seq_params->seq_max_low_delay_mode_flag = 0;
     }
   }
-#if CONFIG_F414_OBU_EXTENSION
   seq_params->seq_extension_present_flag = 0;
-#endif  // CONFIG_F414_OBU_EXTENSION
-
   if (seq_params->monochrome) {
     seq_params->subsampling_x = 1;
     seq_params->subsampling_y = 1;

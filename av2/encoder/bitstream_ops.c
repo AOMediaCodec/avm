@@ -539,10 +539,8 @@ uint32_t av2_write_operating_point_set_obu(AV2_COMP *cpi, int obu_xlayer_id,
     // Byte alignment at end of each operating point iteration
     avm_wb_write_literal(&wb, 0, (8 - wb.bit_offset % 8) % 8);
   }
-#if CONFIG_F414_OBU_EXTENSION
   avm_wb_write_bit(&wb, ops->ops_extension_present_flag);
   assert(!ops->ops_extension_present_flag);
-#endif  // CONFIG_F414_OBU_EXTENSION
 #else
     struct OperatingPointSet *ops = &cpi->common.ops_params;
     struct OpsColorInfo *opsColInfo = ops->ops_col_info;
@@ -647,10 +645,8 @@ uint32_t av2_write_operating_point_set_obu(AV2_COMP *cpi, int obu_xlayer_id,
         avm_wb_write_literal(&wb, 0, (8 - wb.bit_offset % 8) % 8);
       }
     }
-#if CONFIG_F414_OBU_EXTENSION
     avm_wb_write_bit(&wb, ops->ops_extension_present_flag);
     assert(!ops->ops_extension_present_flag);
-#endif  // CONFIG_F414_OBU_EXTENSION
 #endif  // CONFIG_AV2_PROFILES
   av2_add_trailing_bits(&wb);
   size = avm_wb_bytes_written(&wb);

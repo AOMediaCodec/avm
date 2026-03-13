@@ -7977,7 +7977,6 @@ static int setup_sequence_header_id(AV2_COMMON *const cm,
   return seq_header_id_in_frame_header;
 }
 
-#if CONFIG_F414_OBU_EXTENSION
 static int av1_get_obu_trailing_bits_count(const uint8_t *obu_payload,
                                            size_t payload_size) {
   assert(payload_size != 0);
@@ -8036,7 +8035,6 @@ int read_obu_extension_bits(const uint8_t *obu_payload, size_t payload_size,
 
   return (int)extension_data_bits;
 }
-#endif  // CONFIG_F414_OBU_EXTENSION
 
 // On success, returns 0. On failure, calls avm_internal_error and does not
 // return.

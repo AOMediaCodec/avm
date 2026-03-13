@@ -147,9 +147,6 @@ set_avm_config_var(CONFIG_CWG_F438 1 "Remove scalability metadata.")
 set_avm_config_var(CONFIG_THROUGHPUT_ANALYSIS 0
                    "AV2 experiment flag to measure throughput.")
 
-# CWG - F414
-set_avm_config_var(CONFIG_F414_OBU_EXTENSION 1 "Obu extension mechanism.")
-
 # CWG-F428
 set_avm_config_var(CONFIG_F428_MULTISTREAM 1
                    "Level restriction with multistream mode ON.")
