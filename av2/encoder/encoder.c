@@ -279,7 +279,6 @@ static INLINE int does_level_match(int width, int height, double fps,
          height <= lvl_height * lvl_dim_mult;
 }
 
-#if CONFIG_G018
 static INLINE int check_tile_constraints(int width, int height,
                                          const TileConfig *tile_cfg, int level,
                                          int tier) {
@@ -308,158 +307,102 @@ static INLINE int check_tile_constraints(int width, int height,
   }
   return 1;
 }
-#endif  // CONFIG_G018
 
 static void set_bitstream_level_tier(AV2_COMP *cpi, AV2_COMMON *cm, int width,
-                                     int height, double init_framerate
-#if CONFIG_G018
-                                     ,
-                                     const TileConfig *tile_cfg
-#endif  // CONFIG_G018
-) {
+                                     int height, double init_framerate,
+                                     const TileConfig *tile_cfg) {
   // TODO(any): This is a placeholder function that only addresses dimensions
   // and max display sample rates.
   // Need to add checks for max bit rate, max decoded luma sample rate, header
   // rate, etc. that are not covered by this function.
   AV2_LEVEL level = SEQ_LEVEL_MAX;
-  if (does_level_match(width, height, init_framerate, 512, 288, 30.0, 4)
-#if CONFIG_G018
-      && check_tile_constraints(width, height, tile_cfg, SEQ_LEVEL_2_0, 0)
-#endif  // CONFIG_G018
-  ) {
+  if (does_level_match(width, height, init_framerate, 512, 288, 30.0, 4) &&
+      check_tile_constraints(width, height, tile_cfg, SEQ_LEVEL_2_0, 0)) {
     level = SEQ_LEVEL_2_0;
-  } else if (does_level_match(width, height, init_framerate, 704, 396, 30.0, 4)
-#if CONFIG_G018
-             &&
-             check_tile_constraints(width, height, tile_cfg, SEQ_LEVEL_2_1, 0)
-#endif  // CONFIG_G018
-  ) {
+  } else if (does_level_match(width, height, init_framerate, 704, 396, 30.0,
+                              4) &&
+             check_tile_constraints(width, height, tile_cfg, SEQ_LEVEL_2_1,
+                                    0)) {
     level = SEQ_LEVEL_2_1;
-  } else if (does_level_match(width, height, init_framerate, 1088, 612, 30.0, 4)
-#if CONFIG_G018
-             &&
-             check_tile_constraints(width, height, tile_cfg, SEQ_LEVEL_3_0, 0)
-#endif  // CONFIG_G018
-  ) {
+  } else if (does_level_match(width, height, init_framerate, 1088, 612, 30.0,
+                              4) &&
+             check_tile_constraints(width, height, tile_cfg, SEQ_LEVEL_3_0,
+                                    0)) {
     level = SEQ_LEVEL_3_0;
-  } else if (does_level_match(width, height, init_framerate, 1376, 774, 30.0, 4)
-#if CONFIG_G018
-             &&
-             check_tile_constraints(width, height, tile_cfg, SEQ_LEVEL_3_1, 0)
-#endif  // CONFIG_G018
-  ) {
+  } else if (does_level_match(width, height, init_framerate, 1376, 774, 30.0,
+                              4) &&
+             check_tile_constraints(width, height, tile_cfg, SEQ_LEVEL_3_1,
+                                    0)) {
     level = SEQ_LEVEL_3_1;
   } else if (does_level_match(width, height, init_framerate, 2048, 1152, 30.0,
-                              3)
-#if CONFIG_G018
-             &&
-             check_tile_constraints(width, height, tile_cfg, SEQ_LEVEL_4_0, 0)
-#endif  // CONFIG_G018
-  ) {
+                              3) &&
+             check_tile_constraints(width, height, tile_cfg, SEQ_LEVEL_4_0,
+                                    0)) {
     level = SEQ_LEVEL_4_0;
   } else if (does_level_match(width, height, init_framerate, 2048, 1152, 60.0,
-                              3)
-#if CONFIG_G018
-             &&
-             check_tile_constraints(width, height, tile_cfg, SEQ_LEVEL_4_1, 0)
-#endif  // CONFIG_G018
-  ) {
+                              3) &&
+             check_tile_constraints(width, height, tile_cfg, SEQ_LEVEL_4_1,
+                                    0)) {
     level = SEQ_LEVEL_4_1;
   } else if (does_level_match(width, height, init_framerate, 4096, 2176, 30.0,
-                              2)
-#if CONFIG_G018
-             &&
-             check_tile_constraints(width, height, tile_cfg, SEQ_LEVEL_5_0, 0)
-#endif  // CONFIG_G018
-  ) {
+                              2) &&
+             check_tile_constraints(width, height, tile_cfg, SEQ_LEVEL_5_0,
+                                    0)) {
     level = SEQ_LEVEL_5_0;
   } else if (does_level_match(width, height, init_framerate, 4096, 2176, 60.0,
-                              2)
-#if CONFIG_G018
-             &&
-             check_tile_constraints(width, height, tile_cfg, SEQ_LEVEL_5_1, 0)
-#endif  // CONFIG_G018
-  ) {
+                              2) &&
+             check_tile_constraints(width, height, tile_cfg, SEQ_LEVEL_5_1,
+                                    0)) {
     level = SEQ_LEVEL_5_1;
   } else if (does_level_match(width, height, init_framerate, 4096, 2176, 120.0,
-                              2)
-#if CONFIG_G018
-             &&
-             check_tile_constraints(width, height, tile_cfg, SEQ_LEVEL_5_2, 0)
-#endif  // CONFIG_G018
-  ) {
+                              2) &&
+             check_tile_constraints(width, height, tile_cfg, SEQ_LEVEL_5_2,
+                                    0)) {
     level = SEQ_LEVEL_5_2;
   } else if (does_level_match(width, height, init_framerate, 8192, 4352, 30.0,
-                              2)
-#if CONFIG_G018
-             &&
-             check_tile_constraints(width, height, tile_cfg, SEQ_LEVEL_6_0, 0)
-#endif  // CONFIG_G018
-  ) {
+                              2) &&
+             check_tile_constraints(width, height, tile_cfg, SEQ_LEVEL_6_0,
+                                    0)) {
     level = SEQ_LEVEL_6_0;
   } else if (does_level_match(width, height, init_framerate, 8192, 4352, 60.0,
-                              2)
-#if CONFIG_G018
-             &&
-             check_tile_constraints(width, height, tile_cfg, SEQ_LEVEL_6_1, 0)
-#endif  // CONFIG_G018
-  ) {
+                              2) &&
+             check_tile_constraints(width, height, tile_cfg, SEQ_LEVEL_6_1,
+                                    0)) {
     level = SEQ_LEVEL_6_1;
   } else if (does_level_match(width, height, init_framerate, 8192, 4352, 120.0,
-                              2)
-#if CONFIG_G018
-             &&
-             check_tile_constraints(width, height, tile_cfg, SEQ_LEVEL_6_2, 0)
-#endif  // CONFIG_G018
-  ) {
+                              2) &&
+             check_tile_constraints(width, height, tile_cfg, SEQ_LEVEL_6_2,
+                                    0)) {
     level = SEQ_LEVEL_6_2;
   } else if (does_level_match(width, height, init_framerate, 16384, 8704, 30.0,
-                              2)
-#if CONFIG_G018
-             &&
-             check_tile_constraints(width, height, tile_cfg, SEQ_LEVEL_7_0, 0)
-#endif  // CONFIG_G018
-  ) {
+                              2) &&
+             check_tile_constraints(width, height, tile_cfg, SEQ_LEVEL_7_0,
+                                    0)) {
     level = SEQ_LEVEL_7_0;
   } else if (does_level_match(width, height, init_framerate, 16384, 8704, 60.0,
-                              2)
-#if CONFIG_G018
-             &&
-             check_tile_constraints(width, height, tile_cfg, SEQ_LEVEL_7_1, 0)
-#endif  // CONFIG_G018
-  ) {
+                              2) &&
+             check_tile_constraints(width, height, tile_cfg, SEQ_LEVEL_7_1,
+                                    0)) {
     level = SEQ_LEVEL_7_1;
   } else if (does_level_match(width, height, init_framerate, 16384, 8704, 120.0,
-                              2)
-#if CONFIG_G018
-             &&
-             check_tile_constraints(width, height, tile_cfg, SEQ_LEVEL_7_2, 0)
-#endif  // CONFIG_G018
-  ) {
+                              2) &&
+             check_tile_constraints(width, height, tile_cfg, SEQ_LEVEL_7_2,
+                                    0)) {
     level = SEQ_LEVEL_7_2;
   } else if (does_level_match(width, height, init_framerate, 32768, 17408, 30.0,
-                              2)
-#if CONFIG_G018
-             &&
-             check_tile_constraints(width, height, tile_cfg, SEQ_LEVEL_8_0, 0)
-#endif  // CONFIG_G018
-  ) {
+                              2) &&
+             check_tile_constraints(width, height, tile_cfg, SEQ_LEVEL_8_0,
+                                    0)) {
     level = SEQ_LEVEL_8_0;
   } else if (does_level_match(width, height, init_framerate, 32768, 17408, 60.0,
-                              2)
-#if CONFIG_G018
-             &&
-             check_tile_constraints(width, height, tile_cfg, SEQ_LEVEL_8_1, 0)
-#endif  // CONFIG_G018
-  ) {
+                              2) &&
+             check_tile_constraints(width, height, tile_cfg, SEQ_LEVEL_8_1,
+                                    0)) {
     level = SEQ_LEVEL_8_1;
   } else if (does_level_match(width, height, init_framerate, 32768, 17408,
-                              120.0, 2)
-#if CONFIG_G018
-             &&
-             check_tile_constraints(width, height, tile_cfg, SEQ_LEVEL_8_2, 0)
-#endif  // CONFIG_G018
-  ) {
+                              120.0, 2) &&
+             check_tile_constraints(width, height, tile_cfg, SEQ_LEVEL_8_2,
+                                    0)) {
     level = SEQ_LEVEL_8_2;
   }
 
@@ -651,12 +594,7 @@ void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
       seq->single_picture_header_flag ? 0 : tool_cfg->enable_mvd_sign_derive;
 
   set_bitstream_level_tier(cpi, cm, frm_dim_cfg->width, frm_dim_cfg->height,
-                           oxcf->input_cfg.init_framerate
-#if CONFIG_G018
-                           ,
-                           &oxcf->tile_cfg
-#endif  // CONFIG_G018
-  );
+                           oxcf->input_cfg.init_framerate, &oxcf->tile_cfg);
 
   seq->seq_max_level_idx = cpi->level_idx[0];
 

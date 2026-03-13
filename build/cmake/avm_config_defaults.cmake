@@ -130,7 +130,6 @@ set_avm_config_var(CONFIG_AV2_PROFILES 1 "AV2 profile related changes.")
 set_avm_config_var(CONFIG_ANNEXF 1 "Annex F sub-bitstream extraction support.")
 set_avm_config_var(CONFIG_TU_ALIGNMENT 1 "Missing TU alignment syntax")
 set_avm_config_var(CONFIG_CWG_G010 1 "Updates to the BRT OBU")
-set_avm_config_var(CONFIG_G018 1 "Tile resolution limits")
 set_avm_config_var(CONFIG_AV2_LCR_PROFILES 1
                    "Refactor LCR, add LCR profile information")
 

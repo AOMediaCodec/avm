@@ -4262,12 +4262,9 @@ static AVM_INLINE void read_tile_info(AV2Decoder *const pbi,
     return;
   }
   av2_get_tile_limits(&cm->tiles, cm->mi_params.mi_rows, cm->mi_params.mi_cols,
-                      cm->mib_size_log2, cm->seq_params.mib_size_log2
-#if CONFIG_G018
-                      ,
-                      cm->seq_params.seq_max_level_idx, cm->seq_params.seq_tier
-#endif  // CONFIG_G018
-  );
+                      cm->mib_size_log2, cm->seq_params.mib_size_log2,
+                      cm->seq_params.seq_max_level_idx,
+                      cm->seq_params.seq_tier);
 
   const TileInfoSyntax *const tile_params = find_effective_tile_params(cm);
   int reuse = 0;
@@ -6033,12 +6030,8 @@ void read_sequence_tile_info(struct SequenceHeader *seq_params,
   av2_get_seq_tile_limits(&seq_params->tile_params,
                           seq_params->max_frame_height,
                           seq_params->max_frame_width,
-                          seq_params->mib_size_log2, seq_params->mib_size_log2
-#if CONFIG_G018
-                          ,
-                          seq_params->seq_max_level_idx, seq_params->seq_tier
-#endif  // CONFIG_G018
-  );
+                          seq_params->mib_size_log2, seq_params->mib_size_log2,
+                          seq_params->seq_max_level_idx, seq_params->seq_tier);
   read_tile_syntax_info(&seq_params->tile_params, rb);
 }
 
