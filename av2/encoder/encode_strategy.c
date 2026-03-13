@@ -1062,6 +1062,10 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
   cm->bru.explicit_ref_idx = -1;
   cm->bru.ref_disp_order = -1;
 
+  if (cm->next_mlayer_id >= 0) {
+    cm->mlayer_id = cm->next_mlayer_id;
+  }
+
   // Check if we need to stuff more src frames
   if (flush == 0) {
     int srcbuf_size =

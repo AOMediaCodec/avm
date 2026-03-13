@@ -4861,10 +4861,6 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
   AV2_COMMON *const cm = &cpi->common;
   CurrentFrame *const current_frame = &cm->current_frame;
 
-  if (cm->next_mlayer_id >= 0) {
-    cm->mlayer_id = cm->next_mlayer_id;
-  }
-
   cpi->unscaled_source = frame_input->source;
   cpi->source = frame_input->source;
   cpi->unscaled_last_source = frame_input->last_source;
