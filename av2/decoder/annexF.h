@@ -151,7 +151,9 @@ static INLINE int is_sbe_structural_obu(OBU_TYPE obu_type) {
          obu_type == OBU_MULTI_STREAM_DECODER_OPERATION ||
          obu_type == OBU_LAYER_CONFIGURATION_RECORD ||
          obu_type == OBU_ATLAS_SEGMENT || obu_type == OBU_OPERATING_POINT_SET ||
-         obu_type == OBU_BUFFER_REMOVAL_TIMING || obu_type == OBU_PADDING;
+         obu_type == OBU_BUFFER_REMOVAL_TIMING ||
+         obu_type == OBU_METADATA_SHORT || obu_type == OBU_METADATA_GROUP ||
+         obu_type == OBU_PADDING;
 }
 
 #ifdef __cplusplus

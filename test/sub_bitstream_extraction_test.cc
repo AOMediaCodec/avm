@@ -122,6 +122,8 @@ TEST_F(SBEApiTest, IsStructuralObu) {
   EXPECT_EQ(is_sbe_structural_obu(OBU_ATLAS_SEGMENT), 1);
   EXPECT_EQ(is_sbe_structural_obu(OBU_OPERATING_POINT_SET), 1);
   EXPECT_EQ(is_sbe_structural_obu(OBU_BUFFER_REMOVAL_TIMING), 1);
+  EXPECT_EQ(is_sbe_structural_obu(OBU_METADATA_SHORT), 1);
+  EXPECT_EQ(is_sbe_structural_obu(OBU_METADATA_GROUP), 1);
   EXPECT_EQ(is_sbe_structural_obu(OBU_PADDING), 1);
   // Non-structural OBUs
   EXPECT_EQ(is_sbe_structural_obu(OBU_SEQUENCE_HEADER), 0);

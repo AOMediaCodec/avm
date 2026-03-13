@@ -96,6 +96,8 @@
  * OBU_ATLAS_SEGMENT              | Cross-layer structural metadata
  * OBU_OPERATING_POINT_SET        | Steps 3/4: xlayer selection and map data
  * OBU_BUFFER_REMOVAL_TIMING      | Decoder timing model
+ * OBU_METADATA_SHORT             | Global metadata, no SBE-relevant content
+ * OBU_METADATA_GROUP             | Global metadata, no SBE-relevant content
  * OBU_PADDING                    | No semantic content, always passed through
  *
  * Notes:
