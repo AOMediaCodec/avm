@@ -777,11 +777,9 @@ typedef struct GlobalLayerConfigurationRecord {
   int LcrMaxNumXLayerCount;  // NUmber of xlauers in this global LCR
   int LcrXLayerID[31];       // number of xlayers in this global LCR
 
-#if CONFIG_TU_ALIGNMENT
   int lcr_enforce_tu_alignment_flag;
   int lcr_enforce_tile_alignment_flag;
   int lcr_reserved_zero_6bits;
-#endif  // CONFIG_TU_ALIGNMENT
   uint32_t lcr_data_size[MAX_NUM_XLAYERS];
   int lcr_xlayer_id[MAX_NUM_XLAYERS];
   uint32_t lcr_num_dependent_xlayer_map[MAX_NUM_XLAYERS];
@@ -855,10 +853,8 @@ typedef struct LayerConfigurationRecord {
   int lcr_reserved_zero_3bits;
   int lcr_data_size_present_flag;
   int lcr_global_purpose_id;
-#if CONFIG_TU_ALIGNMENT
   int lcr_enforce_tu_alignment_flag;
   int lcr_enforce_tile_alignment_flag;
-#endif  // CONFIG_TU_ALIGNMENT
 
   uint32_t lcr_data_size[MAX_NUM_XLAYERS];
   int lcr_xLayer_id[MAX_NUM_XLAYERS];

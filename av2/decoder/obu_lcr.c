@@ -241,10 +241,8 @@ static void read_lcr_global_info(struct AV2Decoder *pbi,
   glcr->lcr_dependent_xlayers_flag = avm_rb_read_bit(rb);
   glcr->lcr_global_atlas_id_present_flag = avm_rb_read_bit(rb);
   glcr->lcr_global_purpose_id = avm_rb_read_literal(rb, 7);
-#if CONFIG_TU_ALIGNMENT
   glcr->lcr_enforce_tu_alignment_flag = avm_rb_read_bit(rb);
   glcr->lcr_enforce_tile_alignment_flag = avm_rb_read_bit(rb);
-#endif  // CONFIG_TU_ALIGNMENT
   if (glcr->lcr_global_atlas_id_present_flag)
     glcr->lcr_global_atlas_id = avm_rb_read_literal(rb, 3);
   else
@@ -617,11 +615,9 @@ static LayerConfigurationRecord *read_lcr_global_info(
   }
   lcr_params->lcr_data_size_present_flag = avm_rb_read_bit(rb);
   lcr_params->lcr_global_purpose_id = avm_rb_read_literal(rb, 7);
-#if CONFIG_TU_ALIGNMENT
   lcr_params->lcr_enforce_tu_alignment_flag = avm_rb_read_bit(rb);
   lcr_params->lcr_enforce_tile_alignment_flag = avm_rb_read_bit(rb);
   lcr_params->lcr_reserved_zero_6bits = avm_rb_read_literal(rb, 6);
-#endif  // CONFIG_TU_ALIGNMENT
 
   // TODO: align with signaling of profile, tier level
   if (lcr_params->lcr_max_profile_tier_level_info_present_flag)
