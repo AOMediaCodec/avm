@@ -358,11 +358,7 @@ int write_lcr_embedded_layer_info(AV2_COMP *cpi, int isGlobal, int xId,
         avm_wb_write_uvlc(wb, crop_params->crop_max_height);
       }
       // byte alignment
-#if CONFIG_AV2_PROFILES
       avm_wb_write_literal(wb, 0, (8 - wb->bit_offset % 8) % 8);
-#else
-      avm_wb_write_literal(wb, 0, (8 - wb->bit_offset % CHAR_BIT));
-#endif  // CONFIG_AV2_PROFILES
     }
   }
   return 0;
@@ -414,12 +410,8 @@ static int write_lcr_xlayer_info(AV2_COMP *cpi, int isGlobal, int xId,
   if (lcr_params->lcr_xlayer_color_info_present_flag[isGlobal][xId])
     write_lcr_xlayer_color_info(cpi, isGlobal, xId, wb);
 
-    // byte alignment
-#if CONFIG_AV2_PROFILES
+  // byte alignment
   avm_wb_write_literal(wb, 0, (8 - wb->bit_offset % 8) % 8);
-#else
-  avm_wb_write_literal(wb, 0, (8 - wb->bit_offset % CHAR_BIT));
-#endif  //  CONFIG_AV2_PROFILES
 
   // Add embedded layer information if desired
   if (lcr_params->lcr_embedded_layer_info_present_flag[isGlobal][xId])

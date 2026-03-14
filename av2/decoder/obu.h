@@ -91,10 +91,8 @@ int check_temporal_unit_structure(temporal_unit_state_t *state, int obu_type,
                                   int xlayer_id, int metadata_is_suffix,
                                   int prev_obu_type);
 
-#if CONFIG_AV2_PROFILES
 bool conformance_check_msdo_lcr(struct AV2Decoder *pbi, bool global_lcr_present,
                                 bool local_lcr_present);
-#endif  // CONFIG_AV2_PROFILES
 
 void av2_store_xlayer_context(struct AV2Decoder *pbi, AV2_COMMON *cm,
                               int xlayer_id);

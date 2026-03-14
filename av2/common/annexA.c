@@ -38,7 +38,6 @@
  */
 /* clang-format on */
 
-#if CONFIG_AV2_PROFILES
 typedef enum {
   C_MAIN_420_10 = 0,  // Main toolset, 8/10-bit, 4:0:0/4:2:0
   C_MAIN_422_10 = 1,  // Main toolset, 8/10-bit, 4:0:0/4:2:0/4:2:2
@@ -303,4 +302,3 @@ int get_profile_scaling_factor(int seq_profile_idc, int chroma_format_idc) {
   // Default for invalid combinations
   return 0;
 }
-#endif  // CONFIG_AV2_PROFILES

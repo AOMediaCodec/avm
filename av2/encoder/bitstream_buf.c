@@ -69,17 +69,9 @@ void av2_set_buffer_removal_timing_params(AV2_COMP *const cpi) {
   // Enable OPS-dependent BRT mode
   brt_info->br_ops_dependent_flag = (ops->valid) ? 1 : 0;
   if (brt_info->br_ops_dependent_flag) {
-#if CONFIG_AV2_PROFILES
     brt_info->br_ops_id = ops->ops_id;
     // ops_cnt
     brt_info->br_ops_cnt[brt_info->br_ops_id] = ops->ops_cnt;
-#else
-    const int xlayer_id = cm->xlayer_id;
-    brt_info->br_ops_id = ops->ops_id[xlayer_id];
-    // ops_cnt
-    brt_info->br_ops_cnt[brt_info->br_ops_id] =
-        ops->ops_cnt[xlayer_id][brt_info->br_ops_id];
-#endif  // CONFIG_AV2_PROFILES
     for (int i = 0; i < brt_info->br_ops_cnt[brt_info->br_ops_id]; i++) {
       brt_info->br_decoder_model_present_op_flag[brt_info->br_ops_id][i] = 0;
       if (brt_info->br_decoder_model_present_op_flag[brt_info->br_ops_id][i]) {

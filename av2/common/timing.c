@@ -56,24 +56,15 @@ static int bitrate_profile_factor[1 << PROFILE_BITS] = {
 };
 
 int64_t av2_max_level_bitrate(BITSTREAM_PROFILE seq_profile, int seq_level_idx,
-                              int seq_tier
-#if CONFIG_AV2_PROFILES
-                              ,
-                              int subsampling_x, int subsampling_y,
-                              int monochrome
-#endif  // CONFIG_AV2_PROFILES
-) {
+                              int seq_tier, int subsampling_x,
+                              int subsampling_y, int monochrome) {
   int64_t bitrate;
 
-#if CONFIG_AV2_PROFILES
   uint32_t chroma_format_idc = CHROMA_FORMAT_420;
   av2_get_chroma_format_idc(subsampling_x, subsampling_y, monochrome,
                             &chroma_format_idc);
   int profile_scaling_factor =
       get_profile_scaling_factor(seq_profile, chroma_format_idc);
-#else
-  int profile_scaling_factor = seq_profile;
-#endif  // CONFIG_AV2_PROFILES
 
   if (seq_tier) {
     bitrate = high_kbps[seq_level_idx] *

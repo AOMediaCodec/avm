@@ -4421,14 +4421,9 @@ static AVM_INLINE void write_profile(BITSTREAM_PROFILE profile,
 static AVM_INLINE void write_seq_chroma_format(
     const SequenceHeader *const seq_params, struct avm_write_bit_buffer *wb) {
   uint32_t seq_chroma_format_idc = CHROMA_FORMAT_420;
-  avm_codec_err_t err =
-#if CONFIG_AV2_PROFILES
-      av2_get_chroma_format_idc(seq_params->subsampling_x,
-                                seq_params->subsampling_y,
-                                seq_params->monochrome, &seq_chroma_format_idc);
-#else
-      av2_get_chroma_format_idc(seq_params, &seq_chroma_format_idc);
-#endif  // CONFIG_AV2_PROFILES
+  avm_codec_err_t err = av2_get_chroma_format_idc(
+      seq_params->subsampling_x, seq_params->subsampling_y,
+      seq_params->monochrome, &seq_chroma_format_idc);
   assert(err == AVM_CODEC_OK);
   (void)err;
   avm_wb_write_uvlc(wb, seq_chroma_format_idc);
@@ -6927,14 +6922,10 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
 
     // Operating Point Set
     if (layer_cfg->enable_ops) {
-#if !CONFIG_AV2_PROFILES
-      int xlayer_id = 0;
-#endif  // !CONFIG_AV2_PROFILES
       const int num_ops = layer_cfg->num_ops > 0 ? layer_cfg->num_ops : 1;
       // Write multiple OPS OBUs, one for each OPS
       for (int ops_idx = 0; ops_idx < num_ops && ops_idx < MAX_NUM_OPS_ID;
            ops_idx++) {
-#if CONFIG_AV2_PROFILES
         // use the xlayer id from the OPS struture
         int xlayer_id = obu_xlayer;
         cm->ops = &cpi->ops_list[xlayer_id][ops_idx];
@@ -6955,24 +6946,6 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
       // point to the first OPS because the assumption is that this is a
       // default/primary one
       cm->ops = &cpi->ops_list[obu_xlayer][0];
-#else
-        av2_set_ops_params(cpi, ops, xlayer_id);
-        obu_header_size = av2_write_obu_header(
-            level_params, OBU_OPERATING_POINT_SET, 0, 0, data);
-        obu_payload_size = av2_write_operating_point_set_obu(
-            cpi, xlayer_id, data + obu_header_size);
-        const size_t length_field_size =
-            obu_memmove(obu_header_size, obu_payload_size, data);
-        if (av2_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
-            AVM_CODEC_OK) {
-          return AVM_CODEC_ERROR;
-        }
-        data += obu_header_size + obu_payload_size + length_field_size;
-      }
-      // point to the first OPS because the assumption is that this is a
-      // default/primary one
-      cm->ops = &cpi->ops_list[0];
-#endif  // CONFIG_AV2_PROFILES
     }
 
     // Atlas Segment

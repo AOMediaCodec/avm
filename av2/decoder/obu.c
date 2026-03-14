@@ -611,13 +611,8 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi, int xlayer_id,
     }
     int64_t seq_bitrate = av2_max_level_bitrate(
         seq_params->seq_profile_idc, seq_params->seq_max_level_idx,
-        seq_params->seq_tier
-#if CONFIG_AV2_PROFILES
-        ,
-        seq_params->subsampling_x, seq_params->subsampling_y,
-        seq_params->monochrome
-#endif  // CONFIG_AV2_PROFILES
-    );
+        seq_params->seq_tier, seq_params->subsampling_x,
+        seq_params->subsampling_y, seq_params->monochrome);
     if (seq_bitrate == 0)
       avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
                          "AV2 does not support this combination of "
@@ -658,13 +653,11 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi, int xlayer_id,
     }
   }
 
-#if CONFIG_AV2_PROFILES
   if (!av2_check_profile_interop_conformance(seq_params, &cm->error, 1)) {
     avm_internal_error(
         &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
         "Unsupported Bitdepth, Chroma format or number of embedded layers");
   }
-#endif  // CONFIG_AV2_PROFILES
 
   av2_read_sequence_header(rb, seq_params);
   seq_params->film_grain_params_present = avm_rb_read_bit(rb);
@@ -2068,7 +2061,6 @@ static void check_valid_layer_id(ObuHeader obu_header, AV2_COMMON *const cm) {
   }
 }
 
-#if CONFIG_AV2_PROFILES
 static BITSTREAM_PROFILE get_msdo_profile(struct AV2Decoder *pbi) {
   return pbi->common.msdo_params.multistream_profile_idc;
 }
@@ -2342,7 +2334,6 @@ static void avm_set_current_operating_point(struct AV2Decoder *pbi,
   }
   return;
 }
-#endif  // CONFIG_AV2_PROFILES
 
 // On success, sets *p_data_end and returns a boolean that indicates whether
 // the decoding of the current frame is finished. On failure, sets
@@ -2365,7 +2356,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
   // xlayer/mlayer maps before resetting them for the current TU.
   // This must run once per TU (here), not per-OBU (inside the loop).
   if (pbi->random_accessed) {
-#if CONFIG_AV2_PROFILES
     int num_xlayers = 0;
     int num_mlayers = 0;
     for (int i = 0; i < AVM_MAX_NUM_STREAMS - 1; i++) {
@@ -2405,7 +2395,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
             "of bitstream conformance for MSDO and LCR");
       }
     }
-#endif  // CONFIG_AV2_PROFILES
 
     // Reset maps for the current TU
     for (int i = 0; i < AVM_MAX_NUM_STREAMS - 1; i++) pbi->xlayer_id_map[i] = 0;
@@ -2501,7 +2490,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
     pbi->mlayer_id_map[obu_header.obu_xlayer_id][obu_header.obu_mlayer_id] = 1;
 #else
     if (pbi->random_accessed) {
-#if CONFIG_AV2_PROFILES
       bool global_lcr_present = false;
       bool local_lcr_present = false;
       global_lcr_present = !cm->lcr_params.is_local_lcr;
@@ -2514,7 +2502,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
             "An MSDO or LCR OBU in the current CVS violates the requirements "
             "of bitstream conformance for MSDO and LCR");
       }
-#endif  // CONFIG_AV2_PROFILES
 
       if (pbi->msdo_is_present_in_tu)
         pbi->multi_stream_mode = 1;
@@ -2759,7 +2746,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
                                      obu_header.type == OBU_SWITCH);
           }
         }
-#if CONFIG_AV2_PROFILES
         int num_mlayers = 0;
         for (int i = 0; i < MAX_NUM_MLAYERS; ++i) {
           if (pbi->mlayer_id_map[obu_header.obu_xlayer_id][i] == 1)
@@ -2773,7 +2759,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
               "sequence is larger than the seq_max_mlayer_cnt (%d).",
               num_mlayers, cm->seq_params.seq_max_mlayer_cnt);
         }
-#endif  // CONFIG_AV2_PROFILES
 
         // Drop picture unit HLS state that was derived exclusively from leading
         // frame picture units when the first regular VCL OBU is encountered.

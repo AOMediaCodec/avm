@@ -877,12 +877,10 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
       local_lcr_present = pbi->common.lcr_params.is_local_lcr;
 #endif  // CONFIG_AV2_LCR_PROFILES
 
-#if CONFIG_AV2_PROFILES
       if (!conformance_check_msdo_lcr(pbi, global_lcr_present,
                                       local_lcr_present)) {
         return AVM_CODEC_UNSUP_BITSTREAM;
       }
-#endif  // CONFIG_AV2_PROFILES
       return err;
     }
   }

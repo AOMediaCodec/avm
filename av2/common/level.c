@@ -496,12 +496,8 @@ static const char level_string[SEQ_LEVEL_MAX + 1][9] = {
 };
 
 static double get_max_bitrate(const AV2LevelSpec *const level_spec, int tier,
-                              BITSTREAM_PROFILE profile
-#if CONFIG_AV2_PROFILES
-                              ,
-                              int subsampling_x, int subsampling_y,
-                              int monochrome
-#endif  // CONFIG_AV2_PROFILES
+                              BITSTREAM_PROFILE profile, int subsampling_x,
+                              int subsampling_y, int monochrome
 #if CONFIG_F428_MULTISTREAM
                               ,
                               double multistream_scalling_x
@@ -518,7 +514,6 @@ static double get_max_bitrate(const AV2LevelSpec *const level_spec, int tier,
   const double bitrate_basis =
       (tier ? level_spec->high_mbps : level_spec->main_mbps) * 1e6;
 #endif  // CONFIG_F428_MULTISTREAM
-#if CONFIG_AV2_PROFILES
   uint32_t chroma_format_idc = CHROMA_FORMAT_420;
   av2_get_chroma_format_idc(subsampling_x, subsampling_y, monochrome,
                             &chroma_format_idc);
@@ -526,10 +521,6 @@ static double get_max_bitrate(const AV2LevelSpec *const level_spec, int tier,
       get_profile_scaling_factor(profile, chroma_format_idc);
   double bitrate_profile_factor =
       bitrate_profile_factor_table[profile_scaling_factor];
-#else
-  const double bitrate_profile_factor =
-      profile == PROFILE_0 ? 1.0 : (profile == PROFILE_1 ? 2.0 : 3.0);
-#endif  // CONFIG_AV2_PROFILES
   return bitrate_basis * bitrate_profile_factor;
 }
 
@@ -537,17 +528,12 @@ static double get_max_bitrate(const AV2LevelSpec *const level_spec, int tier,
 static double get_max_compressed_size(const AV2LevelSpec *const level_spec,
                                       int tier, BITSTREAM_PROFILE profile,
                                       int luma_sample_count,
-                                      double frame_parsing_time
-#if CONFIG_AV2_PROFILES
-                                      ,
+                                      double frame_parsing_time,
                                       int subsampling_x, int subsampling_y,
-                                      int monochrome
-#endif  // CONFIG_AV2_PROFILES
-) {
+                                      int monochrome) {
   if (level_spec->level < SEQ_LEVEL_4_0) tier = 0;
   const double min_comp_basis =
       (tier ? level_spec->high_cr : level_spec->main_cr);
-#if CONFIG_AV2_PROFILES
   uint32_t chroma_format_idc = CHROMA_FORMAT_420;
 
   av2_get_chroma_format_idc(subsampling_x, subsampling_y, monochrome,
@@ -556,10 +542,6 @@ static double get_max_compressed_size(const AV2LevelSpec *const level_spec,
       get_profile_scaling_factor(profile, chroma_format_idc);
   double picture_size_profile_factor =
       picture_size_profile_factor_table[profile_scaling_factor];
-#else
-  const double picture_size_profile_factor =
-      profile == PROFILE_0 ? 15.0 : (profile == PROFILE_1 ? 30.0 : 36.0);
-#endif  // CONFIG_AV2_PROFILES
 
   double max_compressed_size =
       ((long long)(frame_parsing_time * level_spec->max_decode_rate *
@@ -576,12 +558,9 @@ static double get_max_compressed_size(const AV2LevelSpec *const level_spec,
 
 static double get_max_frame_symbol_count(const AV2LevelSpec *const level_spec,
                                          int tier, BITSTREAM_PROFILE profile,
-                                         double frame_parsing_time
-#if CONFIG_AV2_PROFILES
-                                         ,
+                                         double frame_parsing_time,
                                          int subsampling_x, int subsampling_y,
                                          int monochrome
-#endif  // CONFIG_AV2_PROFILES
 #if CONFIG_F428_MULTISTREAM
                                          ,
                                          double multi_stream_scaling_x
@@ -590,7 +569,6 @@ static double get_max_frame_symbol_count(const AV2LevelSpec *const level_spec,
   if (level_spec->level < SEQ_LEVEL_4_0) tier = 0;
   const double min_comp_basis =
       (tier ? level_spec->high_cr : level_spec->main_cr);
-#if CONFIG_AV2_PROFILES
   uint32_t chroma_format_idc = CHROMA_FORMAT_420;
 
   av2_get_chroma_format_idc(subsampling_x, subsampling_y, monochrome,
@@ -599,10 +577,6 @@ static double get_max_frame_symbol_count(const AV2LevelSpec *const level_spec,
       get_profile_scaling_factor(profile, chroma_format_idc);
   double picture_size_profile_factor =
       picture_size_profile_factor_table[profile_scaling_factor];
-#else
-  const double picture_size_profile_factor =
-      profile == PROFILE_0 ? 15.0 : (profile == PROFILE_1 ? 30.0 : 36.0);
-#endif  // CONFIG_AV2_PROFILES
 #if CONFIG_F428_MULTISTREAM
   double scale = multi_stream_scaling_x == 0 ? 1 : multi_stream_scaling_x;
   double max_frame_symbol_count =
@@ -617,23 +591,17 @@ static double get_max_frame_symbol_count(const AV2LevelSpec *const level_spec,
 }
 
 double av2_get_max_bitrate_for_level(AV2_LEVEL level_index, int tier,
-                                     BITSTREAM_PROFILE profile
-#if CONFIG_AV2_PROFILES
-                                     ,
+                                     BITSTREAM_PROFILE profile,
                                      int subsampling_x, int subsampling_y,
                                      int monochrome
-#endif  // CONFIG_AV2_PROFILES
 #if CONFIG_F428_MULTISTREAM
                                      ,
                                      double multi_stream_scaling_x
 #endif  //  CONFIG_F428_MULTISTREAM
 ) {
   assert(is_valid_seq_level_idx(level_index));
-  return get_max_bitrate(&av2_level_defs[level_index], tier, profile
-#if CONFIG_AV2_PROFILES
-                         ,
+  return get_max_bitrate(&av2_level_defs[level_index], tier, profile,
                          subsampling_x, subsampling_y, monochrome
-#endif  // CONFIG_AV2_PROFILES
 #if CONFIG_F428_MULTISTREAM
                          ,
                          multi_stream_scaling_x
@@ -847,18 +815,15 @@ void av2_decoder_model_init(const AV2_COMP *const cpi, AV2_LEVEL level,
 
   const AV2_COMMON *const cm = &cpi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
-  decoder_model->bit_rate = get_max_bitrate(
-      av2_level_defs + level, cpi->tier[op_index], seq_params->seq_profile_idc
-#if CONFIG_AV2_PROFILES
-      ,
-      seq_params->subsampling_x, seq_params->subsampling_y,
-      seq_params->monochrome
-#endif  // CONFIG_AV2_PROFILES
+  decoder_model->bit_rate =
+      get_max_bitrate(av2_level_defs + level, cpi->tier[op_index],
+                      seq_params->seq_profile_idc, seq_params->subsampling_x,
+                      seq_params->subsampling_y, seq_params->monochrome
 #if CONFIG_F428_MULTISTREAM
-      ,
-      cpi->level_params.multi_stream_scaling_x
+                      ,
+                      cpi->level_params.multi_stream_scaling_x
 #endif  //  CONFIG_F428_MULTISTREAM
-  );
+      );
 
   // TODO(huisu or anyone): implement SCHEDULE_MODE.
   decoder_model->mode = RESOURCE_MODE;
@@ -1002,24 +967,16 @@ void av2_decoder_model_process_frame(const AV2_COMP *const cpi,
 
     double compressed_size_limit = get_max_compressed_size(
         av2_level_defs + level, cpi->tier[0], seq_params->seq_profile_idc,
-        luma_pic_size, dt
-#if CONFIG_AV2_PROFILES
-        ,
-        seq_params->subsampling_x, seq_params->subsampling_y,
-        seq_params->monochrome
-#endif
-    );
+        luma_pic_size, dt, seq_params->subsampling_x, seq_params->subsampling_y,
+        seq_params->monochrome);
     decoder_model->compressed_size_satisfy =
         decoder_model->compressed_size_satisfy &&
         ((coded_bits >> 3) <= compressed_size_limit);
 
     double frame_symbol_count_limit = get_max_frame_symbol_count(
-        av2_level_defs + level, cpi->tier[0], seq_params->seq_profile_idc, dt
-#if CONFIG_AV2_PROFILES
-        ,
+        av2_level_defs + level, cpi->tier[0], seq_params->seq_profile_idc, dt,
         seq_params->subsampling_x, seq_params->subsampling_y,
         seq_params->monochrome
-#endif
 #if CONFIG_F428_MULTISTREAM
         ,
         multi_stream_scaling_x
@@ -1229,12 +1186,8 @@ static TARGET_LEVEL_FAIL_ID check_level_constraints(
     const AV2_COMP *const cpi,
 #endif
     const AV2LevelInfo *const level_info, AV2_LEVEL level, int tier,
-    int is_still_picture, BITSTREAM_PROFILE profile, int check_bitrate
-#if CONFIG_AV2_PROFILES
-    ,
-    int subsampling_x, int subsampling_y, int monochrome
-#endif  // CONFIG_AV2_PROFILES
-) {
+    int is_still_picture, BITSTREAM_PROFILE profile, int check_bitrate,
+    int subsampling_x, int subsampling_y, int monochrome) {
   const DECODER_MODEL *const decoder_model = &level_info->decoder_models[level];
   const DECODER_MODEL_STATUS decoder_model_status = decoder_model->status;
   if (decoder_model_status != DECODER_MODEL_OK &&
@@ -1412,11 +1365,8 @@ static TARGET_LEVEL_FAIL_ID check_level_constraints(
     if (check_bitrate) {
       // Check average bitrate instead of max_bitrate.
       const double bitrate_limit =
-          get_max_bitrate(target_level_spec, tier, profile
-#if CONFIG_AV2_PROFILES
-                          ,
-                          subsampling_x, subsampling_y, monochrome
-#endif  // CONFIG_AV2_PROFILES
+          get_max_bitrate(target_level_spec, tier, profile, subsampling_x,
+                          subsampling_y, monochrome
 #if CONFIG_F428_MULTISTREAM
                           ,
                           cpi->level_params.multi_stream_scaling_x
@@ -1597,7 +1547,6 @@ double av2_get_compression_ratio(const AV2_COMMON *const cm,
   const int luma_pic_size = upscaled_width * height;
   const SequenceHeader *const seq_params = &cm->seq_params;
   const BITSTREAM_PROFILE profile = seq_params->seq_profile_idc;
-#if CONFIG_AV2_PROFILES
   uint32_t chroma_format_idc = CHROMA_FORMAT_420;
 
   av2_get_chroma_format_idc(cm->seq_params.subsampling_x,
@@ -1607,10 +1556,6 @@ double av2_get_compression_ratio(const AV2_COMMON *const cm,
       get_profile_scaling_factor(profile, chroma_format_idc);
   const int picture_size_profile_factor =
       (int)picture_size_profile_factor_table[profile_scaling_factor];
-#else
-  const int picture_size_profile_factor =
-      profile == PROFILE_0 ? 15 : (profile == PROFILE_1 ? 30 : 36);
-#endif  // CONFIG_AV2_PROFILES
   encoded_frame_size =
       (encoded_frame_size > 129 ? encoded_frame_size - 128 : 1);
   const size_t uncompressed_frame_size =
@@ -1727,13 +1672,9 @@ void av2_update_level_info(AV2_COMP *cpi, size_t size, int64_t ts_start,
 #if CONFIG_F428_MULTISTREAM
           cpi,
 #endif  //  CONFIG_F428_MULTISTREAM
-          level_info, target_level, tier, is_still_picture, profile, 0
-#if CONFIG_AV2_PROFILES
-          ,
+          level_info, target_level, tier, is_still_picture, profile, 0,
           cm->seq_params.subsampling_x, cm->seq_params.subsampling_y,
-          cm->seq_params.monochrome
-#endif  // CONFIG_AV2_PROFILES
-      );
+          cm->seq_params.monochrome);
       if (fail_id != TARGET_LEVEL_OK) {
         avm_internal_error(&cm->error, AVM_CODEC_ERROR,
                            "Failed to encode to the target level %s. %s",
@@ -1763,13 +1704,9 @@ avm_codec_err_t av2_get_seq_level_idx(const AV2_COMP *cpi,
 #if CONFIG_F428_MULTISTREAM
           cpi,
 #endif
-          level_info, level, tier, is_still_picture, profile, 1
-#if CONFIG_AV2_PROFILES
-          ,
+          level_info, level, tier, is_still_picture, profile, 1,
           seq_params->subsampling_x, seq_params->subsampling_y,
-          seq_params->monochrome
-#endif  // CONFIG_AV2_PROFILES
-      );
+          seq_params->monochrome);
       if (fail_id == TARGET_LEVEL_OK) {
         seq_level_idx[op] = level;
         break;

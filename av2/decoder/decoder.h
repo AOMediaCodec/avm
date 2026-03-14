@@ -489,11 +489,7 @@ typedef struct AV2Decoder {
   int lcr_counter;
   struct AtlasSegmentInfo atlas_list[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
   int atlas_counter[MAX_NUM_XLAYERS];
-#if CONFIG_AV2_PROFILES
   struct OperatingPointSet ops_list[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
-#else
-  struct OperatingPointSet ops_list[MAX_NUM_OPS_ID];
-#endif  // CONFIG_AV2_PROFILES
   int ops_counter;
   /*!
    * active layer configuration record for a coded video sequence

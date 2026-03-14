@@ -46,12 +46,8 @@ static AVM_INLINE void config_target_level(AV2_COMP *const cpi,
   // Adjust target bitrate to be no larger than 70% of level limit.
   const BITSTREAM_PROFILE profile = seq_params->seq_profile_idc;
   const double level_bitrate_limit = av2_get_max_bitrate_for_level(
-      target_level, tier, profile
-#if CONFIG_AV2_PROFILES
-      ,
-      seq_params->subsampling_x, seq_params->subsampling_y,
-      seq_params->monochrome
-#endif  // CONFIG_AV2_PROFILES
+      target_level, tier, profile, seq_params->subsampling_x,
+      seq_params->subsampling_y, seq_params->monochrome
 #if CONFIG_F428_MULTISTREAM
       ,
       cpi->level_params.multi_stream_scaling_x

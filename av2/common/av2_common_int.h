@@ -959,7 +959,6 @@ typedef struct AtlasSegmentInfo {
   int ats_extension_present_flag;
 } AtlasSegmentInfo;
 
-#if CONFIG_AV2_PROFILES
 typedef struct OpsColorInfo {
   int ops_color_description_idc;
   int ops_color_primaries;
@@ -1046,87 +1045,6 @@ typedef struct OperatingPointSet {
 
   int ops_extension_present_flag;
 } OperatingPointSet;
-#else  // CONFIG_AV2_PROFILES
-typedef struct OpsColorInfo {
-  int ops_color_description_idc[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT];
-  int ops_color_primaries[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT];
-  int ops_transfer_characteristics[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID]
-                                  [MAX_OPS_COUNT];
-  int ops_matrix_coefficients[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT];
-  int ops_full_range_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT];
-} OpsColorInfo;
-
-typedef struct OpsDecoderModelInfo {
-  int ops_decoder_buffer_delay[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT];
-  int ops_encoder_buffer_delay[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT];
-  int ops_low_delay_mode_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT];
-} OpsDecoderModelInfo;
-
-typedef struct OPSMLayerInfo {
-  // mlayer
-  int ops_mlayer_map[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT]
-                    [MAX_NUM_XLAYERS];
-  int OpsMlayerID[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT]
-                 [MAX_NUM_XLAYERS][MAX_NUM_MLAYERS];
-  int OPMLayerCount[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT]
-                   [MAX_NUM_XLAYERS];
-  // tlayer
-  int ops_tlayer_map[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT]
-                    [MAX_NUM_XLAYERS][MAX_NUM_MLAYERS];
-  int OpsTlayerID[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT]
-                 [MAX_NUM_XLAYERS][MAX_NUM_TLAYERS];
-  int OPTLayerCount[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT]
-                   [MAX_NUM_XLAYERS][MAX_NUM_MLAYERS];
-} OPSMLayerInfo;
-
-typedef struct OperatingPointSet {
-  int ops_reset_flag[MAX_NUM_XLAYERS];
-  int ops_id[MAX_NUM_XLAYERS];
-  int ops_cnt[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
-  int ops_priority[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
-  int ops_intent[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
-  int ops_intent_present_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
-  int ops_operational_ptl_present_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
-  int ops_color_info_present_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
-#if CONFIG_CWG_G010
-  int ops_decoder_model_info_for_this_op_present_flag[MAX_NUM_XLAYERS]
-                                                     [MAX_NUM_OPS_ID]
-                                                     [MAX_OPS_COUNT];
-#else
-  int ops_decoder_model_info_present_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
-#endif  // CONFIG_CWG_G010
-  int ops_initial_display_delay_present_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
-  int ops_initial_display_delay_minus_1[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
-
-  int ops_mlayer_info_idc[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
-  uint32_t ops_data_size[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT];
-  int ops_intent_op[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT];
-  int ops_operational_profile_id[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID]
-                                [MAX_OPS_COUNT];
-  int ops_operational_level_id[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT];
-  int ops_operational_tier_id[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT];
-
-  int ops_xlayer_map[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT];
-  int ops_embedded_mapping[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT]
-                          [MAX_NUM_XLAYERS];
-  int ops_embedded_op_id[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT]
-                        [MAX_NUM_XLAYERS];
-  int OpsxLayerId[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT]
-                 [MAX_NUM_XLAYERS];
-  int XCount[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT];
-  // TODO (hegilmez/spaluri): may cleanup *ops_mlayer_info, *ops_col_info and
-  // *ops_decoder_model_info pointers, which are kept for now in case needed for
-  // future changes.
-  // mlayer, color, delay and model information
-  struct OPSMLayerInfo *ops_mlayer_info;
-  struct OPSMLayerInfo ops_mlayer_info_s;
-  struct OpsColorInfo *ops_col_info;
-  struct OpsColorInfo ops_col_info_s;
-  struct OpsDecoderModelInfo *ops_decoder_model_info;
-  struct OpsDecoderModelInfo ops_decoder_model_info_s;
-  int ops_extension_present_flag;
-} OperatingPointSet;
-#endif  // CONFIG_AV2_PROFILES
 
 // This structure specifies the color info params
 typedef struct color_info {
@@ -1318,10 +1236,8 @@ typedef struct SequenceHeader {
   int seq_max_encoder_buffer_delay;
   int seq_max_low_delay_mode_flag;
   BITSTREAM_PROFILE seq_profile_idc;
-#if CONFIG_AV2_PROFILES
   // Maximum number of embedded layers that are supported in the bitstream
   int seq_max_mlayer_cnt;
-#endif  // CONFIG_AV2_PROFILES
 
   // Color config.
   avm_bit_depth_t bit_depth;  // AVM_BITS_8 in profile 0 or 1,
@@ -3172,7 +3088,6 @@ void av2_set_class_id_array_stride(CommonModeInfoParams *mi_params,
                                    AV2_COMMON *cm, int height);
 void av2_dealloc_class_id_array(CommonModeInfoParams *mi_params);
 
-#if CONFIG_AV2_PROFILES
 // Given subsampling x/y and monochrome values in `seq_params`, outputs the
 // chroma format idc. Returns error in case of invalid subsampling format.
 static INLINE avm_codec_err_t
@@ -3191,25 +3106,6 @@ av2_get_chroma_format_idc(int subsampling_x, int subsampling_y, int monochrome,
   }
   return AVM_CODEC_OK;
 }
-#else
-// Given subsampling x/y and monochrome values in `seq_params`, outputs the
-// chroma format idc. Returns error in case of invalid subsampling format.
-static INLINE avm_codec_err_t av2_get_chroma_format_idc(
-    const SequenceHeader *const seq_params, uint32_t *seq_chroma_format_idc) {
-  if (seq_params->monochrome) {
-    *seq_chroma_format_idc = CHROMA_FORMAT_400;
-  } else if (seq_params->subsampling_x == 1 && seq_params->subsampling_y == 1) {
-    *seq_chroma_format_idc = CHROMA_FORMAT_420;
-  } else if (seq_params->subsampling_x == 1 && seq_params->subsampling_y == 0) {
-    *seq_chroma_format_idc = CHROMA_FORMAT_422;
-  } else if (seq_params->subsampling_x == 0 && seq_params->subsampling_y == 0) {
-    *seq_chroma_format_idc = CHROMA_FORMAT_444;
-  } else {
-    return AVM_CODEC_UNSUP_BITSTREAM;
-  }
-  return AVM_CODEC_OK;
-}
-#endif  // CONFIG_AV2_PROFILES
 
 int get_ccso_unit_size_log2_adaptive_tile(const AV2_COMMON *cm,
                                           int sb_size_log2, int unit_size_log2);

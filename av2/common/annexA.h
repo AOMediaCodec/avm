@@ -37,7 +37,6 @@ struct SequenceHeader;
 //==========================================
 // Profile Conformance Function
 //===========================================
-#if CONFIG_AV2_PROFILES
 // Validates the bitstream parameters conform to the specified profile
 // Returns 1 on success and 0 on failure
 int av2_check_profile_interop_conformance(
@@ -49,7 +48,6 @@ int av2_check_profile_interop_conformance(
 //===========================================
 // Gets profile scaling factor CWG-G004
 int get_profile_scaling_factor(int seq_profile_idc, int chroma_format_idc);
-#endif  // CONFIG_AV2_PROFILES
 
 #ifdef __cplusplus
 }  // extern "C"

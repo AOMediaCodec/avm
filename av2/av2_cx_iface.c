@@ -659,13 +659,13 @@ static avm_codec_err_t validate_config(avm_codec_alg_priv_t *ctx,
   RANGE_CHECK(cfg, g_timebase.num, 1, cfg->g_timebase.den);
 
   RANGE_CHECK_HI(cfg, g_profile, MAX_PROFILES - 1);
-#if CONFIG_AV2_PROFILES && !CONFIG_TESTONLY_12BIT_SUPPORT
+#if !CONFIG_TESTONLY_12BIT_SUPPORT
   RANGE_CHECK(cfg, g_bit_depth, AVM_BITS_8, AVM_BITS_10);
   RANGE_CHECK(cfg, g_input_bit_depth, AVM_BITS_8, AVM_BITS_10);
 #else
   RANGE_CHECK(cfg, g_bit_depth, AVM_BITS_8, AVM_BITS_12);
   RANGE_CHECK(cfg, g_input_bit_depth, AVM_BITS_8, AVM_BITS_12);
-#endif  // CONFIG_AV2_PROFILES && !CONFIG_TESTONLY_12BIT_SUPPORT
+#endif  // !CONFIG_TESTONLY_12BIT_SUPPORT
 
   const int min_quantizer =
       (-(int)(cfg->g_bit_depth - AVM_BITS_8) * MAXQ_OFFSET);
@@ -737,17 +737,6 @@ static avm_codec_err_t validate_config(avm_codec_alg_priv_t *ctx,
   RANGE_CHECK_BOOL(extra_cfg, enable_palette);
   RANGE_CHECK_BOOL(extra_cfg, enable_intrabc);
   RANGE_CHECK(extra_cfg, enable_intrabc_ext, 0, 2);
-
-#if !CONFIG_AV2_PROFILES
-  if (cfg->g_profile <= (unsigned int)PROFILE_1 &&
-      cfg->g_bit_depth > AVM_BITS_10) {
-    ERROR("Codec bit-depth 12 not supported in profile < 2");
-  }
-  if (cfg->g_profile <= (unsigned int)PROFILE_1 &&
-      cfg->g_input_bit_depth > 10) {
-    ERROR("Source bit-depth 12 not supported in profile < 2");
-  }
-#endif  // !CONFIG_AV2_PROFILES
 
   if (cfg->rc_end_usage == AVM_Q) {
     RANGE_CHECK_HI(cfg, use_fixed_qp_offsets, 2);
@@ -859,9 +848,9 @@ static avm_codec_err_t validate_config(avm_codec_alg_priv_t *ctx,
 
 static avm_codec_err_t validate_img(avm_codec_alg_priv_t *ctx,
                                     const avm_image_t *img) {
-#if CONFIG_AV2_PROFILES && CONFIG_TESTONLY_12BIT_SUPPORT
+#if CONFIG_TESTONLY_12BIT_SUPPORT
   if (ctx->cfg.g_profile == TEST_ONLY_12BIT_PROFILE) return AVM_CODEC_OK;
-#endif  // CONFIG_AV2_PROFILES && CONFIG_TESTONLY_12BIT_SUPPORT
+#endif  // CONFIG_TESTONLY_12BIT_SUPPORT
 
   switch (img->fmt) {
     case AVM_IMG_FMT_YV12:
@@ -870,23 +859,15 @@ static avm_codec_err_t validate_img(avm_codec_alg_priv_t *ctx,
     case AVM_IMG_FMT_I42016: break;
     case AVM_IMG_FMT_I444:
     case AVM_IMG_FMT_I44416:
-#if CONFIG_AV2_PROFILES
       // MAIN_444_10 (profile 5) is the only profile that support 444
       if (ctx->cfg.g_profile != (unsigned int)MAIN_444_10 &&
-#else
-      if (ctx->cfg.g_profile == (unsigned int)PROFILE_0 &&
-#endif  // CONFIG_AV2_PROFILES
           !ctx->cfg.monochrome) {
         ERROR("Invalid image format. I444 images not supported in profile.");
       }
       break;
     case AVM_IMG_FMT_I422:
     case AVM_IMG_FMT_I42216:
-#if CONFIG_AV2_PROFILES
       if (ctx->cfg.g_profile != (unsigned int)MAIN_422_10) {
-#else
-      if (ctx->cfg.g_profile != (unsigned int)PROFILE_2) {
-#endif  // CONFIG_AV2_PROFILES
         ERROR("Invalid image format. I422 images not supported in profile.");
       }
       break;

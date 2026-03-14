@@ -264,11 +264,7 @@ TEST(EncodeAPI, GdfOptimizer8x8) {
   avm_codec_enc_cfg_t cfg;
   EXPECT_EQ(AVM_CODEC_OK,
             avm_codec_enc_config_default(iface, &cfg, AVM_USAGE_GOOD_QUALITY));
-#if CONFIG_AV2_PROFILES
   cfg.g_profile = MAIN_444_10;
-#else
-  cfg.g_profile = 1;
-#endif  // CONFIG_AV2_PROFILES
   cfg.g_bit_depth = AVM_BITS_8;
   cfg.g_input_bit_depth = 8;
   cfg.g_w = kWidth;

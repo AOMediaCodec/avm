@@ -2176,7 +2176,6 @@ int main(int argc, const char **argv_) {
       if (input.fmt != AVM_IMG_FMT_I420 && input.fmt != AVM_IMG_FMT_I42016) {
         /* Automatically upgrade if input is non-4:2:0 but a 4:2:0 profile
            was selected. */
-#if CONFIG_AV2_PROFILES
         switch (stream->config.cfg.g_profile) {
           case MAIN_420_10_IP0:
           case MAIN_420_10_IP1:
@@ -2211,66 +2210,6 @@ int main(int argc, const char **argv_) {
             break;
           default: break;
         }
-#else
-        switch (stream->config.cfg.g_profile) {
-          case 0:
-            if (input.bit_depth < 12 && (input.fmt == AVM_IMG_FMT_I444 ||
-                                         input.fmt == AVM_IMG_FMT_I44416)) {
-              if (!stream->config.cfg.monochrome) {
-                stream->config.cfg.g_profile = 1;
-                profile_updated = 1;
-              }
-            } else if (input.bit_depth == 12 || input.fmt == AVM_IMG_FMT_I422 ||
-                       input.fmt == AVM_IMG_FMT_I42216) {
-              stream->config.cfg.g_profile = 2;
-              profile_updated = 1;
-            }
-            break;
-          case 1:
-            if (input.bit_depth == 12 || input.fmt == AVM_IMG_FMT_I422 ||
-                input.fmt == AVM_IMG_FMT_I42216) {
-              stream->config.cfg.g_profile = 2;
-              profile_updated = 1;
-            } else if (input.bit_depth < 12 &&
-                       (input.fmt == AVM_IMG_FMT_I420 ||
-                        input.fmt == AVM_IMG_FMT_I42016)) {
-              stream->config.cfg.g_profile = 0;
-              profile_updated = 1;
-            }
-            break;
-          case 2:
-            if (input.bit_depth < 12 && (input.fmt == AVM_IMG_FMT_I444 ||
-                                         input.fmt == AVM_IMG_FMT_I44416)) {
-              stream->config.cfg.g_profile = 1;
-              profile_updated = 1;
-            } else if (input.bit_depth < 12 &&
-                       (input.fmt == AVM_IMG_FMT_I420 ||
-                        input.fmt == AVM_IMG_FMT_I42016)) {
-              stream->config.cfg.g_profile = 0;
-              profile_updated = 1;
-            } else if (input.bit_depth == 12 &&
-                       input.file_type == FILE_TYPE_Y4M) {
-              // Note that here the input file values for chroma subsampling
-              // are used instead of those from the command line.
-              AVM_CODEC_CONTROL_TYPECHECKED(&stream->encoder,
-                                            AV2E_SET_CHROMA_SUBSAMPLING_X,
-                                            input.y4m.dst_c_dec_h >> 1);
-              AVM_CODEC_CONTROL_TYPECHECKED(&stream->encoder,
-                                            AV2E_SET_CHROMA_SUBSAMPLING_Y,
-                                            input.y4m.dst_c_dec_v >> 1);
-            } else if (input.bit_depth == 12 &&
-                       input.file_type == FILE_TYPE_RAW) {
-              AVM_CODEC_CONTROL_TYPECHECKED(&stream->encoder,
-                                            AV2E_SET_CHROMA_SUBSAMPLING_X,
-                                            stream->chroma_subsampling_x);
-              AVM_CODEC_CONTROL_TYPECHECKED(&stream->encoder,
-                                            AV2E_SET_CHROMA_SUBSAMPLING_Y,
-                                            stream->chroma_subsampling_y);
-            }
-            break;
-          default: break;
-        }
-#endif  // CONFIG_AV2_PROFILES
       }
       /* Automatically set the codec bit depth to match the input bit depth.
        * Upgrade the profile if required. */
@@ -2285,25 +2224,12 @@ int main(int argc, const char **argv_) {
         }
       }
 
-#if CONFIG_AV2_PROFILES
 #if CONFIG_TESTONLY_12BIT_SUPPORT
       if (stream->config.cfg.g_bit_depth > 10) {
         stream->config.cfg.g_profile = TEST_ONLY_12BIT_PROFILE;
         profile_updated = 1;
       }
 #endif  // CONFIG_TESTONLY_12BIT_SUPPORT
-#else
-      if (stream->config.cfg.g_bit_depth > 10) {
-        switch (stream->config.cfg.g_profile) {
-          case 0:
-          case 1:
-            stream->config.cfg.g_profile = 2;
-            profile_updated = 1;
-            break;
-          default: break;
-        }
-      }
-#endif  // CONFIG_AV2_PROFILES
 
       // Force encoder to use 16-bit pipeline for 8-bit video/image
       if (profile_updated && !global.quiet) {

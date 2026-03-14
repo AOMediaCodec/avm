@@ -412,13 +412,9 @@ static void set_bitstream_level_tier(AV2_COMP *cpi, AV2_COMMON *cm, int width,
     // Set the maximum parameters for bitrate and buffer size for this profile,
     // level, and tier
     seq_params->op_params[i].bitrate = av2_max_level_bitrate(
-        cm->seq_params.seq_profile_idc, cpi->level_idx[i], cpi->tier[i]
-#if CONFIG_AV2_PROFILES
-        ,
+        cm->seq_params.seq_profile_idc, cpi->level_idx[i], cpi->tier[i],
         cm->seq_params.subsampling_x, cm->seq_params.subsampling_y,
-        cm->seq_params.monochrome
-#endif  // CONFIG_AV2_PROFILES
-    );
+        cm->seq_params.monochrome);
     // Level with seq_level_idx = 31 returns a high "dummy" bitrate to pass the
     // check
     if (seq_params->op_params[i].bitrate == 0)
@@ -625,9 +621,7 @@ void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
   seq->mlayer_dependency_present_flag = 0;
   setup_default_temporal_layer_dependency_structure(seq);
   setup_default_embedded_layer_dependency_structure(seq);
-#if CONFIG_AV2_PROFILES
   seq->seq_max_mlayer_cnt = cm->number_mlayers;
-#endif  // CONFIG_AV2_PROFILES
 
   // delta_q
   seq->base_y_dc_delta_q = 0;
@@ -953,7 +947,6 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
   // Initialize OPS information
   memset(&cpi->ops_list, 0, sizeof(cpi->ops_list));
 
-#if CONFIG_AV2_PROFILES
   // Initialize multiple OPS structures based on the num of ops (num_ops)
   // This will help using --select-op option at the decoder
   const int num_ops = oxcf->layer_cfg.num_ops > 0 ? oxcf->layer_cfg.num_ops : 1;
@@ -967,13 +960,6 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
                          oxcf->tool_cfg.operating_points_count);
     }
   }
-#else
-  for (int i = 0; i < MAX_NUM_XLAYERS; i++) {
-    for (int j = 0; j < MAX_NUM_OPS_ID; j++) {
-      cm->ops->ops_cnt[i][j] = oxcf->tool_cfg.operating_points_count;
-    }
-  }
-#endif  // CONFIG_AV2_PROFILES
 
   // Initialize Atlas Segment information
   // The Atlas list is a 2D array with indices [XLAYER ID][NUM OF ATLAS]
@@ -1037,7 +1023,6 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
              color_cfg->matrix_coefficients == AVM_CICP_MC_IDENTITY) {
     seq_params->subsampling_x = 0;
     seq_params->subsampling_y = 0;
-#if CONFIG_AV2_PROFILES
   } else {
     if (seq_params->seq_profile_idc <= MAIN_420_10) {
       seq_params->subsampling_x = 1;
@@ -1056,35 +1041,12 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
     } else {
       assert(0 && "Invalid seq_params->seq_profile_idc");
     }
-#else
-  } else {
-    if (seq_params->seq_profile_idc == 0) {
-      seq_params->subsampling_x = 1;
-      seq_params->subsampling_y = 1;
-    } else if (seq_params->seq_profile_idc == 1) {
-      seq_params->subsampling_x = 0;
-      seq_params->subsampling_y = 0;
-    } else {
-      if (seq_params->bit_depth == AVM_BITS_12) {
-        seq_params->subsampling_x = oxcf->input_cfg.chroma_subsampling_x;
-        seq_params->subsampling_y = oxcf->input_cfg.chroma_subsampling_y;
-      } else {
-        seq_params->subsampling_x = 1;
-        seq_params->subsampling_y = 0;
-      }
-    }
-#endif  // CONFIG_AV2_PROFILES
   }
 
   uint32_t seq_chroma_format_idc = 0;
-  avm_codec_err_t err =
-#if CONFIG_AV2_PROFILES
-      av2_get_chroma_format_idc(seq_params->subsampling_x,
-                                seq_params->subsampling_y,
-                                seq_params->monochrome, &seq_chroma_format_idc);
-#else
-      av2_get_chroma_format_idc(seq_params, &seq_chroma_format_idc);
-#endif  // CONFIG_AV2_PROFILES
+  avm_codec_err_t err = av2_get_chroma_format_idc(
+      seq_params->subsampling_x, seq_params->subsampling_y,
+      seq_params->monochrome, &seq_chroma_format_idc);
   if (err != AVM_CODEC_OK) {
     avm_internal_error(&cm->error, err,
                        "Unsupported subsampling_x = %d, subsampling_y = %d.",
@@ -1093,7 +1055,6 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
 
   set_content_interpreation_params(cpi, oxcf, seq_chroma_format_idc);
 
-#if CONFIG_AV2_PROFILES
   // TODO: this part needs to be uncommented for the LCR with the encoder cli
   // Code snippet to set profile for LCR/OPS if 0 is not the default one to be
   // used
@@ -1113,7 +1074,6 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
         &cm->error, AVM_CODEC_INVALID_PARAM,
         "Profile conformance validation failed during encoder init.");
   }
-#endif  // CONFIG_AV2_PROFILES
 
   cm->width = oxcf->frm_dim_cfg.width;
   cm->height = oxcf->frm_dim_cfg.height;
@@ -1245,14 +1205,9 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
     seq_params->seq_profile_idc = oxcf->profile;
   seq_params->bit_depth = oxcf->tool_cfg.bit_depth;
   uint32_t chroma_format_idc = 0;
-  avm_codec_err_t err =
-#if CONFIG_AV2_PROFILES
-      av2_get_chroma_format_idc(seq_params->subsampling_x,
-                                seq_params->subsampling_y,
-                                seq_params->monochrome, &chroma_format_idc);
-#else
-      av2_get_chroma_format_idc(seq_params, &chroma_format_idc);
-#endif  // CONFIG_AV2_PROFILES
+  avm_codec_err_t err = av2_get_chroma_format_idc(
+      seq_params->subsampling_x, seq_params->subsampling_y,
+      seq_params->monochrome, &chroma_format_idc);
   if (err != AVM_CODEC_OK) {
     avm_internal_error(&cm->error, err,
                        "Unsupported subsampling_x = %d, subsampling_y = %d.",
@@ -1260,7 +1215,6 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
   }
   set_content_interpreation_params(cpi, oxcf, chroma_format_idc);
 
-#if CONFIG_AV2_PROFILES
   // Validate profile conformance for chroma format, bitdepth, and mcount
   // This is the equivalent to the decoder's
   // av2_check_profile_interop_conformance()
@@ -1270,10 +1224,6 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
         &cm->error, AVM_CODEC_INVALID_PARAM,
         "Profile conformance validation failed during encoder init.");
   }
-#else
-  assert(IMPLIES(seq_params->seq_profile_idc <= MAIN_444_10,
-                 seq_params->bit_depth <= AVM_BITS_10));
-#endif  // CONFIG_AV2_PROFILES
 
   seq_params->display_model_info_present_flag =
       dec_model_cfg->display_model_info_present_flag;
@@ -1299,7 +1249,6 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
 
   cpi->oxcf = *oxcf;
 
-#if CONFIG_AV2_PROFILES
   // Initialize multiple OPS structures based on the num of ops (num_ops)
   // This will help using --select-op option at the decoder
   const int num_ops = oxcf->layer_cfg.num_ops > 0 ? oxcf->layer_cfg.num_ops : 1;
@@ -1313,7 +1262,6 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
                          oxcf->tool_cfg.operating_points_count);
     }
   }
-#endif  // CONFIG_AV2_PROFILES
 
   x->e_mbd.bd = (int)seq_params->bit_depth;
   x->e_mbd.global_motion = cm->global_motion;
@@ -5190,15 +5138,8 @@ int av2_receive_raw_frame(AV2_COMP *cpi, avm_enc_frame_flags_t frame_flags,
                           int64_t end_time) {
   AV2_COMMON *const cm = &cpi->common;
 
-#if !CONFIG_AV2_PROFILES
-  const
-#endif  // !CONFIG_AV2_PROFILES
-      SequenceHeader *const seq_params = &cm->seq_params;
+  SequenceHeader *const seq_params = &cm->seq_params;
   int res = 0;
-#if !CONFIG_AV2_PROFILES
-  const int subsampling_x = sd->subsampling_x;
-  const int subsampling_y = sd->subsampling_y;
-#endif  // !CONFIG_AV2_PROFILES
 
 #if CONFIG_TUNE_VMAF
   if (!is_stat_generation_stage(cpi) &&
@@ -5238,34 +5179,11 @@ int av2_receive_raw_frame(AV2_COMP *cpi, avm_enc_frame_flags_t frame_flags,
   // Profile in the seq header, and likewise a bitstream that contains 4:2:2
   // bitstream must be designated as Professional Profile in the sequence
   // header.
-#if CONFIG_AV2_PROFILES
   if (!av2_check_profile_interop_conformance(seq_params, &cm->error, 0)) {
     avm_internal_error(&cm->error, AVM_CODEC_INVALID_PARAM,
                        "Non-4:2:0 color format requires profile 4 or 5");
     res = -1;
   }
-#else
-  if ((seq_params->seq_profile_idc == PROFILE_0) && !seq_params->monochrome &&
-      (subsampling_x != 1 || subsampling_y != 1)) {
-    avm_internal_error(&cm->error, AVM_CODEC_INVALID_PARAM,
-                       "Non-4:2:0 color format requires profile 1 or 2");
-    res = -1;
-  }
-  if ((seq_params->seq_profile_idc == PROFILE_1) &&
-      !(subsampling_x == 0 && subsampling_y == 0)) {
-    avm_internal_error(&cm->error, AVM_CODEC_INVALID_PARAM,
-                       "Profile 1 requires 4:4:4 color format");
-    res = -1;
-  }
-  if ((seq_params->seq_profile_idc == PROFILE_2) &&
-      (seq_params->bit_depth <= AVM_BITS_10) &&
-      !(subsampling_x == 1 && subsampling_y == 0)) {
-    avm_internal_error(&cm->error, AVM_CODEC_INVALID_PARAM,
-                       "Profile 2 bit-depth <= 10 requires 4:2:2 color format");
-    res = -1;
-  }
-#endif  // CONFIG_AV2_PROFILES
-
   return res;
 }
 

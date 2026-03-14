@@ -34,16 +34,8 @@
 #include "av2/encoder/bitstream.h"
 #include "av2/encoder/tokenize.h"
 
-#if CONFIG_AV2_PROFILES
 static void write_ops_mlayer_info(struct OpsMLayerInfo *ops_layer_map, int xLId,
                                   struct avm_write_bit_buffer *wb) {
-#else
-static void write_ops_mlayer_info(int obuXLId, int opsID, int opIndex, int xLId,
-                                  struct OPSMLayerInfo *ops_layer_map,
-                                  struct avm_write_bit_buffer *wb) {
-#endif  // CONFIG_AV2_PROFILES
-
-#if CONFIG_AV2_PROFILES
   avm_wb_write_literal(wb, ops_layer_map->ops_mlayer_map[xLId],
                        MAX_NUM_MLAYERS);
   for (int j = 0; j < 8; j++) {
@@ -53,38 +45,10 @@ static void write_ops_mlayer_info(int obuXLId, int opsID, int opIndex, int xLId,
                            MAX_NUM_TLAYERS);
     }
   }
-#else
-  avm_wb_write_literal(
-      wb, ops_layer_map->ops_mlayer_map[obuXLId][opsID][opIndex][xLId],
-      MAX_NUM_MLAYERS);
-#ifndef NDEBUG
-  int mCount = 0;
-#endif  // NDEBUG
-  for (int j = 0; j < 8; j++) {
-    if ((ops_layer_map->ops_mlayer_map[obuXLId][opsID][opIndex][xLId] &
-         (1 << j))) {
-      /* map of temporal embedded layers in this OP */
-      avm_wb_write_literal(
-          wb, ops_layer_map->ops_tlayer_map[obuXLId][opsID][opIndex][xLId][j],
-          MAX_NUM_TLAYERS);
-#ifndef NDEBUG
-      mCount++;
-#endif  // NDEBUG
-    }
-  }
-  assert(mCount == ops_layer_map->OPMLayerCount[obuXLId][opsID][opIndex][xLId]);
-#endif  // CONFIG_AV2_PROFILES
 }
 
-#if CONFIG_AV2_PROFILES
 static void write_ops_color_info(struct OpsColorInfo *opsColInfo,
                                  struct avm_write_bit_buffer *wb) {
-#else
-static void write_ops_color_info(struct OpsColorInfo *opsColInfo, int obuXLId,
-                                 int opsID, int opIndex,
-                                 struct avm_write_bit_buffer *wb) {
-#endif  // CONFIG_AV2_PROFILES
-#if CONFIG_AV2_PROFILES
   avm_wb_write_rice_golomb(wb, opsColInfo->ops_color_description_idc, 2);
   if (opsColInfo->ops_color_description_idc == 0) {
     avm_wb_write_literal(wb, opsColInfo->ops_color_primaries, 8);
@@ -92,60 +56,19 @@ static void write_ops_color_info(struct OpsColorInfo *opsColInfo, int obuXLId,
     avm_wb_write_literal(wb, opsColInfo->ops_matrix_coefficients, 8);
   }
   avm_wb_write_bit(wb, opsColInfo->ops_full_range_flag);
-#else
-  avm_wb_write_rice_golomb(
-      wb, opsColInfo->ops_color_description_idc[obuXLId][opsID][opIndex], 2);
-  if (opsColInfo->ops_color_description_idc[obuXLId][opsID][opIndex] == 0) {
-    avm_wb_write_literal(
-        wb, opsColInfo->ops_color_primaries[obuXLId][opsID][opIndex], 8);
-    avm_wb_write_literal(
-        wb, opsColInfo->ops_transfer_characteristics[obuXLId][opsID][opIndex],
-        8);
-    avm_wb_write_literal(
-        wb, opsColInfo->ops_matrix_coefficients[obuXLId][opsID][opIndex], 8);
-  }
-  avm_wb_write_bit(wb,
-                   opsColInfo->ops_full_range_flag[obuXLId][opsID][opIndex]);
-#endif  // CONFIG_AV2_PROFILES
 }
 
-#if CONFIG_AV2_PROFILES
 static void write_ops_decoder_model_info(
     struct OpsDecoderModelInfo *ops_decoder_model_info,
     struct avm_write_bit_buffer *wb) {
-#else
-static void write_ops_decoder_model_info(
-    struct OpsDecoderModelInfo *ops_decoder_model_info, int obuXLId, int opsID,
-    int opIndex, struct avm_write_bit_buffer *wb) {
-#endif  // CONFIG_AV2_PROFILES
-
-#if CONFIG_AV2_PROFILES
   avm_wb_write_uvlc(wb, ops_decoder_model_info->ops_decoder_buffer_delay);
   avm_wb_write_uvlc(wb, ops_decoder_model_info->ops_encoder_buffer_delay);
   avm_wb_write_bit(wb, ops_decoder_model_info->ops_low_delay_mode_flag);
-#else
-  avm_wb_write_uvlc(wb,
-                    ops_decoder_model_info
-                        ->ops_decoder_buffer_delay[obuXLId][opsID][opIndex]);
-  avm_wb_write_uvlc(wb,
-                    ops_decoder_model_info
-                        ->ops_encoder_buffer_delay[obuXLId][opsID][opIndex]);
-  avm_wb_write_bit(
-      wb,
-      ops_decoder_model_info->ops_low_delay_mode_flag[obuXLId][opsID][opIndex]);
-#endif  // CONFIG_AV2_PROFILES
 }
 
 // Compute the size required
-#if CONFIG_AV2_PROFILES
 static uint32_t calculate_ops_data_size(struct OperatingPointSet *ops,
                                         int obu_xlayer_id, int op_index) {
-#else
-static uint32_t calculate_ops_data_size(AV2_COMP *cpi, int obu_xlayer_id,
-                                        int ops_id, int op_index) {
-#endif  // CONFIG_AV2_PROFILES
-
-#if CONFIG_AV2_PROFILES
   uint8_t temp_buffer[1024];
   struct avm_write_bit_buffer temp_wb = { temp_buffer, 0 };
   struct OperatingPoint *op = &ops->op[op_index];
@@ -227,211 +150,12 @@ static uint32_t calculate_ops_data_size(AV2_COMP *cpi, int obu_xlayer_id,
   avm_wb_write_literal(&temp_wb, 0, (8 - temp_wb.bit_offset % 8) % 8);
   return (temp_wb.bit_offset + 7) / 8;
 }
-#else
-  struct avm_write_bit_buffer temp_wb = { NULL, 0 };
-  struct OperatingPointSet *ops = &cpi->common.ops_params;
-  // Write ops_intent_op if present
-  if (ops->ops_intent_present_flag[obu_xlayer_id][ops_id]) {
-    avm_wb_write_literal(
-        &temp_wb, ops->ops_intent_op[obu_xlayer_id][ops_id][op_index], 4);
-  }
-
-  // Write operational PTL fields if present
-  if (ops->ops_operational_ptl_present_flag[obu_xlayer_id][ops_id]) {
-    avm_wb_write_literal(
-        &temp_wb,
-        ops->ops_operational_profile_id[obu_xlayer_id][ops_id][op_index], 6);
-    avm_wb_write_literal(
-        &temp_wb,
-        ops->ops_operational_level_id[obu_xlayer_id][ops_id][op_index], 5);
-    avm_wb_write_bit(
-        &temp_wb,
-        ops->ops_operational_tier_id[obu_xlayer_id][ops_id][op_index]);
-  }
-
-  // Write color info if present (using actual values)
-  if (ops->ops_color_info_present_flag[obu_xlayer_id][ops_id]) {
-    struct OpsColorInfo *opsColInfo = ops->ops_col_info;
-
-    // Write ops_color_description_idc (UVLC - variable length)
-    avm_wb_write_uvlc(
-        &temp_wb,
-        opsColInfo->ops_color_description_idc[obu_xlayer_id][ops_id][op_index]);
-
-    // If ops_color_description_idc == 0, write additional color fields
-    if (opsColInfo
-            ->ops_color_description_idc[obu_xlayer_id][ops_id][op_index] == 0) {
-      avm_wb_write_literal(
-          &temp_wb,
-          opsColInfo->ops_color_primaries[obu_xlayer_id][ops_id][op_index], 8);
-      avm_wb_write_literal(
-          &temp_wb,
-          opsColInfo
-              ->ops_transfer_characteristics[obu_xlayer_id][ops_id][op_index],
-          8);
-      avm_wb_write_literal(
-          &temp_wb,
-          opsColInfo->ops_matrix_coefficients[obu_xlayer_id][ops_id][op_index],
-          8);
-    }
-
-    // Write ops_full_range_flag
-    avm_wb_write_bit(
-        &temp_wb,
-        opsColInfo->ops_full_range_flag[obu_xlayer_id][ops_id][op_index]);
-  }
-
-  // Write decoder model info if present (using actual values)
-#if CONFIG_CWG_G010
-  avm_wb_write_bit(
-      &temp_wb,
-      ops->ops_decoder_model_info_for_this_op_present_flag[obu_xlayer_id]
-                                                          [ops_id][op_index]);
-  if (ops->ops_decoder_model_info_for_this_op_present_flag[obu_xlayer_id]
-                                                          [ops_id][op_index]) {
-#else
-  if (ops->ops_decoder_model_info_present_flag[obu_xlayer_id][ops_id]) {
-#endif  // CONFIG_CWG_G010
-    struct OpsDecoderModelInfo *ops_decoder_model_info =
-        ops->ops_decoder_model_info;
-
-    // Write ops_decoder_buffer_delay (UVLC - variable length)
-    avm_wb_write_uvlc(
-        &temp_wb,
-        ops_decoder_model_info
-            ->ops_decoder_buffer_delay[obu_xlayer_id][ops_id][op_index]);
-
-    // Write ops_encoder_buffer_delay (UVLC - variable length)
-    avm_wb_write_uvlc(
-        &temp_wb,
-        ops_decoder_model_info
-            ->ops_encoder_buffer_delay[obu_xlayer_id][ops_id][op_index]);
-
-    // Write ops_low_delay_mode_flag
-    avm_wb_write_bit(
-        &temp_wb,
-        ops_decoder_model_info
-            ->ops_low_delay_mode_flag[obu_xlayer_id][ops_id][op_index]);
-  }
-
-#if CONFIG_AV2_PROFILES
-  // Write ops_initial_display_delay_present_flag (always writte)
-  avm_wb_write_bit(
-      &temp_wb,
-      ops->ops_initial_display_delay_present_flag[obu_xlayer_id][ops_id]);
-  if (ops->ops_initial_display_delay_present_flag[obu_xlayer_id][ops_id]) {
-    avm_wb_write_literal(
-        &temp_wb, ops->ops_initial_display_delay_minus_1[obu_xlayer_id][ops_id],
-        4);
-  }
-#endif  // CONFIG_AV2_PROFILES
-
-  // Write xlayer_map and mlayer info if xlayer_id == 31
-  if (obu_xlayer_id == GLOBAL_XLAYER_ID) {
-    avm_wb_write_literal(&temp_wb,
-                         ops->ops_xlayer_map[obu_xlayer_id][ops_id][op_index],
-                         MAX_NUM_XLAYERS - 1);
-
-    // Write mlayer info for each xlayer in the map
-    for (int j = 0; j < MAX_NUM_XLAYERS - 1; j++) {
-      if (ops->ops_mlayer_info_idc[obu_xlayer_id][ops_id] == 1) {
-        // Write mlayer info directly
-        struct OPSMLayerInfo *ops_layer_map = ops->ops_mlayer_info;
-
-        // Write ops_mlayer_map
-        avm_wb_write_literal(
-            &temp_wb,
-            ops_layer_map->ops_mlayer_map[obu_xlayer_id][ops_id][op_index][j],
-            MAX_NUM_MLAYERS);
-
-        // Write tlayer_map for each mlayer in the map
-        for (int k = 0; k < MAX_NUM_MLAYERS; k++) {
-          if ((ops_layer_map
-                   ->ops_mlayer_map[obu_xlayer_id][ops_id][op_index][j] &
-               (1 << k))) {
-            avm_wb_write_literal(
-                &temp_wb,
-                ops_layer_map
-                    ->ops_tlayer_map[obu_xlayer_id][ops_id][op_index][j][k],
-                MAX_NUM_TLAYERS);
-          }
-        }
-      } else if (ops->ops_mlayer_info_idc[obu_xlayer_id][ops_id] == 2) {
-        // Write embedded mapping
-        avm_wb_write_literal(
-            &temp_wb,
-            ops->ops_embedded_mapping[obu_xlayer_id][ops_id][op_index][j], 4);
-        avm_wb_write_literal(
-            &temp_wb,
-            ops->ops_embedded_op_id[obu_xlayer_id][ops_id][op_index][j], 3);
-
-        // Write mlayer info for embedded operating point
-        int embedded_ops_id =
-            ops->ops_embedded_mapping[obu_xlayer_id][ops_id][op_index][j];
-        int embedded_op_index =
-            ops->ops_embedded_op_id[obu_xlayer_id][ops_id][op_index][j];
-        struct OPSMLayerInfo *ops_layer_map = ops->ops_mlayer_info;
-
-        // Write ops_mlayer_map
-        avm_wb_write_literal(
-            &temp_wb,
-            ops_layer_map->ops_mlayer_map[obu_xlayer_id][embedded_ops_id]
-                                         [embedded_op_index][j],
-            MAX_NUM_MLAYERS);
-
-        // Write tlayer_map for each mlayer in the map
-        for (int k = 0; k < MAX_NUM_MLAYERS; k++) {
-          if ((ops_layer_map->ops_mlayer_map[obu_xlayer_id][embedded_ops_id]
-                                            [embedded_op_index][j] &
-               (1 << k))) {
-            avm_wb_write_literal(
-                &temp_wb,
-                ops_layer_map->ops_tlayer_map[obu_xlayer_id][embedded_ops_id]
-                                             [embedded_op_index][j][k],
-                MAX_NUM_TLAYERS);
-          }
-        }
-      }
-    }
-  } else {
-    // Write mlayer info for single xlayer
-    if (ops->ops_mlayer_info_idc[obu_xlayer_id][ops_id] == 1) {
-      struct OPSMLayerInfo *ops_layer_map = ops->ops_mlayer_info;
-
-      // Write ops_mlayer_map
-      avm_wb_write_literal(
-          &temp_wb,
-          ops_layer_map
-              ->ops_mlayer_map[obu_xlayer_id][ops_id][op_index][obu_xlayer_id],
-          MAX_NUM_MLAYERS);
-
-      // Write tlayer_map for each mlayer in the map
-      for (int k = 0; k < MAX_NUM_MLAYERS; k++) {
-        if ((ops_layer_map->ops_mlayer_map[obu_xlayer_id][ops_id][op_index]
-                                          [obu_xlayer_id] &
-             (1 << k))) {
-          avm_wb_write_literal(
-              &temp_wb,
-              ops_layer_map->ops_tlayer_map[obu_xlayer_id][ops_id][op_index]
-                                           [obu_xlayer_id][k],
-              MAX_NUM_TLAYERS);
-        }
-      }
-    }
-  }
-  // Add byte alignment padding
-  if (temp_wb.bit_offset % 8 != 0) {
-    temp_wb.bit_offset += (8 - temp_wb.bit_offset % 8);
-  }
-  return (temp_wb.bit_offset + 7) / 8;
-#endif  // CONFIG_AV2_PROFILES
 
 uint32_t av2_write_operating_point_set_obu(AV2_COMP *cpi, int obu_xlayer_id,
                                            int ops_id, uint8_t *const dst) {
   struct avm_write_bit_buffer wb = { dst, 0 };
   uint32_t size = 0;
 
-#if CONFIG_AV2_PROFILES
   // Have to use ops_id
   struct OperatingPointSet *ops = &cpi->ops_list[obu_xlayer_id][ops_id];
 
@@ -541,119 +265,11 @@ uint32_t av2_write_operating_point_set_obu(AV2_COMP *cpi, int obu_xlayer_id,
   }
   avm_wb_write_bit(&wb, ops->ops_extension_present_flag);
   assert(!ops->ops_extension_present_flag);
-#else
-    struct OperatingPointSet *ops = &cpi->common.ops_params;
-    struct OpsColorInfo *opsColInfo = ops->ops_col_info;
-
-    avm_wb_write_bit(&wb, ops->ops_reset_flag[obu_xlayer_id]);
-    avm_wb_write_literal(&wb, ops->ops_id[obu_xlayer_id], OPS_ID_BITS);
-
-    int ops_id = ops->ops_id[obu_xlayer_id];
-    avm_wb_write_literal(&wb, ops->ops_cnt[obu_xlayer_id][ops_id],
-                         OPS_COUNT_BITS);
-
-    if (ops->ops_cnt[obu_xlayer_id][ops_id] > 0) {
-      avm_wb_write_literal(&wb, ops->ops_priority[obu_xlayer_id][ops_id], 4);
-      avm_wb_write_literal(&wb, ops->ops_intent[obu_xlayer_id][ops_id], 4);
-      avm_wb_write_bit(&wb,
-                       ops->ops_intent_present_flag[obu_xlayer_id][ops_id]);
-      avm_wb_write_bit(
-          &wb, ops->ops_operational_ptl_present_flag[obu_xlayer_id][ops_id]);
-      avm_wb_write_bit(&wb,
-                       ops->ops_color_info_present_flag[obu_xlayer_id][ops_id]);
-      avm_wb_write_bit(
-          &wb, ops->ops_decoder_model_info_present_flag[obu_xlayer_id][ops_id]);
-
-      if (obu_xlayer_id == GLOBAL_XLAYER_ID) {
-        avm_wb_write_literal(
-            &wb, ops->ops_mlayer_info_idc[obu_xlayer_id][ops_id], 2);
-        avm_wb_write_literal(&wb, 0, 2);  // ops_reserved_2bits
-      } else {
-        avm_wb_write_literal(&wb, 0, 3);  // ops_reserved_3bits
-      }
-
-      // Byte alignment before writing operating point data
-      avm_wb_write_literal(&wb, 0, (8 - wb.bit_offset % 8) % 8);
-
-      for (int i = 0; i < ops->ops_cnt[obu_xlayer_id][ops_id]; i++) {
-        // Calculate ops_data_size if not already set
-        // If it is set 0 from elsewhere, then this computation can be skipped.
-        if (ops->ops_data_size[obu_xlayer_id][ops_id][i] == 0) {
-          ops->ops_data_size[obu_xlayer_id][ops_id][i] =
-              calculate_ops_data_size(cpi, obu_xlayer_id, ops_id, i);
-        }
-
-        avm_wb_write_uleb(&wb, ops->ops_data_size[obu_xlayer_id][ops_id][i]);
-        if (ops->ops_intent_present_flag[obu_xlayer_id][ops_id])
-          avm_wb_write_literal(&wb,
-                               ops->ops_intent_op[obu_xlayer_id][ops_id][i], 4);
-
-        if (ops->ops_operational_ptl_present_flag[obu_xlayer_id][ops_id]) {
-          avm_wb_write_literal(
-              &wb, ops->ops_operational_profile_id[obu_xlayer_id][ops_id][i],
-              6);
-          avm_wb_write_literal(
-              &wb, ops->ops_operational_level_id[obu_xlayer_id][ops_id][i], 5);
-          avm_wb_write_bit(
-              &wb, ops->ops_operational_tier_id[obu_xlayer_id][ops_id][i]);
-        }
-        if (ops->ops_color_info_present_flag[obu_xlayer_id][ops_id])
-          write_ops_color_info(opsColInfo, obu_xlayer_id, ops_id, i, &wb);
-        if (ops->ops_decoder_model_info_present_flag[obu_xlayer_id][ops_id]) {
-          write_ops_decoder_model_info(ops->ops_decoder_model_info,
-                                       obu_xlayer_id, ops_id, i, &wb);
-        }
-        avm_wb_write_bit(
-            &wb,
-            ops->ops_initial_display_delay_present_flag[obu_xlayer_id][ops_id]);
-        if (ops->ops_initial_display_delay_present_flag[obu_xlayer_id]
-                                                       [ops_id]) {
-          avm_wb_write_literal(
-              &wb,
-              ops->ops_initial_display_delay_minus_1[obu_xlayer_id][ops_id], 4);
-        }
-        if (obu_xlayer_id == GLOBAL_XLAYER_ID) {
-          avm_wb_write_literal(&wb,
-                               ops->ops_xlayer_map[obu_xlayer_id][ops_id][i],
-                               MAX_NUM_XLAYERS - 1);
-          for (int j = 0; j < MAX_NUM_XLAYERS - 1; j++) {
-            if (ops->ops_mlayer_info_idc[obu_xlayer_id][ops_id] == 1)
-              write_ops_mlayer_info(obu_xlayer_id, ops_id, i, j,
-                                    ops->ops_mlayer_info, &wb);
-            else if (ops->ops_mlayer_info_idc[obu_xlayer_id][ops_id] == 2) {
-              avm_wb_write_literal(
-                  &wb, ops->ops_embedded_mapping[obu_xlayer_id][ops_id][i][j],
-                  4);
-              avm_wb_write_literal(
-                  &wb, ops->ops_embedded_op_id[obu_xlayer_id][ops_id][i][j], 3);
-              int embedded_ops_id =
-                  ops->ops_embedded_mapping[obu_xlayer_id][ops_id][i][j];
-              int embedded_op_index =
-                  ops->ops_embedded_op_id[obu_xlayer_id][ops_id][i][j];
-              write_ops_mlayer_info(obu_xlayer_id, embedded_ops_id,
-                                    embedded_op_index, j, ops->ops_mlayer_info,
-                                    &wb);
-            }
-          }
-        } else {
-          if (ops->ops_mlayer_info_idc[obu_xlayer_id][ops_id] == 1)
-            write_ops_mlayer_info(obu_xlayer_id, ops_id, i, obu_xlayer_id,
-                                  ops->ops_mlayer_info, &wb);
-        }
-
-        // Byte alignment at end of each operating point iteration
-        avm_wb_write_literal(&wb, 0, (8 - wb.bit_offset % 8) % 8);
-      }
-    }
-    avm_wb_write_bit(&wb, ops->ops_extension_present_flag);
-    assert(!ops->ops_extension_present_flag);
-#endif  // CONFIG_AV2_PROFILES
   av2_add_trailing_bits(&wb);
   size = avm_wb_bytes_written(&wb);
   return size;
 }
 
-#if CONFIG_AV2_PROFILES
 void av2_set_ops_params(struct OperatingPointSet *ops, int xlayer_id,
                         int ops_id, int ops_cnt) {
   memset(ops, 0, sizeof(struct OperatingPointSet));
@@ -675,12 +291,3 @@ void av2_set_ops_params(struct OperatingPointSet *ops, int xlayer_id,
     ops->op[i].mlayer_info.OPMLayerCount[xlayer_id] = 1;
   }
 }
-#else
-  int av2_set_ops_params(AV2_COMP * cpi, struct OperatingPointSet * ops,
-                         int xlayer_id) {
-    (void)xlayer_id;
-    AV2_COMMON *const cm = &cpi->common;
-    memcpy(ops, cm->ops, sizeof(struct OperatingPointSet));
-    return 0;
-  }
-#endif  // CONFIG_AV2_PROFILES
