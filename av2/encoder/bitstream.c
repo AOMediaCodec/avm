@@ -5192,6 +5192,7 @@ static AVM_INLINE void write_show_existing_frame(
 
 static AVM_INLINE void write_frame_opfl_refine_type(
     AV2_COMMON *const cm, struct avm_write_bit_buffer *wb) {
+  if (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT) return;
   if (cm->seq_params.enable_opfl_refine == AVM_OPFL_REFINE_AUTO) {
     const int is_opfl_switchable =
         cm->features.opfl_refine_type == REFINE_SWITCHABLE;
