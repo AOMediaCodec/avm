@@ -3482,7 +3482,8 @@ static INLINE int check_lcr_frame_size_conformance(const AV2_COMMON *cm,
 static INLINE int frame_might_allow_ref_frame_mvs(const AV2_COMMON *cm) {
   return !frame_is_sframe(cm) &&
          cm->seq_params.order_hint_info.enable_ref_frame_mvs &&
-         !cm->bridge_frame_info.is_bridge_frame && !frame_is_intra_only(cm);
+         !cm->bridge_frame_info.is_bridge_frame &&
+         !cm->bru.frame_inactive_flag && !frame_is_intra_only(cm);
 }
 
 static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV2_COMMON *cm) {
