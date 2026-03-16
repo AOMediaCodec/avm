@@ -784,6 +784,19 @@ int av2_get_refresh_frame_flags(
         }
       }
     }
+    // For fwd kf, only refresh one buffer. The other buffers will be refreshed
+    // on the first regular TU it encounters after the OLK TU.
+    if (cpi->no_show_fwd_kf) {
+      int refresh_idx = -1;
+      for (int i = 0; i < cm->seq_params.ref_frames; ++i) {
+        if ((refresh_frame_flags >> i) & 1) {
+          refresh_idx = i;
+          break;
+        }
+      }
+      assert(refresh_idx >= 0);
+      return (1 << refresh_idx);
+    }
     return refresh_frame_flags;
   }
 

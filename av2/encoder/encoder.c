@@ -4496,6 +4496,7 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
     }
 
     if (cpi->olk_encountered && ref_flags_to_keep != 0 &&
+        cpi->fb_idx_for_overlay >= 0 &&
         ((ref_flags_to_keep >> cpi->fb_idx_for_overlay) & 1u)) {
       for (int ref_index = 0; ref_index < cm->seq_params.ref_frames;
            ref_index++) {
@@ -4532,6 +4533,7 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
       ref_flags_to_keep |= cm->olk_refresh_frame_flags[layer];
     }
     if (cpi->olk_encountered && ref_flags_to_keep != 0 &&
+        cpi->fb_idx_for_overlay >= 0 &&
         ((ref_flags_to_keep >> cpi->fb_idx_for_overlay) & 1u)) {
       for (int ref_index = 0; ref_index < cm->seq_params.ref_frames;
            ref_index++) {
