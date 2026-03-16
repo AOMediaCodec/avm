@@ -1554,7 +1554,7 @@ static INLINE void set_baseline_gf_interval(AV2_COMP *cpi, int arf_position,
     // should also count the last KF when considering MIN_FWD_KF_INTERVAL.
     const int adj_frames_to_key =
         rc->frames_to_key + (cpi->gf_state.olk_overlay_last == 1);
-    if (arf_position == adj_frames_to_key) {
+    if (arf_position == rc->frames_to_key) {
       rc->baseline_gf_interval = arf_position;
       if (curr_frame_type != KEY_FRAME)
         rc->baseline_gf_interval = rc->baseline_gf_interval + 1;

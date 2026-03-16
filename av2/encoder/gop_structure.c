@@ -298,8 +298,12 @@ static int construct_multi_layer_gf_structure(
       gf_group->max_layer_depth = 1;
       gf_group->arf_index = frame_index;
 
+      // If the first frame is a CLK, then we need to count it here since it is
+      // not counted in the frames_to_key yet.
       if (gf_group->arf_src_offset[frame_index] ==
-              cpi->rc.frames_to_key * (int)cpi->common.number_mlayers &&
+              (cpi->rc.frames_to_key -
+               (first_frame_update_type == KF_UPDATE ? 1 : 0)) *
+                  (int)cpi->common.number_mlayers &&
           gf_group->arf_src_offset[frame_index] != 0 &&
           cpi->oxcf.kf_cfg.fwd_kf_enabled &&
           (cpi->oxcf.kf_cfg.enable_keyframe_filtering > 1 ||
