@@ -1236,6 +1236,10 @@ enum avme_enc_control_id {
    */
   AV2E_SET_GDF_UNIT_SIZE_MATCHES_SB = 182,
 
+  /*!\brief Codec control function to enable add_sef_for_hidden_frames.
+   */
+  AV2E_SET_ADD_SEF_FOR_HIDDEN_FRAMES = 183,
+
 };
 
 /*!\brief avm 1-D scaling mode
@@ -1757,6 +1761,9 @@ AVM_CTRL_USE_TYPE(AV2E_SET_ENABLE_BUFFER_REFRESH_TEST,
 
 AVM_CTRL_USE_TYPE(AV2E_SET_ENABLE_FLAG_MULTI_LAYER_LAG_TEST, int)
 #define AVME_CTRL_AV2E_SET_ENABLE_FLAG_MULTI_LAYER_LAG_TEST
+
+AVM_CTRL_USE_TYPE(AV2E_SET_ADD_SEF_FOR_HIDDEN_FRAMES, int)
+#define AVME_CTRL_AV2E_SET_ADD_SEF_FOR_HIDDEN_FRAMES
 /*!\endcond */
 /*! @} - end defgroup avm_encoder */
 #ifdef __cplusplus

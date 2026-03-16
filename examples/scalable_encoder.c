@@ -26,7 +26,7 @@ void usage_exit(void) {
   fprintf(stderr,
           "Usage: %s <width> <height> <infile0>  "
           "<outfile> <frames to encode> <num_temporal_layers> "
-          "<num_embedded_layers> <lag> \n"
+          "<num_embedded_layers> <lag> <add_sef> \n"
           "See comments in embedded_temporal_layers_encoder.c for more "
           "information.\n",
           exec_name);
@@ -174,6 +174,7 @@ int main(int argc, char **argv) {
   int num_temporal_layers = 1;
   int num_embedded_layers = 1;
   int lag = 0;
+  int add_sef = 0;
   int temp_unit_counter = 0;
   const int fps = 30;
   const char *width_arg = NULL;
@@ -189,7 +190,7 @@ int main(int argc, char **argv) {
   // "missing-field-initializers" warning in some compilers.
   memset(&info, 0, sizeof(info));
 
-  if (argc != 9) die("Invalid number of arguments");
+  if (argc != 10) die("Invalid number of arguments");
 
   width_arg = argv[1];
   height_arg = argv[2];
@@ -199,6 +200,7 @@ int main(int argc, char **argv) {
   num_temporal_layers = (int)strtol(argv[6], NULL, 0);
   num_embedded_layers = (int)strtol(argv[7], NULL, 0);
   lag = (int)strtol(argv[8], NULL, 0);
+  add_sef = (int)strtol(argv[9], NULL, 0);
 
   avm_codec_iface_t *encoder = get_avm_encoder_by_short_name("av2");
   if (!encoder) die("Unsupported codec.");
@@ -273,6 +275,7 @@ int main(int argc, char **argv) {
     avm_codec_control(&codec, AV2E_SET_ENABLE_KEYFRAME_FILTERING, 0);
     if (num_temporal_layers > 1 || num_embedded_layers > 1)
       avm_codec_control(&codec, AV2E_SET_ENABLE_FLAG_MULTI_LAYER_LAG_TEST, 1);
+    avm_codec_control(&codec, AV2E_SET_ADD_SEF_FOR_HIDDEN_FRAMES, add_sef);
   }
 
   // Encode frames.

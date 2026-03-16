@@ -2702,6 +2702,13 @@ static avm_codec_err_t ctrl_set_enable_flag_multi_layer_lag_test(
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
+static avm_codec_err_t ctrl_set_add_sef_for_hidden_frames(avm_codec_alg_priv_t *ctx,
+                                           va_list args) {
+  struct av2_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.add_sef_for_hidden_frames= CAST(AV2E_SET_ADD_SEF_FOR_HIDDEN_FRAMES, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+
 static avm_codec_err_t create_stats_buffer(FIRSTPASS_STATS **frame_stats_buffer,
                                            STATS_BUFFER_CTX *stats_buf_context,
                                            int num_lap_buffers) {
@@ -4529,6 +4536,8 @@ static avm_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV2E_SET_ENABLE_BUFFER_REFRESH_TEST, ctrl_set_enable_buffer_refresh_test },
   { AV2E_SET_ENABLE_FLAG_MULTI_LAYER_LAG_TEST,
     ctrl_set_enable_flag_multi_layer_lag_test },
+  { AV2E_SET_ADD_SEF_FOR_HIDDEN_FRAMES, ctrl_set_add_sef_for_hidden_frames },
+
   // Getters
   { AVME_GET_LAST_QUANTIZER, ctrl_get_quantizer },
   { AV2_GET_REFERENCE, ctrl_get_reference },
