@@ -2882,7 +2882,7 @@ static void report_stats(AV2_COMP *cpi, size_t frame_size, uint64_t cx_time) {
   const AV2_COMMON *const cm = &cpi->common;
   const int base_qindex = cm->quant_params.base_qindex;
   const char frameType[6][20] = {
-    " KEY ", "INTER", "INTRA", "  S  ", "RAS", " UNK ",
+    " KEY ", "INTER", "INTRA", "  S  ", " RAS ", " UNK ",
   };
 
   PSNR_STATS psnr;

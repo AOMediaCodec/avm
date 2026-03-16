@@ -762,8 +762,13 @@ int av2_get_refresh_frame_flags(
     return (1 << cpi->common.seq_params.ref_frames) - 1;
   }
 
-  if (frame_params->frame_type == S_FRAME ||
-      frame_params->frame_type == KEY_FRAME) {
+  // S-Frames (non-RAS) overwrite all reference slots
+  if (frame_params->frame_type == S_FRAME && cpi->is_ras_frame != 1) {
+    return (1 << cpi->common.seq_params.ref_frames) - 1;
+  }
+
+  if (cpi->is_ras_frame == 1 && (frame_params->frame_type == S_FRAME ||
+                                 frame_params->frame_type == KEY_FRAME)) {
     AV2_COMMON *const cm = &cpi->common;
     int refresh_frame_flags = (1 << cpi->common.seq_params.ref_frames) - 1;
     cm->num_ref_key_frames = 0;
