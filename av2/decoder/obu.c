@@ -2346,7 +2346,10 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
   memset(&obu_header, 0, sizeof(obu_header));
 
 #if CONFIG_AV2_LCR_PROFILES
-  if (pbi->msdo_is_present_in_tu) pbi->multi_stream_mode = 1;
+  // Enable multi_stream_mode if MSDO is present OR if Global LCR with
+  // multiple extended layers (LcrMaxNumXLayerCount > 1) is present
+  if (pbi->msdo_is_present_in_tu || pbi->glcr_is_present_in_tu)
+    pbi->multi_stream_mode = 1;
 
   // Per-TU conformance check: validate the PREVIOUS TU's accumulated
   // xlayer/mlayer maps before resetting them for the current TU.
@@ -2403,6 +2406,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
   pbi->next_start_tile = 0;
   pbi->num_tile_groups = 0;
   pbi->msdo_is_present_in_tu = 0;
+  pbi->glcr_is_present_in_tu = 0;
 
   if (data_end < data) {
     cm->error.error_code = AVM_CODEC_CORRUPT_FRAME;
@@ -2522,7 +2526,9 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
             "of bitstream conformance for MSDO and LCR");
       }
 
-      if (pbi->msdo_is_present_in_tu)
+      // Enable multi_stream_mode if MSDO is present OR if Global LCR with
+      // multiple extended layers (LcrMaxNumXLayerCount > 1) is present
+      if (pbi->msdo_is_present_in_tu || pbi->glcr_is_present_in_tu)
         pbi->multi_stream_mode = 1;
       else
         pbi->multi_stream_mode = 0;
@@ -2695,6 +2701,23 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         decoded_payload_size =
             av2_read_layer_configuration_record_obu(pbi, cm->xlayer_id, &rb);
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
+        // Allocate stream_info if Global LCR triggers multi-stream mode
+        // (i.e., LcrMaxNumXLayerCount > 1 and no MSDO present)
+        if (cm->xlayer_id == GLOBAL_XLAYER_ID && pbi->glcr_is_present_in_tu &&
+            !pbi->msdo_is_present_in_tu && pbi->stream_info == NULL) {
+          const int num_streams = pbi->glcr_num_xlayers;
+          pbi->stream_info =
+              (StreamInfo *)avm_malloc(num_streams * sizeof(StreamInfo));
+          if (pbi->stream_info == NULL) {
+            avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
+                               "Memory allocation failed for pbi->stream_info "
+                               "(GLCR)\n");
+          }
+          memset(pbi->stream_info, 0, num_streams * sizeof(StreamInfo));
+          for (int i = 0; i < num_streams; i++) {
+            init_stream_info(&pbi->stream_info[i]);
+          }
+        }
 #if CONFIG_ANNEXF
         if (pbi->sbe_state.extraction_enabled &&
             cm->xlayer_id == GLOBAL_XLAYER_ID) {

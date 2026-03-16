@@ -273,6 +273,18 @@ static void read_lcr_global_info(struct AV2Decoder *pbi,
                        "differs from the active LCR with the same ID.",
                        lcr_global_config_record_id);
   }
+
+  // Set the GLCR flag if this Global LCR describes multiple extended layers.
+  // This triggers multi_stream_mode even without an MSDO OBU present.
+  if (glcr->LcrMaxNumXLayerCount > 1) {
+    pbi->glcr_is_present_in_tu = 1;
+    pbi->glcr_num_xlayers = glcr->LcrMaxNumXLayerCount;
+    // Copy xlayer IDs for stream_info allocation
+    cm->num_streams = glcr->LcrMaxNumXLayerCount;
+    for (int i = 0; i < glcr->LcrMaxNumXLayerCount; i++) {
+      cm->stream_ids[i] = glcr->LcrXLayerID[i];
+    }
+  }
 }
 
 static void read_lcr_local_info(struct AV2Decoder *pbi, int xlayer_id,
@@ -635,6 +647,19 @@ static LayerConfigurationRecord *read_lcr_global_info(
   // NOTE: lcr_params->lcr_xLayer_id indicates the corresponding extended layer
   // ID for the indicated extended layer in the Global LCR and
   // lcr_params->xlayer_id is the obu_layer_id.
+
+  // Set the GLCR flag if this Global LCR describes multiple extended layers.
+  // This triggers multi_stream_mode even without an MSDO OBU present.
+  const int num_xlayers = lcr_params->lcr_max_num_extended_layers_minus_1 + 1;
+  if (num_xlayers > 1) {
+    pbi->glcr_is_present_in_tu = 1;
+    pbi->glcr_num_xlayers = num_xlayers;
+    // Copy xlayer IDs for stream_info allocation
+    pbi->common.num_streams = num_xlayers;
+    for (int i = 0; i < num_xlayers; i++) {
+      pbi->common.stream_ids[i] = lcr_params->lcr_xLayer_id[i];
+    }
+  }
   return lcr_params;
 }
 

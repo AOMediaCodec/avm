@@ -651,6 +651,18 @@ typedef struct AV2Decoder {
    */
   int msdo_is_present_in_tu;
   /*!
+   * Indicates if a Global LCR with multiple extended layers is present in TU.
+   * This flag is set when a Global LCR (xlayer_id=31) is parsed and its
+   * LcrMaxNumXLayerCount > 1, indicating multiple extended layers that should
+   * trigger multi_stream_mode even without an MSDO OBU.
+   */
+  int glcr_is_present_in_tu;
+  /*!
+   * Number of extended layers specified in the Global LCR.
+   * Used for stream_info allocation when Global LCR triggers multi_stream_mode.
+   */
+  int glcr_num_xlayers;
+  /*!
    * Map to indicate which xlayer is present in the current CVS.
    */
   int xlayer_id_map[AVM_MAX_NUM_STREAMS];
