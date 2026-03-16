@@ -656,7 +656,7 @@ TEST_P(MultiLayerTest, MultiLayerTest2EmbeddedLagEx2) {
 //
 // TODO: turn this on once decoder does not reset ref frame buffer at olk in
 // layer 1.
-TEST_P(MultiLayerTest, DISABLED_MultiLayerTest2EmbeddedLagFwdKfEx1) {
+TEST_P(MultiLayerTest, MultiLayerTest2EmbeddedLagFwdKfEx1) {
   cfg_.g_lag_in_frames = 17;
   cfg_.kf_max_dist = 16;
   cfg_.kf_min_dist = 16;
