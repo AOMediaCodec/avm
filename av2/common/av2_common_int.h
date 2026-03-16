@@ -652,23 +652,13 @@ typedef struct TileInfoSyntax {
 
 // This structure contains Buffer removal time parameters being parsed
 typedef struct {
-#if CONFIG_CWG_G010
   int br_ops_dependent_flag;
-#endif  // CONFIG_CWG_G010
   int ops_id;
-#if CONFIG_CWG_G010
   int br_ops_id;
   int br_ops_cnt[MAX_NUM_OPS_ID];
   int br_decoder_model_present_op_flag[MAX_NUM_OPS_ID][MAX_OPS_COUNT];
   int br_time_op[MAX_NUM_OPS_ID][MAX_OPS_COUNT];
   int br_time;
-#else
-  int br_ops_id[MAX_NUM_XLAYERS];
-  int br_ops_cnt[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
-  int br_decoder_model_present_op_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID]
-                                      [MAX_OPS_COUNT];
-  int br_buffer_removal_time[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT];
-#endif  // CONFIG_CWG_G010
 } BufferRemovalTimingInfo;
 
 typedef struct CroppingWindow {
@@ -1001,9 +991,7 @@ typedef struct OperatingPoint {
   // Details per layer
   int ops_xlayer_map;
   int ops_initial_display_delay;
-#if CONFIG_CWG_G010
   int ops_decoder_model_info_for_this_op_present_flag;
-#endif  // CONFIG_CWG_G010
   int ops_mlayer_explicit_info_flag[MAX_NUM_XLAYERS];
   int ops_embedded_ops_id[MAX_NUM_XLAYERS];
   int ops_embedded_op_index[MAX_NUM_XLAYERS];
@@ -1033,9 +1021,6 @@ typedef struct OperatingPointSet {
   int ops_intent_present_flag;
   int ops_ptl_present_flag;
   int ops_color_info_present_flag;
-#if !CONFIG_CWG_G010
-  int ops_decoder_model_info_present_flag;
-#endif  // !CONFIG_CWG_G010
   // ops_mlayer_info_idc is used only when obu_xlayer_id == GLOBAL_XLAYER_ID
   int ops_mlayer_info_idc;
   // Array of operating points
@@ -2699,14 +2684,12 @@ typedef struct AV2Common {
    * frames in the video.
    */
   BufferRemovalTimingInfo brt_info;
-#if CONFIG_CWG_G010
   /*!
    * brt_from_leading==1 indicates brt_info was last written by a leading frame
    * BRT OBU. If the first regular frame TU does not carry its own BRT OBU the
    * stale leading-frame timing data is cleared at the transition.
    */
   bool brt_from_leading;
-#endif  // CONFIG_CWG_G010
 
   /*!
    * Elements part of the multi-frame header, that are applicable for multiple

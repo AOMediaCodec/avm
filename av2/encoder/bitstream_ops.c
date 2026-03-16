@@ -96,13 +96,9 @@ static uint32_t calculate_ops_data_size(struct OperatingPointSet *ops,
   if (ops->ops_color_info_present_flag)
     write_ops_color_info(&op->color_info, &temp_wb);
 
-#if CONFIG_CWG_G010
   avm_wb_write_bit(&temp_wb,
                    op->ops_decoder_model_info_for_this_op_present_flag);
   if (op->ops_decoder_model_info_for_this_op_present_flag)
-#else
-  if (ops->ops_decoder_model_info_present_flag)
-#endif  // CONFIG_CWG_G010
     write_ops_decoder_model_info(&op->decoder_model_info, &temp_wb);
 
   assert(op->ops_initial_display_delay >= 1);
@@ -169,20 +165,10 @@ uint32_t av2_write_operating_point_set_obu(AV2_COMP *cpi, int obu_xlayer_id,
     avm_wb_write_bit(&wb, ops->ops_intent_present_flag);
     avm_wb_write_bit(&wb, ops->ops_ptl_present_flag);
     avm_wb_write_bit(&wb, ops->ops_color_info_present_flag);
-#if !CONFIG_CWG_G010
-    avm_wb_write_bit(&wb, ops->ops_decoder_model_info_present_flag);
-#endif  // !CONFIG_CWG_G010
     if (obu_xlayer_id == GLOBAL_XLAYER_ID) {
       avm_wb_write_literal(&wb, ops->ops_mlayer_info_idc, 2);
-#if !CONFIG_CWG_G010
-      avm_wb_write_literal(&wb, 0, 7);
-#endif  // !CONFIG_CWG_G010
     } else {
-#if CONFIG_CWG_G010
       avm_wb_write_literal(&wb, 0, 2);
-#else
-      avm_wb_write_literal(&wb, 0, 9);
-#endif  // CONFIG_CWG_G010
     }
   }
 
@@ -213,12 +199,8 @@ uint32_t av2_write_operating_point_set_obu(AV2_COMP *cpi, int obu_xlayer_id,
     if (ops->ops_color_info_present_flag)
       write_ops_color_info(&op->color_info, &wb);
 
-#if CONFIG_CWG_G010
     avm_wb_write_bit(&wb, op->ops_decoder_model_info_for_this_op_present_flag);
     if (op->ops_decoder_model_info_for_this_op_present_flag) {
-#else
-    if (ops->ops_decoder_model_info_present_flag) {
-#endif  // CONFIG_CWG_G010
       write_ops_decoder_model_info(&op->decoder_model_info, &wb);
     }
 

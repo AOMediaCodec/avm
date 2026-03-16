@@ -2778,12 +2778,10 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
                                           [leading_mlayer_id]
                                           [OBU_MULTI_FRAME_HEADER])
             cm->mfh_from_leading[cm->cur_mfh_id] = true;
-#if CONFIG_CWG_G010
           if (pbi->obus_in_frame_unit_data[obu_header.obu_tlayer_id]
                                           [leading_mlayer_id]
                                           [OBU_BUFFER_REMOVAL_TIMING])
             cm->brt_from_leading = true;
-#endif  // CONFIG_CWG_G010
         } else if (av2_is_regular_non_olk_obu(obu_header.type) &&
                    (pbi->this_is_first_vcl_obu_in_tu == 1 ||
                     pbi->this_is_first_keyframe_unit_in_tu == 1)) {
@@ -2837,7 +2835,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
             cm->mfh_from_leading[i] = false;
           }
 
-#if CONFIG_CWG_G010
           if (cm->brt_from_leading &&
               !pbi->obus_in_frame_unit_data[obu_header.obu_tlayer_id]
                                            [regular_mlayer_id]
@@ -2845,7 +2842,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
             memset(&cm->brt_info, 0, sizeof(cm->brt_info));
           }
           cm->brt_from_leading = false;
-#endif  // CONFIG_CWG_G010
         }
 
         // It is a requirement that if multiple QM OBUs are present

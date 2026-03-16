@@ -65,7 +65,6 @@ void av2_set_buffer_removal_timing_params(AV2_COMP *const cpi) {
   struct OperatingPointSet *ops = &cm->ops_params;
   BufferRemovalTimingInfo *brt_info = &cm->brt_info;
   // ops_id
-#if CONFIG_CWG_G010
   // Enable OPS-dependent BRT mode
   brt_info->br_ops_dependent_flag = (ops->valid) ? 1 : 0;
   if (brt_info->br_ops_dependent_flag) {
@@ -81,22 +80,6 @@ void av2_set_buffer_removal_timing_params(AV2_COMP *const cpi) {
   } else {
     brt_info->br_time = 0;
   }
-#else
-  brt_info->br_ops_id[xlayer_id] = ops->ops_id[xlayer_id];
-  const int ops_id = brt_info->br_ops_id[xlayer_id];
-  // ops_cnt
-  brt_info->br_ops_cnt[xlayer_id][ops_id] = ops->ops_cnt[xlayer_id][ops_id];
-  const int ops_cnt = brt_info->br_ops_cnt[xlayer_id][ops_id];
-  // decoder model information
-  int br_decoder_model_present_op_flag = 0;
-  for (int i = 0; i < ops_cnt; i++) {
-    brt_info->br_decoder_model_present_op_flag[xlayer_id][ops_id][i] = 0;
-    br_decoder_model_present_op_flag =
-        brt_info->br_decoder_model_present_op_flag[xlayer_id][ops_id][i];
-    if (br_decoder_model_present_op_flag)
-      brt_info->br_buffer_removal_time[xlayer_id][ops_id][i] = 0;
-  }
-#endif  // CONFIG_CWG_G010
 }
 
 uint32_t av2_write_buffer_removal_timing_obu(
@@ -104,7 +87,6 @@ uint32_t av2_write_buffer_removal_timing_obu(
   struct avm_write_bit_buffer wb = { dst, 0 };
   uint32_t size = 0;
 
-#if CONFIG_CWG_G010
   avm_wb_write_bit(&wb, brt_info->br_ops_dependent_flag);
   if (brt_info->br_ops_dependent_flag) {
     avm_wb_write_literal(&wb, brt_info->br_ops_id, 4);
@@ -121,20 +103,6 @@ uint32_t av2_write_buffer_removal_timing_obu(
   } else {
     avm_wb_write_rice_golomb(&wb, brt_info->br_time, 4);
   }
-#else
-  int xlayer_id = brt_info->obu_xlayer_id;
-  int ops_id = brt_info->ops_id;
-  int ops_cnt = brt_info->br_ops_cnt[xlayer_id][ops_id];
-  avm_wb_write_literal(&wb, brt_info->br_ops_id[xlayer_id], 4);
-  avm_wb_write_literal(&wb, ops_cnt, 3);
-  for (int i = 0; i < ops_cnt; i++) {
-    avm_wb_write_bit(
-        &wb, brt_info->br_decoder_model_present_op_flag[xlayer_id][ops_id][i]);
-    if (brt_info->br_decoder_model_present_op_flag[xlayer_id][ops_id][i])
-      avm_wb_write_uvlc(&wb,
-                        brt_info->br_buffer_removal_time[xlayer_id][ops_id][i]);
-  }
-#endif  // CONFIG_CWG_G010
 
   av2_add_trailing_bits(&wb);
   size = avm_wb_bytes_written(&wb);

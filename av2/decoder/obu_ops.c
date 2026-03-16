@@ -111,9 +111,6 @@ uint32_t av2_read_operating_point_set_obu(struct AV2Decoder *pbi,
     ops->ops_intent_present_flag = avm_rb_read_bit(rb);
     ops->ops_ptl_present_flag = avm_rb_read_bit(rb);
     ops->ops_color_info_present_flag = avm_rb_read_bit(rb);
-#if !CONFIG_CWG_G010
-    ops->ops_decoder_model_info_present_flag = avm_rb_read_bit(rb);
-#endif  // !CONFIG_CWG_G010
 
     if (obu_xlayer_id == GLOBAL_XLAYER_ID) {
       ops->ops_mlayer_info_idc = avm_rb_read_literal(rb, 2);
@@ -122,16 +119,9 @@ uint32_t av2_read_operating_point_set_obu(struct AV2Decoder *pbi,
             &pbi->common.error, AVM_CODEC_UNSUP_BITSTREAM,
             "value of ops_mlayer_info_idc should be smaller than 3.");
       }
-#if !CONFIG_CWG_G010
-      (void)avm_rb_read_literal(rb, 7);  // ops_reserved_7bits
-#endif                                   // !CONFIG_CWG_G010
     } else {
       ops->ops_mlayer_info_idc = 1;
-#if CONFIG_CWG_G010
       (void)avm_rb_read_literal(rb, 2);  // ops_reserved_2bits
-#else
-      (void)avm_rb_read_literal(rb, 9);  // ops_reserved_9bits
-#endif  // CONFIG_CWG_G010
     }
 
     for (int i = 0; i < ops->ops_cnt; i++) {
@@ -176,12 +166,8 @@ uint32_t av2_read_operating_point_set_obu(struct AV2Decoder *pbi,
         op->color_info.ops_matrix_coefficients = AVM_CICP_MC_UNSPECIFIED;
         op->color_info.ops_full_range_flag = 0;
       }
-#if CONFIG_CWG_G010
       op->ops_decoder_model_info_for_this_op_present_flag = avm_rb_read_bit(rb);
       if (op->ops_decoder_model_info_for_this_op_present_flag) {
-#else
-      if (ops->ops_decoder_model_info_present_flag) {
-#endif  // CONFIG_CWG_G010
         read_ops_decoder_model_info(&op->decoder_model_info, rb);
       }
       int ops_initial_display_delay_present_flag = avm_rb_read_bit(rb);
