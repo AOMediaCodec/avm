@@ -2702,10 +2702,11 @@ static avm_codec_err_t ctrl_set_enable_flag_multi_layer_lag_test(
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
-static avm_codec_err_t ctrl_set_add_sef_for_hidden_frames(avm_codec_alg_priv_t *ctx,
-                                           va_list args) {
+static avm_codec_err_t ctrl_set_add_sef_for_hidden_frames(
+    avm_codec_alg_priv_t *ctx, va_list args) {
   struct av2_extracfg extra_cfg = ctx->extra_cfg;
-  extra_cfg.add_sef_for_hidden_frames= CAST(AV2E_SET_ADD_SEF_FOR_HIDDEN_FRAMES, args);
+  extra_cfg.add_sef_for_hidden_frames =
+      CAST(AV2E_SET_ADD_SEF_FOR_HIDDEN_FRAMES, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
