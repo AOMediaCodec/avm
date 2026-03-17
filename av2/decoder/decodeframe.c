@@ -8487,6 +8487,14 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     }
   }
 
+  if (cm->immediate_output_picture == 0 &&
+      current_frame->refresh_frame_flags == 0) {
+    avm_internal_error(
+        &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+        "If immediate_output_frame is equal to 0, it is a requirement "
+        "of bitstream conformance that refresh_frame_flags is not equal to 0.");
+  }
+
   if (cm->is_leading_picture == 1) {
     // other obu_types cannot overwrite the slots OBU_OPEN_LOOP_KEY is stored
     for (int idx = 0; idx <= seq_params->max_mlayer_id; idx++) {
