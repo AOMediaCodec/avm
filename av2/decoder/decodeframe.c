@@ -7423,7 +7423,8 @@ void mark_reference_frames_with_long_term_ids(AV2Decoder *pbi) {
   for (int i = 0; i < cm->seq_params.ref_frames; i++) {
     pbi->valid_for_referencing[i] = 0;
     for (int j = 0; j < cm->num_ref_key_frames; j++) {
-      if (cm->ref_long_term_ids[j] == cm->ref_frame_map[i]->long_term_id)
+      if (cm->ref_frame_map[i] != NULL &&
+          cm->ref_long_term_ids[j] == cm->ref_frame_map[i]->long_term_id)
         pbi->valid_for_referencing[i] = 1;
     }
   }
