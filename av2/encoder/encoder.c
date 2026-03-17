@@ -4952,7 +4952,8 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
           cm->ref_frame_map[i]->is_restricted = true;
       }
 #if CONFIG_G041
-      // NOTE: the quantization matrices should be reset at {the first restricted switch frame.}
+      // NOTE: the quantization matrices should be reset at {the first
+      // restricted switch frame.}
       for (int qm_id = 0; qm_id < NUM_CUSTOM_QMS; qm_id++) {
         cpi->use_user_defined_qm[qm_id] = false;
       }
