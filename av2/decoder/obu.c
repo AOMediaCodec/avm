@@ -2693,6 +2693,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         pbi->seen_frame_header = 0;
         pbi->next_start_tile = 0;
         pbi->seen_vcl_obu_in_this_tu = 0;
+        pbi->this_is_first_vcl_obu_in_tu = 0;
         pbi->doh_tu_order_hint_bits_set = 0;
         for (int i = 0; i < NUM_CUSTOM_QMS; i++) pbi->qm_protected[i] = 0;
 
@@ -2706,6 +2707,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
             pbi->seen_frame_header = 0;
             pbi->next_start_tile = 0;
             pbi->seen_vcl_obu_in_this_tu = 0;
+            pbi->this_is_first_vcl_obu_in_tu = 0;
             pbi->doh_tu_order_hint_bits_set = 0;
             for (int i = 0; i < NUM_CUSTOM_QMS; i++) pbi->qm_protected[i] = 0;
           }

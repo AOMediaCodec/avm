@@ -390,6 +390,8 @@ typedef struct avm_image {
   int mlayer_id; /**< mlayer id of image */
   int xlayer_id; /**< xlayer id of image */
   int stream_id; /**< stream index [0..num_streams-1], -1 for global */
+  unsigned int
+      display_order_hint; /**< display order hint for output reordering */
 
   /*!\brief The following member may be set by the application to associate
    * data with this image.

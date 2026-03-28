@@ -1,0 +1,37 @@
+{
+  "comment": "Fast 2-embedded-layer config for debugging. Uses spatial scalability (1/2 + 1:1) with expensive coding tools disabled via codec_controls.",
+  "xlayers": [
+    {
+      "xlayer_id": 0,
+      "input": "texture_1080p.y4m",
+      "width": 416,
+      "height": 240,
+      "layer_type": "texture",
+      "num_embedded_layers": 2,
+      "scaling_mode": ["1/2", "1:1"],
+      "qp": 128,
+      "cpu_used": 9,
+      "lag_in_frames": 0,
+      "codec_controls": [
+        ["enable_deblocking", 0],
+        ["enable_cdef", 0],
+        ["enable_restoration", 0],
+        ["enable_tpl_model", 0],
+        ["enable_keyframe_filtering", 0],
+        ["enable_global_motion", 0],
+        ["enable_warped_motion", 0],
+        ["enable_intrabc", 0],
+        ["enable_palette", 0],
+        ["enable_interintra_comp", 0]
+      ]
+    }
+  ],
+  "global_lcr": {
+    "enable": true,
+    "purpose_id": 0,
+    "doh_constraint": true
+  },
+  "combined_tu": true,
+  "monotonic_output_order": true,
+  "output": "texture_2ml_fast.obu"
+}

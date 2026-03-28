@@ -1,0 +1,101 @@
+{
+  "xlayers": [
+    {
+      "xlayer_id": 0,
+      "input": "region_a.y4m",
+      "width": 960,
+      "height": 540,
+      "profile": 3,
+      "level": 12,
+      "tier": 0,
+      "layer_type": "texture",
+      "num_temporal_layers": 1,
+      "num_embedded_layers": 1,
+      "qp": 128,
+      "cpu_used": 5,
+      "atlas_pos_x": 0,
+      "atlas_pos_y": 0
+    },
+    {
+      "xlayer_id": 1,
+      "input": "region_b.y4m",
+      "width": 960,
+      "height": 540,
+      "profile": 3,
+      "level": 12,
+      "tier": 0,
+      "layer_type": "texture",
+      "num_temporal_layers": 1,
+      "num_embedded_layers": 1,
+      "qp": 128,
+      "cpu_used": 5,
+      "atlas_pos_x": 960,
+      "atlas_pos_y": 0
+    },
+    {
+      "xlayer_id": 2,
+      "input": "region_c.y4m",
+      "width": 960,
+      "height": 540,
+      "profile": 3,
+      "level": 12,
+      "tier": 0,
+      "layer_type": "texture",
+      "num_temporal_layers": 1,
+      "num_embedded_layers": 1,
+      "qp": 128,
+      "cpu_used": 5,
+      "atlas_pos_x": 0,
+      "atlas_pos_y": 540
+    }
+  ],
+  "global_lcr": {
+    "enable": true,
+    "purpose_id": 0,
+    "dependent_xlayers": false,
+    "doh_constraint": true
+  },
+  "msdo": {
+    "enable": false
+  },
+  "ops": [
+    {
+      "ops_id": 0,
+      "priority": 0,
+      "intent_present": true,
+      "ptl_present": true,
+      "operating_points": [
+        {
+          "intent": 0,
+          "xlayer_map": [0],
+          "comment": "OP0: region A only"
+        },
+        {
+          "intent": 0,
+          "xlayer_map": [1],
+          "comment": "OP1: region B only"
+        },
+        {
+          "intent": 0,
+          "xlayer_map": [2],
+          "comment": "OP2: region C only"
+        },
+        {
+          "intent": 1,
+          "xlayer_map": [0, 1, 2],
+          "comment": "OP3: full picture (all regions)"
+        }
+      ]
+    }
+  ],
+  "atlas": {
+    "enable": true,
+    "mode": 0,
+    "width": 1920,
+    "height": 1080,
+    "uniform_spacing": false
+  },
+  "combined_tu": true,
+  "monotonic_output_order": true,
+  "output": "subpicture_3region_muxed.obu"
+}

@@ -1,0 +1,26 @@
+{
+  "inputs": [
+    { "name": "video", "filename": "video.yuv", "width": 1920, "height": 1080 }
+  ],
+  "xlayers": [
+    { "xlayer_id": 0, "input_source": "video", "width": 960, "height": 540,
+      "atlas_pos_x": 0, "atlas_pos_y": 0,
+      "num_embedded_layers": 4,
+      "embedded_layers": [
+        { "scaling_mode": "1:1", "input_source": "video",
+          "atlas_pos_x": 0, "atlas_pos_y": 0, "width": 960, "height": 540,
+          "depends_on": [] },
+        { "scaling_mode": "1:1", "input_source": "video",
+          "atlas_pos_x": 960, "atlas_pos_y": 0, "width": 960, "height": 540,
+          "depends_on": [] },
+        { "scaling_mode": "1:1", "input_source": "video",
+          "atlas_pos_x": 0, "atlas_pos_y": 540, "width": 960, "height": 540,
+          "depends_on": [] },
+        { "scaling_mode": "1:1", "input_source": "video",
+          "atlas_pos_x": 960, "atlas_pos_y": 540, "width": 960, "height": 540,
+          "depends_on": [] }
+      ],
+      "qp": 128, "cpu_used": 5 }
+  ],
+  "output": "subpic_embedded.obu"
+}

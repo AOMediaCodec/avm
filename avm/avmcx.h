@@ -1262,6 +1262,57 @@ enum avme_enc_control_id {
    * when S-Frame encoding is enabled and sframe_mode is 0.
    */
   AV2E_SET_SFRAME_CONFORMANCE_OPTION = 187,
+
+  /*!\brief Codec control function to set obu_xlayer_id for multi-xlayer
+   * encoding, int parameter (0-30).
+   */
+  AVME_SET_XLAYER_ID = 188,
+
+  /*!\brief Codec control function to set mlayer_dependency_present_flag,
+   * unsigned int parameter (0 or 1).
+   */
+  AV2E_SET_MLAYER_DEPENDENCY_PRESENT = 189,
+
+  /*!\brief Codec control function to set mlayer dependency map for a given
+   * mlayer. Takes two parameters: mlayer index (unsigned int) and dependency
+   * bitmask (unsigned int). Bit j set means mlayer depends on mlayer j.
+   */
+  AV2E_SET_MLAYER_DEPENDENCY_MAP = 190,
+
+  /*!\brief Codec control function to enable intra-only forward keyframes.
+   *
+   * When enabled (and fwd_kf_enabled is true), forward keyframes are coded as
+   * INTRA_ONLY_FRAME instead of KEY_FRAME.  This enables open GOP with
+   * monotonic output: the hidden intra frame is shown via SEF, and reference
+   * buffers are not reset.
+   * int parameter.
+   */
+  AV2E_SET_INTRA_ONLY_FWD_KF = 191,
+
+  /*!\brief Codec control function to set per-mlayer color_primaries.
+   * Takes two parameters: mlayer index (unsigned int) and color_primaries
+   * value (unsigned int). Populates ci_params_per_layer[mlayer_idx].
+   */
+  AV2E_SET_MLAYER_COLOR_PRIMARIES = 192,
+
+  /*!\brief Codec control function to set per-mlayer transfer_characteristics.
+   * Takes two parameters: mlayer index (unsigned int) and
+   * transfer_characteristics value (unsigned int).
+   */
+  AV2E_SET_MLAYER_TRANSFER_CHARACTERISTICS = 193,
+
+  /*!\brief Codec control function to set per-mlayer matrix_coefficients.
+   * Takes two parameters: mlayer index (unsigned int) and
+   * matrix_coefficients value (unsigned int).
+   */
+  AV2E_SET_MLAYER_MATRIX_COEFFICIENTS = 194,
+
+  /*!\brief Codec control function to set per-mlayer color_range.
+   * Takes two parameters: mlayer index (unsigned int) and full_range_flag
+   * value (unsigned int, 0=limited, 1=full).
+   */
+  AV2E_SET_MLAYER_COLOR_RANGE = 195,
+
 };
 
 /*!\brief avm 1-D scaling mode
@@ -1795,6 +1846,13 @@ AVM_CTRL_USE_TYPE(AV2E_SET_FORCE_DEFERRED_FRAMES_FOR_RAS_TEST, int)
 
 AVM_CTRL_USE_TYPE(AV2E_SET_ENABLE_LOW_COMPLEXITY_DECODE, unsigned int)
 #define AVME_CTRL_AV2E_SET_ENABLE_LOW_COMPLEXITY_DECODE
+
+AVM_CTRL_USE_TYPE(AVME_SET_XLAYER_ID, int)
+#define AVM_CTRL_AVME_SET_XLAYER_ID
+
+AVM_CTRL_USE_TYPE(AV2E_SET_INTRA_ONLY_FWD_KF, int)
+#define AVME_CTRL_AV2E_SET_INTRA_ONLY_FWD_KF
+
 /*!\endcond */
 /*! @} - end defgroup avm_encoder */
 #ifdef __cplusplus

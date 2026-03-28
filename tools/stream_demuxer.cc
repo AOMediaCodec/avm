@@ -11,6 +11,45 @@
  */
 
 #include "tools/stream_mux.h"
+
+// Parse a Global LCR OBU to discover xlayer IDs.
+// Returns the number of xlayers found, or -1 on error.
+// stream_ids[] is populated with the xlayer IDs found in the LCR xlayer_map.
+static int read_global_lcr_xlayer_map(struct avm_read_bit_buffer *rb,
+                                      int *stream_ids) {
+  // lcr_is_global_flag
+  const int is_global = avm_rb_read_bit(rb);
+  if (!is_global) return -1;  // Not a global LCR
+
+  // lcr_global_config_record_id (LCR_ID_BITS = 3)
+  avm_rb_read_literal(rb, LCR_ID_BITS);
+
+  // lcr_xlayer_map (MAX_NUM_XLAYERS - 1 = 31 bits)
+  const uint32_t xlayer_map =
+      (uint32_t)avm_rb_read_literal(rb, MAX_NUM_XLAYERS - 1);
+
+  // Extract xlayer IDs from bitmask
+  int num_xlayers = 0;
+  for (int i = 0; i < (int)(MAX_NUM_XLAYERS - 1); i++) {
+    if (xlayer_map & (1u << i)) {
+      if (num_xlayers >= AVM_MAX_NUM_STREAMS) break;
+      stream_ids[num_xlayers] = i;
+      num_xlayers++;
+    }
+  }
+
+#if PRINT_TU_INFO
+  printf("\n==Parse Global LCR xlayer_map==\n");
+  printf("--xlayer_map: 0x%x\n", xlayer_map);
+  printf("--num_xlayers: %d\n", num_xlayers);
+  for (int i = 0; i < num_xlayers; i++) {
+    printf("--xlayer_id[%d]: %d\n", i, stream_ids[i]);
+  }
+#endif  // PRINT_TU_INFO
+
+  return num_xlayers;
+}
+
 // This function read a multi-stream decoder operation OBU.
 static int read_multi_stream_decoder_operation(struct avm_read_bit_buffer *rb,
                                                int *stream_ids) {
@@ -210,6 +249,20 @@ void ExtractTU(const uint8_t *data, int length, int *obu_overhead_bytes,
           data_ptr + obu_total_size + length_field_size);
       *num_streams = read_multi_stream_decoder_operation(&rb, stream_ids);
       per_stream_obus.resize(*num_streams);
+    } else if (obu_header.type == OBU_LAYER_CONFIGURATION_RECORD &&
+               obu_header.obu_header_extension_flag &&
+               obu_header.obu_xlayer_id == GLOBAL_XLAYER_ID &&
+               *num_streams <= 1) {
+      // Parse Global LCR to discover xlayer IDs (only if MSDO hasn't already
+      // set up streams — MSDO takes priority when both are present).
+      init_read_bit_buffer(
+          &rb, data_ptr + obu_header_size + static_cast<int>(length_field_size),
+          data_ptr + obu_total_size + length_field_size);
+      int lcr_num_streams = read_global_lcr_xlayer_map(&rb, stream_ids);
+      if (lcr_num_streams > 1) {
+        *num_streams = lcr_num_streams;
+        per_stream_obus.resize(*num_streams);
+      }
     } else {
       // Determine which stream this OBU belongs to.
       int xlayer_id = 0;

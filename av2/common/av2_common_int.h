@@ -2985,6 +2985,13 @@ typedef struct AV2Common {
    */
   int olk_refresh_frame_flags[MAX_NUM_MLAYERS];
   /*!
+   * Refresh frame flags of a hidden intra forward keyframe (intra_only_fwd_kf)
+   * per layer.  Used by the encoder to protect the hidden intra's DPB slot
+   * from being overwritten by subsequent pyramid frames.  Initialized to -1
+   * (unset).  Not used by the decoder.
+   */
+  int fwd_intra_refresh_frame_flags[MAX_NUM_MLAYERS];
+  /*!
    * Accumulated refresh_frame_flags of regular VCL OBUs co-signalled with an
    * OLK in the same temporal unit, per mlayer. Initialized to -1 (unset).
    */
@@ -3377,6 +3384,16 @@ static INLINE void close_switch_risk_windows(AV2_COMMON *const cm) {
 // OBU_SWITCH frame, with no random access point in between.
 static INLINE bool in_switch_risk_window(const AV2_COMMON *const cm) {
   return cm->switch_risk_window[cm->mlayer_id][cm->tlayer_id];
+}
+
+// Returns true if mlayer `layer_id` does not depend on any other mlayer,
+// i.e. mlayer_dependency_map[layer_id][j] == 0 for all j != layer_id.
+static INLINE int is_mlayer_independent(const SequenceHeader *const seq,
+                                        const int layer_id) {
+  for (int j = 0; j <= seq->max_mlayer_id; j++) {
+    if (j != layer_id && seq->mlayer_dependency_map[layer_id][j] != 0) return 0;
+  }
+  return 1;
 }
 
 static INLINE void get_secondary_reference_frame_idx(const AV2_COMMON *const cm,

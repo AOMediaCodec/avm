@@ -45,12 +45,66 @@
 
 #include "common/rawenc.h"
 #include "common/y4menc.h"
+#include "common/xlayer_config.h"
+#include "common/xlayer_config_parse.h"
 
 #if CONFIG_LIBYUV
 #include "third_party/libyuv/include/libyuv/scale.h"
 #endif
 
 static const char *exec_name;
+
+// Buffered frame for flush reordering in interleaved output mode.
+typedef struct FlushFrame {
+  avm_image_t *img;         // Allocated deep copy of the decoded image
+  unsigned int order_hint;  // display_order_hint for sorting
+  int xlayer_id;
+  int mlayer_id;
+} FlushFrame;
+
+static int compare_flush_frames(const void *a, const void *b) {
+  const FlushFrame *fa = (const FlushFrame *)a;
+  const FlushFrame *fb = (const FlushFrame *)b;
+  if (fa->order_hint != fb->order_hint)
+    return (fa->order_hint < fb->order_hint) ? -1 : 1;
+  if (fa->xlayer_id != fb->xlayer_id)
+    return (fa->xlayer_id < fb->xlayer_id) ? -1 : 1;
+  if (fa->mlayer_id != fb->mlayer_id)
+    return (fa->mlayer_id < fb->mlayer_id) ? -1 : 1;
+  return 0;
+}
+
+// Deep-copy an avm_image_t: allocate a new image and copy pixel data.
+static avm_image_t *deep_copy_image(const avm_image_t *src) {
+  avm_image_t *dst = avm_img_alloc(NULL, src->fmt, src->d_w, src->d_h, 32);
+  if (!dst) return NULL;
+  dst->bit_depth = src->bit_depth;
+  dst->monochrome = src->monochrome;
+  dst->csp = src->csp;
+  dst->range = src->range;
+  dst->cp = src->cp;
+  dst->tc = src->tc;
+  dst->mc = src->mc;
+  dst->tlayer_id = src->tlayer_id;
+  dst->mlayer_id = src->mlayer_id;
+  dst->xlayer_id = src->xlayer_id;
+  dst->stream_id = src->stream_id;
+  dst->display_order_hint = src->display_order_hint;
+  int num_planes = src->monochrome ? 1 : 3;
+  for (int p = 0; p < num_planes; p++) {
+    int h = avm_img_plane_height(src, p);
+    int w = avm_img_plane_width(src, p);
+    int bps = (src->fmt & AVM_IMG_FMT_HIGHBITDEPTH) ? 2 : 1;
+    const unsigned char *s = src->planes[p];
+    unsigned char *d = dst->planes[p];
+    for (int row = 0; row < h; row++) {
+      memcpy(d, s, (size_t)w * bps);
+      s += src->stride[p];
+      d += dst->stride[p];
+    }
+  }
+  return dst;
+}
 
 #if CONFIG_PARAKIT_COLLECT_DATA
 #include "av2/common/entropy_sideinfo.h"
@@ -136,6 +190,12 @@ static const arg_def_t bruoptmodearg =
     ARG_DEF(NULL, "bru-opt-mode", 0, "Use BRU optimized decode mode");
 static const arg_def_t icc_file =
     ARG_DEF(NULL, "icc", 1, "Output ICC profile file");
+static const arg_def_t xlayercfgarg = ARG_DEF(
+    NULL, "xlayer-config", 1,
+    "Multi-xlayer JSON config (provides atlas layout for --atlas-composite)");
+static const arg_def_t atlascompositearg = ARG_DEF(
+    NULL, "atlas-composite", 0,
+    "Composite decoded xlayers onto atlas canvas (requires --xlayer-config)");
 static const arg_def_t *all_args[] = { &help,
                                        &codecarg,
                                        &use_yv12,
@@ -169,6 +229,8 @@ static const arg_def_t *all_args[] = { &help,
                                        &randomaccess,
                                        &bruoptmodearg,
                                        &icc_file,
+                                       &xlayercfgarg,
+                                       &atlascompositearg,
                                        NULL };
 
 #if CONFIG_LANCZOS_RESAMPLE
@@ -643,6 +705,104 @@ static FILE *open_outfile(const char *name) {
   }
 }
 
+// Dynamic composite groups derived from LCR layer properties.
+// Each unique (layer_type, auxiliary_type, view_type) combination
+// produces a separate composite output. Layers within a group must
+// share the same chroma format; mixed chroma forces separate outputs.
+// Mixed bit depth is handled by promoting to the highest bit depth.
+typedef struct CompositeGroup {
+  int layer_type;      // TEXTURE_LAYER, AUX_LAYER, etc.
+  int auxiliary_type;  // only meaningful when layer_type == AUX_LAYER
+  int view_type;       // VIEW_UNSPECIFIED, VIEW_CENTER, VIEW_LEFT, etc.
+  int num_xlayers;     // how many xlayers belong to this group
+  int xlayer_ids[MAX_NUM_XLAYERS];      // xlayer_ids in this group
+  int xlayer_indices[MAX_NUM_XLAYERS];  // indices into xlayer_cfg.xlayers[]
+                                        // (-1 if from decoder query)
+  avm_image_t *canvas;
+  FILE *outfile_cg;
+  int layers_placed;  // reset each frame
+  int frame_count;
+  int mixed_chroma;            // 1 if layers have different chroma formats
+  unsigned int max_bit_depth;  // highest bit depth among layers in group
+  char label[128];             // human-readable label for stderr
+} CompositeGroup;
+
+static const char *comp_layer_type_names[] = { "texture", "auxiliary", "stereo",
+                                               "dependent" };
+static const char *comp_aux_type_names[] = { "alpha", "depth", "segmentation",
+                                             "gain_map" };
+static const char *comp_view_type_names[] = { "unspecified", "center", "left",
+                                              "right", "explicit" };
+
+// Build composite groups from arrays of per-xlayer properties.
+// Allocates comp_groups and fills *out_groups / *out_num_groups.
+// xlayer_ids[], layer_types[], aux_types[], view_types[] are parallel arrays
+// of length num_xlayers. config_indices[] provides the JSON config index for
+// each xlayer (-1 if built from decoder query).
+static void build_composite_groups(int num_xlayers, const int *xlayer_ids,
+                                   const int *layer_types, const int *aux_types,
+                                   const int *view_types,
+                                   const int *config_indices,
+                                   CompositeGroup **out_groups,
+                                   int *out_num_groups) {
+  CompositeGroup *groups =
+      (CompositeGroup *)calloc(num_xlayers, sizeof(CompositeGroup));
+  int num_groups = 0;
+
+  for (int i = 0; i < num_xlayers; i++) {
+    int lt = layer_types[i];
+    int at = aux_types[i];
+    int vt = view_types[i];
+    // Find existing group or create new
+    int gidx = -1;
+    for (int g = 0; g < num_groups; g++) {
+      if (groups[g].layer_type == lt && groups[g].auxiliary_type == at &&
+          groups[g].view_type == vt) {
+        gidx = g;
+        break;
+      }
+    }
+    if (gidx < 0) {
+      gidx = num_groups++;
+      groups[gidx].layer_type = lt;
+      groups[gidx].auxiliary_type = at;
+      groups[gidx].view_type = vt;
+      groups[gidx].num_xlayers = 0;
+      groups[gidx].canvas = NULL;
+      groups[gidx].outfile_cg = NULL;
+      groups[gidx].layers_placed = 0;
+      groups[gidx].frame_count = 0;
+    }
+    int k = groups[gidx].num_xlayers++;
+    groups[gidx].xlayer_ids[k] = xlayer_ids[i];
+    groups[gidx].xlayer_indices[k] = config_indices ? config_indices[i] : -1;
+  }
+
+  // Build labels and report
+  fprintf(stderr, "Atlas composite: %d output group(s)\n", num_groups);
+  for (int g = 0; g < num_groups; g++) {
+    CompositeGroup *cg = &groups[g];
+    const char *lt_name = (cg->layer_type >= 0 && cg->layer_type < 4)
+                              ? comp_layer_type_names[cg->layer_type]
+                              : "unknown";
+    const char *vt_name = (cg->view_type >= 0 && cg->view_type < 5)
+                              ? comp_view_type_names[cg->view_type]
+                              : "unknown";
+    if (cg->layer_type == AUX_LAYER && cg->auxiliary_type >= 0 &&
+        cg->auxiliary_type < 4) {
+      snprintf(cg->label, sizeof(cg->label), "%s_%s_%s",
+               comp_aux_type_names[cg->auxiliary_type], lt_name, vt_name);
+    } else {
+      snprintf(cg->label, sizeof(cg->label), "%s_%s", lt_name, vt_name);
+    }
+    fprintf(stderr, "  group %d [%s]: %d xlayer(s)\n", g, cg->label,
+            cg->num_xlayers);
+  }
+
+  *out_groups = groups;
+  *out_num_groups = num_groups;
+}
+
 static int main_loop(int argc, const char **argv_) {
   avm_codec_ctx_t decoder;
   char *fn = NULL;
@@ -679,6 +839,15 @@ static int main_loop(int argc, const char **argv_) {
   int num_local_ops_selections = 0;
   int output_all_layers = 0;
   int skip_film_grain = 0;
+  int atlas_composite = 0;
+  char xlayer_config_path[PATH_MAX] = { 0 };
+  MultiXLayerConfig xlayer_cfg;
+
+  CompositeGroup *comp_groups = NULL;
+  int num_comp_groups = 0;
+  int comp_groups_built = 0;
+  avm_atlas_info_t dec_atlas_info;
+  memset(&dec_atlas_info, 0, sizeof(dec_atlas_info));
   int random_access_point_index = 0;
   int bru_opt_mode = 0;
   avm_image_t *scaled_img = NULL;
@@ -686,6 +855,12 @@ static int main_loop(int argc, const char **argv_) {
   int frame_avail, got_data, flush_decoder = 0;
   int num_external_frame_buffers = 0;
   struct ExternalFrameBufferList ext_fb_list = { 0, NULL };
+  int is_monotonic_output = -1;  // -1 = unknown, 0/1 from bitstream
+
+  // Flush reordering buffer for interleaved single-file output
+  FlushFrame *flush_buf = NULL;
+  int flush_buf_count = 0;
+  int flush_buf_capacity = 0;
 
   const char *outfile_pattern = NULL;
   char outfile_name[PATH_MAX] = { 0 };
@@ -709,6 +884,7 @@ static int main_loop(int argc, const char **argv_) {
   FILE *outfile_substream[AVM_MAX_NUM_STREAMS] = { NULL };
 
   int substream_frame_out[AVM_MAX_NUM_STREAMS] = { 0 };
+  int total_decode_errors = 0;
   FILE *framestats_file = NULL;
 
   FILE *icc_f = NULL;
@@ -876,6 +1052,10 @@ static int main_loop(int argc, const char **argv_) {
       bru_opt_mode = 1;
     } else if (arg_match(&arg, &icc_file, argi)) {
       icc_f = fopen(arg.val, "wb");
+    } else if (arg_match(&arg, &xlayercfgarg, argi)) {
+      snprintf(xlayer_config_path, PATH_MAX, "%s", arg.val);
+    } else if (arg_match(&arg, &atlascompositearg, argi)) {
+      atlas_composite = 1;
     } else {
       argj++;
     }
@@ -888,6 +1068,38 @@ static int main_loop(int argc, const char **argv_) {
 
   /* Handle non-option arguments */
   fn = argv[0];
+
+  // Atlas composite setup
+  xlayer_config_init(&xlayer_cfg);
+  if (atlas_composite) {
+    output_all_layers = 1;  // implicitly enable all-layers output
+  }
+  // Default to keep-going mode for multi-xlayer decoding
+  if (output_all_layers && !keep_going) {
+    keep_going = 1;
+  }
+  if (xlayer_config_path[0] != '\0') {
+    if (parse_multi_xlayer_config(xlayer_config_path, &xlayer_cfg) != 0) {
+      die("Error: failed to parse xlayer config \"%s\"\n", xlayer_config_path);
+    }
+    // Build composite groups eagerly from JSON config
+    if (atlas_composite && xlayer_cfg.enable_atlas) {
+      int xlids[MAX_NUM_XLAYERS], lts[MAX_NUM_XLAYERS];
+      int ats[MAX_NUM_XLAYERS], vts[MAX_NUM_XLAYERS];
+      int idxs[MAX_NUM_XLAYERS];
+      for (int xi = 0; xi < xlayer_cfg.num_xlayers; xi++) {
+        const XLayerEncConfig *xl = &xlayer_cfg.xlayers[xi];
+        xlids[xi] = xl->xlayer_id;
+        lts[xi] = xl->layer_type;
+        ats[xi] = (xl->layer_type == AUX_LAYER) ? xl->auxiliary_type : -1;
+        vts[xi] = xl->view_type;
+        idxs[xi] = xi;
+      }
+      build_composite_groups(xlayer_cfg.num_xlayers, xlids, lts, ats, vts, idxs,
+                             &comp_groups, &num_comp_groups);
+      comp_groups_built = 1;
+    }
+  }
 
   if (!fn) {
     free(argv);
@@ -954,6 +1166,28 @@ static int main_loop(int argc, const char **argv_) {
       } else {
         outfile = open_outfile(outfile_name);
       }
+    }
+    // Open per-group output files for atlas composite (JSON path only;
+    // decoder-query path opens files in the deferred block)
+    if (atlas_composite && comp_groups_built && num_comp_groups > 1) {
+      for (int g = 0; g < num_comp_groups; g++) {
+        char group_name[PATH_MAX + 128] = { 0 };
+        // Insert group label before extension
+        const char *dot = strrchr(outfile_name, '.');
+        if (dot) {
+          size_t base_len = (size_t)(dot - outfile_name);
+          snprintf(group_name, sizeof(group_name), "%.*s_%s%s", (int)base_len,
+                   outfile_name, comp_groups[g].label, dot);
+        } else {
+          snprintf(group_name, sizeof(group_name), "%s_%s", outfile_name,
+                   comp_groups[g].label);
+        }
+        comp_groups[g].outfile_cg = open_outfile(group_name);
+        fprintf(stderr, "  group %d output: %s\n", g, group_name);
+      }
+    } else if (atlas_composite && comp_groups_built && num_comp_groups == 1) {
+      // Single group: reuse the main outfile
+      comp_groups[0].outfile_cg = outfile;
     }
   }
 
@@ -1102,6 +1336,7 @@ static int main_loop(int argc, const char **argv_) {
                avm_codec_error(&decoder));
 
           if (detail) warn("Additional information: %s", detail);
+          total_decode_errors++;
           if (!keep_going) goto fail;
         }
 
@@ -1136,6 +1371,68 @@ static int main_loop(int argc, const char **argv_) {
     dx_time += avm_usec_timer_elapsed(&timer);
 
     got_data = 0;
+
+    // Deferred composite group building from decoder LCR/Atlas info
+    if (atlas_composite && !comp_groups_built) {
+      avm_lcr_info_t lcr_info;
+      memset(&lcr_info, 0, sizeof(lcr_info));
+      memset(&dec_atlas_info, 0, sizeof(dec_atlas_info));
+
+      int have_lcr = !AVM_CODEC_CONTROL_TYPECHECKED(&decoder, AV2D_GET_LCR_INFO,
+                                                    &lcr_info);
+      int have_atlas = !AVM_CODEC_CONTROL_TYPECHECKED(
+          &decoder, AV2D_GET_ATLAS_INFO, &dec_atlas_info);
+
+      if (have_lcr && lcr_info.num_xlayers > 0) {
+        int xlids[31], lts[31], ats_arr[31], vts[31];
+        for (int li = 0; li < lcr_info.num_xlayers; li++) {
+          xlids[li] = lcr_info.xlayers[li].xlayer_id;
+          lts[li] = lcr_info.xlayers[li].layer_type;
+          ats_arr[li] = lcr_info.xlayers[li].auxiliary_type;
+          vts[li] = lcr_info.xlayers[li].view_type;
+        }
+        build_composite_groups(lcr_info.num_xlayers, xlids, lts, ats_arr, vts,
+                               NULL, &comp_groups, &num_comp_groups);
+        comp_groups_built = 1;
+
+        if (have_atlas && dec_atlas_info.num_segments > 0) {
+          fprintf(stderr,
+                  "Atlas info from bitstream: %dx%d canvas, %d segment(s)\n",
+                  dec_atlas_info.atlas_width, dec_atlas_info.atlas_height,
+                  dec_atlas_info.num_segments);
+        }
+
+        // Open per-group output files
+        if (!noblit && single_file && outfile_pattern) {
+          if (num_comp_groups > 1) {
+            for (int g = 0; g < num_comp_groups; g++) {
+              char group_name[PATH_MAX + 128] = { 0 };
+              const char *dot = strrchr(outfile_name, '.');
+              if (dot) {
+                size_t base_len = (size_t)(dot - outfile_name);
+                snprintf(group_name, sizeof(group_name), "%.*s_%s%s",
+                         (int)base_len, outfile_name, comp_groups[g].label,
+                         dot);
+              } else {
+                snprintf(group_name, sizeof(group_name), "%s_%s", outfile_name,
+                         comp_groups[g].label);
+              }
+              comp_groups[g].outfile_cg = open_outfile(group_name);
+              fprintf(stderr, "  group %d output: %s\n", g, group_name);
+            }
+          } else if (num_comp_groups == 1) {
+            comp_groups[0].outfile_cg = outfile;
+          }
+        }
+      } else {
+        // No LCR info available — atlas composite not possible
+        fprintf(stderr,
+                "Warning: no LCR info in bitstream, atlas composite disabled. "
+                "Falling back to per-layer output.\n");
+        atlas_composite = 0;
+      }
+    }
+
     while ((img = avm_codec_get_frame(&decoder, &iter))) {
       // frame_out does not include hidden frames.
       ++frame_out;
@@ -1143,6 +1440,17 @@ static int main_loop(int argc, const char **argv_) {
         frame_in = frame_out;
       }
       if (!flush_decoder) got_data = 1;
+
+      // Query monotonic_output_order_flag lazily on first output frame
+      if (is_monotonic_output < 0) {
+        unsigned int mono_flag = 0;
+        if (!AVM_CODEC_CONTROL_TYPECHECKED(
+                &decoder, AV2D_GET_MONOTONIC_OUTPUT_ORDER, &mono_flag)) {
+          is_monotonic_output = (int)mono_flag;
+        } else {
+          is_monotonic_output = 1;  // assume monotonic if unknown
+        }
+      }
 
       if (AVM_CODEC_CONTROL_TYPECHECKED(&decoder, AVMD_GET_FRAME_CORRUPTED,
                                         &corrupted)) {
@@ -1180,6 +1488,235 @@ static int main_loop(int argc, const char **argv_) {
         const int PLANES_YUV[] = { AVM_PLANE_Y, AVM_PLANE_U, AVM_PLANE_V };
         const int PLANES_YVU[] = { AVM_PLANE_Y, AVM_PLANE_V, AVM_PLANE_U };
         const int *planes = flipuv ? PLANES_YVU : PLANES_YUV;
+
+        // Buffer frames for interleaved single-file output so they can
+        // be sorted by display order before writing.  Non-monotonic
+        // output from the decoder can interleave xlayers out of display
+        // order even during normal decode (not just flush).
+        if (!is_monotonic_output && output_all_layers && num_streams == 1 &&
+            single_file && !do_md5 && !atlas_composite) {
+          if (flush_buf_count >= flush_buf_capacity) {
+            int new_cap = flush_buf_capacity ? flush_buf_capacity * 2 : 64;
+            FlushFrame *new_buf = (FlushFrame *)realloc(
+                flush_buf, (size_t)new_cap * sizeof(FlushFrame));
+            if (!new_buf) {
+              warn("Failed to allocate flush reorder buffer");
+              goto fail;
+            }
+            flush_buf = new_buf;
+            flush_buf_capacity = new_cap;
+          }
+          FlushFrame *ff = &flush_buf[flush_buf_count];
+          ff->img = deep_copy_image(img);
+          if (!ff->img) {
+            warn("Failed to copy flush frame");
+            goto fail;
+          }
+          ff->order_hint = img->display_order_hint;
+          ff->xlayer_id = img->xlayer_id;
+          ff->mlayer_id = img->mlayer_id;
+          flush_buf_count++;
+          continue;
+        }
+
+        // Atlas composite mode: place decoded xlayer into its group's canvas
+        if (atlas_composite && comp_groups_built) {
+          int xlid = img->xlayer_id;
+
+          // Find this xlayer's composite group by xlayer_id
+          int gidx = -1;
+          for (int g = 0; g < num_comp_groups; g++) {
+            for (int k = 0; k < comp_groups[g].num_xlayers; k++) {
+              if (comp_groups[g].xlayer_ids[k] == xlid) {
+                gidx = g;
+                break;
+              }
+            }
+            if (gidx >= 0) break;
+          }
+          if (gidx < 0) {
+            fprintf(stderr,
+                    "Warning: decoded xlayer_id %d not in any composite group, "
+                    "skipping\n",
+                    xlid);
+            continue;
+          }
+
+          CompositeGroup *cg = &comp_groups[gidx];
+
+          // Allocate this group's canvas on first use
+          if (!cg->canvas) {
+            unsigned int cw = img->d_w;
+            unsigned int ch = img->d_h;
+            // Prefer atlas info from decoder, then JSON config
+            if (dec_atlas_info.atlas_width > 0 &&
+                dec_atlas_info.atlas_height > 0) {
+              cw = (unsigned int)dec_atlas_info.atlas_width;
+              ch = (unsigned int)dec_atlas_info.atlas_height;
+            } else if (xlayer_cfg.atlas_width > 0 &&
+                       xlayer_cfg.atlas_height > 0) {
+              cw = (unsigned int)xlayer_cfg.atlas_width;
+              ch = (unsigned int)xlayer_cfg.atlas_height;
+            }
+            cg->max_bit_depth = img->bit_depth;
+            cg->canvas = avm_img_alloc(NULL, img->fmt, cw, ch, 32);
+            if (!cg->canvas) {
+              die("Error: failed to allocate composite canvas %ux%u for "
+                  "group %d [%s]\n",
+                  cw, ch, gidx, cg->label);
+            }
+            cg->canvas->bit_depth = img->bit_depth;
+            cg->canvas->monochrome = img->monochrome;
+            cg->canvas->csp = img->csp;
+            cg->canvas->range = img->range;
+            for (int p = 0; p < 3; p++) {
+              unsigned int ph = avm_img_plane_height(cg->canvas, p);
+              memset(cg->canvas->planes[p], 0,
+                     (size_t)cg->canvas->stride[p] * ph);
+            }
+          }
+
+          // Check chroma format compatibility
+          if (img->x_chroma_shift != cg->canvas->x_chroma_shift ||
+              img->y_chroma_shift != cg->canvas->y_chroma_shift) {
+            if (!cg->mixed_chroma) {
+              cg->mixed_chroma = 1;
+              fprintf(stderr,
+                      "Warning: group %d [%s] has mixed chroma formats — "
+                      "compositing disabled for this group. Use per-layer "
+                      "output (--all-layers --num-streams) instead.\n",
+                      gidx, cg->label);
+            }
+            // Fall through to normal output path (don't continue)
+          } else {
+            // Handle bit-depth mismatch: promote to highest
+            unsigned int canvas_bd = cg->canvas->bit_depth;
+            unsigned int frame_bd = img->bit_depth;
+            if (frame_bd > cg->max_bit_depth) cg->max_bit_depth = frame_bd;
+
+            // Get atlas position for this xlayer.
+            // Try decoder atlas info first, then JSON config fallback.
+            int pos_x = 0, pos_y = 0;
+            int found_pos = 0;
+            if (dec_atlas_info.num_segments > 0) {
+              for (int s = 0; s < dec_atlas_info.num_segments; s++) {
+                if (dec_atlas_info.segments[s].xlayer_id == xlid) {
+                  pos_x = dec_atlas_info.segments[s].pos_x;
+                  pos_y = dec_atlas_info.segments[s].pos_y;
+                  found_pos = 1;
+                  break;
+                }
+              }
+            }
+            if (!found_pos && xlayer_config_path[0] != '\0') {
+              for (int xi = 0; xi < xlayer_cfg.num_xlayers; xi++) {
+                if (xlayer_cfg.xlayers[xi].xlayer_id == xlid) {
+                  pos_x = xlayer_cfg.xlayers[xi].atlas_pos_x >= 0
+                              ? xlayer_cfg.xlayers[xi].atlas_pos_x
+                              : 0;
+                  pos_y = xlayer_cfg.xlayers[xi].atlas_pos_y >= 0
+                              ? xlayer_cfg.xlayers[xi].atlas_pos_y
+                              : 0;
+                  break;
+                }
+              }
+            }
+            int canvas_bps =
+                (cg->canvas->fmt & AVM_IMG_FMT_HIGHBITDEPTH) ? 2 : 1;
+            int frame_bps = (img->fmt & AVM_IMG_FMT_HIGHBITDEPTH) ? 2 : 1;
+            int shift = (int)canvas_bd - (int)frame_bd;
+
+            for (int p = 0; p < 3; p++) {
+              int px = pos_x, py = pos_y;
+              unsigned int pw = img->d_w, ph = img->d_h;
+              if (p > 0) {
+                px >>= (int)img->x_chroma_shift;
+                py >>= (int)img->y_chroma_shift;
+                pw >>= img->x_chroma_shift;
+                ph >>= img->y_chroma_shift;
+              }
+              const unsigned char *src_row = img->planes[p];
+              unsigned char *dst_row = cg->canvas->planes[p] +
+                                       py * cg->canvas->stride[p] +
+                                       px * canvas_bps;
+
+              if (shift == 0 && canvas_bps == frame_bps) {
+                // Same bit depth: direct memcpy
+                unsigned int row_bytes = pw * (unsigned int)canvas_bps;
+                for (unsigned int row = 0; row < ph; row++) {
+                  memcpy(dst_row, src_row, row_bytes);
+                  src_row += img->stride[p];
+                  dst_row += cg->canvas->stride[p];
+                }
+              } else if (canvas_bps == 2 && frame_bps == 2 && shift > 0) {
+                // Both 16-bit, canvas higher: shift up
+                for (unsigned int row = 0; row < ph; row++) {
+                  const uint16_t *s = (const uint16_t *)src_row;
+                  uint16_t *d = (uint16_t *)dst_row;
+                  for (unsigned int col = 0; col < pw; col++)
+                    d[col] = (uint16_t)(s[col] << shift);
+                  src_row += img->stride[p];
+                  dst_row += cg->canvas->stride[p];
+                }
+              } else if (canvas_bps == 2 && frame_bps == 1) {
+                // 8-bit frame into 16-bit canvas
+                int total_shift = (int)canvas_bd - 8;
+                for (unsigned int row = 0; row < ph; row++) {
+                  uint16_t *d = (uint16_t *)dst_row;
+                  for (unsigned int col = 0; col < pw; col++)
+                    d[col] =
+                        (uint16_t)((unsigned int)src_row[col] << total_shift);
+                  src_row += img->stride[p];
+                  dst_row += cg->canvas->stride[p];
+                }
+              } else {
+                // Fallback: direct copy (same bps, shift <= 0 = truncate)
+                unsigned int row_bytes = pw * (unsigned int)frame_bps;
+                if ((unsigned int)canvas_bps < (unsigned int)frame_bps)
+                  row_bytes = pw * (unsigned int)canvas_bps;
+                for (unsigned int row = 0; row < ph; row++) {
+                  memcpy(dst_row, src_row, row_bytes);
+                  src_row += img->stride[p];
+                  dst_row += cg->canvas->stride[p];
+                }
+              }
+            }
+
+            // Output composite when all xlayers for this group are placed
+            cg->layers_placed++;
+            if (cg->layers_placed >= cg->num_xlayers) {
+              cg->layers_placed = 0;
+              cg->frame_count++;
+              FILE *cg_out = cg->outfile_cg;
+              if (cg_out && single_file) {
+                avm_image_t *cimg = cg->canvas;
+                int num_planes_out = (opt_raw && cimg->monochrome) ? 1 : 3;
+                if (use_y4m) {
+                  char y4m_buf[Y4M_BUFFER_SIZE] = { 0 };
+                  if (cg->frame_count == 1) {
+                    y4m_write_file_header(
+                        y4m_buf, sizeof(y4m_buf), cimg->d_w, cimg->d_h,
+                        &avm_input_ctx.framerate, cimg->monochrome, cimg->csp,
+                        cimg->fmt, cimg->bit_depth, cimg->range);
+                    fputs(y4m_buf, cg_out);
+                  }
+                  y4m_write_frame_header(y4m_buf, sizeof(y4m_buf));
+                  fputs(y4m_buf, cg_out);
+                  y4m_write_image_file(cimg, planes, cg_out);
+                } else {
+                  raw_write_image_file(cimg, planes, num_planes_out, cg_out);
+                }
+              }
+              // Zero-fill canvas for next frame
+              for (int p = 0; p < 3; p++) {
+                unsigned int ph = avm_img_plane_height(cg->canvas, p);
+                memset(cg->canvas->planes[p], 0,
+                       (size_t)cg->canvas->stride[p] * ph);
+              }
+            }
+            continue;  // skip normal output path
+          }
+        }
 
         if (do_scale) {
           if (frame_out == 1) {
@@ -1375,9 +1912,78 @@ static int main_loop(int argc, const char **argv_) {
     }
   }
 
+  // Write buffered frames in display order for interleaved output
+  if (flush_buf_count > 0) {
+    qsort(flush_buf, (size_t)flush_buf_count, sizeof(FlushFrame),
+          compare_flush_frames);
+    const int PLANES_YUV[] = { AVM_PLANE_Y, AVM_PLANE_U, AVM_PLANE_V };
+    const int PLANES_YVU[] = { AVM_PLANE_Y, AVM_PLANE_V, AVM_PLANE_U };
+    const int *planes = flipuv ? PLANES_YVU : PLANES_YUV;
+    for (int fi = 0; fi < flush_buf_count; fi++) {
+      avm_image_t *fimg = flush_buf[fi].img;
+      unsigned int output_bit_depth;
+      if (!fixed_output_bit_depth && single_file) {
+        output_bit_depth = fimg->bit_depth;
+      } else {
+        output_bit_depth = fixed_output_bit_depth;
+      }
+      if (output_bit_depth != 0)
+        avm_shift_img(output_bit_depth, &fimg, &img_shifted);
+
+      if (use_y4m) {
+        char y4m_buf[Y4M_BUFFER_SIZE] = { 0 };
+        if (fi == 0) {
+          // Write y4m file header for the first sorted frame
+          y4m_write_file_header(y4m_buf, sizeof(y4m_buf), fimg->d_w, fimg->d_h,
+                                &avm_input_ctx.framerate, fimg->monochrome,
+                                fimg->csp, fimg->fmt, fimg->bit_depth,
+                                fimg->range);
+          fputs(y4m_buf, outfile);
+        }
+        y4m_write_frame_header(y4m_buf, sizeof(y4m_buf));
+        fputs(y4m_buf, outfile);
+        y4m_write_image_file(fimg, planes, outfile);
+      } else {
+        int num_planes = (opt_raw && fimg->monochrome) ? 1 : 3;
+        raw_write_image_file(fimg, planes, num_planes, outfile);
+      }
+      avm_img_free(flush_buf[fi].img);
+    }
+    // frame_out was already incremented in the main loop for each
+    // buffered frame, so don't add flush_buf_count again.
+    free(flush_buf);
+    flush_buf = NULL;
+    flush_buf_count = 0;
+  }
+
   if (summary || progress) {
     show_progress(frame_in, frame_out, dx_time);
     fprintf(stderr, "\n");
+  }
+
+  // Output summary report
+  if (!noblit && outfile_pattern && strcmp(outfile_pattern, "-") != 0) {
+    fprintf(stderr, "\nDecode complete:\n");
+    if (atlas_composite && comp_groups_built) {
+      for (int g = 0; g < num_comp_groups; g++) {
+        fprintf(stderr, "  Output: %s (%d frames)\n", comp_groups[g].label,
+                comp_groups[g].frame_count);
+      }
+    } else if (num_streams > 1) {
+      for (int sub = 0; sub < num_streams; sub++) {
+        char outfile_substream_name[PATH_MAX] = { 0 };
+        add_postfix_stream_id(outfile_name, outfile_substream_name, sub);
+        fprintf(stderr, "  Output: %s (%d frames)\n", outfile_substream_name,
+                substream_frame_out[sub]);
+      }
+    } else {
+      fprintf(stderr, "  Output: %s (%d frames)\n", outfile_name, frame_out);
+    }
+    if (total_decode_errors > 0) {
+      fprintf(stderr, "  Errors: %d\n", total_decode_errors);
+    } else {
+      fprintf(stderr, "  Errors: 0\n");
+    }
   }
 
   if (frames_corrupted) {
@@ -1387,6 +1993,14 @@ static int main_loop(int argc, const char **argv_) {
   }
 
 fail:
+
+  // Clean up flush buffer if we exited early
+  if (flush_buf) {
+    for (int fi = 0; fi < flush_buf_count; fi++) {
+      if (flush_buf[fi].img) avm_img_free(flush_buf[fi].img);
+    }
+    free(flush_buf);
+  }
 
   if (avm_codec_destroy(&decoder)) {
     fprintf(stderr, "Failed to destroy decoder: %s\n",
@@ -1433,6 +2047,15 @@ fail2:
 
   if (scaled_img) avm_img_free(scaled_img);
   if (img_shifted) avm_img_free(img_shifted);
+  if (comp_groups) {
+    for (int g = 0; g < num_comp_groups; g++) {
+      if (comp_groups[g].canvas) avm_img_free(comp_groups[g].canvas);
+      // Close per-group files (but not if it's the shared main outfile)
+      if (comp_groups[g].outfile_cg && comp_groups[g].outfile_cg != outfile)
+        fclose(comp_groups[g].outfile_cg);
+    }
+    free(comp_groups);
+  }
 
   for (i = 0; i < ext_fb_list.num_external_frame_buffers; ++i) {
     free(ext_fb_list.ext_fb[i].data);

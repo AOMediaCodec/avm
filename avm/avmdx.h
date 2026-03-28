@@ -162,6 +162,51 @@ typedef struct avm_screen_content_tools_info {
   int force_integer_mv;
 } avm_screen_content_tools_info;
 
+/*!\brief Per-xlayer layer info exposed by AV2D_GET_LCR_INFO.
+ *
+ * Mirrors the key fields from the internal LCR structures for each
+ * extended layer. Populated from Global or Local LCR OBU data.
+ */
+typedef struct avm_xlayer_layer_info {
+  int xlayer_id;      /**< Extended layer ID (0-30) */
+  int layer_type;     /**< 0=texture, 1=auxiliary, 2=stereo, 3=dependent */
+  int auxiliary_type; /**< 0=alpha, 1=depth, 2=segmentation, 3=gain_map
+                           (-1 if N/A) */
+  int view_type;      /**< 0=unspecified, 1=center, 2=left, 3=right,
+                            4=explicit */
+  int max_width;      /**< lcr_max_pic_width from RepresentationInfo */
+  int max_height;     /**< lcr_max_pic_height from RepresentationInfo */
+  int num_mlayers;    /**< Number of embedded (media) layers */
+} avm_xlayer_layer_info_t;
+
+/*!\brief LCR info exposed by AV2D_GET_LCR_INFO.
+ *
+ * Contains layer configuration for all xlayers in the stream,
+ * assembled from Global and/or Local LCR OBUs.
+ */
+typedef struct avm_lcr_info {
+  int num_xlayers;                     /**< Number of xlayers */
+  avm_xlayer_layer_info_t xlayers[31]; /**< Per-xlayer info */
+} avm_lcr_info_t;
+
+/*!\brief Atlas info exposed by AV2D_GET_ATLAS_INFO.
+ *
+ * Contains atlas canvas dimensions and per-segment placement,
+ * populated from Atlas OBUs.
+ */
+typedef struct avm_atlas_info {
+  int atlas_width;  /**< Canvas width */
+  int atlas_height; /**< Canvas height */
+  int num_segments; /**< Number of atlas segments */
+  struct {
+    int xlayer_id; /**< Which xlayer this segment belongs to */
+    int pos_x;     /**< Top-left X position in canvas */
+    int pos_y;     /**< Top-left Y position in canvas */
+    int width;     /**< Segment width */
+    int height;    /**< Segment height */
+  } segments[256]; /**< Per-segment info (MAX_NUM_ATLAS_SEGMENTS) */
+} avm_atlas_info_t;
+
 /*!\brief Structure to hold the external reference frame pointer.
  *
  * Define a structure to hold the external reference frame pointer.
@@ -342,6 +387,33 @@ enum avm_dec_control_id {
 
   AV2D_SET_BRU_OPT_MODE,
 
+  /*!\brief Codec control function to get LCR (Layer Configuration Record)
+   * info, avm_lcr_info_t* parameter
+   *
+   * Returns layer type, auxiliary type, view type, dimensions, and mlayer
+   * count for each extended layer. Populated from Global/Local LCR OBUs.
+   * Returns AVM_CODEC_ERROR if no LCR has been parsed yet.
+   */
+  AV2D_GET_LCR_INFO,
+
+  /*!\brief Codec control function to get Atlas segment info,
+   * avm_atlas_info_t* parameter
+   *
+   * Returns atlas canvas dimensions and per-segment placement (position,
+   * size, xlayer_id). Populated from Atlas OBUs.
+   * Returns AVM_CODEC_ERROR if no Atlas OBU has been parsed yet.
+   */
+  AV2D_GET_ATLAS_INFO,
+
+  /*!\brief Codec control function to get monotonic_output_order_flag,
+   * unsigned int* parameter
+   *
+   * Returns 1 if monotonic_output_order_flag is set in the sequence header,
+   * 0 otherwise. Returns AVM_CODEC_ERROR if no sequence header has been
+   * parsed yet.
+   */
+  AV2D_GET_MONOTONIC_OUTPUT_ORDER,
+
   AVM_DECODER_CTRL_ID_MAX,
 
   /*!\brief Codec control function to check the presence of forward key frames
@@ -512,6 +584,16 @@ AVM_CTRL_USE_TYPE(AV2D_SET_OUTPUT_ALL_LAYERS, int)
 
 AVM_CTRL_USE_TYPE(AV2_SET_INSPECTION_CALLBACK, avm_inspect_init *)
 #define AVM_CTRL_AV2_SET_INSPECTION_CALLBACK
+
+AVM_CTRL_USE_TYPE(AV2D_GET_LCR_INFO, avm_lcr_info_t *)
+#define AVM_CTRL_AV2D_GET_LCR_INFO
+
+AVM_CTRL_USE_TYPE(AV2D_GET_ATLAS_INFO, avm_atlas_info_t *)
+#define AVM_CTRL_AV2D_GET_ATLAS_INFO
+
+AVM_CTRL_USE_TYPE(AV2D_GET_MONOTONIC_OUTPUT_ORDER, unsigned int *)
+#define AVM_CTRL_AV2D_GET_MONOTONIC_OUTPUT_ORDER
+
 /*!\endcond */
 /*! @} - end defgroup avm_decoder */
 #ifdef __cplusplus
