@@ -5744,6 +5744,8 @@ static AVM_INLINE void write_uncompressed_header(
         }
       }
     }
+    assert(features->all_lossless == 0);
+    assert(features->coded_lossless == 0);
   }
 
   if (features->all_lossless) {

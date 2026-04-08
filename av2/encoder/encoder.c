@@ -3788,6 +3788,14 @@ static INLINE int compute_tip_direct_output_mode_RD(AV2_COMP *cpi,
   if (allow_tip_direct_output(cm)) {
     cm->features.tip_frame_mode = TIP_FRAME_AS_OUTPUT;
 
+    // These two variables must be false when using TIP_FRAME_AS_OUTPUT.
+    // So, we first backup the original values, then set them to false and
+    // restore original values after the search.
+    const int backup_coded_lossless = cm->features.coded_lossless;
+    const int backup_all_lossless = cm->features.all_lossless;
+    cm->features.coded_lossless = 0;
+    cm->features.all_lossless = 0;
+
     ThreadData *const td = &cpi->td;
     av2_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
                         av2_enc_calc_subpel_params, 0 /* copy_refined_mvs */
@@ -3939,6 +3947,10 @@ static INLINE int compute_tip_direct_output_mode_RD(AV2_COMP *cpi,
 
     const int64_t bits = (*size << 3);
     *rate = (bits << 5);  // To match scale.
+
+    // Restore.
+    cm->features.coded_lossless = backup_coded_lossless;
+    cm->features.all_lossless = backup_all_lossless;
     cm->features.tip_frame_mode = TIP_FRAME_AS_REF;
   }
 
@@ -4059,9 +4071,22 @@ static INLINE int finalize_tip_mode(AV2_COMP *cpi, uint8_t *dest, size_t *size,
       cm->cur_frame->global_motion[i] = default_warp_params;
     }
     cpi->gm_info.search_done = 0;
+
+    // These two variables must be false when using TIP_FRAME_AS_OUTPUT.
+    // So, we first backup the original values, then set them to false and
+    // restore original values after the search.
+    const int backup_coded_lossless = cm->features.coded_lossless;
+    const int backup_all_lossless = cm->features.all_lossless;
+    cm->features.coded_lossless = 0;
+    cm->features.all_lossless = 0;
+
     av2_finalize_encoded_frame(cpi);
     if (av2_pack_bitstream(cpi, dest, size, largest_tile_id) != AVM_CODEC_OK)
       return AVM_CODEC_ERROR;
+
+    // Restore.
+    cm->features.coded_lossless = backup_coded_lossless;
+    cm->features.all_lossless = backup_all_lossless;
 
     if (sse != NULL) {
       *sse = tip_as_output_sse;
