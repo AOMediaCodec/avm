@@ -588,8 +588,6 @@ struct stream_state {
   struct avm_image *img;
   avm_codec_ctx_t decoder;
   int mismatch_seen;
-  unsigned int chroma_subsampling_x;
-  unsigned int chroma_subsampling_y;
 };
 
 static void validate_positive_rational(const char *msg,
@@ -1162,12 +1160,6 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
       config->cfg.g_bit_depth = arg_parse_enum_or_int(&arg);
     } else if (arg_match(&arg, &g_av2_codec_arg_defs.inbitdeptharg, argi)) {
       config->cfg.g_input_bit_depth = arg_parse_uint(&arg);
-    } else if (arg_match(&arg, &g_av2_codec_arg_defs.input_chroma_subsampling_x,
-                         argi)) {
-      stream->chroma_subsampling_x = arg_parse_uint(&arg);
-    } else if (arg_match(&arg, &g_av2_codec_arg_defs.input_chroma_subsampling_y,
-                         argi)) {
-      stream->chroma_subsampling_y = arg_parse_uint(&arg);
 #if CONFIG_WEBM_IO
     } else if (arg_match(&arg, &g_av2_codec_arg_defs.stereo_mode, argi)) {
       config->stereo_fmt = arg_parse_enum_or_int(&arg);
