@@ -1943,8 +1943,8 @@ static AVM_INLINE void add_derived_smvp_candidates(
     uint8_t derived_mv_count, int *drl_pr_count) {
   const int max_ref_mv_count =
       xd->mi[0]->use_intrabc[xd->tree_type == CHROMA_PART]
-          ? AVMMIN(cm->features.max_bvp_drl_bits + 1, MAX_REF_BV_STACK_SIZE)
-          : AVMMIN(cm->features.max_drl_bits + 1, MAX_REF_MV_STACK_SIZE);
+          ? cm->features.max_bvp_drl_bits + 1
+          : cm->features.max_drl_bits + 1;
   if (*refmv_count < max_ref_mv_count && derived_mv_count > 0) {
     fill_mvp_from_derived_smvp(rf, ref_mv_stack, ref_mv_weight, refmv_count,
                                derived_mv_stack, derived_mv_count,
@@ -1957,10 +1957,9 @@ static AVM_INLINE void add_ref_mv_bank_candidates(
     MV_REFERENCE_FRAME ref_frame, uint8_t *const refmv_count,
     CANDIDATE_MV ref_mv_stack[MAX_REF_MV_STACK_SIZE],
     uint16_t ref_mv_weight[MAX_REF_MV_STACK_SIZE], int *drl_pr_count) {
-  const int ref_mv_limit =
-      xd->mi[0]->use_intrabc[xd->tree_type == CHROMA_PART]
-          ? AVMMIN(cm->features.max_bvp_drl_bits + 1, MAX_REF_BV_STACK_SIZE)
-          : AVMMIN(cm->features.max_drl_bits + 1, MAX_REF_MV_STACK_SIZE);
+  const int ref_mv_limit = xd->mi[0]->use_intrabc[xd->tree_type == CHROMA_PART]
+                               ? cm->features.max_bvp_drl_bits + 1
+                               : cm->features.max_drl_bits + 1;
   // If open slots are available, fetch reference MVs from the ref mv banks.
   if (*refmv_count < ref_mv_limit) {
     const REF_MV_BANK *ref_mv_bank = &xd->ref_mv_bank;
