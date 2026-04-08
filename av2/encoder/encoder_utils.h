@@ -983,10 +983,13 @@ static AVM_INLINE void av2_set_seq_tile_info(SequenceHeader *const seq_params,
   // For uniform tile spacing or if resize is disabled we currently do not
   // need to change tiling config per frame. This is an encoder side choice
   // and can be changed later.
+  // For BRU, tile info can change from frame-to-frame, so encoder allows tile
+  // info to change.
   tile_params->allow_tile_info_change =
       !(oxcf->resize_cfg.resize_mode == RESIZE_NONE ||
         oxcf->tile_cfg.tile_width_count == 0 ||
-        oxcf->tile_cfg.tile_height_count == 0);
+        oxcf->tile_cfg.tile_height_count == 0) ||
+      (oxcf->tool_cfg.enable_bru > 0);
   int i, start_sb;
   av2_get_seq_tile_limits(tile_params, seq_params->max_frame_height,
                           seq_params->max_frame_width,
