@@ -969,6 +969,13 @@ static void set_config_arg_ctrls(struct stream_config *config, int key,
     return;
   }
 
+#if CONFIG_TUNE_VMAF
+  if (key == AV2E_SET_VMAF_MODEL_PATH) {
+    config->vmaf_model_path = arg->val;
+    return;
+  }
+#endif
+
   if (key == AV2E_SET_SUBGOP_CONFIG_STR) {
     config->subgop_config_str = arg->val;
     return;
@@ -1259,10 +1266,6 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
     } else if (arg_match(&arg, &g_av2_codec_arg_defs.tile_height, argi)) {
       config->cfg.tile_height_count =
           arg_parse_list(&arg, config->cfg.tile_heights, MAX_TILE_HEIGHTS);
-#if CONFIG_TUNE_VMAF
-    } else if (arg_match(&arg, &g_av2_codec_arg_defs.vmaf_model_path, argi)) {
-      config->vmaf_model_path = arg.val;
-#endif
     } else if (arg_match(&arg, &g_av2_codec_arg_defs.use_fixed_qp_offsets,
                          argi)) {
       config->cfg.use_fixed_qp_offsets = arg_parse_uint(&arg);
