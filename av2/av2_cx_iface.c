@@ -715,6 +715,7 @@ static avm_codec_err_t validate_config(avm_codec_alg_priv_t *ctx,
               SCALE_NUMERATOR << 1);
   RANGE_CHECK_HI(extra_cfg, cdf_update_mode, 2);
   RANGE_CHECK_HI(extra_cfg, cross_frame_cdf_init_mode, 1);
+  RANGE_CHECK(extra_cfg, film_grain_block_size, 0, 1);
   RANGE_CHECK_HI(extra_cfg, motion_vector_unit_test, 2);
   RANGE_CHECK_HI(extra_cfg, sb_multipass_unit_test, 1);
   RANGE_CHECK_HI(extra_cfg, enable_auto_alt_ref, 1);
@@ -2561,9 +2562,7 @@ static avm_codec_err_t ctrl_set_film_grain_table(avm_codec_alg_priv_t *ctx,
 static avm_codec_err_t ctrl_set_film_grain_block_size(avm_codec_alg_priv_t *ctx,
                                                       va_list args) {
   struct av2_extracfg extra_cfg = ctx->extra_cfg;
-  const int block_size = CAST(AV2E_SET_FILM_GRAIN_BLOCK_SIZE, args);
-  if (block_size < 0 || block_size > 1) return AVM_CODEC_INVALID_PARAM;
-  extra_cfg.film_grain_block_size = block_size;
+  extra_cfg.film_grain_block_size = CAST(AV2E_SET_FILM_GRAIN_BLOCK_SIZE, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
