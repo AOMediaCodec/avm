@@ -1446,8 +1446,7 @@ static void read_intrabc_info(AV2_COMMON *const cm, DecoderCodingBlock *dcb,
     read_intrabc_drl_idx(cm->features.max_bvp_drl_bits + 1, mbmi, r);
     int_mv dv_ref =
         xd->ref_mv_stack[INTRA_FRAME][mbmi->intrabc_drl_idx].this_mv;
-    if (dv_ref.as_int == 0)
-      av2_find_ref_dv(&dv_ref, &xd->tile, cm->mib_size, xd->mi_row);
+    assert(dv_ref.as_int != 0);  // IntraBC is illegal with a zero MV.
 
     int valid_dv = 1;
     assert(is_this_mv_precision_compliant(dv_ref.as_mv, mbmi->pb_mv_precision));
