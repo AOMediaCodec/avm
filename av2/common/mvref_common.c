@@ -1941,6 +1941,8 @@ static AVM_INLINE void add_derived_smvp_candidates(
     CANDIDATE_MV derived_mv_stack[MAX_REF_MV_STACK_SIZE],
 #endif
     uint8_t derived_mv_count, int *drl_pr_count) {
+  assert(cm->features.max_bvp_drl_bits + 1 <= MAX_REF_BV_STACK_SIZE);
+  assert(cm->features.max_drl_bits + 1 <= MAX_REF_MV_STACK_SIZE);
   const int max_ref_mv_count =
       xd->mi[0]->use_intrabc[xd->tree_type == CHROMA_PART]
           ? cm->features.max_bvp_drl_bits + 1
