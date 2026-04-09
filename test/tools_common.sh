@@ -371,6 +371,53 @@ encode_yuv_raw_input_av2() {
   fi
 }
 
+# Encode 49 frames with kf interval of 16, with OLKs (open loop keyframes)
+# enabled and optional keyframe filtering.
+# This is to test random access decoding.
+encode_yuv_raw_input_with_olks_and_kf_filter() {
+  if [ "$(av2_encode_available)" = "yes" ]; then
+    local kf_filter="$1"
+    local output="$2"
+    local encoder="$(avm_tool_path avmenc)"
+    shift 2
+    eval "${encoder}" $(yuv_raw_input) \
+      --width=64 \
+      --height=64 \
+      --obu \
+      --passes=1 \
+      --lag-in-frames=19 \
+      --auto-alt-ref=1 \
+      --min-gf-interval=8 \
+      --max-gf-interval=8 \
+      --gf-min-pyr-height=4 \
+      --gf-max-pyr-height=4 \
+      --kf-min-dist=16 \
+      --kf-max-dist=16 \
+      --use-fixed-qp-offsets=1 \
+      --deltaq-mode=0 \
+      --enable-tpl-model=0 \
+      --end-usage=q \
+      --enable-keyframe-filtering=${kf_filter} \
+      --qp=210 \
+      --tile-rows=0 \
+      --tile-columns=0 \
+      --threads=1 \
+      --enable-intrabc-ext=2 \
+      --cpu-used=5 \
+      --enable-fwd-kf=1 \
+      --limit=49 \
+      --skip=0 \
+      --output="${output}" \
+      $@ \
+      ${devnull}
+
+    if [ ! -e "${output}" ]; then
+      elog "Output file does not exist."
+      return 1
+    fi
+  fi
+}
+
 # Parse the command line.
 while [ -n "$1" ]; do
   case "$1" in

@@ -125,11 +125,65 @@ avmdec_av2_webm() {
   fi
 }
 
+avmdec_random_access_common() {
+  if [ "$(avmdec_can_decode_av2)" = "yes" ]; then
+    local kf_filter="$1"
+    vlog "Testing with --enable-keyframe-filtering=${kf_filter}"
+	
+    # Encode with multiple keyframes.
+    local output="${AVM_TEST_OUTPUT_DIR}/av2_test_random_access_kf${kf_filter}.obu"
+    if [ ! -e "${output}" ]; then
+      encode_yuv_raw_input_with_olks_and_kf_filter "${kf_filter}" "${output}" || return 1
+    fi
+
+    # Run decoder with different random access point indices.
+    for idx in 0 1 2 3; do
+      local dec_output="${AVM_TEST_OUTPUT_DIR}/test_rap_${idx}_kf${kf_filter}.y4m"
+      vlog "Testing decoder with --random-access-point-index=${idx}"
+      
+      local log="${AVM_TEST_OUTPUT_DIR}/dec_log_${idx}_kf${kf_filter}.log"
+      avmdec --summary "${output}" -o "${dec_output}" --random-access-point-index=${idx} > "${log}" 2>&1 || return 1
+      cat "${log}"
+      
+      # Verify that decoded file is generated.
+      if [ ! -e "${dec_output}" ]; then
+        elog "Decoder output file test_rap_${idx}_kf${kf_filter}.y4m does not exist."
+        return 1
+      fi
+
+      # Verify that decoder decoded correct number of frames.
+      # Assumes that 49 frames are encoded with keyframe interval of 16.
+      local expected_n=$((49 - idx * 16))
+      if ! grep -q "${expected_n} showed frames" "${log}"; then
+        elog "Expected ${expected_n} showed frames in decoder log."
+        return 1
+      fi
+    done
+  fi
+}
+
+avmdec_random_access_kf0() {
+  avmdec_random_access_common 0
+}
+
+avmdec_random_access_kf1() {
+  avmdec_random_access_common 1
+}
+
+avmdec_random_access_kf2() {
+  avmdec_random_access_common 2
+}
+
+
+
 avmdec_tests="avmdec_av2_ivf
               avmdec_av2_ivf_error_resilient
               avmdec_av2_ivf_multithread
               avmdec_avm_ivf_pipe_input
               avmdec_av2_obu
-              avmdec_av2_webm"
+              avmdec_av2_webm
+              avmdec_random_access_kf0
+              avmdec_random_access_kf1
+              avmdec_random_access_kf2"
 
 run_tests avmdec_verify_environment "${avmdec_tests}"
