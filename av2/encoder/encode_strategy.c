@@ -1239,10 +1239,6 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
       frame_params.frame_type = INTER_FRAME;
     }
   } else if (is_stat_consumption_stage(cpi)) {
-#if CONFIG_MISMATCH_DEBUG
-    mismatch_move_frame_idx_w(
-        !frame_params.frame_params_update_type_was_overlay);
-#endif  // CONFIG_MISMATCH_DEBUG
 #if TXCOEFF_COST_TIMER
     cm->txcoeff_cost_timer = 0;
     cm->txcoeff_cost_count = 0;
@@ -1273,13 +1269,6 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
     cm->allow_direct_use = 0;
     cm->implicit_output_picture = 0;
   }
-
-#if CONFIG_MISMATCH_DEBUG
-  if (has_no_stats_stage(cpi)) {
-    mismatch_move_frame_idx_w(
-        !frame_params.frame_params_update_type_was_overlay);
-  }
-#endif  // CONFIG_MISMATCH_DEBUG
 
   if (!is_stat_generation_stage(cpi))
     set_ext_overrides(cm, &frame_params, ext_flags);
@@ -1574,6 +1563,12 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
       }
     }
   }
+#if CONFIG_MISMATCH_DEBUG
+  if (is_stat_consumption_stage(cpi) || has_no_stats_stage(cpi)) {
+    mismatch_move_frame_idx_w(
+        !frame_params.frame_params_update_type_was_overlay);
+  }
+#endif  // CONFIG_MISMATCH_DEBUG
   if (denoise_and_encode(cpi, dest, &frame_input, &frame_params,
                          &frame_results) != AVM_CODEC_OK) {
     return AVM_CODEC_ERROR;
