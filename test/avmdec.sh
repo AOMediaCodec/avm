@@ -129,7 +129,7 @@ avmdec_random_access_common() {
   if [ "$(avmdec_can_decode_av2)" = "yes" ]; then
     local kf_filter="$1"
     vlog "Testing with --enable-keyframe-filtering=${kf_filter}"
-	
+
     # Encode with multiple keyframes.
     local output="${AVM_TEST_OUTPUT_DIR}/av2_test_random_access_kf${kf_filter}.obu"
     if [ ! -e "${output}" ]; then
@@ -140,11 +140,11 @@ avmdec_random_access_common() {
     for idx in 0 1 2 3; do
       local dec_output="${AVM_TEST_OUTPUT_DIR}/test_rap_${idx}_kf${kf_filter}.y4m"
       vlog "Testing decoder with --random-access-point-index=${idx}"
-      
+
       local log="${AVM_TEST_OUTPUT_DIR}/dec_log_${idx}_kf${kf_filter}.log"
       avmdec --summary "${output}" -o "${dec_output}" --random-access-point-index=${idx} > "${log}" 2>&1 || return 1
       cat "${log}"
-      
+
       # Verify that decoded file is generated.
       if [ ! -e "${dec_output}" ]; then
         elog "Decoder output file test_rap_${idx}_kf${kf_filter}.y4m does not exist."
