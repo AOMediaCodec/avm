@@ -1166,9 +1166,7 @@ static void update_stats(const AV2_COMMON *const cm, ThreadData *td) {
       bool continue_motion_mode_signaling =
           (mbmi->mode == WARPMV) ? false : true;
 
-      assert(IMPLIES(
-          mbmi->mode == WARPMV,
-          mbmi->motion_mode == WARP_DELTA || mbmi->motion_mode == WARP_CAUSAL));
+      assert(IMPLIES(mbmi->mode == WARPMV, mbmi->motion_mode == WARP_DELTA));
 
       if (continue_motion_mode_signaling &&
           is_warp_newmv_allowed(cm, xd, mbmi, bsize) &&
@@ -1247,8 +1245,7 @@ static void update_stats(const AV2_COMMON *const cm, ThreadData *td) {
         update_cdf(fc->warp_causal_cdf[ctx], use_warp_causal, 2);
       }
 
-      if (motion_mode == WARP_DELTA ||
-          (motion_mode == WARP_CAUSAL && mbmi->mode == WARPMV)) {
+      if (motion_mode == WARP_DELTA) {
         update_warp_delta_stats(cm, mbmi, mbmi_ext,
 #if CONFIG_ENTROPY_STATS
                                 counts,
@@ -1259,7 +1256,7 @@ static void update_stats(const AV2_COMMON *const cm, ThreadData *td) {
         // continue_motion_mode_signaling = false;
       }
 
-      if (allow_warp_inter_intra(cm, mbmi, motion_mode)) {
+      if (allow_warp_inter_intra(mbmi)) {
         const int bsize_group = size_group_lookup[bsize];
         update_cdf(fc->warp_interintra_cdf[bsize_group], mbmi->warp_inter_intra,
                    2);

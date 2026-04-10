@@ -240,8 +240,8 @@ void av2_enc_build_inter_predictor(const AV2_COMMON *cm, MACROBLOCKD *xd,
     assert(IMPLIES(!is_interintra_allowed(xd->mi[0]),
                    xd->mi[0]->motion_mode != INTERINTRA));
 
-    assert(IMPLIES(!allow_warp_inter_intra(cm, mbmi, mbmi->motion_mode),
-                   !xd->mi[0]->warp_inter_intra));
+    assert(
+        IMPLIES(!allow_warp_inter_intra(mbmi), !xd->mi[0]->warp_inter_intra));
 
     int is_intra_inter_allowed = 1;
     if (mbmi->tree_type == SHARED_PART &&

@@ -4875,16 +4875,8 @@ void av2_find_warp_delta_base_candidates(
     WARP_CANDIDATE warp_param_stack[MAX_WARP_REF_CANDIDATES],
     WARP_CANDIDATE wrl_list[MAX_WARP_REF_CANDIDATES], uint8_t num_wrl_cand,
     uint8_t *p_valid_num_candidates) {
-  // Global MV mode insert the global motion
-  if (mbmi->mode == GLOBALMV) {
-    warp_param_stack[0].wm_params = xd->global_motion[mbmi->ref_frame[0]];
-    warp_param_stack[0].proj_type = PROJ_GLOBAL_MOTION;
-    if (p_valid_num_candidates) {
-      *p_valid_num_candidates = 1;
-    }
-    return;
-  }
-
+  (void)xd;
+  (void)mbmi;
   // Copy the entire wrl_list where all candidates have been properly defined.
   // Note that the first num_wrl_cand have been filled, and the rest have been
   // initialized as default_warp_params.
@@ -4892,7 +4884,7 @@ void av2_find_warp_delta_base_candidates(
          MAX_WARP_REF_CANDIDATES * sizeof(wrl_list[0]));
   if (p_valid_num_candidates) {
     // for NEARMV mode, the maximum number of candidates is 1
-    *p_valid_num_candidates = (mbmi->mode == NEARMV) ? 1 : num_wrl_cand;
+    *p_valid_num_candidates = num_wrl_cand;
   }
 }
 

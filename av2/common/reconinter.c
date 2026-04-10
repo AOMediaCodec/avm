@@ -3769,7 +3769,7 @@ void av2_build_inter_predictors(const AV2_COMMON *cm, MACROBLOCKD *xd,
   if (mi->mode == WARPMV) {
     assert(mi->ref_mv_idx[0] == 0);
     assert(mi->ref_mv_idx[1] == 0);
-    assert(mi->motion_mode == WARP_DELTA || mi->motion_mode == WARP_CAUSAL);
+    assert(mi->motion_mode == WARP_DELTA);
   }
 
   if (is_sub8x8_inter(cm, xd, mi, plane, is_intrabc_block(mi, xd->tree_type))) {

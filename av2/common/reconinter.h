@@ -285,13 +285,9 @@ static INLINE int get_default_six_param_flag(const AV2_COMMON *const cm,
              : 0;
 }
 
-static INLINE int allow_warp_inter_intra(const AV2_COMMON *const cm,
-                                         const MB_MODE_INFO *mbmi,
-                                         const int motion_mode) {
-  (void)cm;
-  return mbmi->mode == WARPMV && motion_mode >= WARP_CAUSAL &&
+static INLINE int allow_warp_inter_intra(const MB_MODE_INFO *mbmi) {
+  return mbmi->mode == WARPMV &&
          is_interintra_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y]) &&
-         is_interintra_allowed_mode(mbmi->mode) &&
          is_interintra_allowed_ref(mbmi->ref_frame) && mbmi->bawp_flag[0] == 0;
 }
 

@@ -1868,7 +1868,7 @@ static AVM_INLINE void pack_inter_mode_mvs(AV2_COMP *cpi, avm_writer *w) {
   // Just for debugging purpose
   if (mbmi->mode == WARPMV) {
     assert(mbmi->skip_mode == 0);
-    assert(mbmi->motion_mode == WARP_DELTA || mbmi->motion_mode == WARP_CAUSAL);
+    assert(mbmi->motion_mode == WARP_DELTA);
     assert(get_ref_mv_idx(mbmi, 0) == 0);
     assert(get_ref_mv_idx(mbmi, 1) == 0);
     assert(!is_tip_ref_frame(mbmi->ref_frame[0]));
@@ -1964,9 +1964,7 @@ static AVM_INLINE void pack_inter_mode_mvs(AV2_COMP *cpi, avm_writer *w) {
           mbmi->num_proj_ref[1] = av2_findSamples(cm, xd, pts, pts_inref, 1);
       }
       write_motion_mode(cm, xd, mbmi, mbmi_ext_frame, w);
-      int is_warpmv_warp_causal =
-          ((mbmi->motion_mode == WARP_CAUSAL) && mbmi->mode == WARPMV);
-      if (mbmi->motion_mode == WARP_DELTA || is_warpmv_warp_causal)
+      if (mbmi->motion_mode == WARP_DELTA)
         write_warp_ref_idx(xd->tile_ctx, mbmi, w);
 
       if (allow_warpmv_with_mvd_coding(cm, mbmi)) {
@@ -2092,7 +2090,7 @@ static AVM_INLINE void pack_inter_mode_mvs(AV2_COMP *cpi, avm_writer *w) {
       write_warp_delta(cm, xd, mbmi, mbmi_ext_frame, w);
     }
 
-    if (allow_warp_inter_intra(cm, mbmi, mbmi->motion_mode)) {
+    if (allow_warp_inter_intra(mbmi)) {
       const int bsize_group = size_group_lookup[bsize];
       avm_write_symbol(w, mbmi->warp_inter_intra,
                        xd->tile_ctx->warp_interintra_cdf[bsize_group], 2);

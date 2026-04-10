@@ -5830,7 +5830,7 @@ static INLINE int motion_mode_allowed(const AV2_COMMON *cm,
   const BLOCK_SIZE bsize = mbmi->sb_type[PLANE_TYPE_Y];
   int enabled_motion_modes = cm->features.enabled_motion_modes;
 
-  // only WARP_DELTA and WARP_CAUSAL are supported for WARPMV mode
+  // only WARP_DELTA is supported for WARPMV mode
   if (mbmi->mode == WARPMV) {
     int allowed_motion_mode_warpmv = (1 << WARP_DELTA);
     return (allowed_motion_mode_warpmv & enabled_motion_modes);

@@ -2777,9 +2777,7 @@ static void read_inter_block_mode_info(AV2Decoder *const pbi,
           mbmi->num_proj_ref[1] = av2_findSamples(cm, xd, pts1, pts1_inref, 1);
       }
       mbmi->motion_mode = read_motion_mode(cm, xd, mbmi, r);
-      int is_warpmv_warp_causal =
-          ((mbmi->motion_mode == WARP_CAUSAL) && mbmi->mode == WARPMV);
-      if (mbmi->motion_mode == WARP_DELTA || is_warpmv_warp_causal) {
+      if (mbmi->motion_mode == WARP_DELTA) {
         mbmi->max_num_warp_candidates = MAX_WARP_REF_CANDIDATES;
         av2_find_warp_delta_base_candidates(
             xd, mbmi, warp_param_stack,
@@ -2867,7 +2865,7 @@ static void read_inter_block_mode_info(AV2Decoder *const pbi,
   }
 
   mbmi->warp_inter_intra = 0;
-  if (allow_warp_inter_intra(cm, mbmi, mbmi->motion_mode)) {
+  if (allow_warp_inter_intra(mbmi)) {
     const int bsize_group = size_group_lookup[bsize];
     mbmi->warp_inter_intra =
         avm_read_symbol(r, xd->tile_ctx->warp_interintra_cdf[bsize_group], 2,
