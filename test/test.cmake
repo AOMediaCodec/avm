@@ -52,6 +52,7 @@ list(
   AVM_UNIT_TEST_DECODER_SOURCES
   "${AVM_ROOT}/test/decode_api_test.cc"
   "${AVM_ROOT}/test/external_frame_buffer_test.cc"
+  "${AVM_ROOT}/test/grain_synthesis_race_test.cc"
   "${AVM_ROOT}/test/invalid_file_test.cc"
   "${AVM_ROOT}/test/test_vector_test.cc"
   "${AVM_ROOT}/test/ivf_video_source.h")

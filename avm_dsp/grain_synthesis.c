@@ -217,17 +217,8 @@ static const int gaussian_sequence[2048] = {
 
 static const int gauss_bits = 11;
 
-static int luma_subblock_size_y = 32;
-static int luma_subblock_size_x = 32;
-
-static int chroma_subblock_size_y = 16;
-static int chroma_subblock_size_x = 16;
-
-static int max_luma_subblock_size_y = 32;
-static int max_luma_subblock_size_x = 32;
-
-static int max_chroma_subblock_size_y = 16;
-static int max_chroma_subblock_size_x = 16;
+static const int max_luma_subblock_size_y = 32;
+static const int max_luma_subblock_size_x = 32;
 
 static const int min_luma_legal_range = 16;
 static const int max_luma_legal_range = 235;
@@ -235,14 +226,15 @@ static const int max_luma_legal_range = 235;
 static const int min_chroma_legal_range = 16;
 static const int max_chroma_legal_range = 240;
 
-static int scaling_lut_y[256];
-static int scaling_lut_cb[256];
-static int scaling_lut_cr[256];
+typedef struct {
+  int y[256];
+  int cb[256];
+  int cr[256];
+} avm_grain_scaling_lut_t;
 
-static int grain_min;
-static int grain_max;
-
-static uint16_t random_register = 0;  // random number generator register
+typedef struct {
+  uint16_t random_register;  // random number generator register
+} avm_grain_rng_t;
 
 static void init_arrays(const avm_film_grain_t *params, int luma_stride,
                         int chroma_stride, int ***pred_pos_luma_p,
@@ -252,9 +244,8 @@ static void init_arrays(const avm_film_grain_t *params, int luma_stride,
                         int **y_col_buf, int **cb_col_buf, int **cr_col_buf,
                         int luma_grain_samples, int chroma_grain_samples,
                         int chroma_subsamp_y, int chroma_subsamp_x) {
-  memset(scaling_lut_y, 0, sizeof(*scaling_lut_y) * 256);
-  memset(scaling_lut_cb, 0, sizeof(*scaling_lut_cb) * 256);
-  memset(scaling_lut_cr, 0, sizeof(*scaling_lut_cr) * 256);
+  int luma_subblock_size_y = 16 << params->block_size;
+  int chroma_subblock_size_y = luma_subblock_size_y >> chroma_subsamp_y;
 
   int num_pos_luma = 2 * params->ar_coeff_lag * (params->ar_coeff_lag + 1);
   int num_pos_chroma = num_pos_luma;
@@ -378,35 +369,37 @@ static void dealloc_arrays(const avm_film_grain_t *params, int ***pred_pos_luma,
 }
 
 // get a number between 0 and 2^bits - 1
-static INLINE int get_random_number(int bits) {
+static INLINE int get_random_number(avm_grain_rng_t *rng, int bits) {
   uint16_t bit;
-  bit = ((random_register >> 0) ^ (random_register >> 1) ^
-         (random_register >> 3) ^ (random_register >> 12)) &
+  bit = ((rng->random_register >> 0) ^ (rng->random_register >> 1) ^
+         (rng->random_register >> 3) ^ (rng->random_register >> 12)) &
         1;
-  random_register = (random_register >> 1) | (bit << 15);
-  return (random_register >> (16 - bits)) & ((1 << bits) - 1);
+  rng->random_register = (rng->random_register >> 1) | (bit << 15);
+  return (rng->random_register >> (16 - bits)) & ((1 << bits) - 1);
 }
 
-static void init_random_generator(int luma_line, uint16_t seed) {
+static void init_random_generator(avm_grain_rng_t *rng, int luma_line,
+                                  uint16_t seed) {
   // same for the picture
 
   uint16_t msb = (seed >> 8) & 255;
   uint16_t lsb = seed & 255;
 
-  random_register = (msb << 8) + lsb;
+  rng->random_register = (msb << 8) + lsb;
 
   //  changes for each row
   int luma_num = luma_line >> 5;
 
-  random_register ^= ((luma_num * 37 + 178) & 255) << 8;
-  random_register ^= ((luma_num * 173 + 105) & 255);
+  rng->random_register ^= ((luma_num * 37 + 178) & 255) << 8;
+  rng->random_register ^= ((luma_num * 173 + 105) & 255);
 }
 
 // Return 0 for success, -1 for failure
 static int generate_luma_grain_block(
-    const avm_film_grain_t *params, int **pred_pos_luma, int *luma_grain_block,
-    int luma_block_size_y, int luma_block_size_x, int luma_grain_stride,
-    int left_pad, int top_pad, int right_pad, int bottom_pad) {
+    const avm_film_grain_t *params, avm_grain_rng_t *rng, int **pred_pos_luma,
+    int *luma_grain_block, int luma_block_size_y, int luma_block_size_x,
+    int luma_grain_stride, int left_pad, int top_pad, int right_pad,
+    int bottom_pad) {
   if (params->fgm_points[0] == 0) {
     memset(luma_grain_block, 0,
            sizeof(*luma_grain_block) * luma_block_size_y * luma_grain_stride);
@@ -419,10 +412,13 @@ static int generate_luma_grain_block(
   int num_pos_luma = 2 * params->ar_coeff_lag * (params->ar_coeff_lag + 1);
   int rounding_offset = (1 << (params->ar_coeff_shift - 1));
 
+  int grain_min = -(1 << (bit_depth - 1));
+  int grain_max = (1 << (bit_depth - 1)) - 1;
+
   for (int i = 0; i < luma_block_size_y; i++)
     for (int j = 0; j < luma_block_size_x; j++)
       luma_grain_block[i * luma_grain_stride + j] =
-          (gaussian_sequence[get_random_number(gauss_bits)] +
+          (gaussian_sequence[get_random_number(rng, gauss_bits)] +
            ((1 << gauss_sec_shift) >> 1)) >>
           gauss_sec_shift;
 
@@ -445,12 +441,11 @@ static int generate_luma_grain_block(
 
 // Return 0 for success, -1 for failure
 static int generate_chroma_grain_blocks(
-    const avm_film_grain_t *params,
-    //                                  int** pred_pos_luma,
-    int **pred_pos_chroma, int *luma_grain_block, int *cb_grain_block,
-    int *cr_grain_block, int luma_grain_stride, int chroma_block_size_y,
-    int chroma_block_size_x, int chroma_grain_stride, int left_pad, int top_pad,
-    int right_pad, int bottom_pad, int chroma_subsamp_y, int chroma_subsamp_x) {
+    const avm_film_grain_t *params, avm_grain_rng_t *rng, int **pred_pos_chroma,
+    int *luma_grain_block, int *cb_grain_block, int *cr_grain_block,
+    int luma_grain_stride, int chroma_block_size_y, int chroma_block_size_x,
+    int chroma_grain_stride, int left_pad, int top_pad, int right_pad,
+    int bottom_pad, int chroma_subsamp_y, int chroma_subsamp_x) {
   int bit_depth = params->bit_depth;
   int gauss_sec_shift = 12 - bit_depth + params->grain_scale_shift;
 
@@ -459,13 +454,16 @@ static int generate_chroma_grain_blocks(
   int rounding_offset = (1 << (params->ar_coeff_shift - 1));
   int chroma_grain_block_size = chroma_block_size_y * chroma_grain_stride;
 
+  int grain_min = -(1 << (bit_depth - 1));
+  int grain_max = (1 << (bit_depth - 1)) - 1;
+
   if (params->fgm_points[1] || params->fgm_scale_from_channel0_flag) {
-    init_random_generator(7 << 5, params->random_seed);
+    init_random_generator(rng, 7 << 5, params->random_seed);
 
     for (int i = 0; i < chroma_block_size_y; i++)
       for (int j = 0; j < chroma_block_size_x; j++)
         cb_grain_block[i * chroma_grain_stride + j] =
-            (gaussian_sequence[get_random_number(gauss_bits)] +
+            (gaussian_sequence[get_random_number(rng, gauss_bits)] +
              ((1 << gauss_sec_shift) >> 1)) >>
             gauss_sec_shift;
   } else {
@@ -474,12 +472,12 @@ static int generate_chroma_grain_blocks(
   }
 
   if (params->fgm_points[2] || params->fgm_scale_from_channel0_flag) {
-    init_random_generator(11 << 5, params->random_seed);
+    init_random_generator(rng, 11 << 5, params->random_seed);
 
     for (int i = 0; i < chroma_block_size_y; i++)
       for (int j = 0; j < chroma_block_size_x; j++)
         cr_grain_block[i * chroma_grain_stride + j] =
-            (gaussian_sequence[get_random_number(gauss_bits)] +
+            (gaussian_sequence[get_random_number(rng, gauss_bits)] +
              ((1 << gauss_sec_shift) >> 1)) >>
             gauss_sec_shift;
   } else {
@@ -565,7 +563,7 @@ static void init_scaling_function(const int scaling_points[][2], int num_points,
 
 // function that extracts samples from a LUT (and interpolates intemediate
 // frames for 10- and 12-bit video)
-static int scale_LUT(int *scaling_lut, int index, int bit_depth) {
+static int scale_LUT(const int *scaling_lut, int index, int bit_depth) {
   int x = index >> (bit_depth - 8);
 
   if (!(bit_depth - 8) || x == 255)
@@ -577,14 +575,12 @@ static int scale_LUT(int *scaling_lut, int index, int bit_depth) {
                              (bit_depth - 8));
 }
 
-static void add_noise_to_block(const avm_film_grain_t *params, uint8_t *luma,
-                               uint8_t *cb, uint8_t *cr, int luma_stride,
-                               int chroma_stride, int *luma_grain,
-                               int *cb_grain, int *cr_grain,
-                               int luma_grain_stride, int chroma_grain_stride,
-                               int half_luma_height, int half_luma_width,
-                               int bit_depth, int chroma_subsamp_y,
-                               int chroma_subsamp_x) {
+static void add_noise_to_block(
+    const avm_film_grain_t *params, const avm_grain_scaling_lut_t *scaling_lut,
+    uint8_t *luma, uint8_t *cb, uint8_t *cr, int luma_stride, int chroma_stride,
+    int *luma_grain, int *cb_grain, int *cr_grain, int luma_grain_stride,
+    int chroma_grain_stride, int half_luma_height, int half_luma_width,
+    int bit_depth, int chroma_subsamp_y, int chroma_subsamp_x) {
   int cb_mult = params->cb_mult - 128;            // fixed scale
   int cb_luma_mult = params->cb_luma_mult - 128;  // fixed scale
   int cb_offset = params->cb_offset - 256;
@@ -648,7 +644,7 @@ static void add_noise_to_block(const avm_film_grain_t *params, uint8_t *luma,
       if (apply_cb) {
         cb[i * chroma_stride + j] = clamp(
             cb[i * chroma_stride + j] +
-                ((scale_LUT(scaling_lut_cb,
+                ((scale_LUT(scaling_lut->cb,
                             clamp(((average_luma * cb_luma_mult +
                                     cb_mult * cb[i * chroma_stride + j]) >>
                                    6) +
@@ -664,7 +660,7 @@ static void add_noise_to_block(const avm_film_grain_t *params, uint8_t *luma,
       if (apply_cr) {
         cr[i * chroma_stride + j] = clamp(
             cr[i * chroma_stride + j] +
-                ((scale_LUT(scaling_lut_cr,
+                ((scale_LUT(scaling_lut->cr,
                             clamp(((average_luma * cr_luma_mult +
                                     cr_mult * cr[i * chroma_stride + j]) >>
                                    6) +
@@ -682,24 +678,25 @@ static void add_noise_to_block(const avm_film_grain_t *params, uint8_t *luma,
   if (apply_y) {
     for (int i = 0; i < (half_luma_height << 1); i++) {
       for (int j = 0; j < (half_luma_width << 1); j++) {
-        luma[i * luma_stride + j] =
-            clamp(luma[i * luma_stride + j] +
-                      ((scale_LUT(scaling_lut_y, luma[i * luma_stride + j], 8) *
-                            luma_grain[i * luma_grain_stride + j] +
-                        rounding_offset) >>
-                       params->scaling_shift),
-                  min_luma, max_luma);
+        luma[i * luma_stride + j] = clamp(
+            luma[i * luma_stride + j] +
+                ((scale_LUT(scaling_lut->y, luma[i * luma_stride + j], 8) *
+                      luma_grain[i * luma_grain_stride + j] +
+                  rounding_offset) >>
+                 params->scaling_shift),
+            min_luma, max_luma);
       }
     }
   }
 }
 
 static void add_noise_to_block_hbd(
-    const avm_film_grain_t *params, uint16_t *luma, uint16_t *cb, uint16_t *cr,
-    int luma_stride, int chroma_stride, int *luma_grain, int *cb_grain,
-    int *cr_grain, int luma_grain_stride, int chroma_grain_stride,
-    int half_luma_height, int half_luma_width, int bit_depth,
-    int chroma_subsamp_y, int chroma_subsamp_x) {
+    const avm_film_grain_t *params, const avm_grain_scaling_lut_t *scaling_lut,
+    uint16_t *luma, uint16_t *cb, uint16_t *cr, int luma_stride,
+    int chroma_stride, int *luma_grain, int *cb_grain, int *cr_grain,
+    int luma_grain_stride, int chroma_grain_stride, int half_luma_height,
+    int half_luma_width, int bit_depth, int chroma_subsamp_y,
+    int chroma_subsamp_x) {
   int cb_mult = params->cb_mult - 128;            // fixed scale
   int cb_luma_mult = params->cb_luma_mult - 128;  // fixed scale
   // offset value depends on the bit depth
@@ -767,7 +764,7 @@ static void add_noise_to_block_hbd(
       if (apply_cb) {
         cb[i * chroma_stride + j] = clamp(
             cb[i * chroma_stride + j] +
-                ((scale_LUT(scaling_lut_cb,
+                ((scale_LUT(scaling_lut->cb,
                             clamp(((average_luma * cb_luma_mult +
                                     cb_mult * cb[i * chroma_stride + j]) >>
                                    6) +
@@ -782,7 +779,7 @@ static void add_noise_to_block_hbd(
       if (apply_cr) {
         cr[i * chroma_stride + j] = clamp(
             cr[i * chroma_stride + j] +
-                ((scale_LUT(scaling_lut_cr,
+                ((scale_LUT(scaling_lut->cr,
                             clamp(((average_luma * cr_luma_mult +
                                     cr_mult * cr[i * chroma_stride + j]) >>
                                    6) +
@@ -802,7 +799,7 @@ static void add_noise_to_block_hbd(
       for (int j = 0; j < (half_luma_width << 1); j++) {
         luma[i * luma_stride + j] =
             clamp(luma[i * luma_stride + j] +
-                      ((scale_LUT(scaling_lut_y, luma[i * luma_stride + j],
+                      ((scale_LUT(scaling_lut->y, luma[i * luma_stride + j],
                                   bit_depth) *
                             luma_grain[i * luma_grain_stride + j] +
                         rounding_offset) >>
@@ -868,7 +865,7 @@ static void extend_even(uint8_t *dst, int dst_stride, int width, int height,
 static void ver_boundary_overlap(int *left_block, int left_stride,
                                  int *right_block, int right_stride,
                                  int *dst_block, int dst_stride, int width,
-                                 int height) {
+                                 int height, int grain_min, int grain_max) {
   if (width == 1) {
     while (height) {
       *dst_block = clamp((*left_block * 23 + *right_block * 22 + 16) >> 5,
@@ -897,7 +894,7 @@ static void ver_boundary_overlap(int *left_block, int left_stride,
 static void hor_boundary_overlap(int *top_block, int top_stride,
                                  int *bottom_block, int bottom_stride,
                                  int *dst_block, int dst_stride, int width,
-                                 int height) {
+                                 int height, int grain_min, int grain_max) {
   if (height == 1) {
     while (width) {
       *dst_block = clamp((*top_block * 23 + *bottom_block * 22 + 16) >> 5,
@@ -1049,7 +1046,11 @@ int av2_add_film_grain_run(const avm_film_grain_t *params, uint8_t *luma,
   int *cb_col_buf;
   int *cr_col_buf;
 
-  random_register = params->random_seed;
+  avm_grain_scaling_lut_t scaling_lut;
+  memset(&scaling_lut, 0, sizeof(scaling_lut));
+
+  avm_grain_rng_t rng;
+  rng.random_register = params->random_seed;
 
   int left_pad = 3;
   int right_pad = 3;  // padding to offset for AR coefficients
@@ -1058,17 +1059,14 @@ int av2_add_film_grain_run(const avm_film_grain_t *params, uint8_t *luma,
 
   int ar_padding = 3;  // maximum lag used for stabilization of AR coefficients
 
-  max_luma_subblock_size_y = 32;
-  max_luma_subblock_size_x = 32;
+  int max_chroma_subblock_size_y = max_luma_subblock_size_y >> chroma_subsamp_y;
+  int max_chroma_subblock_size_x = max_luma_subblock_size_x >> chroma_subsamp_x;
 
-  max_chroma_subblock_size_y = max_luma_subblock_size_y >> chroma_subsamp_y;
-  max_chroma_subblock_size_x = max_luma_subblock_size_x >> chroma_subsamp_x;
+  int luma_subblock_size_y = 16 << params->block_size;
+  int luma_subblock_size_x = 16 << params->block_size;
 
-  luma_subblock_size_y = 16 << params->block_size;
-  luma_subblock_size_x = 16 << params->block_size;
-
-  chroma_subblock_size_y = luma_subblock_size_y >> chroma_subsamp_y;
-  chroma_subblock_size_x = luma_subblock_size_x >> chroma_subsamp_x;
+  int chroma_subblock_size_y = luma_subblock_size_y >> chroma_subsamp_y;
+  int chroma_subblock_size_x = luma_subblock_size_x >> chroma_subsamp_x;
 
   // Initial padding is only needed for generation of
   // film grain templates (to stabilize the AR process)
@@ -1093,9 +1091,8 @@ int av2_add_film_grain_run(const avm_film_grain_t *params, uint8_t *luma,
   int overlap = params->overlap_flag;
   int bit_depth = params->bit_depth;
 
-  const int grain_center = 128 << (bit_depth - 8);
-  grain_min = 0 - grain_center;
-  grain_max = grain_center - 1;
+  int grain_min = -(1 << (bit_depth - 1));
+  int grain_max = (1 << (bit_depth - 1)) - 1;
 
   init_arrays(params, luma_stride, chroma_stride, &pred_pos_luma,
               &pred_pos_chroma, &luma_grain_block, &cb_grain_block,
@@ -1105,45 +1102,47 @@ int av2_add_film_grain_run(const avm_film_grain_t *params, uint8_t *luma,
               chroma_block_size_y * chroma_block_size_x, chroma_subsamp_y,
               chroma_subsamp_x);
 
-  if (generate_luma_grain_block(params, pred_pos_luma, luma_grain_block,
+  if (generate_luma_grain_block(params, &rng, pred_pos_luma, luma_grain_block,
                                 luma_block_size_y, luma_block_size_x,
                                 luma_grain_stride, left_pad, top_pad, right_pad,
                                 bottom_pad))
     return -1;
 
   if (generate_chroma_grain_blocks(
-          params,
-          //                               pred_pos_luma,
-          pred_pos_chroma, luma_grain_block, cb_grain_block, cr_grain_block,
-          luma_grain_stride, chroma_block_size_y, chroma_block_size_x,
-          chroma_grain_stride, left_pad, top_pad, right_pad, bottom_pad,
-          chroma_subsamp_y, chroma_subsamp_x))
+          params, &rng, pred_pos_chroma, luma_grain_block, cb_grain_block,
+          cr_grain_block, luma_grain_stride, chroma_block_size_y,
+          chroma_block_size_x, chroma_grain_stride, left_pad, top_pad,
+          right_pad, bottom_pad, chroma_subsamp_y, chroma_subsamp_x))
     return -1;
 
   init_scaling_function(params->fgm_scaling_points_0, params->fgm_points[0],
-                        scaling_lut_y);
+                        scaling_lut.y);
 
   if (params->fgm_scale_from_channel0_flag) {
-    memcpy(scaling_lut_cb, scaling_lut_y, sizeof(*scaling_lut_y) * 256);
-    memcpy(scaling_lut_cr, scaling_lut_y, sizeof(*scaling_lut_y) * 256);
+    static_assert(sizeof(scaling_lut.cb) == sizeof(scaling_lut.y), "");
+    static_assert(sizeof(scaling_lut.cr) == sizeof(scaling_lut.y), "");
+    memcpy(scaling_lut.cb, scaling_lut.y, sizeof(scaling_lut.y));
+    memcpy(scaling_lut.cr, scaling_lut.y, sizeof(scaling_lut.y));
   } else {
     init_scaling_function(params->fgm_scaling_points_1, params->fgm_points[1],
-                          scaling_lut_cb);
+                          scaling_lut.cb);
     init_scaling_function(params->fgm_scaling_points_2, params->fgm_points[2],
-                          scaling_lut_cr);
+                          scaling_lut.cr);
   }
   for (int y = 0; y < height / 2; y += (luma_subblock_size_y >> 1)) {
-    init_random_generator(y << 2, params->random_seed);
+    init_random_generator(&rng, y << 2, params->random_seed);
     for (int x = 0; x < width / 2; x += (luma_subblock_size_x >> 1)) {
-      int offset_y = (get_random_number(9) * (3 - params->block_size)) >> 6;
-      get_random_number(16);
-      get_random_number(16);
-      get_random_number(16);
+      int offset_y =
+          (get_random_number(&rng, 9) * (3 - params->block_size)) >> 6;
+      get_random_number(&rng, 16);
+      get_random_number(&rng, 16);
+      get_random_number(&rng, 16);
 
-      int offset_x = (get_random_number(9) * (3 - params->block_size)) >> 6;
-      get_random_number(16);
-      get_random_number(16);
-      get_random_number(16);
+      int offset_x =
+          (get_random_number(&rng, 9) * (3 - params->block_size)) >> 6;
+      get_random_number(&rng, 16);
+      get_random_number(&rng, 16);
+      get_random_number(&rng, 16);
 
       int luma_offset_y = left_pad + 2 * ar_padding + (offset_y << 1);
       int luma_offset_x = top_pad + 2 * ar_padding + (offset_x << 1);
@@ -1159,7 +1158,8 @@ int av2_add_film_grain_run(const avm_film_grain_t *params, uint8_t *luma,
             luma_grain_block + luma_offset_y * luma_grain_stride +
                 luma_offset_x,
             luma_grain_stride, y_col_buf, 2, 2,
-            AVMMIN(luma_subblock_size_y + 2, height - (y << 1)));
+            AVMMIN(luma_subblock_size_y + 2, height - (y << 1)), grain_min,
+            grain_max);
 
         ver_boundary_overlap(
             cb_col_buf, 2 >> chroma_subsamp_x,
@@ -1168,7 +1168,8 @@ int av2_add_film_grain_run(const avm_film_grain_t *params, uint8_t *luma,
             chroma_grain_stride, cb_col_buf, 2 >> chroma_subsamp_x,
             2 >> chroma_subsamp_x,
             AVMMIN(chroma_subblock_size_y + (2 >> chroma_subsamp_y),
-                   (height - (y << 1)) >> chroma_subsamp_y));
+                   (height - (y << 1)) >> chroma_subsamp_y),
+            grain_min, grain_max);
 
         ver_boundary_overlap(
             cr_col_buf, 2 >> chroma_subsamp_x,
@@ -1177,13 +1178,14 @@ int av2_add_film_grain_run(const avm_film_grain_t *params, uint8_t *luma,
             chroma_grain_stride, cr_col_buf, 2 >> chroma_subsamp_x,
             2 >> chroma_subsamp_x,
             AVMMIN(chroma_subblock_size_y + (2 >> chroma_subsamp_y),
-                   (height - (y << 1)) >> chroma_subsamp_y));
+                   (height - (y << 1)) >> chroma_subsamp_y),
+            grain_min, grain_max);
 
         int i = y ? 1 : 0;
 
         if (use_high_bit_depth) {
           add_noise_to_block_hbd(
-              params,
+              params, &scaling_lut,
               (uint16_t *)luma + ((y + i) << 1) * luma_stride + (x << 1),
               (uint16_t *)cb +
                   ((y + i) << (1 - chroma_subsamp_y)) * chroma_stride +
@@ -1199,7 +1201,8 @@ int av2_add_film_grain_run(const avm_film_grain_t *params, uint8_t *luma,
               bit_depth, chroma_subsamp_y, chroma_subsamp_x);
         } else {
           add_noise_to_block(
-              params, luma + ((y + i) << 1) * luma_stride + (x << 1),
+              params, &scaling_lut,
+              luma + ((y + i) << 1) * luma_stride + (x << 1),
               cb + ((y + i) << (1 - chroma_subsamp_y)) * chroma_stride +
                   (x << (1 - chroma_subsamp_x)),
               cr + ((y + i) << (1 - chroma_subsamp_y)) * chroma_stride +
@@ -1216,19 +1219,20 @@ int av2_add_film_grain_run(const avm_film_grain_t *params, uint8_t *luma,
       if (overlap && y) {
         if (x) {
           hor_boundary_overlap(y_line_buf + (x << 1), luma_stride, y_col_buf, 2,
-                               y_line_buf + (x << 1), luma_stride, 2, 2);
+                               y_line_buf + (x << 1), luma_stride, 2, 2,
+                               grain_min, grain_max);
 
           hor_boundary_overlap(cb_line_buf + x * (2 >> chroma_subsamp_x),
                                chroma_stride, cb_col_buf, 2 >> chroma_subsamp_x,
                                cb_line_buf + x * (2 >> chroma_subsamp_x),
                                chroma_stride, 2 >> chroma_subsamp_x,
-                               2 >> chroma_subsamp_y);
+                               2 >> chroma_subsamp_y, grain_min, grain_max);
 
           hor_boundary_overlap(cr_line_buf + x * (2 >> chroma_subsamp_x),
                                chroma_stride, cr_col_buf, 2 >> chroma_subsamp_x,
                                cr_line_buf + x * (2 >> chroma_subsamp_x),
                                chroma_stride, 2 >> chroma_subsamp_x,
-                               2 >> chroma_subsamp_y);
+                               2 >> chroma_subsamp_y, grain_min, grain_max);
         }
 
         hor_boundary_overlap(
@@ -1238,7 +1242,7 @@ int av2_add_film_grain_run(const avm_film_grain_t *params, uint8_t *luma,
             luma_grain_stride, y_line_buf + ((x ? x + 1 : 0) << 1), luma_stride,
             AVMMIN(luma_subblock_size_x - ((x ? 1 : 0) << 1),
                    width - ((x ? x + 1 : 0) << 1)),
-            2);
+            2, grain_min, grain_max);
 
         hor_boundary_overlap(
             cb_line_buf + ((x ? x + 1 : 0) << (1 - chroma_subsamp_x)),
@@ -1251,7 +1255,7 @@ int av2_add_film_grain_run(const avm_film_grain_t *params, uint8_t *luma,
             AVMMIN(chroma_subblock_size_x -
                        ((x ? 1 : 0) << (1 - chroma_subsamp_x)),
                    (width - ((x ? x + 1 : 0) << 1)) >> chroma_subsamp_x),
-            2 >> chroma_subsamp_y);
+            2 >> chroma_subsamp_y, grain_min, grain_max);
 
         hor_boundary_overlap(
             cr_line_buf + ((x ? x + 1 : 0) << (1 - chroma_subsamp_x)),
@@ -1264,11 +1268,12 @@ int av2_add_film_grain_run(const avm_film_grain_t *params, uint8_t *luma,
             AVMMIN(chroma_subblock_size_x -
                        ((x ? 1 : 0) << (1 - chroma_subsamp_x)),
                    (width - ((x ? x + 1 : 0) << 1)) >> chroma_subsamp_x),
-            2 >> chroma_subsamp_y);
+            2 >> chroma_subsamp_y, grain_min, grain_max);
 
         if (use_high_bit_depth) {
           add_noise_to_block_hbd(
-              params, (uint16_t *)luma + (y << 1) * luma_stride + (x << 1),
+              params, &scaling_lut,
+              (uint16_t *)luma + (y << 1) * luma_stride + (x << 1),
               (uint16_t *)cb + (y << (1 - chroma_subsamp_y)) * chroma_stride +
                   (x << ((1 - chroma_subsamp_x))),
               (uint16_t *)cr + (y << (1 - chroma_subsamp_y)) * chroma_stride +
@@ -1281,7 +1286,7 @@ int av2_add_film_grain_run(const avm_film_grain_t *params, uint8_t *luma,
               chroma_subsamp_y, chroma_subsamp_x);
         } else {
           add_noise_to_block(
-              params, luma + (y << 1) * luma_stride + (x << 1),
+              params, &scaling_lut, luma + (y << 1) * luma_stride + (x << 1),
               cb + (y << (1 - chroma_subsamp_y)) * chroma_stride +
                   (x << ((1 - chroma_subsamp_x))),
               cr + (y << (1 - chroma_subsamp_y)) * chroma_stride +
@@ -1300,7 +1305,7 @@ int av2_add_film_grain_run(const avm_film_grain_t *params, uint8_t *luma,
 
       if (use_high_bit_depth) {
         add_noise_to_block_hbd(
-            params,
+            params, &scaling_lut,
             (uint16_t *)luma + ((y + i) << 1) * luma_stride + ((x + j) << 1),
             (uint16_t *)cb +
                 ((y + i) << (1 - chroma_subsamp_y)) * chroma_stride +
@@ -1325,7 +1330,8 @@ int av2_add_film_grain_run(const avm_film_grain_t *params, uint8_t *luma,
             chroma_subsamp_y, chroma_subsamp_x);
       } else {
         add_noise_to_block(
-            params, luma + ((y + i) << 1) * luma_stride + ((x + j) << 1),
+            params, &scaling_lut,
+            luma + ((y + i) << 1) * luma_stride + ((x + j) << 1),
             cb + ((y + i) << (1 - chroma_subsamp_y)) * chroma_stride +
                 ((x + j) << (1 - chroma_subsamp_x)),
             cr + ((y + i) << (1 - chroma_subsamp_y)) * chroma_stride +
