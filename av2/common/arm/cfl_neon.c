@@ -234,6 +234,12 @@ static INLINE void subtract_average_neon(const uint16_t *src, int16_t *dst,
     case 10:
       avg_16x4 = vreinterpret_s16_u16(vqrshrn_n_u32(sum_32x4, 10));
       break;
+    case 11:
+      avg_16x4 = vreinterpret_s16_u16(vqrshrn_n_u32(sum_32x4, 11));
+      break;
+    case 12:
+      avg_16x4 = vreinterpret_s16_u16(vqrshrn_n_u32(sum_32x4, 12));
+      break;
     default: assert(0);
   }
 
