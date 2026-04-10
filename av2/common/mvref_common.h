@@ -664,7 +664,8 @@ static INLINE int av2_is_dv_in_local_range(const AV2_COMMON *cm, const MV dv,
   const int act_right_x = act_left_x + bw - 1;
   const int act_bottom_y = act_top_y + bh - 1;
   const int sb_size_log2 = mib_size_log2 + MI_SIZE_LOG2;
-  // reference blk cannot be in bottom-right region (uncoded region)
+  // reference blk cannot be in bottom-right region of the top-left corner of
+  // current block (uncoded region)
   if (((dv.col >> 3) + bw + right_interp_border) > 0 &&
       ((dv.row >> 3) + bh + bottom_interp_border) > 0)
     return 0;
