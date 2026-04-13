@@ -46,6 +46,7 @@ void bitstream_queue_set_skip_read(int skip);
 #endif  // CONFIG_BITSTREAM_DEBUG
 
 #if CONFIG_MISMATCH_DEBUG
+struct yv12_buffer_config;
 void mismatch_move_frame_idx_w(int check_overflow);
 void mismatch_move_frame_idx_r(int check_underflow);
 void mismatch_reset_frame(int num_planes);
@@ -63,6 +64,45 @@ void mismatch_check_block_tx(const uint16_t *src, int src_stride,
                              int frame_offset, int pixels_c, int pixels_r,
                              int plane, int pixel_c, int pixel_r, int blk_w,
                              int blk_h);
+void mismatch_record_block_deblocking(const uint16_t *src, int src_stride,
+                                      int frame_offset, int plane, int pixel_c,
+                                      int pixel_r, int blk_w, int blk_h);
+void mismatch_check_block_deblocking(const uint16_t *src, int src_stride,
+                                     int frame_offset, int pixels_c,
+                                     int pixels_r, int plane, int pixel_c,
+                                     int pixel_r, int blk_w, int blk_h);
+void mismatch_record_block_cdef(const uint16_t *src, int src_stride,
+                                int frame_offset, int plane, int pixel_c,
+                                int pixel_r, int blk_w, int blk_h);
+void mismatch_check_block_cdef(const uint16_t *src, int src_stride,
+                               int frame_offset, int pixels_c, int pixels_r,
+                               int plane, int pixel_c, int pixel_r, int blk_w,
+                               int blk_h);
+void mismatch_record_block_ccso(const uint16_t *src, int src_stride,
+                                int frame_offset, int plane, int pixel_c,
+                                int pixel_r, int blk_w, int blk_h);
+void mismatch_check_block_ccso(const uint16_t *src, int src_stride,
+                               int frame_offset, int pixels_c, int pixels_r,
+                               int plane, int pixel_c, int pixel_r, int blk_w,
+                               int blk_h);
+void mismatch_record_block_restoration(const uint16_t *src, int src_stride,
+                                       int frame_offset, int plane, int pixel_c,
+                                       int pixel_r, int blk_w, int blk_h);
+void mismatch_check_block_restoration(const uint16_t *src, int src_stride,
+                                      int frame_offset, int pixels_c,
+                                      int pixels_r, int plane, int pixel_c,
+                                      int pixel_r, int blk_w, int blk_h);
+void mismatch_record_block_gdf(const uint16_t *src, int src_stride,
+                               int frame_offset, int plane, int pixel_c,
+                               int pixel_r, int blk_w, int blk_h);
+void mismatch_check_block_gdf(const uint16_t *src, int src_stride,
+                              int frame_offset, int pixels_c, int pixels_r,
+                              int plane, int pixel_c, int pixel_r, int blk_w,
+                              int blk_h);
+void mismatch_record_frame(const struct yv12_buffer_config *buf, int num_planes,
+                           int stage);
+void mismatch_check_frame(const struct yv12_buffer_config *buf,
+                          int display_order_hint, int num_planes, int stage);
 #endif  // CONFIG_MISMATCH_DEBUG
 
 #ifdef __cplusplus

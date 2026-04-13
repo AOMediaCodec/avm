@@ -35,9 +35,9 @@
 #include "avm_ports/mem.h"
 #include "avm_ports/system_state.h"
 #include "avm_scale/avm_scale.h"
-#if CONFIG_BITSTREAM_DEBUG
+#if CONFIG_BITSTREAM_DEBUG || CONFIG_MISMATCH_DEBUG
 #include "avm_util/debug_util.h"
-#endif  // CONFIG_BITSTREAM_DEBUG
+#endif  // CONFIG_BITSTREAM_DEBUG || CONFIG_MISMATCH_DEBUG
 
 #include "av2/common/alloccommon.h"
 #include "av2/common/annexA.h"
@@ -3102,6 +3102,10 @@ static void cdef_restoration_frame(AV2_COMP *cpi, AV2_COMMON *cm,
     if (cm->cdef_info.cdef_frame_enable)
       av2_cdef_frame(&cm->cur_frame->buf, cm, xd, av2_cdef_init_fb_row);
 
+#if CONFIG_MISMATCH_DEBUG
+    mismatch_record_frame(&cm->cur_frame->buf, num_planes, 1);
+#endif
+
 #if CONFIG_COLLECT_COMPONENT_TIMING
     end_timing(cpi, cdef_time);
 #endif
@@ -3156,6 +3160,9 @@ static void cdef_restoration_frame(AV2_COMP *cpi, AV2_COMMON *cm,
 #endif
     );
     ccso_frame(&cm->cur_frame->buf, cm, xd, ext_rec_y);
+#if CONFIG_MISMATCH_DEBUG
+    mismatch_record_frame(&cm->cur_frame->buf, num_planes, 2);
+#endif
     avm_free(ext_rec_y);
   }
   for (int pli = 0; pli < num_planes; pli++) {
@@ -3189,6 +3196,9 @@ static void cdef_restoration_frame(AV2_COMP *cpi, AV2_COMMON *cm,
         av2_loop_restoration_filter_frame(&cm->cur_frame->buf, cm, 0,
                                           &cpi->lr_ctxt);
     }
+#if CONFIG_MISMATCH_DEBUG
+    mismatch_record_frame(&cm->cur_frame->buf, num_planes, 3);
+#endif
   } else {
     cm->rst_info[0].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[1].frame_restoration_type = RESTORE_NONE;
@@ -3197,6 +3207,9 @@ static void cdef_restoration_frame(AV2_COMP *cpi, AV2_COMMON *cm,
 
   if (use_gdf) {
     gdf_optimize_frame(cpi, cm);
+#if CONFIG_MISMATCH_DEBUG
+    mismatch_record_frame(&cm->cur_frame->buf, num_planes, 4);
+#endif
     gdf_free_guided_frame(cm);
   }
 
@@ -3259,6 +3272,9 @@ static void loopfilter_frame(AV2_COMP *cpi, AV2_COMMON *cm) {
                                &mt_info->lf_row_sync);
     else
       av2_loop_filter_frame(&cm->cur_frame->buf, cm, xd, 0, num_planes, 0);
+#if CONFIG_MISMATCH_DEBUG
+    mismatch_record_frame(&cm->cur_frame->buf, num_planes, 0);
+#endif
   }
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, loop_filter_time);

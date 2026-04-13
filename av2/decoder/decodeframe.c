@@ -9896,6 +9896,10 @@ void av2_decode_tg_tiles_and_wrapup(AV2Decoder *pbi, const uint8_t *data,
         av2_loop_filter_frame(&cm->cur_frame->buf, cm, &pbi->dcb.xd, 0,
                               num_planes, 0);
       }
+#if CONFIG_MISMATCH_DEBUG
+      mismatch_check_frame(&cm->cur_frame->buf,
+                           cm->current_frame.display_order_hint, num_planes, 0);
+#endif
     }
 
     const int use_ccso =
@@ -9955,6 +9959,10 @@ void av2_decode_tg_tiles_and_wrapup(AV2Decoder *pbi, const uint8_t *data,
                          av2_cdef_init_fb_row);
         }
       }
+#if CONFIG_MISMATCH_DEBUG
+      mismatch_check_frame(&pbi->common.cur_frame->buf,
+                           cm->current_frame.display_order_hint, num_planes, 1);
+#endif
       if (use_ccso) {
         if (pbi->num_workers > 1 &&
             !cm->seq_params.disable_loopfilters_across_tiles) {
@@ -9965,6 +9973,10 @@ void av2_decode_tg_tiles_and_wrapup(AV2Decoder *pbi, const uint8_t *data,
         }
         avm_free(ext_rec_y);
       }
+#if CONFIG_MISMATCH_DEBUG
+      mismatch_check_frame(&pbi->common.cur_frame->buf,
+                           cm->current_frame.display_order_hint, num_planes, 2);
+#endif
       if (do_gdf) {
         gdf_copy_guided_frame(cm);
       }
@@ -9988,9 +10000,19 @@ void av2_decode_tg_tiles_and_wrapup(AV2Decoder *pbi, const uint8_t *data,
                                             cm, optimized_loop_restoration,
                                             &pbi->lr_ctxt);
         }
+#if CONFIG_MISMATCH_DEBUG
+        mismatch_check_frame(&pbi->common.cur_frame->buf,
+                             cm->current_frame.display_order_hint, num_planes,
+                             3);
+#endif
       }
       if (do_gdf) {
         av2_gdf_frame_dec(cm);
+#if CONFIG_MISMATCH_DEBUG
+        mismatch_check_frame(&pbi->common.cur_frame->buf,
+                             cm->current_frame.display_order_hint, num_planes,
+                             4);
+#endif
         gdf_free_guided_frame(cm);
       }
 
@@ -10008,8 +10030,14 @@ void av2_decode_tg_tiles_and_wrapup(AV2Decoder *pbi, const uint8_t *data,
                                             cm, optimized_loop_restoration,
                                             &pbi->lr_ctxt);
         }
+#if CONFIG_MISMATCH_DEBUG
+        mismatch_check_frame(&pbi->common.cur_frame->buf,
+                             cm->current_frame.display_order_hint, num_planes,
+                             3);
+#endif
       }
     }
+
     if (!pbi->dcb.corrupted) {
       if (!cm->bridge_frame_info.is_bridge_frame) {
         if (cm->seq_params.enable_avg_cdf && cm->seq_params.avg_cdf_type &&

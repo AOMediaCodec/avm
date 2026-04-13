@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "avm_util/debug_util.h"
+#include "avm_scale/yv12config.h"
 
 static int frame_idx_w = 0;
 
@@ -102,12 +103,28 @@ static int frame_buf_idx_w = 0;
 #define MAX_FRAME_BUF_NUM 6
 #define MAX_FRAME_STRIDE 2100
 #define MAX_FRAME_HEIGHT 1200
-static uint16_t
-    frame_pre[MAX_FRAME_BUF_NUM][3]
-             [MAX_FRAME_STRIDE * MAX_FRAME_HEIGHT];  // prediction only
-static uint16_t
-    frame_tx[MAX_FRAME_BUF_NUM][3]
-            [MAX_FRAME_STRIDE * MAX_FRAME_HEIGHT];  // prediction + txfm
+
+// Frame after prediction only.
+static uint16_t frame_pre[MAX_FRAME_BUF_NUM][3]
+                         [MAX_FRAME_STRIDE * MAX_FRAME_HEIGHT];
+// Frame after prediction + txfm.
+static uint16_t frame_tx[MAX_FRAME_BUF_NUM][3]
+                        [MAX_FRAME_STRIDE * MAX_FRAME_HEIGHT];
+// Frame after deblocking.
+static uint16_t frame_deblocking[MAX_FRAME_BUF_NUM][3]
+                                [MAX_FRAME_STRIDE * MAX_FRAME_HEIGHT];
+// Frame after CDEF.
+static uint16_t frame_cdef[MAX_FRAME_BUF_NUM][3]
+                          [MAX_FRAME_STRIDE * MAX_FRAME_HEIGHT];
+// Frame after CCSO.
+static uint16_t frame_ccso[MAX_FRAME_BUF_NUM][3]
+                          [MAX_FRAME_STRIDE * MAX_FRAME_HEIGHT];
+// Frame after Loop Restoration (LR).
+static uint16_t frame_restoration[MAX_FRAME_BUF_NUM][3]
+                                 [MAX_FRAME_STRIDE * MAX_FRAME_HEIGHT];
+// Frame after GDF.
+static uint16_t frame_gdf[MAX_FRAME_BUF_NUM][3]
+                         [MAX_FRAME_STRIDE * MAX_FRAME_HEIGHT];
 static int frame_stride = MAX_FRAME_STRIDE;
 static int frame_height = MAX_FRAME_HEIGHT;
 static int frame_size = MAX_FRAME_STRIDE * MAX_FRAME_HEIGHT;
@@ -129,6 +146,16 @@ void mismatch_reset_frame(int num_planes) {
            sizeof(frame_pre[frame_buf_idx_w][plane][0]) * frame_size);
     memset(frame_tx[frame_buf_idx_w][plane], 0,
            sizeof(frame_tx[frame_buf_idx_w][plane][0]) * frame_size);
+    memset(frame_deblocking[frame_buf_idx_w][plane], 0,
+           sizeof(frame_deblocking[frame_buf_idx_w][plane][0]) * frame_size);
+    memset(frame_cdef[frame_buf_idx_w][plane], 0,
+           sizeof(frame_cdef[frame_buf_idx_w][plane][0]) * frame_size);
+    memset(frame_ccso[frame_buf_idx_w][plane], 0,
+           sizeof(frame_ccso[frame_buf_idx_w][plane][0]) * frame_size);
+    memset(frame_restoration[frame_buf_idx_w][plane], 0,
+           sizeof(frame_restoration[frame_buf_idx_w][plane][0]) * frame_size);
+    memset(frame_gdf[frame_buf_idx_w][plane], 0,
+           sizeof(frame_gdf[frame_buf_idx_w][plane][0]) * frame_size);
   }
 }
 
@@ -303,4 +330,342 @@ void mismatch_check_block_tx(const uint16_t *src, int src_stride,
     assert(0);
   }
 }
+
+void mismatch_record_block_deblocking(const uint16_t *src, int src_stride,
+                                      int frame_offset, int plane, int pixel_c,
+                                      int pixel_r, int blk_w, int blk_h) {
+  (void)frame_offset;
+  if (pixel_c + blk_w >= frame_stride || pixel_r + blk_h >= frame_height) {
+    printf("frame_buf undersized\n");
+    assert(0);
+  }
+
+  for (int r = 0; r < blk_h; ++r) {
+    for (int c = 0; c < blk_w; ++c) {
+      frame_deblocking[frame_buf_idx_w][plane]
+                      [(r + pixel_r) * frame_stride + c + pixel_c] =
+                          src[r * src_stride + c];
+    }
+  }
+}
+
+void mismatch_check_block_deblocking(const uint16_t *src, int src_stride,
+                                     int frame_offset, int pixels_c,
+                                     int pixels_r, int plane, int pixel_c,
+                                     int pixel_r, int blk_w, int blk_h) {
+  if (pixel_c + blk_w >= frame_stride || pixel_r + blk_h >= frame_height) {
+    printf("frame_buf undersized\n");
+    assert(0);
+  }
+
+  int mismatch = 0;
+  for (int r = 0; r < blk_h; ++r) {
+    for (int c = 0; c < blk_w; ++c) {
+      if (r + pixel_r >= pixels_r || c + pixel_c >= pixels_c) continue;
+      if (frame_deblocking[frame_buf_idx_r][plane]
+                          [(r + pixel_r) * frame_stride + c + pixel_c] !=
+          src[r * src_stride + c]) {
+        mismatch = 1;
+      }
+    }
+  }
+  if (mismatch) {
+    printf(
+        "\ncheck_block_deblocking failed frame_idx %d frame_offset %d plane %d "
+        "pixel_c "
+        "%d pixel_r "
+        "%d blk_w %d blk_h %d\n",
+        frame_idx_r, frame_offset, plane, pixel_c, pixel_r, blk_w, blk_h);
+    printf("enc\n");
+    for (int rr = 0; rr < blk_h; ++rr) {
+      for (int cc = 0; cc < blk_w; ++cc) {
+        printf("%d ",
+               frame_deblocking[frame_buf_idx_r][plane]
+                               [(rr + pixel_r) * frame_stride + cc + pixel_c]);
+      }
+      printf("\n");
+    }
+
+    printf("dec\n");
+    for (int rr = 0; rr < blk_h; ++rr) {
+      for (int cc = 0; cc < blk_w; ++cc) {
+        printf("%d ", src[rr * src_stride + cc]);
+      }
+      printf("\n");
+    }
+    assert(0);
+  }
+}
+
+void mismatch_record_block_cdef(const uint16_t *src, int src_stride,
+                                int frame_offset, int plane, int pixel_c,
+                                int pixel_r, int blk_w, int blk_h) {
+  (void)frame_offset;
+  if (pixel_c + blk_w >= frame_stride || pixel_r + blk_h >= frame_height) {
+    printf("frame_buf undersized\n");
+    assert(0);
+  }
+
+  for (int r = 0; r < blk_h; ++r) {
+    for (int c = 0; c < blk_w; ++c) {
+      frame_cdef[frame_buf_idx_w][plane][(r + pixel_r) * frame_stride + c +
+                                         pixel_c] = src[r * src_stride + c];
+    }
+  }
+}
+
+void mismatch_check_block_cdef(const uint16_t *src, int src_stride,
+                               int frame_offset, int pixels_c, int pixels_r,
+                               int plane, int pixel_c, int pixel_r, int blk_w,
+                               int blk_h) {
+  if (pixel_c + blk_w >= frame_stride || pixel_r + blk_h >= frame_height) {
+    printf("frame_buf undersized\n");
+    assert(0);
+  }
+
+  int mismatch = 0;
+  for (int r = 0; r < blk_h; ++r) {
+    for (int c = 0; c < blk_w; ++c) {
+      if (r + pixel_r >= pixels_r || c + pixel_c >= pixels_c) continue;
+      if (frame_cdef[frame_buf_idx_r][plane]
+                    [(r + pixel_r) * frame_stride + c + pixel_c] !=
+          src[r * src_stride + c]) {
+        mismatch = 1;
+      }
+    }
+  }
+  if (mismatch) {
+    printf(
+        "\ncheck_block_cdef failed frame_idx %d frame_offset %d plane %d "
+        "pixel_c %d pixel_r %d blk_w %d blk_h %d\n",
+        frame_idx_r, frame_offset, plane, pixel_c, pixel_r, blk_w, blk_h);
+    assert(0);
+  }
+}
+
+void mismatch_record_block_ccso(const uint16_t *src, int src_stride,
+                                int frame_offset, int plane, int pixel_c,
+                                int pixel_r, int blk_w, int blk_h) {
+  (void)frame_offset;
+  if (pixel_c + blk_w >= frame_stride || pixel_r + blk_h >= frame_height) {
+    printf("frame_buf undersized\n");
+    assert(0);
+  }
+
+  for (int r = 0; r < blk_h; ++r) {
+    for (int c = 0; c < blk_w; ++c) {
+      frame_ccso[frame_buf_idx_w][plane][(r + pixel_r) * frame_stride + c +
+                                         pixel_c] = src[r * src_stride + c];
+    }
+  }
+}
+
+void mismatch_check_block_ccso(const uint16_t *src, int src_stride,
+                               int frame_offset, int pixels_c, int pixels_r,
+                               int plane, int pixel_c, int pixel_r, int blk_w,
+                               int blk_h) {
+  if (pixel_c + blk_w >= frame_stride || pixel_r + blk_h >= frame_height) {
+    printf("frame_buf undersized\n");
+    assert(0);
+  }
+
+  int mismatch = 0;
+  for (int r = 0; r < blk_h; ++r) {
+    for (int c = 0; c < blk_w; ++c) {
+      if (r + pixel_r >= pixels_r || c + pixel_c >= pixels_c) continue;
+      if (frame_ccso[frame_buf_idx_r][plane]
+                    [(r + pixel_r) * frame_stride + c + pixel_c] !=
+          src[r * src_stride + c]) {
+        mismatch = 1;
+      }
+    }
+  }
+  if (mismatch) {
+    printf(
+        "\ncheck_block_ccso failed frame_idx %d frame_offset %d plane %d "
+        "pixel_c %d pixel_r %d blk_w %d blk_h %d\n",
+        frame_idx_r, frame_offset, plane, pixel_c, pixel_r, blk_w, blk_h);
+    assert(0);
+  }
+}
+
+void mismatch_record_block_restoration(const uint16_t *src, int src_stride,
+                                       int frame_offset, int plane, int pixel_c,
+                                       int pixel_r, int blk_w, int blk_h) {
+  (void)frame_offset;
+  if (pixel_c + blk_w >= frame_stride || pixel_r + blk_h >= frame_height) {
+    printf("frame_buf undersized\n");
+    assert(0);
+  }
+
+  for (int r = 0; r < blk_h; ++r) {
+    for (int c = 0; c < blk_w; ++c) {
+      frame_restoration[frame_buf_idx_w][plane]
+                       [(r + pixel_r) * frame_stride + c + pixel_c] =
+                           src[r * src_stride + c];
+    }
+  }
+}
+
+void mismatch_check_block_restoration(const uint16_t *src, int src_stride,
+                                      int frame_offset, int pixels_c,
+                                      int pixels_r, int plane, int pixel_c,
+                                      int pixel_r, int blk_w, int blk_h) {
+  if (pixel_c + blk_w >= frame_stride || pixel_r + blk_h >= frame_height) {
+    printf("frame_buf undersized\n");
+    assert(0);
+  }
+
+  int mismatch = 0;
+  for (int r = 0; r < blk_h; ++r) {
+    for (int c = 0; c < blk_w; ++c) {
+      if (r + pixel_r >= pixels_r || c + pixel_c >= pixels_c) continue;
+      if (frame_restoration[frame_buf_idx_r][plane]
+                           [(r + pixel_r) * frame_stride + c + pixel_c] !=
+          src[r * src_stride + c]) {
+        mismatch = 1;
+      }
+    }
+  }
+  if (mismatch) {
+    printf(
+        "\ncheck_block_restoration failed frame_idx %d frame_offset %d plane "
+        "%d "
+        "pixel_c %d pixel_r %d blk_w %d blk_h %d\n",
+        frame_idx_r, frame_offset, plane, pixel_c, pixel_r, blk_w, blk_h);
+    assert(0);
+  }
+}
+
+void mismatch_record_block_gdf(const uint16_t *src, int src_stride,
+                               int frame_offset, int plane, int pixel_c,
+                               int pixel_r, int blk_w, int blk_h) {
+  (void)frame_offset;
+  if (pixel_c + blk_w >= frame_stride || pixel_r + blk_h >= frame_height) {
+    printf("frame_buf undersized\n");
+    assert(0);
+  }
+
+  for (int r = 0; r < blk_h; ++r) {
+    for (int c = 0; c < blk_w; ++c) {
+      frame_gdf[frame_buf_idx_w][plane][(r + pixel_r) * frame_stride + c +
+                                        pixel_c] = src[r * src_stride + c];
+    }
+  }
+}
+
+void mismatch_check_block_gdf(const uint16_t *src, int src_stride,
+                              int frame_offset, int pixels_c, int pixels_r,
+                              int plane, int pixel_c, int pixel_r, int blk_w,
+                              int blk_h) {
+  if (pixel_c + blk_w >= frame_stride || pixel_r + blk_h >= frame_height) {
+    printf("frame_buf undersized\n");
+    assert(0);
+  }
+
+  int mismatch = 0;
+  for (int r = 0; r < blk_h; ++r) {
+    for (int c = 0; c < blk_w; ++c) {
+      if (r + pixel_r >= pixels_r || c + pixel_c >= pixels_c) continue;
+      if (frame_gdf[frame_buf_idx_r][plane]
+                   [(r + pixel_r) * frame_stride + c + pixel_c] !=
+          src[r * src_stride + c]) {
+        mismatch = 1;
+      }
+    }
+  }
+  if (mismatch) {
+    printf(
+        "\ncheck_block_gdf failed frame_idx %d frame_offset %d plane %d "
+        "pixel_c %d pixel_r %d blk_w %d blk_h %d\n",
+        frame_idx_r, frame_offset, plane, pixel_c, pixel_r, blk_w, blk_h);
+    assert(0);
+  }
+}
+
+void mismatch_record_frame(const YV12_BUFFER_CONFIG *buf, int num_planes,
+                           int stage) {
+  for (int plane = 0; plane < num_planes; ++plane) {
+    const int is_uv = plane > 0;
+    const int width = buf->crop_widths[is_uv];
+    const int height = buf->crop_heights[is_uv];
+    const int stride = buf->strides[is_uv];
+    const uint16_t *src = buf->buffers[plane];
+
+    for (int r = 0; r < height; r += 16) {
+      for (int c = 0; c < width; c += 16) {
+        int blk_w = (width - c < 16) ? width - c : 16;
+        int blk_h = (height - r < 16) ? height - r : 16;
+        switch (stage) {
+          case 0:
+            mismatch_record_block_deblocking(src + r * stride + c, stride, 0,
+                                             plane, c, r, blk_w, blk_h);
+            break;
+          case 1:
+            mismatch_record_block_cdef(src + r * stride + c, stride, 0, plane,
+                                       c, r, blk_w, blk_h);
+            break;
+          case 2:
+            mismatch_record_block_ccso(src + r * stride + c, stride, 0, plane,
+                                       c, r, blk_w, blk_h);
+            break;
+          case 3:
+            mismatch_record_block_restoration(src + r * stride + c, stride, 0,
+                                              plane, c, r, blk_w, blk_h);
+            break;
+          case 4:
+            mismatch_record_block_gdf(src + r * stride + c, stride, 0, plane, c,
+                                      r, blk_w, blk_h);
+            break;
+        }
+      }
+    }
+  }
+}
+
+void mismatch_check_frame(const YV12_BUFFER_CONFIG *buf, int display_order_hint,
+                          int num_planes, int stage) {
+  for (int plane = 0; plane < num_planes; ++plane) {
+    const int is_uv = plane > 0;
+    const int width = buf->crop_widths[is_uv];
+    const int height = buf->crop_heights[is_uv];
+    const int stride = buf->strides[is_uv];
+    const uint16_t *src = buf->buffers[plane];
+
+    for (int r = 0; r < height; r += 16) {
+      for (int c = 0; c < width; c += 16) {
+        int blk_w = (width - c < 16) ? width - c : 16;
+        int blk_h = (height - r < 16) ? height - r : 16;
+        switch (stage) {
+          case 0:
+            mismatch_check_block_deblocking(src + r * stride + c, stride,
+                                            display_order_hint, width, height,
+                                            plane, c, r, blk_w, blk_h);
+            break;
+          case 1:
+            mismatch_check_block_cdef(src + r * stride + c, stride,
+                                      display_order_hint, width, height, plane,
+                                      c, r, blk_w, blk_h);
+            break;
+          case 2:
+            mismatch_check_block_ccso(src + r * stride + c, stride,
+                                      display_order_hint, width, height, plane,
+                                      c, r, blk_w, blk_h);
+            break;
+          case 3:
+            mismatch_check_block_restoration(src + r * stride + c, stride,
+                                             display_order_hint, width, height,
+                                             plane, c, r, blk_w, blk_h);
+            break;
+          case 4:
+            mismatch_check_block_gdf(src + r * stride + c, stride,
+                                     display_order_hint, width, height, plane,
+                                     c, r, blk_w, blk_h);
+            break;
+        }
+      }
+    }
+  }
+}
+
 #endif  // CONFIG_MISMATCH_DEBUG
