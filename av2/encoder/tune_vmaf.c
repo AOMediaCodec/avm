@@ -308,8 +308,8 @@ static double find_best_frame_unsharp_amount(const AV2_COMP *const cpi,
   const int height = source->y_height;
   YV12_BUFFER_CONFIG sharpened;
   memset(&sharpened, 0, sizeof(sharpened));
-  avm_alloc_frame_buffer(&sharpened, width, height, 1, 1,
-                         cpi->oxcf.border_in_pixels,
+  avm_alloc_frame_buffer(&sharpened, width, height, source->subsampling_x,
+                         source->subsampling_y, cpi->oxcf.border_in_pixels,
                          cm->features.byte_alignment, false);
 
   const double baseline_variance = frame_average_variance(cpi, source);
@@ -360,8 +360,8 @@ void av2_vmaf_neg_preprocessing(AV2_COMP *const cpi,
 
   YV12_BUFFER_CONFIG blurred;
   memset(&blurred, 0, sizeof(blurred));
-  avm_alloc_frame_buffer(&blurred, width, height, 1, 1,
-                         cpi->oxcf.border_in_pixels,
+  avm_alloc_frame_buffer(&blurred, width, height, source->subsampling_x,
+                         source->subsampling_y, cpi->oxcf.border_in_pixels,
                          cm->features.byte_alignment, false);
 
   gaussian_blur(bit_depth, source, &blurred);
@@ -381,11 +381,11 @@ void av2_vmaf_frame_preprocessing(AV2_COMP *const cpi,
   YV12_BUFFER_CONFIG source_extended, blurred;
   memset(&source_extended, 0, sizeof(source_extended));
   memset(&blurred, 0, sizeof(blurred));
-  avm_alloc_frame_buffer(&source_extended, width, height, 1, 1,
-                         cpi->oxcf.border_in_pixels,
+  avm_alloc_frame_buffer(&source_extended, width, height, source->subsampling_x,
+                         source->subsampling_y, cpi->oxcf.border_in_pixels,
                          cm->features.byte_alignment, false);
-  avm_alloc_frame_buffer(&blurred, width, height, 1, 1,
-                         cpi->oxcf.border_in_pixels,
+  avm_alloc_frame_buffer(&blurred, width, height, source->subsampling_x,
+                         source->subsampling_y, cpi->oxcf.border_in_pixels,
                          cm->features.byte_alignment, false);
 
   av2_copy_and_extend_frame(source, &source_extended);
@@ -420,11 +420,11 @@ void av2_vmaf_blk_preprocessing(AV2_COMP *const cpi,
   YV12_BUFFER_CONFIG source_extended, blurred;
   memset(&blurred, 0, sizeof(blurred));
   memset(&source_extended, 0, sizeof(source_extended));
-  avm_alloc_frame_buffer(&blurred, width, height, 1, 1,
-                         cpi->oxcf.border_in_pixels,
+  avm_alloc_frame_buffer(&blurred, width, height, source->subsampling_x,
+                         source->subsampling_y, cpi->oxcf.border_in_pixels,
                          cm->features.byte_alignment, false);
-  avm_alloc_frame_buffer(&source_extended, width, height, 1, 1,
-                         cpi->oxcf.border_in_pixels,
+  avm_alloc_frame_buffer(&source_extended, width, height, source->subsampling_x,
+                         source->subsampling_y, cpi->oxcf.border_in_pixels,
                          cm->features.byte_alignment, false);
 
   av2_copy_and_extend_frame(source, &source_extended);
@@ -456,10 +456,11 @@ void av2_vmaf_blk_preprocessing(AV2_COMP *const cpi,
   YV12_BUFFER_CONFIG source_block, blurred_block;
   memset(&source_block, 0, sizeof(source_block));
   memset(&blurred_block, 0, sizeof(blurred_block));
-  avm_alloc_frame_buffer(&source_block, block_w, block_h, 1, 1,
-                         cpi->oxcf.border_in_pixels,
+  avm_alloc_frame_buffer(&source_block, block_w, block_h, source->subsampling_x,
+                         source->subsampling_y, cpi->oxcf.border_in_pixels,
                          cm->features.byte_alignment, false);
-  avm_alloc_frame_buffer(&blurred_block, block_w, block_h, 1, 1,
+  avm_alloc_frame_buffer(&blurred_block, block_w, block_h,
+                         source->subsampling_x, source->subsampling_y,
                          cpi->oxcf.border_in_pixels,
                          cm->features.byte_alignment, false);
 
@@ -539,9 +540,10 @@ void av2_set_mb_vmaf_rdmult_scaling(AV2_COMP *cpi) {
   avm_clear_system_state();
   YV12_BUFFER_CONFIG resized_source;
   memset(&resized_source, 0, sizeof(resized_source));
-  avm_alloc_frame_buffer(
-      &resized_source, y_width / resize_factor, y_height / resize_factor, 1, 1,
-      cpi->oxcf.border_in_pixels, cm->features.byte_alignment, false);
+  avm_alloc_frame_buffer(&resized_source, y_width / resize_factor,
+                         y_height / resize_factor, cpi->source->subsampling_x,
+                         cpi->source->subsampling_y, cpi->oxcf.border_in_pixels,
+                         cm->features.byte_alignment, false);
   av2_resize_and_extend_frame_nonnormative(cpi->source, &resized_source,
                                            bit_depth, av2_num_planes(cm));
 
@@ -556,14 +558,16 @@ void av2_set_mb_vmaf_rdmult_scaling(AV2_COMP *cpi) {
 
   YV12_BUFFER_CONFIG blurred;
   memset(&blurred, 0, sizeof(blurred));
-  avm_alloc_frame_buffer(&blurred, resized_y_width, resized_y_height, 1, 1,
+  avm_alloc_frame_buffer(&blurred, resized_y_width, resized_y_height,
+                         cpi->source->subsampling_x, cpi->source->subsampling_y,
                          cpi->oxcf.border_in_pixels,
                          cm->features.byte_alignment, false);
   gaussian_blur(bit_depth, &resized_source, &blurred);
 
   YV12_BUFFER_CONFIG recon;
   memset(&recon, 0, sizeof(recon));
-  avm_alloc_frame_buffer(&recon, resized_y_width, resized_y_height, 1, 1,
+  avm_alloc_frame_buffer(&recon, resized_y_width, resized_y_height,
+                         cpi->source->subsampling_x, cpi->source->subsampling_y,
                          cpi->oxcf.border_in_pixels,
                          cm->features.byte_alignment, false);
   avm_yv12_copy_frame(&resized_source, &recon, 1);
@@ -706,14 +710,14 @@ static double calc_vmaf_motion_score(const AV2_COMP *const cpi,
   memset(&blurred_last, 0, sizeof(blurred_last));
   memset(&blurred_next, 0, sizeof(blurred_next));
 
-  avm_alloc_frame_buffer(&blurred_cur, y_width, y_height, 1, 1,
-                         cpi->oxcf.border_in_pixels,
+  avm_alloc_frame_buffer(&blurred_cur, y_width, y_height, cur->subsampling_x,
+                         cur->subsampling_y, cpi->oxcf.border_in_pixels,
                          cm->features.byte_alignment, false);
-  avm_alloc_frame_buffer(&blurred_last, y_width, y_height, 1, 1,
-                         cpi->oxcf.border_in_pixels,
+  avm_alloc_frame_buffer(&blurred_last, y_width, y_height, cur->subsampling_x,
+                         cur->subsampling_y, cpi->oxcf.border_in_pixels,
                          cm->features.byte_alignment, false);
-  avm_alloc_frame_buffer(&blurred_next, y_width, y_height, 1, 1,
-                         cpi->oxcf.border_in_pixels,
+  avm_alloc_frame_buffer(&blurred_next, y_width, y_height, cur->subsampling_x,
+                         cur->subsampling_y, cpi->oxcf.border_in_pixels,
                          cm->features.byte_alignment, false);
 
   gaussian_blur(bit_depth, cur, &blurred_cur);
@@ -878,17 +882,17 @@ static double find_best_frame_unsharp_amount_neg(
   memset(&src_sharpened, 0, sizeof(src_sharpened));
   memset(&recon_blurred, 0, sizeof(recon_blurred));
   memset(&src_blurred, 0, sizeof(src_blurred));
-  avm_alloc_frame_buffer(&recon_sharpened, width, height, 1, 1,
-                         cpi->oxcf.border_in_pixels,
+  avm_alloc_frame_buffer(&recon_sharpened, width, height, src->subsampling_x,
+                         src->subsampling_y, cpi->oxcf.border_in_pixels,
                          cm->features.byte_alignment, false);
-  avm_alloc_frame_buffer(&src_sharpened, width, height, 1, 1,
-                         cpi->oxcf.border_in_pixels,
+  avm_alloc_frame_buffer(&src_sharpened, width, height, src->subsampling_x,
+                         src->subsampling_y, cpi->oxcf.border_in_pixels,
                          cm->features.byte_alignment, false);
-  avm_alloc_frame_buffer(&recon_blurred, width, height, 1, 1,
-                         cpi->oxcf.border_in_pixels,
+  avm_alloc_frame_buffer(&recon_blurred, width, height, src->subsampling_x,
+                         src->subsampling_y, cpi->oxcf.border_in_pixels,
                          cm->features.byte_alignment, false);
-  avm_alloc_frame_buffer(&src_blurred, width, height, 1, 1,
-                         cpi->oxcf.border_in_pixels,
+  avm_alloc_frame_buffer(&src_blurred, width, height, src->subsampling_x,
+                         src->subsampling_y, cpi->oxcf.border_in_pixels,
                          cm->features.byte_alignment, false);
 
   gaussian_blur(bit_depth, recon, &recon_blurred);
