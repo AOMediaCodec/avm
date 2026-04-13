@@ -46,17 +46,31 @@ void avm_close_vmaf_model(VmafModel *vmaf_model) {
   vmaf_model_destroy(vmaf_model);
 }
 
-static void copy_picture(const YV12_BUFFER_CONFIG *src, VmafPicture *dst) {
+static void copy_picture(const int bit_depth, const YV12_BUFFER_CONFIG *src,
+                         VmafPicture *dst) {
   const int width = src->y_width;
   const int height = src->y_height;
 
   uint16_t *src_ptr = src->y_buffer;
-  uint16_t *dst_ptr = dst->data[0];
 
-  for (int row = 0; row < height; ++row) {
-    memcpy(dst_ptr, src_ptr, width * sizeof(dst_ptr[0]));
-    src_ptr += src->y_stride;
-    dst_ptr += dst->stride[0] / 2;
+  if (bit_depth > 8) {
+    uint16_t *dst_ptr = dst->data[0];
+
+    for (int row = 0; row < height; ++row) {
+      memcpy(dst_ptr, src_ptr, width * sizeof(dst_ptr[0]));
+      src_ptr += src->y_stride;
+      dst_ptr += dst->stride[0] / 2;
+    }
+  } else {
+    uint8_t *dst_ptr = (uint8_t *)dst->data[0];
+
+    for (int row = 0; row < height; ++row) {
+      for (int col = 0; col < width; ++col) {
+        dst_ptr[col] = (uint8_t)src_ptr[col];
+      }
+      src_ptr += src->y_stride;
+      dst_ptr += dst->stride[0];
+    }
   }
 }
 
@@ -127,8 +141,8 @@ void avm_calc_vmaf(VmafModel *vmaf_model, const YV12_BUFFER_CONFIG *source,
                          source->y_width, source->y_height)) {
     vmaf_fatal_error("Failed to alloc VMAF pictures.");
   }
-  copy_picture(source, &ref);
-  copy_picture(distorted, &dist);
+  copy_picture(bit_depth, source, &ref);
+  copy_picture(bit_depth, distorted, &dist);
   if (vmaf_read_pictures(vmaf_context, &ref, &dist,
                          /*picture index=*/frame_index)) {
     vmaf_fatal_error("Failed to read VMAF pictures.");
@@ -156,8 +170,8 @@ void avm_read_vmaf_image(VmafContext *vmaf_context,
                          source->y_width, source->y_height)) {
     vmaf_fatal_error("Failed to alloc VMAF pictures.");
   }
-  copy_picture(source, &ref);
-  copy_picture(distorted, &dist);
+  copy_picture(bit_depth, source, &ref);
+  copy_picture(bit_depth, distorted, &dist);
   if (vmaf_read_pictures(vmaf_context, &ref, &dist,
                          /*picture index=*/frame_index)) {
     vmaf_fatal_error("Failed to read VMAF pictures.");
