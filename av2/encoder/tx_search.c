@@ -3960,7 +3960,8 @@ void av2_pick_uniform_tx_size_type_yrd(const AV2_COMP *const cpi, MACROBLOCK *x,
   uint32_t hash = 0;
   MB_RD_RECORD *mb_rd_record = NULL;
   const int num_blks = bsize_to_num_blk(bs);
-  if (is_inter && cpi->sf.rd_sf.use_mb_rd_hash) {
+  if (is_inter && cpi->sf.rd_sf.use_mb_rd_hash &&
+      !xd->lossless[mbmi->segment_id]) {
     const int within_border =
         mi_row >= xd->tile.mi_row_start &&
         (mi_row + mi_size_high[bs] < xd->tile.mi_row_end) &&
