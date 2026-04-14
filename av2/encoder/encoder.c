@@ -4256,7 +4256,7 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
                  cm->features.derived_primary_ref_frame == PRIMARY_REF_NONE));
 
   if (cm->features.primary_ref_frame != PRIMARY_REF_NONE &&
-      !cpi->error_resilient_frame_seen) {
+      !cpi->error_resilient_frame_seen && !cm->seg.enabled) {
     const int n_refs = cm->ref_frames_info.num_total_refs;
     //    int frame_size[REF_FRAMES];
     int best_ref_idx = -1;
