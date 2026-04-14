@@ -5354,7 +5354,8 @@ static int av2_pick_ref_bv_subpel(
 static int64_t rd_pick_intrabc_mode_sb(const AV2_COMP *cpi, MACROBLOCK *x,
                                        PICK_MODE_CONTEXT *ctx,
                                        RD_STATS *rd_stats, BLOCK_SIZE bsize,
-                                       int64_t best_rd) {
+                                       int64_t best_rd,
+                                       int skip_interintra_cost) {
   const AV2_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
   if (!av2_allow_intrabc(cm, xd, bsize) || (xd->tree_type == CHROMA_PART) ||
@@ -5825,6 +5826,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV2_COMP *cpi, MACROBLOCK *x,
 
         const int intrabc_ctx = get_intrabc_ctx(xd);
         int rate_mode = x->mode_costs.intrabc_cost[intrabc_ctx][1];
+        rate_mode += skip_interintra_cost;
         rate_mode += x->mode_costs.intrabc_mode_cost[mbmi->intrabc_mode];
         rate_mode += av2_get_intrabc_drl_idx_cost(
             cm->features.max_bvp_drl_bits + 1, mbmi->intrabc_drl_idx);
@@ -5992,7 +5994,7 @@ void av2_rd_pick_intra_mode_sb(const struct AV2_COMP *cpi, ThreadData *td,
   int skip_ibc_search =
       !cm->features.allow_screen_content_tools && all_intra && (nz <= 0);
   if (!skip_ibc_search) {
-    if (rd_pick_intrabc_mode_sb(cpi, x, ctx, rd_cost, bsize, best_rd) <
+    if (rd_pick_intrabc_mode_sb(cpi, x, ctx, rd_cost, bsize, best_rd, 0) <
         best_rd) {
       ctx->rd_stats.skip_txfm = mbmi->skip_txfm[xd->tree_type == CHROMA_PART];
       for (int i = 0; i < num_planes; ++i) {
@@ -8783,7 +8785,16 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
       mbmi->warp_precision_idx = 0;
 
       mbmi->warp_inter_intra = 0;
-      rd_pick_intrabc_mode_sb(cpi, x, ctx, &this_rd_cost, bsize, INT64_MAX);
+
+      int skip_interintra_cost = intra_ref_frame_cost;
+      if (is_skip_mode_allowed(cm, xd)) {
+        // Compare the use of skip_mode with the best intra/inter mode obtained.
+        const int skip_mode_ctx = av2_get_skip_mode_context(xd);
+        skip_interintra_cost += x->mode_costs.skip_mode_cost[skip_mode_ctx][0];
+      }
+
+      rd_pick_intrabc_mode_sb(cpi, x, ctx, &this_rd_cost, bsize, INT64_MAX,
+                              skip_interintra_cost);
 
       if (this_rd_cost.rdcost < search_state.best_rd) {
         rd_cost->rate = this_rd_cost.rate;
