@@ -9375,6 +9375,11 @@ static AVM_INLINE void tip_mode_legal_check(AV2Decoder *const pbi) {
         "tip_frame_mode is not equal to TIP_FRAME_AS_OUTPUT for a TIP frame");
   }
 
+  if (is_tip_frame && cm->seq_params.enable_tip != 1) {
+    avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
+                       "enable_tip is not equal to 1 for a TIP frame");
+  }
+
   if (cm->features.tip_frame_mode == TIP_FRAME_DISABLED) return;
 
   if (cm->current_frame.frame_type == KEY_FRAME ||
