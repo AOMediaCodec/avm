@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2021, Alliance for Open Media. All rights reserved
  *
  * This source code is subject to the terms of the BSD 3-Clause Clear License
@@ -1253,7 +1253,7 @@ void av2_encode_sb(const struct AV2_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
                                     ? xd->current_base_qindex
                                     : cpi->common.quant_params.base_qindex;
       if (mbmi->skip_txfm[xd->tree_type == CHROMA_PART] &&
-          !cm->features.has_lossless_segment) {
+          !cm->features.has_lossless_segment && cm->seg.update_map) {
         assert(is_inter_block(mbmi, xd->tree_type));
         int cdf_num;
         int pred = av2_get_spatial_seg_pred(cm, xd, &cdf_num, 1);
