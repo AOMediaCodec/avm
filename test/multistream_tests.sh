@@ -24,9 +24,9 @@
 ##   Test 2.4: Concatenate 20-frame singlestream with Test 1.2-style multistream (stream_id 7,1), verify strict order
 ##             (same as Test 2.3 with different stream_ids)
 ##   Test 2.5: Concatenate Test 1.1-style multistream (stream_id 0,6) with 20-frame singlestream
-##             (DISABLED: known DOH bug — multistream followed by singlestream)
+##             (tests multistream followed by singlestream)
 ##   Test 2.6: Concatenate Test 1.2-style multistream (stream_id 7,1) with 20-frame singlestream
-##             (DISABLED: known DOH bug — same as Test 2.5 with different stream_ids)
+##             (same as Test 2.5 with different stream_ids)
 ##
 ## multistream_three_and_four_stream_tests:
 ##   Test 3.1: Multiplex three streams (stream_id 12,5,2), verify per-stream ordering
@@ -259,19 +259,16 @@ assert d == c + m2a, 'Test 2.4: pixel mismatch'
 print('Test 2.4 passed: cat(C, mux2a) strict concatenation order correct')
 " || return 1
 
-  # --- Test 2.5: DISABLED - known DOH bug when muxed precedes multi-GOP stream ---
-  # To re-enable, change ENABLE_TEST_2_5 to 1
-  ENABLE_TEST_2_5=0
-  if [ "${ENABLE_TEST_2_5}" = "1" ]; then
-    local bs_t7="${AVM_TEST_OUTPUT_DIR}/cs_t7_concat.bin"
-    local dec_t7="${AVM_TEST_OUTPUT_DIR}/cs_t7_decoded.yuv"
+  # --- Test 2.5: multistream followed by singlestream ---
+  local bs_t7="${AVM_TEST_OUTPUT_DIR}/cs_t7_concat.bin"
+  local dec_t7="${AVM_TEST_OUTPUT_DIR}/cs_t7_decoded.yuv"
 
-    vlog "  [Test 2.5] Concatenating mux2 with C..."
-    cat "${bs_mux2}" "${bs_c}" > "${bs_t7}" || return 1
-    vlog "  [Test 2.5] Decoding..."
-    "${decoder}" --codec=av2 -o "${dec_t7}" "${bs_t7}" > /dev/null 2>&1 || return 1
-    vlog "  [Test 2.5] Verifying strict concatenation order..."
-    python3 -c "
+  vlog "  [Test 2.5] Concatenating mux2 with C..."
+  cat "${bs_mux2}" "${bs_c}" > "${bs_t7}" || return 1
+  vlog "  [Test 2.5] Decoding..."
+  "${decoder}" --codec=av2 -o "${dec_t7}" "${bs_t7}" > /dev/null 2>&1 || return 1
+  vlog "  [Test 2.5] Verifying strict concatenation order..."
+  python3 -c "
 def extract_pixels(f, fs):
     with open(f, 'rb') as fh:
         fh.readline()
@@ -289,22 +286,17 @@ c = extract_pixels('${dec_c}', fs)
 assert d == m2 + c, 'Test 2.5: pixel mismatch'
 print('Test 2.5 passed: cat(mux2, C) strict concatenation order correct')
 " || return 1
-  else
-    vlog "  [Test 2.5] SKIPPED: known DOH bug"
-  fi
 
-  # --- Test 2.6: DISABLED - same DOH bug as Test 2.5 ---
-  ENABLE_TEST_2_6=0
-  if [ "${ENABLE_TEST_2_6}" = "1" ]; then
-    local bs_t7a="${AVM_TEST_OUTPUT_DIR}/cs_t7a_concat.bin"
-    local dec_t7a="${AVM_TEST_OUTPUT_DIR}/cs_t7a_decoded.yuv"
+  # --- Test 2.6: same as Test 2.5 with different stream_ids ---
+  local bs_t7a="${AVM_TEST_OUTPUT_DIR}/cs_t7a_concat.bin"
+  local dec_t7a="${AVM_TEST_OUTPUT_DIR}/cs_t7a_decoded.yuv"
 
-    vlog "  [Test 2.6] Concatenating mux2a with C..."
-    cat "${bs_mux2a}" "${bs_c}" > "${bs_t7a}" || return 1
-    vlog "  [Test 2.6] Decoding..."
-    "${decoder}" --codec=av2 -o "${dec_t7a}" "${bs_t7a}" > /dev/null 2>&1 || return 1
-    vlog "  [Test 2.6] Verifying strict concatenation order..."
-    python3 -c "
+  vlog "  [Test 2.6] Concatenating mux2a with C..."
+  cat "${bs_mux2a}" "${bs_c}" > "${bs_t7a}" || return 1
+  vlog "  [Test 2.6] Decoding..."
+  "${decoder}" --codec=av2 -o "${dec_t7a}" "${bs_t7a}" > /dev/null 2>&1 || return 1
+  vlog "  [Test 2.6] Verifying strict concatenation order..."
+  python3 -c "
 def extract_pixels(f, fs):
     with open(f, 'rb') as fh:
         fh.readline()
@@ -322,9 +314,6 @@ c = extract_pixels('${dec_c}', fs)
 assert d == m2a + c, 'Test 2.6: pixel mismatch'
 print('Test 2.6 passed: cat(mux2a, C) strict concatenation order correct')
 " || return 1
-  else
-    vlog "  [Test 2.6] SKIPPED: known DOH bug"
-  fi
 }
 
 multistream_mux_tests() {
@@ -757,5 +746,5 @@ print('Test 3.4 passed: cat(mux9, mux8) strict concatenation order correct')
 " || return 1
 }
 
-multistream_tests_tests="multistream_cmvs_tests multistream_mux_tests multistream_three_and_four_stream_tests"
-run_tests multistream_tests_verify_environment "${multistream_tests_tests}"
+multistream_tests="multistream_mux_tests multistream_cmvs_tests multistream_three_and_four_stream_tests"
+run_tests multistream_tests_verify_environment "${multistream_tests}"
