@@ -4268,6 +4268,12 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
     int obu_written_status = cpi->obu_is_written;
     cpi->obu_is_written = true;
 
+    // Save segmentation state before the search loop so we can restore it
+    // for candidates that match the original primary ref, and recompute it
+    // for candidates that differ.
+    uint8_t *const saved_last_frame_seg_map = cm->last_frame_seg_map;
+    const uint8_t saved_temporal_update = cm->seg.temporal_update;
+
     for (int i = 0; i < n_refs; ++i) {
       const int temp_map_idx = get_ref_frame_map_idx(cm, i);
       const RefCntBuffer *const temp_ref_buf = cm->ref_frame_map[temp_map_idx];
@@ -4281,6 +4287,27 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
       if (!cm->fc->initialized)
         avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
                            "Uninitialized entropy context.");
+
+      // For each candidate primary ref, recompute the segmap coding method
+      // (temporal_update / seg_id_predicted) using that candidate's seg_map, so
+      // the bitstream size comparison is accurate.
+      if (cm->seg.enabled && cm->seg.update_map) {
+        if (i == cm->features.primary_ref_frame) {
+          // Restore original state for the default primary ref.
+          cm->last_frame_seg_map = saved_last_frame_seg_map;
+          cm->seg.temporal_update = saved_temporal_update;
+        } else {
+          if (temp_ref_buf->seg.enabled &&
+              cm->mi_params.mi_rows == temp_ref_buf->mi_rows &&
+              cm->mi_params.mi_cols == temp_ref_buf->mi_cols) {
+            cm->last_frame_seg_map = temp_ref_buf->seg_map;
+          } else {
+            cm->last_frame_seg_map = NULL;
+          }
+          av2_choose_segmap_coding_method(cm, xd);
+        }
+      }
+
       av2_finalize_encoded_frame(cpi);
       // Storing/restoring cm->features.primary_ref_frame isn't needed here
       // since it always takes 3 bits for primary_ref_frame signaling.
@@ -4317,6 +4344,27 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
       choose_primary_secondary_ref_frame(cm, tmp_ref_frame, 1);
       cm->features.derived_primary_ref_frame = tmp_ref_frame[0];
       cm->features.derived_secondary_ref_frame = tmp_ref_frame[1];
+    }
+
+    // Set last_frame_seg_map and temporal_update to match the chosen primary
+    // ref frame for the final bitstream packing.
+    if (cm->seg.enabled && cm->seg.update_map) {
+      if (!cpi->signal_primary_ref_frame) {
+        // No change from original — restore saved state.
+        cm->last_frame_seg_map = saved_last_frame_seg_map;
+        cm->seg.temporal_update = saved_temporal_update;
+      } else {
+        const RefCntBuffer *const chosen_ref = get_primary_ref_frame_buf(
+            cm, cm->features.derived_primary_ref_frame);
+        if (chosen_ref && chosen_ref->seg.enabled &&
+            cm->mi_params.mi_rows == chosen_ref->mi_rows &&
+            cm->mi_params.mi_cols == chosen_ref->mi_cols) {
+          cm->last_frame_seg_map = chosen_ref->seg_map;
+        } else {
+          cm->last_frame_seg_map = NULL;
+        }
+        av2_choose_segmap_coding_method(cm, xd);
+      }
     }
 
     const int map_idx =
