@@ -4273,6 +4273,7 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
     // for candidates that differ.
     uint8_t *const saved_last_frame_seg_map = cm->last_frame_seg_map;
     const uint8_t saved_temporal_update = cm->seg.temporal_update;
+    const uint8_t saved_update_map = cm->seg.update_map;
 
     for (int i = 0; i < n_refs; ++i) {
       const int temp_map_idx = get_ref_frame_map_idx(cm, i);
@@ -4291,12 +4292,16 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
       // For each candidate primary ref, recompute the segmap coding method
       // (temporal_update / seg_id_predicted) using that candidate's seg_map, so
       // the bitstream size comparison is accurate.
-      if (cm->seg.enabled && cm->seg.update_map) {
+      if (cm->seg.enabled) {
         if (i == cm->features.primary_ref_frame) {
           // Restore original state for the default primary ref.
           cm->last_frame_seg_map = saved_last_frame_seg_map;
           cm->seg.temporal_update = saved_temporal_update;
+          cm->seg.update_map = saved_update_map;
         } else {
+          // Conservatively force update_map=1, in theory update_map could
+          // remain 0, but that would necessitate comparing the two seg maps.
+          cm->seg.update_map = 1;
           if (temp_ref_buf->seg.enabled &&
               cm->mi_params.mi_rows == temp_ref_buf->mi_rows &&
               cm->mi_params.mi_cols == temp_ref_buf->mi_cols) {
@@ -4348,12 +4353,16 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
 
     // Set last_frame_seg_map and temporal_update to match the chosen primary
     // ref frame for the final bitstream packing.
-    if (cm->seg.enabled && cm->seg.update_map) {
+    if (cm->seg.enabled) {
       if (!cpi->signal_primary_ref_frame) {
         // No change from original — restore saved state.
         cm->last_frame_seg_map = saved_last_frame_seg_map;
         cm->seg.temporal_update = saved_temporal_update;
+        cm->seg.update_map = saved_update_map;
       } else {
+        // Conservatively force update_map=1, in theory update_map could remain
+        // 0, but that would necessitate comparing the two seg maps.
+        cm->seg.update_map = 1;
         const RefCntBuffer *const chosen_ref = get_primary_ref_frame_buf(
             cm, cm->features.derived_primary_ref_frame);
         if (chosen_ref && chosen_ref->seg.enabled &&
