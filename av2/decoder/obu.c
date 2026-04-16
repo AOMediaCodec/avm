@@ -2686,7 +2686,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         pbi->seen_vcl_obu_in_this_tu = 0;
         pbi->this_is_first_vcl_obu_in_tu = 0;
         pbi->doh_tu_order_hint_bits_set = 0;
-        pbi->doh_tu_order_hint_set = 0;
         for (int i = 0; i < NUM_CUSTOM_QMS; i++) pbi->qm_protected[i] = 0;
         // Reset per-xlayer first-VCL flag for all streams so that each
         // xlayer independently detects its first VCL OBU in this new TU.
