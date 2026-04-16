@@ -318,6 +318,10 @@ typedef struct {
   int seen_frame_header_buf;
   int next_start_tile_buf;
   int seen_vcl_obu_in_this_tu_buf;
+  int first_vcl_for_xlayer_in_tu_buf;  ///< Saved per-xlayer first-VCL flag.
+                                       ///< Unlike other _buf fields, this is
+                                       ///< reset for ALL streams at each TD,
+                                       ///< not just the active stream.
 } StreamInfo;
 
 /*!
@@ -541,8 +545,19 @@ typedef struct AV2Decoder {
    * that carries coded picture data (CLK, OLK, tile groups, SEF, TIP,
    * BRIDGE_FRAME, SWITCH, RAS_FRAME). This flag is 1 when the first VCL OBU
    * of the current frame unit is also the first VCL OBU in the temporal unit.
+   *
+   * NOTE: This is a TU-global flag (first VCL across all xlayers).  For
+   * per-xlayer operations such as DPB and QM resets, use
+   * first_vcl_for_xlayer_in_tu instead.
    */
   int this_is_first_vcl_obu_in_tu;
+  /*!
+   * Per-xlayer version of this_is_first_vcl_obu_in_tu.  Set to 1 at the
+   * start of each TU (for every xlayer) and cleared after the first VCL OBU
+   * for that xlayer is processed.  Used for per-xlayer resets (DPB, QM) that
+   * must run independently for each xlayer in a multi-xlayer TU.
+   */
+  int first_vcl_for_xlayer_in_tu;
   /*!
    * Indicates if a VCL OBU has been seen in the current Temporal Unit.
    * Reset to 0 when a Temporal Delimiter is encountered.

@@ -263,6 +263,8 @@ void av2_store_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm, int xlayer_id) {
   pbi->stream_info[stream_idx].next_start_tile_buf = pbi->next_start_tile;
   pbi->stream_info[stream_idx].seen_vcl_obu_in_this_tu_buf =
       pbi->seen_vcl_obu_in_this_tu;
+  pbi->stream_info[stream_idx].first_vcl_for_xlayer_in_tu_buf =
+      pbi->first_vcl_for_xlayer_in_tu;
 }
 
 // Helper function to restore xlayer context
@@ -331,6 +333,8 @@ void av2_restore_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
   pbi->next_start_tile = pbi->stream_info[stream_idx].next_start_tile_buf;
   pbi->seen_vcl_obu_in_this_tu =
       pbi->stream_info[stream_idx].seen_vcl_obu_in_this_tu_buf;
+  pbi->first_vcl_for_xlayer_in_tu =
+      pbi->stream_info[stream_idx].first_vcl_for_xlayer_in_tu_buf;
 }
 
 static void init_stream_info(StreamInfo *stream_info) {
@@ -352,6 +356,7 @@ static void init_stream_info(StreamInfo *stream_info) {
   }
   stream_info->decoding_first_frame = 1;
   stream_info->last_olk_tu_display_order_hint = -1;
+  stream_info->first_vcl_for_xlayer_in_tu_buf = 1;
 }
 
 /*!
@@ -2675,27 +2680,20 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
     av2_init_read_bit_buffer(pbi, &rb, data, data + payload_size);
     switch (obu_header.type) {
       case OBU_TEMPORAL_DELIMITER:
-        // Reset per-TU state unconditionally for the current stream.
         decoded_payload_size = read_temporal_delimiter_obu();
         pbi->seen_frame_header = 0;
         pbi->next_start_tile = 0;
         pbi->seen_vcl_obu_in_this_tu = 0;
+        pbi->this_is_first_vcl_obu_in_tu = 0;
         pbi->doh_tu_order_hint_bits_set = 0;
+        pbi->doh_tu_order_hint_set = 0;
         for (int i = 0; i < NUM_CUSTOM_QMS; i++) pbi->qm_protected[i] = 0;
-
-        // Propagate the reset to each active xlayer's saved context.
-        for (int xlayer = 0; xlayer < AVM_MAX_NUM_STREAMS - 1; xlayer++) {
-          if (pbi->xlayer_id_map[xlayer] > 0) {
-            av2_store_xlayer_context(pbi, cm, cm->xlayer_id);
-            cm->xlayer_id = xlayer;
-            av2_restore_xlayer_context(pbi, cm, xlayer);
-            decoded_payload_size = read_temporal_delimiter_obu();
-            pbi->seen_frame_header = 0;
-            pbi->next_start_tile = 0;
-            pbi->seen_vcl_obu_in_this_tu = 0;
-            pbi->doh_tu_order_hint_bits_set = 0;
-            for (int i = 0; i < NUM_CUSTOM_QMS; i++) pbi->qm_protected[i] = 0;
-          }
+        // Reset per-xlayer first-VCL flag for all streams so that each
+        // xlayer independently detects its first VCL OBU in this new TU.
+        pbi->first_vcl_for_xlayer_in_tu = 1;
+        if (pbi->stream_info) {
+          for (int s = 0; s < cm->num_streams; s++)
+            pbi->stream_info[s].first_vcl_for_xlayer_in_tu_buf = 1;
         }
         break;
       case OBU_MULTI_STREAM_DECODER_OPERATION:
@@ -2869,7 +2867,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
             for (int l = 0; l < MAX_NUM_LCR; l++)
               if (acc_lcr_id_bitmap[x] & (1 << l))
                 pbi->lcr_list[x][l].lcr_from_leading = true;
-        } else if (pbi->this_is_first_vcl_obu_in_tu == 1) {
+        } else if (pbi->first_vcl_for_xlayer_in_tu == 1) {
           // SEF, TIP, SWITCH, RAS, BRIDGE, TG (not CLK)
           // MFH, QM, FGM, BRT, CI signalled in leading temporal unit cannot
           // be used. Drop state not re-signalled in the regular picture unit.
@@ -2954,6 +2952,9 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
             obu_header.obu_xlayer_id, &curr_obu_info->first_tile_group,
             &frame_decoding_finished);
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
+        // Clear per-xlayer first-VCL flag after the first VCL OBU for this
+        // xlayer has been fully processed.
+        pbi->first_vcl_for_xlayer_in_tu = 0;
         curr_obu_info->immediate_output_picture = cm->immediate_output_picture;
         curr_obu_info->showable_frame =
             cm->immediate_output_picture || cm->implicit_output_picture;

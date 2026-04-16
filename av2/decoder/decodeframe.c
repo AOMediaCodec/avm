@@ -7145,7 +7145,7 @@ static int read_show_existing_frame(AV2Decoder *pbi, bool is_regular_obu,
   init_bru_params(cm);
 
   if (is_regular_obu && pbi->olk_encountered &&
-      pbi->this_is_first_vcl_obu_in_tu) {
+      pbi->first_vcl_for_xlayer_in_tu) {
     lock_buffer_pool(pool);
     reset_buffer_other_than_OLK(pbi);
     unlock_buffer_pool(pool);
@@ -7232,12 +7232,12 @@ static int read_show_existing_frame(AV2Decoder *pbi, bool is_regular_obu,
 
   if (is_regular_obu && pbi->olk_encountered) {
     if (pbi->last_olk_tu_display_order_hint == -1 &&
-        !pbi->this_is_first_vcl_obu_in_tu) {
+        !pbi->first_vcl_for_xlayer_in_tu) {
       // First non-hidden regular frame after a hidden OLK is this SEF (SEFs
       // are always shown).
       pbi->last_olk_tu_display_order_hint = current_frame->display_order_hint;
     }
-    if (pbi->this_is_first_vcl_obu_in_tu) pbi->olk_encountered = 0;
+    if (pbi->first_vcl_for_xlayer_in_tu) pbi->olk_encountered = 0;
   }
 
   lock_buffer_pool(pool);
@@ -7688,7 +7688,7 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   bool keyframe_unit_in_tu =
       ((obu_type == OBU_CLOSED_LOOP_KEY || obu_type == OBU_OPEN_LOOP_KEY ||
         obu_type == OBU_RAS_FRAME) &&
-       pbi->this_is_first_vcl_obu_in_tu);
+       pbi->first_vcl_for_xlayer_in_tu);
 
   if (pbi->decoding_first_frame &&
       !(obu_type == OBU_CLOSED_LOOP_KEY || obu_type == OBU_OPEN_LOOP_KEY ||
@@ -8057,7 +8057,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     pbi->decoding_first_frame = 1;
     reset_frame_buffers(cm);
     cm->cur_frame->frame_output_done = 0;
-    if (pbi->this_is_first_vcl_obu_in_tu) reset_qm_list(pbi);
+    if (pbi->first_vcl_for_xlayer_in_tu) reset_qm_list(pbi);
   } else {
     pbi->reset_decoder_state = 0;
     cm->show_existing_frame = 0;
@@ -8065,7 +8065,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       return read_show_existing_frame(pbi, obu_type == OBU_REGULAR_SEF, rb);
     if (obu_type == OBU_CLOSED_LOOP_KEY || obu_type == OBU_OPEN_LOOP_KEY) {
       current_frame->frame_type = KEY_FRAME;
-      if (pbi->this_is_first_vcl_obu_in_tu) reset_qm_list(pbi);
+      if (pbi->first_vcl_for_xlayer_in_tu) reset_qm_list(pbi);
     } else if (obu_type == OBU_RAS_FRAME || obu_type == OBU_SWITCH) {
       current_frame->frame_type = S_FRAME;
       cm->restricted_prediction_switch = avm_rb_read_bit(rb);
@@ -8185,7 +8185,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     if (obu_type == OBU_CLOSED_LOOP_KEY) {
       pbi->olk_encountered = 0;
     } else if (obu_type == OBU_OPEN_LOOP_KEY) {
-      if (pbi->olk_encountered && pbi->this_is_first_vcl_obu_in_tu) {
+      if (pbi->olk_encountered && pbi->first_vcl_for_xlayer_in_tu) {
         // This is the case when the first regular frame is another OLK
         // (0-4(K)-2-1-3-8(K)...
         lock_buffer_pool(pool);
@@ -8194,7 +8194,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       }
       pbi->olk_encountered = 1;
     } else if (pbi->olk_encountered && av2_is_regular_non_olk_obu(obu_type) &&
-               pbi->this_is_first_vcl_obu_in_tu) {
+               pbi->first_vcl_for_xlayer_in_tu) {
       lock_buffer_pool(pool);
       reset_buffer_other_than_OLK(pbi);
       unlock_buffer_pool(pool);
@@ -8263,7 +8263,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       }
     } else if (pbi->olk_encountered && av2_is_regular_non_olk_obu(obu_type)) {
       if (pbi->last_olk_tu_display_order_hint == -1 &&
-          !pbi->this_is_first_vcl_obu_in_tu &&
+          !pbi->first_vcl_for_xlayer_in_tu &&
           (cm->implicit_output_picture || cm->immediate_output_picture)) {
         // regular frame in the same temporal unit with a hidden olk
         pbi->last_olk_tu_display_order_hint = current_frame->display_order_hint;
@@ -8307,7 +8307,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
             avm_rb_read_literal(rb, refresh_frame_flags_bits);
       }
     }
-    if (obu_type == OBU_CLOSED_LOOP_KEY && pbi->this_is_first_vcl_obu_in_tu) {
+    if (obu_type == OBU_CLOSED_LOOP_KEY && pbi->first_vcl_for_xlayer_in_tu) {
       for (int ref_pos = 0; ref_pos < seq_params->ref_frames; ref_pos++) {
         if (!(current_frame->refresh_frame_flags >> ref_pos & 1u)) {
           decrease_ref_count(cm->ref_frame_map[ref_pos], pool);
@@ -8441,7 +8441,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   // same temporal unit so that reset_buffer_other_than_OLK() preserves them
   // when the first regular temporal unit begins.
   if (pbi->olk_encountered && av2_is_regular_non_olk_obu(obu_type) &&
-      pbi->this_is_first_vcl_obu_in_tu == 0) {
+      pbi->first_vcl_for_xlayer_in_tu == 0) {
     memcpy(&cm->prev_olk_co_vcl_refresh_frame_flags[0],
            &cm->olk_co_vcl_refresh_frame_flags[0],
            MAX_NUM_MLAYERS * sizeof(cm->olk_co_vcl_refresh_frame_flags[0]));
@@ -8490,7 +8490,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     } else if (pbi->need_resync != 1) { /* Skip if need resync */
       int use_olk_ref_only = pbi->olk_encountered &&
                              av2_is_regular_non_olk_obu(obu_type) &&
-                             pbi->this_is_first_vcl_obu_in_tu == 0;
+                             pbi->first_vcl_for_xlayer_in_tu == 0;
       // Implicitly derive the reference mapping
       init_ref_map_pair(cm, cm->ref_frame_map_pairs,
                         current_frame->frame_type == KEY_FRAME,
@@ -8734,7 +8734,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
                              "Reference frame not valid for referencing");
         // Check that co-VCL frames in an OLK TU only reference frames written
         // in the current TU.
-        if (pbi->olk_encountered && !pbi->this_is_first_vcl_obu_in_tu &&
+        if (pbi->olk_encountered && !pbi->first_vcl_for_xlayer_in_tu &&
             av2_is_regular_non_olk_obu(obu_type)) {
           const RefCntBuffer *const ref_buf = cm->ref_frame_map[ref];
           const int ref_mlayer_id = ref_buf->mlayer_id;
