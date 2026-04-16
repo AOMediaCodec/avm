@@ -652,6 +652,7 @@ static size_t check_frame_unit_data(struct AV2Decoder *pbi, const uint8_t *data,
     bool is_vcl = is_single_tile_vcl_obu(obu_header.type) ||
                   is_multi_tile_vcl_obu(obu_header.type);
     if (is_vcl) {
+      if (payload_size < 1) return 0;
       // Check if this VCL OBU starts a new tile group (picture unit)
       uint8_t first_byte_payload = data_read[bytes_read];
       bool is_first_tile = is_single_tile_vcl_obu(obu_header.type)
