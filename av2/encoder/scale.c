@@ -181,18 +181,7 @@ void av2_setup_frame_size(AV2_COMP *cpi) {
   cm->ref_frame_flags = (1 << cpi->common.ref_frames_info.num_total_refs) - 1;
   cm->cur_frame->num_ref_frames = cm->ref_frames_info.num_total_refs;
 
-  if (cm->restricted_prediction_switch) return;
-
-  int ref_frame_safe_to_use = 0;
-  for (int i = 0; i < cm->seq_params.ref_frames; i++) {
-    if (cm->ref_frame_map[i] != NULL) {
-      bool ref_unrestricted = (current_frame->frame_type == S_FRAME ||
-                               current_frame->frame_type == KEY_FRAME ||
-                               current_frame->frame_type == INTRA_ONLY_FRAME)
-                                  ? false
-                                  : !cm->ref_frame_map[i]->is_restricted;
-      ref_frame_safe_to_use |= ref_unrestricted << i;
-    }
-  }
-  cm->ref_frame_flags &= ref_frame_safe_to_use;
+  if (current_frame->frame_type == KEY_FRAME ||
+      current_frame->frame_type == INTRA_ONLY_FRAME)
+    cm->ref_frame_flags = 0;
 }
