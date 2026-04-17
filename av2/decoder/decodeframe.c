@@ -7431,6 +7431,7 @@ static void activate_layer_configuration_record(AV2Decoder *pbi,
     }
     pbi->active_lcr = lcr;
     cm->lcr_params = *pbi->active_lcr;
+    if (lcr->is_global) pbi->glcr_activated_in_tu = true;
 
     // Conformance: when monotonic_output_order_flag is 0 in any activated
     // sequence header, lcr_doh_constraint_flag shall be 1.

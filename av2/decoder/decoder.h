@@ -663,6 +663,13 @@ typedef struct AV2Decoder {
    */
   bool glcr_obu_in_frame_unit;
   /*!
+   * Indicates if a Global LCR was activated in the current TU.  A Global LCR
+   * is activated when a CLK/OLK frame's sequence header has a seq_lcr_id that
+   * matches a valid global LCR.  Set during activate_layer_configuration_record
+   * and reset at each temporal delimiter.
+   */
+  bool glcr_activated_in_tu;
+  /*!
    * Number of extended layers specified in the Global LCR.
    * Used for stream_info allocation when Global LCR triggers is_multistream.
    */
