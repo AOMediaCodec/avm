@@ -2374,10 +2374,12 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
     pbi->is_multistream = 1;
   }
 
-  // Check for CMVS is at a random access point TU without MSDO.
+  // Check for CMVS end at a random access point TU without MSDO.
   // Per spec, the CMVS ends when a new CVS begins without an activated
-  // global LCR (not just a present one).  Activation happens during CLK/OLK
-  // decoding when seq_lcr_id matches a global LCR.
+  // global LCR.  Activation requires seq_lcr_id (extracted during pre-scan)
+  // to match a valid global LCR — either one present in this frame unit
+  // (not yet parsed into lcr_list) or one already in lcr_list from a
+  // previous TU.
   if (pbi->is_multistream) {
     int tid = pbi->current_tlayer_id;
     int mid = pbi->current_mlayer_id;
@@ -2389,7 +2391,11 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
          pbi->obus_in_frame_unit_data[tid][mid][OBU_OPEN_LOOP_KEY] ||
          pbi->obus_in_frame_unit_data[tid][mid][OBU_RAS_FRAME])) {
       const bool glcr_may_be_active =
-          pbi->glcr_obu_in_frame_unit || pbi->glcr_activated_in_tu;
+          pbi->prescan_seq_lcr_id != LCR_ID_UNSPECIFIED &&
+          (pbi->glcr_obu_in_frame_unit ||
+           (pbi->lcr_list[GLOBAL_XLAYER_ID][pbi->prescan_seq_lcr_id].valid &&
+            pbi->lcr_list[GLOBAL_XLAYER_ID][pbi->prescan_seq_lcr_id]
+                .is_global));
       if (!glcr_may_be_active) {
         // Flush and reset like a config change
         if (pbi->stream_info != NULL) {
@@ -2685,7 +2691,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         pbi->seen_vcl_obu_in_this_tu = 0;
         pbi->doh_tu_order_hint_bits_set = 0;
         for (int i = 0; i < NUM_CUSTOM_QMS; i++) pbi->qm_protected[i] = 0;
-        pbi->glcr_activated_in_tu = false;
 
         // Propagate the reset to each active xlayer's saved context.
         for (int xlayer = 0; xlayer < AVM_MAX_NUM_STREAMS - 1; xlayer++) {

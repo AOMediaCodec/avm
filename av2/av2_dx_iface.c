@@ -625,6 +625,7 @@ static size_t check_frame_unit_data(struct AV2Decoder *pbi, const uint8_t *data,
         pbi->obus_in_frame_unit_data[tid][mid][type] = false;
 
   pbi->glcr_obu_in_frame_unit = false;
+  pbi->prescan_seq_lcr_id = LCR_ID_UNSPECIFIED;
   avm_codec_err_t res = AVM_CODEC_OK;
   pbi->num_obus_with_frame_unit = 0;
   const uint8_t *data_read = data;
@@ -724,6 +725,20 @@ static size_t check_frame_unit_data(struct AV2Decoder *pbi, const uint8_t *data,
     if (obu_header.type == OBU_LAYER_CONFIGURATION_RECORD &&
         obu_header.obu_xlayer_id == GLOBAL_XLAYER_ID) {
       pbi->glcr_obu_in_frame_unit = true;
+    }
+    // Extract seq_lcr_id from sequence header so the CMVS-end check can
+    // determine global LCR activation before frame header decode.
+    if (obu_header.type == OBU_SEQUENCE_HEADER && payload_size >= 2) {
+      struct avm_read_bit_buffer rb = { data_read + bytes_read,
+                                        data_read + bytes_read + payload_size,
+                                        0, NULL, NULL };
+      avm_rb_read_uvlc(&rb);  // seq_header_id
+      BITSTREAM_PROFILE profile = av2_read_profile(&rb);
+      int sph = avm_rb_read_bit(&rb);  // single_picture_header_flag
+      int level = avm_rb_read_literal(&rb, LEVEL_BITS);
+      if (level >= SEQ_LEVEL_4_0 && !sph) avm_rb_read_bit(&rb);  // seq_tier
+      parse_chroma_format_bitdepth(&rb, profile);
+      if (!sph) pbi->prescan_seq_lcr_id = avm_rb_read_literal(&rb, 3);
     }
 
     // Advance to next OBU
