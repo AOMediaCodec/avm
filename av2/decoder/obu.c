@@ -2689,10 +2689,18 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         for (int i = 0; i < NUM_CUSTOM_QMS; i++) pbi->qm_protected[i] = 0;
         // Reset per-xlayer first-VCL flag for all streams so that each
         // xlayer independently detects its first VCL OBU in this new TU.
+        // Also propagate per-TU state resets to each xlayer's saved context
+        // (the fields above only reset the current/global context).
         pbi->first_vcl_for_xlayer_in_tu = 1;
         if (pbi->stream_info) {
-          for (int s = 0; s < cm->num_streams; s++)
+          for (int s = 0; s < cm->num_streams; s++) {
             pbi->stream_info[s].first_vcl_for_xlayer_in_tu_buf = 1;
+            pbi->stream_info[s].seen_vcl_obu_in_this_tu_buf = 0;
+            pbi->stream_info[s].seen_frame_header_buf = 0;
+            pbi->stream_info[s].next_start_tile_buf = 0;
+            for (int i = 0; i < NUM_CUSTOM_QMS; i++)
+              pbi->stream_info[s].qm_protected_buf[i] = 0;
+          }
         }
         break;
       case OBU_MULTI_STREAM_DECODER_OPERATION:
