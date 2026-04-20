@@ -850,7 +850,7 @@ int av2_get_max_level_ref_frames(const AV2_COMMON *const cm, OBU_TYPE obu_type,
   const int64_t current_picture_size =
       seq_params->max_frame_width * seq_params->max_frame_height;
 
-  int64_t limit = (int64_t)(max_picture_size * 8) / current_picture_size;
+  int64_t limit = (int64_t)max_picture_size * 8 / current_picture_size;
 
   const int decode_count =
       cm->features.allow_global_intrabc && is_filter_enabled_frame(cm) ? 2 : 1;
