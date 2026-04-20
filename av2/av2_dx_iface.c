@@ -625,7 +625,7 @@ static size_t check_frame_unit_data(struct AV2Decoder *pbi, const uint8_t *data,
         pbi->obus_in_frame_unit_data[tid][mid][type] = false;
 
   pbi->glcr_obu_in_frame_unit = false;
-  pbi->prescan_seq_lcr_id = LCR_ID_UNSPECIFIED;
+  pbi->prescan_glcr_will_activate = false;
   avm_codec_err_t res = AVM_CODEC_OK;
   pbi->num_obus_with_frame_unit = 0;
   const uint8_t *data_read = data;
@@ -633,6 +633,21 @@ static size_t check_frame_unit_data(struct AV2Decoder *pbi, const uint8_t *data,
   ObuHeader obu_header;
   bool bfirst = true;      // True until we encounter the first VCL OBU
   bool vcl_found = false;  // Track if we've found any VCL OBU
+
+  // Temporary tracking for CMVS-end activation check.
+  // Sequence headers: seq_lcr_id per [xlayer][seq_header_id], -1 = not seen.
+  int prescan_sh_lcr[MAX_NUM_XLAYERS][MAX_SEQ_NUM];
+  memset(prescan_sh_lcr, -1, sizeof(prescan_sh_lcr));
+  // MFH: mfh_seq_header_id per mfh_id, -1 = not seen.
+  int prescan_mfh_sh[MAX_MFH_NUM];
+  memset(prescan_mfh_sh, -1, sizeof(prescan_mfh_sh));
+  // New global LCRs in this frame unit (indexed by
+  // lcr_global_config_record_id).
+  bool prescan_new_glcr[MAX_NUM_LCR];
+  memset(prescan_new_glcr, 0, sizeof(prescan_new_glcr));
+  // New local LCRs: lcr_global_id per [xlayer][lcr_local_id], -1 = not seen.
+  int prescan_new_local_lcr[MAX_NUM_XLAYERS][MAX_NUM_LCR];
+  memset(prescan_new_local_lcr, -1, sizeof(prescan_new_local_lcr));
 
   // Initialize output layer IDs to invalid values
   *xlayer_id = -1;
@@ -726,19 +741,132 @@ static size_t check_frame_unit_data(struct AV2Decoder *pbi, const uint8_t *data,
         obu_header.obu_xlayer_id == GLOBAL_XLAYER_ID) {
       pbi->glcr_obu_in_frame_unit = true;
     }
-    // Extract seq_lcr_id from sequence header so the CMVS-end check can
-    // determine global LCR activation before frame header decode.
+
+    // --- Scan-ahead for CMVS-end activation check ---
+    // Track sequence headers, MFH, LCR OBUs, and frame headers so the
+    // CMVS-end check can determine global LCR activation before decode.
+
+    // Sequence header: extract seq_header_id and seq_lcr_id.
     if (obu_header.type == OBU_SEQUENCE_HEADER && payload_size >= 2) {
       struct avm_read_bit_buffer rb = { data_read + bytes_read,
                                         data_read + bytes_read + payload_size,
                                         0, NULL, NULL };
-      avm_rb_read_uvlc(&rb);  // seq_header_id
-      BITSTREAM_PROFILE profile = av2_read_profile(&rb);
-      int sph = avm_rb_read_bit(&rb);  // single_picture_header_flag
-      int level = avm_rb_read_literal(&rb, LEVEL_BITS);
-      if (level >= SEQ_LEVEL_4_0 && !sph) avm_rb_read_bit(&rb);  // seq_tier
-      parse_chroma_format_bitdepth(&rb, profile);
-      if (!sph) pbi->prescan_seq_lcr_id = avm_rb_read_literal(&rb, 3);
+      int sh_id = avm_rb_read_uvlc(&rb);  // seq_header_id
+      if (sh_id >= 0 && sh_id < MAX_SEQ_NUM) {
+        BITSTREAM_PROFILE profile = av2_read_profile(&rb);
+        int sph = avm_rb_read_bit(&rb);  // single_picture_header_flag
+        int level = avm_rb_read_literal(&rb, LEVEL_BITS);
+        if (level >= SEQ_LEVEL_4_0 && !sph) avm_rb_read_bit(&rb);  // seq_tier
+        parse_chroma_format_bitdepth(&rb, profile);
+        int lcr_id = sph ? LCR_ID_UNSPECIFIED : avm_rb_read_literal(&rb, 3);
+        prescan_sh_lcr[obu_header.obu_xlayer_id][sh_id] = lcr_id;
+      }
+    }
+
+    // Multi-frame header: extract mfh_id and mfh_seq_header_id.
+    if (obu_header.type == OBU_MULTI_FRAME_HEADER && payload_size >= 1) {
+      struct avm_read_bit_buffer rb = { data_read + bytes_read,
+                                        data_read + bytes_read + payload_size,
+                                        0, NULL, NULL };
+      int mfh_sh = avm_rb_read_uvlc(&rb);      // mfh_seq_header_id
+      int mfh_id = avm_rb_read_uvlc(&rb) + 1;  // cur_mfh_id
+      if (mfh_id < MAX_MFH_NUM && mfh_sh < MAX_SEQ_NUM)
+        prescan_mfh_sh[mfh_id] = mfh_sh;
+    }
+
+    // LCR OBU: extract IDs for local and global LCRs.
+    if (obu_header.type == OBU_LAYER_CONFIGURATION_RECORD &&
+        payload_size >= 1) {
+      struct avm_read_bit_buffer rb = { data_read + bytes_read,
+                                        data_read + bytes_read + payload_size,
+                                        0, NULL, NULL };
+      if (obu_header.obu_xlayer_id == GLOBAL_XLAYER_ID) {
+        int lcr_id =
+            avm_rb_read_literal(&rb, 3);  // lcr_global_config_record_id
+        if (lcr_id < MAX_NUM_LCR) prescan_new_glcr[lcr_id] = true;
+      } else {
+        int g_id = avm_rb_read_literal(&rb, 3);  // lcr_global_id
+        int l_id = avm_rb_read_literal(&rb, 3);  // lcr_local_id
+        if (l_id < MAX_NUM_LCR)
+          prescan_new_local_lcr[obu_header.obu_xlayer_id][l_id] = g_id;
+      }
+    }
+
+    // CLK/OLK frame header: extract seq_header_id and check activation.
+    // By OBU ordering, all SH/MFH/LCR OBUs precede the frame header.
+    if ((obu_header.type == OBU_CLOSED_LOOP_KEY ||
+         obu_header.type == OBU_OPEN_LOOP_KEY) &&
+        payload_size >= 2) {
+      struct avm_read_bit_buffer rb = { data_read + bytes_read,
+                                        data_read + bytes_read + payload_size,
+                                        0, NULL, NULL };
+      avm_rb_read_bit(&rb);                // is_first_tile_group
+      int mfh_id = avm_rb_read_uvlc(&rb);  // mfh_id (0 = no MFH)
+      int sh_id = -1;
+      if (mfh_id == 0) {
+        sh_id = avm_rb_read_uvlc(&rb);  // seq_header_id
+      } else if (mfh_id < MAX_MFH_NUM) {
+        sh_id = prescan_mfh_sh[mfh_id] >= 0
+                    ? prescan_mfh_sh[mfh_id]
+                    : (pbi->common.mfh_valid[mfh_id]
+                           ? pbi->common.mfh_params[mfh_id].mfh_seq_header_id
+                           : -1);
+      }
+
+      if (sh_id >= 0 && sh_id < MAX_SEQ_NUM) {
+        int xl = obu_header.obu_xlayer_id;
+        // Get seq_lcr_id from this frame unit's SH or previously parsed SH.
+        int seq_lcr_id = prescan_sh_lcr[xl][sh_id] >= 0
+                             ? prescan_sh_lcr[xl][sh_id]
+                             : (pbi->seq_list[xl][sh_id].seq_header_id != -1
+                                    ? pbi->seq_list[xl][sh_id].seq_lcr_id
+                                    : LCR_ID_UNSPECIFIED);
+
+        if (seq_lcr_id != LCR_ID_UNSPECIFIED && seq_lcr_id < MAX_NUM_LCR) {
+          // Replicate find_active_lcr: check local LCRs first, then global.
+          bool local_found = false;
+          int local_global_id = -1;
+          if (xl < GLOBAL_XLAYER_ID) {
+            // New local LCR from this frame unit
+            if (prescan_new_local_lcr[xl][seq_lcr_id] >= 0) {
+              local_found = true;
+              local_global_id = prescan_new_local_lcr[xl][seq_lcr_id];
+            }
+            // Existing local LCRs from previous TUs
+            if (!local_found) {
+              for (int i = 0; i < MAX_NUM_LCR; i++) {
+                LayerConfigurationRecord *c = &pbi->lcr_list[xl][i];
+                if (c->valid && !c->is_global &&
+                    c->local_lcr.lcr_local_id == seq_lcr_id) {
+                  local_found = true;
+                  local_global_id = c->local_lcr.lcr_global_id;
+                  break;
+                }
+              }
+            }
+          }
+
+          if (local_found) {
+            // Global LCR activated via local LCR's lcr_global_id
+            if (local_global_id > LCR_ID_UNSPECIFIED &&
+                local_global_id < MAX_NUM_LCR) {
+              if (prescan_new_glcr[local_global_id] ||
+                  (pbi->lcr_list[GLOBAL_XLAYER_ID][local_global_id].valid &&
+                   pbi->lcr_list[GLOBAL_XLAYER_ID][local_global_id]
+                       .is_global)) {
+                pbi->prescan_glcr_will_activate = true;
+              }
+            }
+          } else {
+            // No local LCR; check global LCR directly
+            if (prescan_new_glcr[seq_lcr_id] ||
+                (pbi->lcr_list[GLOBAL_XLAYER_ID][seq_lcr_id].valid &&
+                 pbi->lcr_list[GLOBAL_XLAYER_ID][seq_lcr_id].is_global)) {
+              pbi->prescan_glcr_will_activate = true;
+            }
+          }
+        }
+      }
     }
 
     // Advance to next OBU

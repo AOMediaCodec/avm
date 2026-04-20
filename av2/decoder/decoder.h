@@ -663,13 +663,12 @@ typedef struct AV2Decoder {
    */
   bool glcr_obu_in_frame_unit;
   /*!
-   * seq_lcr_id extracted from the sequence header during OBU scanning
-   * (check_frame_unit_data).  Set to LCR_ID_UNSPECIFIED when no sequence
-   * header is present in the frame unit or single_picture_header_flag is set.
-   * Used by the CMVS-end check to determine whether a global LCR will be
-   * activated without waiting for frame header decode.
+   * Set during OBU scanning (check_frame_unit_data) to indicate whether
+   * a global LCR will be activated in this frame unit.  Determined by
+   * scanning the frame header to find seq_lcr_id, then checking local
+   * and global LCRs (replicating find_active_lcr logic).
    */
-  int prescan_seq_lcr_id;
+  bool prescan_glcr_will_activate;
   /*!
    * Number of extended layers specified in the Global LCR.
    * Used for stream_info allocation when Global LCR triggers is_multistream.
