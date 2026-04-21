@@ -1441,20 +1441,35 @@ static avm_codec_err_t ctrl_get_frame_flags(avm_codec_alg_priv_t *ctx,
                                             va_list args) {
   int *const arg = va_arg(args, int *);
   if (arg == NULL) return AVM_CODEC_INVALID_PARAM;
-  AV2Decoder *pbi = ((FrameWorkerData *)ctx->frame_worker->data1)->pbi;
   *arg = 0;
-  switch (pbi->common.current_frame.frame_type) {
+
+  FRAME_TYPE frame_type;
+  int immediate_output_picture;
+  int apply_grain;
+
+  if (ctx->last_show_frame != NULL) {
+    frame_type = ctx->last_show_frame->frame_type;
+    immediate_output_picture = ctx->last_show_frame->immediate_output_picture;
+    apply_grain = ctx->last_show_frame->film_grain_params.apply_grain;
+  } else {
+    const AV2Decoder *pbi = ((FrameWorkerData *)ctx->frame_worker->data1)->pbi;
+    frame_type = pbi->common.current_frame.frame_type;
+    immediate_output_picture = pbi->common.immediate_output_picture;
+    apply_grain = pbi->common.film_grain_params.apply_grain;
+  }
+
+  switch (frame_type) {
     case KEY_FRAME:
       *arg |= AVM_FRAME_IS_KEY;
       *arg |= AVM_FRAME_IS_INTRAONLY;
-      if (!pbi->common.immediate_output_picture) {
+      if (!immediate_output_picture) {
         *arg |= AVM_FRAME_IS_DELAYED_RANDOM_ACCESS_POINT;
       }
       break;
     case INTRA_ONLY_FRAME: *arg |= AVM_FRAME_IS_INTRAONLY; break;
     case S_FRAME: *arg |= AVM_FRAME_IS_SWITCH; break;
   }
-  if (pbi->common.film_grain_params.apply_grain) {
+  if (apply_grain) {
     *arg |= AVM_FRAME_HAS_FILM_GRAIN_PARAMS;
   }
   return AVM_CODEC_OK;
