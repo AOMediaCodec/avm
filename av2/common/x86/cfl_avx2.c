@@ -1800,7 +1800,7 @@ void av2_mhccp_derive_multi_param_hv_avx2(MACROBLOCKD *const xd, int plane,
 
     // Scale the matrix and vector to selected dynamic range
     const int matrix_shift =
-        (MHCCP_DECIM_BITS + 6) - 2 * xd->bd - (int)ceil(log2(count));
+        (MHCCP_DECIM_BITS + 6) - 2 * xd->bd - avm_ceil_log2(count);
 
     if (matrix_shift > 0) {
       for (int i = 0; i < MHCCP_NUM_PARAMS; ++i) {
