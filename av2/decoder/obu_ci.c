@@ -219,6 +219,22 @@ uint32_t av2_read_content_interpretation_obu(struct AV2Decoder *pbi,
                                    [OBU_CLOSED_LOOP_KEY] ||
        pbi->obus_in_frame_unit_data[obu_tlayer_id][obu_mlayer_id]
                                    [OBU_OPEN_LOOP_KEY]);
+  // In multi-mlayer encoding, higher mlayers don't have CLK/OLK themselves
+  // but share the RAP TU with a lower dependent layer.  Accept a new CI OBU
+  // when any transitively dependent layer has a key OBU in the same TU.
+  if (!ci_is_with_keyobu && obu_mlayer_id > 0) {
+    for (int ref = 0; ref < obu_mlayer_id; ref++) {
+      if (is_mlayer_transitively_dependent(&cm->seq_params, obu_mlayer_id,
+                                           ref) &&
+          (pbi->obus_in_frame_unit_data[obu_tlayer_id][ref]
+                                       [OBU_CLOSED_LOOP_KEY] ||
+           pbi->obus_in_frame_unit_data[obu_tlayer_id][ref]
+                                       [OBU_OPEN_LOOP_KEY])) {
+        ci_is_with_keyobu = 1;
+        break;
+      }
+    }
+  }
 
   if (!ci_is_with_keyobu) {
     // Check if a CI OBU has already been received for this embedded layer
