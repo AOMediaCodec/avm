@@ -78,17 +78,6 @@ static void rd_pick_intra_dip_sby_modelrd(
     }
   }
 }
-/*! \brief Extra features passed to DIP pruning model. */
-struct extra_dip_info {
-  /*! \brief Whether any intra mode beats best_rd passed to intra search. */
-  int beat_best_rd;
-  /*! \brief RD cost of the DC mode. */
-  int64_t dc_mode_rd;
-  /*! \brief The best_rd passed to intra search. */
-  int64_t orig_best_rd;
-  /*! \brief Best non-DIP mode found during intra search. */
-  int best_mode;
-};
 #endif  // CONFIG_DIP_EXT_PRUNING
 
 /*!\brief Search for the best intra_dip mode when coding intra frame.
@@ -104,14 +93,10 @@ static int rd_pick_intra_dip_sby(const AV2_COMP *const cpi, ThreadData *td,
                                  int64_t *distortion, int *skippable,
                                  BLOCK_SIZE bsize, int mode_cost,
                                  int64_t *best_rd, int64_t *best_model_rd,
-                                 PICK_MODE_CONTEXT *ctx
-#if CONFIG_DIP_EXT_PRUNING
-                                 ,
-                                 struct extra_dip_info *extra
-#endif  // CONFIG_DIP_EXT_PRUNING
-) {
+                                 PICK_MODE_CONTEXT *ctx) {
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
+  const DipMlInfo *const dip_ml_feature = &x->dip_ml_feature;
   int intra_dip_selected_flag = 0;
   int best_ml_mode = 0;
   TX_SIZE best_tx_size = TX_8X8;
@@ -164,8 +149,10 @@ static int rd_pick_intra_dip_sby(const AV2_COMP *const cpi, ThreadData *td,
   // Clamp all RD values to a minimum of 1 to avoid arithmetic exceptions.
   const float log_best_rd = log10f((float)AVMMAX(*best_rd, 1));
   const float log_best_model_rd = log10f((float)AVMMAX(*best_model_rd, 1));
-  const float log_dc_mode_rd = log10f((float)AVMMAX(extra->dc_mode_rd, 1));
-  const float log_orig_best_rd = log10f((float)AVMMAX(extra->orig_best_rd, 1));
+  const float log_dc_mode_rd =
+      log10f((float)AVMMAX(dip_ml_feature->dc_mode_rd, 1));
+  const float log_orig_best_rd =
+      log10f((float)AVMMAX(dip_ml_feature->orig_best_rd, 1));
   bool pred_keep = true;
   int adjusted_qindex = x->qindex - MAXQ_OFFSET * (xd->bd - 8);
   int dip_model_index = intra_dip_mode_prune_get_model_index(adjusted_qindex);
@@ -179,9 +166,10 @@ static int rd_pick_intra_dip_sby(const AV2_COMP *const cpi, ThreadData *td,
     dip_pruning_in->inputs[0].values[3] = log_dc_mode_rd;
     dip_pruning_in->inputs[0].values[4] = log_orig_best_rd;
     for (int i = 0; i < 13; i++) {
-      dip_pruning_in->inputs[0].values[5 + i] = (float)(extra->best_mode == i);
+      dip_pruning_in->inputs[0].values[5 + i] =
+          (float)(dip_ml_feature->best_mode == i);
     }
-    dip_pruning_in->inputs[0].values[18] = extra->beat_best_rd;
+    dip_pruning_in->inputs[0].values[18] = dip_ml_feature->beat_best_rd;
     intra_dip_mode_prune_normalize_and_resize_8x8(
         x->plane[0].src.buf, x->plane[0].src.stride, xd->bd,
         block_size_wide[bsize], block_size_high[bsize],
@@ -1715,11 +1703,11 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
 
 #if CONFIG_DIP_EXT_PRUNING
   // Collect RD features for DIP ML pruning.
-  struct extra_dip_info extra_dip;
-  extra_dip.beat_best_rd = 0;
-  extra_dip.dc_mode_rd = INT64_MAX;
-  extra_dip.orig_best_rd = best_rd_so_far;
-  extra_dip.best_mode = 0;
+  DipMlInfo *dip_ml_feature = &x->dip_ml_feature;
+  dip_ml_feature->beat_best_rd = 0;
+  dip_ml_feature->dc_mode_rd = INT64_MAX;
+  dip_ml_feature->orig_best_rd = best_rd_so_far;
+  dip_ml_feature->best_mode = 0;
 #endif  // CONFIG_DIP_EXT_PRUNING
   // Flag to check rd of any intra mode is better than best_rd_so_far passed to
   // this function.
@@ -1888,7 +1876,7 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
                 RDCOST(x->rdmult, this_rate, this_distortion);
 #if CONFIG_DIP_EXT_PRUNING
             if (!fsc_mode && mbmi->mode == DC_PRED) {
-              extra_dip.dc_mode_rd = this_rd;
+              dip_ml_feature->dc_mode_rd = this_rd;
             }
 #endif  // CONFIG_DIP_EXT_PRUNING
         // Collect mode stats for multiwinner mode processing.
@@ -1923,8 +1911,8 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
                 // than best_rd_so_far passed to this function.
                 beat_best_rd = 1;
 #if CONFIG_DIP_EXT_PRUNING
-                extra_dip.beat_best_rd = 1;
-                extra_dip.best_mode = mbmi->mode;
+                dip_ml_feature->beat_best_rd = 1;
+                dip_ml_feature->best_mode = mbmi->mode;
 #endif  // CONFIG_DIP_EXT_PRUNING
                 av2_copy_array(ctx->tx_type_map, xd->tx_type_map,
                                ctx->num_4x4_blk);
@@ -1984,12 +1972,7 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
   if (try_intra_dip) {
     if (rd_pick_intra_dip_sby(cpi, td, x, rate, rate_tokenonly, distortion,
                               skippable, bsize, mode_cost, &best_rd_so_far,
-                              &best_model_rd, ctx
-#if CONFIG_DIP_EXT_PRUNING
-                              ,
-                              &extra_dip
-#endif  // CONFIG_DIP_EXT_PRUNING
-                              )) {
+                              &best_model_rd, ctx)) {
       best_mbmi = *mbmi;
     }
   }
