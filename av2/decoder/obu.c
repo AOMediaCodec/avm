@@ -2374,9 +2374,12 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
     pbi->is_multistream = 1;
   }
 
-  // Reset is_multistream at a random access point TU without MSDO/GLCR.
-  // obus_in_frame_unit_data reflects the current frame unit (populated before
-  // decode).
+  // Check for CMVS end at a random access point TU without MSDO.
+  // Per spec, the CMVS ends when a new CVS begins without an activated
+  // global LCR.  prescan_glcr_will_activate is computed during OBU scanning
+  // (check_frame_unit_data) by extracting seq_lcr_id from the frame header's
+  // sequence header, then checking local LCRs first and falling back to
+  // global LCRs (replicating find_active_lcr logic).
   if (pbi->is_multistream) {
     int tid = pbi->current_tlayer_id;
     int mid = pbi->current_mlayer_id;
@@ -2387,7 +2390,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         (pbi->obus_in_frame_unit_data[tid][mid][OBU_CLOSED_LOOP_KEY] ||
          pbi->obus_in_frame_unit_data[tid][mid][OBU_OPEN_LOOP_KEY] ||
          pbi->obus_in_frame_unit_data[tid][mid][OBU_RAS_FRAME])) {
-      if (!pbi->glcr_obu_in_frame_unit) {
+      if (!pbi->prescan_glcr_will_activate) {
         // Flush and reset like a config change
         if (pbi->stream_info != NULL) {
           flush_all_xlayer_frames(pbi, cm, true);
