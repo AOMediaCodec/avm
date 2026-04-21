@@ -1160,9 +1160,11 @@ static void move_decoder_metadata_to_img(AV2Decoder *pbi, avm_image_t *img) {
 }
 
 static void copy_frame_hash_metadata_to_img(
-    AV2Decoder *pbi, avm_image_t *img, RefCntBuffer *const output_frame_buf) {
-  AV2_COMMON *const cm = &pbi->common;
-  const int num_planes = av2_num_planes(cm);
+    avm_image_t *img, RefCntBuffer *const output_frame_buf) {
+  // Note that `av2_num_planes()` may return an obsolete value if stream
+  // switches to/from monochrome. So we use `monochrome` flag from
+  // `output_frame_buf` to determine the number of planes.
+  const int num_planes = output_frame_buf->buf.monochrome ? 1 : 3;
   if (!output_frame_buf || !img) return;
 
   if (output_frame_buf->raw_frame_hash.is_present) {
@@ -1214,7 +1216,7 @@ static avm_image_t *decoder_get_frame_(avm_codec_alg_priv_t *ctx,
         avm_img_remove_metadata(&ctx->img);
         yuvconfig2image(&ctx->img, sd, frame_worker_data->user_priv);
         move_decoder_metadata_to_img(pbi, &ctx->img);
-        copy_frame_hash_metadata_to_img(pbi, &ctx->img, output_frame_buf);
+        copy_frame_hash_metadata_to_img(&ctx->img, output_frame_buf);
 
         ctx->img.fb_priv = output_frame_buf->raw_frame_buffer.priv;
         img = &ctx->img;
