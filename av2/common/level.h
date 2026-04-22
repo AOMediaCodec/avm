@@ -117,7 +117,6 @@ enum {
 
 enum {
   DECODER_MODEL_OK = 0,
-  DECODE_BUFFER_AVAILABLE_LATE,
   DECODE_FRAME_BUF_UNAVAILABLE,
   DECODE_EXISTING_FRAME_BUF_EMPTY,
   DISPLAY_FRAME_LATE,
@@ -164,6 +163,20 @@ typedef struct {
   bool max_tile_rate_satisfy;
   bool compressed_size_satisfy;
   bool frame_symbol_count_satisfy;
+
+  // Number of reference frames signaled in the sequence header.  Determines
+  // the active buffer pool size (num_ref_frames + 2), matching the spec's
+  // NumRefFrames + 2.  The backing array is sized at BUFFER_POOL_MAX_SIZE.
+  int num_ref_frames;
+
+  // Number of shown frames that share the current presentation time (i.e.
+  // belong to the same temporal unit).  Reset to 0 when the presentation time
+  // advances to a new temporal unit.
+  int num_frames_current_tu;
+
+  // Tracks whether every inter-TU presentation interval satisfies the minimum
+  // required by the spec (§E.3.2).
+  bool min_presentation_interval_satisfy;
 } DECODER_MODEL;
 
 typedef struct {
