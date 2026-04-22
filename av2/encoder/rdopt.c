@@ -4038,7 +4038,11 @@ static int skip_repeated_newmv(
             // the best and update corresponding variables unless the
             // best_mv is the same as ref_mv. In this case we skip and
             // rely on NEAR(EST)MV instead
-            if (av2_ref_mv_idx_type(best_mbmi, best_mbmi->ref_mv_idx) == i &&
+            if (best_mbmi->mode == this_mode &&
+                best_mbmi->ref_frame[0] == refs[0] &&
+                best_mbmi->ref_frame[1] == refs[1] &&
+                av2_ref_mv_idx_type(best_mbmi, best_mbmi->ref_mv_idx) == i &&
+
                 best_mbmi->mv[0].as_int != ref_mv.as_int &&
                 best_mbmi->pb_mv_precision == pb_mv_precision &&
                 best_mbmi->bawp_flag[0] == bawp_flag_y &&
