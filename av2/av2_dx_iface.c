@@ -1015,6 +1015,10 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
                                     [OBU_CLOSED_LOOP_KEY] ||
         pbi->obus_in_frame_unit_data[tlayer_id][mlayer_id][OBU_OPEN_LOOP_KEY] ||
         pbi->obus_in_frame_unit_data[tlayer_id][mlayer_id][OBU_RAS_FRAME];
+    const bool has_nonclk_key_obu =
+        has_key_obu && !pbi->obus_in_frame_unit_data[tlayer_id][mlayer_id]
+                                                    [OBU_CLOSED_LOOP_KEY];
+
     pbi->current_mlayer_id = mlayer_id;
     pbi->current_tlayer_id = tlayer_id;
 
@@ -1043,7 +1047,7 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
     // persists from the key OBU into subsequent frame units.
     if (has_key_obu && !ra_counted_in_tu) {
       ra_counted_in_tu = true;
-      if (pbi->random_access_point_index > 0 &&
+      if (has_nonclk_key_obu &&
           pbi->random_access_point_count == pbi->random_access_point_index) {
         pbi->random_accessed = true;
       }
