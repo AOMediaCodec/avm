@@ -177,6 +177,35 @@ const int
 const int av2_default_warped_probs[FRAME_UPDATE_TYPES] = { 64, 64, 64, 64,
                                                            64, 64, 64 };
 
+// Film grain random seed for the first keyframe (excluded from the table to
+// avoid possible repetition).
+#define FGS_KEYFRAME_SEED 25
+
+#define FGS_SEED_TABLE_SIZE 30
+
+// A table of random seeds for non-keyframe output pictures.
+// Consecutive frames may use successive entries; the table wraps around.
+// The values in the table have been selected based on visual
+// inspection and should usually provide better visual quality than
+// randomly assigned random_seed values. These values affect how the
+// film grain synthesis template is generated.
+static const uint16_t fgs_seed_table[FGS_SEED_TABLE_SIZE] = {
+  87,   206,  441,  1088, 1249, 1256, 1400, 1401, 1458, 1491,
+  2154, 2415, 2469, 2545, 2904, 2992, 3172, 3318, 3462, 3534,
+  3652, 3841, 4028, 4423, 4448, 4555, 4620, 4660, 4773, 4835
+};
+
+// Advance the film grain seed to the next table entry and store it in
+// cm->film_grain_params.random_seed ready for the following output picture.
+static void set_and_advance_fgs_seed(AV2_COMP *cpi) {
+  AV2_COMMON *const cm = &cpi->common;
+  if (cm->cur_frame->display_order_hint != cpi->fgs_prev_doh)
+    cpi->fgs_seed_idx = (cpi->fgs_seed_idx + 1) % FGS_SEED_TABLE_SIZE;
+  cpi->fgs_prev_doh = cm->cur_frame->display_order_hint;
+  cm->cur_frame->film_grain_params.random_seed =
+      fgs_seed_table[cpi->fgs_seed_idx];
+}
+
 /* Convert cpi->active_map to BRU active map (SB-by-SB) */
 void set_ard_active_map(AV2_COMP *cpi) {
   struct segmentation *const seg = &cpi->common.seg;
@@ -906,16 +935,18 @@ void av2_finalize_encoded_frame(AV2_COMP *const cpi) {
     }
     assign_frame_buffer_p(&cm->cur_frame, frame_to_show);
   }
-
   if (!cm->show_existing_frame && cm->seq_params.film_grain_params_present &&
       (cm->immediate_output_picture || cm->implicit_output_picture)) {
-    // Copy the current frame's film grain params to the its corresponding
-    // RefCntBuffer slot.
+    // Keyframes start a new seed cycle; other frames use the seed that was
+    // prepared by the previous call to advance_fgm_seed().
+    if (cm->current_frame.cm_obu_type == OBU_CLOSED_LOOP_KEY) {
+      cm->film_grain_params.random_seed = FGS_KEYFRAME_SEED;
+      cpi->fgs_seed_idx = 0;
+      cpi->fgs_prev_doh = cm->cur_frame->display_order_hint;
+    }
+    // Copy the current frame's film grain params to its RefCntBuffer slot.
     cm->cur_frame->film_grain_params = cm->film_grain_params;
-    // Iterate the random seed for the next frame.
-    cm->film_grain_params.random_seed += 3381;
-    if (cm->film_grain_params.random_seed == 0)
-      cm->film_grain_params.random_seed = 7391;
+    set_and_advance_fgs_seed(cpi);
   } else if (cm->show_existing_frame &&
              cm->seq_params.film_grain_params_present) {
     cm->cur_frame->film_grain_params =
@@ -924,9 +955,8 @@ void av2_finalize_encoded_frame(AV2_COMP *const cpi) {
     cm->fgm_id =
         cm->cur_frame
             ->fgm_id;  // Prevent stale cm->fgm_id overwriting SEF value
-    cm->film_grain_params.random_seed += 3381;
-    if (cm->film_grain_params.random_seed == 0)
-      cm->film_grain_params.random_seed = 7391;
+    // Prepare the random seed for the next output picture.
+    set_and_advance_fgs_seed(cpi);
   }
   // Initialise all tiles' contexts from the global frame context
   for (int tile_col = 0; tile_col < cm->tiles.cols; tile_col++) {

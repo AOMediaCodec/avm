@@ -2997,6 +2997,17 @@ typedef struct AV2_COMP {
   struct film_grain_model fgm;
 
   /*!
+   * Index into the film grain random_seed table.
+   * Reset to 0 on each keyframe; advanced after every output picture.
+   */
+  int fgs_seed_idx;
+  /*!
+   * Previous DOH value.
+   * Used for the FGS random seed indexing
+   */
+  unsigned int fgs_prev_doh;
+
+  /*!
    * Indicates that scan type info is present
    */
 
