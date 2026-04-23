@@ -627,6 +627,7 @@ static int get_free_buffer(DECODER_MODEL *const decoder_model) {
 static void update_ref_buffers(const AV2_COMMON *const cm,
                                DECODER_MODEL *const decoder_model, int idx,
                                int refresh_frame_flags) {
+  // Andrey: Should idx be replaced by decoder_model->cfbi here?
   FRAME_BUFFER *const this_buffer = &decoder_model->frame_buffer_pool[idx];
   for (int i = 0; i < cm->seq_params.ref_frames; ++i) {
     if (refresh_frame_flags & (1 << i)) {
@@ -868,10 +869,10 @@ int av2_get_max_level_ref_frames(const AV2_COMMON *const cm, OBU_TYPE obu_type,
   return max_level_ref_frames;
 }
 
-void av2_decoder_model_process_frame(const AV2_COMP *const cpi,
-                                     size_t coded_bits,
-                                     DECODER_MODEL *const decoder_model,
-                                     AV2LevelSpec *const level_spec) {
+void av2_decoder_model_start_frame_decode(const AV2_COMP *const cpi,
+                                          size_t coded_bits,
+                                          DECODER_MODEL *const decoder_model,
+                                          AV2LevelSpec *const level_spec) {
   if (!decoder_model || decoder_model->status != DECODER_MODEL_OK) return;
 
   avm_clear_system_state();
@@ -883,27 +884,33 @@ void av2_decoder_model_process_frame(const AV2_COMP *const cpi,
       level_params->multi_stream_scaling_x == 0
           ? 1.0
           : level_params->multi_stream_scaling_x;
-  const int luma_pic_size = cm->width * cm->height;
+  const int luma_pic_size =
+      cm->width * cm->height;  // Andrey: what about inter frames and ibc?
   const int show_existing_frame = cm->show_existing_frame;
-  const int show_frame = cm->immediate_output_picture || show_existing_frame;
+  //  const int show_frame = cm->immediate_output_picture ||
+  //  show_existing_frame;
   ++decoder_model->num_frame;
-  if (!show_existing_frame) ++decoder_model->num_decoded_frame;
-  if (show_frame) ++decoder_model->num_shown_frame;
+  if (!show_existing_frame) ++decoder_model->num_decoded_frame;  // DfgNum
+  //  if (show_frame) ++decoder_model->num_shown_frame;
   decoder_model->coded_bits += coded_bits;
 
   int display_idx = -1;
-  if (show_existing_frame) {
-    display_idx = decoder_model->vbi[cm->sef_ref_fb_idx];
-    if (display_idx < 0) {
-      decoder_model->status = DECODE_EXISTING_FRAME_BUF_EMPTY;
-      return;
-    }
-  } else {
+  //  if (show_existing_frame) {
+  //    display_idx = decoder_model->vbi[cm->sef_ref_fb_idx];
+  //    if (display_idx < 0) {
+  //      decoder_model->status = DECODE_EXISTING_FRAME_BUF_EMPTY;
+  //      return;
+  //    }
+  //  }
+
+  if (!show_existing_frame) {
     const double removal_time = get_removal_time(decoder_model);
     if (removal_time < 0.0) {
       decoder_model->status = DECODE_FRAME_BUF_UNAVAILABLE;
       return;
     }
+
+    // start here
 
     const int previous_decode_samples = decoder_model->decode_samples;
     const double previous_removal_time = decoder_model->removal_time;
@@ -999,20 +1006,46 @@ void av2_decoder_model_process_frame(const AV2_COMP *const cpi,
       return;
     }
 
-    release_processed_frames(decoder_model, removal_time);
-    decoder_model->current_time =
-        removal_time + time_to_decode_frame(cm, decoder_model->decode_rate);
+    // Here we do what the decoder model does, above are the checks (need to be
+    // checked though).
 
-    const int cfbi = get_free_buffer(decoder_model);
-    if (cfbi < 0) {
+    release_processed_frames(decoder_model, removal_time);
+
+    // Todo: save cfbi in the decoder model.
+    decoder_model->cfbi = get_free_buffer(decoder_model);
+    if (decoder_model->cfbi < 0) {
       decoder_model->status = DECODE_FRAME_BUF_UNAVAILABLE;
       return;
     }
+
+    decoder_model->current_time =
+        removal_time + time_to_decode_frame(cm, decoder_model->decode_rate);
+  }
+}
+
+void av2_decoder_model_update_buffer_and_finish_frame_decode(
+    const AV2_COMP *const cpi, size_t coded_bits,
+    DECODER_MODEL *const decoder_model, AV2LevelSpec *const level_spec) {
+  const AV2_COMMON *const cm = &cpi->common;
+  const SequenceHeader *const seq_params = &cm->seq_params;
+  const AV2LevelParams *const level_params = &cpi->level_params;
+  const double multi_stream_scaling_x =
+      level_params->multi_stream_scaling_x == 0
+          ? 1.0
+          : level_params->multi_stream_scaling_x;
+  const int luma_pic_size =
+      cm->width * cm->height;  // Andrey: what about inter frames and ibc?
+  const int show_existing_frame = cm->show_existing_frame;
+
+  int display_idx = -1;
+  const int show_frame = cm->immediate_output_picture || show_existing_frame;
+
+  if (!show_existing_frame) {
     const CurrentFrame *const current_frame = &cm->current_frame;
-    decoder_model->frame_buffer_pool[cfbi].frame_type =
+    decoder_model->frame_buffer_pool[decoder_model->cfbi].frame_type =
         cm->current_frame.frame_type;
-    display_idx = cfbi;
-    update_ref_buffers(cm, decoder_model, cfbi,
+    display_idx = decoder_model->cfbi;
+    update_ref_buffers(cm, decoder_model, decoder_model->cfbi,
                        current_frame->refresh_frame_flags);
 
     if (decoder_model->initial_presentation_delay < 0.0) {
@@ -1032,8 +1065,27 @@ void av2_decoder_model_process_frame(const AV2_COMP *const cpi,
       }
     }
   }
+}
 
+void av2_decoder_model_check_output_frame(const AV2_COMP *const cpi,
+                                          size_t coded_bits,
+                                          DECODER_MODEL *const decoder_model,
+                                          AV2LevelSpec *const level_spec) {
+  const AV2_COMMON *const cm = &cpi->common;
+  const SequenceHeader *const seq_params = &cm->seq_params;
+  const AV2LevelParams *const level_params = &cpi->level_params;
+  const double multi_stream_scaling_x =
+      level_params->multi_stream_scaling_x == 0
+          ? 1.0
+          : level_params->multi_stream_scaling_x;
+  const int luma_pic_size =
+      cm->width * cm->height;  // Andrey: what about inter frames and ibc?
+  const int show_existing_frame = cm->show_existing_frame;
+
+  int display_idx = -1;
+  const int show_frame = cm->immediate_output_picture || show_existing_frame;
   // Display.
+
   if (show_frame) {
     assert(display_idx >= 0 && display_idx < decoder_model->num_ref_frames + 2);
     FRAME_BUFFER *const this_buffer =
@@ -1083,6 +1135,7 @@ void av2_decoder_model_process_frame(const AV2_COMP *const cpi,
     decoder_model->presentation_time = presentation_time;
   }
 }
+
 // Get the index of the level parameter entry in av2_substream_level_defs for
 // sub-stream case given the level and the scaling factor.
 // Should we define the behavior for levels below 4.0?
@@ -1588,8 +1641,8 @@ void av2_update_level_info(AV2_COMP *cpi, size_t size, int64_t ts_start,
 
     DECODER_MODEL *const decoder_models = level_info->decoder_models;
     for (AV2_LEVEL level = SEQ_LEVEL_2_0; level < SEQ_LEVELS; ++level) {
-      av2_decoder_model_process_frame(cpi, size << 3, &decoder_models[level],
-                                      level_spec);
+      av2_decoder_model_start_frame_decode(cpi, size << 3,
+                                           &decoder_models[level], level_spec);
     }
 
     // Check whether target level is met.
