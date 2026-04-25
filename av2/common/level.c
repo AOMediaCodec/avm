@@ -625,18 +625,24 @@ static int get_free_buffer(DECODER_MODEL *const decoder_model) {
 }
 
 static void update_ref_buffers(const AV2_COMMON *const cm,
-                               DECODER_MODEL *const decoder_model, int idx,
+                               DECODER_MODEL *const decoder_model,
                                int refresh_frame_flags) {
-  // Andrey: Should idx be replaced by decoder_model->cfbi here?
-  FRAME_BUFFER *const this_buffer = &decoder_model->frame_buffer_pool[idx];
+  if (cm->show_existing_frame)
+    return;  // refresh_frame_flags are equal to 0 in show_existing_frame.
+  FRAME_BUFFER *const this_buffer =
+      &decoder_model->frame_buffer_pool[decoder_model->cfbi];
   for (int i = 0; i < cm->seq_params.ref_frames; ++i) {
     if (refresh_frame_flags & (1 << i)) {
       const int pre_idx = decoder_model->vbi[i];
       if (pre_idx != -1) {
         --decoder_model->frame_buffer_pool[pre_idx].decoder_ref_count;
       }
-      decoder_model->vbi[i] = idx;
-      ++this_buffer->decoder_ref_count;
+      if (cm->ref_frame_map[i] != NULL) {
+        decoder_model->vbi[i] = decoder_model->cfbi;
+        ++this_buffer->decoder_ref_count;
+      } else {
+        decoder_model->vbi[i] = -1;
+      }
     }
   }
 }
@@ -720,7 +726,6 @@ static double get_presentation_time(const DECODER_MODEL *const decoder_model,
     // Can't decide presentation time until the initial presentation delay is
     // known.
     if (initial_presentation_delay < 0.0) return INVALID_TIME;
-
     return initial_presentation_delay +
            display_index * decoder_model->num_ticks_per_picture *
                decoder_model->display_clock_tick;
@@ -884,24 +889,23 @@ void av2_decoder_model_start_frame_decode(const AV2_COMP *const cpi,
       level_params->multi_stream_scaling_x == 0
           ? 1.0
           : level_params->multi_stream_scaling_x;
-  const int luma_pic_size =
-      cm->width * cm->height;  // Andrey: what about inter frames and ibc?
+
+  int luma_pic_size;
+
+  const FRAME_TYPE frame_type = cm->current_frame.frame_type;
+  int luma_samples = 0;
+  if (frame_type == KEY_FRAME || frame_type == INTRA_ONLY_FRAME) {
+    luma_pic_size = cm->width * cm->height;
+  } else {
+    const int max_frame_width = seq_params->max_frame_width;
+    const int max_frame_height = seq_params->max_frame_height;
+    luma_pic_size = max_frame_width * max_frame_height;
+  }
+
   const int show_existing_frame = cm->show_existing_frame;
-  //  const int show_frame = cm->immediate_output_picture ||
-  //  show_existing_frame;
   ++decoder_model->num_frame;
   if (!show_existing_frame) ++decoder_model->num_decoded_frame;  // DfgNum
-  //  if (show_frame) ++decoder_model->num_shown_frame;
   decoder_model->coded_bits += coded_bits;
-
-  int display_idx = -1;
-  //  if (show_existing_frame) {
-  //    display_idx = decoder_model->vbi[cm->sef_ref_fb_idx];
-  //    if (display_idx < 0) {
-  //      decoder_model->status = DECODE_EXISTING_FRAME_BUF_EMPTY;
-  //      return;
-  //    }
-  //  }
 
   if (!show_existing_frame) {
     const double removal_time = get_removal_time(decoder_model);
@@ -909,8 +913,6 @@ void av2_decoder_model_start_frame_decode(const AV2_COMP *const cpi,
       decoder_model->status = DECODE_FRAME_BUF_UNAVAILABLE;
       return;
     }
-
-    // start here
 
     const int previous_decode_samples = decoder_model->decode_samples;
     const double previous_removal_time = decoder_model->removal_time;
@@ -1006,12 +1008,8 @@ void av2_decoder_model_start_frame_decode(const AV2_COMP *const cpi,
       return;
     }
 
-    // Here we do what the decoder model does, above are the checks (need to be
-    // checked though).
-
     release_processed_frames(decoder_model, removal_time);
 
-    // Todo: save cfbi in the decoder model.
     decoder_model->cfbi = get_free_buffer(decoder_model);
     if (decoder_model->cfbi < 0) {
       decoder_model->status = DECODE_FRAME_BUF_UNAVAILABLE;
@@ -1024,29 +1022,16 @@ void av2_decoder_model_start_frame_decode(const AV2_COMP *const cpi,
 }
 
 void av2_decoder_model_update_buffer_and_finish_frame_decode(
-    const AV2_COMP *const cpi, size_t coded_bits,
-    DECODER_MODEL *const decoder_model, AV2LevelSpec *const level_spec) {
+    const AV2_COMP *const cpi, DECODER_MODEL *const decoder_model) {
   const AV2_COMMON *const cm = &cpi->common;
-  const SequenceHeader *const seq_params = &cm->seq_params;
-  const AV2LevelParams *const level_params = &cpi->level_params;
-  const double multi_stream_scaling_x =
-      level_params->multi_stream_scaling_x == 0
-          ? 1.0
-          : level_params->multi_stream_scaling_x;
-  const int luma_pic_size =
-      cm->width * cm->height;  // Andrey: what about inter frames and ibc?
-  const int show_existing_frame = cm->show_existing_frame;
 
-  int display_idx = -1;
-  const int show_frame = cm->immediate_output_picture || show_existing_frame;
+  const int show_existing_frame = cm->show_existing_frame;
 
   if (!show_existing_frame) {
     const CurrentFrame *const current_frame = &cm->current_frame;
     decoder_model->frame_buffer_pool[decoder_model->cfbi].frame_type =
         cm->current_frame.frame_type;
-    display_idx = decoder_model->cfbi;
-    update_ref_buffers(cm, decoder_model, decoder_model->cfbi,
-                       current_frame->refresh_frame_flags);
+    update_ref_buffers(cm, decoder_model, current_frame->refresh_frame_flags);
 
     if (decoder_model->initial_presentation_delay < 0.0) {
       // Display can begin after required number of frames have been buffered.
@@ -1068,72 +1053,74 @@ void av2_decoder_model_update_buffer_and_finish_frame_decode(
 }
 
 void av2_decoder_model_check_output_frame(const AV2_COMP *const cpi,
-                                          size_t coded_bits,
                                           DECODER_MODEL *const decoder_model,
-                                          AV2LevelSpec *const level_spec) {
+                                          int frameToShowMapIdx) {
   const AV2_COMMON *const cm = &cpi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
-  const AV2LevelParams *const level_params = &cpi->level_params;
-  const double multi_stream_scaling_x =
-      level_params->multi_stream_scaling_x == 0
-          ? 1.0
-          : level_params->multi_stream_scaling_x;
-  const int luma_pic_size =
-      cm->width * cm->height;  // Andrey: what about inter frames and ibc?
-  const int show_existing_frame = cm->show_existing_frame;
+  const int luma_disp_pic_size =
+      seq_params->max_frame_width * seq_params->max_frame_height;
 
-  int display_idx = -1;
-  const int show_frame = cm->immediate_output_picture || show_existing_frame;
   // Display.
-
-  if (show_frame) {
-    assert(display_idx >= 0 && display_idx < decoder_model->num_ref_frames + 2);
-    FRAME_BUFFER *const this_buffer =
-        &decoder_model->frame_buffer_pool[display_idx];
-    ++this_buffer->player_ref_count;
-    this_buffer->display_index = decoder_model->num_shown_frame;
-    const double presentation_time =
-        get_presentation_time(decoder_model, this_buffer->display_index);
-    this_buffer->presentation_time = presentation_time;
-    if (presentation_time >= 0.0 &&
-        decoder_model->current_time > presentation_time) {
-      decoder_model->status = DISPLAY_FRAME_LATE;
+  FRAME_BUFFER *this_buffer;
+  // Andrey: is cm->immediate_output_picture equivalaent to frameToShowMapIdx ==
+  // -1?
+  if (cm->immediate_output_picture) {
+    this_buffer = &decoder_model->frame_buffer_pool[decoder_model->cfbi];
+  } else {
+    if (cm->ref_frame_map[frameToShowMapIdx] == NULL ||
+        decoder_model->vbi[frameToShowMapIdx] == -1) {
+      decoder_model->status = DECODE_EXISTING_FRAME_BUF_EMPTY;
       return;
     }
-
-    const double previous_presentation_time = decoder_model->presentation_time;
-    if (presentation_time >= 0.0 && previous_presentation_time >= 0.0 &&
-        presentation_time > previous_presentation_time) {
-      // A new temporal unit has started.  Compute metrics over the inter-TU
-      // interval using the previous TU's accumulated display samples.
-      const double interval = presentation_time - previous_presentation_time;
-
-      // Peak display rate across TU boundaries (spec §E.3.2).
-      const int64_t this_display_rate =
-          (int64_t)(decoder_model->display_samples / interval);
-      decoder_model->max_display_rate =
-          AVMMAX(decoder_model->max_display_rate, this_display_rate);
-
-      // Minimum presentation interval check (spec §E.3.2):
-      // interval >= MaxDecodeRate / (MaxHeaderRate * MaxDisplayRate)
-      const AV2LevelSpec *const target_spec =
-          av2_level_defs + decoder_model->level;
-      const double min_frame_time = (double)target_spec->max_decode_rate /
-                                    ((double)target_spec->max_header_rate *
-                                     (double)target_spec->max_display_rate);
-      decoder_model->min_presentation_interval_satisfy =
-          decoder_model->min_presentation_interval_satisfy &&
-          (interval >= min_frame_time);
-
-      // Reset per-TU accumulators for the new temporal unit.
-      decoder_model->display_samples = 0;
-      decoder_model->num_frames_current_tu = 0;
-    }
-    // Accumulate this frame's samples into the current temporal unit.
-    decoder_model->display_samples += luma_pic_size;
-    ++decoder_model->num_frames_current_tu;
-    decoder_model->presentation_time = presentation_time;
+    this_buffer =
+        &decoder_model
+             ->frame_buffer_pool[decoder_model->vbi[frameToShowMapIdx]];
   }
+  ++this_buffer->player_ref_count;
+  decoder_model->num_shown_frame++;
+  this_buffer->display_index =
+      decoder_model->num_shown_frame;  // Assumes only one embedded layer
+  const double presentation_time =
+      get_presentation_time(decoder_model, this_buffer->display_index);
+  this_buffer->presentation_time = presentation_time;
+  if (presentation_time >= 0.0 &&
+      decoder_model->current_time > presentation_time) {
+    decoder_model->status = DISPLAY_FRAME_LATE;
+    return;
+  }
+
+  const double previous_presentation_time = decoder_model->presentation_time;
+  if (presentation_time >= 0.0 && previous_presentation_time >= 0.0 &&
+      presentation_time > previous_presentation_time) {
+    // A new temporal unit has started.  Compute metrics over the inter-TU
+    // interval using the previous TU's accumulated display samples.
+    const double interval = presentation_time - previous_presentation_time;
+
+    // Peak display rate across TU boundaries (spec §E.3.2).
+    const int64_t this_display_rate =
+        (int64_t)(decoder_model->display_samples / interval);
+    decoder_model->max_display_rate =
+        AVMMAX(decoder_model->max_display_rate, this_display_rate);
+
+    // Minimum presentation interval check:
+    // interval >= MaxDecodeRate / (MaxHeaderRate * MaxDisplayRate)
+    const AV2LevelSpec *const target_spec =
+        av2_level_defs + decoder_model->level;
+    const double min_frame_time = (double)target_spec->max_decode_rate /
+                                  ((double)target_spec->max_header_rate *
+                                   (double)target_spec->max_display_rate);
+    decoder_model->min_presentation_interval_satisfy =
+        decoder_model->min_presentation_interval_satisfy &&
+        (interval >= min_frame_time);
+
+    // Reset per-TU accumulators for the new temporal unit.
+    decoder_model->display_samples = 0;
+    decoder_model->num_frames_current_tu = 0;
+  }
+  // Accumulate this frame's samples into the current temporal unit.
+  decoder_model->display_samples += luma_disp_pic_size;
+  ++decoder_model->num_frames_current_tu;
+  decoder_model->presentation_time = presentation_time;
 }
 
 // Get the index of the level parameter entry in av2_substream_level_defs for
