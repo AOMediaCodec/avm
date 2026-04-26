@@ -893,7 +893,7 @@ void av2_decoder_model_start_frame_decode(const AV2_COMP *const cpi,
   int luma_pic_size;
 
   const FRAME_TYPE frame_type = cm->current_frame.frame_type;
-  int luma_samples = 0;
+
   if (frame_type == KEY_FRAME || frame_type == INTRA_ONLY_FRAME) {
     luma_pic_size = cm->width * cm->height;
   } else {
