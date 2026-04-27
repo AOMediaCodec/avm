@@ -1060,6 +1060,7 @@ static int denoise_and_encode(AV2_COMP *const cpi, uint8_t *const dest,
 
   if (gf_group->index == 0) av2_init_tpl_stats(&cpi->tpl_data);
   if (allow_tpl) av2_tpl_setup_stats(cpi, 0, frame_params, frame_input);
+
   if (av2_encode(cpi, dest, frame_input, frame_params, frame_results) !=
       AVM_CODEC_OK) {
     return AVM_CODEC_ERROR;

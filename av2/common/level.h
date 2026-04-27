@@ -221,8 +221,7 @@ void av2_init_level_info(struct AV2_COMP *cpi);
 
 bool is_filter_enabled_frame(const AV2_COMMON *const cm);
 
-void av2_update_level_info(struct AV2_COMP *cpi, size_t size, int64_t ts_start,
-                           int64_t ts_end);
+void av2_update_level_info(struct AV2_COMP *cpi, size_t size);
 
 // Compression ratio of current frame.
 double av2_get_compression_ratio(const AV2_COMMON *const cm,
@@ -241,6 +240,14 @@ void av2_decoder_model_start_frame_decode(const struct AV2_COMP *const cpi,
                                           size_t coded_bits,
                                           DECODER_MODEL *const decoder_model,
                                           AV2LevelSpec *const level_spec);
+
+void av2_decoder_model_update_buffer_and_finish_frame_decode(
+    const struct AV2_COMP *const cpi, DECODER_MODEL *const decoder_model);
+
+void av2_decoder_model_check_output_frame(const struct AV2_COMP *const cpi,
+                                          DECODER_MODEL *const decoder_model,
+                                          int ref_idx,
+                                          RefCntBuffer *output_frame_ptr);
 
 // Return max bitrate(bps) for given level.
 double av2_get_max_bitrate_for_level(AV2_LEVEL level_index, int tier,

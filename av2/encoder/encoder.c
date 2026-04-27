@@ -4918,6 +4918,14 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
                               cm->ref_frame_map, ENCODE_STAGE);
   }
 
+  if (cpi->level_params.keep_level_stats && !is_stat_generation_stage(cpi)) {
+    // Initialize level info. at the beginning of each sequence.
+    if (av2_is_shown_keyframe(cpi, cm->current_frame.frame_type)) {
+      av2_init_level_info(cpi);
+    }
+    av2_update_level_info(cpi, *size);
+  }
+
   refresh_reference_frames(cpi);
 #if CONFIG_ENTROPY_STATS
   av2_accumulate_frame_counts(&aggregate_fc, &cpi->counts);
@@ -5450,13 +5458,7 @@ int av2_get_compressed_data(AV2_COMP *cpi, unsigned int *frame_flags,
     }
   }
 
-  if (cpi->level_params.keep_level_stats && !is_stat_generation_stage(cpi)) {
-    // Initialize level info. at the beginning of each sequence.
-    if (av2_is_shown_keyframe(cpi, cm->current_frame.frame_type)) {
-      av2_init_level_info(cpi);
-    }
-    av2_update_level_info(cpi, *size, *time_stamp, *time_end);
-  }
+  // Levels were called here.
 
 #if CONFIG_INTERNAL_STATS
   if (!is_stat_generation_stage(cpi)) {

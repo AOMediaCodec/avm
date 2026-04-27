@@ -913,6 +913,31 @@ static AVM_INLINE void refresh_reference_frames(AV2_COMP *cpi) {
       }
     }
   }
+
+  if (cpi->level_params.keep_level_stats && !is_stat_generation_stage(cpi)) {
+    AV2LevelParams *const level_params = &cpi->level_params;
+    const int tlayer_id = cm->tlayer_id;
+    const int mlayer_id = cm->mlayer_id;
+    const int xlayer_id = cm->xlayer_id;
+    (void)xlayer_id;
+
+    const SequenceHeader *const seq_params = &cm->seq_params;
+    // update level_stats
+    // TODO(kyslov@) fix the implementation according to buffer model
+    for (int i = 0; i < seq_params->operating_points_cnt_minus_1 + 1; ++i) {
+      if (!is_in_operating_point(seq_params->operating_point_idc[i], tlayer_id,
+                                 mlayer_id) ||
+          !((level_params->keep_level_stats >> i) & 1)) {
+        continue;
+      }
+      AV2LevelInfo *const level_info = level_params->level_info[i];
+      DECODER_MODEL *const decoder_models = level_info->decoder_models;
+      for (AV2_LEVEL level = SEQ_LEVEL_2_0; level < SEQ_LEVELS; ++level) {
+        av2_decoder_model_update_buffer_and_finish_frame_decode(
+            cpi, &decoder_models[level]);
+      }
+    }
+  }
 }
 
 static AVM_INLINE void update_subgop_stats(

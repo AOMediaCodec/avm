@@ -1553,8 +1553,7 @@ double av2_get_compression_ratio(const AV2_COMMON *const cm,
   return uncompressed_frame_size / (double)encoded_frame_size;
 }
 
-void av2_update_level_info(AV2_COMP *cpi, size_t size, int64_t ts_start,
-                           int64_t ts_end) {
+void av2_update_level_info(AV2_COMP *cpi, size_t size) {
   AV2_COMMON *const cm = &cpi->common;
   AV2LevelParams *const level_params = &cpi->level_params;
   const int upscaled_width = cm->width;
@@ -1627,9 +1626,9 @@ void av2_update_level_info(AV2_COMP *cpi, size_t size, int64_t ts_start,
 
     // Store info. of current frame into FrameWindowBuffer.
     FrameWindowBuffer *const buffer = &level_info->frame_window_buffer;
-    store_frame_record(ts_start, ts_end, size, luma_pic_size,
-                       frame_header_count, tiles, immediate_output_picture,
-                       show_existing_frame, buffer);
+    // ToDo: consider how to bring ts_start and ts_end here (currently 0, 0).
+    store_frame_record(0, 0, size, luma_pic_size, frame_header_count, tiles,
+                       immediate_output_picture, show_existing_frame, buffer);
     if (immediate_output_picture) {
       // Count the number of frames encoded in the past 1 second.
       const int encoded_frames_in_last_second =
