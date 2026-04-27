@@ -2175,8 +2175,7 @@ bool conformance_check_msdo_lcr(struct AV2Decoder *pbi, bool global_lcr_present,
       llcr_prof == CONFIGURABLE) {
     return true;
   }
-  if (!msdo_present && !global_lcr_present && !local_lcr_present &&
-      pbi->common.seq_params.seq_profile_idc == CONFIGURABLE) {
+  if (!msdo_present && !global_lcr_present && !local_lcr_present) {
     return true;
   }
 
