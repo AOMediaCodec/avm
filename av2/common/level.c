@@ -1054,7 +1054,7 @@ void av2_decoder_model_update_buffer_and_finish_frame_decode(
 
 void av2_decoder_model_check_output_frame(const AV2_COMP *const cpi,
                                           DECODER_MODEL *const decoder_model,
-                                          int frameToShowMapIdx) {
+                                          int ref_idx) {
   const AV2_COMMON *const cm = &cpi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
   const int luma_disp_pic_size =
@@ -1062,19 +1062,16 @@ void av2_decoder_model_check_output_frame(const AV2_COMP *const cpi,
 
   // Display.
   FRAME_BUFFER *this_buffer;
-  // Andrey: is cm->immediate_output_picture equivalaent to frameToShowMapIdx ==
-  // -1?
-  if (cm->immediate_output_picture) {
+  if (ref_idx < 0) {
     this_buffer = &decoder_model->frame_buffer_pool[decoder_model->cfbi];
   } else {
-    if (cm->ref_frame_map[frameToShowMapIdx] == NULL ||
-        decoder_model->vbi[frameToShowMapIdx] == -1) {
+    if (cm->ref_frame_map[ref_idx] == NULL ||
+        decoder_model->vbi[ref_idx] == -1) {
       decoder_model->status = DECODE_EXISTING_FRAME_BUF_EMPTY;
       return;
     }
     this_buffer =
-        &decoder_model
-             ->frame_buffer_pool[decoder_model->vbi[frameToShowMapIdx]];
+        &decoder_model->frame_buffer_pool[decoder_model->vbi[ref_idx]];
   }
   ++this_buffer->player_ref_count;
   decoder_model->num_shown_frame++;
