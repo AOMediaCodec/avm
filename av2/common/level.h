@@ -122,7 +122,8 @@ enum {
   DISPLAY_FRAME_LATE,
   SMOOTHING_BUFFER_UNDERFLOW,
   SMOOTHING_BUFFER_OVERFLOW,
-  DECODER_MODEL_DISABLED
+  DECODER_MODEL_DISABLED,
+  DECODER_MODEL_MULTIPLE_XLAYERS,
 } UENUM1BYTE(DECODER_MODEL_STATUS);
 
 typedef struct {
@@ -180,6 +181,10 @@ typedef struct {
 
   // Index of the currently decoded frame
   int cfbi;
+
+  int last_output_mlayer;
+  int last_output_xlayer;
+  int last_display_index;
 } DECODER_MODEL;
 
 typedef struct {

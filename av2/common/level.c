@@ -825,6 +825,9 @@ void av2_decoder_model_init(const AV2_COMP *const cpi, AV2_LEVEL level,
   decoder_model->num_decoded_frame = -1;
   decoder_model->num_shown_frame = -1;
   decoder_model->current_time = 0.0;
+  decoder_model->last_output_mlayer = -1;
+  decoder_model->last_output_xlayer = -1;
+  decoder_model->last_display_index = -1;
 
   initialize_buffer_pool(decoder_model);
 
@@ -1054,7 +1057,8 @@ void av2_decoder_model_update_buffer_and_finish_frame_decode(
 
 void av2_decoder_model_check_output_frame(const AV2_COMP *const cpi,
                                           DECODER_MODEL *const decoder_model,
-                                          int ref_idx) {
+                                          int ref_idx,
+                                          RefCntBuffer *output_frame_ptr) {
   const AV2_COMMON *const cm = &cpi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
   const int luma_disp_pic_size =
@@ -1075,8 +1079,22 @@ void av2_decoder_model_check_output_frame(const AV2_COMP *const cpi,
   }
   ++this_buffer->player_ref_count;
   decoder_model->num_shown_frame++;
-  this_buffer->display_index =
-      decoder_model->num_shown_frame;  // Assumes only one embedded layer
+  if (decoder_model->last_display_index < 0) {
+    decoder_model->last_display_index = 0;
+  } else {
+    if (decoder_model->last_output_xlayer != output_frame_ptr->xlayer_id) {
+      decoder_model->status = DECODER_MODEL_MULTIPLE_XLAYERS;
+      return;
+    }
+    if (output_frame_ptr->mlayer_id <= decoder_model->last_output_mlayer) {
+      decoder_model->last_display_index++;
+    }
+  }
+  decoder_model->last_output_mlayer = output_frame_ptr->mlayer_id;
+  decoder_model->last_output_xlayer = output_frame_ptr->xlayer_id;
+
+  this_buffer->display_index = decoder_model->last_display_index;
+
   const double presentation_time =
       get_presentation_time(decoder_model, this_buffer->display_index);
   this_buffer->presentation_time = presentation_time;
