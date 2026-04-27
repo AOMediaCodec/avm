@@ -90,12 +90,6 @@ class KeyFrameIntervalTestLarge
     EXPECT_EQ(AVM_CODEC_OK, res_dec) << decoder->DecodeError();
     if (AVM_CODEC_OK == res_dec) {
       avm_codec_ctx_t *ctx_dec = decoder->GetDecoder();
-
-      // Note: call to `avm_codec_get_frame` is required for
-      // `AVMD_GET_FRAME_FLAGS` later.
-      avm_codec_iter_t iter;
-      avm_codec_get_frame(ctx_dec, &iter);
-
       int frame_flags = 0;
       AVM_CODEC_CONTROL_TYPECHECKED(ctx_dec, AVMD_GET_FRAME_FLAGS,
                                     &frame_flags);
