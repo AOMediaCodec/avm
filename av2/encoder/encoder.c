@@ -4725,6 +4725,32 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
     if (av2_pack_bitstream(cpi, dest, size, &largest_tile_id) != AVM_CODEC_OK)
       return AVM_CODEC_ERROR;
     cpi->last_show_frame_buf = cm->cur_frame;
+
+    if (cpi->level_params.keep_level_stats && !is_stat_generation_stage(cpi)) {
+      AV2LevelParams *const level_params = &cpi->level_params;
+      const int tlayer_id = cm->tlayer_id;
+      const int mlayer_id = cm->mlayer_id;
+      const int xlayer_id = cm->xlayer_id;
+      (void)xlayer_id;
+
+      // update level_stats
+      // TODO(kyslov@) fix the implementation according to buffer model
+      for (int i = 0; i < seq_params->operating_points_cnt_minus_1 + 1; ++i) {
+        if (!is_in_operating_point(seq_params->operating_point_idc[i],
+                                   tlayer_id, mlayer_id) ||
+            !((level_params->keep_level_stats >> i) & 1)) {
+          continue;
+        }
+        AV2LevelInfo *const level_info = level_params->level_info[i];
+        DECODER_MODEL *const decoder_models = level_info->decoder_models;
+        for (AV2_LEVEL level = SEQ_LEVEL_2_0; level < SEQ_LEVELS; ++level) {
+          av2_decoder_model_check_output_frame(cpi, &decoder_models[level],
+                                               cpi->fb_idx_for_overlay,
+                                               cm->cur_frame);
+        }
+      }
+    }
+
     if (!av2_check_keyframe_overlay(cpi->gf_group.index, &cpi->gf_group,
                                     cpi->rc.frames_since_key))
       ++current_frame->frame_number;
@@ -4762,6 +4788,31 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
     else
       cpi->last_show_frame_buf = cm->ref_frame_map[cm->sef_ref_fb_idx];
     refresh_reference_frames(cpi);
+
+    if (cpi->level_params.keep_level_stats && !is_stat_generation_stage(cpi)) {
+      AV2LevelParams *const level_params = &cpi->level_params;
+      const int tlayer_id = cm->tlayer_id;
+      const int mlayer_id = cm->mlayer_id;
+      const int xlayer_id = cm->xlayer_id;
+      (void)xlayer_id;
+
+      // update level_stats
+      // TODO(kyslov@) fix the implementation according to buffer model
+      for (int i = 0; i < seq_params->operating_points_cnt_minus_1 + 1; ++i) {
+        if (!is_in_operating_point(seq_params->operating_point_idc[i],
+                                   tlayer_id, mlayer_id) ||
+            !((level_params->keep_level_stats >> i) & 1)) {
+          continue;
+        }
+        AV2LevelInfo *const level_info = level_params->level_info[i];
+        DECODER_MODEL *const decoder_models = level_info->decoder_models;
+        for (AV2_LEVEL level = SEQ_LEVEL_2_0; level < SEQ_LEVELS; ++level) {
+          av2_decoder_model_check_output_frame(cpi, &decoder_models[level],
+                                               cm->sef_ref_fb_idx,
+                                               cpi->last_show_frame_buf);
+        }
+      }
+    }
 
     // Since we allocate a spot for the OVERLAY frame in the gf group, we need
     // to do post-encoding update accordingly.
