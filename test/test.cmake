@@ -87,8 +87,11 @@ if(NOT BUILD_SHARED_LIBS)
     APPEND
     AVM_UNIT_TEST_COMMON_SOURCES
     "${AVM_ROOT}/test/av2_common_int_test.cc"
+    "${AVM_ROOT}/test/atlas_test.cc"
     "${AVM_ROOT}/test/bawp_test.cc"
     "${AVM_ROOT}/test/bitwriter_buffer_test.cc"
+    "${AVM_ROOT}/test/lcr_test.cc"
+    "${AVM_ROOT}/test/ops_test.cc"
     "${AVM_ROOT}/test/cdef_test.cc"
     "${AVM_ROOT}/test/cfl_test.cc"
     "${AVM_ROOT}/test/convolve_test.cc"

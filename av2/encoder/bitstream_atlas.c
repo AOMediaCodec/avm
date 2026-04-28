@@ -33,6 +33,7 @@
 #include "common/rawenc.h"
 #include "av2/encoder/bitstream.h"
 #include "av2/encoder/tokenize.h"
+#include "av2/encoder/atlas_syntax.h"
 
 static uint32_t write_ats_region_info(struct AtlasRegionInfo *atlas_reg_params,
                                       struct avm_write_bit_buffer *wb) {
@@ -159,11 +160,11 @@ static uint32_t write_ats_region_to_segment_mapping(
   return 0;
 }
 
-static uint32_t write_ats_label_segment_info(AV2_COMP *cpi, int NumSegments,
-                                             struct avm_write_bit_buffer *wb) {
+static uint32_t write_ats_label_segment_info(
+    struct AtlasSegmentInfo *atlas_params, int NumSegments,
+    struct avm_write_bit_buffer *wb) {
   assert(NumSegments >= 0);
-  struct AtlasLabelSegmentInfo *ats_label =
-      &cpi->common.atlas_params.ats_label_seg;
+  struct AtlasLabelSegmentInfo *ats_label = &atlas_params->ats_label_seg;
 
   avm_wb_write_bit(wb, ats_label->ats_signalled_atlas_segment_ids_flag);
   if (ats_label->ats_signalled_atlas_segment_ids_flag) {
@@ -175,47 +176,50 @@ static uint32_t write_ats_label_segment_info(AV2_COMP *cpi, int NumSegments,
   return 0;
 }
 
-uint32_t av2_write_atlas_segment_info_obu(AV2_COMP *cpi, uint8_t *const dst) {
-  struct avm_write_bit_buffer wb = { dst, 0 };
-  uint32_t size = 0;
-
-  struct AtlasSegmentInfo *atlas_params = &cpi->common.atlas_params;
-
-  avm_wb_write_literal(&wb, atlas_params->atlas_segment_id, 3);
-  avm_wb_write_uvlc(&wb, atlas_params->atlas_segment_mode_idc);
+int av2_write_atlas_segment_info(struct AtlasSegmentInfo *atlas_params,
+                                 struct avm_write_bit_buffer *wb) {
+  avm_wb_write_literal(wb, atlas_params->atlas_segment_id, 3);
+  avm_wb_write_uvlc(wb, atlas_params->atlas_segment_mode_idc);
   int num_segments = -1;  // invalid
   if (atlas_params->atlas_segment_mode_idc == ENHANCED_ATLAS) {
-    write_ats_region_info(&atlas_params->ats_reg_params, &wb);
+    write_ats_region_info(&atlas_params->ats_reg_params, wb);
     write_ats_region_to_segment_mapping(
         &atlas_params->ats_reg_seg_map,
-        atlas_params->ats_reg_params.NumRegionsInAtlas, &wb);
+        atlas_params->ats_reg_params.NumRegionsInAtlas, wb);
     num_segments =
         atlas_params->ats_reg_seg_map.ats_num_atlas_segments_minus_1 + 1;
   } else if (atlas_params->atlas_segment_mode_idc == BASIC_ATLAS) {
-    write_ats_basic_info(atlas_params->ats_basic_info, &wb);
+    write_ats_basic_info(atlas_params->ats_basic_info, wb);
     num_segments =
         atlas_params->ats_basic_info->ats_num_atlas_segments_minus_1 + 1;
   } else if (atlas_params->atlas_segment_mode_idc == SINGLE_ATLAS) {
     atlas_params->ats_reg_seg_map.ats_num_atlas_segments_minus_1 = 0;
     num_segments = 1;
-    avm_wb_write_uvlc(&wb, atlas_params->ats_nominal_width_minus1);
-    avm_wb_write_uvlc(&wb, atlas_params->ats_nominal_height_minus1);
+    avm_wb_write_uvlc(wb, atlas_params->ats_nominal_width_minus1);
+    avm_wb_write_uvlc(wb, atlas_params->ats_nominal_height_minus1);
   } else if (atlas_params->atlas_segment_mode_idc == MULTISTREAM_ATLAS) {
-    write_ats_multistream_atlas_info(atlas_params->ats_basic_info, &wb);
+    write_ats_multistream_atlas_info(atlas_params->ats_basic_info, wb);
     num_segments =
         atlas_params->ats_basic_info->ats_num_atlas_segments_minus_1 + 1;
   } else if (atlas_params->atlas_segment_mode_idc == MULTISTREAM_ALPHA_ATLAS) {
-    write_ats_multistream_alpha_atlas_info(atlas_params->ats_basic_info, &wb);
+    write_ats_multistream_alpha_atlas_info(atlas_params->ats_basic_info, wb);
     num_segments =
         atlas_params->ats_basic_info->ats_num_atlas_segments_minus_1 + 1;
   }
-  // Label each atlas segment
-  write_ats_label_segment_info(cpi, num_segments, &wb);
+  write_ats_label_segment_info(atlas_params, num_segments, wb);
+  return 0;
+}
+
+uint32_t av2_write_atlas_segment_info_obu(AV2_COMP *cpi, uint8_t *const dst) {
+  struct avm_write_bit_buffer wb = { dst, 0 };
+
+  struct AtlasSegmentInfo *atlas_params = &cpi->common.atlas_params;
+  av2_write_atlas_segment_info(atlas_params, &wb);
+
   avm_wb_write_bit(&wb, atlas_params->ats_extension_present_flag);
   assert(!atlas_params->ats_extension_present_flag);
   av2_add_trailing_bits(&wb);
-  size = avm_wb_bytes_written(&wb);
-  return size;
+  return avm_wb_bytes_written(&wb);
 }
 
 int av2_set_atlas_segment_info_params(AV2_COMP *cpi,
