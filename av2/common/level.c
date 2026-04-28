@@ -1098,10 +1098,12 @@ void av2_decoder_model_check_output_frame(const AV2_COMP *const cpi,
   const double presentation_time =
       get_presentation_time(decoder_model, this_buffer->display_index);
   this_buffer->presentation_time = presentation_time;
-  if (presentation_time >= 0.0 &&
-      decoder_model->current_time > presentation_time) {
-    decoder_model->status = DISPLAY_FRAME_LATE;
-    return;
+  if (decoder_model->initial_presentation_delay >= 0.0) {
+    if (presentation_time >= 0.0 &&
+        decoder_model->current_time > presentation_time) {
+      decoder_model->status = DISPLAY_FRAME_LATE;
+      return;
+    }
   }
 
   const double previous_presentation_time = decoder_model->presentation_time;
