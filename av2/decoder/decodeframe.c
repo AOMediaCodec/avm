@@ -7794,10 +7794,10 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   const bool is_ci_present =
       pbi->obus_in_frame_unit_data[cm->tlayer_id][cm->mlayer_id]
                                   [OBU_CONTENT_INTERPRETATION];
-  bool is_rap_boundary = (obu_type == OBU_CLOSED_LOOP_KEY) ||
-                         ((obu_type == OBU_OPEN_LOOP_KEY ||
-                           obu_type == OBU_RAS_FRAME) &&
-                          pbi->random_accessed);
+  bool is_rap_boundary =
+      (obu_type == OBU_CLOSED_LOOP_KEY) ||
+      ((obu_type == OBU_OPEN_LOOP_KEY || obu_type == OBU_RAS_FRAME) &&
+       pbi->random_accessed);
   if (!is_rap_boundary && cm->mlayer_id > 0) {
     for (int ref = 0; ref < cm->mlayer_id; ref++) {
       if (is_mlayer_transitively_dependent(&cm->seq_params, cm->mlayer_id,
@@ -7806,8 +7806,7 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
                                        [OBU_CLOSED_LOOP_KEY] ||
            ((pbi->obus_in_frame_unit_data[cm->tlayer_id][ref]
                                          [OBU_OPEN_LOOP_KEY] ||
-             pbi->obus_in_frame_unit_data[cm->tlayer_id][ref]
-                                         [OBU_RAS_FRAME]) &&
+             pbi->obus_in_frame_unit_data[cm->tlayer_id][ref][OBU_RAS_FRAME]) &&
             pbi->random_accessed))) {
         is_rap_boundary = true;
         break;
