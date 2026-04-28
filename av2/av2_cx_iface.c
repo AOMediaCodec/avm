@@ -3441,9 +3441,8 @@ static avm_codec_err_t encoder_encode(avm_codec_alg_priv_t *ctx,
               avm_uleb_size_in_bytes(obu_payload_size);
 
           uint8_t obu_header[2];
-          const uint32_t obu_header_size =
-              av2_write_obu_header(&cpi->level_params, OBU_TEMPORAL_DELIMITER,
-                                   0, GLOBAL_XLAYER_ID, obu_header);
+          const uint32_t obu_header_size = av2_write_obu_header(
+              OBU_TEMPORAL_DELIMITER, 0, GLOBAL_XLAYER_ID, obu_header);
           const size_t move_offset = obu_header_size + length_field_size;
           memmove(cx_data + move_offset, cx_data, frame_size);
           memcpy(cx_data, obu_header, obu_header_size);

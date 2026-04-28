@@ -5889,21 +5889,8 @@ static int remux_tiles(const CommonTileParams *const tiles, uint8_t *dst,
   return wpos;
 }
 
-uint32_t av2_write_obu_header(AV2LevelParams *const level_params,
-                              OBU_TYPE obu_type, int obu_temporal,
+uint32_t av2_write_obu_header(OBU_TYPE obu_type, int obu_temporal,
                               int obu_layer, uint8_t *const dst) {
-  bool count_header = (obu_type == OBU_REGULAR_TILE_GROUP ||
-                       obu_type == OBU_LEADING_TILE_GROUP);
-  count_header |= (obu_type == OBU_SWITCH);
-  count_header |= (obu_type == OBU_LEADING_SEF || obu_type == OBU_REGULAR_SEF);
-  count_header |= (obu_type == OBU_LEADING_TIP || obu_type == OBU_REGULAR_TIP);
-  count_header |=
-      (obu_type == OBU_CLOSED_LOOP_KEY || obu_type == OBU_OPEN_LOOP_KEY);
-
-  count_header |= (obu_type == OBU_RAS_FRAME);
-  if (level_params->keep_level_stats && count_header)
-    ++level_params->frame_header_count;
-
   struct avm_write_bit_buffer wb = { dst, 0 };
   uint32_t size = 0;
 
@@ -6268,6 +6255,24 @@ static uint32_t write_tilegroup_header(AV2_COMP *cpi, OBU_TYPE obu_type,
   if (first_tile_group_in_frame || send_uncompressed_header_flag)
     write_uncompressed_header(cpi, obu_type, saved_wb, &wb);
 
+  if (first_tile_group_in_frame) {
+    bool count_header = (obu_type == OBU_REGULAR_TILE_GROUP ||
+                         obu_type == OBU_LEADING_TILE_GROUP);
+    count_header |= (obu_type == OBU_SWITCH);
+    count_header |=
+        (obu_type == OBU_LEADING_SEF || obu_type == OBU_REGULAR_SEF);
+    count_header |=
+        (obu_type == OBU_LEADING_TIP || obu_type == OBU_REGULAR_TIP);
+    count_header |=
+        (obu_type == OBU_CLOSED_LOOP_KEY || obu_type == OBU_OPEN_LOOP_KEY);
+
+    AV2LevelParams *const level_params = &cpi->level_params;
+
+    count_header |= (obu_type == OBU_RAS_FRAME);
+    if (level_params->keep_level_stats && count_header)
+      ++level_params->frame_header_count;
+  }
+
   bool skip_tile_indices = false;
   skip_tile_indices |= cpi->common.bru.frame_inactive_flag;
   skip_tile_indices |= cpi->common.bridge_frame_info.is_bridge_frame;
@@ -6537,8 +6542,7 @@ static size_t av2_write_metadata_array(AV2_COMP *const cpi, uint8_t *dst,
         }
       }
 
-      obu_header_size =
-          av2_write_obu_header(&cpi->level_params, obu_header.type, 0, 0, dst);
+      obu_header_size = av2_write_obu_header(obu_header.type, 0, 0, dst);
       obu_payload_size = av2_write_metadata_group_header(dst + obu_header_size,
                                                          count, metadata);
       total_bytes_written += obu_header_size + obu_payload_size;
@@ -6583,8 +6587,7 @@ static size_t av2_write_metadata_array(AV2_COMP *const cpi, uint8_t *dst,
             (cm->current_frame.frame_type != KEY_FRAME &&
              current_metadata->insert_flag == AVM_MIF_NON_KEY_FRAME) ||
             current_metadata->insert_flag == AVM_MIF_ANY_FRAME) {
-          obu_header_size = av2_write_obu_header(&cpi->level_params,
-                                                 OBU_METADATA_SHORT, 0, 0, dst);
+          obu_header_size = av2_write_obu_header(OBU_METADATA_SHORT, 0, 0, dst);
           obu_payload_size =
               av2_write_metadata_obu(current_metadata, dst + obu_header_size);
           length_field_size =
@@ -6659,7 +6662,7 @@ static size_t write_scan_type_metadata(AV2_COMP *const cpi, uint8_t *dst,
   if (use_short_metadata) {
     metadata->is_suffix = 1;
     size_t obu_header_size =
-        av2_write_obu_header(&cpi->level_params, OBU_METADATA_SHORT, 0, 0, dst);
+        av2_write_obu_header(OBU_METADATA_SHORT, 0, 0, dst);
     size_t obu_payload_size =
         av2_write_metadata_obu(metadata, dst + obu_header_size);
     size_t length_field_size =
@@ -6711,8 +6714,7 @@ static size_t write_temporal_point_info_metadata(AV2_COMP *const cpi,
   size_t total_bytes_written = 0;
   // Temporal point info metadata is only valid in SHORT format.
   assert(cpi->oxcf.tool_cfg.use_short_metadata);
-  size_t obu_header_size =
-      av2_write_obu_header(&cpi->level_params, OBU_METADATA_SHORT, 0, 0, dst);
+  size_t obu_header_size = av2_write_obu_header(OBU_METADATA_SHORT, 0, 0, dst);
   size_t obu_payload_size =
       av2_write_metadata_obu(metadata, dst + obu_header_size);
   size_t length_field_size =
@@ -6854,8 +6856,7 @@ size_t av2_write_banding_hints_metadata(
     // SHORT format: use av2_write_metadata_obu which writes the short metadata
     // format (is_suffix, layer_idc, cancel_flag, persistence_idc,
     // metadata_type, payload, trailing 0x80).
-    obu_header_size =
-        av2_write_obu_header(&cpi->level_params, OBU_METADATA_SHORT, 0, 0, dst);
+    obu_header_size = av2_write_obu_header(OBU_METADATA_SHORT, 0, 0, dst);
     obu_payload_size = av2_write_metadata_obu(metadata, dst + obu_header_size);
   } else {
     // GROUP format: write group_header + unit_header + payload + trailing 0x80
@@ -6866,8 +6867,7 @@ size_t av2_write_banding_hints_metadata(
     obu_header.obu_mlayer_id = cm->mlayer_id;
     obu_header.obu_xlayer_id = 0;
 
-    obu_header_size =
-        av2_write_obu_header(&cpi->level_params, OBU_METADATA_GROUP, 0, 0, dst);
+    obu_header_size = av2_write_obu_header(OBU_METADATA_GROUP, 0, 0, dst);
     obu_payload_size =
         av2_write_metadata_group_header(dst + obu_header_size, 1, metadata);
     obu_payload_size += av2_write_metadata_unit_header(
@@ -6922,8 +6922,7 @@ size_t av2_write_metadata_user_data_unregistered(AV2_COMP *const cpi,
   OBU_TYPE obu_type = cpi->oxcf.tool_cfg.use_short_metadata
                           ? OBU_METADATA_SHORT
                           : OBU_METADATA_GROUP;
-  size_t obu_header_size =
-      av2_write_obu_header(&cpi->level_params, obu_type, 0, 0, dst);
+  size_t obu_header_size = av2_write_obu_header(obu_type, 0, 0, dst);
   size_t obu_payload_size =
       av2_write_metadata_unit(metadata, dst + obu_header_size);
   size_t length_field_size =
@@ -6977,8 +6976,8 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
     // Layer Configuration Record
     if (layer_cfg->enable_lcr) {
       int xlayer_id = 0;
-      obu_header_size = av2_write_obu_header(
-          level_params, OBU_LAYER_CONFIGURATION_RECORD, 0, xlayer_id, data);
+      obu_header_size = av2_write_obu_header(OBU_LAYER_CONFIGURATION_RECORD, 0,
+                                             xlayer_id, data);
       obu_payload_size = av2_write_layer_configuration_record_obu(
           cpi, xlayer_id, data + obu_header_size);
       const size_t length_field_size =
@@ -7001,8 +7000,8 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
         cm->ops = &cpi->ops_list[xlayer_id][ops_idx];
         struct OperatingPointSet *ops = &cpi->ops_list[xlayer_id][ops_idx];
         if (!ops->valid) continue;
-        obu_header_size = av2_write_obu_header(
-            level_params, OBU_OPERATING_POINT_SET, 0, xlayer_id, data);
+        obu_header_size =
+            av2_write_obu_header(OBU_OPERATING_POINT_SET, 0, xlayer_id, data);
         obu_payload_size = av2_write_operating_point_set_obu(
             cpi, xlayer_id, ops_idx, data + obu_header_size);
         const size_t length_field_size =
@@ -7023,8 +7022,7 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
       int xlayer_id = 0;
       struct AtlasSegmentInfo *atlas_params = &cpi->atlas_list[xlayer_id][0];
       av2_set_atlas_segment_info_params(cpi, atlas_params, xlayer_id);
-      obu_header_size =
-          av2_write_obu_header(level_params, OBU_ATLAS_SEGMENT, 0, 0, data);
+      obu_header_size = av2_write_obu_header(OBU_ATLAS_SEGMENT, 0, 0, data);
       obu_payload_size =
           av2_write_atlas_segment_info_obu(cpi, data + obu_header_size);
       const size_t length_field_size =
@@ -7041,8 +7039,7 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
   // size
   if (cm->current_frame.cm_obu_type == OBU_CLOSED_LOOP_KEY ||
       cm->current_frame.cm_obu_type == OBU_OPEN_LOOP_KEY) {
-    obu_header_size =
-        av2_write_obu_header(level_params, OBU_SEQUENCE_HEADER, 0, 0, data);
+    obu_header_size = av2_write_obu_header(OBU_SEQUENCE_HEADER, 0, 0, data);
     if (cm->seq_params.seq_seg_info_present_flag)
       av2_set_seq_seg_info(&cm->seq_params, &cm->seg);
     obu_payload_size =
@@ -7061,8 +7058,8 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
     size_t length_field_size;
     if (cm->current_frame.frame_type == KEY_FRAME && !cpi->no_show_fwd_kf &&
         cpi->write_ci_obu_flag) {
-      obu_header_size = av2_write_obu_header(
-          level_params, OBU_CONTENT_INTERPRETATION, 0, 0, data);
+      obu_header_size =
+          av2_write_obu_header(OBU_CONTENT_INTERPRETATION, 0, 0, data);
       obu_payload_size = av2_write_content_interpretation_obu(
           &cm->ci_params_encoder, data + obu_header_size);
       size_t length_field_size1 =
@@ -7078,8 +7075,8 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
       // write multi-frame header if KEY_FRAME
       set_multi_frame_header_with_keyframe(cpi,
                                            &cm->mfh_params[cm->cur_mfh_id]);
-      obu_header_size = av2_write_obu_header(
-          level_params, OBU_MULTI_FRAME_HEADER, 0, 0, data);
+      obu_header_size =
+          av2_write_obu_header(OBU_MULTI_FRAME_HEADER, 0, 0, data);
       obu_payload_size = write_multi_frame_header_obu(
           &cm->mfh_params[cm->cur_mfh_id], data + obu_header_size);
       length_field_size = obu_memmove(obu_header_size, obu_payload_size, data);
@@ -7093,8 +7090,8 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
     if (av2_is_shown_keyframe(cpi, cm->current_frame.frame_type) &&
         cpi->write_brt_obu) {
       av2_set_buffer_removal_timing_params(cpi);
-      obu_header_size = av2_write_obu_header(
-          level_params, OBU_BUFFER_REMOVAL_TIMING, 0, 0, data);
+      obu_header_size =
+          av2_write_obu_header(OBU_BUFFER_REMOVAL_TIMING, 0, 0, data);
 
       obu_payload_size = av2_write_buffer_removal_timing_obu(
           &cm->brt_info, data + obu_header_size);
@@ -7138,8 +7135,8 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
   }
   if (add_new_user_qm && !cpi->obu_is_written) {
     assert(cpi->total_signalled_qmobu_count > 0);
-    obu_header_size = av2_write_obu_header(
-        level_params, OBU_QUANTIZATION_MATRIX, obu_temporal, obu_layer, data);
+    obu_header_size = av2_write_obu_header(OBU_QUANTIZATION_MATRIX,
+                                           obu_temporal, obu_layer, data);
     obu_payload_size = write_qm_obu(cpi, cpi->total_signalled_qmobu_count - 1,
                                     data + obu_header_size);
     size_t length_field_size_qm =
@@ -7187,8 +7184,7 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
     }
     if (use_existing_fgm == -1) {
       // write the current obu off and restart a new one
-      obu_header_size =
-          av2_write_obu_header(level_params, OBU_FILM_GRAIN_MODEL, 0, 0, data);
+      obu_header_size = av2_write_obu_header(OBU_FILM_GRAIN_MODEL, 0, 0, data);
       obu_payload_size =
           write_fgm_obu(cpi, &fgm_current, data + obu_header_size);
       const size_t length_field_size =
@@ -7247,8 +7243,7 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
         // SHORT format: write each metadata as separate OBU
         if (write_raw_frame_hash) {
           obu_header.type = OBU_METADATA_SHORT;
-          obu_header_size = av2_write_obu_header(&cpi->level_params,
-                                                 obu_header.type, 0, 0, data);
+          obu_header_size = av2_write_obu_header(obu_header.type, 0, 0, data);
           obu_payload_size = (uint32_t)av2_write_frame_hash_metadata(
               cpi, data + obu_header_size, NULL, &obu_header);
           // Add trailing bits
@@ -7266,8 +7261,7 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
         }
         if (write_grain_frame_hash) {
           obu_header.type = OBU_METADATA_SHORT;
-          obu_header_size = av2_write_obu_header(&cpi->level_params,
-                                                 obu_header.type, 0, 0, data);
+          obu_header_size = av2_write_obu_header(obu_header.type, 0, 0, data);
           obu_payload_size = (uint32_t)av2_write_frame_hash_metadata(
               cpi, data + obu_header_size, grain_params, &obu_header);
           // Add trailing bits
@@ -7286,8 +7280,7 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
       } else {
         // GROUP format: write all metadata units in one OBU
         obu_header.type = OBU_METADATA_GROUP;
-        obu_header_size = av2_write_obu_header(&cpi->level_params,
-                                               obu_header.type, 0, 0, data);
+        obu_header_size = av2_write_obu_header(obu_header.type, 0, 0, data);
         obu_payload_size = 0;
         obu_payload_size += av2_write_metadata_group_header(
             data + obu_header_size, arr.sz, &metadata_base);
@@ -7348,8 +7341,8 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
   int start_tile_idx;
   int end_tile_idx = -1;
   for (int tg_idx = 0; tg_idx < max_tg_num; tg_idx++) {
-    obu_header_size = av2_write_obu_header(level_params, obu_type, obu_temporal,
-                                           obu_layer, data);
+    obu_header_size =
+        av2_write_obu_header(obu_type, obu_temporal, obu_layer, data);
     start_tile_idx = end_tile_idx + 1;
     end_tile_idx = start_tile_idx + num_tiles_per_tg - 1;
     if (tg_idx < extra_tiles) end_tile_idx++;
@@ -7400,8 +7393,7 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
     } else {
       // GROUP format: write metadata in GROUP OBU
       obu_header.type = OBU_METADATA_GROUP;
-      obu_header_size =
-          av2_write_obu_header(&cpi->level_params, obu_header.type, 0, 0, data);
+      obu_header_size = av2_write_obu_header(obu_header.type, 0, 0, data);
       obu_payload_size = 0;
       obu_payload_size += av2_write_metadata_group_header(
           data + obu_header_size, arr.sz, &metadata_base);

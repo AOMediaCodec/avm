@@ -5692,8 +5692,8 @@ avm_fixed_buf_t *av2_get_global_headers(AV2_COMP *cpi) {
   if (sequence_header_size == 0) return NULL;
 
   uint8_t obu_header[2];
-  const uint32_t obu_header_size = av2_write_obu_header(
-      &cpi->level_params, OBU_SEQUENCE_HEADER, 0, 0, &obu_header[0]);
+  const uint32_t obu_header_size =
+      av2_write_obu_header(OBU_SEQUENCE_HEADER, 0, 0, &obu_header[0]);
   const uint32_t obu_size = obu_header_size + sequence_header_size;
   const size_t size_field_size = avm_uleb_size_in_bytes(obu_size);
   const size_t payload_offset = size_field_size + obu_header_size;
