@@ -7786,22 +7786,29 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   // When OBU_CONTENT_INTERPRETATION is not accompanied with the current obu
   // at a RAP boundary, cm->ci_params_per_layer[cm->mlayer_id] is reset to
   // default values and then inherited from a dependent layer.
-  // A RAP boundary is when this mlayer has a CLK, or when a transitively
-  // dependent layer has a CLK or OLK in the same TU (higher mlayers use
-  // REGULAR_TILE_GROUP and share the RAP with lower layers).
+  // CI params are initialized at:
+  //   - All CLK frames
+  //   - OLK or RAS frames only when random access decoding starts at this TU
+  // For higher mlayers, the RAP boundary is inherited from transitively
+  // dependent layers that have a CLK, or an OLK/RAS with random access.
   const bool is_ci_present =
       pbi->obus_in_frame_unit_data[cm->tlayer_id][cm->mlayer_id]
                                   [OBU_CONTENT_INTERPRETATION];
-  bool is_rap_boundary =
-      (obu_type == OBU_CLOSED_LOOP_KEY || obu_type == OBU_OPEN_LOOP_KEY);
+  bool is_rap_boundary = (obu_type == OBU_CLOSED_LOOP_KEY) ||
+                         ((obu_type == OBU_OPEN_LOOP_KEY ||
+                           obu_type == OBU_RAS_FRAME) &&
+                          pbi->random_accessed);
   if (!is_rap_boundary && cm->mlayer_id > 0) {
     for (int ref = 0; ref < cm->mlayer_id; ref++) {
       if (is_mlayer_transitively_dependent(&cm->seq_params, cm->mlayer_id,
                                            ref) &&
           (pbi->obus_in_frame_unit_data[cm->tlayer_id][ref]
                                        [OBU_CLOSED_LOOP_KEY] ||
-           pbi->obus_in_frame_unit_data[cm->tlayer_id][ref]
-                                       [OBU_OPEN_LOOP_KEY])) {
+           ((pbi->obus_in_frame_unit_data[cm->tlayer_id][ref]
+                                         [OBU_OPEN_LOOP_KEY] ||
+             pbi->obus_in_frame_unit_data[cm->tlayer_id][ref]
+                                         [OBU_RAS_FRAME]) &&
+            pbi->random_accessed))) {
         is_rap_boundary = true;
         break;
       }
