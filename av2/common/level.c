@@ -1111,6 +1111,7 @@ void av2_decoder_model_check_output_frame(const AV2_COMP *const cpi,
       presentation_time > previous_presentation_time) {
     // A new temporal unit has started.  Compute metrics over the inter-TU
     // interval using the previous TU's accumulated display samples.
+    assert(previous_presentation_time <= presentation_time);
     const double interval = presentation_time - previous_presentation_time;
 
     // Peak display rate across TU boundaries (spec §E.3.2).
