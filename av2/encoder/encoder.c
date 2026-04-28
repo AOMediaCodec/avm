@@ -4290,6 +4290,7 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
     uint8_t *const saved_last_frame_seg_map = cm->last_frame_seg_map;
     const uint8_t saved_temporal_update = cm->seg.temporal_update;
     const uint8_t saved_update_map = cm->seg.update_map;
+    int best_temporal_update = saved_temporal_update;
 
     for (int i = 0; i < n_refs; ++i) {
       const int temp_map_idx = get_ref_frame_map_idx(cm, i);
@@ -4308,11 +4309,11 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
       // For each candidate primary ref, recompute the segmap coding method
       // (temporal_update / seg_id_predicted) using that candidate's seg_map, so
       // the bitstream size comparison is accurate.
+      int temporal_update_allowed = 0;
       if (cm->seg.enabled) {
         if (i == cm->features.primary_ref_frame) {
           // Restore original state for the default primary ref.
           cm->last_frame_seg_map = saved_last_frame_seg_map;
-          cm->seg.temporal_update = saved_temporal_update;
           cm->seg.update_map = saved_update_map;
         } else {
           // Conservatively force update_map=1, in theory update_map could
@@ -4325,32 +4326,41 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
           } else {
             cm->last_frame_seg_map = NULL;
           }
-          av2_choose_segmap_coding_method(cm, xd);
+          if (cm->current_frame.frame_type != S_FRAME && cm->last_frame_seg_map)
+            temporal_update_allowed = 1;
         }
       }
 
-      av2_finalize_encoded_frame(cpi);
-      // Storing/restoring cm->features.primary_ref_frame isn't needed here
-      // since it always takes 3 bits for primary_ref_frame signaling.
-      // For cases allowing primary_ref_frame search, cpi->signal_primary_ref_
-      // frame should be 0 before primary_ref_frame search. Here no need to
-      // store previous cpi->signal_primary_ref_frame value.
-      // cpi->signal_primary_ref_frame =
-      //     cm->features.derived_primary_ref_frame != i;
-      size_t temp_size;
-      int temp_largest_tile_id = 0;  // Output from bitstream: unused here
-      if (av2_pack_bitstream(cpi, dest, &temp_size, &temp_largest_tile_id) !=
-          AVM_CODEC_OK) {
-        return AVM_CODEC_ERROR;
-      }
-      restore_lr_parameters(cm, &lr_params);
+      for (int temporal_update = 0;
+           temporal_update < (temporal_update_allowed + 1); ++temporal_update) {
+        cm->seg.temporal_update = temporal_update;
 
-      const int frame_size = (int)(temp_size);
-      if (cm->features.primary_ref_frame == i) cur_frame_size = frame_size;
-      if (frame_size < best_frame_size) {
-        best_frame_size = frame_size;
-        best_ref_idx = i;
-      }
+        av2_finalize_encoded_frame(cpi);
+        // Storing/restoring cm->features.primary_ref_frame isn't needed here
+        // since it always takes 3 bits for primary_ref_frame signaling.
+        // For cases allowing primary_ref_frame search, cpi->signal_primary_ref_
+        // frame should be 0 before primary_ref_frame search. Here no need to
+        // store previous cpi->signal_primary_ref_frame value.
+        // cpi->signal_primary_ref_frame =
+        //     cm->features.derived_primary_ref_frame != i;
+        size_t temp_size;
+        int temp_largest_tile_id = 0;  // Output from bitstream: unused here
+        if (av2_pack_bitstream(cpi, dest, &temp_size, &temp_largest_tile_id) !=
+            AVM_CODEC_OK) {
+          return AVM_CODEC_ERROR;
+        }
+        restore_lr_parameters(cm, &lr_params);
+
+        const int frame_size = (int)(temp_size);
+        if (cm->features.primary_ref_frame == i &&
+            temporal_update == saved_temporal_update)
+          cur_frame_size = frame_size;
+        if (frame_size < best_frame_size) {
+          best_frame_size = frame_size;
+          best_ref_idx = i;
+          best_temporal_update = temporal_update;
+        }
+      }  // for temporal_update
     }
     // recover the obu_is_written status
     cpi->obu_is_written = obu_written_status;
@@ -4373,7 +4383,7 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
       if (!cpi->signal_primary_ref_frame) {
         // No change from original — restore saved state.
         cm->last_frame_seg_map = saved_last_frame_seg_map;
-        cm->seg.temporal_update = saved_temporal_update;
+        cm->seg.temporal_update = best_temporal_update;
         cm->seg.update_map = saved_update_map;
       } else {
         // Conservatively force update_map=1, in theory update_map could remain
@@ -4388,7 +4398,7 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
         } else {
           cm->last_frame_seg_map = NULL;
         }
-        av2_choose_segmap_coding_method(cm, xd);
+        cm->seg.temporal_update = best_temporal_update;
       }
     }
 
