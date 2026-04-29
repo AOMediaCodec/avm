@@ -725,7 +725,9 @@ static double get_presentation_time(const DECODER_MODEL *const decoder_model,
         decoder_model->initial_presentation_delay;
     // Can't decide presentation time until the initial presentation delay is
     // known.
-    if (initial_presentation_delay < 0.0) return INVALID_TIME;
+    if (initial_presentation_delay < 0.0)
+      return display_index * decoder_model->num_ticks_per_picture *
+             decoder_model->display_clock_tick;
     return initial_presentation_delay +
            display_index * decoder_model->num_ticks_per_picture *
                decoder_model->display_clock_tick;
