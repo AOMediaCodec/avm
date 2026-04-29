@@ -119,6 +119,7 @@ if(NOT BUILD_SHARED_LIBS)
       "${AVM_ROOT}/test/av2_encoder_parms_get_to_decoder.cc"
       "${AVM_ROOT}/test/binary_codes_test.cc"
       "${AVM_ROOT}/test/boolcoder_test.cc"
+      "${AVM_ROOT}/test/ci_test.cc"
       "${AVM_ROOT}/test/cnn_test.cc"
       "${AVM_ROOT}/test/decode_multithreaded_test.cc"
       "${AVM_ROOT}/test/divu_small_test.cc"
