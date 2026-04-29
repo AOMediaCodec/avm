@@ -127,6 +127,7 @@ if(NOT BUILD_SHARED_LIBS)
       "${AVM_ROOT}/test/dr_prediction_test.cc"
       "${AVM_ROOT}/test/ec_test.cc"
       "${AVM_ROOT}/test/ethread_test.cc"
+      "${AVM_ROOT}/test/fgm_test.cc"
       "${AVM_ROOT}/test/film_grain_table_test.cc"
       "${AVM_ROOT}/test/frame_multi_qmatrix_test.cc"
       "${AVM_ROOT}/test/fwd_kf_test.cc"
