@@ -35,7 +35,7 @@ static void rb_error_handler(void *data, avm_codec_err_t error,
 
 // Write an LCR OBU: body + extension_flag(0) + trailing bits.
 static uint32_t write_lcr_obu(struct LayerConfigurationRecord *lcr,
-                               int xlayer_id, uint8_t *dst) {
+                              int xlayer_id, uint8_t *dst) {
   struct avm_write_bit_buffer wb = { dst, 0 };
   if (xlayer_id == GLOBAL_XLAYER_ID)
     av2_write_lcr_global_info(lcr, &wb);
@@ -128,7 +128,7 @@ static void populate_local_lcr(LayerConfigurationRecord *lcr) {
 }
 
 static void compare_global_lcr(const GlobalLayerConfigurationRecord *a,
-                                const GlobalLayerConfigurationRecord *b) {
+                               const GlobalLayerConfigurationRecord *b) {
   EXPECT_EQ(a->lcr_global_config_record_id, b->lcr_global_config_record_id);
   EXPECT_EQ(a->lcr_xlayer_map, b->lcr_xlayer_map);
   EXPECT_EQ(a->LcrMaxNumXLayerCount, b->LcrMaxNumXLayerCount);
@@ -145,8 +145,7 @@ static void compare_global_lcr(const GlobalLayerConfigurationRecord *a,
   if (a->lcr_global_atlas_id_present_flag)
     EXPECT_EQ(a->lcr_global_atlas_id, b->lcr_global_atlas_id);
   if (a->lcr_aggregate_info_present_flag) {
-    EXPECT_EQ(a->aggregate_ptl.lcr_config_idc,
-              b->aggregate_ptl.lcr_config_idc);
+    EXPECT_EQ(a->aggregate_ptl.lcr_config_idc, b->aggregate_ptl.lcr_config_idc);
     EXPECT_EQ(a->aggregate_ptl.lcr_aggregate_level_idx,
               b->aggregate_ptl.lcr_aggregate_level_idx);
     EXPECT_EQ(a->aggregate_ptl.lcr_max_tier_flag,
@@ -168,7 +167,7 @@ static void compare_global_lcr(const GlobalLayerConfigurationRecord *a,
 }
 
 static void compare_local_lcr(const LocalLayerConfigurationRecord *a,
-                               const LocalLayerConfigurationRecord *b) {
+                              const LocalLayerConfigurationRecord *b) {
   EXPECT_EQ(a->lcr_global_id, b->lcr_global_id);
   EXPECT_EQ(a->lcr_local_id, b->lcr_local_id);
   EXPECT_EQ(a->lcr_profile_tier_level_info_present_flag,
@@ -176,19 +175,17 @@ static void compare_local_lcr(const LocalLayerConfigurationRecord *a,
   EXPECT_EQ(a->lcr_local_atlas_id_present_flag,
             b->lcr_local_atlas_id_present_flag);
   if (a->lcr_profile_tier_level_info_present_flag) {
-    EXPECT_EQ(a->seq_ptl.lcr_seq_profile_idc,
-              b->seq_ptl.lcr_seq_profile_idc);
+    EXPECT_EQ(a->seq_ptl.lcr_seq_profile_idc, b->seq_ptl.lcr_seq_profile_idc);
     EXPECT_EQ(a->seq_ptl.lcr_max_level_idx, b->seq_ptl.lcr_max_level_idx);
     EXPECT_EQ(a->seq_ptl.lcr_tier_flag, b->seq_ptl.lcr_tier_flag);
-    EXPECT_EQ(a->seq_ptl.lcr_max_mlayer_count,
-              b->seq_ptl.lcr_max_mlayer_count);
+    EXPECT_EQ(a->seq_ptl.lcr_max_mlayer_count, b->seq_ptl.lcr_max_mlayer_count);
   }
   if (a->lcr_local_atlas_id_present_flag)
     EXPECT_EQ(a->lcr_local_atlas_id, b->lcr_local_atlas_id);
 }
 
 static void compare_embedded_layer_info(const EmbeddedLayerInfo *a,
-                                         const EmbeddedLayerInfo *b) {
+                                        const EmbeddedLayerInfo *b) {
   EXPECT_EQ(a->lcr_mlayer_map, b->lcr_mlayer_map);
   for (int i = 0; i < MAX_NUM_MLAYERS; i++) {
     if (!(a->lcr_mlayer_map & (1 << i))) continue;
@@ -231,8 +228,7 @@ TEST_F(LcrTest, LocalLcrObuRoundtrip) {
   struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                     rb_error_handler };
   uint8_t bitmap[MAX_NUM_XLAYERS] = { 0 };
-  uint32_t read =
-      av2_read_layer_configuration_record_obu(pbi_, 0, &rb, bitmap);
+  uint32_t read = av2_read_layer_configuration_record_obu(pbi_, 0, &rb, bitmap);
   ASSERT_EQ(read, written);
 
   const LayerConfigurationRecord *dst = &pbi_->lcr_list[0][1];
@@ -266,8 +262,7 @@ TEST_F(LcrTest, GlobalLcrObuRoundtrip) {
       pbi_, GLOBAL_XLAYER_ID, &rb, bitmap);
   ASSERT_EQ(read, written);
 
-  const LayerConfigurationRecord *dst =
-      &pbi_->lcr_list[GLOBAL_XLAYER_ID][1];
+  const LayerConfigurationRecord *dst = &pbi_->lcr_list[GLOBAL_XLAYER_ID][1];
   ASSERT_TRUE(dst->valid);
   ASSERT_TRUE(dst->is_global);
 
@@ -317,8 +312,7 @@ TEST_F(LcrTest, EmbeddedLayerInfoRoundtrip) {
   struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                     rb_error_handler };
   uint8_t bitmap[MAX_NUM_XLAYERS] = { 0 };
-  uint32_t read =
-      av2_read_layer_configuration_record_obu(pbi_, 0, &rb, bitmap);
+  uint32_t read = av2_read_layer_configuration_record_obu(pbi_, 0, &rb, bitmap);
   ASSERT_EQ(read, written);
 
   const EmbeddedLayerInfo *dst =
@@ -365,8 +359,7 @@ TEST_F(LcrTest, ColorInfoRoundtrip) {
   struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                     rb_error_handler };
   uint8_t bitmap[MAX_NUM_XLAYERS] = { 0 };
-  uint32_t read =
-      av2_read_layer_configuration_record_obu(pbi_, 0, &rb, bitmap);
+  uint32_t read = av2_read_layer_configuration_record_obu(pbi_, 0, &rb, bitmap);
   ASSERT_EQ(read, written);
 
   const LCRXLayerInfo *dxi = &pbi_->lcr_list[0][1].local_lcr.xlayer_info;
@@ -401,8 +394,7 @@ TEST_F(LcrTest, CropWindowRoundtrip) {
   struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                     rb_error_handler };
   uint8_t bitmap[MAX_NUM_XLAYERS] = { 0 };
-  uint32_t read =
-      av2_read_layer_configuration_record_obu(pbi_, 0, &rb, bitmap);
+  uint32_t read = av2_read_layer_configuration_record_obu(pbi_, 0, &rb, bitmap);
   ASSERT_EQ(read, written);
 
   const LCRXLayerInfo *dxi = &pbi_->lcr_list[0][1].local_lcr.xlayer_info;
@@ -429,8 +421,7 @@ TEST_F(LcrTest, XlayerPurposeRoundtrip) {
   struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                     rb_error_handler };
   uint8_t bitmap[MAX_NUM_XLAYERS] = { 0 };
-  uint32_t read =
-      av2_read_layer_configuration_record_obu(pbi_, 0, &rb, bitmap);
+  uint32_t read = av2_read_layer_configuration_record_obu(pbi_, 0, &rb, bitmap);
   ASSERT_EQ(read, written);
 
   const LCRXLayerInfo *dxi = &pbi_->lcr_list[0][1].local_lcr.xlayer_info;
@@ -480,7 +471,8 @@ TEST_F(LcrTest, GlobalLcrWithEmbeddedLayerInfo) {
   avm_wb_write_literal(&twb, 0, 4);
   // embedded layer info for 2 mlayers (same_sh=1, no atlas):
   // mlayer_map(8) + [tlayer(4)+type(8)+view_type(8)+view_id(8)+same(1)+pad(3)]
-  //               + [tlayer(4)+type(8)+view_type(8)+view_id(8)+dep(1)+same(1)+pad(2)]
+  //               +
+  //               [tlayer(4)+type(8)+view_type(8)+view_id(8)+dep(1)+same(1)+pad(2)]
   // = 8 + 32 + 32 = 72 bits = 9 bytes.  Total = 1 + 9 = 10 bytes
   g->lcr_data_size[0] = 10;
 
@@ -551,8 +543,10 @@ TEST_F(LcrTest, XlayerInfoFlagCombinations) {
 
     const LCRXLayerInfo *dxi = &pbi_->lcr_list[0][1].local_lcr.xlayer_info;
     EXPECT_EQ(dxi->lcr_rep_info_present_flag, rep) << "flags=" << flags;
-    EXPECT_EQ(dxi->lcr_xlayer_purpose_present_flag, purpose) << "flags=" << flags;
-    EXPECT_EQ(dxi->lcr_xlayer_color_info_present_flag, color) << "flags=" << flags;
+    EXPECT_EQ(dxi->lcr_xlayer_purpose_present_flag, purpose)
+        << "flags=" << flags;
+    EXPECT_EQ(dxi->lcr_xlayer_color_info_present_flag, color)
+        << "flags=" << flags;
     EXPECT_EQ(dxi->lcr_embedded_layer_info_present_flag, embedded)
         << "flags=" << flags;
   }
@@ -579,8 +573,7 @@ TEST_F(LcrTest, ImplicitViewType) {
   struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                     rb_error_handler };
   uint8_t bitmap[MAX_NUM_XLAYERS] = { 0 };
-  uint32_t read =
-      av2_read_layer_configuration_record_obu(pbi_, 0, &rb, bitmap);
+  uint32_t read = av2_read_layer_configuration_record_obu(pbi_, 0, &rb, bitmap);
   ASSERT_EQ(read, written);
 
   const EmbeddedLayerInfo *dml =
@@ -632,8 +625,7 @@ TEST_F(LcrTest, LocalLcrMinimalFields) {
   struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                     rb_error_handler };
   uint8_t bitmap[MAX_NUM_XLAYERS] = { 0 };
-  uint32_t read =
-      av2_read_layer_configuration_record_obu(pbi_, 0, &rb, bitmap);
+  uint32_t read = av2_read_layer_configuration_record_obu(pbi_, 0, &rb, bitmap);
   ASSERT_EQ(read, written);
 
   const LocalLayerConfigurationRecord *dl = &pbi_->lcr_list[0][1].local_lcr;
@@ -657,8 +649,7 @@ TEST_F(LcrTest, ColorInfoImplicit) {
   struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                     rb_error_handler };
   uint8_t bitmap[MAX_NUM_XLAYERS] = { 0 };
-  uint32_t read =
-      av2_read_layer_configuration_record_obu(pbi_, 0, &rb, bitmap);
+  uint32_t read = av2_read_layer_configuration_record_obu(pbi_, 0, &rb, bitmap);
   ASSERT_EQ(read, written);
 
   const XLayerColorInfo *dc =
@@ -739,8 +730,7 @@ TEST_F(LcrTest, EmbeddedLayerWithAtlasId) {
   struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                     rb_error_handler };
   uint8_t bitmap[MAX_NUM_XLAYERS] = { 0 };
-  uint32_t read =
-      av2_read_layer_configuration_record_obu(pbi_, 0, &rb, bitmap);
+  uint32_t read = av2_read_layer_configuration_record_obu(pbi_, 0, &rb, bitmap);
   ASSERT_EQ(read, written);
 
   const EmbeddedLayerInfo *dml =
@@ -751,8 +741,8 @@ TEST_F(LcrTest, EmbeddedLayerWithAtlasId) {
 }
 
 TEST_F(LcrTest, AuxiliaryTypeSweep) {
-  const int aux_types[] = { LCR_ALPHA_AUX, LCR_DEPTH_AUX,
-                            LCR_SEGMENTATION_AUX, LCR_GAIN_MAP_AUX };
+  const int aux_types[] = { LCR_ALPHA_AUX, LCR_DEPTH_AUX, LCR_SEGMENTATION_AUX,
+                            LCR_GAIN_MAP_AUX };
   for (int ai = 0; ai < 4; ai++) {
     LayerConfigurationRecord src;
     memset(&src, 0, sizeof(src));
@@ -780,9 +770,9 @@ TEST_F(LcrTest, AuxiliaryTypeSweep) {
         av2_read_layer_configuration_record_obu(pbi_, 0, &rb, bitmap);
     ASSERT_EQ(read, written) << "aux_type=" << aux_types[ai];
 
-    EXPECT_EQ(
-        pbi_->lcr_list[0][1].local_lcr.xlayer_info.mlayer_params.lcr_auxiliary_type[0],
-        aux_types[ai]);
+    EXPECT_EQ(pbi_->lcr_list[0][1]
+                  .local_lcr.xlayer_info.mlayer_params.lcr_auxiliary_type[0],
+              aux_types[ai]);
   }
 }
 
@@ -841,7 +831,8 @@ TEST_F(LcrTest, ConformanceCheckGlobalLcrConfigurable) {
   pbi_->mlayer_id_map[0][0] = 1;
   pbi_->lcr_list[GLOBAL_XLAYER_ID][1].valid = 1;
   pbi_->lcr_list[GLOBAL_XLAYER_ID][1].is_global = true;
-  pbi_->lcr_list[GLOBAL_XLAYER_ID][1].global_lcr.lcr_aggregate_info_present_flag = 1;
+  pbi_->lcr_list[GLOBAL_XLAYER_ID][1]
+      .global_lcr.lcr_aggregate_info_present_flag = 1;
   pbi_->lcr_list[GLOBAL_XLAYER_ID][1].global_lcr.aggregate_ptl.lcr_max_interop =
       CONFIGURABLE;
   EXPECT_TRUE(conformance_check_msdo_lcr(pbi_, true, false));
@@ -931,8 +922,7 @@ TEST_F(LcrTest, ProfileLevelBoundarySweep) {
                 profiles[pi]);
       EXPECT_EQ(pbi_->lcr_list[0][1].local_lcr.seq_ptl.lcr_max_level_idx,
                 levels[lvi]);
-      EXPECT_EQ(pbi_->lcr_list[0][1].local_lcr.seq_ptl.lcr_max_mlayer_count,
-                7);
+      EXPECT_EQ(pbi_->lcr_list[0][1].local_lcr.seq_ptl.lcr_max_mlayer_count, 7);
     }
   }
 }
@@ -963,9 +953,9 @@ TEST_F(LcrTest, RepInfoUvlcExtremes) {
     EXPECT_EQ(
         pbi_->lcr_list[0][1].local_lcr.xlayer_info.rep_params.lcr_max_pic_width,
         widths[wi]);
-    EXPECT_EQ(
-        pbi_->lcr_list[0][1].local_lcr.xlayer_info.rep_params.lcr_max_pic_height,
-        heights[wi]);
+    EXPECT_EQ(pbi_->lcr_list[0][1]
+                  .local_lcr.xlayer_info.rep_params.lcr_max_pic_height,
+              heights[wi]);
   }
 }
 
@@ -1018,7 +1008,8 @@ TEST_F(LcrTest, ColorIdcHighValues) {
         idc_values[ci];
     if (idc_values[ci] == 0) {
       src.local_lcr.xlayer_info.xlayer_col_params.layer_color_primaries = 9;
-      src.local_lcr.xlayer_info.xlayer_col_params.layer_transfer_characteristics = 16;
+      src.local_lcr.xlayer_info.xlayer_col_params
+          .layer_transfer_characteristics = 16;
       src.local_lcr.xlayer_info.xlayer_col_params.layer_matrix_coefficients = 9;
     }
 
@@ -1033,9 +1024,10 @@ TEST_F(LcrTest, ColorIdcHighValues) {
     uint32_t read =
         av2_read_layer_configuration_record_obu(pbi_, 0, &rb, bitmap);
     ASSERT_EQ(read, written) << "idc=" << idc_values[ci];
-    EXPECT_EQ(
-        pbi_->lcr_list[0][1].local_lcr.xlayer_info.xlayer_col_params.layer_color_description_idc,
-        idc_values[ci]);
+    EXPECT_EQ(pbi_->lcr_list[0][1]
+                  .local_lcr.xlayer_info.xlayer_col_params
+                  .layer_color_description_idc,
+              idc_values[ci]);
   }
 }
 
@@ -1112,8 +1104,7 @@ TEST_F(LcrTest, CrossObuLcrAtlasConsistency) {
   // Read Atlas OBU.
   struct avm_read_bit_buffer arb = { atlas_buf, atlas_buf + atlas_written, 0,
                                      nullptr, rb_error_handler };
-  uint32_t atlas_read =
-      av2_read_atlas_segment_info_obu(pbi_, xlayer_id, &arb);
+  uint32_t atlas_read = av2_read_atlas_segment_info_obu(pbi_, xlayer_id, &arb);
   ASSERT_EQ(atlas_read, atlas_written);
 
   // Read LCR OBU.
@@ -1127,7 +1118,8 @@ TEST_F(LcrTest, CrossObuLcrAtlasConsistency) {
   // Verify cross-reference: Atlas segment ID matches LCR's reference.
   EXPECT_EQ(pbi_->atlas_list[xlayer_id][0].atlas_segment_id, atlas_seg_id);
   EXPECT_EQ(
-      pbi_->lcr_list[xlayer_id][1].local_lcr.xlayer_info.mlayer_params.lcr_layer_atlas_segment_id[0],
+      pbi_->lcr_list[xlayer_id][1]
+          .local_lcr.xlayer_info.mlayer_params.lcr_layer_atlas_segment_id[0],
       atlas_seg_id);
   EXPECT_EQ(pbi_->lcr_list[xlayer_id][1].local_lcr.lcr_local_atlas_id,
             atlas_seg_id);
@@ -1160,8 +1152,7 @@ TEST_F(LcrTest, ConformanceIntegrationOpsAndLcr) {
   struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                     rb_error_handler };
   uint8_t bitmap[MAX_NUM_XLAYERS] = { 0 };
-  uint32_t read =
-      av2_read_layer_configuration_record_obu(pbi_, 0, &rb, bitmap);
+  uint32_t read = av2_read_layer_configuration_record_obu(pbi_, 0, &rb, bitmap);
   ASSERT_EQ(read, written);
 
   pbi_->xlayer_id_map[0] = 1;

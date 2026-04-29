@@ -22,8 +22,8 @@
 
 // av2_set_ops_params is declared in bitstream.h which pulls in encoder.h.
 // Forward-declare it here to avoid the ThreadData conflict.
-extern "C" void av2_set_ops_params(struct OperatingPointSet *ops,
-                                   int xlayer_id, int ops_id, int ops_cnt);
+extern "C" void av2_set_ops_params(struct OperatingPointSet *ops, int xlayer_id,
+                                   int ops_id, int ops_cnt);
 
 namespace {
 
@@ -37,7 +37,7 @@ static void rb_error_handler(void *data, avm_codec_err_t error,
 // Write an OPS OBU: body (via av2_write_operating_point_set which includes
 // extension flag) + trailing bits.
 static uint32_t write_ops_obu(struct OperatingPointSet *ops, int xlayer_id,
-                               uint8_t *dst) {
+                              uint8_t *dst) {
   struct avm_write_bit_buffer wb = { dst, 0 };
   av2_write_operating_point_set(ops, xlayer_id, &wb);
   // trailing bits: stop bit + zero-padding to byte boundary
@@ -80,8 +80,7 @@ TEST_F(OpsTest, LocalOpsRoundtrip) {
 
   struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                     rb_error_handler };
-  uint32_t read =
-      av2_read_operating_point_set_obu(pbi_, xlayer_id, &rb);
+  uint32_t read = av2_read_operating_point_set_obu(pbi_, xlayer_id, &rb);
   ASSERT_EQ(read, written);
 
   const OperatingPointSet *dst = &pbi_->ops_list[xlayer_id][0];
@@ -109,8 +108,7 @@ TEST_F(OpsTest, LocalOpsDefaultParams) {
 
   struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                     rb_error_handler };
-  uint32_t read =
-      av2_read_operating_point_set_obu(pbi_, xlayer_id, &rb);
+  uint32_t read = av2_read_operating_point_set_obu(pbi_, xlayer_id, &rb);
   ASSERT_EQ(read, written);
 
   const OperatingPointSet *dst = &pbi_->ops_list[xlayer_id][1];
@@ -137,8 +135,7 @@ TEST_F(OpsTest, LocalOpsMultipleOperatingPoints) {
 
   struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                     rb_error_handler };
-  uint32_t read =
-      av2_read_operating_point_set_obu(pbi_, xlayer_id, &rb);
+  uint32_t read = av2_read_operating_point_set_obu(pbi_, xlayer_id, &rb);
   ASSERT_EQ(read, written);
 
   const OperatingPointSet *dst = &pbi_->ops_list[xlayer_id][0];
@@ -162,8 +159,7 @@ TEST_F(OpsTest, LocalOpsDisplayDelay) {
 
   struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                     rb_error_handler };
-  uint32_t read =
-      av2_read_operating_point_set_obu(pbi_, xlayer_id, &rb);
+  uint32_t read = av2_read_operating_point_set_obu(pbi_, xlayer_id, &rb);
   ASSERT_EQ(read, written);
 
   const OperatingPointSet *dst = &pbi_->ops_list[xlayer_id][0];
@@ -190,8 +186,7 @@ TEST_F(OpsTest, OpsResetSlot) {
 
   struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                     rb_error_handler };
-  uint32_t read =
-      av2_read_operating_point_set_obu(pbi_, xlayer_id, &rb);
+  uint32_t read = av2_read_operating_point_set_obu(pbi_, xlayer_id, &rb);
   ASSERT_EQ(read, written);
 
   // Slot 2 should have been cleared.
@@ -235,8 +230,7 @@ TEST_F(OpsTest, GlobalOpsRoundtrip) {
 
   struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                     rb_error_handler };
-  uint32_t read =
-      av2_read_operating_point_set_obu(pbi_, xlayer_id, &rb);
+  uint32_t read = av2_read_operating_point_set_obu(pbi_, xlayer_id, &rb);
   ASSERT_EQ(read, written);
 
   const OperatingPointSet *dst = &pbi_->ops_list[xlayer_id][0];
@@ -278,8 +272,7 @@ TEST_F(OpsTest, OpsColorInfoRoundtrip) {
 
   struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                     rb_error_handler };
-  uint32_t read =
-      av2_read_operating_point_set_obu(pbi_, xlayer_id, &rb);
+  uint32_t read = av2_read_operating_point_set_obu(pbi_, xlayer_id, &rb);
   ASSERT_EQ(read, written);
 
   const OperatingPoint *dop = &pbi_->ops_list[xlayer_id][0].op[0];
@@ -306,8 +299,7 @@ TEST_F(OpsTest, OpsDecoderModelInfoRoundtrip) {
 
   struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                     rb_error_handler };
-  uint32_t read =
-      av2_read_operating_point_set_obu(pbi_, xlayer_id, &rb);
+  uint32_t read = av2_read_operating_point_set_obu(pbi_, xlayer_id, &rb);
   ASSERT_EQ(read, written);
 
   const OperatingPoint *dop = &pbi_->ops_list[xlayer_id][0].op[0];
@@ -339,8 +331,7 @@ TEST_F(OpsTest, OpsResetAll) {
 
   struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                     rb_error_handler };
-  uint32_t read =
-      av2_read_operating_point_set_obu(pbi_, xlayer_id, &rb);
+  uint32_t read = av2_read_operating_point_set_obu(pbi_, xlayer_id, &rb);
   ASSERT_EQ(read, written);
 
   // All slots for this xlayer should be cleared.
@@ -365,8 +356,7 @@ TEST_F(OpsTest, OpsResetAndDefine) {
 
   struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                     rb_error_handler };
-  uint32_t read =
-      av2_read_operating_point_set_obu(pbi_, xlayer_id, &rb);
+  uint32_t read = av2_read_operating_point_set_obu(pbi_, xlayer_id, &rb);
   ASSERT_EQ(read, written);
 
   // Slot 3 should be cleared (reset all first).
@@ -412,8 +402,11 @@ TEST_F(OpsTest, OpsColorInfoImplicit) {
   uint32_t read = av2_read_operating_point_set_obu(pbi_, xlayer_id, &rb);
   ASSERT_EQ(read, written);
 
-  EXPECT_EQ(pbi_->ops_list[xlayer_id][0].op[0].color_info.ops_color_description_idc, 1);
-  EXPECT_EQ(pbi_->ops_list[xlayer_id][0].op[0].color_info.ops_full_range_flag, 0);
+  EXPECT_EQ(
+      pbi_->ops_list[xlayer_id][0].op[0].color_info.ops_color_description_idc,
+      1);
+  EXPECT_EQ(pbi_->ops_list[xlayer_id][0].op[0].color_info.ops_full_range_flag,
+            0);
 }
 
 TEST_F(OpsTest, OpsCntSweep) {
@@ -441,7 +434,9 @@ TEST_F(OpsTest, OpsCntSweep) {
 
     EXPECT_EQ(pbi_->ops_list[xlayer_id][0].ops_cnt, cnt);
     for (int i = 0; i < cnt; i++) {
-      EXPECT_EQ(pbi_->ops_list[xlayer_id][0].op[i].mlayer_info.ops_mlayer_map[xlayer_id],
+      EXPECT_EQ(pbi_->ops_list[xlayer_id][0]
+                    .op[i]
+                    .mlayer_info.ops_mlayer_map[xlayer_id],
                 1 << (i % 8))
           << "cnt=" << cnt << " op=" << i;
     }
@@ -500,7 +495,7 @@ TEST_F(OpsTest, GlobalOpsEmbeddedReference) {
 
   OperatingPoint *op = &src.op[0];
   op->ops_initial_display_delay = BUFFER_POOL_MAX_SIZE;
-  op->ops_xlayer_map = 0x1;  // xlayer 0
+  op->ops_xlayer_map = 0x1;                  // xlayer 0
   op->ops_mlayer_explicit_info_flag[0] = 0;  // use reference
   op->ops_embedded_ops_id[0] = 1;
   op->ops_embedded_op_index[0] = 0;
@@ -544,15 +539,21 @@ TEST_F(OpsTest, OpsColorIdcHighValues) {
                                       rb_error_handler };
     uint32_t read = av2_read_operating_point_set_obu(pbi_, xlayer_id, &rb);
     ASSERT_EQ(read, written) << "idc=" << idc_values[ci];
-    EXPECT_EQ(pbi_->ops_list[xlayer_id][0].op[0].color_info.ops_color_description_idc,
-              idc_values[ci]);
+    EXPECT_EQ(
+        pbi_->ops_list[xlayer_id][0].op[0].color_info.ops_color_description_idc,
+        idc_values[ci]);
   }
 }
 
 TEST_F(OpsTest, OpsFieldBoundarySweep) {
-  struct { int ops_id; int priority; int intent; int intent_op; } params[] = {
-    { 0,  0,   0,   0 },
-    { 8,  8,  64,  64 },
+  struct {
+    int ops_id;
+    int priority;
+    int intent;
+    int intent_op;
+  } params[] = {
+    { 0, 0, 0, 0 },
+    { 8, 8, 64, 64 },
     { 15, 15, 127, 127 },
   };
   for (int pi = 0; pi < 3; pi++) {
@@ -574,7 +575,8 @@ TEST_F(OpsTest, OpsFieldBoundarySweep) {
     uint32_t read = av2_read_operating_point_set_obu(pbi_, xlayer_id, &rb);
     ASSERT_EQ(read, written) << "pi=" << pi;
 
-    const OperatingPointSet *dst = &pbi_->ops_list[xlayer_id][params[pi].ops_id];
+    const OperatingPointSet *dst =
+        &pbi_->ops_list[xlayer_id][params[pi].ops_id];
     EXPECT_EQ(dst->ops_priority, params[pi].priority);
     EXPECT_EQ(dst->ops_intent, params[pi].intent);
     EXPECT_EQ(dst->op[0].ops_intent_op, params[pi].intent_op);
@@ -600,9 +602,13 @@ TEST_F(OpsTest, DecoderModelInfoExtremes) {
                                       rb_error_handler };
     uint32_t read = av2_read_operating_point_set_obu(pbi_, xlayer_id, &rb);
     ASSERT_EQ(read, written) << "delay=" << delays[di];
-    EXPECT_EQ(pbi_->ops_list[xlayer_id][0].op[0].decoder_model_info.ops_decoder_buffer_delay,
+    EXPECT_EQ(pbi_->ops_list[xlayer_id][0]
+                  .op[0]
+                  .decoder_model_info.ops_decoder_buffer_delay,
               delays[di]);
-    EXPECT_EQ(pbi_->ops_list[xlayer_id][0].op[0].decoder_model_info.ops_encoder_buffer_delay,
+    EXPECT_EQ(pbi_->ops_list[xlayer_id][0]
+                  .op[0]
+                  .decoder_model_info.ops_encoder_buffer_delay,
               delays[di]);
   }
 }

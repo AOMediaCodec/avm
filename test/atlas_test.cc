@@ -469,7 +469,9 @@ TEST_F(AtlasTest, MultistreamNoBackground) {
                                     rb_error_handler };
   uint32_t read = av2_read_atlas_segment_info_obu(pbi_, 0, &rb);
   ASSERT_EQ(read, written);
-  EXPECT_EQ(pbi_->atlas_list[0][0].ats_basic_info->ats_background_info_present_flag, 0);
+  EXPECT_EQ(
+      pbi_->atlas_list[0][0].ats_basic_info->ats_background_info_present_flag,
+      0);
 }
 
 TEST_F(AtlasTest, MultistreamAlphaNoAlpha) {
@@ -498,7 +500,9 @@ TEST_F(AtlasTest, MultistreamAlphaNoAlpha) {
                                     rb_error_handler };
   uint32_t read = av2_read_atlas_segment_info_obu(pbi_, 0, &rb);
   ASSERT_EQ(read, written);
-  EXPECT_EQ(pbi_->atlas_list[0][0].ats_basic_info->ats_alpha_segments_present_flag, 0);
+  EXPECT_EQ(
+      pbi_->atlas_list[0][0].ats_basic_info->ats_alpha_segments_present_flag,
+      0);
 }
 
 TEST_F(AtlasTest, MultistreamAlphaWithBackground) {
@@ -605,8 +609,9 @@ TEST_F(AtlasTest, BasicAtlasSegmentCountSweep) {
                                       rb_error_handler };
     uint32_t read = av2_read_atlas_segment_info_obu(pbi_, 0, &rb);
     ASSERT_EQ(read, written) << "segments=" << n;
-    EXPECT_EQ(pbi_->atlas_list[0][0].ats_basic_info->ats_num_atlas_segments_minus_1,
-              n - 1);
+    EXPECT_EQ(
+        pbi_->atlas_list[0][0].ats_basic_info->ats_num_atlas_segments_minus_1,
+        n - 1);
   }
 }
 
