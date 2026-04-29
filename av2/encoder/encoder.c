@@ -4526,9 +4526,11 @@ static bool need_sef_obu_for_hidden_frame(AV2_COMP *cpi) {
  * \callgraph
  * \callergraph
  *
- * \param[in]    cpi             Top-level encoder structure
- * \param[in]    size            Bitstream size
- * \param[in]    dest            Bitstream output
+ * \param[in]    cpi                          Top-level encoder structure
+ * \param[in]    size                        Bitstream size
+ * \param[in]    dest                        Bitstream output
+ * \param[in]    time_stamp           Start of the frame time
+ * \param[in]    time_end               End of the frame time
  *
  * \return Returns a value to indicate if the encoding is done successfully.
  * \retval #AVM_CODEC_OK
