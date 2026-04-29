@@ -2756,7 +2756,8 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
           pbi->glcr_stream_info_num_allocated = num_streams;
         }
         if (pbi->sbe_state.extraction_enabled &&
-            cm->xlayer_id == GLOBAL_XLAYER_ID) {
+            cm->xlayer_id == GLOBAL_XLAYER_ID &&
+            pbi->glcr_is_present_in_tu) {
           av2_sbe_process_global_lcr(&pbi->sbe_state, cm->num_streams,
                                      cm->stream_ids);
         }
