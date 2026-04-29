@@ -65,6 +65,7 @@ TEST_F(CiTest, MinimalCiRoundtrip) {
 
   // Set up decoder state for CI OBU reading.
   pbi_->obus_in_frame_unit_data[0][0][OBU_CLOSED_LOOP_KEY] = 1;
+  pbi_->obus_in_frame_unit_data[0][0][OBU_CONTENT_INTERPRETATION] = 1;
   struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                     rb_error_handler };
   uint32_t read = av2_read_content_interpretation_obu(pbi_, &rb);
@@ -93,6 +94,7 @@ TEST_F(CiTest, ColorInfoExplicitRoundtrip) {
   ASSERT_GT(written, 0u);
 
   pbi_->obus_in_frame_unit_data[0][0][OBU_CLOSED_LOOP_KEY] = 1;
+  pbi_->obus_in_frame_unit_data[0][0][OBU_CONTENT_INTERPRETATION] = 1;
   struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                     rb_error_handler };
   uint32_t read = av2_read_content_interpretation_obu(pbi_, &rb);
@@ -118,6 +120,7 @@ TEST_F(CiTest, ColorInfoImplicitRoundtrip) {
   ASSERT_GT(written, 0u);
 
   pbi_->obus_in_frame_unit_data[0][0][OBU_CLOSED_LOOP_KEY] = 1;
+  pbi_->obus_in_frame_unit_data[0][0][OBU_CONTENT_INTERPRETATION] = 1;
   struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                     rb_error_handler };
   uint32_t read = av2_read_content_interpretation_obu(pbi_, &rb);
@@ -140,6 +143,7 @@ TEST_F(CiTest, ChromaSamplePositionProgressive) {
   ASSERT_GT(written, 0u);
 
   pbi_->obus_in_frame_unit_data[0][0][OBU_CLOSED_LOOP_KEY] = 1;
+  pbi_->obus_in_frame_unit_data[0][0][OBU_CONTENT_INTERPRETATION] = 1;
   struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                     rb_error_handler };
   uint32_t read = av2_read_content_interpretation_obu(pbi_, &rb);
@@ -164,6 +168,7 @@ TEST_F(CiTest, ChromaSamplePositionInterlace) {
   ASSERT_GT(written, 0u);
 
   pbi_->obus_in_frame_unit_data[0][0][OBU_CLOSED_LOOP_KEY] = 1;
+  pbi_->obus_in_frame_unit_data[0][0][OBU_CONTENT_INTERPRETATION] = 1;
   struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                     rb_error_handler };
   uint32_t read = av2_read_content_interpretation_obu(pbi_, &rb);
@@ -184,6 +189,7 @@ TEST_F(CiTest, SarInfoStandardRoundtrip) {
   ASSERT_GT(written, 0u);
 
   pbi_->obus_in_frame_unit_data[0][0][OBU_CLOSED_LOOP_KEY] = 1;
+  pbi_->obus_in_frame_unit_data[0][0][OBU_CONTENT_INTERPRETATION] = 1;
   struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                     rb_error_handler };
   uint32_t read = av2_read_content_interpretation_obu(pbi_, &rb);
@@ -206,6 +212,7 @@ TEST_F(CiTest, SarInfoExplicitRoundtrip) {
   ASSERT_GT(written, 0u);
 
   pbi_->obus_in_frame_unit_data[0][0][OBU_CLOSED_LOOP_KEY] = 1;
+  pbi_->obus_in_frame_unit_data[0][0][OBU_CONTENT_INTERPRETATION] = 1;
   struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                     rb_error_handler };
   uint32_t read = av2_read_content_interpretation_obu(pbi_, &rb);
@@ -230,6 +237,7 @@ TEST_F(CiTest, TimingInfoRoundtrip) {
   ASSERT_GT(written, 0u);
 
   pbi_->obus_in_frame_unit_data[0][0][OBU_CLOSED_LOOP_KEY] = 1;
+  pbi_->obus_in_frame_unit_data[0][0][OBU_CONTENT_INTERPRETATION] = 1;
   struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                     rb_error_handler };
   uint32_t read = av2_read_content_interpretation_obu(pbi_, &rb);
@@ -254,6 +262,7 @@ TEST_F(CiTest, TimingInfoNoEqualInterval) {
   ASSERT_GT(written, 0u);
 
   pbi_->obus_in_frame_unit_data[0][0][OBU_CLOSED_LOOP_KEY] = 1;
+  pbi_->obus_in_frame_unit_data[0][0][OBU_CONTENT_INTERPRETATION] = 1;
   struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                     rb_error_handler };
   uint32_t read = av2_read_content_interpretation_obu(pbi_, &rb);
@@ -294,6 +303,7 @@ TEST_F(CiTest, AllFieldsPresent) {
   ASSERT_GT(written, 0u);
 
   pbi_->obus_in_frame_unit_data[0][0][OBU_CLOSED_LOOP_KEY] = 1;
+  pbi_->obus_in_frame_unit_data[0][0][OBU_CONTENT_INTERPRETATION] = 1;
   struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                     rb_error_handler };
   uint32_t read = av2_read_content_interpretation_obu(pbi_, &rb);
@@ -328,6 +338,7 @@ TEST_F(CiTest, ScanTypeSweep) {
     memset(pbi_->obus_in_frame_unit_data, 0,
            sizeof(pbi_->obus_in_frame_unit_data));
     pbi_->obus_in_frame_unit_data[0][0][OBU_CLOSED_LOOP_KEY] = 1;
+    pbi_->obus_in_frame_unit_data[0][0][OBU_CONTENT_INTERPRETATION] = 1;
     pbi_->common.error.error_code = AVM_CODEC_OK;
     struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                       rb_error_handler };
@@ -361,6 +372,7 @@ TEST_F(CiTest, ColorIdcHighValues) {
     memset(pbi_->obus_in_frame_unit_data, 0,
            sizeof(pbi_->obus_in_frame_unit_data));
     pbi_->obus_in_frame_unit_data[0][0][OBU_CLOSED_LOOP_KEY] = 1;
+    pbi_->obus_in_frame_unit_data[0][0][OBU_CONTENT_INTERPRETATION] = 1;
     pbi_->common.error.error_code = AVM_CODEC_OK;
     struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                       rb_error_handler };
@@ -416,6 +428,7 @@ TEST_F(CiTest, FlagCombinations) {
     memset(pbi_->obus_in_frame_unit_data, 0,
            sizeof(pbi_->obus_in_frame_unit_data));
     pbi_->obus_in_frame_unit_data[0][0][OBU_CLOSED_LOOP_KEY] = 1;
+    pbi_->obus_in_frame_unit_data[0][0][OBU_CONTENT_INTERPRETATION] = 1;
     pbi_->common.error.error_code = AVM_CODEC_OK;
     struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                       rb_error_handler };
@@ -455,6 +468,7 @@ TEST_F(CiTest, ChromaSamplePositionValueSweep) {
     memset(pbi_->obus_in_frame_unit_data, 0,
            sizeof(pbi_->obus_in_frame_unit_data));
     pbi_->obus_in_frame_unit_data[0][0][OBU_CLOSED_LOOP_KEY] = 1;
+    pbi_->obus_in_frame_unit_data[0][0][OBU_CONTENT_INTERPRETATION] = 1;
     pbi_->common.error.error_code = AVM_CODEC_OK;
     struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                       rb_error_handler };
@@ -490,6 +504,7 @@ TEST_F(CiTest, SarIdcStandardValueSweep) {
     memset(pbi_->obus_in_frame_unit_data, 0,
            sizeof(pbi_->obus_in_frame_unit_data));
     pbi_->obus_in_frame_unit_data[0][0][OBU_CLOSED_LOOP_KEY] = 1;
+    pbi_->obus_in_frame_unit_data[0][0][OBU_CONTENT_INTERPRETATION] = 1;
     pbi_->common.error.error_code = AVM_CODEC_OK;
     struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                       rb_error_handler };
@@ -532,6 +547,7 @@ TEST_F(CiTest, ColorFieldBoundaryValues) {
     memset(pbi_->obus_in_frame_unit_data, 0,
            sizeof(pbi_->obus_in_frame_unit_data));
     pbi_->obus_in_frame_unit_data[0][0][OBU_CLOSED_LOOP_KEY] = 1;
+    pbi_->obus_in_frame_unit_data[0][0][OBU_CONTENT_INTERPRETATION] = 1;
     pbi_->common.error.error_code = AVM_CODEC_OK;
     struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                       rb_error_handler };
@@ -570,6 +586,7 @@ TEST_F(CiTest, TimingInfoBoundaryValues) {
     ASSERT_GT(written, 0u) << "ti=" << ti;
 
     pbi_->obus_in_frame_unit_data[0][0][OBU_CLOSED_LOOP_KEY] = 1;
+    pbi_->obus_in_frame_unit_data[0][0][OBU_CONTENT_INTERPRETATION] = 1;
     struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                       rb_error_handler };
     uint32_t read = av2_read_content_interpretation_obu(pbi_, &rb);
@@ -610,6 +627,7 @@ TEST_F(CiTest, ScanTypeChromaInteraction) {
     memset(pbi_->obus_in_frame_unit_data, 0,
            sizeof(pbi_->obus_in_frame_unit_data));
     pbi_->obus_in_frame_unit_data[0][0][OBU_CLOSED_LOOP_KEY] = 1;
+    pbi_->obus_in_frame_unit_data[0][0][OBU_CONTENT_INTERPRETATION] = 1;
     pbi_->common.error.error_code = AVM_CODEC_OK;
     struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                       rb_error_handler };
