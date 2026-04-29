@@ -17,8 +17,10 @@
 extern "C" {
 #endif
 
-#include "av2/common/av2_common_int.h"
-#include "avm_dsp/bitwriter_buffer.h"
+#include <stdint.h>
+
+struct OperatingPointSet;
+struct avm_write_bit_buffer;
 
 uint32_t av2_write_operating_point_set(struct OperatingPointSet *ops,
                                        int obu_xlayer_id,

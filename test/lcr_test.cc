@@ -21,6 +21,7 @@
 extern "C" {
 #include "av2/decoder/obu.h"
 }
+#include "avm_dsp/bitwriter_buffer.h"
 #include "avm_dsp/bitreader_buffer.h"
 #include "avm_mem/avm_mem.h"
 

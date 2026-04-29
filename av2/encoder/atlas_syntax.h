@@ -17,8 +17,8 @@
 extern "C" {
 #endif
 
-#include "av2/common/av2_common_int.h"
-#include "avm_dsp/bitwriter_buffer.h"
+struct AtlasSegmentInfo;
+struct avm_write_bit_buffer;
 
 int av2_write_atlas_segment_info(struct AtlasSegmentInfo *atlas_params,
                                  struct avm_write_bit_buffer *wb);

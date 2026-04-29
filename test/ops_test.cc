@@ -17,6 +17,7 @@
 #include "av2/encoder/ops_syntax.h"
 #include "av2/decoder/decoder.h"
 #include "av2/decoder/decodeframe.h"
+#include "avm_dsp/bitwriter_buffer.h"
 #include "avm_dsp/bitreader_buffer.h"
 #include "avm_mem/avm_mem.h"
 

@@ -17,8 +17,8 @@
 extern "C" {
 #endif
 
-#include "av2/common/av2_common_int.h"
-#include "avm_dsp/bitwriter_buffer.h"
+struct LayerConfigurationRecord;
+struct avm_write_bit_buffer;
 
 int av2_write_lcr_global_info(struct LayerConfigurationRecord *lcr_params,
                               struct avm_write_bit_buffer *wb);
