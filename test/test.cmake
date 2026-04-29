@@ -118,6 +118,7 @@ if(NOT BUILD_SHARED_LIBS)
       APPEND
       AVM_UNIT_TEST_COMMON_SOURCES
       "${AVM_ROOT}/test/altref_test.cc"
+      "${AVM_ROOT}/test/atlas_test.cc"
       "${AVM_ROOT}/test/av2_encoder_parms_get_to_decoder.cc"
       "${AVM_ROOT}/test/binary_codes_test.cc"
       "${AVM_ROOT}/test/boolcoder_test.cc"
@@ -131,25 +132,27 @@ if(NOT BUILD_SHARED_LIBS)
       "${AVM_ROOT}/test/frame_multi_qmatrix_test.cc"
       "${AVM_ROOT}/test/fwd_kf_test.cc"
       "${AVM_ROOT}/test/kf_test.cc"
+      "${AVM_ROOT}/test/lcr_test.cc"
       "${AVM_ROOT}/test/lossless_test.cc"
       "${AVM_ROOT}/test/mfh_test.cc"
       "${AVM_ROOT}/test/multi_layer_test.cc"
       "${AVM_ROOT}/test/multiple_sequence_header_test.cc"
+      "${AVM_ROOT}/test/ops_test.cc"
+      "${AVM_ROOT}/test/output_order_test.cc"
       "${AVM_ROOT}/test/quant_test.cc"
+      "${AVM_ROOT}/test/ras_frame_pruning_test.cc"
       "${AVM_ROOT}/test/sb_multipass_test.cc"
       "${AVM_ROOT}/test/screen_content_test.cc"
       "${AVM_ROOT}/test/sef_test.cc"
       "${AVM_ROOT}/test/segment_binarization_sync.cc"
       "${AVM_ROOT}/test/sframe_test.cc"
-      "${AVM_ROOT}/test/ras_frame_pruning_test.cc"
-      "${AVM_ROOT}/test/output_order_test.cc"
       "${AVM_ROOT}/test/still_picture_test.cc"
       "${AVM_ROOT}/test/sub_bitstream_extraction_test.cc"
       "${AVM_ROOT}/test/subgop_test.cc"
       "${AVM_ROOT}/test/superframe_test.cc"
+      "${AVM_ROOT}/test/temporal_filter_test.cc"
       "${AVM_ROOT}/test/tile_config_test.cc"
-      "${AVM_ROOT}/test/tile_independence_test.cc"
-      "${AVM_ROOT}/test/temporal_filter_test.cc")
+      "${AVM_ROOT}/test/tile_independence_test.cc")
   endif()
 
   list(APPEND AVM_UNIT_TEST_COMMON_INTRIN_NEON
