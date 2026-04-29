@@ -879,10 +879,9 @@ int av2_get_max_level_ref_frames(const AV2_COMMON *const cm, OBU_TYPE obu_type,
   return max_level_ref_frames;
 }
 
-void av2_decoder_model_start_frame_decode(const AV2_COMP *const cpi,
-                                          size_t coded_bits,
-                                          DECODER_MODEL *const decoder_model,
-                                          AV2LevelSpec *const level_spec) {
+static void av2_decoder_model_start_frame_decode(
+    const AV2_COMP *const cpi, size_t coded_bits,
+    DECODER_MODEL *const decoder_model, AV2LevelSpec *const level_spec) {
   if (!decoder_model || decoder_model->status != DECODER_MODEL_OK) return;
 
   avm_clear_system_state();
@@ -1026,7 +1025,7 @@ void av2_decoder_model_start_frame_decode(const AV2_COMP *const cpi,
   }
 }
 
-void av2_decoder_model_update_buffer_and_finish_frame_decode(
+static void av2_decoder_model_update_buffer_and_finish_frame_decode(
     const AV2_COMP *const cpi, DECODER_MODEL *const decoder_model) {
   const AV2_COMMON *const cm = &cpi->common;
 
@@ -1059,11 +1058,33 @@ void av2_decoder_model_update_buffer_and_finish_frame_decode(
     }
   }
 }
+void av2_decoder_model_update_buffer_and_finish_frame_decode_for_operating_points(
+    const AV2_COMP *const cpi) {
+  const AV2_COMMON *const cm = &cpi->common;
+  const AV2LevelParams *const level_params = &cpi->level_params;
+  const int tlayer_id = cm->tlayer_id;
+  const int mlayer_id = cm->mlayer_id;
+  const SequenceHeader *const seq_params = &cm->seq_params;
+  // update level_stats
+  // TODO(kyslov@) fix the implementation according to buffer model
+  for (int i = 0; i < seq_params->operating_points_cnt_minus_1 + 1; ++i) {
+    if (!is_in_operating_point(seq_params->operating_point_idc[i], tlayer_id,
+                               mlayer_id) ||
+        !((level_params->keep_level_stats >> i) & 1)) {
+      continue;
+    }
+    AV2LevelInfo *const level_info = level_params->level_info[i];
+    DECODER_MODEL *const decoder_models = level_info->decoder_models;
+    for (AV2_LEVEL level = SEQ_LEVEL_2_0; level < SEQ_LEVELS; ++level) {
+      av2_decoder_model_update_buffer_and_finish_frame_decode(
+          cpi, &decoder_models[level]);
+    }
+  }
+}
 
-void av2_decoder_model_check_output_frame(const AV2_COMP *const cpi,
-                                          DECODER_MODEL *const decoder_model,
-                                          int ref_idx,
-                                          RefCntBuffer *output_frame_ptr) {
+static void av2_decoder_model_check_output_frame(
+    const AV2_COMP *const cpi, DECODER_MODEL *const decoder_model, int ref_idx,
+    RefCntBuffer *output_frame_ptr) {
   const AV2_COMMON *const cm = &cpi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
   const int luma_disp_pic_size =
@@ -1158,6 +1179,29 @@ void av2_decoder_model_check_output_frame(const AV2_COMP *const cpi,
   decoder_model->display_samples += luma_disp_pic_size;
   ++decoder_model->num_frames_current_tu;
   decoder_model->presentation_time = presentation_time;
+}
+
+void av2_decoder_model_check_output_frame_for_operating_points(
+    const AV2_COMP *const cpi, int ref_idx, RefCntBuffer *output_frame_ptr) {
+  const AV2_COMMON *const cm = &cpi->common;
+  const SequenceHeader *const seq_params = &cm->seq_params;
+  const AV2LevelParams *const level_params = &cpi->level_params;
+  const int tlayer_id = cm->tlayer_id;
+  const int mlayer_id = cm->mlayer_id;
+
+  for (int i = 0; i < seq_params->operating_points_cnt_minus_1 + 1; ++i) {
+    if (!is_in_operating_point(seq_params->operating_point_idc[i], tlayer_id,
+                               mlayer_id) ||
+        !((level_params->keep_level_stats >> i) & 1)) {
+      continue;
+    }
+    AV2LevelInfo *const level_info = level_params->level_info[i];
+    DECODER_MODEL *const decoder_models = level_info->decoder_models;
+    for (AV2_LEVEL level = SEQ_LEVEL_2_0; level < SEQ_LEVELS; ++level) {
+      av2_decoder_model_check_output_frame(cpi, &decoder_models[level], ref_idx,
+                                           output_frame_ptr);
+    }
+  }
 }
 
 // Get the index of the level parameter entry in av2_substream_level_defs for

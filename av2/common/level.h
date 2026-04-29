@@ -237,18 +237,12 @@ avm_codec_err_t av2_get_seq_level_idx(const struct AV2_COMP *cpi,
 void av2_decoder_model_init(const struct AV2_COMP *const cpi, AV2_LEVEL level,
                             int op_index, DECODER_MODEL *const decoder_model);
 
-void av2_decoder_model_start_frame_decode(const struct AV2_COMP *const cpi,
-                                          size_t coded_bits,
-                                          DECODER_MODEL *const decoder_model,
-                                          AV2LevelSpec *const level_spec);
+void av2_decoder_model_update_buffer_and_finish_frame_decode_for_operating_points(
+    const struct AV2_COMP *const cpi);
 
-void av2_decoder_model_update_buffer_and_finish_frame_decode(
-    const struct AV2_COMP *const cpi, DECODER_MODEL *const decoder_model);
-
-void av2_decoder_model_check_output_frame(const struct AV2_COMP *const cpi,
-                                          DECODER_MODEL *const decoder_model,
-                                          int ref_idx,
-                                          RefCntBuffer *output_frame_ptr);
+void av2_decoder_model_check_output_frame_for_operating_points(
+    const struct AV2_COMP *const cpi, int ref_idx,
+    RefCntBuffer *output_frame_ptr);
 
 // Return max bitrate(bps) for given level.
 double av2_get_max_bitrate_for_level(AV2_LEVEL level_index, int tier,

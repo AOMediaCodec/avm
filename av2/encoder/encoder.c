@@ -4646,29 +4646,8 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size, uint8_t *dest,
 
     if (cpi->level_params.keep_level_stats && !is_stat_generation_stage(cpi)) {
       av2_update_level_info(cpi, *size, *time_stamp, *time_end, 0);
-
-      AV2LevelParams *const level_params = &cpi->level_params;
-      const int tlayer_id = cm->tlayer_id;
-      const int mlayer_id = cm->mlayer_id;
-      const int xlayer_id = cm->xlayer_id;
-      (void)xlayer_id;
-
-      // update level_stats
-      // TODO(kyslov@) fix the implementation according to buffer model
-      for (int i = 0; i < seq_params->operating_points_cnt_minus_1 + 1; ++i) {
-        if (!is_in_operating_point(seq_params->operating_point_idc[i],
-                                   tlayer_id, mlayer_id) ||
-            !((level_params->keep_level_stats >> i) & 1)) {
-          continue;
-        }
-        AV2LevelInfo *const level_info = level_params->level_info[i];
-        DECODER_MODEL *const decoder_models = level_info->decoder_models;
-        for (AV2_LEVEL level = SEQ_LEVEL_2_0; level < SEQ_LEVELS; ++level) {
-          av2_decoder_model_check_output_frame(
-              cpi, &decoder_models[level], ref_idx_for_dm,
-              cm->ref_frame_map[cpi->fb_idx_for_overlay]);
-        }
-      }
+      av2_decoder_model_check_output_frame_for_operating_points(
+          cpi, ref_idx_for_dm, cm->ref_frame_map[cpi->fb_idx_for_overlay]);
     }
 
     // current_frame->frame_number is incremented already for
@@ -4730,30 +4709,9 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size, uint8_t *dest,
     cpi->last_show_frame_buf = cm->cur_frame;
 
     if (cpi->level_params.keep_level_stats && !is_stat_generation_stage(cpi)) {
-      AV2LevelParams *const level_params = &cpi->level_params;
-      const int tlayer_id = cm->tlayer_id;
-      const int mlayer_id = cm->mlayer_id;
-      const int xlayer_id = cm->xlayer_id;
-      (void)xlayer_id;
-
       av2_update_level_info(cpi, *size, *time_stamp, *time_end, 0);
-
-      // update level_stats
-      // TODO(kyslov@) fix the implementation according to buffer model
-      for (int i = 0; i < seq_params->operating_points_cnt_minus_1 + 1; ++i) {
-        if (!is_in_operating_point(seq_params->operating_point_idc[i],
-                                   tlayer_id, mlayer_id) ||
-            !((level_params->keep_level_stats >> i) & 1)) {
-          continue;
-        }
-        AV2LevelInfo *const level_info = level_params->level_info[i];
-        DECODER_MODEL *const decoder_models = level_info->decoder_models;
-        for (AV2_LEVEL level = SEQ_LEVEL_2_0; level < SEQ_LEVELS; ++level) {
-          av2_decoder_model_check_output_frame(cpi, &decoder_models[level],
-                                               cpi->fb_idx_for_overlay,
-                                               cm->cur_frame);
-        }
-      }
+      av2_decoder_model_check_output_frame_for_operating_points(
+          cpi, cpi->fb_idx_for_overlay, cm->cur_frame);
     }
 
     if (!av2_check_keyframe_overlay(cpi->gf_group.index, &cpi->gf_group,
@@ -4795,30 +4753,9 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size, uint8_t *dest,
     refresh_reference_frames(cpi);
 
     if (cpi->level_params.keep_level_stats && !is_stat_generation_stage(cpi)) {
-      AV2LevelParams *const level_params = &cpi->level_params;
-      const int tlayer_id = cm->tlayer_id;
-      const int mlayer_id = cm->mlayer_id;
-      const int xlayer_id = cm->xlayer_id;
-      (void)xlayer_id;
-
       av2_update_level_info(cpi, *size, *time_stamp, *time_end, 0);
-
-      // update level_stats
-      // TODO(kyslov@) fix the implementation according to buffer model
-      for (int i = 0; i < seq_params->operating_points_cnt_minus_1 + 1; ++i) {
-        if (!is_in_operating_point(seq_params->operating_point_idc[i],
-                                   tlayer_id, mlayer_id) ||
-            !((level_params->keep_level_stats >> i) & 1)) {
-          continue;
-        }
-        AV2LevelInfo *const level_info = level_params->level_info[i];
-        DECODER_MODEL *const decoder_models = level_info->decoder_models;
-        for (AV2_LEVEL level = SEQ_LEVEL_2_0; level < SEQ_LEVELS; ++level) {
-          av2_decoder_model_check_output_frame(cpi, &decoder_models[level],
-                                               cm->sef_ref_fb_idx,
-                                               cpi->last_show_frame_buf);
-        }
-      }
+      av2_decoder_model_check_output_frame_for_operating_points(
+          cpi, cm->sef_ref_fb_idx, cpi->last_show_frame_buf);
     }
 
     // Since we allocate a spot for the OVERLAY frame in the gf group, we need
@@ -5015,27 +4952,8 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size, uint8_t *dest,
 
   if (cpi->level_params.keep_level_stats && !is_stat_generation_stage(cpi) &&
       cm->immediate_output_picture) {
-    AV2LevelParams *const level_params = &cpi->level_params;
-    const int tlayer_id = cm->tlayer_id;
-    const int mlayer_id = cm->mlayer_id;
-    const int xlayer_id = cm->xlayer_id;
-    (void)xlayer_id;
-
-    // update level_stats
-    // TODO(kyslov@) fix the implementation according to buffer model
-    for (int i = 0; i < seq_params->operating_points_cnt_minus_1 + 1; ++i) {
-      if (!is_in_operating_point(seq_params->operating_point_idc[i], tlayer_id,
-                                 mlayer_id) ||
-          !((level_params->keep_level_stats >> i) & 1)) {
-        continue;
-      }
-      AV2LevelInfo *const level_info = level_params->level_info[i];
-      DECODER_MODEL *const decoder_models = level_info->decoder_models;
-      for (AV2_LEVEL level = SEQ_LEVEL_2_0; level < SEQ_LEVELS; ++level) {
-        av2_decoder_model_check_output_frame(cpi, &decoder_models[level], -1,
-                                             cm->cur_frame);
-      }
-    }
+    av2_decoder_model_check_output_frame_for_operating_points(cpi, -1,
+                                                              cm->cur_frame);
   }
 
   refresh_reference_frames(cpi);
