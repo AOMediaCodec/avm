@@ -217,8 +217,7 @@ static void compare_embedded_layer_info(const EmbeddedLayerInfo *a,
 class LcrTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    pbi_ = static_cast<AV2Decoder *>(
-        avm_memalign(32, sizeof(AV2Decoder)));
+    pbi_ = static_cast<AV2Decoder *>(avm_memalign(32, sizeof(AV2Decoder)));
     ASSERT_NE(pbi_, nullptr);
     memset(pbi_, 0, sizeof(*pbi_));
     memset(buf_, 0, sizeof(buf_));
