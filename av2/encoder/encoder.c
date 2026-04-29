@@ -4526,16 +4526,19 @@ static bool need_sef_obu_for_hidden_frame(AV2_COMP *cpi) {
  * \callgraph
  * \callergraph
  *
- * \param[in]    cpi             Top-level encoder structure
- * \param[in]    size            Bitstream size
- * \param[in]    dest            Bitstream output
+ * \param[in]    cpi                          Top-level encoder structure
+ * \param[in]    size                        Bitstream size
+ * \param[in]    dest                        Bitstream output
+ * \param[in]    time_stamp           Start of the frame time
+ * \param[in]    time_end               End of the frame time
  *
  * \return Returns a value to indicate if the encoding is done successfully.
  * \retval #AVM_CODEC_OK
  * \retval #AVM_CODEC_ERROR
  */
-static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
-                                     uint8_t *dest) {
+static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size, uint8_t *dest,
+                                     int64_t *const time_stamp,
+                                     int64_t *const time_end) {
   AV2_COMMON *const cm = &cpi->common;
   SequenceHeader *const seq_params = &cm->seq_params;
   CurrentFrame *const current_frame = &cm->current_frame;
@@ -4598,7 +4601,8 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
   //    // an overlay frame
   //    gf_group->update_type[gf_group->size] = GF_UPDATE;
   //  }
-
+  // Implicit output picture set here
+  int ref_idx_for_dm = -1;
   int forced_implicit =
       cpi->update_type_was_overlay && cpi->fb_idx_for_overlay != INVALID_IDX &&
       cm->ref_frame_map[cpi->fb_idx_for_overlay] &&
@@ -4609,6 +4613,9 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
       cm->ref_frame_map[cpi->fb_idx_for_overlay]) {
     assign_frame_buffer_p(&cm->cur_frame,
                           cm->ref_frame_map[cpi->fb_idx_for_overlay]);
+    // frame assigned here
+    ref_idx_for_dm = cpi->fb_idx_for_overlay;
+
     int ref_flags_to_keep = 0;
     for (int layer = 0; layer <= seq_params->max_mlayer_id; layer++) {
       if (cm->olk_refresh_frame_flags[layer] != -1) {
@@ -4638,6 +4645,12 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
     }
     cpi->seq_params_locked = 1;
     if (cm->immediate_output_picture) cpi->last_show_frame_buf = cm->cur_frame;
+
+    if (cpi->level_params.keep_level_stats && !is_stat_generation_stage(cpi)) {
+      av2_update_level_info(cpi, *size, *time_stamp, *time_end, 0);
+      av2_decoder_model_check_output_frame_for_operating_points(
+          cpi, ref_idx_for_dm, cm->ref_frame_map[cpi->fb_idx_for_overlay]);
+    }
 
     // current_frame->frame_number is incremented already for
     // keyframe overlays.
@@ -4696,13 +4709,20 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
     if (av2_pack_bitstream(cpi, dest, size, &largest_tile_id) != AVM_CODEC_OK)
       return AVM_CODEC_ERROR;
     cpi->last_show_frame_buf = cm->cur_frame;
+
+    if (cpi->level_params.keep_level_stats && !is_stat_generation_stage(cpi)) {
+      av2_update_level_info(cpi, *size, *time_stamp, *time_end, 0);
+      av2_decoder_model_check_output_frame_for_operating_points(
+          cpi, cpi->fb_idx_for_overlay, cm->cur_frame);
+    }
+
     if (!av2_check_keyframe_overlay(cpi->gf_group.index, &cpi->gf_group,
                                     cpi->rc.frames_since_key))
       ++current_frame->frame_number;
 
     return AVM_CODEC_OK;
   }
-
+  // not use in the CTC
   if (cm->show_existing_frame && !cm->derive_sef_order_hint) {
     av2_finalize_encoded_frame(cpi);
     // Build the bitstream
@@ -4733,6 +4753,12 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
     else
       cpi->last_show_frame_buf = cm->ref_frame_map[cm->sef_ref_fb_idx];
     refresh_reference_frames(cpi);
+
+    if (cpi->level_params.keep_level_stats && !is_stat_generation_stage(cpi)) {
+      av2_update_level_info(cpi, *size, *time_stamp, *time_end, 0);
+      av2_decoder_model_check_output_frame_for_operating_points(
+          cpi, cm->sef_ref_fb_idx, cpi->last_show_frame_buf);
+    }
 
     // Since we allocate a spot for the OVERLAY frame in the gf group, we need
     // to do post-encoding update accordingly.
@@ -4907,9 +4933,9 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
   if (frame_is_intra_only(cm) == 0) {
     release_scaled_references(cpi);
   }
-
-  // NOTE: Save the new show frame buffer index for --test-code=warn, i.e.,
-  //       for the purpose to verify no mismatch between encoder and decoder.
+  // key frame here and other immediate output pictures
+  //  NOTE: Save the new show frame buffer index for --test-code=warn, i.e.,
+  //        for the purpose to verify no mismatch between encoder and decoder.
   if (cm->immediate_output_picture) cpi->last_show_frame_buf = cm->cur_frame;
   if (cm->seq_params.enable_bru && !cm->bru.enabled &&
       cm->current_frame.frame_type == INTER_FRAME) {
@@ -4918,7 +4944,22 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
                               cm->ref_frame_map, ENCODE_STAGE);
   }
 
+  if (cpi->level_params.keep_level_stats && !is_stat_generation_stage(cpi)) {
+    // Initialize level info. at the beginning of each sequence.
+    if (av2_is_shown_keyframe(cpi, cm->current_frame.frame_type)) {
+      av2_init_level_info(cpi);
+    }
+    av2_update_level_info(cpi, *size, *time_stamp, *time_end, 1);
+  }
+
+  if (cpi->level_params.keep_level_stats && !is_stat_generation_stage(cpi) &&
+      cm->immediate_output_picture) {
+    av2_decoder_model_check_output_frame_for_operating_points(cpi, -1,
+                                                              cm->cur_frame);
+  }
+
   refresh_reference_frames(cpi);
+
 #if CONFIG_ENTROPY_STATS
   av2_accumulate_frame_counts(&aggregate_fc, &cpi->counts);
 #endif  // CONFIG_ENTROPY_STATS
@@ -4980,7 +5021,8 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
 int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
                const EncodeFrameInput *const frame_input,
                const EncodeFrameParams *const frame_params,
-               EncodeFrameResults *const frame_results) {
+               EncodeFrameResults *const frame_results,
+               int64_t *const time_stamp, int64_t *const time_end) {
   AV2_COMMON *const cm = &cpi->common;
   CurrentFrame *const current_frame = &cm->current_frame;
 
@@ -5220,8 +5262,8 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
       }
     }
 
-    if (encode_frame_to_data_rate(cpi, &frame_results->size, dest) !=
-        AVM_CODEC_OK) {
+    if (encode_frame_to_data_rate(cpi, &frame_results->size, dest, time_stamp,
+                                  time_end) != AVM_CODEC_OK) {
       return AVM_CODEC_ERROR;
     }
     cm->bridge_frame_info.frame_count++;
@@ -5450,13 +5492,7 @@ int av2_get_compressed_data(AV2_COMP *cpi, unsigned int *frame_flags,
     }
   }
 
-  if (cpi->level_params.keep_level_stats && !is_stat_generation_stage(cpi)) {
-    // Initialize level info. at the beginning of each sequence.
-    if (av2_is_shown_keyframe(cpi, cm->current_frame.frame_type)) {
-      av2_init_level_info(cpi);
-    }
-    av2_update_level_info(cpi, *size, *time_stamp, *time_end);
-  }
+  // Levels were called here.
 
 #if CONFIG_INTERNAL_STATS
   if (!is_stat_generation_stage(cpi)) {
@@ -5635,8 +5671,8 @@ avm_fixed_buf_t *av2_get_global_headers(AV2_COMP *cpi) {
   if (sequence_header_size == 0) return NULL;
 
   uint8_t obu_header[2];
-  const uint32_t obu_header_size = av2_write_obu_header(
-      &cpi->level_params, OBU_SEQUENCE_HEADER, 0, 0, &obu_header[0]);
+  const uint32_t obu_header_size =
+      av2_write_obu_header(OBU_SEQUENCE_HEADER, 0, 0, &obu_header[0]);
   const uint32_t obu_size = obu_header_size + sequence_header_size;
   const size_t size_field_size = avm_uleb_size_in_bytes(obu_size);
   const size_t payload_offset = size_field_size + obu_header_size;

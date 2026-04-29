@@ -3177,7 +3177,8 @@ int av2_get_compressed_data(AV2_COMP *cpi, unsigned int *frame_flags,
 int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
                const EncodeFrameInput *const frame_input,
                const EncodeFrameParams *const frame_params,
-               EncodeFrameResults *const frame_results);
+               EncodeFrameResults *const frame_results,
+               int64_t *const time_stamp, int64_t *const time_end);
 
 /*!\cond */
 int av2_get_preview_raw_frame(AV2_COMP *cpi, YV12_BUFFER_CONFIG *dest);

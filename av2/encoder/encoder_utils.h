@@ -913,6 +913,11 @@ static AVM_INLINE void refresh_reference_frames(AV2_COMP *cpi) {
       }
     }
   }
+
+  if (cpi->level_params.keep_level_stats && !is_stat_generation_stage(cpi)) {
+    av2_decoder_model_update_buffer_and_finish_frame_decode_for_operating_points(
+        cpi);
+  }
 }
 
 static AVM_INLINE void update_subgop_stats(

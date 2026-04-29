@@ -922,7 +922,9 @@ void setup_mi(AV2_COMP *const cpi, YV12_BUFFER_CONFIG *src) {
 static int denoise_and_encode(AV2_COMP *const cpi, uint8_t *const dest,
                               EncodeFrameInput *const frame_input,
                               EncodeFrameParams *const frame_params,
-                              EncodeFrameResults *const frame_results) {
+                              EncodeFrameResults *const frame_results,
+                              int64_t *const time_stamp,
+                              int64_t *const time_end) {
   const AV2EncoderConfig *const oxcf = &cpi->oxcf;
   AV2_COMMON *const cm = &cpi->common;
   const GF_GROUP *const gf_group = &cpi->gf_group;
@@ -1060,8 +1062,9 @@ static int denoise_and_encode(AV2_COMP *const cpi, uint8_t *const dest,
 
   if (gf_group->index == 0) av2_init_tpl_stats(&cpi->tpl_data);
   if (allow_tpl) av2_tpl_setup_stats(cpi, 0, frame_params, frame_input);
-  if (av2_encode(cpi, dest, frame_input, frame_params, frame_results) !=
-      AVM_CODEC_OK) {
+
+  if (av2_encode(cpi, dest, frame_input, frame_params, frame_results,
+                 time_stamp, time_end) != AVM_CODEC_OK) {
     return AVM_CODEC_ERROR;
   }
 
@@ -1569,8 +1572,8 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
         !frame_params.frame_params_update_type_was_overlay);
   }
 #endif  // CONFIG_MISMATCH_DEBUG
-  if (denoise_and_encode(cpi, dest, &frame_input, &frame_params,
-                         &frame_results) != AVM_CODEC_OK) {
+  if (denoise_and_encode(cpi, dest, &frame_input, &frame_params, &frame_results,
+                         time_stamp, time_end) != AVM_CODEC_OK) {
     return AVM_CODEC_ERROR;
   }
 

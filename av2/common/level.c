@@ -453,6 +453,7 @@ typedef enum {
   BITRATE_TOO_HIGH,
   DECODER_MODEL_FAIL,
   REF_FRAMES_FAIL,
+  PRESENTATION_INTERVAL_TOO_SMALL,
 
   TARGET_LEVEL_FAIL_IDS,
   TARGET_LEVEL_OK,
@@ -481,6 +482,7 @@ static const char *level_fail_messages[TARGET_LEVEL_FAIL_IDS] = {
   "The bitrate is too high.",
   "The decoder model fails.",
   "The number of reference frames is invalid.",
+  "The presentation interval is too small.",
 };
 
 static const double bitrate_profile_factor_table[] = { 1.0, 1.667, 2.5 };
@@ -601,18 +603,18 @@ static void release_buffer(DECODER_MODEL *const decoder_model, int idx) {
   this_buffer->presentation_time = INVALID_TIME;
 }
 
-static void initialize_buffer_pool(DECODER_MODEL *const decoder_model,
-                                   const int ref_frames) {
-  for (int i = 0; i < BUFFER_POOL_MAX_SIZE; ++i) {
+static void initialize_buffer_pool(DECODER_MODEL *const decoder_model) {
+  const int num_ref_frames = decoder_model->num_ref_frames;
+  for (int i = 0; i < num_ref_frames + 2; ++i) {
     release_buffer(decoder_model, i);
   }
-  for (int i = 0; i < ref_frames; ++i) {
+  for (int i = 0; i < num_ref_frames; ++i) {
     decoder_model->vbi[i] = -1;
   }
 }
 
 static int get_free_buffer(DECODER_MODEL *const decoder_model) {
-  for (int i = 0; i < BUFFER_POOL_MAX_SIZE; ++i) {
+  for (int i = 0; i < decoder_model->num_ref_frames + 2; ++i) {
     const FRAME_BUFFER *const this_buffer =
         &decoder_model->frame_buffer_pool[i];
     if (this_buffer->decoder_ref_count == 0 &&
@@ -623,17 +625,24 @@ static int get_free_buffer(DECODER_MODEL *const decoder_model) {
 }
 
 static void update_ref_buffers(const AV2_COMMON *const cm,
-                               DECODER_MODEL *const decoder_model, int idx,
+                               DECODER_MODEL *const decoder_model,
                                int refresh_frame_flags) {
-  FRAME_BUFFER *const this_buffer = &decoder_model->frame_buffer_pool[idx];
+  if (cm->show_existing_frame)
+    return;  // refresh_frame_flags are equal to 0 in show_existing_frame.
+  FRAME_BUFFER *const this_buffer =
+      &decoder_model->frame_buffer_pool[decoder_model->cfbi];
   for (int i = 0; i < cm->seq_params.ref_frames; ++i) {
     if (refresh_frame_flags & (1 << i)) {
       const int pre_idx = decoder_model->vbi[i];
       if (pre_idx != -1) {
         --decoder_model->frame_buffer_pool[pre_idx].decoder_ref_count;
       }
-      decoder_model->vbi[i] = idx;
-      ++this_buffer->decoder_ref_count;
+      if (cm->ref_frame_map[i] != NULL) {
+        decoder_model->vbi[i] = decoder_model->cfbi;
+        ++this_buffer->decoder_ref_count;
+      } else {
+        decoder_model->vbi[i] = -1;
+      }
     }
   }
 }
@@ -679,7 +688,7 @@ static double time_to_decode_frame(const AV2_COMMON *const cm,
 // It corresponds to "start_decode_at_removal_time" in the spec.
 static void release_processed_frames(DECODER_MODEL *const decoder_model,
                                      double removal_time) {
-  for (int i = 0; i < BUFFER_POOL_MAX_SIZE; ++i) {
+  for (int i = 0; i < decoder_model->num_ref_frames + 2; ++i) {
     FRAME_BUFFER *const this_buffer = &decoder_model->frame_buffer_pool[i];
     if (this_buffer->player_ref_count > 0) {
       if (this_buffer->presentation_time >= 0.0 &&
@@ -695,7 +704,7 @@ static void release_processed_frames(DECODER_MODEL *const decoder_model,
 
 static int frames_in_buffer_pool(const DECODER_MODEL *const decoder_model) {
   int frames_in_pool = 0;
-  for (int i = 0; i < BUFFER_POOL_MAX_SIZE; ++i) {
+  for (int i = 0; i < decoder_model->num_ref_frames + 2; ++i) {
     const FRAME_BUFFER *const this_buffer =
         &decoder_model->frame_buffer_pool[i];
     if (this_buffer->decoder_ref_count > 0 ||
@@ -716,8 +725,9 @@ static double get_presentation_time(const DECODER_MODEL *const decoder_model,
         decoder_model->initial_presentation_delay;
     // Can't decide presentation time until the initial presentation delay is
     // known.
-    if (initial_presentation_delay < 0.0) return INVALID_TIME;
-
+    if (initial_presentation_delay < 0.0)
+      return display_index * decoder_model->num_ticks_per_picture *
+             decoder_model->display_clock_tick;
     return initial_presentation_delay +
            display_index * decoder_model->num_ticks_per_picture *
                decoder_model->display_clock_tick;
@@ -731,7 +741,7 @@ double time_next_buffer_is_free(const DECODER_MODEL *const decoder_model) {
   }
 
   double buf_free_time = MAX_TIME;
-  for (int i = 0; i < BUFFER_POOL_MAX_SIZE; ++i) {
+  for (int i = 0; i < decoder_model->num_ref_frames + 2; ++i) {
     const FRAME_BUFFER *const this_buffer =
         &decoder_model->frame_buffer_pool[i];
     if (this_buffer->decoder_ref_count == 0) {
@@ -809,13 +819,19 @@ void av2_decoder_model_init(const AV2_COMP *const cpi, AV2_LEVEL level,
   decoder_model->compressed_size_satisfy = true;
   decoder_model->frame_symbol_count_satisfy = true;
   decoder_model->max_display_rate = 0.0;
+  decoder_model->num_ref_frames = cm->seq_params.ref_frames;
+  decoder_model->num_frames_current_tu = 0;
+  decoder_model->min_presentation_interval_satisfy = true;
 
   decoder_model->num_frame = -1;
   decoder_model->num_decoded_frame = -1;
   decoder_model->num_shown_frame = -1;
   decoder_model->current_time = 0.0;
+  decoder_model->last_output_mlayer = -1;
+  decoder_model->last_output_xlayer = -1;
+  decoder_model->last_display_index = -1;
 
-  initialize_buffer_pool(decoder_model, cm->seq_params.ref_frames);
+  initialize_buffer_pool(decoder_model);
 
   DFG_INTERVAL_QUEUE *const dfg_interval_queue =
       &decoder_model->dfg_interval_queue;
@@ -863,10 +879,9 @@ int av2_get_max_level_ref_frames(const AV2_COMMON *const cm, OBU_TYPE obu_type,
   return max_level_ref_frames;
 }
 
-void av2_decoder_model_process_frame(const AV2_COMP *const cpi,
-                                     size_t coded_bits,
-                                     DECODER_MODEL *const decoder_model,
-                                     AV2LevelSpec *const level_spec) {
+static void av2_decoder_model_start_frame_decode(
+    const AV2_COMP *const cpi, size_t coded_bits,
+    DECODER_MODEL *const decoder_model, AV2LevelSpec *const level_spec) {
   if (!decoder_model || decoder_model->status != DECODER_MODEL_OK) return;
 
   avm_clear_system_state();
@@ -878,22 +893,25 @@ void av2_decoder_model_process_frame(const AV2_COMP *const cpi,
       level_params->multi_stream_scaling_x == 0
           ? 1.0
           : level_params->multi_stream_scaling_x;
-  const int luma_pic_size = cm->width * cm->height;
+
+  int luma_pic_size;
+
+  const FRAME_TYPE frame_type = cm->current_frame.frame_type;
+
+  if (frame_type == KEY_FRAME || frame_type == INTRA_ONLY_FRAME) {
+    luma_pic_size = cm->width * cm->height;
+  } else {
+    const int max_frame_width = seq_params->max_frame_width;
+    const int max_frame_height = seq_params->max_frame_height;
+    luma_pic_size = max_frame_width * max_frame_height;
+  }
+
   const int show_existing_frame = cm->show_existing_frame;
-  const int show_frame = cm->immediate_output_picture || show_existing_frame;
   ++decoder_model->num_frame;
-  if (!show_existing_frame) ++decoder_model->num_decoded_frame;
-  if (show_frame) ++decoder_model->num_shown_frame;
+  if (!show_existing_frame) ++decoder_model->num_decoded_frame;  // DfgNum
   decoder_model->coded_bits += coded_bits;
 
-  int display_idx = -1;
-  if (show_existing_frame) {
-    display_idx = decoder_model->vbi[cm->sef_ref_fb_idx];
-    if (display_idx < 0) {
-      decoder_model->status = DECODE_EXISTING_FRAME_BUF_EMPTY;
-      return;
-    }
-  } else {
+  if (!show_existing_frame) {
     const double removal_time = get_removal_time(decoder_model);
     if (removal_time < 0.0) {
       decoder_model->status = DECODE_FRAME_BUF_UNAVAILABLE;
@@ -902,7 +920,6 @@ void av2_decoder_model_process_frame(const AV2_COMP *const cpi,
 
     const int previous_decode_samples = decoder_model->decode_samples;
     const double previous_removal_time = decoder_model->removal_time;
-    assert(previous_removal_time < removal_time);
     decoder_model->removal_time = removal_time;
     decoder_model->decode_samples = luma_pic_size;
     bool is_global_intrabc_inloop_filtered_frame =
@@ -996,28 +1013,40 @@ void av2_decoder_model_process_frame(const AV2_COMP *const cpi,
     }
 
     release_processed_frames(decoder_model, removal_time);
-    decoder_model->current_time =
-        removal_time + time_to_decode_frame(cm, decoder_model->decode_rate);
 
-    const int cfbi = get_free_buffer(decoder_model);
-    if (cfbi < 0) {
+    decoder_model->cfbi = get_free_buffer(decoder_model);
+    if (decoder_model->cfbi < 0) {
       decoder_model->status = DECODE_FRAME_BUF_UNAVAILABLE;
       return;
     }
+
+    decoder_model->current_time =
+        removal_time + time_to_decode_frame(cm, decoder_model->decode_rate);
+  }
+}
+
+static void av2_decoder_model_update_buffer_and_finish_frame_decode(
+    const AV2_COMP *const cpi, DECODER_MODEL *const decoder_model) {
+  const AV2_COMMON *const cm = &cpi->common;
+
+  const int show_existing_frame = cm->show_existing_frame;
+
+  if (!show_existing_frame) {
     const CurrentFrame *const current_frame = &cm->current_frame;
-    decoder_model->frame_buffer_pool[cfbi].frame_type =
+    decoder_model->frame_buffer_pool[decoder_model->cfbi].frame_type =
         cm->current_frame.frame_type;
-    display_idx = cfbi;
-    update_ref_buffers(cm, decoder_model, cfbi,
-                       current_frame->refresh_frame_flags);
+    update_ref_buffers(cm, decoder_model, current_frame->refresh_frame_flags);
 
     if (decoder_model->initial_presentation_delay < 0.0) {
       // Display can begin after required number of frames have been buffered.
       if (frames_in_buffer_pool(decoder_model) >=
           decoder_model->initial_display_delay) {
         decoder_model->initial_presentation_delay = decoder_model->current_time;
+        if (decoder_model->presentation_time > 0)
+          decoder_model->presentation_time +=
+              decoder_model->initial_presentation_delay;
         // Update presentation time for each shown frame in the frame buffer.
-        for (int i = 0; i < BUFFER_POOL_MAX_SIZE; ++i) {
+        for (int i = 0; i < decoder_model->num_ref_frames + 2; ++i) {
           FRAME_BUFFER *const this_buffer =
               &decoder_model->frame_buffer_pool[i];
           if (this_buffer->player_ref_count == 0) continue;
@@ -1028,37 +1057,153 @@ void av2_decoder_model_process_frame(const AV2_COMP *const cpi,
       }
     }
   }
+}
+void av2_decoder_model_update_buffer_and_finish_frame_decode_for_operating_points(
+    const AV2_COMP *const cpi) {
+  const AV2_COMMON *const cm = &cpi->common;
+  const AV2LevelParams *const level_params = &cpi->level_params;
+  const int tlayer_id = cm->tlayer_id;
+  const int mlayer_id = cm->mlayer_id;
+  const SequenceHeader *const seq_params = &cm->seq_params;
+  // update level_stats
+  // TODO(kyslov@) fix the implementation according to buffer model
+  for (int i = 0; i < seq_params->operating_points_cnt_minus_1 + 1; ++i) {
+    if (!is_in_operating_point(seq_params->operating_point_idc[i], tlayer_id,
+                               mlayer_id) ||
+        !((level_params->keep_level_stats >> i) & 1)) {
+      continue;
+    }
+    AV2LevelInfo *const level_info = level_params->level_info[i];
+    DECODER_MODEL *const decoder_models = level_info->decoder_models;
+    for (AV2_LEVEL level = SEQ_LEVEL_2_0; level < SEQ_LEVELS; ++level) {
+      av2_decoder_model_update_buffer_and_finish_frame_decode(
+          cpi, &decoder_models[level]);
+    }
+  }
+}
+
+static void av2_decoder_model_check_output_frame(
+    const AV2_COMP *const cpi, DECODER_MODEL *const decoder_model, int ref_idx,
+    RefCntBuffer *output_frame_ptr) {
+  const AV2_COMMON *const cm = &cpi->common;
+  const SequenceHeader *const seq_params = &cm->seq_params;
+  const int luma_disp_pic_size =
+      seq_params->max_frame_width * seq_params->max_frame_height;
 
   // Display.
-  if (show_frame) {
-    assert(display_idx >= 0 && display_idx < BUFFER_POOL_MAX_SIZE);
-    FRAME_BUFFER *const this_buffer =
-        &decoder_model->frame_buffer_pool[display_idx];
-    ++this_buffer->player_ref_count;
-    this_buffer->display_index = decoder_model->num_shown_frame;
-    const double presentation_time =
-        get_presentation_time(decoder_model, this_buffer->display_index);
-    this_buffer->presentation_time = presentation_time;
+  FRAME_BUFFER *this_buffer;
+  if (ref_idx < 0) {
+    this_buffer = &decoder_model->frame_buffer_pool[decoder_model->cfbi];
+  } else {
+    if (cm->ref_frame_map[ref_idx] == NULL ||
+        decoder_model->vbi[ref_idx] == -1) {
+      decoder_model->status = DECODE_EXISTING_FRAME_BUF_EMPTY;
+      return;
+    }
+    this_buffer =
+        &decoder_model->frame_buffer_pool[decoder_model->vbi[ref_idx]];
+  }
+  ++this_buffer->player_ref_count;
+  decoder_model->num_shown_frame++;
+  if (decoder_model->last_display_index < 0) {
+    decoder_model->last_display_index = 0;
+  } else {
+    if (decoder_model->last_output_xlayer != output_frame_ptr->xlayer_id) {
+      decoder_model->status = DECODER_MODEL_MULTIPLE_XLAYERS;
+      return;
+    }
+    if (output_frame_ptr->mlayer_id <= decoder_model->last_output_mlayer) {
+      decoder_model->last_display_index++;
+    }
+  }
+  decoder_model->last_output_mlayer = output_frame_ptr->mlayer_id;
+  decoder_model->last_output_xlayer = output_frame_ptr->xlayer_id;
+
+  this_buffer->display_index = decoder_model->last_display_index;
+
+  const double presentation_time =
+      get_presentation_time(decoder_model, this_buffer->display_index);
+  this_buffer->presentation_time = presentation_time;
+  if (decoder_model->initial_presentation_delay >= 0.0) {
     if (presentation_time >= 0.0 &&
         decoder_model->current_time > presentation_time) {
       decoder_model->status = DISPLAY_FRAME_LATE;
       return;
     }
+  }
 
-    const int previous_display_samples = decoder_model->display_samples;
-    const double previous_presentation_time = decoder_model->presentation_time;
-    decoder_model->display_samples = luma_pic_size;
-    decoder_model->presentation_time = presentation_time;
-    if (presentation_time >= 0.0 && previous_presentation_time >= 0.0) {
-      assert(previous_presentation_time < presentation_time);
-      const int64_t this_display_rate =
-          (int64_t)(previous_display_samples /
-                    (presentation_time - previous_presentation_time));
-      decoder_model->max_display_rate =
-          AVMMAX(decoder_model->max_display_rate, this_display_rate);
+  const double previous_presentation_time = decoder_model->presentation_time;
+  if (presentation_time >= 0.0 && previous_presentation_time >= 0.0 &&
+      presentation_time > previous_presentation_time) {
+    // A new temporal unit has started.  Compute metrics over the inter-TU
+    // interval using the previous TU's accumulated display samples.
+    assert(previous_presentation_time <= presentation_time);
+    const double interval = presentation_time - previous_presentation_time;
+
+    // Peak display rate across TU boundaries (spec §E.3.2).
+    const int64_t this_display_rate =
+        (int64_t)(decoder_model->display_samples / interval);
+    decoder_model->max_display_rate =
+        AVMMAX(decoder_model->max_display_rate, this_display_rate);
+    const AV2LevelParams *const level_params = &cpi->level_params;
+    const AV2LevelSpec *const target_spec =
+        av2_level_defs + decoder_model->level;
+    const double multi_stream_scaling_x =
+        level_params->multi_stream_scaling_x == 0
+            ? 1.0
+            : level_params->multi_stream_scaling_x;
+    const double max_display_rate =
+        (double)target_spec->max_display_rate / multi_stream_scaling_x;
+    const double max_decode_rate =
+        (double)target_spec->max_decode_rate / multi_stream_scaling_x;
+    int max_header_rate = target_spec->max_header_rate;
+    if (multi_stream_scaling_x != 1.0) {
+      const int substream_idx = level_to_sub_stream_level_index(
+          decoder_model->level, multi_stream_scaling_x);
+      max_header_rate =
+          av2_substream_level_defs[substream_idx].max_header_rate_x;
+    }
+    const double min_frame_time =
+        max_decode_rate / ((double)max_header_rate * max_display_rate);
+    const double min_interval = AVMMAX(
+        decoder_model->display_samples / max_display_rate, min_frame_time);
+    decoder_model->min_presentation_interval_satisfy =
+        decoder_model->min_presentation_interval_satisfy &&
+        (interval >= min_interval);
+
+    // Reset per-TU accumulators for the new temporal unit.
+    decoder_model->display_samples = 0;
+    decoder_model->num_frames_current_tu = 0;
+  }
+  // Accumulate this frame's samples into the current temporal unit.
+  decoder_model->display_samples += luma_disp_pic_size;
+  ++decoder_model->num_frames_current_tu;
+  decoder_model->presentation_time = presentation_time;
+}
+
+void av2_decoder_model_check_output_frame_for_operating_points(
+    const AV2_COMP *const cpi, int ref_idx, RefCntBuffer *output_frame_ptr) {
+  const AV2_COMMON *const cm = &cpi->common;
+  const SequenceHeader *const seq_params = &cm->seq_params;
+  const AV2LevelParams *const level_params = &cpi->level_params;
+  const int tlayer_id = cm->tlayer_id;
+  const int mlayer_id = cm->mlayer_id;
+
+  for (int i = 0; i < seq_params->operating_points_cnt_minus_1 + 1; ++i) {
+    if (!is_in_operating_point(seq_params->operating_point_idc[i], tlayer_id,
+                               mlayer_id) ||
+        !((level_params->keep_level_stats >> i) & 1)) {
+      continue;
+    }
+    AV2LevelInfo *const level_info = level_params->level_info[i];
+    DECODER_MODEL *const decoder_models = level_info->decoder_models;
+    for (AV2_LEVEL level = SEQ_LEVEL_2_0; level < SEQ_LEVELS; ++level) {
+      av2_decoder_model_check_output_frame(cpi, &decoder_models[level], ref_idx,
+                                           output_frame_ptr);
     }
   }
 }
+
 // Get the index of the level parameter entry in av2_substream_level_defs for
 // sub-stream case given the level and the scaling factor.
 // Should we define the behavior for levels below 4.0?
@@ -1273,6 +1418,10 @@ static TARGET_LEVEL_FAIL_ID check_level_constraints(
         fail_id = FRAME_SYMBOL_COUNT_TOO_HIGH;
         break;
       }
+      if (!decoder_model->min_presentation_interval_satisfy) {
+        fail_id = PRESENTATION_INTERVAL_TOO_SMALL;
+        break;
+      }
     }
 
     if (check_bitrate) {
@@ -1471,7 +1620,7 @@ double av2_get_compression_ratio(const AV2_COMMON *const cm,
 }
 
 void av2_update_level_info(AV2_COMP *cpi, size_t size, int64_t ts_start,
-                           int64_t ts_end) {
+                           int64_t ts_end, int decode_frame) {
   AV2_COMMON *const cm = &cpi->common;
   AV2LevelParams *const level_params = &cpi->level_params;
   const int upscaled_width = cm->width;
@@ -1553,15 +1702,18 @@ void av2_update_level_info(AV2_COMP *cpi, size_t size, int64_t ts_start,
           immediate_output_picture ? count_frames(buffer, TICKS_PER_SEC) : 0;
       scan_past_frames(buffer, encoded_frames_in_last_second, level_spec,
                        level_stats);
+
       level_stats->total_time_encoded +=
           (cpi->time_stamps.prev_end_seen - cpi->time_stamps.prev_start_seen) /
           (double)TICKS_PER_SEC;
     }
 
-    DECODER_MODEL *const decoder_models = level_info->decoder_models;
-    for (AV2_LEVEL level = SEQ_LEVEL_2_0; level < SEQ_LEVELS; ++level) {
-      av2_decoder_model_process_frame(cpi, size << 3, &decoder_models[level],
-                                      level_spec);
+    if (decode_frame) {
+      DECODER_MODEL *const decoder_models = level_info->decoder_models;
+      for (AV2_LEVEL level = SEQ_LEVEL_2_0; level < SEQ_LEVELS; ++level) {
+        av2_decoder_model_start_frame_decode(
+            cpi, size << 3, &decoder_models[level], level_spec);
+      }
     }
 
     // Check whether target level is met.
