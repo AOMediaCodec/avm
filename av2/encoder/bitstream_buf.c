@@ -51,6 +51,7 @@
 #include "av2/common/tile_common.h"
 
 #include "av2/encoder/bitstream.h"
+#include "av2/encoder/brt_syntax.h"
 #include "av2/common/cost.h"
 #include "av2/encoder/encodemv.h"
 #include "av2/encoder/encodetxb.h"
@@ -82,29 +83,33 @@ void av2_set_buffer_removal_timing_params(AV2_COMP *const cpi) {
   }
 }
 
-uint32_t av2_write_buffer_removal_timing_obu(
-    const BufferRemovalTimingInfo *brt_info, uint8_t *const dst) {
-  struct avm_write_bit_buffer wb = { dst, 0 };
-  uint32_t size = 0;
-
-  avm_wb_write_bit(&wb, brt_info->br_ops_dependent_flag);
+int av2_write_brt_info(const BufferRemovalTimingInfo *brt_info,
+                       struct avm_write_bit_buffer *wb) {
+  avm_wb_write_bit(wb, brt_info->br_ops_dependent_flag);
   if (brt_info->br_ops_dependent_flag) {
-    avm_wb_write_literal(&wb, brt_info->br_ops_id, 4);
-    avm_wb_write_literal(&wb, brt_info->br_ops_cnt[brt_info->br_ops_id], 3);
+    avm_wb_write_literal(wb, brt_info->br_ops_id, 4);
+    avm_wb_write_literal(wb, brt_info->br_ops_cnt[brt_info->br_ops_id], 3);
     for (int i = 0; i < brt_info->br_ops_cnt[brt_info->br_ops_id]; i++) {
       avm_wb_write_bit(
-          &wb,
+          wb,
           brt_info->br_decoder_model_present_op_flag[brt_info->br_ops_id][i]);
       if (brt_info->br_decoder_model_present_op_flag[brt_info->br_ops_id][i]) {
-        int data = brt_info->br_time_op[brt_info->br_ops_id][i];
-        avm_wb_write_rice_golomb(&wb, data, 4);
+        avm_wb_write_rice_golomb(
+            wb, brt_info->br_time_op[brt_info->br_ops_id][i], 4);
       }
     }
   } else {
-    avm_wb_write_rice_golomb(&wb, brt_info->br_time, 4);
+    avm_wb_write_rice_golomb(wb, brt_info->br_time, 4);
   }
+  return 0;
+}
+
+uint32_t av2_write_buffer_removal_timing_obu(
+    const BufferRemovalTimingInfo *brt_info, uint8_t *const dst) {
+  struct avm_write_bit_buffer wb = { dst, 0 };
+
+  av2_write_brt_info(brt_info, &wb);
 
   av2_add_trailing_bits(&wb);
-  size = avm_wb_bytes_written(&wb);
-  return size;
+  return avm_wb_bytes_written(&wb);
 }
