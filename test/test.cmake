@@ -139,6 +139,7 @@ if(NOT BUILD_SHARED_LIBS)
       "${AVM_ROOT}/test/ops_test.cc"
       "${AVM_ROOT}/test/output_order_test.cc"
       "${AVM_ROOT}/test/quant_test.cc"
+      "${AVM_ROOT}/test/qm_test.cc"
       "${AVM_ROOT}/test/ras_frame_pruning_test.cc"
       "${AVM_ROOT}/test/sb_multipass_test.cc"
       "${AVM_ROOT}/test/screen_content_test.cc"
