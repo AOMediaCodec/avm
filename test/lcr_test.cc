@@ -38,14 +38,17 @@ static void rb_error_handler(void *data, avm_codec_err_t error,
 static uint32_t write_lcr_obu(struct LayerConfigurationRecord *lcr,
                               int xlayer_id, uint8_t *dst) {
   struct avm_write_bit_buffer wb = { dst, 0 };
-  if (xlayer_id == GLOBAL_XLAYER_ID)
+  if (xlayer_id == GLOBAL_XLAYER_ID) {
     av2_write_lcr_global_info(lcr, &wb);
-  else
+  } else {
     av2_write_lcr_local_info(lcr, &wb);
+  }
   avm_wb_write_bit(&wb, 0);  // lcr_extension_present_flag
   avm_wb_write_bit(&wb, 1);  // trailing stop bit
   int pad = (8 - wb.bit_offset % 8) % 8;
-  if (pad > 0) avm_wb_write_literal(&wb, 0, pad);
+  if (pad > 0) {
+    avm_wb_write_literal(&wb, 0, pad);
+  }
   return avm_wb_bytes_written(&wb);
 }
 
@@ -133,8 +136,9 @@ static void compare_global_lcr(const GlobalLayerConfigurationRecord *a,
   EXPECT_EQ(a->lcr_global_config_record_id, b->lcr_global_config_record_id);
   EXPECT_EQ(a->lcr_xlayer_map, b->lcr_xlayer_map);
   EXPECT_EQ(a->LcrMaxNumXLayerCount, b->LcrMaxNumXLayerCount);
-  for (int i = 0; i < a->LcrMaxNumXLayerCount; i++)
+  for (int i = 0; i < a->LcrMaxNumXLayerCount; i++) {
     EXPECT_EQ(a->LcrXLayerID[i], b->LcrXLayerID[i]);
+  }
   EXPECT_EQ(a->lcr_aggregate_info_present_flag,
             b->lcr_aggregate_info_present_flag);
   EXPECT_EQ(a->lcr_global_payload_present_flag,
@@ -143,8 +147,9 @@ static void compare_global_lcr(const GlobalLayerConfigurationRecord *a,
             b->lcr_global_atlas_id_present_flag);
   EXPECT_EQ(a->lcr_global_purpose_id, b->lcr_global_purpose_id);
   EXPECT_EQ(a->lcr_doh_constraint_flag, b->lcr_doh_constraint_flag);
-  if (a->lcr_global_atlas_id_present_flag)
+  if (a->lcr_global_atlas_id_present_flag) {
     EXPECT_EQ(a->lcr_global_atlas_id, b->lcr_global_atlas_id);
+  }
   if (a->lcr_aggregate_info_present_flag) {
     EXPECT_EQ(a->aggregate_ptl.lcr_config_idc, b->aggregate_ptl.lcr_config_idc);
     EXPECT_EQ(a->aggregate_ptl.lcr_aggregate_level_idx,
@@ -181,8 +186,9 @@ static void compare_local_lcr(const LocalLayerConfigurationRecord *a,
     EXPECT_EQ(a->seq_ptl.lcr_tier_flag, b->seq_ptl.lcr_tier_flag);
     EXPECT_EQ(a->seq_ptl.lcr_max_mlayer_count, b->seq_ptl.lcr_max_mlayer_count);
   }
-  if (a->lcr_local_atlas_id_present_flag)
+  if (a->lcr_local_atlas_id_present_flag) {
     EXPECT_EQ(a->lcr_local_atlas_id, b->lcr_local_atlas_id);
+  }
 }
 
 static void compare_embedded_layer_info(const EmbeddedLayerInfo *a,
@@ -193,10 +199,12 @@ static void compare_embedded_layer_info(const EmbeddedLayerInfo *a,
     EXPECT_EQ(a->lcr_tlayer_map[i], b->lcr_tlayer_map[i]);
     EXPECT_EQ(a->lcr_layer_type[i], b->lcr_layer_type[i]);
     EXPECT_EQ(a->lcr_view_type[i], b->lcr_view_type[i]);
-    if (a->lcr_view_type[i] == VIEW_EXPLICIT)
+    if (a->lcr_view_type[i] == VIEW_EXPLICIT) {
       EXPECT_EQ(a->lcr_view_id[i], b->lcr_view_id[i]);
-    if (i > 0)
+    }
+    if (i > 0) {
       EXPECT_EQ(a->lcr_dependent_layer_map[i], b->lcr_dependent_layer_map[i]);
+    }
     EXPECT_EQ(a->lcr_same_sh_max_resolution_flag[i],
               b->lcr_same_sh_max_resolution_flag[i]);
     if (!a->lcr_same_sh_max_resolution_flag[i]) {
@@ -520,8 +528,12 @@ TEST_F(LcrTest, XlayerInfoFlagCombinations) {
       xi->rep_params.lcr_max_pic_width = 640;
       xi->rep_params.lcr_max_pic_height = 480;
     }
-    if (purpose) xi->lcr_xlayer_purpose_id = 10;
-    if (color) xi->xlayer_col_params.layer_full_range_flag = 1;
+    if (purpose) {
+      xi->lcr_xlayer_purpose_id = 10;
+    }
+    if (color) {
+      xi->xlayer_col_params.layer_full_range_flag = 1;
+    }
     if (embedded) {
       xi->mlayer_params.lcr_mlayer_map = 0x1;
       xi->mlayer_params.lcr_tlayer_map[0] = 0x1;
