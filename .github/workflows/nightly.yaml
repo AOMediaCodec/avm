@@ -70,14 +70,14 @@ jobs:
       CCACHE_COMPILERCHECK: content
 
     steps:
-      - uses: actions/checkout@v4.1.0
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 50
           lfs: true
 
       - uses: ./.github/actions/common-setup
 
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v5
         with:
           path: ccache
           key: non-existent
@@ -101,13 +101,13 @@ jobs:
         run: |
           ccache --show-stats
 
-      - uses: actions/cache/save@v4
+      - uses: actions/cache/save@v5
         with:
           path: ccache
           key: ${{ github.job }}-${{ github.run_id }}
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4.1.0
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: ${{ github.job }}
@@ -136,7 +136,7 @@ jobs:
       LIBAVM_TEST_DATA_PATH: ${{ github.workspace }}/libavm-test-data
 
     steps:
-      - uses: actions/checkout@v4.1.0
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 50
           lfs: true
@@ -144,13 +144,13 @@ jobs:
       - uses: ./.github/actions/common-setup
 
       - name: Get nightly build
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: linux-build-nightly
           path: avm_nightly_build
 
       - name: Get test data
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: test-data
           path: libavm-test-data
@@ -197,7 +197,7 @@ jobs:
           time parallel --line-buffer --memfree 10G --memsuspend 4G --load 100% --delay 3 --shuf < ${commands} || true
 
       - name: Upload logs
-        uses: actions/upload-artifact@v4.1.0
+        uses: actions/upload-artifact@v7
         if: ${{ always() }}
         with:
           name: unit-test-logs
@@ -328,7 +328,7 @@ jobs:
           fail_on_failure: true
 
       - name: Upload coverage artifacts
-        uses: actions/upload-artifact@v4.1.0
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: coverage-html
@@ -336,7 +336,7 @@ jobs:
             coverage-html
 
       - name: Upload junit reports artifacts
-        uses: actions/upload-artifact@v4.1.0
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: unit-test-junit-reports
@@ -359,7 +359,7 @@ jobs:
       AVM_OPTIM_LEVEL: ${{ matrix.avm-optim-level }}
 
     steps:
-      - uses: actions/checkout@v4.1.0
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 50
           lfs: true
@@ -367,13 +367,13 @@ jobs:
       - uses: ./.github/actions/common-setup
 
       - name: Get nightly build
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: linux-build-nightly
           path: avm_nightly_build
 
       - name: Get test data
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: test-data
           path: libavm-test-data
@@ -420,7 +420,7 @@ jobs:
           time parallel --line-buffer --jobs ${cpu_cores} < ${commands}
 
       - name: Upload logs
-        uses: actions/upload-artifact@v4.1.0
+        uses: actions/upload-artifact@v7
         if: ${{ always() }}
         with:
           name: ${{ github.job }}-${{ matrix.avm-optim-level }}-logs
@@ -435,7 +435,7 @@ jobs:
           fail_on_failure: true
 
       - name: Upload junit reports artifacts
-        uses: actions/upload-artifact@v4.1.0
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: ${{ github.job }}-${{ matrix.avm-optim-level }}-junit-report
@@ -499,7 +499,7 @@ jobs:
 
     steps:
       - name: Get nightly build
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: linux-build-nightly
           path: avm_nightly_build

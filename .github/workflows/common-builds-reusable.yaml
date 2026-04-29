@@ -302,7 +302,7 @@ jobs:
     container:
       image: ${{ inputs.container-image }}
     steps:
-      - uses: actions/checkout@v4.1.0
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 50
           lfs: true
@@ -326,7 +326,7 @@ jobs:
           cmake --build avm_docs_build --target docs
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4.1.0
+        uses: actions/upload-artifact@v7
         if: success()
         with:
           name: documentation
@@ -353,14 +353,14 @@ jobs:
       CCACHE_COMPILERCHECK: content
 
     steps:
-      - uses: actions/checkout@v4.1.0
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 50
           lfs: true
 
       - uses: ./.github/actions/common-setup
 
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v5
         with:
           path: ccache
           key: non-existent
@@ -427,13 +427,13 @@ jobs:
         run: |
           ccache --show-stats
 
-      - uses: actions/cache/save@v4
+      - uses: actions/cache/save@v5
         with:
           path: ccache
           key: ${{ github.job }}-${{ matrix.avm-sanitizer-type }}-${{ github.run_id }}
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4.1.0
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: avm-sanitizers-${{ matrix.avm-sanitizer-type }}
@@ -465,7 +465,7 @@ jobs:
       CCACHE_DIR: ${{ github.workspace }}/ccache
       CCACHE_COMPILERCHECK: content
     steps:
-      - uses: actions/checkout@v4.1.0
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 50
           fetch-tags: true
@@ -473,7 +473,7 @@ jobs:
 
       - uses: ./.github/actions/common-setup
 
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v5
         with:
           path: ccache
           key: non-existent
@@ -502,13 +502,13 @@ jobs:
         run: |
           ccache --show-stats
 
-      - uses: actions/cache/save@v4
+      - uses: actions/cache/save@v5
         with:
           path: ccache
           key: ${{ github.job }}-${{ github.run_id }}
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4.1.0
+        uses: actions/upload-artifact@v7
         if: success()
         with:
           name: example-build

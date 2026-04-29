@@ -61,7 +61,7 @@ jobs:
       AVM_SANITIZER_TYPE: ${{ inputs.avm-sanitizer-type }}
       USE_LARGE_TESTS: ${{ inputs.use-large-tests }}
     steps:
-      - uses: actions/checkout@v4.1.0
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 50
           lfs: true
@@ -72,12 +72,12 @@ jobs:
           extra-env-vars: ${{ inputs.extra-env-vars }}
 
       - name: Get sanitizer build
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: avm-sanitizers-${{ inputs.avm-sanitizer-type }}
 
       - name: Get test data
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: test-data
           path: libavm-test-data
@@ -227,7 +227,7 @@ jobs:
           exit ${exit_code}
 
       - name: Upload logs
-        uses: actions/upload-artifact@v4.1.0
+        uses: actions/upload-artifact@v7
         if: ${{ always() }}
         with:
           name: sanitizer-${{ inputs.avm-sanitizer-type }}-logs

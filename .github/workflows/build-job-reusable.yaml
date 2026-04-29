@@ -58,7 +58,7 @@ jobs:
       AVM_BUILD_CONFIG: ${{ inputs.avm-build-config }}
       PARENT_JOB_NAME: ${{ inputs.parent-job-name }}
     steps:
-      - uses: actions/checkout@v4.1.0
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 50
           lfs: true
@@ -71,7 +71,7 @@ jobs:
       - name: Run before-script
         run: ${{ inputs.before-script }}
 
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v5
         with:
           path: ccache
           key: non-existent
@@ -179,13 +179,13 @@ jobs:
         run: |
           ccache --show-stats
 
-      - uses: actions/cache/save@v4
+      - uses: actions/cache/save@v5
         with:
           path: ccache
           key: ${{ inputs.parent-job-name }}-${{ inputs.avm-build-config }}-${{ github.run_id }}
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4.1.0
+        uses: actions/upload-artifact@v7
         if: ${{ success() && inputs.artifact-paths != '' }}
         with:
           name: ${{ inputs.parent-job-name }}-${{ inputs.avm-build-config }}

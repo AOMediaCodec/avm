@@ -39,7 +39,7 @@ jobs:
     env:
       DIFF_REF: ${{ github.event.pull_request.base.sha }}
     steps:
-      - uses: actions/checkout@v4.1.0
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 50
           lfs: true
@@ -88,7 +88,7 @@ jobs:
     env:
       DIFF_REF: ${{ github.event.pull_request.base.sha }}
     steps:
-      - uses: actions/checkout@v4.1.0
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 50
           lfs: true
@@ -128,7 +128,7 @@ jobs:
     env:
       DIFF_REF: ${{ github.event.pull_request.base.sha }}
     steps:
-      - uses: actions/checkout@v4.1.0
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 50
           lfs: true
@@ -219,7 +219,7 @@ jobs:
     env:
       LIBAVM_TEST_DATA_PATH: ${{ github.workspace }}/libavm-test-data
     steps:
-      - uses: actions/checkout@v4.1.0
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
           fetch-tags: true
@@ -228,13 +228,13 @@ jobs:
       - uses: ./.github/actions/common-setup
 
       - name: Get test data
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: test-data
           path: libavm-test-data
 
       - name: Get example build
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: example-build
           path: avm_example_build
@@ -273,7 +273,7 @@ jobs:
           fi
 
       - name: Upload logs
-        uses: actions/upload-artifact@v4.1.0
+        uses: actions/upload-artifact@v7
         if: ${{ always() }}
         with:
           name: example-test-logs
@@ -397,13 +397,13 @@ jobs:
           unxz ${AVMENC_INPUT}.xz
 
       - name: Pull previous encoder build
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: previous-build-x86_64-linux-gcc-encode-only
           path: enc-previous
 
       - name: Pull current encoder build
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: example-build
           path: enc-current
@@ -473,7 +473,7 @@ jobs:
           done
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4.1.0
+        uses: actions/upload-artifact@v7
         if: ${{ always() }}
         with:
           name: encdec-${{ matrix.avm-enc-output }}
@@ -541,7 +541,7 @@ jobs:
     env:
       ANALYZER_MODE: ${{ matrix.analyzer-mode }}
     steps:
-      - uses: actions/checkout@v4.1.0
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 50
           fetch-tags: true
@@ -593,7 +593,7 @@ jobs:
           fi
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4.1.0
+        uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: analyzer-${{ matrix.analyzer-mode }}
@@ -619,7 +619,7 @@ jobs:
       image: ${{ needs.vars.outputs.container-image }}
     steps:
       - name: Pull build
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: build-x86_64-linux-gcc-shared
 
