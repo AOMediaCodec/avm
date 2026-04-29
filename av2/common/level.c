@@ -1121,17 +1121,31 @@ void av2_decoder_model_check_output_frame(const AV2_COMP *const cpi,
         (int64_t)(decoder_model->display_samples / interval);
     decoder_model->max_display_rate =
         AVMMAX(decoder_model->max_display_rate, this_display_rate);
-
-    // Minimum presentation interval check:
-    // interval >= MaxDecodeRate / (MaxHeaderRate * MaxDisplayRate)
+    const AV2LevelParams *const level_params = &cpi->level_params;
     const AV2LevelSpec *const target_spec =
         av2_level_defs + decoder_model->level;
-    const double min_frame_time = (double)target_spec->max_decode_rate /
-                                  ((double)target_spec->max_header_rate *
-                                   (double)target_spec->max_display_rate);
+    const double multi_stream_scaling_x =
+        level_params->multi_stream_scaling_x == 0
+            ? 1.0
+            : level_params->multi_stream_scaling_x;
+    const double max_display_rate =
+        (double)target_spec->max_display_rate / multi_stream_scaling_x;
+    const double max_decode_rate =
+        (double)target_spec->max_decode_rate / multi_stream_scaling_x;
+    int max_header_rate = target_spec->max_header_rate;
+    if (multi_stream_scaling_x != 1.0) {
+      const int substream_idx = level_to_sub_stream_level_index(
+          decoder_model->level, multi_stream_scaling_x);
+      max_header_rate =
+          av2_substream_level_defs[substream_idx].max_header_rate_x;
+    }
+    const double min_frame_time =
+        max_decode_rate / ((double)max_header_rate * max_display_rate);
+    const double min_interval = AVMMAX(
+        decoder_model->display_samples / max_display_rate, min_frame_time);
     decoder_model->min_presentation_interval_satisfy =
         decoder_model->min_presentation_interval_satisfy &&
-        (interval >= min_frame_time);
+        (interval >= min_interval);
 
     // Reset per-TU accumulators for the new temporal unit.
     decoder_model->display_samples = 0;
