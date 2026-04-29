@@ -129,48 +129,34 @@ void get_qindex_with_offsets(const struct AV2Common *cm, int seg_qindex,
   }
 }
 
+static int32_t qlookup(int q_clamped) {
+  if (q_clamped < 25) {
+    return ac_qlookup_QTX[q_clamped];
+  } else {
+    return ac_qlookup_QTX[((q_clamped - 1) % 24) + 1] << ((q_clamped - 1) / 24);
+  }
+}
+
+static int32_t get_q(int qindex, int delta, avm_bit_depth_t bit_depth) {
+  if ((qindex == 0) && (delta <= 0)) {
+    return ac_qlookup_QTX[0];
+  }
+
+  const int q_clamped = clamp(qindex + delta, 1,
+                              bit_depth == AVM_BITS_8    ? MAXQ_8_BITS
+                              : bit_depth == AVM_BITS_10 ? MAXQ_10_BITS
+                                                         : MAXQ);
+  return qlookup(q_clamped);
+}
+
 int32_t av2_dc_quant_QTX(int qindex, int delta, int base_dc_delta_q,
                          avm_bit_depth_t bit_depth) {
-  int q_clamped;
-  if ((qindex == 0) && (delta + base_dc_delta_q <= 0))
-    q_clamped = 0;
-  else
-    q_clamped = clamp(qindex + base_dc_delta_q + delta, 1,
-                      bit_depth == AVM_BITS_8    ? MAXQ_8_BITS
-                      : bit_depth == AVM_BITS_10 ? MAXQ_10_BITS
-                                                 : MAXQ);
-
-  if (q_clamped == 0) return (int32_t)ac_qlookup_QTX[q_clamped];
-
-  int32_t Q;
-  if (q_clamped < 25) {
-    Q = ac_qlookup_QTX[q_clamped];
-  } else {
-    Q = ac_qlookup_QTX[((q_clamped - 1) % 24) + 1] << ((q_clamped - 1) / 24);
-  }
-  return Q;
+  return get_q(qindex, delta + base_dc_delta_q, bit_depth);
 }
 
 int32_t av2_ac_quant_QTX(int qindex, int delta, int base_ac_delta_q,
                          avm_bit_depth_t bit_depth) {
-  int q_clamped;
-  if ((qindex == 0) && (delta + base_ac_delta_q <= 0))
-    q_clamped = 0;
-  else
-    q_clamped = clamp(qindex + base_ac_delta_q + delta, 1,
-                      bit_depth == AVM_BITS_8    ? MAXQ_8_BITS
-                      : bit_depth == AVM_BITS_10 ? MAXQ_10_BITS
-                                                 : MAXQ);
-
-  if (q_clamped == 0) return (int32_t)ac_qlookup_QTX[q_clamped];
-
-  int32_t Q;
-  if (q_clamped < 25) {
-    Q = ac_qlookup_QTX[q_clamped];
-  } else {
-    Q = ac_qlookup_QTX[((q_clamped - 1) % 24) + 1] << ((q_clamped - 1) / 24);
-  }
-  return Q;
+  return get_q(qindex, delta + base_ac_delta_q, bit_depth);
 }
 
 int av2_get_qindex(const struct segmentation *seg, int segment_id,
