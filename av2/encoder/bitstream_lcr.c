@@ -33,6 +33,7 @@
 #include "common/rawenc.h"
 #include "av2/encoder/bitstream.h"
 #include "av2/encoder/tokenize.h"
+#include "av2/encoder/lcr_syntax.h"
 
 static void write_lcr_aggregate_info(struct LcrAggregateInfo *ptl,
                                      struct avm_write_bit_buffer *wb) {
@@ -192,8 +193,8 @@ void write_lcr_global_payload(struct GlobalLayerConfigurationRecord *global_lcr,
   for (int j = 0; j < remaining; j++) avm_wb_write_bit(wb, 0);
 }
 
-static int write_lcr_global_info(struct LayerConfigurationRecord *lcr_params,
-                                 struct avm_write_bit_buffer *wb) {
+int av2_write_lcr_global_info(struct LayerConfigurationRecord *lcr_params,
+                              struct avm_write_bit_buffer *wb) {
   struct GlobalLayerConfigurationRecord *glcr = &lcr_params->global_lcr;
 
   avm_wb_write_literal(wb, glcr->lcr_global_config_record_id, 3);
@@ -231,8 +232,8 @@ static int write_lcr_global_info(struct LayerConfigurationRecord *lcr_params,
   return 0;
 }
 
-static int write_lcr_local_info(struct LayerConfigurationRecord *lcr_params,
-                                struct avm_write_bit_buffer *wb) {
+int av2_write_lcr_local_info(struct LayerConfigurationRecord *lcr_params,
+                             struct avm_write_bit_buffer *wb) {
   struct LocalLayerConfigurationRecord *llcr = &lcr_params->local_lcr;
 
   assert(llcr->lcr_local_id != LCR_ID_UNSPECIFIED &&
@@ -262,9 +263,9 @@ uint32_t av2_write_layer_configuration_record_obu(AV2_COMP *cpi, int xlayer_id,
   uint32_t size = 0;
   struct LayerConfigurationRecord *lcr_params = &cpi->common.lcr_params;
   if (xlayer_id == GLOBAL_XLAYER_ID)
-    write_lcr_global_info(lcr_params, &wb);
+    av2_write_lcr_global_info(lcr_params, &wb);
   else
-    write_lcr_local_info(lcr_params, &wb);
+    av2_write_lcr_local_info(lcr_params, &wb);
 
   avm_wb_write_bit(&wb, lcr_params->lcr_extension_present_flag);
   assert(!cpi->common.lcr_params.lcr_extension_present_flag);
