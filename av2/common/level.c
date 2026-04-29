@@ -1693,7 +1693,6 @@ void av2_update_level_info(AV2_COMP *cpi, size_t size, int64_t ts_start,
 
     // Store info. of current frame into FrameWindowBuffer.
     FrameWindowBuffer *const buffer = &level_info->frame_window_buffer;
-    // ToDo: consider how to bring ts_start and ts_end here (currently 0, 0).
     store_frame_record(ts_start, ts_end, size, luma_pic_size,
                        frame_header_count, tiles, immediate_output_picture,
                        show_existing_frame, buffer);
