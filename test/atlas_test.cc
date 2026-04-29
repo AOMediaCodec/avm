@@ -44,8 +44,10 @@ static uint32_t write_atlas_obu(struct AtlasSegmentInfo *atlas, uint8_t *dst) {
 class AtlasTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    pbi_ = static_cast<AV2Decoder *>(avm_calloc(1, sizeof(AV2Decoder)));
+    pbi_ = static_cast<AV2Decoder *>(
+        avm_memalign(32, sizeof(AV2Decoder)));
     ASSERT_NE(pbi_, nullptr);
+    memset(pbi_, 0, sizeof(*pbi_));
     memset(buf_, 0, sizeof(buf_));
   }
   void TearDown() override { avm_free(pbi_); }
