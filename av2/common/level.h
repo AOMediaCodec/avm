@@ -221,7 +221,8 @@ void av2_init_level_info(struct AV2_COMP *cpi);
 
 bool is_filter_enabled_frame(const AV2_COMMON *const cm);
 
-void av2_update_level_info(struct AV2_COMP *cpi, size_t size);
+void av2_update_level_info(struct AV2_COMP *cpi, size_t size, int64_t ts_start,
+                           int64_t ts_end, int decode_frame);
 
 // Compression ratio of current frame.
 double av2_get_compression_ratio(const AV2_COMMON *const cm,

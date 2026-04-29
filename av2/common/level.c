@@ -1043,6 +1043,9 @@ void av2_decoder_model_update_buffer_and_finish_frame_decode(
       if (frames_in_buffer_pool(decoder_model) >=
           decoder_model->initial_display_delay) {
         decoder_model->initial_presentation_delay = decoder_model->current_time;
+        if (decoder_model->presentation_time > 0)
+          decoder_model->presentation_time +=
+              decoder_model->initial_presentation_delay;
         // Update presentation time for each shown frame in the frame buffer.
         for (int i = 0; i < decoder_model->num_ref_frames + 2; ++i) {
           FRAME_BUFFER *const this_buffer =
@@ -1572,7 +1575,8 @@ double av2_get_compression_ratio(const AV2_COMMON *const cm,
   return uncompressed_frame_size / (double)encoded_frame_size;
 }
 
-void av2_update_level_info(AV2_COMP *cpi, size_t size) {
+void av2_update_level_info(AV2_COMP *cpi, size_t size, int64_t ts_start,
+                           int64_t ts_end, int decode_frame) {
   AV2_COMMON *const cm = &cpi->common;
   AV2LevelParams *const level_params = &cpi->level_params;
   const int upscaled_width = cm->width;
@@ -1646,23 +1650,27 @@ void av2_update_level_info(AV2_COMP *cpi, size_t size) {
     // Store info. of current frame into FrameWindowBuffer.
     FrameWindowBuffer *const buffer = &level_info->frame_window_buffer;
     // ToDo: consider how to bring ts_start and ts_end here (currently 0, 0).
-    store_frame_record(0, 0, size, luma_pic_size, frame_header_count, tiles,
-                       immediate_output_picture, show_existing_frame, buffer);
+    store_frame_record(ts_start, ts_end, size, luma_pic_size,
+                       frame_header_count, tiles, immediate_output_picture,
+                       show_existing_frame, buffer);
     if (immediate_output_picture) {
       // Count the number of frames encoded in the past 1 second.
       const int encoded_frames_in_last_second =
           immediate_output_picture ? count_frames(buffer, TICKS_PER_SEC) : 0;
       scan_past_frames(buffer, encoded_frames_in_last_second, level_spec,
                        level_stats);
+
       level_stats->total_time_encoded +=
           (cpi->time_stamps.prev_end_seen - cpi->time_stamps.prev_start_seen) /
           (double)TICKS_PER_SEC;
     }
 
-    DECODER_MODEL *const decoder_models = level_info->decoder_models;
-    for (AV2_LEVEL level = SEQ_LEVEL_2_0; level < SEQ_LEVELS; ++level) {
-      av2_decoder_model_start_frame_decode(cpi, size << 3,
-                                           &decoder_models[level], level_spec);
+    if (decode_frame) {
+      DECODER_MODEL *const decoder_models = level_info->decoder_models;
+      for (AV2_LEVEL level = SEQ_LEVEL_2_0; level < SEQ_LEVELS; ++level) {
+        av2_decoder_model_start_frame_decode(
+            cpi, size << 3, &decoder_models[level], level_spec);
+      }
     }
 
     // Check whether target level is met.

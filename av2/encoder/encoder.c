@@ -4534,8 +4534,9 @@ static bool need_sef_obu_for_hidden_frame(AV2_COMP *cpi) {
  * \retval #AVM_CODEC_OK
  * \retval #AVM_CODEC_ERROR
  */
-static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
-                                     uint8_t *dest) {
+static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size, uint8_t *dest,
+                                     int64_t *const time_stamp,
+                                     int64_t *const time_end) {
   AV2_COMMON *const cm = &cpi->common;
   SequenceHeader *const seq_params = &cm->seq_params;
   CurrentFrame *const current_frame = &cm->current_frame;
@@ -4644,6 +4645,8 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
     if (cm->immediate_output_picture) cpi->last_show_frame_buf = cm->cur_frame;
 
     if (cpi->level_params.keep_level_stats && !is_stat_generation_stage(cpi)) {
+      av2_update_level_info(cpi, *size, *time_stamp, *time_end, 0);
+
       AV2LevelParams *const level_params = &cpi->level_params;
       const int tlayer_id = cm->tlayer_id;
       const int mlayer_id = cm->mlayer_id;
@@ -4733,6 +4736,8 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
       const int xlayer_id = cm->xlayer_id;
       (void)xlayer_id;
 
+      av2_update_level_info(cpi, *size, *time_stamp, *time_end, 0);
+
       // update level_stats
       // TODO(kyslov@) fix the implementation according to buffer model
       for (int i = 0; i < seq_params->operating_points_cnt_minus_1 + 1; ++i) {
@@ -4795,6 +4800,8 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
       const int mlayer_id = cm->mlayer_id;
       const int xlayer_id = cm->xlayer_id;
       (void)xlayer_id;
+
+      av2_update_level_info(cpi, *size, *time_stamp, *time_end, 0);
 
       // update level_stats
       // TODO(kyslov@) fix the implementation according to buffer model
@@ -5003,7 +5010,7 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
     if (av2_is_shown_keyframe(cpi, cm->current_frame.frame_type)) {
       av2_init_level_info(cpi);
     }
-    av2_update_level_info(cpi, *size);
+    av2_update_level_info(cpi, *size, *time_stamp, *time_end, 1);
   }
 
   if (cpi->level_params.keep_level_stats && !is_stat_generation_stage(cpi) &&
@@ -5094,7 +5101,8 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
 int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
                const EncodeFrameInput *const frame_input,
                const EncodeFrameParams *const frame_params,
-               EncodeFrameResults *const frame_results) {
+               EncodeFrameResults *const frame_results,
+               int64_t *const time_stamp, int64_t *const time_end) {
   AV2_COMMON *const cm = &cpi->common;
   CurrentFrame *const current_frame = &cm->current_frame;
 
@@ -5334,8 +5342,8 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
       }
     }
 
-    if (encode_frame_to_data_rate(cpi, &frame_results->size, dest) !=
-        AVM_CODEC_OK) {
+    if (encode_frame_to_data_rate(cpi, &frame_results->size, dest, time_stamp,
+                                  time_end) != AVM_CODEC_OK) {
       return AVM_CODEC_ERROR;
     }
     cm->bridge_frame_info.frame_count++;
