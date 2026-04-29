@@ -171,52 +171,14 @@ int32_t av2_dc_quant_QTX(int qindex, int delta, int base_dc_delta_q,
 
   if (q_clamped == 0) return (int32_t)ac_qlookup_QTX[q_clamped];
 
-  int qindex_offset = MAXQ_OFFSET * (bit_depth - 8);
-
-  // for 8 bit video, Q is calculated as
-  //      64,                                          q_idx = 0
-  // Q =  2^((q_idx + 127)/24)                         q_idx in [1, 24]
-  //      Q[(q_idx - 1) % 24) + 1] * 2^((q_idx-1)/24)  q_idx in [25, 255]
-  if (q_clamped > MAXQ_8_BITS) {
-    switch (bit_depth) {
-      case AVM_BITS_8: assert(q_clamped <= MAXQ_8_BITS);
-      case AVM_BITS_10: {
-        int32_t Q;
-        if ((q_clamped - qindex_offset) < 25) {
-          Q = ac_qlookup_QTX[q_clamped - qindex_offset];
-        } else {
-          Q = ac_qlookup_QTX[(q_clamped - qindex_offset - 1) % 24 + 1]
-              << ((q_clamped - qindex_offset - 1) / 24);
-          assert(Q == ac_qlookup_QTX_full[q_clamped - qindex_offset]);
-        }
-        return 4 * Q;
-      }
-      case AVM_BITS_12: {
-        int32_t Q;
-        if ((q_clamped - qindex_offset) < 25) {
-          Q = ac_qlookup_QTX[q_clamped - qindex_offset];
-        } else {
-          Q = ac_qlookup_QTX[(q_clamped - qindex_offset - 1) % 24 + 1]
-              << ((q_clamped - qindex_offset - 1) / 24);
-          assert(Q == ac_qlookup_QTX_full[q_clamped - qindex_offset]);
-        }
-        return 16 * Q;
-      }
-      default:
-        assert(0 &&
-               "bit_depth should be AVM_BITS_8, AVM_BITS_10 or AVM_BITS_12");
-        return -1;
-    }
+  int32_t Q;
+  if (q_clamped < 25) {
+    Q = ac_qlookup_QTX[q_clamped];
   } else {
-    int32_t Q;
-    if (q_clamped < 25) {
-      Q = ac_qlookup_QTX[q_clamped];
-    } else {
-      Q = ac_qlookup_QTX[((q_clamped - 1) % 24) + 1] << ((q_clamped - 1) / 24);
-      assert(Q == ac_qlookup_QTX_full[q_clamped]);
-    }
-    return Q;
+    Q = ac_qlookup_QTX[((q_clamped - 1) % 24) + 1] << ((q_clamped - 1) / 24);
+    assert(Q == ac_qlookup_QTX_full[q_clamped]);
   }
+  return Q;
 }
 
 int32_t av2_ac_quant_QTX(int qindex, int delta, int base_ac_delta_q,
@@ -232,52 +194,14 @@ int32_t av2_ac_quant_QTX(int qindex, int delta, int base_ac_delta_q,
 
   if (q_clamped == 0) return (int32_t)ac_qlookup_QTX[q_clamped];
 
-  int qindex_offset = MAXQ_OFFSET * (bit_depth - 8);
-
-  // for 8 bit video, Q is calculated as
-  //      64,                                          q_idx = 0
-  // Q =  2^((q_idx + 127)/24)                         q_idx in [1, 24]
-  //      Q[(q_idx - 1) % 24) + 1] * 2^((q_idx-1)/24)  q_idx in [25, 255]
-  if (q_clamped > MAXQ_8_BITS) {
-    switch (bit_depth) {
-      case AVM_BITS_8: assert(q_clamped <= MAXQ_8_BITS);
-      case AVM_BITS_10: {
-        int32_t Q;
-        if ((q_clamped - qindex_offset) < 25) {
-          Q = ac_qlookup_QTX[q_clamped - qindex_offset];
-        } else {
-          Q = ac_qlookup_QTX[(q_clamped - qindex_offset - 1) % 24 + 1]
-              << ((q_clamped - qindex_offset - 1) / 24);
-          assert(Q == ac_qlookup_QTX_full[q_clamped - qindex_offset]);
-        }
-        return 4 * Q;
-      }
-      case AVM_BITS_12: {
-        int32_t Q;
-        if ((q_clamped - qindex_offset) < 25) {
-          Q = ac_qlookup_QTX[q_clamped - qindex_offset];
-        } else {
-          Q = ac_qlookup_QTX[(q_clamped - qindex_offset - 1) % 24 + 1]
-              << ((q_clamped - qindex_offset - 1) / 24);
-          assert(Q == ac_qlookup_QTX_full[q_clamped - qindex_offset]);
-        }
-        return 16 * Q;
-      }
-      default:
-        assert(0 &&
-               "bit_depth should be AVM_BITS_8, AVM_BITS_10 or AVM_BITS_12");
-        return -1;
-    }
+  int32_t Q;
+  if (q_clamped < 25) {
+    Q = ac_qlookup_QTX[q_clamped];
   } else {
-    int32_t Q;
-    if (q_clamped < 25) {
-      Q = ac_qlookup_QTX[q_clamped];
-    } else {
-      Q = ac_qlookup_QTX[((q_clamped - 1) % 24) + 1] << ((q_clamped - 1) / 24);
-      assert(Q == ac_qlookup_QTX_full[q_clamped]);
-    }
-    return Q;
+    Q = ac_qlookup_QTX[((q_clamped - 1) % 24) + 1] << ((q_clamped - 1) / 24);
+    assert(Q == ac_qlookup_QTX_full[q_clamped]);
   }
+  return Q;
 }
 
 int av2_get_qindex(const struct segmentation *seg, int segment_id,
