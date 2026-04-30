@@ -129,9 +129,12 @@ void av2_sbe_process_local_ops(SubBitstreamExtractionState *sbe,
 // Build the retention map from collected OPS/LCR data (Steps 3-5).
 // Called once before the first non-structural OBU in a temporal unit.
 // pbi is needed to access ops_list for mlayer/tlayer map data.
+// triggering_xlayer_id is the obu_xlayer_id of the OBU that triggered
+// retention map construction (used for singlestream xlayer detection).
 // Returns 1 if map was built, 0 if already ready.
 int av2_sbe_build_retention_map(SubBitstreamExtractionState *sbe,
-                                struct AV2Decoder *pbi);
+                                struct AV2Decoder *pbi,
+                                int triggering_xlayer_id);
 
 // Phase 2 core filter: determine whether an OBU should be retained
 // in the sub-bitstream (Annex F F.3.2).

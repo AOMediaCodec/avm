@@ -2522,7 +2522,8 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
     if (pbi->sbe_state.extraction_enabled) {
       if (!pbi->sbe_state.retention_map_ready &&
           !is_sbe_structural_obu(obu_header.type)) {
-        av2_sbe_build_retention_map(&pbi->sbe_state, pbi);
+        av2_sbe_build_retention_map(&pbi->sbe_state, pbi,
+                                    obu_header.obu_xlayer_id);
       }
       if (pbi->sbe_state.retention_map_ready) {
         if (!av2_sbe_should_retain_obu(
