@@ -54,7 +54,7 @@
  * MSDO only            |       1        | from MSDO stream list
  * Global LCR only      |       1        | from LCR xlayer_ids list
  * MSDO + Global LCR    |       1        | from both (duplicates ignored)
- * Neither              |       0        | xlayer 0 only (singlestream)
+ * Neither              |       0        | triggering OBU's xlayer (singlestream)
  *
  * Notes:
  * - MSDO takes priority: if seen, global LCR does not re-determine type.
@@ -400,17 +400,24 @@ void av2_sbe_process_local_ops(SubBitstreamExtractionState *sbe,
 
 // Build the complete retention map (Steps 3-5).
 int av2_sbe_build_retention_map(SubBitstreamExtractionState *sbe,
-                                struct AV2Decoder *pbi) {
+                                struct AV2Decoder *pbi,
+                                int triggering_xlayer_id) {
   if (sbe->retention_map_ready) return 0;
 
   // Step 2 finalization: if no MSDO or global LCR, it's singlestream
   if (!sbe->bitstream_type_determined) {
     sbe->is_multistream = 0;
     sbe->bitstream_type_determined = 1;
-    // Singlestream: mark xlayer 0 as the only present xlayer
+    // Singlestream: mark the triggering OBU's xlayer as the only present
+    // xlayer. The spec says to mark the single extended layer identifier
+    // present in the bitstream, which is not necessarily xlayer 0.
     if (sbe->num_xlayers_present == 0) {
-      sbe->xlayer_present[0] = 1;
-      sbe->xlayer_ids_present[0] = 0;
+      const int xid = (triggering_xlayer_id >= 0 &&
+                       triggering_xlayer_id < MAX_NUM_XLAYERS - 1)
+                          ? triggering_xlayer_id
+                          : 0;
+      sbe->xlayer_present[xid] = 1;
+      sbe->xlayer_ids_present[0] = xid;
       sbe->num_xlayers_present = 1;
     }
   }
