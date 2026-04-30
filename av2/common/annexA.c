@@ -20,7 +20,7 @@
 /* clang-format off */
 /*
 //===================================================================================
-// Table A.1: AV2 Multi-Sequence Configurations
+// Table A.6: AV2 Multi-Sequence Configurations
 //===================================================================================
  * ConfigurationID | Configuration Label | Toolset |  BitDepth   | Chroma Format
  * ----------------|---------------------|---------|-------------|-------------------
@@ -32,9 +32,8 @@
  *
  * Notes:
  * - ConfigurationID: Identifies the multi-sequence configuration (6-bit value)
- * - Chroma Format: Supplrted bit depths for this configuration
+ * - BitDepth: Supported bit depths for this configuration
  * - Chroma Format: Support chroma subsampling formats
- * - Resered: ConfigurationID valies 3-64 are reserved for future use
  */
 /* clang-format on */
 
@@ -45,35 +44,34 @@ typedef enum {
 } AV2_CONFIGURATION_LABEL;
 
 /* clang-format off */
-/*=================================================================
-// Table A.2: Allowed Values for Sub-Bitstream Syntax Elements
-//=================================================================
- *
- * Table A.2: Allowed Values for Sub-Bitstream Syntax Elements Accoring to Multi-Sequence Configuration
- *
+/*
+//===========================================================================
+// Table A.7: Allowed syntax element values for multi-sequence configurations
+//===========================================================================
  *  Configuration Label    |   seq_profile_idc    |    chroma_format_idc    |    bit_depth_idc
  * ------------------------|----------------------|-------------------------|---------------
- *   C_Main_420_10         | 0..5                 | 0 or 1                  | 0 or 1
- *   C_Main_422_10         | 0..5                 | 0, 1, 3                 | 0 or 1
- *   C_Main_444_10         | 0..5                 | 0, 1, 2                 | 0 or 1
+ *   C_Main_420_10         | 0..2, 31             | 0 or 1                  | 0 or 1
+ *   C_Main_422_10         | 0..3, 31             | 0, 1, 3                 | 0 or 1
+ *   C_Main_444_10         | 0..2, 4, 31          | 0, 1, 2                 | 0 or 1
  *
  * Notes:
- * - seq_profile_idc: Allowed profile values (0=MAIN_420_10_IP0, 1=MAIN_420_10_IP1, 2=MAIN_420_10_IP2,
- *                                            3=MAIN_422_10_IP1, 4=MAIN_444_10_IP1, 31=Configurable)
+ * - seq_profile_idc: Allowed profile values
  * - bit_depth_idc: 0=8-bit, 1=10-bit
- * - C_Main_420_10: Supports profiles 0-5, chroma 4:0:0 and 4:2:0, bit depths 8 and 10
- * - C_Main_422_10: Supports profiles 0-5, chroma 4:0:0, 4:2:0 and 4:2:2, bit depth 8 and 10
- * - C_Main_444_10: Supports profiles 0-5, chroma 4:0:0, 4:2:0, and 4:4:4, bit depth 8 and 10
+ * - chroma_format_idc: chroma format ID
  */
 
-// Interoperability Point Table
+/*
+//=======================================
+// Table A.4: AV2 interoperability points
+//=======================================
 // Number of interoperability points (0-15)
 
-// INTEROP_0: Max 4 extended, 1 embedded, no combinations
-// INTEROP_1: Max 4 extended, 2 embedded, no combinations
-// INTEROP_2: Max 4 extended, 3 embedded, combinations allowed
-// INTEROP_3-14: Reserved
-// INTEROP_15: Max values, combinations allowed
+- INTEROP_0: Max 4 extended, 1 embedded, no combinations
+- INTEROP_1: Max 4 extended, 2 embedded, no combinations
+- INTEROP_2: Max 4 extended, 3 embedded, combinations allowed
+- INTEROP_3-14: Reserved
+- INTEROP_15 (max): Max 31 extended, 8 embedded, combinations allowed
+*/
 /* clang-format on */
 
 typedef enum {
@@ -96,23 +94,27 @@ static const int seq_profile_max_mlayer_cnt[MAX_PROFILES] = {
 };
 
 /* clang-format off */
-/* Table A4 Allowed values for sub-bitstream syntax elements to conform to a specific AV2 profile
- *  Profile Label          |    seq_profile_idc    |    chroma_format_idc    |    bit_depth_idc    |    max_mlayer_cnt
+/*
+// ===================================
+// Table A.2: AV2 profile definitions
+//===================================
+ *
+ *  Profile Label          |    seq_profile_idc    |    chroma_format_idc    |    bit_depth_idc    |    Interoperability point
  * -------------------------------------------------------------------------------------------------------------------
- *  Main_420_10_IP0                   0                  CHROMA_FORMAT_400          0 or 1                        1
+ *  Main_420_10_IP0                   0                  CHROMA_FORMAT_400          0 or 1                        0
  *                                                       CHROMA_FORMAT_420
  * -------------------------------------------------------------------------------------------------------------------
- *  Main_420_10_IP1                   1                  CHROMA_FORMAT_400          0 or 1                        2
+ *  Main_420_10_IP1                   1                  CHROMA_FORMAT_400          0 or 1                        1
  *                                                       CHROMA_FORMAT_420
  * --------------------------------------------------------------------------------------------------------------------
- *  Main_420_10_IP2                   2                  CHROMA_FORMAT_400          0 or 1                        3
+ *  Main_420_10_IP2                   2                  CHROMA_FORMAT_400          0 or 1                        2
  *                                                       CHROMA_FORMAT_420
  * --------------------------------------------------------------------------------------------------------------------
- *  Main_422_10_IP1                   3                  CHROMA_FORMAT_400          0 or 1                        2
+ *  Main_422_10_IP1                   3                  CHROMA_FORMAT_400          0 or 1                        1
  *                                                       CHROMA_FORMAT_420
  *                                                       CHROMA_FORMAT_422
  * ---------------------------------------------------------------------------------------------------------------------
- *  Main_444_10_IP1                   4                  CHROMA_FORMAT_400          0 or 1                        2
+ *  Main_444_10_IP1                   4                  CHROMA_FORMAT_400          0 or 1                        1
  *                                                       CHROMA_FORMAT_420
  *                                                       CHROMA_FORMAT_444
  * ---------------------------------------------------------------------------------------------------------------------
@@ -267,41 +269,36 @@ int av2_check_profile_interop_conformance(
 }
 
 /* clang-format off */
-/*=================================================================
-// Profile Scaling and Bitrate Functions
-//=================================================================
+/*
+//==============================================================================================
+// Table A.3: Definition of ProfileScalingFactor, PicSizeProfileFactor, and BitrateProfileFactor
+//==============================================================================================
+*
+* seq_profile_idc or multistream_profile_idc  | ProfileScalingFactor | PicSizeProfileFactor | BitrateProfileFactor |
+* ------------------------------------------------------------------------------------------------------------------
+* 0, 1, 2                                     | 0                    | 15                   | 1.0                  |
+* ------------------------------------------------------------------------------------------------------------------
+* 3                                           | 1                    | 20                   | 1.667                |
+* ------------------------------------------------------------------------------------------------------------------
+* 4                                           | 2                    | 30                   | 2.5                  |
+* ------------------------------------------------------------------------------------------------------------------
+* 31                                          | -                    | -                    | -                    |
+* ------------------------------------------------------------------------------------------------------------------
 
- * Table A.5: Definition of ProfileScalingFactor
- * seq_profile_idc          ProfileScalingFactor
- * ----------------------------------------------------------------
- * (0, 1, 2)                        0
- * ----------------------------------------------------------------
- *      3                           1
- * ----------------------------------------------------------------
- *      4                           2
- * ----------------------------------------------------------------
- *      31                          -
- * ----------------------------------------------------------------
- */
 /* clang-format on */
 
 int get_profile_scaling_factor(int seq_profile_idc) {
-  // Table A.5: Definition of ProfileScalingFactor
-  // Note that the bit_depth_idx must be 0 or 1 for all valid combinations
 
-  // All profiles (0-5) with 400 or 420 chroma format
   if (seq_profile_idc == MAIN_420_10_IP0 ||
       seq_profile_idc == MAIN_420_10_IP1 ||
       seq_profile_idc == MAIN_420_10_IP2) {
     return 0;
   }
 
-  // Profile 4 with 422 chroma format
   if (seq_profile_idc == MAIN_422_10_IP1) {
     return 1;
   }
 
-  // Profile 5 with 444 chroma format
   if (seq_profile_idc == MAIN_444_10_IP1) {
     return 2;
   }
