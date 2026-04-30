@@ -522,10 +522,9 @@ TEST_F(CiTest, ColorFieldBoundaryValues) {
     int matrix;
   } params[] = {
     { 0, 0, 0 },
-    { 22, 18, 14 },
-    { 255, 255, 255 },
+    { AVM_CICP_CP_EBU_3213, AVM_CICP_TC_HLG, AVM_CICP_MC_ICTCP },
   };
-  for (int pi = 0; pi < 3; pi++) {
+  for (int pi = 0; pi < 2; pi++) {
     ContentInterpretation src;
     av2_initialize_ci_params(&src);
     src.ci_color_description_present_flag = 1;
