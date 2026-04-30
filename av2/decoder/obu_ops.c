@@ -223,6 +223,13 @@ uint32_t av2_read_operating_point_set_obu(struct AV2Decoder *pbi,
                       "of referenced OPS %d.",
                       j, ref_op_index, ref_ops->ops_cnt, ref_ops_id);
                 }
+                if (ref_ops_id == ops_id && ref_op_index >= i) {
+                  avm_internal_error(
+                      &pbi->common.error, AVM_CODEC_UNSUP_BITSTREAM,
+                      "ops_embedded_ops_id[%d] references current OPS %d "
+                      "with op_index %d >= current op_index %d.",
+                      j, ops_id, ref_op_index, i);
+                }
                 const OperatingPoint *ref_op = &ref_ops->op[ref_op_index];
                 op->mlayer_info.ops_mlayer_map[j] =
                     ref_op->mlayer_info.ops_mlayer_map[j];
