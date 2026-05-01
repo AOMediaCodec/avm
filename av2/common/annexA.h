@@ -21,7 +21,7 @@
  * - Profile scaling factor calculations
  * - Interoperability point validation
  * - Profile selection for LCR, OPS, and MSDO
- * Note: For detailed Annex A tabled (Table A.1 and A.2) see av2/common/AnnexA.c
+ * Note: For detailed Annex A tables, see av2/common/AnnexA.c
  */
 
 #include "avm/avm_codec.h"

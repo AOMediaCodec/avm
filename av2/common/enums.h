@@ -269,7 +269,7 @@ enum {
 #define PROFILE_BITS 5
 #define CONFIG_BITS 6
 #define INTEROP_BITS 4
-// Refer to Table A.4 in annexA.c
+// Refer to Table A.1 in annexA.c
 enum {
   MAIN_420_10_IP0 = 0,
   MAIN_420_10_IP1 = 1,

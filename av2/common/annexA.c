@@ -20,7 +20,7 @@
 /* clang-format off */
 /*
 //===================================================================================
-// Table A.6: AV2 Multi-Sequence Configurations
+// Table A.5: AV2 Multi-Sequence Configurations
 //===================================================================================
  * ConfigurationID | Configuration Label | Toolset |  BitDepth   | Chroma Format
  * ----------------|---------------------|---------|-------------|-------------------
@@ -46,7 +46,7 @@ typedef enum {
 /* clang-format off */
 /*
 //===========================================================================
-// Table A.7: Allowed syntax element values for multi-sequence configurations
+// Table A.6: Allowed syntax element values for multi-sequence configurations
 //===========================================================================
  *  Configuration Label    |   seq_profile_idc    |    chroma_format_idc    |    bit_depth_idc
  * ------------------------|----------------------|-------------------------|---------------
@@ -62,7 +62,7 @@ typedef enum {
 
 /*
 //=======================================
-// Table A.4: AV2 interoperability points
+// Table A.3: AV2 interoperability points
 //=======================================
 // Number of interoperability points (0-15)
 
@@ -96,7 +96,7 @@ static const int seq_profile_max_mlayer_cnt[MAX_PROFILES] = {
 /* clang-format off */
 /*
 // ===================================
-// Table A.2: AV2 profile definitions
+// Table A.1: AV2 profile definitions
 //===================================
  *
  *  Profile Label          |    seq_profile_idc    |    chroma_format_idc    |    bit_depth_idc    |    Interoperability point
@@ -271,7 +271,7 @@ int av2_check_profile_interop_conformance(
 /* clang-format off */
 /*
 //==============================================================================================
-// Table A.3: Definition of ProfileScalingFactor, PicSizeProfileFactor, and BitrateProfileFactor
+// Table A.2: Definition of ProfileScalingFactor, PicSizeProfileFactor, and BitrateProfileFactor
 //==============================================================================================
 *
 * seq_profile_idc or multistream_profile_idc  | ProfileScalingFactor | PicSizeProfileFactor | BitrateProfileFactor |
