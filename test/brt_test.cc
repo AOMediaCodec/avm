@@ -33,7 +33,7 @@ static void rb_error_handler(void *data, avm_codec_err_t error,
 }
 
 static uint32_t write_brt_obu(const BufferRemovalTimingInfo *brt,
-                               uint8_t *dst) {
+                              uint8_t *dst) {
   struct avm_write_bit_buffer wb = { dst, 0 };
   av2_write_brt_info(brt, &wb);
   avm_wb_write_bit(&wb, 1);  // trailing stop bit
@@ -47,8 +47,7 @@ static uint32_t write_brt_obu(const BufferRemovalTimingInfo *brt,
 class BrtTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    pbi_ = static_cast<AV2Decoder *>(
-        avm_memalign(32, sizeof(AV2Decoder)));
+    pbi_ = static_cast<AV2Decoder *>(avm_memalign(32, sizeof(AV2Decoder)));
     ASSERT_NE(pbi_, nullptr);
     memset(pbi_, 0, sizeof(*pbi_));
     memset(buf_, 0, sizeof(buf_));
@@ -70,8 +69,7 @@ TEST_F(BrtTest, NonOpsDependent) {
 
   struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                     rb_error_handler };
-  uint32_t read =
-      av2_read_buffer_removal_timing_obu(pbi_, &rb, 0);
+  uint32_t read = av2_read_buffer_removal_timing_obu(pbi_, &rb, 0);
   ASSERT_EQ(read, written);
 
   EXPECT_EQ(pbi_->common.brt_info.br_ops_dependent_flag, 0);
@@ -100,8 +98,7 @@ TEST_F(BrtTest, OpsDependentWithModel) {
 
   struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                     rb_error_handler };
-  uint32_t read =
-      av2_read_buffer_removal_timing_obu(pbi_, &rb, 0);
+  uint32_t read = av2_read_buffer_removal_timing_obu(pbi_, &rb, 0);
   ASSERT_EQ(read, written);
 
   const BufferRemovalTimingInfo *dst = &pbi_->common.brt_info;
@@ -132,8 +129,7 @@ TEST_F(BrtTest, OpsDependentNoModel) {
 
   struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                     rb_error_handler };
-  uint32_t read =
-      av2_read_buffer_removal_timing_obu(pbi_, &rb, 0);
+  uint32_t read = av2_read_buffer_removal_timing_obu(pbi_, &rb, 0);
   ASSERT_EQ(read, written);
 
   EXPECT_EQ(pbi_->common.brt_info.br_ops_dependent_flag, 1);
@@ -158,8 +154,7 @@ TEST_F(BrtTest, BrTimeRiceGolombSweep) {
     pbi_->common.error.error_code = AVM_CODEC_OK;
     struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                       rb_error_handler };
-    uint32_t read =
-        av2_read_buffer_removal_timing_obu(pbi_, &rb, 0);
+    uint32_t read = av2_read_buffer_removal_timing_obu(pbi_, &rb, 0);
     ASSERT_EQ(read, written) << "val=" << values[vi];
     EXPECT_EQ(pbi_->common.brt_info.br_time, values[vi]);
   }
@@ -185,8 +180,7 @@ TEST_F(BrtTest, OpsIdBoundarySweep) {
 
     struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                       rb_error_handler };
-    uint32_t read =
-        av2_read_buffer_removal_timing_obu(pbi_, &rb, 0);
+    uint32_t read = av2_read_buffer_removal_timing_obu(pbi_, &rb, 0);
     ASSERT_EQ(read, written) << "id=" << ids[ii];
     EXPECT_EQ(pbi_->common.brt_info.br_ops_id, ids[ii]);
   }
@@ -212,8 +206,7 @@ TEST_F(BrtTest, OpsCntSweep) {
 
     struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                       rb_error_handler };
-    uint32_t read =
-        av2_read_buffer_removal_timing_obu(pbi_, &rb, 0);
+    uint32_t read = av2_read_buffer_removal_timing_obu(pbi_, &rb, 0);
     ASSERT_EQ(read, written) << "cnt=" << counts[ci];
     EXPECT_EQ(pbi_->common.brt_info.br_ops_cnt[0], counts[ci]);
   }

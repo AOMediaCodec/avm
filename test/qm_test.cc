@@ -37,8 +37,8 @@ static void rb_error_handler(void *data, avm_codec_err_t error,
 // Write a QM OBU manually. Supports predefined matrices only
 // (user-defined matrices require codec-internal scan order tables).
 static uint32_t write_qm_obu_predefined(int qm_bit_map,
-                                         int qm_chroma_info_present_flag,
-                                         uint8_t *dst) {
+                                        int qm_chroma_info_present_flag,
+                                        uint8_t *dst) {
   struct avm_write_bit_buffer wb = { dst, 0 };
   avm_wb_write_literal(&wb, qm_bit_map, NUM_CUSTOM_QMS);
   avm_wb_write_bit(&wb, qm_chroma_info_present_flag);
@@ -62,8 +62,7 @@ static uint32_t write_qm_obu_predefined(int qm_bit_map,
 class QmTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    pbi_ = static_cast<AV2Decoder *>(
-        avm_memalign(32, sizeof(AV2Decoder)));
+    pbi_ = static_cast<AV2Decoder *>(avm_memalign(32, sizeof(AV2Decoder)));
     ASSERT_NE(pbi_, nullptr);
     memset(pbi_, 0, sizeof(*pbi_));
     memset(buf_, 0, sizeof(buf_));
@@ -149,8 +148,7 @@ TEST_F(QmTest, ChromaInfoPresentFlag) {
                                       rb_error_handler };
     uint32_t acc_bitmap = 0;
     int zero_signalled = 0;
-    uint32_t read =
-        read_qm_obu(pbi_, 0, 0, &acc_bitmap, &zero_signalled, &rb);
+    uint32_t read = read_qm_obu(pbi_, 0, 0, &acc_bitmap, &zero_signalled, &rb);
     ASSERT_EQ(read, written) << "chroma=" << chroma;
 
     int expected_planes = chroma ? 3 : 1;
@@ -235,8 +233,7 @@ TEST_F(QmTest, SingleBitPositionSweep) {
                                       rb_error_handler };
     uint32_t acc_bitmap = 0;
     int zero_signalled = 0;
-    uint32_t read =
-        read_qm_obu(pbi_, 0, 0, &acc_bitmap, &zero_signalled, &rb);
+    uint32_t read = read_qm_obu(pbi_, 0, 0, &acc_bitmap, &zero_signalled, &rb);
     ASSERT_EQ(read, written) << "bit=" << bit;
     EXPECT_EQ(acc_bitmap, (uint32_t)(1 << bit)) << "bit=" << bit;
     EXPECT_EQ(pbi_->qm_list[bit].qm_id, bit) << "bit=" << bit;

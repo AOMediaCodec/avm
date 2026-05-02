@@ -37,12 +37,11 @@ static void rb_error_handler(void *data, avm_codec_err_t error,
 
 // Write an FGM model body with zero scaling points (simplest syntax path).
 static void write_fgm_model_zero_points(int chroma_idc, int scaling_shift,
-                                         int ar_coeff_lag, int ar_coeff_shift,
-                                         int grain_scale_shift,
-                                         int overlap_flag,
-                                         int clip_to_restricted_range,
-                                         int mc_identity, int block_size,
-                                         struct avm_write_bit_buffer *wb) {
+                                        int ar_coeff_lag, int ar_coeff_shift,
+                                        int grain_scale_shift, int overlap_flag,
+                                        int clip_to_restricted_range,
+                                        int mc_identity, int block_size,
+                                        struct avm_write_bit_buffer *wb) {
   int monochrome = (chroma_idc == CHROMA_FORMAT_400);
   int num_channels = monochrome ? 1 : 3;
 
@@ -66,14 +65,11 @@ static void write_fgm_model_zero_points(int chroma_idc, int scaling_shift,
   avm_wb_write_bit(wb, block_size);
 }
 
-static uint32_t write_fgm_obu_zero_points(int fgm_bit_map, int chroma_idc,
-                                           int scaling_shift, int ar_coeff_lag,
-                                           int ar_coeff_shift,
-                                           int grain_scale_shift,
-                                           int overlap_flag,
-                                           int clip_to_restricted_range,
-                                           int mc_identity, int block_size,
-                                           uint8_t *dst) {
+static uint32_t write_fgm_obu_zero_points(
+    int fgm_bit_map, int chroma_idc, int scaling_shift, int ar_coeff_lag,
+    int ar_coeff_shift, int grain_scale_shift, int overlap_flag,
+    int clip_to_restricted_range, int mc_identity, int block_size,
+    uint8_t *dst) {
   struct avm_write_bit_buffer wb = { dst, 0 };
   avm_wb_write_literal(&wb, fgm_bit_map, MAX_FGM_NUM);
   avm_wb_write_uvlc(&wb, chroma_idc);
@@ -98,8 +94,7 @@ static uint32_t write_fgm_obu_zero_points(int fgm_bit_map, int chroma_idc,
 class FgmTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    pbi_ = static_cast<AV2Decoder *>(
-        avm_memalign(32, sizeof(AV2Decoder)));
+    pbi_ = static_cast<AV2Decoder *>(avm_memalign(32, sizeof(AV2Decoder)));
     ASSERT_NE(pbi_, nullptr);
     memset(pbi_, 0, sizeof(*pbi_));
     memset(buf_, 0, sizeof(buf_));
@@ -111,8 +106,8 @@ class FgmTest : public ::testing::Test {
 };
 
 TEST_F(FgmTest, MonochromeZeroPoints) {
-  uint32_t written = write_fgm_obu_zero_points(
-      0x1, CHROMA_FORMAT_400, 8, 0, 6, 0, 0, 0, 0, 0, buf_);
+  uint32_t written = write_fgm_obu_zero_points(0x1, CHROMA_FORMAT_400, 8, 0, 6,
+                                               0, 0, 0, 0, 0, buf_);
   ASSERT_GT(written, 0u);
 
   struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
@@ -133,8 +128,8 @@ TEST_F(FgmTest, MonochromeZeroPoints) {
 }
 
 TEST_F(FgmTest, Chroma420ZeroPoints) {
-  uint32_t written = write_fgm_obu_zero_points(
-      0x1, CHROMA_FORMAT_420, 10, 2, 8, 1, 1, 1, 0, 1, buf_);
+  uint32_t written = write_fgm_obu_zero_points(0x1, CHROMA_FORMAT_420, 10, 2, 8,
+                                               1, 1, 1, 0, 1, buf_);
   ASSERT_GT(written, 0u);
 
   struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
@@ -162,8 +157,8 @@ TEST_F(FgmTest, Chroma420ZeroPoints) {
 TEST_F(FgmTest, ClipToRestrictedRangeSweep) {
   for (int clip = 0; clip < 2; clip++) {
     memset(buf_, 0, sizeof(buf_));
-    uint32_t written = write_fgm_obu_zero_points(
-        0x1, CHROMA_FORMAT_400, 8, 0, 6, 0, 0, clip, clip, 0, buf_);
+    uint32_t written = write_fgm_obu_zero_points(0x1, CHROMA_FORMAT_400, 8, 0,
+                                                 6, 0, 0, clip, clip, 0, buf_);
     ASSERT_GT(written, 0u) << "clip=" << clip;
 
     memset(pbi_, 0, sizeof(*pbi_));
@@ -220,8 +215,8 @@ TEST_F(FgmTest, ChromaFormatSweep) {
                           CHROMA_FORMAT_444, CHROMA_FORMAT_422 };
   for (int fi = 0; fi < 4; fi++) {
     memset(buf_, 0, sizeof(buf_));
-    uint32_t written = write_fgm_obu_zero_points(
-        0x1, formats[fi], 8, 0, 6, 0, 0, 0, 0, 0, buf_);
+    uint32_t written = write_fgm_obu_zero_points(0x1, formats[fi], 8, 0, 6, 0,
+                                                 0, 0, 0, 0, buf_);
     ASSERT_GT(written, 0u) << "fmt=" << formats[fi];
 
     memset(pbi_, 0, sizeof(*pbi_));
@@ -238,8 +233,8 @@ TEST_F(FgmTest, BitmapSingleSlotSweep) {
   for (int bit = 0; bit < MAX_FGM_NUM; bit++) {
     int fgm_bit_map = 1 << bit;
     memset(buf_, 0, sizeof(buf_));
-    uint32_t written = write_fgm_obu_zero_points(
-        fgm_bit_map, CHROMA_FORMAT_400, 8, 0, 6, 0, 0, 0, 0, 0, buf_);
+    uint32_t written = write_fgm_obu_zero_points(fgm_bit_map, CHROMA_FORMAT_400,
+                                                 8, 0, 6, 0, 0, 0, 0, 0, buf_);
     ASSERT_GT(written, 0u) << "bit=" << bit;
 
     memset(pbi_, 0, sizeof(*pbi_));
@@ -254,8 +249,8 @@ TEST_F(FgmTest, BitmapSingleSlotSweep) {
 }
 
 TEST_F(FgmTest, TlayerMlayerIds) {
-  uint32_t written = write_fgm_obu_zero_points(
-      0x1, CHROMA_FORMAT_400, 8, 0, 6, 0, 0, 0, 0, 0, buf_);
+  uint32_t written = write_fgm_obu_zero_points(0x1, CHROMA_FORMAT_400, 8, 0, 6,
+                                               0, 0, 0, 0, 0, buf_);
   ASSERT_GT(written, 0u);
 
   struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
