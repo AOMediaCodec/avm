@@ -380,6 +380,7 @@ static void set_good_speed_features_framesize_independent(
     // Cap the DRL depth for a fresh single-ref NEWMV search; reuse the
     // nearest searched result beyond the cap.
     sf->mv_sf.newmv_drl_search_limit = 2;
+    sf->inter_sf.prune_amvd_newmv = 1;
 
     sf->tx_sf.tx_type_search.skip_tx_search = 1;
     sf->tx_sf.tx_type_search.eob_adapt_skip_tx_search = true;
@@ -796,6 +797,7 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->skip_mode_eval_based_on_rate_cost = 0;
   inter_sf->reuse_erp_mode_flag = 0;
   inter_sf->prune_warpmv_prob_thresh = 32;
+  inter_sf->prune_amvd_newmv = 0;
   inter_sf->enable_enhanced_inter_mode_cache_reuse = 0;
 }
 
