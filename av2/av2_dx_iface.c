@@ -822,9 +822,10 @@ static size_t check_frame_unit_data(struct AV2Decoder *pbi, const uint8_t *data,
         sh_id = avm_rb_read_uvlc(&rb);  // seq_header_id_in_frame_header
       } else if (mfh_id < MAX_MFH_NUM) {
         sh_id = prescan_mfh_sh[mfh_id] >= 0
-                    ? prescan_mfh_sh[mfh_id]
+                    ? (uint32_t)prescan_mfh_sh[mfh_id]
                     : (pbi->common.mfh_valid[mfh_id]
-                           ? pbi->common.mfh_params[mfh_id].mfh_seq_header_id
+                           ? (uint32_t)pbi->common.mfh_params[mfh_id]
+                                 .mfh_seq_header_id
                            : UINT32_MAX);
       }
 
