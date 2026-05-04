@@ -10,6 +10,7 @@
  * aomedia.org/license/patent-license/.
  */
 
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -609,6 +610,14 @@ static void set_last_frame_unit(struct AV2Decoder *pbi) {
   }
 }
 
+static void bitreader_set_failed(void *data, avm_codec_err_t error,
+                                 const char *detail) {
+  bool *failed = (bool *)data;
+  (void)error;
+  (void)detail;
+  *failed = true;
+}
+
 // This function checks the size of one frame unit
 // data(globalHLS+localHLS+SH+(CI+MFH+QM+FGM+BRT+MT)+(tilegroup+...+tilegroup)+MT+PADDING)
 // and returns the size. It counts number of obus in this frame unit data. It
@@ -747,39 +756,44 @@ static size_t check_frame_unit_data(struct AV2Decoder *pbi, const uint8_t *data,
     // CMVS-end check can determine global LCR activation before decode.
 
     // Sequence header: extract seq_header_id and seq_lcr_id.
-    if (obu_header.type == OBU_SEQUENCE_HEADER && payload_size >= 2) {
+    if (obu_header.type == OBU_SEQUENCE_HEADER) {
+      bool failed = false;
       struct avm_read_bit_buffer rb = { data_read + bytes_read,
                                         data_read + bytes_read + payload_size,
-                                        0, NULL, NULL };
-      int sh_id = avm_rb_read_uvlc(&rb);  // seq_header_id
-      if (sh_id >= 0 && sh_id < MAX_SEQ_NUM) {
+                                        0, &failed, bitreader_set_failed };
+      uint32_t sh_id = avm_rb_read_uvlc(&rb);  // seq_header_id
+      if (sh_id < MAX_SEQ_NUM) {
         BITSTREAM_PROFILE profile = av2_read_profile(&rb);
         int sph = avm_rb_read_bit(&rb);  // single_picture_header_flag
         int level = avm_rb_read_literal(&rb, LEVEL_BITS);
         if (level >= SEQ_LEVEL_4_0 && !sph) avm_rb_read_bit(&rb);  // seq_tier
-        parse_chroma_format_bitdepth(&rb, profile);
+        if (parse_chroma_format_bitdepth(&rb, profile) != AVM_CODEC_OK)
+          return 0;
         int lcr_id = sph ? LCR_ID_UNSPECIFIED : avm_rb_read_literal(&rb, 3);
         prescan_sh_lcr[obu_header.obu_xlayer_id][sh_id] = lcr_id;
       }
+      if (failed) return 0;
     }
 
     // Multi-frame header: extract mfh_id and mfh_seq_header_id.
-    if (obu_header.type == OBU_MULTI_FRAME_HEADER && payload_size >= 1) {
+    if (obu_header.type == OBU_MULTI_FRAME_HEADER) {
+      bool failed = false;
       struct avm_read_bit_buffer rb = { data_read + bytes_read,
                                         data_read + bytes_read + payload_size,
-                                        0, NULL, NULL };
-      int mfh_sh = avm_rb_read_uvlc(&rb);      // mfh_seq_header_id
-      int mfh_id = avm_rb_read_uvlc(&rb) + 1;  // cur_mfh_id
-      if (mfh_id < MAX_MFH_NUM && mfh_sh < MAX_SEQ_NUM)
-        prescan_mfh_sh[mfh_id] = mfh_sh;
+                                        0, &failed, bitreader_set_failed };
+      uint32_t mfh_sh = avm_rb_read_uvlc(&rb);          // mfh_seq_header_id
+      uint32_t mfh_id_minus_1 = avm_rb_read_uvlc(&rb);  // mfh_id_minus_1
+      if (mfh_id_minus_1 < MAX_MFH_NUM - 1 && mfh_sh < MAX_SEQ_NUM)
+        prescan_mfh_sh[mfh_id_minus_1 + 1] = mfh_sh;
+      if (failed) return 0;
     }
 
     // LCR OBU: extract IDs for local and global LCRs.
-    if (obu_header.type == OBU_LAYER_CONFIGURATION_RECORD &&
-        payload_size >= 1) {
+    if (obu_header.type == OBU_LAYER_CONFIGURATION_RECORD) {
+      bool failed = false;
       struct avm_read_bit_buffer rb = { data_read + bytes_read,
                                         data_read + bytes_read + payload_size,
-                                        0, NULL, NULL };
+                                        0, &failed, bitreader_set_failed };
       if (obu_header.obu_xlayer_id == GLOBAL_XLAYER_ID) {
         int lcr_id =
             avm_rb_read_literal(&rb, 3);  // lcr_global_config_record_id
@@ -790,30 +804,31 @@ static size_t check_frame_unit_data(struct AV2Decoder *pbi, const uint8_t *data,
         if (l_id < MAX_NUM_LCR)
           prescan_new_local_lcr[obu_header.obu_xlayer_id][l_id] = g_id;
       }
+      if (failed) return 0;
     }
 
     // CLK/OLK frame header: extract seq_header_id and check activation.
     // By OBU ordering, all SH/MFH/LCR OBUs precede the frame header.
-    if ((obu_header.type == OBU_CLOSED_LOOP_KEY ||
-         obu_header.type == OBU_OPEN_LOOP_KEY) &&
-        payload_size >= 2) {
+    if (obu_header.type == OBU_CLOSED_LOOP_KEY ||
+        obu_header.type == OBU_OPEN_LOOP_KEY) {
+      bool failed = false;
       struct avm_read_bit_buffer rb = { data_read + bytes_read,
                                         data_read + bytes_read + payload_size,
-                                        0, NULL, NULL };
-      avm_rb_read_bit(&rb);                // is_first_tile_group
-      int mfh_id = avm_rb_read_uvlc(&rb);  // mfh_id (0 = no MFH)
-      int sh_id = -1;
+                                        0, &failed, bitreader_set_failed };
+      avm_rb_read_bit(&rb);                     // is_first_tile_group
+      uint32_t mfh_id = avm_rb_read_uvlc(&rb);  // cur_mfh_id (0 = no MFH)
+      uint32_t sh_id = UINT32_MAX;
       if (mfh_id == 0) {
-        sh_id = avm_rb_read_uvlc(&rb);  // seq_header_id
+        sh_id = avm_rb_read_uvlc(&rb);  // seq_header_id_in_frame_header
       } else if (mfh_id < MAX_MFH_NUM) {
         sh_id = prescan_mfh_sh[mfh_id] >= 0
                     ? prescan_mfh_sh[mfh_id]
                     : (pbi->common.mfh_valid[mfh_id]
                            ? pbi->common.mfh_params[mfh_id].mfh_seq_header_id
-                           : -1);
+                           : UINT32_MAX);
       }
 
-      if (sh_id >= 0 && sh_id < MAX_SEQ_NUM) {
+      if (sh_id < MAX_SEQ_NUM) {
         int xl = obu_header.obu_xlayer_id;
         // Get seq_lcr_id from this frame unit's SH or previously parsed SH.
         int seq_lcr_id = prescan_sh_lcr[xl][sh_id] >= 0
@@ -867,6 +882,7 @@ static size_t check_frame_unit_data(struct AV2Decoder *pbi, const uint8_t *data,
           }
         }
       }
+      if (failed) return 0;
     }
 
     // Advance to next OBU
