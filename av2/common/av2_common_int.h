@@ -13,6 +13,7 @@
 #ifndef AVM_AV2_COMMON_AV2_COMMON_INT_H_
 #define AVM_AV2_COMMON_AV2_COMMON_INT_H_
 
+#include <assert.h>
 #include <stdbool.h>
 
 #include "config/avm_config.h"
@@ -3641,19 +3642,30 @@ static INLINE void av2_init_macroblockd(AV2_COMMON *cm, MACROBLOCKD *xd) {
     if (xd->plane[i].plane_type == PLANE_TYPE_Y) {
       memcpy(xd->plane[i].seg_dequant_QTX, quant_params->y_dequant_QTX,
              sizeof(quant_params->y_dequant_QTX));
-      memcpy(xd->plane[i].seg_iqmatrix, quant_params->y_iqmatrix,
+      static_assert(
+          sizeof(xd->plane[i].seg_iqmatrix) == sizeof(quant_params->y_iqmatrix),
+          "");
+      memcpy(&xd->plane[i].seg_iqmatrix[0][0], &quant_params->y_iqmatrix[0][0],
              sizeof(quant_params->y_iqmatrix));
 
     } else {
       if (i == AVM_PLANE_U) {
         memcpy(xd->plane[i].seg_dequant_QTX, quant_params->u_dequant_QTX,
                sizeof(quant_params->u_dequant_QTX));
-        memcpy(xd->plane[i].seg_iqmatrix, quant_params->u_iqmatrix,
+        static_assert(sizeof(xd->plane[i].seg_iqmatrix) ==
+                          sizeof(quant_params->u_iqmatrix),
+                      "");
+        memcpy(&xd->plane[i].seg_iqmatrix[0][0],
+               &quant_params->u_iqmatrix[0][0],
                sizeof(quant_params->u_iqmatrix));
       } else {
         memcpy(xd->plane[i].seg_dequant_QTX, quant_params->v_dequant_QTX,
                sizeof(quant_params->v_dequant_QTX));
-        memcpy(xd->plane[i].seg_iqmatrix, quant_params->v_iqmatrix,
+        static_assert(sizeof(xd->plane[i].seg_iqmatrix) ==
+                          sizeof(quant_params->v_iqmatrix),
+                      "");
+        memcpy(&xd->plane[i].seg_iqmatrix[0][0],
+               &quant_params->v_iqmatrix[0][0],
                sizeof(quant_params->v_iqmatrix));
       }
     }

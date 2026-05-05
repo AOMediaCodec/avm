@@ -342,9 +342,8 @@ void gdf_inference_unit_avx2(
   const int16_t *alpha, *weight;
   const int32_t *bias;
   const int8_t *gdf_table;
-  const uint16_t *copied_lap_pnt[GDF_NET_INP_GRD_NUM];
-  memcpy(copied_lap_pnt, gdf_lap_pnt,
-         sizeof(const uint16_t *) * GDF_NET_INP_GRD_NUM);
+  uint16_t *copied_lap_pnt[GDF_NET_INP_GRD_NUM];
+  memcpy(copied_lap_pnt, gdf_lap_pnt, sizeof(uint16_t *) * GDF_NET_INP_GRD_NUM);
   if (is_intra) {
     alpha = gdf_intra_alpha_table[qp_idx];
     weight = gdf_intra_weight_table[qp_idx];
