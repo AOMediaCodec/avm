@@ -607,7 +607,7 @@ void gdf_inference_unit_c(const int i_min, const int i_max, const int j_min,
   int32_t gdf_shift_half = 1 << (gdf_shift - 1);
 
   uint16_t *copied_lap_pnt[GDF_NET_INP_GRD_NUM];
-  memcpy(copied_lap_pnt, gdf_lap_pnt, sizeof(uint16_t *) * GDF_NET_INP_GRD_NUM);
+  memcpy(copied_lap_pnt, gdf_lap_pnt, sizeof(copied_lap_pnt));
   const int16_t *alpha, *weight;
   const int32_t *bias;
   const int8_t *gdftable;
