@@ -114,7 +114,6 @@ typedef struct InterModeSearchState {
   int64_t best_rd;
   int64_t best_skip_rd[2];
   MB_MODE_INFO best_mbmode;
-  SUBMB_INFO best_submb[MAX_MIB_SIZE * MAX_MIB_SIZE];
   int best_rate_y;
   int best_rate_uv;
   int best_mode_skippable;
@@ -717,44 +716,9 @@ static AVM_INLINE void estimate_ref_frame_costs(
   }
 }
 
-void store_submi(const MACROBLOCKD *const xd, const AV2_COMMON *cm,
-                 SUBMB_INFO *dst_submi, BLOCK_SIZE bsize) {
-  const int bw = mi_size_wide[bsize];
-  const int bh = mi_size_high[bsize];
-  const int mi_row = xd->mi_row;
-  const int mi_col = xd->mi_col;
-  const int x_inside_boundary = AVMMIN(bw, cm->mi_params.mi_cols - mi_col);
-  const int y_inside_boundary = AVMMIN(bh, cm->mi_params.mi_rows - mi_row);
-  const int dst_stride = bw;
-  const int src_stride = cm->mi_params.mi_stride;
-  for (int y = 0; y < y_inside_boundary; y++) {
-    for (int x = 0; x < x_inside_boundary; x++) {
-      dst_submi[y * dst_stride + x] = *xd->submi[y * src_stride + x];
-    }
-  }
-}
-
-void update_submi(MACROBLOCKD *const xd, const AV2_COMMON *cm,
-                  const SUBMB_INFO *src_submi, BLOCK_SIZE bsize) {
-  const int bw = mi_size_wide[bsize];
-  const int bh = mi_size_high[bsize];
-  const int mi_row = xd->mi_row;
-  const int mi_col = xd->mi_col;
-  const int x_inside_boundary = AVMMIN(bw, cm->mi_params.mi_cols - mi_col);
-  const int y_inside_boundary = AVMMIN(bh, cm->mi_params.mi_rows - mi_row);
-  const int src_stride = bw;
-  const int dst_stride = cm->mi_params.mi_stride;
-  for (int y = 0; y < y_inside_boundary; y++) {
-    for (int x = 0; x < x_inside_boundary; x++) {
-      *xd->submi[y * dst_stride + x] = src_submi[y * src_stride + x];
-    }
-  }
-}
-
 static AVM_INLINE void store_coding_context(
     MACROBLOCK *x, PICK_MODE_CONTEXT *ctx,
-    int64_t comp_pred_diff[REFERENCE_MODES], int skippable,
-    const AV2_COMMON *cm) {
+    int64_t comp_pred_diff[REFERENCE_MODES], int skippable) {
   MACROBLOCKD *const xd = &x->e_mbd;
 
   // Take a snapshot of the coding context so it can be
@@ -762,9 +726,6 @@ static AVM_INLINE void store_coding_context(
   ctx->rd_stats.skip_txfm = x->txfm_search_info.skip_txfm;
   ctx->skippable = skippable;
   ctx->mic = *xd->mi[0];
-  if (is_warp_mode(xd->mi[0]->motion_mode)) {
-    store_submi(xd, cm, ctx->submic, xd->mi[0]->sb_type[PLANE_TYPE_Y]);
-  }
   if (xd->tree_type != CHROMA_PART)
     av2_copy_mbmi_ext_to_mbmi_ext_frame(
         &ctx->mbmi_ext_best, x->mbmi_ext, xd->mi[0], xd->mi[0]->skip_mode,
@@ -2308,9 +2269,6 @@ static int64_t motion_mode_rd(
   int num_rd_check = 0;
   const MB_MODE_INFO base_mbmi = *mbmi;
   MB_MODE_INFO best_mbmi;
-  SUBMB_INFO best_submi[MAX_MIB_SIZE * MAX_MIB_SIZE];
-  SUBMB_INFO base_submi[MAX_MIB_SIZE * MAX_MIB_SIZE];
-  store_submi(xd, cm, base_submi, bsize);
   const int interp_filter = features->interp_filter;
   const int switchable_rate =
       av2_is_interp_needed(cm, xd)
@@ -2373,7 +2331,6 @@ static int64_t motion_mode_rd(
             int tmp_rate_mv = rate_mv0;
 
             *mbmi = base_mbmi;
-            update_submi(xd, cm, base_submi, bsize);
             mbmi->warp_ref_idx = warp_ref_idx;
             mbmi->max_num_warp_candidates =
                 (mode_index == WARP_DELTA) ? max_warp_ref_idx : 0;
@@ -2568,12 +2525,6 @@ static int64_t motion_mode_rd(
                     tmp_rate2 = tmp_rate2 - tmp_rate_mv1 + tmp_rate_mv;
                   }
                 }
-                if (!mbmi->wm_params[0].invalid)
-                  assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params[0],
-                                mi_row, mi_col, 0);
-                if (!mbmi->wm_params[1].invalid)
-                  assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params[1],
-                                mi_row, mi_col, 1);
 
                 // Build the warped predictor
                 av2_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL,
@@ -2685,8 +2636,6 @@ static int64_t motion_mode_rd(
                 assert(mbmi->mode == WARP_NEWMV || mbmi->warpmv_with_mvd_flag);
                 assert(IMPLIES(mbmi->mode == WARPMV, rate_mv0 == 0));
               }
-              assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params[0], mi_row,
-                            mi_col, 0);
               mbmi->warp_inter_intra = org_warp_inter_intra;
               if (mbmi->warp_inter_intra) {
                 const int ret = av2_handle_inter_intra_mode(
@@ -2828,9 +2777,6 @@ static int64_t motion_mode_rd(
                 mbmi->mv[0] = mv0;
                 mbmi->wm_params[0] = wm_params0;
               }
-
-              assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params[0], mi_row,
-                            mi_col, 0);
 
               // Build the warped predictor
               av2_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
@@ -3079,9 +3025,6 @@ static int64_t motion_mode_rd(
             if (num_rd_check == 0 || tmp_rd < best_rd) {
               // Update best_rd data if this is the best motion mode so far
               best_mbmi = *mbmi;
-              if (is_warp_mode(mbmi->motion_mode)) {
-                store_submi(xd, cm, best_submi, bsize);
-              }
               best_rd = tmp_rd;
               best_rd_stats = *rd_stats;
               best_rd_stats_y = *rd_stats_y;
@@ -3116,7 +3059,6 @@ static int64_t motion_mode_rd(
     return INT64_MAX;
   }
   *mbmi = best_mbmi;
-  if (is_warp_mode(mbmi->motion_mode)) update_submi(xd, cm, best_submi, bsize);
   *rd_stats = best_rd_stats;
   *rd_stats_y = best_rd_stats_y;
   if (num_planes > 1) *rd_stats_uv = best_rd_stats_uv;
@@ -4487,8 +4429,6 @@ static int64_t handle_inter_mode(
   TX_TYPE best_tx_type_map[MAX_MIB_SIZE * MAX_MIB_SIZE];
   CctxType best_cctx_type_map[MAX_MIB_SIZE * MAX_MIB_SIZE];
   MB_MODE_INFO best_mbmi = *mbmi;
-  SUBMB_INFO best_submi[MAX_MIB_SIZE * MAX_MIB_SIZE];
-  store_submi(xd, cm, best_submi, bsize);
   int best_xskip_txfm = 0;
   int64_t newmv_ret_val = INT64_MAX;
   const int is_pb_mv_prec_active = is_pb_mv_precision_active(cm, mbmi, bsize);
@@ -5189,9 +5129,6 @@ static int64_t handle_inter_mode(
                       best_rd_stats_uv = *rd_stats_uv;
                       best_rd = tmp_rd;
                       best_mbmi = *mbmi;
-                      if (is_warp_mode(mbmi->motion_mode)) {
-                        store_submi(xd, cm, best_submi, bsize);
-                      }
                       best_xskip_txfm = txfm_info->skip_txfm;
                       for (i = 0; i < num_planes; ++i) {
                         const int num_blk_plane =
@@ -5241,7 +5178,6 @@ static int64_t handle_inter_mode(
   *rd_stats_y = best_rd_stats_y;
   *rd_stats_uv = best_rd_stats_uv;
   *mbmi = best_mbmi;
-  if (is_warp_mode(mbmi->motion_mode)) update_submi(xd, cm, best_submi, bsize);
   txfm_info->skip_txfm = best_xskip_txfm;
   assert(IMPLIES(mbmi->comp_group_idx == 1,
                  mbmi->interinter_comp.type != COMPOUND_AVERAGE));
@@ -6922,8 +6858,6 @@ static AVM_INLINE void init_inter_mode_search_state(
   search_state->best_skip_rd[1] = INT64_MAX;
 
   av2_zero(search_state->best_mbmode);
-  memset(search_state->best_submb, 0,
-         MAX_MIB_SIZE * MAX_MIB_SIZE * sizeof(*search_state->best_submb));
 
   search_state->best_mbmode.mode = MODE_INVALID;
 
@@ -7277,13 +7211,6 @@ static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE curr_mode,
   mbmi->bawp_flag[0] = 0;
   mbmi->bawp_flag[1] = 0;
   mbmi->jmvd_scale_mode = 0;
-}
-
-static INLINE void init_submi(MACROBLOCKD *const xd, AV2_COMMON *const cm,
-                              int mi_row, int mi_col, BLOCK_SIZE bsize) {
-  xd->submi[0]->mv[0].as_int = xd->submi[0]->mv[1].as_int = 0;
-  span_submv(cm, xd->submi, mi_row, mi_col, bsize, 0);
-  span_submv(cm, xd->submi, mi_row, mi_col, bsize, 1);
 }
 
 static AVM_INLINE void collect_single_states(const AV2_COMMON *const cm,
@@ -7647,9 +7574,6 @@ static INLINE void update_search_state(
   search_state->best_rd = new_best_rd_stats->rdcost;
   *best_rd_stats_dst = *new_best_rd_stats;
   search_state->best_mbmode = *mbmi;
-  if (is_warp_mode(mbmi->motion_mode)) {
-    store_submi(xd, cm, search_state->best_submb, mbmi->sb_type[PLANE_TYPE_Y]);
-  }
   search_state->best_skip2 = skip_txfm;
   search_state->best_mode_skippable = new_best_rd_stats->skip_txfm;
   // When !txfm_search_done, new_best_rd_stats won't provide correct rate_y
@@ -7961,14 +7885,6 @@ static void tx_search_best_inter_candidates(
   for (int j = 0; j < inter_modes_info->num; ++j) {
     const int data_idx = inter_modes_info->rd_idx_pair_arr[j].idx;
     *mbmi = inter_modes_info->mbmi_arr[data_idx];
-    if (is_warp_mode(mbmi->motion_mode)) {
-      if (!mbmi->wm_params[0].invalid)
-        assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params[0], mi_row, mi_col,
-                      0);
-      if (!mbmi->wm_params[1].invalid)
-        assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params[1], mi_row, mi_col,
-                      1);
-    }
     if (cm->bru.enabled) {
       if (mbmi->ref_frame[0] != INVALID_IDX &&
           cm->bru.update_ref_idx == mbmi->ref_frame[0]) {
@@ -8490,8 +8406,6 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
             !is_warp_newmv_allowed(cm, xd, mbmi, bsize))
           continue;
 
-        init_submi(xd, cm, mi_row, mi_col, bsize);
-
         set_mv_precision(mbmi, mbmi->max_mv_precision);
         if (is_pb_mv_precision_active(cm, mbmi, bsize))
           set_most_probable_mv_precision(cm, mbmi, bsize);
@@ -9004,9 +8918,6 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
   }
   // macroblock modes
   *mbmi = search_state.best_mbmode;
-  if (is_warp_mode(mbmi->motion_mode)) {
-    update_submi(xd, cm, search_state.best_submb, bsize);
-  }
   assert(av2_check_newmv_joint_nonzero(cm, x));
 
   assert(check_mv_precision(cm, mbmi, x));
@@ -9049,7 +8960,7 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
   }
 
   store_coding_context(x, ctx, search_state.best_pred_diff,
-                       search_state.best_mode_skippable, cm);
+                       search_state.best_mode_skippable);
 
   // TODO(urvang): Remove index from `palette_size` array, as palette is no
   // longer allowed for chroma.
@@ -9202,7 +9113,7 @@ void av2_rd_pick_inter_mode_sb_seg_skip(const AV2_COMP *cpi,
 
   av2_zero(best_pred_diff);
 
-  store_coding_context(x, ctx, best_pred_diff, 0, cm);
+  store_coding_context(x, ctx, best_pred_diff, 0);
 }
 
 /* Use standard 3x3 Sobel matrix. Macro so it can be used for either high or

@@ -14,6 +14,7 @@
 
 #include "av2/common/reconintra.h"
 #include "av2/common/intra_dip.h"
+#include "av2/common/mvref_common.h"
 
 #include "av2/encoder/encoder.h"
 #include "av2/encoder/encodeframe_utils.h"
@@ -212,7 +213,14 @@ void av2_update_state(const AV2_COMP *const cpi, ThreadData *td,
 
   *mi_addr = *mi;
   mi_addr->chroma_ref_info = ctx->chroma_ref_info;
-  if (is_warp_mode(mi->motion_mode)) update_submi(xd, cm, ctx->submic, bsize);
+  if (is_warp_mode(mi->motion_mode)) {
+    if (!mi->wm_params[0].invalid)
+      assign_warpmv(cm, xd->submi, bsize, &mi_addr->wm_params[0], xd->mi_row,
+                    xd->mi_col, 0);
+    if (!mi->wm_params[1].invalid)
+      assign_warpmv(cm, xd->submi, bsize, &mi_addr->wm_params[1], xd->mi_row,
+                    xd->mi_col, 1);
+  }
   if (xd->tree_type != CHROMA_PART)
     copy_mbmi_ext_frame_to_mbmi_ext(x->mbmi_ext, &ctx->mbmi_ext_best,
                                     av2_ref_frame_type(ctx->mic.ref_frame),

@@ -361,14 +361,6 @@ static INLINE void av2_copy_mbmi_ext_to_mbmi_ext_frame(
   }
 }
 
-// store submi info into dst_submi
-void store_submi(const MACROBLOCKD *const xd, const AV2_COMMON *cm,
-                 SUBMB_INFO *dst_submi, BLOCK_SIZE bsize);
-
-// update submi from src_submi
-void update_submi(MACROBLOCKD *const xd, const AV2_COMMON *cm,
-                  const SUBMB_INFO *src_submi, BLOCK_SIZE bsize);
-
 // update curmv precision
 static INLINE void update_mv_precision(const MV ref_mv,
                                        const MvSubpelPrecision pb_mv_precision,

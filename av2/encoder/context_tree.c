@@ -23,9 +23,6 @@ static const BLOCK_SIZE square[MAX_SB_SIZE_LOG2 - 1] = {
 void av2_copy_tree_context(PICK_MODE_CONTEXT *dst_ctx,
                            PICK_MODE_CONTEXT *src_ctx, int num_planes) {
   dst_ctx->mic = src_ctx->mic;
-  if (is_warp_mode(src_ctx->mic.motion_mode)) {
-    av2_copy_array(dst_ctx->submic, src_ctx->submic, src_ctx->num_4x4_blk);
-  }
   dst_ctx->mbmi_ext_best = src_ctx->mbmi_ext_best;
 
   assert(dst_ctx->num_4x4_blk == src_ctx->num_4x4_blk);
@@ -138,9 +135,6 @@ PICK_MODE_CONTEXT *av2_alloc_pmc(const AV2_COMMON *cm, TREE_TYPE tree_type,
 
   AVM_CHECK_MEM_ERROR(&error, ctx->tx_type_map,
                       avm_calloc(num_blk, sizeof(*ctx->tx_type_map)));
-  if (!frame_is_intra_only(cm)) {
-    ctx->submic = malloc(num_blk * sizeof(*ctx->submic));
-  }
   AVM_CHECK_MEM_ERROR(
       &error, ctx->cctx_type_map,
       avm_calloc(ctx->num_4x4_blk_chroma, sizeof(*ctx->cctx_type_map)));
@@ -179,9 +173,6 @@ PICK_MODE_CONTEXT *av2_alloc_pmc(const AV2_COMMON *cm, TREE_TYPE tree_type,
 void av2_free_pmc(PICK_MODE_CONTEXT *ctx, int num_planes) {
   if (ctx == NULL) return;
 
-  if (ctx->submic) {
-    free(ctx->submic);
-  }
   for (int i = 0; i < MAX_MB_PLANE; ++i) {
     avm_free(ctx->blk_skip[i]);
     ctx->blk_skip[i] = NULL;
