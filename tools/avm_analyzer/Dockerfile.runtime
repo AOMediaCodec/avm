@@ -1,7 +1,6 @@
 # Basic runtime image with required dependencies to build libavm.
-FROM ubuntu:22.04
-RUN apt-get update
-RUN apt-get install -y cmake git perl g++ yasm make protobuf-compiler libprotobuf-dev python3 --no-install-recommends
+FROM ubuntu:24.04
+RUN apt-get update && apt-get install -y cmake git perl g++ yasm make protobuf-compiler libprotobuf-dev python3 --no-install-recommends
 WORKDIR /scripts
 COPY tools/avm_analyzer/build_avm.sh /scripts/build_avm.sh
 RUN chmod +x /scripts/build_avm.sh
