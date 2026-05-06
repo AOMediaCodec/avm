@@ -53,6 +53,7 @@ from Utils import (
     md5,
     ParseDecLogFile,
     SetupLogging,
+    str2bool,
 )
 
 
@@ -74,7 +75,7 @@ def WriteToJobScript(cmd):
     """Write a command to the current job shell script"""
     if Utils.CurrentJobFile:
         Utils.CurrentJobFile.write(cmd + "\n")
-        Utils.CurrentJobFile.write("wait\n")
+        # Utils.CurrentJobFile.write("wait\n")
 
 
 def EndJobScript():
@@ -415,7 +416,7 @@ def Run_Decode_Test(test_cfg, clip, codec, method, preset, LogCmdOnly=False):
         )
 
 
-def Run_Concatenate_Test(test_cfg, clip, codec, method, preset, LogCmdOnly=False):
+def Run_Concatenate_Test(test_cfg, clip, codec, method, preset, LogCmdOnly):
     if EnableParallelGopEncoding:
         Utils.Logger.info(
             "start running %s concatenate tests with %s" % (test_cfg, clip.file_name)
@@ -681,7 +682,7 @@ def ParseArguments(raw_args):
         "-s",
         "--SaveMemory",
         dest="SaveMemory",
-        type=bool,
+        type=str2bool,
         default=True,
         metavar="",
         help="save memory mode will delete most files in"
@@ -692,7 +693,7 @@ def ParseArguments(raw_args):
         "-CmdOnly",
         "--LogCmdOnly",
         dest="LogCmdOnly",
-        type=bool,
+        type=str2bool,
         default=True,
         metavar="",
         help="LogCmdOnly mode will only capture the command sequences"

@@ -915,6 +915,18 @@ def ConvertYUVToY4M(clip, yuv_file, y4m_file, LogCmdOnly=False):
     ExecuteCmd(cmd, LogCmdOnly)
 
 
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ("yes", "true", "t", "y", "1"):
+        return True
+    if v.lower() in ("no", "false", "f", "n", "0", ""):
+        return False
+    raise argparse.ArgumentTypeError(
+        f"Boolean value expected, got {v!r}. Use one of: 1/0, true/false, yes/no, y/n."
+    )
+
+
 ######################################
 # main
 ######################################
