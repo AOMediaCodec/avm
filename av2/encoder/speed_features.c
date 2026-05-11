@@ -374,6 +374,11 @@ static void set_good_speed_features_framesize_independent(
     // nearest searched result beyond the cap.
     sf->mv_sf.newmv_drl_search_limit = 2;
     sf->inter_sf.skip_temporary_pred_for_opfl = 1;
+
+    // Enable the optimized inter-SDP fast method (requires >=1 intra coded
+    // block, prunes when inter-mode ratio exceeds 50%, and early skips when
+    // the current best partitioning is PARTITION_NONE).
+    sf->part_sf.inter_sdp_fast_method_level = 1;
   }
 
   if (speed >= 2) {
@@ -669,6 +674,7 @@ static AVM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->ext_recur_depth_level = 0;
   part_sf->prune_rect_with_split_depth = 0;
   part_sf->prune_part_h_with_partition_boundary = 0;
+  part_sf->inter_sdp_fast_method_level = 0;
 #if CONFIG_ML_PART_SPLIT
   part_sf->prune_split_with_ml = 0;
   part_sf->prune_none_with_ml = 0;
