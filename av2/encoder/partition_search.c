@@ -4599,17 +4599,29 @@ static INLINE void search_intra_region_partitioning(
   MACROBLOCKD *const xd = &x->e_mbd;
   assert(pc_tree != NULL);
 
+  // store the current best partitioning
+  PARTITION_TYPE cur_best_partitioning = pc_tree->partitioning;
+
   // Add one encoder fast method for early terminating inter-sdp
   float total_count = 0;
   float inter_mode_count = 0;
   early_termination_inter_sdp(pc_tree, &total_count, &inter_mode_count);
-  // if over 60% of the coded blocks under this region are inter coded blocks,
-  // skip the rdo for inter-sdp
-  if (total_count * 0.7 < inter_mode_count) return;
+  if (cpi->sf.part_sf.inter_sdp_fast_method_level >= 1) {
+    // Optimized fast method (enabled at cpu-used >= 1):
+    // Check whether there are at least 1 intra coded blocks under this region
+    if (total_count - inter_mode_count < 1) return;
+    if (inter_mode_count * 2 > total_count) return;
+    // if current best partitioning is partition_none, early skip
+    if (cur_best_partitioning == PARTITION_NONE) return;
+  } else {
+    // Original fast method (used at cpu-used == 0):
+    // if over 70% of the coded blocks under this region are inter coded blocks,
+    // skip the rdo for inter-sdp
+    if (total_count * 0.7 < inter_mode_count) return;
+  }
 
   pc_tree->region_type = INTRA_REGION;
-  // store the current best partitioning
-  PARTITION_TYPE cur_best_partitioning = pc_tree->partitioning;
+
   pc_tree->partitioning = PARTITION_NONE;
 
   RD_STATS *sum_rdc = &part_search_state->sum_rdc;

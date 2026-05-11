@@ -422,6 +422,15 @@ typedef struct PARTITION_SPEED_FEATURES {
   // the current best partition's boundary after searching NONE, HORZ, VERT, and
   // H-parts.
   int prune_part_4_with_partition_boundary;
+
+  // Controls the early termination fast method for inter-SDP (search of intra
+  // region partitioning in inter frames).
+  // 0: Use the original fast method that early-terminates inter-SDP when more
+  //    than 70% of the coded blocks under this region are inter coded.
+  // 1: Use the optimized fast method that additionally requires at least one
+  //    intra coded block, prunes when inter ratio exceeds 50%, and early skips
+  //    when current best partitioning is PARTITION_NONE.
+  int inter_sdp_fast_method_level;
 #if CONFIG_ML_PART_SPLIT
   int prune_split_with_ml;
   int prune_split_ml_level;
