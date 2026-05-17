@@ -1,0 +1,21 @@
+# This is a list with filters for all sanitizers,
+# applied at compile time!
+#
+# NOTE: In general nothing should be added here to
+#       suppress some sanitizer issues, instead the
+#       sanitizer-specific suppression files should
+#       be used!
+#
+# The main purpose of this is to ignore third-party
+# code in sanitzer instrumentation.
+#
+# For documentation about the format of this file, see:
+# https://clang.llvm.org/docs/SanitizerSpecialCaseList.html
+
+# Ignore false-positives in third-party code such as:
+#   basic_string.h:403:51: runtime error: unsigned integer overflow: 18 - 22 cannot be represented in type 'unsigned long'
+# See https://github.com/google/sanitizers/issues/1348
+src:*/lib/gcc/x86_64-linux-gnu/.*
+
+# Ignore failures in googletest
+src:.*/third_party/googletest/.*

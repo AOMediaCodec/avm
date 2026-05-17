@@ -127,7 +127,7 @@ jobs:
             undefined|integer)
               SANITIZER_OPTIONS="${SANITIZER_OPTIONS}:print_stacktrace=1"
               SANITIZER_OPTIONS="${SANITIZER_OPTIONS}:report_error_type=1"  # TODO: this was not set in gitlab's nightly, is there a problem to keep it ?
-              SANITIZER_OPTIONS="${SANITIZER_OPTIONS}:suppressions=.gitlab/UBSan.supp"
+              SANITIZER_OPTIONS="${SANITIZER_OPTIONS}:suppressions=.github/UBSan.supp"
               export UBSAN_OPTIONS="${SANITIZER_OPTIONS}"
               ;;
           esac

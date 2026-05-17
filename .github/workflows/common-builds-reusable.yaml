@@ -342,7 +342,7 @@ jobs:
       image: ${{ inputs.container-image }}
     env:
       AVM_SANITIZER_TYPE: ${{ matrix.avm-sanitizer-type }}
-      SANITIZER_IGNORES_FILE: .gitlab/SanitizerIgnores.txt
+      SANITIZER_IGNORES_FILE: .github/SanitizerIgnores.txt
       CMAKE_FLAGS: >-
         -DENABLE_CCACHE=1
         -DCMAKE_C_COMPILER=clang
