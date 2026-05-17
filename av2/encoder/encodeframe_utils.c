@@ -388,9 +388,7 @@ void av2_update_inter_mode_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
                                  PREDICTION_MODE mode, int16_t mode_context,
                                  const AV2_COMMON *const cm,
                                  const MACROBLOCKD *xd,
-                                 const MB_MODE_INFO *mbmi, BLOCK_SIZE bsize
-
-) {
+                                 const MB_MODE_INFO *mbmi, BLOCK_SIZE bsize) {
   (void)counts;
 
   if (is_tip_ref_frame(mbmi->ref_frame[0])) {

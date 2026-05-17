@@ -25,9 +25,7 @@ uint8_t av2_read_coeffs_txb(const struct AV2Common *const cm,
                             struct avm_reader *const r, const int blk_row,
                             const int blk_col, const int plane,
                             const struct txb_ctx *const txb_ctx,
-                            const TX_SIZE tx_size
-
-);
+                            const TX_SIZE tx_size);
 
 void av2_read_coeffs_txb_facade(const struct AV2Common *const cm,
                                 struct DecoderCodingBlock *dcb,

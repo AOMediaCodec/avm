@@ -795,9 +795,8 @@ static void update_warp_delta_param_stats(int index, int coded_value,
 #if CONFIG_ENTROPY_STATS
                                           FRAME_COUNTS *counts,
 #endif  // CONFIG_ENTROPY_STATS
-                                          FRAME_CONTEXT *fc, int max_coded_index
-
-) {
+                                          FRAME_CONTEXT *fc,
+                                          int max_coded_index) {
   assert(2 <= index && index <= 5);
   int index_type = (index == 2 || index == 5) ? 0 : 1;
   int coded_value_low_max = (WARP_DELTA_NUMSYMBOLS_LOW - 1);
@@ -1402,10 +1401,8 @@ static void update_stats(const AV2_COMMON *const cm, ThreadData *td) {
         update_cdf(jmvd_scale_mode_cdf, mbmi->jmvd_scale_mode, jmvd_scale_cnt);
       }
     } else {
-      av2_update_inter_mode_stats(
-          fc, counts, mode, mode_ctx, cm, xd, mbmi, bsize
-
-      );
+      av2_update_inter_mode_stats(fc, counts, mode, mode_ctx, cm, xd, mbmi,
+                                  bsize);
     }
 
     if (allow_amvd_mode(mbmi->mode)) {

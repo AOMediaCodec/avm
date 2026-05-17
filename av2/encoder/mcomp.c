@@ -191,9 +191,7 @@ static INLINE const uint16_t *get_buf_from_fullmv(const struct buf_2d *buf,
 }
 
 void av2_set_mv_search_range(FullMvLimits *mv_limits, const MV *mv,
-                             MvSubpelPrecision pb_mv_precision
-
-) {
+                             MvSubpelPrecision pb_mv_precision) {
   //  We have to make sure the generated mv_limits
   //  are compatible with target precision.
   // prec_shift is the number of LSBs need to be 0 to make the mv/mv_limit
@@ -558,9 +556,7 @@ static INLINE int get_intrabc_mv_cost_with_precision(
 }
 
 int av2_mv_sign_cost(const int sign, const int comp, const MvCosts *mv_costs,
-                     int weight, int round_bit, const int is_adaptive_mvd
-
-) {
+                     int weight, int round_bit, const int is_adaptive_mvd) {
   assert(!is_adaptive_mvd);
   const int *mv_sign_cost = mv_costs->nmv_sign_cost[comp];
   (void)is_adaptive_mvd;
@@ -1156,9 +1152,7 @@ static AVM_FORCE_INLINE void calc_int_cost_list(
       const FULLPEL_MV neighbor_mv = { br + neighbors[i].row,
                                        bc + neighbors[i].col };
       if (!av2_is_fullmv_in_range(&ms_params->mv_limits, neighbor_mv,
-                                  ms_params->mv_cost_params.pb_mv_precision
-
-                                  )) {
+                                  ms_params->mv_cost_params.pb_mv_precision)) {
         cost_list[i + 1] = INT_MAX;
       } else {
         cost_list[i + 1] = get_mvpred_var_cost(ms_params, &neighbor_mv);
@@ -2288,12 +2282,8 @@ int av2_refining_search_8p_c(const FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
                               best_mv->col + neighbors[j].coord.col };
 
       do_refine_search_grid[grid_coord] = 1;
-      if (av2_is_fullmv_in_range(mv_limits, mv
-
-                                 ,
-                                 ms_params->mv_cost_params.pb_mv_precision
-
-                                 )) {
+      if (av2_is_fullmv_in_range(mv_limits, mv,
+                                 ms_params->mv_cost_params.pb_mv_precision)) {
         unsigned int sad;
         sad = get_mvpred_compound_sad(
             ms_params, src, get_buf_from_fullmv(ref, &mv), ref_stride);
@@ -2730,12 +2720,8 @@ int av2_intrabc_hash_search(const AV2_COMP *cpi, const MACROBLOCKD *xd,
       FULLPEL_MV hash_mv;
       hash_mv.col = ref_block_hash.x - x_pos;
       hash_mv.row = ref_block_hash.y - y_pos;
-      if (!av2_is_fullmv_in_range(mv_limits, hash_mv
-
-                                  ,
-                                  ms_params->mv_cost_params.pb_mv_precision
-
-                                  ))
+      if (!av2_is_fullmv_in_range(mv_limits, hash_mv,
+                                  ms_params->mv_cost_params.pb_mv_precision))
         continue;
       int refCost = get_mvpred_var_cost(ms_params, &hash_mv);
       int cur_intrabc_mode = 0;
@@ -4794,9 +4780,7 @@ unsigned int av2_refine_warped_mv(MACROBLOCKD *xd, const AV2_COMMON *const cm,
         av2_find_projection(
             mbmi->num_proj_ref[ref], pts, pts_inref, bsize, this_mv,
             &mbmi->wm_params[ref], mi_row, mi_col,
-            get_ref_scale_factors((AV2_COMMON *const)cm, mbmi->ref_frame[ref])
-
-        );
+            get_ref_scale_factors((AV2_COMMON *const)cm, mbmi->ref_frame[ref]));
         thismse = compute_motion_cost(xd, cm, ms_params, bsize, &this_mv, 1);
 
         if (thismse < bestmse) {
@@ -5206,12 +5190,7 @@ int av2_pick_warp_delta(const AV2_COMMON *const cm, MACROBLOCKD *xd,
     params->wmmat[5] = params->wmmat[2];
   }
   av2_reduce_warp_model(params);
-  av2_get_shear_params(params
-
-                       ,
-                       sf
-
-  );
+  av2_get_shear_params(params, sf);
   params->invalid = 0;
 
   const int warp_precision_idx_rate =
@@ -5383,12 +5362,8 @@ int av2_refine_mv_for_base_param_warp_model(
   *params = base_params;
 
   av2_set_warp_translation(mi_row, mi_col, bsize, center_mv.as_mv, params);
-  av2_get_shear_params(params
-
-                       ,
-                       get_ref_scale_factors_const(cm, mbmi->ref_frame[0])
-
-  );
+  av2_get_shear_params(params,
+                       get_ref_scale_factors_const(cm, mbmi->ref_frame[0]));
   params->invalid = 0;
 
   // parameters are valid however, mv refinement is not supported
@@ -5437,12 +5412,8 @@ int av2_refine_mv_for_base_param_warp_model(
         // Update model and costs according to the motion vector which
         // is being tried out this iteration
         av2_set_warp_translation(mi_row, mi_col, bsize, this_mv, params);
-        av2_get_shear_params(params
-
-                             ,
-                             get_ref_scale_factors_const(cm, mbmi->ref_frame[0])
-
-        );
+        av2_get_shear_params(
+            params, get_ref_scale_factors_const(cm, mbmi->ref_frame[0]));
 
         unsigned int this_sse = compute_motion_cost(xd, cm, ms_params, bsize,
                                                     &this_mv, can_refine_mv);
@@ -5529,12 +5500,8 @@ void av2_refine_mv_for_warp_extend(const AV2_COMMON *cm, MACROBLOCKD *xd,
       if (av2_is_subpelmv_in_range(mv_limits, this_mv)) {
         if (!av2_extend_warp_model(
                 neighbor_is_above, bsize, &this_mv, mi_row, mi_col,
-                neighbor_params, &mbmi->wm_params[0]
-
-                ,
-                get_ref_scale_factors_const(cm, mbmi->ref_frame[0])
-
-                    )) {
+                neighbor_params, &mbmi->wm_params[0],
+                get_ref_scale_factors_const(cm, mbmi->ref_frame[0]))) {
           thismse = compute_motion_cost(xd, cm, ms_params, bsize, &this_mv, 1);
 
           if (thismse < bestmse) {

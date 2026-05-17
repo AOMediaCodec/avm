@@ -969,9 +969,7 @@ void apply_pc_wiener_highbd(
     const uint8_t *filter_selector, PcwienerBuffers *buffers,
     bool tskip_zero_flag, const struct AV2Common *cm,
     MB_MODE_INFO **mbmi_ptr_procunit, int mi_stride, int ss_x, int ss_y,
-    const bool *lossless_segment
-
-) {
+    const bool *lossless_segment) {
   const bool skip_filtering = classify_only;
   assert(!is_uv || skip_filtering);
   const int pc_filter_num_taps =
@@ -1601,9 +1599,7 @@ static void wiener_nsfilter_stripe_highbd(const RestorationUnitInfo *rui,
         rui->luma_stride, bit_depth, rui->wiener_class_id + (j >> MI_SIZE_LOG2),
         rui->wiener_class_id_stride, rui->wiener_class_id_restrict,
         rui->wienerns_info.num_classes, set_index, rui->cm, mbmi_ptr_procunit,
-        rui->mi_stride, rui->ss_x, rui->ss_y, rui->lossless_segment
-
-    );
+        rui->mi_stride, rui->ss_x, rui->ss_y, rui->lossless_segment);
   }
 }
 

@@ -1090,9 +1090,7 @@ void av2_compound_single_motion_search(const AV2_COMP *cpi, MACROBLOCK *x,
     const FULLPEL_MV start_fullmv = get_fullmv_from_mv(this_mv);
 
     MV sub_mv_offset = { 0, 0 };
-    get_phase_from_mv(ref_mv.as_mv, &sub_mv_offset, pb_mv_precision
-
-    );
+    get_phase_from_mv(ref_mv.as_mv, &sub_mv_offset, pb_mv_precision);
 
     // Small-range full-pixel motion search.
     if (pb_mv_precision < MV_PRECISION_ONE_PEL) {

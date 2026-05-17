@@ -126,10 +126,8 @@ static AVM_INLINE void compute_global_motion_for_ref_frame(
       tmp_wm_params.wmtype = get_wmtype(&tmp_wm_params);
       tmp_wm_params.invalid = 0;
 
-      av2_get_shear_params(
-          &tmp_wm_params, get_ref_scale_factors_const(cm, frame)
-
-      );
+      av2_get_shear_params(&tmp_wm_params,
+                           get_ref_scale_factors_const(cm, frame));
 
       // Skip models that we won't use (IDENTITY or TRANSLATION)
       //
@@ -160,9 +158,7 @@ static AVM_INLINE void compute_global_motion_for_ref_frame(
           ref_buf[frame]->y_crop_height, ref_buf[frame]->y_stride,
           cpi->source->y_buffer, src_width, src_height, src_stride,
           num_refinements, ref_frame_error, segment_map, segment_map_w,
-          get_ref_scale_factors_const(cm, frame)
-
-      );
+          get_ref_scale_factors_const(cm, frame));
 
       // av2_refine_integerized_param() can return a simpler model type than
       // its input, so re-check model type here

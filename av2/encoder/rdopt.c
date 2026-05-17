@@ -886,21 +886,13 @@ static INLINE int clamp_and_check_mv(int_mv *out_mv, int_mv in_mv,
 // valid mv range. Without this, encoder would generate out of range mv, and
 // this is seen in 8k encoding.
 static INLINE void clamp_mv_in_range(MACROBLOCK *const x, int_mv *mv,
-                                     int ref_idx
-
-                                     ,
-                                     MvSubpelPrecision pb_mv_precision
-
-) {
+                                     int ref_idx,
+                                     MvSubpelPrecision pb_mv_precision) {
   const int_mv ref_mv = av2_get_ref_mv(x, ref_idx);
   SubpelMvLimits mv_limits;
 
-  av2_set_subpel_mv_search_range(&mv_limits, &x->mv_limits, &ref_mv.as_mv
-
-                                 ,
-                                 pb_mv_precision
-
-  );
+  av2_set_subpel_mv_search_range(&mv_limits, &x->mv_limits, &ref_mv.as_mv,
+                                 pb_mv_precision);
   clamp_mv(&mv->as_mv, &mv_limits);
 }
 
@@ -1223,9 +1215,7 @@ static int64_t handle_newmv(const AV2_COMP *const cpi, MACROBLOCK *const x,
 
           lower_mv_precision(&cur_mv[0].as_mv, pb_mv_precision);
 
-          clamp_mv_in_range(x, &cur_mv[0], 0, pb_mv_precision
-
-          );
+          clamp_mv_in_range(x, &cur_mv[0], 0, pb_mv_precision);
         }
         if (valid_mv1) {
           cur_mv[1].as_int =
@@ -1233,9 +1223,7 @@ static int64_t handle_newmv(const AV2_COMP *const cpi, MACROBLOCK *const x,
                                 [refs[1]]
                                     .as_int;
           lower_mv_precision(&cur_mv[1].as_mv, pb_mv_precision);
-          clamp_mv_in_range(x, &cur_mv[1], 1, pb_mv_precision
-
-          );
+          clamp_mv_in_range(x, &cur_mv[1], 1, pb_mv_precision);
         }
 
         // avmenc1
@@ -1270,9 +1258,7 @@ static int64_t handle_newmv(const AV2_COMP *const cpi, MACROBLOCK *const x,
 
         lower_mv_precision(&cur_mv[1].as_mv, pb_mv_precision);
 
-        clamp_mv_in_range(x, &cur_mv[1], 1, pb_mv_precision
-
-        );
+        clamp_mv_in_range(x, &cur_mv[1], 1, pb_mv_precision);
       }
       if (cm->seq_params.enable_adaptive_mvd) {
         if (reuse_comp_mv_for_opfl(cm, x, args, cur_mv, rate_mv)) {
@@ -1299,12 +1285,7 @@ static int64_t handle_newmv(const AV2_COMP *const cpi, MACROBLOCK *const x,
                               &cur_mv[1].as_mv);
           *rate_mv =
               av2_mv_bit_cost(&cur_mv[1].as_mv, &ref_mv.as_mv, pb_mv_precision,
-                              &x->mv_costs, MV_COST_WEIGHT
-
-                              ,
-                              0
-
-              );
+                              &x->mv_costs, MV_COST_WEIGHT, 0);
         }
       }
     } else if (is_joint_mvd_coding_mode(this_mode)) {
@@ -1336,9 +1317,7 @@ static int64_t handle_newmv(const AV2_COMP *const cpi, MACROBLOCK *const x,
 
         lower_mv_precision(&cur_mv[jmvd_base_ref_list].as_mv, pb_mv_precision);
 
-        clamp_mv_in_range(x, &cur_mv[jmvd_base_ref_list], jmvd_base_ref_list
-
-                          ,
+        clamp_mv_in_range(x, &cur_mv[jmvd_base_ref_list], jmvd_base_ref_list,
                           pb_mv_precision);
       }
       av2_compound_single_motion_search_interinter(
@@ -1357,9 +1336,7 @@ static int64_t handle_newmv(const AV2_COMP *const cpi, MACROBLOCK *const x,
                                                  .as_int;
 
         lower_mv_precision(&cur_mv[0].as_mv, pb_mv_precision);
-        clamp_mv_in_range(x, &cur_mv[0], 0, pb_mv_precision
-
-        );
+        clamp_mv_in_range(x, &cur_mv[0], 0, pb_mv_precision);
       }
       if (cm->seq_params.enable_adaptive_mvd) {
         av2_compound_single_motion_search_interinter(cpi, x, bsize, cur_mv,
@@ -1378,9 +1355,7 @@ static int64_t handle_newmv(const AV2_COMP *const cpi, MACROBLOCK *const x,
           update_mv_precision(ref_mv.as_mv, pb_mv_precision, &cur_mv[0].as_mv);
           *rate_mv =
               av2_mv_bit_cost(&cur_mv[0].as_mv, &ref_mv.as_mv, pb_mv_precision,
-                              &x->mv_costs, MV_COST_WEIGHT, 0
-
-              );
+                              &x->mv_costs, MV_COST_WEIGHT, 0);
         }
       }
     }
@@ -2424,12 +2399,8 @@ static int64_t motion_mode_rd(
               //  using the collected samples
               av2_find_projection(
                   mbmi->num_proj_ref[0], pts, pts_inref, bsize,
-                  mbmi->mv[0].as_mv, &mbmi->wm_params[0], mi_row, mi_col
-
-                  ,
-                  get_ref_scale_factors_const(cm, mbmi->ref_frame[0])
-
-              );
+                  mbmi->mv[0].as_mv, &mbmi->wm_params[0], mi_row, mi_col,
+                  get_ref_scale_factors_const(cm, mbmi->ref_frame[0]));
               mbmi->wm_params[0].invalid = l0_invalid = 0;
 
               if (has_second_ref(mbmi)) {
@@ -2441,12 +2412,8 @@ static int64_t motion_mode_rd(
                 //   using the collected samples
                 av2_find_projection(
                     mbmi->num_proj_ref[1], pts, pts_inref, bsize,
-                    mbmi->mv[1].as_mv, &mbmi->wm_params[1], mi_row, mi_col
-
-                    ,
-                    get_ref_scale_factors_const(cm, mbmi->ref_frame[1])
-
-                );
+                    mbmi->mv[1].as_mv, &mbmi->wm_params[1], mi_row, mi_col,
+                    get_ref_scale_factors_const(cm, mbmi->ref_frame[1]));
                 mbmi->wm_params[1].invalid = l1_invalid = 0;
               }
 
@@ -2703,12 +2670,8 @@ static int64_t motion_mode_rd(
               WarpedMotionParams wm_params0;
               if (!av2_extend_warp_model(
                       neighbor_is_above, bsize, &mbmi->mv[0].as_mv, mi_row,
-                      mi_col, &neighbor_params, &wm_params0
-
-                      ,
-                      get_ref_scale_factors_const(cm, mbmi->ref_frame[0])
-
-                          )) {
+                      mi_col, &neighbor_params, &wm_params0,
+                      get_ref_scale_factors_const(cm, mbmi->ref_frame[0]))) {
                 // NEWMV search produced a valid model
                 mbmi->wm_params[0] = wm_params0;
               } else {
@@ -2747,12 +2710,8 @@ static int64_t motion_mode_rd(
                 // this case, in order to try to find a valid model?
                 if (av2_extend_warp_model(
                         neighbor_is_above, bsize, &mbmi->mv[0].as_mv, mi_row,
-                        mi_col, &neighbor_params, &mbmi->wm_params[0]
-
-                        ,
-                        get_ref_scale_factors_const(cm, mbmi->ref_frame[0])
-
-                            )) {
+                        mi_col, &neighbor_params, &mbmi->wm_params[0],
+                        get_ref_scale_factors_const(cm, mbmi->ref_frame[0]))) {
                   continue;
                 }
               }
@@ -3385,17 +3344,10 @@ static INLINE int get_jmvd_scale_mode_cost(const MB_MODE_INFO *mbmi,
 }
 
 // Compute the estimated RD cost for the motion vector with simple translation.
-static int64_t simple_translation_pred_rd(AV2_COMP *const cpi, MACROBLOCK *x,
-                                          RD_STATS *rd_stats,
-                                          HandleInterModeArgs *args,
-                                          int *ref_mv_idx,
-                                          inter_mode_info *mode_info,
-                                          int64_t ref_best_rd, BLOCK_SIZE bsize
-
-                                          ,
-                                          const int flex_mv_cost
-
-) {
+static int64_t simple_translation_pred_rd(
+    AV2_COMP *const cpi, MACROBLOCK *x, RD_STATS *rd_stats,
+    HandleInterModeArgs *args, int *ref_mv_idx, inter_mode_info *mode_info,
+    int64_t ref_best_rd, BLOCK_SIZE bsize, const int flex_mv_cost) {
   MACROBLOCKD *xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
   MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
@@ -3560,9 +3512,7 @@ static int ref_mv_idx_to_search(AV2_COMP *const cpi, MACROBLOCK *x,
                                 HandleInterModeArgs *const args,
                                 int64_t ref_best_rd, inter_mode_info *mode_info,
                                 BLOCK_SIZE bsize, const int *ref_set,
-                                const int flex_mv_cost
-
-) {
+                                const int flex_mv_cost) {
   AV2_COMMON *const cm = &cpi->common;
   const MACROBLOCKD *const xd = &x->e_mbd;
   const MB_MODE_INFO *const mbmi = xd->mi[0];
@@ -3624,12 +3574,8 @@ static int ref_mv_idx_to_search(AV2_COMP *const cpi, MACROBLOCK *x,
         continue;
       }
       idx_rdcost[i] = simple_translation_pred_rd(
-          cpi, x, rd_stats, args, ref_mv_idx, mode_info, ref_best_rd, bsize
-
-          ,
-          flex_mv_cost
-
-      );
+          cpi, x, rd_stats, args, ref_mv_idx, mode_info, ref_best_rd, bsize,
+          flex_mv_cost);
     }
   }
 
@@ -5204,12 +5150,8 @@ static INLINE int is_bv_valid(const FULLPEL_MV *full_mv, const AV2_COMMON *cm,
                               BLOCK_SIZE bsize,
                               FULLPEL_MOTION_SEARCH_PARAMS fullms_params) {
   const MV dv = get_mv_from_fullmv(full_mv);
-  if (!av2_is_fullmv_in_range(&fullms_params.mv_limits, *full_mv
-
-                              ,
-                              fullms_params.mv_cost_params.pb_mv_precision
-
-                              ))
+  if (!av2_is_fullmv_in_range(&fullms_params.mv_limits, *full_mv,
+                              fullms_params.mv_cost_params.pb_mv_precision))
     return 0;
   if (!av2_is_dv_valid(dv, cm, xd, mi_row, mi_col, bsize, cm->mib_size_log2))
     return 0;
@@ -5261,12 +5203,8 @@ int rd_pick_ref_bv_sub_pel(const AV2_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
       mbmi_ext->ref_mv_stack[INTRA_FRAME][0].this_mv = cur_ref_bv;
       fullms_params = fullms_params_init;
       av2_init_ref_mv(&fullms_params.mv_cost_params, &cur_ref_bv.as_mv);
-      av2_set_mv_search_range(&fullms_params.mv_limits, &cur_ref_bv.as_mv
-
-                              ,
-                              mbmi->pb_mv_precision
-
-      );
+      av2_set_mv_search_range(&fullms_params.mv_limits, &cur_ref_bv.as_mv,
+                              mbmi->pb_mv_precision);
       if (fullms_params.mv_limits.col_max < fullms_params.mv_limits.col_min ||
           fullms_params.mv_limits.row_max < fullms_params.mv_limits.row_min) {
         continue;
@@ -5637,31 +5575,21 @@ static int64_t rd_pick_intrabc_mode_sb(const AV2_COMP *cpi, MACROBLOCK *x,
         fullms_params = fullms_params_init;
         best_ref_bv = mbmi_ext->ref_mv_stack[INTRA_FRAME][0].this_mv;
         av2_init_ref_mv(&fullms_params.mv_cost_params, &best_ref_bv.as_mv);
-        av2_set_mv_search_range(&fullms_params.mv_limits, &best_ref_bv.as_mv
-
-                                ,
-                                mbmi->pb_mv_precision
-
-        );
+        av2_set_mv_search_range(&fullms_params.mv_limits, &best_ref_bv.as_mv,
+                                mbmi->pb_mv_precision);
         dv_ref.as_mv = best_ref_bv.as_mv;
         // dv_ref is changed, so it is required to re-initialize mv cost
         // parameters
         init_mv_cost_params(&fullms_params.mv_cost_params, &x->mv_costs, 0,
-                            &dv_ref.as_mv, mbmi->pb_mv_precision, is_ibc_cost
-
-        );
+                            &dv_ref.as_mv, mbmi->pb_mv_precision, is_ibc_cost);
       }
       mbmi->ref_bv = dv_ref;
       int best_intrabc_drl_idx = mbmi->intrabc_drl_idx;
       int best_intrabc_mode = mbmi->intrabc_mode;
 
       // Do we need to call it again?
-      av2_set_mv_search_range(&fullms_params.mv_limits, &dv_ref.as_mv
-
-                              ,
-                              mbmi->pb_mv_precision
-
-      );
+      av2_set_mv_search_range(&fullms_params.mv_limits, &dv_ref.as_mv,
+                              mbmi->pb_mv_precision);
 
       if (fullms_params.mv_limits.col_max < fullms_params.mv_limits.col_min ||
           fullms_params.mv_limits.row_max < fullms_params.mv_limits.row_min) {
@@ -7163,12 +7091,8 @@ static int inter_mode_search_order_independent_skip(
 
 static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE curr_mode,
                              const MV_REFERENCE_FRAME *ref_frames,
-                             const AV2_COMMON *cm, MACROBLOCKD *const xd
-
-                             ,
-                             const SB_INFO *sbi
-
-) {
+                             const AV2_COMMON *cm, MACROBLOCKD *const xd,
+                             const SB_INFO *sbi) {
   PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
   mbmi->ref_mv_idx[0] = 0;
   mbmi->ref_mv_idx[1] = 0;

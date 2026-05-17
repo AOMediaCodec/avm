@@ -400,9 +400,7 @@ void av2_qm_init(CommonQuantParams *quant_params, int num_planes) {
   }
 }
 void av2_qm_replace_level(CommonQuantParams *quant_params, int level,
-                          int num_planes, qm_val_t ***fund_matrices
-
-) {
+                          int num_planes, qm_val_t ***fund_matrices) {
   const int q = level;
   for (int c = 0; c < num_planes; ++c) {
     // Generate matrices for each tx size

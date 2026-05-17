@@ -416,9 +416,7 @@ void av2_build_vq_amvd_nmv_cost_table(MvCosts *mv_costs,
 
 void av2_build_vq_nmv_cost_table(MvCosts *mv_costs, const nmv_context *ctx,
                                  MvSubpelPrecision precision,
-                                 IntraBCMvCosts *dv_costs, int is_ibc
-
-) {
+                                 IntraBCMvCosts *dv_costs, int is_ibc) {
   int joint_shell_set_cost[2];
   int joint_shell_class_cost_0[FIRST_SHELL_CLASS];
   int joint_shell_class_cost_1[SECOND_SHELL_CLASS];

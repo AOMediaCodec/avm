@@ -129,7 +129,6 @@ SimpleMotionData *av2_get_sms_data(AV2_COMP *const cpi,
                                    const TileInfo *const tile, MACROBLOCK *x,
                                    int mi_row, int mi_col, BLOCK_SIZE bsize
 #if CONFIG_ML_PART_SPLIT
-
                                    ,
                                    ThreadData *td, bool need_residual_stats
 #endif  // CONFIG_ML_PART_SPLIT

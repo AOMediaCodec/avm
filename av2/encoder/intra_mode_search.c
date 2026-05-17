@@ -106,7 +106,6 @@ static int rd_pick_intra_dip_sby(const AV2_COMP *const cpi, ThreadData *td,
                                  ,
                                  struct extra_dip_info *extra
 #endif  // CONFIG_DIP_EXT_PRUNING
-
 ) {
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
@@ -1771,7 +1770,6 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
                               skippable, bsize, mode_costs, &best_rd,
                               &best_model_rd, ctx
 #if CONFIG_DIP_EXT_PRUNING
-
                               ,
                               &extra_dip
 #endif  // CONFIG_DIP_EXT_PRUNING

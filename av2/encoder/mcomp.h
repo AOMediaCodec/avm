@@ -309,9 +309,7 @@ static INLINE void av2_set_mv_limits(
 }
 
 void av2_set_mv_search_range(FullMvLimits *mv_limits, const MV *mv,
-                             MvSubpelPrecision pb_mv_precision
-
-);
+                             MvSubpelPrecision pb_mv_precision);
 
 #define OMVS_AVG_POOLING 1
 #define OMVS_RANGE_THR 2
@@ -351,9 +349,7 @@ int av2_intrabc_hash_search(const struct AV2_COMP *cpi, const MACROBLOCKD *xd,
 
 static INLINE int av2_is_fullmv_in_range(const FullMvLimits *mv_limits,
                                          FULLPEL_MV mv,
-                                         MvSubpelPrecision pb_mv_precision
-
-) {
+                                         MvSubpelPrecision pb_mv_precision) {
   if (pb_mv_precision < MV_PRECISION_ONE_PEL) {
     if (mv.col & ((1 << (MV_PRECISION_ONE_PEL - pb_mv_precision)) - 1))
       return 0;
@@ -631,12 +627,7 @@ static INLINE int av2_lower_mv_limit(const int mv, const int shift) {
 
 static INLINE void av2_set_subpel_mv_search_range(
     SubpelMvLimits *subpel_limits, const FullMvLimits *mv_limits,
-    const MV *ref_mv
-
-    ,
-    MvSubpelPrecision pb_mv_precision
-
-) {
+    const MV *ref_mv, MvSubpelPrecision pb_mv_precision) {
   //  We have to make sure the generated mv_limits
   //  are compatible with target precision.
   MV low_prec_ref_mv = *ref_mv;

@@ -198,29 +198,23 @@ void av2_highbd_warp_plane(WarpedMotionParams *wm, const uint16_t *const ref,
                            int p_width, int p_height, int p_stride,
                            int subsampling_x, int subsampling_y, int bd,
                            ConvolveParams *conv_params,
-                           const struct scale_factors *sf
-
-                           ,
-                           int use_warp_bd_box, PadBlock *warp_bd_box);
+                           const struct scale_factors *sf, int use_warp_bd_box,
+                           PadBlock *warp_bd_box);
 
 void av2_warp_plane(WarpedMotionParams *wm, int bd, const uint16_t *ref,
                     int width, int height, int stride, uint16_t *pred,
                     int p_col, int p_row, int p_width, int p_height,
                     int p_stride, int subsampling_x, int subsampling_y,
-                    ConvolveParams *conv_params, const struct scale_factors *sf
-
-                    ,
+                    ConvolveParams *conv_params, const struct scale_factors *sf,
                     int use_warp_bd_box, PadBlock *warp_bd_box);
 
 void av2_find_projection(int np, const int *pts1, const int *pts2,
                          BLOCK_SIZE bsize, MV mv, WarpedMotionParams *wm_params,
-                         int mi_row, int mi_col, const struct scale_factors *sf
+                         int mi_row, int mi_col,
+                         const struct scale_factors *sf);
 
-);
-
-void av2_get_shear_params(WarpedMotionParams *wm, const struct scale_factors *sf
-
-);
+void av2_get_shear_params(WarpedMotionParams *wm,
+                          const struct scale_factors *sf);
 
 // Reduce the precision of a warp model, ready for use in the warp filter
 // and for storage. This should be called after the non-translational parameters
@@ -237,9 +231,7 @@ int av2_extend_warp_model(const bool neighbor_is_above, const BLOCK_SIZE bsize,
                           const int mi_col,
                           const WarpedMotionParams *neighbor_wm,
                           WarpedMotionParams *wm_params,
-                          const struct scale_factors *sf
-
-);
+                          const struct scale_factors *sf);
 
 // Given a warp model which was initially used at a temporal distance of
 // `in_distance`, rescale it to a new temporal distance of `out_distance`.
@@ -346,7 +338,5 @@ int_mv get_warp_motion_vector_xy_pos(const MACROBLOCKD *xd,
                                      MvSubpelPrecision precision);
 int get_model_from_corner_mvs(WarpedMotionParams *derive_model, int *pts,
                               int np, int *mvs, const BLOCK_SIZE bsize,
-                              const struct scale_factors *sf
-
-);
+                              const struct scale_factors *sf);
 #endif  // AVM_AV2_COMMON_WARPED_MOTION_H_

@@ -1497,9 +1497,7 @@ void av2_encode_block_intra(int plane, int block, int blk_row, int blk_col,
                            &txb_ctx, &dummy_rate_cost);
         else
           av2_optimize_b(args->cpi, x, plane, block, tx_size, tx_type,
-                         CCTX_NONE, &txb_ctx, &dummy_rate_cost
-
-          );
+                         CCTX_NONE, &txb_ctx, &dummy_rate_cost);
       }
       if (do_dropout && !fsc_mode && !enable_parity_hiding) {
         av2_dropout_qcoeff(x, plane, block, tx_size, tx_type,

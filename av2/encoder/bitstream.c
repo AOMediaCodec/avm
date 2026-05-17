@@ -100,9 +100,7 @@ static AVM_INLINE void write_intrabc_info(
 static AVM_INLINE void write_inter_mode(
     avm_writer *w, PREDICTION_MODE mode, FRAME_CONTEXT *ec_ctx,
     const int16_t mode_ctx, const AV2_COMMON *const cm, const MACROBLOCKD *xd,
-    const MB_MODE_INFO *mbmi, BLOCK_SIZE bsize
-
-) {
+    const MB_MODE_INFO *mbmi, BLOCK_SIZE bsize) {
   if (is_tip_ref_frame(mbmi->ref_frame[0])) {
     const int tip_pred_index =
         tip_pred_mode_to_index[mode - SINGLE_INTER_MODE_START];
@@ -570,9 +568,7 @@ static AVM_INLINE void write_delta_qindex(const MACROBLOCKD *xd,
 static AVM_INLINE void pack_map_tokens(const MACROBLOCKD *xd, avm_writer *w,
                                        const TokenExtra **tp, int n, int cols,
                                        int rows, int plane,
-                                       const bool direction_allowed
-
-) {
+                                       const bool direction_allowed) {
   const TokenExtra *p = *tp;
   const int direction = (direction_allowed) ? p->direction : 0;
   if (direction_allowed) {
