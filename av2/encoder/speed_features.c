@@ -359,6 +359,12 @@ static void set_good_speed_features_framesize_independent(
     // Cap the DRL depth for a fresh single-ref NEWMV search; reuse the
     // nearest searched result beyond the cap.
     sf->mv_sf.newmv_drl_search_limit = 2;
+    sf->part_sf.enable_six_param_warp_in_winner_mode = 1;
+    if (sf->part_sf.enable_six_param_warp_in_winner_mode) {
+      sf->winner_mode_sf.motion_mode_for_winner_cand = 2;
+      sf->part_sf.enable_six_param_warp_in_winner_mode_by_tid =
+          cm->current_frame.pyramid_level >= 3 ? 1 : 0;
+    }
   }
 
   if (speed >= 2) {
@@ -654,6 +660,8 @@ static AVM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->ext_recur_depth_level = 0;
   part_sf->prune_rect_with_split_depth = 0;
   part_sf->prune_part_h_with_partition_boundary = 0;
+  part_sf->enable_six_param_warp_in_winner_mode = 0;
+  part_sf->enable_six_param_warp_in_winner_mode_by_tid = 0;
 #if CONFIG_ML_PART_SPLIT
   part_sf->prune_split_with_ml = 0;
   part_sf->prune_none_with_ml = 0;

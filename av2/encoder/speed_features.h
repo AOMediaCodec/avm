@@ -422,6 +422,10 @@ typedef struct PARTITION_SPEED_FEATURES {
   // the current best partition's boundary after searching NONE, HORZ, VERT, and
   // H-parts.
   int prune_part_4_with_partition_boundary;
+  // Enable six parameter warp in winner mode by tid. If set to 1, enable six
+  // parameter warp in winner mode by tid threshold.
+  int enable_six_param_warp_in_winner_mode;
+  int enable_six_param_warp_in_winner_mode_by_tid;
 #if CONFIG_ML_PART_SPLIT
   int prune_split_with_ml;
   int prune_split_ml_level;
