@@ -369,6 +369,7 @@ static void set_good_speed_features_framesize_independent(
 
     // Predictive single-ref NEWMV reuse across the DRL.
     sf->mv_sf.predict_repeated_newmv = 1;
+    sf->inter_sf.enable_six_param_warp_in_winner_mode = 1;
 
     // Cap the DRL depth for a fresh single-ref NEWMV search; reuse the
     // nearest searched result beyond the cap.
@@ -603,6 +604,12 @@ static void set_good_speed_features_framesize_independent(
     sf->winner_mode_sf.dc_blk_pred_level = 2;
     sf->winner_mode_sf.multi_winner_mode_type = MULTI_WINNER_MODE_OFF;
   }
+
+  if (sf->inter_sf.enable_six_param_warp_in_winner_mode) {
+    sf->winner_mode_sf.motion_mode_for_winner_cand = 2;
+    sf->inter_sf.enable_six_param_warp_in_winner_mode_by_tid =
+        cm->current_frame.pyramid_level >= 3 ? 1 : 0;
+  }
 }
 
 static AVM_INLINE void init_hl_sf(HIGH_LEVEL_SPEED_FEATURES *hl_sf) {
@@ -721,6 +728,8 @@ static AVM_INLINE void init_flexmv_sf(
 }
 
 static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
+  inter_sf->enable_six_param_warp_in_winner_mode = 0;
+  inter_sf->enable_six_param_warp_in_winner_mode_by_tid = 0;
   inter_sf->comp_inter_joint_search_thresh = BLOCK_4X4;
   inter_sf->adaptive_rd_thresh = 0;
   inter_sf->model_based_post_interp_filter_breakout = 0;
