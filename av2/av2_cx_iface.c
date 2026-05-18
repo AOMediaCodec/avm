@@ -3945,7 +3945,7 @@ static avm_codec_err_t encoder_set_option(avm_codec_alg_priv_t *ctx,
 #endif
   } else if (avm_arg_match_helper(&arg, &g_av2_codec_arg_defs.qp_level, argv,
                                   err_string)) {
-    extra_cfg.qp = avm_arg_parse_uint_helper(&arg, err_string);
+    extra_cfg.qp = avm_arg_parse_int_helper(&arg, err_string);
   } else if (avm_arg_match_helper(&arg,
                                   &g_av2_codec_arg_defs.max_intra_rate_pct,
                                   argv, err_string)) {
