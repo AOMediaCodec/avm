@@ -518,7 +518,7 @@ jobs:
 
       - name: Get input asset
         run: |
-          curl -s -S -f -O https://gitlab.com/AOMediaCodec/aom-testing/-/raw/master/test-files/${AVMENC_INPUT}.xz
+          curl -s -S -f -O https://storage.googleapis.com/aom-test-data/${AVMENC_INPUT}.xz
           unxz ${AVMENC_INPUT}.xz
 
       - name: Encode GOPs
