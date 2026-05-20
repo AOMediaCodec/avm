@@ -23,7 +23,12 @@ if("${AVM_ROOT}" STREQUAL "${AVM_CONFIG_DIR}")
       "And re-run CMake from the avm_build directory.")
 endif()
 
-project(AVM C CXX ASM)
+# VERSION is the release version of the library. It should be updated at the
+# same time as the SO_*VERSION variables.
+project(
+  AVM
+  LANGUAGES C CXX ASM
+  VERSION 1.0.0)
 
 # GENERATED source property global visibility.
 if(POLICY CMP0118)
@@ -41,8 +46,9 @@ endif()
 
 # Updating version info.
 # https://www.gnu.org/software/libtool/manual/libtool.html#Updating-version-info
-set(SO_VERSION 2)
-set(SO_FILE_VERSION 2.0.0)
+# The VERSION number in project() should be updated when these variables are.
+set(SO_VERSION 1)
+set(SO_FILE_VERSION 1.0.0)
 
 # Enable generators like Xcode and Visual Studio to place projects in folders.
 set_property(GLOBAL PROPERTY USE_FOLDERS TRUE)
