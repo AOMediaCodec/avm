@@ -95,7 +95,7 @@ TEST(EncodeAPI, EncodeOddWidthHeight420) {
   EXPECT_EQ(avm_codec_destroy(&enc), AVM_CODEC_OK);
 }
 
-// A test that reproduces https://gitlab.com/AOMediaCodec/avm/-/issues/717.
+// A test that reproduces https://github.com/AOMediaCodec/avm/issues/717.
 TEST(EncodeAPI, AvmIssue717Width2) {
   constexpr unsigned int kWidth = 2;
   constexpr unsigned int kHeight = 34;
@@ -168,7 +168,7 @@ TEST(EncodeAPI, AvmIssue717Width2) {
   EXPECT_EQ(avm_codec_destroy(&enc), AVM_CODEC_OK);
 }
 
-// A test that reproduces https://gitlab.com/AOMediaCodec/avm/-/issues/717.
+// A test that reproduces https://github.com/AOMediaCodec/avm/issues/717.
 TEST(EncodeAPI, AvmIssue717Width4) {
   constexpr unsigned int kWidth = 4;
   constexpr unsigned int kHeight = 34;
@@ -276,7 +276,7 @@ TEST(EncodeAPI, GdfOptimizer8x8) {
   EXPECT_EQ(avm_codec_destroy(&enc), AVM_CODEC_OK);
 }
 
-// A test that reproduces https://gitlab.com/AOMediaCodec/avm/-/issues/749.
+// A test that reproduces https://github.com/AOMediaCodec/avm/issues/749.
 TEST(EncodeAPI, AvmIssue749) {
   constexpr unsigned int kWidth = 12;
   constexpr unsigned int kHeight = 34;

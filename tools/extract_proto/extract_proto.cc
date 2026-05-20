@@ -440,8 +440,6 @@ void WriteProto(const ExtractProtoContext *ctx, const Frame &frame) {
   }
 }
 
-// See:
-// https://gitlab.com/AOMediaCodec/avm/-/blob/4664aa8a08dce15e914093d2c85bcc25d2c8026f/av2/decoder/decodeframe.c#L6899
 const int kMaxLagInFrames = 35;
 int GetAbsoluteDisplayIndex(ExtractProtoContext *ctx, int raw_display_index,
                             FRAME_TYPE frame_type) {

@@ -167,7 +167,7 @@ jobs:
           # TODO: fix wiki URL
           if [ ${exit_code} -ne 0 ]; then
             echo -e "\e[31mYou may reproduce the compile failure by following instructions here:\e[0m"
-            echo -e "\e[31mhttps://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#build-avm-in-various-configurations\e[0m"
+            echo -e "\e[31mhttps://github.com/AOMediaCodec/avm/wiki/Reproducing-CI-Test-Failures-Locally#build-avm-in-various-configurations\e[0m"
             echo -e "\e[31mUsing following values:\e[0m"
             echo -e "\e[31mCMAKE_FLAGS = ${CMAKE_FLAGS}\e[0m"
             echo -e "\e[31mEXTRA_CMAKE_FLAGS = ${EXTRA_CMAKE_FLAGS}\e[0m"

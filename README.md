@@ -19,9 +19,9 @@
 
 ### Get the code
 
-The AVM project source code is stored in the Alliance of Open Media’s GitLab [repository](https://gitlab.com/AOMediaCodec/avm). To get the code,
+The AVM project source code is stored in the Alliance of Open Media’s Github [repository](https://github.com/AOMediaCodec/avm.git). To get the code,
 ~~~
-    $ git clone https://gitlab.com/AOMediaCodec/avm.git
+    $ git clone https://github.com/AOMediaCodec/avm.git
     # By default, the above command stores the source in the avm directory:
     $ cd avm
 ~~~
@@ -268,13 +268,13 @@ The coding style used by this project is enforced with `clang-format` and
 
 - `clang-format` can be installed with your system's package manager, or directly
 from [llvm.org](http://llvm.org/releases/download.html). For best results, your
-version should match the one used by Gitlab CI, noted as a comment in
-[.clang-format](https://gitlab.com/AOMediaCodec/avm/-/blob/main/.clang-format).
+version should match the one used by Github Actions, noted as a comment in
+[.clang-format](https://github.com/AOMediaCodec/avm/blob/main/.clang-format).
 
 - `cmake-format` can be obtained by installing
 [cmakelang](https://pypi.org/project/cmakelang/). Again, for best results, your
-version should match the one used by Gitlab CI, noted as a comment in
-[.cmake-format.py](https://gitlab.com/AOMediaCodec/avm/-/blob/main/.cmake-format.py)
+version should match the one used by Github Actions, noted as a comment in
+[.cmake-format.py](https://github.com/AOMediaCodec/avm/blob/main/.cmake-format.py)
 
 
 Before pushing changes for review, format your code using the tools above.
@@ -285,7 +285,7 @@ We recommend automating the formatting by adding a
 
 ~~~
 #!/bin/bash
-# Replace 'VERSION' below to match clang-format version in the CI.
+# Replace 'VERSION' below to match clang-format version in `.clang-format` file.
 CLANG_FORMAT_PATH=/usr/lib/llvm-VERSION/bin
 CMAKE_FORMAT_PATH=${HOME}/.local/bin/
 
@@ -308,20 +308,20 @@ echo "Done."
 
 ## Submitting patches
 
-We manage the submission of patches using Gitlab's
-[merge request](https://docs.gitlab.com/ee/user/project/merge_requests/) process.
+We manage the submission of patches using Github's
+[pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/about-pull-requests) process.
 This tool implements a workflow on top of the Git version control system to ensure that
 all changes get peer reviewed and tested prior to their distribution.
-If you are not able to submit an MR, please contact SW coordinators to make sure necessary
+If you are not able to submit an PR, please contact SW coordinators to make sure necessary
 contributor agreements are signed for the AOMedia Project.
 
-- Follow the one-time set-up steps as detailed [here](https://gitlab.com/AOMediaCodec/avm/-/wikis/AVM:-Software-Development-Workflow#1-one-time-setup).
-- For pushing your code modifications, follow the steps detailed [here](https://gitlab.com/AOMediaCodec/avm/-/wikis/AVM:-Software-Development-Workflow#2-develop-a-tool-feature-bugfix-in-your-fork).
-- Once the code is pushed into a branch, create a merge request as detailed [here](https://gitlab.com/AOMediaCodec/avm/-/wikis/AVM:-Software-Development-Workflow#3-create-a-merge-request-mr).
-    - The code review, approval and CI/CD process will be initiated after the MR is created.
-    - Once the MR is approved, the software co-ordinators will merge the MR to the main branch.
+- Follow the one-time set-up steps as detailed [here](https://github.com/AOMediaCodec/avm/wiki/AVM:-Software-Development-Workflow#1-one-time-setup).
+- For pushing your code modifications, follow the steps detailed [here](https://github.com/AOMediaCodec/avm/wiki/AVM:-Software-Development-Workflow#2-develop-a-tool--feature--bugfix-in-your-fork).
+- Once the code is pushed into a branch, create a pull request as detailed [here](https://github.com/AOMediaCodec/avm/wiki/AVM:-Software-Development-Workflow#3-create-a-pull-request-pr).
+    - The code review, approval and Github Actions will be initiated after the PR is created.
+    - Once the PR is approved, the software co-ordinators will merge the PR to the main branch.
 
-Follow the Merge request page to check the status of the changes, review comments etc.
+Follow the pull request page to check the status of the changes, review comments etc.
 
 
 ## Support
@@ -332,4 +332,4 @@ Please email https://aomedia.org/contact/ for help.
 ## Bug reports
 
 Bug reports can be filed in the Alliance for Open Media
-[Gitlab issue tracker](https://gitlab.com/AOMediaCodec/avm/-/issues).
+[Github issue tracker](https://github.com/AOMediaCodec/avm/issues).

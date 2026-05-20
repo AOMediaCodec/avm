@@ -11,7 +11,7 @@ use crate::{
     views::{SelectedObject, SelectedObjectKind, ViewMode},
 };
 
-const GITLAB_ROOT: &str = "https://gitlab.com/AOMediaCodec/avm/-/blob/research-v6.0.0";
+const GITHUB_ROOT: &str = "https://github.com/AOMediaCodec/avm";
 const DEFAULT_STREAMS_URL: &str = "/streams";
 const DEFAULT_WORLD_BOUNDS_WIDTH: f32 = 1280.0;
 const DEFAULT_WORLD_BOUNDS_HEIGHT: f32 = 720.0;
@@ -75,7 +75,7 @@ pub struct PersistentSettings {
 impl Default for PersistentSettings {
     fn default() -> Self {
         Self {
-            avm_source_url: GITLAB_ROOT.into(),
+            avm_source_url: GITHUB_ROOT.into(),
             style: StyleSettings::default(),
             apply_cache_strategy: false,
             cache_strategy_limit: 10,

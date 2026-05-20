@@ -420,7 +420,7 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AVxFirstPassEncoderThreadTest);
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AVxEncoderThreadTest);
 
 // Test cpu_used 0, 1, 3 and 5.
-// TODO(urvang): Once https://gitlab.com/AOMediaCodec/avm/-/issues/79 is fixed,
+// TODO(urvang): Once https://github.com/AOMediaCodec/avm/issues/79 is fixed,
 // change last parameter back to (0, 1) to re-enable unit tests with row-mt = 1.
 AV2_INSTANTIATE_TEST_SUITE(AVxEncoderThreadTestLarge,
                            ::testing::Values(::libavm_test::kOnePassGood),

@@ -126,7 +126,7 @@ jobs:
               ;;
             undefined|integer)
               SANITIZER_OPTIONS="${SANITIZER_OPTIONS}:print_stacktrace=1"
-              SANITIZER_OPTIONS="${SANITIZER_OPTIONS}:report_error_type=1"  # TODO: this was not set in gitlab's nightly, is there a problem to keep it ?
+              SANITIZER_OPTIONS="${SANITIZER_OPTIONS}:report_error_type=1"
               SANITIZER_OPTIONS="${SANITIZER_OPTIONS}:suppressions=.github/UBSan.supp"
               export UBSAN_OPTIONS="${SANITIZER_OPTIONS}"
               ;;
@@ -219,8 +219,8 @@ jobs:
             echo "Found sanitizer errors or warnings, check the ${logfile} log below:"
             cat ${logfile}
             echo "You may reproduce sanitizer builds and tests by following instructions below: "
-            echo "https://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#build-unit-tests-with-sanitizers and"
-            echo "https://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#run-unit-tests-with-sanitizers"
+            echo "https://github.com/AOMediaCodec/avm/wiki/Reproducing-CI-Test-Failures-Locally#build-unit-tests-with-sanitizers and"
+            echo "https://github.com/AOMediaCodec/avm/wiki/Reproducing-CI-Test-Failures-Locally#run-unit-tests-with-sanitizers"
             exit_code=$((exit_code+1))
           done
 
