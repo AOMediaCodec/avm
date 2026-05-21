@@ -6824,7 +6824,6 @@ size_t av2_write_banding_hints_metadata(
                                         &payload_size) != 0) {
     avm_internal_error(&cm->error, AVM_CODEC_ERROR,
                        "Error encoding banding hints metadata");
-    return 0;
   }
 
   avm_metadata_t *metadata =
@@ -6833,7 +6832,6 @@ size_t av2_write_banding_hints_metadata(
   if (!metadata) {
     avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
                        "Error allocating banding hints metadata");
-    return 0;
   }
 
   // Set up metadata fields
@@ -6903,7 +6901,6 @@ size_t av2_write_metadata_user_data_unregistered(AV2_COMP *const cpi,
     avm_internal_error(
         &cpi->common.error, AVM_CODEC_ERROR,
         "User data unregistered payload must be at least 16 bytes (UUID)");
-    return 0;
   }
 
   avm_metadata_t *metadata =
@@ -6912,7 +6909,6 @@ size_t av2_write_metadata_user_data_unregistered(AV2_COMP *const cpi,
   if (!metadata) {
     avm_internal_error(&cpi->common.error, AVM_CODEC_MEM_ERROR,
                        "Error allocating user data unregistered metadata");
-    return 0;
   }
   size_t total_bytes_written = 0;
   OBU_TYPE obu_type = cpi->oxcf.tool_cfg.use_short_metadata

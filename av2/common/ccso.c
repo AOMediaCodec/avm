@@ -374,13 +374,11 @@ void av2_apply_ccso_filter_for_row(AV2_COMMON *cm, MACROBLOCKD *xd,
       avm_internal_error(
           &cm->error, AVM_CODEC_ERROR,
           "Invalid BRU activity in CCSO: only active SB can be filtered");
-      return;
     }
     if (cm->bridge_frame_info.is_bridge_frame) {
       avm_internal_error(
           &cm->error, AVM_CODEC_ERROR,
           "Invalid Bridge frame activity in CCSO: can not be filtered");
-      return;
     }
 
     if (cm->features.has_lossless_segment) {
@@ -533,7 +531,6 @@ void apply_ccso_filter(AV2_COMMON *cm, MACROBLOCKD *xd, int plane,
                   avm_internal_error(&cm->error, AVM_CODEC_ERROR,
                                      "Invalid BRU activity in CCSO: only "
                                      "active SB can be filtered");
-                  return;
                 }
                 if (cm->features.has_lossless_segment) {
                   ccso_filter_block_hbd_wo_buf_4x4_c(
