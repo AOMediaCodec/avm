@@ -1218,7 +1218,6 @@ static void pc_wiener_stripe_highbd(const RestorationUnitInfo *rui,
       avm_internal_error(
           rui->error, AVM_CODEC_ERROR,
           "Invalid BRU activity in LR: only active SB can be filtered");
-      return;
     }
     MB_MODE_INFO **mbmi_ptr_procunit = rui->mbmi_ptr + mi_offset_x;
 
@@ -1592,7 +1591,6 @@ static void wiener_nsfilter_stripe_highbd(const RestorationUnitInfo *rui,
       avm_internal_error(
           rui->error, AVM_CODEC_ERROR,
           "Invalid BRU activity in LR: only active SB can be filtered");
-      return;
     }
     MB_MODE_INFO **mbmi_ptr_procunit = rui->mbmi_ptr + mi_offset_x;
     apply_wienerns_class_id_highbd(
