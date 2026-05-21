@@ -49,7 +49,6 @@ static void grain_table_entry_read(FILE *file,
   if (num_read != 5) {
     avm_internal_error(error_info, AVM_CODEC_ERROR,
                        "Unable to read entry header. Read %d != 5", num_read);
-    return;
   }
   if (pars->update_parameters) {
     num_read = fscanf(
@@ -63,45 +62,38 @@ static void grain_table_entry_read(FILE *file,
       avm_internal_error(error_info, AVM_CODEC_ERROR,
                          "Unable to read entry params. Read %d != 13",
                          num_read);
-      return;
     }
     if (!fscanf(file, "\tsY %d ", &pars->fgm_points[0])) {
       avm_internal_error(error_info, AVM_CODEC_ERROR,
                          "Unable to read num y points");
-      return;
     }
     for (int i = 0; i < pars->fgm_points[0]; ++i) {
       if (2 != fscanf(file, "%d %d", &pars->fgm_scaling_points_0[i][0],
                       &pars->fgm_scaling_points_0[i][1])) {
         avm_internal_error(error_info, AVM_CODEC_ERROR,
                            "Unable to read y scaling points");
-        return;
       }
     }
     if (!fscanf(file, "\n\tsCb %d", &pars->fgm_points[1])) {
       avm_internal_error(error_info, AVM_CODEC_ERROR,
                          "Unable to read num cb points");
-      return;
     }
     for (int i = 0; i < pars->fgm_points[1]; ++i) {
       if (2 != fscanf(file, "%d %d", &pars->fgm_scaling_points_1[i][0],
                       &pars->fgm_scaling_points_1[i][1])) {
         avm_internal_error(error_info, AVM_CODEC_ERROR,
                            "Unable to read cb scaling points");
-        return;
       }
     }
     if (!fscanf(file, "\n\tsCr %d", &pars->fgm_points[2])) {
       avm_internal_error(error_info, AVM_CODEC_ERROR,
                          "Unable to read num cr points");
-      return;
     }
     for (int i = 0; i < pars->fgm_points[2]; ++i) {
       if (2 != fscanf(file, "%d %d", &pars->fgm_scaling_points_2[i][0],
                       &pars->fgm_scaling_points_2[i][1])) {
         avm_internal_error(error_info, AVM_CODEC_ERROR,
                            "Unable to read cr scaling points");
-        return;
       }
     }
 
@@ -111,7 +103,6 @@ static void grain_table_entry_read(FILE *file,
       if (1 != fscanf(file, "%d", &pars->ar_coeffs_y[i])) {
         avm_internal_error(error_info, AVM_CODEC_ERROR,
                            "Unable to read Y coeffs");
-        return;
       }
     }
     fscanf(file, "\n\tcCb");
@@ -119,7 +110,6 @@ static void grain_table_entry_read(FILE *file,
       if (1 != fscanf(file, "%d", &pars->ar_coeffs_cb[i])) {
         avm_internal_error(error_info, AVM_CODEC_ERROR,
                            "Unable to read Cb coeffs");
-        return;
       }
     }
     fscanf(file, "\n\tcCr");
@@ -127,7 +117,6 @@ static void grain_table_entry_read(FILE *file,
       if (1 != fscanf(file, "%d", &pars->ar_coeffs_cr[i])) {
         avm_internal_error(error_info, AVM_CODEC_ERROR,
                            "Unable to read Cr coeffs");
-        return;
       }
     }
     fscanf(file, "\n");
@@ -262,7 +251,6 @@ avm_codec_err_t avm_film_grain_table_read(
   if (!file) {
     avm_internal_error(error_info, AVM_CODEC_ERROR, "Unable to open %s",
                        filename);
-    return error_info->error_code;
   }
   error_info->error_code = AVM_CODEC_OK;
 
@@ -304,7 +292,6 @@ avm_codec_err_t avm_film_grain_table_write(
   if (!file) {
     avm_internal_error(error_info, AVM_CODEC_ERROR, "Unable to open file %s",
                        filename);
-    return error_info->error_code;
   }
 
   if (!fwrite(kFileMagic, 8, 1, file)) {

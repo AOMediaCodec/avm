@@ -2676,7 +2676,6 @@ static AVM_INLINE void decode_restoration_mode(AV2_COMMON *cm,
         avm_internal_error(&cm->error, AVM_CODEC_ERROR,
                            "Invalid RU size, RU size shall not be smaller than "
                            "stripe height which is 64 for 422 format");
-        return;
       }
     }
     cm->rst_info[2].restoration_unit_size =
@@ -2697,7 +2696,6 @@ static AVM_INLINE void decode_restoration_mode(AV2_COMMON *cm,
           &cm->error, AVM_CODEC_ERROR,
           "Invalid RU size, RU size shall be an integer divisor of tiles "
           "width or height, except right-most and bottom tiles");
-      return;
     }
   }
 
@@ -2710,7 +2708,6 @@ static AVM_INLINE void decode_restoration_mode(AV2_COMMON *cm,
           &cm->error, AVM_CODEC_ERROR,
           "Invalid RU size, RU size shall be an integer divisor of tiles "
           "width or height, except right-most and bottom tiles");
-      return;
     }
   }
 
@@ -7223,7 +7220,6 @@ static int read_show_existing_frame(AV2Decoder *pbi, bool is_regular_obu,
       avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
                          "the reference frame should be a hidden frame when "
                          "derive_sef_order_hint is true");
-      return 0;
     }
     current_frame->order_hint = cm->cur_frame->order_hint =
         frame_to_show->order_hint;
@@ -7748,7 +7744,6 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
                          "Sequence Header changed at OBU_OPEN_LOOP_KEY when "
                          "pbi->random_accessed %d",
                          pbi->random_accessed);
-      return;
     }
   }
 
@@ -9527,20 +9522,17 @@ static int32_t read_tile_indices_in_tilegroup(AV2Decoder *pbi,
     avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
                        "tg_start (%d) must be equal to %d", *start_tile,
                        pbi->next_start_tile);
-    return -1;
   }
   if (*start_tile > *end_tile) {
     avm_internal_error(
         &cm->error, AVM_CODEC_CORRUPT_FRAME,
         "tg_end (%d) must be greater than or equal to tg_start (%d)", *end_tile,
         *start_tile);
-    return -1;
   }
   if (*end_tile >= num_tiles) {
     avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
                        "tg_end (%d) must be less than NumTiles (%d)", *end_tile,
                        num_tiles);
-    return -1;
   }
   pbi->next_start_tile = (*end_tile == num_tiles - 1) ? 0 : *end_tile + 1;
 

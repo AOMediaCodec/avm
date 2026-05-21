@@ -1336,7 +1336,6 @@ static avm_codec_err_t ctrl_copy_reference(avm_codec_alg_priv_t *ctx,
       AV2_COMMON *cm = &frame_worker_data->pbi->common;
       avm_internal_error(&cm->error, AVM_CODEC_INVALID_PARAM,
                          "Incorrect buffer dimensions");
-      return cm->error.error_code;
     }
     image2yuvconfig(&frame->img, &sd);
     return av2_copy_reference_dec(frame_worker_data->pbi, frame->idx, &sd);
@@ -1393,7 +1392,6 @@ static avm_codec_err_t ctrl_copy_new_frame_image(avm_codec_alg_priv_t *ctx,
         AV2_COMMON *cm = &frame_worker_data->pbi->common;
         avm_internal_error(&cm->error, AVM_CODEC_INVALID_PARAM,
                            "Incorrect buffer dimensions");
-        return cm->error.error_code;
       }
       image2yuvconfig(img, &sd);
       return av2_copy_new_frame_dec(&frame_worker_data->pbi->common, &new_frame,
