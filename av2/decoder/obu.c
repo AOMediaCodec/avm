@@ -223,6 +223,8 @@ void av2_store_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm, int xlayer_id) {
   // Global OBUs (xlayer_id=31) excluded from per-layer save/restore
   pbi->stream_info[stream_idx].lcr_counter_buf = pbi->lcr_counter;
   pbi->stream_info[stream_idx].active_lcr_buf = pbi->active_lcr;
+  pbi->stream_info[stream_idx].lcr_params_buf = cm->lcr_params;
+  pbi->stream_info[stream_idx].global_lcr_params_buf = cm->global_lcr_params;
   pbi->stream_info[stream_idx].active_atlas_segment_info_buf =
       pbi->active_atlas_segment_info;
   pbi->stream_info[stream_idx].ops_counter_buf = pbi->ops_counter;
@@ -292,6 +294,8 @@ void av2_restore_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
   // Global OBUs (xlayer_id=31) excluded from per-layer save/restore
   pbi->lcr_counter = pbi->stream_info[stream_idx].lcr_counter_buf;
   pbi->active_lcr = pbi->stream_info[stream_idx].active_lcr_buf;
+  cm->lcr_params = pbi->stream_info[stream_idx].lcr_params_buf;
+  cm->global_lcr_params = pbi->stream_info[stream_idx].global_lcr_params_buf;
   pbi->active_atlas_segment_info =
       pbi->stream_info[stream_idx].active_atlas_segment_info_buf;
   pbi->ops_counter = pbi->stream_info[stream_idx].ops_counter_buf;
