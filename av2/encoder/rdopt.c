@@ -6693,8 +6693,11 @@ static AVM_INLINE void init_mode_skip_mask(mode_skip_mask_t *mask,
   int min_pred_mv_sad = INT_MAX;
   MV_REFERENCE_FRAME ref_frame;
   for (ref_frame = 0; ref_frame < cm->ref_frames_info.num_total_refs;
-       ++ref_frame)
-    min_pred_mv_sad = AVMMIN(min_pred_mv_sad, x->pred_mv_sad[ref_frame]);
+       ++ref_frame) {
+    if (cm->ref_frame_flags & (1 << ref_frame)) {
+      min_pred_mv_sad = AVMMIN(min_pred_mv_sad, x->pred_mv_sad[ref_frame]);
+    }
+  }
 
   min_pred_mv_sad = AVMMIN(min_pred_mv_sad, x->pred_mv_sad[TIP_FRAME_INDEX]);
 
@@ -6823,8 +6826,8 @@ static AVM_INLINE void set_params_rd_pick_inter_mode(
   for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ++ref_frame) {
     x->mbmi_ext->mode_context[ref_frame] = 0;
     mbmi_ext->ref_mv_count[ref_frame] = UINT8_MAX;
+    x->pred_mv_sad[ref_frame] = INT_MAX;
     if ((cm->ref_frame_flags & (1 << ref_frame))) {
-      x->pred_mv_sad[ref_frame] = INT_MAX;
       if (mbmi->partition != PARTITION_NONE &&
           mbmi->partition != PARTITION_SPLIT) {
         if (skip_ref_frame_mask & ((uint64_t)1 << ref_frame) &&
