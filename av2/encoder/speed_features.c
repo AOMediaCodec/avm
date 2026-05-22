@@ -375,6 +375,8 @@ static void set_good_speed_features_framesize_independent(
     // Cap the DRL depth for a fresh single-ref NEWMV search; reuse the
     // nearest searched result beyond the cap.
     sf->mv_sf.newmv_drl_search_limit = 2;
+
+    sf->inter_sf.enable_enhanced_inter_mode_cache_reuse = 1;
     sf->inter_sf.skip_temporary_pred_for_opfl = 1;
 
     // Enable the optimized inter-SDP fast method (requires >=1 intra coded
@@ -780,6 +782,7 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->skip_mode_eval_based_on_rate_cost = 0;
   inter_sf->reuse_erp_mode_flag = 0;
   inter_sf->prune_warpmv_prob_thresh = 32;
+  inter_sf->enable_enhanced_inter_mode_cache_reuse = 0;
 }
 
 static AVM_INLINE void init_interp_sf(INTERP_FILTER_SPEED_FEATURES *interp_sf) {
