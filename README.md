@@ -9,7 +9,7 @@
  1. [CMake](https://cmake.org) version 3.16 or higher.
  2. [Git](https://git-scm.com/).
  3. [Perl](https://www.perl.org/).
- 4. For x86 targets, [yasm](http://yasm.tortall.net/), which is preferred, or a
+ 4. For x86 targets, [yasm](https://www.tortall.net/projects/yasm/releases/), which is preferred, or a
     recent version of [nasm](http://www.nasm.us/). If you download yasm with
     the intention to work with Visual Studio, please download win32.exe or
     win64.exe and rename it into yasm.exe. DO NOT download or use vsyasm.exe.
@@ -233,8 +233,8 @@ rule:
 
 The above make command will only download and verify the test data.
 
-Additional input data for testing the encoder can be obtained from:
-[AV2 - CTC](https://media.xiph.org/video/avmctc/test_set/)
+Additional input data for testing the encoder can be obtained from
+[here](https://media.xiph.org/video/aomctc/test_set/)
 
 ### Sharded testing
 
