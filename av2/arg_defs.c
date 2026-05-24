@@ -415,88 +415,87 @@ const av2_codec_arg_definitions_t g_av2_codec_arg_defs = {
               "Disable ML transform speed features "
               "(0: false (default), 1: true)"),
   .enable_sdp = ARG_DEF(NULL, "enable-sdp", 1,
-                        "Enable semi decoupled partitioning for key frame"
+                        "Enable semi-decoupled partitioning for key frame "
                         "(0: false, 1: true (default))"),
   .enable_extended_sdp =
       ARG_DEF(NULL, "enable-extended-sdp", 1,
-              "Enable semi decoupled partitioning for inter frame"
+              "Enable semi-decoupled partitioning for inter frame "
               "(0: false, 1: true (default))"),
   .enable_mrls =
       ARG_DEF(NULL, "enable-mrls", 1,
-              "Enable multiple reference line selection for intra prediction"
+              "Enable multiple reference line selection for intra prediction "
               "(0: false, 1: true (default))"),
   .enable_tip =
       ARG_DEF(NULL, "enable-tip", 1,
-              "Enable temporal interpolated prediction (TIP)"
+              "Enable temporal interpolated prediction (TIP) "
               "(0: disable TIP, "
               " 1: TIP frame is used as reference or direct output (default), "
               " 2: TIP frame is only used as reference)"),
   .enable_tip_refinemv = ARG_DEF(NULL, "enable-tip-refinemv", 1,
-                                 "Enable RefineMV and OPFL for TIP"
+                                 "Enable RefineMV and OPFL for TIP "
                                  "(0: false, 1: true (default))"),
   .enable_mv_traj = ARG_DEF(NULL, "enable-mv-traj", 1,
                             "Enable MV trajectory tracking"
-                            "(0: disable MV traj tracking, "
-                            " 1: enable MV traj tracking (default))"),
+                            "(0: false, 1: true (default))"),
   .enable_high_motion = ARG_DEF(NULL, "enable-high-motion", 1,
-                                "Enable a large motion search window"
+                                "Enable a large motion search window "
                                 "(0: false (default), 1: true"),
   .enable_bawp = ARG_DEF(NULL, "enable-bawp", 1,
-                         "Enable block adaptive weighted prediction (BAWP)"
+                         "Enable block adaptive weighted prediction (BAWP) "
                          "(0: false, 1: true (default))"),
 
   .enable_cwp = ARG_DEF(NULL, "enable-cwp", 1,
-                        "Enable compound weighted prediction (CWP)"
+                        "Enable compound weighted prediction (CWP) "
                         "(0: false, 1: true (default))"),
   .enable_imp_msk_bld = ARG_DEF(NULL, "enable-imp-msk-bld", 1,
-                                "Enable implicit masked blending"
-                                "(0:false), 1:true (default)"),
+                                "Enable implicit masked blending "
+                                "(0:false, 1:true (default))"),
   .enable_fsc = ARG_DEF(NULL, "enable-fsc", 1,
-                        "Enable forward skip coding"
+                        "Enable forward skip coding "
                         "(0: false, 1: true (default))"),
   .enable_idtx_intra = ARG_DEF(
       NULL, "enable-idtx-intra", 1,
-      "Enable idtx for intra for enable-fsc is 0 case"
+      "Enable idtx for intra for enable-fsc is 0 case "
       "(0: idtx for intra disabled 1: idtx for intra enabled (default))"),
   .enable_ist = ARG_DEF(NULL, "enable-ist", 1,
-                        "Enable intra secondary transform"
+                        "Enable intra secondary transform "
                         "(0: false, 1: true (default))"),
   .enable_inter_ist = ARG_DEF(NULL, "enable-inter-ist", 1,
-                              "Enable inter secondary transform"
+                              "Enable inter secondary transform "
                               "(0: false, 1: true (default))"),
   .enable_chroma_dctonly = ARG_DEF(NULL, "enable-chroma-dctonly", 1,
-                                   "Enable only DCT for chroma"
+                                   "Enable only DCT for chroma "
                                    "(0: false (default), 1: true)"),
   .enable_inter_ddt = ARG_DEF(NULL, "enable-inter-ddt", 1,
-                              "Enable inter data-driven transform"
+                              "Enable inter data-driven transform "
                               "(0: false, 1: true (default))"),
   .enable_cctx = ARG_DEF(NULL, "enable-cctx", 1,
                          "Enable cross-chroma component transform "
                          "(0: false, 1: true(default))"),
   .enable_ibp = ARG_DEF(NULL, "enable-ibp", 1,
-                        "Enable intra bi-prediction"
+                        "Enable intra bi-prediction "
                         "(0: false, 1: true (default))"),
   .enable_adaptive_mvd = ARG_DEF(NULL, "enable-adaptive-mvd", 1,
-                                 "Enable adaptive MVD resolution"
+                                 "Enable adaptive MVD resolution "
                                  "(0: false, 1: true (default))"),
   .enable_flex_mvres = ARG_DEF(NULL, "enable-flex-mvres", 1,
-                               "Enable flexible MV resolution"
+                               "Enable flexible MV resolution "
                                "(0: false, 1: true (default))"),
 
   .select_cfl_ds_filter =
       ARG_DEF(NULL, "select-adaptive-ds", 1,
-              "Select adaptive down-sampling filter"
-              "(0: filter 0, 1: filter 1, 2: filter 2, 3: adaptive (default)"),
+              "Select adaptive down-sampling filter "
+              "(0: filter 0, 1: filter 1, 2: filter 2, 3: adaptive (default))"),
 
   .enable_joint_mvd = ARG_DEF(NULL, "enable-joint-mvd", 1,
-                              "Enable joint MVD coding"
+                              "Enable joint MVD coding "
                               "(0: false, 1: true (default))"),
 
   .enable_refinemv = ARG_DEF(NULL, "enable-refinemv", 1,
-                             "Enable RefineMV mode"
+                             "Enable RefineMV mode "
                              "(0: false, 1: true (default))"),
   .enable_mvd_sign_derive = ARG_DEF(NULL, "enable-mvd-sign-derive", 1,
-                                    "Enable MVD sign derivation"
+                                    "Enable MVD sign derivation "
                                     "(0: false, 1: true (default))"),
   .min_partition_size =
       ARG_DEF(NULL, "min-partition-size", 1,
@@ -629,16 +628,16 @@ const av2_codec_arg_definitions_t g_av2_codec_arg_defs = {
       ARG_DEF(NULL, "use-inter-dct-only", 1, "Use DCT only for INTER modes"),
   .use_intra_default_tx_only =
       ARG_DEF(NULL, "use-intra-default-tx-only", 1,
-              "Use Default-transform only for INTRA modes"),
+              "Use Default-transform only for intra modes"),
   .quant_b_adapt = ARG_DEF(NULL, "quant-b-adapt", 1, "Use adaptive quantize_b"),
   .coeff_cost_upd_freq = ARG_DEF(NULL, "coeff-cost-upd-freq", 1,
-                                 "Update freq for coeff costs"
+                                 "Update freq for coeff costs "
                                  "0: SB, 1: SB Row per Tile, 2: Tile"),
   .mode_cost_upd_freq = ARG_DEF(NULL, "mode-cost-upd-freq", 1,
-                                "Update freq for mode costs"
+                                "Update freq for mode costs "
                                 "0: SB, 1: SB Row per Tile, 2: Tile"),
   .mv_cost_upd_freq = ARG_DEF(NULL, "mv-cost-upd-freq", 1,
-                              "Update freq for mv costs"
+                              "Update freq for mv costs "
                               "0: SB, 1: SB Row per Tile, 2: Tile, 3: Off"),
   .num_tg = ARG_DEF(NULL, "num-tile-groups", 1,
                     "Maximum number of tile groups, default is 1"),
@@ -648,7 +647,7 @@ const av2_codec_arg_definitions_t g_av2_codec_arg_defs = {
               "overrides maximum number of tile groups"),
   .timing_info = ARG_DEF_ENUM(
       NULL, "timing-info", 1,
-      "Signal timing info in the bitstream (model unly works for no "
+      "Signal timing info in the bitstream (model only works for no "
       "hidden frames, no super-res yet):",
       timing_info_enum),
 #if CONFIG_TUNE_VMAF
@@ -728,7 +727,7 @@ const av2_codec_arg_definitions_t g_av2_codec_arg_defs = {
               "(default), 1: on)"),
   .add_sef_for_hidden_frames =
       ARG_DEF(NULL, "add-sef-for-output", 1,
-              "Add SEF witout order_hint to output hidden frames"
+              "Add SEF without order_hint to output hidden frames"
               "(0: off (default), 1: on)"),
   .monotonic_output_order =
       ARG_DEF(NULL, "monotonic-output-order", 1,
@@ -784,7 +783,7 @@ const av2_codec_arg_definitions_t g_av2_codec_arg_defs = {
       ARG_DEF(NULL, "set-tier-mask", 1,
               "Set bit mask to specify which tier each of the 32 possible "
               "operating points conforms to. "
-              "Bit value 0(defualt): Main Tier, 1: High Tier."),
+              "Bit value 0 (default): Main Tier, 1: High Tier."),
 
   .use_fixed_qp_offsets =
       ARG_DEF(NULL, "use-fixed-qp-offsets", 1,
@@ -825,10 +824,10 @@ const av2_codec_arg_definitions_t g_av2_codec_arg_defs = {
 
   .max_drl_refmvs =
       ARG_DEF(NULL, "max-drl-refmvs", 1,
-              "maximum number of drl reference MVs per reference. "
+              "Maximum number of drl reference MVs per reference. "
               "(0 (auto), 2-8 (fixed)) default is 0 (auto)."),
   .max_drl_refbvs = ARG_DEF(NULL, "max-drl-refbvs", 1,
-                            "maximum number of drl reference BVs for IntraBC. "
+                            "Maximum number of drl reference BVs for IntraBC. "
                             "(0 (auto), 2-4 (fixed)) default is 0 (auto)."),
 
   .enable_refmvbank = ARG_DEF(NULL, "enable-refmvbank", 1,
@@ -837,21 +836,21 @@ const av2_codec_arg_definitions_t g_av2_codec_arg_defs = {
   .enable_drl_reorder =
       ARG_DEF(NULL, "enable-drl-reorder", 1,
               "Enable DRL reorder (0: no reorder, 1: reorder with constraints "
-              "(default), 2: always reorder"),
+              "(default), 2: always reorder)"),
   .enable_cdef_on_skip_txfm = ARG_DEF(
       NULL, "enable-cdef-on-skip-txfm", 1,
       "Enable CDEF on skip_txfm = 1 blocks (0: always off, 1: always on "
-      "(default), 2: adptive, allow on or off at the frame level"),
+      "(default), 2: adaptive, allow on or off at the frame level)"),
   .enable_avg_cdf = ARG_DEF(NULL, "enable-avg-cdf", 1,
                             "Enable frame/tile cdfs average for initialization "
-                            "(0:false), 1:true (default)"),
+                            "(0:false, 1:true (default))"),
   .avg_cdf_type = ARG_DEF(NULL, "avg-cdf-type", 1,
                           "Type of cdf averaging "
                           "(0 (frame based), 1 (tile based)), default "
                           "(adaptively choosen based on number of tiles)."),
   .enable_parity_hiding = ARG_DEF(NULL, "enable-parity-hiding", 1,
                                   "Enable parity hiding "
-                                  "(0:false), 1:true (default)"),
+                                  "(0:false, 1:true (default))"),
   .enable_ext_seg = ARG_DEF(NULL, "enable-ext-seg", 1,
                             "Enable extended # of segments "
                             "(0: false (default), 1: true)"),
