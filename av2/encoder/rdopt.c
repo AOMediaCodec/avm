@@ -4887,10 +4887,15 @@ static void evaluate_inter_predictor(AV2_COMP *const cpi,
   }
 
   int compmode_interinter_cost = 0;
-
+  int is_opfl_mode =
+      (cpi->sf.inter_sf.skip_temporary_pred_for_opfl &&
+       mbmi->mode >= NEAR_NEARMV_OPTFLOW && mbmi->mode < COMP_INTER_MODE_END)
+          ? 1
+          : 0;
   // Handle a compound predictor, continue if it is determined
   // this cannot be the best compound mode
-  if (is_comp_pred && !is_joint_amvd_coding_mode(mbmi->mode, mbmi->use_amvd) &&
+  if (!is_opfl_mode && is_comp_pred &&
+      !is_joint_amvd_coding_mode(mbmi->mode, mbmi->use_amvd) &&
       (!mbmi->refinemv_flag || !switchable_refinemv_flag(cm, mbmi))) {
     const int not_best_mode = process_compound_inter_mode(
         cpi, x, env->args, *search_state->ref_best_rd, tmp_cur_mv, bsize,
@@ -4912,9 +4917,10 @@ static void evaluate_inter_predictor(AV2_COMP *const cpi,
   int64_t ret_val;
 
   // Determine the interpolation filter for this mode
-  ret_val = av2_interpolation_filter_search(
-      x, cpi, tile_data, bsize, env->tmp_dst, env->orig_dst, &rd, &rs,
-      &skip_build_pred, env->args, *search_state->ref_best_rd);
+  if (!is_opfl_mode)
+    ret_val = av2_interpolation_filter_search(
+        x, cpi, tile_data, bsize, env->tmp_dst, env->orig_dst, &rd, &rs,
+        &skip_build_pred, env->args, *search_state->ref_best_rd);
 
   assert(check_mv_precision(cm, mbmi, x));
 
@@ -4922,7 +4928,7 @@ static void evaluate_inter_predictor(AV2_COMP *const cpi,
     env->args->modelled_rd[eval_mode][ref_mv_idx_type][refs[0]] = rd;
   }
 
-  if (mbmi->mode != WARPMV) {
+  if (mbmi->mode != WARPMV && !is_opfl_mode) {
     if (ret_val != 0) {
       restore_dst_buf(xd, *env->orig_dst, num_planes);
       return;

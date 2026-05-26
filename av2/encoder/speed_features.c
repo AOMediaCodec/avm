@@ -359,6 +359,7 @@ static void set_good_speed_features_framesize_independent(
     // Cap the DRL depth for a fresh single-ref NEWMV search; reuse the
     // nearest searched result beyond the cap.
     sf->mv_sf.newmv_drl_search_limit = 2;
+    sf->inter_sf.skip_temporary_pred_for_opfl = 1;
   }
 
   if (speed >= 2) {
@@ -703,6 +704,7 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->comp_inter_joint_search_thresh = BLOCK_4X4;
   inter_sf->adaptive_rd_thresh = 0;
   inter_sf->model_based_post_interp_filter_breakout = 0;
+  inter_sf->skip_temporary_pred_for_opfl = 0;
   inter_sf->reduce_inter_modes = 0;
   inter_sf->alt_ref_search_fp = 0;
   inter_sf->selective_ref_frame = 0;
