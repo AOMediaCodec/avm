@@ -1324,11 +1324,11 @@ static size_t read_metadata_unit_header(AV2Decoder *pbi, const uint8_t *data,
   AV2_COMMON *const cm = &pbi->common;
   size_t type_length;
   uint64_t type_value;
-  if (avm_uleb_decode(data, sz, &type_value, &type_length) < 0 ||
-      type_value > UINT32_MAX) {
+  if (avm_uleb_decode(data, sz, &type_value, &type_length) < 0) {
     cm->error.error_code = AVM_CODEC_CORRUPT_FRAME;
     return 0;
   }
+  assert(type_value <= UINT32_MAX);
   metadata->type = (uint32_t)type_value;
   size_t bytes_read = type_length;
 
