@@ -231,9 +231,6 @@ rule:
 
 The above make command will only download and verify the test data.
 
-Additional input data for testing the encoder can be obtained from
-[here](https://media.xiph.org/video/aomctc/test_set/)
-
 ### Sharded testing
 
 The AVM codec library unit tests are built upon gtest which supports sharding of test jobs.
@@ -255,6 +252,11 @@ the number of CPUs on the system where the build is configured as detected by
 CMake. A system with 24 cores can run 24 test shards using a value of 24 with
 the `-j` parameter. When CMake is unable to detect the number of cores 10 shards
 is the default maximum value.
+
+### Common Test Conditions (CTC)
+
+CTC document can be found [here](https://aomedia.org/docs/CWG-G082_AV2_CTC_v9.pdf) and
+CTC sequences can be obtained from [here](https://media.xiph.org/video/aomctc/test_set/).
 
 ## Coding style
 
