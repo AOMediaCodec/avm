@@ -1,7 +1,5 @@
 # AVM
 
-[TOC]
-
 ## Building
 
 ### Prerequisites
