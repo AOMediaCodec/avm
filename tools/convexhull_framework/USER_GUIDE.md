@@ -51,8 +51,8 @@ The AVM CTC Testing Framework is a Python-based test harness for evaluating vide
 
 - **Python 3.8 or later**
 - **Video encoder binaries** (one or more):
-  - `avmenc` / `aomenc` - AVM/AOM encoder ([libavm](https://gitlab.com/AOMediaCodec/avm))
-  - `avmdec` / `aomdec` - AVM/AOM decoder
+  - `avmenc` - AVM encoder ([libavm](https://github.com/AOMediaCodec/avm))
+  - `avmdec` - AVM decoder
   - `SvtAv1EncApp` - SVT-AV1 encoder ([SVT-AV1](https://github.com/OpenVisualCloud/SVT-AV1))
   - `TAppEncoderStatic` - HM (HEVC) encoder
 - **Quality tools**:

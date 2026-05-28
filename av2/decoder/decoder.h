@@ -298,6 +298,8 @@ typedef struct {
   struct OperatingPointSet ops_list_buf[MAX_NUM_OPS_ID];
   int ops_counter_buf;
   struct LayerConfigurationRecord *active_lcr_buf;
+  struct LayerConfigurationRecord lcr_params_buf;
+  struct LayerConfigurationRecord global_lcr_params_buf;
   struct AtlasSegmentInfo *active_atlas_segment_info_buf;
   struct quantization_matrix_set qm_list_buf[NUM_CUSTOM_QMS];
   int qm_protected_buf[NUM_CUSTOM_QMS];

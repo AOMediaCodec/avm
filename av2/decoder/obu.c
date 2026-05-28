@@ -223,6 +223,8 @@ void av2_store_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm, int xlayer_id) {
   // Global OBUs (xlayer_id=31) excluded from per-layer save/restore
   pbi->stream_info[stream_idx].lcr_counter_buf = pbi->lcr_counter;
   pbi->stream_info[stream_idx].active_lcr_buf = pbi->active_lcr;
+  pbi->stream_info[stream_idx].lcr_params_buf = cm->lcr_params;
+  pbi->stream_info[stream_idx].global_lcr_params_buf = cm->global_lcr_params;
   pbi->stream_info[stream_idx].active_atlas_segment_info_buf =
       pbi->active_atlas_segment_info;
   pbi->stream_info[stream_idx].ops_counter_buf = pbi->ops_counter;
@@ -292,6 +294,8 @@ void av2_restore_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
   // Global OBUs (xlayer_id=31) excluded from per-layer save/restore
   pbi->lcr_counter = pbi->stream_info[stream_idx].lcr_counter_buf;
   pbi->active_lcr = pbi->stream_info[stream_idx].active_lcr_buf;
+  cm->lcr_params = pbi->stream_info[stream_idx].lcr_params_buf;
+  cm->global_lcr_params = pbi->stream_info[stream_idx].global_lcr_params_buf;
   pbi->active_atlas_segment_info =
       pbi->stream_info[stream_idx].active_atlas_segment_info_buf;
   pbi->ops_counter = pbi->stream_info[stream_idx].ops_counter_buf;
@@ -1320,11 +1324,11 @@ static size_t read_metadata_unit_header(AV2Decoder *pbi, const uint8_t *data,
   AV2_COMMON *const cm = &pbi->common;
   size_t type_length;
   uint64_t type_value;
-  if (avm_uleb_decode(data, sz, &type_value, &type_length) < 0 ||
-      type_value > UINT32_MAX) {
+  if (avm_uleb_decode(data, sz, &type_value, &type_length) < 0) {
     cm->error.error_code = AVM_CODEC_CORRUPT_FRAME;
     return 0;
   }
+  assert(type_value <= UINT32_MAX);
   metadata->type = (uint32_t)type_value;
   size_t bytes_read = type_length;
 

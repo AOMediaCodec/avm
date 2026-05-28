@@ -214,7 +214,7 @@ if("${AVM_TARGET_SYSTEM}" STREQUAL "Windows")
 endif()
 
 # We increase stack size for MSVC to 8 MB (default stack size on Linux) to avoid
-# stack overflow. See issue https://gitlab.com/AOMediaCodec/avm/-/issues/786 for
+# stack overflow. See issue https://github.com/AOMediaCodec/avm/issues/786 for
 # repro case and an analysis of large stack variables.
 if(MSVC)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:8388608")

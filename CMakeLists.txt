@@ -23,7 +23,12 @@ if("${AVM_ROOT}" STREQUAL "${AVM_CONFIG_DIR}")
       "And re-run CMake from the avm_build directory.")
 endif()
 
-project(AVM C CXX ASM)
+# VERSION is the release version of the library. It should be updated at the
+# same time as the LT_* variables.
+project(
+  AVM
+  LANGUAGES C CXX ASM
+  VERSION 1.0.0)
 
 # GENERATED source property global visibility.
 if(POLICY CMP0118)
@@ -39,10 +44,26 @@ if(NOT EMSCRIPTEN)
   endif()
 endif()
 
-# Updating version info.
+# Library version info. Update LT_CURRENT, LT_REVISION and LT_AGE when making a
+# public release by following the guidelines in the libtool document:
 # https://www.gnu.org/software/libtool/manual/libtool.html#Updating-version-info
-set(SO_VERSION 2)
-set(SO_FILE_VERSION 2.0.0)
+#
+# c=<current>, r=<revision>, a=<age>
+#
+# libtool generates a .so file as .so.[c-a].a.r, while -version-info c:r:a is
+# passed to libtool.
+#
+# We set SO_FILE_VERSION = [c-a].a.r
+#
+# The VERSION number in project() should be updated when these variables are.
+set(LT_CURRENT 1)
+set(LT_REVISION 0)
+set(LT_AGE 0)
+math(EXPR SO_VERSION "${LT_CURRENT} - ${LT_AGE}")
+set(SO_FILE_VERSION "${SO_VERSION}.${LT_AGE}.${LT_REVISION}")
+unset(LT_CURRENT)
+unset(LT_REVISION)
+unset(LT_AGE)
 
 # Enable generators like Xcode and Visual Studio to place projects in folders.
 set_property(GLOBAL PROPERTY USE_FOLDERS TRUE)

@@ -30,7 +30,7 @@ After making necessary modifications to the AVM for data collection, ParaKit has
 ## 2. Installation
 <b>Step 1:</b> clone AVM and change the directory.
 ```
-git clone https://gitlab.com/AOMediaCodec/avm.git ParaKit-AVM
+git clone https://github.com/AOMediaCodec/avm.git ParaKit-AVM
 cd ParaKit-AVM
 ```
 
