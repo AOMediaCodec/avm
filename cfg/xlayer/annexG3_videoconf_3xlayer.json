@@ -1,0 +1,90 @@
+{
+  "comment": "Annex G.3: Subpicture composition for video conferencing",
+  "comment2": "3 extended layers: main speaker (high-res) + 2 participants (medium-res)",
+  "comment3": "Atlas composes into a 1920x1080 virtual canvas with non-uniform grid",
+  "comment4": "Main speaker at left (1280x1080), participants stacked at right (640x540 each)",
+  "xlayers": [
+    {
+      "xlayer_id": 0,
+      "input": "main_speaker.y4m",
+      "width": 1280,
+      "height": 1080,
+      "layer_type": "texture",
+      "view_type": "center",
+      "num_temporal_layers": 1,
+      "num_embedded_layers": 1,
+      "qp": 128,
+      "cpu_used": 5,
+      "comment": "Main speaker, high resolution, high bitrate"
+    },
+    {
+      "xlayer_id": 1,
+      "input": "participant2.y4m",
+      "width": 480,
+      "height": 360,
+      "layer_type": "texture",
+      "view_type": "center",
+      "num_temporal_layers": 1,
+      "num_embedded_layers": 1,
+      "qp": 160,
+      "cpu_used": 5,
+      "comment": "Participant 2, encoded at 480x360, upsampled to 640x540 in atlas"
+    },
+    {
+      "xlayer_id": 2,
+      "input": "participant3.y4m",
+      "width": 640,
+      "height": 540,
+      "layer_type": "texture",
+      "view_type": "center",
+      "num_temporal_layers": 1,
+      "num_embedded_layers": 1,
+      "qp": 160,
+      "cpu_used": 5,
+      "comment": "Participant 3, medium resolution"
+    }
+  ],
+  "global_lcr": {
+    "enable": true,
+    "purpose_id": 6,
+    "dependent_xlayers": false,
+    "doh_constraint": true,
+    "comment": "purpose_id=6: Multiview Playback"
+  },
+  "msdo": {
+    "enable": false
+  },
+  "ops": [
+    {
+      "ops_id": 0,
+      "priority": 0,
+      "intent_present": true,
+      "ptl_present": true,
+      "operating_points": [
+        {
+          "intent": 0,
+          "xlayer_map": [0],
+          "comment": "OP0: Main speaker only (mobile/low bandwidth)"
+        },
+        {
+          "intent": 1,
+          "xlayer_map": [0, 1],
+          "comment": "OP1: Main speaker + participant 2"
+        },
+        {
+          "intent": 2,
+          "xlayer_map": [0, 1, 2],
+          "comment": "OP2: All participants - full conferencing view"
+        }
+      ]
+    }
+  ],
+  "atlas": {
+    "enable": true,
+    "mode": 0,
+    "comment": "Enhanced Atlas: 2x2 non-uniform grid, main speaker spans left column"
+  },
+  "combined_tu": true,
+  "monotonic_output_order": true,
+  "output": "videoconf_3participant_muxed.obu"
+}

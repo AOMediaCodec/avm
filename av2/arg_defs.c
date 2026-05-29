@@ -904,4 +904,6 @@ const av2_codec_arg_definitions_t g_av2_codec_arg_defs = {
               "Cross frame CDF for context initialization "
               "(0: disable cross frame CDF init, 1: enable cross frame CDF "
               "init(default), "),
+  .xlayer_config = ARG_DEF(NULL, "xlayer-config", 1,
+                           "Path to JSON config for multi-xlayer encoding"),
 };

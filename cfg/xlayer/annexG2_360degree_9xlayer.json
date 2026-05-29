@@ -1,0 +1,168 @@
+{
+  "comment": "Annex G.2: 360-degree viewport-dependent streaming with subpictures",
+  "comment2": "9 extended layers in a 3x3 grid covering 3840x1920 equirectangular projection",
+  "comment3": "Each xlayer has 3 embedded layers: texture, alpha, depth",
+  "comment4": "Uses LCR (not MSDO, which is limited to 4 streams)",
+  "xlayers": [
+    {
+      "xlayer_id": 0,
+      "input": "subpic_topleft.y4m",
+      "width": 1280,
+      "height": 640,
+      "layer_type": "texture",
+      "view_type": "center",
+      "num_temporal_layers": 1,
+      "num_embedded_layers": 3,
+      "qp": 200,
+      "cpu_used": 5,
+      "comment": "Top-left subpicture, low quality (corner)"
+    },
+    {
+      "xlayer_id": 1,
+      "input": "subpic_topcenter.y4m",
+      "width": 1280,
+      "height": 640,
+      "layer_type": "texture",
+      "view_type": "center",
+      "num_temporal_layers": 1,
+      "num_embedded_layers": 3,
+      "qp": 160,
+      "cpu_used": 5,
+      "comment": "Top-center subpicture, medium quality (adjacent)"
+    },
+    {
+      "xlayer_id": 2,
+      "input": "subpic_topright.y4m",
+      "width": 1280,
+      "height": 640,
+      "layer_type": "texture",
+      "view_type": "center",
+      "num_temporal_layers": 1,
+      "num_embedded_layers": 3,
+      "qp": 200,
+      "cpu_used": 5,
+      "comment": "Top-right subpicture, low quality (corner)"
+    },
+    {
+      "xlayer_id": 3,
+      "input": "subpic_midleft.y4m",
+      "width": 1280,
+      "height": 640,
+      "layer_type": "texture",
+      "view_type": "center",
+      "num_temporal_layers": 1,
+      "num_embedded_layers": 3,
+      "qp": 160,
+      "cpu_used": 5,
+      "comment": "Middle-left subpicture, medium quality (adjacent)"
+    },
+    {
+      "xlayer_id": 4,
+      "input": "subpic_center.y4m",
+      "width": 1280,
+      "height": 640,
+      "layer_type": "texture",
+      "view_type": "center",
+      "num_temporal_layers": 1,
+      "num_embedded_layers": 3,
+      "qp": 128,
+      "cpu_used": 5,
+      "comment": "CENTER VIEWPORT subpicture, HIGH quality"
+    },
+    {
+      "xlayer_id": 5,
+      "input": "subpic_midright.y4m",
+      "width": 1280,
+      "height": 640,
+      "layer_type": "texture",
+      "view_type": "center",
+      "num_temporal_layers": 1,
+      "num_embedded_layers": 3,
+      "qp": 160,
+      "cpu_used": 5,
+      "comment": "Middle-right subpicture, medium quality (adjacent)"
+    },
+    {
+      "xlayer_id": 6,
+      "input": "subpic_botleft.y4m",
+      "width": 1280,
+      "height": 640,
+      "layer_type": "texture",
+      "view_type": "center",
+      "num_temporal_layers": 1,
+      "num_embedded_layers": 3,
+      "qp": 200,
+      "cpu_used": 5,
+      "comment": "Bottom-left subpicture, low quality (corner)"
+    },
+    {
+      "xlayer_id": 7,
+      "input": "subpic_botcenter.y4m",
+      "width": 1280,
+      "height": 640,
+      "layer_type": "texture",
+      "view_type": "center",
+      "num_temporal_layers": 1,
+      "num_embedded_layers": 3,
+      "qp": 160,
+      "cpu_used": 5,
+      "comment": "Bottom-center subpicture, medium quality (adjacent)"
+    },
+    {
+      "xlayer_id": 8,
+      "input": "subpic_botright.y4m",
+      "width": 1280,
+      "height": 640,
+      "layer_type": "texture",
+      "view_type": "center",
+      "num_temporal_layers": 1,
+      "num_embedded_layers": 3,
+      "qp": 200,
+      "cpu_used": 5,
+      "comment": "Bottom-right subpicture, low quality (corner/back-facing)"
+    }
+  ],
+  "global_lcr": {
+    "enable": true,
+    "purpose_id": 0,
+    "dependent_xlayers": false,
+    "doh_constraint": true
+  },
+  "msdo": {
+    "enable": false,
+    "comment": "MSDO limited to 4 streams; 9 xlayers requires LCR only"
+  },
+  "ops": [
+    {
+      "ops_id": 0,
+      "priority": 0,
+      "intent_present": true,
+      "ptl_present": true,
+      "operating_points": [
+        {
+          "intent": 0,
+          "xlayer_map": [4],
+          "comment": "OP0: Center viewport subpicture only (low bandwidth)"
+        },
+        {
+          "intent": 1,
+          "xlayer_map": [1, 3, 4, 5, 7],
+          "comment": "OP1: Center + adjacent subpictures (medium bandwidth)"
+        },
+        {
+          "intent": 2,
+          "xlayer_map": [0, 1, 2, 3, 4, 5, 6, 7, 8],
+          "comment": "OP2: All 9 subpictures - complete sphere coverage (high bandwidth)"
+        }
+      ]
+    }
+  ],
+  "atlas": {
+    "enable": true,
+    "mode": 0,
+    "comment": "Enhanced Atlas: 3x3 uniform grid composing 3840x1920 equirectangular"
+  },
+  "combined_tu": true,
+  "monotonic_output_order": true,
+  "output": "360degree_9subpic_muxed.obu"
+}

@@ -294,6 +294,7 @@ typedef struct av2_codec_arg_definitions {
   arg_def_t enable_mfh_obu_signaling;
   arg_def_t operating_points_count;
   arg_def_t cross_frame_cdf_init_mode;
+  arg_def_t xlayer_config;
 } av2_codec_arg_definitions_t;
 
 extern const av2_codec_arg_definitions_t g_av2_codec_arg_defs;

@@ -1,0 +1,57 @@
+{
+  "comment": "2 xlayers × 2 mlayers, open GOP (OLK + leading pictures), non-monotonic. The forward keyframe is a displayed OLK — it is an implicit output frame (decoder reorders). Frames before the OLK in display order are coded as leading pictures after the OLK in coding order. Requires lag_in_frames > 0 and non-monotonic output.",
+  "xlayers": [
+    {
+      "xlayer_id": 0,
+      "input": "texture.y4m",
+      "width": 1920,
+      "height": 1080,
+      "layer_type": "texture",
+      "num_embedded_layers": 2,
+      "scaling_mode": ["1/2", "1:1"],
+      "qp": 128,
+      "cpu_used": 5,
+      "lag_in_frames": 19,
+      "kf_max_dist": 9,
+      "gop_mode": "open_leading"
+    },
+    {
+      "xlayer_id": 1,
+      "input": "depth.y4m",
+      "width": 1920,
+      "height": 1080,
+      "layer_type": "auxiliary",
+      "auxiliary_type": "depth",
+      "num_embedded_layers": 1,
+      "qp": 160,
+      "cpu_used": 5,
+      "lag_in_frames": 19,
+      "kf_max_dist": 9,
+      "gop_mode": "open_leading"
+    }
+  ],
+  "global_lcr": {
+    "enable": true,
+    "purpose_id": 0,
+    "doh_constraint": true
+  },
+  "ops": [
+    {
+      "ops_id": 0,
+      "priority": 0,
+      "intent_present": true,
+      "ptl_present": true,
+      "operating_points": [
+        { "intent": 0, "xlayer_map": [0], "mlayer_count": [1],
+          "comment": "OP0: texture at 1/2 resolution" },
+        { "intent": 1, "xlayer_map": [0], "mlayer_count": [2],
+          "comment": "OP1: texture at full resolution" },
+        { "intent": 2, "xlayer_map": [0, 1], "mlayer_count": [2, 1],
+          "comment": "OP2: texture + depth" }
+      ]
+    }
+  ],
+  "combined_tu": true,
+  "monotonic_output_order": false,
+  "output": "texture_depth_2xl_2ml_open_leading.obu"
+}

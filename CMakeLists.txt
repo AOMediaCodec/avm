@@ -143,6 +143,9 @@ list(
   "${AVM_ROOT}/third_party/libyuv/source/scale_neon64.cc"
   "${AVM_ROOT}/third_party/libyuv/source/scale_win.cc")
 
+list(APPEND AVM_CJSON_SOURCES "${AVM_ROOT}/third_party/cJSON/cJSON.c"
+     "${AVM_ROOT}/third_party/cJSON/cJSON.h")
+
 list(
   APPEND
   AVM_SOURCES
@@ -403,8 +406,14 @@ endif()
 
 if(CONFIG_AV2_DECODER AND ENABLE_EXAMPLES)
   add_executable(
-    avmdec "${AVM_ROOT}/apps/avmdec.c" $<TARGET_OBJECTS:avm_common_app_util>
-           $<TARGET_OBJECTS:avm_decoder_app_util>)
+    avmdec
+    "${AVM_ROOT}/apps/avmdec.c"
+    $<TARGET_OBJECTS:avm_common_app_util>
+    $<TARGET_OBJECTS:avm_decoder_app_util>
+    "${AVM_ROOT}/common/xlayer_config.h"
+    "${AVM_ROOT}/common/xlayer_config_parse.c"
+    "${AVM_ROOT}/common/xlayer_config_parse.h"
+    $<TARGET_OBJECTS:avm_cjson>)
   target_sources(avmdec PRIVATE $<TARGET_OBJECTS:lanczos_resample>)
   add_executable(
     decode_to_md5
@@ -475,9 +484,18 @@ if(CONFIG_AV2_ENCODER)
   if(ENABLE_EXAMPLES)
     add_executable(
       avmenc
-      "${AVM_ROOT}/apps/avmenc.c" $<TARGET_OBJECTS:avm_common_app_util>
+      "${AVM_ROOT}/apps/avmenc.c"
+      "${AVM_ROOT}/apps/avmenc_xlayer.c"
+      "${AVM_ROOT}/apps/avmenc_xlayer.h"
+      "${AVM_ROOT}/common/xlayer_config.h"
+      "${AVM_ROOT}/common/xlayer_config_parse.c"
+      "${AVM_ROOT}/common/xlayer_config_parse.h"
+      "${AVM_ROOT}/common/tu_assembler.c"
+      "${AVM_ROOT}/common/tu_assembler.h"
+      $<TARGET_OBJECTS:avm_common_app_util>
       $<TARGET_OBJECTS:avm_encoder_app_util>
-      $<TARGET_OBJECTS:avm_encoder_stats>)
+      $<TARGET_OBJECTS:avm_encoder_stats>
+      $<TARGET_OBJECTS:avm_cjson>)
     add_executable(
       lossless_encoder
       "${AVM_ROOT}/examples/lossless_encoder.c"
@@ -947,6 +965,9 @@ if(ENABLE_EXAMPLES
       set_property(TARGET ${avm_app} PROPERTY LINKER_LANGUAGE CXX)
     endforeach()
   endif()
+
+  # cJSON library for JSON config parsing (used by multi-xlayer encoder)
+  add_library(avm_cjson OBJECT ${AVM_CJSON_SOURCES})
 endif()
 
 if(ENABLE_TESTS)

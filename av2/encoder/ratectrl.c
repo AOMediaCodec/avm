@@ -1598,11 +1598,9 @@ static int rc_pick_q_and_bounds(const AV2_COMP *cpi, int width, int height,
       gf_group->update_type[gf_index] == INTNL_ARF_UPDATE;
 
   if (frame_is_intra_only(cm)) {
-    const int is_fwd_kf = cm->current_frame.frame_type == KEY_FRAME &&
-                          cm->immediate_output_picture == 0 &&
-                          cpi->no_show_fwd_kf;
+    const int is_fwd_kf_local = cpi->is_fwd_kf;
     get_intra_q_and_bounds(cpi, width, height, &active_best_quality,
-                           &active_worst_quality, qp, is_fwd_kf);
+                           &active_worst_quality, qp, is_fwd_kf_local);
 #ifdef STRICT_RC
     active_best_quality = 0;
 #endif

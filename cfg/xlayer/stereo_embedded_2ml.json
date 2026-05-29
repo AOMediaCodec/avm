@@ -1,0 +1,33 @@
+{
+  "comment": "Stereo via embedded layers: left and right views as 2 mlayers within a single xlayer. mlayer 1 (right) uses inter-layer prediction from mlayer 0 (left) via depends_on. For simulcast stereo without inter-layer prediction, use stereo_2layer.json instead.",
+  "inputs": [
+    { "name": "left", "filename": "left.yuv", "width": 1920, "height": 1080 },
+    { "name": "right", "filename": "right.yuv", "width": 1920, "height": 1080 }
+  ],
+  "xlayers": [
+    { "xlayer_id": 0, "input_source": "left", "width": 1920, "height": 1080,
+      "atlas_pos_x": 0, "atlas_pos_y": 0,
+      "layer_type": "stereo", "view_type": "left",
+      "color_primaries": 1, "transfer_characteristics": 1,
+      "matrix_coefficients": 1, "full_range_flag": 0,
+      "num_embedded_layers": 2,
+      "embedded_layers": [
+        { "scaling_mode": "1:1", "input_source": "left",
+          "atlas_pos_x": 0, "atlas_pos_y": 0, "width": 1920, "height": 1080,
+          "depends_on": [] },
+        { "scaling_mode": "1:1", "input_source": "right",
+          "atlas_pos_x": 0, "atlas_pos_y": 0, "width": 1920, "height": 1080,
+          "depends_on": [0] }
+      ],
+      "qp": 128, "cpu_used": 5 }
+  ],
+  "ops": [{
+    "ops_id": 0, "priority": 0, "intent_present": true, "ptl_present": true,
+    "mlayer_info_idc": 2,
+    "operating_points": [
+      { "intent": 0, "xlayer_map": [0], "mlayer_count": [1] },
+      { "intent": 1, "xlayer_map": [0], "mlayer_count": [2] }
+    ]
+  }],
+  "output": "stereo_embedded.obu"
+}

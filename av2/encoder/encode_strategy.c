@@ -178,45 +178,66 @@ static INLINE void update_gf_group_index(AV2_COMP *cpi) {
       cpi->common.number_mlayers == 1) {
     ++cpi->gf_group.index;
   } else {
-    // To be updated based on the (multi_layers) tests for nonzero lag.
-    // The current test is for fixed GOP with keyframe_filtering off.
+    // Multi-mlayer with lag: within each temporal unit, complete all frames
+    // for the current embedded layer before switching to the next.
+    //
+    // ARFs are "hidden" (batched with their overlay) when monotonic mode is
+    // on OR when add_sef_for_hidden_frames is on.  In both cases, the hidden
+    // frames are grouped together with the first displayable frame in a
+    // single TU, and the index rewinds so each mlayer processes the same
+    // hidden batch.
+    //
+    // In non-monotonic mode WITHOUT SEF, ARF and INTNL_ARF frames are
+    // implicit output (the decoder reorders them), so each gets its own TU —
+    // no batching.  Overlay entries still execute (popping from the lookahead
+    // to stay in sync) but become zero-byte FRAME_NULL_PKT via the
+    // forced_implicit path in av2_cx_iface.c.
     GF_GROUP *const gf_group = &cpi->gf_group;
-    if (gf_group->update_type[cpi->gf_group.index] == ARF_UPDATE ||
-        gf_group->update_type[cpi->gf_group.index] == INTNL_ARF_UPDATE ||
-        gf_group->update_type[cpi->gf_group.index] == KFFLT_UPDATE) {
+    const FRAME_UPDATE_TYPE cur_type = gf_group->update_type[gf_group->index];
+    const int nonmono = !cpi->common.seq_params.monotonic_output_order_flag;
+    // ARFs are hidden (not implicit output) when either monotonic mode is on
+    // OR add_sef_for_hidden_frames is on (SEF mode forces hidden+SEF output).
+    const int arfs_are_hidden =
+        !nonmono || cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames;
+
+    if (arfs_are_hidden &&
+        (cur_type == ARF_UPDATE || cur_type == INTNL_ARF_UPDATE ||
+         cur_type == KFFLT_UPDATE)) {
+      // Hidden frame — advance index, stay on same mlayer.
       ++gf_group->index;
-      // Continue on the same mlayer.
-      if (cpi->common.mlayer_id == 0) gf_group->arf_update_counter++;
-    } else if (cpi->common.mlayer_id == 0 && cpi->gf_group.index > 0 &&
-               (gf_group->update_type[cpi->gf_group.index] == LF_UPDATE ||
-                gf_group->update_type[cpi->gf_group.index] ==
-                    FWD_KF_OVERLAY_UPDATE ||
-                gf_group->update_type[cpi->gf_group.index] ==
-                    FWD_KF_SUCCESSOR_UPDATE) &&
-               (gf_group->update_type[cpi->gf_group.index - 1] == ARF_UPDATE ||
-                gf_group->update_type[cpi->gf_group.index - 1] ==
-                    INTNL_ARF_UPDATE ||
-                gf_group->update_type[cpi->gf_group.index - 1] ==
-                    OVERLAY_UPDATE ||
-                gf_group->update_type[cpi->gf_group.index - 1] ==
-                    INTNL_OVERLAY_UPDATE ||
-                gf_group->update_type[cpi->gf_group.index - 1] ==
-                    KFFLT_OVERLAY_UPDATE)) {
-      // This willl force the next encode_call to encode ARFs followed by LF
-      // at the next ml layer.
-      gf_group->index = gf_group->index - gf_group->arf_update_counter;
+      gf_group->arf_update_counter++;
+    } else if (nonmono && cur_type == KFFLT_UPDATE) {
+      // Non-monotonic KFFLT without SEF: the filtered keyframe is hidden
+      // (not implicit output like ARF/INTNL_ARF).  All frames of a given
+      // embedded layer must be grouped together up to the output frame before
+      // moving to the next layer.  Advance to the KFFLT_OVERLAY (displayable)
+      // while staying on the same mlayer, and track the hidden frame count so
+      // the rewind logic below replays for the next mlayer.
+      ++gf_group->index;
+      gf_group->arf_update_counter++;
+    } else if ((arfs_are_hidden || gf_group->arf_update_counter > 0) &&
+               gf_group->arf_update_counter > 0 &&
+               (unsigned int)cpi->common.mlayer_id <
+                   cpi->common.number_mlayers - 1) {
+      // End of hidden batch + displayable for current mlayer, more mlayers
+      // remain: rewind to start of hidden batch and advance mlayer.
+      gf_group->index -= gf_group->arf_update_counter;
       gf_group->arf_update_counter = 0;
-      // Go to next mlayer
-      cpi->common.next_mlayer_id = 1;
-    } else if ((unsigned int)cpi->common.mlayer_id ==
+      cpi->common.next_mlayer_id = cpi->common.mlayer_id + 1;
+    } else if ((unsigned int)cpi->common.mlayer_id <
                cpi->common.number_mlayers - 1) {
-      // Every regular frame is encoded with same source up to number_mlayers.
-      ++gf_group->index;
-      // Go back to mlayer 0
-      cpi->common.next_mlayer_id = 0;
+      // Not last mlayer: stay at same index, switch to next mlayer.
+      cpi->common.next_mlayer_id = cpi->common.mlayer_id + 1;
     } else {
-      // Go to next mlayer
-      cpi->common.next_mlayer_id = 1;
+      // Last mlayer: advance index, switch back to ml=0.
+      ++gf_group->index;
+      gf_group->arf_update_counter = 0;
+      cpi->common.next_mlayer_id = 0;
+
+      // Non-monotonic: overlay entries are NOT skipped.  They pop from
+      // the lookahead (keeping it in sync) and become zero-byte
+      // FRAME_NULL_PKT via the forced_implicit path when the underlying
+      // ARF/INTNL was implicit output.
     }
   }
 }
@@ -756,9 +777,9 @@ int av2_get_refresh_frame_flags(
     AV2_COMP *const cpi, const EncodeFrameParams *const frame_params,
     FRAME_UPDATE_TYPE frame_update_type, int gf_index, int cur_disp_order,
     RefFrameMapPair ref_frame_map_pairs[REF_FRAMES]) {
-  // Shown key-frames overwrite all reference slots
+  // Shown key-frames overwrite all reference slots (CLK only, not OLK)
   if (av2_is_shown_keyframe(cpi, frame_params->frame_type) &&
-      cpi->common.seq_params.max_mlayer_id == 0 && !cpi->no_show_fwd_kf) {
+      cpi->common.seq_params.max_mlayer_id == 0 && !cpi->is_fwd_kf) {
     return (1 << cpi->common.seq_params.ref_frames) - 1;
   }
 
@@ -784,23 +805,30 @@ int av2_get_refresh_frame_flags(
         }
       }
     }
-    // For fwd kf, only refresh one buffer. The other buffers will be refreshed
-    // on the first regular TU it encounters after the OLK TU.
-    if (cpi->no_show_fwd_kf) {
-      int refresh_idx = -1;
-      for (int i = 0; i < cm->seq_params.ref_frames; ++i) {
-        if ((refresh_frame_flags >> i) & 1) {
-          // Skip slots containing implicit-output frames that have not
-          // been output yet and whose DOH is at least the current
-          // frame's DOH. (DOH requirement)
-          if (cm->ref_frame_map[i] != NULL &&
-              cm->ref_frame_map[i]->implicit_output_picture &&
-              !cm->ref_frame_map[i]->frame_output_done &&
-              (int)cm->ref_frame_map[i]->display_order_hint >= cur_disp_order) {
-            continue;
+    // For fwd kf (displayed or hidden OLK), only refresh one buffer.
+    // The other buffers will be refreshed on the first regular TU it
+    // encounters after the OLK TU.
+    if (cpi->is_fwd_kf) {
+      // With multiple embedded layers, each mlayer's forward keyframe must
+      // refresh a different DPB slot.  Use the mlayer-aware slot allocator and
+      // protect slots already claimed by earlier mlayers.
+      int fwd_kf_flags_to_keep = 0;
+      const int is_fwd_intra = cpi->oxcf.kf_cfg.intra_only_fwd_kf;
+      for (int ml = 0; ml < cm->mlayer_id; ml++) {
+        int flags = is_fwd_intra ? cm->fwd_intra_refresh_frame_flags[ml]
+                                 : cm->olk_refresh_frame_flags[ml];
+        if (flags != -1) fwd_kf_flags_to_keep |= flags;
+      }
+      int refresh_idx = get_free_ref_map_index_multi_layer(
+          ref_frame_map_pairs, cm->seq_params.ref_frames, fwd_kf_flags_to_keep,
+          cm->mlayer_id);
+      if (refresh_idx == INVALID_IDX) {
+        // Fallback: pick the first available bit in refresh_frame_flags
+        for (int i = 0; i < cm->seq_params.ref_frames; ++i) {
+          if ((refresh_frame_flags >> i) & 1) {
+            refresh_idx = i;
+            break;
           }
-          refresh_idx = i;
-          break;
         }
       }
       assert(refresh_idx >= 0);
@@ -840,6 +868,14 @@ int av2_get_refresh_frame_flags(
          layer++) {
       if (cpi->common.olk_refresh_frame_flags[layer] == -1) continue;
       olk_flags_to_keep |= cpi->common.olk_refresh_frame_flags[layer];
+    }
+  }
+  // Also protect the hidden intra forward keyframe's DPB slot.
+  if (cpi->fwd_intra_encountered) {
+    for (int layer = 0; layer <= cpi->common.seq_params.max_mlayer_id;
+         layer++) {
+      if (cpi->common.fwd_intra_refresh_frame_flags[layer] == -1) continue;
+      olk_flags_to_keep |= cpi->common.fwd_intra_refresh_frame_flags[layer];
     }
   }
 
@@ -970,8 +1006,8 @@ static int denoise_and_encode(AV2_COMP *const cpi, uint8_t *const dest,
       av2_frame_init_quantizer(cpi);
       av2_setup_past_independence(cm);
 
-      if (!frame_params->immediate_output_picture && cpi->no_show_fwd_kf) {
-        // fwd kf
+      if (!frame_params->immediate_output_picture && cpi->is_fwd_kf) {
+        // fwd kf (displayed or hidden OLK)
         arf_src_index = -1 * gf_group->arf_src_offset[gf_group->index];
       } else if (!frame_params->immediate_output_picture) {
         arf_src_index = 0;
@@ -1038,14 +1074,26 @@ static int denoise_and_encode(AV2_COMP *const cpi, uint8_t *const dest,
 
   cm->cur_frame->allow_direct_use = cm->allow_direct_use;
 
+  // Non-monotonic multi-mlayer: track the ARF's allow_direct_use decision.
+  // This persists across mlayers so the OVERLAY_UPDATE can produce null
+  // output even when the DPB reference has been evicted for later mlayers.
+  // Only applies when ARFs are truly implicit output (not SEF mode).
+  if (cpi->oxcf.unit_test_cfg.multi_layers_lag_test && cm->number_mlayers > 1 &&
+      !cm->seq_params.monotonic_output_order_flag &&
+      !cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames &&
+      get_frame_update_type(&cpi->gf_group) == ARF_UPDATE) {
+    cpi->gf_group.arf_is_implicit_output = cm->allow_direct_use;
+  }
+
   // perform tpl after filtering
   int allow_tpl = oxcf->gf_cfg.lag_in_frames > 1 &&
                   !is_stat_generation_stage(cpi) &&
                   oxcf->algo_cfg.enable_tpl_model;
-  if (frame_params->frame_type == KEY_FRAME) {
-    // Don't do tpl for fwd key frames
+  if (frame_params->frame_type == KEY_FRAME ||
+      frame_params->frame_type == INTRA_ONLY_FRAME) {
+    // Don't do tpl for fwd key frames or intra-only fwd frames
     allow_tpl = allow_tpl && !cpi->sf.tpl_sf.disable_filtered_key_tpl &&
-                !cpi->no_show_fwd_kf;
+                !cpi->is_fwd_kf;
   } else {
     // Do tpl after ARF is filtered, or if no ARF, at the second frame of GF
     // group.
@@ -1142,11 +1190,12 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
   if (cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames) {
     cpi->common.implicit_output_picture = 0;
   }
-  if (gf_group->update_type[gf_group->index] == FWD_KF_OVERLAY_UPDATE ||
-      gf_group->update_type[gf_group->index] == FWD_KF_SUCCESSOR_UPDATE) {
+  if ((gf_group->update_type[gf_group->index] == FWD_KF_OVERLAY_UPDATE ||
+       gf_group->update_type[gf_group->index] == FWD_KF_SUCCESSOR_UPDATE) &&
+      !cpi->oxcf.kf_cfg.intra_only_fwd_kf) {
     // These have to use implicit output since they need to be
     // coded_output_picture OBUs, to be put together with a hidden OLK obu in
-    // the same TU.
+    // the same TU.  Not applicable for intra_only_fwd_kf.
     cpi->common.implicit_output_picture = 1;
   }
 
@@ -1253,22 +1302,27 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
   if (cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames) {
     cm->implicit_output_picture = 0;
   }
-  if (gf_group->update_type[gf_group->index] == FWD_KF_OVERLAY_UPDATE ||
-      gf_group->update_type[gf_group->index] == FWD_KF_SUCCESSOR_UPDATE) {
+  if ((gf_group->update_type[gf_group->index] == FWD_KF_OVERLAY_UPDATE ||
+       gf_group->update_type[gf_group->index] == FWD_KF_SUCCESSOR_UPDATE) &&
+      !cpi->oxcf.kf_cfg.intra_only_fwd_kf) {
     // These have to use implicit output since they need to be
     // coded_output_picture OBUs, to be put together with a hidden OLK obu in
-    // the same TU.
+    // the same TU.  Not applicable for intra_only_fwd_kf which uses regular
+    // SEF instead of OLK TU structure.
     cpi->common.implicit_output_picture = 1;
   }
 
-  if (frame_params.frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) {
+  if (frame_params.frame_type == KEY_FRAME && !cpi->is_fwd_kf) {
+    // CLK: not implicit output, not direct use.
     cm->allow_direct_use = 0;
     cm->implicit_output_picture = 0;
   }
 
-  if (cpi->no_show_fwd_kf && cpi->oxcf.kf_cfg.enable_keyframe_filtering > 1) {
+  if (cpi->no_show_fwd_kf && (cpi->oxcf.kf_cfg.enable_keyframe_filtering > 1 ||
+                              cpi->oxcf.kf_cfg.intra_only_fwd_kf)) {
     // An overlay of the fwd kf is going to be added. The fwd kf cannot be
-    // directly displayed.
+    // directly displayed.  For intra_only_fwd_kf, the hidden INTRA_ONLY_FRAME
+    // must always be shown via SEF, never directly.
     cm->allow_direct_use = 0;
     cm->implicit_output_picture = 0;
   }
@@ -1297,7 +1351,9 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
   cm->current_frame.display_order_hint_restricted = cur_frame_disp;
   cm->current_frame.pyramid_level = get_true_pyr_level(
       cpi->gf_group.layer_depth[cpi->gf_group.index],
-      cm->current_frame.frame_type == KEY_FRAME, cpi->gf_group.max_layer_depth,
+      frame_params.frame_type == KEY_FRAME ||
+          frame_params.frame_type == INTRA_ONLY_FRAME,
+      cpi->gf_group.max_layer_depth,
       cpi->gf_group.update_type[cpi->gf_group.index] == KFFLT_OVERLAY_UPDATE);
 
   cm->current_frame.tlayer_id = cm->tlayer_id;
@@ -1349,9 +1405,11 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
     // encoded
     cpi->gf_state.olk_overlay_last = 1;
   }
-  int use_olk_ref_only =
-      cpi->gf_group.update_type[cpi->gf_group.index] == FWD_KF_OVERLAY_UPDATE ||
-      cpi->gf_group.update_type[cpi->gf_group.index] == FWD_KF_SUCCESSOR_UPDATE;
+  int use_olk_ref_only = !cpi->oxcf.kf_cfg.intra_only_fwd_kf &&
+                         (cpi->gf_group.update_type[cpi->gf_group.index] ==
+                              FWD_KF_OVERLAY_UPDATE ||
+                          cpi->gf_group.update_type[cpi->gf_group.index] ==
+                              FWD_KF_SUCCESSOR_UPDATE);
   init_ref_map_pair(&cpi->common, cm->ref_frame_map_pairs,
                     frame_params.frame_type == KEY_FRAME,
                     cpi->is_ras_frame == 1, use_olk_ref_only);
@@ -1507,7 +1565,7 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
 
       // If this is a forward keyframe, mark as a show_existing_frame
       // TODO(bohanli): find a consistent condition for fwd keyframes
-      if (oxcf->kf_cfg.fwd_kf_enabled &&
+      if (oxcf->kf_cfg.fwd_kf_enabled && !oxcf->kf_cfg.intra_only_fwd_kf &&
           (gf_group->update_type[gf_group->index] == OVERLAY_UPDATE ||
            gf_group->update_type[gf_group->index] == KFFLT_OVERLAY_UPDATE) &&
           gf_group->arf_index >= 0 && cpi->rc.frames_to_key == 0) {
@@ -1529,6 +1587,10 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
                   KFFLT_OVERLAY_UPDATE)) ||
             gf_group->update_type[gf_group->index] == INTNL_OVERLAY_UPDATE;
       }
+      // In non-monotonic multi-mlayer mode, overlays for implicit-output
+      // frames remain as show_existing_frame.  The forced_implicit path in
+      // av2_cx_iface.c converts them to zero-byte FRAME_NULL_PKT, keeping
+      // the lookahead in sync without emitting redundant OBUs.
       frame_params.frame_params_update_type_was_overlay &=
           allow_show_existing(cpi, *frame_flags);
     } else {

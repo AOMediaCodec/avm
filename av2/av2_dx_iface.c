@@ -1163,6 +1163,7 @@ static avm_image_t *add_grain_if_needed(avm_codec_alg_priv_t *ctx,
   grain_img->mlayer_id = img->mlayer_id;
   grain_img->xlayer_id = img->xlayer_id;
   grain_img->stream_id = img->stream_id;
+  grain_img->display_order_hint = img->display_order_hint;
   img->metadata = NULL;
   if (av2_add_film_grain(grain_params, img, grain_img)) {
     pool->release_fb_cb(pool->cb_priv, fb);
@@ -1247,6 +1248,7 @@ static avm_image_t *decoder_get_frame_(avm_codec_alg_priv_t *ctx,
         img->mlayer_id = output_frame_buf->mlayer_id;
         img->xlayer_id = output_frame_buf->xlayer_id;
         img->stream_id = output_frame_buf->stream_id;
+        img->display_order_hint = output_frame_buf->display_order_hint;
 
         if (pbi->skip_film_grain) grain_params->apply_grain = 0;
         avm_image_t *res =
@@ -2007,6 +2009,196 @@ static avm_codec_err_t ctrl_set_row_mt(avm_codec_alg_priv_t *ctx,
   return AVM_CODEC_OK;
 }
 
+static avm_codec_err_t ctrl_get_lcr_info(avm_codec_alg_priv_t *ctx,
+                                         va_list args) {
+  avm_lcr_info_t *const info = va_arg(args, avm_lcr_info_t *);
+  if (!info) return AVM_CODEC_INVALID_PARAM;
+
+  memset(info, 0, sizeof(*info));
+
+  if (!ctx->frame_worker) return AVM_CODEC_ERROR;
+
+  AVxWorker *const worker = ctx->frame_worker;
+  FrameWorkerData *const frame_worker_data = (FrameWorkerData *)worker->data1;
+  AV2Decoder *const pbi = frame_worker_data->pbi;
+
+  // Try global LCR first (stored at xlayer_id = GLOBAL_XLAYER_ID = 31)
+  const struct GlobalLayerConfigurationRecord *glcr = NULL;
+  for (int lcr_idx = 0; lcr_idx < MAX_NUM_LCR; lcr_idx++) {
+    const struct LayerConfigurationRecord *lcr =
+        &pbi->lcr_list[GLOBAL_XLAYER_ID][lcr_idx];
+    if (lcr->valid && lcr->is_global) {
+      glcr = &lcr->global_lcr;
+      break;
+    }
+  }
+
+  if (glcr) {
+    info->num_xlayers = glcr->LcrMaxNumXLayerCount;
+    for (int i = 0; i < info->num_xlayers && i < 31; i++) {
+      avm_xlayer_layer_info_t *xl = &info->xlayers[i];
+      xl->xlayer_id = glcr->LcrXLayerID[i];
+      const struct LCRXLayerInfo *xli = &glcr->xlayer_info[i];
+      xl->max_width = xli->rep_params.lcr_max_pic_width;
+      xl->max_height = xli->rep_params.lcr_max_pic_height;
+      if (xli->lcr_embedded_layer_info_present_flag) {
+        const struct EmbeddedLayerInfo *ml = &xli->mlayer_params;
+        xl->num_mlayers = ml->MLayerCount;
+        // Use mlayer 0 for layer_type/auxiliary_type/view_type
+        xl->layer_type = ml->lcr_layer_type[0];
+        xl->auxiliary_type =
+            (ml->lcr_layer_type[0] == 1) ? ml->lcr_auxiliary_type[0] : -1;
+        xl->view_type = ml->lcr_view_type[0];
+      } else {
+        xl->num_mlayers = 0;
+        xl->layer_type = 0;
+        xl->auxiliary_type = -1;
+        xl->view_type = 0;
+      }
+    }
+    return AVM_CODEC_OK;
+  }
+
+  // Fallback: assemble from local LCRs per xlayer
+  int count = 0;
+  for (int xlid = 0; xlid < GLOBAL_XLAYER_ID && count < 31; xlid++) {
+    for (int lcr_idx = 0; lcr_idx < MAX_NUM_LCR; lcr_idx++) {
+      const struct LayerConfigurationRecord *lcr =
+          &pbi->lcr_list[xlid][lcr_idx];
+      if (lcr->valid && !lcr->is_global) {
+        avm_xlayer_layer_info_t *xl = &info->xlayers[count];
+        xl->xlayer_id = xlid;
+        const struct LCRXLayerInfo *xli = &lcr->local_lcr.xlayer_info;
+        xl->max_width = xli->rep_params.lcr_max_pic_width;
+        xl->max_height = xli->rep_params.lcr_max_pic_height;
+        if (xli->lcr_embedded_layer_info_present_flag) {
+          const struct EmbeddedLayerInfo *ml = &xli->mlayer_params;
+          xl->num_mlayers = ml->MLayerCount;
+          xl->layer_type = ml->lcr_layer_type[0];
+          xl->auxiliary_type =
+              (ml->lcr_layer_type[0] == 1) ? ml->lcr_auxiliary_type[0] : -1;
+          xl->view_type = ml->lcr_view_type[0];
+        } else {
+          xl->num_mlayers = 0;
+          xl->layer_type = 0;
+          xl->auxiliary_type = -1;
+          xl->view_type = 0;
+        }
+        count++;
+        break;  // found LCR for this xlayer, move to next
+      }
+    }
+  }
+  info->num_xlayers = count;
+
+  return (count > 0) ? AVM_CODEC_OK : AVM_CODEC_ERROR;
+}
+
+static avm_codec_err_t ctrl_get_atlas_info(avm_codec_alg_priv_t *ctx,
+                                           va_list args) {
+  avm_atlas_info_t *const info = va_arg(args, avm_atlas_info_t *);
+  if (!info) return AVM_CODEC_INVALID_PARAM;
+
+  memset(info, 0, sizeof(*info));
+
+  if (!ctx->frame_worker) return AVM_CODEC_ERROR;
+
+  AVxWorker *const worker = ctx->frame_worker;
+  FrameWorkerData *const frame_worker_data = (FrameWorkerData *)worker->data1;
+  AV2Decoder *const pbi = frame_worker_data->pbi;
+
+  // Scan atlas_list for the first valid entry
+  for (int xlid = 0; xlid < MAX_NUM_XLAYERS; xlid++) {
+    for (int seg_idx = 0; seg_idx < MAX_NUM_ATLAS_SEG_ID; seg_idx++) {
+      const struct AtlasSegmentInfo *asi = &pbi->atlas_list[xlid][seg_idx];
+      if (!asi->valid) continue;
+
+      if (asi->atlas_segment_mode_idc == ENHANCED_ATLAS) {
+        // Enhanced atlas: dimensions and segments from region info + mapping
+        const struct AtlasRegionInfo *reg = &asi->ats_reg_params;
+        const struct AtlasRegionToSegmentMapping *rsm = &asi->ats_reg_seg_map;
+        info->atlas_width = reg->AtlasWidth;
+        info->atlas_height = reg->AtlasHeight;
+        info->num_segments = rsm->ats_num_atlas_segments_minus_1 + 1;
+        // For enhanced atlas, derive segment positions from region mapping
+        for (int s = 0; s < info->num_segments && s < 256; s++) {
+          // Compute segment position from top-left region column/row
+          int col = rsm->ats_top_left_region_column[s];
+          int row = rsm->ats_top_left_region_row[s];
+          int seg_x = 0, seg_y = 0;
+          int seg_w = 0, seg_h = 0;
+          for (int c = 0; c < col; c++)
+            seg_x += reg->ats_column_width_minus_1[c] + 1;
+          for (int r = 0; r < row; r++)
+            seg_y += reg->ats_row_height_minus_1[r] + 1;
+          int br_col = rsm->ats_bottom_right_region_column[s];
+          int br_row = rsm->ats_bottom_right_region_row[s];
+          for (int c = col; c <= br_col; c++)
+            seg_w += reg->ats_column_width_minus_1[c] + 1;
+          for (int r = row; r <= br_row; r++)
+            seg_h += reg->ats_row_height_minus_1[r] + 1;
+          // Use label segment info for xlayer_id mapping
+          const struct AtlasLabelSegmentInfo *lsi = &asi->ats_label_seg;
+          int seg_label_id = lsi->ats_signalled_atlas_segment_ids_flag
+                                 ? lsi->AtlasSegmentIndexToID[s]
+                                 : s;
+          info->segments[s].xlayer_id = seg_label_id;
+          info->segments[s].pos_x = seg_x;
+          info->segments[s].pos_y = seg_y;
+          info->segments[s].width = seg_w;
+          info->segments[s].height = seg_h;
+        }
+        return AVM_CODEC_OK;
+      } else if (asi->atlas_segment_mode_idc == BASIC_ATLAS ||
+                 asi->atlas_segment_mode_idc == MULTISTREAM_ATLAS ||
+                 asi->atlas_segment_mode_idc == MULTISTREAM_ALPHA_ATLAS) {
+        // Basic/multistream atlas: dimensions and segments from basic info
+        const struct AtlasBasicInfo *abi = asi->ats_basic_info;
+        if (!abi) abi = &asi->ats_basic_info_s;
+        if (!abi || (abi->AtlasWidth == 0 && abi->AtlasHeight == 0)) continue;
+        info->atlas_width = abi->AtlasWidth;
+        info->atlas_height = abi->AtlasHeight;
+        info->num_segments = abi->ats_num_atlas_segments_minus_1 + 1;
+        for (int s = 0; s < info->num_segments && s < 256; s++) {
+          info->segments[s].xlayer_id =
+              abi->ats_stream_id_present ? abi->ats_input_stream_id[s] : s;
+          info->segments[s].pos_x = abi->ats_segment_top_left_pos_x[s];
+          info->segments[s].pos_y = abi->ats_segment_top_left_pos_y[s];
+          info->segments[s].width = abi->ats_segment_width[s];
+          info->segments[s].height = abi->ats_segment_height[s];
+        }
+        return AVM_CODEC_OK;
+      } else if (asi->atlas_segment_mode_idc == SINGLE_ATLAS) {
+        // Single atlas: single segment, dimensions from nominal_width/height
+        info->atlas_width = asi->ats_nominal_width_minus1 + 1;
+        info->atlas_height = asi->ats_nominal_height_minus1 + 1;
+        info->num_segments = 1;
+        info->segments[0].xlayer_id = xlid;
+        info->segments[0].pos_x = 0;
+        info->segments[0].pos_y = 0;
+        info->segments[0].width = info->atlas_width;
+        info->segments[0].height = info->atlas_height;
+        return AVM_CODEC_OK;
+      }
+    }
+  }
+
+  return AVM_CODEC_ERROR;
+}
+
+static avm_codec_err_t ctrl_get_monotonic_output_order(
+    avm_codec_alg_priv_t *ctx, va_list args) {
+  unsigned int *const val = va_arg(args, unsigned int *);
+  if (!val) return AVM_CODEC_INVALID_PARAM;
+  if (!ctx->frame_worker) return AVM_CODEC_ERROR;
+
+  AVxWorker *const worker = ctx->frame_worker;
+  FrameWorkerData *const frame_worker_data = (FrameWorkerData *)worker->data1;
+  AV2Decoder *const pbi = frame_worker_data->pbi;
+  *val = pbi->common.seq_params.monotonic_output_order_flag;
+  return AVM_CODEC_OK;
+}
+
 static avm_codec_ctrl_fn_map_t decoder_ctrl_maps[] = {
   { AV2_COPY_REFERENCE, ctrl_copy_reference },
 
@@ -2051,6 +2243,9 @@ static avm_codec_ctrl_fn_map_t decoder_ctrl_maps[] = {
   { AVMD_GET_SHOW_EXISTING_FRAME_FLAG, ctrl_get_show_existing_frame_flag },
   { AVMD_GET_S_FRAME_INFO, ctrl_get_s_frame_info },
   { AVMD_GET_FRAME_INFO, ctrl_get_dec_frame_info },
+  { AV2D_GET_LCR_INFO, ctrl_get_lcr_info },
+  { AV2D_GET_ATLAS_INFO, ctrl_get_atlas_info },
+  { AV2D_GET_MONOTONIC_OUTPUT_ORDER, ctrl_get_monotonic_output_order },
 
   CTRL_MAP_END,
 };

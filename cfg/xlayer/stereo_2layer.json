@@ -1,0 +1,70 @@
+{
+  "comment": "Stereo simulcast: left and right views as separate xlayers. Each xlayer is encoded independently without inter-layer prediction. For stereo with inter-layer prediction, use stereo_embedded_2ml.json instead.",
+  "xlayers": [
+    {
+      "xlayer_id": 0,
+      "input": "left_1080p.y4m",
+      "width": 1920,
+      "height": 1080,
+      "profile": 3,
+      "level": 16,
+      "tier": 0,
+      "layer_type": "stereo",
+      "view_type": "left",
+      "num_temporal_layers": 1,
+      "num_embedded_layers": 1,
+      "qp": 128,
+      "cpu_used": 5
+    },
+    {
+      "xlayer_id": 1,
+      "input": "right_1080p.y4m",
+      "width": 1920,
+      "height": 1080,
+      "profile": 3,
+      "level": 16,
+      "tier": 0,
+      "layer_type": "stereo",
+      "view_type": "right",
+      "num_temporal_layers": 1,
+      "num_embedded_layers": 1,
+      "qp": 128,
+      "cpu_used": 5
+    }
+  ],
+  "global_lcr": {
+    "enable": true,
+    "purpose_id": 0,
+    "dependent_xlayers": false,
+    "doh_constraint": true
+  },
+  "msdo": {
+    "enable": false
+  },
+  "ops": [
+    {
+      "ops_id": 0,
+      "priority": 0,
+      "intent_present": true,
+      "ptl_present": true,
+      "operating_points": [
+        {
+          "intent": 0,
+          "xlayer_map": [0],
+          "comment": "OP0: left view only (mono)"
+        },
+        {
+          "intent": 1,
+          "xlayer_map": [0, 1],
+          "comment": "OP1: stereo (both views)"
+        }
+      ]
+    }
+  ],
+  "atlas": {
+    "enable": false
+  },
+  "combined_tu": true,
+  "monotonic_output_order": true,
+  "output": "stereo_muxed.obu"
+}

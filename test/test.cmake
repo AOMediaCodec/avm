@@ -45,7 +45,11 @@ list(
   "${AVM_ROOT}/test/test_vectors.h"
   "${AVM_ROOT}/test/transform_test_base.h"
   "${AVM_ROOT}/test/util.h"
-  "${AVM_ROOT}/test/video_source.h")
+  "${AVM_ROOT}/test/video_source.h"
+  "${AVM_ROOT}/test/xlayer_config_test.cc"
+  "${AVM_ROOT}/test/tu_assembler_test.cc"
+  "${AVM_ROOT}/common/xlayer_config_parse.c"
+  "${AVM_ROOT}/common/tu_assembler.c")
 
 list(
   APPEND
@@ -358,6 +362,7 @@ function(setup_avm_test_targets)
     endif()
   endif()
 
+  target_sources(test_libavm PRIVATE $<TARGET_OBJECTS:avm_cjson>)
   target_link_libraries(test_libavm ${AVM_LIB_LINK_TYPE} avm avm_gtest)
 
   if(CONFIG_LIBYUV)

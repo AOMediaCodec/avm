@@ -1,0 +1,41 @@
+{
+  "comment": "Test: spatial scalability 2-mlayer, open GOP (INTRA_ONLY_FRAME + SEF), monotonic. Uses inter-layer prediction. Forward keyframe coded as INTRA_ONLY_FRAME (no ref reset).",
+  "xlayers": [
+    {
+      "xlayer_id": 0,
+      "input": "BasketballPass_416x240_50.yuv",
+      "width": 416,
+      "height": 240,
+      "layer_type": "texture",
+      "num_embedded_layers": 2,
+      "embedded_layers": [
+        { "scaling_mode": "1/2", "depends_on": [] },
+        { "scaling_mode": "1:1", "depends_on": [0] }
+      ],
+      "qp": 128,
+      "cpu_used": 9,
+      "lag_in_frames": 19,
+      "kf_max_dist": 9,
+      "gop_mode": 2,
+      "codec_controls": [
+        ["enable_deblocking", 0],
+        ["enable_cdef", 0],
+        ["enable_restoration", 0],
+        ["enable_tpl_model", 0],
+        ["enable_global_motion", 0],
+        ["enable_warped_motion", 0],
+        ["enable_intrabc", 0],
+        ["enable_palette", 0],
+        ["enable_interintra_comp", 0]
+      ]
+    }
+  ],
+  "global_lcr": {
+    "enable": true,
+    "purpose_id": 0,
+    "doh_constraint": true
+  },
+  "combined_tu": true,
+  "monotonic_output_order": true,
+  "output": "test_scalable_open_sef_mono.obu"
+}

@@ -7446,15 +7446,16 @@ static void activate_layer_configuration_record(AV2Decoder *pbi,
     // so that embedded layer info can fall back to it.
     if (!lcr->is_global) {
       int global_id = lcr->local_lcr.lcr_global_id;
-      if (global_id != LCR_ID_UNSPECIFIED) {
-        LayerConfigurationRecord *parent_glcr =
-            &pbi->lcr_list[GLOBAL_XLAYER_ID][global_id];
-        if (parent_glcr->valid && parent_glcr->is_global) {
-          cm->global_lcr_params = *parent_glcr;
-          // Conformance: when a local LCR is present and its parent global LCR
-          // has xlayer_info for the same extended layer, the local LCR's
-          // xlayer_info shall be the same as the global LCR's xlayer_info.
-          const GlobalLayerConfigurationRecord *glcr = &parent_glcr->global_lcr;
+      LayerConfigurationRecord *parent_glcr =
+          &pbi->lcr_list[GLOBAL_XLAYER_ID][global_id];
+      if (parent_glcr->valid && parent_glcr->is_global) {
+        cm->global_lcr_params = *parent_glcr;
+        // Conformance: when a local LCR is present and its parent global LCR
+        // has xlayer_info for the same extended layer, the local LCR's
+        // xlayer_info shall be the same as the global LCR's xlayer_info.
+        // This check only applies when the global LCR carries payload data.
+        const GlobalLayerConfigurationRecord *glcr = &parent_glcr->global_lcr;
+        if (glcr->lcr_global_payload_present_flag) {
           for (int i = 0; i < glcr->LcrMaxNumXLayerCount; i++) {
             if (glcr->LcrXLayerID[i] == lcr->xlayer_id) {
               if (memcmp(&lcr->local_lcr.xlayer_info, &glcr->xlayer_info[i],

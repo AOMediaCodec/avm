@@ -322,15 +322,23 @@ static int construct_multi_layer_gf_structure(
     }
 
     if (has_hidden_fwd_kf) {
-      gf_group->update_type[frame_index] =
-          use_fwd_kf_overlay ? FWD_KF_OVERLAY_UPDATE : FWD_KF_SUCCESSOR_UPDATE;
-      gf_group->arf_src_offset[frame_index] =
-          cpi->common.number_mlayers *
-          ((use_fwd_kf_overlay ? 0 : 1) + gf_interval - cur_frame_index - 1);
-      gf_group->cur_frame_idx[frame_index] = cur_frame_index;
-      gf_group->layer_depth[frame_index] = MAX_ARF_LAYERS;
-      gf_group->arf_boost[frame_index] = NORMAL_BOOST;
-      ++frame_index;
+      // For intra_only_fwd_kf (monotonic open GOP), the hidden intra frame
+      // is output via SEF like any other hidden frame — no FWD_KF_SUCCESSOR
+      // is needed (it would violate monotonic output ordering).  Only
+      // non-monotonic OLK or keyframe-filtering modes need the
+      // successor/overlay.
+      if (!cpi->oxcf.kf_cfg.intra_only_fwd_kf) {
+        gf_group->update_type[frame_index] = use_fwd_kf_overlay
+                                                 ? FWD_KF_OVERLAY_UPDATE
+                                                 : FWD_KF_SUCCESSOR_UPDATE;
+        gf_group->arf_src_offset[frame_index] =
+            cpi->common.number_mlayers *
+            ((use_fwd_kf_overlay ? 0 : 1) + gf_interval - cur_frame_index - 1);
+        gf_group->cur_frame_idx[frame_index] = cur_frame_index;
+        gf_group->layer_depth[frame_index] = MAX_ARF_LAYERS;
+        gf_group->arf_boost[frame_index] = NORMAL_BOOST;
+        ++frame_index;
+      }
     }
 
     set_multi_layer_params(twopass, gf_group, rc, frame_info, cur_frame_index,
@@ -347,9 +355,11 @@ static int construct_multi_layer_gf_structure(
       gf_group->arf_boost[frame_index] = NORMAL_BOOST;
       ++frame_index;
       ++cur_frame_index;
-      if (!use_fwd_kf_overlay) {
+      if (!use_fwd_kf_overlay && !cpi->oxcf.kf_cfg.intra_only_fwd_kf) {
         // Add one more for the regular frame after the fwd kf sef (implicit
-        // output).
+        // output).  Not needed for intra_only_fwd_kf: the hidden intra is
+        // output via SEF like any other hidden frame, and the next frame
+        // belongs to the next GF group.
         gf_group->update_type[frame_index] = OVERLAY_UPDATE;
         gf_group->arf_src_offset[frame_index] = 0;
         gf_group->cur_frame_idx[frame_index] = cur_frame_index;

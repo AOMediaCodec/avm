@@ -903,6 +903,15 @@ static void set_content_interpreation_params(struct AV2_COMP *cpi,
     cpi->write_ci_obu_flag = 1;
   else
     cpi->write_ci_obu_flag = 0;
+
+  // Propagate the base CI to all mlayer slots that haven't been explicitly
+  // overridden by AV2E_SET_MLAYER_COLOR_* controls.  Use MAX_NUM_MLAYERS
+  // rather than max_mlayer_id because max_mlayer_id may not be set yet at
+  // init time (it is set later by av2_init_seq_coding_tools).
+  for (int ml = 0; ml < MAX_NUM_MLAYERS; ml++) {
+    if (!cpi->ci_per_layer_overridden[ml])
+      cpi->common.ci_params_per_layer[ml] = *ci_params;
+  }
 }
 
 static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
@@ -4608,6 +4617,42 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size, uint8_t *dest,
       cm->ref_frame_map[cpi->fb_idx_for_overlay] &&
       cm->ref_frame_map[cpi->fb_idx_for_overlay]->implicit_output_picture;
 
+  // Non-monotonic multi-mlayer: when an overlay's underlying frame was
+  // implicit output but the reference has been evicted from the DPB (e.g.,
+  // ml>0 in interleaved coding order), the overlay produces zero bytes.
+  // The source was already popped from the lookahead; we just return early.
+  // This handles both:
+  //   - INTNL_OVERLAY_UPDATE (always null, since INTNL always implicit output)
+  //   - OVERLAY_UPDATE when arf_is_implicit_output (ARF had allow_direct_use=1)
+  if (!forced_implicit && cpi->update_type_was_overlay &&
+      cpi->fb_idx_for_overlay == INVALID_IDX &&
+      !cm->seq_params.monotonic_output_order_flag &&
+      cpi->oxcf.unit_test_cfg.multi_layers_lag_test && cm->number_mlayers > 1) {
+    *size = 0;
+    if (cm->immediate_output_picture) cpi->last_show_frame_buf = cm->cur_frame;
+    if (!av2_check_keyframe_overlay(cpi->gf_group.index, &cpi->gf_group,
+                                    cpi->rc.frames_since_key))
+      ++current_frame->frame_number;
+    return AVM_CODEC_OK;
+  }
+  // Also handle OVERLAY_UPDATE with valid fb_idx but where the ARF was
+  // tracked as implicit output (arf_is_implicit_output persists across
+  // mlayers even when the DPB slot has been reused).
+  if (!forced_implicit && !cpi->update_type_was_overlay &&
+      cpi->gf_group.update_type[cpi->gf_group.index] == OVERLAY_UPDATE &&
+      cpi->gf_group.arf_is_implicit_output &&
+      !cm->seq_params.monotonic_output_order_flag &&
+      cpi->oxcf.unit_test_cfg.multi_layers_lag_test && cm->number_mlayers > 1) {
+    *size = 0;
+    cpi->update_type_was_overlay = 1;  // signal av2_cx_iface as null overlay
+    cpi->gf_group.arf_is_implicit_output = 0;  // consumed
+    if (cm->immediate_output_picture) cpi->last_show_frame_buf = cm->cur_frame;
+    if (!av2_check_keyframe_overlay(cpi->gf_group.index, &cpi->gf_group,
+                                    cpi->rc.frames_since_key))
+      ++current_frame->frame_number;
+    return AVM_CODEC_OK;
+  }
+
   if ((!cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames || forced_implicit) &&
       cpi->update_type_was_overlay && cpi->fb_idx_for_overlay != INVALID_IDX &&
       cm->ref_frame_map[cpi->fb_idx_for_overlay]) {
@@ -4661,28 +4706,38 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size, uint8_t *dest,
   }
 
   if (need_sef_obu_for_hidden_frame(cpi)) {
-    // If this is an olk SEF, reset the buffers except for the olk.
-    int ref_flags_to_keep = 0;
-    for (int layer = 0; layer <= seq_params->max_mlayer_id; layer++) {
-      ref_flags_to_keep |= cm->olk_refresh_frame_flags[layer];
-    }
-    if (cpi->olk_encountered && ref_flags_to_keep != 0 &&
-        cpi->fb_idx_for_overlay >= 0 &&
-        ((ref_flags_to_keep >> cpi->fb_idx_for_overlay) & 1u)) {
-      for (int ref_index = 0; ref_index < cm->seq_params.ref_frames;
-           ref_index++) {
-        if (!((ref_flags_to_keep >> ref_index) & 1u) &&
-            (cm->ref_frame_map[ref_index] == NULL ||
-             cm->ref_frame_map[ref_index]->long_term_id == -1)) {
-          if (cm->ref_frame_map[ref_index] != NULL) {
-            --cm->ref_frame_map[ref_index]->ref_count;
-            cm->ref_frame_map[ref_index] = NULL;
+    if (cpi->fwd_intra_encountered) {
+      // Monotonic hidden intra forward keyframe: output via SEF.
+      // No DPB clearing — pyramid frames are regular and still referenced.
+      cpi->gf_state.fwd_intra_overlay_last = 1;
+      cpi->fwd_intra_encountered = 0;
+      cm->fwd_intra_refresh_frame_flags[cm->mlayer_id] = -1;
+      cpi->is_olk_overlay = 0;
+    } else if (cpi->olk_encountered) {
+      // Non-monotonic OLK SEF: reset buffers except for the OLK.
+      int ref_flags_to_keep = 0;
+      for (int layer = 0; layer <= seq_params->max_mlayer_id; layer++) {
+        ref_flags_to_keep |= cm->olk_refresh_frame_flags[layer];
+      }
+      if (ref_flags_to_keep != 0 && cpi->fb_idx_for_overlay >= 0 &&
+          ((ref_flags_to_keep >> cpi->fb_idx_for_overlay) & 1u)) {
+        for (int ref_index = 0; ref_index < cm->seq_params.ref_frames;
+             ref_index++) {
+          if (!((ref_flags_to_keep >> ref_index) & 1u) &&
+              (cm->ref_frame_map[ref_index] == NULL ||
+               cm->ref_frame_map[ref_index]->long_term_id == -1)) {
+            if (cm->ref_frame_map[ref_index] != NULL) {
+              --cm->ref_frame_map[ref_index]->ref_count;
+              cm->ref_frame_map[ref_index] = NULL;
+            }
           }
         }
+        cpi->is_olk_overlay = 1;
+        cpi->gf_state.olk_overlay_last = 1;
+        cpi->olk_encountered = 0;
+      } else {
+        cpi->is_olk_overlay = 0;
       }
-      cpi->is_olk_overlay = 1;
-      cpi->gf_state.olk_overlay_last = 1;
-      cpi->olk_encountered = 0;
     } else {
       cpi->is_olk_overlay = 0;
     }
@@ -4697,7 +4752,10 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size, uint8_t *dest,
     cpi->seq_params_locked = 1;
     cm->sef_ref_fb_idx = cpi->fb_idx_for_overlay;
 
-    if (cm->last_olk_disp_order_hint > cm->current_frame.display_order_hint) {
+    if (cm->last_olk_disp_order_hint > cm->current_frame.display_order_hint &&
+        cpi->is_olk_overlay) {
+      // Non-monotonic OLK: SEF for a frame whose display order precedes the
+      // OLK is a leading SEF.
       cm->is_leading_picture = 1;
     } else {
       cm->is_leading_picture = 0;
@@ -4784,17 +4842,28 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size, uint8_t *dest,
     return AVM_CODEC_OK;
   }
 
-  if (current_frame->frame_type == KEY_FRAME) {
+  if (current_frame->frame_type == KEY_FRAME ||
+      av2_is_olk_forward_keyframe(cpi)) {
+    // CLK or OLK (displayed or hidden).
     cm->is_leading_picture = -1;
-    if (cpi->no_show_fwd_kf) {
+    if (cpi->is_fwd_kf) {
+      // OLK (displayed or hidden): subsequent frames before the OLK in display
+      // order are leading pictures.
       cpi->olk_encountered = 1;
       cm->last_olk_order_hint = cm->current_frame.order_hint;
       cm->last_olk_disp_order_hint = cm->current_frame.display_order_hint;
     } else {
       cpi->olk_encountered = 0;
     }
+  } else if (av2_is_fwd_intra_keyframe(cpi)) {
+    // Hidden intra forward keyframe (monotonic open GOP).
+    // No leading-picture state — all frames remain regular in monotonic mode.
+    cm->is_leading_picture = 0;
+    cpi->fwd_intra_encountered = 1;
   } else {
     if (cm->last_olk_disp_order_hint > cm->current_frame.display_order_hint) {
+      // Non-monotonic OLK: frames with display order before the OLK are
+      // leading pictures.
       cm->is_leading_picture = 1;
     } else {
       cm->is_leading_picture = 0;
@@ -5466,6 +5535,7 @@ int av2_get_compressed_data(AV2_COMP *cpi, unsigned int *frame_flags,
 
   // Initialize fields related to forward keyframes
   cpi->no_show_fwd_kf = 0;
+  cpi->is_fwd_kf = 0;
 
   check_ref_count_status_enc(cpi);
   if (assign_cur_frame_new_fb(cm) == NULL) return AVM_CODEC_ERROR;

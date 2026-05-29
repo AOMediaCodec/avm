@@ -40,6 +40,8 @@
 #include "common/tools_common.h"
 #include "common/warnings.h"
 #include "av2/common/blockd.h"
+#include "common/xlayer_config_parse.h"
+#include "apps/avmenc_xlayer.h"
 
 #if CONFIG_WEBM_IO
 #include "common/webmenc.h"
@@ -136,6 +138,7 @@ const arg_def_t *main_args[] = { &g_av2_codec_arg_defs.help,
                                  &g_av2_codec_arg_defs.debugmode,
                                  &g_av2_codec_arg_defs.outputfile,
                                  &g_av2_codec_arg_defs.reconfile,
+                                 &g_av2_codec_arg_defs.xlayer_config,
                                  &g_av2_codec_arg_defs.codecarg,
                                  &g_av2_codec_arg_defs.passes,
                                  &g_av2_codec_arg_defs.pass_arg,
@@ -737,6 +740,8 @@ static void parse_global_config(struct AvxEncoderConfig *global, char ***argv) {
       global->disable_warning_prompt = 1;
     } else if (arg_match(&arg, &g_av2_codec_arg_defs.icc_file, argi)) {
       read_icc_profile(global, arg.val);
+    } else if (arg_match(&arg, &g_av2_codec_arg_defs.xlayer_config, argi)) {
+      global->xlayer_config_path = arg.val;
     } else {
       argj++;
     }
@@ -1624,12 +1629,7 @@ static void setup_pass(struct stream_state *stream,
 static void initialize_encoder(struct stream_state *stream,
                                struct AvxEncoderConfig *global) {
   int i;
-  int flags = 0;
-
-  flags |= (global->show_psnr >= 1) ? AVM_CODEC_USE_PSNR : 0;
-  flags |= (global->show_psnr == 2) ? AVM_CODEC_USE_STREAM_PSNR : 0;
-  flags |= global->quiet ? 0 : AVM_CODEC_USE_PER_FRAME_STATS;
-  flags |= global->verbose ? AVM_CODEC_USE_PER_FRAME_HLS_INFO : 0;
+  int flags = avx_encoder_init_flags(global);
 
   /* Construct Encoder Context */
   avm_codec_enc_init(&stream->encoder, global->codec, &stream->config.cfg,
@@ -1907,40 +1907,46 @@ static float usec_to_fps(uint64_t usec, unsigned int frames) {
 }
 
 static void write_recon_file(struct stream_state *stream, FILE *file) {
-  avm_image_t enc_img;
+  const avm_image_t *enc_img = avm_codec_get_preview_frame(&stream->encoder);
 
-  AVM_CODEC_CONTROL_TYPECHECKED(&stream->encoder, AV2_GET_NEW_FRAME_IMAGE,
-                                &enc_img);
+  if (!enc_img) {
+    ctx_exit_on_error(&stream->encoder,
+                      "Failed to get encoder reconstructed frame");
+    return;
+  }
 
-  ctx_exit_on_error(&stream->encoder,
-                    "Failed to get encoder reconstructed frame");
-
-  int num_planes = enc_img.monochrome ? 1 : 3;
+  int num_planes = enc_img->monochrome ? 1 : 3;
   const int PLANES_YUV[] = { AVM_PLANE_Y, AVM_PLANE_U, AVM_PLANE_V };
   const int *planes = PLANES_YUV;
-  raw_write_image_file(&enc_img, planes, num_planes, file);
+  raw_write_image_file(enc_img, planes, num_planes, file);
 }
 
 static void test_decode(struct stream_state *stream,
                         enum TestDecodeFatality fatal) {
-  avm_image_t enc_img, dec_img;
+  avm_image_t dec_img;
 
-  // fprintf(stderr, "DEBUG: Running test_decode at POC: %d\n",
-  //         stream->frames_out - 1);
   if (stream->mismatch_seen) return;
 
-  /* Get the internal reference frame */
-  AVM_CODEC_CONTROL_TYPECHECKED(&stream->encoder, AV2_GET_NEW_FRAME_IMAGE,
-                                &enc_img);
+  /* Get the internal reference frame from the encoder via preview API.
+   * AV2_GET_NEW_FRAME_IMAGE relies on last_show_frame_buf which is only set
+   * for immediate-output frames, so it fails for hidden frames encoded with
+   * SEF mode.  The preview API accesses cm->cur_frame directly and always
+   * works. */
+  const avm_image_t *enc_img = avm_codec_get_preview_frame(&stream->encoder);
+
   AVM_CODEC_CONTROL_TYPECHECKED(&stream->decoder, AV2_GET_NEW_FRAME_IMAGE,
                                 &dec_img);
 
-  ctx_exit_on_error(&stream->encoder, "Failed to get encoder reference frame");
+  if (!enc_img) {
+    ctx_exit_on_error(&stream->encoder,
+                      "Failed to get encoder reference frame");
+    return;
+  }
   ctx_exit_on_error(&stream->decoder, "Failed to get decoder reference frame");
 
-  if (!avm_compare_img(&enc_img, &dec_img)) {
+  if (!avm_compare_img(enc_img, &dec_img)) {
     int y[4], u[4], v[4];
-    avm_find_mismatch_high(&enc_img, &dec_img, y, u, v);
+    avm_find_mismatch_high(enc_img, &dec_img, y, u, v);
     stream->decoder.err = 1;
     warn_or_exit_on_error(&stream->decoder, fatal == TEST_DECODE_FATAL,
                           "Stream %d: Encode/decode mismatch on POC %d at"
@@ -1953,7 +1959,6 @@ static void test_decode(struct stream_state *stream,
     stream->mismatch_seen = stream->frames_out;
   }
 
-  avm_img_free(&enc_img);
   avm_img_free(&dec_img);
 }
 
@@ -1990,6 +1995,35 @@ int main(int argc, const char **argv_) {
   parse_global_config(&global, &argv);
 
   if (argc < 2) usage_exit();
+
+  // Multi-xlayer encoding: dispatch to separate path if config is provided
+  if (global.xlayer_config_path != NULL) {
+    // Warn about unconsumed CLI args that will be ignored in xlayer mode
+    for (argi = argv; *argi; argi++) {
+      if (argi[0][0] == '-' && argi[0][1])
+        warn(
+            "option \"%s\" ignored in xlayer mode "
+            "(use JSON config instead)",
+            *argi);
+    }
+
+    MultiXLayerConfig mcfg;
+    if (parse_multi_xlayer_config(global.xlayer_config_path, &mcfg) != 0) {
+      die("Error: failed to parse xlayer config \"%s\"\n",
+          global.xlayer_config_path);
+    }
+    if (resolve_input_sources(&mcfg) != 0) {
+      die("Error: failed to resolve input sources in xlayer config \"%s\"\n",
+          global.xlayer_config_path);
+    }
+    resolve_mlayer_ci(&mcfg);
+    if (validate_multi_xlayer_config(&mcfg) != 0) {
+      die("Error: invalid xlayer config \"%s\"\n", global.xlayer_config_path);
+    }
+    res = encode_multi_xlayer(&mcfg, &global);
+    free(argv);
+    return res;
+  }
 
   switch (global.color_type) {
     case I420: input.fmt = AVM_IMG_FMT_I420; break;

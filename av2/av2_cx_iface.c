@@ -245,6 +245,7 @@ struct av2_extracfg {
   int buffer_refresh_multi_layers_test[REF_FRAMES];
   int multi_layers_lag_test;
   int force_deferred_frames_for_ras_test;
+  int intra_only_fwd_kf;
 };
 
 // Example subgop configs. Currently not used by default.
@@ -574,6 +575,7 @@ static struct av2_extracfg default_extra_cfg = {
   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // buffer_refresh_multi_layers_test
   0,      // multi_layers_test for nozero lag
   0,      // force_deferred_frames_for_ras_test
+  0,
 };
 // clang-format on
 
@@ -595,6 +597,9 @@ struct avm_codec_alg_priv {
   avm_enc_frame_flags_t next_frame_flags;
   avm_codec_pkt_list_decl(256) pkt_list;
   unsigned int fixed_kf_cntr;
+  // For multi-mlayer with lag: persists across encoder_encode calls to prevent
+  // TDs from being inserted between hidden frames within the same TU.
+  int mlayer_tu_ready;
   // BufferPool that holds all reference frames.
   BufferPool *buffer_pool;
 
@@ -817,6 +822,7 @@ static avm_codec_err_t validate_config(avm_codec_alg_priv_t *ctx,
   RANGE_CHECK(extra_cfg, explicit_ref_frame_map, 0, 1);
   RANGE_CHECK(extra_cfg, add_sef_for_hidden_frames, 0, 1);
   RANGE_CHECK(extra_cfg, monotonic_output_order, 0, 1);
+  RANGE_CHECK(extra_cfg, intra_only_fwd_kf, 0, 1);
   if (extra_cfg->monotonic_output_order &&
       extra_cfg->enable_keyframe_filtering > 0)
     ERROR("monotonic_output_order=1 requires enable_keyframe_filtering=0");
@@ -1515,6 +1521,7 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
 
   // Set Key frame configuration.
   kf_cfg->fwd_kf_enabled = cfg->fwd_kf_enabled;
+  kf_cfg->intra_only_fwd_kf = extra_cfg->intra_only_fwd_kf;
   kf_cfg->auto_key =
       cfg->kf_mode == AVM_KF_AUTO && cfg->kf_min_dist != cfg->kf_max_dist;
   kf_cfg->key_freq_min = cfg->kf_min_dist;
@@ -1607,11 +1614,20 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   oxcf->ref_frm_cfg.add_sef_for_hidden_frames =
       extra_cfg->add_sef_for_hidden_frames;
   oxcf->tool_cfg.monotonic_output_order = extra_cfg->monotonic_output_order;
+  // Monotonic output requires SEF OBUs for hidden frames — implicit output
+  // is not allowed when monotonic_output_order_flag is set in the sequence
+  // header.  Force add_sef_for_hidden_frames on so the encoder produces SEF
+  // OBUs instead of relying on implicit output.
   if (oxcf->tool_cfg.monotonic_output_order &&
       !oxcf->ref_frm_cfg.add_sef_for_hidden_frames) {
-    // `monotonic_output_order = 1` implies that `implicit_output_frame = 0`.
-    // So, explicit SEF OBUs must be signaled.
     oxcf->ref_frm_cfg.add_sef_for_hidden_frames = 1;
+    static int warned_sef_override;
+    if (!warned_sef_override) {
+      warned_sef_override = 1;
+      fprintf(stderr,
+              "Warning: monotonic_output_order=1 forces "
+              "add_sef_for_hidden_frames=1 (--add-sef-for-output=1)\n");
+    }
   }
 
   oxcf->row_mt = extra_cfg->row_mt;
@@ -2752,6 +2768,130 @@ static avm_codec_err_t ctrl_set_force_deferred_frames_for_ras_test(
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
+static avm_codec_err_t ctrl_set_xlayer_id(avm_codec_alg_priv_t *ctx,
+                                          va_list args) {
+  const int xlayer_id = va_arg(args, int);
+  if (xlayer_id < 0 || xlayer_id > 30) return AVM_CODEC_INVALID_PARAM;
+  ctx->cpi->common.xlayer_id = xlayer_id;
+  return AVM_CODEC_OK;
+}
+
+static avm_codec_err_t ctrl_set_mlayer_dependency_present(
+    avm_codec_alg_priv_t *ctx, va_list args) {
+  const unsigned int flag = va_arg(args, unsigned int);
+  if (flag > 1) return AVM_CODEC_INVALID_PARAM;
+  ctx->cpi->common.seq_params.mlayer_dependency_present_flag = (int)flag;
+  return AVM_CODEC_OK;
+}
+
+static avm_codec_err_t ctrl_set_mlayer_dependency_map(avm_codec_alg_priv_t *ctx,
+                                                      va_list args) {
+  const unsigned int mlayer_idx = va_arg(args, unsigned int);
+  const unsigned int mask = va_arg(args, unsigned int);
+  if (mlayer_idx >= MAX_NUM_MLAYERS) return AVM_CODEC_INVALID_PARAM;
+  SequenceHeader *seq = &ctx->cpi->common.seq_params;
+  for (int j = 0; j < (int)mlayer_idx; j++) {
+    seq->mlayer_dependency_map[mlayer_idx][j] = (mask >> j) & 1;
+  }
+  // Self-dependency is always 1
+  seq->mlayer_dependency_map[mlayer_idx][mlayer_idx] = 1;
+  return AVM_CODEC_OK;
+}
+
+static avm_codec_err_t ctrl_set_intra_only_fwd_kf(avm_codec_alg_priv_t *ctx,
+                                                  va_list args) {
+  struct av2_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.intra_only_fwd_kf = CAST(AV2E_SET_INTRA_ONLY_FWD_KF, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+
+// Helper to derive color_description_idc from CICP triplet.
+static int derive_color_description_idc(avm_color_primaries_t cp,
+                                        avm_transfer_characteristics_t tc,
+                                        avm_matrix_coefficients_t mc) {
+  if (cp == AVM_CICP_CP_BT_709 && tc == AVM_CICP_TC_BT_709 &&
+      mc == AVM_CICP_MC_BT_709)
+    return AVM_COLOR_DESC_IDC_BT709SDR;
+  if (cp == AVM_CICP_CP_BT_709 && tc == AVM_CICP_TC_SRGB &&
+      mc == AVM_CICP_MC_IDENTITY)
+    return AVM_COLOR_DESC_IDC_SRGB;
+  if (cp == AVM_CICP_CP_BT_709 && tc == AVM_CICP_TC_SRGB &&
+      mc == AVM_CICP_MC_BT_470_B_G)
+    return AVM_COLOR_DESC_IDC_SYCC;
+  if (cp == AVM_CICP_CP_BT_2020 && tc == AVM_CICP_TC_SMPTE_2084 &&
+      mc == AVM_CICP_MC_BT_2020_NCL)
+    return AVM_COLOR_DESC_IDC_BT2100PQ;
+  if (cp == AVM_CICP_CP_BT_2020 && tc == AVM_CICP_TC_HLG &&
+      mc == AVM_CICP_MC_BT_2020_NCL)
+    return AVM_COLOR_DESC_IDC_BT2100HLG;
+  return AVM_COLOR_DESC_IDC_EXPLICIT;
+}
+
+// Helper to update ci_params_per_layer[ml] flags after a color field change.
+static void update_mlayer_ci_flags(ContentInterpretation *ci) {
+  ColorInfo *c = &ci->color_info;
+  c->color_description_idc = derive_color_description_idc(
+      c->color_primaries, c->transfer_characteristics, c->matrix_coefficients);
+
+  if (c->color_description_idc == AVM_COLOR_DESC_IDC_EXPLICIT &&
+      c->color_primaries == AVM_CICP_CP_UNSPECIFIED &&
+      c->transfer_characteristics == AVM_CICP_TC_UNSPECIFIED &&
+      c->matrix_coefficients == AVM_CICP_MC_UNSPECIFIED &&
+      c->full_range_flag == 0) {
+    ci->ci_color_description_present_flag = 0;
+  } else {
+    ci->ci_color_description_present_flag = 1;
+  }
+}
+
+// Common helper for per-mlayer CI control handlers.
+// field: 0=color_primaries, 1=transfer_characteristics,
+//        2=matrix_coefficients, 3=full_range_flag
+static avm_codec_err_t set_mlayer_ci_field(avm_codec_alg_priv_t *ctx,
+                                           va_list args, int field) {
+  const unsigned int mlayer_idx = va_arg(args, unsigned int);
+  const unsigned int value = va_arg(args, unsigned int);
+  if (mlayer_idx >= MAX_NUM_MLAYERS) return AVM_CODEC_INVALID_PARAM;
+  ContentInterpretation *ci = &ctx->cpi->common.ci_params_per_layer[mlayer_idx];
+  switch (field) {
+    case 0:
+      ci->color_info.color_primaries = (avm_color_primaries_t)value;
+      break;
+    case 1:
+      ci->color_info.transfer_characteristics =
+          (avm_transfer_characteristics_t)value;
+      break;
+    case 2:
+      ci->color_info.matrix_coefficients = (avm_matrix_coefficients_t)value;
+      break;
+    case 3: ci->color_info.full_range_flag = value ? 1 : 0; break;
+  }
+  update_mlayer_ci_flags(ci);
+  ctx->cpi->write_ci_obu_flag = 1;
+  ctx->cpi->ci_per_layer_overridden[mlayer_idx] = 1;
+  return AVM_CODEC_OK;
+}
+
+static avm_codec_err_t ctrl_set_mlayer_color_primaries(
+    avm_codec_alg_priv_t *ctx, va_list args) {
+  return set_mlayer_ci_field(ctx, args, 0);
+}
+
+static avm_codec_err_t ctrl_set_mlayer_transfer_characteristics(
+    avm_codec_alg_priv_t *ctx, va_list args) {
+  return set_mlayer_ci_field(ctx, args, 1);
+}
+
+static avm_codec_err_t ctrl_set_mlayer_matrix_coefficients(
+    avm_codec_alg_priv_t *ctx, va_list args) {
+  return set_mlayer_ci_field(ctx, args, 2);
+}
+
+static avm_codec_err_t ctrl_set_mlayer_color_range(avm_codec_alg_priv_t *ctx,
+                                                   va_list args) {
+  return set_mlayer_ci_field(ctx, args, 3);
+}
+
 static avm_codec_err_t create_stats_buffer(FIRSTPASS_STATS **frame_stats_buffer,
                                            STATS_BUFFER_CTX *stats_buf_context,
                                            int num_lap_buffers) {
@@ -2819,6 +2959,7 @@ static avm_codec_err_t encoder_init(avm_codec_ctx_t *ctx) {
     }
 
     priv->extra_cfg = default_extra_cfg;
+    priv->mlayer_tu_ready = 1;  // First frame starts a new TU.
     avm_once(av2_initialize_enc);
 
     res = validate_config(priv, &priv->cfg, &priv->extra_cfg);
@@ -3065,18 +3206,19 @@ static void report_stats(AV2_COMP *cpi, size_t frame_size, uint64_t cx_time) {
         const bool use_hbd_psnr = (cpi->b_calculate_psnr == 2);
         if (cpi->oxcf.tool_cfg.enable_bru) {
           fprintf(stdout,
-                  "POC:%6d [%s][BRU%1d:%1d][Level:%d][Q:%3d][LTID:%d]"
-                  "[ELID:%d][TLID:%d]: %10" PRIu64
+                  "POC:%6d [XL:%d][%s][BRU%1d:%1d][Level:%d][Q:%3d][LTID:%d]"
+                  "[ELID:%d][TLID:%d][OH:%d][DOH:%d]: %10" PRIu64
                   " Bytes, "
                   "%6.1fms, %2.4f dB(Y), %2.4f dB(U), "
                   "%2.4f dB(V), "
                   "%2.4f dB(Avg)",
-                  cm->cur_frame->absolute_poc,
+                  cm->cur_frame->absolute_poc, cm->xlayer_id,
                   frameType[cm->current_frame.frame_type + cpi->is_ras_frame],
                   cm->bru.enabled, cm->bru.update_ref_idx,
                   cm->cur_frame->pyramid_level, base_qindex,
                   cm->cur_frame->long_term_id, cm->cur_frame->mlayer_id,
-                  (int)cm->cur_frame->tlayer_id, (uint64_t)frame_size,
+                  (int)cm->cur_frame->tlayer_id, cm->cur_frame->order_hint,
+                  cm->cur_frame->display_order_hint, (uint64_t)frame_size,
                   cx_time / 1000.0,
                   use_hbd_psnr ? psnr.psnr_hbd[1] : psnr.psnr[1],
                   use_hbd_psnr ? psnr.psnr_hbd[2] : psnr.psnr[2],
@@ -3084,17 +3226,18 @@ static void report_stats(AV2_COMP *cpi, size_t frame_size, uint64_t cx_time) {
                   use_hbd_psnr ? psnr.psnr_hbd[0] : psnr.psnr[0]);
         } else {
           fprintf(stdout,
-                  "POC:%6d [%s][Level:%d][Q:%3d][LTID:%d]"
-                  "[ELID:%d][TLID:%d]: %10" PRIu64
+                  "POC:%6d [XL:%d][%s][Level:%d][Q:%3d][LTID:%d]"
+                  "[ELID:%d][TLID:%d][OH:%d][DOH:%d]: %10" PRIu64
                   " Bytes, "
                   "%6.1fms, %2.4f dB(Y), %2.4f dB(U), "
                   "%2.4f dB(V), "
                   "%2.4f dB(Avg)",
-                  cm->cur_frame->absolute_poc,
+                  cm->cur_frame->absolute_poc, cm->xlayer_id,
                   frameType[cm->current_frame.frame_type + cpi->is_ras_frame],
                   cm->cur_frame->pyramid_level, base_qindex,
                   cm->cur_frame->long_term_id, cm->cur_frame->mlayer_id,
-                  (int)cm->cur_frame->tlayer_id, (uint64_t)frame_size,
+                  (int)cm->cur_frame->tlayer_id, cm->cur_frame->order_hint,
+                  cm->cur_frame->display_order_hint, (uint64_t)frame_size,
                   cx_time / 1000.0,
                   use_hbd_psnr ? psnr.psnr_hbd[1] : psnr.psnr[1],
                   use_hbd_psnr ? psnr.psnr_hbd[2] : psnr.psnr[2],
@@ -3104,28 +3247,30 @@ static void report_stats(AV2_COMP *cpi, size_t frame_size, uint64_t cx_time) {
       } else {
         if (cpi->oxcf.tool_cfg.enable_bru) {
           fprintf(stdout,
-                  "POC:%6d [%s][BRU%1d:%1d][Level:%d][Q:%3d][LTID:%d]"
-                  "[ELID:%d][TLID:%d]: %10" PRIu64
+                  "POC:%6d [XL:%d][%s][BRU%1d:%1d][Level:%d][Q:%3d][LTID:%d]"
+                  "[ELID:%d][TLID:%d][OH:%d][DOH:%d]: %10" PRIu64
                   " Bytes, "
                   "%6.1fms",
-                  cm->cur_frame->absolute_poc,
+                  cm->cur_frame->absolute_poc, cm->xlayer_id,
                   frameType[cm->current_frame.frame_type + cpi->is_ras_frame],
                   cm->bru.enabled, cm->bru.update_ref_idx,
                   cm->cur_frame->pyramid_level, base_qindex,
                   cm->cur_frame->long_term_id, cm->cur_frame->mlayer_id,
-                  (int)cm->cur_frame->tlayer_id, (uint64_t)frame_size,
+                  (int)cm->cur_frame->tlayer_id, cm->cur_frame->order_hint,
+                  cm->cur_frame->display_order_hint, (uint64_t)frame_size,
                   cx_time / 1000.0);
         } else {
           fprintf(stdout,
-                  "POC:%6d [%s][Level:%d][Q:%3d][LTID:%d]"
-                  "[ELID:%d][TLID:%d]: %10" PRIu64
+                  "POC:%6d [XL:%d][%s][Level:%d][Q:%3d][LTID:%d]"
+                  "[ELID:%d][TLID:%d][OH:%d][DOH:%d]: %10" PRIu64
                   " Bytes, "
                   "%6.1fms",
-                  cm->cur_frame->absolute_poc,
+                  cm->cur_frame->absolute_poc, cm->xlayer_id,
                   frameType[cm->current_frame.frame_type + cpi->is_ras_frame],
                   cm->cur_frame->pyramid_level, base_qindex,
                   cm->cur_frame->long_term_id, cm->cur_frame->mlayer_id,
-                  (int)cm->cur_frame->tlayer_id, (uint64_t)frame_size,
+                  (int)cm->cur_frame->tlayer_id, cm->cur_frame->order_hint,
+                  cm->cur_frame->display_order_hint, (uint64_t)frame_size,
                   cx_time / 1000.0);
         }
       }
@@ -3385,7 +3530,7 @@ static avm_codec_err_t encoder_encode(avm_codec_alg_priv_t *ctx,
 
     // Get the next visible frame. Invisible frames get packed with the next
     // visible frame.
-    int64_t dst_time_stamp;
+    int64_t dst_time_stamp = 0;
     int64_t dst_end_time_stamp;
     struct avm_usec_timer timer;
     if (cpi->compressor_stage == ENCODE_STAGE) {
@@ -3395,7 +3540,12 @@ static avm_codec_err_t encoder_encode(avm_codec_alg_priv_t *ctx,
           cpi->subgop_stats.num_references[stat_idx] = -1;
       }
     }
-    int ready_for_next_tu = 1;
+    // In multi-mlayer with lag mode, TU boundaries persist across
+    // encoder_encode calls.  Use the persistent flag so that hidden frames
+    // for ml>0 (processed in a separate call) don't start a new TU.
+    const int multi_ml_lag = cpi->oxcf.unit_test_cfg.multi_layers_lag_test &&
+                             cpi->common.number_mlayers > 1;
+    int ready_for_next_tu = multi_ml_lag ? ctx->mlayer_tu_ready : 1;
 
     while (cx_data_sz - index_size >= ctx->cx_data_sz / 2 &&
            !is_frame_visible) {
@@ -3455,9 +3605,25 @@ static avm_codec_err_t encoder_encode(avm_codec_alg_priv_t *ctx,
           ready_for_next_tu = 0;
         }
 
-        if (mlayer_id == 0 && (cpi->common.immediate_output_picture ||
-                               cpi->common.implicit_output_picture)) {
-          ready_for_next_tu = 1;
+        if (multi_ml_lag) {
+          // Multi-mlayer with lag: mark TU boundary after the last mlayer
+          // produces an output frame.  In non-monotonic mode, implicit
+          // output frames are also output (decoder reorders), so each gets
+          // its own TU.  In monotonic mode, only immediate output triggers
+          // a TU boundary (hidden frames are bundled with their SEF).
+          const int is_output =
+              cpi->common.immediate_output_picture ||
+              (!cpi->common.seq_params.monotonic_output_order_flag &&
+               cpi->common.implicit_output_picture);
+          if ((unsigned int)mlayer_id == cpi->common.number_mlayers - 1 &&
+              is_output) {
+            ready_for_next_tu = 1;
+          }
+        } else {
+          if (mlayer_id == 0 && (cpi->common.immediate_output_picture ||
+                                 cpi->common.implicit_output_picture)) {
+            ready_for_next_tu = 1;
+          }
         }
 
         size_t curr_frame_size = frame_size;
@@ -3544,6 +3710,8 @@ static avm_codec_err_t encoder_encode(avm_codec_alg_priv_t *ctx,
 #endif  // CONFIG_MIXED_LOSSLESS_ENCODE
       }
     }
+    // Persist TU readiness for multi-mlayer mode across encoder_encode calls.
+    if (multi_ml_lag) ctx->mlayer_tu_ready = ready_for_next_tu;
     if (is_frame_visible) {
       // Add the frame packet to the list of returned packets.
       avm_codec_cx_pkt_t pkt;
@@ -3568,6 +3736,33 @@ static avm_codec_err_t encoder_encode(avm_codec_alg_priv_t *ctx,
       }
       pkt.data.frame.duration = (uint32_t)ticks_to_timebase_units(
           timestamp_ratio, dst_end_time_stamp - dst_time_stamp);
+
+      avm_codec_pkt_list_add(&ctx->pkt_list.head, &pkt);
+
+      ctx->pending_cx_data = NULL;
+      ctx->pending_cx_data_sz = 0;
+      ctx->pending_frame_count = 0;
+    } else if (!img && ctx->pending_cx_data_sz > 0) {
+      // Flush mode: the encoder ran out of frames but has accumulated
+      // implicit-output frames that were never followed by an
+      // immediate-output frame.  Emit them as a packet so they are not lost.
+      avm_codec_cx_pkt_t pkt;
+
+      cpi->frames_left = AVMMAX(0, cpi->frames_left - 1);
+      pkt.kind = AVM_CODEC_CX_FRAME_PKT;
+      pkt.data.frame.buf = ctx->pending_cx_data;
+      pkt.data.frame.sz = ctx->pending_cx_data_sz;
+      pkt.data.frame.partition_id = -1;
+      pkt.data.frame.vis_frame_size = 0;
+
+      pkt.data.frame.pts =
+          ticks_to_timebase_units(timestamp_ratio, dst_time_stamp) +
+          ctx->pts_offset;
+      pkt.data.frame.flags = get_frame_pkt_flags(cpi, lib_flags);
+      if (has_no_show_keyframe) {
+        pkt.data.frame.flags |= AVM_FRAME_IS_DELAYED_RANDOM_ACCESS_POINT;
+      }
+      pkt.data.frame.duration = 0;
 
       avm_codec_pkt_list_add(&ctx->pkt_list.head, &pkt);
 
@@ -3652,7 +3847,6 @@ static avm_codec_err_t ctrl_get_new_frame_image(avm_codec_alg_priv_t *ctx,
 
   if (new_img != NULL) {
     YV12_BUFFER_CONFIG new_frame;
-
     if (av2_get_last_show_frame(ctx->cpi, &new_frame) == 0) {
       yuvconfig2image(new_img, &new_frame, NULL);
       return AVM_CODEC_OK;
@@ -4704,6 +4898,15 @@ static avm_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV2E_SET_MONOTONIC_OUTPUT_ORDER, ctrl_set_monotonic_output_order },
   { AV2E_SET_FORCE_DEFERRED_FRAMES_FOR_RAS_TEST,
     ctrl_set_force_deferred_frames_for_ras_test },
+  { AVME_SET_XLAYER_ID, ctrl_set_xlayer_id },
+  { AV2E_SET_MLAYER_DEPENDENCY_PRESENT, ctrl_set_mlayer_dependency_present },
+  { AV2E_SET_MLAYER_DEPENDENCY_MAP, ctrl_set_mlayer_dependency_map },
+  { AV2E_SET_INTRA_ONLY_FWD_KF, ctrl_set_intra_only_fwd_kf },
+  { AV2E_SET_MLAYER_COLOR_PRIMARIES, ctrl_set_mlayer_color_primaries },
+  { AV2E_SET_MLAYER_TRANSFER_CHARACTERISTICS,
+    ctrl_set_mlayer_transfer_characteristics },
+  { AV2E_SET_MLAYER_MATRIX_COEFFICIENTS, ctrl_set_mlayer_matrix_coefficients },
+  { AV2E_SET_MLAYER_COLOR_RANGE, ctrl_set_mlayer_color_range },
 
   // Getters
   { AVME_GET_LAST_QUANTIZER, ctrl_get_quantizer },

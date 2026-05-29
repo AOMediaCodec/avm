@@ -2798,6 +2798,16 @@ static void setup_target_rate(AV2_COMP *cpi) {
   rc->base_frame_target = target_rate;
 }
 
+// Determine if the current ARF is at a keyframe boundary (forward keyframe).
+static int is_at_fwd_kf_boundary(const AV2_COMP *cpi, int src_index) {
+  const GF_GROUP *gf_group = &cpi->gf_group;
+  return src_index == cpi->rc.frames_to_key * (int)cpi->common.number_mlayers &&
+         src_index != 0 && cpi->oxcf.kf_cfg.fwd_kf_enabled &&
+         gf_group->size > 1 &&
+         gf_group->update_type[gf_group->index] != FWD_KF_OVERLAY_UPDATE &&
+         gf_group->update_type[gf_group->index] != FWD_KF_SUCCESSOR_UPDATE;
+}
+
 void av2_get_second_pass_params(AV2_COMP *cpi,
                                 EncodeFrameParams *const frame_params) {
   RATE_CONTROL *const rc = &cpi->rc;
@@ -2813,21 +2823,26 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
 
     setup_target_rate(cpi);
     int src_index = gf_group->arf_src_offset[gf_group->index];
-    if (src_index == cpi->rc.frames_to_key * (int)cpi->common.number_mlayers &&
-        src_index != 0 && cpi->oxcf.kf_cfg.fwd_kf_enabled &&
-        gf_group->size > 1 &&
-        gf_group->update_type[gf_group->index] != FWD_KF_OVERLAY_UPDATE &&
-        gf_group->update_type[gf_group->index] != FWD_KF_SUCCESSOR_UPDATE) {
-      cpi->no_show_fwd_kf = 1;
+    // Determine if this ARF is at the KF boundary (forward keyframe).
+    if (is_at_fwd_kf_boundary(cpi, src_index)) {
+      cpi->is_fwd_kf = 1;
+      // Hidden only when there is a mechanism to show it later
+      // (kf_filt overlay or SEF).  For open_leading, the OLK is displayed
+      // directly as an implicit output frame.
+      cpi->no_show_fwd_kf = av2_fwd_kf_should_be_hidden(cpi) ? 1 : 0;
     }
     // If this is an arf frame then we dont want to read the stats file or
     // advance the input pointer as we already have what we need.
     if (update_type == ARF_UPDATE || update_type == INTNL_ARF_UPDATE ||
         update_type == KFFLT_UPDATE) {
-      if (cpi->no_show_fwd_kf) {
+      if (cpi->is_fwd_kf) {
         assert(update_type == ARF_UPDATE || update_type == KFFLT_UPDATE);
-        frame_params->frame_type = KEY_FRAME;
-        frame_params->frame_params_obu_type = OBU_OPEN_LOOP_KEY;
+        if (cpi->oxcf.kf_cfg.intra_only_fwd_kf) {
+          frame_params->frame_type = INTRA_ONLY_FRAME;
+        } else {
+          frame_params->frame_type = KEY_FRAME;
+          frame_params->frame_params_obu_type = OBU_OPEN_LOOP_KEY;
+        }
       } else {
         frame_params->frame_type = INTER_FRAME;
         update_subgop_stats(&cpi->gf_group, &cpi->subgop_stats,
@@ -2848,6 +2863,11 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
       int sframe_dist = oxcf->kf_cfg.sframe_dist;
       int sframe_mode = oxcf->kf_cfg.sframe_mode;
       int enable_sframe = oxcf->kf_cfg.enable_sframe;
+      // S-frames are only allowed in independent mlayers.
+      if (sframe_dist && !is_mlayer_independent(&cpi->common.seq_params,
+                                                cpi->common.mlayer_id)) {
+        sframe_dist = 0;
+      }
       CurrentFrame *const current_frame = &cpi->common.current_frame;
       // ARF_UPDATE and KFFLT_UPDATE is set as S_FRAME in the RA case
       if (sframe_dist && enable_sframe) {
@@ -2911,13 +2931,15 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
       oxcf->kf_cfg.key_freq_min *= cpi->common.number_mlayers;
       oxcf->kf_cfg.key_freq_max *= cpi->common.number_mlayers;
     }
-    if (cpi->gf_state.olk_overlay_last) {
+    if (cpi->gf_state.olk_overlay_last ||
+        cpi->gf_state.fwd_intra_overlay_last) {
       const int kf_offset = -rc->frames_to_key;
-      // The olk key frame has been encoded. Next is the arf.
+      // The forward keyframe (OLK or hidden intra) has been encoded and output.
+      // Next is the arf — no CLK needed at this key period boundary.
       frame_params->frame_type = INTER_FRAME;
       frame_params->frame_params_obu_type = NUM_OBU_TYPES;
-      // Temporarily change decrease key frame interval since we've already seen
-      // the key frame in the OLK.
+      // Temporarily decrease key frame interval since we've already seen
+      // the key frame in the forward keyframe.
       oxcf->kf_cfg.key_freq_min = AVMMAX(
           0, oxcf->kf_cfg.key_freq_min - (int)cpi->common.number_mlayers);
       oxcf->kf_cfg.key_freq_max =
@@ -2925,6 +2947,7 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
                  oxcf->kf_cfg.key_freq_max - (int)cpi->common.number_mlayers);
       find_next_key_frame(cpi, &this_frame);
       rc->frames_since_key += kf_offset * (int)cpi->common.number_mlayers;
+      cpi->gf_state.fwd_intra_overlay_last = 0;
     } else {
       assert(rc->frames_to_key >= -1);
       frame_params->frame_type = KEY_FRAME;
@@ -3026,13 +3049,11 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
         gf_group->update_type[gf_group->size - 1] == OVERLAY_UPDATE;
 
     cpi->no_show_fwd_kf = 0;
+    cpi->is_fwd_kf = 0;
     int src_index = gf_group->arf_src_offset[gf_group->index];
-    if (src_index == cpi->rc.frames_to_key * (int)cpi->common.number_mlayers &&
-        src_index != 0 && cpi->oxcf.kf_cfg.fwd_kf_enabled &&
-        gf_group->size > 1 &&
-        gf_group->update_type[gf_group->index] != FWD_KF_OVERLAY_UPDATE &&
-        gf_group->update_type[gf_group->index] != FWD_KF_SUCCESSOR_UPDATE) {
-      cpi->no_show_fwd_kf = 1;
+    if (is_at_fwd_kf_boundary(cpi, src_index)) {
+      cpi->is_fwd_kf = 1;
+      cpi->no_show_fwd_kf = av2_fwd_kf_should_be_hidden(cpi) ? 1 : 0;
     }
     const int update_type = gf_group->update_type[gf_group->index];
 
@@ -3040,9 +3061,13 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
         !(update_type == ARF_UPDATE || update_type == INTNL_ARF_UPDATE);
 
     if (update_type == ARF_UPDATE) {
-      if (cpi->no_show_fwd_kf) {
-        frame_params->frame_type = KEY_FRAME;
-        frame_params->frame_params_obu_type = OBU_OPEN_LOOP_KEY;
+      if (cpi->is_fwd_kf) {
+        if (cpi->oxcf.kf_cfg.intra_only_fwd_kf) {
+          frame_params->frame_type = INTRA_ONLY_FRAME;
+        } else {
+          frame_params->frame_type = KEY_FRAME;
+          frame_params->frame_params_obu_type = OBU_OPEN_LOOP_KEY;
+        }
       } else {
         frame_params->frame_type = rc->frames_since_key == 0 ? KEY_FRAME
                                    : (frame_params->frame_type == S_FRAME)

@@ -434,6 +434,14 @@ typedef struct {
   bool fwd_kf_enabled;
 
   /*!
+   * When true and fwd_kf_enabled is true, the forward keyframe is coded as
+   * INTRA_ONLY_FRAME instead of KEY_FRAME.  This enables open GOP with
+   * monotonic output: the hidden intra frame is shown via SEF, and reference
+   * buffers are not reset (allowing inter-prediction across the boundary).
+   */
+  bool intra_only_fwd_kf;
+
+  /*!
    * Indicates if S-Frames should be enabled for the sequence.
    */
   bool enable_sframe;
@@ -1062,6 +1070,11 @@ typedef struct {
   const SubGOPCfg *subgop_cfg;
   // Number of arf updates before a displayeed frame.
   int arf_update_counter;
+  // Non-monotonic multi-mlayer: 1 if the ARF in this GF group had
+  // allow_direct_use=1 (implicit output).  Persists across mlayers so
+  // the OVERLAY_UPDATE can produce null output even when the reference
+  // has been evicted from the DPB for later mlayers.
+  int arf_is_implicit_output;
   /*!\endcond */
 } GF_GROUP;
 /*!\cond */
@@ -1071,6 +1084,8 @@ typedef struct {
   int arf_gf_boost_lst;
   // Track if the last frame in a GOP is a olk overlay
   int olk_overlay_last;
+  // Track if the last frame in a GOP is a fwd intra SEF output
+  int fwd_intra_overlay_last;
 } GF_STATE;
 
 typedef struct {
@@ -2379,15 +2394,30 @@ typedef struct AV2_COMP {
   struct lookahead_ctx *lookahead;
 
   /*!
-   * When set, this flag indicates that the current frame is a forward keyframe.
+   * When set, this flag indicates that the current frame is a hidden forward
+   * keyframe (needs kf_filt overlay or SEF to be shown).
    */
   int no_show_fwd_kf;
+  /*!
+   * When set, this flag indicates that the current ARF is at the KF boundary
+   * and should be coded as a keyframe (OLK or INTRA_ONLY_FRAME).  This is
+   * independent of no_show_fwd_kf: for open_leading the frame is a displayed
+   * OLK (is_fwd_kf=1, no_show_fwd_kf=0).
+   */
+  int is_fwd_kf;
   /*!
    * Indicates an OLK obu is encountered in any layer
    * It is initialized as 0 and set 1 when the first olk is decoded and set 0
    * when the first regular frame or the first CLK after the olk is decoded.
    */
   int olk_encountered;
+  /*!
+   * Indicates a hidden intra forward keyframe (intra_only_fwd_kf) has been
+   * coded.  Set when the hidden INTRA_ONLY_FRAME is encoded and cleared when
+   * its SEF is output.  Used to protect the hidden intra's DPB slot from
+   * being overwritten by subsequent pyramid frames.
+   */
+  int fwd_intra_encountered;
   /*!
    * If true, the update type is one of overlay updates
    */
@@ -2928,6 +2958,17 @@ typedef struct AV2_COMP {
    * write ci obu
    */
   int write_ci_obu_flag;
+  /*!
+   * Set to 1 when the current TU is a RAP (CLK or OLK at mlayer 0).
+   * Used to trigger CI OBU writing for mlayer > 0 in the same TU.
+   */
+  int ci_rap_tu;
+  /*!
+   * Per-mlayer CI override flags.  Set to 1 by AV2E_SET_MLAYER_COLOR_*
+   * controls to indicate that ci_params_per_layer[ml] was explicitly set
+   * and should not be overwritten by set_content_interpreation_params().
+   */
+  int ci_per_layer_overridden[MAX_NUM_MLAYERS];
   /*!
    * Write the Buffer Removal Timing OBU
    */
@@ -3612,10 +3653,36 @@ static INLINE void check_ref_count_status_enc(AV2_COMP *cpi) {
   }
 }
 
-// Returns true if current frame is a shown (visible) keyframe.
+// Returns true if current frame is a shown CLK (closed-loop keyframe).
+// Excludes OLKs (both displayed and hidden) and hidden intra fwd KFs.
 static INLINE bool av2_is_shown_keyframe(const AV2_COMP *cpi,
                                          FRAME_TYPE frame_type) {
-  return (frame_type == KEY_FRAME) && !cpi->no_show_fwd_kf;
+  return (frame_type == KEY_FRAME) && !cpi->is_fwd_kf;
+}
+
+// Returns true if the current frame is a hidden forward keyframe that uses the
+// OLK mechanism (KEY_FRAME with no_show_fwd_kf): non-monotonic open GOP.
+static INLINE bool av2_is_olk_forward_keyframe(const AV2_COMP *cpi) {
+  return cpi->no_show_fwd_kf &&
+         cpi->common.current_frame.frame_type == KEY_FRAME;
+}
+
+// Returns true if the current frame is a hidden intra forward keyframe
+// (intra_only_fwd_kf): monotonic open GOP.  The INTRA_ONLY_FRAME provides a
+// random access point but does not use OLK machinery.
+static INLINE bool av2_is_fwd_intra_keyframe(const AV2_COMP *cpi) {
+  return cpi->no_show_fwd_kf && cpi->oxcf.kf_cfg.intra_only_fwd_kf &&
+         cpi->common.current_frame.frame_type == INTRA_ONLY_FRAME;
+}
+
+// Returns true if the forward keyframe at a GOP boundary should be hidden
+// (no_show).  The fwd KF is hidden only when there is a mechanism to display
+// it later: either keyframe filtering (kf_filt >= 2, which uses an overlay)
+// or SEF-based hidden frame output.  For open_leading (non-monotonic OLK),
+// the OLK is an implicit output frame and must NOT be hidden.
+static INLINE bool av2_fwd_kf_should_be_hidden(const AV2_COMP *cpi) {
+  return cpi->oxcf.kf_cfg.enable_keyframe_filtering > 1 ||
+         cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames;
 }
 
 /*!\endcond */

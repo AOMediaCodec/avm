@@ -52,7 +52,19 @@ struct AvxEncoderConfig {
   int experimental_bitstream;
   avm_chroma_sample_position_t csp;
   cfg_options_t encoder_config;
+  const char *xlayer_config_path;  // Path to multi-xlayer JSON config
 };
+
+// Compute encoder init flags from global config (used by both single-stream
+// and multi-xlayer paths).
+static inline int avx_encoder_init_flags(const struct AvxEncoderConfig *cfg) {
+  int flags = 0;
+  flags |= (cfg->show_psnr >= 1) ? AVM_CODEC_USE_PSNR : 0;
+  flags |= (cfg->show_psnr == 2) ? AVM_CODEC_USE_STREAM_PSNR : 0;
+  flags |= cfg->quiet ? 0 : AVM_CODEC_USE_PER_FRAME_STATS;
+  flags |= cfg->verbose ? AVM_CODEC_USE_PER_FRAME_HLS_INFO : 0;
+  return flags;
+}
 
 #ifdef __cplusplus
 }  // extern "C"

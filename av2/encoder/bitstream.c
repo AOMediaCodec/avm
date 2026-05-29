@@ -5368,7 +5368,8 @@ static AVM_INLINE void write_uncompressed_header(
     }
   }
 
-  if (obu_type == OBU_OPEN_LOOP_KEY) {
+  if (obu_type == OBU_OPEN_LOOP_KEY || av2_is_olk_forward_keyframe(cpi)) {
+    // OLK (non-monotonic open GOP): set OLK state.
     cpi->olk_encountered = 1;
     cm->last_olk_disp_order_hint = cm->current_frame.display_order_hint;
     cm->last_olk_order_hint = cm->current_frame.order_hint;
@@ -5376,6 +5377,13 @@ static AVM_INLINE void write_uncompressed_header(
     // as update_frame_buffers()
     // In this encoder, the OLK updates only one reference slot
     cm->olk_refresh_frame_flags[cm->mlayer_id] =
+        current_frame->refresh_frame_flags;
+  } else if (av2_is_fwd_intra_keyframe(cpi)) {
+    // Hidden intra forward keyframe (monotonic open GOP): separate state from
+    // OLK.  Protects the hidden intra's DPB slot but does not use OLK/leading
+    // frame machinery.
+    cpi->fwd_intra_encountered = 1;
+    cm->fwd_intra_refresh_frame_flags[cm->mlayer_id] =
         current_frame->refresh_frame_flags;
   } else if (obu_type == OBU_CLOSED_LOOP_KEY ||
              (cm->is_leading_picture == 0 &&
@@ -5390,7 +5398,8 @@ static AVM_INLINE void write_uncompressed_header(
     cm->prev_olk_co_vcl_refresh_frame_flags[cm->mlayer_id] = INVALID_IDX;
   } else if (cpi->olk_encountered && cm->current_frame.display_order_hint >=
                                          cm->last_olk_disp_order_hint) {
-    // This is a frame within the same TU as the OLK. Cannot refresh it either.
+    // This is a co-VCL frame within the same TU as the OLK (non-monotonic
+    // only). Accumulate its refresh flags so the OLK slot set is complete.
     cm->olk_refresh_frame_flags[cm->mlayer_id] |=
         current_frame->refresh_frame_flags;
   }
@@ -6941,6 +6950,83 @@ size_t av2_write_metadata_user_data_unregistered(AV2_COMP *const cpi,
   return total_bytes_written;
 }
 
+// Compare two ContentInterpretation color/chroma fields for equality.
+// Used to decide whether a per-mlayer CI OBU is needed or if inheritance
+// from a dependent layer suffices.
+static int ci_params_equal(const ContentInterpretation *a,
+                           const ContentInterpretation *b) {
+  if (a->ci_color_description_present_flag !=
+      b->ci_color_description_present_flag)
+    return 0;
+  if (a->ci_color_description_present_flag) {
+    if (a->color_info.color_description_idc !=
+        b->color_info.color_description_idc)
+      return 0;
+    if (a->color_info.color_primaries != b->color_info.color_primaries)
+      return 0;
+    if (a->color_info.transfer_characteristics !=
+        b->color_info.transfer_characteristics)
+      return 0;
+    if (a->color_info.matrix_coefficients != b->color_info.matrix_coefficients)
+      return 0;
+    if (a->color_info.full_range_flag != b->color_info.full_range_flag)
+      return 0;
+  }
+  if (a->ci_chroma_sample_position_present_flag !=
+      b->ci_chroma_sample_position_present_flag)
+    return 0;
+  if (a->ci_chroma_sample_position_present_flag) {
+    if (a->ci_chroma_sample_position[0] != b->ci_chroma_sample_position[0])
+      return 0;
+    if (a->ci_chroma_sample_position[1] != b->ci_chroma_sample_position[1])
+      return 0;
+  }
+  if (a->ci_aspect_ratio_info_present_flag !=
+      b->ci_aspect_ratio_info_present_flag)
+    return 0;
+  if (a->ci_timing_info_present_flag != b->ci_timing_info_present_flag)
+    return 0;
+  return 1;
+}
+
+// Write a CI OBU for the current mlayer if it has distinct CI.
+// Returns the number of bytes written (0 if skipped).  Sets *err on failure.
+static size_t write_ci_obu_for_mlayer(AV2_COMP *const cpi, uint8_t *data,
+                                      avm_codec_err_t *err) {
+  AV2_COMMON *const cm = &cpi->common;
+  *err = AVM_CODEC_OK;
+
+  // Skip if CI isn't needed globally
+  if (!cpi->write_ci_obu_flag) return 0;
+
+  // For mlayer > 0, skip if CI is identical to the first dependent layer
+  // (decoder inherits automatically)
+  if (cm->mlayer_id > 0) {
+    for (int ref = 0; ref < cm->mlayer_id; ref++) {
+      if (cm->seq_params.mlayer_dependency_map[cm->mlayer_id][ref]) {
+        if (ci_params_equal(&cm->ci_params_per_layer[cm->mlayer_id],
+                            &cm->ci_params_per_layer[ref]))
+          return 0;
+        break;
+      }
+    }
+  }
+
+  const int obu_layer_ci = (cm->mlayer_id << 5) | cm->xlayer_id;
+  uint32_t obu_header_size =
+      av2_write_obu_header(OBU_CONTENT_INTERPRETATION, 0, obu_layer_ci, data);
+  uint32_t obu_payload_size = av2_write_content_interpretation_obu(
+      &cm->ci_params_per_layer[cm->mlayer_id], data + obu_header_size);
+  size_t length_field_size =
+      obu_memmove(obu_header_size, obu_payload_size, data);
+  if (av2_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
+      AVM_CODEC_OK) {
+    *err = AVM_CODEC_ERROR;
+    return 0;
+  }
+  return obu_header_size + obu_payload_size + length_field_size;
+}
+
 // This function actually writes to the bistream. The av2_pack_bitstream()
 // function is a thin wrapper around this function.
 static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
@@ -6957,6 +7043,19 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
   const int obu_layer =
       obu_mlayer << 5 |
       obu_xlayer;  // obu_layer byte (mlayer (3-bit) | xlayer (5-bit))
+
+  // Track which higher mlayers need CI OBUs at this RAP.  ci_rap_tu is used
+  // as a bitmask: bit i is set when mlayer i still needs its CI OBU written.
+  // Only set at CLK/OLK for mlayer 0; each higher mlayer clears its bit once
+  // its CI OBU is emitted.  This survives the intervening mlayer 0 non-CLK
+  // frames that are encoded before mlayer 1+ starts (due to lag encoding).
+  if (cm->mlayer_id == 0 &&
+      (cm->current_frame.cm_obu_type == OBU_CLOSED_LOOP_KEY ||
+       cm->current_frame.cm_obu_type == OBU_OPEN_LOOP_KEY)) {
+    // Set bits for mlayers 1..max_mlayer_id (mlayer 0 is handled inline)
+    const int max_ml = cm->seq_params.max_mlayer_id;
+    cpi->ci_rap_tu = max_ml > 0 ? (((1 << (max_ml + 1)) - 1) & ~1) : 0;
+  }
 
   bool add_new_user_qm = false;
   // If no non-zero delta_q has been used, reset delta_q_present_flag
@@ -7056,19 +7155,11 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
 
   if (cm->current_frame.cm_obu_type == OBU_CLOSED_LOOP_KEY) {
     size_t length_field_size;
-    if (cm->current_frame.frame_type == KEY_FRAME && !cpi->no_show_fwd_kf &&
-        cpi->write_ci_obu_flag) {
-      obu_header_size =
-          av2_write_obu_header(OBU_CONTENT_INTERPRETATION, 0, 0, data);
-      obu_payload_size = av2_write_content_interpretation_obu(
-          &cm->ci_params_encoder, data + obu_header_size);
-      size_t length_field_size1 =
-          obu_memmove(obu_header_size, obu_payload_size, data);
-      if (av2_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
-          AVM_CODEC_OK) {
-        return AVM_CODEC_ERROR;
-      }
-      data += obu_header_size + obu_payload_size + length_field_size1;
+    if (cm->current_frame.frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) {
+      avm_codec_err_t ci_err;
+      size_t ci_bytes = write_ci_obu_for_mlayer(cpi, data, &ci_err);
+      if (ci_err != AVM_CODEC_OK) return AVM_CODEC_ERROR;
+      data += ci_bytes;
     }
 
     if (cm->cur_mfh_id != 0) {
@@ -7133,6 +7224,29 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
       }
     }
   }
+
+  // Write CI OBU at OLK (random access point) for conformance.
+  // The SH is not written at OLK (noted above), but CI must be present at
+  // all RAPs so decoders can recover color interpretation after random access.
+  if (cm->current_frame.cm_obu_type == OBU_OPEN_LOOP_KEY) {
+    avm_codec_err_t ci_err;
+    size_t ci_bytes = write_ci_obu_for_mlayer(cpi, data, &ci_err);
+    if (ci_err != AVM_CODEC_OK) return AVM_CODEC_ERROR;
+    data += ci_bytes;
+  }
+
+  // Write CI OBU for mlayer > 0 when in a RAP TU.
+  // Higher mlayers are encoded as REGULAR_TILE_GROUP (not CLK/OLK), so they
+  // don't enter the blocks above.  ci_rap_tu bitmask was set by mlayer 0's
+  // CLK/OLK; each bit is cleared once that mlayer's CI has been emitted.
+  if (cm->mlayer_id > 0 && (cpi->ci_rap_tu & (1 << cm->mlayer_id))) {
+    avm_codec_err_t ci_err;
+    size_t ci_bytes = write_ci_obu_for_mlayer(cpi, data, &ci_err);
+    if (ci_err != AVM_CODEC_OK) return AVM_CODEC_ERROR;
+    data += ci_bytes;
+    cpi->ci_rap_tu &= ~(1 << cm->mlayer_id);
+  }
+
   if (add_new_user_qm && !cpi->obu_is_written) {
     assert(cpi->total_signalled_qmobu_count > 0);
     obu_header_size = av2_write_obu_header(OBU_QUANTIZATION_MATRIX,
@@ -7154,7 +7268,7 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
     struct film_grain_model fgm_current;
     set_film_grain_model(cpi, &fgm_current);
     int use_existing_fgm = -1;
-    if (cm->current_frame.frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) {
+    if (cm->current_frame.frame_type == KEY_FRAME && !cpi->is_fwd_kf) {
       cpi->written_fgm_num =
           0;  // clear the list, it is increased before uncompressed_header()
       fgm_current.fgm_id = 0;
@@ -7313,7 +7427,7 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
   OBU_TYPE obu_type = cm->is_leading_picture == 1 ? OBU_LEADING_TILE_GROUP
                                                   : OBU_REGULAR_TILE_GROUP;
   if (cm->current_frame.frame_type == KEY_FRAME)
-    obu_type = cpi->no_show_fwd_kf ? OBU_OPEN_LOOP_KEY : OBU_CLOSED_LOOP_KEY;
+    obu_type = cpi->is_fwd_kf ? OBU_OPEN_LOOP_KEY : OBU_CLOSED_LOOP_KEY;
   if (cm->current_frame.frame_type == S_FRAME)
     obu_type = (cpi->is_ras_frame == 1) ? OBU_RAS_FRAME : OBU_SWITCH;
 
@@ -7418,8 +7532,10 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
 
   int write_temporal_point_metadata =
       (cpi->write_ci_obu_flag &&
-       cpi->common.ci_params_encoder.ci_timing_info_present_flag &&
-       cpi->common.ci_params_encoder.timing_info.equal_elemental_interval == 0)
+       cpi->common.ci_params_per_layer[cpi->common.mlayer_id]
+           .ci_timing_info_present_flag &&
+       cpi->common.ci_params_per_layer[cpi->common.mlayer_id]
+               .timing_info.equal_elemental_interval == 0)
           ? 1
           : 0;
   if (write_temporal_point_metadata) {
