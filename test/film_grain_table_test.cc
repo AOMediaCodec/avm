@@ -168,13 +168,49 @@ class FilmGrainTableIOTest : public ::testing::Test {
  protected:
   void SetUp() { memset(&error_, 0, sizeof(error_)); }
   struct avm_internal_error_info error_;
+
+  void ReadTableSuccess(avm_film_grain_table_t *t,
+                        const std::string &filename) {
+    if (setjmp(error_.jmp)) {
+      FAIL() << "Unexpected failure in avm_film_grain_table_read: "
+             << error_.detail;
+    }
+    error_.setjmp = 1;
+    ASSERT_EQ(AVM_CODEC_OK,
+              avm_film_grain_table_read(t, filename.c_str(), &error_));
+    error_.setjmp = 0;
+  }
+
+  void WriteTableSuccess(const avm_film_grain_table_t *t,
+                         const std::string &filename) {
+    if (setjmp(error_.jmp)) {
+      FAIL() << "Unexpected failure in avm_film_grain_table_write: "
+             << error_.detail;
+    }
+    error_.setjmp = 1;
+    ASSERT_EQ(AVM_CODEC_OK,
+              avm_film_grain_table_write(t, filename.c_str(), &error_));
+    error_.setjmp = 0;
+  }
+
+  bool ReadTableFailure(avm_film_grain_table_t *t, const std::string &filename,
+                        avm_codec_err_t expected_err) {
+    if (setjmp(error_.jmp)) {
+      EXPECT_EQ(expected_err, error_.error_code);
+      return true;
+    }
+    error_.setjmp = 1;
+    avm_film_grain_table_read(t, filename.c_str(), &error_);
+    error_.setjmp = 0;
+    ADD_FAILURE() << "Expected avm_film_grain_table_read to fail and longjmp";
+    return false;
+  }
 };
 
 TEST_F(FilmGrainTableIOTest, ReadMissingFile) {
   avm_film_grain_table_t table;
   memset(&table, 0, sizeof(table));
-  ASSERT_EQ(AVM_CODEC_ERROR, avm_film_grain_table_read(
-                                 &table, "/path/to/missing/file", &error_));
+  ReadTableFailure(&table, "/path/to/missing/file", AVM_CODEC_ERROR);
 }
 
 TEST_F(FilmGrainTableIOTest, ReadTruncatedFile) {
@@ -185,8 +221,8 @@ TEST_F(FilmGrainTableIOTest, ReadTruncatedFile) {
   FILE *file = libavm_test::GetTempOutFile(&grain_file);
   fwrite("deadbeef", 8, 1, file);
   fclose(file);
-  ASSERT_EQ(AVM_CODEC_ERROR,
-            avm_film_grain_table_read(&table, grain_file.c_str(), &error_));
+
+  ReadTableFailure(&table, grain_file, AVM_CODEC_ERROR);
   EXPECT_EQ(0, remove(grain_file.c_str()));
 }
 
@@ -208,13 +244,11 @@ TEST_F(FilmGrainTableIOTest, RoundTripReadWrite) {
   }
   std::string grain_file;
   fclose(libavm_test::GetTempOutFile(&grain_file));
-  ASSERT_EQ(AVM_CODEC_OK,
-            avm_film_grain_table_write(&table, grain_file.c_str(), &error_));
+  WriteTableSuccess(&table, grain_file);
   avm_film_grain_table_free(&table);
 
   memset(&table, 0, sizeof(table));
-  ASSERT_EQ(AVM_CODEC_OK,
-            avm_film_grain_table_read(&table, grain_file.c_str(), &error_));
+  ReadTableSuccess(&table, grain_file);
   for (int i = 0; i < kNumTestVectors; ++i) {
     avm_film_grain_t grain;
     EXPECT_TRUE(avm_film_grain_table_lookup(&table, i * 1000, (i + 1) * 1000,
@@ -238,13 +272,11 @@ TEST_F(FilmGrainTableIOTest, RoundTripSplit) {
   ASSERT_TRUE(avm_film_grain_table_lookup(&table, 0, 1000, false, &grain));
   EXPECT_FALSE(avm_film_grain_table_lookup(&table, 1000, 2000, false, &grain));
   ASSERT_TRUE(avm_film_grain_table_lookup(&table, 2000, 3000, false, &grain));
-  ASSERT_EQ(AVM_CODEC_OK,
-            avm_film_grain_table_write(&table, grain_file.c_str(), &error_));
+  WriteTableSuccess(&table, grain_file);
   avm_film_grain_table_free(&table);
 
   memset(&table, 0, sizeof(table));
-  ASSERT_EQ(AVM_CODEC_OK,
-            avm_film_grain_table_read(&table, grain_file.c_str(), &error_));
+  ReadTableSuccess(&table, grain_file);
   ASSERT_TRUE(avm_film_grain_table_lookup(&table, 0, 1000, false, &grain));
   ASSERT_FALSE(avm_film_grain_table_lookup(&table, 1000, 2000, false, &grain));
   ASSERT_TRUE(avm_film_grain_table_lookup(&table, 2000, 3000, false, &grain));

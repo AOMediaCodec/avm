@@ -502,7 +502,6 @@ avm_codec_err_t av2_copy_reference_dec(AV2Decoder *pbi, int idx,
   const YV12_BUFFER_CONFIG *const cfg = get_ref_frame(cm, idx);
   if (cfg == NULL) {
     avm_internal_error(&cm->error, AVM_CODEC_ERROR, "No reference frame");
-    return AVM_CODEC_ERROR;
   }
   if (!equal_dimensions(cfg, sd))
     avm_internal_error(&cm->error, AVM_CODEC_ERROR,
@@ -532,7 +531,6 @@ avm_codec_err_t av2_set_reference_dec(AV2_COMMON *cm, int idx,
 
   if (ref_buf == NULL) {
     avm_internal_error(&cm->error, AVM_CODEC_ERROR, "No reference frame");
-    return AVM_CODEC_ERROR;
   }
 
   if (!use_external_ref) {
