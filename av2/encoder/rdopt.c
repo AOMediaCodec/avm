@@ -8023,6 +8023,191 @@ static INLINE void init_top_tx_part_rd_for_inter_modes(
 }
 
 // TODO(chiyotsai@google.com): See the todo for av2_rd_pick_intra_mode_sb.
+
+static void av2_evaluate_intra_modes_in_inter(
+    const struct AV2_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
+    PICK_MODE_CONTEXT *ctx, int64_t inter_cost, int64_t intra_cost,
+    InterModeSearchState *search_state, RD_STATS *rd_cost,
+    unsigned int intra_ref_frame_cost, int is_intra_mode_allowed) {
+  const AV2_COMMON *const cm = &cpi->common;
+  const SPEED_FEATURES *const sf = &cpi->sf;
+  MACROBLOCKD *const xd = &x->e_mbd;
+  MB_MODE_INFO *const mbmi = xd->mi[0];
+  TxfmSearchInfo *txfm_info = &x->txfm_search_info;
+
+  // Gate intra mode evaluation if best of inter is skip except when source
+  // variance is extremely low
+  if (sf->intra_sf.skip_intra_in_interframe &&
+      (x->source_variance > sf->intra_sf.src_var_thresh_intra_skip)) {
+    if (inter_cost >= 0 && intra_cost >= 0) {
+      avm_clear_system_state();
+      const NN_CONFIG *nn_config = (AVMMIN(cm->width, cm->height) <= 480)
+                                       ? &av2_intrap_nn_config
+                                       : &av2_intrap_hd_nn_config;
+      float nn_features[6];
+      float scores[2] = { 0.0f };
+      float probs[2] = { 0.0f };
+      nn_features[0] = (float)search_state->best_mbmode
+                           .skip_txfm[xd->tree_type != CHROMA_PART ? 0 : 1];
+      nn_features[1] = (float)mi_size_wide_log2[bsize];
+      nn_features[2] = (float)mi_size_high_log2[bsize];
+      nn_features[3] = (float)intra_cost;
+      nn_features[4] = (float)inter_cost;
+      const int ac_q = av2_ac_quant_QTX(x->qindex, 0, 0, xd->bd);
+      const int ac_q_max = av2_ac_quant_QTX(255, 0, 0, xd->bd);
+      nn_features[5] = (float)(ac_q_max / ac_q);
+
+      av2_nn_predict(nn_features, nn_config, 1, scores);
+      avm_clear_system_state();
+      av2_nn_softmax(scores, probs, 2);
+
+      if (probs[1] > 0.8) search_state->intra_search_state.skip_intra_modes = 1;
+    } else if ((search_state->best_mbmode
+                    .skip_txfm[xd->tree_type == CHROMA_PART]) &&
+               (sf->intra_sf.skip_intra_in_interframe >= 2)) {
+      search_state->intra_search_state.skip_intra_modes = 1;
+    }
+  }
+
+  int64_t best_model_rd = INT64_MAX;
+  int64_t top_intra_model_rd[TOP_INTRA_MODEL_COUNT];
+  for (int i = 0; i < TOP_INTRA_MODEL_COUNT; i++) {
+    top_intra_model_rd[i] = INT64_MAX;
+  }
+
+  get_y_intra_mode_set(mbmi, xd);
+
+  int dpcm_loop_num = 1;
+  if (xd->lossless[mbmi->segment_id]) {
+    dpcm_loop_num = 2;
+  }
+  mbmi->dpcm_mode_y = 0;
+  // mbmi->dpcm_angle_delta = 0;
+
+  for (int dpcm_idx = 0; dpcm_idx < dpcm_loop_num; dpcm_idx++) {
+    mbmi->use_dpcm_y = dpcm_idx;
+    for (int fsc_mode = 0;
+         fsc_mode < (allow_fsc_intra(cm, bsize, mbmi) ? FSC_MODES : 1);
+         fsc_mode++) {
+      uint8_t enable_mrls_flag = cm->seq_params.enable_mrls && !fsc_mode;
+      ModeRDInfoUV mode_rd_info_uv = { { false }, { 0 }, { 0 } };
+      // When fsc_mode is enabled, rate of the chroma mode across luma modes is
+      // different. Hence, the reuse of chroma mode rd_info is not applicable
+      // when fsc_mode enabled.
+      if (!xd->lossless[mbmi->segment_id]) {
+        av2_zero(mode_rd_info_uv.mode_evaluated);
+      }
+      for (int mrl_index = 0;
+           mrl_index < (enable_mrls_flag ? MRL_LINE_NUMBER : 1); mrl_index++) {
+        for (int multi_line_mrl = 0; multi_line_mrl < (mrl_index ? 2 : 1);
+             multi_line_mrl++) {
+          mbmi->multi_line_mrl = multi_line_mrl;
+          mbmi->fsc_mode[xd->tree_type == CHROMA_PART] = fsc_mode;
+          mbmi->mrl_index = mrl_index;
+          if (!is_intra_mode_allowed) break;
+          for (int mode_idx = INTRA_MODE_START; mode_idx < LUMA_MODE_COUNT;
+               ++mode_idx) {
+            if (sf->intra_sf.skip_intra_in_interframe &&
+                search_state->intra_search_state.skip_intra_modes)
+              break;
+            mbmi->y_mode_idx = mode_idx;
+            mbmi->joint_y_mode_delta_angle = mbmi->y_intra_mode_list[mode_idx];
+            av2_set_y_mode_and_delta_angle(mbmi->joint_y_mode_delta_angle,
+                                           mbmi);
+            if ((!cpi->oxcf.intra_mode_cfg.enable_smooth_intra ||
+                 cpi->sf.intra_sf.disable_smooth_intra) &&
+                (mbmi->mode == SMOOTH_PRED || mbmi->mode == SMOOTH_H_PRED ||
+                 mbmi->mode == SMOOTH_V_PRED))
+              continue;
+            if (!cpi->oxcf.intra_mode_cfg.enable_paeth_intra &&
+                mbmi->mode == PAETH_PRED)
+              continue;
+            if (mbmi->mrl_index > 0 &&
+                av2_is_directional_mode(mbmi->mode) == 0) {
+              continue;
+            }
+            if (!allow_fsc_intra(cm, bsize, mbmi) &&
+                mbmi->fsc_mode[PLANE_TYPE_Y] > 0) {
+              continue;
+            }
+            if (mbmi->mrl_index > 0 && mbmi->fsc_mode[PLANE_TYPE_Y]) {
+              continue;
+            }
+            if (((search_state->intra_search_state.best_mrl_index == 0 &&
+                  av2_is_directional_mode(
+                      search_state->intra_search_state.best_intra_mode) == 0) ||
+                 (search_state->intra_search_state.best_mrl_index &&
+                  search_state->intra_search_state.best_multi_line_mrl == 0)) &&
+                mbmi->mrl_index > 1 && mbmi->multi_line_mrl) {
+              continue;
+            }
+            const MB_MODE_INFO *cached_mi = x->inter_mode_cache[0];
+            if (cached_mi) {
+              const PREDICTION_MODE cached_mode = cached_mi->mode;
+              if (should_reuse_mode(x, REUSE_INTRA_MODE_IN_INTERFRAME_FLAG) &&
+                  is_mode_intra(cached_mode) && mbmi->mode != cached_mode) {
+                continue;
+              }
+              if (should_reuse_mode(x, REUSE_INTER_MODE_IN_INTERFRAME_FLAG) &&
+                  !is_mode_intra(cached_mode)) {
+                continue;
+              }
+            }
+
+            if (dpcm_idx > 0 &&
+                (mrl_index > 0 ||
+                 (mbmi->mode != V_PRED && mbmi->mode != H_PRED) ||
+                 ((mbmi->mode == V_PRED || mbmi->mode == H_PRED) &&
+                  mbmi->angle_delta[0] != 0))) {
+              continue;
+            }
+            if (fsc_mode == 1 && dpcm_idx > 0 &&
+                ((mbmi->mode != V_PRED && mbmi->mode != H_PRED) ||
+                 (mbmi->angle_delta[0] != 0))) {
+              continue;
+            }
+            const PREDICTION_MODE this_mode = mbmi->mode;
+
+            MV_REFERENCE_FRAME refs[2] = { INTRA_FRAME, NONE_FRAME };
+
+            init_mbmi(mbmi, this_mode, refs, cm, xd, xd->sbi);
+            txfm_info->skip_txfm = 0;
+
+            if (mbmi->use_dpcm_y > 0 &&
+                (mbmi->mode == V_PRED || mbmi->mode == H_PRED) &&
+                mbmi->angle_delta[0] == 0) {
+              mbmi->dpcm_mode_y = mbmi->mode - 1;
+            }
+            RD_STATS intra_rd_stats, intra_rd_stats_y, intra_rd_stats_uv;
+            intra_rd_stats.rdcost = av2_handle_intra_mode(
+                &search_state->intra_search_state, cpi, x, bsize,
+                intra_ref_frame_cost, ctx, &intra_rd_stats, &intra_rd_stats_y,
+                &intra_rd_stats_uv, &mode_rd_info_uv, search_state->best_rd,
+                &search_state->best_intra_rd, &best_model_rd,
+                top_intra_model_rd);
+
+            // Collect mode stats for multiwinner mode processing
+            const int txfm_search_done = 1;
+            store_winner_mode_stats(
+                &cpi->common, x, mbmi, &intra_rd_stats, &intra_rd_stats_y,
+                &intra_rd_stats_uv, refs, this_mode, NULL, bsize,
+                intra_rd_stats.rdcost,
+                cpi->sf.winner_mode_sf.multi_winner_mode_type,
+                txfm_search_done);
+            if (intra_rd_stats.rdcost < search_state->best_rd) {
+              update_search_state(search_state, rd_cost, ctx, &intra_rd_stats,
+                                  &intra_rd_stats_y, &intra_rd_stats_uv,
+                                  this_mode, x, txfm_search_done, cm);
+            }
+          }
+
+          set_mv_precision(mbmi, mbmi->max_mv_precision);
+        }
+      }
+    }
+  }
+}
+
 void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
                                struct TileDataEnc *tile_data,
                                struct macroblock *x, struct RD_STATS *rd_cost,
@@ -8578,184 +8763,17 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
   start_timing(cpi, handle_intra_mode_time);
 #endif
 
-  // Gate intra mode evaluation if best of inter is skip except when source
-  // variance is extremely low
-  if (sf->intra_sf.skip_intra_in_interframe &&
-      (x->source_variance > sf->intra_sf.src_var_thresh_intra_skip)) {
-    if (inter_cost >= 0 && intra_cost >= 0) {
-      avm_clear_system_state();
-      const NN_CONFIG *nn_config = (AVMMIN(cm->width, cm->height) <= 480)
-                                       ? &av2_intrap_nn_config
-                                       : &av2_intrap_hd_nn_config;
-      float nn_features[6];
-      float scores[2] = { 0.0f };
-      float probs[2] = { 0.0f };
-      nn_features[0] = (float)search_state.best_mbmode
-                           .skip_txfm[xd->tree_type != CHROMA_PART ? 0 : 1];
-      nn_features[1] = (float)mi_size_wide_log2[bsize];
-      nn_features[2] = (float)mi_size_high_log2[bsize];
-      nn_features[3] = (float)intra_cost;
-      nn_features[4] = (float)inter_cost;
-      const int ac_q = av2_ac_quant_QTX(x->qindex, 0, 0, xd->bd);
-      const int ac_q_max = av2_ac_quant_QTX(255, 0, 0, xd->bd);
-      nn_features[5] = (float)(ac_q_max / ac_q);
-
-      av2_nn_predict(nn_features, nn_config, 1, scores);
-      avm_clear_system_state();
-      av2_nn_softmax(scores, probs, 2);
-
-      if (probs[1] > 0.8) search_state.intra_search_state.skip_intra_modes = 1;
-    } else if ((search_state.best_mbmode
-                    .skip_txfm[xd->tree_type == CHROMA_PART]) &&
-               (sf->intra_sf.skip_intra_in_interframe >= 2)) {
-      search_state.intra_search_state.skip_intra_modes = 1;
-    }
-  }
-
   const unsigned int intra_ref_frame_cost = ref_costs_single[INTRA_FRAME_INDEX];
-  int64_t best_model_rd = INT64_MAX;
-  int64_t top_intra_model_rd[TOP_INTRA_MODEL_COUNT];
-  for (i = 0; i < TOP_INTRA_MODEL_COUNT; i++) {
-    top_intra_model_rd[i] = INT64_MAX;
-  }
-
-  get_y_intra_mode_set(mbmi, xd);
-
   int is_intra_mode_allowed = 1;
   if (mbmi->tree_type == SHARED_PART &&
       mbmi->region_type == MIXED_INTER_INTRA_REGION &&
       mbmi->chroma_ref_info.offset_started) {
     is_intra_mode_allowed = 0;
   }
+  av2_evaluate_intra_modes_in_inter(
+      cpi, x, bsize, ctx, inter_cost, intra_cost, &search_state, rd_cost,
+      intra_ref_frame_cost, is_intra_mode_allowed);
 
-  int dpcm_loop_num = 1;
-  if (xd->lossless[mbmi->segment_id]) {
-    dpcm_loop_num = 2;
-  }
-  mbmi->dpcm_mode_y = 0;
-  // mbmi->dpcm_angle_delta = 0;
-  for (int dpcm_idx = 0; dpcm_idx < dpcm_loop_num; dpcm_idx++) {
-    mbmi->use_dpcm_y = dpcm_idx;
-    for (int fsc_mode = 0;
-         fsc_mode < (allow_fsc_intra(cm, bsize, mbmi) ? FSC_MODES : 1);
-         fsc_mode++) {
-      uint8_t enable_mrls_flag = cm->seq_params.enable_mrls && !fsc_mode;
-      ModeRDInfoUV mode_rd_info_uv = { { false }, { 0 }, { 0 } };
-      // When fsc_mode is enabled, rate of the chroma mode across luma modes is
-      // different. Hence, the reuse of chroma mode rd_info is not applicable
-      // when fsc_mode enabled.
-      if (!xd->lossless[mbmi->segment_id]) {
-        av2_zero(mode_rd_info_uv.mode_evaluated);
-      }
-      for (int mrl_index = 0;
-           mrl_index < (enable_mrls_flag ? MRL_LINE_NUMBER : 1); mrl_index++) {
-        for (int multi_line_mrl = 0; multi_line_mrl < (mrl_index ? 2 : 1);
-             multi_line_mrl++) {
-          mbmi->multi_line_mrl = multi_line_mrl;
-          mbmi->fsc_mode[xd->tree_type == CHROMA_PART] = fsc_mode;
-          mbmi->mrl_index = mrl_index;
-          if (!is_intra_mode_allowed) break;
-          for (int mode_idx = INTRA_MODE_START; mode_idx < LUMA_MODE_COUNT;
-               ++mode_idx) {
-            if (sf->intra_sf.skip_intra_in_interframe &&
-                search_state.intra_search_state.skip_intra_modes)
-              break;
-            mbmi->y_mode_idx = mode_idx;
-            mbmi->joint_y_mode_delta_angle = mbmi->y_intra_mode_list[mode_idx];
-            av2_set_y_mode_and_delta_angle(mbmi->joint_y_mode_delta_angle,
-                                           mbmi);
-            if ((!cpi->oxcf.intra_mode_cfg.enable_smooth_intra ||
-                 cpi->sf.intra_sf.disable_smooth_intra) &&
-                (mbmi->mode == SMOOTH_PRED || mbmi->mode == SMOOTH_H_PRED ||
-                 mbmi->mode == SMOOTH_V_PRED))
-              continue;
-            if (!cpi->oxcf.intra_mode_cfg.enable_paeth_intra &&
-                mbmi->mode == PAETH_PRED)
-              continue;
-            if (mbmi->mrl_index > 0 &&
-                av2_is_directional_mode(mbmi->mode) == 0) {
-              continue;
-            }
-            if (!allow_fsc_intra(cm, bsize, mbmi) &&
-                mbmi->fsc_mode[PLANE_TYPE_Y] > 0) {
-              continue;
-            }
-            if (mbmi->mrl_index > 0 && mbmi->fsc_mode[PLANE_TYPE_Y]) {
-              continue;
-            }
-            if (((search_state.intra_search_state.best_mrl_index == 0 &&
-                  av2_is_directional_mode(
-                      search_state.intra_search_state.best_intra_mode) == 0) ||
-                 (search_state.intra_search_state.best_mrl_index &&
-                  search_state.intra_search_state.best_multi_line_mrl == 0)) &&
-                mbmi->mrl_index > 1 && mbmi->multi_line_mrl) {
-              continue;
-            }
-            const MB_MODE_INFO *cached_mi = x->inter_mode_cache[0];
-            if (cached_mi) {
-              const PREDICTION_MODE cached_mode = cached_mi->mode;
-              if (should_reuse_mode(x, REUSE_INTRA_MODE_IN_INTERFRAME_FLAG) &&
-                  is_mode_intra(cached_mode) && mbmi->mode != cached_mode) {
-                continue;
-              }
-              if (should_reuse_mode(x, REUSE_INTER_MODE_IN_INTERFRAME_FLAG) &&
-                  !is_mode_intra(cached_mode)) {
-                continue;
-              }
-            }
-
-            if (dpcm_idx > 0 &&
-                (mrl_index > 0 ||
-                 (mbmi->mode != V_PRED && mbmi->mode != H_PRED) ||
-                 ((mbmi->mode == V_PRED || mbmi->mode == H_PRED) &&
-                  mbmi->angle_delta[0] != 0))) {
-              continue;
-            }
-            if (fsc_mode == 1 && dpcm_idx > 0 &&
-                ((mbmi->mode != V_PRED && mbmi->mode != H_PRED) ||
-                 (mbmi->angle_delta[0] != 0))) {
-              continue;
-            }
-            const PREDICTION_MODE this_mode = mbmi->mode;
-
-            MV_REFERENCE_FRAME refs[2] = { INTRA_FRAME, NONE_FRAME };
-
-            init_mbmi(mbmi, this_mode, refs, cm, xd, xd->sbi);
-            txfm_info->skip_txfm = 0;
-
-            if (mbmi->use_dpcm_y > 0 &&
-                (mbmi->mode == V_PRED || mbmi->mode == H_PRED) &&
-                mbmi->angle_delta[0] == 0) {
-              mbmi->dpcm_mode_y = mbmi->mode - 1;
-            }
-            RD_STATS intra_rd_stats, intra_rd_stats_y, intra_rd_stats_uv;
-            intra_rd_stats.rdcost = av2_handle_intra_mode(
-                &search_state.intra_search_state, cpi, x, bsize,
-                intra_ref_frame_cost, ctx, &intra_rd_stats, &intra_rd_stats_y,
-                &intra_rd_stats_uv, &mode_rd_info_uv, search_state.best_rd,
-                &search_state.best_intra_rd, &best_model_rd,
-                top_intra_model_rd);
-
-            // Collect mode stats for multiwinner mode processing
-            const int txfm_search_done = 1;
-            store_winner_mode_stats(
-                &cpi->common, x, mbmi, &intra_rd_stats, &intra_rd_stats_y,
-                &intra_rd_stats_uv, refs, this_mode, NULL, bsize,
-                intra_rd_stats.rdcost,
-                cpi->sf.winner_mode_sf.multi_winner_mode_type,
-                txfm_search_done);
-            if (intra_rd_stats.rdcost < search_state.best_rd) {
-              update_search_state(&search_state, rd_cost, ctx, &intra_rd_stats,
-                                  &intra_rd_stats_y, &intra_rd_stats_uv,
-                                  this_mode, x, txfm_search_done, cm);
-            }
-          }
-
-          set_mv_precision(mbmi, mbmi->max_mv_precision);
-        }
-      }
-    }
-  }
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, handle_intra_mode_time);
 #endif
