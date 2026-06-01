@@ -197,6 +197,12 @@ av2_encode_available() {
   [ "$(avm_config_option_enabled CONFIG_AV2_ENCODER)" = "yes" ] && echo yes
 }
 
+# Echoes yes to stdout when avm_config_option_enabled() reports yes for
+# CONFIG_MULTITHREAD.
+avm_multithread_available() {
+  [ "$(avm_config_option_enabled CONFIG_MULTITHREAD)" = "yes" ] && echo yes
+}
+
 # Echoes "fast" encode params for use with avmenc.
 avmenc_encode_test_fast_params() {
   echo "--cpu-used=5
