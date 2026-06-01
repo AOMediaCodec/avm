@@ -748,6 +748,7 @@ CFL_GET_SUBSAMPLE_COLOCATED_FUNCTION(c)
 static INLINE av2_cfl_subsample_hbd_fn cfl_subsampling_hbd(TX_SIZE tx_size,
                                                            int sub_x,
                                                            int sub_y) {
+  assert(tx_size < TX_SIZES_ALL);
   if (sub_x == 1) {
     if (sub_y == 1) {
       return av2_cfl_get_luma_subsampling_420_hbd(tx_size);
@@ -815,6 +816,7 @@ void cfl_store(MACROBLOCKD *const xd, CFL_CTX *cfl, const uint16_t *input,
         cfl_luma_subsampling_420_hbd_121_c(input, input_stride, recon_buf_q3,
                                            width, height);
       } else {
+        assert(tx_size < TX_SIZES_ALL);
         av2_cfl_get_luma_subsampling_420_hbd_121(tx_size)(input, input_stride,
                                                           recon_buf_q3);
       }
@@ -833,6 +835,7 @@ void cfl_store(MACROBLOCKD *const xd, CFL_CTX *cfl, const uint16_t *input,
         cfl_luma_subsampling_420_hbd_colocated_c(input, input_stride,
                                                  recon_buf_q3, width, height);
       } else {
+        assert(tx_size < TX_SIZES_ALL);
         av2_cfl_get_luma_subsampling_420_hbd_colocated(tx_size)(
             input, input_stride, recon_buf_q3);
       }

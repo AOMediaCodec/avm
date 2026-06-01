@@ -2853,15 +2853,18 @@ static avm_codec_err_t encoder_init(avm_codec_ctx_t *ctx) {
           &priv->cpi, &priv->buffer_pool, &priv->oxcf, &priv->pkt_list.head,
           priv->frame_stats_buffer, ENCODE_STAGE, *num_lap_buffers, -1,
           &priv->stats_buf_context);
+      if (res != AVM_CODEC_OK) return res;
 
       // Create another compressor if look ahead is enabled
-      if (res == AVM_CODEC_OK && *num_lap_buffers) {
+      if (*num_lap_buffers) {
         res = create_context_and_bufferpool(
             &priv->cpi_lap, &priv->buffer_pool_lap, &priv->oxcf, NULL,
             priv->frame_stats_buffer, LAP_STAGE, *num_lap_buffers,
             clamp(lap_lag_in_frames, 0, MAX_LAG_BUFFERS),
             &priv->stats_buf_context);
+        if (res != AVM_CODEC_OK) return res;
       }
+      assert(priv->cpi->common.ibp_directional_weights != NULL);
       init_ibp_info(priv->cpi->common.ibp_directional_weights);
     }
   }
