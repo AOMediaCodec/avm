@@ -44,6 +44,12 @@ if(NOT EMSCRIPTEN)
   endif()
 endif()
 
+if(NOT AVM_TARGET_CPU)
+  set(AVM_TARGET_CPU generic)
+  message("Forcing generic build for normative branch; set AVM_TARGET_CPU to "
+          "the target CPU type to allow for an optimized build.")
+endif()
+
 # Library version info. Update LT_CURRENT, LT_REVISION and LT_AGE when making a
 # public release by following the guidelines in the libtool document:
 # https://www.gnu.org/software/libtool/manual/libtool.html#Updating-version-info
