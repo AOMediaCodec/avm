@@ -39,7 +39,11 @@ TEST(EncodeSmallWidthHeight, SmallWidthMultiThreaded) {
   avm_codec_iface_t *iface = avm_codec_av2_cx();
   avm_codec_enc_cfg_t cfg;
   EXPECT_EQ(AVM_CODEC_OK, avm_codec_enc_config_default(iface, &cfg, 0));
+#if CONFIG_MULTITHREAD
   cfg.g_threads = 2;
+#else
+  cfg.g_threads = 1;
+#endif  // CONFIG_MULTITHREAD
   cfg.g_w = kWidth;
   cfg.g_h = kHeight;
   avm_codec_ctx_t enc;
@@ -63,7 +67,11 @@ TEST(EncodeSmallWidthHeight, SmallWidthMultiThreadedSpeed0) {
   avm_codec_iface_t *iface = avm_codec_av2_cx();
   avm_codec_enc_cfg_t cfg;
   EXPECT_EQ(AVM_CODEC_OK, avm_codec_enc_config_default(iface, &cfg, 0));
+#if CONFIG_MULTITHREAD
   cfg.g_threads = 2;
+#else
+  cfg.g_threads = 1;
+#endif  // CONFIG_MULTITHREAD
   cfg.g_w = kWidth;
   cfg.g_h = kHeight;
   avm_codec_ctx_t enc;
@@ -87,7 +95,11 @@ TEST(EncodeSmallWidthHeight, SmallHeightMultiThreaded) {
   avm_codec_iface_t *iface = avm_codec_av2_cx();
   avm_codec_enc_cfg_t cfg;
   EXPECT_EQ(AVM_CODEC_OK, avm_codec_enc_config_default(iface, &cfg, 0));
+#if CONFIG_MULTITHREAD
   cfg.g_threads = 2;
+#else
+  cfg.g_threads = 1;
+#endif  // CONFIG_MULTITHREAD
   cfg.g_w = kWidth;
   cfg.g_h = kHeight;
   avm_codec_ctx_t enc;
@@ -111,7 +123,11 @@ TEST(EncodeSmallWidthHeight, SmallHeightMultiThreadedSpeed0) {
   avm_codec_iface_t *iface = avm_codec_av2_cx();
   avm_codec_enc_cfg_t cfg;
   EXPECT_EQ(AVM_CODEC_OK, avm_codec_enc_config_default(iface, &cfg, 0));
+#if CONFIG_MULTITHREAD
   cfg.g_threads = 2;
+#else
+  cfg.g_threads = 1;
+#endif  // CONFIG_MULTITHREAD
   cfg.g_w = kWidth;
   cfg.g_h = kHeight;
   avm_codec_ctx_t enc;
