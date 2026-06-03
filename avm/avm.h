@@ -53,7 +53,7 @@ enum avm_com_control_id {
                                av2_ref_frame_t* parameter */
   AV2_SET_REFERENCE = 129,  /**< write a frame into a reference buffer,
                                av2_ref_frame_t* parameter */
-  AV2_COPY_REFERENCE = 130, /**< get a copy of reference frame from the decoderm
+  AV2_COPY_REFERENCE = 130, /**< get a copy of reference frame from the decoder
                                av2_ref_frame_t* parameter */
   AVM_COMMON_CTRL_ID_MAX,
 
