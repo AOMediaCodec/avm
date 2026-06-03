@@ -321,6 +321,7 @@ static void set_good_speed_features_framesize_independent(
   sf->tx_sf.model_based_prune_tx_search_level = 1;
   sf->tx_sf.prune_tx_rd_eval_sec_tx_sse = true;
   sf->tx_sf.tx_type_search.use_reduced_intra_txset = 1;
+  sf->tx_sf.enable_adaptive_tcq_threshold = false;
 
   if (cpi->twopass.fr_content_type == FC_HIGHMOTION ||
       cpi->is_screen_content_type) {
@@ -359,6 +360,8 @@ static void set_good_speed_features_framesize_independent(
     // Cap the DRL depth for a fresh single-ref NEWMV search; reuse the
     // nearest searched result beyond the cap.
     sf->mv_sf.newmv_drl_search_limit = 2;
+
+    sf->tx_sf.enable_adaptive_tcq_threshold = true;
   }
 
   if (speed >= 2) {

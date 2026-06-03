@@ -30,6 +30,8 @@ extern "C" {
 
 #undef MAX_SB_SIZE
 
+#define MAX_TCQ_THRES_QIDX 185
+
 #define MAX_PR_NUM 16
 #define MAX_DR_STACK_SIZE 4
 #define MAX_DR_PR_NUM 2
