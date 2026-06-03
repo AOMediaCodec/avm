@@ -36,7 +36,6 @@
 #include "av2/common/timing.h"
 #include "av2/common/odintrin.h"
 #include "av2/common/warped_motion.h"
-#include "av2/encoder/hash_motion.h"
 #include "avm_dsp/grain_synthesis.h"
 #include "avm_dsp/grain_table.h"
 #include "avm/avm_frame_buffer.h"

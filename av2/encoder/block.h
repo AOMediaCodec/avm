@@ -22,9 +22,9 @@
 #include "av2/common/mvref_common.h"
 
 #include "av2/encoder/enc_enums.h"
-#include "av2/encoder/partition_cnn_weights.h"
-
 #include "av2/encoder/hash.h"
+#include "av2/encoder/hash_motion.h"
+#include "av2/encoder/partition_cnn_weights.h"
 
 #ifdef __cplusplus
 extern "C" {
