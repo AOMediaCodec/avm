@@ -590,9 +590,9 @@ void trellis_first_pos(const tcq_param_t *p, int scan_pos, tcq_ctx_t *tcq_ctx,
       tcq_ctx->lev_new[col][i] = 0;
     }
     tcq_ctx->lev_new[col][state0] =
-        AVMMIN(decision[state0].absLevel, MAX_VAL_BR_CTX);
+        AVMMIN(AVMMAX(0, decision[state0].absLevel), MAX_VAL_BR_CTX);
     tcq_ctx->lev_new[col][state1] =
-        AVMMIN(decision[state1].absLevel, MAX_VAL_BR_CTX);
+        AVMMIN(AVMMAX(0, decision[state1].absLevel), MAX_VAL_BR_CTX);
     if ((col == 0 && row != 0) || row == height - 1) {
       av2_update_nbr_diagonal(tcq_ctx, row, col, bwl);
     }
