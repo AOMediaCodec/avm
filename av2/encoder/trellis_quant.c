@@ -685,7 +685,7 @@ void av2_update_states_c(const tcq_node_t *decision, int col,
   for (int i = 0; i < TCQ_N_STATES; i++) {
     int prevId = decision[i].prevId;
     int absLevel = decision[i].absLevel;
-    tcq_ctx->lev_new[col][i] = AVMMIN(absLevel, MAX_VAL_BR_CTX);
+    tcq_ctx->lev_new[col][i] = AVMMIN(AVMMAX(0, absLevel), MAX_VAL_BR_CTX);
     tcq_ctx->prev_st[col][i] = prevId;
     if (prevId < 0) {
       tcq_ctx->orig_st[i] = -1;
