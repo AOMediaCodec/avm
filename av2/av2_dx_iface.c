@@ -1333,8 +1333,8 @@ static avm_codec_err_t ctrl_copy_reference(avm_codec_alg_priv_t *ctx,
     AVxWorker *const worker = ctx->frame_worker;
     FrameWorkerData *const frame_worker_data = (FrameWorkerData *)worker->data1;
     if (!(frame->img.fmt & AVM_IMG_FMT_HIGHBITDEPTH)) {
-      AV2_COMMON *cm = &frame_worker_data->pbi->common;
-      return cm->error.error_code;
+      set_error_detail(ctx, "Incorrect buffer bitdepth");
+      return AVM_CODEC_INVALID_PARAM;
     }
     image2yuvconfig(&frame->img, &sd);
     return av2_copy_reference_dec(frame_worker_data->pbi, frame->idx, &sd);
@@ -1388,8 +1388,8 @@ static avm_codec_err_t ctrl_copy_new_frame_image(avm_codec_alg_priv_t *ctx,
     if (av2_get_frame_to_show(frame_worker_data->pbi, &new_frame) == 0) {
       YV12_BUFFER_CONFIG sd;
       if (!(img->fmt & AVM_IMG_FMT_HIGHBITDEPTH)) {
-        AV2_COMMON *cm = &frame_worker_data->pbi->common;
-        return cm->error.error_code;
+        set_error_detail(ctx, "Incorrect buffer bitdepth");
+        return AVM_CODEC_INVALID_PARAM;
       }
       image2yuvconfig(img, &sd);
       return av2_copy_new_frame_dec(&frame_worker_data->pbi->common, &new_frame,
