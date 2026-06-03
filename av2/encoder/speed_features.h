@@ -407,6 +407,9 @@ typedef struct PARTITION_SPEED_FEATURES {
   // to INT_MAX. If set to 2, recursion depth is set to 1.
   int ext_recur_depth_level;
 
+  // Reduce the recursion depth for uneven 4way partitions based on block size
+  int uneven_4way_recur_depth_level;
+
   // Prune rect partitions if PARTITION_SPLIT goes deep.
   int prune_rect_with_split_depth;
 
@@ -977,6 +980,9 @@ typedef struct FLEXMV_PRECISION_SPEED_FEATURES {
   // Prune the evaluation of current MV precision based on best MV precision
   // chosen so far.
   int prune_mv_prec_using_best_mv_prec_so_far;
+  // Enable prune mv precision using best mv precision but restrict pruning one
+  // pel
+  int prune_non_one_pel_mv_using_best_mv_prec;
 } FLEXMV_PRECISION_SPEED_FEATURES;
 
 /*!\endcond */
