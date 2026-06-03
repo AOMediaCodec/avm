@@ -1364,19 +1364,18 @@ static void show_stream_config(struct stream_state *stream,
   fprintf(stdout, "Partition size                 : %d - %d\n",
           encoder_cfg->min_partition_size, encoder_cfg->max_partition_size);
 
-  int qp = 0;
-  int cpu_used = 0;
-  for (int i = 0; i < stream->config.arg_ctrl_cnt; i++) {
-    int ctrl = stream->config.arg_ctrls[i][0];
+  const char *qp = "40";
+  const char *cpu_used = "0";
+  for (int i = 0; i < stream->config.arg_key_val_cnt; i++) {
+    const char *name = stream->config.arg_key_vals[i][0];
 
-    if (ctrl == AVME_SET_QP) {
-      qp = stream->config.arg_ctrls[i][1];
-    }
-    if (ctrl == AVME_SET_CPUUSED) {
-      cpu_used = stream->config.arg_ctrls[i][1];
+    if (!strcmp(name, g_av2_codec_arg_defs.qp_level.long_name)) {
+      qp = stream->config.arg_key_vals[i][1];
+    } else if (!strcmp(name, g_av2_codec_arg_defs.cpu_used_av2.long_name)) {
+      cpu_used = stream->config.arg_key_vals[i][1];
     }
   }
-  fprintf(stdout, "QP                             : %d", qp);
+  fprintf(stdout, "QP                             : %s", qp);
   if (cfg->use_fixed_qp_offsets) {
     fprintf(stdout, " [ ");
     for (int level = 0; level < FIXED_QP_OFFSET_COUNT; level++) {
@@ -1384,7 +1383,7 @@ static void show_stream_config(struct stream_state *stream,
     }
     fprintf(stdout, "]");
   }
-  fprintf(stdout, "\nEncoder speed setting          : %d (cpu-used)\n",
+  fprintf(stdout, "\nEncoder speed setting          : %s (cpu-used)\n",
           cpu_used);
   fprintf(stdout, "Trellis quantization           : %d\n",
           encoder_cfg->enable_trellis_quant);
