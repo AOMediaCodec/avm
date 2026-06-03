@@ -321,7 +321,11 @@ class MultiLayer2TemporalDecodeBaseOnlyRASPruningTest
     cfg_.rc_end_usage = AVM_Q;
     cfg_.rc_min_quantizer = 210;
     cfg_.rc_max_quantizer = 210;
+#if CONFIG_MULTITHREAD
     cfg_.g_threads = 2;
+#else
+    cfg_.g_threads = 1;
+#endif  // CONFIG_MULTITHREAD
     cfg_.g_profile = MAIN_420_10_IP2;
     cfg_.g_lag_in_frames = 0;
     cfg_.g_bit_depth = AVM_BITS_8;
@@ -466,7 +470,11 @@ class MultiLayer3TemporalDecodeBaseOnlyRASPruningTest
     cfg_.rc_end_usage = AVM_Q;
     cfg_.rc_min_quantizer = 210;
     cfg_.rc_max_quantizer = 210;
+#if CONFIG_MULTITHREAD
     cfg_.g_threads = 2;
+#else
+    cfg_.g_threads = 1;
+#endif  // CONFIG_MULTITHREAD
     cfg_.g_profile = MAIN_420_10_IP2;
     cfg_.g_lag_in_frames = 0;
     cfg_.g_bit_depth = AVM_BITS_8;
@@ -743,7 +751,11 @@ class MultiLayerTest3Embedded3TemporalDropSL2RASPruningTest
     cfg_.rc_end_usage = AVM_Q;
     cfg_.rc_min_quantizer = 210;
     cfg_.rc_max_quantizer = 210;
+#if CONFIG_MULTITHREAD
     cfg_.g_threads = 2;
+#else
+    cfg_.g_threads = 1;
+#endif  // CONFIG_MULTITHREAD
     cfg_.g_profile = MAIN_420_10_IP2;
     cfg_.g_lag_in_frames = 0;
     cfg_.g_bit_depth = AVM_BITS_8;
@@ -933,7 +945,11 @@ class MultiLayerTest2Embedded2TempDropTL1RASPruningTest
     cfg_.rc_end_usage = AVM_Q;
     cfg_.rc_min_quantizer = 210;
     cfg_.rc_max_quantizer = 210;
+#if CONFIG_MULTITHREAD
     cfg_.g_threads = 2;
+#else
+    cfg_.g_threads = 1;
+#endif  // CONFIG_MULTITHREAD
     cfg_.g_profile = MAIN_420_10_IP2;
     cfg_.g_lag_in_frames = 0;
     cfg_.g_bit_depth = AVM_BITS_8;

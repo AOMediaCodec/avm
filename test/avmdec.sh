@@ -178,12 +178,16 @@ avmdec_random_access_kf2() {
 
 avmdec_tests="avmdec_av2_ivf
               avmdec_av2_ivf_error_resilient
-              avmdec_av2_ivf_multithread
               avmdec_avm_ivf_pipe_input
               avmdec_av2_obu
               avmdec_av2_webm
               avmdec_random_access_kf0
               avmdec_random_access_kf1
               avmdec_random_access_kf2"
+
+if [ "$(avm_multithread_available)" = "yes" ]; then
+  avmdec_tests="${avmdec_tests}
+              avmdec_av2_ivf_multithread"
+fi
 
 run_tests avmdec_verify_environment "${avmdec_tests}"

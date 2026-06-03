@@ -122,11 +122,9 @@ if(NOT BUILD_SHARED_LIBS)
       "${AVM_ROOT}/test/brt_test.cc"
       "${AVM_ROOT}/test/ci_test.cc"
       "${AVM_ROOT}/test/cnn_test.cc"
-      "${AVM_ROOT}/test/decode_multithreaded_test.cc"
       "${AVM_ROOT}/test/divu_small_test.cc"
       "${AVM_ROOT}/test/dr_prediction_test.cc"
       "${AVM_ROOT}/test/ec_test.cc"
-      "${AVM_ROOT}/test/ethread_test.cc"
       "${AVM_ROOT}/test/fgm_test.cc"
       "${AVM_ROOT}/test/film_grain_table_test.cc"
       "${AVM_ROOT}/test/frame_multi_qmatrix_test.cc"
@@ -154,6 +152,12 @@ if(NOT BUILD_SHARED_LIBS)
       "${AVM_ROOT}/test/temporal_filter_test.cc"
       "${AVM_ROOT}/test/tile_config_test.cc"
       "${AVM_ROOT}/test/tile_independence_test.cc")
+
+    if(CONFIG_MULTITHREAD)
+      list(APPEND AVM_UNIT_TEST_COMMON_SOURCES
+           "${AVM_ROOT}/test/decode_multithreaded_test.cc"
+           "${AVM_ROOT}/test/ethread_test.cc")
+    endif()
   endif()
 
   list(APPEND AVM_UNIT_TEST_COMMON_INTRIN_NEON

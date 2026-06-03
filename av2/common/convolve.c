@@ -55,6 +55,7 @@ void av2_highbd_convolve_x_sr_c(const uint16_t *src, int src_stride,
                                 const InterpFilterParams *filter_params_x,
                                 const int subpel_x_qn,
                                 ConvolveParams *conv_params, int bd) {
+  assert(filter_params_x != NULL);
   const int fo_horiz = filter_params_x->taps / 2 - 1;
   const int bits = FILTER_BITS - conv_params->round_0;
 
@@ -82,6 +83,7 @@ void av2_highbd_convolve_y_sr_c(const uint16_t *src, int src_stride,
                                 uint16_t *dst, int dst_stride, int w, int h,
                                 const InterpFilterParams *filter_params_y,
                                 const int subpel_y_qn, int bd) {
+  assert(filter_params_y != NULL);
   const int fo_vert = filter_params_y->taps / 2 - 1;
   // vertical filter
   const int16_t *y_filter = av2_get_interp_filter_subpel_kernel(
