@@ -447,6 +447,13 @@ void usage_exit(void) {
 }
 
 #if CONFIG_AV2_ENCODER
+// ARG_CTRL_CNT_MAX is the first dimension of the config->arg_ctrls array.
+// Note: The config->arg_ctrls array is only used for three codec controls:
+//   * AV2E_SET_TARGET_SEQ_LEVEL_IDX (may be repeated)
+//   * AVME_SET_ENABLEAUTOALTREF
+//   * AVME_SET_QP
+// So ARG_CTRL_CNT_MAX doesn't need to match the size of the av2_arg_ctrl_map
+// array.
 #define ARG_CTRL_CNT_MAX NELEMENTS(av2_arg_ctrl_map)
 #define ARG_KEY_VAL_CNT_MAX NELEMENTS(av2_key_val_args)
 #endif
@@ -900,7 +907,10 @@ static void set_config_arg_ctrls(struct stream_config *config, int key,
   // so we simply append it.
   if (key == AV2E_SET_TARGET_SEQ_LEVEL_IDX) {
     j = config->arg_ctrl_cnt;
-    assert(j < ARG_CTRL_CNT_MAX);
+    if (j >= ARG_CTRL_CNT_MAX) {
+      die("Error: ARG_CTRL_CNT_MAX (%d) is not large enough.",
+          ARG_CTRL_CNT_MAX);
+    }
     config->arg_ctrls[j][0] = key;
     config->arg_ctrls[j][1] = arg_parse_enum_or_int(arg);
     ++config->arg_ctrl_cnt;
@@ -914,7 +924,9 @@ static void set_config_arg_ctrls(struct stream_config *config, int key,
     if (config->arg_ctrls[j][0] == key) break;
 
   /* Update/insert */
-  assert(j < ARG_CTRL_CNT_MAX);
+  if (j >= ARG_CTRL_CNT_MAX) {
+    die("Error: ARG_CTRL_CNT_MAX (%d) is not large enough.", ARG_CTRL_CNT_MAX);
+  }
   config->arg_ctrls[j][0] = key;
   config->arg_ctrls[j][1] = arg_parse_enum_or_int(arg);
 
@@ -923,7 +935,7 @@ static void set_config_arg_ctrls(struct stream_config *config, int key,
     config->arg_ctrls[j][1] = 1;
   }
 
-  if (j == config->arg_ctrl_cnt) config->arg_ctrl_cnt++;
+  if (j == config->arg_ctrl_cnt) ++config->arg_ctrl_cnt;
 }
 
 // Converts quantizer in deprecated range 0 to 63, to qindex in range 0 to 255.
@@ -1200,11 +1212,21 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
       const unsigned int cq_level_val = arg_parse_uint(&arg);
       const int qp_val =
           get_qindex_from_quantizer_and_warn(cq_level_val, "cq-level", "qp");
-      const int idx = config->arg_ctrl_cnt;
-      assert(idx < (int)ARG_CTRL_CNT_MAX);
+      /* Point either to the next free element or the first instance of
+       * AVME_SET_QP.
+       */
+      int idx;
+      for (idx = 0; idx < config->arg_ctrl_cnt; idx++)
+        if (config->arg_ctrls[idx][0] == AVME_SET_QP) break;
+
+      /* Update/insert */
+      if (idx >= ARG_CTRL_CNT_MAX) {
+        die("Error: ARG_CTRL_CNT_MAX (%d) is not large enough.",
+            ARG_CTRL_CNT_MAX);
+      }
       config->arg_ctrls[idx][0] = AVME_SET_QP;
       config->arg_ctrls[idx][1] = qp_val;
-      ++config->arg_ctrl_cnt;
+      if (idx == config->arg_ctrl_cnt) ++config->arg_ctrl_cnt;
     } else {
       int i, match = 0;
       // check if the control ID API supports this arg
