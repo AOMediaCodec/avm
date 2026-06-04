@@ -1301,7 +1301,8 @@ static avm_codec_err_t ctrl_set_reference(avm_codec_alg_priv_t *ctx,
   av2_ref_frame_t *const data = va_arg(args, av2_ref_frame_t *);
 
   if (data) {
-    avm_image_t *hbd_img = NULL;
+    // Must be declared as `volatile` due to the `setjmp` call below.
+    avm_image_t *volatile hbd_img = NULL;
     av2_ref_frame_t *const frame = data;
     YV12_BUFFER_CONFIG sd;
     AVxWorker *const worker = ctx->frame_worker;
@@ -1315,9 +1316,18 @@ static avm_codec_err_t ctrl_set_reference(avm_codec_alg_priv_t *ctx,
     } else {
       image2yuvconfig(&frame->img, &sd);
     }
-    avm_codec_err_t res =
-        av2_set_reference_dec(&frame_worker_data->pbi->common, frame->idx,
-                              frame->use_external_ref, &sd);
+    avm_codec_err_t res = AVM_CODEC_OK;
+    struct avm_internal_error_info *const error =
+        &frame_worker_data->pbi->common.error;
+    if (setjmp(error->jmp)) {
+      error->setjmp = 0;
+      res = error->error_code;
+    } else {
+      error->setjmp = 1;
+      res = av2_set_reference_dec(&frame_worker_data->pbi->common, frame->idx,
+                                  frame->use_external_ref, &sd);
+      error->setjmp = 0;
+    }
     avm_img_free(hbd_img);
     return res;
   } else {
@@ -1337,7 +1347,18 @@ static avm_codec_err_t ctrl_copy_reference(avm_codec_alg_priv_t *ctx,
       return AVM_CODEC_INVALID_PARAM;
     }
     image2yuvconfig(&frame->img, &sd);
-    return av2_copy_reference_dec(frame_worker_data->pbi, frame->idx, &sd);
+    avm_codec_err_t res = AVM_CODEC_OK;
+    struct avm_internal_error_info *const error =
+        &frame_worker_data->pbi->common.error;
+    if (setjmp(error->jmp)) {
+      error->setjmp = 0;
+      res = error->error_code;
+    } else {
+      error->setjmp = 1;
+      res = av2_copy_reference_dec(frame_worker_data->pbi, frame->idx, &sd);
+      error->setjmp = 0;
+    }
+    return res;
   } else {
     return AVM_CODEC_INVALID_PARAM;
   }

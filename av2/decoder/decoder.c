@@ -498,11 +498,12 @@ avm_codec_err_t av2_copy_reference_dec(AV2Decoder *pbi, int idx,
                                        YV12_BUFFER_CONFIG *sd) {
   AV2_COMMON *cm = &pbi->common;
   const int num_planes = av2_num_planes(cm);
+  // Ensure that avm_internal_error() calls longjmp().
+  assert(cm->error.setjmp);
 
   const YV12_BUFFER_CONFIG *const cfg = get_ref_frame(cm, idx);
   if (cfg == NULL) {
     avm_internal_error(&cm->error, AVM_CODEC_ERROR, "No reference frame");
-    return AVM_CODEC_ERROR;
   }
   if (!equal_dimensions(cfg, sd))
     avm_internal_error(&cm->error, AVM_CODEC_ERROR,
@@ -526,13 +527,13 @@ avm_codec_err_t av2_set_reference_dec(AV2_COMMON *cm, int idx,
                                       YV12_BUFFER_CONFIG *sd) {
   const int num_planes = av2_num_planes(cm);
   YV12_BUFFER_CONFIG *ref_buf = NULL;
-
+  // Ensure that avm_internal_error() calls longjmp().
+  assert(cm->error.setjmp);
   // Get the destination reference buffer.
   ref_buf = get_ref_frame(cm, idx);
 
   if (ref_buf == NULL) {
     avm_internal_error(&cm->error, AVM_CODEC_ERROR, "No reference frame");
-    return AVM_CODEC_ERROR;
   }
 
   if (!use_external_ref) {
