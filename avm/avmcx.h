@@ -223,9 +223,9 @@ enum avme_enc_control_id {
   AVME_SET_TUNING = AVME_SET_ARNR_STRENGTH + 2,  // 24
 
   /*!\brief Codec control function to set constrained / constant quality level,
-   * unsigned int parameter
+   * int parameter
    *
-   * Valid range: 0..255
+   * Valid range: M..255, where M = 0/-48/-96 for 8/10/12 bit
    *
    * \attention For this value to be used avm_codec_enc_cfg_t::rc_end_usage
    *            must be set to #AVM_CQ or #AVM_Q.
@@ -1415,7 +1415,7 @@ AVM_CTRL_USE_TYPE(AVME_SET_ARNR_STRENGTH, unsigned int)
 AVM_CTRL_USE_TYPE(AVME_SET_TUNING, int) /* avm_tune_metric */
 #define AVM_CTRL_AVME_SET_TUNING
 
-AVM_CTRL_USE_TYPE(AVME_SET_QP, unsigned int)
+AVM_CTRL_USE_TYPE(AVME_SET_QP, int)
 #define AVM_CTRL_AVME_SET_QP
 
 AVM_CTRL_USE_TYPE(AV2E_SET_ROW_MT, unsigned int)
