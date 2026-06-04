@@ -831,14 +831,6 @@ static AVM_INLINE void copy_frame_prob_info(AV2_COMP *cpi) {
   }
 }
 
-static AVM_INLINE int equal_dimensions_and_border(const YV12_BUFFER_CONFIG *a,
-                                                  const YV12_BUFFER_CONFIG *b) {
-  return a->y_height == b->y_height && a->y_width == b->y_width &&
-         a->uv_height == b->uv_height && a->uv_width == b->uv_width &&
-         a->y_stride == b->y_stride && a->uv_stride == b->uv_stride &&
-         a->border == b->border;
-}
-
 static AVM_INLINE int combine_prior_with_tpl_boost(double min_factor,
                                                    double max_factor,
                                                    int prior_boost,
