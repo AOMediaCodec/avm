@@ -83,6 +83,16 @@ class MultiLayerTest : public ::libavm_test::CodecTestWithParam<int>,
       if (enable_explicit_ref_frame_map_) {
         encoder->Control(AV2E_SET_ENABLE_EXPLICIT_REF_FRAME_MAP, 1);
       }
+      // Forced sequential buffer refresh is not temporally scalable when TMVP
+      // is enabled. If the decoder drops TL1 frames, its DPB will diverge from
+      // the encoder's DPB (missing TL1 refreshes). This divergence leads to
+      // different reference ranking and motion vector scaling parameters,
+      // causing decode failures. Thus, we must disable TMVP for these test
+      // cases.
+      if (enable_buffer_refresh_test_ && num_temporal_layers_ > 1) {
+        encoder->Control(AV2E_SET_ENABLE_REF_FRAME_MVS, 0);
+        encoder->Control(AV2E_SET_ALLOW_REF_FRAME_MVS, 0);
+      }
       if (cfg_.g_lag_in_frames > 0) {
         int gop_size = (cfg_.g_lag_in_frames - 1) / num_embedded_layers_;
         if (pyramid_level_one_) {
