@@ -61,7 +61,7 @@ jobs:
       AVM_SANITIZER_TYPE: ${{ inputs.avm-sanitizer-type }}
       USE_LARGE_TESTS: ${{ inputs.use-large-tests }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 50
           lfs: true
