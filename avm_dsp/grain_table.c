@@ -289,13 +289,14 @@ avm_codec_err_t avm_film_grain_table_read(
                            "Unable to allocate grain table entry");
       }
       memset(entry, 0, sizeof(*entry));
-      grain_table_entry_read(file, error_info, entry);
       entry->next = NULL;
 
       if (prev_entry) prev_entry->next = entry;
       if (!t->head) t->head = entry;
       t->tail = entry;
       prev_entry = entry;
+
+      grain_table_entry_read(file, error_info, entry);
     }
   }
 
