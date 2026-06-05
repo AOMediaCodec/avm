@@ -1320,14 +1320,13 @@ static avm_codec_err_t ctrl_set_reference(avm_codec_alg_priv_t *ctx,
     struct avm_internal_error_info *const error =
         &frame_worker_data->pbi->common.error;
     if (setjmp(error->jmp)) {
-      error->setjmp = 0;
       res = error->error_code;
     } else {
       error->setjmp = 1;
       res = av2_set_reference_dec(&frame_worker_data->pbi->common, frame->idx,
                                   frame->use_external_ref, &sd);
-      error->setjmp = 0;
     }
+    error->setjmp = 0;
     avm_img_free(hbd_img);
     return res;
   } else {
@@ -1352,12 +1351,11 @@ static avm_codec_err_t ctrl_copy_reference(avm_codec_alg_priv_t *ctx,
         &frame_worker_data->pbi->common.error;
     if (setjmp(error->jmp)) {
       error->setjmp = 0;
-      res = error->error_code;
-    } else {
-      error->setjmp = 1;
-      res = av2_copy_reference_dec(frame_worker_data->pbi, frame->idx, &sd);
-      error->setjmp = 0;
+      return error->error_code;
     }
+    error->setjmp = 1;
+    res = av2_copy_reference_dec(frame_worker_data->pbi, frame->idx, &sd);
+    error->setjmp = 0;
     return res;
   } else {
     return AVM_CODEC_INVALID_PARAM;
