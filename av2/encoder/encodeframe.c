@@ -1362,6 +1362,7 @@ static AVM_INLINE void encode_sb_row(AV2_COMP *cpi, ThreadData *td,
   const int mib_size = cm->mib_size;
   const int mib_size_log2 = cm->mib_size_log2;
   const int sb_row = (mi_row - tile_info->mi_row_start) >> mib_size_log2;
+  bool row_mt_exit = false;
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, encode_sb_time);
@@ -1382,6 +1383,17 @@ static AVM_INLINE void encode_sb_row(AV2_COMP *cpi, ThreadData *td,
   for (int mi_col = tile_info->mi_col_start, sb_col_in_tile = 0;
        mi_col < tile_info->mi_col_end; mi_col += mib_size, sb_col_in_tile++) {
     (*(enc_row_mt->sync_read_ptr))(row_mt_sync, sb_row, sb_col_in_tile);
+
+#if CONFIG_MULTITHREAD
+    if (row_mt_enabled) {
+      pthread_mutex_lock(enc_row_mt->mutex_);
+      row_mt_exit = enc_row_mt->row_mt_exit;
+      pthread_mutex_unlock(enc_row_mt->mutex_);
+    }
+#endif
+    // Exit in case any worker has encountered an error.
+    if (row_mt_exit) return;
+
     av2_reset_is_mi_coded_map(xd, cm->mib_size);
     BruActiveMode sb_active_mode =
         enc_get_cur_sb_active_mode(cm, mi_col, mi_row);
