@@ -41,13 +41,11 @@ typedef struct {
   REF_MV_BANK curr_level_bank;
   //! The best level bank from the rdopt process.
   REF_MV_BANK best_level_bank;
-#if WARP_CU_BANK
   //! The current warp, level bank, used to restore the warp level bank in
   //! MACROBLOCKD.
   WARP_PARAM_BANK curr_level_warp_bank;
   //! The best warp level bank from the rdopt process.
   WARP_PARAM_BANK best_level_warp_bank;
-#endif  // WARP_CU_BANK
 } RD_SEARCH_MACROBLOCK_CONTEXT;
 
 // This struct is used to store the statistics used by sb-level multi-pass
@@ -63,9 +61,7 @@ typedef struct SB_FIRST_PASS_STATS {
   int thresh_freq_fact[BLOCK_SIZES_ALL][MB_MODE_COUNT];
   int current_qindex;
   REF_MV_BANK ref_mv_bank;
-#if WARP_CU_BANK
   WARP_PARAM_BANK warp_param_bank;
-#endif  // WARP_CU_BANK
   BLOCK_SIZE min_partition_size;
 } SB_FIRST_PASS_STATS;
 

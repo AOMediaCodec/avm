@@ -4639,9 +4639,6 @@ static AVM_INLINE void decode_tile(AV2Decoder *pbi, ThreadData *const td,
     av2_zero(xd->ref_mv_bank);
 
     av2_zero(xd->warp_param_bank);
-#if !WARP_CU_BANK
-    xd->warp_param_bank_pt = &td->warp_param_bank;
-#endif  //! WARP_CU_BANK
 
     for (int mi_col = tile_info.mi_col_start; mi_col < tile_info.mi_col_end;
          mi_col += cm->mib_size) {
@@ -5123,9 +5120,6 @@ static AVM_INLINE void parse_tile_row_mt(AV2Decoder *pbi, ThreadData *const td,
     av2_zero(xd->ref_mv_bank);
 
     av2_zero(xd->warp_param_bank);
-#if !WARP_CU_BANK
-    xd->warp_param_bank_pt = &td->warp_param_bank;
-#endif  //! WARP_CU_BANK
 
     for (int mi_col = tile_info.mi_col_start; mi_col < tile_info.mi_col_end;
          mi_col += cm->mib_size) {

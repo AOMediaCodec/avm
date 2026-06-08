@@ -1083,17 +1083,10 @@ static INLINE void av2_get_neighbor_warp_model(const AV2_COMMON *cm,
       &cm->global_motion[neighbor_mi->ref_frame[neighbor_ref]];
 
   if (is_warp_mode(neighbor_mi->motion_mode)) {
-#if !COMPOUND_WARP_LINE_BUFFER_REDUCTION
-    if (neighbor_mi->wm_params[neighbor_ref].invalid)
-      *wm_params = default_warp_params;
-    else
-      *wm_params = neighbor_mi->wm_params[neighbor_ref];
-#else
     if (neighbor_mi->wm_params[0].invalid)
       *wm_params = default_warp_params;
     else
       *wm_params = neighbor_mi->wm_params[0];
-#endif  // !COMPOUND_WARP_LINE_BUFFER_REDUCTION
   } else if (is_global_mv_block(neighbor_mi, gm_params->wmtype)) {
     *wm_params = *gm_params;
   } else {

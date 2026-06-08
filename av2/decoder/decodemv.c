@@ -3021,17 +3021,7 @@ static void read_inter_block_mode_info(AV2Decoder *const pbi,
 
     if (mbmi->mode == NEARMV) {
       assert(is_warp_mode(neighbor_mi->motion_mode));
-#if !COMPOUND_WARP_LINE_BUFFER_REDUCTION
-      if (mbmi->ref_frame[0] == neighbor_mi->ref_frame[1] &&
-          !neighbor_mi->wm_params[1].invalid)
-        mbmi->wm_params[0] = neighbor_mi->wm_params[1];
-      else if (!neighbor_mi->wm_params[0].invalid)
-        mbmi->wm_params[0] = neighbor_mi->wm_params[0];
-      else
-        mbmi->wm_params[0] = neighbor_mi->wm_params[1];
-#else
       mbmi->wm_params[0] = neighbor_mi->wm_params[0];
-#endif  // !COMPOUND_WARP_LINE_BUFFER_REDUCTION
     } else {
       assert(mbmi->mode == WARP_NEWMV);
 
@@ -3238,10 +3228,6 @@ void av2_read_mode_info(AV2Decoder *const pbi, DecoderCodingBlock *dcb,
 
     MB_MODE_INFO *const mbmi_tmp = xd->mi[0];
     if (is_inter_block(mbmi_tmp, xd->tree_type))
-      av2_update_warp_param_bank(cm, xd,
-#if COMPOUND_WARP_LINE_BUFFER_REDUCTION
-                                 0,
-#endif  // COMPOUND_WARP_LINE_BUFFER_REDUCTION
-                                 mbmi_tmp);
+      av2_update_warp_param_bank(cm, xd, 0, mbmi_tmp);
   }
 }

@@ -313,14 +313,6 @@ static void encode_superblock(const AV2_COMP *const cpi, TileDataEnc *tile_data,
         ++x->txfm_search_info.txb_split_count;
     }
 
-#if !WARP_CU_BANK
-    if (is_inter)
-      av2_update_warp_param_bank(cm, xd,
-#if COMPOUND_WARP_LINE_BUFFER_REDUCTION
-                                 0,
-#endif  // COMPOUND_WARP_LINE_BUFFER_REDUCTION
-                                 mbmi);
-#endif  // !WARP_CU_BANK
     if (xd->lossless[mbmi->segment_id]) {
       if (bsize > BLOCK_4X4) {
         const bool is_fsc = mbmi->fsc_mode[xd->tree_type == CHROMA_PART];
@@ -558,14 +550,7 @@ static void pick_sb_modes(AV2_COMP *const cpi, ThreadData *td,
     } else {
       decide_rmb_unit_update_count(cm, xd, &ctx->mic);
     }
-#if WARP_CU_BANK
-    if (is_inter)
-      av2_update_warp_param_bank(cm, xd,
-#if COMPOUND_WARP_LINE_BUFFER_REDUCTION
-                                 0,
-#endif  // COMPOUND_WARP_LINE_BUFFER_REDUCTION
-                                 &ctx->mic);
-#endif  // WARP_CU_BANK
+    if (is_inter) av2_update_warp_param_bank(cm, xd, 0, &ctx->mic);
     return;
   }
 
@@ -679,14 +664,7 @@ static void pick_sb_modes(AV2_COMP *const cpi, ThreadData *td,
     decide_rmb_unit_update_count(cm, xd, mbmi);
   }
 
-#if WARP_CU_BANK
-  if (is_inter)
-    av2_update_warp_param_bank(cm, xd,
-#if COMPOUND_WARP_LINE_BUFFER_REDUCTION
-                               0,
-#endif  // COMPOUND_WARP_LINE_BUFFER_REDUCTION
-                               mbmi);
-#endif  // WARP_CU_BANK
+  if (is_inter) av2_update_warp_param_bank(cm, xd, 0, mbmi);
 
   // Examine the resulting rate and for AQ mode 2 make a segment choice.
   if (rd_cost->rate != INT_MAX && aq_mode == COMPLEXITY_AQ &&
@@ -2846,29 +2824,23 @@ typedef struct LevelBanksRDO {
   REF_MV_BANK curr_level_bank;
   //! The best level bank from the rdopt process.
   REF_MV_BANK best_level_bank;
-#if WARP_CU_BANK
   //! The current warp, level bank, used to restore the warp level bank in
   //! MACROBLOCKD.
   WARP_PARAM_BANK curr_level_warp_bank;
   //! The best warp level bank from the rdopt process.
   WARP_PARAM_BANK best_level_warp_bank;
-#endif  // WARP_CU_BANK
 } LevelBanksRDO;
 
 static AVM_INLINE void update_best_level_banks(LevelBanksRDO *level_banks,
                                                const MACROBLOCKD *xd) {
   level_banks->best_level_bank = xd->ref_mv_bank;
-#if WARP_CU_BANK
   level_banks->best_level_warp_bank = xd->warp_param_bank;
-#endif  // WARP_CU_BANK
 }
 
 static AVM_INLINE void restore_level_banks(MACROBLOCKD *xd,
                                            const LevelBanksRDO *level_banks) {
   xd->ref_mv_bank = level_banks->curr_level_bank;
-#if WARP_CU_BANK
   xd->warp_param_bank = level_banks->curr_level_warp_bank;
-#endif  // WARP_CU_BANK
 }
 
 static AVM_INLINE PARTITION_TYPE get_forced_partition_type(
@@ -6037,12 +6009,10 @@ bool av2_rd_pick_partition(AV2_COMP *const cpi, ThreadData *td,
 
   av2_save_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
   LevelBanksRDO level_banks = {
-    x->e_mbd.ref_mv_bank, /* curr_level_bank*/
-    x->e_mbd.ref_mv_bank, /* best_level_bank*/
-#if WARP_CU_BANK
+    x->e_mbd.ref_mv_bank,     /* curr_level_bank*/
+    x->e_mbd.ref_mv_bank,     /* best_level_bank*/
     x->e_mbd.warp_param_bank, /* curr_level_warp_bank*/
     x->e_mbd.warp_param_bank, /* best_level_warp_bank*/
-#endif                        // WARP_CU_BANK
   };
 
   {
@@ -6429,9 +6399,7 @@ BEGIN_PARTITION_SEARCH:
   // Store the final rd cost
   *rd_cost = best_rdc;
   x->e_mbd.ref_mv_bank = level_banks.best_level_bank;
-#if WARP_CU_BANK
   x->e_mbd.warp_param_bank = level_banks.best_level_warp_bank;
-#endif  // WARP_CU_BANK
   pc_tree->rd_cost = best_rdc;
   if (!part_search_state.found_best_partition) {
     av2_invalid_rd_stats(&pc_tree->rd_cost);

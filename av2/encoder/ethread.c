@@ -423,9 +423,6 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
     av2_zero(td->mb.e_mbd.ref_mv_bank);
 
     av2_zero(td->mb.e_mbd.warp_param_bank);
-#if !WARP_CU_BANK
-    td->mb.e_mbd.warp_param_bank_pt = &td->mb.e_mbd.warp_param_bank;
-#endif  //! WARP_CU_BANK
 
     av2_encode_sb_row(cpi, td, tile_row, tile_col, current_mi_row);
 #if CONFIG_MULTITHREAD
@@ -790,10 +787,6 @@ static AVM_INLINE void prepare_enc_workers(AV2_COMP *cpi, AVxWorkerHook hook,
     }
     av2_zero(thread_data->td->mb.e_mbd.ref_mv_bank);
     av2_zero(thread_data->td->mb.e_mbd.warp_param_bank);
-#if !WARP_CU_BANK
-    thread_data->td->mb.e_mbd.warp_param_bank_pt =
-        &thread_data->td->mb.e_mbd.warp_param_bank;
-#endif  //! WARP_CU_BANK
   }
 }
 

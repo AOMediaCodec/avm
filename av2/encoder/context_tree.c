@@ -452,13 +452,8 @@ void av2_copy_pc_tree_recursive(MACROBLOCKD *xd, const AV2_COMMON *cm,
         if (is_inter_block(&src->none[cur_region_type]->mic, xd->tree_type)) {
           xd->mi_row = mi_row;
           xd->mi_col = mi_col;
-#if WARP_CU_BANK
-          av2_update_warp_param_bank(cm, xd,
-#if COMPOUND_WARP_LINE_BUFFER_REDUCTION
-                                     0,
-#endif  // COMPOUND_WARP_LINE_BUFFER_REDUCTION
+          av2_update_warp_param_bank(cm, xd, 0,
                                      &dst->none[cur_region_type]->mic);
-#endif  // WARP_CU_BANK
           if (cm->seq_params.enable_refmvbank) {
             av2_update_ref_mv_bank(cm, xd, 1, &dst->none[cur_region_type]->mic);
           }

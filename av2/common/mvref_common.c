@@ -1410,26 +1410,12 @@ static INLINE uint8_t is_valid_warp_parameters(
     const AV2_COMMON *cm, const MB_MODE_INFO *neighbor_mbmi,
     const int ref_frame, WarpedMotionParams *neighbor_params) {
   (void)cm;
-#if !COMPOUND_WARP_LINE_BUFFER_REDUCTION
-  if (is_warp_mode(neighbor_mbmi->motion_mode)) {
-    for (int ref_idx = 0;
-         ref_idx < 1 + is_inter_compound_mode(neighbor_mbmi->mode); ref_idx++) {
-      int is_same_ref = (neighbor_mbmi->ref_frame[ref_idx] == ref_frame);
-      if (is_same_ref && !neighbor_mbmi->wm_params[ref_idx].invalid &&
-          neighbor_params) {
-        *neighbor_params = neighbor_mbmi->wm_params[ref_idx];
-        return 1;
-      }
-    }
-  }
-#else
   int is_same_ref = (neighbor_mbmi->ref_frame[0] == ref_frame);
   if (is_same_ref && is_warp_mode(neighbor_mbmi->motion_mode) &&
       !neighbor_mbmi->wm_params[0].invalid && neighbor_params) {
     *neighbor_params = neighbor_mbmi->wm_params[0];
     return 1;
   }
-#endif  // !COMPOUND_WARP_LINE_BUFFER_REDUCTION
   return 0;
 }
 
@@ -2676,11 +2662,7 @@ static AVM_INLINE void setup_ref_mv_list(
   if (warp_param_stack && valid_num_warp_candidates &&
       *valid_num_warp_candidates < max_num_of_warp_candidates) {
     // Insert warp parameters from the bank
-#if WARP_CU_BANK
     const WARP_PARAM_BANK *warp_param_bank = &xd->warp_param_bank;
-#else
-    const WARP_PARAM_BANK *warp_param_bank = xd->warp_param_bank_pt;
-#endif  // WARP_CU_BANK
     const WarpedMotionParams *queue = warp_param_bank->wpb_buffer[ref_frame];
     const int count = warp_param_bank->wpb_count[ref_frame];
     const int start_idx = warp_param_bank->wpb_start_idx[ref_frame];
@@ -4779,16 +4761,10 @@ void span_submv(const AV2_COMMON *cm, SUBMB_INFO **submi, int mi_row,
 //  rearranged If the warp parameters are not in the bank, insert it to the
 //  bank.
 static INLINE void update_warp_param_bank(const MB_MODE_INFO *const mbmi,
-#if COMPOUND_WARP_LINE_BUFFER_REDUCTION
                                           int cand_from_sb_above,
-#endif  // COMPOUND_WARP_LINE_BUFFER_REDUCTION
                                           WARP_PARAM_BANK *warp_param_bank) {
-#if COMPOUND_WARP_LINE_BUFFER_REDUCTION
   const int can_use_second_model =
       is_inter_compound_mode(mbmi->mode) && !cand_from_sb_above;
-#else
-  const int can_use_second_model = is_inter_compound_mode(mbmi->mode);
-#endif  // COMPOUND_WARP_LINE_BUFFER_REDUCTION
   for (int ref_idx = 0; ref_idx < 1 + can_use_second_model; ref_idx++) {
     const MV_REFERENCE_FRAME ref_frame = mbmi->ref_frame[ref_idx];
     WarpedMotionParams *queue = warp_param_bank->wpb_buffer[ref_frame];
@@ -4850,18 +4826,11 @@ static INLINE void update_warp_param_bank(const MB_MODE_INFO *const mbmi,
   }
 }
 void av2_update_warp_param_bank(const AV2_COMMON *const cm,
-                                MACROBLOCKD *const xd,
-#if COMPOUND_WARP_LINE_BUFFER_REDUCTION
-                                int cand_from_sb_above,
-#endif  // COMPOUND_WARP_LINE_BUFFER_REDUCTION
+                                MACROBLOCKD *const xd, int cand_from_sb_above,
                                 const MB_MODE_INFO *const mbmi) {
   (void)cm;
   if (is_warp_mode(mbmi->motion_mode)) {
-    update_warp_param_bank(mbmi,
-#if COMPOUND_WARP_LINE_BUFFER_REDUCTION
-                           cand_from_sb_above,
-#endif  // COMPOUND_WARP_LINE_BUFFER_REDUCTION
-                           &xd->warp_param_bank);
+    update_warp_param_bank(mbmi, cand_from_sb_above, &xd->warp_param_bank);
   }
 }
 

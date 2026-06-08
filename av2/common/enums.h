@@ -79,10 +79,6 @@ extern "C" {
 #define AVG_CDF_WEIGHT_PRIMARY 7
 #define AVG_CDF_WEIGHT_NON_PRIMARY 1
 
-#define USE_TUNED_ADST4 1
-#define USE_TUNED_ADST8 1
-#define USE_TUNED_ADST16 1
-
 #define NUM_REF_SAM_CFL 8
 
 #define DEFAULT_IMP_MSK_WT 0  // default implict masked blending weight
@@ -124,7 +120,6 @@ enum {
 #define MAX_WEDGE_TYPES 68
 #define WEDGE_BLD_LUT_SIZE 128
 
-#define WARP_CU_BANK 1
 #define REFINEMV_SUBBLOCK_WIDTH 16
 #define REFINEMV_SUBBLOCK_HEIGHT 16
 
@@ -933,8 +928,6 @@ enum {
 
 #define OPFL_GRAD_UNIT_LOG2 4
 #define OPFL_GRAD_UNIT (1 << OPFL_GRAD_UNIT_LOG2)
-
-#define COMPOUND_WARP_LINE_BUFFER_REDUCTION 1
 
 enum {
   II_DC_PRED,

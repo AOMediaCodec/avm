@@ -1172,9 +1172,7 @@ void av2_backup_sb_state(SB_FIRST_PASS_STATS *sb_fp_stats, const AV2_COMP *cpi,
   sb_fp_stats->current_qindex =
       cm->mi_params.mi_alloc[alloc_mi_idx].current_qindex;
   sb_fp_stats->ref_mv_bank = td->mb.e_mbd.ref_mv_bank;
-#if WARP_CU_BANK
   sb_fp_stats->warp_param_bank = td->mb.e_mbd.warp_param_bank;
-#endif  // WARP_CU_BANK
   sb_fp_stats->min_partition_size = x->sb_enc.min_partition_size;
 }
 
@@ -1204,9 +1202,7 @@ void av2_restore_sb_state(const SB_FIRST_PASS_STATS *sb_fp_stats, AV2_COMP *cpi,
   cm->mi_params.mi_alloc[alloc_mi_idx].current_qindex =
       sb_fp_stats->current_qindex;
   x->e_mbd.ref_mv_bank = sb_fp_stats->ref_mv_bank;
-#if WARP_CU_BANK
   x->e_mbd.warp_param_bank = sb_fp_stats->warp_param_bank;
-#endif  // WARP_CU_BANK
   x->sb_enc.min_partition_size = sb_fp_stats->min_partition_size;
 }
 

@@ -572,9 +572,7 @@ static AVM_INLINE void perform_two_partition_passes(
   SB_FIRST_PASS_STATS sb_fp_stats;
   av2_backup_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
   REF_MV_BANK stored_mv_bank = td->mb.e_mbd.ref_mv_bank;
-#if WARP_CU_BANK
   WARP_PARAM_BANK stored_warp_bank = td->mb.e_mbd.warp_param_bank;
-#endif  // WARP_CU_BANK
   perform_one_partition_pass(cpi, td, tile_data, tp, tp_chroma, mi_row, mi_col,
                              SB_DRY_PASS, NULL);
 
@@ -587,9 +585,7 @@ static AVM_INLINE void perform_two_partition_passes(
 
   av2_restore_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
   td->mb.e_mbd.ref_mv_bank = stored_mv_bank;
-#if WARP_CU_BANK
   td->mb.e_mbd.warp_param_bank = stored_warp_bank;
-#endif  // WARP_CU_BANK
   perform_one_partition_pass(cpi, td, tile_data, tp, tp_chroma, mi_row, mi_col,
                              SB_WET_PASS, NULL);
 }
@@ -1707,9 +1703,6 @@ void av2_encode_tile(AV2_COMP *cpi, ThreadData *td, int tile_row,
     av2_zero(td->mb.e_mbd.ref_mv_bank);
 
     av2_zero(td->mb.e_mbd.warp_param_bank);
-#if !WARP_CU_BANK
-    td->mb.e_mbd.warp_param_bank_pt = &td->mb.e_mbd.warp_param_bank;
-#endif  //! WARP_CU_BANK
 
     av2_encode_sb_row(cpi, td, tile_row, tile_col, mi_row);
   }
