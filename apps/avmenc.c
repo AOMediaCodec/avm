@@ -85,7 +85,10 @@ static void warn_or_exit_on_errorv(avm_codec_ctx_t *ctx, int fatal,
 
     if (detail) fprintf(stderr, "    %s\n", detail);
 
-    if (fatal) exit(EXIT_FAILURE);
+    if (fatal) {
+      avm_codec_destroy(ctx);
+      exit(EXIT_FAILURE);
+    }
   }
 }
 
