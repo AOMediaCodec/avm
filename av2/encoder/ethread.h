@@ -23,6 +23,7 @@ struct ThreadData;
 typedef struct EncWorkerData {
   struct AV2_COMP *cpi;
   struct ThreadData *td;
+  struct avm_internal_error_info error_info;
   int start;
   int thread_id;
 } EncWorkerData;

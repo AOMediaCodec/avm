@@ -440,12 +440,25 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
 static int enc_worker_hook(void *arg1, void *unused) {
   EncWorkerData *const thread_data = (EncWorkerData *)arg1;
   AV2_COMP *const cpi = thread_data->cpi;
+  MACROBLOCKD *const xd = &thread_data->td->mb.e_mbd;
+  struct avm_internal_error_info *const error_info = &thread_data->error_info;
   const AV2_COMMON *const cm = &cpi->common;
   const int tile_cols = cm->tiles.cols;
   const int tile_rows = cm->tiles.rows;
   int t;
 
   (void)unused;
+
+  xd->error_info = error_info;
+
+  // The jmp_buf is valid only for the duration of the function that calls
+  // setjmp(). Therefore, this function must reset the 'setjmp' field to 0
+  // before it returns.
+  if (setjmp(error_info->jmp)) {
+    error_info->setjmp = 0;
+    return 0;
+  }
+  error_info->setjmp = 1;
 
   for (t = thread_data->start; t < tile_rows * tile_cols;
        t += cpi->mt_info.num_workers) {
@@ -458,6 +471,7 @@ static int enc_worker_hook(void *arg1, void *unused) {
     av2_encode_tile(cpi, thread_data->td, tile_row, tile_col);
   }
 
+  error_info->setjmp = 0;
   return 1;
 }
 
@@ -674,16 +688,26 @@ static AVM_INLINE void sync_enc_workers(MultiThreadInfo *const mt_info,
                                         AV2_COMMON *const cm, int num_workers) {
   const AVxWorkerInterface *const winterface = avm_get_worker_interface();
   int had_error = mt_info->workers[0].had_error;
+  struct avm_internal_error_info error_info;
+
+  // Read the error_info of main thread.
+  if (had_error) {
+    AVxWorker *const worker = &mt_info->workers[0];
+    error_info = ((EncWorkerData *)worker->data1)->error_info;
+  }
 
   // Encoding ends.
   for (int i = num_workers - 1; i >= 0; i--) {
     AVxWorker *const worker = &mt_info->workers[i];
-    had_error |= !winterface->sync(worker);
+    if (!winterface->sync(worker)) {
+      had_error = 1;
+      error_info = ((EncWorkerData *)worker->data1)->error_info;
+    }
   }
 
   if (had_error)
-    avm_internal_error(&cm->error, AVM_CODEC_ERROR,
-                       "Failed to encode tile data");
+    avm_internal_error(&cm->error, error_info.error_code, "%s",
+                       error_info.detail);
 }
 
 static AVM_INLINE void accumulate_counters_enc_workers(AV2_COMP *cpi,
