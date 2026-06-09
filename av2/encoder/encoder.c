@@ -5543,7 +5543,7 @@ avm_codec_err_t av2_copy_new_frame_enc(AV2_COMMON *cm,
                                        YV12_BUFFER_CONFIG *new_frame,
                                        YV12_BUFFER_CONFIG *sd) {
   const int num_planes = av2_num_planes(cm);
-  if (!equal_dimensions_and_border(new_frame, sd))
+  if (!avm_equal_dimensions_and_border(new_frame, sd))
     avm_internal_error(&cm->error, AVM_CODEC_ERROR,
                        "Incorrect buffer dimensions");
   else
