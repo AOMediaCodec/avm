@@ -3210,6 +3210,9 @@ static avm_codec_err_t encoder_encode(avm_codec_alg_priv_t *ctx,
   // before it returns.
   if (setjmp(cpi->common.error.jmp)) {
     cpi->common.error.setjmp = 0;
+    if (cpi_lap != NULL) {
+      cpi_lap->common.error.setjmp = 0;
+    }
     res = update_error_state(ctx, &cpi->common.error);
     avm_clear_system_state();
     return res;
@@ -3218,6 +3221,7 @@ static avm_codec_err_t encoder_encode(avm_codec_alg_priv_t *ctx,
   if (cpi_lap != NULL) {
     if (setjmp(cpi_lap->common.error.jmp)) {
       cpi_lap->common.error.setjmp = 0;
+      cpi->common.error.setjmp = 0;
       res = update_error_state(ctx, &cpi_lap->common.error);
       avm_clear_system_state();
       return res;
@@ -3284,7 +3288,13 @@ static avm_codec_err_t encoder_encode(avm_codec_alg_priv_t *ctx,
       if (!(img->fmt & AVM_IMG_FMT_HIGHBITDEPTH)) {
         hbd_img = avm_img_alloc(NULL, img->fmt | AVM_IMG_FMT_HIGHBITDEPTH,
                                 img->d_w, img->d_h, 32);
-        if (!hbd_img) return AVM_CODEC_MEM_ERROR;
+        if (!hbd_img) {
+          cpi->common.error.setjmp = 0;
+          if (cpi_lap != NULL) {
+            cpi_lap->common.error.setjmp = 0;
+          }
+          return AVM_CODEC_MEM_ERROR;
+        }
         image2yuvconfig_upshift(hbd_img, img, &sd);
       } else {
         res = image2yuvconfig(img, &sd);
@@ -3581,6 +3591,9 @@ static avm_codec_err_t encoder_encode(avm_codec_alg_priv_t *ctx,
   }
 
   cpi->common.error.setjmp = 0;
+  if (cpi_lap != NULL) {
+    cpi_lap->common.error.setjmp = 0;
+  }
   return res;
 }
 
