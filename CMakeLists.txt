@@ -468,7 +468,7 @@ if(CONFIG_AV2_DECODER)
          scalable_decoder simple_decoder)
   endif()
 
-  # Add decoder examples to the app targets list.
+  # Add decoder main apps and examples to the app targets list.
   list(APPEND AVM_APP_TARGETS ${AVM_DECODER_APP_TARGETS}
        ${AVM_DECODER_EXAMPLE_TARGETS})
 endif()
@@ -544,7 +544,7 @@ if(CONFIG_AV2_ENCODER)
     endif()
   endif()
 
-  # Add encoder examples and tools to the targets list.
+  # Add encoder main apps, examples and tools to the targets list.
   list(APPEND AVM_APP_TARGETS ${AVM_ENCODER_APP_TARGETS}
        ${AVM_ENCODER_EXAMPLE_TARGETS} ${AVM_ENCODER_TOOL_TARGETS})
 
