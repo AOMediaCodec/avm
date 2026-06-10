@@ -203,7 +203,7 @@ void avm_remove_metadata_from_frame_buffer(YV12_BUFFER_CONFIG *ybf);
 int avm_copy_metadata_to_frame_buffer(YV12_BUFFER_CONFIG *ybf,
                                       const avm_metadata_array_t *arr);
 static INLINE int avm_equal_dimensions_and_border(const YV12_BUFFER_CONFIG *a,
-                                              const YV12_BUFFER_CONFIG *b) {
+                                                  const YV12_BUFFER_CONFIG *b) {
   return a->y_height == b->y_height && a->y_width == b->y_width &&
          a->uv_height == b->uv_height && a->uv_width == b->uv_width &&
          a->y_stride == b->y_stride && a->uv_stride == b->uv_stride &&
