@@ -280,7 +280,7 @@ add_rtcd_build_step(
 add_library(avm_rtcd OBJECT ${AVM_RTCD_SOURCES})
 add_dependencies(avm_rtcd avm_version)
 
-if(ENABLE_EXAMPLES)
+if(ENABLE_APPS)
   add_library(avm_encoder_stats OBJECT ${AVM_ENCODER_STATS_SOURCES})
   set(AVM_LIB_TARGETS ${AVM_LIB_TARGETS} avm_encoder_stats)
 endif()
@@ -358,7 +358,8 @@ file(WRITE "${AVM_GEN_SRC_DIR}/usage_exit.cc"
 #
 # Application and application support targets.
 #
-if(ENABLE_EXAMPLES
+if(ENABLE_APPS
+   OR ENABLE_EXAMPLES
    OR ENABLE_TESTS
    OR ENABLE_TOOLS)
   add_library(avm_common_app_util OBJECT ${AVM_COMMON_APP_UTIL_SOURCES})
@@ -401,83 +402,88 @@ if((CONFIG_AV2_DECODER OR CONFIG_AV2_ENCODER) AND ENABLE_EXAMPLES)
   list(APPEND AVM_APP_TARGETS lanczos_resample_filter)
 endif()
 
-if(CONFIG_AV2_DECODER AND ENABLE_EXAMPLES)
-  add_executable(
-    avmdec "${AVM_ROOT}/apps/avmdec.c" $<TARGET_OBJECTS:avm_common_app_util>
-           $<TARGET_OBJECTS:avm_decoder_app_util>)
-  target_sources(avmdec PRIVATE $<TARGET_OBJECTS:lanczos_resample>)
-  add_executable(
-    decode_to_md5
-    "${AVM_ROOT}/examples/decode_to_md5.c"
-    $<TARGET_OBJECTS:avm_common_app_util>
-    $<TARGET_OBJECTS:avm_decoder_app_util>)
-  add_executable(
-    decode_with_drops
-    "${AVM_ROOT}/examples/decode_with_drops.c"
-    $<TARGET_OBJECTS:avm_common_app_util>
-    $<TARGET_OBJECTS:avm_decoder_app_util>)
-  add_executable(
-    simple_decoder
-    "${AVM_ROOT}/examples/simple_decoder.c"
-    $<TARGET_OBJECTS:avm_common_app_util>
-    $<TARGET_OBJECTS:avm_decoder_app_util>)
-  add_executable(
-    scalable_decoder
-    "${AVM_ROOT}/examples/scalable_decoder.c"
-    $<TARGET_OBJECTS:avm_common_app_util>
-    $<TARGET_OBJECTS:avm_decoder_app_util>)
-
-  if(CONFIG_INSPECTION)
+if(CONFIG_AV2_DECODER)
+  if(ENABLE_APPS)
     add_executable(
-      inspect
-      "${AVM_ROOT}/examples/inspect.c" $<TARGET_OBJECTS:avm_common_app_util>
-      $<TARGET_OBJECTS:avm_decoder_app_util>)
-    list(APPEND AVM_DECODER_EXAMPLE_TARGETS inspect)
-
-    if(EMSCRIPTEN)
-      add_preproc_definition(_POSIX_SOURCE)
-      append_link_flag_to_target("inspect" "--emrun")
-      append_link_flag_to_target("inspect" "-s USE_PTHREADS=0")
-      append_link_flag_to_target("inspect" "-s WASM=1")
-      append_link_flag_to_target("inspect" "-s MODULARIZE=1")
-      append_link_flag_to_target("inspect" "-s ALLOW_MEMORY_GROWTH=1")
-      append_link_flag_to_target(
-        "inspect" "-s \'EXTRA_EXPORTED_RUNTIME_METHODS=[\"UTF8ToString\"]\'")
-      append_link_flag_to_target("inspect"
-                                 "-s EXPORT_NAME=\"\'DecoderModule\'\"")
-      append_link_flag_to_target("inspect" "--memory-init-file 0")
-
-      if("${CMAKE_BUILD_TYPE}" STREQUAL "")
-
-        # Default to -O3 when no build type is specified.
-        append_compiler_flag("-O3")
-      endif()
-
-      em_link_post_js(inspect "${AVM_ROOT}/tools/inspect-post.js")
-    endif()
+      avmdec "${AVM_ROOT}/apps/avmdec.c" $<TARGET_OBJECTS:avm_common_app_util>
+             $<TARGET_OBJECTS:avm_decoder_app_util>)
+    target_sources(avmdec PRIVATE $<TARGET_OBJECTS:lanczos_resample>)
+    list(APPEND AVM_DECODER_APP_TARGETS avmdec)
   endif()
 
-  # Maintain a list of decoder example targets.
-  list(
-    APPEND
-    AVM_DECODER_EXAMPLE_TARGETS
-    avmdec
-    decode_to_md5
-    decode_with_drops
-    scalable_decoder
-    simple_decoder)
+  if(ENABLE_EXAMPLES)
+    add_executable(
+      decode_to_md5
+      "${AVM_ROOT}/examples/decode_to_md5.c"
+      $<TARGET_OBJECTS:avm_common_app_util>
+      $<TARGET_OBJECTS:avm_decoder_app_util>)
+    add_executable(
+      decode_with_drops
+      "${AVM_ROOT}/examples/decode_with_drops.c"
+      $<TARGET_OBJECTS:avm_common_app_util>
+      $<TARGET_OBJECTS:avm_decoder_app_util>)
+    add_executable(
+      simple_decoder
+      "${AVM_ROOT}/examples/simple_decoder.c"
+      $<TARGET_OBJECTS:avm_common_app_util>
+      $<TARGET_OBJECTS:avm_decoder_app_util>)
+    add_executable(
+      scalable_decoder
+      "${AVM_ROOT}/examples/scalable_decoder.c"
+      $<TARGET_OBJECTS:avm_common_app_util>
+      $<TARGET_OBJECTS:avm_decoder_app_util>)
+
+    if(CONFIG_INSPECTION)
+      add_executable(
+        inspect
+        "${AVM_ROOT}/examples/inspect.c" $<TARGET_OBJECTS:avm_common_app_util>
+        $<TARGET_OBJECTS:avm_decoder_app_util>)
+      list(APPEND AVM_DECODER_EXAMPLE_TARGETS inspect)
+
+      if(EMSCRIPTEN)
+        add_preproc_definition(_POSIX_SOURCE)
+        append_link_flag_to_target("inspect" "--emrun")
+        append_link_flag_to_target("inspect" "-s USE_PTHREADS=0")
+        append_link_flag_to_target("inspect" "-s WASM=1")
+        append_link_flag_to_target("inspect" "-s MODULARIZE=1")
+        append_link_flag_to_target("inspect" "-s ALLOW_MEMORY_GROWTH=1")
+        append_link_flag_to_target(
+          "inspect" "-s \'EXTRA_EXPORTED_RUNTIME_METHODS=[\"UTF8ToString\"]\'")
+        append_link_flag_to_target("inspect"
+                                   "-s EXPORT_NAME=\"\'DecoderModule\'\"")
+        append_link_flag_to_target("inspect" "--memory-init-file 0")
+
+        if("${CMAKE_BUILD_TYPE}" STREQUAL "")
+
+          # Default to -O3 when no build type is specified.
+          append_compiler_flag("-O3")
+        endif()
+
+        em_link_post_js(inspect "${AVM_ROOT}/tools/inspect-post.js")
+      endif()
+    endif()
+
+    # Maintain a list of decoder example targets.
+    list(APPEND AVM_DECODER_EXAMPLE_TARGETS decode_to_md5 decode_with_drops
+         scalable_decoder simple_decoder)
+  endif()
 
   # Add decoder examples to the app targets list.
-  list(APPEND AVM_APP_TARGETS ${AVM_DECODER_EXAMPLE_TARGETS})
+  list(APPEND AVM_APP_TARGETS ${AVM_DECODER_APP_TARGETS}
+       ${AVM_DECODER_EXAMPLE_TARGETS})
 endif()
 
 if(CONFIG_AV2_ENCODER)
-  if(ENABLE_EXAMPLES)
+  if(ENABLE_APPS)
     add_executable(
       avmenc
       "${AVM_ROOT}/apps/avmenc.c" $<TARGET_OBJECTS:avm_common_app_util>
       $<TARGET_OBJECTS:avm_encoder_app_util>
       $<TARGET_OBJECTS:avm_encoder_stats>)
+    list(APPEND AVM_ENCODER_APP_TARGETS avmenc)
+  endif()
+
+  if(ENABLE_EXAMPLES)
     add_executable(
       lossless_encoder
       "${AVM_ROOT}/examples/lossless_encoder.c"
@@ -512,7 +518,6 @@ if(CONFIG_AV2_ENCODER)
     list(
       APPEND
       AVM_ENCODER_EXAMPLE_TARGETS
-      avmenc
       lossless_encoder
       noise_model
       set_maps
@@ -540,8 +545,8 @@ if(CONFIG_AV2_ENCODER)
   endif()
 
   # Add encoder examples and tools to the targets list.
-  list(APPEND AVM_APP_TARGETS ${AVM_ENCODER_EXAMPLE_TARGETS}
-       ${AVM_ENCODER_TOOL_TARGETS})
+  list(APPEND AVM_APP_TARGETS ${AVM_ENCODER_APP_TARGETS}
+       ${AVM_ENCODER_EXAMPLE_TARGETS} ${AVM_ENCODER_TOOL_TARGETS})
 
   if(CONFIG_TENSORFLOW_LITE)
     # Building TFLite from third_party sources. Previously TFLite was fetched

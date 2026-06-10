@@ -69,13 +69,13 @@ macro(setup_avm_install_targets)
     add_dependencies(avm_pc avm_version)
 
     if(CONFIG_AV2_DECODER)
-      if(ENABLE_EXAMPLES)
+      if(ENABLE_APPS)
         list(APPEND AVM_INSTALL_BINS avmdec)
       endif()
     endif()
 
     if(CONFIG_AV2_ENCODER)
-      if(ENABLE_EXAMPLES)
+      if(ENABLE_APPS)
         list(APPEND AVM_INSTALL_BINS avmenc)
       endif()
     endif()
@@ -96,7 +96,7 @@ macro(setup_avm_install_targets)
     install(TARGETS ${AVM_INSTALL_LIBS}
             DESTINATION "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
 
-    if(ENABLE_EXAMPLES)
+    if(ENABLE_APPS)
       install(TARGETS ${AVM_INSTALL_BINS}
               DESTINATION "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}")
     endif()

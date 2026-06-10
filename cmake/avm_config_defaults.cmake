@@ -160,6 +160,8 @@ set_avm_option_var(ENABLE_DOCS
                    "Enable documentation generation (doxygen required)." ON)
 set_avm_option_var(ENABLE_ENCODE_PERF_TESTS "Enables encoder performance tests"
                    OFF)
+set_avm_option_var(ENABLE_APPS
+                   "Enables build of main applications (avmenc/avmdec)." ON)
 set_avm_option_var(ENABLE_EXAMPLES "Enables build of example code." ON)
 set_avm_option_var(ENABLE_GOMA "Enable goma support." OFF)
 set_avm_option_var(
