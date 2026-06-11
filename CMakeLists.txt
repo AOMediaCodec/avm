@@ -911,7 +911,8 @@ foreach(avm_app ${AVM_APP_TARGETS})
   target_link_libraries(${avm_app} ${AVM_LIB_LINK_TYPE} avm)
 endforeach()
 
-if(ENABLE_EXAMPLES
+if(ENABLE_APPS
+   OR ENABLE_EXAMPLES
    OR ENABLE_TESTS
    OR ENABLE_TOOLS)
   if(CONFIG_LIBYUV)
