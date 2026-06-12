@@ -4113,7 +4113,7 @@ static int process_compound_inter_mode(
       is_any_masked_compound_used(bsize) &&
       cm->seq_params.enable_masked_compound &&
       (!mbmi->refinemv_flag || !switchable_refinemv_flag(cm, mbmi)) &&
-      !opfl_allowed_cur_pred_mode(cm, xd, mbmi);
+      mbmi->mode < NEAR_NEARMV_OPTFLOW;
   int mode_search_mask =
       (1 << COMPOUND_AVERAGE) | (1 << COMPOUND_WEDGE) | (1 << COMPOUND_DIFFWTD);
 
