@@ -245,19 +245,29 @@ void search_fsc_mode(const AV2_COMP *const cpi, MACROBLOCK *x, int *rate,
  *                                  current ref frame is an intra frame.
  * \param[in]    ctx                Structure to hold the number of 4x4 blks to
  *                                  copy the tx_type and txfm_skip arrays.
- * \param[in]    this_rd_cost       Struct to keep track of palette mode's
- *                                  rd_stats.
- * \param[in]    best_rd            Best RD seen for this block so far.
+ * \param[in,out] rd_cost            Struct to keep track of the best RD stats,
+ *                                  updated if palette mode is better.
+ * \param[in,out] best_rd            Best RD seen for this block so far,
+ *                                  updated if palette mode is better.
+ * \param[in,out] best_mbmode        Best MB_MODE_INFO seen for this block,
+ *                                  updated if palette mode is better.
+ * \param[in,out] best_skip2         Best skip2 seen for this block,
+ *                                  updated if palette mode is better.
+ * \param[in,out] best_mode_skippable Best mode skippable seen for this block,
+ *                                  updated if palette mode is better.
+ * \param[in]    is_intra_mode_allowed Whether intra mode is allowed for the
+ *                                  current block.
  *
- * \return Returns whether luma palette mode can skip the txfm. The
- * corresponding mbmi, this_rd_costs, intra_search_state, and tx_type arrays in
- * ctx are also updated.
+ * \return Returns 1 if palette mode is better than best_rd and the state was
+ *         updated, 0 otherwise.
  */
 int av2_search_palette_mode(IntraModeSearchState *intra_search_state,
                             const AV2_COMP *cpi, MACROBLOCK *x,
                             BLOCK_SIZE bsize, unsigned int ref_frame_cost,
-                            PICK_MODE_CONTEXT *ctx, RD_STATS *this_rd_cost,
-                            int64_t best_rd);
+                            PICK_MODE_CONTEXT *ctx, RD_STATS *rd_cost,
+                            int64_t *best_rd, MB_MODE_INFO *best_mbmode,
+                            int *best_skip2, int *best_mode_skippable,
+                            int is_intra_mode_allowed);
 
 /*!\brief Perform intra-mode search on luma channels for intra frames.
  *

@@ -794,15 +794,37 @@ int64_t av2_rd_pick_intra_sbuv_mode(const AV2_COMP *const cpi, MACROBLOCK *x,
 int av2_search_palette_mode(IntraModeSearchState *intra_search_state,
                             const AV2_COMP *cpi, MACROBLOCK *x,
                             BLOCK_SIZE bsize, unsigned int ref_frame_cost,
-                            PICK_MODE_CONTEXT *ctx, RD_STATS *this_rd_cost,
-                            int64_t best_rd) {
+                            PICK_MODE_CONTEXT *ctx, RD_STATS *rd_cost,
+                            int64_t *best_rd, MB_MODE_INFO *best_mbmode,
+                            int *best_skip2, int *best_mode_skippable,
+                            int is_intra_mode_allowed) {
+  if (!is_intra_mode_allowed) return 0;
+
   const AV2_COMMON *const cm = &cpi->common;
+  const FeatureFlags *const features = &cm->features;
   MB_MODE_INFO *const mbmi = x->e_mbd.mi[0];
+
+  // Only try palette mode when the best mode so far is an intra mode.
+  int search_palette_mode =
+      cpi->oxcf.tool_cfg.enable_palette &&
+      av2_allow_palette(PLANE_TYPE_Y, features->allow_screen_content_tools,
+                        mbmi->sb_type[PLANE_TYPE_Y]) &&
+      !is_inter_mode(best_mbmode->mode) && rd_cost->rate < INT_MAX;
+  const MB_MODE_INFO *cached_mode = x->inter_mode_cache[0];
+  if (should_reuse_mode(x, REUSE_INTRA_MODE_IN_INTERFRAME_FLAG) &&
+      cached_mode &&
+      !(cached_mode->mode == DC_PRED &&
+        cached_mode->palette_mode_info.palette_size[0] > 0)) {
+    search_palette_mode = 0;
+  }
+
+  if (!search_palette_mode) return 0;
+
   PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
   const int num_planes = av2_num_planes(cm);
   MACROBLOCKD *const xd = &x->e_mbd;
   int rate2 = 0;
-  int64_t distortion2 = 0, best_rd_palette = best_rd, this_rd,
+  int64_t distortion2 = 0, best_rd_palette = *best_rd, this_rd,
           best_model_rd_palette = INT64_MAX;
   int skippable = 0;
   uint8_t *const best_palette_color_map =
@@ -849,8 +871,7 @@ int av2_search_palette_mode(IntraModeSearchState *intra_search_state,
       &rd_stats_y.rate, NULL, &rd_stats_y.dist, &rd_stats_y.skip_txfm, NULL,
       ctx, best_blk_skip, best_tx_type_map);
   if (rd_stats_y.rate == INT_MAX || pmi->palette_size[0] == 0) {
-    this_rd_cost->rdcost = INT64_MAX;
-    return skippable;
+    return 0;
   }
 
   memcpy(x->txfm_search_info.blk_skip[AVM_PLANE_Y], best_blk_skip,
@@ -906,10 +927,31 @@ int av2_search_palette_mode(IntraModeSearchState *intra_search_state,
   }
 
   this_rd = RDCOST(x->rdmult, rate2, distortion2);
-  this_rd_cost->rate = rate2;
-  this_rd_cost->dist = distortion2;
-  this_rd_cost->rdcost = this_rd;
-  return skippable;
+
+  if (this_rd < *best_rd) {
+    mbmi->mv[0].as_int = 0;
+    rd_cost->rate = rate2;
+    rd_cost->dist = distortion2;
+    rd_cost->rdcost = this_rd;
+    *best_rd = this_rd;
+    *best_mbmode = *mbmi;
+    *best_skip2 = 0;
+    *best_mode_skippable = skippable;
+
+    TxfmSearchInfo *txfm_info = &x->txfm_search_info;
+    for (int i = 0; i < num_planes; ++i) {
+      const int num_blk_plane =
+          (i == AVM_PLANE_Y) ? ctx->num_4x4_blk : ctx->num_4x4_blk_chroma;
+      memcpy(ctx->blk_skip[i], txfm_info->blk_skip[i],
+             sizeof(*txfm_info->blk_skip[i]) * num_blk_plane);
+    }
+    av2_copy_array(ctx->tx_type_map, xd->tx_type_map, ctx->num_4x4_blk);
+    av2_copy_array(ctx->cctx_type_map, xd->cctx_type_map,
+                   ctx->num_4x4_blk_chroma);
+    return 1;
+  }
+
+  return 0;
 }
 
 /*!\brief Get the intra prediction by searching through tx_type and tx_size.

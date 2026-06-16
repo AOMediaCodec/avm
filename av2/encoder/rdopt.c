@@ -8785,46 +8785,11 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
   // Initialize default mode evaluation params
   set_mode_eval_params(cpi, x, DEFAULT_EVAL);
 
-  // Only try palette mode when the best mode so far is an intra mode.
-  const int try_palette =
-      cpi->oxcf.tool_cfg.enable_palette &&
-      av2_allow_palette(PLANE_TYPE_Y, features->allow_screen_content_tools,
-                        mbmi->sb_type[PLANE_TYPE_Y]) &&
-      !is_inter_mode(search_state.best_mbmode.mode) && rd_cost->rate < INT_MAX;
-  int search_palette_mode = try_palette;
-  const MB_MODE_INFO *cached_mode = x->inter_mode_cache[0];
-  if (should_reuse_mode(x, REUSE_INTRA_MODE_IN_INTERFRAME_FLAG) &&
-      cached_mode &&
-      !(cached_mode->mode == DC_PRED &&
-        cached_mode->palette_mode_info.palette_size[0] > 0)) {
-    search_palette_mode = 0;
-  }
-  RD_STATS this_rd_cost;
-  int this_skippable = 0;
-  if (search_palette_mode && is_intra_mode_allowed) {
-    this_skippable = av2_search_palette_mode(
-        &search_state.intra_search_state, cpi, x, bsize, intra_ref_frame_cost,
-        ctx, &this_rd_cost, search_state.best_rd);
-    if (this_rd_cost.rdcost < search_state.best_rd) {
-      mbmi->mv[0].as_int = 0;
-      rd_cost->rate = this_rd_cost.rate;
-      rd_cost->dist = this_rd_cost.dist;
-      rd_cost->rdcost = this_rd_cost.rdcost;
-      search_state.best_rd = rd_cost->rdcost;
-      search_state.best_mbmode = *mbmi;
-      search_state.best_skip2 = 0;
-      search_state.best_mode_skippable = this_skippable;
-      for (i = 0; i < num_planes; ++i) {
-        const int num_blk_plane =
-            (i == AVM_PLANE_Y) ? ctx->num_4x4_blk : ctx->num_4x4_blk_chroma;
-        memcpy(ctx->blk_skip[i], txfm_info->blk_skip[i],
-               sizeof(*txfm_info->blk_skip[i]) * num_blk_plane);
-      }
-      av2_copy_array(ctx->tx_type_map, xd->tx_type_map, ctx->num_4x4_blk);
-      av2_copy_array(ctx->cctx_type_map, xd->cctx_type_map,
-                     ctx->num_4x4_blk_chroma);
-    }
-  }
+  av2_search_palette_mode(
+      &search_state.intra_search_state, cpi, x, bsize, intra_ref_frame_cost,
+      ctx, rd_cost, &search_state.best_rd, &search_state.best_mbmode,
+      &search_state.best_skip2, &search_state.best_mode_skippable,
+      is_intra_mode_allowed);
 
   search_state.best_mbmode.skip_mode = 0;
   if (is_skip_mode_allowed(cm, xd)) {
@@ -8840,6 +8805,7 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
                                               ) &&
                             (xd->tree_type != CHROMA_PART);
     if (try_intrabc && is_intra_mode_allowed) {
+      RD_STATS this_rd_cost;
       this_rd_cost.rdcost = INT64_MAX;
       mbmi->ref_frame[0] = INTRA_FRAME;
       mbmi->ref_frame[1] = NONE_FRAME;
