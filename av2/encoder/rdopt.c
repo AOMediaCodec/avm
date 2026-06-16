@@ -8022,9 +8022,8 @@ static INLINE void init_top_tx_part_rd_for_inter_modes(
   }
 }
 
-// TODO(chiyotsai@google.com): See the todo for av2_rd_pick_intra_mode_sb.
-
-static void av2_evaluate_intra_modes_in_inter(
+// Evaluate intra prediction modes in an inter frame at the block level
+static void av2_evaluate_intra_modes_in_inter_frame(
     const struct AV2_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
     PICK_MODE_CONTEXT *ctx, int64_t inter_cost, int64_t intra_cost,
     InterModeSearchState *search_state, RD_STATS *rd_cost,
@@ -8082,7 +8081,6 @@ static void av2_evaluate_intra_modes_in_inter(
     dpcm_loop_num = 2;
   }
   mbmi->dpcm_mode_y = 0;
-  // mbmi->dpcm_angle_delta = 0;
 
   for (int dpcm_idx = 0; dpcm_idx < dpcm_loop_num; dpcm_idx++) {
     mbmi->use_dpcm_y = dpcm_idx;
@@ -8090,6 +8088,7 @@ static void av2_evaluate_intra_modes_in_inter(
          fsc_mode < (allow_fsc_intra(cm, bsize, mbmi) ? FSC_MODES : 1);
          fsc_mode++) {
       uint8_t enable_mrls_flag = cm->seq_params.enable_mrls && !fsc_mode;
+      const int num_mrl_indices = enable_mrls_flag ? MRL_LINE_NUMBER : 1;
       ModeRDInfoUV mode_rd_info_uv = { { false }, { 0 }, { 0 } };
       // When fsc_mode is enabled, rate of the chroma mode across luma modes is
       // different. Hence, the reuse of chroma mode rd_info is not applicable
@@ -8097,8 +8096,12 @@ static void av2_evaluate_intra_modes_in_inter(
       if (!xd->lossless[mbmi->segment_id]) {
         av2_zero(mode_rd_info_uv.mode_evaluated);
       }
-      for (int mrl_index = 0;
-           mrl_index < (enable_mrls_flag ? MRL_LINE_NUMBER : 1); mrl_index++) {
+      for (int mrl_index = 0; mrl_index < num_mrl_indices; mrl_index++) {
+        if (mrl_index > 0 &&
+            (xd->tree_type == CHROMA_PART ? mbmi->fsc_mode[PLANE_TYPE_Y]
+                                          : fsc_mode)) {
+          continue;
+        }
         for (int multi_line_mrl = 0; multi_line_mrl < (mrl_index ? 2 : 1);
              multi_line_mrl++) {
           mbmi->multi_line_mrl = multi_line_mrl;
@@ -8124,13 +8127,6 @@ static void av2_evaluate_intra_modes_in_inter(
               continue;
             if (mbmi->mrl_index > 0 &&
                 av2_is_directional_mode(mbmi->mode) == 0) {
-              continue;
-            }
-            if (!allow_fsc_intra(cm, bsize, mbmi) &&
-                mbmi->fsc_mode[PLANE_TYPE_Y] > 0) {
-              continue;
-            }
-            if (mbmi->mrl_index > 0 && mbmi->fsc_mode[PLANE_TYPE_Y]) {
               continue;
             }
             if (((search_state->intra_search_state.best_mrl_index == 0 &&
@@ -8770,7 +8766,7 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
       mbmi->chroma_ref_info.offset_started) {
     is_intra_mode_allowed = 0;
   }
-  av2_evaluate_intra_modes_in_inter(
+  av2_evaluate_intra_modes_in_inter_frame(
       cpi, x, bsize, ctx, inter_cost, intra_cost, &search_state, rd_cost,
       intra_ref_frame_cost, is_intra_mode_allowed);
 
