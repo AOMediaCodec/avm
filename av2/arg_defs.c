@@ -325,7 +325,7 @@ const av2_codec_arg_definitions_t g_av2_codec_arg_defs = {
   .cpu_used_av2 = ARG_DEF(NULL, "cpu-used", 1, "Speed setting (0..9)"),
   .rowmtarg =
       ARG_DEF(NULL, "row-mt", 1,
-              "Enable row based multi-threading (0: off, 1: on (default))"),
+              "Enable row based multi-threading (0: off (default), 1: on)"),
   .tile_cols =
       ARG_DEF(NULL, "tile-columns", 1, "Number of tile columns to use, log2"),
   .tile_rows =
