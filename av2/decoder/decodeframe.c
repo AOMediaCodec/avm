@@ -7142,7 +7142,7 @@ static int read_show_existing_frame(AV2Decoder *pbi, bool is_regular_obu,
   }
 
   // Show an existing frame directly.
-  const int existing_frame_idx = cm->sef_ref_fb_idx =
+  const int existing_frame_idx =
       avm_rb_read_literal(rb, seq_params->ref_frames_log2);
 
   if (existing_frame_idx >= seq_params->ref_frames) {
@@ -7150,12 +7150,6 @@ static int read_show_existing_frame(AV2Decoder *pbi, bool is_regular_obu,
         &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
         "Existing frame idx must be less than %d but is set to %d",
         seq_params->ref_frames, existing_frame_idx);
-  }
-  if (existing_frame_idx >= seq_params->ref_frames) {
-    avm_internal_error(&cm->error, AVM_CODEC_ERROR,
-                       "SEF existing_frame_idx %d points restricted "
-                       "reference",
-                       existing_frame_idx);
   }
   RefCntBuffer *const frame_to_show = cm->ref_frame_map[existing_frame_idx];
   if (frame_to_show == NULL) {
