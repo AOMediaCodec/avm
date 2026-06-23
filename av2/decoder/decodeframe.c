@@ -8034,8 +8034,23 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
 
   if (obu_type == OBU_BRIDGE_FRAME) {
     cm->bridge_frame_info.is_bridge_frame = 1;
-    cm->bridge_frame_info.bridge_frame_ref_idx =
+    const int bridge_frame_ref_idx =
         avm_rb_read_literal(rb, seq_params->ref_frames_log2);
+
+    // Check reference is valid.
+    if (bridge_frame_ref_idx >= seq_params->ref_frames) {
+      avm_internal_error(
+          &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+          "Bridge frame ref idx must be less than %d but is set to %d",
+          seq_params->ref_frames, bridge_frame_ref_idx);
+    }
+    RefCntBuffer *const bridge_frame_ref =
+        cm->ref_frame_map[bridge_frame_ref_idx];
+    if (bridge_frame_ref == NULL) {
+      avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+                         "Buffer does not contain a decoded frame");
+    }
+    cm->bridge_frame_info.bridge_frame_ref_idx = bridge_frame_ref_idx;
   } else {
     cm->bridge_frame_info.is_bridge_frame = 0;
     cm->bridge_frame_info.bridge_frame_ref_idx = INVALID_IDX;
