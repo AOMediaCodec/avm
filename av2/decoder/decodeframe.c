@@ -8043,6 +8043,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     const int bridge_frame_ref_idx =
         avm_rb_read_literal(rb, seq_params->ref_frames_log2);
 
+    // Check reference is valid.
     if (bridge_frame_ref_idx >= seq_params->ref_frames) {
       avm_internal_error(
           &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
