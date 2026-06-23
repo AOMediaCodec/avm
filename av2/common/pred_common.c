@@ -547,7 +547,7 @@ void choose_primary_secondary_ref_frame(const AV2_COMMON *const cm,
 
 // Returns a context number for the given MB prediction signal
 static InterpFilter get_ref_filter_type(const MB_MODE_INFO *ref_mbmi,
-                                        const MACROBLOCKD *xd, int dir,
+                                        const MACROBLOCKD *xd,
                                         MV_REFERENCE_FRAME ref_frame) {
   (void)xd;
 
@@ -555,28 +555,25 @@ static InterpFilter get_ref_filter_type(const MB_MODE_INFO *ref_mbmi,
       ref_mbmi->ref_frame[1] != ref_frame) {
     return SWITCHABLE_FILTERS;
   }
-  (void)dir;
   return ref_mbmi->interp_fltr;
 }
 
-int av2_get_pred_context_switchable_interp(const MACROBLOCKD *xd, int dir) {
+int av2_get_pred_context_switchable_interp(const MACROBLOCKD *xd) {
   const MB_MODE_INFO *const mbmi = xd->mi[0];
   const int ctx_offset =
       is_inter_ref_frame(mbmi->ref_frame[1]) * INTER_FILTER_COMP_OFFSET;
-  assert(dir == 0 || dir == 1);
   const MV_REFERENCE_FRAME ref_frame = mbmi->ref_frame[0];
   // Note:
   // The mode info data structure has a one element border above and to the
   // left of the entries corresponding to real macroblocks.
   // The prediction flags in these dummy entries are initialized to 0.
-  int filter_type_ctx = ctx_offset + (dir & 0x01) * INTER_FILTER_DIR_OFFSET;
+  int filter_type_ctx = ctx_offset;
   int neighbor_filter_type[MAX_NUM_NEIGHBORS];
   for (int i = 0; i < MAX_NUM_NEIGHBORS; ++i) {
     neighbor_filter_type[i] = SWITCHABLE_FILTERS;
     const MB_MODE_INFO *const neighbor = xd->neighbors[i];
     if (neighbor != NULL) {
-      neighbor_filter_type[i] =
-          get_ref_filter_type(neighbor, xd, dir, ref_frame);
+      neighbor_filter_type[i] = get_ref_filter_type(neighbor, xd, ref_frame);
     }
   }
 

@@ -201,7 +201,7 @@ static AVM_INLINE void update_wedge_mode_cdf(FRAME_CONTEXT *fc,
 
 static AVM_INLINE void update_filter_type_cdf(const MACROBLOCKD *xd,
                                               const MB_MODE_INFO *mbmi) {
-  const int ctx = av2_get_pred_context_switchable_interp(xd, 0);
+  const int ctx = av2_get_pred_context_switchable_interp(xd);
   update_cdf(xd->tile_ctx->switchable_interp_cdf[ctx], mbmi->interp_fltr,
              SWITCHABLE_FILTERS);
 }

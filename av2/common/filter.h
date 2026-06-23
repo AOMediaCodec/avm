@@ -62,9 +62,8 @@ static INLINE InterpFilter av2_unswitchable_filter(InterpFilter filter) {
 /* (1 << LOG_SWITCHABLE_FILTERS) > SWITCHABLE_FILTERS */
 #define LOG_SWITCHABLE_FILTERS 2
 
-#define SWITCHABLE_FILTER_CONTEXTS ((SWITCHABLE_FILTERS + 1) * 4)
+#define SWITCHABLE_FILTER_CONTEXTS ((SWITCHABLE_FILTERS + 1) * 2)
 #define INTER_FILTER_COMP_OFFSET (SWITCHABLE_FILTERS + 1)
-#define INTER_FILTER_DIR_OFFSET ((SWITCHABLE_FILTERS + 1) * 2)
 
 typedef struct InterpFilterParams {
   const int16_t *filter_ptr;

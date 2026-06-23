@@ -139,7 +139,7 @@ int av2_get_hier_tpl_rdmult(const AV2_COMP *const cpi, MACROBLOCK *const x,
 static AVM_INLINE void update_filter_type_count(FRAME_COUNTS *counts,
                                                 const MACROBLOCKD *xd,
                                                 const MB_MODE_INFO *mbmi) {
-  const int ctx = av2_get_pred_context_switchable_interp(xd, 0);
+  const int ctx = av2_get_pred_context_switchable_interp(xd);
   ++counts->switchable_interp[ctx][mbmi->interp_fltr];
 }
 

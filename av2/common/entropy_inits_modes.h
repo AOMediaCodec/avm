@@ -899,14 +899,6 @@ static const avm_cdf_prob
       { AVM_CDF3(9581, 32608), AVM_PARA3(-1, -1, -1) },
       { AVM_CDF3(535, 1036), AVM_PARA3(0, 0, 0) },
       { AVM_CDF3(24819, 27722), AVM_PARA3(-1, -1, -1) },
-      { AVM_CDF3(10923, 21845), AVM_PARA3(0, 0, 0) },
-      { AVM_CDF3(10923, 21845), AVM_PARA3(0, 0, 0) },
-      { AVM_CDF3(10923, 21845), AVM_PARA3(0, 0, 0) },
-      { AVM_CDF3(10923, 21845), AVM_PARA3(0, 0, 0) },
-      { AVM_CDF3(10923, 21845), AVM_PARA3(0, 0, 0) },
-      { AVM_CDF3(10923, 21845), AVM_PARA3(0, 0, 0) },
-      { AVM_CDF3(10923, 21845), AVM_PARA3(0, 0, 0) },
-      { AVM_CDF3(10923, 21845), AVM_PARA3(0, 0, 0) },
     };
 
 static const avm_cdf_prob default_delta_q_cdf[CDF_SIZE(8)] = {

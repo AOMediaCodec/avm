@@ -115,13 +115,13 @@ static INLINE void swap_dst_buf(MACROBLOCKD *xd, const BUFFER_SET *dst_bufs[2],
 
 static INLINE int get_switchable_rate(MACROBLOCK *const x,
                                       const InterpFilter interp_fltr,
-                                      const int ctx[2]) {
+                                      const int ctx) {
   // When optical flow refinement is used, interp filter type is always set
   // to MULTITAP_SHARP, and thus is not switchable.
   assert(x->e_mbd.mi[0]->mode < NEAR_NEARMV_OPTFLOW);
   assert(!x->e_mbd.mi[0]->refinemv_flag);
   const int inter_filter_cost =
-      x->mode_costs.switchable_interp_costs[ctx[0]][interp_fltr];
+      x->mode_costs.switchable_interp_costs[ctx][interp_fltr];
   return SWITCHABLE_INTERP_RATE_FACTOR * inter_filter_cost;
 }
 
@@ -165,7 +165,7 @@ static INLINE int64_t interpolation_filter_rd(
     const TileDataEnc *tile_data, BLOCK_SIZE bsize,
     const BUFFER_SET *const orig_dst, int64_t *const rd,
     RD_STATS *rd_stats_luma, RD_STATS *rd_stats, int *const switchable_rate,
-    const BUFFER_SET *dst_bufs[2], int filter_idx, const int switchable_ctx[2],
+    const BUFFER_SET *dst_bufs[2], int filter_idx, const int switchable_ctx,
     const int skip_pred) {
   const AV2_COMMON *cm = &cpi->common;
   const InterpSearchFlags *interp_search_flags = &cpi->interp_search_flags;
@@ -285,8 +285,8 @@ static INLINE void find_best_non_dual_interp_filter(
     const TileDataEnc *tile_data, BLOCK_SIZE bsize,
     const BUFFER_SET *const orig_dst, int64_t *const rd, RD_STATS *rd_stats_y,
     RD_STATS *rd_stats, int *const switchable_rate,
-    const BUFFER_SET *dst_bufs[2], const int switchable_ctx[2],
-    const int skip_ver, const int skip_hor) {
+    const BUFFER_SET *dst_bufs[2], const int switchable_ctx, const int skip_ver,
+    const int skip_hor) {
   const int skip_pred = (skip_hor & skip_ver);
   for (int i = EIGHTTAP_REGULAR + 1; i < SWITCHABLE_FILTERS; ++i) {
     interpolation_filter_rd(x, cpi, tile_data, bsize, orig_dst, rd, rd_stats_y,
@@ -418,9 +418,7 @@ int64_t av2_interpolation_filter_search(
     return 0;
   }
 
-  int switchable_ctx[2];
-  switchable_ctx[0] = av2_get_pred_context_switchable_interp(xd, 0);
-  switchable_ctx[1] = av2_get_pred_context_switchable_interp(xd, 1);
+  int switchable_ctx = av2_get_pred_context_switchable_interp(xd);
   *switchable_rate =
       (opfl_allowed_cur_pred_mode(cm, xd, mbmi) || mbmi->refinemv_flag ||
        is_tip_ref_frame(mbmi->ref_frame[0]))

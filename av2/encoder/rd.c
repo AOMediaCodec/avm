@@ -1684,7 +1684,7 @@ int av2_get_switchable_rate(const MACROBLOCK *x, const MACROBLOCKD *xd,
   if (interp_filter == SWITCHABLE) {
     const MB_MODE_INFO *const mbmi = xd->mi[0];
     assert(mbmi->mode < NEAR_NEARMV_OPTFLOW);
-    const int ctx = av2_get_pred_context_switchable_interp(xd, 0);
+    const int ctx = av2_get_pred_context_switchable_interp(xd);
     const int inter_filter_cost =
         x->mode_costs.switchable_interp_costs[ctx][mbmi->interp_fltr];
     return SWITCHABLE_INTERP_RATE_FACTOR * inter_filter_cost;

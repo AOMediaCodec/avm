@@ -522,7 +522,7 @@ static INLINE int is_cctx_allowed(const AV2_COMMON *cm, const MACROBLOCKD *xd) {
   return 1;
 }
 
-int av2_get_pred_context_switchable_interp(const MACROBLOCKD *xd, int dir);
+int av2_get_pred_context_switchable_interp(const MACROBLOCKD *xd);
 
 // Get a list of palette base colors that are used in the above and left blocks,
 // referred to as "color cache". The return value is the number of colors in the

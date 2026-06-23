@@ -2120,7 +2120,7 @@ static INLINE void read_mb_interp_filter(const MACROBLOCKD *const xd,
   if (interp_filter != SWITCHABLE) {
     mbmi->interp_fltr = interp_filter;
   } else {
-    const int ctx = av2_get_pred_context_switchable_interp(xd, 0);
+    const int ctx = av2_get_pred_context_switchable_interp(xd);
     const InterpFilter filter = (InterpFilter)avm_read_symbol(
         r, ec_ctx->switchable_interp_cdf[ctx], SWITCHABLE_FILTERS,
         ACCT_INFO("switchable_interp_cdf"));

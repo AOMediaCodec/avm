@@ -943,7 +943,7 @@ static AVM_INLINE void write_mb_interp_filter(AV2_COMMON *const cm,
       assert(mbmi->interp_fltr == MULTITAP_SHARP);
       return;
     }
-    const int ctx = av2_get_pred_context_switchable_interp(xd, 0);
+    const int ctx = av2_get_pred_context_switchable_interp(xd);
     const InterpFilter filter = mbmi->interp_fltr;
     avm_write_symbol(w, filter, ec_ctx->switchable_interp_cdf[ctx],
                      SWITCHABLE_FILTERS);
