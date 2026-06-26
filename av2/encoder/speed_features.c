@@ -359,6 +359,9 @@ static void set_good_speed_features_framesize_independent(
     // Cap the DRL depth for a fresh single-ref NEWMV search; reuse the
     // nearest searched result beyond the cap.
     sf->mv_sf.newmv_drl_search_limit = 2;
+    sf->tx_sf.tx_type_search.skip_tx_search = 1;
+    sf->tx_sf.tx_type_search.blk_size_adapt_skip_tx_search = true;
+    sf->tx_sf.tx_type_search.skip_tx_search_max_blk_size = 256;
   }
 
   if (speed >= 2) {
@@ -775,6 +778,8 @@ static AVM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
   tx_sf->tx_type_search.use_reduced_intra_txset = 0;
   tx_sf->tx_type_search.fast_inter_tx_type_search = 0;
   tx_sf->tx_type_search.skip_tx_search = 0;
+  tx_sf->tx_type_search.blk_size_adapt_skip_tx_search = false;
+  tx_sf->tx_type_search.skip_tx_search_max_blk_size = 1024;
   tx_sf->tx_type_search.prune_tx_type_using_stats = 0;
   tx_sf->tx_type_search.prune_tx_type_est_rd = 0;
   tx_sf->tx_type_search.winner_mode_tx_type_pruning = 0;
