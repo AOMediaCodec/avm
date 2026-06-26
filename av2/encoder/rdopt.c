@@ -3618,9 +3618,8 @@ static int ref_mv_idx_to_search(AV2_COMP *const cpi, MACROBLOCK *x,
   }
 
   // Calculate the RD cost for the motion vectors using simple translation.
-  int64_t idx_rdcost[MAX_REF_MV_SEARCH * MAX_REF_MV_SEARCH];
-  for (int i = 0; i < MAX_REF_MV_SEARCH * MAX_REF_MV_SEARCH; i++)
-    idx_rdcost[i] = INT64_MAX;
+  int64_t idx_rdcost[MAX_REF_MV_SQUARE];
+  for (int i = 0; i < MAX_REF_MV_SQUARE; i++) idx_rdcost[i] = INT64_MAX;
 
   for (ref_mv_idx[1] = 0; ref_mv_idx[1] < ref_set[1]; ++ref_mv_idx[1]) {
     for (ref_mv_idx[0] = 0; ref_mv_idx[0] < ref_set[0]; ++ref_mv_idx[0]) {
@@ -4338,7 +4337,6 @@ typedef struct {
 // different precisions, etc.).
 typedef struct {
   BLOCK_SIZE bsize;
-  int use_optflow;
   int ref_mv_idx[2];
   int precision_dx;
   int bawp_flag;
@@ -4380,16 +4378,14 @@ static AVM_INLINE void init_predictor_search_env(
 
 // Initializes the PredictorIterationContext structure.
 static AVM_INLINE void init_predictor_iteration_context(
-    PredictorIterationContext *it_ctx, BLOCK_SIZE bsize, int use_optflow,
-    int ref_mv_idx0, int ref_mv_idx1, int precision_dx, int bawp_flag,
-    int ref_mv_idx_type, int scale_index, int *cwp_search_mask,
-    PREDICTION_MODE eval_mode, const MV_REFERENCE_FRAME *refs,
-    const int *flex_mv_cost, int drl_cost, int jmvd_scale_mode_cost,
-    int base_rate, const int_mv *cur_mv, int rate_mv,
+    PredictorIterationContext *it_ctx, BLOCK_SIZE bsize, int ref_mv_idx0,
+    int ref_mv_idx1, int precision_dx, int bawp_flag, int ref_mv_idx_type,
+    int scale_index, int *cwp_search_mask, PREDICTION_MODE eval_mode,
+    const MV_REFERENCE_FRAME *refs, const int *flex_mv_cost, int drl_cost,
+    int jmvd_scale_mode_cost, int base_rate, const int_mv *cur_mv, int rate_mv,
     const MB_MODE_INFO *base_mbmi, int refinemv_loop, int num_planes,
     int skip_motion_mode_value) {
   it_ctx->bsize = bsize;
-  it_ctx->use_optflow = use_optflow;
   it_ctx->ref_mv_idx[0] = ref_mv_idx0;
   it_ctx->ref_mv_idx[1] = ref_mv_idx1;
   it_ctx->precision_dx = precision_dx;
@@ -4429,10 +4425,9 @@ typedef struct {
   int64_t *ref_best_rd;
   int *best_ref_mv_idx;
 
-  inter_mode_info (*mode_info)[BAWP_OPTION_CNT][NUM_MV_PRECISIONS]
-                              [MAX_REF_MV_SEARCH * MAX_REF_MV_SEARCH];
-  int_mv (
-      *save_mv)[NUM_MV_PRECISIONS][MAX_REF_MV_SEARCH * MAX_REF_MV_SEARCH][2];
+  inter_mode_info (
+      *mode_info)[BAWP_OPTION_CNT][NUM_MV_PRECISIONS][MAX_REF_MV_SQUARE];
+  int_mv (*save_mv)[NUM_MV_PRECISIONS][MAX_REF_MV_SQUARE][2];
 } PredictorSearchState;
 /*!\endcond */
 
@@ -4446,10 +4441,9 @@ static AVM_INLINE void init_predictor_search_state(
     TX_TYPE *best_tx_type_map, CctxType *best_cctx_type_map,
     int64_t *best_cwp_costs, int *best_cwp_idxs, int64_t *ref_best_rd,
     int *best_ref_mv_idx,
-    inter_mode_info (*mode_info)[BAWP_OPTION_CNT][NUM_MV_PRECISIONS]
-                                [MAX_REF_MV_SEARCH * MAX_REF_MV_SEARCH],
-    int_mv (*save_mv)[NUM_MV_PRECISIONS][MAX_REF_MV_SEARCH * MAX_REF_MV_SEARCH]
-                     [2]) {
+    inter_mode_info (
+        *mode_info)[BAWP_OPTION_CNT][NUM_MV_PRECISIONS][MAX_REF_MV_SQUARE],
+    int_mv (*save_mv)[NUM_MV_PRECISIONS][MAX_REF_MV_SQUARE][2]) {
   search_state->best_rd = best_rd;
   search_state->best_rd_stats = best_rd_stats;
   search_state->best_rd_stats_y = best_rd_stats_y;
@@ -4475,28 +4469,28 @@ static AVM_INLINE void update_predictor_search_state(
     const RD_STATS *rd_stats_y, const RD_STATS *rd_stats_uv,
     const TxfmSearchInfo *txfm_info, int num_planes, int tmp_rate_mv,
     int rate2_nocoeff, motion_mode_candidate *motion_mode_cand) {
+  if (tmp_rd >= *search_state->best_rd) return;
+
   MACROBLOCKD *const xd = &x->e_mbd;
-  if (tmp_rd < *search_state->best_rd) {
-    *search_state->best_rd_stats = *rd_stats;
-    *search_state->best_rd_stats_y = *rd_stats_y;
-    *search_state->best_rd_stats_uv = *rd_stats_uv;
-    *search_state->best_rd = tmp_rd;
-    *search_state->best_mbmi = *mbmi;
-    *search_state->best_xskip_txfm = txfm_info->skip_txfm;
-    for (int i = 0; i < num_planes; ++i) {
-      const int num_blk_plane =
-          (xd->plane[i].height * xd->plane[i].width) >> (2 * MI_SIZE_LOG2);
-      memcpy(search_state->best_blk_skip[i], txfm_info->blk_skip[i],
-             sizeof(*txfm_info->blk_skip[i]) * num_blk_plane);
-    }
-    av2_copy_array(search_state->best_tx_type_map, xd->tx_type_map,
-                   xd->height * xd->width);
-    av2_copy_array(
-        search_state->best_cctx_type_map, xd->cctx_type_map,
-        (xd->plane[1].height * xd->plane[1].width) >> (2 * MI_SIZE_LOG2));
-    motion_mode_cand->rate_mv = tmp_rate_mv;
-    motion_mode_cand->rate2_nocoeff = rate2_nocoeff;
+  *search_state->best_rd_stats = *rd_stats;
+  *search_state->best_rd_stats_y = *rd_stats_y;
+  *search_state->best_rd_stats_uv = *rd_stats_uv;
+  *search_state->best_rd = tmp_rd;
+  *search_state->best_mbmi = *mbmi;
+  *search_state->best_xskip_txfm = txfm_info->skip_txfm;
+  for (int i = 0; i < num_planes; ++i) {
+    const int num_blk_plane =
+        (xd->plane[i].height * xd->plane[i].width) >> (2 * MI_SIZE_LOG2);
+    memcpy(search_state->best_blk_skip[i], txfm_info->blk_skip[i],
+           sizeof(*txfm_info->blk_skip[i]) * num_blk_plane);
   }
+  av2_copy_array(search_state->best_tx_type_map, xd->tx_type_map,
+                 xd->height * xd->width);
+  av2_copy_array(
+      search_state->best_cctx_type_map, xd->cctx_type_map,
+      (xd->plane[1].height * xd->plane[1].width) >> (2 * MI_SIZE_LOG2));
+  motion_mode_cand->rate_mv = tmp_rate_mv;
+  motion_mode_cand->rate2_nocoeff = rate2_nocoeff;
 }
 
 // Evaluates a single inter predictor candidate.
@@ -4516,7 +4510,6 @@ static void evaluate_inter_predictor(AV2_COMP *const cpi,
   MB_MODE_INFO *const mbmi = xd->mi[0];
   const int refinemv_loop = it_ctx->refinemv_loop;
   const BLOCK_SIZE bsize = it_ctx->bsize;
-  const int use_optflow = it_ctx->use_optflow;
   int ref_mv_idx[2] = { it_ctx->ref_mv_idx[0], it_ctx->ref_mv_idx[1] };
   const int precision_dx = it_ctx->precision_dx;
   const int bawp_flag = it_ctx->bawp_flag;
@@ -4538,8 +4531,7 @@ static void evaluate_inter_predictor(AV2_COMP *const cpi,
 
   *mbmi = *it_ctx->base_mbmi;
   int_mv tmp_cur_mv[2];
-  int i;
-  for (i = 0; i < 2; ++i) {
+  for (int i = 0; i < 2; ++i) {
     tmp_cur_mv[i].as_int = cur_mv[i].as_int;
   }
   int tmp_rate_mv = rate_mv;
@@ -4587,7 +4579,7 @@ static void evaluate_inter_predictor(AV2_COMP *const cpi,
   }
 
   // Copy the motion vector for this mode into mbmi struct
-  for (i = 0; i < is_comp_pred + 1; ++i) {
+  for (int i = 0; i < is_comp_pred + 1; ++i) {
     mbmi->mv[i].as_int = tmp_cur_mv[i].as_int;
   }
   assert(check_mv_precision(cm, mbmi, x));
@@ -4749,7 +4741,7 @@ static void evaluate_inter_predictor(AV2_COMP *const cpi,
 
     assert(check_mv_precision(cm, mbmi, x));
 
-    if (use_optflow == 0 && is_cwp_allowed(mbmi)) {
+    if (is_cwp_allowed(mbmi)) {
       if (tmp_rd < search_state->best_cwp_costs[scale_index]) {
         search_state->best_cwp_costs[scale_index] = tmp_rd;
         search_state->best_cwp_idxs[scale_index] = mbmi->cwp_idx;
@@ -4897,7 +4889,7 @@ static int64_t handle_inter_mode(
   }
 
   inter_mode_info mode_info[BAWP_OPTION_CNT][NUM_MV_PRECISIONS]
-                           [MAX_REF_MV_SEARCH * MAX_REF_MV_SEARCH];
+                           [MAX_REF_MV_SQUARE];
   // initialize mode_info
   for (int bawp = 0; bawp < BAWP_OPTION_CNT; bawp++) {
     for (int prec = MV_PRECISION_8_PEL; prec <= mbmi->max_mv_precision;
@@ -4937,7 +4929,7 @@ static int64_t handle_inter_mode(
 
   // Save MV results from first 2 ref_mv_idx.
 
-  int_mv save_mv[NUM_MV_PRECISIONS][MAX_REF_MV_SEARCH * MAX_REF_MV_SEARCH][2];
+  int_mv save_mv[NUM_MV_PRECISIONS][MAX_REF_MV_SQUARE][2];
 
   int best_ref_mv_idx[2] = { -1, -1 };
 
@@ -4953,7 +4945,7 @@ static int64_t handle_inter_mode(
 
   for (int pb_mv_precision = mbmi->max_mv_precision;
        pb_mv_precision >= MV_PRECISION_8_PEL; pb_mv_precision--) {
-    for (i = 0; i < MAX_REF_MV_SEARCH * MAX_REF_MV_SEARCH - 1; ++i) {
+    for (i = 0; i < MAX_REF_MV_SQUARE - 1; ++i) {
       save_mv[pb_mv_precision][i][0].as_int = INVALID_MV;
       save_mv[pb_mv_precision][i][1].as_int = INVALID_MV;
     }
@@ -5023,8 +5015,10 @@ static int64_t handle_inter_mode(
     }
   }
 
-  // Main loop of this function. This will  iterate over all of the ref mvs
-  // in the dynamic reference list and do the following:
+  // Main loop of this function. This will iterate over all combinations of
+  // JMVD scaling factors, reference MVs in the dynamic reference list, CWP
+  // indices, MV precisions, BAWP flags, and refinement modes, and do the
+  // following:
   //    1.) Get the current MV. Create newmv MV if necessary
   //    2.) Search compound type and parameters if applicable
   //    3.) Do interpolation filter search
@@ -5362,9 +5356,9 @@ static int64_t handle_inter_mode(
                 const MB_MODE_INFO base_mbmi = *mbmi;
                 PredictorIterationContext it_ctx;
                 init_predictor_iteration_context(
-                    &it_ctx, bsize, 0, ref_mv_idx[0], ref_mv_idx[1],
-                    precision_dx, bawp_flag, ref_mv_idx_type, scale_index,
-                    cwp_search_mask, this_mode, refs, flex_mv_cost, drl_cost,
+                    &it_ctx, bsize, ref_mv_idx[0], ref_mv_idx[1], precision_dx,
+                    bawp_flag, ref_mv_idx_type, scale_index, cwp_search_mask,
+                    this_mode, refs, flex_mv_cost, drl_cost,
                     jmvd_scale_mode_cost, base_rate, cur_mv, rate_mv,
                     &base_mbmi, 0, num_planes, args->skip_motion_mode);
                 for (int refinemv_loop = 0; refinemv_loop < REFINEMV_NUM_MODES;
