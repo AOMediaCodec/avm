@@ -2873,8 +2873,8 @@ static AVM_INLINE PARTITION_TYPE get_forced_partition_type(
 
 static AVM_INLINE void init_allowed_partitions(
     PartitionSearchState *part_search_state, const PartitionCfg *part_cfg,
-    const SPEED_FEATURES *const sf,
-    const int bru_skip, const bool *partition_allowed) {
+    const SPEED_FEATURES *const sf, const int bru_skip,
+    const bool *partition_allowed) {
   const PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
   const BLOCK_SIZE bsize = blk_params->bsize;
   if (bru_skip) {

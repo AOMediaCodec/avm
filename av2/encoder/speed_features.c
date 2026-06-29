@@ -539,15 +539,10 @@ static void set_good_speed_features_framesize_independent(
         frame_is_intra_only(&cpi->common) ? MULTI_WINNER_MODE_FAST
                                           : MULTI_WINNER_MODE_OFF;
 
-    sf->lpf_sf.disable_lr_filter = 1;
-
     sf->mv_sf.prune_mesh_search = 1;
     sf->mv_sf.warp_search_method = WARP_SEARCH_DIAMOND;
 
     sf->tpl_sf.prune_starting_mv = 3;
-
-    sf->winner_mode_sf.dc_blk_pred_level = 1;
-    sf->winner_mode_sf.tx_size_search_level = USE_LARGESTALL;
   }
 
   if (speed >= 6) {
