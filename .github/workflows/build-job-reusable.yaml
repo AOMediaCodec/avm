@@ -70,9 +70,7 @@ jobs:
           extra-env-vars: ${{ inputs.extra-env-vars }}
 
       - name: Run before-script
-        run: ${INPUTS_BEFORE_SCRIPT}
-        env:
-          INPUTS_BEFORE_SCRIPT: ${{ inputs.before-script }}
+        run: ${{ inputs.before-script }}
 
       - uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:

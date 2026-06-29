@@ -96,9 +96,7 @@ jobs:
           done
 
       - name: Run before-script
-        run: ${INPUTS_BEFORE_SCRIPT}
-        env:
-          INPUTS_BEFORE_SCRIPT: ${{ inputs.before-script }}
+        run: ${{ inputs.before-script }}
 
       - name: Run sanitizer
         run: |
