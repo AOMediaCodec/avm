@@ -61,10 +61,11 @@ jobs:
       AVM_SANITIZER_TYPE: ${{ inputs.avm-sanitizer-type }}
       USE_LARGE_TESTS: ${{ inputs.use-large-tests }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           fetch-depth: 50
           lfs: true
+          persist-credentials: false
 
       - uses: ./.github/actions/common-setup
         with:
@@ -72,12 +73,12 @@ jobs:
           extra-env-vars: ${{ inputs.extra-env-vars }}
 
       - name: Get sanitizer build
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: avm-sanitizers-${{ inputs.avm-sanitizer-type }}
 
       - name: Get test data
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: test-data
           path: libavm-test-data
@@ -95,7 +96,9 @@ jobs:
           done
 
       - name: Run before-script
-        run: ${{ inputs.before-script }}
+        run: ${INPUTS_BEFORE_SCRIPT}
+        env:
+          INPUTS_BEFORE_SCRIPT: ${{ inputs.before-script }}
 
       - name: Run sanitizer
         run: |
@@ -227,7 +230,7 @@ jobs:
           exit ${exit_code}
 
       - name: Upload logs
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: ${{ always() }}
         with:
           name: sanitizer-${{ inputs.avm-sanitizer-type }}-logs

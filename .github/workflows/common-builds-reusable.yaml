@@ -302,10 +302,11 @@ jobs:
     container:
       image: ${{ inputs.container-image }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           fetch-depth: 50
           lfs: true
+          persist-credentials: false
 
       - uses: ./.github/actions/common-setup
 
@@ -326,7 +327,7 @@ jobs:
           cmake --build avm_docs_build --target docs
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: success()
         with:
           name: documentation
@@ -353,14 +354,15 @@ jobs:
       CCACHE_COMPILERCHECK: content
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           fetch-depth: 50
           lfs: true
+          persist-credentials: false
 
       - uses: ./.github/actions/common-setup
 
-      - uses: actions/cache/restore@v5
+      - uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
           path: ccache
           key: non-existent
@@ -427,13 +429,13 @@ jobs:
         run: |
           ccache --show-stats
 
-      - uses: actions/cache/save@v5
+      - uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
           path: ccache
           key: ${{ github.job }}-${{ matrix.avm-sanitizer-type }}-${{ github.run_id }}
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
           name: avm-sanitizers-${{ matrix.avm-sanitizer-type }}
@@ -465,15 +467,16 @@ jobs:
       CCACHE_DIR: ${{ github.workspace }}/ccache
       CCACHE_COMPILERCHECK: content
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           fetch-depth: 50
           fetch-tags: true
           lfs: true
+          persist-credentials: false
 
       - uses: ./.github/actions/common-setup
 
-      - uses: actions/cache/restore@v5
+      - uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
           path: ccache
           key: non-existent
@@ -502,13 +505,13 @@ jobs:
         run: |
           ccache --show-stats
 
-      - uses: actions/cache/save@v5
+      - uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
           path: ccache
           key: ${{ github.job }}-${{ github.run_id }}
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: success()
         with:
           name: example-build

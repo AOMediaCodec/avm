@@ -58,10 +58,11 @@ jobs:
       AVM_BUILD_CONFIG: ${{ inputs.avm-build-config }}
       PARENT_JOB_NAME: ${{ inputs.parent-job-name }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           fetch-depth: 50
           lfs: true
+          persist-credentials: false
 
       - uses: ./.github/actions/common-setup
         with:
@@ -69,9 +70,11 @@ jobs:
           extra-env-vars: ${{ inputs.extra-env-vars }}
 
       - name: Run before-script
-        run: ${{ inputs.before-script }}
+        run: ${INPUTS_BEFORE_SCRIPT}
+        env:
+          INPUTS_BEFORE_SCRIPT: ${{ inputs.before-script }}
 
-      - uses: actions/cache/restore@v5
+      - uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
           path: ccache
           key: non-existent
@@ -179,13 +182,13 @@ jobs:
         run: |
           ccache --show-stats
 
-      - uses: actions/cache/save@v5
+      - uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
           path: ccache
           key: ${{ inputs.parent-job-name }}-${{ inputs.avm-build-config }}-${{ github.run_id }}
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: ${{ success() && inputs.artifact-paths != '' }}
         with:
           name: ${{ inputs.parent-job-name }}-${{ inputs.avm-build-config }}
