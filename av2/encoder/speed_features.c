@@ -491,12 +491,7 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.txfm_rd_gate_level = boosted ? 0 : 4;
 
     sf->inter_sf.prune_inter_modes_based_on_tpl = boosted ? 0 : 3;
-    sf->inter_sf.prune_compound_using_neighbors = 2;
     sf->inter_sf.prune_comp_using_best_single_mode_ref = 2;
-    sf->inter_sf.disable_smooth_interintra = 1;
-    sf->inter_sf.disable_onesided_comp = 1;
-
-    sf->interp_sf.use_interp_filter = 2;
 
     sf->intra_sf.intra_uv_mode_mask[TX_16X16] = UV_INTRA_DC_H_V_CFL;
     sf->intra_sf.intra_uv_mode_mask[TX_32X32] = UV_INTRA_DC_H_V_CFL;
@@ -508,21 +503,18 @@ static void set_good_speed_features_framesize_independent(
     // presets as well
     sf->intra_sf.skip_intra_in_interframe = 2;
 
-    sf->mv_sf.simple_motion_subpel_force_stop = HALF_PEL;
-
     sf->tpl_sf.prune_starting_mv = 2;
     sf->tpl_sf.subpel_force_stop = HALF_PEL;
     sf->tpl_sf.search_method = FAST_BIGDIA;
 
     sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 1;
-    sf->tx_sf.tx_type_search.fast_intra_tx_type_search = 1;
-    sf->tx_sf.tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_3;
+    sf->tx_sf.tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_2;
     sf->tx_sf.tx_type_search.prune_tx_type_est_rd = 1;
 
     sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 3 : 5;
     sf->rd_sf.perform_coeff_opt_based_on_satd =
         is_boosted_arf2_bwd_type ? 1 : 2;
-    sf->rd_sf.tx_domain_dist_thres_level = 2;
+    sf->rd_sf.tx_domain_dist_thres_level = 1;
 
     // TODO(any): Extend multi-winner mode processing support for inter frames
     sf->winner_mode_sf.multi_winner_mode_type =
