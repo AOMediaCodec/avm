@@ -7717,18 +7717,6 @@ static INLINE int skip_compound_using_best_single_mode_ref(
   return 1;
 }
 
-static int compare_int64(const void *a, const void *b) {
-  int64_t a64 = *((int64_t *)a);
-  int64_t b64 = *((int64_t *)b);
-  if (a64 < b64) {
-    return -1;
-  } else if (a64 == b64) {
-    return 0;
-  } else {
-    return 1;
-  }
-}
-
 static INLINE void update_search_state(
     InterModeSearchState *search_state, RD_STATS *best_rd_stats_dst,
     PICK_MODE_CONTEXT *ctx, const RD_STATS *new_best_rd_stats,
@@ -7773,31 +7761,21 @@ static INLINE void update_search_state(
                  ctx->num_4x4_blk_chroma);
 }
 
-// Find the best RD for a reference frame (among single reference modes)
-// and store +10% of it in the 0-th (or last for NRS) element in ref_frame_rd.
-static AVM_INLINE void find_top_ref(int64_t *ref_frame_rd) {
-  int64_t ref_copy[MAX_COMPOUND_REF_INDEX - 1];
-  assert(ref_frame_rd[INTRA_FRAME_INDEX] == INT64_MAX);
-  memcpy(ref_copy, ref_frame_rd,
-         sizeof(ref_frame_rd[0]) * (MAX_COMPOUND_REF_INDEX - 1));
-  qsort(ref_copy, MAX_COMPOUND_REF_INDEX - 1, sizeof(int64_t), compare_int64);
-
-  int64_t cutoff = AVMMIN(ref_copy[0], ref_frame_rd[TIP_FRAME_INDEX]);
-  // The cut-off is within 10% of the best.
+// Check if either ref frame is within a ~10% cutoff of the best single-ref-mode
+// RD seen so far. best_single_mode_rd is INT64_MAX until any single-ref mode
+// has completed, in which case both refs pass.
+static INLINE bool in_single_ref_cutoff(const int64_t *ref_frame_rd,
+                                        int64_t best_single_mode_rd,
+                                        MV_REFERENCE_FRAME frame1,
+                                        MV_REFERENCE_FRAME frame2) {
+  assert(is_inter_ref_frame(frame2));
+  int64_t cutoff = best_single_mode_rd;
+  // Keep the cut-off within 10% of the best.
   if (cutoff != INT64_MAX) {
     assert(cutoff < INT64_MAX / 200);
     cutoff = (110 * cutoff) / 100;
   }
-  ref_frame_rd[INTRA_FRAME_INDEX] = cutoff;
-}
-
-// Check if either frame is within the cutoff.
-static INLINE bool in_single_ref_cutoff(int64_t *ref_frame_rd,
-                                        MV_REFERENCE_FRAME frame1,
-                                        MV_REFERENCE_FRAME frame2) {
-  assert(is_inter_ref_frame(frame2));
-  return ref_frame_rd[frame1] <= ref_frame_rd[INTRA_FRAME_INDEX] ||
-         ref_frame_rd[frame2] <= ref_frame_rd[INTRA_FRAME_INDEX];
+  return ref_frame_rd[frame1] <= cutoff || ref_frame_rd[frame2] <= cutoff;
 }
 
 static AVM_INLINE void evaluate_motion_mode_for_winner_candidates(
@@ -7886,12 +7864,12 @@ typedef struct {
   uint64_t skip_ref_frame_mask;
   int reach_first_comp_mode;
   int mode_thresh_mul_fact;
-  int *num_single_modes_processed;
-  int prune_cpd_using_sr_stats_ready;
 } InterModeSFArgs;
 /*!\endcond */
 
-static int skip_inter_mode(AV2_COMP *cpi, MACROBLOCK *x, int64_t *ref_frame_rd,
+static int skip_inter_mode(AV2_COMP *cpi, MACROBLOCK *x,
+                           const int64_t *ref_frame_rd,
+                           int64_t best_single_mode_rd,
                            PREDICTION_MODE this_mode,
                            const MV_REFERENCE_FRAME *ref_frames,
                            InterModeSFArgs *args) {
@@ -7940,18 +7918,13 @@ static int skip_inter_mode(AV2_COMP *cpi, MACROBLOCK *x, int64_t *ref_frame_rd,
   }
 
   if (sf->inter_sf.prune_compound_using_single_ref) {
-    // After we done with single reference modes, find the 2nd best RD
-    // for a reference frame. Only search compound modes that have a reference
-    // frame at least as good as 110% the best one.
-    if (!args->prune_cpd_using_sr_stats_ready &&
-        *args->num_single_modes_processed ==
-            cpi->common.ref_frames_info.num_total_refs *
-                SINGLE_INTER_MODE_NUM) {
-      find_top_ref(ref_frame_rd);
-      args->prune_cpd_using_sr_stats_ready = 1;
-    }
-    if (args->prune_cpd_using_sr_stats_ready &&
-        !in_single_ref_cutoff(ref_frame_rd, ref_frame, second_ref_frame))
+    // Prune compound modes whose refs are not within the ~10% cutoff of the
+    // best single-ref-mode RD seen so far.
+    if (!(ref_frame < sf->inter_sf.skip_compound_prune_top_refs_num_ref0 &&
+          second_ref_frame <
+              sf->inter_sf.skip_compound_prune_top_refs_num_ref1) &&
+        !in_single_ref_cutoff(ref_frame_rd, best_single_mode_rd, ref_frame,
+                              second_ref_frame))
       return 1;
   }
 
@@ -8659,18 +8632,19 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
   InterModesInfo *inter_modes_info = x->inter_modes_info;
   inter_modes_info->num = 0;
 
-  int num_single_modes_processed = 0;
-
   // Temporary buffers used by handle_inter_mode().
   uint16_t *const tmp_buf = x->tmp_pred_bufs[0];
 
   // The best RD found for the reference frame, among single reference modes.
-  // Note that the 0-th element will contain a cut-off that is later used
-  // to determine if we should skip a compound mode.
+  // Read by in_single_ref_cutoff() to check whether either ref of a compound
+  // trial is within ~10% of the best single-ref-mode RD.
 
   int64_t ref_frame_rd[SINGLE_REF_FRAMES] = { INT64_MAX, INT64_MAX, INT64_MAX,
                                               INT64_MAX, INT64_MAX, INT64_MAX,
                                               INT64_MAX, INT64_MAX, INT64_MAX };
+  // Running minimum RD across all single-ref inter modes evaluated so far.
+  // Used as the anchor for the single-ref cutoff in in_single_ref_cutoff().
+  int64_t best_single_mode_rd = INT64_MAX;
 
   // Prepared stats used later to check if we could skip intra mode eval.
   int64_t inter_cost = -1;
@@ -8755,9 +8729,7 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
                               &search_state,
                               skip_ref_frame_mask,
                               0,
-                              mode_thresh_mul_fact,
-                              &num_single_modes_processed,
-                              0 };
+                              mode_thresh_mul_fact };
 
   const uint8_t enable_tx_prune = do_tx_search;
   // Pool of top model RDs used by prune_motion_mode(). When
@@ -8900,7 +8872,8 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
 
     set_ref_ptrs(cm, xd, ref_frame, second_ref_frame);
 
-    if (skip_inter_mode(cpi, x, ref_frame_rd, this_mode, ref_frames, &sf_args))
+    if (skip_inter_mode(cpi, x, ref_frame_rd, best_single_mode_rd, this_mode,
+                        ref_frames, &sf_args))
       continue;
 
     // Select prediction reference frames.
@@ -8932,7 +8905,6 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
         continue;
       }
 
-      num_single_modes_processed += is_single_pred;
       txfm_info->skip_txfm = 0;
 
       const int64_t ref_best_rd = search_state.best_rd;
@@ -8963,9 +8935,11 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
       if (is_single_pred) {
         if (prune_comp_best_single)
           update_best_single_mode(&search_state, this_mode, ref_frame, this_rd);
-        if (prune_comp_using_single_ref &&
-            this_rd < ref_frame_rd[ref_frame_index])
-          ref_frame_rd[ref_frame_index] = this_rd;
+        if (prune_comp_using_single_ref) {
+          if (this_rd < ref_frame_rd[ref_frame_index])
+            ref_frame_rd[ref_frame_index] = this_rd;
+          if (this_rd < best_single_mode_rd) best_single_mode_rd = this_rd;
+        }
       }
 
       if (mbmi->skip_txfm[xd->tree_type == CHROMA_PART]) {
