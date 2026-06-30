@@ -527,6 +527,13 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // aggressively than lower ones. (0 means no pruning).
   int selective_ref_frame;
 
+  // When 1, the top_motion_mode_model_rd[] pool used by
+  // prune_motion_mode() is shared across all prediction modes for the
+  // block (more aggressive pruning, faster, slight coding loss). When 0,
+  // each prediction mode keeps its own pool (slower, no coding loss).
+  // Enabled at speed >= 1.
+  int share_motion_mode_prune_pool;
+
   // Prune reference frames.
   // 0 implies no pruning
   // 1 implies prune for extended partition
