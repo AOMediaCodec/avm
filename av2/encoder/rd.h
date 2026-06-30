@@ -92,9 +92,6 @@ typedef struct RD_OPT {
 } RD_OPT;
 
 static INLINE void av2_init_rd_stats(RD_STATS *rd_stats) {
-#if CONFIG_RD_DEBUG
-  int plane;
-#endif
   rd_stats->rate = 0;
   rd_stats->dist = 0;
   rd_stats->rdcost = 0;
@@ -104,13 +101,12 @@ static INLINE void av2_init_rd_stats(RD_STATS *rd_stats) {
 #if CONFIG_RD_DEBUG
   // This may run into problems when monochrome video is
   // encoded, as there will only be 1 plane
-  for (plane = 0; plane < MAX_MB_PLANE; ++plane) {
+  for (int plane = 0; plane < MAX_MB_PLANE; ++plane) {
     rd_stats->txb_coeff_cost[plane] = 0;
-    {
-      int r, c;
-      for (r = 0; r < TXB_COEFF_COST_MAP_SIZE; ++r)
-        for (c = 0; c < TXB_COEFF_COST_MAP_SIZE; ++c)
-          rd_stats->txb_coeff_cost_map[plane][r][c] = 0;
+    for (int r = 0; r < TXB_COEFF_COST_MAP_SIZE; ++r) {
+      for (int c = 0; c < TXB_COEFF_COST_MAP_SIZE; ++c) {
+        rd_stats->txb_coeff_cost_map[plane][r][c] = 0;
+      }
     }
   }
 #endif
