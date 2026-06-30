@@ -333,6 +333,7 @@ static void set_good_speed_features_framesize_independent(
   sf->rd_sf.perform_coeff_opt = 1;
   if (speed >= 1) {
     sf->inter_sf.selective_ref_frame = 2;
+    sf->inter_sf.prune_newmv_modes_using_prior_rd = 1;
     sf->inter_sf.share_motion_mode_prune_pool = 1;
     sf->inter_sf.prune_compound_using_single_ref = 1;
     // TODO (Yeqing Wu): need to be tuned for speed > 1.
@@ -687,6 +688,7 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->reduce_inter_modes = 0;
   inter_sf->alt_ref_search_fp = 0;
   inter_sf->selective_ref_frame = 0;
+  inter_sf->prune_newmv_modes_using_prior_rd = 0;
   inter_sf->share_motion_mode_prune_pool = 0;
   inter_sf->prune_ref_frames = 0;
   inter_sf->disable_wedge_search_var_thresh = 0;

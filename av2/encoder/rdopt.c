@@ -110,6 +110,12 @@ typedef struct SingleInterModeState {
   int valid;
 } SingleInterModeState;
 
+// Returns the index into single_inter_rd[] for a single-ref inter mode.
+static INLINE int single_inter_mode_idx(PREDICTION_MODE mode) {
+  assert(mode >= SINGLE_INTER_MODE_START && mode < SINGLE_INTER_MODE_END);
+  return mode - SINGLE_INTER_MODE_START;
+}
+
 typedef struct InterModeSearchState {
   int64_t best_rd;
   int64_t best_skip_rd[2];
@@ -134,6 +140,12 @@ typedef struct InterModeSearchState {
   int64_t modelled_rd[MB_MODE_COUNT][MAX_REF_MV_SEARCH][SINGLE_REF_FRAMES];
   // The rd of simple translation in single inter modes
   int64_t simple_rd[MB_MODE_COUNT][MAX_REF_MV_SEARCH][SINGLE_REF_FRAMES];
+  // Best fast/full RD per single-ref inter mode, use_amvd option, and
+  // reference frame. Aggregated as the minimum across all motion modes,
+  // ref_mv_idx, MV precisions, bawp, refinemv and jmvd tuples for a given
+  // (mode, use_amvd, ref).
+  InterModeRdPair single_inter_rd[SINGLE_INTER_MODE_NUM][NUM_USE_AMVD_OPTIONS]
+                                 [SINGLE_REF_FRAMES];
   int64_t best_single_rd[SINGLE_REF_FRAMES];
   PREDICTION_MODE best_single_mode[SINGLE_REF_FRAMES];
 
@@ -2156,6 +2168,135 @@ static int prune_motion_mode(int64_t this_model_rd,
          top_motion_mode_model_rd[TOP_MOTION_MODE_MODEL_COUNT - 1];
 }
 
+// Records the best fast/full RD for a given (mode, refs) into the
+// single_inter_rd table in args. is_fast == 1 selects the fast (model-based,
+// pre-transform) slot; is_fast == 0 selects the full (post av2_txfm_search)
+// slot. True compound modes (refs[1] is an inter ref) are not tracked.
+// Interintra (refs[1] == INTRA_FRAME) is folded into the single-ref table
+// via refs[0].
+static AVM_INLINE void update_inter_mode_rd(HandleInterModeArgs *args,
+                                            const MB_MODE_INFO *mbmi,
+                                            int64_t rd, int is_fast) {
+  // Fast path when the consuming speed feature
+  // (prune_newmv_modes_using_prior_rd) is off: caller wires this pointer to
+  // NULL, so the whole tracker collapses to one pointer load + branch.
+  if (args->single_inter_rd == NULL) return;
+  const PREDICTION_MODE this_mode = mbmi->mode;
+  if (has_second_ref(mbmi) && mbmi->ref_frame[1] != INTRA_FRAME) return;
+  if (!is_inter_singleref_mode(this_mode)) return;
+  const int use_amvd = mbmi->use_amvd;
+  assert(use_amvd == 0 || use_amvd == 1);
+  const int rf0 = COMPACT_INDEX0_NRS(mbmi->ref_frame[0]);
+  assert(rf0 >= 0 && rf0 < SINGLE_REF_FRAMES);
+  InterModeRdPair *slot =
+      &args->single_inter_rd[single_inter_mode_idx(this_mode)][use_amvd][rf0];
+  int64_t *p = is_fast ? &slot->fast_rd : &slot->full_rd;
+  if (rd < *p) *p = rd;
+}
+
+// Returns 1 if a single-ref mode (e.g. NEWMV or GLOBALMV) for this ref frame
+// should be skipped because the matching reference RD is not within
+// (1 / slack_denom) of the best reference RD across all ref frames. Decision
+// rule: keep when EITHER full_rd OR fast_rd is within slack of its respective
+// best; prune when neither is (this includes the no-reference-data case).
+// slack_denom = 10 means 10% slack; slack_denom = 4 means 25% slack; lower
+// values are looser.
+static AVM_INLINE int prune_single_by_reference_rd(
+    const InterModeRdPair reference_rd[SINGLE_REF_FRAMES], int this_ref_idx,
+    int slack_denom) {
+  if (this_ref_idx < 0 || this_ref_idx >= SINGLE_REF_FRAMES) return 0;
+  if (slack_denom <= 0) return 0;
+  if (reference_rd[this_ref_idx].full_rd != INT64_MAX) {
+    int64_t best_full = INT64_MAX;
+    for (int r = 0; r < SINGLE_REF_FRAMES; ++r) {
+      if (reference_rd[r].full_rd < best_full)
+        best_full = reference_rd[r].full_rd;
+    }
+    if (reference_rd[this_ref_idx].full_rd <=
+        best_full + best_full / slack_denom) {
+      return 0;
+    }
+  }
+  if (reference_rd[this_ref_idx].fast_rd != INT64_MAX) {
+    int64_t best_fast = INT64_MAX;
+    for (int r = 0; r < SINGLE_REF_FRAMES; ++r) {
+      if (reference_rd[r].fast_rd < best_fast)
+        best_fast = reference_rd[r].fast_rd;
+    }
+    if (reference_rd[this_ref_idx].fast_rd <=
+        best_fast + best_fast / slack_denom) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+// Returns 1 if a single-ref NEWMV / WARP_NEWMV trial for this
+// (this_mode, ref_frame, use_amvd) should be skipped because the best RD
+// seen so far for this ref in a prior mode is far from the best
+// prior-mode RD across all refs. Returns 0 to keep evaluating, including
+// for any mode other than NEWMV / WARP_NEWMV and when the speed feature
+// is off.
+//
+// Exemptions:
+//   - speed feature prune_newmv_modes_using_prior_rd is off.
+//   - NEWMV with ref_frame <= 2 (top refs) or TIP.
+//   - WARP_NEWMV when lag_in_frames == 0.
+//
+// Prior-mode source selection (single_inter_rd is populated by earlier
+// outer-mode-loop iterations of NEARMV / NEWMV / WARPMV):
+//   - NEWMV with use_amvd == 1: prefer NEWMV[*][use_amvd=0] when
+//     populated (use_amvd=0 is searched first in the outer use_amvd
+//     loop), else fall back to NEARMV[*][0].
+//   - NEWMV with use_amvd == 0: NEARMV[*][0].
+//   - WARP_NEWMV: first populated of {NEWMV[*][0], WARPMV[*][0],
+//     NEWMV[*][1], NEARMV[*][0]}. WARP_NEWMV does not support AMVD,
+//     so use_amvd is always 0 here.
+//
+// NEARMV / WARPMV / WARP_NEWMV do not support AMVD, so they are
+// always written to the use_amvd=0 slot.
+static AVM_INLINE int prune_newmv_modes_by_prior_rd(
+    const AV2_COMP *cpi, const InterModeSearchState *search_state,
+    PREDICTION_MODE this_mode, int ref_frame, int use_amvd) {
+  if (!cpi->sf.inter_sf.prune_newmv_modes_using_prior_rd) return 0;
+  if (this_mode != NEWMV && this_mode != WARP_NEWMV) return 0;
+  if (this_mode == NEWMV && (ref_frame <= 2 || is_tip_ref_frame(ref_frame))) {
+    return 0;
+  }
+  if (this_mode == WARP_NEWMV && cpi->oxcf.gf_cfg.lag_in_frames == 0) return 0;
+
+  const int slack_denom = 10;
+  const int rf_idx = COMPACT_INDEX0_NRS(ref_frame);
+  const InterModeRdPair *prior =
+      search_state->single_inter_rd[single_inter_mode_idx(NEARMV)][0];
+  if (this_mode == NEWMV) {
+    if (use_amvd == 1) {
+      const InterModeRdPair *newmv_amvd0 =
+          search_state->single_inter_rd[single_inter_mode_idx(NEWMV)][0];
+      if (newmv_amvd0[rf_idx].full_rd != INT64_MAX ||
+          newmv_amvd0[rf_idx].fast_rd != INT64_MAX) {
+        prior = newmv_amvd0;
+      }
+    }
+    return prune_single_by_reference_rd(prior, rf_idx, slack_denom);
+  }
+
+  // WARP_NEWMV
+  const InterModeRdPair *const candidates[3] = {
+    search_state->single_inter_rd[single_inter_mode_idx(NEWMV)][0],
+    search_state->single_inter_rd[single_inter_mode_idx(WARPMV)][0],
+    search_state->single_inter_rd[single_inter_mode_idx(NEWMV)][1],
+  };
+  for (int cand = 0; cand < 3; ++cand) {
+    if (candidates[cand][rf_idx].full_rd != INT64_MAX ||
+        candidates[cand][rf_idx].fast_rd != INT64_MAX) {
+      prior = candidates[cand];
+      break;
+    }
+  }
+  return prune_single_by_reference_rd(prior, rf_idx, slack_denom);
+}
+
 // Handle SIMPLE_TRANSLATION motion mode: adjust MVD sign if needed.
 // Returns -1 to skip this motion mode iteration, 0 on success.
 static AVM_INLINE int handle_simple_translation_mode(
@@ -2812,6 +2953,7 @@ static AVM_INLINE int evaluate_motion_mode_trial(
     rd_stats->rate += est_residue_cost;
     rd_stats->dist = est_dist;
     rd_stats->rdcost = est_rd;
+    update_inter_mode_rd(args, mbmi, est_rd, 1);
     if (rd_stats->rdcost < *best_est_rd) {
       *best_est_rd = rd_stats->rdcost;
       assert(sse_y >= 0);
@@ -2854,6 +2996,7 @@ static AVM_INLINE int evaluate_motion_mode_trial(
           NULL, &curr_sse, NULL, NULL, NULL);
       int64_t est_rd =
           RDCOST(x->rdmult, rd_stats->rate + est_residue_cost, est_dist);
+      update_inter_mode_rd(args, mbmi, est_rd, 1);
       if (prune_motion_mode(est_rd, top_motion_mode_model_rd, cm, xd, bsize))
         return -1;
     }
@@ -2868,6 +3011,7 @@ static AVM_INLINE int evaluate_motion_mode_trial(
       return -1;
     }
     const int64_t curr_rd = RDCOST(x->rdmult, rd_stats->rate, rd_stats->dist);
+    update_inter_mode_rd(args, mbmi, curr_rd, 0);
     if (curr_rd < *ref_best_rd) {
       *ref_best_rd = curr_rd;
       ref_skip_rd[0] = skip_rd;
@@ -7142,6 +7286,17 @@ static AVM_INLINE void init_inter_mode_search_state(
     }
   }
 
+  if (cpi->sf.inter_sf.prune_newmv_modes_using_prior_rd) {
+    for (int m = 0; m < SINGLE_INTER_MODE_NUM; ++m) {
+      for (int u = 0; u < NUM_USE_AMVD_OPTIONS; ++u) {
+        for (int r = 0; r < SINGLE_REF_FRAMES; ++r) {
+          search_state->single_inter_rd[m][u][r].fast_rd = INT64_MAX;
+          search_state->single_inter_rd[m][u][r].full_rd = INT64_MAX;
+        }
+      }
+    }
+  }
+
   for (int dir = 0; dir < 2; ++dir) {
     for (int mode = 0; mode < SINGLE_INTER_MODE_NUM; ++mode) {
       for (int ref_frame = 0; ref_frame < SINGLE_REF_FRAMES; ++ref_frame) {
@@ -7980,7 +8135,7 @@ static void tx_search_best_inter_candidates(
     int64_t best_rd_so_far, BLOCK_SIZE bsize,
     struct buf_2d yv12_mb[SINGLE_REF_FRAMES][MAX_MB_PLANE], int mi_row,
     int mi_col, InterModeSearchState *search_state, RD_STATS *rd_cost,
-    PICK_MODE_CONTEXT *ctx) {
+    PICK_MODE_CONTEXT *ctx, HandleInterModeArgs *args) {
   AV2_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
   TxfmSearchInfo *txfm_info = &x->txfm_search_info;
@@ -8070,6 +8225,7 @@ static void tx_search_best_inter_candidates(
                   [skip_ctx][mbmi->skip_txfm[xd->tree_type == CHROMA_PART]]);
     }
     rd_stats.rdcost = RDCOST(x->rdmult, rd_stats.rate, rd_stats.dist);
+    update_inter_mode_rd(args, mbmi, rd_stats.rdcost, 0);
 
     const MV_REFERENCE_FRAME refs[2] = { mbmi->ref_frame[0],
                                          mbmi->ref_frame[1] };
@@ -8484,6 +8640,9 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
     INT_MAX,
     INT_MAX,
     search_state.simple_rd,
+    cpi->sf.inter_sf.prune_newmv_modes_using_prior_rd
+        ? search_state.single_inter_rd
+        : NULL,
     0,
     interintra_modes,
     { { 0, { { 0 } }, { 0 }, 0, 0, 0 } },
@@ -8905,6 +9064,15 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
         continue;
       }
 
+      // Skip single-ref NEWMV / WARP_NEWMV when prior-mode RD for this
+      // ref frame is far from the best across all refs. See
+      // prune_newmv_modes_by_prior_rd() for source selection and
+      // exemptions.
+      if (prune_newmv_modes_by_prior_rd(cpi, &search_state, this_mode,
+                                        ref_frame, mbmi->use_amvd)) {
+        continue;
+      }
+
       txfm_info->skip_txfm = 0;
 
       const int64_t ref_best_rd = search_state.best_rd;
@@ -8990,7 +9158,7 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
     // top mode candidates
     tx_search_best_inter_candidates(cpi, tile_data, x, best_rd_so_far, bsize,
                                     yv12_mb, mi_row, mi_col, &search_state,
-                                    rd_cost, ctx);
+                                    rd_cost, ctx, &args);
   }
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, do_tx_search_time);
