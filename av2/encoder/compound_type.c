@@ -121,8 +121,7 @@ static INLINE bool enable_wedge_interinter_search(MACROBLOCK *const x,
 static INLINE bool enable_wedge_interintra_search(MACROBLOCK *const x,
                                                   const AV2_COMP *const cpi) {
   return enable_wedge_search(x, cpi) &&
-         cpi->oxcf.comp_type_cfg.enable_interintra_wedge &&
-         !cpi->sf.inter_sf.disable_wedge_interintra_search;
+         cpi->oxcf.comp_type_cfg.enable_interintra_wedge;
 }
 
 static int8_t estimate_wedge_sign(const AV2_COMP *cpi, const MACROBLOCK *x,
@@ -582,8 +581,7 @@ static int handle_smooth_inter_intra_mode(
     }
     args->inter_intra_mode[mbmi->ref_frame[0]] = *best_interintra_mode;
   }
-  assert(IMPLIES(!cpi->oxcf.comp_type_cfg.enable_smooth_interintra ||
-                     cpi->sf.inter_sf.disable_smooth_interintra,
+  assert(IMPLIES(!cpi->oxcf.comp_type_cfg.enable_smooth_interintra,
                  *best_interintra_mode != II_SMOOTH_PRED));
   // Recompute prediction if required
   bool interintra_mode_reuse = cpi->sf.inter_sf.reuse_inter_intra_mode ||
@@ -634,8 +632,7 @@ static int handle_wedge_inter_intra_mode(
   const AV2_COMMON *const cm = &cpi->common;
   const int bw = block_size_wide[bsize];
   const int try_smooth_interintra =
-      cpi->oxcf.comp_type_cfg.enable_smooth_interintra &&
-      !cpi->sf.inter_sf.disable_smooth_interintra;
+      cpi->oxcf.comp_type_cfg.enable_smooth_interintra;
 
   mbmi->use_wedge_interintra = 1;
   assert(IMPLIES(!mbmi->warp_inter_intra, mbmi->motion_mode == INTERINTRA));
@@ -757,8 +754,7 @@ int av2_handle_inter_intra_mode(const AV2_COMP *const cpi, MACROBLOCK *const x,
   const MOTION_MODE org_motion_mode = mbmi->motion_mode;
   const MOTION_MODE org_warp_inter_intra = mbmi->warp_inter_intra;
   const int try_smooth_interintra =
-      cpi->oxcf.comp_type_cfg.enable_smooth_interintra &&
-      !cpi->sf.inter_sf.disable_smooth_interintra;
+      cpi->oxcf.comp_type_cfg.enable_smooth_interintra;
 
   const int is_wedge_used = av2_is_wedge_used(bsize);
   const int try_wedge_interintra =

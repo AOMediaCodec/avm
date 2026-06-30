@@ -1804,14 +1804,10 @@ get_tx_mask(const AV2_COMP *cpi, MACROBLOCK *x, int plane, int block,
 
     if (cpi->sf.tx_sf.tx_type_search.prune_tx_type_using_stats) {
       // TODO(yunqing): adjust the thresholds.
-      static const int thresh_arr[2][FRAME_UPDATE_TYPES] = {
-        { 10, 15, 15, 10, 15, 15, 15, 0, 0 },
-        { 10, 17, 17, 10, 17, 17, 17, 0, 0 }
-      };
+      static const int thresh_arr[FRAME_UPDATE_TYPES] = { 10, 17, 17, 10, 17,
+                                                          17, 17, 0,  0 };
 
-      const int thresh =
-          thresh_arr[cpi->sf.tx_sf.tx_type_search.prune_tx_type_using_stats - 1]
-                    [update_type];
+      const int thresh = thresh_arr[update_type];
       uint16_t prune = 0;
       int max_prob = -1;
       int max_idx = 0;
@@ -2315,7 +2311,6 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
     xd->enable_ist =
         (is_inter_block(mbmi, xd->tree_type) ? cm->seq_params.enable_inter_ist
                                              : cm->seq_params.enable_ist) &&
-        !cpi->sf.tx_sf.tx_type_search.skip_stx_search &&
         !mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
         !xd->lossless[mbmi->segment_id];
 
@@ -2648,8 +2643,7 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
   // Intra mode needs decoded pixels such that the next transform block
   // can use them for prediction. If cctx is enabled, this reconstruction
   // should be done later in search_cctx_type, when cctx type is chosen.
-  if (plane == AVM_PLANE_Y || !is_cctx_allowed(cm, xd) ||
-      cpi->sf.tx_sf.tx_type_search.skip_cctx_search) {
+  if (plane == AVM_PLANE_Y || !is_cctx_allowed(cm, xd)) {
     recon_intra(cpi, x, plane, block, blk_row, blk_col, plane_bsize, tx_size,
                 txb_ctx, skip_trellis, best_tx_type, 0, &rate_cost, best_eob);
     p->dqcoeff = orig_dqcoeff;
@@ -4030,8 +4024,7 @@ int av2_txfm_uvrd(const AV2_COMP *const cpi, MACROBLOCK *x, RD_STATS *rd_stats,
 
   const int skip_trellis = 0;
   int is_cost_valid = 1;
-  if (is_cctx_allowed(&cpi->common, xd) &&
-      !cpi->sf.tx_sf.tx_type_search.skip_cctx_search) {
+  if (is_cctx_allowed(&cpi->common, xd)) {
     RD_STATS this_rd_stats;
     int64_t chroma_ref_best_rd = ref_best_rd;
     if (cpi->sf.inter_sf.perform_best_rd_based_gating_for_chroma && is_inter &&

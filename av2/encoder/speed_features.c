@@ -219,7 +219,7 @@ static void set_good_speed_feature_framesize_dependent(
     }
 
     if (is_480p_or_larger) {
-      sf->tx_sf.tx_type_search.prune_tx_type_using_stats = 2;
+      sf->tx_sf.tx_type_search.prune_tx_type_using_stats = 1;
     }
   }
 
@@ -322,8 +322,6 @@ static void set_good_speed_features_framesize_independent(
   sf->tx_sf.model_based_prune_tx_search_level = 1;
   sf->tx_sf.prune_tx_rd_eval_sec_tx_sse = true;
   sf->tx_sf.tx_type_search.use_reduced_intra_txset = 1;
-  sf->tx_sf.tx_type_search.skip_stx_search = 0;
-  sf->tx_sf.tx_type_search.skip_cctx_search = 0;
 
   if (cpi->twopass.fr_content_type == FC_HIGHMOTION ||
       cpi->is_screen_content_type) {
@@ -700,16 +698,12 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->skip_repeated_full_newmv = 0;
   inter_sf->inter_mode_rd_model_estimation = 0;
   inter_sf->prune_compound_using_single_ref = 0;
-  inter_sf->prune_compound_using_neighbors = 0;
   inter_sf->prune_comp_using_best_single_mode_ref = 0;
-  inter_sf->disable_onesided_comp = 0;
   inter_sf->prune_mode_search_simple_translation = 0;
   inter_sf->prune_comp_type_by_comp_avg = 0;
   inter_sf->disable_interinter_wedge_newmv_search = 0;
   inter_sf->enable_interinter_diffwtd_newmv_search = 0;
-  inter_sf->disable_smooth_interintra = 0;
   inter_sf->prune_motion_mode_level = 0;
-  inter_sf->disable_wedge_interintra_search = 0;
   inter_sf->fast_interintra_wedge_search = 0;
   inter_sf->prune_comp_type_by_model_rd = 0;
   inter_sf->perform_best_rd_based_gating_for_chroma = 0;
@@ -749,7 +743,6 @@ static AVM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
   tx_sf->tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_1;
   tx_sf->tx_type_search.use_skip_flag_prediction = 1;
   tx_sf->tx_type_search.use_reduced_intra_txset = 0;
-  tx_sf->tx_type_search.fast_intra_tx_type_search = 0;
   tx_sf->tx_type_search.fast_inter_tx_type_search = 0;
   tx_sf->tx_type_search.skip_tx_search = 0;
   tx_sf->tx_type_search.prune_tx_type_using_stats = 0;
@@ -1030,9 +1023,6 @@ void av2_set_speed_features_framesize_independent(AV2_COMP *cpi, int speed) {
     cpi->common.seq_params.enable_masked_compound &=
         !sf->inter_sf.disable_masked_comp;
 
-    if (sf->inter_sf.disable_wedge_interintra_search) {
-      cpi->common.seq_params.seq_enabled_motion_modes &= ~(1 << INTERINTRA);
-    }
     if (sf->intra_sf.skip_intra_dip_search) {
       cpi->common.seq_params.enable_intra_dip = 0;
     }

@@ -6319,9 +6319,7 @@ static AVM_INLINE void rd_pick_skip_mode(
   assert(second_ref_frame != NONE_FRAME);
   const PREDICTION_MODE this_mode = NEAR_NEARMV;
 
-  if ((!cpi->oxcf.ref_frm_cfg.enable_onesided_comp ||
-       cpi->sf.inter_sf.disable_onesided_comp) &&
-      cpi->all_one_sided_refs) {
+  if (!cpi->oxcf.ref_frm_cfg.enable_onesided_comp && cpi->all_one_sided_refs) {
     return;
   }
 
@@ -6877,8 +6875,7 @@ static AVM_INLINE int prune_ref_frame(const AV2_COMP *cpi, const MACROBLOCK *x,
   av2_set_ref_frame(rf, ref_frame);
   const int comp_pred = is_inter_ref_frame(rf[1]);
   if (comp_pred) {
-    if (!cpi->oxcf.ref_frm_cfg.enable_onesided_comp ||
-        cpi->sf.inter_sf.disable_onesided_comp) {
+    if (!cpi->oxcf.ref_frm_cfg.enable_onesided_comp) {
       // Disable all compound references
       if (cpi->all_one_sided_refs) return 1;
       // If both references are on the same side prune
@@ -7647,47 +7644,6 @@ static int compound_skip_by_single_states(
   return 0;
 }
 
-// Check if ref frames of current block matches with given block.
-static INLINE void match_ref_frame(const MB_MODE_INFO *const mbmi,
-                                   const MV_REFERENCE_FRAME *ref_frames,
-                                   int *const is_ref_match) {
-  if (is_inter_block(mbmi, SHARED_PART)) {
-    is_ref_match[0] |= ref_frames[0] == mbmi->ref_frame[0];
-    is_ref_match[1] |= ref_frames[1] == mbmi->ref_frame[0];
-    if (has_second_ref(mbmi)) {
-      is_ref_match[0] |= ref_frames[0] == mbmi->ref_frame[1];
-      is_ref_match[1] |= ref_frames[1] == mbmi->ref_frame[1];
-    }
-  }
-}
-
-// Prune compound mode using ref frames of neighbor blocks.
-static INLINE int compound_skip_using_neighbor_refs(
-    MACROBLOCKD *const xd, const PREDICTION_MODE this_mode,
-    const MV_REFERENCE_FRAME *ref_frames, int prune_compound_using_neighbors) {
-  // Exclude non-extended compound modes from pruning
-  if (this_mode == NEAR_NEARMV || this_mode == NEW_NEWMV ||
-      this_mode == GLOBAL_GLOBALMV)
-    return 0;
-
-  int is_ref_match[2] = { 0 };  // 0 - match for forward refs
-                                // 1 - match for backward refs
-  // Check if ref frames of this block matches with left neighbor.
-  if (xd->left_available)
-    match_ref_frame(xd->left_mbmi, ref_frames, is_ref_match);
-
-  // Check if ref frames of this block matches with above neighbor.
-  if (xd->up_available)
-    match_ref_frame(xd->above_mbmi, ref_frames, is_ref_match);
-
-  // Combine ref frame match with neighbors in forward and backward refs.
-  const int track_ref_match = is_ref_match[0] + is_ref_match[1];
-
-  // Pruning based on ref frame match with neighbors.
-  if (track_ref_match >= prune_compound_using_neighbors) return 0;
-  return 1;
-}
-
 // Update best single mode for the given reference frame based on simple rd.
 static INLINE void update_best_single_mode(InterModeSearchState *search_state,
                                            const PREDICTION_MODE this_mode,
@@ -7982,13 +7938,6 @@ static int skip_inter_mode(AV2_COMP *cpi, MACROBLOCK *x, const BLOCK_SIZE bsize,
     }
     if (args->prune_cpd_using_sr_stats_ready &&
         !in_single_ref_cutoff(ref_frame_rd, ref_frame, second_ref_frame))
-      return 1;
-  }
-
-  if (sf->inter_sf.prune_compound_using_neighbors && comp_pred) {
-    if (compound_skip_using_neighbor_refs(
-            xd, this_mode, ref_frames,
-            sf->inter_sf.prune_compound_using_neighbors))
       return 1;
   }
 
