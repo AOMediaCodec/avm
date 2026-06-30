@@ -300,7 +300,6 @@ static void set_good_speed_features_framesize_independent(
   sf->inter_sf.inter_mode_rd_model_estimation = 0;
 
   sf->inter_sf.model_based_post_interp_filter_breakout = 1;
-  sf->inter_sf.prune_compound_using_single_ref = 1;
   sf->inter_sf.prune_mode_search_simple_translation = 1;
   sf->inter_sf.prune_motion_mode_level = 1;
   sf->inter_sf.prune_ref_frames = 0;
@@ -334,6 +333,7 @@ static void set_good_speed_features_framesize_independent(
   sf->rd_sf.perform_coeff_opt = 1;
   if (speed >= 1) {
     sf->inter_sf.selective_ref_frame = 2;
+    sf->inter_sf.share_motion_mode_prune_pool = 1;
 
     sf->tx_sf.adaptive_tx_type_search_idx = 4;
     sf->tx_sf.adaptive_tx_partition_type_search_idx = 4;
@@ -683,6 +683,7 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->reduce_inter_modes = 0;
   inter_sf->alt_ref_search_fp = 0;
   inter_sf->selective_ref_frame = 0;
+  inter_sf->share_motion_mode_prune_pool = 0;
   inter_sf->prune_ref_frames = 0;
   inter_sf->disable_wedge_search_var_thresh = 0;
   inter_sf->fast_wedge_sign_estimate = 0;
