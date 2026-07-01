@@ -199,10 +199,6 @@ static void set_good_speed_feature_framesize_dependent(
   if (speed >= 3) {
     sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
 
-    if (is_480p_or_larger) {
-      sf->tx_sf.tx_type_search.prune_tx_type_using_stats = 1;
-    }
-
     sf->part_sf.ml_early_term_after_part_split_level = 0;
 
     if (is_720p_or_larger) {
@@ -223,7 +219,7 @@ static void set_good_speed_feature_framesize_dependent(
     }
 
     if (is_480p_or_larger) {
-      sf->tx_sf.tx_type_search.prune_tx_type_using_stats = 2;
+      sf->tx_sf.tx_type_search.prune_tx_type_using_stats = 1;
     }
   }
 
@@ -328,8 +324,6 @@ static void set_good_speed_features_framesize_independent(
   sf->tx_sf.model_based_prune_tx_search_level = 1;
   sf->tx_sf.prune_tx_rd_eval_sec_tx_sse = true;
   sf->tx_sf.tx_type_search.use_reduced_intra_txset = 1;
-  sf->tx_sf.tx_type_search.skip_stx_search = 0;
-  sf->tx_sf.tx_type_search.skip_cctx_search = 0;
 
   if (cpi->twopass.fr_content_type == FC_HIGHMOTION ||
       cpi->is_screen_content_type) {
@@ -357,6 +351,9 @@ static void set_good_speed_features_framesize_independent(
     // speed feature accordingly
     sf->part_sf.simple_motion_search_split = allow_screen_content_tools ? 1 : 2;
 
+    sf->part_sf.disable_uneven_4way_partitions = true;
+    sf->part_sf.disable_ext_partitions = true;
+
     if (cpi->twopass.fr_content_type == FC_HIGHMOTION ||
         cpi->is_screen_content_type) {
       sf->mv_sf.exhaustive_searches_thresh = (1 << 21);
@@ -378,17 +375,13 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.selective_ref_frame = 2;
     sf->inter_sf.skip_repeated_newmv = 1;
 
-    sf->interp_sf.use_interp_filter = 1;
     sf->intra_sf.prune_palette_search_level = 1;
-    sf->intra_sf.skip_intra_dip_search = true;
 
     sf->tx_sf.adaptive_tx_type_search_idx = 4;
     sf->tx_sf.adaptive_tx_partition_type_search_idx = 4;
     sf->tx_sf.model_based_prune_tx_search_level = 0;
     sf->tx_sf.tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_2;
-    sf->tx_sf.tx_type_search.skip_tx_search = 1;
 
-    sf->rd_sf.disable_tcq = 1;
     sf->rd_sf.perform_coeff_opt = boosted ? 2 : 3;
     sf->rd_sf.tx_domain_dist_level = boosted ? 1 : 2;
     sf->rd_sf.tx_domain_dist_thres_level = 1;
@@ -401,6 +394,14 @@ static void set_good_speed_features_framesize_independent(
   }
 
   if (speed >= 3) {
+    // These features are moved down from speed 2
+    // --- Start ---
+    sf->interp_sf.use_interp_filter = 1;
+    sf->tx_sf.tx_type_search.skip_tx_search = 1;
+    sf->intra_sf.skip_intra_dip_search = true;
+    sf->rd_sf.disable_tcq = 1;
+    // --- End ---
+
     sf->hl_sf.high_precision_mv_usage = CURRENT_Q;
     sf->hl_sf.recode_loop = ALLOW_RECODE_KFARFGF;
 
@@ -419,7 +420,6 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.full_pixel_search_level = 1;
     sf->mv_sf.simple_motion_subpel_force_stop = QUARTER_PEL;
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED;
-    sf->mv_sf.search_method = DIAMOND;
 
     sf->gm_sf.num_refinement_steps = 0;
 
@@ -431,19 +431,13 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.comp_inter_joint_search_thresh = BLOCK_SIZES_ALL;
     sf->inter_sf.disable_wedge_search_var_thresh = 100;
     sf->inter_sf.fast_interintra_wedge_search = 1;
-    sf->inter_sf.prune_compound_using_neighbors = 1;
     sf->inter_sf.prune_comp_type_by_comp_avg = 2;
     sf->inter_sf.disable_sb_level_mv_cost_upd = 1;
-    // TODO(yunqing): evaluate this speed feature for speed 1 & 2, and combine
-    // it with cpi->sf.disable_wedge_search_var_thresh.
-    sf->inter_sf.disable_wedge_interintra_search = 1;
-    sf->inter_sf.disable_smooth_interintra = boosted ? 0 : 1;
     // TODO(any): Experiment with the early exit mechanism for speeds 0, 1 and 2
     // and clean-up the speed feature
     sf->inter_sf.perform_best_rd_based_gating_for_chroma = 1;
     sf->inter_sf.prune_inter_modes_based_on_tpl = boosted ? 0 : 1;
     sf->inter_sf.prune_comp_search_by_single_result = boosted ? 4 : 2;
-    sf->inter_sf.selective_ref_frame = 4;
     sf->inter_sf.skip_repeated_ref_mv = 1;
     sf->inter_sf.skip_repeated_full_newmv = 1;
     // TODO(any): Set this speed feature to 2 after correcting the match
@@ -464,8 +458,6 @@ static void set_good_speed_features_framesize_independent(
     sf->tpl_sf.subpel_force_stop = QUARTER_PEL;
     sf->tpl_sf.search_method = DIAMOND;
 
-    sf->tx_sf.tx_type_search.skip_stx_search = 1;
-    sf->tx_sf.tx_type_search.skip_cctx_search = 1;
     sf->tx_sf.adaptive_tx_type_search_idx = boosted ? 4 : 5;
     sf->tx_sf.adaptive_tx_partition_type_search_idx = boosted ? 4 : 5;
     sf->tx_sf.tx_type_search.use_skip_flag_prediction = 2;
@@ -499,12 +491,7 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.txfm_rd_gate_level = boosted ? 0 : 4;
 
     sf->inter_sf.prune_inter_modes_based_on_tpl = boosted ? 0 : 3;
-    sf->inter_sf.prune_compound_using_neighbors = 2;
     sf->inter_sf.prune_comp_using_best_single_mode_ref = 2;
-    sf->inter_sf.disable_smooth_interintra = 1;
-    sf->inter_sf.disable_onesided_comp = 1;
-
-    sf->interp_sf.use_interp_filter = 2;
 
     sf->intra_sf.intra_uv_mode_mask[TX_16X16] = UV_INTRA_DC_H_V_CFL;
     sf->intra_sf.intra_uv_mode_mask[TX_32X32] = UV_INTRA_DC_H_V_CFL;
@@ -516,21 +503,18 @@ static void set_good_speed_features_framesize_independent(
     // presets as well
     sf->intra_sf.skip_intra_in_interframe = 2;
 
-    sf->mv_sf.simple_motion_subpel_force_stop = HALF_PEL;
-
     sf->tpl_sf.prune_starting_mv = 2;
     sf->tpl_sf.subpel_force_stop = HALF_PEL;
     sf->tpl_sf.search_method = FAST_BIGDIA;
 
     sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 1;
-    sf->tx_sf.tx_type_search.fast_intra_tx_type_search = 1;
-    sf->tx_sf.tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_3;
+    sf->tx_sf.tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_2;
     sf->tx_sf.tx_type_search.prune_tx_type_est_rd = 1;
 
     sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 3 : 5;
     sf->rd_sf.perform_coeff_opt_based_on_satd =
         is_boosted_arf2_bwd_type ? 1 : 2;
-    sf->rd_sf.tx_domain_dist_thres_level = 2;
+    sf->rd_sf.tx_domain_dist_thres_level = 1;
 
     // TODO(any): Extend multi-winner mode processing support for inter frames
     sf->winner_mode_sf.multi_winner_mode_type =
@@ -555,15 +539,10 @@ static void set_good_speed_features_framesize_independent(
         frame_is_intra_only(&cpi->common) ? MULTI_WINNER_MODE_FAST
                                           : MULTI_WINNER_MODE_OFF;
 
-    sf->lpf_sf.disable_lr_filter = 1;
-
     sf->mv_sf.prune_mesh_search = 1;
     sf->mv_sf.warp_search_method = WARP_SEARCH_DIAMOND;
 
     sf->tpl_sf.prune_starting_mv = 3;
-
-    sf->winner_mode_sf.dc_blk_pred_level = 1;
-    sf->winner_mode_sf.tx_size_search_level = USE_LARGESTALL;
   }
 
   if (speed >= 6) {
@@ -663,6 +642,8 @@ static AVM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->prune_split_ml_level = -2;  // default pruning
   part_sf->prune_split_ml_level_inter = -1;
 #endif  // CONFIG_ML_PART_SPLIT
+  part_sf->disable_ext_partitions = false;
+  part_sf->disable_uneven_4way_partitions = false;
 }
 
 static AVM_INLINE void init_mv_sf(MV_SPEED_FEATURES *mv_sf) {
@@ -719,16 +700,12 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->skip_repeated_full_newmv = 0;
   inter_sf->inter_mode_rd_model_estimation = 0;
   inter_sf->prune_compound_using_single_ref = 0;
-  inter_sf->prune_compound_using_neighbors = 0;
   inter_sf->prune_comp_using_best_single_mode_ref = 0;
-  inter_sf->disable_onesided_comp = 0;
   inter_sf->prune_mode_search_simple_translation = 0;
   inter_sf->prune_comp_type_by_comp_avg = 0;
   inter_sf->disable_interinter_wedge_newmv_search = 0;
   inter_sf->enable_interinter_diffwtd_newmv_search = 0;
-  inter_sf->disable_smooth_interintra = 0;
   inter_sf->prune_motion_mode_level = 0;
-  inter_sf->disable_wedge_interintra_search = 0;
   inter_sf->fast_interintra_wedge_search = 0;
   inter_sf->prune_comp_type_by_model_rd = 0;
   inter_sf->perform_best_rd_based_gating_for_chroma = 0;
@@ -768,7 +745,6 @@ static AVM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
   tx_sf->tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_1;
   tx_sf->tx_type_search.use_skip_flag_prediction = 1;
   tx_sf->tx_type_search.use_reduced_intra_txset = 0;
-  tx_sf->tx_type_search.fast_intra_tx_type_search = 0;
   tx_sf->tx_type_search.fast_inter_tx_type_search = 0;
   tx_sf->tx_type_search.skip_tx_search = 0;
   tx_sf->tx_type_search.prune_tx_type_using_stats = 0;
@@ -1054,9 +1030,6 @@ void av2_set_speed_features_framesize_independent(AV2_COMP *cpi, int speed) {
     cpi->common.seq_params.enable_masked_compound &=
         !sf->inter_sf.disable_masked_comp;
 
-    if (sf->inter_sf.disable_wedge_interintra_search) {
-      cpi->common.seq_params.seq_enabled_motion_modes &= ~(1 << INTERINTRA);
-    }
     if (sf->intra_sf.skip_intra_dip_search) {
       cpi->common.seq_params.enable_intra_dip = 0;
     }
