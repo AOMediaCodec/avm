@@ -3096,7 +3096,7 @@ static void rd_pick_rect_partition(
   if (pc_tree->region_type == MIXED_INTER_INTRA_REGION && pc_tree->parent &&
       is_extended_sdp_allowed(cpi->common.seq_params.enable_extended_sdp,
                               pc_tree->parent->block_size, parent_partition) &&
-      is_bsize_allowed_for_extended_sdp(bsize, PARTITION_HORZ))
+      is_bsize_allowed_for_extended_sdp(bsize, partition_type))
     sum_rdc->rate +=
         part_search_state->region_type_cost[MIXED_INTER_INTRA_REGION];
   sum_rdc->rdcost = RDCOST(x->rdmult, sum_rdc->rate, 0);
@@ -5076,7 +5076,7 @@ static void search_partition_horz_4b(
       is_extended_sdp_allowed(cpi->common.seq_params.enable_extended_sdp,
                               pc_tree->parent->block_size,
                               pc_tree->parent->partitioning) &&
-      is_bsize_allowed_for_extended_sdp(bsize, PARTITION_HORZ_4A))
+      is_bsize_allowed_for_extended_sdp(bsize, PARTITION_HORZ_4B))
     sum_rdc.rate +=
         part_search_state->region_type_cost[MIXED_INTER_INTRA_REGION];
   sum_rdc.rdcost = RDCOST(x->rdmult, sum_rdc.rate, 0);
