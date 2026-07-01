@@ -146,7 +146,6 @@ enum {
 
 typedef struct {
   TX_TYPE_PRUNE_MODE prune_2d_txfm_mode;
-  int fast_intra_tx_type_search;
   int fast_inter_tx_type_search;
 
   // prune two least frequently chosen transforms for each intra mode
@@ -170,10 +169,6 @@ typedef struct {
   // mode evaluation and disables tx type mode pruning for winner mode
   // processing.
   int winner_mode_tx_type_pruning;
-  // Speed feature to disable intra secondary transform
-  int skip_stx_search;
-  // Speed feature to disable cross chroma component transform
-  int skip_cctx_search;
 } TX_TYPE_SEARCH;
 
 enum {
@@ -433,6 +428,9 @@ typedef struct PARTITION_SPEED_FEATURES {
   int prune_split_ml_level_inter;
   int prune_none_with_ml;
 #endif  // CONFIG_ML_PART_SPLIT
+
+  bool disable_ext_partitions;
+  bool disable_uneven_4way_partitions;
 } PARTITION_SPEED_FEATURES;
 
 typedef struct MV_SPEED_FEATURES {
@@ -599,13 +597,6 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // the single reference modes, it is one of the two best performers.
   int prune_compound_using_single_ref;
 
-  // Skip extended compound mode using ref frames of above and left neighbor
-  // blocks.
-  // 0 : no pruning
-  // 1 : prune extended compound mode (less aggressiveness)
-  // 2 : prune extended compound mode (high aggressiveness)
-  int prune_compound_using_neighbors;
-
   // Skip extended compound mode when ref frame corresponding to NEWMV does not
   // have NEWMV as single mode winner.
   // 0 : no pruning
@@ -615,9 +606,6 @@ typedef struct INTER_MODE_SPEED_FEATURES {
 
   // Based on previous ref_mv_idx search result, prune the following search.
   int prune_ref_mv_idx_search;
-
-  // Disable one sided compound modes.
-  int disable_onesided_comp;
 
   // Prune/gate motion mode evaluation based on token based rd
   // during transform search for inter blocks
@@ -630,9 +618,6 @@ typedef struct INTER_MODE_SPEED_FEATURES {
 
   // Prune warpmv with mvd search using previous frame stats.
   int prune_warpmv_prob_thresh;
-
-  // Enable/disable interintra wedge search.
-  int disable_wedge_interintra_search;
 
   // De-couple wedge and mode search during interintra RDO.
   int fast_interintra_wedge_search;
@@ -652,9 +637,6 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Enable/disable ME for interinter diffwtd search. PSNR BD-rate gain of
   // ~0.1 on the lowres test set, but ~15% slower computation.
   int enable_interinter_diffwtd_newmv_search;
-
-  // Enable/disable smooth inter-intra mode
-  int disable_smooth_interintra;
 
   // Disable interinter_wedge
   int disable_interinter_wedge;
