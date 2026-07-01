@@ -1107,7 +1107,11 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
 
     res = decode_one(ctx, &data_start, frame_unit_size, user_priv);
 
-    if (res != AVM_CODEC_OK) return res;
+    if (res != AVM_CODEC_OK) {
+      free(frame_worker_data->pbi->obu_list);
+      frame_worker_data->pbi->num_obus_with_frame_unit = 0;
+      return res;
+    }
 
     set_last_frame_unit(frame_worker_data->pbi);
     free(frame_worker_data->pbi->obu_list);
