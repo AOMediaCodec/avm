@@ -1751,7 +1751,7 @@ AV2_COMP *av2_create_compressor(AV2EncoderConfig *oxcf, BufferPool *const pool,
 
 #if CONFIG_COLLECT_PARTITION_STATS == 2
   av2_zero(cpi->partition_stats);
-#endif
+#endif  // CONFIG_COLLECT_PARTITION_STATS == 2
 
   highbd_set_var_fns(cpi);
 
@@ -1963,9 +1963,10 @@ void av2_remove_compressor(AV2_COMP *cpi) {
 
 #if CONFIG_COLLECT_PARTITION_STATS == 2
     if (!is_stat_generation_stage(cpi)) {
-      av2_print_partition_stats(&cpi->partition_stats);
+      av2_print_fr_partition_timing_stats(&cpi->partition_stats,
+                                          "fr_part_timing_data.csv");
     }
-#endif
+#endif  // CONFIG_COLLECT_PARTITION_STATS == 2
   }
 
   TplParams *const tpl_data = &cpi->tpl_data;

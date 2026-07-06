@@ -2871,6 +2871,93 @@ static AVM_INLINE PARTITION_TYPE get_forced_partition_type(
   return PARTITION_INVALID;
 }
 
+#if CONFIG_COLLECT_PARTITION_STATS
+static void init_partition_block_timing_stats(
+    PartitionTimingStats *part_timing_stats) {
+  av2_zero(*part_timing_stats);
+}
+
+static INLINE void start_partition_block_timer(
+    PartitionTimingStats *part_timing_stats, PARTITION_TYPE partition_type) {
+  assert(!part_timing_stats->timer_is_on);
+  part_timing_stats->partition_attempts[partition_type] += 1;
+  avm_usec_timer_start(&part_timing_stats->timer);
+  part_timing_stats->timer_is_on = 1;
+}
+
+static INLINE void end_partition_block_timer(
+    PartitionTimingStats *part_timing_stats, PARTITION_TYPE partition_type,
+    int64_t rdcost) {
+  if (part_timing_stats->timer_is_on) {
+    avm_usec_timer_mark(&part_timing_stats->timer);
+    const int64_t time = avm_usec_timer_elapsed(&part_timing_stats->timer);
+    part_timing_stats->partition_times[partition_type] += time;
+    part_timing_stats->partition_times[partition_type] = rdcost;
+    part_timing_stats->timer_is_on = 0;
+  }
+}
+
+static INLINE void print_partition_timing_stats_with_rdcost(
+    const PartitionTimingStats *part_timing_stats, int bsize, int mi_row,
+    int mi_col, const RD_STATS *best_rdc, const char *filename) {
+  FILE *f = fopen(filename, "a");
+  fprintf(f, "%d,%d,%d,%d,%" PRId64 ",%" PRId64 ",", bsize, mi_row, mi_col,
+          best_rdc->rate, best_rdc->dist, best_rdc->rdcost);
+  for (int idx = 0; idx < ALL_PARTITION_TYPES; idx++) {
+    fprintf(f, "%d,", part_timing_stats->partition_decisions[idx]);
+  }
+  for (int idx = 0; idx < ALL_PARTITION_TYPES; idx++) {
+    fprintf(f, "%d,", part_timing_stats->partition_attempts[idx]);
+  }
+  for (int idx = 0; idx < ALL_PARTITION_TYPES; idx++) {
+    fprintf(f, "%" PRId64 ",", part_timing_stats->partition_times[idx]);
+  }
+  for (int idx = 0; idx < ALL_PARTITION_TYPES; idx++) {
+    if (part_timing_stats->partition_rdcost[idx] == INT64_MAX) {
+      fprintf(f, "%d,", -1);
+    } else {
+      fprintf(f, "%" PRId64 ",", part_timing_stats->partition_rdcost[idx]);
+    }
+  }
+  fprintf(f, "\n");
+  fclose(f);
+}
+
+static INLINE void print_partition_timing_stats(
+    const PartitionTimingStats *part_timing_stats, int bsize, int mi_row,
+    int mi_col, const char *filename) {
+  FILE *f = fopen(filename, "a");
+  fprintf(f, "%d,%d,%d,", bsize, mi_row, mi_col);
+  for (int idx = 0; idx < ALL_PARTITION_TYPES; idx++) {
+    fprintf(f, "%d,", part_timing_stats->partition_decisions[idx]);
+  }
+  for (int idx = 0; idx < ALL_PARTITION_TYPES; idx++) {
+    fprintf(f, "%d,", part_timing_stats->partition_attempts[idx]);
+  }
+  for (int idx = 0; idx < ALL_PARTITION_TYPES; idx++) {
+    fprintf(f, "%" PRId64 ",", part_timing_stats->partition_times[idx]);
+  }
+  fprintf(f, "\n");
+  fclose(f);
+}
+
+#if CONFIG_COLLECT_PARTITION_STATS == 2
+static INLINE void accumulate_partition_timing_stats(
+    FramePartitionTimingStats *fr_part_timing_stats,
+    const PartitionTimingStats *part_timing_stats, const BLOCK_SIZE bsize) {
+  int *agg_attempts = fr_part_timing_stats->partition_attempts[bsize];
+  int *agg_decisions = fr_part_timing_stats->partition_decisions[bsize];
+  int64_t *agg_times = fr_part_timing_stats->partition_times[bsize];
+  for (int idx = 0; idx < ALL_PARTITION_TYPES; idx++) {
+    agg_attempts[idx] += part_timing_stats->partition_attempts[idx];
+    agg_decisions[idx] += part_timing_stats->partition_decisions[idx];
+    agg_times[idx] += part_timing_stats->partition_times[idx];
+  }
+}
+#endif  // CONFIG_COLLECT_PARTITION_STATS == 2
+
+#endif  // CONFIG_COLLECT_PARTITION_STATS
+
 static AVM_INLINE void init_allowed_partitions(
     PartitionSearchState *part_search_state, const PartitionCfg *part_cfg,
     const int bru_skip, const bool *partition_allowed) {
@@ -2950,6 +3037,10 @@ static AVM_INLINE void init_allowed_partitions(
   assert(part_search_state->partition_none_allowed ||
          part_search_state->partition_rect_allowed[VERT] ||
          part_search_state->partition_rect_allowed[HORZ]);
+
+#if CONFIG_COLLECT_PARTITION_STATS
+  init_partition_block_timing_stats(&part_search_state->part_timing_stats);
+#endif  // CONFIG_COLLECT_PARTITION_STATS
 }
 
 // Initialize state variables of partition search used in
@@ -3369,6 +3460,11 @@ static void rectangular_partition_search(
                                             bsize) &&
         partition_type ==
             sdp_chroma_part_from_luma(bsize, ptree_luma->partition, ss_x, ss_y);
+#if CONFIG_COLLECT_PARTITION_STATS
+    PartitionTimingStats *part_timing_stats =
+        &part_search_state->part_timing_stats;
+    start_partition_block_timer(part_timing_stats, partition_type);
+#endif  // CONFIG_COLLECT_PARTITION_STATS
     rd_pick_rect_partition(
         cpi, td, tile_data, tp, x, pc_tree, part_search_state, best_rdc, i,
         mi_pos_rect, blk_params.subsize, is_not_edge_block, multi_pass_mode,
@@ -3380,13 +3476,9 @@ static void rectangular_partition_search(
 #endif  // CONFIG_ML_PART_SPLIT
     );
 #if CONFIG_COLLECT_PARTITION_STATS
-    if (partition_timer_on) {
-      avm_usec_timer_mark(&partition_timer);
-      int64_t time = avm_usec_timer_elapsed(&partition_timer);
-      partition_times[partition_type] += time;
-      partition_timer_on = 0;
-    }
-#endif
+    end_partition_block_timer(part_timing_stats, partition_type,
+                              sum_rdc->rdcost);
+#endif  // CONFIG_COLLECT_PARTITION_STATS
     // Update HORZ / VERT best partition.
     if (sum_rdc->rdcost < best_rdc->rdcost) {
       sum_rdc->rdcost = RDCOST(x->rdmult, sum_rdc->rate, sum_rdc->dist);
@@ -3685,12 +3777,12 @@ static void none_partition_search(
 
 #if CONFIG_COLLECT_PARTITION_STATS
   // Timer start for partition None.
-  if (best_remain_rdcost >= 0) {
-    partition_attempts[PARTITION_NONE] += 1;
-    avm_usec_timer_start(&partition_timer);
-    partition_timer_on = 1;
+  PartitionTimingStats *part_timing_stats =
+      &part_search_state->part_timing_stats;
+  if (best_remain_rdcost.rdcost >= 0) {
+    start_partition_block_timer(part_timing_stats, PARTITION_NONE);
   }
-#endif
+#endif  // CONFIG_COLLECT_PARTITION_STATS
   SimpleMotionData *sms_data = av2_get_sms_data_entry(
       x->sms_bufs, mi_row, mi_col, bsize, cm->sb_size, (int8_t)cur_region_type);
   // Skip the SMS mode cache when retrying partition search
@@ -3717,14 +3809,9 @@ static void none_partition_search(
   av2_rd_cost_update(x->rdmult, this_rdc);
 
 #if CONFIG_COLLECT_PARTITION_STATS
-  // Timer end for partition None.
-  if (partition_timer_on) {
-    avm_usec_timer_mark(&partition_timer);
-    int64_t time = avm_usec_timer_elapsed(&partition_timer);
-    partition_times[PARTITION_NONE] += time;
-    partition_timer_on = 0;
-  }
-#endif
+  end_partition_block_timer(part_timing_stats, PARTITION_NONE,
+                            this_rdc->rdcost);
+#endif  // CONFIG_COLLECT_PARTITION_STATS
 
   *pb_source_variance = x->source_variance;
   if (none_rd) *none_rd = this_rdc->rdcost;
@@ -3840,12 +3927,12 @@ static void split_partition_search(
 
   int idx;
 #if CONFIG_COLLECT_PARTITION_STATS
+  PartitionTimingStats *part_timing_stats =
+      &part_search_state->part_timing_stats;
   if (best_rdc->rdcost - sum_rdc.rdcost >= 0) {
-    partition_attempts[PARTITION_SPLIT] += 1;
-    avm_usec_timer_start(&partition_timer);
-    partition_timer_on = 1;
+    start_partition_block_timer(part_timing_stats, PARTITION_SPLIT);
   }
-#endif
+#endif  // CONFIG_COLLECT_PARTITION_STATS
   // Recursive partition search on 4 sub-blocks.
   for (idx = 0; idx < SUB_PARTITIONS_SPLIT && sum_rdc.rdcost < best_rdc->rdcost;
        ++idx) {
@@ -3911,13 +3998,8 @@ static void split_partition_search(
     av2_rd_cost_update(x->rdmult, &sum_rdc);
   }
 #if CONFIG_COLLECT_PARTITION_STATS
-  if (partition_timer_on) {
-    avm_usec_timer_mark(&partition_timer);
-    int64_t time = avm_usec_timer_elapsed(&partition_timer);
-    partition_times[PARTITION_SPLIT] += time;
-    partition_timer_on = 0;
-  }
-#endif
+  end_partition_block_timer(part_timing_stats, PARTITION_SPLIT, sum_rdc.rdcost);
+#endif  // CONFIG_COLLECT_PARTITION_STATS
   const int reached_last_index = (idx == SUB_PARTITIONS_SPLIT);
 
   // Calculate the total cost and update the best partition.
@@ -4990,7 +5072,10 @@ static void search_extended_partition(
       RDCOST(x->rdmult, part_rate, 0) >= best_rdc->rdcost) {
     return;
   }
-
+#if CONFIG_COLLECT_PARTITION_STATS
+  PartitionTimingStats *part_timing_stats = &search_state->part_timing_stats;
+  start_partition_block_timer(part_timing_stats, partition_type);
+#endif  // CONFIG_COLLECT_PARTITION_STATS
   RD_STATS sum_rdc;
   av2_init_rd_stats(&sum_rdc);
   sum_rdc.rate = search_state->partition_cost[partition_type];
@@ -5064,7 +5149,9 @@ static void search_extended_partition(
     pc_tree->partitioning = partition_type;
     pc_tree->skippable = skippable;
   }
-
+#if CONFIG_COLLECT_PARTITION_STATS
+  end_partition_block_timer(part_timing_stats, partition_type, sum_rdc.rdcost);
+#endif  // CONFIG_COLLECT_PARTITION_STATS
   av2_restore_context(cm, x, x_ctx, mi_row, mi_col, bsize, num_planes);
   restore_level_banks(&x->e_mbd, level_banks);
 }
@@ -5529,15 +5616,16 @@ bool av2_rd_pick_partition(
   if (none_rd) *none_rd = 0;
 
 #if CONFIG_COLLECT_PARTITION_STATS
-  int partition_decisions[EXT_PARTITION_TYPES] = { 0 };
-  int partition_attempts[EXT_PARTITION_TYPES] = { 0 };
-  int64_t partition_times[EXT_PARTITION_TYPES] = { 0 };
-  struct avm_usec_timer partition_timer = { 0 };
-  int partition_timer_on = 0;
+  // Stats at the current quad tree
+  PartitionTimingStats *part_timing_stats =
+      &part_search_state.part_timing_stats;
+
 #if CONFIG_COLLECT_PARTITION_STATS == 2
-  PartitionStats *part_stats = &cpi->partition_stats;
-#endif
-#endif
+  // Stats aggregated at frame level
+  FramePartitionTimingStats *fr_part_timing_stats = &cpi->partition_stats;
+#endif  // CONFIG_COLLECT_PARTITION_STATS == 2
+
+#endif  // CONFIG_COLLECT_PARTITION_STATS
 
 #ifndef NDEBUG
   // Nothing should rely on the default value of this array (which is just
@@ -5781,8 +5869,8 @@ BEGIN_PARTITION_SEARCH:
     // constraint on which partition types to search.
     x->must_find_valid_partition = 1;
 #if CONFIG_COLLECT_PARTITION_STATS == 2
-    part_stats->partition_redo += 1;
-#endif
+    fr_part_timing_stats->partition_redo += 1;
+#endif  // CONFIG_COLLECT_PARTITION_STATS == 2
     goto BEGIN_PARTITION_SEARCH;
   }
 
@@ -5843,43 +5931,25 @@ BEGIN_PARTITION_SEARCH:
 
 #if CONFIG_COLLECT_PARTITION_STATS
   if (best_rdc.rate < INT_MAX && best_rdc.dist < INT64_MAX) {
-    partition_decisions[pc_tree->partitioning] += 1;
+    part_timing_stats->partition_decisions[pc_tree->partitioning] += 1;
   }
-#endif
-
-#if CONFIG_COLLECT_PARTITION_STATS == 1
   // If CONFIG_COLLECT_PARTITION_STATS is 1, then print out the stats for each
   // prediction block.
-  FILE *f = fopen("data.csv", "a");
-  fprintf(f, "%d,%d,%d,", bsize, cm->immediate_output_picture,
-          frame_is_intra_only(cm));
-  for (int idx = 0; idx < EXT_PARTITION_TYPES; idx++) {
-    fprintf(f, "%d,", partition_decisions[idx]);
+  print_partition_timing_stats_with_rdcost(
+      part_timing_stats, bsize, mi_row, mi_col, &best_rdc, "part_timing.csv");
+  const bool print_timing_stats = false;
+  if (print_timing_stats) {
+    print_partition_timing_stats(part_timing_stats, bsize, mi_row, mi_col,
+                                 "part_timing_data.csv");
   }
-  for (int idx = 0; idx < EXT_PARTITION_TYPES; idx++) {
-    fprintf(f, "%d,", partition_attempts[idx]);
-  }
-  for (int idx = 0; idx < EXT_PARTITION_TYPES; idx++) {
-    fprintf(f, "%ld,", partition_times[idx]);
-  }
-  fprintf(f, "\n");
-  fclose(f);
-#endif
-
 #if CONFIG_COLLECT_PARTITION_STATS == 2
   // If CONFIG_COLLECTION_PARTITION_STATS is 2, then we print out the stats
   // for the whole clip. So we need to pass the information upstream to the
   // encoder.
-  const int bsize_idx = av2_get_bsize_idx_for_part_stats(bsize);
-  int *agg_attempts = part_stats->partition_attempts[bsize_idx];
-  int *agg_decisions = part_stats->partition_decisions[bsize_idx];
-  int64_t *agg_times = part_stats->partition_times[bsize_idx];
-  for (int idx = 0; idx < EXT_PARTITION_TYPES; idx++) {
-    agg_attempts[idx] += partition_attempts[idx];
-    agg_decisions[idx] += partition_decisions[idx];
-    agg_times[idx] += partition_times[idx];
-  }
-#endif
+  accumulate_partition_timing_stats(fr_part_timing_stats, part_timing_stats,
+                                    bsize);
+#endif  // CONFIG_COLLECT_PARTITION_STATS == 2
+#endif  // CONFIG_COLLECT_PARTITION_STATS
 
   // Reset the PC_TREE deallocation flag.
   int pc_tree_dealloc = 0;

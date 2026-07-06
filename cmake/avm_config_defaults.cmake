@@ -122,7 +122,7 @@ set_avm_config_var(CONFIG_BITSTREAM_DEBUG 0
 set_avm_config_var(CONFIG_RD_DEBUG 0 "AV2 experiment flag.")
 set_avm_config_var(CONFIG_SHARP_SETTINGS 0 "AV2 experiment flag.")
 set_avm_config_var(CONFIG_COLLECT_PARTITION_STATS 0
-                   "Collect stats on partition decisions.")
+                   "Collect partition timing stats. Can be 1 or 2.")
 set_avm_config_var(CONFIG_COLLECT_COMPONENT_TIMING 0
                    "Collect encoding component timing information.")
 set_avm_config_var(CONFIG_NN_V2 0 "Fully-connected neural nets ver.2.")
