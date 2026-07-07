@@ -602,6 +602,8 @@ static AVM_INLINE void estimate_ref_frame_costs(
       ref_costs_single[INTRA_FRAME_INDEX] =
           base_cost + mode_costs->intra_inter_cost[intra_inter_ctx][0];
       base_cost += mode_costs->intra_inter_cost[intra_inter_ctx][1];
+    } else {
+      ref_costs_single[INTRA_FRAME_INDEX] = INT_MAX;
     }
     if (xd->mi[0]->sb_type[PLANE_TYPE_Y] == BLOCK_4X4) {
       ref_costs_single[INTRA_FRAME_INDEX] = 0;
@@ -612,6 +614,8 @@ static AVM_INLINE void estimate_ref_frame_costs(
       ref_costs_single[TIP_FRAME_INDEX] =
           base_cost + mode_costs->tip_cost[tip_ctx][1];
       base_cost += mode_costs->tip_cost[tip_ctx][0];
+    } else {
+      ref_costs_single[TIP_FRAME_INDEX] = INT_MAX;
     }
 
     for (int i = 0; i < INTER_REFS_PER_FRAME; ++i)
