@@ -5396,15 +5396,6 @@ static AVM_INLINE void av2_set_frame_sb_size(AV2_COMMON *cm,
   cm->mib_size_log2 = mi_size_wide_log2[sb_size];
 }
 
-static INLINE void set_sb_size(AV2_COMMON *cm, BLOCK_SIZE sb_size) {
-  SequenceHeader *const seq_params = &cm->seq_params;
-  seq_params->sb_size = sb_size;
-  seq_params->mib_size = mi_size_wide[sb_size];
-  seq_params->mib_size_log2 = mi_size_wide_log2[sb_size];
-
-  av2_set_frame_sb_size(cm, sb_size);
-}
-
 // Sets the frame's lr specific fields in feature params depending on
 // which tools are enabled for the frame for the given plane.
 static INLINE void av2_set_lr_tools(uint8_t lr_tools_disable_mask, int plane,

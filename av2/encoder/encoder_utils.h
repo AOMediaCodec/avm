@@ -69,6 +69,15 @@ static AVM_INLINE void set_mb_mi(CommonModeInfoParams *mi_params, int width,
          mi_size_high[mi_params->mi_alloc_bsize]);
 }
 
+static INLINE void set_sb_size(AV2_COMMON *cm, BLOCK_SIZE sb_size) {
+  SequenceHeader *const seq_params = &cm->seq_params;
+  seq_params->sb_size = sb_size;
+  seq_params->mib_size = mi_size_wide[sb_size];
+  seq_params->mib_size_log2 = mi_size_wide_log2[sb_size];
+
+  av2_set_frame_sb_size(cm, sb_size);
+}
+
 static AVM_INLINE void enc_free_mi(CommonModeInfoParams *mi_params) {
   avm_free(mi_params->mi_alloc);
   mi_params->mi_alloc = NULL;
