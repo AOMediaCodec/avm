@@ -8239,6 +8239,34 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       current_frame->display_order_hint_restricted =
           current_frame->display_order_hint;
 
+      // Conformance (7.4.4): if long_term_frame_id_bits is greater than 0, the
+      // OrderHint of an OLK shall be less than (1 << OrderHintBits).
+      if (obu_type == OBU_OPEN_LOOP_KEY &&
+          seq_params->number_of_bits_for_lt_frame_id > 0 &&
+          current_frame->display_order_hint >=
+              (1u << (seq_params->order_hint_info.order_hint_bits_minus_1 +
+                      1))) {
+        avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+                           "OrderHint of an OLK must be less than "
+                           "(1 << OrderHintBits) when "
+                           "long_term_frame_id_bits is greater than 0");
+      }
+
+      // Conformance (7.4.4): if long_term_frame_id_bits is greater than 0, the
+      // OrderHint of a RAS frame with restricted_prediction_switch equal to 0
+      // shall be less than (1 << OrderHintBits).
+      if (obu_type == OBU_RAS_FRAME && !cm->restricted_prediction_switch &&
+          seq_params->number_of_bits_for_lt_frame_id > 0 &&
+          current_frame->display_order_hint >=
+              (1u << (seq_params->order_hint_info.order_hint_bits_minus_1 +
+                      1))) {
+        avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+                           "OrderHint of a RAS frame with "
+                           "restricted_prediction_switch equal to 0 must be "
+                           "less than (1 << OrderHintBits) when "
+                           "long_term_frame_id_bits is greater than 0");
+      }
+
       // DOH constraint checks
       const int msdo_doh = pbi->common.msdo_params.msdo_doh_constraint_flag;
       const int lcr_doh =
