@@ -1709,6 +1709,22 @@ static INLINE int is_rect_tx_allowed(const MACROBLOCKD *xd,
          !xd->lossless[mbmi->segment_id];
 }
 
+static AVM_INLINE bool is_bsize_geq(BLOCK_SIZE bsize1, BLOCK_SIZE bsize2) {
+  if (bsize1 == BLOCK_INVALID || bsize2 == BLOCK_INVALID) {
+    return false;
+  }
+  return block_size_wide[bsize1] >= block_size_wide[bsize2] &&
+         block_size_high[bsize1] >= block_size_high[bsize2];
+}
+
+static AVM_INLINE bool is_bsize_gt(BLOCK_SIZE bsize1, BLOCK_SIZE bsize2) {
+  if (bsize1 == BLOCK_INVALID || bsize2 == BLOCK_INVALID) {
+    return false;
+  }
+  return block_size_wide[bsize1] > block_size_wide[bsize2] &&
+         block_size_high[bsize1] > block_size_high[bsize2];
+}
+
 static INLINE void set_blk_skip(uint8_t txb_skip[], int blk_idx, int skip) {
   if (skip)
     txb_skip[blk_idx] |= 1UL;
