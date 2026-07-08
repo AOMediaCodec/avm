@@ -802,22 +802,6 @@ static const int av2_size_class[TX_SIZES_ALL] = { 0, 1, 2, 3, 3, 0, 0, 1, 1,
                                                   3, 3, 3, 3, 1, 1, 3, 3, 3,
                                                   3, 3, 3, 3, 3, 3, 3 };
 
-static AVM_INLINE bool is_bsize_geq(BLOCK_SIZE bsize1, BLOCK_SIZE bsize2) {
-  if (bsize1 == BLOCK_INVALID || bsize2 == BLOCK_INVALID) {
-    return false;
-  }
-  return block_size_wide[bsize1] >= block_size_wide[bsize2] &&
-         block_size_high[bsize1] >= block_size_high[bsize2];
-}
-
-static AVM_INLINE bool is_bsize_gt(BLOCK_SIZE bsize1, BLOCK_SIZE bsize2) {
-  if (bsize1 == BLOCK_INVALID || bsize2 == BLOCK_INVALID) {
-    return false;
-  }
-  return block_size_wide[bsize1] > block_size_wide[bsize2] &&
-         block_size_high[bsize1] > block_size_high[bsize2];
-}
-
 static const int fwd_tx_shift[TX_SIZES_ALL][2] = {
   { 1, 10 },  // TX_4X4,    // 4x4 transform
   { 2, 10 },  // TX_8X8,    // 8x8 transform
