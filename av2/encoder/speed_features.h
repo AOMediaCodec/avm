@@ -441,6 +441,8 @@ typedef struct PARTITION_SPEED_FEATURES {
   //    intra coded block, prunes when inter ratio exceeds 50%, and early skips
   //    when current best partitioning is PARTITION_NONE.
   int inter_sdp_fast_method_level;
+  // Prune partition types if they don't align with neighbor block boundaries.
+  bool prune_part_with_neighbor_boundaries;
 #if CONFIG_ML_PART_SPLIT
   int prune_split_with_ml;
   int prune_split_ml_level;

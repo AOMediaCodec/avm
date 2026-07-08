@@ -2900,6 +2900,83 @@ static AVM_INLINE void init_allowed_partitions(
 #endif  // CONFIG_COLLECT_PARTITION_STATS
 }
 
+static AVM_INLINE bool is_same_block_for_tree(const MB_MODE_INFO *m1,
+                                              const MB_MODE_INFO *m2,
+                                              TREE_TYPE tree_type) {
+  if (!m1 || !m2) return false;
+
+  if (tree_type == CHROMA_PART) {
+    int m1_r;
+    int m1_c;
+    av2_get_chroma_start_location(m1, m1->tree_type, &m1_r, &m1_c);
+    int m2_r;
+    int m2_c;
+    av2_get_chroma_start_location(m2, m2->tree_type, &m2_r, &m2_c);
+    return m1_r == m2_r && m1_c == m2_c;
+  } else {
+    return m1->mi_row_start == m2->mi_row_start &&
+           m1->mi_col_start == m2->mi_col_start;
+  }
+}
+
+static AVM_INLINE void prune_partitions_with_neighbor_boundaries(
+    PartitionSearchState *state, const AV2_COMMON *cm, const MACROBLOCKD *xd,
+    int mi_row, int mi_col, BLOCK_SIZE bsize) {
+  const int mi_width = mi_size_wide[bsize];
+  const int mi_height = mi_size_high[bsize];
+
+  const int available_mi_height =
+      AVMMIN(mi_height, cm->mi_params.mi_rows - mi_row);
+  const int available_mi_width =
+      AVMMIN(mi_width, cm->mi_params.mi_cols - mi_col);
+
+  bool left_horz_boundaries[MAX_MIB_SIZE] = { false };
+  bool top_vert_boundaries[MAX_MIB_SIZE] = { false };
+
+  // Check left neighbor for horizontal boundaries using mi array
+  if (xd->left_available && xd->mi_col > 0) {
+    for (int r = 1; r < available_mi_height; r++) {
+      const MB_MODE_INFO *m1 = xd->mi[r * xd->mi_stride - 1];
+      const MB_MODE_INFO *m2 = xd->mi[(r - 1) * xd->mi_stride - 1];
+      if (!is_same_block_for_tree(m1, m2, xd->tree_type)) {
+        left_horz_boundaries[r] = true;
+      }
+    }
+  }
+
+  // Check top neighbor for vertical boundaries using mi array
+  if (xd->up_available && xd->mi_row > 0) {
+    for (int c = 1; c < available_mi_width; c++) {
+      const MB_MODE_INFO *m1 = xd->mi[-xd->mi_stride + c];
+      const MB_MODE_INFO *m2 = xd->mi[-xd->mi_stride + c - 1];
+      if (!is_same_block_for_tree(m1, m2, xd->tree_type)) {
+        top_vert_boundaries[c] = true;
+      }
+    }
+  }
+
+  // Prune 4-way Partitions.
+  if (xd->left_available && xd->mi_col > 0) {
+    if (mi_height >= 8 && (!left_horz_boundaries[mi_height / 8] &&
+                           !left_horz_boundaries[3 * mi_height / 8] &&
+                           !left_horz_boundaries[5 * mi_height / 8] &&
+                           !left_horz_boundaries[7 * mi_height / 8])) {
+      state->prune_partition[PARTITION_HORZ_4A] = true;
+      state->prune_partition[PARTITION_HORZ_4B] = true;
+    }
+  }
+
+  if (xd->up_available && xd->mi_row > 0) {
+    if (mi_width >= 8 && (!top_vert_boundaries[mi_width / 8] &&
+                          !top_vert_boundaries[3 * mi_width / 8] &&
+                          !top_vert_boundaries[5 * mi_width / 8] &&
+                          !top_vert_boundaries[7 * mi_width / 8])) {
+      state->prune_partition[PARTITION_VERT_4A] = true;
+      state->prune_partition[PARTITION_VERT_4B] = true;
+    }
+  }
+}
+
 // Initialize state variables of partition search used in
 // av2_rd_pick_partition().
 static void init_partition_search_state_params(
@@ -5345,6 +5422,12 @@ bool av2_rd_pick_partition(
   // Set buffers and offsets.
   av2_set_offsets(cpi, tile_info, x, mi_row, mi_col, bsize,
                   &pc_tree->chroma_ref_info);
+
+  if (cpi->sf.part_sf.prune_part_with_neighbor_boundaries &&
+      !x->must_find_valid_partition && !frame_is_intra_only(cm)) {
+    prune_partitions_with_neighbor_boundaries(&part_search_state, cm, xd,
+                                              mi_row, mi_col, bsize);
+  }
 
   // Save rdmult before it might be changed, so it can be restored later.
   const int orig_rdmult = x->rdmult;
