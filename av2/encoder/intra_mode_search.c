@@ -1561,6 +1561,71 @@ static AVM_INLINE bool skip_intra_mode(
   return false;
 }
 
+// Restores the saved luma palette color map.
+static AVM_INLINE void restore_palette_color_map(MACROBLOCKD *xd,
+                                                 BLOCK_SIZE bsize,
+                                                 const MB_MODE_INFO *mbmi,
+                                                 const uint8_t *color_map_src) {
+  if (mbmi->palette_mode_info.palette_size[PLANE_TYPE_Y] > 0) {
+    int block_width, block_height;
+    av2_get_block_dimensions(bsize, AVM_PLANE_Y, xd, &block_width,
+                             &block_height, /*rows_within_bounds*/ NULL,
+                             /*cols_within_bounds*/ NULL);
+    uint8_t *color_map_dst = xd->plane[PLANE_TYPE_Y].color_index_map;
+    av2_copy_array(color_map_dst, color_map_src, block_width * block_height);
+  }
+}
+
+// If multi-winner mode processing is enabled, this function iterates over the
+// top N candidate intra modes saved during mode evaluation and performs a
+// detailed transform search(with Rate - Distortion Optimized Quantization RDOQ
+// enabled) to find the best configuration. If disabled, it refines only the
+// single best intra candidate mode.
+static AVM_INLINE void refine_winner_intra_mode_tx(
+    const AV2_COMP *const cpi, MACROBLOCK *x, BLOCK_SIZE bsize, int mode_cost,
+    int64_t *best_rd_so_far, int *rate, int *rate_tokenonly,
+    int64_t *distortion, int *skippable, MB_MODE_INFO *best_mbmi,
+    PICK_MODE_CONTEXT *ctx) {
+  MACROBLOCKD *const xd = &x->e_mbd;
+  MB_MODE_INFO *const mbmi = xd->mi[0];
+
+  // If previous searches use only the default tx type/no R-D optimization of
+  // quantized coeffs, do an extra search for the best tx type/better R-D
+  // optimization of quantized coeffs.
+  if (cpi->sf.winner_mode_sf.multi_winner_mode_type) {
+    int best_mode_idx = 0;
+
+    for (int mode_idx = 0; mode_idx < x->winner_mode_count; ++mode_idx) {
+      *mbmi = x->winner_mode_stats[mode_idx].mbmi;
+      if (is_winner_mode_processing_enabled(cpi, mbmi, mbmi->mode)) {
+        // Restore color_map of palette mode before winner mode processing.
+        restore_palette_color_map(
+            xd, bsize, mbmi, x->winner_mode_stats[mode_idx].color_index_map);
+        // Set params for winner mode evaluation.
+        set_mode_eval_params(cpi, x, WINNER_MODE_EVAL);
+
+        // Winner mode processing.
+        if (intra_block_yrd(cpi, x, bsize, mode_cost, best_rd_so_far, rate,
+                            rate_tokenonly, distortion, skippable, best_mbmi,
+                            ctx))
+          best_mode_idx = mode_idx;
+      }
+    }
+    // Copy color_map of palette mode for final winner mode.
+    restore_palette_color_map(
+        xd, bsize, best_mbmi,
+        x->winner_mode_stats[best_mode_idx].color_index_map);
+  } else {
+    if (is_winner_mode_processing_enabled(cpi, mbmi, best_mbmi->mode)) {
+      // Set params for winner mode evaluation.
+      set_mode_eval_params(cpi, x, WINNER_MODE_EVAL);
+      *mbmi = *best_mbmi;
+      intra_block_yrd(cpi, x, bsize, mode_cost, best_rd_so_far, rate,
+                      rate_tokenonly, distortion, skippable, best_mbmi, ctx);
+    }
+  }
+}
+
 // Finds the best non-intrabc mode on an intra frame.
 int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
                                    MACROBLOCK *x, int *rate,
@@ -1925,55 +1990,9 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
   // In multi-winner mode processing, perform tx search for few best modes
   // identified during mode evaluation. Winner mode processing uses best tx
   // configuration for tx search.
-  if (cpi->sf.winner_mode_sf.multi_winner_mode_type) {
-    int best_mode_idx = 0;
-    int block_width, block_height;
-    uint8_t *color_map_dst = xd->plane[PLANE_TYPE_Y].color_index_map;
-    av2_get_block_dimensions(bsize, AVM_PLANE_Y, xd, &block_width,
-                             &block_height, NULL, NULL);
-
-    for (int mode_idx = 0; mode_idx < x->winner_mode_count; ++mode_idx) {
-      *mbmi = x->winner_mode_stats[mode_idx].mbmi;
-      if (is_winner_mode_processing_enabled(cpi, mbmi, mbmi->mode)) {
-        // Restore color_map of palette mode before winner mode processing
-        if (mbmi->palette_mode_info.palette_size[0] > 0) {
-          uint8_t *color_map_src =
-              x->winner_mode_stats[mode_idx].color_index_map;
-          memcpy(color_map_dst, color_map_src,
-                 block_width * block_height * sizeof(*color_map_src));
-        }
-        // Set params for winner mode evaluation
-        set_mode_eval_params(cpi, x, WINNER_MODE_EVAL);
-
-        // Winner mode processing
-        // If previous searches use only the default tx type/no R-D
-        // optimization of quantized coeffs, do an extra search for the best
-        // tx type/better R-D optimization of quantized coeffs
-        if (intra_block_yrd(cpi, x, bsize, mode_costs, &best_rd, rate,
-                            rate_tokenonly, distortion, skippable, &best_mbmi,
-                            ctx))
-          best_mode_idx = mode_idx;
-      }
-    }
-    // Copy color_map of palette mode for final winner mode
-    if (best_mbmi.palette_mode_info.palette_size[0] > 0) {
-      uint8_t *color_map_src =
-          x->winner_mode_stats[best_mode_idx].color_index_map;
-      memcpy(color_map_dst, color_map_src,
-             block_width * block_height * sizeof(*color_map_src));
-    }
-  } else {
-    // If previous searches use only the default tx type/no R-D optimization
-    // of quantized coeffs, do an extra search for the best tx type/better R-D
-    // optimization of quantized coeffs
-    if (is_winner_mode_processing_enabled(cpi, mbmi, best_mbmi.mode)) {
-      // Set params for winner mode evaluation
-      set_mode_eval_params(cpi, x, WINNER_MODE_EVAL);
-      *mbmi = best_mbmi;
-      intra_block_yrd(cpi, x, bsize, mode_costs, &best_rd, rate, rate_tokenonly,
-                      distortion, skippable, &best_mbmi, ctx);
-    }
-  }
+  refine_winner_intra_mode_tx(cpi, x, bsize, mode_costs, &best_rd, rate,
+                              rate_tokenonly, distortion, skippable, &best_mbmi,
+                              ctx);
   *mbmi = best_mbmi;
   if (mbmi->joint_y_mode_delta_angle < NON_DIRECTIONAL_MODES_COUNT)
     assert(mbmi->joint_y_mode_delta_angle == mbmi->y_mode_idx);
