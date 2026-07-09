@@ -20,6 +20,92 @@ static const BLOCK_SIZE square[MAX_SB_SIZE_LOG2 - 1] = {
   BLOCK_64X64, BLOCK_128X128, BLOCK_256X256,
 };
 
+static const int subblock_count[ALL_PARTITION_TYPES] = { 0, 2, 2, 4, 4,
+                                                         4, 4, 4, 4, 4 };
+
+static const int step_multiplier[ALL_PARTITION_TYPES][4][2] = {
+  { { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 } },  // PARTITION_NONE
+  { { 0, 0 }, { 4, 0 }, { 0, 0 }, { 0, 0 } },  // PARTITION_HORZ
+  { { 0, 0 }, { 0, 4 }, { 0, 0 }, { 0, 0 } },  // PARTITION_VERT
+  { { 0, 0 }, { 2, 0 }, { 2, 4 }, { 6, 0 } },  // PARTITION_HORZ_3
+  { { 0, 0 }, { 0, 2 }, { 4, 2 }, { 0, 6 } },  // PARTITION_VERT_3
+  { { 0, 0 }, { 1, 0 }, { 3, 0 }, { 7, 0 } },  // PARTITION_HORZ_4A
+  { { 0, 0 }, { 1, 0 }, { 5, 0 }, { 7, 0 } },  // PARTITION_HORZ_4B
+  { { 0, 0 }, { 0, 1 }, { 0, 3 }, { 0, 7 } },  // PARTITION_VERT_4A
+  { { 0, 0 }, { 0, 1 }, { 0, 5 }, { 0, 7 } },  // PARTITION_VERT_4B
+  { { 0, 0 }, { 0, 4 }, { 4, 0 }, { 4, 4 } },  // PARTITION_SPLIT
+};
+
+/*!\brief Retrieves the array of child PC_TREE nodes corresponding to a specific
+ * partition type and region. */
+PC_TREE *const *get_child_pc_trees(const PC_TREE *pc_tree,
+                                   PARTITION_TYPE partition, REGION_TYPE region,
+                                   int *num_sub_parts) {
+  PC_TREE *const *child_nodes = NULL;
+
+  switch (partition) {
+    case PARTITION_NONE: break;
+    case PARTITION_HORZ: child_nodes = pc_tree->horizontal[region]; break;
+    case PARTITION_VERT: child_nodes = pc_tree->vertical[region]; break;
+    case PARTITION_HORZ_3: child_nodes = pc_tree->horizontal3[region]; break;
+    case PARTITION_VERT_3: child_nodes = pc_tree->vertical3[region]; break;
+    case PARTITION_HORZ_4A: child_nodes = pc_tree->horizontal4a[region]; break;
+    case PARTITION_HORZ_4B: child_nodes = pc_tree->horizontal4b[region]; break;
+    case PARTITION_VERT_4A: child_nodes = pc_tree->vertical4a[region]; break;
+    case PARTITION_VERT_4B: child_nodes = pc_tree->vertical4b[region]; break;
+    case PARTITION_SPLIT: child_nodes = pc_tree->split[region]; break;
+    default: assert(0 && "Unexpected partition type"); break;
+  }
+  *num_sub_parts = subblock_count[partition];
+
+  return child_nodes;
+}
+
+/*!\brief Computes the layout (coordinates and sizes) of subblocks resulting
+ * from a partition. */
+void get_partition_subblock_layout(PARTITION_TYPE partition_type,
+                                   BLOCK_SIZE bsize, int mi_row, int mi_col,
+                                   BLOCK_SIZE sub_sizes[4], int mi_rows[4],
+                                   int mi_cols[4]) {
+  assert(partition_type <= PARTITION_SPLIT);
+  const int eighth_step_h = block_size_high[bsize] / 8;
+  const int eighth_step_w = block_size_wide[bsize] / 8;
+  const BLOCK_SIZE part_subsize = get_partition_subsize(bsize, partition_type);
+
+  for (int sub_idx = 0; sub_idx < subblock_count[partition_type]; ++sub_idx) {
+    mi_rows[sub_idx] = mi_row + step_multiplier[partition_type][sub_idx][0] *
+                                    eighth_step_h / 4;
+    mi_cols[sub_idx] = mi_col + step_multiplier[partition_type][sub_idx][1] *
+                                    eighth_step_w / 4;
+    sub_sizes[sub_idx] = part_subsize;
+  }
+  if (partition_type == PARTITION_HORZ_3 ||
+      partition_type == PARTITION_VERT_3) {
+    const BLOCK_SIZE sml_subsize =
+        get_h_partition_subsize(bsize, 0, partition_type);
+    const BLOCK_SIZE big_subsize =
+        get_h_partition_subsize(bsize, 1, partition_type);
+    sub_sizes[0] = sub_sizes[3] = sml_subsize;
+    sub_sizes[1] = sub_sizes[2] = big_subsize;
+  } else if (partition_type == PARTITION_HORZ_4A ||
+             partition_type == PARTITION_VERT_4A ||
+             partition_type == PARTITION_HORZ_4B ||
+             partition_type == PARTITION_VERT_4B) {
+    const RECT_PART_TYPE rect_type = get_rect_part_type(partition_type);
+    const UNEVEN_4WAY_PART_TYPE uneven_type =
+        get_4way_part_type(partition_type);
+    const PARTITION_TYPE p_type =
+        (rect_type == HORZ) ? PARTITION_HORZ : PARTITION_VERT;
+    const BLOCK_SIZE big_subsize = get_partition_subsize(bsize, p_type);
+    assert(big_subsize != BLOCK_INVALID);
+    const BLOCK_SIZE med_subsize = subsize_lookup[p_type][big_subsize];
+    assert(med_subsize != BLOCK_INVALID);
+    assert(part_subsize == subsize_lookup[p_type][med_subsize]);
+    sub_sizes[1] = (uneven_type == UNEVEN_4A ? med_subsize : big_subsize);
+    sub_sizes[2] = (uneven_type == UNEVEN_4A ? big_subsize : med_subsize);
+  }
+}
+
 void av2_copy_tree_context(PICK_MODE_CONTEXT *dst_ctx,
                            PICK_MODE_CONTEXT *src_ctx, int num_planes) {
   dst_ctx->mic = src_ctx->mic;

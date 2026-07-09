@@ -144,6 +144,15 @@ void av2_free_sms_tree(struct ThreadData *td);
 void av2_setup_sms_bufs(struct AV2Common *cm, struct ThreadData *td);
 void av2_free_sms_bufs(struct ThreadData *td);
 
+PC_TREE *const *get_child_pc_trees(const PC_TREE *pc_tree,
+                                   PARTITION_TYPE partition, REGION_TYPE region,
+                                   int *num_sub_parts);
+
+void get_partition_subblock_layout(PARTITION_TYPE partition_type,
+                                   BLOCK_SIZE bsize, int mi_row, int mi_col,
+                                   BLOCK_SIZE sub_sizes[4], int mi_rows[4],
+                                   int mi_cols[4]);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
