@@ -5100,7 +5100,8 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
   current_frame->tlayer_id = cm->tlayer_id;
   current_frame->mlayer_id = cm->mlayer_id;
   cm->restricted_prediction_switch =
-      cpi->oxcf.kf_cfg.enable_sframe && cpi->oxcf.kf_cfg.sframe_mode == 0;
+      (cpi->oxcf.kf_cfg.enable_sframe && cpi->oxcf.kf_cfg.sframe_mode == 0) ||
+      cpi->oxcf.tool_cfg.g_error_resilient_mode;
   if (current_frame->frame_type == KEY_FRAME) {
     for (int i = 0; i < cm->seq_params.ref_frames; i++) {
       if (cm->ref_frame_map[i] != NULL)

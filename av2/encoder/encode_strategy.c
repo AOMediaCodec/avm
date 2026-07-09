@@ -1277,7 +1277,8 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
     set_ext_overrides(cm, &frame_params, ext_flags);
 
   cm->restricted_prediction_switch =
-      cpi->oxcf.kf_cfg.enable_sframe && cpi->oxcf.kf_cfg.sframe_mode == 0;
+      (cpi->oxcf.kf_cfg.enable_sframe && cpi->oxcf.kf_cfg.sframe_mode == 0) ||
+      cpi->oxcf.tool_cfg.g_error_resilient_mode;
 
   av2_configure_buffer_updates(cpi, frame_update_type);
 
