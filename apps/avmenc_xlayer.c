@@ -121,6 +121,26 @@ static int shared_source_init(SharedSourceReader *src,
     if (src->input.fmt == 0) src->input.fmt = AVM_IMG_FMT_I420;
   }
 
+  // If bit depth still unknown (raw file, no explicit bit_depth in config),
+  // default to the encoding profile's bit depth (all standard AV2 profiles
+  // are 10-bit) rather than silently assuming 8-bit, and make sure the
+  // HIGHBITDEPTH flag is set whenever samples are >8-bit so read_yuv_frame()
+  // reads 2 bytes/sample instead of 1.
+  if (src->input.bit_depth <= 0) {
+    int src_idx = (int)(inp - mcfg->input_sources);
+    src->input.bit_depth = 10;
+    for (int i = 0; i < mcfg->num_xlayers; i++) {
+      if (mcfg->xlayers[i].input_source_idx == src_idx) {
+#if CONFIG_TESTONLY_12BIT_SUPPORT
+        if (mcfg->xlayers[i].profile == TEST_ONLY_12BIT_PROFILE)
+          src->input.bit_depth = 12;
+#endif
+        break;
+      }
+    }
+  }
+  if (src->input.bit_depth > 8) src->input.fmt |= AVM_IMG_FMT_HIGHBITDEPTH;
+
   // Allocate full-resolution raw frame
   if (src->input.file_type != FILE_TYPE_Y4M) {
     if (!avm_img_alloc(&src->raw, src->input.fmt, src->input.width,
@@ -347,8 +367,14 @@ static int init_xlayer_encoder(XLayerEncoderState *state,
   if (xlcfg->profile == TEST_ONLY_12BIT_PROFILE)
     state->cfg.g_bit_depth = AVM_BITS_12;
 #endif
-  state->cfg.g_input_bit_depth =
-      state->input.bit_depth > 0 ? state->input.bit_depth : 8;
+  // Default an unspecified raw-input bit depth to the encoding bit depth
+  // (rather than assuming 8-bit) and make sure the HIGHBITDEPTH flag is set
+  // whenever samples are >8-bit, so read_yuv_frame() reads 2 bytes/sample
+  // instead of 1. Mirrors the equivalent logic in avmenc.c.
+  if (state->input.bit_depth <= 0)
+    state->input.bit_depth = (int)state->cfg.g_bit_depth;
+  state->cfg.g_input_bit_depth = state->input.bit_depth;
+  if (state->input.bit_depth > 8) state->input.fmt |= AVM_IMG_FMT_HIGHBITDEPTH;
   state->input_shift =
       (int)state->cfg.g_bit_depth - (int)state->cfg.g_input_bit_depth;
 
