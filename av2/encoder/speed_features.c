@@ -846,7 +846,12 @@ static void av2_disable_ml_based_partition_sf(
   part_sf->simple_motion_search_split = 0;
   part_sf->simple_motion_search_prune_rect = 0;
   part_sf->simple_motion_search_early_term_none = 0;
-
+# if CONFIG_ML_PART_SPLIT
+  part_sf->prune_split_with_ml = 0;
+  part_sf->prune_none_with_ml = 0;
+  part_sf->prune_split_ml_level = -1;
+  part_sf->prune_split_ml_level_inter = -1;
+#endif
   for (int i = 0; i < PARTITION_BLOCK_SIZES; ++i) {
     part_sf->ml_partition_search_breakout_thresh[i] = -1;
   }
