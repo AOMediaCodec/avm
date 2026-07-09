@@ -383,7 +383,7 @@ const av2_codec_arg_definitions_t g_av2_codec_arg_defs = {
   .disable_ml_partition_speed_features =
       ARG_DEF(NULL, "disable-ml-partition-speed-features", 1,
               "Disable ML partition speed features "
-              "(0: false (default), 1: true)"),
+              "(0: false, 1: true (default))"),
   .erp_pruning_level =
       ARG_DEF(NULL, "erp-pruning-level", 1,
               "Set the level of aggressiveness for erp pruning."
