@@ -33,6 +33,25 @@ enum {
   FTXS_USE_TRANSFORM_DOMAIN = 1 << 2
 } UENUM1BYTE(FAST_TX_SEARCH_MODE);
 
+/*
+Gets the type to signal for the 4 way split tree in the tx partition
+type signaling.
+*/
+static INLINE int get_split4_partition(TX_PARTITION_TYPE partition) {
+  switch (partition) {
+    case TX_PARTITION_NONE:
+    case TX_PARTITION_SPLIT:
+    case TX_PARTITION_VERT:
+    case TX_PARTITION_HORZ:
+    case TX_PARTITION_VERT4:
+    case TX_PARTITION_HORZ4:
+    case TX_PARTITION_HORZ5:
+    case TX_PARTITION_VERT5: return partition;
+    default: assert(0);
+  }
+  return 0;
+}
+
 static AVM_INLINE int inter_tx_partition_cost(const MACROBLOCK *const x,
                                               TX_PARTITION_TYPE partition,
                                               BLOCK_SIZE bsize,
