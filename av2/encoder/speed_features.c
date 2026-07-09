@@ -345,6 +345,7 @@ static void set_good_speed_features_framesize_independent(
 
     sf->tx_sf.adaptive_tx_type_search_idx = 4;
     sf->tx_sf.adaptive_tx_partition_type_search_idx = 4;
+    sf->tx_sf.prune_intra_ist_stx_by_zero_eob = true;
 
     sf->inter_sf.prune_comp_search_by_single_result = boosted ? 2 : 1;
 
@@ -786,6 +787,7 @@ static AVM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
   tx_sf->restrict_tx_partition_type_search = 0;
   tx_sf->prune_inter_tx_part_rd_eval = false;
   tx_sf->enable_tx_partition = true;
+  tx_sf->prune_intra_ist_stx_by_zero_eob = false;
 }
 
 static AVM_INLINE void init_rd_sf(RD_CALC_SPEED_FEATURES *rd_sf,
