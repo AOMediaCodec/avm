@@ -4386,7 +4386,8 @@ static AVM_INLINE void prune_part_4_with_partition_boundary(
   }
 }
 
-// Pruning logic for PARTITION_HORZ_3 and PARTITION_VERT_3.
+/*!\brief Pruning logic for PARTITION_HORZ_3 and PARTITION_VERT_3 based on
+ * non-ext partitions search results. */
 static AVM_INLINE void prune_ext_partitions_3way(
     AV2_COMP *const cpi, PC_TREE *pc_tree,
     PartitionSearchState *part_search_state, bool *partition_boundaries) {
@@ -4672,7 +4673,8 @@ static INLINE void search_intra_region_partitioning(
   restore_level_banks(&x->e_mbd, level_banks);
 }
 
-// Pruning logic for PARTITION_HORZ_4A/B and PARTITION_VERT_4A/B.
+/*!\brief Pruning logic for PARTITION_HORZ_4A/B and PARTITION_VERT_4A/B based on
+ * non-ext and 3 way partitions search results.*/
 static AVM_INLINE void prune_ext_partitions_4way(
     AV2_COMP *const cpi, PC_TREE *pc_tree,
     PartitionSearchState *part_search_state, bool *partition_boundaries) {
@@ -5243,6 +5245,49 @@ static AVM_INLINE void prune_none_with_rect_results(
   }
 }
 
+/*!\brief Prune next uneven 4 way partitions based on search results of current
+ * / past uneven 4 way partitions. */
+static AVM_INLINE void prune_4way_partitions_based_on_4way_search(
+    const PARTITION_SPEED_FEATURES *const part_sf, const PC_TREE *const pc_tree,
+    PartitionSearchState *const part_search_state,
+    PARTITION_TYPE partition_type) {
+  if (partition_type == PARTITION_HORZ_4A) {
+    if (part_sf->prune_part_4b_with_part_4a) {
+      if (part_search_state->partition_4a_allowed[HORZ] &&
+          !part_search_state->prune_partition_4a[HORZ] &&
+          part_search_state->found_best_partition &&
+          pc_tree->partitioning != PARTITION_HORZ_4A) {
+        part_search_state->prune_partition_4b[HORZ] = true;
+      }
+    }
+  } else if (partition_type == PARTITION_VERT_4A) {
+    if (part_sf->prune_part_4b_with_part_4a) {
+      if (part_search_state->partition_4a_allowed[VERT] &&
+          !part_search_state->prune_partition_4a[VERT] &&
+          part_search_state->found_best_partition &&
+          pc_tree->partitioning != PARTITION_VERT_4A) {
+        part_search_state->prune_partition_4b[VERT] = true;
+      }
+    }
+  }
+}
+
+static AVM_INLINE int get_ext_partitions_recur_depth(
+    const PARTITION_SPEED_FEATURES *const part_sf, BLOCK_SIZE bsize) {
+  const int level = part_sf->ext_recur_depth_level;
+
+  if (level == 0) {
+    return INT_MAX;
+  } else if (level == 1) {
+    const uint16_t bw = block_size_wide[bsize];
+    const uint16_t bh = block_size_high[bsize];
+    return (bw * bh) > 1024 ? 2 : INT_MAX;
+  } else {
+    assert(level == 2);
+    return 1;
+  }
+}
+
 /*!\brief AV2 block partition search (full search).
 *
 * \ingroup partition_search
@@ -5675,102 +5720,40 @@ BEGIN_PARTITION_SEARCH:
                           none_rd, &part_none_rd, &level_banks, ptree_luma);
   }
 
-  bool partition_boundaries[MAX_MIB_SQUARE] = { 0 };
-  prune_ext_partitions_3way(cpi, pc_tree, &part_search_state,
-                            partition_boundaries);
-  int ext_recur_depth_val = 0;
-
-  if (cpi->sf.part_sf.ext_recur_depth_level == 0) {
-    ext_recur_depth_val = INT_MAX;
-  } else if (cpi->sf.part_sf.ext_recur_depth_level == 1) {
-    const uint16_t bw = block_size_wide[bsize];
-    const uint16_t bh = block_size_high[bsize];
-    ext_recur_depth_val = (bw * bh) > 1024 ? 2 : INT_MAX;
-  } else {
-    assert(cpi->sf.part_sf.ext_recur_depth_level == 2);
-    ext_recur_depth_val = 1;
-  }
-
+  // Search extended partitions.
   const int ext_recur_depth =
-      AVMMIN(max_recursion_depth - 1, ext_recur_depth_val);
-  CFL_ALLOWED_FOR_SDP_TYPE is_cfl_allowed_for_this_chroma_partition_vert3 =
-      is_cfl_allowed_for_sdp(cm, xd, ptree_luma, PARTITION_VERT_3, bsize);
-  CFL_ALLOWED_FOR_SDP_TYPE is_cfl_allowed_for_this_chroma_partition_horz3 =
-      is_cfl_allowed_for_sdp(cm, xd, ptree_luma, PARTITION_HORZ_3, bsize);
-  CFL_ALLOWED_FOR_SDP_TYPE is_cfl_allowed_for_this_chroma_partition_vert4a =
-      is_cfl_allowed_for_sdp(cm, xd, ptree_luma, PARTITION_VERT_4A, bsize);
-  CFL_ALLOWED_FOR_SDP_TYPE is_cfl_allowed_for_this_chroma_partition_vert4b =
-      is_cfl_allowed_for_sdp(cm, xd, ptree_luma, PARTITION_VERT_4B, bsize);
-  CFL_ALLOWED_FOR_SDP_TYPE is_cfl_allowed_for_this_chroma_partition_horz4a =
-      is_cfl_allowed_for_sdp(cm, xd, ptree_luma, PARTITION_HORZ_4A, bsize);
-  CFL_ALLOWED_FOR_SDP_TYPE is_cfl_allowed_for_this_chroma_partition_horz4b =
-      is_cfl_allowed_for_sdp(cm, xd, ptree_luma, PARTITION_HORZ_4B, bsize);
+      AVMMIN(max_recursion_depth - 1,
+             get_ext_partitions_recur_depth(&cpi->sf.part_sf, bsize));
   const bool track_ptree_luma =
       is_luma_chroma_share_same_partition(xd->tree_type, ptree_luma, bsize);
+  bool partition_boundaries[MAX_MIB_SQUARE] = { 0 };
 
-  // PARTITION_HORZ_3
-  search_extended_partition(
-      &part_search_state, cpi, td, tile_data, tp, &best_rdc, pc_tree,
-      track_ptree_luma ? ptree_luma : NULL, template_tree, &x_ctx,
-      &part_search_state, &level_banks, multi_pass_mode, ext_recur_depth,
-      is_cfl_allowed_for_this_chroma_partition_horz3, PARTITION_HORZ_3);
-
-  // PARTITION_VERT_3
-  search_extended_partition(
-      &part_search_state, cpi, td, tile_data, tp, &best_rdc, pc_tree,
-      track_ptree_luma ? ptree_luma : NULL, template_tree, &x_ctx,
-      &part_search_state, &level_banks, multi_pass_mode, ext_recur_depth,
-      is_cfl_allowed_for_this_chroma_partition_vert3, PARTITION_VERT_3);
+  prune_ext_partitions_3way(cpi, pc_tree, &part_search_state,
+                            partition_boundaries);
+  for (PARTITION_TYPE partition_type = PARTITION_HORZ_3;
+       partition_type <= PARTITION_VERT_3; ++partition_type) {
+    search_extended_partition(
+        &part_search_state, cpi, td, tile_data, tp, &best_rdc, pc_tree,
+        track_ptree_luma ? ptree_luma : NULL, template_tree, &x_ctx,
+        &part_search_state, &level_banks, multi_pass_mode, ext_recur_depth,
+        is_cfl_allowed_for_sdp(cm, xd, ptree_luma, partition_type, bsize),
+        partition_type);
+  }
 
   if ((pc_tree->region_type != INTRA_REGION || frame_is_intra_only(cm))) {
     prune_ext_partitions_4way(cpi, pc_tree, &part_search_state,
                               partition_boundaries);
-
-    // PARTITION_HORZ_4A
-    search_extended_partition(
-        &part_search_state, cpi, td, tile_data, tp, &best_rdc, pc_tree,
-        track_ptree_luma ? ptree_luma : NULL, template_tree, &x_ctx,
-        &part_search_state, &level_banks, multi_pass_mode, ext_recur_depth,
-        is_cfl_allowed_for_this_chroma_partition_horz4a, PARTITION_HORZ_4A);
-
-    if (cpi->sf.part_sf.prune_part_4b_with_part_4a) {
-      if (part_search_state.partition_4a_allowed[HORZ] &&
-          !part_search_state.prune_partition_4a[HORZ] &&
-          part_search_state.found_best_partition &&
-          pc_tree->partitioning != PARTITION_HORZ_4A) {
-        part_search_state.prune_partition_4b[HORZ] = true;
-      }
+    for (PARTITION_TYPE partition_type = PARTITION_HORZ_4A;
+         partition_type <= PARTITION_VERT_4B; ++partition_type) {
+      search_extended_partition(
+          &part_search_state, cpi, td, tile_data, tp, &best_rdc, pc_tree,
+          track_ptree_luma ? ptree_luma : NULL, template_tree, &x_ctx,
+          &part_search_state, &level_banks, multi_pass_mode, ext_recur_depth,
+          is_cfl_allowed_for_sdp(cm, xd, ptree_luma, partition_type, bsize),
+          partition_type);
+      prune_4way_partitions_based_on_4way_search(
+          &cpi->sf.part_sf, pc_tree, &part_search_state, partition_type);
     }
-
-    // PARTITION_HORZ_4B
-    search_extended_partition(
-        &part_search_state, cpi, td, tile_data, tp, &best_rdc, pc_tree,
-        track_ptree_luma ? ptree_luma : NULL, template_tree, &x_ctx,
-        &part_search_state, &level_banks, multi_pass_mode, ext_recur_depth,
-        is_cfl_allowed_for_this_chroma_partition_horz4b, PARTITION_HORZ_4B);
-
-    // PARTITION_VERT_4A
-    search_extended_partition(
-        &part_search_state, cpi, td, tile_data, tp, &best_rdc, pc_tree,
-        track_ptree_luma ? ptree_luma : NULL, template_tree, &x_ctx,
-        &part_search_state, &level_banks, multi_pass_mode, ext_recur_depth,
-        is_cfl_allowed_for_this_chroma_partition_vert4a, PARTITION_VERT_4A);
-
-    if (cpi->sf.part_sf.prune_part_4b_with_part_4a) {
-      if (part_search_state.partition_4a_allowed[VERT] &&
-          !part_search_state.prune_partition_4a[VERT] &&
-          part_search_state.found_best_partition &&
-          pc_tree->partitioning != PARTITION_VERT_4A) {
-        part_search_state.prune_partition_4b[VERT] = true;
-      }
-    }
-
-    // PARTITION_VERT_4B
-    search_extended_partition(
-        &part_search_state, cpi, td, tile_data, tp, &best_rdc, pc_tree,
-        track_ptree_luma ? ptree_luma : NULL, template_tree, &x_ctx,
-        &part_search_state, &level_banks, multi_pass_mode, ext_recur_depth,
-        is_cfl_allowed_for_this_chroma_partition_vert4b, PARTITION_VERT_4B);
   }
 
   if (bsize == cm->sb_size && !part_search_state.found_best_partition &&
