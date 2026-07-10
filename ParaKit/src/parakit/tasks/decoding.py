@@ -11,6 +11,7 @@ aomedia.org/license/patent-license/.
 """
 import multiprocessing
 import os
+import subprocess
 import sys
 
 from termcolor import cprint
@@ -20,7 +21,7 @@ from parakit.entropy.file_collector import FileCollector
 
 
 def decode_task(decode_info):
-    os.system(decode_info[0])
+    subprocess.run(decode_info[0], check=False)
     print(f"Decoded: {decode_info[2]}", flush=True)
 
 
@@ -55,7 +56,7 @@ def run(
         suffix = os.path.splitext(bitstream)[0] + "_" + test_output_tag
         decode_info.append(
             (
-                f"binaries/avmdec {path_bitstream}/{bitstream} --path-ctxdata={path_ctx_data} --suffix-ctxdata={suffix} -o /dev/null",
+                ["binaries/avmdec", f"{path_bitstream}/{bitstream}", f"--path-ctxdata={path_ctx_data}", f"--suffix-ctxdata={suffix}", "-o", "/dev/null"],
                 idx,
                 bitstream,
             )
