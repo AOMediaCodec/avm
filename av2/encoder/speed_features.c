@@ -344,6 +344,17 @@ static void set_good_speed_features_framesize_independent(
     sf->tx_sf.adaptive_tx_partition_type_search_idx = 4;
 
     sf->inter_sf.prune_comp_search_by_single_result = boosted ? 2 : 1;
+
+    // Skip the second-best full-pel candidate's subpel refinement in the
+    // single-ref NEWMV search.
+    sf->mv_sf.skip_second_best_subpel = 1;
+
+    // Predictive single-ref NEWMV reuse across the DRL.
+    sf->mv_sf.predict_repeated_newmv = 1;
+
+    // Cap the DRL depth for a fresh single-ref NEWMV search; reuse the
+    // nearest searched result beyond the cap.
+    sf->mv_sf.newmv_drl_search_limit = 2;
   }
 
   if (speed >= 2) {
@@ -655,6 +666,9 @@ static AVM_INLINE void init_mv_sf(MV_SPEED_FEATURES *mv_sf) {
   mv_sf->exhaustive_searches_thresh = 0;
   mv_sf->prune_mesh_search = 0;
   mv_sf->reduce_search_range = 0;
+  mv_sf->skip_second_best_subpel = 0;
+  mv_sf->predict_repeated_newmv = 0;
+  mv_sf->newmv_drl_search_limit = 0;
   mv_sf->search_method = NSTEP;
   mv_sf->simple_motion_subpel_force_stop = EIGHTH_PEL;
   mv_sf->subpel_force_stop = EIGHTH_PEL;

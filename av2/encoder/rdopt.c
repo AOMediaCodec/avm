@@ -1428,6 +1428,72 @@ static int64_t handle_newmv(const AV2_COMP *const cpi, MACROBLOCK *const x,
                                               mode_info, &start_mv, &best_mv);
 
     } else {
+      // Predictive NEWMV reuse across the DRL. Two triggers select a match:
+      //   Tier 1 (predict_repeated_newmv): match when reference MVs are
+      //     within one full pel.
+      //   Tier 2 (newmv_drl_search_limit): once ref_mv_idx reaches the limit,
+      //     reuse the nearest searched result regardless of distance.
+      const int t1_active = cpi->sf.mv_sf.predict_repeated_newmv != 0;
+      const int drl_limit = cpi->sf.mv_sf.newmv_drl_search_limit;
+      const int t2_active =
+          drl_limit > 0 && mbmi->ref_mv_idx[ref_idx] >= drl_limit;
+      if ((t1_active || t2_active) && !mbmi->use_amvd &&
+          mbmi->ref_mv_idx[ref_idx] > 0) {
+        const MV ref_mv = av2_get_ref_mv(x, ref_idx).as_mv;
+        int near_diff = INT_MAX;
+        int near_idx = -1;
+        for (int idx = 0; idx < mbmi->ref_mv_idx[ref_idx]; ++idx) {
+          if (!args->single_newmv_valid[pb_mv_precision][idx][refs[0]])
+            continue;
+          const MV prev_ref_mv =
+              av2_get_ref_mv_from_stack(ref_idx, mbmi->ref_frame, idx,
+                                        x->mbmi_ext, mbmi)
+                  .as_mv;
+          const int ref_mv_diff = AVMMAX(abs(ref_mv.row - prev_ref_mv.row),
+                                         abs(ref_mv.col - prev_ref_mv.col));
+          if (ref_mv_diff < near_diff) {
+            near_diff = ref_mv_diff;
+            near_idx = idx;
+          }
+        }
+        int best_match = -1;
+        // Reuse the nearest previously-searched ref-mv when Tier 1 (within
+        // one full pel -- (1 << 3) in 1/8-pel units) or Tier 2 (no distance
+        // cap) fires.
+        if (near_idx >= 0 &&
+            ((t1_active && near_diff <= (1 << 3)) || t2_active)) {
+          best_match = near_idx;
+        }
+        if (best_match >= 0) {
+          const int_mv reuse_mv =
+              args->single_newmv[pb_mv_precision][best_match][refs[0]];
+          SubpelMvLimits mv_limits;
+          av2_set_subpel_mv_search_range(&mv_limits, &x->mv_limits, &ref_mv,
+                                         pb_mv_precision);
+          const int is_adaptive_mvd = enable_adaptive_mvd_resolution(cm, mbmi);
+          // The reused MV was searched against a different reference MV, so
+          // check that its MVD relative to the *current* reference MV is
+          // representable at pb_mv_precision (otherwise the decoder would
+          // reconstruct a different MV -- bitstream mismatch).
+          MV reuse_mvd;
+          get_mvd_from_ref_mv(reuse_mv.as_mv, ref_mv, is_adaptive_mvd,
+                              pb_mv_precision, &reuse_mvd);
+          if (av2_is_subpelmv_in_range(&mv_limits, reuse_mv.as_mv) &&
+              is_this_mv_precision_compliant(reuse_mvd, pb_mv_precision)) {
+            *rate_mv =
+                av2_mv_bit_cost(&reuse_mv.as_mv, &ref_mv, pb_mv_precision,
+                                &x->mv_costs, MV_COST_WEIGHT, is_adaptive_mvd);
+            const int cur_idx = get_ref_mv_idx(mbmi, 0);
+            args->single_newmv[pb_mv_precision][cur_idx][refs[0]] = reuse_mv;
+            args->single_newmv_rate[pb_mv_precision][cur_idx][refs[0]] =
+                *rate_mv;
+            args->single_newmv_valid[pb_mv_precision][cur_idx][refs[0]] = 1;
+            cur_mv[0].as_int = reuse_mv.as_int;
+            return 0;
+          }
+        }
+      }
+
       int search_range = INT_MAX;
       if (cpi->sf.mv_sf.reduce_search_range && mbmi->ref_mv_idx[0] > 0) {
         const MV ref_mv = av2_get_ref_mv(x, ref_idx).as_mv;
