@@ -846,7 +846,7 @@ static void av2_disable_ml_based_partition_sf(
   part_sf->simple_motion_search_split = 0;
   part_sf->simple_motion_search_prune_rect = 0;
   part_sf->simple_motion_search_early_term_none = 0;
-# if CONFIG_ML_PART_SPLIT
+#if CONFIG_ML_PART_SPLIT
   part_sf->prune_split_with_ml = 0;
   part_sf->prune_none_with_ml = 0;
   part_sf->prune_split_ml_level = -1;
