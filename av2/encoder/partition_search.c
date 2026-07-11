@@ -34,6 +34,7 @@
 #include "av2/encoder/partition_strategy.h"
 #include "av2/encoder/reconinter_enc.h"
 #include "av2/encoder/tokenize.h"
+#include "av2/encoder/tx_search.h"
 #include "av2/common/reconinter.h"
 #include "av2/encoder/erp_ml.h"
 
