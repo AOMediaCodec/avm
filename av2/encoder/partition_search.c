@@ -2781,7 +2781,13 @@ void av2_rd_use_partition(AV2_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   // If last_part is better set the partitioning to that.
   const int plane_type = (xd->tree_type == CHROMA_PART);
   mib[0]->sb_type[plane_type] = bsize;
-  if (bsize >= BLOCK_8X8) pc_tree->partitioning = partition;
+  if (bsize >= BLOCK_8X8) {
+    if (last_part_rdc.rate < INT_MAX && last_part_rdc.dist < INT64_MAX) {
+      pc_tree->partitioning = partition;
+    } else {
+      pc_tree->partitioning = PARTITION_NONE;
+    }
+  }
 
   av2_restore_context(cm, x, &x_ctx, mi_row, mi_col, bsize, num_planes);
 
@@ -2790,7 +2796,8 @@ void av2_rd_use_partition(AV2_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   if (bsize == cm->sb_size)
     assert(last_part_rdc.rate < INT_MAX && last_part_rdc.dist < INT64_MAX);
 
-  if (do_recon) {
+  if (do_recon && last_part_rdc.rate < INT_MAX &&
+      last_part_rdc.dist < INT64_MAX) {
     if (bsize == cm->sb_size) {
       // NOTE: To get estimate for rate due to the tokens, use:
       // int rate_coeffs = 0;
