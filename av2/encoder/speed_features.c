@@ -339,6 +339,9 @@ static void set_good_speed_features_framesize_independent(
     // TODO (Yeqing Wu): need to be tuned for speed > 1.
     sf->inter_sf.skip_compound_prune_top_refs_num_ref0 = 1;
     sf->inter_sf.skip_compound_prune_top_refs_num_ref1 = 2;
+    sf->inter_sf.prune_refinemv_by_ref_idx = 1;
+    sf->inter_sf.prune_interintra_by_ref_idx = 1;
+    sf->inter_sf.prune_warp_delta_by_ref_idx = 1;
 
     sf->tx_sf.adaptive_tx_type_search_idx = 4;
     sf->tx_sf.adaptive_tx_partition_type_search_idx = 4;
@@ -721,6 +724,9 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->prune_compound_using_single_ref = 0;
   inter_sf->skip_compound_prune_top_refs_num_ref0 = 0;
   inter_sf->skip_compound_prune_top_refs_num_ref1 = 0;
+  inter_sf->prune_refinemv_by_ref_idx = 0;
+  inter_sf->prune_interintra_by_ref_idx = 0;
+  inter_sf->prune_warp_delta_by_ref_idx = 0;
   inter_sf->prune_comp_using_best_single_mode_ref = 0;
   inter_sf->prune_mode_search_simple_translation = 0;
   inter_sf->prune_comp_type_by_comp_avg = 0;

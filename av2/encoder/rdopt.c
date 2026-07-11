@@ -2960,11 +2960,15 @@ static AVM_INLINE int evaluate_motion_mode_trial(
                                 &tmp_rate2) < 0)
       return -1;
   } else if (mbmi->motion_mode == INTERINTRA) {
+    if (cpi->sf.inter_sf.prune_interintra_by_ref_idx && mbmi->ref_frame[0] > 1)
+      return -1;
     if (av2_handle_inter_intra_mode(cpi, x, bsize, mbmi, args, *ref_best_rd,
                                     &tmp_rate_mv, &tmp_rate2, orig_dst) < 0)
       return -1;
     assert(mbmi->motion_mode == INTERINTRA);
   } else if (mbmi->motion_mode == WARP_DELTA) {
+    if (cpi->sf.inter_sf.prune_warp_delta_by_ref_idx && mbmi->ref_frame[0] > 2)
+      return -1;
     if (handle_warp_delta_mode(
             cpi, x, bsize, mbmi, mbmi_ext, args, *ref_best_rd, orig_dst,
             ctx->previous_mvs, ctx->prev_best_models, org_warp_inter_intra,
@@ -5021,6 +5025,12 @@ static void evaluate_inter_predictor(AV2_COMP *const cpi,
     }
   }
   restore_dst_buf(xd, *env->orig_dst, num_planes);
+  // motion_mode_rd() may leave mbmi->motion_mode set to a non-SIMPLE
+  // winner. The winning value has already been captured into
+  // search_state->best_mbmi and winner_mode_stats above. Restore here so
+  // the outer caller (handle_inter_mode) sees SIMPLE_TRANSLATION at the
+  // top of its next per-precision iteration.
+  mbmi->motion_mode = SIMPLE_TRANSLATION;
 }
 
 /*!\brief AV2 inter mode RD computation
@@ -5630,6 +5640,11 @@ static int64_t handle_inter_mode(
                     &base_mbmi, 0, num_planes, args->skip_motion_mode);
                 for (int refinemv_loop = 0; refinemv_loop < REFINEMV_NUM_MODES;
                      refinemv_loop++) {
+                  if (refinemv_loop == 1 &&
+                      cpi->sf.inter_sf.prune_refinemv_by_ref_idx &&
+                      !(base_mbmi.ref_frame[0] == 0 &&
+                        base_mbmi.ref_frame[1] == 1))
+                    continue;
                   it_ctx.refinemv_loop = refinemv_loop;
                   evaluate_inter_predictor(
                       cpi, tile_data, x, &env, &it_ctx, &search_state,
