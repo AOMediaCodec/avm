@@ -966,7 +966,6 @@ static int denoise_and_encode(AV2_COMP *const cpi, uint8_t *const dest,
       av2_set_speed_features_framesize_dependent(cpi, oxcf->speed);
       av2_set_rd_speed_thresholds(cpi);
       av2_setup_frame_buf_refs(cm);
-      av2_setup_frame_sign_bias(cm);
       av2_frame_init_quantizer(cpi);
       av2_setup_past_independence(cm);
 
