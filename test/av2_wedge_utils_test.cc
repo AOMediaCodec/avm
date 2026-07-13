@@ -10,6 +10,7 @@
  * aomedia.org/license/patent-license/.
  */
 
+#include <cstdio>
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
 #include "config/avm_config.h"
@@ -147,6 +148,43 @@ TEST_P(WedgeUtilsSSEOptTest, ExtremeValues) {
 
     ASSERT_EQ(ref_res, tst_res);
   }
+}
+
+TEST_P(WedgeUtilsSSEOptTest, DISABLED_Speed) {
+  DECLARE_ALIGNED(32, int16_t, r1[MAX_SB_SQUARE]);
+  DECLARE_ALIGNED(32, int16_t, d[MAX_SB_SQUARE]);
+  DECLARE_ALIGNED(32, uint8_t, m[MAX_SB_SQUARE]);
+  constexpr int kNumIters = 100000000;
+
+  for (int i = 0; i < MAX_SB_SQUARE; ++i) {
+    r1[i] = rng_(2 * kInt13Max + 1) - kInt13Max;
+    d[i] = rng_(2 * kInt13Max + 1) - kInt13Max;
+    m[i] = rng_(MAX_MASK_VALUE + 1);
+  }
+
+  const int N = 64 * (rng_(MAX_SB_SQUARE / 64) + 1);
+
+  avm_usec_timer ref_timer, test_timer;
+  avm_usec_timer_start(&ref_timer);
+  for (int iter = 0; iter < kNumIters; ++iter) {
+    params_.ref_func(r1, d, m, N);
+  }
+  avm_usec_timer_mark(&ref_timer);
+  const int elapsed_time_c =
+      static_cast<int>(avm_usec_timer_elapsed(&ref_timer));
+
+  avm_usec_timer_start(&test_timer);
+  for (int iter = 0; iter < kNumIters; ++iter) {
+    params_.tst_func(r1, d, m, N);
+  }
+  avm_usec_timer_mark(&test_timer);
+  const int elapsed_time_simd =
+      static_cast<int>(avm_usec_timer_elapsed(&test_timer));
+  printf(
+      "c_time=%d \t simd_time=%d \t "
+      "Scaling=%lf \n",
+      elapsed_time_c, elapsed_time_simd,
+      (static_cast<double>(elapsed_time_c) / elapsed_time_simd));
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -308,7 +346,7 @@ INSTANTIATE_TEST_SUITE_P(
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
     AVX2, WedgeUtilsSSEOptTest,
-    ::testing::Values(TestFuncsFSSE(av2_wedge_sse_from_residuals_sse2,
+    ::testing::Values(TestFuncsFSSE(av2_wedge_sse_from_residuals_c,
                                     av2_wedge_sse_from_residuals_avx2)));
 
 INSTANTIATE_TEST_SUITE_P(
