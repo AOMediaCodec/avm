@@ -19,6 +19,9 @@
 extern "C" {
 #endif
 
+// Encoder-only configuration to reduce the search complexity of IST.
+#define IST_REDUCED_SEARCH_SET_SIZE 4
+
 // Set this macro as 1 to collect data about tx size selection.
 #define COLLECT_TX_SIZE_DATA 0
 
