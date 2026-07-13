@@ -9694,10 +9694,8 @@ int32_t av2_read_tilegroup_header(
     av2_setup_block_planes(xd, cm->seq_params.subsampling_x,
                            cm->seq_params.subsampling_y, av2_num_planes(cm));
 
-    if (cm->features.allow_ref_frame_mvs)
-      av2_setup_motion_field(cm);
-    else
-      av2_setup_ref_frame_sides(cm);
+    av2_setup_ref_frame_sides(cm);
+    if (cm->features.allow_ref_frame_mvs) av2_setup_motion_field(cm);
 
     if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame) {
       for (int plane = 0; plane < av2_num_planes(cm); plane++) {
