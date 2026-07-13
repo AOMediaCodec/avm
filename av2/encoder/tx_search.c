@@ -2556,38 +2556,8 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
 #endif  // CONFIG_COLLECT_RD_STATS == 1
 
 #if COLLECT_TX_SIZE_DATA
-        // Generate small sample to restrict output size.
-        static unsigned int seed = 21743;
-        if (lcg_rand16(&seed) % 200 == 0) {
-          FILE *fp = NULL;
-
-          if (within_border) {
-            fp = fopen(av2_tx_size_data_output_file, "a");
-          }
-
-          if (fp) {
-            // Transform info and RD
-            const int txb_w = tx_size_wide[tx_size];
-            const int txb_h = tx_size_high[tx_size];
-
-            // Residue signal.
-            const int diff_stride = block_size_wide[plane_bsize];
-            struct macroblock_plane *const p = &x->plane[plane];
-            const int16_t *src_diff =
-                &p->src_diff[(blk_row * diff_stride + blk_col) * 4];
-
-            for (int r = 0; r < txb_h; ++r) {
-              for (int c = 0; c < txb_w; ++c) {
-                fprintf(fp, "%d,", src_diff[c]);
-              }
-              src_diff += diff_stride;
-            }
-
-            fprintf(fp, "%d,%d,%d,%" PRId64, txb_w, txb_h, tx_type, rd);
-            fprintf(fp, "\n");
-            fclose(fp);
-          }
-        }
+        collect_tx_size_data(cpi, x, plane, blk_row, blk_col, plane_bsize,
+                             tx_size, tx_type, rd);
 #endif  // COLLECT_TX_SIZE_DATA
 
         assert(cpi->sf.tx_sf.adaptive_tx_type_search_idx < 6);
