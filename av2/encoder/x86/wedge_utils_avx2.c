@@ -22,6 +22,35 @@
 
 #define MAX_MASK_VALUE (1 << WEDGE_WEIGHT_BITS)
 
+#define WEDGE_SSE_16(OFFSET, ACCUM_VALUE)                                     \
+  do {                                                                        \
+    const __m256i v_r0_w =                                                    \
+        _mm256_lddqu_si256((const __m256i *)(r1 + n + OFFSET));               \
+    const __m256i v_d0_w =                                                    \
+        _mm256_lddqu_si256((const __m256i *)(d + n + OFFSET));                \
+    const __m128i v_m01_b =                                                   \
+        _mm_lddqu_si128((const __m128i *)(m + n + OFFSET));                   \
+                                                                              \
+    const __m256i v_rd0l_w = _mm256_unpacklo_epi16(v_d0_w, v_r0_w);           \
+    const __m256i v_rd0h_w = _mm256_unpackhi_epi16(v_d0_w, v_r0_w);           \
+    const __m256i v_m0_w = _mm256_cvtepu8_epi16(v_m01_b);                     \
+                                                                              \
+    const __m256i v_m0l_w = _mm256_unpacklo_epi16(v_m0_w, v_mask_max_w);      \
+    const __m256i v_m0h_w = _mm256_unpackhi_epi16(v_m0_w, v_mask_max_w);      \
+                                                                              \
+    const __m256i v_t0l_d = _mm256_madd_epi16(v_rd0l_w, v_m0l_w);             \
+    const __m256i v_t0h_d = _mm256_madd_epi16(v_rd0h_w, v_m0h_w);             \
+                                                                              \
+    const __m256i v_t0_w = _mm256_packs_epi32(v_t0l_d, v_t0h_d);              \
+                                                                              \
+    const __m256i v_sq0_d = _mm256_madd_epi16(v_t0_w, v_t0_w);                \
+                                                                              \
+    const __m256i v_sum0_q = _mm256_add_epi64(                                \
+        _mm256_and_si256(v_sq0_d, v_zext_q), _mm256_srli_epi64(v_sq0_d, 32)); \
+                                                                              \
+    ACCUM_VALUE = v_sum0_q;                                                   \
+  } while (0)
+
 /**
  * See av2_wedge_sse_from_residuals_c
  */
@@ -35,6 +64,8 @@ uint64_t av2_wedge_sse_from_residuals_avx2(const int16_t *r1, const int16_t *d,
   const __m256i v_zext_q = yy_set1_64_from_32i(0xffffffff);
 
   __m256i v_acc0_q = _mm256_setzero_si256();
+  __m256i v_acc0_q_offset_0, v_acc0_q_offset_16, v_acc0_q_offset_32,
+      v_acc0_q_offset_48;
 
   assert(N % 64 == 0);
 
@@ -43,30 +74,17 @@ uint64_t av2_wedge_sse_from_residuals_avx2(const int16_t *r1, const int16_t *d,
   m += N;
 
   do {
-    const __m256i v_r0_w = _mm256_lddqu_si256((__m256i *)(r1 + n));
-    const __m256i v_d0_w = _mm256_lddqu_si256((__m256i *)(d + n));
-    const __m128i v_m01_b = _mm_lddqu_si128((__m128i *)(m + n));
+    WEDGE_SSE_16(0, v_acc0_q_offset_0);
+    WEDGE_SSE_16(16, v_acc0_q_offset_16);
+    WEDGE_SSE_16(32, v_acc0_q_offset_32);
+    WEDGE_SSE_16(48, v_acc0_q_offset_48);
 
-    const __m256i v_rd0l_w = _mm256_unpacklo_epi16(v_d0_w, v_r0_w);
-    const __m256i v_rd0h_w = _mm256_unpackhi_epi16(v_d0_w, v_r0_w);
-    const __m256i v_m0_w = _mm256_cvtepu8_epi16(v_m01_b);
+    v_acc0_q = _mm256_add_epi64(v_acc0_q, v_acc0_q_offset_0);
+    v_acc0_q = _mm256_add_epi64(v_acc0_q, v_acc0_q_offset_16);
+    v_acc0_q = _mm256_add_epi64(v_acc0_q, v_acc0_q_offset_32);
+    v_acc0_q = _mm256_add_epi64(v_acc0_q, v_acc0_q_offset_48);
 
-    const __m256i v_m0l_w = _mm256_unpacklo_epi16(v_m0_w, v_mask_max_w);
-    const __m256i v_m0h_w = _mm256_unpackhi_epi16(v_m0_w, v_mask_max_w);
-
-    const __m256i v_t0l_d = _mm256_madd_epi16(v_rd0l_w, v_m0l_w);
-    const __m256i v_t0h_d = _mm256_madd_epi16(v_rd0h_w, v_m0h_w);
-
-    const __m256i v_t0_w = _mm256_packs_epi32(v_t0l_d, v_t0h_d);
-
-    const __m256i v_sq0_d = _mm256_madd_epi16(v_t0_w, v_t0_w);
-
-    const __m256i v_sum0_q = _mm256_add_epi64(
-        _mm256_and_si256(v_sq0_d, v_zext_q), _mm256_srli_epi64(v_sq0_d, 32));
-
-    v_acc0_q = _mm256_add_epi64(v_acc0_q, v_sum0_q);
-
-    n += 16;
+    n += 64;
   } while (n);
 
   v_acc0_q = _mm256_add_epi64(v_acc0_q, _mm256_srli_si256(v_acc0_q, 8));
