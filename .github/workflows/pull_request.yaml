@@ -336,6 +336,12 @@ jobs:
       "
 
     steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 50
+
+      - uses: ./.github/actions/common-setup
+
       - name: Configure AVM encoder
         run: |
           if [ -z "${AVMENC_OUTPUT}" ]; then
@@ -484,7 +490,7 @@ jobs:
           ALLOW_FAIL=0
           FAILED=0
 
-          if [ -n "$(git --no-pager log --grep STATS_CHANGED --format=format:"%H" "${{ github.event.pull_request.base.sha }}..${{ github.sha }}")" ]; then
+          if [ -n "$(git --no-pager log --grep STATS_CHANGED --format=format:"%H" "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}")" ]; then
             ALLOW_FAIL=1
           fi
 
@@ -507,7 +513,7 @@ jobs:
               echo "         commits contain the STATS_CHANGED keyword, so mismatch"
               echo "         of encode outputs is allowed."
               echo "Commits containing STATS_CHANGED added in this MR:"
-              git --no-pager log --grep STATS_CHANGED --format=format:"%h: %s; \"%aN\" <%aE>" "${{ github.event.pull_request.base.sha }}..${{ github.sha }}"
+              git --no-pager log --grep STATS_CHANGED --format=format:"%h: %s; \"%aN\" <%aE>" "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
               echo ""
               exit 0
             fi
