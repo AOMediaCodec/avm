@@ -13,7 +13,11 @@
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
 #include "av2/decoder/annexF.h"
+extern "C" {
+#include "av2/decoder/obu.h"
+}
 #include "avm/avmdx.h"
+#include "avm_mem/avm_mem.h"
 #include "test/codec_factory.h"
 #include "test/encode_test_driver.h"
 #include "test/y4m_video_source.h"
@@ -73,6 +77,80 @@ TEST_F(SBEApiTest, ProcessMsdoSetsMultistream) {
   EXPECT_EQ(sbe_.num_xlayers_present, 2);
   // Global OBUs should be retained
   EXPECT_EQ(sbe_.retention_map[GLOBAL_XLAYER_ID][0][0], 1);
+}
+
+class MsdoStreamContextTest : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    pbi_ = static_cast<AV2Decoder *>(avm_memalign(32, sizeof(*pbi_)));
+    ASSERT_NE(pbi_, nullptr);
+    memset(pbi_, 0, sizeof(*pbi_));
+    pbi_->stream_info =
+        static_cast<StreamInfo *>(avm_calloc(3, sizeof(StreamInfo)));
+    ASSERT_NE(pbi_->stream_info, nullptr);
+    pbi_->common.xlayer_id = GLOBAL_XLAYER_ID;
+  }
+
+  void TearDown() override {
+    avm_free(pbi_->stream_info);
+    avm_free(pbi_);
+  }
+
+  static MsdoConfig MakeConfig(int id0, int id1, int id2) {
+    MsdoConfig config = {};
+    config.num_streams = 3;
+    config.stream_ids[0] = id0;
+    config.stream_ids[1] = id1;
+    config.stream_ids[2] = id2;
+    return config;
+  }
+
+  AV2Decoder *pbi_;
+};
+
+TEST_F(MsdoStreamContextTest, PreservesContextsForRetainedStreamIds) {
+  const MsdoConfig config_a = MakeConfig(0, 2, 4);
+  const MsdoConfig config_b = MakeConfig(0, 1, 3);
+  const MsdoConfig config_c = MakeConfig(0, 1, 2);
+
+  pbi_->stream_info[0].random_access_point_index_buf = 100;
+  pbi_->stream_info[1].random_access_point_index_buf = 102;
+  pbi_->stream_info[2].random_access_point_index_buf = 104;
+  pbi_->xlayer_id_map[0] = 1;
+
+  ASSERT_EQ(
+      av2_remap_msdo_stream_contexts(pbi_, &pbi_->common, &config_a, &config_b),
+      AVM_CODEC_OK);
+  EXPECT_EQ(pbi_->stream_info[0].random_access_point_index_buf, 100u);
+  EXPECT_EQ(pbi_->stream_info[1].random_access_point_index_buf, UINT64_MAX);
+  EXPECT_EQ(pbi_->stream_info[2].random_access_point_index_buf, UINT64_MAX);
+  EXPECT_EQ(pbi_->xlayer_id_map[0], 1);
+
+  pbi_->stream_info[1].random_access_point_index_buf = 101;
+  pbi_->stream_info[2].random_access_point_index_buf = 103;
+
+  ASSERT_EQ(
+      av2_remap_msdo_stream_contexts(pbi_, &pbi_->common, &config_b, &config_c),
+      AVM_CODEC_OK);
+  EXPECT_EQ(pbi_->stream_info[0].random_access_point_index_buf, 100u);
+  EXPECT_EQ(pbi_->stream_info[1].random_access_point_index_buf, 101u);
+  EXPECT_EQ(pbi_->stream_info[2].random_access_point_index_buf, UINT64_MAX);
+}
+
+TEST_F(MsdoStreamContextTest, MovesRetainedContextToItsNewSlot) {
+  const MsdoConfig config_a = MakeConfig(0, 2, 4);
+  const MsdoConfig config_b = MakeConfig(0, 4, 2);
+
+  pbi_->stream_info[0].random_access_point_index_buf = 100;
+  pbi_->stream_info[1].random_access_point_index_buf = 102;
+  pbi_->stream_info[2].random_access_point_index_buf = 104;
+
+  ASSERT_EQ(
+      av2_remap_msdo_stream_contexts(pbi_, &pbi_->common, &config_a, &config_b),
+      AVM_CODEC_OK);
+  EXPECT_EQ(pbi_->stream_info[0].random_access_point_index_buf, 100u);
+  EXPECT_EQ(pbi_->stream_info[1].random_access_point_index_buf, 104u);
+  EXPECT_EQ(pbi_->stream_info[2].random_access_point_index_buf, 102u);
 }
 
 TEST_F(SBEApiTest, ProcessGlobalLcrSetsMultistream) {

@@ -372,8 +372,10 @@ static void save_msdo_config(const AV2Decoder *pbi, MsdoConfig *config) {
 }
 
 /*!
- * \brief Compare two MSDO configurations
- * \return true if configurations are identical, false otherwise
+ * \brief Compare MSDO fields that define a coded multistream video sequence
+ * boundary. Stream IDs are intentionally excluded because they may change at
+ * a random access point without starting a new coded multistream sequence.
+ * \return true if the sequence-defining fields are identical, false otherwise
  */
 static bool msdo_config_equal(const MsdoConfig *a, const MsdoConfig *b) {
   if (a->multistream_profile_idc != b->multistream_profile_idc) return false;
@@ -384,15 +386,29 @@ static bool msdo_config_equal(const MsdoConfig *a, const MsdoConfig *b) {
   return true;
 }
 
-avm_codec_err_t flush_all_xlayer_frames(struct AV2Decoder *pbi, AV2_COMMON *cm,
-                                        bool release_dpb) {
+static int find_msdo_stream_index(const MsdoConfig *config, int xlayer_id) {
+  for (int i = 0; i < config->num_streams; ++i) {
+    if (config->stream_ids[i] == xlayer_id) return i;
+  }
+  return -1;
+}
+
+static bool msdo_stream_ids_equal(const MsdoConfig *a, const MsdoConfig *b) {
+  if (a->num_streams != b->num_streams) return false;
+  return memcmp(a->stream_ids, b->stream_ids,
+                a->num_streams * sizeof(a->stream_ids[0])) == 0;
+}
+
+static avm_codec_err_t flush_xlayer_frames(struct AV2Decoder *pbi,
+                                           AV2_COMMON *cm, bool release_dpb,
+                                           const int *xlayer_id_map) {
   BufferPool *const pool = cm->buffer_pool;
   int saved_xlayer_id = cm->xlayer_id;
   avm_codec_err_t err = AVM_CODEC_OK;
 
   for (int xlayer = 0; xlayer < AVM_MAX_NUM_STREAMS; xlayer++) {
     if (xlayer == GLOBAL_XLAYER_ID) continue;  // Global context is not a stream
-    if (pbi->xlayer_id_map[xlayer] > 0) {
+    if (xlayer_id_map[xlayer] > 0) {
       if (xlayer != cm->xlayer_id) {
         av2_store_xlayer_context(pbi, cm, cm->xlayer_id);
         cm->xlayer_id = xlayer;
@@ -421,6 +437,56 @@ avm_codec_err_t flush_all_xlayer_frames(struct AV2Decoder *pbi, AV2_COMMON *cm,
   return err;
 }
 
+avm_codec_err_t flush_all_xlayer_frames(struct AV2Decoder *pbi, AV2_COMMON *cm,
+                                        bool release_dpb) {
+  return flush_xlayer_frames(pbi, cm, release_dpb, pbi->xlayer_id_map);
+}
+
+avm_codec_err_t av2_remap_msdo_stream_contexts(AV2Decoder *pbi, AV2_COMMON *cm,
+                                               const MsdoConfig *old_config,
+                                               const MsdoConfig *new_config) {
+  int removed_xlayer_map[AVM_MAX_NUM_STREAMS] = { 0 };
+  for (int i = 0; i < old_config->num_streams; ++i) {
+    const int xlayer_id = old_config->stream_ids[i];
+    if (find_msdo_stream_index(new_config, xlayer_id) < 0) {
+      removed_xlayer_map[xlayer_id] = pbi->xlayer_id_map[xlayer_id];
+    }
+  }
+
+  avm_codec_err_t err = flush_xlayer_frames(pbi, cm, true, removed_xlayer_map);
+  if (err != AVM_CODEC_OK) return err;
+
+  StreamInfo *new_stream_info = (StreamInfo *)avm_malloc(
+      new_config->num_streams * sizeof(*new_stream_info));
+  if (new_stream_info == NULL) {
+    avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
+                       "Memory allocation failed for pbi->stream_info\n");
+  }
+  memset(new_stream_info, 0,
+         new_config->num_streams * sizeof(*new_stream_info));
+
+  for (int i = 0; i < new_config->num_streams; ++i) {
+    const int old_index =
+        find_msdo_stream_index(old_config, new_config->stream_ids[i]);
+    if (old_index >= 0) {
+      new_stream_info[i] = pbi->stream_info[old_index];
+    } else {
+      init_stream_info(&new_stream_info[i]);
+    }
+  }
+
+  avm_free(pbi->stream_info);
+  pbi->stream_info = new_stream_info;
+
+  for (int i = 0; i < old_config->num_streams; ++i) {
+    const int xlayer_id = old_config->stream_ids[i];
+    if (find_msdo_stream_index(new_config, xlayer_id) < 0) {
+      pbi->xlayer_id_map[xlayer_id] = 0;
+    }
+  }
+  return AVM_CODEC_OK;
+}
+
 static uint32_t read_multi_stream_decoder_operation_obu(
     AV2Decoder *pbi, struct avm_read_bit_buffer *rb) {
   AV2_COMMON *const cm = &pbi->common;
@@ -438,6 +504,7 @@ static uint32_t read_multi_stream_decoder_operation_obu(
     has_previous = true;
   }
 
+  MsdoConfig new_config = { 0 };
   const int num_streams =
       avm_rb_read_literal(rb, 3) + 2;  // read number of streams
   if (num_streams > AVM_MAX_NUM_STREAMS) {
@@ -445,15 +512,15 @@ static uint32_t read_multi_stream_decoder_operation_obu(
         &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
         "The number of streams cannot exceed the max value (4).");
   }
-  cm->num_streams = num_streams;
+  new_config.num_streams = num_streams;
 
-  pbi->common.msdo_params.multistream_profile_idc =
+  new_config.multistream_profile_idc =
       avm_rb_read_literal(rb, PROFILE_BITS);  // read profile of multistream
 
-  pbi->common.msdo_params.multistream_level_idx =
+  new_config.multistream_level_idx =
       avm_rb_read_literal(rb, LEVEL_BITS);  // read level of multistream
 
-  pbi->common.msdo_params.multistream_tier_idx =
+  new_config.multistream_tier_idx =
       avm_rb_read_bit(rb);  // read tier of multistream
 
   const int multistream_even_allocation_flag =
@@ -466,7 +533,8 @@ static uint32_t read_multi_stream_decoder_operation_obu(
   }
 
   for (int i = 0; i < num_streams; i++) {
-    cm->stream_ids[i] = avm_rb_read_literal(rb, XLAYER_BITS);  // read stream ID
+    new_config.stream_ids[i] =
+        avm_rb_read_literal(rb, XLAYER_BITS);  // read stream ID
     const int substream_profile_idc =
         avm_rb_read_literal(rb, PROFILE_BITS);  // read profile of multistream
     (void)substream_profile_idc;
@@ -480,13 +548,16 @@ static uint32_t read_multi_stream_decoder_operation_obu(
     (void)substream_tier_idx;
   }
 
-  cm->msdo_params.msdo_doh_constraint_flag = avm_rb_read_bit(rb);
+  const int msdo_doh_constraint_flag = avm_rb_read_bit(rb);
 
   // Check if configuration changed
-  MsdoConfig new_config;
-  save_msdo_config(pbi, &new_config);
   bool config_changed =
       !has_previous || !msdo_config_equal(&prev_config, &new_config);
+  // Stream IDs can change without starting a new coded multistream sequence,
+  // so preserve contexts for IDs that remain present instead of resetting all
+  // stream contexts.
+  bool stream_ids_changed =
+      has_previous && !msdo_stream_ids_equal(&prev_config, &new_config);
 
   // Flush remaining frames from all active streams before switching config
   if (pbi->stream_info != NULL && config_changed) {
@@ -499,7 +570,21 @@ static uint32_t read_multi_stream_decoder_operation_obu(
     for (int i = 0; i < AVM_MAX_NUM_STREAMS; i++) {
       pbi->xlayer_id_map[i] = 0;
     }
+  } else if (pbi->stream_info != NULL && stream_ids_changed) {
+    if (av2_remap_msdo_stream_contexts(pbi, cm, &prev_config, &new_config) !=
+        AVM_CODEC_OK) {
+      return 0;
+    }
   }
+
+  // Apply the new configuration after flushing contexts that use the old
+  // stream ID-to-index mapping.
+  cm->num_streams = new_config.num_streams;
+  cm->msdo_params.multistream_profile_idc = new_config.multistream_profile_idc;
+  cm->msdo_params.multistream_level_idx = new_config.multistream_level_idx;
+  cm->msdo_params.multistream_tier_idx = new_config.multistream_tier_idx;
+  memcpy(cm->stream_ids, new_config.stream_ids, sizeof(cm->stream_ids));
+  cm->msdo_params.msdo_doh_constraint_flag = msdo_doh_constraint_flag;
 
   // Only allocate if stream_info is NULL (first time OR after freeing due to
   // config change)

@@ -16,6 +16,14 @@
 #include "avm_dsp/bitreader_buffer.h"
 #include "av2/decoder/decoder.h"
 
+// Remap per-stream decoder contexts by xlayer ID after the MSDO stream ID list
+// changes. Contexts for retained IDs are preserved, removed IDs are flushed,
+// and new IDs are initialized.
+avm_codec_err_t av2_remap_msdo_stream_contexts(struct AV2Decoder *pbi,
+                                               AV2_COMMON *cm,
+                                               const MsdoConfig *old_config,
+                                               const MsdoConfig *new_config);
+
 // Flush remaining frames from all active xlayer streams, switching context
 // as needed. Decreases ref counts on all flushed frames. Restores the
 // original xlayer context on return.
