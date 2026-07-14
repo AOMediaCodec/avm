@@ -1767,11 +1767,7 @@ void av2_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
                       &quant_param);
     av2_xform_quant(cm, x, plane, block, blk_row, blk_col, plane_bsize,
                     &txfm_param, &quant_param);
-    const uint8_t fsc_mode =
-        ((cm->seq_params.enable_fsc &&
-          xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
-          plane == PLANE_TYPE_Y) ||
-         use_inter_fsc(cm, plane, tx_type, 0 /*is_inter*/));
+
     if (quant_param.use_optimize_b && do_trellis) {
       const ENTROPY_CONTEXT *a =
           &args->ta[blk_col + (plane - AVM_PLANE_U) * MAX_MIB_SIZE];
@@ -1781,12 +1777,8 @@ void av2_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
       get_txb_ctx(plane_bsize, tx_size, plane, a, l, &txb_ctx,
                   xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
                       cm->seq_params.enable_fsc);
-      if (fsc_mode)
-        av2_optimize_fsc(args->cpi, x, plane, block, tx_size, tx_type, &txb_ctx,
-                         &dummy_rate_cost);
-      else
-        av2_optimize_b(args->cpi, x, plane, block, tx_size, tx_type, cctx_type,
-                       &txb_ctx, &dummy_rate_cost);
+      av2_optimize_b(args->cpi, x, plane, block, tx_size, tx_type, cctx_type,
+                     &txb_ctx, &dummy_rate_cost);
     }
     if (do_dropout) {
       av2_dropout_qcoeff(x, plane, block, tx_size, tx_type,
@@ -1810,12 +1802,8 @@ void av2_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
         get_txb_ctx(plane_bsize, tx_size, plane, a, l, &txb_ctx,
                     xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
                         cm->seq_params.enable_fsc);
-        if (fsc_mode)
-          av2_optimize_fsc(args->cpi, x, plane, block, tx_size, tx_type,
-                           &txb_ctx, &dummy_rate_cost);
-        else
-          av2_optimize_b(args->cpi, x, plane, block, tx_size, tx_type,
-                         cctx_type, &txb_ctx, &dummy_rate_cost);
+        av2_optimize_b(args->cpi, x, plane, block, tx_size, tx_type, cctx_type,
+                       &txb_ctx, &dummy_rate_cost);
       }
       if (do_dropout) {
         av2_dropout_qcoeff(x, plane, block, tx_size, tx_type,
