@@ -94,6 +94,7 @@ class MultiLayerTest : public ::libavm_test::CodecTestWithParam<int>,
            start_decoding_tl1_ > 0)) {
         encoder->Control(AV2E_SET_ENABLE_REF_FRAME_MVS, 0);
         encoder->Control(AV2E_SET_ALLOW_REF_FRAME_MVS, 0);
+        encoder->Control(AV2E_SET_ENABLE_CDF_AVERAGING, 0);
       }
       if (cfg_.g_lag_in_frames > 0) {
         int gop_size = (cfg_.g_lag_in_frames - 1) / num_embedded_layers_;
@@ -591,7 +592,7 @@ TEST_P(MultiLayerTest, MultiLayerTest2Embedded2TemporaSframe) {
   num_embedded_layers_ = 2;
   decode_base_only_ = false;
   drop_tl2_ = false;
-  enable_explicit_ref_frame_map_ = false;
+  enable_explicit_ref_frame_map_ = true;
   enable_buffer_refresh_test_ = true;
   enable_s_frame_ = true;
   cfg_.enable_sframe = 1;
