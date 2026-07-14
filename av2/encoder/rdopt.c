@@ -1388,7 +1388,7 @@ static int64_t handle_newmv(const AV2_COMP *const cpi, MACROBLOCK *const x,
                        is_pb_mv_precision_active(&cpi->common, mbmi, bsize);
     if (do_refine_ms) {
       int valid_mv0_found = 0;
-      for (int prev_mv_precision = pb_mv_precision;
+      for (int prev_mv_precision = pb_mv_precision + 1;
            prev_mv_precision <= mbmi->max_mv_precision; prev_mv_precision++) {
         assert(get_ref_mv_idx(mbmi, 1) == get_ref_mv_idx(mbmi, 0));
         if (args->single_newmv_valid[prev_mv_precision][get_ref_mv_idx(mbmi, 0)]
