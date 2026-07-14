@@ -273,10 +273,10 @@ enum {
   MAIN_420_10_IP2 = 2,
   MAIN_422_10_IP1 = 3,
   MAIN_444_10_IP1 = 4,
-#if CONFIG_TESTONLY_12BIT_SUPPORT
-  // Fake profile value only for testing 12-bit. Not defined in AV2 spec.
-  TEST_ONLY_12BIT_PROFILE,
-#endif  // CONFIG_TESTONLY_12BIT_SUPPORT
+#if CONFIG_12BIT_PROFILE
+  // 12-bit profile: all chroma formats (4:0:0/4:2:0/4:2:2/4:4:4), IOP2
+  MAIN_4xx_12_IP2 = 5,
+#endif  // CONFIG_12BIT_PROFILE
   RESERVED_PROFILES_START,
   CONFIGURABLE = 31,
   MAX_PROFILES,

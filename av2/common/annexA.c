@@ -27,7 +27,8 @@
  *       0         | C_Main_420_10       | Main    | 8, 10       |  4:0:0, 4:2:0
  *       1         | C_Main_422_10       | Main    | 8, 10       |  4:0:0, 4:2:0, 4:2:2
  *       2         | C_Main_444_10       | Main    | 8, 10       |  4:0:0, 4:2:0, 4:4:4
- *       3-63      | Reserved            | -       | -           |
+ *       3         | C_Main_4xx_12       | Main    | 8, 10, 12   |  4:0:0, 4:2:0, 4:2:2, 4:4:4
+ *       4-63      | Reserved            | -       | -           |
  *
  * Notes:
  * - ConfigurationID: Identifies the multi-sequence configuration (6-bit value)
@@ -40,6 +41,7 @@ typedef enum {
   C_MAIN_420_10 = 0,  // Main toolset, 8/10-bit, 4:0:0/4:2:0
   C_MAIN_422_10 = 1,  // Main toolset, 8/10-bit, 4:0:0/4:2:0/4:2:2
   C_MAIN_444_10 = 2,  // Main toolset, 8/10-bit, 4:0:0/4:2:0/4:4:4
+  C_MAIN_4xx_12 = 3,  // Main toolset, 8/10/12-bit, 4:0:0/4:2:0/4:2:2/4:4:4
 } AV2_CONFIGURATION_LABEL;
 
 /* clang-format off */
@@ -49,9 +51,18 @@ typedef enum {
 //===========================================================================
  *  Configuration Label    |   seq_profile_idc    |    chroma_format_idc    |    bit_depth_idc
  * ------------------------|----------------------|-------------------------|---------------
- *   C_Main_420_10         | 0..2, 31             | 0 or 1                  | 0 or 1
- *   C_Main_422_10         | 0..3, 31             | 0, 1, 3                 | 0 or 1
- *   C_Main_444_10         | 0..2, 4, 31          | 0, 1, 2                 | 0 or 1
+ *   C_Main_420_10         | 0..2, 31             | CHROMA_FORMAT_400,      | 0 or 1
+ *                         |                      | CHROMA_FORMAT_420       |
+ *   C_Main_422_10         | 0..3, 31             | CHROMA_FORMAT_400,      | 0 or 1
+ *                         |                      | CHROMA_FORMAT_420,      |
+ *                         |                      | CHROMA_FORMAT_422       |
+ *   C_Main_444_10         | 0..2, 4, 31          | CHROMA_FORMAT_400,      | 0 or 1
+ *                         |                      | CHROMA_FORMAT_420,      |
+ *                         |                      | CHROMA_FORMAT_444       |
+ *   C_Main_4xx_12         | 0..5, 31             | CHROMA_FORMAT_400,      | 0..2
+ *                         |                      | CHROMA_FORMAT_420,      |
+ *                         |                      | CHROMA_FORMAT_422,      |
+ *                         |                      | CHROMA_FORMAT_444       |
  *
  * Notes:
  * - seq_profile_idc: Allowed profile values
@@ -82,14 +93,10 @@ typedef enum {
 } INTEROP_POINTS;
 
 static const int seq_profile_max_mlayer_cnt[MAX_PROFILES] = {
-  1,
-  2,
+  1, 2, 3, 2, 2,
+#if CONFIG_12BIT_PROFILE
   3,
-  2,
-  2,
-#if CONFIG_TESTONLY_12BIT_SUPPORT
-  MAX_NUM_MLAYERS,
-#endif  // CONFIG_TESTONLY_12BIT_SUPPORT
+#endif  // CONFIG_12BIT_PROFILE
 };
 
 /* clang-format off */
@@ -117,7 +124,12 @@ static const int seq_profile_max_mlayer_cnt[MAX_PROFILES] = {
  *                                                       CHROMA_FORMAT_420
  *                                                       CHROMA_FORMAT_444
  * ---------------------------------------------------------------------------------------------------------------------
- *  Reserved                         5-30
+ *  Main_4xx_12_IP2                   5                  CHROMA_FORMAT_400          0, 1, or 2                    2
+ *                                                       CHROMA_FORMAT_420
+ *                                                       CHROMA_FORMAT_422
+ *                                                       CHROMA_FORMAT_444
+ * ---------------------------------------------------------------------------------------------------------------------
+ *  Reserved                         6-30
  * ---------------------------------------------------------------------------------------------------------------------
  *  Configurable                      31                 CHROMA_FORMAT_400          0 or 1                        -
  *                                                       CHROMA_FORMAT_420
@@ -143,11 +155,19 @@ static INLINE int av2_get_max_mlayer_cnt_from_profile(int seq_profile_idc) {
   return seq_profile_max_mlayer_cnt[seq_profile_idc];
 }
 
-static int check_bit_depth_8_10(int bit_depth) {
-  if (bit_depth != AVM_BITS_8 && bit_depth != AVM_BITS_10) {
-    return 0;
+static int check_bit_depth(int bit_depth, BITSTREAM_PROFILE profile) {
+  (void)profile;
+  // All profiles support 8-bit and 10-bit. Profile MAIN_4xx_12_IP2
+  // additionally supports 12-bit.
+  if (bit_depth == AVM_BITS_8 || bit_depth == AVM_BITS_10) {
+    return 1;
   }
-  return 1;
+#if CONFIG_12BIT_PROFILE
+  if (profile == MAIN_4xx_12_IP2 && bit_depth == AVM_BITS_12) {
+    return 1;
+  }
+#endif  // CONFIG_12BIT_PROFILE
+  return 0;
 }
 
 static avm_codec_err_t check_chroma_format(int monochrome, int is_420,
@@ -184,10 +204,6 @@ int av2_check_profile_interop_conformance(
   const uint8_t monochrome = seq_params->monochrome;
   const int seq_max_mcount = seq_params->seq_max_mlayer_cnt;
 
-#if CONFIG_TESTONLY_12BIT_SUPPORT
-  if (profile == TEST_ONLY_12BIT_PROFILE && bit_depth == AVM_BITS_12) return 1;
-#endif  // CONFIG_TESTONLY_12BIT_SUPPORT
-
   uint32_t chroma_format_idc = CHROMA_FORMAT_420;
   avm_codec_err_t err = av2_get_chroma_format_idc(
       seq_params->subsampling_x, seq_params->subsampling_y, monochrome,
@@ -204,8 +220,7 @@ int av2_check_profile_interop_conformance(
   const int is_422 = (chroma_format_idc == CHROMA_FORMAT_422);
   const int is_444 = (chroma_format_idc == CHROMA_FORMAT_444);
 
-  // All profiles support 8-bit and 10-bit only
-  int is_valid_bit_depth = check_bit_depth_8_10(bit_depth);
+  int is_valid_bit_depth = check_bit_depth(bit_depth, profile);
   if (!is_valid_bit_depth) {
     return 0;
   }
@@ -255,14 +270,20 @@ int av2_check_profile_interop_conformance(
             (int)profile);
       }
       break;
+#if CONFIG_12BIT_PROFILE
+    case MAIN_4xx_12_IP2:
+      // Supports all chroma formats (4:0:0/4:2:0/4:2:2/4:4:4) at 8/10/12-bit
+      break;
+#endif  // CONFIG_12BIT_PROFILE
     case CONFIGURABLE: {
       // Supports all chroma formats
     } break;
     default:
-      // Profile 5+ - reserved/unsupported
+      // Reserved/unsupported
       return 0;
   }
-  // Check if Max mlayer count is valid for IP profiles (seq_profile_idc <=2)
+  // Check that the max mlayer count is within the profile's interoperability
+  // point limit
   err = check_mlayer_count(profile, seq_max_mcount);
   if (err != AVM_CODEC_OK) {
     avm_internal_error(
@@ -287,11 +308,26 @@ int av2_check_profile_interop_conformance(
  * ------------------------------------------------------------------------------------------------------------------
  * 4                                           | 2                    | 30                   | 2.5                  |
  * ------------------------------------------------------------------------------------------------------------------
+ * 5                                           | 2                    | 36                   | 3.0                  |
+ * ------------------------------------------------------------------------------------------------------------------
  * 31                                          | -                    | -                    | -                    |
  * ------------------------------------------------------------------------------------------------------------------
  */
 /* clang-format on */
 
+// Returns the row index used to look up a profile's factors in the
+// PicSize/Bitrate factor tables (see bitrate_profile_factor_table[] and
+// picture_size_profile_factor_table[] in level.c, and bitrate_profile_factor[]
+// in timing.c).
+//
+// NOTE: This return value is NOT always the spec's ProfileScalingFactor from
+// Table A.2. It coincides with it for profiles 0..4 (0, 0, 0, 1, 2), but
+// profile MAIN_4xx_12_IP2 (idc 5) has spec ProfileScalingFactor 2 -- the same
+// as profile MAIN_444_10_IP1 (idc 4) -- while requiring DIFFERENT PicSize and
+// Bitrate factors (36 / 3.0 vs 30 / 2.5). Since a single ProfileScalingFactor
+// value cannot select two different factor rows, profile 5 is given its own
+// row index (3) here. All callers use this value only as a table index, never
+// as the literal ProfileScalingFactor.
 int get_profile_scaling_factor(int seq_profile_idc) {
   if (seq_profile_idc == MAIN_420_10_IP0 ||
       seq_profile_idc == MAIN_420_10_IP1 ||
@@ -306,6 +342,12 @@ int get_profile_scaling_factor(int seq_profile_idc) {
   if (seq_profile_idc == MAIN_444_10_IP1) {
     return 2;
   }
+
+#if CONFIG_12BIT_PROFILE
+  if (seq_profile_idc == MAIN_4xx_12_IP2) {
+    return 3;
+  }
+#endif  // CONFIG_12BIT_PROFILE
 
   // Default for invalid combinations and Configurable profile
   return 0;

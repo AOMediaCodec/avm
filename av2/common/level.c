@@ -485,8 +485,9 @@ static const char *level_fail_messages[TARGET_LEVEL_FAIL_IDS] = {
   "The presentation interval is too small.",
 };
 
-static const double bitrate_profile_factor_table[] = { 1.0, 1.667, 2.5 };
-static const double picture_size_profile_factor_table[] = { 15.0, 20.0, 30.0 };
+static const double bitrate_profile_factor_table[] = { 1.0, 1.667, 2.5, 3.0 };
+static const double picture_size_profile_factor_table[] = { 15.0, 20.0, 30.0,
+                                                            36.0 };
 
 static const char level_string[SEQ_LEVEL_MAX + 1][9] = {
   "2.0",      "2.1",      "3.0",      "3.1",      "4.0",      "4.1",

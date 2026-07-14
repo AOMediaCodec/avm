@@ -52,7 +52,7 @@ static int32_t high_kbps[1 << LEVEL_BITS] = {
 
 /* BitrateProfileFactor */
 static int bitrate_profile_factor[1 << PROFILE_BITS] = {
-  1, 2, 3, 0, 0, 0, 0, 0
+  1, 2, 3, 3, 0, 0, 0, 0
 };
 
 int64_t av2_max_level_bitrate(BITSTREAM_PROFILE seq_profile, int seq_level_idx,
