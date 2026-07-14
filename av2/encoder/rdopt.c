@@ -6851,7 +6851,8 @@ static AVM_INLINE MB_MODE_INFO *get_winner_mode_stats(
     MACROBLOCK *x, MB_MODE_INFO *best_mbmode, RD_STATS *best_rd_cost,
     int best_rate_y, int best_rate_uv, RD_STATS **winner_rd_cost,
     int *winner_rate_y, int *winner_rate_uv, PREDICTION_MODE *winner_mode,
-    MULTI_WINNER_MODE_TYPE multi_winner_mode_type, int mode_idx) {
+    MULTI_WINNER_MODE_TYPE multi_winner_mode_type, int mode_idx,
+    const AV2_COMMON *const cm, BLOCK_SIZE bsize) {
   MB_MODE_INFO *winner_mbmi;
   if (multi_winner_mode_type) {
     assert(mode_idx >= 0 && mode_idx < x->winner_mode_count);
@@ -6862,12 +6863,30 @@ static AVM_INLINE MB_MODE_INFO *get_winner_mode_stats(
     *winner_rate_y = winner_mode_stat->rate_y;
     *winner_rate_uv = winner_mode_stat->rate_uv;
     *winner_mode = winner_mode_stat->mode;
+    MACROBLOCKD *xd = &x->e_mbd;
+    if (is_warp_mode(winner_mbmi->motion_mode)) {
+      if (!winner_mbmi->wm_params[0].invalid)
+        assign_warpmv(cm, xd->submi, bsize, &winner_mbmi->wm_params[0],
+                      xd->mi_row, xd->mi_col, 0);
+      if (!winner_mbmi->wm_params[1].invalid)
+        assign_warpmv(cm, xd->submi, bsize, &winner_mbmi->wm_params[1],
+                      xd->mi_row, xd->mi_col, 1);
+    }
   } else {
     winner_mbmi = best_mbmode;
     *winner_rd_cost = best_rd_cost;
     *winner_rate_y = best_rate_y;
     *winner_rate_uv = best_rate_uv;
     *winner_mode = best_mbmode->mode;
+    MACROBLOCKD *xd = &x->e_mbd;
+    if (is_warp_mode(winner_mbmi->motion_mode)) {
+      if (!winner_mbmi->wm_params[0].invalid)
+        assign_warpmv(cm, xd->submi, bsize, &winner_mbmi->wm_params[0],
+                      xd->mi_row, xd->mi_col, 0);
+      if (!winner_mbmi->wm_params[1].invalid)
+        assign_warpmv(cm, xd->submi, bsize, &winner_mbmi->wm_params[1],
+                      xd->mi_row, xd->mi_col, 1);
+    }
   }
   return winner_mbmi;
 }
@@ -6910,7 +6929,7 @@ static AVM_INLINE void refine_winner_mode_tx(
     MB_MODE_INFO *winner_mbmi = get_winner_mode_stats(
         x, best_mbmode, rd_cost, best_rate_y, best_rate_uv, &winner_rd_stats,
         &winner_rate_y, &winner_rate_uv, &winner_mode,
-        cpi->sf.winner_mode_sf.multi_winner_mode_type, mode_idx);
+        cpi->sf.winner_mode_sf.multi_winner_mode_type, mode_idx, cm, bsize);
 
     if (xd->lossless[winner_mbmi->segment_id] == 0 &&
         winner_mode != MODE_INVALID &&
@@ -6922,6 +6941,11 @@ static AVM_INLINE void refine_winner_mode_tx(
       const int skip_ctx = av2_get_skip_txfm_context(xd);
 
       *mbmi = *winner_mbmi;
+      struct macroblockd_plane *p = xd->plane;
+      const BUFFER_SET orig_dst = {
+        { p[0].dst.buf, p[1].dst.buf, p[2].dst.buf },
+        { p[0].dst.stride, p[1].dst.stride, p[2].dst.stride },
+      };
 
       set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
 
@@ -6937,15 +6961,14 @@ static AVM_INLINE void refine_winner_mode_tx(
       if (is_inter_mode(mbmi->mode)) {
         const int mi_row = xd->mi_row;
         const int mi_col = xd->mi_col;
-        av2_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0,
-                                      av2_num_planes(cm) - 1);
+        av2_enc_build_inter_predictor(cm, xd, mi_row, mi_col, &orig_dst, bsize,
+                                      0, av2_num_planes(cm) - 1);
 
         av2_subtract_plane(x, bsize, 0, cm->width, cm->height);
         if (txfm_params->tx_mode_search_type == TX_MODE_SELECT &&
             !xd->lossless[mbmi->segment_id]) {
           av2_pick_recursive_tx_size_type_yrd(cpi, x, &rd_stats_y, bsize, 1,
                                               INT64_MAX);
-          assert(rd_stats_y.rate != INT_MAX);
         } else {
           av2_pick_uniform_tx_size_type_yrd(cpi, x, &rd_stats_y, bsize,
                                             INT64_MAX);
@@ -8021,7 +8044,7 @@ static INLINE bool in_single_ref_cutoff(const int64_t *ref_frame_rd,
 }
 
 static AVM_INLINE void evaluate_motion_mode_for_winner_candidates(
-    const AV2_COMP *const cpi, MACROBLOCK *const x, RD_STATS *const rd_cost,
+    AV2_COMP *const cpi, MACROBLOCK *const x, RD_STATS *const rd_cost,
     HandleInterModeArgs *const args, TileDataEnc *const tile_data,
     PICK_MODE_CONTEXT *const ctx,
     struct buf_2d yv12_mb[SINGLE_REF_FRAMES][MAX_MB_PLANE],
@@ -9262,12 +9285,18 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
 
   int winner_mode_count =
       cpi->sf.winner_mode_sf.multi_winner_mode_type ? x->winner_mode_count : 1;
-  // In effect only when fast tx search speed features are enabled.
-  refine_winner_mode_tx(cpi, x, rd_cost, bsize, ctx, &search_state.best_mbmode,
-                        yv12_mb, search_state.best_rate_y,
-                        search_state.best_rate_uv, &search_state.best_skip2,
-                        winner_mode_count);
 
+  if (!(winner_mode_count == 1 && search_state.best_mode_skippable)) {
+    // In effect only when fast tx search speed features are enabled.
+    refine_winner_mode_tx(cpi, x, rd_cost, bsize, ctx,
+                          &search_state.best_mbmode, yv12_mb,
+                          search_state.best_rate_y, search_state.best_rate_uv,
+                          &search_state.best_skip2, winner_mode_count);
+  }
+
+  if (search_state.best_rd != rd_cost->rdcost) {
+    search_state.best_rd = rd_cost->rdcost;
+  }
   // Initialize default mode evaluation params
   set_mode_eval_params(cpi, x, DEFAULT_EVAL);
 

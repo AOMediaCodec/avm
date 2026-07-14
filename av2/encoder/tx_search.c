@@ -3074,6 +3074,22 @@ static INLINE bool prune_tx_part_eval_using_none_rd(
   return false;
 }
 
+static AVM_INLINE int skip_tx_partition_by_eval_type(
+    TX_PARTITION_TYPE type, int eval_mode_type, REGION_TYPE region_type,
+    int disable_multiway_tx_part_in_rough_mode) {
+  if (!disable_multiway_tx_part_in_rough_mode) return 0;
+
+  if (eval_mode_type == MODE_EVAL && region_type == MIXED_INTER_INTRA_REGION &&
+      type > TX_PARTITION_VERT)
+    return 1;
+
+  if (eval_mode_type == WINNER_MODE_EVAL &&
+      region_type == MIXED_INTER_INTRA_REGION && type <= TX_PARTITION_VERT)
+    return 1;
+
+  return 0;
+}
+
 // Search for the best tx partition type for a given luma block.
 static void select_tx_partition_type(
     const AV2_COMP *cpi, MACROBLOCK *x, int blk_row, int blk_col, int block,
@@ -3105,7 +3121,18 @@ static void select_tx_partition_type(
   TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
 
   int64_t best_rd = INT64_MAX;
-  TX_PARTITION_TYPE best_tx_partition = TX_PARTITION_INVALID;
+
+  const TxfmSearchParams *txfm_params = &x->txfm_search_params;
+  const int txb_size_index =
+      is_inter_block(mbmi, xd->tree_type)
+          ? av2_get_txb_size_index(plane_bsize, blk_row, blk_col)
+          : 0;
+  TX_PARTITION_TYPE best_tx_partition =
+      txfm_params->eval_mode_type == WINNER_MODE_EVAL &&
+              mbmi->region_type == MIXED_INTER_INTRA_REGION &&
+              cpi->sf.winner_mode_sf.disable_multiway_tx_part_in_rough_mode
+          ? mbmi->tx_partition_type[txb_size_index]
+          : TX_PARTITION_INVALID;
   uint8_t best_partition_entropy_ctxs[MAX_TX_PARTITIONS] = { 0 };
   TX_TYPE best_partition_tx_types[MAX_TX_PARTITIONS] = { 0 };
   uint8_t full_blk_skip[MAX_TX_PARTITIONS] = { 0 };
@@ -3115,6 +3142,12 @@ static void select_tx_partition_type(
         type > TX_PARTITION_VERT) {
       break;
     }
+
+    if (skip_tx_partition_by_eval_type(
+            type, txfm_params->eval_mode_type, mbmi->region_type,
+            cpi->sf.winner_mode_sf.disable_multiway_tx_part_in_rough_mode))
+      continue;
+
     // Skip any illegal partitions for this block size
     if (!use_tx_partition(type, plane_bsize, max_tx_size)) continue;
     if (cpi->sf.tx_sf.enable_tx_partition == false && type) continue;
@@ -3419,7 +3452,13 @@ static void choose_tx_size_type_from_rd(const AV2_COMP *const cpi,
   TX_SIZE best_tx_size = max_tx_size;
   int is_wide_angle_mapped[MAX_TX_PARTITIONS] = { 0 };
   int mapped_wide_angle[MAX_TX_PARTITIONS] = { 0 };
-  TX_PARTITION_TYPE best_tx_partition_type = TX_PARTITION_NONE;
+  assert(!is_inter_block(mbmi, xd->tree_type));
+  TX_PARTITION_TYPE best_tx_partition_type =
+      txfm_params->eval_mode_type == WINNER_MODE_EVAL &&
+              mbmi->region_type == MIXED_INTER_INTRA_REGION &&
+              cpi->sf.winner_mode_sf.disable_multiway_tx_part_in_rough_mode
+          ? mbmi->tx_partition_type[0]
+          : TX_PARTITION_NONE;
   int64_t best_rd = INT64_MAX;
   x->rd_model = FULL_TXFM_RD;
   int64_t cur_rd = INT64_MAX;
@@ -3429,6 +3468,12 @@ static void choose_tx_size_type_from_rd(const AV2_COMP *const cpi,
         type > TX_PARTITION_VERT) {
       break;
     }
+
+    if (skip_tx_partition_by_eval_type(
+            type, txfm_params->eval_mode_type, mbmi->region_type,
+            cpi->sf.winner_mode_sf.disable_multiway_tx_part_in_rough_mode))
+      continue;
+
     // Skip any illegal partitions for this block size
     if (!use_tx_partition(type, bs, max_tx_size)) continue;
     if (cpi->sf.tx_sf.enable_tx_partition == false && type) continue;
@@ -3992,7 +4037,10 @@ void av2_pick_recursive_tx_size_type_yrd(const AV2_COMP *cpi, MACROBLOCK *x,
     // We should always find at least one candidate unless ref_best_rd is less
     // than INT64_MAX (in which case, all the calls to select_tx_size_fix_type
     // might have failed to find something better)
-    assert(ref_best_rd != INT64_MAX);
+    assert(IMPLIES(txfm_params->eval_mode_type != WINNER_MODE_EVAL,
+                   ref_best_rd != INT64_MAX));
+
+    // In winner ref_best_rd is INT64_MAX to avoid any early termination by cost
     av2_invalid_rd_stats(rd_stats);
     return;
   }
