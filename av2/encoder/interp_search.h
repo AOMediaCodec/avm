@@ -32,6 +32,18 @@ typedef struct {
   int64_t rd;
   unsigned int pred_sse;
 } INTERPOLATION_FILTER_STATS;
+
+// Holds the best fast (model-based, pre-tx) and full (post-tx) RD seen for a
+// given (mode, refs) tuple across all motion modes, ref_mv_idx, MV precisions,
+// jmvd, bawp and refinemv variants. Used as input to mode-pruning heuristics.
+typedef struct InterModeRdPair {
+  int64_t fast_rd;
+  int64_t full_rd;
+} InterModeRdPair;
+
+// Number of slots in the use_amvd dimension of the inter-mode RD tables.
+// mbmi->use_amvd is 0 or 1, so this dimension has size 2.
+#define NUM_USE_AMVD_OPTIONS 2
 /*!\endcond */
 
 /*!\brief Miscellaneous arguments for inter mode search.
@@ -88,6 +100,16 @@ typedef struct {
    * (number of inter modes) X (length of refmv list) X (number of ref frames)
    */
   int64_t (*simple_rd)[MAX_REF_MV_SEARCH][SINGLE_REF_FRAMES];
+
+  /*!
+   * Pointer to a 3D array storing the best fast/full RD per single-ref inter
+   * mode, use_amvd option, and reference frame. The aggregation is the
+   * minimum across all motion modes, ref_mv_idx, MV precisions, bawp,
+   * refinemv and jmvd tuples for a given (mode, use_amvd, ref). Indexed by
+   * [mode_idx][use_amvd][ref_frame_idx] where
+   * mode_idx = mode - SINGLE_INTER_MODE_START.
+   */
+  InterModeRdPair (*single_inter_rd)[NUM_USE_AMVD_OPTIONS][SINGLE_REF_FRAMES];
 
   /*!
    * An integer value 0 or 1 which indicates whether or not to skip the motion
