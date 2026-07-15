@@ -382,7 +382,8 @@ void av2_single_motion_search(const AV2_COMP *const cpi, MACROBLOCK *x,
     switch (mbmi->motion_mode) {
       case SIMPLE_TRANSLATION:
         if (cpi->sf.mv_sf.subpel_search_type) {
-          const int try_second = second_best_mv.as_int != INVALID_MV &&
+          const int try_second = !cpi->sf.mv_sf.skip_second_best_subpel &&
+                                 second_best_mv.as_int != INVALID_MV &&
                                  second_best_mv.as_int != best_mv->as_int;
           const int best_mv_var = mv_search_params->find_fractional_mv_step(
               xd, cm, &ms_params, subpel_start_mv, &best_mv->as_mv, &dis,
