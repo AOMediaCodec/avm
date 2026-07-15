@@ -477,6 +477,21 @@ typedef struct MV_SPEED_FEATURES {
   // Reduce single motion search range based on MV result of prior ref_mv_idx.
   int reduce_search_range;
 
+  // When set, skip the second-best full-pel candidate's subpel refinement in
+  // the single-ref NEWMV search.
+  int skip_second_best_subpel;
+
+  // Predictively reuse single-ref NEWMV results across the DRL.
+  //   0: off
+  //   1: reuse when reference MVs are within one full pel.
+  int predict_repeated_newmv;
+
+  // Cap the DRL depth that runs a fresh single-ref NEWMV motion search;
+  // beyond the cap, reuse the nearest searched result.
+  //   0: off (no cap).
+  //   K: search ref_mv_idx 0..K-1, reuse for ref_mv_idx >= K.
+  int newmv_drl_search_limit;
+
   // Prune mesh search.
   int prune_mesh_search;
 
