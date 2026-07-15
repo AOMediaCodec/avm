@@ -25,6 +25,9 @@ extern "C" {
 // Set this macro as 1 to collect data about tx size selection.
 #define COLLECT_TX_SIZE_DATA 0
 
+// Convert a transform type enum into a bitmask flag.
+#define ALLOW_TX_MASK(tx) (1 << (tx))
+
 #if COLLECT_TX_SIZE_DATA
 #include <stdio.h>
 #include "av2/encoder/random.h"
