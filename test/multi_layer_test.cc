@@ -592,7 +592,7 @@ TEST_P(MultiLayerTest, MultiLayerTest2Embedded2TemporaSframe) {
   num_embedded_layers_ = 2;
   decode_base_only_ = false;
   drop_tl2_ = false;
-  enable_explicit_ref_frame_map_ = false;
+  enable_explicit_ref_frame_map_ = true;
   enable_buffer_refresh_test_ = true;
   enable_s_frame_ = true;
   cfg_.enable_sframe = 1;
