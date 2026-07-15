@@ -604,6 +604,15 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // the single reference modes, it is one of the two best performers.
   int prune_compound_using_single_ref;
 
+  // Top-ref0 / top-ref1 cutoffs used inside the prune_compound_using_single_ref
+  // pruning. Compound pairs with refs[0] <
+  // skip_compound_prune_top_refs_num_ref0 AND refs[1] <
+  // skip_compound_prune_top_refs_num_ref1 are exempt from the single-ref-cutoff
+  // pruning. Enabled at speed >= 1.
+  // TODO (Yeqing Wu): need to be tuned for speed > 1.
+  int skip_compound_prune_top_refs_num_ref0;
+  int skip_compound_prune_top_refs_num_ref1;
+
   // Skip extended compound mode when ref frame corresponding to NEWMV does not
   // have NEWMV as single mode winner.
   // 0 : no pruning
