@@ -1774,7 +1774,7 @@ int check_temporal_unit_structure(temporal_unit_state_t *state, int obu_type,
 
   // After the global phase, an xlayer_id change starts a fresh per-xlayer
   // group. No increasing-xlayer constraint: a TU may group all per-xlayer
-  // config ahead of all frame data.
+  // config ahead of all frame data (config carried in the ISOBMFF sample entry).
   // TODO(avm issue #5582): This is more permissive and allows certain OBU
   // orders not allowed by the AV2 spec.
   if (*state == TU_STATE_LOCAL_INFO || *state == TU_STATE_SEQUENCE_HEADER ||

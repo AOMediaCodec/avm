@@ -243,6 +243,8 @@ uint32_t av2_read_content_interpretation_obu(struct AV2Decoder *pbi,
     // which is considered as the exisiting CI.
     ci_temp.ci_from_leading =
         cm->ci_params_per_layer[obu_mlayer_id].ci_from_leading;
+    // bookkeeping, not signalled keep out of the identity check
+    ci_temp.ci_valid = cm->ci_params_per_layer[obu_mlayer_id].ci_valid;
     if (!av2_ci_params_identical(&cm->ci_params_per_layer[obu_mlayer_id],
                                  &ci_temp)) {
       avm_internal_error(
@@ -252,6 +254,7 @@ uint32_t av2_read_content_interpretation_obu(struct AV2Decoder *pbi,
   } else {
     // Got the first CI Obu for this layer.
     cm->ci_params_per_layer[obu_mlayer_id] = ci_temp;
+    cm->ci_params_per_layer[obu_mlayer_id].ci_valid = true;
   }
 
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
