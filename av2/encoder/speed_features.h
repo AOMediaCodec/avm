@@ -814,6 +814,14 @@ typedef struct TX_SPEED_FEATURES {
 
   // Enable txfm partition search
   bool enable_tx_partition;
+
+  // Skip IST/STX cascade for intra-luma candidates whose primary transform
+  // quantizes to zero. Extends the intra-luma pre-skip / post-trellis gates
+  // from eob == 1 to also cover eob == 0 (stx > 0 only, so skip-coded
+  // non-DCT winners survive) and adds a pre-quant L-infinity gate that
+  // predicts eob == 0 from the post-primary coefficients to skip
+  // av2_quant + trellis + cost_coeffs.
+  bool prune_intra_ist_stx_by_zero_eob;
 } TX_SPEED_FEATURES;
 
 typedef struct RD_CALC_SPEED_FEATURES {
