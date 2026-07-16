@@ -634,6 +634,18 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   int skip_compound_prune_top_refs_num_ref0;
   int skip_compound_prune_top_refs_num_ref1;
 
+  // Skip refinemv_loop == 1 for ref-pairs other than (0, 1). Enabled at
+  // speed >= 1.
+  int prune_refinemv_by_ref_idx;
+
+  // Skip INTERINTRA motion mode when ref_frame[0] > 1. Enabled at
+  // speed >= 1.
+  int prune_interintra_by_ref_idx;
+
+  // Skip WARP_DELTA motion mode when ref_frame[0] > 2. Enabled at
+  // speed >= 1.
+  int prune_warp_delta_by_ref_idx;
+
   // Skip extended compound mode when ref frame corresponding to NEWMV does not
   // have NEWMV as single mode winner.
   // 0 : no pruning
