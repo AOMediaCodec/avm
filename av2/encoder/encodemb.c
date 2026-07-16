@@ -1708,67 +1708,36 @@ void av2_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
   av2_setup_quant(tx_size, use_trellis, quant_idx,
                   cpi->oxcf.q_cfg.quant_b_adapt, &quant_param);
 
-  // Settings for optimization type. NOTE: To set optimization type for all
-  // intra frames, both `KEY_BLOCK_OPT_TYPE` and `INTRA_BLOCK_OPT_TYPE` should
-  // be set.
-  // TODO(yjshen): These settings are hard-coded and look okay for now. They
-  // should be made configurable later.
-  // Blocks of key frames ONLY.
-  OPT_TYPE KEY_BLOCK_OPT_TYPE = TRELLIS_DROPOUT_OPT;
-  // Blocks of intra frames (key frames EXCLUSIVE).
-  OPT_TYPE INTRA_BLOCK_OPT_TYPE = TRELLIS_DROPOUT_OPT;
-
-  int use_tcq = cm->features.tcq_mode != 0;
-  if (use_tcq) {
-    // Dropout setting should be disabled when Trellis Coded Quant is
-    // enabled.
-    KEY_BLOCK_OPT_TYPE = TRELLIS_OPT;
-    // Blocks of intra frames (key frames EXCLUSIVE).
-    INTRA_BLOCK_OPT_TYPE = TRELLIS_OPT;
-  }
-
-  // Whether trellis or dropout optimization is required for key frames and
-  // intra frames.
-  const bool do_trellis = (frame_is_intra_only(cm) &&
-                           (KEY_BLOCK_OPT_TYPE == TRELLIS_OPT ||
-                            KEY_BLOCK_OPT_TYPE == TRELLIS_DROPOUT_OPT)) ||
-                          (!frame_is_intra_only(cm) &&
-                           (INTRA_BLOCK_OPT_TYPE == TRELLIS_OPT ||
-                            INTRA_BLOCK_OPT_TYPE == TRELLIS_DROPOUT_OPT));
-  const bool do_dropout = (frame_is_intra_only(cm) &&
-                           (KEY_BLOCK_OPT_TYPE == DROPOUT_OPT ||
-                            KEY_BLOCK_OPT_TYPE == TRELLIS_DROPOUT_OPT)) ||
-                          (!frame_is_intra_only(cm) &&
-                           (INTRA_BLOCK_OPT_TYPE == DROPOUT_OPT ||
-                            INTRA_BLOCK_OPT_TYPE == TRELLIS_DROPOUT_OPT));
   for (int plane = AVM_PLANE_U; plane <= AVM_PLANE_V; plane++) {
-    if (plane == AVM_PLANE_V && !is_inter_block(xd->mi[0], xd->tree_type) &&
-        *eob_c1 == 1) {
-      update_cctx_array(xd, blk_row, blk_col, 0, 0,
-                        args->dry_run ? TX_4X4 : tx_size, CCTX_NONE);
-      cctx_type = av2_get_cctx_type(xd, blk_row, blk_col);
+    if (plane == AVM_PLANE_V && (*eob_c1 == 0 || *eob_c1 == 1) &&
+        cctx_type != CCTX_NONE) {
+      cctx_type = CCTX_NONE;
+      // If the encoding stage uses a different cctx_type from the one
+      // used in the rd stage, re-do the u plane with the updated cctx_type.
+      av2_setup_xform(cm, x, AVM_PLANE_U, tx_size, tx_type, cctx_type,
+                      &txfm_param);
+      av2_setup_qmatrix(&cm->quant_params, xd, AVM_PLANE_U, tx_size, tx_type,
+                        &quant_param);
+      av2_xform_quant(cm, x, AVM_PLANE_U, block, blk_row, blk_col, plane_bsize,
+                      &txfm_param, &quant_param);
+      if (quant_param.use_optimize_b) {
+        const ENTROPY_CONTEXT *a = &args->ta[blk_col];
+        const ENTROPY_CONTEXT *l = &args->tl[blk_row];
+        TXB_CTX txb_ctx;
+        get_txb_ctx(plane_bsize, tx_size, AVM_PLANE_U, a, l, &txb_ctx,
+                    xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
+                        cm->seq_params.enable_fsc);
+        av2_optimize_b(args->cpi, x, AVM_PLANE_U, block, tx_size, tx_type,
+                       cctx_type, &txb_ctx, &dummy_rate_cost);
+      }
     }
-    // Since eob can be updated here, make sure cctx_type is always CCTX_NONE
-    // when eob of U is 0.
-    if (plane == AVM_PLANE_V && *eob_c1 == 0) {
-      // In dry run, cctx type will not be referenced by neighboring blocks,
-      // so there is no need to fill in the whole chroma region. In addition,
-      // ctx->cctx_type_map size in dry run may not be aligned with actual
-      // chroma coding region for some partition types.
-      update_cctx_array(xd, blk_row, blk_col, 0, 0,
-                        args->dry_run ? TX_4X4 : tx_size, CCTX_NONE);
-    }
-    if (plane == AVM_PLANE_V && *eob_c1 == 0 && cctx_type > CCTX_NONE) {
-      av2_quantize_skip(av2_get_max_eob(tx_size),
-                        p_c2->qcoeff + BLOCK_OFFSET(block), dqcoeff_c2, eob_c2);
-      break;
-    }
+
     av2_setup_qmatrix(&cm->quant_params, xd, plane, tx_size, tx_type,
                       &quant_param);
     av2_xform_quant(cm, x, plane, block, blk_row, blk_col, plane_bsize,
                     &txfm_param, &quant_param);
 
-    if (quant_param.use_optimize_b && do_trellis) {
+    if (quant_param.use_optimize_b) {
       const ENTROPY_CONTEXT *a =
           &args->ta[blk_col + (plane - AVM_PLANE_U) * MAX_MIB_SIZE];
       const ENTROPY_CONTEXT *l =
@@ -1779,36 +1748,6 @@ void av2_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
                       cm->seq_params.enable_fsc);
       av2_optimize_b(args->cpi, x, plane, block, tx_size, tx_type, cctx_type,
                      &txb_ctx, &dummy_rate_cost);
-    }
-    if (do_dropout) {
-      av2_dropout_qcoeff(x, plane, block, tx_size, tx_type,
-                         cm->quant_params.base_qindex);
-    }
-    if (plane == AVM_PLANE_V && !is_inter_block(xd->mi[0], xd->tree_type) &&
-        *eob_c1 == 1) {
-      update_cctx_array(xd, blk_row, blk_col, 0, 0,
-                        args->dry_run ? TX_4X4 : tx_size, CCTX_NONE);
-      cctx_type = av2_get_cctx_type(xd, blk_row, blk_col);
-      av2_setup_qmatrix(&cm->quant_params, xd, plane, tx_size, tx_type,
-                        &quant_param);
-      av2_xform_quant(cm, x, plane, block, blk_row, blk_col, plane_bsize,
-                      &txfm_param, &quant_param);
-      if (quant_param.use_optimize_b && do_trellis) {
-        const ENTROPY_CONTEXT *a =
-            &args->ta[blk_col + (plane - AVM_PLANE_U) * MAX_MIB_SIZE];
-        const ENTROPY_CONTEXT *l =
-            &args->tl[blk_row + (plane - AVM_PLANE_U) * MAX_MIB_SIZE];
-        TXB_CTX txb_ctx;
-        get_txb_ctx(plane_bsize, tx_size, plane, a, l, &txb_ctx,
-                    xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
-                        cm->seq_params.enable_fsc);
-        av2_optimize_b(args->cpi, x, plane, block, tx_size, tx_type, cctx_type,
-                       &txb_ctx, &dummy_rate_cost);
-      }
-      if (do_dropout) {
-        av2_dropout_qcoeff(x, plane, block, tx_size, tx_type,
-                           cm->quant_params.base_qindex);
-      }
     }
   }
 
