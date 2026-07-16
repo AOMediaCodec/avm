@@ -2094,6 +2094,29 @@ static bool prune_sec_txfm_rd_eval(int64_t sec_tx_sse_to_be_coded,
 // Encoder-only variable to reudce the search complexity of IST
 #define IST_REDUCED_SEARCH_SET_SIZE 4
 
+// Return 1 if primary FP-quant is guaranteed to produce eob = 0 across the
+// IST window, 0 otherwise. Uses an L-infinity scan of the post-primary
+// coefficients against the FP quantizer's kill threshold
+//   abs(coeff) < min(dequant[0], dequant[1]) >> (4 + log_scale)
+// which upper-bounds the per-position quantizer kill rule
+// (av2_highbd_quantize_fp_facade in av2_quantize.c).
+static INLINE int check_primary_quant_all_zero(const tran_low_t *coeff,
+                                               const int32_t dequant_QTX[2],
+                                               int width, int height,
+                                               int log_scale) {
+  const int shift = 4 + log_scale;
+  const int32_t deq_min = AVMMIN(dequant_QTX[0], dequant_QTX[1]);
+  const int32_t thr = deq_min >> shift;
+  if (thr <= 0) return 0;
+  const uint32_t uthr = (uint32_t)thr;
+  const int n = width * height;
+  for (int i = 0; i < n; ++i) {
+    const int32_t a = (coeff[i] < 0) ? -coeff[i] : coeff[i];
+    if ((uint32_t)a >= uthr) return 0;
+  }
+  return 1;
+}
+
 // Search for the best transform type for a given transform block.
 // This function can be used for both inter and intra, both luma and chroma.
 static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
@@ -2399,6 +2422,30 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
         }
         *coeffs_available = 1;
 
+        // Pre-IST quant-zero gate. Predict primary FP-quant eob = 0 from the
+        // post-primary coefficients and, if so, skip av2_quant / trellis /
+        // cost_coeffs and propagate the same eob_found / DCT_DCT handling as
+        // the post-quant eob == 1 gate below. Scoped to intra Y, stx == 0,
+        // non-DC-only, IST-enabled, non-QM blocks.
+        if (cpi->sf.tx_sf.prune_intra_ist_stx_by_zero_eob &&
+            plane == PLANE_TYPE_Y && !is_inter && stx == 0 && !dc_only_blk &&
+            xd->enable_ist &&
+            !av2_use_qmatrix(&cm->quant_params, xd, mbmi->segment_id)) {
+          const int tr_w = AVMMIN(tx_size_wide[tx_size], 32);
+          const int tr_h = AVMMIN(tx_size_high[tx_size], 32);
+          const int log_scale = av2_get_tx_scale(tx_size);
+          if (check_primary_quant_all_zero(p->coeff + BLOCK_OFFSET(block),
+                                           x->plane[plane].dequant_QTX, tr_w,
+                                           tr_h, log_scale)) {
+            p->eobs[block] = 0;
+            if (tx_type1 == DCT_DCT) eob_found = 1;
+            if (tx_type1 != DCT_DCT || (stx && primary_tx_type)) {
+              update_txk_array(xd, blk_row, blk_col, tx_size, DCT_DCT);
+              continue;
+            }
+          }
+        }
+
         const TX_CLASS tx_class =
             tx_type_to_class[get_primary_tx_type(tx_type)];
         if (tcq_enable(cm->features.tcq_mode,
@@ -2424,11 +2471,22 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
           }
         }
 
-        // pre-skip DC only case to make things faster
+        // Pre-skip the all-zero (eob == 0) and DC-only (eob == 1) cases on
+        // intra luma. The eob == 1 branch kills the candidate when the
+        // primary is non-DCT or stx > 0. The eob == 0 branch is narrower:
+        // it only kills stx > 0 candidates, so a non-DCT primary with
+        // stx == 0 that quantized to all-zero can still win via skip
+        // coding (bitstream signals the tx_type and elides the
+        // coefficients).
         uint16_t *const eob = &p->eobs[block];
-        if (*eob == 1 && plane == PLANE_TYPE_Y && !is_inter) {
+        if (plane == PLANE_TYPE_Y && !is_inter &&
+            (*eob == 1 ||
+             (cpi->sf.tx_sf.prune_intra_ist_stx_by_zero_eob && *eob == 0))) {
           if (tx_type1 == DCT_DCT) eob_found = 1;
-          if (tx_type1 != DCT_DCT || (stx && primary_tx_type)) {
+          const int kill =
+              (*eob == 1) ? (tx_type1 != DCT_DCT || (stx && primary_tx_type))
+                          : (stx > 0);
+          if (kill) {
             update_txk_array(xd, blk_row, blk_col, tx_size, DCT_DCT);
             continue;
           }
@@ -2456,6 +2514,9 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
               cost_coeffs(cm, x, plane, block, tx_size, tx_type, CCTX_NONE,
                           txb_ctx, cm->features.reduced_tx_set_used);
         }
+        // Post-trellis safety net: re-apply the same eob == 0 / eob == 1
+        // pre-skip logic in case trellis (RDOQ) adjusted the eob across
+        // the threshold.
         if (*eob == 1 && plane == PLANE_TYPE_Y && !is_inter) {
           if (tx_type1 == DCT_DCT) eob_found = 1;
           if (tx_type1 != DCT_DCT || (stx && primary_tx_type)) {
@@ -2464,6 +2525,14 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
           }
           if (get_secondary_tx_type(tx_type) > 0) continue;
           if (txfm_param.sec_tx_type > 0) continue;
+        }
+        if (cpi->sf.tx_sf.prune_intra_ist_stx_by_zero_eob && *eob == 0 &&
+            plane == PLANE_TYPE_Y && !is_inter) {
+          if (tx_type1 == DCT_DCT) eob_found = 1;
+          if (stx > 0) {
+            update_txk_array(xd, blk_row, blk_col, tx_size, DCT_DCT);
+            continue;
+          }
         }
         if (*eob <= 3 && plane == PLANE_TYPE_Y && is_inter && stx) {
           update_txk_array(xd, blk_row, blk_col, tx_size, primary_tx_type);
