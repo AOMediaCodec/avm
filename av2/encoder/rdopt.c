@@ -9008,17 +9008,7 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
       cm->current_frame.reference_mode == REFERENCE_MODE_SELECT;
 
   const int num_total_refs = cm->ref_frames_info.num_total_refs;
-  // Suppress TIP on frames that must decode correctly under base-only
-  // implicit-ref-map decode: base-layer frames (mlayer_id == 0) of a
-  // multi-layer sequence (number_mlayers > 1) using implicit ref-map
-  // signalling. TIP's virtual reference is derived from frames that may
-  // be absent under such decode, so a TIP-winning block on these frames
-  // would not be correctly decodable.
-  const int must_avoid_tip_for_base_only_decode =
-      cm->number_mlayers > 1 && cm->mlayer_id == 0 &&
-      !cm->seq_params.enable_explicit_ref_frame_map;
-  const int tip_allowed =
-      is_tip_allowed(cm, xd) && !must_avoid_tip_for_base_only_decode;
+  const int tip_allowed = is_tip_allowed(cm, xd);
   const int comp_ref_allowed =
       cm->current_frame.reference_mode != SINGLE_REFERENCE &&
       is_comp_ref_allowed(bsize);
