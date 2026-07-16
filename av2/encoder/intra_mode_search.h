@@ -219,42 +219,6 @@ void av2_intra_mlp_compute_mode_mask(
     uint8_t mlp_mode_mask[INTRA_MODES], int *mlp_fallback,
     uint8_t directional_mode_skip_mask[INTRA_MODES]);
 
-/*!\brief Search for the best forward skip coding mode for intra blocks.
- *
- * \ingroup intra_mode_search
- * \callergraph
- * \callgraph
- * This function searches for the best forward skip coding mode when
- * the current frame is an intra frame.
- *
- * \param[in]    cpi                Top-level encoder structure.
- * \param[in]    x                  Pointer to structure holding all the data
- *                                  for the current macroblock.
- * \param[in]    rate               The total rate needed to predict the current
- *                                  chroma block.
- * \param[in]    rate_tokenonly     The rate without the cost of sending the
- *                                  prediction modes.
- *                                  chroma block.
- *                                  after the reconstruction.
- * \param[in]    distortion         The chroma distortion of the best prediction
- *                                  after the reconstruction.
- * \param[in]    skippable          Whether we can skip txfm process.
- * \param[in]    bsize              Current partition block size.
- * \param[in]    mode_costs         Costs associated with different intra modes.
- * \param[in]    dir_skip_mask      Whether a directional mode is pruned.
- * \param[in]    best_rd            Best RD seen for this block so far.
- * \param[in]    best_model_rd      Best model RD seen for this block so far.
- * \param[in]    ctx                Structure to hold the number of 4x4 blks to
- *                                  copy the tx_type and txfm_skip arrays.
- * \param[in]    best_mbmi          Pointer to structure holding
- *                                  the mode info for the best macroblock.
- */
-void search_fsc_mode(const AV2_COMP *const cpi, MACROBLOCK *x, int *rate,
-                     int *rate_tokenonly, int64_t *distortion, int *skippable,
-                     BLOCK_SIZE bsize, int mode_costs, uint8_t *dir_skip_mask,
-                     int64_t *best_rd, int64_t *best_model_rd,
-                     PICK_MODE_CONTEXT *ctx, MB_MODE_INFO *best_mbmi);
-
 /*!\brief Evaluate luma palette mode for inter frames.
  *
  * \ingroup intra_mode_search
