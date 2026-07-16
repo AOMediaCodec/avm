@@ -1764,13 +1764,13 @@ int check_temporal_unit_structure(temporal_unit_state_t *state, int obu_type,
   // Validate input parameters
   if (!state) return 0;
 
-  // After the global phase, detect an xlayer_id increase and reset the
-  // per-xlayer state machine so the new group starts fresh.
+  // After the global phase, an xlayer_id change starts a fresh per-xlayer
+  // group. No increasing-xlayer constraint: a TU may group all per-xlayer
+  // config ahead of all frame data (config carried in the ISOBMFF sample entry).
   if (*state == TU_STATE_LOCAL_INFO || *state == TU_STATE_SEQUENCE_HEADER ||
       *state == TU_STATE_FRAME_UINT_DATA) {
     if (xlayer_id != GLOBAL_XLAYER_ID && prev_xlayer_id != GLOBAL_XLAYER_ID &&
         xlayer_id != prev_xlayer_id) {
-      if (xlayer_id < prev_xlayer_id) return 0;  // Must be increasing
       // New xlayer group: reset to local info phase.
       *state = TU_STATE_LOCAL_INFO;
     }

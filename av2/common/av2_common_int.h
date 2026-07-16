@@ -1047,6 +1047,9 @@ typedef struct ContentInterpretation {
   // ci_from_leading[i]==1 indicates it is signalled in the leading temporal
   // unit
   bool ci_from_leading;
+  // Set once a CI OBU establishes params for the xlayer; survives context
+  // save/restore so a sample-entry-carried CI isn't seen as absent at a RAP.
+  bool ci_valid;
 } ContentInterpretation;
 
 // Multi-stream decoder operation structure.
@@ -6148,6 +6151,7 @@ static INLINE void av2_initialize_ci_params(ContentInterpretation *ci_params) {
   ci_params->ci_aspect_ratio_info_present_flag = 0;
   ci_params->ci_timing_info_present_flag = 0;
   ci_params->ci_extension_present_flag = 0;
+  ci_params->ci_valid = false;
 }
 
 // Returns true if this frame qualifies for the following special case:

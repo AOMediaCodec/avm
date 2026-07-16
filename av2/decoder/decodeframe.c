@@ -7815,7 +7815,8 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       }
     }
   }
-  if (!is_ci_present && is_rap_boundary) {
+  if (!is_ci_present && is_rap_boundary &&
+      !cm->ci_params_per_layer[cm->mlayer_id].ci_valid) {
     // Initialize to default first
     av2_initialize_ci_params(&cm->ci_params_per_layer[cm->mlayer_id]);
 
