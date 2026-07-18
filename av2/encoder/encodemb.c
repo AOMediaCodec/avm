@@ -1712,6 +1712,8 @@ void av2_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
     if (plane == AVM_PLANE_V && (*eob_c1 == 0 || *eob_c1 == 1) &&
         cctx_type != CCTX_NONE) {
       cctx_type = CCTX_NONE;
+      update_cctx_array(xd, blk_row, blk_col, 0, 0,
+                        args->dry_run ? TX_4X4 : tx_size, CCTX_NONE);
       // If the encoding stage uses a different cctx_type from the one
       // used in the rd stage, re-do the u plane with the updated cctx_type.
       av2_setup_xform(cm, x, AVM_PLANE_U, tx_size, tx_type, cctx_type,
