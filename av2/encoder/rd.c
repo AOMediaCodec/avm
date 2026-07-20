@@ -711,11 +711,8 @@ int av2_get_deltaq_offset(const AV2_COMP *cpi, int qindex, double beta) {
       qindex++;
       q = av2_dc_quant_QTX(qindex, 0, cpi->common.seq_params.base_y_dc_delta_q,
                            cpi->common.seq_params.bit_depth);
-    } while (newq > q &&
-             (qindex <
-              (cpi->common.seq_params.bit_depth == AVM_BITS_8    ? MAXQ_8_BITS
-               : cpi->common.seq_params.bit_depth == AVM_BITS_10 ? MAXQ_10_BITS
-                                                                 : MAXQ)));
+    } while (newq > q && (qindex < MAXQ_FOR_GIVEN_BIT_DEPTH(
+                                       cpi->common.seq_params.bit_depth)));
   }
   return qindex - orig_qindex;
 }
@@ -811,10 +808,7 @@ static void set_block_thresholds(const AV2_COMMON *cm, RD_OPT *rd) {
         clamp(av2_get_qindex(&cm->seg, segment_id, cm->quant_params.base_qindex,
                              cm->seq_params.bit_depth) +
                   cm->quant_params.y_dc_delta_q,
-              0,
-              cm->seq_params.bit_depth == AVM_BITS_8    ? MAXQ_8_BITS
-              : cm->seq_params.bit_depth == AVM_BITS_10 ? MAXQ_10_BITS
-                                                        : MAXQ);
+              0, MAXQ_FOR_GIVEN_BIT_DEPTH(cm->seq_params.bit_depth));
 
     const int q = compute_rd_thresh_factor(
         qindex, cm->seq_params.base_y_dc_delta_q, cm->seq_params.bit_depth);

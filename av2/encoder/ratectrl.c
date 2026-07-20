@@ -1078,9 +1078,7 @@ static int apply_tcq_qp_offset(const AV2_COMP *cpi, int qp_tcq) {
   } else {
     tcq_qp_offset_shift = 0;
   }
-  int max_qp = bit_depth == AVM_BITS_8    ? MAXQ_8_BITS
-               : bit_depth == AVM_BITS_10 ? MAXQ_10_BITS
-                                          : MAXQ;
+  int max_qp = MAXQ_FOR_GIVEN_BIT_DEPTH(bit_depth);
   return clamp(qp_tcq + tcq_qp_offset_shift, 0, max_qp);
 }
 

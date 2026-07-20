@@ -1497,9 +1497,7 @@ static void read_delta_q_params(AV2_COMMON *const cm, MACROBLOCKD *const xd,
     /* Normative: Clamp to [1,MAXQ] to not interfere with lossless mode */
     xd->current_base_qindex =
         clamp(xd->current_base_qindex, 1,
-              cm->seq_params.bit_depth == AVM_BITS_8    ? MAXQ_8_BITS
-              : cm->seq_params.bit_depth == AVM_BITS_10 ? MAXQ_10_BITS
-                                                        : MAXQ);
+              MAXQ_FOR_GIVEN_BIT_DEPTH(cm->seq_params.bit_depth));
   }
 }
 
