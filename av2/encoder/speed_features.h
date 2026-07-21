@@ -708,6 +708,9 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // 1: use model based rd breakout
   int model_based_post_interp_filter_breakout;
 
+  // skip temporary predictions for opfl modes
+  int skip_temporary_pred_for_opfl;
+
   // Reuse compound type rd decision when exact match is found
   // 0: No reuse
   // 1: Reuse the compound type rd data
