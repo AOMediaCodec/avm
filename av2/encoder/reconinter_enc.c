@@ -220,7 +220,7 @@ void av2_enc_build_inter_predictor(const AV2_COMMON *cm, MACROBLOCKD *xd,
                             mbmi->mv[1].as_mv);
 
     // if luma build is not available, we need to get refinemv based on luma
-    // need to search DMVR here based on luma plane
+    // need to search SMVR here based on luma plane
     if (plane_from != 0) {
       enc_build_inter_predictors(cm, xd, 0, xd->mi[0], ctx, 1,
                                  xd->plane[0].width, xd->plane[0].height,

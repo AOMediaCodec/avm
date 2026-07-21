@@ -630,7 +630,7 @@ static void copy_tip_worker_data(AV2Decoder *pbi, AV2_COMMON *cm) {
     tip_worker_data->mc_buf[0] = thread_data->td->mc_buf[0];
     tip_worker_data->mc_buf[1] = thread_data->td->mc_buf[1];
     tip_worker_data->tmp_conv_dst = thread_data->td->tmp_conv_dst;
-    // Temporary buffers used during the DMVR and OPFL processing.
+    // Temporary buffers used during the SMVR and OPFL processing.
     tip_worker_data->xd.opfl_vxy_bufs = thread_data->td->opfl_vxy_bufs;
     tip_worker_data->xd.opfl_gxy_bufs = thread_data->td->opfl_gxy_bufs;
     tip_worker_data->xd.opfl_dst_bufs = thread_data->td->opfl_dst_bufs;
@@ -4774,7 +4774,7 @@ static const uint8_t *decode_tiles(AV2Decoder *pbi, const uint8_t *data,
   td->dcb.mc_buf[1] = td->mc_buf[1];
   td->dcb.xd.tmp_conv_dst = td->tmp_conv_dst;
 
-  // Temporary buffers used during the DMVR and OPFL processing.
+  // Temporary buffers used during the SMVR and OPFL processing.
   td->dcb.xd.opfl_vxy_bufs = td->opfl_vxy_bufs;
   td->dcb.xd.opfl_gxy_bufs = td->opfl_gxy_bufs;
   td->dcb.xd.opfl_dst_bufs = td->opfl_dst_bufs;
@@ -5333,7 +5333,7 @@ void av2_free_mc_tmp_buf(ThreadData *thread_data) {
   thread_data->tmp_conv_dst = NULL;
 }
 
-// Free-up the temporary buffers created for DMVR and OPFL processing.
+// Free-up the temporary buffers created for SMVR and OPFL processing.
 void av2_free_opfl_tmp_bufs(ThreadData *thread_data) {
   avm_free(thread_data->opfl_vxy_bufs);
   thread_data->opfl_vxy_bufs = NULL;
@@ -5345,7 +5345,7 @@ void av2_free_opfl_tmp_bufs(ThreadData *thread_data) {
   thread_data->opfl_dst_bufs = NULL;
 }
 
-// Allocate memory for temporary buffers used during the DMVR and OPFL
+// Allocate memory for temporary buffers used during the SMVR and OPFL
 // processing.
 static AVM_INLINE void allocate_opfl_tmp_bufs(AV2_COMMON *const cm,
                                               ThreadData *thread_data) {
@@ -5397,7 +5397,7 @@ static AVM_INLINE void reset_dec_workers(AV2Decoder *pbi,
     thread_data->td->dcb.mc_buf[0] = thread_data->td->mc_buf[0];
     thread_data->td->dcb.mc_buf[1] = thread_data->td->mc_buf[1];
     thread_data->td->dcb.xd.tmp_conv_dst = thread_data->td->tmp_conv_dst;
-    // Temporary buffers used during the DMVR and OPFL processing.
+    // Temporary buffers used during the SMVR and OPFL processing.
     thread_data->td->dcb.xd.opfl_vxy_bufs = thread_data->td->opfl_vxy_bufs;
     thread_data->td->dcb.xd.opfl_gxy_bufs = thread_data->td->opfl_gxy_bufs;
     thread_data->td->dcb.xd.opfl_dst_bufs = thread_data->td->opfl_dst_bufs;

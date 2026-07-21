@@ -481,7 +481,7 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.skip_repeated_ref_mv = 1;
     sf->inter_sf.skip_repeated_full_newmv = 1;
     // TODO(any): Set this speed feature to 2 after correcting the match
-    // criteria by considering tools like OPFL, DMVR.
+    // criteria by considering tools like OPFL, SMVR.
     sf->inter_sf.reuse_compound_type_data = 0;
     sf->inter_sf.txfm_rd_gate_level =
         boosted ? 0 : (is_boosted_arf2_bwd_type ? 1 : 2);

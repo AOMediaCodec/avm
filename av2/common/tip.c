@@ -490,7 +490,7 @@ static AVM_INLINE void tip_build_inter_predictors_8x8(
     dst0 = refinemv_ref0;
     dst1 = refinemv_ref1;
     opfl_dst_stride = REFINEMV_SUBBLOCK_WIDTH +
-                      2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES);
+                      2 * (SUBBLK_REF_EXT_LINES + SMVR_SEARCH_EXT_LINES);
     do_pred = 0;
   }
 
@@ -627,15 +627,15 @@ static AVM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
   uint16_t
       dst0_16_refinemv[2 *
                        (REFINEMV_SUBBLOCK_WIDTH +
-                        2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES)) *
+                        2 * (SUBBLK_REF_EXT_LINES + SMVR_SEARCH_EXT_LINES)) *
                        (REFINEMV_SUBBLOCK_HEIGHT +
-                        2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES))];
+                        2 * (SUBBLK_REF_EXT_LINES + SMVR_SEARCH_EXT_LINES))];
   uint16_t
       dst1_16_refinemv[2 *
                        (REFINEMV_SUBBLOCK_WIDTH +
-                        2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES)) *
+                        2 * (SUBBLK_REF_EXT_LINES + SMVR_SEARCH_EXT_LINES)) *
                        (REFINEMV_SUBBLOCK_HEIGHT +
-                        2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES))];
+                        2 * (SUBBLK_REF_EXT_LINES + SMVR_SEARCH_EXT_LINES))];
 
   const int apply_refinemv =
       (cm->seq_params.enable_refinemv && cm->seq_params.enable_tip_refinemv &&

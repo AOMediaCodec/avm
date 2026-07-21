@@ -1374,7 +1374,7 @@ typedef struct macroblock {
   //! Temporary buffers used to store the OPFL gradient information.
   int16_t *opfl_gxy_bufs;
   //! Temporary buffers used to store intermediate prediction data calculated
-  //! during the OPFL/DMVR.
+  //! during the OPFL/SMVR.
   uint16_t *opfl_dst_bufs;
   /*! \brief Temporary buffer to hold prediction.
    *

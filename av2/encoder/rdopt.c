@@ -5491,7 +5491,7 @@ static int64_t handle_inter_mode(
               }
             }
 
-            // Get the default value of DMVR flag based on mode
+            // Get the default value of SMVR flag based on mode
             assert(mbmi->motion_mode == SIMPLE_TRANSLATION);
             mbmi->refinemv_flag = get_default_refinemv_flag(cm, mbmi);
 

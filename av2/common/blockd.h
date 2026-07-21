@@ -330,11 +330,11 @@ typedef struct {
 
 #define REF_BUFFER_WIDTH                                                   \
   (REFINEMV_SUBBLOCK_WIDTH + (AVM_INTERP_EXTEND - 1) + AVM_INTERP_EXTEND + \
-   2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES))
+   2 * (SUBBLK_REF_EXT_LINES + SMVR_SEARCH_EXT_LINES))
 
 #define REF_BUFFER_HEIGHT                                                   \
   (REFINEMV_SUBBLOCK_HEIGHT + (AVM_INTERP_EXTEND - 1) + AVM_INTERP_EXTEND + \
-   2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES))
+   2 * (SUBBLK_REF_EXT_LINES + SMVR_SEARCH_EXT_LINES))
 
 typedef struct PadOffset {
   int left;
@@ -476,7 +476,7 @@ typedef struct MB_MODE_INFO {
    */
   uint8_t mb_precision_set;
 
-  /*! \brief The flag to signal if DMVR is used for the inter prediction. */
+  /*! \brief The flag to signal if SMVR is used for the inter prediction. */
   uint8_t refinemv_flag;
 
   /*! \brief The motion mode used by the inter prediction. */
@@ -2286,7 +2286,7 @@ typedef struct macroblockd {
   int16_t *opfl_gxy_bufs;
   /*!
    * Temporary buffers used to store intermediate prediction data calculated
-   * during the OPFL/DMVR.
+   * during the OPFL/SMVR.
    */
   uint16_t *opfl_dst_bufs;
 
