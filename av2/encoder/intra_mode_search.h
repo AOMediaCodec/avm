@@ -71,6 +71,15 @@ typedef struct IntraModeSearchState {
   int dir_mode_skip_mask_ready;
   /**@}*/
 
+  /*!
+   * \brief Inter-frame MRL=0 survival mask: directional base modes whose
+   * model_rd at (mrl_index=0) survived prune_intra_y_mode. Read at MRL>0
+   * call sites to skip unnecessary MRL>0 search. Reset by the caller before
+   * each inter-frame intra evaluation. Only used when intra_pruning_with_mlp is
+   * enabled.
+   */
+  uint8_t mrl0_dir_mode_survived[INTRA_MODES];
+
   /** \name Chroma mode search cache
    * A cache of the best chroma prediction mode to avoid having to search for
    * chroma predictions repeatedly in \ref av2_handle_intra_mode()
@@ -188,6 +197,27 @@ int64_t av2_handle_intra_mode(IntraModeSearchState *intra_search_state,
                               ModeRDInfoUV *mode_rd_info_uv, int64_t best_rd,
                               int64_t *best_intra_rd, int64_t *best_model_rd,
                               int64_t top_intra_model_rd[]);
+
+/*!\brief Compute the MLP-derived intra base-mode mask for the current block.
+ *
+ * Runs once per block. Output mlp_mode_mask is a bitmap over INTRA_MODES;
+ * entries set to 1 are MLP top-K base modes that should be evaluated.
+ *
+ * If MLP cannot be applied (4x4, 4x8, or 8x4 block, or low confidence),
+ * *mlp_fallback is set to 1 and directional_mode_skip_mask is populated by
+ * prune_intra_mode_with_hog so the caller can use HOG pruning instead.
+ *
+ * \param[in]  cpi
+ * \param[in]  x
+ * \param[in]  bsize
+ * \param[out] mlp_mode_mask              Bitmap of base modes selected by MLP.
+ * \param[out] mlp_fallback               Set to 1 if MLP cannot be applied.
+ * \param[out] directional_mode_skip_mask Filled by HOG when *mlp_fallback==1.
+ */
+void av2_intra_mlp_compute_mode_mask(
+    const AV2_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
+    uint8_t mlp_mode_mask[INTRA_MODES], int *mlp_fallback,
+    uint8_t directional_mode_skip_mask[INTRA_MODES]);
 
 /*!\brief Search for the best forward skip coding mode for intra blocks.
  *
@@ -357,9 +387,11 @@ void av2_count_colors_highbd(const uint16_t *src, int stride, int rows,
  *                                  far.
  * \param[in]    top_intra_model_rd Top intra model RD seen for this
  *                                  block so far.
+ * \param[in]    k                  Number of top model RD candidates to
+ *                                  keep in top_intra_model_rd.
  */
 int prune_intra_y_mode(int64_t this_model_rd, int64_t *best_model_rd,
-                       int64_t top_intra_model_rd[]);
+                       int64_t top_intra_model_rd[], int k);
 
 #ifdef __cplusplus
 }  // extern "C"

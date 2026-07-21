@@ -764,6 +764,10 @@ typedef struct INTRA_MODE_SPEED_FEATURES {
   // TODO(anyone): tune intra_pruning_with_hog_thresh for various speeds.
   float intra_pruning_with_hog_thresh;
 
+  // Prune intra mode candidates using an MLP trained on source pixels and
+  // neighbor context. Enabled at speed >= 1.
+  int intra_pruning_with_mlp;
+
   // Enable/disable smooth intra modes.
   int disable_smooth_intra;
 
