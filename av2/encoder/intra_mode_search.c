@@ -19,6 +19,7 @@
 #include "av2/encoder/intra_mode_mlp.h"
 #include "av2/encoder/intra_mode_search.h"
 #include "av2/encoder/intra_mode_search_utils.h"
+#include "av2/encoder/gdr_utils.h"
 #include "av2/encoder/palette.h"
 #include "av2/encoder/tx_search.h"
 #include "av2/common/reconinter.h"
@@ -697,6 +698,12 @@ int64_t av2_rd_pick_intra_sbuv_mode(const AV2_COMP *const cpi, MACROBLOCK *x,
       int filter_dir_rate = 0;
       int cfl_idx_rate = 0;
       if (mode == UV_CFL_PRED) {
+        // GDR: CfL reads reconstructed luma neighbors. Skip every CfL variant
+        // at boundary chroma blocks, and MHCCP on all recovery frames (its
+        // wider neighbor fetch and joint-RDO winner shifts leak indirectly).
+        if (x->gdr_tr_into_dirty ||
+            (mbmi->cfl_idx == CFL_MULTI_PARAM && cpi->gdr_in_refresh_period))
+          continue;
         if (!is_cfl_allowed(cm->seq_params.enable_cfl_intra, xd) &&
             (mbmi->cfl_idx == CFL_EXPLICIT ||
              mbmi->cfl_idx == CFL_DERIVED_ALPHA))
@@ -1812,6 +1819,9 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
           if (!cpi->oxcf.intra_mode_cfg.enable_paeth_intra &&
               mbmi->mode == PAETH_PRED)
             continue;
+          // GDR: reject modes that read above-right samples from the dirty area.
+          if (x->gdr_tr_into_dirty && gdr_mode_uses_above_right(mbmi->mode))
+            continue;
           is_directional_mode = av2_is_directional_mode(mbmi->mode);
           if (cpi->sf.intra_sf.intra_pruning_with_mlp && mrl_idx > 0 &&
               is_directional_mode && mode_idx >= FIRST_MODE_COUNT &&
@@ -1930,6 +1940,7 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
 
   // Try Intra ML prediction (within intra frame).
   const int try_intra_dip = !cpi->sf.intra_sf.skip_intra_dip_search &&
+                            !x->gdr_tr_into_dirty &&
                             av2_intra_dip_allowed_bsize(&cpi->common, bsize);
   if (try_intra_dip) {
     if (rd_pick_intra_dip_sby(cpi, td, x, rate, rate_tokenonly, distortion,

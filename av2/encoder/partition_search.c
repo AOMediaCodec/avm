@@ -33,6 +33,7 @@
 #include "av2/encoder/encodeframe.h"
 #include "av2/encoder/encodeframe_utils.h"
 #include "av2/encoder/encodemv.h"
+#include "av2/encoder/gdr_utils.h"
 #include "av2/encoder/motion_search_facade.h"
 #include "av2/encoder/partition_search.h"
 #include "av2/encoder/partition_strategy.h"
@@ -427,6 +428,28 @@ void av2_set_offsets_without_segment_id(
   av2_set_mv_limits(&cm->mi_params, &x->mv_limits, mi_row, mi_col, mi_height,
                     mi_width, cpi->oxcf.border_in_pixels);
 
+  x->gdr_tr_into_dirty = cpi->gdr_in_refresh_period &&
+                         gdr_intra_tr_into_dirty(cpi, mi_row, mi_col, mi_width);
+
+  // GDR: clamp the MV search so a clean-area inter block cannot fetch (incl.
+  // interpolation / refinement reach) any reference's dirty region.
+  if (cpi->gdr_in_refresh_period) {
+    int min_det_right = cm->mi_params.mi_cols;
+    for (int ref = 0; ref < INTER_REFS_PER_FRAME; ref++) {
+      const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref);
+      if (buf == NULL || buf->is_restricted) continue;
+      if (buf->gdr_deterministic_right_mi < min_det_right)
+        min_det_right = buf->gdr_deterministic_right_mi;
+    }
+    if (min_det_right < cm->mi_params.mi_cols &&
+        mi_col + mi_width <= min_det_right) {
+      const int gdr_col_max = (min_det_right - mi_col - mi_width) * MI_SIZE -
+                              GDR_MV_BOUNDARY_GUARD_PX;
+      if (x->mv_limits.col_max > gdr_col_max)
+        x->mv_limits.col_max = gdr_col_max;
+    }
+  }
+
   set_plane_n4(xd, mi_width, mi_height, num_planes, chroma_ref_info);
 
   // Set up distance of MB to edge of frame in 1/8th pel units.
@@ -637,7 +660,8 @@ static void pick_sb_modes(AV2_COMP *const cpi, ThreadData *td,
 
   // Find best coding mode & reconstruct the MB so it is available
   // as a predictor for MBs that follow in the SB
-  if (frame_is_intra_only(cm) || mbmi->region_type == INTRA_REGION) {
+  if (frame_is_intra_only(cm) || mbmi->region_type == INTRA_REGION ||
+      gdr_force_intra_block(cpi, mi_col, mi_size_wide[bsize])) {
 #if CONFIG_COLLECT_COMPONENT_TIMING
     start_timing(cpi, av2_rd_pick_intra_mode_sb_time);
 #endif
@@ -3133,6 +3157,32 @@ static AVM_INLINE void init_allowed_partitions(
 #endif  // CONFIG_COLLECT_PARTITION_STATS
 }
 
+// GDR: a block straddling the logical stripe boundary must not use rectangular
+// or non-square partitions; their non-square transforms enable the wide-angle
+// intra remap that fetches above-right samples from the dirty area. Only
+// PARTITION_NONE and square PARTITION_SPLIT remain.
+static AVM_INLINE void gdr_restrict_partitions_at_boundary(
+    const AV2_COMP *cpi, PartitionSearchState *part_search_state) {
+  if (!cpi->gdr_in_refresh_period) return;
+  const PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
+  const int right = cpi->gdr_deterministic_right_mi;
+  const int bw = mi_size_wide[blk_params->bsize];
+  if (blk_params->mi_col >= right || blk_params->mi_col + bw <= right) return;
+  // Keep PARTITION_NONE + square PARTITION_SPLIT. Only act when NONE is allowed
+  // so the "none || rect" partition invariant still holds; edge/oversized blocks
+  // that lack NONE fall through and split into sub-blocks handled recursively.
+  if (!part_search_state->partition_none_allowed) return;
+  part_search_state->do_rectangular_split = 0;
+  part_search_state->partition_rect_allowed[HORZ] = 0;
+  part_search_state->partition_rect_allowed[VERT] = 0;
+  part_search_state->partition_3_allowed[HORZ] = 0;
+  part_search_state->partition_3_allowed[VERT] = 0;
+  part_search_state->partition_4a_allowed[HORZ] = 0;
+  part_search_state->partition_4a_allowed[VERT] = 0;
+  part_search_state->partition_4b_allowed[HORZ] = 0;
+  part_search_state->partition_4b_allowed[VERT] = 0;
+}
+
 // Initialize state variables of partition search used in
 // av2_rd_pick_partition().
 static void init_partition_search_state_params(
@@ -3236,6 +3286,7 @@ static void init_partition_search_state_params(
       part_search_state, &cpi->oxcf.part_cfg, &cpi->sf,
       is_bru_not_active_and_not_on_partial_border(cm, mi_col, mi_row, bsize),
       partition_allowed);
+  gdr_restrict_partitions_at_boundary(cpi, part_search_state);
 }
 
 static const int rect_partition_type[NUM_RECT_PARTS] = { PARTITION_HORZ,
@@ -5657,6 +5708,7 @@ BEGIN_PARTITION_SEARCH:
         &part_search_state, &cpi->oxcf.part_cfg, &cpi->sf,
         is_bru_not_active_and_not_on_partial_border(cm, mi_col, mi_row, bsize),
         partition_allowed);
+    gdr_restrict_partitions_at_boundary(cpi, &part_search_state);
 #if CONFIG_ML_PART_SPLIT
     part_search_state.prune_partition[PARTITION_HORZ] = false;
     part_search_state.prune_partition[PARTITION_VERT] = false;

@@ -1613,6 +1613,9 @@ typedef struct macroblock {
   FullMvLimits mv_limits;
   /**@}*/
 
+  //! GDR: above-right intra fetch of this block reads into the dirty area.
+  int gdr_tr_into_dirty;
+
   /*****************************************************************************
    * \name Txfm Search
    ****************************************************************************/

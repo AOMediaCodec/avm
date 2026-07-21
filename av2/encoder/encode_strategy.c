@@ -756,6 +756,11 @@ int av2_get_refresh_frame_flags(
     AV2_COMP *const cpi, const EncodeFrameParams *const frame_params,
     FRAME_UPDATE_TYPE frame_update_type, int gf_index, int cur_disp_order,
     RefFrameMapPair ref_frame_map_pairs[REF_FRAMES]) {
+  // GDR window end frame: refresh every reference slot so the whole picture is
+  // deterministic afterwards.
+  if (cpi->gdr_is_end_frame) {
+    return (1 << cpi->common.seq_params.ref_frames) - 1;
+  }
   // Shown key-frames overwrite all reference slots
   if (av2_is_shown_keyframe(cpi, frame_params->frame_type) &&
       cpi->common.seq_params.max_mlayer_id == 0 && !cpi->no_show_fwd_kf) {
@@ -1359,6 +1364,7 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
 
   if (!is_stat_generation_stage(cpi)) {
     cm->current_frame.frame_type = frame_params.frame_type;
+    av2_gdr_update_window_state(cpi);
     // get last frame idx as bru frame
     cm->bru.enabled = cpi->oxcf.tool_cfg.enable_bru > 0 &&
                       (frame_params.frame_type == INTER_FRAME);

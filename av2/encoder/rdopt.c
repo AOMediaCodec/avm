@@ -5756,13 +5756,16 @@ static int64_t handle_inter_mode(
 // Check if BV is valid
 static INLINE int is_bv_valid(const FULLPEL_MV *full_mv, const AV2_COMMON *cm,
                               const MACROBLOCKD *xd, int mi_row, int mi_col,
-                              BLOCK_SIZE bsize,
+                              BLOCK_SIZE bsize, int gdr_right_px,
                               FULLPEL_MOTION_SEARCH_PARAMS fullms_params) {
   const MV dv = get_mv_from_fullmv(full_mv);
   if (!av2_is_fullmv_in_range(&fullms_params.mv_limits, *full_mv,
                               fullms_params.mv_cost_params.pb_mv_precision))
     return 0;
   if (!av2_is_dv_valid(dv, cm, xd, mi_row, mi_col, bsize, cm->mib_size_log2))
+    return 0;
+  // GDR: reject block-copy sources that reach into the dirty area.
+  if (mi_col * MI_SIZE + full_mv->col + block_size_wide[bsize] > gdr_right_px)
     return 0;
   return 1;
 }
@@ -5994,6 +5997,9 @@ static int64_t rd_pick_intrabc_mode_sb(const AV2_COMP *cpi, MACROBLOCK *x,
   const int h = block_size_high[bsize];
   const int sb_row = mi_row >> cm->mib_size_log2;
   const int sb_col = mi_col >> cm->mib_size_log2;
+  const int gdr_right_px = cpi->gdr_in_refresh_period
+                               ? cpi->gdr_deterministic_right_mi * MI_SIZE
+                               : INT_MAX;
 
   MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
   MV_REFERENCE_FRAME ref_frame = INTRA_FRAME;
@@ -6225,7 +6231,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV2_COMP *cpi, MACROBLOCK *x,
           !cpi->common.features.cur_frame_force_integer_mv &&
           mbmi->pb_mv_precision > MV_PRECISION_ONE_PEL &&
           is_bv_valid(&best_full_pel_mv, cm, xd, mi_row, mi_col, bsize,
-                      fullms_params);
+                      gdr_right_px, fullms_params);
       if (use_subpel_search) {
         int not_used = 0;
 
@@ -6256,7 +6262,8 @@ static int64_t rd_pick_intrabc_mode_sb(const AV2_COMP *cpi, MACROBLOCK *x,
       }
 
       if (bestsme != INT_MAX && is_bv_valid(&best_full_pel_mv, cm, xd, mi_row,
-                                            mi_col, bsize, fullms_params)) {
+                                            mi_col, bsize, gdr_right_px,
+                                            fullms_params)) {
         int cur_ref_bv_cost = bestsme;
         int cur_intrabc_mode = 0;
         int cur_intrabc_drl_idx = 0;
@@ -6293,7 +6300,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV2_COMP *cpi, MACROBLOCK *x,
 
       if (hashsme != INT_MAX &&
           is_bv_valid(&best_hash_mv.as_fullmv, cm, xd, mi_row, mi_col, bsize,
-                      fullms_params)) {
+                      gdr_right_px, fullms_params)) {
         int cur_ref_bv_cost = hashsme;
 
         int cur_intrabc_mode = mbmi->intrabc_mode;

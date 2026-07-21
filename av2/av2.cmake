@@ -222,6 +222,7 @@ list(
   "${AVM_ROOT}/av2/encoder/extend.h"
   "${AVM_ROOT}/av2/encoder/firstpass.c"
   "${AVM_ROOT}/av2/encoder/firstpass.h"
+  "${AVM_ROOT}/av2/encoder/gdr_utils.h"
   "${AVM_ROOT}/av2/encoder/global_motion.c"
   "${AVM_ROOT}/av2/encoder/global_motion.h"
   "${AVM_ROOT}/av2/encoder/global_motion_facade.c"

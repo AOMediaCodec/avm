@@ -426,6 +426,11 @@ typedef struct {
   int sframe_type;
 
   /*!
+   * Gradual Decoder Refresh refresh-window length in frames; 0 disables GDR.
+   */
+  int gdr_mode;
+
+  /*!
    * Indicates if encoder should autodetect cut scenes and set the keyframes.
    */
   bool auto_key;
@@ -3130,6 +3135,17 @@ typedef struct AV2_COMP {
    * Flag indicating if banding metadata is available for the current frame
    */
   int band_metadata_present;
+
+  /*!
+   * Gradual Decoder Refresh per-frame state.
+   */
+  int gdr_last_sframe_num;         /*!< frame_number of last GDR S-frame; -1 = none */
+  int gdr_stripe_start_mi;         /*!< first MI col of forced-intra region; -1 = off */
+  int gdr_stripe_end_mi;           /*!< exclusive MI end including loop-filter overlap */
+  int gdr_deterministic_right_mi;  /*!< logical stripe end; drives the dirty test */
+  int gdr_stripe_active;           /*!< stripe exists this frame (offset [0,N-1]) */
+  int gdr_in_refresh_period;       /*!< post-switch recovery frame (offset [1,N-1]) */
+  int gdr_is_end_frame;            /*!< window end frame (offset N-1) */
 } AV2_COMP;
 
 /*!
@@ -3299,6 +3315,14 @@ int av2_set_reference_enc(AV2_COMP *cpi, int idx, YV12_BUFFER_CONFIG *sd);
 int av2_set_size_literal(AV2_COMP *cpi, int width, int height);
 
 void av2_set_frame_size(AV2_COMP *cpi, int width, int height);
+
+// Updates the GDR window state (stripe/refresh-period/end-frame flags) for the
+// current frame. Must run before the reference refresh flags are decided.
+void av2_gdr_update_window_state(AV2_COMP *cpi);
+
+// Computes the GDR stripe geometry for the current frame. Must run after the
+// frame size is known and before block encoding.
+void av2_gdr_setup_stripe(AV2_COMP *cpi);
 
 int av2_set_active_map(AV2_COMP *cpi, unsigned char *map, int rows, int cols);
 

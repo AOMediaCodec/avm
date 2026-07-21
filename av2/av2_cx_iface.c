@@ -872,6 +872,18 @@ static avm_codec_err_t validate_config(avm_codec_alg_priv_t *ctx,
     if (extra_cfg->enable_chroma_deltaq)
       ERROR("Only --enable_chroma_deltaq=0 can be used with --lossless=1.");
   }
+  if (cfg->enable_gdr) {
+    if (!cfg->enable_sframe || cfg->sframe_mode != 0)
+      ERROR("--enable-gdr requires --enable-sframe=1 and --sframe-mode=0.");
+    if (cfg->sframe_dist == 0)
+      ERROR("--enable-gdr requires --sframe-dist > 0.");
+    if (cfg->g_lag_in_frames != 0)
+      ERROR("--enable-gdr requires --lag-in-frames=0.");
+    if (cfg->gdr_refresh_period == 0)
+      ERROR("--enable-gdr requires --gdr-refresh-period > 0.");
+    if (cfg->gdr_refresh_period > cfg->sframe_dist)
+      ERROR("--gdr-refresh-period must be <= --sframe-dist.");
+  }
   RANGE_CHECK(extra_cfg, max_reference_frames, 1, 7);
   RANGE_CHECK(extra_cfg, reduced_ref_frame_mvs_mode, 0, 1);
   RANGE_CHECK(extra_cfg, enable_reduced_reference_set, 0, 1);
@@ -1594,6 +1606,7 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   kf_cfg->sframe_dist = cfg->sframe_dist;
   kf_cfg->sframe_mode = cfg->sframe_mode;
   kf_cfg->sframe_type = cfg->sframe_type;
+  kf_cfg->gdr_mode = cfg->enable_gdr ? cfg->gdr_refresh_period : 0;
   oxcf->unit_test_cfg.insert_sframe = extra_cfg->enable_sframe;
 
   kf_cfg->enable_keyframe_filtering = extra_cfg->enable_keyframe_filtering;
@@ -1694,7 +1707,10 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   if (extra_cfg->enable_interintra_comp) {
     seq_enabled_motion_modes |= (1 << INTERINTRA);
   }
-  if (extra_cfg->enable_warped_motion) {
+  // Warp/affine shear can fetch samples beyond the translational MV col_max
+  // bound that keeps GDR clean-area prediction inside deterministic reference
+  // regions, so warped motion is disabled for GDR sequences.
+  if (extra_cfg->enable_warped_motion && !cfg->enable_gdr) {
     if (extra_cfg->enable_warp_causal) {
       seq_enabled_motion_modes |= (1 << WARP_CAUSAL);
     }
@@ -4883,6 +4899,8 @@ static const avm_codec_enc_cfg_t encoder_usage_cfg[] = {
       0,                           // sframe_dist
       1,                           // sframe_mode
       0,                           // sframe_type
+      0,                           // enable_gdr
+      0,                           // gdr_refresh_period
       0,                           // monochrome
       0,                           // full_still_picture_hdr
       1,                           // enable_tcq
