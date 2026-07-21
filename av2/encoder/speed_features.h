@@ -865,6 +865,9 @@ typedef struct WINNER_MODE_SPEED_FEATURES {
   // Flag used to control the winner mode processing for better R-D optimization
   // of quantized coeffs
   int enable_winner_mode_for_coeff_opt;
+  // Disable multiway 4, 5 way transform partition in rough mode
+  // and enable them in winner mode
+  int disable_multiway_tx_part_in_rough_mode;
 
   // Flag used to control the winner mode processing for transform size
   // search method
