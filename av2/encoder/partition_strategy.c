@@ -1309,67 +1309,19 @@ static INLINE void add_start_mv_to_partition(
     SimpleMotionDataBufs *sms_bufs, int mi_row, int mi_col, BLOCK_SIZE bsize,
     BLOCK_SIZE sb_size, PARTITION_TYPE partition, MV start_mv) {
   assert(bsize < BLOCK_SIZES_ALL);
-  const int eighth_step_h = block_size_high[bsize] / 8;
-  const int eighth_step_w = block_size_wide[bsize] / 8;
-  static const int subblock_count[ALL_PARTITION_TYPES] = {
-    1,  // PARTITION_NONE
-    2,  // PARTITION_HORZ
-    2,  // PARTITION_VERT
-    4,  // PARTITION_HORZ_3
-    4,  // PARTITION_VERT_3
-    4,  // PARTITION_HORZ_4A
-    4,  // PARTITION_HORZ_4B
-    4,  // PARTITION_VERT_4A
-    4,  // PARTITION_VERT_4B
-    4,  // PARTITION_SPLIT
-  };
-  // PARTITION x NUM_SUBBLOCKS x (ROW and COL)
-  static const int step_multiplier[ALL_PARTITION_TYPES][4][2] = {
-    { { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 } },  // PARTITION_NONE
-    { { 0, 0 }, { 4, 0 }, { 0, 0 }, { 0, 0 } },  // PARTITION_HORZ
-    { { 0, 0 }, { 0, 4 }, { 0, 0 }, { 0, 0 } },  // PARTITION_VERT
-    { { 0, 0 }, { 2, 0 }, { 2, 4 }, { 6, 0 } },  // PARTITION_HORZ_3
-    { { 0, 0 }, { 0, 2 }, { 4, 2 }, { 0, 6 } },  // PARTITION_VERT_3
-    { { 0, 0 }, { 1, 0 }, { 3, 0 }, { 7, 0 } },  // PARTITION_HORZ_4A
-    { { 0, 0 }, { 1, 0 }, { 5, 0 }, { 7, 0 } },  // PARTITION_HORZ_4B
-    { { 0, 0 }, { 0, 1 }, { 0, 3 }, { 0, 7 } },  // PARTITION_VERT_4A
-    { { 0, 0 }, { 0, 1 }, { 0, 5 }, { 0, 7 } },  // PARTITION_VERT_4B
-    { { 0, 0 }, { 0, 4 }, { 4, 0 }, { 4, 4 } },  // PARTITION_SPLIT
-  };
-
-  // Sizes of subblocks.
   const BLOCK_SIZE part_subsize = get_partition_subsize(bsize, partition);
   if (part_subsize == BLOCK_INVALID) return;
 
-  BLOCK_SIZE subsizes[4] = { part_subsize, part_subsize, part_subsize,
-                             part_subsize };
-  if (partition == PARTITION_HORZ_4A) {
-    subsizes[2] = get_partition_subsize(bsize, PARTITION_HORZ);
-    subsizes[1] = get_partition_subsize(subsizes[2], PARTITION_HORZ);
-  } else if (partition == PARTITION_HORZ_4B) {
-    subsizes[1] = get_partition_subsize(bsize, PARTITION_HORZ);
-    subsizes[2] = get_partition_subsize(subsizes[1], PARTITION_HORZ);
-  } else if (partition == PARTITION_VERT_4A) {
-    subsizes[2] = get_partition_subsize(bsize, PARTITION_VERT);
-    subsizes[1] = get_partition_subsize(subsizes[2], PARTITION_VERT);
-  } else if (partition == PARTITION_VERT_4B) {
-    subsizes[1] = get_partition_subsize(bsize, PARTITION_VERT);
-    subsizes[2] = get_partition_subsize(subsizes[1], PARTITION_VERT);
-  }
-  if (partition == PARTITION_HORZ_3 || partition == PARTITION_VERT_3) {
-    for (int idx = 0; idx < subblock_count[partition]; idx++) {
-      subsizes[idx] = get_h_partition_subsize(bsize, idx, partition);
-    }
-  }
-
-  for (int idx = 0; idx < subblock_count[partition]; idx++) {
-    assert(subsizes[idx] != BLOCK_INVALID);
-    const int sub_row =
-        mi_row + step_multiplier[partition][idx][0] * eighth_step_h / 4;
-    const int sub_col =
-        mi_col + step_multiplier[partition][idx][1] * eighth_step_w / 4;
-    SimpleMotionData *subblock = av2_get_sms_data_entry(
-        sms_bufs, sub_row, sub_col, subsizes[idx], sb_size, 1);
+  int subblock_cnt = get_subblock_count(partition);
+  int mi_rows[4], mi_cols[4];
+  BLOCK_SIZE subsizes[4];
+  get_partition_subblock_layout(partition, bsize, mi_row, mi_col, subsizes,
+                                mi_rows, mi_cols);
+  for (int sub_idx = 0; sub_idx < subblock_cnt; sub_idx++) {
+    assert(subsizes[sub_idx] != BLOCK_INVALID);
+    SimpleMotionData *subblock =
+        av2_get_sms_data_entry(sms_bufs, mi_rows[sub_idx], mi_cols[sub_idx],
+                               subsizes[sub_idx], sb_size, 1);
     add_start_mv_to_block(subblock, start_mv);
   }
 }
