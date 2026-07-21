@@ -148,6 +148,8 @@ PC_TREE *const *get_child_pc_trees(const PC_TREE *pc_tree,
                                    PARTITION_TYPE partition, REGION_TYPE region,
                                    int *num_sub_parts);
 
+int get_subblock_count(PARTITION_TYPE partition_type);
+
 void get_partition_subblock_layout(PARTITION_TYPE partition_type,
                                    BLOCK_SIZE bsize, int mi_row, int mi_col,
                                    BLOCK_SIZE sub_sizes[4], int mi_rows[4],
