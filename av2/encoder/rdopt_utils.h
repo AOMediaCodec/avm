@@ -207,6 +207,9 @@ static INLINE int is_winner_mode_processing_enabled(
       cpi->optimize_seg_arr[mbmi->segment_id] != FINAL_PASS_TRELLIS_OPT)
     return 1;
   if (sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch) return 1;
+  if (sf->winner_mode_sf.disable_multiway_tx_part_in_rough_mode &&
+      mbmi->region_type == MIXED_INTER_INTRA_REGION)
+    return 1;
 
   return 0;
 }
@@ -301,7 +304,7 @@ static INLINE void set_mode_eval_params(const struct AV2_COMP *cpi,
           winner_mode_params->coeff_opt_dist_threshold, 0, 0);
       txfm_params->coeff_opt_satd_threshold = get_rd_opt_coeff_thresh(
           winner_mode_params->coeff_opt_satd_threshold, 0, 0);
-
+      txfm_params->eval_mode_type = DEFAULT_EVAL;
       // Set default transform size search method
       set_tx_size_search_method(cm, winner_mode_params, txfm_params, 0, 0, x,
                                 sf->tx_sf.use_largest_tx_size_for_small_bsize);
@@ -330,7 +333,7 @@ static INLINE void set_mode_eval_params(const struct AV2_COMP *cpi,
       txfm_params->coeff_opt_satd_threshold = get_rd_opt_coeff_thresh(
           winner_mode_params->coeff_opt_satd_threshold,
           sf->winner_mode_sf.enable_winner_mode_for_coeff_opt, 0);
-
+      txfm_params->eval_mode_type = MODE_EVAL;
       // Set the transform size search method for mode evaluation
       set_tx_size_search_method(
           cm, winner_mode_params, txfm_params,
@@ -348,7 +351,7 @@ static INLINE void set_mode_eval_params(const struct AV2_COMP *cpi,
           winner_mode_params->skip_txfm_level[WINNER_MODE_EVAL];
       txfm_params->predict_dc_level =
           winner_mode_params->predict_dc_level[WINNER_MODE_EVAL];
-
+      txfm_params->eval_mode_type = WINNER_MODE_EVAL;
       // Set transform domain distortion type for winner mode evaluation
       set_tx_domain_dist_params(
           winner_mode_params, txfm_params,

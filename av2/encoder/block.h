@@ -37,7 +37,8 @@ extern "C" {
 //! Number of intra winner modes kept
 #define MAX_WINNER_MODE_COUNT_INTRA 3
 //! Number of inter winner modes kept
-#define MAX_WINNER_MODE_COUNT_INTER 1
+#define MAX_WINNER_MODE_COUNT_INTER 3
+
 //! Number of txfm hash records kept for the partition block.
 #define RD_RECORD_BUFFER_LEN 8
 //! Number of txfm hash records kept for the txfm block.
@@ -772,6 +773,13 @@ typedef struct {
    * Flag to enable/disable DC block prediction.
    */
   unsigned int predict_dc_level;
+  /*! \brief Flag to enable/disable multi-way partition for transform.
+   *
+   * 0 means mode default.
+   * 1 means mode eval
+   * 2 means mode winner
+   */
+  int eval_mode_type;
 } TxfmSearchParams;
 
 /*!\cond */
