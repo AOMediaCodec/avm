@@ -725,7 +725,7 @@ static INLINE int is_refinemv_allowed_reference(const AV2_COMMON *cm,
                            ref1->display_order_hint);
   }
 
-  // reference frame has to be both sides to apply dmvr
+  // reference frame has to be both sides to apply refinemv
   if (!((d0 <= 0) ^ (d1 <= 0))) return 0;
 
   // Current implementation only supports when both has the same distance

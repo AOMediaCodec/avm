@@ -4849,7 +4849,7 @@ static void evaluate_inter_predictor(AV2_COMP *const cpi,
   rd_stats->rate += jmvd_scale_mode_cost;
 
   if (refinemv_loop && (!switchable_refinemv_flag(cm, mbmi) ||
-                        cpi->sf.inter_sf.disable_switchable_dmvr))
+                        cpi->sf.inter_sf.disable_switchable_refinemv))
     return;
   mbmi->refinemv_flag = switchable_refinemv_flag(cm, mbmi)
                             ? refinemv_loop
