@@ -428,7 +428,7 @@ void av2_set_offsets_without_segment_id(
   av2_set_mv_limits(&cm->mi_params, &x->mv_limits, mi_row, mi_col, mi_height,
                     mi_width, cpi->oxcf.border_in_pixels);
 
-  x->gdr_tr_into_dirty = cpi->gdr_in_refresh_period &&
+  x->gdr_tr_into_dirty = cpi->gdr_stripe_active &&
                          gdr_intra_tr_into_dirty(cpi, mi_row, mi_col, mi_width);
   x->gdr_enforce_mv_range = 0;
 
@@ -439,7 +439,7 @@ void av2_set_offsets_without_segment_id(
   // minimum clean boundary the clamp turns negative, forcing a leftward MV into
   // the clean region (or intra). RefineMV/OPFL/TIP are disabled for GDR, so only
   // the interpolation filter width is guarded.
-  if (cpi->gdr_in_refresh_period &&
+  if (cpi->gdr_stripe_active &&
       mi_col < cpi->gdr_deterministic_right_mi) {
     int min_det_right = cm->mi_params.mi_cols;
     for (int ref = 0; ref < INTER_REFS_PER_FRAME; ref++) {
@@ -3176,9 +3176,9 @@ static AVM_INLINE void init_allowed_partitions(
 //    unsupported by the inter-frame reconstruction path (is_sub8x8_inter), so
 //    every forced-intra block must own its chroma. Applies on every window
 //    frame, including the switch frame.
-//  - At the logical boundary on recovery frames, also no rectangular/non-square
-//    partitions; their non-square transforms enable the wide-angle intra remap
-//    that fetches above-right samples from the dirty area.
+//  - At the logical boundary, also no rectangular/non-square partitions; their
+//    non-square transforms enable the wide-angle intra remap that fetches
+//    above-right samples from the dirty area.
 static AVM_INLINE void gdr_restrict_partitions(
     const AV2_COMP *cpi, PartitionSearchState *part_search_state) {
   if (!cpi->gdr_stripe_active) return;
@@ -3209,8 +3209,8 @@ static AVM_INLINE void gdr_restrict_partitions(
   part_search_state->partition_allowed[PARTITION_HORZ_4B] = 0;
   part_search_state->partition_allowed[PARTITION_VERT_4B] = 0;
 
-  // Boundary blocks on recovery frames: only PARTITION_NONE + square SPLIT.
-  if (cpi->gdr_in_refresh_period) {
+  // Boundary blocks: only PARTITION_NONE + square SPLIT.
+  if (cpi->gdr_stripe_active) {
     const int right = cpi->gdr_deterministic_right_mi;
     if (blk_params->mi_col < right && blk_params->mi_col + bw > right) {
       part_search_state->do_rectangular_split = 0;

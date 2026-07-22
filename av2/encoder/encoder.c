@@ -2768,7 +2768,6 @@ void av2_gdr_update_window_state(AV2_COMP *cpi) {
   const AV2_COMMON *const cm = &cpi->common;
   const int n = cpi->oxcf.kf_cfg.gdr_mode;
   cpi->gdr_stripe_active = 0;
-  cpi->gdr_in_refresh_period = 0;
   cpi->gdr_is_end_frame = 0;
   if (n <= 0 || cm->current_frame.frame_type == KEY_FRAME) {
     cpi->gdr_last_sframe_num = -1;
@@ -2782,7 +2781,6 @@ void av2_gdr_update_window_state(AV2_COMP *cpi) {
       (int)cm->current_frame.frame_number - cpi->gdr_last_sframe_num;
   if (offset < 0 || offset >= n) return;
   cpi->gdr_stripe_active = 1;
-  cpi->gdr_in_refresh_period = offset >= 1;
   cpi->gdr_is_end_frame = offset == n - 1;
 }
 

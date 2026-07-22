@@ -6004,7 +6004,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV2_COMP *cpi, MACROBLOCK *x,
   const int h = block_size_high[bsize];
   const int sb_row = mi_row >> cm->mib_size_log2;
   const int sb_col = mi_col >> cm->mib_size_log2;
-  const int gdr_right_px = cpi->gdr_in_refresh_period
+  const int gdr_right_px = cpi->gdr_stripe_active
                                ? cpi->gdr_deterministic_right_mi * MI_SIZE
                                : INT_MAX;
 

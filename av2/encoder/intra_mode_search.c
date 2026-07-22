@@ -693,16 +693,22 @@ int64_t av2_rd_pick_intra_sbuv_mode(const AV2_COMP *const cpi, MACROBLOCK *x,
       if (!intra_mode_cfg->enable_paeth_intra && mode == UV_PAETH_PRED)
         continue;
 
+      // GDR: reject chroma modes that read above-right samples from the dirty
+      // area. Mirrors the luma seal; CfL predicts its DC with DC_PRED, which
+      // does not read above-right, so it is left to the boundary check below.
+      if (x->gdr_tr_into_dirty && gdr_mode_uses_above_right(get_uv_mode(mode)))
+        continue;
+
       // Init variables for cfl and angle delta
       int cfl_alpha_rate = 0;
       int filter_dir_rate = 0;
       int cfl_idx_rate = 0;
       if (mode == UV_CFL_PRED) {
         // GDR: CfL reads reconstructed luma neighbors. Skip every CfL variant
-        // at boundary chroma blocks, and MHCCP on all recovery frames (its
-        // wider neighbor fetch and joint-RDO winner shifts leak indirectly).
+        // at boundary chroma blocks, and MHCCP on every window frame (its wider
+        // neighbor fetch and joint-RDO winner shifts leak indirectly).
         if (x->gdr_tr_into_dirty ||
-            (mbmi->cfl_idx == CFL_MULTI_PARAM && cpi->gdr_in_refresh_period))
+            (mbmi->cfl_idx == CFL_MULTI_PARAM && cpi->gdr_stripe_active))
           continue;
         if (!is_cfl_allowed(cm->seq_params.enable_cfl_intra, xd) &&
             (mbmi->cfl_idx == CFL_EXPLICIT ||

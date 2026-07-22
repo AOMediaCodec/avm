@@ -3144,7 +3144,6 @@ typedef struct AV2_COMP {
   int gdr_stripe_end_mi;           /*!< exclusive MI end including loop-filter overlap */
   int gdr_deterministic_right_mi;  /*!< logical stripe end; drives the dirty test */
   int gdr_stripe_active;           /*!< stripe exists this frame (offset [0,N-1]) */
-  int gdr_in_refresh_period;       /*!< post-switch recovery frame (offset [1,N-1]) */
   int gdr_is_end_frame;            /*!< window end frame (offset N-1) */
 } AV2_COMP;
 
