@@ -1137,3 +1137,178 @@ uint64_t avm_mse_wxh_16bit_highbd_avx2(uint16_t *dst, int dstride,
     default: assert(0 && "unsupported width"); return -1;
   }
 }
+
+static AVM_FORCE_INLINE void highbd_comp_avg_pred_64(const uint16_t *src,
+                                                     uint16_t *dst) {
+  __m256i pred0[4], pred1[4];
+  pred0[0] = _mm256_loadu_si256((const __m256i *)(src + 0 * 16));
+  pred0[1] = _mm256_loadu_si256((const __m256i *)(src + 1 * 16));
+  pred0[2] = _mm256_loadu_si256((const __m256i *)(src + 2 * 16));
+  pred0[3] = _mm256_loadu_si256((const __m256i *)(src + 3 * 16));
+
+  pred1[0] = _mm256_loadu_si256((const __m256i *)(dst + 0 * 16));
+  pred1[1] = _mm256_loadu_si256((const __m256i *)(dst + 1 * 16));
+  pred1[2] = _mm256_loadu_si256((const __m256i *)(dst + 2 * 16));
+  pred1[3] = _mm256_loadu_si256((const __m256i *)(dst + 3 * 16));
+
+  _mm256_storeu_si256((__m256i *)(dst + 0 * 16),
+                      _mm256_avg_epu16(pred0[0], pred1[0]));
+  _mm256_storeu_si256((__m256i *)(dst + 1 * 16),
+                      _mm256_avg_epu16(pred0[1], pred1[1]));
+  _mm256_storeu_si256((__m256i *)(dst + 2 * 16),
+                      _mm256_avg_epu16(pred0[2], pred1[2]));
+  _mm256_storeu_si256((__m256i *)(dst + 3 * 16),
+                      _mm256_avg_epu16(pred0[3], pred1[3]));
+}
+
+static AVM_FORCE_INLINE void highbd_comp_avg_pred_128(const uint16_t *src,
+                                                      uint16_t *dst) {
+  __m256i pred0[8], pred1[8];
+  pred0[0] = _mm256_loadu_si256((const __m256i *)(src + 0 * 16));
+  pred0[1] = _mm256_loadu_si256((const __m256i *)(src + 1 * 16));
+  pred0[2] = _mm256_loadu_si256((const __m256i *)(src + 2 * 16));
+  pred0[3] = _mm256_loadu_si256((const __m256i *)(src + 3 * 16));
+  pred0[4] = _mm256_loadu_si256((const __m256i *)(src + 4 * 16));
+  pred0[5] = _mm256_loadu_si256((const __m256i *)(src + 5 * 16));
+  pred0[6] = _mm256_loadu_si256((const __m256i *)(src + 6 * 16));
+  pred0[7] = _mm256_loadu_si256((const __m256i *)(src + 7 * 16));
+
+  pred1[0] = _mm256_loadu_si256((const __m256i *)(dst + 0 * 16));
+  pred1[1] = _mm256_loadu_si256((const __m256i *)(dst + 1 * 16));
+  pred1[2] = _mm256_loadu_si256((const __m256i *)(dst + 2 * 16));
+  pred1[3] = _mm256_loadu_si256((const __m256i *)(dst + 3 * 16));
+  pred1[4] = _mm256_loadu_si256((const __m256i *)(dst + 4 * 16));
+  pred1[5] = _mm256_loadu_si256((const __m256i *)(dst + 5 * 16));
+  pred1[6] = _mm256_loadu_si256((const __m256i *)(dst + 6 * 16));
+  pred1[7] = _mm256_loadu_si256((const __m256i *)(dst + 7 * 16));
+
+  _mm256_storeu_si256((__m256i *)(dst + 0 * 16),
+                      _mm256_avg_epu16(pred0[0], pred1[0]));
+  _mm256_storeu_si256((__m256i *)(dst + 1 * 16),
+                      _mm256_avg_epu16(pred0[1], pred1[1]));
+  _mm256_storeu_si256((__m256i *)(dst + 2 * 16),
+                      _mm256_avg_epu16(pred0[2], pred1[2]));
+  _mm256_storeu_si256((__m256i *)(dst + 3 * 16),
+                      _mm256_avg_epu16(pred0[3], pred1[3]));
+  _mm256_storeu_si256((__m256i *)(dst + 4 * 16),
+                      _mm256_avg_epu16(pred0[4], pred1[4]));
+  _mm256_storeu_si256((__m256i *)(dst + 5 * 16),
+                      _mm256_avg_epu16(pred0[5], pred1[5]));
+  _mm256_storeu_si256((__m256i *)(dst + 6 * 16),
+                      _mm256_avg_epu16(pred0[6], pred1[6]));
+  _mm256_storeu_si256((__m256i *)(dst + 7 * 16),
+                      _mm256_avg_epu16(pred0[7], pred1[7]));
+}
+
+static AVM_FORCE_INLINE void highbd_comp_avg_pred_avx2(uint16_t *comp_pred,
+                                                       const uint16_t *pred,
+                                                       int width, int height) {
+  assert(!(width * height & 15));
+  int h = height;
+  if (width == 4) {
+    do {
+      const __m256i pred0 = _mm256_loadu_si256((const __m256i *)comp_pred);
+      const __m256i pred1 = _mm256_loadu_si256((const __m256i *)pred);
+      _mm256_storeu_si256((__m256i *)comp_pred, _mm256_avg_epu16(pred0, pred1));
+      comp_pred += 16;
+      pred += 16;
+      h -= 4;
+    } while (h);
+  } else if (width == 8) {
+    do {
+      __m256i pred0[2], pred1[2];
+      pred0[0] = _mm256_loadu_si256((const __m256i *)comp_pred);
+      pred0[1] = _mm256_loadu_si256((const __m256i *)(comp_pred + 16));
+      pred1[0] = _mm256_loadu_si256((const __m256i *)pred);
+      pred1[1] = _mm256_loadu_si256((const __m256i *)(pred + 16));
+      _mm256_storeu_si256((__m256i *)comp_pred,
+                          _mm256_avg_epu16(pred0[0], pred1[0]));
+      _mm256_storeu_si256((__m256i *)(comp_pred + 16),
+                          _mm256_avg_epu16(pred0[1], pred1[1]));
+      comp_pred += 32;
+      pred += 32;
+      h -= 4;
+    } while (h);
+  } else if (width == 16) {
+    do {
+      __m256i pred0[2], pred1[2];
+      pred0[0] = _mm256_loadu_si256((const __m256i *)comp_pred);
+      pred0[1] = _mm256_loadu_si256((const __m256i *)(comp_pred + 16));
+      pred1[0] = _mm256_loadu_si256((const __m256i *)pred);
+      pred1[1] = _mm256_loadu_si256((const __m256i *)(pred + 16));
+      _mm256_storeu_si256((__m256i *)comp_pred,
+                          _mm256_avg_epu16(pred0[0], pred1[0]));
+      _mm256_storeu_si256((__m256i *)(comp_pred + 16),
+                          _mm256_avg_epu16(pred0[1], pred1[1]));
+      comp_pred += 32;
+      pred += 32;
+      h -= 2;
+    } while (h);
+  } else if (width == 32) {
+    do {
+      __m256i pred0[4], pred1[4];
+      pred0[0] = _mm256_loadu_si256((const __m256i *)comp_pred);
+      pred0[1] = _mm256_loadu_si256((const __m256i *)(comp_pred + 16));
+      pred0[2] = _mm256_loadu_si256((const __m256i *)(comp_pred + 32));
+      pred0[3] = _mm256_loadu_si256((const __m256i *)(comp_pred + 48));
+      pred1[0] = _mm256_loadu_si256((const __m256i *)pred);
+      pred1[1] = _mm256_loadu_si256((const __m256i *)(pred + 16));
+      pred1[2] = _mm256_loadu_si256((const __m256i *)(pred + 32));
+      pred1[3] = _mm256_loadu_si256((const __m256i *)(pred + 48));
+      _mm256_storeu_si256((__m256i *)comp_pred,
+                          _mm256_avg_epu16(pred0[0], pred1[0]));
+      _mm256_storeu_si256((__m256i *)(comp_pred + 16),
+                          _mm256_avg_epu16(pred0[1], pred1[1]));
+      _mm256_storeu_si256((__m256i *)(comp_pred + 32),
+                          _mm256_avg_epu16(pred0[2], pred1[2]));
+      _mm256_storeu_si256((__m256i *)(comp_pred + 48),
+                          _mm256_avg_epu16(pred0[3], pred1[3]));
+      comp_pred += 64;
+      pred += 64;
+      h -= 2;
+    } while (h);
+  } else if (width == 64) {
+    do {
+      highbd_comp_avg_pred_64(pred, comp_pred);
+      comp_pred += 64;
+      pred += 64;
+      highbd_comp_avg_pred_64(pred, comp_pred);
+      comp_pred += 64;
+      pred += 64;
+      h -= 2;
+    } while (h);
+  } else if (width == 128) {
+    do {
+      highbd_comp_avg_pred_128(pred, comp_pred);
+      comp_pred += 128;
+      pred += 128;
+      highbd_comp_avg_pred_128(pred, comp_pred);
+      comp_pred += 128;
+      pred += 128;
+      h -= 2;
+    } while (h);
+  } else if (width == 256) {
+    do {
+      highbd_comp_avg_pred_128(pred, comp_pred);
+      highbd_comp_avg_pred_128(pred + 128, comp_pred + 128);
+      comp_pred += 256;
+      pred += 256;
+      highbd_comp_avg_pred_128(pred, comp_pred);
+      highbd_comp_avg_pred_128(pred + 128, comp_pred + 128);
+      comp_pred += 256;
+      pred += 256;
+      h -= 2;
+    } while (h);
+  }
+}
+
+void avm_highbd_comp_avg_upsampled_pred_avx2(
+    MACROBLOCKD *xd, const struct AV2Common *const cm, int mi_row, int mi_col,
+    const MV *const mv, uint16_t *comp_pred16, const uint16_t *pred, int width,
+    int height, int subpel_x_q3, int subpel_y_q3, const uint16_t *ref,
+    int ref_stride, int bd, int subpel_search, int is_scaled_ref) {
+  avm_highbd_upsampled_pred(xd, cm, mi_row, mi_col, mv, comp_pred16, width,
+                            height, subpel_x_q3, subpel_y_q3, ref, ref_stride,
+                            bd, subpel_search, is_scaled_ref);
+  highbd_comp_avg_pred_avx2(comp_pred16, pred, width, height);
+}
