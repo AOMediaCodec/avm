@@ -96,7 +96,9 @@ enum {
 enum {
   // Good Quality Fast Encoding. The encoder balances quality with the amount of
   // time it takes to encode the output. Speed setting controls how fast.
-  GOOD
+  GOOD,
+  // Realtime Fast Encoding.
+  REALTIME
 } UENUM1BYTE(MODE);
 
 enum {
