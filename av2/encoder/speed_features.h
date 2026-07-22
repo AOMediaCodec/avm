@@ -545,7 +545,11 @@ typedef struct INTER_MODE_SPEED_FEATURES {
 
   // Aggressively prune inter modes when best mode is skippable.
   int prune_inter_modes_if_skippable;
-
+  // Enable six param warp in winner mode
+  int enable_six_param_warp_in_winner_mode;
+  // Enable six parameter warp in winner mode by tid. If set to 1, enable six
+  // parameter warp in winner mode by tid threshold.
+  int enable_six_param_warp_in_winner_mode_by_tid;
   // Drop less likely to be picked reference frames in the RD search.
   // Has five levels for now: 0, 1, 2, 3 and 4, where higher levels prune more
   // aggressively than lower ones. (0 means no pruning).
