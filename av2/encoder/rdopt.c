@@ -1651,7 +1651,7 @@ static INLINE int select_modes_to_search(const AV2_COMP *const cpi,
   // the motion_mode_for_winner_cand speed feature, avoid searching it again.
   if (cpi->sf.winner_mode_sf.motion_mode_for_winner_cand) {
     if (!eval_motion_mode) {
-      modes_to_search = (1 << SIMPLE_TRANSLATION);
+      modes_to_search |= (1 << SIMPLE_TRANSLATION);
     } else {
       // Skip translation, as will have already been evaluated
       modes_to_search &= ~(1 << SIMPLE_TRANSLATION);
@@ -2533,7 +2533,8 @@ static AVM_INLINE int handle_warp_delta_mode(
     MB_MODE_INFO_EXT *mbmi_ext, HandleInterModeArgs *args, int64_t ref_best_rd,
     const BUFFER_SET *orig_dst, int_mv *previous_mvs,
     warp_mode_info_array *prev_best_models, int org_warp_inter_intra,
-    int rate2_nocoeff, int rate_mv0, int *tmp_rate_mv, int *tmp_rate2) {
+    int rate2_nocoeff, int rate_mv0, int *tmp_rate_mv, int *tmp_rate2,
+    int eval_motion_mode) {
   const AV2_COMMON *cm = &cpi->common;
   MACROBLOCKD *xd = &x->e_mbd;
   const int mi_row = xd->mi_row;
@@ -2595,14 +2596,23 @@ static AVM_INLINE int handle_warp_delta_mode(
         mbmi->mv[0].as_int = previous_mvs[mbmi->warp_ref_idx].as_int;
       }
     }
-    valid = av2_refine_mv_for_base_param_warp_model(
-        cm, xd, mbmi, mbmi_ext, &ms_params, cpi->sf.mv_sf.warp_search_method,
-        cpi->sf.mv_sf.warp_search_iters);
+    if (!cpi->sf.inter_sf.enable_six_param_warp_in_winner_mode ||
+        !eval_motion_mode)
+      valid = av2_refine_mv_for_base_param_warp_model(
+          cm, xd, mbmi, mbmi_ext, &ms_params, cpi->sf.mv_sf.warp_search_method,
+          cpi->sf.mv_sf.warp_search_iters);
   } else {
     mbmi->six_param_warp_model_flag = get_default_six_param_flag(cm, mbmi);
-    valid = av2_pick_warp_delta(
-        cm, xd, mbmi, &ms_params, &x->mode_costs, prev_best_models,
-        mbmi_ext->warp_param_stack[av2_ref_frame_type(mbmi->ref_frame)]);
+    const int six_param_enabled_by_tid =
+        mbmi->six_param_warp_model_flag &&
+        cpi->sf.inter_sf.enable_six_param_warp_in_winner_mode_by_tid;
+    const bool use_six_param_in_winner =
+        (eval_motion_mode == six_param_enabled_by_tid);
+    if (use_six_param_in_winner ||
+        !cpi->sf.inter_sf.enable_six_param_warp_in_winner_mode)
+      valid = av2_pick_warp_delta(
+          cm, xd, mbmi, &ms_params, &x->mode_costs, prev_best_models,
+          mbmi_ext->warp_param_stack[av2_ref_frame_type(mbmi->ref_frame)]);
   }
 
   if (!valid) return -1;
@@ -2913,7 +2923,7 @@ static AVM_INLINE int evaluate_motion_mode_trial(
     int do_tx_search, InterModesInfo *inter_modes_info,
     int64_t top_motion_mode_model_rd[], const MB_MODE_INFO *base_mbmi,
     const MotionModeTrialParams *trial, const MotionModeTrialCtx *ctx,
-    MotionModeBestState *best) {
+    MotionModeBestState *best, int eval_motion_mode) {
   const AV2_COMMON *const cm = &cpi->common;
   TxfmSearchInfo *txfm_info = &x->txfm_search_info;
   const int num_planes = av2_num_planes(cm);
@@ -2969,10 +2979,11 @@ static AVM_INLINE int evaluate_motion_mode_trial(
   } else if (mbmi->motion_mode == WARP_DELTA) {
     if (cpi->sf.inter_sf.prune_warp_delta_by_ref_idx && mbmi->ref_frame[0] > 2)
       return -1;
-    if (handle_warp_delta_mode(
-            cpi, x, bsize, mbmi, mbmi_ext, args, *ref_best_rd, orig_dst,
-            ctx->previous_mvs, ctx->prev_best_models, org_warp_inter_intra,
-            ctx->rate2_nocoeff, ctx->rate_mv0, &tmp_rate_mv, &tmp_rate2) < 0)
+    if (handle_warp_delta_mode(cpi, x, bsize, mbmi, mbmi_ext, args,
+                               *ref_best_rd, orig_dst, ctx->previous_mvs,
+                               ctx->prev_best_models, org_warp_inter_intra,
+                               ctx->rate2_nocoeff, ctx->rate_mv0, &tmp_rate_mv,
+                               &tmp_rate2, eval_motion_mode) < 0)
       return -1;
   } else if (mbmi->motion_mode == WARP_EXTEND) {
     if (handle_warp_extend_mode(cpi, x, bsize, mbmi, mbmi_ext,
@@ -3265,7 +3276,10 @@ static int64_t motion_mode_rd(
   for (int mode_index = SIMPLE_TRANSLATION; mode_index < mode_index_end;
        mode_index++) {
     if ((modes_to_search & (1 << mode_index)) == 0) continue;
-
+    if (cpi->sf.inter_sf.enable_six_param_warp_in_winner_mode &&
+        eval_motion_mode &&
+        (mode_index == WARP_CAUSAL || mode_index == WARP_EXTEND))
+      continue;
     const int warp_ref_idx_limit =
         get_warp_ref_idx_limit(xd, &base_mbmi, mbmi_ext, mode_index);
 
@@ -3278,7 +3292,7 @@ static int64_t motion_mode_rd(
           cpi, tile_data, x, bsize, rd_stats, rd_stats_y, rd_stats_uv, args,
           &ref_best_rd, ref_skip_rd, orig_dst, best_est_rd, do_tx_search,
           inter_modes_info, top_motion_mode_model_rd, &base_mbmi, &trial, &ctx,
-          &best);
+          &best, eval_motion_mode);
       if (ret > 0) return INT64_MAX;
     } else if (base_mbmi.mode == WARPMV) {
       // WARP_DELTA + WARPMV: iterate warp_inter_intra × ref_idx × mvd_flag
@@ -3304,7 +3318,7 @@ static int64_t motion_mode_rd(
                 cpi, tile_data, x, bsize, rd_stats, rd_stats_y, rd_stats_uv,
                 args, &ref_best_rd, ref_skip_rd, orig_dst, best_est_rd,
                 do_tx_search, inter_modes_info, top_motion_mode_model_rd,
-                &base_mbmi, &trial, &ctx, &best);
+                &base_mbmi, &trial, &ctx, &best, eval_motion_mode);
             if (ret > 0) return INT64_MAX;
           }
         }
@@ -3329,7 +3343,7 @@ static int64_t motion_mode_rd(
               cpi, tile_data, x, bsize, rd_stats, rd_stats_y, rd_stats_uv, args,
               &ref_best_rd, ref_skip_rd, orig_dst, best_est_rd, do_tx_search,
               inter_modes_info, top_motion_mode_model_rd, &base_mbmi, &trial,
-              &ctx, &best);
+              &ctx, &best, eval_motion_mode);
           if (ret > 0) return INT64_MAX;
         }
       }
@@ -4834,7 +4848,6 @@ static void evaluate_inter_predictor(AV2_COMP *const cpi,
   rd_stats->rate += drl_cost;
   rd_stats->rate += jmvd_scale_mode_cost;
 
-  if (refinemv_loop && !switchable_refinemv_flag(cm, mbmi)) return;
   mbmi->refinemv_flag = switchable_refinemv_flag(cm, mbmi)
                             ? refinemv_loop
                             : get_default_refinemv_flag(cm, mbmi);
@@ -4887,10 +4900,15 @@ static void evaluate_inter_predictor(AV2_COMP *const cpi,
   }
 
   int compmode_interinter_cost = 0;
-
+  int is_opfl_mode =
+      (cpi->sf.inter_sf.skip_temporary_pred_for_opfl &&
+       mbmi->mode >= NEAR_NEARMV_OPTFLOW && mbmi->mode < COMP_INTER_MODE_END)
+          ? 1
+          : 0;
   // Handle a compound predictor, continue if it is determined
   // this cannot be the best compound mode
-  if (is_comp_pred && !is_joint_amvd_coding_mode(mbmi->mode, mbmi->use_amvd) &&
+  if (!is_opfl_mode && is_comp_pred &&
+      !is_joint_amvd_coding_mode(mbmi->mode, mbmi->use_amvd) &&
       (!mbmi->refinemv_flag || !switchable_refinemv_flag(cm, mbmi))) {
     const int not_best_mode = process_compound_inter_mode(
         cpi, x, env->args, *search_state->ref_best_rd, tmp_cur_mv, bsize,
@@ -4912,9 +4930,10 @@ static void evaluate_inter_predictor(AV2_COMP *const cpi,
   int64_t ret_val;
 
   // Determine the interpolation filter for this mode
-  ret_val = av2_interpolation_filter_search(
-      x, cpi, tile_data, bsize, env->tmp_dst, env->orig_dst, &rd, &rs,
-      &skip_build_pred, env->args, *search_state->ref_best_rd);
+  if (!is_opfl_mode)
+    ret_val = av2_interpolation_filter_search(
+        x, cpi, tile_data, bsize, env->tmp_dst, env->orig_dst, &rd, &rs,
+        &skip_build_pred, env->args, *search_state->ref_best_rd);
 
   assert(check_mv_precision(cm, mbmi, x));
 
@@ -4922,7 +4941,7 @@ static void evaluate_inter_predictor(AV2_COMP *const cpi,
     env->args->modelled_rd[eval_mode][ref_mv_idx_type][refs[0]] = rd;
   }
 
-  if (mbmi->mode != WARPMV) {
+  if (mbmi->mode != WARPMV && !is_opfl_mode) {
     if (ret_val != 0) {
       restore_dst_buf(xd, *env->orig_dst, num_planes);
       return;
@@ -5469,7 +5488,7 @@ static int64_t handle_inter_mode(
               }
             }
 
-            // Get the default value of DMVR flag based on mode
+            // Get the default value of SMVR flag based on mode
             assert(mbmi->motion_mode == SIMPLE_TRANSLATION);
             mbmi->refinemv_flag = get_default_refinemv_flag(cm, mbmi);
 
@@ -5638,8 +5657,13 @@ static int64_t handle_inter_mode(
                     this_mode, refs, flex_mv_cost, drl_cost,
                     jmvd_scale_mode_cost, base_rate, cur_mv, rate_mv,
                     &base_mbmi, 0, num_planes, args->skip_motion_mode);
+
                 for (int refinemv_loop = 0; refinemv_loop < REFINEMV_NUM_MODES;
                      refinemv_loop++) {
+                  if (refinemv_loop == 1 &&
+                      (!switchable_refinemv_flag(cm, mbmi) ||
+                       cpi->sf.inter_sf.disable_switchable_refinemv))
+                    continue;
                   if (refinemv_loop == 1 &&
                       cpi->sf.inter_sf.prune_refinemv_by_ref_idx &&
                       !(base_mbmi.ref_frame[0] == 0 &&
@@ -6845,7 +6869,8 @@ static AVM_INLINE MB_MODE_INFO *get_winner_mode_stats(
     MACROBLOCK *x, MB_MODE_INFO *best_mbmode, RD_STATS *best_rd_cost,
     int best_rate_y, int best_rate_uv, RD_STATS **winner_rd_cost,
     int *winner_rate_y, int *winner_rate_uv, PREDICTION_MODE *winner_mode,
-    MULTI_WINNER_MODE_TYPE multi_winner_mode_type, int mode_idx) {
+    MULTI_WINNER_MODE_TYPE multi_winner_mode_type, int mode_idx,
+    const AV2_COMMON *const cm, BLOCK_SIZE bsize) {
   MB_MODE_INFO *winner_mbmi;
   if (multi_winner_mode_type) {
     assert(mode_idx >= 0 && mode_idx < x->winner_mode_count);
@@ -6856,12 +6881,30 @@ static AVM_INLINE MB_MODE_INFO *get_winner_mode_stats(
     *winner_rate_y = winner_mode_stat->rate_y;
     *winner_rate_uv = winner_mode_stat->rate_uv;
     *winner_mode = winner_mode_stat->mode;
+    MACROBLOCKD *xd = &x->e_mbd;
+    if (is_warp_mode(winner_mbmi->motion_mode)) {
+      if (!winner_mbmi->wm_params[0].invalid)
+        assign_warpmv(cm, xd->submi, bsize, &winner_mbmi->wm_params[0],
+                      xd->mi_row, xd->mi_col, 0);
+      if (!winner_mbmi->wm_params[1].invalid)
+        assign_warpmv(cm, xd->submi, bsize, &winner_mbmi->wm_params[1],
+                      xd->mi_row, xd->mi_col, 1);
+    }
   } else {
     winner_mbmi = best_mbmode;
     *winner_rd_cost = best_rd_cost;
     *winner_rate_y = best_rate_y;
     *winner_rate_uv = best_rate_uv;
     *winner_mode = best_mbmode->mode;
+    MACROBLOCKD *xd = &x->e_mbd;
+    if (is_warp_mode(winner_mbmi->motion_mode)) {
+      if (!winner_mbmi->wm_params[0].invalid)
+        assign_warpmv(cm, xd->submi, bsize, &winner_mbmi->wm_params[0],
+                      xd->mi_row, xd->mi_col, 0);
+      if (!winner_mbmi->wm_params[1].invalid)
+        assign_warpmv(cm, xd->submi, bsize, &winner_mbmi->wm_params[1],
+                      xd->mi_row, xd->mi_col, 1);
+    }
   }
   return winner_mbmi;
 }
@@ -6904,7 +6947,7 @@ static AVM_INLINE void refine_winner_mode_tx(
     MB_MODE_INFO *winner_mbmi = get_winner_mode_stats(
         x, best_mbmode, rd_cost, best_rate_y, best_rate_uv, &winner_rd_stats,
         &winner_rate_y, &winner_rate_uv, &winner_mode,
-        cpi->sf.winner_mode_sf.multi_winner_mode_type, mode_idx);
+        cpi->sf.winner_mode_sf.multi_winner_mode_type, mode_idx, cm, bsize);
 
     if (xd->lossless[winner_mbmi->segment_id] == 0 &&
         winner_mode != MODE_INVALID &&
@@ -6916,6 +6959,11 @@ static AVM_INLINE void refine_winner_mode_tx(
       const int skip_ctx = av2_get_skip_txfm_context(xd);
 
       *mbmi = *winner_mbmi;
+      struct macroblockd_plane *p = xd->plane;
+      const BUFFER_SET orig_dst = {
+        { p[0].dst.buf, p[1].dst.buf, p[2].dst.buf },
+        { p[0].dst.stride, p[1].dst.stride, p[2].dst.stride },
+      };
 
       set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
 
@@ -6931,15 +6979,14 @@ static AVM_INLINE void refine_winner_mode_tx(
       if (is_inter_mode(mbmi->mode)) {
         const int mi_row = xd->mi_row;
         const int mi_col = xd->mi_col;
-        av2_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0,
-                                      av2_num_planes(cm) - 1);
+        av2_enc_build_inter_predictor(cm, xd, mi_row, mi_col, &orig_dst, bsize,
+                                      0, av2_num_planes(cm) - 1);
 
         av2_subtract_plane(x, bsize, 0, cm->width, cm->height);
         if (txfm_params->tx_mode_search_type == TX_MODE_SELECT &&
             !xd->lossless[mbmi->segment_id]) {
           av2_pick_recursive_tx_size_type_yrd(cpi, x, &rd_stats_y, bsize, 1,
                                               INT64_MAX);
-          assert(rd_stats_y.rate != INT_MAX);
         } else {
           av2_pick_uniform_tx_size_type_yrd(cpi, x, &rd_stats_y, bsize,
                                             INT64_MAX);
@@ -8015,7 +8062,7 @@ static INLINE bool in_single_ref_cutoff(const int64_t *ref_frame_rd,
 }
 
 static AVM_INLINE void evaluate_motion_mode_for_winner_candidates(
-    const AV2_COMP *const cpi, MACROBLOCK *const x, RD_STATS *const rd_cost,
+    AV2_COMP *const cpi, MACROBLOCK *const x, RD_STATS *const rd_cost,
     HandleInterModeArgs *const args, TileDataEnc *const tile_data,
     PICK_MODE_CONTEXT *const ctx,
     struct buf_2d yv12_mb[SINGLE_REF_FRAMES][MAX_MB_PLANE],
@@ -8327,8 +8374,17 @@ static void tx_search_best_inter_candidates(
 }
 
 // Indicates number of winner simple translation modes to be used
-static const unsigned int num_winner_motion_modes[3] = { 0, 10, 3 };
+static const unsigned int num_winner_motion_modes[3] = { 0, 10, 6 };
 
+// Returns true if a mode is added to the winner mode check.
+static AVM_INLINE int is_check_in_winner(const AV2_COMP *cpi,
+                                         const MB_MODE_INFO *const mbmi) {
+  if (!cpi->sf.inter_sf.enable_six_param_warp_in_winner_mode) return 0;
+  PREDICTION_MODE this_mode = mbmi->mode;
+
+  if (this_mode == WARP_NEWMV) return 1;
+  return 0;
+}
 // Adds a motion mode to the candidate list for motion_mode_for_winner_cand
 // speed feature. This list consists of modes that have only searched
 // SIMPLE_TRANSLATION. The final list will be used to search other motion
@@ -9200,7 +9256,7 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
         if (do_tx_search) search_state.best_skip_rd[0] = skip_rd[0];
         search_state.best_skip_rd[1] = skip_rd[1];
       }
-      if (motion_mode_winner) {
+      if (motion_mode_winner && is_check_in_winner(cpi, mbmi)) {
         handle_winner_cand(mbmi, &best_motion_mode_cands,
                            max_winner_motion_mode_cand, this_rd,
                            &motion_mode_cand, args.skip_motion_mode);
@@ -9256,12 +9312,18 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
 
   int winner_mode_count =
       cpi->sf.winner_mode_sf.multi_winner_mode_type ? x->winner_mode_count : 1;
-  // In effect only when fast tx search speed features are enabled.
-  refine_winner_mode_tx(cpi, x, rd_cost, bsize, ctx, &search_state.best_mbmode,
-                        yv12_mb, search_state.best_rate_y,
-                        search_state.best_rate_uv, &search_state.best_skip2,
-                        winner_mode_count);
 
+  if (!(winner_mode_count == 1 && search_state.best_mode_skippable)) {
+    // In effect only when fast tx search speed features are enabled.
+    refine_winner_mode_tx(cpi, x, rd_cost, bsize, ctx,
+                          &search_state.best_mbmode, yv12_mb,
+                          search_state.best_rate_y, search_state.best_rate_uv,
+                          &search_state.best_skip2, winner_mode_count);
+  }
+
+  if (search_state.best_rd != rd_cost->rdcost) {
+    search_state.best_rd = rd_cost->rdcost;
+  }
   // Initialize default mode evaluation params
   set_mode_eval_params(cpi, x, DEFAULT_EVAL);
 

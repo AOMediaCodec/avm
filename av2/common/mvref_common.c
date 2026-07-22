@@ -2939,15 +2939,6 @@ void av2_setup_frame_buf_refs(AV2_COMMON *cm) {
   }
 }
 
-void av2_setup_frame_sign_bias(AV2_COMMON *cm) {
-  memset(&cm->ref_frame_sign_bias, 0, sizeof(cm->ref_frame_sign_bias));
-  for (int ref_frame = 0; ref_frame < cm->ref_frames_info.num_future_refs;
-       ++ref_frame) {
-    const int index = cm->ref_frames_info.future_refs[ref_frame];
-    cm->ref_frame_sign_bias[index] = 1;
-  }
-}
-
 // Get the temporal distance of start_frame to its closest ref frame
 // that has interpolation property relative to current frame. Interpolation
 // means start_frame and its ref frame are on two sides of current frame

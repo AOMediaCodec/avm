@@ -602,7 +602,7 @@ static AVM_INLINE void create_enc_workers(AV2_COMP *cpi, int num_workers) {
           cm, thread_data->td->coef_info,
           avm_malloc(MAX_TX_SQUARE * sizeof(*thread_data->td->coef_info)));
 
-      // Temporary buffers used during the DMVR and OPFL processing.
+      // Temporary buffers used during the SMVR and OPFL processing.
       CHECK_MEM_ERROR(
           cm, thread_data->td->opfl_vxy_bufs,
           avm_memalign(
@@ -846,7 +846,7 @@ static AVM_INLINE void prepare_enc_workers(AV2_COMP *cpi, AVxWorkerHook hook,
       thread_data->td->mb.tmp_conv_dst = thread_data->td->tmp_conv_dst;
       thread_data->td->mb.upsample_pred = thread_data->td->upsample_pred;
       thread_data->td->mb.coef_info = thread_data->td->coef_info;
-      // Temporary buffers used during the DMVR and OPFL processing.
+      // Temporary buffers used during the SMVR and OPFL processing.
       thread_data->td->mb.opfl_vxy_bufs = thread_data->td->opfl_vxy_bufs;
       thread_data->td->mb.opfl_gxy_bufs = thread_data->td->opfl_gxy_bufs;
       thread_data->td->mb.opfl_dst_bufs = thread_data->td->opfl_dst_bufs;
@@ -859,7 +859,7 @@ static AVM_INLINE void prepare_enc_workers(AV2_COMP *cpi, AVxWorkerHook hook,
       thread_data->td->mb.e_mbd.tmp_conv_dst = thread_data->td->mb.tmp_conv_dst;
       thread_data->td->mb.e_mbd.tmp_upsample_pred =
           thread_data->td->mb.upsample_pred;
-      // Temporary buffers used during the DMVR and OPFL processing.
+      // Temporary buffers used during the SMVR and OPFL processing.
       thread_data->td->mb.e_mbd.opfl_vxy_bufs =
           thread_data->td->mb.opfl_vxy_bufs;
       thread_data->td->mb.e_mbd.opfl_gxy_bufs =

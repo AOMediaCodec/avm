@@ -426,6 +426,15 @@ typedef struct PARTITION_SPEED_FEATURES {
   // the current best partition's boundary after searching NONE, HORZ, VERT, and
   // H-parts.
   int prune_part_4_with_partition_boundary;
+
+  // Controls the early termination fast method for inter-SDP (search of intra
+  // region partitioning in inter frames).
+  // 0: Use the original fast method that early-terminates inter-SDP when more
+  //    than 70% of the coded blocks under this region are inter coded.
+  // 1: Use the optimized fast method that additionally requires at least one
+  //    intra coded block, prunes when inter ratio exceeds 50%, and early skips
+  //    when current best partitioning is PARTITION_NONE.
+  int inter_sdp_fast_method_level;
 #if CONFIG_ML_PART_SPLIT
   int prune_split_with_ml;
   int prune_split_ml_level;
@@ -540,7 +549,11 @@ typedef struct INTER_MODE_SPEED_FEATURES {
 
   // Aggressively prune inter modes when best mode is skippable.
   int prune_inter_modes_if_skippable;
-
+  // Enable six param warp in winner mode
+  int enable_six_param_warp_in_winner_mode;
+  // Enable six parameter warp in winner mode by tid. If set to 1, enable six
+  // parameter warp in winner mode by tid threshold.
+  int enable_six_param_warp_in_winner_mode_by_tid;
   // Drop less likely to be picked reference frames in the RD search.
   // Has five levels for now: 0, 1, 2, 3 and 4, where higher levels prune more
   // aggressively than lower ones. (0 means no pruning).
@@ -567,6 +580,9 @@ typedef struct INTER_MODE_SPEED_FEATURES {
 
   // Prune reference frames for ALTREF
   int alt_ref_search_fp;
+
+  // Disable switchable subblock refine MV at the block level
+  int disable_switchable_refinemv;
 
   // flag to skip NEWMV mode in drl if the motion search result is the same
   int skip_repeated_newmv;
@@ -711,6 +727,9 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // 0: no breakout
   // 1: use model based rd breakout
   int model_based_post_interp_filter_breakout;
+
+  // skip temporary predictions for opfl modes
+  int skip_temporary_pred_for_opfl;
 
   // Reuse compound type rd decision when exact match is found
   // 0: No reuse
@@ -866,6 +885,9 @@ typedef struct WINNER_MODE_SPEED_FEATURES {
   // Flag used to control the winner mode processing for better R-D optimization
   // of quantized coeffs
   int enable_winner_mode_for_coeff_opt;
+  // Disable multiway 4, 5 way transform partition in rough mode
+  // and enable them in winner mode
+  int disable_multiway_tx_part_in_rough_mode;
 
   // Flag used to control the winner mode processing for transform size
   // search method

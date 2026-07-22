@@ -200,27 +200,27 @@ void av2_enc_build_inter_predictor(const AV2_COMMON *cm, MACROBLOCKD *xd,
   int is_refinemv_supported =
       mbmi->refinemv_flag && !is_intrabc_block(mbmi, xd->tree_type);
 
-  int need_chroma_dmvr = xd->is_chroma_ref &&
-                         (plane_from != 0 || plane_to != 0) &&
-                         is_refinemv_supported;
-  assert(IMPLIES(need_chroma_dmvr, !is_interintra_pred(mbmi)));
+  int need_chroma_refinemv = xd->is_chroma_ref &&
+                             (plane_from != 0 || plane_to != 0) &&
+                             is_refinemv_supported;
+  assert(IMPLIES(need_chroma_refinemv, !is_interintra_pred(mbmi)));
 
-  if (need_chroma_dmvr && default_refinemv_modes(mbmi))
-    need_chroma_dmvr &= (mbmi->comp_group_idx == 0 &&
-                         mbmi->interinter_comp.type == COMPOUND_AVERAGE);
+  if (need_chroma_refinemv && default_refinemv_modes(mbmi))
+    need_chroma_refinemv &= (mbmi->comp_group_idx == 0 &&
+                             mbmi->interinter_comp.type == COMPOUND_AVERAGE);
   // Set the prediction buffer as reference frames of TIP_FRAME
   if (is_tip_ref_frame(mbmi->ref_frame[0])) {
     setup_pred_planes_for_tip(&cm->tip_ref, xd, plane_from, plane_to + 1,
                               mi_col, mi_row);
   }
 
-  if (need_chroma_dmvr) {
+  if (need_chroma_refinemv) {
     fill_subblock_refine_mv(xd->refinemv_subinfo, xd->plane[0].width,
                             xd->plane[0].height, mbmi->mv[0].as_mv,
                             mbmi->mv[1].as_mv);
 
     // if luma build is not available, we need to get refinemv based on luma
-    // need to search DMVR here based on luma plane
+    // need to search SMVR here based on luma plane
     if (plane_from != 0) {
       enc_build_inter_predictors(cm, xd, 0, xd->mi[0], ctx, 1,
                                  xd->plane[0].width, xd->plane[0].height,

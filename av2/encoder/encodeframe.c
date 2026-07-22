@@ -2388,7 +2388,6 @@ void av2_encode_frame(AV2_COMP *cpi) {
   av2_setup_frame_buf_refs(cm);
   enforce_max_ref_frames(cpi, &cm->ref_frame_flags);
   set_rel_frame_dist(cm, &cpi->ref_frame_dist_info, cm->ref_frame_flags);
-  av2_setup_frame_sign_bias(cm);
   cpi->palette_pixel_num = 0;
 #if CONFIG_MISMATCH_DEBUG
   mismatch_reset_frame(num_planes);
