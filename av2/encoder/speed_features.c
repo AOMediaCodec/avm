@@ -380,7 +380,7 @@ static void set_good_speed_features_framesize_independent(
 
     sf->tx_sf.enable_adaptive_tcq_threshold = true;
     sf->tx_sf.adaptive_tcq_threshold_qidx = 185;
-    
+
     sf->inter_sf.skip_temporary_pred_for_opfl = 1;
 
     // Enable the optimized inter-SDP fast method (requires >=1 intra coded
