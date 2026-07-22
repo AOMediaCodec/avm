@@ -1004,6 +1004,39 @@ static AVM_INLINE int intra_block_yrd(const AV2_COMP *const cpi, MACROBLOCK *x,
   return 0;
 }
 
+/*!\brief Prune a DIP mode candidate based on model RD cost.
+ *
+ * \ingroup intra_mode_search
+ * \callergraph
+ * This function estimates the model RD cost for the current DIP mode and
+ * prunes it if it falls outside the top N model RD candidates. Pruning is
+ * skipped when the speed feature is disabled or when the block is lossless
+ * with DPCM enabled.
+ *
+ * \param[in]     cpi                Top-level encoder structure.
+ * \param[in]     x                  Pointer to macroblock structure.
+ * \param[in,out] top_intra_model_rd Top intra model RD cost array.
+ * \param[in,out] best_model_rd      Best model RD cost seen so far.
+ * \param[in]     bsize              Block size.
+ * \param[in]     mode_cost          Mode signaling cost.
+ *
+ * \return 1 if the mode should be pruned, 0 otherwise.
+ */
+static INLINE int prune_intra_dip_mode(const AV2_COMP *cpi, MACROBLOCK *x,
+                                       int64_t top_intra_model_rd[],
+                                       int64_t *best_model_rd, BLOCK_SIZE bsize,
+                                       int mode_cost) {
+  if (!cpi->sf.intra_sf.include_dip_for_top_n_model_rd_pruning) return 0;
+
+  const MACROBLOCKD *xd = &x->e_mbd;
+  const MB_MODE_INFO *const mbmi = xd->mi[0];
+  const int64_t this_model_rd = intra_model_yrd(cpi, x, bsize, mode_cost);
+  if (prune_intra_y_mode(this_model_rd, best_model_rd, top_intra_model_rd) &&
+      (!xd->lossless[mbmi->segment_id] || mbmi->use_dpcm_y == 0))
+    return 1;
+  return 0;
+}
+
 /*!\brief Search for the best data-driven intra mode when coding inter frame.
  *
  * \ingroup intra_mode_search
@@ -1012,12 +1045,11 @@ static AVM_INLINE int intra_block_yrd(const AV2_COMP *const cpi, MACROBLOCK *x,
  *
  * Returns nothing, but updates the mbmi and rd_stats.
  */
-static INLINE void handle_intra_dip_mode(const AV2_COMP *cpi, MACROBLOCK *x,
-                                         BLOCK_SIZE bsize,
-                                         const PICK_MODE_CONTEXT *ctx,
-                                         RD_STATS *rd_stats_y, int mode_cost,
-                                         int64_t best_rd,
-                                         int64_t best_rd_so_far) {
+static INLINE void handle_intra_dip_mode(
+    const AV2_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
+    const PICK_MODE_CONTEXT *ctx, RD_STATS *rd_stats_y, int mode_cost,
+    int64_t best_rd, int64_t best_rd_so_far, int64_t *best_model_rd,
+    int64_t top_intra_model_rd[]) {
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   assert(mbmi->mode == DC_PRED &&
@@ -1048,6 +1080,11 @@ static INLINE void handle_intra_dip_mode(const AV2_COMP *cpi, MACROBLOCK *x,
     for (int ml_mode = 0; ml_mode < num_modes; ml_mode++) {
       int mode = (transpose << 4) + ml_mode;
       mbmi->intra_dip_mode = mode;
+
+      if (prune_intra_dip_mode(cpi, x, top_intra_model_rd, best_model_rd, bsize,
+                               mode_cost)) {
+        continue;
+      }
 
       av2_pick_uniform_tx_size_type_yrd(cpi, x, &rd_stats_y_iml, bsize,
                                         best_rd);
@@ -1225,7 +1262,7 @@ int64_t av2_handle_intra_mode(IntraModeSearchState *intra_search_state,
     }
     if (try_intra_dip) {
       handle_intra_dip_mode(cpi, x, bsize, ctx, rd_stats_y, mode_cost, best_rd,
-                            best_rd_so_far);
+                            best_rd_so_far, best_model_rd, top_intra_model_rd);
     }
   }
 
