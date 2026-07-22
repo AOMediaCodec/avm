@@ -7491,12 +7491,30 @@ static INLINE int is_mode_intra(PREDICTION_MODE mode) {
   return mode < INTRA_MODE_END;
 }
 
+// Check whether one of the reference frames are the same as that of the cached
+// mode
+static INLINE int is_ref_frame_same_as_cache(
+    const MB_MODE_INFO *cached_mi2, const MV_REFERENCE_FRAME *ref_frame,
+    int this_mode_is_single) {
+  const int cached_mode_is_single = is_inter_singleref_mode(cached_mi2->mode);
+  if (ref_frame[0] == cached_mi2->ref_frame[0]) return 1;
+  if (!cached_mode_is_single && (ref_frame[0] == cached_mi2->ref_frame[1]))
+    return 1;
+  if (!this_mode_is_single) {
+    if (ref_frame[1] == cached_mi2->ref_frame[0]) return 1;
+    if (!cached_mode_is_single && (ref_frame[1] == cached_mi2->ref_frame[1]))
+      return 1;
+  }
+  return 0;
+}
+
 // Reuse the prediction mode in cache.
 // Returns 0 if no pruning is done, 1 if we are skipping the current mod
 // completely, 2 if we skip compound only, but still try single motion modes
 static INLINE int skip_inter_mode_with_cached_mode(
-    const AV2_COMMON *cm, const MACROBLOCK *x, PREDICTION_MODE mode,
+    const AV2_COMP *cpi, const MACROBLOCK *x, PREDICTION_MODE mode,
     const MV_REFERENCE_FRAME *ref_frame) {
+  const AV2_COMMON *const cm = &cpi->common;
   const MB_MODE_INFO *cached_mi = x->inter_mode_cache[0];
 
   // If there is no cache, then no pruning is possible.
@@ -7513,19 +7531,32 @@ static INLINE int skip_inter_mode_with_cached_mode(
       if (cached_mi2 && !is_mode_intra(cached_mi2->mode)) {
         const int cached_mode_is_single =
             is_inter_singleref_mode(cached_mi2->mode);
-        if (mode == cached_mi2->mode) return 0;
-        // if (mode == cached_mi2->mode) {
-        if (ref_frame[0] == cached_mi2->ref_frame[0]) return 0;
-        if (!cached_mode_is_single &&
-            (ref_frame[0] == cached_mi2->ref_frame[1]))
-          return 0;
-        if (!this_mode_is_single) {
-          if (ref_frame[1] == cached_mi2->ref_frame[0]) return 0;
-          if (!cached_mode_is_single &&
-              (ref_frame[1] == cached_mi2->ref_frame[1]))
+        if (cpi->sf.inter_sf.enable_enhanced_inter_mode_cache_reuse) {
+          // For single prediction mode, when reference frame is the same,
+          // return 0.
+          // For compound prediction mode, when both reference frames
+          // are the same, return 0.
+          if (cached_mode_is_single) {
+            if (ref_frame[0] == cached_mi2->ref_frame[0]) return 0;
+          } else {
+            if (ref_frame[0] == cached_mi2->ref_frame[0] &&
+                ref_frame[1] == cached_mi2->ref_frame[1])
+              return 0;
+          }
+          // When prediction mode is the same, if one
+          // of the reference frames are the same, return 0
+          if (mode == cached_mi2->mode) {
+            if (is_ref_frame_same_as_cache(cached_mi2, ref_frame,
+                                           this_mode_is_single))
+              return 0;
+          }
+        } else {
+          // Original cache reuse logic.
+          if (mode == cached_mi2->mode) return 0;
+          if (is_ref_frame_same_as_cache(cached_mi2, ref_frame,
+                                         this_mode_is_single))
             return 0;
         }
-        //}
       }
     }
   }
@@ -7603,7 +7634,7 @@ static int inter_mode_search_order_independent_skip(
     return 1;
   }
   const int cached_skip_ret =
-      skip_inter_mode_with_cached_mode(cm, x, mode, ref_frame);
+      skip_inter_mode_with_cached_mode(cpi, x, mode, ref_frame);
   if (cached_skip_ret > 0) {
     return cached_skip_ret;
   }
