@@ -177,6 +177,7 @@ const av2_codec_arg_definitions_t g_av2_codec_arg_defs = {
   .step = ARG_DEF(NULL, "step", 1,
                   "Encode every n-th frame (after the --skip frames)"),
   .good_dl = ARG_DEF(NULL, "good", 0, "Use Good Quality Deadline"),
+  .rt_dl = ARG_DEF(NULL, "rt", 0, "Use Realtime Quality Deadline"),
   .quietarg = ARG_DEF("q", "quiet", 0, "Do not print encode progress"),
   .verbosearg = ARG_DEF("v", "verbose", 0, "Show encoder parameters"),
   .psnrarg = ARG_DEF(
