@@ -48,6 +48,15 @@ bool av2_rd_pick_partition(AV2_COMP *const cpi, ThreadData *td,
                            int prune_rect_flags[3]
 #endif  // CONFIG_ML_PART_SPLIT
 );
+
+// Attempts an early termination after PARTITION_SPLIT.
+void av2_ml_early_term_after_split(AV2_COMP *const cpi, MACROBLOCK *const x,
+                                   SIMPLE_MOTION_DATA_TREE *const sms_tree,
+                                   int64_t best_rd, int64_t part_none_rd,
+                                   int64_t part_split_rd,
+                                   int64_t *split_block_rd,
+                                   PartitionSearchState *part_state);
+
 void av2_build_partition_tree_fixed_partitioning(
     AV2_COMMON *const cm, TREE_TYPE tree_type, int mi_row, int mi_col,
     BLOCK_SIZE bsize, PARTITION_TREE *ptree, const PARTITION_TREE *ptree_luma);

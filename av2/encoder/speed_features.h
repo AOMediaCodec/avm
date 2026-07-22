@@ -440,6 +440,7 @@ typedef struct PARTITION_SPEED_FEATURES {
   int prune_split_ml_level;
   int prune_split_ml_level_inter;
   int prune_none_with_ml;
+  int remove_qp_restriction_with_ml;
 #endif  // CONFIG_ML_PART_SPLIT
 
   bool disable_ext_partitions;
