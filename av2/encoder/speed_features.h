@@ -795,6 +795,13 @@ typedef struct INTRA_MODE_SPEED_FEATURES {
   // False: No reuse
   // True: Reuse UV mode RD info.
   bool reuse_uv_mode_rd_info;
+
+  // Use model RD cost of DIP modes to build top N model RD cost table for
+  // better pruning. This logic is applied to mixed inter intra regions.
+  // False: Do not use model RD cost of DIP modes
+  // True: Use model RD cost of DIP modes
+  bool include_dip_for_top_n_model_rd_pruning;
+
   bool skip_intra_dip_search;
 } INTRA_MODE_SPEED_FEATURES;
 
