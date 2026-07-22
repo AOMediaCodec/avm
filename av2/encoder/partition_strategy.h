@@ -46,30 +46,27 @@ typedef struct {
   int rect_part_win[NUM_RECT_PARTS];
 } RD_RECT_PART_WIN_INFO;
 
-void av2_intra_mode_cnn_partition(const AV2_COMMON *const cm, MACROBLOCK *x,
-                                  BLOCK_SIZE bsize, int label_idx,
-                                  int *partition_none_allowed,
-                                  int *partition_horz_allowed,
-                                  int *partition_vert_allowed,
-                                  int *do_rectangular_split,
-                                  int *do_square_split);
+struct PartitionSearchState;
+
+void av2_intra_mode_cnn_partition(
+    const AV2_COMMON *const cm, MACROBLOCK *x, BLOCK_SIZE bsize, int label_idx,
+    struct PartitionSearchState *partition_search_state, bool *do_square_split);
 
 // Performs a simple_motion_search with a single reference frame and extract
 // the variance of residues. Then use the features to determine whether we want
 // to go straight to splitting without trying PARTITION_NONE
 void av2_simple_motion_search_based_split(
     AV2_COMP *const cpi, MACROBLOCK *x, SIMPLE_MOTION_DATA_TREE *sms_tree,
-    int mi_row, int mi_col, BLOCK_SIZE bsize, int *partition_none_allowed,
-    int *partition_horz_allowed, int *partition_vert_allowed,
-    int *do_rectangular_split, int *do_square_split);
+    int mi_row, int mi_col, BLOCK_SIZE bsize,
+    struct PartitionSearchState *partition_search_state, bool *do_square_split);
 
 // Performs a simple_motion_search with two reference frames and extract
 // the variance of residues. Then use the features to determine whether we want
 // to prune some partitions.
 void av2_simple_motion_search_prune_rect(
     AV2_COMP *const cpi, MACROBLOCK *x, SIMPLE_MOTION_DATA_TREE *sms_tree,
-    int mi_row, int mi_col, BLOCK_SIZE bsize, int partition_horz_allowed,
-    int partition_vert_allowed, bool *prune_horz, bool *prune_vert);
+    int mi_row, int mi_col, BLOCK_SIZE bsize,
+    struct PartitionSearchState *partition_search_state);
 
 // Early terminates PARTITION_NONE using simple_motion_search features and the
 // rate, distortion, and rdcost of PARTITION_NONE. This is only called when:
@@ -80,7 +77,7 @@ void av2_simple_motion_search_prune_rect(
 void av2_simple_motion_search_early_term_none(
     AV2_COMP *const cpi, MACROBLOCK *x, SIMPLE_MOTION_DATA_TREE *sms_tree,
     int mi_row, int mi_col, BLOCK_SIZE bsize, const RD_STATS *none_rdc,
-    int *early_terminate);
+    bool *early_terminate);
 
 // Get the features for selecting the max and min partition size. Currently this
 // performs simple_motion_search on 16X16 subblocks of the current superblock,
@@ -106,20 +103,16 @@ int av2_ml_predict_breakout(const AV2_COMP *const cpi, BLOCK_SIZE bsize,
 void av2_prune_partitions_before_search(
     AV2_COMP *const cpi, MACROBLOCK *const x, int mi_row, int mi_col,
     BLOCK_SIZE bsize, SIMPLE_MOTION_DATA_TREE *const sms_tree,
-    int *partition_none_allowed, int *partition_horz_allowed,
-    int *partition_vert_allowed, int *do_rectangular_split,
-    int *do_square_split, bool *prune_horz, bool *prune_vert,
+    struct PartitionSearchState *partition_search_state, bool *do_square_split,
     const PC_TREE *pc_tree);
 
 // Prune out partitions that lead to coding block sizes outside the min and max
 // bsizes set by the encoder. Max and min square partition levels are defined as
 // the partition nodes that the recursive function rd_pick_partition() can
 // reach.
-struct PartitionSearchState;
-
 void av2_prune_partitions_by_max_min_bsize(
     SuperBlockEnc *sb_enc, BLOCK_SIZE bsize, int is_not_edge_block,
-    struct PartitionSearchState *partition_search_state, int *do_square_split);
+    struct PartitionSearchState *partition_search_state, bool *do_square_split);
 
 SimpleMotionData *av2_get_sms_data_entry(SimpleMotionDataBufs *sms_bufs,
                                          int mi_row, int mi_col,
