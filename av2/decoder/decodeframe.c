@@ -9015,8 +9015,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
 
   av2_setup_frame_buf_refs(cm);
 
-  av2_setup_frame_sign_bias(cm);
-
   cm->cur_frame->frame_type = current_frame->frame_type;
   cm->cur_frame->is_restricted_switch_frame =
       (current_frame->frame_type == S_FRAME &&
