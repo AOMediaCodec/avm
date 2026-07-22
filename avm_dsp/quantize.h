@@ -13,8 +13,6 @@
 #ifndef AVM_AVM_DSP_QUANTIZE_H_
 #define AVM_AVM_DSP_QUANTIZE_H_
 
-#include <stdbool.h>
-
 #include "config/avm_config.h"
 
 #include "avm_dsp/avm_dsp_common.h"
@@ -60,14 +58,12 @@ void avm_highbd_quantize_b_helper_c(
     const int16_t *scan, const int16_t *iscan, const qm_val_t *qm_ptr,
     const qm_val_t *iqm_ptr, const int log_scale);
 
-void avm_highbd_quantize_b_c(int deadzone_thres, const tran_low_t *coeff_ptr,
-                             intptr_t n_coeffs, const int32_t *zbin_ptr,
-                             const int32_t *round_ptr, const int32_t *quant_ptr,
-                             const int32_t *quant_shift_ptr,
-                             tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr,
-                             const int32_t *dequant_ptr, uint16_t *eob_ptr,
-                             const int16_t *scan, const int16_t *iscan,
-                             const int log_scale);
+void avm_highbd_quantize_b_c(
+    int use_tcq_deadzone_boost, const tran_low_t *coeff_ptr, intptr_t n_coeffs,
+    const int32_t *zbin_ptr, const int32_t *round_ptr, const int32_t *quant_ptr,
+    const int32_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
+    tran_low_t *dqcoeff_ptr, const int32_t *dequant_ptr, uint16_t *eob_ptr,
+    const int16_t *scan, const int16_t *iscan, const int log_scale);
 #ifdef __cplusplus
 }  // extern "C"
 #endif

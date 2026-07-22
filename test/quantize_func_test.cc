@@ -31,7 +31,7 @@ namespace {
 using libavm_test::ACMRandom;
 
 typedef void (*QuantizeFuncHbd)(
-    int deadzone_thres, const tran_low_t *coeff_ptr, intptr_t n_coeffs,
+    int use_tcq_deadzone_boost, const tran_low_t *coeff_ptr, intptr_t n_coeffs,
     const int32_t *zbin_ptr, const int32_t *round_ptr, const int32_t *quant_ptr,
     const int32_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
     tran_low_t *dqcoeff_ptr, const int32_t *dequant_ptr, uint16_t *eob_ptr,

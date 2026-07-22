@@ -36,10 +36,13 @@ typedef struct QUANT_PARAM {
   int xform_quant_idx;
 } QUANT_PARAM;
 
-typedef void (*AV2_QUANT_FACADE)(
-    const int deadzone_thres, const tran_low_t *coeff_ptr, intptr_t n_coeffs,
-    const MACROBLOCK_PLANE *p, tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr,
-    uint16_t *eob_ptr, const SCAN_ORDER *sc, const QUANT_PARAM *qparam);
+typedef void (*AV2_QUANT_FACADE)(const int use_tcq_deadzone_boost,
+                                 const tran_low_t *coeff_ptr, intptr_t n_coeffs,
+                                 const MACROBLOCK_PLANE *p,
+                                 tran_low_t *qcoeff_ptr,
+                                 tran_low_t *dqcoeff_ptr, uint16_t *eob_ptr,
+                                 const SCAN_ORDER *sc,
+                                 const QUANT_PARAM *qparam);
 
 static const int qindex_10b_offset[] = {
   0,
@@ -127,20 +130,29 @@ int av2_qindex_to_quantizer(int qindex, avm_bit_depth_t bit_depth);
 void av2_quantize_skip(intptr_t n_coeffs, tran_low_t *qcoeff_ptr,
                        tran_low_t *dqcoeff_ptr, uint16_t *eob_ptr);
 
-void av2_highbd_quantize_fp_facade(
-    const int deadzone_thres, const tran_low_t *coeff_ptr, intptr_t n_coeffs,
-    const MACROBLOCK_PLANE *p, tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr,
-    uint16_t *eob_ptr, const SCAN_ORDER *sc, const QUANT_PARAM *qparam);
+void av2_highbd_quantize_fp_facade(const int use_tcq_deadzone_boost,
+                                   const tran_low_t *coeff_ptr,
+                                   intptr_t n_coeffs, const MACROBLOCK_PLANE *p,
+                                   tran_low_t *qcoeff_ptr,
+                                   tran_low_t *dqcoeff_ptr, uint16_t *eob_ptr,
+                                   const SCAN_ORDER *sc,
+                                   const QUANT_PARAM *qparam);
 
-void av2_highbd_quantize_b_facade(
-    const int deadzone_thres, const tran_low_t *coeff_ptr, intptr_t n_coeffs,
-    const MACROBLOCK_PLANE *p, tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr,
-    uint16_t *eob_ptr, const SCAN_ORDER *sc, const QUANT_PARAM *qparam);
+void av2_highbd_quantize_b_facade(const int use_tcq_deadzone_boost,
+                                  const tran_low_t *coeff_ptr,
+                                  intptr_t n_coeffs, const MACROBLOCK_PLANE *p,
+                                  tran_low_t *qcoeff_ptr,
+                                  tran_low_t *dqcoeff_ptr, uint16_t *eob_ptr,
+                                  const SCAN_ORDER *sc,
+                                  const QUANT_PARAM *qparam);
 
-void av2_highbd_quantize_dc_facade(
-    const int deadzone_thres, const tran_low_t *coeff_ptr, intptr_t n_coeffs,
-    const MACROBLOCK_PLANE *p, tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr,
-    uint16_t *eob_ptr, const SCAN_ORDER *sc, const QUANT_PARAM *qparam);
+void av2_highbd_quantize_dc_facade(const int use_tcq_deadzone_boost,
+                                   const tran_low_t *coeff_ptr,
+                                   intptr_t n_coeffs, const MACROBLOCK_PLANE *p,
+                                   tran_low_t *qcoeff_ptr,
+                                   tran_low_t *dqcoeff_ptr, uint16_t *eob_ptr,
+                                   const SCAN_ORDER *sc,
+                                   const QUANT_PARAM *qparam);
 
 #ifdef __cplusplus
 }  // extern "C"

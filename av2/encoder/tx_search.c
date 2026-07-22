@@ -51,7 +51,7 @@ typedef struct tx_size_rd_info_node {
 // Mapping of index to IST kernel set (for encoder search only)
 static const uint8_t ist_intra_stx_mapping[IST_SET_SIZE][IST_SET_SIZE] = {
   { 6, 1, 0, 5, 4, 3, 2 },  // DC_PRED
-  { 1, 6, 0, 4, 2, 5, 3 },  // V_PRED, H_PRED, SMOOTH_V_PRED， SMOOTH_H_PRED
+  { 1, 6, 0, 4, 2, 5, 3 },  // V_PRED, H_PRED, SMOOTH_V_PREDï¼Œ SMOOTH_H_PRED
   { 2, 6, 0, 5, 1, 4, 3 },  // D45_PRED
   { 3, 4, 6, 1, 0, 2, 5 },  // D135_PRED
   { 4, 1, 3, 6, 0, 5, 2 },  // D113_PRED, D157_PRED
@@ -61,7 +61,7 @@ static const uint8_t ist_intra_stx_mapping[IST_SET_SIZE][IST_SET_SIZE] = {
 static const uint8_t
     ist_intra_stx_mapping_ADST_ADST[IST_SET_SIZE][IST_REDUCED_SET_SIZE] = {
       { 3, 1, 0, 2 },  // DC_PRED
-      { 1, 3, 0, 2 },  // V_PRED, H_PRED, SMOOTH_V_PRED， SMOOTH_H_PRED
+      { 1, 3, 0, 2 },  // V_PRED, H_PRED, SMOOTH_V_PREDï¼Œ SMOOTH_H_PRED
       { 1, 3, 0, 2 },  // D45_PRED
       { 0, 2, 3, 1 },  // D135_PRED
       { 2, 1, 0, 3 },  // D113_PRED, D157_PRED
@@ -930,12 +930,14 @@ static INLINE void recon_intra(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
       int use_tcq =
           tcq_enable(cpi->common.features.tcq_mode,
                      xd->lossless[x->e_mbd.mi[0]->segment_id], plane, tx_class);
-      const int deadzone_thres =
+      const int use_tcq_deadzone_boost =
           use_tcq && quant_param_intra.use_optimize_b && !fsc_mode &&
           cpi->sf.tx_sf.enable_adaptive_tcq_threshold &&
-          cm->quant_params.base_qindex < MAX_TCQ_THRES_QIDX;
-      av2_xform_quant(deadzone_thres, cm, x, plane, block, blk_row, blk_col,
-                      plane_bsize, &txfm_param_intra, &quant_param_intra);
+          cm->quant_params.base_qindex <
+              cpi->sf.tx_sf.adaptive_tcq_threshold_qidx;
+      av2_xform_quant(use_tcq_deadzone_boost, cm, x, plane, block, blk_row,
+                      blk_col, plane_bsize, &txfm_param_intra,
+                      &quant_param_intra);
 
       if (fsc_mode && quant_param_intra.use_optimize_b) {
         av2_optimize_fsc(cpi, x, plane, block, tx_size, best_tx_type, txb_ctx,
@@ -2474,11 +2476,13 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
         int use_tcq =
             tcq_enable(cpi->common.features.tcq_mode,
                        xd->lossless[xd->mi[0]->segment_id], plane, tx_class);
-        const int deadzone_thres =
+        const int use_tcq_deadzone_boost =
             use_tcq && quant_param.use_optimize_b && !fsc_mode_in &&
             cpi->sf.tx_sf.enable_adaptive_tcq_threshold &&
-            cm->quant_params.base_qindex < MAX_TCQ_THRES_QIDX;
-        av2_quant(deadzone_thres, x, plane, block, &txfm_param, &quant_param);
+            cm->quant_params.base_qindex <
+                cpi->sf.tx_sf.adaptive_tcq_threshold_qidx;
+        av2_quant(use_tcq_deadzone_boost, x, plane, block, &txfm_param,
+                  &quant_param);
         if (fsc_mode_in) {
           if (primary_tx_type == IDTX) {
             uint16_t *const eob = &p->eobs[block];

@@ -322,6 +322,7 @@ static void set_good_speed_features_framesize_independent(
   sf->tx_sf.prune_tx_rd_eval_sec_tx_sse = true;
   sf->tx_sf.tx_type_search.use_reduced_intra_txset = 1;
   sf->tx_sf.enable_adaptive_tcq_threshold = false;
+  sf->tx_sf.adaptive_tcq_threshold_qidx = 185;
 
   if (cpi->twopass.fr_content_type == FC_HIGHMOTION ||
       cpi->is_screen_content_type) {
@@ -362,6 +363,7 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.newmv_drl_search_limit = 2;
 
     sf->tx_sf.enable_adaptive_tcq_threshold = true;
+    sf->tx_sf.adaptive_tcq_threshold_qidx = 185;
   }
 
   if (speed >= 2) {

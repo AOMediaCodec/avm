@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2021, Alliance for Open Media. All rights reserved
  *
  * This source code is subject to the terms of the BSD 3-Clause Clear License
@@ -593,7 +593,7 @@ void av2_xform_dc_only(MACROBLOCK *x, int plane, int block,
   coeff[0] =
       (tran_low_t)((per_px_mean * dc_coeff_scale[txfm_param->tx_size]) >> 12);
 }
-void av2_xform_quant(const int deadzone_thres, const AV2_COMMON *cm,
+void av2_xform_quant(const int use_tcq_deadzone_boost, const AV2_COMMON *cm,
                      MACROBLOCK *x, int plane, int block, int blk_row,
                      int blk_col, BLOCK_SIZE plane_bsize, TxfmParam *txfm_param,
                      QUANT_PARAM *qparam) {
@@ -625,7 +625,7 @@ void av2_xform_quant(const int deadzone_thres, const AV2_COMMON *cm,
         mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
         plane == PLANE_TYPE_Y) ||
        use_inter_fsc(cm, plane, txfm_param->tx_type, is_inter));
-  av2_quant(deadzone_thres, x, plane, block, txfm_param, qparam);
+  av2_quant(use_tcq_deadzone_boost, x, plane, block, txfm_param, qparam);
   if (fsc_mode) {
     if (get_primary_tx_type(txfm_param->tx_type) == IDTX) {
       uint16_t *const eob = &p->eobs[block];
@@ -712,8 +712,8 @@ void set_bob(MACROBLOCK *x, int plane, int block, TX_SIZE tx_size,
   }
   *bob_ptr = av2_get_max_eob(tx_size) - bob;
 }
-void av2_quant(const int deadzone_thres, MACROBLOCK *x, int plane, int block,
-               TxfmParam *txfm_param, QUANT_PARAM *qparam) {
+void av2_quant(const int use_tcq_deadzone_boost, MACROBLOCK *x, int plane,
+               int block, TxfmParam *txfm_param, QUANT_PARAM *qparam) {
   const struct macroblock_plane *const p = &x->plane[plane];
   const SCAN_ORDER *const scan_order =
       get_scan(txfm_param->tx_size, txfm_param->tx_type);
@@ -726,9 +726,9 @@ void av2_quant(const int deadzone_thres, MACROBLOCK *x, int plane, int block,
   if (qparam->xform_quant_idx != AV2_XFORM_QUANT_SKIP_QUANT) {
     const int n_coeffs = av2_get_max_eob(txfm_param->tx_size);
     if (LIKELY(!x->seg_skip_block)) {
-      quant_func_list[qparam->xform_quant_idx](deadzone_thres, coeff, n_coeffs,
-                                               p, qcoeff, dqcoeff, eob,
-                                               scan_order, qparam);
+      quant_func_list[qparam->xform_quant_idx](use_tcq_deadzone_boost, coeff,
+                                               n_coeffs, p, qcoeff, dqcoeff,
+                                               eob, scan_order, qparam);
     } else {
       av2_quantize_skip(n_coeffs, qcoeff, dqcoeff, eob);
     }
@@ -941,12 +941,13 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
                             INTER_BLOCK_OPT_TYPE == TRELLIS_DROPOUT_OPT;
     const bool do_dropout = INTER_BLOCK_OPT_TYPE == DROPOUT_OPT ||
                             INTER_BLOCK_OPT_TYPE == TRELLIS_DROPOUT_OPT;
-    const int deadzone_thres =
+    const int use_tcq_deadzone_boost =
         use_tcq && quant_param.use_optimize_b && do_trellis && !fsc_mode &&
         cpi->sf.tx_sf.enable_adaptive_tcq_threshold &&
-        cm->quant_params.base_qindex < MAX_TCQ_THRES_QIDX;
-    av2_xform_quant(deadzone_thres, cm, x, plane, block, blk_row, blk_col,
-                    plane_bsize, &txfm_param, &quant_param);
+        cm->quant_params.base_qindex <
+            cpi->sf.tx_sf.adaptive_tcq_threshold_qidx;
+    av2_xform_quant(use_tcq_deadzone_boost, cm, x, plane, block, blk_row,
+                    blk_col, plane_bsize, &txfm_param, &quant_param);
 
     bool enable_parity_hiding =
         cm->features.allow_parity_hiding && !xd->lossless[mbmi->segment_id] &&
@@ -1452,12 +1453,13 @@ void av2_encode_block_intra(int plane, int block, int blk_row, int blk_col,
                             (!frame_is_intra_only(cm) &&
                              (INTRA_BLOCK_OPT_TYPE == DROPOUT_OPT ||
                               INTRA_BLOCK_OPT_TYPE == TRELLIS_DROPOUT_OPT));
-    const int deadzone_thres =
+    const int use_tcq_deadzone_boost =
         use_tcq && quant_param.use_optimize_b && do_trellis && !fsc_mode &&
         cpi->sf.tx_sf.enable_adaptive_tcq_threshold &&
-        cm->quant_params.base_qindex < MAX_TCQ_THRES_QIDX;
-    av2_xform_quant(deadzone_thres, cm, x, plane, block, blk_row, blk_col,
-                    plane_bsize, &txfm_param, &quant_param);
+        cm->quant_params.base_qindex <
+            cpi->sf.tx_sf.adaptive_tcq_threshold_qidx;
+    av2_xform_quant(use_tcq_deadzone_boost, cm, x, plane, block, blk_row,
+                    blk_col, plane_bsize, &txfm_param, &quant_param);
 
     bool enable_parity_hiding =
         cm->features.allow_parity_hiding && !xd->lossless[mbmi->segment_id] &&
@@ -1493,8 +1495,8 @@ void av2_encode_block_intra(int plane, int block, int blk_row, int blk_col,
                       cpi->oxcf.q_cfg.quant_b_adapt, &quant_param);
       av2_setup_qmatrix(&cm->quant_params, xd, plane, tx_size, tx_type,
                         &quant_param);
-      av2_xform_quant(deadzone_thres, cm, x, plane, block, blk_row, blk_col,
-                      plane_bsize, &txfm_param, &quant_param);
+      av2_xform_quant(use_tcq_deadzone_boost, cm, x, plane, block, blk_row,
+                      blk_col, plane_bsize, &txfm_param, &quant_param);
       if (quant_param.use_optimize_b && do_trellis) {
         TXB_CTX txb_ctx;
         get_txb_ctx(plane_bsize, tx_size, plane, a, l, &txb_ctx,
