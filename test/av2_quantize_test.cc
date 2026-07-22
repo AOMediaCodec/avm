@@ -97,25 +97,32 @@ class AV2QuantizeTest : public ::testing::TestWithParam<QuantizeFuncParams> {
         quant_ptr[j] = quant_ptr[1];
         round_ptr[j] = round_ptr[1];
       }
-      quanFuncRef(0, coeff_ptr, count, zbin_ptr, round_ptr, quant_ptr,
-                  quant_shift_ptr, ref_qcoeff_ptr, ref_dqcoeff_ptr, dequant_ptr,
-                  &ref_eob, scanOrder.scan, scanOrder.iscan, log_scale);
+      for (int boost = 0; boost < 2; ++boost) {
+        ref_eob = eob = UINT16_MAX;
+        quanFuncRef(boost, coeff_ptr, count, zbin_ptr, round_ptr, quant_ptr,
+                    quant_shift_ptr, ref_qcoeff_ptr, ref_dqcoeff_ptr,
+                    dequant_ptr, &ref_eob, scanOrder.scan, scanOrder.iscan,
+                    log_scale);
 
-      ASM_REGISTER_STATE_CHECK(
-          quanFunc(0, coeff_ptr, count, zbin_ptr, round_ptr, quant_ptr,
-                   quant_shift_ptr, qcoeff_ptr, dqcoeff_ptr, dequant_ptr, &eob,
-                   scanOrder.scan, scanOrder.iscan, log_scale));
+        ASM_REGISTER_STATE_CHECK(
+            quanFunc(boost, coeff_ptr, count, zbin_ptr, round_ptr, quant_ptr,
+                     quant_shift_ptr, qcoeff_ptr, dqcoeff_ptr, dequant_ptr,
+                     &eob, scanOrder.scan, scanOrder.iscan, log_scale));
 
-      for (int j = 0; j < count; ++j) {
-        err_count += (ref_qcoeff_ptr[j] != qcoeff_ptr[j]) |
-                     (ref_dqcoeff_ptr[j] != dqcoeff_ptr[j]);
-        ASSERT_EQ(ref_qcoeff_ptr[j], qcoeff_ptr[j])
-            << "qcoeff error: i = " << i << " j = " << j << "\n";
-        EXPECT_EQ(ref_dqcoeff_ptr[j], dqcoeff_ptr[j])
-            << "dqcoeff error: i = " << i << " j = " << j << "\n";
+        for (int j = 0; j < count; ++j) {
+          err_count += (ref_qcoeff_ptr[j] != qcoeff_ptr[j]) |
+                       (ref_dqcoeff_ptr[j] != dqcoeff_ptr[j]);
+          ASSERT_EQ(ref_qcoeff_ptr[j], qcoeff_ptr[j])
+              << "qcoeff error: i = " << i << " j = " << j
+              << " boost = " << boost << "\n";
+          EXPECT_EQ(ref_dqcoeff_ptr[j], dqcoeff_ptr[j])
+              << "dqcoeff error: i = " << i << " j = " << j
+              << " boost = " << boost << "\n";
+        }
+        EXPECT_EQ(ref_eob, eob)
+            << "eob error: " << "i = " << i << " boost = " << boost << "\n";
+        err_count += (ref_eob != eob);
       }
-      EXPECT_EQ(ref_eob, eob) << "eob error: " << "i = " << i << "\n";
-      err_count += (ref_eob != eob);
       if (err_count && !err_count_total) {
         first_failure = i;
       }
@@ -175,15 +182,20 @@ class AV2QuantizeTest : public ::testing::TestWithParam<QuantizeFuncParams> {
         round_ptr[j] = round_ptr[1];
       }
 
-      quanFuncRef(0, coeff_ptr, count, zbin_ptr, round_ptr, quant_ptr,
-                  quant_shift_ptr, ref_qcoeff_ptr, ref_dqcoeff_ptr, dequant_ptr,
-                  &ref_eob, scanOrder.scan, scanOrder.iscan, log_scale);
+      for (int boost = 0; boost < 2; ++boost) {
+        ref_eob = eob = UINT16_MAX;
+        quanFuncRef(boost, coeff_ptr, count, zbin_ptr, round_ptr, quant_ptr,
+                    quant_shift_ptr, ref_qcoeff_ptr, ref_dqcoeff_ptr,
+                    dequant_ptr, &ref_eob, scanOrder.scan, scanOrder.iscan,
+                    log_scale);
 
-      ASM_REGISTER_STATE_CHECK(
-          quanFunc(0, coeff_ptr, count, zbin_ptr, round_ptr, quant_ptr,
-                   quant_shift_ptr, qcoeff_ptr, dqcoeff_ptr, dequant_ptr, &eob,
-                   scanOrder.scan, scanOrder.iscan, log_scale));
-      EXPECT_EQ(ref_eob, eob) << "eob error: " << "i = " << i << "\n";
+        ASM_REGISTER_STATE_CHECK(
+            quanFunc(boost, coeff_ptr, count, zbin_ptr, round_ptr, quant_ptr,
+                     quant_shift_ptr, qcoeff_ptr, dqcoeff_ptr, dequant_ptr,
+                     &eob, scanOrder.scan, scanOrder.iscan, log_scale));
+        EXPECT_EQ(ref_eob, eob)
+            << "eob error: " << "i = " << i << " boost = " << boost << "\n";
+      }
     }
   }
 
