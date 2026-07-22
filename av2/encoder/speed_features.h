@@ -577,6 +577,9 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Prune reference frames for ALTREF
   int alt_ref_search_fp;
 
+  // Disable switchable subblock refine MV at the block level
+  int disable_switchable_refinemv;
+
   // flag to skip NEWMV mode in drl if the motion search result is the same
   int skip_repeated_newmv;
 

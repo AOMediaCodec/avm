@@ -2742,9 +2742,9 @@ void apply_mv_refinement(const AV2_COMMON *cm, MACROBLOCKD *xd, int plane,
   bh += 2 * SUBBLK_REF_EXT_LINES;
 
   const int dsts_offset = (REFINEMV_SUBBLOCK_WIDTH +
-                           2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES)) *
+                           2 * (SUBBLK_REF_EXT_LINES + SMVR_SEARCH_EXT_LINES)) *
                           (REFINEMV_SUBBLOCK_HEIGHT +
-                           2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES));
+                           2 * (SUBBLK_REF_EXT_LINES + SMVR_SEARCH_EXT_LINES));
   uint16_t *dsts0[2] = { dst_ref0, dst_ref0 + dsts_offset };
   uint16_t *dsts1[2] = { dst_ref1, dst_ref1 + dsts_offset };
   int dsts_cur = 0;
@@ -2797,7 +2797,7 @@ void apply_mv_refinement(const AV2_COMMON *cm, MACROBLOCKD *xd, int plane,
   // select sad0 Set sad0 a large value so
   // that it does not be selected
   const int dst_stride = REFINEMV_SUBBLOCK_WIDTH +
-                         2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES);
+                         2 * (SUBBLK_REF_EXT_LINES + SMVR_SEARCH_EXT_LINES);
   int sad0 = INT32_MAX >> 1;
   if (!switchable_refinemv_flags) {
     av2_refinemv_build_predictors(
@@ -2830,7 +2830,7 @@ void apply_mv_refinement(const AV2_COMMON *cm, MACROBLOCKD *xd, int plane,
   refined_mv[0] = center_mvs[0];
   refined_mv[1] = center_mvs[1];
 
-  static const MV neighbors[DMVR_SEARCH_NUM_NEIGHBORS] = {
+  static const MV neighbors[SMVR_SEARCH_NUM_NEIGHBORS] = {
     { -2, -2 }, { -2, -1 }, { -2, 0 }, { -2, 1 }, { -2, 2 }, { -1, -2 },
     { -1, -1 }, { -1, 0 },  { -1, 1 }, { -1, 2 }, { 0, -2 }, { 0, -1 },
     { 0, 1 },   { 0, 2 },   { 1, -2 }, { 1, -1 }, { 1, 0 },  { 1, 1 },
@@ -2853,15 +2853,15 @@ void apply_mv_refinement(const AV2_COMMON *cm, MACROBLOCKD *xd, int plane,
     inter_pred_params[ref].block_height = ext_bh;
     inter_pred_params[ref].original_pu_width = pu_width + 4;
     inter_pred_params[ref].original_pu_height = pu_height + 4;
-    refined_mv[ref].row -= 8 * DMVR_SEARCH_EXT_LINES;
-    refined_mv[ref].col -= 8 * DMVR_SEARCH_EXT_LINES;
+    refined_mv[ref].row -= 8 * SMVR_SEARCH_EXT_LINES;
+    refined_mv[ref].col -= 8 * SMVR_SEARCH_EXT_LINES;
   }
 
   av2_refinemv_build_predictors(xd, mi_x, mi_y, mc_buf, calc_subpel_params_func,
                                 dst_ref0, dst_ref1, dst_stride, refined_mv[0],
                                 refined_mv[1], inter_pred_params);
 
-  for (int idx = 0; idx < DMVR_SEARCH_NUM_NEIGHBORS; ++idx) {
+  for (int idx = 0; idx < SMVR_SEARCH_NUM_NEIGHBORS; ++idx) {
     const MV offset = { neighbors[idx].row, neighbors[idx].col };
 
     uint16_t *dst_ref0_offset =
@@ -3030,7 +3030,7 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
                         dst_ref1, &refinemv_ref0, &refinemv_ref1, best_mv_ref,
                         pu_width, pu_height, ref_area);
     if (sb_refined_mv) {
-      // store the DMVR refined MV so that
+      // store the SMVR refined MV so that
       // chroma can use it
       sb_refined_mv[0] = best_mv_ref[0];
       sb_refined_mv[1] = best_mv_ref[1];
@@ -3120,7 +3120,7 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
       dst0 = refinemv_ref0;
       dst1 = refinemv_ref1;
       opfl_dst_stride = REFINEMV_SUBBLOCK_WIDTH +
-                        2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES);
+                        2 * (SUBBLK_REF_EXT_LINES + SMVR_SEARCH_EXT_LINES);
       do_pred = 0;
     }
 
@@ -3310,15 +3310,15 @@ static void build_inter_predictors_8x8_and_bigger(
     uint16_t
         dst0_16_refinemv[2 *
                          (REFINEMV_SUBBLOCK_WIDTH +
-                          2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES)) *
+                          2 * (SUBBLK_REF_EXT_LINES + SMVR_SEARCH_EXT_LINES)) *
                          (REFINEMV_SUBBLOCK_HEIGHT +
-                          2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES))];
+                          2 * (SUBBLK_REF_EXT_LINES + SMVR_SEARCH_EXT_LINES))];
     uint16_t
         dst1_16_refinemv[2 *
                          (REFINEMV_SUBBLOCK_WIDTH +
-                          2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES)) *
+                          2 * (SUBBLK_REF_EXT_LINES + SMVR_SEARCH_EXT_LINES)) *
                          (REFINEMV_SUBBLOCK_HEIGHT +
-                          2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES))];
+                          2 * (SUBBLK_REF_EXT_LINES + SMVR_SEARCH_EXT_LINES))];
 
     ReferenceArea ref_area[2];
     CONV_BUF_TYPE *tmp_conv_dst = xd->tmp_conv_dst;
