@@ -25,9 +25,6 @@ extern "C" {
 // in-loop filters near the boundary only read deterministic samples.
 #define GDR_LF_OVERLAP_MI 8
 
-// Trailing reach of the sub-pel interpolation filter past the reference block
-#define GDR_MV_BOUNDARY_GUARD_PX AVM_INTERP_EXTEND
-
 // Column mi_col lies in the dirty area of the current frame.
 static AVM_INLINE int gdr_sb_is_dirty(const AV2_COMP *cpi, int mi_col) {
   return mi_col >= cpi->gdr_deterministic_right_mi;

@@ -449,8 +449,13 @@ void av2_set_offsets_without_segment_id(
         min_det_right = buf->gdr_deterministic_right_mi;
     }
     if (min_det_right < cm->mi_params.mi_cols) {
-      const int gdr_col_max = (min_det_right - mi_col - mi_width) * MI_SIZE -
-                              GDR_MV_BOUNDARY_GUARD_PX;
+      // Trailing reach of the sub-pel interpolation filter past the reference
+      // block, in luma pixels. Chroma runs the same filter on its own grid, so
+      // its reach is AVM_INTERP_EXTEND chroma samples; scaling by the horizontal
+      // subsampling gives the luma-pixel span this column clamp must reserve.
+      const int guard_px = AVM_INTERP_EXTEND << cm->seq_params.subsampling_x;
+      const int gdr_col_max =
+          (min_det_right - mi_col - mi_width) * MI_SIZE - guard_px;
       if (x->mv_limits.col_max > gdr_col_max)
         x->mv_limits.col_max = gdr_col_max;
       // A predicted-MV inter mode can hold a component whose MV is out of this
