@@ -718,16 +718,23 @@ void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
           : tool_cfg->enable_short_refresh_frame_flags;
   if (oxcf->kf_cfg.gdr_mode > 0) {
     // Tools that leak across the GDR clean/dirty boundary via indirect
-    // winner-shifts or out-of-range reference reads are disabled for the
-    // sequence. A full reference refresh on the window end frame also requires
-    // the long refresh_frame_flags syntax.
+    // winner-shifts are disabled for the sequence. A full reference refresh on
+    // the window end frame also requires the long refresh_frame_flags syntax.
     seq->enable_extended_sdp = 0;
     seq->enable_mrls = 0;
     seq->enable_ibp = 0;
-    seq->enable_bawp = 0;
     seq->enable_fsc = 0;
     seq->enable_idtx_intra = oxcf->intra_mode_cfg.enable_idtx_intra;
     seq->enable_short_refresh_frame_flags = 0;
+    // RefineMV, OPFL refinement and TIP each need two motion vectors per block
+    // from opposite directions, which never occurs in the low-delay
+    // configuration GDR requires. Disabled for good measure to avoid BAWP ref
+    // out of bounds issues
+    seq->enable_refinemv = 0;
+    seq->enable_opfl_refine = AVM_OPFL_REFINE_NONE;
+    seq->enable_tip = 0;
+    seq->enable_tip_hole_fill = 0;
+    seq->enable_tip_refinemv = 0;
   }
   // Use 3 bits to signal long_term_id only if RAS frames are enabled and NOT a
   // single picture.
@@ -2797,12 +2804,12 @@ void av2_gdr_setup_stripe(AV2_COMP *cpi) {
   const int raw_start = offset * stripe_w;
   const int logical_end = AVMMIN(raw_start + stripe_w, mi_cols);
   // The force-intra region is SB-aligned on both edges so no superblock is
-  // partly intra and partly inter. The deterministic boundary stays at the
-  // (unaligned) logical end.
+  // partly intra and partly inter (which would break sub-8x8 chroma, shared
+  // across luma sub-blocks). The deterministic boundary stays at the (unaligned)
+  // logical end.
   const int stripe_start = (raw_start / mib) * mib;
-  const int sb_aligned_end = ((logical_end + mib - 1) / mib) * mib;
   const int extended_end =
-      AVMMIN(AVMMAX(logical_end + GDR_LF_OVERLAP_MI, sb_aligned_end), mi_cols);
+      AVMMIN(((logical_end + GDR_LF_OVERLAP_MI + mib - 1) / mib) * mib, mi_cols);
   cpi->gdr_stripe_start_mi = stripe_start;
   cpi->gdr_stripe_end_mi = extended_end;
   cpi->gdr_deterministic_right_mi = logical_end;

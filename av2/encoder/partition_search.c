@@ -431,8 +431,9 @@ void av2_set_offsets_without_segment_id(
   x->gdr_tr_into_dirty = cpi->gdr_in_refresh_period &&
                          gdr_intra_tr_into_dirty(cpi, mi_row, mi_col, mi_width);
 
-  // GDR: clamp the MV search so a clean-area inter block cannot fetch (incl.
-  // interpolation / refinement reach) any reference's dirty region.
+  // GDR: clamp the MV search so a clean-area inter block's reference block, plus
+  // the sub-pel interpolation filter reach, stays left of every reference's
+  // dirty region.
   if (cpi->gdr_in_refresh_period) {
     int min_det_right = cm->mi_params.mi_cols;
     for (int ref = 0; ref < INTER_REFS_PER_FRAME; ref++) {
@@ -3157,30 +3158,53 @@ static AVM_INLINE void init_allowed_partitions(
 #endif  // CONFIG_COLLECT_PARTITION_STATS
 }
 
-// GDR: a block straddling the logical stripe boundary must not use rectangular
-// or non-square partitions; their non-square transforms enable the wide-angle
-// intra remap that fetches above-right samples from the dirty area. Only
-// PARTITION_NONE and square PARTITION_SPLIT remain.
-static AVM_INLINE void gdr_restrict_partitions_at_boundary(
+// GDR partition restrictions inside the forced-intra region:
+//  - No sub-8x8 sub-blocks: an intra/IBC block with sub-8x8 shared chroma is
+//    unsupported by the inter-frame reconstruction path (is_sub8x8_inter), so
+//    every forced-intra block must own its chroma. Applies on every window
+//    frame, including the switch frame.
+//  - At the logical boundary on recovery frames, also no rectangular/non-square
+//    partitions; their non-square transforms enable the wide-angle intra remap
+//    that fetches above-right samples from the dirty area.
+static AVM_INLINE void gdr_restrict_partitions(
     const AV2_COMP *cpi, PartitionSearchState *part_search_state) {
-  if (!cpi->gdr_in_refresh_period) return;
+  if (!cpi->gdr_stripe_active) return;
   const PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
-  const int right = cpi->gdr_deterministic_right_mi;
-  const int bw = mi_size_wide[blk_params->bsize];
-  if (blk_params->mi_col >= right || blk_params->mi_col + bw <= right) return;
-  // Keep PARTITION_NONE + square PARTITION_SPLIT. Only act when NONE is allowed
-  // so the "none || rect" partition invariant still holds; edge/oversized blocks
-  // that lack NONE fall through and split into sub-blocks handled recursively.
-  if (!part_search_state->partition_none_allowed) return;
-  part_search_state->do_rectangular_split = 0;
-  part_search_state->partition_rect_allowed[HORZ] = 0;
-  part_search_state->partition_rect_allowed[VERT] = 0;
-  part_search_state->partition_3_allowed[HORZ] = 0;
-  part_search_state->partition_3_allowed[VERT] = 0;
-  part_search_state->partition_4a_allowed[HORZ] = 0;
-  part_search_state->partition_4a_allowed[VERT] = 0;
-  part_search_state->partition_4b_allowed[HORZ] = 0;
-  part_search_state->partition_4b_allowed[VERT] = 0;
+  const BLOCK_SIZE bsize = blk_params->bsize;
+  const int bw = mi_size_wide[bsize];
+  // Only blocks overlapping the forced-intra region.
+  if (blk_params->mi_col >= cpi->gdr_stripe_end_mi ||
+      blk_params->mi_col + bw <= cpi->gdr_stripe_start_mi)
+    return;
+  // Only act when NONE is allowed so the "none || rect" partition invariant
+  // still holds; edge/oversized blocks that lack NONE split and their >= 8x8
+  // sub-blocks are handled recursively.
+  if (!part_search_state->partition_allowed[PARTITION_NONE]) return;
+
+  // Forbid partitions that would create a sub-block smaller than 8x8.
+  if (!is_bsize_geq(get_partition_subsize(bsize, PARTITION_SPLIT), BLOCK_8X8))
+    part_search_state->partition_allowed[PARTITION_SPLIT] = 0;
+  if (!is_bsize_geq(get_partition_subsize(bsize, PARTITION_HORZ), BLOCK_8X8))
+    part_search_state->partition_allowed[PARTITION_HORZ] = 0;
+  if (!is_bsize_geq(get_partition_subsize(bsize, PARTITION_VERT), BLOCK_8X8))
+    part_search_state->partition_allowed[PARTITION_VERT] = 0;
+  // 3-/4-way splits create thin (< 8 wide/high) sub-blocks; forbid them.
+  part_search_state->partition_allowed[PARTITION_HORZ_3] = 0;
+  part_search_state->partition_allowed[PARTITION_VERT_3] = 0;
+  part_search_state->partition_allowed[PARTITION_HORZ_4A] = 0;
+  part_search_state->partition_allowed[PARTITION_VERT_4A] = 0;
+  part_search_state->partition_allowed[PARTITION_HORZ_4B] = 0;
+  part_search_state->partition_allowed[PARTITION_VERT_4B] = 0;
+
+  // Boundary blocks on recovery frames: only PARTITION_NONE + square SPLIT.
+  if (cpi->gdr_in_refresh_period) {
+    const int right = cpi->gdr_deterministic_right_mi;
+    if (blk_params->mi_col < right && blk_params->mi_col + bw > right) {
+      part_search_state->do_rectangular_split = 0;
+      part_search_state->partition_allowed[PARTITION_HORZ] = 0;
+      part_search_state->partition_allowed[PARTITION_VERT] = 0;
+    }
+  }
 }
 
 // Initialize state variables of partition search used in
@@ -3286,7 +3310,7 @@ static void init_partition_search_state_params(
       part_search_state, &cpi->oxcf.part_cfg, &cpi->sf,
       is_bru_not_active_and_not_on_partial_border(cm, mi_col, mi_row, bsize),
       partition_allowed);
-  gdr_restrict_partitions_at_boundary(cpi, part_search_state);
+  gdr_restrict_partitions(cpi, part_search_state);
 }
 
 static const int rect_partition_type[NUM_RECT_PARTS] = { PARTITION_HORZ,
@@ -5708,7 +5732,7 @@ BEGIN_PARTITION_SEARCH:
         &part_search_state, &cpi->oxcf.part_cfg, &cpi->sf,
         is_bru_not_active_and_not_on_partial_border(cm, mi_col, mi_row, bsize),
         partition_allowed);
-    gdr_restrict_partitions_at_boundary(cpi, &part_search_state);
+    gdr_restrict_partitions(cpi, &part_search_state);
 #if CONFIG_ML_PART_SPLIT
     part_search_state.prune_partition[PARTITION_HORZ] = false;
     part_search_state.prune_partition[PARTITION_VERT] = false;
