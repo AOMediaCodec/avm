@@ -19,11 +19,66 @@
 extern "C" {
 #endif
 
+// Encoder-only configuration to reduce the search complexity of IST.
+#define IST_REDUCED_SEARCH_SET_SIZE 4
+
 // Set this macro as 1 to collect data about tx size selection.
 #define COLLECT_TX_SIZE_DATA 0
 
 #if COLLECT_TX_SIZE_DATA
+#include <stdio.h>
+#include "av2/encoder/random.h"
+
 static const char av2_tx_size_data_output_file[] = "tx_size_data.txt";
+
+static AVM_INLINE void collect_tx_size_data(const AV2_COMP *cpi,
+                                            const MACROBLOCK *x, int plane,
+                                            int blk_row, int blk_col,
+                                            BLOCK_SIZE plane_bsize,
+                                            TX_SIZE tx_size, TX_TYPE tx_type,
+                                            int64_t rd) {
+  // Generate small sample to restrict output size.
+  static unsigned int seed = 21743;
+  if (lcg_rand16(&seed) % 200 == 0) {
+    FILE *fp = NULL;
+    const MACROBLOCKD *xd = &x->e_mbd;
+    const MB_MODE_INFO *mbmi = xd->mi[0];
+    const int mi_row = xd->mi_row;
+    const int mi_col = xd->mi_col;
+    const BLOCK_SIZE luma_bsize = mbmi->sb_type[PLANE_TYPE_Y];
+    const int within_border =
+        mi_row >= xd->tile.mi_row_start &&
+        (mi_row + mi_size_high[luma_bsize] < xd->tile.mi_row_end) &&
+        mi_col >= xd->tile.mi_col_start &&
+        (mi_col + mi_size_wide[luma_bsize] < xd->tile.mi_col_end);
+    if (within_border) {
+      fp = fopen(av2_tx_size_data_output_file, "a");
+    }
+
+    if (fp) {
+      // Transform info and RD
+      const int txb_w = tx_size_wide[tx_size];
+      const int txb_h = tx_size_high[tx_size];
+
+      // Residue signal.
+      const int diff_stride = block_size_wide[plane_bsize];
+      const struct macroblock_plane *const p = &x->plane[plane];
+      const int16_t *src_diff =
+          &p->src_diff[(blk_row * diff_stride + blk_col) * 4];
+
+      for (int r = 0; r < txb_h; ++r) {
+        for (int c = 0; c < txb_w; ++c) {
+          fprintf(fp, "%d,", src_diff[c]);
+        }
+        src_diff += diff_stride;
+      }
+
+      fprintf(fp, "%d,%d,%d,%" PRId64, txb_w, txb_h, tx_type, rd);
+      fprintf(fp, "\n");
+      fclose(fp);
+    }
+  }
+}
 #endif
 
 enum {
