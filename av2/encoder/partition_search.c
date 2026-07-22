@@ -433,8 +433,13 @@ void av2_set_offsets_without_segment_id(
 
   // GDR: clamp the MV search so a clean-area inter block's reference block, plus
   // the sub-pel interpolation filter reach, stays left of every reference's
-  // dirty region.
-  if (cpi->gdr_in_refresh_period) {
+  // dirty region. Applies to every block in the current frame's clean area
+  // (left of the deterministic boundary); for a block past the references'
+  // minimum clean boundary the clamp turns negative, forcing a leftward MV into
+  // the clean region (or intra). RefineMV/OPFL/TIP are disabled for GDR, so only
+  // the interpolation filter width is guarded.
+  if (cpi->gdr_in_refresh_period &&
+      mi_col < cpi->gdr_deterministic_right_mi) {
     int min_det_right = cm->mi_params.mi_cols;
     for (int ref = 0; ref < INTER_REFS_PER_FRAME; ref++) {
       const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref);
@@ -442,8 +447,7 @@ void av2_set_offsets_without_segment_id(
       if (buf->gdr_deterministic_right_mi < min_det_right)
         min_det_right = buf->gdr_deterministic_right_mi;
     }
-    if (min_det_right < cm->mi_params.mi_cols &&
-        mi_col + mi_width <= min_det_right) {
+    if (min_det_right < cm->mi_params.mi_cols) {
       const int gdr_col_max = (min_det_right - mi_col - mi_width) * MI_SIZE -
                               GDR_MV_BOUNDARY_GUARD_PX;
       if (x->mv_limits.col_max > gdr_col_max)
