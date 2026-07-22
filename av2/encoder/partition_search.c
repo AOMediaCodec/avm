@@ -430,6 +430,7 @@ void av2_set_offsets_without_segment_id(
 
   x->gdr_tr_into_dirty = cpi->gdr_in_refresh_period &&
                          gdr_intra_tr_into_dirty(cpi, mi_row, mi_col, mi_width);
+  x->gdr_enforce_mv_range = 0;
 
   // GDR: clamp the MV search so a clean-area inter block's reference block, plus
   // the sub-pel interpolation filter reach, stays left of every reference's
@@ -452,6 +453,9 @@ void av2_set_offsets_without_segment_id(
                               GDR_MV_BOUNDARY_GUARD_PX;
       if (x->mv_limits.col_max > gdr_col_max)
         x->mv_limits.col_max = gdr_col_max;
+      // A predicted-MV inter mode can hold a component whose MV is out of this
+      // range; make build_cur_mv() reject the whole mode in that case.
+      x->gdr_enforce_mv_range = 1;
     }
   }
 

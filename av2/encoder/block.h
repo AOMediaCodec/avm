@@ -1616,6 +1616,10 @@ typedef struct macroblock {
   //! GDR: above-right intra fetch of this block reads into the dirty area.
   int gdr_tr_into_dirty;
 
+  //! GDR: reject a predicted-MV inter mode if any of its component MVs falls
+  //! outside mv_limits (the clean-region clamp), not just the last component.
+  int gdr_enforce_mv_range;
+
   /*****************************************************************************
    * \name Txfm Search
    ****************************************************************************/

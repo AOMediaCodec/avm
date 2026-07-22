@@ -3547,6 +3547,10 @@ static INLINE int build_cur_mv(int_mv *cur_mv, PREDICTION_MODE this_mode,
   }
 
   int ret = 1;
+  // GDR: get_this_mv() reassigns ret each iteration, which would discard an
+  // earlier component's failed range check. Accumulate that separately so a
+  // clean-region block whose component MV leaves the clamped range is rejected.
+  int gdr_in_range = 1;
   for (int i = 0; i < is_comp_pred + 1; ++i) {
     int_mv this_mv;
     this_mv.as_int = INVALID_MV;
@@ -3566,9 +3570,12 @@ static INLINE int build_cur_mv(int_mv *cur_mv, PREDICTION_MODE this_mode,
                 ? x->mbmi_ext->ref_mv_stack[ref_frame_type][ref_mv_idx].this_mv
                 : x->mbmi_ext->ref_mv_stack[ref_frame_type][ref_mv_idx].comp_mv;
     } else {
-      ret &= clamp_and_check_mv(cur_mv + i, this_mv, cm, x);
+      const int in_range = clamp_and_check_mv(cur_mv + i, this_mv, cm, x);
+      ret &= in_range;
+      gdr_in_range &= in_range;
     }
   }
+  if (x->gdr_enforce_mv_range) return ret & gdr_in_range;
   return ret;
 }
 
