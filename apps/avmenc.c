@@ -147,6 +147,7 @@ const arg_def_t *main_args[] = { &g_av2_codec_arg_defs.help,
                                  &g_av2_codec_arg_defs.skip,
                                  &g_av2_codec_arg_defs.step,
                                  &g_av2_codec_arg_defs.good_dl,
+                                 &g_av2_codec_arg_defs.rt_dl,
                                  &g_av2_codec_arg_defs.quietarg,
                                  &g_av2_codec_arg_defs.verbosearg,
                                  &g_av2_codec_arg_defs.psnrarg,
@@ -702,6 +703,8 @@ static void parse_global_config(struct AvxEncoderConfig *global, char ***argv) {
       global->usage = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &g_av2_codec_arg_defs.good_dl, argi)) {
       global->usage = AVM_USAGE_GOOD_QUALITY;  // Good quality usage
+    } else if (arg_match(&arg, &g_av2_codec_arg_defs.rt_dl, argi)) {
+      global->usage = AVM_USAGE_REALTIME;  // REALTIME usage
     } else if (arg_match(&arg, &g_av2_codec_arg_defs.use_yv12, argi)) {
       global->color_type = YV12;
     } else if (arg_match(&arg, &g_av2_codec_arg_defs.use_i420, argi)) {
