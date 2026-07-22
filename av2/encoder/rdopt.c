@@ -4852,7 +4852,6 @@ static void evaluate_inter_predictor(AV2_COMP *const cpi,
   rd_stats->rate += drl_cost;
   rd_stats->rate += jmvd_scale_mode_cost;
 
-  if (refinemv_loop && !switchable_refinemv_flag(cm, mbmi)) return;
   mbmi->refinemv_flag = switchable_refinemv_flag(cm, mbmi)
                             ? refinemv_loop
                             : get_default_refinemv_flag(cm, mbmi);
@@ -5493,7 +5492,7 @@ static int64_t handle_inter_mode(
               }
             }
 
-            // Get the default value of DMVR flag based on mode
+            // Get the default value of SMVR flag based on mode
             assert(mbmi->motion_mode == SIMPLE_TRANSLATION);
             mbmi->refinemv_flag = get_default_refinemv_flag(cm, mbmi);
 
@@ -5662,8 +5661,13 @@ static int64_t handle_inter_mode(
                     this_mode, refs, flex_mv_cost, drl_cost,
                     jmvd_scale_mode_cost, base_rate, cur_mv, rate_mv,
                     &base_mbmi, 0, num_planes, args->skip_motion_mode);
+
                 for (int refinemv_loop = 0; refinemv_loop < REFINEMV_NUM_MODES;
                      refinemv_loop++) {
+                  if (refinemv_loop == 1 &&
+                      (!switchable_refinemv_flag(cm, mbmi) ||
+                       cpi->sf.inter_sf.disable_switchable_refinemv))
+                    continue;
                   if (refinemv_loop == 1 &&
                       cpi->sf.inter_sf.prune_refinemv_by_ref_idx &&
                       !(base_mbmi.ref_frame[0] == 0 &&

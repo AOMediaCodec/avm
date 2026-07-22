@@ -134,7 +134,7 @@ typedef struct ThreadData {
   // Temporary buffers used to store the OPFL gradient information.
   int16_t *opfl_gxy_bufs;
   // Temporary buffers used to store intermediate prediction data calculated
-  // during the OPFL/DMVR.
+  // during the OPFL/SMVR.
   uint16_t *opfl_dst_bufs;
 
   decode_block_visitor_fn_t read_coeffs_tx_intra_block_visit;

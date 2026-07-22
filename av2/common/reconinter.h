@@ -691,7 +691,7 @@ static INLINE int is_refinemv_allowed_reference(const AV2_COMMON *cm,
   int d0, d1;
   int is_tip = (mbmi->ref_frame[0] == TIP_FRAME);
   // In error resilient mode, whether a frame is scaled may be unknown, and the
-  // following logic for parsing is not reliable, so DMVR is disabled.
+  // following logic for parsing is not reliable, so SMVR is disabled.
   if (frame_is_sframe(cm)) return 0;
 
   if ((get_ref_frame_buf(cm, mbmi->ref_frame[0]) != NULL &&
@@ -725,7 +725,7 @@ static INLINE int is_refinemv_allowed_reference(const AV2_COMMON *cm,
                            ref1->display_order_hint);
   }
 
-  // reference frame has to be both sides to apply dmvr
+  // reference frame has to be both sides to apply refinemv
   if (!((d0 <= 0) ^ (d1 <= 0))) return 0;
 
   // Current implementation only supports when both has the same distance
