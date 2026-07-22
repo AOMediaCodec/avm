@@ -3993,8 +3993,6 @@ static void fill_id_offset_sample_gap(AV2_COMMON *cm) {
 void av2_setup_motion_field(AV2_COMMON *cm) {
   const OrderHintInfo *const order_hint_info = &cm->seq_params.order_hint_info;
 
-  memset(cm->ref_frame_side, 0, sizeof(cm->ref_frame_side));
-  memset(cm->ref_frame_relative_dist, 0, sizeof(cm->ref_frame_relative_dist));
   if (order_hint_info->order_hint_bits_minus_1 < 0) return;
 
   TPL_MV_REF *tpl_mvs_base = cm->tpl_mvs;
@@ -4008,56 +4006,9 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
     tpl_mvs_base[idx].ref_frame_offset = 0;
   }
 
-  const RefCntBuffer *ref_buf[INTER_REFS_PER_FRAME];
-
-  for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
-    ref_buf[i] = NULL;
-    cm->ref_frame_side[i] = 0;
-    cm->ref_frame_relative_dist[i] = 0;
-  }
-  for (int i = 0; i < cm->ref_frames_info.num_total_refs; i++) {
-    if (get_ref_frame_buf(cm, i)->is_restricted) {
-      cm->ref_frame_relative_dist[i] = INT_MAX;
-    }
-  }
-  for (int index = 0; index < cm->ref_frames_info.num_past_refs; index++) {
-    const int ref_frame = cm->ref_frames_info.past_refs[index];
-    cm->ref_frame_side[ref_frame] = 0;
-    const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
-    assert(!buf->is_restricted);
-    ref_buf[ref_frame] = buf;
-    const int relative_dist =
-        get_relative_dist(order_hint_info, buf->display_order_hint,
-                          cm->cur_frame->display_order_hint);
-    cm->ref_frame_relative_dist[ref_frame] = abs(relative_dist);
-  }
-  for (int index = 0; index < cm->ref_frames_info.num_future_refs; index++) {
-    const int ref_frame = cm->ref_frames_info.future_refs[index];
-    cm->ref_frame_side[ref_frame] = 1;
-    const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
-    assert(!buf->is_restricted);
-    ref_buf[ref_frame] = buf;
-    const int relative_dist =
-        get_relative_dist(order_hint_info, buf->display_order_hint,
-                          cm->cur_frame->display_order_hint);
-    cm->ref_frame_relative_dist[ref_frame] = abs(relative_dist);
-  }
-  for (int index = 0; index < cm->ref_frames_info.num_cur_refs; index++) {
-    const int ref_frame = cm->ref_frames_info.cur_refs[index];
-    cm->ref_frame_side[ref_frame] = -1;
-    const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
-    assert(!buf->is_restricted);
-    ref_buf[ref_frame] = buf;
-    const int relative_dist =
-        get_relative_dist(order_hint_info, buf->display_order_hint,
-                          cm->cur_frame->display_order_hint);
-    cm->ref_frame_relative_dist[ref_frame] = abs(relative_dist);
-  }
-
   cm->has_both_sides_refs = (cm->ref_frames_info.num_future_refs > 0) &&
                             (cm->ref_frames_info.num_past_refs > 0);
 
-  (void)ref_buf;
   if (cm->seq_params.enable_mv_traj) {
     for (int rf = 0; rf < INTER_REFS_PER_FRAME; rf++) {
       for (int i = 0; i < mvs_rows * mvs_cols; i++) {
@@ -4153,6 +4104,7 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
         cm->tip_ref.ref_frame[0] = sort_ref[cur_frame_sort_idx];
         cm->tip_ref.ref_frame[1] = sort_ref[cur_frame_sort_idx + 1];
       } else if (cm->ref_frames_info.num_past_refs >= 2) {
+        assert(cur_frame_sort_idx > 0);
         cm->tip_ref.ref_frame[0] = sort_ref[cur_frame_sort_idx];
         cm->tip_ref.ref_frame[1] = sort_ref[cur_frame_sort_idx - 1];
       }
