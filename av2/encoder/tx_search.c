@@ -2117,6 +2117,82 @@ static INLINE int check_primary_quant_all_zero(const tran_low_t *coeff,
   return 1;
 }
 
+// Prune transform type search based on EOB count and block properties.
+static AVM_INLINE bool prune_tx_search_by_eob(
+    MACROBLOCKD *const xd, int blk_row, int blk_col, TX_SIZE tx_size, int eob,
+    int plane, bool is_inter, TX_TYPE primary_tx_type, int stx,
+    bool *const eob_found, bool prune_intra_ist_stx_by_zero_eob) {
+  if (plane == AVM_PLANE_Y && !is_inter &&
+      (eob == 1 || (prune_intra_ist_stx_by_zero_eob && eob == 0))) {
+    if (primary_tx_type == DCT_DCT && stx == 0) *eob_found = true;
+    const bool kill =
+        (eob == 1) ? (primary_tx_type != DCT_DCT || stx > 0) : (stx > 0);
+    if (kill) {
+      update_txk_array(xd, blk_row, blk_col, tx_size, DCT_DCT);
+      return true;
+    }
+  }
+  if (eob <= 3 && plane == AVM_PLANE_Y && is_inter && stx) {
+    update_txk_array(xd, blk_row, blk_col, tx_size, primary_tx_type);
+    return true;
+  }
+  return false;
+}
+
+// Prune rectangular transform types for 32xN/Nx32 and 64xN/Nx64 blocks.
+static AVM_INLINE bool prune_rectangular_tx_type(
+    int tx_idx, TxSetType tx_set_type, int plane, bool is_fsc,
+    bool is_rect_horz, uint16_t allowed_tx_mask, TX_TYPE best_tx_type,
+    TX_TYPE *const primary_tx_type, TX_TYPE *const best_long_side_tx_type) {
+  if (tx_set_type == EXT_TX_SET_LONG_SIDE_32 && plane == AVM_PLANE_Y &&
+      !is_fsc) {
+    // tx_mask_32[0:is_rect_horz==false, 1: is_rect_horz==true][0:
+    // long_side_tx_type==DCT_DCT: 1: long_side_tx_type==Identity]
+    const uint16_t tx_mask_32[2][2] = {
+      { 0x0425 & allowed_tx_mask, 0xAA00 & allowed_tx_mask },
+      { 0x0813 & allowed_tx_mask, 0x5600 & allowed_tx_mask }
+    };
+    const TX_TYPE txk_map_rect_horz_32[TX_TYPES] = {
+      DCT_DCT,       V_DCT,         ADST_DCT,     DCT_ADST,
+      ADST_ADST,     FLIPADST_DCT,  DCT_FLIPADST, FLIPADST_FLIPADST,
+      ADST_FLIPADST, FLIPADST_ADST, IDTX,         H_DCT,
+      V_ADST,        H_ADST,        V_FLIPADST,   H_FLIPADST
+    };
+    const TX_TYPE txk_map_rect_vert_32[TX_TYPES] = {
+      DCT_DCT,       H_DCT,         ADST_DCT,     DCT_ADST,
+      ADST_ADST,     FLIPADST_DCT,  DCT_FLIPADST, FLIPADST_FLIPADST,
+      ADST_FLIPADST, FLIPADST_ADST, IDTX,         V_DCT,
+      V_ADST,        H_ADST,        V_FLIPADST,   H_FLIPADST
+    };
+    assert(tx_idx < TX_TYPES);
+    *primary_tx_type = is_rect_horz ? txk_map_rect_horz_32[tx_idx]
+                                    : txk_map_rect_vert_32[tx_idx];
+    if (tx_idx == 2) {
+      *best_long_side_tx_type = get_primary_tx_type(best_tx_type);
+    }
+    if (tx_idx > 1 &&
+        tx_mask_32[is_rect_horz][*best_long_side_tx_type != DCT_DCT] != 0 &&
+        (!(tx_mask_32[is_rect_horz][*best_long_side_tx_type != DCT_DCT] &
+           (1 << *primary_tx_type)))) {
+      return true;
+    }
+  }
+
+  if (tx_set_type == EXT_TX_SET_LONG_SIDE_64 ||
+      tx_set_type == EXT_TX_SET_LONG_SIDE_32) {
+    if (*primary_tx_type == DCT_FLIPADST &&
+        get_primary_tx_type(best_tx_type) == DCT_ADST) {
+      return true;
+    }
+    if (*primary_tx_type == FLIPADST_DCT &&
+        get_primary_tx_type(best_tx_type) == ADST_DCT) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 // Search for the best transform type for a given transform block.
 // This function can be used for both inter and intra, both luma and chroma.
 static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
@@ -2260,16 +2336,6 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
 
   const int is_rect_horz = txw > txh;
 
-  int txk_map_rect_horz_32[TX_TYPES] = { 0, 10, 1, 2,  3,  4,  5,  6,
-                                         7, 8,  9, 11, 12, 13, 14, 15 };
-  int txk_map_rect_vert_32[TX_TYPES] = { 0, 11, 1, 2,  3,  4,  5,  6,
-                                         7, 8,  9, 10, 12, 13, 14, 15 };
-  // tx_mask_32[0:is_rect_horz==false, 1: is_rect_horz==true][0:
-  // long_side_tx_type==DCT_DCT: 1: long_side_tx_type==Identity]
-  const uint16_t tx_mask_32[2][2] = {
-    { 0x0425 & allowed_tx_mask, 0xAA00 & allowed_tx_mask },
-    { 0x0813 & allowed_tx_mask, 0x5600 & allowed_tx_mask }
-  };
   TX_TYPE best_long_side_tx_type = DCT_DCT;
 
   const int is_border_block = get_visible_dimensions(
@@ -2279,19 +2345,11 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
   // Iterate through all transform type candidates.
   for (int idx = 0; idx < TX_TYPES; ++idx) {
     TX_TYPE primary_tx_type = (TX_TYPE)txk_map[idx];
-    if (tx_set_type == EXT_TX_SET_LONG_SIDE_32 && plane == PLANE_TYPE_Y &&
-        !mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) {
-      primary_tx_type = is_rect_horz ? (TX_TYPE)txk_map_rect_horz_32[idx]
-                                     : (TX_TYPE)txk_map_rect_vert_32[idx];
-      if (idx == 2) {
-        best_long_side_tx_type = get_primary_tx_type(best_tx_type);
-      }
-      if (idx > 1 &&
-          tx_mask_32[is_rect_horz][best_long_side_tx_type != DCT_DCT] != 0 &&
-          (!(tx_mask_32[is_rect_horz][best_long_side_tx_type != DCT_DCT] &
-             (1 << primary_tx_type)))) {
-        continue;
-      }
+    if (prune_rectangular_tx_type(idx, tx_set_type, plane,
+                                  mbmi->fsc_mode[xd->tree_type == CHROMA_PART],
+                                  is_rect_horz, allowed_tx_mask, best_tx_type,
+                                  &primary_tx_type, &best_long_side_tx_type)) {
+      continue;
     }
     if (!(allowed_tx_mask & (1 << primary_tx_type))) continue;
     int skip_trellis_in = skip_trellis;
@@ -2316,17 +2374,7 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
         plane == PLANE_TYPE_Y) {
       continue;
     }
-    if (tx_set_type == EXT_TX_SET_LONG_SIDE_64 ||
-        tx_set_type == EXT_TX_SET_LONG_SIDE_32) {
-      if (primary_tx_type == DCT_FLIPADST &&
-          get_primary_tx_type(best_tx_type) == DCT_ADST) {
-        continue;
-      }
-      if (primary_tx_type == FLIPADST_DCT &&
-          get_primary_tx_type(best_tx_type) == ADST_DCT) {
-        continue;
-      }
-    }
+
     if (is_border_block)
       av2_subtract_txb(x, plane, plane_bsize, blk_col, blk_row, tx_size,
                        cm->width, cm->height, primary_tx_type);
@@ -2388,7 +2436,6 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
         txfm_param.tx_type = primary_tx_type;
         txfm_param.sec_tx_type = stx;
 
-        TX_TYPE tx_type1 = tx_type;  // does not keep set info
         stx_set = (primary_tx_type == ADST_ADST && stx) ? set_id + IST_SET_SIZE
                                                         : set_id;
         set_secondary_tx_set(&tx_type, stx_set);
@@ -2438,8 +2485,8 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
                                            x->plane[plane].dequant_QTX, tr_w,
                                            tr_h, log_scale)) {
             p->eobs[block] = 0;
-            if (tx_type1 == DCT_DCT) eob_found = 1;
-            if (tx_type1 != DCT_DCT || (stx && primary_tx_type)) {
+            if (primary_tx_type == DCT_DCT && stx == 0) eob_found = 1;
+            if (primary_tx_type != DCT_DCT || stx > 0) {
               update_txk_array(xd, blk_row, blk_col, tx_size, DCT_DCT);
               continue;
             }
@@ -2479,20 +2526,10 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
         // coding (bitstream signals the tx_type and elides the
         // coefficients).
         uint16_t *const eob = &p->eobs[block];
-        if (plane == PLANE_TYPE_Y && !is_inter &&
-            (*eob == 1 ||
-             (cpi->sf.tx_sf.prune_intra_ist_stx_by_zero_eob && *eob == 0))) {
-          if (tx_type1 == DCT_DCT) eob_found = 1;
-          const int kill =
-              (*eob == 1) ? (tx_type1 != DCT_DCT || (stx && primary_tx_type))
-                          : (stx > 0);
-          if (kill) {
-            update_txk_array(xd, blk_row, blk_col, tx_size, DCT_DCT);
-            continue;
-          }
-        }
-        if (*eob <= 3 && plane == PLANE_TYPE_Y && is_inter && stx) {
-          update_txk_array(xd, blk_row, blk_col, tx_size, primary_tx_type);
+        if (prune_tx_search_by_eob(
+                xd, blk_row, blk_col, tx_size, *eob, plane, is_inter,
+                primary_tx_type, stx, &eob_found,
+                cpi->sf.tx_sf.prune_intra_ist_stx_by_zero_eob)) {
           continue;
         }
         if (fsc_mode_in && quant_param.use_optimize_b) {
@@ -2517,25 +2554,10 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
         // Post-trellis safety net: re-apply the same eob == 0 / eob == 1
         // pre-skip logic in case trellis (RDOQ) adjusted the eob across
         // the threshold.
-        if (*eob == 1 && plane == PLANE_TYPE_Y && !is_inter) {
-          if (tx_type1 == DCT_DCT) eob_found = 1;
-          if (tx_type1 != DCT_DCT || (stx && primary_tx_type)) {
-            update_txk_array(xd, blk_row, blk_col, tx_size, DCT_DCT);
-            continue;
-          }
-          if (get_secondary_tx_type(tx_type) > 0) continue;
-          if (txfm_param.sec_tx_type > 0) continue;
-        }
-        if (cpi->sf.tx_sf.prune_intra_ist_stx_by_zero_eob && *eob == 0 &&
-            plane == PLANE_TYPE_Y && !is_inter) {
-          if (tx_type1 == DCT_DCT) eob_found = 1;
-          if (stx > 0) {
-            update_txk_array(xd, blk_row, blk_col, tx_size, DCT_DCT);
-            continue;
-          }
-        }
-        if (*eob <= 3 && plane == PLANE_TYPE_Y && is_inter && stx) {
-          update_txk_array(xd, blk_row, blk_col, tx_size, primary_tx_type);
+        if (prune_tx_search_by_eob(
+                xd, blk_row, blk_col, tx_size, *eob, plane, is_inter,
+                primary_tx_type, stx, &eob_found,
+                cpi->sf.tx_sf.prune_intra_ist_stx_by_zero_eob)) {
           continue;
         }
         // If rd cost based on coeff rate alone is already more than best_rd,
