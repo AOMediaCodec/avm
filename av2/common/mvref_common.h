@@ -501,7 +501,6 @@ static AVM_INLINE void get_mv_projection(MV *output, MV ref, int num, int den) {
 }
 
 void av2_setup_frame_buf_refs(AV2_COMMON *cm);
-void av2_setup_frame_sign_bias(AV2_COMMON *cm);
 void av2_setup_skip_mode_allowed(AV2_COMMON *cm);
 void av2_setup_motion_field(AV2_COMMON *cm);
 void av2_setup_ref_frame_sides(AV2_COMMON *cm);
