@@ -51,7 +51,7 @@ static INLINE int is_comp_rd_match(const AV2_COMP *const cpi,
     if (is_global_mv_block(mi, wm->wmtype) != st->is_global[i]) return 0;
   }
 
-  // TODO(any): Consider tools like OPFL, DMVR in the match criteria.
+  // TODO(any): Consider tools like OPFL, SMVR in the match criteria.
 
   // Store the stats for COMPOUND_AVERAGE and COMPOUND_DISTWTD
   for (int comp_type = COMPOUND_AVERAGE; comp_type < COMPOUND_WEDGE;
