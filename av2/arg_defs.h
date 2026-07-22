@@ -50,6 +50,7 @@ typedef struct av2_codec_arg_definitions {
   arg_def_t skip;
   arg_def_t step;
   arg_def_t good_dl;
+  arg_def_t rt_dl;
   arg_def_t quietarg;
   arg_def_t verbosearg;
   arg_def_t psnrarg;

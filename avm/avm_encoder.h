@@ -1324,6 +1324,8 @@ avm_fixed_buf_t *avm_codec_get_global_headers(avm_codec_ctx_t *ctx);
 
 /*!\brief usage parameter analogous to AV2 GOOD QUALITY mode. */
 #define AVM_USAGE_GOOD_QUALITY (0)
+/*!\brief usage parameter analogous to AV2 REALTIME mode. */
+#define AVM_USAGE_REALTIME (1)
 
 /*!\brief Encode a frame
  *
