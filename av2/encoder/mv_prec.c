@@ -427,7 +427,7 @@ static AVM_INLINE void collect_mv_stats_sb(MV_STATS *mv_stats,
       collect_mv_stats_sb(mv_stats, cpi, mi_row + hbs_h, mi_col, subsize,
                           ptree->sub_tree[2]);
       collect_mv_stats_sb(mv_stats, cpi, mi_row + hbs_h, mi_col + hbs_w,
-                          subsize, ptree->sub_tree[0]);
+                          subsize, ptree->sub_tree[3]);
       break;
     case PARTITION_HORZ_4A: {
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
