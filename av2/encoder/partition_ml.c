@@ -660,8 +660,10 @@ int av2_ml_part_split_infer(AV2_COMP *const cpi, MACROBLOCK *x, int mi_row,
   for (int mi = 0; mi < num_models; mi++) {
     MODEL_TYPE model_type = model_types[mi];
     struct ModelParams params = model_params[mi];
-    bool model_disabled =
-        qp > (params.qp_high + qp_offset) || qp < (params.qp_low + qp_offset);
+    bool model_disabled = (cpi->sf.part_sf.remove_qp_restriction_with_ml
+                               ? 0
+                               : (qp > (params.qp_high + qp_offset) ||
+                                  qp < (params.qp_low + qp_offset)));
     model_disabled |= get_model_part_type(model_type) == PT_NONE &&
                       !cpi->sf.part_sf.prune_none_with_ml;
     if (model_disabled) continue;
