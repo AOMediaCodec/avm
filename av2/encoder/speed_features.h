@@ -158,6 +158,10 @@ typedef struct {
   // skip remaining transform type search when we found the rdcost of skip is
   // better than applying transform
   int skip_tx_search;
+  // adaptively enable skip tx search based on block size
+  bool eob_adapt_skip_tx_search;
+  // Maximum block size used for skip tx search
+  int skip_tx_search_max_eob;
 
   // Prune tx type search using previous frame stats.
   int prune_tx_type_using_stats;
