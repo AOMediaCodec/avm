@@ -89,10 +89,10 @@ void av2_setup_qmatrix(const CommonQuantParams *quant_params,
 
 void av2_xform_dc_only(MACROBLOCK *x, int plane, int block,
                        TxfmParam *txfm_param, int64_t per_px_mean);
-
-void av2_xform_quant(const AV2_COMMON *cm, MACROBLOCK *x, int plane, int block,
-                     int blk_row, int blk_col, BLOCK_SIZE plane_bsize,
-                     TxfmParam *txfm_param, QUANT_PARAM *qparam);
+void av2_xform_quant(const int use_tcq_deadzone_boost, const AV2_COMMON *cm,
+                     MACROBLOCK *x, int plane, int block, int blk_row,
+                     int blk_col, BLOCK_SIZE plane_bsize, TxfmParam *txfm_param,
+                     QUANT_PARAM *qparam);
 
 void av2_xform(MACROBLOCK *x, int plane, int block, int blk_row, int blk_col,
                BLOCK_SIZE plane_bsize, TxfmParam *txfm_param, const int reuse,
@@ -104,9 +104,8 @@ void forward_cross_chroma_transform(MACROBLOCK *x, int block, TX_SIZE tx_size,
 // This function sets the first position index in a TU.
 void set_bob(MACROBLOCK *x, int plane, int block, TX_SIZE tx_size,
              TX_TYPE tx_type);
-
-void av2_quant(MACROBLOCK *x, int plane, int block, TxfmParam *txfm_param,
-               QUANT_PARAM *qparam);
+void av2_quant(const int use_tcq_deadzone_boost, MACROBLOCK *x, int plane,
+               int block, TxfmParam *txfm_param, QUANT_PARAM *qparam);
 
 int av2_optimize_fsc(const struct AV2_COMP *cpi, MACROBLOCK *mb, int plane,
                      int block, TX_SIZE tx_size, TX_TYPE tx_type,

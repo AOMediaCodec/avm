@@ -266,7 +266,7 @@ if (avm_config("CONFIG_AV2_ENCODER") eq "yes") {
   add_proto qw/int64_t av2_highbd_block_error/, "const tran_low_t *coeff, const tran_low_t *dqcoeff, intptr_t block_size, int64_t *ssz, int bd";
   specialize qw/av2_highbd_block_error sse2 avx2/;
 
-  add_proto qw/void av2_highbd_quantize_fp/, "const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr, const int32_t *round_ptr, const int32_t *quant_ptr, const int32_t *quant_shift_ptr, tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr, const int32_t *dequant_ptr, uint16_t *eob_ptr, const int16_t *scan, const int16_t *iscan, int log_scale";
+  add_proto qw/void av2_highbd_quantize_fp/, "const int use_tcq_deadzone_boost, const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr, const int32_t *round_ptr, const int32_t *quant_ptr, const int32_t *quant_shift_ptr, tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr, const int32_t *dequant_ptr, uint16_t *eob_ptr, const int16_t *scan, const int16_t *iscan, int log_scale";
   specialize qw/av2_highbd_quantize_fp sse4_1 avx2/;
 
   add_proto qw/void av2_highbd_fwht4x4/, "const int16_t *input, tran_low_t *output, int stride";
