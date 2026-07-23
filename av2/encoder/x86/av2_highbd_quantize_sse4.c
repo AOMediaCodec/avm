@@ -23,7 +23,8 @@
 static INLINE void quantize_coeff_phase1(__m128i *coeff, const __m128i *param,
                                          const int shift, const int scale,
                                          __m128i *qcoeff, __m128i *dquan,
-                                         __m128i *sign) {
+                                         __m128i *sign,
+                                         int use_tcq_deadzone_boost) {
   const __m128i zero = _mm_setzero_si128();
   const __m128i one = _mm_set1_epi32(1);
   const __m128i round = _mm_set1_epi64x((1 << QUANT_TABLE_BITS) >> 1);
@@ -43,7 +44,14 @@ static INLINE void quantize_coeff_phase1(__m128i *coeff, const __m128i *param,
 
   dquan[0] = _mm_srli_epi64(dquan[0], scale);
   const __m128i abs_s = _mm_slli_epi32(*coeff, 1 + scale);
-  qcoeff[2] = _mm_cmplt_epi32(abs_s, param[3]);
+  if (use_tcq_deadzone_boost == 1) {
+    const __m128i abs_s9 = _mm_add_epi32(_mm_slli_epi32(abs_s, 3), abs_s);
+    const __m128i dq10 = _mm_add_epi32(_mm_slli_epi32(param[3], 3),
+                                       _mm_add_epi32(param[3], param[3]));
+    qcoeff[2] = _mm_cmpgt_epi32(dq10, abs_s9);
+  } else {
+    qcoeff[2] = _mm_cmplt_epi32(abs_s, param[3]);
+  }
 }
 
 // Coefficient quantization phase 2
@@ -122,11 +130,12 @@ static INLINE uint16_t get_accumulated_eob(__m128i *eob) {
 }
 
 void av2_highbd_quantize_fp_sse4_1(
-    const tran_low_t *coeff_ptr, intptr_t count, const int32_t *zbin_ptr,
-    const int32_t *round_ptr, const int32_t *quant_ptr,
-    const int32_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
-    tran_low_t *dqcoeff_ptr, const int32_t *dequant_ptr, uint16_t *eob_ptr,
-    const int16_t *scan, const int16_t *iscan, int log_scale) {
+    const int use_tcq_deadzone_boost, const tran_low_t *coeff_ptr,
+    intptr_t count, const int32_t *zbin_ptr, const int32_t *round_ptr,
+    const int32_t *quant_ptr, const int32_t *quant_shift_ptr,
+    tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr, const int32_t *dequant_ptr,
+    uint16_t *eob_ptr, const int16_t *scan, const int16_t *iscan,
+    int log_scale) {
   __m128i coeff[2], qcoeff[3], dequant[2], qparam[4], coeff_sign;
   __m128i eob = _mm_setzero_si128();
   const tran_low_t *src = coeff_ptr;
@@ -158,7 +167,7 @@ void av2_highbd_quantize_fp_sse4_1(
 
   // DC and first 3 AC
   quantize_coeff_phase1(&coeff[0], qparam, shift, log_scale, qcoeff, dequant,
-                        &coeff_sign);
+                        &coeff_sign, use_tcq_deadzone_boost);
 
   // update round/quan/dquan for AC
   qparam[0] = _mm_unpackhi_epi64(qparam[0], qparam[0]);
@@ -171,7 +180,7 @@ void av2_highbd_quantize_fp_sse4_1(
   // next 4 AC
   coeff[1] = _mm_loadu_si128((__m128i const *)(src + coeff_stride));
   quantize_coeff_phase1(&coeff[1], qparam, shift, log_scale, qcoeff, dequant,
-                        &coeff_sign);
+                        &coeff_sign, use_tcq_deadzone_boost);
   quantize_coeff_phase2(qcoeff, dequant, &coeff_sign, qparam, shift, log_scale,
                         quanAddr + quan_stride, dquanAddr + quan_stride);
 
@@ -190,12 +199,12 @@ void av2_highbd_quantize_fp_sse4_1(
     coeff[1] = _mm_loadu_si128((__m128i const *)(src + coeff_stride));
 
     quantize_coeff_phase1(&coeff[0], qparam, shift, log_scale, qcoeff, dequant,
-                          &coeff_sign);
+                          &coeff_sign, use_tcq_deadzone_boost);
     quantize_coeff_phase2(qcoeff, dequant, &coeff_sign, qparam, shift,
                           log_scale, quanAddr, dquanAddr);
 
     quantize_coeff_phase1(&coeff[1], qparam, shift, log_scale, qcoeff, dequant,
-                          &coeff_sign);
+                          &coeff_sign, use_tcq_deadzone_boost);
     quantize_coeff_phase2(qcoeff, dequant, &coeff_sign, qparam, shift,
                           log_scale, quanAddr + quan_stride,
                           dquanAddr + quan_stride);

@@ -842,6 +842,12 @@ typedef struct TX_SPEED_FEATURES {
   // Enable txfm partition search
   bool enable_tx_partition;
 
+  // Enable adaptive TCQ threshold:
+  bool enable_adaptive_tcq_threshold;
+
+  // Base qindex upper bound for applying the adaptive TCQ threshold
+  int adaptive_tcq_threshold_qidx;
+
   // Skip IST/STX cascade for intra-luma candidates whose primary transform
   // quantizes to zero. Extends the intra-luma pre-skip / post-trellis gates
   // from eob == 1 to also cover eob == 0 (stx > 0 only, so skip-coded

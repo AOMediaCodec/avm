@@ -219,11 +219,12 @@ void highbd_quantize_b_64x64_sse2(
 }
 
 void avm_highbd_quantize_b_sse2(
-    const tran_low_t *coeff_ptr, intptr_t count, const int32_t *zbin_ptr,
-    const int32_t *round_ptr, const int32_t *quant_ptr,
+    int use_tcq_deadzone_boost, const tran_low_t *coeff_ptr, intptr_t count,
+    const int32_t *zbin_ptr, const int32_t *round_ptr, const int32_t *quant_ptr,
     const int32_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
     tran_low_t *dqcoeff_ptr, const int32_t *dequant_ptr, uint16_t *eob_ptr,
     const int16_t *scan, const int16_t *iscan, const int log_scale) {
+  (void)use_tcq_deadzone_boost;
   switch (log_scale) {
     case 0:
       highbd_quantize_b_sse2(coeff_ptr, count, zbin_ptr, round_ptr, quant_ptr,
