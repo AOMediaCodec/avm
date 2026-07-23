@@ -747,6 +747,14 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // if a block with the same (mi_row, mi_col, bsize) is visited more than one
   // by the encoder.
   int reuse_erp_mode_flag;
+
+  // When set, enable enhanced inter mode cache reuse logic in
+  // skip_inter_mode_with_cached_mode(). It allows additional cache hits based
+  // on matching reference frames against single-ref/compound cached modes,
+  // which can avoid skipping useful inter modes during cache-based pruning.
+  // 0: original cache reuse logic.
+  // 1: enhanced cache reuse logic (more modes are searched).
+  int enable_enhanced_inter_mode_cache_reuse;
 } INTER_MODE_SPEED_FEATURES;
 
 typedef struct INTERP_FILTER_SPEED_FEATURES {
@@ -837,6 +845,12 @@ typedef struct TX_SPEED_FEATURES {
 
   // Enable txfm partition search
   bool enable_tx_partition;
+
+  // Enable adaptive TCQ threshold:
+  bool enable_adaptive_tcq_threshold;
+
+  // Base qindex upper bound for applying the adaptive TCQ threshold
+  int adaptive_tcq_threshold_qidx;
 
   // Skip IST/STX cascade for intra-luma candidates whose primary transform
   // quantizes to zero. Extends the intra-luma pre-skip / post-trellis gates

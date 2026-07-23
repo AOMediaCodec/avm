@@ -321,6 +321,8 @@ static void set_good_speed_features_framesize_independent(
   sf->tx_sf.model_based_prune_tx_search_level = 1;
   sf->tx_sf.prune_tx_rd_eval_sec_tx_sse = true;
   sf->tx_sf.tx_type_search.use_reduced_intra_txset = 1;
+  sf->tx_sf.enable_adaptive_tcq_threshold = false;
+  sf->tx_sf.adaptive_tcq_threshold_qidx = 185;
 
   if (cpi->twopass.fr_content_type == FC_HIGHMOTION ||
       cpi->is_screen_content_type) {
@@ -380,6 +382,9 @@ static void set_good_speed_features_framesize_independent(
     sf->tx_sf.tx_type_search.blk_size_adapt_skip_tx_search = true;
     sf->tx_sf.tx_type_search.skip_tx_search_max_blk_size = 256;
 
+    sf->tx_sf.enable_adaptive_tcq_threshold = true;
+    sf->tx_sf.adaptive_tcq_threshold_qidx = 185;
+    sf->inter_sf.enable_enhanced_inter_mode_cache_reuse = 1;
     sf->inter_sf.skip_temporary_pred_for_opfl = 1;
 
     // Enable the optimized inter-SDP fast method (requires >=1 intra coded
@@ -785,6 +790,7 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->skip_mode_eval_based_on_rate_cost = 0;
   inter_sf->reuse_erp_mode_flag = 0;
   inter_sf->prune_warpmv_prob_thresh = 32;
+  inter_sf->enable_enhanced_inter_mode_cache_reuse = 0;
 }
 
 static AVM_INLINE void init_interp_sf(INTERP_FILTER_SPEED_FEATURES *interp_sf) {

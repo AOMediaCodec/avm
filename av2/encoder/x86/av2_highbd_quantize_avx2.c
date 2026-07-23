@@ -65,12 +65,20 @@ static AVM_FORCE_INLINE __m256i get_max_lane_eob(const int16_t *iscan_ptr,
 static INLINE void quantize(const __m256i *qp, const tran_low_t *coeff_ptr,
                             const int16_t *iscan_ptr, int log_scale,
                             tran_low_t *qcoeff, tran_low_t *dqcoeff,
-                            __m256i *eob) {
+                            __m256i *eob, int use_tcq_deadzone_boost) {
   const __m256i coeff = _mm256_loadu_si256((const __m256i *)coeff_ptr);
   const __m256i abs_coeff = _mm256_abs_epi32(coeff);
   const __m256i abs_s =
       _mm256_slli_epi32(abs_coeff, 1 + log_scale + QUANT_TABLE_BITS);
-  const __m256i mask = _mm256_cmpgt_epi32(qp[2], abs_s);
+  __m256i mask;
+  if (use_tcq_deadzone_boost == 1) {
+    const __m256i abs_s9 = _mm256_add_epi32(_mm256_slli_epi32(abs_s, 3), abs_s);
+    const __m256i dq10 = _mm256_add_epi32(_mm256_slli_epi32(qp[2], 3),
+                                          _mm256_add_epi32(qp[2], qp[2]));
+    mask = _mm256_cmpgt_epi32(dq10, abs_s9);
+  } else {
+    mask = _mm256_cmpgt_epi32(qp[2], abs_s);
+  }
   const __m256i zbin_mask = _mm256_xor_si256(mask, _mm256_set1_epi32(-1));
 
   // If all the transformed coefficient values are less than the dequantized
@@ -107,11 +115,12 @@ static INLINE void quantize(const __m256i *qp, const tran_low_t *coeff_ptr,
 }
 
 void av2_highbd_quantize_fp_avx2(
-    const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,
-    const int32_t *round_ptr, const int32_t *quant_ptr,
-    const int32_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
-    tran_low_t *dqcoeff_ptr, const int32_t *dequant_ptr, uint16_t *eob_ptr,
-    const int16_t *scan, const int16_t *iscan, int log_scale) {
+    const int use_tcq_deadzone_boost, const tran_low_t *coeff_ptr,
+    intptr_t n_coeffs, const int32_t *zbin_ptr, const int32_t *round_ptr,
+    const int32_t *quant_ptr, const int32_t *quant_shift_ptr,
+    tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr, const int32_t *dequant_ptr,
+    uint16_t *eob_ptr, const int16_t *scan, const int16_t *iscan,
+    int log_scale) {
   (void)scan;
   (void)zbin_ptr;
   (void)quant_shift_ptr;
@@ -121,7 +130,8 @@ void av2_highbd_quantize_fp_avx2(
   init_qp(round_ptr, quant_ptr, dequant_ptr, log_scale, qp);
 
   __m256i eob = _mm256_setzero_si256();
-  quantize(qp, coeff_ptr, iscan, log_scale, qcoeff_ptr, dqcoeff_ptr, &eob);
+  quantize(qp, coeff_ptr, iscan, log_scale, qcoeff_ptr, dqcoeff_ptr, &eob,
+           use_tcq_deadzone_boost);
 
   coeff_ptr += step;
   qcoeff_ptr += step;
@@ -131,7 +141,8 @@ void av2_highbd_quantize_fp_avx2(
 
   update_qp(qp);
   while (n_coeffs > 0) {
-    quantize(qp, coeff_ptr, iscan, log_scale, qcoeff_ptr, dqcoeff_ptr, &eob);
+    quantize(qp, coeff_ptr, iscan, log_scale, qcoeff_ptr, dqcoeff_ptr, &eob,
+             use_tcq_deadzone_boost);
 
     coeff_ptr += step;
     qcoeff_ptr += step;
