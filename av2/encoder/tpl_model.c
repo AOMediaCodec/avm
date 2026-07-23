@@ -48,8 +48,7 @@ static AVM_INLINE void get_quantize_error(const MACROBLOCK *x, int plane,
 
   QUANT_PARAM quant_param;
   av2_setup_quant(tx_size, 0, AV2_XFORM_QUANT_FP, 0, &quant_param);
-
-  av2_highbd_quantize_fp_facade(coeff, pix_num, p, qcoeff, dqcoeff, eob,
+  av2_highbd_quantize_fp_facade(0, coeff, pix_num, p, qcoeff, dqcoeff, eob,
                                 scan_order, &quant_param);
   *recon_error =
       av2_highbd_block_error(coeff, dqcoeff, pix_num, sse, xd->bd) >> shift;

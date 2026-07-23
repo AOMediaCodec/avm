@@ -65,7 +65,8 @@ void compute_residual_stats(AV2_COMP *const cpi, ThreadData *td, MACROBLOCK *x,
                   &quant_param);
   av2_setup_qmatrix(&cm->quant_params, xd, plane, tx_size, DCT_DCT,
                     &quant_param);
-  av2_xform_quant(cm, x, plane, block, 0, 0, bsize, &txfm_param, &quant_param);
+  av2_xform_quant(0, cm, x, plane, block, 0, 0, bsize, &txfm_param,
+                  &quant_param);
   const int n_coeffs = av2_get_max_eob(txfm_param.tx_size);
   for (int i = 0; i < n_coeffs; i++) {
     int abs_qcoeff = abs(qcoeff[i]);

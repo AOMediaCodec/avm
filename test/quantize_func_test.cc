@@ -31,8 +31,8 @@ namespace {
 using libavm_test::ACMRandom;
 
 typedef void (*QuantizeFuncHbd)(
-    const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,
-    const int32_t *round_ptr, const int32_t *quant_ptr,
+    int use_tcq_deadzone_boost, const tran_low_t *coeff_ptr, intptr_t n_coeffs,
+    const int32_t *zbin_ptr, const int32_t *round_ptr, const int32_t *quant_ptr,
     const int32_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
     tran_low_t *dqcoeff_ptr, const int32_t *dequant_ptr, uint16_t *eob_ptr,
     const int16_t *scan, const int16_t *iscan, int log_scale);
@@ -122,13 +122,13 @@ class QuantizeTest : public ::testing::TestWithParam<QuantizeParam> {
 
       memset(qcoeff_ref, 0, 5 * n_coeffs * sizeof(*qcoeff_ref));
 
-      quant_ref_(coeff_ptr, n_coeffs, zbin, round, quant, quant_shift,
+      quant_ref_(0, coeff_ptr, n_coeffs, zbin, round, quant, quant_shift,
                  qcoeff_ref, dqcoeff_ref, dequant, &eob[0], sc->scan, sc->iscan,
                  log_scale);
 
-      ASM_REGISTER_STATE_CHECK(quant_(coeff_ptr, n_coeffs, zbin, round, quant,
-                                      quant_shift, qcoeff, dqcoeff, dequant,
-                                      &eob[1], sc->scan, sc->iscan, log_scale));
+      ASM_REGISTER_STATE_CHECK(quant_(
+          0, coeff_ptr, n_coeffs, zbin, round, quant, quant_shift, qcoeff,
+          dqcoeff, dequant, &eob[1], sc->scan, sc->iscan, log_scale));
 
       for (int j = 0; j < n_coeffs; ++j) {
         ASSERT_EQ(qcoeff_ref[j], qcoeff[j])
@@ -289,15 +289,15 @@ TEST_P(QuantizeTest, DISABLED_Speed) {
 
     avm_usec_timer_start(&timer);
     for (int n = 0; n < kNumTests; ++n) {
-      quant_ref_(coeff_ptr, n_coeffs, zbin, round_fp, quant_fp, quant_shift,
+      quant_ref_(0, coeff_ptr, n_coeffs, zbin, round_fp, quant_fp, quant_shift,
                  qcoeff, dqcoeff, dequant, eob, sc->scan, sc->iscan, log_scale);
     }
     avm_usec_timer_mark(&timer);
 
     avm_usec_timer_start(&simd_timer);
     for (int n = 0; n < kNumTests; ++n) {
-      quant_(coeff_ptr, n_coeffs, zbin, round_fp, quant_fp, quant_shift, qcoeff,
-             dqcoeff, dequant, eob, sc->scan, sc->iscan, log_scale);
+      quant_(0, coeff_ptr, n_coeffs, zbin, round_fp, quant_fp, quant_shift,
+             qcoeff, dqcoeff, dequant, eob, sc->scan, sc->iscan, log_scale);
     }
     avm_usec_timer_mark(&simd_timer);
 
