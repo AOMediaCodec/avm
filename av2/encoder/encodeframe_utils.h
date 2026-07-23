@@ -14,6 +14,7 @@
 #define AVM_AV2_ENCODER_ENCODEFRAME_UTILS_H_
 
 #include "avm_ports/system_state.h"
+#include "avm_ports/avm_timer.h"
 
 #include "av2/common/reconinter.h"
 
@@ -99,6 +100,27 @@ typedef struct PartitionBlkParams {
   BLOCK_SIZE subsize;
 } PartitionBlkParams;
 
+#if CONFIG_COLLECT_PARTITION_STATS
+typedef struct PartitionTimingStats {
+  // Tracks the number of partition decision made in the current call to \ref
+  // av2_rd_pick_partition
+  int partition_decisions[ALL_PARTITION_TYPES];
+  // Tracks the partition types evaluated in the current call to \ref
+  // av2_rd_pick_partition.
+  int partition_attempts[ALL_PARTITION_TYPES];
+  // Tracks the time spent evaluating a partition type in the current call to
+  // \ref av2_rd_pick_partition.
+  int64_t partition_times[ALL_PARTITION_TYPES];
+  // Tracks the rdcost spent on each partition search in the current call to
+  // \ref av1_rd_pick_partition
+  int64_t partition_rdcost[ALL_PARTITION_TYPES];
+  // Timer used to time the partitions.
+  struct avm_usec_timer timer;
+  // Whether the timer is on
+  int timer_is_on;
+} PartitionTimingStats;
+#endif  // CONFIG_COLLECT_PARTITION_STATS
+
 // Structure holding state variables for partition search.
 typedef struct PartitionSearchState {
   // Intra partitioning related info.
@@ -160,6 +182,10 @@ typedef struct PartitionSearchState {
 
   // This flag will be set if best partition is found from the search.
   bool found_best_partition;
+
+#if CONFIG_COLLECT_PARTITION_STATS
+  PartitionTimingStats part_timing_stats;
+#endif  // CONFIG_COLLECT_PARTITION_STATS
 } PartitionSearchState;
 
 static AVM_INLINE void update_wedge_mode_cdf(FRAME_CONTEXT *fc,

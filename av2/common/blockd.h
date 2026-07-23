@@ -1012,6 +1012,18 @@ static AVM_INLINE RECT_PART_TYPE get_rect_part_type(PARTITION_TYPE partition) {
   return NUM_RECT_PARTS;
 }
 
+/*!\brief Returns whether the current partition is 4a or 4b. */
+static AVM_INLINE UNEVEN_4WAY_PART_TYPE
+get_4way_part_type(PARTITION_TYPE partition) {
+  if (partition == PARTITION_HORZ_4A || partition == PARTITION_VERT_4A) {
+    return UNEVEN_4A;
+  } else if (partition == PARTITION_HORZ_4B || partition == PARTITION_VERT_4B) {
+    return UNEVEN_4B;
+  }
+  assert(0 && "Uneven 4 way partition expected!");
+  return NUM_RECT_PARTS;
+}
+
 static INLINE int has_second_ref(const MB_MODE_INFO *mbmi) {
   return is_inter_ref_frame(mbmi->ref_frame[1]);
 }

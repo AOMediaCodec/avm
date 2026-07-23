@@ -1864,14 +1864,14 @@ typedef struct {
 /*!\cond */
 
 #if CONFIG_COLLECT_PARTITION_STATS == 2
-typedef struct PartitionStats {
-  int partition_decisions[6][EXT_PARTITION_TYPES];
-  int partition_attempts[6][EXT_PARTITION_TYPES];
-  int64_t partition_times[6][EXT_PARTITION_TYPES];
+typedef struct FramePartitionTimingStats {
+  int partition_decisions[BLOCK_SIZES_ALL][ALL_PARTITION_TYPES];
+  int partition_attempts[BLOCK_SIZES_ALL][ALL_PARTITION_TYPES];
+  int64_t partition_times[BLOCK_SIZES_ALL][ALL_PARTITION_TYPES];
 
   int partition_redo;
-} PartitionStats;
-#endif
+} FramePartitionTimingStats;
+#endif  // CONFIG_COLLECT_PARTITION_STATS == 2
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
 #include "avm_ports/avm_timer.h"
@@ -2781,8 +2781,11 @@ typedef struct AV2_COMP {
   int is_screen_content_type;
 
 #if CONFIG_COLLECT_PARTITION_STATS == 2
-  PartitionStats partition_stats;
-#endif
+  /*!
+   * Accumulates the partition timing stat over the whole frame.
+   */
+  FramePartitionTimingStats partition_stats;
+#endif  // CONFIG_COLLECT_PARTITION_STATS == 2
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
   /*!
@@ -3517,57 +3520,41 @@ static AVM_INLINE int is_psnr_calc_enabled(const AV2_COMP *cpi) {
 }
 
 #if CONFIG_COLLECT_PARTITION_STATS == 2
-static INLINE void av2_print_partition_stats(PartitionStats *part_stats) {
-  FILE *f = fopen("partition_stats.csv", "w");
+static INLINE void av2_print_fr_partition_timing_stats(
+    const FramePartitionTimingStats *part_stats, const char *filename) {
+  FILE *f = fopen(filename, "w");
   if (!f) {
     return;
   }
 
   fprintf(f, "bsize,redo,");
-  for (int part = 0; part < EXT_PARTITION_TYPES; part++) {
+  for (int part = 0; part < ALL_PARTITION_TYPES; part++) {
     fprintf(f, "decision_%d,", part);
   }
-  for (int part = 0; part < EXT_PARTITION_TYPES; part++) {
+  for (int part = 0; part < ALL_PARTITION_TYPES; part++) {
     fprintf(f, "attempt_%d,", part);
   }
-  for (int part = 0; part < EXT_PARTITION_TYPES; part++) {
+  for (int part = 0; part < ALL_PARTITION_TYPES; part++) {
     fprintf(f, "time_%d,", part);
   }
   fprintf(f, "\n");
 
-  const int bsizes[6] = { 128, 64, 32, 16, 8, 4 };
-
-  for (int bsize_idx = 0; bsize_idx < 6; bsize_idx++) {
-    fprintf(f, "%d,%d,", bsizes[bsize_idx], part_stats->partition_redo);
-    for (int part = 0; part < EXT_PARTITION_TYPES; part++) {
+  for (int bsize_idx = 0; bsize_idx < BLOCK_SIZES_ALL; bsize_idx++) {
+    fprintf(f, "%d,%d,", bsize_idx, part_stats->partition_redo);
+    for (int part = 0; part < ALL_PARTITION_TYPES; part++) {
       fprintf(f, "%d,", part_stats->partition_decisions[bsize_idx][part]);
     }
-    for (int part = 0; part < EXT_PARTITION_TYPES; part++) {
+    for (int part = 0; part < ALL_PARTITION_TYPES; part++) {
       fprintf(f, "%d,", part_stats->partition_attempts[bsize_idx][part]);
     }
-    for (int part = 0; part < EXT_PARTITION_TYPES; part++) {
-      fprintf(f, "%ld,", part_stats->partition_times[bsize_idx][part]);
+    for (int part = 0; part < ALL_PARTITION_TYPES; part++) {
+      fprintf(f, "%" PRId64 ",", part_stats->partition_times[bsize_idx][part]);
     }
     fprintf(f, "\n");
   }
   fclose(f);
 }
-
-static INLINE int av2_get_bsize_idx_for_part_stats(BLOCK_SIZE bsize) {
-  assert(bsize == BLOCK_128X128 || bsize == BLOCK_64X64 ||
-         bsize == BLOCK_32X32 || bsize == BLOCK_16X16 || bsize == BLOCK_8X8 ||
-         bsize == BLOCK_4X4);
-  switch (bsize) {
-    case BLOCK_128X128: return 0;
-    case BLOCK_64X64: return 1;
-    case BLOCK_32X32: return 2;
-    case BLOCK_16X16: return 3;
-    case BLOCK_8X8: return 4;
-    case BLOCK_4X4: return 5;
-    default: assert(0 && "Invalid bsize for partition_stats."); return -1;
-  }
-}
-#endif
+#endif  // CONFIG_COLLECT_PARTITION_STATS == 2
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
 static INLINE void start_timing(AV2_COMP *cpi, int component) {

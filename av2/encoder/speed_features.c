@@ -346,6 +346,8 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.prune_interintra_by_ref_idx = 1;
     sf->inter_sf.prune_warp_delta_by_ref_idx = 1;
 
+    sf->intra_sf.include_dip_for_top_n_model_rd_pruning = true;
+
     sf->tx_sf.adaptive_tx_type_search_idx = 4;
     sf->tx_sf.adaptive_tx_partition_type_search_idx = 4;
     sf->tx_sf.prune_intra_ist_stx_by_zero_eob = true;
@@ -803,6 +805,7 @@ static AVM_INLINE void init_intra_sf(INTRA_MODE_SPEED_FEATURES *intra_sf) {
   intra_sf->src_var_thresh_intra_skip = 1;
   intra_sf->prune_palette_search_level = 0;
   intra_sf->reuse_uv_mode_rd_info = false;
+  intra_sf->include_dip_for_top_n_model_rd_pruning = false;
   intra_sf->skip_intra_dip_search = false;
 
   for (int i = 0; i < TX_SIZES; i++) {
