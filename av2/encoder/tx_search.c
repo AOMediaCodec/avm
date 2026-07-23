@@ -2679,9 +2679,8 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
         // Terminate transform type search if the block has been quantized to
         // all zero.
         if (tx_sf->tx_type_search.skip_tx_search && !best_eob &&
-            (!cpi->sf.tx_sf.tx_type_search.blk_size_adapt_skip_tx_search ||
-             max_eob <=
-                 cpi->sf.tx_sf.tx_type_search.skip_tx_search_max_blk_size)) {
+            (!cpi->sf.tx_sf.tx_type_search.eob_adapt_skip_tx_search ||
+             max_eob <= cpi->sf.tx_sf.tx_type_search.skip_tx_search_max_eob)) {
           skip_idx = true;
           break;
         }
