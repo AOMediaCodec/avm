@@ -8616,6 +8616,8 @@ static void av2_evaluate_intra_modes_in_inter_frame(
           if (!is_intra_mode_allowed) break;
           for (int mode_idx = INTRA_MODE_START; mode_idx < LUMA_MODE_COUNT;
                ++mode_idx) {
+            if (sf->rt_sf.use_only_dc_intra_interframe && mode_idx != DC_PRED)
+              continue;
             if (sf->intra_sf.skip_intra_in_interframe &&
                 search_state->intra_search_state.skip_intra_modes)
               break;
