@@ -1025,9 +1025,6 @@ static AVM_INLINE void bridge_frame_decode_partition(
   // Half block width/height.
   const int hbs_w = mi_size_wide[bsize] / 2;
   const int hbs_h = mi_size_high[bsize] / 2;
-  // One-eighth block width/height.
-  const int ebs_w = mi_size_wide[bsize] / 8;
-  const int ebs_h = mi_size_high[bsize] / 8;
   PARTITION_TYPE partition;
   const int has_rows = (mi_row + hbs_h) < cm->mi_params.mi_rows;
   const int has_cols = (mi_col + hbs_w) < cm->mi_params.mi_cols;
@@ -1101,77 +1098,20 @@ static AVM_INLINE void bridge_frame_decode_partition(
     ptree->region_type = parent->region_type;
   }
 
-  switch (partition) {
-    case PARTITION_HORZ_4A:
-    case PARTITION_HORZ_4B:
-    case PARTITION_VERT_4A:
-    case PARTITION_VERT_4B:
-    case PARTITION_SPLIT:
-      ptree->sub_tree[0] = av2_alloc_ptree_node(ptree, 0);
-      ptree->sub_tree[1] = av2_alloc_ptree_node(ptree, 1);
-      ptree->sub_tree[2] = av2_alloc_ptree_node(ptree, 2);
-      ptree->sub_tree[3] = av2_alloc_ptree_node(ptree, 3);
-      if (is_intra_sdp_enabled && xd->tree_type == SHARED_PART) {
-        ptree_luma->sub_tree[0] = av2_alloc_ptree_node(ptree_luma, 0);
-        ptree_luma->sub_tree[1] = av2_alloc_ptree_node(ptree_luma, 1);
-        ptree_luma->sub_tree[2] = av2_alloc_ptree_node(ptree_luma, 2);
-        ptree_luma->sub_tree[3] = av2_alloc_ptree_node(ptree_luma, 3);
-      }
-      break;
-    case PARTITION_HORZ:
-    case PARTITION_VERT:
-      ptree->sub_tree[0] = av2_alloc_ptree_node(ptree, 0);
-      ptree->sub_tree[1] = av2_alloc_ptree_node(ptree, 1);
-
-      if (is_intra_sdp_enabled && xd->tree_type == SHARED_PART) {
-        ptree_luma->sub_tree[0] = av2_alloc_ptree_node(ptree_luma, 0);
-        ptree_luma->sub_tree[1] = av2_alloc_ptree_node(ptree_luma, 1);
-      }
-      break;
-    case PARTITION_HORZ_3:
-    case PARTITION_VERT_3:
-      ptree->sub_tree[0] = av2_alloc_ptree_node(ptree, 0);
-      ptree->sub_tree[1] = av2_alloc_ptree_node(ptree, 1);
-      ptree->sub_tree[2] = av2_alloc_ptree_node(ptree, 2);
-      ptree->sub_tree[3] = av2_alloc_ptree_node(ptree, 3);
-
-      if (is_intra_sdp_enabled && xd->tree_type == SHARED_PART) {
-        ptree_luma->sub_tree[0] = av2_alloc_ptree_node(ptree_luma, 0);
-        ptree_luma->sub_tree[1] = av2_alloc_ptree_node(ptree_luma, 1);
-        ptree_luma->sub_tree[2] = av2_alloc_ptree_node(ptree_luma, 2);
-        ptree_luma->sub_tree[3] = av2_alloc_ptree_node(ptree_luma, 3);
-      }
-      break;
-    default: break;
-  }
-  switch (partition) {
-    case PARTITION_NONE:
-      xd->is_cfl_allowed_in_sdp = is_cfl_allowed_in_sdp;
-      break;
-    case PARTITION_HORZ_4A:
-    case PARTITION_HORZ_4B:
-    case PARTITION_VERT_4A:
-    case PARTITION_VERT_4B:
-    case PARTITION_HORZ_3:
-    case PARTITION_VERT_3:
-    case PARTITION_SPLIT:
-      ptree->sub_tree[0]->is_cfl_allowed_for_this_chroma_partition =
+  if (partition == PARTITION_NONE) {
+    xd->is_cfl_allowed_in_sdp = is_cfl_allowed_in_sdp;
+  } else {
+    const int num_subblocks = get_subblock_count(partition);
+    const bool alloc_luma =
+        is_intra_sdp_enabled && xd->tree_type == SHARED_PART;
+    for (int sub_idx = 0; sub_idx < num_subblocks; ++sub_idx) {
+      ptree->sub_tree[sub_idx] = av2_alloc_ptree_node(ptree, sub_idx);
+      ptree->sub_tree[sub_idx]->is_cfl_allowed_for_this_chroma_partition =
           is_cfl_allowed_in_sdp;
-      ptree->sub_tree[1]->is_cfl_allowed_for_this_chroma_partition =
-          is_cfl_allowed_in_sdp;
-      ptree->sub_tree[2]->is_cfl_allowed_for_this_chroma_partition =
-          is_cfl_allowed_in_sdp;
-      ptree->sub_tree[3]->is_cfl_allowed_for_this_chroma_partition =
-          is_cfl_allowed_in_sdp;
-      break;
-    case PARTITION_HORZ:
-    case PARTITION_VERT:
-      ptree->sub_tree[0]->is_cfl_allowed_for_this_chroma_partition =
-          is_cfl_allowed_in_sdp;
-      ptree->sub_tree[1]->is_cfl_allowed_for_this_chroma_partition =
-          is_cfl_allowed_in_sdp;
-      break;
-    default: break;
+      if (alloc_luma)
+        ptree_luma->sub_tree[sub_idx] =
+            av2_alloc_ptree_node(ptree_luma, sub_idx);
+    }
   }
 
   const BLOCK_SIZE subsize = get_partition_subsize(bsize, partition);
@@ -1219,133 +1159,29 @@ static AVM_INLINE void bridge_frame_decode_partition(
                        mi_col << MI_SIZE_LOG2);
   }
 
-#define BRIDGE_FRAME_DEC_BLOCK_STX_ARG
-#define BRIDGE_FRAME_DEC_BLOCK_EPT_ARG partition,
-#define BRIDGE_FRAME_DEC_BLOCK(db_r, db_c, db_subsize, index) \
-  bridge_frame_predict_inter_block(cm, xd)
-#define BRIDGE_FRAME_DEC_PARTITION(db_r, db_c, db_subsize, index)  \
-  bridge_frame_decode_partition(                                   \
-      cpi, td, tile, BRIDGE_FRAME_DEC_BLOCK_STX_ARG(db_r), (db_c), \
-      (db_subsize), sbi, ptree->sub_tree[(index)],                 \
-      get_partition_subtree_const(ptree_luma, index))
-
-  switch (partition) {
-    case PARTITION_NONE:
-      bridge_frame_set_offsets(cm, xd, subsize, mi_row, mi_col, parent, 0,
-                               partition);
-      // from av2_read_mode_info
-      MB_MODE_INFO *const mi = xd->mi[0];
-      if (xd->tree_type == SHARED_PART)
-        mi->sb_type[PLANE_TYPE_UV] = mi->sb_type[PLANE_TYPE_Y];
-      BRIDGE_FRAME_DEC_BLOCK(mi_row, mi_col, subsize, 0);
-      break;
-    case PARTITION_HORZ:
-      BRIDGE_FRAME_DEC_PARTITION(mi_row, mi_col, subsize, 0);
-      if ((mi_row + hbs_h) < cm->mi_params.mi_rows)
-        BRIDGE_FRAME_DEC_PARTITION(mi_row + hbs_h, mi_col, subsize, 1);
-      break;
-    case PARTITION_VERT:
-      BRIDGE_FRAME_DEC_PARTITION(mi_row, mi_col, subsize, 0);
-      if ((mi_col + hbs_w) < cm->mi_params.mi_cols)
-        BRIDGE_FRAME_DEC_PARTITION(mi_row, mi_col + hbs_w, subsize, 1);
-      break;
-    case PARTITION_HORZ_4A: {
-      const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
-      const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_HORZ][bsize_big];
-      assert(subsize == subsize_lookup[PARTITION_HORZ][bsize_med]);
-      int this_mi_row = mi_row;
-      BRIDGE_FRAME_DEC_PARTITION(this_mi_row, mi_col, subsize, 0);
-      this_mi_row += ebs_h;
-      if (this_mi_row >= cm->mi_params.mi_rows) break;
-      BRIDGE_FRAME_DEC_PARTITION(this_mi_row, mi_col, bsize_med, 1);
-      this_mi_row += 2 * ebs_h;
-      if (this_mi_row >= cm->mi_params.mi_rows) break;
-      BRIDGE_FRAME_DEC_PARTITION(this_mi_row, mi_col, bsize_big, 2);
-      this_mi_row += 4 * ebs_h;
-      if (this_mi_row >= cm->mi_params.mi_rows) break;
-      BRIDGE_FRAME_DEC_PARTITION(this_mi_row, mi_col, subsize, 3);
-      break;
-    }
-    case PARTITION_HORZ_4B: {
-      const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
-      const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_HORZ][bsize_big];
-      assert(subsize == subsize_lookup[PARTITION_HORZ][bsize_med]);
-      int this_mi_row = mi_row;
-      BRIDGE_FRAME_DEC_PARTITION(this_mi_row, mi_col, subsize, 0);
-      this_mi_row += ebs_h;
-      if (this_mi_row >= cm->mi_params.mi_rows) break;
-      BRIDGE_FRAME_DEC_PARTITION(this_mi_row, mi_col, bsize_big, 1);
-      this_mi_row += 4 * ebs_h;
-      if (this_mi_row >= cm->mi_params.mi_rows) break;
-      BRIDGE_FRAME_DEC_PARTITION(this_mi_row, mi_col, bsize_med, 2);
-      this_mi_row += 2 * ebs_h;
-      if (this_mi_row >= cm->mi_params.mi_rows) break;
-      BRIDGE_FRAME_DEC_PARTITION(this_mi_row, mi_col, subsize, 3);
-      break;
-    }
-    case PARTITION_VERT_4A: {
-      const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_VERT);
-      const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_VERT][bsize_big];
-      assert(subsize == subsize_lookup[PARTITION_VERT][bsize_med]);
-      int this_mi_col = mi_col;
-      BRIDGE_FRAME_DEC_PARTITION(mi_row, this_mi_col, subsize, 0);
-      this_mi_col += ebs_w;
-      if (this_mi_col >= cm->mi_params.mi_cols) break;
-      BRIDGE_FRAME_DEC_PARTITION(mi_row, this_mi_col, bsize_med, 1);
-      this_mi_col += 2 * ebs_w;
-      if (this_mi_col >= cm->mi_params.mi_cols) break;
-      BRIDGE_FRAME_DEC_PARTITION(mi_row, this_mi_col, bsize_big, 2);
-      this_mi_col += 4 * ebs_w;
-      if (this_mi_col >= cm->mi_params.mi_cols) break;
-      BRIDGE_FRAME_DEC_PARTITION(mi_row, this_mi_col, subsize, 3);
-      break;
-    }
-    case PARTITION_VERT_4B: {
-      const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_VERT);
-      const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_VERT][bsize_big];
-      assert(subsize == subsize_lookup[PARTITION_VERT][bsize_med]);
-      int this_mi_col = mi_col;
-      BRIDGE_FRAME_DEC_PARTITION(mi_row, this_mi_col, subsize, 0);
-      this_mi_col += ebs_w;
-      if (this_mi_col >= cm->mi_params.mi_cols) break;
-      BRIDGE_FRAME_DEC_PARTITION(mi_row, this_mi_col, bsize_big, 1);
-      this_mi_col += 4 * ebs_w;
-      if (this_mi_col >= cm->mi_params.mi_cols) break;
-      BRIDGE_FRAME_DEC_PARTITION(mi_row, this_mi_col, bsize_med, 2);
-      this_mi_col += 2 * ebs_w;
-      if (this_mi_col >= cm->mi_params.mi_cols) break;
-      BRIDGE_FRAME_DEC_PARTITION(mi_row, this_mi_col, subsize, 3);
-      break;
-    }
-    case PARTITION_HORZ_3:
-    case PARTITION_VERT_3: {
-      for (int i = 0; i < 4; ++i) {
-        BLOCK_SIZE this_bsize = get_h_partition_subsize(bsize, i, partition);
-        const int offset_r = get_h_partition_offset_mi_row(bsize, i, partition);
-        const int offset_c = get_h_partition_offset_mi_col(bsize, i, partition);
-
-        assert(this_bsize != BLOCK_INVALID);
-        assert(offset_r >= 0 && offset_c >= 0);
-
-        const int this_mi_row = mi_row + offset_r;
-        const int this_mi_col = mi_col + offset_c;
-        if (partition == PARTITION_HORZ_3) {
-          if (this_mi_row >= cm->mi_params.mi_rows) break;
-        } else {
-          if (this_mi_col >= cm->mi_params.mi_cols) break;
-        }
-
-        BRIDGE_FRAME_DEC_PARTITION(this_mi_row, this_mi_col, this_bsize, i);
+  if (partition == PARTITION_NONE) {
+    bridge_frame_set_offsets(cm, xd, subsize, mi_row, mi_col, parent, 0,
+                             partition);
+    // from av2_read_mode_info
+    MB_MODE_INFO *const mi = xd->mi[0];
+    if (xd->tree_type == SHARED_PART)
+      mi->sb_type[PLANE_TYPE_UV] = mi->sb_type[PLANE_TYPE_Y];
+    bridge_frame_predict_inter_block(cm, xd);
+  } else {
+    BLOCK_SIZE sub_sizes[4];
+    int mi_rows[4], mi_cols[4];
+    get_partition_subblock_layout(partition, bsize, mi_row, mi_col, sub_sizes,
+                                  mi_rows, mi_cols);
+    const int num_subblocks = get_subblock_count(partition);
+    for (int sub_idx = 0; sub_idx < num_subblocks; ++sub_idx) {
+      if (mi_rows[sub_idx] < cm->mi_params.mi_rows &&
+          mi_cols[sub_idx] < cm->mi_params.mi_cols) {
+        bridge_frame_decode_partition(
+            cpi, td, tile, mi_rows[sub_idx], mi_cols[sub_idx],
+            sub_sizes[sub_idx], sbi, ptree->sub_tree[sub_idx],
+            get_partition_subtree_const(ptree_luma, sub_idx));
       }
-      break;
     }
-    case PARTITION_SPLIT:
-      BRIDGE_FRAME_DEC_PARTITION(mi_row, mi_col, subsize, 0);
-      BRIDGE_FRAME_DEC_PARTITION(mi_row, mi_col + hbs_w, subsize, 1);
-      BRIDGE_FRAME_DEC_PARTITION(mi_row + hbs_h, mi_col, subsize, 2);
-      BRIDGE_FRAME_DEC_PARTITION(mi_row + hbs_h, mi_col + hbs_w, subsize, 3);
-      break;
-    default: assert(0 && "Invalid partition type");
   }
 
   parent = ptree->parent;
@@ -1357,16 +1193,11 @@ static AVM_INLINE void bridge_frame_decode_partition(
       xd->tree_type = CHROMA_PART;
       bridge_frame_set_offsets(cm, xd, bsize, mi_row, mi_col, parent, 0,
                                partition);
-      BRIDGE_FRAME_DEC_BLOCK(mi_row, mi_col, bsize, 0);
+      bridge_frame_predict_inter_block(cm, xd);
       // reset back to shared part
       xd->tree_type = SHARED_PART;
     }
   }
-
-#undef BRIDGE_FRAME_DEC_PARTITION
-#undef BRIDGE_FRAME_DEC_BLOCK
-#undef BRIDGE_FRAME_DEC_BLOCK_EPT_ARG
-#undef BRIDGE_FRAME_DEC_BLOCK_STX_ARG
 }
 
 static AVM_INLINE void bridge_frame_decode_partition_sb(

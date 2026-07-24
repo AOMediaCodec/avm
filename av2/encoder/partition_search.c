@@ -1947,54 +1947,14 @@ static void encode_sb(const AV2_COMP *const cpi, ThreadData *td,
     }
     if (partition == PARTITION_NONE) {
       xd->is_cfl_allowed_in_sdp = is_cfl_allowed_in_sdp;
-    }
-
-    switch (partition) {
-      case PARTITION_HORZ_4A:
-      case PARTITION_HORZ_4B:
-      case PARTITION_VERT_4A:
-      case PARTITION_VERT_4B:
-      case PARTITION_SPLIT:
-        ptree->sub_tree[0] = av2_alloc_ptree_node(ptree, 0);
-        ptree->sub_tree[1] = av2_alloc_ptree_node(ptree, 1);
-        ptree->sub_tree[2] = av2_alloc_ptree_node(ptree, 2);
-        ptree->sub_tree[3] = av2_alloc_ptree_node(ptree, 3);
-        break;
-      case PARTITION_HORZ:
-      case PARTITION_VERT:
-        ptree->sub_tree[0] = av2_alloc_ptree_node(ptree, 0);
-        ptree->sub_tree[1] = av2_alloc_ptree_node(ptree, 1);
-        break;
-      case PARTITION_HORZ_3:
-      case PARTITION_VERT_3:
-        ptree->sub_tree[0] = av2_alloc_ptree_node(ptree, 0);
-        ptree->sub_tree[1] = av2_alloc_ptree_node(ptree, 1);
-        ptree->sub_tree[2] = av2_alloc_ptree_node(ptree, 2);
-        ptree->sub_tree[3] = av2_alloc_ptree_node(ptree, 3);
-        break;
-      default: break;
-    }
-    for (int i = 0; i < 4; ++i) sub_tree[i] = ptree->sub_tree[i];
-
-    switch (partition) {
-      case PARTITION_HORZ_4A:
-      case PARTITION_HORZ_4B:
-      case PARTITION_VERT_4A:
-      case PARTITION_VERT_4B:
-      case PARTITION_SPLIT:
-      case PARTITION_HORZ_3:
-      case PARTITION_VERT_3:
-        for (int i = 0; i < 4; ++i)
-          sub_tree[i]->is_cfl_allowed_for_this_chroma_partition =
-              is_cfl_allowed_in_sdp;
-        break;
-      case PARTITION_HORZ:
-      case PARTITION_VERT:
-        for (int i = 0; i < 2; ++i)
-          sub_tree[i]->is_cfl_allowed_for_this_chroma_partition =
-              is_cfl_allowed_in_sdp;
-        break;
-      default: break;
+    } else {
+      int num_sub_parts = get_subblock_count(partition);
+      for (int sub_idx = 0; sub_idx < num_sub_parts; ++sub_idx) {
+        sub_tree[sub_idx] = ptree->sub_tree[sub_idx] =
+            av2_alloc_ptree_node(ptree, sub_idx);
+        sub_tree[sub_idx]->is_cfl_allowed_for_this_chroma_partition =
+            is_cfl_allowed_in_sdp;
+      }
     }
     if (!cm->seq_params.enable_cfl_intra && !cm->seq_params.enable_mhccp) {
       xd->is_cfl_allowed_in_sdp = CFL_DISALLOWED_FOR_CHROMA;
