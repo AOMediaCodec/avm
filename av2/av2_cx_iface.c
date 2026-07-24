@@ -4783,7 +4783,7 @@ static const avm_codec_enc_cfg_t encoder_usage_cfg[] = { {
     0,                           // sframe_dist
     1,                           // sframe_mode
     0,                           // sframe_type
-    0,                           // sframe_replace_kf
+    1,                           // sframe_replace_kf
     0,                           // monochrome
     0,                           // full_still_picture_hdr
     1,                           // enable_tcq
