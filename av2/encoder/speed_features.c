@@ -490,6 +490,7 @@ static void set_good_speed_features_framesize_independent(
       // motion vector predictor diversity and mitigating coding loss.
       sf->mv_sf.newmv_drl_search_limit = 2;
     }
+    sf->inter_sf.enable_fast_bawp = 1;
 
     sf->intra_sf.prune_palette_search_level = 1;
 
@@ -932,6 +933,7 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->enable_enhanced_inter_mode_cache_reuse = 0;
   inter_sf->prune_comp_mode_eval_using_est_rd = false;
   inter_sf->prune_warp_newmv_ref_mv_idx = false;
+  inter_sf->enable_fast_bawp = 0;
 }
 
 static AVM_INLINE void init_interp_sf(INTERP_FILTER_SPEED_FEATURES *interp_sf) {
