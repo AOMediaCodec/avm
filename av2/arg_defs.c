@@ -289,6 +289,9 @@ const av2_codec_arg_definitions_t g_av2_codec_arg_defs = {
       ARG_DEF(NULL, "sframe-mode", 1, "S-Frame insertion mode (0..2)"),
   .sframe_type = ARG_DEF(NULL, "sframe-type", 1,
                          "(0: Regular S-Frame (default), 1: RAS frame)"),
+  .sframe_replace_kf =
+      ARG_DEF(NULL, "sframe-replace-kf", 1,
+              "Replace N consecutive keyframes with S-frames (0: off)"),
   .enable_lcr =
       ARG_DEF(NULL, "enable-lcr", 1,
               "Enable layer config record (LCR) OBU (0: off (default), 1: on)"),

@@ -1180,6 +1180,8 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
       config->cfg.sframe_mode = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &g_av2_codec_arg_defs.sframe_type, argi)) {
       config->cfg.sframe_type = arg_parse_uint(&arg);
+    } else if (arg_match(&arg, &g_av2_codec_arg_defs.sframe_replace_kf, argi)) {
+      config->cfg.sframe_replace_kf = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &g_av2_codec_arg_defs.enable_lcr, argi)) {
       config->cfg.enable_lcr = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &g_av2_codec_arg_defs.enable_ops, argi)) {

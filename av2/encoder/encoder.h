@@ -439,6 +439,12 @@ typedef struct {
   bool enable_sframe;
 
   /*!
+   * Number of consecutive keyframes to replace with S-frames between actual
+   * keyframes.
+   */
+  int sframe_replace_kf;
+
+  /*!
    * Indicates if intra block copy prediction mode should be enabled or not.
    */
   bool enable_intrabc;

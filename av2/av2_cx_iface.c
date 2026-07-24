@@ -1523,6 +1523,7 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   kf_cfg->sframe_dist = cfg->sframe_dist;
   kf_cfg->sframe_mode = cfg->sframe_mode;
   kf_cfg->sframe_type = cfg->sframe_type;
+  kf_cfg->sframe_replace_kf = cfg->sframe_replace_kf;
   oxcf->unit_test_cfg.insert_sframe = extra_cfg->enable_sframe;
 
   kf_cfg->enable_keyframe_filtering = extra_cfg->enable_keyframe_filtering;
@@ -4782,6 +4783,7 @@ static const avm_codec_enc_cfg_t encoder_usage_cfg[] = { {
     0,                           // sframe_dist
     1,                           // sframe_mode
     0,                           // sframe_type
+    0,                           // sframe_replace_kf
     0,                           // monochrome
     0,                           // full_still_picture_hdr
     1,                           // enable_tcq

@@ -2930,6 +2930,17 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
       frame_params->frame_type = KEY_FRAME;
       if (frame_params->frame_params_obu_type == NUM_OBU_TYPES)
         frame_params->frame_params_obu_type = OBU_CLOSED_LOOP_KEY;
+      const int replace_kf = oxcf->kf_cfg.sframe_replace_kf;
+      if (replace_kf > 0 && cpi->common.current_frame.frame_number > 0) {
+        rc->sframe_replace_kf_count++;
+        if (rc->sframe_replace_kf_count <= replace_kf) {
+          frame_params->frame_type = S_FRAME;
+          frame_params->frame_params_obu_type = NUM_OBU_TYPES;
+          cpi->is_ras_frame = (oxcf->kf_cfg.sframe_type == RAS_FRAME);
+        } else {
+          rc->sframe_replace_kf_count = 0;
+        }
+      }
       // Define next KF group and assign bits to it.
       find_next_key_frame(cpi, &this_frame);
     }
