@@ -862,20 +862,6 @@ int av2_handle_inter_intra_mode(const AV2_COMP *const cpi, MACROBLOCK *const x,
   return 0;
 }
 
-static void alloc_compound_type_rd_buffers_no_check(
-    CompoundTypeRdBuffers *const bufs) {
-  bufs->pred0 =
-      (uint16_t *)avm_memalign(16, MAX_SB_SQUARE * sizeof(*bufs->pred0));
-  bufs->pred1 =
-      (uint16_t *)avm_memalign(16, MAX_SB_SQUARE * sizeof(*bufs->pred1));
-  bufs->residual1 =
-      (int16_t *)avm_memalign(32, MAX_SB_SQUARE * sizeof(*bufs->residual1));
-  bufs->diff10 =
-      (int16_t *)avm_memalign(32, MAX_SB_SQUARE * sizeof(*bufs->diff10));
-  bufs->tmp_best_mask_buf = (uint8_t *)avm_malloc(
-      2 * MAX_SB_SQUARE * sizeof(*bufs->tmp_best_mask_buf));
-}
-
 // Computes the valid compound_types to be evaluated
 static INLINE int compute_valid_comp_types(
     MACROBLOCK *x, const AV2_COMP *const cpi, int *try_average_and_distwtd_comp,
@@ -997,11 +983,8 @@ static INLINE void update_best_info(const MB_MODE_INFO *const mbmi, int64_t *rd,
 static INLINE void update_mask_best_mv(const MB_MODE_INFO *const mbmi,
                                        int_mv *best_mv, int_mv *cur_mv,
                                        const COMPOUND_TYPE cur_type,
-                                       int *best_tmp_rate_mv, int tmp_rate_mv,
-                                       const SPEED_FEATURES *const sf) {
-  if (cur_type == COMPOUND_WEDGE ||
-      (sf->inter_sf.enable_interinter_diffwtd_newmv_search &&
-       cur_type == COMPOUND_DIFFWTD)) {
+                                       int *best_tmp_rate_mv, int tmp_rate_mv) {
+  if (cur_type == COMPOUND_WEDGE) {
     *best_tmp_rate_mv = tmp_rate_mv;
     best_mv[0].as_int = mbmi->mv[0].as_int;
     best_mv[1].as_int = mbmi->mv[1].as_int;
@@ -1153,10 +1136,6 @@ static int64_t masked_compound_type_rd(
         have_newmv_in_inter_mode(this_mode) &&
         (compound_type == COMPOUND_WEDGE) &&
         (!cpi->sf.inter_sf.disable_interinter_wedge_newmv_search);
-    int diffwtd_newmv_search =
-        cpi->sf.inter_sf.enable_interinter_diffwtd_newmv_search &&
-        compound_type == COMPOUND_DIFFWTD &&
-        have_newmv_in_inter_mode(this_mode);
 
     // Search for new MV if needed and build predictor
     if (wedge_newmv_search) {
@@ -1166,36 +1145,6 @@ static int64_t masked_compound_type_rd(
       const int mi_col = xd->mi_col;
       av2_enc_build_inter_predictor(cm, xd, mi_row, mi_col, ctx, bsize,
                                     AVM_PLANE_Y, AVM_PLANE_Y);
-    } else if (diffwtd_newmv_search) {
-      *out_rate_mv = av2_interinter_compound_motion_search(cpi, x, cur_mv,
-                                                           bsize, this_mode);
-      // we need to update the mask according to the new motion vector
-      CompoundTypeRdBuffers tmp_buf;
-      int64_t tmp_rd = INT64_MAX;
-      alloc_compound_type_rd_buffers_no_check(&tmp_buf);
-      get_inter_predictor_masked_compound_y(x, bsize, tmp_buf.pred0,
-                                            tmp_buf.pred1, tmp_buf.residual1,
-                                            tmp_buf.diff10, stride);
-
-      tmp_rd = pick_interinter_mask[compound_type - COMPOUND_WEDGE](
-          cpi, x, bsize, tmp_buf.pred0, tmp_buf.pred1, tmp_buf.residual1,
-          tmp_buf.diff10, &cur_sse);
-      // we can reuse rs2 here
-      tmp_rd += RDCOST(x->rdmult, *rs2 + *out_rate_mv, 0);
-
-      if (tmp_rd >= best_rd_cur) {
-        // restore the motion vector
-        mbmi->mv[0].as_int = cur_mv[0].as_int;
-        mbmi->mv[1].as_int = cur_mv[1].as_int;
-        *out_rate_mv = rate_mv;
-        av2_build_wedge_inter_predictor_from_buf_y(xd, bsize, pred0, stride,
-                                                   pred1, stride);
-      } else {
-        // build the final prediciton using the updated mv
-        av2_build_wedge_inter_predictor_from_buf_y(
-            xd, bsize, tmp_buf.pred0, stride, tmp_buf.pred1, stride);
-      }
-      release_compound_type_rd_buffers(&tmp_buf);
     } else {
       *out_rate_mv = rate_mv;
       av2_build_wedge_inter_predictor_from_buf_y(xd, bsize, pred0, stride,
@@ -1467,7 +1416,7 @@ int av2_compound_type_rd(const AV2_COMP *const cpi, MACROBLOCK *x,
         memcpy(buffers->tmp_best_mask_buf, xd->seg_mask, mask_len);
         if (have_newmv_in_inter_mode(this_mode))
           update_mask_best_mv(mbmi, best_mv, cur_mv, cur_type,
-                              &best_tmp_rate_mv, tmp_rate_mv, &cpi->sf);
+                              &best_tmp_rate_mv, tmp_rate_mv);
       }
     }
     // reset to original mvs for next iteration
