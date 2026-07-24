@@ -1073,6 +1073,13 @@ static INLINE BLOCK_SIZE get_partition_subsize(BLOCK_SIZE bsize,
   }
 }
 
+int get_subblock_count(PARTITION_TYPE partition_type);
+
+void get_partition_subblock_layout(PARTITION_TYPE partition_type,
+                                   BLOCK_SIZE bsize, int mi_row, int mi_col,
+                                   BLOCK_SIZE sub_sizes[4], int mi_rows[4],
+                                   int mi_cols[4]);
+
 // Get the block size of the ith sub-block in a block partitioned via an
 // h-partition mode.
 static INLINE BLOCK_SIZE get_h_partition_subsize(BLOCK_SIZE bsize, int index,
