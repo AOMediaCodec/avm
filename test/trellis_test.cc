@@ -396,6 +396,80 @@ TEST_P(TcqRateLfLumaTest, RandomValues) {
   }
 }
 
+typedef void (*TcqUpdateNbrDiagonalFunc)(struct tcq_ctx_t *tcq_ctx, int row,
+                                         int col, int bwl);
+typedef libavm_test::FuncParam<TcqUpdateNbrDiagonalFunc>
+    TcqUpdateNbrDiagonalTestFuncs;
+
+class TcqUpdateNbrDiagonalTest
+    : public FunctionEquivalenceTest<TcqUpdateNbrDiagonalFunc> {
+ protected:
+  static const int kIterations = 10000;
+
+  void RunTest() {
+    for (int iter = 0; iter < kIterations && !HasFatalFailure(); ++iter) {
+      int bwl = 2 + (rng_.Rand8() & 3);
+      int max_diag = (1 << bwl) + (1 << bwl) - 2;
+      int diag = rng_.Rand8() % (max_diag + 1);
+      int row = rng_.Rand8() % (diag + 1);
+      int col = diag - row;
+      if (col >= (1 << bwl)) col = (1 << bwl) - 1;
+      row = diag - col;
+      if (row >= (1 << bwl)) row = (1 << bwl) - 1;
+
+      tcq_ctx_t ctx_ref;
+      tcq_ctx_t ctx_tst;
+      memset(&ctx_ref, 0, sizeof(ctx_ref));
+
+      for (int i = 0; i < TCQ_MAX_STATES; i++) {
+        ctx_ref.orig_st[i] =
+            (rng_.Rand8() % 3 == 0) ? -1 : (rng_.Rand8() % TCQ_MAX_STATES);
+      }
+      for (int i = 0; i < MAX_DIAG + 8; i++) {
+        for (int st = 0; st < TCQ_MAX_STATES; st++) {
+          ctx_ref.lev_new[i][st] = rng_.Rand8() % (MAX_VAL_BR_CTX + 1);
+          ctx_ref.mag_base[i][st] = rng_.Rand8();
+          ctx_ref.mag_mid[i][st] = rng_.Rand8();
+          ctx_ref.ctx[i][st] = rng_.Rand8();
+          ctx_ref.prev_st[i][st] =
+              (rng_.Rand8() % 3 == 0) ? -1 : (rng_.Rand8() % TCQ_MAX_STATES);
+        }
+      }
+
+      ctx_tst = ctx_ref;
+
+      params_.ref_func(&ctx_ref, row, col, bwl);
+      ASM_REGISTER_STATE_CHECK(params_.tst_func(&ctx_tst, row, col, bwl));
+      int idx_start = col;
+      int idx_end = AVMMIN(diag + 1, 1 << bwl);
+      int idx0 = AVMMAX(idx_start - 2, 0);
+
+      for (int i = idx0; i < idx_end; i++) {
+        for (int st = 0; st < TCQ_MAX_STATES; st++) {
+          ASSERT_EQ((int)ctx_ref.ctx[i][st], (int)ctx_tst.ctx[i][st])
+              << "Mismatch in ctx at i=" << i << ", st=" << st
+              << ", row=" << row << ", col=" << col << ", diag=" << diag
+              << ", bwl=" << bwl;
+          ASSERT_EQ((int)ctx_ref.mag_base[i][st], (int)ctx_tst.mag_base[i][st])
+              << "Mismatch in mag_base at i=" << i << ", st=" << st
+              << ", row=" << row << ", col=" << col << ", diag=" << diag
+              << ", bwl=" << bwl;
+          ASSERT_EQ((int)ctx_ref.mag_mid[i][st], (int)ctx_tst.mag_mid[i][st])
+              << "Mismatch in mag_mid at i=" << i << ", st=" << st
+              << ", row=" << row << ", col=" << col << ", diag=" << diag
+              << ", bwl=" << bwl;
+        }
+      }
+      for (int st = 0; st < TCQ_MAX_STATES; st++) {
+        ASSERT_EQ((int)ctx_ref.orig_st[st], (int)ctx_tst.orig_st[st])
+            << "Mismatch in orig_st at st=" << st;
+      }
+    }
+  }
+};
+
+TEST_P(TcqUpdateNbrDiagonalTest, RandomValues) { RunTest(); }
+
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
     AVX2, TcqRateLumaTest,
@@ -406,10 +480,17 @@ INSTANTIATE_TEST_SUITE_P(
     AVX2, TcqRateLfLumaTest,
     ::testing::Values(TcqRateLfLumaTestFuncs(av2_get_rate_dist_lf_luma_c,
                                              av2_get_rate_dist_lf_luma_avx2)));
+
+INSTANTIATE_TEST_SUITE_P(AVX2, TcqUpdateNbrDiagonalTest,
+                         ::testing::Values(TcqUpdateNbrDiagonalTestFuncs(
+                             av2_update_nbr_diagonal_c,
+                             av2_update_nbr_diagonal_avx2)));
 #endif  // HAVE_AVX2
 
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(TcqRateLumaTest);
 
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(TcqRateLfLumaTest);
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(TcqUpdateNbrDiagonalTest);
 
 }  // namespace
