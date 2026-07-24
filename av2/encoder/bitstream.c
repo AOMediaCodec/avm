@@ -2816,10 +2816,6 @@ static AVM_INLINE void write_modes_sb(
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   MACROBLOCKD *const xd = &cpi->td.mb.e_mbd;
   assert(bsize < BLOCK_SIZES_ALL);
-  const int hbs_w = mi_size_wide[bsize] / 2;
-  const int hbs_h = mi_size_high[bsize] / 2;
-  const int ebs_w = mi_size_wide[bsize] / 8;
-  const int ebs_h = mi_size_high[bsize] / 8;
   assert(ptree);
 
   if (mi_row >= mi_params->mi_rows || mi_col >= mi_params->mi_cols) {
@@ -2917,200 +2913,31 @@ static AVM_INLINE void write_modes_sb(
       // if partition tree changes, rebuild recursive tree
       ptree->partition = p;
       partition = p;
-      subsize = get_partition_subsize(bsize, partition);
-      switch (p) {
-        case PARTITION_HORZ_4A:
-        case PARTITION_HORZ_4B:
-        case PARTITION_VERT_4A:
-        case PARTITION_VERT_4B:
-        case PARTITION_SPLIT:
-          ptree->sub_tree[0] = av2_alloc_ptree_node(ptree, 0);
-          ptree->sub_tree[0]->partition = PARTITION_NONE;
-          ptree->sub_tree[1] = av2_alloc_ptree_node(ptree, 1);
-          ptree->sub_tree[1]->partition = PARTITION_NONE;
-          ptree->sub_tree[2] = av2_alloc_ptree_node(ptree, 2);
-          ptree->sub_tree[2]->partition = PARTITION_NONE;
-          ptree->sub_tree[3] = av2_alloc_ptree_node(ptree, 3);
-          ptree->sub_tree[3]->partition = PARTITION_NONE;
-          break;
-        case PARTITION_HORZ:
-        case PARTITION_VERT:
-          ptree->sub_tree[0] = av2_alloc_ptree_node(ptree, 0);
-          ptree->sub_tree[0]->partition = PARTITION_NONE;
-          ptree->sub_tree[1] = av2_alloc_ptree_node(ptree, 1);
-          ptree->sub_tree[1]->partition = PARTITION_NONE;
-          break;
-        case PARTITION_HORZ_3:
-        case PARTITION_VERT_3:
-          ptree->sub_tree[0] = av2_alloc_ptree_node(ptree, 0);
-          ptree->sub_tree[0]->partition = PARTITION_NONE;
-          ptree->sub_tree[1] = av2_alloc_ptree_node(ptree, 1);
-          ptree->sub_tree[1]->partition = PARTITION_NONE;
-          ptree->sub_tree[2] = av2_alloc_ptree_node(ptree, 2);
-          ptree->sub_tree[2]->partition = PARTITION_NONE;
-          ptree->sub_tree[3] = av2_alloc_ptree_node(ptree, 3);
-          ptree->sub_tree[3]->partition = PARTITION_NONE;
-          break;
-        default: break;
+      if (partition != PARTITION_NONE) {
+        const int num_subblocks = get_subblock_count(partition);
+        for (int sub_idx = 0; sub_idx < num_subblocks; ++sub_idx) {
+          ptree->sub_tree[sub_idx] = av2_alloc_ptree_node(ptree, sub_idx);
+          ptree->sub_tree[sub_idx]->partition = PARTITION_NONE;
+        }
       }
     }
   }
-  switch (partition) {
-    case PARTITION_NONE:
-      write_modes_b(
-          cpi, tile, w,
-          (intra_sdp_enabled && xd->tree_type == CHROMA_PART) ? tok_chroma
-                                                              : tok,
-          (intra_sdp_enabled && xd->tree_type == CHROMA_PART) ? tok_chroma_end
-                                                              : tok_end,
-          mi_row, mi_col);
-      break;
-    case PARTITION_HORZ:
+  if (partition == PARTITION_NONE) {
+    bool use_chroma_tok = intra_sdp_enabled && xd->tree_type == CHROMA_PART;
+    write_modes_b(cpi, tile, w, use_chroma_tok ? tok_chroma : tok,
+                  use_chroma_tok ? tok_chroma_end : tok_end, mi_row, mi_col);
+  } else {
+    BLOCK_SIZE sub_sizes[4];
+    int mi_rows[4], mi_cols[4];
+    get_partition_subblock_layout(partition, bsize, mi_row, mi_col, sub_sizes,
+                                  mi_rows, mi_cols);
+    const int num_subblocks = get_subblock_count(partition);
+    for (int sub_idx = 0; sub_idx < num_subblocks; ++sub_idx) {
       write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[0],
-                     get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
-                     subsize);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[1],
-                     get_partition_subtree_const(ptree_luma, 1), mi_row + hbs_h,
-                     mi_col, subsize);
-      break;
-    case PARTITION_VERT:
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[0],
-                     get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
-                     subsize);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[1],
-                     get_partition_subtree_const(ptree_luma, 1), mi_row,
-                     mi_col + hbs_w, subsize);
-      break;
-    case PARTITION_HORZ_4A: {
-      const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
-      const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_HORZ][bsize_big];
-      assert(subsize == subsize_lookup[PARTITION_HORZ][bsize_med]);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[0],
-                     get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
-                     subsize);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[1],
-                     get_partition_subtree_const(ptree_luma, 1), mi_row + ebs_h,
-                     mi_col, bsize_med);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[2],
-                     get_partition_subtree_const(ptree_luma, 2),
-                     mi_row + 3 * ebs_h, mi_col, bsize_big);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[3],
-                     get_partition_subtree_const(ptree_luma, 3),
-                     mi_row + 7 * ebs_h, mi_col, subsize);
-      break;
+                     ptree->sub_tree[sub_idx],
+                     get_partition_subtree_const(ptree_luma, sub_idx),
+                     mi_rows[sub_idx], mi_cols[sub_idx], sub_sizes[sub_idx]);
     }
-    case PARTITION_HORZ_4B: {
-      const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
-      const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_HORZ][bsize_big];
-      assert(subsize == subsize_lookup[PARTITION_HORZ][bsize_med]);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[0],
-                     get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
-                     subsize);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[1],
-                     get_partition_subtree_const(ptree_luma, 1), mi_row + ebs_h,
-                     mi_col, bsize_big);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[2],
-                     get_partition_subtree_const(ptree_luma, 2),
-                     mi_row + 5 * ebs_h, mi_col, bsize_med);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[3],
-                     get_partition_subtree_const(ptree_luma, 3),
-                     mi_row + 7 * ebs_h, mi_col, subsize);
-      break;
-    }
-    case PARTITION_VERT_4A: {
-      const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_VERT);
-      const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_VERT][bsize_big];
-      assert(subsize == subsize_lookup[PARTITION_VERT][bsize_med]);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[0],
-                     get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
-                     subsize);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[1],
-                     get_partition_subtree_const(ptree_luma, 1), mi_row,
-                     mi_col + ebs_w, bsize_med);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[2],
-                     get_partition_subtree_const(ptree_luma, 2), mi_row,
-                     mi_col + 3 * ebs_w, bsize_big);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[3],
-                     get_partition_subtree_const(ptree_luma, 3), mi_row,
-                     mi_col + 7 * ebs_w, subsize);
-      break;
-    }
-    case PARTITION_VERT_4B: {
-      const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_VERT);
-      const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_VERT][bsize_big];
-      assert(subsize == subsize_lookup[PARTITION_VERT][bsize_med]);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[0],
-                     get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
-                     subsize);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[1],
-                     get_partition_subtree_const(ptree_luma, 1), mi_row,
-                     mi_col + ebs_w, bsize_big);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[2],
-                     get_partition_subtree_const(ptree_luma, 2), mi_row,
-                     mi_col + 5 * ebs_w, bsize_med);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[3],
-                     get_partition_subtree_const(ptree_luma, 3), mi_row,
-                     mi_col + 7 * ebs_w, subsize);
-      break;
-    }
-    case PARTITION_HORZ_3:
-    case PARTITION_VERT_3:
-      for (int i = 0; i < 4; ++i) {
-        BLOCK_SIZE this_bsize = get_h_partition_subsize(bsize, i, partition);
-        const int offset_r = get_h_partition_offset_mi_row(bsize, i, partition);
-        const int offset_c = get_h_partition_offset_mi_col(bsize, i, partition);
-
-        assert(this_bsize != BLOCK_INVALID);
-        assert(offset_r >= 0 && offset_c >= 0);
-
-        const int this_mi_row = mi_row + offset_r;
-        const int this_mi_col = mi_col + offset_c;
-
-        write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                       ptree->sub_tree[i],
-                       get_partition_subtree_const(ptree_luma, i), this_mi_row,
-                       this_mi_col, this_bsize);
-      }
-      break;
-    case PARTITION_SPLIT:
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[0],
-                     get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
-                     subsize);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[1],
-                     get_partition_subtree_const(ptree_luma, 1), mi_row,
-                     mi_col + hbs_w, subsize);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[2],
-                     get_partition_subtree_const(ptree_luma, 2), mi_row + hbs_h,
-                     mi_col, subsize);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[3],
-                     get_partition_subtree_const(ptree_luma, 3), mi_row + hbs_h,
-                     mi_col + hbs_w, subsize);
-      break;
-    default: assert(0); break;
   }
   if (!is_sb_root && !frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
       parent && partition && parent->region_type != INTRA_REGION &&

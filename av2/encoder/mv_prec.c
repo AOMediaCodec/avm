@@ -397,114 +397,18 @@ static AVM_INLINE void collect_mv_stats_sb(MV_STATS *mv_stats,
     return;
   const PARTITION_TYPE partition = ptree->partition;
 
-  const BLOCK_SIZE subsize = get_partition_subsize(bsize, partition);
-
-  const int hbs_w = mi_size_wide[bsize] / 2;
-  const int hbs_h = mi_size_high[bsize] / 2;
-  const int ebs_w = mi_size_wide[bsize] / 8;
-  const int ebs_h = mi_size_high[bsize] / 8;
-  switch (partition) {
-    case PARTITION_NONE:
-      collect_mv_stats_b(mv_stats, cpi, mi_row, mi_col);
-      break;
-    case PARTITION_HORZ:
-      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col, subsize,
-                          ptree->sub_tree[0]);
-      collect_mv_stats_sb(mv_stats, cpi, mi_row + hbs_h, mi_col, subsize,
-                          ptree->sub_tree[1]);
-      break;
-    case PARTITION_VERT:
-      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col, subsize,
-                          ptree->sub_tree[0]);
-      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col + hbs_w, subsize,
-                          ptree->sub_tree[1]);
-      break;
-    case PARTITION_SPLIT:
-      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col, subsize,
-                          ptree->sub_tree[0]);
-      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col + hbs_w, subsize,
-                          ptree->sub_tree[1]);
-      collect_mv_stats_sb(mv_stats, cpi, mi_row + hbs_h, mi_col, subsize,
-                          ptree->sub_tree[2]);
-      collect_mv_stats_sb(mv_stats, cpi, mi_row + hbs_h, mi_col + hbs_w,
-                          subsize, ptree->sub_tree[3]);
-      break;
-    case PARTITION_HORZ_4A: {
-      const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
-      assert(bsize_big < BLOCK_SIZES_ALL);
-      const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_HORZ][bsize_big];
-      assert(subsize == subsize_lookup[PARTITION_HORZ][bsize_med]);
-      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col, subsize,
-                          ptree->sub_tree[0]);
-      collect_mv_stats_sb(mv_stats, cpi, mi_row + ebs_h, mi_col, bsize_med,
-                          ptree->sub_tree[1]);
-      collect_mv_stats_sb(mv_stats, cpi, mi_row + 3 * ebs_h, mi_col, bsize_big,
-                          ptree->sub_tree[2]);
-      collect_mv_stats_sb(mv_stats, cpi, mi_row + 7 * ebs_h, mi_col, subsize,
-                          ptree->sub_tree[3]);
-      break;
+  if (partition == PARTITION_NONE) {
+    collect_mv_stats_b(mv_stats, cpi, mi_row, mi_col);
+  } else {
+    BLOCK_SIZE sub_sizes[4];
+    int mi_rows[4], mi_cols[4];
+    get_partition_subblock_layout(partition, bsize, mi_row, mi_col, sub_sizes,
+                                  mi_rows, mi_cols);
+    const int num_subblocks = get_subblock_count(partition);
+    for (int sub_idx = 0; sub_idx < num_subblocks; ++sub_idx) {
+      collect_mv_stats_sb(mv_stats, cpi, mi_rows[sub_idx], mi_cols[sub_idx],
+                          sub_sizes[sub_idx], ptree->sub_tree[sub_idx]);
     }
-    case PARTITION_HORZ_4B: {
-      const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
-      assert(bsize_big < BLOCK_SIZES_ALL);
-      const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_HORZ][bsize_big];
-      assert(subsize == subsize_lookup[PARTITION_HORZ][bsize_med]);
-      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col, subsize,
-                          ptree->sub_tree[0]);
-      collect_mv_stats_sb(mv_stats, cpi, mi_row + ebs_h, mi_col, bsize_big,
-                          ptree->sub_tree[1]);
-      collect_mv_stats_sb(mv_stats, cpi, mi_row + 5 * ebs_h, mi_col, bsize_med,
-                          ptree->sub_tree[2]);
-      collect_mv_stats_sb(mv_stats, cpi, mi_row + 7 * ebs_h, mi_col, subsize,
-                          ptree->sub_tree[3]);
-      break;
-    }
-    case PARTITION_VERT_4A: {
-      const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_VERT);
-      assert(bsize_big < BLOCK_SIZES_ALL);
-      const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_VERT][bsize_big];
-      assert(subsize == subsize_lookup[PARTITION_VERT][bsize_med]);
-      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col, subsize,
-                          ptree->sub_tree[0]);
-      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col + ebs_w, bsize_med,
-                          ptree->sub_tree[1]);
-      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col + 3 * ebs_w, bsize_big,
-                          ptree->sub_tree[2]);
-      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col + 7 * ebs_w, subsize,
-                          ptree->sub_tree[3]);
-      break;
-    }
-    case PARTITION_VERT_4B: {
-      const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_VERT);
-      assert(bsize_big < BLOCK_SIZES_ALL);
-      const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_VERT][bsize_big];
-      assert(subsize == subsize_lookup[PARTITION_VERT][bsize_med]);
-      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col, subsize,
-                          ptree->sub_tree[0]);
-      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col + ebs_w, bsize_big,
-                          ptree->sub_tree[1]);
-      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col + 5 * ebs_w, bsize_med,
-                          ptree->sub_tree[2]);
-      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col + 7 * ebs_w, subsize,
-                          ptree->sub_tree[3]);
-      break;
-    }
-    case PARTITION_HORZ_3:
-    case PARTITION_VERT_3: {
-      for (int i = 0; i < 4; ++i) {
-        const BLOCK_SIZE this_bsize =
-            get_h_partition_subsize(bsize, i, partition);
-        const int offset_mr =
-            get_h_partition_offset_mi_row(bsize, i, partition);
-        const int offset_mc =
-            get_h_partition_offset_mi_col(bsize, i, partition);
-
-        collect_mv_stats_sb(mv_stats, cpi, mi_row + offset_mr,
-                            mi_col + offset_mc, this_bsize, ptree->sub_tree[i]);
-      }
-      break;
-    }
-    default: assert(0);
   }
 }
 
