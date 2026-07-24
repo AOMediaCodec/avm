@@ -3222,6 +3222,84 @@ static void cdef_restoration_frame(AV2_COMP *cpi, AV2_COMMON *cm,
 #endif
 }
 
+// Reconstruct the QP state that the decoder will derive from the bitstream.
+static void sync_delta_q_for_loop_filter(AV2_COMP *cpi) {
+  AV2_COMMON *const cm = &cpi->common;
+  const DeltaQInfo *const delta_q_info = &cm->delta_q_info;
+  if (!delta_q_info->delta_q_present_flag) return;
+
+  const int max_qindex = cm->seq_params.bit_depth == AVM_BITS_8 ? MAXQ_8_BITS
+                         : cm->seq_params.bit_depth == AVM_BITS_10
+                             ? MAXQ_10_BITS
+                             : MAXQ;
+  CommonModeInfoParams *const mi_params = &cm->mi_params;
+
+  for (int tile_row = 0; tile_row < cm->tiles.rows; ++tile_row) {
+    TileInfo tile_info;
+    av2_tile_set_row(&tile_info, cm, tile_row);
+    for (int tile_col = 0; tile_col < cm->tiles.cols; ++tile_col) {
+      av2_tile_set_col(&tile_info, cm, tile_col);
+      int current_base_qindex = cm->quant_params.base_qindex;
+
+      for (int mi_row = tile_info.mi_row_start; mi_row < tile_info.mi_row_end;
+           mi_row += cm->mib_size) {
+        for (int mi_col = tile_info.mi_col_start; mi_col < tile_info.mi_col_end;
+             mi_col += cm->mib_size) {
+          const int mi_index = mi_row * mi_params->mi_stride + mi_col;
+          MB_MODE_INFO *const mbmi = mi_params->mi_grid_base[mi_index];
+          if (mbmi == NULL) continue;
+
+          const BLOCK_SIZE bsize = mbmi->sb_type[PLANE_TYPE_Y];
+          const int skip = mbmi->skip_txfm[0];
+          const int super_block_upper_left =
+              ((mi_row & (cm->mib_size - 1)) == 0) &&
+              ((mi_col & (cm->mib_size - 1)) == 0);
+          // Delta-q syntax is written only by the upper-left leaf of an SB. A
+          // full-SB skip does not signal delta-q, so the decoder keeps the
+          // previous current_base_qindex for that SB.
+          const int syntax_present =
+              (bsize != cm->sb_size || skip == 0) && super_block_upper_left;
+
+          if (syntax_present) {
+            const int reduced_delta_qindex =
+                (mbmi->current_qindex - current_base_qindex) /
+                delta_q_info->delta_q_res;
+            current_base_qindex =
+                clamp(current_base_qindex +
+                          reduced_delta_qindex * delta_q_info->delta_q_res,
+                      1, max_qindex);
+          }
+
+          /*
+           * The first leaf at the SB origin carries the delta-q syntax, but
+           * loop filtering visits every leaf MBMI. Apply the same effective
+           * base qindex to all leaf MBMIs in this SB; segmentation offsets
+           * remain per leaf.
+           */
+          const int sb_mi_row_end =
+              AVMMIN(mi_row + cm->mib_size, tile_info.mi_row_end);
+          const int sb_mi_col_end =
+              AVMMIN(mi_col + cm->mib_size, tile_info.mi_col_end);
+          for (int leaf_row = mi_row; leaf_row < sb_mi_row_end; ++leaf_row) {
+            for (int leaf_col = mi_col; leaf_col < sb_mi_col_end; ++leaf_col) {
+              MB_MODE_INFO *const leaf_mbmi =
+                  mi_params->mi_grid_base[leaf_row * mi_params->mi_stride +
+                                          leaf_col];
+              if (leaf_mbmi == NULL) continue;
+              const int seg_qindex =
+                  av2_get_qindex(&cm->seg, leaf_mbmi->segment_id,
+                                 current_base_qindex, cm->seq_params.bit_depth);
+              get_qindex_with_offsets(cm, seg_qindex,
+                                      leaf_mbmi->final_qindex_dc,
+                                      leaf_mbmi->final_qindex_ac);
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
 /*!\brief Select and apply in-loop deblocking filters, cdef filters, and
  * restoration filters
  *
@@ -4249,8 +4327,10 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
   av2_set_lr_tools(master_lr_tools_disable_mask[1], 2, &cm->features);
 
   // Pick the loop filter level for the frame.
-  if (!cm->bru.frame_inactive_flag && !cm->bridge_frame_info.is_bridge_frame)
+  if (!cm->bru.frame_inactive_flag && !cm->bridge_frame_info.is_bridge_frame) {
+    sync_delta_q_for_loop_filter(cpi);
     loopfilter_frame(cpi, cm);
+  }
   int64_t tip_as_output_sse = INT64_MAX;
   int64_t tip_as_output_rate = INT64_MAX;
 
