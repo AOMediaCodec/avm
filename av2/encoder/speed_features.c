@@ -381,6 +381,10 @@ static void set_good_speed_features_framesize_independent(
     // nearest searched result beyond the cap.
     sf->mv_sf.newmv_drl_search_limit = 2;
 
+    sf->tx_sf.tx_type_search.skip_tx_search = 1;
+    sf->tx_sf.tx_type_search.eob_adapt_skip_tx_search = true;
+    sf->tx_sf.tx_type_search.skip_tx_search_max_eob = 256;
+
     sf->tx_sf.enable_adaptive_tcq_threshold = true;
     sf->tx_sf.adaptive_tcq_threshold_qidx = 185;
     sf->inter_sf.enable_enhanced_inter_mode_cache_reuse = 1;
@@ -698,6 +702,7 @@ static AVM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->prune_none_with_ml = 0;
   part_sf->prune_split_ml_level = -2;  // default pruning
   part_sf->prune_split_ml_level_inter = -1;
+  part_sf->remove_qp_restriction_with_ml = 0;
 #endif  // CONFIG_ML_PART_SPLIT
   part_sf->disable_ext_partitions = false;
   part_sf->disable_uneven_4way_partitions = false;
@@ -821,6 +826,8 @@ static AVM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
   tx_sf->tx_type_search.use_reduced_intra_txset = 0;
   tx_sf->tx_type_search.fast_inter_tx_type_search = 0;
   tx_sf->tx_type_search.skip_tx_search = 0;
+  tx_sf->tx_type_search.eob_adapt_skip_tx_search = false;
+  tx_sf->tx_type_search.skip_tx_search_max_eob = 1024;
   tx_sf->tx_type_search.prune_tx_type_using_stats = 0;
   tx_sf->tx_type_search.prune_tx_type_est_rd = 0;
   tx_sf->tx_type_search.winner_mode_tx_type_pruning = 0;
@@ -959,6 +966,11 @@ static AVM_INLINE void set_erp_speed_features_framesize_dependent(
       sf->part_sf.simple_motion_search_early_term_none =
           cm->current_frame.pyramid_level > 4 ? 1 : 0;
     }
+#if CONFIG_ML_PART_SPLIT
+    if (is_720p_or_lesser) {
+      sf->part_sf.remove_qp_restriction_with_ml = 1;
+    }
+#endif  // CONFIG_ML_PART_SPLIT
   }
 
   if (cpi->speed >= 2) {
@@ -1049,6 +1061,7 @@ static AVM_INLINE void set_erp_speed_features(AV2_COMP *cpi) {
   if (cpi->speed >= 1) {
     // Emulate erp_pruning_level = 6.
     sf->part_sf.ext_recur_depth_level = 1;
+    sf->part_sf.ml_early_term_after_part_split_level = 2;
   }
 
   if (cpi->speed >= 2) {

@@ -3886,6 +3886,30 @@ static void none_partition_search(
   restore_level_banks(&x->e_mbd, level_banks);
 }
 
+// Decide early termination by ml based on PARTITION_NONE and PARTITION_SPLIT
+// costs.
+static void av2_ml_prune_after_split(AV2_COMP *const cpi, MACROBLOCK *x,
+                                     SIMPLE_MOTION_DATA_TREE *sms_tree,
+                                     PartitionSearchState *part_search_state,
+                                     RD_STATS *best_rdc, int64_t part_none_rd,
+                                     int64_t part_split_rd) {
+  const AV2_COMMON *const cm = &cpi->common;
+
+  // Early termination: using the rd costs of PARTITION_NONE and subblocks
+  // from PARTITION_SPLIT to determine an early breakout.
+  if (cpi->sf.part_sf.ml_early_term_after_part_split_level &&
+      !frame_is_intra_only(cm) &&
+      !part_search_state->terminate_partition_search &&
+      part_search_state->do_rectangular_split &&
+      (part_search_state->partition_rect_allowed[HORZ] ||
+       part_search_state->partition_rect_allowed[VERT]) &&
+      sms_tree) {
+    av2_ml_early_term_after_split(
+        cpi, x, sms_tree, best_rdc->rdcost, part_none_rd, part_split_rd,
+        part_search_state->split_rd, part_search_state);
+  }
+}
+
 // PARTITION_SPLIT search.
 static void split_partition_search(
     AV2_COMP *const cpi, ThreadData *td, TileDataEnc *tile_data,
@@ -5813,6 +5837,14 @@ BEGIN_PARTITION_SEARCH:
   prune_partitions_after_split(cpi, pc_tree, &part_search_state);
   // Based on split result, decide if we want to further delay the search to
   // after rect
+
+  if (!search_none_after_rect && !search_none_after_split &&
+      partition_none_allowed) {
+    // Prune partitions based on PARTITION_NONE and PARTITION_SPLIT.
+    av2_ml_prune_after_split(cpi, x, sms_tree, &part_search_state, &best_rdc,
+                             part_none_rd, part_split_rd);
+  }
+
   if (search_none_after_split && pc_tree->partitioning == PARTITION_SPLIT) {
     for (int idx = 0; idx < SUB_PARTITIONS_SPLIT; idx++) {
       const int depth =
