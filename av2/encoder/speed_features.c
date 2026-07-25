@@ -1333,6 +1333,7 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
   if (cpi->oxcf.mode == GOOD && speed >= 0) {
     const int qindex_thresh = 135 + qindex_offset;
     const int qindex_thresh2 = 113 + qindex_offset;
+    const int qindex_thresh4 = 160 + qindex_offset;
     if (cpi->oxcf.gf_cfg.lag_in_frames == 0) {
       if (cm->quant_params.base_qindex <= (frame_is_intra_only(&cpi->common)
                                                ? qindex_thresh2
@@ -1340,7 +1341,8 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
         sf->tx_sf.restrict_tx_partition_type_search = 2;
       }
     } else {
-      if (cm->quant_params.base_qindex <= qindex_thresh2) {
+      if (cm->quant_params.base_qindex <=
+          ((speed < 1) ? qindex_thresh2 : qindex_thresh4)) {
         sf->tx_sf.restrict_tx_partition_type_search = 1;
       }
     }
