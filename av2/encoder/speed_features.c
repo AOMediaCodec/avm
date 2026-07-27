@@ -343,6 +343,7 @@ static void set_good_speed_features_framesize_independent(
     // TODO (Yeqing Wu): need to be tuned for speed > 1.
     sf->inter_sf.skip_compound_prune_top_refs_num_ref0 = 1;
     sf->inter_sf.skip_compound_prune_top_refs_num_ref1 = 2;
+    sf->inter_sf.reduce_comp_refs = 2;
     sf->inter_sf.disable_switchable_refinemv = 1;
     sf->inter_sf.prune_refinemv_by_ref_idx = 1;
     sf->inter_sf.prune_interintra_by_ref_idx = 1;
@@ -381,6 +382,7 @@ static void set_good_speed_features_framesize_independent(
     // Cap the DRL depth for a fresh single-ref NEWMV search; reuse the
     // nearest searched result beyond the cap.
     sf->mv_sf.newmv_drl_search_limit = 2;
+    sf->inter_sf.prune_amvd_newmv = 1;
 
     sf->tx_sf.tx_type_search.skip_tx_search = 1;
     sf->tx_sf.tx_type_search.eob_adapt_skip_tx_search = true;
@@ -755,6 +757,7 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->reduce_inter_modes = 0;
   inter_sf->alt_ref_search_fp = 0;
   inter_sf->disable_switchable_refinemv = 0;
+  inter_sf->reduce_comp_refs = 0;
   inter_sf->selective_ref_frame = 0;
   inter_sf->prune_newmv_modes_using_prior_rd = 0;
   inter_sf->share_motion_mode_prune_pool = 0;
@@ -798,6 +801,7 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->skip_mode_eval_based_on_rate_cost = 0;
   inter_sf->reuse_erp_mode_flag = 0;
   inter_sf->prune_warpmv_prob_thresh = 32;
+  inter_sf->prune_amvd_newmv = 0;
   inter_sf->enable_enhanced_inter_mode_cache_reuse = 0;
 }
 
@@ -1116,6 +1120,11 @@ void av2_set_speed_features_framesize_independent(AV2_COMP *cpi, int speed) {
     cpi->common.seq_params.enable_masked_compound &=
         !sf->inter_sf.disable_masked_comp;
 
+    if (sf->inter_sf.reduce_comp_refs) {
+      cpi->common.seq_params.num_same_ref_compound =
+          AVMMIN(cpi->common.seq_params.num_same_ref_compound, 1);
+    }
+
     if (sf->intra_sf.skip_intra_dip_search) {
       cpi->common.seq_params.enable_intra_dip = 0;
     }
@@ -1335,6 +1344,7 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
   if (cpi->oxcf.mode == GOOD && speed >= 0) {
     const int qindex_thresh = 135 + qindex_offset;
     const int qindex_thresh2 = 113 + qindex_offset;
+    const int qindex_thresh4 = 160 + qindex_offset;
     if (cpi->oxcf.gf_cfg.lag_in_frames == 0) {
       if (cm->quant_params.base_qindex <= (frame_is_intra_only(&cpi->common)
                                                ? qindex_thresh2
@@ -1342,7 +1352,8 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
         sf->tx_sf.restrict_tx_partition_type_search = 2;
       }
     } else {
-      if (cm->quant_params.base_qindex <= qindex_thresh2) {
+      if (cm->quant_params.base_qindex <=
+          ((speed < 1) ? qindex_thresh2 : qindex_thresh4)) {
         sf->tx_sf.restrict_tx_partition_type_search = 1;
       }
     }

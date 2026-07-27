@@ -582,6 +582,13 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // 2 implies prune horiz, vert and extended partition
   int prune_ref_frames;
 
+  // When set to N>0, this flag limits the maximum number of compound
+  // reference frame combinations evaluated in the RD search. For all compound
+  // modes, same reference compound is restricted to (0,0). For non-NEAR_NEARMV
+  // and non-NEAR_NEARMV_OPTFLOW modes, the evaluation is limited to top N
+  // compound reference combinations in priority order.
+  int reduce_comp_refs;
+
   // Prune reference frames for ALTREF
   int alt_ref_search_fp;
 
@@ -763,6 +770,11 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // 0: original cache reuse logic.
   // 1: enhanced cache reuse logic (more modes are searched).
   int enable_enhanced_inter_mode_cache_reuse;
+
+  // When set, skip AMVD evaluation for NEWMV if the
+  // current best mode is not the same mode as the one being evaluated, because
+  // AMVD on top of these modes is unlikely to win over the non-AMVD best mode.
+  int prune_amvd_newmv;
 } INTER_MODE_SPEED_FEATURES;
 
 typedef struct INTERP_FILTER_SPEED_FEATURES {

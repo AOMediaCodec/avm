@@ -2260,6 +2260,35 @@ static AVM_INLINE void update_inter_mode_rd(HandleInterModeArgs *args,
   if (rd < *p) *p = rd;
 }
 
+// Priority list of cross compound reference pairs ordered based on selection
+// frequency.
+static const int comp_ref_priority[15][2] = {
+  { 0, 1 }, { 0, 2 }, { 0, 3 }, { 1, 2 }, { 0, 4 },
+  { 0, 5 }, { 2, 3 }, { 1, 4 }, { 1, 3 }, { 1, 5 },
+  { 2, 5 }, { 0, 6 }, { 1, 6 }, { 2, 4 }, { 2, 6 },
+};
+
+// Returns 1 if a compound reference pair (ref_frame, second_ref_frame) should
+// be pruned based on the reduce_comp_refs speed feature limit.
+static AVM_INLINE int prune_comp_ref_by_priority(
+    const INTER_MODE_SPEED_FEATURES *inter_sf, PREDICTION_MODE mode,
+    int ref_frame, int second_ref_frame) {
+  const int reduce_comp_refs = inter_sf->reduce_comp_refs;
+  if (!reduce_comp_refs || ref_frame == second_ref_frame) return 0;
+
+  // In compound modes other than NEAR_NEARMV and NEAR_NEARMV_OPTFLOW, search
+  // top-N compound reference pairs in the priority list.
+  if (mode == NEAR_NEARMV || mode == NEAR_NEARMV_OPTFLOW) return 0;
+  const int limit = AVMMIN(reduce_comp_refs, 15);
+  for (int ref_idx = 0; ref_idx < limit; ++ref_idx) {
+    if (comp_ref_priority[ref_idx][0] == ref_frame &&
+        comp_ref_priority[ref_idx][1] == second_ref_frame) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
 // Returns 1 if a single-ref mode (e.g. NEWMV or GLOBALMV) for this ref frame
 // should be skipped because the matching reference RD is not within
 // (1 / slack_denom) of the best reference RD across all ref frames. Decision
@@ -9170,6 +9199,11 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
 
     if (comp_pred && !(cm->ref_frame_flags & (1 << second_ref_frame))) continue;
 
+    if (comp_pred && prune_comp_ref_by_priority(&sf->inter_sf, this_mode,
+                                                ref_frame, second_ref_frame)) {
+      continue;
+    }
+
     const MV_REFERENCE_FRAME ref_frames[2] = { ref_frame, second_ref_frame };
     init_mbmi(mbmi, this_mode, ref_frames, cm, xd, xd->sbi);
     mbmi->fsc_mode[PLANE_TYPE_Y] = 0;
@@ -9225,6 +9259,12 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
       if (sf->inter_sf.skip_amvd_new_near_near_new_modes && amvd_inverted &&
           mbmi->use_amvd && cm->current_frame.pyramid_level > 3)
         continue;
+      if (sf->inter_sf.prune_amvd_newmv &&
+          cm->current_frame.pyramid_level >= 4 && (mbmi->mode == NEWMV)) {
+        if (mbmi->use_amvd && search_state.best_mbmode.mode != mbmi->mode) {
+          continue;
+        }
+      }
 
       // Skip single-ref NEWMV / WARP_NEWMV when prior-mode RD for this
       // ref frame is far from the best across all refs. See
