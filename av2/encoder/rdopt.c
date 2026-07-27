@@ -9256,6 +9256,13 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
         continue;
       }
 
+      if (sf->inter_sf.prune_amvd_newmv &&
+          cm->current_frame.pyramid_level >= 4 && (mbmi->mode == NEWMV)) {
+        if (mbmi->use_amvd && search_state.best_mbmode.mode != mbmi->mode) {
+          continue;
+        }
+      }
+
       // Skip single-ref NEWMV / WARP_NEWMV when prior-mode RD for this
       // ref frame is far from the best across all refs. See
       // prune_newmv_modes_by_prior_rd() for source selection and

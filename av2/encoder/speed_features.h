@@ -766,6 +766,11 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // 0: original cache reuse logic.
   // 1: enhanced cache reuse logic (more modes are searched).
   int enable_enhanced_inter_mode_cache_reuse;
+
+  // When set, skip AMVD evaluation for NEWMV if the
+  // current best mode is not the same mode as the one being evaluated, because
+  // AMVD on top of these modes is unlikely to win over the non-AMVD best mode.
+  int prune_amvd_newmv;
 } INTER_MODE_SPEED_FEATURES;
 
 typedef struct INTERP_FILTER_SPEED_FEATURES {
