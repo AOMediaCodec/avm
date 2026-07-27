@@ -15,6 +15,8 @@
 #include "av2/common/bru.h"
 #include "avm_ports/avm_timer.h"
 
+#include "av2/encoder/partition_mlp.h"
+
 #include "av2/common/av2_common_int.h"
 #include "av2/common/blockd.h"
 #include "av2/common/common_data.h"
@@ -5832,6 +5834,53 @@ BEGIN_PARTITION_SEARCH:
                           none_rd, &part_none_rd, &level_banks, ptree_luma);
   }
 
+  // Rectangular partitions search stage.
+  // Run the partition MLP on all eligible blocks (both dims >= 32px) and
+  // prune the less-likely rect direction when it confidently predicts NONE.
+  // Skip during retry pass to avoid infinite loop if pruning is enabled.
+  if (cpi->sf.part_sf.partition_pruning_with_mlp &&
+      part_search_state.partition_none_allowed &&
+      part_search_state.forced_partition == PARTITION_INVALID &&
+      block_size_wide[bsize] >= 32 && block_size_high[bsize] >= 32 &&
+      bsize <= BLOCK_256X256 && !x->must_find_valid_partition) {
+    if (pb_source_variance == UINT_MAX) {
+      av2_setup_src_planes(x, cpi->source, mi_row, mi_col, num_planes, NULL);
+      pb_source_variance = av2_high_get_sby_perpixel_variance(
+          cpi, &x->plane[0].src, bsize, xd->bd);
+    }
+    const int above_part = xd->above_mbmi ? (int)xd->above_mbmi->partition : -1;
+    const int left_part = xd->left_mbmi ? (int)xd->left_mbmi->partition : -1;
+    const int is_intra = frame_is_intra_only(cm) ? 1 : 0;
+    const int bw = (xd->mb_to_right_edge >= 0)
+                       ? block_size_wide[bsize]
+                       : (xd->mb_to_right_edge >> 3) + block_size_wide[bsize];
+    const int bh = (xd->mb_to_bottom_edge >= 0)
+                       ? block_size_high[bsize]
+                       : (xd->mb_to_bottom_edge >> 3) + block_size_high[bsize];
+    float logits[4];
+    const int pred = av2_partition_mlp_predict(
+        x->plane[0].src.buf, x->plane[0].src.stride, bw, bh, (int)bsize,
+        cm->quant_params.base_qindex - MAXQ_OFFSET * (xd->bd - 8),
+        pb_source_variance, part_search_state.none_rd, above_part, left_part,
+        is_intra, logits);
+
+    if (pred == PART_MLP_NONE) {
+      const float none_thresh =
+          cpi->speed == 1
+              ? cpi->sf.part_sf.partition_pruning_with_mlp_none_thresh_cpu1
+              : cpi->sf.part_sf.partition_pruning_with_mlp_none_thresh_cpu_gt1;
+      float runner_up = -1e9f;
+      for (int ci = 0; ci < 4; ci++)
+        if (ci != PART_MLP_NONE && logits[ci] > runner_up)
+          runner_up = logits[ci];
+      if (logits[PART_MLP_NONE] - runner_up > none_thresh) {
+        if (logits[PART_MLP_HORZ] < logits[PART_MLP_VERT])
+          part_search_state.prune_rect_part[HORZ] = true;
+        else
+          part_search_state.prune_rect_part[VERT] = true;
+      }
+    }
+  }
   // Search partition horz and vert.
   rectangular_partition_search(
       cpi, td, tile_data, tp, x, pc_tree, &x_ctx, &part_search_state, &best_rdc,

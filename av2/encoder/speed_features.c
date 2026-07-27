@@ -401,6 +401,8 @@ static void set_good_speed_features_framesize_independent(
     // block, prunes when inter-mode ratio exceeds 50%, and early skips when
     // the current best partitioning is PARTITION_NONE).
     sf->part_sf.inter_sdp_fast_method_level = 1;
+
+    sf->part_sf.partition_pruning_with_mlp = 1;
   }
 
   if (speed >= 2) {
@@ -698,6 +700,9 @@ static AVM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->prune_part_4b_with_part_4a = 0;
   part_sf->two_pass_partition_search = 0;
   part_sf->prune_rect_with_ml = 0;
+  part_sf->partition_pruning_with_mlp = 0;
+  part_sf->partition_pruning_with_mlp_none_thresh_cpu1 = 3.5f;
+  part_sf->partition_pruning_with_mlp_none_thresh_cpu_gt1 = 2.5f;
   part_sf->end_part_search_after_consec_failures = 0;
   part_sf->ext_recur_depth_level = 0;
   part_sf->uneven_4way_recur_depth_level = 0;
