@@ -5883,9 +5883,19 @@ BEGIN_PARTITION_SEARCH:
   }
 
   // Search extended partitions.
+  const int ext_recur_depth_val =
+      get_ext_partitions_recur_depth(&cpi->sf.part_sf, bsize);
   const int ext_recur_depth =
-      AVMMIN(max_recursion_depth - 1,
-             get_ext_partitions_recur_depth(&cpi->sf.part_sf, bsize));
+      AVMMIN(max_recursion_depth - 1, ext_recur_depth_val);
+
+  const int uneven_4way_recur_depth_val =
+      cpi->sf.part_sf.uneven_4way_recur_depth_level &&
+              (block_size_wide[bsize] < 64 || block_size_high[bsize] < 64)
+          ? 1
+          : ext_recur_depth_val;
+  const int uneven_4way_recur_depth =
+      AVMMIN(max_recursion_depth - 1, uneven_4way_recur_depth_val);
+
   const bool track_ptree_luma =
       is_luma_chroma_share_same_partition(xd->tree_type, ptree_luma, bsize);
   bool partition_boundaries[MAX_MIB_SQUARE] = { 0 };
@@ -5910,7 +5920,8 @@ BEGIN_PARTITION_SEARCH:
       search_extended_partition(
           &part_search_state, cpi, td, tile_data, tp, &best_rdc, pc_tree,
           track_ptree_luma ? ptree_luma : NULL, template_tree, &x_ctx,
-          &part_search_state, &level_banks, multi_pass_mode, ext_recur_depth,
+          &part_search_state, &level_banks, multi_pass_mode,
+          uneven_4way_recur_depth,
           is_cfl_allowed_for_sdp(cm, xd, ptree_luma, partition_type, bsize),
           partition_type);
       prune_4way_partitions_based_on_4way_search(
