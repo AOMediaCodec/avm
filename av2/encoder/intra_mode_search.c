@@ -325,8 +325,14 @@ void av2_count_colors_highbd(const uint16_t *src, int stride, int rows,
   }
 }
 
-int prune_intra_y_mode(int64_t this_model_rd, int64_t *best_model_rd,
-                       int64_t top_intra_model_rd[], int k) {
+bool prune_intra_y_mode(int64_t this_model_rd, int64_t *best_model_rd,
+                        int64_t top_intra_model_rd[], int k, int lossless,
+                        uint8_t use_dpcm_y) {
+  (void)lossless;
+  assert(IMPLIES(use_dpcm_y != 0, lossless != 0));
+  if (this_model_rd < *best_model_rd) *best_model_rd = this_model_rd;
+  if (use_dpcm_y != 0) return false;
+
   const double thresh_top = 1.00;
   for (int i = 0; i < k; i++) {
     if (this_model_rd < top_intra_model_rd[i]) {
@@ -339,10 +345,9 @@ int prune_intra_y_mode(int64_t this_model_rd, int64_t *best_model_rd,
   }
   if (top_intra_model_rd[k - 1] != INT64_MAX &&
       this_model_rd > thresh_top * top_intra_model_rd[k - 1])
-    return 1;
+    return true;
 
-  if (this_model_rd < *best_model_rd) *best_model_rd = this_model_rd;
-  return 0;
+  return false;
 }
 
 #define PLANE_SIGN_TO_JOINT_SIGN(plane, a, b) \
@@ -1027,8 +1032,8 @@ static INLINE int prune_intra_dip_mode(const AV2_COMP *cpi, MACROBLOCK *x,
   const MB_MODE_INFO *const mbmi = xd->mi[0];
   const int64_t this_model_rd = intra_model_yrd(cpi, x, bsize, mode_cost);
   if (prune_intra_y_mode(this_model_rd, best_model_rd, top_intra_model_rd,
-                         TOP_INTRA_MODEL_COUNT) &&
-      (!xd->lossless[mbmi->segment_id] || mbmi->use_dpcm_y == 0))
+                         TOP_INTRA_MODEL_COUNT, xd->lossless[mbmi->segment_id],
+                         mbmi->use_dpcm_y))
     return 1;
   return 0;
 }
@@ -1239,8 +1244,8 @@ int64_t av2_handle_intra_mode(IntraModeSearchState *intra_search_state,
   int64_t this_model_rd = intra_model_yrd(cpi, x, bsize, mode_cost);
   const int k =
       cpi->sf.intra_sf.intra_pruning_with_mlp ? 4 : TOP_INTRA_MODEL_COUNT;
-  if (prune_intra_y_mode(this_model_rd, best_model_rd, top_intra_model_rd, k) &&
-      (!xd->lossless[mbmi->segment_id] || mbmi->use_dpcm_y == 0))
+  if (prune_intra_y_mode(this_model_rd, best_model_rd, top_intra_model_rd, k,
+                         xd->lossless[mbmi->segment_id], mbmi->use_dpcm_y))
     return INT64_MAX;
   if (cpi->sf.intra_sf.intra_pruning_with_mlp && mbmi->mrl_index == 0 &&
       av2_is_directional_mode(mbmi->mode))
@@ -1528,8 +1533,9 @@ void search_fsc_mode(const AV2_COMP *const cpi, MACROBLOCK *x, int *rate,
           this_model_rd = intra_model_yrd(cpi, x, bsize, mode_costs);
 
           if (prune_intra_y_mode(this_model_rd, best_model_rd,
-                                 top_intra_model_rd, TOP_INTRA_MODEL_COUNT) &&
-              (!xd->lossless[mbmi->segment_id] || mbmi->use_dpcm_y == 0)) {
+                                 top_intra_model_rd, TOP_INTRA_MODEL_COUNT,
+                                 xd->lossless[mbmi->segment_id],
+                                 mbmi->use_dpcm_y)) {
             continue;
           }
           av2_pick_uniform_tx_size_type_yrd(cpi, x, &tokenonly_rd_stats, bsize,
@@ -1848,9 +1854,9 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
           if (dpcm_index == 0) mode_costs += mrl_idx_cost;
           int64_t this_model_rd;
           this_model_rd = intra_model_yrd(cpi, x, bsize, mode_costs);
-          if (prune_intra_y_mode(this_model_rd, &best_model_rd,
-                                 top_intra_model_rd, model_rd_k) &&
-              (!xd->lossless[mbmi->segment_id] || mbmi->use_dpcm_y == 0))
+          if (prune_intra_y_mode(
+                  this_model_rd, &best_model_rd, top_intra_model_rd, model_rd_k,
+                  xd->lossless[mbmi->segment_id], mbmi->use_dpcm_y))
             continue;
 
           if (cpi->sf.intra_sf.intra_pruning_with_mlp && mrl_idx == 0 &&
