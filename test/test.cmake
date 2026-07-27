@@ -221,6 +221,7 @@ if(NOT BUILD_SHARED_LIBS)
     "${AVM_ROOT}/test/horver_correlation_test.cc"
     "${AVM_ROOT}/test/masked_sad_test.cc"
     "${AVM_ROOT}/test/masked_variance_test.cc"
+    "${AVM_ROOT}/test/model_rd_test.cc"
     "${AVM_ROOT}/test/motion_vector_test.cc"
     "${AVM_ROOT}/test/noise_model_test.cc"
     "${AVM_ROOT}/test/quantize_func_test.cc"
