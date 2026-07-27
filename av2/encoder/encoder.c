@@ -99,6 +99,7 @@
 
 #define DEF_MAX_DRL_REFMVS 4
 #define DEF_MAX_DRL_REFBVS 4
+#define NUM_SAME_REF_COMPOUND 2
 #if CONFIG_ENTROPY_STATS
 FRAME_COUNTS aggregate_fc;
 #endif  // CONFIG_ENTROPY_STATS
@@ -481,7 +482,7 @@ void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
   // Disable frame by frame update for now. Can be changed later.
   seq->allow_frame_max_bvp_drl_bits = 0;
   seq->num_same_ref_compound =
-      seq->single_picture_header_flag ? 0 : SAME_REF_COMPOUND_PRUNE;
+      seq->single_picture_header_flag ? 0 : NUM_SAME_REF_COMPOUND;
 
   seq->max_frame_width = frm_dim_cfg->forced_max_frame_width
                              ? frm_dim_cfg->forced_max_frame_width
