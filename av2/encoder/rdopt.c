@@ -9256,6 +9256,9 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
         continue;
       }
 
+      if (sf->inter_sf.skip_amvd_new_near_near_new_modes && amvd_inverted &&
+          mbmi->use_amvd && cm->current_frame.pyramid_level > 3)
+        continue;
       if (sf->inter_sf.prune_amvd_newmv &&
           cm->current_frame.pyramid_level >= 4 && (mbmi->mode == NEWMV)) {
         if (mbmi->use_amvd && search_state.best_mbmode.mode != mbmi->mode) {
