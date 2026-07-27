@@ -2581,7 +2581,6 @@ static INLINE void update_coeff_general(
     tran_low_t *qcoeff, tran_low_t *dqcoeff, uint8_t *levels,
     const qm_val_t *iqmatrix, int32_t *tmp_sign, int plane,
     coeff_info *coef_info, bool enable_parity_hiding, int *hr_level_avg) {
-  const int dqv = get_dqv(dequant, scan[si], iqmatrix);
   const int ci = scan[si];
   const tran_low_t qc = qcoeff[ci];
   const int is_last = si == (eob - 1);
@@ -2608,6 +2607,7 @@ static INLINE void update_coeff_general(
   if (qc == 0) {
     *accu_rate += limits ? base_lf_cost : base_cost;
   } else {
+    const int dqv = get_dqv(dequant, scan[si], iqmatrix);
     const int sign = (qc < 0) ? 1 : 0;
     const tran_low_t abs_qc = abs(qc);
     const tran_low_t tqc = tcoeff[ci];
@@ -2666,7 +2666,6 @@ static AVM_FORCE_INLINE void update_coeff_simple(
     tran_low_t *qcoeff, tran_low_t *dqcoeff, uint8_t *levels,
     const qm_val_t *iqmatrix, coeff_info *coef_info, bool enable_parity_hiding,
     int plane, int *hr_level_avg) {
-  const int dqv = get_dqv(dequant, scan[si], iqmatrix);
   (void)eob;
   // this simple version assumes the coeff's scan_idx is not DC (scan_idx != 0)
   // and not the last (scan_idx != eob - 1)
@@ -2709,6 +2708,7 @@ static AVM_FORCE_INLINE void update_coeff_simple(
       }
     }
   } else {
+    const int dqv = get_dqv(dequant, scan[si], iqmatrix);
     const tran_low_t abs_qc = abs(qc);
     const tran_low_t abs_tqc = abs(tcoeff[ci]);
     const tran_low_t abs_dqc = abs(dqcoeff[ci]);
@@ -2905,7 +2905,6 @@ static AVM_FORCE_INLINE void update_coeff_eob(
     int *hr_level_avg) {
   const int bwl = get_txb_bwl(tx_size);
   const int height = get_txb_high(tx_size);
-  const int dqv = get_dqv(dequant, scan[si], iqmatrix);
   assert(si != *eob - 1);
   const int ci = scan[si];
   const tran_low_t qc = qcoeff[ci];
@@ -2945,6 +2944,7 @@ static AVM_FORCE_INLINE void update_coeff_eob(
       }
     }
   } else {
+    const int dqv = get_dqv(dequant, scan[si], iqmatrix);
     int64_t rd_eob_low = INT64_MAX >> 1;
     int rate_eob_low = INT32_MAX >> 1;
     int lower_level = 0;
