@@ -3077,7 +3077,6 @@ static void check_and_add_process_ref(const AV2_COMMON *cm, int max_check,
                                       int type, int start_frame,
                                       int target_frame, int side,
                                       int checked_ref[INTER_REFS_PER_FRAME][2],
-                                      int *checked_count,
                                       struct ProcessRefTMVP *process_ref,
                                       int *process_count) {
   const RefCntBuffer *const start_frame_buf =
@@ -3090,27 +3089,21 @@ static void check_and_add_process_ref(const AV2_COMMON *cm, int max_check,
       &cm->seq_params.order_hint_info, start_frame_order_hint, cur_order_hint);
   if (abs(start_to_current_frame_offset) > MAX_FRAME_DISTANCE) return;
 
-  if (cm->bru.enabled && cm->bru.update_ref_idx != -1) {
-    if (start_frame == cm->bru.update_ref_idx) return;
-    if (target_frame == cm->bru.update_ref_idx) return;
+  const int update_ref_idx = cm->bru.update_ref_idx;
+  if (cm->bru.enabled && update_ref_idx != -1) {
+    if (start_frame == update_ref_idx || target_frame == update_ref_idx) return;
   }
 
   if (type == 1 && start_frame == target_frame) return;
 
-  if (*process_count >= MFMV_STACK_SIZE) return;
-  if (checked_ref[start_frame][side]) return;
+  if (*process_count >= max_check || checked_ref[start_frame][side]) return;
 
-  if (!checked_ref[start_frame][side] && *checked_count < max_check) {
-    checked_ref[start_frame][side] = 1;
-    (*checked_count)++;
-  }
-  if (checked_ref[start_frame][side]) {
-    process_ref[*process_count].type = type;
-    process_ref[*process_count].start_frame = start_frame;
-    process_ref[*process_count].side = side;
-    process_ref[*process_count].target_frame = target_frame;
-    (*process_count)++;
-  }
+  checked_ref[start_frame][side] = 1;
+  process_ref[*process_count].type = type;
+  process_ref[*process_count].start_frame = start_frame;
+  process_ref[*process_count].side = side;
+  process_ref[*process_count].target_frame = target_frame;
+  (*process_count)++;
 }
 
 static INLINE int get_blk_id_k(int this_col, int tmvp_proc_sizel2) {
@@ -4096,7 +4089,6 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
   struct ProcessRefTMVP process_ref[MFMV_STACK_SIZE];
   int process_count = 0;
   int checked_ref[INTER_REFS_PER_FRAME][2] = { 0 };
-  int checked_count = 0;
 
   if (cm->seq_params.enable_tip && cur_frame_sort_idx != -1) {
     if (cm->has_both_sides_refs || cm->ref_frames_info.num_past_refs >= 2) {
@@ -4127,8 +4119,8 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
 
       side = dist_diff < 0 ? 1 : 0;
       check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE, 0, start_frame,
-                                target_frame, side, checked_ref, &checked_count,
-                                process_ref, &process_count);
+                                target_frame, side, checked_ref, process_ref,
+                                &process_count);
     } else {
       cm->tip_ref.ref_frame[0] = NONE_FRAME;
       cm->tip_ref.ref_frame[1] = NONE_FRAME;
@@ -4164,25 +4156,25 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
 
     if (future_ref_to_its_ref_dist < past_ref_to_its_ref_dist) {
       if (future_ref_sort_idx != -1) {
-        check_and_add_process_ref(
-            cm, TIP_MFMV_STACK_SIZE, 0, sort_ref[future_ref_sort_idx], -1, 0,
-            checked_ref, &checked_count, process_ref, &process_count);
+        check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE, 0,
+                                  sort_ref[future_ref_sort_idx], -1, 0,
+                                  checked_ref, process_ref, &process_count);
       }
       if (past_ref_sort_idx != -1) {
-        check_and_add_process_ref(
-            cm, TIP_MFMV_STACK_SIZE, 0, sort_ref[past_ref_sort_idx], -1, 1,
-            checked_ref, &checked_count, process_ref, &process_count);
+        check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE, 0,
+                                  sort_ref[past_ref_sort_idx], -1, 1,
+                                  checked_ref, process_ref, &process_count);
       }
     } else {
       if (past_ref_sort_idx != -1) {
-        check_and_add_process_ref(
-            cm, TIP_MFMV_STACK_SIZE, 0, sort_ref[past_ref_sort_idx], -1, 1,
-            checked_ref, &checked_count, process_ref, &process_count);
+        check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE, 0,
+                                  sort_ref[past_ref_sort_idx], -1, 1,
+                                  checked_ref, process_ref, &process_count);
       }
       if (future_ref_sort_idx != -1) {
-        check_and_add_process_ref(
-            cm, TIP_MFMV_STACK_SIZE, 0, sort_ref[future_ref_sort_idx], -1, 0,
-            checked_ref, &checked_count, process_ref, &process_count);
+        check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE, 0,
+                                  sort_ref[future_ref_sort_idx], -1, 0,
+                                  checked_ref, process_ref, &process_count);
       }
     }
   }
@@ -4190,12 +4182,12 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
   if (cur_frame_sort_idx >= 0) {
     check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE, 0,
                               sort_ref[cur_frame_sort_idx], -1, 0, checked_ref,
-                              &checked_count, process_ref, &process_count);
+                              process_ref, &process_count);
   }
   if (cur_frame_sort_idx >= 1) {
-    check_and_add_process_ref(
-        cm, TIP_MFMV_STACK_SIZE, 0, sort_ref[cur_frame_sort_idx - 1], -1, 0,
-        checked_ref, &checked_count, process_ref, &process_count);
+    check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE, 0,
+                              sort_ref[cur_frame_sort_idx - 1], -1, 0,
+                              checked_ref, process_ref, &process_count);
   }
 
   for (int ri = stack_count - 1; ri > 0; ri--) {
@@ -4210,15 +4202,13 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
 
     if (!checked_ref[rf_stack[ri]][side]) {
       check_and_add_process_ref(cm, MFMV_STACK_SIZE, 0, rf_stack[ri], -1, side,
-                                checked_ref, &checked_count, process_ref,
-                                &process_count);
+                                checked_ref, process_ref, &process_count);
     }
 
     side = !side;
     if (!checked_ref[rf_stack[ri]][side]) {
       check_and_add_process_ref(cm, MFMV_STACK_SIZE, 0, rf_stack[ri], -1, side,
-                                checked_ref, &checked_count, process_ref,
-                                &process_count);
+                                checked_ref, process_ref, &process_count);
     }
   }
 
