@@ -103,6 +103,11 @@ extern "C" {
 
 #define MIN_BSIZE_WARP_DELTA 8
 
+#define MAXQ_FOR_GIVEN_BIT_DEPTH(bit_depth)    \
+  ((bit_depth) == AVM_BITS_8    ? MAXQ_8_BITS  \
+   : (bit_depth) == AVM_BITS_10 ? MAXQ_10_BITS \
+                                : MAXQ_12_BITS)
+
 /*!\cond */
 
 #if CONFIG_PARAKIT_COLLECT_DATA
