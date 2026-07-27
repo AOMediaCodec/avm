@@ -126,12 +126,11 @@ static AVM_INLINE void model_rd_with_curvfit(const AV2_COMP *const cpi,
   const double sse_norm = (double)sse / num_samples;
   const double qstepsqr = (double)qstep * qstep;
   const double xqr = log2(sse_norm / qstepsqr);
-  double rate_f, dist_by_sse_norm_f;
-  av2_model_rd_curvfit(plane_bsize, sse_norm, xqr, &rate_f,
-                       &dist_by_sse_norm_f);
+  double rate_dist_f[2];
+  av2_model_rd_curvfit(plane_bsize, sse_norm, xqr, rate_dist_f);
 
-  const double dist_f = dist_by_sse_norm_f * sse_norm;
-  int rate_i = (int)(AVMMAX(0.0, rate_f * num_samples) + 0.5);
+  const double dist_f = rate_dist_f[1] * sse_norm;
+  int rate_i = (int)(AVMMAX(0.0, rate_dist_f[0] * num_samples) + 0.5);
   int64_t dist_i = (int64_t)(AVMMAX(0.0, dist_f * num_samples) + 0.5);
   avm_clear_system_state();
 
