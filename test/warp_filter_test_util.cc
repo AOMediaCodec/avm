@@ -94,6 +94,66 @@ void generate_warped_model(libavm_test::ACMRandom *rnd, int32_t *mat,
   }
 }
 
+namespace {
+template <typename RefFn, typename TestFn>
+void RunBoundaryCheckImpl(int out_w, int out_h, int bd, int is_alpha_zero,
+                          int is_beta_zero, int is_gamma_zero,
+                          int is_delta_zero, int mode,
+                          libavm_test::ACMRandom *rnd, RefFn ref_fn,
+                          TestFn test_fn) {
+  const int w = 128, h = 128;
+  const int border = 16;
+  const int stride = w + 2 * border;
+  const int mask = (1 << bd) - 1;
+
+  int output_n = ((out_w + 7) & ~7) * out_h;
+  uint16_t *input_ = new uint16_t[h * stride]{};
+  uint16_t *input = input_ + border;
+  uint16_t *output = new uint16_t[output_n]{};
+  uint16_t *output2 = new uint16_t[output_n]{};
+  int32_t mat[8];
+  int16_t alpha, beta, gamma, delta;
+
+  generate_warped_model(rnd, mat, &alpha, &beta, &gamma, &delta, is_alpha_zero,
+                        is_beta_zero, is_gamma_zero, is_delta_zero);
+
+  uint16_t fill_val = 0;
+  if (mode == 0)
+    fill_val = 0;
+  else if (mode == 1)
+    fill_val = mask;
+  else
+    fill_val = (1 << (bd - 1));
+
+  for (int r = 0; r < h; ++r)
+    for (int c = 0; c < w; ++c) input[r * stride + c] = fill_val;
+  for (int r = 0; r < h; ++r) {
+    for (int c = 0; c < border; ++c) {
+      input[r * stride - border + c] = fill_val;
+      input[r * stride + w + c] = fill_val;
+    }
+  }
+
+  ConvolveParams conv_params = get_conv_params(0, 0, bd);
+
+  ref_fn(mat, input, w, h, stride, output, out_w, out_h, bd, &conv_params,
+         alpha, beta, gamma, delta);
+  test_fn(mat, input, w, h, stride, output2, out_w, out_h, bd, &conv_params,
+          alpha, beta, gamma, delta);
+
+  for (int j = 0; j < out_w * out_h; ++j) {
+    ASSERT_EQ(output[j], output2[j])
+        << "mismatch at index " << j << " = (" << (j % out_w) << ", "
+        << (j / out_w) << ") w=" << out_w << " h=" << out_h << " bd=" << bd
+        << " mode=" << mode;
+  }
+
+  delete[] input_;
+  delete[] output;
+  delete[] output2;
+}
+}  // namespace
+
 namespace AV2HighbdWarpFilter {
 ::testing::internal::ParamGenerator<HighbdWarpTestParams> BuildParams(
     highbd_warp_affine_func filter) {
@@ -260,9 +320,10 @@ void AV2HighbdWarpFilterTest::RunCheckOutput(
                 conv_params.fwd_offset = quant_dist_lookup_table[jj][ii];
                 conv_params.bck_offset = quant_dist_lookup_table[jj][1 - ii];
               }
-              test_impl(mat, input, w, h, stride, output2, p_col, p_row, out_w,
-                        out_h, out_w, sub_x, sub_y, bd, &conv_params, alpha,
-                        beta, gamma, delta);
+              ASM_REGISTER_STATE_CHECK(
+                  test_impl(mat, input, w, h, stride, output2, p_col, p_row,
+                            out_w, out_h, out_w, sub_x, sub_y, bd, &conv_params,
+                            alpha, beta, gamma, delta));
 
               if (use_no_round) {
                 for (j = 0; j < out_w * out_h; ++j)
@@ -293,6 +354,32 @@ void AV2HighbdWarpFilterTest::RunCheckOutput(
   delete[] output2;
   delete[] dsta;
   delete[] dstb;
+}
+
+void AV2HighbdWarpFilterTest::RunBoundaryCheck(
+    highbd_warp_affine_func test_impl, int mode) {
+  HighbdWarpTestParam param = GET_PARAM(0);
+  const int out_w = std::get<0>(param), out_h = std::get<1>(param);
+  const int bd = std::get<3>(param);
+  RunBoundaryCheckImpl(
+      out_w, out_h, bd, GET_PARAM(1), GET_PARAM(2), GET_PARAM(3), GET_PARAM(4),
+      mode, &rnd_,
+      [](const int32_t *mat, const uint16_t *input, int w, int h, int stride,
+         uint16_t *output, int out_w, int out_h, int bd,
+         ConvolveParams *conv_params, int16_t alpha, int16_t beta,
+         int16_t gamma, int16_t delta) {
+        av2_highbd_warp_affine_c(mat, input, w, h, stride, output, 32, 32,
+                                 out_w, out_h, out_w, 0, 0, bd, conv_params,
+                                 alpha, beta, gamma, delta);
+      },
+      [test_impl](const int32_t *mat, const uint16_t *input, int w, int h,
+                  int stride, uint16_t *output, int out_w, int out_h, int bd,
+                  ConvolveParams *conv_params, int16_t alpha, int16_t beta,
+                  int16_t gamma, int16_t delta) {
+        ASM_REGISTER_STATE_CHECK(
+            test_impl(mat, input, w, h, stride, output, 32, 32, out_w, out_h,
+                      out_w, 0, 0, bd, conv_params, alpha, beta, gamma, delta));
+      });
 }
 }  // namespace AV2HighbdWarpFilter
 
@@ -451,8 +538,9 @@ void AV2ExtHighbdWarpFilterTest::RunCheckOutput(
             }
             conv_params.fwd_offset = quant_dist_lookup_table[ii][0];
             conv_params.bck_offset = quant_dist_lookup_table[ii][1];
-            test_impl(mat, input, w, h, stride, output2, 32, 32, out_w, out_h,
-                      out_w, sub_x, sub_y, bd, &conv_params, 0, NULL);
+            ASM_REGISTER_STATE_CHECK(test_impl(
+                mat, input, w, h, stride, output2, 32, 32, out_w, out_h, out_w,
+                sub_x, sub_y, bd, &conv_params, 0, NULL));
 
             if (use_no_round) {
               for (j = 0; j < out_w * out_h; ++j)
@@ -479,6 +567,31 @@ void AV2ExtHighbdWarpFilterTest::RunCheckOutput(
   delete[] output2;
   delete[] dsta;
   delete[] dstb;
+}
+
+void AV2ExtHighbdWarpFilterTest::RunBoundaryCheck(
+    ext_highbd_warp_affine_func test_impl, int mode) {
+  ExtHighbdWarpTestParam param = GET_PARAM(0);
+  const int out_w = ::testing::get<0>(param), out_h = ::testing::get<1>(param);
+  const int bd = ::testing::get<3>(param);
+  RunBoundaryCheckImpl(
+      out_w, out_h, bd, GET_PARAM(1), GET_PARAM(2), GET_PARAM(3), GET_PARAM(4),
+      mode, &rnd_,
+      [](const int32_t *mat, const uint16_t *input, int w, int h, int stride,
+         uint16_t *output, int out_w, int out_h, int bd,
+         ConvolveParams *conv_params, int16_t, int16_t, int16_t, int16_t) {
+        av2_ext_highbd_warp_affine_c(mat, input, w, h, stride, output, 32, 32,
+                                     out_w, out_h, out_w, 0, 0, bd, conv_params,
+                                     0, NULL);
+      },
+      [test_impl](const int32_t *mat, const uint16_t *input, int w, int h,
+                  int stride, uint16_t *output, int out_w, int out_h, int bd,
+                  ConvolveParams *conv_params, int16_t, int16_t, int16_t,
+                  int16_t) {
+        ASM_REGISTER_STATE_CHECK(test_impl(mat, input, w, h, stride, output, 32,
+                                           32, out_w, out_h, out_w, 0, 0, bd,
+                                           conv_params, 0, NULL));
+      });
 }
 }  // namespace AV2ExtHighbdWarpFilter
 }  // namespace libavm_test

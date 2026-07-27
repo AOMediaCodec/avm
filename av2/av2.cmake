@@ -440,6 +440,7 @@ list(
   "${AVM_ROOT}/av2/common/arm/convolve_neon.c"
   "${AVM_ROOT}/av2/common/arm/convolve_neon.h"
   "${AVM_ROOT}/av2/common/arm/reconinter_neon.c"
+  "${AVM_ROOT}/av2/common/arm/highbd_warp_affine_neon.c"
   "${AVM_ROOT}/av2/common/cdef_block_neon.c")
 
 list(APPEND AVM_AV2_ENCODER_INTRIN_SSE4_2
