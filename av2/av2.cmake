@@ -396,6 +396,7 @@ list(
   "${AVM_ROOT}/av2/encoder/x86/encodetxb_sse2.c"
   "${AVM_ROOT}/av2/encoder/x86/highbd_block_error_intrin_sse2.c"
   "${AVM_ROOT}/av2/encoder/x86/highbd_temporal_filter_sse2.c"
+  "${AVM_ROOT}/av2/encoder/x86/model_rd_sse2.c"
   "${AVM_ROOT}/av2/encoder/x86/wedge_utils_sse2.c")
 
 list(APPEND AVM_AV2_ENCODER_INTRIN_SSE3 "${AVM_ROOT}/av2/encoder/x86/ml_sse3.c")

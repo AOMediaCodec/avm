@@ -334,6 +334,7 @@ static void set_good_speed_features_framesize_independent(
 
   sf->rd_sf.perform_coeff_opt = 1;
   if (speed >= 1) {
+    sf->flexmv_sf.prune_non_one_pel_mv_using_best_mv_prec = 1;
     sf->inter_sf.selective_ref_frame = 2;
     sf->inter_sf.prune_newmv_modes_using_prior_rd = 1;
     sf->inter_sf.share_motion_mode_prune_pool = 1;
@@ -341,6 +342,7 @@ static void set_good_speed_features_framesize_independent(
     // TODO (Yeqing Wu): need to be tuned for speed > 1.
     sf->inter_sf.skip_compound_prune_top_refs_num_ref0 = 1;
     sf->inter_sf.skip_compound_prune_top_refs_num_ref1 = 2;
+    sf->inter_sf.reduce_comp_refs = 2;
     sf->inter_sf.disable_switchable_refinemv = 1;
     sf->inter_sf.prune_refinemv_by_ref_idx = 1;
     sf->inter_sf.prune_interintra_by_ref_idx = 1;
@@ -693,6 +695,7 @@ static AVM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->prune_rect_with_ml = 0;
   part_sf->end_part_search_after_consec_failures = 0;
   part_sf->ext_recur_depth_level = 0;
+  part_sf->uneven_4way_recur_depth_level = 0;
   part_sf->prune_rect_with_split_depth = 0;
   part_sf->prune_part_h_with_partition_boundary = 0;
   part_sf->inter_sdp_fast_method_level = 0;
@@ -740,6 +743,7 @@ static AVM_INLINE void init_flexmv_sf(
   flexmv_sf->fast_mv_refinement = 0;
   flexmv_sf->fast_motion_search_low_precision = 0;
   flexmv_sf->prune_mv_prec_using_best_mv_prec_so_far = 0;
+  flexmv_sf->prune_non_one_pel_mv_using_best_mv_prec = 0;
 }
 
 static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
@@ -753,6 +757,7 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->reduce_inter_modes = 0;
   inter_sf->alt_ref_search_fp = 0;
   inter_sf->disable_switchable_refinemv = 0;
+  inter_sf->reduce_comp_refs = 0;
   inter_sf->selective_ref_frame = 0;
   inter_sf->prune_newmv_modes_using_prior_rd = 0;
   inter_sf->share_motion_mode_prune_pool = 0;
@@ -1113,6 +1118,11 @@ void av2_set_speed_features_framesize_independent(AV2_COMP *cpi, int speed) {
     cpi->common.seq_params.enable_masked_compound &=
         !sf->inter_sf.disable_masked_comp;
 
+    if (sf->inter_sf.reduce_comp_refs) {
+      cpi->common.seq_params.num_same_ref_compound =
+          AVMMIN(cpi->common.seq_params.num_same_ref_compound, 1);
+    }
+
     if (sf->intra_sf.skip_intra_dip_search) {
       cpi->common.seq_params.enable_intra_dip = 0;
     }
@@ -1270,6 +1280,10 @@ static AVM_INLINE void set_erp_speed_features_qindex_dependent(AV2_COMP *cpi) {
     if (!boosted && cm->quant_params.base_qindex < qindex_thresh3) {
       sf->part_sf.simple_motion_search_split = 1;
     }
+    sf->part_sf.uneven_4way_recur_depth_level = 1;
+    if (frame_is_intra_only(cm) &&
+        cm->quant_params.base_qindex >= qindex_thresh3)
+      sf->part_sf.uneven_4way_recur_depth_level = 0;
   }
 }
 
@@ -1328,6 +1342,7 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
   if (cpi->oxcf.mode == GOOD && speed >= 0) {
     const int qindex_thresh = 135 + qindex_offset;
     const int qindex_thresh2 = 113 + qindex_offset;
+    const int qindex_thresh4 = 160 + qindex_offset;
     if (cpi->oxcf.gf_cfg.lag_in_frames == 0) {
       if (cm->quant_params.base_qindex <= (frame_is_intra_only(&cpi->common)
                                                ? qindex_thresh2
@@ -1335,7 +1350,8 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
         sf->tx_sf.restrict_tx_partition_type_search = 2;
       }
     } else {
-      if (cm->quant_params.base_qindex <= qindex_thresh2) {
+      if (cm->quant_params.base_qindex <=
+          ((speed < 1) ? qindex_thresh2 : qindex_thresh4)) {
         sf->tx_sf.restrict_tx_partition_type_search = 1;
       }
     }
@@ -1343,6 +1359,9 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
     if (cm->quant_params.base_qindex <= qindex_thresh &&
         !cm->features.allow_screen_content_tools) {
       sf->flexmv_sf.prune_mv_prec_using_best_mv_prec_so_far = boosted ? 0 : 1;
+      if (!boosted) {
+        sf->flexmv_sf.prune_non_one_pel_mv_using_best_mv_prec = 0;
+      }
       sf->tx_sf.prune_inter_tx_part_rd_eval = true;
     }
   }

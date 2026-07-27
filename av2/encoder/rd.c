@@ -711,11 +711,8 @@ int av2_get_deltaq_offset(const AV2_COMP *cpi, int qindex, double beta) {
       qindex++;
       q = av2_dc_quant_QTX(qindex, 0, cpi->common.seq_params.base_y_dc_delta_q,
                            cpi->common.seq_params.bit_depth);
-    } while (newq > q &&
-             (qindex <
-              (cpi->common.seq_params.bit_depth == AVM_BITS_8    ? MAXQ_8_BITS
-               : cpi->common.seq_params.bit_depth == AVM_BITS_10 ? MAXQ_10_BITS
-                                                                 : MAXQ)));
+    } while (newq > q && (qindex < MAXQ_FOR_GIVEN_BIT_DEPTH(
+                                       cpi->common.seq_params.bit_depth)));
   }
   return qindex - orig_qindex;
 }
@@ -811,10 +808,7 @@ static void set_block_thresholds(const AV2_COMMON *cm, RD_OPT *rd) {
         clamp(av2_get_qindex(&cm->seg, segment_id, cm->quant_params.base_qindex,
                              cm->seq_params.bit_depth) +
                   cm->quant_params.y_dc_delta_q,
-              0,
-              cm->seq_params.bit_depth == AVM_BITS_8    ? MAXQ_8_BITS
-              : cm->seq_params.bit_depth == AVM_BITS_10 ? MAXQ_10_BITS
-                                                        : MAXQ);
+              0, MAXQ_FOR_GIVEN_BIT_DEPTH(cm->seq_params.bit_depth));
 
     const int q = compute_rd_thresh_factor(
         qindex, cm->seq_params.base_y_dc_delta_q, cm->seq_params.bit_depth);
@@ -1419,6 +1413,12 @@ static double interp_cubic(const double *p, double x) {
                           x * (3.0 * (p[1] - p[2]) + p[3] - p[0])));
 }
 
+void av2_interp_cubic_rate_dist_c(const double *p1, const double *p2, double x,
+                                  double rate_dist_f[2]) {
+  rate_dist_f[0] = interp_cubic(p1, x);
+  rate_dist_f[1] = interp_cubic(p2, x);
+}
+
 /*
 static double interp_bicubic(const double *p, int p_stride, double x,
                              double y) {
@@ -1533,7 +1533,7 @@ static const double interp_dgrid_curv[3][65] = {
 };
 
 void av2_model_rd_curvfit(BLOCK_SIZE bsize, double sse_norm, double xqr,
-                          double *rate_f, double *distbysse_f) {
+                          double rate_dist_f[2]) {
   const double x_start = -15.5;
   const double x_end = 16.5;
   const double x_step = 0.5;
@@ -1551,9 +1551,8 @@ void av2_model_rd_curvfit(BLOCK_SIZE bsize, double sse_norm, double xqr,
   assert(xi > 0);
 
   const double *prate = &interp_rgrid_curv[rcat][(xi - 1)];
-  *rate_f = interp_cubic(prate, xo);
   const double *pdist = &interp_dgrid_curv[dcat][(xi - 1)];
-  *distbysse_f = interp_cubic(pdist, xo);
+  av2_interp_cubic_rate_dist(prate, pdist, xo, rate_dist_f);
 }
 
 static void get_entropy_contexts_plane(BLOCK_SIZE plane_bsize,
