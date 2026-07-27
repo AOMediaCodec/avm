@@ -656,6 +656,10 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // the single reference modes, it is one of the two best performers.
   int prune_compound_using_single_ref;
 
+  // skip amvd for new near and near new modes for both regular
+  // and opfl modes by tid
+  int skip_amvd_new_near_near_new_modes;
+
   // Top-ref0 / top-ref1 cutoffs used inside the prune_compound_using_single_ref
   // pruning. Compound pairs with refs[0] <
   // skip_compound_prune_top_refs_num_ref0 AND refs[1] <
