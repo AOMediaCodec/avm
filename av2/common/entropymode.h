@@ -46,8 +46,6 @@ extern "C" {
 
 #define COMPREF_BIT_TYPES 2
 #define RANKED_REF0_TO_PRUNE 3
-// The number of reference pictures for the same reference compound mode
-#define SAME_REF_COMPOUND_PRUNE 2
 #define MAX_REFS_ARF 4
 
 #define WIENERNS_4PART_CTX_MAX 1
