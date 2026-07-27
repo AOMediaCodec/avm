@@ -4093,7 +4093,7 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
     }
   }
 
-  struct ProcessRefTMVP process_ref[20];
+  struct ProcessRefTMVP process_ref[MFMV_STACK_SIZE];
   int process_count = 0;
   int checked_ref[INTER_REFS_PER_FRAME][2] = { 0 };
   int checked_count = 0;
