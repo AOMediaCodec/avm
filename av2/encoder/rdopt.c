@@ -5477,9 +5477,9 @@ static int64_t handle_inter_mode(
                   pb_mv_precision < MV_PRECISION_FOUR_PEL &&
                   best_precision_so_far >= MV_PRECISION_QTR_PEL)
                 continue;
-              if (prune_curr_mv_precision_eval(
-                      cpi->sf.flexmv_sf.prune_mv_prec_using_best_mv_prec_so_far,
-                      precision_dx, best_precision_dx_so_far))
+              if (prune_curr_mv_precision_eval(cpi, mbmi, precision_def,
+                                               precision_dx,
+                                               best_precision_dx_so_far))
                 continue;
               if (mbmi->ref_mv_idx[0] || mbmi->ref_mv_idx[1]) {
                 if (cpi->sf.flexmv_sf.do_not_search_8_pel_precision &&
