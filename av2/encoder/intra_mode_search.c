@@ -1026,7 +1026,8 @@ static INLINE int prune_intra_dip_mode(const AV2_COMP *cpi, MACROBLOCK *x,
   const MACROBLOCKD *xd = &x->e_mbd;
   const MB_MODE_INFO *const mbmi = xd->mi[0];
   const int64_t this_model_rd = intra_model_yrd(cpi, x, bsize, mode_cost);
-  if (prune_intra_y_mode(this_model_rd, best_model_rd, top_intra_model_rd) &&
+  if (prune_intra_y_mode(this_model_rd, best_model_rd, top_intra_model_rd,
+                         TOP_INTRA_MODEL_COUNT) &&
       (!xd->lossless[mbmi->segment_id] || mbmi->use_dpcm_y == 0))
     return 1;
   return 0;
