@@ -3248,10 +3248,14 @@ static INLINE void check_traj_intersect(AV2_COMMON *cm,
 
 // Calculate the projected motion field from the TMVP mvs that points from
 // start_frame to one side.
-static int motion_field_projection_side(AV2_COMMON *cm,
-                                        MV_REFERENCE_FRAME start_frame,
-                                        MV_REFERENCE_FRAME target_frame,
-                                        int side_idx) {
+#ifdef __GNUC__
+// This prevents inlining this function into av2_setup_motion_field(), which
+// avoids an instruction count increase on GCC. Impact on Clang is neutral.
+__attribute__((noinline))
+#endif
+static int
+motion_field_projection_side(AV2_COMMON *cm, MV_REFERENCE_FRAME start_frame,
+                             MV_REFERENCE_FRAME target_frame, int side_idx) {
   int ref_offset[INTER_REFS_PER_FRAME] = { 0 };
 
   const RefCntBuffer *const start_frame_buf =
