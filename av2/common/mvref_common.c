@@ -3065,7 +3065,6 @@ static int has_past_ref(const AV2_COMMON *cm, int rf) {
 
 // Struct to store the reference frame motion field candidates.
 struct ProcessRefTMVP {
-  int type;  // 0 means with side, 1 means with target frame.
   int side;  // 0 means right to left, 1 means left to right.
   int start_frame;
   int target_frame;
@@ -3074,8 +3073,8 @@ struct ProcessRefTMVP {
 // Add a reference frame motion field candidate, if we have not reached the
 // maximum allowed.
 static void check_and_add_process_ref(const AV2_COMMON *cm, int max_check,
-                                      int type, int start_frame,
-                                      int target_frame, int side,
+                                      int start_frame, int target_frame,
+                                      int side,
                                       int checked_ref[INTER_REFS_PER_FRAME][2],
                                       struct ProcessRefTMVP *process_ref,
                                       int *process_count) {
@@ -3094,12 +3093,9 @@ static void check_and_add_process_ref(const AV2_COMMON *cm, int max_check,
     if (start_frame == update_ref_idx || target_frame == update_ref_idx) return;
   }
 
-  if (type == 1 && start_frame == target_frame) return;
-
   if (*process_count >= max_check || checked_ref[start_frame][side]) return;
 
   checked_ref[start_frame][side] = 1;
-  process_ref[*process_count].type = type;
   process_ref[*process_count].start_frame = start_frame;
   process_ref[*process_count].side = side;
   process_ref[*process_count].target_frame = target_frame;
@@ -3248,174 +3244,6 @@ static INLINE void check_traj_intersect(AV2_COMMON *cm,
       }
     }
   }
-}
-
-// Calculate the projected motion field from the TMVP mvs that points from
-// start_frame to target_frame.
-static int motion_field_projection_start_target(
-    AV2_COMMON *cm, MV_REFERENCE_FRAME start_frame,
-    MV_REFERENCE_FRAME target_frame) {
-  const int cur_order_hint = cm->cur_frame->display_order_hint;
-
-  if (get_ref_frame_buf(cm, start_frame)->is_restricted) return 0;
-
-  int start_order_hint = get_ref_frame_buf(cm, start_frame)->display_order_hint;
-  int target_order_hint =
-      get_ref_frame_buf(cm, target_frame)->display_order_hint;
-
-  OrderHintInfo *order_hint_info = &cm->seq_params.order_hint_info;
-
-  int ref_frame_offset =
-      get_relative_dist(order_hint_info, start_order_hint, target_order_hint);
-
-  if (abs(ref_frame_offset) > MAX_FRAME_DISTANCE) {
-    return 0;
-  }
-
-  const RefCntBuffer *const start_frame_buf =
-      get_ref_frame_buf(cm, start_frame);
-  if (!is_ref_motion_field_eligible(cm, start_frame_buf)) return 0;
-
-  assert(start_frame_buf->width == cm->width &&
-         start_frame_buf->height == cm->height);
-
-  const int *const ref_order_hints = start_frame_buf->ref_display_order_hint;
-
-  int start_to_current_frame_offset =
-      get_relative_dist(order_hint_info, start_order_hint, cur_order_hint);
-
-  if (abs(start_to_current_frame_offset) > MAX_FRAME_DISTANCE) {
-    return 0;
-  }
-
-  const int is_backward = ref_frame_offset < 0;
-  int mv_idx = is_backward ? 1 : 0;
-  if (is_backward) {
-    ref_frame_offset = -ref_frame_offset;
-    start_to_current_frame_offset = -start_to_current_frame_offset;
-  }
-
-  const int temporal_scale_factor =
-      tip_derive_scale_factor(start_to_current_frame_offset, ref_frame_offset);
-  const int ref_temporal_scale_factor = tip_derive_scale_factor(
-      -ref_frame_offset + start_to_current_frame_offset, -ref_frame_offset);
-
-  const MV_REF *mv_ref_base = start_frame_buf->mvs;
-  const int mvs_rows =
-      ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, TMVP_SHIFT_BITS);
-  const int mvs_cols =
-      ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
-  const int start_mvs_rows =
-      ROUND_POWER_OF_TWO(start_frame_buf->mi_rows, TMVP_SHIFT_BITS);
-  const int start_mvs_cols =
-      ROUND_POWER_OF_TWO(start_frame_buf->mi_cols, TMVP_SHIFT_BITS);
-  (void)mvs_rows;
-
-  assert(cm->tmvp_sample_step > 0);
-  for (int blk_row = 0; blk_row < start_mvs_rows;
-       blk_row += cm->tmvp_sample_step) {
-    for (int blk_col = 0; blk_col < start_mvs_cols;
-         blk_col += cm->tmvp_sample_step) {
-      const MV_REF *mv_ref = &mv_ref_base[blk_row * start_mvs_cols + blk_col];
-      if (is_inter_ref_frame(mv_ref->ref_frame[mv_idx])) {
-        const int ref_frame_order_hint =
-            ref_order_hints[mv_ref->ref_frame[mv_idx]];
-        if (get_relative_dist(order_hint_info, ref_frame_order_hint,
-                              target_order_hint) == 0) {
-          MV ref_mv = mv_ref->mv[mv_idx].as_mv;
-          fetch_mv_from_tmvp(&ref_mv);
-          int scaled_blk_col = blk_col;
-          int scaled_blk_row = blk_row;
-
-          if (cm->seq_params.enable_mv_traj) {
-            check_traj_intersect(cm, start_frame, target_frame, &ref_mv,
-                                 scaled_blk_row, scaled_blk_col, mvs_cols);
-          }
-
-          int_mv this_mv;
-          int mi_r = 0;
-          int mi_c = 0;
-          tip_get_mv_projection(&this_mv.as_mv, ref_mv, temporal_scale_factor);
-          int pos_valid;
-          if (this_mv.as_int == 0) {
-            pos_valid = 1;
-            mi_r = scaled_blk_row;
-            mi_c = scaled_blk_col;
-          } else {
-            pos_valid = get_block_position_no_constraint(
-                cm, &mi_r, &mi_c, scaled_blk_row, scaled_blk_col, this_mv.as_mv,
-                0);
-          }
-          mi_r = (mi_r >> cm->tmvp_sample_stepl2) << cm->tmvp_sample_stepl2;
-          mi_c = (mi_c >> cm->tmvp_sample_stepl2) << cm->tmvp_sample_stepl2;
-
-          if (pos_valid)
-            pos_valid = check_block_position(cm, scaled_blk_row, scaled_blk_col,
-                                             mi_r, mi_c);
-
-          if (pos_valid) {
-            if (cm->tpl_mvs_rows[mi_r][mi_c].mfmv0.as_int == INVALID_MV) {
-              if (cm->seq_params.enable_mv_traj) {
-                int blk_id_k = get_blk_id_k(mi_c, cm->tmvp_proc_sizel2);
-                int_mv ***blk_id_map_rows = cm->blk_id_map_rows[blk_id_k];
-                cm->id_offset_map_rows[start_frame][mi_r][mi_c].as_mv.row =
-                    clamp(-this_mv.as_mv.row, -REFMVS_LIMIT, REFMVS_LIMIT);
-                cm->id_offset_map_rows[start_frame][mi_r][mi_c].as_mv.col =
-                    clamp(-this_mv.as_mv.col, -REFMVS_LIMIT, REFMVS_LIMIT);
-                blk_id_map_rows[start_frame][scaled_blk_row][scaled_blk_col]
-                    .as_mv.row = mi_r;
-                blk_id_map_rows[start_frame][scaled_blk_row][scaled_blk_col]
-                    .as_mv.col = mi_c;
-
-                MV target_frame_mv;
-                tip_get_mv_projection(&target_frame_mv, ref_mv,
-                                      ref_temporal_scale_factor);
-                cm->id_offset_map_rows[target_frame][mi_r][mi_c].as_mv.row =
-                    clamp(target_frame_mv.row, -REFMVS_LIMIT, REFMVS_LIMIT);
-                cm->id_offset_map_rows[target_frame][mi_r][mi_c].as_mv.col =
-                    clamp(target_frame_mv.col, -REFMVS_LIMIT, REFMVS_LIMIT);
-                int target_row = 0, target_col = 0;
-                int target_pos_valid;
-                if (ref_mv.row == 0 && ref_mv.col == 0) {
-                  target_pos_valid = 1;
-                  target_row = scaled_blk_row;
-                  target_col = scaled_blk_col;
-                } else {
-                  target_pos_valid = get_block_position_no_constraint(
-                      cm, &target_row, &target_col, scaled_blk_row,
-                      scaled_blk_col, ref_mv, 0);
-                }
-                target_row = (target_row >> cm->tmvp_sample_stepl2)
-                             << cm->tmvp_sample_stepl2;
-                target_col = (target_col >> cm->tmvp_sample_stepl2)
-                             << cm->tmvp_sample_stepl2;
-
-                if (target_pos_valid)
-                  target_pos_valid = check_block_position(
-                      cm, target_row, target_col, mi_r, mi_c);
-
-                if (target_pos_valid) {
-                  blk_id_map_rows[target_frame][target_row][target_col]
-                      .as_mv.row = mi_r;
-                  blk_id_map_rows[target_frame][target_row][target_col]
-                      .as_mv.col = mi_c;
-                }
-              }
-
-              if (is_backward) {
-                ref_mv.row = -ref_mv.row;
-                ref_mv.col = -ref_mv.col;
-              }
-              cm->tpl_mvs_rows[mi_r][mi_c].mfmv0.as_mv.row = ref_mv.row;
-              cm->tpl_mvs_rows[mi_r][mi_c].mfmv0.as_mv.col = ref_mv.col;
-              cm->tpl_mvs_rows[mi_r][mi_c].ref_frame_offset = ref_frame_offset;
-            }
-          }
-        }
-      }
-    }
-  }
-  return 1;
 }
 
 // Calculate the projected motion field from the TMVP mvs that points from
@@ -4118,7 +3946,7 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
           get_ref_frame_buf(cm, target_frame)->display_order_hint);
 
       side = dist_diff < 0 ? 1 : 0;
-      check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE, 0, start_frame,
+      check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE, start_frame,
                                 target_frame, side, checked_ref, process_ref,
                                 &process_count);
     } else {
@@ -4156,23 +3984,23 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
 
     if (future_ref_to_its_ref_dist < past_ref_to_its_ref_dist) {
       if (future_ref_sort_idx != -1) {
-        check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE, 0,
+        check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE,
                                   sort_ref[future_ref_sort_idx], -1, 0,
                                   checked_ref, process_ref, &process_count);
       }
       if (past_ref_sort_idx != -1) {
-        check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE, 0,
+        check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE,
                                   sort_ref[past_ref_sort_idx], -1, 1,
                                   checked_ref, process_ref, &process_count);
       }
     } else {
       if (past_ref_sort_idx != -1) {
-        check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE, 0,
+        check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE,
                                   sort_ref[past_ref_sort_idx], -1, 1,
                                   checked_ref, process_ref, &process_count);
       }
       if (future_ref_sort_idx != -1) {
-        check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE, 0,
+        check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE,
                                   sort_ref[future_ref_sort_idx], -1, 0,
                                   checked_ref, process_ref, &process_count);
       }
@@ -4180,12 +4008,12 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
   }
 
   if (cur_frame_sort_idx >= 0) {
-    check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE, 0,
+    check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE,
                               sort_ref[cur_frame_sort_idx], -1, 0, checked_ref,
                               process_ref, &process_count);
   }
   if (cur_frame_sort_idx >= 1) {
-    check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE, 0,
+    check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE,
                               sort_ref[cur_frame_sort_idx - 1], -1, 0,
                               checked_ref, process_ref, &process_count);
   }
@@ -4201,13 +4029,13 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
     }
 
     if (!checked_ref[rf_stack[ri]][side]) {
-      check_and_add_process_ref(cm, MFMV_STACK_SIZE, 0, rf_stack[ri], -1, side,
+      check_and_add_process_ref(cm, MFMV_STACK_SIZE, rf_stack[ri], -1, side,
                                 checked_ref, process_ref, &process_count);
     }
 
     side = !side;
     if (!checked_ref[rf_stack[ri]][side]) {
-      check_and_add_process_ref(cm, MFMV_STACK_SIZE, 0, rf_stack[ri], -1, side,
+      check_and_add_process_ref(cm, MFMV_STACK_SIZE, rf_stack[ri], -1, side,
                                 checked_ref, process_ref, &process_count);
     }
   }
@@ -4227,14 +4055,9 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
     process_count = AVMMIN(1, process_count);
   }
   for (int pi = 0; pi < process_count; pi++) {
-    if (process_ref[pi].type == 0) {
-      motion_field_projection_side(cm, process_ref[pi].start_frame,
-                                   process_ref[pi].target_frame,
-                                   process_ref[pi].side);
-    } else {
-      motion_field_projection_start_target(cm, process_ref[pi].start_frame,
-                                           process_ref[pi].target_frame);
-    }
+    motion_field_projection_side(cm, process_ref[pi].start_frame,
+                                 process_ref[pi].target_frame,
+                                 process_ref[pi].side);
   }
 
   if (cm->seq_params.enable_mv_traj) {
