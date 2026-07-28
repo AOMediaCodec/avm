@@ -12,12 +12,14 @@
 
 #include "avm/avm_codec.h"
 #include "avm_ports/system_state.h"
+#include "avm_dsp/psnr.h"
 #include "av2/common/bru.h"
 #include "avm_ports/avm_timer.h"
 
 #include "av2/encoder/partition_mlp.h"
 
 #include "av2/common/av2_common_int.h"
+#include "av2/common/av2_loopfilter.h"
 #include "av2/common/blockd.h"
 #include "av2/common/common_data.h"
 #include "av2/common/enums.h"
@@ -3562,10 +3564,95 @@ static void inter_sdp_copy_luma_mode_info(PC_TREE *pc_tree,
   *mbmi = cur_pc_tree->none[INTRA_REGION]->mic;
 }
 
+static int64_t get_dist_offset_by_deblock(
+    AV2_COMP *const cpi, ThreadData *td, TileDataEnc *tile_data, MACROBLOCK *x,
+    TokenExtra **tp, PICK_MODE_CONTEXT *ctx_none, RD_STATS *const this_rdc,
+    const int mi_col, const int mi_row, const BLOCK_SIZE bsize) {
+  AV2_COMMON *const cm = &cpi->common;
+
+  const YV12_BUFFER_CONFIG *curr = &cm->cur_frame->buf;
+  const YV12_BUFFER_CONFIG *src = cpi->source;
+
+  const YV12_BUFFER_CONFIG *filtered = &cpi->trial_frame_rst;
+  int rate = 0;
+  encode_b(cpi, tile_data, td, tp, mi_row, mi_col, DRY_RUN_NORMAL, bsize,
+           PARTITION_NONE, ctx_none, &rate);
+
+  const int bw = block_size_wide[bsize];
+  const int bh = block_size_high[bsize];
+
+  int64_t rec_dist = avm_highbd_get_y_sse_part(src, curr, mi_col * MI_SIZE, bw,
+                                               mi_row * MI_SIZE, bh);
+
+  if (x->e_mbd.tree_type != LUMA_PART) {
+    const int sub_x = cm->seq_params.subsampling_x;
+    const int sub_y = cm->seq_params.subsampling_y;
+    rec_dist += avm_highbd_get_u_sse_part(
+        src, curr, mi_col * MI_SIZE >> sub_x, bw >> sub_x,
+        mi_row * MI_SIZE >> sub_y, bh >> sub_y);
+    rec_dist += avm_highbd_get_v_sse_part(
+        src, curr, mi_col * MI_SIZE >> sub_x, bw >> sub_x,
+        mi_row * MI_SIZE >> sub_y, bh >> sub_y);
+  }
+
+  if (llabs(this_rdc->dist - rec_dist) < this_rdc->dist / 50) {
+    int h_start = mi_col * MI_SIZE;
+    int v_start = mi_row * MI_SIZE;
+    int area_w = bw;
+    int area_h = bh;
+
+    MACROBLOCKD *xd = &x->e_mbd;
+    if (xd->up_available) {
+      int v_offset = bh == 4 ? 4 : 8;
+      v_start -= v_offset;
+      area_h += v_offset;
+    }
+    if (xd->left_available) {
+      int h_offset = bw == 4 ? 4 : 8;
+      h_start -= h_offset;
+      area_w += h_offset;
+    }
+
+    const int64_t unfiltered_y_dist =
+        avm_highbd_get_y_sse_part(src, curr, h_start, area_w, v_start, area_h);
+
+    uint16_t *curr_data = curr->buffers[0] + v_start * curr->y_stride + h_start;
+    uint16_t *filtered_data =
+        filtered->buffers[0] + v_start * filtered->y_stride + h_start;
+    copy_tile(area_w, area_h, curr_data, curr->y_stride, filtered_data,
+              filtered->y_stride);
+
+    const int plane = 0;
+    struct macroblockd_plane *pd = xd->plane;
+    av2_setup_dst_planes(pd, filtered, mi_row, mi_col, plane, plane + 1, NULL);
+    av2_filter_block_plane_vert(cm, xd, plane, &pd[plane], mi_row, mi_col, 1,
+                                bsize);
+
+    av2_setup_dst_planes(pd, filtered, mi_row, mi_col, plane, plane + 1, NULL);
+    av2_filter_block_plane_horz(cm, xd, plane, &pd[plane], mi_row, mi_col, 1,
+                                bsize);
+
+    const int64_t filtered_y_dist = avm_highbd_get_y_sse_part(
+        src, filtered, h_start, area_w, v_start, area_h);
+
+    const int bit_depth = cm->seq_params.bit_depth;
+    int dist_normal;  // dist is normalized to 16 * 8_bit_content_distortion
+    if (bit_depth <= 10) {
+      dist_normal = 1 << ((10 - cm->seq_params.bit_depth) * 2);
+      return dist_normal * (filtered_y_dist - unfiltered_y_dist);
+    } else {
+      dist_normal = 1 << ((cm->seq_params.bit_depth - 10) * 2);
+      return (filtered_y_dist - unfiltered_y_dist) / dist_normal;
+    }
+  } else {
+    return 0;
+  }
+}
+
 // PARTITION_NONE search.
 static void none_partition_search(
     AV2_COMP *const cpi, ThreadData *td, TileDataEnc *tile_data, MACROBLOCK *x,
-    PC_TREE *pc_tree, SIMPLE_MOTION_DATA_TREE *sms_tree,
+    TokenExtra **tp, PC_TREE *pc_tree, SIMPLE_MOTION_DATA_TREE *sms_tree,
     RD_SEARCH_MACROBLOCK_CONTEXT *x_ctx,
     PartitionSearchState *part_search_state, RD_STATS *best_rdc,
     unsigned int *pb_source_variance, int64_t *none_rd, int64_t *part_none_rd,
@@ -3610,6 +3697,16 @@ static void none_partition_search(
   // Set PARTITION_NONE context and cost.
   set_none_partition_params(cm, td, x, pc_tree, part_search_state,
                             &best_remain_rdcost, best_rdc, &pt_cost);
+  if (best_rdc->rdcost != INT64_MAX &&
+      cpi->sf.lpf_sf.enable_deblock_for_partition_search &&
+      !cpi->is_screen_content_type) {
+    // increase the remaining best cost which could have be reduced by deblock
+    // filer 1.125 (9/8) is experimental number which is not intensively tested.
+    best_remain_rdcost.rate = best_remain_rdcost.rate * 9 / 8;
+    best_remain_rdcost.dist = best_remain_rdcost.dist * 9 / 8;
+    best_remain_rdcost.rdcost = best_remain_rdcost.rdcost * 9 / 8;
+  }
+
   if (bsize == cm->sb_size)
     x->e_mbd.is_cfl_allowed_in_sdp = is_cfl_allowed_for_sdp(
         cm, &x->e_mbd, ptree_luma, PARTITION_NONE, bsize);
@@ -3658,6 +3755,16 @@ static void none_partition_search(
     av2_add_mode_search_context_to_cache(sms_data,
                                          pc_tree->none[pc_tree->region_type]);
   }
+
+  if (cpi->sf.lpf_sf.enable_deblock_for_partition_search &&
+      cm->lf.apply_deblocking_filter[0] && this_rdc->rate != INT_MAX &&
+      ctx_none != NULL && x->e_mbd.tree_type != CHROMA_PART &&
+      !cpi->is_screen_content_type) {
+    const int64_t distortion_offset = get_dist_offset_by_deblock(
+        cpi, td, tile_data, x, tp, ctx_none, this_rdc, mi_col, mi_row, bsize);
+    this_rdc->dist += distortion_offset;
+  }
+
   av2_rd_cost_update(x->rdmult, this_rdc);
 
 #if CONFIG_COLLECT_PARTITION_STATS
@@ -5384,7 +5491,7 @@ BEGIN_PARTITION_SEARCH:
   int64_t part_none_rd = INT64_MAX;
   if (!search_none_after_rect && !search_none_after_split &&
       partition_none_allowed) {
-    none_partition_search(cpi, td, tile_data, x, pc_tree, sms_tree, &x_ctx,
+    none_partition_search(cpi, td, tile_data, x, tp, pc_tree, sms_tree, &x_ctx,
                           &part_search_state, &best_rdc, &pb_source_variance,
                           none_rd, &part_none_rd, &level_banks, ptree_luma);
   }
@@ -5423,7 +5530,7 @@ BEGIN_PARTITION_SEARCH:
   }
   if (part_search_state.forced_partition == PARTITION_INVALID &&
       partition_none_allowed && search_none_after_split) {
-    none_partition_search(cpi, td, tile_data, x, pc_tree, sms_tree, &x_ctx,
+    none_partition_search(cpi, td, tile_data, x, tp, pc_tree, sms_tree, &x_ctx,
                           &part_search_state, &best_rdc, &pb_source_variance,
                           none_rd, &part_none_rd, &level_banks, ptree_luma);
   }
@@ -5494,7 +5601,7 @@ BEGIN_PARTITION_SEARCH:
       partition_none_allowed) {
     // Prune partitions based on rect results.
     prune_none_after_rect(&part_search_state, pc_tree);
-    none_partition_search(cpi, td, tile_data, x, pc_tree, sms_tree, &x_ctx,
+    none_partition_search(cpi, td, tile_data, x, tp, pc_tree, sms_tree, &x_ctx,
                           &part_search_state, &best_rdc, &pb_source_variance,
                           none_rd, &part_none_rd, &level_banks, ptree_luma);
   }
