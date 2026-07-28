@@ -9610,6 +9610,14 @@ int32_t av2_read_tilegroup_header(
   send_first_tile_group_indication &= obu_type != OBU_BRIDGE_FRAME;
   if (send_first_tile_group_indication)
     is_first_tile_group = avm_rb_read_bit(rb);
+  // It is a requirement of bitstream conformance that SeenFrameHeader is not
+  // equal to is_first_tile_group.
+  if (pbi->seen_frame_header == is_first_tile_group) {
+    avm_internal_error(
+        &cm->error, AVM_CODEC_CORRUPT_FRAME,
+        "SeenFrameHeader (%d) is equal to is_first_tile_group (%d)",
+        pbi->seen_frame_header, is_first_tile_group);
+  }
   *first_tile_group_in_frame = is_first_tile_group;
 
   if (is_first_tile_group) {
