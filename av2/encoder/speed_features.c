@@ -392,6 +392,7 @@ static void set_good_speed_features_framesize_independent(
     sf->tx_sf.adaptive_tcq_threshold_qidx = 185;
     sf->inter_sf.enable_enhanced_inter_mode_cache_reuse = 1;
     sf->inter_sf.skip_temporary_pred_for_opfl = 1;
+    sf->inter_sf.enable_warp_inter_intra_in_winner = 1;
 
     // Enable the optimized inter-SDP fast method (requires >=1 intra coded
     // block, prunes when inter-mode ratio exceeds 50%, and early skips when
@@ -754,6 +755,7 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->adaptive_rd_thresh = 0;
   inter_sf->model_based_post_interp_filter_breakout = 0;
   inter_sf->skip_temporary_pred_for_opfl = 0;
+  inter_sf->enable_warp_inter_intra_in_winner = 0;
   inter_sf->reduce_inter_modes = 0;
   inter_sf->alt_ref_search_fp = 0;
   inter_sf->disable_switchable_refinemv = 0;

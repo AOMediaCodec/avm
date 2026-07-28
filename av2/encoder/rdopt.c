@@ -3337,6 +3337,14 @@ static int64_t motion_mode_rd(
            warp_inter_intra++) {
         for (int warp_ref_idx = 0; warp_ref_idx < warp_ref_idx_limit;
              warp_ref_idx++) {
+          // Search warp interintra in winner mode for remaing wrl indices
+          // if warp interintra is selected in rough mode
+          if (cpi->sf.inter_sf.enable_warp_inter_intra_in_winner &&
+              (eval_motion_mode != (warp_inter_intra && warp_ref_idx < 2)))
+            continue;
+          assert(IMPLIES(cpi->sf.inter_sf.enable_warp_inter_intra_in_winner &&
+                             !eval_motion_mode,
+                         (!warp_inter_intra || warp_ref_idx >= 2)));
           for (int warpmv_with_mvd_flag = 0; warpmv_with_mvd_flag < 2;
                warpmv_with_mvd_flag++) {
             const MotionModeTrialParams trial = {
@@ -8439,10 +8447,13 @@ static const unsigned int num_winner_motion_modes[3] = { 0, 10, 6 };
 // Returns true if a mode is added to the winner mode check.
 static AVM_INLINE int is_check_in_winner(const AV2_COMP *cpi,
                                          const MB_MODE_INFO *const mbmi) {
-  if (!cpi->sf.inter_sf.enable_six_param_warp_in_winner_mode) return 0;
   PREDICTION_MODE this_mode = mbmi->mode;
-
-  if (this_mode == WARP_NEWMV) return 1;
+  if (cpi->sf.inter_sf.enable_six_param_warp_in_winner_mode) {
+    if (this_mode == WARP_NEWMV) return 1;
+  }
+  if (cpi->sf.inter_sf.enable_warp_inter_intra_in_winner) {
+    if (this_mode == WARPMV && mbmi->warp_inter_intra) return 1;
+  }
   return 0;
 }
 // Adds a motion mode to the candidate list for motion_mode_for_winner_cand
