@@ -867,10 +867,10 @@ static avm_codec_err_t validate_img(avm_codec_alg_priv_t *ctx,
     case AVM_IMG_FMT_I42016: break;
     case AVM_IMG_FMT_I444:
     case AVM_IMG_FMT_I44416:
-      // MAIN_444_10_IP1 and MAIN_4xx_12_IP2 are the profiles that support 444
+      // MAIN_444_10_IP1 and MAIN_444C_12_IP2 are the profiles that support 444
       if (ctx->cfg.g_profile != (unsigned int)MAIN_444_10_IP1 &&
 #if CONFIG_12BIT_PROFILE
-          ctx->cfg.g_profile != (unsigned int)MAIN_4xx_12_IP2 &&
+          ctx->cfg.g_profile != (unsigned int)MAIN_444C_12_IP2 &&
 #endif  // CONFIG_12BIT_PROFILE
           !ctx->cfg.monochrome) {
         ERROR("Invalid image format. I444 images not supported in profile.");
@@ -880,7 +880,7 @@ static avm_codec_err_t validate_img(avm_codec_alg_priv_t *ctx,
     case AVM_IMG_FMT_I42216:
       if (ctx->cfg.g_profile != (unsigned int)MAIN_422_10_IP1
 #if CONFIG_12BIT_PROFILE
-          && ctx->cfg.g_profile != (unsigned int)MAIN_4xx_12_IP2
+          && ctx->cfg.g_profile != (unsigned int)MAIN_444C_12_IP2
 #endif  // CONFIG_12BIT_PROFILE
       ) {
         ERROR("Invalid image format. I422 images not supported in profile.");

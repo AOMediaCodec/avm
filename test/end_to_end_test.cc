@@ -78,11 +78,11 @@ const TestVideoParam kTestVectors[] = {
     MAIN_444_10_IP1 },
 #if CONFIG_12BIT_PROFILE
   { "park_joy_90p_12_420.y4m", 12, AVM_IMG_FMT_I42016, AVM_BITS_12,
-    MAIN_4xx_12_IP2 },
+    MAIN_444C_12_IP2 },
   { "park_joy_90p_12_422.y4m", 12, AVM_IMG_FMT_I42216, AVM_BITS_12,
-    MAIN_4xx_12_IP2 },
+    MAIN_444C_12_IP2 },
   { "park_joy_90p_12_444.y4m", 12, AVM_IMG_FMT_I44416, AVM_BITS_12,
-    MAIN_4xx_12_IP2 },
+    MAIN_444C_12_IP2 },
 #endif  // CONFIG_12BIT_PROFILE
 };
 

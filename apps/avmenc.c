@@ -2161,7 +2161,7 @@ int main(int argc, const char **argv_) {
 
 #if CONFIG_12BIT_PROFILE
       if (stream->config.cfg.g_bit_depth > 10) {
-        stream->config.cfg.g_profile = MAIN_4xx_12_IP2;
+        stream->config.cfg.g_profile = MAIN_444C_12_IP2;
         profile_updated = 1;
       }
 #endif  // CONFIG_12BIT_PROFILE
