@@ -119,7 +119,7 @@ static const int tx_type_prune_level[2][6] = {
 static const int tx_type_prune_level_3regions[3][6] = {
   { 0, 1, 2, 1, 1, 3 },  // eob >= max_eob / 4
   { 0, 1, 2, 1, 2, 3 },  // max_eob / 12 <= eob < max_eob / 4
-  { 0, 1, 3, 3, 3, 3 },  // eob < max_eob / 8
+  { 0, 1, 3, 3, 3, 3 },  // eob < max_eob / 12
 };
 static INLINE uint32_t get_block_residue_hash(MACROBLOCK *x, BLOCK_SIZE bsize) {
   const int rows = block_size_high[bsize];
@@ -2702,9 +2702,9 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
         // than a threshold.
         int search_level = 0;
         if (tx_sf->enable_adaptive_tx_search_level) {
-          const int eob_level = mb_plane->eobs[block] >= max_eob / 4    ? 0
-                                : mb_plane->eobs[block] >= max_eob / 12 ? 1
-                                                                        : 2;
+          const int eob_level = (mb_plane->eobs[block] >= (max_eob / 4))    ? 0
+                                : (mb_plane->eobs[block] >= (max_eob / 12)) ? 1
+                                                                            : 2;
           search_level =
               tx_type_prune_level_3regions[eob_level]
                                           [tx_sf->adaptive_tx_type_search_idx];
