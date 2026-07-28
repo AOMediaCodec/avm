@@ -450,11 +450,9 @@ typedef struct PARTITION_SPEED_FEATURES {
   // winning partition type (NONE/HORZ/VERT/SPLIT) from block features.
   int partition_pruning_with_mlp;
 
-  // Logit margin (winner - runner-up) required to prune rect partitions
-  // when the MLP predicts NONE. Two values so cpu-used==1 (the model's
-  // training tier) and cpu-used>1 can be tuned independently.
-  float partition_pruning_with_mlp_none_thresh_cpu1;
-  float partition_pruning_with_mlp_none_thresh_cpu_gt1;
+  // Logit margin (winner logit - best non-NONE logit) required to prune rect
+  // partitions when the MLP predicts NONE.
+  float partition_pruning_with_mlp_none_thresh;
 
   bool disable_ext_partitions;
   bool disable_uneven_4way_partitions;
