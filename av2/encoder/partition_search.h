@@ -32,20 +32,18 @@ void av2_rd_use_partition(AV2_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
                           int mi_col, BLOCK_SIZE bsize, int *rate,
                           int64_t *dist, int do_recon, PARTITION_TREE *ptree,
                           PC_TREE *pc_tree, PARTITION_TREE *ptree_luma);
-bool av2_rd_pick_partition(AV2_COMP *const cpi, ThreadData *td,
-                           TileDataEnc *tile_data, TokenExtra **tp, int mi_row,
-                           int mi_col, BLOCK_SIZE bsize,
-                           PARTITION_TYPE parent_partition, RD_STATS *rd_cost,
-                           RD_STATS best_rdc, PC_TREE *pc_tree,
-                           const PARTITION_TREE *ptree_luma,
-                           const PARTITION_TREE *template_tree,
-                           int max_recursion_depth,
-                           SIMPLE_MOTION_DATA_TREE *sms_tree, int64_t *none_rd,
-                           SB_MULTI_PASS_MODE multi_pass_mode,
-                           RD_RECT_PART_WIN_INFO *rect_part_win_info
+bool av2_rd_pick_partition(
+    AV2_COMP *const cpi, ThreadData *td, TileDataEnc *tile_data,
+    TokenExtra **tp, const int mi_row, const int mi_col, const BLOCK_SIZE bsize,
+    const PARTITION_TYPE parent_partition, RD_STATS *rd_cost, RD_STATS best_rdc,
+    PC_TREE *pc_tree, const PARTITION_TREE *ptree_luma,
+    const PARTITION_TREE *template_tree, const int max_recursion_depth,
+    SIMPLE_MOTION_DATA_TREE *sms_tree, int64_t *none_rd,
+    const SB_MULTI_PASS_MODE multi_pass_mode,
+    RD_RECT_PART_WIN_INFO *rect_part_win_info
 #if CONFIG_ML_PART_SPLIT
-                           ,
-                           int prune_rect_flags[3]
+    ,
+    int prune_rect_flags[3]
 #endif  // CONFIG_ML_PART_SPLIT
 );
 

@@ -63,11 +63,8 @@ static INLINE int convert_bsize_to_idx(BLOCK_SIZE bsize) {
 //   -- use chroma pixels in addition to luma pixels
 void av2_intra_mode_cnn_partition(const AV2_COMMON *const cm, MACROBLOCK *x,
                                   BLOCK_SIZE bsize, int quad_tree_idx,
-                                  int *partition_none_allowed,
-                                  int *partition_horz_allowed,
-                                  int *partition_vert_allowed,
-                                  int *do_rectangular_split,
-                                  int *do_square_split) {
+                                  PartitionSearchState *partition_search_state,
+                                  bool *do_square_split) {
   assert(cm->sb_size >= BLOCK_64X64 && "Invalid sb_size for intra_cnn!");
   const int bsize_idx = convert_bsize_to_idx(bsize);
 
@@ -241,26 +238,22 @@ void av2_intra_mode_cnn_partition(const AV2_COMMON *const cm, MACROBLOCK *x,
   }
 
   if (logits[0] > split_only_thresh) {
-    *partition_none_allowed = 0;
-    *partition_horz_allowed = 0;
-    *partition_vert_allowed = 0;
-    *do_rectangular_split = 0;
+    partition_search_state->partition_allowed[PARTITION_NONE] = false;
+    partition_search_state->partition_allowed[PARTITION_HORZ] = false;
+    partition_search_state->partition_allowed[PARTITION_VERT] = false;
+    partition_search_state->do_rectangular_split = false;
   }
 
   if (logits[0] < no_split_thresh) {
-    *do_square_split = 0;
+    *do_square_split = false;
   }
 }
 
 void av2_simple_motion_search_based_split(
     AV2_COMP *const cpi, MACROBLOCK *x, SIMPLE_MOTION_DATA_TREE *sms_tree,
-    int mi_row, int mi_col, BLOCK_SIZE bsize, int *partition_none_allowed,
-    int *partition_horz_allowed, int *partition_vert_allowed,
-    int *do_rectangular_split, int *do_square_split) {
+    int mi_row, int mi_col, BLOCK_SIZE bsize,
+    PartitionSearchState *partition_search_state, bool *do_square_split) {
   avm_clear_system_state();
-  (void)partition_horz_allowed;
-  (void)partition_vert_allowed;
-  (void)do_rectangular_split;
 
   const AV2_COMMON *const cm = &cpi->common;
   const int bsize_idx = convert_bsize_to_idx(bsize);
@@ -297,15 +290,12 @@ void av2_simple_motion_search_based_split(
   avm_clear_system_state();
 
   if (score > split_only_thresh) {
-    *partition_none_allowed = 0;
-    (void)partition_horz_allowed;
-    (void)partition_vert_allowed;
-    (void)do_rectangular_split;
+    partition_search_state->partition_allowed[PARTITION_NONE] = false;
   }
 
   if (cpi->sf.part_sf.simple_motion_search_split >= 2 &&
       score < no_split_thresh) {
-    *do_square_split = 0;
+    *do_square_split = false;
   }
 }
 
@@ -512,8 +502,8 @@ static AVM_INLINE void simple_motion_search_prune_part_features(
 
 void av2_simple_motion_search_prune_rect(
     AV2_COMP *const cpi, MACROBLOCK *x, SIMPLE_MOTION_DATA_TREE *sms_tree,
-    int mi_row, int mi_col, BLOCK_SIZE bsize, int partition_horz_allowed,
-    int partition_vert_allowed, bool *prune_horz, bool *prune_vert) {
+    int mi_row, int mi_col, BLOCK_SIZE bsize,
+    PartitionSearchState *partition_search_state) {
   // TODO(urvang): Need to change for uneven 4-way partition support.
   assert(0 && "Not implemented");
   avm_clear_system_state();
@@ -563,10 +553,13 @@ void av2_simple_motion_search_prune_rect(
   // Determine if we should prune rectangular partitions.
   if (cpi->sf.part_sf.simple_motion_search_prune_rect &&
       !frame_is_intra_only(cm) &&
-      (partition_horz_allowed || partition_vert_allowed) &&
+      (partition_search_state->partition_allowed[PARTITION_HORZ] ||
+       partition_search_state->partition_allowed[PARTITION_VERT]) &&
       bsize >= BLOCK_8X8) {
-    *prune_horz = probs[PARTITION_HORZ] <= prune_thresh;
-    *prune_vert = probs[PARTITION_VERT] <= prune_thresh;
+    partition_search_state->prune_partition[PARTITION_HORZ] =
+        probs[PARTITION_HORZ] <= prune_thresh;
+    partition_search_state->prune_partition[PARTITION_VERT] =
+        probs[PARTITION_VERT] <= prune_thresh;
   }
 }
 
@@ -579,7 +572,7 @@ void av2_simple_motion_search_prune_rect(
 void av2_simple_motion_search_early_term_none(
     AV2_COMP *const cpi, MACROBLOCK *x, SIMPLE_MOTION_DATA_TREE *sms_tree,
     int mi_row, int mi_col, BLOCK_SIZE bsize, const RD_STATS *none_rdc,
-    int *early_terminate) {
+    bool *early_terminate) {
   // TODO(chiyotsai@google.com): There are other features we can extract from
   // PARTITION_NONE. Play with this later.
   float features[FEATURE_SIZE_SMS_TERM_NONE] = { 0.0f };
@@ -629,7 +622,7 @@ void av2_simple_motion_search_early_term_none(
     score += ml_model[FEATURE_SIZE_SMS_TERM_NONE];
 
     if (score >= 0.0f) {
-      *early_terminate = 1;
+      *early_terminate = true;
     }
   }
 }
@@ -858,9 +851,7 @@ int av2_ml_predict_breakout(const AV2_COMP *const cpi, BLOCK_SIZE bsize,
 void av2_prune_partitions_before_search(
     AV2_COMP *const cpi, MACROBLOCK *const x, int mi_row, int mi_col,
     BLOCK_SIZE bsize, SIMPLE_MOTION_DATA_TREE *const sms_tree,
-    int *partition_none_allowed, int *partition_horz_allowed,
-    int *partition_vert_allowed, int *do_rectangular_split,
-    int *do_square_split, bool *prune_horz, bool *prune_vert,
+    PartitionSearchState *partition_search_state, bool *do_square_split,
     const PC_TREE *pc_tree) {
   const AV2_COMMON *const cm = &cpi->common;
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
@@ -878,10 +869,9 @@ void av2_prune_partitions_before_search(
       mi_col + mi_size_wide[bsize] <= mi_params->mi_cols;
 
   if (try_intra_cnn_split) {
-    av2_intra_mode_cnn_partition(
-        &cpi->common, x, bsize, x->part_search_info.quad_tree_idx,
-        partition_none_allowed, partition_horz_allowed, partition_vert_allowed,
-        do_rectangular_split, do_square_split);
+    av2_intra_mode_cnn_partition(&cpi->common, x, bsize,
+                                 x->part_search_info.quad_tree_idx,
+                                 partition_search_state, do_square_split);
   }
 
   // Use simple motion search to prune out split or non-split partitions. This
@@ -897,14 +887,13 @@ void av2_prune_partitions_before_search(
       bsize < BLOCK_256X256 &&
       mi_col + mi_size_wide[bsize] <= mi_params->mi_cols &&
       !frame_is_intra_only(cm) && is_square_block(bsize) && sms_tree &&
-      *partition_none_allowed;
+      partition_search_state->partition_allowed[PARTITION_NONE];
 
   if (try_split_only) {
-    av2_simple_motion_search_based_split(
-        cpi, x, sms_tree, mi_row, mi_col, bsize, partition_none_allowed,
-        partition_horz_allowed, partition_vert_allowed, do_rectangular_split,
-        do_square_split);
-    if (!*partition_none_allowed) {
+    av2_simple_motion_search_based_split(cpi, x, sms_tree, mi_row, mi_col,
+                                         bsize, partition_search_state,
+                                         do_square_split);
+    if (!partition_search_state->partition_allowed[PARTITION_NONE]) {
       av2_cache_best_partition(x->sms_bufs, mi_row, mi_col, bsize, cm->sb_size,
                                PARTITION_HORZ, (int8_t)pc_tree->region_type);
       const int mi_step = block_size_high[bsize] / 2;
@@ -925,22 +914,25 @@ void av2_prune_partitions_before_search(
   const int try_prune_rect =
       !cpi->is_screen_content_type &&
       cpi->sf.part_sf.simple_motion_search_prune_rect &&
-      !frame_is_intra_only(cm) && *do_rectangular_split &&
-      (*do_square_split || *partition_none_allowed ||
-       (*prune_horz && *prune_vert)) &&
-      (*partition_horz_allowed || *partition_vert_allowed) &&
+      !frame_is_intra_only(cm) &&
+      partition_search_state->do_rectangular_split &&
+      (*do_square_split ||
+       partition_search_state->partition_allowed[PARTITION_NONE] ||
+       (partition_search_state->prune_partition[PARTITION_HORZ] &&
+        partition_search_state->prune_partition[PARTITION_VERT])) &&
+      (partition_search_state->partition_allowed[PARTITION_HORZ] ||
+       partition_search_state->partition_allowed[PARTITION_VERT]) &&
       bsize >= BLOCK_8X8;
 
   if (try_prune_rect) {
-    av2_simple_motion_search_prune_rect(
-        cpi, x, sms_tree, mi_row, mi_col, bsize, *partition_horz_allowed,
-        *partition_vert_allowed, prune_horz, prune_vert);
+    av2_simple_motion_search_prune_rect(cpi, x, sms_tree, mi_row, mi_col, bsize,
+                                        partition_search_state);
   }
 }
 
 void av2_prune_partitions_by_max_min_bsize(
     SuperBlockEnc *sb_enc, BLOCK_SIZE bsize, int is_not_edge_block,
-    PartitionSearchState *partition_search_state, int *do_square_split) {
+    PartitionSearchState *partition_search_state, bool *do_square_split) {
   if (!is_partition_point(bsize) ||
       partition_search_state->forced_partition != PARTITION_INVALID) {
     // Special case. We can't enforce min/max constraints here.
@@ -963,51 +955,52 @@ void av2_prune_partitions_by_max_min_bsize(
 
   if (is_gt_max_sq_part) {  // current block size is larger than max size.
     // Disable some partition types to partition down to max allowed size.
-    partition_search_state->prune_partition_none = true;
-    partition_search_state->prune_partition_3[HORZ] = true;
-    partition_search_state->prune_partition_3[VERT] = true;
-    partition_search_state->prune_partition_4a[HORZ] = true;
-    partition_search_state->prune_partition_4a[VERT] = true;
-    partition_search_state->prune_partition_4b[HORZ] = true;
-    partition_search_state->prune_partition_4b[VERT] = true;
-    if (partition_search_state->partition_split_allowed) {  // only allow split
-      partition_search_state->prune_rect_part[HORZ] = true;
-      partition_search_state->prune_rect_part[VERT] = true;
+    partition_search_state->prune_partition[PARTITION_NONE] = true;
+    partition_search_state->prune_partition[PARTITION_HORZ_3] = true;
+    partition_search_state->prune_partition[PARTITION_VERT_3] = true;
+    partition_search_state->prune_partition[PARTITION_HORZ_4A] = true;
+    partition_search_state->prune_partition[PARTITION_VERT_4A] = true;
+    partition_search_state->prune_partition[PARTITION_HORZ_4B] = true;
+    partition_search_state->prune_partition[PARTITION_VERT_4B] = true;
+    if (partition_search_state->partition_allowed[PARTITION_SPLIT]) {
+      // only allow split
+      partition_search_state->prune_partition[PARTITION_HORZ] = true;
+      partition_search_state->prune_partition[PARTITION_VERT] = true;
     } else {  // only allow one of horz or vert
-      assert(partition_search_state->partition_rect_allowed[HORZ] ||
-             partition_search_state->partition_rect_allowed[VERT]);
-      if (partition_search_state->prune_rect_part[HORZ] &&
-          partition_search_state->prune_rect_part[VERT]) {
-        if (partition_search_state->partition_rect_allowed[HORZ]) {
-          partition_search_state->prune_rect_part[HORZ] = false;
+      assert(partition_search_state->partition_allowed[PARTITION_HORZ] ||
+             partition_search_state->partition_allowed[PARTITION_VERT]);
+      if (partition_search_state->prune_partition[PARTITION_HORZ] &&
+          partition_search_state->prune_partition[PARTITION_VERT]) {
+        if (partition_search_state->partition_allowed[PARTITION_HORZ]) {
+          partition_search_state->prune_partition[PARTITION_HORZ] = false;
         }
-        if (partition_search_state->partition_rect_allowed[VERT]) {
-          partition_search_state->prune_rect_part[VERT] = false;
+        if (partition_search_state->partition_allowed[PARTITION_VERT]) {
+          partition_search_state->prune_partition[PARTITION_VERT] = false;
         }
       }
-      if (partition_search_state->partition_rect_allowed[HORZ] &&
-          partition_search_state->partition_rect_allowed[VERT] &&
-          !partition_search_state->prune_rect_part[HORZ] &&
-          !partition_search_state->prune_rect_part[VERT]) {
+      if (partition_search_state->partition_allowed[PARTITION_HORZ] &&
+          partition_search_state->partition_allowed[PARTITION_VERT] &&
+          !partition_search_state->prune_partition[PARTITION_HORZ] &&
+          !partition_search_state->prune_partition[PARTITION_VERT]) {
         if (is_wide_block(bsize)) {  // Allow VERT partition only.
-          partition_search_state->prune_rect_part[HORZ] = true;
+          partition_search_state->prune_partition[PARTITION_HORZ] = true;
         } else {  // Allow HORZ partition only.
           assert(is_square_block(bsize) || is_tall_block(bsize));
-          partition_search_state->prune_rect_part[VERT] = true;
+          partition_search_state->prune_partition[PARTITION_VERT] = true;
         }
       }
     }
   } else if (is_le_min_sq_part) {  // current block size is less or equal to min
     // Disallow all 2-way partitions.
-    partition_search_state->prune_rect_part[HORZ] = true;
-    partition_search_state->prune_rect_part[VERT] = true;
+    partition_search_state->prune_partition[PARTITION_HORZ] = true;
+    partition_search_state->prune_partition[PARTITION_VERT] = true;
     // Disallow all H and uneven-4way partitions.
-    partition_search_state->prune_partition_3[HORZ] = true;
-    partition_search_state->prune_partition_3[VERT] = true;
-    partition_search_state->prune_partition_4a[HORZ] = true;
-    partition_search_state->prune_partition_4a[VERT] = true;
-    partition_search_state->prune_partition_4b[HORZ] = true;
-    partition_search_state->prune_partition_4b[VERT] = true;
+    partition_search_state->prune_partition[PARTITION_HORZ_3] = true;
+    partition_search_state->prune_partition[PARTITION_VERT_3] = true;
+    partition_search_state->prune_partition[PARTITION_HORZ_4A] = true;
+    partition_search_state->prune_partition[PARTITION_VERT_4A] = true;
+    partition_search_state->prune_partition[PARTITION_HORZ_4B] = true;
+    partition_search_state->prune_partition[PARTITION_VERT_4B] = true;
   }
 }
 
