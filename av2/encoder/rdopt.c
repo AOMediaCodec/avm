@@ -8571,8 +8571,25 @@ static void av2_evaluate_intra_modes_in_inter_frame(
   }
   mbmi->dpcm_mode_y = 0;
 
+  uint8_t mlp_mode_mask[INTRA_MODES] = { 0 };
+  int mlp_fallback = !sf->intra_sf.intra_pruning_with_mlp;
+  uint8_t mlp_dir_skip_mask[INTRA_MODES] = { 0 };
+  if (sf->intra_sf.intra_pruning_with_mlp && is_intra_mode_allowed) {
+    av2_intra_mlp_compute_mode_mask(cpi, x, bsize, mlp_mode_mask, &mlp_fallback,
+                                    mlp_dir_skip_mask);
+    // mlp_dir_skip_mask is only populated (via prune_intra_mode_with_hog) when
+    // mlp_fallback is set. Seed av2_handle_intra_mode's lazy HOG cache with it
+    // so that call doesn't redundantly recompute the identical HOG mask.
+    if (mlp_fallback) {
+      memcpy(search_state->intra_search_state.directional_mode_skip_mask,
+             mlp_dir_skip_mask, sizeof(mlp_dir_skip_mask));
+      search_state->intra_search_state.dir_mode_skip_mask_ready = 1;
+    }
+  }
   for (int dpcm_idx = 0; dpcm_idx < dpcm_loop_num; dpcm_idx++) {
     mbmi->use_dpcm_y = dpcm_idx;
+    memset(search_state->intra_search_state.mrl0_dir_mode_survived, 0,
+           sizeof(search_state->intra_search_state.mrl0_dir_mode_survived));
     for (int fsc_mode = 0;
          fsc_mode < (allow_fsc_intra(cm, bsize, mbmi) ? FSC_MODES : 1);
          fsc_mode++) {
@@ -8663,6 +8680,15 @@ static void av2_evaluate_intra_modes_in_inter_frame(
                 mbmi->angle_delta[0] == 0) {
               mbmi->dpcm_mode_y = mbmi->mode - 1;
             }
+            if (!mlp_fallback && mbmi->y_mode_idx >= FIRST_MODE_COUNT &&
+                !mlp_mode_mask[mbmi->mode])
+              continue;
+            if (sf->intra_sf.intra_pruning_with_mlp && mbmi->mrl_index > 0 &&
+                av2_is_directional_mode(mbmi->mode) &&
+                mbmi->y_mode_idx >= FIRST_MODE_COUNT &&
+                !search_state->intra_search_state
+                     .mrl0_dir_mode_survived[mbmi->mode])
+              continue;
             RD_STATS intra_rd_stats, intra_rd_stats_y, intra_rd_stats_uv;
             intra_rd_stats.rdcost = av2_handle_intra_mode(
                 &search_state->intra_search_state, cpi, x, bsize,
