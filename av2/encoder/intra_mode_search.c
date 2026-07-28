@@ -10,10 +10,13 @@
  * aomedia.org/license/patent-license/.
  */
 
+#include <math.h>
+
 #include "av2/common/av2_common_int.h"
 #include "av2/common/intra_dip.h"
 #include "av2/common/reconintra.h"
 
+#include "av2/encoder/intra_mode_mlp.h"
 #include "av2/encoder/intra_mode_search.h"
 #include "av2/encoder/intra_mode_search_utils.h"
 #include "av2/encoder/palette.h"
@@ -322,28 +325,20 @@ void av2_count_colors_highbd(const uint16_t *src, int stride, int rows,
   }
 }
 
-/*! \brief prune luma intra mode    based on the model rd.
- * \param[in]    this_model_rd      model rd for current mode.
- * \param[in]    best_model_rd      Best model RD seen for this block so
- *                                  far.
- * \param[in]    top_intra_model_rd Top intra model RD seen for this
- *                                  block so far.
- */
 int prune_intra_y_mode(int64_t this_model_rd, int64_t *best_model_rd,
-                       int64_t top_intra_model_rd[]) {
+                       int64_t top_intra_model_rd[], int k) {
   const double thresh_top = 1.00;
-  for (int i = 0; i < TOP_INTRA_MODEL_COUNT; i++) {
+  for (int i = 0; i < k; i++) {
     if (this_model_rd < top_intra_model_rd[i]) {
-      for (int j = TOP_INTRA_MODEL_COUNT - 1; j > i; j--) {
+      for (int j = k - 1; j > i; j--) {
         top_intra_model_rd[j] = top_intra_model_rd[j - 1];
       }
       top_intra_model_rd[i] = this_model_rd;
       break;
     }
   }
-  if (top_intra_model_rd[TOP_INTRA_MODEL_COUNT - 1] != INT64_MAX &&
-      this_model_rd >
-          thresh_top * top_intra_model_rd[TOP_INTRA_MODEL_COUNT - 1])
+  if (top_intra_model_rd[k - 1] != INT64_MAX &&
+      this_model_rd > thresh_top * top_intra_model_rd[k - 1])
     return 1;
 
   if (this_model_rd < *best_model_rd) *best_model_rd = this_model_rd;
@@ -1031,7 +1026,8 @@ static INLINE int prune_intra_dip_mode(const AV2_COMP *cpi, MACROBLOCK *x,
   const MACROBLOCKD *xd = &x->e_mbd;
   const MB_MODE_INFO *const mbmi = xd->mi[0];
   const int64_t this_model_rd = intra_model_yrd(cpi, x, bsize, mode_cost);
-  if (prune_intra_y_mode(this_model_rd, best_model_rd, top_intra_model_rd) &&
+  if (prune_intra_y_mode(this_model_rd, best_model_rd, top_intra_model_rd,
+                         TOP_INTRA_MODEL_COUNT) &&
       (!xd->lossless[mbmi->segment_id] || mbmi->use_dpcm_y == 0))
     return 1;
   return 0;
@@ -1241,9 +1237,14 @@ int64_t av2_handle_intra_mode(IntraModeSearchState *intra_search_state,
   }
 
   int64_t this_model_rd = intra_model_yrd(cpi, x, bsize, mode_cost);
-  if (prune_intra_y_mode(this_model_rd, best_model_rd, top_intra_model_rd) &&
+  const int k =
+      cpi->sf.intra_sf.intra_pruning_with_mlp ? 4 : TOP_INTRA_MODEL_COUNT;
+  if (prune_intra_y_mode(this_model_rd, best_model_rd, top_intra_model_rd, k) &&
       (!xd->lossless[mbmi->segment_id] || mbmi->use_dpcm_y == 0))
     return INT64_MAX;
+  if (cpi->sf.intra_sf.intra_pruning_with_mlp && mbmi->mrl_index == 0 &&
+      av2_is_directional_mode(mbmi->mode))
+    intra_search_state->mrl0_dir_mode_survived[mbmi->mode] = 1;
   av2_init_rd_stats(rd_stats_y);
   x->prune_tx_partition = 0;
   av2_pick_uniform_tx_size_type_yrd(cpi, x, rd_stats_y, bsize, best_rd);
@@ -1527,7 +1528,7 @@ void search_fsc_mode(const AV2_COMP *const cpi, MACROBLOCK *x, int *rate,
           this_model_rd = intra_model_yrd(cpi, x, bsize, mode_costs);
 
           if (prune_intra_y_mode(this_model_rd, best_model_rd,
-                                 top_intra_model_rd) &&
+                                 top_intra_model_rd, TOP_INTRA_MODEL_COUNT) &&
               (!xd->lossless[mbmi->segment_id] || mbmi->use_dpcm_y == 0)) {
             continue;
           }
@@ -1596,6 +1597,75 @@ void search_fsc_mode(const AV2_COMP *const cpi, MACROBLOCK *x, int *rate,
   }
 }
 
+// Compute MLP-derived base-mode mask for the current block. See header for
+// API doc. Runs once per block.
+void av2_intra_mlp_compute_mode_mask(
+    const AV2_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
+    uint8_t mlp_mode_mask[INTRA_MODES], int *mlp_fallback,
+    uint8_t directional_mode_skip_mask[INTRA_MODES]) {
+  MACROBLOCKD *const xd = &x->e_mbd;
+
+  memset(mlp_mode_mask, 0, INTRA_MODES * sizeof(mlp_mode_mask[0]));
+  *mlp_fallback = 0;
+
+  // Fall back for 4x4, 4x8, 8x4 blocks.
+  if (block_size_wide[bsize] * block_size_high[bsize] <= 32) {
+    *mlp_fallback = 1;
+    if (cpi->sf.intra_sf.intra_pruning_with_hog) {
+      prune_intra_mode_with_hog(x, bsize,
+                                cpi->sf.intra_sf.intra_pruning_with_hog_thresh,
+                                directional_mode_skip_mask);
+    }
+    return;
+  }
+
+  float mlp_features[MLP_INPUT_DIM];
+  float mlp_logits[MLP_OUTPUT_DIM];
+  int mlp_topk_modes[MLP_TOP_K];
+
+  // Extract neighbor context. Treat inter / IBC neighbors as unavailable so
+  // the MLP receives the same "no intra neighbor" sentinel it saw during
+  // training; otherwise mbmi->mode would be an inter mode index (>=
+  // INTRA_MODES), which collides with the [0, 12] intra range and is
+  // out-of-distribution.
+  int above_mode = -1, above_delta = 0, left_mode = -1, left_delta = 0;
+  const MB_MODE_INFO *above_mi = xd->above_mbmi;
+  const MB_MODE_INFO *left_mi = xd->left_mbmi;
+  if (above_mi && !is_inter_block(above_mi, SHARED_PART)) {
+    above_mode = above_mi->mode;
+    above_delta = above_mi->angle_delta[PLANE_TYPE_Y];
+  }
+  if (left_mi && !is_inter_block(left_mi, SHARED_PART)) {
+    left_mode = left_mi->mode;
+    left_delta = left_mi->angle_delta[PLANE_TYPE_Y];
+  }
+
+  intra_mode_mlp_prepare_features(
+      x->plane[0].src.buf, x->plane[0].src.stride, xd->bd,
+      block_size_wide[bsize], block_size_high[bsize],
+      x->qindex - MAXQ_OFFSET * (xd->bd - 8), above_mode, above_delta,
+      left_mode, left_delta, !frame_is_intra_only(&cpi->common), mlp_features);
+
+  intra_mode_mlp_predict(mlp_features, mlp_logits);
+
+  // Use MLP top-K if confident, fall back to HOG if all logits negative.
+  float max_logit = mlp_logits[0];
+  for (int i = 1; i < MLP_OUTPUT_DIM; i++)
+    if (mlp_logits[i] > max_logit) max_logit = mlp_logits[i];
+
+  if (max_logit >= 0.0f) {
+    intra_mode_mlp_get_topk(mlp_logits, MLP_TOP_K, mlp_topk_modes);
+    for (int i = 0; i < MLP_TOP_K; i++) mlp_mode_mask[mlp_topk_modes[i]] = 1;
+  } else {
+    *mlp_fallback = 1;
+    if (cpi->sf.intra_sf.intra_pruning_with_hog) {
+      prune_intra_mode_with_hog(x, bsize,
+                                cpi->sf.intra_sf.intra_pruning_with_hog_thresh,
+                                directional_mode_skip_mask);
+    }
+  }
+}
+
 // Finds the best non-intrabc mode on an intra frame.
 int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
                                    MACROBLOCK *x, int *rate,
@@ -1633,7 +1703,12 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
   int mode_costs = 0;
 
   mbmi->angle_delta[PLANE_TYPE_Y] = 0;
-  if (cpi->sf.intra_sf.intra_pruning_with_hog) {
+  uint8_t mlp_mode_mask[INTRA_MODES] = { 0 };
+  int mlp_fallback = !cpi->sf.intra_sf.intra_pruning_with_mlp;
+  if (cpi->sf.intra_sf.intra_pruning_with_mlp) {
+    av2_intra_mlp_compute_mode_mask(cpi, x, bsize, mlp_mode_mask, &mlp_fallback,
+                                    directional_mode_skip_mask);
+  } else if (cpi->sf.intra_sf.intra_pruning_with_hog) {
     prune_intra_mode_with_hog(x, bsize,
                               cpi->sf.intra_sf.intra_pruning_with_hog_thresh,
                               directional_mode_skip_mask);
@@ -1657,6 +1732,8 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
   mbmi->dpcm_mode_y = 0;
   // mbmi->dpcm_angle_delta = 0;
   //  Searches the intra-modes except for intrabc, palette, and filter_intra.
+  const int model_rd_k =
+      cpi->sf.intra_sf.intra_pruning_with_mlp ? 4 : TOP_INTRA_MODEL_COUNT;
   int64_t top_intra_model_rd[TOP_INTRA_MODEL_COUNT];
   for (int i = 0; i < TOP_INTRA_MODEL_COUNT; i++) {
     top_intra_model_rd[i] = INT64_MAX;
@@ -1671,6 +1748,7 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
     dpcm_loop_num = 2;
   }
   for (int dpcm_index = 0; dpcm_index < dpcm_loop_num; ++dpcm_index) {
+    uint8_t mrl0_dir_mode_survived[INTRA_MODES] = { 0 };
     for (int mrl_idx = 0; mrl_idx < (enable_mrls_flag ? MRL_LINE_NUMBER : 1);
          ++mrl_idx) {
       mbmi->mrl_index = mrl_idx;
@@ -1736,11 +1814,17 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
               mbmi->mode == PAETH_PRED)
             continue;
           is_directional_mode = av2_is_directional_mode(mbmi->mode);
+          if (cpi->sf.intra_sf.intra_pruning_with_mlp && mrl_idx > 0 &&
+              is_directional_mode && mode_idx >= FIRST_MODE_COUNT &&
+              !mrl0_dir_mode_survived[mbmi->mode])
+            continue;
+          if (!is_directional_mode && mrl_idx) continue;
+          if (!mlp_fallback && mode_idx >= FIRST_MODE_COUNT &&
+              !mlp_mode_mask[mbmi->mode])
+            continue;
           if (is_directional_mode && directional_mode_skip_mask[mbmi->mode] &&
               mode_idx >= FIRST_MODE_COUNT)
             continue;
-
-          if (!is_directional_mode && mrl_idx) continue;
 
           if (((best_mbmi.mrl_index == 0 &&
                 av2_is_directional_mode(best_mbmi.mode) == 0) ||
@@ -1765,9 +1849,13 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
           int64_t this_model_rd;
           this_model_rd = intra_model_yrd(cpi, x, bsize, mode_costs);
           if (prune_intra_y_mode(this_model_rd, &best_model_rd,
-                                 top_intra_model_rd) &&
+                                 top_intra_model_rd, model_rd_k) &&
               (!xd->lossless[mbmi->segment_id] || mbmi->use_dpcm_y == 0))
             continue;
+
+          if (cpi->sf.intra_sf.intra_pruning_with_mlp && mrl_idx == 0 &&
+              is_directional_mode)
+            mrl0_dir_mode_survived[mbmi->mode] = 1;
 
           av2_pick_uniform_tx_size_type_yrd(cpi, x, &this_rd_stats, bsize,
                                             best_rd);

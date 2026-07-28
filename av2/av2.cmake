@@ -291,6 +291,9 @@ list(
   "${AVM_ROOT}/av2/encoder/intra_mode_search.c"
   "${AVM_ROOT}/av2/encoder/intra_mode_search.h"
   "${AVM_ROOT}/av2/encoder/intra_mode_search_utils.h"
+  "${AVM_ROOT}/av2/encoder/intra_mode_mlp.c"
+  "${AVM_ROOT}/av2/encoder/intra_mode_mlp.h"
+  "${AVM_ROOT}/av2/encoder/intra_mode_mlp_weights.h"
   "${AVM_ROOT}/av2/encoder/wedge_utils.c"
   "${AVM_ROOT}/av2/encoder/av2_noise_estimate.c"
   "${AVM_ROOT}/av2/encoder/av2_noise_estimate.h"
@@ -396,6 +399,7 @@ list(
   "${AVM_ROOT}/av2/encoder/x86/encodetxb_sse2.c"
   "${AVM_ROOT}/av2/encoder/x86/highbd_block_error_intrin_sse2.c"
   "${AVM_ROOT}/av2/encoder/x86/highbd_temporal_filter_sse2.c"
+  "${AVM_ROOT}/av2/encoder/x86/intra_mode_mlp_sse2.c"
   "${AVM_ROOT}/av2/encoder/x86/model_rd_sse2.c"
   "${AVM_ROOT}/av2/encoder/x86/wedge_utils_sse2.c")
 
@@ -419,6 +423,7 @@ list(
   "${AVM_ROOT}/av2/encoder/x86/highbd_fwd_txfm_avx2.c"
   "${AVM_ROOT}/av2/encoder/x86/wedge_utils_avx2.c"
   "${AVM_ROOT}/av2/encoder/x86/encodetxb_avx2.c"
+  "${AVM_ROOT}/av2/encoder/x86/intra_mode_mlp_avx2.c"
   "${AVM_ROOT}/av2/encoder/x86/rdopt_avx2.c"
   "${AVM_ROOT}/av2/encoder/x86/pickrst_avx2.c")
 
@@ -426,6 +431,7 @@ list(
   APPEND
   AVM_AV2_ENCODER_INTRIN_NEON
   "${AVM_ROOT}/av2/encoder/arm/neon/ml_neon.c"
+  "${AVM_ROOT}/av2/encoder/arm/neon/intra_mode_mlp_neon.c"
   "${AVM_ROOT}/av2/encoder/arm/neon/rdopt_neon.c"
   "${AVM_ROOT}/av2/encoder/arm/neon/encodetxb_neon.c"
   "${AVM_ROOT}/av2/encoder/arm/neon/hybrid_fwd_txfm_neon.c")
