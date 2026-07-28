@@ -745,7 +745,8 @@ typedef struct INTER_MODE_SPEED_FEATURES {
 
   // skip temporary predictions for opfl modes
   int skip_temporary_pred_for_opfl;
-
+  // Enable warp inter intra in winner mode.
+  int enable_warp_inter_intra_in_winner;
   // Reuse compound type rd decision when exact match is found
   // 0: No reuse
   // 1: Reuse the compound type rd data
