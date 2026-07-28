@@ -5839,7 +5839,7 @@ BEGIN_PARTITION_SEARCH:
   // prune the less-likely rect direction when it confidently predicts NONE.
   // Skip during retry pass to avoid infinite loop if pruning is enabled.
   if (cpi->sf.part_sf.partition_pruning_with_mlp &&
-      part_search_state.partition_none_allowed &&
+      part_search_state.partition_allowed[PARTITION_NONE] &&
       part_search_state.forced_partition == PARTITION_INVALID &&
       block_size_wide[bsize] >= 32 && block_size_high[bsize] >= 32 &&
       bsize <= BLOCK_256X256 && !x->must_find_valid_partition) {
@@ -5880,9 +5880,9 @@ BEGIN_PARTITION_SEARCH:
           best_non_none_logit = logits[ci];
       if (logits[PART_MLP_NONE] - best_non_none_logit > none_thresh) {
         if (logits[PART_MLP_HORZ] < logits[PART_MLP_VERT])
-          part_search_state.prune_rect_part[HORZ] = true;
+          part_search_state.prune_partition[PARTITION_HORZ] = true;
         else
-          part_search_state.prune_rect_part[VERT] = true;
+          part_search_state.prune_partition[PARTITION_VERT] = true;
       }
     }
   }
