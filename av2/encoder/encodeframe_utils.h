@@ -152,29 +152,23 @@ typedef struct PartitionSearchState {
   // rect_part_rd[1][i] is the RD cost of ith partition index of PARTITION_VERT.
   int64_t rect_part_rd[NUM_RECT_PARTS][SUB_PARTITIONS_RECT];
 
+  // Allowed partition types for the partition block.
+  PARTITION_TYPE forced_partition;
+  bool is_block_splittable;
+  bool do_rectangular_split;
+  bool partition_allowed[ALL_PARTITION_TYPES];
+
   // Flags to prune/skip particular partition size evaluation.
-  int terminate_partition_search;
-  int partition_none_allowed;
-  int partition_rect_allowed[NUM_RECT_PARTS];
-  int do_rectangular_split;
-  int partition_split_allowed;
-  bool prune_partition_none;
+  bool terminate_partition_search;
+  bool prune_partition[EXT_PARTITION_TYPES];
 #if CONFIG_ML_PART_SPLIT
   bool prune_partition_split;
 #endif  // CONFIG_ML_PART_SPLIT
-  bool partition_3_allowed[NUM_RECT_PARTS];
-  bool prune_partition_3[NUM_RECT_PARTS];
-  bool partition_4a_allowed[NUM_RECT_PARTS];
-  bool partition_4b_allowed[NUM_RECT_PARTS];
-  bool prune_partition_4a[NUM_RECT_PARTS];
-  bool prune_partition_4b[NUM_RECT_PARTS];
-  PARTITION_TYPE forced_partition;
+
   // Pointer to an array that traces out the current best partition boundary.
   // Used by prune_part_h_with_partition_boundary and
   // prune_part_4_with_partition_boundary.
   bool *partition_boundaries;
-  bool prune_rect_part[NUM_RECT_PARTS];
-  int is_block_splittable;
 
   // Chroma subsampling in x and y directions.
   int ss_x;
