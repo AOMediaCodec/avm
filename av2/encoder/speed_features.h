@@ -446,6 +446,14 @@ typedef struct PARTITION_SPEED_FEATURES {
   int remove_qp_restriction_with_ml;
 #endif  // CONFIG_ML_PART_SPLIT
 
+  // Prune rectangular partition search using an MLP that predicts the
+  // winning partition type (NONE/HORZ/VERT/SPLIT) from block features.
+  int partition_pruning_with_mlp;
+
+  // Logit margin (winner logit - best non-NONE logit) required to prune rect
+  // partitions when the MLP predicts NONE.
+  float partition_pruning_with_mlp_none_thresh;
+
   bool disable_ext_partitions;
   bool disable_uneven_4way_partitions;
 } PARTITION_SPEED_FEATURES;
