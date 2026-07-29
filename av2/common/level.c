@@ -507,9 +507,9 @@ static double get_max_bitrate(const AV2LevelSpec *const level_spec, int tier,
   const double bitrate_basis =
       (tier ? level_spec->high_mbps / scale : level_spec->main_mbps / scale) *
       1e6;
-  const int profile_scaling_factor = get_profile_scaling_factor(profile);
+  const int profile_factor_row = get_profile_factor_table_row_index(profile);
   double bitrate_profile_factor =
-      bitrate_profile_factor_table[profile_scaling_factor];
+      bitrate_profile_factor_table[profile_factor_row];
   return bitrate_basis * bitrate_profile_factor;
 }
 
@@ -522,9 +522,9 @@ static double get_max_compressed_size(const AV2LevelSpec *const level_spec,
   const double min_comp_basis =
       (tier ? level_spec->high_cr : level_spec->main_cr);
 
-  const int profile_scaling_factor = get_profile_scaling_factor(profile);
+  const int profile_factor_row = get_profile_factor_table_row_index(profile);
   double picture_size_profile_factor =
-      picture_size_profile_factor_table[profile_scaling_factor];
+      picture_size_profile_factor_table[profile_factor_row];
 
   double max_compressed_size =
       ((long long)(frame_parsing_time * level_spec->max_decode_rate *
@@ -547,9 +547,9 @@ static double get_max_frame_symbol_count(const AV2LevelSpec *const level_spec,
   const double min_comp_basis =
       (tier ? level_spec->high_cr : level_spec->main_cr);
 
-  const int profile_scaling_factor = get_profile_scaling_factor(profile);
+  const int profile_factor_row = get_profile_factor_table_row_index(profile);
   double picture_size_profile_factor =
-      picture_size_profile_factor_table[profile_scaling_factor];
+      picture_size_profile_factor_table[profile_factor_row];
   double scale = multi_stream_scaling_x == 0 ? 1 : multi_stream_scaling_x;
   double max_frame_symbol_count =
       frame_parsing_time * (level_spec->max_decode_rate / scale) *
@@ -1586,9 +1586,9 @@ double av2_get_compression_ratio(const AV2_COMMON *const cm,
   const SequenceHeader *const seq_params = &cm->seq_params;
   const BITSTREAM_PROFILE profile = seq_params->seq_profile_idc;
 
-  const int profile_scaling_factor = get_profile_scaling_factor(profile);
+  const int profile_factor_row = get_profile_factor_table_row_index(profile);
   const int picture_size_profile_factor =
-      (int)picture_size_profile_factor_table[profile_scaling_factor];
+      (int)picture_size_profile_factor_table[profile_factor_row];
   encoded_frame_size =
       (encoded_frame_size > 129 ? encoded_frame_size - 128 : 1);
   const size_t uncompressed_frame_size =

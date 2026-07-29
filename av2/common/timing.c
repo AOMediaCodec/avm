@@ -59,14 +59,14 @@ int64_t av2_max_level_bitrate(BITSTREAM_PROFILE seq_profile, int seq_level_idx,
                               int seq_tier) {
   int64_t bitrate;
 
-  int profile_scaling_factor = get_profile_scaling_factor(seq_profile);
+  int profile_factor_row = get_profile_factor_table_row_index(seq_profile);
 
   if (seq_tier) {
-    bitrate = high_kbps[seq_level_idx] *
-              bitrate_profile_factor[profile_scaling_factor];
+    bitrate =
+        high_kbps[seq_level_idx] * bitrate_profile_factor[profile_factor_row];
   } else {
-    bitrate = main_kbps[seq_level_idx] *
-              bitrate_profile_factor[profile_scaling_factor];
+    bitrate =
+        main_kbps[seq_level_idx] * bitrate_profile_factor[profile_factor_row];
   }
 
   return bitrate * 1000;
