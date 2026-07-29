@@ -69,6 +69,7 @@
 #include "av2/encoder/segmentation.h"
 #include "av2/encoder/tokenize.h"
 #include "av2/encoder/tpl_model.h"
+#include "av2/encoder/var_based_part.h"
 
 #if CONFIG_TUNE_VMAF
 #include "av2/encoder/tune_vmaf.h"
@@ -467,12 +468,15 @@ static INLINE void init_encode_rd_sb(AV2_COMP *cpi, ThreadData *td,
   reset_hash_records(&x->txfm_search_info, cpi->sf.tx_sf.use_inter_txb_hash);
   av2_zero(x->picked_ref_frames_mask);
   av2_invalid_rd_stats(rd_cost);
-  SimpleMotionDataBufs *data_bufs = x->sms_bufs;
-  av2_init_sms_data_bufs(data_bufs);
-  fill_sms_buf(data_bufs, sms_root, mi_row, mi_col, cm->sb_size, cm->sb_size,
-               0);
-  fill_sms_buf(data_bufs, sms_root, mi_row, mi_col, cm->sb_size, cm->sb_size,
-               1);
+  if (sf->part_sf.partition_search_type != VAR_BASED_PARTITION &&
+      sf->part_sf.partition_search_type != FIXED_PARTITION) {
+    SimpleMotionDataBufs *data_bufs = x->sms_bufs;
+    av2_init_sms_data_bufs(data_bufs);
+    fill_sms_buf(data_bufs, sms_root, mi_row, mi_col, cm->sb_size, cm->sb_size,
+                 0);
+    fill_sms_buf(data_bufs, sms_root, mi_row, mi_col, cm->sb_size, cm->sb_size,
+                 1);
+  }
   if (x->e_mbd.tree_type == CHROMA_PART) {
     assert(is_bsize_square(x->sb_enc.min_partition_size));
     x->sb_enc.min_partition_size =
@@ -730,7 +734,7 @@ static AVM_INLINE void encode_rd_sb(AV2_COMP *cpi, ThreadData *td,
                         mi_col, 1);
       av2_reset_ptree_in_sbi(xd->sbi, xd->tree_type);
       av2_build_partition_tree_fixed_partitioning(
-          cm, xd->tree_type, mi_row, mi_col, bsize,
+          cm, xd->tree_type, mi_row, mi_col,
           xd->sbi->ptree_root[av2_get_sdp_idx(xd->tree_type)],
           xd->tree_type == CHROMA_PART ? xd->sbi->ptree_root[0] : NULL);
       PC_TREE *const pc_root = av2_alloc_pc_tree_node(
@@ -765,9 +769,42 @@ static AVM_INLINE void encode_rd_sb(AV2_COMP *cpi, ThreadData *td,
           PARTITION_NONE, 0, 1, ss_x, ss_y);
       av2_reset_ptree_in_sbi(xd->sbi, xd->tree_type);
       av2_build_partition_tree_fixed_partitioning(
-          cm, xd->tree_type, mi_row, mi_col, bsize,
+          cm, xd->tree_type, mi_row, mi_col,
           xd->sbi->ptree_root[av2_get_sdp_idx(xd->tree_type)],
           xd->tree_type == CHROMA_PART ? xd->sbi->ptree_root[0] : NULL);
+      av2_rd_use_partition(
+          cpi, td, tile_data, mi,
+          (intra_sdp_enabled && xd->tree_type == CHROMA_PART) ? tp_chroma : tp,
+          mi_row, mi_col, sb_size, &dummy_rate, &dummy_dist, 1,
+          xd->sbi->ptree_root[av2_get_sdp_idx(xd->tree_type)], pc_root,
+          (xd->tree_type == CHROMA_PART) ? xd->sbi->ptree_root[0] : NULL);
+      av2_free_pc_tree_recursive(pc_root, num_planes, 0, 0);
+      x->sb_enc.min_partition_size = min_partition_size;
+    }
+    xd->tree_type = SHARED_PART;
+  } else if (sf->part_sf.partition_search_type == VAR_BASED_PARTITION) {
+    av2_set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size, NULL);
+    av2_choose_var_based_partitioning(cpi, tile_info, td, x, mi_row, mi_col);
+    for (int loop_idx = 0; loop_idx < total_loop_num; loop_idx++) {
+      xd->tree_type =
+          (total_loop_num == 1 ? SHARED_PART
+                               : (loop_idx == 0 ? LUMA_PART : CHROMA_PART));
+      const int plane_start = get_partition_plane_start(xd->tree_type);
+      const int plane_end = get_partition_plane_end(xd->tree_type, num_planes);
+      const BLOCK_SIZE min_partition_size = x->sb_enc.min_partition_size;
+      init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row,
+                        mi_col, 1);
+      PC_TREE *const pc_root = av2_alloc_pc_tree_node(
+          xd->tree_type, mi_row, mi_col, cm->sb_size, sb_size, NULL,
+          PARTITION_NONE, 0, 1, ss_x, ss_y);
+      av2_reset_ptree_in_sbi(xd->sbi, xd->tree_type);
+      av2_build_partition_tree_fixed_partitioning(
+          cm, xd->tree_type, mi_row, mi_col,
+          xd->sbi->ptree_root[av2_get_sdp_idx(xd->tree_type)],
+          xd->tree_type == CHROMA_PART ? xd->sbi->ptree_root[0] : NULL);
+      for (int plane = plane_start; plane < plane_end; plane++) {
+        x->cb_offset[plane] = 0;
+      }
       av2_rd_use_partition(
           cpi, td, tile_data, mi,
           (intra_sdp_enabled && xd->tree_type == CHROMA_PART) ? tp_chroma : tp,
