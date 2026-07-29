@@ -877,7 +877,8 @@ typedef struct TX_SPEED_FEATURES {
 
   // Enable txfm partition search
   bool enable_tx_partition;
-
+  // Enable adaptive tx search level
+  bool enable_adaptive_tx_search_level;
   // Enable adaptive TCQ threshold:
   bool enable_adaptive_tcq_threshold;
 
