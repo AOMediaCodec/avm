@@ -43,10 +43,10 @@ CYCLIC_REFRESH *av2_cyclic_refresh_alloc(int mi_rows, int mi_cols,
   assert(bit_depth == AVM_BITS_8 ? (MAXQ_8_BITS <= (QINDEX_RANGE_8_BITS - 1))
          : bit_depth == AVM_BITS_10
              ? (MAXQ_10_BITS <= (QINDEX_RANGE_10_BITS - 1))
-             : (MAXQ <= (QINDEX_RANGE - 1)));
+             : (MAXQ_12_BITS <= (QINDEX_RANGE_12_BITS - 1)));
   const uint16_t qinit = bit_depth == AVM_BITS_8    ? MAXQ_8_BITS
                          : bit_depth == AVM_BITS_10 ? MAXQ_10_BITS
-                                                    : MAXQ;
+                                                    : MAXQ_12_BITS;
   for (int i = 0; i < mi_rows * mi_cols; ++i) cr->last_coded_q_map[i] = qinit;
 
   cr->avg_frame_low_motion = 0.0;
@@ -430,7 +430,7 @@ void av2_cyclic_refresh_setup(AV2_COMP *const cpi) {
         cr->last_coded_q_map[i] =
             cm->seq_params.bit_depth == AVM_BITS_8    ? MAXQ_8_BITS
             : cm->seq_params.bit_depth == AVM_BITS_10 ? MAXQ_10_BITS
-                                                      : MAXQ;
+                                                      : MAXQ_12_BITS;
 
       cr->sb_index = 0;
     }
@@ -480,7 +480,7 @@ void av2_cyclic_refresh_setup(AV2_COMP *const cpi) {
         0,
         cm->seq_params.bit_depth == AVM_BITS_8    ? MAXQ_8_BITS
         : cm->seq_params.bit_depth == AVM_BITS_10 ? MAXQ_10_BITS
-                                                  : MAXQ);
+                                                  : MAXQ_12_BITS);
 
     cr->rdmult = av2_compute_rd_mult(cpi, qindex2);
 

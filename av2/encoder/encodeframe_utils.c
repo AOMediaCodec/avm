@@ -1080,7 +1080,7 @@ int av2_get_q_for_deltaq_objective(AV2_COMP *const cpi, BLOCK_SIZE bsize,
   qindex =
       AVMMIN(qindex, cm->seq_params.bit_depth == AVM_BITS_8    ? MAXQ_8_BITS
                      : cm->seq_params.bit_depth == AVM_BITS_10 ? MAXQ_10_BITS
-                                                               : MAXQ);
+                                                               : MAXQ_12_BITS);
   qindex = AVMMAX(qindex, MINQ);
 
   return qindex;

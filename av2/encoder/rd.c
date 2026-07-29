@@ -646,7 +646,7 @@ static void init_me_luts_bd(int *bit16lut, int range,
 void av2_init_me_luts(void) {
   init_me_luts_bd(sad_per_bit_lut_8, QINDEX_RANGE_8_BITS, AVM_BITS_8);
   init_me_luts_bd(sad_per_bit_lut_10, QINDEX_RANGE_10_BITS, AVM_BITS_10);
-  init_me_luts_bd(sad_per_bit_lut_12, QINDEX_RANGE, AVM_BITS_12);
+  init_me_luts_bd(sad_per_bit_lut_12, QINDEX_RANGE_12_BITS, AVM_BITS_12);
 }
 
 static const int rd_boost_factor[16] = { 64, 32, 32, 32, 24, 16, 12, 12,
@@ -700,6 +700,10 @@ int av2_get_deltaq_offset(const AV2_COMP *cpi, int qindex, double beta) {
                            cpi->common.seq_params.bit_depth);
   int newq = (int)rint(q / sqrt(beta));
   int orig_qindex = qindex;
+  const int max_qindex =
+      cpi->common.seq_params.bit_depth == AVM_BITS_8    ? MAXQ_8_BITS
+      : cpi->common.seq_params.bit_depth == AVM_BITS_10 ? MAXQ_10_BITS
+                                                        : MAXQ_12_BITS;
   if (newq < q) {
     do {
       qindex--;
@@ -711,11 +715,7 @@ int av2_get_deltaq_offset(const AV2_COMP *cpi, int qindex, double beta) {
       qindex++;
       q = av2_dc_quant_QTX(qindex, 0, cpi->common.seq_params.base_y_dc_delta_q,
                            cpi->common.seq_params.bit_depth);
-    } while (newq > q &&
-             (qindex <
-              (cpi->common.seq_params.bit_depth == AVM_BITS_8    ? MAXQ_8_BITS
-               : cpi->common.seq_params.bit_depth == AVM_BITS_10 ? MAXQ_10_BITS
-                                                                 : MAXQ)));
+    } while (newq > q && qindex < max_qindex);
   }
   return qindex - orig_qindex;
 }
@@ -814,7 +814,7 @@ static void set_block_thresholds(const AV2_COMMON *cm, RD_OPT *rd) {
               0,
               cm->seq_params.bit_depth == AVM_BITS_8    ? MAXQ_8_BITS
               : cm->seq_params.bit_depth == AVM_BITS_10 ? MAXQ_10_BITS
-                                                        : MAXQ);
+                                                        : MAXQ_12_BITS);
 
     const int q = compute_rd_thresh_factor(
         qindex, cm->seq_params.base_y_dc_delta_q, cm->seq_params.bit_depth);

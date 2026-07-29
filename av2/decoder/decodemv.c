@@ -1499,7 +1499,7 @@ static void read_delta_q_params(AV2_COMMON *const cm, MACROBLOCKD *const xd,
         clamp(xd->current_base_qindex, 1,
               cm->seq_params.bit_depth == AVM_BITS_8    ? MAXQ_8_BITS
               : cm->seq_params.bit_depth == AVM_BITS_10 ? MAXQ_10_BITS
-                                                        : MAXQ);
+                                                        : MAXQ_12_BITS);
   }
 }
 
