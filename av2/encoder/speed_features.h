@@ -180,7 +180,10 @@ enum {
   SEARCH_PARTITION,
 
   // Always use a fixed size partition
-  FIXED_PARTITION
+  FIXED_PARTITION,
+
+  // Partition using source variance for realtime mode.
+  VAR_BASED_PARTITION
 } UENUM1BYTE(PARTITION_SEARCH_TYPE);
 
 enum {
@@ -990,6 +993,14 @@ typedef struct LOOP_FILTER_SPEED_FEATURES {
   int wienerns_refine_iters;
 } LOOP_FILTER_SPEED_FEATURES;
 
+typedef struct REALTIME_SPEED_FEATURES {
+  // Use non-rd partition instead of rd partition.
+  int use_nonrd_partition;
+
+  // Flag to disable all but DC intra mode for inter frame prediction.
+  bool use_only_dc_intra_interframe;
+} REALTIME_SPEED_FEATURES;
+
 typedef struct FLEXMV_PRECISION_SPEED_FEATURES {
   // Do not search 8-pel precision
   int do_not_search_8_pel_precision;
@@ -1089,6 +1100,11 @@ typedef struct SPEED_FEATURES {
    * flexible MV precisions speed features:
    */
   FLEXMV_PRECISION_SPEED_FEATURES flexmv_sf;
+
+  /*!
+   * Realtime mode speed features:
+   */
+  REALTIME_SPEED_FEATURES rt_sf;
 
 } SPEED_FEATURES;
 /*!\cond */
