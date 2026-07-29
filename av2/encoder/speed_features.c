@@ -1397,6 +1397,11 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
           ((speed < 1) ? qindex_thresh2 : qindex_thresh4)) {
         sf->tx_sf.restrict_tx_partition_type_search = 1;
       }
+
+      if (speed >= 1 && cm->quant_params.base_qindex <= qindex_thresh2) {
+        sf->tx_sf.adaptive_tx_type_search_idx = 5;
+        sf->tx_sf.adaptive_tx_partition_type_search_idx = 5;
+      }
     }
 
     if (cm->quant_params.base_qindex <= qindex_thresh &&
