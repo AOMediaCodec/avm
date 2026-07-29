@@ -1807,6 +1807,10 @@ static AVM_INLINE void free_thread_data(AV2_COMP *cpi) {
     av2_free_pmc(thread_data->td->firstpass_ctx, av2_num_planes(cm));
     thread_data->td->firstpass_ctx = NULL;
     av2_free_shared_coeff_buffer(&thread_data->td->shared_coeff_buf);
+    avm_free(thread_data->td->vt128x128);
+    thread_data->td->vt128x128 = NULL;
+    avm_free(thread_data->td->vt64x64);
+    thread_data->td->vt64x64 = NULL;
     av2_free_sms_tree(thread_data->td);
     av2_free_sms_bufs(thread_data->td);
 #if CONFIG_ML_PART_SPLIT
