@@ -103,7 +103,7 @@ class RtcTestLarge : public ::libavm_test::CodecTestWithParam<int>,
 };
 
 TEST_P(RtcTestLarge, RtcTest) {
-  ::libavm_test::Y4mVideoSource video_nonsc("niklas_1280_720_30.y4m", 0, 5);
+  ::libavm_test::Y4mVideoSource video_nonsc("niklas_1280_720_30.y4m", 0, 50);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
 }
 

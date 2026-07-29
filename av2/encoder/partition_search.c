@@ -2016,11 +2016,18 @@ static void encode_sb(const AV2_COMP *const cpi, ThreadData *td,
 
 static void build_one_split_tree(AV2_COMMON *const cm, TREE_TYPE tree_type,
                                  int mi_row, int mi_col, BLOCK_SIZE bsize,
-                                 BLOCK_SIZE final_bsize, PARTITION_TREE *ptree,
+                                 PARTITION_TREE *ptree,
                                  const PARTITION_TREE *ptree_luma) {
+  CommonModeInfoParams *mi_params = &cm->mi_params;
   assert(block_size_high[bsize] == block_size_wide[bsize]);
   if (mi_row >= cm->mi_params.mi_rows || mi_col >= cm->mi_params.mi_cols)
     return;
+
+  const int mi_grid_idx = get_mi_grid_idx(mi_params, mi_row, mi_col);
+  const int mi_alloc_idx = get_alloc_mi_idx(mi_params, mi_row, mi_col);
+  MB_MODE_INFO *mi = mi_params->mi_grid_base[mi_grid_idx] =
+      &mi_params->mi_alloc[mi_alloc_idx];
+  const int final_bsize = mi->sb_type[PLANE_TYPE_Y];
 
   const int ss_x = cm->seq_params.subsampling_x;
   const int ss_y = cm->seq_params.subsampling_y;
@@ -2099,17 +2106,17 @@ static void build_one_split_tree(AV2_COMMON *const cm, TREE_TYPE tree_type,
     ptree->sub_tree[1] = av2_alloc_ptree_node(ptree, 1);
     ptree->sub_tree[2] = av2_alloc_ptree_node(ptree, 2);
     ptree->sub_tree[3] = av2_alloc_ptree_node(ptree, 3);
-    build_one_split_tree(cm, tree_type, mi_row, mi_col, subsize, final_bsize,
+    build_one_split_tree(cm, tree_type, mi_row, mi_col, subsize,
                          ptree->sub_tree[0],
                          track_ptree_luma ? ptree_luma->sub_tree[0] : NULL);
     build_one_split_tree(cm, tree_type, mi_row, mi_col + hbs_w, subsize,
-                         final_bsize, ptree->sub_tree[1],
+                         ptree->sub_tree[1],
                          track_ptree_luma ? ptree_luma->sub_tree[1] : NULL);
     build_one_split_tree(cm, tree_type, mi_row + hbs_h, mi_col, subsize,
-                         final_bsize, ptree->sub_tree[2],
+                         ptree->sub_tree[2],
                          track_ptree_luma ? ptree_luma->sub_tree[2] : NULL);
     build_one_split_tree(cm, tree_type, mi_row + hbs_h, mi_col + hbs_w, subsize,
-                         final_bsize, ptree->sub_tree[3],
+                         ptree->sub_tree[3],
                          track_ptree_luma ? ptree_luma->sub_tree[3] : NULL);
     return;
   }
@@ -2181,38 +2188,36 @@ static void build_one_split_tree(AV2_COMMON *const cm, TREE_TYPE tree_type,
   if (first_partition == PARTITION_HORZ) {
     assert(second_partition == PARTITION_VERT);
     build_one_split_tree(
-        cm, tree_type, mi_row, mi_col, subsize, final_bsize,
-        ptree->sub_tree[0]->sub_tree[0],
+        cm, tree_type, mi_row, mi_col, subsize, ptree->sub_tree[0]->sub_tree[0],
         track_subtree0_luma ? ptree_luma->sub_tree[0]->sub_tree[0] : NULL);
     build_one_split_tree(
-        cm, tree_type, mi_row, mi_col + hbs_w, subsize, final_bsize,
+        cm, tree_type, mi_row, mi_col + hbs_w, subsize,
         ptree->sub_tree[0]->sub_tree[1],
         track_subtree0_luma ? ptree_luma->sub_tree[0]->sub_tree[1] : NULL);
     build_one_split_tree(
-        cm, tree_type, mi_row + hbs_h, mi_col, subsize, final_bsize,
+        cm, tree_type, mi_row + hbs_h, mi_col, subsize,
         ptree->sub_tree[1]->sub_tree[0],
         track_subtree1_luma ? ptree_luma->sub_tree[1]->sub_tree[0] : NULL);
     build_one_split_tree(
-        cm, tree_type, mi_row + hbs_h, mi_col + hbs_w, subsize, final_bsize,
+        cm, tree_type, mi_row + hbs_h, mi_col + hbs_w, subsize,
         ptree->sub_tree[1]->sub_tree[1],
         track_subtree1_luma ? ptree_luma->sub_tree[1]->sub_tree[1] : NULL);
   } else {
     assert(first_partition == PARTITION_VERT);
     assert(second_partition == PARTITION_HORZ);
     build_one_split_tree(
-        cm, tree_type, mi_row, mi_col, subsize, final_bsize,
-        ptree->sub_tree[0]->sub_tree[0],
+        cm, tree_type, mi_row, mi_col, subsize, ptree->sub_tree[0]->sub_tree[0],
         track_subtree0_luma ? ptree_luma->sub_tree[0]->sub_tree[0] : NULL);
     build_one_split_tree(
-        cm, tree_type, mi_row + hbs_h, mi_col, subsize, final_bsize,
+        cm, tree_type, mi_row + hbs_h, mi_col, subsize,
         ptree->sub_tree[0]->sub_tree[1],
         track_subtree0_luma ? ptree_luma->sub_tree[0]->sub_tree[1] : NULL);
     build_one_split_tree(
-        cm, tree_type, mi_row, mi_col + hbs_w, subsize, final_bsize,
+        cm, tree_type, mi_row, mi_col + hbs_w, subsize,
         ptree->sub_tree[1]->sub_tree[0],
         track_subtree1_luma ? ptree_luma->sub_tree[1]->sub_tree[0] : NULL);
     build_one_split_tree(
-        cm, tree_type, mi_row + hbs_h, mi_col + hbs_w, subsize, final_bsize,
+        cm, tree_type, mi_row + hbs_h, mi_col + hbs_w, subsize,
         ptree->sub_tree[1]->sub_tree[1],
         track_subtree1_luma ? ptree_luma->sub_tree[1]->sub_tree[1] : NULL);
   }
@@ -2220,10 +2225,9 @@ static void build_one_split_tree(AV2_COMMON *const cm, TREE_TYPE tree_type,
 
 void av2_build_partition_tree_fixed_partitioning(
     AV2_COMMON *const cm, TREE_TYPE tree_type, int mi_row, int mi_col,
-    BLOCK_SIZE bsize, PARTITION_TREE *ptree, const PARTITION_TREE *ptree_luma) {
+    PARTITION_TREE *ptree, const PARTITION_TREE *ptree_luma) {
   const BLOCK_SIZE sb_size = cm->sb_size;
-
-  build_one_split_tree(cm, tree_type, mi_row, mi_col, sb_size, bsize, ptree,
+  build_one_split_tree(cm, tree_type, mi_row, mi_col, sb_size, ptree,
                        ptree_luma);
 }
 
