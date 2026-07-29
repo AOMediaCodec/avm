@@ -233,6 +233,10 @@ static AVM_INLINE void dealloc_compressor_data(AV2_COMP *cpi) {
   free_token_info(token_info);
 
   av2_free_shared_coeff_buffer(&cpi->td.shared_coeff_buf);
+  avm_free(cpi->td.vt128x128);
+  cpi->td.vt128x128 = NULL;
+  avm_free(cpi->td.vt64x64);
+  cpi->td.vt64x64 = NULL;
   av2_free_sms_tree(&cpi->td);
   av2_free_sms_bufs(&cpi->td);
 #if CONFIG_ML_PART_SPLIT
