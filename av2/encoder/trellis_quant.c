@@ -456,73 +456,76 @@ static int get_coeff_cost(int ci, tran_low_t abs_qc, int sign, int coeff_ctx,
 // Update neighbor coeff magnitudes state for current diagonal.
 void av2_update_nbr_diagonal_c(struct tcq_ctx_t *tcq_ctx, int row, int col,
                                int bwl) {
-  // Temp storage for next diagonal ctx, with padding.
-  uint8_t next_base_mag[32 + 8][TCQ_MAX_STATES];
-  uint8_t next_mid_mag[32 + 8][TCQ_MAX_STATES];
-  uint8_t(*next_base)[TCQ_MAX_STATES] = &next_base_mag[4];
-  uint8_t(*next_mid)[TCQ_MAX_STATES] = &next_mid_mag[4];
-  uint8_t(*mag_base)[TCQ_MAX_STATES] = &tcq_ctx->mag_base[4];
-  uint8_t(*mag_mid)[TCQ_MAX_STATES] = &tcq_ctx->mag_mid[4];
-
-  int idx_start = col;
-  int idx_end = 1 << bwl;
-  for (int st = 0; st < TCQ_MAX_STATES; st++) {
-    // Copy original coeff context from previous diagonal.
-    int orig_st = tcq_ctx->orig_st[st];
-    if (orig_st < 0) {
-      for (int i = 0; i < 32; i++) {
-        next_base[i][st] = 0;
-        next_mid[i][st] = 0;
-      }
-    } else {
-      for (int i = 0; i < 32; i++) {
-        next_base[i][st] = mag_base[i][orig_st];
-        next_mid[i][st] = mag_mid[i][orig_st];
-      }
-    }
-  }
-  memset(next_base_mag, 0, sizeof(next_base_mag[0]) * 4);
-  memset(next_mid_mag, 0, sizeof(next_mid_mag[0]) * 4);
-  memset(tcq_ctx->mag_base, 0, sizeof(tcq_ctx->mag_base));
-  memset(tcq_ctx->mag_mid, 0, sizeof(tcq_ctx->mag_mid));
   int diag = row + col;
+  int idx_start = col;
+  int idx_end = AVMMIN(diag + 1, 1 << bwl);
+  int idx0 = AVMMAX(idx_start - 2, 0);
+
   int max1 = diag < 5 ? 5 : 3;
   int max2 = diag < 6 ? 5 : 3;
+  static const int8_t max_tbl[4] = { 0, 8, 6, 4 };
+  int base_max = max_tbl[AVMMIN(diag, 3)];
+
+  int state_arr[MAX_DIAG + 8][TCQ_MAX_STATES];
+
   for (int st = 0; st < TCQ_MAX_STATES; st++) {
-    // Update neighbor magnitudes
-    int st1 = st;
-    for (int i = idx_start; st1 >= 0 && i < idx_end; i++) {
-      int lev = tcq_ctx->lev_new[i][st1];
-      st1 = tcq_ctx->prev_st[i][st1];
-      // Update base positions {1, 0}, {0, 1}
-      int base1 = AVMMIN(lev, max1);
-      next_base[i][st] += base1;
-      next_base[i - 1][st] += base1;
-      // Update mid positions {1, 0}, {0, 1}
-      next_mid[i][st] += lev;
-      next_mid[i - 1][st] += lev;
-      // Update base positions {2, 0}, {1. 1}, {0, 2}
-      int base2 = AVMMIN(lev, max2);
-      mag_base[i][st] += base2;
-      mag_base[i - 1][st] += base2;
-      mag_base[i - 2][st] += base2;
-      // Update mid position {1, 1}
-      mag_mid[i - 1][st] = lev;
+    state_arr[idx0][st] = st;
+  }
+
+  for (int i = idx0; i < idx_end + 1; i++) {
+    for (int st = 0; st < TCQ_MAX_STATES; st++) {
+      int cur = state_arr[i][st];
+      state_arr[i + 1][st] = (cur < 0) ? -1 : tcq_ctx->prev_st[i][cur];
     }
   }
-  // Calc next context info
-  memset(tcq_ctx->ctx, 0, sizeof(tcq_ctx->ctx));
-  static const int8_t max_tbl[6] = { 0, 8, 6, 4, 4, 4 };
-  int base_max = max_tbl[AVMMIN(diag, 5)];
+
+  uint8_t new_mag_base[MAX_DIAG + 8][TCQ_MAX_STATES];
+  uint8_t new_mag_mid[MAX_DIAG + 8][TCQ_MAX_STATES];
+
   for (int st = 0; st < TCQ_MAX_STATES; st++) {
-    for (int i = 0; i < 32; i++) {
-      int base_ctx = next_base[i][st];
-      int mid_ctx = next_mid[i][st];
-      base_ctx = AVMMIN((base_ctx + 1) >> 1, base_max);
-      mid_ctx = AVMMIN((mid_ctx + 1) >> 1, 6);
-      tcq_ctx->ctx[i][st] = (mid_ctx << 4) + base_ctx;
+    int orig_st = tcq_ctx->orig_st[st];
+    for (int i = idx0; i < idx_end; i++) {
+      int base = (orig_st < 0) ? 0 : tcq_ctx->mag_base[i][orig_st];
+      int mid = (orig_st < 0) ? 0 : tcq_ctx->mag_mid[i][orig_st];
+
+      int st0 = state_arr[i][st];
+      int st1 = state_arr[i + 1][st];
+      int st2 = state_arr[i + 2][st];
+
+      int lev0 = (st0 < 0) ? 0 : tcq_ctx->lev_new[i][st0];
+      int lev1 = (st1 < 0) ? 0 : tcq_ctx->lev_new[i + 1][st1];
+      int lev2 = (st2 < 0) ? 0 : tcq_ctx->lev_new[i + 2][st2];
+
+      int lev0_max1 = AVMMIN(lev0, max1);
+      int lev1_max1 = AVMMIN(lev1, max1);
+      int base_sum2 = lev0_max1 + lev1_max1;
+
+      base = (base + base_sum2 + 1) >> 1;
+      base = AVMMIN(base, base_max);
+
+      int mid_sum2 = lev0 + lev1;
+      mid = (mid + mid_sum2 + 1) >> 1;
+      mid = AVMMIN(mid, 6);
+
+      tcq_ctx->ctx[i][st] = (mid << 4) | base;
+
+      int lev0_max2 = AVMMIN(lev0, max2);
+      int lev1_max2 = AVMMIN(lev1, max2);
+      int lev2_max2 = AVMMIN(lev2, max2);
+      int base_sum3 = lev0_max2 + lev1_max2 + lev2_max2;
+      new_mag_base[i][st] = base_sum3;
+      new_mag_mid[i][st] = lev1;
     }
-    // Reset original state to prepare for next diagonal.
+  }
+
+  for (int i = idx0; i < idx_end; i++) {
+    for (int st = 0; st < TCQ_MAX_STATES; st++) {
+      tcq_ctx->mag_base[i][st] = new_mag_base[i][st];
+      tcq_ctx->mag_mid[i][st] = new_mag_mid[i][st];
+    }
+  }
+
+  for (int st = 0; st < TCQ_MAX_STATES; st++) {
     tcq_ctx->orig_st[st] = st;
   }
 }
