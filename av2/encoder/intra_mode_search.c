@@ -1504,6 +1504,63 @@ static AVM_INLINE void init_fsc_best_params(FscBestParams *const fsc_best,
   fsc_best->dpcm_mode_y = mbmi->dpcm_mode_y;
 }
 
+// Determines whether the given intra mode should be skipped based on speed
+// features and pruning heuristics.
+static AVM_INLINE bool skip_intra_mode(
+    const MB_MODE_INFO *mbmi, int mode_idx, int mrl_idx, int dpcm_index,
+    const uint8_t directional_mode_skip_mask[], const MB_MODE_INFO *best_mbmi,
+    bool allow_smooth_intra, bool allow_paeth_intra,
+    uint8_t mrl0_dir_mode_survived, uint8_t mlp_mode_mask, int mlp_fallback,
+    bool intra_pruning_with_mlp, bool fsc_mode) {
+  const PREDICTION_MODE mode = mbmi->mode;
+  // Skip unsupported DPCM candidates.
+  if (dpcm_index > 0 && (mrl_idx > 0 || (mode != V_PRED && mode != H_PRED) ||
+                         ((mode == V_PRED || mode == H_PRED) &&
+                          mbmi->angle_delta[PLANE_TYPE_Y] != 0)))
+    return true;
+
+  // Skip smooth intra modes when disabled by encoder configuration or speed
+  // features.
+  if (!allow_smooth_intra &&
+      (mode == SMOOTH_PRED || mode == SMOOTH_H_PRED || mode == SMOOTH_V_PRED))
+    return true;
+
+  // Skip Paeth prediction when disabled.
+  if (!allow_paeth_intra && mode == PAETH_PRED) return true;
+
+  const bool is_directional_mode = av2_is_directional_mode(mode);
+
+  // Skip secondary directional modes for MRL lines when MLP pruning is enabled
+  // if the mode did not survive line 0 (MRL 0) evaluation.
+  if (!fsc_mode && intra_pruning_with_mlp && mrl_idx > 0 &&
+      is_directional_mode && mode_idx >= FIRST_MODE_COUNT &&
+      !mrl0_dir_mode_survived)
+    return true;
+
+  // Skip MRL candidates for non-directional intra prediction modes.
+  if (!is_directional_mode && mrl_idx) return true;
+
+  // Skip secondary directional modes if excluded by MLP pruning mask.
+  if (!fsc_mode && !mlp_fallback && mode_idx >= FIRST_MODE_COUNT &&
+      !mlp_mode_mask)
+    return true;
+
+  // Skip directional modes based on directional mode mask.
+  if (is_directional_mode && directional_mode_skip_mask[mode] &&
+      mode_idx >= FIRST_MODE_COUNT)
+    return true;
+
+  // Prune higher-order multi-line MRL candidates based on the current best
+  // mode.
+  if (((best_mbmi->mrl_index == 0 &&
+        av2_is_directional_mode(best_mbmi->mode) == 0) ||
+       (best_mbmi->mrl_index && mbmi->multi_line_mrl == 0)) &&
+      mbmi->mrl_index > 1 && mbmi->multi_line_mrl)
+    return true;
+
+  return false;
+}
+
 // Finds the best non-intrabc mode on an intra frame.
 int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
                                    MACROBLOCK *x, int *rate,
@@ -1512,6 +1569,10 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
                                    int64_t best_rd, PICK_MODE_CONTEXT *ctx) {
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
+  const bool allow_smooth_intra =
+      cpi->oxcf.intra_mode_cfg.enable_smooth_intra &&
+      !cpi->sf.intra_sf.disable_smooth_intra;
+  const bool allow_paeth_intra = cpi->oxcf.intra_mode_cfg.enable_paeth_intra;
   assert(!is_inter_block(mbmi, xd->tree_type));
   int64_t best_model_rd = INT64_MAX;
   mbmi->fsc_mode[xd->tree_type == CHROMA_PART] = 0;
@@ -1626,13 +1687,19 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
               continue;
             }
 
-            if (dpcm_idx > 0 &&
-                (mrl_idx > 0 ||
-                 (mbmi->mode != V_PRED && mbmi->mode != H_PRED) ||
-                 ((mbmi->mode == V_PRED || mbmi->mode == H_PRED) &&
-                  mbmi->angle_delta[0] != 0))) {
+            const uint8_t this_mrl0_dir_mode_survived =
+                mrl0_dir_mode_survived[mbmi->mode];
+            const uint8_t this_mlp_mode_mask = mlp_mode_mask[mbmi->mode];
+            const bool intra_pruning_with_mlp =
+                cpi->sf.intra_sf.intra_pruning_with_mlp;
+
+            // Check if the current mode can be skipped.
+            if (skip_intra_mode(mbmi, mode_idx, mrl_idx, dpcm_idx,
+                                directional_mode_skip_mask, &best_mbmi,
+                                allow_smooth_intra, allow_paeth_intra,
+                                this_mrl0_dir_mode_survived, this_mlp_mode_mask,
+                                mlp_fallback, intra_pruning_with_mlp, fsc_mode))
               continue;
-            }
 
             int dpcm_cost = 0;
             if (xd->lossless[mbmi->segment_id]) {
@@ -1688,43 +1755,10 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
             RD_STATS this_rd_stats;
             int this_rate, this_rate_tokenonly, this_skip_txfm;
             int64_t this_distortion, this_rd;
-            if ((!cpi->oxcf.intra_mode_cfg.enable_smooth_intra ||
-                 cpi->sf.intra_sf.disable_smooth_intra) &&
-                (mbmi->mode == SMOOTH_PRED || mbmi->mode == SMOOTH_H_PRED ||
-                 mbmi->mode == SMOOTH_V_PRED))
-              continue;
-
-            if (!cpi->oxcf.intra_mode_cfg.enable_paeth_intra &&
-                mbmi->mode == PAETH_PRED)
-              continue;
-
-            const bool is_directional_mode =
-                av2_is_directional_mode(mbmi->mode);
-            if (!fsc_mode && cpi->sf.intra_sf.intra_pruning_with_mlp &&
-                mrl_idx > 0 && is_directional_mode &&
-                mode_idx >= FIRST_MODE_COUNT &&
-                !mrl0_dir_mode_survived[mbmi->mode])
-              continue;
-
-            if (!is_directional_mode && mrl_idx) continue;
-
-            if (!fsc_mode && !mlp_fallback && mode_idx >= FIRST_MODE_COUNT &&
-                !mlp_mode_mask[mbmi->mode])
-              continue;
-
-            if (is_directional_mode && directional_mode_skip_mask[mbmi->mode] &&
-                mode_idx >= FIRST_MODE_COUNT)
-              continue;
-
-            if (((best_mbmi.mrl_index == 0 &&
-                  av2_is_directional_mode(best_mbmi.mode) == 0) ||
-                 (best_mbmi.mrl_index && mbmi->multi_line_mrl == 0)) &&
-                mbmi->mrl_index > 1 && mbmi->multi_line_mrl) {
-              continue;
-            }
-
             const int mrl_ctx =
                 get_mrl_index_ctx(xd->neighbors[0], xd->neighbors[1]);
+            const bool is_directional_mode =
+                av2_is_directional_mode(mbmi->mode);
             int mrl_idx_cost =
                 (is_directional_mode && enable_mrls_flag)
                     ? x->mode_costs.mrl_index_cost[mrl_ctx][mbmi->mrl_index]
