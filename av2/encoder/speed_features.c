@@ -639,6 +639,24 @@ static void set_good_speed_features_framesize_independent(
   }
 }
 
+static void set_rt_speed_features_framesize_independent(
+    const AV2_COMP *const cpi, SPEED_FEATURES *const sf, int speed) {
+  // Set this good features as default for now.
+  set_good_speed_features_framesize_independent(cpi, sf, speed);
+  if (speed >= 6) {
+    sf->part_sf.partition_search_type = VAR_BASED_PARTITION;
+    sf->hl_sf.frame_parameter_update = 0;
+    sf->hl_sf.recode_loop = DISALLOW_RECODE;
+    sf->lpf_sf.lpf_pick = LPF_PICK_FROM_Q;
+    sf->lpf_sf.cdef_pick_method = CDEF_PICK_FROM_Q;
+    sf->rt_sf.use_only_dc_intra_interframe = true;
+    sf->inter_sf.prune_ref_frames = 0;
+    sf->mv_sf.search_method = DIAMOND;
+    sf->winner_mode_sf.tx_size_search_level = USE_LARGESTALL;
+    sf->rd_sf.tx_domain_dist_thres_level = 2;
+  }
+}
+
 static AVM_INLINE void init_hl_sf(HIGH_LEVEL_SPEED_FEATURES *hl_sf) {
   // best quality defaults
   hl_sf->frame_parameter_update = 1;
@@ -1131,8 +1149,11 @@ void av2_set_speed_features_framesize_independent(AV2_COMP *cpi, int speed) {
   init_lpf_sf(&sf->lpf_sf);
   init_flexmv_sf(&sf->flexmv_sf);
 
-  if (oxcf->mode == GOOD)
+  if (oxcf->mode == GOOD) {
     set_good_speed_features_framesize_independent(cpi, sf, speed);
+  } else if (oxcf->mode == REALTIME) {
+    set_rt_speed_features_framesize_independent(cpi, sf, speed);
+  }
 
   if (!cpi->seq_params_locked) {
     cpi->common.seq_params.enable_restoration &= !sf->lpf_sf.disable_lr_filter;
