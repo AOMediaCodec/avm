@@ -1635,9 +1635,15 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
                                    PICK_MODE_CONTEXT *ctx) {
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
+  const AV2_COMMON *const cm = &cpi->common;
+  const INTRA_MODE_SPEED_FEATURES *const intra_sf = &cpi->sf.intra_sf;
+  const ModeCosts *const mode_costs = &x->mode_costs;
+  const MB_MODE_INFO *const neighbor0 = xd->neighbors[0];
+  const MB_MODE_INFO *const neighbor1 = xd->neighbors[1];
+  const bool is_lossless = xd->lossless[mbmi->segment_id];
   const bool allow_smooth_intra =
       cpi->oxcf.intra_mode_cfg.enable_smooth_intra &&
-      !cpi->sf.intra_sf.disable_smooth_intra;
+      !intra_sf->disable_smooth_intra;
   const bool allow_paeth_intra = cpi->oxcf.intra_mode_cfg.enable_paeth_intra;
   assert(!is_inter_block(mbmi, xd->tree_type));
   int64_t best_model_rd = INT64_MAX;
@@ -1653,13 +1659,12 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
   extra_dip.best_mode = 0;
 #endif  // CONFIG_DIP_EXT_PRUNING
   // Flag to check rd of any intra mode is better than best_rd_so_far passed to
-  // this function
+  // this function.
   int beat_best_rd = 0;
   PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
-  const int try_palette =
+  const bool try_palette =
       cpi->oxcf.tool_cfg.enable_palette &&
-      av2_allow_palette(PLANE_TYPE_Y,
-                        cpi->common.features.allow_screen_content_tools,
+      av2_allow_palette(PLANE_TYPE_Y, cm->features.allow_screen_content_tools,
                         mbmi->sb_type[PLANE_TYPE_Y]);
   uint8_t *best_palette_color_map =
       try_palette ? x->palette_buffer->best_palette_color_map : NULL;
@@ -1667,35 +1672,33 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
 
   mbmi->angle_delta[PLANE_TYPE_Y] = 0;
   uint8_t mlp_mode_mask[INTRA_MODES] = { 0 };
-  int mlp_fallback = !cpi->sf.intra_sf.intra_pruning_with_mlp;
-  if (cpi->sf.intra_sf.intra_pruning_with_mlp) {
+  int mlp_fallback = !intra_sf->intra_pruning_with_mlp;
+  if (intra_sf->intra_pruning_with_mlp) {
     av2_intra_mlp_compute_mode_mask(cpi, x, bsize, mlp_mode_mask, &mlp_fallback,
                                     directional_mode_skip_mask);
-  } else if (cpi->sf.intra_sf.intra_pruning_with_hog) {
-    prune_intra_mode_with_hog(x, bsize,
-                              cpi->sf.intra_sf.intra_pruning_with_hog_thresh,
+  } else if (intra_sf->intra_pruning_with_hog) {
+    prune_intra_mode_with_hog(x, bsize, intra_sf->intra_pruning_with_hog_thresh,
                               directional_mode_skip_mask);
   }
   mbmi->use_intra_dip = 0;
-  pmi->palette_size[0] = 0;
+  pmi->palette_size[PLANE_TYPE_Y] = 0;
 
   mbmi->motion_mode = SIMPLE_TRANSLATION;
 
-  // Set params for mode evaluation
+  // Set params for mode evaluation.
   set_mode_eval_params(cpi, x, MODE_EVAL);
 
   get_y_intra_mode_set(mbmi, xd);
-  mbmi->is_wide_angle[0][mbmi->txb_idx] = 0;
-  mbmi->mapped_intra_mode[0][mbmi->txb_idx] = DC_PRED;
+  mbmi->is_wide_angle[PLANE_TYPE_Y][mbmi->txb_idx] = 0;
+  mbmi->mapped_intra_mode[PLANE_TYPE_Y][mbmi->txb_idx] = DC_PRED;
 
   MB_MODE_INFO best_mbmi = *mbmi;
   av2_zero(x->winner_mode_stats);
   x->winner_mode_count = 0;
   mbmi->dpcm_mode_y = 0;
-  // mbmi->dpcm_angle_delta = 0;
+
   //  Searches the intra-modes except for intrabc, palette, and filter_intra.
-  const int fsc_loop_num =
-      allow_fsc_intra(&cpi->common, bsize, mbmi) ? FSC_MODES : 1;
+  const int fsc_loop_num = allow_fsc_intra(cm, bsize, mbmi) ? FSC_MODES : 1;
 
   for (int fsc_mode = 0; fsc_mode < fsc_loop_num; ++fsc_mode) {
     if (fsc_mode == 1 && !beat_best_rd) break;
@@ -1712,7 +1715,7 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
       x->top_tx_part_rd[i] = INT64_MAX;
     }
 
-    const uint8_t enable_mrls_flag = cpi->common.seq_params.enable_mrls;
+    const uint8_t enable_mrls_flag = cm->seq_params.enable_mrls;
     int mrl_loop_num;
     if (fsc_mode) {
       mrl_loop_num = (enable_mrls_flag && best_mbmi.mrl_index) ? 2 : 1;
@@ -1721,7 +1724,7 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
     }
 
     mbmi->use_dpcm_y = 0;
-    const int dpcm_loop_num = xd->lossless[mbmi->segment_id] ? 2 : 1;
+    const int dpcm_loop_num = is_lossless ? 2 : 1;
 
     for (int dpcm_idx = 0; dpcm_idx < dpcm_loop_num; ++dpcm_idx) {
       uint8_t mrl0_dir_mode_survived[INTRA_MODES] = { 0 };
@@ -1741,7 +1744,7 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
             mbmi->y_mode_idx = mode_idx;
             mbmi->joint_y_mode_delta_angle = mbmi->y_intra_mode_list[mode_idx];
             mbmi->use_dpcm_y = dpcm_idx;
-            // the below function changes the mbmi->mode based on the mode_idx
+            // The below function changes the mbmi->mode based on the mode_idx.
             av2_set_y_mode_and_delta_angle(mbmi->joint_y_mode_delta_angle,
                                            mbmi);
             // During FSC search, prune secondary directional modes that differ
@@ -1756,7 +1759,7 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
                 mrl0_dir_mode_survived[mbmi->mode];
             const uint8_t this_mlp_mode_mask = mlp_mode_mask[mbmi->mode];
             const bool intra_pruning_with_mlp =
-                cpi->sf.intra_sf.intra_pruning_with_mlp;
+                intra_sf->intra_pruning_with_mlp;
 
             // Check if the current mode can be skipped.
             if (skip_intra_mode(mbmi, mode_idx, mrl_idx, dpcm_idx,
@@ -1766,106 +1769,105 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
                                 mlp_fallback, intra_pruning_with_mlp, fsc_mode))
               continue;
 
-            int this_mode_cost = 0;
-            int dpcm_cost = 0;
-            if (xd->lossless[mbmi->segment_id]) {
-              dpcm_cost = x->mode_costs.dpcm_cost[dpcm_idx];
-              this_mode_cost += dpcm_cost;
-            }
-            if (mbmi->use_dpcm_y > 0) {
-              mbmi->dpcm_mode_y = mbmi->mode - 1;
-            } else {
-              // Reset DPCM prediction direction to 0 for non-DPCM modes during
-              // standard non-FSC search. In FSC pass, preserve the initial DPCM
-              // direction state.
-              if (!fsc_mode) {
-                mbmi->dpcm_mode_y = 0;
-              }
-            }
-            if (mbmi->use_dpcm_y == 0) {
-              int mode_set_index = mbmi->y_mode_idx < FIRST_MODE_COUNT ? 0 : 1;
-              mode_set_index +=
-                  ((mbmi->y_mode_idx - FIRST_MODE_COUNT) / SECOND_MODE_COUNT);
-              this_mode_cost +=
-                  x->mode_costs.y_primary_flag_cost[mode_set_index];
-              if (mode_idx < FIRST_MODE_COUNT) {
-                int mode_set_low =
-                    AVMMIN(mode_idx, LUMA_INTRA_MODE_INDEX_COUNT - 1);
-                this_mode_cost +=
-                    x->mode_costs.y_mode_idx_costs[context][mode_set_low];
-                if (mode_set_low == (LUMA_INTRA_MODE_INDEX_COUNT - 1))
-                  this_mode_cost +=
-                      x->mode_costs
-                          .y_mode_idx_offset_costs[context]
-                                                  [mode_idx - mode_set_low];
-              } else {
-                this_mode_cost += av2_cost_literal(4);
-              }
-            } else {
-              int dpcm_dir_cost =
-                  x->mode_costs.dpcm_vert_horz_cost[mbmi->dpcm_mode_y];
-              this_mode_cost += dpcm_dir_cost;
-            }
-
             // Set FSC mode flag and disable incompatible modes (DIP and
             // Palette) during FSC search pass.
             if (fsc_mode) {
-              if (xd->lossless[mbmi->segment_id]) {
+              if (is_lossless) {
                 mbmi->fsc_mode[xd->tree_type == CHROMA_PART] = 1;
               } else {
                 mbmi->fsc_mode[PLANE_TYPE_Y] = 1;
               }
               mbmi->use_intra_dip = 0;
-              mbmi->palette_mode_info.palette_size[0] = 0;
+              mbmi->palette_mode_info.palette_size[PLANE_TYPE_Y] = 0;
             }
 
-            RD_STATS this_rd_stats;
-            int this_rate, this_rate_tokenonly, this_skip_txfm;
-            int64_t this_distortion, this_rd;
-            const int mrl_ctx =
-                get_mrl_index_ctx(xd->neighbors[0], xd->neighbors[1]);
-            const bool is_directional_mode =
-                av2_is_directional_mode(mbmi->mode);
-            int mrl_idx_cost =
-                (is_directional_mode && enable_mrls_flag)
-                    ? x->mode_costs.mrl_index_cost[mrl_ctx][mbmi->mrl_index]
-                    : 0;
-            if (is_directional_mode && enable_mrls_flag && mbmi->mrl_index) {
-              int multi_line_mrl_ctx = get_multi_line_mrl_index_ctx(
-                  xd->neighbors[0], xd->neighbors[1]);
-              mrl_idx_cost +=
-                  x->mode_costs.multi_line_mrl_cost[multi_line_mrl_ctx]
-                                                   [mbmi->multi_line_mrl];
+            int this_mode_cost = 0;
+            int dpcm_cost = 0;
+            if (is_lossless) {
+              dpcm_cost = mode_costs->dpcm_cost[dpcm_idx];
+              this_mode_cost += dpcm_cost;
             }
+
+            // Add the bit cost for signaling the selected luma prediction
+            // mode. Non-DPCM modes are signaled using the standard luma mode
+            // syntax, whereas DPCM modes use the dedicated DPCM direction
+            // syntax.
+            if (mbmi->use_dpcm_y == 0) {
+              // Reset DPCM prediction direction to 0 for non-DPCM modes during
+              // standard non-FSC search. In FSC pass, preserve the initial DPCM
+              // direction state.
+              if (!fsc_mode) mbmi->dpcm_mode_y = 0;
+              int mode_set_index = mbmi->y_mode_idx < FIRST_MODE_COUNT ? 0 : 1;
+              mode_set_index +=
+                  ((mbmi->y_mode_idx - FIRST_MODE_COUNT) / SECOND_MODE_COUNT);
+              this_mode_cost += mode_costs->y_primary_flag_cost[mode_set_index];
+              if (mode_idx < FIRST_MODE_COUNT) {
+                int mode_set_low =
+                    AVMMIN(mode_idx, LUMA_INTRA_MODE_INDEX_COUNT - 1);
+                this_mode_cost +=
+                    mode_costs->y_mode_idx_costs[context][mode_set_low];
+                if (mode_set_low == (LUMA_INTRA_MODE_INDEX_COUNT - 1))
+                  this_mode_cost +=
+                      mode_costs
+                          ->y_mode_idx_offset_costs[context]
+                                                   [mode_idx - mode_set_low];
+              } else {
+                this_mode_cost += av2_cost_literal(4);
+              }
+            } else {
+              mbmi->dpcm_mode_y = mbmi->mode - 1;
+              const int dpcm_dir_cost =
+                  mode_costs->dpcm_vert_horz_cost[mbmi->dpcm_mode_y];
+              this_mode_cost += dpcm_dir_cost;
+            }
+
             // In  FSC intra search, MRL index signaling cost is added
             // unconditionally to account for MRL signaling when combining MRL
             // with FSC mode.
-            if (dpcm_idx == 0 || fsc_mode) this_mode_cost += mrl_idx_cost;
+            bool is_directional_mode = av2_is_directional_mode(mbmi->mode);
+            if (dpcm_idx == 0 || fsc_mode) {
+              int mrl_idx_cost = 0;
+              const bool use_mrl = is_directional_mode && enable_mrls_flag;
+              if (use_mrl) {
+                const int mrl_ctx = get_mrl_index_ctx(neighbor0, neighbor1);
+                mrl_idx_cost =
+                    mode_costs->mrl_index_cost[mrl_ctx][mbmi->mrl_index];
+
+                if (mbmi->mrl_index) {
+                  const int multi_line_mrl_ctx =
+                      get_multi_line_mrl_index_ctx(neighbor0, neighbor1);
+                  mrl_idx_cost +=
+                      mode_costs->multi_line_mrl_cost[multi_line_mrl_ctx]
+                                                     [mbmi->multi_line_mrl];
+                }
+              }
+              this_mode_cost += mrl_idx_cost;
+            }
 
             // Calculate intra model rd for Luma.
             const int64_t this_model_rd =
                 intra_model_yrd(cpi, x, bsize, this_mode_cost);
             if (prune_intra_y_mode(this_model_rd, &best_model_rd,
                                    top_intra_model_rd, x->intra_mode_prune_top,
-                                   xd->lossless[mbmi->segment_id],
-                                   mbmi->use_dpcm_y))
+                                   is_lossless, mbmi->use_dpcm_y))
               continue;
 
-            if (!fsc_mode && cpi->sf.intra_sf.intra_pruning_with_mlp &&
-                mrl_idx == 0 && is_directional_mode)
+            if (!fsc_mode && intra_sf->intra_pruning_with_mlp && mrl_idx == 0 &&
+                is_directional_mode)
               mrl0_dir_mode_survived[mbmi->mode] = 1;
 
             // Evaluate best transform size and type for Luma.
+            RD_STATS this_rd_stats;
             av2_pick_uniform_tx_size_type_yrd(cpi, x, &this_rd_stats, bsize,
                                               best_rd_so_far);
-            this_rate_tokenonly = this_rd_stats.rate;
-            this_distortion = this_rd_stats.dist;
-            this_skip_txfm = this_rd_stats.skip_txfm;
+            int this_rate_tokenonly = this_rd_stats.rate;
+            const int64_t this_distortion = this_rd_stats.dist;
+            const int this_skip_txfm = this_rd_stats.skip_txfm;
 
             if (this_rate_tokenonly == INT_MAX) continue;
 
             if (!fsc_mode &&
-                (!xd->lossless[mbmi->segment_id] &&
+                (!is_lossless &&
                  block_signals_txsize(mbmi->sb_type[PLANE_TYPE_Y]))) {
               // av2_pick_uniform_tx_size_type_yrd above includes the cost of
               // the tx_size in the tokenonly rate, but for intra blocks,
@@ -1873,21 +1875,22 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
               // for it in the full rate, not the tokenonly rate.
               this_rate_tokenonly -= tx_size_cost(x, bsize, mbmi->tx_size);
             }
-            this_rate =
+            const int this_rate =
                 this_rd_stats.rate +
                 intra_mode_info_cost_y(cpi, x, mbmi, bsize, this_mode_cost);
-            this_rd = RDCOST(x->rdmult, this_rate, this_distortion);
+            const int64_t this_rd =
+                RDCOST(x->rdmult, this_rate, this_distortion);
 #if CONFIG_DIP_EXT_PRUNING
             if (!fsc_mode && mbmi->mode == DC_PRED) {
               extra_dip.dc_mode_rd = this_rd;
             }
 #endif  // CONFIG_DIP_EXT_PRUNING
-        // Collect mode stats for multiwinner mode processing
+        // Collect mode stats for multiwinner mode processing.
             const int txfm_search_done = 1;
-            const MV_REFERENCE_FRAME refs[2] = { -1, -1 };
+            const MV_REFERENCE_FRAME refs[2] = { NONE_FRAME, NONE_FRAME };
             store_winner_mode_stats(
-                &cpi->common, x, mbmi, NULL, NULL, NULL, refs, 0, NULL, bsize,
-                this_rd, cpi->sf.winner_mode_sf.multi_winner_mode_type,
+                cm, x, mbmi, NULL, NULL, NULL, refs, 0, NULL, bsize, this_rd,
+                cpi->sf.winner_mode_sf.multi_winner_mode_type,
                 txfm_search_done);
             if (this_rd < best_rd_so_far) {
               // Save winning FSC mode parameters and transform maps when FSC
@@ -1900,7 +1903,7 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
                 fsc_best.joint_ymode = mbmi->joint_y_mode_delta_angle;
                 fsc_best.mrl_idx = mbmi->mrl_index;
                 fsc_best.multi_line_mrl = mbmi->multi_line_mrl;
-                if (xd->lossless[mbmi->segment_id]) {
+                if (is_lossless) {
                   fsc_best.use_dpcm_y = mbmi->use_dpcm_y;
                   fsc_best.dpcm_mode_y = mbmi->dpcm_mode_y;
                 }
@@ -1911,7 +1914,7 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
               } else {
                 best_mbmi = *mbmi;
                 // Setting beat_best_rd flag because current mode rd is better
-                // than best_rd_so_far passed to this function
+                // than best_rd_so_far passed to this function.
                 beat_best_rd = 1;
 #if CONFIG_DIP_EXT_PRUNING
                 extra_dip.beat_best_rd = 1;
@@ -1925,10 +1928,9 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
               *distortion = this_distortion;
               *skippable = this_skip_txfm;
               best_rd_so_far = this_rd;
-              memcpy(ctx->blk_skip[AVM_PLANE_Y],
-                     x->txfm_search_info.blk_skip[AVM_PLANE_Y],
-                     sizeof(*x->txfm_search_info.blk_skip[AVM_PLANE_Y]) *
-                         ctx->num_4x4_blk);
+              av2_copy_array(ctx->blk_skip[AVM_PLANE_Y],
+                             x->txfm_search_info.blk_skip[AVM_PLANE_Y],
+                             ctx->num_4x4_blk);
             }
           }  // End of mode_idx loop.
         }  // End of ml_mrl_iter loop.
@@ -1941,7 +1943,7 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
         mbmi->mode = fsc_best.intra_mode;
         mbmi->y_mode_idx = fsc_best.y_mode_idx;
         mbmi->joint_y_mode_delta_angle = fsc_best.joint_ymode;
-        if (xd->lossless[mbmi->segment_id]) {
+        if (is_lossless) {
           mbmi->use_dpcm_y = fsc_best.use_dpcm_y;
           mbmi->dpcm_mode_y = fsc_best.dpcm_mode_y;
         }
@@ -1959,9 +1961,9 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
     }
   }  // End of fsc_mode loop.
 
-  // Searches palette
-  int mode_cost = x->mode_costs.y_primary_flag_cost[DC_PRED];
-  mode_cost += x->mode_costs.y_mode_idx_costs[context][DC_PRED];
+  // Searches palette.
+  int mode_cost = mode_costs->y_primary_flag_cost[DC_PRED];
+  mode_cost += mode_costs->y_mode_idx_costs[context][DC_PRED];
   if (try_palette) {
     av2_rd_pick_palette_intra_sby(cpi, x, bsize, mode_cost, &best_mbmi,
                                   best_palette_color_map, &best_rd_so_far,
@@ -1971,8 +1973,8 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
   }
 
   // Try Intra ML prediction (within intra frame).
-  const int try_intra_dip = !cpi->sf.intra_sf.skip_intra_dip_search &&
-                            av2_intra_dip_allowed_bsize(&cpi->common, bsize);
+  const bool try_intra_dip = !intra_sf->skip_intra_dip_search &&
+                             av2_intra_dip_allowed_bsize(cm, bsize);
   if (try_intra_dip) {
     if (rd_pick_intra_dip_sby(cpi, td, x, rate, rate_tokenonly, distortion,
                               skippable, bsize, mode_cost, &best_rd_so_far,
@@ -1988,7 +1990,7 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
 
   // No mode is identified with less rd value than best_rd_so_far passed to this
   // function. In such cases winner mode processing is not necessary and
-  // return best_rd_so_far as INT64_MAX to indicate best mode is not identified
+  // return best_rd_so_far as INT64_MAX to indicate best mode is not identified.
   if (!beat_best_rd) return INT64_MAX;
 
   // In multi-winner mode processing, perform tx search for few best modes
