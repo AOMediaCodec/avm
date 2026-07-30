@@ -196,6 +196,14 @@ static avm_codec_err_t check_mlayer_count(int profile_idc, int seq_max_mcount) {
 }
 
 // Checks the profile conformance -- Top-level function
+//
+// Checks the following members of seq_params:
+//   * seq_params->seq_profile_idc
+//   * seq_params->bit_depth
+//   * seq_params->monochrome
+//   * seq_params->subsampling_x
+//   * seq_params->subsampling_y
+//   * seq_params->seq_max_mlayer_cnt
 int av2_check_profile_interop_conformance(
     struct SequenceHeader *seq_params,
     struct avm_internal_error_info *error_info, int is_decoder) {

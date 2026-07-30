@@ -599,6 +599,12 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi, int xlayer_id,
     seq_params->monotonic_output_order_flag = avm_rb_read_bit(rb);
   }
 
+  if (!av2_check_profile_interop_conformance(seq_params, &cm->error, 1)) {
+    avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+                       "Unsupported profile, bitdepth, chroma format or number "
+                       "of embedded layers");
+  }
+
   const int num_bits_width = avm_rb_read_literal(rb, 4) + 1;
   const int num_bits_height = avm_rb_read_literal(rb, 4) + 1;
   const int max_frame_width = avm_rb_read_literal(rb, num_bits_width) + 1;
@@ -686,12 +692,6 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi, int xlayer_id,
       }
       av2_read_tlayer_dependency_info(seq_params, rb);
     }
-  }
-
-  if (!av2_check_profile_interop_conformance(seq_params, &cm->error, 1)) {
-    avm_internal_error(
-        &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-        "Unsupported Bitdepth, Chroma format or number of embedded layers");
   }
 
   av2_read_sequence_header(rb, seq_params);
