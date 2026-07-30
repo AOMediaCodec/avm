@@ -286,19 +286,20 @@ int av2_search_palette_mode(IntraModeSearchState *intra_search_state,
  *                                  after the reconstruction.
  * \param[in]    skippable          Whether we can skip txfm process.
  * \param[in]    bsize              Current partition block size.
- * \param[in]    best_rd            Best RD seen for this block so far.
+ * \param[in]    best_rd_so_far     Best RD seen for this block so far.
  * \param[in]    ctx                Structure to hold the number of 4x4 blks to
  *                                  copy the tx_type and txfm_skip arrays.
  *
  * \return Returns the rd_cost if this function finds a mode better than
- * best_rd, otherwise returns INT64_MAX. This also updates the mbmi, the rate
- * and distortion, and the tx_type arrays in ctx.
+ * best_rd_so_far, otherwise returns INT64_MAX. This also updates the mbmi, the
+ * rate and distortion, and the tx_type arrays in ctx.
  */
 int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
                                    MACROBLOCK *x, int *rate,
                                    int *rate_tokenonly, int64_t *distortion,
                                    int *skippable, BLOCK_SIZE bsize,
-                                   int64_t best_rd, PICK_MODE_CONTEXT *ctx);
+                                   int64_t best_rd_so_far,
+                                   PICK_MODE_CONTEXT *ctx);
 
 /*!\brief Perform intra-mode search on chroma channels.
  *
