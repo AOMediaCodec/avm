@@ -274,7 +274,7 @@ enum {
   MAIN_422_10_IP1 = 3,
   MAIN_444_10_IP1 = 4,
 #if CONFIG_12BIT_PROFILE
-  // 12-bit profile: all chroma formats (4:0:0/4:2:0/4:2:2/4:4:4), IOP2
+  // 12-bit profile: all chroma formats (4:0:0/4:2:0/4:2:2/4:4:4), IP2
   MAIN_444C_12_IP2 = 5,
 #endif  // CONFIG_12BIT_PROFILE
   RESERVED_PROFILES_START,
