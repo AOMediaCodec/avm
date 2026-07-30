@@ -3075,7 +3075,11 @@ static INLINE avm_codec_err_t
 av2_get_chroma_format_idc(int subsampling_x, int subsampling_y, int monochrome,
                           uint32_t *seq_chroma_format_idc) {
   if (monochrome) {
-    *seq_chroma_format_idc = CHROMA_FORMAT_400;
+    if (subsampling_x == 1 && subsampling_y == 1) {
+      *seq_chroma_format_idc = CHROMA_FORMAT_400;
+    } else {
+      return AVM_CODEC_UNSUP_BITSTREAM;
+    }
   } else if (subsampling_x == 1 && subsampling_y == 1) {
     *seq_chroma_format_idc = CHROMA_FORMAT_420;
   } else if (subsampling_x == 1 && subsampling_y == 0) {
