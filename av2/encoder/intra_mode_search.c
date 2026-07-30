@@ -1631,7 +1631,8 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
                                    MACROBLOCK *x, int *rate,
                                    int *rate_tokenonly, int64_t *distortion,
                                    int *skippable, BLOCK_SIZE bsize,
-                                   int64_t best_rd, PICK_MODE_CONTEXT *ctx) {
+                                   int64_t best_rd_so_far,
+                                   PICK_MODE_CONTEXT *ctx) {
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   const bool allow_smooth_intra =
@@ -1648,11 +1649,11 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
   struct extra_dip_info extra_dip;
   extra_dip.beat_best_rd = 0;
   extra_dip.dc_mode_rd = INT64_MAX;
-  extra_dip.orig_best_rd = best_rd;
+  extra_dip.orig_best_rd = best_rd_so_far;
   extra_dip.best_mode = 0;
 #endif  // CONFIG_DIP_EXT_PRUNING
-  // Flag to check rd of any intra mode is better than best_rd passed to this
-  // function
+  // Flag to check rd of any intra mode is better than best_rd_so_far passed to
+  // this function
   int beat_best_rd = 0;
   PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
   const int try_palette =
@@ -1663,7 +1664,6 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
   uint8_t *best_palette_color_map =
       try_palette ? x->palette_buffer->best_palette_color_map : NULL;
   const int context = get_y_mode_idx_ctx(xd);
-  int mode_costs = 0;
 
   mbmi->angle_delta[PLANE_TYPE_Y] = 0;
   uint8_t mlp_mode_mask[INTRA_MODES] = { 0 };
@@ -1766,10 +1766,11 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
                                 mlp_fallback, intra_pruning_with_mlp, fsc_mode))
               continue;
 
+            int this_mode_cost = 0;
             int dpcm_cost = 0;
             if (xd->lossless[mbmi->segment_id]) {
               dpcm_cost = x->mode_costs.dpcm_cost[dpcm_idx];
-              mode_costs += dpcm_cost;
+              this_mode_cost += dpcm_cost;
             }
             if (mbmi->use_dpcm_y > 0) {
               mbmi->dpcm_mode_y = mbmi->mode - 1;
@@ -1785,24 +1786,25 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
               int mode_set_index = mbmi->y_mode_idx < FIRST_MODE_COUNT ? 0 : 1;
               mode_set_index +=
                   ((mbmi->y_mode_idx - FIRST_MODE_COUNT) / SECOND_MODE_COUNT);
-              mode_costs += x->mode_costs.y_primary_flag_cost[mode_set_index];
+              this_mode_cost +=
+                  x->mode_costs.y_primary_flag_cost[mode_set_index];
               if (mode_idx < FIRST_MODE_COUNT) {
                 int mode_set_low =
                     AVMMIN(mode_idx, LUMA_INTRA_MODE_INDEX_COUNT - 1);
-                mode_costs +=
+                this_mode_cost +=
                     x->mode_costs.y_mode_idx_costs[context][mode_set_low];
                 if (mode_set_low == (LUMA_INTRA_MODE_INDEX_COUNT - 1))
-                  mode_costs +=
+                  this_mode_cost +=
                       x->mode_costs
                           .y_mode_idx_offset_costs[context]
                                                   [mode_idx - mode_set_low];
               } else {
-                mode_costs += av2_cost_literal(4);
+                this_mode_cost += av2_cost_literal(4);
               }
             } else {
               int dpcm_dir_cost =
                   x->mode_costs.dpcm_vert_horz_cost[mbmi->dpcm_mode_y];
-              mode_costs += dpcm_dir_cost;
+              this_mode_cost += dpcm_dir_cost;
             }
 
             // Set FSC mode flag and disable incompatible modes (DIP and
@@ -1838,11 +1840,11 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
             // In  FSC intra search, MRL index signaling cost is added
             // unconditionally to account for MRL signaling when combining MRL
             // with FSC mode.
-            if (dpcm_idx == 0 || fsc_mode) mode_costs += mrl_idx_cost;
+            if (dpcm_idx == 0 || fsc_mode) this_mode_cost += mrl_idx_cost;
 
             // Calculate intra model rd for Luma.
             const int64_t this_model_rd =
-                intra_model_yrd(cpi, x, bsize, mode_costs);
+                intra_model_yrd(cpi, x, bsize, this_mode_cost);
             if (prune_intra_y_mode(this_model_rd, &best_model_rd,
                                    top_intra_model_rd, x->intra_mode_prune_top,
                                    xd->lossless[mbmi->segment_id],
@@ -1855,7 +1857,7 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
 
             // Evaluate best transform size and type for Luma.
             av2_pick_uniform_tx_size_type_yrd(cpi, x, &this_rd_stats, bsize,
-                                              best_rd);
+                                              best_rd_so_far);
             this_rate_tokenonly = this_rd_stats.rate;
             this_distortion = this_rd_stats.dist;
             this_skip_txfm = this_rd_stats.skip_txfm;
@@ -1871,8 +1873,9 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
               // for it in the full rate, not the tokenonly rate.
               this_rate_tokenonly -= tx_size_cost(x, bsize, mbmi->tx_size);
             }
-            this_rate = this_rd_stats.rate +
-                        intra_mode_info_cost_y(cpi, x, mbmi, bsize, mode_costs);
+            this_rate =
+                this_rd_stats.rate +
+                intra_mode_info_cost_y(cpi, x, mbmi, bsize, this_mode_cost);
             this_rd = RDCOST(x->rdmult, this_rate, this_distortion);
 #if CONFIG_DIP_EXT_PRUNING
             if (!fsc_mode && mbmi->mode == DC_PRED) {
@@ -1886,7 +1889,7 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
                 &cpi->common, x, mbmi, NULL, NULL, NULL, refs, 0, NULL, bsize,
                 this_rd, cpi->sf.winner_mode_sf.multi_winner_mode_type,
                 txfm_search_done);
-            if (this_rd < best_rd) {
+            if (this_rd < best_rd_so_far) {
               // Save winning FSC mode parameters and transform maps when FSC
               // mode beats best RD cost.
               if (fsc_mode) {
@@ -1908,7 +1911,7 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
               } else {
                 best_mbmi = *mbmi;
                 // Setting beat_best_rd flag because current mode rd is better
-                // than best_rd passed to this function
+                // than best_rd_so_far passed to this function
                 beat_best_rd = 1;
 #if CONFIG_DIP_EXT_PRUNING
                 extra_dip.beat_best_rd = 1;
@@ -1921,7 +1924,7 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
               *rate_tokenonly = this_rate_tokenonly;
               *distortion = this_distortion;
               *skippable = this_skip_txfm;
-              best_rd = this_rd;
+              best_rd_so_far = this_rd;
               memcpy(ctx->blk_skip[AVM_PLANE_Y],
                      x->txfm_search_info.blk_skip[AVM_PLANE_Y],
                      sizeof(*x->txfm_search_info.blk_skip[AVM_PLANE_Y]) *
@@ -1957,13 +1960,14 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
   }  // End of fsc_mode loop.
 
   // Searches palette
-  mode_costs = x->mode_costs.y_primary_flag_cost[DC_PRED];
-  mode_costs += x->mode_costs.y_mode_idx_costs[context][DC_PRED];
+  int mode_cost = x->mode_costs.y_primary_flag_cost[DC_PRED];
+  mode_cost += x->mode_costs.y_mode_idx_costs[context][DC_PRED];
   if (try_palette) {
-    av2_rd_pick_palette_intra_sby(
-        cpi, x, bsize, mode_costs, &best_mbmi, best_palette_color_map, &best_rd,
-        &best_model_rd, rate, rate_tokenonly, distortion, skippable,
-        &beat_best_rd, ctx, ctx->blk_skip[AVM_PLANE_Y], ctx->tx_type_map);
+    av2_rd_pick_palette_intra_sby(cpi, x, bsize, mode_cost, &best_mbmi,
+                                  best_palette_color_map, &best_rd_so_far,
+                                  &best_model_rd, rate, rate_tokenonly,
+                                  distortion, skippable, &beat_best_rd, ctx,
+                                  ctx->blk_skip[AVM_PLANE_Y], ctx->tx_type_map);
   }
 
   // Try Intra ML prediction (within intra frame).
@@ -1971,7 +1975,7 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
                             av2_intra_dip_allowed_bsize(&cpi->common, bsize);
   if (try_intra_dip) {
     if (rd_pick_intra_dip_sby(cpi, td, x, rate, rate_tokenonly, distortion,
-                              skippable, bsize, mode_costs, &best_rd,
+                              skippable, bsize, mode_cost, &best_rd_so_far,
                               &best_model_rd, ctx
 #if CONFIG_DIP_EXT_PRUNING
                               ,
@@ -1982,20 +1986,20 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
     }
   }
 
-  // No mode is identified with less rd value than best_rd passed to this
+  // No mode is identified with less rd value than best_rd_so_far passed to this
   // function. In such cases winner mode processing is not necessary and
-  // return best_rd as INT64_MAX to indicate best mode is not identified
+  // return best_rd_so_far as INT64_MAX to indicate best mode is not identified
   if (!beat_best_rd) return INT64_MAX;
 
   // In multi-winner mode processing, perform tx search for few best modes
   // identified during mode evaluation. Winner mode processing uses best tx
   // configuration for tx search.
-  refine_winner_intra_mode_tx(cpi, x, bsize, mode_costs, &best_rd, rate,
+  refine_winner_intra_mode_tx(cpi, x, bsize, mode_cost, &best_rd_so_far, rate,
                               rate_tokenonly, distortion, skippable, &best_mbmi,
                               ctx);
   *mbmi = best_mbmi;
   if (mbmi->joint_y_mode_delta_angle < NON_DIRECTIONAL_MODES_COUNT)
     assert(mbmi->joint_y_mode_delta_angle == mbmi->y_mode_idx);
   av2_copy_array(xd->tx_type_map, ctx->tx_type_map, ctx->num_4x4_blk);
-  return best_rd;
+  return best_rd_so_far;
 }
