@@ -1504,6 +1504,71 @@ static AVM_INLINE void init_fsc_best_params(FscBestParams *const fsc_best,
   fsc_best->dpcm_mode_y = mbmi->dpcm_mode_y;
 }
 
+// Calculates mode signaling bit cost for luma intra prediction mode.
+static AVM_INLINE int get_intra_mode_cost_y(
+    MACROBLOCKD *const xd, MB_MODE_INFO *const mbmi,
+    const ModeCosts *const mode_costs, int mode_idx, int context,
+    bool is_lossless, bool enable_mrls_flag, int fsc_mode) {
+  const MB_MODE_INFO *const neighbor0 = xd->neighbors[0];
+  const MB_MODE_INFO *const neighbor1 = xd->neighbors[1];
+  int use_dpcm_y = mbmi->use_dpcm_y;
+  int this_mode_cost = 0;
+  if (is_lossless) {
+    const int dpcm_cost = mode_costs->dpcm_cost[use_dpcm_y];
+    this_mode_cost += dpcm_cost;
+  }
+
+  // Add the bit cost for signaling the selected luma prediction mode. Non-DPCM
+  // modes are signaled using the standard luma mode syntax, whereas DPCM modes
+  // use the dedicated DPCM direction syntax.
+  if (use_dpcm_y == 0) {
+    // Reset DPCM prediction direction to 0 for non-DPCM modes during standard
+    // non-FSC search. In FSC pass, preserve the initial DPCM direction state.
+    if (!fsc_mode) mbmi->dpcm_mode_y = 0;
+    int mode_set_index = mbmi->y_mode_idx < FIRST_MODE_COUNT ? 0 : 1;
+    mode_set_index +=
+        ((mbmi->y_mode_idx - FIRST_MODE_COUNT) / SECOND_MODE_COUNT);
+    this_mode_cost += mode_costs->y_primary_flag_cost[mode_set_index];
+    if (mode_idx < FIRST_MODE_COUNT) {
+      const int mode_set_low =
+          AVMMIN(mode_idx, LUMA_INTRA_MODE_INDEX_COUNT - 1);
+      this_mode_cost += mode_costs->y_mode_idx_costs[context][mode_set_low];
+      if (mode_set_low == (LUMA_INTRA_MODE_INDEX_COUNT - 1))
+        this_mode_cost +=
+            mode_costs
+                ->y_mode_idx_offset_costs[context][mode_idx - mode_set_low];
+    } else {
+      this_mode_cost += av2_cost_literal(4);
+    }
+  } else {
+    mbmi->dpcm_mode_y = mbmi->mode - 1;
+    const int dpcm_dir_cost =
+        mode_costs->dpcm_vert_horz_cost[mbmi->dpcm_mode_y];
+    this_mode_cost += dpcm_dir_cost;
+  }
+
+  // In FSC intra search, MRL index signaling cost is added unconditionally to
+  // account for MRL signaling when combining MRL with FSC mode.
+  if (use_dpcm_y == 0 || fsc_mode) {
+    const bool is_directional_mode = av2_is_directional_mode(mbmi->mode);
+    const bool use_mrl = is_directional_mode && enable_mrls_flag;
+    if (use_mrl) {
+      const int mrl_ctx = get_mrl_index_ctx(neighbor0, neighbor1);
+      int mrl_idx_cost = mode_costs->mrl_index_cost[mrl_ctx][mbmi->mrl_index];
+      if (mbmi->mrl_index) {
+        const int multi_line_mrl_ctx =
+            get_multi_line_mrl_index_ctx(neighbor0, neighbor1);
+        mrl_idx_cost +=
+            mode_costs
+                ->multi_line_mrl_cost[multi_line_mrl_ctx][mbmi->multi_line_mrl];
+      }
+      this_mode_cost += mrl_idx_cost;
+    }
+  }
+
+  return this_mode_cost;
+}
+
 // Determines whether the given intra mode should be skipped based on speed
 // features and pruning heuristics.
 static AVM_INLINE bool skip_intra_mode(
@@ -1638,8 +1703,6 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
   const AV2_COMMON *const cm = &cpi->common;
   const INTRA_MODE_SPEED_FEATURES *const intra_sf = &cpi->sf.intra_sf;
   const ModeCosts *const mode_costs = &x->mode_costs;
-  const MB_MODE_INFO *const neighbor0 = xd->neighbors[0];
-  const MB_MODE_INFO *const neighbor1 = xd->neighbors[1];
   const bool is_lossless = xd->lossless[mbmi->segment_id];
   const bool allow_smooth_intra =
       cpi->oxcf.intra_mode_cfg.enable_smooth_intra &&
@@ -1781,68 +1844,9 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
               mbmi->palette_mode_info.palette_size[PLANE_TYPE_Y] = 0;
             }
 
-            int this_mode_cost = 0;
-            int dpcm_cost = 0;
-            if (is_lossless) {
-              dpcm_cost = mode_costs->dpcm_cost[dpcm_idx];
-              this_mode_cost += dpcm_cost;
-            }
-
-            // Add the bit cost for signaling the selected luma prediction
-            // mode. Non-DPCM modes are signaled using the standard luma mode
-            // syntax, whereas DPCM modes use the dedicated DPCM direction
-            // syntax.
-            if (mbmi->use_dpcm_y == 0) {
-              // Reset DPCM prediction direction to 0 for non-DPCM modes during
-              // standard non-FSC search. In FSC pass, preserve the initial DPCM
-              // direction state.
-              if (!fsc_mode) mbmi->dpcm_mode_y = 0;
-              int mode_set_index = mbmi->y_mode_idx < FIRST_MODE_COUNT ? 0 : 1;
-              mode_set_index +=
-                  ((mbmi->y_mode_idx - FIRST_MODE_COUNT) / SECOND_MODE_COUNT);
-              this_mode_cost += mode_costs->y_primary_flag_cost[mode_set_index];
-              if (mode_idx < FIRST_MODE_COUNT) {
-                int mode_set_low =
-                    AVMMIN(mode_idx, LUMA_INTRA_MODE_INDEX_COUNT - 1);
-                this_mode_cost +=
-                    mode_costs->y_mode_idx_costs[context][mode_set_low];
-                if (mode_set_low == (LUMA_INTRA_MODE_INDEX_COUNT - 1))
-                  this_mode_cost +=
-                      mode_costs
-                          ->y_mode_idx_offset_costs[context]
-                                                   [mode_idx - mode_set_low];
-              } else {
-                this_mode_cost += av2_cost_literal(4);
-              }
-            } else {
-              mbmi->dpcm_mode_y = mbmi->mode - 1;
-              const int dpcm_dir_cost =
-                  mode_costs->dpcm_vert_horz_cost[mbmi->dpcm_mode_y];
-              this_mode_cost += dpcm_dir_cost;
-            }
-
-            // In  FSC intra search, MRL index signaling cost is added
-            // unconditionally to account for MRL signaling when combining MRL
-            // with FSC mode.
-            bool is_directional_mode = av2_is_directional_mode(mbmi->mode);
-            if (dpcm_idx == 0 || fsc_mode) {
-              int mrl_idx_cost = 0;
-              const bool use_mrl = is_directional_mode && enable_mrls_flag;
-              if (use_mrl) {
-                const int mrl_ctx = get_mrl_index_ctx(neighbor0, neighbor1);
-                mrl_idx_cost =
-                    mode_costs->mrl_index_cost[mrl_ctx][mbmi->mrl_index];
-
-                if (mbmi->mrl_index) {
-                  const int multi_line_mrl_ctx =
-                      get_multi_line_mrl_index_ctx(neighbor0, neighbor1);
-                  mrl_idx_cost +=
-                      mode_costs->multi_line_mrl_cost[multi_line_mrl_ctx]
-                                                     [mbmi->multi_line_mrl];
-                }
-              }
-              this_mode_cost += mrl_idx_cost;
-            }
+            const int this_mode_cost =
+                get_intra_mode_cost_y(xd, mbmi, mode_costs, mode_idx, context,
+                                      is_lossless, enable_mrls_flag, fsc_mode);
 
             // Calculate intra model rd for Luma.
             const int64_t this_model_rd =
@@ -1852,6 +1856,8 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
                                    is_lossless, mbmi->use_dpcm_y))
               continue;
 
+            const bool is_directional_mode =
+                av2_is_directional_mode(mbmi->mode);
             if (!fsc_mode && intra_sf->intra_pruning_with_mlp && mrl_idx == 0 &&
                 is_directional_mode)
               mrl0_dir_mode_survived[mbmi->mode] = 1;
