@@ -14,6 +14,8 @@
 
 #include "config/avm_config.h"
 #include "config/av2_rtcd.h"
+#include "config/avm_dsp_rtcd.h"
+
 #include "av2/common/av2_txfm.h"
 #include "avm_dsp/txfm_common.h"
 #include "avm_ports/mem.h"
@@ -5229,7 +5231,8 @@ void fwd_txfm_avx2(const int16_t *resi, tran_low_t *coeff, int diff_stride,
   int skipWidth = width > 32 ? width - 32 : 0;
   int skipHeight = height > 32 ? height - 32 : 0;
 
-  int buf[MAX_TX_SQUARE] = { 0 };
+  int buf[MAX_TX_SQUARE];
+  assert(width >= 4 && height >= 4);
 
   for (int y = 0; y < height; y++) {
     for (int x = 0; x < width; x++) {
