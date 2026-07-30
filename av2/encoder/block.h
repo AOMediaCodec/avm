@@ -35,9 +35,9 @@ extern "C" {
 //! Maximum number of tpl block in a super block
 #define MAX_TPL_BLK_IN_SB (MAX_SB_SIZE / MIN_TPL_BSIZE_1D)
 //! Number of intra winner modes kept
-#define MAX_WINNER_MODE_COUNT_INTRA 3
+#define MAX_WINNER_MODE_COUNT_INTRA 2
 //! Number of inter winner modes kept
-#define MAX_WINNER_MODE_COUNT_INTER 3
+#define MAX_WINNER_MODE_COUNT_INTER 2
 
 //! Number of txfm hash records kept for the partition block.
 #define RD_RECORD_BUFFER_LEN 8
