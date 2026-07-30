@@ -886,6 +886,10 @@ const av2_codec_arg_definitions_t g_av2_codec_arg_defs = {
   .use_short_metadata = ARG_DEF(NULL, "use-short-metadata", 1,
                                 "Use short metadata OBU format "
                                 "(0: GROUP format [default], 1: SHORT format)"),
+  .enable_low_complexity_decode =
+      ARG_DEF(NULL, "enable-low-complexity-decode", 1,
+              "Enable low complexity decode "
+              "(0: false (default), 1: true)"),
 #endif  // CONFIG_AV2_ENCODER
   .enable_short_refresh_frame_flags =
       ARG_DEF(NULL, "enable-short-refresh-frame-flags", 1,

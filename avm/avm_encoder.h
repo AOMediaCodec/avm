@@ -680,6 +680,11 @@ typedef struct cfg_options {
    *
    */
   int operating_points_count;
+
+  /*!\brief enable the low complexity decode mode
+   *
+   */
+  unsigned int enable_low_complexity_decode;
 } cfg_options_t;
 
 /*!\brief Encoded Frame Flags
