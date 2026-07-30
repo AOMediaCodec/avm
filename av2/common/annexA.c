@@ -192,7 +192,13 @@ int av2_check_profile_interop_conformance(
   avm_codec_err_t err = av2_get_chroma_format_idc(
       seq_params->subsampling_x, seq_params->subsampling_y, monochrome,
       &chroma_format_idc);
-  (void)err;
+  if (err != AVM_CODEC_OK) {
+    avm_internal_error(
+        error_info,
+        is_decoder ? AVM_CODEC_UNSUP_BITSTREAM : AVM_CODEC_INVALID_PARAM,
+        "Unsupported subsampling_x = %d, subsampling_y = %d.",
+        seq_params->subsampling_x, seq_params->subsampling_y);
+  }
 
   const int is_420 = (chroma_format_idc == CHROMA_FORMAT_420);
   const int is_422 = (chroma_format_idc == CHROMA_FORMAT_422);
