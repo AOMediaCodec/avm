@@ -13,6 +13,8 @@
 #ifndef AVM_AV2_COMMON_ENUMS_H_
 #define AVM_AV2_COMMON_ENUMS_H_
 
+#include <assert.h>
+
 #include "config/avm_config.h"
 
 #include "avm/avm_codec.h"
@@ -279,6 +281,8 @@ enum {
   CONFIGURABLE = 31,
   MAX_PROFILES,
 } SENUM1BYTE(BITSTREAM_PROFILE);
+
+static_assert(MAX_PROFILES == (1 << PROFILE_BITS), "");
 
 #define BUFFER_POOL_MAX_SIZE 18  // Max VBI slots (16) + 2 extra
 
