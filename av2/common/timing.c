@@ -50,7 +50,9 @@ static int32_t high_kbps[1 << LEVEL_BITS] = {
   UNDEFINED_RATE, UNDEFINED_RATE, UNDEFINED_RATE, UNDEFINED_RATE
 };
 
-/* BitrateProfileFactor */
+/* BitrateProfileFactor. A zero entry indicates an unsupported profile: callers
+ * treat a zero bitrate as "profile, level, and tier combination not
+ * supported". */
 static int bitrate_profile_factor[1 << PROFILE_BITS] = {
   1, 2, 3, 3, 0, 0, 0, 0
 };
