@@ -30,8 +30,9 @@
 
 void av2_quantize_skip(intptr_t n_coeffs, tran_low_t *qcoeff_ptr,
                        tran_low_t *dqcoeff_ptr, uint16_t *eob_ptr) {
-  memset(qcoeff_ptr, 0, n_coeffs * sizeof(*qcoeff_ptr));
-  memset(dqcoeff_ptr, 0, n_coeffs * sizeof(*dqcoeff_ptr));
+  (void)n_coeffs;
+  (void)qcoeff_ptr;
+  (void)dqcoeff_ptr;
   *eob_ptr = 0;
 }
 
@@ -214,10 +215,8 @@ static INLINE void highbd_quantize_dc(
     const int32_t *round_ptr, const int32_t quant, tran_low_t *qcoeff_ptr,
     tran_low_t *dqcoeff_ptr, const int32_t dequant_ptr, uint16_t *eob_ptr,
     const qm_val_t *qm_ptr, const qm_val_t *iqm_ptr, const int log_scale) {
+  (void)n_coeffs;
   int eob = -1;
-
-  memset(qcoeff_ptr, 0, n_coeffs * sizeof(*qcoeff_ptr));
-  memset(dqcoeff_ptr, 0, n_coeffs * sizeof(*dqcoeff_ptr));
 
   if (!skip_block) {
     const qm_val_t wt = qm_ptr != NULL ? qm_ptr[0] : (1 << AVM_QM_BITS);
