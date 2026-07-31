@@ -5927,7 +5927,14 @@ static void read_tile_syntax_info(TileInfoSyntax *tile_params,
     int i;
     int start_sb;
     int width_sb = tile_info->sb_cols;
-    for (i = 0, start_sb = 0; width_sb > 0 && i < MAX_TILE_COLS; i++) {
+    for (i = 0, start_sb = 0; width_sb > 0; i++) {
+      if (i >= MAX_TILE_COLS) {
+        if (rb->error_handler) {
+          rb->error_handler(rb->error_handler_data, AVM_CODEC_UNSUP_BITSTREAM,
+                            "The decoder only supports MAX_TILE_COLS tiles.");
+        }
+        return;
+      }
       const int size_sb =
           1 + rb_read_uniform(rb, AVMMIN(width_sb, tile_info->max_width_sb));
       tile_info->col_start_sb[i] = start_sb;
@@ -5955,7 +5962,14 @@ static void read_tile_syntax_info(TileInfoSyntax *tile_params,
     int i;
     int start_sb;
     int height_sb = tile_info->sb_rows;
-    for (i = 0, start_sb = 0; height_sb > 0 && i < MAX_TILE_ROWS; i++) {
+    for (i = 0, start_sb = 0; height_sb > 0; i++) {
+      if (i >= MAX_TILE_ROWS) {
+        if (rb->error_handler) {
+          rb->error_handler(rb->error_handler_data, AVM_CODEC_UNSUP_BITSTREAM,
+                            "The decoder only supports MAX_TILE_ROWS tiles.");
+        }
+        return;
+      }
       const int size_sb =
           1 + rb_read_uniform(rb, AVMMIN(height_sb, tile_info->max_height_sb));
       tile_info->row_start_sb[i] = start_sb;
