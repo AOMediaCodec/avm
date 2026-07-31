@@ -50,13 +50,15 @@ static int32_t high_kbps[1 << LEVEL_BITS] = {
   UNDEFINED_RATE, UNDEFINED_RATE, UNDEFINED_RATE, UNDEFINED_RATE
 };
 
-/* BitrateProfileFactor. A zero entry indicates an unsupported profile: callers
- * treat a zero bitrate as "profile, level, and tier combination not
- * supported". */
+/* BitrateProfileFactor, indexed by the profile's factor table row
+ * (see get_profile_factor_table_row_index() in annexA.c).
+ * A zero entry indicates an unsupported profile. */
 static int bitrate_profile_factor[1 << PROFILE_BITS] = {
   1, 2, 3, 3, 0, 0, 0, 0
 };
 
+// Callers treat a zero bitrate as "profile, level, and tier combination not
+// supported".
 int64_t av2_max_level_bitrate(BITSTREAM_PROFILE seq_profile, int seq_level_idx,
                               int seq_tier) {
   int64_t bitrate;
