@@ -1212,6 +1212,9 @@ typedef struct AV2EncoderConfig {
 
   // Number of operating points per OPS, in the range 0 to MAX_OPS_COUNT (7).
   int operating_points_count;
+
+  // Enable the low complexity decode mode.
+  unsigned int enable_low_complexity_decode;
   /*!\endcond */
 } AV2EncoderConfig;
 
