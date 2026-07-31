@@ -644,10 +644,9 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi, int xlayer_id,
     }
     // Configurable profile does not define bitrate and buffer size constraints
     if (seq_params->seq_profile_idc != CONFIGURABLE) {
-      int64_t seq_bitrate = av2_max_level_bitrate(
-          seq_params->seq_profile_idc, seq_params->seq_max_level_idx,
-          seq_params->seq_tier, seq_params->subsampling_x,
-          seq_params->subsampling_y, seq_params->monochrome);
+      int64_t seq_bitrate = av2_max_level_bitrate(seq_params->seq_profile_idc,
+                                                  seq_params->seq_max_level_idx,
+                                                  seq_params->seq_tier);
       if (seq_bitrate == 0)
         avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
                            "AV2 does not support this combination of "

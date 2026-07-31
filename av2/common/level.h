@@ -247,8 +247,6 @@ void av2_decoder_model_check_output_frame_for_operating_points(
 // Return max bitrate(bps) for given level.
 double av2_get_max_bitrate_for_level(AV2_LEVEL level_index, int tier,
                                      BITSTREAM_PROFILE profile,
-                                     int subsampling_x, int subsampling_y,
-                                     int monochrome,
                                      double multi_stream_scaling_x);
 
 // Get max number of tiles and tile columns for given level.
