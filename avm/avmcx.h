@@ -1249,6 +1249,12 @@ enum avme_enc_control_id {
    * the restricted_prediction_switch output ordering path.
    */
   AV2E_SET_FORCE_DEFERRED_FRAMES_FOR_RAS_TEST = 185,
+
+  /*!\brief Codec control function to enable the low complexity decode mode,
+   * unsigned int parameter. Value of zero disables this mode. Value of one and
+   * (g_usage == AVM_USAGE_GOOD_QUALITY) enables this mode.
+   */
+  AV2E_SET_ENABLE_LOW_COMPLEXITY_DECODE = 186,
 };
 
 /*!\brief avm 1-D scaling mode
@@ -1776,6 +1782,9 @@ AVM_CTRL_USE_TYPE(AV2E_SET_MONOTONIC_OUTPUT_ORDER, int)
 
 AVM_CTRL_USE_TYPE(AV2E_SET_FORCE_DEFERRED_FRAMES_FOR_RAS_TEST, int)
 #define AVME_CTRL_AV2E_SET_FORCE_DEFERRED_FRAMES_FOR_RAS_TEST
+
+AVM_CTRL_USE_TYPE(AV2E_SET_ENABLE_LOW_COMPLEXITY_DECODE, unsigned int)
+#define AVME_CTRL_AV2E_SET_ENABLE_LOW_COMPLEXITY_DECODE
 /*!\endcond */
 /*! @} - end defgroup avm_encoder */
 #ifdef __cplusplus
