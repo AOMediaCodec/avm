@@ -602,10 +602,7 @@ typedef struct {
 } DeltaQInfo;
 
 typedef struct {
-  int order_hint_bits_minus_1;     // dist_wtd_comp, ref_frame_mvs,
-                                   // frame_sign_bias
-                                   // if 0, enable_dist_wtd_comp and
-                                   // enable_ref_frame_mvs must be set as 0.
+  int order_hint_bits_minus_1;
   int enable_ref_frame_mvs;        // 0 - disable ref frame mvs
                                    // 1 - enable it
   int reduced_ref_frame_mvs_mode;  // use 1 reference frame combination

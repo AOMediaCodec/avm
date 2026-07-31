@@ -2111,9 +2111,8 @@ static AVM_INLINE void pack_inter_mode_mvs(AV2_COMP *cpi, avm_writer *w) {
     }
 
     // First write idx to indicate current compound inter prediction mode
-    // group Group A (0): dist_wtd_comp, compound_average Group B (1):
-    // interintra, compound_diffwtd, wedge
-
+    // group Group A (0): compound_average Group B (1): interintra,
+    // compound_diffwtd, wedge.
     if (has_second_ref(mbmi) && mbmi->mode < NEAR_NEARMV_OPTFLOW &&
         (!mbmi->refinemv_flag || !switchable_refinemv_flag(cm, mbmi)) &&
         !is_joint_amvd_coding_mode(mbmi->mode, mbmi->use_amvd)) {
