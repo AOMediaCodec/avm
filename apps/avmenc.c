@@ -304,6 +304,7 @@ const arg_def_t *av2_key_val_args[] = {
   &g_av2_codec_arg_defs.enable_joint_mvd,
   &g_av2_codec_arg_defs.enable_keyframe_filtering,
   &g_av2_codec_arg_defs.enable_lf_sub_pu,
+  &g_av2_codec_arg_defs.enable_low_complexity_decode,
   &g_av2_codec_arg_defs.enable_masked_comp,
   &g_av2_codec_arg_defs.enable_mfh_obu_signaling,
   &g_av2_codec_arg_defs.enable_mhccp,
@@ -632,6 +633,7 @@ static void init_config(cfg_options_t *config) {
   config->scan_type_info_present_flag = 0;
   config->enable_mfh_obu_signaling = 0;
   config->operating_points_count = 1;
+  config->enable_low_complexity_decode = 0;
 }
 
 int read_icc_profile(struct AvxEncoderConfig *global, const char *file) {

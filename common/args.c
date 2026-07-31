@@ -170,6 +170,7 @@ int parse_cfg(const char *file, cfg_options_t *config) {
     GET_PARAMS(crop_win_top_offset);
     GET_PARAMS(crop_win_bottom_offset);
     GET_PARAMS(operating_points_count);
+    GET_PARAMS(enable_low_complexity_decode);
 
     fprintf(stderr, "\nInvalid parameter: %s", left);
     exit(-1);

@@ -278,6 +278,7 @@ typedef struct av2_codec_arg_definitions {
   arg_def_t dpb_size;
   arg_def_t enable_bru;
   arg_def_t disable_loopfilters_across_tiles;
+  arg_def_t enable_low_complexity_decode;
 #endif  // CONFIG_AV2_ENCODER
   arg_def_t frame_hash_metadata;
   arg_def_t frame_hash_per_plane;

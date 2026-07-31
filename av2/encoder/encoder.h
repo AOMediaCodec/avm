@@ -1212,6 +1212,9 @@ typedef struct AV2EncoderConfig {
 
   // 0-31 = manually set operating_points_cnt_minus_1
   int operating_points_count;
+
+  // Enable the low complexity decode mode.
+  unsigned int enable_low_complexity_decode;
   /*!\endcond */
 } AV2EncoderConfig;
 

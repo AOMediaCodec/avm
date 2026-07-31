@@ -245,6 +245,7 @@ struct av2_extracfg {
   int buffer_refresh_multi_layers_test[REF_FRAMES];
   int multi_layers_lag_test;
   int force_deferred_frames_for_ras_test;
+  unsigned int enable_low_complexity_decode;
 };
 
 // Example subgop configs. Currently not used by default.
@@ -574,6 +575,7 @@ static struct av2_extracfg default_extra_cfg = {
   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // buffer_refresh_multi_layers_test
   0,      // multi_layers_test for nozero lag
   0,      // force_deferred_frames_for_ras_test
+  0,      // enable_low_complexity_decode
 };
 // clang-format on
 
@@ -860,6 +862,8 @@ static avm_codec_err_t validate_config(avm_codec_alg_priv_t *ctx,
 
   RANGE_CHECK(extra_cfg, reduced_tx_type_set, 0, 3);
 
+  RANGE_CHECK_HI(extra_cfg, enable_low_complexity_decode, 1);
+
   return AVM_CODEC_OK;
 }
 
@@ -1035,6 +1039,7 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_ext_seg = extra_cfg->enable_ext_seg;
   cfg->dpb_size = extra_cfg->dpb_size;
   cfg->operating_points_count = extra_cfg->operating_points_count;
+  cfg->enable_low_complexity_decode = extra_cfg->enable_low_complexity_decode;
 }
 
 static void update_default_encoder_config(const cfg_options_t *cfg,
@@ -1154,6 +1159,7 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->scan_type_info_present_flag = cfg->scan_type_info_present_flag;
   extra_cfg->enable_mfh_obu_signaling = cfg->enable_mfh_obu_signaling;
   extra_cfg->operating_points_count = cfg->operating_points_count;
+  extra_cfg->enable_low_complexity_decode = cfg->enable_low_complexity_decode;
 }
 
 static double convert_qp_offset(int qp, int qp_offset, int bit_depth) {
@@ -1751,6 +1757,18 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   oxcf->unit_test_cfg.multi_layers_lag_test = extra_cfg->multi_layers_lag_test;
   oxcf->unit_test_cfg.force_deferred_frames_for_ras_test =
       extra_cfg->force_deferred_frames_for_ras_test;
+
+  // Now, low complexity decode mode is only supported for good-quality
+  // encoding. This can be further modified if needed.
+  oxcf->enable_low_complexity_decode =
+      extra_cfg->enable_low_complexity_decode &&
+      cfg->g_usage == AVM_USAGE_GOOD_QUALITY;
+  if (extra_cfg->enable_low_complexity_decode &&
+      cfg->g_usage != AVM_USAGE_GOOD_QUALITY) {
+    fprintf(stderr,
+            "Warning: setting enable_low_complexity_decode to 0 since it "
+            "requires good-quality usage.\n");
+  }
 
   if (update_config) {
     update_encoder_config(&cfg->encoder_cfg, extra_cfg);
@@ -2760,6 +2778,14 @@ static avm_codec_err_t ctrl_set_force_deferred_frames_for_ras_test(
   struct av2_extracfg extra_cfg = ctx->extra_cfg;
   extra_cfg.force_deferred_frames_for_ras_test =
       CAST(AV2E_SET_FORCE_DEFERRED_FRAMES_FOR_RAS_TEST, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+
+static avm_codec_err_t ctrl_set_enable_low_complexity_decode(
+    avm_codec_alg_priv_t *ctx, va_list args) {
+  struct av2_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.enable_low_complexity_decode =
+      CAST(AV2E_SET_ENABLE_LOW_COMPLEXITY_DECODE, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
@@ -4536,6 +4562,11 @@ static avm_codec_err_t encoder_set_option(avm_codec_alg_priv_t *ctx,
                                   err_string)) {
     extra_cfg.enable_bru = avm_arg_parse_int_helper(&arg, err_string);
   } else if (avm_arg_match_helper(
+                 &arg, &g_av2_codec_arg_defs.enable_low_complexity_decode, argv,
+                 err_string)) {
+    extra_cfg.enable_low_complexity_decode =
+        avm_arg_parse_int_helper(&arg, err_string);
+  } else if (avm_arg_match_helper(
                  &arg, &g_av2_codec_arg_defs.disable_loopfilters_across_tiles,
                  argv, err_string)) {
     extra_cfg.disable_loopfilters_across_tiles =
@@ -4721,6 +4752,8 @@ static avm_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV2E_SET_MONOTONIC_OUTPUT_ORDER, ctrl_set_monotonic_output_order },
   { AV2E_SET_FORCE_DEFERRED_FRAMES_FOR_RAS_TEST,
     ctrl_set_force_deferred_frames_for_ras_test },
+  { AV2E_SET_ENABLE_LOW_COMPLEXITY_DECODE,
+    ctrl_set_enable_low_complexity_decode },
 
   // Getters
   { AVME_GET_LAST_QUANTIZER, ctrl_get_quantizer },
@@ -4872,7 +4905,8 @@ static const avm_codec_enc_cfg_t encoder_usage_cfg[] = {
           NULL, 0, 0,
           0,  // enable_mfh_obu_signaling
           1,
-      },  // cfg
+          0,  // enable_low_complexity_decode
+      },      // cfg
   },
   {
       // NOLINT
@@ -5007,7 +5041,8 @@ static const avm_codec_enc_cfg_t encoder_usage_cfg[] = {
           NULL, 0, 0,
           0,  // enable_mfh_obu_signaling
           1,
-      },  // cfg
+          0,  // enable_low_complexity_decode
+      },      // cfg
   },
 };
 
