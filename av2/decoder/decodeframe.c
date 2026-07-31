@@ -5928,8 +5928,8 @@ void av2_read_conformance_window(struct avm_read_bit_buffer *rb,
   }
 }
 
-void read_tile_syntax_info(TileInfoSyntax *tile_params,
-                           struct avm_read_bit_buffer *rb) {
+static void read_tile_syntax_info(TileInfoSyntax *tile_params,
+                                  struct avm_read_bit_buffer *rb) {
   tile_params->allow_tile_info_change = avm_rb_read_bit(rb);
   CommonTileParams *tile_info = &tile_params->tile_info;
   tile_info->uniform_spacing = avm_rb_read_bit(rb);
@@ -5989,8 +5989,9 @@ void read_tile_syntax_info(TileInfoSyntax *tile_params,
   av2_calculate_tile_rows(tile_info);
 }
 
-void read_sequence_tile_info(struct SequenceHeader *seq_params,
-                             struct avm_read_bit_buffer *rb) {
+// Reads the tile information in the sequence header
+static void read_sequence_tile_info(struct SequenceHeader *seq_params,
+                                    struct avm_read_bit_buffer *rb) {
   av2_get_seq_tile_limits(&seq_params->tile_params,
                           seq_params->max_frame_height,
                           seq_params->max_frame_width,
