@@ -1251,7 +1251,8 @@ enum avme_enc_control_id {
   AV2E_SET_FORCE_DEFERRED_FRAMES_FOR_RAS_TEST = 185,
 
   /*!\brief Codec control function to enable the low complexity decode mode,
-   * unsigned int parameter. Value of zero means this mode is disabled.
+   * unsigned int parameter. Value of zero disables this mode. Value of one and
+   * (g_usage == AVM_USAGE_GOOD_QUALITY) enables this mode.
    */
   AV2E_SET_ENABLE_LOW_COMPLEXITY_DECODE = 186,
 };

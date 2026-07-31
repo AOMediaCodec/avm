@@ -1751,10 +1751,16 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
       extra_cfg->force_deferred_frames_for_ras_test;
 
   // Now, low complexity decode mode is only supported for good-quality
-  // encoding speed 1 and above. This can be further modified if needed.
+  // encoding. This can be further modified if needed.
   oxcf->enable_low_complexity_decode =
       extra_cfg->enable_low_complexity_decode &&
-      cfg->g_usage == AVM_USAGE_GOOD_QUALITY && oxcf->speed >= 1;
+      cfg->g_usage == AVM_USAGE_GOOD_QUALITY;
+  if (extra_cfg->enable_low_complexity_decode &&
+      cfg->g_usage != AVM_USAGE_GOOD_QUALITY) {
+    fprintf(stderr,
+            "Warning: setting enable_low_complexity_decode to 0 since it "
+            "requires good-quality usage.\n");
+  }
 
   if (update_config) {
     update_encoder_config(&cfg->encoder_cfg, extra_cfg);
