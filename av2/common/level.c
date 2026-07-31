@@ -498,8 +498,7 @@ static const char level_string[SEQ_LEVEL_MAX + 1][9] = {
 };
 
 static double get_max_bitrate(const AV2LevelSpec *const level_spec, int tier,
-                              BITSTREAM_PROFILE profile, int subsampling_x,
-                              int subsampling_y, int monochrome,
+                              BITSTREAM_PROFILE profile,
                               double multistream_scalling_x) {
   if (level_spec->level < SEQ_LEVEL_4_0) tier = 0;
   const double scale =
@@ -507,9 +506,6 @@ static double get_max_bitrate(const AV2LevelSpec *const level_spec, int tier,
   const double bitrate_basis =
       (tier ? level_spec->high_mbps / scale : level_spec->main_mbps / scale) *
       1e6;
-  uint32_t chroma_format_idc = CHROMA_FORMAT_420;
-  av2_get_chroma_format_idc(subsampling_x, subsampling_y, monochrome,
-                            &chroma_format_idc);
   const int profile_scaling_factor = get_profile_scaling_factor(profile);
   double bitrate_profile_factor =
       bitrate_profile_factor_table[profile_scaling_factor];
@@ -520,16 +516,11 @@ static double get_max_bitrate(const AV2LevelSpec *const level_spec, int tier,
 static double get_max_compressed_size(const AV2LevelSpec *const level_spec,
                                       int tier, BITSTREAM_PROFILE profile,
                                       int luma_sample_count,
-                                      double frame_parsing_time,
-                                      int subsampling_x, int subsampling_y,
-                                      int monochrome) {
+                                      double frame_parsing_time) {
   if (level_spec->level < SEQ_LEVEL_4_0) tier = 0;
   const double min_comp_basis =
       (tier ? level_spec->high_cr : level_spec->main_cr);
-  uint32_t chroma_format_idc = CHROMA_FORMAT_420;
 
-  av2_get_chroma_format_idc(subsampling_x, subsampling_y, monochrome,
-                            &chroma_format_idc);
   const int profile_scaling_factor = get_profile_scaling_factor(profile);
   double picture_size_profile_factor =
       picture_size_profile_factor_table[profile_scaling_factor];
@@ -550,16 +541,11 @@ static double get_max_compressed_size(const AV2LevelSpec *const level_spec,
 static double get_max_frame_symbol_count(const AV2LevelSpec *const level_spec,
                                          int tier, BITSTREAM_PROFILE profile,
                                          double frame_parsing_time,
-                                         int subsampling_x, int subsampling_y,
-                                         int monochrome,
                                          double multi_stream_scaling_x) {
   if (level_spec->level < SEQ_LEVEL_4_0) tier = 0;
   const double min_comp_basis =
       (tier ? level_spec->high_cr : level_spec->main_cr);
-  uint32_t chroma_format_idc = CHROMA_FORMAT_420;
 
-  av2_get_chroma_format_idc(subsampling_x, subsampling_y, monochrome,
-                            &chroma_format_idc);
   const int profile_scaling_factor = get_profile_scaling_factor(profile);
   double picture_size_profile_factor =
       picture_size_profile_factor_table[profile_scaling_factor];
@@ -572,12 +558,9 @@ static double get_max_frame_symbol_count(const AV2LevelSpec *const level_spec,
 
 double av2_get_max_bitrate_for_level(AV2_LEVEL level_index, int tier,
                                      BITSTREAM_PROFILE profile,
-                                     int subsampling_x, int subsampling_y,
-                                     int monochrome,
                                      double multi_stream_scaling_x) {
   assert(is_valid_seq_level_idx(level_index));
   return get_max_bitrate(&av2_level_defs[level_index], tier, profile,
-                         subsampling_x, subsampling_y, monochrome,
                          multi_stream_scaling_x);
 }
 
@@ -797,8 +780,7 @@ void av2_decoder_model_init(const AV2_COMP *const cpi, AV2_LEVEL level,
   const SequenceHeader *const seq_params = &cm->seq_params;
   decoder_model->bit_rate = get_max_bitrate(
       av2_level_defs + level, cpi->tier[op_index], seq_params->seq_profile_idc,
-      seq_params->subsampling_x, seq_params->subsampling_y,
-      seq_params->monochrome, cpi->level_params.multi_stream_scaling_x);
+      cpi->level_params.multi_stream_scaling_x);
 
   // TODO(huisu or anyone): implement SCHEDULE_MODE.
   decoder_model->mode = RESOURCE_MODE;
@@ -941,18 +923,16 @@ static void av2_decoder_model_start_frame_decode(
 
     AV2_LEVEL level = decoder_model->level;
 
-    double compressed_size_limit = get_max_compressed_size(
-        av2_level_defs + level, cpi->tier[0], seq_params->seq_profile_idc,
-        luma_pic_size, dt, seq_params->subsampling_x, seq_params->subsampling_y,
-        seq_params->monochrome);
+    double compressed_size_limit =
+        get_max_compressed_size(av2_level_defs + level, cpi->tier[0],
+                                seq_params->seq_profile_idc, luma_pic_size, dt);
     decoder_model->compressed_size_satisfy =
         decoder_model->compressed_size_satisfy &&
         ((coded_bits >> 3) <= compressed_size_limit);
 
     double frame_symbol_count_limit = get_max_frame_symbol_count(
         av2_level_defs + level, cpi->tier[0], seq_params->seq_profile_idc, dt,
-        seq_params->subsampling_x, seq_params->subsampling_y,
-        seq_params->monochrome, multi_stream_scaling_x);
+        multi_stream_scaling_x);
     decoder_model->frame_symbol_count_satisfy =
         decoder_model->frame_symbol_count_satisfy &&
         (cm->features.frame_symbol_count <= frame_symbol_count_limit);
@@ -1281,7 +1261,7 @@ static void get_temporal_parallel_params(int scalability_mode_idc,
 static TARGET_LEVEL_FAIL_ID check_level_constraints(
     const AV2_COMP *const cpi, const AV2LevelInfo *const level_info,
     AV2_LEVEL level, int tier, int is_still_picture, BITSTREAM_PROFILE profile,
-    int check_bitrate, int subsampling_x, int subsampling_y, int monochrome) {
+    int check_bitrate) {
   const DECODER_MODEL *const decoder_model = &level_info->decoder_models[level];
   const DECODER_MODEL_STATUS decoder_model_status = decoder_model->status;
   if (decoder_model_status != DECODER_MODEL_OK &&
@@ -1426,9 +1406,9 @@ static TARGET_LEVEL_FAIL_ID check_level_constraints(
 
     if (check_bitrate) {
       // Check average bitrate instead of max_bitrate.
-      const double bitrate_limit = get_max_bitrate(
-          target_level_spec, tier, profile, subsampling_x, subsampling_y,
-          monochrome, cpi->level_params.multi_stream_scaling_x);
+      const double bitrate_limit =
+          get_max_bitrate(target_level_spec, tier, profile,
+                          cpi->level_params.multi_stream_scaling_x);
       const double avg_bitrate = level_stats->total_compressed_size * 8.0 /
                                  level_stats->total_time_encoded;
       if (avg_bitrate > bitrate_limit) {
@@ -1604,11 +1584,7 @@ double av2_get_compression_ratio(const AV2_COMMON *const cm,
   const int luma_pic_size = upscaled_width * height;
   const SequenceHeader *const seq_params = &cm->seq_params;
   const BITSTREAM_PROFILE profile = seq_params->seq_profile_idc;
-  uint32_t chroma_format_idc = CHROMA_FORMAT_420;
 
-  av2_get_chroma_format_idc(cm->seq_params.subsampling_x,
-                            cm->seq_params.subsampling_y,
-                            cm->seq_params.monochrome, &chroma_format_idc);
   const int profile_scaling_factor = get_profile_scaling_factor(profile);
   const int picture_size_profile_factor =
       (int)picture_size_profile_factor_table[profile_scaling_factor];
@@ -1722,9 +1698,7 @@ void av2_update_level_info(AV2_COMP *cpi, size_t size, int64_t ts_start,
       assert(is_valid_seq_level_idx(target_level));
       const int tier = cpi->tier[i];
       const TARGET_LEVEL_FAIL_ID fail_id = check_level_constraints(
-          cpi, level_info, target_level, tier, is_still_picture, profile, 0,
-          cm->seq_params.subsampling_x, cm->seq_params.subsampling_y,
-          cm->seq_params.monochrome);
+          cpi, level_info, target_level, tier, is_still_picture, profile, 0);
       if (fail_id != TARGET_LEVEL_OK) {
         avm_internal_error(&cm->error, AVM_CODEC_ERROR,
                            "Failed to encode to the target level %s. %s",
@@ -1751,9 +1725,7 @@ avm_codec_err_t av2_get_seq_level_idx(const AV2_COMP *cpi,
     for (int level = 0; level < SEQ_LEVELS; ++level) {
       if (!is_valid_seq_level_idx(level)) continue;
       const TARGET_LEVEL_FAIL_ID fail_id = check_level_constraints(
-          cpi, level_info, level, tier, is_still_picture, profile, 1,
-          seq_params->subsampling_x, seq_params->subsampling_y,
-          seq_params->monochrome);
+          cpi, level_info, level, tier, is_still_picture, profile, 1);
       if (fail_id == TARGET_LEVEL_OK) {
         seq_level_idx[op] = level;
         break;
