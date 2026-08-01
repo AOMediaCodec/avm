@@ -334,7 +334,6 @@ static void set_good_speed_features_framesize_independent(
 
   sf->rd_sf.perform_coeff_opt = 1;
 
-  sf->lpf_sf.enable_deblock_for_partition_search = 1;
   if (speed >= 1) {
     sf->flexmv_sf.prune_non_one_pel_mv_using_best_mv_prec = 1;
     sf->inter_sf.selective_ref_frame = 2;
@@ -406,6 +405,7 @@ static void set_good_speed_features_framesize_independent(
 
     sf->part_sf.partition_pruning_with_mlp = 1;
     sf->part_sf.partition_pruning_with_mlp_none_thresh = 3.5f;
+    sf->lpf_sf.enable_deblock_for_partition_search = 1;
   }
 
   if (speed >= 2) {
@@ -932,7 +932,7 @@ static AVM_INLINE void init_lpf_sf(LOOP_FILTER_SPEED_FEATURES *lpf_sf) {
   lpf_sf->cdef_pick_method = CDEF_FULL_SEARCH;
   lpf_sf->disable_lr_filter = 0;
   lpf_sf->wienerns_refine_iters = 2;
-  lpf_sf->enable_deblock_for_partition_search = 1;
+  lpf_sf->enable_deblock_for_partition_search = 0;
 }
 
 static void av2_disable_ml_based_transform_sf(TX_SPEED_FEATURES *const tx_sf) {
