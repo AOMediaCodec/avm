@@ -103,12 +103,14 @@ void init_tip_lf_parameter(struct AV2Common *cm, int plane_start,
 void av2_filter_block_plane_vert(struct AV2Common *const cm,
                                  const MACROBLOCKD *const xd, const int plane,
                                  const MACROBLOCKD_PLANE *const plane_ptr,
-                                 const uint32_t mi_row, const uint32_t mi_col);
+                                 const uint32_t mi_row, const uint32_t mi_col,
+                                 const int dlk_rd_flag, const BLOCK_SIZE bsize);
 
 void av2_filter_block_plane_horz(struct AV2Common *const cm,
                                  const MACROBLOCKD *const xd, const int plane,
                                  const MACROBLOCKD_PLANE *const plane_ptr,
-                                 const uint32_t mi_row, const uint32_t mi_col);
+                                 const uint32_t mi_row, const uint32_t mi_col,
+                                 const int dlk_rd_flag, const BLOCK_SIZE bsize);
 int df_quant_from_qindex(int q_index, int bit_depth);
 
 int df_side_from_qindex(int q_index, int bit_depth);
