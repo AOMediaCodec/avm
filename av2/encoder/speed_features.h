@@ -987,6 +987,9 @@ typedef struct LOOP_FILTER_SPEED_FEATURES {
 
   // Number of refinement steps for WIENER_NONSEP tool
   int wienerns_refine_iters;
+
+  // enable deblock for block partition search
+  int enable_deblock_for_partition_search;
 } LOOP_FILTER_SPEED_FEATURES;
 
 typedef struct REALTIME_SPEED_FEATURES {

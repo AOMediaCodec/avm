@@ -2263,6 +2263,9 @@ static AVM_INLINE void encode_frame_internal(AV2_COMP *cpi) {
 
   av2_enc_setup_tip_frame(cpi);
 
+  cm->lf.apply_deblocking_filter[0] = cpi->oxcf.tool_cfg.enable_deblocking;
+  if (cm->lf.apply_deblocking_filter[0]) av2_loop_filter_frame_init(cm, 0, 1);
+
   cm->current_frame.skip_mode_info.skip_mode_flag =
       check_skip_mode_enabled(cpi) && cpi->oxcf.tool_cfg.enable_skip_mode;
 
