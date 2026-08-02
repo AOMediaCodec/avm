@@ -325,7 +325,7 @@ static INLINE void thread_loop_filter_rows(
                                plane + 1, NULL);
 
           av2_filter_block_plane_vert(cm, xd, plane, &planes[plane], mi_row,
-                                      mi_col);
+                                      mi_col, 0, BLOCK_INVALID);
           sync_write(lf_sync, r, c, sb_cols, plane);
         }
       } else if (dir == 1) {
@@ -343,7 +343,7 @@ static INLINE void thread_loop_filter_rows(
           av2_setup_dst_planes(planes, frame_buffer, mi_row, mi_col, plane,
                                plane + 1, NULL);
           av2_filter_block_plane_horz(cm, xd, plane, &planes[plane], mi_row,
-                                      mi_col);
+                                      mi_col, 0, BLOCK_INVALID);
         }
       }
     } else {
