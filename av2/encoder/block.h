@@ -1486,14 +1486,6 @@ typedef struct macroblock {
    */
   uint8_t tpl_keep_ref_frame[REF_FRAMES];
 
-  /*! \brief Reference frames picked by the square subblocks in a superblock.
-   *
-   * Keeps track of ref frames that are selected by square partition blocks
-   * within a superblock, in MI resolution. They can be used to prune ref frames
-   * for rectangular blocks.
-   */
-  uint64_t picked_ref_frames_mask[MAX_MIB_SIZE * MAX_MIB_SIZE];
-
   /**@}*/
 
   /*****************************************************************************

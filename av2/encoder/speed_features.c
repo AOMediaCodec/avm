@@ -302,7 +302,7 @@ static void set_good_speed_features_framesize_independent(
   sf->inter_sf.model_based_post_interp_filter_breakout = 1;
   sf->inter_sf.prune_mode_search_simple_translation = 1;
   sf->inter_sf.prune_motion_mode_level = 1;
-  sf->inter_sf.prune_ref_frames = 0;
+
   sf->inter_sf.prune_wedge_pred_diff_based = 1;
   sf->inter_sf.reduce_inter_modes = 1;
   sf->inter_sf.selective_ref_frame = 1;
@@ -432,10 +432,6 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.prune_comp_type_by_comp_avg = 1;
     sf->inter_sf.prune_comp_type_by_model_rd = boosted ? 0 : 1;
     sf->inter_sf.prune_motion_mode_level = 2;
-    sf->inter_sf.prune_ref_frames =
-        (frame_is_intra_only(&cpi->common) || (allow_screen_content_tools))
-            ? 0
-            : (boosted ? 1 : 2);
     sf->inter_sf.reduce_inter_modes = boosted ? 1 : 2;
     sf->inter_sf.reuse_inter_intra_mode = 1;
     sf->inter_sf.selective_ref_frame = 2;
@@ -651,7 +647,7 @@ static void set_rt_speed_features_framesize_independent(
     sf->lpf_sf.lpf_pick = LPF_PICK_FROM_Q;
     sf->lpf_sf.cdef_pick_method = CDEF_PICK_FROM_Q;
     sf->rt_sf.use_only_dc_intra_interframe = true;
-    sf->inter_sf.prune_ref_frames = 0;
+
     sf->mv_sf.search_method = DIAMOND;
     sf->winner_mode_sf.tx_size_search_level = USE_LARGESTALL;
     sf->rd_sf.tx_domain_dist_thres_level = 2;
@@ -793,7 +789,6 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->selective_ref_frame = 0;
   inter_sf->prune_newmv_modes_using_prior_rd = 0;
   inter_sf->share_motion_mode_prune_pool = 0;
-  inter_sf->prune_ref_frames = 0;
   inter_sf->disable_wedge_search_var_thresh = 0;
   inter_sf->fast_wedge_sign_estimate = 0;
   inter_sf->prune_wedge_pred_diff_based = 0;
@@ -1046,12 +1041,6 @@ void av2_set_speed_features_framesize_dependent(AV2_COMP *cpi, int speed) {
 static AVM_INLINE void set_erp_speed_features(AV2_COMP *cpi) {
   SPEED_FEATURES *const sf = &cpi->sf;
   const AV2_COMMON *const cm = &cpi->common;
-  const GF_GROUP *const gf_group = &cpi->gf_group;
-  const int boosted = frame_is_boosted(cpi);
-  const int is_boosted_arf2_bwd_type =
-      boosted || gf_group->update_type[gf_group->index] == INTNL_ARF_UPDATE;
-  const int allow_screen_content_tools =
-      cm->features.allow_screen_content_tools;
   const unsigned int erp_pruning_level = cpi->oxcf.part_cfg.erp_pruning_level;
   const size_t num_pixels = cm->width * cm->height;
   // TODO(jinzhaoipc@google.com): Make sure this is aligned with the new size
@@ -1084,11 +1073,7 @@ static AVM_INLINE void set_erp_speed_features(AV2_COMP *cpi) {
     case 3:
       sf->part_sf.prune_ext_part_with_part_none = 1;
       AVM_FALLTHROUGH_INTENDED;
-    case 2:
-      sf->inter_sf.prune_ref_frames = (boosted || (allow_screen_content_tools))
-                                          ? 0
-                                          : (is_boosted_arf2_bwd_type ? 1 : 2);
-      AVM_FALLTHROUGH_INTENDED;
+    case 2: AVM_FALLTHROUGH_INTENDED;
     case 1:
       sf->inter_sf.reuse_erp_mode_flag =
           (REUSE_PARTITION_MODE_FLAG | REUSE_INTERFRAME_FLAG);

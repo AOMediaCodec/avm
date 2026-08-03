@@ -7263,20 +7263,6 @@ static AVM_INLINE int prune_ref_frame(const AV2_COMP *cpi, const MACROBLOCK *x,
   return 0;
 }
 
-static AVM_INLINE int is_ref_frame_used_by_compound_ref(
-    int ref_frame, uint64_t skip_ref_frame_mask) {
-  for (int r = INTER_REFS_PER_FRAME; r < INTRA_FRAME; ++r) {
-    if (!(skip_ref_frame_mask & ((uint64_t)1 << r))) {
-      MV_REFERENCE_FRAME rf[2];
-      av2_set_ref_frame(rf, r);
-      if (rf[0] == ref_frame || rf[1] == ref_frame) {
-        return 1;
-      }
-    }
-  }
-  return 0;
-}
-
 static AVM_INLINE int is_ref_frame_used_in_cache(MV_REFERENCE_FRAME ref_frame,
                                                  const MB_MODE_INFO *mi_cache) {
   if (!mi_cache) {
@@ -7296,8 +7282,7 @@ static AVM_INLINE int is_ref_frame_used_in_cache(MV_REFERENCE_FRAME ref_frame,
 // and easy to read and maintain.
 static AVM_INLINE void set_params_rd_pick_inter_mode(
     const AV2_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
-    mode_skip_mask_t *mode_skip_mask, uint64_t skip_ref_frame_mask,
-    unsigned int *ref_costs_single,
+    mode_skip_mask_t *mode_skip_mask, unsigned int *ref_costs_single,
     unsigned int (*ref_costs_comp)[MAX_COMPOUND_REF_INDEX],
     struct buf_2d yv12_mb[SINGLE_REF_FRAMES][MAX_MB_PLANE]) {
   const AV2_COMMON *const cm = &cpi->common;
@@ -7317,16 +7302,6 @@ static AVM_INLINE void set_params_rd_pick_inter_mode(
     mbmi_ext->ref_mv_count[ref_frame] = UINT8_MAX;
     x->pred_mv_sad[ref_frame] = INT_MAX;
     if ((cm->ref_frame_flags & (1 << ref_frame))) {
-      if (mbmi->partition != PARTITION_NONE &&
-          mbmi->partition != PARTITION_SPLIT) {
-        if (skip_ref_frame_mask & ((uint64_t)1 << ref_frame) &&
-            !is_ref_frame_used_by_compound_ref(ref_frame,
-                                               skip_ref_frame_mask) &&
-            !(should_reuse_mode(x, REUSE_INTER_MODE_IN_INTERFRAME_FLAG) &&
-              is_ref_frame_used_in_cache(ref_frame, x->inter_mode_cache[0]))) {
-          continue;
-        }
-      }
       assert(get_ref_frame_yv12_buf(cm, ref_frame) != NULL);
       setup_buffer_ref_mvs_inter(cpi, x, ref_frame, bsize, yv12_mb);
     }
@@ -7355,14 +7330,6 @@ static AVM_INLINE void set_params_rd_pick_inter_mode(
         continue;
       }
 
-      if (mbmi->partition != PARTITION_NONE &&
-          mbmi->partition != PARTITION_SPLIT) {
-        if (skip_ref_frame_mask & ((uint64_t)1 << ref_frame) &&
-            !(should_reuse_mode(x, REUSE_INTER_MODE_IN_INTERFRAME_FLAG) &&
-              is_ref_frame_used_in_cache(ref_frame, x->inter_mode_cache[0]))) {
-          continue;
-        }
-      }
       // Ref mv list population is not required, when compound references are
       // pruned.
       if (prune_ref_frame(cpi, x, ref_frame)) continue;
@@ -7505,25 +7472,6 @@ static bool mask_says_skip(const mode_skip_mask_t *mode_skip_mask,
                                   [COMPACT_INDEX0_NRS(ref_frame[1]) + 1];
 }
 
-static uint64_t fetch_picked_ref_frames_mask(const MACROBLOCK *const x,
-                                             BLOCK_SIZE bsize, int mib_size) {
-  const int sb_size_mask = mib_size - 1;
-  const MACROBLOCKD *const xd = &x->e_mbd;
-  const int mi_row = xd->mi_row;
-  const int mi_col = xd->mi_col;
-  const int mi_row_in_sb = mi_row & sb_size_mask;
-  const int mi_col_in_sb = mi_col & sb_size_mask;
-  const int mi_w = mi_size_wide[bsize];
-  const int mi_h = mi_size_high[bsize];
-  uint64_t picked_ref_frames_mask = 0;
-  for (int i = mi_row_in_sb; i < mi_row_in_sb + mi_h; ++i) {
-    for (int j = mi_col_in_sb; j < mi_col_in_sb + mi_w; ++j) {
-      picked_ref_frames_mask |= x->picked_ref_frames_mask[i * mib_size + j];
-    }
-  }
-  return picked_ref_frames_mask;
-}
-
 static INLINE int is_mode_intra(PREDICTION_MODE mode) {
   return mode < INTRA_MODE_END;
 }
@@ -7653,8 +7601,8 @@ static INLINE int skip_inter_mode_with_cached_mode(
 // modes
 static int inter_mode_search_order_independent_skip(
     const AV2_COMP *cpi, MACROBLOCK *x, mode_skip_mask_t *mode_skip_mask,
-    InterModeSearchState *search_state, uint64_t skip_ref_frame_mask,
-    PREDICTION_MODE mode, const MV_REFERENCE_FRAME *ref_frame) {
+    InterModeSearchState *search_state, PREDICTION_MODE mode,
+    const MV_REFERENCE_FRAME *ref_frame) {
   if (mask_says_skip(mode_skip_mask, ref_frame, mode)) {
     return 1;
   }
@@ -7682,47 +7630,6 @@ static int inter_mode_search_order_independent_skip(
   if (search_state->best_rd == INT64_MAX && mbmi->partition == PARTITION_NONE &&
       x->must_find_valid_partition)
     return 0;
-
-  int skip_motion_mode = 0;
-  if (!x->inter_mode_cache[0] && skip_ref_frame_mask) {
-    assert(ref_type <
-           (INTER_REFS_PER_FRAME * (INTER_REFS_PER_FRAME + 3) / 2 + 2));
-    int skip_ref = (int)(skip_ref_frame_mask & ((uint64_t)1 << ref_type));
-    if (ref_type < INTER_REFS_PER_FRAME && skip_ref) {
-      // Since the compound ref modes depends on the motion estimation result
-      // of two single ref modes( best mv of single ref modes as the start
-      // point ) If current single ref mode is marked skip, we need to check
-      // if it will be used in compound ref modes.
-      for (int r = INTER_REFS_PER_FRAME; r < INTRA_FRAME; ++r) {
-        if (skip_ref_frame_mask & ((uint64_t)1 << r)) continue;
-        MV_REFERENCE_FRAME rf[2];
-        av2_set_ref_frame(rf, r);
-        if (rf[0] == ref_type || rf[1] == ref_type) {
-          // Found a not skipped compound ref mode which contains current
-          // single ref. So this single ref can't be skipped completly
-          // Just skip it's motion mode search, still try it's simple
-          // transition mode.
-          skip_motion_mode = 1;
-          skip_ref = 0;
-          break;
-        }
-      }
-    }
-    // If we are reusing the prediction from cache, and the current frame is
-    // required by the cache, then we cannot prune it.
-    if (should_reuse_mode(x, REUSE_INTER_MODE_IN_INTERFRAME_FLAG) &&
-        is_ref_frame_used_in_cache(ref_type, x->inter_mode_cache[0])) {
-      skip_ref = 0;
-      // If the cache only needs the current reference type for compound
-      // prediction, then we can skip motion mode search.
-      assert(x->inter_mode_cache[0]->ref_frame);
-      skip_motion_mode = (ref_type < INTER_REFS_PER_FRAME &&
-                          x->inter_mode_cache[0]->ref_frame[1] != INTRA_FRAME);
-    }
-    if (skip_ref) return 1;
-  }
-
-  if (skip_motion_mode) return 2;
 
   return 0;
 }
@@ -8212,7 +8119,6 @@ typedef struct {
   int *skip_motion_mode;
   mode_skip_mask_t *mode_skip_mask;
   InterModeSearchState *search_state;
-  uint64_t skip_ref_frame_mask;
   int reach_first_comp_mode;
   int mode_thresh_mul_fact;
 } InterModeSFArgs;
@@ -8234,8 +8140,7 @@ static int skip_inter_mode(AV2_COMP *cpi, MACROBLOCK *x,
   if (this_mode == WARPMV) return 0;
 
   const int ret = inter_mode_search_order_independent_skip(
-      cpi, x, args->mode_skip_mask, args->search_state,
-      args->skip_ref_frame_mask, this_mode, ref_frames);
+      cpi, x, args->mode_skip_mask, args->search_state, this_mode, ref_frames);
   if (ret == 1) return 1;
   *(args->skip_motion_mode) = (ret == 2);
 
@@ -8921,80 +8826,6 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
   av2_initialize_warp_wrl_list(xd->warp_param_stack,
                                xd->valid_num_warp_candidates);
 
-  // Ref frames that are selected by square partition blocks.
-  uint64_t picked_ref_frames_mask = 0;
-  if (cpi->sf.inter_sf.prune_ref_frames && !x->inter_mode_cache[0]) {
-    bool prune_ref_frames = false;
-    assert(should_reuse_mode(x, REUSE_PARTITION_MODE_FLAG));
-
-    // Prune reference frames if we are either a 1:4 block, or if we are a 1:2
-    // block, and we have searched any of the rectangular subblock.
-    if (!is_partition_point(bsize)) {
-      prune_ref_frames = true;
-    } else if (bsize > BLOCK_LARGEST) {
-      // Check horz sub-blocks at different row offsets.
-      BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_HORZ);
-      if (subsize != BLOCK_INVALID) {
-        for (int r = 0; r <= mi_size_high[bsize] / 2; ++r) {
-          const PARTITION_TYPE prev_part =
-              av2_get_prev_partition(x, xd->mi_row + r, xd->mi_col, subsize,
-                                     cm->sb_size, (int8_t)mbmi->region_type);
-          if (prev_part != PARTITION_INVALID) {
-            prune_ref_frames = true;
-            break;
-          }
-        }
-      }
-      // Check vert sub-blocks at different col offsets.
-      subsize = get_partition_subsize(bsize, PARTITION_VERT);
-      if (subsize != BLOCK_INVALID) {
-        for (int c = 0; c <= mi_size_wide[bsize] / 2; ++c) {
-          const PARTITION_TYPE prev_part =
-              av2_get_prev_partition(x, xd->mi_row, xd->mi_col + c, subsize,
-                                     cm->sb_size, (int8_t)mbmi->region_type);
-          if (prev_part != PARTITION_INVALID) {
-            prune_ref_frames = true;
-            break;
-          }
-        }
-      }
-    } else {
-      for (RECT_PART_TYPE rect_type = HORZ; rect_type < NUM_RECT_PARTS;
-           rect_type++) {
-        const int mi_pos_rect[NUM_RECT_PARTS][SUB_PARTITIONS_RECT][2] = {
-          { { xd->mi_row, xd->mi_col },
-            { xd->mi_row + mi_size_high[bsize] / 2, xd->mi_col } },
-          { { xd->mi_row, xd->mi_col },
-            { xd->mi_row, xd->mi_col + mi_size_wide[bsize] / 2 } }
-        };
-        const PARTITION_TYPE part =
-            (rect_type == HORZ) ? PARTITION_HORZ : PARTITION_VERT;
-        const BLOCK_SIZE subsize = get_partition_subsize(bsize, part);
-        if (subsize == BLOCK_INVALID) {
-          continue;
-        }
-        for (int sub_idx = 0; sub_idx < 2; sub_idx++) {
-          const PARTITION_TYPE prev_part = av2_get_prev_partition(
-              x, mi_pos_rect[rect_type][sub_idx][0],
-              mi_pos_rect[rect_type][sub_idx][1], subsize, cm->sb_size,
-              (int8_t)mbmi->region_type);
-          if (prev_part != PARTITION_INVALID) {
-            prune_ref_frames = true;
-            break;
-          }
-        }
-      }
-    }
-
-    if (prune_ref_frames) {
-      picked_ref_frames_mask =
-          fetch_picked_ref_frames_mask(x, bsize, cm->mib_size);
-    }
-  }
-
-  // Skip ref frames that never selected by square blocks.
-  const uint64_t skip_ref_frame_mask =
-      picked_ref_frames_mask ? ~picked_ref_frames_mask : 0;
   mode_skip_mask_t mode_skip_mask;
   unsigned int ref_costs_single[SINGLE_REF_FRAMES];
   struct buf_2d yv12_mb[SINGLE_REF_FRAMES][MAX_MB_PLANE];
@@ -9013,8 +8844,7 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
   mbmi->mode = NEARMV;
   // init params, set frame modes, speed features
   set_params_rd_pick_inter_mode(cpi, x, bsize, &mode_skip_mask,
-                                skip_ref_frame_mask, ref_costs_single,
-                                ref_costs_comp, yv12_mb);
+                                ref_costs_single, ref_costs_comp, yv12_mb);
 
   int64_t best_est_rd = INT64_MAX;
   const InterModeRdModel *md = &tile_data->inter_mode_rd_models[bsize];
@@ -9119,12 +8949,8 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
   init_top_tx_part_rd_for_inter_modes(x, sf->tx_sf.prune_inter_tx_part_rd_eval);
 
   // Initialize arguments for mode loop speed features
-  InterModeSFArgs sf_args = { &args.skip_motion_mode,
-                              &mode_skip_mask,
-                              &search_state,
-                              skip_ref_frame_mask,
-                              0,
-                              mode_thresh_mul_fact };
+  InterModeSFArgs sf_args = { &args.skip_motion_mode, &mode_skip_mask,
+                              &search_state, 0, mode_thresh_mul_fact };
 
   const uint8_t enable_tx_prune = do_tx_search;
   // Pool of top model RDs used by prune_motion_mode(). When

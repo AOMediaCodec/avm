@@ -346,9 +346,6 @@ void av2_set_fixed_partitioning(AV2_COMP *cpi, const TileInfo *const tile,
 void av2_reset_simple_motion_tree_partition(SIMPLE_MOTION_DATA_TREE *sms_tree,
                                             BLOCK_SIZE bsize);
 
-void av2_update_picked_ref_frames_mask(MACROBLOCK *const x, int ref_type,
-                                       BLOCK_SIZE bsize, int mib_size,
-                                       int mi_row, int mi_col);
 void av2_reset_mbmi(const CommonModeInfoParams *const mi_params,
                     BLOCK_SIZE sb_size, int mi_row, int mi_col);
 

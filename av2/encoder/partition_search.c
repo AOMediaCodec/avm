@@ -3742,14 +3742,6 @@ static void none_partition_search(
     pc_tree->skippable = sdp_inter_chroma_flag
                              ? pc_tree->none_chroma->skippable
                              : pc_tree->none[pc_tree->region_type]->skippable;
-    // Record picked ref frame to prune ref frames for other partition types.
-    if (cpi->sf.inter_sf.prune_ref_frames &&
-        x->e_mbd.tree_type != CHROMA_PART) {
-      const int ref_type = av2_ref_frame_type(
-          pc_tree->none[pc_tree->region_type]->mic.ref_frame);
-      av2_update_picked_ref_frames_mask(x, ref_type, bsize, cm->mib_size,
-                                        mi_row, mi_col);
-    }
 
     // Calculate the total cost and update the best partition.
     if (part_search_state->is_block_splittable && !sdp_inter_chroma_flag) {

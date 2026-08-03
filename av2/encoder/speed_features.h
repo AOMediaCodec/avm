@@ -587,12 +587,6 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Enabled at speed >= 1.
   int share_motion_mode_prune_pool;
 
-  // Prune reference frames.
-  // 0 implies no pruning
-  // 1 implies prune for extended partition
-  // 2 implies prune horiz, vert and extended partition
-  int prune_ref_frames;
-
   // When set to N>0, this flag limits the maximum number of compound
   // reference frame combinations evaluated in the RD search. For all compound
   // modes, same reference compound is restricted to (0,0). For non-NEAR_NEARMV

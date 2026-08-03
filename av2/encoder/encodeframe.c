@@ -465,7 +465,7 @@ static INLINE void init_encode_rd_sb(AV2_COMP *cpi, ThreadData *td,
 
   // Reset hash state for transform/mode rd hash information
   reset_hash_records(&x->txfm_search_info, cpi->sf.tx_sf.use_inter_txb_hash);
-  av2_zero(x->picked_ref_frames_mask);
+
   av2_invalid_rd_stats(rd_cost);
   SimpleMotionDataBufs *data_bufs = x->sms_bufs;
   av2_init_sms_data_bufs(data_bufs);

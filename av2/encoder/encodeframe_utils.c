@@ -1097,20 +1097,6 @@ void av2_reset_simple_motion_tree_partition(SIMPLE_MOTION_DATA_TREE *sms_tree,
 }
 
 // Record the ref frames that have been selected by square partition blocks.
-void av2_update_picked_ref_frames_mask(MACROBLOCK *const x, int ref_type,
-                                       BLOCK_SIZE bsize, int mib_size,
-                                       int mi_row, int mi_col) {
-  const int sb_size_mask = mib_size - 1;
-  const int mi_row_in_sb = mi_row & sb_size_mask;
-  const int mi_col_in_sb = mi_col & sb_size_mask;
-  const int mi_size_h = mi_size_high[bsize];
-  const int mi_size_w = mi_size_wide[bsize];
-  for (int i = mi_row_in_sb; i < mi_row_in_sb + mi_size_h; ++i) {
-    for (int j = mi_col_in_sb; j < mi_col_in_sb + mi_size_w; ++j) {
-      x->picked_ref_frames_mask[i * mib_size + j] |= 1ULL << ref_type;
-    }
-  }
-}
 
 // Memset the mbmis at the current superblock to 0
 void av2_reset_mbmi(const CommonModeInfoParams *const mi_params,
