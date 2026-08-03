@@ -5929,11 +5929,8 @@ static void read_tile_syntax_info(TileInfoSyntax *tile_params,
     int width_sb = tile_info->sb_cols;
     for (i = 0, start_sb = 0; width_sb > 0; i++) {
       if (i >= MAX_TILE_COLS) {
-        if (rb->error_handler) {
-          rb->error_handler(rb->error_handler_data, AVM_CODEC_UNSUP_BITSTREAM,
-                            "The decoder only supports MAX_TILE_COLS tiles.");
-        }
-        return;
+        rb->error_handler(rb->error_handler_data, AVM_CODEC_CORRUPT_FRAME,
+                          "TileCols cannot be greater than MAX_TILE_COLS");
       }
       const int size_sb =
           1 + rb_read_uniform(rb, AVMMIN(width_sb, tile_info->max_width_sb));
@@ -5941,9 +5938,10 @@ static void read_tile_syntax_info(TileInfoSyntax *tile_params,
       start_sb += size_sb;
       width_sb -= size_sb;
     }
-    tile_info->cols = i;
-    tile_info->col_start_sb[i] = start_sb + width_sb;
     assert(width_sb == 0);
+    assert(start_sb == tile_info->sb_cols);
+    tile_info->cols = i;
+    tile_info->col_start_sb[i] = start_sb;
   }
   tile_info->min_log2_rows =
       AVMMAX(tile_info->min_log2 - tile_info->log2_cols, 0);
@@ -5964,11 +5962,8 @@ static void read_tile_syntax_info(TileInfoSyntax *tile_params,
     int height_sb = tile_info->sb_rows;
     for (i = 0, start_sb = 0; height_sb > 0; i++) {
       if (i >= MAX_TILE_ROWS) {
-        if (rb->error_handler) {
-          rb->error_handler(rb->error_handler_data, AVM_CODEC_UNSUP_BITSTREAM,
-                            "The decoder only supports MAX_TILE_ROWS tiles.");
-        }
-        return;
+        rb->error_handler(rb->error_handler_data, AVM_CODEC_CORRUPT_FRAME,
+                          "TileRows cannot be greater than MAX_TILE_ROWS");
       }
       const int size_sb =
           1 + rb_read_uniform(rb, AVMMIN(height_sb, tile_info->max_height_sb));
@@ -5976,9 +5971,10 @@ static void read_tile_syntax_info(TileInfoSyntax *tile_params,
       start_sb += size_sb;
       height_sb -= size_sb;
     }
-    tile_info->rows = i;
-    tile_info->row_start_sb[i] = start_sb + height_sb;
     assert(height_sb == 0);
+    assert(start_sb == tile_info->sb_rows);
+    tile_info->rows = i;
+    tile_info->row_start_sb[i] = start_sb;
   }
   av2_calculate_tile_rows(tile_info);
 }
