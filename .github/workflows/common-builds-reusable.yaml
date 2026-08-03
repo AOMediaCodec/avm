@@ -70,7 +70,6 @@ jobs:
           - nasm
           - no-examples
           - debug
-          - enable-12bit-profile
 
   build-entropy-stats:
     name: Build (entropy-stats)
@@ -104,21 +103,6 @@ jobs:
       matrix:
         avm-build-config:
           - bitstream-mismatch-debug
-
-  build-enable-12bit-profile:
-    name: Build (enable-12bit-profile)
-    uses: ./.github/workflows/build-job-reusable.yaml
-    if: (!cancelled())
-    with:
-      avm-build-config: ${{ matrix.avm-build-config }}
-      parent-job-name: build-enable-12bit-profile
-      runner: ${{ inputs.runner }}
-      container-image: ${{ inputs.container-image }}
-      show-github-context: true
-    strategy:
-      matrix:
-        avm-build-config:
-          - enable-12bit-profile
 
   build-x86-linux-gcc:
     name: Build (x86-linux-gcc)
