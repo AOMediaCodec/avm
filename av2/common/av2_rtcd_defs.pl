@@ -405,10 +405,10 @@ if (avm_config("CONFIG_AV2_ENCODER") eq "yes") {
 # WARPED_MOTION / GLOBAL_MOTION functions
 
 add_proto qw/void av2_highbd_warp_affine/, "const int32_t *mat, const uint16_t *ref, int width, int height, int stride, uint16_t *pred, int p_col, int p_row, int p_width, int p_height, int p_stride, int subsampling_x, int subsampling_y, int bd, ConvolveParams *conv_params, int16_t alpha, int16_t beta, int16_t gamma, int16_t delta";
-specialize qw/av2_highbd_warp_affine sse4_1 avx2/;
+specialize qw/av2_highbd_warp_affine sse4_1 avx2 neon/;
 
 add_proto qw/void av2_ext_highbd_warp_affine/, "const int32_t *mat, const uint16_t *ref, int width, int height, int stride, uint16_t *pred, int p_col, int p_row, int p_width, int p_height, int p_stride, int subsampling_x, int subsampling_y, int bd, ConvolveParams *conv_params, int use_warp_bd_box, PadBlock *warp_bd_box";
-specialize qw/av2_ext_highbd_warp_affine sse4_1/;
+specialize qw/av2_ext_highbd_warp_affine sse4_1 neon/;
 
 # CONVOLVE_ROUND/COMPOUND_ROUND functions
 

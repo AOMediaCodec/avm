@@ -27,25 +27,41 @@ TEST_P(AV2HighbdWarpFilterTest, CheckOutput) {
 TEST_P(AV2HighbdWarpFilterTest, DISABLED_Speed) {
   RunSpeedTest(std::get<4>(GET_PARAM(0)));
 }
+TEST_P(AV2HighbdWarpFilterTest, ExtremesAllZero) {
+  RunBoundaryCheck(std::get<4>(GET_PARAM(0)), 0);
+}
+TEST_P(AV2HighbdWarpFilterTest, ExtremesAllMax) {
+  RunBoundaryCheck(std::get<4>(GET_PARAM(0)), 1);
+}
+TEST_P(AV2HighbdWarpFilterTest, BitDepthMidpoint) {
+  RunBoundaryCheck(std::get<4>(GET_PARAM(0)), 2);
+}
 
-#if HAVE_SSE4_1
-INSTANTIATE_TEST_SUITE_P(SSE4_1, AV2HighbdWarpFilterTest,
-                         libavm_test::AV2HighbdWarpFilter::BuildParams(
-                             av2_highbd_warp_affine_sse4_1));
-#endif  // HAVE_SSE4_1
 TEST_P(AV2ExtHighbdWarpFilterTest, CheckOutput) {
   RunCheckOutput(::testing::get<4>(GET_PARAM(0)));
 }
 TEST_P(AV2ExtHighbdWarpFilterTest, DISABLED_Speed) {
   RunSpeedTest(::testing::get<4>(GET_PARAM(0)));
 }
+TEST_P(AV2ExtHighbdWarpFilterTest, ExtremesAllZero) {
+  RunBoundaryCheck(::testing::get<4>(GET_PARAM(0)), 0);
+}
+TEST_P(AV2ExtHighbdWarpFilterTest, ExtremesAllMax) {
+  RunBoundaryCheck(::testing::get<4>(GET_PARAM(0)), 1);
+}
+TEST_P(AV2ExtHighbdWarpFilterTest, BitDepthMidpoint) {
+  RunBoundaryCheck(::testing::get<4>(GET_PARAM(0)), 2);
+}
+
 #if HAVE_SSE4_1
+INSTANTIATE_TEST_SUITE_P(SSE4_1, AV2HighbdWarpFilterTest,
+                         libavm_test::AV2HighbdWarpFilter::BuildParams(
+                             av2_highbd_warp_affine_sse4_1));
+
 INSTANTIATE_TEST_SUITE_P(SSE4_1, AV2ExtHighbdWarpFilterTest,
                          libavm_test::AV2ExtHighbdWarpFilter::BuildParams(
                              av2_ext_highbd_warp_affine_sse4_1));
 #endif  // HAVE_SSE4_1
-
-GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV2ExtHighbdWarpFilterTest);
 
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
@@ -53,6 +69,17 @@ INSTANTIATE_TEST_SUITE_P(
     libavm_test::AV2HighbdWarpFilter::BuildParams(av2_highbd_warp_affine_avx2));
 #endif  // HAVE_AVX2
 
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(
+    NEON, AV2HighbdWarpFilterTest,
+    libavm_test::AV2HighbdWarpFilter::BuildParams(av2_highbd_warp_affine_neon));
+
+INSTANTIATE_TEST_SUITE_P(NEON, AV2ExtHighbdWarpFilterTest,
+                         libavm_test::AV2ExtHighbdWarpFilter::BuildParams(
+                             av2_ext_highbd_warp_affine_neon));
+#endif  // HAVE_NEON
+
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV2HighbdWarpFilterTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV2ExtHighbdWarpFilterTest);
 
 }  // namespace
