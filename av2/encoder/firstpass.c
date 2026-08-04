@@ -273,7 +273,7 @@ static int find_fp_qindex(avm_bit_depth_t bit_depth) {
   return av2_find_qindex(FIRST_PASS_Q, bit_depth, 0,
                          bit_depth == AVM_BITS_8    ? QINDEX_RANGE_8_BITS - 1
                          : bit_depth == AVM_BITS_10 ? QINDEX_RANGE_10_BITS - 1
-                                                    : QINDEX_RANGE - 1);
+                                                    : QINDEX_RANGE_12_BITS - 1);
 }
 
 static double raw_motion_error_stdev(int *raw_motion_err_list,

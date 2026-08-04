@@ -2159,12 +2159,12 @@ int main(int argc, const char **argv_) {
         }
       }
 
-#if CONFIG_TESTONLY_12BIT_SUPPORT
+#if CONFIG_12BIT_PROFILE
       if (stream->config.cfg.g_bit_depth > 10) {
-        stream->config.cfg.g_profile = TEST_ONLY_12BIT_PROFILE;
+        stream->config.cfg.g_profile = MAIN_444C_12_IP2;
         profile_updated = 1;
       }
-#endif  // CONFIG_TESTONLY_12BIT_SUPPORT
+#endif  // CONFIG_12BIT_PROFILE
 
       // Force encoder to use 16-bit pipeline for 8-bit video/image
       if (profile_updated && !global.quiet) {

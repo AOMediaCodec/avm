@@ -666,13 +666,13 @@ static avm_codec_err_t validate_config(avm_codec_alg_priv_t *ctx,
   RANGE_CHECK(cfg, g_timebase.num, 1, cfg->g_timebase.den);
 
   RANGE_CHECK_HI(cfg, g_profile, MAX_PROFILES - 1);
-#if !CONFIG_TESTONLY_12BIT_SUPPORT
+#if !CONFIG_12BIT_PROFILE
   RANGE_CHECK(cfg, g_bit_depth, AVM_BITS_8, AVM_BITS_10);
   RANGE_CHECK(cfg, g_input_bit_depth, AVM_BITS_8, AVM_BITS_10);
 #else
   RANGE_CHECK(cfg, g_bit_depth, AVM_BITS_8, AVM_BITS_12);
   RANGE_CHECK(cfg, g_input_bit_depth, AVM_BITS_8, AVM_BITS_12);
-#endif  // !CONFIG_TESTONLY_12BIT_SUPPORT
+#endif  // !CONFIG_12BIT_PROFILE
 
   const int min_quantizer =
       (-(int)(cfg->g_bit_depth - AVM_BITS_8) * MAXQ_OFFSET);
@@ -860,10 +860,6 @@ static avm_codec_err_t validate_config(avm_codec_alg_priv_t *ctx,
 
 static avm_codec_err_t validate_img(avm_codec_alg_priv_t *ctx,
                                     const avm_image_t *img) {
-#if CONFIG_TESTONLY_12BIT_SUPPORT
-  if (ctx->cfg.g_profile == TEST_ONLY_12BIT_PROFILE) return AVM_CODEC_OK;
-#endif  // CONFIG_TESTONLY_12BIT_SUPPORT
-
   switch (img->fmt) {
     case AVM_IMG_FMT_YV12:
     case AVM_IMG_FMT_I420:
@@ -871,15 +867,22 @@ static avm_codec_err_t validate_img(avm_codec_alg_priv_t *ctx,
     case AVM_IMG_FMT_I42016: break;
     case AVM_IMG_FMT_I444:
     case AVM_IMG_FMT_I44416:
-      // MAIN_444_10_IP1 is the only profile that support 444
+      // MAIN_444_10_IP1 and MAIN_444C_12_IP2 are the profiles that support 444
       if (ctx->cfg.g_profile != (unsigned int)MAIN_444_10_IP1 &&
+#if CONFIG_12BIT_PROFILE
+          ctx->cfg.g_profile != (unsigned int)MAIN_444C_12_IP2 &&
+#endif  // CONFIG_12BIT_PROFILE
           !ctx->cfg.monochrome) {
         ERROR("Invalid image format. I444 images not supported in profile.");
       }
       break;
     case AVM_IMG_FMT_I422:
     case AVM_IMG_FMT_I42216:
-      if (ctx->cfg.g_profile != (unsigned int)MAIN_422_10_IP1) {
+      if (ctx->cfg.g_profile != (unsigned int)MAIN_422_10_IP1
+#if CONFIG_12BIT_PROFILE
+          && ctx->cfg.g_profile != (unsigned int)MAIN_444C_12_IP2
+#endif  // CONFIG_12BIT_PROFILE
+      ) {
         ERROR("Invalid image format. I422 images not supported in profile.");
       }
       break;

@@ -1028,11 +1028,11 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
     } else if (seq_params->seq_profile_idc == MAIN_444_10_IP1) {
       seq_params->subsampling_x = 0;
       seq_params->subsampling_y = 0;
-#if CONFIG_TESTONLY_12BIT_SUPPORT
-    } else if (seq_params->seq_profile_idc == TEST_ONLY_12BIT_PROFILE) {
+#if CONFIG_12BIT_PROFILE
+    } else if (seq_params->seq_profile_idc == MAIN_444C_12_IP2) {
       seq_params->subsampling_x = oxcf->input_cfg.chroma_subsampling_x;
       seq_params->subsampling_y = oxcf->input_cfg.chroma_subsampling_y;
-#endif  // CONFIG_TESTONLY_12BIT_SUPPORT
+#endif  // CONFIG_12BIT_PROFILE
     } else {
       assert(0 && "Invalid seq_params->seq_profile_idc");
     }
