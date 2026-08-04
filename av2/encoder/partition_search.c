@@ -4648,10 +4648,10 @@ static INLINE void early_termination_inter_sdp(const PC_TREE *pc_tree,
 
 // Search SDP for intra blocks in inter frames
 static INLINE void search_intra_region_partitioning(
-    PartitionSearchState *search_state, AV2_COMP *const cpi, ThreadData *td,
-    TileDataEnc *tile_data, TokenExtra **tp, RD_STATS *best_rdc,
-    PC_TREE *pc_tree, const PARTITION_TREE *ptree_luma,
-    const PARTITION_TREE *template_tree, RD_SEARCH_MACROBLOCK_CONTEXT *x_ctx,
+    AV2_COMP *const cpi, ThreadData *td, TileDataEnc *tile_data,
+    TokenExtra **tp, RD_STATS *best_rdc, PC_TREE *pc_tree,
+    const PARTITION_TREE *ptree_luma, const PARTITION_TREE *template_tree,
+    RD_SEARCH_MACROBLOCK_CONTEXT *x_ctx,
     PartitionSearchState *part_search_state, LevelBanksRDO *level_banks,
     SB_MULTI_PASS_MODE multi_pass_mode, int max_recursion_depth,
     PARTITION_TYPE parent_partition) {
@@ -4683,68 +4683,43 @@ static INLINE void search_intra_region_partitioning(
   }
 
   pc_tree->region_type = INTRA_REGION;
-
   pc_tree->partitioning = PARTITION_NONE;
 
   RD_STATS *sum_rdc = &part_search_state->sum_rdc;
   av2_init_rd_stats(sum_rdc);
-
   sum_rdc->rate = part_search_state->region_type_cost[pc_tree->region_type];
   sum_rdc->rdcost = RDCOST(x->rdmult, sum_rdc->rate, 0);
 
-  RD_STATS best_remain_rdcost;
-
-  av2_rd_stats_subtraction(x->rdmult, best_rdc, sum_rdc, &best_remain_rdcost);
-
-  const PartitionBlkParams *blk_params = &search_state->part_blk_params;
+  const PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
   const int mi_row = blk_params->mi_row, mi_col = blk_params->mi_col;
   const BLOCK_SIZE bsize = blk_params->bsize;
-
-  RD_STATS this_rdc;
-  av2_init_rd_stats(&this_rdc);
-
-  // Encoder RDO for luma component in intra region
-  xd->tree_type = LUMA_PART;
+  const bool track_ptree_luma =
+      is_luma_chroma_share_same_partition(xd->tree_type, ptree_luma, bsize);
+  RDO_PICK_SB_ARGS rdo_args = {
+    pc_tree,         track_ptree_luma ? ptree_luma : NULL,
+    template_tree,   mi_row,
+    mi_col,          bsize,
+    parent_partition
+  };
+  bool skippable = true;
 #if CONFIG_ML_PART_SPLIT
-  int force_prune_flags[3] = { 0, 0, 0 };
+  int force_prune_flags[MAX_PRUNE_TYPES] = { 0 };
 #endif  // CONFIG_ML_PART_SPLIT
-  if (!av2_rd_pick_partition(
-          cpi, td, tile_data, tp, mi_row, mi_col, bsize, parent_partition,
-          &this_rdc, best_remain_rdcost, pc_tree, ptree_luma, template_tree,
-          max_recursion_depth, NULL, NULL, multi_pass_mode, NULL
-#if CONFIG_ML_PART_SPLIT
-          ,
-          force_prune_flags
-#endif  // CONFIG_ML_PART_SPLIT
-          )) {
-    av2_invalid_rd_stats(&this_rdc);
-    av2_invalid_rd_stats(sum_rdc);
-  }
-  // Encoder RDO for chroma component in intra region
-  if (this_rdc.rdcost != INT64_MAX && !cm->seq_params.monochrome) {
-    sum_rdc->rate += this_rdc.rate;
-    sum_rdc->dist += this_rdc.dist;
-    av2_rd_cost_update(x->rdmult, sum_rdc);
-    xd->tree_type = CHROMA_PART;
-    av2_rd_stats_subtraction(x->rdmult, best_rdc, sum_rdc, &best_remain_rdcost);
-    av2_init_rd_stats(&this_rdc);
 
-    if (!av2_rd_pick_partition(
-            cpi, td, tile_data, tp, mi_row, mi_col, bsize, parent_partition,
-            &this_rdc, best_remain_rdcost, pc_tree, ptree_luma, template_tree,
-            max_recursion_depth, NULL, NULL, multi_pass_mode, NULL
+  // Encoder RDO for luma, chroma components in intra region.
+  for (int i = 0; i < (cm->seq_params.monochrome ? 1 : 2); ++i) {
+    xd->tree_type = LUMA_PART + i;
+    if (!rd_try_subblock_partition(cpi, td, tile_data, tp, &rdo_args,
+                                   &part_search_state->this_rdc, sum_rdc,
+                                   *best_rdc, NULL, max_recursion_depth,
+                                   multi_pass_mode, NULL, &skippable
 #if CONFIG_ML_PART_SPLIT
-            ,
-            force_prune_flags
-#endif  // CONFIG_ML_PART_SPLIT
-            )) {
-      av2_invalid_rd_stats(&this_rdc);
+                                   ,
+                                   force_prune_flags
+#endif
+                                   )) {
       av2_invalid_rd_stats(sum_rdc);
-    }
-    if (this_rdc.rdcost != INT64_MAX) {
-      sum_rdc->rate += this_rdc.rate;
-      sum_rdc->dist += this_rdc.dist;
-      av2_rd_cost_update(x->rdmult, sum_rdc);
+      break;
     }
   }
   // reset tree_type to shared_part
@@ -4753,8 +4728,9 @@ static INLINE void search_intra_region_partitioning(
   if (sum_rdc->rdcost < best_rdc->rdcost) {
     update_best_level_banks(level_banks, &x->e_mbd);
     *best_rdc = *sum_rdc;
-    search_state->found_best_partition = true;
+    part_search_state->found_best_partition = true;
     pc_tree->region_type = INTRA_REGION;
+    pc_tree->skippable = skippable;
   } else {
     // set back to the previous stored region_type and partitioning type
     pc_tree->region_type = MIXED_INTER_INTRA_REGION;
@@ -5892,17 +5868,14 @@ BEGIN_PARTITION_SEARCH:
       pc_tree->extended_sdp_allowed_flag &&
       is_bsize_allowed_for_extended_sdp(bsize, PARTITION_HORZ) &&
       multi_pass_mode != SB_DRY_PASS) {
-    const bool track_ptree_luma =
-        is_luma_chroma_share_same_partition(xd->tree_type, ptree_luma, bsize);
     // Note that we only try intra region partitioning for SB_SINGLE_PASS
     // (single-pass partition search) or SB_WET_PASS (second pass of 2-pass
     // partition search). So, template tree never contains any partitions with
     // intra region. Hence, we pass NULL for `template_tree` argument below.
     search_intra_region_partitioning(
-        &part_search_state, cpi, td, tile_data, tp, &best_rdc, pc_tree,
-        track_ptree_luma ? ptree_luma : NULL, NULL /* template_tree */, &x_ctx,
-        &part_search_state, &level_banks, multi_pass_mode, ext_recur_depth,
-        parent_partition);
+        cpi, td, tile_data, tp, &best_rdc, pc_tree, ptree_luma,
+        NULL /* template_tree */, &x_ctx, &part_search_state, &level_banks,
+        multi_pass_mode, ext_recur_depth, parent_partition);
 
     if (part_search_state.found_best_partition) {
       av2_cache_best_partition(x->sms_bufs, mi_row, mi_col, bsize, cm->sb_size,
