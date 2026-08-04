@@ -2957,22 +2957,32 @@ static AVM_INLINE void prune_partitions_with_neighbor_boundaries(
 
   // Prune 4-way Partitions.
   if (xd->left_available) {
-    if (mi_height >= 8 && (!left_horz_boundaries[mi_height / 8] &&
-                           !left_horz_boundaries[3 * mi_height / 8] &&
-                           !left_horz_boundaries[5 * mi_height / 8] &&
-                           !left_horz_boundaries[7 * mi_height / 8])) {
-      state->prune_partition[PARTITION_HORZ_4A] = true;
-      state->prune_partition[PARTITION_HORZ_4B] = true;
+    if (mi_height >= 8) {
+      if (!left_horz_boundaries[mi_height / 8] &&
+          !left_horz_boundaries[3 * mi_height / 8] &&
+          !left_horz_boundaries[7 * mi_height / 8]) {
+        state->prune_partition[PARTITION_HORZ_4A] = true;
+      }
+      if (!left_horz_boundaries[mi_height / 8] &&
+          !left_horz_boundaries[5 * mi_height / 8] &&
+          !left_horz_boundaries[7 * mi_height / 8]) {
+        state->prune_partition[PARTITION_HORZ_4B] = true;
+      }
     }
   }
 
   if (xd->up_available) {
-    if (mi_width >= 8 && (!top_vert_boundaries[mi_width / 8] &&
-                          !top_vert_boundaries[3 * mi_width / 8] &&
-                          !top_vert_boundaries[5 * mi_width / 8] &&
-                          !top_vert_boundaries[7 * mi_width / 8])) {
-      state->prune_partition[PARTITION_VERT_4A] = true;
-      state->prune_partition[PARTITION_VERT_4B] = true;
+    if (mi_width >= 8) {
+      if (!top_vert_boundaries[mi_width / 8] &&
+          !top_vert_boundaries[3 * mi_width / 8] &&
+          !top_vert_boundaries[7 * mi_width / 8]) {
+        state->prune_partition[PARTITION_VERT_4A] = true;
+      }
+      if (!top_vert_boundaries[mi_width / 8] &&
+          !top_vert_boundaries[5 * mi_width / 8] &&
+          !top_vert_boundaries[7 * mi_width / 8]) {
+        state->prune_partition[PARTITION_VERT_4B] = true;
+      }
     }
   }
 }
