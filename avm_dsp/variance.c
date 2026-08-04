@@ -536,39 +536,38 @@ void avm_highbd_upsampled_pred_c(MACROBLOCKD *xd,
   }
 
   const InterpFilterParams *filter = av2_get_filter(subpel_search);
-
+  int filter_taps = (subpel_search <= USE_4_TAPS) ? 4 : SUBPEL_TAPS;
   if (!subpel_x_q3 && !subpel_y_q3) {
-    for (int i = 0; i < height; i++) {
-      memcpy(comp_pred, ref, width * sizeof(*comp_pred));
-      comp_pred += width;
-      ref += ref_stride;
-    }
+    avm_highbd_convolve_copy(ref, ref_stride, comp_pred, width, width, height);
   } else if (!subpel_y_q3) {
     const int16_t *const kernel =
         av2_get_interp_filter_subpel_kernel(filter, subpel_x_q3 << 1);
-    avm_highbd_convolve8_horiz_c(ref, ref_stride, comp_pred, width, kernel, 16,
-                                 NULL, -1, width, height, bd);
+    avm_highbd_convolve8_horiz(ref, ref_stride, comp_pred, width, kernel, 16,
+                               NULL, -1, width, height, bd);
   } else if (!subpel_x_q3) {
     const int16_t *const kernel =
         av2_get_interp_filter_subpel_kernel(filter, subpel_y_q3 << 1);
-    avm_highbd_convolve8_vert_c(ref, ref_stride, comp_pred, width, NULL, -1,
-                                kernel, 16, width, height, bd);
+    avm_highbd_convolve8_vert(ref, ref_stride, comp_pred, width, NULL, -1,
+                              kernel, 16, width, height, bd);
   } else {
-    DECLARE_ALIGNED(16, uint16_t,
-                    temp[((MAX_SB_SIZE + 16) + 16) * MAX_SB_SIZE]);
+    uint16_t *temp = comp_pred;
     const int16_t *const kernel_x =
         av2_get_interp_filter_subpel_kernel(filter, subpel_x_q3 << 1);
     const int16_t *const kernel_y =
         av2_get_interp_filter_subpel_kernel(filter, subpel_y_q3 << 1);
+    const uint16_t *ref_start = ref - ref_stride * ((filter_taps >> 1) - 1);
+    uint16_t *temp_start_horiz = (subpel_search <= USE_4_TAPS)
+                                     ? temp + (filter_taps >> 1) * MAX_SB_SIZE
+                                     : temp;
+    uint16_t *temp_start_vert = temp + MAX_SB_SIZE * ((filter->taps >> 1) - 1);
     const int intermediate_height =
-        (((height - 1) * 8 + subpel_y_q3) >> 3) + filter->taps;
+        (((height - 1) * 8 + subpel_y_q3) >> 3) + filter_taps;
     assert(intermediate_height <= (MAX_SB_SIZE * 2 + 16) + 16);
-    avm_highbd_convolve8_horiz_c(ref - ref_stride * ((filter->taps >> 1) - 1),
-                                 ref_stride, (temp), MAX_SB_SIZE, kernel_x, 16,
-                                 NULL, -1, width, intermediate_height, bd);
-    avm_highbd_convolve8_vert_c(
-        (temp + MAX_SB_SIZE * ((filter->taps >> 1) - 1)), MAX_SB_SIZE,
-        comp_pred, width, NULL, -1, kernel_y, 16, width, height, bd);
+    avm_highbd_convolve8_horiz(ref_start, ref_stride, temp_start_horiz,
+                               MAX_SB_SIZE, kernel_x, 16, NULL, -1, width,
+                               intermediate_height, bd);
+    avm_highbd_convolve8_vert(temp_start_vert, MAX_SB_SIZE, comp_pred, width,
+                              NULL, -1, kernel_y, 16, width, height, bd);
   }
 }
 
@@ -620,9 +619,9 @@ void avm_highbd_dist_wtd_comp_avg_upsampled_pred_c(
   int i, j;
   const int fwd_offset = jcp_param->fwd_offset;
   const int bck_offset = jcp_param->bck_offset;
-  avm_highbd_upsampled_pred_c(xd, cm, mi_row, mi_col, mv, comp_pred, width,
-                              height, subpel_x_q3, subpel_y_q3, ref, ref_stride,
-                              bd, subpel_search, is_scaled_ref);
+  avm_highbd_upsampled_pred(xd, cm, mi_row, mi_col, mv, comp_pred, width,
+                            height, subpel_x_q3, subpel_y_q3, ref, ref_stride,
+                            bd, subpel_search, is_scaled_ref);
 
   for (i = 0; i < height; i++) {
     for (j = 0; j < width; j++) {

@@ -120,6 +120,7 @@ list(
   AVM_DSP_COMMON_INTRIN_NEON
   "${AVM_ROOT}/avm_dsp/arm/avm_convolve_copy_neon.c"
   "${AVM_ROOT}/avm_dsp/arm/fwd_txfm_neon.c"
+  "${AVM_ROOT}/avm_dsp/arm/highbd_convolve_neon.c"
   "${AVM_ROOT}/avm_dsp/arm/loopfilter_neon.c"
   "${AVM_ROOT}/avm_dsp/arm/intrapred_neon.c"
   "${AVM_ROOT}/avm_dsp/arm/subtract_neon.c"
@@ -269,9 +270,13 @@ if(CONFIG_AV2_ENCODER)
        "${AVM_ROOT}/avm_dsp/x86/highbd_variance_sse4.c"
        "${AVM_ROOT}/avm_dsp/x86/sse_sse4.c")
 
-  list(APPEND AVM_DSP_ENCODER_INTRIN_NEON "${AVM_ROOT}/avm_dsp/arm/avg_neon.c"
-       "${AVM_ROOT}/avm_dsp/arm/sse_neon.c"
-       "${AVM_ROOT}/avm_dsp/arm/sum_squares_neon.c")
+  list(
+    APPEND
+    AVM_DSP_ENCODER_INTRIN_NEON
+    "${AVM_ROOT}/avm_dsp/arm/avg_neon.c"
+    "${AVM_ROOT}/avm_dsp/arm/highbd_variance_neon.c"
+    "${AVM_ROOT}/avm_dsp/arm/sse_neon.c"
+    "${AVM_ROOT}/avm_dsp/arm/sum_squares_neon.c")
 
   list(
     APPEND
