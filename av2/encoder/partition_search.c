@@ -2925,19 +2925,13 @@ static AVM_INLINE bool is_same_block_for_tree(const MB_MODE_INFO *m1,
 static AVM_INLINE void prune_4way_partitions_with_neighbor_boundaries(
     PartitionSearchState *state, const AV2_COMMON *cm, const MACROBLOCKD *xd,
     int mi_row, int mi_col, BLOCK_SIZE bsize) {
-  const int mi_width = mi_size_wide[bsize];
+  // Check left neighbor for horizontal boundaries using mi array
   const int mi_height = mi_size_high[bsize];
-
   const int available_mi_height =
       AVMMIN(mi_height, cm->mi_params.mi_rows - mi_row);
-  const int available_mi_width =
-      AVMMIN(mi_width, cm->mi_params.mi_cols - mi_col);
-
-  bool left_horz_boundaries[MAX_MIB_SIZE] = { false };
-  bool top_vert_boundaries[MAX_MIB_SIZE] = { false };
-
-  // Check left neighbor for horizontal boundaries using mi array
-  if (xd->left_available && mi_height >= 8) {
+  if (xd->left_available && mi_height >= 8 &&
+      available_mi_height == mi_height) {
+    bool left_horz_boundaries[MAX_MIB_SIZE] = { false };
     for (int r = 1; r < available_mi_height; r++) {
       const MB_MODE_INFO *m1 = xd->mi[r * xd->mi_stride - 1];
       const MB_MODE_INFO *m2 = xd->mi[(r - 1) * xd->mi_stride - 1];
@@ -2945,21 +2939,7 @@ static AVM_INLINE void prune_4way_partitions_with_neighbor_boundaries(
         left_horz_boundaries[r] = true;
       }
     }
-  }
-
-  // Check top neighbor for vertical boundaries using mi array
-  if (xd->up_available && mi_width >= 8) {
-    for (int c = 1; c < available_mi_width; c++) {
-      const MB_MODE_INFO *m1 = xd->mi[-xd->mi_stride + c];
-      const MB_MODE_INFO *m2 = xd->mi[-xd->mi_stride + c - 1];
-      if (!is_same_block_for_tree(m1, m2, xd->tree_type)) {
-        top_vert_boundaries[c] = true;
-      }
-    }
-  }
-
-  // Prune 4-way Partitions.
-  if (xd->left_available && mi_height >= 8) {
+    // Prune HORZ 4A/4B partitions.
     if (!left_horz_boundaries[mi_height / 8] &&
         !left_horz_boundaries[3 * mi_height / 8] &&
         !left_horz_boundaries[7 * mi_height / 8]) {
@@ -2972,7 +2952,20 @@ static AVM_INLINE void prune_4way_partitions_with_neighbor_boundaries(
     }
   }
 
-  if (xd->up_available && mi_width >= 8) {
+  // Check top neighbor for vertical boundaries using mi array
+  const int mi_width = mi_size_wide[bsize];
+  const int available_mi_width =
+      AVMMIN(mi_width, cm->mi_params.mi_cols - mi_col);
+  if (xd->up_available && mi_width >= 8 && available_mi_width == mi_width) {
+    bool top_vert_boundaries[MAX_MIB_SIZE] = { false };
+    for (int c = 1; c < available_mi_width; c++) {
+      const MB_MODE_INFO *m1 = xd->mi[-xd->mi_stride + c];
+      const MB_MODE_INFO *m2 = xd->mi[-xd->mi_stride + c - 1];
+      if (!is_same_block_for_tree(m1, m2, xd->tree_type)) {
+        top_vert_boundaries[c] = true;
+      }
+    }
+    // Prune VERT 4A/4B partitions.
     if (!top_vert_boundaries[mi_width / 8] &&
         !top_vert_boundaries[3 * mi_width / 8] &&
         !top_vert_boundaries[7 * mi_width / 8]) {
