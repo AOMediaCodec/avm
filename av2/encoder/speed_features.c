@@ -1363,11 +1363,15 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
   }
 
   if (is_720p_or_larger && cpi->oxcf.mode == GOOD && speed <= 1) {
-    const int qindex_thresh = 124 + qindex_offset;
+    // At speed 1, extend the qindex band and use a boost-aware coeff-opt level
+    // (keeps full optimization on KF/ARF/GF references while pruning more on
+    // the non-reference leaves). Speed 0 keeps its original behavior.
+    const int qindex_thresh = (speed == 1 ? 200 : 124) + qindex_offset;
     const int qindex_thresh2 = 113 + qindex_offset;
 
     if (cm->quant_params.base_qindex <= qindex_thresh) {
-      sf->rd_sf.perform_coeff_opt = 2 + is_1080p_or_larger;
+      sf->rd_sf.perform_coeff_opt =
+          (speed == 1) ? (boosted ? 2 : 3) : (2 + is_1080p_or_larger);
       memcpy(winner_mode_params->coeff_opt_dist_threshold,
              coeff_opt_dist_thresholds[sf->rd_sf.perform_coeff_opt],
              sizeof(winner_mode_params->coeff_opt_dist_threshold));
