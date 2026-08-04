@@ -1086,7 +1086,7 @@ static AVM_INLINE void set_erp_speed_features(AV2_COMP *cpi) {
       sf->part_sf.ext_recur_depth_level = 2;
       sf->part_sf.simple_motion_search_split = 1;
       sf->part_sf.simple_motion_search_early_term_none = 1;
-      sf->part_sf.prune_part_with_neighbor_boundaries = true;
+      sf->part_sf.prune_part_with_neighbor_boundaries = 1;
       AVM_FALLTHROUGH_INTENDED;
     case 5:
       sf->part_sf.prune_part_h_with_partition_boundary = true;
@@ -1126,7 +1126,7 @@ static AVM_INLINE void set_erp_speed_features(AV2_COMP *cpi) {
     // Emulate erp_pruning_level = 6.
     sf->part_sf.ext_recur_depth_level = 1;
     sf->part_sf.ml_early_term_after_part_split_level = 2;
-    sf->part_sf.prune_part_with_neighbor_boundaries = true;
+    sf->part_sf.prune_part_with_neighbor_boundaries = 1;
   }
 
   if (cpi->speed >= 2) {

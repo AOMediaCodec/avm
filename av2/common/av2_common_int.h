@@ -6056,6 +6056,7 @@ static INLINE void av2_get_chroma_start_location(const MB_MODE_INFO *mbmi,
                                                  TREE_TYPE tree_type,
                                                  int *chroma_mi_row_start,
                                                  int *chroma_mi_col_start) {
+  assert(tree_type == SHARED_PART || tree_type == CHROMA_PART);
   if (tree_type == SHARED_PART) {
     *chroma_mi_row_start = mbmi->chroma_ref_info.mi_row_chroma_base;
     *chroma_mi_col_start = mbmi->chroma_ref_info.mi_col_chroma_base;
