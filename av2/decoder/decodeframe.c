@@ -4153,6 +4153,74 @@ static void reuse_tile_params(CommonTileParams *tiles,
   av2_calculate_tile_rows(tiles);
 }
 
+static void read_tile_syntax_info(CommonTileParams *tiles,
+                                  struct avm_read_bit_buffer *rb) {
+  int width_sb = tiles->sb_cols;
+  int height_sb = tiles->sb_rows;
+
+  tiles->uniform_spacing = avm_rb_read_bit(rb);
+
+  // Read tile columns
+  if (tiles->uniform_spacing) {
+    tiles->log2_cols = tiles->min_log2_cols;
+    while (tiles->log2_cols < tiles->max_log2_cols) {
+      if (!avm_rb_read_bit(rb)) {
+        break;
+      }
+      tiles->log2_cols++;
+    }
+  } else {
+    int i;
+    int start_sb;
+    for (i = 0, start_sb = 0; width_sb > 0; i++) {
+      if (i >= MAX_TILE_COLS) {
+        rb->error_handler(rb->error_handler_data, AVM_CODEC_CORRUPT_FRAME,
+                          "SeqTileCols cannot be greater than MAX_TILE_COLS");
+      }
+      const int size_sb =
+          1 + rb_read_uniform(rb, AVMMIN(width_sb, tiles->max_width_sb));
+      tiles->col_start_sb[i] = start_sb;
+      start_sb += size_sb;
+      width_sb -= size_sb;
+    }
+    assert(width_sb == 0);
+    assert(start_sb == tiles->sb_cols);
+    tiles->cols = i;
+    tiles->col_start_sb[i] = start_sb;
+  }
+  av2_calculate_tile_cols(tiles);
+
+  // Read tile rows
+  if (tiles->uniform_spacing) {
+    tiles->log2_rows = tiles->min_log2_rows;
+    while (tiles->log2_rows < tiles->max_log2_rows) {
+      if (!avm_rb_read_bit(rb)) {
+        break;
+      }
+      tiles->log2_rows++;
+    }
+  } else {
+    int i;
+    int start_sb;
+    for (i = 0, start_sb = 0; height_sb > 0; i++) {
+      if (i >= MAX_TILE_ROWS) {
+        rb->error_handler(rb->error_handler_data, AVM_CODEC_CORRUPT_FRAME,
+                          "SeqTileRows cannot be greater than MAX_TILE_ROWS");
+      }
+      const int size_sb =
+          1 + rb_read_uniform(rb, AVMMIN(height_sb, tiles->max_height_sb));
+      tiles->row_start_sb[i] = start_sb;
+      start_sb += size_sb;
+      height_sb -= size_sb;
+    }
+    assert(height_sb == 0);
+    assert(start_sb == tiles->sb_rows);
+    tiles->rows = i;
+    tiles->row_start_sb[i] = start_sb;
+  }
+  av2_calculate_tile_rows(tiles);
+}
+
 static AVM_INLINE void read_tile_info(AV2Decoder *const pbi,
                                       struct avm_read_bit_buffer *const rb) {
   AV2_COMMON *const cm = &pbi->common;
@@ -5849,73 +5917,6 @@ void av2_read_conformance_window(struct avm_read_bit_buffer *rb,
     conf->conf_win_top_offset = 0;
     conf->conf_win_bottom_offset = 0;
   }
-}
-
-static void read_tile_syntax_info(CommonTileParams *tile_info,
-                                  struct avm_read_bit_buffer *rb) {
-  tile_info->uniform_spacing = avm_rb_read_bit(rb);
-
-  // Read tile columns
-  if (tile_info->uniform_spacing) {
-    tile_info->log2_cols = tile_info->min_log2_cols;
-    while (tile_info->log2_cols < tile_info->max_log2_cols) {
-      if (!avm_rb_read_bit(rb)) {
-        break;
-      }
-      tile_info->log2_cols++;
-    }
-  } else {
-    int i;
-    int start_sb;
-    int width_sb = tile_info->sb_cols;
-    for (i = 0, start_sb = 0; width_sb > 0; i++) {
-      if (i >= MAX_TILE_COLS) {
-        rb->error_handler(rb->error_handler_data, AVM_CODEC_CORRUPT_FRAME,
-                          "SeqTileCols cannot be greater than MAX_TILE_COLS");
-      }
-      const int size_sb =
-          1 + rb_read_uniform(rb, AVMMIN(width_sb, tile_info->max_width_sb));
-      tile_info->col_start_sb[i] = start_sb;
-      start_sb += size_sb;
-      width_sb -= size_sb;
-    }
-    assert(width_sb == 0);
-    assert(start_sb == tile_info->sb_cols);
-    tile_info->cols = i;
-    tile_info->col_start_sb[i] = start_sb;
-  }
-  av2_calculate_tile_cols(tile_info);
-
-  // Read tile rows
-  if (tile_info->uniform_spacing) {
-    tile_info->log2_rows = tile_info->min_log2_rows;
-    while (tile_info->log2_rows < tile_info->max_log2_rows) {
-      if (!avm_rb_read_bit(rb)) {
-        break;
-      }
-      tile_info->log2_rows++;
-    }
-  } else {
-    int i;
-    int start_sb;
-    int height_sb = tile_info->sb_rows;
-    for (i = 0, start_sb = 0; height_sb > 0; i++) {
-      if (i >= MAX_TILE_ROWS) {
-        rb->error_handler(rb->error_handler_data, AVM_CODEC_CORRUPT_FRAME,
-                          "SeqTileRows cannot be greater than MAX_TILE_ROWS");
-      }
-      const int size_sb =
-          1 + rb_read_uniform(rb, AVMMIN(height_sb, tile_info->max_height_sb));
-      tile_info->row_start_sb[i] = start_sb;
-      start_sb += size_sb;
-      height_sb -= size_sb;
-    }
-    assert(height_sb == 0);
-    assert(start_sb == tile_info->sb_rows);
-    tile_info->rows = i;
-    tile_info->row_start_sb[i] = start_sb;
-  }
-  av2_calculate_tile_rows(tile_info);
 }
 
 // Reads the tile information in the sequence header
