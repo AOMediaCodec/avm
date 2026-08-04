@@ -826,7 +826,8 @@ void av2_decoder_model_init(const AV2_COMP *const cpi, AV2_LEVEL level,
     decoder_model->num_ticks_per_picture =
         cm->ci_params_encoder.timing_info.num_ticks_per_elemental_duration;
     decoder_model->display_clock_tick =
-        cm->ci_params_encoder.timing_info.num_ticks_per_elemental_duration /
+        (double)
+            cm->ci_params_encoder.timing_info.num_ticks_per_elemental_duration /
         cm->ci_params_encoder.timing_info.time_scale;
   } else {
     decoder_model->num_ticks_per_picture = 1;
