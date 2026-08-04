@@ -996,6 +996,9 @@ typedef struct LOOP_FILTER_SPEED_FEATURES {
 
   // enable deblock for block partition search
   int enable_deblock_for_partition_search;
+
+  // early terminate ccso search by cost threshold
+  int early_terminate_ccso_search_by_cost;
 } LOOP_FILTER_SPEED_FEATURES;
 
 typedef struct REALTIME_SPEED_FEATURES {
