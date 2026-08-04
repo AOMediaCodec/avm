@@ -2919,7 +2919,10 @@ static AVM_INLINE bool is_same_block_for_tree(const MB_MODE_INFO *m1,
   }
 }
 
-static AVM_INLINE void prune_partitions_with_neighbor_boundaries(
+// Prunes uneven 4-way partitions by checking partition boundary alignment with
+// neighboring top/left blocks. Neighbor boundaries are detected by checking if
+// neighboring top/left MI units share the same block ID.
+static AVM_INLINE void prune_4way_partitions_with_neighbor_boundaries(
     PartitionSearchState *state, const AV2_COMMON *cm, const MACROBLOCKD *xd,
     int mi_row, int mi_col, BLOCK_SIZE bsize) {
   const int mi_width = mi_size_wide[bsize];
@@ -2934,7 +2937,7 @@ static AVM_INLINE void prune_partitions_with_neighbor_boundaries(
   bool top_vert_boundaries[MAX_MIB_SIZE] = { false };
 
   // Check left neighbor for horizontal boundaries using mi array
-  if (xd->left_available) {
+  if (xd->left_available && mi_height >= 8) {
     for (int r = 1; r < available_mi_height; r++) {
       const MB_MODE_INFO *m1 = xd->mi[r * xd->mi_stride - 1];
       const MB_MODE_INFO *m2 = xd->mi[(r - 1) * xd->mi_stride - 1];
@@ -2945,7 +2948,7 @@ static AVM_INLINE void prune_partitions_with_neighbor_boundaries(
   }
 
   // Check top neighbor for vertical boundaries using mi array
-  if (xd->up_available) {
+  if (xd->up_available && mi_width >= 8) {
     for (int c = 1; c < available_mi_width; c++) {
       const MB_MODE_INFO *m1 = xd->mi[-xd->mi_stride + c];
       const MB_MODE_INFO *m2 = xd->mi[-xd->mi_stride + c - 1];
@@ -2956,33 +2959,29 @@ static AVM_INLINE void prune_partitions_with_neighbor_boundaries(
   }
 
   // Prune 4-way Partitions.
-  if (xd->left_available) {
-    if (mi_height >= 8) {
-      if (!left_horz_boundaries[mi_height / 8] &&
-          !left_horz_boundaries[3 * mi_height / 8] &&
-          !left_horz_boundaries[7 * mi_height / 8]) {
-        state->prune_partition[PARTITION_HORZ_4A] = true;
-      }
-      if (!left_horz_boundaries[mi_height / 8] &&
-          !left_horz_boundaries[5 * mi_height / 8] &&
-          !left_horz_boundaries[7 * mi_height / 8]) {
-        state->prune_partition[PARTITION_HORZ_4B] = true;
-      }
+  if (xd->left_available && mi_height >= 8) {
+    if (!left_horz_boundaries[mi_height / 8] &&
+        !left_horz_boundaries[3 * mi_height / 8] &&
+        !left_horz_boundaries[7 * mi_height / 8]) {
+      state->prune_partition[PARTITION_HORZ_4A] = true;
+    }
+    if (!left_horz_boundaries[mi_height / 8] &&
+        !left_horz_boundaries[5 * mi_height / 8] &&
+        !left_horz_boundaries[7 * mi_height / 8]) {
+      state->prune_partition[PARTITION_HORZ_4B] = true;
     }
   }
 
-  if (xd->up_available) {
-    if (mi_width >= 8) {
-      if (!top_vert_boundaries[mi_width / 8] &&
-          !top_vert_boundaries[3 * mi_width / 8] &&
-          !top_vert_boundaries[7 * mi_width / 8]) {
-        state->prune_partition[PARTITION_VERT_4A] = true;
-      }
-      if (!top_vert_boundaries[mi_width / 8] &&
-          !top_vert_boundaries[5 * mi_width / 8] &&
-          !top_vert_boundaries[7 * mi_width / 8]) {
-        state->prune_partition[PARTITION_VERT_4B] = true;
-      }
+  if (xd->up_available && mi_width >= 8) {
+    if (!top_vert_boundaries[mi_width / 8] &&
+        !top_vert_boundaries[3 * mi_width / 8] &&
+        !top_vert_boundaries[7 * mi_width / 8]) {
+      state->prune_partition[PARTITION_VERT_4A] = true;
+    }
+    if (!top_vert_boundaries[mi_width / 8] &&
+        !top_vert_boundaries[5 * mi_width / 8] &&
+        !top_vert_boundaries[7 * mi_width / 8]) {
+      state->prune_partition[PARTITION_VERT_4B] = true;
     }
   }
 }
@@ -5435,8 +5434,8 @@ bool av2_rd_pick_partition(
 
   if (cpi->sf.part_sf.prune_part_with_neighbor_boundaries &&
       !x->must_find_valid_partition && !frame_is_intra_only(cm)) {
-    prune_partitions_with_neighbor_boundaries(&part_search_state, cm, xd,
-                                              mi_row, mi_col, bsize);
+    prune_4way_partitions_with_neighbor_boundaries(&part_search_state, cm, xd,
+                                                   mi_row, mi_col, bsize);
   }
 
   // Save rdmult before it might be changed, so it can be restored later.
