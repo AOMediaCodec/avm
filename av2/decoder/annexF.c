@@ -495,6 +495,81 @@ int av2_sbe_should_retain_obu(const SubBitstreamExtractionState *sbe,
   return 1;  // Retain: layer combination is in retention map
 }
 
+static void retain_all_layers(SubBitstreamExtractionState *sbe, int xlayer_id) {
+  sbe->xlayer_is_selected[xlayer_id] = 1;
+  for (int m = 0; m < MAX_NUM_MLAYERS; ++m) {
+    for (int t = 0; t < MAX_NUM_TLAYERS; ++t) {
+      sbe->retention_map[xlayer_id][m][t] = 1;
+    }
+  }
+}
+
+static void retain_operating_point_layers(SubBitstreamExtractionState *sbe,
+                                          const OperatingPointSet *ops,
+                                          const OperatingPoint *op,
+                                          int xlayer_id) {
+  sbe->xlayer_is_selected[xlayer_id] = 1;
+  if (ops->ops_mlayer_info_idc == 0) {
+    retain_all_layers(sbe, xlayer_id);
+    return;
+  }
+
+  const int mlayer_map = op->mlayer_info.ops_mlayer_map[xlayer_id];
+  for (int m = 0; m < MAX_NUM_MLAYERS; ++m) {
+    if ((mlayer_map & (1 << m)) == 0) continue;
+    const int tlayer_map = op->mlayer_info.ops_tlayer_map[xlayer_id][m];
+    for (int t = 0; t < MAX_NUM_TLAYERS; ++t) {
+      if (tlayer_map & (1 << t)) {
+        sbe->retention_map[xlayer_id][m][t] = 1;
+      }
+    }
+  }
+}
+
+int av2_sbe_configure_decoder_model_scope(SubBitstreamExtractionState *sbe,
+                                          int xlayer_id,
+                                          const OperatingPointSet *ops,
+                                          int op_index, int whole_xlayer) {
+  if (sbe == NULL || xlayer_id < 0 || xlayer_id >= MAX_NUM_XLAYERS) return 0;
+
+  memset(sbe, 0, sizeof(*sbe));
+  sbe->extraction_enabled = 1;
+  av2_sbe_init(sbe);
+  sbe->retention_map_ready = 1;
+
+  // Annex F retains global structural OBUs in extracted multistreams. Setting
+  // the global base-layer entry is harmless for singlestreams, which contain
+  // no such OBU, and makes the membership decision independent of parse order.
+  sbe->xlayer_is_selected[GLOBAL_XLAYER_ID] = 1;
+  sbe->retention_map[GLOBAL_XLAYER_ID][0][0] = 1;
+
+  if (whole_xlayer) {
+    if (xlayer_id == GLOBAL_XLAYER_ID) return 0;
+    retain_all_layers(sbe, xlayer_id);
+    return 1;
+  }
+
+  if (ops == NULL || !ops->valid || op_index < 0 || op_index >= ops->ops_cnt) {
+    return 0;
+  }
+
+  const OperatingPoint *const op = &ops->op[op_index];
+  if (ops->obu_xlayer_id != GLOBAL_XLAYER_ID) {
+    if (ops->obu_xlayer_id != xlayer_id) return 0;
+    retain_operating_point_layers(sbe, ops, op, xlayer_id);
+    return 1;
+  }
+
+  // Annex E checks each xlayer selected by a global operating point
+  // independently. The caller creates one scope per selected xlayer.
+  if (xlayer_id == GLOBAL_XLAYER_ID ||
+      (op->ops_xlayer_map & (1 << xlayer_id)) == 0) {
+    return 0;
+  }
+  retain_operating_point_layers(sbe, ops, op, xlayer_id);
+  return 1;
+}
+
 // Step 5 fallback: extract profile/level/tier from sequence header.
 void av2_sbe_extract_seq_header_params(SubBitstreamExtractionState *sbe,
                                        int xlayer_id, int seq_profile_idc,

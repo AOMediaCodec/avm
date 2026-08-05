@@ -973,6 +973,7 @@ typedef struct OperatingPoint {
 
   // Details per layer
   int ops_xlayer_map;
+  bool ops_initial_display_delay_present_flag;
   int ops_initial_display_delay;
   int ops_decoder_model_info_for_this_op_present_flag;
   int ops_mlayer_explicit_info_flag[MAX_NUM_XLAYERS];
@@ -2983,6 +2984,7 @@ typedef struct AV2Common {
    * Temporal point info
    */
   avm_metadata_temporal_point_info_t temporal_point_info_metadata;
+  bool temporal_point_info_present;
 
   /*!
    * Order hint of the last encountered OLK

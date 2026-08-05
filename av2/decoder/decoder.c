@@ -40,6 +40,7 @@
 
 #include "av2/decoder/decodeframe.h"
 #include "av2/decoder/decoder.h"
+#include "av2/decoder/decoder_model.h"
 #include "av2/decoder/detokenize.h"
 #include "av2/decoder/obu.h"
 
@@ -393,6 +394,8 @@ void av2_decoder_remove(AV2Decoder *pbi) {
 
   if (!pbi) return;
 
+  av2_decoder_model_verifier_destroy(pbi);
+
   avm_get_worker_interface()->end(&pbi->lf_worker);
   avm_free(pbi->lf_worker.data1);
 
@@ -582,14 +585,28 @@ static void release_current_frame(AV2Decoder *pbi) {
   cm->cur_frame = NULL;
 }
 
+static void queue_output_frame(AV2Decoder *pbi, RefCntBuffer *frame,
+                               int frame_to_show_map_idx,
+                               Av2DmPresentationOwner presentation_owner) {
+  assign_output_frame_buffer_p(&pbi->output_frames[pbi->num_output_frames++],
+                               frame);
+  frame->frame_output_done = 1;
+  if (pbi->decoder_model_verifier != NULL) {
+    av2_decoder_model_verifier_on_output(pbi, frame_to_show_map_idx, frame,
+                                         presentation_owner);
+  }
+}
+
 // This function flushes out the DPB, all the slots in the dpb is free to use.
 avm_codec_err_t flush_remaining_frames(struct AV2Decoder *pbi,
                                        int order_hint_limit) {
   avm_codec_err_t res = AVM_CODEC_OK;
   AV2_COMMON *const cm = &pbi->common;
   RefCntBuffer *output_candidate = NULL;
+  int output_candidate_ref_idx = -1;
   do {
     output_candidate = NULL;
+    output_candidate_ref_idx = -1;
     for (int i = 0; i < REF_FRAMES; i++) {
       RefCntBuffer *const buf = cm->ref_frame_map[i];
       if (buf == NULL) continue;
@@ -600,15 +617,15 @@ avm_codec_err_t flush_remaining_frames(struct AV2Decoder *pbi,
            derive_output_order_idx(cm, buf) <=
                derive_output_order_idx(cm, output_candidate))) {
         output_candidate = buf;
+        output_candidate_ref_idx = i;
       }
     }
     if (output_candidate != NULL) {
       if (pbi->num_output_frames >= (REF_FRAMES + 1) * AVM_MAX_NUM_STREAMS) {
         return AVM_CODEC_MEM_ERROR;
       }
-      assign_output_frame_buffer_p(
-          &pbi->output_frames[pbi->num_output_frames++], output_candidate);
-      output_candidate->frame_output_done = 1;
+      queue_output_frame(pbi, output_candidate, output_candidate_ref_idx,
+                         AV2_DM_PRESENTATION_OWNER_IMPLICIT);
     }
   } while (output_candidate != NULL);
   return res;
@@ -633,6 +650,7 @@ int av2_output_frame_buffers(AV2Decoder *pbi, int ref_idx) {
   AV2_COMMON *const cm = &pbi->common;
   RefCntBuffer *trigger_frame = NULL;
   RefCntBuffer *output_candidate = NULL;
+  int output_candidate_ref_idx = -1;
   int doh_error = 0;
 
   // Determine if the triggering frame is the current frame or a frame
@@ -642,20 +660,21 @@ int av2_output_frame_buffers(AV2Decoder *pbi, int ref_idx) {
   // Add the previous frames into the output queue.
   do {
     output_candidate = trigger_frame;
+    output_candidate_ref_idx = ref_idx;
     for (int i = 0; i < cm->seq_params.ref_frames; i++) {
       if (is_frame_eligible_for_output(cm->ref_frame_map[i]) &&
           derive_output_order_idx(cm, cm->ref_frame_map[i]) <
               derive_output_order_idx(cm, output_candidate)) {
         output_candidate = cm->ref_frame_map[i];
+        output_candidate_ref_idx = i;
       }
     }
     if (output_candidate != trigger_frame) {
       if (cm->seq_params.monotonic_output_order_flag == 0) {
         doh_error |= check_and_update_output_doh(pbi, output_candidate);
       }
-      assign_output_frame_buffer_p(
-          &pbi->output_frames[pbi->num_output_frames++], output_candidate);
-      output_candidate->frame_output_done = 1;
+      queue_output_frame(pbi, output_candidate, output_candidate_ref_idx,
+                         AV2_DM_PRESENTATION_OWNER_IMPLICIT);
 #if CONFIG_BITSTREAM_DEBUG
       avm_bitstream_queue_set_frame_read(
           derive_output_order_idx(cm, output_candidate) * 2 + 1);
@@ -670,9 +689,12 @@ int av2_output_frame_buffers(AV2Decoder *pbi, int ref_idx) {
     // Add the output triggering frame into the output queue.
     doh_error |= check_and_update_output_doh(pbi, trigger_frame);
   }
-  assign_output_frame_buffer_p(&pbi->output_frames[pbi->num_output_frames++],
-                               trigger_frame);
-  trigger_frame->frame_output_done = 1;
+  const int trigger_model_ref_idx =
+      ref_idx >= 0 ? ref_idx
+                   : (cm->show_existing_frame ? cm->sef_ref_fb_idx : -1);
+  queue_output_frame(pbi, trigger_frame, trigger_model_ref_idx,
+                     ref_idx < 0 ? AV2_DM_PRESENTATION_OWNER_CURRENT
+                                 : AV2_DM_PRESENTATION_OWNER_IMPLICIT);
 
 #if CONFIG_BITSTREAM_DEBUG
   if (trigger_frame->order_hint != cm->cur_frame->order_hint) {
@@ -701,10 +723,8 @@ int av2_output_frame_buffers(AV2Decoder *pbi, int ref_idx) {
         if (cm->seq_params.monotonic_output_order_flag == 0) {
           doh_error |= check_and_update_output_doh(pbi, cm->ref_frame_map[i]);
         }
-        assign_output_frame_buffer_p(
-            &pbi->output_frames[pbi->num_output_frames++],
-            cm->ref_frame_map[i]);
-        cm->ref_frame_map[i]->frame_output_done = 1;
+        queue_output_frame(pbi, cm->ref_frame_map[i], i,
+                           AV2_DM_PRESENTATION_OWNER_IMPLICIT);
         successive_output++;
 #if CONFIG_BITSTREAM_DEBUG
         avm_bitstream_queue_set_frame_read(
@@ -771,6 +791,16 @@ static void update_frame_buffers(AV2Decoder *pbi, int frame_decoded) {
         }
       }
       ++ref_index;
+    }
+    uint32_t ref_valid_mask = 0;
+    for (int i = 0; i < cm->seq_params.ref_frames; ++i) {
+      if (cm->ref_frame_map[i] != NULL && pbi->valid_for_referencing[i]) {
+        ref_valid_mask |= (uint32_t)1 << i;
+      }
+    }
+    if (pbi->decoder_model_verifier != NULL) {
+      av2_decoder_model_verifier_after_reference_update(
+          pbi, (uint32_t)cm->current_frame.refresh_frame_flags, ref_valid_mask);
     }
     update_subgop_stats(cm, &pbi->subgop_stats, cm->cur_frame->order_hint,
                         pbi->enable_subgop_stats);
@@ -870,6 +900,14 @@ int av2_receive_compressed_data(AV2Decoder *pbi, size_t size,
     release_current_frame(pbi);
     cm->error.setjmp = 0;
     return 1;
+  }
+
+  if (frame_decoded) {
+    // The suffix-OBU loop has completed, so CodedBits for this frame unit is
+    // now exact. Show-existing units leave the pending DFG open by definition.
+    if (pbi->decoder_model_verifier != NULL) {
+      av2_decoder_model_verifier_on_frame_unit_complete(pbi);
+    }
   }
 
 #if TXCOEFF_TIMER

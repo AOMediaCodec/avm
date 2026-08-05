@@ -14,6 +14,10 @@
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
 #include "av2/common/enums.h"
+extern "C" {
+#include "av2/common/level.h"
+#include "av2/encoder/encoder.h"
+}
 #include "test/codec_factory.h"
 #include "test/encode_test_driver.h"
 #include "test/i420_video_source.h"
@@ -22,6 +26,25 @@
 #include "test/yuv_video_source.h"
 
 namespace {
+TEST(LevelDecoderModelTest, DisplayClockTickUsesDisplayTimebaseUnits) {
+  std::unique_ptr<AV2_COMP> cpi(new AV2_COMP());
+  cpi->common.seq_params.ref_frames = REF_FRAMES;
+  cpi->common.seq_params.seq_profile_idc = MAIN_420_10_IP0;
+  cpi->common.seq_params.subsampling_x = 1;
+  cpi->common.seq_params.subsampling_y = 1;
+  cpi->common.ci_params_encoder.ci_timing_info_present_flag = 1;
+  cpi->common.ci_params_encoder.timing_info.num_units_in_display_tick = 1001;
+  cpi->common.ci_params_encoder.timing_info.time_scale = 30000;
+  cpi->common.ci_params_encoder.timing_info.num_ticks_per_elemental_duration =
+      7;
+
+  DECODER_MODEL decoder_model;
+  av2_decoder_model_init(cpi.get(), SEQ_LEVEL_4_0, 0, &decoder_model);
+
+  EXPECT_DOUBLE_EQ(1001.0 / 30000, decoder_model.display_clock_tick);
+  EXPECT_EQ(7, decoder_model.num_ticks_per_picture);
+}
+
 // Speed settings tested
 static const int kCpuUsedVectors[] = {
   2,
