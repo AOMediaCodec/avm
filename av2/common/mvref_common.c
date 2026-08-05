@@ -3815,6 +3815,59 @@ static void fill_id_offset_sample_gap(AV2_COMMON *cm) {
   }
 }
 
+// Add up to 2 past refs and 2 future refs, each temporally nearest to the
+// current frame. A past candidate is only added if it has at least one
+// future reference frame, and vice versa. Between a past and future candidate,
+// priority is given to the one whose pairing reference (which must be on the
+// other side of the current frame) is temporally closer.
+static void add_nearest_past_future_ref(
+    const AV2_COMMON *cm, int cur_frame_sort_idx, const int *sort_ref,
+    int checked_ref[INTER_REFS_PER_FRAME][2],
+    struct ProcessRefTMVP *process_ref, int *process_count) {
+  const int valid_ref_num =
+      cm->ref_frames_info.num_valid_refs_without_restricted_ref;
+  assert(valid_ref_num <= cm->ref_frames_info.num_total_refs);
+
+  for (int group_idx = 0; group_idx < 2; ++group_idx) {
+    int past_ref_sort_idx = cur_frame_sort_idx - group_idx;
+    if (past_ref_sort_idx < 0 ||
+        !has_future_ref(cm, sort_ref[past_ref_sort_idx]))
+      past_ref_sort_idx = -1;
+
+    int future_ref_sort_idx = cur_frame_sort_idx + 1 + group_idx;
+    if (future_ref_sort_idx >= valid_ref_num ||
+        !has_past_ref(cm, sort_ref[future_ref_sort_idx]))
+      future_ref_sort_idx = -1;
+
+    const int past_ref_to_its_ref_dist =
+        past_ref_sort_idx >= 0
+            ? get_dist_to_closest_interp_ref(cm, sort_ref[past_ref_sort_idx], 0)
+            : -1;
+    const int future_ref_to_its_ref_dist =
+        future_ref_sort_idx >= 0 ? get_dist_to_closest_interp_ref(
+                                       cm, sort_ref[future_ref_sort_idx], 1)
+                                 : -1;
+
+    const int future_first =
+        future_ref_to_its_ref_dist < past_ref_to_its_ref_dist;
+    const int first_idx =
+        future_first ? future_ref_sort_idx : past_ref_sort_idx;
+    const int second_idx =
+        future_first ? past_ref_sort_idx : future_ref_sort_idx;
+
+    if (first_idx != -1) {
+      check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE, sort_ref[first_idx],
+                                -1, (first_idx == past_ref_sort_idx) ? 1 : 0,
+                                checked_ref, process_ref, process_count);
+    }
+    if (second_idx != -1) {
+      check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE, sort_ref[second_idx],
+                                -1, (second_idx == past_ref_sort_idx) ? 1 : 0,
+                                checked_ref, process_ref, process_count);
+    }
+  }
+}
+
 void av2_setup_motion_field(AV2_COMMON *cm) {
   const OrderHintInfo *const order_hint_info = &cm->seq_params.order_hint_info;
   const int8_t *const ref_frame_side = cm->ref_frame_side;
@@ -3955,58 +4008,9 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
       cm->tip_ref.ref_frame[1] = NONE_FRAME;
     }
   }
-  int valid_ref_num = cm->ref_frames_info.num_total_refs;
-  if (cm->ref_frames_info.num_total_refs >
-      cm->ref_frames_info.num_valid_refs_without_restricted_ref)
-    valid_ref_num = cm->ref_frames_info.num_valid_refs_without_restricted_ref;
-  for (int group_idx = 0; group_idx < 2; ++group_idx) {
-    int past_ref_sort_idx =
-        cur_frame_sort_idx >= group_idx ? cur_frame_sort_idx - group_idx : -1;
-    if (past_ref_sort_idx >= 0 &&
-        !has_future_ref(cm, sort_ref[past_ref_sort_idx]))
-      past_ref_sort_idx = -1;
 
-    int future_ref_sort_idx = cur_frame_sort_idx < valid_ref_num - group_idx - 1
-                                  ? cur_frame_sort_idx + 1 + group_idx
-                                  : -1;
-    if (future_ref_sort_idx >= 0 &&
-        !has_past_ref(cm, sort_ref[future_ref_sort_idx]))
-      future_ref_sort_idx = -1;
-
-    const int past_ref_to_its_ref_dist =
-        past_ref_sort_idx >= 0
-            ? get_dist_to_closest_interp_ref(cm, sort_ref[past_ref_sort_idx], 0)
-            : -1;
-
-    const int future_ref_to_its_ref_dist =
-        future_ref_sort_idx >= 0 ? get_dist_to_closest_interp_ref(
-                                       cm, sort_ref[future_ref_sort_idx], 1)
-                                 : -1;
-
-    if (future_ref_to_its_ref_dist < past_ref_to_its_ref_dist) {
-      if (future_ref_sort_idx != -1) {
-        check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE,
-                                  sort_ref[future_ref_sort_idx], -1, 0,
-                                  checked_ref, process_ref, &process_count);
-      }
-      if (past_ref_sort_idx != -1) {
-        check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE,
-                                  sort_ref[past_ref_sort_idx], -1, 1,
-                                  checked_ref, process_ref, &process_count);
-      }
-    } else {
-      if (past_ref_sort_idx != -1) {
-        check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE,
-                                  sort_ref[past_ref_sort_idx], -1, 1,
-                                  checked_ref, process_ref, &process_count);
-      }
-      if (future_ref_sort_idx != -1) {
-        check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE,
-                                  sort_ref[future_ref_sort_idx], -1, 0,
-                                  checked_ref, process_ref, &process_count);
-      }
-    }
-  }
+  add_nearest_past_future_ref(cm, cur_frame_sort_idx, sort_ref, checked_ref,
+                              process_ref, &process_count);
 
   if (cur_frame_sort_idx >= 0) {
     check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE,
