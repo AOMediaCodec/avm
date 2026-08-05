@@ -231,6 +231,10 @@ static void set_good_speed_feature_framesize_dependent(
     }
   }
 
+  if (speed >= 1) {
+    sf->inter_sf.prune_ref_mv_idx_search = 1;
+  }
+
   if (speed >= 6) {
     if (is_720p_or_larger) {
       sf->part_sf.auto_max_partition_based_on_simple_motion = NOT_IN_USE;
