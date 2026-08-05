@@ -3744,6 +3744,16 @@ static int64_t get_dist_offset_by_deblock(
         mi_row * MI_SIZE >> sub_y, bh >> sub_y);
   }
 
+  const int bit_depth = cm->seq_params.bit_depth;
+  int dist_normal;  // dist is normalized to 16 * 8_bit_content_distortion
+  if (bit_depth <= 10) {
+    dist_normal = 1 << ((10 - cm->seq_params.bit_depth) * 2);
+    rec_dist = rec_dist * dist_normal;
+  } else {
+    dist_normal = 1 << ((cm->seq_params.bit_depth - 10) * 2);
+    rec_dist = rec_dist / dist_normal;
+  }
+
   if (llabs(this_rdc->dist - rec_dist) < this_rdc->dist / 50) {
     int h_start = mi_col * MI_SIZE;
     int v_start = mi_row * MI_SIZE;
@@ -3784,13 +3794,9 @@ static int64_t get_dist_offset_by_deblock(
     const int64_t filtered_y_dist = avm_highbd_get_y_sse_part(
         src, filtered, h_start, area_w, v_start, area_h);
 
-    const int bit_depth = cm->seq_params.bit_depth;
-    int dist_normal;  // dist is normalized to 16 * 8_bit_content_distortion
     if (bit_depth <= 10) {
-      dist_normal = 1 << ((10 - cm->seq_params.bit_depth) * 2);
       return dist_normal * (filtered_y_dist - unfiltered_y_dist);
     } else {
-      dist_normal = 1 << ((cm->seq_params.bit_depth - 10) * 2);
       return (filtered_y_dist - unfiltered_y_dist) / dist_normal;
     }
   } else {
