@@ -41,6 +41,77 @@ static uint8_t skip_this_dip_mode(
   return !mode_found;
 }
 
+/*! \brief Determine whether to keep DIP mode search based on pruning model.
+ * \param[in/out] td                    ThreadData structure with pruning
+ *                                      model.
+ * \param[in]     x                     MACROBLOCK structure.
+ * \param[in]     bsize                 Block size.
+ * \param[in]     intra_dip_features    DIP features array.
+ * \param[in]     dip_mode_model_log_rd Log RD values for DIP modes.
+ * \param[in]     best_rd               Best rate-distortion found so far.
+ * \param[in]     best_model_rd         Best model rate-distortion found.
+ * \param[in]     base_y_dc_delta_q     Base delta Q value of DC for luma plane.
+ * \return Returns true if DIP mode search should proceed, false otherwise.
+ */
+static bool keep_intra_dip_mode(ThreadData *const td, const MACROBLOCK *const x,
+                                BLOCK_SIZE bsize,
+                                const uint16_t intra_dip_features[11],
+                                const float dip_mode_model_log_rd[12],
+                                int64_t best_rd, int64_t best_model_rd,
+                                int8_t base_y_dc_delta_q) {
+  const MACROBLOCKD *const xd = &x->e_mbd;
+  const DipMlInfo *const dip_ml_feature = &x->dip_ml_feature;
+  const int adjusted_qindex = x->qindex - MAXQ_OFFSET * (xd->bd - AVM_BITS_8);
+  const int dip_model_index =
+      intra_dip_mode_prune_get_model_index(adjusted_qindex);
+  if (dip_model_index == -1) return true;
+
+  const int dc_q = av2_dc_quant_QTX(x->qindex, 0, base_y_dc_delta_q, xd->bd) >>
+                   (xd->bd - AVM_BITS_8);
+
+  // Clamp all RD values to a minimum of 1 to avoid arithmetic exceptions.
+  const float log_best_rd = log10f((float)AVMMAX(best_rd, 1));
+  const float log_best_model_rd = log10f((float)AVMMAX(best_model_rd, 1));
+  const float log_dc_mode_rd =
+      log10f((float)AVMMAX(dip_ml_feature->dc_mode_rd, 1));
+  const float log_orig_best_rd =
+      log10f((float)AVMMAX(dip_ml_feature->orig_best_rd, 1));
+
+  dip_pruning_inputs *const dip_pruning_in =
+      intra_dip_mode_prune_get_inputs(&td->dip_pruning_model, adjusted_qindex);
+
+  dip_pruning_in->inputs[0].values[0] = log_best_model_rd;
+  dip_pruning_in->inputs[0].values[1] = log_best_rd;
+  dip_pruning_in->inputs[0].values[2] = log10f((float)dc_q);
+  dip_pruning_in->inputs[0].values[3] = log_dc_mode_rd;
+  dip_pruning_in->inputs[0].values[4] = log_orig_best_rd;
+  for (int i = 0; i < 13; ++i) {
+    dip_pruning_in->inputs[0].values[5 + i] =
+        (float)(dip_ml_feature->best_mode == i);
+  }
+  dip_pruning_in->inputs[0].values[18] = (float)dip_ml_feature->beat_best_rd;
+  intra_dip_mode_prune_normalize_and_resize_8x8(
+      x->plane[0].src.buf, x->plane[0].src.stride, xd->bd,
+      block_size_wide[bsize], block_size_high[bsize],
+      &dip_pruning_in->inputs[1].values[0]);
+
+  const float norm = (float)((1 << xd->bd) - 1);
+  for (int i = 0; i < 11; ++i) {
+    dip_pruning_in->inputs[2].values[i] = (float)intra_dip_features[i] / norm;
+  }
+  dip_pruning_in->inputs[3].values[0] = log2f((float)block_size_wide[bsize]);
+  dip_pruning_in->inputs[3].values[1] = log2f((float)block_size_high[bsize]);
+  for (int i = 0; i < 12; ++i) {
+    dip_pruning_in->inputs[4].values[i] = dip_mode_model_log_rd[i];
+  }
+  float dip_prune_output = -1.0;
+  intra_dip_mode_prune_tflite(&td->dip_pruning_model, &dip_prune_output,
+                              adjusted_qindex);
+  const float dip_prune_threshold = DIP_PRUNING_THRESHOLDS[dip_model_index];
+
+  return dip_prune_output >= dip_prune_threshold;
+}
+
 static void rd_pick_intra_dip_sby_modelrd(
     const AV2_COMP *const cpi, MACROBLOCK *x, BLOCK_SIZE bsize, int mode_cost,
     DIPModeRDInfo intra_model_rds[TOP_DIP_INTRA_MODEL_COUNT],
@@ -96,7 +167,6 @@ static int rd_pick_intra_dip_sby(const AV2_COMP *const cpi, ThreadData *td,
                                  PICK_MODE_CONTEXT *ctx) {
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
-  const DipMlInfo *const dip_ml_feature = &x->dip_ml_feature;
   int intra_dip_selected_flag = 0;
   int best_ml_mode = 0;
   TX_SIZE best_tx_size = TX_8X8;
@@ -135,60 +205,15 @@ static int rd_pick_intra_dip_sby(const AV2_COMP *const cpi, ThreadData *td,
 
   rd_pick_intra_dip_sby_modelrd(cpi, x, bsize, mode_cost, intra_model_rds,
                                 dip_mode_model_log_rd);
-  int16_t intra_dip_features[11];
-  for (int i = 0; i < 11; i++) {
-    intra_dip_features[i] = mbmi->intra_dip_features[i];
-  }
 
+  // Evaluate pruning decision using intra_dip_features computed by modelrd
+  // pass.
+  const bool pred_keep = keep_intra_dip_mode(
+      td, x, bsize, mbmi->intra_dip_features, dip_mode_model_log_rd, *best_rd,
+      *best_model_rd, cpi->common.seq_params.base_y_dc_delta_q);
+
+  // Restore baseline mode info after ML pruning evaluation.
   *mbmi = base_mbmi;
-  const int dc_q =
-      av2_dc_quant_QTX(x->qindex, 0, cpi->common.seq_params.base_y_dc_delta_q,
-                       xd->bd) >>
-      (xd->bd - 8);
-
-  // Clamp all RD values to a minimum of 1 to avoid arithmetic exceptions.
-  const float log_best_rd = log10f((float)AVMMAX(*best_rd, 1));
-  const float log_best_model_rd = log10f((float)AVMMAX(*best_model_rd, 1));
-  const float log_dc_mode_rd =
-      log10f((float)AVMMAX(dip_ml_feature->dc_mode_rd, 1));
-  const float log_orig_best_rd =
-      log10f((float)AVMMAX(dip_ml_feature->orig_best_rd, 1));
-  bool pred_keep = true;
-  int adjusted_qindex = x->qindex - MAXQ_OFFSET * (xd->bd - 8);
-  int dip_model_index = intra_dip_mode_prune_get_model_index(adjusted_qindex);
-  if (dip_model_index != -1) {
-    dip_pruning_inputs *dip_pruning_in = intra_dip_mode_prune_get_inputs(
-        &td->dip_pruning_model, adjusted_qindex);
-
-    dip_pruning_in->inputs[0].values[0] = log_best_model_rd;
-    dip_pruning_in->inputs[0].values[1] = log_best_rd;
-    dip_pruning_in->inputs[0].values[2] = log10f(dc_q);
-    dip_pruning_in->inputs[0].values[3] = log_dc_mode_rd;
-    dip_pruning_in->inputs[0].values[4] = log_orig_best_rd;
-    for (int i = 0; i < 13; i++) {
-      dip_pruning_in->inputs[0].values[5 + i] =
-          (float)(dip_ml_feature->best_mode == i);
-    }
-    dip_pruning_in->inputs[0].values[18] = dip_ml_feature->beat_best_rd;
-    intra_dip_mode_prune_normalize_and_resize_8x8(
-        x->plane[0].src.buf, x->plane[0].src.stride, xd->bd,
-        block_size_wide[bsize], block_size_high[bsize],
-        &dip_pruning_in->inputs[1].values[0]);
-    float norm = (float)((1 << xd->bd) - 1);
-    for (int i = 0; i < 11; i++) {
-      dip_pruning_in->inputs[2].values[i] = (float)intra_dip_features[i] / norm;
-    }
-    dip_pruning_in->inputs[3].values[0] = log2f((float)block_size_wide[bsize]);
-    dip_pruning_in->inputs[3].values[1] = log2f((float)block_size_high[bsize]);
-    for (int i = 0; i < 12; i++) {
-      dip_pruning_in->inputs[4].values[i] = dip_mode_model_log_rd[i];
-    }
-    float dip_prune_output = -1.0;
-    intra_dip_mode_prune_tflite(&td->dip_pruning_model, &dip_prune_output,
-                                adjusted_qindex);
-    float dip_prune_threshold = DIP_PRUNING_THRESHOLDS[dip_model_index];
-    pred_keep = dip_prune_output >= dip_prune_threshold;
-  }
   if (pred_keep) {
 #else
   (void)td;
