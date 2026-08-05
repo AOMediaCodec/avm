@@ -2942,12 +2942,9 @@ static AVM_INLINE void prune_4way_partitions_with_neighbor_boundaries(
     // Prune HORZ 4A/4B partitions.
     if (!left_horz_boundaries[mi_height / 8] &&
         !left_horz_boundaries[3 * mi_height / 8] &&
-        !left_horz_boundaries[7 * mi_height / 8]) {
-      state->prune_partition[PARTITION_HORZ_4A] = true;
-    }
-    if (!left_horz_boundaries[mi_height / 8] &&
         !left_horz_boundaries[5 * mi_height / 8] &&
         !left_horz_boundaries[7 * mi_height / 8]) {
+      state->prune_partition[PARTITION_HORZ_4A] = true;
       state->prune_partition[PARTITION_HORZ_4B] = true;
     }
   }
@@ -2968,12 +2965,9 @@ static AVM_INLINE void prune_4way_partitions_with_neighbor_boundaries(
     // Prune VERT 4A/4B partitions.
     if (!top_vert_boundaries[mi_width / 8] &&
         !top_vert_boundaries[3 * mi_width / 8] &&
-        !top_vert_boundaries[7 * mi_width / 8]) {
-      state->prune_partition[PARTITION_VERT_4A] = true;
-    }
-    if (!top_vert_boundaries[mi_width / 8] &&
         !top_vert_boundaries[5 * mi_width / 8] &&
         !top_vert_boundaries[7 * mi_width / 8]) {
+      state->prune_partition[PARTITION_VERT_4A] = true;
       state->prune_partition[PARTITION_VERT_4B] = true;
     }
   }
