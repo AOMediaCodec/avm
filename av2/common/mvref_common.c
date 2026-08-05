@@ -3868,6 +3868,65 @@ static void add_nearest_past_future_ref(
   }
 }
 
+// Sets up temporally closer frames as tip reference frames.
+static bool setup_tip_ref_frames(AV2_COMMON *const cm,
+                                 const int *const sort_ref,
+                                 int cur_frame_sort_idx) {
+  if (cm->has_both_sides_refs) {
+    cm->tip_ref.ref_frame[0] = sort_ref[cur_frame_sort_idx];
+    cm->tip_ref.ref_frame[1] = sort_ref[cur_frame_sort_idx + 1];
+    return true;
+  }
+  if (cm->ref_frames_info.num_past_refs >= 2) {
+    assert(cur_frame_sort_idx > 0);
+    cm->tip_ref.ref_frame[0] = sort_ref[cur_frame_sort_idx];
+    cm->tip_ref.ref_frame[1] = sort_ref[cur_frame_sort_idx - 1];
+    return true;
+  }
+  cm->tip_ref.ref_frame[0] = NONE_FRAME;
+  cm->tip_ref.ref_frame[1] = NONE_FRAME;
+  return false;
+}
+
+// Sets up the TIP reference frames and adds it to the motion field process
+// list. start_frame and target_frame are assigned by comparing their
+// topological stack indices. A higher topological index indicates a more
+// preferred reference. In the projection stage, the projection from the
+// start_frame (higher index) to the target_frame is prioritized.
+static void setup_and_add_tip_ref(AV2_COMMON *cm, int cur_frame_sort_idx,
+                                  const int *sort_ref,
+                                  const int *rf_topo_stack_idx,
+                                  int checked_ref[INTER_REFS_PER_FRAME][2],
+                                  struct ProcessRefTMVP *process_ref,
+                                  int *process_count) {
+  const OrderHintInfo *const order_hint_info = &cm->seq_params.order_hint_info;
+  const int *const is_ref_restricted = cm->cur_frame->refs_restricted_status;
+  (void)is_ref_restricted;
+
+  if (!setup_tip_ref_frames(cm, sort_ref, cur_frame_sort_idx)) return;
+
+  MV_REFERENCE_FRAME tip_ref_frame[2] = { cm->tip_ref.ref_frame[0],
+                                          cm->tip_ref.ref_frame[1] };
+  int start_frame, target_frame;
+  if (rf_topo_stack_idx[tip_ref_frame[0]] >
+      rf_topo_stack_idx[tip_ref_frame[1]]) {
+    start_frame = tip_ref_frame[0];
+    target_frame = tip_ref_frame[1];
+  } else {
+    start_frame = tip_ref_frame[1];
+    target_frame = tip_ref_frame[0];
+  }
+  assert(!(is_ref_restricted[start_frame]) &&
+         !(is_ref_restricted[target_frame]));
+  const int dist_diff = get_relative_dist(
+      order_hint_info, get_ref_frame_buf(cm, start_frame)->display_order_hint,
+      get_ref_frame_buf(cm, target_frame)->display_order_hint);
+
+  const int side = dist_diff < 0 ? 1 : 0;
+  check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE, start_frame, target_frame,
+                            side, checked_ref, process_ref, process_count);
+}
+
 void av2_setup_motion_field(AV2_COMMON *cm) {
   const OrderHintInfo *const order_hint_info = &cm->seq_params.order_hint_info;
   const int8_t *const ref_frame_side = cm->ref_frame_side;
@@ -3973,40 +4032,8 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
   int checked_ref[INTER_REFS_PER_FRAME][2] = { 0 };
 
   if (cm->seq_params.enable_tip && cur_frame_sort_idx != -1) {
-    if (cm->has_both_sides_refs || cm->ref_frames_info.num_past_refs >= 2) {
-      if (cm->has_both_sides_refs) {
-        cm->tip_ref.ref_frame[0] = sort_ref[cur_frame_sort_idx];
-        cm->tip_ref.ref_frame[1] = sort_ref[cur_frame_sort_idx + 1];
-      } else if (cm->ref_frames_info.num_past_refs >= 2) {
-        assert(cur_frame_sort_idx > 0);
-        cm->tip_ref.ref_frame[0] = sort_ref[cur_frame_sort_idx];
-        cm->tip_ref.ref_frame[1] = sort_ref[cur_frame_sort_idx - 1];
-      }
-      int start_frame, target_frame;
-      int side;
-      if (rf_topo_stack_idx[cm->tip_ref.ref_frame[0]] >
-          rf_topo_stack_idx[cm->tip_ref.ref_frame[1]]) {
-        start_frame = cm->tip_ref.ref_frame[0];
-        target_frame = cm->tip_ref.ref_frame[1];
-      } else {
-        start_frame = cm->tip_ref.ref_frame[1];
-        target_frame = cm->tip_ref.ref_frame[0];
-      }
-      assert(!(is_ref_restricted[start_frame]) &&
-             !(is_ref_restricted[target_frame]));
-      int dist_diff = get_relative_dist(
-          order_hint_info,
-          get_ref_frame_buf(cm, start_frame)->display_order_hint,
-          get_ref_frame_buf(cm, target_frame)->display_order_hint);
-
-      side = dist_diff < 0 ? 1 : 0;
-      check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE, start_frame,
-                                target_frame, side, checked_ref, process_ref,
-                                &process_count);
-    } else {
-      cm->tip_ref.ref_frame[0] = NONE_FRAME;
-      cm->tip_ref.ref_frame[1] = NONE_FRAME;
-    }
+    setup_and_add_tip_ref(cm, cur_frame_sort_idx, sort_ref, rf_topo_stack_idx,
+                          checked_ref, process_ref, &process_count);
   }
 
   add_nearest_past_future_ref(cm, cur_frame_sort_idx, sort_ref, checked_ref,
