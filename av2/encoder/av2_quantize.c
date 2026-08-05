@@ -28,11 +28,7 @@
 #include "av2/encoder/encoder.h"
 #include "av2/encoder/rd.h"
 
-void av2_quantize_skip(intptr_t n_coeffs, tran_low_t *qcoeff_ptr,
-                       tran_low_t *dqcoeff_ptr, uint16_t *eob_ptr) {
-  (void)n_coeffs;
-  (void)qcoeff_ptr;
-  (void)dqcoeff_ptr;
+void av2_quantize_skip(uint16_t *eob_ptr) {
   *eob_ptr = 0;
 }
 
@@ -211,11 +207,10 @@ void av2_highbd_quantize_b_facade(const int use_tcq_deadzone_boost,
 }
 
 static INLINE void highbd_quantize_dc(
-    const tran_low_t *coeff_ptr, int n_coeffs, int skip_block,
+    const tran_low_t *coeff_ptr, int skip_block,
     const int32_t *round_ptr, const int32_t quant, tran_low_t *qcoeff_ptr,
     tran_low_t *dqcoeff_ptr, const int32_t dequant_ptr, uint16_t *eob_ptr,
     const qm_val_t *qm_ptr, const qm_val_t *iqm_ptr, const int log_scale) {
-  (void)n_coeffs;
   int eob = -1;
 
   if (!skip_block) {
@@ -258,8 +253,9 @@ void av2_highbd_quantize_dc_facade(const int use_tcq_deadzone_boost,
   const qm_val_t *iqm_ptr = qparam->iqmatrix;
   (void)sc;
   (void)use_tcq_deadzone_boost;
+  (void)n_coeffs;
 
-  highbd_quantize_dc(coeff_ptr, (int)n_coeffs, skip_block, p->round_QTX,
+  highbd_quantize_dc(coeff_ptr, skip_block, p->round_QTX,
                      p->quant_fp_QTX[0], qcoeff_ptr, dqcoeff_ptr,
                      p->dequant_QTX[0], eob_ptr, qm_ptr, iqm_ptr,
                      qparam->log_scale);

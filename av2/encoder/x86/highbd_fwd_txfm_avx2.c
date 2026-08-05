@@ -12,15 +12,15 @@
 #include <assert.h>
 #include <immintrin.h> /*AVX2*/
 
-#include "config/avm_config.h"
 #include "config/av2_rtcd.h"
+#include "config/avm_config.h"
 #include "config/avm_dsp_rtcd.h"
 
 #include "av2/common/av2_txfm.h"
-#include "avm_dsp/txfm_common.h"
-#include "avm_ports/mem.h"
-#include "avm_dsp/x86/txfm_common_sse2.h"
 #include "av2/common/txb_common.h"
+#include "avm_dsp/txfm_common.h"
+#include "avm_dsp/x86/txfm_common_sse2.h"
+#include "avm_ports/mem.h"
 
 static INLINE __m256i round_power_of_two_signed_avx2(__m256i v_val_d,
                                                      int bits) {
