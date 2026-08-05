@@ -25,7 +25,6 @@ void av2_disable_segmentation(struct segmentation *seg);
 
 void av2_disable_segfeature(struct segmentation *seg, int segment_id,
                             SEG_LVL_FEATURES feature_id);
-void av2_choose_segmap_coding_method(AV2_COMMON *cm, MACROBLOCKD *xd);
 
 void av2_reset_segment_features(AV2_COMMON *cm);
 
