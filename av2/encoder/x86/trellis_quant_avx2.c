@@ -281,68 +281,42 @@ void av2_get_coeff_ctx_avx2(const struct tcq_ctx_t *tcq_ctx, int col,
 static INLINE int get_mid_cost_eob(int ci, int limits, int is_dc,
                                    tran_low_t abs_qc, int sign, int dc_sign_ctx,
                                    const LV_MAP_COEFF_COST *txb_costs,
-                                   TX_CLASS tx_class, int32_t t_sign,
-                                   int plane) {
+                                   TX_CLASS tx_class) {
   int cost = 0;
   const int dc_ph_group = 0;  // PH disabled
 
   if (limits) {
     if (is_dc) {
       cost -= av2_cost_literal(1);
-      if (plane == AVM_PLANE_V) {
-        cost += txb_costs->v_dc_sign_cost[t_sign][dc_sign_ctx][sign];
-      } else {
-        cost += txb_costs->dc_sign_cost[dc_ph_group][dc_sign_ctx][sign];
-      }
+      cost += txb_costs->dc_sign_cost[dc_ph_group][dc_sign_ctx][sign];
     } else {
       cost += av2_cost_literal(1);
     }
-    if (plane > 0) {
-      if (abs_qc > LF_NUM_BASE_LEVELS) {
-        cost += get_br_lf_cost_tcq_uv(abs_qc);
-      }
-    } else {
-      if (abs_qc > LF_NUM_BASE_LEVELS) {
-        int br_ctx = get_br_ctx_lf_eob(ci, tx_class);
-        cost += get_br_lf_cost_tcq(abs_qc, txb_costs->lps_lf_cost[br_ctx]);
-      }
+    if (abs_qc > LF_NUM_BASE_LEVELS) {
+      int br_ctx = get_br_ctx_lf_eob(ci, tx_class);
+      cost += get_br_lf_cost_tcq(abs_qc, txb_costs->lps_lf_cost[br_ctx]);
     }
   } else {
     cost += av2_cost_literal(1);
-    if (plane > 0) {
-      if (abs_qc > NUM_BASE_LEVELS) {
-        int br_ctx = 0; /* get_br_ctx_eob_chroma */
-        cost += get_br_cost_tcq(abs_qc, txb_costs->lps_cost_uv[br_ctx]);
-      }
-    } else {
-      if (abs_qc > NUM_BASE_LEVELS) {
-        int br_ctx = 0; /* get_br_ctx_eob */
-        cost += get_br_cost_tcq(abs_qc, txb_costs->lps_cost[br_ctx]);
-      }
+    if (abs_qc > NUM_BASE_LEVELS) {
+      int br_ctx = 0; /* get_br_ctx_eob */
+      cost += get_br_cost_tcq(abs_qc, txb_costs->lps_cost[br_ctx]);
     }
   }
   return cost;
 }
 
-static int get_mid_cost_lf_dc(int ci, tran_low_t abs_qc, int sign,
-                              int coeff_ctx, int dc_sign_ctx,
-                              const LV_MAP_COEFF_COST *txb_costs,
-                              const int32_t *tmp_sign, int plane) {
+static int get_mid_cost_lf_dc(tran_low_t abs_qc, int sign, int coeff_ctx,
+                              int dc_sign_ctx,
+                              const LV_MAP_COEFF_COST *txb_costs) {
   int cost = 0;
   int mid_ctx = coeff_ctx >> 4;
   const int dc_ph_group = 0;    // PH disabled
   cost -= av2_cost_literal(1);  // Remove previously added sign cost.
-  if (plane == AVM_PLANE_V)
-    cost += txb_costs->v_dc_sign_cost[tmp_sign[ci]][dc_sign_ctx][sign];
-  else
-    cost += txb_costs->dc_sign_cost[dc_ph_group][dc_sign_ctx][sign];
-  if (plane > 0) {
-    cost += get_br_lf_cost_tcq_uv(abs_qc);
-  } else {
-    if (abs_qc > LF_NUM_BASE_LEVELS) {
-      cost += get_br_lf_cost_tcq(abs_qc, txb_costs->lps_lf_cost[mid_ctx]);
-    }
-  }
+  cost += txb_costs->dc_sign_cost[dc_ph_group][dc_sign_ctx][sign];
+  if (abs_qc > LF_NUM_BASE_LEVELS)
+    cost += get_br_lf_cost_tcq(abs_qc, txb_costs->lps_lf_cost[mid_ctx]);
+
   return cost;
 }
 
@@ -616,11 +590,9 @@ void av2_get_rate_dist_lf_luma_avx2(const struct tcq_param_t *p,
   const uint16_t(*cost_mid_tbl)[LF_LEVEL_CONTEXTS][TCQ_CTXS][2] =
       txb_costs->mid_lf_cost_tbl;
   const tran_low_t *absLevel = pq->absLevel;
-  const int32_t *tmp_sign = p->tmp_sign;
   int bwl = p->bwl;
   TX_CLASS tx_class = p->tx_class;
   int dc_sign_ctx = p->dc_sign_ctx;
-  int plane = 0;
   int base_diag_ctx = get_base_diag_ctx(diag_ctx);
   int mid_diag_ctx = get_mid_diag_ctx(diag_ctx);
 
@@ -689,22 +661,17 @@ void av2_get_rate_dist_lf_luma_avx2(const struct tcq_param_t *p,
     for (int i = 0; i < TCQ_N_STATES; i++) {
       int a0 = i & 2 ? 1 : 0;
       int a1 = a0 + 2;
-      int mid_cost0 = get_mid_cost_lf_dc(blk_pos, absLevel[a0], coeff_sign,
-                                         coeff_ctx->coef[i], dc_sign_ctx,
-                                         txb_costs, tmp_sign, plane);
-      int mid_cost1 = get_mid_cost_lf_dc(blk_pos, absLevel[a1], coeff_sign,
-                                         coeff_ctx->coef[i], dc_sign_ctx,
-                                         txb_costs, tmp_sign, plane);
+      int mid_cost0 = get_mid_cost_lf_dc(
+          absLevel[a0], coeff_sign, coeff_ctx->coef[i], dc_sign_ctx, txb_costs);
+      int mid_cost1 = get_mid_cost_lf_dc(
+          absLevel[a1], coeff_sign, coeff_ctx->coef[i], dc_sign_ctx, txb_costs);
       rd->rate[2 * i] += mid_cost0;
       rd->rate[2 * i + 1] += mid_cost1;
     }
-    int t_sign = tmp_sign[blk_pos];
-    int eob_mid_cost0 =
-        get_mid_cost_eob(blk_pos, 1, 1, absLevel[0], coeff_sign, dc_sign_ctx,
-                         txb_costs, tx_class, t_sign, 0);
-    int eob_mid_cost1 =
-        get_mid_cost_eob(blk_pos, 1, 1, absLevel[2], coeff_sign, dc_sign_ctx,
-                         txb_costs, tx_class, t_sign, 0);
+    int eob_mid_cost0 = get_mid_cost_eob(blk_pos, 1, 1, absLevel[0], coeff_sign,
+                                         dc_sign_ctx, txb_costs, tx_class);
+    int eob_mid_cost1 = get_mid_cost_eob(blk_pos, 1, 1, absLevel[2], coeff_sign,
+                                         dc_sign_ctx, txb_costs, tx_class);
     rd->rate_eob[0] += eob_mid_cost0;
     rd->rate_eob[1] += eob_mid_cost1;
   } else if (qIdx > 5) {
