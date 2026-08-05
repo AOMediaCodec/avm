@@ -4153,11 +4153,8 @@ static void reuse_tile_params(CommonTileParams *tiles,
   av2_calculate_tile_rows(tiles);
 }
 
-static void read_tile_syntax_info(CommonTileParams *tiles,
-                                  struct avm_read_bit_buffer *rb) {
-  int width_sb = tiles->sb_cols;
-  int height_sb = tiles->sb_rows;
-
+static void read_tile_params(CommonTileParams *tiles,
+                             struct avm_read_bit_buffer *rb) {
   tiles->uniform_spacing = avm_rb_read_bit(rb);
 
   // Read tile columns
@@ -4172,10 +4169,11 @@ static void read_tile_syntax_info(CommonTileParams *tiles,
   } else {
     int i;
     int start_sb;
+    int width_sb = tiles->sb_cols;
     for (i = 0, start_sb = 0; width_sb > 0; i++) {
       if (i >= MAX_TILE_COLS) {
         rb->error_handler(rb->error_handler_data, AVM_CODEC_CORRUPT_FRAME,
-                          "SeqTileCols cannot be greater than MAX_TILE_COLS");
+                          "tileCols cannot be greater than MAX_TILE_COLS");
       }
       const int size_sb =
           1 + rb_read_uniform(rb, AVMMIN(width_sb, tiles->max_width_sb));
@@ -4202,10 +4200,11 @@ static void read_tile_syntax_info(CommonTileParams *tiles,
   } else {
     int i;
     int start_sb;
+    int height_sb = tiles->sb_rows;
     for (i = 0, start_sb = 0; height_sb > 0; i++) {
       if (i >= MAX_TILE_ROWS) {
         rb->error_handler(rb->error_handler_data, AVM_CODEC_CORRUPT_FRAME,
-                          "SeqTileRows cannot be greater than MAX_TILE_ROWS");
+                          "tileRows cannot be greater than MAX_TILE_ROWS");
       }
       const int size_sb =
           1 + rb_read_uniform(rb, AVMMIN(height_sb, tiles->max_height_sb));
@@ -4244,7 +4243,7 @@ static AVM_INLINE void read_tile_info(AV2Decoder *const pbi,
   if (reuse) {
     reuse_tile_params(&cm->tiles, tile_params);
   } else {
-    read_tile_syntax_info(&cm->tiles, rb);
+    read_tile_params(&cm->tiles, rb);
   }
 
   if (cm->bru.enabled) {
@@ -5928,7 +5927,7 @@ static void read_sequence_tile_info(struct SequenceHeader *seq_params,
                           seq_params->mib_size_log2, seq_params->mib_size_log2,
                           seq_params->seq_max_level_idx, seq_params->seq_tier);
   seq_params->tile_params.allow_tile_info_change = avm_rb_read_bit(rb);
-  read_tile_syntax_info(&seq_params->tile_params.tile_info, rb);
+  read_tile_params(&seq_params->tile_params.tile_info, rb);
 }
 
 static void read_sequence_tile_config(struct SequenceHeader *seq_params,
