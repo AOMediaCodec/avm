@@ -3817,6 +3817,8 @@ static void fill_id_offset_sample_gap(AV2_COMMON *cm) {
 
 void av2_setup_motion_field(AV2_COMMON *cm) {
   const OrderHintInfo *const order_hint_info = &cm->seq_params.order_hint_info;
+  const int8_t *const ref_frame_side = cm->ref_frame_side;
+  const int *const is_ref_restricted = cm->cur_frame->refs_restricted_status;
 
   if (order_hint_info->order_hint_bits_minus_1 < 0) return;
 
@@ -3835,10 +3837,10 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
                             (cm->ref_frames_info.num_past_refs > 0);
 
   if (cm->seq_params.enable_mv_traj) {
-    for (int rf = 0; rf < INTER_REFS_PER_FRAME; rf++) {
-      for (int i = 0; i < mvs_rows * mvs_cols; i++) {
+    for (int rf = 0; rf < INTER_REFS_PER_FRAME; ++rf) {
+      for (int i = 0; i < mvs_rows * mvs_cols; ++i) {
         cm->id_offset_map[rf][i].as_int = INVALID_MV;
-        for (int k = 0; k < 3; k++) {
+        for (int k = 0; k < 3; ++k) {
           cm->blk_id_map[k][rf][i].as_int = INVALID_MV;
         }
       }
@@ -3850,24 +3852,21 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
   int disp_order[INTER_REFS_PER_FRAME] = { 0 };
 
   bool is_overlay[INTER_REFS_PER_FRAME] = { false };
-  for (int rf = cm->ref_frames_info.num_total_refs - 1; rf >= 0; rf--) {
+  for (int rf = 0; rf < cm->ref_frames_info.num_total_refs; ++rf) {
     const RefCntBuffer *const buf = get_ref_frame_buf(cm, rf);
-    if (buf != NULL && buf->is_restricted) {
-      continue;
-    }
-    if (is_ref_overlay(cm, rf) &&
-        get_ref_frame_buf(cm, rf)->frame_type != KEY_FRAME) {
+    if (buf == NULL) continue;
+    disp_order[rf] = buf->display_order_hint;
+
+    if (!is_ref_restricted[rf] && is_ref_overlay(cm, rf) &&
+        buf->frame_type != KEY_FRAME) {
       is_overlay[rf] = true;
     }
   }
 
-  for (int rf = 0; rf < cm->ref_frames_info.num_total_refs; rf++) {
-    disp_order[rf] = get_ref_frame_buf(cm, rf)->display_order_hint;
-  }
   // Sort the points by x.
-  for (int i = 0; i < cm->ref_frames_info.num_total_refs; i++) {
-    for (int j = i + 1; j < cm->ref_frames_info.num_total_refs; j++) {
-      if (!get_ref_frame_buf(cm, sort_ref[j])->is_restricted &&
+  for (int i = 0; i < cm->ref_frames_info.num_total_refs; ++i) {
+    for (int j = i + 1; j < cm->ref_frames_info.num_total_refs; ++j) {
+      if (!is_ref_restricted[sort_ref[j]] &&
           get_relative_dist(order_hint_info, disp_order[j], disp_order[i]) <
               0) {
         int tmp = disp_order[i];
@@ -3880,14 +3879,12 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
       }
     }
   }
-  int cur_disp_order = cm->cur_frame->display_order_hint;
   // The idx of rf in sort_ref that is before current frame, and closest.
   int cur_frame_sort_idx = -1;
-  for (int rf_idx = 0; rf_idx < cm->ref_frames_info.num_total_refs; rf_idx++) {
-    if (get_ref_frame_buf(cm, sort_ref[rf_idx])->is_restricted) continue;
+  for (int rf_idx = 0; rf_idx < cm->ref_frames_info.num_total_refs; ++rf_idx) {
+    if (is_ref_restricted[sort_ref[rf_idx]]) continue;
 
-    if (get_relative_dist(order_hint_info, disp_order[rf_idx], cur_disp_order) <
-        0) {
+    if (ref_frame_side[sort_ref[rf_idx]] == 0) {
       cur_frame_sort_idx = rf_idx;
     } else {
       break;
@@ -3897,8 +3894,8 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
   int rf_stack[INTER_REFS_PER_FRAME];
   int visited[INTER_REFS_PER_FRAME] = { 0 };
   int stack_count = 0;
-  for (int rf = 0; rf < cm->ref_frames_info.num_total_refs; rf++) {
-    if (get_ref_frame_buf(cm, rf)->is_restricted) continue;
+  for (int rf = 0; rf < cm->ref_frames_info.num_total_refs; ++rf) {
+    if (is_ref_restricted[rf]) continue;
     if (visited[rf] == 0) {
       recur_topo_sort_refs(cm, is_overlay, rf_stack, visited, &stack_count, rf);
     }
@@ -3907,10 +3904,10 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
   if (stack_count < 2) return;
 
   int rf_topo_stack_idx[INTER_REFS_PER_FRAME];
-  for (int rf = 0; rf < cm->ref_frames_info.num_total_refs; rf++) {
+  for (int rf = 0; rf < cm->ref_frames_info.num_total_refs; ++rf) {
     rf_topo_stack_idx[rf] = -1;
-    if (get_ref_frame_buf(cm, rf)->is_restricted) continue;
-    for (int stack_idx = 0; stack_idx < stack_count; stack_idx++) {
+    if (is_ref_restricted[rf]) continue;
+    for (int stack_idx = 0; stack_idx < stack_count; ++stack_idx) {
       if (rf_stack[stack_idx] == rf) {
         rf_topo_stack_idx[rf] = stack_idx;
         break;
@@ -3942,8 +3939,8 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
         start_frame = cm->tip_ref.ref_frame[1];
         target_frame = cm->tip_ref.ref_frame[0];
       }
-      assert(!(get_ref_frame_buf(cm, start_frame)->is_restricted) &&
-             !(get_ref_frame_buf(cm, target_frame)->is_restricted));
+      assert(!(is_ref_restricted[start_frame]) &&
+             !(is_ref_restricted[target_frame]));
       int dist_diff = get_relative_dist(
           order_hint_info,
           get_ref_frame_buf(cm, start_frame)->display_order_hint,
@@ -4022,15 +4019,9 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
                               checked_ref, process_ref, &process_count);
   }
 
-  for (int ri = stack_count - 1; ri > 0; ri--) {
-    int side;
-    const int ref_hint =
-        get_ref_frame_buf(cm, rf_stack[ri])->display_order_hint;
-    if (get_relative_dist(order_hint_info, ref_hint, cur_disp_order) < 0) {
-      side = 1;
-    } else {
-      side = 0;
-    }
+  for (int ri = stack_count - 1; ri > 0; --ri) {
+    // Set side to 1 if rf_stack[ri] is a past reference, and 0 otherwise.
+    int side = ref_frame_side[rf_stack[ri]] == 0 ? 1 : 0;
 
     if (!checked_ref[rf_stack[ri]][side]) {
       check_and_add_process_ref(cm, MFMV_STACK_SIZE, rf_stack[ri], -1, side,
@@ -4058,7 +4049,7 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
     // Cap the reference frame combination to 1 for reduced_ref_frame_mvs_mode.
     process_count = AVMMIN(1, process_count);
   }
-  for (int pi = 0; pi < process_count; pi++) {
+  for (int pi = 0; pi < process_count; ++pi) {
     motion_field_projection_side(cm, process_ref[pi].start_frame,
                                  process_ref[pi].target_frame,
                                  process_ref[pi].side);
