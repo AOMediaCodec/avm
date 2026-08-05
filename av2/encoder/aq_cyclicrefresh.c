@@ -448,14 +448,6 @@ void av2_cyclic_refresh_setup(AV2_COMP *const cpi) {
     av2_enable_segmentation(&cm->seg);
     av2_clearall_segfeatures(seg);
 
-    // Note: setting temporal_update has no effect, as the seg-map coding method
-    // (temporal or spatial) is determined in
-    // av2_choose_segmap_coding_method(),
-    // based on the coding cost of each method. For error_resilient mode on the
-    // last_frame_seg_map is set to 0, so if temporal coding is used, it is
-    // relative to 0 previous map.
-    // seg->temporal_update = 0;
-
     // Segment BASE "Q" feature is disabled so it defaults to the baseline Q.
     av2_disable_segfeature(seg, CR_SEGMENT_ID_BASE, SEG_LVL_ALT_Q);
     // Use segment BOOST1 for in-frame Q adjustment.
