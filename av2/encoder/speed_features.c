@@ -595,6 +595,8 @@ static void set_good_speed_features_framesize_independent(
     sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL3;
 
     sf->mv_sf.reduce_search_range = 1;
+
+    sf->mv_sf.warp_search_method = WARP_SEARCH_DIAMOND;
   }
 
   if (speed >= 5) {
@@ -608,7 +610,6 @@ static void set_good_speed_features_framesize_independent(
                                           : MULTI_WINNER_MODE_OFF;
 
     sf->mv_sf.prune_mesh_search = 1;
-    sf->mv_sf.warp_search_method = WARP_SEARCH_DIAMOND;
 
     sf->tpl_sf.prune_starting_mv = 3;
     sf->lpf_sf.enable_deblock_for_partition_search = 0;
