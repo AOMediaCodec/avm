@@ -986,6 +986,7 @@ static AVM_INLINE void set_erp_speed_features_framesize_dependent(
   const int is_1080p_or_larger = AVMMIN(cm->width, cm->height) >= 1080;
   const unsigned int erp_pruning_level = cpi->oxcf.part_cfg.erp_pruning_level;
   const int is_720p_or_lesser = AVMMIN(cm->width, cm->height) <= 720;
+  const int is_270p_or_lesser = AVMMIN(cm->width, cm->height) <= 270;
 
   switch (erp_pruning_level) {
     case 6: AVM_FALLTHROUGH_INTENDED;
@@ -1034,6 +1035,10 @@ static AVM_INLINE void set_erp_speed_features_framesize_dependent(
       sf->part_sf.remove_qp_restriction_with_ml = 1;
     }
 #endif  // CONFIG_ML_PART_SPLIT
+    if (is_270p_or_lesser) {
+      // For small resolutions, this speed feature has a large coding loss.
+      sf->part_sf.prune_part_with_neighbor_boundaries = 0;
+    }
   }
 
   if (cpi->speed >= 2) {
