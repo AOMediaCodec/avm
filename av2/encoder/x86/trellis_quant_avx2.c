@@ -280,8 +280,7 @@ void av2_get_coeff_ctx_avx2(const struct tcq_ctx_t *tcq_ctx, int col,
 
 static INLINE int get_mid_cost_eob(int ci, int limits, int is_dc,
                                    tran_low_t abs_qc, int sign, int dc_sign_ctx,
-                                   const LV_MAP_COEFF_COST *txb_costs,
-                                   TX_CLASS tx_class) {
+                                   const LV_MAP_COEFF_COST *txb_costs) {
   int cost = 0;
   const int dc_ph_group = 0;  // PH disabled
 
@@ -293,7 +292,7 @@ static INLINE int get_mid_cost_eob(int ci, int limits, int is_dc,
       cost += av2_cost_literal(1);
     }
     if (abs_qc > LF_NUM_BASE_LEVELS) {
-      int br_ctx = get_br_ctx_lf_eob(ci, tx_class);
+      int br_ctx = get_br_ctx_lf_eob(ci, TX_CLASS_2D);
       cost += get_br_lf_cost_tcq(abs_qc, txb_costs->lps_lf_cost[br_ctx]);
     }
   } else {
@@ -590,8 +589,6 @@ void av2_get_rate_dist_lf_luma_avx2(const struct tcq_param_t *p,
   const uint16_t(*cost_mid_tbl)[LF_LEVEL_CONTEXTS][TCQ_CTXS][2] =
       txb_costs->mid_lf_cost_tbl;
   const tran_low_t *absLevel = pq->absLevel;
-  int bwl = p->bwl;
-  TX_CLASS tx_class = p->tx_class;
   int dc_sign_ctx = p->dc_sign_ctx;
   int base_diag_ctx = get_base_diag_ctx(diag_ctx);
   int mid_diag_ctx = get_mid_diag_ctx(diag_ctx);
@@ -651,12 +648,7 @@ void av2_get_rate_dist_lf_luma_avx2(const struct tcq_param_t *p,
   __m128i rate_eob = _mm_add_epi32(rate_eob_coef, rate_eob_position);
   _mm_storeu_si64(&rd->rate_eob[0], rate_eob);
 
-  const int row = blk_pos >> bwl;
-  const int col = blk_pos - (row << bwl);
-  const bool dc_2dtx = (blk_pos == 0);
-  const bool dc_hor = (col == 0) && tx_class == TX_CLASS_HORIZ;
-  const bool dc_ver = (row == 0) && tx_class == TX_CLASS_VERT;
-  const bool is_dc_coeff = dc_2dtx || dc_hor || dc_ver;
+  const bool is_dc_coeff = (blk_pos == 0);
   if (is_dc_coeff) {
     for (int i = 0; i < TCQ_N_STATES; i++) {
       int a0 = i & 2 ? 1 : 0;
@@ -669,9 +661,9 @@ void av2_get_rate_dist_lf_luma_avx2(const struct tcq_param_t *p,
       rd->rate[2 * i + 1] += mid_cost1;
     }
     int eob_mid_cost0 = get_mid_cost_eob(blk_pos, 1, 1, absLevel[0], coeff_sign,
-                                         dc_sign_ctx, txb_costs, tx_class);
+                                         dc_sign_ctx, txb_costs);
     int eob_mid_cost1 = get_mid_cost_eob(blk_pos, 1, 1, absLevel[2], coeff_sign,
-                                         dc_sign_ctx, txb_costs, tx_class);
+                                         dc_sign_ctx, txb_costs);
     rd->rate_eob[0] += eob_mid_cost0;
     rd->rate_eob[1] += eob_mid_cost1;
   } else if (qIdx > 5) {

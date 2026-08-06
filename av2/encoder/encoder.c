@@ -1159,25 +1159,6 @@ static void set_max_bvp_drl_bits(struct AV2_COMP *cpi) {
          cm->features.max_bvp_drl_bits <= MAX_MAX_IBC_DRL_BITS);
 }
 
-static void set_seq_lr_tools_mask(SequenceHeader *const seq_params,
-                                  const AV2EncoderConfig *oxcf) {
-  const ToolCfg *const tool_cfg = &oxcf->tool_cfg;
-  seq_params->lr_tools_disable_mask[0] = 0;  // default - no tools disabled
-  seq_params->lr_tools_disable_mask[1] = 0;  // default - no tools disabled
-
-  // Parse oxcf here to disable tools as requested through cmd lines
-  if (!tool_cfg->enable_pc_wiener) {
-    seq_params->lr_tools_disable_mask[0] |= (1 << RESTORE_PC_WIENER);
-    seq_params->lr_tools_disable_mask[1] |= (1 << RESTORE_PC_WIENER);
-  }
-  if (!tool_cfg->enable_wiener_nonsep) {
-    seq_params->lr_tools_disable_mask[0] |= (1 << RESTORE_WIENER_NONSEP);
-    seq_params->lr_tools_disable_mask[1] |= (1 << RESTORE_WIENER_NONSEP);
-  }
-
-  seq_params->lr_tools_disable_mask[1] |= DEF_UV_LR_TOOLS_DISABLE_MASK;
-}
-
 void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
   AV2_COMMON *const cm = &cpi->common;
   SequenceHeader *const seq_params = &cm->seq_params;
@@ -1453,7 +1434,6 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
   // This should not be called after the first key frame.
   if (!cpi->seq_params_locked) {
     av2_init_seq_coding_tools(cpi, &cm->seq_params, cm, oxcf);
-    if (seq_params->enable_restoration) set_seq_lr_tools_mask(seq_params, oxcf);
   }
 
   // restore the value of lag_in_frame for LAP stage.
