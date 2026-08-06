@@ -231,6 +231,10 @@ static void set_good_speed_feature_framesize_dependent(
     }
   }
 
+  if (speed >= 1) {
+    sf->inter_sf.prune_ref_mv_idx_search = 1;
+  }
+
   if (speed >= 6) {
     if (is_720p_or_larger) {
       sf->part_sf.auto_max_partition_based_on_simple_motion = NOT_IN_USE;
@@ -350,6 +354,7 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.prune_interintra_by_ref_idx = 1;
     sf->inter_sf.prune_warp_delta_by_ref_idx = 1;
     sf->intra_sf.intra_pruning_with_mlp = 1;
+    sf->inter_sf.prune_comp_mode_eval_using_est_rd = true;
 
     sf->intra_sf.include_dip_for_top_n_model_rd_pruning = true;
 
@@ -467,6 +472,8 @@ static void set_good_speed_features_framesize_independent(
     sf->intra_sf.skip_intra_dip_search = true;
     sf->rd_sf.disable_tcq = 1;
     // --- End ---
+
+    sf->lpf_sf.enable_deblock_for_partition_search = 0;
 
     sf->hl_sf.high_precision_mv_usage = CURRENT_Q;
     sf->hl_sf.recode_loop = ALLOW_RECODE_KFARFGF;
@@ -593,6 +600,10 @@ static void set_good_speed_features_framesize_independent(
     sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL3;
 
     sf->mv_sf.reduce_search_range = 1;
+
+    sf->mv_sf.warp_search_method = WARP_SEARCH_DIAMOND;
+    sf->mv_sf.newmv_drl_search_limit = 1;
+    sf->winner_mode_sf.dc_blk_pred_level = 2;
   }
 
   if (speed >= 5) {
@@ -606,10 +617,8 @@ static void set_good_speed_features_framesize_independent(
                                           : MULTI_WINNER_MODE_OFF;
 
     sf->mv_sf.prune_mesh_search = 1;
-    sf->mv_sf.warp_search_method = WARP_SEARCH_DIAMOND;
 
     sf->tpl_sf.prune_starting_mv = 3;
-    sf->lpf_sf.enable_deblock_for_partition_search = 0;
   }
 
   if (speed >= 6) {
@@ -629,7 +638,6 @@ static void set_good_speed_features_framesize_independent(
 
     sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 4 : 6;
 
-    sf->winner_mode_sf.dc_blk_pred_level = 2;
     sf->winner_mode_sf.multi_winner_mode_type = MULTI_WINNER_MODE_OFF;
   }
 
@@ -834,6 +842,7 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->prune_warpmv_prob_thresh = 32;
   inter_sf->prune_amvd_newmv = 0;
   inter_sf->enable_enhanced_inter_mode_cache_reuse = 0;
+  inter_sf->prune_comp_mode_eval_using_est_rd = false;
 }
 
 static AVM_INLINE void init_interp_sf(INTERP_FILTER_SPEED_FEATURES *interp_sf) {
@@ -1356,11 +1365,15 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
   }
 
   if (is_720p_or_larger && cpi->oxcf.mode == GOOD && speed <= 1) {
-    const int qindex_thresh = 124 + qindex_offset;
+    // At speed 1, extend the qindex band and use a boost-aware coeff-opt level
+    // (keeps full optimization on KF/ARF/GF references while pruning more on
+    // the non-reference leaves). Speed 0 keeps its original behavior.
+    const int qindex_thresh = (speed == 1 ? 200 : 124) + qindex_offset;
     const int qindex_thresh2 = 113 + qindex_offset;
 
     if (cm->quant_params.base_qindex <= qindex_thresh) {
-      sf->rd_sf.perform_coeff_opt = 2 + is_1080p_or_larger;
+      sf->rd_sf.perform_coeff_opt =
+          (speed == 1) ? (boosted ? 2 : 3) : (2 + is_1080p_or_larger);
       memcpy(winner_mode_params->coeff_opt_dist_threshold,
              coeff_opt_dist_thresholds[sf->rd_sf.perform_coeff_opt],
              sizeof(winner_mode_params->coeff_opt_dist_threshold));
@@ -1400,7 +1413,12 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
       }
     }
 
-    if (cm->quant_params.base_qindex <= qindex_thresh &&
+    // For speed >= 1, raise the threshold for non-4K content so more frames
+    // use this pruning; 4K (A1-like, where extended TX partitions matter) and
+    // speed 0 keep the baseline threshold.
+    const int qindex_thresh_tx =
+        (speed >= 1 && !is_2160p_or_larger ? 170 : 135) + qindex_offset;
+    if (cm->quant_params.base_qindex <= qindex_thresh_tx &&
         !cm->features.allow_screen_content_tools) {
       sf->flexmv_sf.prune_mv_prec_using_best_mv_prec_so_far = boosted ? 0 : 1;
       if (!boosted) {

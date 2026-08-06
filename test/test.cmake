@@ -214,6 +214,7 @@ if(NOT BUILD_SHARED_LIBS)
     "${AVM_ROOT}/test/blend_a64_mask_test.cc"
     "${AVM_ROOT}/test/comp_avg_pred_test.cc"
     "${AVM_ROOT}/test/comp_avg_pred_test.h"
+    "${AVM_ROOT}/test/comp_avg_test.cc"
     "${AVM_ROOT}/test/comp_mask_variance_test.cc"
     "${AVM_ROOT}/test/edge_detect_test.cc"
     "${AVM_ROOT}/test/encodetxb_test.cc"
