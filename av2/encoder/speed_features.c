@@ -655,11 +655,19 @@ static void set_good_speed_features_framesize_independent(
 // mode.
 static void set_good_speed_features_lc_dec_framesize_independent(
     AV2_COMP *cpi) {
+  // Standard low-complexity level
   cpi->oxcf.tool_cfg.enable_mv_traj = 0;
   cpi->oxcf.tool_cfg.enable_gdf = 0;
   cpi->oxcf.tool_cfg.enable_pc_wiener = 0;
   cpi->oxcf.tool_cfg.enable_tip_refinemv = 0;
   cpi->oxcf.tool_cfg.reduced_ref_frame_mvs_mode = 1;
+
+  // Aggressive low-complexity level
+  if (cpi->oxcf.enable_low_complexity_decode > 1) {
+    cpi->oxcf.tool_cfg.enable_opfl_refine = 0;
+    cpi->oxcf.intra_mode_cfg.enable_mhccp = 0;
+    cpi->oxcf.tool_cfg.enable_lf_sub_pu = 0;
+  }
 }
 
 static void set_rt_speed_features_framesize_independent(
@@ -1202,6 +1210,13 @@ void av2_set_speed_features_framesize_independent(AV2_COMP *cpi, int speed) {
           cpi->oxcf.tool_cfg.enable_tip_refinemv;
       cpi->common.seq_params.order_hint_info.reduced_ref_frame_mvs_mode =
           cpi->oxcf.tool_cfg.reduced_ref_frame_mvs_mode;
+
+      cpi->common.seq_params.enable_opfl_refine =
+          cpi->oxcf.tool_cfg.enable_opfl_refine;
+      cpi->common.seq_params.enable_mhccp =
+          cpi->oxcf.intra_mode_cfg.enable_mhccp;
+      cpi->common.seq_params.enable_lf_sub_pu =
+          cpi->oxcf.tool_cfg.enable_lf_sub_pu;
     }
   }
 
