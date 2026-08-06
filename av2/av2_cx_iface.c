@@ -124,7 +124,7 @@ struct av2_extracfg {
   int enable_rect_partitions;  // enable rectangular partitions for sequence
   int enable_uneven_4way_partitions;  // enable 1:2:4:1 and 1:4:2:1 partitions
                                       // for sequence
-  int max_partition_aspect_ratio;
+  int max_partition_aspect_ratio;  
   int disable_ml_transform_speed_features;  // disable all ml transform speedups
   int enable_sdp;           // enable semi-decoupled partitioning
   int enable_extended_sdp;  // enable inter semi-decoupled partitioning
