@@ -682,9 +682,10 @@ typedef struct cfg_options {
   int operating_points_count;
 
   /*!\brief enable the low complexity decode mode
-   * If 0, disables the low complexity decode mode (default).
-   * If 1 and the usage is good-quality, enables the low complexity decode
-   * mode.
+   * If value = 0, disables the low complexity decode mode (default).
+   * If value > 0 and the usage is good-quality, enables the low complexity
+   * decode mode (value 1: standard low-complexity level, value 2: aggressive
+   * low-complexity level).
    */
   unsigned int enable_low_complexity_decode;
 } cfg_options_t;
