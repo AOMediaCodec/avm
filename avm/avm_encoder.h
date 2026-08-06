@@ -1071,6 +1071,12 @@ typedef struct avm_codec_enc_cfg {
    */
   unsigned int sframe_type;
 
+  /*!\brief sframe_refresh_all
+   *
+   * If nonzero, S-Frames refresh all reference slots.
+   */
+  unsigned int sframe_refresh_all;
+
   /*!\brief sframe_replace_kf
    *
    * Number of consecutive keyframes to replace with S-frames between actual

@@ -220,6 +220,7 @@ const arg_def_t *kf_args[] = { &g_av2_codec_arg_defs.fwd_kf_enabled,
                                &g_av2_codec_arg_defs.sframe_dist,
                                &g_av2_codec_arg_defs.sframe_mode,
                                &g_av2_codec_arg_defs.sframe_type,
+                               &g_av2_codec_arg_defs.sframe_refresh_all,
                                NULL };
 
 // TODO(bohanli): Currently all options are supported by the key & value API.
@@ -1185,6 +1186,9 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
       config->cfg.sframe_mode = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &g_av2_codec_arg_defs.sframe_type, argi)) {
       config->cfg.sframe_type = arg_parse_uint(&arg);
+    } else if (arg_match(&arg, &g_av2_codec_arg_defs.sframe_refresh_all,
+                         argi)) {
+      config->cfg.sframe_refresh_all = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &g_av2_codec_arg_defs.sframe_replace_kf, argi)) {
       config->cfg.sframe_replace_kf = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &g_av2_codec_arg_defs.enable_lcr, argi)) {

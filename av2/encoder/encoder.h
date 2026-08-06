@@ -441,6 +441,11 @@ typedef struct {
   bool enable_sframe;
 
   /*!
+   * Indicates if S-Frames should refresh all reference slots.
+   */
+  bool sframe_refresh_all;
+
+  /*!
    * Number of consecutive keyframes to replace with S-frames between actual
    * keyframes.
    */
