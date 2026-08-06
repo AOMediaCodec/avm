@@ -2020,7 +2020,7 @@ void av2_decoder_model_verifier_on_output(AV2Decoder *pbi,
   const int owner_tlayer = current_owner != NULL ? current_owner->temporal_id
                            : implicit_owner != NULL
                                ? implicit_owner->temporal_id
-                               : frame->tlayer_id;
+                               : (int)frame->tlayer_id;
   const bool owner_leading =
       current_owner != NULL
           ? current_owner->leading_frame

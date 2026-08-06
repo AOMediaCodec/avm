@@ -180,7 +180,8 @@ typedef enum avm_decoder_model_check_mode {
   AVM_DECODER_MODEL_CHECK_OFF = 0,
   AVM_DECODER_MODEL_CHECK_FATAL,
   AVM_DECODER_MODEL_CHECK_WARN,
-} avm_decoder_model_check_mode_t;
+} avm_decoder_model_check_mode_t; /**< alias for enum
+                                     avm_decoder_model_check_mode */
 
 /*!\enum avm_dec_control_id
  * \brief AVM decoder control functions

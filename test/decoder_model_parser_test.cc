@@ -703,6 +703,7 @@ TEST(DecoderModelAnnexFTest, GlobalOperatingPointIsScopedPerXlayer) {
       av2_sbe_should_retain_obu(&scope, OBU_REGULAR_TILE_GROUP, 1, 0, 0));
 }
 
+#if CONFIG_AV2_ENCODER
 static bool DecodeCountedSymbols() {
   uint8_t buffer[64] = { 0 };
   avm_cdf_prob write_cdf[3] = { AVM_CDF2(16384) };
@@ -758,5 +759,6 @@ TEST(DecoderModelSymbolCountTest, IndependentReadersAreThreadLocal) {
   for (std::thread &thread : threads) thread.join();
   for (int result : results) EXPECT_EQ(result, 1);
 }
+#endif  // CONFIG_AV2_ENCODER
 
 }  // namespace

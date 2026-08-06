@@ -2984,6 +2984,7 @@ typedef struct AV2Common {
    * Temporal point info
    */
   avm_metadata_temporal_point_info_t temporal_point_info_metadata;
+  /*! Whether temporal point information is present. */
   bool temporal_point_info_present;
 
   /*!

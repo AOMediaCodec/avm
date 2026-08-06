@@ -59,8 +59,21 @@ static int wide_compare(Av2DmUnsignedWide left, Av2DmUnsignedWide right) {
   return 0;
 }
 
-static bool wide_add(Av2DmUnsignedWide left, Av2DmUnsignedWide right,
-                     Av2DmUnsignedWide *result) {
+#if defined(__clang__) && defined(__has_attribute)
+#if __has_attribute(no_sanitize)
+#define AV2_DM_NO_UNSIGNED_OVERFLOW_CHECK \
+  __attribute__((                         \
+      no_sanitize("unsigned-integer-overflow", "unsigned-shift-base")))
+#endif
+#endif
+
+#ifndef AV2_DM_NO_UNSIGNED_OVERFLOW_CHECK
+#define AV2_DM_NO_UNSIGNED_OVERFLOW_CHECK
+#endif
+
+AV2_DM_NO_UNSIGNED_OVERFLOW_CHECK static bool wide_add(
+    Av2DmUnsignedWide left, Av2DmUnsignedWide right,
+    Av2DmUnsignedWide *result) {
   uint64_t carry = 0;
   for (uint32_t i = 0; i < AV2_DM_WIDE_LIMBS; ++i) {
     const uint64_t partial = left.limbs[i] + right.limbs[i];
@@ -75,8 +88,8 @@ static bool wide_add(Av2DmUnsignedWide left, Av2DmUnsignedWide right,
 
 // Subtraction is modulo 2^256. Callers either establish left >= right or use
 // the wraparound result as one step of long division with a 257th carry bit.
-static Av2DmUnsignedWide wide_subtract(Av2DmUnsignedWide left,
-                                       Av2DmUnsignedWide right) {
+AV2_DM_NO_UNSIGNED_OVERFLOW_CHECK static Av2DmUnsignedWide wide_subtract(
+    Av2DmUnsignedWide left, Av2DmUnsignedWide right) {
   Av2DmUnsignedWide result;
   uint64_t borrow = 0;
   for (uint32_t i = 0; i < AV2_DM_WIDE_LIMBS; ++i) {
@@ -97,7 +110,8 @@ static void wide_set_bit(Av2DmUnsignedWide *value, uint32_t bit_index) {
   value->limbs[bit_index / 64] |= UINT64_C(1) << (bit_index % 64);
 }
 
-static bool wide_shift_left_one(Av2DmUnsignedWide *value) {
+AV2_DM_NO_UNSIGNED_OVERFLOW_CHECK static bool wide_shift_left_one(
+    Av2DmUnsignedWide *value) {
   const bool overflow = (value->limbs[AV2_DM_WIDE_LIMBS - 1] >> 63) != 0;
   for (int i = AV2_DM_WIDE_LIMBS - 1; i > 0; --i) {
     value->limbs[i] = (value->limbs[i] << 1) | (value->limbs[i - 1] >> 63);
@@ -112,8 +126,10 @@ static bool wide_divide(Av2DmUnsignedWide dividend, Av2DmUnsignedWide divisor,
                         Av2DmUnsignedWide *remainder) {
   if (wide_is_zero(divisor)) return false;
   if (wide_fits_u64(dividend) && wide_fits_u64(divisor)) {
-    *quotient = wide_from_u64(dividend.limbs[0] / divisor.limbs[0]);
-    *remainder = wide_from_u64(dividend.limbs[0] % divisor.limbs[0]);
+    const uint64_t divisor_low = divisor.limbs[0];
+    if (divisor_low == 0) return false;
+    *quotient = wide_from_u64(dividend.limbs[0] / divisor_low);
+    *remainder = wide_from_u64(dividend.limbs[0] % divisor_low);
     return true;
   }
   Av2DmUnsignedWide result = { { 0, 0, 0, 0 } };
@@ -158,8 +174,9 @@ static Av2DmUnsignedWide wide_gcd(Av2DmUnsignedWide left,
 // Computes the complete 64-by-64-bit product using only fixed-width portable
 // C arithmetic. Unsigned wraparound in the 32-bit partial-product assembly is
 // intentional and defined by the C language.
-static void multiply_64(uint64_t left, uint64_t right, uint64_t *product_low,
-                        uint64_t *product_high) {
+AV2_DM_NO_UNSIGNED_OVERFLOW_CHECK static void multiply_64(
+    uint64_t left, uint64_t right, uint64_t *product_low,
+    uint64_t *product_high) {
   const uint64_t mask = UINT32_MAX;
   const uint64_t left_low = left & mask;
   const uint64_t left_high = left >> 32;
@@ -172,8 +189,9 @@ static void multiply_64(uint64_t left, uint64_t right, uint64_t *product_low,
   *product_low = (middle_2 << 32) | (low & mask);
 }
 
-static bool product_add_at(Av2DmUnsignedProduct *product, uint32_t index,
-                           uint64_t low, uint64_t high) {
+AV2_DM_NO_UNSIGNED_OVERFLOW_CHECK static bool product_add_at(
+    Av2DmUnsignedProduct *product, uint32_t index, uint64_t low,
+    uint64_t high) {
   if (index >= AV2_DM_PRODUCT_LIMBS) return low == 0 && high == 0;
   const uint64_t old_low = product->limbs[index];
   product->limbs[index] += low;
@@ -196,6 +214,8 @@ static bool product_add_at(Av2DmUnsignedProduct *product, uint32_t index,
   }
   return carry == 0;
 }
+
+#undef AV2_DM_NO_UNSIGNED_OVERFLOW_CHECK
 
 static bool wide_multiply(Av2DmUnsignedWide left, Av2DmUnsignedWide right,
                           Av2DmUnsignedProduct *product) {

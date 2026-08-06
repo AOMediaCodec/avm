@@ -1519,7 +1519,9 @@ TEST(DecoderModelConformanceTest, FrameTileRateBoundaryIsExact) {
     EXPECT_EQ(CountViolations(collector, AV2_DM_VIOLATION_FRAME_TILE_RATE),
               num_tiles > 2 ? 1u : 0u);
     EXPECT_EQ(collector.violations.size(), num_tiles > 2 ? 1u : 0u);
-    if (num_tiles > 2) EXPECT_EQ(collector.violations[0].event_index, 1u);
+    if (num_tiles > 2) {
+      EXPECT_EQ(collector.violations[0].event_index, 1u);
+    }
     av2_decoder_model_destroy(model);
   }
 }
