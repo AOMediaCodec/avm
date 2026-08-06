@@ -596,6 +596,7 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.reduce_search_range = 1;
 
     sf->mv_sf.warp_search_method = WARP_SEARCH_DIAMOND;
+    sf->mv_sf.newmv_drl_search_limit = 1;
     sf->winner_mode_sf.dc_blk_pred_level = 2;
   }
 
