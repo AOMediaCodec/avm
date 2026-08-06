@@ -186,6 +186,7 @@ typedef struct {
   int next_key_frame_forced;
   int is_src_frame_alt_ref;
   int sframe_due;
+  int sframe_replace_kf_count;
 
   int high_source_sad;
   uint64_t avg_source_sad;
