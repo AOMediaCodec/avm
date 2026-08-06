@@ -4126,9 +4126,7 @@ static AVM_INLINE void setup_frame_size_with_refs(
 
 // Reuses the tile information
 static void reuse_tile_params(CommonTileParams *tiles,
-                              const TileInfoSyntax *tile_params) {
-  const CommonTileParams *const tile_info = &tile_params->tile_info;
-
+                              const CommonTileParams *tile_info) {
   tiles->uniform_spacing = tile_info->uniform_spacing;
 
   // Reuse tile columns
@@ -4241,7 +4239,7 @@ static AVM_INLINE void read_tile_info(AV2Decoder *const pbi,
       reuse = 1;
   }
   if (reuse) {
-    reuse_tile_params(&cm->tiles, tile_params);
+    reuse_tile_params(&cm->tiles, &tile_params->tile_info);
   } else {
     read_tile_params(&cm->tiles, rb);
   }
