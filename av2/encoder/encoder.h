@@ -3616,6 +3616,25 @@ static INLINE bool av2_is_shown_keyframe(const AV2_COMP *cpi,
   return (frame_type == KEY_FRAME) && !cpi->no_show_fwd_kf;
 }
 
+static INLINE void av2_set_seq_lr_tools_mask(SequenceHeader *const seq_params,
+                                             const AV2EncoderConfig *oxcf) {
+  const ToolCfg *const tool_cfg = &oxcf->tool_cfg;
+  seq_params->lr_tools_disable_mask[0] = 0;  // default - no tools disabled
+  seq_params->lr_tools_disable_mask[1] = 0;  // default - no tools disabled
+
+  // Parse oxcf here to disable tools as requested through cmd lines
+  if (!tool_cfg->enable_pc_wiener) {
+    seq_params->lr_tools_disable_mask[0] |= (1 << RESTORE_PC_WIENER);
+    seq_params->lr_tools_disable_mask[1] |= (1 << RESTORE_PC_WIENER);
+  }
+  if (!tool_cfg->enable_wiener_nonsep) {
+    seq_params->lr_tools_disable_mask[0] |= (1 << RESTORE_WIENER_NONSEP);
+    seq_params->lr_tools_disable_mask[1] |= (1 << RESTORE_WIENER_NONSEP);
+  }
+
+  seq_params->lr_tools_disable_mask[1] |= DEF_UV_LR_TOOLS_DISABLE_MASK;
+}
+
 /*!\endcond */
 
 #ifdef __cplusplus
