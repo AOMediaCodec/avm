@@ -862,7 +862,7 @@ static avm_codec_err_t validate_config(avm_codec_alg_priv_t *ctx,
 
   RANGE_CHECK(extra_cfg, reduced_tx_type_set, 0, 3);
 
-  RANGE_CHECK_HI(extra_cfg, enable_low_complexity_decode, 1);
+  RANGE_CHECK_HI(extra_cfg, enable_low_complexity_decode, 2);
 
   return AVM_CODEC_OK;
 }
@@ -1761,9 +1761,10 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   // Now, low complexity decode mode is only supported for good-quality
   // encoding. This can be further modified if needed.
   oxcf->enable_low_complexity_decode =
-      extra_cfg->enable_low_complexity_decode &&
-      cfg->g_usage == AVM_USAGE_GOOD_QUALITY;
-  if (extra_cfg->enable_low_complexity_decode &&
+      (cfg->g_usage == AVM_USAGE_GOOD_QUALITY)
+          ? extra_cfg->enable_low_complexity_decode
+          : 0;
+  if (extra_cfg->enable_low_complexity_decode > 0 &&
       cfg->g_usage != AVM_USAGE_GOOD_QUALITY) {
     fprintf(stderr,
             "Warning: setting enable_low_complexity_decode to 0 since it "

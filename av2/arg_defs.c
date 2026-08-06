@@ -888,8 +888,9 @@ const av2_codec_arg_definitions_t g_av2_codec_arg_defs = {
                                 "(0: GROUP format [default], 1: SHORT format)"),
   .enable_low_complexity_decode =
       ARG_DEF(NULL, "enable-low-complexity-decode", 1,
-              "Enable low complexity decode "
-              "(0: false (default), 1: true)"),
+              "Enable low complexity decode. "
+              "(0: false (default), 1: standard low-complexity level, 2: "
+              "aggressive low-complexity level)"),
 #endif  // CONFIG_AV2_ENCODER
   .enable_short_refresh_frame_flags =
       ARG_DEF(NULL, "enable-short-refresh-frame-flags", 1,
