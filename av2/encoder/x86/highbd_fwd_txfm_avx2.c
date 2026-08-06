@@ -12,13 +12,15 @@
 #include <assert.h>
 #include <immintrin.h> /*AVX2*/
 
-#include "config/avm_config.h"
 #include "config/av2_rtcd.h"
+#include "config/avm_config.h"
+#include "config/avm_dsp_rtcd.h"
+
 #include "av2/common/av2_txfm.h"
-#include "avm_dsp/txfm_common.h"
-#include "avm_ports/mem.h"
-#include "avm_dsp/x86/txfm_common_sse2.h"
 #include "av2/common/txb_common.h"
+#include "avm_dsp/txfm_common.h"
+#include "avm_dsp/x86/txfm_common_sse2.h"
+#include "avm_ports/mem.h"
 
 static INLINE __m256i round_power_of_two_signed_avx2(__m256i v_val_d,
                                                      int bits) {
@@ -5229,7 +5231,8 @@ void fwd_txfm_avx2(const int16_t *resi, tran_low_t *coeff, int diff_stride,
   int skipWidth = width > 32 ? width - 32 : 0;
   int skipHeight = height > 32 ? height - 32 : 0;
 
-  int buf[MAX_TX_SQUARE] = { 0 };
+  int buf[MAX_TX_SQUARE];
+  assert(width >= 4 && height >= 4);
 
   for (int y = 0; y < height; y++) {
     for (int x = 0; x < width; x++) {
