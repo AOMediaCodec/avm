@@ -598,6 +598,7 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.reduce_search_range = 1;
 
     sf->mv_sf.warp_search_method = WARP_SEARCH_DIAMOND;
+    sf->winner_mode_sf.dc_blk_pred_level = 2;
   }
 
   if (speed >= 5) {
@@ -633,7 +634,6 @@ static void set_good_speed_features_framesize_independent(
 
     sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 4 : 6;
 
-    sf->winner_mode_sf.dc_blk_pred_level = 2;
     sf->winner_mode_sf.multi_winner_mode_type = MULTI_WINNER_MODE_OFF;
   }
 
