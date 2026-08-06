@@ -650,6 +650,17 @@ static void set_good_speed_features_framesize_independent(
   }
 }
 
+// Define frame size independent speed features for low complexity decoding
+// mode.
+static void set_good_speed_features_lc_dec_framesize_independent(
+    AV2_COMP *cpi) {
+  cpi->oxcf.tool_cfg.enable_mv_traj = 0;
+  cpi->oxcf.tool_cfg.enable_gdf = 0;
+  cpi->oxcf.tool_cfg.enable_pc_wiener = 0;
+  cpi->oxcf.tool_cfg.enable_tip_refinemv = 0;
+  cpi->oxcf.tool_cfg.reduced_ref_frame_mvs_mode = 1;
+}
+
 static void set_rt_speed_features_framesize_independent(
     const AV2_COMP *const cpi, SPEED_FEATURES *const sf, int speed) {
   // Set this good features as default for now.
@@ -1170,6 +1181,21 @@ void av2_set_speed_features_framesize_independent(AV2_COMP *cpi, int speed) {
     set_rt_speed_features_framesize_independent(cpi, sf, speed);
   }
 
+  if (oxcf->mode == GOOD && cpi->oxcf.enable_low_complexity_decode) {
+    // TODO (yunqingwang): LC speed features are added below.
+    set_good_speed_features_lc_dec_framesize_independent(cpi);
+
+    // Adjust sequence flags for LC decode mode.
+    if (!cpi->seq_params_locked) {
+      cpi->common.seq_params.enable_mv_traj = cpi->oxcf.tool_cfg.enable_mv_traj;
+      cpi->common.seq_params.enable_gdf = cpi->oxcf.tool_cfg.enable_gdf;
+      cpi->common.seq_params.enable_tip_refinemv =
+          cpi->oxcf.tool_cfg.enable_tip_refinemv;
+      cpi->common.seq_params.order_hint_info.reduced_ref_frame_mvs_mode =
+          cpi->oxcf.tool_cfg.reduced_ref_frame_mvs_mode;
+    }
+  }
+
   if (!cpi->seq_params_locked) {
     cpi->common.seq_params.enable_restoration &= !sf->lpf_sf.disable_lr_filter;
 
@@ -1189,6 +1215,9 @@ void av2_set_speed_features_framesize_independent(AV2_COMP *cpi, int speed) {
       cpi->common.seq_params.enable_tcq = TCQ_DISABLE;
       cpi->common.features.tcq_mode = TCQ_DISABLE;
     }
+
+    if (cpi->common.seq_params.enable_restoration)
+      av2_set_seq_lr_tools_mask(&cpi->common.seq_params, oxcf);
   }
 
   // sf->part_sf.partition_search_breakout_dist_thr is set assuming max 64x64
