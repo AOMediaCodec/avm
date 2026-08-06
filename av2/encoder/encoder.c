@@ -5664,9 +5664,17 @@ void av2_apply_encoding_flags(AV2_COMP *cpi, avm_enc_frame_flags_t flags) {
 avm_fixed_buf_t *av2_get_global_headers(AV2_COMP *cpi) {
   if (!cpi) return NULL;
 
+  AV2_COMMON *const cm = &cpi->common;
   uint8_t header_buf[512] = { 0 };
-  const uint32_t sequence_header_size =
-      av2_write_sequence_header_obu(&cpi->common.seq_params, &header_buf[0]);
+
+  if (setjmp(cm->error.jmp)) {
+    cm->error.setjmp = 0;
+    return NULL;
+  }
+  cm->error.setjmp = 1;
+  const uint32_t sequence_header_size = av2_write_sequence_header_obu(
+      &cm->seq_params, &header_buf[0], &cm->error);
+  cm->error.setjmp = 0;
   assert(sequence_header_size <= sizeof(header_buf));
   if (sequence_header_size == 0) return NULL;
 
