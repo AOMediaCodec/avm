@@ -441,6 +441,11 @@ typedef struct {
   bool enable_sframe;
 
   /*!
+   * Indicates if S-Frames should refresh all reference slots.
+   */
+  bool sframe_refresh_all;
+
+  /*!
    * Indicates if intra block copy prediction mode should be enabled or not.
    */
   bool enable_intrabc;

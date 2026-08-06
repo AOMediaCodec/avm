@@ -1071,6 +1071,12 @@ typedef struct avm_codec_enc_cfg {
    */
   unsigned int sframe_type;
 
+  /*!\brief sframe_refresh_all
+   *
+   * If nonzero, S-Frames refresh all reference slots.
+   */
+  unsigned int sframe_refresh_all;
+
   /*!\brief Monochrome mode
    *
    * If this is nonzero, the encoder will generate a monochrome stream

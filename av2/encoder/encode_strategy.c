@@ -762,7 +762,8 @@ int av2_get_refresh_frame_flags(
     return (1 << cpi->common.seq_params.ref_frames) - 1;
   }
 
-  if (frame_params->frame_type == S_FRAME ||
+  if ((frame_params->frame_type == S_FRAME &&
+       cpi->oxcf.kf_cfg.sframe_refresh_all) ||
       frame_params->frame_type == KEY_FRAME) {
     AV2_COMMON *const cm = &cpi->common;
     int refresh_frame_flags = (1 << cpi->common.seq_params.ref_frames) - 1;
