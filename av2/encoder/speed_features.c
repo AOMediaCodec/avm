@@ -350,6 +350,7 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.prune_interintra_by_ref_idx = 1;
     sf->inter_sf.prune_warp_delta_by_ref_idx = 1;
     sf->intra_sf.intra_pruning_with_mlp = 1;
+    sf->inter_sf.prune_comp_mode_eval_using_est_rd = true;
 
     sf->intra_sf.include_dip_for_top_n_model_rd_pruning = true;
 
@@ -596,6 +597,7 @@ static void set_good_speed_features_framesize_independent(
 
     sf->mv_sf.warp_search_method = WARP_SEARCH_DIAMOND;
     sf->mv_sf.newmv_drl_search_limit = 1;
+    sf->winner_mode_sf.dc_blk_pred_level = 2;
   }
 
   if (speed >= 5) {
@@ -631,7 +633,6 @@ static void set_good_speed_features_framesize_independent(
 
     sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 4 : 6;
 
-    sf->winner_mode_sf.dc_blk_pred_level = 2;
     sf->winner_mode_sf.multi_winner_mode_type = MULTI_WINNER_MODE_OFF;
   }
 
@@ -836,6 +837,7 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->prune_warpmv_prob_thresh = 32;
   inter_sf->prune_amvd_newmv = 0;
   inter_sf->enable_enhanced_inter_mode_cache_reuse = 0;
+  inter_sf->prune_comp_mode_eval_using_est_rd = false;
 }
 
 static AVM_INLINE void init_interp_sf(INTERP_FILTER_SPEED_FEATURES *interp_sf) {
