@@ -3541,72 +3541,6 @@ static void rectangular_partition_search(
   }
 }
 
-// Set PARTITION_NONE allowed flag.
-static AVM_INLINE void set_part_none_allowed_flag(
-    TREE_TYPE tree_type, int sdp_inter_chroma_flag,
-    PartitionSearchState *part_search_state) {
-  const PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
-
-  if (tree_type == CHROMA_PART && blk_params->bsize == BLOCK_8X8) {
-    part_search_state->partition_allowed[PARTITION_NONE] = true;
-    return;
-  }
-  if (sdp_inter_chroma_flag) {
-    part_search_state->partition_allowed[PARTITION_NONE] = true;
-    return;
-  }
-  if (is_bsize_geq(blk_params->min_partition_size, blk_params->bsize) &&
-      blk_params->has_rows && blk_params->has_cols)
-    part_search_state->partition_allowed[PARTITION_NONE] = true;
-}
-
-// Set params needed for PARTITION_NONE search.
-static void set_none_partition_params(const AV2_COMMON *const cm,
-                                      ThreadData *td, MACROBLOCK *x,
-                                      PC_TREE *pc_tree,
-                                      PartitionSearchState *part_search_state,
-                                      RD_STATS *best_remain_rdcost,
-                                      RD_STATS *best_rdc, int *pt_cost) {
-  const PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
-  RD_STATS partition_rdcost;
-
-  // Set PARTITION_NONE context.
-  if (is_inter_sdp_chroma(cm, pc_tree->region_type, x->e_mbd.tree_type)) {
-    if (pc_tree->none_chroma == NULL) {
-      pc_tree->none_chroma =
-          av2_alloc_pmc(cm, x->e_mbd.tree_type, blk_params->mi_row,
-                        blk_params->mi_col, blk_params->bsize, pc_tree,
-                        PARTITION_NONE, 0, part_search_state->ss_x,
-                        part_search_state->ss_y, &td->shared_coeff_buf);
-    }
-  } else {
-    if (pc_tree->none[pc_tree->region_type] == NULL) {
-      pc_tree->none[pc_tree->region_type] =
-          av2_alloc_pmc(cm, x->e_mbd.tree_type, blk_params->mi_row,
-                        blk_params->mi_col, blk_params->bsize, pc_tree,
-                        PARTITION_NONE, 0, part_search_state->ss_x,
-                        part_search_state->ss_y, &td->shared_coeff_buf);
-    }
-  }
-
-  // Set PARTITION_NONE type cost.
-  if (part_search_state->partition_allowed[PARTITION_NONE]) {
-    if (part_search_state->is_block_splittable &&
-        !is_inter_sdp_chroma(cm, pc_tree->region_type, x->e_mbd.tree_type)) {
-      *pt_cost = part_search_state->partition_cost[PARTITION_NONE] < INT_MAX
-                     ? part_search_state->partition_cost[PARTITION_NONE]
-                     : 0;
-    }
-
-    // Initialize the RD stats structure.
-    av2_init_rd_stats(&partition_rdcost);
-    partition_rdcost.rate = *pt_cost;
-    av2_rd_cost_update(x->rdmult, &partition_rdcost);
-    av2_rd_stats_subtraction(x->rdmult, best_rdc, &partition_rdcost,
-                             best_remain_rdcost);
-  }
-}
-
 // Skip other partitions based on PARTITION_NONE rd cost.
 static void prune_partitions_after_none(AV2_COMP *const cpi, MACROBLOCK *x,
                                         SIMPLE_MOTION_DATA_TREE *sms_tree,
@@ -3802,52 +3736,74 @@ static int64_t get_dist_offset_by_deblock(
 
 // PARTITION_NONE search.
 static void none_partition_search(
-    AV2_COMP *const cpi, ThreadData *td, TileDataEnc *tile_data, MACROBLOCK *x,
+    AV2_COMP *const cpi, ThreadData *td, TileDataEnc *tile_data,
     TokenExtra **tp, PC_TREE *pc_tree, SIMPLE_MOTION_DATA_TREE *sms_tree,
     RD_SEARCH_MACROBLOCK_CONTEXT *x_ctx,
     PartitionSearchState *part_search_state, RD_STATS *best_rdc,
     unsigned int *pb_source_variance, int64_t *none_rd, int64_t *part_none_rd,
     LevelBanksRDO *level_banks, const PARTITION_TREE *ptree_luma) {
   const AV2_COMMON *const cm = &cpi->common;
+  MACROBLOCK *const x = &td->mb;
+  const int num_planes = av2_num_planes(cm);
+  MACROBLOCKD *const xd = &x->e_mbd;
+  const int ss_x = xd->plane[AVM_PLANE_U].subsampling_x;
+  const int ss_y = xd->plane[AVM_PLANE_U].subsampling_y;
   const PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
-  RD_STATS *this_rdc = &part_search_state->this_rdc;
-  const int mi_row = blk_params->mi_row;
-  const int mi_col = blk_params->mi_col;
+  const int mi_row = blk_params->mi_row, mi_col = blk_params->mi_col;
   const BLOCK_SIZE bsize = blk_params->bsize;
+  const REGION_TYPE region_type = pc_tree->region_type;
   assert(bsize < BLOCK_SIZES_ALL);
 
-  // Skip when the aspect ratio is invalid.
+  // Check if partition none is allowed.
   const int bw = block_size_wide[bsize];
   const int bh = block_size_high[bsize];
-  const int max_aspect_ratio =
-      1 << (cpi->common.seq_params.max_pb_aspect_ratio_log2_m1 + 1);
-  if (bw > bh * max_aspect_ratio || bh > bw * max_aspect_ratio) {
-    return;
-  }
+  const int max_partition_aspect_ratio =
+      1 << (cm->seq_params.max_pb_aspect_ratio_log2_m1 + 1);
+  const bool invalid_aspect_ratio = bw > bh * max_partition_aspect_ratio ||
+                                    bh > bw * max_partition_aspect_ratio;
+  if (invalid_aspect_ratio) return;
 
-  if (is_part_pruned_by_forced_partition(part_search_state, PARTITION_NONE)) {
+  if (is_part_pruned_by_forced_partition(part_search_state, PARTITION_NONE))
     return;
-  }
 
-  int sdp_inter_chroma_flag =
-      is_inter_sdp_chroma(cm, pc_tree->region_type, x->e_mbd.tree_type);
-  // Set PARTITION_NONE allowed flag.
-  set_part_none_allowed_flag(x->e_mbd.tree_type, sdp_inter_chroma_flag,
-                             part_search_state);
-  if (!part_search_state->partition_allowed[PARTITION_NONE]) {
-    return;
-  }
+  // amend none partition allowed
+  const bool sdp_inter_chroma_flag =
+      is_inter_sdp_chroma(cm, region_type, xd->tree_type);
+  const bool allow_none_partition =
+      (xd->tree_type == CHROMA_PART && bsize == BLOCK_8X8) ||
+      sdp_inter_chroma_flag ||
+      (is_bsize_geq(blk_params->min_partition_size, blk_params->bsize) &&
+       blk_params->has_rows && blk_params->has_cols);
+  if (allow_none_partition)
+    part_search_state->partition_allowed[PARTITION_NONE] = true;
+
+  if (!part_search_state->partition_allowed[PARTITION_NONE]) return;
   if (part_search_state->prune_partition[PARTITION_NONE] &&
-      !sdp_inter_chroma_flag) {
+      !sdp_inter_chroma_flag)
     return;
+
+#if CONFIG_COLLECT_PARTITION_STATS
+  // Timer start for partition None.
+  PartitionTimingStats *part_timing_stats =
+      &part_search_state->part_timing_stats;
+  if (best_remain_rdcost.rdcost >= 0) {
+    start_partition_block_timer(part_timing_stats, PARTITION_NONE);
+  }
+#endif  // CONFIG_COLLECT_PARTITION_STATS
+
+  RD_STATS partition_rdcost;
+  av2_init_rd_stats(&partition_rdcost);
+  if (part_search_state->is_block_splittable && !sdp_inter_chroma_flag) {
+    partition_rdcost.rate =
+        part_search_state->partition_cost[PARTITION_NONE] < INT_MAX
+            ? part_search_state->partition_cost[PARTITION_NONE]
+            : 0;
+    partition_rdcost.rdcost = RDCOST(x->rdmult, partition_rdcost.rate, 0);
   }
 
-  int pt_cost = 0;
   RD_STATS best_remain_rdcost;
-
-  // Set PARTITION_NONE context and cost.
-  set_none_partition_params(cm, td, x, pc_tree, part_search_state,
-                            &best_remain_rdcost, best_rdc, &pt_cost);
+  av2_rd_stats_subtraction(x->rdmult, best_rdc, &partition_rdcost,
+                           &best_remain_rdcost);
   if (best_rdc->rdcost != INT64_MAX &&
       cpi->sf.lpf_sf.enable_deblock_for_partition_search &&
       !cpi->is_screen_content_type) {
@@ -3858,61 +3814,55 @@ static void none_partition_search(
     best_remain_rdcost.rdcost = best_remain_rdcost.rdcost * 9 / 8;
   }
 
-  if (bsize == cm->sb_size)
-    x->e_mbd.is_cfl_allowed_in_sdp = is_cfl_allowed_for_sdp(
-        cm, &x->e_mbd, ptree_luma, PARTITION_NONE, bsize);
-  x->e_mbd.is_cfl_allowed_in_sdp =
-      pc_tree->is_cfl_allowed_for_this_chroma |
-      is_cfl_allowed_for_sdp(cm, &x->e_mbd, ptree_luma, PARTITION_NONE, bsize);
-  if (!cm->seq_params.enable_cfl_intra && !cm->seq_params.enable_mhccp) {
-    x->e_mbd.is_cfl_allowed_in_sdp = CFL_DISALLOWED_FOR_CHROMA;
-  }
-  REGION_TYPE cur_region_type = pc_tree->region_type;
-  PICK_MODE_CONTEXT *ctx_none = sdp_inter_chroma_flag
-                                    ? pc_tree->none_chroma
-                                    : pc_tree->none[pc_tree->region_type];
-  if (sdp_inter_chroma_flag) {
-    inter_sdp_copy_luma_mode_info(pc_tree, ctx_none, x->e_mbd.mi[0]);
+  PICK_MODE_CONTEXT **ctx_none = sdp_inter_chroma_flag
+                                     ? &pc_tree->none_chroma
+                                     : &pc_tree->none[region_type];
+  if (*ctx_none == NULL) {
+    *ctx_none =
+        av2_alloc_pmc(cm, xd->tree_type, mi_row, mi_col, bsize, pc_tree,
+                      PARTITION_NONE, 0, ss_x, ss_y, &td->shared_coeff_buf);
   }
 
-#if CONFIG_COLLECT_PARTITION_STATS
-  // Timer start for partition None.
-  PartitionTimingStats *part_timing_stats =
-      &part_search_state->part_timing_stats;
-  if (best_remain_rdcost.rdcost >= 0) {
-    start_partition_block_timer(part_timing_stats, PARTITION_NONE);
+  if (!cm->seq_params.enable_cfl_intra && !cm->seq_params.enable_mhccp)
+    xd->is_cfl_allowed_in_sdp = CFL_DISALLOWED_FOR_CHROMA;
+  else
+    xd->is_cfl_allowed_in_sdp =
+        pc_tree->is_cfl_allowed_for_this_chroma |
+        is_cfl_allowed_for_sdp(cm, xd, ptree_luma, PARTITION_NONE, bsize);
+
+  if (sdp_inter_chroma_flag) {
+    inter_sdp_copy_luma_mode_info(pc_tree, *ctx_none, xd->mi[0]);
   }
-#endif  // CONFIG_COLLECT_PARTITION_STATS
+
   SimpleMotionData *sms_data = av2_get_sms_data_entry(
-      x->sms_bufs, mi_row, mi_col, bsize, cm->sb_size, (int8_t)cur_region_type);
+      x->sms_bufs, mi_row, mi_col, bsize, cm->sb_size, (int8_t)region_type);
+
   // Skip the SMS mode cache when retrying partition search
   // (must_find_valid_partition). The first pass may have cached
-  // PICK_MODE_CONTEXT pointers that become dangling when partition subtrees
-  // are freed and rebuilt in the second pass.
+  // PICK_MODE_CONTEXT pointers that become dangling when partition subtrees are
+  // freed and rebuilt in the second pass.
   if (!x->must_find_valid_partition)
     av2_set_best_mode_cache(x, sms_data->mode_cache);
 
   // PARTITION_NONE evaluation and cost update.
-  pick_sb_modes(cpi, td, tile_data, x, mi_row, mi_col, this_rdc,
-                pc_tree->region_type, pc_tree->sb_root_partition_info, bsize,
-                ctx_none, best_remain_rdcost);
+  RD_STATS *this_rdc = &part_search_state->this_rdc;
+  pick_sb_modes(cpi, td, tile_data, x, mi_row, mi_col, this_rdc, region_type,
+                pc_tree->sb_root_partition_info, bsize, *ctx_none,
+                best_remain_rdcost);
 
   for (int k = 0; k < NUMBER_OF_CACHED_MODES; k++) {
     x->inter_mode_cache[k] = NULL;
   }
-  if (this_rdc->rate != INT_MAX &&
-      !is_inter_sdp_chroma(cm, cur_region_type, x->e_mbd.tree_type) &&
+  if (this_rdc->rate != INT_MAX && !sdp_inter_chroma_flag &&
       !x->must_find_valid_partition) {
-    av2_add_mode_search_context_to_cache(sms_data,
-                                         pc_tree->none[pc_tree->region_type]);
+    av2_add_mode_search_context_to_cache(sms_data, *ctx_none);
   }
 
   if (cpi->sf.lpf_sf.enable_deblock_for_partition_search &&
       cm->lf.apply_deblocking_filter[0] && this_rdc->rate != INT_MAX &&
-      ctx_none != NULL && x->e_mbd.tree_type != CHROMA_PART &&
-      !cpi->is_screen_content_type) {
+      xd->tree_type != CHROMA_PART && !cpi->is_screen_content_type) {
     const int64_t distortion_offset = get_dist_offset_by_deblock(
-        cpi, td, tile_data, x, tp, ctx_none, this_rdc, mi_col, mi_row, bsize);
+        cpi, td, tile_data, x, tp, *ctx_none, this_rdc, mi_col, mi_row, bsize);
     this_rdc->dist += distortion_offset;
   }
 
@@ -3924,45 +3874,43 @@ static void none_partition_search(
 #endif  // CONFIG_COLLECT_PARTITION_STATS
 
   *pb_source_variance = x->source_variance;
-  if (none_rd) *none_rd = this_rdc->rdcost;
-  part_search_state->none_rd = this_rdc->rdcost;
-  if (pc_tree->region_type == MIXED_INTER_INTRA_REGION ||
-      frame_is_intra_only(cm))
-    pc_tree->none_rd = *this_rdc;
+
   if (this_rdc->rate != INT_MAX) {
-    pc_tree->skippable = sdp_inter_chroma_flag
-                             ? pc_tree->none_chroma->skippable
-                             : pc_tree->none[pc_tree->region_type]->skippable;
-    // Record picked ref frame to prune ref frames for other partition types.
-    if (cpi->sf.inter_sf.prune_ref_frames &&
-        x->e_mbd.tree_type != CHROMA_PART) {
-      const int ref_type = av2_ref_frame_type(
-          pc_tree->none[pc_tree->region_type]->mic.ref_frame);
-      av2_update_picked_ref_frames_mask(x, ref_type, bsize, cm->mib_size,
-                                        mi_row, mi_col);
-    }
+    pc_tree->skippable = (*ctx_none)->skippable;
 
     // Calculate the total cost and update the best partition.
     if (part_search_state->is_block_splittable && !sdp_inter_chroma_flag) {
-      this_rdc->rate += pt_cost;
+      this_rdc->rate += partition_rdcost.rate;
       this_rdc->rdcost = RDCOST(x->rdmult, this_rdc->rate, this_rdc->dist);
     }
     *part_none_rd = this_rdc->rdcost;
+
     if (this_rdc->rdcost < best_rdc->rdcost) {
       *best_rdc = *this_rdc;
       update_best_level_banks(level_banks, &x->e_mbd);
       part_search_state->found_best_partition = true;
-      if (!sdp_inter_chroma_flag) pc_tree->partitioning = PARTITION_NONE;
-
-      // Disable split and rectangular partition search
-      // based on PARTITION_NONE cost.
-      if (frame_is_intra_only(cm) || cur_region_type != INTRA_REGION ||
-          x->e_mbd.tree_type != CHROMA_PART)
-        prune_partitions_after_none(
-            cpi, x, sms_tree, pc_tree->none[pc_tree->region_type],
-            part_search_state, best_rdc, pb_source_variance);
+      if (!sdp_inter_chroma_flag) {
+        pc_tree->partitioning = PARTITION_NONE;
+        // Disable split and rectangular partition search based on
+        // PARTITION_NONE cost.
+        prune_partitions_after_none(cpi, x, sms_tree, *ctx_none,
+                                    part_search_state, best_rdc,
+                                    pb_source_variance);
+      }
+    }
+    // Record picked ref frame to prune ref frames for other partition types.
+    if (cpi->sf.inter_sf.prune_ref_frames && xd->tree_type != CHROMA_PART) {
+      const int ref_type = av2_ref_frame_type((*ctx_none)->mic.ref_frame);
+      av2_update_picked_ref_frames_mask(x, ref_type, bsize, cm->mib_size,
+                                        mi_row, mi_col);
     }
   }
+
+  if (none_rd) *none_rd = this_rdc->rdcost;
+  part_search_state->none_rd = this_rdc->rdcost;
+  if (region_type == MIXED_INTER_INTRA_REGION || frame_is_intra_only(cm))
+    pc_tree->none_rd = *this_rdc;
+
   if (cpi->sf.part_sf.end_part_search_after_consec_failures && x->is_whole_sb &&
       !frame_is_intra_only(cm) &&
       part_search_state->forced_partition == PARTITION_INVALID &&
@@ -3973,7 +3921,7 @@ static void none_partition_search(
       best_rdc->rdcost < INT64_MAX) {
     part_search_state->terminate_partition_search = true;
   }
-  av2_restore_context(cm, x, x_ctx, mi_row, mi_col, bsize, av2_num_planes(cm));
+  av2_restore_context(cm, x, x_ctx, mi_row, mi_col, bsize, num_planes);
   restore_level_banks(&x->e_mbd, level_banks);
 }
 
@@ -5510,7 +5458,7 @@ BEGIN_PARTITION_SEARCH:
   int64_t part_none_rd = INT64_MAX;
   if (!search_none_after_rect && !search_none_after_split &&
       partition_none_allowed) {
-    none_partition_search(cpi, td, tile_data, x, tp, pc_tree, sms_tree, &x_ctx,
+    none_partition_search(cpi, td, tile_data, tp, pc_tree, sms_tree, &x_ctx,
                           &part_search_state, &best_rdc, &pb_source_variance,
                           none_rd, &part_none_rd, &level_banks, ptree_luma);
   }
@@ -5549,7 +5497,7 @@ BEGIN_PARTITION_SEARCH:
   }
   if (part_search_state.forced_partition == PARTITION_INVALID &&
       partition_none_allowed && search_none_after_split) {
-    none_partition_search(cpi, td, tile_data, x, tp, pc_tree, sms_tree, &x_ctx,
+    none_partition_search(cpi, td, tile_data, tp, pc_tree, sms_tree, &x_ctx,
                           &part_search_state, &best_rdc, &pb_source_variance,
                           none_rd, &part_none_rd, &level_banks, ptree_luma);
   }
@@ -5570,7 +5518,7 @@ BEGIN_PARTITION_SEARCH:
       partition_none_allowed) {
     // Prune partitions based on rect results.
     prune_none_after_rect(&part_search_state, pc_tree);
-    none_partition_search(cpi, td, tile_data, x, tp, pc_tree, sms_tree, &x_ctx,
+    none_partition_search(cpi, td, tile_data, tp, pc_tree, sms_tree, &x_ctx,
                           &part_search_state, &best_rdc, &pb_source_variance,
                           none_rd, &part_none_rd, &level_banks, ptree_luma);
   }
