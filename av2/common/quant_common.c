@@ -101,7 +101,7 @@ int av2_q_clamped(int qindex, int delta, int base_dc_delta_q,
     q_clamped = clamp(qindex + base_dc_delta_q + delta, 1,
                       bit_depth == AVM_BITS_8    ? MAXQ_8_BITS
                       : bit_depth == AVM_BITS_10 ? MAXQ_10_BITS
-                                                 : MAXQ);
+                                                 : MAXQ_12_BITS);
   return q_clamped;
 }
 // Add the deltaq offset value
@@ -145,7 +145,7 @@ static int32_t get_q(int qindex, int delta, avm_bit_depth_t bit_depth) {
   const int q_clamped = clamp(qindex + delta, 1,
                               bit_depth == AVM_BITS_8    ? MAXQ_8_BITS
                               : bit_depth == AVM_BITS_10 ? MAXQ_10_BITS
-                                                         : MAXQ);
+                                                         : MAXQ_12_BITS);
   return qlookup(q_clamped);
 }
 
@@ -168,7 +168,7 @@ int av2_get_qindex(const struct segmentation *seg, int segment_id,
     return clamp(seg_qindex, 0,
                  bit_depth == AVM_BITS_8    ? MAXQ_8_BITS
                  : bit_depth == AVM_BITS_10 ? MAXQ_10_BITS
-                                            : MAXQ);
+                                            : MAXQ_12_BITS);
   } else {
     return base_qindex;
   }

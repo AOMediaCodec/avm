@@ -17,18 +17,10 @@
 #include "config/avm_dsp_rtcd.h"
 
 #include "avm/avm_integer.h"
+#include "avm_dsp/avm_convolve_common.h"
 #include "avm_dsp/avm_dsp_common.h"
 #include "avm_dsp/avm_filter.h"
 #include "avm_ports/mem.h"
-
-static const InterpKernel *get_filter_base(const int16_t *filter) {
-  // NOTE: This assumes that the filter table is 256-byte aligned.
-  return (const InterpKernel *)(((intptr_t)filter) & ~((intptr_t)0xFF));
-}
-
-static int get_filter_offset(const int16_t *f, const InterpKernel *base) {
-  return (int)((const InterpKernel *)(intptr_t)f - base);
-}
 
 static INLINE int highbd_vert_scalar_product(const uint16_t *a,
                                              ptrdiff_t a_stride,
@@ -161,7 +153,7 @@ void avm_highbd_convolve_copy_c(const uint16_t *src, ptrdiff_t src_stride,
                                 uint16_t *dst, ptrdiff_t dst_stride, int w,
                                 int h) {
   for (int y = 0; y < h; ++y) {
-    memmove(dst, src, w * sizeof(src[0]));
+    memcpy(dst, src, w * sizeof(src[0]));
     src += src_stride;
     dst += dst_stride;
   }

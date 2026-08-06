@@ -5554,7 +5554,7 @@ bool av2_rd_pick_partition(
   const TokenExtra *const tp_orig = *tp;
   PartitionSearchState part_search_state;
 
-  (void)*tp_orig;
+  (void)tp_orig;
   assert(pc_tree != NULL);
   assert(bsize < BLOCK_SIZES_ALL);
 

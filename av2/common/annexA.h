@@ -46,8 +46,10 @@ int av2_check_profile_interop_conformance(
 //==========================================
 // Profile Scaling and Bitrate Functions
 //===========================================
-// Gets profile scaling factor CWG-G004
-int get_profile_scaling_factor(int seq_profile_idc);
+// Gets the row index for a profile's PicSize/Bitrate factors (Table A.2,
+// CWG-G004). See the definition in annexA.c for why this is not the spec's
+// ProfileScalingFactor.
+int get_profile_factor_table_row_index(int seq_profile_idc);
 
 #ifdef __cplusplus
 }  // extern "C"

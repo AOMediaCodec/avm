@@ -34,11 +34,14 @@ extern "C" {
 #define QINDEX_BITS_UNEXT 8
 #define MAXQ_8_BITS 255
 #define MAXQ_OFFSET 24
-#define MAXQ (255 + 4 * MAXQ_OFFSET)
-#define MAXQ_10_BITS (255 + 2 * MAXQ_OFFSET)
+#define MAXQ_10_BITS (MAXQ_8_BITS + 2 * MAXQ_OFFSET)
+#define MAXQ_12_BITS (MAXQ_8_BITS + 4 * MAXQ_OFFSET)
+// Maximum quantizer irrespective of the bit depth (spec: MAXQ_BITS).
+#define MAXQ MAXQ_12_BITS
 #define QINDEX_RANGE (MAXQ - MINQ + 1)
 #define QINDEX_RANGE_8_BITS (MAXQ_8_BITS - MINQ + 1)
 #define QINDEX_RANGE_10_BITS (MAXQ_10_BITS - MINQ + 1)
+#define QINDEX_RANGE_12_BITS (MAXQ_12_BITS - MINQ + 1)
 
 // Total number of QM sets stored
 #define QM_LEVEL_BITS 4

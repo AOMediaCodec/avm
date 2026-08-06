@@ -1016,10 +1016,8 @@ if(ENABLE_EXAMPLES AND "${CMAKE_GENERATOR}" MATCHES "Makefiles$")
   file(MAKE_DIRECTORY "${AVM_CONFIG_DIR}/examples")
 
   foreach(target ${AVM_EXAMPLE_TARGETS})
-    if(NOT "${target}" MATCHES "avmdec\|avmenc")
-      set_target_properties(${target} PROPERTIES RUNTIME_OUTPUT_DIRECTORY
-                                                 "${AVM_CONFIG_DIR}/examples")
-    endif()
+    set_target_properties(${target} PROPERTIES RUNTIME_OUTPUT_DIRECTORY
+                                               "${AVM_CONFIG_DIR}/examples")
   endforeach()
 
   if(ENABLE_TOOLS AND AVM_TOOL_TARGETS)

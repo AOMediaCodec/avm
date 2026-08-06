@@ -413,9 +413,7 @@ static void set_bitstream_level_tier(AV2_COMP *cpi, AV2_COMMON *cm, int width,
     // Set the maximum parameters for bitrate and buffer size for this profile,
     // level, and tier
     seq_params->op_params[i].bitrate = av2_max_level_bitrate(
-        cm->seq_params.seq_profile_idc, cpi->level_idx[i], cpi->tier[i],
-        cm->seq_params.subsampling_x, cm->seq_params.subsampling_y,
-        cm->seq_params.monochrome);
+        cm->seq_params.seq_profile_idc, cpi->level_idx[i], cpi->tier[i]);
     // Level with seq_level_idx = 31 returns a high "dummy" bitrate to pass the
     // check
     if (seq_params->op_params[i].bitrate == 0)
@@ -1030,11 +1028,11 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
     } else if (seq_params->seq_profile_idc == MAIN_444_10_IP1) {
       seq_params->subsampling_x = 0;
       seq_params->subsampling_y = 0;
-#if CONFIG_TESTONLY_12BIT_SUPPORT
-    } else if (seq_params->seq_profile_idc == TEST_ONLY_12BIT_PROFILE) {
+#if CONFIG_12BIT_PROFILE
+    } else if (seq_params->seq_profile_idc == MAIN_444C_12_IP2) {
       seq_params->subsampling_x = oxcf->input_cfg.chroma_subsampling_x;
       seq_params->subsampling_y = oxcf->input_cfg.chroma_subsampling_y;
-#endif  // CONFIG_TESTONLY_12BIT_SUPPORT
+#endif  // CONFIG_12BIT_PROFILE
     } else {
       assert(0 && "Invalid seq_params->seq_profile_idc");
     }

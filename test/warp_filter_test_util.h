@@ -100,6 +100,7 @@ class AV2HighbdWarpFilterTest
  protected:
   void RunCheckOutput(highbd_warp_affine_func test_impl);
   void RunSpeedTest(highbd_warp_affine_func test_impl);
+  void RunBoundaryCheck(highbd_warp_affine_func test_impl, int mode);
 
   libavm_test::ACMRandom rnd_;
 };
@@ -132,6 +133,7 @@ class AV2ExtHighbdWarpFilterTest
  protected:
   void RunCheckOutput(ext_highbd_warp_affine_func test_impl);
   void RunSpeedTest(ext_highbd_warp_affine_func test_impl);
+  void RunBoundaryCheck(ext_highbd_warp_affine_func test_impl, int mode);
 
   libavm_test::ACMRandom rnd_;
 };

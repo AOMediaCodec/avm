@@ -27,6 +27,7 @@
 #include <fstream>
 #include <memory>
 #include <iostream>
+#include <iterator>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -284,8 +285,8 @@ int PopulatePartitionTree(insp_frame_data *frame_data, insp_sb_data *sb_data,
   int coding_unit_end = coding_unit_start;
 
   int child_coding_unit_start = coding_unit_start;
-  int i = 0;
-  for (; i < (int)ABSL_ARRAYSIZE(tree->sub_tree); ++i) {
+  size_t i = 0;
+  for (; i < std::size(tree->sub_tree); ++i) {
     if (tree->sub_tree[i] == nullptr) {
       break;
     }

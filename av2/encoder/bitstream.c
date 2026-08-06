@@ -4216,14 +4216,8 @@ static AVM_INLINE void write_frame_interp_filter(
     avm_wb_write_literal(wb, filter, LOG_SWITCHABLE_FILTERS);
 }
 
-static AVM_INLINE void write_tile_info_max_tile(
-    const CommonTileParams *const tiles, struct avm_write_bit_buffer *wb) {
-  int width_mi = ALIGN_POWER_OF_TWO(tiles->mi_cols, tiles->mib_size_log2);
-  int height_mi = ALIGN_POWER_OF_TWO(tiles->mi_rows, tiles->mib_size_log2);
-  int width_sb = width_mi >> tiles->mib_size_log2;
-  int height_sb = height_mi >> tiles->mib_size_log2;
-  int size_sb, i;
-
+static AVM_INLINE void write_tile_params(const CommonTileParams *const tiles,
+                                         struct avm_write_bit_buffer *wb) {
   avm_wb_write_bit(wb, tiles->uniform_spacing);
 
   if (tiles->uniform_spacing) {
@@ -4244,20 +4238,27 @@ static AVM_INLINE void write_tile_info_max_tile(
       avm_wb_write_bit(wb, 0);
     }
   } else {
+    int size_sb, i;
+
     // Explicit tiles with configurable tile widths and heights
     // columns
+    int width_sb = tiles->sb_cols;
     for (i = 0; i < tiles->cols; i++) {
       size_sb = tiles->col_start_sb[i + 1] - tiles->col_start_sb[i];
-      wb_write_uniform(wb, AVMMIN(width_sb, tiles->max_width_sb), size_sb - 1);
+      const int n = AVMMIN(width_sb, tiles->max_width_sb);
+      assert(size_sb >= 1 && size_sb <= n);
+      wb_write_uniform(wb, n, size_sb - 1);
       width_sb -= size_sb;
     }
     assert(width_sb == 0);
 
     // rows
+    int height_sb = tiles->sb_rows;
     for (i = 0; i < tiles->rows; i++) {
       size_sb = tiles->row_start_sb[i + 1] - tiles->row_start_sb[i];
-      wb_write_uniform(wb, AVMMIN(height_sb, tiles->max_height_sb),
-                       size_sb - 1);
+      const int n = AVMMIN(height_sb, tiles->max_height_sb);
+      assert(size_sb >= 1 && size_sb <= n);
+      wb_write_uniform(wb, n, size_sb - 1);
       height_sb -= size_sb;
     }
     assert(height_sb == 0);
@@ -4307,7 +4308,7 @@ static AVM_INLINE void write_tile_info(AV2_COMMON *const cm,
     }
     assert(IMPLIES(reuse, check_tile_equivalence(tile_params, &cm->tiles)));
   }
-  if (!reuse) write_tile_info_max_tile(&cm->tiles, wb);
+  if (!reuse) write_tile_params(&cm->tiles, wb);
   *saved_wb = *wb;
   if (cm->tiles.rows * cm->tiles.cols > 1 &&
       cm->features.tip_frame_mode != TIP_FRAME_AS_OUTPUT) {
@@ -4466,58 +4467,12 @@ void av2_write_timing_info_header(const avm_timing_info_t *const timing_info,
   }
 }
 
-// Writes tile syntax
-void write_tile_syntax_info(const TileInfoSyntax *tile_params,
-                            struct avm_write_bit_buffer *wb) {
-  avm_wb_write_bit(wb, tile_params->allow_tile_info_change);
-  const CommonTileParams *tiles = &tile_params->tile_info;
-  int size_sb, i;
-  int tile_width_sb = tiles->sb_cols;
-  int tile_height_sb = tiles->sb_rows;
-  avm_wb_write_bit(wb, tiles->uniform_spacing);
-
-  if (tiles->uniform_spacing) {
-    int ones = tiles->log2_cols - tiles->min_log2_cols;
-    while (ones--) {
-      avm_wb_write_bit(wb, 1);
-    }
-    if (tiles->log2_cols < tiles->max_log2_cols) {
-      avm_wb_write_bit(wb, 0);
-    }
-    // rows
-    ones = tiles->log2_rows - tiles->min_log2_rows;
-    while (ones--) {
-      avm_wb_write_bit(wb, 1);
-    }
-    if (tiles->log2_rows < tiles->max_log2_rows) {
-      avm_wb_write_bit(wb, 0);
-    }
-  } else {
-    // Explicit tiles with configurable tile widths and heights
-    // columns
-    for (i = 0; i < tiles->cols; i++) {
-      size_sb = tiles->col_start_sb[i + 1] - tiles->col_start_sb[i];
-      wb_write_uniform(wb, AVMMIN(tile_width_sb, tiles->max_width_sb),
-                       size_sb - 1);
-      tile_width_sb -= size_sb;
-    }
-    assert(tile_width_sb == 0);
-    // rows
-    for (i = 0; i < tiles->rows; i++) {
-      size_sb = tiles->row_start_sb[i + 1] - tiles->row_start_sb[i];
-      wb_write_uniform(wb, AVMMIN(tile_height_sb, tiles->max_height_sb),
-                       size_sb - 1);
-      tile_height_sb -= size_sb;
-    }
-    assert(tile_height_sb == 0);
-  }
-}
-
 static AVM_INLINE void write_sequence_tile_config(
     const SequenceHeader *const seq_params, struct avm_write_bit_buffer *wb) {
   avm_wb_write_bit(wb, seq_params->seq_tile_info_present_flag);
   if (seq_params->seq_tile_info_present_flag) {
-    write_tile_syntax_info(&seq_params->tile_params, wb);
+    avm_wb_write_bit(wb, seq_params->tile_params.allow_tile_info_change);
+    write_tile_params(&seq_params->tile_params.tile_info, wb);
   }
 }
 

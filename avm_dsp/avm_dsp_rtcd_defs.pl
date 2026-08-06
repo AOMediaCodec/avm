@@ -167,10 +167,10 @@ add_proto qw/void avm_highbd_convolve_copy/, "const uint16_t *src, ptrdiff_t src
 specialize qw/avm_highbd_convolve_copy sse2 avx2/;
 
 add_proto qw/void avm_highbd_convolve8_horiz/, "const uint16_t *src, ptrdiff_t src_stride, uint16_t *dst, ptrdiff_t dst_stride, const int16_t *filter_x, int x_step_q4, const int16_t *filter_y, int y_step_q4, int w, int h, int bd";
-specialize qw/avm_highbd_convolve8_horiz sse2 avx2/;
+specialize qw/avm_highbd_convolve8_horiz sse2 avx2 neon/;
 
 add_proto qw/void avm_highbd_convolve8_vert/, "const uint16_t *src, ptrdiff_t src_stride, uint16_t *dst, ptrdiff_t dst_stride, const int16_t *filter_x, int x_step_q4, const int16_t *filter_y, int y_step_q4, int w, int h, int bd";
-specialize qw/avm_highbd_convolve8_vert sse2 avx2/;
+specialize qw/avm_highbd_convolve8_vert sse2 avx2 neon/;
 
 #
 # Loopfilter
@@ -585,19 +585,18 @@ if (avm_config("CONFIG_AV2_ENCODER") eq "yes") {
                                                  const MV *const mv, uint16_t *comp_pred8, int width, int height, int subpel_x_q3,
                                                  int subpel_y_q3, const uint16_t *ref8, int ref_stride, int bd, int subpel_search,
 						 int is_scaled_ref";
-  specialize qw/avm_highbd_upsampled_pred sse2/;
 
   add_proto qw/void avm_highbd_comp_avg_upsampled_pred/, "MACROBLOCKD *xd, const struct AV2Common *const cm, int mi_row, int mi_col,
                                                           const MV *const mv, uint16_t *comp_pred8, const uint16_t *pred8, int width,
                                                           int height, int subpel_x_q3, int subpel_y_q3, const uint16_t *ref8, int ref_stride,
 							  int bd, int subpel_search, int is_scaled_ref";
-  specialize qw/avm_highbd_comp_avg_upsampled_pred sse2/;
+  specialize qw/avm_highbd_comp_avg_upsampled_pred sse2 neon/;
 
   add_proto qw/void avm_highbd_dist_wtd_comp_avg_upsampled_pred/, "MACROBLOCKD *xd, const struct AV2Common *const cm, int mi_row, int mi_col,
                                                               const MV *const mv, uint16_t *comp_pred8, const uint16_t *pred8, int width,
                                                               int height, int subpel_x_q3, int subpel_y_q3, const uint16_t *ref8,
                                                               int ref_stride, int bd, const DIST_WTD_COMP_PARAMS *jcp_param, int subpel_search, int is_scaled_ref";
-  specialize qw/avm_highbd_dist_wtd_comp_avg_upsampled_pred sse2/;
+  specialize qw/avm_highbd_dist_wtd_comp_avg_upsampled_pred sse2 neon/;
 
   add_proto qw/void avm_highbd_comp_mask_upsampled_pred/, "MACROBLOCKD *xd, const struct AV2Common *const cm, int mi_row, int mi_col,
                                                               const MV *const mv, uint16_t *comp_pred8, const uint16_t *pred8, int width,
