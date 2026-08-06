@@ -469,6 +469,8 @@ static void set_good_speed_features_framesize_independent(
     sf->rd_sf.disable_tcq = 1;
     // --- End ---
 
+    sf->lpf_sf.enable_deblock_for_partition_search = 0;
+
     sf->hl_sf.high_precision_mv_usage = CURRENT_Q;
     sf->hl_sf.recode_loop = ALLOW_RECODE_KFARFGF;
 
@@ -613,7 +615,6 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.prune_mesh_search = 1;
 
     sf->tpl_sf.prune_starting_mv = 3;
-    sf->lpf_sf.enable_deblock_for_partition_search = 0;
   }
 
   if (speed >= 6) {
