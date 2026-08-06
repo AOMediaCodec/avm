@@ -10,15 +10,17 @@
  * aomedia.org/license/patent-license/.
  */
 
-#include "config/avm_config.h"
+#include <assert.h>
+
 #include "config/av2_rtcd.h"
+#include "config/avm_config.h"
 #include "config/avm_dsp_rtcd.h"
 
 #include "av2/common/idct.h"
-#include "av2/encoder/hybrid_fwd_txfm.h"
 #include "av2/common/scan.h"
 #include "av2/common/secondary_tx.h"
 #include "av2/common/txb_common.h"
+#include "av2/encoder/hybrid_fwd_txfm.h"
 
 void av2_lossless_fwd_idtx_c(const int16_t *src_diff, tran_low_t *coeff,
                              int diff_stride, TxfmParam *txfm_param) {
@@ -984,7 +986,8 @@ void fwd_txfm_c(const int16_t *resi, tran_low_t *coeff, int diff_stride,
   int skipWidth = width > 32 ? width - 32 : 0;
   int skipHeight = height > 32 ? height - 32 : 0;
 
-  int buf[MAX_TX_SQUARE] = { 0 };
+  int buf[MAX_TX_SQUARE];
+  assert(width >= 4 && height >= 4);
 
   for (int y = 0; y < height; y++) {
     for (int x = 0; x < width; x++) {
