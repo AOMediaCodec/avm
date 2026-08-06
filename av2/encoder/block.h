@@ -1669,6 +1669,10 @@ typedef struct macroblock {
    * evaluation. */
   int64_t top_tx_part_rd_inter[MAX_TX_BLOCKS_IN_MAX_SB]
                               [TOP_INTER_TX_PART_COUNT];
+  /*! \brief Keep records of top estimated rdcosts of compound type search,
+   * which are used for pruning compound modes in inter mode
+   * evaluation. */
+  int64_t top_comp_est_rd[TOP_COMP_EST_RD_COUNT];
 } MACROBLOCK;
 #undef SINGLE_REF_MODES
 
