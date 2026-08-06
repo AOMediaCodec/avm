@@ -4365,6 +4365,46 @@ static int skip_repeated_newmv(
   return 0;
 }
 
+// Store the estimated RD cost for compound mode pruning.
+static INLINE void push_comp_est_rd(MACROBLOCK *x, const MB_MODE_INFO *mbmi,
+                                    int64_t tmp_rd,
+                                    bool prune_comp_mode_eval_using_est_rd) {
+  if (!prune_comp_mode_eval_using_est_rd) return;
+
+  // Do not store for skip modes.
+  if (mbmi->skip_mode != 0) return;
+  if (tmp_rd == INT64_MAX) return;
+
+  // Insert the RD Cost in sorted order.
+  for (int i = 0; i < TOP_COMP_EST_RD_COUNT; i++) {
+    if (tmp_rd < x->top_comp_est_rd[i]) {
+      for (int j = TOP_COMP_EST_RD_COUNT - 1; j > i; j--) {
+        x->top_comp_est_rd[j] = x->top_comp_est_rd[j - 1];
+      }
+      x->top_comp_est_rd[i] = tmp_rd;
+      break;
+    }
+  }
+}
+
+// Prune compound mode evaluation based on top estimated RD costs.
+static INLINE bool prune_comp_eval_using_est_rd(
+    MACROBLOCK *const x, MB_MODE_INFO *const mbmi, int64_t tmp_rd,
+    bool prune_comp_mode_eval_using_est_rd) {
+  if (!prune_comp_mode_eval_using_est_rd) return false;
+
+  // Do not prune for skip mode.
+  if (mbmi->skip_mode != 0) return false;
+  if (tmp_rd == INT64_MAX) return false;
+
+  // Do not prune if there is no valid top RD Cost for comparison.
+  if (x->top_comp_est_rd[TOP_COMP_EST_RD_COUNT - 1] == INT64_MAX) return false;
+
+  if (tmp_rd > x->top_comp_est_rd[TOP_COMP_EST_RD_COUNT - 1]) return true;
+
+  return false;
+}
+
 /*!\brief High level function to select parameters for compound mode.
  *
  * \ingroup inter_mode_search
@@ -4476,6 +4516,13 @@ static int process_compound_inter_mode(
     restore_dst_buf(xd, *orig_dst, num_planes);
     return 1;
   }
+
+  push_comp_est_rd(x, mbmi, best_rd_compound,
+                   cpi->sf.inter_sf.prune_comp_mode_eval_using_est_rd);
+  if (prune_comp_eval_using_est_rd(
+          x, mbmi, best_rd_compound,
+          cpi->sf.inter_sf.prune_comp_mode_eval_using_est_rd))
+    return 1;
 
   // Build only uv predictor for COMPOUND_AVERAGE.
   // Note there is no need to call av2_enc_build_inter_predictor
@@ -8515,6 +8562,16 @@ static INLINE void init_top_tx_part_rd_for_inter_modes(
   }
 }
 
+// Initialize the table that stores top estimated RD Costs of compound mode.
+static INLINE void init_top_comp_est_rd(
+    MACROBLOCK *const x, bool prune_comp_mode_eval_using_est_rd) {
+  if (!prune_comp_mode_eval_using_est_rd) return;
+
+  for (int j = 0; j < TOP_COMP_EST_RD_COUNT; j++) {
+    x->top_comp_est_rd[j] = INT64_MAX;
+  }
+}
+
 // Evaluate intra prediction modes in an inter frame at the block level
 static void av2_evaluate_intra_modes_in_inter_frame(
     const struct AV2_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
@@ -9121,6 +9178,8 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
   }
 
   init_top_tx_part_rd_for_inter_modes(x, sf->tx_sf.prune_inter_tx_part_rd_eval);
+
+  init_top_comp_est_rd(x, sf->inter_sf.prune_comp_mode_eval_using_est_rd);
 
   // Initialize arguments for mode loop speed features
   InterModeSFArgs sf_args = { &args.skip_motion_mode,
