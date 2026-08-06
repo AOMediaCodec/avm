@@ -783,6 +783,10 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // current best mode is not the same mode as the one being evaluated, because
   // AMVD on top of these modes is unlikely to win over the non-AMVD best mode.
   int prune_amvd_newmv;
+
+  // Prune further evaluation of compound mode using estimated RD Cost of best
+  // compound type chosen.
+  bool prune_comp_mode_eval_using_est_rd;
 } INTER_MODE_SPEED_FEATURES;
 
 typedef struct INTERP_FILTER_SPEED_FEATURES {
