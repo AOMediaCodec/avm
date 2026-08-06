@@ -215,13 +215,6 @@ static INLINE int prune_ref_by_selective_ref_frame(
   assert(ref_frame[0] != NONE_FRAME);
   if (ref_frame[0] == INTRA_FRAME) return 0;
 
-  RefCntBuffer *ref0_buf = get_ref_frame_buf(cm, ref_frame[0]);
-  if (ref0_buf)
-    if (ref0_buf->is_restricted) return 1;
-  RefCntBuffer *ref1_buf = get_ref_frame_buf(cm, ref_frame[1]);
-  if (ref1_buf)
-    if (ref1_buf->is_restricted) return 1;
-
   const int comp_pred = is_inter_ref_frame(ref_frame[1]);
 
   if (comp_pred && ref_frame[0] >= RANKED_REF0_TO_PRUNE) return 1;
@@ -258,6 +251,13 @@ static INLINE int prune_ref_by_selective_ref_frame(
         return 0;
     }
   }
+
+  RefCntBuffer *ref0_buf = get_ref_frame_buf(cm, ref_frame[0]);
+  if (ref0_buf)
+    if (ref0_buf->is_restricted) return 0;
+  RefCntBuffer *ref1_buf = get_ref_frame_buf(cm, ref_frame[1]);
+  if (ref1_buf)
+    if (ref1_buf->is_restricted) return 0;
 
   int dir_refrank0[2] = { -1, -1 };
   int dir_refrank1[2] = { -1, -1 };
