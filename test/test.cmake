@@ -103,7 +103,8 @@ if(NOT BUILD_SHARED_LIBS)
     "${AVM_ROOT}/test/scan_test.cc"
     "${AVM_ROOT}/test/simd_cmp_impl.h"
     "${AVM_ROOT}/test/simd_impl.h"
-    "${AVM_ROOT}/test/gdf_test.cc")
+    "${AVM_ROOT}/test/gdf_test.cc"
+    "${AVM_ROOT}/test/inv_txfm_variant_test.cc")
 
   if(CONFIG_ACCOUNTING)
     list(APPEND AVM_UNIT_TEST_COMMON_SOURCES
