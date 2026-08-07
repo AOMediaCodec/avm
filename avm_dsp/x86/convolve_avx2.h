@@ -447,7 +447,7 @@ DECLARE_ALIGNED(32, static const uint8_t, filt4_global_avx2[32]) = {
     s[6] = s[7];                                                              \
   }
 
-#define DIST_WTD_CONVOLVE_HORIZONTAL_FILTER_8TAP                               \
+#define CWP_CONVOLVE_HORIZONTAL_FILTER_8TAP                                    \
   for (i = 0; i < im_h; i += 2) {                                              \
     __m256i data = _mm256_castsi128_si256(_mm_loadu_si128((__m128i *)src_h));  \
     if (i + 1 < im_h)                                                          \
@@ -464,7 +464,7 @@ DECLARE_ALIGNED(32, static const uint8_t, filt4_global_avx2[32]) = {
 
 // In optical flow MV refinement, unaligned store (_mm_storeu_si128) is used
 // in this function to avoid a subblock boundary error.
-#define DIST_WTD_CONVOLVE_VERTICAL_FILTER_8TAP                                 \
+#define CWP_CONVOLVE_VERTICAL_FILTER_8TAP                                      \
   __m256i s[8];                                                                \
   __m256i s0 = _mm256_loadu_si256((__m256i *)(im_block + 0 * im_stride));      \
   __m256i s1 = _mm256_loadu_si256((__m256i *)(im_block + 1 * im_stride));      \

@@ -45,26 +45,21 @@ typedef uint32_t (*SadMxNAvgFunc)(const uint16_t *src_ptr, int src_stride,
                                   const uint16_t *second_pred);
 typedef std::tuple<int, int, SadMxNAvgFunc, int> SadMxNAvgParam;
 
-typedef void (*DistWtdCompAvgFunc)(uint16_t *comp_pred, const uint16_t *pred,
-                                   int width, int height, const uint16_t *ref,
-                                   int ref_stride,
-                                   const DIST_WTD_COMP_PARAMS *jcp_param);
-typedef std::tuple<int, int, DistWtdCompAvgFunc, int> DistWtdCompAvgParam;
+typedef void (*CwpFunc)(uint16_t *comp_pred, const uint16_t *pred, int width,
+                        int height, const uint16_t *ref, int ref_stride,
+                        const CWP_PARAMS *cwp_param);
+typedef std::tuple<int, int, CwpFunc, int> CwpParam;
 
-typedef unsigned int (*DistWtdSadMxhFunc)(const uint16_t *src_ptr,
-                                          int src_stride,
-                                          const uint16_t *ref_ptr,
-                                          int ref_stride, int width,
-                                          int height);
-typedef std::tuple<int, int, DistWtdSadMxhFunc, int> DistWtdSadMxhParam;
+typedef unsigned int (*CwpSadMxhFunc)(const uint16_t *src_ptr, int src_stride,
+                                      const uint16_t *ref_ptr, int ref_stride,
+                                      int width, int height);
+typedef std::tuple<int, int, CwpSadMxhFunc, int> CwpSadMxhParam;
 
-typedef uint32_t (*DistWtdSadMxNAvgFunc)(const uint16_t *src_ptr,
-                                         int src_stride,
-                                         const uint16_t *ref_ptr,
-                                         int ref_stride,
-                                         const uint16_t *second_pred,
-                                         const DIST_WTD_COMP_PARAMS *jcp_param);
-typedef std::tuple<int, int, DistWtdSadMxNAvgFunc, int> DistWtdSadMxNAvgParam;
+typedef uint32_t (*CwpSadMxNAvgFunc)(const uint16_t *src_ptr, int src_stride,
+                                     const uint16_t *ref_ptr, int ref_stride,
+                                     const uint16_t *second_pred,
+                                     const CWP_PARAMS *cwp_param);
+typedef std::tuple<int, int, CwpSadMxNAvgFunc, int> CwpSadMxNAvgParam;
 
 typedef void (*SadMxNx4Func)(const uint16_t *src_ptr, int src_stride,
                              const uint16_t *const ref_ptr[], int ref_stride,
@@ -207,21 +202,21 @@ class SADTestBase : public ::testing::Test {
     return sad;
   }
 
-  void ReferenceDistWtdCompAvg(int block_idx) {
+  void ReferenceCwp(int block_idx) {
     const uint16_t *const reference16 = GetReference(block_idx);
     const uint16_t *const second_pred16 = second_pred_;
     uint16_t *const comp_pred16 = comp_pred_;
     for (int h = 0; h < height_; ++h) {
       for (int w = 0; w < width_; ++w) {
         const int tmp =
-            second_pred16[h * width_ + w] * jcp_param_.bck_offset +
-            reference16[h * reference_stride_ + w] * jcp_param_.fwd_offset;
+            second_pred16[h * width_ + w] * cwp_param_.bck_offset +
+            reference16[h * reference_stride_ + w] * cwp_param_.fwd_offset;
         comp_pred16[h * width_ + w] = ROUND_POWER_OF_TWO(tmp, 4);
       }
     }
   }
 
-  unsigned int ReferenceDistWtdSADavg(int block_idx) {
+  unsigned int ReferenceCwpSadAvg(int block_idx) {
     unsigned int sad = 0;
     const uint16_t *const reference16 = GetReference(block_idx);
     const uint16_t *const source16 = source_data_;
@@ -229,8 +224,8 @@ class SADTestBase : public ::testing::Test {
     for (int h = 0; h < height_; ++h) {
       for (int w = 0; w < width_; ++w) {
         const int tmp =
-            second_pred16[h * width_ + w] * jcp_param_.bck_offset +
-            reference16[h * reference_stride_ + w] * jcp_param_.fwd_offset;
+            second_pred16[h * width_ + w] * cwp_param_.bck_offset +
+            reference16[h * reference_stride_ + w] * cwp_param_.fwd_offset;
         const uint16_t comp_pred = ROUND_POWER_OF_TWO(tmp, 4);
         sad += abs(source16[h * source_stride_ + w] - comp_pred);
       }
@@ -270,7 +265,7 @@ class SADTestBase : public ::testing::Test {
   static uint16_t *comp_pred16_;
   static uint16_t *comp_pred_test_;
   static uint16_t *comp_pred16_test_;
-  DIST_WTD_COMP_PARAMS jcp_param_;
+  CWP_PARAMS cwp_param_;
 
   ACMRandom rnd_;
 };
@@ -521,30 +516,28 @@ class SADavgTest : public ::testing::WithParamInterface<SadMxNAvgParam>,
   }
 };
 
-class DistWtdCompAvgTest
-    : public ::testing::WithParamInterface<DistWtdCompAvgParam>,
-      public SADTestBase {
+class CwpTest : public ::testing::WithParamInterface<CwpParam>,
+                public SADTestBase {
  public:
-  DistWtdCompAvgTest()
-      : SADTestBase(GET_PARAM(0), GET_PARAM(1), GET_PARAM(3)) {}
+  CwpTest() : SADTestBase(GET_PARAM(0), GET_PARAM(1), GET_PARAM(3)) {}
 
  protected:
-  void dist_wtd_comp_avg(int block_idx) {
+  void CompWtdPred(int block_idx) {
     const uint16_t *const reference = GetReference(block_idx);
 
     ASM_REGISTER_STATE_CHECK(GET_PARAM(2)(comp_pred_test_, second_pred_, width_,
                                           height_, reference, reference_stride_,
-                                          &jcp_param_));
+                                          &cwp_param_));
   }
 
   void CheckCompAvg() {
     for (int j = 0; j < 2; ++j) {
       for (int i = 0; i < 4; ++i) {
-        jcp_param_.fwd_offset = quant_dist_lookup_table[i][j];
-        jcp_param_.bck_offset = quant_dist_lookup_table[i][1 - j];
+        cwp_param_.fwd_offset = quant_dist_lookup_table[i][j];
+        cwp_param_.bck_offset = quant_dist_lookup_table[i][1 - j];
 
-        ReferenceDistWtdCompAvg(0);
-        dist_wtd_comp_avg(0);
+        ReferenceCwp(0);
+        CompWtdPred(0);
 
         for (int y = 0; y < height_; ++y)
           for (int x = 0; x < width_; ++x)
@@ -554,12 +547,12 @@ class DistWtdCompAvgTest
     }
   }
 };
-GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(DistWtdCompAvgTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CwpTest);
 
-class DistWtdSADTest : public ::testing::WithParamInterface<DistWtdSadMxhParam>,
-                       public SADTestBase {
+class CwpSadTest : public ::testing::WithParamInterface<CwpSadMxhParam>,
+                   public SADTestBase {
  public:
-  DistWtdSADTest() : SADTestBase(GET_PARAM(0), GET_PARAM(1), GET_PARAM(3)) {}
+  CwpSadTest() : SADTestBase(GET_PARAM(0), GET_PARAM(1), GET_PARAM(3)) {}
 
  protected:
   unsigned int SAD(int block_idx) {
@@ -587,40 +580,39 @@ class DistWtdSADTest : public ::testing::WithParamInterface<DistWtdSadMxhParam>,
     }
   }
 };
-GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(DistWtdSADTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CwpSadTest);
 
-class DistWtdSADavgTest
-    : public ::testing::WithParamInterface<DistWtdSadMxNAvgParam>,
-      public SADTestBase {
+class CwpSadAvgTest : public ::testing::WithParamInterface<CwpSadMxNAvgParam>,
+                      public SADTestBase {
  public:
-  DistWtdSADavgTest() : SADTestBase(GET_PARAM(0), GET_PARAM(1), GET_PARAM(3)) {}
+  CwpSadAvgTest() : SADTestBase(GET_PARAM(0), GET_PARAM(1), GET_PARAM(3)) {}
 
  protected:
-  unsigned int dist_wtd_SAD_avg(int block_idx) {
+  unsigned int CwpSadAvg(int block_idx) {
     unsigned int ret;
     const uint16_t *const reference = GetReference(block_idx);
 
     ASM_REGISTER_STATE_CHECK(ret = GET_PARAM(2)(source_data_, source_stride_,
                                                 reference, reference_stride_,
-                                                second_pred_, &jcp_param_));
+                                                second_pred_, &cwp_param_));
     return ret;
   }
 
   void CheckSAD() {
     for (int j = 0; j < 2; ++j) {
       for (int i = 0; i < 4; ++i) {
-        jcp_param_.fwd_offset = quant_dist_lookup_table[i][j];
-        jcp_param_.bck_offset = quant_dist_lookup_table[i][1 - j];
+        cwp_param_.fwd_offset = quant_dist_lookup_table[i][j];
+        cwp_param_.bck_offset = quant_dist_lookup_table[i][1 - j];
 
-        const unsigned int reference_sad = ReferenceDistWtdSADavg(0);
-        const unsigned int exp_sad = dist_wtd_SAD_avg(0);
+        const unsigned int reference_sad = ReferenceCwpSadAvg(0);
+        const unsigned int exp_sad = CwpSadAvg(0);
 
         ASSERT_EQ(reference_sad, exp_sad);
       }
     }
   }
 };
-GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(DistWtdSADavgTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CwpSadAvgTest);
 
 uint16_t *SADTestBase::source_data_ = NULL;
 uint16_t *SADTestBase::reference_data_ = NULL;
@@ -844,19 +836,19 @@ TEST_P(SADavgTest, ShortSrc) {
   source_stride_ = tmp_stride;
 }
 
-TEST_P(DistWtdCompAvgTest, MaxRef) {
+TEST_P(CwpTest, MaxRef) {
   FillConstant(reference_data_, reference_stride_, mask_);
   FillConstant(second_pred_, width_, 0);
   CheckCompAvg();
 }
 
-TEST_P(DistWtdCompAvgTest, MaxSecondPred) {
+TEST_P(CwpTest, MaxSecondPred) {
   FillConstant(reference_data_, reference_stride_, 0);
   FillConstant(second_pred_, width_, mask_);
   CheckCompAvg();
 }
 
-TEST_P(DistWtdCompAvgTest, ShortRef) {
+TEST_P(CwpTest, ShortRef) {
   const int tmp_stride = reference_stride_;
   reference_stride_ >>= 1;
   FillRandom(reference_data_, reference_stride_);
@@ -865,7 +857,7 @@ TEST_P(DistWtdCompAvgTest, ShortRef) {
   reference_stride_ = tmp_stride;
 }
 
-TEST_P(DistWtdCompAvgTest, UnalignedRef) {
+TEST_P(CwpTest, UnalignedRef) {
   // The reference frame, but not the source frame, may be unaligned for
   // certain types of searches.
   const int tmp_stride = reference_stride_;
@@ -876,19 +868,19 @@ TEST_P(DistWtdCompAvgTest, UnalignedRef) {
   reference_stride_ = tmp_stride;
 }
 
-TEST_P(DistWtdSADTest, MaxRef) {
+TEST_P(CwpSadTest, MaxRef) {
   FillConstant(source_data_, source_stride_, 0);
   FillConstant(reference_data_, reference_stride_, mask_);
   CheckSAD();
 }
 
-TEST_P(DistWtdSADTest, MaxSrc) {
+TEST_P(CwpSadTest, MaxSrc) {
   FillConstant(source_data_, source_stride_, mask_);
   FillConstant(reference_data_, reference_stride_, 0);
   CheckSAD();
 }
 
-TEST_P(DistWtdSADTest, ShortRef) {
+TEST_P(CwpSadTest, ShortRef) {
   const int tmp_stride = reference_stride_;
   reference_stride_ >>= 1;
   FillRandom(source_data_, source_stride_);
@@ -897,7 +889,7 @@ TEST_P(DistWtdSADTest, ShortRef) {
   reference_stride_ = tmp_stride;
 }
 
-TEST_P(DistWtdSADTest, UnalignedRef) {
+TEST_P(CwpSadTest, UnalignedRef) {
   // The reference frame, but not the source frame, may be unaligned for
   // certain types of searches.
   const int tmp_stride = reference_stride_;
@@ -908,7 +900,7 @@ TEST_P(DistWtdSADTest, UnalignedRef) {
   reference_stride_ = tmp_stride;
 }
 
-TEST_P(DistWtdSADTest, ShortSrc) {
+TEST_P(CwpSadTest, ShortSrc) {
   const int tmp_stride = source_stride_;
   source_stride_ >>= 1;
   int test_count = 2000;
@@ -921,20 +913,20 @@ TEST_P(DistWtdSADTest, ShortSrc) {
   source_stride_ = tmp_stride;
 }
 
-TEST_P(DistWtdSADavgTest, MaxRef) {
+TEST_P(CwpSadAvgTest, MaxRef) {
   FillConstant(source_data_, source_stride_, 0);
   FillConstant(reference_data_, reference_stride_, mask_);
   FillConstant(second_pred_, width_, 0);
   CheckSAD();
 }
-TEST_P(DistWtdSADavgTest, MaxSrc) {
+TEST_P(CwpSadAvgTest, MaxSrc) {
   FillConstant(source_data_, source_stride_, mask_);
   FillConstant(reference_data_, reference_stride_, 0);
   FillConstant(second_pred_, width_, 0);
   CheckSAD();
 }
 
-TEST_P(DistWtdSADavgTest, ShortRef) {
+TEST_P(CwpSadAvgTest, ShortRef) {
   const int tmp_stride = reference_stride_;
   reference_stride_ >>= 1;
   FillRandom(source_data_, source_stride_);
@@ -944,7 +936,7 @@ TEST_P(DistWtdSADavgTest, ShortRef) {
   reference_stride_ = tmp_stride;
 }
 
-TEST_P(DistWtdSADavgTest, UnalignedRef) {
+TEST_P(CwpSadAvgTest, UnalignedRef) {
   // The reference frame, but not the source frame, may be unaligned for
   // certain types of searches.
   const int tmp_stride = reference_stride_;
@@ -956,7 +948,7 @@ TEST_P(DistWtdSADavgTest, UnalignedRef) {
   reference_stride_ = tmp_stride;
 }
 
-TEST_P(DistWtdSADavgTest, ShortSrc) {
+TEST_P(CwpSadAvgTest, ShortSrc) {
   const int tmp_stride = source_stride_;
   source_stride_ >>= 1;
   int test_count = 2000;
