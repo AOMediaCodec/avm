@@ -7310,20 +7310,6 @@ static AVM_INLINE int prune_ref_frame(const AV2_COMP *cpi, const MACROBLOCK *x,
   return 0;
 }
 
-static AVM_INLINE int is_ref_frame_used_by_compound_ref(
-    int ref_frame, uint64_t skip_ref_frame_mask) {
-  for (int r = INTER_REFS_PER_FRAME; r < INTRA_FRAME; ++r) {
-    if (!(skip_ref_frame_mask & ((uint64_t)1 << r))) {
-      MV_REFERENCE_FRAME rf[2];
-      av2_set_ref_frame(rf, r);
-      if (rf[0] == ref_frame || rf[1] == ref_frame) {
-        return 1;
-      }
-    }
-  }
-  return 0;
-}
-
 static AVM_INLINE int is_ref_frame_used_in_cache(MV_REFERENCE_FRAME ref_frame,
                                                  const MB_MODE_INFO *mi_cache) {
   if (!mi_cache) {
@@ -7343,8 +7329,7 @@ static AVM_INLINE int is_ref_frame_used_in_cache(MV_REFERENCE_FRAME ref_frame,
 // and easy to read and maintain.
 static AVM_INLINE void set_params_rd_pick_inter_mode(
     const AV2_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
-    mode_skip_mask_t *mode_skip_mask, uint64_t skip_ref_frame_mask,
-    unsigned int *ref_costs_single,
+    mode_skip_mask_t *mode_skip_mask, unsigned int *ref_costs_single,
     unsigned int (*ref_costs_comp)[MAX_COMPOUND_REF_INDEX],
     struct buf_2d yv12_mb[SINGLE_REF_FRAMES][MAX_MB_PLANE]) {
   const AV2_COMMON *const cm = &cpi->common;
@@ -7352,6 +7337,7 @@ static AVM_INLINE void set_params_rd_pick_inter_mode(
   MB_MODE_INFO *const mbmi = xd->mi[0];
   MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
   unsigned char segment_id = mbmi->segment_id;
+  assert(mbmi->partition == PARTITION_NONE);
 
   av2_collect_neighbors_ref_counts(xd);
   estimate_ref_frame_costs(cm, xd, &x->mode_costs, segment_id, ref_costs_single,
@@ -7364,16 +7350,6 @@ static AVM_INLINE void set_params_rd_pick_inter_mode(
     mbmi_ext->ref_mv_count[ref_frame] = UINT8_MAX;
     x->pred_mv_sad[ref_frame] = INT_MAX;
     if ((cm->ref_frame_flags & (1 << ref_frame))) {
-      if (mbmi->partition != PARTITION_NONE &&
-          mbmi->partition != PARTITION_SPLIT) {
-        if (skip_ref_frame_mask & ((uint64_t)1 << ref_frame) &&
-            !is_ref_frame_used_by_compound_ref(ref_frame,
-                                               skip_ref_frame_mask) &&
-            !(should_reuse_mode(x, REUSE_INTER_MODE_IN_INTERFRAME_FLAG) &&
-              is_ref_frame_used_in_cache(ref_frame, x->inter_mode_cache[0]))) {
-          continue;
-        }
-      }
       assert(get_ref_frame_yv12_buf(cm, ref_frame) != NULL);
       setup_buffer_ref_mvs_inter(cpi, x, ref_frame, bsize, yv12_mb);
     }
@@ -7402,14 +7378,6 @@ static AVM_INLINE void set_params_rd_pick_inter_mode(
         continue;
       }
 
-      if (mbmi->partition != PARTITION_NONE &&
-          mbmi->partition != PARTITION_SPLIT) {
-        if (skip_ref_frame_mask & ((uint64_t)1 << ref_frame) &&
-            !(should_reuse_mode(x, REUSE_INTER_MODE_IN_INTERFRAME_FLAG) &&
-              is_ref_frame_used_in_cache(ref_frame, x->inter_mode_cache[0]))) {
-          continue;
-        }
-      }
       // Ref mv list population is not required, when compound references are
       // pruned.
       if (prune_ref_frame(cpi, x, ref_frame)) continue;
@@ -9070,8 +9038,7 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
   mbmi->mode = NEARMV;
   // init params, set frame modes, speed features
   set_params_rd_pick_inter_mode(cpi, x, bsize, &mode_skip_mask,
-                                skip_ref_frame_mask, ref_costs_single,
-                                ref_costs_comp, yv12_mb);
+                                ref_costs_single, ref_costs_comp, yv12_mb);
 
   int64_t best_est_rd = INT64_MAX;
   const InterModeRdModel *md = &tile_data->inter_mode_rd_models[bsize];
