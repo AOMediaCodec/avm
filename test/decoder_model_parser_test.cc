@@ -706,7 +706,7 @@ TEST(DecoderModelAnnexFTest, GlobalOperatingPointIsScopedPerXlayer) {
 #if CONFIG_AV2_ENCODER
 static bool DecodeCountedSymbols() {
   uint8_t buffer[64] = { 0 };
-  avm_cdf_prob write_cdf[3] = { AVM_CDF2(16384) };
+  avm_cdf_prob write_cdf[CDF_SIZE(2)] = { AVM_CDF2(16384) };
   avm_writer writer;
   memset(&writer, 0, sizeof(writer));
   avm_start_encode(&writer, buffer);
@@ -714,7 +714,7 @@ static bool DecodeCountedSymbols() {
   avm_write_symbol(&writer, 1, write_cdf, 2);
   avm_stop_encode(&writer);
 
-  avm_cdf_prob read_cdf[3] = { AVM_CDF2(16384) };
+  avm_cdf_prob read_cdf[CDF_SIZE(2)] = { AVM_CDF2(16384) };
   avm_reader reader;
   if (avm_reader_init(&reader, buffer, writer.pos) != 0) return false;
   reader.allow_update_cdf = 0;
@@ -729,7 +729,7 @@ TEST(DecoderModelSymbolCountTest, MirrorsEncoderLiteralAndSymbolCount) {
 
 TEST(DecoderModelSymbolCountTest, DirectCdfAndBitAreNotFrameSymbols) {
   uint8_t buffer[64] = { 0 };
-  avm_cdf_prob cdf[3] = { AVM_CDF2(16384) };
+  avm_cdf_prob cdf[CDF_SIZE(2)] = { AVM_CDF2(16384) };
   avm_writer writer;
   memset(&writer, 0, sizeof(writer));
   avm_start_encode(&writer, buffer);

@@ -26,6 +26,7 @@ extern "C" {
 #include "test/yuv_video_source.h"
 
 namespace {
+#if !CONFIG_SHARED
 TEST(LevelDecoderModelTest, DisplayClockTickUsesDisplayTimebaseUnits) {
   std::unique_ptr<AV2_COMP> cpi(new AV2_COMP());
   cpi->common.seq_params.ref_frames = REF_FRAMES;
@@ -44,6 +45,7 @@ TEST(LevelDecoderModelTest, DisplayClockTickUsesDisplayTimebaseUnits) {
   EXPECT_DOUBLE_EQ(1001.0 / 30000, decoder_model.display_clock_tick);
   EXPECT_EQ(7, decoder_model.num_ticks_per_picture);
 }
+#endif  // !CONFIG_SHARED
 
 // Speed settings tested
 static const int kCpuUsedVectors[] = {
