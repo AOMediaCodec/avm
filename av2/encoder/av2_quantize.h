@@ -127,7 +127,8 @@ int av2_quantizer_to_qindex(int quantizer, avm_bit_depth_t bit_depth);
 
 int av2_qindex_to_quantizer(int qindex, avm_bit_depth_t bit_depth);
 
-void av2_quantize_skip(uint16_t *eob_ptr);
+void av2_quantize_skip(intptr_t n_coeffs, tran_low_t *qcoeff_ptr,
+                       tran_low_t *dqcoeff_ptr, uint16_t *eob_ptr);
 
 void av2_highbd_quantize_fp_facade(const int use_tcq_deadzone_boost,
                                    const tran_low_t *coeff_ptr,
