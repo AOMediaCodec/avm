@@ -4390,6 +4390,31 @@ static AVM_INLINE void trace_partition_boundary(bool *partition_boundaries,
   }
 }
 
+/*!\brief Whether any cell in the given row of the boundary map has `bit` set.
+ *
+ * Scans partition_boundaries[row][col, col + width) for `bit`.
+ */
+static AVM_INLINE bool is_boundary_bit_set_in_row(
+    const bool *partition_boundaries, int row, int col, int width, int bit) {
+  for (int c = 0; c < width; c++) {
+    if (partition_boundaries[row * MAX_MIB_SIZE + col + c] & bit) return true;
+  }
+  return false;
+}
+
+/*!\brief Whether any cell in the given column of the boundary map has `bit`
+ * set.
+ *
+ * Scans partition_boundaries[row, row + height)[col] for `bit`.
+ */
+static AVM_INLINE bool is_boundary_bit_set_in_col(
+    const bool *partition_boundaries, int row, int col, int height, int bit) {
+  for (int r = 0; r < height; r++) {
+    if (partition_boundaries[(row + r) * MAX_MIB_SIZE + col] & bit) return true;
+  }
+  return false;
+}
+
 /*!\brief Prunes h partitions using the current best partition boundaries.
  *
  * If the H-shaped partitions don't have any overlap with the current best
@@ -4404,71 +4429,29 @@ static AVM_INLINE void prune_part_3_with_partition_boundary(
   const int masked_mi_col = mi_col & MAX_MIB_MASK;
   const bool *partition_boundaries = part_search_state->partition_boundaries;
   if (can_search_horz) {
-    bool keep_horz_3 = false;
-    for (int col = 0; col < mi_width; col++) {
-      if (partition_boundaries[(masked_mi_row + mi_height / 4 - 1) *
-                                   MAX_MIB_SIZE +
-                               masked_mi_col + col] &
-          (1 << HORZ)) {
-        keep_horz_3 = true;
-        break;
-      }
-    }
-    if (!keep_horz_3) {
-      for (int col = 0; col < mi_width; col++) {
-        if (partition_boundaries[(masked_mi_row + 3 * mi_height / 4 - 1) *
-                                     MAX_MIB_SIZE +
-                                 masked_mi_col + col] &
-            (1 << HORZ)) {
-          keep_horz_3 = true;
-          break;
-        }
-      }
-    }
-    if (!keep_horz_3) {
-      for (int row = 0; row < mi_height / 2; row++) {
-        if (partition_boundaries[(masked_mi_row + mi_height / 4 + row) *
-                                     MAX_MIB_SIZE +
-                                 masked_mi_col + mi_width / 2 - 1] &
-            (1 << VERT)) {
-          keep_horz_3 = true;
-          break;
-        }
-      }
-    }
+    const bool keep_horz_3 =
+        is_boundary_bit_set_in_row(partition_boundaries,
+                                   masked_mi_row + mi_height / 4 - 1,
+                                   masked_mi_col, mi_width, 1 << HORZ) ||
+        is_boundary_bit_set_in_row(partition_boundaries,
+                                   masked_mi_row + 3 * mi_height / 4 - 1,
+                                   masked_mi_col, mi_width, 1 << HORZ) ||
+        is_boundary_bit_set_in_col(
+            partition_boundaries, masked_mi_row + mi_height / 4,
+            masked_mi_col + mi_width / 2 - 1, mi_height / 2, 1 << VERT);
     part_search_state->prune_partition[PARTITION_HORZ_3] |= !keep_horz_3;
   }
   if (can_search_vert) {
-    bool keep_vert_3 = false;
-    for (int row = 0; row < mi_height; row++) {
-      if (partition_boundaries[(masked_mi_row + row) * MAX_MIB_SIZE +
-                               masked_mi_col + mi_width / 4 - 1] &
-          (1 << VERT)) {
-        keep_vert_3 = true;
-        break;
-      }
-    }
-    if (!keep_vert_3) {
-      for (int row = 0; row < mi_height; row++) {
-        if (partition_boundaries[(masked_mi_row + row) * MAX_MIB_SIZE +
-                                 masked_mi_col + 3 * mi_width / 4 - 1] &
-            (1 << VERT)) {
-          keep_vert_3 = true;
-          break;
-        }
-      }
-    }
-    if (!keep_vert_3) {
-      for (int col = 0; col < mi_width / 2; col++) {
-        if (partition_boundaries[(masked_mi_row + mi_height / 2 - 1) *
-                                     MAX_MIB_SIZE +
-                                 masked_mi_col + mi_width / 4 + col] &
-            (1 << HORZ)) {
-          keep_vert_3 = true;
-          break;
-        }
-      }
-    }
+    const bool keep_vert_3 =
+        is_boundary_bit_set_in_col(partition_boundaries, masked_mi_row,
+                                   masked_mi_col + mi_width / 4 - 1, mi_height,
+                                   1 << VERT) ||
+        is_boundary_bit_set_in_col(partition_boundaries, masked_mi_row,
+                                   masked_mi_col + 3 * mi_width / 4 - 1,
+                                   mi_height, 1 << VERT) ||
+        is_boundary_bit_set_in_row(
+            partition_boundaries, masked_mi_row + mi_height / 2 - 1,
+            masked_mi_col + mi_width / 4, mi_width / 2, 1 << HORZ);
     part_search_state->prune_partition[PARTITION_VERT_3] |= !keep_vert_3;
   }
 }
@@ -4486,88 +4469,48 @@ static AVM_INLINE void prune_part_4_with_partition_boundary(
   const int mi_height = mi_size_high[bsize];
   const int masked_mi_row = mi_row & MAX_MIB_MASK;
   const int masked_mi_col = mi_col & MAX_MIB_MASK;
-  bool keep_horz_4a = false, keep_horz_4b = false;
-  bool keep_vert_4a = false, keep_vert_4b = false;
   if (can_search_horz_4a || can_search_horz_4b) {
-    for (int col = 0; col < mi_width; col++) {
-      if (partition_boundaries[(masked_mi_row + mi_height / 8 - 1) *
-                                   MAX_MIB_SIZE +
-                               masked_mi_col + col] &
-          (1 << HORZ)) {
-        keep_horz_4a = true;
-        keep_horz_4b = true;
-        break;
-      }
-      if (partition_boundaries[(masked_mi_row + 7 * mi_height / 8 - 1) *
-                                   MAX_MIB_SIZE +
-                               masked_mi_col + col] &
-          (1 << HORZ)) {
-        keep_horz_4a = true;
-        keep_horz_4b = true;
-        break;
-      }
-    }
+    const bool keep_horz_4 =
+        is_boundary_bit_set_in_row(partition_boundaries,
+                                   masked_mi_row + mi_height / 8 - 1,
+                                   masked_mi_col, mi_width, 1 << HORZ) ||
+        is_boundary_bit_set_in_row(partition_boundaries,
+                                   masked_mi_row + 7 * mi_height / 8 - 1,
+                                   masked_mi_col, mi_width, 1 << HORZ);
+    bool keep_horz_4a = keep_horz_4;
+    bool keep_horz_4b = keep_horz_4;
     if (can_search_horz_4a && !keep_horz_4a) {
-      for (int col = 0; col < mi_width; col++) {
-        if (partition_boundaries[(masked_mi_row + 3 * mi_height / 8 - 1) *
-                                     MAX_MIB_SIZE +
-                                 masked_mi_col + col] &
-            (1 << HORZ)) {
-          keep_horz_4a = true;
-          break;
-        }
-      }
+      keep_horz_4a = is_boundary_bit_set_in_row(
+          partition_boundaries, masked_mi_row + 3 * mi_height / 8 - 1,
+          masked_mi_col, mi_width, 1 << HORZ);
     }
     if (can_search_horz_4b && !keep_horz_4b) {
-      for (int col = 0; col < mi_width; col++) {
-        if (partition_boundaries[(masked_mi_row + 5 * mi_height / 8 - 1) *
-                                     MAX_MIB_SIZE +
-                                 masked_mi_col + col] &
-            (1 << HORZ)) {
-          keep_horz_4b = true;
-          break;
-        }
-      }
+      keep_horz_4b = is_boundary_bit_set_in_row(
+          partition_boundaries, masked_mi_row + 5 * mi_height / 8 - 1,
+          masked_mi_col, mi_width, 1 << HORZ);
     }
     part_search_state->prune_partition[PARTITION_HORZ_4A] |= !keep_horz_4a;
     part_search_state->prune_partition[PARTITION_HORZ_4B] |= !keep_horz_4b;
   }
   if (can_search_vert_4a || can_search_vert_4b) {
-    for (int row = 0; row < mi_height; row++) {
-      if (partition_boundaries[(masked_mi_row + row) * MAX_MIB_SIZE +
-                               masked_mi_col + mi_width / 8 - 1] &
-          (1 << VERT)) {
-        keep_vert_4a = true;
-        keep_vert_4b = true;
-        break;
-      }
-      if (partition_boundaries[(masked_mi_row + row) * MAX_MIB_SIZE +
-                               masked_mi_col + 7 * mi_width / 8 - 1] &
-          (1 << VERT)) {
-        keep_vert_4a = true;
-        keep_vert_4b = true;
-        break;
-      }
-    }
+    const bool keep_vert_4 =
+        is_boundary_bit_set_in_col(partition_boundaries, masked_mi_row,
+                                   masked_mi_col + mi_width / 8 - 1, mi_height,
+                                   1 << VERT) ||
+        is_boundary_bit_set_in_col(partition_boundaries, masked_mi_row,
+                                   masked_mi_col + 7 * mi_width / 8 - 1,
+                                   mi_height, 1 << VERT);
+    bool keep_vert_4a = keep_vert_4;
+    bool keep_vert_4b = keep_vert_4;
     if (can_search_vert_4a && !keep_vert_4a) {
-      for (int row = 0; row < mi_height; row++) {
-        if (partition_boundaries[(masked_mi_row + row) * MAX_MIB_SIZE +
-                                 masked_mi_col + 3 * mi_width / 8 - 1] &
-            (1 << VERT)) {
-          keep_vert_4a = true;
-          break;
-        }
-      }
+      keep_vert_4a = is_boundary_bit_set_in_col(
+          partition_boundaries, masked_mi_row,
+          masked_mi_col + 3 * mi_width / 8 - 1, mi_height, 1 << VERT);
     }
     if (can_search_vert_4b && !keep_vert_4b) {
-      for (int row = 0; row < mi_height; row++) {
-        if (partition_boundaries[(masked_mi_row + row) * MAX_MIB_SIZE +
-                                 masked_mi_col + 5 * mi_width / 8 - 1] &
-            (1 << VERT)) {
-          keep_vert_4b = true;
-          break;
-        }
-      }
+      keep_vert_4b = is_boundary_bit_set_in_col(
+          partition_boundaries, masked_mi_row,
+          masked_mi_col + 5 * mi_width / 8 - 1, mi_height, 1 << VERT);
     }
     part_search_state->prune_partition[PARTITION_VERT_4A] |= !keep_vert_4a;
     part_search_state->prune_partition[PARTITION_VERT_4B] |= !keep_vert_4b;
