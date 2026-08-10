@@ -502,7 +502,6 @@ void av2_set_offsets(const AV2_COMP *const cpi, const TileInfo *const tile,
  *                              MI_SIZE
  * \param[in]    rd_cost        Pointer to structure holding rate and distortion
  *                              stats for the current block
- * \param[in]    partition      Partition mode of the parent block
  * \param[in]    cur_region_type      Region type of the current block
  * \param[in]    sb_root_partition_info      Partition information of the
  * superblock \param[in]    bsize          Current block size \param[in]    ctx
@@ -518,7 +517,7 @@ void av2_set_offsets(const AV2_COMP *const cpi, const TileInfo *const tile,
 static void pick_sb_modes(AV2_COMP *const cpi, ThreadData *td,
                           TileDataEnc *tile_data, MACROBLOCK *const x,
                           int mi_row, int mi_col, RD_STATS *rd_cost,
-                          PARTITION_TYPE partition, REGION_TYPE cur_region_type,
+                          REGION_TYPE cur_region_type,
                           int sb_root_partition_info, BLOCK_SIZE bsize,
                           PICK_MODE_CONTEXT *ctx, RD_STATS best_rd) {
   if (best_rd.rdcost < 0) {
@@ -545,7 +544,7 @@ static void pick_sb_modes(AV2_COMP *const cpi, ThreadData *td,
 
   if (ctx->rd_mode_is_ready) {
     assert(ctx->mic.sb_type[plane_type] == bsize);
-    assert(ctx->mic.partition == partition);
+    assert(ctx->mic.partition == PARTITION_NONE);
     rd_cost->rate = ctx->rd_stats.rate;
     rd_cost->dist = ctx->rd_stats.dist;
     rd_cost->rdcost = ctx->rd_stats.rdcost;
@@ -576,7 +575,7 @@ static void pick_sb_modes(AV2_COMP *const cpi, ThreadData *td,
   mbmi = xd->mi[0];
   mbmi->sb_type[plane_type] = bsize;
   if (xd->tree_type == SHARED_PART) mbmi->sb_type[PLANE_TYPE_UV] = bsize;
-  mbmi->partition = partition;
+  mbmi->partition = PARTITION_NONE;
   mbmi->chroma_ref_info = ctx->chroma_ref_info;
 
 #if CONFIG_RD_DEBUG
@@ -2537,9 +2536,8 @@ void av2_rd_use_partition(AV2_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   switch (partition) {
     case PARTITION_NONE:
       pick_sb_modes(cpi, td, tile_data, x, mi_row, mi_col, &last_part_rdc,
-                    PARTITION_NONE, pc_tree->region_type,
-                    pc_tree->sb_root_partition_info, bsize, ctx_none,
-                    invalid_rdc);
+                    pc_tree->region_type, pc_tree->sb_root_partition_info,
+                    bsize, ctx_none, invalid_rdc);
       break;
     case PARTITION_HORZ:
       pc_tree->horizontal[cur_region_type][0] = av2_alloc_pc_tree_node(
@@ -3746,7 +3744,7 @@ static void none_partition_search(
     av2_set_best_mode_cache(x, sms_data->mode_cache);
 
   // PARTITION_NONE evaluation and cost update.
-  pick_sb_modes(cpi, td, tile_data, x, mi_row, mi_col, this_rdc, PARTITION_NONE,
+  pick_sb_modes(cpi, td, tile_data, x, mi_row, mi_col, this_rdc,
                 pc_tree->region_type, pc_tree->sb_root_partition_info, bsize,
                 ctx_none, best_remain_rdcost);
 
