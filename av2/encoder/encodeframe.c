@@ -805,12 +805,22 @@ static AVM_INLINE void encode_rd_sb(AV2_COMP *cpi, ThreadData *td,
       for (int plane = plane_start; plane < plane_end; plane++) {
         x->cb_offset[plane] = 0;
       }
-      av2_rd_use_partition(
-          cpi, td, tile_data, mi,
-          (intra_sdp_enabled && xd->tree_type == CHROMA_PART) ? tp_chroma : tp,
-          mi_row, mi_col, sb_size, &dummy_rate, &dummy_dist, 1,
-          xd->sbi->ptree_root[av2_get_sdp_idx(xd->tree_type)], pc_root,
-          (xd->tree_type == CHROMA_PART) ? xd->sbi->ptree_root[0] : NULL);
+      TokenExtra **const tp_start =
+          (intra_sdp_enabled && xd->tree_type == CHROMA_PART) ? tp_chroma : tp;
+      PARTITION_TREE *const ptree_luma =
+          (xd->tree_type == CHROMA_PART) ? xd->sbi->ptree_root[0] : NULL;
+      if (cpi->sf.rt_sf.use_nonrd_partition) {
+        av2_nonrd_use_partition(
+            cpi, td, tile_data, mi, tp_start, mi_row, mi_col, sb_size,
+            xd->sbi->ptree_root[av2_get_sdp_idx(xd->tree_type)], pc_root,
+            ptree_luma);
+      } else {
+        av2_rd_use_partition(
+            cpi, td, tile_data, mi, tp_start, mi_row, mi_col, sb_size,
+            &dummy_rate, &dummy_dist, 1,
+            xd->sbi->ptree_root[av2_get_sdp_idx(xd->tree_type)], pc_root,
+            ptree_luma);
+      }
       av2_free_pc_tree_recursive(pc_root, num_planes, 0, 0);
       x->sb_enc.min_partition_size = min_partition_size;
     }
