@@ -4216,8 +4216,9 @@ static AVM_INLINE void write_frame_interp_filter(
     avm_wb_write_literal(wb, filter, LOG_SWITCHABLE_FILTERS);
 }
 
-static AVM_INLINE void write_tile_params(const CommonTileParams *const tiles,
-                                         struct avm_write_bit_buffer *wb) {
+static AVM_INLINE void write_tile_params(
+    const CommonTileParams *const tiles, struct avm_write_bit_buffer *wb,
+    struct avm_internal_error_info *error_info) {
   avm_wb_write_bit(wb, tiles->uniform_spacing);
 
   if (tiles->uniform_spacing) {
@@ -4246,7 +4247,10 @@ static AVM_INLINE void write_tile_params(const CommonTileParams *const tiles,
     for (i = 0; i < tiles->cols; i++) {
       size_sb = tiles->col_start_sb[i + 1] - tiles->col_start_sb[i];
       const int n = AVMMIN(width_sb, tiles->max_width_sb);
-      assert(size_sb >= 1 && size_sb <= n);
+      if (size_sb < 1 || size_sb > n) {
+        avm_internal_error(error_info, AVM_CODEC_ERROR,
+                           "Invalid width_in_sbs_minus_1");
+      }
       wb_write_uniform(wb, n, size_sb - 1);
       width_sb -= size_sb;
     }
@@ -4257,7 +4261,10 @@ static AVM_INLINE void write_tile_params(const CommonTileParams *const tiles,
     for (i = 0; i < tiles->rows; i++) {
       size_sb = tiles->row_start_sb[i + 1] - tiles->row_start_sb[i];
       const int n = AVMMIN(height_sb, tiles->max_height_sb);
-      assert(size_sb >= 1 && size_sb <= n);
+      if (size_sb < 1 || size_sb > n) {
+        avm_internal_error(error_info, AVM_CODEC_ERROR,
+                           "Invalid height_in_sbs_minus_1");
+      }
       wb_write_uniform(wb, n, size_sb - 1);
       height_sb -= size_sb;
     }
@@ -4308,7 +4315,7 @@ static AVM_INLINE void write_tile_info(AV2_COMMON *const cm,
     }
     assert(IMPLIES(reuse, check_tile_equivalence(tile_params, &cm->tiles)));
   }
-  if (!reuse) write_tile_params(&cm->tiles, wb);
+  if (!reuse) write_tile_params(&cm->tiles, wb, &cm->error);
   *saved_wb = *wb;
   if (cm->tiles.rows * cm->tiles.cols > 1 &&
       cm->features.tip_frame_mode != TIP_FRAME_AS_OUTPUT) {
@@ -4468,11 +4475,12 @@ void av2_write_timing_info_header(const avm_timing_info_t *const timing_info,
 }
 
 static AVM_INLINE void write_sequence_tile_config(
-    const SequenceHeader *const seq_params, struct avm_write_bit_buffer *wb) {
+    const SequenceHeader *const seq_params, struct avm_write_bit_buffer *wb,
+    struct avm_internal_error_info *error_info) {
   avm_wb_write_bit(wb, seq_params->seq_tile_info_present_flag);
   if (seq_params->seq_tile_info_present_flag) {
     avm_wb_write_bit(wb, seq_params->tile_params.allow_tile_info_change);
-    write_tile_params(&seq_params->tile_params.tile_info, wb);
+    write_tile_params(&seq_params->tile_params.tile_info, wb, error_info);
   }
 }
 
@@ -4847,7 +4855,8 @@ void write_sequence_segment_tool_flags(const SequenceHeader *const seq_params,
 }
 
 static AVM_INLINE void write_sequence_header(
-    const SequenceHeader *const seq_params, struct avm_write_bit_buffer *wb) {
+    const SequenceHeader *const seq_params, struct avm_write_bit_buffer *wb,
+    struct avm_internal_error_info *error_info) {
   write_sequence_partition_group_tool_flags(seq_params, wb);
   write_sequence_segment_tool_flags(seq_params, wb);
   write_sequence_intra_group_tool_flags(seq_params, wb);
@@ -4855,7 +4864,7 @@ static AVM_INLINE void write_sequence_header(
   write_sequence_scc_group_tool_flags(seq_params, wb);
   write_sequence_transform_quant_entropy_group_tool_flags(seq_params, wb);
   write_sequence_filter_group_tool_flags(seq_params, wb);
-  write_sequence_tile_config(seq_params, wb);
+  write_sequence_tile_config(seq_params, wb, error_info);
 }
 
 static void write_frame_max_drl_bits(AV2_COMMON *const cm,
@@ -5940,8 +5949,9 @@ static void av2_write_mlayer_dependency_info(struct avm_write_bit_buffer *wb,
   }
 }
 
-uint32_t av2_write_sequence_header_obu(const SequenceHeader *seq_params,
-                                       uint8_t *const dst) {
+uint32_t av2_write_sequence_header_obu(
+    const SequenceHeader *seq_params, uint8_t *const dst,
+    struct avm_internal_error_info *error_info) {
   struct avm_write_bit_buffer wb = { dst, 0 };
   uint32_t size = 0;
 
@@ -6018,7 +6028,7 @@ uint32_t av2_write_sequence_header_obu(const SequenceHeader *seq_params,
     }
   }
 
-  write_sequence_header(seq_params, &wb);
+  write_sequence_header(seq_params, &wb, error_info);
 
   avm_wb_write_bit(&wb, seq_params->film_grain_params_present);
   avm_wb_write_bit(&wb, seq_params->seq_extension_present_flag);
@@ -6993,8 +7003,8 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
     obu_header_size = av2_write_obu_header(OBU_SEQUENCE_HEADER, 0, 0, data);
     if (cm->seq_params.seq_seg_info_present_flag)
       av2_set_seq_seg_info(&cm->seq_params, &cm->seg);
-    obu_payload_size =
-        av2_write_sequence_header_obu(&cm->seq_params, data + obu_header_size);
+    obu_payload_size = av2_write_sequence_header_obu(
+        &cm->seq_params, data + obu_header_size, &cm->error);
     size_t length_field_size =
         obu_memmove(obu_header_size, obu_payload_size, data);
     if (av2_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
