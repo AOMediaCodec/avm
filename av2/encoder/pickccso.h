@@ -29,7 +29,8 @@ void ccso_search(AV2_COMMON *cm, MACROBLOCKD *xd, int rdmult,
                  ,
                  ThreadData *td
 #endif
-);
+                 ,
+                 int early_terminate_ccso_search);
 
 #ifdef __cplusplus
 }  // extern "C"
