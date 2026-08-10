@@ -2908,10 +2908,14 @@ static AVM_INLINE bool is_same_block_for_tree(const MB_MODE_INFO *m1,
   if (tree_type == CHROMA_PART) {
     int m1_r;
     int m1_c;
-    av2_get_chroma_start_location(m1, m1->tree_type, &m1_r, &m1_c);
+    av2_get_chroma_start_location(
+        m1, m1->tree_type == SHARED_PART ? SHARED_PART : CHROMA_PART, &m1_r,
+        &m1_c);
     int m2_r;
     int m2_c;
-    av2_get_chroma_start_location(m2, m2->tree_type, &m2_r, &m2_c);
+    av2_get_chroma_start_location(
+        m2, m2->tree_type == SHARED_PART ? SHARED_PART : CHROMA_PART, &m2_r,
+        &m2_c);
     return m1_r == m2_r && m1_c == m2_c;
   } else {
     return m1->mi_row_start == m2->mi_row_start &&
