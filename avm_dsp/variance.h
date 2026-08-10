@@ -52,14 +52,15 @@ typedef unsigned int (*avm_subp_avg_variance_fn_t)(
     const uint16_t *b, int b_stride, unsigned int *sse,
     const uint16_t *second_pred);
 
-typedef unsigned int (*avm_dist_wtd_sad_avg_fn_t)(
-    const uint16_t *a, int a_stride, const uint16_t *b, int b_stride,
-    const uint16_t *second_pred, const DIST_WTD_COMP_PARAMS *jcp_param);
+typedef unsigned int (*avm_cwp_sad_avg_fn_t)(const uint16_t *a, int a_stride,
+                                             const uint16_t *b, int b_stride,
+                                             const uint16_t *second_pred,
+                                             const CWP_PARAMS *cwp_param);
 
-typedef unsigned int (*avm_dist_wtd_subp_avg_variance_fn_t)(
+typedef unsigned int (*avm_cwp_subp_avg_variance_fn_t)(
     const uint16_t *a, int a_stride, int xoffset, int yoffset,
     const uint16_t *b, int b_stride, unsigned int *sse,
-    const uint16_t *second_pred, const DIST_WTD_COMP_PARAMS *jcp_param);
+    const uint16_t *second_pred, const CWP_PARAMS *cwp_param);
 
 typedef unsigned int (*avm_masked_sad_fn_t)(const uint16_t *src, int src_stride,
                                             const uint16_t *ref, int ref_stride,
@@ -84,8 +85,8 @@ typedef struct avm_variance_vtable {
   avm_sad_multi_d_fn_t sdsx4df;
   avm_masked_sad_fn_t msdf;
   avm_masked_subpixvariance_fn_t msvf;
-  avm_dist_wtd_sad_avg_fn_t jsdaf;
-  avm_dist_wtd_subp_avg_variance_fn_t jsvaf;
+  avm_cwp_sad_avg_fn_t jsdaf;
+  avm_cwp_subp_avg_variance_fn_t jsvaf;
 } avm_variance_fn_ptr_t;
 
 void avm_highbd_var_filter_block2d_bil_first_pass(

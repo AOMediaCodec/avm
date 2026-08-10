@@ -79,9 +79,9 @@ static INLINE __m128i convolve_hi_y(const __m128i *const s,
 static INLINE __m128i comp_avg(const __m128i *const data_ref_0,
                                const __m128i *const res_unsigned,
                                const __m128i *const wt,
-                               const int use_dist_wtd_avg) {
+                               const int use_comp_wtd_avg) {
   __m128i res;
-  if (use_dist_wtd_avg) {
+  if (use_comp_wtd_avg) {
     const __m128i data_lo = _mm_unpacklo_epi16(*data_ref_0, *res_unsigned);
     const __m128i data_hi = _mm_unpackhi_epi16(*data_ref_0, *res_unsigned);
 
