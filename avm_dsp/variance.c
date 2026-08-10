@@ -374,10 +374,10 @@ void avm_highbd_var_filter_block2d_bil_second_pass(
                                                sse);                          \
   }                                                                           \
                                                                               \
-  uint32_t avm_highbd_8_dist_wtd_sub_pixel_avg_variance##W##x##H##_c(         \
+  uint32_t avm_highbd_8_cwp_sub_pixel_avg_variance##W##x##H##_c(              \
       const uint16_t *src, int src_stride, int xoffset, int yoffset,          \
       const uint16_t *dst, int dst_stride, uint32_t *sse,                     \
-      const uint16_t *second_pred, const DIST_WTD_COMP_PARAMS *jcp_param) {   \
+      const uint16_t *second_pred, const CWP_PARAMS *cwp_param) {             \
     uint16_t fdata3[(H + 1) * W];                                             \
     uint16_t temp2[H * W];                                                    \
     DECLARE_ALIGNED(16, uint16_t, temp3[H * W]);                              \
@@ -387,16 +387,15 @@ void avm_highbd_var_filter_block2d_bil_second_pass(
     avm_highbd_var_filter_block2d_bil_second_pass(                            \
         fdata3, temp2, W, W, H, W, bilinear_filters_2t[yoffset]);             \
                                                                               \
-    avm_highbd_dist_wtd_comp_avg_pred((temp3), second_pred, W, H, (temp2), W, \
-                                      jcp_param);                             \
+    avm_highbd_cwp((temp3), second_pred, W, H, (temp2), W, cwp_param);        \
                                                                               \
     return avm_highbd_8_variance##W##x##H((temp3), W, dst, dst_stride, sse);  \
   }                                                                           \
                                                                               \
-  uint32_t avm_highbd_10_dist_wtd_sub_pixel_avg_variance##W##x##H##_c(        \
+  uint32_t avm_highbd_10_cwp_sub_pixel_avg_variance##W##x##H##_c(             \
       const uint16_t *src, int src_stride, int xoffset, int yoffset,          \
       const uint16_t *dst, int dst_stride, uint32_t *sse,                     \
-      const uint16_t *second_pred, const DIST_WTD_COMP_PARAMS *jcp_param) {   \
+      const uint16_t *second_pred, const CWP_PARAMS *cwp_param) {             \
     uint16_t fdata3[(H + 1) * W];                                             \
     uint16_t temp2[H * W];                                                    \
     DECLARE_ALIGNED(16, uint16_t, temp3[H * W]);                              \
@@ -406,16 +405,15 @@ void avm_highbd_var_filter_block2d_bil_second_pass(
     avm_highbd_var_filter_block2d_bil_second_pass(                            \
         fdata3, temp2, W, W, H, W, bilinear_filters_2t[yoffset]);             \
                                                                               \
-    avm_highbd_dist_wtd_comp_avg_pred((temp3), second_pred, W, H, (temp2), W, \
-                                      jcp_param);                             \
+    avm_highbd_cwp((temp3), second_pred, W, H, (temp2), W, cwp_param);        \
                                                                               \
     return avm_highbd_10_variance##W##x##H((temp3), W, dst, dst_stride, sse); \
   }                                                                           \
                                                                               \
-  uint32_t avm_highbd_12_dist_wtd_sub_pixel_avg_variance##W##x##H##_c(        \
+  uint32_t avm_highbd_12_cwp_sub_pixel_avg_variance##W##x##H##_c(             \
       const uint16_t *src, int src_stride, int xoffset, int yoffset,          \
       const uint16_t *dst, int dst_stride, uint32_t *sse,                     \
-      const uint16_t *second_pred, const DIST_WTD_COMP_PARAMS *jcp_param) {   \
+      const uint16_t *second_pred, const CWP_PARAMS *cwp_param) {             \
     uint16_t fdata3[(H + 1) * W];                                             \
     uint16_t temp2[H * W];                                                    \
     DECLARE_ALIGNED(16, uint16_t, temp3[H * W]);                              \
@@ -425,8 +423,7 @@ void avm_highbd_var_filter_block2d_bil_second_pass(
     avm_highbd_var_filter_block2d_bil_second_pass(                            \
         fdata3, temp2, W, W, H, W, bilinear_filters_2t[yoffset]);             \
                                                                               \
-    avm_highbd_dist_wtd_comp_avg_pred((temp3), second_pred, W, H, (temp2), W, \
-                                      jcp_param);                             \
+    avm_highbd_cwp((temp3), second_pred, W, H, (temp2), W, cwp_param);        \
                                                                               \
     return avm_highbd_12_variance##W##x##H((temp3), W, dst, dst_stride, sse); \
   }
@@ -591,13 +588,12 @@ void avm_highbd_comp_avg_upsampled_pred_c(
   }
 }
 
-void avm_highbd_dist_wtd_comp_avg_pred_c(
-    uint16_t *comp_pred, const uint16_t *pred, int width, int height,
-    const uint16_t *ref, int ref_stride,
-    const DIST_WTD_COMP_PARAMS *jcp_param) {
+void avm_highbd_cwp_c(uint16_t *comp_pred, const uint16_t *pred, int width,
+                      int height, const uint16_t *ref, int ref_stride,
+                      const CWP_PARAMS *cwp_param) {
   int i, j;
-  const int fwd_offset = jcp_param->fwd_offset;
-  const int bck_offset = jcp_param->bck_offset;
+  const int fwd_offset = cwp_param->fwd_offset;
+  const int bck_offset = cwp_param->bck_offset;
 
   for (i = 0; i < height; ++i) {
     for (j = 0; j < width; ++j) {
@@ -611,15 +607,15 @@ void avm_highbd_dist_wtd_comp_avg_pred_c(
   }
 }
 
-void avm_highbd_dist_wtd_comp_avg_upsampled_pred_c(
+void avm_highbd_cwp_upsampled_c(
     MACROBLOCKD *xd, const struct AV2Common *const cm, int mi_row, int mi_col,
     const MV *const mv, uint16_t *comp_pred, const uint16_t *pred, int width,
     int height, int subpel_x_q3, int subpel_y_q3, const uint16_t *ref,
-    int ref_stride, int bd, const DIST_WTD_COMP_PARAMS *jcp_param,
-    int subpel_search, int is_scaled_ref) {
+    int ref_stride, int bd, const CWP_PARAMS *cwp_param, int subpel_search,
+    int is_scaled_ref) {
   int i, j;
-  const int fwd_offset = jcp_param->fwd_offset;
-  const int bck_offset = jcp_param->bck_offset;
+  const int fwd_offset = cwp_param->fwd_offset;
+  const int bck_offset = cwp_param->bck_offset;
   avm_highbd_upsampled_pred_c(xd, cm, mi_row, mi_col, mv, comp_pred, width,
                               height, subpel_x_q3, subpel_y_q3, ref, ref_stride,
                               bd, subpel_search, is_scaled_ref);

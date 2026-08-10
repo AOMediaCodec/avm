@@ -59,13 +59,12 @@ static INLINE unsigned int highbd_sadb(const uint16_t *a, int a_stride,
     avm_highbd_comp_avg_pred(comp_pred, second_pred, m, n, ref, ref_stride);   \
     return highbd_sadb(src, src_stride, comp_pred, m, m, n);                   \
   }                                                                            \
-  unsigned int avm_highbd_dist_wtd_sad##m##x##n##_avg_c(                       \
+  unsigned int avm_highbd_cwp_sad##m##x##n##_avg_c(                            \
       const uint16_t *src, int src_stride, const uint16_t *ref,                \
       int ref_stride, const uint16_t *second_pred,                             \
-      const DIST_WTD_COMP_PARAMS *jcp_param) {                                 \
+      const CWP_PARAMS *cwp_param) {                                           \
     uint16_t comp_pred[m * n];                                                 \
-    avm_highbd_dist_wtd_comp_avg_pred(comp_pred, second_pred, m, n, ref,       \
-                                      ref_stride, jcp_param);                  \
+    avm_highbd_cwp(comp_pred, second_pred, m, n, ref, ref_stride, cwp_param);  \
     return highbd_sadb(src, src_stride, comp_pred, m, m, n);                   \
   }                                                                            \
   unsigned int avm_highbd_sad_skip_##m##x##n##_c(                              \
