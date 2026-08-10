@@ -500,11 +500,11 @@ static struct lookahead_entry *choose_frame_source(
         cm->allow_direct_use = 0;
 
       cm->implicit_output_picture = cm->allow_direct_use;
-      // When S-frames prevent show_existing_frame for overlays, the hidden
-      // altref must not be implicitly output to avoid duplicate frames.
+      // Suppress implicit output only in global error resilient mode, where
+      // every inter frame becomes an S-frame so allow_show_existing() always
+      // returns 0 and the overlay outputs that display order itself.
       if (cm->implicit_output_picture &&
-          (cm->current_frame.frame_type == S_FRAME ||
-           cpi->oxcf.tool_cfg.g_error_resilient_mode)) {
+          cpi->oxcf.tool_cfg.g_error_resilient_mode) {
         cm->implicit_output_picture = 0;
       }
     }
@@ -1017,13 +1017,13 @@ static int denoise_and_encode(AV2_COMP *const cpi, uint8_t *const dest,
     if (cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames) {
       cm->implicit_output_picture = 0;
     }
-    // When S-frames prevent show_existing_frame for overlays, the overlay
-    // will be fully coded and produce its own output. The hidden altref
-    // must not be implicitly output, otherwise the decoder outputs both
-    // the evicted altref and the overlay, causing duplicate frames.
+    // Frames reaching this point are hidden altrefs, so implicit output is
+    // their only way to be output. Clear it only in global error resilient
+    // mode, where every inter frame becomes an S-frame so the fully coded
+    // overlay outputs that display order itself; elsewhere overlays emit
+    // zero-byte SEFs and clearing this orphans those display orders.
     if (cm->implicit_output_picture &&
-        (cpi->oxcf.kf_cfg.enable_sframe ||
-         cpi->oxcf.tool_cfg.g_error_resilient_mode)) {
+        cpi->oxcf.tool_cfg.g_error_resilient_mode) {
       cm->implicit_output_picture = 0;
     }
 
