@@ -86,11 +86,9 @@ if(NOT BUILD_SHARED_LIBS)
   list(APPEND AVM_UNIT_TEST_COMMON_SOURCES
        "${AVM_ROOT}/test/decoder_model_test.cc")
 
-  list(
-    APPEND
-    AVM_UNIT_TEST_DECODER_SOURCES
-    "${AVM_ROOT}/test/decoder_model_integration_test.cc"
-    "${AVM_ROOT}/test/decoder_model_parser_test.cc")
+  list(APPEND AVM_UNIT_TEST_DECODER_SOURCES
+       "${AVM_ROOT}/test/decoder_model_integration_test.cc"
+       "${AVM_ROOT}/test/decoder_model_parser_test.cc")
 
   list(
     APPEND
