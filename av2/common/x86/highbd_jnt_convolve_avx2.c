@@ -23,7 +23,7 @@
 #include "avm_dsp/avm_filter.h"
 #include "av2/common/convolve.h"
 
-#define CONVOLVE_DIST_WTD_VERT_FILTER_8TAP                                     \
+#define CONVOLVE_CWP_VERT_FILTER_8TAP                                          \
   const __m256i s0 =                                                           \
       _mm256_loadu_si256((__m256i *)(im_block + 0 * im_stride));               \
   const __m256i s1 =                                                           \
@@ -182,7 +182,7 @@
     }                                                                          \
   }
 
-#define CONVOLVE_DIST_WTD_VERT_FILTER_6TAP                                     \
+#define CONVOLVE_CWP_VERT_FILTER_6TAP                                          \
   const __m256i s0 =                                                           \
       _mm256_loadu_si256((__m256i *)(im_block + 0 * im_stride));               \
   const __m256i s1 =                                                           \
@@ -331,7 +331,7 @@
     }                                                                          \
   }
 
-#define CONVOLVE_DIST_WTD_VERT_FILTER_4TAP                                     \
+#define CONVOLVE_CWP_VERT_FILTER_4TAP                                          \
   const __m256i s0 =                                                           \
       _mm256_loadu_si256((__m256i *)(im_block + 0 * im_stride));               \
   const __m256i s1 =                                                           \
@@ -470,7 +470,7 @@
     }                                                                          \
   }
 
-#define CONVOLVE_DIST_WTD_VERT_FILTER_2TAP                                     \
+#define CONVOLVE_CWP_VERT_FILTER_2TAP                                          \
   if (w - j < 8) {                                                             \
     for (i = 0; i < h; i += 2) {                                               \
       const int16_t *data = &im_block[i * im_stride];                          \
@@ -605,7 +605,7 @@ static INLINE void _mm_storeh_epi64(__m128i *const d, __m128i s) {
   _mm_storeh_pi((__m64 *)d, _mm_castsi128_ps(s));
 }
 
-static INLINE void highbd_dist_wtd_convolve_2d_copy_do_average(
+static INLINE void highbd_cwp_convolve_2d_copy_do_average(
     __m256i data, __m256i zero, __m256i res, const __m256i *offset_const,
     const __m256i *wt0, const __m256i *wt1, int use_wtd_comp_avg,
     const __m256i *const rounding_const, int rounding_shift,
@@ -634,11 +634,10 @@ static INLINE void highbd_dist_wtd_convolve_2d_copy_do_average(
   *res_clip = _mm256_min_epi16(res_16b, clip_pixel_to_bd);
 }
 
-void av2_highbd_dist_wtd_convolve_2d_copy_avx2(const uint16_t *src,
-                                               int src_stride, uint16_t *dst0,
-                                               int dst_stride0, int w, int h,
-                                               ConvolveParams *conv_params,
-                                               int bd) {
+void av2_highbd_cwp_convolve_2d_copy_avx2(const uint16_t *src, int src_stride,
+                                          uint16_t *dst0, int dst_stride0,
+                                          int w, int h,
+                                          ConvolveParams *conv_params, int bd) {
   CONV_BUF_TYPE *dst = conv_params->dst;
   int dst_stride = conv_params->dst_stride;
 
@@ -680,7 +679,7 @@ void av2_highbd_dist_wtd_convolve_2d_copy_avx2(const uint16_t *src,
           const __m256i data_0 =
               _mm256_loadu_si256((__m256i *)(&dst[i * dst_stride + j]));
 
-          highbd_dist_wtd_convolve_2d_copy_do_average(
+          highbd_cwp_convolve_2d_copy_do_average(
               data_0, zero, res, &offset_const, &wt0, &wt1, use_wtd_comp_avg,
               &rounding_const, rounding_shift, clip_pixel_to_bd, &res_clip);
 
@@ -709,7 +708,7 @@ void av2_highbd_dist_wtd_convolve_2d_copy_avx2(const uint16_t *src,
           const __m256i data_01 =
               _mm256_permute2x128_si256(data_0, data_1, 0x20);
 
-          highbd_dist_wtd_convolve_2d_copy_do_average(
+          highbd_cwp_convolve_2d_copy_do_average(
               data_01, zero, res, &offset_const, &wt0, &wt1, use_wtd_comp_avg,
               &rounding_const, rounding_shift, clip_pixel_to_bd, &res_clip);
 
@@ -749,7 +748,7 @@ void av2_highbd_dist_wtd_convolve_2d_copy_avx2(const uint16_t *src,
           const __m256i data_01 =
               _mm256_permute2x128_si256(data_0, data_1, 0x20);
 
-          highbd_dist_wtd_convolve_2d_copy_do_average(
+          highbd_cwp_convolve_2d_copy_do_average(
               data_01, zero, res, &offset_const, &wt0, &wt1, use_wtd_comp_avg,
               &rounding_const, rounding_shift, clip_pixel_to_bd, &res_clip);
 
@@ -845,10 +844,12 @@ DECLARE_ALIGNED(32, static const uint8_t, shuffle_mask1[32]) = {
   4, 5, 6, 7, 6, 7, 8, 9, 8, 9, 10, 11, 10, 11, 12, 13
 };
 
-static INLINE void dist_wtd_convolve_horiz_w4(
-    const uint16_t *src_ptr, int src_stride, const __m256i *const coeffs,
-    int im_h, int16_t *im_block, int im_stride, const __m256i *round_const_x,
-    const __m128i *round_shift_x) {
+static INLINE void cwp_convolve_horiz_w4(const uint16_t *src_ptr,
+                                         int src_stride,
+                                         const __m256i *const coeffs, int im_h,
+                                         int16_t *im_block, int im_stride,
+                                         const __m256i *round_const_x,
+                                         const __m128i *round_shift_x) {
   __m256i s[2];
   for (int i = 0; i < im_h; i += 2) {
     const __m256i row0 =
@@ -872,7 +873,7 @@ static INLINE void dist_wtd_convolve_horiz_w4(
   }
 }
 
-void av2_highbd_dist_wtd_convolve_2d_avx2(
+void av2_highbd_cwp_convolve_2d_avx2(
     const uint16_t *src, int src_stride, uint16_t *dst0, int dst_stride0, int w,
     int h, const InterpFilterParams *filter_params_x,
     const InterpFilterParams *filter_params_y, const int subpel_x_qn,
@@ -951,8 +952,8 @@ void av2_highbd_dist_wtd_convolve_2d_avx2(
     /* Horizontal filter */
     if (w == 4) {
       assert(tap_x == 2 || tap_x == 4);
-      dist_wtd_convolve_horiz_w4(src_ptr, src_stride, coeffs_x, im_h, im_block,
-                                 im_stride, &round_const_x, &round_shift_x);
+      cwp_convolve_horiz_w4(src_ptr, src_stride, coeffs_x, im_h, im_block,
+                            im_stride, &round_const_x, &round_shift_x);
     } else {
       if (tap_x == 8) {
         CONVOLVE_HORIZ_FILTER_8TAP
@@ -967,21 +968,23 @@ void av2_highbd_dist_wtd_convolve_2d_avx2(
 
     /* Vertical filter */
     if (tap_y == 8) {
-      CONVOLVE_DIST_WTD_VERT_FILTER_8TAP
+      CONVOLVE_CWP_VERT_FILTER_8TAP
     } else if (tap_y == 6) {
-      CONVOLVE_DIST_WTD_VERT_FILTER_6TAP
+      CONVOLVE_CWP_VERT_FILTER_6TAP
     } else if (tap_y == 4) {
-      CONVOLVE_DIST_WTD_VERT_FILTER_4TAP
+      CONVOLVE_CWP_VERT_FILTER_4TAP
     } else {
-      CONVOLVE_DIST_WTD_VERT_FILTER_2TAP
+      CONVOLVE_CWP_VERT_FILTER_2TAP
     }
   }
 }
 
-void av2_highbd_dist_wtd_convolve_x_avx2(
-    const uint16_t *src, int src_stride, uint16_t *dst0, int dst_stride0, int w,
-    int h, const InterpFilterParams *filter_params_x, const int subpel_x_qn,
-    ConvolveParams *conv_params, int bd) {
+void av2_highbd_cwp_convolve_x_avx2(const uint16_t *src, int src_stride,
+                                    uint16_t *dst0, int dst_stride0, int w,
+                                    int h,
+                                    const InterpFilterParams *filter_params_x,
+                                    const int subpel_x_qn,
+                                    ConvolveParams *conv_params, int bd) {
   CONV_BUF_TYPE *dst = conv_params->dst;
   int dst_stride = conv_params->dst_stride;
   const int fo_horiz = filter_params_x->taps / 2 - 1;
@@ -1142,10 +1145,12 @@ void av2_highbd_dist_wtd_convolve_x_avx2(
   }
 }
 
-void av2_highbd_dist_wtd_convolve_y_avx2(
-    const uint16_t *src, int src_stride, uint16_t *dst0, int dst_stride0, int w,
-    int h, const InterpFilterParams *filter_params_y, const int subpel_y_qn,
-    ConvolveParams *conv_params, int bd) {
+void av2_highbd_cwp_convolve_y_avx2(const uint16_t *src, int src_stride,
+                                    uint16_t *dst0, int dst_stride0, int w,
+                                    int h,
+                                    const InterpFilterParams *filter_params_y,
+                                    const int subpel_y_qn,
+                                    ConvolveParams *conv_params, int bd) {
   CONV_BUF_TYPE *dst = conv_params->dst;
   int dst_stride = conv_params->dst_stride;
   const int fo_vert = filter_params_y->taps / 2 - 1;

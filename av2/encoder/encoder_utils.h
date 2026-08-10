@@ -143,16 +143,16 @@ static AVM_INLINE void init_buffer_indices(
   cpi->fn_ptr[BT].jsdaf = JSDAF;                                       \
   cpi->fn_ptr[BT].jsvaf = JSVAF;
 
-#define HIGHBD_BFP_WRAPPER(WIDTH, HEIGHT, BD)                                \
-  HIGHBD_BFP(                                                                \
-      BLOCK_##WIDTH##X##HEIGHT, avm_highbd_sad##WIDTH##x##HEIGHT##_bits##BD, \
-      avm_highbd_sad##WIDTH##x##HEIGHT##_avg_bits##BD,                       \
-      avm_highbd_##BD##_variance##WIDTH##x##HEIGHT,                          \
-      avm_highbd_##BD##_sub_pixel_variance##WIDTH##x##HEIGHT,                \
-      avm_highbd_##BD##_sub_pixel_avg_variance##WIDTH##x##HEIGHT,            \
-      avm_highbd_sad##WIDTH##x##HEIGHT##x4d_bits##BD,                        \
-      avm_highbd_dist_wtd_sad##WIDTH##x##HEIGHT##_avg_bits##BD,              \
-      avm_highbd_##BD##_dist_wtd_sub_pixel_avg_variance##WIDTH##x##HEIGHT)
+#define HIGHBD_BFP_WRAPPER(WIDTH, HEIGHT, BD)                            \
+  HIGHBD_BFP(BLOCK_##WIDTH##X##HEIGHT,                                   \
+             avm_highbd_sad##WIDTH##x##HEIGHT##_bits##BD,                \
+             avm_highbd_sad##WIDTH##x##HEIGHT##_avg_bits##BD,            \
+             avm_highbd_##BD##_variance##WIDTH##x##HEIGHT,               \
+             avm_highbd_##BD##_sub_pixel_variance##WIDTH##x##HEIGHT,     \
+             avm_highbd_##BD##_sub_pixel_avg_variance##WIDTH##x##HEIGHT, \
+             avm_highbd_sad##WIDTH##x##HEIGHT##x4d_bits##BD,             \
+             avm_highbd_cwp_sad##WIDTH##x##HEIGHT##_avg_bits##BD,        \
+             avm_highbd_##BD##_cwp_sub_pixel_avg_variance##WIDTH##x##HEIGHT)
 
 #define MAKE_BFP_SAD_WRAPPER(fnname)                                       \
   static unsigned int fnname##_bits8(                                      \
@@ -215,24 +215,24 @@ static AVM_INLINE void init_buffer_indices(
   static unsigned int fnname##_bits8(                                       \
       const uint16_t *src_ptr, int source_stride, const uint16_t *ref_ptr,  \
       int ref_stride, const uint16_t *second_pred,                          \
-      const DIST_WTD_COMP_PARAMS *jcp_param) {                              \
+      const CWP_PARAMS *cwp_param) {                                        \
     return fnname(src_ptr, source_stride, ref_ptr, ref_stride, second_pred, \
-                  jcp_param);                                               \
+                  cwp_param);                                               \
   }                                                                         \
   static unsigned int fnname##_bits10(                                      \
       const uint16_t *src_ptr, int source_stride, const uint16_t *ref_ptr,  \
       int ref_stride, const uint16_t *second_pred,                          \
-      const DIST_WTD_COMP_PARAMS *jcp_param) {                              \
+      const CWP_PARAMS *cwp_param) {                                        \
     return fnname(src_ptr, source_stride, ref_ptr, ref_stride, second_pred, \
-                  jcp_param) >>                                             \
+                  cwp_param) >>                                             \
            2;                                                               \
   }                                                                         \
   static unsigned int fnname##_bits12(                                      \
       const uint16_t *src_ptr, int source_stride, const uint16_t *ref_ptr,  \
       int ref_stride, const uint16_t *second_pred,                          \
-      const DIST_WTD_COMP_PARAMS *jcp_param) {                              \
+      const CWP_PARAMS *cwp_param) {                                        \
     return fnname(src_ptr, source_stride, ref_ptr, ref_stride, second_pred, \
-                  jcp_param) >>                                             \
+                  cwp_param) >>                                             \
            4;                                                               \
   }
 
@@ -336,38 +336,38 @@ MAKE_BFP_SAD_WRAPPER(avm_highbd_sad4x32)
 MAKE_BFP_SADAVG_WRAPPER(avm_highbd_sad4x32_avg)
 MAKE_BFP_SAD4D_WRAPPER(avm_highbd_sad4x32x4d)
 
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad256x256_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad256x128_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad128x256_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad256x256_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad256x128_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad128x256_avg)
 
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad128x128_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad128x64_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad64x128_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad32x16_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad16x32_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad64x32_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad32x64_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad32x32_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad64x64_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad16x16_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad16x8_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad8x16_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad8x8_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad8x4_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad4x8_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad4x4_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad4x16_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad16x4_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad8x32_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad32x8_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad16x64_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad64x16_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad8x64_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad64x8_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad4x64_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad64x4_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad4x32_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad32x4_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad128x128_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad128x64_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad64x128_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad32x16_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad16x32_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad64x32_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad32x64_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad32x32_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad64x64_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad16x16_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad16x8_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad8x16_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad8x8_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad8x4_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad4x8_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad4x4_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad4x16_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad16x4_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad8x32_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad32x8_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad16x64_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad64x16_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad8x64_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad64x8_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad4x64_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad64x4_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad4x32_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad32x4_avg)
 
 #define HIGHBD_MBFP(BT, MCSDF, MCSVF) \
   cpi->fn_ptr[BT].msdf = MCSDF;       \
