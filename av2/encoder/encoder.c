@@ -3184,7 +3184,8 @@ static void cdef_restoration_frame(AV2_COMP *cpi, AV2_COMMON *cm,
                 ,
                 &cpi->td
 #endif
-    );
+                ,
+                cpi->sf.lpf_sf.early_terminate_ccso_search_by_cost);
     ccso_frame(&cm->cur_frame->buf, cm, xd, ext_rec_y);
 #if CONFIG_MISMATCH_DEBUG
     mismatch_record_frame(&cm->cur_frame->buf, num_planes, 2);

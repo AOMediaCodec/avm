@@ -1105,7 +1105,8 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV2_COMMON *cm, const int plane,
                                ,
                                ThreadData *td
 #endif
-) {
+                               ,
+                               int early_terminate_ccso_search) {
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(
       cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
@@ -1268,6 +1269,7 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV2_COMMON *cm, const int plane,
         for (int quant_idx = 0; quant_idx < num_quant_iter; quant_idx++) {
           for (int edge_clf = 0; edge_clf < num_edge_clf_iter; edge_clf++) {
             const int max_edge_interval = edge_clf_to_edge_interval[edge_clf];
+            uint64_t last_best_cost = final_filtered_cost;
 
             if (quant_sz[scale_idx][quant_idx] == 0 && edge_clf == 1) {
               continue;
@@ -1605,13 +1607,17 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV2_COMMON *cm, const int plane,
                 memcpy(ctx->final_filter_control, ctx->best_filter_control,
                        sizeof(*ctx->best_filter_control) * sb_count);
               }
+              if (early_terminate_ccso_search &&
+                  final_filtered_cost != UINT64_MAX &&
+                  1.001 * final_filtered_cost > last_best_cost)
+                goto exit_loops;
             }
           }
         }
       }
     }
   }
-
+exit_loops:
   if (best_unfiltered_cost < final_filtered_cost) {
     memset(ctx->final_filter_control, 0,
            sizeof(*ctx->final_filter_control) * sb_count);
@@ -1840,7 +1846,8 @@ void ccso_search(AV2_COMMON *cm, MACROBLOCKD *xd, int rdmult,
                  ,
                  ThreadData *td
 #endif
-) {
+                 ,
+                 int early_terminate_ccso_search) {
   int rdmult_weight = clamp(cm->quant_params.base_qindex >> 3, 1, 37);
   int64_t rdmult_temp = (int64_t)rdmult * (int64_t)rdmult_weight;
   if (rdmult_temp >= INT_MAX) {
@@ -1867,7 +1874,8 @@ void ccso_search(AV2_COMMON *cm, MACROBLOCKD *xd, int rdmult,
                      ,
                      td
 #endif
-  );
+                     ,
+                     early_terminate_ccso_search);
 
   cm->ccso_info.ccso_frame_flag = cm->ccso_info.ccso_enable[0];
   if (num_planes > 1) {
@@ -1878,14 +1886,16 @@ void ccso_search(AV2_COMMON *cm, MACROBLOCKD *xd, int rdmult,
                        ,
                        td
 #endif
-    );
+                       ,
+                       early_terminate_ccso_search);
     derive_ccso_filter(ctx, cm, AVM_PLANE_V, xd, org_uv[AVM_PLANE_V], ext_rec_y,
                        rec_uv[AVM_PLANE_V], rdmult, error_resilient_frame_seen
 #if CONFIG_ENTROPY_STATS
                        ,
                        td
 #endif
-    );
+                       ,
+                       early_terminate_ccso_search);
     cm->ccso_info.ccso_frame_flag |= cm->ccso_info.ccso_enable[1];
     cm->ccso_info.ccso_frame_flag |= cm->ccso_info.ccso_enable[2];
   }
