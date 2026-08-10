@@ -73,6 +73,7 @@
 #include "av2/decoder/decodeframe.h"
 #include "av2/decoder/decodemv.h"
 #include "av2/decoder/decoder.h"
+#include "av2/decoder/decoder_model.h"
 #include "av2/decoder/decodetxb.h"
 #include "av2/decoder/detokenize.h"
 #include "av2/decoder/obu.h"
@@ -4787,6 +4788,7 @@ static const uint8_t *decode_tiles(AV2Decoder *pbi, const uint8_t *data,
       td->dcb.xd.current_base_qindex = cm->quant_params.base_qindex;
       setup_bool_decoder(tile_bs_buf->data, data_end, tile_bs_buf->size,
                          &cm->error, td->bit_reader, allow_update_cdf);
+      td->bit_reader->count_frame_symbols = pbi->decoder_model_verifier != NULL;
 #if CONFIG_ACCOUNTING
       if (pbi->acct_enabled) {
         td->bit_reader->accounting = &pbi->accounting;
@@ -4862,6 +4864,7 @@ static AVM_INLINE void tile_worker_hook_init(
   setup_bool_decoder(tile_buffer->data, thread_data->data_end,
                      tile_buffer->size, &thread_data->error_info,
                      td->bit_reader, allow_update_cdf);
+  td->bit_reader->count_frame_symbols = pbi->decoder_model_verifier != NULL;
 #if CONFIG_ACCOUNTING
   if (pbi->acct_enabled) {
     td->bit_reader->accounting = &pbi->accounting;
@@ -6919,6 +6922,10 @@ static void reset_buffer_other_than_OLK(AV2Decoder *pbi) {
     }
   }
 
+  if (pbi->decoder_model_verifier != NULL) {
+    av2_decoder_model_verifier_on_olk_reference_invalidation(pbi);
+  }
+
   for (int layer = 0; layer <= seq_params->max_mlayer_id; layer++) {
     cm->olk_refresh_frame_flags[layer] = -1;
     cm->olk_co_vcl_refresh_frame_flags[layer] = -1;
@@ -7648,6 +7655,10 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
                          "Sequence Header changed at %s",
                          avm_obu_type_to_string(obu_type));
     }
+    if (pbi->decoder_model_verifier != NULL) {
+      av2_decoder_model_verifier_on_active_configuration(pbi, xlayer_id,
+                                                         seq_header_id);
+    }
     return;
   }
 
@@ -7748,6 +7759,10 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   check_lcr_layer_map_conformance(pbi, xlayer_id);
   // check dependency map consistency for OPS
   check_ops_layer_map_conformance(pbi, xlayer_id);
+  if (pbi->decoder_model_verifier != NULL) {
+    av2_decoder_model_verifier_on_active_configuration(pbi, xlayer_id,
+                                                       seq_header_id);
+  }
 }
 
 static int is_reference_mapping_consistent(
@@ -9548,6 +9563,12 @@ int32_t av2_read_tilegroup_header(
   *first_tile_group_in_frame = is_first_tile_group;
 
   if (is_first_tile_group) {
+    if (pbi->decoder_model_verifier != NULL) {
+      cm->features.frame_symbol_count = 0;
+      for (int tile = 0; tile < pbi->allocated_tiles; ++tile) {
+        pbi->tile_data[tile].bit_reader.frame_symbol_count = 0;
+      }
+    }
 #if CONFIG_MISMATCH_DEBUG
     mismatch_move_frame_idx_r(1);
 #endif  // CONFIG_MISMATCH_DEBUG
@@ -9837,6 +9858,25 @@ void av2_decode_tg_tiles_and_wrapup(AV2Decoder *pbi, const uint8_t *data,
 
   if (end_tile != tiles->rows * tiles->cols - 1) {
     return;
+  }
+
+  if (pbi->decoder_model_verifier != NULL) {
+    uint64_t frame_symbol_count = 0;
+    for (int tile = 0; tile < tiles->rows * tiles->cols; ++tile) {
+      const uint64_t tile_symbol_count =
+          pbi->tile_data[tile].bit_reader.frame_symbol_count;
+      if (UINT64_MAX - frame_symbol_count < tile_symbol_count) {
+        av2_decoder_model_verifier_on_accounting_failure(pbi);
+        frame_symbol_count = UINT64_MAX;
+        break;
+      }
+      frame_symbol_count += tile_symbol_count;
+    }
+    cm->features.frame_symbol_count = frame_symbol_count;
+  }
+
+  if (pbi->decoder_model_verifier != NULL) {
+    av2_decoder_model_verifier_on_frame_wrapup_start(pbi);
   }
 
   av2_alloc_cdef_buffers(cm, &pbi->cdef_worker, &pbi->cdef_sync,

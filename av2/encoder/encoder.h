@@ -2803,6 +2803,15 @@ typedef struct AV2_COMP {
    * Parameters for AV2 bitstream levels.
    */
   AV2LevelParams level_params;
+  /*!
+   * Model-only indication that the outer interface will prepend a temporal
+   * delimiter to the current serialized frame unit.
+   */
+  bool dm_starts_temporal_unit;
+  /*!
+   * Model-only overflow state for the per-frame Annex A symbol total.
+   */
+  bool dm_frame_symbol_count_overflow;
 
   /*!
    * Whether any no-zero delta_q was actually used.
@@ -3165,6 +3174,8 @@ int av2_receive_raw_frame(AV2_COMP *cpi, avm_enc_frame_flags_t frame_flags,
  * \param[out]   time_end    Time end
  * \param[in]    flush       Decide to encode one frame or the rest of frames
  * \param[in]    timebase    Time base used
+ * \param[in]    dm_starts_temporal_unit Whether a temporal delimiter precedes
+ *                                        this modelled frame unit
  *
  * \return Returns a value to indicate if the encoding is done successfully.
  * \retval #AVM_CODEC_OK
@@ -3175,7 +3186,8 @@ int av2_receive_raw_frame(AV2_COMP *cpi, avm_enc_frame_flags_t frame_flags,
 int av2_get_compressed_data(AV2_COMP *cpi, unsigned int *frame_flags,
                             size_t *size, uint8_t *dest, int64_t *time_stamp,
                             int64_t *time_end, int flush,
-                            const avm_rational64_t *timebase);
+                            const avm_rational64_t *timebase,
+                            bool dm_starts_temporal_unit);
 
 /*!\brief Run 1-pass/2-pass encoding
  *

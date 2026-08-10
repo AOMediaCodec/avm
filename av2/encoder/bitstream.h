@@ -83,6 +83,11 @@ void av2_set_buffer_removal_timing_params(AV2_COMP *const cpi);
 int av2_pack_bitstream(AV2_COMP *const cpi, uint8_t *dst, size_t *size,
                        int *const largest_tile_id);
 
+// Adds one tile group's symbol count to the model-only frame total. Returns
+// false without modifying the total if the addition would overflow.
+bool av2_encoder_decoder_model_accumulate_frame_symbols(
+    uint64_t *frame_symbols, uint64_t tile_group_symbols);
+
 void av2_write_sec_tx_type(const AV2_COMMON *const cm, const MACROBLOCKD *xd,
                            TX_TYPE tx_type, TX_SIZE tx_size, uint16_t eob,
                            avm_writer *w);

@@ -666,6 +666,10 @@ static avm_codec_err_t validate_config(avm_codec_alg_priv_t *ctx,
   RANGE_CHECK(cfg, g_timebase.num, 1, cfg->g_timebase.den);
 
   RANGE_CHECK_HI(cfg, g_profile, MAX_PROFILES - 1);
+  if (cfg->g_profile >= (unsigned int)RESERVED_PROFILES_START &&
+      cfg->g_profile < (unsigned int)CONFIGURABLE) {
+    ERROR("g_profile selects a reserved profile");
+  }
 #if !CONFIG_12BIT_PROFILE
   RANGE_CHECK(cfg, g_bit_depth, AVM_BITS_8, AVM_BITS_10);
   RANGE_CHECK(cfg, g_input_bit_depth, AVM_BITS_8, AVM_BITS_10);
@@ -3388,7 +3392,7 @@ static avm_codec_err_t encoder_encode(avm_codec_alg_priv_t *ctx,
       cpi_lap->mt_info.num_workers = cpi->mt_info.num_workers;
       const int status = av2_get_compressed_data(
           cpi_lap, &lib_flags, &frame_size, NULL, &dst_time_stamp_la,
-          &dst_end_time_stamp_la, !img, timestamp_ratio);
+          &dst_end_time_stamp_la, !img, timestamp_ratio, false);
       if (status != -1) {
         if (status != AVM_CODEC_OK) {
           avm_internal_error(&cpi_lap->common.error, status, NULL);
@@ -3420,7 +3424,7 @@ static avm_codec_err_t encoder_encode(avm_codec_alg_priv_t *ctx,
 
       const int status = av2_get_compressed_data(
           cpi, &lib_flags, &frame_size, cx_data, &dst_time_stamp,
-          &dst_end_time_stamp, !img, timestamp_ratio);
+          &dst_end_time_stamp, !img, timestamp_ratio, ready_for_next_tu != 0);
       avm_usec_timer_mark(&timer);
       cx_time += avm_usec_timer_elapsed(&timer);
       if (status == -1) break;

@@ -72,6 +72,15 @@ TEST(EncodeAPI, InvalidControlId) {
   EXPECT_EQ(AVM_CODEC_OK, avm_codec_destroy(&enc));
 }
 
+TEST(EncodeAPI, ReservedProfileIsRejected) {
+  avm_codec_iface_t *iface = avm_codec_av2_cx();
+  avm_codec_ctx_t enc;
+  avm_codec_enc_cfg_t cfg;
+  ASSERT_EQ(AVM_CODEC_OK, avm_codec_enc_config_default(iface, &cfg, 0));
+  cfg.g_profile = RESERVED_PROFILES_START;
+  EXPECT_EQ(AVM_CODEC_INVALID_PARAM, avm_codec_enc_init(&enc, iface, &cfg, 0));
+}
+
 TEST(EncodeAPI, EncodeOddWidthHeight420) {
   constexpr unsigned int kWidth = 9;
   constexpr unsigned kHeight = 9;

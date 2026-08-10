@@ -83,6 +83,16 @@ list(APPEND AVM_TEST_INTRA_PRED_SPEED_SOURCES "${AVM_GEN_SRC_DIR}/usage_exit.c"
      "${AVM_ROOT}/test/test_intra_pred_speed.cc")
 
 if(NOT BUILD_SHARED_LIBS)
+  list(APPEND AVM_UNIT_TEST_COMMON_SOURCES
+       "${AVM_ROOT}/test/decoder_model_test.cc")
+
+  list(APPEND AVM_UNIT_TEST_ENCODER_SOURCES
+       "${AVM_ROOT}/test/encoder_decoder_model_test.cc")
+
+  list(APPEND AVM_UNIT_TEST_DECODER_SOURCES
+       "${AVM_ROOT}/test/decoder_model_integration_test.cc"
+       "${AVM_ROOT}/test/decoder_model_parser_test.cc")
+
   list(
     APPEND
     AVM_UNIT_TEST_COMMON_SOURCES

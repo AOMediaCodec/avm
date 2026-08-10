@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "avm/avm_integer.h"
 #include "av2/common/av2_common_int.h"
 #include "av2/common/bru.h"
 #include "config/avm_config.h"
@@ -4518,6 +4519,21 @@ static bool need_sef_obu_for_hidden_frame(AV2_COMP *cpi) {
          cpi->common.ref_frame_map[cpi->fb_idx_for_overlay] != NULL;
 }
 
+static void update_level_info_for_frame_unit(AV2_COMP *cpi, const uint8_t *data,
+                                             size_t size, int64_t time_stamp,
+                                             int64_t time_end) {
+  uint64_t dfg_prefix_bits = 0;
+  if (size > 0 && cpi->dm_starts_temporal_unit && cpi->common.mlayer_id == 0) {
+    uint8_t obu_header[2];
+    const uint32_t obu_header_size = av2_write_obu_header(
+        OBU_TEMPORAL_DELIMITER, 0, GLOBAL_XLAYER_ID, obu_header);
+    const size_t delimiter_size = obu_header_size + avm_uleb_size_in_bytes(0);
+    dfg_prefix_bits = (uint64_t)delimiter_size * 8;
+  }
+  av2_update_level_info(cpi, data, size, time_stamp, time_end, size > 0,
+                        dfg_prefix_bits);
+}
+
 /*!\brief Run the final pass encoding for 1-pass/2-pass encoding mode, and pack
  * the bitstream
  *
@@ -4646,9 +4662,10 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size, uint8_t *dest,
     if (cm->immediate_output_picture) cpi->last_show_frame_buf = cm->cur_frame;
 
     if (cpi->level_params.keep_level_stats && !is_stat_generation_stage(cpi)) {
-      av2_update_level_info(cpi, *size, *time_stamp, *time_end, 0);
-      av2_decoder_model_check_output_frame_for_operating_points(
-          cpi, ref_idx_for_dm, cm->ref_frame_map[cpi->fb_idx_for_overlay]);
+      update_level_info_for_frame_unit(cpi, dest, *size, *time_stamp,
+                                       *time_end);
+      av2_decoder_model_observe_displaced_output_for_operating_points(
+          cpi, ref_idx_for_dm);
     }
 
     // current_frame->frame_number is incremented already for
@@ -4710,9 +4727,10 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size, uint8_t *dest,
     cpi->last_show_frame_buf = cm->cur_frame;
 
     if (cpi->level_params.keep_level_stats && !is_stat_generation_stage(cpi)) {
-      av2_update_level_info(cpi, *size, *time_stamp, *time_end, 0);
-      av2_decoder_model_check_output_frame_for_operating_points(
-          cpi, cpi->fb_idx_for_overlay, cm->cur_frame);
+      update_level_info_for_frame_unit(cpi, dest, *size, *time_stamp,
+                                       *time_end);
+      av2_decoder_model_observe_output_frame_buffers_for_operating_points(
+          cpi, cpi->fb_idx_for_overlay);
     }
 
     if (!av2_check_keyframe_overlay(cpi->gf_group.index, &cpi->gf_group,
@@ -4754,9 +4772,10 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size, uint8_t *dest,
     refresh_reference_frames(cpi);
 
     if (cpi->level_params.keep_level_stats && !is_stat_generation_stage(cpi)) {
-      av2_update_level_info(cpi, *size, *time_stamp, *time_end, 0);
-      av2_decoder_model_check_output_frame_for_operating_points(
-          cpi, cm->sef_ref_fb_idx, cpi->last_show_frame_buf);
+      update_level_info_for_frame_unit(cpi, dest, *size, *time_stamp,
+                                       *time_end);
+      av2_decoder_model_observe_output_frame_buffers_for_operating_points(cpi,
+                                                                          -1);
     }
 
     // Since we allocate a spot for the OVERLAY frame in the gf group, we need
@@ -4946,18 +4965,20 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size, uint8_t *dest,
   if (cpi->level_params.keep_level_stats && !is_stat_generation_stage(cpi)) {
     // Initialize level info. at the beginning of each sequence.
     if (av2_is_shown_keyframe(cpi, cm->current_frame.frame_type)) {
+      av2_encoder_decoder_model_finish_for_operating_points(cpi);
+      av2_encoder_check_target_level(cpi, true);
       av2_init_level_info(cpi);
     }
-    av2_update_level_info(cpi, *size, *time_stamp, *time_end, 1);
-  }
-
-  if (cpi->level_params.keep_level_stats && !is_stat_generation_stage(cpi) &&
-      cm->immediate_output_picture) {
-    av2_decoder_model_check_output_frame_for_operating_points(cpi, -1,
-                                                              cm->cur_frame);
+    update_level_info_for_frame_unit(cpi, dest, *size, *time_stamp, *time_end);
   }
 
   refresh_reference_frames(cpi);
+
+  if (cpi->level_params.keep_level_stats && !is_stat_generation_stage(cpi) &&
+      cm->immediate_output_picture) {
+    av2_decoder_model_observe_output_frame_buffers_for_operating_points(cpi,
+                                                                        -1);
+  }
 
 #if CONFIG_ENTROPY_STATS
   av2_accumulate_frame_counts(&aggregate_fc, &cpi->counts);
@@ -5110,6 +5131,7 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
 
   if (cm->restricted_prediction_switch) {
     if (current_frame->frame_type == S_FRAME) {
+      av2_decoder_model_observe_restricted_output_for_operating_points(cpi);
       for (int i = 0; i < cm->seq_params.ref_frames; i++) {
         if (cm->ref_frame_map[i] != NULL) {
           if (is_mlayer_transitively_dependent(&cm->seq_params,
@@ -5444,12 +5466,14 @@ static void compute_internal_stats(AV2_COMP *cpi, int frame_bytes) {
 int av2_get_compressed_data(AV2_COMP *cpi, unsigned int *frame_flags,
                             size_t *size, uint8_t *dest, int64_t *time_stamp,
                             int64_t *time_end, int flush,
-                            const avm_rational64_t *timestamp_ratio) {
+                            const avm_rational64_t *timestamp_ratio,
+                            bool dm_starts_temporal_unit) {
   const AV2EncoderConfig *const oxcf = &cpi->oxcf;
   AV2_COMMON *const cm = &cpi->common;
   cm->cur_mfh_id = oxcf->tool_cfg.enable_mfh_obu_signaling ? 1 : 0;
   cm->implicit_output_picture = 0;
   cm->allow_direct_use = 0;
+  cpi->dm_starts_temporal_unit = dm_starts_temporal_unit;
   *size = 0;
 #if CONFIG_INTERNAL_STATS
   struct avm_usec_timer cmptimer;
@@ -5475,11 +5499,16 @@ int av2_get_compressed_data(AV2_COMP *cpi, unsigned int *frame_flags,
                           timestamp_ratio, flush);
   if (result == -1) {
     // Returning -1 indicates no frame encoded; more input is required
+    if (flush) {
+      av2_encoder_decoder_model_finish_for_operating_points(cpi);
+      av2_encoder_check_target_level(cpi, true);
+    }
     return -1;
   }
   if (result != AVM_CODEC_OK) {
     return AVM_CODEC_ERROR;
   }
+  av2_encoder_check_target_level(cpi, false);
 #if CONFIG_INTERNAL_STATS
   avm_usec_timer_mark(&cmptimer);
   cpi->time_compress_data += avm_usec_timer_elapsed(&cmptimer);

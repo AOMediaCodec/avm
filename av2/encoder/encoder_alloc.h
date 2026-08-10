@@ -267,6 +267,7 @@ static AVM_INLINE void dealloc_compressor_data(AV2_COMP *cpi) {
   }
 
   for (int i = 0; i < MAX_NUM_OPERATING_POINTS; ++i) {
+    av2_encoder_decoder_models_destroy(cpi->level_params.level_info[i]);
     avm_free(cpi->level_params.level_info[i]);
   }
 
