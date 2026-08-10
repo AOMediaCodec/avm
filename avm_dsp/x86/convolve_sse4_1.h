@@ -42,9 +42,9 @@ static INLINE __m128i highbd_comp_avg_sse4_1(const __m128i *const data_ref_0,
                                              const __m128i *const res_unsigned,
                                              const __m128i *const wt0,
                                              const __m128i *const wt1,
-                                             const int use_dist_wtd_avg) {
+                                             const int use_comp_wtd_avg) {
   __m128i res;
-  if (use_dist_wtd_avg) {
+  if (use_comp_wtd_avg) {
     const __m128i wt0_res = _mm_mullo_epi32(*data_ref_0, *wt0);
     const __m128i wt1_res = _mm_mullo_epi32(*res_unsigned, *wt1);
 
