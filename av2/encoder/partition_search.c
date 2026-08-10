@@ -52,6 +52,8 @@
 #include "av2/encoder/partition_ml.h"
 #endif
 
+#include "av2/encoder/partition_search_rule.h"
+
 static void update_partition_cdfs_and_counts(MACROBLOCKD *xd, int blk_col,
                                              int blk_row, TX_SIZE max_tx_size,
                                              int allow_update_cdf,
@@ -3078,6 +3080,16 @@ static void init_partition_search_state_params(
       part_search_state, &cpi->oxcf.part_cfg, &cpi->sf,
       is_bru_not_active_and_not_on_partial_border(cm, mi_col, mi_row, bsize),
       partition_allowed);
+
+  /* Prune 4-way partitions at intra when bsize is in scope. */
+  if (cpi->sf.part_sf.part_rule_pruning && !x->must_find_valid_partition &&
+      part_search_state->forced_partition == PARTITION_INVALID &&
+      frame_is_intra_only(cm) && part_rule_is_4way_intra_bsize(bsize)) {
+    part_search_state->partition_allowed[PARTITION_HORZ_4A] = false;
+    part_search_state->partition_allowed[PARTITION_HORZ_4B] = false;
+    part_search_state->partition_allowed[PARTITION_VERT_4A] = false;
+    part_search_state->partition_allowed[PARTITION_VERT_4B] = false;
+  }
 }
 
 #if CONFIG_ML_PART_SPLIT
@@ -3379,6 +3391,20 @@ static void rectangular_partition_search(
   const PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
   const int mi_row = blk_params->mi_row, mi_col = blk_params->mi_col;
   const BLOCK_SIZE bsize = blk_params->bsize;
+
+  /* Prune HORZ/VERT at intra when current_best is NONE and rd_cost_none
+   * is below the calibrated threshold for this (bsize, bitdepth, qindex). */
+  if (cpi->sf.part_sf.part_rule_pruning && !x->must_find_valid_partition &&
+      part_search_state->forced_partition == PARTITION_INVALID &&
+      frame_is_intra_only(cm) && part_search_state->none_rd < INT64_MAX &&
+      pc_tree->partitioning == PARTITION_NONE) {
+    const int64_t thr =
+        part_rule_rect_lut_lookup(bsize, xd->bd, cm->quant_params.base_qindex);
+    if (thr > 0 && part_search_state->none_rd < thr) {
+      part_search_state->prune_partition[PARTITION_HORZ] = true;
+      part_search_state->prune_partition[PARTITION_VERT] = true;
+    }
+  }
 
   // Loop over rectangular partition types.
   RD_STATS *sum_rdc = &part_search_state->sum_rdc;
@@ -4312,7 +4338,8 @@ static AVM_INLINE void prune_part_4_with_partition_boundary(
  * non-ext partitions search results. */
 static AVM_INLINE void prune_ext_partitions_3way(
     AV2_COMP *const cpi, PC_TREE *pc_tree,
-    PartitionSearchState *part_search_state, bool *partition_boundaries) {
+    PartitionSearchState *part_search_state, bool *partition_boundaries,
+    bool must_find_valid_partition) {
   const AV2_COMMON *const cm = &cpi->common;
   const PARTITION_SPEED_FEATURES *part_sf = &cpi->sf.part_sf;
   const PARTITION_TYPE forced_partition = part_search_state->forced_partition;
@@ -4374,6 +4401,18 @@ static AVM_INLINE void prune_ext_partitions_3way(
           !node_uses_vert(pc_tree->horizontal[cur_region_type][1])) {
         part_search_state->prune_partition[PARTITION_VERT_3] = true;
       }
+    }
+  }
+
+  /* Prune 3-way at intra when current_best is NONE. */
+  if (part_sf->part_rule_pruning && !must_find_valid_partition &&
+      part_search_state->forced_partition == PARTITION_INVALID &&
+      frame_is_intra_only(cm) && part_search_state->found_best_partition &&
+      pc_tree->partitioning == PARTITION_NONE) {
+    const PartitionBlkParams *bp = &part_search_state->part_blk_params;
+    if (part_rule_is_3way_intra_bsize(bp->bsize)) {
+      part_search_state->prune_partition[PARTITION_HORZ_3] = true;
+      part_search_state->prune_partition[PARTITION_VERT_3] = true;
     }
   }
 
@@ -5475,6 +5514,23 @@ BEGIN_PARTITION_SEARCH:
 
   // Search partition split.
   int64_t part_split_rd = INT64_MAX;
+
+  /* Prune SPLIT at intra when rd_cost_none is below the calibrated threshold
+   * for this (bsize, qp_band) cohort; NONE has won decisively. */
+  if (cpi->sf.part_sf.part_rule_pruning && !x->must_find_valid_partition &&
+      frame_is_intra_only(cm) &&
+      part_search_state.partition_allowed[PARTITION_SPLIT] && xd->bd == 10 &&
+      part_none_rd < INT64_MAX) {
+    const BLOCK_SIZE split_bsize = part_search_state.part_blk_params.bsize;
+    const int bidx = part_rule_split_bsize_idx(split_bsize);
+    const int qb = part_rule_qp_band(cm->quant_params.base_qindex);
+    if (bidx >= 0 && qb >= 4) {
+      const int64_t thr = part_rule_split_thr_bd10[bidx][qb - 1];
+      if (thr > 0 && part_none_rd < thr)
+        part_search_state.partition_allowed[PARTITION_SPLIT] = 0;
+    }
+  }
+
   split_partition_search(cpi, td, tile_data, tp, pc_tree, sms_tree, &x_ctx,
                          &part_search_state, &best_rdc, multi_pass_mode,
                          &part_split_rd, &level_banks, ptree_luma,
@@ -5534,7 +5590,7 @@ BEGIN_PARTITION_SEARCH:
   bool partition_boundaries[MAX_MIB_SQUARE] = { 0 };
 
   prune_ext_partitions_3way(cpi, pc_tree, &part_search_state,
-                            partition_boundaries);
+                            partition_boundaries, x->must_find_valid_partition);
   for (PARTITION_TYPE partition_type = PARTITION_HORZ_3;
        partition_type <= PARTITION_VERT_3; ++partition_type) {
     search_extended_partition(cpi, td, tile_data, tp, &best_rdc, pc_tree,

@@ -251,6 +251,8 @@ list(
   "${AVM_ROOT}/av2/encoder/palette.c"
   "${AVM_ROOT}/av2/encoder/palette.h"
   "${AVM_ROOT}/av2/encoder/partition_search.h"
+  "${AVM_ROOT}/av2/encoder/partition_search_rule.h"
+  "${AVM_ROOT}/av2/encoder/partition_search_rule.c"
   "${AVM_ROOT}/av2/encoder/partition_search.c"
   "${AVM_ROOT}/av2/encoder/partition_mlp.h"
   "${AVM_ROOT}/av2/encoder/partition_mlp.c"

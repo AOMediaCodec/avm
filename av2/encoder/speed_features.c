@@ -417,6 +417,11 @@ static void set_good_speed_features_framesize_independent(
     sf->lpf_sf.enable_deblock_for_partition_search = 1;
   }
 
+  // LUT thresholds are calibrated for cpu-used=1 only; do not extend to >=1.
+  if (speed == 1) {
+    sf->part_sf.part_rule_pruning = 1;
+  }
+
   if (speed >= 2) {
     sf->lpf_sf.early_terminate_ccso_search_by_cost = 1;
     sf->part_sf.partition_pruning_with_mlp_none_thresh = 2.5f;
@@ -766,6 +771,7 @@ static AVM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->prune_part_h_with_partition_boundary = 0;
   part_sf->inter_sdp_fast_method_level = 0;
   part_sf->prune_part_with_neighbor_boundaries = 0;
+  part_sf->part_rule_pruning = 0;
 #if CONFIG_ML_PART_SPLIT
   part_sf->prune_split_with_ml = 0;
   part_sf->prune_none_with_ml = 0;

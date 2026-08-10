@@ -461,6 +461,8 @@ typedef struct PARTITION_SPEED_FEATURES {
 
   bool disable_ext_partitions;
   bool disable_uneven_4way_partitions;
+
+  int part_rule_pruning;
 } PARTITION_SPEED_FEATURES;
 
 typedef struct MV_SPEED_FEATURES {
