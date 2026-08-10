@@ -6054,6 +6054,22 @@ static INLINE bool av2_skip_reference_buffer_update(
   return clear_multiple_insert_in_one && ref_index != first_ref_index;
 }
 
+// Returns the starting mi location of chroma reference block for the current
+// mbmi, by setting `chroma_mi_row_start` and `chroma_mi_col_start`.
+static INLINE void av2_get_chroma_start_location(const MB_MODE_INFO *mbmi,
+                                                 TREE_TYPE tree_type,
+                                                 int *chroma_mi_row_start,
+                                                 int *chroma_mi_col_start) {
+  assert(tree_type == SHARED_PART || tree_type == CHROMA_PART);
+  if (tree_type == SHARED_PART) {
+    *chroma_mi_row_start = mbmi->chroma_ref_info.mi_row_chroma_base;
+    *chroma_mi_col_start = mbmi->chroma_ref_info.mi_col_chroma_base;
+  } else {
+    *chroma_mi_row_start = mbmi->chroma_mi_row_start;
+    *chroma_mi_col_start = mbmi->chroma_mi_col_start;
+  }
+}
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
