@@ -1486,8 +1486,12 @@ TEST(DecoderModelConformanceTest, AnnexATablesMatchSpecification) {
           av2_get_level_compression_basis(static_cast<int>(level),
                                           static_cast<int>(tier), &common_cr),
           cr != 0);
-      if (kbps != 0) EXPECT_EQ(common_kbps, kbps);
-      if (cr != 0) EXPECT_EQ(common_cr, cr);
+      if (kbps != 0) {
+        EXPECT_EQ(common_kbps, kbps);
+      }
+      if (cr != 0) {
+        EXPECT_EQ(common_cr, cr);
+      }
       EXPECT_EQ(av2_tile_width_scaling_factor[tier][level],
                 static_cast<int>(tile_width_scale[tier][level]));
       EXPECT_EQ(av2_tile_area_scaling_factor[tier][level],
