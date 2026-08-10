@@ -380,6 +380,10 @@ static void set_good_speed_features_framesize_independent(
       sf->rd_sf.perform_coeff_opt = 0;
     }
 
+    if (!cpi->is_screen_content_type &&
+        cpi->twopass.fr_content_type == FC_HIGHMOTION) {
+      sf->mv_sf.exhaustive_searches_thresh <<= 1;
+    }
     // Skip the second-best full-pel candidate's subpel refinement in the
     // single-ref NEWMV search.
     sf->mv_sf.skip_second_best_subpel = 1;
