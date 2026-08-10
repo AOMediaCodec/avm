@@ -754,6 +754,7 @@ static AVM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->prune_rect_with_split_depth = 0;
   part_sf->prune_part_h_with_partition_boundary = 0;
   part_sf->inter_sdp_fast_method_level = 0;
+  part_sf->prune_part_with_neighbor_boundaries = 0;
 #if CONFIG_ML_PART_SPLIT
   part_sf->prune_split_with_ml = 0;
   part_sf->prune_none_with_ml = 0;
@@ -992,6 +993,7 @@ static AVM_INLINE void set_erp_speed_features_framesize_dependent(
   const int is_1080p_or_larger = AVMMIN(cm->width, cm->height) >= 1080;
   const unsigned int erp_pruning_level = cpi->oxcf.part_cfg.erp_pruning_level;
   const int is_720p_or_lesser = AVMMIN(cm->width, cm->height) <= 720;
+  const int is_270p_or_lesser = AVMMIN(cm->width, cm->height) <= 270;
 
   switch (erp_pruning_level) {
     case 6: AVM_FALLTHROUGH_INTENDED;
@@ -1040,6 +1042,10 @@ static AVM_INLINE void set_erp_speed_features_framesize_dependent(
       sf->part_sf.remove_qp_restriction_with_ml = 1;
     }
 #endif  // CONFIG_ML_PART_SPLIT
+    if (is_270p_or_lesser) {
+      // For small resolutions, this speed feature has a large coding loss.
+      sf->part_sf.prune_part_with_neighbor_boundaries = 0;
+    }
   }
 
   if (cpi->speed >= 2) {
@@ -1092,6 +1098,7 @@ static AVM_INLINE void set_erp_speed_features(AV2_COMP *cpi) {
       sf->part_sf.ext_recur_depth_level = 2;
       sf->part_sf.simple_motion_search_split = 1;
       sf->part_sf.simple_motion_search_early_term_none = 1;
+      sf->part_sf.prune_part_with_neighbor_boundaries = 1;
       AVM_FALLTHROUGH_INTENDED;
     case 5:
       sf->part_sf.prune_part_h_with_partition_boundary = true;
@@ -1131,6 +1138,7 @@ static AVM_INLINE void set_erp_speed_features(AV2_COMP *cpi) {
     // Emulate erp_pruning_level = 6.
     sf->part_sf.ext_recur_depth_level = 1;
     sf->part_sf.ml_early_term_after_part_split_level = 2;
+    sf->part_sf.prune_part_with_neighbor_boundaries = 1;
   }
 
   if (cpi->speed >= 2) {

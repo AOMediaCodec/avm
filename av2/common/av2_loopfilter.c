@@ -138,22 +138,6 @@ void av2_loop_filter_frame_init(AV2_COMMON *cm, int plane_start,
   }
 }
 
-// Returns the starting mi location of chroma reference block for the current
-// mbmi, by setting `chroma_mi_row_start` and `chroma_mi_col_start`.
-static void get_chroma_start_location(const MB_MODE_INFO *mbmi,
-                                      TREE_TYPE tree_type,
-                                      int *chroma_mi_row_start,
-                                      int *chroma_mi_col_start) {
-  assert(tree_type == SHARED_PART || tree_type == CHROMA_PART);
-  if (tree_type == SHARED_PART) {
-    *chroma_mi_row_start = mbmi->chroma_ref_info.mi_row_chroma_base;
-    *chroma_mi_col_start = mbmi->chroma_ref_info.mi_col_chroma_base;
-  } else {
-    *chroma_mi_row_start = mbmi->chroma_mi_row_start;
-    *chroma_mi_col_start = mbmi->chroma_mi_col_start;
-  }
-}
-
 // Returns true if we are at the transform boundary.
 static bool is_tu_edge_helper(TX_SIZE tx_size, EDGE_DIR edge_dir,
                               int relative_row, int relative_col) {
@@ -193,7 +177,8 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
     int mi_row_start = mbmi->mi_row_start;
     int mi_col_start = mbmi->mi_col_start;
     if (plane != AVM_PLANE_Y) {
-      get_chroma_start_location(mbmi, tree_type, &mi_row_start, &mi_col_start);
+      av2_get_chroma_start_location(mbmi, tree_type, &mi_row_start,
+                                    &mi_col_start);
     }
     *tu_edge = is_tu_edge_helper(
         tx_size, edge_dir, (mi_row - mi_row_start) >> plane_ptr->subsampling_y,
@@ -211,8 +196,8 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
                                     plane_ptr->subsampling_y);
     int chroma_mi_row_start;
     int chroma_mi_col_start;
-    get_chroma_start_location(mbmi, tree_type, &chroma_mi_row_start,
-                              &chroma_mi_col_start);
+    av2_get_chroma_start_location(mbmi, tree_type, &chroma_mi_row_start,
+                                  &chroma_mi_col_start);
     *tu_edge = is_tu_edge_helper(
         tx_size, edge_dir,
         (mi_row - chroma_mi_row_start) >> plane_ptr->subsampling_y,
@@ -329,8 +314,8 @@ static uint32_t get_pu_starting_cooord(const MB_MODE_INFO *const mbmi,
   } else {
     int chroma_mi_row_start;
     int chroma_mi_col_start;
-    get_chroma_start_location(mbmi, tree_type, &chroma_mi_row_start,
-                              &chroma_mi_col_start);
+    av2_get_chroma_start_location(mbmi, tree_type, &chroma_mi_row_start,
+                                  &chroma_mi_col_start);
     pu_starting_mi = vert_edge ? chroma_mi_col_start : chroma_mi_row_start;
   }
   const uint32_t pu_stating_coord_luma = pu_starting_mi * MI_SIZE;
@@ -510,8 +495,8 @@ static int get_remaining_mi_size(const MB_MODE_INFO *mbmi,
   } else {
     int mi_row_start_uv;
     int mi_col_start_uv;
-    get_chroma_start_location(mbmi, tree_type, &mi_row_start_uv,
-                              &mi_col_start_uv);
+    av2_get_chroma_start_location(mbmi, tree_type, &mi_row_start_uv,
+                                  &mi_col_start_uv);
     const int mi_pu_start_y = vert_edge ? mi_row_start_uv : mi_col_start_uv;
     const int scale = vert_edge ? ss_y : ss_x;
     mi_pu_start = mi_pu_start_y >> scale;
