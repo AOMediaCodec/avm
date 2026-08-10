@@ -416,6 +416,7 @@ static void set_good_speed_features_framesize_independent(
   }
 
   if (speed >= 2) {
+    sf->lpf_sf.early_terminate_ccso_search_by_cost = 1;
     sf->part_sf.partition_pruning_with_mlp_none_thresh = 2.5f;
     sf->part_sf.intra_cnn_split = 0;
     sf->part_sf.simple_motion_search_early_term_none = 1;
@@ -958,6 +959,7 @@ static AVM_INLINE void init_lpf_sf(LOOP_FILTER_SPEED_FEATURES *lpf_sf) {
   lpf_sf->disable_lr_filter = 0;
   lpf_sf->wienerns_refine_iters = 2;
   lpf_sf->enable_deblock_for_partition_search = 0;
+  lpf_sf->early_terminate_ccso_search_by_cost = 0;
 }
 
 static void av2_disable_ml_based_transform_sf(TX_SPEED_FEATURES *const tx_sf) {
