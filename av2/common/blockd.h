@@ -1794,10 +1794,10 @@ typedef struct cfl_ctx {
 #endif  // CONFIG_DEBUG
 } CFL_CTX;
 
-typedef struct dist_wtd_comp_params {
+typedef struct cwp_params {
   int fwd_offset;
   int bck_offset;
-} DIST_WTD_COMP_PARAMS;
+} CWP_PARAMS;
 
 struct scale_factors;
 

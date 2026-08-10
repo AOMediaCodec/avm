@@ -18,10 +18,12 @@
 #include "avm_dsp/x86/convolve_sse2.h"
 #include "avm_dsp/x86/convolve_sse4_1.h"
 
-void av2_highbd_dist_wtd_convolve_y_sse4_1(
-    const uint16_t *src, int src_stride, uint16_t *dst0, int dst_stride0, int w,
-    int h, const InterpFilterParams *filter_params_y, const int subpel_y_qn,
-    ConvolveParams *conv_params, int bd) {
+void av2_highbd_cwp_convolve_y_sse4_1(const uint16_t *src, int src_stride,
+                                      uint16_t *dst0, int dst_stride0, int w,
+                                      int h,
+                                      const InterpFilterParams *filter_params_y,
+                                      const int subpel_y_qn,
+                                      ConvolveParams *conv_params, int bd) {
   CONV_BUF_TYPE *dst = conv_params->dst;
   int dst_stride = conv_params->dst_stride;
   const int fo_vert = filter_params_y->taps / 2 - 1;
@@ -255,10 +257,12 @@ void av2_highbd_dist_wtd_convolve_y_sse4_1(
   }
 }
 
-void av2_highbd_dist_wtd_convolve_x_sse4_1(
-    const uint16_t *src, int src_stride, uint16_t *dst0, int dst_stride0, int w,
-    int h, const InterpFilterParams *filter_params_x, const int subpel_x_qn,
-    ConvolveParams *conv_params, int bd) {
+void av2_highbd_cwp_convolve_x_sse4_1(const uint16_t *src, int src_stride,
+                                      uint16_t *dst0, int dst_stride0, int w,
+                                      int h,
+                                      const InterpFilterParams *filter_params_x,
+                                      const int subpel_x_qn,
+                                      ConvolveParams *conv_params, int bd) {
   CONV_BUF_TYPE *dst = conv_params->dst;
   int dst_stride = conv_params->dst_stride;
   const int fo_horiz = filter_params_x->taps / 2 - 1;

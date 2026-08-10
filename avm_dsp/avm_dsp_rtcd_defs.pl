@@ -338,7 +338,7 @@ if (avm_config("CONFIG_AV2_ENCODER") eq "yes") {
         specialize "avm_highbd_sad${w}x${h}_avg", qw/sse2/;
       }
     }
-    add_proto qw/unsigned int/, "avm_highbd_dist_wtd_sad${w}x${h}_avg", "const uint16_t *src_ptr, int src_stride, const uint16_t *ref_ptr, int ref_stride, const uint16_t *second_pred, const DIST_WTD_COMP_PARAMS* jcp_param";
+    add_proto qw/unsigned int/, "avm_highbd_cwp_sad${w}x${h}_avg", "const uint16_t *src_ptr, int src_stride, const uint16_t *ref_ptr, int ref_stride, const uint16_t *second_pred, const CWP_PARAMS* cwp_param";
   }
   specialize qw/avm_highbd_sad256x256 avx2/;
   specialize qw/avm_highbd_sad256x128 avx2/;
@@ -593,11 +593,11 @@ if (avm_config("CONFIG_AV2_ENCODER") eq "yes") {
 							  int bd, int subpel_search, int is_scaled_ref";
   specialize qw/avm_highbd_comp_avg_upsampled_pred sse2 avx2 neon/;
 
-  add_proto qw/void avm_highbd_dist_wtd_comp_avg_upsampled_pred/, "MACROBLOCKD *xd, const struct AV2Common *const cm, int mi_row, int mi_col,
+  add_proto qw/void avm_highbd_cwp_upsampled/, "MACROBLOCKD *xd, const struct AV2Common *const cm, int mi_row, int mi_col,
                                                               const MV *const mv, uint16_t *comp_pred8, const uint16_t *pred8, int width,
                                                               int height, int subpel_x_q3, int subpel_y_q3, const uint16_t *ref8,
-                                                              int ref_stride, int bd, const DIST_WTD_COMP_PARAMS *jcp_param, int subpel_search, int is_scaled_ref";
-  specialize qw/avm_highbd_dist_wtd_comp_avg_upsampled_pred sse2 neon/;
+                                                              int ref_stride, int bd, const CWP_PARAMS *cwp_param, int subpel_search, int is_scaled_ref";
+  specialize qw/avm_highbd_cwp_upsampled sse2 neon/;
 
   add_proto qw/void avm_highbd_comp_mask_upsampled_pred/, "MACROBLOCKD *xd, const struct AV2Common *const cm, int mi_row, int mi_col,
                                                               const MV *const mv, uint16_t *comp_pred8, const uint16_t *pred8, int width,
@@ -650,7 +650,7 @@ if (avm_config("CONFIG_AV2_ENCODER") eq "yes") {
         }
       }
 
-      add_proto qw/uint32_t/, "avm_highbd_${bd}_dist_wtd_sub_pixel_avg_variance${w}x${h}", "const uint16_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint16_t *ref_ptr, int ref_stride, uint32_t *sse, const uint16_t *second_pred, const DIST_WTD_COMP_PARAMS* jcp_param";
+      add_proto qw/uint32_t/, "avm_highbd_${bd}_cwp_sub_pixel_avg_variance${w}x${h}", "const uint16_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint16_t *ref_ptr, int ref_stride, uint32_t *sse, const uint16_t *second_pred, const CWP_PARAMS* cwp_param";
     }
   }
   #
@@ -916,8 +916,8 @@ if (avm_config("CONFIG_AV2_ENCODER") eq "yes") {
 
   add_proto qw/void avm_highbd_comp_avg_pred/, "uint16_t *comp_pred8, const uint16_t *pred8, int width, int height, const uint16_t *ref8, int ref_stride";
 
-  add_proto qw/void avm_highbd_dist_wtd_comp_avg_pred/, "uint16_t *comp_pred8, const uint16_t *pred8, int width, int height, const uint16_t *ref8, int ref_stride, const DIST_WTD_COMP_PARAMS *jcp_param";
-  specialize qw/avm_highbd_dist_wtd_comp_avg_pred sse2/;
+  add_proto qw/void avm_highbd_cwp/, "uint16_t *comp_pred8, const uint16_t *pred8, int width, int height, const uint16_t *ref8, int ref_stride, const CWP_PARAMS *cwp_param";
+  specialize qw/avm_highbd_cwp sse2/;
 
   add_proto qw/uint64_t/, "avm_mse_wxh_16bit_highbd", "uint16_t *dst, int dstride,uint16_t *src, int sstride, int w, int h";
   specialize qw/avm_mse_wxh_16bit_highbd   sse2 avx2/;

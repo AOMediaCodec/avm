@@ -1083,11 +1083,11 @@ static INLINE int get_mvpred_compound_var_cost(
 
 // Set weighting factor for two reference frames
 static INLINE void set_cmp_weight(const MB_MODE_INFO *mi, int invert_mask,
-                                  DIST_WTD_COMP_PARAMS *jcp_param) {
+                                  CWP_PARAMS *cwp_param) {
   int weight = get_cwp_idx(mi);
   weight = invert_mask ? (1 << CWP_WEIGHT_BITS) - weight : weight;
-  jcp_param->fwd_offset = weight;
-  jcp_param->bck_offset = (1 << CWP_WEIGHT_BITS) - weight;
+  cwp_param->fwd_offset = weight;
+  cwp_param->bck_offset = (1 << CWP_WEIGHT_BITS) - weight;
 }
 
 static INLINE int get_mvpred_compound_sad(
@@ -1109,11 +1109,11 @@ static INLINE int get_mvpred_compound_sad(
   } else if (second_pred) {
     const MB_MODE_INFO *mi = ms_params->xd->mi[0];
     if (get_cwp_idx(mi) != CWP_EQUAL) {
-      DIST_WTD_COMP_PARAMS jcp_param;
-      set_cmp_weight(mi, invert_mask, &jcp_param);
+      CWP_PARAMS cwp_param;
+      set_cmp_weight(mi, invert_mask, &cwp_param);
 
       return vfp->jsdaf(src_buf, src_stride, ref_address, ref_stride,
-                        second_pred, &jcp_param);
+                        second_pred, &cwp_param);
     }
     return vfp->sdaf(src_buf, src_stride, ref_address, ref_stride, second_pred);
   } else {
@@ -2854,13 +2854,13 @@ int upsampled_pref_error(MACROBLOCKD *xd, const AV2_COMMON *cm,
           subpel_search_type, is_scaled_ref);
     } else {
       if (get_cwp_idx(xd->mi[0]) != CWP_EQUAL) {
-        DIST_WTD_COMP_PARAMS jcp_param;
-        set_cmp_weight(xd->mi[0], invert_mask, &jcp_param);
+        CWP_PARAMS cwp_param;
+        set_cmp_weight(xd->mi[0], invert_mask, &cwp_param);
 
-        avm_highbd_dist_wtd_comp_avg_upsampled_pred(
-            xd, cm, mi_row, mi_col, this_mv, pred, second_pred, w, h,
-            subpel_x_q3, subpel_y_q3, ref, ref_stride, xd->bd, &jcp_param,
-            subpel_search_type, is_scaled_ref);
+        avm_highbd_cwp_upsampled(xd, cm, mi_row, mi_col, this_mv, pred,
+                                 second_pred, w, h, subpel_x_q3, subpel_y_q3,
+                                 ref, ref_stride, xd->bd, &cwp_param,
+                                 subpel_search_type, is_scaled_ref);
       } else
 
         avm_highbd_comp_avg_upsampled_pred(xd, cm, mi_row, mi_col, this_mv,

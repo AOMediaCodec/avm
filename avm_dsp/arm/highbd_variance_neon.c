@@ -44,18 +44,18 @@ void avm_highbd_comp_avg_upsampled_pred_neon(
   }
 }
 
-void avm_highbd_dist_wtd_comp_avg_upsampled_pred_neon(
+void avm_highbd_cwp_upsampled_neon(
     MACROBLOCKD *xd, const struct AV2Common *const cm, int mi_row, int mi_col,
     const MV *const mv, uint16_t *comp_pred, const uint16_t *pred, int width,
     int height, int subpel_x_q3, int subpel_y_q3, const uint16_t *ref,
-    int ref_stride, int bd, const DIST_WTD_COMP_PARAMS *jcp_param,
-    int subpel_search, int is_scaled_ref) {
+    int ref_stride, int bd, const CWP_PARAMS *cwp_param, int subpel_search,
+    int is_scaled_ref) {
   avm_highbd_upsampled_pred(xd, cm, mi_row, mi_col, mv, comp_pred, width,
                             height, subpel_x_q3, subpel_y_q3, ref, ref_stride,
                             bd, subpel_search, is_scaled_ref);
   assert(!(width * height & 7));
-  const int fwd_offset = jcp_param->fwd_offset;
-  const int bck_offset = jcp_param->bck_offset;
+  const int fwd_offset = cwp_param->fwd_offset;
+  const int bck_offset = cwp_param->bck_offset;
   const int16x4_t fwd = vdup_n_s16((int16_t)fwd_offset);
   const int16x4_t bck = vdup_n_s16((int16_t)bck_offset);
   const int32x4_t round = vdupq_n_s32(1 << (DIST_PRECISION_BITS - 1));

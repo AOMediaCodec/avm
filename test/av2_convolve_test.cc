@@ -643,13 +643,13 @@ std::vector<TestParam<T>> GetHighbdLumaTestParams(T test_func) {
 }
 
 TEST_F(AV2ConvolveParametersTest, GetHighbdLumaTestParams) {
-  auto v = GetHighbdLumaTestParams(av2_highbd_dist_wtd_convolve_x_c);
+  auto v = GetHighbdLumaTestParams(av2_highbd_cwp_convolve_x_c);
   ASSERT_EQ(static_cast<size_t>(BLOCK_SIZES_ALL * 2), v.size());
   int num_10 = 0;
   int num_12 = 0;
   for (const auto &e : v) {
     ASSERT_TRUE(10 == e.BitDepth() || 12 == e.BitDepth());
-    bool same_fn = av2_highbd_dist_wtd_convolve_x_c == e.TestFunction();
+    bool same_fn = av2_highbd_cwp_convolve_x_c == e.TestFunction();
     ASSERT_TRUE(same_fn);
     if (e.BitDepth() == 10) {
       ++num_10;
@@ -741,7 +741,7 @@ class AV2ConvolveXHighbdCompoundTest
   }
 
   virtual highbd_convolve_x_func ReferenceFunc() const {
-    return av2_highbd_dist_wtd_convolve_x_c;
+    return av2_highbd_cwp_convolve_x_c;
   }
 
  private:
@@ -788,20 +788,18 @@ class AV2ConvolveXHighbdCompoundTest
 
 TEST_P(AV2ConvolveXHighbdCompoundTest, RunTest) { RunTest(); }
 
-INSTANTIATE_TEST_SUITE_P(
-    C, AV2ConvolveXHighbdCompoundTest,
-    BuildHighbdLumaParams(av2_highbd_dist_wtd_convolve_x_c));
+INSTANTIATE_TEST_SUITE_P(C, AV2ConvolveXHighbdCompoundTest,
+                         BuildHighbdLumaParams(av2_highbd_cwp_convolve_x_c));
 
 #if HAVE_SSE4_1
 INSTANTIATE_TEST_SUITE_P(
     SSE4_1, AV2ConvolveXHighbdCompoundTest,
-    BuildHighbdLumaParams(av2_highbd_dist_wtd_convolve_x_sse4_1));
+    BuildHighbdLumaParams(av2_highbd_cwp_convolve_x_sse4_1));
 #endif
 
 #if HAVE_AVX2
-INSTANTIATE_TEST_SUITE_P(
-    AVX2, AV2ConvolveXHighbdCompoundTest,
-    BuildHighbdLumaParams(av2_highbd_dist_wtd_convolve_x_avx2));
+INSTANTIATE_TEST_SUITE_P(AVX2, AV2ConvolveXHighbdCompoundTest,
+                         BuildHighbdLumaParams(av2_highbd_cwp_convolve_x_avx2));
 #endif
 
 /////////////////////////////////////////////////
@@ -811,7 +809,7 @@ INSTANTIATE_TEST_SUITE_P(
 // Again, the X and Y convolve functions have the same type signature and logic.
 class AV2ConvolveYHighbdCompoundTest : public AV2ConvolveXHighbdCompoundTest {
   virtual highbd_convolve_x_func ReferenceFunc() const override {
-    return av2_highbd_dist_wtd_convolve_y_c;
+    return av2_highbd_cwp_convolve_y_c;
   }
   virtual const InterpFilterParams *FilterParams(
       InterpFilter f, const BlockSize &block) const override {
@@ -821,20 +819,18 @@ class AV2ConvolveYHighbdCompoundTest : public AV2ConvolveXHighbdCompoundTest {
 
 TEST_P(AV2ConvolveYHighbdCompoundTest, RunTest) { RunTest(); }
 
-INSTANTIATE_TEST_SUITE_P(
-    C, AV2ConvolveYHighbdCompoundTest,
-    BuildHighbdLumaParams(av2_highbd_dist_wtd_convolve_y_c));
+INSTANTIATE_TEST_SUITE_P(C, AV2ConvolveYHighbdCompoundTest,
+                         BuildHighbdLumaParams(av2_highbd_cwp_convolve_y_c));
 
 #if HAVE_SSE4_1
 INSTANTIATE_TEST_SUITE_P(
     SSE4_1, AV2ConvolveYHighbdCompoundTest,
-    BuildHighbdLumaParams(av2_highbd_dist_wtd_convolve_y_sse4_1));
+    BuildHighbdLumaParams(av2_highbd_cwp_convolve_y_sse4_1));
 #endif
 
 #if HAVE_AVX2
-INSTANTIATE_TEST_SUITE_P(
-    AVX2, AV2ConvolveYHighbdCompoundTest,
-    BuildHighbdLumaParams(av2_highbd_dist_wtd_convolve_y_avx2));
+INSTANTIATE_TEST_SUITE_P(AVX2, AV2ConvolveYHighbdCompoundTest,
+                         BuildHighbdLumaParams(av2_highbd_cwp_convolve_y_avx2));
 #endif
 
 ///////////////////////////////////////////////////////
@@ -884,12 +880,11 @@ class AV2Convolve2DCopyHighbdCompoundTest
     avm_usec_timer timer;
     avm_usec_timer_start(&timer);
     for (int i = 0; i < nob; i++) {
-      av2_highbd_dist_wtd_convolve_2d_copy_c(input, width, conv_buf,
-                                             kOutputStride, width, height,
-                                             &conv_params, bit_depth);
-      av2_highbd_dist_wtd_convolve_2d_copy_c(input, width, conv_buf,
-                                             kOutputStride, width, height,
-                                             &conv_params_do_avg, bit_depth);
+      av2_highbd_cwp_convolve_2d_copy_c(input, width, conv_buf, kOutputStride,
+                                        width, height, &conv_params, bit_depth);
+      av2_highbd_cwp_convolve_2d_copy_c(input, width, conv_buf, kOutputStride,
+                                        width, height, &conv_params_do_avg,
+                                        bit_depth);
     }
     avm_usec_timer_mark(&timer);
     const int elapsed_time = static_cast<int>(avm_usec_timer_elapsed(&timer));
@@ -918,7 +913,7 @@ class AV2Convolve2DCopyHighbdCompoundTest
     const uint16_t *input2 = SecondRandomInput12(GetParam());
     DECLARE_ALIGNED(32, uint16_t, reference[MAX_SB_SQUARE]);
     DECLARE_ALIGNED(32, CONV_BUF_TYPE, reference_conv_buf[MAX_SB_SQUARE]);
-    Convolve(av2_highbd_dist_wtd_convolve_2d_copy_c, input1, input2, reference,
+    Convolve(av2_highbd_cwp_convolve_2d_copy_c, input1, input2, reference,
              reference_conv_buf, compound);
 
     DECLARE_ALIGNED(32, uint16_t, test[MAX_SB_SQUARE]);
@@ -955,18 +950,18 @@ TEST_P(AV2Convolve2DCopyHighbdCompoundTest, DISABLED_SpeedTest) { SpeedTest(); }
 
 INSTANTIATE_TEST_SUITE_P(
     C, AV2Convolve2DCopyHighbdCompoundTest,
-    BuildHighbdLumaParams(av2_highbd_dist_wtd_convolve_2d_copy_c));
+    BuildHighbdLumaParams(av2_highbd_cwp_convolve_2d_copy_c));
 
 #if HAVE_SSE4_1
 INSTANTIATE_TEST_SUITE_P(
     SSE4_1, AV2Convolve2DCopyHighbdCompoundTest,
-    BuildHighbdLumaParams(av2_highbd_dist_wtd_convolve_2d_copy_sse4_1));
+    BuildHighbdLumaParams(av2_highbd_cwp_convolve_2d_copy_sse4_1));
 #endif
 
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
     AVX2, AV2Convolve2DCopyHighbdCompoundTest,
-    BuildHighbdLumaParams(av2_highbd_dist_wtd_convolve_2d_copy_avx2));
+    BuildHighbdLumaParams(av2_highbd_cwp_convolve_2d_copy_avx2));
 #endif
 
 //////////////////////////////////////////////////
@@ -1015,7 +1010,7 @@ class AV2Convolve2DHighbdCompoundTestLarge
     const uint16_t *input2 = SecondRandomInput12(GetParam());
     DECLARE_ALIGNED(32, uint16_t, reference[MAX_SB_SQUARE]);
     DECLARE_ALIGNED(32, CONV_BUF_TYPE, reference_conv_buf[MAX_SB_SQUARE]);
-    Convolve(av2_highbd_dist_wtd_convolve_2d_c, input1, input2, reference,
+    Convolve(av2_highbd_cwp_convolve_2d_c, input1, input2, reference,
              reference_conv_buf, compound, h_f, v_f, sub_x, sub_y);
 
     DECLARE_ALIGNED(32, uint16_t, test[MAX_SB_SQUARE]);
@@ -1053,14 +1048,14 @@ class AV2Convolve2DHighbdCompoundTestLarge
     avm_usec_timer timer;
     avm_usec_timer_start(&timer);
     for (int i = 0; i < num_iters; ++i) {
-      av2_highbd_dist_wtd_convolve_2d_c(input1, width, reference, kOutputStride,
-                                        width, height, filter_params_x,
-                                        filter_params_y, sub_x, sub_y,
-                                        &conv_params_ref1, bit_depth);
-      av2_highbd_dist_wtd_convolve_2d_c(input1, width, reference, kOutputStride,
-                                        width, height, filter_params_x,
-                                        filter_params_y, sub_x, sub_y,
-                                        &conv_params_ref2, bit_depth);
+      av2_highbd_cwp_convolve_2d_c(input1, width, reference, kOutputStride,
+                                   width, height, filter_params_x,
+                                   filter_params_y, sub_x, sub_y,
+                                   &conv_params_ref1, bit_depth);
+      av2_highbd_cwp_convolve_2d_c(input1, width, reference, kOutputStride,
+                                   width, height, filter_params_x,
+                                   filter_params_y, sub_x, sub_y,
+                                   &conv_params_ref2, bit_depth);
     }
     avm_usec_timer_mark(&timer);
     const int time1 = static_cast<int>(avm_usec_timer_elapsed(&timer));
@@ -1119,20 +1114,19 @@ class AV2Convolve2DHighbdCompoundTestLarge
 TEST_P(AV2Convolve2DHighbdCompoundTestLarge, RunTest) { RunTest(); }
 TEST_P(AV2Convolve2DHighbdCompoundTestLarge, DISABLED_Speed) { SpeedTest(); }
 
-INSTANTIATE_TEST_SUITE_P(
-    C, AV2Convolve2DHighbdCompoundTestLarge,
-    BuildHighbdLumaParams(av2_highbd_dist_wtd_convolve_2d_c));
+INSTANTIATE_TEST_SUITE_P(C, AV2Convolve2DHighbdCompoundTestLarge,
+                         BuildHighbdLumaParams(av2_highbd_cwp_convolve_2d_c));
 
 #if HAVE_SSE4_1
 INSTANTIATE_TEST_SUITE_P(
     SSE4_1, AV2Convolve2DHighbdCompoundTestLarge,
-    BuildHighbdLumaParams(av2_highbd_dist_wtd_convolve_2d_sse4_1));
+    BuildHighbdLumaParams(av2_highbd_cwp_convolve_2d_sse4_1));
 #endif
 
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
     AVX2, AV2Convolve2DHighbdCompoundTestLarge,
-    BuildHighbdLumaParams(av2_highbd_dist_wtd_convolve_2d_avx2));
+    BuildHighbdLumaParams(av2_highbd_cwp_convolve_2d_avx2));
 #endif
 
 //////////////////////////////////////////////////////////
