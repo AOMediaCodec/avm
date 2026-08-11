@@ -26,12 +26,6 @@
 extern "C" {
 #endif
 
-enum {
-  SB_SINGLE_PASS,  // Single pass encoding: all ctxs get updated normally
-  SB_DRY_PASS,     // First pass of multi-pass: does not update the ctxs
-  SB_WET_PASS      // Second pass of multi-pass: finalize and update the ctx
-} UENUM1BYTE(SB_MULTI_PASS_MODE);
-
 typedef struct {
   ENTROPY_CONTEXT a[MAX_MIB_SIZE * MAX_MB_PLANE];
   ENTROPY_CONTEXT l[MAX_MIB_SIZE * MAX_MB_PLANE];
@@ -181,6 +175,34 @@ typedef struct PartitionSearchState {
   PartitionTimingStats part_timing_stats;
 #endif  // CONFIG_COLLECT_PARTITION_STATS
 } PartitionSearchState;
+
+// Set the per-block two-pass flags from the SB pass mode. Called before every
+// pick_sb_modes so the flags stay in one place. The block-level dry-pass
+// shortcuts fire only on the fast two-pass level, not the conservative one.
+static AVM_INLINE void av2_set_two_pass_flags(
+    const AV2_COMP *cpi, MACROBLOCK *x, SB_MULTI_PASS_MODE multi_pass_mode,
+    const PartitionSearchState *part_search_state) {
+  const bool fast_two_pass = av2_two_pass_part_is_fast(&cpi->sf.part_sf);
+  x->apply_dry_pass_shortcuts =
+      fast_two_pass && (multi_pass_mode == SB_DRY_PASS);
+  const bool is_wet_pass_reuse =
+      (fast_two_pass && multi_pass_mode == SB_WET_PASS && part_search_state &&
+       part_search_state->forced_partition != PARTITION_INVALID);
+  if (x->apply_dry_pass_shortcuts) {
+    // Dry pass: rough shape ranking only.
+    x->intra_mode_prune_top = 1;
+    x->inter_mode_prune_top = 2;
+  } else if (is_wet_pass_reuse) {
+    // Wet pass reusing the dry-pass shape.
+    x->intra_mode_prune_top = 2;
+    x->inter_mode_prune_top = 4;
+  } else {
+    // Full pool.
+    x->intra_mode_prune_top =
+        cpi->sf.intra_sf.intra_pruning_with_mlp ? 4 : TOP_INTRA_MODEL_COUNT;
+    x->inter_mode_prune_top = TOP_MOTION_MODE_MODEL_COUNT;
+  }
+}
 
 static AVM_INLINE void update_wedge_mode_cdf(FRAME_CONTEXT *fc,
                                              const BLOCK_SIZE bsize,

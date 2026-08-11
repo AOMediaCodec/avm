@@ -49,6 +49,7 @@
 #include "av2/encoder/av2_quantize.h"
 #include "av2/common/cost.h"
 #include "av2/encoder/compound_type.h"
+#include "av2/encoder/encodeframe_utils.h"
 #include "av2/encoder/encodemb.h"
 #include "av2/encoder/encodemv.h"
 #include "av2/encoder/encoder.h"
@@ -2212,13 +2213,16 @@ static int motion_mode_is_prune_exempt(const AV2_COMMON *const cm,
 static int prune_motion_mode(int64_t this_model_rd,
                              int64_t top_motion_mode_model_rd[],
                              const AV2_COMMON *const cm,
-                             const MACROBLOCKD *const xd, BLOCK_SIZE bsize) {
-  // top_motion_mode_model_rd[] holds the smallest model RDs seen so far in
-  // ascending order, padded with the INT64_MAX sentinel. Insert this_model_rd
-  // if it ranks among them.
-  for (int i = 0; i < TOP_MOTION_MODE_MODEL_COUNT; i++) {
+                             const MACROBLOCKD *const xd, BLOCK_SIZE bsize,
+                             int prune_top) {
+  assert(prune_top > 0);
+  // Only the top prune_top candidates get full RD; the rest are pruned.
+  const int threshold_slot = AVMMIN(prune_top, TOP_MOTION_MODE_MODEL_COUNT) - 1;
+  // top_motion_mode_model_rd[] holds the smallest model RDs seen so far,
+  // in ascending order, kept sorted up to threshold_slot.
+  for (int i = 0; i <= threshold_slot; i++) {
     if (this_model_rd < top_motion_mode_model_rd[i]) {
-      for (int j = TOP_MOTION_MODE_MODEL_COUNT - 1; j > i; j--) {
+      for (int j = threshold_slot; j > i; j--) {
         top_motion_mode_model_rd[j] = top_motion_mode_model_rd[j - 1];
       }
       top_motion_mode_model_rd[i] = this_model_rd;
@@ -2227,11 +2231,9 @@ static int prune_motion_mode(int64_t this_model_rd,
   }
   // Never prune the prune-exempt setting, even when its model RD does not rank.
   if (motion_mode_is_prune_exempt(cm, xd, bsize)) return 0;
-  // Did not rank: this_model_rd is >= every kept value. Prune only when it
-  // strictly exceeds the largest kept RD. An unfilled pool keeps the INT64_MAX
-  // sentinel in the last slot, which can never be exceeded, so it returns 0.
-  return this_model_rd >
-         top_motion_mode_model_rd[TOP_MOTION_MODE_MODEL_COUNT - 1];
+  // Did not rank: prune only if worse than every kept value. Caller must
+  // initialize top_motion_mode_model_rd[] to INT64_MAX so the pool fills first.
+  return this_model_rd > top_motion_mode_model_rd[threshold_slot];
 }
 
 // Records the best fast/full RD for a given (mode, refs) into the
@@ -3118,7 +3120,8 @@ static AVM_INLINE int evaluate_motion_mode_trial(
       int64_t est_rd =
           RDCOST(x->rdmult, rd_stats->rate + est_residue_cost, est_dist);
       update_inter_mode_rd(args, mbmi, est_rd, 1);
-      if (prune_motion_mode(est_rd, top_motion_mode_model_rd, cm, xd, bsize))
+      if (prune_motion_mode(est_rd, top_motion_mode_model_rd, cm, xd, bsize,
+                            x->inter_mode_prune_top))
         return -1;
     }
 
@@ -3265,6 +3268,7 @@ static int64_t motion_mode_rd(
   MACROBLOCKD *xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
   MB_MODE_INFO_EXT *mbmi_ext = x->mbmi_ext;
+  const DryPassCfg *const cfg = args->dry_pass_cfg;
   const int rate2_nocoeff = rd_stats->rate;
   const int rate_mv0 = mbmi->mode == WARPMV ? 0 : *rate_mv;
   assert(IMPLIES(mbmi->mode == WARPMV, (rate_mv0 == 0)));
@@ -3279,11 +3283,17 @@ static int64_t motion_mode_rd(
 
   int allowed_motion_modes = motion_mode_allowed(
       cm, xd, mbmi_ext->ref_mv_stack[mbmi->ref_frame[0]], mbmi);
-  const int modes_to_search =
-      (base_mbmi.mode == WARPMV || base_mbmi.mode == WARP_NEWMV)
-          ? allowed_motion_modes
-          : select_modes_to_search(cpi, allowed_motion_modes, eval_motion_mode,
-                                   args->skip_motion_mode);
+  // The dry pass uses simple translation only, except for the warp modes,
+  // which would produce an invalid prediction without a warp motion mode.
+  int modes_to_search;
+  if (base_mbmi.mode == WARPMV || base_mbmi.mode == WARP_NEWMV) {
+    modes_to_search = allowed_motion_modes;
+  } else if (x->apply_dry_pass_shortcuts) {
+    modes_to_search = cfg->motion_mode_mask;
+  } else {
+    modes_to_search = select_modes_to_search(
+        cpi, allowed_motion_modes, eval_motion_mode, args->skip_motion_mode);
+  }
 
   // Initialize shared trial context (constant across all trials)
   MotionModeTrialCtx ctx;
@@ -3320,8 +3330,12 @@ static int64_t motion_mode_rd(
         eval_motion_mode &&
         (mode_index == WARP_CAUSAL || mode_index == WARP_EXTEND))
       continue;
-    const int warp_ref_idx_limit =
+    int warp_ref_idx_limit =
         get_warp_ref_idx_limit(xd, &base_mbmi, mbmi_ext, mode_index);
+    // Dry pass: try only one warp reference candidate.
+    if (x->apply_dry_pass_shortcuts) {
+      warp_ref_idx_limit = AVMMIN(warp_ref_idx_limit, cfg->warp_ref_idx_cap);
+    }
 
     if (mode_index != WARP_DELTA) {
       // SIMPLE_TRANSLATION, WARP_CAUSAL, INTERINTRA, WARP_EXTEND:
@@ -3342,8 +3356,14 @@ static int64_t motion_mode_rd(
         previous_mvs[i].as_int = INVALID_MV;
       ctx.previous_mvs = previous_mvs;
       const int is_low_delay_enc = (cpi->oxcf.gf_cfg.lag_in_frames == 0);
-      const int warp_inter_intra_limit =
+      int warp_inter_intra_limit =
           1 + (allow_warp_inter_intra(&base_mbmi) && !is_low_delay_enc);
+      int warpmv_with_mvd_limit = 2;
+      // Dry pass: try only the first option of each extra warp choice.
+      if (x->apply_dry_pass_shortcuts) {
+        warp_inter_intra_limit = cfg->warp_inter_intra_cap;
+        warpmv_with_mvd_limit = cfg->warpmv_with_mvd_cap;
+      }
       for (int warp_inter_intra = 0; warp_inter_intra < warp_inter_intra_limit;
            warp_inter_intra++) {
         for (int warp_ref_idx = 0; warp_ref_idx < warp_ref_idx_limit;
@@ -3356,7 +3376,8 @@ static int64_t motion_mode_rd(
           assert(IMPLIES(cpi->sf.inter_sf.enable_warp_inter_intra_in_winner &&
                              !eval_motion_mode,
                          (!warp_inter_intra || warp_ref_idx >= 2)));
-          for (int warpmv_with_mvd_flag = 0; warpmv_with_mvd_flag < 2;
+          for (int warpmv_with_mvd_flag = 0;
+               warpmv_with_mvd_flag < warpmv_with_mvd_limit;
                warpmv_with_mvd_flag++) {
             const MotionModeTrialParams trial = {
               mode_index,           warp_ref_idx,     warp_ref_idx_limit,
@@ -3378,11 +3399,14 @@ static int64_t motion_mode_rd(
       warp_mode_info_array prev_best_models;
       reset_warp_stats_buffer(&prev_best_models);
       ctx.prev_best_models = &prev_best_models;
+      int warp_precision_limit = NUM_WARP_PRECISION_MODES;
+      // Dry pass: try only the first warp precision.
+      if (x->apply_dry_pass_shortcuts)
+        warp_precision_limit = cfg->warp_precision_cap;
       for (int warp_ref_idx = 0; warp_ref_idx < warp_ref_idx_limit;
            warp_ref_idx++) {
         for (int warp_precision_idx = 0;
-             warp_precision_idx < NUM_WARP_PRECISION_MODES;
-             warp_precision_idx++) {
+             warp_precision_idx < warp_precision_limit; warp_precision_idx++) {
           const MotionModeTrialParams trial = {
             mode_index, warp_ref_idx,      warp_ref_idx_limit, 0,
             0,          warp_precision_idx
@@ -4481,6 +4505,7 @@ static int process_compound_inter_mode(
   MACROBLOCKD *xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
   const AV2_COMMON *cm = &cpi->common;
+  const DryPassCfg *const cfg = args->dry_pass_cfg;
   const int masked_compound_used =
       is_any_masked_compound_used(bsize) &&
       cm->seq_params.enable_masked_compound &&
@@ -4491,6 +4516,11 @@ static int process_compound_inter_mode(
 
   if (get_cwp_idx(mbmi) != CWP_EQUAL) {
     mode_search_mask = (1 << COMPOUND_AVERAGE);
+  }
+  // Dry pass: restrict compound types. Only applied when CWP is CWP_EQUAL,
+  // since WEDGE is invalid otherwise.
+  if (x->apply_dry_pass_shortcuts && get_cwp_idx(mbmi) == CWP_EQUAL) {
+    mode_search_mask = cfg->compound_type_mask;
   }
   const int num_planes = av2_num_planes(cm);
   const int mi_row = xd->mi_row;
@@ -5246,6 +5276,7 @@ static int64_t handle_inter_mode(
   MB_MODE_INFO *mbmi = xd->mi[0];
   MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
   TxfmSearchInfo *txfm_info = &x->txfm_search_info;
+  const DryPassCfg *const cfg = args->dry_pass_cfg;
   const int is_comp_pred = has_second_ref(mbmi);
   const PREDICTION_MODE this_mode = mbmi->mode;
 
@@ -5297,6 +5328,11 @@ static int64_t handle_inter_mode(
   if (has_two_drls) {
     ref_set[1] = get_drl_refmv_count(cm->features.max_drl_bits, x,
                                      mbmi->ref_frame, this_mode, 1);
+  }
+  // Dry pass: look at no more than 2 reference MV candidates per reference.
+  if (x->apply_dry_pass_shortcuts) {
+    ref_set[0] = AVMMIN(ref_set[0], cfg->ref_mv_set_cap);
+    ref_set[1] = AVMMIN(ref_set[1], cfg->ref_mv_set_cap);
   }
 
   inter_mode_info mode_info[BAWP_OPTION_CNT][NUM_MV_PRECISIONS]
@@ -5465,6 +5501,9 @@ static int64_t handle_inter_mode(
 
   for (int scale_index = 0; scale_index < jmvd_scaling_factor_num;
        ++scale_index) {
+    // Dry pass: cap jmvd scale index.
+    if (x->apply_dry_pass_shortcuts && scale_index > cfg->jmvd_scale_cap)
+      continue;
     mbmi->jmvd_scale_mode = scale_index;
     if (is_joint_amvd_coding_mode(mbmi->mode, mbmi->use_amvd)) {
       if (scale_index > JOINT_AMVD_SCALE_FACTOR_CNT - 1) continue;
@@ -5500,6 +5539,8 @@ static int64_t handle_inter_mode(
         if (best_cwp_idxs[scale_index] == CWP_EQUAL &&
             (ref_mv_idx[0] > 0 || ref_mv_idx[1] > 0))
           cwp_loop_num = 1;
+        // Dry pass: use only cwp_idx == CWP_EQUAL (no CWP search).
+        if (x->apply_dry_pass_shortcuts) cwp_loop_num = cfg->cwp_loop_cap;
 
         int cwp_search_mask[MAX_CWP_NUM] = { 0 };
         av2_zero(cwp_search_mask);
@@ -5567,6 +5608,11 @@ static int64_t handle_inter_mode(
               continue;
             }
             assert(pb_mv_precision <= mbmi->max_mv_precision);
+            // Dry pass: try only the top N MV precisions.
+            if (x->apply_dry_pass_shortcuts &&
+                precision_dx <
+                    precision_def->num_precisions - cfg->precisions_from_top)
+              break;
 
             const int jmvd_scale_mode_cost =
                 get_jmvd_scale_mode_cost(mbmi, mode_costs);
@@ -5650,6 +5696,9 @@ static int64_t handle_inter_mode(
                                av2_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col);
             if (bawp_eanbled && av2_allow_explicit_bawp(mbmi))
               bawp_eanbled += EXPLICIT_BAWP_SCALE_CNT;
+            // Dry pass: cap BAWP flag (0 => BAWP off).
+            if (x->apply_dry_pass_shortcuts)
+              bawp_eanbled = AVMMIN(bawp_eanbled, cfg->bawp_cap);
             for (int bawp_flag = 0; bawp_flag <= bawp_eanbled; bawp_flag++) {
               if (mbmi->ref_mv_idx[0] > 0 && bawp_flag > 1 &&
                   best_mbmi.bawp_flag[0] == 0)
@@ -5780,6 +5829,10 @@ static int64_t handle_inter_mode(
 
                 for (int refinemv_loop = 0; refinemv_loop < REFINEMV_NUM_MODES;
                      refinemv_loop++) {
+                  // Dry pass: cap refinemv loop index.
+                  if (x->apply_dry_pass_shortcuts &&
+                      refinemv_loop > cfg->refinemv_cap)
+                    break;
                   if (refinemv_loop == 1 &&
                       (!switchable_refinemv_flag(cm, mbmi) ||
                        cpi->sf.inter_sf.disable_switchable_refinemv))
@@ -8577,7 +8630,9 @@ static void av2_evaluate_intra_modes_in_inter_frame(
     const struct AV2_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
     PICK_MODE_CONTEXT *ctx, int64_t inter_cost, int64_t intra_cost,
     InterModeSearchState *search_state, RD_STATS *rd_cost,
-    unsigned int intra_ref_frame_cost, int is_intra_mode_allowed) {
+    unsigned int intra_ref_frame_cost, int is_intra_mode_allowed,
+    const DryPassCfg *dry_pass_cfg) {
+  const bool apply_dry_pass_shortcuts = x->apply_dry_pass_shortcuts;
   const AV2_COMMON *const cm = &cpi->common;
   const SPEED_FEATURES *const sf = &cpi->sf;
   MACROBLOCKD *const xd = &x->e_mbd;
@@ -8648,12 +8703,18 @@ static void av2_evaluate_intra_modes_in_inter_frame(
     }
   }
   for (int dpcm_idx = 0; dpcm_idx < dpcm_loop_num; dpcm_idx++) {
+    // Dry pass: cap DPCM index.
+    if (apply_dry_pass_shortcuts && dpcm_idx > dry_pass_cfg->intra_dpcm_cap)
+      break;
     mbmi->use_dpcm_y = dpcm_idx;
     memset(search_state->intra_search_state.mrl0_dir_mode_survived, 0,
            sizeof(search_state->intra_search_state.mrl0_dir_mode_survived));
     for (int fsc_mode = 0;
          fsc_mode < (allow_fsc_intra(cm, bsize, mbmi) ? FSC_MODES : 1);
          fsc_mode++) {
+      // Dry pass: cap FSC mode index.
+      if (apply_dry_pass_shortcuts && fsc_mode > dry_pass_cfg->intra_fsc_cap)
+        break;
       uint8_t enable_mrls_flag = cm->seq_params.enable_mrls && !fsc_mode;
       const int num_mrl_indices = enable_mrls_flag ? MRL_LINE_NUMBER : 1;
       ModeRDInfoUV mode_rd_info_uv = { { false }, { 0 }, { 0 } };
@@ -8664,6 +8725,9 @@ static void av2_evaluate_intra_modes_in_inter_frame(
         av2_zero(mode_rd_info_uv.mode_evaluated);
       }
       for (int mrl_index = 0; mrl_index < num_mrl_indices; mrl_index++) {
+        // Dry pass: cap MRL index (0 => nearest reference line only).
+        if (apply_dry_pass_shortcuts && mrl_index > dry_pass_cfg->intra_mrl_cap)
+          break;
         if (mrl_index > 0 &&
             (xd->tree_type == CHROMA_PART ? mbmi->fsc_mode[PLANE_TYPE_Y]
                                           : fsc_mode)) {
@@ -8677,6 +8741,11 @@ static void av2_evaluate_intra_modes_in_inter_frame(
           if (!is_intra_mode_allowed) break;
           for (int mode_idx = INTRA_MODE_START; mode_idx < LUMA_MODE_COUNT;
                ++mode_idx) {
+            // Dry pass: only the top MPM intra modes, capped.
+            if (apply_dry_pass_shortcuts &&
+                mode_idx >= AVMMIN((int)mbmi->num_y_intra_mpm,
+                                   dry_pass_cfg->intra_mpm_cap))
+              break;
             if (sf->rt_sf.use_only_dc_intra_interframe && mode_idx != DC_PRED)
               continue;
             if (sf->intra_sf.skip_intra_in_interframe &&
@@ -8908,6 +8977,43 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
                                struct macroblock *x, struct RD_STATS *rd_cost,
                                BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx,
                                int64_t best_rd_so_far) {
+  // WARNING: on the dry pass, all exits must go through dry_pass_cleanup —
+  // use `goto dry_pass_cleanup;` instead of `return`.
+  const bool apply_dry_pass_shortcuts = x->apply_dry_pass_shortcuts;
+
+  // Save rd_model for restore on exit; the dry pass forces FULL_TXFM_RD.
+  TXFM_RD_MODEL saved_rd_model = FULL_TXFM_RD;
+  // Dry-pass policy caps consulted by every gate below.
+  DryPassCfg dry_pass_cfg = { 0 };
+  if (apply_dry_pass_shortcuts) {
+    saved_rd_model = x->rd_model;
+    dry_pass_cfg = (DryPassCfg){
+      .ref_rank_cap = 1,
+      .same_ref_compound_rank_cap = 0,
+      .ref_mv_set_cap = 2,
+      .warp_ref_idx_cap = 1,
+      .warp_precision_cap = 1,
+      .warpmv_with_mvd_cap = 1,
+      .warp_inter_intra_cap = 1,
+      .cwp_loop_cap = 1,
+      .jmvd_scale_cap = 0,
+      .bawp_cap = 0,
+      .refinemv_cap = 0,
+      .intra_dpcm_cap = 0,
+      .intra_fsc_cap = 0,
+      .intra_mrl_cap = 0,
+      .motion_mode_mask = (1u << SIMPLE_TRANSLATION),
+      .compound_type_mask = (1u << COMPOUND_AVERAGE) | (1u << COMPOUND_WEDGE),
+      .inter_mode_mask = (1u << NEWMV) | (1u << NEW_NEWMV) | (1u << NEARMV) |
+                         (1u << NEAR_NEARMV) | (1u << WARPMV) |
+                         (1u << WARP_NEWMV),
+      .precisions_from_top = 3,
+      .intra_mpm_cap = 13,
+    };
+    // Keep the normal distortion measure; a cheaper one made the partition
+    // choices worse.
+    x->rd_model = FULL_TXFM_RD;
+  }
   AV2_COMMON *const cm = &cpi->common;
   const FeatureFlags *const features = &cm->features;
   const int num_planes = av2_num_planes(cm);
@@ -8960,6 +9066,7 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
     0,
     { { 0 } },
     0,
+    apply_dry_pass_shortcuts ? &dry_pass_cfg : NULL,
   };
 
   // Indicates the appropriate number of simple translation winner modes for
@@ -9080,10 +9187,14 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
   const InterModeRdModel *md = &tile_data->inter_mode_rd_models[bsize];
   // If do_tx_search is 0, only estimated RD should be computed.
   // If do_tx_search is 1, all modes have TX search performed.
+  // Dry pass: transform search stays on, but the settings above keep it cheap.
   const int do_tx_search =
-      !((cpi->sf.inter_sf.inter_mode_rd_model_estimation == 1 && md->ready) ||
-        (cpi->sf.inter_sf.inter_mode_rd_model_estimation == 2 &&
-         num_pels_log2_lookup[bsize] > 8));
+      apply_dry_pass_shortcuts
+          ? 1
+          : !((cpi->sf.inter_sf.inter_mode_rd_model_estimation == 1 &&
+               md->ready) ||
+              (cpi->sf.inter_sf.inter_mode_rd_model_estimation == 2 &&
+               num_pels_log2_lookup[bsize] > 8));
   InterModesInfo *inter_modes_info = x->inter_modes_info;
   inter_modes_info->num = 0;
 
@@ -9273,6 +9384,35 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
         continue;
     }
 
+    // Dry pass: search a small set of inter modes that still covers the range
+    // of MV costs, so the partition ranking matches a full search. Modes with
+    // an explicit MV difference, modes with a near-zero MV, and the warp modes
+    // are all represented. Searching only the explicit-MV modes made the dry
+    // pass split too much at high QP, and the more expensive optical-flow
+    // modes are not worth their cost here.
+    if (apply_dry_pass_shortcuts &&
+        !(dry_pass_cfg.inter_mode_mask & (1u << this_mode)))
+      continue;
+    // Dry pass: use the top ranks only. The eval order iterates rank indices
+    // 0..N-1 where rank 0 is the closest reference. TIP is always allowed
+    // because it is a different kind of prediction and can win on smooth
+    // content.
+    if (apply_dry_pass_shortcuts && is_inter_ref_frame(ref_frame) &&
+        ref_frame > dry_pass_cfg.ref_rank_cap && !is_tip_ref_frame(ref_frame))
+      continue;
+    // Dry pass: same limit for the second reference of a compound mode.
+    if (apply_dry_pass_shortcuts && is_inter_ref_frame(second_ref_frame) &&
+        second_ref_frame > dry_pass_cfg.ref_rank_cap)
+      continue;
+    // Dry pass: mostly skip compound modes that use the same reference twice.
+    // They pay for two MVs but rarely win the partition choice. When the frame
+    // has references on both sides they are dropped completely; otherwise the
+    // top same_ref_compound_rank_cap ranks are kept.
+    if (apply_dry_pass_shortcuts && is_comp_mode &&
+        ref_frame == second_ref_frame &&
+        (cm->has_both_sides_refs ||
+         ref_frame > dry_pass_cfg.same_ref_compound_rank_cap))
+      continue;
     if (this_mode == WARPMV && !warpmv_allowed) continue;
     if (this_mode == WARP_NEWMV && (!warpmv_allowed || !warp_newmv_allowed))
       continue;
@@ -9486,7 +9626,8 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
   }
   av2_evaluate_intra_modes_in_inter_frame(
       cpi, x, bsize, ctx, inter_cost, intra_cost, &search_state, rd_cost,
-      intra_ref_frame_cost, is_intra_mode_allowed);
+      intra_ref_frame_cost, is_intra_mode_allowed,
+      apply_dry_pass_shortcuts ? &dry_pass_cfg : NULL);
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, handle_intra_mode_time);
@@ -9597,7 +9738,7 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
       search_state.best_rd >= best_rd_so_far) {
     rd_cost->rate = INT_MAX;
     rd_cost->rdcost = INT64_MAX;
-    return;
+    goto dry_pass_cleanup;
   }
 
   const InterpFilter interp_filter = features->interp_filter;
@@ -9661,6 +9802,10 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
   // TODO(urvang): Remove index from `palette_size` array, as palette is no
   // longer allowed for chroma.
   assert(mbmi->palette_mode_info.palette_size[1] == 0);
+dry_pass_cleanup:
+  if (apply_dry_pass_shortcuts) {
+    x->rd_model = saved_rd_model;
+  }
 }
 
 void av2_rd_pick_inter_mode_sb_seg_skip(const AV2_COMP *cpi,
