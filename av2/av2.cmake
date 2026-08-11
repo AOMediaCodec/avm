@@ -395,6 +395,8 @@ list(
 list(APPEND AVM_AV2_COMMON_INTRIN_AVX2
      "${AVM_ROOT}/av2/common/gdf_block_avx2.c")
 
+list(APPEND AVM_AV2_COMMON_INTRIN_AVX512)
+
 list(APPEND AVM_AV2_ENCODER_ASM_SSE2 "${AVM_ROOT}/av2/encoder/x86/dct_sse2.asm")
 
 list(
@@ -430,6 +432,8 @@ list(
   "${AVM_ROOT}/av2/encoder/x86/intra_mode_mlp_avx2.c"
   "${AVM_ROOT}/av2/encoder/x86/rdopt_avx2.c"
   "${AVM_ROOT}/av2/encoder/x86/pickrst_avx2.c")
+
+list(APPEND AVM_AV2_ENCODER_INTRIN_AVX512)
 
 list(
   APPEND
@@ -579,6 +583,30 @@ function(setup_av2_targets)
     if(CONFIG_AV2_ENCODER)
       add_intrinsics_object_library("-mavx2" "avx2" "avm_av2_encoder"
                                     "AVM_AV2_ENCODER_INTRIN_AVX2")
+    endif()
+  endif()
+
+  if(HAVE_AVX512)
+    set(AVM_AVX512_FLAG "-mavx512f -mavx512dq -mavx512bw -mavx512vl")
+    # Only probe/require the AVX-512 flags once there are sources to build.
+    if(AVM_AV2_COMMON_INTRIN_AVX512 OR (CONFIG_AV2_ENCODER
+                                        AND AVM_AV2_ENCODER_INTRIN_AVX512))
+      require_compiler_flag_nomsvc("-mavx512f" NO)
+      require_compiler_flag_nomsvc("-mavx512dq" NO)
+      require_compiler_flag_nomsvc("-mavx512bw" NO)
+      require_compiler_flag_nomsvc("-mavx512vl" NO)
+    endif()
+
+    if(AVM_AV2_COMMON_INTRIN_AVX512)
+      add_intrinsics_object_library("${AVM_AVX512_FLAG}" "avx512"
+                                    "avm_av2_common"
+                                    "AVM_AV2_COMMON_INTRIN_AVX512")
+    endif()
+
+    if(CONFIG_AV2_ENCODER AND AVM_AV2_ENCODER_INTRIN_AVX512)
+      add_intrinsics_object_library("${AVM_AVX512_FLAG}" "avx512"
+                                    "avm_av2_encoder"
+                                    "AVM_AV2_ENCODER_INTRIN_AVX512")
     endif()
   endif()
 
