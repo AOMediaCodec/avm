@@ -31,14 +31,12 @@
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
 namespace AV2CompMaskVariance {
-#if (HAVE_SSSE3 || HAVE_SSE2 || HAVE_AVX2)
 const BLOCK_SIZE kValidBlockSize[] = {
   BLOCK_8X8,   BLOCK_8X16,  BLOCK_8X32,   BLOCK_16X8,   BLOCK_16X16,
   BLOCK_16X32, BLOCK_32X8,  BLOCK_32X16,  BLOCK_32X32,  BLOCK_32X64,
   BLOCK_64X32, BLOCK_64X64, BLOCK_64X128, BLOCK_128X64, BLOCK_128X128,
   BLOCK_16X64, BLOCK_64X16
 };
-#endif
 
 typedef void (*highbd_comp_mask_pred_func)(uint16_t *comp_pred8,
                                            const uint16_t *pred8, int width,
@@ -199,6 +197,166 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
     SSE2, AV2HighbdCompMaskVarianceTest,
     ::testing::Combine(::testing::Values(&avm_highbd_comp_mask_pred_sse2),
+                       ::testing::ValuesIn(kValidBlockSize),
+                       ::testing::Range(8, 13, 2)));
+#endif
+
+using highbd_upsampled_pred_func =
+    void (*)(MACROBLOCKD *xd, const struct AV2Common *const cm, int mi_row,
+             int mi_col, const MV *const mv, uint16_t *comp_pred, int width,
+             int height, int subpel_x_q3, int subpel_y_q3, const uint16_t *ref,
+             int ref_stride, int bd, int subpel_search, int is_scaled_ref);
+
+using HighbdUpsampledPredParam =
+    std::tuple<highbd_upsampled_pred_func, BLOCK_SIZE, int>;
+
+class AV2HighbdUpsampledPredTest
+    : public ::testing::TestWithParam<HighbdUpsampledPredParam> {
+ public:
+  ~AV2HighbdUpsampledPredTest();
+  void SetUp();
+
+  void TearDown();
+
+ protected:
+  void RunCheckOutput(highbd_upsampled_pred_func test_impl, BLOCK_SIZE bsize);
+  void RunSpeedTest(highbd_upsampled_pred_func test_impl, BLOCK_SIZE bsize,
+                    int havSub);
+  bool CheckResult(int width, int height) {
+    for (int y = 0; y < height; ++y) {
+      for (int x = 0; x < width; ++x) {
+        const int idx = y * width + x;
+        if (comp_pred1_[idx] != comp_pred2_[idx]) {
+          printf("%dx%d mismatch @%d(%d,%d) ", width, height, idx, y, x);
+          printf("%d != %d ", comp_pred1_[idx], comp_pred2_[idx]);
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  libavm_test::ACMRandom rnd_;
+  uint16_t *comp_pred1_;
+  uint16_t *comp_pred2_;
+  uint16_t *pred_;
+  uint16_t *ref_buffer_;
+  uint16_t *ref_;
+};
+
+AV2HighbdUpsampledPredTest::~AV2HighbdUpsampledPredTest() = default;
+
+void AV2HighbdUpsampledPredTest::SetUp() {
+  rnd_.Reset(libavm_test::ACMRandom::DeterministicSeed());
+  av2_init_wedge_masks();
+
+  comp_pred1_ =
+      (uint16_t *)avm_memalign(16, MAX_SB_SQUARE * sizeof(*comp_pred1_));
+  comp_pred2_ =
+      (uint16_t *)avm_memalign(16, MAX_SB_SQUARE * sizeof(*comp_pred2_));
+  pred_ = (uint16_t *)avm_memalign(16, MAX_SB_SQUARE * sizeof(*pred_));
+  ref_buffer_ = (uint16_t *)avm_memalign(
+      16, (MAX_SB_SQUARE + (8 * MAX_SB_SIZE)) * sizeof(*ref_buffer_));
+  ref_ = ref_buffer_ + (8 * MAX_SB_SIZE);
+}
+
+void AV2HighbdUpsampledPredTest::TearDown() {
+  avm_free(comp_pred1_);
+  avm_free(comp_pred2_);
+  avm_free(pred_);
+  avm_free(ref_buffer_);
+  libavm_test::ClearSystemState();
+}
+
+void AV2HighbdUpsampledPredTest::RunCheckOutput(
+    highbd_upsampled_pred_func test_impl, BLOCK_SIZE bsize) {
+  int bd_ = GET_PARAM(2);
+  const int w = block_size_wide[bsize];
+  const int h = block_size_high[bsize];
+
+  for (int i = 0; i < MAX_SB_SQUARE; ++i) {
+    pred_[i] = rnd_.Rand16() & ((1 << bd_) - 1);
+  }
+  for (int i = 0; i < MAX_SB_SQUARE + (8 * MAX_SB_SIZE); ++i) {
+    ref_buffer_[i] = rnd_.Rand16() & ((1 << bd_) - 1);
+  }
+
+  for (int subpel_search = 1; subpel_search <= 2; ++subpel_search) {
+    // loop through subx and suby
+    for (int sub = 0; sub < 8 * 8; ++sub) {
+      int subx = sub & 0x7;
+      int suby = (sub >> 3);
+
+      avm_highbd_upsampled_pred_c(nullptr, nullptr, 0, 0, nullptr, comp_pred1_,
+                                  w, h, subx, suby, ref_, MAX_SB_SIZE, bd_,
+                                  subpel_search, 0);
+
+      test_impl(nullptr, nullptr, 0, 0, nullptr, comp_pred2_, w, h, subx, suby,
+                ref_, MAX_SB_SIZE, bd_, subpel_search, 0);
+
+      ASSERT_EQ(CheckResult(w, h), true)
+          << "sub (" << subx << "," << suby << ")";
+    }
+  }
+}
+
+void AV2HighbdUpsampledPredTest::RunSpeedTest(
+    highbd_upsampled_pred_func test_impl, BLOCK_SIZE bsize, int havSub) {
+  int bd_ = GET_PARAM(2);
+  const int w = block_size_wide[bsize];
+  const int h = block_size_high[bsize];
+  const int subx = havSub ? 3 : 0;
+  const int suby = havSub ? 4 : 0;
+
+  for (int i = 0; i < MAX_SB_SQUARE; ++i) {
+    pred_[i] = rnd_.Rand16() & ((1 << bd_) - 1);
+  }
+  for (int i = 0; i < MAX_SB_SQUARE + (8 * MAX_SB_SIZE); ++i) {
+    ref_buffer_[i] = rnd_.Rand16() & ((1 << bd_) - 1);
+  }
+
+  const int num_loops = 1000000000 / (w + h);
+  highbd_upsampled_pred_func funcs[2] = { &avm_highbd_upsampled_pred_c,
+                                          test_impl };
+  double elapsed_time[2] = { 0 };
+  for (int i = 0; i < 2; ++i) {
+    avm_usec_timer timer;
+    avm_usec_timer_start(&timer);
+    highbd_upsampled_pred_func func = funcs[i];
+    int subpel_search = 2;  // set to 1 to test 4-tap filter.
+    for (int j = 0; j < num_loops; ++j) {
+      func(nullptr, nullptr, 0, 0, nullptr, comp_pred1_, w, h, subx, suby, ref_,
+           MAX_SB_SIZE, bd_, subpel_search, 0);
+    }
+    avm_usec_timer_mark(&timer);
+    double time = static_cast<double>(avm_usec_timer_elapsed(&timer));
+    elapsed_time[i] = 1000.0 * time / num_loops;
+  }
+  printf("CompMaskUp[%d] %3dx%-3d:%7.2f/%7.2fns", havSub, w, h, elapsed_time[0],
+         elapsed_time[1]);
+  printf("(%3.2f)\n", elapsed_time[0] / elapsed_time[1]);
+}
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV2HighbdUpsampledPredTest);
+
+TEST_P(AV2HighbdUpsampledPredTest, CheckOutput) {
+  RunCheckOutput(GET_PARAM(0), GET_PARAM(1));
+}
+
+TEST_P(AV2HighbdUpsampledPredTest, DISABLED_Speed) {
+  RunSpeedTest(GET_PARAM(0), GET_PARAM(1), 1);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    C, AV2HighbdUpsampledPredTest,
+    ::testing::Combine(::testing::Values(&avm_highbd_upsampled_pred_c),
+                       ::testing::ValuesIn(kValidBlockSize),
+                       ::testing::Range(8, 13, 2)));
+
+#if HAVE_SSE2
+INSTANTIATE_TEST_SUITE_P(
+    SSE2, AV2HighbdUpsampledPredTest,
+    ::testing::Combine(::testing::Values(&avm_highbd_upsampled_pred_sse2),
                        ::testing::ValuesIn(kValidBlockSize),
                        ::testing::Range(8, 13, 2)));
 #endif
