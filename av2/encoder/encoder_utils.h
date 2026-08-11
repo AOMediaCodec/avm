@@ -1007,6 +1007,7 @@ static AVM_INLINE void av2_set_seq_tile_info(SequenceHeader *const seq_params,
       if (j >= tile_cfg->tile_width_count) j = 0;
       start_sb += AVMMIN(size_sb, tiles->max_width_sb);
     }
+    assert(start_sb == sb_cols);
     tiles->cols = i;
     tiles->col_start_sb[i] = sb_cols;
   }
@@ -1025,6 +1026,7 @@ static AVM_INLINE void av2_set_seq_tile_info(SequenceHeader *const seq_params,
       if (j >= tile_cfg->tile_height_count) j = 0;
       start_sb += AVMMIN(size_sb, tiles->max_height_sb);
     }
+    assert(start_sb == sb_rows);
     tiles->rows = i;
     tiles->row_start_sb[i] = sb_rows;
   }
@@ -1037,7 +1039,7 @@ static AVM_INLINE void av2_set_tile_info(AV2_COMMON *const cm,
   CommonTileParams *const tiles = &cm->tiles;
   int i, start_sb;
 
-  av2_get_tile_limits(&cm->tiles, mi_params->mi_rows, mi_params->mi_cols,
+  av2_get_tile_limits(tiles, mi_params->mi_rows, mi_params->mi_cols,
                       cm->mib_size_log2, cm->seq_params.mib_size_log2,
                       cm->seq_params.seq_max_level_idx,
                       cm->seq_params.seq_tier);
@@ -1064,8 +1066,7 @@ static AVM_INLINE void av2_set_tile_info(AV2_COMMON *const cm,
     tiles->log2_cols = AVMMAX(tile_cfg->tile_columns, tiles->min_log2_cols);
     tiles->log2_cols = AVMMIN(tiles->log2_cols, tiles->max_log2_cols);
   } else {
-    int mi_cols = ALIGN_POWER_OF_TWO(mi_params->mi_cols, cm->mib_size_log2);
-    int sb_cols = mi_cols >> cm->mib_size_log2;
+    int sb_cols = tiles->sb_cols;
     int size_sb, j = 0;
     tiles->uniform_spacing = 0;
     for (i = 0, start_sb = 0; start_sb < sb_cols && i < MAX_TILE_COLS; i++) {
@@ -1074,6 +1075,7 @@ static AVM_INLINE void av2_set_tile_info(AV2_COMMON *const cm,
       if (j >= tile_cfg->tile_width_count) j = 0;
       start_sb += AVMMIN(size_sb, tiles->max_width_sb);
     }
+    assert(start_sb == sb_cols);
     tiles->cols = i;
     tiles->col_start_sb[i] = sb_cols;
   }
@@ -1087,8 +1089,7 @@ static AVM_INLINE void av2_set_tile_info(AV2_COMMON *const cm,
       tiles->log2_rows = AVMMIN(tiles->log2_rows, tiles->max_log2_rows);
     }
   } else {
-    int mi_rows = ALIGN_POWER_OF_TWO(mi_params->mi_rows, cm->mib_size_log2);
-    int sb_rows = mi_rows >> cm->mib_size_log2;
+    int sb_rows = tiles->sb_rows;
     int size_sb, j = 0;
     for (i = 0, start_sb = 0; start_sb < sb_rows && i < MAX_TILE_ROWS; i++) {
       tiles->row_start_sb[i] = start_sb;
@@ -1096,6 +1097,7 @@ static AVM_INLINE void av2_set_tile_info(AV2_COMMON *const cm,
       if (j >= tile_cfg->tile_height_count) j = 0;
       start_sb += AVMMIN(size_sb, tiles->max_height_sb);
     }
+    assert(start_sb == sb_rows);
     tiles->rows = i;
     tiles->row_start_sb[i] = sb_rows;
   }
