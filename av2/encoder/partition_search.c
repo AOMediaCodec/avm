@@ -3933,16 +3933,10 @@ static void none_partition_search(
   // Check if partition none is allowed.
   const int bw = block_size_wide[bsize];
   const int bh = block_size_high[bsize];
-  if (cpi->sf.part_sf.force_max_pb_aspect_ratio) {
-    cpi->common.seq_params.max_pb_aspect_ratio_log2_m1 =
-        cpi->sf.part_sf.force_max_pb_aspect_ratio == 2
-            ? 0
-            : (cpi->sf.part_sf.force_max_pb_aspect_ratio == 4 ? 1 : 2);
-  }
   const int max_partition_aspect_ratio =
-      1 << (cm->seq_params.max_pb_aspect_ratio_log2_m1 + 1);
-  assert(max_partition_aspect_ratio == 2 || max_partition_aspect_ratio == 4 ||
-         max_partition_aspect_ratio == 8);
+      cpi->sf.part_sf.force_max_pb_aspect_ratio
+          ? cpi->sf.part_sf.force_max_pb_aspect_ratio
+          : 1 << (cm->seq_params.max_pb_aspect_ratio_log2_m1 + 1);
   const bool invalid_aspect_ratio = bw > bh * max_partition_aspect_ratio ||
                                     bh > bw * max_partition_aspect_ratio;
   if (invalid_aspect_ratio) return;
