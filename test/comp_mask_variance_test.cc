@@ -31,14 +31,12 @@
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
 namespace AV2CompMaskVariance {
-#if (HAVE_SSSE3 || HAVE_SSE2 || HAVE_AVX2)
 const BLOCK_SIZE kValidBlockSize[] = {
   BLOCK_8X8,   BLOCK_8X16,  BLOCK_8X32,   BLOCK_16X8,   BLOCK_16X16,
   BLOCK_16X32, BLOCK_32X8,  BLOCK_32X16,  BLOCK_32X32,  BLOCK_32X64,
   BLOCK_64X32, BLOCK_64X64, BLOCK_64X128, BLOCK_128X64, BLOCK_128X128,
   BLOCK_16X64, BLOCK_64X16
 };
-#endif
 
 typedef void (*highbd_comp_mask_pred_func)(uint16_t *comp_pred8,
                                            const uint16_t *pred8, int width,
@@ -203,9 +201,6 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Range(8, 13, 2)));
 #endif
 
-#ifndef avm_highbd_comp_mask_pred
-// can't run this test if avm_highbd_comp_mask_pred is defined to
-// avm_highbd_comp_mask_pred_c
 class AV2HighbdCompMaskUpVarianceTest : public AV2HighbdCompMaskVarianceTest {
  public:
   ~AV2HighbdCompMaskUpVarianceTest();
@@ -213,8 +208,6 @@ class AV2HighbdCompMaskUpVarianceTest : public AV2HighbdCompMaskVarianceTest {
  protected:
   void RunCheckOutput(highbd_comp_mask_pred_func test_impl, BLOCK_SIZE bsize,
                       int inv);
-  void RunSpeedTest(highbd_comp_mask_pred_func test_impl, BLOCK_SIZE bsize,
-                    int havSub);
 };
 
 AV2HighbdCompMaskUpVarianceTest::~AV2HighbdCompMaskUpVarianceTest() { ; }
@@ -268,58 +261,17 @@ void AV2HighbdCompMaskUpVarianceTest::RunCheckOutput(
   }
 }
 
-void AV2HighbdCompMaskUpVarianceTest::RunSpeedTest(
-    highbd_comp_mask_pred_func test_impl, BLOCK_SIZE bsize, int havSub) {
-  int bd_ = GET_PARAM(2);
-  const int w = block_size_wide[bsize];
-  const int h = block_size_high[bsize];
-  const int subx = havSub ? 3 : 0;
-  const int suby = havSub ? 4 : 0;
-  const int wedge_types = get_wedge_types_lookup(bsize);
-  int wedge_index = wedge_types / 2;
-  int boundary_index = 0;
-  const uint8_t *mask =
-      av2_get_all_contiguous_soft_mask(wedge_index, 1, bsize, boundary_index);
-
-  for (int i = 0; i < MAX_SB_SQUARE; ++i) {
-    pred_[i] = rnd_.Rand16() & ((1 << bd_) - 1);
-  }
-  for (int i = 0; i < MAX_SB_SQUARE + (8 * MAX_SB_SIZE); ++i) {
-    ref_buffer_[i] = rnd_.Rand16() & ((1 << bd_) - 1);
-  }
-
-  const int num_loops = 1000000000 / (w + h);
-  highbd_comp_mask_pred_func funcs[2] = { &avm_highbd_comp_mask_pred_c,
-                                          test_impl };
-  double elapsed_time[2] = { 0 };
-  for (int i = 0; i < 2; ++i) {
-    avm_usec_timer timer;
-    avm_usec_timer_start(&timer);
-    avm_highbd_comp_mask_pred = funcs[i];
-    int subpel_search = 2;  // set to 1 to test 4-tap filter.
-    for (int j = 0; j < num_loops; ++j) {
-      avm_highbd_comp_mask_upsampled_pred(
-          NULL, NULL, 0, 0, NULL, comp_pred1_, pred_, w, h, subx, suby, ref_,
-          MAX_SB_SIZE, mask, w, 0, bd_, subpel_search, 0);
-    }
-    avm_usec_timer_mark(&timer);
-    double time = static_cast<double>(avm_usec_timer_elapsed(&timer));
-    elapsed_time[i] = 1000.0 * time / num_loops;
-  }
-  printf("CompMaskUp[%d] %3dx%-3d:%7.2f/%7.2fns", havSub, w, h, elapsed_time[0],
-         elapsed_time[1]);
-  printf("(%3.2f)\n", elapsed_time[0] / elapsed_time[1]);
-}
-
 TEST_P(AV2HighbdCompMaskUpVarianceTest, CheckOutput) {
   // inv mask = 0, 1
   RunCheckOutput(GET_PARAM(0), GET_PARAM(1), 0);
   RunCheckOutput(GET_PARAM(0), GET_PARAM(1), 1);
 }
 
-TEST_P(AV2HighbdCompMaskUpVarianceTest, DISABLED_Speed) {
-  RunSpeedTest(GET_PARAM(0), GET_PARAM(1), 1);
-}
+INSTANTIATE_TEST_SUITE_P(
+    C, AV2HighbdCompMaskUpVarianceTest,
+    ::testing::Combine(::testing::Values(&avm_highbd_comp_mask_pred_c),
+                       ::testing::ValuesIn(kValidBlockSize),
+                       ::testing::Range(8, 13, 2)));
 
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
@@ -337,6 +289,9 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Range(8, 13, 2)));
 #endif
 
+#ifndef avm_highbd_comp_mask_pred
+// can't run this test if avm_highbd_comp_mask_pred is defined to
+// avm_highbd_comp_mask_pred_c
 typedef void (*highbd_convolve8_func)(const uint16_t *src, ptrdiff_t src_stride,
                                       uint16_t *dst, ptrdiff_t dst_stride,
                                       const int16_t *filter_x, int x_step_q4,
