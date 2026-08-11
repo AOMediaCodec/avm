@@ -10,20 +10,22 @@
 ##
 __author__ = "maggie.sun@intel.com, ryanlei@meta.com"
 
+import argparse
 import os
 import re
 import subprocess
+import sys
 
+from Config import EnableParallelGopEncoding, FrameNum, GOP_SIZE, WorkPath
 from Utils import CreateNewSubfolder, GetTestCfgSubfolder
-from Config import WorkPath, FrameNum, EnableParallelGopEncoding, GOP_SIZE
 
-root_path = '/project/tenjin/fba/design/ryanlei/AV2-CTC/AV2-CTC-v11.0.0/'
-test_path = os.path.join(root_path, 'test')
-dec_path = os.path.join(test_path, 'decodedYUVs')
-dec_log_path = os.path.join(test_path, 'decLogs')
+root_path = "/project/tenjin/fba/design/ryanlei/AV2-CTC/AV2-CTC-v14.0.0/"
+test_path = os.path.join(root_path, "test")
+dec_path = os.path.join(test_path, "decodedYUVs")
+dec_log_path = os.path.join(test_path, "decLogs")
 ra_cmd_log_file = os.path.join(test_path, "AV2CTC_TestCmd_RA.log")
 as_cmd_log_file = os.path.join(test_path, "AV2CTC_TestCmd_AS.log")
-decoder = "%s/bin/aomdec-v11.0.0" % root_path
+decoder = "%s/bin/aomdec-v14.0.0" % root_path
 ra_dec_error_log = os.path.join(test_path, "ra_decode_error.log")
 as_dec_error_log = os.path.join(test_path, "as_decode_error.log")
 updated_ra_cmd_log = os.path.join(test_path, "AV2CTC_TestCmd_Update_RA.log")
@@ -31,9 +33,9 @@ updated_as_cmd_log = os.path.join(test_path, "AV2CTC_TestCmd_Update_AS.log")
 
 
 def get_expected_frames(cfg):
-    if cfg in ['LD', 'AI', 'STILL']:
+    if cfg in ["LD", "AI", "STILL"]:
         total_frame = FrameNum[cfg]
-    elif cfg in ['RA', 'AS']:
+    elif cfg in ["RA", "AS"]:
         if EnableParallelGopEncoding:
             total_frame = GOP_SIZE
         else:
@@ -56,13 +58,13 @@ def check_decode_log(dec_log_file, cfg):
         print("%s does not exists\n" % dec_log_file)
         return False
     else:
-        dec_log = open(dec_log_file, 'r')
+        dec_log = open(dec_log_file, "r")
         for line in dec_log:
             m = re.search(r"(\d+) decoded frames", line)
             if m:
                 frames = int(m.group(1))
-                #print ("%s has %d frames" % (dec_log_file, frames))
-                if (frames == get_expected_frames(cfg)):
+                # print ("%s has %d frames" % (dec_log_file, frames))
+                if frames == get_expected_frames(cfg):
                     return True
                 else:
                     print("%s has %d frames\n" % (dec_log_file, frames))
@@ -71,11 +73,12 @@ def check_decode_log(dec_log_file, cfg):
         dec_log.close()
     return False
 
+
 def run_decode(cmd_log_file):
     CreateNewSubfolder(WorkPath, dec_log_path)
-    cmd_log = open(cmd_log_file, 'r')
+    cmd_log = open(cmd_log_file, "r")
     for line in cmd_log:
-        m = re.search(r"-o (.*).obu",line)
+        m = re.search(r"-o (.*).obu", line)
         if m:
             bitstream = m.group(1)
             output_file = bitstream + ".obu"
@@ -85,26 +88,32 @@ def run_decode(cmd_log_file):
             cfg_dec_path = get_dec_path_for_cfg(cfg)
             dec_log = os.path.join(cfg_dec_log_path, video + "_DecLog.txt")
             dec_output = os.path.join(cfg_dec_path, video + ".y4m")
-            #print("bitstrams file is %s\n" % output_file)
-            #print("decoding log file is %s\n" % dec_log)
+            # print("bitstrams file is %s\n" % output_file)
+            # print("decoding log file is %s\n" % dec_log)
             args = " --codec=av2 --summary -o %s %s" % (dec_output, output_file)
-            dec_cmd = decoder + args + "> %s 2>&1"%dec_log
-            #print("=== decoding %s \n" %video)
-            #print(dec_cmd)
-            #os.system(dec_cmd)
-            cmd = "ENABLE_CONTAINER_CONFIG=1 grid run -autokill 0 -C modeling_c9 -r+ RAM/0" + " '" + dec_cmd + "'"
-            #print(cmd)
+            dec_cmd = decoder + args + "> %s 2>&1" % dec_log
+            # print("=== decoding %s \n" %video)
+            # print(dec_cmd)
+            # os.system(dec_cmd)
+            cmd = (
+                "ENABLE_CONTAINER_CONFIG=1 grid run -autokill 0 -C modeling_c9 -r+ RAM/0"
+                + " '"
+                + dec_cmd
+                + "'"
+            )
+            # print(cmd)
             subprocess.call(cmd, shell=True)
     cmd_log.close()
 
+
 def check_decoding(cmd_log_file, dec_error_log):
-    cmd_log = open(cmd_log_file, 'r')
+    cmd_log = open(cmd_log_file, "r")
     error_list = []
-    error_log = open(dec_error_log, 'wt')
+    error_log = open(dec_error_log, "wt")
     for line in cmd_log:
-        m = re.search(r"-o (.*).obu(\s)",line)
+        m = re.search(r"-o (.*).obu(\s)", line)
         if m:
-            #print(line)
+            # print(line)
             bitstream = m.group(1)
             output_file = bitstream + ".obu"
             video = bitstream.split("/")[-1]
@@ -113,7 +122,7 @@ def check_decoding(cmd_log_file, dec_error_log):
             cfg_dec_path = get_dec_path_for_cfg(cfg)
             dec_log = os.path.join(cfg_dec_log_path, video + "_DecLog.txt")
             dec_output = os.path.join(cfg_dec_path, video + ".y4m")
-            #print("checking %s for %s" % (dec_log, cfg))
+            # print("checking %s for %s" % (dec_log, cfg))
 
             if check_decode_log(dec_log, cfg) == False:
                 print("%s decoding error" % video)
@@ -122,17 +131,17 @@ def check_decoding(cmd_log_file, dec_error_log):
 
             if os.path.exists(dec_output):
                 del_cmd = "rm %s" % dec_output
-                #print("=== deleting %s \n" %video)
+                # print("=== deleting %s \n" %video)
                 os.system(del_cmd)
-                #input("press any key to continue")
+                # input("press any key to continue")
     cmd_log.close()
     error_log.close()
     return error_list
 
 
 def filter_cmd_log(cmd_log_file, updated_cmd_log_file, error_list):
-    cmd_log = open(cmd_log_file, 'r')
-    updated_cmd_log = open(updated_cmd_log_file, 'wt')
+    cmd_log = open(cmd_log_file, "r")
+    updated_cmd_log = open(updated_cmd_log_file, "wt")
     start_copy = False
 
     for line in cmd_log:
@@ -155,28 +164,30 @@ def filter_cmd_log(cmd_log_file, updated_cmd_log_file, error_list):
     cmd_log.close()
     updated_cmd_log.close()
 
+
 def get_config(file_name):
-    if ('_LD_' in file_name):
-        return 'LD'
-    elif ('_AS_' in file_name):
-        return 'AS'
-    elif ('_AI_' in file_name):
-        return 'AI'
-    elif ('_STILL_' in file_name):
-        return 'STILL'
-    elif ('_RA_' in file_name):
-        return 'RA'
+    if "_LD_" in file_name:
+        return "LD"
+    elif "_AS_" in file_name:
+        return "AS"
+    elif "_AI_" in file_name:
+        return "AI"
+    elif "_STILL_" in file_name:
+        return "STILL"
+    elif "_RA_" in file_name:
+        return "RA"
     else:
         print("unsupported configuration")
-        return ''
+        return ""
+
 
 def check_ld_decoding():
-    cmd_log = open(cmd_log_file, 'r')
+    cmd_log = open(cmd_log_file, "r")
     error_list = []
-    error_log = open(dec_error_log, 'wt')
+    error_log = open(dec_error_log, "wt")
     for line in cmd_log:
         m = re.search(r"=* (.*) Job Start", line)
-        #m = re.search(r"-o (.*).obu",line)
+        # m = re.search(r"-o (.*).obu",line)
         if m:
             bitstream = m.group(1)
             output_file = bitstream + ".obu"
@@ -189,52 +200,61 @@ def check_ld_decoding():
             dec_output = os.path.join(cfg_dec_path, video + ".y4m")
 
             if check_decode_log(dec_log, cfg) == False:
-                #print(line)
+                # print(line)
                 print("%s decoding error" % video)
                 error_log.write(output_file + "\n")
                 error_list.append(video)
 
             if os.path.exists(dec_output):
                 del_cmd = "rm %s" % dec_output
-                #print("=== deleting %s \n" %video)
+                # print("=== deleting %s \n" %video)
                 os.system(del_cmd)
-                #input("press any key to continue")
+                # input("press any key to continue")
     cmd_log.close()
     error_log.close()
     return error_list
+
+
+def ParseArguments(raw_args):
+    parser = argparse.ArgumentParser(
+        prog="CheckEncoding.py", usage="%(prog)s [options]", description=""
+    )
+    parser.add_argument(
+        "-c",
+        "--config",
+        dest="Config",
+        type=str,
+        required=True,
+        metavar="",
+        choices=["RA", "AS"],
+        help="configurations to check: RA, AS",
+    )
+
+    if len(raw_args) == 1:
+        parser.print_help()
+        sys.exit(1)
+    args = parser.parse_args(raw_args[1:])
+    return args
+
 
 ######################################
 # main
 ######################################
 if __name__ == "__main__":
 
-    """ steps for RA and AS
-    #1. trigger decoding process, needed for RA
-    run_decode(cmd_log_file)
-    """
+    args = ParseArguments(sys.argv)
 
-    """
-    #2. check decoding errors
-    error_list = check_decoding(ra_cmd_log_file, ra_dec_error_log)
+    if args.Config == "RA":
+        # 1. check decoding errors
+        error_list = check_decoding(ra_cmd_log_file, ra_dec_error_log)
 
-    print("There are %d missing encodings" % len(error_list))
-    filter_cmd_log(ra_cmd_log_file, updated_ra_cmd_log, error_list)
-    """
+        print("There are %d missing encodings" % len(error_list))
+        filter_cmd_log(ra_cmd_log_file, updated_ra_cmd_log, error_list)
+    elif args.Config == "AS":
+        # 1. check decoding errors
+        error_list = check_decoding(as_cmd_log_file, as_dec_error_log)
 
-
-    #steps for AS
-    #1. check decoding errors
-    error_list = check_decoding(as_cmd_log_file, as_dec_error_log)
-
-    print("There are %d missing encodings" % len(error_list))
-    filter_cmd_log(as_cmd_log_file, updated_as_cmd_log, error_list)
-
-
-    """
-    # steps for AI, LD, STILL
-    #1. check decoding errors
-    error_list = check_decoding(cmd_log_file, dec_error_log)
-
-    print("There are %d missing encodings" % len(error_list))
-    filter_cmd_log(cmd_log_file, updated_cmd_log, error_list)
-    """
+        print("There are %d missing encodings" % len(error_list))
+        filter_cmd_log(as_cmd_log_file, updated_as_cmd_log, error_list)
+    else:
+        print("Wrong encoding configurations")

@@ -8,7 +8,6 @@
 ## License 1.0 was not distributed with this source code in the PATENTS file, you
 ## can obtain it at aomedia.org/license/patent-license/.
 ##
-from platform import release
 
 __author__ = "maggie.sun@intel.com, ryanlei@meta.com"
 
@@ -77,20 +76,6 @@ csv_paths = {
         "aom",
         "0",
         os.path.join(CTC_RESULT_PATH, "AV2-CTC-v1.0.0-alt-anchor-r4.0-scale"),
-    ],
-    "libaom-v3.12.0": [
-        "libaom-v3.12.0",
-        "av1",
-        "aom",
-        "0",
-        os.path.join(CTC_RESULT_PATH, "AV1-CTC-v3.12.0-constrained"),
-    ],
-    "libaom-v3.12.0-unconstrained": [
-        "libaom-v3.12.0-unconstrained",
-        "av1",
-        "aom",
-        "0",
-        os.path.join(CTC_RESULT_PATH, "AV1-CTC-v3.12.0-unconstrained"),
     ],
     "v02.0.0": [
         "v02.0.0",
@@ -176,8 +161,37 @@ csv_paths = {
         "0",
         os.path.join(CTC_RESULT_PATH, "AV2-CTC-v13.0.0-scale"),
     ],
+    "v14.0.0": [
+        "v14.0.0",
+        "av2",
+        "aom",
+        "0",
+        os.path.join(CTC_RESULT_PATH, "AV2-CTC-v14.0.0"),
+    ],
+    "v15.0.0": [
+        "v15.0.0",
+        "av2",
+        "aom",
+        "0",
+        os.path.join(CTC_RESULT_PATH, "AV2-CTC-v15.0.0"),
+    ],
 }
-
+"""
+    "libaom-v3.12.0": [
+        "libaom-v3.12.0",
+        "av1",
+        "aom",
+        "0",
+        os.path.join(CTC_RESULT_PATH, "AV1-CTC-v3.12.0-constrained"),
+    ],
+    "libaom-v3.12.0-unconstrained": [
+        "libaom-v3.12.0-unconstrained",
+        "av1",
+        "aom",
+        "0",
+        os.path.join(CTC_RESULT_PATH, "AV1-CTC-v3.12.0-unconstrained"),
+    ],
+    """
 
 CONFIG = ["AI", "LD", "RA", "Still", "AS"]
 
@@ -199,13 +213,15 @@ formats = {
     "v06.0.0": ["y", "-.", "o"],
     "v07.0.0": ["k", ":", "+"],
     "v08.0.0": ["w", ":", "^"],
-    "libaom-v3.12.0": ["r", "--", "<"],
-    "libaom-v3.12.0-unconstrained": ["g", "--", "<"],
+    # "libaom-v3.12.0": ["r", "--", "<"],
+    # "libaom-v3.12.0-unconstrained": ["g", "--", "<"],
     "v09.0.0": ["b", "-.", "^"],
     "v10.0.0": ["c", "-.", "+"],
     "v11.0.0": ["m", "-.", "o"],
     "v12.0.0": ["r", ":", "x"],
     "v13.0.0": ["g", ":", "+"],
+    "v14.0.0": ["b", ":", "x"],
+    "v15.0.0": ["c", ":", "o"],
 }
 
 # key is the release
@@ -224,8 +240,50 @@ dates = {
     "v11.0.0": "08/29/2025",
     "v12.0.0": "10/27/2025",
     "v13.0.0": "12/19/2025",
-    "libaom-v3.12.0": "02/10/2025",
-    "libaom-v3.12.0-unconstrained": "01/10/2025",
+    "v14.0.0": "04/01/2026",
+    "v15.0.0": "05/05/2026",
+    # "libaom-v3.12.0": "02/10/2025",
+    # "libaom-v3.12.0-unconstrained": "01/10/2025",
+}
+
+
+# key is the test configuration. The colors are validated for color-vision
+# deficiency as a set, and the marker shape repeats the identity on a second,
+# non-color channel. Keyed by name so a configuration keeps its color on charts
+# where only some of the configurations are present.
+cfg_styles = {
+    "AI": ("#2a78d6", "o"),
+    "AS": ("#eda100", "s"),
+    "LD": ("#e87ba4", "^"),
+    "RA": ("#008300", "D"),
+    "Still": ("#4a3aa7", "v"),
+}
+
+# key is the video class, value is what the class is made of. Used to expand the
+# class name in chart legends; a class with no entry here is legended bare.
+class_content = {
+    "A1": "2160p",
+    "A2": "1080p",
+    "A3": "720p",
+    "A4": "360p",
+    "A5": "270p",
+    "B1": "1080p Synthetic",
+    "B2": "1080p Screen Content",
+    "E": "UGC",
+    "G1": "2160p HDR",
+    "G2": "1080p HDR",
+    "F1": "High Resolution Image",
+    "F2": "Medium Resolution Image",
+}
+
+# quality metrics drawn as per-configuration trend lines, key is the csv column
+trend_metrics = {
+    "psnr_y": "PSNR-Y",
+    "overall_psnr": "PSNR-YUV",
+    "ssim_y": "SSIM",
+    "ms_ssim_y": "MS-SSIM",
+    "vmaf": "VMAF",
+    "vmaf_neg": "VMAF-NEG",
 }
 
 
@@ -310,7 +368,7 @@ def WriteSheet(csv_file, sht, start_row):
 def get_anchor_tag(tag):
     if tag in ["v01.0.0-scale"]:
         anchor_tag = "None"
-    elif tag in ["v13.0.0"]:
+    elif tag in ["v13.0.0", "v14.0.0", "v15.0.0"]:
         anchor_tag = "v01.0.0-scale"
     else:
         anchor_tag = "v01.0.0"
@@ -722,7 +780,9 @@ def write_bdrate(bdrate, bdrate_csv):
         )
         fc.writeheader()
         for row in bdrate:
-            fc.writerow({k: v.strip() if isinstance(v, str) else v for k, v in row.items()})
+            fc.writerow(
+                {k: v.strip() if isinstance(v, str) else v for k, v in row.items()}
+            )
 
 
 def write_avg_bdrate(
@@ -822,6 +882,84 @@ def write_avg_bdrate(
     average_bdrate_by_video.to_csv(per_video_bdrate_csv, index=False)
 
 
+def plot_bdrate_trend_by_cfg(df, tags, qty, title, export_pdf):
+    """Write one BDRATE trend page: x is the release date, one line per
+    configuration. Configurations absent from df are skipped, so the caller can
+    pass a slice covering only some of them."""
+    date_labels = [
+        pd.to_datetime(dates[tag]).strftime("%m/%d/%y") if tag in dates else tag
+        for tag in tags
+    ]
+    release_labels = [re.sub(r"^v0*(\d+).*", r"v\1", tag) for tag in tags]
+    x_positions = list(range(len(tags)))
+
+    fig, ax = plt.subplots(figsize=(16, 15))
+
+    series = {}
+    for cfg, (color, marker) in cfg_styles.items():
+        cfg_df = df[df["cfg"] == cfg]
+        if cfg_df.empty:
+            continue
+        series[cfg] = [
+            cfg_df.loc[tag, qty] if tag in cfg_df.index else np.nan for tag in tags
+        ]
+        ax.plot(
+            x_positions,
+            series[cfg],
+            color=color,
+            marker=marker,
+            markersize=10,
+            linewidth=2,
+            label=cfg,
+        )
+
+    if not series:
+        plt.close()
+        return
+
+    # Tag the topmost point at each release, so the version reads once per
+    # x position instead of being repeated on every line.
+    for x, release in zip(x_positions, release_labels):
+        column = [series[cfg][x] for cfg in series if pd.notna(series[cfg][x])]
+        if not column:
+            continue
+        ax.annotate(
+            release,
+            (x, max(column)),
+            textcoords="offset points",
+            xytext=(0, 14),
+            ha="center",
+            fontsize=16,
+            color="#52514e",
+        )
+
+    ax.set_title(title, fontsize=40)
+    ax.set_xlabel("Release Date", fontsize=20)
+    ax.set_ylabel("BDRATE (%)", fontsize=20)
+    ax.set_xticks(x_positions)
+    ax.set_xticklabels(
+        date_labels,
+        rotation=45,
+        rotation_mode="anchor",
+        ha="right",
+        fontsize=16,
+    )
+    ax.tick_params(axis="y", labelsize=16)
+    ax.grid(True, linestyle="--", color="#e1e0d9", linewidth=0.8)
+    ax.set_axisbelow(True)
+
+    # Open space at the bottom so the legend never lands on a line.
+    ymin, ymax = ax.get_ylim()
+    ax.set_ylim(ymin - 0.12 * (ymax - ymin), ymax)
+    # A lone line is already named by the title; a legend box would be noise.
+    if len(series) > 1:
+        ax.legend(loc="lower left", fontsize=20, framealpha=0.9)
+
+    plt.tight_layout()
+    export_pdf.savefig()
+    plt.close()
+
+
 def plot_avg_bdrate_by_tag(avg_bdrate_by_tag_csv, avg_bdrate_by_tag_pdf):
     df = pd.read_csv(avg_bdrate_by_tag_csv, index_col=0)
     # print(df)
@@ -905,6 +1043,17 @@ def plot_avg_bdrate_by_tag(avg_bdrate_by_tag_csv, avg_bdrate_by_tag_pdf):
             export_pdf.savefig()
             plt.close()
 
+        # New line charts - one chart per quality metric, one line per configuration
+        tags = df.index.unique().tolist()
+        for qty, qty_label in trend_metrics.items():
+            plot_bdrate_trend_by_cfg(
+                df,
+                tags,
+                qty,
+                f"BDRATE {qty_label} by Configuration",
+                export_pdf,
+            )
+
 
 def plot_avg_bdrate_by_tag_class(
     avg_bdrate_by_tag_class_csv, avg_bdrate_by_tag_class_pdf
@@ -944,45 +1093,56 @@ def plot_avg_bdrate_by_tag_class(
 
         # New line charts - one chart per configuration and quality metric
         # Each chart has multiple series (one per video class)
-        quality_labels = {
-            "overall_psnr": "PSNR-Overall",
-            "ssim_y": "SSIM-Y",
-            "vmaf": "VMAF",
+        # Hue comes from a color-vision-validated set, indexed off the full
+        # class list so a class keeps its color on every chart. A configuration
+        # can code more than eight classes, in which case a hue repeats; those
+        # classes are drawn dashed and with their own marker so the pair sharing
+        # a hue stays distinguishable.
+        class_hues = [
+            "#2a78d6",  # Blue
+            "#eb6834",  # Orange
+            "#1baf7a",  # Aqua
+            "#eda100",  # Yellow
+            "#e87ba4",  # Magenta
+            "#008300",  # Green
+            "#4a3aa7",  # Violet
+            "#e34948",  # Red
+        ]
+        class_markers = ["o", "s", "^", "D", "v", "p", "h", "*", "X", "P", "<", ">"]
+        class_styles = {
+            cls: (
+                class_hues[i % len(class_hues)],
+                class_markers[i % len(class_markers)],
+                "-" if i < len(class_hues) else "--",
+            )
+            for i, cls in enumerate(df["class"].unique().tolist())
         }
 
-        # Define colors for different video classes
-        class_colors = [
-            "#1f77b4",  # Blue
-            "#ff7f0e",  # Orange
-            "#2ca02c",  # Green
-            "#d62728",  # Red
-            "#9467bd",  # Purple
-            "#8c564b",  # Brown
-            "#e377c2",  # Pink
-            "#7f7f7f",  # Gray
-            "#bcbd22",  # Yellow-green
-            "#17becf",  # Cyan
-        ]
-
-        class_markers = ["o", "s", "^", "D", "v", "p", "h", "*", "X", "P"]
-
         for cfg in df["cfg"].unique().tolist():
-            for qty in ["overall_psnr", "ssim_y", "vmaf"]:
-                fig, ax = plt.subplots(figsize=(30, 15))
+            cfg_df = df[df["cfg"] == cfg]
+            # AS codes only class A1, so a by-class chart of it is a single line
+            # with nothing to compare against. Skip any such configuration.
+            if cfg_df["class"].nunique() < 2:
+                continue
 
-                cfg_df = df[df["cfg"] == cfg]
-                if cfg_df.empty:
-                    plt.close()
-                    continue
+            for qty, qty_label in trend_metrics.items():
+                fig, ax = plt.subplots(figsize=(16, 15))
 
                 # Get unique tags and classes for this configuration
                 tags = cfg_df.index.unique().tolist()
                 classes = cfg_df["class"].unique().tolist()
-                x_labels = [f"{tag}\n{dates[tag]}" for tag in tags]
+                x_labels = [
+                    (
+                        f"{tag}\n{pd.to_datetime(dates[tag]).strftime('%m/%d/%y')}"
+                        if tag in dates
+                        else tag
+                    )
+                    for tag in tags
+                ]
                 x_positions = range(len(tags))
 
                 # Plot each class as a separate line
-                for i, cls in enumerate(classes):
+                for cls in classes:
                     cls_data = cfg_df[cfg_df["class"] == cls]
                     if cls_data.empty:
                         continue
@@ -1000,29 +1160,44 @@ def plot_avg_bdrate_by_tag_class(
                     if not y_values:
                         continue
 
-                    color = class_colors[i % len(class_colors)]
-                    marker = class_markers[i % len(class_markers)]
+                    color, marker, linestyle = class_styles[cls]
+                    label = (
+                        f"{cls} - {class_content[cls]}" if cls in class_content else cls
+                    )
 
                     ax.plot(
                         valid_x,
                         y_values,
                         color=color,
                         marker=marker,
+                        linestyle=linestyle,
                         markersize=10,
                         linewidth=2,
-                        label=cls,
+                        label=label,
                     )
 
                 ax.set_title(
-                    f"BDRATE {quality_labels[qty]} Trends by Class for {cfg} Configuration",
-                    fontsize=40,
+                    f"BDRATE {qty_label} Trends by Class for {cfg} Configuration",
+                    fontsize=32,
                 )
                 ax.set_xlabel("Release Tag / Date", fontsize=20)
-                ax.set_ylabel("BDRATE (%)", fontsize=20)
+                ax.set_ylabel(f"BDRATE {qty_label} for {cfg} (%)", fontsize=20)
                 ax.set_xticks(x_positions)
-                ax.set_xticklabels(x_labels, rotation=30, ha="center", fontsize=16)
+                ax.set_xticklabels(
+                    x_labels,
+                    rotation=45,
+                    rotation_mode="anchor",
+                    ha="right",
+                    fontsize=16,
+                )
                 ax.tick_params(axis="y", labelsize=16)
                 ax.grid(True, linestyle="--", alpha=0.7)
+
+                # Open space at the bottom so the legend never lands on a line.
+                # Scaled by series count, since the legend grows with it.
+                ymin, ymax = ax.get_ylim()
+                pad = 0.04 * max(1, len(ax.get_lines()))
+                ax.set_ylim(ymin - pad * (ymax - ymin), ymax)
                 ax.legend(loc="lower left", fontsize=18, framealpha=0.9)
 
                 plt.tight_layout()

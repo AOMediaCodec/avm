@@ -66,6 +66,7 @@ from Utils import (
     md5,
     ParseDecLogFile,
     SetupLogging,
+    str2bool,
 )
 from VideoScaler import DownScaling, GetDownScaledOutFile, UpScaling
 
@@ -492,7 +493,12 @@ def SaveConvexHullResults(
 
                 filesize = os.path.getsize(bs)
                 bitrate = round(
-                    (filesize * 8 * (clip.fps_num / clip.fps_denom) / frame_num)
+                    (
+                        filesize
+                        * 8
+                        * (clip.fps_num / clip.fps_denom)
+                        / frame_num
+                    )
                     / 1000.0,
                     6,
                 )
@@ -576,7 +582,7 @@ def SaveConvexHullResults(
 
 
 def Run_AS_Concatenate_Test(
-    test_cfg, clip, dnScalAlgo, codec, method, preset, LogCmdOnly=False
+    test_cfg, clip, dnScalAlgo, codec, method, preset, LogCmdOnly
 ):
     if EnableParallelGopEncoding:
         Utils.Logger.info(
@@ -834,7 +840,7 @@ def ParseArguments(raw_args):
         "-k",
         "--KeepUpscaleOutput",
         dest="KeepUpscaledOutput",
-        type=bool,
+        type=str2bool,
         default=False,
         metavar="",
         help="in function clean, if keep upscaled yuv files. It" " is false by default",
@@ -843,7 +849,7 @@ def ParseArguments(raw_args):
         "-s",
         "--SaveMemory",
         dest="SaveMemory",
-        type=bool,
+        type=str2bool,
         default=True,
         metavar="",
         help="save memory mode will delete most files in"
@@ -854,7 +860,7 @@ def ParseArguments(raw_args):
         "-CmdOnly",
         "--LogCmdOnly",
         dest="LogCmdOnly",
-        type=bool,
+        type=str2bool,
         default=True,
         metavar="",
         help="LogCmdOnly mode will only capture the command sequences"
