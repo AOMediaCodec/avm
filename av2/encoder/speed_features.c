@@ -1226,6 +1226,12 @@ void av2_set_speed_features_framesize_independent(AV2_COMP *cpi, int speed) {
     cpi->common.seq_params.enable_masked_compound &=
         !sf->inter_sf.disable_masked_comp;
 
+    cpi->common.seq_params.enable_ext_partitions &=
+        !sf->part_sf.disable_ext_partitions;
+
+    cpi->common.seq_params.enable_uneven_4way_partitions &=
+        !sf->part_sf.disable_uneven_4way_partitions;
+
     if (sf->inter_sf.reduce_comp_refs) {
       cpi->common.seq_params.num_same_ref_compound =
           AVMMIN(cpi->common.seq_params.num_same_ref_compound, 1);
