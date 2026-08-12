@@ -550,8 +550,7 @@ void avm_highbd_upsampled_pred_c(MACROBLOCKD *xd,
     avm_highbd_convolve8_vert(ref, ref_stride, comp_pred, width, NULL, -1,
                               kernel, 16, width, height, bd);
   } else {
-    DECLARE_ALIGNED(16, uint16_t,
-                    temp[((MAX_SB_SIZE + 16) + 16) * MAX_SB_SIZE]);
+    uint16_t *temp = comp_pred;
     const int16_t *const kernel_x =
         av2_get_interp_filter_subpel_kernel(filter, subpel_x_q3 << 1);
     const int16_t *const kernel_y =
