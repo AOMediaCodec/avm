@@ -3934,9 +3934,7 @@ static void none_partition_search(
   const int bw = block_size_wide[bsize];
   const int bh = block_size_high[bsize];
   const int max_partition_aspect_ratio =
-      cpi->sf.part_sf.force_max_pb_aspect_ratio
-          ? cpi->sf.part_sf.force_max_pb_aspect_ratio
-          : 1 << (cm->seq_params.max_pb_aspect_ratio_log2_m1 + 1);
+      1 << (cm->seq_params.max_pb_aspect_ratio_log2_m1 + 1);
   const bool invalid_aspect_ratio = bw > bh * max_partition_aspect_ratio ||
                                     bh > bw * max_partition_aspect_ratio;
   if (invalid_aspect_ratio) return;

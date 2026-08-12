@@ -579,7 +579,9 @@ static void set_good_speed_features_framesize_independent(
 
     sf->part_sf.simple_motion_search_prune_agg = 2;
     sf->part_sf.simple_motion_search_reduce_search_steps = 4;
-    sf->part_sf.force_max_pb_aspect_ratio = 4;
+    if (!cpi->is_screen_content_type) {
+      sf->part_sf.force_max_pb_aspect_ratio = 4;
+    }
 
     sf->inter_sf.alt_ref_search_fp = 1;
     sf->inter_sf.txfm_rd_gate_level = boosted ? 0 : 4;
@@ -1240,6 +1242,13 @@ void av2_set_speed_features_framesize_independent(AV2_COMP *cpi, int speed) {
 
   if (!cpi->seq_params_locked) {
     cpi->common.seq_params.enable_restoration &= !sf->lpf_sf.disable_lr_filter;
+
+    if (sf->part_sf.force_max_pb_aspect_ratio) {
+      cpi->common.seq_params.max_pb_aspect_ratio_log2_m1 =
+          sf->part_sf.force_max_pb_aspect_ratio == 2
+              ? 0
+              : (sf->part_sf.force_max_pb_aspect_ratio == 4 ? 1 : 2);
+    }
 
     cpi->common.seq_params.enable_masked_compound &=
         !sf->inter_sf.disable_masked_comp;
