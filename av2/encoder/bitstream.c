@@ -4397,8 +4397,6 @@ void write_sequence_partition_group_tool_flags(
   if (seq_params->max_pb_aspect_ratio_log2_m1 < 2) {
     avm_wb_write_bit(wb, seq_params->max_pb_aspect_ratio_log2_m1);
   }
-  printf("max_pb_aspect_ratio_log2_m1= \n",
-         seq_params->max_pb_aspect_ratio_log2_m1);
 }
 
 void write_sequence_intra_group_tool_flags(
