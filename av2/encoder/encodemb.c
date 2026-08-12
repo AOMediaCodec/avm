@@ -588,6 +588,8 @@ void av2_xform_dc_only(MACROBLOCK *x, int plane, int block,
   const struct macroblock_plane *const p = &x->plane[plane];
   const int block_offset = BLOCK_OFFSET(block);
   tran_low_t *const coeff = p->coeff + block_offset;
+  const int n_coeffs = av2_get_max_eob(txfm_param->tx_size);
+  memset(coeff, 0, sizeof(*coeff) * n_coeffs);
   coeff[0] =
       (tran_low_t)((per_px_mean * dc_coeff_scale[txfm_param->tx_size]) >> 12);
 }
