@@ -689,6 +689,7 @@ static void set_rt_speed_features_framesize_independent(
     sf->part_sf.partition_pruning_with_mlp = 0;
     sf->part_sf.partition_search_type = VAR_BASED_PARTITION;
     sf->rd_sf.tx_domain_dist_thres_level = 2;
+    sf->rt_sf.use_nonrd_partition = 1;
     sf->rt_sf.use_only_dc_intra_interframe = true;
     sf->winner_mode_sf.tx_size_search_level = USE_LARGESTALL;
   }
