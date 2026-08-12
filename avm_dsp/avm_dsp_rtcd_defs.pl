@@ -585,6 +585,7 @@ if (avm_config("CONFIG_AV2_ENCODER") eq "yes") {
                                                  const MV *const mv, uint16_t *comp_pred8, int width, int height, int subpel_x_q3,
                                                  int subpel_y_q3, const uint16_t *ref8, int ref_stride, int bd, int subpel_search,
 						 int is_scaled_ref";
+  specialize qw/avm_highbd_upsampled_pred sse2/;
 
   add_proto qw/void avm_highbd_comp_avg_upsampled_pred/, "MACROBLOCKD *xd, const struct AV2Common *const cm, int mi_row, int mi_col,
                                                           const MV *const mv, uint16_t *comp_pred8, const uint16_t *pred8, int width,

@@ -536,7 +536,7 @@ void avm_highbd_upsampled_pred_c(MACROBLOCKD *xd,
   }
 
   const InterpFilterParams *filter = av2_get_filter(subpel_search);
-  int filter_taps = (subpel_search <= USE_4_TAPS) ? 4 : SUBPEL_TAPS;
+
   if (!subpel_x_q3 && !subpel_y_q3) {
     avm_highbd_convolve_copy(ref, ref_stride, comp_pred, width, width, height);
   } else if (!subpel_y_q3) {
@@ -550,24 +550,21 @@ void avm_highbd_upsampled_pred_c(MACROBLOCKD *xd,
     avm_highbd_convolve8_vert(ref, ref_stride, comp_pred, width, NULL, -1,
                               kernel, 16, width, height, bd);
   } else {
-    uint16_t *temp = comp_pred;
+    DECLARE_ALIGNED(16, uint16_t,
+                    temp[((MAX_SB_SIZE + 16) + 16) * MAX_SB_SIZE]);
     const int16_t *const kernel_x =
         av2_get_interp_filter_subpel_kernel(filter, subpel_x_q3 << 1);
     const int16_t *const kernel_y =
         av2_get_interp_filter_subpel_kernel(filter, subpel_y_q3 << 1);
-    const uint16_t *ref_start = ref - ref_stride * ((filter_taps >> 1) - 1);
-    uint16_t *temp_start_horiz = (subpel_search <= USE_4_TAPS)
-                                     ? temp + (filter_taps >> 1) * MAX_SB_SIZE
-                                     : temp;
-    uint16_t *temp_start_vert = temp + MAX_SB_SIZE * ((filter->taps >> 1) - 1);
     const int intermediate_height =
-        (((height - 1) * 8 + subpel_y_q3) >> 3) + filter_taps;
+        (((height - 1) * 8 + subpel_y_q3) >> 3) + filter->taps;
     assert(intermediate_height <= (MAX_SB_SIZE * 2 + 16) + 16);
-    avm_highbd_convolve8_horiz(ref_start, ref_stride, temp_start_horiz,
-                               MAX_SB_SIZE, kernel_x, 16, NULL, -1, width,
-                               intermediate_height, bd);
-    avm_highbd_convolve8_vert(temp_start_vert, MAX_SB_SIZE, comp_pred, width,
-                              NULL, -1, kernel_y, 16, width, height, bd);
+    avm_highbd_convolve8_horiz(ref - ref_stride * ((filter->taps >> 1) - 1),
+                               ref_stride, temp, MAX_SB_SIZE, kernel_x, 16,
+                               NULL, -1, width, intermediate_height, bd);
+    avm_highbd_convolve8_vert(temp + MAX_SB_SIZE * ((filter->taps >> 1) - 1),
+                              MAX_SB_SIZE, comp_pred, width, NULL, -1, kernel_y,
+                              16, width, height, bd);
   }
 }
 
