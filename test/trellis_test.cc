@@ -344,6 +344,93 @@ TEST_P(TcqRateLumaTest, RandomValues) {
   }
 }
 
+class TcqRateLumaQ1Test : public FunctionEquivalenceTest<TcqRateLuma> {
+ protected:
+  static const int kIterations = 100000;
+
+  void Execute(tcq_rate_t *rate_ref, tcq_rate_t *rate_tst) {
+    memset(rate_ref, 0, sizeof(*rate_ref));
+    memset(rate_tst, 0, sizeof(*rate_tst));
+    params_.ref_func(&param_, &pre_quant_, &coeff_ctx_, blk_pos_, diag_ctx_,
+                     eob_rate_, rate_ref);
+    ASM_REGISTER_STATE_CHECK(params_.tst_func(&param_, &pre_quant_, &coeff_ctx_,
+                                              blk_pos_, diag_ctx_, eob_rate_,
+                                              rate_tst));
+  }
+
+  void RunTest() {
+    for (int iter = 0; iter < kIterations && !HasFatalFailure(); ++iter) {
+      int log_scale = 1;
+      int shift = 16 - log_scale + QUANT_FP_BITS;
+      const int32_t quant[2] = { 1 << shift, 1 << shift };
+      int dqv = 1 << QUANT_TABLE_BITS;
+      int tqc = 0;
+
+      // Initialize param structure.
+      int bwl = 3 + (rng_.Rand8() & 2);
+      int height = 1 << bwl;
+      int max = (1 << bwl) - 1;
+      int row = rng_.Rand8() & max;
+      int col = rng_.Rand8() & max;
+      row = AVMMAX(row, 4);
+      col = AVMMAX(col, 4);
+      int blk_pos = (row << bwl) + col;
+      int scan_pos = blk_pos;
+      int diag_ctx = get_nz_map_ctx_from_stats(0, blk_pos, bwl, TX_CLASS_2D, 0);
+
+      blk_pos_ = blk_pos;
+      diag_ctx_ = diag_ctx;
+      param_.bwl = bwl;
+      param_.txb_height = height;
+      param_.tx_class = 0;
+      param_.txb_costs = &txb_costs_;
+
+      // Generate random syntax costs.
+      generate_random_cost_tables(&rng_, &txb_costs_);
+
+      // Generate pre_quant info with random coeff.
+      av2_pre_quant_q1(tqc, &pre_quant_, quant, dqv, log_scale, scan_pos);
+      eob_rate_ = rng_(512 * 4);
+
+      // Generate random coeff_ctx
+      for (int i = 0; i < 8; i++) {
+        coeff_ctx_.coef[i] = (rng_(4) << 4) + rng_(4);
+      }
+      coeff_ctx_.coef_eob = get_lower_levels_ctx_eob(bwl, height, scan_pos);
+      coeff_ctx_.pad[0] = 0;
+      coeff_ctx_.pad[1] = 0;
+      coeff_ctx_.pad[2] = 0;
+
+      tcq_rate_t rate_ref, rate_tst;
+      Execute(&rate_ref, &rate_tst);
+
+      for (int i = 0; i < 8; i++) {
+        ASSERT_EQ(rate_ref.rate_zero[i], rate_tst.rate_zero[i])
+            << "rate_zero mismatch at i=" << i;
+      }
+      ASSERT_EQ(rate_ref.rate_eob[1], rate_tst.rate_eob[1]);
+      ASSERT_EQ(rate_ref.rate[1], rate_tst.rate[1]);
+      ASSERT_EQ(rate_ref.rate[3], rate_tst.rate[3]);
+      ASSERT_EQ(rate_ref.rate[4], rate_tst.rate[4]);
+      ASSERT_EQ(rate_ref.rate[6], rate_tst.rate[6]);
+      ASSERT_EQ(rate_ref.rate[9], rate_tst.rate[9]);
+      ASSERT_EQ(rate_ref.rate[11], rate_tst.rate[11]);
+      ASSERT_EQ(rate_ref.rate[12], rate_tst.rate[12]);
+      ASSERT_EQ(rate_ref.rate[14], rate_tst.rate[14]);
+    }
+  }
+
+  tcq_param_t param_;
+  LV_MAP_COEFF_COST txb_costs_;
+  prequant_t pre_quant_;
+  tcq_coeff_ctx_t coeff_ctx_;
+  int blk_pos_;
+  int diag_ctx_;
+  int eob_rate_;
+};
+
+TEST_P(TcqRateLumaQ1Test, RandomValues) { RunTest(); }
+
 TEST_P(TcqRateLfLumaTest, RandomValues) {
   for (int iter = 0; iter < kIterations && !HasFatalFailure(); ++iter) {
     int log_scale = 1;
@@ -395,6 +482,100 @@ TEST_P(TcqRateLfLumaTest, RandomValues) {
     Common();
   }
 }
+
+class TcqRateLfLumaQ1Test : public FunctionEquivalenceTest<TcqRateLfLuma> {
+ protected:
+  static const int kIterations = 100000;
+
+  void Execute(tcq_rate_t *rate_ref, tcq_rate_t *rate_tst) {
+    memset(rate_ref, 0, sizeof(*rate_ref));
+    memset(rate_tst, 0, sizeof(*rate_tst));
+    params_.ref_func(&param_, &pre_quant_, &coeff_ctx_, blk_pos_, diag_ctx_,
+                     eob_rate_, coeff_sign_, rate_ref);
+    ASM_REGISTER_STATE_CHECK(params_.tst_func(&param_, &pre_quant_, &coeff_ctx_,
+                                              blk_pos_, diag_ctx_, eob_rate_,
+                                              coeff_sign_, rate_tst));
+  }
+
+  void RunTest() {
+    for (int iter = 0; iter < kIterations && !HasFatalFailure(); ++iter) {
+      int log_scale = 1;
+      int shift = 16 - log_scale + QUANT_FP_BITS;
+      const int32_t quant[2] = { 1 << shift, 1 << shift };
+      int dqv = 1 << QUANT_TABLE_BITS;
+      int tqc = 0;
+
+      // Initialize param structure.
+      int bwl = 2 + (rng_.Rand8() & 3);
+      int height = 1 << bwl;
+      int diag = rng_.Rand8() & 3;
+      int row = rng_.Rand8() % (diag + 1);
+      int col = diag - row;
+      int blk_pos = (row << bwl) + col;
+      int scan_pos = blk_pos;
+      int diag_ctx = get_nz_map_ctx_from_stats_lf(0, blk_pos, bwl, TX_CLASS_2D);
+      if (scan_pos > 0) {
+        diag_ctx += 7 << 8;
+      }
+
+      blk_pos_ = blk_pos;
+      diag_ctx_ = diag_ctx;
+      coeff_sign_ = rng_.Rand8() & 1;
+      param_.bwl = bwl;
+      param_.txb_height = height;
+      param_.tx_class = 0;
+      param_.txb_costs = &txb_costs_;
+      param_.tmp_sign = tmp_sign_;
+      param_.dc_sign_ctx = rng_.Rand8() % DC_SIGN_CONTEXTS;
+      tmp_sign_[blk_pos] = rng_.Rand8() % CROSS_COMPONENT_CONTEXTS;
+
+      // Generate random syntax costs.
+      generate_random_cost_tables(&rng_, &txb_costs_);
+
+      // Generate pre_quant info for q1.
+      av2_pre_quant_q1(tqc, &pre_quant_, quant, dqv, log_scale, scan_pos);
+      eob_rate_ = rng_(512 * 4);
+
+      // Generate random coeff_ctx
+      for (int i = 0; i < 8; i++) {
+        coeff_ctx_.coef[i] = (rng_(4) << 4) + rng_(4);
+      }
+      coeff_ctx_.coef_eob = get_lower_levels_ctx_eob(bwl, height, scan_pos);
+      coeff_ctx_.pad[0] = 0;
+      coeff_ctx_.pad[1] = 0;
+      coeff_ctx_.pad[2] = 0;
+
+      tcq_rate_t rate_ref, rate_tst;
+      Execute(&rate_ref, &rate_tst);
+
+      for (int i = 0; i < 8; i++) {
+        ASSERT_EQ(rate_ref.rate_zero[i], rate_tst.rate_zero[i])
+            << "rate_zero mismatch at i=" << i;
+      }
+      ASSERT_EQ(rate_ref.rate_eob[1], rate_tst.rate_eob[1]);
+      ASSERT_EQ(rate_ref.rate[1], rate_tst.rate[1]);
+      ASSERT_EQ(rate_ref.rate[3], rate_tst.rate[3]);
+      ASSERT_EQ(rate_ref.rate[4], rate_tst.rate[4]);
+      ASSERT_EQ(rate_ref.rate[6], rate_tst.rate[6]);
+      ASSERT_EQ(rate_ref.rate[9], rate_tst.rate[9]);
+      ASSERT_EQ(rate_ref.rate[11], rate_tst.rate[11]);
+      ASSERT_EQ(rate_ref.rate[12], rate_tst.rate[12]);
+      ASSERT_EQ(rate_ref.rate[14], rate_tst.rate[14]);
+    }
+  }
+
+  tcq_param_t param_;
+  LV_MAP_COEFF_COST txb_costs_;
+  prequant_t pre_quant_;
+  tcq_coeff_ctx_t coeff_ctx_;
+  int blk_pos_;
+  int diag_ctx_;
+  int eob_rate_;
+  int coeff_sign_;
+  int tmp_sign_[1024];
+};
+
+TEST_P(TcqRateLfLumaQ1Test, RandomValues) { RunTest(); }
 
 typedef void (*TcqUpdateNbrDiagonalFunc)(struct tcq_ctx_t *tcq_ctx, int row,
                                          int col, int bwl);
@@ -470,16 +651,271 @@ class TcqUpdateNbrDiagonalTest
 
 TEST_P(TcqUpdateNbrDiagonalTest, RandomValues) { RunTest(); }
 
+typedef void (*PreQuantFunc)(tran_low_t tqc, struct prequant_t *pqData,
+                             const int32_t *quant_ptr, int dqv, int log_scale,
+                             int scan_pos);
+typedef libavm_test::FuncParam<PreQuantFunc> PreQuantTestFuncs;
+
+class PreQuantTest : public FunctionEquivalenceTest<PreQuantFunc> {
+ protected:
+  static const int kIterations = 100000;
+
+  void Execute(prequant_t *ref, prequant_t *tst) {
+    memset(ref, 0, sizeof(*ref));
+    memset(tst, 0, sizeof(*tst));
+    params_.ref_func(tqc_, ref, quant_, dqv_, log_scale_, scan_pos_);
+    ASM_REGISTER_STATE_CHECK(
+        params_.tst_func(tqc_, tst, quant_, dqv_, log_scale_, scan_pos_));
+  }
+
+  void RunTest() {
+    for (int iter = 0; iter < kIterations && !HasFatalFailure(); ++iter) {
+      log_scale_ = 1 + (rng_.Rand8() % 3);
+      int shift = 16 - log_scale_ + QUANT_FP_BITS;
+      quant_[0] = 1 << shift;
+      quant_[1] = 1 << shift;
+      dqv_ = rng_(1 << (QUANT_TABLE_BITS + 4));
+      scan_pos_ = rng_.Rand8() % 64;
+      tqc_ = (tran_low_t)(rng_.Rand16() - 32768);
+
+      prequant_t ref, tst;
+      Execute(&ref, &tst);
+
+      ASSERT_EQ(ref.qIdx, tst.qIdx);
+      for (int i = 0; i < 4; i++) {
+        ASSERT_EQ(ref.absLevel[i], tst.absLevel[i]);
+        ASSERT_EQ(ref.deltaDist[i], tst.deltaDist[i]);
+      }
+    }
+  }
+
+  tran_low_t tqc_;
+  int32_t quant_[2];
+  int dqv_;
+  int log_scale_;
+  int scan_pos_;
+};
+
+TEST_P(PreQuantTest, RandomValues) { RunTest(); }
+
+class PreQuantQ1Test : public FunctionEquivalenceTest<PreQuantFunc> {
+ protected:
+  static const int kIterations = 100000;
+
+  void Execute(prequant_t *ref, prequant_t *tst) {
+    memset(ref, 0, sizeof(*ref));
+    memset(tst, 0, sizeof(*tst));
+    params_.ref_func(tqc_, ref, quant_, dqv_, log_scale_, scan_pos_);
+    ASM_REGISTER_STATE_CHECK(
+        params_.tst_func(tqc_, tst, quant_, dqv_, log_scale_, scan_pos_));
+  }
+
+  void RunTest() {
+    for (int iter = 0; iter < kIterations && !HasFatalFailure(); ++iter) {
+      log_scale_ = 1 + (rng_.Rand8() % 3);
+      int shift = 16 - log_scale_ + QUANT_FP_BITS;
+      quant_[0] = 1 << shift;
+      quant_[1] = 1 << shift;
+      dqv_ = rng_(1 << (QUANT_TABLE_BITS + 4));
+      scan_pos_ = rng_.Rand8() % 64;
+      tqc_ = (tran_low_t)(rng_.Rand16() - 32768);
+
+      prequant_t ref, tst;
+      Execute(&ref, &tst);
+
+      ASSERT_EQ(ref.qIdx, tst.qIdx);
+      ASSERT_EQ(ref.absLevel[1], tst.absLevel[1]);
+      ASSERT_EQ(ref.absLevel[2], tst.absLevel[2]);
+      ASSERT_EQ(ref.deltaDist[1], tst.deltaDist[1]);
+      ASSERT_EQ(ref.deltaDist[2], tst.deltaDist[2]);
+    }
+  }
+
+  tran_low_t tqc_;
+  int32_t quant_[2];
+  int dqv_;
+  int log_scale_;
+  int scan_pos_;
+};
+
+TEST_P(PreQuantQ1Test, RandomValues) { RunTest(); }
+
+typedef void (*TcqDecideStatesFunc)(const struct tcq_node_t *prev,
+                                    const struct tcq_rate_t *rd,
+                                    const struct prequant_t *pq, int limits,
+                                    int try_eob, int64_t rdmult,
+                                    struct tcq_node_t *decision);
+typedef libavm_test::FuncParam<TcqDecideStatesFunc> TcqDecideStatesTestFuncs;
+
+class TcqDecideStatesTest
+    : public FunctionEquivalenceTest<TcqDecideStatesFunc> {
+ protected:
+  static const int kIterations = 100000;
+
+  void Execute(tcq_node_t *ref, tcq_node_t *tst) {
+    memset(ref, 0, sizeof(tcq_node_t) * TCQ_N_STATES);
+    memset(tst, 0, sizeof(tcq_node_t) * TCQ_N_STATES);
+    params_.ref_func(prev_, &rd_, &pq_, limits_, try_eob_, rdmult_, ref);
+    ASM_REGISTER_STATE_CHECK(
+        params_.tst_func(prev_, &rd_, &pq_, limits_, try_eob_, rdmult_, tst));
+  }
+
+  void RunTest() {
+    for (int iter = 0; iter < kIterations && !HasFatalFailure(); ++iter) {
+      for (int i = 0; i < TCQ_N_STATES; i++) {
+        prev_[i].rdCost = rng_(1 << 20);
+        prev_[i].rate = rng_(1 << 16);
+        prev_[i].absLevel = rng_.Rand8() % 16;
+        prev_[i].prevId = rng_.Rand8() % 8;
+      }
+      for (int i = 0; i < 2 * TCQ_MAX_STATES; i++) {
+        rd_.rate[i] = rng_(1 << 16);
+      }
+      for (int i = 0; i < TCQ_MAX_STATES; i++) {
+        rd_.rate_zero[i] = rng_(1 << 16);
+      }
+      rd_.rate_eob[0] = rng_(1 << 16);
+      rd_.rate_eob[1] = rng_(1 << 16);
+
+      pq_.absLevel[0] = (rng_.Rand8() % 8) * 2;
+      pq_.absLevel[1] = (rng_.Rand8() % 8) * 2 + 1;
+      pq_.absLevel[2] = (rng_.Rand8() % 8) * 2 + 1;
+      pq_.absLevel[3] = (rng_.Rand8() % 8) * 2;
+      for (int i = 0; i < 4; i++) {
+        pq_.deltaDist[i] = (int64_t)rng_(1 << 20);
+      }
+      pq_.qIdx = 1 + (rng_.Rand8() % 16);
+      limits_ = 0;
+      try_eob_ = rng_.Rand8() & 1;
+      rdmult_ = rng_(1 << 16);
+
+      tcq_node_t ref[TCQ_N_STATES], tst[TCQ_N_STATES];
+      Execute(ref, tst);
+
+      for (int i = 0; i < TCQ_N_STATES; i++) {
+        ASSERT_EQ(ref[i].rdCost, tst[i].rdCost) << "rdCost mismatch at i=" << i;
+        ASSERT_EQ(ref[i].rate, tst[i].rate) << "rate mismatch at i=" << i;
+        ASSERT_EQ(ref[i].absLevel, tst[i].absLevel)
+            << "absLevel mismatch at i=" << i;
+        ASSERT_EQ(ref[i].prevId, tst[i].prevId) << "prevId mismatch at i=" << i;
+      }
+    }
+  }
+
+  tcq_node_t prev_[TCQ_N_STATES];
+  tcq_rate_t rd_;
+  prequant_t pq_;
+  int limits_;
+  int try_eob_;
+  int64_t rdmult_;
+};
+
+TEST_P(TcqDecideStatesTest, RandomValues) { RunTest(); }
+
+class TcqDecideStatesQ1Test
+    : public FunctionEquivalenceTest<TcqDecideStatesFunc> {
+ protected:
+  static const int kIterations = 100000;
+
+  void Execute(tcq_node_t *ref, tcq_node_t *tst) {
+    memset(ref, 0, sizeof(tcq_node_t) * TCQ_N_STATES);
+    memset(tst, 0, sizeof(tcq_node_t) * TCQ_N_STATES);
+    params_.ref_func(prev_, &rd_, &pq_, limits_, try_eob_, rdmult_, ref);
+    ASM_REGISTER_STATE_CHECK(
+        params_.tst_func(prev_, &rd_, &pq_, limits_, try_eob_, rdmult_, tst));
+  }
+
+  void RunTest() {
+    for (int iter = 0; iter < kIterations && !HasFatalFailure(); ++iter) {
+      for (int i = 0; i < TCQ_N_STATES; i++) {
+        prev_[i].rdCost = rng_(1 << 20);
+        prev_[i].rate = rng_(1 << 16);
+        prev_[i].absLevel = rng_.Rand8() % 16;
+        prev_[i].prevId = rng_.Rand8() % 8;
+      }
+      for (int i = 0; i < 2 * TCQ_MAX_STATES; i++) {
+        rd_.rate[i] = rng_(1 << 16);
+      }
+      for (int i = 0; i < TCQ_MAX_STATES; i++) {
+        rd_.rate_zero[i] = rng_(1 << 16);
+      }
+      rd_.rate_eob[0] = rng_(1 << 16);
+      rd_.rate_eob[1] = rng_(1 << 16);
+
+      pq_.absLevel[0] = 0;
+      pq_.absLevel[1] = 1;
+      pq_.absLevel[2] = 1;
+      pq_.absLevel[3] = 0;
+      pq_.deltaDist[0] = (int64_t)rng_(1 << 20);
+      pq_.deltaDist[1] = (int64_t)rng_(1 << 20);
+      pq_.deltaDist[2] = (int64_t)rng_(1 << 20);
+      pq_.deltaDist[3] = (int64_t)rng_(1 << 20);
+      pq_.qIdx = 1;
+      limits_ = 0;
+      try_eob_ = rng_.Rand8() & 1;
+      rdmult_ = rng_(1 << 16);
+
+      tcq_node_t ref[TCQ_N_STATES], tst[TCQ_N_STATES];
+      Execute(ref, tst);
+
+      for (int i = 0; i < TCQ_N_STATES; i++) {
+        ASSERT_EQ(ref[i].rdCost, tst[i].rdCost) << "rdCost mismatch at i=" << i;
+        ASSERT_EQ(ref[i].rate, tst[i].rate) << "rate mismatch at i=" << i;
+        ASSERT_EQ(ref[i].absLevel, tst[i].absLevel)
+            << "absLevel mismatch at i=" << i;
+        ASSERT_EQ(ref[i].prevId, tst[i].prevId) << "prevId mismatch at i=" << i;
+      }
+    }
+  }
+
+  tcq_node_t prev_[TCQ_N_STATES];
+  tcq_rate_t rd_;
+  prequant_t pq_;
+  int limits_;
+  int try_eob_;
+  int64_t rdmult_;
+};
+
+TEST_P(TcqDecideStatesQ1Test, RandomValues) { RunTest(); }
+
 #if HAVE_AVX2
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, TcqDecideStatesTest,
+    ::testing::Values(TcqDecideStatesTestFuncs(av2_decide_states_c,
+                                               av2_decide_states_avx2)));
+
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, TcqDecideStatesQ1Test,
+    ::testing::Values(TcqDecideStatesTestFuncs(av2_decide_states_q1_c,
+                                               av2_decide_states_q1_avx2)));
+
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, PreQuantTest,
+    ::testing::Values(PreQuantTestFuncs(av2_pre_quant_c, av2_pre_quant_avx2)));
+
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, PreQuantQ1Test,
+    ::testing::Values(PreQuantTestFuncs(av2_pre_quant_q1_c, av2_pre_quant_q1_avx2)));
+
 INSTANTIATE_TEST_SUITE_P(
     AVX2, TcqRateLumaTest,
     ::testing::Values(TcqRateLumaTestFuncs(av2_get_rate_dist_def_luma_c,
                                            av2_get_rate_dist_def_luma_avx2)));
 
 INSTANTIATE_TEST_SUITE_P(
+    AVX2, TcqRateLumaQ1Test,
+    ::testing::Values(TcqRateLumaTestFuncs(av2_get_rate_dist_def_luma_q1_c,
+                                           av2_get_rate_dist_def_luma_q1_avx2)));
+
+INSTANTIATE_TEST_SUITE_P(
     AVX2, TcqRateLfLumaTest,
     ::testing::Values(TcqRateLfLumaTestFuncs(av2_get_rate_dist_lf_luma_c,
                                              av2_get_rate_dist_lf_luma_avx2)));
+
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, TcqRateLfLumaQ1Test,
+    ::testing::Values(TcqRateLfLumaTestFuncs(av2_get_rate_dist_lf_luma_q1_c,
+                                             av2_get_rate_dist_lf_luma_q1_avx2)));
 
 INSTANTIATE_TEST_SUITE_P(AVX2, TcqUpdateNbrDiagonalTest,
                          ::testing::Values(TcqUpdateNbrDiagonalTestFuncs(
@@ -487,9 +923,21 @@ INSTANTIATE_TEST_SUITE_P(AVX2, TcqUpdateNbrDiagonalTest,
                              av2_update_nbr_diagonal_avx2)));
 #endif  // HAVE_AVX2
 
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(TcqDecideStatesTest);
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(TcqDecideStatesQ1Test);
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(PreQuantTest);
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(PreQuantQ1Test);
+
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(TcqRateLumaTest);
 
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(TcqRateLumaQ1Test);
+
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(TcqRateLfLumaTest);
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(TcqRateLfLumaQ1Test);
 
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(TcqUpdateNbrDiagonalTest);
 

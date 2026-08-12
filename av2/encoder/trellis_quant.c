@@ -410,10 +410,11 @@ void av2_decide_states_c(const struct tcq_node_t *prev,
   }
 }
 
-void av2_decide_states_q1(const struct tcq_node_t *prev,
-                          const struct tcq_rate_t *rd,
-                          const struct prequant_t *pq, int limits, int try_eob,
-                          int64_t rdmult, struct tcq_node_t *decision) {
+void av2_decide_states_q1_c(const struct tcq_node_t *prev,
+                             const struct tcq_rate_t *rd,
+                             const struct prequant_t *pq, int limits,
+                             int try_eob, int64_t rdmult,
+                             struct tcq_node_t *decision) {
   const int32_t *rate = rd->rate;
   const int32_t *rate_zero = rd->rate_zero;
   const int32_t *rate_eob = rd->rate_eob;
@@ -477,9 +478,9 @@ void av2_decide_states_q1(const struct tcq_node_t *prev,
   }
 }
 
-void av2_pre_quant_q1(tran_low_t tqc, struct prequant_t *pqData,
-                      const int32_t *quant_ptr, int dqv, int log_scale,
-                      int scan_pos) {
+void av2_pre_quant_q1_c(tran_low_t tqc, struct prequant_t *pqData,
+                         const int32_t *quant_ptr, int dqv, int log_scale,
+                         int scan_pos) {
   // calculate qIdx
   (void)quant_ptr;
   (void)scan_pos;
@@ -978,8 +979,8 @@ static void trellis_loop_diagonal_st8(const tcq_param_t *p, int scan_hi,
       if (pqData.orig_qIdx == 0) {
         av2_pre_quant_q1(tcoeff[blk_pos], &pqData, quant, tempdqv, log_scale,
                          scan_pos);
-        av2_get_rate_dist_def_luma_q1_c(p, &pqData, &coeff_ctx, blk_pos,
-                                        diag_ctx, eob_rate, &rd);
+        av2_get_rate_dist_def_luma_q1(p, &pqData, &coeff_ctx, blk_pos,
+                                      diag_ctx, eob_rate, &rd);
         av2_decide_states_q1(prev_decision, &rd, &pqData, lf, try_eob, rdmult,
                              decision);
       } else {
@@ -1035,8 +1036,8 @@ static void trellis_loop_diagonal_st8(const tcq_param_t *p, int scan_hi,
       if (pqData.orig_qIdx == 0) {
         av2_pre_quant_q1(tcoeff[blk_pos], &pqData, quant, tempdqv, log_scale,
                          scan_pos);
-        av2_get_rate_dist_lf_luma_q1_c(p, &pqData, &coeff_ctx, blk_pos,
-                                       diag_ctx, eob_rate, dc_coeff_sign, &rd);
+        av2_get_rate_dist_lf_luma_q1(p, &pqData, &coeff_ctx, blk_pos, diag_ctx,
+                                     eob_rate, dc_coeff_sign, &rd);
         av2_decide_states_q1(prev_decision, &rd, &pqData, lf, try_eob, rdmult,
                              decision);
       } else {
