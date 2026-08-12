@@ -27,6 +27,11 @@ void av2_set_offsets_without_segment_id(const AV2_COMP *const cpi,
 void av2_set_offsets(const AV2_COMP *const cpi, const TileInfo *const tile,
                      MACROBLOCK *const x, int mi_row, int mi_col,
                      BLOCK_SIZE bsize, const CHROMA_REF_INFO *chroma_ref_info);
+void av2_nonrd_use_partition(AV2_COMP *cpi, ThreadData *td,
+                             TileDataEnc *tile_data, MB_MODE_INFO **mib,
+                             TokenExtra **tp, int mi_row, int mi_col,
+                             BLOCK_SIZE bsize, PARTITION_TREE *ptree,
+                             PC_TREE *pc_tree, PARTITION_TREE *ptree_luma);
 void av2_rd_use_partition(AV2_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
                           MB_MODE_INFO **mib, TokenExtra **tp, int mi_row,
                           int mi_col, BLOCK_SIZE bsize, int *rate,
