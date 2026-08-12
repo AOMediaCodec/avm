@@ -730,7 +730,7 @@ void av2_quant(const int use_tcq_deadzone_boost, MACROBLOCK *x, int plane,
                                                n_coeffs, p, qcoeff, dqcoeff,
                                                eob, scan_order, qparam);
     } else {
-      av2_quantize_skip(n_coeffs, qcoeff, dqcoeff, eob);
+      av2_quantize_skip(eob);
     }
   }
 
