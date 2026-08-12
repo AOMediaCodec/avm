@@ -115,7 +115,7 @@ void avm_highbd_convolve8_c(const uint16_t *src, ptrdiff_t src_stride,
 void avm_convolve_copy_c(const uint8_t *src, ptrdiff_t src_stride, uint8_t *dst,
                          ptrdiff_t dst_stride, int w, int h) {
   for (int r = h; r > 0; --r) {
-    memmove(dst, src, w);
+    memcpy(dst, src, w);
     src += src_stride;
     dst += dst_stride;
   }
