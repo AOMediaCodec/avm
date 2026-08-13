@@ -429,6 +429,7 @@ static void set_good_speed_features_framesize_independent(
 
     sf->part_sf.disable_uneven_4way_partitions = true;
     sf->part_sf.disable_ext_partitions = true;
+    sf->part_sf.disable_extended_sdp = true;
 
     if (cpi->twopass.fr_content_type == FC_HIGHMOTION ||
         cpi->is_screen_content_type) {
@@ -776,6 +777,7 @@ static AVM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
 #endif  // CONFIG_ML_PART_SPLIT
   part_sf->disable_ext_partitions = false;
   part_sf->disable_uneven_4way_partitions = false;
+  part_sf->disable_extended_sdp = false;
 }
 
 static AVM_INLINE void init_mv_sf(MV_SPEED_FEATURES *mv_sf) {
@@ -1223,6 +1225,10 @@ void av2_set_speed_features_framesize_independent(AV2_COMP *cpi, int speed) {
 
     cpi->common.seq_params.enable_masked_compound &=
         !sf->inter_sf.disable_masked_comp;
+
+    if (sf->part_sf.disable_extended_sdp) {
+      cpi->common.seq_params.enable_extended_sdp = 0;
+    }
 
     if (sf->inter_sf.reduce_comp_refs) {
       cpi->common.seq_params.num_same_ref_compound =
