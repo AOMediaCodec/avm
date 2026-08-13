@@ -2692,8 +2692,8 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
 #endif  // CONFIG_COLLECT_RD_STATS == 1
 
 #if COLLECT_TX_SIZE_DATA
-        record_tx_type_info(cpi, x, plane, block, plane_bsize, blk_row, blk_col,
-                            tx_size, packed_tx_type, rd);
+        collect_tx_size_data(x, plane, blk_row, blk_col, plane_bsize, tx_size,
+                             packed_tx_type, rd);
 #endif  // COLLECT_TX_SIZE_DATA
 
         assert(tx_sf->adaptive_tx_type_search_idx < 6);
