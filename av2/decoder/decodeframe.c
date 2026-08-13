@@ -6923,7 +6923,7 @@ static void reset_buffer_other_than_OLK(AV2Decoder *pbi) {
   }
 
   if (pbi->decoder_model_verifier != NULL) {
-    av2_decoder_model_verifier_on_olk_reference_invalidation(pbi);
+    av2_decoder_model_verifier_on_reference_invalidation(pbi, false);
   }
 
   for (int layer = 0; layer <= seq_params->max_mlayer_id; layer++) {
@@ -8312,6 +8312,9 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
           decrease_ref_count(cm->ref_frame_map[ref_pos], pool);
           cm->ref_frame_map[ref_pos] = NULL;
         }
+      }
+      if (pbi->decoder_model_verifier != NULL) {
+        av2_decoder_model_verifier_on_reference_invalidation(pbi, true);
       }
     }
     if (obu_type == OBU_OPEN_LOOP_KEY) {

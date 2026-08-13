@@ -32,6 +32,20 @@ typedef enum Av2DmPresentationOwner {
   AV2_DM_PRESENTATION_OWNER_IMPLICIT
 } Av2DmPresentationOwner;
 
+typedef enum Av2DmIndeterminateReason {
+  AV2_DM_REASON_NONE,
+  AV2_DM_REASON_MISSING_REQUIRED_INPUT,
+  AV2_DM_REASON_MISSING_ACTIVE_CONFIGURATION,
+  AV2_DM_REASON_INCOMPLETE_EXTRACTION,
+  AV2_DM_REASON_MISSING_FRAME_GENERATION,
+  AV2_DM_REASON_MISSING_PRESENTATION_PROVENANCE,
+  AV2_DM_REASON_MISSING_PRESENTATION_TIMING,
+  AV2_DM_REASON_INCOMPLETE_RAS_SEED,
+  AV2_DM_REASON_RECOVERY_RESET,
+  AV2_DM_REASON_INCOMPATIBLE_CONFIGURATION_TRANSITION,
+  AV2_DM_REASON_INTERNAL_FAILURE
+} Av2DmIndeterminateReason;
+
 typedef struct Av2DmVerifierStats {
   bool available;
   bool failed;
@@ -48,11 +62,15 @@ typedef struct Av2DmVerifierStats {
   uint32_t contexts;
   uint64_t frame_starts;
   uint64_t reference_updates;
+  uint64_t reference_invalidations;
   uint64_t olk_invalidations;
+  uint64_t clk_invalidations;
   uint64_t outputs;
   uint64_t last_frame_start_event;
   uint64_t last_reference_update_event;
+  uint64_t last_reference_invalidation_event;
   uint64_t last_olk_invalidation_event;
+  uint64_t last_clk_invalidation_event;
   uint64_t last_output_event;
   uint64_t last_output_callback_frame_unit;
   uint64_t last_output_presentation_frame_unit;
@@ -74,6 +92,8 @@ typedef struct Av2DmVerifierStats {
   uint64_t not_applicable_results;
   uint32_t live_runs;
   uint32_t live_generations;
+  uint32_t cvs_aggregates;
+  uint32_t open_cvs;
   uint32_t parameter_records;
 } Av2DmVerifierStats;
 
@@ -93,6 +113,27 @@ typedef struct Av2DmContextStats {
   bool last_ras_seed_complete;
   uint32_t last_ras_seed_count;
 } Av2DmContextStats;
+
+typedef struct Av2DmRunStats {
+  uint64_t originating_cvs;
+  uint64_t stream_generation;
+  int64_t rap;
+  uint64_t decoded_frames;
+  uint64_t output_frames;
+  uint32_t active_num_ref_frames;
+  bool initial_presentation_delay_known;
+  Av2DmRational initial_presentation_delay;
+  bool last_frame_parsing_time_valid;
+  Av2DmRational last_frame_parsing_time;
+  bool last_display_duration_valid;
+  Av2DmRational last_display_duration;
+  bool terminal_frame_parsing_time_valid;
+  Av2DmRational terminal_frame_parsing_time;
+  bool terminal_display_duration_valid;
+  Av2DmRational terminal_display_duration;
+  Av2DmResultStatus status;
+  Av2DmIndeterminateReason reason;
+} Av2DmRunStats;
 
 void av2_decoder_model_verifier_init(struct AV2Decoder *pbi);
 void av2_decoder_model_verifier_destroy(struct AV2Decoder *pbi);
@@ -120,6 +161,8 @@ void av2_decoder_model_verifier_on_internal_failure_for_testing(
     struct AV2Decoder *pbi);
 void av2_decoder_model_verifier_on_model_arithmetic_failure_for_testing(
     struct AV2Decoder *pbi);
+void av2_decoder_model_verifier_set_defer_nonterminal_checks_for_testing(
+    struct AV2Decoder *pbi, bool defer);
 
 void av2_decoder_model_verifier_on_temporal_point(struct AV2Decoder *pbi,
                                                   uint64_t presentation_time);
@@ -128,8 +171,8 @@ void av2_decoder_model_verifier_on_multistream_configuration(
 
 void av2_decoder_model_verifier_on_frame_wrapup_start(struct AV2Decoder *pbi);
 void av2_decoder_model_verifier_on_frame_unit_complete(struct AV2Decoder *pbi);
-void av2_decoder_model_verifier_on_olk_reference_invalidation(
-    struct AV2Decoder *pbi);
+void av2_decoder_model_verifier_on_reference_invalidation(
+    struct AV2Decoder *pbi, bool closed_loop_key);
 void av2_decoder_model_verifier_after_reference_update(
     struct AV2Decoder *pbi, uint32_t refresh_frame_flags);
 void av2_decoder_model_verifier_on_output(struct AV2Decoder *pbi,
@@ -139,6 +182,9 @@ void av2_decoder_model_verifier_on_output(struct AV2Decoder *pbi,
 void av2_decoder_model_verifier_on_recovery_reset(struct AV2Decoder *pbi);
 void av2_decoder_model_verifier_on_stream_configuration_change(
     struct AV2Decoder *pbi, bool preserve_current_tu_prefix);
+void av2_decoder_model_verifier_before_final_output(struct AV2Decoder *pbi,
+                                                    uint64_t stream_generation,
+                                                    bool all_generations);
 void av2_decoder_model_verifier_finish(struct AV2Decoder *pbi);
 bool av2_decoder_model_verifier_should_stop(const struct AV2Decoder *pbi);
 
@@ -147,6 +193,10 @@ bool av2_decoder_model_verifier_get_stats(const struct AV2Decoder *pbi,
 bool av2_decoder_model_verifier_get_context_stats(const struct AV2Decoder *pbi,
                                                   uint32_t context_index,
                                                   Av2DmContextStats *stats);
+bool av2_decoder_model_verifier_get_run_stats(const struct AV2Decoder *pbi,
+                                              uint32_t context_index,
+                                              uint32_t run_index,
+                                              Av2DmRunStats *stats);
 
 // Internal test support for the machine-readable violation diagnostics.
 bool av2_decoder_model_violation_descriptor_is_complete(

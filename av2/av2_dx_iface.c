@@ -981,6 +981,13 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
     // temporal scalability.
     if (data == NULL && data_sz == 0) {
       AV2_COMMON *const cm = &pbi->common;
+      av2_decoder_model_verifier_before_final_output(pbi, UINT64_MAX, true);
+      if (av2_decoder_model_verifier_should_stop(pbi)) {
+        av2_decoder_model_verifier_finish(pbi);
+        ctx->decoder_model_fatal_latched = 1;
+        set_error_detail(ctx, "Decoder model conformance violation");
+        return AVM_CODEC_UNSUP_BITSTREAM;
+      }
       avm_codec_err_t err = flush_all_xlayer_frames(pbi, cm, false);
       if (pbi->decoder_model_verifier != NULL ||
           pbi->decoder_model_verifier_allocation_failed) {

@@ -513,6 +513,12 @@ static uint32_t read_multi_stream_decoder_operation_obu(
 
   // Flush remaining frames from all active streams before switching config
   if (pbi->stream_info != NULL && config_changed) {
+    av2_decoder_model_verifier_before_final_output(pbi, UINT64_MAX, false);
+    if (av2_decoder_model_verifier_should_stop(pbi)) {
+      av2_decoder_model_verifier_finish(pbi);
+      avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+                         "Decoder model conformance violation");
+    }
     flush_all_xlayer_frames(pbi, cm, true);
     if (pbi->decoder_model_verifier != NULL) {
       // The temporal delimiter and new MSDO have already been recorded and
@@ -2436,6 +2442,13 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
       if (!pbi->prescan_glcr_will_activate) {
         // Flush and reset like a config change
         if (pbi->stream_info != NULL) {
+          av2_decoder_model_verifier_before_final_output(pbi, UINT64_MAX,
+                                                         false);
+          if (av2_decoder_model_verifier_should_stop(pbi)) {
+            av2_decoder_model_verifier_finish(pbi);
+            avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+                               "Decoder model conformance violation");
+          }
           flush_all_xlayer_frames(pbi, cm, true);
           if (pbi->decoder_model_verifier != NULL) {
             // This transition is detected before the current frame unit's

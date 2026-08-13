@@ -739,7 +739,7 @@ TEST(EncoderDecoderModelDifferentialTest,
     valid_mask |= 1u << index;
     const Av2DmReferenceUpdateEvent refresh = { 1u << index, valid_mask };
     av2_decoder_model_update_reference_buffers(common, &refresh);
-    av2_decoder_model_set_initial_presentation_delay(common, 10 + index);
+    av2_decoder_model_set_initial_presentation_delay(common, false, 10 + index);
   }
 
   Av2DmState common_state;
@@ -1017,7 +1017,7 @@ class ResourceAvailabilityDifferentialAdapter {
       const Av2DmReferenceUpdateEvent refresh = { refresh_flags,
                                                   ref_valid_mask_ };
       av2_decoder_model_update_reference_buffers(common_, &refresh);
-      av2_decoder_model_set_initial_presentation_delay(common_,
+      av2_decoder_model_set_initial_presentation_delay(common_, false,
                                                        NextEventIndex());
     }
 

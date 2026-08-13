@@ -17,6 +17,7 @@
 
 #include "avm_mem/avm_mem.h"
 #include "av2/common/annexA.h"
+#include "av2/common/enums.h"
 #include "av2/common/level.h"
 #include "av2/common/tile_common.h"
 #include "av2/common/timing.h"
@@ -25,6 +26,10 @@ _Static_assert(sizeof(uint32_t) * CHAR_BIT == 32, "uint32_t must be 32 bits");
 _Static_assert(sizeof(uint64_t) * CHAR_BIT == 64, "uint64_t must be 64 bits");
 _Static_assert(sizeof(Av2DmUnsignedWide) * CHAR_BIT == 256,
                "Av2DmUnsignedWide must be 256 bits");
+_Static_assert(AV2_DM_MAX_REF_FRAMES == REF_FRAMES,
+               "decoder-model VBI capacity must match REF_FRAMES");
+_Static_assert(AV2_DM_MAX_BUFFER_POOL_SIZE >= REF_FRAMES + 2,
+               "decoder-model BufferPool must hold REF_FRAMES + 2 buffers");
 
 #define AV2_DM_WIDE_LIMBS 4
 #define AV2_DM_PRODUCT_LIMBS (2 * AV2_DM_WIDE_LIMBS)
@@ -545,8 +550,13 @@ static void buffer_reset(Av2DmBuffer *buffer) {
   av2_dm_rational_make(0, 1, &buffer->decode_completion_time);
 }
 
-static bool valid_buffer_index(const Av2DmBufferPool *pool,
-                               uint32_t buffer_index) {
+static bool valid_physical_buffer_index(const Av2DmBufferPool *pool,
+                                        uint32_t buffer_index) {
+  return pool != NULL && buffer_index < AV2_DM_MAX_BUFFER_POOL_SIZE;
+}
+
+static bool valid_active_buffer_index(const Av2DmBufferPool *pool,
+                                      uint32_t buffer_index) {
   return pool != NULL && buffer_index < pool->pool_size;
 }
 
@@ -578,7 +588,7 @@ int32_t av2_dm_buffer_pool_get_free_buffer(const Av2DmBufferPool *pool) {
 }
 
 bool av2_dm_buffer_pool_release(Av2DmBufferPool *pool, uint32_t buffer_index) {
-  if (!valid_buffer_index(pool, buffer_index)) return false;
+  if (!valid_physical_buffer_index(pool, buffer_index)) return false;
   Av2DmBuffer *const buffer = &pool->buffers[buffer_index];
   if (buffer->decoder_ref_count != 0 || buffer->player_ref_count != 0) {
     return false;
@@ -589,7 +599,7 @@ bool av2_dm_buffer_pool_release(Av2DmBufferPool *pool, uint32_t buffer_index) {
 
 bool av2_dm_buffer_pool_add_decoder_ref(Av2DmBufferPool *pool,
                                         uint32_t buffer_index) {
-  if (!valid_buffer_index(pool, buffer_index)) return false;
+  if (!valid_physical_buffer_index(pool, buffer_index)) return false;
   Av2DmBuffer *const buffer = &pool->buffers[buffer_index];
   if (buffer->decoder_ref_count == UINT32_MAX) return false;
   ++buffer->decoder_ref_count;
@@ -598,7 +608,7 @@ bool av2_dm_buffer_pool_add_decoder_ref(Av2DmBufferPool *pool,
 
 bool av2_dm_buffer_pool_remove_decoder_ref(Av2DmBufferPool *pool,
                                            uint32_t buffer_index) {
-  if (!valid_buffer_index(pool, buffer_index)) return false;
+  if (!valid_physical_buffer_index(pool, buffer_index)) return false;
   Av2DmBuffer *const buffer = &pool->buffers[buffer_index];
   if (buffer->decoder_ref_count == 0) return false;
   --buffer->decoder_ref_count;
@@ -610,7 +620,7 @@ bool av2_dm_buffer_pool_remove_decoder_ref(Av2DmBufferPool *pool,
 
 bool av2_dm_buffer_pool_add_player_ref(Av2DmBufferPool *pool,
                                        uint32_t buffer_index) {
-  if (!valid_buffer_index(pool, buffer_index)) return false;
+  if (!valid_physical_buffer_index(pool, buffer_index)) return false;
   Av2DmBuffer *const buffer = &pool->buffers[buffer_index];
   if (buffer->player_ref_count == UINT32_MAX) return false;
   ++buffer->player_ref_count;
@@ -619,7 +629,7 @@ bool av2_dm_buffer_pool_add_player_ref(Av2DmBufferPool *pool,
 
 bool av2_dm_buffer_pool_remove_player_ref(Av2DmBufferPool *pool,
                                           uint32_t buffer_index) {
-  if (!valid_buffer_index(pool, buffer_index)) return false;
+  if (!valid_physical_buffer_index(pool, buffer_index)) return false;
   Av2DmBuffer *const buffer = &pool->buffers[buffer_index];
   if (buffer->player_ref_count == 0) return false;
   --buffer->player_ref_count;
@@ -631,8 +641,10 @@ bool av2_dm_buffer_pool_remove_player_ref(Av2DmBufferPool *pool,
 
 bool av2_dm_buffer_pool_set_vbi(Av2DmBufferPool *pool, uint32_t ref_index,
                                 int32_t buffer_index) {
-  if (pool == NULL || ref_index >= pool->num_ref_frames || buffer_index < -1 ||
-      (buffer_index >= 0 && (uint32_t)buffer_index >= pool->pool_size)) {
+  if (pool == NULL || ref_index >= AV2_DM_MAX_REF_FRAMES || buffer_index < -1 ||
+      (buffer_index >= 0 &&
+       (ref_index >= pool->num_ref_frames ||
+        !valid_active_buffer_index(pool, (uint32_t)buffer_index)))) {
     return false;
   }
   const int32_t old_buffer_index = pool->vbi[ref_index];
@@ -656,7 +668,7 @@ bool av2_dm_buffer_pool_set_vbi(Av2DmBufferPool *pool, uint32_t ref_index,
 uint32_t av2_dm_buffer_pool_frames_in_use(const Av2DmBufferPool *pool) {
   if (pool == NULL) return 0;
   uint32_t frames_in_use = 0;
-  for (uint32_t i = 0; i < pool->pool_size; ++i) {
+  for (uint32_t i = 0; i < AV2_DM_MAX_BUFFER_POOL_SIZE; ++i) {
     if (pool->buffers[i].decoder_ref_count != 0 ||
         pool->buffers[i].player_ref_count != 0) {
       ++frames_in_use;
@@ -820,7 +832,8 @@ struct Av2DecoderModel {
 };
 
 static bool invalidate_lane_reference_buffers(Av2DmLane *lane,
-                                              uint32_t ref_valid_mask);
+                                              uint32_t ref_valid_mask,
+                                              bool closed_loop_key);
 static void check_smoothing_buffer_overflow(Av2DecoderModel *model,
                                             uint64_t proving_event_index);
 static void retire_closed_smoothing_records(Av2DecoderModel *model,
@@ -1090,6 +1103,13 @@ static void arithmetic_failure(Av2DecoderModel *model) {
 
 void av2_decoder_model_fail_arithmetic_for_testing(Av2DecoderModel *model) {
   if (model != NULL) arithmetic_failure(model);
+}
+
+void av2_decoder_model_set_defer_nonterminal_checks_for_testing(
+    Av2DecoderModel *model, bool defer) {
+  if (model != NULL && !model->result.finished && !model->processing_stopped) {
+    model->config.defer_nonterminal_checks_for_testing = defer;
+  }
 }
 
 static bool increment_model_u64(Av2DecoderModel *model, uint64_t *value) {
@@ -1502,8 +1522,13 @@ static Av2DmViolationDetail buffer_pool_violation_detail(
   detail.kind = AV2_DM_VIOLATION_DETAIL_BUFFER_POOL;
   detail.value.buffer_pool.resource_lane = resource_lane;
   detail.value.buffer_pool.pool_size = pool->pool_size;
-  detail.value.buffer_pool.frames_in_use =
-      av2_dm_buffer_pool_frames_in_use(pool);
+  detail.value.buffer_pool.frames_in_use = 0;
+  for (uint32_t i = 0; i < pool->pool_size; ++i) {
+    if (pool->buffers[i].decoder_ref_count != 0 ||
+        pool->buffers[i].player_ref_count != 0) {
+      ++detail.value.buffer_pool.frames_in_use;
+    }
+  }
   detail.value.buffer_pool.free_buffers =
       pool->pool_size - detail.value.buffer_pool.frames_in_use;
   for (uint32_t i = 0; i < pool->pool_size; ++i) {
@@ -1617,7 +1642,7 @@ static void check_static_level_limits(Av2DecoderModel *model,
 
 static bool release_presented_buffers(Av2DmLane *lane,
                                       const Av2DmRational *removal) {
-  for (uint32_t i = 0; i < lane->pool.pool_size; ++i) {
+  for (uint32_t i = 0; i < AV2_DM_MAX_BUFFER_POOL_SIZE; ++i) {
     Av2DmBuffer *const buffer = &lane->pool.buffers[i];
     if (buffer->player_ref_count == 0 || !buffer->presentation_time_valid) {
       continue;
@@ -2022,7 +2047,7 @@ static bool add_rebase_target(Av2DmPreparedRebase *prepared,
 static bool prepare_lane_rebase(Av2DecoderModel *model, Av2DmLane *lane,
                                 bool primary, const Av2DmRational *origin,
                                 Av2DmPreparedRebase *prepared) {
-  uint64_t capacity = 2 + 2 * lane->pool.pool_size;
+  uint64_t capacity = 2 + 2 * AV2_DM_MAX_BUFFER_POOL_SIZE;
   if (primary) {
     capacity += (uint64_t)5 * model->dfg_count + 16;
   }
@@ -2039,7 +2064,7 @@ static bool prepare_lane_rebase(Av2DecoderModel *model, Av2DmLane *lane,
                          count_limit)) {
     return false;
   }
-  for (uint32_t i = 0; i < lane->pool.pool_size; ++i) {
+  for (uint32_t i = 0; i < AV2_DM_MAX_BUFFER_POOL_SIZE; ++i) {
     Av2DmBuffer *const buffer = &lane->pool.buffers[i];
     if (buffer->presentation_time_valid &&
         !add_rebase_target(prepared, &buffer->presentation_time, count_limit)) {
@@ -2152,7 +2177,7 @@ static bool earlier_lane_has_generation(const Av2DmLane *const lanes[2],
                                         uint64_t generation) {
   for (uint32_t i = 0; i <= lane_index; ++i) {
     const uint32_t limit =
-        i == lane_index ? buffer_index : lanes[i]->pool.pool_size;
+        i == lane_index ? buffer_index : AV2_DM_MAX_BUFFER_POOL_SIZE;
     for (uint32_t j = 0; j < limit; ++j) {
       const Av2DmBuffer *const buffer = &lanes[i]->pool.buffers[j];
       if (lane_buffer_is_live(lanes[i], j) &&
@@ -2168,7 +2193,7 @@ static uint32_t active_generation_count(const Av2DecoderModel *model) {
   const Av2DmLane *const lanes[2] = { &model->lane, &model->resource_lane };
   uint32_t count = 0;
   for (uint32_t i = 0; i < 2; ++i) {
-    for (uint32_t j = 0; j < lanes[i]->pool.pool_size; ++j) {
+    for (uint32_t j = 0; j < AV2_DM_MAX_BUFFER_POOL_SIZE; ++j) {
       const Av2DmBuffer *const buffer = &lanes[i]->pool.buffers[j];
       if (lane_buffer_is_live(lanes[i], j) &&
           !earlier_lane_has_generation(lanes, i, j, buffer->generation)) {
@@ -2238,14 +2263,6 @@ void av2_decoder_model_start_frame(Av2DecoderModel *model,
     return;
   }
   model->latest_frame_event_index = event->event_index;
-  // Annex E synchronizes VBI with RefValid at every start_frame_decode(),
-  // before FrameNum advances or a current buffer is selected.
-  if (!invalidate_lane_reference_buffers(&model->lane, event->ref_valid_mask) ||
-      !invalidate_lane_reference_buffers(&model->resource_lane,
-                                         event->ref_valid_mask)) {
-    arithmetic_failure(model);
-    return;
-  }
   ++model->frame_number;
   if (model->coded_tu_valid && model->coded_tu != event->temporal_unit_index) {
     Av2DmTuRecord *const previous_coded = find_tu(model, model->coded_tu);
@@ -2513,9 +2530,13 @@ void av2_decoder_model_update_reference_buffers(
 }
 
 static bool invalidate_lane_reference_buffers(Av2DmLane *lane,
-                                              uint32_t ref_valid_mask) {
-  for (uint32_t i = 0; i < lane->pool.num_ref_frames; ++i) {
-    if (((ref_valid_mask >> i) & 1) == 0 && lane->pool.vbi[i] != -1 &&
+                                              uint32_t ref_valid_mask,
+                                              bool closed_loop_key) {
+  const uint32_t limit =
+      closed_loop_key ? AV2_DM_MAX_REF_FRAMES : lane->pool.num_ref_frames;
+  for (uint32_t i = 0; i < limit; ++i) {
+    if ((closed_loop_key || ((ref_valid_mask >> i) & 1) == 0) &&
+        lane->pool.vbi[i] != -1 &&
         !av2_dm_buffer_pool_set_vbi(&lane->pool, i, -1)) {
       return false;
     }
@@ -2523,19 +2544,20 @@ static bool invalidate_lane_reference_buffers(Av2DmLane *lane,
   return true;
 }
 
-void av2_decoder_model_invalidate_olk_reference_buffers(
-    Av2DecoderModel *model, uint32_t ref_valid_mask) {
+void av2_decoder_model_invalidate_reference_buffers(Av2DecoderModel *model,
+                                                    uint32_t ref_valid_mask,
+                                                    bool closed_loop_key) {
   if (model == NULL || model->result.finished ||
       model->result.applicability == AV2_DM_NOT_APPLICABLE ||
       model->processing_stopped) {
     return;
   }
-  // DM-SPEC-5 / Annex E invalidate_olk_ref_buffers(): RefValid has already
-  // been updated by frame_header_info(), so every invalid slot is mirrored,
-  // including slots absent from the current refresh_frame_flags.
-  if (!invalidate_lane_reference_buffers(&model->lane, ref_valid_mask) ||
-      !invalidate_lane_reference_buffers(&model->resource_lane,
-                                         ref_valid_mask)) {
+  // DM-SPEC-5 / Annex E invalidate_ref_buffers(): CLK clears every physical
+  // VBI slot. OLK consults RefValid only in the current active range.
+  if (!invalidate_lane_reference_buffers(&model->lane, ref_valid_mask,
+                                         closed_loop_key) ||
+      !invalidate_lane_reference_buffers(&model->resource_lane, ref_valid_mask,
+                                         closed_loop_key)) {
     arithmetic_failure(model);
   }
   model_event_complete(model);
@@ -2624,15 +2646,16 @@ static bool complete_pending_output_check(Av2DecoderModel *model,
 static bool set_lane_initial_presentation_delay(Av2DecoderModel *model,
                                                 Av2DmLane *lane,
                                                 bool primary_lane,
+                                                bool end_of_bitstream,
                                                 uint64_t proving_event_index) {
   if (lane->initial_presentation_delay_known ||
-      av2_dm_buffer_pool_frames_in_use(&lane->pool) <
-          model->config.initial_display_delay) {
+      (!end_of_bitstream && av2_dm_buffer_pool_frames_in_use(&lane->pool) <
+                                model->config.initial_display_delay)) {
     return true;
   }
   lane->initial_presentation_delay = lane->time;
   lane->initial_presentation_delay_known = true;
-  for (uint32_t i = 0; i < lane->pool.pool_size; ++i) {
+  for (uint32_t i = 0; i < AV2_DM_MAX_BUFFER_POOL_SIZE; ++i) {
     Av2DmBuffer *const buffer = &lane->pool.buffers[i];
     if (buffer->player_ref_count != 0 && !buffer->presentation_time_valid) {
       if (!av2_dm_rational_add(&buffer->presentation_time,
@@ -2666,6 +2689,7 @@ static bool set_lane_initial_presentation_delay(Av2DecoderModel *model,
 }
 
 void av2_decoder_model_set_initial_presentation_delay(Av2DecoderModel *model,
+                                                      bool end_of_bitstream,
                                                       uint64_t event_index) {
   if (model == NULL || model->result.finished ||
       model->result.applicability == AV2_DM_NOT_APPLICABLE ||
@@ -2673,9 +2697,9 @@ void av2_decoder_model_set_initial_presentation_delay(Av2DecoderModel *model,
     return;
   }
   if (!set_lane_initial_presentation_delay(model, &model->lane, true,
-                                           event_index) ||
+                                           end_of_bitstream, event_index) ||
       !set_lane_initial_presentation_delay(model, &model->resource_lane, false,
-                                           event_index)) {
+                                           end_of_bitstream, event_index)) {
     arithmetic_failure(model);
   }
   model_event_complete(model);
@@ -2845,7 +2869,7 @@ static void store_rap_presentation_anchor(Av2DecoderModel *model,
       bool live = candidate->rap_epoch == model->rap_epoch ||
                   (model->rap_epoch != 0 &&
                    candidate->rap_epoch == model->rap_epoch - 1);
-      for (uint32_t j = 0; j < model->lane.pool.pool_size && !live; ++j) {
+      for (uint32_t j = 0; j < AV2_DM_MAX_BUFFER_POOL_SIZE && !live; ++j) {
         const Av2DmBuffer *const buffer = &model->lane.pool.buffers[j];
         live = buffer->generation_valid &&
                buffer->rap_epoch == candidate->rap_epoch;
@@ -3200,12 +3224,14 @@ static bool same_scope(const Av2DmScope *a, const Av2DmScope *b) {
 }
 
 static bool same_model_topology_and_clock(const Av2DmConfig *a,
-                                          const Av2DmConfig *b) {
-  // Section 7 keeps the active sequence header fixed until the next CLK,
-  // which starts a new CVS and therefore a new model. In-place RAP updates
-  // can replace OPS parameters, but not the active sequence-level fallback.
+                                          const Av2DmConfig *b,
+                                          bool allow_num_ref_frames_change) {
+  // A CLK may change only NumRefFrames after its explicit VBI clear-all event.
+  // Other in-place RAP updates may replace OPS parameters, but not topology or
+  // the active sequence-level timing fallback.
   return same_scope(&a->scope, &b->scope) &&
-         a->num_ref_frames == b->num_ref_frames &&
+         (allow_num_ref_frames_change ||
+          a->num_ref_frames == b->num_ref_frames) &&
          a->max_frame_width == b->max_frame_width &&
          a->max_frame_height == b->max_frame_height &&
          a->max_mlayer_id == b->max_mlayer_id &&
@@ -3227,16 +3253,49 @@ static bool same_model_topology_and_clock(const Av2DmConfig *a,
          a->stop_after_first_violation == b->stop_after_first_violation;
 }
 
+Av2DmParameterUpdateDisposition av2_decoder_model_classify_parameter_update(
+    const Av2DecoderModel *model, const Av2DmConfig *config,
+    bool closed_loop_key_transition) {
+  if (model == NULL || config == NULL || model->result.finished ||
+      model->processing_stopped ||
+      model->result.applicability != AV2_DM_APPLICABLE ||
+      config->applicability != AV2_DM_APPLICABLE ||
+      config->num_ref_frames == 0 ||
+      config->num_ref_frames > AV2_DM_MAX_REF_FRAMES) {
+    return AV2_DM_PARAMETER_UPDATE_MISSING_REQUIRED_INPUT;
+  }
+  Av2DmResolvedParameters parameters;
+  if (!resolve_parameters(config, &parameters)) {
+    return AV2_DM_PARAMETER_UPDATE_MISSING_REQUIRED_INPUT;
+  }
+  if (!same_model_topology_and_clock(&model->config, config,
+                                     closed_loop_key_transition)) {
+    return AV2_DM_PARAMETER_UPDATE_INCOMPATIBLE_CONFIGURATION;
+  }
+  if (closed_loop_key_transition) {
+    const Av2DmLane *const lanes[2] = { &model->lane, &model->resource_lane };
+    for (uint32_t lane_index = 0; lane_index < 2; ++lane_index) {
+      for (uint32_t i = 0; i < AV2_DM_MAX_REF_FRAMES; ++i) {
+        if (lanes[lane_index]->pool.vbi[i] != -1) {
+          return AV2_DM_PARAMETER_UPDATE_MISSING_REQUIRED_INPUT;
+        }
+      }
+    }
+  }
+  return AV2_DM_PARAMETER_UPDATE_ALLOWED;
+}
+
 bool av2_decoder_model_update_parameters(Av2DecoderModel *model,
                                          const Av2DmConfig *config,
-                                         uint64_t event_index) {
+                                         uint64_t event_index,
+                                         bool closed_loop_key_transition) {
   if (model == NULL || config == NULL || model->result.finished ||
       model->processing_stopped) {
     return false;
   }
-  if (model->result.applicability != AV2_DM_APPLICABLE ||
-      config->applicability != AV2_DM_APPLICABLE ||
-      !same_model_topology_and_clock(&model->config, config)) {
+  if (av2_decoder_model_classify_parameter_update(model, config,
+                                                  closed_loop_key_transition) !=
+      AV2_DM_PARAMETER_UPDATE_ALLOWED) {
     missing_input(model);
     return false;
   }
@@ -3268,6 +3327,12 @@ bool av2_decoder_model_update_parameters(Av2DecoderModel *model,
   memcpy(updated.ras_seeds, model->config.ras_seeds, sizeof(updated.ras_seeds));
   const Av2DmMode old_mode = model->config.mode;
   apply_parameters(model, &updated, &parameters);
+  if (closed_loop_key_transition) {
+    model->lane.pool.num_ref_frames = config->num_ref_frames;
+    model->lane.pool.pool_size = config->num_ref_frames + 2;
+    model->resource_lane.pool.num_ref_frames = config->num_ref_frames;
+    model->resource_lane.pool.pool_size = config->num_ref_frames + 2;
+  }
   if (!model->max_reference_frames_violated) {
     // The maximum depends on the active level limits and must be reconsidered
     // for the RAP frame after an OPS parameter update.
@@ -3516,7 +3581,7 @@ static void check_header_rate_windows_in_output_order(
 
 static bool lane_has_live_coded_tu(const Av2DmLane *lane,
                                    uint64_t temporal_unit_index) {
-  for (uint32_t i = 0; i < lane->pool.pool_size; ++i) {
+  for (uint32_t i = 0; i < AV2_DM_MAX_BUFFER_POOL_SIZE; ++i) {
     const Av2DmBuffer *const buffer = &lane->pool.buffers[i];
     if (lane_buffer_is_live(lane, i) && buffer->coded_temporal_unit_valid &&
         buffer->coded_temporal_unit_index == temporal_unit_index) {
@@ -3741,6 +3806,31 @@ void av2_decoder_model_finish(Av2DecoderModel *model) {
   update_storage_stats(model);
 }
 
+bool av2_decoder_model_seed_terminal_history(
+    Av2DecoderModel *model, const Av2DmRational *previous_frame_parsing_time,
+    const Av2DmRational *previous_tu_output_duration) {
+  if (model == NULL || model->result.finished ||
+      (previous_frame_parsing_time != NULL &&
+       wide_is_zero(previous_frame_parsing_time->denominator)) ||
+      (previous_tu_output_duration != NULL &&
+       wide_is_zero(previous_tu_output_duration->denominator))) {
+    return false;
+  }
+  // A suffix with local adjacent DFG/TU history is authoritative. The complete
+  // source contributes only an otherwise unavailable terminal predecessor.
+  if (!model->last_frame_parsing_time_valid && model->frame_number != 0 &&
+      previous_frame_parsing_time != NULL) {
+    model->last_frame_parsing_time = *previous_frame_parsing_time;
+    model->last_frame_parsing_time_valid = true;
+  }
+  if (!model->last_display_duration_valid && model->shown_frame_number != 0 &&
+      previous_tu_output_duration != NULL) {
+    model->last_display_duration = *previous_tu_output_duration;
+    model->last_display_duration_valid = true;
+  }
+  return true;
+}
+
 bool av2_decoder_model_get_result(const Av2DecoderModel *model,
                                   Av2DmResult *result) {
   if (model == NULL || result == NULL) return false;
@@ -3761,6 +3851,10 @@ bool av2_decoder_model_get_state(const Av2DecoderModel *model,
   state->dfg_number = model->dfg_number;
   state->shown_frame_number = model->shown_frame_number;
   state->buffer_pool = model->lane.pool;
+  state->last_frame_parsing_time_valid = model->last_frame_parsing_time_valid;
+  state->last_frame_parsing_time = model->last_frame_parsing_time;
+  state->last_display_duration_valid = model->last_display_duration_valid;
+  state->last_display_duration = model->last_display_duration;
   if (model->previous_dfg_valid) {
     const Av2DmDfgRecord *const dfg = &model->previous_dfg;
     state->last_dfg_valid = true;

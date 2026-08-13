@@ -387,6 +387,10 @@ typedef struct Av2DmState {
   Av2DmRational last_temporal_unit_output_time;
   uint64_t last_temporal_unit_output_luma_samples;
   uint32_t last_temporal_unit_output_frames;
+  bool last_frame_parsing_time_valid;
+  Av2DmRational last_frame_parsing_time;
+  bool last_display_duration_valid;
+  Av2DmRational last_display_duration;
   bool initial_presentation_delay_known;
   Av2DmRational initial_presentation_delay;
   int32_t current_buffer_index;
@@ -416,6 +420,12 @@ typedef struct Av2DmStorageStats {
 
 typedef void (*Av2DmReportFn)(void *opaque, const Av2DmViolation *violation);
 
+typedef enum Av2DmParameterUpdateDisposition {
+  AV2_DM_PARAMETER_UPDATE_ALLOWED,
+  AV2_DM_PARAMETER_UPDATE_MISSING_REQUIRED_INPUT,
+  AV2_DM_PARAMETER_UPDATE_INCOMPATIBLE_CONFIGURATION
+} Av2DmParameterUpdateDisposition;
+
 bool av2_dm_get_level_limits(uint32_t level_idx, uint32_t tier,
                              uint32_t profile, Av2DmLevelLimits *limits);
 bool av2_dm_apply_multistream_limits(uint32_t level_idx, uint32_t tier,
@@ -427,21 +437,32 @@ Av2DecoderModel *av2_decoder_model_create(const Av2DmConfig *config,
                                           Av2DmReportFn report,
                                           void *report_opaque);
 void av2_decoder_model_destroy(Av2DecoderModel *model);
+Av2DmParameterUpdateDisposition av2_decoder_model_classify_parameter_update(
+    const Av2DecoderModel *model, const Av2DmConfig *config,
+    bool closed_loop_key_transition);
 bool av2_decoder_model_update_parameters(Av2DecoderModel *model,
                                          const Av2DmConfig *config,
-                                         uint64_t event_index);
+                                         uint64_t event_index,
+                                         bool closed_loop_key_transition);
 void av2_decoder_model_mark_incomplete(Av2DecoderModel *model);
 void av2_decoder_model_fail_arithmetic_for_testing(Av2DecoderModel *model);
+void av2_decoder_model_set_defer_nonterminal_checks_for_testing(
+    Av2DecoderModel *model, bool defer);
 void av2_decoder_model_start_frame(Av2DecoderModel *model,
                                    const Av2DmFrameEvent *event);
 void av2_decoder_model_update_reference_buffers(
     Av2DecoderModel *model, const Av2DmReferenceUpdateEvent *event);
-void av2_decoder_model_invalidate_olk_reference_buffers(
-    Av2DecoderModel *model, uint32_t ref_valid_mask);
+void av2_decoder_model_invalidate_reference_buffers(Av2DecoderModel *model,
+                                                    uint32_t ref_valid_mask,
+                                                    bool closed_loop_key);
 void av2_decoder_model_set_initial_presentation_delay(Av2DecoderModel *model,
+                                                      bool end_of_bitstream,
                                                       uint64_t event_index);
 void av2_decoder_model_output_frame(Av2DecoderModel *model,
                                     const Av2DmOutputEvent *event);
+bool av2_decoder_model_seed_terminal_history(
+    Av2DecoderModel *model, const Av2DmRational *previous_frame_parsing_time,
+    const Av2DmRational *previous_tu_output_duration);
 void av2_decoder_model_finish(Av2DecoderModel *model);
 bool av2_decoder_model_get_result(const Av2DecoderModel *model,
                                   Av2DmResult *result);
