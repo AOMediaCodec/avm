@@ -538,8 +538,8 @@ typedef struct MV_SPEED_FEATURES {
   // Method to use for refining WARP_CAUSAL motion vectors
   WARP_SEARCH_METHOD warp_search_method;
 
-  // Method to use for refining WARP_CAUSAL motion vectors on secondary reference
-  // frames during coarse inter-mode search
+  // Method to use for refining WARP_CAUSAL motion vectors on secondary
+  // reference frames during coarse inter-mode search
   WARP_SEARCH_METHOD warp_search_method_sec_ref;
 
   // Maximum number of iterations in WARP_CAUSAL refinement search
