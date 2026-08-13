@@ -481,7 +481,6 @@ static void set_good_speed_features_framesize_independent(
 
     sf->lpf_sf.enable_deblock_for_partition_search = 0;
 
-    sf->hl_sf.high_precision_mv_usage = CURRENT_Q;
     sf->hl_sf.recode_loop = ALLOW_RECODE_KFARFGF;
 
     sf->part_sf.allow_partition_search_skip = 1;
@@ -701,7 +700,7 @@ static AVM_INLINE void init_hl_sf(HIGH_LEVEL_SPEED_FEATURES *hl_sf) {
   hl_sf->disable_unequal_scale_refs = false;
   // Recode loop tolerance %.
   hl_sf->recode_tolerance = 25;
-  hl_sf->high_precision_mv_usage = CURRENT_Q;
+  hl_sf->high_precision_mv_usage = LAST_MV_DATA;
 }
 
 static AVM_INLINE void init_tpl_sf(TPL_SPEED_FEATURES *tpl_sf) {
