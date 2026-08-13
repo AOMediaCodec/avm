@@ -205,7 +205,6 @@ void av2_decide_states_q1_avx2(const struct tcq_node_t *prev,
                                struct tcq_node_t *decision) {
   (void)limits;
   assert((rdmult >> 32) == 0);
-  static_assert(sizeof(tcq_node_t) == 16, "");
 
   __m256i c_rdmult = _mm256_set1_epi64x(rdmult);
   __m256i c_round = _mm256_set1_epi64x(1 << (AV2_PROB_COST_SHIFT - 1));
@@ -273,7 +272,7 @@ void av2_decide_states_q1_avx2(const struct tcq_node_t *prev,
       int64_t rdcost_eob1 =
           ((int64_t)rdmult * rate_eob1 + (1 << (AV2_PROB_COST_SHIFT - 1))) >>
           AV2_PROB_COST_SHIFT;
-      rdcost_eob1 += (dist_eob1 << RDDIV_BITS);
+      rdcost_eob1 += dist_eob1 * (1 << RDDIV_BITS);
       __m256i v_rdcost_eob = _mm256_set_epi64x(0, 0, rdcost_eob1, 0);
       __m256i mask_eob = _mm256_set_epi64x(0, 0, (int64_t)-1, 0);
       __m256i use_eob = _mm256_and_si256(

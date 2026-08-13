@@ -36,19 +36,30 @@ static AVM_INLINE void init_tcq_decision(tcq_node_t *decision) {
 // Initialize previous state storage to identity mapping.
 // As trellis decisions are made, magnitudes and
 // state transitions will be updated.
-static AVM_INLINE void init_tcq_ctx(struct tcq_ctx_t *tcq_ctx) {
+static AVM_INLINE void init_tcq_ctx(struct tcq_ctx_t *tcq_ctx,
+                                    const tcq_param_t *p, int si) {
+  int blk_pos = p->scan[si];
+  TX_SIZE tx_size = p->tx_size;
+  const int bwl = get_txb_bwl(tx_size);
+  const int row = blk_pos >> bwl;
+  const int col = blk_pos - (row << bwl);
+
+  int diag = AVMMIN(row + col, MAX_DIAG) + 2;
+  int ctx_array_size = diag << TCQ_N_STATES_LOG;
+
   static const int8_t init_st[4][TCQ_MAX_STATES] = {
     { 0, 1, 2, 3, 4, 5, 6, 7 },
     { 0, 1, 2, 3, 4, 5, 6, 7 },
     { 0, 1, 2, 3, 4, 5, 6, 7 },
     { 0, 1, 2, 3, 4, 5, 6, 7 },
   };
-  memset(&tcq_ctx->mag_base, 0, sizeof(tcq_ctx->mag_base));
-  memset(&tcq_ctx->mag_mid, 0, sizeof(tcq_ctx->mag_mid));
-  memset(&tcq_ctx->ctx, 0, sizeof(tcq_ctx->ctx));
-  memset(&tcq_ctx->lev_new, 0, sizeof(tcq_ctx->lev_new));
-  int n_elem = sizeof(tcq_ctx->prev_st) / sizeof(tcq_ctx->prev_st[0]);
-  for (int i = 0; i < n_elem; i += 4) {
+
+  memset(&tcq_ctx->mag_base, 0, ctx_array_size);
+  memset(&tcq_ctx->mag_mid, 0, ctx_array_size);
+  memset(&tcq_ctx->ctx, 0, ctx_array_size);
+  memset(&tcq_ctx->lev_new, 0, ctx_array_size);
+
+  for (int i = 0; i < diag; i += 4) {
     memcpy(tcq_ctx->prev_st[i], init_st, sizeof(init_st));
   }
 }
@@ -513,7 +524,7 @@ void av2_pre_quant_c(tran_low_t tqc, struct prequant_t *pqData,
   (void)scan_pos;
   // calculate qIdx
   tran_low_t abs_tqc = abs(tqc);
-  pqData->qIdx = AVMMAX(pqData->orig_qIdx - 1, 1);
+  pqData->qIdx = AVMMAX(pqData->orig_qIdx - 2, 1);
   int32_t qIdx = pqData->qIdx;
 
   const int64_t dist0 = get_coeff_dist(abs_tqc, 0, log_scale - 1);
@@ -674,9 +685,9 @@ void trellis_first_pos(const tcq_param_t *p, int scan_pos, tcq_ctx_t *tcq_ctx,
   int tempdqv = get_dqv(dequant, scan[scan_pos], iqmatrix);
   int shift = 16 - log_scale + QUANT_FP_BITS;
 
-  tran_low_t orig_qIdx = ((int64_t)abs(tcoeff[blk_pos]) * quant[scan_pos != 0] +
-                          ((1 << shift) >> 1)) >>
-                         shift;
+  tran_low_t orig_qIdx =
+      (tran_low_t)(((int64_t)abs(tcoeff[blk_pos]) * quant[scan_pos != 0]) >>
+                   shift);
   pqData.orig_qIdx = orig_qIdx;
 
   av2_pre_quant(tcoeff[blk_pos], &pqData, quant, tempdqv, log_scale, scan_pos);
@@ -968,9 +979,8 @@ static void trellis_loop_diagonal_st8(const tcq_param_t *p, int scan_hi,
       int tempdqv = get_dqv(dequant, scan[scan_pos], iqmatrix);
 
       tran_low_t orig_qIdx =
-          ((int64_t)abs(tcoeff[blk_pos]) * quant[scan_pos != 0] +
-           ((1 << shift) >> 1)) >>
-          shift;
+          (tran_low_t)(((int64_t)abs(tcoeff[blk_pos]) * quant[scan_pos != 0]) >>
+                       shift);
       pqData.orig_qIdx = orig_qIdx;
 
       // Get coeff contexts
@@ -980,7 +990,7 @@ static void trellis_loop_diagonal_st8(const tcq_param_t *p, int scan_hi,
       int eob_rate = block_eob_rate[scan_pos];
       tcq_rate_t rd;
 
-      if (pqData.orig_qIdx == 0) {
+      if (pqData.orig_qIdx < 2) {
         av2_pre_quant_q1(tcoeff[blk_pos], &pqData, quant, tempdqv, log_scale,
                          scan_pos);
         av2_get_rate_dist_def_luma_q1(p, &pqData, &coeff_ctx, blk_pos, diag_ctx,
@@ -1025,9 +1035,8 @@ static void trellis_loop_diagonal_st8(const tcq_param_t *p, int scan_hi,
       int tempdqv = get_dqv(dequant, scan[scan_pos], iqmatrix);
 
       tran_low_t orig_qIdx =
-          ((int64_t)abs(tcoeff[blk_pos]) * quant[scan_pos != 0] +
-           ((1 << shift) >> 1)) >>
-          shift;
+          (tran_low_t)(((int64_t)abs(tcoeff[blk_pos]) * quant[scan_pos != 0]) >>
+                       shift);
       pqData.orig_qIdx = orig_qIdx;
 
       // Get coeff contexts
@@ -1037,7 +1046,7 @@ static void trellis_loop_diagonal_st8(const tcq_param_t *p, int scan_hi,
       int eob_rate = block_eob_rate[scan_pos];
       tcq_rate_t rd;
 
-      if (pqData.orig_qIdx == 0) {
+      if (pqData.orig_qIdx < 2) {
         av2_pre_quant_q1(tcoeff[blk_pos], &pqData, quant, tempdqv, log_scale,
                          scan_pos);
         av2_get_rate_dist_lf_luma_q1(p, &pqData, &coeff_ctx, blk_pos, diag_ctx,
@@ -1336,7 +1345,7 @@ int av2_trellis_quant(const struct AV2_COMP *cpi, MACROBLOCK *x, int plane,
 
   // Buffers for diagonal contexts.
   tcq_ctx_t tcq_ctx;
-  init_tcq_ctx(&tcq_ctx);
+  init_tcq_ctx(&tcq_ctx, &param, first_scan_pos);
 
   // Process the first position
   trellis_first_pos(&param, first_scan_pos, &tcq_ctx, trellis);

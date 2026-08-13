@@ -879,10 +879,9 @@ class TcqDecideStatesQ1Test
 TEST_P(TcqDecideStatesQ1Test, RandomValues) { RunTest(); }
 
 #if HAVE_AVX2
-INSTANTIATE_TEST_SUITE_P(
-    AVX2, TcqDecideStatesTest,
-    ::testing::Values(TcqDecideStatesTestFuncs(av2_decide_states_c,
-                                               av2_decide_states_avx2)));
+INSTANTIATE_TEST_SUITE_P(AVX2, TcqDecideStatesTest,
+                         ::testing::Values(TcqDecideStatesTestFuncs(
+                             av2_decide_states_c, av2_decide_states_avx2)));
 
 INSTANTIATE_TEST_SUITE_P(
     AVX2, TcqDecideStatesQ1Test,
@@ -893,29 +892,29 @@ INSTANTIATE_TEST_SUITE_P(
     AVX2, PreQuantTest,
     ::testing::Values(PreQuantTestFuncs(av2_pre_quant_c, av2_pre_quant_avx2)));
 
-INSTANTIATE_TEST_SUITE_P(
-    AVX2, PreQuantQ1Test,
-    ::testing::Values(PreQuantTestFuncs(av2_pre_quant_q1_c, av2_pre_quant_q1_avx2)));
+INSTANTIATE_TEST_SUITE_P(AVX2, PreQuantQ1Test,
+                         ::testing::Values(PreQuantTestFuncs(
+                             av2_pre_quant_q1_c, av2_pre_quant_q1_avx2)));
 
 INSTANTIATE_TEST_SUITE_P(
     AVX2, TcqRateLumaTest,
     ::testing::Values(TcqRateLumaTestFuncs(av2_get_rate_dist_def_luma_c,
                                            av2_get_rate_dist_def_luma_avx2)));
 
-INSTANTIATE_TEST_SUITE_P(
-    AVX2, TcqRateLumaQ1Test,
-    ::testing::Values(TcqRateLumaTestFuncs(av2_get_rate_dist_def_luma_q1_c,
-                                           av2_get_rate_dist_def_luma_q1_avx2)));
+INSTANTIATE_TEST_SUITE_P(AVX2, TcqRateLumaQ1Test,
+                         ::testing::Values(TcqRateLumaTestFuncs(
+                             av2_get_rate_dist_def_luma_q1_c,
+                             av2_get_rate_dist_def_luma_q1_avx2)));
 
 INSTANTIATE_TEST_SUITE_P(
     AVX2, TcqRateLfLumaTest,
     ::testing::Values(TcqRateLfLumaTestFuncs(av2_get_rate_dist_lf_luma_c,
                                              av2_get_rate_dist_lf_luma_avx2)));
 
-INSTANTIATE_TEST_SUITE_P(
-    AVX2, TcqRateLfLumaQ1Test,
-    ::testing::Values(TcqRateLfLumaTestFuncs(av2_get_rate_dist_lf_luma_q1_c,
-                                             av2_get_rate_dist_lf_luma_q1_avx2)));
+INSTANTIATE_TEST_SUITE_P(AVX2, TcqRateLfLumaQ1Test,
+                         ::testing::Values(TcqRateLfLumaTestFuncs(
+                             av2_get_rate_dist_lf_luma_q1_c,
+                             av2_get_rate_dist_lf_luma_q1_avx2)));
 
 INSTANTIATE_TEST_SUITE_P(AVX2, TcqUpdateNbrDiagonalTest,
                          ::testing::Values(TcqUpdateNbrDiagonalTestFuncs(
