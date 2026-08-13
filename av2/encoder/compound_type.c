@@ -179,9 +179,7 @@ static int8_t estimate_wedge_sign(const AV2_COMP *cpi, const MACROBLOCK *x,
   return (tl + br > 0);
 }
 
-static int get_wedge_cost(const BLOCK_SIZE bsize, const int8_t wedge_index,
-                          const MACROBLOCK *const x) {
-  (void)bsize;
+static int get_wedge_cost(const int8_t wedge_index, const MACROBLOCK *const x) {
   assert(wedge_index >= 0 && wedge_index < MAX_WEDGE_TYPES);
   const int wedge_angle = wedge_index_2_angle[wedge_index];
   const int wedge_dist = wedge_index_2_dist[wedge_index];
@@ -199,59 +197,45 @@ static int get_wedge_cost(const BLOCK_SIZE bsize, const int8_t wedge_index,
   return wedge_cost;
 }
 
-// Choose the best wedge index and sign
+// Choose the best wedge index and sign.
+// If use_fixed_wedge_sign is true, only best_wedge_sign is evaluated else both
+// signs (0 and 1) are evaluated.
 static int64_t pick_wedge(const AV2_COMP *const cpi, const MACROBLOCK *const x,
-                          const BLOCK_SIZE bsize, const uint16_t *const p0,
-                          const int16_t *const residual1,
+                          BLOCK_SIZE bsize, const int16_t *const residual1,
                           const int16_t *const diff10,
+                          bool use_fixed_wedge_sign,
                           int8_t *const best_wedge_sign,
                           int8_t *const best_wedge_index,
                           int8_t *const best_boundary_index,
                           uint64_t *best_sse) {
   const MACROBLOCKD *const xd = &x->e_mbd;
-  const struct buf_2d *const src = &x->plane[0].src;
   const int bw = block_size_wide[bsize];
   const int bh = block_size_high[bsize];
   const int N = bw * bh;
   assert(N >= 64);
+  assert(IMPLIES(use_fixed_wedge_sign, *best_wedge_sign >= 0));
   int rate;
   int64_t dist;
   int64_t rd, best_rd = INT64_MAX;
-  int8_t wedge_index;
-  int8_t wedge_sign;
   const int8_t wedge_types = get_wedge_types_lookup(bsize);
-  const uint8_t *mask;
-  uint64_t sse;
   const int bd_round = (xd->bd - 8) * 2;
 
-  DECLARE_ALIGNED(32, int16_t, residual0[MAX_SB_SQUARE]);  // src - pred0
+  const int sign_start = use_fixed_wedge_sign ? *best_wedge_sign : 0;
+  const int sign_end = use_fixed_wedge_sign ? *best_wedge_sign : 1;
 
-  avm_highbd_subtract_block(bh, bw, residual0, bw, src->buf, src->stride, p0,
-                            bw, xd->bd);
-  int16_t *ds = residual0;
+  for (int8_t wedge_index = 0; wedge_index < wedge_types; ++wedge_index) {
+    const int k = get_wedge_boundary_type(bsize);
 
-  av2_wedge_compute_delta_squares(ds, residual0, residual1, N);
-
-  for (wedge_index = 0; wedge_index < wedge_types; ++wedge_index) {
-    int k = get_wedge_boundary_type(bsize);
-
-    // rd-estimation based wedge_sign selection
-    for (wedge_sign = 0; wedge_sign < 2; wedge_sign++) {
-      mask =
+    for (int8_t wedge_sign = sign_start; wedge_sign <= sign_end; ++wedge_sign) {
+      const uint8_t *mask =
           av2_get_all_contiguous_soft_mask(wedge_index, wedge_sign, bsize, k);
-      sse = av2_wedge_sse_from_residuals(residual1, diff10, mask, N);
+      uint64_t sse = av2_wedge_sse_from_residuals(residual1, diff10, mask, N);
       sse = ROUND_POWER_OF_TWO(sse, bd_round);
 
       model_rd_sse_fn[MODELRD_TYPE_MASKED_COMPOUND](cpi, x, bsize, 0, sse, N,
                                                     &rate, &dist);
-      // int rate2;
-      // int64_t dist2;
-      // model_rd_with_curvfit(cpi, x, bsize, 0, sse, N, &rate2, &dist2);
-      // printf("sse %"PRId64": leagacy: %d %"PRId64", curvfit %d %"PRId64"\n",
-      // sse, rate, dist, rate2, dist2); dist = dist2;
-      // rate = rate2;
 
-      rate += get_wedge_cost(bsize, wedge_index, x);
+      rate += get_wedge_cost(wedge_index, x);
       rd = RDCOST(x->rdmult, rate, dist);
 
       if (rd < best_rd) {
@@ -264,51 +248,7 @@ static int64_t pick_wedge(const AV2_COMP *const cpi, const MACROBLOCK *const x,
     }
   }
 
-  return best_rd -
-         RDCOST(x->rdmult, get_wedge_cost(bsize, *best_wedge_index, x), 0);
-}
-
-// Choose the best wedge index the specified sign
-static int64_t pick_wedge_fixed_sign(
-    const AV2_COMP *const cpi, const MACROBLOCK *const x,
-    const BLOCK_SIZE bsize, const int16_t *const residual1,
-    const int16_t *const diff10, const int8_t wedge_sign,
-    int8_t *const best_wedge_index, int8_t *const best_boundary_index,
-    uint64_t *best_sse) {
-  const MACROBLOCKD *const xd = &x->e_mbd;
-
-  const int bw = block_size_wide[bsize];
-  const int bh = block_size_high[bsize];
-  const int N = bw * bh;
-  assert(N >= 64);
-  int rate;
-  int64_t dist;
-  int64_t rd, best_rd = INT64_MAX;
-  int8_t wedge_index;
-  const int8_t wedge_types = get_wedge_types_lookup(bsize);
-  const uint8_t *mask;
-  uint64_t sse;
-  const int bd_round = (xd->bd - 8) * 2;
-  for (wedge_index = 0; wedge_index < wedge_types; ++wedge_index) {
-    int k = get_wedge_boundary_type(bsize);
-    mask = av2_get_all_contiguous_soft_mask(wedge_index, wedge_sign, bsize, k);
-    sse = av2_wedge_sse_from_residuals(residual1, diff10, mask, N);
-    sse = ROUND_POWER_OF_TWO(sse, bd_round);
-
-    model_rd_sse_fn[MODELRD_TYPE_MASKED_COMPOUND](cpi, x, bsize, 0, sse, N,
-                                                  &rate, &dist);
-    rate += get_wedge_cost(bsize, wedge_index, x);
-    rd = RDCOST(x->rdmult, rate, dist);
-
-    if (rd < best_rd) {
-      *best_wedge_index = wedge_index;
-      *best_boundary_index = k;
-      best_rd = rd;
-      *best_sse = sse;
-    }
-  }
-  return best_rd -
-         RDCOST(x->rdmult, get_wedge_cost(bsize, *best_wedge_index, x), 0);
+  return best_rd - RDCOST(x->rdmult, get_wedge_cost(*best_wedge_index, x), 0);
 }
 
 static int64_t pick_interinter_wedge(
@@ -320,22 +260,22 @@ static int64_t pick_interinter_wedge(
   MB_MODE_INFO *const mbmi = xd->mi[0];
   const int bw = block_size_wide[bsize];
 
-  int64_t rd;
   int8_t wedge_index = -1;
   int8_t boundary_index = -1;
-  int8_t wedge_sign = 0;
+  int8_t wedge_sign = -1;
 
   assert(is_interinter_compound_used(COMPOUND_WEDGE, bsize));
   assert(cpi->common.seq_params.enable_masked_compound);
 
+  bool use_fixed_wedge_sign = false;
   if (cpi->sf.inter_sf.fast_wedge_sign_estimate) {
     wedge_sign = estimate_wedge_sign(cpi, x, bsize, p0, bw, p1, bw);
-    rd = pick_wedge_fixed_sign(cpi, x, bsize, residual1, diff10, wedge_sign,
-                               &wedge_index, &boundary_index, best_sse);
-  } else {
-    rd = pick_wedge(cpi, x, bsize, p0, residual1, diff10, &wedge_sign,
-                    &wedge_index, &boundary_index, best_sse);
+    use_fixed_wedge_sign = true;
   }
+
+  const int64_t rd =
+      pick_wedge(cpi, x, bsize, residual1, diff10, use_fixed_wedge_sign,
+                 &wedge_sign, &wedge_index, &boundary_index, best_sse);
 
   mbmi->interinter_comp.wedge_sign = wedge_sign;
   mbmi->interinter_comp.wedge_index = wedge_index;
@@ -412,10 +352,12 @@ static int64_t pick_interintra_wedge(const AV2_COMP *const cpi,
   avm_highbd_subtract_block(bh, bw, diff10, bw, p1, bw, p0, bw, xd->bd);
 
   int8_t wedge_index = -1;
+  int8_t wedge_sign = 0;
   int8_t boundary_index = -1;
   uint64_t sse;
-  int64_t rd = pick_wedge_fixed_sign(cpi, x, bsize, residual1, diff10, 0,
-                                     &wedge_index, &boundary_index, &sse);
+  const int64_t rd = pick_wedge(cpi, x, bsize, residual1, diff10,
+                                /*use_fixed_wedge_sign*/ true, &wedge_sign,
+                                &wedge_index, &boundary_index, &sse);
 
   mbmi->interintra_wedge_index = wedge_index;
   mbmi->wedge_boundary_index = boundary_index;
@@ -526,9 +468,8 @@ static AVM_INLINE int64_t compute_best_wedge_interintra(
     av2_build_intra_predictors_for_interintra(cm, xd, 0, orig_dst, intrapred,
                                               bw);
     int64_t rd = pick_interintra_wedge(cpi, x, bsize, intrapred, tmp_buf_);
-    const int rate_overhead =
-        interintra_mode_cost[mode] +
-        get_wedge_cost(bsize, mbmi->interintra_wedge_index, x);
+    const int rate_overhead = interintra_mode_cost[mode] +
+                              get_wedge_cost(mbmi->interintra_wedge_index, x);
     const int64_t total_rd = rd + RDCOST(x->rdmult, rate_overhead, 0);
     if (total_rd < best_total_rd) {
       best_total_rd = total_rd;
@@ -680,7 +621,7 @@ static int handle_wedge_inter_intra_mode(
   }
 
   *rate_overhead = interintra_mode_cost[mbmi->interintra_mode] +
-                   get_wedge_cost(bsize, mbmi->interintra_wedge_index, x) +
+                   get_wedge_cost(mbmi->interintra_wedge_index, x) +
                    mode_costs->wedge_interintra_cost[1];
   *best_rd += RDCOST(x->rdmult, *rate_overhead + *rate_mv, 0);
 
@@ -1014,8 +955,7 @@ static INLINE int get_interinter_compound_mask_rate(
   if (compound_type == COMPOUND_WEDGE) {
     return av2_is_wedge_used(mbmi->sb_type[PLANE_TYPE_Y])
                ? av2_cost_literal(1) +
-                     get_wedge_cost(mbmi->sb_type[PLANE_TYPE_Y],
-                                    mbmi->interinter_comp.wedge_index, x)
+                     get_wedge_cost(mbmi->interinter_comp.wedge_index, x)
                : 0;
   } else {
     assert(compound_type == COMPOUND_DIFFWTD);
