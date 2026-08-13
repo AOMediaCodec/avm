@@ -30,12 +30,12 @@ static const int32_t kPrevId[TCQ_MAX_STATES / 4][8] = {
 };
 static const int32_t kPrevIdQ1[2][2][8] = {
   {
-    { 0, 0 << 24, 0, 1 << 24, 0, 2 << 24, 0, 3 << 24 },
-    { 0, 1 << 24, 0, 0 << 24, 0, 3 << 24, 0, 2 << 24 },
+      { 0, 0 << 24, 0, 1 << 24, 0, 2 << 24, 0, 3 << 24 },
+      { 0, 1 << 24, 0, 0 << 24, 0, 3 << 24, 0, 2 << 24 },
   },
   {
-    { 0, 4 << 24, 0, 5 << 24, 0, 6 << 24, 0, 7 << 24 },
-    { 0, 5 << 24, 0, 4 << 24, 0, 7 << 24, 0, 6 << 24 },
+      { 0, 4 << 24, 0, 5 << 24, 0, 6 << 24, 0, 7 << 24 },
+      { 0, 5 << 24, 0, 4 << 24, 0, 7 << 24, 0, 6 << 24 },
   },
 };
 
@@ -263,7 +263,8 @@ void av2_decide_states_q1_avx2(const struct tcq_node_t *prev,
     __m256i prev_id_zero = _mm256_lddqu_si256((__m256i *)kPrevIdQ1[i][0]);
     __m256i prev_id_odd = _mm256_lddqu_si256((__m256i *)kPrevIdQ1[i][1]);
     __m256i prev_id = _mm256_blendv_epi8(prev_id_zero, prev_id_odd, use_odd);
-    __m256i abs_best = _mm256_and_si256(use_odd, _mm256_set1_epi64x(1ULL << 32));
+    __m256i abs_best =
+        _mm256_and_si256(use_odd, _mm256_set1_epi64x(1ULL << 32));
 
     // Compare with EOB candidate (only state 4 in iteration 0).
     if (try_eob && i == 0) {
@@ -281,7 +282,7 @@ void av2_decide_states_q1_avx2(const struct tcq_node_t *prev,
       rate_best = _mm256_blendv_epi8(
           rate_best, _mm256_set_epi64x(0, 0, rate_eob1, 0), use_eob);
       prev_id = _mm256_blendv_epi8(
-          prev_id, _mm256_set_epi64x(0, 0, (int64_t)-1 << 56, 0), use_eob);
+          prev_id, _mm256_set_epi64x(0, 0, 0xff00000000000000, 0), use_eob);
       abs_best = _mm256_blendv_epi8(
           abs_best, _mm256_set_epi64x(0, 0, 1ULL << 32, 0), use_eob);
     }
@@ -305,15 +306,13 @@ void av2_pre_quant_avx2(tran_low_t tqc, struct prequant_t *pqData,
     { 0, 1, 2, 3 }, { 3, 0, 1, 2 }, { 2, 3, 0, 1 }, { 1, 2, 3, 0 }
   };
 
-  // calculate qIdx
-  int shift = 16 - log_scale + QUANT_FP_BITS;
-  int32_t add = -((2 << shift) >> 1);
-  int32_t abs_tqc = abs(tqc);
+  (void)quant_ptr;
+  (void)scan_pos;
 
-  int32_t qIdx = (int)AVMMAX(
-      1, AVMMIN(INT16_MAX,
-                ((int64_t)abs_tqc * quant_ptr[scan_pos != 0] + add) >> shift));
-  pqData->qIdx = qIdx;
+  // calculate qIdx
+  int32_t abs_tqc = abs(tqc);
+  pqData->qIdx = AVMMAX(pqData->orig_qIdx - 2, 1);
+  int32_t qIdx = pqData->qIdx;
 
   __m256i c_zero = _mm256_setzero_si256();
   __m128i base_qc = _mm_set1_epi32(qIdx);
@@ -608,10 +607,11 @@ void av2_get_rate_dist_def_luma_avx2(const struct tcq_param_t *p,
   }
 }
 
-void av2_get_rate_dist_def_luma_q1_avx2(
-    const struct tcq_param_t *p, const struct prequant_t *pq,
-    const struct tcq_coeff_ctx_t *coeff_ctx, int blk_pos, int diag_ctx,
-    int eob_rate, struct tcq_rate_t *rd) {
+void av2_get_rate_dist_def_luma_q1_avx2(const struct tcq_param_t *p,
+                                        const struct prequant_t *pq,
+                                        const struct tcq_coeff_ctx_t *coeff_ctx,
+                                        int blk_pos, int diag_ctx, int eob_rate,
+                                        struct tcq_rate_t *rd) {
   const LV_MAP_COEFF_COST *txb_costs = p->txb_costs;
   (void)blk_pos;
   (void)pq;
@@ -948,10 +948,11 @@ void av2_get_rate_dist_lf_luma_avx2(const struct tcq_param_t *p,
   }
 }
 
-void av2_get_rate_dist_lf_luma_q1_avx2(
-    const struct tcq_param_t *p, const struct prequant_t *pq,
-    const struct tcq_coeff_ctx_t *coeff_ctx, int blk_pos, int diag_ctx,
-    int eob_rate, int coeff_sign, struct tcq_rate_t *rd) {
+void av2_get_rate_dist_lf_luma_q1_avx2(const struct tcq_param_t *p,
+                                       const struct prequant_t *pq,
+                                       const struct tcq_coeff_ctx_t *coeff_ctx,
+                                       int blk_pos, int diag_ctx, int eob_rate,
+                                       int coeff_sign, struct tcq_rate_t *rd) {
   (void)pq;
   const LV_MAP_COEFF_COST *txb_costs = p->txb_costs;
   static const int8_t kShuf[2][32] = {
@@ -1009,8 +1010,9 @@ void av2_get_rate_dist_lf_luma_q1_avx2(
   __m128i v_dc_cost = c_zero;
   if (is_dc_coeff) {
     const int dc_ph_group = 0;
-    int dc_cost = txb_costs->dc_sign_cost[dc_ph_group][dc_sign_ctx][coeff_sign] -
-                  av2_cost_literal(1);
+    int dc_cost =
+        txb_costs->dc_sign_cost[dc_ph_group][dc_sign_ctx][coeff_sign] -
+        av2_cost_literal(1);
     v_dc_cost = _mm_set1_epi32(dc_cost);
   }
 
