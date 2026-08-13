@@ -2444,13 +2444,20 @@ static AVM_INLINE int handle_simple_translation_mode(
   return 0;
 }
 
+static AVM_INLINE WARP_SEARCH_METHOD get_warp_search_method(
+    const AV2_COMP *cpi, int eval_motion_mode, MV_REFERENCE_FRAME ref_frame) {
+  if (eval_motion_mode || ref_frame == 0)
+    return cpi->sf.mv_sf.warp_search_method;
+  return cpi->sf.mv_sf.warp_search_method_sec_ref;
+}
+
 // Handle WARP_CAUSAL motion mode: compute least-squares warp models from
 // projection samples, optionally refine MVs, build warped predictor.
 // Returns -1 to skip this motion mode iteration, 0 on success.
 static AVM_INLINE int handle_warp_causal_mode(
     const AV2_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize, MB_MODE_INFO *mbmi,
     PREDICTION_MODE this_mode, int rate2_nocoeff, int rate_mv0,
-    int *tmp_rate_mv, int *tmp_rate2) {
+    int *tmp_rate_mv, int *tmp_rate2, int eval_motion_mode) {
   const AV2_COMMON *cm = &cpi->common;
   MACROBLOCKD *xd = &x->e_mbd;
   const int mi_row = xd->mi_row;
@@ -2504,9 +2511,10 @@ static AVM_INLINE int handle_warp_causal_mode(
       av2_make_default_subpel_ms_params(
           &ms_params, cpi, x, bsize, &ref_mv.as_mv, pb_mv_precision, 0, NULL);
       // Refine MV in a small range.
-      av2_refine_warped_mv(xd, cm, &ms_params, bsize, pts0, pts_inref0,
-                           total_samples0, 0, cpi->sf.mv_sf.warp_search_method,
-                           cpi->sf.mv_sf.warp_search_iters);
+      av2_refine_warped_mv(
+          xd, cm, &ms_params, bsize, pts0, pts_inref0, total_samples0, 0,
+          get_warp_search_method(cpi, eval_motion_mode, mbmi->ref_frame[0]),
+          cpi->sf.mv_sf.warp_search_iters);
       if (mv0.as_int != mbmi->mv[0].as_int) {
         if (mbmi->mode == NEW_NEWMV) {
           int tmp_rate_mv0 = av2_mv_bit_cost(
@@ -2534,9 +2542,10 @@ static AVM_INLINE int handle_warp_causal_mode(
       av2_make_default_subpel_ms_params(
           &ms_params, cpi, x, bsize, &ref_mv.as_mv, pb_mv_precision, 0, NULL);
       // Refine MV in a small range.
-      av2_refine_warped_mv(xd, cm, &ms_params, bsize, pts1, pts_inref1,
-                           total_samples1, 1, cpi->sf.mv_sf.warp_search_method,
-                           cpi->sf.mv_sf.warp_search_iters);
+      av2_refine_warped_mv(
+          xd, cm, &ms_params, bsize, pts1, pts_inref1, total_samples1, 1,
+          get_warp_search_method(cpi, eval_motion_mode, mbmi->ref_frame[1]),
+          cpi->sf.mv_sf.warp_search_iters);
 
       if (mv1.as_int != mbmi->mv[1].as_int) {
         int tmp_rate_mv1 = av2_mv_bit_cost(
@@ -2632,7 +2641,8 @@ static AVM_INLINE int handle_warp_delta_mode(
     if (!cpi->sf.inter_sf.enable_six_param_warp_in_winner_mode ||
         !eval_motion_mode)
       valid = av2_refine_mv_for_base_param_warp_model(
-          cm, xd, mbmi, mbmi_ext, &ms_params, cpi->sf.mv_sf.warp_search_method,
+          cm, xd, mbmi, mbmi_ext, &ms_params,
+          get_warp_search_method(cpi, eval_motion_mode, mbmi->ref_frame[0]),
           cpi->sf.mv_sf.warp_search_iters);
   } else {
     mbmi->six_param_warp_model_flag = get_default_six_param_flag(cm, mbmi);
@@ -2677,7 +2687,7 @@ static AVM_INLINE int handle_warp_delta_mode(
 static AVM_INLINE int handle_warp_extend_mode(
     const AV2_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize, MB_MODE_INFO *mbmi,
     const MB_MODE_INFO_EXT *mbmi_ext, int rate2_nocoeff, int rate_mv0,
-    int *tmp_rate_mv, int *tmp_rate2) {
+    int *tmp_rate_mv, int *tmp_rate2, int eval_motion_mode) {
   const AV2_COMMON *cm = &cpi->common;
   MACROBLOCKD *xd = &x->e_mbd;
   const int mi_row = xd->mi_row;
@@ -2747,7 +2757,8 @@ static AVM_INLINE int handle_warp_extend_mode(
   // Refine motion vector
   av2_refine_mv_for_warp_extend(
       cm, xd, &ms_params, neighbor_is_above, bsize, &neighbor_params,
-      cpi->sf.mv_sf.warp_search_method, cpi->sf.mv_sf.warp_search_iters);
+      get_warp_search_method(cpi, eval_motion_mode, mbmi->ref_frame[0]),
+      cpi->sf.mv_sf.warp_search_iters);
 
   // If we changed the MV, update costs
   if (mv0.as_int != mbmi->mv[0].as_int) {
@@ -3000,7 +3011,7 @@ static AVM_INLINE int evaluate_motion_mode_trial(
   } else if (mbmi->motion_mode == WARP_CAUSAL) {
     if (handle_warp_causal_mode(cpi, x, bsize, mbmi, base_mbmi->mode,
                                 ctx->rate2_nocoeff, ctx->rate_mv0, &tmp_rate_mv,
-                                &tmp_rate2) < 0)
+                                &tmp_rate2, eval_motion_mode) < 0)
       return -1;
   } else if (mbmi->motion_mode == INTERINTRA) {
     if (cpi->sf.inter_sf.prune_interintra_by_ref_idx && mbmi->ref_frame[0] > 1)
@@ -3021,7 +3032,7 @@ static AVM_INLINE int evaluate_motion_mode_trial(
   } else if (mbmi->motion_mode == WARP_EXTEND) {
     if (handle_warp_extend_mode(cpi, x, bsize, mbmi, mbmi_ext,
                                 ctx->rate2_nocoeff, ctx->rate_mv0, &tmp_rate_mv,
-                                &tmp_rate2) < 0)
+                                &tmp_rate2, eval_motion_mode) < 0)
       return -1;
   }
 
