@@ -18,11 +18,11 @@
 
 namespace {
 // This class is used to validate realtime encoding path.
-class RtcTestLarge : public ::libavm_test::CodecTestWithParam<int>,
-                     public ::libavm_test::EncoderTest {
+class RtcTest : public ::libavm_test::CodecTestWithParam<int>,
+                public ::libavm_test::EncoderTest {
  protected:
-  RtcTestLarge() : EncoderTest(GET_PARAM(0)), tune_content_(GET_PARAM(1)) {}
-  virtual ~RtcTestLarge() {}
+  RtcTest() : EncoderTest(GET_PARAM(0)), tune_content_(GET_PARAM(1)) {}
+  virtual ~RtcTest() {}
 
   virtual void SetUp() {
     const avm_codec_err_t res =
@@ -133,10 +133,10 @@ class RtcTestLarge : public ::libavm_test::CodecTestWithParam<int>,
   int tune_content_;
 };
 
-TEST_P(RtcTestLarge, RtcTest) {
+TEST_P(RtcTest, RtcTest) {
   ::libavm_test::Y4mVideoSource video_nonsc("niklas_1280_720_30.y4m", 0, 50);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
 }
 
-AV2_INSTANTIATE_TEST_SUITE(RtcTestLarge, ::testing::Range(0, 2));
+AV2_INSTANTIATE_TEST_SUITE(RtcTest, ::testing::Range(0, 2));
 }  // namespace
