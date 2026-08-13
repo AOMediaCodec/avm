@@ -418,6 +418,8 @@ static void set_good_speed_features_framesize_independent(
   }
 
   if (speed >= 2) {
+    sf->mv_sf.warp_search_method_sec_ref = WARP_SEARCH_DIAMOND;
+
     sf->lpf_sf.early_terminate_ccso_search_by_cost = 1;
     sf->part_sf.partition_pruning_with_mlp_none_thresh = 2.5f;
     sf->part_sf.intra_cnn_split = 0;
@@ -796,6 +798,7 @@ static AVM_INLINE void init_mv_sf(MV_SPEED_FEATURES *mv_sf) {
   mv_sf->use_fullpel_costlist = 0;
   mv_sf->use_downsampled_sad = 0;
   mv_sf->warp_search_method = WARP_SEARCH_SQUARE;
+  mv_sf->warp_search_method_sec_ref = WARP_SEARCH_SQUARE;
   mv_sf->warp_search_iters = 8;
   mv_sf->fast_motion_estimation_on_block_256 = 0;
 }
