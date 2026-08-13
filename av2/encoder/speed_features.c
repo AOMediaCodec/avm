@@ -432,8 +432,7 @@ static void set_good_speed_features_framesize_independent(
     sf->part_sf.disable_uneven_4way_partitions = true;
     sf->part_sf.disable_ext_partitions = true;
 
-    if (cpi->twopass.fr_content_type == FC_HIGHMOTION ||
-        cpi->is_screen_content_type) {
+    if (cpi->is_screen_content_type) {
       sf->mv_sf.exhaustive_searches_thresh = (1 << 21);
     } else {
       sf->mv_sf.exhaustive_searches_thresh = (1 << 26);
