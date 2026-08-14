@@ -116,6 +116,9 @@ static const arg_def_t verifyarg =
 static const arg_def_t checkconformancearg =
     ARG_DEF(NULL, "check-conformance", 1,
             "Check decoder-model conformance (off, warn, fatal)");
+static const arg_def_t checkconformanceeveryraparg =
+    ARG_DEF(NULL, "check-conformance-every-rap", 1,
+            "Check decoder-model conformance from every RAP (0, 1)");
 static const arg_def_t framestatsarg =
     ARG_DEF(NULL, "framestats", 1, "Output per-frame stats (.csv format)");
 static const arg_def_t outbitdeptharg =
@@ -163,6 +166,7 @@ static const arg_def_t *all_args[] = { &help,
                                        &md5arg,
                                        &verifyarg,
                                        &checkconformancearg,
+                                       &checkconformanceeveryraparg,
                                        &framestatsarg,
                                        &continuearg,
                                        &outbitdeptharg,
@@ -660,6 +664,7 @@ static int main_loop(int argc, const char **argv_) {
   int do_verify = 0, error_on_verify = 0;
   avm_decoder_model_check_mode_t decoder_model_check_mode =
       AVM_DECODER_MODEL_CHECK_OFF;
+  int decoder_model_check_every_rap = 1;
   int stop_after = 0, summary = 0, quiet = 1;
   int arg_skip = 0;
   int num_streams = 1;
@@ -827,6 +832,13 @@ static int main_loop(int argc, const char **argv_) {
         decoder_model_check_mode = AVM_DECODER_MODEL_CHECK_OFF;
       } else {
         die("Error: Invalid argument for --check-conformance (%s).\n", arg.val);
+      }
+    } else if (arg_match(&arg, &checkconformanceeveryraparg, argi)) {
+      decoder_model_check_every_rap = arg_parse_uint(&arg);
+      if (decoder_model_check_every_rap > 1) {
+        die("Error: Invalid argument for --check-conformance-every-rap "
+            "(%s).\n",
+            arg.val);
       }
     } else if (arg_match(&arg, &framestatsarg, argi)) {
       framestats_file = fopen(arg.val, "w");
@@ -1019,6 +1031,14 @@ static int main_loop(int argc, const char **argv_) {
   }
 
   if (!quiet) fprintf(stderr, "%s\n", decoder.name);
+
+  if (AVM_CODEC_CONTROL_TYPECHECKED(&decoder,
+                                    AV2D_SET_DECODER_MODEL_CHECK_EVERY_RAP,
+                                    decoder_model_check_every_rap)) {
+    fprintf(stderr, "Failed to set decoder-model RAP coverage: %s\n",
+            avm_codec_error(&decoder));
+    goto fail;
+  }
 
   if (AVM_CODEC_CONTROL_TYPECHECKED(&decoder, AV2D_SET_DECODER_MODEL_CHECK_MODE,
                                     decoder_model_check_mode)) {

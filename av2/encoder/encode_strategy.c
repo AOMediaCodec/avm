@@ -1346,6 +1346,7 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
         }
       }
     }
+    av2_decoder_model_invalidate_olk_ref_buffers_for_operating_points(cpi);
     // Set gf_state flag so the next gf group knows that the OLK has been
     // encoded
     cpi->gf_state.olk_overlay_last = 1;

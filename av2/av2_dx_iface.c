@@ -64,6 +64,7 @@ struct avm_codec_alg_priv {
   int num_local_ops_selections;
   int output_all_layers;
   avm_decoder_model_check_mode_t decoder_model_check_mode;
+  int decoder_model_check_every_rap;
   int compressed_input_started;
   int decoder_model_fatal_latched;
 
@@ -121,6 +122,7 @@ static avm_codec_err_t decoder_init(avm_codec_ctx_t *ctx) {
     priv->enable_sub_bitstream_extraction = 0;
     priv->num_local_ops_selections = 0;
     priv->decoder_model_check_mode = AVM_DECODER_MODEL_CHECK_OFF;
+    priv->decoder_model_check_every_rap = 1;
 
     init_ibp_info(ctx->priv->ibp_directional_weights);
   }
@@ -484,6 +486,8 @@ static avm_codec_err_t init_decoder(avm_codec_alg_priv_t *ctx) {
   frame_worker_data->pbi->output_all_layers = ctx->output_all_layers;
   frame_worker_data->pbi->decoder_model_check_mode =
       ctx->decoder_model_check_mode;
+  frame_worker_data->pbi->decoder_model_check_every_rap =
+      ctx->decoder_model_check_every_rap;
   if (ctx->decoder_model_check_mode != AVM_DECODER_MODEL_CHECK_OFF) {
     av2_decoder_model_verifier_init(frame_worker_data->pbi);
   }
@@ -2073,6 +2077,27 @@ static avm_codec_err_t ctrl_set_decoder_model_check_mode(
   return AVM_CODEC_OK;
 }
 
+static avm_codec_err_t ctrl_set_decoder_model_check_every_rap(
+    avm_codec_alg_priv_t *ctx, va_list args) {
+  const int check_every_rap = va_arg(args, int);
+  if ((check_every_rap != 0 && check_every_rap != 1) ||
+      ctx->compressed_input_started) {
+    return AVM_CODEC_INVALID_PARAM;
+  }
+  ctx->decoder_model_check_every_rap = check_every_rap;
+  if (ctx->frame_worker != NULL) {
+    FrameWorkerData *const frame_worker_data =
+        (FrameWorkerData *)ctx->frame_worker->data1;
+    AV2Decoder *const pbi = frame_worker_data->pbi;
+    av2_decoder_model_verifier_destroy(pbi);
+    pbi->decoder_model_check_every_rap = check_every_rap;
+    if (pbi->decoder_model_check_mode != AVM_DECODER_MODEL_CHECK_OFF) {
+      av2_decoder_model_verifier_init(pbi);
+    }
+  }
+  return AVM_CODEC_OK;
+}
+
 static avm_codec_err_t ctrl_set_sub_bitstream_extraction(
     avm_codec_alg_priv_t *ctx, va_list args) {
   ctx->enable_sub_bitstream_extraction = va_arg(args, int);
@@ -2138,6 +2163,8 @@ static avm_codec_ctrl_fn_map_t decoder_ctrl_maps[] = {
   { AV2D_SET_SKIP_FILM_GRAIN, ctrl_set_skip_film_grain },
   { AV2D_SET_RANDOM_ACCESS, ctrl_set_random_access },
   { AV2D_SET_BRU_OPT_MODE, ctrl_set_bru_opt_mode },
+  { AV2D_SET_DECODER_MODEL_CHECK_EVERY_RAP,
+    ctrl_set_decoder_model_check_every_rap },
   { AV2D_SET_DECODER_MODEL_CHECK_MODE, ctrl_set_decoder_model_check_mode },
   { AV2D_ENABLE_SUBGOP_STATS, ctrl_enable_subgop_stats },
 

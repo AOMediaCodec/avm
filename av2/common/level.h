@@ -194,6 +194,17 @@ typedef struct {
   int decoder_buffer_delay;  // In units of 1/90000 seconds.
   int num_ticks_per_picture;
   int initial_display_delay;  // In units of frames.
+  int configured_operating_point_count;
+  int configured_operating_point_idc;
+  bool configuration_snapshot_valid;
+  BITSTREAM_PROFILE configured_profile;
+  int configured_max_frame_width;
+  int configured_max_frame_height;
+  int configured_max_mlayer_id;
+  unsigned int configured_number_xlayers;
+  bool configured_timing_info_present;
+  uint32_t configured_num_units_in_display_tick;
+  uint32_t configured_time_scale;
   uint32_t multistream_scale_numerator;
   uint32_t multistream_scale_denominator;
   double decode_rate;
@@ -257,6 +268,7 @@ typedef struct {
   uint64_t num_frames_current_tu;
 
   ENCODER_DECODER_MODEL_FRAME pending_frame;
+  uint64_t applicable_dfg_count;
   bool last_frame_parsing_time_valid;
   double last_frame_parsing_time;
   bool last_frame_parsing_time_at_decode_limit;
@@ -264,6 +276,7 @@ typedef struct {
   bool frame_constraints_finalized;
   bool last_display_duration_valid;
   double last_display_duration;
+  uint64_t output_tu_count;
   bool finalized;
 
   // Tracks whether every inter-TU presentation interval satisfies the minimum
@@ -316,6 +329,8 @@ int av2_get_substream_level_spec(int level_index, uint32_t scale_numerator,
                                  AV2SubstreamLevelSpec *level_spec);
 
 void av2_init_level_info(struct AV2_COMP *cpi);
+void av2_reset_level_info_for_new_cvs(struct AV2_COMP *cpi);
+void av2_prepare_level_info_for_new_cvs(struct AV2_COMP *cpi);
 void av2_encoder_decoder_model_finish_for_operating_points(
     const struct AV2_COMP *cpi);
 void av2_encoder_check_target_level(struct AV2_COMP *cpi,
@@ -380,11 +395,13 @@ void av2_encoder_decoder_model_finalize(DECODER_MODEL *decoder_model,
 ENCODER_DM_RESULT_CLASS av2_encoder_decoder_model_classify_status(
     DECODER_MODEL_STATUS status);
 
-// Encoder-internal, model-only helpers corresponding to the invalid-reference
-// synchronization at the start of Annex E start_frame_decode() and the
-// decoded-generation assignment performed for a newly decoded frame.
-bool av2_encoder_decoder_model_sync_invalid_ref_buffers(
-    const AV2_COMMON *cm, DECODER_MODEL *decoder_model);
+// Encoder-internal, model-only helpers corresponding to Annex E reference
+// invalidation and the decoded-generation assignment for a newly decoded
+// frame.
+bool av2_encoder_decoder_model_invalidate_ref_buffers(
+    const AV2_COMMON *cm, DECODER_MODEL *decoder_model, bool closed_loop_key);
+void av2_decoder_model_invalidate_olk_ref_buffers_for_operating_points(
+    const struct AV2_COMP *cpi);
 bool av2_encoder_decoder_model_capture_current_generation(
     const struct AV2_COMP *cpi, DECODER_MODEL *decoder_model,
     uint64_t output_luma_samples);

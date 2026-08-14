@@ -413,6 +413,7 @@ typedef struct AV2Decoder {
   SubBitstreamExtractionState sbe_state;
   struct Av2DecoderModelVerifier *decoder_model_verifier;
   int decoder_model_check_mode;
+  int decoder_model_check_every_rap;
   bool decoder_model_verifier_allocation_failed;
   bool decoder_model_verifier_allocation_reported;
   int seen_frame_header;

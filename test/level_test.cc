@@ -92,6 +92,10 @@ void SetPresentation(DECODER_MODEL *model, int buffer_index,
 struct MinimumPresentationIntervalResult {
   DECODER_MODEL_STATUS status;
   bool satisfies;
+  uint64_t output_tu_count_before_transition;
+  uint64_t output_tu_count;
+  bool last_display_duration_valid;
+  double last_display_duration;
 };
 
 MinimumPresentationIntervalResult CheckMinimumPresentationInterval(
@@ -130,6 +134,7 @@ MinimumPresentationIntervalResult CheckMinimumPresentationInterval(
   if (forced_output_frames != 0) {
     model->num_frames_current_tu = forced_output_frames;
   }
+  const uint64_t output_tu_count_before_transition = model->output_tu_count;
   const int next_buffer_index = (int)output_frames + 1;
   model->cfbi = next_buffer_index;
   SetPresentation(model, next_buffer_index, output_frames, 1, false);
@@ -141,6 +146,10 @@ MinimumPresentationIntervalResult CheckMinimumPresentationInterval(
   const MinimumPresentationIntervalResult result = {
     model->status,
     model->min_presentation_interval_satisfy,
+    output_tu_count_before_transition,
+    model->output_tu_count,
+    model->last_display_duration_valid,
+    model->last_display_duration,
   };
   av2_encoder_decoder_model_destroy(model);
   return result;
@@ -180,6 +189,96 @@ TEST(LevelDecoderModelTest, InitialDisplayDelayUsesSequenceSemantics) {
   cpi->common.seq_params.seq_max_initial_display_delay_minus_1 = 2;
   av2_decoder_model_init(cpi.get(), SEQ_LEVEL_4_0, 0, &decoder_model);
   EXPECT_EQ(3, decoder_model.initial_display_delay);
+}
+
+TEST(LevelDecoderModelTest, NewCvsResetPreservesDecoderModelState) {
+  std::unique_ptr<AV2_COMP> cpi(new AV2_COMP());
+  AV2LevelInfo level_info = {};
+  cpi->level_params.level_info[0] = &level_info;
+  cpi->level_params.multi_stream_scaling_x = 1.0;
+  cpi->common.seq_params.ref_frames = 4;
+  cpi->common.seq_params.seq_profile_idc = MAIN_420_10_IP0;
+  cpi->common.seq_params.max_frame_width = 160;
+  cpi->common.seq_params.max_frame_height = 90;
+  cpi->framerate = 30.0;
+  DECODER_MODEL *const model = &level_info.decoder_models[SEQ_LEVEL_4_0];
+  av2_decoder_model_init(cpi.get(), SEQ_LEVEL_4_0, 0, model);
+  ASSERT_EQ(DECODER_MODEL_OK, model->status);
+  model->current_time = 7.0;
+  model->initial_presentation_delay = 6.0;
+  const DFG_INTERVAL interval = { 1.0, 2.0, 3.0, 100 };
+  ASSERT_TRUE(av2_encoder_decoder_model_push_dfg_interval(model, &interval));
+  const DECODER_MODEL before = *model;
+
+  level_info.level_stats.min_cr = 2.0;
+  level_info.level_stats.max_tile_size = 42;
+  level_info.level_spec.level = SEQ_LEVEL_4_0;
+  level_info.level_spec.max_picture_size = 1000;
+  level_info.frame_window_buffer.num = 3;
+  level_info.frame_window_buffer.start = 2;
+
+  av2_reset_level_info_for_new_cvs(cpi.get());
+
+  EXPECT_EQ(0, std::memcmp(&before, model, sizeof(before)));
+  EXPECT_EQ(SEQ_LEVEL_MAX, level_info.level_spec.level);
+  EXPECT_EQ(0, level_info.level_spec.max_picture_size);
+  EXPECT_EQ(INT_MAX, level_info.level_stats.min_cropped_tile_width);
+  EXPECT_EQ(INT_MAX, level_info.level_stats.min_cropped_tile_height);
+  EXPECT_EQ(INT_MAX, level_info.level_stats.min_frame_width);
+  EXPECT_EQ(INT_MAX, level_info.level_stats.min_frame_height);
+  EXPECT_EQ(1, level_info.level_stats.tile_width_is_valid);
+  EXPECT_DOUBLE_EQ(1e8, level_info.level_stats.min_cr);
+  EXPECT_EQ(0, level_info.level_stats.max_tile_size);
+  EXPECT_EQ(0, level_info.frame_window_buffer.num);
+  EXPECT_EQ(0, level_info.frame_window_buffer.start);
+  av2_encoder_decoder_model_destroy(model);
+}
+
+TEST(LevelDecoderModelTest, FirstCvsPreparesModelsThenPreservesThem) {
+  std::unique_ptr<AV2_COMP> cpi(new AV2_COMP());
+  AV2LevelInfo level_info = {};
+  cpi->level_params.level_info[0] = &level_info;
+  cpi->level_params.multi_stream_scaling_x = 1.0;
+  cpi->common.width = 160;
+  cpi->common.height = 90;
+  cpi->common.seq_params.ref_frames = 4;
+  cpi->common.seq_params.seq_profile_idc = MAIN_420_10_IP0;
+  cpi->common.seq_params.max_frame_width = 160;
+  cpi->common.seq_params.max_frame_height = 90;
+  cpi->framerate = 30.0;
+
+  av2_prepare_level_info_for_new_cvs(cpi.get());
+  DECODER_MODEL *const model = &level_info.decoder_models[SEQ_LEVEL_4_0];
+  ASSERT_TRUE(model->initialized);
+  ASSERT_EQ(DECODER_MODEL_OK, model->status);
+  model->current_time = 7.0;
+  const DECODER_MODEL before = *model;
+  level_info.level_stats.max_tile_size = 42;
+
+  av2_prepare_level_info_for_new_cvs(cpi.get());
+
+  EXPECT_EQ(0, std::memcmp(&before, model, sizeof(before)));
+  EXPECT_EQ(0, level_info.level_stats.max_tile_size);
+  av2_encoder_decoder_models_destroy(&level_info);
+}
+
+TEST(LevelDecoderModelTest, BufferPoolInitializationUsesFixedCapacity) {
+  std::unique_ptr<AV2_COMP> cpi(new AV2_COMP());
+  cpi->common.seq_params.ref_frames = 4;
+  cpi->common.seq_params.seq_profile_idc = MAIN_420_10_IP0;
+  cpi->framerate = 30.0;
+
+  DECODER_MODEL model;
+  av2_decoder_model_init(cpi.get(), SEQ_LEVEL_4_0, 0, &model);
+
+  for (int i = 0; i < REF_FRAMES; ++i) EXPECT_EQ(-1, model.vbi[i]);
+  for (int i = 0; i < BUFFER_POOL_MAX_SIZE; ++i) {
+    EXPECT_EQ(0u, model.frame_buffer_pool[i].decoder_ref_count);
+    EXPECT_EQ(0u, model.frame_buffer_pool[i].player_ref_count);
+    EXPECT_EQ(-1, model.frame_buffer_pool[i].display_index);
+    EXPECT_DOUBLE_EQ(-1.0, model.frame_buffer_pool[i].presentation_time);
+  }
+  av2_encoder_decoder_model_destroy(&model);
 }
 
 TEST(LevelDecoderModelTest, AnnexABitrateProfileFactorsAreExact) {
@@ -447,7 +546,7 @@ TEST(LevelDecoderModelTest, UnavailableCandidatesIgnoreLaterHooks) {
   EXPECT_EQ(0, std::memcmp(&before, unavailable, sizeof(before)));
 }
 
-TEST(LevelDecoderModelTest, InvalidReferenceSynchronizationClearsOnlyInvalid) {
+TEST(LevelDecoderModelTest, OlkInvalidationClearsOnlyInvalidActiveSlots) {
   AV2_COMMON cm = {};
   RefCntBuffer retained_reference = {};
   cm.seq_params.ref_frames = 4;
@@ -457,25 +556,105 @@ TEST(LevelDecoderModelTest, InvalidReferenceSynchronizationClearsOnlyInvalid) {
   DECODER_MODEL model = {};
   model.status = DECODER_MODEL_OK;
   model.num_ref_frames = 4;
+  std::fill_n(model.vbi, REF_FRAMES, -1);
   model.vbi[0] = 2;
   model.vbi[1] = 2;
-  model.vbi[2] = -1;
-  model.vbi[3] = -1;
   model.frame_buffer_pool[2].decoder_ref_count = 2;
   model.frame_buffer_pool[2].presentation.valid = true;
   model.frame_buffer_pool[2].presentation.generation = 9;
 
-  ASSERT_TRUE(av2_encoder_decoder_model_sync_invalid_ref_buffers(&cm, &model));
+  model.vbi[7] = 7;
+  model.frame_buffer_pool[7].decoder_ref_count = 1;
+
+  ASSERT_TRUE(
+      av2_encoder_decoder_model_invalidate_ref_buffers(&cm, &model, false));
   EXPECT_EQ(-1, model.vbi[0]);
   EXPECT_EQ(2, model.vbi[1]);
+  EXPECT_EQ(7, model.vbi[7]);
   EXPECT_EQ(1u, model.frame_buffer_pool[2].decoder_ref_count);
+  EXPECT_EQ(1u, model.frame_buffer_pool[7].decoder_ref_count);
   EXPECT_TRUE(model.frame_buffer_pool[2].presentation.valid);
 
   cm.ref_frame_map[1] = nullptr;
-  ASSERT_TRUE(av2_encoder_decoder_model_sync_invalid_ref_buffers(&cm, &model));
+  ASSERT_TRUE(
+      av2_encoder_decoder_model_invalidate_ref_buffers(&cm, &model, false));
   EXPECT_EQ(-1, model.vbi[1]);
   EXPECT_EQ(0u, model.frame_buffer_pool[2].decoder_ref_count);
   EXPECT_FALSE(model.frame_buffer_pool[2].presentation.valid);
+
+  cm.seq_params.ref_frames = 8;
+  model.num_ref_frames = 8;
+  ASSERT_TRUE(
+      av2_encoder_decoder_model_invalidate_ref_buffers(&cm, &model, false));
+  EXPECT_EQ(-1, model.vbi[7]);
+  EXPECT_EQ(0u, model.frame_buffer_pool[7].decoder_ref_count);
+}
+
+TEST(LevelDecoderModelTest, OlkOperatingPointHookPreservesEncoderReferences) {
+  std::unique_ptr<AV2_COMP> cpi(new AV2_COMP());
+  AV2LevelInfo level_info = {};
+  DECODER_MODEL *const model =
+      EnableSingleDecoderModel(&level_info, SEQ_LEVEL_4_0);
+  RefCntBuffer retained_reference = {};
+  cpi->level_params.keep_level_stats = 1;
+  cpi->level_params.level_info[0] = &level_info;
+  cpi->common.seq_params.operating_points_cnt_minus_1 = 0;
+  cpi->common.seq_params.ref_frames = 4;
+  cpi->common.ref_frame_map[0] = nullptr;
+  cpi->common.ref_frame_map[1] = &retained_reference;
+  RefCntBuffer *ref_frame_map_before[REF_FRAMES];
+  std::memcpy(ref_frame_map_before, cpi->common.ref_frame_map,
+              sizeof(ref_frame_map_before));
+
+  model->num_ref_frames = 4;
+  std::fill_n(model->vbi, REF_FRAMES, -1);
+  model->vbi[0] = 2;
+  model->vbi[1] = 2;
+  model->frame_buffer_pool[2].decoder_ref_count = 2;
+
+  av2_decoder_model_invalidate_olk_ref_buffers_for_operating_points(cpi.get());
+
+  EXPECT_EQ(-1, model->vbi[0]);
+  EXPECT_EQ(2, model->vbi[1]);
+  EXPECT_EQ(1u, model->frame_buffer_pool[2].decoder_ref_count);
+  EXPECT_EQ(0, std::memcmp(ref_frame_map_before, cpi->common.ref_frame_map,
+                           sizeof(ref_frame_map_before)));
+}
+
+void ExpectClkInvalidationClearsEveryVbiSlot(int old_num_ref_frames,
+                                             int new_num_ref_frames) {
+  AV2_COMMON cm = {};
+  RefCntBuffer active_reference = {};
+  cm.seq_params.ref_frames = new_num_ref_frames;
+  cm.ref_frame_map[0] = &active_reference;
+  RefCntBuffer *ref_frame_map_before[REF_FRAMES];
+  std::memcpy(ref_frame_map_before, cm.ref_frame_map,
+              sizeof(ref_frame_map_before));
+
+  DECODER_MODEL model = {};
+  model.status = DECODER_MODEL_OK;
+  model.num_ref_frames = old_num_ref_frames;
+  for (int i = 0; i < REF_FRAMES; ++i) {
+    model.vbi[i] = i;
+    model.frame_buffer_pool[i].decoder_ref_count = 1;
+  }
+
+  ASSERT_TRUE(
+      av2_encoder_decoder_model_invalidate_ref_buffers(&cm, &model, true));
+  for (int i = 0; i < REF_FRAMES; ++i) {
+    EXPECT_EQ(-1, model.vbi[i]);
+    EXPECT_EQ(0u, model.frame_buffer_pool[i].decoder_ref_count);
+  }
+  EXPECT_EQ(0, std::memcmp(ref_frame_map_before, cm.ref_frame_map,
+                           sizeof(ref_frame_map_before)));
+}
+
+TEST(LevelDecoderModelTest, ClkInvalidationAllowsDecreasedActiveRange) {
+  ExpectClkInvalidationClearsEveryVbiSlot(8, 4);
+}
+
+TEST(LevelDecoderModelTest, ClkInvalidationAllowsIncreasedActiveRange) {
+  ExpectClkInvalidationClearsEveryVbiSlot(4, 8);
 }
 
 TEST(LevelDecoderModelTest, ReferenceUpdateUsesPostUpdateValidity) {
@@ -557,6 +736,46 @@ TEST(LevelDecoderModelTest, InitialDelayRebasesPreviouslyAssignedTimes) {
   EXPECT_DOUBLE_EQ(5.0, model->initial_presentation_delay);
   EXPECT_DOUBLE_EQ(5.0, model->presentation_time);
   EXPECT_DOUBLE_EQ(5.02, model->frame_buffer_pool[1].presentation_time);
+}
+
+TEST(LevelDecoderModelTest, InitialDelayCountsAndRebasesInactiveBuffer) {
+  std::unique_ptr<AV2_COMP> cpi(new AV2_COMP());
+  AV2LevelInfo level_info = {};
+  DECODER_MODEL *const model =
+      EnableSingleDecoderModel(&level_info, SEQ_LEVEL_4_0);
+  RefCntBuffer current = {};
+
+  cpi->level_params.keep_level_stats = 1;
+  cpi->level_params.level_info[0] = &level_info;
+  cpi->common.seq_params.operating_points_cnt_minus_1 = 0;
+  cpi->common.seq_params.operating_point_idc[0] = 0;
+  cpi->common.seq_params.ref_frames = 4;
+  cpi->common.ref_frame_map[0] = &current;
+  cpi->common.cur_frame = &current;
+  cpi->common.current_frame.refresh_frame_flags = 1;
+
+  model->num_ref_frames = 4;
+  model->cfbi = 4;
+  std::fill_n(model->vbi, REF_FRAMES, -1);
+  model->current_time = 5.0;
+  model->initial_display_delay = 2;
+  model->initial_presentation_delay = -1.0;
+  model->presentation_time = 0.0;
+  FRAME_BUFFER *const inactive =
+      &model->frame_buffer_pool[BUFFER_POOL_MAX_SIZE - 1];
+  inactive->player_ref_count = 1;
+  inactive->display_index = 1;
+  inactive->presentation_time = 0.02;
+  inactive->presentation.valid = true;
+  inactive->presentation.buffer_index = BUFFER_POOL_MAX_SIZE - 1;
+  model->frame_buffer_pool[4].presentation.valid = true;
+  model->frame_buffer_pool[4].presentation.buffer_index = 4;
+
+  av2_decoder_model_update_buffer_and_finish_frame_decode_for_operating_points(
+      cpi.get());
+
+  EXPECT_DOUBLE_EQ(5.0, model->initial_presentation_delay);
+  EXPECT_DOUBLE_EQ(5.02, inactive->presentation_time);
 }
 
 TEST(LevelDecoderModelTest, CapturedGenerationIsPrivateAndRecyclable) {
@@ -1133,6 +1352,10 @@ TEST(LevelDecoderModelTest,
       CheckMinimumPresentationInterval(0, 1.0, 480, 576, 2, interval);
   EXPECT_EQ(DECODER_MODEL_OK, at_limit.status);
   EXPECT_TRUE(at_limit.satisfies);
+  EXPECT_EQ(1u, at_limit.output_tu_count_before_transition);
+  EXPECT_EQ(2u, at_limit.output_tu_count);
+  EXPECT_TRUE(at_limit.last_display_duration_valid);
+  EXPECT_DOUBLE_EQ(interval, at_limit.last_display_duration);
 
   const MinimumPresentationIntervalResult below_limit =
       CheckMinimumPresentationInterval(0, 1.0, 480, 576, 2,
@@ -1630,7 +1853,7 @@ TEST(LevelDecoderModelTest, FinalFrameReusesPreviousExactParsingInterval) {
   EXPECT_EQ(1100, model.max_decode_rate);
 }
 
-TEST(LevelDecoderModelTest, SingleFrameHasNoSubstituteParsingTime) {
+TEST(LevelDecoderModelTest, SingleFrameNeedsNoSubstituteParsingTime) {
   DECODER_MODEL model = MakeFrameConstraintModel();
   const ENCODER_DECODER_MODEL_FRAME frame = {
     true, 1.0, 1000, 1, 1, 1, 1,
@@ -1638,6 +1861,22 @@ TEST(LevelDecoderModelTest, SingleFrameHasNoSubstituteParsingTime) {
   ASSERT_TRUE(
       av2_encoder_decoder_model_store_frame_constraints(&model, &frame, false));
   av2_encoder_decoder_model_finalize_frame_constraints(&model, false);
+  EXPECT_EQ(DECODER_MODEL_OK, model.status);
+  EXPECT_EQ(1u, model.applicable_dfg_count);
+  EXPECT_EQ(0.0L, model.max_decode_rate);
+}
+
+TEST(LevelDecoderModelTest, MultipleFramesRequireLocalParsingTime) {
+  DECODER_MODEL model = MakeFrameConstraintModel();
+  const ENCODER_DECODER_MODEL_FRAME frame = {
+    true, 1.0, 1000, 1, 1, 1, 1,
+  };
+  ASSERT_TRUE(
+      av2_encoder_decoder_model_store_frame_constraints(&model, &frame, false));
+  model.applicable_dfg_count = 2;
+
+  av2_encoder_decoder_model_finalize_frame_constraints(&model, false);
+
   EXPECT_EQ(DECODER_MODEL_INCOMPLETE, model.status);
 }
 
@@ -1646,6 +1885,7 @@ TEST(LevelDecoderModelTest, FinalTemporalUnitReusesPreviousDuration) {
   model.display_samples = 1001;
   model.last_display_duration = 1.0;
   model.last_display_duration_valid = true;
+  model.output_tu_count = 2;
 
   av2_encoder_decoder_model_finalize(&model, false);
   EXPECT_EQ(DECODER_MODEL_OK, model.status);
@@ -1657,11 +1897,24 @@ TEST(LevelDecoderModelTest, FinalTemporalUnitReusesPreviousDuration) {
   EXPECT_EQ(1001.0L, model.max_display_rate);
 }
 
-TEST(LevelDecoderModelTest, NonStillSingleTemporalUnitIsIncomplete) {
+TEST(LevelDecoderModelTest, NonStillSingleTemporalUnitNeedsNoDuration) {
   DECODER_MODEL model = MakeFrameConstraintModel();
   model.display_samples = 1000;
+  model.output_tu_count = 1;
 
   av2_encoder_decoder_model_finalize(&model, false);
+  EXPECT_EQ(DECODER_MODEL_OK, model.status);
+  EXPECT_TRUE(model.finalized);
+  EXPECT_EQ(0.0L, model.max_display_rate);
+}
+
+TEST(LevelDecoderModelTest, MultipleTemporalUnitsRequireLocalDuration) {
+  DECODER_MODEL model = MakeFrameConstraintModel();
+  model.display_samples = 1000;
+  model.output_tu_count = 2;
+
+  av2_encoder_decoder_model_finalize(&model, false);
+
   EXPECT_EQ(DECODER_MODEL_INCOMPLETE, model.status);
   EXPECT_TRUE(model.finalized);
 }
@@ -1690,12 +1943,159 @@ TEST(LevelDecoderModelTest, OperatingPointFinishIsIdempotent) {
   model->display_samples = 1000;
   model->last_display_duration = 0.5;
   model->last_display_duration_valid = true;
+  model->output_tu_count = 2;
 
   av2_encoder_decoder_model_finish_for_operating_points(cpi.get());
   EXPECT_TRUE(model->finalized);
   EXPECT_EQ(2000.0L, model->max_display_rate);
   av2_encoder_decoder_model_finish_for_operating_points(cpi.get());
   EXPECT_EQ(2000.0L, model->max_display_rate);
+}
+
+TEST(LevelDecoderModelTest, FinishRebasesEveryPlayerOwnedBuffer) {
+  std::unique_ptr<AV2_COMP> cpi(new AV2_COMP());
+  AV2LevelInfo level_info = {};
+  cpi->level_params.keep_level_stats = 1;
+  cpi->level_params.level_info[0] = &level_info;
+  DECODER_MODEL *const model = &level_info.decoder_models[SEQ_LEVEL_4_0];
+  *model = MakeFrameConstraintModel();
+  model->is_still_picture = true;
+  model->current_time = 5.0;
+  model->initial_display_delay = 10;
+  model->initial_presentation_delay = -1.0;
+  model->presentation_time = 0.04;
+  FRAME_BUFFER *const active = &model->frame_buffer_pool[1];
+  active->player_ref_count = 1;
+  active->display_index = 0;
+  active->presentation_time = 0.02;
+  FRAME_BUFFER *const inactive =
+      &model->frame_buffer_pool[BUFFER_POOL_MAX_SIZE - 1];
+  inactive->player_ref_count = 1;
+  inactive->display_index = 1;
+  inactive->presentation_time = 0.04;
+
+  av2_encoder_decoder_model_finish_for_operating_points(cpi.get());
+
+  EXPECT_EQ(DECODER_MODEL_OK, model->status);
+  EXPECT_TRUE(model->finalized);
+  EXPECT_DOUBLE_EQ(5.0, model->initial_presentation_delay);
+  EXPECT_DOUBLE_EQ(5.04, model->presentation_time);
+  EXPECT_DOUBLE_EQ(5.02, active->presentation_time);
+  EXPECT_DOUBLE_EQ(5.04, inactive->presentation_time);
+}
+
+TEST(LevelDecoderModelTest, FinishPreservesKnownInitialDelay) {
+  std::unique_ptr<AV2_COMP> cpi(new AV2_COMP());
+  AV2LevelInfo level_info = {};
+  cpi->level_params.keep_level_stats = 1;
+  cpi->level_params.level_info[0] = &level_info;
+  DECODER_MODEL *const model = &level_info.decoder_models[SEQ_LEVEL_4_0];
+  *model = MakeFrameConstraintModel();
+  model->is_still_picture = true;
+  model->current_time = 5.0;
+  model->initial_presentation_delay = 3.0;
+  model->presentation_time = 3.04;
+  FRAME_BUFFER *const buffer = &model->frame_buffer_pool[1];
+  buffer->player_ref_count = 1;
+  buffer->display_index = 0;
+  buffer->presentation_time = 3.02;
+
+  av2_encoder_decoder_model_finish_for_operating_points(cpi.get());
+  av2_encoder_decoder_model_finish_for_operating_points(cpi.get());
+
+  EXPECT_EQ(DECODER_MODEL_OK, model->status);
+  EXPECT_TRUE(model->finalized);
+  EXPECT_DOUBLE_EQ(3.0, model->initial_presentation_delay);
+  EXPECT_DOUBLE_EQ(3.04, model->presentation_time);
+  EXPECT_DOUBLE_EQ(3.02, buffer->presentation_time);
+}
+
+TEST(LevelDecoderModelTest, FinishSetsDelayBeforeImplicitFlushAndFinalChecks) {
+  std::unique_ptr<AV2_COMP> cpi(new AV2_COMP());
+  AV2LevelInfo level_info = {};
+  cpi->level_params.keep_level_stats = 1;
+  cpi->level_params.level_info[0] = &level_info;
+  cpi->common.seq_params.ref_frames = 4;
+  cpi->common.seq_params.max_frame_width = 160;
+  cpi->common.seq_params.max_frame_height = 90;
+  DECODER_MODEL *const model =
+      EnableSingleDecoderModel(&level_info, SEQ_LEVEL_4_0);
+  model->initialized = true;
+  model->num_ref_frames = 4;
+  std::fill_n(model->vbi, REF_FRAMES, -1);
+  model->vbi[0] = 1;
+  model->current_time = 5.0;
+  model->initial_display_delay = 10;
+  model->initial_presentation_delay = -1.0;
+  model->equal_picture_interval = true;
+  model->display_clock_tick = 0.02;
+  model->num_ticks_per_picture = 1;
+  model->num_shown_frame = -1;
+  model->last_display_index = -1;
+  model->last_output_mlayer = -1;
+  model->last_output_xlayer = -1;
+  model->frame_buffer_pool[1].decoder_ref_count = 1;
+  SetPresentation(model, 1, 0, 0);
+
+  av2_encoder_decoder_model_finish_for_operating_points(cpi.get());
+
+  EXPECT_DOUBLE_EQ(5.0, model->initial_presentation_delay);
+  EXPECT_TRUE(model->frame_buffer_pool[1].presentation.normative_output_done);
+  EXPECT_EQ(1u, model->frame_buffer_pool[1].player_ref_count);
+  EXPECT_DOUBLE_EQ(5.0, model->frame_buffer_pool[1].presentation_time);
+  EXPECT_EQ(160u * 90u, model->display_samples);
+  EXPECT_EQ(1u, model->output_tu_count);
+  EXPECT_TRUE(model->finalized);
+  EXPECT_EQ(DECODER_MODEL_OK, model->status);
+  const int64_t shown_frames = model->num_shown_frame;
+  const uint32_t player_ref_count =
+      model->frame_buffer_pool[1].player_ref_count;
+
+  av2_encoder_decoder_model_finish_for_operating_points(cpi.get());
+
+  EXPECT_EQ(DECODER_MODEL_OK, model->status);
+  EXPECT_EQ(shown_frames, model->num_shown_frame);
+  EXPECT_EQ(player_ref_count, model->frame_buffer_pool[1].player_ref_count);
+  EXPECT_DOUBLE_EQ(5.0, model->initial_presentation_delay);
+}
+
+TEST(LevelDecoderModelTest, FinishSetsDelayBeforeImplicitDeadlineCheck) {
+  std::unique_ptr<AV2_COMP> cpi(new AV2_COMP());
+  AV2LevelInfo level_info = {};
+  cpi->level_params.keep_level_stats = 1;
+  cpi->level_params.level_info[0] = &level_info;
+  cpi->common.seq_params.ref_frames = 4;
+  cpi->common.seq_params.max_frame_width = 160;
+  cpi->common.seq_params.max_frame_height = 90;
+  DECODER_MODEL *const model =
+      EnableSingleDecoderModel(&level_info, SEQ_LEVEL_4_0);
+  model->initialized = true;
+  model->num_ref_frames = 4;
+  std::fill_n(model->vbi, REF_FRAMES, -1);
+  model->vbi[0] = 1;
+  model->current_time = 5.0;
+  model->initial_display_delay = 10;
+  model->initial_presentation_delay = -1.0;
+  model->equal_picture_interval = true;
+  model->display_clock_tick = 0.02;
+  model->num_ticks_per_picture = 1;
+  model->num_shown_frame = -1;
+  model->last_display_index = -1;
+  model->last_output_mlayer = -1;
+  model->last_output_xlayer = -1;
+  model->frame_buffer_pool[1].decoder_ref_count = 1;
+  SetPresentation(model, 1, 0, 0);
+  model->frame_buffer_pool[1].presentation.decode_completion_time = 6.0;
+
+  av2_encoder_decoder_model_finish_for_operating_points(cpi.get());
+
+  // The pending output can prove this violation only if the end-of-input
+  // delay is established before the model-only implicit flush.
+  EXPECT_DOUBLE_EQ(5.0, model->initial_presentation_delay);
+  EXPECT_TRUE(model->frame_buffer_pool[1].presentation.normative_output_done);
+  EXPECT_DOUBLE_EQ(5.0, model->frame_buffer_pool[1].presentation_time);
+  EXPECT_EQ(DISPLAY_FRAME_LATE, model->status);
+  EXPECT_TRUE(model->finalized);
 }
 
 TEST(LevelDecoderModelTest, FinishThenResetStartsNewCvsModel) {
@@ -1714,6 +2114,7 @@ TEST(LevelDecoderModelTest, FinishThenResetStartsNewCvsModel) {
   model->display_samples = 1000;
   model->last_display_duration = 0.5;
   model->last_display_duration_valid = true;
+  model->output_tu_count = 2;
 
   av2_encoder_decoder_model_finish_for_operating_points(cpi.get());
   ASSERT_TRUE(model->finalized);

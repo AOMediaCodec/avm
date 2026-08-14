@@ -417,6 +417,14 @@ enum avm_dec_control_id {
    * compressed input is submitted.
    */
   AV2D_SET_DECODER_MODEL_CHECK_MODE,
+
+  /*!\brief Codec control function to select whether decoder-model conformance
+   * checking covers every random access point, int parameter.
+   *
+   * Valid values are 0 and 1. The default is 1. The value must be set before
+   * compressed input is submitted.
+   */
+  AV2D_SET_DECODER_MODEL_CHECK_EVERY_RAP,
 };
 
 /*!\cond */
@@ -531,6 +539,9 @@ AVM_CTRL_USE_TYPE(AV2D_SET_OUTPUT_ALL_LAYERS, int)
 AVM_CTRL_USE_TYPE(AV2D_SET_DECODER_MODEL_CHECK_MODE,
                   avm_decoder_model_check_mode_t)
 #define AVM_CTRL_AV2D_SET_DECODER_MODEL_CHECK_MODE
+
+AVM_CTRL_USE_TYPE(AV2D_SET_DECODER_MODEL_CHECK_EVERY_RAP, int)
+#define AVM_CTRL_AV2D_SET_DECODER_MODEL_CHECK_EVERY_RAP
 
 AVM_CTRL_USE_TYPE(AV2_SET_INSPECTION_CALLBACK, avm_inspect_init *)
 #define AVM_CTRL_AV2_SET_INSPECTION_CALLBACK

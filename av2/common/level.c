@@ -871,11 +871,10 @@ static void release_buffer(DECODER_MODEL *const decoder_model, int idx) {
 }
 
 static void initialize_buffer_pool(DECODER_MODEL *const decoder_model) {
-  const int num_ref_frames = decoder_model->num_ref_frames;
-  for (int i = 0; i < num_ref_frames + 2; ++i) {
+  for (int i = 0; i < BUFFER_POOL_MAX_SIZE; ++i) {
     release_buffer(decoder_model, i);
   }
-  for (int i = 0; i < num_ref_frames; ++i) {
+  for (int i = 0; i < REF_FRAMES; ++i) {
     decoder_model->vbi[i] = -1;
   }
 }
@@ -893,7 +892,7 @@ static int get_free_buffer(DECODER_MODEL *const decoder_model) {
 
 static bool release_decoder_reference(DECODER_MODEL *const decoder_model,
                                       int buffer_index) {
-  if (buffer_index < 0 || buffer_index >= decoder_model->num_ref_frames + 2) {
+  if (buffer_index < 0 || buffer_index >= BUFFER_POOL_MAX_SIZE) {
     return false;
   }
   FRAME_BUFFER *const buffer = &decoder_model->frame_buffer_pool[buffer_index];
@@ -905,20 +904,26 @@ static bool release_decoder_reference(DECODER_MODEL *const decoder_model,
   return true;
 }
 
-bool av2_encoder_decoder_model_sync_invalid_ref_buffers(
-    const AV2_COMMON *const cm, DECODER_MODEL *const decoder_model) {
+bool av2_encoder_decoder_model_invalidate_ref_buffers(
+    const AV2_COMMON *const cm, DECODER_MODEL *const decoder_model,
+    bool closed_loop_key) {
   if (cm == NULL || decoder_model == NULL ||
       decoder_model->status != DECODER_MODEL_OK) {
     return false;
   }
   if (decoder_model->num_ref_frames < 1 ||
       decoder_model->num_ref_frames > REF_FRAMES ||
-      cm->seq_params.ref_frames != decoder_model->num_ref_frames) {
+      cm->seq_params.ref_frames < 1 || cm->seq_params.ref_frames > REF_FRAMES ||
+      (!closed_loop_key &&
+       cm->seq_params.ref_frames != decoder_model->num_ref_frames)) {
     decoder_model->status = DECODER_MODEL_INTERNAL_ERROR;
     return false;
   }
-  for (int i = 0; i < decoder_model->num_ref_frames; ++i) {
-    if (cm->ref_frame_map[i] == NULL && decoder_model->vbi[i] != -1) {
+  const int limit =
+      closed_loop_key ? REF_FRAMES : decoder_model->num_ref_frames;
+  for (int i = 0; i < limit; ++i) {
+    if ((closed_loop_key || cm->ref_frame_map[i] == NULL) &&
+        decoder_model->vbi[i] != -1) {
       if (!release_decoder_reference(decoder_model, decoder_model->vbi[i])) {
         decoder_model->status = DECODER_MODEL_INTERNAL_ERROR;
         return false;
@@ -927,6 +932,30 @@ bool av2_encoder_decoder_model_sync_invalid_ref_buffers(
     }
   }
   return true;
+}
+
+void av2_decoder_model_invalidate_olk_ref_buffers_for_operating_points(
+    const AV2_COMP *const cpi) {
+  if (cpi == NULL || !cpi->level_params.keep_level_stats ||
+      is_stat_generation_stage(cpi)) {
+    return;
+  }
+  const AV2LevelParams *const level_params = &cpi->level_params;
+  const SequenceHeader *const seq_params = &cpi->common.seq_params;
+  for (int op = 0; op < seq_params->operating_points_cnt_minus_1 + 1; ++op) {
+    if (!((level_params->keep_level_stats >> op) & 1) ||
+        level_params->level_info[op] == NULL) {
+      continue;
+    }
+    DECODER_MODEL *const decoder_models =
+        level_params->level_info[op]->decoder_models;
+    for (AV2_LEVEL level = SEQ_LEVEL_2_0; level < SEQ_LEVELS; ++level) {
+      DECODER_MODEL *const decoder_model = &decoder_models[level];
+      if (decoder_model->status != DECODER_MODEL_OK) continue;
+      av2_encoder_decoder_model_invalidate_ref_buffers(&cpi->common,
+                                                       decoder_model, false);
+    }
+  }
 }
 
 static bool capture_presentation_descriptor(
@@ -1133,7 +1162,7 @@ static double time_to_decode_frame(const AV2_COMMON *const cm,
 // It corresponds to "start_decode_at_removal_time" in the spec.
 static void release_processed_frames(DECODER_MODEL *const decoder_model,
                                      double removal_time) {
-  for (int i = 0; i < decoder_model->num_ref_frames + 2; ++i) {
+  for (int i = 0; i < BUFFER_POOL_MAX_SIZE; ++i) {
     FRAME_BUFFER *const this_buffer = &decoder_model->frame_buffer_pool[i];
     if (this_buffer->player_ref_count > 0) {
       // Presentation offsets assigned before the initial delay is known are
@@ -1152,7 +1181,7 @@ static void release_processed_frames(DECODER_MODEL *const decoder_model,
 
 static int frames_in_buffer_pool(const DECODER_MODEL *const decoder_model) {
   int frames_in_pool = 0;
-  for (int i = 0; i < decoder_model->num_ref_frames + 2; ++i) {
+  for (int i = 0; i < BUFFER_POOL_MAX_SIZE; ++i) {
     const FRAME_BUFFER *const this_buffer =
         &decoder_model->frame_buffer_pool[i];
     if (this_buffer->decoder_ref_count > 0 ||
@@ -1161,6 +1190,36 @@ static int frames_in_buffer_pool(const DECODER_MODEL *const decoder_model) {
     }
   }
   return frames_in_pool;
+}
+
+// This corresponds to "set_initial_presentation_delay" in the spec.
+static void decoder_model_set_initial_presentation_delay(
+    DECODER_MODEL *const decoder_model, bool end_of_bitstream,
+    bool show_existing_frame) {
+  if (decoder_model == NULL || decoder_model->status != DECODER_MODEL_OK ||
+      decoder_model->initial_presentation_delay >= 0.0 ||
+      (!end_of_bitstream &&
+       (show_existing_frame || frames_in_buffer_pool(decoder_model) <
+                                   decoder_model->initial_display_delay))) {
+    return;
+  }
+
+  decoder_model->initial_presentation_delay = decoder_model->current_time;
+  if (decoder_model->presentation_time >= 0.0) {
+    decoder_model->presentation_time +=
+        decoder_model->initial_presentation_delay;
+  }
+  // Presentation times in every physical buffer are provisional until the
+  // initial delay is known, including buffers outside the active range.
+  for (int i = 0; i < BUFFER_POOL_MAX_SIZE; ++i) {
+    FRAME_BUFFER *const this_buffer = &decoder_model->frame_buffer_pool[i];
+    if (this_buffer->player_ref_count == 0) continue;
+    assert(this_buffer->display_index >= 0);
+    if (this_buffer->presentation_time >= 0.0) {
+      this_buffer->presentation_time +=
+          decoder_model->initial_presentation_delay;
+    }
+  }
 }
 
 #define MAX_TIME 1e16
@@ -1238,6 +1297,24 @@ void av2_decoder_model_init(const AV2_COMP *const cpi, AV2_LEVEL level,
   const AV2_COMMON *const cm = &cpi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
   decoder_model->is_still_picture = seq_params->still_picture;
+  decoder_model->configured_operating_point_count =
+      seq_params->operating_points_cnt_minus_1 + 1;
+  decoder_model->configured_operating_point_idc =
+      seq_params->operating_point_idc[op_index];
+  decoder_model->configuration_snapshot_valid = true;
+  decoder_model->configured_profile = seq_params->seq_profile_idc;
+  decoder_model->configured_max_frame_width = seq_params->max_frame_width;
+  decoder_model->configured_max_frame_height = seq_params->max_frame_height;
+  decoder_model->configured_max_mlayer_id = seq_params->max_mlayer_id;
+  decoder_model->configured_number_xlayers = cm->number_xlayers;
+  decoder_model->configured_timing_info_present =
+      cm->ci_params_encoder.ci_timing_info_present_flag != 0;
+  if (decoder_model->configured_timing_info_present) {
+    decoder_model->configured_num_units_in_display_tick =
+        cm->ci_params_encoder.timing_info.num_units_in_display_tick;
+    decoder_model->configured_time_scale =
+        cm->ci_params_encoder.timing_info.time_scale;
+  }
   uint32_t scale_numerator;
   uint32_t scale_denominator;
   Av2DmRational bit_rate;
@@ -1606,6 +1683,10 @@ bool av2_encoder_decoder_model_store_frame_constraints(
     }
     return false;
   }
+  if (decoder_model->applicable_dfg_count == UINT64_MAX) {
+    decoder_model->status = DECODER_MODEL_INTERNAL_ERROR;
+    return false;
+  }
 
   if (decoder_model->pending_frame.valid) {
     const double frame_parsing_time =
@@ -1627,6 +1708,7 @@ bool av2_encoder_decoder_model_store_frame_constraints(
   }
 
   decoder_model->pending_frame = *current_frame;
+  ++decoder_model->applicable_dfg_count;
   decoder_model->frame_constraints_finalized = false;
   return true;
 }
@@ -1640,6 +1722,7 @@ void av2_encoder_decoder_model_finalize_frame_constraints(
   }
   decoder_model->frame_constraints_finalized = true;
   if (is_still_picture || !decoder_model->pending_frame.valid) return;
+  if (decoder_model->applicable_dfg_count == 1) return;
   if (!decoder_model->last_frame_parsing_time_valid) {
     decoder_model->status = DECODER_MODEL_INCOMPLETE;
     return;
@@ -1675,9 +1758,12 @@ static bool get_minimum_presentation_interval(
   }
 
   const SequenceHeader *const seq_params = &cpi->common.seq_params;
+  const BITSTREAM_PROFILE profile = decoder_model->configuration_snapshot_valid
+                                        ? decoder_model->configured_profile
+                                        : seq_params->seq_profile_idc;
   Av2DmLevelLimits limits;
   if (!av2_dm_get_level_limits(decoder_model->level, decoder_model->tier,
-                               seq_params->seq_profile_idc, &limits)) {
+                               profile, &limits)) {
     return false;
   }
   const uint32_t scale_numerator = decoder_model->multistream_scale_numerator;
@@ -1686,20 +1772,27 @@ static bool get_minimum_presentation_interval(
   if (scale_numerator == 0 || scale_denominator == 0 ||
       (scale_numerator != scale_denominator &&
        !av2_dm_apply_multistream_limits(
-           decoder_model->level, decoder_model->tier,
-           seq_params->seq_profile_idc, scale_numerator, scale_denominator,
-           &limits))) {
+           decoder_model->level, decoder_model->tier, profile, scale_numerator,
+           scale_denominator, &limits))) {
     return false;
   }
 
-  if (seq_params->max_frame_width <= 0 || seq_params->max_frame_height <= 0 ||
+  const int configured_max_frame_width =
+      decoder_model->configuration_snapshot_valid
+          ? decoder_model->configured_max_frame_width
+          : seq_params->max_frame_width;
+  const int configured_max_frame_height =
+      decoder_model->configuration_snapshot_valid
+          ? decoder_model->configured_max_frame_height
+          : seq_params->max_frame_height;
+  if (configured_max_frame_width <= 0 || configured_max_frame_height <= 0 ||
       decoder_model->num_frames_current_tu == 0 ||
       limits.max_display_rate == 0 || limits.max_decode_rate == 0 ||
       limits.max_header_rate == 0) {
     return false;
   }
-  const uint64_t max_frame_width = (uint32_t)seq_params->max_frame_width;
-  const uint64_t max_frame_height = (uint32_t)seq_params->max_frame_height;
+  const uint64_t max_frame_width = (uint32_t)configured_max_frame_width;
+  const uint64_t max_frame_height = (uint32_t)configured_max_frame_height;
   if (max_frame_width > UINT64_MAX / max_frame_height) return false;
   const uint64_t max_frame_samples = max_frame_width * max_frame_height;
   if (max_frame_samples > UINT64_MAX / decoder_model->num_frames_current_tu) {
@@ -1737,6 +1830,7 @@ void av2_encoder_decoder_model_finalize(DECODER_MODEL *decoder_model,
       decoder_model->display_samples == 0) {
     return;
   }
+  if (decoder_model->output_tu_count == 1) return;
   if (!decoder_model->last_display_duration_valid) {
     decoder_model->status = DECODER_MODEL_INCOMPLETE;
     return;
@@ -1745,6 +1839,81 @@ void av2_encoder_decoder_model_finalize(DECODER_MODEL *decoder_model,
                                decoder_model->last_display_duration)) {
     decoder_model->status = DECODER_MODEL_INTERNAL_ERROR;
   }
+}
+
+static bool decoder_model_configuration_is_compatible(
+    const DECODER_MODEL *const current,
+    const DECODER_MODEL *const replacement) {
+  return current->level == replacement->level &&
+         current->operating_point == replacement->operating_point &&
+         current->is_still_picture == replacement->is_still_picture &&
+         current->configured_operating_point_count ==
+             replacement->configured_operating_point_count &&
+         current->configured_operating_point_idc ==
+             replacement->configured_operating_point_idc &&
+         current->configured_max_frame_width ==
+             replacement->configured_max_frame_width &&
+         current->configured_max_frame_height ==
+             replacement->configured_max_frame_height &&
+         current->configured_max_mlayer_id ==
+             replacement->configured_max_mlayer_id &&
+         current->configured_number_xlayers ==
+             replacement->configured_number_xlayers &&
+         current->configured_timing_info_present ==
+             replacement->configured_timing_info_present &&
+         current->configured_num_units_in_display_tick ==
+             replacement->configured_num_units_in_display_tick &&
+         current->configured_time_scale == replacement->configured_time_scale &&
+         current->equal_picture_interval ==
+             replacement->equal_picture_interval &&
+         current->num_ticks_per_picture == replacement->num_ticks_per_picture &&
+         current->display_clock_tick == replacement->display_clock_tick;
+}
+
+static bool update_decoder_model_parameters_at_clk(
+    const AV2_COMP *const cpi, DECODER_MODEL *const decoder_model) {
+  for (int i = 0; i < REF_FRAMES; ++i) {
+    if (decoder_model->vbi[i] != -1) {
+      decoder_model->status = DECODER_MODEL_INCOMPLETE;
+      return false;
+    }
+  }
+
+  DECODER_MODEL replacement;
+  av2_decoder_model_init(cpi, decoder_model->level,
+                         decoder_model->operating_point, &replacement);
+  if (replacement.status != DECODER_MODEL_OK || !replacement.initialized) {
+    decoder_model->status = DECODER_MODEL_INCOMPLETE;
+    return false;
+  }
+  if (!decoder_model_configuration_is_compatible(decoder_model, &replacement)) {
+    decoder_model->status = DECODER_MODEL_UNSUPPORTED;
+    return false;
+  }
+
+  decoder_model->tier = replacement.tier;
+  decoder_model->configured_profile = replacement.configured_profile;
+  decoder_model->level_limits = replacement.level_limits;
+  decoder_model->encoder_buffer_delay = replacement.encoder_buffer_delay;
+  decoder_model->decoder_buffer_delay = replacement.decoder_buffer_delay;
+  decoder_model->multistream_scale_numerator =
+      replacement.multistream_scale_numerator;
+  decoder_model->multistream_scale_denominator =
+      replacement.multistream_scale_denominator;
+  decoder_model->decode_rate = replacement.decode_rate;
+  decoder_model->bit_rate = replacement.bit_rate;
+  decoder_model->buffer_size = replacement.buffer_size;
+  decoder_model->mode = replacement.mode;
+  decoder_model->is_low_delay_mode = replacement.is_low_delay_mode;
+  decoder_model->num_ref_frames = replacement.num_ref_frames;
+
+  decoder_model->first_bit_arrival_time = 0.0;
+  decoder_model->last_bit_arrival_time = 0.0;
+  decoder_model->dfg_interval_queue.head = 0;
+  decoder_model->dfg_interval_queue.size = 0;
+  decoder_model->dfg_interval_queue.total_interval = 0.0;
+  decoder_model->dfg_interval_queue.total_bits = 0;
+  return true;
 }
 
 static void av2_decoder_model_start_frame_decode(
@@ -1756,7 +1925,15 @@ static void av2_decoder_model_start_frame_decode(
 
   const AV2_COMMON *const cm = &cpi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
-  if (!av2_encoder_decoder_model_sync_invalid_ref_buffers(cm, decoder_model)) {
+  const bool closed_loop_key =
+      cm->current_frame.cm_obu_type == OBU_CLOSED_LOOP_KEY &&
+      cpi->dm_starts_temporal_unit;
+  if (closed_loop_key && !av2_encoder_decoder_model_invalidate_ref_buffers(
+                             cm, decoder_model, true)) {
+    return;
+  }
+  if (closed_loop_key &&
+      !update_decoder_model_parameters_at_clk(cpi, decoder_model)) {
     return;
   }
   if (cpi->dm_starts_temporal_unit) {
@@ -1955,27 +2132,10 @@ static void av2_decoder_model_update_buffer_and_finish_frame_decode(
       return;
     }
 
-    if (decoder_model->initial_presentation_delay < 0.0) {
-      // Display can begin after required number of frames have been buffered.
-      if (frames_in_buffer_pool(decoder_model) >=
-          decoder_model->initial_display_delay) {
-        decoder_model->initial_presentation_delay = decoder_model->current_time;
-        if (decoder_model->presentation_time >= 0.0)
-          decoder_model->presentation_time +=
-              decoder_model->initial_presentation_delay;
-        // Update presentation time for each shown frame in the frame buffer.
-        for (int i = 0; i < decoder_model->num_ref_frames + 2; ++i) {
-          FRAME_BUFFER *const this_buffer =
-              &decoder_model->frame_buffer_pool[i];
-          if (this_buffer->player_ref_count == 0) continue;
-          assert(this_buffer->display_index >= 0);
-          if (this_buffer->presentation_time >= 0.0) {
-            this_buffer->presentation_time +=
-                decoder_model->initial_presentation_delay;
-          }
-        }
-      }
-    }
+    // Display can begin after the required number of frames have been
+    // buffered.
+    decoder_model_set_initial_presentation_delay(decoder_model, false,
+                                                 show_existing_frame);
   }
 }
 void av2_decoder_model_update_buffer_and_finish_frame_decode_for_operating_points(
@@ -2167,6 +2327,14 @@ static void av2_decoder_model_check_output_frame(
       decoder_model->last_output_temporal_unit_valid &&
       presentation->temporal_unit_index !=
           decoder_model->last_output_temporal_unit;
+  if (!decoder_model->last_output_temporal_unit_valid ||
+      starts_new_output_temporal_unit) {
+    if (decoder_model->output_tu_count == UINT64_MAX) {
+      decoder_model->status = DECODER_MODEL_INTERNAL_ERROR;
+      return;
+    }
+    ++decoder_model->output_tu_count;
+  }
   const uint64_t output_rap_epoch =
       presentation->leading_frame && presentation->rap_epoch != 0
           ? presentation->rap_epoch - 1
@@ -2577,6 +2745,20 @@ void av2_encoder_decoder_model_finish_for_operating_points(
       is_stat_generation_stage(cpi)) {
     return;
   }
+  for (int op = 0; op < MAX_NUM_OPERATING_POINTS; ++op) {
+    if (!((cpi->level_params.keep_level_stats >> op) & 1) ||
+        cpi->level_params.level_info[op] == NULL) {
+      continue;
+    }
+    DECODER_MODEL *const decoder_models =
+        cpi->level_params.level_info[op]->decoder_models;
+    for (AV2_LEVEL level = SEQ_LEVEL_2_0; level < SEQ_LEVELS; ++level) {
+      if (decoder_models[level].initialized) {
+        decoder_model_set_initial_presentation_delay(&decoder_models[level],
+                                                     true, false);
+      }
+    }
+  }
   av2_decoder_model_flush_implicit_output_for_operating_points(cpi, false);
   for (int op = 0; op < MAX_NUM_OPERATING_POINTS; ++op) {
     if (!((cpi->level_params.keep_level_stats >> op) & 1) ||
@@ -2586,9 +2768,8 @@ void av2_encoder_decoder_model_finish_for_operating_points(
     DECODER_MODEL *const decoder_models =
         cpi->level_params.level_info[op]->decoder_models;
     for (AV2_LEVEL level = SEQ_LEVEL_2_0; level < SEQ_LEVELS; ++level) {
-      DECODER_MODEL *const decoder_model = &decoder_models[level];
-      av2_encoder_decoder_model_finalize(decoder_model,
-                                         decoder_model->is_still_picture);
+      av2_encoder_decoder_model_finalize(
+          &decoder_models[level], decoder_models[level].is_still_picture);
     }
   }
 }
@@ -2603,27 +2784,46 @@ int level_to_sub_stream_level_index(AV2_LEVEL level, double scaling_factor_x) {
   return 3 * level_base + offset;
 }
 
+static void reset_non_model_level_info(AV2LevelInfo *const level_info) {
+  memset(&level_info->level_stats, 0, sizeof(level_info->level_stats));
+  memset(&level_info->level_spec, 0, sizeof(level_info->level_spec));
+  memset(&level_info->frame_window_buffer, 0,
+         sizeof(level_info->frame_window_buffer));
+
+  level_info->level_spec.level = SEQ_LEVEL_MAX;
+  level_info->level_stats.min_cropped_tile_width = INT_MAX;
+  level_info->level_stats.min_cropped_tile_height = INT_MAX;
+  level_info->level_stats.min_frame_width = INT_MAX;
+  level_info->level_stats.min_frame_height = INT_MAX;
+  level_info->level_stats.tile_width_is_valid = 1;
+  level_info->level_stats.min_cr = 1e8;
+}
+
+void av2_reset_level_info_for_new_cvs(AV2_COMP *cpi) {
+  for (int op_index = 0; op_index < MAX_NUM_OPERATING_POINTS; ++op_index) {
+    AV2LevelInfo *const level_info = cpi->level_params.level_info[op_index];
+    if (level_info != NULL) reset_non_model_level_info(level_info);
+  }
+}
+
+static bool level_info_has_model_state(const AV2LevelInfo *level_info) {
+  if (level_info == NULL) return false;
+  for (AV2_LEVEL level = SEQ_LEVEL_2_0; level < SEQ_LEVELS; ++level) {
+    const DECODER_MODEL *const model = &level_info->decoder_models[level];
+    if (model->initialized || model->status != DECODER_MODEL_OK) return true;
+  }
+  return false;
+}
+
 void av2_init_level_info(AV2_COMP *cpi) {
   for (int op_index = 0; op_index < MAX_NUM_OPERATING_POINTS; ++op_index) {
     AV2LevelInfo *const this_level_info =
         cpi->level_params.level_info[op_index];
     if (!this_level_info) continue;
     av2_encoder_decoder_models_destroy(this_level_info);
-    memset(this_level_info, 0, sizeof(*this_level_info));
-    AV2LevelSpec *const level_spec = &this_level_info->level_spec;
-    level_spec->level = SEQ_LEVEL_MAX;
-    AV2LevelStats *const level_stats = &this_level_info->level_stats;
-    level_stats->min_cropped_tile_width = INT_MAX;
-    level_stats->min_cropped_tile_height = INT_MAX;
-    level_stats->min_frame_width = INT_MAX;
-    level_stats->min_frame_height = INT_MAX;
-    level_stats->tile_width_is_valid = 1;
-    level_stats->min_cr = 1e8;
-
-    FrameWindowBuffer *const frame_window_buffer =
-        &this_level_info->frame_window_buffer;
-    frame_window_buffer->num = 0;
-    frame_window_buffer->start = 0;
+    memset(this_level_info->decoder_models, 0,
+           sizeof(this_level_info->decoder_models));
+    reset_non_model_level_info(this_level_info);
 
     const AV2_COMMON *const cm = &cpi->common;
     const int upscaled_width = cm->width;
@@ -2642,6 +2842,18 @@ void av2_init_level_info(AV2_COMP *cpi) {
       }
     }
   }
+}
+
+void av2_prepare_level_info_for_new_cvs(AV2_COMP *cpi) {
+  for (int op_index = 0; op_index < MAX_NUM_OPERATING_POINTS; ++op_index) {
+    const AV2LevelInfo *const level_info =
+        cpi->level_params.level_info[op_index];
+    if (level_info != NULL && !level_info_has_model_state(level_info)) {
+      av2_init_level_info(cpi);
+      return;
+    }
+  }
+  av2_reset_level_info_for_new_cvs(cpi);
 }
 
 static void get_temporal_parallel_params(int scalability_mode_idc,
@@ -2882,15 +3094,6 @@ static TARGET_LEVEL_FAIL_ID check_level_constraints(
     return DECODER_MODEL_UNAVAILABLE;
   }
   return fail_id;
-}
-
-static bool level_info_has_model_state(const AV2LevelInfo *level_info) {
-  if (level_info == NULL) return false;
-  for (AV2_LEVEL level = SEQ_LEVEL_2_0; level < SEQ_LEVELS; ++level) {
-    const DECODER_MODEL *const model = &level_info->decoder_models[level];
-    if (model->initialized || model->status != DECODER_MODEL_OK) return true;
-  }
-  return false;
 }
 
 void av2_encoder_check_target_level(AV2_COMP *cpi, bool all_operating_points) {

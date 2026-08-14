@@ -782,6 +782,7 @@ struct Av2DecoderModel {
   Av2DmTuRecord *tus;
   uint32_t tu_count;
   uint32_t tu_capacity;
+  uint64_t output_tu_count;
   uint64_t frame_number;
   uint64_t shown_frame_number;
   uint64_t rap_epoch;
@@ -2765,6 +2766,10 @@ static void update_tu_for_output(Av2DecoderModel *model,
     arithmetic_failure(model);
     return;
   }
+  if (tu->output_frames == 0 &&
+      !increment_model_u64(model, &model->output_tu_count)) {
+    return;
+  }
   tu->output_luma_samples += event->output_luma_samples;
   ++tu->output_frames;
   if (!tu->presentation_time_valid) {
@@ -3760,29 +3765,34 @@ void av2_decoder_model_finish(Av2DecoderModel *model) {
       incomplete_verification(model);
     }
     if (!model->processing_stopped && !model->config.still_picture &&
-        model->previous_dfg_valid) {
-      if (model->last_frame_parsing_time_valid) {
+        model->dfg_number > 1) {
+      if (!model->previous_dfg_valid || !model->last_frame_parsing_time_valid) {
+        incomplete_verification(model);
+      } else {
+        // Annex A reuses the preceding non-show-existing frame's parsing time
+        // for the last DFG when such a predecessor is present.
         check_frame_parsing_constraints(model, &model->previous_dfg,
                                         &model->last_frame_parsing_time,
                                         model->previous_dfg.event_index);
+      }
+    }
+    if (!model->processing_stopped && !model->config.still_picture &&
+        model->output_tu_count > 1) {
+      Av2DmTuRecord *const last_output_tu =
+          model->last_output_tu_valid ? find_tu(model, model->last_output_tu)
+                                      : NULL;
+      if (last_output_tu != NULL) {
+        if (model->last_display_duration_valid) {
+          // Annex A reuses the preceding output duration for the last TU.
+          // Annex E does not synthesize another presentation interval.
+          check_tu_display_rate(model, last_output_tu,
+                                &model->last_display_duration,
+                                last_output_tu->event_index);
+        } else {
+          incomplete_verification(model);
+        }
       } else {
         incomplete_verification(model);
-      }
-      if (!model->processing_stopped) {
-        Av2DmTuRecord *const last_output_tu =
-            model->last_output_tu_valid ? find_tu(model, model->last_output_tu)
-                                        : NULL;
-        if (last_output_tu != NULL) {
-          if (model->last_display_duration_valid) {
-            // Annex A reuses the preceding output duration for the last TU.
-            // Annex E does not synthesize another presentation interval.
-            check_tu_display_rate(model, last_output_tu,
-                                  &model->last_display_duration,
-                                  last_output_tu->event_index);
-          } else {
-            incomplete_verification(model);
-          }
-        }
       }
     }
     if (!model->processing_stopped &&
@@ -3806,31 +3816,6 @@ void av2_decoder_model_finish(Av2DecoderModel *model) {
   update_storage_stats(model);
 }
 
-bool av2_decoder_model_seed_terminal_history(
-    Av2DecoderModel *model, const Av2DmRational *previous_frame_parsing_time,
-    const Av2DmRational *previous_tu_output_duration) {
-  if (model == NULL || model->result.finished ||
-      (previous_frame_parsing_time != NULL &&
-       wide_is_zero(previous_frame_parsing_time->denominator)) ||
-      (previous_tu_output_duration != NULL &&
-       wide_is_zero(previous_tu_output_duration->denominator))) {
-    return false;
-  }
-  // A suffix with local adjacent DFG/TU history is authoritative. The complete
-  // source contributes only an otherwise unavailable terminal predecessor.
-  if (!model->last_frame_parsing_time_valid && model->frame_number != 0 &&
-      previous_frame_parsing_time != NULL) {
-    model->last_frame_parsing_time = *previous_frame_parsing_time;
-    model->last_frame_parsing_time_valid = true;
-  }
-  if (!model->last_display_duration_valid && model->shown_frame_number != 0 &&
-      previous_tu_output_duration != NULL) {
-    model->last_display_duration = *previous_tu_output_duration;
-    model->last_display_duration_valid = true;
-  }
-  return true;
-}
-
 bool av2_decoder_model_get_result(const Av2DecoderModel *model,
                                   Av2DmResult *result) {
   if (model == NULL || result == NULL) return false;
@@ -3851,10 +3836,6 @@ bool av2_decoder_model_get_state(const Av2DecoderModel *model,
   state->dfg_number = model->dfg_number;
   state->shown_frame_number = model->shown_frame_number;
   state->buffer_pool = model->lane.pool;
-  state->last_frame_parsing_time_valid = model->last_frame_parsing_time_valid;
-  state->last_frame_parsing_time = model->last_frame_parsing_time;
-  state->last_display_duration_valid = model->last_display_duration_valid;
-  state->last_display_duration = model->last_display_duration;
   if (model->previous_dfg_valid) {
     const Av2DmDfgRecord *const dfg = &model->previous_dfg;
     state->last_dfg_valid = true;

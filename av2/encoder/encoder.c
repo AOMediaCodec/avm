@@ -4652,6 +4652,7 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size, uint8_t *dest,
           }
         }
       }
+      av2_decoder_model_invalidate_olk_ref_buffers_for_operating_points(cpi);
       cpi->is_olk_overlay = 1;
       cpi->gf_state.olk_overlay_last = 1;
       cpi->olk_encountered = 0;
@@ -4696,6 +4697,7 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size, uint8_t *dest,
           }
         }
       }
+      av2_decoder_model_invalidate_olk_ref_buffers_for_operating_points(cpi);
       cpi->is_olk_overlay = 1;
       cpi->gf_state.olk_overlay_last = 1;
       cpi->olk_encountered = 0;
@@ -4963,11 +4965,15 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size, uint8_t *dest,
   }
 
   if (cpi->level_params.keep_level_stats && !is_stat_generation_stage(cpi)) {
-    // Initialize level info. at the beginning of each sequence.
+    // Reset per-CVS level statistics at the beginning of each sequence.
     if (av2_is_shown_keyframe(cpi, cm->current_frame.frame_type)) {
-      av2_encoder_decoder_model_finish_for_operating_points(cpi);
+      if (cm->current_frame.cm_obu_type == OBU_CLOSED_LOOP_KEY &&
+          cpi->dm_starts_temporal_unit) {
+        av2_decoder_model_flush_implicit_output_for_operating_points(cpi,
+                                                                     false);
+      }
       av2_encoder_check_target_level(cpi, true);
-      av2_init_level_info(cpi);
+      av2_prepare_level_info_for_new_cvs(cpi);
     }
     update_level_info_for_frame_unit(cpi, dest, *size, *time_stamp, *time_end);
   }

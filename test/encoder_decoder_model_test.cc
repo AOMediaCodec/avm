@@ -970,18 +970,21 @@ class ResourceAvailabilityDifferentialAdapter {
   }
 
   void DecodeRefreshAndMaybeOutput(uint64_t coded_bits, uint32_t refresh_flags,
-                                   uint64_t output_order, bool output) {
+                                   uint64_t output_order, bool output,
+                                   bool closed_loop_key = false,
+                                   bool implicit_output_eligible = false) {
     ASSERT_GE(coded_bits, 24u);
     AV2_COMMON *const cm = &cpi_->common;
     cm->show_existing_frame = 0;
-    cm->current_frame.frame_type = frame_count_ == 0 ? KEY_FRAME : INTER_FRAME;
+    const bool is_closed_loop_key = frame_count_ == 0 || closed_loop_key;
+    cm->current_frame.frame_type = is_closed_loop_key ? KEY_FRAME : INTER_FRAME;
     cm->current_frame.cm_obu_type =
-        frame_count_ == 0 ? OBU_CLOSED_LOOP_KEY : OBU_REGULAR_TILE_GROUP;
+        is_closed_loop_key ? OBU_CLOSED_LOOP_KEY : OBU_REGULAR_TILE_GROUP;
     cm->current_frame.refresh_frame_flags = refresh_flags;
     cm->current_frame.display_order_hint = static_cast<int>(output_order);
     cm->immediate_output_picture = 0;
     current_.display_order_hint = static_cast<int>(output_order);
-    current_.implicit_output_picture = 0;
+    current_.implicit_output_picture = implicit_output_eligible;
     cpi_->dm_starts_temporal_unit = true;
 
     const std::array<uint8_t, 3> obu = {
@@ -1042,16 +1045,40 @@ class ResourceAvailabilityDifferentialAdapter {
     ++frame_count_;
   }
 
+  void BeginNewCvs(int num_ref_frames) {
+    ASSERT_GE(num_ref_frames, 1);
+    ASSERT_LE(num_ref_frames, REF_FRAMES);
+    cpi_->common.seq_params.ref_frames = num_ref_frames;
+    av2_decoder_model_flush_implicit_output_for_operating_points(cpi_.get(),
+                                                                 false);
+    av2_reset_level_info_for_new_cvs(cpi_.get());
+  }
+
+  void SetInitialDisplayDelay(int initial_display_delay) {
+    ASSERT_GT(initial_display_delay, 0);
+    ASSERT_NE(legacy_, nullptr);
+    legacy_->initial_display_delay = initial_display_delay;
+  }
+
+  void SetDisplayTimeScale(uint32_t time_scale) {
+    ASSERT_NE(time_scale, 0u);
+    cpi_->common.ci_params_encoder.timing_info.time_scale = time_scale;
+  }
+
   void Finish() {
     if (RunsLegacy()) {
-      av2_encoder_decoder_model_finalize(legacy_,
-                                         cpi_->common.seq_params.still_picture);
+      av2_encoder_decoder_model_finish_for_operating_points(cpi_.get());
     }
     if (CommonHasParameters()) av2_decoder_model_finish(common_);
   }
 
   DECODER_MODEL *legacy() { return legacy_; }
   const DECODER_MODEL *legacy() const { return legacy_; }
+  void ClearEncoderReferenceOnly(int ref_index) {
+    ASSERT_GE(ref_index, 0);
+    ASSERT_LT(ref_index, kNumRefs);
+    cpi_->common.ref_frame_map[ref_index] = nullptr;
+  }
   Av2DecoderModel *common() { return common_; }
   const Av2DecoderModel *common() const { return common_; }
   const ViolationCollector &collector() const { return collector_; }
@@ -1177,6 +1204,192 @@ void RunNormalResourceTrace(ResourceAvailabilityDifferentialAdapter *adapter) {
   adapter->Finish();
 }
 
+TEST(EncoderDecoderModelTest, ReleasesPlayerOwnedInactiveBuffer) {
+  ResourceAvailabilityDifferentialAdapter adapter(
+      ResourceAdapterMode::kLegacyOnly);
+  ASSERT_TRUE(adapter.valid());
+  DECODER_MODEL *const model = adapter.legacy();
+  ASSERT_NE(model, nullptr);
+  ASSERT_LT(model->num_ref_frames + 2, BUFFER_POOL_MAX_SIZE);
+  FRAME_BUFFER *const inactive =
+      &model->frame_buffer_pool[BUFFER_POOL_MAX_SIZE - 1];
+  inactive->player_ref_count = 1;
+  inactive->display_index = 7;
+  inactive->presentation_time = 0.25;
+  inactive->presentation.valid = true;
+  inactive->presentation.buffer_index = BUFFER_POOL_MAX_SIZE - 1;
+  model->initial_presentation_delay = 0.0;
+
+  adapter.DecodeRefreshAndMaybeOutput(1000, 1, 0, false);
+
+  ASSERT_EQ(DECODER_MODEL_OK, model->status);
+  EXPECT_EQ(0u, inactive->player_ref_count);
+  EXPECT_EQ(-1, inactive->display_index);
+  EXPECT_DOUBLE_EQ(-1.0, inactive->presentation_time);
+  EXPECT_FALSE(inactive->presentation.valid);
+}
+
+TEST(EncoderDecoderModelTest, OrdinaryFrameDoesNotInvalidateModelReference) {
+  ResourceAvailabilityDifferentialAdapter adapter(
+      ResourceAdapterMode::kLegacyOnly);
+  ASSERT_TRUE(adapter.valid());
+  adapter.DecodeRefreshAndMaybeOutput(1024, 1, 0, false);
+  DECODER_MODEL *const model = adapter.legacy();
+  ASSERT_NE(model, nullptr);
+  const int buffer_index = model->vbi[0];
+  ASSERT_GE(buffer_index, 0);
+  ASSERT_EQ(1u, model->frame_buffer_pool[buffer_index].decoder_ref_count);
+
+  adapter.ClearEncoderReferenceOnly(0);
+  adapter.DecodeRefreshAndMaybeOutput(1024, 2, 1, false);
+
+  ASSERT_EQ(DECODER_MODEL_OK, model->status);
+  EXPECT_EQ(buffer_index, model->vbi[0]);
+  EXPECT_EQ(1u, model->frame_buffer_pool[buffer_index].decoder_ref_count);
+}
+
+TEST(EncoderDecoderModelTest, CompatibleClkPreservesContinuousModelState) {
+  ResourceAvailabilityDifferentialAdapter adapter(
+      ResourceAdapterMode::kLegacyOnly);
+  ASSERT_TRUE(adapter.valid());
+  adapter.SetInitialDisplayDelay(10);
+  adapter.DecodeRefreshAndMaybeOutput(1024, 1, 0, true);
+  DECODER_MODEL *const model = adapter.legacy();
+  ASSERT_NE(model, nullptr);
+  ASSERT_EQ(DECODER_MODEL_OK, model->status);
+  const double first_time = model->current_time;
+  const int64_t first_frame = model->num_frame;
+  const double first_initial_delay = model->initial_presentation_delay;
+
+  adapter.BeginNewCvs(4);
+  adapter.DecodeRefreshAndMaybeOutput(1024, 2, 1, true, true);
+
+  ASSERT_EQ(DECODER_MODEL_OK, model->status);
+  EXPECT_EQ(first_frame + 1, model->num_frame);
+  EXPECT_GE(model->current_time, first_time);
+  EXPECT_DOUBLE_EQ(first_initial_delay, model->initial_presentation_delay);
+  EXPECT_EQ(10, model->initial_display_delay);
+  EXPECT_FALSE(model->finalized);
+}
+
+TEST(EncoderDecoderModelTest, ClkSupportsActiveReferenceRangeTransitions) {
+  ResourceAvailabilityDifferentialAdapter adapter(
+      ResourceAdapterMode::kLegacyOnly);
+  ASSERT_TRUE(adapter.valid());
+  adapter.SetInitialDisplayDelay(10);
+  adapter.DecodeRefreshAndMaybeOutput(1024, 1, 0, true);
+  DECODER_MODEL *const model = adapter.legacy();
+  ASSERT_NE(model, nullptr);
+
+  adapter.BeginNewCvs(8);
+  adapter.DecodeRefreshAndMaybeOutput(1024, 1, 1, true, true);
+  ASSERT_EQ(DECODER_MODEL_OK, model->status);
+  EXPECT_EQ(8, model->num_ref_frames);
+  EXPECT_EQ(1, model->num_frame);
+
+  adapter.BeginNewCvs(4);
+  adapter.DecodeRefreshAndMaybeOutput(1024, 1, 2, true, true);
+  ASSERT_EQ(DECODER_MODEL_OK, model->status);
+  EXPECT_EQ(4, model->num_ref_frames);
+  EXPECT_EQ(2, model->num_frame);
+}
+
+TEST(EncoderDecoderModelTest, IncompatibleClkClockIsUnavailable) {
+  ResourceAvailabilityDifferentialAdapter adapter(
+      ResourceAdapterMode::kLegacyOnly);
+  ASSERT_TRUE(adapter.valid());
+  adapter.DecodeRefreshAndMaybeOutput(1024, 1, 0, true);
+  DECODER_MODEL *const model = adapter.legacy();
+  ASSERT_NE(model, nullptr);
+  ASSERT_EQ(DECODER_MODEL_OK, model->status);
+
+  adapter.SetDisplayTimeScale(60000);
+  adapter.BeginNewCvs(4);
+  adapter.DecodeRefreshAndMaybeOutput(1024, 1, 1, true, true);
+
+  EXPECT_EQ(DECODER_MODEL_UNSUPPORTED, model->status);
+  EXPECT_EQ(ENCODER_DM_RESULT_UNAVAILABLE,
+            av2_encoder_decoder_model_classify_status(model->status));
+}
+
+TEST(EncoderDecoderModelTest, ClkFlushesImplicitOutputBeforeInvalidation) {
+  ResourceAvailabilityDifferentialAdapter adapter(
+      ResourceAdapterMode::kLegacyOnly);
+  ASSERT_TRUE(adapter.valid());
+  adapter.SetInitialDisplayDelay(10);
+  adapter.DecodeRefreshAndMaybeOutput(1024, 1, 0, false, false, true);
+  DECODER_MODEL *const model = adapter.legacy();
+  ASSERT_NE(model, nullptr);
+  const int old_buffer = model->vbi[0];
+  ASSERT_GE(old_buffer, 0);
+  ASSERT_EQ(-1, model->num_shown_frame);
+
+  adapter.BeginNewCvs(4);
+  ASSERT_EQ(0, model->num_shown_frame);
+  ASSERT_EQ(1u, model->frame_buffer_pool[old_buffer].player_ref_count);
+  ASSERT_TRUE(
+      model->frame_buffer_pool[old_buffer].presentation.normative_output_done);
+
+  adapter.DecodeRefreshAndMaybeOutput(1024, 2, 1, false, true);
+  ASSERT_EQ(DECODER_MODEL_OK, model->status);
+  EXPECT_EQ(0u, model->frame_buffer_pool[old_buffer].decoder_ref_count);
+  EXPECT_EQ(1u, model->frame_buffer_pool[old_buffer].player_ref_count);
+}
+
+TEST(EncoderDecoderModelTest, OneFrameClkCvssEstablishInitialDelay) {
+  ResourceAvailabilityDifferentialAdapter adapter(
+      ResourceAdapterMode::kLegacyOnly);
+  ASSERT_TRUE(adapter.valid());
+  adapter.SetInitialDisplayDelay(10);
+  DECODER_MODEL *const model = adapter.legacy();
+  ASSERT_NE(model, nullptr);
+
+  for (uint64_t cvs = 0; cvs < 15; ++cvs) {
+    adapter.BeginNewCvs(8);
+    adapter.DecodeRefreshAndMaybeOutput(1024, 1, cvs, true, true);
+    ASSERT_EQ(DECODER_MODEL_OK, model->status) << "CVS " << cvs;
+    EXPECT_EQ(static_cast<int64_t>(cvs), model->num_frame);
+    if (cvs < 9) {
+      EXPECT_LT(model->initial_presentation_delay, 0.0);
+    } else {
+      EXPECT_GE(model->initial_presentation_delay, 0.0);
+    }
+  }
+
+  EXPECT_EQ(14, model->num_frame);
+  EXPECT_EQ(14, model->num_decoded_frame);
+  EXPECT_EQ(14, model->num_shown_frame);
+  EXPECT_GE(model->initial_presentation_delay, 0.0);
+  const double initial_presentation_delay = model->initial_presentation_delay;
+  adapter.Finish();
+  EXPECT_TRUE(model->finalized);
+  EXPECT_DOUBLE_EQ(initial_presentation_delay,
+                   model->initial_presentation_delay);
+  adapter.Finish();
+  EXPECT_DOUBLE_EQ(initial_presentation_delay,
+                   model->initial_presentation_delay);
+}
+
+TEST(EncoderDecoderModelTest, ShortInputEstablishesInitialDelayAtFinish) {
+  ResourceAvailabilityDifferentialAdapter adapter(
+      ResourceAdapterMode::kLegacyOnly);
+  ASSERT_TRUE(adapter.valid());
+  adapter.SetInitialDisplayDelay(10);
+  DECODER_MODEL *const model = adapter.legacy();
+  ASSERT_NE(model, nullptr);
+
+  for (uint64_t frame = 0; frame < 3; ++frame) {
+    adapter.DecodeRefreshAndMaybeOutput(1024, 1u << frame, frame, true);
+  }
+  ASSERT_LT(model->initial_presentation_delay, 0.0);
+  const double final_time = model->current_time;
+
+  adapter.Finish();
+
+  EXPECT_DOUBLE_EQ(final_time, model->initial_presentation_delay);
+  EXPECT_TRUE(model->finalized);
+}
+
 TEST(EncoderDecoderModelRationalReuseTest,
      NormalResourceTraceHasRetainedStateAndClassificationParity) {
   ResourceAvailabilityDifferentialAdapter adapter(ResourceAdapterMode::kBoth);
@@ -1187,6 +1400,39 @@ TEST(EncoderDecoderModelRationalReuseTest,
     ExpectSharedResourceState(adapter);
   }
   adapter.Finish();
+  ExpectFinalResourceClassification(adapter, ENCODER_DM_RESULT_PASS,
+                                    AV2_DM_RESULT_CONFORMANT);
+}
+
+TEST(EncoderDecoderModelRationalReuseTest,
+     SingleDfgAndOutputTuTerminalApplicabilityAgree) {
+  ResourceAvailabilityDifferentialAdapter adapter(ResourceAdapterMode::kBoth);
+  ASSERT_TRUE(adapter.valid());
+
+  adapter.DecodeRefreshAndMaybeOutput(1024, 1, 0, true);
+  adapter.Finish();
+
+  ASSERT_NE(adapter.legacy(), nullptr);
+  EXPECT_EQ(1u, adapter.legacy()->applicable_dfg_count);
+  EXPECT_EQ(1u, adapter.legacy()->output_tu_count);
+  ExpectFinalResourceClassification(adapter, ENCODER_DM_RESULT_PASS,
+                                    AV2_DM_RESULT_CONFORMANT);
+}
+
+TEST(EncoderDecoderModelRationalReuseTest,
+     TwoDfgAndOutputTuTerminalSubstitutionsAgree) {
+  ResourceAvailabilityDifferentialAdapter adapter(ResourceAdapterMode::kBoth);
+  ASSERT_TRUE(adapter.valid());
+
+  adapter.DecodeRefreshAndMaybeOutput(1024, 1, 0, true);
+  adapter.DecodeRefreshAndMaybeOutput(1024, 2, 1, true);
+  adapter.Finish();
+
+  ASSERT_NE(adapter.legacy(), nullptr);
+  EXPECT_EQ(2u, adapter.legacy()->applicable_dfg_count);
+  EXPECT_EQ(2u, adapter.legacy()->output_tu_count);
+  EXPECT_TRUE(adapter.legacy()->last_frame_parsing_time_valid);
+  EXPECT_TRUE(adapter.legacy()->last_display_duration_valid);
   ExpectFinalResourceClassification(adapter, ENCODER_DM_RESULT_PASS,
                                     AV2_DM_RESULT_CONFORMANT);
 }

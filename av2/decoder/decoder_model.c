@@ -193,8 +193,6 @@ typedef struct Av2DmContextEvent {
   uint32_t ras_seed_count;
   Av2DmRasSeed ras_seeds[AV2_DM_MAX_REF_FRAMES];
   bool ras_seed_complete;
-  bool source_display_duration_valid;
-  Av2DmRational source_display_duration;
   Av2DmIndeterminateReason indeterminate_reason;
 } Av2DmContextEvent;
 
@@ -235,6 +233,9 @@ typedef struct Av2DmContext {
   uint64_t last_stream_generation;
   bool last_ras_seed_complete;
   uint32_t last_ras_seed_count;
+  uint64_t applicable_rap_starts;
+  uint64_t rap_runs_started;
+  uint64_t rap_runs_skipped;
 } Av2DmContext;
 
 typedef struct Av2DmCvsAggregate {
@@ -247,6 +248,9 @@ typedef struct Av2DmCvsAggregate {
   uint64_t run_status_count[4];
   bool verification_complete;
   Av2DmIndeterminateReason reason;
+  uint64_t applicable_rap_starts;
+  uint64_t rap_runs_started;
+  uint64_t rap_runs_skipped;
 } Av2DmCvsAggregate;
 
 typedef enum Av2DmVerifierErrorCode {
@@ -263,6 +267,8 @@ struct Av2DecoderModelVerifier {
   bool aggregate_incomplete;
   bool error_emitted;
   int check_mode;
+  bool check_every_rap;
+  bool rap_coverage_warning_emitted;
   bool defer_nonterminal_checks_for_testing;
   Av2DmVerifierErrorCode error_code;
   bool temporal_point_present;
@@ -328,6 +334,9 @@ struct Av2DecoderModelVerifier {
   size_t active_record_count;
   size_t active_record_capacity;
   size_t rap_start_count;
+  uint64_t applicable_rap_starts;
+  uint64_t rap_runs_started;
+  uint64_t rap_runs_skipped;
   bool last_rap_start_valid;
   int last_rap_xlayer_id;
   int last_rap_mlayer_id;
@@ -1031,6 +1040,8 @@ void av2_decoder_model_verifier_init(AV2Decoder *pbi) {
       pbi->decoder_model_verifier == NULL;
   if (pbi->decoder_model_verifier != NULL) {
     pbi->decoder_model_verifier->check_mode = pbi->decoder_model_check_mode;
+    pbi->decoder_model_verifier->check_every_rap =
+        pbi->decoder_model_check_every_rap != 0;
     for (int i = 0; i < MAX_NUM_XLAYERS; ++i) {
       pbi->decoder_model_verifier->current_cvs[i] = SIZE_MAX;
     }
@@ -2196,10 +2207,6 @@ struct Av2DmLiveRun {
   int64_t rap;
   bool olk;
   uint64_t start_source_frame_unit;
-  bool terminal_frame_parsing_time_valid;
-  Av2DmRational terminal_frame_parsing_time;
-  bool terminal_display_duration_valid;
-  Av2DmRational terminal_display_duration;
 };
 
 void av2_decoder_model_verifier_on_model_arithmetic_failure_for_testing(
@@ -2215,6 +2222,14 @@ void av2_decoder_model_verifier_on_model_arithmetic_failure_for_testing(
       return;
     }
   }
+}
+
+void av2_decoder_model_verifier_force_rap_coverage_overflow_for_testing(
+    AV2Decoder *pbi) {
+  if (pbi == NULL || !verifier_accepts_events(pbi->decoder_model_verifier)) {
+    return;
+  }
+  pbi->decoder_model_verifier->applicable_rap_starts = UINT64_MAX;
 }
 
 static const char *indeterminate_reason_name(Av2DmIndeterminateReason reason) {
@@ -2235,6 +2250,8 @@ static const char *indeterminate_reason_name(Av2DmIndeterminateReason reason) {
     case AV2_DM_REASON_INCOMPATIBLE_CONFIGURATION_TRANSITION:
       return "incompatible_configuration_transition";
     case AV2_DM_REASON_INTERNAL_FAILURE: return "internal_failure";
+    case AV2_DM_REASON_RAP_START_CHECKS_DISABLED:
+      return "rap_start_checks_disabled";
   }
   return "internal_failure";
 }
@@ -3064,17 +3081,15 @@ static bool run_seed_contains_generation(const Av2DmLiveRun *run,
   return false;
 }
 
-static bool run_accepts_event(const Av2DmLiveRun *run,
-                              const Av2DmContextEvent *event) {
-  return !run->olk ||
-         event->source_frame_unit_index <= run->start_source_frame_unit ||
-         !event->leading_frame;
-}
-
 static void apply_event_to_run(Av2DecoderModelVerifier *verifier,
                                Av2DmLiveRun *run,
                                const Av2DmContextEvent *event) {
-  if (verifier->fatal_violation || !run_accepts_event(run, event)) return;
+  if (verifier->fatal_violation) return;
+  if (run->olk &&
+      event->source_frame_unit_index > run->start_source_frame_unit &&
+      event->leading_frame) {
+    return;
+  }
   run->report.current_event = *event;
   run->report.current_event_valid = true;
   if (event->indeterminate_reason != AV2_DM_REASON_NONE &&
@@ -3123,69 +3138,6 @@ static void apply_event_to_run(Av2DecoderModelVerifier *verifier,
   }
   run->report.current_event_valid = false;
   memset(&run->report.current_event, 0, sizeof(run->report.current_event));
-}
-
-static void capture_terminal_history(Av2DmContext *context,
-                                     const Av2DmContextEvent *event) {
-  if (context->run_count < 2 ||
-      (event->type != AV2_DM_CONTEXT_FRAME &&
-       event->type != AV2_DM_CONTEXT_OUTPUT) ||
-      !run_accepts_event(context->runs[0], event) ||
-      context->runs[0]->reason ==
-          AV2_DM_REASON_INCOMPATIBLE_CONFIGURATION_TRANSITION) {
-    return;
-  }
-  Av2DmState source_state;
-  if (!av2_decoder_model_get_state(context->runs[0]->model, &source_state)) {
-    return;
-  }
-  for (size_t i = 1; i < context->run_count; ++i) {
-    Av2DmLiveRun *const run = context->runs[i];
-    if (run->rap < 0 || run->stream_generation != event->stream_generation ||
-        run->stream_generation != context->runs[0]->stream_generation ||
-        !run_accepts_event(run, event)) {
-      continue;
-    }
-    if (event->type == AV2_DM_CONTEXT_FRAME &&
-        source_state.last_frame_parsing_time_valid) {
-      run->terminal_frame_parsing_time = source_state.last_frame_parsing_time;
-      run->terminal_frame_parsing_time_valid = true;
-    } else if (event->type == AV2_DM_CONTEXT_OUTPUT &&
-               source_state.last_display_duration_valid) {
-      run->terminal_display_duration = source_state.last_display_duration;
-      run->terminal_display_duration_valid = true;
-    }
-  }
-}
-
-static void capture_replayed_terminal_history(const Av2DmContext *context,
-                                              Av2DmLiveRun *run,
-                                              const Av2DmContextEvent *event) {
-  if (event->type == AV2_DM_CONTEXT_OUTPUT &&
-      event->source_display_duration_valid && context->run_count != 0 &&
-      context->runs[0]->reason !=
-          AV2_DM_REASON_INCOMPATIBLE_CONFIGURATION_TRANSITION &&
-      run->stream_generation == event->stream_generation &&
-      run_accepts_event(run, event)) {
-    run->terminal_display_duration = event->source_display_duration;
-    run->terminal_display_duration_valid = true;
-  }
-}
-
-static void attach_source_terminal_history(const Av2DmContext *context,
-                                           Av2DmContextEvent *event) {
-  if (context->run_count == 0 || event->type != AV2_DM_CONTEXT_OUTPUT ||
-      !run_accepts_event(context->runs[0], event) ||
-      context->runs[0]->reason ==
-          AV2_DM_REASON_INCOMPATIBLE_CONFIGURATION_TRANSITION) {
-    return;
-  }
-  Av2DmState source_state;
-  if (av2_decoder_model_get_state(context->runs[0]->model, &source_state) &&
-      source_state.last_display_duration_valid) {
-    event->source_display_duration = source_state.last_display_duration;
-    event->source_display_duration_valid = true;
-  }
 }
 
 static Av2DmLiveRun *create_live_run(Av2DecoderModelVerifier *verifier,
@@ -3282,20 +3234,6 @@ static void finish_context_runs(Av2DecoderModelVerifier *verifier,
   for (size_t i = 0; i < context->run_count; ++i) {
     Av2DmLiveRun *const run = context->runs[i];
     if (!verifier->failed && !verifier->fatal_violation) {
-      if (i != 0 && run->rap >= 0) {
-        const Av2DmRational *const frame_parsing_time =
-            run->terminal_frame_parsing_time_valid
-                ? &run->terminal_frame_parsing_time
-                : NULL;
-        const Av2DmRational *const display_duration =
-            run->terminal_display_duration_valid
-                ? &run->terminal_display_duration
-                : NULL;
-        if (!av2_decoder_model_seed_terminal_history(
-                run->model, frame_parsing_time, display_duration)) {
-          mark_failed(verifier);
-        }
-      }
       av2_decoder_model_finish(run->model);
     }
     Av2DmResult result;
@@ -3448,6 +3386,36 @@ static void mark_live_runs_for_incompatible_configuration(
   }
 }
 
+static bool increment_rap_coverage_counts(Av2DecoderModelVerifier *verifier,
+                                          uint64_t *context_count,
+                                          uint64_t *cvs_count,
+                                          uint64_t *aggregate_count) {
+  return increment_u64(verifier, context_count) &&
+         increment_u64(verifier, cvs_count) &&
+         increment_u64(verifier, aggregate_count);
+}
+
+static void emit_rap_coverage_warning(Av2DecoderModelVerifier *verifier,
+                                      const Av2DmContext *context,
+                                      const Av2DmCvsAggregate *cvs,
+                                      const Av2DmContextEvent *event) {
+  if (verifier->rap_coverage_warning_emitted) return;
+  fprintf(
+      stderr,
+      "AV2_DECODER_MODEL_COVERAGE_WARNING status=INDETERMINATE "
+      "code=RAP_START_CHECKS_DISABLED xlayer=%d ops=%d op=%d scope=%s "
+      "event=%" PRIu64 " cvs=%" PRIu64
+      " source_rap_starts=%zu "
+      "scope_applicable_rap_starts=%" PRIu64 " scope_rap_runs_started=%" PRIu64
+      " scope_rap_runs_skipped=%" PRIu64 " reason=rap_start_checks_disabled\n",
+      context->key.xlayer_id, context->key.ops_id, context->key.operating_point,
+      context->key.whole_xlayer ? "whole_xlayer" : "operating_point",
+      event->event_index, cvs->number, verifier->rap_start_count,
+      context->applicable_rap_starts, context->rap_runs_started,
+      context->rap_runs_skipped);
+  verifier->rap_coverage_warning_emitted = true;
+}
+
 static void dispatch_context_event(Av2DecoderModelVerifier *verifier,
                                    Av2DmContext *context,
                                    const Av2DmContextEvent *event) {
@@ -3457,7 +3425,6 @@ static void dispatch_context_event(Av2DecoderModelVerifier *verifier,
          ++i) {
       apply_event_to_run(verifier, context->runs[i], event);
     }
-    if (!verifier->fatal_violation) capture_terminal_history(context, event);
     if (!verifier->current_source_frame_dispatched) {
       if (context->prefix_event_count == SIZE_MAX) {
         mark_arithmetic_failed(verifier);
@@ -3471,14 +3438,20 @@ static void dispatch_context_event(Av2DecoderModelVerifier *verifier,
         return;
       }
       context->prefix_events[context->prefix_event_count] = *event;
-      attach_source_terminal_history(
-          context, &context->prefix_events[context->prefix_event_count]);
       if (!increment_size(verifier, &context->prefix_event_count)) return;
     }
     return;
   }
 
-  if (ensure_cvs_open(verifier, context->key.xlayer_id, NULL) == NULL) return;
+  Av2DmCvsAggregate *const cvs =
+      ensure_cvs_open(verifier, context->key.xlayer_id, NULL);
+  if (cvs == NULL) return;
+  if (event->frame.random_access_point &&
+      !increment_rap_coverage_counts(verifier, &context->applicable_rap_starts,
+                                     &cvs->applicable_rap_starts,
+                                     &verifier->applicable_rap_starts)) {
+    return;
+  }
   const bool config_changed =
       context->last_config_present &&
       (context->last_stream_generation != event->stream_generation ||
@@ -3506,32 +3479,48 @@ static void dispatch_context_event(Av2DecoderModelVerifier *verifier,
                             : -1;
     Av2DmLiveRun *const run = create_live_run(verifier, context, event, rap);
     if (run == NULL) return;
+    if (event->frame.random_access_point &&
+        !increment_rap_coverage_counts(verifier, &context->rap_runs_started,
+                                       &cvs->rap_runs_started,
+                                       &verifier->rap_runs_started)) {
+      return;
+    }
     for (size_t i = 0; i < context->prefix_event_count; ++i) {
       if (prefix_event_applies(run, &context->prefix_events[i])) {
         apply_event_to_run(verifier, run, &context->prefix_events[i]);
-        capture_replayed_terminal_history(context, run,
-                                          &context->prefix_events[i]);
       }
     }
     created_segment = true;
   }
   if (!created_segment && event->frame.random_access_point) {
-    Av2DmLiveRun *const run = create_live_run(
-        verifier, context, event, (int64_t)event->source_frame_unit_index);
-    if (run == NULL) return;
-    for (size_t i = 0; i < context->prefix_event_count; ++i) {
-      if (prefix_event_applies(run, &context->prefix_events[i])) {
-        apply_event_to_run(verifier, run, &context->prefix_events[i]);
-        capture_replayed_terminal_history(context, run,
-                                          &context->prefix_events[i]);
+    if (verifier->check_every_rap) {
+      Av2DmLiveRun *const run = create_live_run(
+          verifier, context, event, (int64_t)event->source_frame_unit_index);
+      if (run == NULL) return;
+      if (!increment_rap_coverage_counts(verifier, &context->rap_runs_started,
+                                         &cvs->rap_runs_started,
+                                         &verifier->rap_runs_started)) {
+        return;
       }
+      for (size_t i = 0; i < context->prefix_event_count; ++i) {
+        if (prefix_event_applies(run, &context->prefix_events[i])) {
+          apply_event_to_run(verifier, run, &context->prefix_events[i]);
+        }
+      }
+    } else {
+      if (!increment_rap_coverage_counts(verifier, &context->rap_runs_skipped,
+                                         &cvs->rap_runs_skipped,
+                                         &verifier->rap_runs_skipped)) {
+        return;
+      }
+      cvs->verification_complete = false;
+      emit_rap_coverage_warning(verifier, context, cvs, event);
     }
   }
   for (size_t i = 0; i < context->run_count && !verifier->fatal_violation;
        ++i) {
     apply_event_to_run(verifier, context->runs[i], event);
   }
-  if (!verifier->fatal_violation) capture_terminal_history(context, event);
   context->last_config_present = true;
   context->last_config = event->config;
   context->last_stream_generation = event->stream_generation;
@@ -3635,6 +3624,16 @@ static void emit_cvs_result(Av2DecoderModelVerifier *verifier,
     }
   }
   Av2DmResultStatus status = aggregate_status(cvs->run_status_count);
+  const bool coverage_suppressed = cvs->rap_runs_skipped != 0;
+  if (coverage_suppressed) {
+    cvs->verification_complete = false;
+    if (status != AV2_DM_RESULT_NON_CONFORMANT) {
+      status = AV2_DM_RESULT_INDETERMINATE;
+      if (cvs->reason != AV2_DM_REASON_INTERNAL_FAILURE) {
+        cvs->reason = AV2_DM_REASON_RAP_START_CHECKS_DISABLED;
+      }
+    }
+  }
   if (verifier->bitstream_cvs == UINT64_MAX ||
       verifier->bitstream_status_count[status] == UINT64_MAX) {
     mark_arithmetic_failed(verifier);
@@ -3662,10 +3661,18 @@ static void emit_cvs_result(Av2DecoderModelVerifier *verifier,
   }
   fprintf(stderr,
           "AV2_DECODER_MODEL_CVS_RESULT status=%s xlayer=%d cvs=%" PRIu64
-          " violations=%" PRIu64 " verification_complete=%d reason=%s\n",
+          " violations=%" PRIu64 " verification_complete=%d reason=%s",
           result_name(status), cvs->xlayer_id, cvs->number, cvs->violations,
           cvs->verification_complete ? 1 : 0,
           indeterminate_reason_name(cvs->reason));
+  if (coverage_suppressed) {
+    fprintf(stderr,
+            " coverage_complete=0 applicable_rap_starts=%" PRIu64
+            " rap_runs_started=%" PRIu64 " rap_runs_skipped=%" PRIu64,
+            cvs->applicable_rap_starts, cvs->rap_runs_started,
+            cvs->rap_runs_skipped);
+  }
+  fprintf(stderr, "\n");
   cvs->result_emitted = true;
 }
 
@@ -3718,7 +3725,7 @@ static void emit_bitstream_result(Av2DecoderModelVerifier *verifier,
       "AV2_DECODER_MODEL_BITSTREAM_RESULT status=%s complete=%d cvs=%" PRIu64
       " conformant_cvs=%" PRIu64 " non_conformant_cvs=%" PRIu64
       " indeterminate_cvs=%" PRIu64 " not_applicable_cvs=%" PRIu64
-      " first_non_conformant_xlayer=%d first_non_conformant_cvs=%" PRIu64 "\n",
+      " first_non_conformant_xlayer=%d first_non_conformant_cvs=%" PRIu64,
       result_name(status), complete ? 1 : 0, verifier->bitstream_cvs,
       verifier->bitstream_status_count[AV2_DM_RESULT_CONFORMANT],
       verifier->bitstream_status_count[AV2_DM_RESULT_NON_CONFORMANT],
@@ -3729,6 +3736,21 @@ static void emit_bitstream_result(Av2DecoderModelVerifier *verifier,
           : -1,
       verifier->first_non_conformant_valid ? verifier->first_non_conformant_cvs
                                            : 0);
+  if (verifier->rap_runs_skipped != 0) {
+    Av2DmIndeterminateReason reason = AV2_DM_REASON_NONE;
+    if (status != AV2_DM_RESULT_NON_CONFORMANT) {
+      reason = verifier->failed ? AV2_DM_REASON_INTERNAL_FAILURE
+                                : AV2_DM_REASON_RAP_START_CHECKS_DISABLED;
+    }
+    fprintf(stderr,
+            " coverage_complete=0 source_rap_starts=%zu "
+            "applicable_rap_starts=%" PRIu64 " rap_runs_started=%" PRIu64
+            " rap_runs_skipped=%" PRIu64 " reason=%s",
+            verifier->rap_start_count, verifier->applicable_rap_starts,
+            verifier->rap_runs_started, verifier->rap_runs_skipped,
+            indeterminate_reason_name(reason));
+  }
+  fprintf(stderr, "\n");
   verifier->bitstream_result_emitted = true;
 }
 
@@ -3824,6 +3846,7 @@ bool av2_decoder_model_verifier_get_stats(const AV2Decoder *pbi,
   const Av2DecoderModelVerifier *const verifier = pbi->decoder_model_verifier;
   stats->available = true;
   stats->failed = verifier->failed;
+  stats->check_every_rap = verifier->check_every_rap;
   stats->raw_obus = verifier->raw_obus;
   stats->raw_bits = verifier->raw_bits;
   stats->event_count = verifier->event_count;
@@ -3831,6 +3854,10 @@ bool av2_decoder_model_verifier_get_stats(const AV2Decoder *pbi,
   stats->frame_unit_index = verifier->frame_unit_index;
   stats->closed_dfgs = verifier->closed_dfgs;
   stats->rap_starts = verifier->rap_start_count;
+  stats->applicable_rap_starts = verifier->applicable_rap_starts;
+  stats->rap_runs_started = verifier->rap_runs_started;
+  stats->rap_runs_skipped = verifier->rap_runs_skipped;
+  stats->rap_coverage_complete = verifier->rap_runs_skipped == 0;
   stats->temporal_points = verifier->temporal_points;
   stats->temporal_point_present = verifier->temporal_point_present;
   stats->temporal_point = verifier->temporal_point;
@@ -3942,6 +3969,9 @@ bool av2_decoder_model_verifier_get_context_stats(const AV2Decoder *pbi,
   }
   stats->last_ras_seed_complete = context->last_ras_seed_complete;
   stats->last_ras_seed_count = context->last_ras_seed_count;
+  stats->applicable_rap_starts = context->applicable_rap_starts;
+  stats->rap_runs_started = context->rap_runs_started;
+  stats->rap_runs_skipped = context->rap_runs_skipped;
   return true;
 }
 
@@ -3974,15 +4004,6 @@ bool av2_decoder_model_verifier_get_run_stats(const AV2Decoder *pbi,
   stats->initial_presentation_delay_known =
       state.initial_presentation_delay_known;
   stats->initial_presentation_delay = state.initial_presentation_delay;
-  stats->last_frame_parsing_time_valid = state.last_frame_parsing_time_valid;
-  stats->last_frame_parsing_time = state.last_frame_parsing_time;
-  stats->last_display_duration_valid = state.last_display_duration_valid;
-  stats->last_display_duration = state.last_display_duration;
-  stats->terminal_frame_parsing_time_valid =
-      run->terminal_frame_parsing_time_valid;
-  stats->terminal_frame_parsing_time = run->terminal_frame_parsing_time;
-  stats->terminal_display_duration_valid = run->terminal_display_duration_valid;
-  stats->terminal_display_duration = run->terminal_display_duration;
   stats->status = result.status;
   stats->reason = run->reason;
   return true;

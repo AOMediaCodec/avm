@@ -387,10 +387,6 @@ typedef struct Av2DmState {
   Av2DmRational last_temporal_unit_output_time;
   uint64_t last_temporal_unit_output_luma_samples;
   uint32_t last_temporal_unit_output_frames;
-  bool last_frame_parsing_time_valid;
-  Av2DmRational last_frame_parsing_time;
-  bool last_display_duration_valid;
-  Av2DmRational last_display_duration;
   bool initial_presentation_delay_known;
   Av2DmRational initial_presentation_delay;
   int32_t current_buffer_index;
@@ -460,9 +456,6 @@ void av2_decoder_model_set_initial_presentation_delay(Av2DecoderModel *model,
                                                       uint64_t event_index);
 void av2_decoder_model_output_frame(Av2DecoderModel *model,
                                     const Av2DmOutputEvent *event);
-bool av2_decoder_model_seed_terminal_history(
-    Av2DecoderModel *model, const Av2DmRational *previous_frame_parsing_time,
-    const Av2DmRational *previous_tu_output_duration);
 void av2_decoder_model_finish(Av2DecoderModel *model);
 bool av2_decoder_model_get_result(const Av2DecoderModel *model,
                                   Av2DmResult *result);

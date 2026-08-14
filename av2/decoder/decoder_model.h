@@ -43,12 +43,14 @@ typedef enum Av2DmIndeterminateReason {
   AV2_DM_REASON_INCOMPLETE_RAS_SEED,
   AV2_DM_REASON_RECOVERY_RESET,
   AV2_DM_REASON_INCOMPATIBLE_CONFIGURATION_TRANSITION,
-  AV2_DM_REASON_INTERNAL_FAILURE
+  AV2_DM_REASON_INTERNAL_FAILURE,
+  AV2_DM_REASON_RAP_START_CHECKS_DISABLED
 } Av2DmIndeterminateReason;
 
 typedef struct Av2DmVerifierStats {
   bool available;
   bool failed;
+  bool check_every_rap;
   uint64_t raw_obus;
   uint64_t raw_bits;
   uint64_t event_count;
@@ -56,6 +58,10 @@ typedef struct Av2DmVerifierStats {
   uint64_t frame_unit_index;
   uint64_t closed_dfgs;
   uint64_t rap_starts;
+  uint64_t applicable_rap_starts;
+  uint64_t rap_runs_started;
+  uint64_t rap_runs_skipped;
+  bool rap_coverage_complete;
   uint64_t temporal_points;
   bool temporal_point_present;
   uint64_t temporal_point;
@@ -112,6 +118,9 @@ typedef struct Av2DmContextStats {
   uint32_t resolved_initial_display_delay;
   bool last_ras_seed_complete;
   uint32_t last_ras_seed_count;
+  uint64_t applicable_rap_starts;
+  uint64_t rap_runs_started;
+  uint64_t rap_runs_skipped;
 } Av2DmContextStats;
 
 typedef struct Av2DmRunStats {
@@ -123,14 +132,6 @@ typedef struct Av2DmRunStats {
   uint32_t active_num_ref_frames;
   bool initial_presentation_delay_known;
   Av2DmRational initial_presentation_delay;
-  bool last_frame_parsing_time_valid;
-  Av2DmRational last_frame_parsing_time;
-  bool last_display_duration_valid;
-  Av2DmRational last_display_duration;
-  bool terminal_frame_parsing_time_valid;
-  Av2DmRational terminal_frame_parsing_time;
-  bool terminal_display_duration_valid;
-  Av2DmRational terminal_display_duration;
   Av2DmResultStatus status;
   Av2DmIndeterminateReason reason;
 } Av2DmRunStats;
@@ -160,6 +161,8 @@ void av2_decoder_model_verifier_on_accounting_failure(struct AV2Decoder *pbi);
 void av2_decoder_model_verifier_on_internal_failure_for_testing(
     struct AV2Decoder *pbi);
 void av2_decoder_model_verifier_on_model_arithmetic_failure_for_testing(
+    struct AV2Decoder *pbi);
+void av2_decoder_model_verifier_force_rap_coverage_overflow_for_testing(
     struct AV2Decoder *pbi);
 void av2_decoder_model_verifier_set_defer_nonterminal_checks_for_testing(
     struct AV2Decoder *pbi, bool defer);
