@@ -5248,6 +5248,22 @@ static INLINE int should_skip_newmv(
   return 0;
 }
 
+static INLINE int prune_tpl_candidate(
+    const AV2_COMP *const cpi, const PredictorSearchState *search_state,
+    PREDICTION_MODE this_mode, int prune_modes_based_on_tpl,
+    int ref_match_found_in_above_nb, int ref_match_found_in_left_nb,
+    PruneInfoFromTpl *inter_cost_info_from_tpl, const MV_REFERENCE_FRAME *refs,
+    int ref_mv_idx0) {
+  if (this_mode != WARPMV && prune_modes_based_on_tpl &&
+      !ref_match_found_in_above_nb && !ref_match_found_in_left_nb &&
+      (*search_state->ref_best_rd != INT64_MAX)) {
+    return prune_modes_based_on_tpl_stats(
+        &cpi->common.features, inter_cost_info_from_tpl, refs, ref_mv_idx0,
+        this_mode, cpi->sf.inter_sf.prune_inter_modes_based_on_tpl);
+  }
+  return 0;
+}
+
 // Handles single inter prediction search for a given mode and precision.
 // Iterates over candidates in the dynamic reference list (ref_mv_idx) and BAWP
 // options, performs motion vector generation/search, pruning checks, and
@@ -5259,16 +5275,12 @@ static void handle_single_inter_prediction(
     int precision_dx, const PRECISION_SET *precision_def,
     MvSubpelPrecision *best_precision_so_far, int *best_precision_dx_so_far,
     int64_t *best_precision_rd_so_far, int mode_ctx, HandleInterModeArgs *args,
-    const int *flex_mv_cost, int idx_mask[BAWP_OPTION_CNT][NUM_MV_PRECISIONS],
-    int prune_modes_based_on_tpl, int ref_match_found_in_above_nb,
-    int ref_match_found_in_left_nb,
-    PruneInfoFromTpl *inter_cost_info_from_tpl) {
+    const int *flex_mv_cost, int idx_mask[BAWP_OPTION_CNT][NUM_MV_PRECISIONS]) {
   const AV2_COMMON *cm = &cpi->common;
   MACROBLOCKD *xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
   const MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
   const DryPassCfg *const cfg = args->dry_pass_cfg;
-  const ModeCosts *mode_costs = &x->mode_costs;
   const MV_REFERENCE_FRAME refs[2] = {
     COMPACT_INDEX0_NRS(mbmi->ref_frame[0]),
     COMPACT_INDEX1_NRS(mbmi->ref_frame[1])
@@ -5289,14 +5301,6 @@ static void handle_single_inter_prediction(
     int ref_mv_idx_type = av2_ref_mv_idx_type(mbmi, ref_mv_idx);
     set_mv_precision(mbmi, mbmi->max_mv_precision);
 
-    if (mbmi->mode != WARPMV && prune_modes_based_on_tpl &&
-        !ref_match_found_in_above_nb && !ref_match_found_in_left_nb &&
-        (*search_state->ref_best_rd != INT64_MAX)) {
-      if (prune_modes_based_on_tpl_stats(
-              &cm->features, inter_cost_info_from_tpl, refs, ref_mv_idx[0],
-              this_mode, cpi->sf.inter_sf.prune_inter_modes_based_on_tpl))
-        continue;
-    }
     const int drl_cost =
         get_drl_cost(cm->features.max_drl_bits, mbmi, mbmi_ext, x);
 
@@ -5322,6 +5326,7 @@ static void handle_single_inter_prediction(
         precision_def->precision[precision_dx];
     mbmi->pb_mv_precision = pb_mv_precision;
 
+    const ModeCosts *mode_costs = &x->mode_costs;
     const int prediction_mode_cost =
         cost_prediction_mode(mode_costs, this_mode, cm, mbmi, xd, mode_ctx);
     const int base_rate =
@@ -5473,10 +5478,7 @@ static void handle_compound_inter_prediction(
     MvSubpelPrecision *best_precision_so_far, int *best_precision_dx_so_far,
     int64_t *best_precision_rd_so_far, int mode_ctx, HandleInterModeArgs *args,
     const int *flex_mv_cost, int idx_mask[BAWP_OPTION_CNT][NUM_MV_PRECISIONS],
-    int prune_modes_based_on_tpl, int ref_match_found_in_above_nb,
-    int ref_match_found_in_left_nb,
-    PruneInfoFromTpl *inter_cost_info_from_tpl, int jmvd_scaling_factor_num,
-    PREDICTION_MODE best_ref_mode) {
+    int jmvd_scaling_factor_num, PREDICTION_MODE best_ref_mode) {
   const AV2_COMMON *cm = &cpi->common;
   MACROBLOCKD *xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
@@ -5509,14 +5511,6 @@ static void handle_compound_inter_prediction(
     int ref_mv_idx_type = av2_ref_mv_idx_type(mbmi, ref_mv_idx);
     set_mv_precision(mbmi, mbmi->max_mv_precision);
 
-    if (mbmi->mode != WARPMV && prune_modes_based_on_tpl &&
-        !ref_match_found_in_above_nb && !ref_match_found_in_left_nb &&
-        (*search_state->ref_best_rd != INT64_MAX)) {
-      if (prune_modes_based_on_tpl_stats(
-              &cm->features, inter_cost_info_from_tpl, refs, ref_mv_idx[0],
-              this_mode, cpi->sf.inter_sf.prune_inter_modes_based_on_tpl))
-        continue;
-    }
     const int drl_cost =
         get_drl_cost(cm->features.max_drl_bits, mbmi, mbmi_ext, x);
 
@@ -6024,21 +6018,32 @@ static int64_t handle_inter_mode(
     }
 
     if (!is_comp_pred) {
+      const MV_REFERENCE_FRAME refs[2] = {
+        COMPACT_INDEX0_NRS(mbmi->ref_frame[0]),
+        COMPACT_INDEX1_NRS(mbmi->ref_frame[1])
+      };
+      for (int ref_mv_idx0 = 0; ref_mv_idx0 < cur_ref_set[0]; ++ref_mv_idx0) {
+        if (prune_tpl_candidate(
+                cpi, &search_state, this_mode, prune_modes_based_on_tpl,
+                ref_match_found_in_above_nb, ref_match_found_in_left_nb,
+                inter_cost_info_from_tpl, refs, ref_mv_idx0)) {
+          cur_ref_set[0] = ref_mv_idx0;
+          break;
+        }
+      }
+      if (cur_ref_set[0] == 0) continue;
+
       handle_single_inter_prediction(
           cpi, tile_data, x, &env, &search_state, this_mode, bsize, cur_ref_set,
           precision_dx, precision_def, &best_precision_so_far,
           &best_precision_dx_so_far, &best_precision_rd_so_far, mode_ctx, args,
-          flex_mv_cost, idx_mask, prune_modes_based_on_tpl,
-          ref_match_found_in_above_nb, ref_match_found_in_left_nb,
-          inter_cost_info_from_tpl);
+          flex_mv_cost, idx_mask);
     } else {
       handle_compound_inter_prediction(
           cpi, tile_data, x, &env, &search_state, this_mode, bsize, cur_ref_set,
           precision_dx, precision_def, &best_precision_so_far,
           &best_precision_dx_so_far, &best_precision_rd_so_far, mode_ctx, args,
-          flex_mv_cost, idx_mask, prune_modes_based_on_tpl,
-          ref_match_found_in_above_nb, ref_match_found_in_left_nb,
-          inter_cost_info_from_tpl, jmvd_scaling_factor_num, best_ref_mode);
+          flex_mv_cost, idx_mask, jmvd_scaling_factor_num, best_ref_mode);
     }
   }
 
