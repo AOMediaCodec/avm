@@ -1110,10 +1110,11 @@ void av2_set_speed_features_framesize_dependent(AV2_COMP *cpi, int speed) {
       !cpi->seq_params_locked) {
     sf->part_sf.force_max_pb_aspect_ratio = 4;
     if (sf->part_sf.force_max_pb_aspect_ratio) {
+      const int new_max_ratio =
+          AVMMIN(sf->part_sf.force_max_pb_aspect_ratio,
+                 oxcf->part_cfg.max_partition_aspect_ratio);
       cpi->common.seq_params.max_pb_aspect_ratio_log2_m1 =
-          sf->part_sf.force_max_pb_aspect_ratio == 2
-              ? 0
-              : (sf->part_sf.force_max_pb_aspect_ratio == 4 ? 1 : 2);
+          new_max_ratio == 2 ? 0 : (new_max_ratio == 4 ? 1 : 2);
     }
   }
 }
