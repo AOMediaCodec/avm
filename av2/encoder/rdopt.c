@@ -5903,7 +5903,7 @@ static int64_t handle_inter_mode(
   if (is_pb_mv_prec_active) {
     const int down_ctx = av2_get_pb_mv_precision_down_context(cm, xd);
     const int mpp_flag_context = av2_get_mpp_flag_context(cm, xd);
-    set_precision_set(cm, xd, mbmi, bsize, 0);
+    set_precision_set(cm, xd, mbmi, bsize);
     set_most_probable_mv_precision(cm, mbmi, bsize);
     const PRECISION_SET *precision_def =
         &av2_mv_precision_sets[mbmi->mb_precision_set];
@@ -5988,7 +5988,7 @@ static int64_t handle_inter_mode(
       best_tx_type_map, best_cctx_type_map, best_cwp_costs, best_cwp_idxs,
       &ref_best_rd, best_ref_mv_idx, &mode_info, &save_mv);
 
-  set_precision_set(cm, xd, mbmi, bsize, 0);
+  set_precision_set(cm, xd, mbmi, bsize);
   set_most_probable_mv_precision(cm, mbmi, bsize);
   const PRECISION_SET *precision_def =
       &av2_mv_precision_sets[mbmi->mb_precision_set];
