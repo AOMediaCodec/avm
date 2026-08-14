@@ -5274,7 +5274,6 @@ static void handle_single_inter_prediction(
     COMPACT_INDEX1_NRS(mbmi->ref_frame[1])
   };
   const int num_planes = av2_num_planes(cm);
-  const int is_comp_pred = 0;
   inter_mode_info (*const mode_info)[NUM_MV_PRECISIONS][MAX_REF_MV_SQUARE] =
       *search_state->mode_info;
 
@@ -5303,7 +5302,6 @@ static void handle_single_inter_prediction(
 
     int rate_mv = 0;
     int64_t newmv_ret_val = 0;
-    int i;
 
     mbmi->mode = this_mode;
     mbmi->refinemv_flag = 0;
@@ -5362,19 +5360,18 @@ static void handle_single_inter_prediction(
     int_mv bawp_off_mv[2];
     int64_t bawp_off_newmv_ret_val = 0;
     int bawp_off_rate_mv = 0;
-    for (i = 0; i < is_comp_pred + 1; ++i) {
-      bawp_off_mv[i].as_int = cur_mv[i].as_int;
-    }
+    bawp_off_mv[0].as_int = cur_mv[0].as_int;
+    bawp_off_mv[1].as_int = -1;
 
-    int bawp_eanbled = cm->features.enable_bawp &&
+    int bawp_enabled = cm->features.enable_bawp &&
                        av2_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col);
-    if (bawp_eanbled && av2_allow_explicit_bawp(mbmi))
-      bawp_eanbled += EXPLICIT_BAWP_SCALE_CNT;
+    if (bawp_enabled && av2_allow_explicit_bawp(mbmi))
+      bawp_enabled += EXPLICIT_BAWP_SCALE_CNT;
     // Dry pass: cap BAWP flag (0 => BAWP off).
     if (x->apply_dry_pass_shortcuts)
-      bawp_eanbled = AVMMIN(bawp_eanbled, cfg->bawp_cap);
+      bawp_enabled = AVMMIN(bawp_enabled, cfg->bawp_cap);
     const int total_bawp_iters =
-        (bawp_eanbled == 0) ? 1 : (1 + 2 * bawp_eanbled);
+        (bawp_enabled == 0) ? 1 : (1 + 2 * bawp_enabled);
     for (int b_idx = 0; b_idx < total_bawp_iters; b_idx++) {
       int bawp_flag = (b_idx + 1) / 2;
       int bawp_flag_uv = (b_idx == 0) ? 0 : ((b_idx + 1) % 2);
@@ -5408,12 +5405,8 @@ static void handle_single_inter_prediction(
       }
 
       if (mbmi->bawp_flag[0] >= 1) {
-        bawp_off_mv[1].as_int = -1;
-        assert(is_comp_pred == 0);
-        for (i = 0; i < is_comp_pred + 1; ++i) {
-          mbmi->mv[i].as_int = bawp_off_mv[i].as_int;
-          cur_mv[i].as_int = bawp_off_mv[i].as_int;
-        }
+        mbmi->mv[0].as_int = bawp_off_mv[0].as_int;
+        cur_mv[0].as_int = bawp_off_mv[0].as_int;
 
         mode_info[mbmi->bawp_flag[0]][mbmi->pb_mv_precision][ref_mv_idx_type]
             .full_search_mv.as_int =
@@ -5439,9 +5432,7 @@ static void handle_single_inter_prediction(
           end_timing(cpi, handle_newmv_time);
 #endif
           bawp_off_rate_mv = rate_mv;
-          for (i = 0; i < is_comp_pred + 1; ++i) {
-            bawp_off_mv[i].as_int = cur_mv[i].as_int;
-          }
+          bawp_off_mv[0].as_int = cur_mv[0].as_int;
           bawp_off_newmv_ret_val = newmv_ret_val;
           if (newmv_ret_val != 0) continue;
         }
@@ -5795,7 +5786,6 @@ static int64_t handle_inter_mode(
   const int prune_modes_based_on_tpl =
       cpi->sf.inter_sf.prune_inter_modes_based_on_tpl &&
       tpl_idx < MAX_TPL_FRAME_IDX && tpl_frame->is_valid;
-  int i;
 
   // Do first prediction into the destination buffer. Do the next
   // prediction into a temporary buffer. Then keep track of which one
@@ -5892,7 +5882,7 @@ static int64_t handle_inter_mode(
 
   for (int pb_mv_precision = mbmi->max_mv_precision;
        pb_mv_precision >= MV_PRECISION_8_PEL; pb_mv_precision--) {
-    for (i = 0; i < MAX_REF_MV_SQUARE - 1; ++i) {
+    for (int i = 0; i < MAX_REF_MV_SQUARE - 1; ++i) {
       save_mv[pb_mv_precision][i][0].as_int = INVALID_MV;
       save_mv[pb_mv_precision][i][1].as_int = INVALID_MV;
     }
@@ -6062,7 +6052,7 @@ static int64_t handle_inter_mode(
   txfm_info->skip_txfm = best_xskip_txfm;
   assert(IMPLIES(mbmi->comp_group_idx == 1,
                  mbmi->interinter_comp.type != COMPOUND_AVERAGE));
-  for (i = 0; i < num_planes; ++i) {
+  for (int i = 0; i < num_planes; ++i) {
     const int num_blk_plane =
         (xd->plane[i].height * xd->plane[i].width) >> (2 * MI_SIZE_LOG2);
     memcpy(txfm_info->blk_skip[i], best_blk_skip[i],
