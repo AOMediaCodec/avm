@@ -5320,11 +5320,7 @@ static void handle_single_inter_prediction(
     mbmi->motion_mode = SIMPLE_TRANSLATION;
     mbmi->ref_mv_idx[1] = ref_mv_idx[1];
     mbmi->ref_mv_idx[0] = ref_mv_idx[0];
-    set_mv_precision(mbmi, mbmi->max_mv_precision);
-
-    MvSubpelPrecision pb_mv_precision =
-        precision_def->precision[precision_dx];
-    mbmi->pb_mv_precision = pb_mv_precision;
+    set_mv_precision(mbmi, precision_def->precision[precision_dx]);
 
     const ModeCosts *mode_costs = &x->mode_costs;
     const int prediction_mode_cost =
@@ -5569,11 +5565,7 @@ static void handle_compound_inter_prediction(
         mbmi->motion_mode = SIMPLE_TRANSLATION;
         mbmi->ref_mv_idx[1] = ref_mv_idx[1];
         mbmi->ref_mv_idx[0] = ref_mv_idx[0];
-        set_mv_precision(mbmi, mbmi->max_mv_precision);
-
-        MvSubpelPrecision pb_mv_precision =
-            precision_def->precision[precision_dx];
-        mbmi->pb_mv_precision = pb_mv_precision;
+        set_mv_precision(mbmi, precision_def->precision[precision_dx]);
 
         const int prediction_mode_cost = cost_prediction_mode(
             mode_costs, this_mode, cm, mbmi, xd, mode_ctx);
@@ -5901,7 +5893,6 @@ static int64_t handle_inter_mode(
       flex_mv_cost[pb_mv_precision] = cost_mv_precision(
           mode_costs, mbmi->max_mv_precision, pb_mv_precision, down_ctx,
           mbmi->most_probable_pb_mv_precision, mpp_flag_context, mbmi);
-      set_mv_precision(mbmi, pb_mv_precision);
       mbmi->bawp_flag[0] = 0;
       mbmi->bawp_flag[1] = 0;
 
@@ -5921,12 +5912,8 @@ static int64_t handle_inter_mode(
         mbmi->bawp_flag[0] = 0;
       }
     }
-
-    // restore the MV precision to max value
-    set_mv_precision(mbmi, mbmi->max_mv_precision);
   } else {
     set_mv_precision(mbmi, mbmi->max_mv_precision);
-
     mbmi->bawp_flag[0] = 0;
     mbmi->bawp_flag[1] = 0;
 
@@ -5945,6 +5932,7 @@ static int64_t handle_inter_mode(
       mbmi->bawp_flag[0] = 0;
     }
   }
+  set_mv_precision(mbmi, mbmi->max_mv_precision);
 
   // Setup search environment and state for evaluating inter prediction
   // candidates across MV precisions.
