@@ -793,7 +793,9 @@ static AVM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
 #endif  // CONFIG_ML_PART_SPLIT
   part_sf->disable_ext_partitions = false;
   part_sf->disable_uneven_4way_partitions = false;
+
   part_sf->disable_extended_sdp = false;
+  part_sf->force_max_pb_aspect_ratio = 0;
 }
 
 static AVM_INLINE void init_mv_sf(MV_SPEED_FEATURES *mv_sf) {
@@ -1088,6 +1090,8 @@ static AVM_INLINE void set_erp_speed_features_framesize_dependent(
 void av2_set_speed_features_framesize_dependent(AV2_COMP *cpi, int speed) {
   SPEED_FEATURES *const sf = &cpi->sf;
   const AV2EncoderConfig *const oxcf = &cpi->oxcf;
+  const int is_270p_or_lesser =
+      AVMMIN(cpi->common.width, cpi->common.height) <= 270;
 
   if (oxcf->mode == GOOD) {
     set_good_speed_feature_framesize_dependent(cpi, sf, speed);
@@ -1107,6 +1111,18 @@ void av2_set_speed_features_framesize_dependent(AV2_COMP *cpi, int speed) {
 
   if (oxcf->txfm_cfg.enable_tx_partition == 0) {
     sf->tx_sf.enable_tx_partition = false;
+  }
+
+  if (speed >= 4 && !cpi->is_screen_content_type && !is_270p_or_lesser &&
+      !cpi->seq_params_locked) {
+    sf->part_sf.force_max_pb_aspect_ratio = 4;
+    if (sf->part_sf.force_max_pb_aspect_ratio) {
+      const unsigned int new_max_ratio =
+          AVMMIN(sf->part_sf.force_max_pb_aspect_ratio,
+                 oxcf->part_cfg.max_partition_aspect_ratio);
+      cpi->common.seq_params.max_pb_aspect_ratio_log2_m1 =
+          new_max_ratio == 2 ? 0 : (new_max_ratio == 4 ? 1 : 2);
+    }
   }
 }
 
