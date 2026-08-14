@@ -577,7 +577,7 @@ void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
   seq->enable_mhccp = oxcf->intra_mode_cfg.enable_mhccp;
   seq->enable_inter_ddt =
       seq->single_picture_header_flag ? 0 : oxcf->txfm_cfg.enable_inter_ddt;
-  seq->reduced_tx_part_set = oxcf->txfm_cfg.reduced_tx_part_set;
+  seq->reduced_tx_part_set = 0;
   seq->enable_cctx = oxcf->txfm_cfg.enable_cctx;
   seq->enable_ibp = oxcf->intra_mode_cfg.enable_ibp;
   seq->enable_adaptive_mvd =

@@ -3048,8 +3048,7 @@ static void select_tx_partition_type(
   uint8_t full_blk_skip[MAX_TX_PARTITIONS] = { 0 };
 
   for (TX_PARTITION_TYPE type = 0; type < TX_PARTITION_TYPES; ++type) {
-    if (cpi->common.seq_params.reduced_tx_part_set &&
-        type > TX_PARTITION_VERT) {
+    if (cpi->oxcf.txfm_cfg.reduced_tx_part_set && type > TX_PARTITION_VERT) {
       break;
     }
     // Skip any illegal partitions for this block size
@@ -3362,8 +3361,7 @@ static void choose_tx_size_type_from_rd(const AV2_COMP *const cpi,
   int64_t cur_rd = INT64_MAX;
   const bool is_rect = is_rect_tx(max_tx_size);
   for (TX_PARTITION_TYPE type = 0; type < TX_PARTITION_TYPES; ++type) {
-    if (cpi->common.seq_params.reduced_tx_part_set &&
-        type > TX_PARTITION_VERT) {
+    if (cpi->oxcf.txfm_cfg.reduced_tx_part_set && type > TX_PARTITION_VERT) {
       break;
     }
     // Skip any illegal partitions for this block size
