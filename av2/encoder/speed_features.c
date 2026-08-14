@@ -177,6 +177,12 @@ static void set_good_speed_feature_framesize_dependent(
     sf->mv_sf.use_downsampled_sad = 1;
   }
 
+  if (speed >= 1) {
+    if (!is_4k_or_larger) {
+      sf->mv_sf.prune_mesh_search = 1;
+    }
+  }
+
   if (speed >= 2) {
     if (is_720p_or_larger) {
       sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
@@ -415,9 +421,17 @@ static void set_good_speed_features_framesize_independent(
     sf->part_sf.partition_pruning_with_mlp = 1;
     sf->part_sf.partition_pruning_with_mlp_none_thresh = 3.5f;
     sf->lpf_sf.enable_deblock_for_partition_search = 1;
+    if (!allow_screen_content_tools) {
+      sf->mv_sf.newmv_drl_search_limit = boosted ? 2 : 1;
+    }
+    sf->mv_sf.reduce_search_range = 1;
+    sf->mv_sf.subpel_search_type = boosted ? USE_8_TAPS : USE_4_TAPS;
+    sf->mv_sf.subpel_iters_per_step = boosted ? 2 : 1;
   }
 
   if (speed >= 2) {
+    sf->mv_sf.warp_search_method_sec_ref = WARP_SEARCH_DIAMOND;
+
     sf->lpf_sf.early_terminate_ccso_search_by_cost = 1;
     sf->part_sf.partition_pruning_with_mlp_none_thresh = 2.5f;
     sf->part_sf.intra_cnn_split = 0;
@@ -431,8 +445,7 @@ static void set_good_speed_features_framesize_independent(
     sf->part_sf.disable_ext_partitions = true;
     sf->part_sf.disable_extended_sdp = true;
 
-    if (cpi->twopass.fr_content_type == FC_HIGHMOTION ||
-        cpi->is_screen_content_type) {
+    if (cpi->is_screen_content_type) {
       sf->mv_sf.exhaustive_searches_thresh = (1 << 21);
     } else {
       sf->mv_sf.exhaustive_searches_thresh = (1 << 26);
@@ -481,7 +494,6 @@ static void set_good_speed_features_framesize_independent(
 
     sf->lpf_sf.enable_deblock_for_partition_search = 0;
 
-    sf->hl_sf.high_precision_mv_usage = CURRENT_Q;
     sf->hl_sf.recode_loop = ALLOW_RECODE_KFARFGF;
 
     sf->part_sf.allow_partition_search_skip = 1;
@@ -701,7 +713,7 @@ static AVM_INLINE void init_hl_sf(HIGH_LEVEL_SPEED_FEATURES *hl_sf) {
   hl_sf->disable_unequal_scale_refs = false;
   // Recode loop tolerance %.
   hl_sf->recode_tolerance = 25;
-  hl_sf->high_precision_mv_usage = CURRENT_Q;
+  hl_sf->high_precision_mv_usage = LAST_MV_DATA;
 }
 
 static AVM_INLINE void init_tpl_sf(TPL_SPEED_FEATURES *tpl_sf) {
@@ -799,6 +811,7 @@ static AVM_INLINE void init_mv_sf(MV_SPEED_FEATURES *mv_sf) {
   mv_sf->use_fullpel_costlist = 0;
   mv_sf->use_downsampled_sad = 0;
   mv_sf->warp_search_method = WARP_SEARCH_SQUARE;
+  mv_sf->warp_search_method_sec_ref = WARP_SEARCH_SQUARE;
   mv_sf->warp_search_iters = 8;
   mv_sf->fast_motion_estimation_on_block_256 = 0;
 }
@@ -1229,6 +1242,11 @@ void av2_set_speed_features_framesize_independent(AV2_COMP *cpi, int speed) {
     if (sf->part_sf.disable_extended_sdp) {
       cpi->common.seq_params.enable_extended_sdp = 0;
     }
+    cpi->common.seq_params.enable_ext_partitions &=
+        !sf->part_sf.disable_ext_partitions;
+
+    cpi->common.seq_params.enable_uneven_4way_partitions &=
+        !sf->part_sf.disable_uneven_4way_partitions;
 
     if (sf->inter_sf.reduce_comp_refs) {
       cpi->common.seq_params.num_same_ref_compound =

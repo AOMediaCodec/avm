@@ -539,8 +539,13 @@ typedef struct MV_SPEED_FEATURES {
   // Method to use for refining WARP_CAUSAL motion vectors
   WARP_SEARCH_METHOD warp_search_method;
 
+  // Method to use for refining WARP_CAUSAL motion vectors on secondary
+  // reference frames during coarse inter-mode search
+  WARP_SEARCH_METHOD warp_search_method_sec_ref;
+
   // Maximum number of iterations in WARP_CAUSAL refinement search
   int warp_search_iters;
+
   // Use faster motion search settings for partition blocks with at least one
   // dimension that's >= 256
   int fast_motion_estimation_on_block_256;

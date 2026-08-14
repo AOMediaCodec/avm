@@ -34,11 +34,11 @@ extern "C" {
 
 static const char av2_tx_size_data_output_file[] = "tx_size_data.txt";
 
-static AVM_INLINE void collect_tx_size_data(const AV2_COMP *cpi,
-                                            const MACROBLOCK *x, int plane,
+static AVM_INLINE void collect_tx_size_data(const MACROBLOCK *x, int plane,
                                             int blk_row, int blk_col,
                                             BLOCK_SIZE plane_bsize,
-                                            TX_SIZE tx_size, TX_TYPE tx_type,
+                                            TX_SIZE tx_size,
+                                            TX_TYPE packed_tx_type,
                                             int64_t rd) {
   // Generate small sample to restrict output size.
   static unsigned int seed = 21743;
@@ -76,7 +76,7 @@ static AVM_INLINE void collect_tx_size_data(const AV2_COMP *cpi,
         src_diff += diff_stride;
       }
 
-      fprintf(fp, "%d,%d,%d,%" PRId64, txb_w, txb_h, tx_type, rd);
+      fprintf(fp, "%d,%d,%d,%" PRId64, txb_w, txb_h, packed_tx_type, rd);
       fprintf(fp, "\n");
       fclose(fp);
     }
