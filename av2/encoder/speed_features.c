@@ -555,7 +555,9 @@ static void set_good_speed_features_framesize_independent(
 
     // TODO(any): Refactor the code related to following winner mode speed
     // features
-    sf->winner_mode_sf.enable_winner_mode_for_coeff_opt = 1;
+    // TODO(any):this speed feature cause coding loss with no speed up, disable
+    // it before the issue is fixed
+    // sf->winner_mode_sf.enable_winner_mode_for_coeff_opt = 1;
     // TODO(any): Re-enable for inter frames after fixing speed feature.
     sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch = 0;
     sf->winner_mode_sf.enable_winner_mode_for_use_tx_domain_dist = 1;
