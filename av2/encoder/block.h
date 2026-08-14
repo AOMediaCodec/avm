@@ -427,19 +427,27 @@ typedef struct {
 
 //! Number of compound rd stats
 #define MAX_COMP_RD_STATS 64
-/*! \brief Rdcost stats in compound mode.
+
+/*! \brief Rate-distortion statistics for a compound type.
  */
 typedef struct {
-  //! Rate of the compound modes.
-  int32_t rate[COMPOUND_TYPES];
-  //! Distortion of the compound modes.
-  int64_t dist[COMPOUND_TYPES];
-  //! Estimated rate of the compound modes.
-  int32_t model_rate[COMPOUND_TYPES];
-  //! Estimated distortion of the compound modes.
-  int64_t model_dist[COMPOUND_TYPES];
-  //! Rate need to send the mask type.
-  int comp_rs2[COMPOUND_TYPES];
+  //! Distortion of the compound mode.
+  int64_t dist;
+  //! Estimated distortion of the compound mode.
+  int64_t model_dist;
+  //! Rate of the compound mode.
+  int rate;
+  //! Estimated rate of the compound mode.
+  int model_rate;
+  //! Rate required to signal the compound type.
+  int comp_type_rate;
+} CompTypeRdStats;
+
+/*! \brief Stats in compound mode.
+ */
+typedef struct {
+  //! Rdcost stats for compound types.
+  CompTypeRdStats rd_stats[COMPOUND_TYPES];
   //! Motion vector for each predictor.
   int_mv mv[2];
   //! Ref frame for each predictor.
