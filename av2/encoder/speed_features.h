@@ -462,6 +462,9 @@ typedef struct PARTITION_SPEED_FEATURES {
   bool disable_ext_partitions;
   bool disable_uneven_4way_partitions;
   bool disable_extended_sdp;
+
+  // Force the max partition-block aspect ratio
+  unsigned int force_max_pb_aspect_ratio;
 } PARTITION_SPEED_FEATURES;
 
 typedef struct MV_SPEED_FEATURES {
