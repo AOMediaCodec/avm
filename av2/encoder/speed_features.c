@@ -390,7 +390,7 @@ static void set_good_speed_features_framesize_independent(
 
     if (!cpi->is_screen_content_type &&
         cpi->twopass.fr_content_type == FC_HIGHMOTION) {
-      sf->mv_sf.exhaustive_searches_thresh <<= 1;
+      sf->mv_sf.exhaustive_searches_thresh = (1 << 26);
     }
     // Skip the second-best full-pel candidate's subpel refinement in the
     // single-ref NEWMV search.
@@ -449,8 +449,6 @@ static void set_good_speed_features_framesize_independent(
 
     if (cpi->is_screen_content_type) {
       sf->mv_sf.exhaustive_searches_thresh = (1 << 21);
-    } else {
-      sf->mv_sf.exhaustive_searches_thresh = (1 << 26);
     }
     sf->mv_sf.subpel_search_type = USE_4_TAPS;
 
