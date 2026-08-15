@@ -581,8 +581,7 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.reuse_compound_type_data = 0;
     sf->inter_sf.txfm_rd_gate_level =
         boosted ? 0 : (is_boosted_arf2_bwd_type ? 1 : 2);
-    sf->inter_sf.enable_four_param_warp_in_winner_mode =
-        cm->current_frame.pyramid_level >= 3;
+    sf->inter_sf.enable_four_param_warp_in_winner_mode = 1;
 
     // TODO(any): disable_smooth_intra does not have speed up while introducing
     // coding loss. Disable  it before it is improved.
@@ -717,7 +716,6 @@ static void set_good_speed_features_framesize_independent(
 
     sf->winner_mode_sf.multi_winner_mode_type = MULTI_WINNER_MODE_OFF;
 
-    sf->inter_sf.enable_four_param_warp_in_winner_mode = 1;
     sf->inter_sf.enable_six_param_warp_in_winner_mode_by_tid = 1;
   }
 
