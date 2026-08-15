@@ -604,6 +604,10 @@ static long double unsigned_wide_to_long_double(
   return result;
 }
 
+static bool is_finite_number(long double value) {
+  return value >= -LDBL_MAX && value <= LDBL_MAX;
+}
+
 static bool rational_to_long_double(const Av2DmRational *value,
                                     long double *result) {
   if (value == NULL || result == NULL || value->negative) return false;
@@ -611,7 +615,7 @@ static bool rational_to_long_double(const Av2DmRational *value,
       unsigned_wide_to_long_double(&value->denominator);
   if (!(denominator > 0.0L)) return false;
   *result = unsigned_wide_to_long_double(&value->magnitude) / denominator;
-  return isfinite(*result);
+  return is_finite_number(*result);
 }
 
 static bool rational_to_double(const Av2DmRational *value, double *result) {
@@ -621,7 +625,7 @@ static bool rational_to_double(const Av2DmRational *value, double *result) {
     return false;
   }
   *result = (double)converted;
-  return isfinite(*result);
+  return is_finite_number(*result);
 }
 
 static double get_max_bitrate(const AV2LevelSpec *const level_spec, int tier,
@@ -697,10 +701,11 @@ bool av2_encoder_decoder_model_push_dfg_interval(DECODER_MODEL *decoder_model,
   DFG_INTERVAL_QUEUE *const queue = &decoder_model->dfg_interval_queue;
   const double duration =
       interval->last_bit_arrival_time - interval->first_bit_arrival_time;
-  if (!isfinite(interval->first_bit_arrival_time) ||
-      !isfinite(interval->last_bit_arrival_time) ||
-      !isfinite(interval->removal_time) || !isfinite(duration) ||
-      duration < 0.0 || !isfinite(queue->total_interval) ||
+  if (!is_finite_number(interval->first_bit_arrival_time) ||
+      !is_finite_number(interval->last_bit_arrival_time) ||
+      !is_finite_number(interval->removal_time) ||
+      !is_finite_number(duration) || duration < 0.0 ||
+      !is_finite_number(queue->total_interval) ||
       duration > DBL_MAX - queue->total_interval ||
       interval->coded_bits > UINT64_MAX - queue->total_bits) {
     return false;
@@ -736,7 +741,8 @@ bool av2_encoder_decoder_model_arrival_fits(const DECODER_MODEL *decoder_model,
                                             uint64_t coded_bits,
                                             double available_duration,
                                             bool *fits) {
-  if (decoder_model == NULL || fits == NULL || !isfinite(available_duration)) {
+  if (decoder_model == NULL || fits == NULL ||
+      !is_finite_number(available_duration)) {
     return false;
   }
   long double bit_rate;
@@ -745,7 +751,7 @@ bool av2_encoder_decoder_model_arrival_fits(const DECODER_MODEL *decoder_model,
     return false;
   }
   const long double available_bits = (long double)available_duration * bit_rate;
-  if (!isfinite(available_bits)) return false;
+  if (!is_finite_number(available_bits)) return false;
   *fits = available_bits >= 0.0L && coded_bits <= available_bits;
   return true;
 }
@@ -754,7 +760,7 @@ static bool smoothing_buffer_fits_with_partial_arrival(
     const DECODER_MODEL *decoder_model, uint64_t queued_bits,
     uint64_t current_dfg_bits, double partial_arrival_duration, bool *fits) {
   if (decoder_model == NULL || fits == NULL ||
-      !isfinite(partial_arrival_duration)) {
+      !is_finite_number(partial_arrival_duration)) {
     return false;
   }
   long double bit_rate;
@@ -767,10 +773,10 @@ static bool smoothing_buffer_fits_with_partial_arrival(
   const long double duration =
       partial_arrival_duration > 0.0 ? partial_arrival_duration : 0.0L;
   long double partial_bits = duration * bit_rate;
-  if (!isfinite(partial_bits)) return false;
+  if (!is_finite_number(partial_bits)) return false;
   if (partial_bits > current_dfg_bits) partial_bits = current_dfg_bits;
   const long double fullness = queued_bits + partial_bits;
-  if (!isfinite(fullness)) return false;
+  if (!is_finite_number(fullness)) return false;
   *fits = fullness <= buffer_size;
   return true;
 }
@@ -1414,7 +1420,7 @@ void av2_decoder_model_init(const AV2_COMP *const cpi, AV2_LEVEL level,
       (double)decoder_model->level_limits.max_decode_rate * scale_denominator /
       scale_numerator;
   if (!(decoder_model->decode_rate > 0.0) ||
-      !isfinite(decoder_model->decode_rate)) {
+      !is_finite_number(decoder_model->decode_rate)) {
     decoder_model->status = DECODER_MODEL_INTERNAL_ERROR;
     return;
   }
@@ -1474,7 +1480,8 @@ static bool check_frame_constraints_at_decode_limit(
   const long double observed_decode_rate =
       max_decode_rate * frame->luma_sample_count /
       frame_parsing_time_decode_luma_samples;
-  if (!isfinite(max_decode_rate) || !isfinite(observed_decode_rate)) {
+  if (!is_finite_number(max_decode_rate) ||
+      !is_finite_number(observed_decode_rate)) {
     return false;
   }
   decoder_model->max_decode_rate =
@@ -1576,7 +1583,7 @@ bool av2_encoder_decoder_model_check_frame_constraints(
     uint64_t frame_parsing_time_decode_luma_samples) {
   if (decoder_model == NULL || frame == NULL || !frame->valid ||
       decoder_model->status != DECODER_MODEL_OK ||
-      !(frame_parsing_time > 0.0) || !isfinite(frame_parsing_time)) {
+      !(frame_parsing_time > 0.0) || !is_finite_number(frame_parsing_time)) {
     if (decoder_model != NULL && decoder_model->status == DECODER_MODEL_OK) {
       decoder_model->status = DECODER_MODEL_INTERNAL_ERROR;
     }
@@ -1613,8 +1620,8 @@ bool av2_encoder_decoder_model_check_frame_constraints(
       (long double)limits->max_tiles * scale_denominator / scale_numerator;
   const long double observed_decode_rate =
       (long double)frame->luma_sample_count / parsing_time;
-  if (!isfinite(max_decode_rate) || !isfinite(max_tiles) ||
-      !isfinite(observed_decode_rate)) {
+  if (!is_finite_number(max_decode_rate) || !is_finite_number(max_tiles) ||
+      !is_finite_number(observed_decode_rate)) {
     decoder_model->status = DECODER_MODEL_INTERNAL_ERROR;
     return false;
   }
@@ -1626,7 +1633,7 @@ bool av2_encoder_decoder_model_check_frame_constraints(
   const long double dynamic_tile_limit = max_tiles * 120.0L * parsing_time;
   const long double tile_limit =
       AVMMIN(max_tiles, AVMMAX(1.0L, dynamic_tile_limit));
-  if (!isfinite(dynamic_tile_limit) || !isfinite(tile_limit)) {
+  if (!is_finite_number(dynamic_tile_limit) || !is_finite_number(tile_limit)) {
     decoder_model->status = DECODER_MODEL_INTERNAL_ERROR;
     return false;
   }
@@ -1647,8 +1654,9 @@ bool av2_encoder_decoder_model_check_frame_constraints(
       ((long double)8 * limits->min_compression_basis);
   const long double compressed_limit =
       AVMMIN(compressed_limit_from_picture, compressed_limit_from_rate);
-  if (!isfinite(compressed_limit_from_picture) ||
-      !isfinite(compressed_limit_from_rate) || !isfinite(compressed_limit)) {
+  if (!is_finite_number(compressed_limit_from_picture) ||
+      !is_finite_number(compressed_limit_from_rate) ||
+      !is_finite_number(compressed_limit)) {
     decoder_model->status = DECODER_MODEL_INTERNAL_ERROR;
     return false;
   }
@@ -1661,7 +1669,7 @@ bool av2_encoder_decoder_model_check_frame_constraints(
   const long double symbol_limit = parsing_time * max_decode_rate *
                                    limits->picture_size_profile_factor *
                                    symbol_factor;
-  if (!isfinite(symbol_factor) || !isfinite(symbol_limit)) {
+  if (!is_finite_number(symbol_factor) || !is_finite_number(symbol_limit)) {
     decoder_model->status = DECODER_MODEL_INTERNAL_ERROR;
     return false;
   }
@@ -1677,7 +1685,7 @@ bool av2_encoder_decoder_model_store_frame_constraints(
   if (decoder_model == NULL || current_frame == NULL || !current_frame->valid ||
       current_frame->decode_count == 0 ||
       decoder_model->status != DECODER_MODEL_OK ||
-      !isfinite(current_frame->removal_time)) {
+      !is_finite_number(current_frame->removal_time)) {
     if (decoder_model != NULL && decoder_model->status == DECODER_MODEL_OK) {
       decoder_model->status = DECODER_MODEL_INTERNAL_ERROR;
     }
@@ -1736,14 +1744,16 @@ void av2_encoder_decoder_model_finalize_frame_constraints(
 
 static bool update_max_display_rate(DECODER_MODEL *decoder_model,
                                     double display_duration) {
-  if (decoder_model == NULL || !isfinite(display_duration)) return false;
+  if (decoder_model == NULL || !is_finite_number(display_duration)) {
+    return false;
+  }
   if (display_duration <= 0.0) {
     decoder_model->max_display_rate = LDBL_MAX;
     return true;
   }
   const long double display_rate =
       (long double)decoder_model->display_samples / display_duration;
-  if (!isfinite(display_rate)) return false;
+  if (!is_finite_number(display_rate)) return false;
   decoder_model->max_display_rate =
       AVMMAX(decoder_model->max_display_rate, display_rate);
   return true;
@@ -1812,8 +1822,8 @@ static bool get_minimum_presentation_interval(
       (double)limits.max_decode_rate /
       ((double)max_frame_headers_per_second * (double)limits.max_display_rate);
   *min_interval = AVMMAX(sample_interval, min_frame_time);
-  return isfinite(sample_interval) && isfinite(min_frame_time) &&
-         isfinite(*min_interval);
+  return is_finite_number(sample_interval) &&
+         is_finite_number(min_frame_time) && is_finite_number(*min_interval);
 }
 
 void av2_encoder_decoder_model_finalize(DECODER_MODEL *decoder_model,
@@ -2250,7 +2260,7 @@ static bool get_presentation_offset(
     *offset = decoder_model->last_presentation_offset +
               decoder_model->num_ticks_per_picture *
                   decoder_model->display_clock_tick;
-    return isfinite(*offset);
+    return is_finite_number(*offset);
   }
   if (!presentation->presentation_time_present) return false;
   uint64_t base_epoch = presentation->rap_epoch;
@@ -2267,7 +2277,7 @@ static bool get_presentation_offset(
   }
   *offset = base + presentation->presentation_time_ticks *
                        decoder_model->display_clock_tick;
-  return isfinite(*offset);
+  return is_finite_number(*offset);
 }
 
 static void av2_decoder_model_check_output_frame(
@@ -2348,7 +2358,7 @@ static void av2_decoder_model_check_output_frame(
   if (decoder_model->initial_presentation_delay >= 0.0) {
     presentation_time += decoder_model->initial_presentation_delay;
   }
-  if (!isfinite(presentation_time)) {
+  if (!is_finite_number(presentation_time)) {
     decoder_model->status = DECODER_MODEL_INTERNAL_ERROR;
     return;
   }
@@ -3047,8 +3057,8 @@ static TARGET_LEVEL_FAIL_ID check_level_constraints(
     if (check_bitrate) {
       // Check average bitrate instead of max_bitrate.
       if (!(level_stats->total_time_encoded > 0.0) ||
-          !isfinite(level_stats->total_time_encoded) ||
-          !isfinite(level_stats->total_compressed_size)) {
+          !is_finite_number(level_stats->total_time_encoded) ||
+          !is_finite_number(level_stats->total_compressed_size)) {
         model_unavailable = true;
         break;
       }
