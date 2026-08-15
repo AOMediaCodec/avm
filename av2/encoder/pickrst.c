@@ -3871,10 +3871,26 @@ void av2_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV2_COMP *cpi) {
             ? 0
             : 1;
     RestorationInfo *rsi = &cm->rst_info[plane];
-    const int max_unit_size = rsi->max_restoration_unit_size;
-    const int min_unit_size = rsi->min_restoration_unit_size;
+    int max_unit_size = rsi->max_restoration_unit_size;
+    int min_unit_size = rsi->min_restoration_unit_size;
 
     int best_unit_size = min_unit_size;
+
+    if (cpi->sf.lpf_sf.reduce_lr_unit_size_by_pyr) {
+      // Trim the RU-size search window by pyramid level: drop the largest at
+      // level>=3, and also drop the smallest at level>=5 when drop_low is set.
+      const int pyr_level = cm->current_frame.pyramid_level;
+      const int drop_high = (pyr_level >= 3);
+      const int drop_low =
+          (cpi->sf.lpf_sf.reduce_lr_unit_size_by_pyr_drop_low &&
+           pyr_level >= 5);
+      int hi_unit_size = max_unit_size >> drop_high;
+      int lo_unit_size = min_unit_size << drop_low;
+      if (hi_unit_size < min_unit_size) hi_unit_size = min_unit_size;
+      if (lo_unit_size > hi_unit_size) lo_unit_size = min_unit_size;
+      min_unit_size = lo_unit_size;
+      max_unit_size = hi_unit_size;
+    }
 
     for (int unit_size = min_unit_size; unit_size <= max_unit_size;
          unit_size <<= 1) {
