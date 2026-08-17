@@ -535,8 +535,10 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.txfm_rd_gate_level =
         boosted ? 0 : (is_boosted_arf2_bwd_type ? 1 : 2);
 
-    sf->intra_sf.disable_smooth_intra =
-        !frame_is_intra_only(&cpi->common) || (cpi->rc.frames_to_key != 1);
+    // TODO(any): disable_smooth_intra does not have speed up while introducing
+    // coding loss. Disable  it before it is improved.
+    // sf->intra_sf.disable_smooth_intra =
+    //    !frame_is_intra_only(&cpi->common) || (cpi->rc.frames_to_key != 1);
     sf->intra_sf.prune_palette_search_level = 2;
 
     sf->tpl_sf.prune_ref_frames_in_tpl = 1;
