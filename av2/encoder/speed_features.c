@@ -492,8 +492,6 @@ static void set_good_speed_features_framesize_independent(
     sf->rd_sf.disable_tcq = 1;
     // --- End ---
 
-    sf->lpf_sf.enable_deblock_for_partition_search = 0;
-
     sf->hl_sf.recode_loop = ALLOW_RECODE_KFARFGF;
 
     sf->part_sf.allow_partition_search_skip = 1;
