@@ -1875,19 +1875,8 @@ void av2_ccso_search(AV2_COMMON *cm, MACROBLOCKD *xd, int rdmult,
   CcsoCtx *const ctx = avm_calloc(1, sizeof(CcsoCtx));
   ctx->ccso_stride = xd->plane[0].dst.width;
   ctx->ccso_stride_ext = xd->plane[0].dst.width + (CCSO_PADDING_SIZE << 1);
-  derive_ccso_filter(ctx, cm, AVM_PLANE_Y, xd, org_uv[AVM_PLANE_Y], ext_rec_y,
-                     rec_uv[AVM_PLANE_Y], rdmult, error_resilient_frame_seen
-#if CONFIG_ENTROPY_STATS
-                     ,
-                     td
-#endif
-                     ,
-                     early_terminate_ccso_search);
 
-  cm->ccso_info.ccso_frame_flag = cm->ccso_info.ccso_enable[0];
-  int check_chroma_planes = ccso_chroma_dep ? cm->ccso_info.ccso_frame_flag : 1;
-
-  if (num_planes > 1 && check_chroma_planes) {
+  if (num_planes > 1) {
     rdmult = (rdmult * 7) >> 3;
     derive_ccso_filter(ctx, cm, AVM_PLANE_U, xd, org_uv[AVM_PLANE_U], ext_rec_y,
                        rec_uv[AVM_PLANE_U], rdmult, error_resilient_frame_seen
@@ -1907,6 +1896,21 @@ void av2_ccso_search(AV2_COMMON *cm, MACROBLOCKD *xd, int rdmult,
                        early_terminate_ccso_search);
     cm->ccso_info.ccso_frame_flag |= cm->ccso_info.ccso_enable[1];
     cm->ccso_info.ccso_frame_flag |= cm->ccso_info.ccso_enable[2];
+  }
+
+  int check_luma_planes =
+      ccso_chroma_dep && num_planes > 1 ? cm->ccso_info.ccso_frame_flag : 1;
+
+  if (check_luma_planes) {
+    derive_ccso_filter(ctx, cm, AVM_PLANE_Y, xd, org_uv[AVM_PLANE_Y], ext_rec_y,
+                       rec_uv[AVM_PLANE_Y], rdmult, error_resilient_frame_seen
+#if CONFIG_ENTROPY_STATS
+                       ,
+                       td
+#endif
+                       ,
+                       early_terminate_ccso_search);
+    cm->ccso_info.ccso_frame_flag |= cm->ccso_info.ccso_enable[0];
   }
   avm_free(ctx);
 }
