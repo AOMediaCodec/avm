@@ -5151,6 +5151,22 @@ static void evaluate_inter_predictor(AV2_COMP *const cpi,
   mbmi->motion_mode = SIMPLE_TRANSLATION;
 }
 
+// Prune ref_mv_idx > 0 for WARP_NEWMV mode based on best motion mode chosen so
+// far and ref_frame
+static INLINE bool prune_ref_mv_idx_for_warp_newmv(
+    const MB_MODE_INFO *mbmi, int64_t best_rd, int64_t best_mode_rd_so_far,
+    int is_best_mode_warp, int ref_mv_idx_0, bool prune_warp_newmv_ref_mv_idx) {
+  if (!prune_warp_newmv_ref_mv_idx) return false;
+  if (mbmi->mode != WARP_NEWMV) return false;
+  if ((is_best_mode_warp || best_rd < best_mode_rd_so_far) &&
+      mbmi->ref_frame[0] == 0)
+    return false;
+
+  if (ref_mv_idx_0 > 0) return true;
+
+  return false;
+}
+
 /*!\brief AV2 inter mode RD computation
  *
  * \ingroup inter_mode_search
@@ -5211,6 +5227,9 @@ static void evaluate_inter_predictor(AV2_COMP *const cpi,
  * data collected in the TPL model.
  * \param[in]     top_motion_mode_model_rd A buffer to store N number of model
  * RD
+ * \param[in]     is_best_mode_warp        Flag indicating whether the best
+ *                                         motion mode chosen so far is a warp
+ *                                         motion mode.
  *
  * \return The RD cost for the mode being searched.
  */
@@ -5224,7 +5243,7 @@ static int64_t handle_inter_mode(
     InterModesInfo *inter_modes_info, motion_mode_candidate *motion_mode_cand,
     int64_t *skip_rd, PREDICTION_MODE best_ref_mode,
     int64_t top_motion_mode_model_rd[],
-    PruneInfoFromTpl *inter_cost_info_from_tpl) {
+    PruneInfoFromTpl *inter_cost_info_from_tpl, int is_best_mode_warp) {
   const AV2_COMMON *cm = &cpi->common;
   const int num_planes = av2_num_planes(cm);
   MACROBLOCKD *xd = &x->e_mbd;
@@ -5270,6 +5289,7 @@ static int64_t handle_inter_mode(
   int64_t newmv_ret_val = INT64_MAX;
   const int is_pb_mv_prec_active = is_pb_mv_precision_active(cm, mbmi, bsize);
   const int has_two_drls = has_second_drl(mbmi);
+  int64_t best_mode_rd_so_far = ref_best_rd;
 
   // First, perform a simple translation search for each of the indices. If
   // an index performs well, it will be fully searched in the main loop
@@ -5462,6 +5482,11 @@ static int64_t handle_inter_mode(
     int ref_mv_idx[2];
     for (ref_mv_idx[1] = 0; ref_mv_idx[1] < ref_set[1]; ++ref_mv_idx[1]) {
       for (ref_mv_idx[0] = 0; ref_mv_idx[0] < ref_set[0]; ++ref_mv_idx[0]) {
+        if (prune_ref_mv_idx_for_warp_newmv(
+                mbmi, *search_state.best_rd, best_mode_rd_so_far,
+                is_best_mode_warp, ref_mv_idx[0],
+                cpi->sf.inter_sf.prune_warp_newmv_ref_mv_idx))
+          continue;
         // apply early termination method to jmvd scaling factors
         if (cpi->sf.inter_sf.early_terminate_jmvd_scale_factor) {
           if (scale_index > 0 && (ref_mv_idx[0] > 0 || ref_mv_idx[1] > 0) &&
@@ -9371,11 +9396,14 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
           enable_tx_prune
               ? (share_across_modes ? pool_shared : pool_per_mode[this_mode])
               : NULL;
+      const int is_best_mode_warp =
+          is_warp_mode(search_state.best_mbmode.motion_mode);
       int64_t this_rd = handle_inter_mode(
           cpi, tile_data, x, bsize, &rd_stats, &rd_stats_y, &rd_stats_uv, &args,
           ref_best_rd, tmp_buf, &x->comp_rd_buffer, &best_est_rd, do_tx_search,
           inter_modes_info, &motion_mode_cand, skip_rd,
-          search_state.best_mbmode.mode, pool, &inter_cost_info_from_tpl);
+          search_state.best_mbmode.mode, pool, &inter_cost_info_from_tpl,
+          is_best_mode_warp);
 
       // collect_single_states uses simple_rd/modelled_rd populated by
       // handle_inter_mode even when this_rd == INT64_MAX, so call before
