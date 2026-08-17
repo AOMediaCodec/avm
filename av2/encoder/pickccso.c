@@ -1845,28 +1845,29 @@ exit_loops:
 }
 
 /* Derive the look-up table for a frame */
-void ccso_search(AV2_COMMON *cm, MACROBLOCKD *xd, int rdmult,
-                 const uint16_t *ext_rec_y, uint16_t *rec_uv[3],
-                 uint16_t *org_uv[3], bool error_resilient_frame_seen
+void av2_ccso_search(AV2_COMMON *cm, MACROBLOCKD *xd, int rdmult,
+                     const uint16_t *ext_rec_y, uint16_t *rec_uv[3],
+                     uint16_t *org_uv[3], bool error_resilient_frame_seen
 #if CONFIG_ENTROPY_STATS
-                 ,
-                 ThreadData *td
+                     ,
+                     ThreadData *td
 #endif
-                 ,
-                 int early_terminate_ccso_search) {
+                     ,
+                     int early_terminate_ccso_search, int ccso_chroma_dep) {
   int rdmult_weight = clamp(cm->quant_params.base_qindex >> 3, 1, 37);
   int64_t rdmult_temp = (int64_t)rdmult * (int64_t)rdmult_weight;
-  if (rdmult_temp >= INT_MAX) {
-    cm->ccso_info.ccso_frame_flag = false;
-    cm->ccso_info.ccso_enable[0] = cm->ccso_info.ccso_enable[1] =
-        cm->ccso_info.ccso_enable[2] = 0;
-    for (int plane = 0; plane < av2_num_planes(cm); plane++) {
-      cm->cur_frame->ccso_info.ccso_enable[plane] = 0;
-      cm->ccso_info.sb_reuse_ccso[plane] = false;
-      cm->ccso_info.reuse_ccso[plane] = false;
-    }
-    return;
+
+  cm->ccso_info.ccso_frame_flag = false;
+  cm->ccso_info.ccso_enable[0] = cm->ccso_info.ccso_enable[1] =
+      cm->ccso_info.ccso_enable[2] = 0;
+  for (int plane = 0; plane < av2_num_planes(cm); plane++) {
+    cm->cur_frame->ccso_info.ccso_enable[plane] = 0;
+    cm->ccso_info.sb_reuse_ccso[plane] = false;
+    cm->ccso_info.reuse_ccso[plane] = false;
   }
+
+  if (rdmult_temp >= INT_MAX) return;
+
   const int num_planes = av2_num_planes(cm);
   av2_setup_dst_planes(xd->plane, &cm->cur_frame->buf, 0, 0, 0, num_planes,
                        NULL);
@@ -1884,7 +1885,9 @@ void ccso_search(AV2_COMMON *cm, MACROBLOCKD *xd, int rdmult,
                      early_terminate_ccso_search);
 
   cm->ccso_info.ccso_frame_flag = cm->ccso_info.ccso_enable[0];
-  if (num_planes > 1) {
+  int check_chroma_planes = ccso_chroma_dep ? cm->ccso_info.ccso_frame_flag : 1;
+
+  if (num_planes > 1 && check_chroma_planes) {
     rdmult = (rdmult * 7) >> 3;
     derive_ccso_filter(ctx, cm, AVM_PLANE_U, xd, org_uv[AVM_PLANE_U], ext_rec_y,
                        rec_uv[AVM_PLANE_U], rdmult, error_resilient_frame_seen

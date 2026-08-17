@@ -1048,6 +1048,9 @@ typedef struct LOOP_FILTER_SPEED_FEATURES {
 
   // early terminate ccso search by cost threshold
   int early_terminate_ccso_search_by_cost;
+
+  // bypass ccso chroma planes
+  int ccso_chroma_dep;
 } LOOP_FILTER_SPEED_FEATURES;
 
 typedef struct REALTIME_SPEED_FEATURES {

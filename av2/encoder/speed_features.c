@@ -424,6 +424,7 @@ static void set_good_speed_features_framesize_independent(
     sf->part_sf.partition_pruning_with_mlp = 1;
     sf->part_sf.partition_pruning_with_mlp_none_thresh = 3.5f;
     sf->lpf_sf.enable_deblock_for_partition_search = 1;
+    sf->lpf_sf.ccso_chroma_dep = 1;
     if (!allow_screen_content_tools) {
       sf->mv_sf.newmv_drl_search_limit = boosted ? 2 : 1;
     }
@@ -998,6 +999,7 @@ static AVM_INLINE void init_lpf_sf(LOOP_FILTER_SPEED_FEATURES *lpf_sf) {
   lpf_sf->wienerns_refine_iters = 2;
   lpf_sf->enable_deblock_for_partition_search = 0;
   lpf_sf->early_terminate_ccso_search_by_cost = 0;
+  lpf_sf->ccso_chroma_dep = 0;
 }
 
 static void av2_disable_ml_based_transform_sf(TX_SPEED_FEATURES *const tx_sf) {
