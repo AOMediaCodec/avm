@@ -798,6 +798,10 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Prune further evaluation of compound mode using estimated RD Cost of best
   // compound type chosen.
   bool prune_comp_mode_eval_using_est_rd;
+
+  // Prune the evaluation of ref_mv_idx > 0 for WARP_NEWMV modes based on RD
+  // Cost of ref_mv_idx = 0 and best mode so far.
+  bool prune_warp_newmv_ref_mv_idx;
 } INTER_MODE_SPEED_FEATURES;
 
 typedef struct INTERP_FILTER_SPEED_FEATURES {
