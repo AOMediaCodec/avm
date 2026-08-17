@@ -640,7 +640,6 @@ static size_t check_frame_unit_data(struct AV2Decoder *pbi, const uint8_t *data,
   const uint8_t *data_read = data;
   size_t bytes_available = data_sz;
   ObuHeader obu_header;
-  bool bfirst = true;      // True until we encounter the first VCL OBU
   bool vcl_found = false;  // Track if we've found any VCL OBU
 
   // Temporary tracking for CMVS-end activation check.
@@ -685,12 +684,11 @@ static size_t check_frame_unit_data(struct AV2Decoder *pbi, const uint8_t *data,
                                : ((first_byte_payload & 128) >> 7);
       // If this is a first_tile_group and we already saw a VCL OBU,
       // this marks the start of a NEW picture unit
-      if (is_first_tile && !bfirst) {
+      if (is_first_tile && vcl_found) {
         // Boundary detected! Return WITHOUT including this OBU
         return data_read - data;
       }
       // This VCL OBU is part of the current picture unit
-      bfirst = false;
       vcl_found = true;
       // Capture layer IDs from the FIRST VCL OBU (the picture unit's layer)
       if (*mlayer_id == -1) {  // Only set once, from first VCL OBU
@@ -699,14 +697,14 @@ static size_t check_frame_unit_data(struct AV2Decoder *pbi, const uint8_t *data,
         *xlayer_id = obu_header.obu_xlayer_id;
       }
     } else {
-      // Special case: Temporal delimiter after VCL always starts new TU
-      if (obu_header.type == OBU_TEMPORAL_DELIMITER && vcl_found) {
-        // Boundary detected! Return WITHOUT including this TD
-        return data_read - data;
-      }
-
       // Check if this non-VCL OBU appears after a VCL OBU
-      if (!bfirst) {
+      if (vcl_found) {
+        // Special case: Temporal delimiter after VCL always starts new TU
+        if (obu_header.type == OBU_TEMPORAL_DELIMITER) {
+          // Boundary detected! Return WITHOUT including this TD
+          return data_read - data;
+        }
+
         // Determine if this is suffix metadata/padding (part of current frame
         // unit) or prefix HLS (start of next frame unit)
         bool is_suffix_or_padding = false;
