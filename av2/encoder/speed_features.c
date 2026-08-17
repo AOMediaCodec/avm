@@ -487,7 +487,7 @@ static void set_good_speed_features_framesize_independent(
     sf->interp_sf.use_interp_filter = 1;
     sf->tx_sf.tx_type_search.skip_tx_search = 1;
     sf->intra_sf.skip_intra_dip_search = true;
-    sf->rd_sf.disable_tcq = 1;
+    sf->rd_sf.disable_tcq = 0;
     // --- End ---
 
     sf->hl_sf.recode_loop = ALLOW_RECODE_KFARFGF;
