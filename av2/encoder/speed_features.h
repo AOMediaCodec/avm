@@ -618,6 +618,9 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // aggressively than lower ones. (0 means no pruning).
   int selective_ref_frame;
 
+  // Enable fast warp delta search for 4 param and 6 param models
+  int fast_warp_delta_decoupled_search;
+
   // When 1, prune single-ref NEWMV / WARP_NEWMV for a given ref frame
   // when the best RD seen so far for that ref (taken from a prior mode
   // such as NEARMV, NEWMV[amvd=0], or WARPMV) is far from the best RD
