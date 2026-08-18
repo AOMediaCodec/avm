@@ -587,7 +587,10 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.fast_warp_delta_decoupled_search = 1;
 
     sf->inter_sf.prune_inter_modes_based_on_tpl = boosted ? 0 : 3;
-    sf->inter_sf.prune_comp_using_best_single_mode_ref = 2;
+    // TODO(any): prune_comp_using_best_single_mode_ref introduces a large
+    // coding loss (> 1%) without enough encoding speed up (5% - 11%).
+    // Disabling it until it is fixed.
+    // sf->inter_sf.prune_comp_using_best_single_mode_ref = 2;
 
     sf->intra_sf.intra_uv_mode_mask[TX_16X16] = UV_INTRA_DC_H_V_CFL;
     sf->intra_sf.intra_uv_mode_mask[TX_32X32] = UV_INTRA_DC_H_V_CFL;
