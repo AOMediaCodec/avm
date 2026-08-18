@@ -2428,12 +2428,32 @@ void av2_nonrd_use_partition(AV2_COMP *cpi, ThreadData *td,
       pc_tree->none_chroma =
           av2_alloc_pmc(cm, xd->tree_type, mi_row, mi_col, bsize, pc_tree,
                         PARTITION_NONE, 0, ss_x, ss_y, &td->shared_coeff_buf);
+    } else {
+      av2_reset_pmc(pc_tree->none_chroma);
+      set_chroma_ref_info(
+          xd->tree_type, mi_row, mi_col, 0, bsize,
+          &pc_tree->none_chroma->chroma_ref_info,
+          pc_tree->parent ? &pc_tree->parent->chroma_ref_info : NULL,
+          pc_tree->parent ? pc_tree->parent->block_size : BLOCK_INVALID,
+          PARTITION_NONE, ss_x, ss_y);
+      pc_tree->none_chroma->mic.chroma_ref_info =
+          pc_tree->none_chroma->chroma_ref_info;
     }
   } else {
     if (pc_tree->none[cur_region_type] == NULL) {
       pc_tree->none[cur_region_type] =
           av2_alloc_pmc(cm, xd->tree_type, mi_row, mi_col, bsize, pc_tree,
                         PARTITION_NONE, 0, ss_x, ss_y, &td->shared_coeff_buf);
+    } else {
+      av2_reset_pmc(pc_tree->none[cur_region_type]);
+      set_chroma_ref_info(
+          xd->tree_type, mi_row, mi_col, 0, bsize,
+          &pc_tree->none[cur_region_type]->chroma_ref_info,
+          pc_tree->parent ? &pc_tree->parent->chroma_ref_info : NULL,
+          pc_tree->parent ? pc_tree->parent->block_size : BLOCK_INVALID,
+          PARTITION_NONE, ss_x, ss_y);
+      pc_tree->none[cur_region_type]->mic.chroma_ref_info =
+          pc_tree->none[cur_region_type]->chroma_ref_info;
     }
   }
 
@@ -2487,12 +2507,16 @@ void av2_nonrd_use_partition(AV2_COMP *cpi, ThreadData *td,
                partition, ctx_none, &rate);
       break;
     case PARTITION_HORZ:
-      pc_tree->horizontal[cur_region_type][0] = av2_alloc_pc_tree_node(
-          xd->tree_type, mi_row, mi_col, cm->sb_size, subsize, pc_tree,
-          PARTITION_HORZ, 0, 0, ss_x, ss_y);
-      pc_tree->horizontal[cur_region_type][1] = av2_alloc_pc_tree_node(
-          xd->tree_type, mi_row + hbh, mi_col, cm->sb_size, subsize, pc_tree,
-          PARTITION_HORZ, 1, 1, ss_x, ss_y);
+      if (!pc_tree->horizontal[cur_region_type][0]) {
+        pc_tree->horizontal[cur_region_type][0] = av2_alloc_pc_tree_node(
+            xd->tree_type, mi_row, mi_col, cm->sb_size, subsize, pc_tree,
+            PARTITION_HORZ, 0, 0, ss_x, ss_y);
+      }
+      if (!pc_tree->horizontal[cur_region_type][1]) {
+        pc_tree->horizontal[cur_region_type][1] = av2_alloc_pc_tree_node(
+            xd->tree_type, mi_row + hbh, mi_col, cm->sb_size, subsize, pc_tree,
+            PARTITION_HORZ, 1, 1, ss_x, ss_y);
+      }
 
       av2_nonrd_use_partition(cpi, td, tile_data, mib, tp, mi_row, mi_col,
                               subsize, ptree ? ptree->sub_tree[0] : NULL,
@@ -2507,12 +2531,16 @@ void av2_nonrd_use_partition(AV2_COMP *cpi, ThreadData *td,
       }
       break;
     case PARTITION_VERT:
-      pc_tree->vertical[cur_region_type][0] = av2_alloc_pc_tree_node(
-          xd->tree_type, mi_row, mi_col, cm->sb_size, subsize, pc_tree,
-          PARTITION_VERT, 0, 0, ss_x, ss_y);
-      pc_tree->vertical[cur_region_type][1] = av2_alloc_pc_tree_node(
-          xd->tree_type, mi_row, mi_col + hbw, cm->sb_size, subsize, pc_tree,
-          PARTITION_VERT, 1, 1, ss_x, ss_y);
+      if (!pc_tree->vertical[cur_region_type][0]) {
+        pc_tree->vertical[cur_region_type][0] = av2_alloc_pc_tree_node(
+            xd->tree_type, mi_row, mi_col, cm->sb_size, subsize, pc_tree,
+            PARTITION_VERT, 0, 0, ss_x, ss_y);
+      }
+      if (!pc_tree->vertical[cur_region_type][1]) {
+        pc_tree->vertical[cur_region_type][1] = av2_alloc_pc_tree_node(
+            xd->tree_type, mi_row, mi_col + hbw, cm->sb_size, subsize, pc_tree,
+            PARTITION_VERT, 1, 1, ss_x, ss_y);
+      }
       av2_nonrd_use_partition(cpi, td, tile_data, mib, tp, mi_row, mi_col,
                               subsize, ptree ? ptree->sub_tree[0] : NULL,
                               pc_tree->vertical[cur_region_type][0],
@@ -2533,9 +2561,11 @@ void av2_nonrd_use_partition(AV2_COMP *cpi, ThreadData *td,
         if ((mi_row + y_idx >= mi_params->mi_rows) ||
             (mi_col + x_idx >= mi_params->mi_cols))
           continue;
-        pc_tree->split[cur_region_type][i] = av2_alloc_pc_tree_node(
-            xd->tree_type, mi_row + y_idx, mi_col + x_idx, cm->sb_size, subsize,
-            pc_tree, PARTITION_SPLIT, i, i == 3, ss_x, ss_y);
+        if (!pc_tree->split[cur_region_type][i]) {
+          pc_tree->split[cur_region_type][i] = av2_alloc_pc_tree_node(
+              xd->tree_type, mi_row + y_idx, mi_col + x_idx, cm->sb_size,
+              subsize, pc_tree, PARTITION_SPLIT, i, i == 3, ss_x, ss_y);
+        }
         av2_nonrd_use_partition(
             cpi, td, tile_data,
             mib + jj * hbh * mi_params->mi_stride + ii * hbw, tp,

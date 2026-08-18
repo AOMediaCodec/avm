@@ -817,9 +817,19 @@ static AVM_INLINE void encode_rd_sb(AV2_COMP *cpi, ThreadData *td,
       const BLOCK_SIZE min_partition_size = x->sb_enc.min_partition_size;
       init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row,
                         mi_col, 1);
-      PC_TREE *const pc_root = av2_alloc_pc_tree_node(
-          xd->tree_type, mi_row, mi_col, cm->sb_size, sb_size, NULL,
-          PARTITION_NONE, 0, 1, ss_x, ss_y);
+      PC_TREE *pc_root;
+      if (cpi->sf.rt_sf.use_nonrd_partition) {
+        if (!td->pc_root) {
+          td->pc_root = av2_alloc_pc_tree_node(
+              xd->tree_type, mi_row, mi_col, cm->sb_size, sb_size, NULL,
+              PARTITION_NONE, 0, 1, ss_x, ss_y);
+        }
+        pc_root = td->pc_root;
+      } else {
+        pc_root = av2_alloc_pc_tree_node(xd->tree_type, mi_row, mi_col,
+                                         cm->sb_size, sb_size, NULL,
+                                         PARTITION_NONE, 0, 1, ss_x, ss_y);
+      }
       av2_reset_ptree_in_sbi(xd->sbi, xd->tree_type);
       av2_build_partition_tree_fixed_partitioning(
           cm, xd->tree_type, mi_row, mi_col,
@@ -843,8 +853,8 @@ static AVM_INLINE void encode_rd_sb(AV2_COMP *cpi, ThreadData *td,
             &dummy_rate, &dummy_dist, 1,
             xd->sbi->ptree_root[av2_get_sdp_idx(xd->tree_type)], pc_root,
             ptree_luma);
+        av2_free_pc_tree_recursive(pc_root, num_planes, 0, 0);
       }
-      av2_free_pc_tree_recursive(pc_root, num_planes, 0, 0);
       x->sb_enc.min_partition_size = min_partition_size;
     }
     xd->tree_type = SHARED_PART;
@@ -2184,10 +2194,18 @@ static AVM_INLINE void encode_frame_internal(AV2_COMP *cpi) {
     enc_row_mt->sync_write_ptr = av2_row_mt_sync_write;
     av2_encode_tiles_row_mt(cpi);
   } else {
-    if (AVMMIN(mt_info->num_workers, cm->tiles.cols * cm->tiles.rows) > 1)
+    if (AVMMIN(mt_info->num_workers, cm->tiles.cols * cm->tiles.rows) > 1) {
       av2_encode_tiles_mt(cpi);
-    else
+    } else {
+      if (cpi->sf.rt_sf.use_nonrd_partition) {
+        cpi->td.pc_root = av2_alloc_pc_tree_node(
+            SHARED_PART, 0, 0, cm->sb_size, cm->sb_size, NULL, PARTITION_NONE,
+            0, 1, cm->seq_params.subsampling_x, cm->seq_params.subsampling_y);
+      }
       encode_tiles(cpi);
+      av2_free_pc_tree_recursive(cpi->td.pc_root, av2_num_planes(cm), 0, 0);
+      cpi->td.pc_root = NULL;
+    }
   }
 
   // If intrabc is allowed but never selected, reset the allow_intrabc flag.
