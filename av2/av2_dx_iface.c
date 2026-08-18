@@ -891,6 +891,7 @@ static size_t check_frame_unit_data(struct AV2Decoder *pbi, const uint8_t *data,
     bytes_available -= bytes_read + payload_size;
   }
 
+  if (!vcl_found) return 0;
   // one frame unit in this data
   return data_sz;
 }
