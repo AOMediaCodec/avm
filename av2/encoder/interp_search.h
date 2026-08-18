@@ -46,6 +46,51 @@ typedef struct InterModeRdPair {
 #define NUM_USE_AMVD_OPTIONS 2
 /*!\endcond */
 
+/*! \brief Dry-pass caps for the two-pass partition search. */
+typedef struct {
+  /*! \brief Highest rank of inter reference searched (0-based). */
+  int ref_rank_cap;
+  /*! \brief Highest rank kept for same-ref compound on single-sided frames
+   * (both-sides frames drop same-ref compound entirely). */
+  int same_ref_compound_rank_cap;
+  /*! \brief Max ref MV candidates per reference. */
+  int ref_mv_set_cap;
+  /*! \brief Max WARP_DELTA reference candidates. */
+  int warp_ref_idx_cap;
+  /*! \brief Max WARP_DELTA precisions. */
+  int warp_precision_cap;
+  /*! \brief Max WARPMV-with-MVD choices. */
+  int warpmv_with_mvd_cap;
+  /*! \brief Max WARP inter-intra choices. */
+  int warp_inter_intra_cap;
+  /*! \brief Max CWP indices (1 => CWP_EQUAL only). */
+  int cwp_loop_cap;
+  /*! \brief Max jmvd scale index (0 => scale_mode 0 only). */
+  int jmvd_scale_cap;
+  /*! \brief Max BAWP flag (0 => BAWP off). */
+  int bawp_cap;
+  /*! \brief Max refinemv loop index (0 => refinemv_flag 0 only). */
+  int refinemv_cap;
+  /*! \brief Max dpcm index (0 => DPCM off). */
+  int intra_dpcm_cap;
+  /*! \brief Max fsc mode index (0 => FSC off). */
+  int intra_fsc_cap;
+  /*! \brief Max intra MRL index (0 => nearest reference line only). */
+  int intra_mrl_cap;
+  /*! \brief Bitmask of allowed MOTION_MODE values (default:
+   * SIMPLE_TRANSLATION). */
+  uint32_t motion_mode_mask;
+  /*! \brief Bitmask of allowed COMPOUND_TYPE values (default: AVERAGE|WEDGE).
+   */
+  uint32_t compound_type_mask;
+  /*! \brief Bitmask of allowed PREDICTION_MODE values in the dry pass. */
+  uint32_t inter_mode_mask;
+  /*! \brief Number of top MV precisions searched, from the highest. */
+  int precisions_from_top;
+  /*! \brief Cap on most-probable intra Y modes. */
+  int intra_mpm_cap;
+} DryPassCfg;
+
 /*!\brief Miscellaneous arguments for inter mode search.
  */
 typedef struct {
@@ -157,6 +202,9 @@ typedef struct {
 
   NEAR_NEWMV_AMVD_STATS near_newmv_amvd_stats[MAX_COMP_MV_STATS];
   int near_newmv_amvd_stats_idx;
+
+  /*! \brief Dry-pass caps, or NULL outside a dry pass. */
+  const DryPassCfg *dry_pass_cfg;
 } HandleInterModeArgs;
 
 /*!\cond */

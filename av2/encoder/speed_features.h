@@ -304,6 +304,21 @@ typedef struct GLOBAL_MOTION_SPEED_FEATURES {
   int disable_gm_search_based_on_stats;
 } GLOBAL_MOTION_SPEED_FEATURES;
 
+// Levels for the two-pass superblock partition search. In both enabled levels
+// the first ("dry") pass works out a rough partition shape down to 16x16, and
+// the second ("wet") pass codes the superblock for real while trusting the
+// dry-pass shape for blocks of 32x32 and larger.
+enum {
+  TWO_PASS_PART_OFF = 0,
+  // The dry pass runs the full tool set, and the wet pass trusts every shape
+  // of 32x32 and larger, including blocks the dry pass left unsplit.
+  TWO_PASS_PART_CONSERVATIVE = 1,
+  // The dry pass runs a reduced tool set (see DryPassCfg), and the wet pass
+  // re-searches unsplit blocks up to 128 px and narrows the mode pool on the
+  // shapes it reuses.
+  TWO_PASS_PART_FAST = 2,
+};
+
 typedef struct PARTITION_SPEED_FEATURES {
   PARTITION_SEARCH_TYPE partition_search_type;
 
@@ -399,6 +414,10 @@ typedef struct PARTITION_SPEED_FEATURES {
   // Prunes PARTITION_HORZ/VERT_4B based on PARTITION_HORZ/VERT_4A result.
   int prune_part_4b_with_part_4a;
 
+  // Two-pass superblock partition search level: one of TWO_PASS_PART_OFF,
+  // TWO_PASS_PART_CONSERVATIVE or TWO_PASS_PART_FAST. Decided once per frame in
+  // set_two_pass_partition_level(); read through av2_two_pass_part_enabled()
+  // and av2_two_pass_part_is_fast().
   int two_pass_partition_search;
 
   // Prunes rect partition with ml model
@@ -466,6 +485,20 @@ typedef struct PARTITION_SPEED_FEATURES {
   // Force the max partition-block aspect ratio
   unsigned int force_max_pb_aspect_ratio;
 } PARTITION_SPEED_FEATURES;
+
+// True when the two-pass superblock partition search runs at all.
+static INLINE bool av2_two_pass_part_enabled(
+    const PARTITION_SPEED_FEATURES *part_sf) {
+  return part_sf->two_pass_partition_search != TWO_PASS_PART_OFF;
+}
+
+// True when the two-pass search runs in its faster regime: a reduced-tool dry
+// pass, a wet pass that re-searches unsplit blocks, and a narrowed mode pool on
+// reused shapes.
+static INLINE bool av2_two_pass_part_is_fast(
+    const PARTITION_SPEED_FEATURES *part_sf) {
+  return part_sf->two_pass_partition_search >= TWO_PASS_PART_FAST;
+}
 
 typedef struct MV_SPEED_FEATURES {
   // Motion search method (Diamond, NSTEP, Hex, Big Diamond, Square, etc).
