@@ -1647,6 +1647,16 @@ typedef struct macroblock {
   MB_MODE_INFO *inter_mode_cache[NUMBER_OF_CACHED_MODES];
   /*! \brief Whether the whole superblock is inside the frame boudnary */
   bool is_whole_sb;
+
+  /*! \brief True during the dry pass of the SB-level two-pass partition
+   * search; gates the block-level dry-pass shortcuts. */
+  bool apply_dry_pass_shortcuts;
+
+  /*! \brief Cap on top intra Y candidates for full RD. */
+  int intra_mode_prune_top;
+
+  /*! \brief Cap on top inter motion-mode candidates for full RD. */
+  int inter_mode_prune_top;
   /**@}*/
 
   /*! \brief Quantization state of a transform coefficient.
