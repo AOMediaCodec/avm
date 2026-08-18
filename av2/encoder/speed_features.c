@@ -15,6 +15,7 @@
 #include "av2/common/reconintra.h"
 
 #include "av2/encoder/encoder.h"
+#include "av2/encoder/encoder_utils.h"
 #include "av2/encoder/speed_features.h"
 #include "av2/encoder/rdopt.h"
 
@@ -770,7 +771,7 @@ static AVM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->prune_part_4_horz_or_vert = 0;
   part_sf->prune_part_4_with_part_3 = 0;
   part_sf->prune_part_4b_with_part_4a = 0;
-  part_sf->two_pass_partition_search = 0;
+  part_sf->two_pass_partition_search = TWO_PASS_PART_OFF;
   part_sf->prune_rect_with_ml = 0;
   part_sf->partition_pruning_with_mlp = 0;
   part_sf->partition_pruning_with_mlp_none_thresh = 0.0f;
@@ -1407,30 +1408,10 @@ void av2_set_speed_features_framesize_independent(AV2_COMP *cpi, int speed) {
 static AVM_INLINE void set_erp_speed_features_qindex_dependent(AV2_COMP *cpi) {
   SPEED_FEATURES *const sf = &cpi->sf;
   const AV2_COMMON *const cm = &cpi->common;
-  const int is_1080p_or_larger = AVMMIN(cm->width, cm->height) >= 1080;
-  const unsigned int erp_pruning_level = cpi->oxcf.part_cfg.erp_pruning_level;
   const int boosted = frame_is_boosted(cpi);
 
   const int qindex_offset = MAXQ_OFFSET * (cm->seq_params.bit_depth - 8);
-  const int qindex_thresh2 = 113 + qindex_offset;
   const int qindex_thresh3 = 135 + qindex_offset;
-
-  switch (erp_pruning_level) {
-    case 6: AVM_FALLTHROUGH_INTENDED;
-    case 5:
-      if (is_1080p_or_larger &&
-          cm->quant_params.base_qindex <= qindex_thresh2 &&
-          !frame_is_intra_only(cm)) {
-        sf->part_sf.two_pass_partition_search = 1;
-      }
-      AVM_FALLTHROUGH_INTENDED;
-    case 4: AVM_FALLTHROUGH_INTENDED;
-    case 3: AVM_FALLTHROUGH_INTENDED;
-    case 2: AVM_FALLTHROUGH_INTENDED;
-    case 1: AVM_FALLTHROUGH_INTENDED;
-    case 0: break;
-    default: assert(0 && "Invalid ERP pruning level.");
-  }
 
   if (cpi->speed == 1) {
     if (!boosted && cm->quant_params.base_qindex < qindex_thresh3) {
@@ -1440,6 +1421,42 @@ static AVM_INLINE void set_erp_speed_features_qindex_dependent(AV2_COMP *cpi) {
     if (frame_is_intra_only(cm) &&
         cm->quant_params.base_qindex >= qindex_thresh3)
       sf->part_sf.uneven_4way_recur_depth_level = 0;
+  }
+}
+
+// Pick the two-pass superblock partition search level for this frame. This is
+// the single decision point for the feature: it runs at the end of
+// av2_set_speed_features_qindex_dependent(), which is the last speed-feature
+// pass before av2_encode_frame(), so it sees the final frame type and qindex.
+static AVM_INLINE void set_two_pass_partition_level(AV2_COMP *cpi) {
+  const AV2_COMMON *const cm = &cpi->common;
+  int *const level = &cpi->sf.part_sf.two_pass_partition_search;
+
+  *level = TWO_PASS_PART_OFF;
+  // Both regimes only ever run on inter frames.
+  // TODO(Yeqing): Extend to intra/key frames.
+  if (frame_is_intra_only(cm)) return;
+
+  // The fast level takes precedence: it is the speed >= 3 regime, and
+  // av2_select_sb_size() keys the superblock size off the same config-time
+  // predicate, so the size and the level have to agree. Note that this
+  // predicate is GOOD-only, which is what keeps the fast level out of REALTIME
+  // mode even though set_rt_speed_features_framesize_independent() runs the
+  // GOOD setters.
+  if (av2_wants_two_pass_partition(&cpi->oxcf)) {
+    *level = TWO_PASS_PART_FAST;
+    return;
+  }
+
+  // The conservative level is deliberately not restricted to GOOD mode: it is
+  // reachable in REALTIME mode too, where it still affects the dry-run
+  // partition tree store even when the partition search itself is variance
+  // based.
+  const int qindex_thresh = 113 + MAXQ_OFFSET * (cm->seq_params.bit_depth - 8);
+  if (cpi->oxcf.part_cfg.erp_pruning_level >= 5 &&
+      AVMMIN(cm->width, cm->height) >= 1080 &&
+      cm->quant_params.base_qindex <= qindex_thresh) {
+    *level = TWO_PASS_PART_CONSERVATIVE;
   }
 }
 
@@ -1548,4 +1565,6 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
     set_erp_speed_features_framesize_dependent(cpi);
     set_erp_speed_features_qindex_dependent(cpi);
   }
+
+  set_two_pass_partition_level(cpi);
 }
