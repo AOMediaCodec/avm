@@ -326,25 +326,29 @@ void av2_count_colors_highbd(const uint16_t *src, int stride, int rows,
 }
 
 bool prune_intra_y_mode(int64_t this_model_rd, int64_t *best_model_rd,
-                        int64_t top_intra_model_rd[], int k, int lossless,
-                        uint8_t use_dpcm_y) {
+                        int64_t top_intra_model_rd[], int prune_top,
+                        int lossless, uint8_t use_dpcm_y) {
   (void)lossless;
   assert(IMPLIES(use_dpcm_y != 0, lossless != 0));
+  assert(prune_top > 0);
   if (this_model_rd < *best_model_rd) *best_model_rd = this_model_rd;
   if (use_dpcm_y != 0) return false;
 
-  const double thresh_top = 1.00;
-  for (int i = 0; i < k; i++) {
+  // Only the top prune_top candidates get full RD; the rest are pruned.
+  const int threshold_slot = prune_top - 1;
+  // top_intra_model_rd[] holds the smallest model RDs seen so far, in
+  // ascending order, kept sorted up to threshold_slot.
+  for (int i = 0; i <= threshold_slot; i++) {
     if (this_model_rd < top_intra_model_rd[i]) {
-      for (int j = k - 1; j > i; j--) {
+      for (int j = threshold_slot; j > i; j--) {
         top_intra_model_rd[j] = top_intra_model_rd[j - 1];
       }
       top_intra_model_rd[i] = this_model_rd;
       break;
     }
   }
-  if (top_intra_model_rd[k - 1] != INT64_MAX &&
-      this_model_rd > thresh_top * top_intra_model_rd[k - 1])
+  if (top_intra_model_rd[threshold_slot] != INT64_MAX &&
+      this_model_rd > top_intra_model_rd[threshold_slot])
     return true;
 
   return false;
@@ -1032,8 +1036,8 @@ static INLINE int prune_intra_dip_mode(const AV2_COMP *cpi, MACROBLOCK *x,
   const MB_MODE_INFO *const mbmi = xd->mi[0];
   const int64_t this_model_rd = intra_model_yrd(cpi, x, bsize, mode_cost);
   if (prune_intra_y_mode(this_model_rd, best_model_rd, top_intra_model_rd,
-                         TOP_INTRA_MODEL_COUNT, xd->lossless[mbmi->segment_id],
-                         mbmi->use_dpcm_y))
+                         x->intra_mode_prune_top,
+                         xd->lossless[mbmi->segment_id], mbmi->use_dpcm_y))
     return 1;
   return 0;
 }
@@ -1242,9 +1246,8 @@ int64_t av2_handle_intra_mode(IntraModeSearchState *intra_search_state,
   }
 
   int64_t this_model_rd = intra_model_yrd(cpi, x, bsize, mode_cost);
-  const int k =
-      cpi->sf.intra_sf.intra_pruning_with_mlp ? 4 : TOP_INTRA_MODEL_COUNT;
-  if (prune_intra_y_mode(this_model_rd, best_model_rd, top_intra_model_rd, k,
+  if (prune_intra_y_mode(this_model_rd, best_model_rd, top_intra_model_rd,
+                         x->intra_mode_prune_top,
                          xd->lossless[mbmi->segment_id], mbmi->use_dpcm_y))
     return INT64_MAX;
   if (cpi->sf.intra_sf.intra_pruning_with_mlp && mbmi->mrl_index == 0 &&
@@ -1533,7 +1536,7 @@ void search_fsc_mode(const AV2_COMP *const cpi, MACROBLOCK *x, int *rate,
           this_model_rd = intra_model_yrd(cpi, x, bsize, mode_costs);
 
           if (prune_intra_y_mode(this_model_rd, best_model_rd,
-                                 top_intra_model_rd, TOP_INTRA_MODEL_COUNT,
+                                 top_intra_model_rd, x->intra_mode_prune_top,
                                  xd->lossless[mbmi->segment_id],
                                  mbmi->use_dpcm_y)) {
             continue;
@@ -1738,8 +1741,6 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
   mbmi->dpcm_mode_y = 0;
   // mbmi->dpcm_angle_delta = 0;
   //  Searches the intra-modes except for intrabc, palette, and filter_intra.
-  const int model_rd_k =
-      cpi->sf.intra_sf.intra_pruning_with_mlp ? 4 : TOP_INTRA_MODEL_COUNT;
   int64_t top_intra_model_rd[TOP_INTRA_MODEL_COUNT];
   for (int i = 0; i < TOP_INTRA_MODEL_COUNT; i++) {
     top_intra_model_rd[i] = INT64_MAX;
@@ -1854,9 +1855,10 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
           if (dpcm_index == 0) mode_costs += mrl_idx_cost;
           int64_t this_model_rd;
           this_model_rd = intra_model_yrd(cpi, x, bsize, mode_costs);
-          if (prune_intra_y_mode(
-                  this_model_rd, &best_model_rd, top_intra_model_rd, model_rd_k,
-                  xd->lossless[mbmi->segment_id], mbmi->use_dpcm_y))
+          if (prune_intra_y_mode(this_model_rd, &best_model_rd,
+                                 top_intra_model_rd, x->intra_mode_prune_top,
+                                 xd->lossless[mbmi->segment_id],
+                                 mbmi->use_dpcm_y))
             continue;
 
           if (cpi->sf.intra_sf.intra_pruning_with_mlp && mrl_idx == 0 &&

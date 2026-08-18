@@ -594,12 +594,18 @@ static AVM_INLINE void perform_two_partition_passes(
                              SB_WET_PASS, NULL);
 }
 
-/*!\brief Set all tree nodes <= min_bsize to PARTITION_INVALID.
+/*!\brief Mark the small nodes of the dry-pass tree as "search again".
  *
  * \ingroup partition_search
+ *
+ * The wet pass trusts the dry-pass shape for large blocks and searches the
+ * small ones again. This walks the dry-pass tree and clears the shape of every
+ * node smaller than min_bsize so the wet pass is free to choose its own.
  */
 static AVM_INLINE void set_min_none_to_invalid(PARTITION_TREE *part_tree,
-                                               BLOCK_SIZE min_bsize) {
+                                               BLOCK_SIZE min_bsize,
+                                               bool allow_none_resplit) {
+  if (!part_tree) return;
   const BLOCK_SIZE bsize = part_tree->bsize;
   const PARTITION_TYPE part_type = part_tree->partition;
   if (!is_bsize_geq(bsize, min_bsize)) {
@@ -608,7 +614,19 @@ static AVM_INLINE void set_min_none_to_invalid(PARTITION_TREE *part_tree,
       av2_free_ptree_recursive(part_tree->sub_tree[idx]);
       part_tree->sub_tree[idx] = NULL;
     }
+    return;
+  }
 
+  // Large blocks the dry pass left unsplit: re-split them in the wet pass
+  // (only on the fast level, guarded by allow_none_resplit). The conservative
+  // level keeps its pre-PR semantics.
+  if (allow_none_resplit && part_type == PARTITION_NONE) {
+    // Only do this for blocks up to 128 px. Bigger unsplit blocks are usually
+    // genuinely flat, so searching them again costs a lot of time for little
+    // gain.
+    if (AVMMAX(block_size_wide[bsize], block_size_high[bsize]) <= 128) {
+      part_tree->partition = PARTITION_INVALID;
+    }
     return;
   }
 
@@ -630,7 +648,8 @@ static AVM_INLINE void set_min_none_to_invalid(PARTITION_TREE *part_tree,
   }
 
   for (int idx = 0; idx < num_subtrees; idx++) {
-    set_min_none_to_invalid(part_tree->sub_tree[idx], min_bsize);
+    set_min_none_to_invalid(part_tree->sub_tree[idx], min_bsize,
+                            allow_none_resplit);
   }
 }
 
@@ -644,7 +663,8 @@ static AVM_INLINE void set_min_none_to_invalid(PARTITION_TREE *part_tree,
  */
 static AVM_INLINE void perform_two_pass_partition_search(
     AV2_COMP *cpi, ThreadData *td, TileDataEnc *tile_data, TokenExtra **tp,
-    TokenExtra **tp_chroma, const int mi_row, const int mi_col) {
+    TokenExtra **tp_chroma, const int mi_row, const int mi_col,
+    bool fast_two_pass) {
   SIMPLE_MOTION_DATA_TREE *const sms_root = td->sms_root;
   AV2_COMMON *const cm = &cpi->common;
   MACROBLOCK *const x = &td->mb;
@@ -653,17 +673,20 @@ static AVM_INLINE void perform_two_pass_partition_search(
   const BLOCK_SIZE sb_size = cm->sb_size;
   assert(!frame_is_intra_only(cm));
 
-  // First pass to estimate  partition structures
+  // First pass to estimate partition structures
   SB_FIRST_PASS_STATS sb_fp_stats;
   av2_backup_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
-  const BLOCK_SIZE fp_min_bsize = BLOCK_16X16;
-  x->sb_enc.min_partition_size = fp_min_bsize;
+  // The dry pass does not go below 16x16: it only needs a rough shape, and it
+  // scores blocks with a reduced set of tools.
+  x->sb_enc.min_partition_size = BLOCK_16X16;
   perform_one_partition_pass(cpi, td, tile_data, tp, tp_chroma, mi_row, mi_col,
                              SB_DRY_PASS, NULL);
   PARTITION_TREE *part_ref = xd->sbi->ptree_root[0];
   // Set this to NULL otherwise part_ref will get freed in the second pass.
   xd->sbi->ptree_root[0] = NULL;
-  set_min_none_to_invalid(part_ref, get_larger_sqr_bsize(fp_min_bsize));
+  // Trust the dry-pass shape for >=32x32 blocks; re-search smaller ones.
+  set_min_none_to_invalid(part_ref, get_larger_sqr_bsize(BLOCK_16X16),
+                          fast_two_pass);
 
   // Second pass
   RD_STATS dummy_rdc;
@@ -850,9 +873,13 @@ static AVM_INLINE void encode_rd_sb(AV2_COMP *cpi, ThreadData *td,
                                    mi_col);
     } else if (!frame_is_intra_only(cm) &&
                bru_is_sb_active(cm, mi_col, mi_row) &&
-               sf->part_sf.two_pass_partition_search) {
-      perform_two_pass_partition_search(cpi, td, tile_data, tp, tp_chroma,
-                                        mi_row, mi_col);
+               av2_two_pass_part_enabled(&sf->part_sf)) {
+      // TODO(Yeqing): Add an SB-level heuristic to skip the second pass on
+      // SBs where a single pass is good enough, to reduce encoding time.
+      // Only the fast level opts into the extra re-split of unsplit blocks.
+      perform_two_pass_partition_search(
+          cpi, td, tile_data, tp, tp_chroma, mi_row, mi_col,
+          av2_two_pass_part_is_fast(&sf->part_sf));
     } else {
       perform_one_partition_pass(cpi, td, tile_data, tp, tp_chroma, mi_row,
                                  mi_col, SB_SINGLE_PASS, NULL);

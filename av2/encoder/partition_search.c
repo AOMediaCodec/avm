@@ -508,6 +508,12 @@ void av2_set_offsets(const AV2_COMP *const cpi, const TileInfo *const tile,
  * Pointer to structure holding coding contexts and chosen modes for the current
  * block \param[in]    best_rd        Upper bound of rd cost of a valid
  * partition
+ * \param[in]    multi_pass_mode     Multi-pass mode for the current superblock
+ *                                   (identifies which pass of the two-pass
+ *                                   partition search is active)
+ * \param[in]    part_search_state   Pointer to the current partition search
+ *                                   state; used to derive per-block two-pass
+ *                                   flags. May be NULL when not applicable.
  *
  * Nothing is returned. Instead, the chosen modes and contexts necessary
  * for reconstruction are stored in ctx, the rate-distortion stats are stored in
@@ -519,13 +525,18 @@ static void pick_sb_modes(AV2_COMP *const cpi, ThreadData *td,
                           int mi_row, int mi_col, RD_STATS *rd_cost,
                           REGION_TYPE cur_region_type,
                           int sb_root_partition_info, BLOCK_SIZE bsize,
-                          PICK_MODE_CONTEXT *ctx, RD_STATS best_rd) {
+                          PICK_MODE_CONTEXT *ctx, RD_STATS best_rd,
+                          SB_MULTI_PASS_MODE multi_pass_mode,
+                          const PartitionSearchState *part_search_state) {
   if (best_rd.rdcost < 0) {
     ctx->rd_stats.rdcost = INT64_MAX;
     ctx->rd_stats.skip_txfm = 0;
     av2_invalid_rd_stats(rd_cost);
     return;
   }
+
+  // Own the per-block two-pass flags here so every caller is covered.
+  av2_set_two_pass_flags(cpi, x, multi_pass_mode, part_search_state);
 
   AV2_COMMON *const cm = &cpi->common;
   const int num_planes = av2_num_planes(cm);
@@ -650,6 +661,7 @@ static void pick_sb_modes(AV2_COMP *const cpi, ThreadData *td,
     start_timing(cpi, av2_rd_pick_inter_mode_sb_time);
 #endif
     if (segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP)) {
+      // SEG_LVL_SKIP blocks bypass the dry-pass shortcuts by design.
       av2_rd_pick_inter_mode_sb_seg_skip(cpi, tile_data, x, mi_row, mi_col,
                                          rd_cost, bsize, ctx, best_rd.rdcost);
     } else {
@@ -1892,9 +1904,9 @@ static void encode_sb(const AV2_COMP *const cpi, ThreadData *td,
           pc_tree->is_cfl_allowed_for_this_chroma |
           is_cfl_allowed_for_sdp(cm, xd, ptree_luma, partition, bsize);
   }
-  // If two pass partition tree is enable, then store the partition types in
-  // ptree even if it's dry run.
-  if (!dry_run || (cpi->sf.part_sf.two_pass_partition_search && ptree)) {
+  // On two-pass, store partition types in ptree even during a dry run so the
+  // second pass has a shape to start from.
+  if (!dry_run || (av2_two_pass_part_enabled(&cpi->sf.part_sf) && ptree)) {
     assert(ptree);
 
     ptree->partition = partition;
@@ -2470,7 +2482,7 @@ void av2_nonrd_use_partition(AV2_COMP *cpi, ThreadData *td,
     case PARTITION_NONE:
       pick_sb_modes(cpi, td, tile_data, x, mi_row, mi_col, &this_rdc,
                     pc_tree->region_type, pc_tree->sb_root_partition_info,
-                    bsize, ctx_none, best_rdc);
+                    bsize, ctx_none, best_rdc, SB_SINGLE_PASS, NULL);
       encode_b(cpi, tile_data, td, tp, mi_row, mi_col, OUTPUT_ENABLED, subsize,
                partition, ctx_none, &rate);
       break;
@@ -2684,7 +2696,7 @@ void av2_rd_use_partition(AV2_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
     case PARTITION_NONE:
       pick_sb_modes(cpi, td, tile_data, x, mi_row, mi_col, &last_part_rdc,
                     pc_tree->region_type, pc_tree->sb_root_partition_info,
-                    bsize, ctx_none, invalid_rdc);
+                    bsize, ctx_none, invalid_rdc, SB_SINGLE_PASS, NULL);
       break;
     case PARTITION_HORZ:
       pc_tree->horizontal[cur_region_type][0] = av2_alloc_pc_tree_node(
@@ -3917,7 +3929,8 @@ static void none_partition_search(
     RD_SEARCH_MACROBLOCK_CONTEXT *x_ctx,
     PartitionSearchState *part_search_state, RD_STATS *best_rdc,
     unsigned int *pb_source_variance, int64_t *none_rd, int64_t *part_none_rd,
-    LevelBanksRDO *level_banks, const PARTITION_TREE *ptree_luma) {
+    LevelBanksRDO *level_banks, const PARTITION_TREE *ptree_luma,
+    SB_MULTI_PASS_MODE multi_pass_mode) {
   const AV2_COMMON *const cm = &cpi->common;
   MACROBLOCK *const x = &td->mb;
   const int num_planes = av2_num_planes(cm);
@@ -4024,7 +4037,7 @@ static void none_partition_search(
   RD_STATS *this_rdc = &part_search_state->this_rdc;
   pick_sb_modes(cpi, td, tile_data, x, mi_row, mi_col, this_rdc, region_type,
                 pc_tree->sb_root_partition_info, bsize, *ctx_none,
-                best_remain_rdcost);
+                best_remain_rdcost, multi_pass_mode, part_search_state);
 
   for (int k = 0; k < NUMBER_OF_CACHED_MODES; k++) {
     x->inter_mode_cache[k] = NULL;
@@ -5434,10 +5447,29 @@ bool av2_rd_pick_partition(
   if (bsize == cm->sb_size)
     pc_tree->is_cfl_allowed_for_this_chroma = CFL_DISALLOWED_FOR_CHROMA;
 
+  int eff_max_recursion_depth = max_recursion_depth;
+  // Cap the wet-pass re-split at ~8x8 (short-side driven). Without a cap it
+  // recovers a bit of quality but gives back most of the speedup. This only
+  // triggers on TWO_PASS_PART_FAST: set_min_none_to_invalid() marks a node
+  // invalid either because it is below the 32x32 trust threshold (short side
+  // < 32, so the test below fails) or because the fast level re-opened an
+  // unsplit block.
+  if (template_tree && template_tree->partition == PARTITION_INVALID &&
+      AVMMIN(block_size_wide[bsize], block_size_high[bsize]) >= 32) {
+    const int floor_px = 8;
+    int mind = AVMMIN(block_size_wide[bsize], block_size_high[bsize]);
+    int levels = 0;
+    while (mind > floor_px) {
+      mind >>= 1;
+      levels++;
+    }
+    eff_max_recursion_depth = AVMMIN(eff_max_recursion_depth, levels);
+  }
+
   // Initialization of state variables used in partition search.
   init_partition_search_state_params(
       x, cpi, &part_search_state, pc_tree, ptree_luma, template_tree,
-      max_recursion_depth, mi_row, mi_col, bsize);
+      eff_max_recursion_depth, mi_row, mi_col, bsize);
 
   set_sms_tree_partitioning(sms_tree, PARTITION_NONE);
 
@@ -5641,7 +5673,8 @@ BEGIN_PARTITION_SEARCH:
       partition_none_allowed) {
     none_partition_search(cpi, td, tile_data, tp, pc_tree, sms_tree, &x_ctx,
                           &part_search_state, &best_rdc, &pb_source_variance,
-                          none_rd, &part_none_rd, &level_banks, ptree_luma);
+                          none_rd, &part_none_rd, &level_banks, ptree_luma,
+                          multi_pass_mode);
   }
   if (is_intra_child_of_mixed_region(pc_tree) && xd->tree_type == CHROMA_PART) {
     *rd_cost = best_rdc;
@@ -5654,7 +5687,7 @@ BEGIN_PARTITION_SEARCH:
   split_partition_search(cpi, td, tile_data, tp, pc_tree, sms_tree, &x_ctx,
                          &part_search_state, &best_rdc, multi_pass_mode,
                          &part_split_rd, &level_banks, ptree_luma,
-                         template_tree, max_recursion_depth - 1);
+                         template_tree, eff_max_recursion_depth - 1);
   prune_partitions_after_split(cpi, pc_tree, &part_search_state);
   if (!search_none_after_rect && !search_none_after_split &&
       partition_none_allowed) {
@@ -5680,7 +5713,8 @@ BEGIN_PARTITION_SEARCH:
       partition_none_allowed && search_none_after_split) {
     none_partition_search(cpi, td, tile_data, tp, pc_tree, sms_tree, &x_ctx,
                           &part_search_state, &best_rdc, &pb_source_variance,
-                          none_rd, &part_none_rd, &level_banks, ptree_luma);
+                          none_rd, &part_none_rd, &level_banks, ptree_luma,
+                          multi_pass_mode);
   }
 
   prune_rect_partitions(cpi, td, tile_data, pc_tree, &part_search_state,
@@ -5688,7 +5722,7 @@ BEGIN_PARTITION_SEARCH:
   // Search partitions horz and vert.
   rectangular_partition_search(
       cpi, td, tile_data, tp, pc_tree, &x_ctx, &part_search_state, &best_rdc,
-      multi_pass_mode, ptree_luma, template_tree, max_recursion_depth - 1,
+      multi_pass_mode, ptree_luma, template_tree, eff_max_recursion_depth - 1,
       rect_part_win_info, &level_banks, parent_partition
 #if CONFIG_ML_PART_SPLIT
       ,
@@ -5701,12 +5735,13 @@ BEGIN_PARTITION_SEARCH:
     prune_none_after_rect(&part_search_state, pc_tree);
     none_partition_search(cpi, td, tile_data, tp, pc_tree, sms_tree, &x_ctx,
                           &part_search_state, &best_rdc, &pb_source_variance,
-                          none_rd, &part_none_rd, &level_banks, ptree_luma);
+                          none_rd, &part_none_rd, &level_banks, ptree_luma,
+                          multi_pass_mode);
   }
 
   // Search extended partitions.
   const int ext_recur_depth = get_ext_partitions_recur_depth(
-      &cpi->sf.part_sf, bsize, max_recursion_depth, false);
+      &cpi->sf.part_sf, bsize, eff_max_recursion_depth, false);
   bool partition_boundaries[MAX_MIB_SQUARE] = { 0 };
 
   prune_ext_partitions_3way(cpi, pc_tree, &part_search_state,
@@ -5721,7 +5756,7 @@ BEGIN_PARTITION_SEARCH:
 
   if ((pc_tree->region_type != INTRA_REGION || frame_is_intra_only(cm))) {
     const int uneven_4way_recur_depth = get_ext_partitions_recur_depth(
-        &cpi->sf.part_sf, bsize, max_recursion_depth, true);
+        &cpi->sf.part_sf, bsize, eff_max_recursion_depth, true);
 
     prune_ext_partitions_4way(cpi, pc_tree, &part_search_state,
                               partition_boundaries);
@@ -5756,12 +5791,25 @@ BEGIN_PARTITION_SEARCH:
   }
 
 #if !defined(NDEBUG)
-  if (template_tree && template_tree->partition != PARTITION_INVALID &&
+  // Verify that the wet pass honoured the dry-pass template. This only holds
+  // when a valid partition was actually found: if the search failed, either
+  // because every partition was pruned or because none met the rd limit passed
+  // down from the parent, pc_tree->partitioning is still the PARTITION_NONE
+  // default from av2_alloc_pc_tree_node() and carries no meaning. That is a
+  // legitimate outcome -- the caller invalidates the rd stats and backs off
+  // (see rd_try_subblock_partition) -- so it must not trip the check. A real
+  // forcing violation still has found_best_partition set and is still caught.
+  if (part_search_state.found_best_partition && template_tree &&
+      template_tree->partition != PARTITION_INVALID &&
       pc_tree->partitioning != template_tree->partition) {
+    printf(
+        "Mismatch with template at fr: %d, mi: (%d, %d), BLOCK_%dX%d: "
+        "template %d, chose %d\n",
+        cm->current_frame.display_order_hint, mi_row, mi_col,
+        block_size_wide[bsize], block_size_high[bsize],
+        (int)template_tree->partition, (int)pc_tree->partitioning);
+    fflush(stdout);
     assert(0);
-    printf("Mismatch with template at fr: %d, mi: (%d, %d), BLOCK_%dX%d\n",
-           cm->current_frame.display_order_hint, mi_row, mi_col,
-           block_size_wide[bsize], block_size_high[bsize]);
   }
 #endif  // !defined(NDEBUG)
 
