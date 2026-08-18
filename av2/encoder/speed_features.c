@@ -562,6 +562,7 @@ static void set_good_speed_features_framesize_independent(
     // TODO(any): Re-enable for inter frames after fixing speed feature.
     sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch = 0;
     sf->winner_mode_sf.enable_winner_mode_for_use_tx_domain_dist = 1;
+    sf->winner_mode_sf.dc_blk_pred_level = 1;
     sf->winner_mode_sf.motion_mode_for_winner_cand =
         boosted                                                      ? 0
         : gf_group->update_type[gf_group->index] == INTNL_ARF_UPDATE ? 1
