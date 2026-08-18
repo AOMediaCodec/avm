@@ -137,7 +137,8 @@ static void set_good_speed_feature_framesize_dependent(
   const int is_1080p_or_larger = AVMMIN(cm->width, cm->height) >= 1080;
   const int is_4k_or_larger = AVMMIN(cm->width, cm->height) >= 2160;
   if (cm->seq_params.enable_flex_mvres) {
-    if (is_1080p_or_larger) {
+    if (is_4k_or_larger ||
+        (is_1080p_or_larger && cm->features.allow_screen_content_tools)) {
       sf->hl_sf.high_precision_mv_usage = QTR_ONLY;
     }
 
