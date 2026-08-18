@@ -1856,6 +1856,7 @@ void av2_ccso_search(AV2_COMMON *cm, MACROBLOCKD *xd, int rdmult,
                      int early_terminate_ccso_search, int ccso_chroma_dep) {
   int rdmult_weight = clamp(cm->quant_params.base_qindex >> 3, 1, 37);
   int64_t rdmult_temp = (int64_t)rdmult * (int64_t)rdmult_weight;
+  int rdmult_orig = rdmult;
 
   cm->ccso_info.ccso_frame_flag = false;
   cm->ccso_info.ccso_enable[0] = cm->ccso_info.ccso_enable[1] =
@@ -1903,7 +1904,8 @@ void av2_ccso_search(AV2_COMMON *cm, MACROBLOCKD *xd, int rdmult,
 
   if (check_luma_planes) {
     derive_ccso_filter(ctx, cm, AVM_PLANE_Y, xd, org_uv[AVM_PLANE_Y], ext_rec_y,
-                       rec_uv[AVM_PLANE_Y], rdmult, error_resilient_frame_seen
+                       rec_uv[AVM_PLANE_Y], rdmult_orig,
+                       error_resilient_frame_seen
 #if CONFIG_ENTROPY_STATS
                        ,
                        td
