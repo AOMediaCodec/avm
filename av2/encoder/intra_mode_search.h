@@ -387,14 +387,14 @@ void av2_count_colors_highbd(const uint16_t *src, int stride, int rows,
  *                                  far.
  * \param[in]    top_intra_model_rd Top intra model RD seen for this
  *                                  block so far.
- * \param[in]    k                  Number of top model RD candidates to
- *                                  keep in top_intra_model_rd.
+ * \param[in]    prune_top          Cap on the number of top candidates that
+ *                                  get full RD.
  * \param[in]    lossless           True if current block is lossless.
  * \param[in]    use_dpcm_y         True if block is lossless with DPCM mode.
  */
 bool prune_intra_y_mode(int64_t this_model_rd, int64_t *best_model_rd,
-                        int64_t top_intra_model_rd[], int k, int lossless,
-                        uint8_t use_dpcm_y);
+                        int64_t top_intra_model_rd[], int prune_top,
+                        int lossless, uint8_t use_dpcm_y);
 
 #ifdef __cplusplus
 }  // extern "C"

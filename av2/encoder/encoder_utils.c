@@ -533,7 +533,6 @@ void av2_scale_references(AV2_COMP *cpi, const InterpFilter filter,
 }
 
 BLOCK_SIZE av2_select_sb_size(const AV2_COMP *const cpi) {
-  const AV2_COMMON *const cm = &cpi->common;
   const AV2EncoderConfig *const oxcf = &cpi->oxcf;
 
   if (oxcf->tool_cfg.superblock_size == AVM_SUPERBLOCK_SIZE_64X64)
@@ -545,28 +544,40 @@ BLOCK_SIZE av2_select_sb_size(const AV2_COMP *const cpi) {
 
   assert(oxcf->tool_cfg.superblock_size == AVM_SUPERBLOCK_SIZE_DYNAMIC);
 
+  BLOCK_SIZE chosen;
   if (oxcf->resize_cfg.resize_mode != RESIZE_NONE) {
     // Use the configured size (top resolution) for spatial layers or
     // on resize.
-    return AVMMIN(oxcf->frm_dim_cfg.width, oxcf->frm_dim_cfg.height) >= 720
-               ? BLOCK_256X256
-           : AVMMIN(oxcf->frm_dim_cfg.width, oxcf->frm_dim_cfg.height) > 480
-               ? BLOCK_128X128
-               : BLOCK_64X64;
+    chosen = AVMMIN(oxcf->frm_dim_cfg.width, oxcf->frm_dim_cfg.height) >= 720
+                 ? BLOCK_256X256
+             : AVMMIN(oxcf->frm_dim_cfg.width, oxcf->frm_dim_cfg.height) > 480
+                 ? BLOCK_128X128
+                 : BLOCK_64X64;
+  } else if (oxcf->speed > 1 && !av2_wants_two_pass_partition(oxcf)) {
+    // TODO(any): Possibly could improve this with a heuristic.
+    // When resize is on, 'cm->width / height' can change between calls, so we
+    // don't apply this heuristic there. Things break if superblock size
+    // changes between the first pass and second pass encoding, which is why
+    // this heuristic is not configured as a speed-feature. Two-pass partition
+    // search requires a large superblock, so the small-SB heuristic is
+    // guarded on the same predicate.
+    const AV2_COMMON *const cm = &cpi->common;
+    chosen = AVMMIN(cm->width, cm->height) > 480 ? BLOCK_128X128 : BLOCK_64X64;
+  } else {
+    chosen = AVMMIN(oxcf->frm_dim_cfg.width, oxcf->frm_dim_cfg.height) >= 720
+                 ? BLOCK_256X256
+                 : BLOCK_128X128;
   }
 
-  // TODO(any): Possibly could improve this with a heuristic.
-  // When resize is on, 'cm->width / height' can change between
-  // calls, so we don't apply this heuristic there.
-  // Things break if superblock size changes between the first pass and second
-  // pass encoding, which is why this heuristic is not configured as a
-  // speed-feature.
-  if (oxcf->resize_cfg.resize_mode == RESIZE_NONE && oxcf->speed > 1) {
-    return AVMMIN(cm->width, cm->height) > 480 ? BLOCK_128X128 : BLOCK_64X64;
+  // Never choose an SB larger than the shortest side of the frame. This
+  // avoids a known issue where two-pass partition on multi-layer content
+  // produces a malformed OBU when the SB spans a small frame.
+  const int short_side =
+      AVMMIN(oxcf->frm_dim_cfg.width, oxcf->frm_dim_cfg.height);
+  while (chosen != BLOCK_64X64 && block_size_wide[chosen] > short_side) {
+    chosen = (chosen == BLOCK_256X256) ? BLOCK_128X128 : BLOCK_64X64;
   }
-  return AVMMIN(oxcf->frm_dim_cfg.width, oxcf->frm_dim_cfg.height) >= 720
-             ? BLOCK_256X256
-             : BLOCK_128X128;
+  return chosen;
 }
 
 void reallocate_sb_size_dependent_buffers(AV2_COMP *cpi) {

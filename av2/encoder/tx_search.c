@@ -3405,7 +3405,8 @@ static AVM_INLINE void choose_largest_tx_size(const AV2_COMP *const cpi,
   const int64_t no_skip_txfm_rd = is_inter_block(mbmi, xd->tree_type)
                                       ? RDCOST(x->rdmult, no_skip_txfm_rate, 0)
                                       : 0;
-  const int skip_trellis = 0;
+  // Dry pass: skip trellis (no RDOQ) — light quant only.
+  const int skip_trellis = x->apply_dry_pass_shortcuts ? 1 : 0;
   av2_txfm_rd_in_plane(x, cpi, rd_stats, ref_best_rd,
                        AVMMIN(no_skip_txfm_rd, skip_txfm_rd), AVM_PLANE_Y, bs,
                        FTXS_NONE, skip_trellis);
