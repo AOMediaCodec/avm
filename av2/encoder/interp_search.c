@@ -449,6 +449,12 @@ int64_t av2_interpolation_filter_search(
   *rd = RDCOST(x->rdmult, *switchable_rate + rd_stats.rate, rd_stats.dist);
   x->pred_sse[ref_frame] = (unsigned int)(rd_stats_luma.sse >> 4);
 
+  // Dry pass: keep the default interpolation filter instead of searching for
+  // one. The prediction above was already built with it.
+  if (x->apply_dry_pass_shortcuts) {
+    return 0;
+  }
+
   if (assign_filter != SWITCHABLE || match_found_idx != -1) {
     return 0;
   }

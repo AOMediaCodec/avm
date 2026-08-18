@@ -28,6 +28,12 @@ enum {
   USE_LARGESTALL,
 } UENUM1BYTE(TX_SIZE_SEARCH_METHOD);
 
+enum {
+  SB_SINGLE_PASS,  // Single pass encoding: all ctxs get updated normally
+  SB_DRY_PASS,     // First pass of multi-pass: does not update the ctxs
+  SB_WET_PASS      // Second pass of multi-pass: finalize and update the ctx
+} UENUM1BYTE(SB_MULTI_PASS_MODE);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

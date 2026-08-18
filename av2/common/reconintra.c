@@ -462,6 +462,10 @@ void get_y_intra_mode_set(MB_MODE_INFO *mi, MACROBLOCKD *const xd) {
     }
   }
 
+  // Everything added so far came from neighbouring blocks, so record how many
+  // entries that is. What the default fill adds below does not count.
+  mi->num_y_intra_mpm = mode_idx;
+
   // fill the remaining list with default modes
   for (i = 0; i < LUMA_MODE_COUNT - NON_DIRECTIONAL_MODES_COUNT &&
               mode_idx < LUMA_MODE_COUNT;
