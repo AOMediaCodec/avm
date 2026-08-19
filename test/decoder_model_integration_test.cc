@@ -27,11 +27,16 @@
 #include "av2/decoder/decoder.h"
 #include "av2/decoder/decoder_model.h"
 #include "test/codec_factory.h"
+#include "test/decoder_model_lifecycle.h"
 #include "test/encode_test_driver.h"
 #include "test/i420_video_source.h"
 #include "test/y4m_video_source.h"
 
 namespace {
+
+using Av2DmLevelLimits = libavm_test::ScopedDmLevelLimits;
+using Av2DmRunStats = libavm_test::ScopedDmRunStats;
+using Av2DmVerifierStats = libavm_test::ScopedDmVerifierStats;
 
 class DecoderModelAdapterTestBase : public ::testing::Test {
  protected:
@@ -173,7 +178,7 @@ size_t CountOccurrences(const std::string &text, const std::string &pattern) {
 
 void ExpectAdapterRational(const Av2DmRational &actual, uint64_t numerator,
                            uint64_t denominator) {
-  Av2DmRational expected;
+  Av2DmRational expected{};
   ASSERT_TRUE(av2_dm_rational_make(numerator, denominator, &expected));
   int comparison = 1;
   ASSERT_TRUE(av2_dm_rational_compare(&actual, &expected, &comparison));
@@ -561,6 +566,46 @@ TEST(DecoderModelDiagnosticTest, FormattingIsBoundedForMaximumWidthValues) {
   EXPECT_TRUE(fatal_violation);
 }
 
+TEST(DecoderModelDiagnosticTest, WarningPrintsArbitraryWidthOperandsExactly) {
+  static const uint64_t primes[] = {
+    UINT64_C(4294967291), UINT64_C(4294967279), UINT64_C(4294967231),
+    UINT64_C(4294967197), UINT64_C(4294967189), UINT64_C(4294967161),
+    UINT64_C(4294967143), UINT64_C(4294967111), UINT64_C(4294967087),
+    UINT64_C(4294967029), UINT64_C(4294966997), UINT64_C(4294966981),
+  };
+  Av2DmViolation violation{};
+  violation.code = AV2_DM_VIOLATION_MAX_FRAME_SYMBOLS;
+  violation.observed_present = true;
+  violation.limit_present = true;
+  Av2DmRational term{};
+  ASSERT_TRUE(av2_dm_rational_make(0, 1, &violation.observed));
+  for (uint64_t prime : primes) {
+    ASSERT_TRUE(av2_dm_rational_make(1, prime, &term));
+    ASSERT_TRUE(
+        av2_dm_rational_add(&violation.observed, &term, &violation.observed));
+  }
+  ASSERT_TRUE(av2_dm_rational_make(1, 1, &violation.limit));
+
+  uint64_t violation_count = 0;
+  bool fatal_violation = false;
+  testing::internal::CaptureStderr();
+  ASSERT_TRUE(av2_decoder_model_report_violation_for_testing(
+      &violation, false, &violation_count, &fatal_violation));
+  const std::string warning = testing::internal::GetCapturedStderr();
+  EXPECT_NE(
+      warning.find(
+          "observed=0xbffffb04000e7e5127c0f82dce2fcbf7bda9769bd02e5a8e"
+          "b2d2866b8b7ed7bf8119376c5889ad77d8e57d440/"
+          "0xfffff8c000173081d4e547739c5f92b9d618ed5f7f0771f046134f7801995"
+          "db5e2349daf328f97c26132a32ae7570079 limit=1"),
+      std::string::npos);
+  EXPECT_EQ(violation_count, 1u);
+  EXPECT_FALSE(fatal_violation);
+  av2_dm_rational_destroy(&term);
+  av2_dm_rational_destroy(&violation.observed);
+  av2_dm_rational_destroy(&violation.limit);
+}
+
 TEST(DecoderModelDiagnosticTest, FormattingIsIndependentOfNumericLocale) {
   Av2DmViolation timing{};
   timing.code = AV2_DM_VIOLATION_DISPLAY_FRAME_LATE;
@@ -593,7 +638,7 @@ TEST_F(DecoderModelHookOrderTest,
   UpdateAndOutput();
   av2_decoder_model_verifier_finish(pbi_);
 
-  Av2DmVerifierStats stats;
+  Av2DmVerifierStats stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
   EXPECT_EQ(stats.frame_starts, 1u);
   EXPECT_EQ(stats.reference_updates, 1u);
@@ -612,7 +657,7 @@ TEST_F(DecoderModelHookOrderTest, OlkInvalidationPrecedesOlkFrameStart) {
   pbi_->common.ref_frame_map[0] = nullptr;
   pbi_->valid_for_referencing[0] = 0;
   av2_decoder_model_verifier_on_reference_invalidation(pbi_, false);
-  Av2DmVerifierStats before_start;
+  Av2DmVerifierStats before_start = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &before_start));
   av2_decoder_model_verifier_record_obu(pbi_, OBU_OPEN_LOOP_KEY, 0, 0, 0, 800);
   pbi_->common.cur_frame = &second_frame_;
@@ -623,7 +668,7 @@ TEST_F(DecoderModelHookOrderTest, OlkInvalidationPrecedesOlkFrameStart) {
   second_frame_.height = 64;
   av2_decoder_model_verifier_on_frame_wrapup_start(pbi_);
 
-  Av2DmVerifierStats after_start;
+  Av2DmVerifierStats after_start = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &after_start));
   EXPECT_EQ(after_start.reference_invalidations, 1u);
   EXPECT_EQ(after_start.olk_invalidations, 1u);
@@ -644,7 +689,7 @@ TEST_F(DecoderModelHookOrderTest, OlkInvalidationPrecedesOlkFrameStart) {
   av2_decoder_model_verifier_on_output(pbi_, -1, &second_frame_,
                                        AV2_DM_PRESENTATION_OWNER_CURRENT);
 
-  Av2DmVerifierStats live;
+  Av2DmVerifierStats live = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &live));
   EXPECT_EQ(live.live_runs, 2u);
   EXPECT_EQ(live.result_count, 0u);
@@ -690,12 +735,12 @@ TEST_F(DecoderModelHookOrderTest, ClkInvalidationPrecedesClkFrameStartOnce) {
   frame_.height = 64;
 
   av2_decoder_model_verifier_on_reference_invalidation(pbi_, true);
-  Av2DmVerifierStats before_start;
+  Av2DmVerifierStats before_start = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &before_start));
   av2_decoder_model_verifier_on_frame_wrapup_start(pbi_);
   av2_decoder_model_verifier_on_frame_unit_complete(pbi_);
 
-  Av2DmVerifierStats after_start;
+  Av2DmVerifierStats after_start = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &after_start));
   EXPECT_EQ(after_start.reference_invalidations, 1u);
   EXPECT_EQ(after_start.olk_invalidations, 0u);
@@ -706,6 +751,32 @@ TEST_F(DecoderModelHookOrderTest, ClkInvalidationPrecedesClkFrameStartOnce) {
             after_start.last_clk_invalidation_event);
   EXPECT_LT(after_start.last_clk_invalidation_event,
             after_start.last_frame_start_event);
+}
+
+TEST_F(DecoderModelHookOrderTest,
+       ClkGenerationRetirementUsesNewActiveReferenceRange) {
+  StartFrame(OBU_CLOSED_LOOP_KEY, 64, 64, &frame_, 0, KEY_FRAME, false, true, 0,
+             0, true);
+  UpdateAndOutput();
+  pbi_->common.ref_frame_map[0] = nullptr;
+  pbi_->valid_for_referencing[0] = 0;
+  pbi_->common.ref_frame_map[7] = &frame_;
+  pbi_->valid_for_referencing[7] = 1;
+  Av2DmVerifierStats before = {};
+  ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &before));
+  ASSERT_EQ(before.live_generations, 1u);
+
+  av2_decoder_model_verifier_record_obu(pbi_, OBU_TEMPORAL_DELIMITER, 0, 0, 0,
+                                        8);
+  pbi_->seq_list[0][0].ref_frames = 4;
+  pbi_->common.seq_params = pbi_->seq_list[0][0];
+  av2_decoder_model_verifier_on_sequence_header(pbi_, 0, 0);
+  pbi_->obu_type = OBU_CLOSED_LOOP_KEY;
+  av2_decoder_model_verifier_on_active_configuration(pbi_, 0, 0);
+
+  Av2DmVerifierStats after = {};
+  ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &after));
+  EXPECT_EQ(after.live_generations, 0u);
 }
 
 TEST_F(DecoderModelHookOrderTest,
@@ -724,7 +795,7 @@ TEST_F(DecoderModelHookOrderTest,
   pbi_->valid_for_referencing[0] = 1;
   av2_decoder_model_verifier_after_reference_update(pbi_, 1);
 
-  Av2DmVerifierStats before_output;
+  Av2DmVerifierStats before_output = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &before_output));
   EXPECT_EQ(before_output.outputs, 0u);
 
@@ -738,7 +809,7 @@ TEST_F(DecoderModelHookOrderTest,
 
   av2_decoder_model_verifier_on_output(pbi_, 0, &frame_,
                                        AV2_DM_PRESENTATION_OWNER_IMPLICIT);
-  Av2DmVerifierStats implicit_stats;
+  Av2DmVerifierStats implicit_stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &implicit_stats));
   EXPECT_EQ(implicit_stats.last_output_callback_frame_unit, 1u);
   EXPECT_EQ(implicit_stats.last_output_presentation_frame_unit, 0u);
@@ -751,7 +822,7 @@ TEST_F(DecoderModelHookOrderTest,
 
   av2_decoder_model_verifier_on_output(pbi_, -1, &second_frame_,
                                        AV2_DM_PRESENTATION_OWNER_CURRENT);
-  Av2DmVerifierStats current_stats;
+  Av2DmVerifierStats current_stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &current_stats));
   EXPECT_EQ(current_stats.last_output_callback_frame_unit, 1u);
   EXPECT_EQ(current_stats.last_output_presentation_frame_unit, 1u);
@@ -794,7 +865,7 @@ TEST_F(DecoderModelHookOrderTest,
   EXPECT_TRUE(frame_.frame_output_done);
   EXPECT_TRUE(second_frame_.frame_output_done);
 
-  Av2DmVerifierStats stats;
+  Av2DmVerifierStats stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
   EXPECT_EQ(stats.outputs, 2u);
   EXPECT_EQ(stats.last_output_callback_frame_unit, 1u);
@@ -835,7 +906,7 @@ TEST_F(DecoderModelHookOrderTest,
   EXPECT_EQ(pbi_->output_frames[0], &second_frame_);
   EXPECT_EQ(pbi_->output_frames[1], &frame_);
 
-  Av2DmVerifierStats stats;
+  Av2DmVerifierStats stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
   EXPECT_EQ(stats.outputs, 2u);
   EXPECT_EQ(stats.last_output_callback_frame_unit, 1u);
@@ -862,7 +933,7 @@ TEST_F(DecoderModelHookOrderTest,
   ASSERT_EQ(av2_output_frame_buffers(pbi_, 0), 0);
   ASSERT_EQ(pbi_->num_output_frames, 1u);
   EXPECT_EQ(pbi_->output_frames[0], &frame_);
-  Av2DmVerifierStats stats;
+  Av2DmVerifierStats stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
   EXPECT_EQ(stats.last_output_callback_frame_unit, 1u);
   EXPECT_EQ(stats.last_output_presentation_frame_unit, 0u);
@@ -881,7 +952,7 @@ TEST_F(DecoderModelHookOrderTest, FlushUsesPendingImplicitOwner) {
   ASSERT_EQ(flush_remaining_frames(pbi_, 100), AVM_CODEC_OK);
   ASSERT_EQ(pbi_->num_output_frames, 1u);
   EXPECT_EQ(pbi_->output_frames[0], &frame_);
-  Av2DmVerifierStats stats;
+  Av2DmVerifierStats stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
   EXPECT_EQ(stats.last_output_callback_frame_unit, 0u);
   EXPECT_EQ(stats.last_output_presentation_frame_unit, 0u);
@@ -913,7 +984,7 @@ TEST_F(DecoderModelHookOrderTest,
   Av2DmContextStats context;
   ASSERT_TRUE(av2_decoder_model_verifier_get_context_stats(pbi_, 0, &context));
   EXPECT_EQ(context.pending_dfg_bits, 800u);
-  Av2DmVerifierStats boundary;
+  Av2DmVerifierStats boundary = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &boundary));
   EXPECT_EQ(boundary.live_runs, 1u);
   EXPECT_EQ(boundary.cvs_aggregates, 2u);
@@ -926,8 +997,8 @@ TEST_F(DecoderModelHookOrderTest,
   av2_decoder_model_verifier_on_output(pbi_, -1, &frame_,
                                        AV2_DM_PRESENTATION_OWNER_CURRENT);
 
-  Av2DmRunStats continuing;
-  Av2DmRunStats clk_start;
+  Av2DmRunStats continuing = {};
+  Av2DmRunStats clk_start = {};
   ASSERT_TRUE(
       av2_decoder_model_verifier_get_run_stats(pbi_, 0, 0, &continuing));
   ASSERT_TRUE(av2_decoder_model_verifier_get_run_stats(pbi_, 0, 1, &clk_start));
@@ -935,7 +1006,7 @@ TEST_F(DecoderModelHookOrderTest,
   EXPECT_EQ(continuing.decoded_frames, 2u);
   EXPECT_EQ(clk_start.originating_cvs, 2u);
   EXPECT_EQ(clk_start.decoded_frames, 1u);
-  Av2DmVerifierStats delivered;
+  Av2DmVerifierStats delivered = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &delivered));
   EXPECT_LT(boundary.last_output_event, delivered.last_frame_start_event);
 }
@@ -1008,7 +1079,7 @@ TEST_F(DecoderModelHookOrderTest, ClkBoundaryOnlyClosesItsXlayer) {
             std::string::npos);
   EXPECT_EQ(diagnostics.find("xlayer=1 cvs=1"), std::string::npos);
 
-  Av2DmVerifierStats stats;
+  Av2DmVerifierStats stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
   EXPECT_EQ(stats.live_runs, 2u);
   EXPECT_EQ(stats.cvs_aggregates, 3u);
@@ -1037,6 +1108,8 @@ TEST_F(DecoderModelHookOrderTest,
   EXPECT_NE(diagnostics.find("AV2_DECODER_MODEL_BITSTREAM_RESULT "),
             std::string::npos);
   EXPECT_NE(diagnostics.find("cvs=1 "), std::string::npos);
+  EXPECT_EQ(diagnostics.find("code=DECODER_BUFFER_DELAY_INCONSISTENT"),
+            std::string::npos);
 }
 
 TEST_F(DecoderModelResultTest, ConformantResultAndFinishAreIdempotent) {
@@ -1045,7 +1118,7 @@ TEST_F(DecoderModelResultTest, ConformantResultAndFinishAreIdempotent) {
   av2_decoder_model_verifier_finish(pbi_);
   av2_decoder_model_verifier_finish(pbi_);
 
-  Av2DmVerifierStats stats;
+  Av2DmVerifierStats stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
   EXPECT_EQ(stats.result_count, 1u);
   EXPECT_EQ(stats.conformant_results, 1u);
@@ -1074,7 +1147,7 @@ TEST_F(DecoderModelResultTest, Profile5HighTierConfigurationIsConformant) {
   av2_decoder_model_verifier_finish(pbi_);
   const std::string diagnostics = testing::internal::GetCapturedStderr();
 
-  Av2DmVerifierStats stats;
+  Av2DmVerifierStats stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
   EXPECT_EQ(stats.result_count, 1u);
   EXPECT_EQ(stats.conformant_results, 1u);
@@ -1108,12 +1181,50 @@ TEST_F(DecoderModelResultTest,
                        "violations=0 reason=internal_failure"),
       std::string::npos);
 
-  Av2DmVerifierStats stats;
+  Av2DmVerifierStats stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
   EXPECT_FALSE(stats.available);
   EXPECT_TRUE(stats.failed);
   EXPECT_EQ(stats.result_count, 1u);
   EXPECT_EQ(stats.indeterminate_results, 1u);
+}
+
+TEST_F(DecoderModelResultTest,
+       ExactModelLimbAllocationFailureUsesAllocationDiagnostic) {
+  static const uint32_t kTimeScales[] = {
+    UINT32_C(4294967291), UINT32_C(4294967279), UINT32_C(4294967231),
+    UINT32_C(4294967197), UINT32_C(4294967189), UINT32_C(4294967161),
+    UINT32_C(4294967143), UINT32_C(4294967111), UINT32_C(4294967087),
+  };
+  testing::internal::CaptureStderr();
+  StartFrame(OBU_CLOSED_LOOP_KEY, 64, 64, &frame_, 0, KEY_FRAME, false, true, 0,
+             0, true);
+  UpdateAndOutput();
+  for (const uint32_t time_scale : kTimeScales) {
+    av2_decoder_model_verifier_record_obu(pbi_, OBU_TEMPORAL_DELIMITER, 0, 0, 0,
+                                          8);
+    pbi_->common.ci_params_per_layer[0].timing_info.num_units_in_display_tick =
+        time_scale / 30;
+    pbi_->common.ci_params_per_layer[0].timing_info.time_scale = time_scale;
+    StartFrame(OBU_CLOSED_LOOP_KEY, 64, 64, &frame_, 0, KEY_FRAME, false, true,
+               0, 0, true);
+    UpdateAndOutput();
+  }
+
+  av2_decoder_model_verifier_record_obu(pbi_, OBU_TEMPORAL_DELIMITER, 0, 0, 0,
+                                        8);
+  av2_dm_rational_set_allocation_failure_after_for_testing(0);
+  StartFrame(OBU_CLOSED_LOOP_KEY, 64, 64, &frame_, 0, KEY_FRAME, false, true, 0,
+             0, true);
+  av2_dm_rational_set_allocation_failure_after_for_testing(-1);
+  av2_decoder_model_verifier_finish(pbi_);
+  const std::string diagnostics = testing::internal::GetCapturedStderr();
+
+  EXPECT_NE(diagnostics.find("code=ALLOCATION_FAILURE"), std::string::npos);
+  EXPECT_EQ(diagnostics.find("code=ARITHMETIC_FAILURE"), std::string::npos);
+  Av2DmVerifierStats stats{};
+  ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
+  EXPECT_GT(stats.indeterminate_results, 0u);
 }
 
 TEST_F(DecoderModelResultTest,
@@ -1137,7 +1248,7 @@ TEST_F(DecoderModelResultTest,
                        "violations=0 reason=internal_failure"),
       std::string::npos);
 
-  Av2DmVerifierStats stats;
+  Av2DmVerifierStats stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
   EXPECT_TRUE(stats.available);
   EXPECT_TRUE(stats.failed);
@@ -1245,7 +1356,7 @@ TEST_F(DecoderModelResultTest, StaticLevelViolationIsNonConformant) {
   UpdateAndOutput();
   av2_decoder_model_verifier_finish(pbi_);
 
-  Av2DmVerifierStats stats;
+  Av2DmVerifierStats stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
   EXPECT_EQ(stats.result_count, 1u);
   EXPECT_EQ(stats.non_conformant_results, 1u);
@@ -1261,7 +1372,7 @@ TEST_F(DecoderModelResultTest, WarningIsReportedWhenViolationOccurs) {
 
   testing::internal::CaptureStderr();
   UpdateAndOutput();
-  Av2DmVerifierStats live;
+  Av2DmVerifierStats live = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &live));
   EXPECT_EQ(live.outputs, 1u);
   av2_decoder_model_verifier_finish(pbi_);
@@ -1272,7 +1383,7 @@ TEST_F(DecoderModelResultTest, WarningIsReportedWhenViolationOccurs) {
   EXPECT_NE(
       final.find("AV2_DECODER_MODEL_BITSTREAM_RESULT status=NON_CONFORMANT"),
       std::string::npos);
-  Av2DmVerifierStats finished;
+  Av2DmVerifierStats finished = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &finished));
   EXPECT_EQ(finished.live_runs, 0u);
 }
@@ -1326,7 +1437,7 @@ TEST_F(DecoderModelResultTest,
              0, true);
   UpdateAndOutput();
 
-  Av2DmRunStats before;
+  Av2DmRunStats before = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_run_stats(pbi_, 0, 0, &before));
   EXPECT_EQ(before.originating_cvs, 1u);
   EXPECT_FALSE(before.initial_presentation_delay_known);
@@ -1343,7 +1454,7 @@ TEST_F(DecoderModelResultTest,
   EXPECT_NE(diagnostics.find("AV2_DECODER_MODEL_CVS_RESULT "
                              "status=CONFORMANT xlayer=0 cvs=1"),
             std::string::npos);
-  Av2DmVerifierStats stats;
+  Av2DmVerifierStats stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
   EXPECT_EQ(stats.outputs, 2u);
 }
@@ -1431,7 +1542,7 @@ TEST_F(DecoderModelResultTest, ConsecutiveCvsRetainRequiredLiveRuns) {
     StartFrame(OBU_CLOSED_LOOP_KEY, 64, 64, &frame_, 0, KEY_FRAME, false, true,
                0, 0, true);
     UpdateAndOutput();
-    Av2DmVerifierStats live;
+    Av2DmVerifierStats live = {};
     ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &live));
     EXPECT_EQ(live.live_runs, static_cast<uint32_t>(cvs + 1));
     EXPECT_LE(live.live_generations, 1u);
@@ -1442,7 +1553,7 @@ TEST_F(DecoderModelResultTest, ConsecutiveCvsRetainRequiredLiveRuns) {
   av2_decoder_model_verifier_finish(pbi_);
   (void)testing::internal::GetCapturedStderr();
 
-  Av2DmVerifierStats finished;
+  Av2DmVerifierStats finished = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &finished));
   EXPECT_EQ(finished.live_runs, 0u);
   EXPECT_LE(finished.live_generations, 1u);
@@ -1467,7 +1578,7 @@ TEST_F(DecoderModelResultTest,
   StartFrame(OBU_OPEN_LOOP_KEY);
   UpdateAndOutput();
 
-  Av2DmVerifierStats live;
+  Av2DmVerifierStats live = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &live));
   EXPECT_EQ(live.rap_starts, 3u);
   EXPECT_EQ(live.applicable_rap_starts, 3u);
@@ -1546,14 +1657,14 @@ TEST_F(DecoderModelResultTest,
   StartFrame(OBU_OPEN_LOOP_KEY);
   UpdateAndOutput();
 
-  Av2DmVerifierStats stats;
+  Av2DmVerifierStats stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
   EXPECT_EQ(stats.rap_starts, 1u);
   EXPECT_EQ(stats.applicable_rap_starts, 1u);
   EXPECT_EQ(stats.rap_runs_started, 0u);
   EXPECT_EQ(stats.rap_runs_skipped, 1u);
   EXPECT_EQ(stats.live_runs, 1u);
-  Av2DmRunStats run;
+  Av2DmRunStats run = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_run_stats(pbi_, 0, 0, &run));
   EXPECT_EQ(run.rap, -1);
   EXPECT_EQ(run.decoded_frames, 2u);
@@ -1568,7 +1679,7 @@ TEST_F(DecoderModelResultTest,
   av2_decoder_model_verifier_force_rap_coverage_overflow_for_testing(pbi_);
   StartFrame(OBU_CLOSED_LOOP_KEY);
 
-  Av2DmVerifierStats failed;
+  Av2DmVerifierStats failed = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &failed));
   EXPECT_TRUE(failed.failed);
   EXPECT_EQ(failed.applicable_rap_starts, UINT64_MAX);
@@ -1638,7 +1749,7 @@ TEST_F(DecoderModelResultTest,
   av2_decoder_model_verifier_on_output(pbi_, -1, &second_frame_,
                                        AV2_DM_PRESENTATION_OWNER_CURRENT);
 
-  Av2DmVerifierStats stats;
+  Av2DmVerifierStats stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
   EXPECT_EQ(stats.contexts, 3u);
   EXPECT_EQ(stats.rap_starts, 4u);
@@ -1675,7 +1786,7 @@ TEST_F(DecoderModelResultTest,
   av2_decoder_model_verifier_finish(pbi_);
   const std::string diagnostics = testing::internal::GetCapturedStderr();
 
-  Av2DmVerifierStats stats;
+  Av2DmVerifierStats stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
   EXPECT_EQ(stats.result_count, 1u);
   EXPECT_EQ(stats.non_conformant_results, 1u);
@@ -1740,7 +1851,7 @@ TEST_F(DecoderModelResultTest,
   StartFrame(OBU_OPEN_LOOP_KEY);
   UpdateAndOutput();
 
-  Av2DmVerifierStats stats;
+  Av2DmVerifierStats stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
   EXPECT_EQ(stats.applicable_rap_starts, 3u);
   EXPECT_EQ(stats.rap_runs_started, 3u);
@@ -1772,7 +1883,7 @@ TEST_F(DecoderModelResultTest, EveryRapSelectionScalesWithExactCoverage) {
         UpdateAndOutput();
       }
 
-      Av2DmVerifierStats live;
+      Av2DmVerifierStats live = {};
       ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &live));
       const uint64_t expected_started =
           check_every_rap ? rap_count : (rap_count > 0 ? 1 : 0);
@@ -1826,13 +1937,13 @@ TEST_F(DecoderModelResultTest,
                0, 0, true);
     UpdateAndOutput();
 
-    Av2DmVerifierStats verifier_stats;
+    Av2DmVerifierStats verifier_stats = {};
     ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &verifier_stats));
     EXPECT_EQ(verifier_stats.cvs_aggregates, cvs);
     EXPECT_EQ(verifier_stats.open_cvs, 1u);
     EXPECT_EQ(verifier_stats.live_runs, cvs);
     for (uint32_t run = 0; run < cvs; ++run) {
-      Av2DmRunStats run_stats;
+      Av2DmRunStats run_stats = {};
       ASSERT_TRUE(
           av2_decoder_model_verifier_get_run_stats(pbi_, 0, run, &run_stats));
       EXPECT_EQ(run_stats.originating_cvs, run + 1);
@@ -1842,20 +1953,20 @@ TEST_F(DecoderModelResultTest,
     }
   }
 
-  Av2DmVerifierStats before_end;
+  Av2DmVerifierStats before_end = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &before_end));
   av2_decoder_model_verifier_before_final_output(pbi_, UINT64_MAX, true);
-  Av2DmVerifierStats after_end;
+  Av2DmVerifierStats after_end = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &after_end));
   EXPECT_EQ(after_end.event_count, before_end.event_count + 1);
   for (uint32_t run = 0; run < 15; ++run) {
-    Av2DmRunStats run_stats;
+    Av2DmRunStats run_stats = {};
     ASSERT_TRUE(
         av2_decoder_model_verifier_get_run_stats(pbi_, 0, run, &run_stats));
     EXPECT_TRUE(run_stats.initial_presentation_delay_known);
   }
   av2_decoder_model_verifier_before_final_output(pbi_, UINT64_MAX, true);
-  Av2DmVerifierStats repeated;
+  Av2DmVerifierStats repeated = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &repeated));
   EXPECT_EQ(repeated.event_count, after_end.event_count);
 
@@ -1902,7 +2013,7 @@ TEST_F(DecoderModelResultTest,
     UpdateAndOutput();
   }
 
-  Av2DmVerifierStats verifier_stats;
+  Av2DmVerifierStats verifier_stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &verifier_stats));
   ASSERT_EQ(verifier_stats.contexts, 2u);
   EXPECT_EQ(verifier_stats.cvs_aggregates, 3u);
@@ -1913,7 +2024,7 @@ TEST_F(DecoderModelResultTest,
                                                              &context_stats));
     EXPECT_EQ(context_stats.scope.xlayer_id, 0);
     for (uint32_t run = 0; run < 3; ++run) {
-      Av2DmRunStats run_stats;
+      Av2DmRunStats run_stats = {};
       ASSERT_TRUE(av2_decoder_model_verifier_get_run_stats(pbi_, context, run,
                                                            &run_stats));
       EXPECT_EQ(run_stats.originating_cvs, run + 1);
@@ -1939,29 +2050,29 @@ TEST_F(DecoderModelResultTest, EndOfInputTargetsOnlyTheEndingStreamGeneration) {
              0, true);
   UpdateAndOutput();
 
-  Av2DmRunStats run;
+  Av2DmRunStats run = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_run_stats(pbi_, 0, 0, &run));
   EXPECT_EQ(run.stream_generation, 0u);
   EXPECT_FALSE(run.initial_presentation_delay_known);
-  Av2DmVerifierStats before;
+  Av2DmVerifierStats before = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &before));
 
   av2_decoder_model_verifier_before_final_output(pbi_, 1, false);
-  Av2DmVerifierStats wrong_generation;
+  Av2DmVerifierStats wrong_generation = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &wrong_generation));
   EXPECT_EQ(wrong_generation.event_count, before.event_count);
   ASSERT_TRUE(av2_decoder_model_verifier_get_run_stats(pbi_, 0, 0, &run));
   EXPECT_FALSE(run.initial_presentation_delay_known);
 
   av2_decoder_model_verifier_before_final_output(pbi_, 0, false);
-  Av2DmVerifierStats ending_generation;
+  Av2DmVerifierStats ending_generation = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &ending_generation));
   EXPECT_EQ(ending_generation.event_count, before.event_count + 1);
   ASSERT_TRUE(av2_decoder_model_verifier_get_run_stats(pbi_, 0, 0, &run));
   EXPECT_TRUE(run.initial_presentation_delay_known);
 
   av2_decoder_model_verifier_before_final_output(pbi_, 0, false);
-  Av2DmVerifierStats repeated;
+  Av2DmVerifierStats repeated = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &repeated));
   EXPECT_EQ(repeated.event_count, ending_generation.event_count);
 }
@@ -1996,7 +2107,7 @@ TEST_F(DecoderModelResultTest, UnalignedXlayerClkBoundariesRemainIndependent) {
              0, true);
   UpdateAndOutput();
 
-  Av2DmVerifierStats verifier_stats;
+  Av2DmVerifierStats verifier_stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &verifier_stats));
   ASSERT_EQ(verifier_stats.contexts, 2u);
   EXPECT_EQ(verifier_stats.cvs_aggregates, 3u);
@@ -2006,13 +2117,13 @@ TEST_F(DecoderModelResultTest, UnalignedXlayerClkBoundariesRemainIndependent) {
     Av2DmContextStats context_stats;
     ASSERT_TRUE(av2_decoder_model_verifier_get_context_stats(pbi_, context,
                                                              &context_stats));
-    Av2DmRunStats first_run;
+    Av2DmRunStats first_run = {};
     ASSERT_TRUE(
         av2_decoder_model_verifier_get_run_stats(pbi_, context, 0, &first_run));
     EXPECT_EQ(first_run.originating_cvs, 1u);
     if (context_stats.scope.xlayer_id == 0) {
       EXPECT_EQ(first_run.decoded_frames, 2u);
-      Av2DmRunStats second_run;
+      Av2DmRunStats second_run = {};
       ASSERT_TRUE(av2_decoder_model_verifier_get_run_stats(pbi_, context, 1,
                                                            &second_run));
       EXPECT_EQ(second_run.originating_cvs, 2u);
@@ -2020,15 +2131,14 @@ TEST_F(DecoderModelResultTest, UnalignedXlayerClkBoundariesRemainIndependent) {
     } else {
       EXPECT_EQ(context_stats.scope.xlayer_id, 1);
       EXPECT_EQ(first_run.decoded_frames, 1u);
-      Av2DmRunStats unused;
+      Av2DmRunStats unused = {};
       EXPECT_FALSE(
           av2_decoder_model_verifier_get_run_stats(pbi_, context, 1, &unused));
     }
   }
 }
 
-TEST_F(DecoderModelResultTest,
-       IncompatibleClkTransitionOnlyMakesOlderRunIndeterminate) {
+TEST_F(DecoderModelResultTest, DecCtClkTransitionKeepsContinuousRunVerifiable) {
   StartFrame(OBU_CLOSED_LOOP_KEY, 64, 64, &frame_, 0, KEY_FRAME, false, true, 0,
              0, true);
   UpdateAndOutput();
@@ -2040,13 +2150,15 @@ TEST_F(DecoderModelResultTest,
              0, true);
   UpdateAndOutput();
 
-  Av2DmRunStats older;
-  Av2DmRunStats clk_start;
+  Av2DmRunStats older = {};
+  Av2DmRunStats clk_start = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_run_stats(pbi_, 0, 0, &older));
   ASSERT_TRUE(av2_decoder_model_verifier_get_run_stats(pbi_, 0, 1, &clk_start));
   EXPECT_EQ(older.originating_cvs, 1u);
-  EXPECT_EQ(older.reason, AV2_DM_REASON_INCOMPATIBLE_CONFIGURATION_TRANSITION);
-  EXPECT_EQ(older.status, AV2_DM_RESULT_INDETERMINATE);
+  EXPECT_EQ(older.reason, AV2_DM_REASON_NONE);
+  EXPECT_EQ(older.status, AV2_DM_RESULT_CONFORMANT);
+  EXPECT_EQ(older.decoded_frames, 2u);
+  EXPECT_EQ(older.output_frames, 2u);
   EXPECT_EQ(clk_start.originating_cvs, 2u);
   EXPECT_EQ(clk_start.reason, AV2_DM_REASON_NONE);
   EXPECT_EQ(clk_start.decoded_frames, 1u);
@@ -2054,10 +2166,10 @@ TEST_F(DecoderModelResultTest,
   testing::internal::CaptureStderr();
   av2_decoder_model_verifier_finish(pbi_);
   const std::string diagnostics = testing::internal::GetCapturedStderr();
-  EXPECT_NE(diagnostics.find("status=INDETERMINATE xlayer=0 ops=-1 op=-1 "
-                             "rap=0 mode=resource decoded=1 outputs=1 "
+  EXPECT_NE(diagnostics.find("status=CONFORMANT xlayer=0 ops=-1 op=-1 "
+                             "rap=0 mode=resource decoded=2 outputs=2 "
                              "reordered_outputs=0 violations=0 "
-                             "reason=incompatible_configuration_transition"),
+                             "reason=none"),
             std::string::npos);
   EXPECT_NE(diagnostics.find("status=CONFORMANT xlayer=0 ops=-1 op=-1 rap=1 "
                              "mode=resource decoded=1 outputs=1"),
@@ -2077,7 +2189,7 @@ TEST_F(DecoderModelResultTest,
              0, true);
   UpdateAndOutput();
 
-  Av2DmRunStats older;
+  Av2DmRunStats older = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_run_stats(pbi_, 0, 0, &older));
   EXPECT_EQ(older.originating_cvs, 1u);
   EXPECT_EQ(older.reason, AV2_DM_REASON_MISSING_REQUIRED_INPUT);
@@ -2122,7 +2234,7 @@ TEST_F(DecoderModelResultTest,
                                         100000000);
   av2_decoder_model_verifier_on_frame_unit_complete(pbi_);
   UpdateAndOutput();
-  Av2DmRunStats before_update;
+  Av2DmRunStats before_update = {};
   ASSERT_TRUE(
       av2_decoder_model_verifier_get_run_stats(pbi_, 0, 0, &before_update));
   EXPECT_EQ(before_update.status, AV2_DM_RESULT_CONFORMANT);
@@ -2142,7 +2254,7 @@ TEST_F(DecoderModelResultTest,
              0, true, false, true);
   EXPECT_TRUE(av2_decoder_model_verifier_should_stop(pbi_));
 
-  Av2DmRunStats older;
+  Av2DmRunStats older = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_run_stats(pbi_, 0, 0, &older));
   EXPECT_EQ(older.originating_cvs, 1u);
   EXPECT_EQ(older.status, AV2_DM_RESULT_NON_CONFORMANT);
@@ -2159,10 +2271,15 @@ TEST_F(DecoderModelResultTest,
 }
 
 TEST_F(DecoderModelResultTest,
-       CompatibleClkReferenceCountUpdateKeepsOlderRunVerifiable) {
+       ActiveConfigurationUpdatePrecedesClkInvalidationAndPreservesRunState) {
   StartFrame(OBU_CLOSED_LOOP_KEY, 64, 64, &frame_, 0, KEY_FRAME, false, true, 0,
              0, true);
   UpdateAndOutput();
+  Av2DmRunStats before = {};
+  ASSERT_TRUE(av2_decoder_model_verifier_get_run_stats(pbi_, 0, 0, &before));
+  EXPECT_EQ(before.decoded_frames, 1u);
+  EXPECT_EQ(before.output_frames, 1u);
+  EXPECT_EQ(before.active_num_ref_frames, 8u);
 
   av2_decoder_model_verifier_record_obu(pbi_, OBU_TEMPORAL_DELIMITER, 0, 0, 0,
                                         8);
@@ -2174,21 +2291,24 @@ TEST_F(DecoderModelResultTest,
              0, true, false, true);
   UpdateAndOutput();
 
-  Av2DmVerifierStats verifier_stats;
+  Av2DmVerifierStats verifier_stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &verifier_stats));
   EXPECT_EQ(verifier_stats.clk_invalidations, 1u);
   EXPECT_EQ(verifier_stats.live_runs, 2u);
-  Av2DmRunStats older;
-  Av2DmRunStats clk_start;
+  Av2DmRunStats older = {};
+  Av2DmRunStats clk_start = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_run_stats(pbi_, 0, 0, &older));
   ASSERT_TRUE(av2_decoder_model_verifier_get_run_stats(pbi_, 0, 1, &clk_start));
   EXPECT_EQ(older.originating_cvs, 1u);
   EXPECT_EQ(older.reason, AV2_DM_REASON_NONE);
+  EXPECT_EQ(older.status, AV2_DM_RESULT_CONFORMANT);
   EXPECT_EQ(older.decoded_frames, 2u);
+  EXPECT_EQ(older.output_frames, 2u);
   EXPECT_EQ(older.active_num_ref_frames, 16u);
   EXPECT_EQ(clk_start.originating_cvs, 2u);
   EXPECT_EQ(clk_start.reason, AV2_DM_REASON_NONE);
   EXPECT_EQ(clk_start.decoded_frames, 1u);
+  EXPECT_EQ(clk_start.output_frames, 1u);
   EXPECT_EQ(clk_start.active_num_ref_frames, 16u);
 }
 
@@ -2217,14 +2337,14 @@ TEST_F(DecoderModelResultTest, ClkOlkRasClkRunsCoexistAcrossCvsOwnership) {
              0, true, false, true);
   UpdateAndOutput();
 
-  Av2DmVerifierStats verifier_stats;
+  Av2DmVerifierStats verifier_stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &verifier_stats));
   EXPECT_EQ(verifier_stats.cvs_aggregates, 2u);
   EXPECT_EQ(verifier_stats.open_cvs, 1u);
   EXPECT_EQ(verifier_stats.live_runs, 4u);
   const uint64_t expected_decoded_frames[4] = { 4, 3, 2, 1 };
   for (uint32_t run = 0; run < 4; ++run) {
-    Av2DmRunStats run_stats;
+    Av2DmRunStats run_stats = {};
     ASSERT_TRUE(
         av2_decoder_model_verifier_get_run_stats(pbi_, 0, run, &run_stats));
     EXPECT_EQ(run_stats.originating_cvs, run < 3 ? 1u : 2u);
@@ -2260,7 +2380,7 @@ TEST_F(DecoderModelResultTest, ExplicitOperatingPointLevelOverridesSequence) {
   av2_decoder_model_verifier_finish(pbi_);
   const std::string diagnostics = testing::internal::GetCapturedStderr();
 
-  Av2DmVerifierStats stats;
+  Av2DmVerifierStats stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
   EXPECT_EQ(stats.result_count, 2u);
   EXPECT_EQ(stats.conformant_results, 1u);
@@ -2402,7 +2522,7 @@ TEST_F(DecoderModelResultTest,
   av2_decoder_model_verifier_finish(pbi_);
   const std::string diagnostics = testing::internal::GetCapturedStderr();
 
-  Av2DmVerifierStats stats;
+  Av2DmVerifierStats stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
   EXPECT_EQ(stats.result_count, 2u);
   EXPECT_EQ(stats.non_conformant_results, 2u);
@@ -2439,7 +2559,7 @@ TEST_F(DecoderModelResultTest,
   av2_decoder_model_verifier_finish(pbi_);
   const std::string diagnostics = testing::internal::GetCapturedStderr();
 
-  Av2DmVerifierStats stats;
+  Av2DmVerifierStats stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
   EXPECT_EQ(stats.result_count, 1u);
   EXPECT_EQ(stats.non_conformant_results, 1u);
@@ -2489,7 +2609,7 @@ TEST_F(DecoderModelResultTest, UndefinedLowMultistreamLevelIsIndeterminate) {
   av2_decoder_model_verifier_finish(pbi_);
   const std::string diagnostics = testing::internal::GetCapturedStderr();
 
-  Av2DmVerifierStats stats;
+  Av2DmVerifierStats stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
   EXPECT_EQ(stats.result_count, 1u);
   EXPECT_EQ(stats.indeterminate_results, 1u);
@@ -2506,7 +2626,7 @@ TEST_F(DecoderModelResultTest, MissingActiveConfigurationIsIndeterminate) {
   UpdateAndOutput();
   av2_decoder_model_verifier_finish(pbi_);
 
-  Av2DmVerifierStats stats;
+  Av2DmVerifierStats stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
   EXPECT_EQ(stats.result_count, 1u);
   EXPECT_EQ(stats.indeterminate_results, 1u);
@@ -2529,7 +2649,7 @@ TEST_F(DecoderModelResultTest,
   testing::internal::CaptureStderr();
   av2_decoder_model_verifier_finish(pbi_);
   const std::string diagnostics = testing::internal::GetCapturedStderr();
-  Av2DmVerifierStats stats;
+  Av2DmVerifierStats stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
   EXPECT_EQ(stats.indeterminate_results, 1u);
   EXPECT_EQ(stats.non_conformant_results, 0u);
@@ -2554,7 +2674,7 @@ TEST_F(DecoderModelResultTest,
   testing::internal::CaptureStderr();
   av2_decoder_model_verifier_finish(pbi_);
   const std::string diagnostics = testing::internal::GetCapturedStderr();
-  Av2DmVerifierStats stats;
+  Av2DmVerifierStats stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
   EXPECT_EQ(stats.indeterminate_results, 1u);
   EXPECT_EQ(stats.non_conformant_results, 0u);
@@ -2588,7 +2708,7 @@ TEST_F(DecoderModelResultTest,
   av2_decoder_model_verifier_on_output(pbi_, 0, &frame_,
                                        AV2_DM_PRESENTATION_OWNER_IMPLICIT);
 
-  Av2DmVerifierStats output_stats;
+  Av2DmVerifierStats output_stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &output_stats));
   EXPECT_EQ(output_stats.last_output_callback_frame_unit, 1u);
   EXPECT_EQ(output_stats.last_output_presentation_frame_unit, 0u);
@@ -2619,7 +2739,7 @@ TEST_F(DecoderModelResultTest, MissingOutputGenerationIsIndeterminate) {
   av2_decoder_model_verifier_finish(pbi_);
   const std::string diagnostics = testing::internal::GetCapturedStderr();
 
-  Av2DmVerifierStats stats;
+  Av2DmVerifierStats stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
   EXPECT_EQ(stats.indeterminate_results, 1u);
   EXPECT_NE(diagnostics.find("reason=missing_frame_generation"),
@@ -2652,7 +2772,7 @@ TEST_F(DecoderModelResultTest,
   testing::internal::CaptureStderr();
   av2_decoder_model_verifier_on_output(pbi_, 0, &second_frame_,
                                        AV2_DM_PRESENTATION_OWNER_CURRENT);
-  Av2DmVerifierStats output_stats;
+  Av2DmVerifierStats output_stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &output_stats));
   EXPECT_EQ(output_stats.last_output_callback_frame_unit, 1u);
   EXPECT_EQ(output_stats.last_output_presentation_frame_unit, 1u);
@@ -2690,7 +2810,7 @@ TEST_F(DecoderModelResultTest,
 
   av2_decoder_model_verifier_on_output(pbi_, 0, &frame_,
                                        AV2_DM_PRESENTATION_OWNER_CURRENT);
-  Av2DmVerifierStats current_stats;
+  Av2DmVerifierStats current_stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &current_stats));
   EXPECT_EQ(current_stats.last_output_callback_frame_unit, 1u);
   EXPECT_EQ(current_stats.last_output_presentation_frame_unit, 1u);
@@ -2700,7 +2820,7 @@ TEST_F(DecoderModelResultTest,
 
   av2_decoder_model_verifier_on_output(pbi_, 0, &frame_,
                                        AV2_DM_PRESENTATION_OWNER_IMPLICIT);
-  Av2DmVerifierStats implicit_stats;
+  Av2DmVerifierStats implicit_stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &implicit_stats));
   EXPECT_EQ(implicit_stats.last_output_callback_frame_unit, 1u);
   EXPECT_EQ(implicit_stats.last_output_presentation_frame_unit, 0u);
@@ -2724,7 +2844,7 @@ TEST_F(DecoderModelResultTest, IncompleteRasSeedHasExactReason) {
   av2_decoder_model_verifier_finish(pbi_);
   const std::string diagnostics = testing::internal::GetCapturedStderr();
 
-  Av2DmVerifierStats stats;
+  Av2DmVerifierStats stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
   EXPECT_EQ(stats.indeterminate_results, 1u);
   EXPECT_NE(diagnostics.find("status=INDETERMINATE"), std::string::npos);
@@ -2748,7 +2868,7 @@ TEST_F(DecoderModelResultTest,
   av2_decoder_model_verifier_finish(pbi_);
   const std::string diagnostics = testing::internal::GetCapturedStderr();
 
-  Av2DmVerifierStats stats;
+  Av2DmVerifierStats stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
   EXPECT_EQ(stats.result_count, 2u);
   EXPECT_EQ(stats.indeterminate_results, 2u);
@@ -2822,7 +2942,7 @@ TEST_F(DecoderModelResultTest, CompleteRasSeedIsReplayedFromFreshModel) {
   av2_decoder_model_verifier_finish(pbi_);
   const std::string diagnostics = testing::internal::GetCapturedStderr();
 
-  Av2DmVerifierStats stats;
+  Av2DmVerifierStats stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
   EXPECT_EQ(stats.result_count, 2u);
   // In the continuous CLK run the TU-0 frame is not output until the RAS
@@ -2922,7 +3042,7 @@ TEST_F(DecoderModelResultTest, CopiesEveryRapSelectionIntoVerifierState) {
   av2_decoder_model_verifier_destroy(pbi_);
   pbi_->decoder_model_check_every_rap = 1;
   av2_decoder_model_verifier_init(pbi_);
-  Av2DmVerifierStats stats;
+  Av2DmVerifierStats stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
   EXPECT_TRUE(stats.check_every_rap);
 
@@ -3185,7 +3305,7 @@ class DecoderModelEncodedStreamTest : public ::testing::Test,
 };
 
 TEST_F(DecoderModelEncodedStreamTest, Level20Control) {
-  Av2DmLevelLimits limits;
+  Av2DmLevelLimits limits{};
   ASSERT_TRUE(
       av2_dm_get_level_limits(SEQ_LEVEL_2_0, 0, MAIN_420_10_IP0, &limits));
   constexpr uint64_t kPictureSize = 352 * 288;
@@ -3225,8 +3345,8 @@ TEST_F(DecoderModelEncodedStreamTest, Level20Control) {
 }
 
 TEST_F(DecoderModelEncodedStreamTest, Level30AndIncorrectLevel21) {
-  Av2DmLevelLimits level_2_1;
-  Av2DmLevelLimits level_3_0;
+  Av2DmLevelLimits level_2_1{};
+  Av2DmLevelLimits level_3_0{};
   ASSERT_TRUE(
       av2_dm_get_level_limits(SEQ_LEVEL_2_1, 0, MAIN_420_10_IP0, &level_2_1));
   ASSERT_TRUE(

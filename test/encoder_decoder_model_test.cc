@@ -28,8 +28,11 @@ extern "C" {
 #include "av2/encoder/encoder.h"
 }
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
+#include "test/decoder_model_lifecycle.h"
 
 namespace {
+
+using Av2DmState = libavm_test::ScopedDmState;
 
 constexpr int kNumRefs = 4;
 constexpr uint64_t kOutputSamples = 64 * 64;
@@ -602,12 +605,36 @@ TEST(EncoderDecoderModelSection7OracleTest,
   ExpectOracleMatchesEncoder(oracle, encoder);
 }
 
+struct OwnedViolation : Av2DmViolation {
+  OwnedViolation() { av2_dm_violation_init(this); }
+  explicit OwnedViolation(const Av2DmViolation *source) : OwnedViolation() {
+    EXPECT_TRUE(av2_dm_violation_copy(this, source));
+  }
+  OwnedViolation(const OwnedViolation &other) : OwnedViolation(&other) {}
+  OwnedViolation &operator=(const OwnedViolation &other) {
+    EXPECT_TRUE(av2_dm_violation_copy(this, &other));
+    return *this;
+  }
+  OwnedViolation(OwnedViolation &&other) noexcept
+      : Av2DmViolation(static_cast<const Av2DmViolation &>(other)) {
+    av2_dm_violation_init(&other);
+  }
+  OwnedViolation &operator=(OwnedViolation &&other) noexcept {
+    av2_dm_violation_destroy(this);
+    static_cast<Av2DmViolation &>(*this) =
+        static_cast<const Av2DmViolation &>(other);
+    av2_dm_violation_init(&other);
+    return *this;
+  }
+  ~OwnedViolation() { av2_dm_violation_destroy(this); }
+};
+
 struct ViolationCollector {
-  std::vector<Av2DmViolation> violations;
+  std::vector<OwnedViolation> violations;
 };
 
 void CollectViolation(void *opaque, const Av2DmViolation *violation) {
-  static_cast<ViolationCollector *>(opaque)->violations.push_back(*violation);
+  static_cast<ViolationCollector *>(opaque)->violations.emplace_back(violation);
 }
 
 Av2DmConfig MakeCommonModelConfig() {
@@ -730,7 +757,7 @@ TEST(EncoderDecoderModelDifferentialTest,
   for (uint64_t index = 0; index < 3; ++index) {
     Av2DmFrameEvent frame = MakeCommonFrame(index, valid_mask);
     av2_decoder_model_start_frame(common, &frame);
-    Av2DmState state;
+    Av2DmState state{};
     ASSERT_TRUE(av2_decoder_model_get_state(common, &state));
     ASSERT_GE(state.current_buffer_index, 0);
     encoder.CaptureDecodedGeneration(
@@ -742,7 +769,7 @@ TEST(EncoderDecoderModelDifferentialTest,
     av2_decoder_model_set_initial_presentation_delay(common, false, 10 + index);
   }
 
-  Av2DmState common_state;
+  Av2DmState common_state{};
   ASSERT_TRUE(av2_decoder_model_get_state(common, &common_state));
   ASSERT_TRUE(common_state.initial_presentation_delay_known);
   encoder.model()->initial_presentation_delay =
@@ -897,28 +924,44 @@ void ExpectRationalMatchesLegacyDouble(const Av2DmRational &exact,
 
 class ResourceAvailabilityDifferentialAdapter {
  public:
-  ResourceAvailabilityDifferentialAdapter(ResourceAdapterMode mode,
-                                          bool timing_info_present = true,
-                                          bool still_picture = false,
-                                          AV2_LEVEL level = SEQ_LEVEL_4_0)
+  ResourceAvailabilityDifferentialAdapter(
+      ResourceAdapterMode mode, bool timing_info_present = true,
+      bool still_picture = false, AV2_LEVEL level = SEQ_LEVEL_4_0,
+      bool schedule_mode = false, double multistream_scale = 1.0,
+      int frame_width = 64, int frame_height = 64, int tier = 0,
+      bool unsignaled_op_display_delay = false)
       : mode_(mode), cpi_(new AV2_COMP()), level_(level) {
     AV2_COMMON *const cm = &cpi_->common;
-    cm->width = 64;
-    cm->height = 64;
+    cm->width = frame_width;
+    cm->height = frame_height;
     cm->mi_params.mi_cols = 16;
     cm->mi_params.mi_rows = 16;
     cm->tiles.cols = 1;
     cm->tiles.rows = 1;
     cm->seq_params.ref_frames = kNumRefs;
     cm->seq_params.seq_profile_idc = MAIN_420_10_IP0;
-    cm->seq_params.max_frame_width = 64;
-    cm->seq_params.max_frame_height = 64;
+    cm->seq_params.max_frame_width = frame_width;
+    cm->seq_params.max_frame_height = frame_height;
     cm->seq_params.max_mlayer_id = 0;
     cm->seq_params.operating_points_cnt_minus_1 = 0;
     cm->seq_params.operating_point_idc[0] = 0;
     cm->seq_params.still_picture = still_picture;
     cm->seq_params.seq_max_display_model_info_present_flag = 1;
     cm->seq_params.seq_max_initial_display_delay_minus_1 = 0;
+    if (unsignaled_op_display_delay) {
+      cm->seq_params.seq_max_display_model_info_present_flag = 0;
+      cm->seq_params.op_params[0].display_model_param_present_flag = 1;
+      cm->seq_params.op_params[0].initial_display_delay = 8;
+    }
+    if (schedule_mode) {
+      cm->seq_params.decoder_model_info_present_flag = 1;
+      cm->seq_params.decoder_model_info.num_units_in_decoding_tick = 1;
+      cm->seq_params.op_params[0].decoder_model_param_present_flag = 1;
+      cm->seq_params.op_params[0].decoder_buffer_delay = 45000;
+      cm->seq_params.op_params[0].encoder_buffer_delay = 45000;
+      cm->seq_params.op_params[0].display_model_param_present_flag = 1;
+      cm->seq_params.op_params[0].initial_display_delay = 1;
+    }
     cm->ci_params_encoder.ci_timing_info_present_flag = timing_info_present;
     cm->ci_params_encoder.timing_info.num_units_in_display_tick = 1;
     cm->ci_params_encoder.timing_info.time_scale = 90000;
@@ -931,9 +974,9 @@ class ResourceAvailabilityDifferentialAdapter {
     cpi_->framerate = 30.0;
     cpi_->level_params.keep_level_stats = 1;
     cpi_->level_params.level_info[0] = &level_info_;
-    cpi_->level_params.multi_stream_scaling_x = 1.0;
+    cpi_->level_params.multi_stream_scaling_x = multistream_scale;
     cpi_->level_params.frame_header_count = 1;
-    cpi_->tier[0] = 0;
+    cpi_->tier[0] = tier;
 
     for (int candidate = SEQ_LEVEL_2_0; candidate < SEQ_LEVELS; ++candidate) {
       level_info_.decoder_models[candidate].status = DECODER_MODEL_DISABLED;
@@ -1065,6 +1108,12 @@ class ResourceAvailabilityDifferentialAdapter {
     cpi_->common.ci_params_encoder.timing_info.time_scale = time_scale;
   }
 
+  void SetTier(int tier) {
+    ASSERT_GE(tier, 0);
+    ASSERT_LE(tier, 1);
+    cpi_->tier[0] = tier;
+  }
+
   void Finish() {
     if (RunsLegacy()) {
       av2_encoder_decoder_model_finish_for_operating_points(cpi_.get());
@@ -1074,6 +1123,15 @@ class ResourceAvailabilityDifferentialAdapter {
 
   DECODER_MODEL *legacy() { return legacy_; }
   const DECODER_MODEL *legacy() const { return legacy_; }
+  AV2LevelInfo *level_info() { return &level_info_; }
+  int SelectedLevel() const {
+    int levels[MAX_NUM_OPERATING_POINTS] = {};
+    if (av2_get_seq_level_idx(cpi_.get(), &cpi_->common.seq_params,
+                              &cpi_->level_params, levels) != AVM_CODEC_OK) {
+      return -1;
+    }
+    return levels[0];
+  }
   void ClearEncoderReferenceOnly(int ref_index) {
     ASSERT_GE(ref_index, 0);
     ASSERT_LT(ref_index, kNumRefs);
@@ -1123,7 +1181,7 @@ void ExpectSharedResourceState(
   ASSERT_NE(adapter.legacy(), nullptr);
   ASSERT_NE(adapter.common(), nullptr);
   const DECODER_MODEL &legacy = *adapter.legacy();
-  Av2DmState exact;
+  Av2DmState exact{};
   ASSERT_TRUE(av2_decoder_model_get_state(adapter.common(), &exact));
   ASSERT_EQ(legacy.status, DECODER_MODEL_OK);
 
@@ -1204,7 +1262,7 @@ void RunNormalResourceTrace(ResourceAvailabilityDifferentialAdapter *adapter) {
   adapter->Finish();
 }
 
-TEST(EncoderDecoderModelTest, ReleasesPlayerOwnedInactiveBuffer) {
+TEST(EncoderDecoderModelTest, DoesNotReleaseInactiveBackingBuffer) {
   ResourceAvailabilityDifferentialAdapter adapter(
       ResourceAdapterMode::kLegacyOnly);
   ASSERT_TRUE(adapter.valid());
@@ -1223,10 +1281,10 @@ TEST(EncoderDecoderModelTest, ReleasesPlayerOwnedInactiveBuffer) {
   adapter.DecodeRefreshAndMaybeOutput(1000, 1, 0, false);
 
   ASSERT_EQ(DECODER_MODEL_OK, model->status);
-  EXPECT_EQ(0u, inactive->player_ref_count);
-  EXPECT_EQ(-1, inactive->display_index);
-  EXPECT_DOUBLE_EQ(-1.0, inactive->presentation_time);
-  EXPECT_FALSE(inactive->presentation.valid);
+  EXPECT_EQ(1u, inactive->player_ref_count);
+  EXPECT_EQ(7, inactive->display_index);
+  EXPECT_DOUBLE_EQ(0.25, inactive->presentation_time);
+  EXPECT_TRUE(inactive->presentation.valid);
 }
 
 TEST(EncoderDecoderModelTest, OrdinaryFrameDoesNotInvalidateModelReference) {
@@ -1277,39 +1335,57 @@ TEST(EncoderDecoderModelTest, ClkSupportsActiveReferenceRangeTransitions) {
       ResourceAdapterMode::kLegacyOnly);
   ASSERT_TRUE(adapter.valid());
   adapter.SetInitialDisplayDelay(10);
-  adapter.DecodeRefreshAndMaybeOutput(1024, 1, 0, true);
+  adapter.DecodeRefreshAndMaybeOutput(24, 1, 0, true);
   DECODER_MODEL *const model = adapter.legacy();
   ASSERT_NE(model, nullptr);
 
   adapter.BeginNewCvs(8);
-  adapter.DecodeRefreshAndMaybeOutput(1024, 1, 1, true, true);
+  adapter.DecodeRefreshAndMaybeOutput(24, 1, 1, true, true);
   ASSERT_EQ(DECODER_MODEL_OK, model->status);
   EXPECT_EQ(8, model->num_ref_frames);
   EXPECT_EQ(1, model->num_frame);
+  Av2DmState exact{};
+  ASSERT_TRUE(av2_decoder_model_get_state(model->exact_model, &exact));
+  EXPECT_EQ(8u, exact.buffer_pool.num_ref_frames);
 
   adapter.BeginNewCvs(4);
-  adapter.DecodeRefreshAndMaybeOutput(1024, 1, 2, true, true);
+  adapter.DecodeRefreshAndMaybeOutput(24, 1, 2, true, true);
   ASSERT_EQ(DECODER_MODEL_OK, model->status);
   EXPECT_EQ(4, model->num_ref_frames);
   EXPECT_EQ(2, model->num_frame);
+  ASSERT_TRUE(av2_decoder_model_get_state(model->exact_model, &exact));
+  EXPECT_EQ(4u, exact.buffer_pool.num_ref_frames);
 }
 
-TEST(EncoderDecoderModelTest, IncompatibleClkClockIsUnavailable) {
+TEST(EncoderDecoderModelTest, ClkClockChangeRetainsContinuousModelState) {
   ResourceAvailabilityDifferentialAdapter adapter(
       ResourceAdapterMode::kLegacyOnly);
   ASSERT_TRUE(adapter.valid());
-  adapter.DecodeRefreshAndMaybeOutput(1024, 1, 0, true);
+  adapter.DecodeRefreshAndMaybeOutput(24, 1, 0, true);
   DECODER_MODEL *const model = adapter.legacy();
   ASSERT_NE(model, nullptr);
   ASSERT_EQ(DECODER_MODEL_OK, model->status);
+  const double first_time = model->current_time;
+  ASSERT_NE(model->exact_model, nullptr);
+  Av2DmState exact_before{};
+  ASSERT_TRUE(av2_decoder_model_get_state(model->exact_model, &exact_before));
 
   adapter.SetDisplayTimeScale(60000);
   adapter.BeginNewCvs(4);
   adapter.DecodeRefreshAndMaybeOutput(1024, 1, 1, true, true);
 
-  EXPECT_EQ(DECODER_MODEL_UNSUPPORTED, model->status);
-  EXPECT_EQ(ENCODER_DM_RESULT_UNAVAILABLE,
-            av2_encoder_decoder_model_classify_status(model->status));
+  EXPECT_EQ(DECODER_MODEL_OK, model->status);
+  EXPECT_GE(model->current_time, first_time);
+  EXPECT_DOUBLE_EQ(1.0 / 60000.0, model->display_clock_tick);
+  Av2DmState exact_after{};
+  ASSERT_TRUE(av2_decoder_model_get_state(model->exact_model, &exact_after));
+  int comparison;
+  ASSERT_TRUE(av2_dm_rational_compare(&exact_after.time, &exact_before.time,
+                                      &comparison));
+  EXPECT_GE(comparison, 0);
+  EXPECT_EQ(2u, exact_after.frame_number);
+  EXPECT_EQ(2u, exact_after.shown_frame_number);
+  EXPECT_EQ(4u, exact_after.buffer_pool.num_ref_frames);
 }
 
 TEST(EncoderDecoderModelTest, ClkFlushesImplicitOutputBeforeInvalidation) {
@@ -1405,6 +1481,222 @@ TEST(EncoderDecoderModelRationalReuseTest,
 }
 
 TEST(EncoderDecoderModelRationalReuseTest,
+     ProductionObserverDualRunsResourceEvents) {
+  ResourceAvailabilityDifferentialAdapter adapter(
+      ResourceAdapterMode::kLegacyOnly);
+  ASSERT_TRUE(adapter.valid());
+  for (uint64_t frame = 0; frame < 3; ++frame) {
+    adapter.DecodeRefreshAndMaybeOutput(1024, 1u << frame, frame, true);
+  }
+  adapter.Finish();
+
+  ASSERT_NE(adapter.legacy()->exact_model, nullptr);
+  Av2DmResult result;
+  ASSERT_TRUE(
+      av2_decoder_model_get_result(adapter.legacy()->exact_model, &result));
+  EXPECT_EQ(AV2_DM_RESULT_CONFORMANT, result.status);
+  EXPECT_TRUE(result.finished);
+  EXPECT_EQ(3u, result.decoded_frames);
+  EXPECT_EQ(3u, result.output_frames);
+}
+
+TEST(EncoderDecoderModelRationalReuseTest,
+     ProductionObserverIgnoresUnsignaledLegacyDisplayDelay) {
+  ResourceAvailabilityDifferentialAdapter adapter(
+      ResourceAdapterMode::kLegacyOnly, true, false, SEQ_LEVEL_4_0, false, 1.0,
+      64, 64, 0, true);
+  ASSERT_TRUE(adapter.valid());
+  EXPECT_EQ(kNumRefs + 2, adapter.legacy()->initial_display_delay);
+
+  for (uint64_t frame = 0; frame < 7; ++frame) {
+    adapter.DecodeRefreshAndMaybeOutput(1024, 1u << (frame % kNumRefs), frame,
+                                        true);
+  }
+  adapter.Finish();
+
+  Av2DmResult result;
+  ASSERT_TRUE(
+      av2_decoder_model_get_result(adapter.legacy()->exact_model, &result));
+  EXPECT_EQ(AV2_DM_RESULT_CONFORMANT, result.status);
+  EXPECT_TRUE(result.finished);
+  EXPECT_FALSE(result.missing_required_input);
+  EXPECT_EQ(7u, result.decoded_frames);
+  EXPECT_EQ(7u, result.output_frames);
+}
+
+TEST(EncoderDecoderModelRationalReuseTest,
+     ProductionScheduleObserverWithoutRemovalTimingIsUnavailable) {
+  ResourceAvailabilityDifferentialAdapter adapter(
+      ResourceAdapterMode::kLegacyOnly, true, false, SEQ_LEVEL_4_0, true, 1.0,
+      1536, 1536);
+  ASSERT_TRUE(adapter.valid());
+  adapter.DecodeRefreshAndMaybeOutput(1024, 1, 0, true);
+  adapter.Finish();
+
+  ASSERT_NE(adapter.legacy()->exact_model, nullptr);
+  Av2DmResult result;
+  ASSERT_TRUE(
+      av2_decoder_model_get_result(adapter.legacy()->exact_model, &result));
+  EXPECT_EQ(AV2_DM_DECODING_SCHEDULE_MODE, result.mode);
+  EXPECT_EQ(AV2_DM_RESULT_INDETERMINATE, result.status);
+  EXPECT_TRUE(result.missing_required_input);
+  EXPECT_FALSE(result.violations);
+  adapter.legacy()->max_decode_rate_satisfy = false;
+  adapter.level_info()->level_stats.total_time_encoded = 1.0;
+  adapter.level_info()->level_stats.total_compressed_size = 1.0;
+  EXPECT_EQ(SEQ_LEVEL_MAX, adapter.SelectedLevel());
+}
+
+TEST(EncoderDecoderModelRationalReuseTest,
+     ProductionObserverAppliesMultistreamLimits) {
+  ResourceAvailabilityDifferentialAdapter unscaled(
+      ResourceAdapterMode::kLegacyOnly, true, false, SEQ_LEVEL_4_0, false, 1.0,
+      400, 64);
+  ASSERT_TRUE(unscaled.valid());
+  unscaled.DecodeRefreshAndMaybeOutput(1024, 1, 0, true);
+  unscaled.Finish();
+  Av2DmResult unscaled_result;
+  ASSERT_TRUE(av2_decoder_model_get_result(unscaled.legacy()->exact_model,
+                                           &unscaled_result));
+  EXPECT_EQ(AV2_DM_RESULT_CONFORMANT, unscaled_result.status);
+
+  ResourceAvailabilityDifferentialAdapter scaled(
+      ResourceAdapterMode::kLegacyOnly, true, false, SEQ_LEVEL_4_0, false, 9.0,
+      400, 64);
+  ASSERT_TRUE(scaled.valid());
+  scaled.DecodeRefreshAndMaybeOutput(1024, 1, 0, true);
+  scaled.Finish();
+  Av2DmResult scaled_result;
+  ASSERT_TRUE(av2_decoder_model_get_result(scaled.legacy()->exact_model,
+                                           &scaled_result));
+  EXPECT_EQ(AV2_DM_RESULT_NON_CONFORMANT, scaled_result.status);
+  EXPECT_GT(scaled_result.violations, 0u);
+}
+
+TEST(EncoderDecoderModelRationalReuseTest,
+     ProductionObserverRejectsNonintegralMultistreamLimits) {
+  ResourceAvailabilityDifferentialAdapter adapter(
+      ResourceAdapterMode::kLegacyOnly, true, false, SEQ_LEVEL_8_0, false, 9.0);
+  ASSERT_TRUE(adapter.valid());
+  ASSERT_NE(adapter.legacy()->exact_model, nullptr);
+  Av2DmResult result;
+  ASSERT_TRUE(
+      av2_decoder_model_get_result(adapter.legacy()->exact_model, &result));
+  EXPECT_EQ(AV2_DM_RESULT_INDETERMINATE, result.status);
+  EXPECT_TRUE(result.missing_required_input);
+  EXPECT_FALSE(result.violations);
+}
+
+TEST(EncoderDecoderModelRationalReuseTest,
+     ProductionObserverAppliesBufferSizeIncreaseAtFirstArrival) {
+  ResourceAvailabilityDifferentialAdapter adapter(
+      ResourceAdapterMode::kLegacyOnly, true, false, SEQ_LEVEL_4_0, false, 1.0,
+      64, 64, 0);
+  ASSERT_TRUE(adapter.valid());
+  const double old_capacity = RationalToDouble(adapter.legacy()->buffer_size);
+  adapter.DecodeRefreshAndMaybeOutput(24, 1, 0, true);
+  adapter.SetTier(1);
+  adapter.BeginNewCvs(4);
+  adapter.DecodeRefreshAndMaybeOutput(20000000, 2, 1, true, true);
+  adapter.Finish();
+
+  ASSERT_EQ(DECODER_MODEL_OK, adapter.legacy()->status);
+  EXPECT_TRUE(adapter.legacy()->exact_buffer_size_history_required);
+  EXPECT_LT(old_capacity, 20000024.0);
+  EXPECT_GE(RationalToDouble(adapter.legacy()->buffer_size), 20000024.0);
+  Av2DmResult result;
+  ASSERT_TRUE(
+      av2_decoder_model_get_result(adapter.legacy()->exact_model, &result));
+  EXPECT_EQ(AV2_DM_RESULT_CONFORMANT, result.status);
+}
+
+TEST(EncoderDecoderModelRationalReuseTest,
+     ProductionObserverAppliesBufferSizeDecreaseAfterRemoval) {
+  ResourceAvailabilityDifferentialAdapter adapter(
+      ResourceAdapterMode::kLegacyOnly, true, false, SEQ_LEVEL_4_0, false, 1.0,
+      1536, 1536, 1);
+  ASSERT_TRUE(adapter.valid());
+  for (uint64_t frame = 0; frame < 5; ++frame) {
+    adapter.DecodeRefreshAndMaybeOutput(908000, 1, frame, true);
+  }
+  const uint64_t old_fullness = adapter.legacy()->dfg_interval_queue.total_bits;
+  const double first_old_removal =
+      adapter.legacy()
+          ->dfg_interval_queue.buf[adapter.legacy()->dfg_interval_queue.head]
+          .removal_time;
+  const double old_capacity = RationalToDouble(adapter.legacy()->buffer_size);
+  adapter.SetTier(0);
+  adapter.BeginNewCvs(4);
+  adapter.DecodeRefreshAndMaybeOutput(9000000, 2, 5, true, true);
+  adapter.Finish();
+
+  ASSERT_EQ(DECODER_MODEL_OK, adapter.legacy()->status);
+  EXPECT_TRUE(adapter.legacy()->exact_buffer_size_history_required);
+  const double new_capacity = RationalToDouble(adapter.legacy()->buffer_size);
+  const double fullness_before_first_old_removal =
+      old_fullness +
+      (first_old_removal - adapter.legacy()->first_bit_arrival_time) *
+          new_capacity;
+  EXPECT_GT(fullness_before_first_old_removal, new_capacity);
+  EXPECT_LT(fullness_before_first_old_removal, old_capacity);
+  Av2DmResult result;
+  ASSERT_TRUE(
+      av2_decoder_model_get_result(adapter.legacy()->exact_model, &result));
+  EXPECT_EQ(AV2_DM_RESULT_CONFORMANT, result.status);
+}
+
+TEST(EncoderDecoderModelRationalReuseTest,
+     ExactResultIsAuthoritativeAcrossChangedCvsLimits) {
+  ResourceAvailabilityDifferentialAdapter adapter(
+      ResourceAdapterMode::kLegacyOnly, true, false, SEQ_LEVEL_4_0, false, 1.0,
+      1536, 1536, 1);
+  ASSERT_TRUE(adapter.valid());
+  adapter.DecodeRefreshAndMaybeOutput(1024, 1, 0, true);
+  adapter.SetTier(0);
+  adapter.BeginNewCvs(4);
+  adapter.DecodeRefreshAndMaybeOutput(1024, 2, 1, true, true);
+  adapter.Finish();
+
+  Av2DmResult result;
+  ASSERT_TRUE(
+      av2_decoder_model_get_result(adapter.legacy()->exact_model, &result));
+  ASSERT_EQ(AV2_DM_RESULT_CONFORMANT, result.status);
+  ASSERT_EQ(DECODER_MODEL_OK, adapter.legacy()->status);
+
+  // These retained legacy values model the old-CVS rolling operands that were
+  // formerly evaluated under the new tier. The exact model owns these checks;
+  // static per-CVS geometry and average bitrate remain independently checked.
+  adapter.legacy()->max_display_rate = LDBL_MAX;
+  adapter.legacy()->max_decode_rate_satisfy = false;
+  adapter.legacy()->max_tile_rate_satisfy = false;
+  adapter.legacy()->compressed_size_satisfy = false;
+  adapter.legacy()->frame_symbol_count_satisfy = false;
+  adapter.legacy()->min_presentation_interval_satisfy = false;
+  adapter.level_info()->level_spec.max_header_rate = 901;
+  adapter.level_info()->level_spec.max_tile_rate = 3841;
+  adapter.level_info()->level_stats.max_tile_size = 1000000;
+  adapter.level_info()->level_stats.total_time_encoded = 1.0;
+  adapter.level_info()->level_stats.total_compressed_size = 1.0;
+
+  EXPECT_EQ(SEQ_LEVEL_4_0, adapter.SelectedLevel());
+  adapter.legacy()->max_display_rate = 0.0;
+  adapter.legacy()->max_decode_rate_satisfy = true;
+  adapter.legacy()->max_tile_rate_satisfy = true;
+  adapter.legacy()->compressed_size_satisfy = true;
+  adapter.legacy()->frame_symbol_count_satisfy = true;
+  adapter.legacy()->min_presentation_interval_satisfy = true;
+  adapter.level_info()->level_spec.max_header_rate = 1;
+  adapter.level_info()->level_spec.max_tile_rate = 1;
+  adapter.level_info()->level_stats.max_tile_size = 4096;
+  adapter.legacy()->status = DISPLAY_FRAME_LATE;
+  EXPECT_EQ(SEQ_LEVEL_MAX, adapter.SelectedLevel());
+  adapter.legacy()->initialized = false;
+  adapter.legacy()->status = DECODER_MODEL_INTERNAL_ERROR;
+  adapter.level_info()->level_spec.max_tile_rate = 3841;
+  EXPECT_EQ(SEQ_LEVEL_MAX, adapter.SelectedLevel());
+}
+
+TEST(EncoderDecoderModelRationalReuseTest,
      SingleDfgAndOutputTuTerminalApplicabilityAgree) {
   ResourceAvailabilityDifferentialAdapter adapter(ResourceAdapterMode::kBoth);
   ASSERT_TRUE(adapter.valid());
@@ -1444,7 +1736,7 @@ TEST(EncoderDecoderModelRationalReuseTest,
   ASSERT_TRUE(adapter.valid());
   adapter.DecodeRefreshAndMaybeOutput(1024, 1, 0, false);
 
-  Av2DmState exact;
+  Av2DmState exact{};
   ASSERT_TRUE(av2_decoder_model_get_state(adapter.common(), &exact));
   const double exact_decode_duration = RationalToDouble(exact.time_to_decode);
   const double legacy_recovered_duration =

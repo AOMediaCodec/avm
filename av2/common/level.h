@@ -200,6 +200,8 @@ typedef struct {
   BITSTREAM_PROFILE configured_profile;
   int configured_max_frame_width;
   int configured_max_frame_height;
+  uint32_t configured_chroma_format_idc;
+  avm_bit_depth_t configured_bit_depth;
   int configured_max_mlayer_id;
   unsigned int configured_number_xlayers;
   bool configured_timing_info_present;
@@ -213,6 +215,12 @@ typedef struct {
   double initial_presentation_delay;  // In units of seconds.
   Av2DmRational bit_rate;             // Bits per second.
   Av2DmRational buffer_size;          // Bits.
+
+  // Exact common-core observer used by the staged encoder-model migration.
+  Av2DecoderModel *exact_model;
+  uint64_t exact_event_index;
+  bool exact_parameters_updated;
+  bool exact_buffer_size_history_required;
 
   int64_t num_frame;
   int64_t num_decoded_frame;
@@ -353,9 +361,10 @@ avm_codec_err_t av2_get_seq_level_idx(const struct AV2_COMP *cpi,
                                       const AV2LevelParams *level_params,
                                       int *seq_level_idx);
 
+// decoder_model must be zero-initialized or have been initialized previously.
+// Call destroy when it is no longer needed.
 void av2_decoder_model_init(const struct AV2_COMP *const cpi, AV2_LEVEL level,
                             int op_index, DECODER_MODEL *const decoder_model);
-
 void av2_encoder_decoder_model_destroy(DECODER_MODEL *decoder_model);
 void av2_encoder_decoder_models_destroy(AV2LevelInfo *level_info);
 

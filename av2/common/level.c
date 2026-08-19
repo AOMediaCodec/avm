@@ -22,6 +22,8 @@
 #include "av2/encoder/encoder.h"
 #include "av2/common/annexA.h"
 
+static uint32_t encoder_ref_valid_mask(const AV2_COMMON *cm);
+
 /* clang-format off */
 #define UNDEFINED_LEVEL     \
   { .level = SEQ_LEVEL_MAX, \
@@ -588,18 +590,22 @@ static bool get_max_bitrate_rational(const AV2LevelSpec *const level_spec,
       level_spec->level < SEQ_LEVEL_4_0) {
     return false;
   }
-  Av2DmRational base;
-  Av2DmRational scaled;
-  return av2_dm_rational_make((uint64_t)base_rate, 1, &base) &&
-         av2_dm_rational_multiply_u64(&base, scale_denominator, &scaled) &&
-         av2_dm_rational_divide_u64(&scaled, scale_numerator, bit_rate);
+  Av2DmRational base = { 0 };
+  Av2DmRational scaled = { 0 };
+  const bool converted =
+      av2_dm_rational_make((uint64_t)base_rate, 1, &base) &&
+      av2_dm_rational_multiply_u64(&base, scale_denominator, &scaled) &&
+      av2_dm_rational_divide_u64(&scaled, scale_numerator, bit_rate);
+  av2_dm_rational_destroy(&base);
+  av2_dm_rational_destroy(&scaled);
+  return converted;
 }
 
-static long double unsigned_wide_to_long_double(
-    const Av2DmUnsignedWide *value) {
+static long double unsigned_limbs_to_long_double(const uint64_t *limbs,
+                                                 uint32_t limb_count) {
   long double result = 0.0L;
-  for (int i = 3; i >= 0; --i) {
-    result = ldexpl(result, 64) + value->limbs[i];
+  for (uint32_t i = limb_count; i > 0; --i) {
+    result = ldexpl(result, 64) + limbs[i - 1];
   }
   return result;
 }
@@ -611,10 +617,21 @@ static bool is_finite_number(long double value) {
 static bool rational_to_long_double(const Av2DmRational *value,
                                     long double *result) {
   if (value == NULL || result == NULL || value->negative) return false;
+  const uint64_t *magnitude_limbs;
+  const uint64_t *denominator_limbs;
+  uint32_t magnitude_count;
+  uint32_t denominator_count;
+  if (!av2_dm_rational_get_component(value, false, &magnitude_limbs,
+                                     &magnitude_count) ||
+      !av2_dm_rational_get_component(value, true, &denominator_limbs,
+                                     &denominator_count)) {
+    return false;
+  }
   const long double denominator =
-      unsigned_wide_to_long_double(&value->denominator);
+      unsigned_limbs_to_long_double(denominator_limbs, denominator_count);
   if (!(denominator > 0.0L)) return false;
-  *result = unsigned_wide_to_long_double(&value->magnitude) / denominator;
+  *result = unsigned_limbs_to_long_double(magnitude_limbs, magnitude_count) /
+            denominator;
   return is_finite_number(*result);
 }
 
@@ -631,13 +648,14 @@ static bool rational_to_double(const Av2DmRational *value, double *result) {
 static double get_max_bitrate(const AV2LevelSpec *const level_spec, int tier,
                               BITSTREAM_PROFILE profile,
                               double multistream_scaling_x) {
-  Av2DmRational bit_rate;
+  Av2DmRational bit_rate = { 0 };
   double result;
-  return get_max_bitrate_rational(level_spec, tier, profile,
-                                  multistream_scaling_x, &bit_rate) &&
-                 rational_to_double(&bit_rate, &result)
-             ? result
-             : 0.0;
+  const bool converted =
+      get_max_bitrate_rational(level_spec, tier, profile, multistream_scaling_x,
+                               &bit_rate) &&
+      rational_to_double(&bit_rate, &result);
+  av2_dm_rational_destroy(&bit_rate);
+  return converted ? result : 0.0;
 }
 
 double av2_get_max_bitrate_for_level(AV2_LEVEL level_index, int tier,
@@ -726,15 +744,14 @@ bool av2_encoder_decoder_model_push_dfg_interval(DECODER_MODEL *decoder_model,
 bool av2_encoder_decoder_model_smoothing_buffer_fits(
     const DECODER_MODEL *decoder_model, uint64_t coded_bits, bool *fits) {
   if (decoder_model == NULL || fits == NULL) return false;
-  Av2DmRational fullness;
+  Av2DmRational fullness = { 0 };
   int comparison;
-  if (!av2_dm_rational_make(coded_bits, 1, &fullness) ||
-      !av2_dm_rational_compare(&fullness, &decoder_model->buffer_size,
-                               &comparison)) {
-    return false;
-  }
-  *fits = comparison <= 0;
-  return true;
+  const bool ok = av2_dm_rational_make(coded_bits, 1, &fullness) &&
+                  av2_dm_rational_compare(
+                      &fullness, &decoder_model->buffer_size, &comparison);
+  if (ok) *fits = comparison <= 0;
+  av2_dm_rational_destroy(&fullness);
+  return ok;
 }
 
 bool av2_encoder_decoder_model_arrival_fits(const DECODER_MODEL *decoder_model,
@@ -849,13 +866,12 @@ bool av2_encoder_decoder_model_get_compressed_size(
 
 void av2_encoder_decoder_model_destroy(DECODER_MODEL *decoder_model) {
   if (decoder_model == NULL) return;
+  av2_decoder_model_destroy(decoder_model->exact_model);
+  av2_dm_level_limits_destroy(&decoder_model->level_limits);
+  av2_dm_rational_destroy(&decoder_model->bit_rate);
+  av2_dm_rational_destroy(&decoder_model->buffer_size);
   avm_free(decoder_model->dfg_interval_queue.buf);
-  decoder_model->dfg_interval_queue.buf = NULL;
-  decoder_model->dfg_interval_queue.head = 0;
-  decoder_model->dfg_interval_queue.size = 0;
-  decoder_model->dfg_interval_queue.capacity = 0;
-  decoder_model->dfg_interval_queue.total_interval = 0.0;
-  decoder_model->dfg_interval_queue.total_bits = 0;
+  memset(decoder_model, 0, sizeof(*decoder_model));
 }
 
 void av2_encoder_decoder_models_destroy(AV2LevelInfo *level_info) {
@@ -898,7 +914,7 @@ static int get_free_buffer(DECODER_MODEL *const decoder_model) {
 
 static bool release_decoder_reference(DECODER_MODEL *const decoder_model,
                                       int buffer_index) {
-  if (buffer_index < 0 || buffer_index >= BUFFER_POOL_MAX_SIZE) {
+  if (buffer_index < 0 || buffer_index >= decoder_model->num_ref_frames + 2) {
     return false;
   }
   FRAME_BUFFER *const buffer = &decoder_model->frame_buffer_pool[buffer_index];
@@ -920,13 +936,11 @@ bool av2_encoder_decoder_model_invalidate_ref_buffers(
   if (decoder_model->num_ref_frames < 1 ||
       decoder_model->num_ref_frames > REF_FRAMES ||
       cm->seq_params.ref_frames < 1 || cm->seq_params.ref_frames > REF_FRAMES ||
-      (!closed_loop_key &&
-       cm->seq_params.ref_frames != decoder_model->num_ref_frames)) {
+      cm->seq_params.ref_frames != decoder_model->num_ref_frames) {
     decoder_model->status = DECODER_MODEL_INTERNAL_ERROR;
     return false;
   }
-  const int limit =
-      closed_loop_key ? REF_FRAMES : decoder_model->num_ref_frames;
+  const int limit = decoder_model->num_ref_frames;
   for (int i = 0; i < limit; ++i) {
     if ((closed_loop_key || cm->ref_frame_map[i] == NULL) &&
         decoder_model->vbi[i] != -1) {
@@ -957,6 +971,11 @@ void av2_decoder_model_invalidate_olk_ref_buffers_for_operating_points(
         level_params->level_info[op]->decoder_models;
     for (AV2_LEVEL level = SEQ_LEVEL_2_0; level < SEQ_LEVELS; ++level) {
       DECODER_MODEL *const decoder_model = &decoder_models[level];
+      if (decoder_model->exact_model != NULL) {
+        av2_decoder_model_invalidate_reference_buffers(
+            decoder_model->exact_model, encoder_ref_valid_mask(&cpi->common),
+            false);
+      }
       if (decoder_model->status != DECODER_MODEL_OK) continue;
       av2_encoder_decoder_model_invalidate_ref_buffers(&cpi->common,
                                                        decoder_model, false);
@@ -1168,7 +1187,7 @@ static double time_to_decode_frame(const AV2_COMMON *const cm,
 // It corresponds to "start_decode_at_removal_time" in the spec.
 static void release_processed_frames(DECODER_MODEL *const decoder_model,
                                      double removal_time) {
-  for (int i = 0; i < BUFFER_POOL_MAX_SIZE; ++i) {
+  for (int i = 0; i < decoder_model->num_ref_frames + 2; ++i) {
     FRAME_BUFFER *const this_buffer = &decoder_model->frame_buffer_pool[i];
     if (this_buffer->player_ref_count > 0) {
       // Presentation offsets assigned before the initial delay is known are
@@ -1187,7 +1206,7 @@ static void release_processed_frames(DECODER_MODEL *const decoder_model,
 
 static int frames_in_buffer_pool(const DECODER_MODEL *const decoder_model) {
   int frames_in_pool = 0;
-  for (int i = 0; i < BUFFER_POOL_MAX_SIZE; ++i) {
+  for (int i = 0; i < decoder_model->num_ref_frames + 2; ++i) {
     const FRAME_BUFFER *const this_buffer =
         &decoder_model->frame_buffer_pool[i];
     if (this_buffer->decoder_ref_count > 0 ||
@@ -1215,9 +1234,7 @@ static void decoder_model_set_initial_presentation_delay(
     decoder_model->presentation_time +=
         decoder_model->initial_presentation_delay;
   }
-  // Presentation times in every physical buffer are provisional until the
-  // initial delay is known, including buffers outside the active range.
-  for (int i = 0; i < BUFFER_POOL_MAX_SIZE; ++i) {
+  for (int i = 0; i < decoder_model->num_ref_frames + 2; ++i) {
     FRAME_BUFFER *const this_buffer = &decoder_model->frame_buffer_pool[i];
     if (this_buffer->player_ref_count == 0) continue;
     assert(this_buffer->display_index >= 0);
@@ -1241,11 +1258,13 @@ static double time_next_buffer_is_free_with_source(
     const FRAME_BUFFER *const this_buffer =
         &decoder_model->frame_buffer_pool[i];
     if (this_buffer->decoder_ref_count == 0) {
-      if (this_buffer->player_ref_count == 0) {
+      const double presentation_time = this_buffer->presentation_time;
+      if (this_buffer->player_ref_count == 0 ||
+          (presentation_time >= 0.0 &&
+           presentation_time <= decoder_model->current_time)) {
         if (from_current_time != NULL) *from_current_time = true;
         return decoder_model->current_time;
       }
-      const double presentation_time = this_buffer->presentation_time;
       if (presentation_time >= 0.0 && presentation_time < buf_free_time) {
         buf_free_time = presentation_time;
       }
@@ -1268,6 +1287,152 @@ static double get_removal_time(const DECODER_MODEL *const decoder_model,
     return time_next_buffer_is_free_with_source(decoder_model,
                                                 from_current_time);
   }
+}
+
+static bool exact_model_next_event(DECODER_MODEL *const decoder_model,
+                                   uint64_t *const event_index) {
+  if (decoder_model->exact_event_index == UINT64_MAX) {
+    av2_decoder_model_mark_incomplete(decoder_model->exact_model);
+    return false;
+  }
+  *event_index = ++decoder_model->exact_event_index;
+  return true;
+}
+
+static bool exact_model_is_conformant(
+    const DECODER_MODEL *const decoder_model) {
+  Av2DmResult result;
+  return decoder_model->exact_model != NULL &&
+         av2_decoder_model_get_result(decoder_model->exact_model, &result) &&
+         result.status == AV2_DM_RESULT_CONFORMANT;
+}
+
+static bool build_exact_model_config(const AV2_COMP *const cpi,
+                                     const DECODER_MODEL *const decoder_model,
+                                     Av2DmConfig *const config) {
+  const AV2_COMMON *const cm = &cpi->common;
+  const SequenceHeader *const seq_params = &cm->seq_params;
+  const int op = decoder_model->operating_point;
+  av2_dm_config_init(config);
+  config->scope.xlayer_id = cm->xlayer_id;
+  config->scope.ops_xlayer_id = -1;
+  config->scope.ops_id = -1;
+  config->scope.operating_point = op;
+  config->scope.whole_xlayer = false;
+  config->applicability = AV2_DM_APPLICABLE;
+  config->level_idx = decoder_model->level;
+  config->tier = cpi->tier[op];
+  config->profile = seq_params->seq_profile_idc;
+  config->stop_after_first_violation = true;
+  config->num_ref_frames = seq_params->ref_frames;
+  config->explicit_num_ref_frames = true;
+  config->max_frame_width = seq_params->max_frame_width;
+  config->max_frame_height = seq_params->max_frame_height;
+  if (av2_get_chroma_format_idc(
+          seq_params->subsampling_x, seq_params->subsampling_y,
+          seq_params->monochrome, &config->chroma_format_idc) != AVM_CODEC_OK) {
+    config->applicability = AV2_DM_MISSING_REQUIRED_INPUT;
+  }
+  config->bit_depth = seq_params->bit_depth;
+  config->max_mlayer_id = seq_params->max_mlayer_id;
+  config->still_picture = seq_params->still_picture != 0;
+  config->timing_info_present =
+      cm->ci_params_encoder.ci_timing_info_present_flag != 0;
+  config->num_units_in_display_tick =
+      cm->ci_params_encoder.timing_info.num_units_in_display_tick;
+  config->time_scale = cm->ci_params_encoder.timing_info.time_scale;
+  config->num_units_in_decoding_tick =
+      seq_params->decoder_model_info.num_units_in_decoding_tick;
+  config->equal_picture_interval =
+      cm->ci_params_encoder.timing_info.equal_elemental_interval != 0;
+  config->ticks_per_picture =
+      cm->ci_params_encoder.timing_info.num_ticks_per_elemental_duration;
+  config->initial_display_delay =
+      seq_params->seq_max_display_model_info_present_flag
+          ? (uint32_t)seq_params->seq_max_initial_display_delay_minus_1 + 1
+          : (uint32_t)seq_params->ref_frames + 2;
+  config->sequence_parameters_present =
+      seq_params->seq_max_decoder_model_present_flag != 0;
+  config->sequence_decoder_buffer_delay =
+      seq_params->seq_max_decoder_buffer_delay;
+  config->sequence_encoder_buffer_delay =
+      seq_params->seq_max_encoder_buffer_delay;
+  config->sequence_low_delay_mode =
+      seq_params->seq_max_low_delay_mode_flag != 0;
+  if (op >= 0 && op <= MAX_NUM_OPERATING_POINTS) {
+    const avm_dec_model_op_parameters_t *const op_params =
+        &seq_params->op_params[op];
+    config->operating_point_parameters_present =
+        op_params->decoder_model_param_present_flag != 0;
+    config->operating_point_decoder_buffer_delay =
+        op_params->decoder_buffer_delay;
+    config->operating_point_encoder_buffer_delay =
+        op_params->encoder_buffer_delay;
+    config->operating_point_low_delay_mode =
+        op_params->low_delay_mode_flag != 0;
+  }
+  if (config->sequence_parameters_present ||
+      config->operating_point_parameters_present) {
+    config->mode = AV2_DM_DECODING_SCHEDULE_MODE;
+  } else {
+    config->mode = AV2_DM_RESOURCE_AVAILABILITY_MODE;
+  }
+  if (config->mode == AV2_DM_DECODING_SCHEDULE_MODE &&
+      !seq_params->decoder_model_info_present_flag) {
+    config->applicability = AV2_DM_MISSING_REQUIRED_INPUT;
+  }
+  config->level_limits_present = true;
+  if (!av2_dm_level_limits_copy(&config->level_limits,
+                                &decoder_model->level_limits)) {
+    return false;
+  }
+  if (decoder_model->multistream_scale_numerator !=
+          decoder_model->multistream_scale_denominator &&
+      !av2_dm_apply_multistream_limits(
+          decoder_model->level, decoder_model->tier, config->profile,
+          decoder_model->multistream_scale_numerator,
+          decoder_model->multistream_scale_denominator,
+          &config->level_limits)) {
+    if (av2_dm_last_failure_was_allocation()) return false;
+    config->applicability = AV2_DM_MISSING_REQUIRED_INPUT;
+  }
+  if (!av2_dm_rational_copy(&config->level_limits.bit_rate,
+                            &decoder_model->bit_rate) ||
+      !av2_dm_rational_copy(&config->level_limits.buffer_size,
+                            &decoder_model->buffer_size)) {
+    return false;
+  }
+  return true;
+}
+
+static Av2DecoderModel *create_exact_model(
+    const AV2_COMP *const cpi, const DECODER_MODEL *const decoder_model) {
+  Av2DmConfig config = { 0 };
+  if (!build_exact_model_config(cpi, decoder_model, &config)) {
+    av2_dm_config_destroy(&config);
+    return NULL;
+  }
+  Av2DecoderModel *const model = av2_decoder_model_create(&config, NULL, NULL);
+  av2_dm_config_destroy(&config);
+  return model;
+}
+
+static bool update_exact_model_parameters(const AV2_COMP *const cpi,
+                                          DECODER_MODEL *const decoder_model) {
+  if (decoder_model->exact_model == NULL) return false;
+  Av2DmConfig config = { 0 };
+  uint64_t event_index;
+  if (!build_exact_model_config(cpi, decoder_model, &config) ||
+      !exact_model_next_event(decoder_model, &event_index)) {
+    av2_dm_config_destroy(&config);
+    av2_decoder_model_mark_incomplete(decoder_model->exact_model);
+    return false;
+  }
+  const bool updated = av2_decoder_model_update_parameters(
+      decoder_model->exact_model, &config, event_index, true);
+  av2_dm_config_destroy(&config);
+  decoder_model->exact_parameters_updated = updated;
+  return updated;
 }
 
 void av2_decoder_model_print_status(const DECODER_MODEL *const decoder_model) {
@@ -1294,7 +1459,10 @@ void av2_decoder_model_print_status(const DECODER_MODEL *const decoder_model) {
 void av2_decoder_model_init(const AV2_COMP *const cpi, AV2_LEVEL level,
                             int op_index, DECODER_MODEL *const decoder_model) {
   avm_clear_system_state();
-  memset(decoder_model, 0, sizeof(*decoder_model));
+  av2_encoder_decoder_model_destroy(decoder_model);
+  av2_dm_level_limits_init(&decoder_model->level_limits);
+  av2_dm_rational_init(&decoder_model->bit_rate);
+  av2_dm_rational_init(&decoder_model->buffer_size);
   decoder_model->status = DECODER_MODEL_OK;
   decoder_model->level = level;
   decoder_model->operating_point = op_index;
@@ -1311,6 +1479,14 @@ void av2_decoder_model_init(const AV2_COMP *const cpi, AV2_LEVEL level,
   decoder_model->configured_profile = seq_params->seq_profile_idc;
   decoder_model->configured_max_frame_width = seq_params->max_frame_width;
   decoder_model->configured_max_frame_height = seq_params->max_frame_height;
+  if (av2_get_chroma_format_idc(
+          seq_params->subsampling_x, seq_params->subsampling_y,
+          seq_params->monochrome,
+          &decoder_model->configured_chroma_format_idc) != AVM_CODEC_OK) {
+    decoder_model->status = DECODER_MODEL_INTERNAL_ERROR;
+    return;
+  }
+  decoder_model->configured_bit_depth = seq_params->bit_depth;
   decoder_model->configured_max_mlayer_id = seq_params->max_mlayer_id;
   decoder_model->configured_number_xlayers = cm->number_xlayers;
   decoder_model->configured_timing_info_present =
@@ -1323,7 +1499,7 @@ void av2_decoder_model_init(const AV2_COMP *const cpi, AV2_LEVEL level,
   }
   uint32_t scale_numerator;
   uint32_t scale_denominator;
-  Av2DmRational bit_rate;
+  Av2DmRational bit_rate = { 0 };
   if (seq_params->seq_profile_idc == CONFIGURABLE ||
       !get_multistream_scale(cpi->level_params.multi_stream_scaling_x,
                              &scale_numerator, &scale_denominator) ||
@@ -1339,7 +1515,7 @@ void av2_decoder_model_init(const AV2_COMP *const cpi, AV2_LEVEL level,
   }
   decoder_model->multistream_scale_numerator = scale_numerator;
   decoder_model->multistream_scale_denominator = scale_denominator;
-  decoder_model->bit_rate = bit_rate;
+  av2_dm_rational_move(&decoder_model->bit_rate, &bit_rate);
   if (!av2_dm_rational_multiply_u64(&decoder_model->level_limits.buffer_size,
                                     scale_denominator,
                                     &decoder_model->buffer_size) ||
@@ -1424,6 +1600,7 @@ void av2_decoder_model_init(const AV2_COMP *const cpi, AV2_LEVEL level,
     decoder_model->status = DECODER_MODEL_INTERNAL_ERROR;
     return;
   }
+  decoder_model->exact_model = create_exact_model(cpi, decoder_model);
   decoder_model->initialized = true;
 }
 
@@ -1470,11 +1647,20 @@ static bool check_frame_constraints_at_decode_limit(
   const uint32_t scale_numerator = decoder_model->multistream_scale_numerator;
   const uint32_t scale_denominator =
       decoder_model->multistream_scale_denominator;
-  Av2DmRational observed;
-  Av2DmRational limit;
+  Av2DmRational observed = { 0 };
+  Av2DmRational limit = { 0 };
+  Av2DmRational dynamic_tile_limit = { 0 };
+  Av2DmRational max_tile_limit = { 0 };
+  Av2DmRational one = { 0 };
+  Av2DmRational picture_compressed_limit = { 0 };
+  Av2DmRational rate_compressed_limit = { 0 };
+  Av2DmRational symbol_factor_a = { 0 };
+  Av2DmRational symbol_factor_b = { 0 };
   bool satisfies;
+  bool success = false;
+  uint64_t picture_units;
 
-  if (frame_parsing_time_decode_luma_samples == 0) return false;
+  if (frame_parsing_time_decode_luma_samples == 0) goto cleanup;
   const long double max_decode_rate = (long double)limits->max_decode_rate *
                                       scale_denominator / scale_numerator;
   const long double observed_decode_rate =
@@ -1482,16 +1668,13 @@ static bool check_frame_constraints_at_decode_limit(
       frame_parsing_time_decode_luma_samples;
   if (!is_finite_number(max_decode_rate) ||
       !is_finite_number(observed_decode_rate)) {
-    return false;
+    goto cleanup;
   }
   decoder_model->max_decode_rate =
       AVMMAX(decoder_model->max_decode_rate, observed_decode_rate);
   decoder_model->max_decode_rate_satisfy &=
       frame->luma_sample_count <= frame_parsing_time_decode_luma_samples;
 
-  Av2DmRational dynamic_tile_limit;
-  Av2DmRational max_tile_limit;
-  Av2DmRational one;
   if (!av2_dm_rational_make(frame_parsing_time_decode_luma_samples, 1,
                             &dynamic_tile_limit) ||
       !av2_dm_rational_multiply_u64(&dynamic_tile_limit,
@@ -1505,33 +1688,36 @@ static bool check_frame_constraints_at_decode_limit(
       !av2_dm_rational_divide_u64(&max_tile_limit, scale_numerator,
                                   &max_tile_limit) ||
       !av2_dm_rational_make(1, 1, &one)) {
-    return false;
+    goto cleanup;
   }
   int comparison;
   if (!av2_dm_rational_compare(&dynamic_tile_limit, &one, &comparison)) {
-    return false;
+    goto cleanup;
   }
-  if (comparison < 0) dynamic_tile_limit = one;
+  if (comparison < 0 && !av2_dm_rational_copy(&dynamic_tile_limit, &one)) {
+    goto cleanup;
+  }
   if (!av2_dm_rational_compare(&dynamic_tile_limit, &max_tile_limit,
                                &comparison)) {
-    return false;
+    goto cleanup;
   }
-  if (comparison > 0) dynamic_tile_limit = max_tile_limit;
+  if (comparison > 0 &&
+      !av2_dm_rational_copy(&dynamic_tile_limit, &max_tile_limit)) {
+    goto cleanup;
+  }
   if (!av2_dm_rational_make(frame->num_tiles, 1, &observed) ||
       !encoder_dm_rational_less_than_or_equal(&observed, &dynamic_tile_limit,
                                               &satisfies)) {
-    return false;
+    goto cleanup;
   }
   decoder_model->max_tile_rate_satisfy &= satisfies;
 
   if (frame->luma_sample_count >
       UINT64_MAX / limits->picture_size_profile_factor) {
-    return false;
+    goto cleanup;
   }
-  const uint64_t picture_units =
+  picture_units =
       frame->luma_sample_count * limits->picture_size_profile_factor >> 3;
-  Av2DmRational picture_compressed_limit;
-  Av2DmRational rate_compressed_limit;
   if (!av2_dm_rational_make(picture_units, 1, &picture_compressed_limit) ||
       !av2_dm_rational_multiply_u64(&picture_compressed_limit, 5,
                                     &picture_compressed_limit) ||
@@ -1547,20 +1733,21 @@ static bool check_frame_constraints_at_decode_limit(
                                   &rate_compressed_limit) ||
       !av2_dm_rational_compare(&picture_compressed_limit,
                                &rate_compressed_limit, &comparison)) {
-    return false;
+    goto cleanup;
   }
-  limit = comparison <= 0 ? picture_compressed_limit : rate_compressed_limit;
+  if (!av2_dm_rational_copy(&limit, comparison <= 0 ? &picture_compressed_limit
+                                                    : &rate_compressed_limit)) {
+    goto cleanup;
+  }
   if (frame->compressed_size > 0) {
     if (!av2_dm_rational_make((uint64_t)frame->compressed_size, 1, &observed) ||
         !encoder_dm_rational_less_than_or_equal(&observed, &limit,
                                                 &satisfies)) {
-      return false;
+      goto cleanup;
     }
     decoder_model->compressed_size_satisfy &= satisfies;
   }
 
-  Av2DmRational symbol_factor_a;
-  Av2DmRational symbol_factor_b;
   if (!av2_dm_rational_make(8, (uint64_t)9 * limits->min_compression_basis,
                             &symbol_factor_a) ||
       !av2_dm_rational_make(1, 48, &symbol_factor_b) ||
@@ -1571,10 +1758,22 @@ static bool check_frame_constraints_at_decode_limit(
                                     &limit) ||
       !av2_dm_rational_make(frame->frame_symbol_count, 1, &observed) ||
       !encoder_dm_rational_less_than_or_equal(&observed, &limit, &satisfies)) {
-    return false;
+    goto cleanup;
   }
   decoder_model->frame_symbol_count_satisfy &= satisfies;
-  return true;
+  success = true;
+
+cleanup:
+  av2_dm_rational_destroy(&observed);
+  av2_dm_rational_destroy(&limit);
+  av2_dm_rational_destroy(&dynamic_tile_limit);
+  av2_dm_rational_destroy(&max_tile_limit);
+  av2_dm_rational_destroy(&one);
+  av2_dm_rational_destroy(&picture_compressed_limit);
+  av2_dm_rational_destroy(&rate_compressed_limit);
+  av2_dm_rational_destroy(&symbol_factor_a);
+  av2_dm_rational_destroy(&symbol_factor_b);
+  return success;
 }
 
 bool av2_encoder_decoder_model_check_frame_constraints(
@@ -1771,7 +1970,7 @@ static bool get_minimum_presentation_interval(
   const BITSTREAM_PROFILE profile = decoder_model->configuration_snapshot_valid
                                         ? decoder_model->configured_profile
                                         : seq_params->seq_profile_idc;
-  Av2DmLevelLimits limits;
+  Av2DmLevelLimits limits = { 0 };
   if (!av2_dm_get_level_limits(decoder_model->level, decoder_model->tier,
                                profile, &limits)) {
     return false;
@@ -1784,6 +1983,7 @@ static bool get_minimum_presentation_interval(
        !av2_dm_apply_multistream_limits(
            decoder_model->level, decoder_model->tier, profile, scale_numerator,
            scale_denominator, &limits))) {
+    av2_dm_level_limits_destroy(&limits);
     return false;
   }
 
@@ -1799,20 +1999,28 @@ static bool get_minimum_presentation_interval(
       decoder_model->num_frames_current_tu == 0 ||
       limits.max_display_rate == 0 || limits.max_decode_rate == 0 ||
       limits.max_header_rate == 0) {
+    av2_dm_level_limits_destroy(&limits);
     return false;
   }
   const uint64_t max_frame_width = (uint32_t)configured_max_frame_width;
   const uint64_t max_frame_height = (uint32_t)configured_max_frame_height;
-  if (max_frame_width > UINT64_MAX / max_frame_height) return false;
+  if (max_frame_width > UINT64_MAX / max_frame_height) {
+    av2_dm_level_limits_destroy(&limits);
+    return false;
+  }
   const uint64_t max_frame_samples = max_frame_width * max_frame_height;
   if (max_frame_samples > UINT64_MAX / decoder_model->num_frames_current_tu) {
+    av2_dm_level_limits_destroy(&limits);
     return false;
   }
   const uint64_t output_samples =
       max_frame_samples * decoder_model->num_frames_current_tu;
 
   const uint64_t tier_multiplier = 1 + ((uint64_t)decoder_model->tier << 1);
-  if (limits.max_header_rate > UINT64_MAX / tier_multiplier) return false;
+  if (limits.max_header_rate > UINT64_MAX / tier_multiplier) {
+    av2_dm_level_limits_destroy(&limits);
+    return false;
+  }
   const uint64_t max_frame_headers_per_second =
       limits.max_header_rate * tier_multiplier;
 
@@ -1822,8 +2030,11 @@ static bool get_minimum_presentation_interval(
       (double)limits.max_decode_rate /
       ((double)max_frame_headers_per_second * (double)limits.max_display_rate);
   *min_interval = AVMMAX(sample_interval, min_frame_time);
-  return is_finite_number(sample_interval) &&
-         is_finite_number(min_frame_time) && is_finite_number(*min_interval);
+  const bool finite = is_finite_number(sample_interval) &&
+                      is_finite_number(min_frame_time) &&
+                      is_finite_number(*min_interval);
+  av2_dm_level_limits_destroy(&limits);
+  return finite;
 }
 
 void av2_encoder_decoder_model_finalize(DECODER_MODEL *decoder_model,
@@ -1861,49 +2072,66 @@ static bool decoder_model_configuration_is_compatible(
              replacement->configured_operating_point_count &&
          current->configured_operating_point_idc ==
              replacement->configured_operating_point_idc &&
-         current->configured_max_frame_width ==
-             replacement->configured_max_frame_width &&
-         current->configured_max_frame_height ==
-             replacement->configured_max_frame_height &&
          current->configured_max_mlayer_id ==
              replacement->configured_max_mlayer_id &&
          current->configured_number_xlayers ==
-             replacement->configured_number_xlayers &&
-         current->configured_timing_info_present ==
-             replacement->configured_timing_info_present &&
-         current->configured_num_units_in_display_tick ==
-             replacement->configured_num_units_in_display_tick &&
-         current->configured_time_scale == replacement->configured_time_scale &&
-         current->equal_picture_interval ==
-             replacement->equal_picture_interval &&
-         current->num_ticks_per_picture == replacement->num_ticks_per_picture &&
-         current->display_clock_tick == replacement->display_clock_tick;
+             replacement->configured_number_xlayers;
 }
 
 static bool update_decoder_model_parameters_at_clk(
     const AV2_COMP *const cpi, DECODER_MODEL *const decoder_model) {
-  for (int i = 0; i < REF_FRAMES; ++i) {
-    if (decoder_model->vbi[i] != -1) {
-      decoder_model->status = DECODER_MODEL_INCOMPLETE;
-      return false;
-    }
-  }
-
-  DECODER_MODEL replacement;
+  DECODER_MODEL replacement = { 0 };
   av2_decoder_model_init(cpi, decoder_model->level,
                          decoder_model->operating_point, &replacement);
   if (replacement.status != DECODER_MODEL_OK || !replacement.initialized) {
+    av2_encoder_decoder_model_destroy(&replacement);
     decoder_model->status = DECODER_MODEL_INCOMPLETE;
     return false;
   }
   if (!decoder_model_configuration_is_compatible(decoder_model, &replacement)) {
+    av2_encoder_decoder_model_destroy(&replacement);
     decoder_model->status = DECODER_MODEL_UNSUPPORTED;
     return false;
+  }
+  int buffer_size_comparison;
+  if (!av2_dm_rational_compare(&decoder_model->buffer_size,
+                               &replacement.buffer_size,
+                               &buffer_size_comparison)) {
+    av2_encoder_decoder_model_destroy(&replacement);
+    decoder_model->status = DECODER_MODEL_INTERNAL_ERROR;
+    return false;
+  }
+  const bool dpb_compatible =
+      decoder_model->num_ref_frames == replacement.num_ref_frames &&
+      decoder_model->configured_max_frame_width ==
+          replacement.configured_max_frame_width &&
+      decoder_model->configured_max_frame_height ==
+          replacement.configured_max_frame_height &&
+      decoder_model->configured_chroma_format_idc ==
+          replacement.configured_chroma_format_idc &&
+      decoder_model->configured_bit_depth == replacement.configured_bit_depth;
+  if (!dpb_compatible && decoder_model->initial_presentation_delay < 0.0 &&
+      decoder_model->num_shown_frame >= 0) {
+    decoder_model_set_initial_presentation_delay(decoder_model, true, false);
   }
 
   decoder_model->tier = replacement.tier;
   decoder_model->configured_profile = replacement.configured_profile;
+  decoder_model->configured_max_frame_width =
+      replacement.configured_max_frame_width;
+  decoder_model->configured_max_frame_height =
+      replacement.configured_max_frame_height;
+  decoder_model->configured_chroma_format_idc =
+      replacement.configured_chroma_format_idc;
+  decoder_model->configured_bit_depth = replacement.configured_bit_depth;
+  decoder_model->configured_timing_info_present =
+      replacement.configured_timing_info_present;
+  decoder_model->configured_num_units_in_display_tick =
+      replacement.configured_num_units_in_display_tick;
+  decoder_model->configured_time_scale = replacement.configured_time_scale;
+  av2_dm_level_limits_destroy(&decoder_model->level_limits);
   decoder_model->level_limits = replacement.level_limits;
+  av2_dm_level_limits_init(&replacement.level_limits);
   decoder_model->encoder_buffer_delay = replacement.encoder_buffer_delay;
   decoder_model->decoder_buffer_delay = replacement.decoder_buffer_delay;
   decoder_model->multistream_scale_numerator =
@@ -1911,25 +2139,99 @@ static bool update_decoder_model_parameters_at_clk(
   decoder_model->multistream_scale_denominator =
       replacement.multistream_scale_denominator;
   decoder_model->decode_rate = replacement.decode_rate;
-  decoder_model->bit_rate = replacement.bit_rate;
-  decoder_model->buffer_size = replacement.buffer_size;
+  decoder_model->equal_picture_interval = replacement.equal_picture_interval;
+  decoder_model->num_ticks_per_picture = replacement.num_ticks_per_picture;
+  decoder_model->display_clock_tick = replacement.display_clock_tick;
+  av2_dm_rational_move(&decoder_model->bit_rate, &replacement.bit_rate);
+  av2_dm_rational_move(&decoder_model->buffer_size, &replacement.buffer_size);
   decoder_model->mode = replacement.mode;
   decoder_model->is_low_delay_mode = replacement.is_low_delay_mode;
   decoder_model->num_ref_frames = replacement.num_ref_frames;
-
-  decoder_model->first_bit_arrival_time = 0.0;
-  decoder_model->last_bit_arrival_time = 0.0;
-  decoder_model->dfg_interval_queue.head = 0;
-  decoder_model->dfg_interval_queue.size = 0;
-  decoder_model->dfg_interval_queue.total_interval = 0.0;
-  decoder_model->dfg_interval_queue.total_bits = 0;
+  decoder_model->exact_buffer_size_history_required |=
+      buffer_size_comparison != 0;
+  if (!dpb_compatible) {
+    initialize_buffer_pool(decoder_model);
+    decoder_model->cfbi = -1;
+  }
+  if (decoder_model->num_decoded_frame >= 0) {
+    update_exact_model_parameters(cpi, decoder_model);
+  }
+  av2_encoder_decoder_model_destroy(&replacement);
   return true;
+}
+
+static uint32_t exact_model_ref_valid_mask(
+    const DECODER_MODEL *const decoder_model) {
+  uint32_t mask = 0;
+  for (int i = 0; i < decoder_model->num_ref_frames; ++i) {
+    if (decoder_model->vbi[i] != -1) mask |= 1u << i;
+  }
+  return mask;
+}
+
+static void observe_exact_model_frame(const AV2_COMP *const cpi,
+                                      uint64_t coded_bits,
+                                      uint64_t compressed_size_bytes,
+                                      uint64_t max_tile_area,
+                                      uint64_t max_tile_width,
+                                      bool non_rightmost_tile_width_valid,
+                                      DECODER_MODEL *const decoder_model) {
+  if (decoder_model->exact_model == NULL) return;
+  const AV2_COMMON *const cm = &cpi->common;
+  uint64_t event_index;
+  if (!exact_model_next_event(decoder_model, &event_index) ||
+      (!cm->show_existing_frame &&
+       decoder_model->next_generation == UINT64_MAX)) {
+    av2_decoder_model_mark_incomplete(decoder_model->exact_model);
+    return;
+  }
+  Av2DmFrameEvent event = { 0 };
+  event.event_index = event_index;
+  event.temporal_unit_index = decoder_model->temporal_unit_index;
+  event.ref_valid_mask = exact_model_ref_valid_mask(decoder_model);
+  event.generation =
+      cm->show_existing_frame ? 0 : decoder_model->next_generation + 1;
+  event.coded_bits = coded_bits;
+  event.show_existing_frame = cm->show_existing_frame != 0;
+  event.random_access_point =
+      !cm->show_existing_frame &&
+      (cm->current_frame.cm_obu_type == OBU_CLOSED_LOOP_KEY ||
+       cm->current_frame.cm_obu_type == OBU_OPEN_LOOP_KEY ||
+       cm->current_frame.cm_obu_type == OBU_RAS_FRAME);
+  event.coded_as_closed_loop_key =
+      cm->current_frame.cm_obu_type == OBU_CLOSED_LOOP_KEY;
+  event.frame_is_intra = cm->current_frame.frame_type == KEY_FRAME ||
+                         cm->current_frame.frame_type == INTRA_ONLY_FRAME;
+  event.allow_global_intrabc = cm->features.allow_global_intrabc != 0;
+  event.inloop_filtering_enabled = is_filter_enabled_frame(cm);
+  event.frame_width = cm->width;
+  event.frame_height = cm->height;
+  event.num_tiles = (uint32_t)cm->tiles.rows * (uint32_t)cm->tiles.cols;
+  event.tile_columns = cm->tiles.cols;
+  event.max_tile_width = max_tile_width;
+  event.max_tile_area = max_tile_area;
+  event.non_rightmost_tile_width_valid = non_rightmost_tile_width_valid;
+  // The encoder does not yet generate normative BufferRemovalTime values.
+  event.buffer_removal_time_present = false;
+  event.decoder_model_parameters_updated =
+      decoder_model->exact_parameters_updated;
+  event.count_frame_header = cpi->level_params.frame_header_count != 0;
+  event.compressed_size_bytes = compressed_size_bytes;
+  event.frame_symbol_count = cm->features.frame_symbol_count;
+  av2_decoder_model_start_frame(decoder_model->exact_model, &event);
+  decoder_model->exact_parameters_updated = false;
 }
 
 static void av2_decoder_model_start_frame_decode(
     const AV2_COMP *const cpi, uint64_t dfg_bits, int64_t compressed_size,
+    uint64_t compressed_size_bytes, uint64_t max_tile_area,
+    uint64_t max_tile_width, bool non_rightmost_tile_width_valid,
     DECODER_MODEL *const decoder_model) {
-  if (!decoder_model || decoder_model->status != DECODER_MODEL_OK) return;
+  if (decoder_model == NULL) return;
+  if (decoder_model->status != DECODER_MODEL_OK) {
+    av2_decoder_model_mark_incomplete(decoder_model->exact_model);
+    return;
+  }
 
   avm_clear_system_state();
 
@@ -1938,12 +2240,19 @@ static void av2_decoder_model_start_frame_decode(
   const bool closed_loop_key =
       cm->current_frame.cm_obu_type == OBU_CLOSED_LOOP_KEY &&
       cpi->dm_starts_temporal_unit;
-  if (closed_loop_key && !av2_encoder_decoder_model_invalidate_ref_buffers(
-                             cm, decoder_model, true)) {
-    return;
-  }
   if (closed_loop_key &&
       !update_decoder_model_parameters_at_clk(cpi, decoder_model)) {
+    return;
+  }
+  if (closed_loop_key && decoder_model->num_decoded_frame >= 0 &&
+      decoder_model->exact_model != NULL) {
+    av2_decoder_model_invalidate_reference_buffers(
+        decoder_model->exact_model, exact_model_ref_valid_mask(decoder_model),
+        true);
+  }
+  if (closed_loop_key && !av2_encoder_decoder_model_invalidate_ref_buffers(
+                             cm, decoder_model, true)) {
+    av2_decoder_model_mark_incomplete(decoder_model->exact_model);
     return;
   }
   if (cpi->dm_starts_temporal_unit) {
@@ -1992,6 +2301,9 @@ static void av2_decoder_model_start_frame_decode(
     decoder_model->status = DECODER_MODEL_INTERNAL_ERROR;
     return;
   }
+  observe_exact_model_frame(cpi, closed_dfg_bits, compressed_size_bytes,
+                            max_tile_area, max_tile_width,
+                            non_rightmost_tile_width_valid, decoder_model);
 
   if (!show_existing_frame) {
     decoder_model->mirrored_refresh_frame_flags = 0;
@@ -2025,9 +2337,12 @@ static void av2_decoder_model_start_frame_decode(
     }
     // A frame with show_existing_frame being false indicates the end of a DFG.
     // Update the bits arrival time of this DFG.
-    const double buffer_delay = (decoder_model->encoder_buffer_delay +
-                                 decoder_model->decoder_buffer_delay) /
-                                90000.0;
+    const double buffer_delay =
+        (closed_loop_key && decoder_model->num_decoded_frame > 0
+             ? decoder_model->decoder_buffer_delay
+             : decoder_model->encoder_buffer_delay +
+                   decoder_model->decoder_buffer_delay) /
+        90000.0;
     const double latest_arrival_time = removal_time - buffer_delay;
     decoder_model->first_bit_arrival_time =
         AVMMAX(decoder_model->last_bit_arrival_time, latest_arrival_time);
@@ -2050,7 +2365,8 @@ static void av2_decoder_model_start_frame_decode(
       decoder_model->status = DECODER_MODEL_INTERNAL_ERROR;
       return;
     }
-    if (!dfg_available_at_removal && !decoder_model->is_low_delay_mode) {
+    if (!dfg_available_at_removal && !decoder_model->is_low_delay_mode &&
+        !exact_model_is_conformant(decoder_model)) {
       decoder_model->status = SMOOTHING_BUFFER_UNDERFLOW;
       return;
     }
@@ -2058,20 +2374,26 @@ static void av2_decoder_model_start_frame_decode(
     DFG_INTERVAL_QUEUE *const queue = &decoder_model->dfg_interval_queue;
     const double first_bit_arrival_time = decoder_model->first_bit_arrival_time;
     const double last_bit_arrival_time = decoder_model->last_bit_arrival_time;
+    const bool buffer_size_checked_by_exact =
+        exact_model_is_conformant(decoder_model) ||
+        (decoder_model->exact_model != NULL &&
+         decoder_model->exact_buffer_size_history_required);
     // Remove the DFGs with removal time earlier than last_bit_arrival_time.
     while (queue->size > 0 &&
            queue->buf[queue->head].removal_time <= last_bit_arrival_time) {
-      bool smoothing_buffer_fits;
-      if (!smoothing_buffer_fits_with_partial_arrival(
-              decoder_model, queue->total_bits, closed_dfg_bits,
-              queue->buf[queue->head].removal_time - first_bit_arrival_time,
-              &smoothing_buffer_fits)) {
-        decoder_model->status = DECODER_MODEL_INTERNAL_ERROR;
-        return;
-      }
-      if (!smoothing_buffer_fits) {
-        decoder_model->status = SMOOTHING_BUFFER_OVERFLOW;
-        return;
+      if (!buffer_size_checked_by_exact) {
+        bool smoothing_buffer_fits;
+        if (!smoothing_buffer_fits_with_partial_arrival(
+                decoder_model, queue->total_bits, closed_dfg_bits,
+                queue->buf[queue->head].removal_time - first_bit_arrival_time,
+                &smoothing_buffer_fits)) {
+          decoder_model->status = DECODER_MODEL_INTERNAL_ERROR;
+          return;
+        }
+        if (!smoothing_buffer_fits) {
+          decoder_model->status = SMOOTHING_BUFFER_OVERFLOW;
+          return;
+        }
       }
       if (queue->buf[queue->head].coded_bits > queue->total_bits) {
         decoder_model->status = DECODER_MODEL_INTERNAL_ERROR;
@@ -2092,15 +2414,17 @@ static void av2_decoder_model_start_frame_decode(
       decoder_model->status = DECODER_MODEL_INTERNAL_ERROR;
       return;
     }
-    bool smoothing_buffer_fits;
-    if (!av2_encoder_decoder_model_smoothing_buffer_fits(
-            decoder_model, queue->total_bits, &smoothing_buffer_fits)) {
-      decoder_model->status = DECODER_MODEL_INTERNAL_ERROR;
-      return;
-    }
-    if (!smoothing_buffer_fits) {
-      decoder_model->status = SMOOTHING_BUFFER_OVERFLOW;
-      return;
+    if (!buffer_size_checked_by_exact) {
+      bool smoothing_buffer_fits;
+      if (!av2_encoder_decoder_model_smoothing_buffer_fits(
+              decoder_model, queue->total_bits, &smoothing_buffer_fits)) {
+        decoder_model->status = DECODER_MODEL_INTERNAL_ERROR;
+        return;
+      }
+      if (!smoothing_buffer_fits) {
+        decoder_model->status = SMOOTHING_BUFFER_OVERFLOW;
+        return;
+      }
     }
 
     release_processed_frames(decoder_model, removal_time);
@@ -2125,7 +2449,9 @@ static void av2_decoder_model_start_frame_decode(
 
 static void av2_decoder_model_update_buffer_and_finish_frame_decode(
     const AV2_COMP *const cpi, DECODER_MODEL *const decoder_model) {
-  if (decoder_model == NULL || decoder_model->status != DECODER_MODEL_OK) {
+  if (decoder_model == NULL) return;
+  if (decoder_model->status != DECODER_MODEL_OK) {
+    av2_decoder_model_mark_incomplete(decoder_model->exact_model);
     return;
   }
   const AV2_COMMON *const cm = &cpi->common;
@@ -2148,6 +2474,33 @@ static void av2_decoder_model_update_buffer_and_finish_frame_decode(
                                                  show_existing_frame);
   }
 }
+
+static uint32_t encoder_ref_valid_mask(const AV2_COMMON *const cm) {
+  uint32_t mask = 0;
+  for (int i = 0; i < cm->seq_params.ref_frames; ++i) {
+    if (cm->ref_frame_map[i] != NULL) mask |= 1u << i;
+  }
+  return mask;
+}
+
+static void observe_exact_model_reference_update(
+    const AV2_COMP *const cpi, DECODER_MODEL *const decoder_model) {
+  if (decoder_model->exact_model == NULL) return;
+  const AV2_COMMON *const cm = &cpi->common;
+  if (!cm->show_existing_frame) {
+    const Av2DmReferenceUpdateEvent event = {
+      cm->current_frame.refresh_frame_flags, encoder_ref_valid_mask(cm)
+    };
+    av2_decoder_model_update_reference_buffers(decoder_model->exact_model,
+                                               &event);
+  }
+  uint64_t event_index;
+  if (exact_model_next_event(decoder_model, &event_index)) {
+    av2_decoder_model_set_initial_presentation_delay(decoder_model->exact_model,
+                                                     false, event_index);
+  }
+}
+
 void av2_decoder_model_update_buffer_and_finish_frame_decode_for_operating_points(
     const AV2_COMP *const cpi) {
   const AV2_COMMON *const cm = &cpi->common;
@@ -2166,6 +2519,7 @@ void av2_decoder_model_update_buffer_and_finish_frame_decode_for_operating_point
     AV2LevelInfo *const level_info = level_params->level_info[i];
     DECODER_MODEL *const decoder_models = level_info->decoder_models;
     for (AV2_LEVEL level = SEQ_LEVEL_2_0; level < SEQ_LEVELS; ++level) {
+      observe_exact_model_reference_update(cpi, &decoder_models[level]);
       av2_decoder_model_update_buffer_and_finish_frame_decode(
           cpi, &decoder_models[level]);
     }
@@ -2280,8 +2634,40 @@ static bool get_presentation_offset(
   return is_finite_number(*offset);
 }
 
+static void observe_exact_model_output(
+    const AV2_COMP *const cpi, DECODER_MODEL *const decoder_model, int ref_idx,
+    int buffer_index,
+    const ENCODER_DM_PRESENTATION_DESCRIPTOR *const presentation) {
+  if (decoder_model->exact_model == NULL || buffer_index < 0 ||
+      buffer_index >= decoder_model->num_ref_frames + 2) {
+    return;
+  }
+  const ENCODER_DM_PRESENTATION_DESCRIPTOR *const generation =
+      &decoder_model->frame_buffer_pool[buffer_index].presentation;
+  uint64_t event_index;
+  if (!generation->valid ||
+      !exact_model_next_event(decoder_model, &event_index)) {
+    av2_decoder_model_mark_incomplete(decoder_model->exact_model);
+    return;
+  }
+  Av2DmOutputEvent event = { 0 };
+  event.event_index = event_index;
+  event.temporal_unit_index = presentation->temporal_unit_index;
+  event.generation = generation->generation;
+  event.frame_to_show_map_idx = ref_idx;
+  event.ref_valid_mask = encoder_ref_valid_mask(&cpi->common);
+  event.output_luma_samples = presentation->output_luma_samples;
+  event.leading_frame = presentation->leading_frame;
+  event.presentation_uses_current_frame =
+      ref_idx < 0 && !cpi->common.show_existing_frame;
+  event.presentation_random_access_point = presentation->random_access_point;
+  event.presentation_time_present = presentation->presentation_time_present;
+  event.presentation_time_ticks = presentation->presentation_time_ticks;
+  av2_decoder_model_output_frame(decoder_model->exact_model, &event);
+}
+
 static void av2_decoder_model_check_output_frame(
-    const AV2_COMP *const cpi, DECODER_MODEL *const decoder_model,
+    const AV2_COMP *const cpi, DECODER_MODEL *const decoder_model, int ref_idx,
     int buffer_index,
     const ENCODER_DM_PRESENTATION_DESCRIPTOR *const presentation,
     bool completes_implicit_output) {
@@ -2302,6 +2688,8 @@ static void av2_decoder_model_check_output_frame(
     decoder_model->status = DECODER_MODEL_INCOMPLETE;
     return;
   }
+  observe_exact_model_output(cpi, decoder_model, ref_idx, buffer_index,
+                             presentation);
   double presentation_offset;
   if (!get_presentation_offset(decoder_model, presentation,
                                &presentation_offset)) {
@@ -2363,7 +2751,8 @@ static void av2_decoder_model_check_output_frame(
     return;
   }
   this_buffer->presentation_time = presentation_time;
-  if (decoder_model->initial_presentation_delay >= 0.0) {
+  if (decoder_model->initial_presentation_delay >= 0.0 &&
+      !exact_model_is_conformant(decoder_model)) {
     if (presentation_time >= 0.0 &&
         decoder_model->current_time > presentation_time) {
       decoder_model->status = DISPLAY_FRAME_LATE;
@@ -2471,14 +2860,15 @@ static void decoder_model_observe_output_frame_buffers(
     if (output_ref_idx == trigger_ref_idx) break;
     ENCODER_DM_PRESENTATION_DESCRIPTOR *const output_presentation =
         &decoder_model->frame_buffer_pool[output_buffer_index].presentation;
-    av2_decoder_model_check_output_frame(
-        cpi, decoder_model, output_buffer_index, output_presentation, true);
+    av2_decoder_model_check_output_frame(cpi, decoder_model, output_ref_idx,
+                                         output_buffer_index,
+                                         output_presentation, true);
   }
   if (decoder_model->status != DECODER_MODEL_OK) return;
 
-  av2_decoder_model_check_output_frame(cpi, decoder_model, trigger_buffer_index,
-                                       trigger_presentation,
-                                       trigger_completes_implicit_output);
+  av2_decoder_model_check_output_frame(
+      cpi, decoder_model, trigger_ref_idx, trigger_buffer_index,
+      trigger_presentation, trigger_completes_implicit_output);
   if (decoder_model->status != DECODER_MODEL_OK) return;
 
   for (int k = 1; k <= decoder_model->num_ref_frames; ++k) {
@@ -2497,7 +2887,7 @@ static void decoder_model_observe_output_frame_buffers(
             &decoder_model->frame_buffer_pool[candidate_index].presentation;
         if (candidate->output_order == target_order) {
           av2_decoder_model_check_output_frame(
-              cpi, decoder_model, candidate_index, candidate, true);
+              cpi, decoder_model, i, candidate_index, candidate, true);
           made_output = true;
         }
       }
@@ -2526,7 +2916,10 @@ void av2_decoder_model_observe_output_frame_buffers_for_operating_points(
     DECODER_MODEL *const decoder_models = level_info->decoder_models;
     for (AV2_LEVEL level = SEQ_LEVEL_2_0; level < SEQ_LEVELS; ++level) {
       DECODER_MODEL *const decoder_model = &decoder_models[level];
-      if (decoder_model->status != DECODER_MODEL_OK) continue;
+      if (decoder_model->status != DECODER_MODEL_OK) {
+        av2_decoder_model_mark_incomplete(decoder_model->exact_model);
+        continue;
+      }
       if (ref_idx < 0 && !cm->show_existing_frame && decoder_model->cfbi >= 0 &&
           decoder_model->cfbi < decoder_model->num_ref_frames + 2) {
         const ENCODER_DM_PRESENTATION_DESCRIPTOR *const current_generation =
@@ -2543,6 +2936,7 @@ void av2_decoder_model_observe_output_frame_buffers_for_operating_points(
         }
       }
       int trigger_buffer_index = decoder_model->cfbi;
+      int trigger_ref_idx = ref_idx;
       const ENCODER_DM_PRESENTATION_DESCRIPTOR *trigger_presentation =
           &decoder_model->current_presentation;
       bool trigger_completes_implicit_output = !cm->show_existing_frame;
@@ -2565,10 +2959,11 @@ void av2_decoder_model_observe_output_frame_buffers_for_operating_points(
           decoder_model->status = DECODE_EXISTING_FRAME_BUF_EMPTY;
           continue;
         }
+        trigger_ref_idx = generation_ref_idx;
         trigger_buffer_index = decoder_model->vbi[generation_ref_idx];
       }
       decoder_model_observe_output_frame_buffers(
-          cpi, decoder_model, ref_idx, trigger_buffer_index,
+          cpi, decoder_model, trigger_ref_idx, trigger_buffer_index,
           trigger_presentation, trigger_completes_implicit_output);
     }
   }
@@ -2596,7 +2991,10 @@ void av2_decoder_model_observe_displaced_output_for_operating_points(
         level_params->level_info[i]->decoder_models;
     for (AV2_LEVEL level = SEQ_LEVEL_2_0; level < SEQ_LEVELS; ++level) {
       DECODER_MODEL *const decoder_model = &decoder_models[level];
-      if (decoder_model->status != DECODER_MODEL_OK) continue;
+      if (decoder_model->status != DECODER_MODEL_OK) {
+        av2_decoder_model_mark_incomplete(decoder_model->exact_model);
+        continue;
+      }
       const int buffer_index = decoder_model->vbi[ref_idx];
       // A newly initialized model intentionally has no ownership of stale
       // encoder references from the preceding CVS.
@@ -2646,7 +3044,10 @@ void av2_decoder_model_observe_restricted_output_for_operating_points(
         cpi->level_params.level_info[op]->decoder_models;
     for (AV2_LEVEL level = SEQ_LEVEL_2_0; level < SEQ_LEVELS; ++level) {
       DECODER_MODEL *const decoder_model = &decoder_models[level];
-      if (decoder_model->status != DECODER_MODEL_OK) continue;
+      if (decoder_model->status != DECODER_MODEL_OK) {
+        av2_decoder_model_mark_incomplete(decoder_model->exact_model);
+        continue;
+      }
       for (int ref_idx = 0; ref_idx < decoder_model->num_ref_frames;
            ++ref_idx) {
         const int buffer_index = decoder_model->vbi[ref_idx];
@@ -2684,12 +3085,17 @@ void av2_decoder_model_observe_restricted_output_for_operating_points(
 static void decoder_model_flush_implicit_output(
     const AV2_COMP *const cpi, DECODER_MODEL *const decoder_model,
     bool olk_limit) {
+  if (decoder_model->status != DECODER_MODEL_OK) {
+    av2_decoder_model_mark_incomplete(decoder_model->exact_model);
+    return;
+  }
   if (olk_limit && !decoder_model->olk_encountered) return;
   if (olk_limit && !decoder_model->olk_tu_order_hint_valid) {
     decoder_model->status = DECODER_MODEL_INCOMPLETE;
     return;
   }
   while (decoder_model->status == DECODER_MODEL_OK) {
+    int output_ref_idx = -1;
     int output_buffer_index = -1;
     uint64_t output_order = 0;
     for (int i = 0; i < decoder_model->num_ref_frames; ++i) {
@@ -2706,6 +3112,7 @@ static void decoder_model_flush_implicit_output(
       }
       if (output_buffer_index == -1 ||
           candidate->output_order <= output_order) {
+        output_ref_idx = i;
         output_buffer_index = candidate_index;
         output_order = candidate->output_order;
       }
@@ -2713,8 +3120,9 @@ static void decoder_model_flush_implicit_output(
     if (output_buffer_index == -1) return;
     ENCODER_DM_PRESENTATION_DESCRIPTOR *const presentation =
         &decoder_model->frame_buffer_pool[output_buffer_index].presentation;
-    av2_decoder_model_check_output_frame(
-        cpi, decoder_model, output_buffer_index, presentation, true);
+    av2_decoder_model_check_output_frame(cpi, decoder_model, output_ref_idx,
+                                         output_buffer_index, presentation,
+                                         true);
   }
 }
 
@@ -2778,6 +3186,12 @@ void av2_encoder_decoder_model_finish_for_operating_points(
     DECODER_MODEL *const decoder_models =
         cpi->level_params.level_info[op]->decoder_models;
     for (AV2_LEVEL level = SEQ_LEVEL_2_0; level < SEQ_LEVELS; ++level) {
+      if (decoder_models[level].exact_model != NULL) {
+        if (decoder_models[level].status != DECODER_MODEL_OK) {
+          av2_decoder_model_mark_incomplete(decoder_models[level].exact_model);
+        }
+        av2_decoder_model_finish(decoder_models[level].exact_model);
+      }
       av2_encoder_decoder_model_finalize(
           &decoder_models[level], decoder_models[level].is_still_picture);
     }
@@ -2911,8 +3325,25 @@ static TARGET_LEVEL_FAIL_ID check_level_constraints(
     int check_bitrate) {
   const DECODER_MODEL *const decoder_model = &level_info->decoder_models[level];
   const DECODER_MODEL_STATUS decoder_model_status = decoder_model->status;
-  const ENCODER_DM_RESULT_CLASS model_result =
+  ENCODER_DM_RESULT_CLASS model_result =
       av2_encoder_decoder_model_classify_status(decoder_model_status);
+  const bool exact_model_staged = decoder_model->configuration_snapshot_valid;
+  if (exact_model_staged) {
+    Av2DmResult exact_result;
+    if (decoder_model->exact_model == NULL ||
+        !av2_decoder_model_get_result(decoder_model->exact_model,
+                                      &exact_result)) {
+      model_result = ENCODER_DM_RESULT_UNAVAILABLE;
+    } else if (exact_result.status == AV2_DM_RESULT_NON_CONFORMANT) {
+      model_result = ENCODER_DM_RESULT_VIOLATION;
+    } else if (exact_result.status != AV2_DM_RESULT_CONFORMANT) {
+      model_result = ENCODER_DM_RESULT_UNAVAILABLE;
+    } else if (decoder_model_status != DECODER_MODEL_OK) {
+      model_result = ENCODER_DM_RESULT_UNAVAILABLE;
+    } else {
+      model_result = ENCODER_DM_RESULT_PASS;
+    }
+  }
   if (model_result == ENCODER_DM_RESULT_VIOLATION) {
     return DECODER_MODEL_FAIL;
   }
@@ -2972,7 +3403,8 @@ static TARGET_LEVEL_FAIL_ID check_level_constraints(
       break;
     }
 
-    if (level_spec->max_tile_rate > target_level_spec->max_tiles * 120) {
+    if (!exact_model_staged &&
+        level_spec->max_tile_rate > target_level_spec->max_tiles * 120) {
       fail_id = TILE_RATE_TOO_HIGH;
       break;
     }
@@ -3015,7 +3447,8 @@ static TARGET_LEVEL_FAIL_ID check_level_constraints(
       fail_id = TILE_WIDTH_INVALID;
       break;
     }
-    if (!is_still_picture && decoder_model->initialized) {
+    if (!exact_model_staged && !is_still_picture &&
+        decoder_model->initialized) {
       const int max_header_rate =
           is_multi_stream ? target_sub_stream_level_spec->max_header_rate_x
                           : target_level_spec->max_header_rate;
@@ -3073,7 +3506,7 @@ static TARGET_LEVEL_FAIL_ID check_level_constraints(
       }
     }
 
-    if (target_level_spec->level > SEQ_LEVEL_5_1) {
+    if (!exact_model_staged && target_level_spec->level > SEQ_LEVEL_5_1) {
       int temporal_parallel_num;
       int temporal_parallel_denom;
       const int scalability_mode_idc = -1;
@@ -3335,11 +3768,11 @@ void av2_update_level_info(AV2_COMP *cpi, const uint8_t *data, size_t size,
   (void)xlayer_id;
   const SequenceHeader *const seq_params = &cm->seq_params;
   uint64_t dfg_bits = 0;
+  uint64_t frame_compressed_bytes = 0;
   int64_t compressed_size = 0;
   bool model_accounting_valid = true;
   if (has_serialized_frame_unit) {
     uint64_t dfg_bytes;
-    uint64_t frame_compressed_bytes;
     model_accounting_valid =
         !cpi->dm_frame_symbol_count_overflow &&
         av2_encoder_decoder_model_count_obu_bytes(data, size, &dfg_bytes,
@@ -3408,12 +3841,17 @@ void av2_update_level_info(AV2_COMP *cpi, const uint8_t *data, size_t size,
     if (has_serialized_frame_unit) {
       DECODER_MODEL *const decoder_models = level_info->decoder_models;
       for (AV2_LEVEL level = SEQ_LEVEL_2_0; level < SEQ_LEVELS; ++level) {
-        if (decoder_models[level].status != DECODER_MODEL_OK) continue;
+        if (decoder_models[level].status != DECODER_MODEL_OK) {
+          av2_decoder_model_mark_incomplete(decoder_models[level].exact_model);
+          continue;
+        }
         if (!model_accounting_valid) {
           decoder_models[level].status = DECODER_MODEL_INTERNAL_ERROR;
         } else {
-          av2_decoder_model_start_frame_decode(cpi, dfg_bits, compressed_size,
-                                               &decoder_models[level]);
+          av2_decoder_model_start_frame_decode(
+              cpi, dfg_bits, compressed_size, frame_compressed_bytes,
+              max_tile_size, max_tile_width, tile_width_is_valid,
+              &decoder_models[level]);
         }
       }
     }

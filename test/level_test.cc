@@ -25,15 +25,19 @@ extern "C" {
 #include "av2/common/timing.h"
 #include "av2/encoder/bitstream.h"
 #include "av2/encoder/encoder.h"
+double time_next_buffer_is_free(const DECODER_MODEL *decoder_model);
 }
 #include "test/codec_factory.h"
 #include "test/encode_test_driver.h"
 #include "test/i420_video_source.h"
+#include "test/decoder_model_lifecycle.h"
 #include "test/util.h"
 #include "test/y4m_video_source.h"
 #include "test/yuv_video_source.h"
 
 namespace {
+
+using Av2DmLevelLimits = libavm_test::ScopedDmLevelLimits;
 #if !CONFIG_SHARED
 void AppendSection5Obu(std::vector<uint8_t> *data, OBU_TYPE type,
                        uint8_t payload_size) {
@@ -167,11 +171,12 @@ TEST(LevelDecoderModelTest, DisplayClockTickUsesDisplayTimebaseUnits) {
   cpi->common.ci_params_encoder.timing_info.num_ticks_per_elemental_duration =
       7;
 
-  DECODER_MODEL decoder_model;
+  DECODER_MODEL decoder_model = {};
   av2_decoder_model_init(cpi.get(), SEQ_LEVEL_4_0, 0, &decoder_model);
 
   EXPECT_DOUBLE_EQ(1001.0 / 30000, decoder_model.display_clock_tick);
   EXPECT_EQ(7, decoder_model.num_ticks_per_picture);
+  av2_encoder_decoder_model_destroy(&decoder_model);
 }
 
 TEST(LevelDecoderModelTest, InitialDisplayDelayUsesSequenceSemantics) {
@@ -181,7 +186,7 @@ TEST(LevelDecoderModelTest, InitialDisplayDelayUsesSequenceSemantics) {
   cpi->common.seq_params.op_params[0].initial_display_delay = 8;
   cpi->framerate = 30.0;
 
-  DECODER_MODEL decoder_model;
+  DECODER_MODEL decoder_model = {};
   av2_decoder_model_init(cpi.get(), SEQ_LEVEL_4_0, 0, &decoder_model);
   EXPECT_EQ(6, decoder_model.initial_display_delay);
 
@@ -189,6 +194,7 @@ TEST(LevelDecoderModelTest, InitialDisplayDelayUsesSequenceSemantics) {
   cpi->common.seq_params.seq_max_initial_display_delay_minus_1 = 2;
   av2_decoder_model_init(cpi.get(), SEQ_LEVEL_4_0, 0, &decoder_model);
   EXPECT_EQ(3, decoder_model.initial_display_delay);
+  av2_encoder_decoder_model_destroy(&decoder_model);
 }
 
 TEST(LevelDecoderModelTest, NewCvsResetPreservesDecoderModelState) {
@@ -268,7 +274,7 @@ TEST(LevelDecoderModelTest, BufferPoolInitializationUsesFixedCapacity) {
   cpi->common.seq_params.seq_profile_idc = MAIN_420_10_IP0;
   cpi->framerate = 30.0;
 
-  DECODER_MODEL model;
+  DECODER_MODEL model = {};
   av2_decoder_model_init(cpi.get(), SEQ_LEVEL_4_0, 0, &model);
 
   for (int i = 0; i < REF_FRAMES; ++i) EXPECT_EQ(-1, model.vbi[i]);
@@ -281,6 +287,20 @@ TEST(LevelDecoderModelTest, BufferPoolInitializationUsesFixedCapacity) {
   av2_encoder_decoder_model_destroy(&model);
 }
 
+TEST(LevelDecoderModelTest, ExpiredPresentationDoesNotMoveTimeBackward) {
+  DECODER_MODEL model = {};
+  model.num_ref_frames = 1;
+  model.num_decoded_frame = 1;
+  model.current_time = 10.0;
+  for (int i = 0; i < model.num_ref_frames + 2; ++i) {
+    model.frame_buffer_pool[i].player_ref_count = 1;
+    model.frame_buffer_pool[i].presentation_time = 11.0 + i;
+  }
+  model.frame_buffer_pool[1].presentation_time = 9.9;
+
+  EXPECT_DOUBLE_EQ(10.0, time_next_buffer_is_free(&model));
+}
+
 TEST(LevelDecoderModelTest, AnnexABitrateProfileFactorsAreExact) {
   EXPECT_EQ(12000000, av2_max_level_bitrate(MAIN_420_10_IP0, SEQ_LEVEL_4_0, 0));
   EXPECT_EQ(20004000, av2_max_level_bitrate(MAIN_422_10_IP1, SEQ_LEVEL_4_0, 0));
@@ -291,8 +311,8 @@ TEST(LevelDecoderModelTest, AnnexABitrateProfileFactorsAreExact) {
   EXPECT_EQ(90000000,
             av2_max_level_bitrate(MAIN_444C_12_IP2, SEQ_LEVEL_4_0, 1));
 
-  Av2DmLevelLimits main_limits;
-  Av2DmLevelLimits high_limits;
+  Av2DmLevelLimits main_limits{};
+  Av2DmLevelLimits high_limits{};
   ASSERT_TRUE(av2_dm_get_level_limits(SEQ_LEVEL_4_0, 0, MAIN_444C_12_IP2,
                                       &main_limits));
   ASSERT_TRUE(av2_dm_get_level_limits(SEQ_LEVEL_4_0, 1, MAIN_444C_12_IP2,
@@ -305,8 +325,8 @@ TEST(LevelDecoderModelTest, AnnexABitrateProfileFactorsAreExact) {
   cpi->common.seq_params.seq_profile_idc = MAIN_444C_12_IP2;
   cpi->tier[0] = 0;
   cpi->tier[1] = 1;
-  DECODER_MODEL main_model;
-  DECODER_MODEL high_model;
+  DECODER_MODEL main_model = {};
+  DECODER_MODEL high_model = {};
   av2_decoder_model_init(cpi.get(), SEQ_LEVEL_4_0, 0, &main_model);
   av2_decoder_model_init(cpi.get(), SEQ_LEVEL_4_0, 1, &high_model);
   EXPECT_EQ(main_model.status, DECODER_MODEL_OK);
@@ -372,15 +392,15 @@ TEST(LevelDecoderModelTest, UsesSelectedOperatingPointTierAndBufferSize) {
   cpi->tier[0] = 0;
   cpi->tier[1] = 1;
 
-  DECODER_MODEL main_model;
-  DECODER_MODEL high_model;
+  DECODER_MODEL main_model = {};
+  DECODER_MODEL high_model = {};
   av2_decoder_model_init(cpi.get(), SEQ_LEVEL_4_0, 0, &main_model);
   av2_decoder_model_init(cpi.get(), SEQ_LEVEL_4_0, 1, &high_model);
 
   EXPECT_EQ(0, main_model.operating_point);
   EXPECT_EQ(0, main_model.tier);
-  Av2DmRational main_expected;
-  Av2DmRational high_expected;
+  Av2DmRational main_expected{};
+  Av2DmRational high_expected{};
   ASSERT_TRUE(av2_dm_rational_make(12000000, 1, &main_expected));
   ASSERT_TRUE(av2_dm_rational_make(30000000, 1, &high_expected));
   int comparison;
@@ -410,10 +430,10 @@ TEST(LevelDecoderModelTest, PreservesFractionalMultistreamBitrate) {
   cpi->tier[0] = 0;
   cpi->level_params.multi_stream_scaling_x = 9.0;
 
-  DECODER_MODEL decoder_model;
+  DECODER_MODEL decoder_model = {};
   av2_decoder_model_init(cpi.get(), SEQ_LEVEL_4_0, 0, &decoder_model);
 
-  Av2DmRational expected;
+  Av2DmRational expected{};
   ASSERT_TRUE(av2_dm_rational_make(4000000, 3, &expected));
   int comparison;
   ASSERT_TRUE(
@@ -429,7 +449,7 @@ TEST(LevelDecoderModelTest, RejectsHighTierBelowLevelFour) {
   cpi->common.seq_params.seq_profile_idc = MAIN_420_10_IP0;
   cpi->tier[0] = 1;
 
-  DECODER_MODEL decoder_model;
+  DECODER_MODEL decoder_model = {};
   av2_decoder_model_init(cpi.get(), SEQ_LEVEL_2_1, 0, &decoder_model);
 
   EXPECT_EQ(DECODER_MODEL_INTERNAL_ERROR, decoder_model.status);
@@ -442,7 +462,7 @@ TEST(LevelDecoderModelTest, ConfigurableProfileNeedsExplicitFactors) {
   cpi->common.seq_params.seq_profile_idc = CONFIGURABLE;
   cpi->tier[0] = 0;
 
-  DECODER_MODEL decoder_model;
+  DECODER_MODEL decoder_model = {};
   av2_decoder_model_init(cpi.get(), SEQ_LEVEL_4_0, 0, &decoder_model);
 
   EXPECT_EQ(DECODER_MODEL_INTERNAL_ERROR, decoder_model.status);
@@ -473,12 +493,12 @@ TEST(LevelDecoderModelTest, ParametersMatchAnnexATableForSupportedScope) {
       for (int profile = 0; profile < profile_count; ++profile) {
         cpi->common.seq_params.seq_profile_idc =
             static_cast<BITSTREAM_PROFILE>(profile);
-        Av2DmLevelLimits base_limits;
+        Av2DmLevelLimits base_limits{};
         const bool defined =
             av2_dm_get_level_limits(level, tier, profile, &base_limits);
         for (const ScalingCase &scaling : scalings) {
           cpi->level_params.multi_stream_scaling_x = scaling.value;
-          DECODER_MODEL decoder_model;
+          DECODER_MODEL decoder_model = {};
           av2_decoder_model_init(cpi.get(), static_cast<AV2_LEVEL>(level), 0,
                                  &decoder_model);
           const bool supported =
@@ -489,8 +509,8 @@ TEST(LevelDecoderModelTest, ParametersMatchAnnexATableForSupportedScope) {
                 << "level=" << level << " tier=" << tier
                 << " profile=" << profile;
           } else {
-            Av2DmRational scaled;
-            Av2DmRational expected_bit_rate;
+            Av2DmRational scaled{};
+            Av2DmRational expected_bit_rate{};
             ASSERT_TRUE(av2_dm_rational_multiply_u64(
                 &base_limits.bit_rate, scaling.denominator, &scaled));
             ASSERT_TRUE(av2_dm_rational_divide_u64(&scaled, scaling.numerator,
@@ -502,7 +522,7 @@ TEST(LevelDecoderModelTest, ParametersMatchAnnexATableForSupportedScope) {
                 << "level=" << level << " tier=" << tier
                 << " profile=" << profile << " scale=" << scaling.value;
 
-            Av2DmRational expected_buffer_size;
+            Av2DmRational expected_buffer_size{};
             ASSERT_TRUE(av2_dm_rational_multiply_u64(
                 &base_limits.buffer_size, scaling.denominator, &scaled));
             ASSERT_TRUE(av2_dm_rational_divide_u64(&scaled, scaling.numerator,
@@ -621,11 +641,10 @@ TEST(LevelDecoderModelTest, OlkOperatingPointHookPreservesEncoderReferences) {
                            sizeof(ref_frame_map_before)));
 }
 
-void ExpectClkInvalidationClearsEveryVbiSlot(int old_num_ref_frames,
-                                             int new_num_ref_frames) {
+void ExpectClkInvalidationClearsActiveVbiSlots(int num_ref_frames) {
   AV2_COMMON cm = {};
   RefCntBuffer active_reference = {};
-  cm.seq_params.ref_frames = new_num_ref_frames;
+  cm.seq_params.ref_frames = num_ref_frames;
   cm.ref_frame_map[0] = &active_reference;
   RefCntBuffer *ref_frame_map_before[REF_FRAMES];
   std::memcpy(ref_frame_map_before, cm.ref_frame_map,
@@ -633,15 +652,15 @@ void ExpectClkInvalidationClearsEveryVbiSlot(int old_num_ref_frames,
 
   DECODER_MODEL model = {};
   model.status = DECODER_MODEL_OK;
-  model.num_ref_frames = old_num_ref_frames;
-  for (int i = 0; i < REF_FRAMES; ++i) {
+  model.num_ref_frames = num_ref_frames;
+  for (int i = 0; i < num_ref_frames; ++i) {
     model.vbi[i] = i;
     model.frame_buffer_pool[i].decoder_ref_count = 1;
   }
 
   ASSERT_TRUE(
       av2_encoder_decoder_model_invalidate_ref_buffers(&cm, &model, true));
-  for (int i = 0; i < REF_FRAMES; ++i) {
+  for (int i = 0; i < num_ref_frames; ++i) {
     EXPECT_EQ(-1, model.vbi[i]);
     EXPECT_EQ(0u, model.frame_buffer_pool[i].decoder_ref_count);
   }
@@ -649,12 +668,9 @@ void ExpectClkInvalidationClearsEveryVbiSlot(int old_num_ref_frames,
                            sizeof(ref_frame_map_before)));
 }
 
-TEST(LevelDecoderModelTest, ClkInvalidationAllowsDecreasedActiveRange) {
-  ExpectClkInvalidationClearsEveryVbiSlot(8, 4);
-}
-
-TEST(LevelDecoderModelTest, ClkInvalidationAllowsIncreasedActiveRange) {
-  ExpectClkInvalidationClearsEveryVbiSlot(4, 8);
+TEST(LevelDecoderModelTest, ClkInvalidationUsesActiveVbiRange) {
+  ExpectClkInvalidationClearsActiveVbiSlots(4);
+  ExpectClkInvalidationClearsActiveVbiSlots(8);
 }
 
 TEST(LevelDecoderModelTest, ReferenceUpdateUsesPostUpdateValidity) {
@@ -738,7 +754,7 @@ TEST(LevelDecoderModelTest, InitialDelayRebasesPreviouslyAssignedTimes) {
   EXPECT_DOUBLE_EQ(5.02, model->frame_buffer_pool[1].presentation_time);
 }
 
-TEST(LevelDecoderModelTest, InitialDelayCountsAndRebasesInactiveBuffer) {
+TEST(LevelDecoderModelTest, InitialDelayIgnoresInactiveBackingBuffer) {
   std::unique_ptr<AV2_COMP> cpi(new AV2_COMP());
   AV2LevelInfo level_info = {};
   DECODER_MODEL *const model =
@@ -774,8 +790,8 @@ TEST(LevelDecoderModelTest, InitialDelayCountsAndRebasesInactiveBuffer) {
   av2_decoder_model_update_buffer_and_finish_frame_decode_for_operating_points(
       cpi.get());
 
-  EXPECT_DOUBLE_EQ(5.0, model->initial_presentation_delay);
-  EXPECT_DOUBLE_EQ(5.02, inactive->presentation_time);
+  EXPECT_DOUBLE_EQ(-1.0, model->initial_presentation_delay);
+  EXPECT_DOUBLE_EQ(0.02, inactive->presentation_time);
 }
 
 TEST(LevelDecoderModelTest, CapturedGenerationIsPrivateAndRecyclable) {
@@ -1952,7 +1968,7 @@ TEST(LevelDecoderModelTest, OperatingPointFinishIsIdempotent) {
   EXPECT_EQ(2000.0L, model->max_display_rate);
 }
 
-TEST(LevelDecoderModelTest, FinishRebasesEveryPlayerOwnedBuffer) {
+TEST(LevelDecoderModelTest, FinishRebasesOnlyActivePlayerOwnedBuffers) {
   std::unique_ptr<AV2_COMP> cpi(new AV2_COMP());
   AV2LevelInfo level_info = {};
   cpi->level_params.keep_level_stats = 1;
@@ -1981,7 +1997,7 @@ TEST(LevelDecoderModelTest, FinishRebasesEveryPlayerOwnedBuffer) {
   EXPECT_DOUBLE_EQ(5.0, model->initial_presentation_delay);
   EXPECT_DOUBLE_EQ(5.04, model->presentation_time);
   EXPECT_DOUBLE_EQ(5.02, active->presentation_time);
-  EXPECT_DOUBLE_EQ(5.04, inactive->presentation_time);
+  EXPECT_DOUBLE_EQ(0.04, inactive->presentation_time);
 }
 
 TEST(LevelDecoderModelTest, FinishPreservesKnownInitialDelay) {

@@ -23,12 +23,33 @@ extern "C" {
 #include "av2/common/timing.h"
 }
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
+#include "test/decoder_model_lifecycle.h"
 
 namespace {
+
+using Av2DmBufferPool = libavm_test::ScopedDmBufferPool;
+using Av2DmLevelLimits = libavm_test::ScopedDmLevelLimits;
+using Av2DmState = libavm_test::ScopedDmState;
 
 Av2DmUnsignedWide MakeWide(uint64_t limb3, uint64_t limb2, uint64_t limb1,
                            uint64_t limb0) {
   return { { limb0, limb1, limb2, limb3 } };
+}
+
+bool MakeDynamicRational(Av2DmRational *value) {
+  static const uint64_t primes[] = {
+    UINT64_C(4294967291), UINT64_C(4294967279), UINT64_C(4294967231),
+    UINT64_C(4294967197), UINT64_C(4294967189), UINT64_C(4294967161),
+    UINT64_C(4294967143), UINT64_C(4294967111), UINT64_C(4294967087),
+  };
+  Av2DmRational term{};
+  bool made = av2_dm_rational_make(0, 1, value);
+  for (uint64_t prime : primes) {
+    made = made && av2_dm_rational_make(1, prime, &term) &&
+           av2_dm_rational_add(value, &term, value);
+  }
+  av2_dm_rational_destroy(&term);
+  return made;
 }
 
 void ExpectRational(const Av2DmRational &value, uint64_t limb3, uint64_t limb2,
@@ -46,7 +67,7 @@ void ExpectRational(const Av2DmRational &value, uint64_t limb3, uint64_t limb2,
 }
 
 TEST(DecoderModelRationalTest, RejectsZeroDenominatorAndCanonicalizesZero) {
-  Av2DmRational value;
+  Av2DmRational value{};
   EXPECT_FALSE(av2_dm_rational_make(1, 0, &value));
   ASSERT_TRUE(
       av2_dm_rational_make_wide(MakeWide(0, 0, 0, 0), 123, true, &value));
@@ -54,7 +75,7 @@ TEST(DecoderModelRationalTest, RejectsZeroDenominatorAndCanonicalizesZero) {
 }
 
 TEST(DecoderModelRationalTest, ReducesGoldenVectors) {
-  Av2DmRational value;
+  Av2DmRational value{};
   ASSERT_TRUE(av2_dm_rational_make(1667000, 1000000, &value));
   ExpectRational(value, 0, 0, 0, 1667, 1000);
 
@@ -64,9 +85,9 @@ TEST(DecoderModelRationalTest, ReducesGoldenVectors) {
 }
 
 TEST(DecoderModelRationalTest, AddsAndSubtractsExactly) {
-  Av2DmRational one_third;
-  Av2DmRational one_sixth;
-  Av2DmRational result;
+  Av2DmRational one_third{};
+  Av2DmRational one_sixth{};
+  Av2DmRational result{};
   ASSERT_TRUE(av2_dm_rational_make(1, 3, &one_third));
   ASSERT_TRUE(av2_dm_rational_make(1, 6, &one_sixth));
   ASSERT_TRUE(av2_dm_rational_add(&one_third, &one_sixth, &result));
@@ -78,8 +99,8 @@ TEST(DecoderModelRationalTest, AddsAndSubtractsExactly) {
 }
 
 TEST(DecoderModelRationalTest, MultipliesAndDividesWithCrossCancellation) {
-  Av2DmRational value;
-  Av2DmRational result;
+  Av2DmRational value{};
+  Av2DmRational result{};
   ASSERT_TRUE(av2_dm_rational_make(UINT64_MAX, UINT64_MAX - 1, &value));
   ASSERT_TRUE(av2_dm_rational_multiply_u64(&value, UINT64_MAX - 1, &result));
   ExpectRational(result, 0, 0, 0, UINT64_MAX, 1);
@@ -94,9 +115,9 @@ TEST(DecoderModelRationalTest, MultipliesAndDividesWithCrossCancellation) {
 }
 
 TEST(DecoderModelRationalTest, RetainsDenominatorsWiderThan64Bits) {
-  Av2DmRational left;
-  Av2DmRational right;
-  Av2DmRational result;
+  Av2DmRational left{};
+  Av2DmRational right{};
+  Av2DmRational result{};
   ASSERT_TRUE(av2_dm_rational_make(1, UINT64_MAX, &left));
   ASSERT_TRUE(av2_dm_rational_make(1, UINT64_MAX - 1, &right));
   // Golden result generated with Python fractions.Fraction:
@@ -122,9 +143,9 @@ TEST(DecoderModelRationalTest, ComparesMaximumWideValuesAtExactBoundary) {
       MakeWide(UINT64_MAX, UINT64_MAX, UINT64_MAX, UINT64_MAX);
   const Av2DmUnsignedWide one_less =
       MakeWide(UINT64_MAX, UINT64_MAX, UINT64_MAX, UINT64_MAX - 1);
-  Av2DmRational left;
-  Av2DmRational equal;
-  Av2DmRational lower;
+  Av2DmRational left{};
+  Av2DmRational equal{};
+  Av2DmRational lower{};
   ASSERT_TRUE(av2_dm_rational_make_wide(maximum, UINT64_MAX, false, &left));
   ASSERT_TRUE(av2_dm_rational_make_wide(maximum, UINT64_MAX, false, &equal));
   ASSERT_TRUE(av2_dm_rational_make_wide(one_less, UINT64_MAX, false, &lower));
@@ -137,30 +158,38 @@ TEST(DecoderModelRationalTest, ComparesMaximumWideValuesAtExactBoundary) {
   EXPECT_EQ(comparison, 1);
 }
 
-TEST(DecoderModelRationalTest, DetectsMagnitudeAndDenominatorOverflow) {
-  Av2DmRational maximum;
-  Av2DmRational one;
-  Av2DmRational result;
-  ASSERT_TRUE(av2_dm_rational_make_wide(
-      MakeWide(UINT64_MAX, UINT64_MAX, UINT64_MAX, UINT64_MAX), 1, false,
-      &maximum));
-  ASSERT_TRUE(av2_dm_rational_make(1, 1, &one));
-  EXPECT_FALSE(av2_dm_rational_add(&maximum, &one, &result));
-  EXPECT_FALSE(av2_dm_rational_multiply_u64(&maximum, 2, &result));
-
-  ASSERT_TRUE(av2_dm_rational_make(1, 1, &maximum));
-  maximum.denominator =
-      MakeWide(UINT64_MAX, UINT64_MAX, UINT64_MAX, UINT64_MAX);
-  EXPECT_FALSE(av2_dm_rational_divide_u64(&maximum, 2, &result));
+TEST(DecoderModelRationalTest, GrowsBeyondInlineWidthExactly) {
+  static const uint64_t primes[] = {
+    UINT64_C(4294967291), UINT64_C(4294967279), UINT64_C(4294967231),
+    UINT64_C(4294967197), UINT64_C(4294967189), UINT64_C(4294967161),
+    UINT64_C(4294967143), UINT64_C(4294967111), UINT64_C(4294967087),
+  };
+  Av2DmRational sum{};
+  Av2DmRational term{};
+  ASSERT_TRUE(av2_dm_rational_make(0, 1, &sum));
+  for (uint64_t prime : primes) {
+    ASSERT_TRUE(av2_dm_rational_make(1, prime, &term));
+    ASSERT_TRUE(av2_dm_rational_add(&sum, &term, &sum));
+  }
+  EXPECT_NE(sum.dynamic_limbs, nullptr);
+  EXPECT_GT(sum.denominator_limb_count, 4u);
+  for (size_t i = sizeof(primes) / sizeof(primes[0]); i > 0; --i) {
+    ASSERT_TRUE(av2_dm_rational_make(1, primes[i - 1], &term));
+    ASSERT_TRUE(av2_dm_rational_subtract(&sum, &term, &sum));
+  }
+  EXPECT_TRUE(av2_dm_rational_is_zero(&sum));
+  av2_dm_rational_destroy(&sum);
+  av2_dm_rational_destroy(&term);
+  EXPECT_EQ(av2_dm_rational_allocation_count_for_testing(), 0u);
 }
 
 TEST(DecoderModelRationalTest, RebasesLongRunningTimelineExactly) {
-  Av2DmRational values[3];
-  Av2DmRational origin;
+  Av2DmRational values[3]{};
+  Av2DmRational origin{};
   const Av2DmUnsignedWide long_time = MakeWide(0, 0, UINT64_C(1) << 20, 12345);
   ASSERT_TRUE(av2_dm_rational_make_wide(long_time, 90000, false, &origin));
   values[0] = origin;
-  Av2DmRational increment;
+  Av2DmRational increment{};
   ASSERT_TRUE(av2_dm_rational_make(1, 60000, &increment));
   ASSERT_TRUE(av2_dm_rational_add(&origin, &increment, &values[1]));
   ASSERT_TRUE(av2_dm_rational_add(&values[1], &increment, &values[2]));
@@ -171,7 +200,7 @@ TEST(DecoderModelRationalTest, RebasesLongRunningTimelineExactly) {
 }
 
 TEST(DecoderModelRationalTest, RebaseCopiesAliasedOrigin) {
-  Av2DmRational values[2];
+  Av2DmRational values[2]{};
   ASSERT_TRUE(av2_dm_rational_make(10, 1, &values[0]));
   ASSERT_TRUE(av2_dm_rational_make(11, 1, &values[1]));
   ASSERT_TRUE(av2_dm_rational_rebase(values, 2, &values[0]));
@@ -180,22 +209,28 @@ TEST(DecoderModelRationalTest, RebaseCopiesAliasedOrigin) {
 }
 
 TEST(DecoderModelRationalTest, RebaseFailureIsAtomic) {
-  Av2DmRational values[2];
+  Av2DmRational values[2]{};
   ASSERT_TRUE(av2_dm_rational_make(1, 1, &values[0]));
   ASSERT_TRUE(av2_dm_rational_make_wide(
       MakeWide(UINT64_MAX, UINT64_MAX, UINT64_MAX, UINT64_MAX), 1, false,
       &values[1]));
-  Av2DmRational origin;
+  Av2DmRational origin{};
   ASSERT_TRUE(
       av2_dm_rational_make_wide(MakeWide(0, 0, 0, 1), 1, true, &origin));
   const Av2DmRational original_values[2] = { values[0], values[1] };
 
+  av2_dm_rational_set_allocation_failure_after_for_testing(0);
   EXPECT_FALSE(av2_dm_rational_rebase(values, 2, &origin));
+  av2_dm_rational_set_allocation_failure_after_for_testing(-1);
   EXPECT_EQ(memcmp(values, original_values, sizeof(values)), 0);
+  av2_dm_rational_destroy(&values[0]);
+  av2_dm_rational_destroy(&values[1]);
+  av2_dm_rational_destroy(&origin);
+  EXPECT_EQ(av2_dm_rational_allocation_count_for_testing(), 0u);
 }
 
 TEST(DecoderModelBufferPoolTest, InitializesEightAndSixteenReferencePools) {
-  Av2DmBufferPool pool;
+  Av2DmBufferPool pool{};
   ASSERT_TRUE(av2_dm_buffer_pool_initialize(&pool, 8));
   EXPECT_EQ(pool.pool_size, 10u);
   EXPECT_EQ(av2_dm_buffer_pool_get_free_buffer(&pool), 0);
@@ -219,7 +254,7 @@ TEST(DecoderModelBufferPoolTest, InitializesEightAndSixteenReferencePools) {
 }
 
 TEST(DecoderModelBufferPoolTest, ReferenceSlotsMaintainExactCounts) {
-  Av2DmBufferPool pool;
+  Av2DmBufferPool pool{};
   ASSERT_TRUE(av2_dm_buffer_pool_initialize(&pool, 8));
   ASSERT_TRUE(av2_dm_buffer_pool_set_vbi(&pool, 0, 3));
   ASSERT_TRUE(av2_dm_buffer_pool_set_vbi(&pool, 1, 3));
@@ -234,7 +269,7 @@ TEST(DecoderModelBufferPoolTest, ReferenceSlotsMaintainExactCounts) {
 }
 
 TEST(DecoderModelBufferPoolTest, DetectsFullPoolAndCountUnderflow) {
-  Av2DmBufferPool pool;
+  Av2DmBufferPool pool{};
   ASSERT_TRUE(av2_dm_buffer_pool_initialize(&pool, 16));
   for (uint32_t i = 0; i < pool.pool_size; ++i) {
     ASSERT_TRUE(av2_dm_buffer_pool_add_player_ref(&pool, i));
@@ -247,7 +282,7 @@ TEST(DecoderModelBufferPoolTest, DetectsFullPoolAndCountUnderflow) {
 }
 
 TEST(DecoderModelBufferPoolTest, RejectsInvalidIndicesWithoutMutation) {
-  Av2DmBufferPool pool;
+  Av2DmBufferPool pool{};
   ASSERT_TRUE(av2_dm_buffer_pool_initialize(&pool, 8));
   EXPECT_FALSE(av2_dm_buffer_pool_set_vbi(&pool, 8, 0));
   EXPECT_FALSE(av2_dm_buffer_pool_set_vbi(&pool, 0, 10));
@@ -256,9 +291,8 @@ TEST(DecoderModelBufferPoolTest, RejectsInvalidIndicesWithoutMutation) {
   EXPECT_EQ(av2_dm_buffer_pool_frames_in_use(&pool), 0u);
 }
 
-TEST(DecoderModelBufferPoolTest,
-     InactiveHistoricalBuffersRemainCountedAndReleasable) {
-  Av2DmBufferPool pool;
+TEST(DecoderModelBufferPoolTest, InactiveBackingEntriesRemainInert) {
+  Av2DmBufferPool pool{};
   ASSERT_TRUE(av2_dm_buffer_pool_initialize(&pool, 16));
   ASSERT_TRUE(av2_dm_buffer_pool_add_player_ref(&pool, 17));
   pool.buffers[17].generation_valid = true;
@@ -266,20 +300,109 @@ TEST(DecoderModelBufferPoolTest,
 
   pool.num_ref_frames = 8;
   pool.pool_size = 10;
-  EXPECT_EQ(av2_dm_buffer_pool_frames_in_use(&pool), 1u);
-  EXPECT_FALSE(av2_dm_buffer_pool_set_vbi(&pool, 15, 0));
-  EXPECT_TRUE(av2_dm_buffer_pool_set_vbi(&pool, 15, -1));
-  EXPECT_TRUE(av2_dm_buffer_pool_remove_player_ref(&pool, 17));
   EXPECT_EQ(av2_dm_buffer_pool_frames_in_use(&pool), 0u);
+  EXPECT_FALSE(av2_dm_buffer_pool_set_vbi(&pool, 15, 0));
+  EXPECT_FALSE(av2_dm_buffer_pool_set_vbi(&pool, 15, -1));
+  EXPECT_FALSE(av2_dm_buffer_pool_remove_player_ref(&pool, 17));
+  EXPECT_EQ(av2_dm_buffer_pool_frames_in_use(&pool), 0u);
+  ASSERT_TRUE(av2_dm_buffer_pool_initialize(&pool, 8));
   EXPECT_FALSE(pool.buffers[17].generation_valid);
 }
 
+struct OwnedViolation : Av2DmViolation {
+  OwnedViolation() { av2_dm_violation_init(this); }
+  explicit OwnedViolation(const Av2DmViolation *source) : OwnedViolation() {
+    EXPECT_TRUE(av2_dm_violation_copy(this, source));
+  }
+  OwnedViolation(const OwnedViolation &other) : OwnedViolation(&other) {}
+  OwnedViolation &operator=(const OwnedViolation &other) {
+    EXPECT_TRUE(av2_dm_violation_copy(this, &other));
+    return *this;
+  }
+  OwnedViolation(OwnedViolation &&other) noexcept
+      : Av2DmViolation(static_cast<const Av2DmViolation &>(other)) {
+    av2_dm_violation_init(&other);
+  }
+  OwnedViolation &operator=(OwnedViolation &&other) noexcept {
+    av2_dm_violation_destroy(this);
+    static_cast<Av2DmViolation &>(*this) =
+        static_cast<const Av2DmViolation &>(other);
+    av2_dm_violation_init(&other);
+    return *this;
+  }
+  ~OwnedViolation() { av2_dm_violation_destroy(this); }
+};
+
 struct ViolationCollector {
-  std::vector<Av2DmViolation> violations;
+  std::vector<OwnedViolation> violations;
 };
 
 void CollectViolation(void *opaque, const Av2DmViolation *violation) {
-  static_cast<ViolationCollector *>(opaque)->violations.push_back(*violation);
+  static_cast<ViolationCollector *>(opaque)->violations.emplace_back(violation);
+}
+
+void CountViolation(void *opaque, const Av2DmViolation *violation) {
+  (void)violation;
+  ++*static_cast<uint64_t *>(opaque);
+}
+
+TEST(DecoderModelOwnershipTest, DynamicViolationOutlivesCallbackTemporary) {
+  ASSERT_EQ(av2_dm_rational_allocation_count_for_testing(), 0u);
+  Av2DmViolation source{};
+  av2_dm_violation_init(&source);
+  source.code = AV2_DM_VIOLATION_MINIMUM_PRESENTATION_INTERVAL;
+  source.observed_present = true;
+  source.limit_present = true;
+  source.detail.kind = AV2_DM_VIOLATION_DETAIL_FRAME_INTERVAL;
+  ASSERT_TRUE(MakeDynamicRational(&source.observed));
+  ASSERT_TRUE(av2_dm_rational_copy(&source.limit, &source.observed));
+  ASSERT_TRUE(av2_dm_rational_copy(&source.detail.value.frame_interval,
+                                   &source.observed));
+  ViolationCollector collector;
+  CollectViolation(&collector, &source);
+  av2_dm_violation_destroy(&source);
+
+  ASSERT_EQ(collector.violations.size(), 1u);
+  const Av2DmViolation &saved = collector.violations[0];
+  EXPECT_NE(saved.observed.dynamic_limbs, nullptr);
+  EXPECT_NE(saved.limit.dynamic_limbs, nullptr);
+  EXPECT_NE(saved.detail.value.frame_interval.dynamic_limbs, nullptr);
+  int comparison;
+  ASSERT_TRUE(
+      av2_dm_rational_compare(&saved.observed, &saved.limit, &comparison));
+  EXPECT_EQ(comparison, 0);
+  collector.violations.clear();
+  EXPECT_EQ(av2_dm_rational_allocation_count_for_testing(), 0u);
+}
+
+TEST(DecoderModelOwnershipTest, ViolationCopyFailureIsAtomic) {
+  ASSERT_EQ(av2_dm_rational_allocation_count_for_testing(), 0u);
+  Av2DmViolation source{};
+  Av2DmViolation destination{};
+  Av2DmViolation original{};
+  av2_dm_violation_init(&source);
+  av2_dm_violation_init(&destination);
+  av2_dm_violation_init(&original);
+  source.observed_present = true;
+  ASSERT_TRUE(MakeDynamicRational(&source.observed));
+  destination.observed_present = true;
+  ASSERT_TRUE(av2_dm_rational_make(7, 11, &destination.observed));
+  ASSERT_TRUE(av2_dm_violation_copy(&original, &destination));
+  const uint64_t allocations_before =
+      av2_dm_rational_allocation_count_for_testing();
+
+  av2_dm_rational_set_allocation_failure_after_for_testing(0);
+  EXPECT_FALSE(av2_dm_violation_copy(&destination, &source));
+  av2_dm_rational_set_allocation_failure_after_for_testing(-1);
+  int comparison;
+  ASSERT_TRUE(av2_dm_rational_compare(&destination.observed, &original.observed,
+                                      &comparison));
+  EXPECT_EQ(comparison, 0);
+  EXPECT_EQ(av2_dm_rational_allocation_count_for_testing(), allocations_before);
+  av2_dm_violation_destroy(&source);
+  av2_dm_violation_destroy(&destination);
+  av2_dm_violation_destroy(&original);
+  EXPECT_EQ(av2_dm_rational_allocation_count_for_testing(), 0u);
 }
 
 bool HasViolation(const ViolationCollector &collector,
@@ -310,6 +433,77 @@ const Av2DmViolation *FindViolation(const ViolationCollector &collector,
 bool EqualRational(const Av2DmRational &left, const Av2DmRational &right) {
   int comparison;
   return av2_dm_rational_compare(&left, &right, &comparison) && comparison == 0;
+}
+
+void ExpectSameState(const Av2DmState &left, const Av2DmState &right) {
+  EXPECT_TRUE(EqualRational(left.time, right.time));
+  EXPECT_EQ(left.last_dfg_valid, right.last_dfg_valid);
+  EXPECT_TRUE(EqualRational(left.first_bit_arrival, right.first_bit_arrival));
+  EXPECT_TRUE(EqualRational(left.last_bit_arrival, right.last_bit_arrival));
+  EXPECT_TRUE(EqualRational(left.scheduled_removal, right.scheduled_removal));
+  EXPECT_TRUE(EqualRational(left.removal, right.removal));
+  EXPECT_TRUE(EqualRational(left.time_to_decode, right.time_to_decode));
+  EXPECT_TRUE(EqualRational(left.decode_completion, right.decode_completion));
+  EXPECT_EQ(left.last_presentation_valid, right.last_presentation_valid);
+  EXPECT_TRUE(EqualRational(left.last_presentation, right.last_presentation));
+  EXPECT_EQ(left.last_presentation_offset_valid,
+            right.last_presentation_offset_valid);
+  EXPECT_TRUE(EqualRational(left.last_presentation_offset,
+                            right.last_presentation_offset));
+  EXPECT_EQ(left.last_output_temporal_unit_valid,
+            right.last_output_temporal_unit_valid);
+  EXPECT_EQ(left.last_output_temporal_unit, right.last_output_temporal_unit);
+  EXPECT_EQ(left.last_temporal_unit_output_time_valid,
+            right.last_temporal_unit_output_time_valid);
+  EXPECT_TRUE(EqualRational(left.last_temporal_unit_output_time,
+                            right.last_temporal_unit_output_time));
+  EXPECT_EQ(left.last_temporal_unit_output_luma_samples,
+            right.last_temporal_unit_output_luma_samples);
+  EXPECT_EQ(left.last_temporal_unit_output_frames,
+            right.last_temporal_unit_output_frames);
+  EXPECT_EQ(left.initial_presentation_delay_known,
+            right.initial_presentation_delay_known);
+  EXPECT_TRUE(EqualRational(left.initial_presentation_delay,
+                            right.initial_presentation_delay));
+  EXPECT_EQ(left.current_buffer_index, right.current_buffer_index);
+  EXPECT_EQ(left.frame_number, right.frame_number);
+  EXPECT_EQ(left.dfg_number, right.dfg_number);
+  EXPECT_EQ(left.shown_frame_number, right.shown_frame_number);
+  EXPECT_EQ(left.buffer_pool.num_ref_frames, right.buffer_pool.num_ref_frames);
+  EXPECT_EQ(left.buffer_pool.pool_size, right.buffer_pool.pool_size);
+  EXPECT_EQ(left.buffer_pool.initialized, right.buffer_pool.initialized);
+  for (uint32_t i = 0; i < AV2_DM_MAX_REF_FRAMES; ++i) {
+    EXPECT_EQ(left.buffer_pool.vbi[i], right.buffer_pool.vbi[i]);
+  }
+  for (uint32_t i = 0; i < AV2_DM_MAX_BUFFER_POOL_SIZE; ++i) {
+    const Av2DmBuffer &left_buffer = left.buffer_pool.buffers[i];
+    const Av2DmBuffer &right_buffer = right.buffer_pool.buffers[i];
+    EXPECT_EQ(left_buffer.decoder_ref_count, right_buffer.decoder_ref_count);
+    EXPECT_EQ(left_buffer.player_ref_count, right_buffer.player_ref_count);
+    EXPECT_EQ(left_buffer.display_index, right_buffer.display_index);
+    EXPECT_EQ(left_buffer.presentation_time_valid,
+              right_buffer.presentation_time_valid);
+    EXPECT_TRUE(EqualRational(left_buffer.presentation_time,
+                              right_buffer.presentation_time));
+    EXPECT_EQ(left_buffer.generation_valid, right_buffer.generation_valid);
+    EXPECT_EQ(left_buffer.generation, right_buffer.generation);
+    EXPECT_EQ(left_buffer.decode_completion_time_valid,
+              right_buffer.decode_completion_time_valid);
+    EXPECT_TRUE(EqualRational(left_buffer.decode_completion_time,
+                              right_buffer.decode_completion_time));
+    EXPECT_EQ(left_buffer.decode_order, right_buffer.decode_order);
+    EXPECT_EQ(left_buffer.rap_epoch, right_buffer.rap_epoch);
+    EXPECT_EQ(left_buffer.random_access_point,
+              right_buffer.random_access_point);
+    EXPECT_EQ(left_buffer.coded_temporal_unit_index,
+              right_buffer.coded_temporal_unit_index);
+    EXPECT_EQ(left_buffer.coded_temporal_unit_valid,
+              right_buffer.coded_temporal_unit_valid);
+    EXPECT_EQ(left_buffer.equal_picture_interval,
+              right_buffer.equal_picture_interval);
+    EXPECT_EQ(left_buffer.ticks_per_picture, right_buffer.ticks_per_picture);
+    EXPECT_TRUE(EqualRational(left_buffer.disp_ct, right_buffer.disp_ct));
+  }
 }
 
 void ExpectSameViolationMultiset(const ViolationCollector &online,
@@ -358,6 +552,8 @@ Av2DmConfig MakeModelConfig(Av2DmMode mode) {
   config.num_ref_frames = 8;
   config.max_frame_width = 64;
   config.max_frame_height = 64;
+  config.chroma_format_idc = 1;
+  config.bit_depth = 8;
   config.explicit_num_ref_frames = false;
   config.timing_info_present = true;
   config.num_units_in_display_tick = 1;
@@ -434,7 +630,7 @@ Av2DmOutputEvent Output(uint64_t index, uint64_t generation, int map_index) {
 
 void ExpectEqualRational(const Av2DmRational &actual, uint64_t numerator,
                          uint64_t denominator) {
-  Av2DmRational expected;
+  Av2DmRational expected{};
   ASSERT_TRUE(av2_dm_rational_make(numerator, denominator, &expected));
   int comparison;
   ASSERT_TRUE(av2_dm_rational_compare(&actual, &expected, &comparison));
@@ -447,11 +643,11 @@ TEST(DecoderModelProcessTest, ResourceModeUsesDefaultInitialRemoval) {
   ASSERT_NE(model, nullptr);
   const Av2DmFrameEvent frame = MakeFrame(0, 10);
   av2_decoder_model_start_frame(model, &frame);
-  Av2DmState state;
+  Av2DmState state{};
   ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
   ExpectEqualRational(state.scheduled_removal, 7, 9);
   ExpectEqualRational(state.time_to_decode, 64 * 64, 1000000);
-  Av2DmRational expected_completion;
+  Av2DmRational expected_completion{};
   ASSERT_TRUE(av2_dm_rational_add(&state.scheduled_removal,
                                   &state.time_to_decode, &expected_completion));
   int comparison;
@@ -472,6 +668,44 @@ TEST(DecoderModelProcessTest, ResourceModeDoesNotRequireDecodingClock) {
   av2_decoder_model_destroy(model);
 }
 
+TEST(DecoderModelProcessTest,
+     ExpiredPresentationBufferDoesNotMoveResourceTimeBackwards) {
+  Av2DmConfig config = MakeModelConfig(AV2_DM_RESOURCE_AVAILABILITY_MODE);
+  config.initial_display_delay = 1;
+  config.ticks_per_picture = 1;
+  Av2DecoderModel *model = av2_decoder_model_create(&config, nullptr, nullptr);
+  ASSERT_NE(model, nullptr);
+
+  Av2DmFrameEvent first = MakeFrame(0, 1);
+  av2_decoder_model_start_frame(model, &first);
+  const Av2DmReferenceUpdateEvent refresh = Refresh(1, 1);
+  av2_decoder_model_update_reference_buffers(model, &refresh);
+  av2_decoder_model_set_initial_presentation_delay(model, false, 1);
+  Av2DmOutputEvent output = Output(2, 1, -1);
+  av2_decoder_model_output_frame(model, &output);
+
+  Av2DmFrameEvent second = MakeFrame(3, 2);
+  av2_decoder_model_start_frame(model, &second);
+  av2_decoder_model_update_reference_buffers(model, &refresh);
+  output = Output(4, 2, -1);
+  av2_decoder_model_output_frame(model, &output);
+  av2_decoder_model_invalidate_reference_buffers(model, 0, false);
+  Av2DmState before{};
+  ASSERT_TRUE(av2_decoder_model_get_state(model, &before));
+
+  Av2DmFrameEvent third = MakeFrame(5, 3);
+  av2_decoder_model_start_frame(model, &third);
+  Av2DmState after{};
+  ASSERT_TRUE(av2_decoder_model_get_state(model, &after));
+  int comparison;
+  ASSERT_TRUE(av2_dm_rational_compare(&after.scheduled_removal, &before.time,
+                                      &comparison));
+  EXPECT_EQ(comparison, 0);
+  ASSERT_TRUE(av2_dm_rational_compare(&after.time, &before.time, &comparison));
+  EXPECT_GT(comparison, 0);
+  av2_decoder_model_destroy(model);
+}
+
 TEST(DecoderModelProcessTest, ScheduleModeFallsBackToSequenceParameters) {
   Av2DmConfig config = MakeModelConfig(AV2_DM_DECODING_SCHEDULE_MODE);
   config.scope.whole_xlayer = false;
@@ -481,7 +715,7 @@ TEST(DecoderModelProcessTest, ScheduleModeFallsBackToSequenceParameters) {
   ASSERT_NE(model, nullptr);
   const Av2DmFrameEvent frame = MakeFrame(0, 1);
   av2_decoder_model_start_frame(model, &frame);
-  Av2DmState state;
+  Av2DmState state{};
   ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
   ExpectEqualRational(state.scheduled_removal, 1, 10);
   Av2DmResult result;
@@ -500,7 +734,7 @@ TEST(DecoderModelProcessTest, ExplicitOperatingPointParametersTakePrecedence) {
   ASSERT_NE(model, nullptr);
   const Av2DmFrameEvent frame = MakeFrame(0, 1);
   av2_decoder_model_start_frame(model, &frame);
-  Av2DmState state;
+  Av2DmState state{};
   ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
   ExpectEqualRational(state.scheduled_removal, 1, 5);
   av2_decoder_model_destroy(model);
@@ -534,7 +768,7 @@ TEST(DecoderModelProcessTest, LowDelayDefersWithoutUnderflowViolation) {
         HasViolation(collector, AV2_DM_VIOLATION_SMOOTHING_BUFFER_UNDERFLOW),
         !low_delay);
     if (low_delay) {
-      Av2DmState state;
+      Av2DmState state{};
       ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
       ExpectEqualRational(state.removal, 1, 5);
     }
@@ -550,7 +784,7 @@ TEST(DecoderModelProcessTest, OlkInvalidationMirrorsAllInvalidSlots) {
   av2_decoder_model_start_frame(model, &first);
   const Av2DmReferenceUpdateEvent refresh01 = Refresh(3, 3);
   av2_decoder_model_update_reference_buffers(model, &refresh01);
-  Av2DmState state;
+  Av2DmState state{};
   ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
   ASSERT_EQ(state.buffer_pool.vbi[0], state.buffer_pool.vbi[1]);
   const int old_buffer = state.buffer_pool.vbi[0];
@@ -567,27 +801,27 @@ TEST(DecoderModelProcessTest, OlkInvalidationMirrorsAllInvalidSlots) {
   av2_decoder_model_destroy(model);
 }
 
-TEST(DecoderModelProcessTest, ClkInvalidationClearsEveryPhysicalVbiSlot) {
+TEST(DecoderModelProcessTest, ClkInvalidationClearsActiveVbiSlots) {
   Av2DmConfig config = MakeModelConfig(AV2_DM_RESOURCE_AVAILABILITY_MODE);
-  config.num_ref_frames = 16;
+  config.num_ref_frames = 4;
   config.explicit_num_ref_frames = true;
   Av2DecoderModel *model = av2_decoder_model_create(&config, nullptr, nullptr);
   ASSERT_NE(model, nullptr);
   Av2DmFrameEvent frame = MakeFrame(0, 1);
   av2_decoder_model_start_frame(model, &frame);
   const Av2DmReferenceUpdateEvent aliases =
-      Refresh((1u << 0) | (1u << 15), (1u << 0) | (1u << 15));
+      Refresh((1u << 0) | (1u << 3), (1u << 0) | (1u << 3));
   av2_decoder_model_update_reference_buffers(model, &aliases);
-  Av2DmState state;
+  Av2DmState state{};
   ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
-  ASSERT_EQ(state.buffer_pool.vbi[0], state.buffer_pool.vbi[15]);
+  ASSERT_EQ(state.buffer_pool.vbi[0], state.buffer_pool.vbi[3]);
   const int32_t old_buffer = state.buffer_pool.vbi[0];
   ASSERT_GE(old_buffer, 0);
   ASSERT_EQ(state.buffer_pool.buffers[old_buffer].decoder_ref_count, 2u);
 
   av2_decoder_model_invalidate_reference_buffers(model, UINT32_MAX, true);
   ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
-  for (uint32_t i = 0; i < AV2_DM_MAX_REF_FRAMES; ++i) {
+  for (uint32_t i = 0; i < config.num_ref_frames; ++i) {
     EXPECT_EQ(state.buffer_pool.vbi[i], -1);
   }
   EXPECT_EQ(state.buffer_pool.buffers[old_buffer].decoder_ref_count, 0u);
@@ -606,7 +840,7 @@ TEST(DecoderModelProcessTest,
   av2_decoder_model_start_frame(model, &first);
   const Av2DmReferenceUpdateEvent refresh7 = Refresh(1u << 7, 1u << 7);
   av2_decoder_model_update_reference_buffers(model, &refresh7);
-  Av2DmState before;
+  Av2DmState before{};
   ASSERT_TRUE(av2_decoder_model_get_state(model, &before));
   const int32_t invalidated_buffer = before.buffer_pool.vbi[7];
   ASSERT_GE(invalidated_buffer, 0);
@@ -615,7 +849,7 @@ TEST(DecoderModelProcessTest,
   second.ref_valid_mask = 0;
   av2_decoder_model_start_frame(model, &second);
 
-  Av2DmState after;
+  Av2DmState after{};
   ASSERT_TRUE(av2_decoder_model_get_state(model, &after));
   EXPECT_EQ(after.buffer_pool.vbi[7], invalidated_buffer);
   EXPECT_EQ(after.buffer_pool.buffers[invalidated_buffer].decoder_ref_count,
@@ -636,7 +870,7 @@ TEST(DecoderModelProcessTest,
   config.ras_seeds[1] = { 3, 77 };
   Av2DecoderModel *model = av2_decoder_model_create(&config, nullptr, nullptr);
   ASSERT_NE(model, nullptr);
-  Av2DmState state;
+  Av2DmState state{};
   ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
   EXPECT_EQ(state.buffer_pool.vbi[0], state.buffer_pool.vbi[3]);
   EXPECT_EQ(av2_dm_buffer_pool_frames_in_use(&state.buffer_pool), 1u);
@@ -654,6 +888,44 @@ TEST(DecoderModelProcessTest,
   av2_decoder_model_destroy(model);
 }
 
+TEST(DecoderModelOwnershipTest, RasSeedInlineCopyDoesNotAllocate) {
+  Av2DmConfig config = MakeModelConfig(AV2_DM_RESOURCE_AVAILABILITY_MODE);
+  int64_t allocations_before_seed = -1;
+  for (int64_t failure_index = 0; failure_index < 1024; ++failure_index) {
+    av2_dm_rational_set_allocation_failure_after_for_testing(failure_index);
+    Av2DecoderModel *model =
+        av2_decoder_model_create(&config, nullptr, nullptr);
+    av2_dm_rational_set_allocation_failure_after_for_testing(-1);
+    if (model != nullptr) {
+      Av2DmResult result;
+      ASSERT_TRUE(av2_decoder_model_get_result(model, &result));
+      if (!result.allocation_failed) allocations_before_seed = failure_index;
+      av2_decoder_model_destroy(model);
+    }
+    if (allocations_before_seed >= 0) break;
+  }
+  ASSERT_GE(allocations_before_seed, 0);
+
+  config.ras_start = true;
+  config.ras_seed_complete = true;
+  config.ras_seed_count = 1;
+  config.ras_seeds[0] = { 0, 77 };
+  av2_dm_rational_set_allocation_failure_after_for_testing(
+      allocations_before_seed);
+  Av2DecoderModel *model = av2_decoder_model_create(&config, nullptr, nullptr);
+  av2_dm_rational_set_allocation_failure_after_for_testing(-1);
+  ASSERT_NE(model, nullptr);
+  Av2DmResult result;
+  ASSERT_TRUE(av2_decoder_model_get_result(model, &result));
+  EXPECT_FALSE(result.allocation_failed);
+  EXPECT_FALSE(result.arithmetic_failed);
+  EXPECT_FALSE(result.missing_required_input);
+  Av2DmState state{};
+  ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
+  EXPECT_EQ(av2_dm_buffer_pool_frames_in_use(&state.buffer_pool), 1u);
+  av2_decoder_model_destroy(model);
+}
+
 TEST(DecoderModelProcessTest, InitialDelayRebasesHistoricalPresentation) {
   Av2DmConfig config = MakeModelConfig(AV2_DM_RESOURCE_AVAILABILITY_MODE);
   ViolationCollector collector;
@@ -667,7 +939,7 @@ TEST(DecoderModelProcessTest, InitialDelayRebasesHistoricalPresentation) {
   av2_decoder_model_set_initial_presentation_delay(model, false, 0);
   Av2DmOutputEvent first_output = Output(0, 10, -1);
   av2_decoder_model_output_frame(model, &first_output);
-  Av2DmState state;
+  Av2DmState state{};
   ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
   EXPECT_FALSE(state.last_presentation_valid);
 
@@ -690,7 +962,7 @@ TEST(DecoderModelProcessTest, InitialDelayRebasesHistoricalPresentation) {
 }
 
 TEST(DecoderModelProcessTest,
-     EndOfBitstreamDelayRebasesBuffersOutsideReducedActivePool) {
+     IncompatibleBoundaryResolvesDelayBeforeStartingNewPool) {
   Av2DmConfig config = MakeModelConfig(AV2_DM_RESOURCE_AVAILABILITY_MODE);
   config.num_ref_frames = 16;
   config.explicit_num_ref_frames = true;
@@ -710,7 +982,7 @@ TEST(DecoderModelProcessTest,
     av2_decoder_model_output_frame(model, &output);
   }
 
-  Av2DmState state;
+  Av2DmState state{};
   ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
   ASSERT_FALSE(state.initial_presentation_delay_known);
   ASSERT_NE(state.buffer_pool.buffers[10].player_ref_count, 0u);
@@ -720,20 +992,21 @@ TEST(DecoderModelProcessTest,
   Av2DmConfig reduced = config;
   reduced.num_ref_frames = 8;
   ASSERT_TRUE(av2_decoder_model_update_parameters(model, &reduced, 20, true));
-  av2_decoder_model_set_initial_presentation_delay(model, true, 21);
   ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
   ASSERT_TRUE(state.initial_presentation_delay_known);
   EXPECT_EQ(state.buffer_pool.pool_size, 10u);
-  EXPECT_NE(state.buffer_pool.buffers[10].player_ref_count, 0u);
-  EXPECT_TRUE(state.buffer_pool.buffers[10].presentation_time_valid);
+  EXPECT_EQ(av2_dm_buffer_pool_frames_in_use(&state.buffer_pool), 0u);
+  EXPECT_TRUE(state.last_presentation_valid);
 
-  const Av2DmRational delay = state.initial_presentation_delay;
-  av2_decoder_model_set_initial_presentation_delay(model, true, 22);
+  Av2DmRational delay{};
+  ASSERT_TRUE(av2_dm_rational_copy(&delay, &state.initial_presentation_delay));
+  av2_decoder_model_set_initial_presentation_delay(model, true, 21);
   ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
   int comparison = 1;
   ASSERT_TRUE(av2_dm_rational_compare(&state.initial_presentation_delay, &delay,
                                       &comparison));
   EXPECT_EQ(comparison, 0);
+  av2_dm_rational_destroy(&delay);
   av2_decoder_model_destroy(model);
 }
 
@@ -758,7 +1031,7 @@ TEST(DecoderModelProcessTest,
   const Av2DmReferenceUpdateEvent first_refresh = Refresh(1, 1);
   av2_decoder_model_update_reference_buffers(model, &first_refresh);
   av2_decoder_model_set_initial_presentation_delay(model, false, 2);
-  Av2DmState state;
+  Av2DmState state{};
   ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
   ASSERT_FALSE(state.initial_presentation_delay_known);
 
@@ -856,7 +1129,7 @@ TEST(DecoderModelProcessTest, PeriodicRebasePreservesExactTimeline) {
   const Av2DmReferenceUpdateEvent refresh = Refresh(1, 1);
   av2_decoder_model_update_reference_buffers(model, &refresh);
   av2_decoder_model_set_initial_presentation_delay(model, false, 0);
-  Av2DmState state;
+  Av2DmState state{};
   ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
   ExpectEqualRational(state.time, 0, 1);
   ExpectEqualRational(state.decode_completion, 0, 1);
@@ -1212,7 +1485,7 @@ TEST(DecoderModelProcessTest,
     Av2DmOutputEvent output = Output(10 + i, generations[i], map_indices[i]);
     output.temporal_unit_index = owner_tus[i];
     av2_decoder_model_output_frame(model, &output);
-    Av2DmState state;
+    Av2DmState state{};
     ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
     ASSERT_TRUE(state.last_presentation_offset_valid);
     ExpectEqualRational(state.last_presentation_offset, i, 30);
@@ -1253,7 +1526,7 @@ TEST(DecoderModelProcessTest,
     Av2DmOutputEvent output = Output(10 + i, i + 1, i);
     output.temporal_unit_index = owner_tus[i];
     av2_decoder_model_output_frame(model, &output);
-    Av2DmState state;
+    Av2DmState state{};
     ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
     ExpectEqualRational(state.last_presentation_offset, i == 2 ? 1 : 0,
                         i == 2 ? 30 : 1);
@@ -1302,7 +1575,7 @@ TEST(DecoderModelProcessTest, VariableRatePresentationUsesRapBasesExactly) {
     output.presentation_time_present = true;
     output.presentation_time_ticks = presentation_ticks[i];
     av2_decoder_model_output_frame(model, &output);
-    Av2DmState state;
+    Av2DmState state{};
     ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
     ASSERT_TRUE(state.last_presentation_offset_valid);
     ExpectEqualRational(state.last_presentation_offset, expected_numerators[i],
@@ -1359,7 +1632,7 @@ TEST(DecoderModelProcessTest, ExplicitTemporalUnitOutputTimeIsPreserved) {
   output.temporal_unit_index = 0;
   av2_decoder_model_output_frame(model, &output);
 
-  Av2DmState state;
+  Av2DmState state{};
   ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
   ASSERT_TRUE(state.last_temporal_unit_output_time_valid);
   ExpectEqualRational(state.last_temporal_unit_output_time, 7, 3);
@@ -1394,7 +1667,7 @@ TEST(DecoderModelProcessTest, LongStreamRebasingPreservesDecisions) {
 }
 
 TEST(DecoderModelConformanceTest, AnnexALevelFactorsAreExact) {
-  Av2DmLevelLimits limits;
+  Av2DmLevelLimits limits{};
   ASSERT_TRUE(av2_dm_get_level_limits(4, 0, 3, &limits));
   ExpectEqualRational(limits.bit_rate, 20004000, 1);
   EXPECT_EQ(limits.picture_size_profile_factor, 20u);
@@ -1456,7 +1729,7 @@ TEST(DecoderModelConformanceTest, AnnexACompressedSizeObuMembershipIsExact) {
 }
 
 TEST(DecoderModelConformanceTest, AnnexAProfile5FactorsAreExact) {
-  Av2DmLevelLimits limits;
+  Av2DmLevelLimits limits{};
   ASSERT_TRUE(av2_dm_get_level_limits(4, 0, 5, &limits));
   ExpectEqualRational(limits.bit_rate, 36000000, 1);
   ExpectEqualRational(limits.buffer_size, 36000000, 1);
@@ -1587,7 +1860,7 @@ TEST(DecoderModelConformanceTest, AnnexATablesMatchSpecification) {
       EXPECT_EQ(av2_tile_area_scaling_factor[tier][level],
                 static_cast<int>(tile_area_scale[tier][level]));
       for (uint32_t profile = 0; profile <= 5; ++profile) {
-        Av2DmLevelLimits limits;
+        Av2DmLevelLimits limits{};
         if (kbps == 0 || cr == 0) {
           EXPECT_FALSE(av2_dm_get_level_limits(level, tier, profile, &limits));
           continue;
@@ -1620,7 +1893,7 @@ TEST(DecoderModelConformanceTest, AnnexATablesMatchSpecification) {
     }
   }
 
-  Av2DmLevelLimits limits;
+  Av2DmLevelLimits limits{};
   for (uint32_t level = 22; level <= 31; ++level) {
     EXPECT_FALSE(av2_dm_get_level_limits(level, 0, 0, &limits));
   }
@@ -1688,7 +1961,7 @@ TEST(DecoderModelConformanceTest, AnnexASubstreamTablesMatchSpecification) {
                 static_cast<int>(rows[group][scale].max_tile_columns));
       EXPECT_EQ(spec.max_header_rate_x, 132);
 
-      Av2DmLevelLimits limits;
+      Av2DmLevelLimits limits{};
       ASSERT_TRUE(av2_dm_get_level_limits(level, 0, 0, &limits));
       const bool integral_rates =
           (limits.max_display_rate * scale_denominator[scale]) %
@@ -1719,7 +1992,7 @@ TEST(DecoderModelConformanceTest, AnnexASubstreamTablesMatchSpecification) {
 }
 
 TEST(DecoderModelConformanceTest, MultistreamFactorsAreAppliedExactly) {
-  Av2DmLevelLimits limits;
+  Av2DmLevelLimits limits{};
   ASSERT_TRUE(av2_dm_get_level_limits(21, 0, 0, &limits));
   EXPECT_FALSE(av2_dm_apply_multistream_limits(3, 0, 0, 3, 2, &limits));
   ASSERT_TRUE(av2_dm_apply_multistream_limits(4, 0, 0, 3, 2, &limits));
@@ -2359,6 +2632,52 @@ TEST(DecoderModelConformanceTest,
   av2_decoder_model_destroy(model);
 }
 
+TEST(DecoderModelConformanceTest, HeaderRateWindowIsCvsLocal) {
+  Av2DmConfig config = MakeModelConfig(AV2_DM_RESOURCE_AVAILABILITY_MODE);
+  config.level_limits.max_header_rate = 2;
+  ViolationCollector collector;
+  Av2DecoderModel *model =
+      av2_decoder_model_create(&config, CollectViolation, &collector);
+  ASSERT_NE(model, nullptr);
+
+  Av2DmFrameEvent first = MakeFrame(0, 1);
+  first.coded_bits = 0;
+  first.temporal_unit_output_time_present = true;
+  ASSERT_TRUE(av2_dm_rational_make(0, 1, &first.temporal_unit_output_time));
+  av2_decoder_model_start_frame(model, &first);
+  Av2DmFrameEvent first_extra_header = MakeFrame(1, 1);
+  first_extra_header.temporal_unit_index = first.temporal_unit_index;
+  first_extra_header.show_existing_frame = true;
+  first_extra_header.random_access_point = false;
+  first_extra_header.coded_as_closed_loop_key = false;
+  av2_decoder_model_start_frame(model, &first_extra_header);
+
+  Av2DmConfig replacement = config;
+  replacement.tier = 1;
+  replacement.level_limits.max_header_rate = 1;
+  ASSERT_TRUE(
+      av2_decoder_model_update_parameters(model, &replacement, 2, true));
+  Av2DmFrameEvent boundary = MakeFrame(3, 2);
+  boundary.random_access_point = true;
+  boundary.coded_as_closed_loop_key = true;
+  boundary.frame_is_intra = true;
+  boundary.coded_bits = 0;
+  boundary.decoder_model_parameters_updated = true;
+  boundary.temporal_unit_output_time_present = true;
+  ASSERT_TRUE(av2_dm_rational_make(1, 2, &boundary.temporal_unit_output_time));
+  av2_decoder_model_start_frame(model, &boundary);
+  Av2DmFrameEvent second_extra_header = MakeFrame(4, 2);
+  second_extra_header.temporal_unit_index = boundary.temporal_unit_index;
+  second_extra_header.show_existing_frame = true;
+  second_extra_header.random_access_point = false;
+  second_extra_header.coded_as_closed_loop_key = false;
+  av2_decoder_model_start_frame(model, &second_extra_header);
+
+  EXPECT_FALSE(HasViolation(collector, AV2_DM_VIOLATION_MAX_HEADER_RATE));
+  EXPECT_FALSE(HasViolation(collector, AV2_DM_VIOLATION_TILE_SIZE_HEADER_RATE));
+  av2_decoder_model_destroy(model);
+}
+
 TEST(DecoderModelConformanceTest,
      GlobalMaximumTileRetainsEachAffectedHeaderWindow) {
   Av2DmConfig config = MakeModelConfig(AV2_DM_RESOURCE_AVAILABILITY_MODE);
@@ -2545,7 +2864,7 @@ TEST(DecoderModelConformanceTest,
   }
 }
 
-TEST(DecoderModelConformanceTest, TileHeaderRateUsesGlobalMaximumTile) {
+TEST(DecoderModelConformanceTest, TileHeaderRateUsesCvsMaximumTile) {
   for (const uint32_t header_count : { 1u, 2u, 3u }) {
     Av2DmConfig config = MakeModelConfig(AV2_DM_RESOURCE_AVAILABILITY_MODE);
     config.level_limits.max_header_rate = 100;
@@ -2565,6 +2884,8 @@ TEST(DecoderModelConformanceTest, TileHeaderRateUsesGlobalMaximumTile) {
     for (uint32_t i = 0; i < header_count; ++i) {
       Av2DmFrameEvent frame = MakeFrame(i, i + 1);
       frame.show_existing_frame = true;
+      frame.random_access_point = false;
+      frame.coded_as_closed_loop_key = false;
       frame.max_tile_area = 1;
       frame.temporal_unit_output_time_present = true;
       ASSERT_TRUE(av2_dm_rational_make(i, header_count == 1 ? 1 : 2,
@@ -2579,6 +2900,64 @@ TEST(DecoderModelConformanceTest, TileHeaderRateUsesGlobalMaximumTile) {
         header_count > 2 ? 1u : 0u);
     av2_decoder_model_destroy(model);
   }
+}
+
+TEST(DecoderModelConformanceTest, TileHeaderRateMaximumIsCvsLocal) {
+  const auto run_transition = [](uint64_t old_tile_area, uint32_t old_headers,
+                                 uint64_t new_tile_area, uint32_t new_headers) {
+    Av2DmConfig config = MakeModelConfig(AV2_DM_RESOURCE_AVAILABILITY_MODE);
+    config.level_limits.max_header_rate = 100;
+    config.level_limits.max_tile_size_header_rate_product = 50;
+    ViolationCollector collector;
+    Av2DecoderModel *model =
+        av2_decoder_model_create(&config, CollectViolation, &collector);
+    EXPECT_NE(model, nullptr);
+    if (model == nullptr) return SIZE_MAX;
+
+    Av2DmFrameEvent old_tile = MakeFrame(10, 1);
+    old_tile.temporal_unit_index = 0;
+    old_tile.count_frame_header = false;
+    old_tile.max_tile_area = old_tile_area;
+    av2_decoder_model_start_frame(model, &old_tile);
+    for (uint32_t i = 0; i < old_headers; ++i) {
+      Av2DmFrameEvent header = MakeFrame(11 + i, 10 + i);
+      header.temporal_unit_index = 1 + i;
+      header.show_existing_frame = true;
+      header.random_access_point = false;
+      header.coded_as_closed_loop_key = false;
+      header.temporal_unit_output_time_present = true;
+      EXPECT_TRUE(
+          av2_dm_rational_make(i, 2, &header.temporal_unit_output_time));
+      av2_decoder_model_start_frame(model, &header);
+    }
+
+    Av2DmFrameEvent new_tile = MakeFrame(20, 20);
+    new_tile.temporal_unit_index = 10;
+    new_tile.random_access_point = true;
+    new_tile.coded_as_closed_loop_key = true;
+    new_tile.count_frame_header = false;
+    new_tile.max_tile_area = new_tile_area;
+    av2_decoder_model_start_frame(model, &new_tile);
+    for (uint32_t i = 0; i < new_headers; ++i) {
+      Av2DmFrameEvent header = MakeFrame(21 + i, 30 + i);
+      header.temporal_unit_index = 11 + i;
+      header.show_existing_frame = true;
+      header.random_access_point = false;
+      header.coded_as_closed_loop_key = false;
+      header.temporal_unit_output_time_present = true;
+      EXPECT_TRUE(
+          av2_dm_rational_make(4 + i, 2, &header.temporal_unit_output_time));
+      av2_decoder_model_start_frame(model, &header);
+    }
+    av2_decoder_model_finish(model);
+    const size_t violations =
+        CountViolations(collector, AV2_DM_VIOLATION_TILE_SIZE_HEADER_RATE);
+    av2_decoder_model_destroy(model);
+    return violations;
+  };
+
+  EXPECT_EQ(run_transition(100, 0, 10, 2), 0u);
+  EXPECT_EQ(run_transition(10, 2, 100, 0), 0u);
 }
 
 TEST(DecoderModelConformanceTest, ReferenceFrameBoundaryIsExact) {
@@ -2630,6 +3009,114 @@ TEST(DecoderModelConformanceTest, DecodeCountCanReserveReferenceBuffer) {
   av2_decoder_model_finish(model);
   EXPECT_TRUE(HasViolation(collector, AV2_DM_VIOLATION_MAX_REFERENCE_FRAMES));
   EXPECT_EQ(collector.violations.size(), online_violations);
+  av2_decoder_model_destroy(model);
+}
+
+TEST(DecoderModelConformanceTest, DecodeCountReservationIsCvsLocal) {
+  Av2DmConfig config = MakeModelConfig(AV2_DM_RESOURCE_AVAILABILITY_MODE);
+  config.num_ref_frames = 7;
+  config.max_mlayer_id = 1;
+  config.level_limits.max_picture_size = 4096;
+  ViolationCollector collector;
+  Av2DecoderModel *model =
+      av2_decoder_model_create(&config, CollectViolation, &collector);
+  ASSERT_NE(model, nullptr);
+  Av2DmFrameEvent first = MakeFrame(0, 1);
+  first.allow_global_intrabc = true;
+  first.inloop_filtering_enabled = true;
+  av2_decoder_model_start_frame(model, &first);
+
+  Av2DmConfig replacement = config;
+  replacement.num_ref_frames = 8;
+  ASSERT_TRUE(
+      av2_decoder_model_update_parameters(model, &replacement, 1, true));
+  Av2DmFrameEvent boundary = MakeFrame(2, 2);
+  boundary.random_access_point = true;
+  boundary.coded_as_closed_loop_key = true;
+  boundary.frame_is_intra = true;
+  boundary.decoder_model_parameters_updated = true;
+  av2_decoder_model_start_frame(model, &boundary);
+  av2_decoder_model_finish(model);
+
+  EXPECT_EQ(CountViolations(collector, AV2_DM_VIOLATION_MAX_REFERENCE_FRAMES),
+            0u);
+  av2_decoder_model_destroy(model);
+}
+
+TEST(DecoderModelConformanceTest, DeferredDecodeCountReservationIsCvsLocal) {
+  Av2DmConfig config = MakeModelConfig(AV2_DM_RESOURCE_AVAILABILITY_MODE);
+  config.num_ref_frames = 7;
+  config.max_mlayer_id = 1;
+  config.level_limits.max_picture_size = 4096;
+  config.defer_nonterminal_checks_for_testing = true;
+  ViolationCollector collector;
+  Av2DecoderModel *model =
+      av2_decoder_model_create(&config, CollectViolation, &collector);
+  ASSERT_NE(model, nullptr);
+  Av2DmFrameEvent first = MakeFrame(0, 1);
+  first.allow_global_intrabc = true;
+  first.inloop_filtering_enabled = true;
+  av2_decoder_model_start_frame(model, &first);
+
+  Av2DmConfig replacement = config;
+  replacement.num_ref_frames = 8;
+  ASSERT_TRUE(
+      av2_decoder_model_update_parameters(model, &replacement, 1, true));
+  Av2DmFrameEvent boundary = MakeFrame(2, 2);
+  boundary.random_access_point = true;
+  boundary.coded_as_closed_loop_key = true;
+  boundary.frame_is_intra = true;
+  boundary.decoder_model_parameters_updated = true;
+  av2_decoder_model_start_frame(model, &boundary);
+  av2_decoder_model_finish(model);
+
+  EXPECT_EQ(CountViolations(collector, AV2_DM_VIOLATION_MAX_REFERENCE_FRAMES),
+            0u);
+  av2_decoder_model_destroy(model);
+}
+
+TEST(DecoderModelConformanceTest,
+     DeferredReferenceLimitIsFinalizedAndRecheckedPerCvs) {
+  Av2DmConfig config = MakeModelConfig(AV2_DM_RESOURCE_AVAILABILITY_MODE);
+  config.max_mlayer_id = 1;
+  config.level_limits.max_picture_size = 4096;
+  config.defer_nonterminal_checks_for_testing = true;
+  ViolationCollector collector;
+  Av2DecoderModel *model =
+      av2_decoder_model_create(&config, CollectViolation, &collector);
+  ASSERT_NE(model, nullptr);
+  Av2DmFrameEvent first = MakeFrame(0, 1);
+  first.allow_global_intrabc = true;
+  first.inloop_filtering_enabled = true;
+  av2_decoder_model_start_frame(model, &first);
+  EXPECT_EQ(CountViolations(collector, AV2_DM_VIOLATION_MAX_REFERENCE_FRAMES),
+            0u);
+
+  Av2DmConfig replacement = config;
+  replacement.level_limits.max_picture_size = 4352;
+  ASSERT_TRUE(
+      av2_decoder_model_update_parameters(model, &replacement, 1, true));
+  EXPECT_EQ(CountViolations(collector, AV2_DM_VIOLATION_MAX_REFERENCE_FRAMES),
+            1u);
+  Av2DmFrameEvent boundary = MakeFrame(2, 2);
+  boundary.random_access_point = true;
+  boundary.coded_as_closed_loop_key = true;
+  boundary.frame_is_intra = true;
+  boundary.frame_width = 16;
+  boundary.frame_height = 16;
+  boundary.decoder_model_parameters_updated = true;
+  av2_decoder_model_start_frame(model, &boundary);
+  EXPECT_EQ(CountViolations(collector, AV2_DM_VIOLATION_MAX_REFERENCE_FRAMES),
+            1u);
+
+  Av2DmFrameEvent second = MakeFrame(3, 3);
+  second.allow_global_intrabc = true;
+  second.inloop_filtering_enabled = true;
+  av2_decoder_model_start_frame(model, &second);
+  av2_decoder_model_finish(model);
+
+  EXPECT_EQ(CountViolations(collector, AV2_DM_VIOLATION_MAX_REFERENCE_FRAMES),
+            2u);
   av2_decoder_model_destroy(model);
 }
 
@@ -2690,6 +3177,71 @@ TEST(DecoderModelConformanceTest, ScheduleDelayZeroAndTooLargeAreReported) {
   av2_decoder_model_destroy(model);
 }
 
+TEST(DecoderModelConformanceTest,
+     ZeroScheduleDelayAtNewCvsIsNotArithmeticFailure) {
+  Av2DmConfig config = MakeModelConfig(AV2_DM_DECODING_SCHEDULE_MODE);
+  config.sequence_decoder_buffer_delay = 0;
+  ViolationCollector collector;
+  Av2DecoderModel *model =
+      av2_decoder_model_create(&config, CollectViolation, &collector);
+  ASSERT_NE(model, nullptr);
+  const Av2DmFrameEvent first = MakeFrame(0, 1);
+  av2_decoder_model_start_frame(model, &first);
+
+  ASSERT_TRUE(av2_decoder_model_update_parameters(model, &config, 1, true));
+  Av2DmFrameEvent boundary = MakeFrame(2, 2, 1);
+  boundary.random_access_point = true;
+  boundary.coded_as_closed_loop_key = true;
+  boundary.frame_is_intra = true;
+  boundary.decoder_model_parameters_updated = true;
+  av2_decoder_model_start_frame(model, &boundary);
+
+  EXPECT_TRUE(
+      HasViolation(collector, AV2_DM_VIOLATION_DECODER_BUFFER_DELAY_ZERO));
+  EXPECT_TRUE(HasViolation(collector,
+                           AV2_DM_VIOLATION_DECODER_BUFFER_DELAY_INCONSISTENT));
+  Av2DmResult result;
+  ASSERT_TRUE(av2_decoder_model_get_result(model, &result));
+  EXPECT_FALSE(result.allocation_failed);
+  EXPECT_FALSE(result.arithmetic_failed);
+  EXPECT_EQ(result.decoded_frames, 2u);
+  av2_decoder_model_destroy(model);
+}
+
+TEST(DecoderModelConformanceTest,
+     SameTemporalUnitClkUsesOrdinaryArrivalWithoutNewCvsChecks) {
+  Av2DmConfig config = MakeModelConfig(AV2_DM_DECODING_SCHEDULE_MODE);
+  config.sequence_decoder_buffer_delay = 0;
+  ViolationCollector collector;
+  Av2DecoderModel *model =
+      av2_decoder_model_create(&config, CollectViolation, &collector);
+  ASSERT_NE(model, nullptr);
+  Av2DmFrameEvent first = MakeFrame(0, 1);
+  first.coded_bits = 0;
+  av2_decoder_model_start_frame(model, &first);
+
+  Av2DmFrameEvent second = MakeFrame(2, 2, 27000);
+  second.temporal_unit_index = first.temporal_unit_index;
+  second.coded_bits = 0;
+  second.random_access_point = true;
+  second.coded_as_closed_loop_key = true;
+  second.frame_is_intra = true;
+  av2_decoder_model_start_frame(model, &second);
+
+  Av2DmState state{};
+  ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
+  ExpectEqualRational(state.first_bit_arrival, 1, 5);
+  EXPECT_EQ(
+      CountViolations(collector, AV2_DM_VIOLATION_DECODER_BUFFER_DELAY_ZERO),
+      1u);
+  Av2DmResult result;
+  ASSERT_TRUE(av2_decoder_model_get_result(model, &result));
+  EXPECT_FALSE(result.allocation_failed);
+  EXPECT_FALSE(result.arithmetic_failed);
+  EXPECT_EQ(result.decoded_frames, 2u);
+  av2_decoder_model_destroy(model);
+}
+
 TEST(DecoderModelConformanceTest, DecoderBufferDelayMaximumIsExact) {
   for (const uint32_t decoder_delay : { 8999u, 9000u, 9001u }) {
     Av2DmConfig config = MakeModelConfig(AV2_DM_DECODING_SCHEDULE_MODE);
@@ -2740,7 +3292,7 @@ TEST(DecoderModelConformanceTest, SmoothingOverflowIsCheckedExactly) {
 }
 
 TEST(DecoderModelConformanceTest,
-     SmoothingOverflowRetainsEachAffectedDfgAtProvingEvent) {
+     SmoothingOverflowUsesReachedBreakpointAtProvingEvent) {
   Av2DmConfig config = MakeModelConfig(AV2_DM_DECODING_SCHEDULE_MODE);
   ASSERT_TRUE(av2_dm_rational_make(1000000, 1, &config.level_limits.bit_rate));
   ASSERT_TRUE(av2_dm_rational_make(1500, 1, &config.level_limits.buffer_size));
@@ -2760,21 +3312,22 @@ TEST(DecoderModelConformanceTest,
   av2_decoder_model_start_frame(model, &second);
   ASSERT_EQ(
       CountViolations(collector, AV2_DM_VIOLATION_SMOOTHING_BUFFER_OVERFLOW),
-      2u);
+      1u);
   for (const Av2DmViolation &violation : collector.violations) {
     if (violation.code == AV2_DM_VIOLATION_SMOOTHING_BUFFER_OVERFLOW) {
       EXPECT_EQ(violation.event_index, 11u);
+      EXPECT_EQ(violation.affected_index, 11u);
     }
   }
   av2_decoder_model_finish(model);
   EXPECT_EQ(
       CountViolations(collector, AV2_DM_VIOLATION_SMOOTHING_BUFFER_OVERFLOW),
-      2u);
+      1u);
   av2_decoder_model_destroy(model);
 }
 
 TEST(DecoderModelConformanceTest,
-     ParameterUpdatePartitionsSmoothingButRetainsAdjacentDfgTiming) {
+     ParameterUpdateRetainsSmoothingAndAdjacentDfgTiming) {
   Av2DmConfig config = MakeModelConfig(AV2_DM_DECODING_SCHEDULE_MODE);
   config.sequence_low_delay_mode = true;
   ASSERT_TRUE(av2_dm_rational_make(1000, 1, &config.level_limits.bit_rate));
@@ -2794,7 +3347,7 @@ TEST(DecoderModelConformanceTest,
   ASSERT_TRUE(
       av2_dm_rational_make(2000, 1, &replacement.level_limits.bit_rate));
   ASSERT_TRUE(
-      av2_decoder_model_update_parameters(model, &replacement, 1, false));
+      av2_decoder_model_update_parameters(model, &replacement, 1, true));
   Av2DmFrameEvent updated = MakeFrame(1, 2);
   updated.coded_bits = 100;
   updated.random_access_point = true;
@@ -2806,12 +3359,382 @@ TEST(DecoderModelConformanceTest,
   EXPECT_EQ(CountViolations(collector,
                             AV2_DM_VIOLATION_DECODER_BUFFER_DELAY_INCONSISTENT),
             1u);
-  Av2DmState state;
+  Av2DmState state{};
   ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
-  ExpectEqualRational(state.first_bit_arrival, 0, 1);
-  ExpectEqualRational(state.last_bit_arrival, 1, 20);
+  ExpectEqualRational(state.first_bit_arrival, 1, 10);
+  ExpectEqualRational(state.last_bit_arrival, 3, 20);
   ASSERT_NE(state.buffer_pool.vbi[0], -1);
   EXPECT_EQ(state.buffer_pool.buffers[state.buffer_pool.vbi[0]].generation, 1u);
+  av2_decoder_model_destroy(model);
+}
+
+TEST(DecoderModelConformanceTest,
+     NewCvsUsesDecoderDelayThenBothDelaysForArrival) {
+  Av2DmConfig config = MakeModelConfig(AV2_DM_DECODING_SCHEDULE_MODE);
+  config.time_scale = 10;
+  config.num_units_in_decoding_tick = 1;
+  ASSERT_TRUE(av2_dm_rational_make(1000, 1, &config.level_limits.bit_rate));
+  Av2DecoderModel *model = av2_decoder_model_create(&config, nullptr, nullptr);
+  ASSERT_NE(model, nullptr);
+  Av2DmFrameEvent first = MakeFrame(0, 1);
+  first.coded_bits = 100;
+  av2_decoder_model_start_frame(model, &first);
+
+  Av2DmConfig replacement = config;
+  replacement.sequence_decoder_buffer_delay = 18000;
+  replacement.sequence_encoder_buffer_delay = 27000;
+  ASSERT_TRUE(
+      av2_dm_rational_make(2000, 1, &replacement.level_limits.bit_rate));
+  ASSERT_TRUE(
+      av2_decoder_model_update_parameters(model, &replacement, 1, true));
+  Av2DmFrameEvent boundary = MakeFrame(1, 2, 5);
+  boundary.random_access_point = true;
+  boundary.coded_as_closed_loop_key = true;
+  boundary.coded_bits = 100;
+  av2_decoder_model_start_frame(model, &boundary);
+  Av2DmState state{};
+  ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
+  ExpectEqualRational(state.scheduled_removal, 3, 5);
+  ExpectEqualRational(state.first_bit_arrival, 2, 5);
+  ExpectEqualRational(state.last_bit_arrival, 9, 20);
+
+  Av2DmFrameEvent next = MakeFrame(2, 3, 8);
+  next.coded_bits = 100;
+  av2_decoder_model_start_frame(model, &next);
+  ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
+  ExpectEqualRational(state.scheduled_removal, 7, 5);
+  ExpectEqualRational(state.first_bit_arrival, 9, 10);
+  ExpectEqualRational(state.last_bit_arrival, 19, 20);
+  av2_decoder_model_destroy(model);
+}
+
+TEST(DecoderModelConformanceTest,
+     LowDelayClockChangeRoundsFromScheduledRemovalAnchor) {
+  Av2DmConfig config = MakeModelConfig(AV2_DM_DECODING_SCHEDULE_MODE);
+  config.sequence_decoder_buffer_delay = 4500;
+  ASSERT_TRUE(av2_dm_rational_make(1000, 1, &config.level_limits.bit_rate));
+  Av2DecoderModel *model = av2_decoder_model_create(&config, nullptr, nullptr);
+  ASSERT_NE(model, nullptr);
+  Av2DmFrameEvent first = MakeFrame(0, 1);
+  first.coded_bits = 0;
+  av2_decoder_model_start_frame(model, &first);
+
+  Av2DmConfig replacement = config;
+  replacement.time_scale = 10;
+  replacement.num_units_in_decoding_tick = 1;
+  replacement.sequence_decoder_buffer_delay = 9000;
+  replacement.sequence_low_delay_mode = true;
+  ASSERT_TRUE(
+      av2_decoder_model_update_parameters(model, &replacement, 1, true));
+  Av2DmFrameEvent boundary = MakeFrame(1, 2, 1);
+  boundary.random_access_point = true;
+  boundary.coded_as_closed_loop_key = true;
+  boundary.coded_bits = 210;
+  av2_decoder_model_start_frame(model, &boundary);
+  Av2DmState state{};
+  ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
+  ExpectEqualRational(state.scheduled_removal, 3, 20);
+  ExpectEqualRational(state.last_bit_arrival, 13, 50);
+  ExpectEqualRational(state.removal, 7, 20);
+  av2_decoder_model_destroy(model);
+}
+
+TEST(DecoderModelConformanceTest,
+     BufferSizeIncreaseAppliesBeforeNewCvsBitsArrive) {
+  Av2DmConfig config = MakeModelConfig(AV2_DM_DECODING_SCHEDULE_MODE);
+  config.time_scale = 10;
+  config.num_units_in_decoding_tick = 1;
+  config.sequence_low_delay_mode = true;
+  ASSERT_TRUE(av2_dm_rational_make(1000, 1, &config.level_limits.bit_rate));
+  ASSERT_TRUE(av2_dm_rational_make(100, 1, &config.level_limits.buffer_size));
+  ViolationCollector collector;
+  Av2DecoderModel *model =
+      av2_decoder_model_create(&config, CollectViolation, &collector);
+  ASSERT_NE(model, nullptr);
+  Av2DmFrameEvent first = MakeFrame(0, 1);
+  first.coded_bits = 100;
+  av2_decoder_model_start_frame(model, &first);
+
+  Av2DmConfig replacement = config;
+  ASSERT_TRUE(
+      av2_dm_rational_make(150, 1, &replacement.level_limits.buffer_size));
+  ASSERT_TRUE(
+      av2_decoder_model_update_parameters(model, &replacement, 1, true));
+  Av2DmFrameEvent boundary = MakeFrame(1, 2, 2);
+  boundary.random_access_point = true;
+  boundary.coded_as_closed_loop_key = true;
+  boundary.coded_bits = 150;
+  av2_decoder_model_start_frame(model, &boundary);
+  EXPECT_FALSE(
+      HasViolation(collector, AV2_DM_VIOLATION_SMOOTHING_BUFFER_OVERFLOW));
+  av2_decoder_model_destroy(model);
+}
+
+TEST(DecoderModelConformanceTest,
+     BufferSizeDecreaseAppliesImmediatelyAfterBoundaryRemoval) {
+  Av2DmConfig config = MakeModelConfig(AV2_DM_DECODING_SCHEDULE_MODE);
+  config.time_scale = 20;
+  config.num_units_in_decoding_tick = 1;
+  ASSERT_TRUE(av2_dm_rational_make(2000, 1, &config.level_limits.bit_rate));
+  ASSERT_TRUE(av2_dm_rational_make(150, 1, &config.level_limits.buffer_size));
+  ViolationCollector collector;
+  Av2DecoderModel *model =
+      av2_decoder_model_create(&config, CollectViolation, &collector);
+  ASSERT_NE(model, nullptr);
+  Av2DmFrameEvent first = MakeFrame(0, 1);
+  first.coded_bits = 0;
+  av2_decoder_model_start_frame(model, &first);
+
+  Av2DmConfig replacement = config;
+  ASSERT_TRUE(
+      av2_dm_rational_make(100, 1, &replacement.level_limits.buffer_size));
+  ASSERT_TRUE(
+      av2_decoder_model_update_parameters(model, &replacement, 1, true));
+  Av2DmFrameEvent boundary = MakeFrame(1, 2, 6);
+  boundary.random_access_point = true;
+  boundary.coded_as_closed_loop_key = true;
+  boundary.coded_bits = 0;
+  av2_decoder_model_start_frame(model, &boundary);
+  EXPECT_FALSE(
+      HasViolation(collector, AV2_DM_VIOLATION_SMOOTHING_BUFFER_OVERFLOW));
+
+  Av2DmFrameEvent next = MakeFrame(2, 3, 1);
+  next.coded_bits = 120;
+  av2_decoder_model_start_frame(model, &next);
+  av2_decoder_model_finish(model);
+  const Av2DmViolation *const violation =
+      FindViolation(collector, AV2_DM_VIOLATION_SMOOTHING_BUFFER_OVERFLOW);
+  ASSERT_NE(violation, nullptr);
+  EXPECT_EQ(violation->affected_index, boundary.event_index);
+  av2_decoder_model_destroy(model);
+}
+
+TEST(DecoderModelConformanceTest,
+     LaterBufferSizeIncreaseSupersedesPendingDecrease) {
+  Av2DmConfig config = MakeModelConfig(AV2_DM_DECODING_SCHEDULE_MODE);
+  config.sequence_low_delay_mode = true;
+  ASSERT_TRUE(av2_dm_rational_make(1000, 1, &config.level_limits.bit_rate));
+  ASSERT_TRUE(av2_dm_rational_make(150, 1, &config.level_limits.buffer_size));
+  ViolationCollector collector;
+  Av2DecoderModel *model =
+      av2_decoder_model_create(&config, CollectViolation, &collector);
+  ASSERT_NE(model, nullptr);
+  Av2DmFrameEvent first = MakeFrame(0, 1);
+  first.coded_bits = 0;
+  av2_decoder_model_start_frame(model, &first);
+
+  Av2DmConfig decreased = config;
+  ASSERT_TRUE(av2_dm_rational_make(50, 1, &decreased.level_limits.buffer_size));
+  ASSERT_TRUE(av2_decoder_model_update_parameters(model, &decreased, 1, true));
+  Av2DmFrameEvent decrease_boundary = MakeFrame(1, 2, 100);
+  decrease_boundary.random_access_point = true;
+  decrease_boundary.coded_as_closed_loop_key = true;
+  decrease_boundary.coded_bits = 0;
+  av2_decoder_model_start_frame(model, &decrease_boundary);
+  Av2DmState decrease_state{};
+  ASSERT_TRUE(av2_decoder_model_get_state(model, &decrease_state));
+  EXPECT_FALSE(
+      HasViolation(collector, AV2_DM_VIOLATION_SMOOTHING_BUFFER_OVERFLOW));
+
+  Av2DmConfig increased = decreased;
+  ASSERT_TRUE(
+      av2_dm_rational_make(200, 1, &increased.level_limits.buffer_size));
+  ASSERT_TRUE(av2_decoder_model_update_parameters(model, &increased, 2, true));
+  Av2DmFrameEvent increase_boundary = MakeFrame(2, 3, 100);
+  increase_boundary.random_access_point = true;
+  increase_boundary.coded_as_closed_loop_key = true;
+  increase_boundary.coded_bits = 80;
+  av2_decoder_model_start_frame(model, &increase_boundary);
+  Av2DmState increase_state{};
+  ASSERT_TRUE(av2_decoder_model_get_state(model, &increase_state));
+  int comparison;
+  ASSERT_TRUE(av2_dm_rational_compare(&increase_state.first_bit_arrival,
+                                      &decrease_state.removal, &comparison));
+  EXPECT_LT(comparison, 0);
+  EXPECT_FALSE(
+      HasViolation(collector, AV2_DM_VIOLATION_SMOOTHING_BUFFER_OVERFLOW));
+
+  Av2DmFrameEvent next = MakeFrame(3, 4, 200);
+  next.coded_bits = 150;
+  av2_decoder_model_start_frame(model, &next);
+  EXPECT_FALSE(
+      HasViolation(collector, AV2_DM_VIOLATION_SMOOTHING_BUFFER_OVERFLOW));
+  av2_decoder_model_destroy(model);
+}
+
+TEST(DecoderModelConformanceTest,
+     BufferSizeIncreaseAtNextArrivalDoesNotChangePriorLastArrival) {
+  Av2DmConfig config = MakeModelConfig(AV2_DM_DECODING_SCHEDULE_MODE);
+  config.sequence_low_delay_mode = true;
+  config.defer_nonterminal_checks_for_testing = true;
+  ASSERT_TRUE(av2_dm_rational_make(1000, 1, &config.level_limits.bit_rate));
+  ASSERT_TRUE(av2_dm_rational_make(100, 1, &config.level_limits.buffer_size));
+  ViolationCollector collector;
+  Av2DecoderModel *model =
+      av2_decoder_model_create(&config, CollectViolation, &collector);
+  ASSERT_NE(model, nullptr);
+  Av2DmFrameEvent first = MakeFrame(0, 1);
+  first.coded_bits = 150;
+  av2_decoder_model_start_frame(model, &first);
+  Av2DmState first_state{};
+  ASSERT_TRUE(av2_decoder_model_get_state(model, &first_state));
+
+  Av2DmConfig replacement = config;
+  ASSERT_TRUE(
+      av2_dm_rational_make(200, 1, &replacement.level_limits.buffer_size));
+  ASSERT_TRUE(
+      av2_decoder_model_update_parameters(model, &replacement, 1, true));
+  Av2DmFrameEvent boundary = MakeFrame(1, 2, 100);
+  boundary.random_access_point = true;
+  boundary.coded_as_closed_loop_key = true;
+  boundary.coded_bits = 0;
+  av2_decoder_model_start_frame(model, &boundary);
+  Av2DmState boundary_state{};
+  ASSERT_TRUE(av2_decoder_model_get_state(model, &boundary_state));
+  int comparison;
+  ASSERT_TRUE(av2_dm_rational_compare(&first_state.last_bit_arrival,
+                                      &boundary_state.first_bit_arrival,
+                                      &comparison));
+  EXPECT_EQ(comparison, 0);
+  av2_decoder_model_finish(model);
+
+  const Av2DmViolation *const violation =
+      FindViolation(collector, AV2_DM_VIOLATION_SMOOTHING_BUFFER_OVERFLOW);
+  ASSERT_NE(violation, nullptr);
+  EXPECT_EQ(violation->affected_index, first.event_index);
+  av2_decoder_model_destroy(model);
+}
+
+TEST(DecoderModelConformanceTest,
+     FirstResourceDfgOfNewCvsChecksDecoderDelayConsistency) {
+  Av2DmConfig config = MakeModelConfig(AV2_DM_RESOURCE_AVAILABILITY_MODE);
+  ViolationCollector collector;
+  Av2DecoderModel *model =
+      av2_decoder_model_create(&config, CollectViolation, &collector);
+  ASSERT_NE(model, nullptr);
+  Av2DmFrameEvent first = MakeFrame(0, 1);
+  first.coded_bits = 100000;
+  av2_decoder_model_start_frame(model, &first);
+
+  Av2DmConfig replacement = config;
+  replacement.time_scale += 1;
+  ASSERT_TRUE(
+      av2_decoder_model_update_parameters(model, &replacement, 1, true));
+  Av2DmFrameEvent boundary = MakeFrame(1, 2);
+  boundary.random_access_point = true;
+  boundary.coded_as_closed_loop_key = true;
+  av2_decoder_model_start_frame(model, &boundary);
+  EXPECT_TRUE(HasViolation(collector,
+                           AV2_DM_VIOLATION_DECODER_BUFFER_DELAY_INCONSISTENT));
+  av2_decoder_model_destroy(model);
+}
+
+TEST(DecoderModelConformanceTest,
+     MinimumDecodeUsesNextModeAndPreviousDfgLimits) {
+  for (const uint32_t new_time_scale : { 1000000u, 100000u }) {
+    Av2DmConfig config = MakeModelConfig(AV2_DM_RESOURCE_AVAILABILITY_MODE);
+    config.level_limits.max_decode_rate = 1000000000;
+    config.level_limits.max_header_rate = 1000000000;
+    ViolationCollector collector;
+    Av2DecoderModel *model =
+        av2_decoder_model_create(&config, CollectViolation, &collector);
+    ASSERT_NE(model, nullptr);
+    Av2DmFrameEvent first = MakeFrame(0, 1);
+    av2_decoder_model_start_frame(model, &first);
+
+    Av2DmConfig replacement = config;
+    replacement.mode = AV2_DM_DECODING_SCHEDULE_MODE;
+    replacement.time_scale = new_time_scale;
+    replacement.num_units_in_decoding_tick = 1;
+    replacement.level_limits.max_header_rate = 1;
+    ASSERT_TRUE(
+        av2_decoder_model_update_parameters(model, &replacement, 1, true));
+    Av2DmFrameEvent boundary = MakeFrame(1, 2, 1);
+    boundary.random_access_point = true;
+    boundary.coded_as_closed_loop_key = true;
+    av2_decoder_model_start_frame(model, &boundary);
+    EXPECT_EQ(HasViolation(collector, AV2_DM_VIOLATION_MINIMUM_DECODE_TIME),
+              new_time_scale == 1000000u);
+    av2_decoder_model_destroy(model);
+  }
+}
+
+TEST(DecoderModelConformanceTest,
+     OldOutputUsesOldDisplayClockAfterCompatibleBoundary) {
+  Av2DmConfig config = MakeModelConfig(AV2_DM_RESOURCE_AVAILABILITY_MODE);
+  config.initial_display_delay = 1;
+  config.time_scale = 100;
+  config.num_units_in_display_tick = 1;
+  config.ticks_per_picture = 10;
+  Av2DecoderModel *model = av2_decoder_model_create(&config, nullptr, nullptr);
+  ASSERT_NE(model, nullptr);
+  Av2DmFrameEvent first = MakeFrame(0, 1);
+  av2_decoder_model_start_frame(model, &first);
+  const Av2DmReferenceUpdateEvent refresh0 = Refresh(1, 1);
+  av2_decoder_model_update_reference_buffers(model, &refresh0);
+  av2_decoder_model_set_initial_presentation_delay(model, false, 1);
+  Av2DmOutputEvent output = Output(2, 1, -1);
+  av2_decoder_model_output_frame(model, &output);
+
+  Av2DmFrameEvent old_tail = MakeFrame(3, 2);
+  av2_decoder_model_start_frame(model, &old_tail);
+  const Av2DmReferenceUpdateEvent refresh1 = Refresh(2, 3);
+  av2_decoder_model_update_reference_buffers(model, &refresh1);
+  Av2DmConfig replacement = config;
+  replacement.time_scale = 10;
+  ASSERT_TRUE(
+      av2_decoder_model_update_parameters(model, &replacement, 4, true));
+  output = Output(5, 2, 1);
+  av2_decoder_model_output_frame(model, &output);
+  Av2DmState state{};
+  ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
+  ExpectEqualRational(state.last_presentation_offset, 1, 10);
+
+  Av2DmFrameEvent boundary = MakeFrame(6, 3);
+  boundary.random_access_point = true;
+  boundary.coded_as_closed_loop_key = true;
+  av2_decoder_model_start_frame(model, &boundary);
+  output = Output(7, 3, -1);
+  av2_decoder_model_output_frame(model, &output);
+  ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
+  ExpectEqualRational(state.last_presentation_offset, 11, 10);
+  av2_decoder_model_destroy(model);
+}
+
+TEST(DecoderModelConformanceTest,
+     CrossBoundaryPresentationIntervalUsesEarlierTuLimits) {
+  Av2DmConfig config = MakeModelConfig(AV2_DM_RESOURCE_AVAILABILITY_MODE);
+  config.initial_display_delay = 1;
+  config.time_scale = 1000;
+  config.num_units_in_display_tick = 1;
+  config.ticks_per_picture = 75;
+  config.level_limits.max_display_rate = 40960;
+  ViolationCollector collector;
+  Av2DecoderModel *model =
+      av2_decoder_model_create(&config, CollectViolation, &collector);
+  ASSERT_NE(model, nullptr);
+  Av2DmFrameEvent first = MakeFrame(0, 1);
+  av2_decoder_model_start_frame(model, &first);
+  const Av2DmReferenceUpdateEvent refresh = Refresh(1, 1);
+  av2_decoder_model_update_reference_buffers(model, &refresh);
+  av2_decoder_model_set_initial_presentation_delay(model, false, 1);
+  Av2DmOutputEvent output = Output(2, 1, -1);
+  av2_decoder_model_output_frame(model, &output);
+
+  Av2DmConfig replacement = config;
+  replacement.level_limits.max_display_rate = 81920;
+  ASSERT_TRUE(
+      av2_decoder_model_update_parameters(model, &replacement, 3, true));
+  Av2DmFrameEvent boundary = MakeFrame(4, 2);
+  boundary.random_access_point = true;
+  boundary.coded_as_closed_loop_key = true;
+  av2_decoder_model_start_frame(model, &boundary);
+  output = Output(5, 2, -1);
+  av2_decoder_model_output_frame(model, &output);
+  const Av2DmViolation *const violation =
+      FindViolation(collector, AV2_DM_VIOLATION_MINIMUM_PRESENTATION_INTERVAL);
+  ASSERT_NE(violation, nullptr);
+  EXPECT_EQ(violation->affected_index, 2u);
   av2_decoder_model_destroy(model);
 }
 
@@ -2831,26 +3754,65 @@ TEST(DecoderModelConformanceTest,
   av2_decoder_model_start_frame(model, &first);
   const Av2DmReferenceUpdateEvent refresh = Refresh(1, 1);
   av2_decoder_model_update_reference_buffers(model, &refresh);
+  Av2DmState before{};
+  ASSERT_TRUE(av2_decoder_model_get_state(model, &before));
 
   Av2DmConfig replacement = config;
   replacement.mode = AV2_DM_RESOURCE_AVAILABILITY_MODE;
   replacement.operating_point_parameters_present = false;
   ASSERT_TRUE(
-      av2_decoder_model_update_parameters(model, &replacement, 1, false));
+      av2_decoder_model_update_parameters(model, &replacement, 1, true));
   Av2DmFrameEvent updated = MakeFrame(1, 2);
   updated.random_access_point = true;
   updated.decoder_model_parameters_updated = true;
   av2_decoder_model_start_frame(model, &updated);
 
-  Av2DmState state;
+  Av2DmState state{};
   ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
   EXPECT_EQ(state.frame_number, 2u);
+  int comparison;
+  ASSERT_TRUE(av2_dm_rational_compare(&state.scheduled_removal, &before.time,
+                                      &comparison));
+  EXPECT_EQ(comparison, 0);
   ASSERT_NE(state.buffer_pool.vbi[0], -1);
   EXPECT_EQ(state.buffer_pool.buffers[state.buffer_pool.vbi[0]].generation, 1u);
   Av2DmResult result;
   ASSERT_TRUE(av2_decoder_model_get_result(model, &result));
   EXPECT_EQ(result.mode, AV2_DM_RESOURCE_AVAILABILITY_MODE);
   EXPECT_FALSE(result.missing_required_input);
+  av2_decoder_model_destroy(model);
+}
+
+TEST(DecoderModelConformanceTest,
+     ParameterUpdateToResourceModeWithNewDpbUsesPrimaryTime) {
+  Av2DmConfig config = MakeModelConfig(AV2_DM_DECODING_SCHEDULE_MODE);
+  config.sequence_low_delay_mode = true;
+  Av2DecoderModel *model = av2_decoder_model_create(&config, nullptr, nullptr);
+  ASSERT_NE(model, nullptr);
+
+  Av2DmFrameEvent first = MakeFrame(0, 1);
+  av2_decoder_model_start_frame(model, &first);
+  Av2DmState before{};
+  ASSERT_TRUE(av2_decoder_model_get_state(model, &before));
+
+  Av2DmConfig replacement = config;
+  replacement.mode = AV2_DM_RESOURCE_AVAILABILITY_MODE;
+  replacement.num_ref_frames = 16;
+  ASSERT_TRUE(
+      av2_decoder_model_update_parameters(model, &replacement, 1, true));
+  Av2DmFrameEvent updated = MakeFrame(1, 2);
+  updated.random_access_point = true;
+  updated.decoder_model_parameters_updated = true;
+  av2_decoder_model_start_frame(model, &updated);
+
+  Av2DmState state{};
+  ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
+  int comparison;
+  ASSERT_TRUE(av2_dm_rational_compare(&state.scheduled_removal, &before.time,
+                                      &comparison));
+  EXPECT_EQ(comparison, 0);
+  EXPECT_EQ(state.buffer_pool.num_ref_frames, 16u);
+  EXPECT_EQ(av2_dm_buffer_pool_frames_in_use(&state.buffer_pool), 0u);
   av2_decoder_model_destroy(model);
 }
 
@@ -2868,7 +3830,7 @@ TEST(DecoderModelConformanceTest,
   Av2DmConfig replacement = config;
   replacement.level_limits.max_decode_rate = 100000;
   ASSERT_TRUE(
-      av2_decoder_model_update_parameters(model, &replacement, 1, false));
+      av2_decoder_model_update_parameters(model, &replacement, 1, true));
 
   Av2DmFrameEvent updated = MakeFrame(1, 2, 900);
   updated.random_access_point = true;
@@ -2896,15 +3858,16 @@ TEST(DecoderModelConformanceTest,
   Av2DmConfig replacement = config;
   replacement.mode = AV2_DM_DECODING_SCHEDULE_MODE;
   ASSERT_TRUE(
-      av2_decoder_model_update_parameters(model, &replacement, 1, false));
+      av2_decoder_model_update_parameters(model, &replacement, 1, true));
   Av2DmFrameEvent updated = MakeFrame(1, 2, 9000);
   updated.random_access_point = true;
   updated.decoder_model_parameters_updated = true;
   av2_decoder_model_start_frame(model, &updated);
 
-  Av2DmState state;
+  Av2DmState state{};
   ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
   EXPECT_EQ(state.frame_number, 2u);
+  ExpectEqualRational(state.scheduled_removal, 79, 90);
   ASSERT_NE(state.buffer_pool.vbi[0], -1);
   EXPECT_EQ(state.buffer_pool.buffers[state.buffer_pool.vbi[0]].generation, 1u);
   Av2DmResult result;
@@ -2914,7 +3877,23 @@ TEST(DecoderModelConformanceTest,
   av2_decoder_model_destroy(model);
 }
 
-TEST(DecoderModelConformanceTest, ParameterUpdateRejectsImmutableClockChange) {
+TEST(DecoderModelConformanceTest, OperatingModeChangeRequiresClkBoundary) {
+  Av2DmConfig config = MakeModelConfig(AV2_DM_RESOURCE_AVAILABILITY_MODE);
+  Av2DmConfig replacement = config;
+  replacement.mode = AV2_DM_DECODING_SCHEDULE_MODE;
+  Av2DecoderModel *model = av2_decoder_model_create(&config, nullptr, nullptr);
+  ASSERT_NE(model, nullptr);
+
+  EXPECT_EQ(
+      av2_decoder_model_classify_parameter_update(model, &replacement, false),
+      AV2_DM_PARAMETER_UPDATE_INCOMPATIBLE_CONFIGURATION);
+  EXPECT_EQ(
+      av2_decoder_model_classify_parameter_update(model, &replacement, true),
+      AV2_DM_PARAMETER_UPDATE_ALLOWED);
+  av2_decoder_model_destroy(model);
+}
+
+TEST(DecoderModelConformanceTest, ParameterUpdateAppliesNewClockProspectively) {
   Av2DmConfig config = MakeModelConfig(AV2_DM_RESOURCE_AVAILABILITY_MODE);
   Av2DecoderModel *model = av2_decoder_model_create(&config, nullptr, nullptr);
   ASSERT_NE(model, nullptr);
@@ -2923,17 +3902,218 @@ TEST(DecoderModelConformanceTest, ParameterUpdateRejectsImmutableClockChange) {
 
   Av2DmConfig replacement = config;
   replacement.time_scale += 1;
-  EXPECT_FALSE(
-      av2_decoder_model_update_parameters(model, &replacement, 1, false));
+  EXPECT_TRUE(
+      av2_decoder_model_update_parameters(model, &replacement, 1, true));
+  Av2DmFrameEvent updated = MakeFrame(1, 2);
+  updated.random_access_point = true;
+  updated.coded_as_closed_loop_key = true;
+  av2_decoder_model_start_frame(model, &updated);
   Av2DmResult result;
   ASSERT_TRUE(av2_decoder_model_get_result(model, &result));
-  EXPECT_EQ(result.status, AV2_DM_RESULT_INDETERMINATE);
-  EXPECT_TRUE(result.missing_required_input);
+  EXPECT_NE(result.status, AV2_DM_RESULT_INDETERMINATE);
+  EXPECT_FALSE(result.missing_required_input);
   av2_decoder_model_destroy(model);
 }
 
-TEST(DecoderModelConformanceTest,
-     NumRefFramesUpdateRequiresCompletedClkInvalidation) {
+TEST(DecoderModelOwnershipTest,
+     DynamicStateSnapshotSurvivesModelAndFailedCopyIsAtomic) {
+  static const uint32_t time_scales[] = {
+    UINT32_C(4294967291), UINT32_C(4294967279), UINT32_C(4294967231),
+    UINT32_C(4294967197), UINT32_C(4294967189), UINT32_C(4294967161),
+    UINT32_C(4294967143), UINT32_C(4294967111), UINT32_C(4294967087),
+    UINT32_C(4294967029),
+  };
+  ASSERT_EQ(av2_dm_rational_allocation_count_for_testing(), 0u);
+  Av2DmConfig config = MakeModelConfig(AV2_DM_RESOURCE_AVAILABILITY_MODE);
+  config.initial_display_delay = 1;
+  config.num_units_in_display_tick = 1;
+  config.ticks_per_picture = 1;
+  config.time_scale = time_scales[0];
+  Av2DecoderModel *model = av2_decoder_model_create(&config, nullptr, nullptr);
+  ASSERT_NE(model, nullptr);
+  for (uint32_t i = 0; i < sizeof(time_scales) / sizeof(time_scales[0]); ++i) {
+    if (i != 0) {
+      Av2DmConfig replacement = config;
+      replacement.time_scale = time_scales[i];
+      ASSERT_TRUE(av2_decoder_model_update_parameters(model, &replacement,
+                                                      2 * i, true));
+      config.time_scale = time_scales[i];
+    }
+    Av2DmFrameEvent frame = MakeFrame(2 * i, i + 1);
+    frame.random_access_point = true;
+    frame.coded_as_closed_loop_key = true;
+    frame.decoder_model_parameters_updated = i != 0;
+    av2_decoder_model_start_frame(model, &frame);
+    if (i == 0) {
+      av2_decoder_model_set_initial_presentation_delay(model, false, 0);
+    }
+    Av2DmOutputEvent output = Output(2 * i + 1, i + 1, -1);
+    output.temporal_unit_index = i;
+    av2_decoder_model_output_frame(model, &output);
+  }
+
+  Av2DmResult result_before;
+  ASSERT_TRUE(av2_decoder_model_get_result(model, &result_before));
+  Av2DmState destination{};
+  destination.frame_number = 123;
+  ASSERT_TRUE(av2_dm_rational_make(7, 11, &destination.time));
+  av2_dm_rational_set_allocation_failure_after_for_testing(0);
+  EXPECT_FALSE(av2_decoder_model_get_state(model, &destination));
+  av2_dm_rational_set_allocation_failure_after_for_testing(-1);
+  EXPECT_EQ(destination.frame_number, 123u);
+  int comparison;
+  Av2DmRational sentinel{};
+  ASSERT_TRUE(av2_dm_rational_make(7, 11, &sentinel));
+  ASSERT_TRUE(
+      av2_dm_rational_compare(&destination.time, &sentinel, &comparison));
+  EXPECT_EQ(comparison, 0);
+  Av2DmResult result_after;
+  ASSERT_TRUE(av2_decoder_model_get_result(model, &result_after));
+  EXPECT_EQ(result_after.arithmetic_failed, result_before.arithmetic_failed);
+  EXPECT_EQ(result_after.violations, result_before.violations);
+
+  Av2DmState snapshot{};
+  ASSERT_TRUE(av2_decoder_model_get_state(model, &snapshot));
+  ASSERT_TRUE(snapshot.last_presentation_offset_valid);
+  ASSERT_NE(snapshot.last_presentation_offset.dynamic_limbs, nullptr);
+  Av2DmRational expected{};
+  ASSERT_TRUE(
+      av2_dm_rational_copy(&expected, &snapshot.last_presentation_offset));
+  av2_decoder_model_destroy(model);
+  ASSERT_TRUE(av2_dm_rational_compare(&snapshot.last_presentation_offset,
+                                      &expected, &comparison));
+  EXPECT_EQ(comparison, 0);
+  av2_dm_rational_destroy(&sentinel);
+  av2_dm_rational_destroy(&expected);
+  av2_dm_state_destroy(&destination);
+  av2_dm_state_destroy(&snapshot);
+  EXPECT_EQ(av2_dm_rational_allocation_count_for_testing(), 0u);
+}
+
+TEST(DecoderModelOwnershipTest,
+     AllocationFailureStopsModelWithoutInventingViolation) {
+  ASSERT_EQ(av2_dm_rational_allocation_count_for_testing(), 0u);
+  Av2DmConfig config = MakeModelConfig(AV2_DM_RESOURCE_AVAILABILITY_MODE);
+  ViolationCollector collector;
+  Av2DecoderModel *model =
+      av2_decoder_model_create(&config, CollectViolation, &collector);
+  ASSERT_NE(model, nullptr);
+  Av2DmFrameEvent first = MakeFrame(0, 1);
+  first.temporal_unit_output_time_present = true;
+  ASSERT_TRUE(MakeDynamicRational(&first.temporal_unit_output_time));
+  av2_decoder_model_start_frame(model, &first);
+  av2_dm_rational_destroy(&first.temporal_unit_output_time);
+  Av2DmFrameEvent frame = MakeFrame(1, 2);
+  frame.temporal_unit_index = 0;
+  frame.frame_width = config.level_limits.max_horizontal_size + 1;
+  av2_dm_rational_set_allocation_failure_after_for_testing(0);
+  av2_decoder_model_start_frame(model, &frame);
+  av2_dm_rational_set_allocation_failure_after_for_testing(-1);
+  Av2DmResult result;
+  ASSERT_TRUE(av2_decoder_model_get_result(model, &result));
+  EXPECT_TRUE(result.allocation_failed);
+  EXPECT_FALSE(result.arithmetic_failed);
+  EXPECT_EQ(result.violations, 0u);
+  EXPECT_TRUE(collector.violations.empty());
+  av2_decoder_model_destroy(model);
+  EXPECT_EQ(av2_dm_rational_allocation_count_for_testing(), 0u);
+}
+
+TEST(DecoderModelOwnershipTest,
+     RationalAllocationFailureRollsBackWholeEventAndDeferredReport) {
+  bool saw_failure = false;
+  bool reached_success = false;
+  for (int64_t failure_index = 0; failure_index < 2750; ++failure_index) {
+    Av2DmConfig config = MakeModelConfig(AV2_DM_RESOURCE_AVAILABILITY_MODE);
+    uint64_t callback_count = 0;
+    Av2DecoderModel *model =
+        av2_decoder_model_create(&config, CountViolation, &callback_count);
+    ASSERT_NE(model, nullptr);
+    Av2DmFrameEvent first = MakeFrame(0, 1);
+    first.temporal_unit_output_time_present = true;
+    ASSERT_TRUE(MakeDynamicRational(&first.temporal_unit_output_time));
+    av2_decoder_model_start_frame(model, &first);
+    av2_dm_rational_destroy(&first.temporal_unit_output_time);
+    Av2DmState before{};
+    ASSERT_TRUE(av2_decoder_model_get_state(model, &before));
+    Av2DmResult before_result;
+    ASSERT_TRUE(av2_decoder_model_get_result(model, &before_result));
+
+    Av2DmFrameEvent violating = MakeFrame(1, 2);
+    violating.temporal_unit_index = 0;
+    violating.frame_width = config.level_limits.max_horizontal_size + 1;
+    av2_dm_rational_set_allocation_failure_after_for_testing(failure_index);
+    av2_decoder_model_start_frame(model, &violating);
+    av2_dm_rational_set_allocation_failure_after_for_testing(-1);
+    Av2DmResult result;
+    ASSERT_TRUE(av2_decoder_model_get_result(model, &result));
+    if (result.allocation_failed) {
+      saw_failure = true;
+      Av2DmState after{};
+      ASSERT_TRUE(av2_decoder_model_get_state(model, &after));
+      ExpectSameState(before, after);
+      EXPECT_EQ(result.violations, before_result.violations);
+      EXPECT_EQ(callback_count, 0u);
+    } else {
+      EXPECT_FALSE(result.arithmetic_failed);
+      EXPECT_EQ(result.violations, before_result.violations + 1);
+      EXPECT_EQ(callback_count, 1u);
+      reached_success = true;
+      av2_decoder_model_destroy(model);
+      break;
+    }
+    av2_decoder_model_destroy(model);
+  }
+  EXPECT_TRUE(saw_failure);
+  EXPECT_TRUE(reached_success);
+}
+
+TEST(DecoderModelOwnershipTest,
+     InternalAllocationFailureRollsBackWholeEventAndDeferredReport) {
+  bool saw_failure = false;
+  bool reached_success = false;
+  for (int64_t failure_index = 0; failure_index < 7; ++failure_index) {
+    Av2DmConfig config = MakeModelConfig(AV2_DM_RESOURCE_AVAILABILITY_MODE);
+    uint64_t callback_count = 0;
+    Av2DecoderModel *model =
+        av2_decoder_model_create(&config, CountViolation, &callback_count);
+    ASSERT_NE(model, nullptr);
+    Av2DmFrameEvent first = MakeFrame(0, 1);
+    av2_decoder_model_start_frame(model, &first);
+    Av2DmState before{};
+    ASSERT_TRUE(av2_decoder_model_get_state(model, &before));
+    Av2DmResult before_result;
+    ASSERT_TRUE(av2_decoder_model_get_result(model, &before_result));
+
+    Av2DmFrameEvent violating = MakeFrame(1, 2);
+    violating.frame_width = config.level_limits.max_horizontal_size + 1;
+    av2_dm_set_internal_allocation_failure_after_for_testing(failure_index);
+    av2_decoder_model_start_frame(model, &violating);
+    av2_dm_set_internal_allocation_failure_after_for_testing(-1);
+    Av2DmResult result;
+    ASSERT_TRUE(av2_decoder_model_get_result(model, &result));
+    if (result.allocation_failed) {
+      saw_failure = true;
+      Av2DmState after{};
+      ASSERT_TRUE(av2_decoder_model_get_state(model, &after));
+      ExpectSameState(before, after);
+      EXPECT_EQ(result.violations, before_result.violations);
+      EXPECT_EQ(callback_count, 0u);
+    } else {
+      EXPECT_FALSE(result.arithmetic_failed);
+      EXPECT_EQ(result.violations, before_result.violations + 1);
+      EXPECT_EQ(callback_count, 1u);
+      reached_success = true;
+      av2_decoder_model_destroy(model);
+      break;
+    }
+    av2_decoder_model_destroy(model);
+  }
+  EXPECT_TRUE(saw_failure);
+  EXPECT_TRUE(reached_success);
+}
+
+TEST(DecoderModelConformanceTest, NumRefFramesUpdateStartsNewActivePoolAtClk) {
   const Av2DmConfig config = MakeModelConfig(AV2_DM_RESOURCE_AVAILABILITY_MODE);
   Av2DmConfig replacement = config;
   replacement.num_ref_frames = 16;
@@ -2942,7 +4122,7 @@ TEST(DecoderModelConformanceTest,
   ASSERT_NE(model, nullptr);
   EXPECT_FALSE(
       av2_decoder_model_update_parameters(model, &replacement, 1, false));
-  Av2DmState state;
+  Av2DmState state{};
   ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
   EXPECT_EQ(state.buffer_pool.num_ref_frames, 8u);
   EXPECT_EQ(state.buffer_pool.pool_size, 10u);
@@ -2954,22 +4134,12 @@ TEST(DecoderModelConformanceTest,
   av2_decoder_model_start_frame(model, &frame);
   const Av2DmReferenceUpdateEvent refresh = Refresh(1, 1);
   av2_decoder_model_update_reference_buffers(model, &refresh);
-  EXPECT_FALSE(
-      av2_decoder_model_update_parameters(model, &replacement, 1, true));
-  ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
-  EXPECT_EQ(state.buffer_pool.num_ref_frames, 8u);
-  EXPECT_EQ(state.buffer_pool.pool_size, 10u);
-  EXPECT_NE(state.buffer_pool.vbi[0], -1);
-  av2_decoder_model_destroy(model);
-
-  model = av2_decoder_model_create(&config, nullptr, nullptr);
-  ASSERT_NE(model, nullptr);
-  av2_decoder_model_invalidate_reference_buffers(model, UINT32_MAX, true);
-  ASSERT_TRUE(
+  EXPECT_TRUE(
       av2_decoder_model_update_parameters(model, &replacement, 1, true));
   ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
   EXPECT_EQ(state.buffer_pool.num_ref_frames, 16u);
   EXPECT_EQ(state.buffer_pool.pool_size, 18u);
+  EXPECT_EQ(av2_dm_buffer_pool_frames_in_use(&state.buffer_pool), 0u);
   for (uint32_t i = 0; i < AV2_DM_MAX_REF_FRAMES; ++i) {
     EXPECT_EQ(state.buffer_pool.vbi[i], -1);
   }
@@ -2977,79 +4147,85 @@ TEST(DecoderModelConformanceTest,
 }
 
 TEST(DecoderModelConformanceTest,
-     FixedBufferPoolSurvivesSixteenEightSixteenTransition) {
+     EachDpbConfigurationChangeStartsNewActivePool) {
+  const Av2DmConfig config = MakeModelConfig(AV2_DM_RESOURCE_AVAILABILITY_MODE);
+  std::vector<Av2DmConfig> replacements(5, config);
+  replacements[0].num_ref_frames = 9;
+  replacements[1].max_frame_width += 1;
+  replacements[2].max_frame_height += 1;
+  replacements[3].chroma_format_idc += 1;
+  replacements[4].bit_depth += 2;
+
+  for (const Av2DmConfig &replacement : replacements) {
+    Av2DecoderModel *model =
+        av2_decoder_model_create(&config, nullptr, nullptr);
+    ASSERT_NE(model, nullptr);
+    Av2DmFrameEvent frame = MakeFrame(0, 1);
+    av2_decoder_model_start_frame(model, &frame);
+    const Av2DmReferenceUpdateEvent refresh = Refresh(1, 1);
+    av2_decoder_model_update_reference_buffers(model, &refresh);
+    ASSERT_TRUE(
+        av2_decoder_model_update_parameters(model, &replacement, 1, true));
+    Av2DmState state{};
+    ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
+    EXPECT_EQ(state.buffer_pool.num_ref_frames, replacement.num_ref_frames);
+    EXPECT_EQ(av2_dm_buffer_pool_frames_in_use(&state.buffer_pool), 0u);
+    for (uint32_t i = 0; i < state.buffer_pool.num_ref_frames; ++i) {
+      EXPECT_EQ(state.buffer_pool.vbi[i], -1);
+    }
+    av2_decoder_model_destroy(model);
+  }
+}
+
+TEST(DecoderModelConformanceTest,
+     CompatibleConfigurationChangeRetainsActivePool) {
+  Av2DmConfig config = MakeModelConfig(AV2_DM_RESOURCE_AVAILABILITY_MODE);
+  Av2DecoderModel *model = av2_decoder_model_create(&config, nullptr, nullptr);
+  ASSERT_NE(model, nullptr);
+  Av2DmFrameEvent frame = MakeFrame(0, 1);
+  av2_decoder_model_start_frame(model, &frame);
+  const Av2DmReferenceUpdateEvent refresh = Refresh(1, 1);
+  av2_decoder_model_update_reference_buffers(model, &refresh);
+
+  Av2DmConfig replacement = config;
+  replacement.time_scale += 1;
+  ASSERT_TRUE(
+      av2_decoder_model_update_parameters(model, &replacement, 1, true));
+  Av2DmState state{};
+  ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
+  ASSERT_NE(state.buffer_pool.vbi[0], -1);
+  EXPECT_EQ(state.buffer_pool.buffers[state.buffer_pool.vbi[0]].generation, 1u);
+  av2_decoder_model_destroy(model);
+}
+
+TEST(DecoderModelConformanceTest,
+     NumRefFramesDecreaseAndIncreaseDoNotResurrectOldState) {
   Av2DmConfig config = MakeModelConfig(AV2_DM_RESOURCE_AVAILABILITY_MODE);
   config.num_ref_frames = 16;
   config.explicit_num_ref_frames = true;
-  config.initial_display_delay = AV2_DM_MAX_BUFFER_POOL_SIZE;
   Av2DecoderModel *model = av2_decoder_model_create(&config, nullptr, nullptr);
   ASSERT_NE(model, nullptr);
 
-  for (uint64_t i = 0; i < AV2_DM_MAX_BUFFER_POOL_SIZE; ++i) {
-    Av2DmFrameEvent frame = MakeFrame(i, i + 1);
-    av2_decoder_model_start_frame(model, &frame);
-    Av2DmOutputEvent output = Output(100 + i, i + 1, -1);
-    output.presentation_uses_current_frame = true;
-    output.presentation_random_access_point = i == 0;
-    av2_decoder_model_output_frame(model, &output);
-  }
-  Av2DmState state;
+  Av2DmFrameEvent frame = MakeFrame(0, 1);
+  av2_decoder_model_start_frame(model, &frame);
+  const Av2DmReferenceUpdateEvent refresh = Refresh(1u << 15, 1u << 15);
+  av2_decoder_model_update_reference_buffers(model, &refresh);
+  Av2DmState state{};
   ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
-  ASSERT_EQ(av2_dm_buffer_pool_frames_in_use(&state.buffer_pool),
-            static_cast<uint32_t>(AV2_DM_MAX_BUFFER_POOL_SIZE));
-  ASSERT_EQ(state.buffer_pool.buffers[17].player_ref_count, 1u);
-  ASSERT_FALSE(state.buffer_pool.buffers[17].presentation_time_valid);
-  const Av2DmRational high_presentation_offset =
-      state.buffer_pool.buffers[17].presentation_time;
+  ASSERT_NE(state.buffer_pool.vbi[15], -1);
 
-  av2_decoder_model_invalidate_reference_buffers(model, UINT32_MAX, true);
   Av2DmConfig reduced = config;
   reduced.num_ref_frames = 8;
-  ASSERT_TRUE(av2_decoder_model_update_parameters(model, &reduced, 200, true));
-  av2_decoder_model_set_initial_presentation_delay(model, false, 201);
+  ASSERT_TRUE(av2_decoder_model_update_parameters(model, &reduced, 1, true));
   ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
   EXPECT_EQ(state.buffer_pool.pool_size, 10u);
-  EXPECT_EQ(av2_dm_buffer_pool_frames_in_use(&state.buffer_pool),
-            static_cast<uint32_t>(AV2_DM_MAX_BUFFER_POOL_SIZE));
-  EXPECT_TRUE(state.initial_presentation_delay_known);
-  EXPECT_EQ(state.buffer_pool.buffers[17].player_ref_count, 1u);
-  EXPECT_TRUE(state.buffer_pool.buffers[17].presentation_time_valid);
-  Av2DmRational expected_high_presentation;
-  ASSERT_TRUE(av2_dm_rational_add(&high_presentation_offset,
-                                  &state.initial_presentation_delay,
-                                  &expected_high_presentation));
-  int high_presentation_comparison;
-  ASSERT_TRUE(av2_dm_rational_compare(
-      &state.buffer_pool.buffers[17].presentation_time,
-      &expected_high_presentation, &high_presentation_comparison));
-  EXPECT_EQ(high_presentation_comparison, 0);
-  Av2DmStorageStats storage;
-  ASSERT_TRUE(av2_decoder_model_get_storage_stats(model, &storage));
-  EXPECT_EQ(storage.active_generations,
-            static_cast<uint32_t>(AV2_DM_MAX_BUFFER_POOL_SIZE));
-  EXPECT_GE(storage.active_tus,
-            static_cast<uint32_t>(AV2_DM_MAX_BUFFER_POOL_SIZE));
+  EXPECT_EQ(av2_dm_buffer_pool_frames_in_use(&state.buffer_pool), 0u);
 
-  for (uint64_t i = 0; i < 160; ++i) {
-    Av2DmFrameEvent frame =
-        MakeFrame(AV2_DM_MAX_BUFFER_POOL_SIZE + i, 1000 + i);
-    frame.random_access_point = i == 0;
-    frame.coded_as_closed_loop_key = i == 0;
-    frame.decoder_model_parameters_updated = i == 0;
-    av2_decoder_model_start_frame(model, &frame);
-    ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
-    ASSERT_GE(state.current_buffer_index, 0);
-    EXPECT_LT(state.current_buffer_index, 10);
-  }
-  ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
-  EXPECT_EQ(state.buffer_pool.buffers[17].player_ref_count, 0u);
-  EXPECT_FALSE(state.buffer_pool.buffers[17].generation_valid);
-
-  av2_decoder_model_invalidate_reference_buffers(model, UINT32_MAX, true);
-  ASSERT_TRUE(av2_decoder_model_update_parameters(model, &config, 400, true));
+  ASSERT_TRUE(av2_decoder_model_update_parameters(model, &config, 2, true));
   ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
   EXPECT_EQ(state.buffer_pool.num_ref_frames, 16u);
   EXPECT_EQ(state.buffer_pool.pool_size, 18u);
+  EXPECT_EQ(av2_dm_buffer_pool_frames_in_use(&state.buffer_pool), 0u);
   for (uint32_t i = 0; i < AV2_DM_MAX_REF_FRAMES; ++i) {
     EXPECT_EQ(state.buffer_pool.vbi[i], -1);
   }
@@ -3058,15 +4234,15 @@ TEST(DecoderModelConformanceTest,
 
 TEST(DecoderModelConformanceTest, ReducedPoolDiagnosticsUseOnlyTheActiveRange) {
   Av2DmConfig config = MakeModelConfig(AV2_DM_DECODING_SCHEDULE_MODE);
-  config.num_ref_frames = 16;
+  config.num_ref_frames = 8;
   config.explicit_num_ref_frames = true;
-  config.initial_display_delay = AV2_DM_MAX_BUFFER_POOL_SIZE;
+  config.initial_display_delay = 10;
   ViolationCollector collector;
   Av2DecoderModel *model =
       av2_decoder_model_create(&config, CollectViolation, &collector);
   ASSERT_NE(model, nullptr);
 
-  for (uint64_t i = 0; i < AV2_DM_MAX_BUFFER_POOL_SIZE; ++i) {
+  for (uint64_t i = 0; i < 10; ++i) {
     Av2DmFrameEvent frame = MakeFrame(i, i + 1, (uint32_t)(i * 9000));
     av2_decoder_model_start_frame(model, &frame);
     Av2DmOutputEvent output = Output(100 + i, i + 1, -1);
@@ -3075,15 +4251,8 @@ TEST(DecoderModelConformanceTest, ReducedPoolDiagnosticsUseOnlyTheActiveRange) {
     av2_decoder_model_output_frame(model, &output);
   }
   av2_decoder_model_set_initial_presentation_delay(model, false, 200);
-  av2_decoder_model_invalidate_reference_buffers(model, UINT32_MAX, true);
-  Av2DmConfig reduced = config;
-  reduced.num_ref_frames = 8;
-  ASSERT_TRUE(av2_decoder_model_update_parameters(model, &reduced, 201, true));
 
   Av2DmFrameEvent blocked = MakeFrame(202, 1000, 0);
-  blocked.random_access_point = true;
-  blocked.coded_as_closed_loop_key = true;
-  blocked.decoder_model_parameters_updated = true;
   av2_decoder_model_start_frame(model, &blocked);
   const Av2DmViolation *const violation = FindViolation(
       collector, AV2_DM_VIOLATION_DECODE_FRAME_BUFFER_UNAVAILABLE);
@@ -3092,10 +4261,9 @@ TEST(DecoderModelConformanceTest, ReducedPoolDiagnosticsUseOnlyTheActiveRange) {
   EXPECT_EQ(violation->detail.value.buffer_pool.pool_size, 10u);
   EXPECT_EQ(violation->detail.value.buffer_pool.frames_in_use, 10u);
   EXPECT_EQ(violation->detail.value.buffer_pool.free_buffers, 0u);
-  Av2DmState state;
+  Av2DmState state{};
   ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
-  EXPECT_EQ(av2_dm_buffer_pool_frames_in_use(&state.buffer_pool),
-            static_cast<uint32_t>(AV2_DM_MAX_BUFFER_POOL_SIZE));
+  EXPECT_EQ(av2_dm_buffer_pool_frames_in_use(&state.buffer_pool), 10u);
   av2_decoder_model_destroy(model);
 }
 

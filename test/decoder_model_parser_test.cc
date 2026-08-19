@@ -22,8 +22,11 @@
 #include "av2/decoder/annexF.h"
 #include "av2/decoder/decoder.h"
 #include "av2/decoder/decoder_model.h"
+#include "test/decoder_model_lifecycle.h"
 
 namespace {
+
+using Av2DmVerifierStats = libavm_test::ScopedDmVerifierStats;
 
 class DecoderModelParserTest : public ::testing::Test {
  protected:
@@ -51,7 +54,7 @@ class DecoderModelParserTest : public ::testing::Test {
 };
 
 TEST_F(DecoderModelParserTest, LifecycleStartsWithAvailableEmptyState) {
-  Av2DmVerifierStats stats;
+  Av2DmVerifierStats stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
   EXPECT_TRUE(stats.available);
   EXPECT_FALSE(stats.failed);
@@ -223,7 +226,7 @@ TEST_F(DecoderModelParserTest, RasSeedsAreFilteredPerOperatingPoint) {
 
   bool found_excluding_op = false;
   bool found_including_op = false;
-  Av2DmVerifierStats verifier_stats;
+  Av2DmVerifierStats verifier_stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &verifier_stats));
   for (uint32_t i = 0; i < verifier_stats.contexts; ++i) {
     Av2DmContextStats context;
@@ -259,7 +262,7 @@ TEST_F(DecoderModelParserTest, GlobalOperatingPointCreatesPerXlayerContexts) {
   ops->op[0].mlayer_info.ops_tlayer_map[3][2] = 1 << 1;
   av2_decoder_model_verifier_on_operating_point_set(pbi_, GLOBAL_XLAYER_ID, 2);
 
-  Av2DmVerifierStats stats;
+  Av2DmVerifierStats stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
   ASSERT_EQ(stats.contexts, 2u);
   Av2DmContextStats first;
@@ -514,11 +517,11 @@ TEST_F(DecoderModelParserTest, StreamBoundaryRelinksIdenticalConfiguration) {
   AddWholeXlayerContext(0, 0);
   pbi_->common.seq_params = pbi_->seq_list[0][0];
   av2_decoder_model_verifier_on_active_configuration(pbi_, 0, 0);
-  Av2DmVerifierStats before;
+  Av2DmVerifierStats before = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &before));
   av2_decoder_model_verifier_on_stream_configuration_change(pbi_, false);
   av2_decoder_model_verifier_on_active_configuration(pbi_, 0, 0);
-  Av2DmVerifierStats after;
+  Av2DmVerifierStats after = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &after));
   EXPECT_EQ(after.event_count, before.event_count + 2);
   Av2DmContextStats context;
@@ -616,7 +619,7 @@ TEST_F(DecoderModelParserTest, FilteredRapDoesNotSuppressOtherXlayerRap) {
   av2_decoder_model_verifier_record_obu(pbi_, OBU_CLOSED_LOOP_KEY, 1, 0, 0, 40);
   av2_decoder_model_verifier_on_obu_filtered(pbi_);
   av2_decoder_model_verifier_record_obu(pbi_, OBU_CLOSED_LOOP_KEY, 2, 0, 0, 40);
-  Av2DmVerifierStats stats;
+  Av2DmVerifierStats stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
   EXPECT_EQ(stats.rap_starts, 2u);
 }
@@ -628,7 +631,7 @@ TEST_F(DecoderModelParserTest, FilteredRapDoesNotSuppressNextSourceRap) {
   av2_decoder_model_verifier_on_source_frame_unit_start(pbi_, 1, 0, 0);
   av2_decoder_model_verifier_record_obu(pbi_, OBU_CLOSED_LOOP_KEY, 1, 0, 0, 40);
   av2_decoder_model_verifier_record_obu(pbi_, OBU_CLOSED_LOOP_KEY, 1, 0, 0, 40);
-  Av2DmVerifierStats stats;
+  Av2DmVerifierStats stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
   EXPECT_EQ(stats.rap_starts, 2u);
 }
@@ -636,7 +639,7 @@ TEST_F(DecoderModelParserTest, FilteredRapDoesNotSuppressNextSourceRap) {
 TEST_F(DecoderModelParserTest, TemporalPointRetainsFullUlebValueAndPresence) {
   constexpr uint64_t kPresentationTime = 0xfedcba98u;
   av2_decoder_model_verifier_on_temporal_point(pbi_, kPresentationTime);
-  Av2DmVerifierStats stats;
+  Av2DmVerifierStats stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
   EXPECT_TRUE(stats.temporal_point_present);
   EXPECT_EQ(stats.temporal_point, kPresentationTime);
@@ -645,7 +648,7 @@ TEST_F(DecoderModelParserTest, TemporalPointRetainsFullUlebValueAndPresence) {
 
 TEST_F(DecoderModelParserTest, ConfigurationBoundaryIsImmutableEvent) {
   av2_decoder_model_verifier_on_stream_configuration_change(pbi_, false);
-  Av2DmVerifierStats stats;
+  Av2DmVerifierStats stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
   EXPECT_EQ(stats.event_count, 1u);
 }

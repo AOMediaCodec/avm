@@ -103,6 +103,10 @@ typedef struct Av2DmVerifierStats {
   uint32_t parameter_records;
 } Av2DmVerifierStats;
 
+void av2_decoder_model_verifier_stats_init(Av2DmVerifierStats *stats);
+// Stats passed to get_stats must first be initialized. Call destroy when done.
+void av2_decoder_model_verifier_stats_destroy(Av2DmVerifierStats *stats);
+
 typedef struct Av2DmContextStats {
   Av2DmScope scope;
   bool active;
@@ -135,6 +139,11 @@ typedef struct Av2DmRunStats {
   Av2DmResultStatus status;
   Av2DmIndeterminateReason reason;
 } Av2DmRunStats;
+
+void av2_decoder_model_run_stats_init(Av2DmRunStats *stats);
+// Stats passed to get_run_stats must first be initialized. Call destroy when
+// done.
+void av2_decoder_model_run_stats_destroy(Av2DmRunStats *stats);
 
 void av2_decoder_model_verifier_init(struct AV2Decoder *pbi);
 void av2_decoder_model_verifier_destroy(struct AV2Decoder *pbi);

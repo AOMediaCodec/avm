@@ -21,6 +21,7 @@
 #include "avm_dsp/bitwriter_buffer.h"
 #include "avm_dsp/bitreader_buffer.h"
 #include "avm_mem/avm_mem.h"
+#include "test/decoder_model_lifecycle.h"
 
 // av2_set_ops_params is declared in bitstream.h which pulls in encoder.h.
 // Forward-declare it here to avoid the ThreadData conflict.
@@ -28,6 +29,8 @@ extern "C" void av2_set_ops_params(struct OperatingPointSet *ops, int xlayer_id,
                                    int ops_id, int ops_cnt);
 
 namespace {
+
+using Av2DmVerifierStats = libavm_test::ScopedDmVerifierStats;
 
 static void rb_error_handler(void *data, avm_codec_err_t error,
                              const char *detail) {
@@ -102,7 +105,7 @@ TEST_F(OpsTest, LocalOpsRoundtrip) {
   EXPECT_EQ(dop->mlayer_info.ops_mlayer_map[xlayer_id], 0x3);
   EXPECT_EQ(dop->mlayer_info.OPMLayerCount[xlayer_id], 2);
 
-  Av2DmVerifierStats stats;
+  Av2DmVerifierStats stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
   EXPECT_EQ(stats.contexts, 1u);
   av2_decoder_model_verifier_destroy(pbi_);

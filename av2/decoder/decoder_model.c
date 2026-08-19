@@ -206,6 +206,10 @@ typedef struct Av2DmContextKey {
 
 typedef struct Av2DmLiveRun Av2DmLiveRun;
 
+static void update_live_run_parameters(Av2DecoderModelVerifier *verifier,
+                                       Av2DmLiveRun *run,
+                                       const Av2DmContextEvent *event);
+
 typedef struct Av2DmContext {
   Av2DmContextKey key;
   bool active;
@@ -395,11 +399,14 @@ static void destroy_context_runs(Av2DmContext *context);
 
 static void retire_xlayer_generations(Av2DecoderModelVerifier *verifier,
                                       const AV2Decoder *pbi, int xlayer_id) {
+  const int num_refs = pbi->common.seq_params.ref_frames < AV2_DM_MAX_REF_FRAMES
+                           ? pbi->common.seq_params.ref_frames
+                           : AV2_DM_MAX_REF_FRAMES;
   size_t write_index = 0;
   for (size_t i = 0; i < verifier->generation_count; ++i) {
     Av2DmGenerationRecord *const generation = &verifier->generations[i];
     bool referenced = generation->implicit_presentation_pending;
-    for (int ref = 0; !referenced && ref < AV2_DM_MAX_REF_FRAMES; ++ref) {
+    for (int ref = 0; !referenced && ref < num_refs; ++ref) {
       referenced = pbi->common.ref_frame_map[ref] == generation->buffer &&
                    pbi->valid_for_referencing[ref];
     }
@@ -552,11 +559,83 @@ static void initialize_context_event(const Av2DecoderModelVerifier *verifier,
                                      Av2DmContextEventType type,
                                      Av2DmContextEvent *event) {
   memset(event, 0, sizeof(*event));
+  av2_dm_level_limits_init(&event->config.level_limits);
+  av2_dm_rational_init(&event->frame.temporal_unit_output_time);
+  av2_dm_rational_init(&event->output.presentation_base_offset);
   event->type = type;
   event->event_index = verifier->event_count;
   event->source_frame_unit_index = verifier->source_frame_unit_index;
   event->parameter_generation = verifier->parameter_generation;
   event->stream_generation = verifier->stream_generation;
+}
+
+static void destroy_context_event(Av2DmContextEvent *event) {
+  if (event == NULL) return;
+  av2_dm_config_destroy(&event->config);
+  av2_dm_rational_destroy(&event->frame.temporal_unit_output_time);
+  av2_dm_rational_destroy(&event->output.presentation_base_offset);
+  memset(event, 0, sizeof(*event));
+}
+
+static bool copy_context_event(Av2DmContextEvent *destination,
+                               const Av2DmContextEvent *source) {
+  Av2DmContextEvent temporary = *source;
+  memset(&temporary.config.level_limits.bit_rate, 0,
+         sizeof(temporary.config.level_limits.bit_rate));
+  memset(&temporary.config.level_limits.buffer_size, 0,
+         sizeof(temporary.config.level_limits.buffer_size));
+  memset(&temporary.frame.temporal_unit_output_time, 0,
+         sizeof(temporary.frame.temporal_unit_output_time));
+  memset(&temporary.output.presentation_base_offset, 0,
+         sizeof(temporary.output.presentation_base_offset));
+  av2_dm_level_limits_init(&temporary.config.level_limits);
+  av2_dm_rational_init(&temporary.frame.temporal_unit_output_time);
+  av2_dm_rational_init(&temporary.output.presentation_base_offset);
+  if (!av2_dm_config_copy(&temporary.config, &source->config) ||
+      !av2_dm_rational_copy(&temporary.frame.temporal_unit_output_time,
+                            &source->frame.temporal_unit_output_time) ||
+      !av2_dm_rational_copy(&temporary.output.presentation_base_offset,
+                            &source->output.presentation_base_offset)) {
+    destroy_context_event(&temporary);
+    return false;
+  }
+  destroy_context_event(destination);
+  *destination = temporary;
+  return true;
+}
+
+static void clear_context_prefix_events(Av2DmContext *context) {
+  for (size_t i = 0; i < context->prefix_event_count; ++i) {
+    destroy_context_event(&context->prefix_events[i]);
+  }
+  context->prefix_event_count = 0;
+}
+
+static bool config_equal(const Av2DmConfig *left, const Av2DmConfig *right) {
+  if (left->level_limits_present != right->level_limits_present) return false;
+  if (left->level_limits_present) {
+    int comparison;
+    if (!av2_dm_rational_compare(&left->level_limits.bit_rate,
+                                 &right->level_limits.bit_rate, &comparison) ||
+        comparison != 0 ||
+        !av2_dm_rational_compare(&left->level_limits.buffer_size,
+                                 &right->level_limits.buffer_size,
+                                 &comparison) ||
+        comparison != 0) {
+      return false;
+    }
+  }
+  Av2DmConfig left_scalars = *left;
+  Av2DmConfig right_scalars = *right;
+  memset(&left_scalars.level_limits.bit_rate, 0,
+         sizeof(left_scalars.level_limits.bit_rate));
+  memset(&left_scalars.level_limits.buffer_size, 0,
+         sizeof(left_scalars.level_limits.buffer_size));
+  memset(&right_scalars.level_limits.bit_rate, 0,
+         sizeof(right_scalars.level_limits.bit_rate));
+  memset(&right_scalars.level_limits.buffer_size, 0,
+         sizeof(right_scalars.level_limits.buffer_size));
+  return memcmp(&left_scalars, &right_scalars, sizeof(left_scalars)) == 0;
 }
 
 static bool frame_obu_matches(const Av2DmPendingObu *obu,
@@ -620,6 +699,14 @@ static void mark_failed_with_code(Av2DecoderModelVerifier *verifier,
 
 static void mark_arithmetic_failed(Av2DecoderModelVerifier *verifier) {
   mark_failed_with_code(verifier, AV2_DM_VERIFIER_ERROR_ARITHMETIC);
+}
+
+static void mark_exact_operation_failed(Av2DecoderModelVerifier *verifier) {
+  if (av2_dm_last_failure_was_allocation()) {
+    mark_allocation_failed(verifier);
+  } else {
+    mark_arithmetic_failed(verifier);
+  }
 }
 
 static void mark_allocation_failed(Av2DecoderModelVerifier *verifier) {
@@ -763,6 +850,12 @@ static bool build_context_config(const Av2DecoderModelVerifier *verifier,
   config->explicit_num_ref_frames = true;
   config->max_frame_width = sequence->max_frame_width;
   config->max_frame_height = sequence->max_frame_height;
+  if (av2_get_chroma_format_idc(sequence->subsampling_x,
+                                sequence->subsampling_y, sequence->monochrome,
+                                &config->chroma_format_idc) != AVM_CODEC_OK) {
+    config->applicability = AV2_DM_MISSING_REQUIRED_INPUT;
+  }
+  config->bit_depth = sequence->bit_depth;
   config->max_mlayer_id = sequence->max_mlayer_id;
   config->still_picture = sequence->still_picture != 0;
   config->timing_info_present = ci->ci_timing_info_present_flag != 0;
@@ -855,6 +948,7 @@ static bool build_context_config(const Av2DecoderModelVerifier *verifier,
                                          snapshot->msdo.multistream_profile_idc,
                                          scale_numerator, scale_denominator,
                                          &config->level_limits)) {
+      if (av2_dm_last_failure_was_allocation()) return false;
       config->applicability = AV2_DM_MISSING_REQUIRED_INPUT;
     } else {
       config->level_limits_present = true;
@@ -1039,6 +1133,10 @@ void av2_decoder_model_verifier_init(AV2Decoder *pbi) {
   pbi->decoder_model_verifier_allocation_failed =
       pbi->decoder_model_verifier == NULL;
   if (pbi->decoder_model_verifier != NULL) {
+    av2_dm_rational_init(
+        &pbi->decoder_model_verifier->replay_previous_presentation_offset);
+    av2_dm_rational_init(
+        &pbi->decoder_model_verifier->replay_last_presentation_offset);
     pbi->decoder_model_verifier->check_mode = pbi->decoder_model_check_mode;
     pbi->decoder_model_verifier->check_every_rap =
         pbi->decoder_model_check_every_rap != 0;
@@ -1058,9 +1156,13 @@ void av2_decoder_model_verifier_destroy(AV2Decoder *pbi) {
   Av2DecoderModelVerifier *const verifier = pbi->decoder_model_verifier;
   for (size_t i = 0; i < verifier->context_count; ++i) {
     destroy_context_runs(&verifier->contexts[i]);
+    clear_context_prefix_events(&verifier->contexts[i]);
+    av2_dm_config_destroy(&verifier->contexts[i].last_config);
     avm_free(verifier->contexts[i].runs);
     avm_free(verifier->contexts[i].prefix_events);
   }
+  av2_dm_rational_destroy(&verifier->replay_previous_presentation_offset);
+  av2_dm_rational_destroy(&verifier->replay_last_presentation_offset);
   avm_free(verifier->current_tu_obus);
   avm_free(verifier->sequence_records);
   avm_free(verifier->ops_records);
@@ -1166,7 +1268,7 @@ void av2_decoder_model_verifier_on_source_frame_unit_start(AV2Decoder *pbi,
   }
   verifier->current_source_frame_dispatched = false;
   for (size_t i = 0; i < verifier->context_count; ++i) {
-    verifier->contexts[i].prefix_event_count = 0;
+    clear_context_prefix_events(&verifier->contexts[i]);
   }
 }
 
@@ -1481,6 +1583,43 @@ void av2_decoder_model_verifier_on_active_configuration(
     if (context->key.xlayer_id != xlayer_id) continue;
     context->active_configuration_record = event->record_index;
     context->active_sequence_record = sequence_record;
+    if (pbi->obu_type == OBU_CLOSED_LOOP_KEY && context->last_config_present &&
+        context->run_count != 0) {
+      Av2DmFrameSnapshot snapshot;
+      memset(&snapshot, 0, sizeof(snapshot));
+      snapshot.multistream_decoder_mode = pbi->multistream_decoder_mode != 0;
+      snapshot.msdo = pbi->common.msdo_params;
+      snapshot.multistream_even_allocation =
+          verifier->multistream_even_allocation;
+      snapshot.multistream_large_picture_index =
+          verifier->multistream_large_picture_index;
+      snapshot.num_streams = pbi->common.num_streams;
+      memcpy(snapshot.stream_ids, pbi->common.stream_ids,
+             sizeof(snapshot.stream_ids));
+      Av2DmContextEvent config_event;
+      initialize_context_event(verifier, AV2_DM_CONTEXT_FRAME, &config_event);
+      config_event.event_index = event->index;
+      config_event.source_frame_unit_index = verifier->source_frame_unit_index;
+      config_event.stream_generation = verifier->stream_generation;
+      config_event.config_present =
+          build_context_config(verifier, context, pbi->common.mlayer_id,
+                               &snapshot, &config_event.config);
+      config_event.frame.coded_as_closed_loop_key = true;
+      if (config_event.config_present &&
+          !config_equal(&context->last_config, &config_event.config)) {
+        for (size_t run_index = 0; run_index < context->run_count;
+             ++run_index) {
+          update_live_run_parameters(verifier, context->runs[run_index],
+                                     &config_event);
+        }
+        if (av2_dm_config_copy(&context->last_config, &config_event.config)) {
+          context->last_stream_generation = verifier->stream_generation;
+        } else {
+          mark_exact_operation_failed(verifier);
+        }
+      }
+      destroy_context_event(&config_event);
+    }
   }
 }
 
@@ -1735,6 +1874,11 @@ static void append_frame_to_context(Av2DecoderModelVerifier *verifier,
   model_event->leading_frame = snapshot->leading_frame;
   model_event->config_present = build_context_config(
       verifier, context, snapshot->mlayer_id, snapshot, &model_event->config);
+  if (!model_event->config_present) {
+    mark_exact_operation_failed(verifier);
+    destroy_context_event(model_event);
+    return;
+  }
   Av2DmGenerationRecord *const generation =
       find_generation_by_id(verifier, snapshot->generation);
   if (generation != NULL && !snapshot->show_existing_frame &&
@@ -1783,8 +1927,7 @@ static void append_frame_to_context(Av2DecoderModelVerifier *verifier,
   const bool parameters_changed =
       !context->last_config_present ||
       context->last_stream_generation != model_event->stream_generation ||
-      memcmp(&context->last_config, &model_event->config,
-             sizeof(model_event->config)) != 0;
+      !config_equal(&context->last_config, &model_event->config);
   frame->decoder_model_parameters_updated =
       frame->random_access_point && parameters_changed;
   frame->count_frame_header = true;
@@ -1822,6 +1965,7 @@ static void append_frame_to_context(Av2DecoderModelVerifier *verifier,
     model_event->config.applicability = AV2_DM_MISSING_REQUIRED_INPUT;
   }
   dispatch_context_event(verifier, context, model_event);
+  destroy_context_event(model_event);
 }
 
 void av2_decoder_model_verifier_on_frame_unit_complete(AV2Decoder *pbi) {
@@ -1892,7 +2036,7 @@ void av2_decoder_model_verifier_on_frame_unit_complete(AV2Decoder *pbi) {
   }
   verifier->current_source_frame_dispatched = true;
   for (size_t i = 0; i < verifier->context_count; ++i) {
-    verifier->contexts[i].prefix_event_count = 0;
+    clear_context_prefix_events(&verifier->contexts[i]);
   }
   memset(&verifier->pending_frame, 0, sizeof(verifier->pending_frame));
   if (verifier->frame_unit_index == UINT64_MAX) {
@@ -1935,6 +2079,7 @@ void av2_decoder_model_verifier_on_reference_invalidation(
     event->closed_loop_key_invalidation = closed_loop_key;
     event->leading_frame = pbi->common.is_leading_picture == 1;
     dispatch_context_event(verifier, context, event);
+    destroy_context_event(event);
   }
   (void)increment_u64(verifier, &verifier->reference_invalidations);
   if (closed_loop_key) {
@@ -1979,6 +2124,7 @@ void av2_decoder_model_verifier_after_reference_update(
       event->leading_frame = generation->leading_frame;
     }
     dispatch_context_event(verifier, context, event);
+    destroy_context_event(event);
   }
   (void)increment_u64(verifier, &verifier->reference_updates);
 }
@@ -2122,6 +2268,7 @@ void av2_decoder_model_verifier_on_output(AV2Decoder *pbi,
     output->presentation_time_present = owner_presentation_time_present;
     output->presentation_time_ticks = owner_presentation_time_ticks;
     dispatch_context_event(verifier, context, event);
+    destroy_context_event(event);
   }
   if (!current_presentation && generation != NULL) {
     generation->implicit_presentation_pending = false;
@@ -2148,6 +2295,7 @@ void av2_decoder_model_verifier_on_recovery_reset(AV2Decoder *pbi) {
     context->recovery_reset_pending = true;
     context->pending_dfg_bits = 0;
     dispatch_context_event(verifier, context, event);
+    destroy_context_event(event);
   }
   memset(&verifier->pending_frame, 0, sizeof(verifier->pending_frame));
 }
@@ -2173,7 +2321,8 @@ void av2_decoder_model_verifier_on_stream_configuration_change(
       verifier->contexts[i].recovery_reset_pending = false;
       verifier->contexts[i].pending_dfg_bits = 0;
       verifier->contexts[i].pending_after_event_valid = false;
-      verifier->contexts[i].prefix_event_count = 0;
+      clear_context_prefix_events(&verifier->contexts[i]);
+      av2_dm_config_destroy(&verifier->contexts[i].last_config);
       verifier->contexts[i].last_config_present = false;
     }
     memset(verifier->active_configuration_present, 0,
@@ -2288,25 +2437,25 @@ static const char *level_name(uint32_t level_idx) {
   return "reserved";
 }
 
-static bool wide_fits_u64(const Av2DmUnsignedWide *value) {
-  return value->limbs[1] == 0 && value->limbs[2] == 0 && value->limbs[3] == 0;
-}
-
-static bool format_unsigned_wide(const Av2DmUnsignedWide *value, char *text,
-                                 size_t text_size) {
-  if (wide_fits_u64(value)) {
-    const int written = snprintf(text, text_size, "%" PRIu64, value->limbs[0]);
+static bool format_rational_component(const Av2DmRational *value,
+                                      bool denominator, char *text,
+                                      size_t text_size) {
+  const uint64_t *limbs;
+  uint32_t limb_count;
+  if (!av2_dm_rational_get_component(value, denominator, &limbs, &limb_count)) {
+    return false;
+  }
+  if (limb_count <= 1) {
+    const uint64_t scalar = limb_count == 0 ? 0 : limbs[0];
+    const int written = snprintf(text, text_size, "%" PRIu64, scalar);
     return written >= 0 && (size_t)written < text_size;
   }
-  int highest_limb = 3;
-  while (highest_limb > 0 && value->limbs[highest_limb] == 0) --highest_limb;
-  int written =
-      snprintf(text, text_size, "0x%" PRIx64, value->limbs[highest_limb]);
+  int written = snprintf(text, text_size, "0x%" PRIx64, limbs[limb_count - 1]);
   if (written < 0 || (size_t)written >= text_size) return false;
   size_t offset = (size_t)written;
-  for (int i = highest_limb - 1; i >= 0; --i) {
+  for (uint32_t i = limb_count - 1; i > 0; --i) {
     written = snprintf(text + offset, text_size - offset, "%016" PRIx64,
-                       value->limbs[i]);
+                       limbs[i - 1]);
     if (written < 0 || (size_t)written >= text_size - offset) return false;
     offset += (size_t)written;
   }
@@ -2319,22 +2468,67 @@ static bool format_rational(const Av2DmRational *value, char *text,
     const int written = snprintf(text, text_size, "NA");
     return written >= 0 && (size_t)written < text_size;
   }
-  char magnitude[67];
-  char denominator[67];
-  if (!format_unsigned_wide(&value->magnitude, magnitude, sizeof(magnitude)) ||
-      !format_unsigned_wide(&value->denominator, denominator,
-                            sizeof(denominator))) {
+  const uint64_t *denominator_limbs;
+  uint32_t denominator_count;
+  if (!av2_dm_rational_get_component(value, true, &denominator_limbs,
+                                     &denominator_count)) {
     return false;
   }
-  int written;
-  if (wide_fits_u64(&value->denominator) && value->denominator.limbs[0] == 1) {
-    written = snprintf(text, text_size, "%s%s", value->negative ? "-" : "",
-                       magnitude);
-  } else {
-    written = snprintf(text, text_size, "%s%s/%s", value->negative ? "-" : "",
-                       magnitude, denominator);
+  size_t offset = 0;
+  if (value->negative) {
+    if (text_size < 2) return false;
+    text[offset++] = '-';
+    text[offset] = '\0';
   }
-  return written >= 0 && (size_t)written < text_size;
+  if (!format_rational_component(value, false, text + offset,
+                                 text_size - offset)) {
+    return false;
+  }
+  offset += strlen(text + offset);
+  if (denominator_count == 1 && denominator_limbs[0] == 1) return true;
+  if (offset + 1 >= text_size) return false;
+  text[offset++] = '/';
+  text[offset] = '\0';
+  return format_rational_component(value, true, text + offset,
+                                   text_size - offset);
+}
+
+static void print_rational_component(FILE *stream, const Av2DmRational *value,
+                                     bool denominator) {
+  const uint64_t *limbs;
+  uint32_t limb_count;
+  if (!av2_dm_rational_get_component(value, denominator, &limbs, &limb_count)) {
+    fprintf(stream, "NA");
+    return;
+  }
+  if (limb_count <= 1) {
+    fprintf(stream, "%" PRIu64, limb_count == 0 ? 0 : limbs[0]);
+    return;
+  }
+  fprintf(stream, "0x%" PRIx64, limbs[limb_count - 1]);
+  for (uint32_t i = limb_count - 1; i > 0; --i) {
+    fprintf(stream, "%016" PRIx64, limbs[i - 1]);
+  }
+}
+
+static void print_rational(FILE *stream, const Av2DmRational *value) {
+  if (value == NULL) {
+    fprintf(stream, "NA");
+    return;
+  }
+  const uint64_t *denominator;
+  uint32_t denominator_count;
+  if (!av2_dm_rational_get_component(value, true, &denominator,
+                                     &denominator_count)) {
+    fprintf(stream, "NA");
+    return;
+  }
+  if (value->negative) fputc('-', stream);
+  print_rational_component(stream, value, false);
+  if (denominator_count != 1 || denominator[0] != 1) {
+    fputc('/', stream);
+    print_rational_component(stream, value, true);
+  }
 }
 
 typedef enum Av2DmMarginRule {
@@ -2545,13 +2739,25 @@ static void append_detail(Av2DmTextBuilder *builder, const char *format, ...) {
 static bool rational_to_long_double(const Av2DmRational *value,
                                     long double *result) {
   if (value == NULL || result == NULL) return false;
+  const uint64_t *magnitude;
+  const uint64_t *denominator_limbs;
+  uint32_t magnitude_count;
+  uint32_t denominator_count;
+  if (!av2_dm_rational_get_component(value, false, &magnitude,
+                                     &magnitude_count) ||
+      !av2_dm_rational_get_component(value, true, &denominator_limbs,
+                                     &denominator_count)) {
+    return false;
+  }
   long double numerator = 0.0L;
   long double denominator = 0.0L;
   const long double limb_base = 18446744073709551616.0L;
-  for (int i = 3; i >= 0; --i) {
-    numerator = numerator * limb_base + (long double)value->magnitude.limbs[i];
+  for (uint32_t i = magnitude_count; i > 0; --i) {
+    numerator = numerator * limb_base + (long double)magnitude[i - 1];
+  }
+  for (uint32_t i = denominator_count; i > 0; --i) {
     denominator =
-        denominator * limb_base + (long double)value->denominator.limbs[i];
+        denominator * limb_base + (long double)denominator_limbs[i - 1];
   }
   if (denominator == 0.0L) return false;
   *result = numerator / denominator;
@@ -2578,9 +2784,14 @@ static bool append_decimal(Av2DmTextBuilder *builder, const char *name,
 
 static bool append_rational(Av2DmTextBuilder *builder, const char *name,
                             const Av2DmRational *value) {
-  char formatted[150];
-  if (!format_rational(value, formatted, sizeof(formatted))) return false;
-  append_detail(builder, " %s=%s", name, formatted);
+  append_detail(builder, " %s=", name);
+  if (!builder->valid ||
+      !format_rational(value, builder->text + builder->length,
+                       builder->size - builder->length)) {
+    builder->valid = false;
+    return false;
+  }
+  builder->length += strlen(builder->text + builder->length);
   return builder->valid;
 }
 
@@ -2643,21 +2854,23 @@ static bool append_payload_details(Av2DmTextBuilder *builder,
       append_detail(builder, " decoder_buffer_delay_ticks=%u",
                     detail->value.delay_consistency.decoder_buffer_delay_ticks);
       if (detail->value.delay_consistency.ceil_time_delta_present) {
-        Av2DmRational decoder_delay;
-        Av2DmRational excess;
-        if (!av2_dm_rational_make(
+        Av2DmRational decoder_delay = { 0 };
+        Av2DmRational excess = { 0 };
+        const bool appended =
+            av2_dm_rational_make(
                 detail->value.delay_consistency.decoder_buffer_delay_ticks, 1,
-                &decoder_delay) ||
-            !av2_dm_rational_subtract(
+                &decoder_delay) &&
+            av2_dm_rational_subtract(
                 &decoder_delay,
                 &detail->value.delay_consistency.ceil_time_delta_ticks,
-                &excess) ||
-            !append_rational(
+                &excess) &&
+            append_rational(
                 builder, "ceil_time_delta_ticks",
-                &detail->value.delay_consistency.ceil_time_delta_ticks) ||
-            !append_rational(builder, "decoder_buffer_delay_excess", &excess)) {
-          return false;
-        }
+                &detail->value.delay_consistency.ceil_time_delta_ticks) &&
+            append_rational(builder, "decoder_buffer_delay_excess", &excess);
+        av2_dm_rational_destroy(&decoder_delay);
+        av2_dm_rational_destroy(&excess);
+        if (!appended) return false;
       } else {
         append_detail(builder, " ceil_time_delta_ticks=NA");
       }
@@ -2718,7 +2931,12 @@ bool av2_decoder_model_format_violation_details(const Av2DmViolation *violation,
     return false;
   }
 
-  Av2DmRational margin;
+  Av2DmRational margin = { 0 };
+#define RETURN_FORMAT_RESULT(value)   \
+  do {                                \
+    av2_dm_rational_destroy(&margin); \
+    return (value);                   \
+  } while (0)
   bool margin_present = false;
   if (violation->observed_present && violation->limit_present &&
       descriptor->margin_rule != AV2_DM_MARGIN_NONE) {
@@ -2730,11 +2948,13 @@ bool av2_decoder_model_format_violation_details(const Av2DmViolation *violation,
                                        &margin);
     if (!margin_present ||
         !append_rational(&builder, descriptor->margin_name, &margin)) {
-      return false;
+      RETURN_FORMAT_RESULT(false);
     }
   }
 
-  if (!append_payload_details(&builder, violation)) return false;
+  if (!append_payload_details(&builder, violation)) {
+    RETURN_FORMAT_RESULT(false);
+  }
   if (strcmp(descriptor->unit, "seconds") == 0) {
     if ((violation->observed_present &&
          !append_milliseconds(&builder, descriptor->observed_name,
@@ -2744,7 +2964,7 @@ bool av2_decoder_model_format_violation_details(const Av2DmViolation *violation,
                               &violation->limit)) ||
         (margin_present &&
          !append_milliseconds(&builder, descriptor->margin_name, &margin))) {
-      return false;
+      RETURN_FORMAT_RESULT(false);
     }
   }
 
@@ -2755,11 +2975,13 @@ bool av2_decoder_model_format_violation_details(const Av2DmViolation *violation,
   }
   if (violation->code == AV2_DM_VIOLATION_MAX_DISPLAY_RATE &&
       violation->limit_present && max_display_rate != 0) {
-    Av2DmRational interval = violation->limit;
-    if (!av2_dm_rational_divide_u64(&interval, max_display_rate, &interval) ||
+    Av2DmRational interval = { 0 };
+    if (!av2_dm_rational_copy(&interval, &violation->limit) ||
+        !av2_dm_rational_divide_u64(&interval, max_display_rate, &interval) ||
         !append_rational(&builder, "output_interval", &interval) ||
         !append_milliseconds(&builder, "output_interval", &interval)) {
-      return false;
+      av2_dm_rational_destroy(&interval);
+      RETURN_FORMAT_RESULT(false);
     }
     long double samples;
     long double seconds;
@@ -2770,8 +2992,10 @@ bool av2_decoder_model_format_violation_details(const Av2DmViolation *violation,
                         "Msamples/s") ||
         !append_decimal(&builder, "limit_rate", (long double)max_display_rate,
                         0.000001L, "Msamples/s")) {
-      return false;
+      av2_dm_rational_destroy(&interval);
+      RETURN_FORMAT_RESULT(false);
     }
+    av2_dm_rational_destroy(&interval);
   } else if (violation->code == AV2_DM_VIOLATION_FRAME_DECODE_RATE &&
              violation->detail.kind == AV2_DM_VIOLATION_DETAIL_FRAME_INTERVAL &&
              max_decode_rate != 0) {
@@ -2786,7 +3010,7 @@ bool av2_decoder_model_format_violation_details(const Av2DmViolation *violation,
                         "Msamples/s") ||
         !append_decimal(&builder, "limit_rate", (long double)max_decode_rate,
                         0.000001L, "Msamples/s")) {
-      return false;
+      RETURN_FORMAT_RESULT(false);
     }
   } else if (violation->code == AV2_DM_VIOLATION_FRAME_TILE_RATE &&
              violation->detail.kind == AV2_DM_VIOLATION_DETAIL_FRAME_INTERVAL) {
@@ -2803,11 +3027,14 @@ bool av2_decoder_model_format_violation_details(const Av2DmViolation *violation,
                         "tiles/s") ||
         !append_decimal(&builder, "limit_tile_rate", tile_limit / seconds, 1.0L,
                         "tiles/s")) {
-      return false;
+      RETURN_FORMAT_RESULT(false);
     }
   }
   append_detail(&builder, " spec=%s", descriptor->spec);
-  return builder.valid;
+  const bool valid = builder.valid;
+  av2_dm_rational_destroy(&margin);
+#undef RETURN_FORMAT_RESULT
+  return valid;
 }
 
 static const Av2DmContextEvent *find_context_event(const Av2DmRunReport *report,
@@ -2873,17 +3100,6 @@ static void report_decoder_model_violation(void *opaque,
   if (report->verifier->check_mode == AVM_DECODER_MODEL_CHECK_FATAL) {
     report->verifier->fatal_violation = true;
   }
-  char observed[150];
-  char limit[150];
-  if (!format_rational(
-          violation->observed_present ? &violation->observed : NULL, observed,
-          sizeof(observed))) {
-    snprintf(observed, sizeof(observed), "NA");
-  }
-  if (!format_rational(violation->limit_present ? &violation->limit : NULL,
-                       limit, sizeof(limit))) {
-    snprintf(limit, sizeof(limit), "NA");
-  }
   fprintf(stderr,
           "AV2_DECODER_MODEL_WARNING status=NON_CONFORMANT code=%s "
           "xlayer=%d ops=%d op=%d rap=%" PRId64
@@ -2895,7 +3111,11 @@ static void report_decoder_model_violation(void *opaque,
           mode_name(report->mode), violation->event_index);
   fprintf(stderr, " cvs=%" PRIu64, report->cvs);
   print_event_location(report, violation->event_index);
-  fprintf(stderr, " observed=%s limit=%s", observed, limit);
+  fprintf(stderr, " observed=");
+  print_rational(stderr,
+                 violation->observed_present ? &violation->observed : NULL);
+  fprintf(stderr, " limit=");
+  print_rational(stderr, violation->limit_present ? &violation->limit : NULL);
   print_violation_explanation(report, violation);
   fprintf(stderr, "\n");
 }
@@ -2981,11 +3201,13 @@ static void emit_result(Av2DecoderModelVerifier *verifier,
                         Av2DmIndeterminateReason reason,
                         const Av2DmRunReport *report) {
   Av2DmResult result = *model_result;
-  if (result.arithmetic_failed) {
+  if (result.allocation_failed || result.arithmetic_failed) {
     reason = AV2_DM_REASON_INTERNAL_FAILURE;
     verifier->aggregate_incomplete = true;
     if (verifier->error_code == AV2_DM_VERIFIER_ERROR_NONE) {
-      verifier->error_code = AV2_DM_VERIFIER_ERROR_ARITHMETIC;
+      verifier->error_code = result.allocation_failed
+                                 ? AV2_DM_VERIFIER_ERROR_ALLOCATION
+                                 : AV2_DM_VERIFIER_ERROR_ARITHMETIC;
     }
     emit_verifier_error(verifier, verifier->error_code,
                         report != NULL ? report->scope.xlayer_id : -1,
@@ -3116,18 +3338,25 @@ static void apply_event_to_run(Av2DecoderModelVerifier *verifier,
     case AV2_DM_CONTEXT_OUTPUT: {
       Av2DmOutputEvent output = event->output;
       av2_decoder_model_output_frame(run->model, &output);
-      Av2DmState state;
+      Av2DmState state = { 0 };
       if (av2_decoder_model_get_state(run->model, &state) &&
           state.last_presentation_offset_valid) {
+        bool copied = true;
         if (verifier->replay_last_presentation_offset_valid) {
-          verifier->replay_previous_presentation_offset =
-              verifier->replay_last_presentation_offset;
-          verifier->replay_previous_presentation_offset_valid = true;
+          copied = av2_dm_rational_copy(
+              &verifier->replay_previous_presentation_offset,
+              &verifier->replay_last_presentation_offset);
+          verifier->replay_previous_presentation_offset_valid = copied;
         }
-        verifier->replay_last_presentation_offset =
-            state.last_presentation_offset;
-        verifier->replay_last_presentation_offset_valid = true;
+        copied = copied && av2_dm_rational_copy(
+                               &verifier->replay_last_presentation_offset,
+                               &state.last_presentation_offset);
+        verifier->replay_last_presentation_offset_valid = copied;
+        if (!copied) {
+          mark_exact_operation_failed(verifier);
+        }
       }
+      av2_dm_state_destroy(&state);
       break;
     }
     case AV2_DM_CONTEXT_RECOVERY_RESET: break;
@@ -3166,7 +3395,11 @@ static Av2DmLiveRun *create_live_run(Av2DecoderModelVerifier *verifier,
     mark_allocation_failed(verifier);
     return NULL;
   }
-  run->config = start_frame->config;
+  if (!av2_dm_config_copy(&run->config, &start_frame->config)) {
+    avm_free(run);
+    mark_exact_operation_failed(verifier);
+    return NULL;
+  }
   run->stream_generation = start_frame->stream_generation;
   run->reason = start_frame->indeterminate_reason;
   if (!start_frame->config_present || run->reason != AV2_DM_REASON_NONE) {
@@ -3195,16 +3428,18 @@ static Av2DmLiveRun *create_live_run(Av2DecoderModelVerifier *verifier,
     run->report.max_display_rate = run->config.level_limits.max_display_rate;
     run->report.max_decode_rate = run->config.level_limits.max_decode_rate;
   } else {
-    Av2DmLevelLimits limits;
+    Av2DmLevelLimits limits = { 0 };
     if (av2_dm_get_level_limits(run->config.level_idx, run->config.tier,
                                 run->config.profile, &limits)) {
       run->report.max_display_rate = limits.max_display_rate;
       run->report.max_decode_rate = limits.max_decode_rate;
     }
+    av2_dm_level_limits_destroy(&limits);
   }
   run->model = av2_decoder_model_create(
       &run->config, report_decoder_model_violation, &run->report);
   if (run->model == NULL) {
+    av2_dm_config_destroy(&run->config);
     avm_free(run);
     mark_allocation_failed(verifier);
     return NULL;
@@ -3212,6 +3447,7 @@ static Av2DmLiveRun *create_live_run(Av2DecoderModelVerifier *verifier,
   context->runs[context->run_count] = run;
   if (!increment_size(verifier, &context->run_count)) {
     av2_decoder_model_destroy(run->model);
+    av2_dm_config_destroy(&run->config);
     avm_free(run);
     return NULL;
   }
@@ -3254,6 +3490,7 @@ static void finish_context_runs(Av2DecoderModelVerifier *verifier,
     }
     release_run_cvs_ownership(verifier, run);
     av2_decoder_model_destroy(run->model);
+    av2_dm_config_destroy(&run->config);
     avm_free(run);
   }
   context->run_count = 0;
@@ -3280,6 +3517,7 @@ static void finish_partial_context_runs(Av2DecoderModelVerifier *verifier,
     }
     release_run_cvs_ownership(verifier, run);
     av2_decoder_model_destroy(run->model);
+    av2_dm_config_destroy(&run->config);
     avm_free(run);
   }
   context->run_count = 0;
@@ -3288,6 +3526,7 @@ static void finish_partial_context_runs(Av2DecoderModelVerifier *verifier,
 static void destroy_context_runs(Av2DmContext *context) {
   for (size_t i = 0; i < context->run_count; ++i) {
     av2_decoder_model_destroy(context->runs[i]->model);
+    av2_dm_config_destroy(&context->runs[i]->config);
     avm_free(context->runs[i]);
   }
   context->run_count = 0;
@@ -3306,8 +3545,24 @@ static bool prefix_event_applies(const Av2DmLiveRun *run,
   return true;
 }
 
-static void update_live_run_parameters(Av2DmLiveRun *run,
+static void update_live_run_parameters(Av2DecoderModelVerifier *verifier,
+                                       Av2DmLiveRun *run,
                                        const Av2DmContextEvent *event) {
+  Av2DmConfig updated_config = { 0 };
+  if (!av2_dm_config_copy(&updated_config, &event->config)) {
+    mark_exact_operation_failed(verifier);
+    return;
+  }
+  const bool ras_start = run->config.ras_start;
+  const bool ras_seed_complete = run->config.ras_seed_complete;
+  const uint32_t ras_seed_count = run->config.ras_seed_count;
+  Av2DmRasSeed ras_seeds[AV2_DM_MAX_REF_FRAMES];
+  memcpy(ras_seeds, run->config.ras_seeds, sizeof(ras_seeds));
+  updated_config.initial_display_delay = run->config.initial_display_delay;
+  updated_config.ras_start = ras_start;
+  updated_config.ras_seed_complete = ras_seed_complete;
+  updated_config.ras_seed_count = ras_seed_count;
+  memcpy(updated_config.ras_seeds, ras_seeds, sizeof(updated_config.ras_seeds));
   run->report.current_event = *event;
   run->report.current_event_valid = true;
   const Av2DmParameterUpdateDisposition disposition =
@@ -3320,29 +3575,31 @@ static void update_live_run_parameters(Av2DmLiveRun *run,
   memset(&run->report.current_event, 0, sizeof(run->report.current_event));
   if (!updated) {
     Av2DmResult result;
+    const bool have_result = av2_decoder_model_get_result(run->model, &result);
     const bool non_conformant =
-        av2_decoder_model_get_result(run->model, &result) &&
-        result.status == AV2_DM_RESULT_NON_CONFORMANT;
+        have_result && result.status == AV2_DM_RESULT_NON_CONFORMANT;
     if (!non_conformant && run->reason == AV2_DM_REASON_NONE) {
-      run->reason =
-          disposition == AV2_DM_PARAMETER_UPDATE_INCOMPATIBLE_CONFIGURATION
-              ? AV2_DM_REASON_INCOMPATIBLE_CONFIGURATION_TRANSITION
-              : AV2_DM_REASON_MISSING_REQUIRED_INPUT;
+      if ((have_result &&
+           (result.allocation_failed || result.arithmetic_failed)) ||
+          disposition == AV2_DM_PARAMETER_UPDATE_INTERNAL_FAILURE) {
+        if (have_result && result.allocation_failed) {
+          mark_allocation_failed(verifier);
+        } else {
+          mark_arithmetic_failed(verifier);
+        }
+        run->reason = AV2_DM_REASON_INTERNAL_FAILURE;
+      } else {
+        run->reason =
+            disposition == AV2_DM_PARAMETER_UPDATE_INCOMPATIBLE_CONFIGURATION
+                ? AV2_DM_REASON_INCOMPATIBLE_CONFIGURATION_TRANSITION
+                : AV2_DM_REASON_MISSING_REQUIRED_INPUT;
+      }
     }
+    av2_dm_config_destroy(&updated_config);
     return;
   }
-  const bool ras_start = run->config.ras_start;
-  const bool ras_seed_complete = run->config.ras_seed_complete;
-  const uint32_t ras_seed_count = run->config.ras_seed_count;
-  Av2DmRasSeed ras_seeds[AV2_DM_MAX_REF_FRAMES];
-  memcpy(ras_seeds, run->config.ras_seeds, sizeof(ras_seeds));
-  const uint32_t initial_display_delay = run->config.initial_display_delay;
-  run->config = event->config;
-  run->config.initial_display_delay = initial_display_delay;
-  run->config.ras_start = ras_start;
-  run->config.ras_seed_complete = ras_seed_complete;
-  run->config.ras_seed_count = ras_seed_count;
-  memcpy(run->config.ras_seeds, ras_seeds, sizeof(run->config.ras_seeds));
+  av2_dm_config_destroy(&run->config);
+  run->config = updated_config;
   run->report.mode = run->config.mode;
   run->report.level_idx = run->config.level_idx;
   run->report.tier = run->config.tier;
@@ -3352,12 +3609,13 @@ static void update_live_run_parameters(Av2DmLiveRun *run,
     run->report.max_display_rate = run->config.level_limits.max_display_rate;
     run->report.max_decode_rate = run->config.level_limits.max_decode_rate;
   } else {
-    Av2DmLevelLimits limits;
+    Av2DmLevelLimits limits = { 0 };
     if (av2_dm_get_level_limits(run->config.level_idx, run->config.tier,
                                 run->config.profile, &limits)) {
       run->report.max_display_rate = limits.max_display_rate;
       run->report.max_decode_rate = limits.max_decode_rate;
     }
+    av2_dm_level_limits_destroy(&limits);
   }
 }
 
@@ -3437,7 +3695,13 @@ static void dispatch_context_event(Av2DecoderModelVerifier *verifier,
         mark_failed(verifier);
         return;
       }
-      context->prefix_events[context->prefix_event_count] = *event;
+      memset(&context->prefix_events[context->prefix_event_count], 0,
+             sizeof(*context->prefix_events));
+      if (!copy_context_event(
+              &context->prefix_events[context->prefix_event_count], event)) {
+        mark_exact_operation_failed(verifier);
+        return;
+      }
       if (!increment_size(verifier, &context->prefix_event_count)) return;
     }
     return;
@@ -3455,14 +3719,13 @@ static void dispatch_context_event(Av2DecoderModelVerifier *verifier,
   const bool config_changed =
       context->last_config_present &&
       (context->last_stream_generation != event->stream_generation ||
-       memcmp(&context->last_config, &event->config, sizeof(event->config)) !=
-           0);
+       !config_equal(&context->last_config, &event->config));
   if (config_changed) {
     if (context->last_stream_generation == event->stream_generation &&
         event->frame.random_access_point &&
         event->frame.decoder_model_parameters_updated) {
       for (size_t i = 0; i < context->run_count; ++i) {
-        update_live_run_parameters(context->runs[i], event);
+        update_live_run_parameters(verifier, context->runs[i], event);
       }
     } else {
       // Annex E resets FirstBitArrival only when a new parameter set is
@@ -3521,9 +3784,12 @@ static void dispatch_context_event(Av2DecoderModelVerifier *verifier,
        ++i) {
     apply_event_to_run(verifier, context->runs[i], event);
   }
-  context->last_config_present = true;
-  context->last_config = event->config;
-  context->last_stream_generation = event->stream_generation;
+  if (av2_dm_config_copy(&context->last_config, &event->config)) {
+    context->last_config_present = true;
+    context->last_stream_generation = event->stream_generation;
+  } else {
+    mark_exact_operation_failed(verifier);
+  }
   context->last_ras_seed_complete = event->ras_seed_complete;
   context->last_ras_seed_count = event->ras_seed_count;
 }
@@ -3586,6 +3852,7 @@ void av2_decoder_model_verifier_before_final_output(AV2Decoder *pbi,
       storage.source_frame_unit_index = verifier->source_frame_unit_index;
       storage.stream_generation = run->stream_generation;
       apply_event_to_run(verifier, run, &storage);
+      destroy_context_event(&storage);
     }
   }
 }
@@ -3687,7 +3954,8 @@ static void finish_all_cvs_internal(Av2DecoderModelVerifier *verifier,
       finish_context_runs(verifier, context);
     }
     if (verifier->failed || verifier->fatal_violation) partial = true;
-    context->prefix_event_count = 0;
+    clear_context_prefix_events(context);
+    av2_dm_config_destroy(&context->last_config);
     context->last_config_present = false;
     rebuild_incomplete_extraction(verifier, context);
   }
@@ -3830,103 +4098,140 @@ static void add_size_to_saturated_u32(uint32_t *total, size_t value) {
   }
 }
 
+void av2_decoder_model_verifier_stats_init(Av2DmVerifierStats *stats) {
+  if (stats == NULL) return;
+  memset(stats, 0, sizeof(*stats));
+  av2_dm_rational_init(&stats->replay_previous_presentation_offset);
+  av2_dm_rational_init(&stats->replay_last_presentation_offset);
+}
+
+void av2_decoder_model_verifier_stats_destroy(Av2DmVerifierStats *stats) {
+  if (stats == NULL) return;
+  av2_dm_rational_destroy(&stats->replay_previous_presentation_offset);
+  av2_dm_rational_destroy(&stats->replay_last_presentation_offset);
+  memset(stats, 0, sizeof(*stats));
+}
+
+void av2_decoder_model_run_stats_init(Av2DmRunStats *stats) {
+  if (stats == NULL) return;
+  memset(stats, 0, sizeof(*stats));
+  av2_dm_rational_init(&stats->initial_presentation_delay);
+}
+
+void av2_decoder_model_run_stats_destroy(Av2DmRunStats *stats) {
+  if (stats == NULL) return;
+  av2_dm_rational_destroy(&stats->initial_presentation_delay);
+  memset(stats, 0, sizeof(*stats));
+}
+
 bool av2_decoder_model_verifier_get_stats(const AV2Decoder *pbi,
                                           Av2DmVerifierStats *stats) {
   if (stats == NULL) return false;
-  memset(stats, 0, sizeof(*stats));
+  Av2DmVerifierStats updated;
+  av2_decoder_model_verifier_stats_init(&updated);
   if (pbi == NULL) return false;
   if (pbi->decoder_model_verifier == NULL) {
     if (!pbi->decoder_model_verifier_allocation_failed) return false;
-    stats->failed = true;
-    stats->result_count =
+    updated.failed = true;
+    updated.result_count =
         pbi->decoder_model_verifier_allocation_reported ? 1 : 0;
-    stats->indeterminate_results = stats->result_count;
+    updated.indeterminate_results = updated.result_count;
+    av2_decoder_model_verifier_stats_destroy(stats);
+    *stats = updated;
     return true;
   }
   const Av2DecoderModelVerifier *const verifier = pbi->decoder_model_verifier;
-  stats->available = true;
-  stats->failed = verifier->failed;
-  stats->check_every_rap = verifier->check_every_rap;
-  stats->raw_obus = verifier->raw_obus;
-  stats->raw_bits = verifier->raw_bits;
-  stats->event_count = verifier->event_count;
-  stats->temporal_unit_index = verifier->temporal_unit_index;
-  stats->frame_unit_index = verifier->frame_unit_index;
-  stats->closed_dfgs = verifier->closed_dfgs;
-  stats->rap_starts = verifier->rap_start_count;
-  stats->applicable_rap_starts = verifier->applicable_rap_starts;
-  stats->rap_runs_started = verifier->rap_runs_started;
-  stats->rap_runs_skipped = verifier->rap_runs_skipped;
-  stats->rap_coverage_complete = verifier->rap_runs_skipped == 0;
-  stats->temporal_points = verifier->temporal_points;
-  stats->temporal_point_present = verifier->temporal_point_present;
-  stats->temporal_point = verifier->temporal_point;
-  stats->contexts = saturate_size_to_u32(verifier->context_count);
-  stats->frame_starts = verifier->frame_starts;
-  stats->reference_updates = verifier->reference_updates;
-  stats->reference_invalidations = verifier->reference_invalidations;
-  stats->olk_invalidations = verifier->olk_invalidations;
-  stats->clk_invalidations = verifier->clk_invalidations;
-  stats->outputs = verifier->outputs;
-  stats->last_frame_start_event = verifier->last_frame_start_event;
-  stats->last_reference_update_event = verifier->last_reference_update_event;
-  stats->last_reference_invalidation_event =
+  Av2DmVerifierStats *const target = &updated;
+  target->available = true;
+  target->failed = verifier->failed;
+  target->check_every_rap = verifier->check_every_rap;
+  target->raw_obus = verifier->raw_obus;
+  target->raw_bits = verifier->raw_bits;
+  target->event_count = verifier->event_count;
+  target->temporal_unit_index = verifier->temporal_unit_index;
+  target->frame_unit_index = verifier->frame_unit_index;
+  target->closed_dfgs = verifier->closed_dfgs;
+  target->rap_starts = verifier->rap_start_count;
+  target->applicable_rap_starts = verifier->applicable_rap_starts;
+  target->rap_runs_started = verifier->rap_runs_started;
+  target->rap_runs_skipped = verifier->rap_runs_skipped;
+  target->rap_coverage_complete = verifier->rap_runs_skipped == 0;
+  target->temporal_points = verifier->temporal_points;
+  target->temporal_point_present = verifier->temporal_point_present;
+  target->temporal_point = verifier->temporal_point;
+  target->contexts = saturate_size_to_u32(verifier->context_count);
+  target->frame_starts = verifier->frame_starts;
+  target->reference_updates = verifier->reference_updates;
+  target->reference_invalidations = verifier->reference_invalidations;
+  target->olk_invalidations = verifier->olk_invalidations;
+  target->clk_invalidations = verifier->clk_invalidations;
+  target->outputs = verifier->outputs;
+  target->last_frame_start_event = verifier->last_frame_start_event;
+  target->last_reference_update_event = verifier->last_reference_update_event;
+  target->last_reference_invalidation_event =
       verifier->last_reference_invalidation_event;
-  stats->last_olk_invalidation_event = verifier->last_olk_invalidation_event;
-  stats->last_clk_invalidation_event = verifier->last_clk_invalidation_event;
-  stats->last_output_event = verifier->last_output_event;
-  stats->last_output_callback_frame_unit =
+  target->last_olk_invalidation_event = verifier->last_olk_invalidation_event;
+  target->last_clk_invalidation_event = verifier->last_clk_invalidation_event;
+  target->last_output_event = verifier->last_output_event;
+  target->last_output_callback_frame_unit =
       verifier->last_output_callback_frame_unit;
-  stats->last_output_presentation_frame_unit =
+  target->last_output_presentation_frame_unit =
       verifier->last_output_presentation_frame_unit;
-  stats->last_output_presentation_temporal_unit =
+  target->last_output_presentation_temporal_unit =
       verifier->last_output_presentation_temporal_unit;
-  stats->last_output_generation = verifier->last_output_generation;
-  stats->last_output_presentation_xlayer_id =
+  target->last_output_generation = verifier->last_output_generation;
+  target->last_output_presentation_xlayer_id =
       verifier->last_output_presentation_xlayer_id;
-  stats->last_output_presentation_mlayer_id =
+  target->last_output_presentation_mlayer_id =
       verifier->last_output_presentation_mlayer_id;
-  stats->last_output_presentation_tlayer_id =
+  target->last_output_presentation_tlayer_id =
       verifier->last_output_presentation_tlayer_id;
-  stats->last_output_uses_current_presentation =
+  target->last_output_uses_current_presentation =
       verifier->last_output_uses_current_presentation;
-  stats->replay_previous_presentation_offset_valid =
+  target->replay_previous_presentation_offset_valid =
       verifier->replay_previous_presentation_offset_valid;
-  stats->replay_previous_presentation_offset =
-      verifier->replay_previous_presentation_offset;
-  stats->replay_last_presentation_offset_valid =
+  target->replay_last_presentation_offset_valid =
       verifier->replay_last_presentation_offset_valid;
-  stats->replay_last_presentation_offset =
-      verifier->replay_last_presentation_offset;
-  stats->finish_event = verifier->finish_event;
-  stats->result_count = verifier->result_count;
-  stats->conformant_results =
+  if ((target->replay_previous_presentation_offset_valid &&
+       !av2_dm_rational_copy(&target->replay_previous_presentation_offset,
+                             &verifier->replay_previous_presentation_offset)) ||
+      (target->replay_last_presentation_offset_valid &&
+       !av2_dm_rational_copy(&target->replay_last_presentation_offset,
+                             &verifier->replay_last_presentation_offset))) {
+    av2_decoder_model_verifier_stats_destroy(&updated);
+    return false;
+  }
+  target->finish_event = verifier->finish_event;
+  target->result_count = verifier->result_count;
+  target->conformant_results =
       verifier->result_status_count[AV2_DM_RESULT_CONFORMANT];
-  stats->non_conformant_results =
+  target->non_conformant_results =
       verifier->result_status_count[AV2_DM_RESULT_NON_CONFORMANT];
-  stats->indeterminate_results =
+  target->indeterminate_results =
       verifier->result_status_count[AV2_DM_RESULT_INDETERMINATE];
-  stats->not_applicable_results =
+  target->not_applicable_results =
       verifier->result_status_count[AV2_DM_RESULT_NOT_APPLICABLE];
   for (size_t i = 0; i < verifier->context_count; ++i) {
-    add_size_to_saturated_u32(&stats->live_runs,
+    add_size_to_saturated_u32(&target->live_runs,
                               verifier->contexts[i].run_count);
   }
-  stats->live_generations = saturate_size_to_u32(verifier->generation_count);
-  stats->cvs_aggregates = saturate_size_to_u32(verifier->cvs_count);
+  target->live_generations = saturate_size_to_u32(verifier->generation_count);
+  target->cvs_aggregates = saturate_size_to_u32(verifier->cvs_count);
   for (size_t i = 0; i < verifier->cvs_count; ++i) {
-    if (verifier->cvs[i].input_open && stats->open_cvs != UINT32_MAX) {
-      ++stats->open_cvs;
+    if (verifier->cvs[i].input_open && target->open_cvs != UINT32_MAX) {
+      ++target->open_cvs;
     }
   }
-  add_size_to_saturated_u32(&stats->parameter_records,
+  add_size_to_saturated_u32(&target->parameter_records,
                             verifier->sequence_record_count);
-  add_size_to_saturated_u32(&stats->parameter_records,
+  add_size_to_saturated_u32(&target->parameter_records,
                             verifier->ops_record_count);
-  add_size_to_saturated_u32(&stats->parameter_records,
+  add_size_to_saturated_u32(&target->parameter_records,
                             verifier->brt_record_count);
-  add_size_to_saturated_u32(&stats->parameter_records,
+  add_size_to_saturated_u32(&target->parameter_records,
                             verifier->active_record_count);
+  av2_decoder_model_verifier_stats_destroy(stats);
+  *stats = updated;
   return true;
 }
 
@@ -3992,19 +4297,32 @@ bool av2_decoder_model_verifier_get_run_stats(const AV2Decoder *pbi,
   if (cvs->xlayer_id != context->key.xlayer_id) return false;
   Av2DmResult result;
   if (!av2_decoder_model_get_result(run->model, &result)) return false;
-  Av2DmState state;
-  if (!av2_decoder_model_get_state(run->model, &state)) return false;
-  memset(stats, 0, sizeof(*stats));
-  stats->originating_cvs = cvs->number;
-  stats->stream_generation = run->stream_generation;
-  stats->rap = run->rap;
-  stats->decoded_frames = result.decoded_frames;
-  stats->output_frames = result.output_frames;
-  stats->active_num_ref_frames = state.buffer_pool.num_ref_frames;
-  stats->initial_presentation_delay_known =
+  Av2DmState state = { 0 };
+  if (!av2_decoder_model_get_state(run->model, &state)) {
+    av2_dm_state_destroy(&state);
+    return false;
+  }
+  Av2DmRunStats updated;
+  av2_decoder_model_run_stats_init(&updated);
+  updated.originating_cvs = cvs->number;
+  updated.stream_generation = run->stream_generation;
+  updated.rap = run->rap;
+  updated.decoded_frames = result.decoded_frames;
+  updated.output_frames = result.output_frames;
+  updated.active_num_ref_frames = state.buffer_pool.num_ref_frames;
+  updated.initial_presentation_delay_known =
       state.initial_presentation_delay_known;
-  stats->initial_presentation_delay = state.initial_presentation_delay;
-  stats->status = result.status;
-  stats->reason = run->reason;
+  if (updated.initial_presentation_delay_known &&
+      !av2_dm_rational_copy(&updated.initial_presentation_delay,
+                            &state.initial_presentation_delay)) {
+    av2_decoder_model_run_stats_destroy(&updated);
+    av2_dm_state_destroy(&state);
+    return false;
+  }
+  updated.status = result.status;
+  updated.reason = run->reason;
+  av2_dm_state_destroy(&state);
+  av2_decoder_model_run_stats_destroy(stats);
+  *stats = updated;
   return true;
 }

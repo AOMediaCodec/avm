@@ -32,12 +32,24 @@ typedef struct Av2DmUnsignedWide {
 
 // Exact signed rational used for all normative decoder-model decisions.
 // denominator is positive. Zero is canonicalized to 0/1 with negative false.
+// The type owns dynamic_limbs. A destination passed to any operation below
+// must first be initialized or zero-initialized and must eventually be
+// destroyed. Operations that produce a value replace the destination only on
+// success and permit it to alias an input unless stated otherwise.
 typedef struct Av2DmRational {
   Av2DmUnsignedWide magnitude;
   Av2DmUnsignedWide denominator;
+  uint64_t *dynamic_limbs;
+  uint32_t magnitude_limb_count;
+  uint32_t denominator_limb_count;
   bool negative;
 } Av2DmRational;
 
+void av2_dm_rational_init(Av2DmRational *value);
+bool av2_dm_rational_copy(Av2DmRational *destination,
+                          const Av2DmRational *source);
+void av2_dm_rational_move(Av2DmRational *destination, Av2DmRational *source);
+void av2_dm_rational_destroy(Av2DmRational *value);
 bool av2_dm_rational_make(uint64_t numerator, uint64_t denominator,
                           Av2DmRational *result);
 bool av2_dm_rational_make_wide(Av2DmUnsignedWide numerator,
@@ -54,9 +66,19 @@ bool av2_dm_rational_divide_u64(const Av2DmRational *value, uint64_t divisor,
                                 Av2DmRational *result);
 bool av2_dm_rational_compare(const Av2DmRational *left,
                              const Av2DmRational *right, int *comparison);
+bool av2_dm_rational_get_component(const Av2DmRational *value, bool denominator,
+                                   const uint64_t **limbs,
+                                   uint32_t *limb_count);
 bool av2_dm_rational_rebase(Av2DmRational *values, uint32_t value_count,
                             const Av2DmRational *origin);
 bool av2_dm_rational_is_zero(const Av2DmRational *value);
+void av2_dm_rational_set_allocation_failure_after_for_testing(
+    int64_t successful_allocations);
+void av2_dm_set_internal_allocation_failure_after_for_testing(
+    int64_t successful_allocations);
+uint64_t av2_dm_rational_allocation_count_for_testing(void);
+bool av2_dm_rational_last_failure_was_allocation(void);
+bool av2_dm_last_failure_was_allocation(void);
 
 typedef struct Av2DmBuffer {
   uint32_t decoder_ref_count;
@@ -73,6 +95,9 @@ typedef struct Av2DmBuffer {
   bool random_access_point;
   uint64_t coded_temporal_unit_index;
   bool coded_temporal_unit_valid;
+  bool equal_picture_interval;
+  uint32_t ticks_per_picture;
+  Av2DmRational disp_ct;
 } Av2DmBuffer;
 
 typedef struct Av2DmBufferPool {
@@ -80,10 +105,15 @@ typedef struct Av2DmBufferPool {
   uint32_t pool_size;
   int32_t vbi[AV2_DM_MAX_REF_FRAMES];
   Av2DmBuffer buffers[AV2_DM_MAX_BUFFER_POOL_SIZE];
+  bool initialized;
 } Av2DmBufferPool;
 
+void av2_dm_buffer_pool_init(Av2DmBufferPool *pool);
+// pool must first be initialized with av2_dm_buffer_pool_init or be
+// zero-initialized. Reinitialization is permitted. Call destroy when done.
 bool av2_dm_buffer_pool_initialize(Av2DmBufferPool *pool,
                                    uint32_t num_ref_frames);
+void av2_dm_buffer_pool_destroy(Av2DmBufferPool *pool);
 int32_t av2_dm_buffer_pool_get_free_buffer(const Av2DmBufferPool *pool);
 bool av2_dm_buffer_pool_release(Av2DmBufferPool *pool, uint32_t buffer_index);
 bool av2_dm_buffer_pool_add_decoder_ref(Av2DmBufferPool *pool,
@@ -235,6 +265,8 @@ typedef struct Av2DmLevelLimits {
   Av2DmRational buffer_size;
 } Av2DmLevelLimits;
 
+void av2_dm_level_limits_init(Av2DmLevelLimits *limits);
+
 typedef struct Av2DmRasSeed {
   uint32_t ref_index;
   uint64_t generation;
@@ -250,6 +282,8 @@ typedef struct Av2DmConfig {
   uint32_t num_ref_frames;
   uint32_t max_frame_width;
   uint32_t max_frame_height;
+  uint32_t chroma_format_idc;
+  uint32_t bit_depth;
   uint32_t max_mlayer_id;
   bool still_picture;
   bool explicit_num_ref_frames;
@@ -290,6 +324,16 @@ typedef struct Av2DmConfig {
   // Decoder fatal mode stops this model after its first proven violation.
   bool stop_after_first_violation;
 } Av2DmConfig;
+
+// These types own their embedded rational values. A destination passed to a
+// copy or replacement operation must first be initialized or zero-initialized.
+// Call the matching destroy function when done.
+void av2_dm_level_limits_destroy(Av2DmLevelLimits *limits);
+bool av2_dm_level_limits_copy(Av2DmLevelLimits *destination,
+                              const Av2DmLevelLimits *source);
+void av2_dm_config_init(Av2DmConfig *config);
+void av2_dm_config_destroy(Av2DmConfig *config);
+bool av2_dm_config_copy(Av2DmConfig *destination, const Av2DmConfig *source);
 
 typedef struct Av2DmFrameEvent {
   uint64_t event_index;
@@ -354,6 +398,13 @@ typedef struct Av2DmViolation {
   Av2DmViolationDetail detail;
 } Av2DmViolation;
 
+void av2_dm_violation_init(Av2DmViolation *violation);
+// The destination must first be initialized or zero-initialized. A successful
+// copy is independent of the source and must be destroyed.
+bool av2_dm_violation_copy(Av2DmViolation *destination,
+                           const Av2DmViolation *source);
+void av2_dm_violation_destroy(Av2DmViolation *violation);
+
 typedef struct Av2DmResult {
   Av2DmResultStatus status;
   Av2DmApplicability applicability;
@@ -363,6 +414,7 @@ typedef struct Av2DmResult {
   uint64_t output_frames;
   uint64_t reordered_outputs;
   uint64_t violations;
+  bool allocation_failed;
   bool arithmetic_failed;
   bool missing_required_input;
   bool finished;
@@ -396,6 +448,10 @@ typedef struct Av2DmState {
   Av2DmBufferPool buffer_pool;
 } Av2DmState;
 
+void av2_dm_state_init(Av2DmState *state);
+// State passed to get_state must first be initialized. Call destroy when done.
+void av2_dm_state_destroy(Av2DmState *state);
+
 // Private verifier-storage instrumentation used by decoder-model tests. These
 // counters describe live normative state, not allocated capacity or lifetime
 // event totals, and do not affect conformance decisions.
@@ -419,9 +475,12 @@ typedef void (*Av2DmReportFn)(void *opaque, const Av2DmViolation *violation);
 typedef enum Av2DmParameterUpdateDisposition {
   AV2_DM_PARAMETER_UPDATE_ALLOWED,
   AV2_DM_PARAMETER_UPDATE_MISSING_REQUIRED_INPUT,
-  AV2_DM_PARAMETER_UPDATE_INCOMPATIBLE_CONFIGURATION
+  AV2_DM_PARAMETER_UPDATE_INCOMPATIBLE_CONFIGURATION,
+  AV2_DM_PARAMETER_UPDATE_INTERNAL_FAILURE
 } Av2DmParameterUpdateDisposition;
 
+// limits must first be initialized or zero-initialized. Both functions replace
+// it only on success; call av2_dm_level_limits_destroy when done.
 bool av2_dm_get_level_limits(uint32_t level_idx, uint32_t tier,
                              uint32_t profile, Av2DmLevelLimits *limits);
 bool av2_dm_apply_multistream_limits(uint32_t level_idx, uint32_t tier,
@@ -459,6 +518,7 @@ void av2_decoder_model_output_frame(Av2DecoderModel *model,
 void av2_decoder_model_finish(Av2DecoderModel *model);
 bool av2_decoder_model_get_result(const Av2DecoderModel *model,
                                   Av2DmResult *result);
+// state must first be initialized with av2_dm_state_init.
 bool av2_decoder_model_get_state(const Av2DecoderModel *model,
                                  Av2DmState *state);
 bool av2_decoder_model_get_storage_stats(const Av2DecoderModel *model,

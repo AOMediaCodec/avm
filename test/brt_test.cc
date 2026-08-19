@@ -23,8 +23,11 @@ extern "C" {
 }
 #include "avm_dsp/bitreader_buffer.h"
 #include "avm_mem/avm_mem.h"
+#include "test/decoder_model_lifecycle.h"
 
 namespace {
+
+using Av2DmVerifierStats = libavm_test::ScopedDmVerifierStats;
 
 static void rb_error_handler(void *data, avm_codec_err_t error,
                              const char *detail) {
@@ -78,7 +81,7 @@ TEST_F(BrtTest, NonOpsDependent) {
   EXPECT_EQ(pbi_->common.brt_info.br_ops_dependent_flag, 0);
   EXPECT_EQ(pbi_->common.brt_info.br_time, 42);
 
-  Av2DmVerifierStats stats;
+  Av2DmVerifierStats stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
   EXPECT_EQ(stats.event_count, 1u);
   av2_decoder_model_verifier_destroy(pbi_);
