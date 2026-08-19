@@ -23,8 +23,9 @@ extern "C" {
 #endif
 
 void av2_ccso_search(AV2_COMMON *cm, MACROBLOCKD *xd, int rdmult,
-                     const uint16_t *ext_rec_y, uint16_t *rec_uv[3],
-                     uint16_t *org_uv[3], bool error_resilient_frame_seen
+                     const uint16_t *ext_rec_y, uint16_t *rec_uv[MAX_MB_PLANE],
+                     uint16_t *org_uv[MAX_MB_PLANE],
+                     bool error_resilient_frame_seen
 #if CONFIG_ENTROPY_STATS
                      ,
                      ThreadData *td

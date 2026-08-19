@@ -3024,39 +3024,34 @@ static void avm_band_search(AV2_COMP *cpi, AV2_COMMON *cm, MACROBLOCKD *xd) {
 static void cdef_restoration_frame(AV2_COMP *cpi, AV2_COMMON *cm,
                                    MACROBLOCKD *xd, int use_restoration,
                                    int use_cdef, int use_gdf) {
-  uint16_t *rec_uv[CCSO_NUM_COMPONENTS];
-  uint16_t *org_uv[CCSO_NUM_COMPONENTS];
   uint16_t *ext_rec_y = NULL;
-  uint16_t *ref_buffer;
-  const YV12_BUFFER_CONFIG *ref = cpi->source;
-  int ref_stride;
   const int use_ccso =
       !cm->features.coded_lossless && !cm->bru.frame_inactive_flag &&
       !cm->bridge_frame_info.is_bridge_frame && cm->seq_params.enable_ccso;
   const int num_planes = av2_num_planes(cm);
+
   av2_setup_dst_planes(xd->plane, &cm->cur_frame->buf, 0, 0, 0, num_planes,
                        NULL);
-  const int ccso_stride = xd->plane[0].dst.width;
-  for (int pli = 0; pli < num_planes; pli++) {
-    rec_uv[pli] = avm_malloc(sizeof(*rec_uv[pli]) * xd->plane[0].dst.height *
-                             ccso_stride);
-    org_uv[pli] = avm_malloc(sizeof(*org_uv[pli]) * xd->plane[0].dst.height *
-                             ccso_stride);
-  }
   if (use_ccso) {
+    const int ccso_stride = xd->plane[AVM_PLANE_Y].dst.width;
+    const int ccso_height = xd->plane[AVM_PLANE_Y].dst.height;
+    const int ccso_stride_ext = ccso_stride + (CCSO_PADDING_SIZE << 1);
+    const int ccso_height_ext = ccso_height + (CCSO_PADDING_SIZE << 1);
+    CHECK_MEM_ERROR(
+        cm, ext_rec_y,
+        avm_malloc(sizeof(*ext_rec_y) * ccso_stride_ext * ccso_height_ext));
+
     const int pic_height = cm->cur_frame->buf.y_height;
     const int pic_width = cm->cur_frame->buf.y_width;
     const int dst_stride = cm->cur_frame->buf.y_stride;
-    const uint16_t *rec_y = cm->cur_frame->buf.y_buffer;
-    const int ccso_stride_ext = pic_width + (CCSO_PADDING_SIZE << 1);
-    ext_rec_y = avm_malloc(sizeof(*ext_rec_y) *
-                           (pic_height + (CCSO_PADDING_SIZE << 1)) *
-                           (pic_width + (CCSO_PADDING_SIZE << 1)));
+    uint16_t *rec_y = cm->cur_frame->buf.y_buffer;
+    uint16_t *ext_rec_y_row =
+        ext_rec_y + CCSO_PADDING_SIZE + (CCSO_PADDING_SIZE * ccso_stride_ext);
+
     for (int r = 0; r < pic_height; ++r) {
-      for (int c = 0; c < pic_width; ++c) {
-        ext_rec_y[(r + CCSO_PADDING_SIZE) * ccso_stride_ext + c +
-                  CCSO_PADDING_SIZE] = rec_y[r * dst_stride + c];
-      }
+      av2_copy_array(ext_rec_y_row, rec_y, pic_width);
+      ext_rec_y_row += ccso_stride_ext;
+      rec_y += dst_stride;
     }
     extend_ccso_border(&cm->cur_frame->buf, ext_rec_y, CCSO_PADDING_SIZE);
   }
@@ -3099,43 +3094,50 @@ static void cdef_restoration_frame(AV2_COMP *cpi, AV2_COMMON *cm,
     cm->cdef_info.cdef_frame_enable = 0;
     // if not use ccso, need to init
     cm->ccso_info.ccso_frame_flag = false;
-    cm->ccso_info.ccso_enable[0] = cm->ccso_info.ccso_enable[1] =
-        cm->ccso_info.ccso_enable[2] = 0;
-    for (int plane = 0; plane < av2_num_planes(cm); plane++) {
-      cm->cur_frame->ccso_info.ccso_enable[plane] = 0;
+    for (int plane = AVM_PLANE_Y; plane < num_planes; ++plane) {
+      cm->cur_frame->ccso_info.ccso_enable[plane] = false;
+      cm->ccso_info.ccso_enable[plane] = false;
       cm->ccso_info.sb_reuse_ccso[plane] = false;
       cm->ccso_info.reuse_ccso[plane] = false;
     }
   }
+
   if (use_ccso) {
     av2_setup_dst_planes(xd->plane, &cm->cur_frame->buf, 0, 0, 0, num_planes,
                          NULL);
-    // Reading original and reconstructed chroma samples as input
-    for (int pli = 0; pli < num_planes; pli++) {
-      const int pic_height = xd->plane[pli].dst.height;
-      const int pic_width = xd->plane[pli].dst.width;
-      const int dst_stride = xd->plane[pli].dst.stride;
-      switch (pli) {
-        case 0:
-          ref_buffer = ref->y_buffer;
-          ref_stride = ref->y_stride;
-          break;
-        case 1:
-          ref_buffer = ref->u_buffer;
-          ref_stride = ref->uv_stride;
-          break;
-        case 2:
-          ref_buffer = ref->v_buffer;
-          ref_stride = ref->uv_stride;
-          break;
-        default: ref_stride = 0;
-      }
+
+    uint16_t *rec_uv[CCSO_NUM_COMPONENTS];
+    uint16_t *org_uv[CCSO_NUM_COMPONENTS];
+    const int ccso_stride = xd->plane[AVM_PLANE_Y].dst.width;
+    const int ccso_height = xd->plane[AVM_PLANE_Y].dst.height;
+    for (int plane = AVM_PLANE_Y; plane < num_planes; ++plane) {
+      CHECK_MEM_ERROR(
+          cm, rec_uv[plane],
+          avm_malloc(sizeof(*rec_uv[plane]) * ccso_height * ccso_stride));
+      CHECK_MEM_ERROR(
+          cm, org_uv[plane],
+          avm_malloc(sizeof(*org_uv[plane]) * ccso_height * ccso_stride));
+
+      // Reading original and reconstructed chroma samples as input
+      const YV12_BUFFER_CONFIG *src = cpi->source;
+      uint16_t *rec_buffer = xd->plane[plane].dst.buf;
+      uint16_t *src_cpy = org_uv[plane];
+      uint16_t *rec_cpy = rec_uv[plane];
+      const int pic_height = xd->plane[plane].dst.height;
+      const int pic_width = xd->plane[plane].dst.width;
+      const int rec_stride = xd->plane[plane].dst.stride;
+      uint16_t *src_buffer = src->buffers[plane];
+      int src_stride = src->strides[plane == AVM_PLANE_Y ? 0 : 1];
+
       for (int r = 0; r < pic_height; ++r) {
-        for (int c = 0; c < pic_width; ++c) {
-          rec_uv[pli][r * ccso_stride + c] =
-              xd->plane[pli].dst.buf[r * dst_stride + c];
-          org_uv[pli][r * ccso_stride + c] = ref_buffer[r * ref_stride + c];
-        }
+        av2_copy_array(src_cpy, src_buffer, pic_width);
+        src_buffer += src_stride;
+
+        av2_copy_array(rec_cpy, rec_buffer, pic_width);
+        rec_buffer += rec_stride;
+
+        rec_cpy += ccso_stride;
+        src_cpy += ccso_stride;
       }
     }
     av2_ccso_search(cm, xd, cpi->td.mb.rdmult, ext_rec_y, rec_uv, org_uv,
@@ -3152,10 +3154,10 @@ static void cdef_restoration_frame(AV2_COMP *cpi, AV2_COMMON *cm,
     mismatch_record_frame(&cm->cur_frame->buf, num_planes, 2);
 #endif
     avm_free(ext_rec_y);
-  }
-  for (int pli = 0; pli < num_planes; pli++) {
-    avm_free(rec_uv[pli]);
-    avm_free(org_uv[pli]);
+    for (int plane = AVM_PLANE_Y; plane < num_planes; ++plane) {
+      avm_free(rec_uv[plane]);
+      avm_free(org_uv[plane]);
+    }
   }
 
   if (use_gdf) {

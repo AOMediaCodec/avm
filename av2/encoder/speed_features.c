@@ -424,13 +424,13 @@ static void set_good_speed_features_framesize_independent(
     sf->part_sf.partition_pruning_with_mlp = 1;
     sf->part_sf.partition_pruning_with_mlp_none_thresh = 3.5f;
     sf->lpf_sf.enable_deblock_for_partition_search = 1;
-    sf->lpf_sf.ccso_chroma_dep = 1;
     if (!allow_screen_content_tools) {
       sf->mv_sf.newmv_drl_search_limit = boosted ? 2 : 1;
     }
     sf->mv_sf.reduce_search_range = 1;
     sf->mv_sf.subpel_search_type = boosted ? USE_8_TAPS : USE_4_TAPS;
     sf->mv_sf.subpel_iters_per_step = boosted ? 2 : 1;
+    sf->lpf_sf.ccso_chroma_dep = 1;
   }
 
   if (speed >= 2) {
