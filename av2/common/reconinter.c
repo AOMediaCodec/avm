@@ -4030,12 +4030,10 @@ void set_most_probable_mv_precision(const AV2_COMMON *const cm,
 #endif
 }
 void set_precision_set(const AV2_COMMON *const cm, MACROBLOCKD *const xd,
-                       MB_MODE_INFO *mbmi, const BLOCK_SIZE bsize,
-                       int *ref_mv_idx) {
+                       MB_MODE_INFO *mbmi, const BLOCK_SIZE bsize) {
   (void)bsize;
   (void)cm;
   (void)xd;
-  (void)ref_mv_idx;
   mbmi->mb_precision_set =
       (mbmi->max_mv_precision < MV_PRECISION_HALF_PEL)
           ? 0
