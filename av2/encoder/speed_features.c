@@ -430,6 +430,7 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.reduce_search_range = 1;
     sf->mv_sf.subpel_search_type = boosted ? USE_8_TAPS : USE_4_TAPS;
     sf->mv_sf.subpel_iters_per_step = boosted ? 2 : 1;
+    sf->lpf_sf.ccso_chroma_dep = 1;
   }
 
   if (speed >= 2) {
@@ -998,6 +999,7 @@ static AVM_INLINE void init_lpf_sf(LOOP_FILTER_SPEED_FEATURES *lpf_sf) {
   lpf_sf->wienerns_refine_iters = 2;
   lpf_sf->enable_deblock_for_partition_search = 0;
   lpf_sf->early_terminate_ccso_search_by_cost = 0;
+  lpf_sf->ccso_chroma_dep = 0;
 }
 
 static void av2_disable_ml_based_transform_sf(TX_SPEED_FEATURES *const tx_sf) {
