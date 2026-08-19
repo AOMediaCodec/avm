@@ -70,6 +70,7 @@ typedef struct prequant_t {
   int32_t absLevel[4];
   int64_t deltaDist[4];
   int16_t qIdx;
+  int16_t orig_qIdx;
 } prequant_t;
 
 typedef struct tcq_rate_t {
