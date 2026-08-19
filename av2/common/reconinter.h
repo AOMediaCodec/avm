@@ -1250,8 +1250,7 @@ void set_default_precision_set(const AV2_COMMON *const cm, MB_MODE_INFO *mbmi,
 
 // Set the precision set of the block. Currently, the value is 0.
 void set_precision_set(const AV2_COMMON *const cm, MACROBLOCKD *const xd,
-                       MB_MODE_INFO *mbmi, const BLOCK_SIZE bsize,
-                       int *ref_mv_idx);
+                       MB_MODE_INFO *mbmi, const BLOCK_SIZE bsize);
 // Get the index of the precision
 // this index is signalled when precision is not same as the most probable
 // precision
