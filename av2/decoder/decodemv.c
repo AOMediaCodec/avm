@@ -2799,7 +2799,7 @@ static void read_inter_block_mode_info(AV2Decoder *const pbi,
                      ec_ctx, mbmi, r);
       set_mv_precision(mbmi, mbmi->max_mv_precision);
       if (is_pb_mv_precision_active(cm, mbmi, bsize)) {
-        set_precision_set(cm, xd, mbmi, bsize, mbmi->ref_mv_idx);
+        set_precision_set(cm, xd, mbmi, bsize);
         set_most_probable_mv_precision(cm, mbmi, bsize);
         mbmi->pb_mv_precision = av2_read_pb_mv_precision(cm, xd, r);
       }
