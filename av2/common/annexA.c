@@ -84,14 +84,6 @@ typedef enum {
 */
 /* clang-format on */
 
-typedef enum {
-  INTEROP_0,
-  INTEROP_1,
-  INTEROP_2,
-  INTEROP_3,
-  NUM_INTEROP_POINTS = 16,
-} INTEROP_POINTS;
-
 static const int seq_profile_max_mlayer_cnt[MAX_PROFILES] = {
   1, 2, 3, 2, 2,
 #if CONFIG_12BIT_PROFILE
@@ -143,8 +135,33 @@ static const int seq_profile_max_mlayer_cnt[MAX_PROFILES] = {
 // Profile Conformance Functions
 //=================================================================
 // Helper functions
-// Get interoperability point from seq_profile_idc
-// Return -1 for reserved seq_profile_idc values
+
+// Interoperability point of each defined profile, per Table A.1. Keep in sync
+// with the BITSTREAM_PROFILE enum in enums.h when a profile is added.
+static const int seq_profile_interop[] = {
+  INTEROP_0,  // MAIN_420_10_IP0
+  INTEROP_1,  // MAIN_420_10_IP1
+  INTEROP_2,  // MAIN_420_10_IP2
+  INTEROP_1,  // MAIN_422_10_IP1
+  INTEROP_1,  // MAIN_444_10_IP1
+#if CONFIG_12BIT_PROFILE
+  INTEROP_2,  // MAIN_444C_12_IP2
+#endif        // CONFIG_12BIT_PROFILE
+};
+
+static_assert((int)(sizeof(seq_profile_interop) /
+                    sizeof(seq_profile_interop[0])) ==
+                  (int)RESERVED_PROFILES_START,
+              "seq_profile_interop[] must cover every defined profile");
+
+int av2_get_interop_from_profile(int seq_profile_idc) {
+  if (seq_profile_idc < 0 || seq_profile_idc >= MAX_PROFILES)
+    return INTEROP_INVALID;
+  // CONFIGURABLE has no interoperability point in Table A.1.
+  if (seq_profile_idc == CONFIGURABLE) return INTEROP_NONE;
+  if (seq_profile_idc >= RESERVED_PROFILES_START) return INTEROP_INVALID;
+  return seq_profile_interop[seq_profile_idc];
+}
 
 static INLINE int av2_get_max_mlayer_cnt_from_profile(int seq_profile_idc) {
   if (seq_profile_idc < 0 || seq_profile_idc >= MAX_PROFILES) return -1;

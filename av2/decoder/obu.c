@@ -2098,52 +2098,67 @@ static void check_valid_layer_id(ObuHeader obu_header, AV2_COMMON *const cm) {
   }
 }
 
-static BITSTREAM_PROFILE get_msdo_profile(struct AV2Decoder *pbi) {
-  return pbi->common.msdo_params.multistream_profile_idc;
+static int get_msdo_interop(struct AV2Decoder *pbi) {
+  return av2_get_interop_from_profile(
+      pbi->common.msdo_params.multistream_profile_idc);
 }
 
-static BITSTREAM_PROFILE get_lcr_global_profile(struct AV2Decoder *pbi) {
-  // Return the lcr_max_interop from the first valid global LCR's aggregate PTL.
-  // lcr_max_interop maps directly to the IOP (0, 1, 2) which corresponds to
-  // MAIN_420_10_IP0, MAIN_420_10_IP1, MAIN_420_10_IP2 respectively.
+static int get_lcr_global_interop(struct AV2Decoder *pbi) {
+  // Return the interoperability point of the first valid global LCR.
+  // lcr_max_interop in the aggregate PTL is already an interoperability point,
+  // so it is used directly; the seq PTL fallback signals a profile instead and
+  // must be mapped through Table A.1.
   for (int j = 0; j < MAX_NUM_LCR; j++) {
     if (pbi->lcr_list[GLOBAL_XLAYER_ID][j].valid) {
       const struct GlobalLayerConfigurationRecord *glcr =
           &pbi->lcr_list[GLOBAL_XLAYER_ID][j].global_lcr;
       if (glcr->lcr_aggregate_info_present_flag)
-        return (BITSTREAM_PROFILE)glcr->aggregate_ptl.lcr_max_interop;
+        return glcr->aggregate_ptl.lcr_max_interop;
       // Fall back to the first seq PTL if aggregate PTL is not present.
       if (glcr->lcr_seq_profile_tier_level_info_present_flag &&
           glcr->LcrMaxNumXLayerCount > 0)
-        return (BITSTREAM_PROFILE)glcr->seq_ptl[glcr->LcrXLayerID[0]]
-            .lcr_seq_profile_idc;
+        return av2_get_interop_from_profile(
+            glcr->seq_ptl[glcr->LcrXLayerID[0]].lcr_seq_profile_idc);
     }
   }
-  (void)pbi;
-  return MAIN_420_10_IP2;  // Fallback
+  return INTEROP_2;  // Fallback
 }
 
-static BITSTREAM_PROFILE get_lcr_local_profile(struct AV2Decoder *pbi) {
-  // Return the lcr_seq_profile_idc from the first valid local LCR.
+static int get_lcr_local_interop(struct AV2Decoder *pbi) {
+  // Return the interoperability point of the first valid local LCR, mapped
+  // from its lcr_seq_profile_idc.
   for (int i = 0; i < GLOBAL_XLAYER_ID; i++) {
     for (int j = 0; j < MAX_NUM_LCR; j++) {
       if (pbi->lcr_list[i][j].valid) {
         const struct LocalLayerConfigurationRecord *llcr =
             &pbi->lcr_list[i][j].local_lcr;
         if (llcr->lcr_profile_tier_level_info_present_flag)
-          return (BITSTREAM_PROFILE)llcr->seq_ptl.lcr_seq_profile_idc;
+          return av2_get_interop_from_profile(
+              llcr->seq_ptl.lcr_seq_profile_idc);
       }
     }
   }
-  (void)pbi;
-  return MAIN_420_10_IP2;  // Fallback
+  return INTEROP_2;  // Fallback
+}
+
+// Returns true if the Annex A OBU requirements table does not constrain this
+// interoperability point: INTEROP_NONE (the CONFIGURABLE profile) and any IOP
+// >= INTEROP_3 (reserved and max) are unconstrained. INTEROP_INVALID (a
+// reserved profile) is not exempted, so such a stream is rejected here.
+static bool interop_is_unconstrained(int interop) {
+  return interop == INTEROP_NONE || interop >= INTEROP_3;
 }
 
 // Conformance check for the presence of MSDO and LCR.
 // The OBU requirements table in Annex A only applies when IOP < 3, i.e.
-// when the MSDO profile or LCR profile is one of the IP profiles (0, 1, 2).
-// For profile == 31 (CONFIGURABLE) the table does
+// when the MSDO profile or LCR profile has an interoperability point of
+// 0, 1 or 2. For the CONFIGURABLE profile and for IOPs >= 3 the table does
 // not impose additional constraints, so we return true.
+//
+// The checks below are expressed in terms of interoperability points rather
+// than individual profile labels, so that profiles sharing an IOP (e.g.
+// MAIN_420_10_IP2 and MAIN_444C_12_IP2) are treated identically and newly
+// added profiles need no change here.
 bool conformance_check_msdo_lcr(struct AV2Decoder *pbi, bool global_lcr_present,
                                 bool local_lcr_present) {
   int msdo_present = pbi->multistream_decoder_mode;
@@ -2165,17 +2180,16 @@ bool conformance_check_msdo_lcr(struct AV2Decoder *pbi, bool global_lcr_present,
   }
   assert(num_extended_layers > 0 && num_embedded_layers > 0);
 
-  // Determine the effective MSDO and LCR profiles.
-  const BITSTREAM_PROFILE msdo_prof = get_msdo_profile(pbi);
-  const BITSTREAM_PROFILE glcr_prof = get_lcr_global_profile(pbi);
-  const BITSTREAM_PROFILE llcr_prof = get_lcr_local_profile(pbi);
+  // Determine the effective MSDO and LCR interoperability points.
+  const int msdo_iop = get_msdo_interop(pbi);
+  const int glcr_iop = get_lcr_global_interop(pbi);
+  const int llcr_iop = get_lcr_local_interop(pbi);
 
-  // The IOP table only applies for IOPs 0-2 (profiles IP0, IP1, IP2).
-  // If the signaled profile is >= 3, the table does not apply.
-  if (msdo_present && msdo_prof == CONFIGURABLE) return true;
-  if (global_lcr_present && glcr_prof == CONFIGURABLE) return true;
+  // The IOP table only applies for IOPs 0-2.
+  if (msdo_present && interop_is_unconstrained(msdo_iop)) return true;
+  if (global_lcr_present && interop_is_unconstrained(glcr_iop)) return true;
   if (!msdo_present && !global_lcr_present && local_lcr_present &&
-      llcr_prof == CONFIGURABLE) {
+      interop_is_unconstrained(llcr_iop)) {
     return true;
   }
   if (!msdo_present && !global_lcr_present && !local_lcr_present) {
@@ -2187,31 +2201,32 @@ bool conformance_check_msdo_lcr(struct AV2Decoder *pbi, bool global_lcr_present,
   }
 
   if (num_extended_layers > 1 && num_embedded_layers == 1) {
-    if (msdo_present &&
-        (msdo_prof == MAIN_420_10_IP0 || msdo_prof == MAIN_420_10_IP1 ||
-         msdo_prof == MAIN_420_10_IP2 || msdo_prof == MAIN_422_10_IP1 ||
-         msdo_prof == MAIN_444_10_IP1))
-      return true;
+    // Every IOP constrained by the table (0..2) allows multiple extended layers
+    // with a single embedded layer.
+    if (msdo_present && msdo_iop >= INTEROP_0) return true;
 
-    if (global_lcr_present && glcr_prof == MAIN_420_10_IP2) return true;
+    if (global_lcr_present && glcr_iop >= INTEROP_2) return true;
   }
 
   if (num_extended_layers == 1 && num_embedded_layers > 1) {
-    if (!msdo_present && local_lcr_present &&
-        (llcr_prof == MAIN_420_10_IP1 || llcr_prof == MAIN_422_10_IP1 ||
-         llcr_prof == MAIN_444_10_IP1))
+    // Multiple embedded layers require IOP >= 1.
+    if (!msdo_present && local_lcr_present && llcr_iop >= INTEROP_1)
       return true;
 
-    if (!msdo_present && (global_lcr_present || local_lcr_present) &&
-        (glcr_prof == MAIN_420_10_IP2 || llcr_prof == MAIN_420_10_IP2))
+    // Each interoperability point is only consulted when the corresponding LCR
+    // is actually present, so that the permissive fallback returned by
+    // get_lcr_{global,local}_interop() for an absent LCR cannot allow a
+    // configuration the present LCR's IOP forbids.
+    if (!msdo_present && ((global_lcr_present && glcr_iop >= INTEROP_2) ||
+                          (local_lcr_present && llcr_iop >= INTEROP_2)))
       return true;
   }
 
   if (num_extended_layers > 1 && num_embedded_layers > 1) {
-    if (msdo_present && local_lcr_present && msdo_prof == MAIN_420_10_IP2)
-      return true;
+    // Combinations of multiple extended and embedded layers require IOP 2.
+    if (msdo_present && local_lcr_present && msdo_iop >= INTEROP_2) return true;
 
-    if (global_lcr_present && glcr_prof == MAIN_420_10_IP2) return true;
+    if (global_lcr_present && glcr_iop >= INTEROP_2) return true;
   }
   return false;
 }
