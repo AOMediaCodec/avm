@@ -1818,35 +1818,38 @@ exit_loops:
 }
 
 /* Derive the look-up table for a frame */
-void ccso_search(AV2_COMMON *cm, MACROBLOCKD *xd, int rdmult,
-                 const uint16_t *ext_rec_y, uint16_t *rec_uv[MAX_MB_PLANE],
-                 uint16_t *org_uv[MAX_MB_PLANE], bool error_resilient_frame_seen
+void av2_ccso_search(AV2_COMMON *cm, MACROBLOCKD *xd, int rdmult,
+                     const uint16_t *ext_rec_y, uint16_t *rec_uv[MAX_MB_PLANE],
+                     uint16_t *org_uv[MAX_MB_PLANE],
+                     bool error_resilient_frame_seen
 #if CONFIG_ENTROPY_STATS
-                 ,
-                 ThreadData *td
+                     ,
+                     ThreadData *td
 #endif
-                 ,
-                 int early_terminate_ccso_search) {
+                     ,
+                     int early_terminate_ccso_search, int ccso_chroma_dep) {
   const int num_planes = av2_num_planes(cm);
   const int rdmult_weight = clamp(cm->quant_params.base_qindex >> 3, 1, 37);
+  int rdmult_orig = rdmult;
 
   cm->ccso_info.ccso_frame_flag = false;
+  for (int plane = AVM_PLANE_Y; plane < num_planes; ++plane) {
+    cm->cur_frame->ccso_info.ccso_enable[plane] = false;
+    cm->ccso_info.ccso_enable[plane] = false;
+    cm->ccso_info.sb_reuse_ccso[plane] = false;
+    cm->ccso_info.reuse_ccso[plane] = false;
+  }
+
   if ((int64_t)rdmult * rdmult_weight >= INT_MAX) {
-    for (int plane = AVM_PLANE_Y; plane < num_planes; ++plane) {
-      cm->cur_frame->ccso_info.ccso_enable[plane] = false;
-      cm->ccso_info.ccso_enable[plane] = false;
-      cm->ccso_info.sb_reuse_ccso[plane] = false;
-      cm->ccso_info.reuse_ccso[plane] = false;
-    }
+    return;
   } else {
     CcsoCtx *ctx;
     CHECK_MEM_ERROR(cm, ctx, avm_calloc(1, sizeof(*ctx)));
-
     av2_setup_dst_planes(xd->plane, &cm->cur_frame->buf, 0, 0, 0, num_planes,
                          NULL);
     ctx->ccso_stride = xd->plane[AVM_PLANE_Y].dst.width;
     ctx->ccso_stride_ext = ctx->ccso_stride + (CCSO_PADDING_SIZE << 1);
-    for (int plane = AVM_PLANE_Y; plane < num_planes; ++plane) {
+    for (int plane = AVM_PLANE_U; plane < num_planes; ++plane) {
       if (plane == AVM_PLANE_U) rdmult = (rdmult * 7) >> 3;
       derive_ccso_filter(ctx, cm, plane, xd, org_uv[plane], ext_rec_y,
                          rec_uv[plane], rdmult, error_resilient_frame_seen
@@ -1857,6 +1860,22 @@ void ccso_search(AV2_COMMON *cm, MACROBLOCKD *xd, int rdmult,
                          ,
                          early_terminate_ccso_search);
       cm->ccso_info.ccso_frame_flag |= cm->ccso_info.ccso_enable[plane];
+    }
+
+    int check_luma_planes =
+        (ccso_chroma_dep && num_planes > 1) ? cm->ccso_info.ccso_frame_flag : 1;
+
+    if (check_luma_planes) {
+      derive_ccso_filter(ctx, cm, AVM_PLANE_Y, xd, org_uv[AVM_PLANE_Y],
+                         ext_rec_y, rec_uv[AVM_PLANE_Y], rdmult_orig,
+                         error_resilient_frame_seen
+#if CONFIG_ENTROPY_STATS
+                         ,
+                         td
+#endif
+                         ,
+                         early_terminate_ccso_search);
+      cm->ccso_info.ccso_frame_flag |= cm->ccso_info.ccso_enable[0];
     }
     avm_free(ctx);
   }

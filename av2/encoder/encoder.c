@@ -3143,14 +3143,15 @@ static void cdef_restoration_frame(AV2_COMP *cpi, AV2_COMMON *cm,
         src_cpy += ccso_stride;
       }
     }
-    ccso_search(cm, xd, cpi->td.mb.rdmult, ext_rec_y, rec_uv, org_uv,
-                cpi->error_resilient_frame_seen
+    av2_ccso_search(cm, xd, cpi->td.mb.rdmult, ext_rec_y, rec_uv, org_uv,
+                    cpi->error_resilient_frame_seen
 #if CONFIG_ENTROPY_STATS
-                ,
-                &cpi->td
+                    ,
+                    &cpi->td
 #endif
-                ,
-                cpi->sf.lpf_sf.early_terminate_ccso_search_by_cost);
+                    ,
+                    cpi->sf.lpf_sf.early_terminate_ccso_search_by_cost,
+                    cpi->sf.lpf_sf.ccso_chroma_dep);
     ccso_frame(&cm->cur_frame->buf, cm, xd, ext_rec_y);
 #if CONFIG_MISMATCH_DEBUG
     mismatch_record_frame(&cm->cur_frame->buf, num_planes, 2);
