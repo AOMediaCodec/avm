@@ -1323,7 +1323,13 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV2_COMMON *cm, const int plane,
          sizeof(*cm->cur_frame->ccso_info.sb_filter_control[plane]) * sb_count);
 
   for (int scale_idx = 0; scale_idx < total_scale_idx; ++scale_idx) {
-    for (uint8_t ccso_bo_only = 0; ccso_bo_only < 2; ccso_bo_only++) {
+    for (uint8_t search_idx = 0; search_idx < 2; search_idx++) {
+      // A BO-only candidate is cheaper and covers a different part of the
+      // search space. Under early termination, evaluate it first so the full
+      // filter search starts with a finite RD bound. Keep the original order
+      // for exhaustive search, where ordering should not affect the result.
+      const uint8_t ccso_bo_only =
+          early_terminate_ccso_search ? 1 - search_idx : search_idx;
       int num_filter_iter = ccso_bo_only ? 1 : total_filter_support;
       int num_quant_iter = ccso_bo_only ? 1 : total_quant_idx;
       int num_edge_clf_iter = ccso_bo_only ? 1 : total_edge_classifier;
