@@ -377,7 +377,8 @@ static void set_good_speed_features_framesize_independent(
 
     sf->inter_sf.prune_comp_search_by_single_result = boosted ? 2 : 1;
 
-    sf->winner_mode_sf.disable_multiway_tx_part_in_rough_mode = 1;
+    sf->winner_mode_sf.disable_multiway_tx_part_in_rough_mode =
+        allow_screen_content_tools ? 0 : 1;
     if (!frame_is_intra_only(cm) &&
         sf->winner_mode_sf.disable_multiway_tx_part_in_rough_mode) {
       sf->winner_mode_sf.multi_winner_mode_type = MULTI_WINNER_MODE_DEFAULT;
