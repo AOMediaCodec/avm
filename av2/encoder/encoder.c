@@ -1406,6 +1406,8 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
       av2_free_shared_coeff_buffer(&cpi->td.shared_coeff_buf);
       av2_free_sms_tree(&cpi->td);
       av2_free_sms_bufs(&cpi->td);
+      av2_free_pc_tree_recursive(cpi->td.pc_root, av2_num_planes(cm), 0, 0);
+      cpi->td.pc_root = NULL;
 #if CONFIG_ML_PART_SPLIT
       av2_part_prune_tflite_close(&(cpi->td.partition_model));
 #endif  // CONFIG_ML_PART_SPLIT
@@ -1813,6 +1815,9 @@ static AVM_INLINE void free_thread_data(AV2_COMP *cpi) {
     thread_data->td->vt64x64 = NULL;
     av2_free_sms_tree(thread_data->td);
     av2_free_sms_bufs(thread_data->td);
+    av2_free_pc_tree_recursive(thread_data->td->pc_root, av2_num_planes(cm), 0,
+                               0);
+    thread_data->td->pc_root = NULL;
 #if CONFIG_ML_PART_SPLIT
     av2_part_prune_tflite_close(&(thread_data->td->partition_model));
 #endif  // CONFIG_ML_PART_SPLIT
@@ -2541,6 +2546,8 @@ int av2_set_size_literal(AV2_COMP *cpi, int width, int height) {
       av2_free_shared_coeff_buffer(&cpi->td.shared_coeff_buf);
       av2_free_sms_tree(&cpi->td);
       av2_free_sms_bufs(&cpi->td);
+      av2_free_pc_tree_recursive(cpi->td.pc_root, av2_num_planes(cm), 0, 0);
+      cpi->td.pc_root = NULL;
 #if CONFIG_ML_PART_SPLIT
       av2_part_prune_tflite_close(&(cpi->td.partition_model));
 #endif  // CONFIG_ML_PART_SPLIT
