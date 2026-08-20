@@ -136,6 +136,11 @@ PICK_MODE_CONTEXT *av2_alloc_pmc(const AV2_COMMON *cm, TREE_TYPE tree_type,
                                  int subsampling_x, int subsampling_y,
                                  PC_TREE_SHARED_BUFFERS *shared_bufs);
 void av2_free_pmc(PICK_MODE_CONTEXT *ctx, int num_planes);
+/*!\brief Resets the state of a PICK_MODE_CONTEXT node for reuse.
+ *
+ * \param[in,out]  ctx  Pointer to the PICK_MODE_CONTEXT to reset
+ */
+void av2_reset_pmc(PICK_MODE_CONTEXT *ctx);
 void av2_copy_tree_context(PICK_MODE_CONTEXT *dst_ctx,
                            PICK_MODE_CONTEXT *src_ctx, int num_planes);
 

@@ -1747,6 +1747,9 @@ typedef struct ThreadData {
   void *partition_model;
 #endif  // CONFIG_ML_PART_SPLIT
   void *dip_pruning_model;
+  // Root node for pre-allocated partition context tree (PC_TREE) reused
+  // across superblocks in real-time non-RD mode.
+  struct PC_TREE *pc_root;
 } ThreadData;
 
 struct EncWorkerData;
