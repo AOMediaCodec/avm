@@ -1817,6 +1817,8 @@ static void define_gf_group(AV2_COMP *cpi, FIRSTPASS_STATS *this_frame,
     set_baseline_gf_interval(cpi, (i - 1), active_max_gf_interval, use_alt_ref,
                              frame_params->frame_type);
 
+    if (rc->baseline_gf_interval < 2) gf_group->max_layer_depth_allowed = 0;
+
     const int forward_frames = (rc->frames_to_key - i + 1 >= (i - 1))
                                    ? (i - 1)
                                    : AVMMAX(0, rc->frames_to_key - i + 1);
