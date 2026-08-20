@@ -70,8 +70,6 @@ AV2_DM_NO_UNSIGNED_OVERFLOW_CHECK static void multiply_64(
   *product_low = (middle_2 << 32) | (low & mask);
 }
 
-#undef AV2_DM_NO_UNSIGNED_OVERFLOW_CHECK
-
 typedef struct Av2DmBigUInt {
   uint64_t *limbs;
   uint32_t count;
@@ -172,8 +170,9 @@ static void big_uint_trim(Av2DmBigUInt *value) {
 }
 
 static bool big_uint_allocate(Av2DmBigUInt *value, uint32_t capacity) {
-  if (capacity == 0) return true;
+#if SIZE_MAX < UINT64_MAX
   if ((uint64_t)capacity > SIZE_MAX / sizeof(*value->limbs)) return false;
+#endif
   if (capacity <= AV2_DM_BIG_UINT_INLINE_LIMBS) {
     value->limbs = value->inline_limbs;
   } else {
@@ -235,8 +234,10 @@ static int big_uint_compare(const Av2DmBigUInt *left,
   return 0;
 }
 
-static bool big_uint_add(const Av2DmBigUInt *left, const Av2DmBigUInt *right,
-                         Av2DmBigUInt *result) {
+// These helpers intentionally use modulo-2^64 limb arithmetic to propagate
+// carries and borrows while constructing an exact multi-limb result.
+AV2_DM_NO_UNSIGNED_OVERFLOW_CHECK static bool big_uint_add(
+    const Av2DmBigUInt *left, const Av2DmBigUInt *right, Av2DmBigUInt *result) {
   const uint32_t maximum =
       left->count > right->count ? left->count : right->count;
   if (maximum == UINT32_MAX || !big_uint_allocate(result, maximum + 1)) {
@@ -258,8 +259,8 @@ static bool big_uint_add(const Av2DmBigUInt *left, const Av2DmBigUInt *right,
   return true;
 }
 
-static bool big_uint_subtract(const Av2DmBigUInt *left,
-                              const Av2DmBigUInt *right, Av2DmBigUInt *result) {
+AV2_DM_NO_UNSIGNED_OVERFLOW_CHECK static bool big_uint_subtract(
+    const Av2DmBigUInt *left, const Av2DmBigUInt *right, Av2DmBigUInt *result) {
   if (big_uint_compare(left, right) < 0 ||
       !big_uint_allocate(result, left->count)) {
     return false;
@@ -279,8 +280,8 @@ static bool big_uint_subtract(const Av2DmBigUInt *left,
   return true;
 }
 
-static bool big_uint_multiply(const Av2DmBigUInt *left,
-                              const Av2DmBigUInt *right, Av2DmBigUInt *result) {
+AV2_DM_NO_UNSIGNED_OVERFLOW_CHECK static bool big_uint_multiply(
+    const Av2DmBigUInt *left, const Av2DmBigUInt *right, Av2DmBigUInt *result) {
   if (big_uint_is_zero(left) || big_uint_is_zero(right)) return true;
   if (UINT32_MAX - left->count < right->count ||
       !big_uint_allocate(result, left->count + right->count)) {
@@ -328,7 +329,8 @@ static uint32_t big_uint_bit_count(const Av2DmBigUInt *value) {
   return (value->count - 1) * 64 + high_bits;
 }
 
-static bool big_uint_shift_add_bit(Av2DmBigUInt *value, uint64_t bit) {
+AV2_DM_NO_UNSIGNED_OVERFLOW_CHECK static bool big_uint_shift_add_bit(
+    Av2DmBigUInt *value, uint64_t bit) {
   uint64_t carry = bit;
   for (uint32_t i = 0; i < value->count; ++i) {
     const uint64_t next_carry = value->limbs[i] >> 63;
@@ -346,8 +348,8 @@ static bool big_uint_shift_add_bit(Av2DmBigUInt *value, uint64_t bit) {
   return true;
 }
 
-static bool big_uint_subtract_in_place(Av2DmBigUInt *left,
-                                       const Av2DmBigUInt *right) {
+AV2_DM_NO_UNSIGNED_OVERFLOW_CHECK static bool big_uint_subtract_in_place(
+    Av2DmBigUInt *left, const Av2DmBigUInt *right) {
   uint64_t borrow = 0;
   for (uint32_t i = 0; i < left->count; ++i) {
     const uint64_t right_limb = i < right->count ? right->limbs[i] : 0;
@@ -361,6 +363,8 @@ static bool big_uint_subtract_in_place(Av2DmBigUInt *left,
   big_uint_trim(left);
   return true;
 }
+
+#undef AV2_DM_NO_UNSIGNED_OVERFLOW_CHECK
 
 static bool big_uint_divide(const Av2DmBigUInt *dividend,
                             const Av2DmBigUInt *divisor, Av2DmBigUInt *quotient,
@@ -824,10 +828,12 @@ bool av2_dm_rational_compare(const Av2DmRational *left,
 bool av2_dm_rational_rebase(Av2DmRational *values, uint32_t value_count,
                             const Av2DmRational *origin) {
   rational_begin_operation();
-  if ((values == NULL && value_count != 0) || origin == NULL ||
-      (uint64_t)value_count > SIZE_MAX / sizeof(*values)) {
+  if ((values == NULL && value_count != 0) || origin == NULL) {
     return false;
   }
+#if SIZE_MAX < UINT64_MAX
+  if ((uint64_t)value_count > SIZE_MAX / sizeof(*values)) return false;
+#endif
   Av2DmRational fixed_origin;
   av2_dm_rational_init(&fixed_origin);
   Av2DmRational *rebased = NULL;
