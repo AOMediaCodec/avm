@@ -418,6 +418,9 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
     pthread_mutex_unlock(enc_row_mt_mutex_);
 #endif
     set_encoding_done(cpi);
+    av2_free_pc_tree_recursive(thread_data->td->pc_root,
+                               av2_num_planes(&cpi->common), 0, 0);
+    thread_data->td->pc_root = NULL;
     return 0;
   }
   error_info->setjmp = 1;
@@ -426,6 +429,12 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
   int cur_tile_id = enc_row_mt->thread_id_to_tile_id[thread_id];
 
   assert(cur_tile_id != -1);
+
+  if (cpi->sf.rt_sf.use_nonrd_partition) {
+    thread_data->td->pc_root = av2_alloc_pc_tree_node(
+        SHARED_PART, 0, 0, cm->sb_size, cm->sb_size, NULL, PARTITION_NONE, 0, 1,
+        cm->seq_params.subsampling_x, cm->seq_params.subsampling_y);
+  }
 
   int end_of_frame = 0;
   bool row_mt_exit = false;
@@ -491,6 +500,9 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
 #endif
   }
 
+  av2_free_pc_tree_recursive(thread_data->td->pc_root, av2_num_planes(cm), 0,
+                             0);
+  thread_data->td->pc_root = NULL;
   error_info->setjmp = 0;
   return 1;
 }
@@ -514,9 +526,18 @@ static int enc_worker_hook(void *arg1, void *unused) {
   // before it returns.
   if (setjmp(error_info->jmp)) {
     error_info->setjmp = 0;
+    av2_free_pc_tree_recursive(thread_data->td->pc_root, av2_num_planes(cm), 0,
+                               0);
+    thread_data->td->pc_root = NULL;
     return 0;
   }
   error_info->setjmp = 1;
+
+  if (cpi->sf.rt_sf.use_nonrd_partition) {
+    thread_data->td->pc_root = av2_alloc_pc_tree_node(
+        SHARED_PART, 0, 0, cm->sb_size, cm->sb_size, NULL, PARTITION_NONE, 0, 1,
+        cm->seq_params.subsampling_x, cm->seq_params.subsampling_y);
+  }
 
   for (t = thread_data->start; t < tile_rows * tile_cols;
        t += cpi->mt_info.num_workers) {
@@ -529,6 +550,9 @@ static int enc_worker_hook(void *arg1, void *unused) {
     av2_encode_tile(cpi, thread_data->td, tile_row, tile_col);
   }
 
+  av2_free_pc_tree_recursive(thread_data->td->pc_root, av2_num_planes(cm), 0,
+                             0);
+  thread_data->td->pc_root = NULL;
   error_info->setjmp = 0;
   return 1;
 }
