@@ -614,24 +614,25 @@ static void set_good_speed_features_framesize_independent(
     sf->tx_sf.tx_type_search.prune_tx_type_est_rd = 1;
 
     sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 3 : 5;
-    sf->rd_sf.perform_coeff_opt_based_on_satd =
-        is_boosted_arf2_bwd_type ? 1 : 2;
     sf->rd_sf.tx_domain_dist_thres_level = 1;
 
-    // TODO(any): Extend multi-winner mode processing support for inter frames
-    sf->winner_mode_sf.multi_winner_mode_type =
-        frame_is_intra_only(&cpi->common) ? MULTI_WINNER_MODE_DEFAULT
-                                          : MULTI_WINNER_MODE_OFF;
     // TODO(any): Re-enable for all frames after fixing speed feature.
     sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch = 0;
 
     sf->lpf_sf.lpf_pick = LPF_PICK_FROM_FULL_IMAGE_NON_DUAL;
-    sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL3;
-
     sf->mv_sf.reduce_search_range = 1;
-
     sf->mv_sf.warp_search_method = WARP_SEARCH_DIAMOND;
     sf->mv_sf.newmv_drl_search_limit = 1;
+    sf->winner_mode_sf.dc_blk_pred_level = 2;
+
+    // TODO(any): Disable these speed features because they do not have a good
+    // tradeoff. Fix and evaluate them before turning them on.
+    // sf->rd_sf.perform_coeff_opt_based_on_satd =
+    //     is_boosted_arf2_bwd_type ? 1 : 2;
+    // sf->winner_mode_sf.multi_winner_mode_type =
+    //     frame_is_intra_only(&cpi->common) ? MULTI_WINNER_MODE_DEFAULT
+    //                                       : MULTI_WINNER_MODE_OFF;
+    // sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL3;
   }
 
   if (speed >= 5) {
