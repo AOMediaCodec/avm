@@ -741,6 +741,58 @@ static avm_codec_err_t validate_config(avm_codec_alg_priv_t *ctx,
   RANGE_CHECK_HI(extra_cfg, crop_win_right_offset, 65535);
   RANGE_CHECK_HI(extra_cfg, crop_win_top_offset, 65535);
   RANGE_CHECK_HI(extra_cfg, crop_win_bottom_offset, 65535);
+  if (extra_cfg->enable_cropping_window) {
+    // The decoder validates the conformance window in
+    // av2_validate_seq_conformance_window() and
+    // av2_validate_frame_level_conformance(), rejecting the stream with
+    // AVM_CODEC_UNSUP_BITSTREAM. Apply the same constraints here so an
+    // undecodable configuration is refused rather than producing a bitstream
+    // the reference decoder cannot decode.
+    const int left = extra_cfg->crop_win_left_offset;
+    const int right = extra_cfg->crop_win_right_offset;
+    const int top = extra_cfg->crop_win_top_offset;
+    const int bottom = extra_cfg->crop_win_bottom_offset;
+    const int max_width = cfg->g_forced_max_frame_width
+                              ? (int)cfg->g_forced_max_frame_width
+                              : (int)cfg->g_w;
+    const int max_height = cfg->g_forced_max_frame_height
+                               ? (int)cfg->g_forced_max_frame_height
+                               : (int)cfg->g_h;
+    // Mirrors av2_validate_seq_conformance_window() in the decoder: each offset
+    // must be less than the sequence maximum. The left+right and top+bottom
+    // terms additionally keep conformance requirements 3 and 4 satisfied at
+    // every coded frame size, which the checks below can only cover for g_w and
+    // g_h.
+    if (left >= max_width || right >= max_width || left + right >= max_width) {
+      ERROR(
+          "crop_win_left_offset and crop_win_right_offset must each be less "
+          "than the frame width, and must not together span it");
+    }
+    if (top >= max_height || bottom >= max_height ||
+        top + bottom >= max_height) {
+      ERROR(
+          "crop_win_top_offset and crop_win_bottom_offset must each be less "
+          "than the frame height, and must not together span it");
+    }
+    const int LeftPosX = (left * (int)cfg->g_w) / max_width;
+    const int RightPosX =
+        (int)cfg->g_w - 1 - ((right * (int)cfg->g_w) / max_width);
+    const int TopPosY = (top * (int)cfg->g_h) / max_height;
+    const int BottomPosY =
+        (int)cfg->g_h - 1 - ((bottom * (int)cfg->g_h) / max_height);
+    // Conformance requirement 3: LeftPosX<= RightPosX
+    if (LeftPosX > RightPosX) {
+      ERROR(
+          "crop_win_left_offset and crop_win_right_offset leave no samples in "
+          "the frame");
+    }
+    // Conformance requirement 4: TopPosY <= BottomPosY
+    if (TopPosY > BottomPosY) {
+      ERROR(
+          "crop_win_top_offset and crop_win_bottom_offset leave no samples in "
+          "the frame");
+    }
+  }
 
   RANGE_CHECK_HI(extra_cfg, sharpness, 7);
   RANGE_CHECK_HI(extra_cfg, arnr_max_frames, 15);
@@ -3340,6 +3392,12 @@ static avm_codec_err_t encoder_encode(avm_codec_alg_priv_t *ctx,
         cpi_lap->lookahead = cpi->lookahead;
         av2_check_initial_width(cpi_lap, subsampling_x, subsampling_y);
       }
+
+      // The coded subsampling is only settled by av2_check_initial_width()
+      // above, so the cropping window's chroma alignment can only be checked
+      // from here on.
+      av2_validate_crop_window_chroma_alignment(cpi, cpi->common.width,
+                                                cpi->common.height);
 
       // Store the original flags in to the frame buffer. Will extract the
       // key frame flag when we actually encode this frame.

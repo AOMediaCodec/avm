@@ -3123,6 +3123,9 @@ void av2_change_config(AV2_COMP *cpi, const AV2EncoderConfig *oxcf);
 void av2_check_initial_width(AV2_COMP *cpi, int subsampling_x,
                              int subsampling_y);
 
+void av2_validate_crop_window_chroma_alignment(AV2_COMP *cpi, int frame_width,
+                                               int frame_height);
+
 void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
                                AV2_COMMON *cm, const AV2EncoderConfig *oxcf);
 
