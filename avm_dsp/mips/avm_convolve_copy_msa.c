@@ -232,7 +232,7 @@ void avm_convolve_copy_msa(const uint8_t *src, ptrdiff_t src_stride,
     default: {
       uint32_t cnt;
       for (cnt = h; cnt--;) {
-        memmove(dst, src, w);
+        memcpy(dst, src, w);
         src += src_stride;
         dst += dst_stride;
       }

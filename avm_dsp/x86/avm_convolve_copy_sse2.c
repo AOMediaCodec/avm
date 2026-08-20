@@ -40,20 +40,20 @@ void avm_convolve_copy_sse2(const uint8_t *src, ptrdiff_t src_stride,
 
   if (w == 2) {
     do {
-      memmove(dst, src, 2 * sizeof(*src));
+      memcpy(dst, src, 2 * sizeof(*src));
       src += src_stride;
       dst += dst_stride;
-      memmove(dst, src, 2 * sizeof(*src));
+      memcpy(dst, src, 2 * sizeof(*src));
       src += src_stride;
       dst += dst_stride;
       h -= 2;
     } while (h);
   } else if (w == 4) {
     do {
-      memmove(dst, src, 4 * sizeof(*src));
+      memcpy(dst, src, 4 * sizeof(*src));
       src += src_stride;
       dst += dst_stride;
-      memmove(dst, src, 4 * sizeof(*src));
+      memcpy(dst, src, 4 * sizeof(*src));
       src += src_stride;
       dst += dst_stride;
       h -= 2;
