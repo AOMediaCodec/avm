@@ -3141,6 +3141,14 @@ typedef struct AV2_COMP {
    */
   CcsoCtx ccso_ctx;
   /*!
+   * distortion between source and ccso input at sb level
+   */
+  uint64_t *unfiltered_dist_block;
+  /*!
+   * Allocated size of unfiltered_dist_block in elements.
+   */
+  int unfiltered_dist_block_alloc_sb_count;
+  /*!
    * Extended luma reconstruction buffer for CCSO search.
    */
   uint16_t *ccso_ext_rec_y;
