@@ -236,8 +236,8 @@ int av2_find_best_path(const struct tcq_node_t *trellis, const int16_t *scan,
  */
 int av2_trellis_quant(const struct AV2_COMP *cpi, MACROBLOCK *x, int plane,
                       int block, TX_SIZE tx_size, TX_TYPE tx_type,
-                      CctxType cctx_type, const TXB_CTX *const txb_ctx,
-                      int *rate_cost, int sharpness);
+                      const TXB_CTX *const txb_ctx, int *rate_cost,
+                      int sharpness);
 
 #ifdef __cplusplus
 }
