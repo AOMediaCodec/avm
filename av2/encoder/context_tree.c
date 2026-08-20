@@ -200,6 +200,21 @@ PICK_MODE_CONTEXT *av2_alloc_pmc(const AV2_COMMON *cm, TREE_TYPE tree_type,
   return ctx;
 }
 
+// Resets the state of a PICK_MODE_CONTEXT node so it can be reused across
+// blocks/superblocks without re-allocation.
+void av2_reset_pmc(PICK_MODE_CONTEXT *ctx) {
+  if (ctx == NULL) return;
+  ctx->rd_mode_is_ready = 0;
+  av2_invalid_rd_stats(&ctx->rd_stats);
+  if (ctx->tx_type_map) av2_zero_array(ctx->tx_type_map, ctx->num_4x4_blk);
+  if (ctx->cctx_type_map)
+    av2_zero_array(ctx->cctx_type_map, ctx->num_4x4_blk_chroma);
+  ctx->skippable = 0;
+  ctx->hybrid_pred_diff = 0;
+  ctx->comp_pred_diff = 0;
+  ctx->single_pred_diff = 0;
+}
+
 void av2_free_pmc(PICK_MODE_CONTEXT *ctx, int num_planes) {
   if (ctx == NULL) return;
 
