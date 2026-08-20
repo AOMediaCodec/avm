@@ -48,6 +48,7 @@ void AppendSection5Obu(std::vector<uint8_t> *data, OBU_TYPE type,
 
 DECODER_MODEL MakeFrameConstraintModel() {
   DECODER_MODEL model = {};
+  av2_dm_level_limits_init(&model.level_limits);
   model.status = DECODER_MODEL_OK;
   model.initialized = true;
   model.max_tile_rate_satisfy = true;
@@ -55,6 +56,7 @@ DECODER_MODEL MakeFrameConstraintModel() {
   model.frame_symbol_count_satisfy = true;
   model.multistream_scale_numerator = 1;
   model.multistream_scale_denominator = 1;
+  model.level_limits.max_picture_size = 1000;
   model.level_limits.max_decode_rate = 1000;
   model.level_limits.max_tiles = 4;
   model.level_limits.picture_size_profile_factor = 8;
@@ -1809,6 +1811,13 @@ TEST(LevelDecoderModelTest, RejectsInvalidAnnexALimits) {
   EXPECT_FALSE(av2_encoder_decoder_model_check_frame_constraints(
       &model, &frame, std::numeric_limits<double>::infinity(), false, 0));
   EXPECT_EQ(DECODER_MODEL_INTERNAL_ERROR, model.status);
+
+  model = MakeFrameConstraintModel();
+  model.level_limits.max_decode_rate = 0;
+  ASSERT_TRUE(
+      av2_encoder_decoder_model_store_frame_constraints(&model, &frame, false));
+  av2_encoder_decoder_model_finalize_frame_constraints(&model, false);
+  EXPECT_EQ(DECODER_MODEL_INTERNAL_ERROR, model.status);
 }
 
 TEST(LevelDecoderModelTest, DefersFrameChecksAndUsesStoredDecodeCount) {
@@ -1869,17 +1878,63 @@ TEST(LevelDecoderModelTest, FinalFrameReusesPreviousExactParsingInterval) {
   EXPECT_EQ(1100, model.max_decode_rate);
 }
 
-TEST(LevelDecoderModelTest, SingleFrameNeedsNoSubstituteParsingTime) {
+TEST(LevelDecoderModelTest, SingleFrameUsesPictureDecodeRateFallback) {
   DECODER_MODEL model = MakeFrameConstraintModel();
   const ENCODER_DECODER_MODEL_FRAME frame = {
-    true, 1.0, 1000, 1, 1, 1, 1,
+    true, 1.0, 1001, 1, 5, 501, 3723,
   };
   ASSERT_TRUE(
       av2_encoder_decoder_model_store_frame_constraints(&model, &frame, false));
   av2_encoder_decoder_model_finalize_frame_constraints(&model, false);
   EXPECT_EQ(DECODER_MODEL_OK, model.status);
   EXPECT_EQ(1u, model.applicable_dfg_count);
-  EXPECT_EQ(0.0L, model.max_decode_rate);
+  EXPECT_EQ(1001.0L, model.max_decode_rate);
+  EXPECT_FALSE(model.max_decode_rate_satisfy);
+  EXPECT_FALSE(model.max_tile_rate_satisfy);
+  EXPECT_FALSE(model.compressed_size_satisfy);
+  EXPECT_FALSE(model.frame_symbol_count_satisfy);
+}
+
+TEST(LevelDecoderModelTest, SingleFrameDecodeCountDoesNotDivideFallback) {
+  DECODER_MODEL model = MakeFrameConstraintModel();
+  const ENCODER_DECODER_MODEL_FRAME frame = {
+    true, 1.0, 1000, 2, 4, 500, 3722,
+  };
+  ASSERT_TRUE(
+      av2_encoder_decoder_model_store_frame_constraints(&model, &frame, false));
+
+  av2_encoder_decoder_model_finalize_frame_constraints(&model, false);
+
+  EXPECT_EQ(DECODER_MODEL_OK, model.status);
+  EXPECT_EQ(1000.0L, model.max_decode_rate);
+  EXPECT_TRUE(model.max_decode_rate_satisfy);
+  EXPECT_TRUE(model.max_tile_rate_satisfy);
+  EXPECT_TRUE(model.compressed_size_satisfy);
+  EXPECT_TRUE(model.frame_symbol_count_satisfy);
+}
+
+TEST(LevelDecoderModelTest, SingleFrameFallbackUsesEffectiveMultistreamLimits) {
+  DECODER_MODEL model = MakeFrameConstraintModel();
+  av2_dm_level_limits_destroy(&model.level_limits);
+  ASSERT_TRUE(av2_dm_get_level_limits(SEQ_LEVEL_4_0, 0, MAIN_420_10_IP0,
+                                      &model.level_limits));
+  model.level = SEQ_LEVEL_4_0;
+  model.tier = 0;
+  model.configured_profile = MAIN_420_10_IP0;
+  model.multistream_scale_numerator = 3;
+  model.multistream_scale_denominator = 2;
+  const ENCODER_DECODER_MODEL_FRAME frame = {
+    true, 1.0, 1500000, 1, 15, 1, 1,
+  };
+  ASSERT_TRUE(
+      av2_encoder_decoder_model_store_frame_constraints(&model, &frame, false));
+
+  av2_encoder_decoder_model_finalize_frame_constraints(&model, false);
+
+  EXPECT_EQ(DECODER_MODEL_OK, model.status);
+  EXPECT_FALSE(model.max_decode_rate_satisfy);
+  EXPECT_TRUE(model.max_tile_rate_satisfy);
+  av2_encoder_decoder_model_destroy(&model);
 }
 
 TEST(LevelDecoderModelTest, MultipleFramesRequireLocalParsingTime) {
@@ -1939,7 +1994,7 @@ TEST(LevelDecoderModelTest, StillPictureNeedsNoPreviousDurations) {
   DECODER_MODEL model = MakeFrameConstraintModel();
   model.display_samples = 1000;
   const ENCODER_DECODER_MODEL_FRAME frame = {
-    true, 1.0, 1000, 1, 1, 1, 1,
+    true, 1.0, 1001, 1, 5, 501, 3723,
   };
   ASSERT_TRUE(
       av2_encoder_decoder_model_store_frame_constraints(&model, &frame, false));
@@ -1947,6 +2002,11 @@ TEST(LevelDecoderModelTest, StillPictureNeedsNoPreviousDurations) {
   av2_encoder_decoder_model_finalize(&model, true);
   EXPECT_EQ(DECODER_MODEL_OK, model.status);
   EXPECT_TRUE(model.finalized);
+  EXPECT_EQ(0.0L, model.max_decode_rate);
+  EXPECT_TRUE(model.max_decode_rate_satisfy);
+  EXPECT_TRUE(model.max_tile_rate_satisfy);
+  EXPECT_TRUE(model.compressed_size_satisfy);
+  EXPECT_TRUE(model.frame_symbol_count_satisfy);
 }
 
 TEST(LevelDecoderModelTest, OperatingPointFinishIsIdempotent) {

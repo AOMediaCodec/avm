@@ -1697,7 +1697,7 @@ TEST(EncoderDecoderModelRationalReuseTest,
 }
 
 TEST(EncoderDecoderModelRationalReuseTest,
-     SingleDfgAndOutputTuTerminalApplicabilityAgree) {
+     SingleDfgFallbackAndSingleTuNonApplicabilityAgree) {
   ResourceAvailabilityDifferentialAdapter adapter(ResourceAdapterMode::kBoth);
   ASSERT_TRUE(adapter.valid());
 
@@ -1707,6 +1707,11 @@ TEST(EncoderDecoderModelRationalReuseTest,
   ASSERT_NE(adapter.legacy(), nullptr);
   EXPECT_EQ(1u, adapter.legacy()->applicable_dfg_count);
   EXPECT_EQ(1u, adapter.legacy()->output_tu_count);
+  EXPECT_GT(adapter.legacy()->max_decode_rate, 0.0L);
+  EXPECT_TRUE(adapter.legacy()->max_decode_rate_satisfy);
+  EXPECT_TRUE(adapter.legacy()->max_tile_rate_satisfy);
+  EXPECT_TRUE(adapter.legacy()->compressed_size_satisfy);
+  EXPECT_TRUE(adapter.legacy()->frame_symbol_count_satisfy);
   ExpectFinalResourceClassification(adapter, ENCODER_DM_RESULT_PASS,
                                     AV2_DM_RESULT_CONFORMANT);
 }

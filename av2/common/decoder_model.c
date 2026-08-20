@@ -5754,6 +5754,20 @@ static void decoder_model_finish_internal(Av2DecoderModel *model) {
         model->shown_frame_number != 0) {
       incomplete_verification(model);
     }
+    if (!model->processing_stopped && model->previous_dfg_valid &&
+        !model->previous_dfg.still_picture && model->dfg_number == 1) {
+      Av2DmRational frame_parsing_time = { 0 };
+      if (!av2_dm_rational_make(model->previous_dfg.limits.max_picture_size,
+                                model->previous_dfg.limits.max_decode_rate,
+                                &frame_parsing_time)) {
+        arithmetic_failure(model);
+      } else {
+        check_frame_parsing_constraints(model, &model->previous_dfg,
+                                        &frame_parsing_time,
+                                        model->previous_dfg.event_index);
+      }
+      av2_dm_rational_destroy(&frame_parsing_time);
+    }
     if (!model->processing_stopped &&
         (!model->previous_dfg_valid || !model->previous_dfg.still_picture) &&
         model->dfg_number > 1) {

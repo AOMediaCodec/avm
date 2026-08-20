@@ -2419,15 +2419,60 @@ TEST(DecoderModelConformanceTest,
 }
 
 TEST(DecoderModelConformanceTest,
-     SingleDfgAndOutputTuDoNotRequireTerminalPredecessors) {
+     SingleDfgUsesPictureDecodeFallbackAndSingleTuNeedsNoDuration) {
   Av2DmConfig config = MakeModelConfig(AV2_DM_RESOURCE_AVAILABILITY_MODE);
   config.initial_display_delay = 1;
+  config.level_limits.max_picture_size = 4096;
   ViolationCollector collector;
   Av2DecoderModel *const model =
       av2_decoder_model_create(&config, CollectViolation, &collector);
   ASSERT_NE(model, nullptr);
 
-  const Av2DmFrameEvent frame = MakeFrame(0, 1);
+  Av2DmFrameEvent frame = MakeFrame(0, 1);
+  frame.num_tiles = 252;
+  av2_decoder_model_start_frame(model, &frame);
+  const Av2DmReferenceUpdateEvent refresh = Refresh(1, 1);
+  av2_decoder_model_update_reference_buffers(model, &refresh);
+  av2_decoder_model_set_initial_presentation_delay(model, false, 0);
+  Av2DmOutputEvent output = Output(1, 1, -1);
+  output.temporal_unit_index = 0;
+  av2_decoder_model_output_frame(model, &output);
+  EXPECT_FALSE(HasViolation(collector, AV2_DM_VIOLATION_FRAME_TILE_RATE));
+  av2_decoder_model_finish(model);
+
+  EXPECT_FALSE(HasViolation(collector, AV2_DM_VIOLATION_FRAME_DECODE_RATE));
+  ASSERT_EQ(CountViolations(collector, AV2_DM_VIOLATION_FRAME_TILE_RATE), 1u);
+  const Av2DmViolation *const violation =
+      FindViolation(collector, AV2_DM_VIOLATION_FRAME_TILE_RATE);
+  ASSERT_NE(violation, nullptr);
+  EXPECT_EQ(violation->event_index, 0u);
+  EXPECT_EQ(violation->affected_kind, AV2_DM_VIOLATION_AFFECTED_DFG);
+  EXPECT_EQ(violation->affected_index, 0u);
+  ASSERT_EQ(violation->detail.kind, AV2_DM_VIOLATION_DETAIL_FRAME_INTERVAL);
+  ExpectEqualRational(violation->detail.value.frame_interval, 4096, 1000000);
+  EXPECT_FALSE(HasViolation(collector, AV2_DM_VIOLATION_MAX_COMPRESSED_SIZE));
+  EXPECT_FALSE(HasViolation(collector, AV2_DM_VIOLATION_MAX_FRAME_SYMBOLS));
+  EXPECT_FALSE(HasViolation(collector, AV2_DM_VIOLATION_MAX_DISPLAY_RATE));
+  Av2DmResult result;
+  ASSERT_TRUE(av2_decoder_model_get_result(model, &result));
+  EXPECT_EQ(result.status, AV2_DM_RESULT_NON_CONFORMANT);
+  EXPECT_FALSE(result.missing_required_input);
+  av2_decoder_model_destroy(model);
+}
+
+TEST(DecoderModelConformanceTest,
+     SingleDfgDecodeCountDoesNotDividePictureDecodeFallback) {
+  Av2DmConfig config = MakeModelConfig(AV2_DM_RESOURCE_AVAILABILITY_MODE);
+  config.initial_display_delay = 1;
+  config.level_limits.max_picture_size = 4096;
+  ViolationCollector collector;
+  Av2DecoderModel *const model =
+      av2_decoder_model_create(&config, CollectViolation, &collector);
+  ASSERT_NE(model, nullptr);
+
+  Av2DmFrameEvent frame = MakeFrame(0, 1);
+  frame.allow_global_intrabc = true;
+  frame.inloop_filtering_enabled = true;
   av2_decoder_model_start_frame(model, &frame);
   const Av2DmReferenceUpdateEvent refresh = Refresh(1, 1);
   av2_decoder_model_update_reference_buffers(model, &refresh);
@@ -2441,11 +2486,68 @@ TEST(DecoderModelConformanceTest,
   EXPECT_FALSE(HasViolation(collector, AV2_DM_VIOLATION_FRAME_TILE_RATE));
   EXPECT_FALSE(HasViolation(collector, AV2_DM_VIOLATION_MAX_COMPRESSED_SIZE));
   EXPECT_FALSE(HasViolation(collector, AV2_DM_VIOLATION_MAX_FRAME_SYMBOLS));
-  EXPECT_FALSE(HasViolation(collector, AV2_DM_VIOLATION_MAX_DISPLAY_RATE));
   Av2DmResult result;
   ASSERT_TRUE(av2_decoder_model_get_result(model, &result));
   EXPECT_EQ(result.status, AV2_DM_RESULT_CONFORMANT);
-  EXPECT_FALSE(result.missing_required_input);
+  av2_decoder_model_destroy(model);
+}
+
+TEST(DecoderModelConformanceTest,
+     SingleDfgFallbackIncludesExactFrameSymbolBoundary) {
+  for (const uint64_t frame_symbols : { UINT64_C(17152), UINT64_C(17153) }) {
+    Av2DmConfig config = MakeModelConfig(AV2_DM_RESOURCE_AVAILABILITY_MODE);
+    config.initial_display_delay = 1;
+    config.level_limits.max_picture_size = 4096;
+    config.level_limits.picture_size_profile_factor = 9;
+    ViolationCollector collector;
+    Av2DecoderModel *const model =
+        av2_decoder_model_create(&config, CollectViolation, &collector);
+    ASSERT_NE(model, nullptr);
+
+    Av2DmFrameEvent frame = MakeFrame(0, 1);
+    frame.frame_symbol_count = frame_symbols;
+    av2_decoder_model_start_frame(model, &frame);
+    const Av2DmReferenceUpdateEvent refresh = Refresh(1, 1);
+    av2_decoder_model_update_reference_buffers(model, &refresh);
+    av2_decoder_model_set_initial_presentation_delay(model, false, 0);
+    Av2DmOutputEvent output = Output(1, 1, -1);
+    output.temporal_unit_index = 0;
+    av2_decoder_model_output_frame(model, &output);
+    EXPECT_FALSE(HasViolation(collector, AV2_DM_VIOLATION_MAX_FRAME_SYMBOLS));
+    av2_decoder_model_finish(model);
+
+    EXPECT_EQ(CountViolations(collector, AV2_DM_VIOLATION_MAX_FRAME_SYMBOLS),
+              frame_symbols == 17153 ? 1u : 0u);
+    Av2DmResult result;
+    ASSERT_TRUE(av2_decoder_model_get_result(model, &result));
+    EXPECT_EQ(result.status, frame_symbols == 17153
+                                 ? AV2_DM_RESULT_NON_CONFORMANT
+                                 : AV2_DM_RESULT_CONFORMANT);
+    av2_decoder_model_destroy(model);
+  }
+}
+
+TEST(DecoderModelConformanceTest,
+     StillPictureSkipsSingleDfgFrameParsingFallback) {
+  Av2DmConfig config = MakeModelConfig(AV2_DM_RESOURCE_AVAILABILITY_MODE);
+  config.still_picture = true;
+  config.level_limits.max_picture_size = 4096;
+  ViolationCollector collector;
+  Av2DecoderModel *const model =
+      av2_decoder_model_create(&config, CollectViolation, &collector);
+  ASSERT_NE(model, nullptr);
+
+  Av2DmFrameEvent frame = MakeFrame(0, 1);
+  frame.num_tiles = 252;
+  frame.compressed_size_bytes = 1000000;
+  frame.frame_symbol_count = 1000000;
+  av2_decoder_model_start_frame(model, &frame);
+  av2_decoder_model_finish(model);
+
+  EXPECT_FALSE(HasViolation(collector, AV2_DM_VIOLATION_FRAME_DECODE_RATE));
+  EXPECT_FALSE(HasViolation(collector, AV2_DM_VIOLATION_FRAME_TILE_RATE));
+  EXPECT_FALSE(HasViolation(collector, AV2_DM_VIOLATION_MAX_COMPRESSED_SIZE));
+  EXPECT_FALSE(HasViolation(collector, AV2_DM_VIOLATION_MAX_FRAME_SYMBOLS));
   av2_decoder_model_destroy(model);
 }
 

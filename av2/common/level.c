@@ -1639,14 +1639,13 @@ static bool encoder_dm_rational_less_than_or_equal(
 // Time after decoding the preceding frame. In that case FrameParsingTime is
 // exactly LumaSampleCount / MaxDecodeRate. Evaluate all four Annex A limits by
 // rational cross-products rather than reconstructing that interval from two
-// rounded double removal times.
+// rounded double removal times. The same exact path handles the single-frame
+// MaxPicSize / MaxDecodeRate fallback.
 static bool check_frame_constraints_at_decode_limit(
     DECODER_MODEL *decoder_model, const ENCODER_DECODER_MODEL_FRAME *frame,
-    uint64_t frame_parsing_time_decode_luma_samples) {
-  const Av2DmLevelLimits *const limits = &decoder_model->level_limits;
-  const uint32_t scale_numerator = decoder_model->multistream_scale_numerator;
-  const uint32_t scale_denominator =
-      decoder_model->multistream_scale_denominator;
+    uint64_t frame_parsing_time_decode_luma_samples,
+    const Av2DmLevelLimits *limits, uint32_t scale_numerator,
+    uint32_t scale_denominator) {
   Av2DmRational observed = { 0 };
   Av2DmRational limit = { 0 };
   Av2DmRational dynamic_tile_limit = { 0 };
@@ -1660,7 +1659,12 @@ static bool check_frame_constraints_at_decode_limit(
   bool success = false;
   uint64_t picture_units;
 
-  if (frame_parsing_time_decode_luma_samples == 0) goto cleanup;
+  if (limits == NULL || limits->max_decode_rate == 0 ||
+      limits->max_tiles == 0 || limits->picture_size_profile_factor == 0 ||
+      limits->min_compression_basis == 0 || scale_numerator == 0 ||
+      scale_denominator == 0 || frame_parsing_time_decode_luma_samples == 0) {
+    goto cleanup;
+  }
   const long double max_decode_rate = (long double)limits->max_decode_rate *
                                       scale_denominator / scale_numerator;
   const long double observed_decode_rate =
@@ -1798,7 +1802,9 @@ bool av2_encoder_decoder_model_check_frame_constraints(
   }
   if (frame_parsing_time_at_decode_limit) {
     if (!check_frame_constraints_at_decode_limit(
-            decoder_model, frame, frame_parsing_time_decode_luma_samples)) {
+            decoder_model, frame, frame_parsing_time_decode_luma_samples,
+            limits, decoder_model->multistream_scale_numerator,
+            decoder_model->multistream_scale_denominator)) {
       decoder_model->status = DECODER_MODEL_INTERNAL_ERROR;
       return false;
     }
@@ -1929,7 +1935,27 @@ void av2_encoder_decoder_model_finalize_frame_constraints(
   }
   decoder_model->frame_constraints_finalized = true;
   if (is_still_picture || !decoder_model->pending_frame.valid) return;
-  if (decoder_model->applicable_dfg_count == 1) return;
+  if (decoder_model->applicable_dfg_count == 1) {
+    Av2DmLevelLimits limits = { 0 };
+    if (decoder_model->multistream_scale_numerator == 0 ||
+        decoder_model->multistream_scale_denominator == 0 ||
+        !av2_dm_level_limits_copy(&limits, &decoder_model->level_limits) ||
+        (decoder_model->multistream_scale_numerator !=
+             decoder_model->multistream_scale_denominator &&
+         !av2_dm_apply_multistream_limits(
+             decoder_model->level, decoder_model->tier,
+             decoder_model->configured_profile,
+             decoder_model->multistream_scale_numerator,
+             decoder_model->multistream_scale_denominator, &limits)) ||
+        limits.max_picture_size == 0 ||
+        !check_frame_constraints_at_decode_limit(
+            decoder_model, &decoder_model->pending_frame,
+            limits.max_picture_size, &limits, 1, 1)) {
+      decoder_model->status = DECODER_MODEL_INTERNAL_ERROR;
+    }
+    av2_dm_level_limits_destroy(&limits);
+    return;
+  }
   if (!decoder_model->last_frame_parsing_time_valid) {
     decoder_model->status = DECODER_MODEL_INCOMPLETE;
     return;
