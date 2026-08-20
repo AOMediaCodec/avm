@@ -1246,8 +1246,8 @@ and all_zero, back track until it reaches eob.
 */
 int av2_trellis_quant(const struct AV2_COMP *cpi, MACROBLOCK *x, int plane,
                       int block, TX_SIZE tx_size, TX_TYPE tx_type,
-                      CctxType cctx_type, const TXB_CTX *const txb_ctx,
-                      int *rate_cost, int sharpness) {
+                      const TXB_CTX *const txb_ctx, int *rate_cost,
+                      int sharpness) {
   MACROBLOCKD *xd = &x->e_mbd;
   const struct macroblock_plane *p = &x->plane[plane];
 
@@ -1366,49 +1366,38 @@ int av2_trellis_quant(const struct AV2_COMP *cpi, MACROBLOCK *x, int plane,
   int txb_skip_ctx = txb_ctx->txb_skip_ctx;
   int non_skip_cost = 0;
   int skip_cost = 0;
-  if (plane == AVM_PLANE_V) {
-    txb_skip_ctx +=
-        (x->plane[AVM_PLANE_U].eobs[block] ? V_TXB_SKIP_CONTEXT_OFFSET : 0);
-    non_skip_cost = txb_costs->v_txb_skip_cost[txb_skip_ctx][0];
-    skip_cost = txb_costs->v_txb_skip_cost[txb_skip_ctx][1];
-  } else {
-    const int pred_mode_ctx =
-        (is_inter || mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) ? 1 : 0;
-    non_skip_cost = txb_costs->txb_skip_cost[pred_mode_ctx][txb_skip_ctx][0];
-    skip_cost = txb_costs->txb_skip_cost[pred_mode_ctx][txb_skip_ctx][1];
-  }
+
+  const int pred_mode_ctx =
+      (is_inter || mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) ? 1 : 0;
+  non_skip_cost = txb_costs->txb_skip_cost[pred_mode_ctx][txb_skip_ctx][0];
+  skip_cost = txb_costs->txb_skip_cost[pred_mode_ctx][txb_skip_ctx][1];
 
   int accu_rate = 0;
   set_bob(x, plane, block, tx_size, tx_type);
 
-  if (eob == 0)
-    assert(0);  // in current implementation, this could not happen.
-  else {
-    const int tx_type_cost = get_tx_type_cost(x, xd, plane, tx_size, tx_type,
-                                              cm->features.reduced_tx_set_used,
-                                              eob, bob_code, is_fsc);
-    int64_t rd_cost_skip = RDCOST(rdmult, skip_cost, 0);
-    accu_rate = non_skip_cost + tx_type_cost + min_rate;
-    int64_t rd_cost_coded =
-        min_path_cost +
-        (int64_t)RDCOST(rdmult, non_skip_cost + tx_type_cost, 0);
-    // skip block
-    if ((rd_cost_coded > rd_cost_skip) && sharpness == 0) {
-      for (int scan_idx = 0; scan_idx <= first_scan_pos; scan_idx++) {
-        int blk_idx = scan[scan_idx];
-        qcoeff[blk_idx] = 0;
-        dqcoeff[blk_idx] = 0;
-      }
-      accu_rate = skip_cost;
-      eob = 0;
+  assert(eob > 0);
+  const int tx_type_cost =
+      get_tx_type_cost(x, xd, plane, tx_size, tx_type,
+                       cm->features.reduced_tx_set_used, eob, bob_code, is_fsc);
+  int64_t rd_cost_skip = RDCOST(rdmult, skip_cost, 0);
+  accu_rate = non_skip_cost + tx_type_cost + min_rate;
+  int64_t rd_cost_coded =
+      min_path_cost + (int64_t)RDCOST(rdmult, non_skip_cost + tx_type_cost, 0);
+  // skip block
+  if ((rd_cost_coded > rd_cost_skip) && sharpness == 0) {
+    for (int scan_idx = 0; scan_idx <= first_scan_pos; scan_idx++) {
+      int blk_idx = scan[scan_idx];
+      qcoeff[blk_idx] = 0;
+      dqcoeff[blk_idx] = 0;
     }
+    accu_rate = skip_cost;
+    eob = 0;
   }
 
   p->eobs[block] = eob;
   p->txb_entropy_ctx[block] =
       av2_get_txb_entropy_context(qcoeff, scan_order, p->eobs[block]);
 
-  accu_rate += get_cctx_type_cost(cm, x, xd, plane, tx_size, block, cctx_type);
   *rate_cost = accu_rate;
 
   return eob;
