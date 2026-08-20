@@ -35,6 +35,29 @@ struct avm_internal_error_info;
 struct SequenceHeader;
 
 //==========================================
+// Interoperability Points
+//===========================================
+// Interoperability points (Table A.3). The values 0..15 are the ones that can
+// be signalled in the bitstream (e.g. lcr_max_interop, ops_max_interop); the
+// two negative values are returned by av2_get_interop_from_profile() for
+// profiles that have no interoperability point.
+typedef enum {
+  INTEROP_INVALID = -2,  // Reserved or out-of-range seq_profile_idc
+  INTEROP_NONE = -1,     // CONFIGURABLE: no interoperability point (Table A.1)
+  INTEROP_0 = 0,
+  INTEROP_1 = 1,
+  INTEROP_2 = 2,
+  INTEROP_3 = 3,
+  INTEROP_MAX = 15,
+  NUM_INTEROP_POINTS = 16,
+} INTEROP_POINTS;
+
+// Returns the interoperability point of seq_profile_idc (Table A.1):
+// INTEROP_0, INTEROP_1 or INTEROP_2 for a defined profile, INTEROP_NONE for
+// CONFIGURABLE, and INTEROP_INVALID for reserved or out-of-range values.
+int av2_get_interop_from_profile(int seq_profile_idc);
+
+//==========================================
 // Profile Conformance Function
 //===========================================
 // Validates the bitstream parameters conform to the specified profile

@@ -16,6 +16,7 @@
 
 #include "av2/encoder/lcr_syntax.h"
 #include "av2/encoder/atlas_syntax.h"
+#include "av2/common/annexA.h"
 #include "av2/decoder/decoder.h"
 #include "av2/decoder/decodeframe.h"
 extern "C" {
@@ -840,7 +841,7 @@ TEST_F(LcrTest, ConformanceCheckMsdoConfigurable) {
   EXPECT_TRUE(conformance_check_msdo_lcr(pbi_, false, false));
 }
 
-TEST_F(LcrTest, ConformanceCheckGlobalLcrConfigurable) {
+TEST_F(LcrTest, ConformanceCheckGlobalLcrMaxInterop) {
   pbi_->xlayer_id_map[0] = 1;
   pbi_->mlayer_id_map[0][0] = 1;
   pbi_->lcr_list[GLOBAL_XLAYER_ID][1].valid = 1;
@@ -848,7 +849,26 @@ TEST_F(LcrTest, ConformanceCheckGlobalLcrConfigurable) {
   pbi_->lcr_list[GLOBAL_XLAYER_ID][1]
       .global_lcr.lcr_aggregate_info_present_flag = 1;
   pbi_->lcr_list[GLOBAL_XLAYER_ID][1].global_lcr.aggregate_ptl.lcr_max_interop =
-      CONFIGURABLE;
+      INTEROP_MAX;
+  EXPECT_TRUE(conformance_check_msdo_lcr(pbi_, true, false));
+}
+
+// A global LCR without an aggregate PTL falls back to the seq PTL, which
+// signals a profile_idc; CONFIGURABLE has no interoperability point.
+TEST_F(LcrTest, ConformanceCheckGlobalLcrConfigurableSeqPtl) {
+  pbi_->xlayer_id_map[0] = 1;
+  pbi_->mlayer_id_map[0][0] = 1;
+  pbi_->lcr_list[GLOBAL_XLAYER_ID][1].valid = 1;
+  pbi_->lcr_list[GLOBAL_XLAYER_ID][1].is_global = true;
+  pbi_->lcr_list[GLOBAL_XLAYER_ID][1]
+      .global_lcr.lcr_aggregate_info_present_flag = 0;
+  pbi_->lcr_list[GLOBAL_XLAYER_ID][1]
+      .global_lcr.lcr_seq_profile_tier_level_info_present_flag = 1;
+  pbi_->lcr_list[GLOBAL_XLAYER_ID][1].global_lcr.LcrMaxNumXLayerCount = 1;
+  pbi_->lcr_list[GLOBAL_XLAYER_ID][1].global_lcr.LcrXLayerID[0] = 0;
+  pbi_->lcr_list[GLOBAL_XLAYER_ID][1]
+      .global_lcr.seq_ptl[0]
+      .lcr_seq_profile_idc = CONFIGURABLE;
   EXPECT_TRUE(conformance_check_msdo_lcr(pbi_, true, false));
 }
 
@@ -880,6 +900,79 @@ TEST_F(LcrTest, ConformanceCheckMultiMlayerLocalLcr) {
   pbi_->lcr_list[0][1].local_lcr.lcr_profile_tier_level_info_present_flag = 1;
   pbi_->lcr_list[0][1].local_lcr.seq_ptl.lcr_seq_profile_idc = MAIN_420_10_IP1;
   EXPECT_TRUE(conformance_check_msdo_lcr(pbi_, false, true));
+}
+
+// Profiles are checked via their interoperability point, so any profile sharing
+// an IOP with an already-allowed profile must also be allowed.
+TEST(AnnexATest, InteropFromProfile) {
+  EXPECT_EQ(av2_get_interop_from_profile(MAIN_420_10_IP0), INTEROP_0);
+  EXPECT_EQ(av2_get_interop_from_profile(MAIN_420_10_IP1), INTEROP_1);
+  EXPECT_EQ(av2_get_interop_from_profile(MAIN_420_10_IP2), INTEROP_2);
+  EXPECT_EQ(av2_get_interop_from_profile(MAIN_422_10_IP1), INTEROP_1);
+  EXPECT_EQ(av2_get_interop_from_profile(MAIN_444_10_IP1), INTEROP_1);
+#if CONFIG_12BIT_PROFILE
+  EXPECT_EQ(av2_get_interop_from_profile(MAIN_444C_12_IP2), INTEROP_2);
+#endif  // CONFIG_12BIT_PROFILE
+  EXPECT_EQ(av2_get_interop_from_profile(CONFIGURABLE), INTEROP_NONE);
+  EXPECT_EQ(av2_get_interop_from_profile(RESERVED_PROFILES_START),
+            INTEROP_INVALID);
+  EXPECT_EQ(av2_get_interop_from_profile(CONFIGURABLE - 1), INTEROP_INVALID);
+  EXPECT_EQ(av2_get_interop_from_profile(-1), INTEROP_INVALID);
+  EXPECT_EQ(av2_get_interop_from_profile(MAX_PROFILES), INTEROP_INVALID);
+}
+
+#if CONFIG_12BIT_PROFILE
+// MAIN_444C_12_IP2 has the same interoperability point (2) as MAIN_420_10_IP2,
+// so it must permit the same multistream configurations. Before these checks
+// were expressed in terms of interoperability points, no legal multistream was
+// possible with the 12-bit profile.
+TEST_F(LcrTest, ConformanceCheckMultiXlayerMsdo12Bit) {
+  pbi_->multistream_decoder_mode = 1;
+  pbi_->common.msdo_params.multistream_profile_idc = MAIN_444C_12_IP2;
+  pbi_->xlayer_id_map[0] = 1;
+  pbi_->xlayer_id_map[1] = 1;
+  pbi_->mlayer_id_map[0][0] = 1;
+  EXPECT_TRUE(conformance_check_msdo_lcr(pbi_, false, false));
+}
+
+TEST_F(LcrTest, ConformanceCheckMultiMlayerLocalLcr12Bit) {
+  pbi_->xlayer_id_map[0] = 1;
+  pbi_->mlayer_id_map[0][0] = 1;
+  pbi_->mlayer_id_map[0][1] = 1;
+  pbi_->lcr_list[0][1].valid = 1;
+  pbi_->lcr_list[0][1].is_global = false;
+  pbi_->lcr_list[0][1].local_lcr.lcr_profile_tier_level_info_present_flag = 1;
+  pbi_->lcr_list[0][1].local_lcr.seq_ptl.lcr_seq_profile_idc = MAIN_444C_12_IP2;
+  EXPECT_TRUE(conformance_check_msdo_lcr(pbi_, false, true));
+}
+
+// Multiple extended layers combined with multiple embedded layers requires
+// IOP 2, which MAIN_444C_12_IP2 satisfies.
+TEST_F(LcrTest, ConformanceCheckMultiXlayerMultiMlayerMsdo12Bit) {
+  pbi_->multistream_decoder_mode = 1;
+  pbi_->common.msdo_params.multistream_profile_idc = MAIN_444C_12_IP2;
+  pbi_->xlayer_id_map[0] = 1;
+  pbi_->xlayer_id_map[1] = 1;
+  pbi_->mlayer_id_map[0][0] = 1;
+  pbi_->mlayer_id_map[0][1] = 1;
+  pbi_->lcr_list[0][1].valid = 1;
+  pbi_->lcr_list[0][1].is_global = false;
+  pbi_->lcr_list[0][1].local_lcr.lcr_profile_tier_level_info_present_flag = 1;
+  pbi_->lcr_list[0][1].local_lcr.seq_ptl.lcr_seq_profile_idc = MAIN_444C_12_IP2;
+  EXPECT_TRUE(conformance_check_msdo_lcr(pbi_, false, true));
+}
+#endif  // CONFIG_12BIT_PROFILE
+
+// IOP 0 does not permit multiple embedded layers, so this must still fail.
+TEST_F(LcrTest, ConformanceCheckMultiMlayerLocalLcrIop0Fails) {
+  pbi_->xlayer_id_map[0] = 1;
+  pbi_->mlayer_id_map[0][0] = 1;
+  pbi_->mlayer_id_map[0][1] = 1;
+  pbi_->lcr_list[0][1].valid = 1;
+  pbi_->lcr_list[0][1].is_global = false;
+  pbi_->lcr_list[0][1].local_lcr.lcr_profile_tier_level_info_present_flag = 1;
+  pbi_->lcr_list[0][1].local_lcr.seq_ptl.lcr_seq_profile_idc = MAIN_420_10_IP0;
+  EXPECT_FALSE(conformance_check_msdo_lcr(pbi_, false, true));
 }
 
 TEST_F(LcrTest, LcrIdBoundarySweep) {
