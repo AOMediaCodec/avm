@@ -346,8 +346,8 @@ int av2_optimize_b(const struct AV2_COMP *cpi, MACROBLOCK *x, int plane,
   int use_tcq = tcq_enable(cpi->common.features.tcq_mode,
                            xd->lossless[segment_id], plane, tx_class);
   if (use_tcq) {
-    return av2_trellis_quant(cpi, x, plane, block, tx_size, tx_type, cctx_type,
-                             txb_ctx, rate_cost, cpi->oxcf.algo_cfg.sharpness);
+    return av2_trellis_quant(cpi, x, plane, block, tx_size, tx_type, txb_ctx,
+                             rate_cost, cpi->oxcf.algo_cfg.sharpness);
   } else
     return av2_optimize_txb_new(cpi, x, plane, block, tx_size, tx_type,
                                 cctx_type, txb_ctx, rate_cost,
