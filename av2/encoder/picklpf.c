@@ -40,6 +40,27 @@ static void yv12_copy_plane(const YV12_BUFFER_CONFIG *src_bc,
     default: assert(plane >= 0 && plane <= 2); break;
   }
 }
+
+// Get sse between frames of a plane over active regions.
+static AVM_INLINE int64_t
+get_sse_plane_active_region(AV2_COMMON *const cm, const YV12_BUFFER_CONFIG *a,
+                            const YV12_BUFFER_CONFIG *b, int plane) {
+  int64_t err;
+
+  if (cm->bru.enabled) {
+    err = avm_get_sse_plane_available(
+        a, b, plane, cm->bru.active_mode_map, cm->bru.unit_cols,
+        cm->bru.unit_cols, cm->bru.unit_rows,
+        1 << (cm->bru.unit_mi_size_log2 + MI_SIZE_LOG2 -
+              (plane != AVM_PLANE_Y ? a->subsampling_x : 0)),
+        1 << (cm->bru.unit_mi_size_log2 + MI_SIZE_LOG2 -
+              (plane != AVM_PLANE_Y ? a->subsampling_y : 0)));
+  } else {
+    err = avm_get_sse_plane(a, b, plane);
+  }
+  return err;
+}
+
 static int64_t try_filter_frame(const YV12_BUFFER_CONFIG *sd,
                                 AV2_COMP *const cpi, int q_offset,
                                 int side_offset, int partial_frame, int plane,
@@ -84,17 +105,7 @@ static int64_t try_filter_frame(const YV12_BUFFER_CONFIG *sd,
     av2_loop_filter_frame(&cm->cur_frame->buf, cm, &cpi->td.mb.e_mbd, plane,
                           plane + 1, partial_frame);
 
-  if (cm->bru.enabled) {
-    filt_err = avm_get_sse_plane_available(
-        sd, &cm->cur_frame->buf, plane, cm->bru.active_mode_map,
-        cm->bru.unit_cols, cm->bru.unit_cols, cm->bru.unit_rows,
-        1 << (cm->bru.unit_mi_size_log2 + MI_SIZE_LOG2 -
-              (plane > 0 ? sd->subsampling_x : 0)),
-        1 << (cm->bru.unit_mi_size_log2 + MI_SIZE_LOG2 -
-              (plane > 0 ? sd->subsampling_y : 0)));
-  } else {
-    filt_err = avm_get_sse_plane(sd, &cm->cur_frame->buf, plane);
-  }
+  filt_err = get_sse_plane_active_region(cm, sd, &cm->cur_frame->buf, plane);
 
   // Re-instate the unfiltered frame
   yv12_copy_plane(&cpi->last_frame_uf, &cm->cur_frame->buf, plane);
@@ -266,34 +277,19 @@ static int search_filter_offsets(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
   return best_cost < start_cost ? offset_best : offsets[off_ind];
 }
 
+static AVM_INLINE int is_filter_valid(int qindex, int delta_q, int delta_side,
+                                      int bit_depth) {
+  return df_quant_from_qindex(qindex + delta_q * DF_DELTA_SCALE, bit_depth) &&
+         df_side_from_qindex(qindex + delta_side * DF_DELTA_SCALE, bit_depth);
+}
+
 void av2_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
                            LPF_PICK_METHOD method) {
   AV2_COMMON *const cm = &cpi->common;
   const int num_planes = av2_num_planes(cm);
   struct loopfilter *const lf = &cm->lf;
-  (void)sd;
 
   cpi->td.mb.rdmult = cpi->rd.RDMULT;
-
-  double no_deblocking_cost[MAX_MB_PLANE] = { DBL_MAX, DBL_MAX, DBL_MAX };
-
-  for (int i = 0; i < num_planes; i++) {
-    const int chroma_lambda_mult = i ? CHROMA_LAMBDA_MULT : 1;
-    const int64_t no_deblocking_sse =
-        cm->bru.enabled
-            ? avm_get_sse_plane_available(
-                  cpi->source, &cm->cur_frame->buf, i,
-                  cpi->common.bru.active_mode_map, cpi->common.bru.unit_cols,
-                  cpi->common.bru.unit_cols, cpi->common.bru.unit_rows,
-                  1 << (cm->bru.unit_mi_size_log2 + MI_SIZE_LOG2 -
-                        (i > 0 ? cpi->source->subsampling_x : 0)),
-                  1 << (cm->bru.unit_mi_size_log2 + MI_SIZE_LOG2 -
-                        (i > 0 ? cpi->source->subsampling_y : 0)))
-            : avm_get_sse_plane(cpi->source, &cm->cur_frame->buf, i);
-    no_deblocking_cost[i] = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-        cpi->td.mb.rdmult * chroma_lambda_mult, 0, no_deblocking_sse,
-        cm->seq_params.bit_depth);
-  }
 
   if (method == LPF_PICK_MINIMAL_LPF) {
     lf->apply_deblocking_filter[0] = 0;
@@ -312,6 +308,13 @@ void av2_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
     lf->delta_side_luma[0] = lf->delta_side_luma[1] = lf->delta_side_u =
         lf->delta_side_v = 0;
   } else {
+    double no_deblocking_cost[MAX_MB_PLANE] = { DBL_MAX, DBL_MAX, DBL_MAX };
+
+    int64_t no_deblocking_sse =
+        get_sse_plane_active_region(cm, sd, &cm->cur_frame->buf, AVM_PLANE_Y);
+    no_deblocking_cost[AVM_PLANE_Y] = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+        cpi->td.mb.rdmult, 0, no_deblocking_sse, cm->seq_params.bit_depth);
+
     // To make sure the df filters are run
     lf->apply_deblocking_filter[0] = 1;
     lf->apply_deblocking_filter[1] = 1;
@@ -365,7 +368,27 @@ void av2_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
       lf->delta_side_luma[1] = last_frame_offsets[3] = best_single_offsets[3];
     }
 
-    if (num_planes > 1) {
+    // Switch off filters if offsets are zero.
+    for (EDGE_DIR dir = VERT_EDGE; dir < NUM_EDGE_DIRS; ++dir) {
+      if (!is_filter_valid(
+              cm->quant_params.base_qindex, cm->lf.delta_q_luma[dir],
+              cm->lf.delta_side_luma[dir], cm->seq_params.bit_depth)) {
+        lf->apply_deblocking_filter[dir] = 0;
+        cm->lf.delta_q_luma[dir] = 0;
+        cm->lf.delta_side_luma[dir] = 0;
+      }
+    }
+
+    if (num_planes > 1 && (lf->apply_deblocking_filter[VERT_EDGE] != 0 ||
+                           lf->apply_deblocking_filter[HORZ_EDGE] != 0)) {
+      for (int i = AVM_PLANE_U; i < num_planes; ++i) {
+        no_deblocking_sse =
+            get_sse_plane_active_region(cm, sd, &cm->cur_frame->buf, i);
+        no_deblocking_cost[i] = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+            cpi->td.mb.rdmult * CHROMA_LAMBDA_MULT, 0, no_deblocking_sse,
+            cm->seq_params.bit_depth);
+      }
+
       const int dir = 2;
       double best_cost_u = DBL_MAX;
       double best_cost_v = DBL_MAX;
@@ -402,122 +425,89 @@ void av2_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
         lf->delta_q_v = lf->delta_side_v = 0;
       }
 
-      // to switch off filters if offsets are zero
-      if (!df_quant_from_qindex(cm->quant_params.base_qindex +
-                                    cm->lf.delta_q_luma[0] * DF_DELTA_SCALE,
-                                cm->seq_params.bit_depth) ||
-          !df_side_from_qindex(cm->quant_params.base_qindex +
-                                   cm->lf.delta_side_luma[0] * DF_DELTA_SCALE,
-                               cm->seq_params.bit_depth)) {
-        lf->apply_deblocking_filter[0] = 0;
-        cm->lf.delta_q_luma[0] = 0;
-        cm->lf.delta_side_luma[0] = 0;
-      }
-      if (!df_quant_from_qindex(cm->quant_params.base_qindex +
-                                    cm->lf.delta_q_luma[1] * DF_DELTA_SCALE,
-                                cm->seq_params.bit_depth) ||
-          !df_side_from_qindex(cm->quant_params.base_qindex +
-                                   cm->lf.delta_side_luma[1] * DF_DELTA_SCALE,
-                               cm->seq_params.bit_depth)) {
-        lf->apply_deblocking_filter[1] = 0;
-        cm->lf.delta_q_luma[1] = 0;
-        cm->lf.delta_side_luma[1] = 0;
-      }
-      if (lf->apply_deblocking_filter[0] == 0 &&
-          lf->apply_deblocking_filter[1] == 0) {
+      // Switch off filters if offsets are zero.
+      if (!is_filter_valid(cm->quant_params.base_qindex +
+                               cm->quant_params.u_ac_delta_q +
+                               cm->seq_params.base_uv_ac_delta_q,
+                           cm->lf.delta_q_u, cm->lf.delta_side_u,
+                           cm->seq_params.bit_depth)) {
         lf->apply_deblocking_filter_u = 0;
-        lf->apply_deblocking_filter_v = 0;
         cm->lf.delta_q_u = 0;
         cm->lf.delta_side_u = 0;
+      }
+      if (!is_filter_valid(cm->quant_params.base_qindex +
+                               cm->quant_params.v_ac_delta_q +
+                               cm->seq_params.base_uv_ac_delta_q,
+                           cm->lf.delta_q_v, cm->lf.delta_side_v,
+                           cm->seq_params.bit_depth)) {
+        lf->apply_deblocking_filter_v = 0;
         cm->lf.delta_q_v = 0;
         cm->lf.delta_side_v = 0;
-      } else {
-        if (!df_quant_from_qindex(cm->quant_params.base_qindex +
-                                      cm->quant_params.u_ac_delta_q +
-                                      cm->seq_params.base_uv_ac_delta_q +
-                                      cm->lf.delta_q_u * DF_DELTA_SCALE,
-                                  cm->seq_params.bit_depth) ||
-            !df_side_from_qindex(cm->quant_params.base_qindex +
-                                     cm->quant_params.u_ac_delta_q +
-                                     cm->seq_params.base_uv_ac_delta_q +
-                                     cm->lf.delta_side_u * DF_DELTA_SCALE,
-                                 cm->seq_params.bit_depth)) {
-          lf->apply_deblocking_filter_u = 0;
-          cm->lf.delta_q_u = 0;
-          cm->lf.delta_side_u = 0;
-        }
-        if (!df_quant_from_qindex(cm->quant_params.base_qindex +
-                                      cm->quant_params.v_ac_delta_q +
-                                      cm->seq_params.base_uv_ac_delta_q +
-                                      cm->lf.delta_q_v * DF_DELTA_SCALE,
-                                  cm->seq_params.bit_depth) ||
-            !df_side_from_qindex(cm->quant_params.base_qindex +
-                                     cm->quant_params.v_ac_delta_q +
-                                     cm->seq_params.base_uv_ac_delta_q +
-                                     cm->lf.delta_side_v * DF_DELTA_SCALE,
-                                 cm->seq_params.bit_depth)) {
-          lf->apply_deblocking_filter_v = 0;
-          cm->lf.delta_q_v = 0;
-          cm->lf.delta_side_v = 0;
-        }
       }
-      // to switch off filters if offsets are zero
+    } else {
+      lf->apply_deblocking_filter_u = 0;
+      lf->apply_deblocking_filter_v = 0;
+      cm->lf.delta_q_u = 0;
+      cm->lf.delta_side_u = 0;
+      cm->lf.delta_q_v = 0;
+      cm->lf.delta_side_v = 0;
     }
   }
 }
 
-// Try deblocking filter on TIP frame with a given filter strength
-static double try_filter_tip_frame(AV2_COMP *const cpi, int tip_delta) {
-  AV2_COMMON *const cm = &cpi->common;
-  const int num_planes = 1;
-  double filter_cost = 0;
+static AVM_INLINE double get_tip_frame_filter_cost(
+    const YV12_BUFFER_CONFIG *sd, const YV12_BUFFER_CONFIG *tip, int rate,
+    int rdmult, int bit_depth, int num_planes) {
   int64_t filter_sse = 0;
+
+  for (int plane = AVM_PLANE_Y; plane < num_planes; ++plane) {
+    filter_sse += avm_get_sse_plane(sd, tip, plane);
+  }
+  double filter_cost =
+      RDCOST_DBL_WITH_NATIVE_BD_DIST(rdmult, rate, filter_sse, bit_depth);
+  return filter_cost;
+}
+
+// Try deblocking filter on TIP frame with a given filter strength.
+static double try_filter_tip_frame(AV2_COMP *const cpi, int tip_delta,
+                                   int num_planes) {
+  AV2_COMMON *const cm = &cpi->common;
+  ThreadData *const td = &cpi->td;
+  YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tip_frame->buf;
+
   cm->lf.apply_deblocking_filter_tip = 1;
   cm->lf.tip_delta = tip_delta;
-  ThreadData *const td = &cpi->td;
+  init_tip_lf_parameter(cm, AVM_PLANE_Y, num_planes);
+  loop_filter_tip_frame(cm, &td->mb.e_mbd, AVM_PLANE_Y, num_planes);
 
-  init_tip_lf_parameter(cm, 0, num_planes);
-  loop_filter_tip_frame(cm, &td->mb.e_mbd, 0, num_planes);
-
-  YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tip_frame->buf;
-  for (int i = 0; i < num_planes; i++) {
-    int64_t cur_sse = avm_get_sse_plane(cpi->source, tip_frame_buf, i);
-    filter_sse += cur_sse;
-  }
-
-  filter_cost += RDCOST_DBL_WITH_NATIVE_BD_DIST(
-      cpi->td.mb.rdmult, 3, filter_sse, cm->seq_params.bit_depth);
+  double filter_cost = get_tip_frame_filter_cost(
+      cpi->source, tip_frame_buf, /*rate=*/3, td->mb.rdmult,
+      cm->seq_params.bit_depth, num_planes);
 
   // Re-instate the unfiltered frame
-  for (int i = 0; i < num_planes; i++) {
-    yv12_copy_plane(&cpi->last_frame_uf, &cm->tip_ref.tip_frame->buf, i);
+  for (int plane = AVM_PLANE_Y; plane < num_planes; ++plane) {
+    yv12_copy_plane(&cpi->last_frame_uf, tip_frame_buf, plane);
   }
   return filter_cost;
 }
 
 // Search deblocking filter strength for TIP frame
 void search_tip_filter_level(AV2_COMP *cpi, struct AV2Common *cm) {
-  const int num_planes = 1;
   YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tip_frame->buf;
-  for (int i = 0; i < num_planes; i++) {
-    yv12_copy_plane(tip_frame_buf, &cpi->last_frame_uf, i);
+  const int num_planes = 1;
+
+  for (int plane = AVM_PLANE_Y; plane < num_planes; ++plane) {
+    yv12_copy_plane(tip_frame_buf, &cpi->last_frame_uf, plane);
   }
 
-  // check unfiltered cost
-  int64_t unfilter_sse = 0;
-  for (int i = 0; i < num_planes; i++) {
-    int64_t cur_sse = avm_get_sse_plane(cpi->source, tip_frame_buf, i);
-    unfilter_sse += cur_sse;
-  }
-  double unfilter_cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-      cpi->td.mb.rdmult, 1, unfilter_sse, cm->seq_params.bit_depth);
+  // unfiltered cost
+  double unfilter_cost = get_tip_frame_filter_cost(
+      cpi->source, tip_frame_buf, /*rate=*/1, cpi->td.mb.rdmult,
+      cm->seq_params.bit_depth, num_planes);
 
-  // check filtered cost
-  cm->lf.tip_delta = 0;
-  double best_filter_cost = try_filter_tip_frame(cpi, cm->lf.tip_delta);
-  if (best_filter_cost < unfilter_cost) {
-    cm->lf.apply_deblocking_filter_tip = 1;
-  } else {
-    cm->lf.apply_deblocking_filter_tip = 0;
-  }
+  // filtered cost
+  double best_filter_cost =
+      try_filter_tip_frame(cpi, /*tip_delta=*/0, num_planes);
+
+  cm->lf.apply_deblocking_filter_tip = best_filter_cost < unfilter_cost;
 }
