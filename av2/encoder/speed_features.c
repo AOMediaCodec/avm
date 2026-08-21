@@ -421,6 +421,7 @@ static void set_good_speed_features_framesize_independent(
 
     sf->tx_sf.enable_adaptive_tcq_threshold = true;
     sf->tx_sf.adaptive_tcq_threshold_qidx = 185;
+    sf->tx_sf.prune_tx_part_stationarity = true;
     sf->inter_sf.enable_enhanced_inter_mode_cache_reuse = 1;
     sf->inter_sf.skip_temporary_pred_for_opfl = 1;
     sf->inter_sf.enable_warp_inter_intra_in_winner = 1;
@@ -959,6 +960,7 @@ static AVM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
   tx_sf->enable_tx_partition = true;
   tx_sf->enable_adaptive_tx_search_level = false;
   tx_sf->prune_intra_ist_stx_by_zero_eob = false;
+  tx_sf->prune_tx_part_stationarity = false;
 }
 
 static AVM_INLINE void init_rd_sf(RD_CALC_SPEED_FEATURES *rd_sf,

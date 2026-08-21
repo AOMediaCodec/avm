@@ -954,6 +954,10 @@ typedef struct TX_SPEED_FEATURES {
   // predicts eob == 0 from the post-primary coefficients to skip
   // av2_quant + trellis + cost_coeffs.
   bool prune_intra_ist_stx_by_zero_eob;
+
+  // Prune transform partition type search by the analysis of signal
+  // stationarity along horizontal and vertical axis.
+  bool prune_tx_part_stationarity;
 } TX_SPEED_FEATURES;
 
 typedef struct RD_CALC_SPEED_FEATURES {
