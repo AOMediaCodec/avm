@@ -1133,14 +1133,11 @@ static void set_max_drl_bits(struct AV2_COMP *cpi) {
     cm->features.max_drl_bits = cm->seq_params.def_max_drl_bits;
   } else {  // Can be changed with logic later
     if (cpi->oxcf.tool_cfg.max_drl_refmvs == 0) {
-      if (cpi->sf.inter_sf.reduce_max_drl_refmvs) {
-        const int is_high_tier_ref =
-            frame_is_kf_gf_arf(cpi) || cm->current_frame.pyramid_level <= 2;
-        cm->features.max_drl_bits = is_high_tier_ref ? (DEF_MAX_DRL_REFMVS - 1)
-                                                     : (DEF_MAX_DRL_REFMVS - 2);
-      } else {
-        cm->features.max_drl_bits = DEF_MAX_DRL_REFMVS - 1;
-      }
+      // Spend one fewer DRL bit on low importance frames
+      const int reduce_drl = cpi->sf.inter_sf.reduce_max_drl_refmvs &&
+                             cm->current_frame.pyramid_level > 2 &&
+                             !frame_is_kf_gf_arf(cpi);
+      cm->features.max_drl_bits = DEF_MAX_DRL_REFMVS - 1 - reduce_drl;
     } else {
       cm->features.max_drl_bits = cpi->oxcf.tool_cfg.max_drl_refmvs - 1;
     }
