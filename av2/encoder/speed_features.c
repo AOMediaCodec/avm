@@ -217,6 +217,10 @@ static void set_good_speed_feature_framesize_dependent(
       sf->part_sf.partition_search_breakout_dist_thr = (1 << 23);
       sf->part_sf.partition_search_breakout_rate_thr = 120;
     }
+
+    if (is_480p_or_larger) {
+      sf->tx_sf.tx_type_search.prune_tx_type_using_stats = 1;
+    }
   }
 
   if (speed >= 4) {
@@ -224,10 +228,6 @@ static void set_good_speed_feature_framesize_dependent(
       sf->part_sf.partition_search_breakout_dist_thr = (1 << 26);
     } else {
       sf->part_sf.partition_search_breakout_dist_thr = (1 << 24);
-    }
-
-    if (is_480p_or_larger) {
-      sf->tx_sf.tx_type_search.prune_tx_type_using_stats = 1;
     }
 
     // On small resolutions (<=360p), keep the smallest RU size available at
