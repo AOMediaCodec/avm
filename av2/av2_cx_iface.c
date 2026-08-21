@@ -577,6 +577,207 @@ static struct av2_extracfg default_extra_cfg = {
   0,      // force_deferred_frames_for_ras_test
   0,      // enable_low_complexity_decode
 };
+
+static struct av2_extracfg default_extra_cfg_rt = {
+  .cpu_used = 6,
+  .enable_auto_alt_ref = 0,
+  .enable_auto_bwd_ref = 0,
+  .noise_sensitivity = 0,
+  .sharpness = 0,
+  .static_thresh = 0,
+  .row_mt = 0,
+  .tile_columns = 0,
+  .tile_rows = 0,
+  .enable_tpl_model = 0,
+  .enable_keyframe_filtering = 0,
+  .arnr_max_frames = 7,
+  .arnr_strength = 5,
+  .min_gf_interval = 8,
+  .max_gf_interval = 8,
+  .gf_min_pyr_height = 0,
+  .gf_max_pyr_height = 0,
+  .tuning = AVM_TUNE_PSNR,
+  .subgop_config_str = NULL,
+  .subgop_config_path = NULL,
+  .qp = 40,
+  .rc_max_intra_bitrate_pct = 0,
+  .rc_max_inter_bitrate_pct = 0,
+  .gf_cbr_boost_pct = 0,
+  .lossless = 0,
+  .enable_deblocking = 1,
+  .enable_cdef = 1,
+  .enable_gdf = 0,
+  .gdf_unit_matches_sb = 0,
+  .enable_restoration = 0,
+  .enable_pc_wiener = 0,
+  .enable_wiener_nonsep = 0,
+  .enable_ccso = 0,
+  .ccso_unit_matches_sb = 0,
+  .enable_band_metadata = 0,
+  .enable_lf_sub_pu = 0,
+  .force_video_mode = 1,
+  .enable_trellis_quant = 0,
+  .enable_qm = 0,
+  .qm_y = DEFAULT_QM_Y,
+  .qm_u = DEFAULT_QM_U,
+  .qm_v = DEFAULT_QM_V,
+  .qm_min = DEFAULT_QM_FIRST,
+  .qm_max = DEFAULT_QM_LAST,
+  .user_defined_qmatrix = 0,
+  .frame_multi_qmatrix_unit_test = 0,
+  .sef_with_order_hint_test = 0,
+  .multi_seq_header_test = 0,
+  .num_tg = 1,
+  .mtu_size = 0,
+  .timing_info_type = AVM_TIMING_UNSPECIFIED,
+  .frame_parallel_decoding_mode = 0,
+  .enable_chroma_deltaq = 0,
+  .aq_mode = NO_AQ,
+  .deltaq_mode = DELTA_Q_OBJECTIVE,
+  .frame_periodic_boost = 0,
+  .bit_depth = AVM_BITS_8,
+  .content = AVM_CONTENT_DEFAULT,
+  .color_primaries = AVM_CICP_CP_UNSPECIFIED,
+  .transfer_characteristics = AVM_CICP_TC_UNSPECIFIED,
+  .matrix_coefficients = AVM_CICP_MC_UNSPECIFIED,
+  .chroma_sample_position = AVM_CSP_UNSPECIFIED,
+  .color_range = 0,
+  .render_width = 0,
+  .render_height = 0,
+  .superblock_size = AVM_SUPERBLOCK_SIZE_DYNAMIC,
+  .enable_sframe = 0,
+  .film_grain_test_vector = 0,
+  .film_grain_table_filename = 0,
+  .film_grain_block_size = 0,
+  .motion_vector_unit_test = 0,
+  .cdf_update_mode = 1,
+  .disable_ml_partition_speed_features = 1,
+  .erp_pruning_level = 0,
+  .use_ml_erp_pruning = 0,
+  .enable_ext_partitions = 0,
+  .enable_tx_partition = 1,
+  .enable_rect_partitions = 1,
+  .enable_uneven_4way_partitions = 1,
+  .max_partition_aspect_ratio = 8,
+  .disable_ml_transform_speed_features = 0,
+  .enable_sdp = 0,
+  .enable_extended_sdp = 0,
+  .enable_mrls = 0,
+  .enable_tip = 0,
+  .enable_tip_refinemv = 0,
+  .enable_mv_traj = 0,
+  .enable_high_motion = 0,
+  .enable_bawp = 0,
+  .enable_cwp = 0,
+  .enable_imp_msk_bld = 0,
+  .enable_fsc = 1,
+  .enable_idtx_intra = 1,
+  .enable_ist = 0,
+  .enable_inter_ist = 0,
+  .enable_chroma_dctonly = 0,
+  .enable_inter_ddt = 0,
+  .enable_cctx = 0,
+  .enable_ibp = 0,
+  .enable_adaptive_mvd = 0,
+  .enable_flex_mvres = 0,
+  .select_cfl_ds_filter = 3,
+  .enable_joint_mvd = 0,
+  .enable_refinemv = 0,
+  .enable_mvd_sign_derive = 0,
+  .min_partition_size = 4,
+  .max_partition_size = 256,
+  .enable_intra_edge_filter = 0,
+  .reduced_tx_part_set = 0,
+  .enable_flip_idtx = 1,
+  .max_reference_frames = 3,
+  .enable_reduced_reference_set = 1,
+  .explicit_ref_frame_map = 1,
+  .add_sef_for_hidden_frames = 0,
+  .monotonic_output_order = 0,
+  .enable_ref_frame_mvs = 0,
+  .reduced_ref_frame_mvs_mode = 0,
+  .allow_ref_frame_mvs = 0,
+  .enable_masked_comp = 0,
+  .enable_onesided_comp = 0,
+  .enable_interintra_comp = 0,
+  .enable_smooth_interintra = 0,
+  .enable_diff_wtd_comp = 0,
+  .enable_interinter_wedge = 0,
+  .enable_interintra_wedge = 0,
+  .enable_global_motion = 0,
+  .enable_skip_mode = 0,
+  .enable_warped_motion = 0,
+  .enable_warp_causal = 0,
+  .enable_warp_delta = 0,
+  .enable_six_param_warp_delta = 0,
+  .enable_warp_extend = 0,
+  .enable_intra_dip = 0,
+  .enable_smooth_intra = 0,
+  .enable_paeth_intra = 0,
+  .enable_cfl_intra = 0,
+  .enable_mhccp = 0,
+  .enable_overlay = 0,
+  .enable_palette = 1,
+  .enable_intrabc = !CONFIG_SHARP_SETTINGS,
+  .enable_intrabc_ext = 0,
+  .enable_angle_delta = 0,
+  .enable_opfl_refine = AVM_OPFL_REFINE_NONE,
+#if CONFIG_DENOISE
+  .noise_level = 0,
+  .noise_block_size = 32,
+#endif
+  .chroma_subsampling_x = 0,
+  .chroma_subsampling_y = 0,
+  .reduced_tx_type_set = 0,
+  .use_intra_dct_only = 1,
+  .use_inter_dct_only = 0,
+  .use_intra_default_tx_only = 0,
+  .quant_b_adapt = 0,
+  .vbr_corpus_complexity_lap = 0,
+  .target_seq_level_idx = {
+      SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
+      SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
+      SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
+      SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
+      SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
+      SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
+      SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
+  },
+  .tier_mask = 0,
+  .min_cr = 0,
+  .coeff_cost_upd_freq = (COST_UPDATE_TYPE)2,
+  .mode_cost_upd_freq = (COST_UPDATE_TYPE)2,
+  .mv_cost_upd_freq = (COST_UPDATE_TYPE)3,
+  .sb_multipass_unit_test = 0,
+  .enable_subgop_stats = 0,
+  .max_drl_refmvs = 0,
+  .max_drl_refbvs = 0,
+  .enable_refmvbank = 0,
+  .enable_drl_reorder = 0,
+  .enable_cdef_on_skip_txfm = 0,
+  .enable_avg_cdf = 1,
+  .avg_cdf_type = 1,
+  .enable_parity_hiding = 0,
+  .enable_short_refresh_frame_flags = 1,
+  .enable_ext_seg = 0,
+  .dpb_size = 8,
+  .enable_bru = 0,
+  .disable_loopfilters_across_tiles = 0,
+  .enable_cropping_window = 0,
+  .crop_win_left_offset = 0,
+  .crop_win_right_offset = 0,
+  .crop_win_top_offset = 0,
+  .crop_win_bottom_offset = 0,
+  .scan_type_info_present_flag = 0,
+  .enable_mfh_obu_signaling = 0,
+  .operating_points_count = 1,
+  .cross_frame_cdf_init_mode = 1,
+  .use_buffer_refresh_multi_layers_test = 0,
+  .buffer_refresh_multi_layers_test = { 0 },
+  .multi_layers_lag_test = 0,
+  .force_deferred_frames_for_ras_test = 0,
+  .enable_low_complexity_decode = 0,
+};
 // clang-format on
 
 struct avm_codec_alg_priv {
@@ -2848,7 +3049,11 @@ static avm_codec_err_t encoder_init(avm_codec_ctx_t *ctx) {
       ctx->config.enc = &priv->cfg;
     }
 
-    priv->extra_cfg = default_extra_cfg;
+    if (priv->cfg.g_usage == AVM_USAGE_REALTIME) {
+      priv->extra_cfg = default_extra_cfg_rt;
+    } else {
+      priv->extra_cfg = default_extra_cfg;
+    }
     avm_once(av2_initialize_enc);
 
     res = validate_config(priv, &priv->cfg, &priv->extra_cfg);
@@ -4928,7 +5133,7 @@ static const avm_codec_enc_cfg_t encoder_usage_cfg[] = {
       SCALE_NUMERATOR,  // rc_resize_denominator
       SCALE_NUMERATOR,  // rc_resize_kf_denominator
 
-      AVM_VBR,      // rc_end_usage
+      AVM_CBR,      // rc_end_usage
       { NULL, 0 },  // rc_firstpass_mb_stats_in
       256,          // rc_target_bandwidth
       0,            // rc_min_quantizer
@@ -4969,73 +5174,114 @@ static const avm_codec_enc_cfg_t encoder_usage_cfg[] = {
       0,                           // frame_hash_per_plane;
       0,                           // use_short_metadata;
       {
-          0,    // init_by_cfg_file
-          128,  // superblock_size
-          128,  // max_partition_size
-          4,    // min_partition_size
-          1,    // enable_rect_partitions
-          1,    // enable_uneven_4way_partitions
-          1,    // disable_ml_partition_speed_features
-          5,    // erp_pruning_level
-          0,    // use_ml_erp_pruning
-          1,    // enable_ext_partitions
-          1,    // enable_tx_partition
-          8,    // max_partition_aspect_ratio
-          0,    1, 1, /*extended sdp*/ 1,
-          1,
-          1,  // enable RefineMv and OPFL for TIP
-          1,  // MV traj
-          0,  // enable_high_motion
-          1,    1, 1, 1,
-          1,  // enable idtx intra for fsc is disabled case
-          1,
-          1,  // IST
-          1,  // inter IST
-          0,  // chroma DCT only
-          1,  // inter DDT
-          1,  // enable_cctx
-          1,    1, 1,
-          3,  // select_cfl_ds
-          1,    1, 1, 1,
-          1,    1, 1, 0,
-          1,    1, 1, 1,
-          0,    1, 1, 1,
-          1,    1, 1, 1,
-          1,    1, 1, 1,
-          0,    0, 1, 1,
-          1,    1, 1, 1,
-          1,    1, 1,
-          0,  // reduced_tx_part_set
-          1,    1, 1, 1,
-          3,    1,
-          0,  // reduced_ref_frame_mvs_mode
-          1,  // enable_reduced_reference_set
-          0,  // explicit_ref_frame_map
-          0,  // add_sef_for_hidden_frames
-          0,  // monotonic_output_order
-          0,  // reduced_tx_type_set
-          0,  // max_drl_refmvs
-
-          0,  // max_drl_refbvs
-          1,    1, 1,
-          1,  // enable_avg_cdf
-          1,  // avg_cdf_type
-          1,
-          1,  // enable_short_refresh_frame_flags
-          0,  // enable_ext_seg
-          8,  // dpb_size
-          0,  // enable_bru
-          0,  // disable_loopfilters_across_tiles
-          0,  // enable cropping window
-          0,  // crop_win_left_offset
-          0,  // crop_win_right_offset
-          0,  // crop_win_top_offset
-          0,  // crop_win_bottom_offset
-          NULL, 0, 0,
-          0,  // enable_mfh_obu_signaling
-          1,
-          0,  // enable_low_complexity_decode
-      },      // cfg
+          .init_by_cfg_file = 0,
+          .superblock_size = 128,
+          .max_partition_size = 128,
+          .min_partition_size = 4,
+          .enable_rect_partitions = 1,
+          .enable_uneven_4way_partitions = 1,
+          .disable_ml_partition_speed_features = 1,
+          .erp_pruning_level = 0,
+          .use_ml_erp_pruning = 0,
+          .enable_ext_partitions = 0,
+          .enable_tx_partition = 1,
+          .max_partition_aspect_ratio = 8,
+          .disable_ml_transform_speed_features = 0,
+          .enable_sdp = 0,
+          .enable_extended_sdp = 0,
+          .enable_mrls = 0,
+          .enable_tip = 0,
+          .enable_tip_refinemv = 0,
+          .enable_mv_traj = 0,
+          .enable_high_motion = 0,
+          .enable_bawp = 0,
+          .enable_cwp = 0,
+          .enable_imp_msk_bld = 0,
+          .enable_fsc = 1,
+          .enable_idtx_intra = 1,
+          .enable_ist = 0,
+          .enable_inter_ist = 0,
+          .enable_chroma_dctonly = 0,
+          .enable_inter_ddt = 0,
+          .enable_cctx = 0,
+          .enable_ibp = 0,
+          .enable_adaptive_mvd = 0,
+          .enable_flex_mvres = 0,
+          .select_cfl_ds_filter = 3,
+          .enable_joint_mvd = 0,
+          .enable_refinemv = 0,
+          .enable_mvd_sign_derive = 0,
+          .enable_flip_idtx = 1,
+          .enable_deblocking = 1,
+          .enable_cdef = 1,
+          .enable_gdf = 0,
+          .gdf_unit_matches_sb = 0,
+          .enable_restoration = 0,
+          .enable_pc_wiener = 0,
+          .enable_wiener_nonsep = 0,
+          .enable_ccso = 0,
+          .ccso_unit_matches_sb = 0,
+          .enable_band_metadata = 0,
+          .enable_lf_sub_pu = 0,
+          .enable_warped_motion = 0,
+          .enable_warp_causal = 0,
+          .enable_warp_delta = 0,
+          .enable_six_param_warp_delta = 0,
+          .enable_warp_extend = 0,
+          .enable_global_motion = 0,
+          .enable_skip_mode = 0,
+          .enable_diff_wtd_comp = 0,
+          .enable_interintra_comp = 0,
+          .enable_masked_comp = 0,
+          .enable_onesided_comp = 0,
+          .enable_palette = 1,
+          .enable_intrabc = 1,
+          .enable_intrabc_ext = 0,
+          .enable_cfl_intra = 0,
+          .enable_mhccp = 0,
+          .enable_smooth_intra = 0,
+          .enable_intra_dip = 0,
+          .enable_angle_delta = 0,
+          .enable_opfl_refine = AVM_OPFL_REFINE_NONE,
+          .enable_intra_edge_filter = 0,
+          .reduced_tx_part_set = 0,
+          .enable_smooth_interintra = 0,
+          .enable_interinter_wedge = 0,
+          .enable_interintra_wedge = 0,
+          .enable_paeth_intra = 0,
+          .enable_trellis_quant = 0,
+          .enable_ref_frame_mvs = 0,
+          .reduced_ref_frame_mvs_mode = 0,
+          .enable_reduced_reference_set = 1,
+          .explicit_ref_frame_map = 1,
+          .add_sef_for_hidden_frames = 0,
+          .monotonic_output_order = 0,
+          .reduced_tx_type_set = 0,
+          .max_drl_refmvs = 0,
+          .max_drl_refbvs = 0,
+          .enable_refmvbank = 0,
+          .enable_drl_reorder = 0,
+          .enable_cdef_on_skip_txfm = 0,
+          .enable_avg_cdf = 1,
+          .avg_cdf_type = 1,
+          .enable_parity_hiding = 0,
+          .enable_short_refresh_frame_flags = 1,
+          .enable_ext_seg = 0,
+          .dpb_size = 8,
+          .enable_bru = 0,
+          .disable_loopfilters_across_tiles = 0,
+          .enable_cropping_window = 0,
+          .crop_win_left_offset = 0,
+          .crop_win_right_offset = 0,
+          .crop_win_top_offset = 0,
+          .crop_win_bottom_offset = 0,
+          .icc_data = NULL,
+          .icc_size = 0,
+          .scan_type_info_present_flag = 0,
+          .enable_mfh_obu_signaling = 0,
+          .operating_points_count = 1,
+          .enable_low_complexity_decode = 0,
+      },  // cfg
   },
 };
 

@@ -50,77 +50,7 @@ class RtcTest : public ::libavm_test::CodecTestWithParam<int>,
     if (video->frame() == 0) {
       encoder->Control(AV2E_SET_TUNE_CONTENT, tune_content_);
       encoder->Control(AVME_SET_CPUUSED, 6);
-      // Other RTC settings, to be updated.
-      encoder->Control(AVME_SET_ENABLEAUTOALTREF, 0);
-      encoder->Control(AV2E_SET_ENABLE_KEYFRAME_FILTERING, 0);
-      encoder->Control(AV2E_SET_ENABLE_RECT_PARTITIONS, 0);
-      encoder->Control(AV2E_SET_ENABLE_INTRA_EDGE_FILTER, 0);
-      encoder->Control(AV2E_SET_ENABLE_MASKED_COMP, 0);
-      encoder->Control(AV2E_SET_ENABLE_ONESIDED_COMP, 0);
-      encoder->Control(AV2E_SET_ENABLE_INTERINTRA_COMP, 0);
-      encoder->Control(AV2E_SET_ENABLE_SMOOTH_INTERINTRA, 0);
-      encoder->Control(AV2E_SET_ENABLE_DIFF_WTD_COMP, 0);
-      encoder->Control(AV2E_SET_ENABLE_INTERINTER_WEDGE, 0);
-      encoder->Control(AV2E_SET_ENABLE_INTERINTRA_WEDGE, 0);
-      encoder->Control(AV2E_SET_ENABLE_GLOBAL_MOTION, 0);
-      encoder->Control(AV2E_SET_ENABLE_WARPED_MOTION, 0);
-      encoder->Control(AV2E_SET_ENABLE_SMOOTH_INTRA, 0);
-      encoder->Control(AV2E_SET_ENABLE_PAETH_INTRA, 0);
-      encoder->Control(AV2E_SET_ENABLE_CFL_INTRA, 0);
-      encoder->Control(AV2E_SET_ENABLE_OVERLAY, 0);
-      encoder->Control(AV2E_SET_QUANT_B_ADAPT, 0);
-      encoder->Control(AV2E_SET_ENABLE_TPL_MODEL, 0);
-      encoder->Control(AV2E_SET_FRAME_PERIODIC_BOOST, 0);
       encoder->Control(AV2E_SET_MAX_REFERENCE_FRAMES, 1);
-      encoder->Control(AV2E_SET_REDUCED_REFERENCE_SET, 1);
-      encoder->Control(AV2E_SET_ENABLE_REF_FRAME_MVS, 0);
-      encoder->Control(AV2E_SET_ENABLE_QM, 0);
-      encoder->Control(AV2E_SET_ENABLE_ANGLE_DELTA, 0);
-      encoder->Control(AV2E_SET_ENABLE_RESTORATION, 0);
-      encoder->Control(AV2E_SET_ENABLE_BRU, 0);
-      encoder->Control(AV2E_SET_AQ_MODE, 0);
-      encoder->Control(AV2E_SET_CDF_UPDATE_MODE, 1);
-      encoder->Control(AV2E_SET_ENABLE_DEBLOCKING, 1);
-      encoder->Control(AV2E_SET_ENABLE_CDEF, 1);
-      encoder->Control(AV2E_SET_ENABLE_PALETTE, 1);
-      encoder->Control(AV2E_SET_ENABLE_INTRABC, 1);
-      encoder->Control(AV2E_SET_INTRA_DCT_ONLY, 1);
-      encoder->Control(AV2E_SET_INTER_DCT_ONLY, 1);
-      encoder->Control(AV2E_SET_FORCE_VIDEO_MODE, 1);
-      encoder->Control(AV2E_SET_COEFF_COST_UPD_FREQ, 2);
-      encoder->Control(AV2E_SET_MODE_COST_UPD_FREQ, 2);
-      encoder->Control(AV2E_SET_MV_COST_UPD_FREQ, 3);
-      // The following settings don't have codec control assigned yet.
-      encoder->SetOption("enable-sdp", "0");
-      encoder->SetOption("enable-extended-sdp", "0");
-      encoder->SetOption("enable-mhccp", "0");
-      encoder->SetOption("enable-mrls", "0");
-      encoder->SetOption("enable-tip", "0");
-      encoder->SetOption("enable-bawp", "0");
-      encoder->SetOption("enable-cwp", "0");
-      encoder->SetOption("enable-imp-msk-bld", "0");
-      encoder->SetOption("enable-ist", "0");
-      encoder->SetOption("enable-inter-ist", "0");
-      encoder->SetOption("enable-inter-ddt", "0");
-      encoder->SetOption("enable-cctx", "0");
-      encoder->SetOption("enable-ccso", "0");
-      encoder->SetOption("enable-ext-partitions", "0");
-      encoder->SetOption("enable-pc-wiener", "0");
-      encoder->SetOption("enable-wiener-nonsep", "0");
-      encoder->SetOption("enable-ibp", "0");
-      encoder->SetOption("enable-refmvbank", "0");
-      encoder->SetOption("enable-opfl-refine", "0");
-      encoder->SetOption("enable-lf-sub-pu", "0");
-      encoder->SetOption("enable-adaptive-mvd", "0");
-      encoder->SetOption("enable-flex-mvres", "0");
-      encoder->SetOption("enable-joint-mvd", "0");
-      encoder->SetOption("enable-refinemv", "0");
-      encoder->SetOption("enable-mvd-sign-derive", "0");
-      encoder->SetOption("enable-parity-hiding", "0");
-      encoder->SetOption("enable-warp-delta", "0");
-      encoder->SetOption("enable-warp-extend", "0");
-      encoder->SetOption("max-drl-refmvs", "0");
-      encoder->SetOption("max-drl-refbvs", "0");
     }
   }
 
