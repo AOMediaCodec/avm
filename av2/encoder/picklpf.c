@@ -11,6 +11,7 @@
  */
 
 #include <assert.h>
+#include <float.h>
 #include <limits.h>
 
 #include "config/avm_scale_rtcd.h"
@@ -28,16 +29,15 @@
 #include "av2/encoder/encoder.h"
 #include "av2/encoder/picklpf.h"
 
-#include <float.h>
 #define CHROMA_LAMBDA_MULT 6
 
 static void yv12_copy_plane(const YV12_BUFFER_CONFIG *src_bc,
                             YV12_BUFFER_CONFIG *dst_bc, int plane) {
   switch (plane) {
-    case 0: avm_yv12_copy_y(src_bc, dst_bc); break;
-    case 1: avm_yv12_copy_u(src_bc, dst_bc); break;
-    case 2: avm_yv12_copy_v(src_bc, dst_bc); break;
-    default: assert(plane >= 0 && plane <= 2); break;
+    case AVM_PLANE_Y: avm_yv12_copy_y(src_bc, dst_bc); break;
+    case AVM_PLANE_U: avm_yv12_copy_u(src_bc, dst_bc); break;
+    case AVM_PLANE_V: avm_yv12_copy_v(src_bc, dst_bc); break;
+    default: assert(plane >= AVM_PLANE_Y && plane <= AVM_PLANE_V); break;
   }
 }
 
@@ -70,31 +70,33 @@ static int64_t try_filter_frame(const YV12_BUFFER_CONFIG *sd,
   AV2_COMMON *const cm = &cpi->common;
   int64_t filt_err;
 
-  assert(plane >= 0 && plane <= 2);
   // set base filters for use of av2_get_filter_level when searching for delta_q
   // and delta_side
   switch (plane) {
-    case 0:
+    case AVM_PLANE_Y:
       switch (dir) {
-        case 2:
-          cm->lf.delta_q_luma[0] = cm->lf.delta_q_luma[1] = q_offset;
-          cm->lf.delta_side_luma[0] = cm->lf.delta_side_luma[1] = side_offset;
+        case 2:  // BOTH_EDGES
+          cm->lf.delta_q_luma[VERT_EDGE] = q_offset;
+          cm->lf.delta_q_luma[HORZ_EDGE] = q_offset;
+          cm->lf.delta_side_luma[VERT_EDGE] = side_offset;
+          cm->lf.delta_side_luma[HORZ_EDGE] = side_offset;
           break;
-        case 1:
-        case 0:
+        case HORZ_EDGE:
+        case VERT_EDGE:
           cm->lf.delta_q_luma[dir] = q_offset;
           cm->lf.delta_side_luma[dir] = side_offset;
           break;
       }
       break;
-    case 1:
+    case AVM_PLANE_U:
       cm->lf.delta_q_u = q_offset;
       cm->lf.delta_side_u = side_offset;
       break;
-    case 2:
+    case AVM_PLANE_V:
       cm->lf.delta_q_v = q_offset;
       cm->lf.delta_side_v = side_offset;
       break;
+    default: assert(plane >= AVM_PLANE_Y && plane <= AVM_PLANE_V); return -1;
   }
 
   if (num_workers > 1)
@@ -132,38 +134,35 @@ static int search_filter_offsets(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
   int off_ind = search_side_offset;
   int temp_offsets[2];
 
-  assert(plane >= 0 && plane <= 2);
-
   // Start the search at the previous frame filter level unless it is now out of
   // range.
-
   switch (plane) {
-    case 0:
+    case AVM_PLANE_Y:
       switch (dir) {
-        case 2:
+        case 2:  // BOTH_EDGES
           offsets[0] = (last_frame_offsets[0] + last_frame_offsets[2] + 1) >> 1;
           offsets[1] = (last_frame_offsets[1] + last_frame_offsets[3] + 1) >> 1;
           break;
-        case 0:
+        case VERT_EDGE:
           offsets[0] = last_frame_offsets[0];
           offsets[1] = last_frame_offsets[1];
           break;
-        case 1:
+        case HORZ_EDGE:
           offsets[0] = last_frame_offsets[2];
           offsets[1] = last_frame_offsets[3];
           break;
-        default: assert(dir >= 0 && dir <= 2); return 0;
+        default: assert(dir >= VERT_EDGE && dir <= NUM_EDGE_DIRS); return 0;
       }
       break;
-    case 1:
+    case AVM_PLANE_U:
       offsets[0] = last_frame_offsets[4];
       offsets[1] = last_frame_offsets[5];
       break;
-    case 2:
+    case AVM_PLANE_V:
       offsets[0] = last_frame_offsets[6];
       offsets[1] = last_frame_offsets[7];
       break;
-    default: assert(plane >= 0 && plane <= 2); return 0;
+    default: assert(plane >= AVM_PLANE_Y && plane <= AVM_PLANE_V); return 0;
   }
 
   int offset_mid =
@@ -250,7 +249,7 @@ static int search_filter_offsets(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
   if (dir == 2) {
     start_bits = offsets[off_ind] ? df_par_bits : 0;
     best_bits = offset_best ? df_par_bits : 0;
-  } else if (dir == 0) {
+  } else if (dir == VERT_EDGE) {
     int hor_q_ind = 1;  // offset for the hor dir
     int hor_offset = last_frame_offsets[(hor_q_ind + 1) + off_ind];
     int hor_bits = hor_offset ? df_par_bits : 0;
@@ -292,21 +291,26 @@ void av2_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
   cpi->td.mb.rdmult = cpi->rd.RDMULT;
 
   if (method == LPF_PICK_MINIMAL_LPF) {
-    lf->apply_deblocking_filter[0] = 0;
-    lf->apply_deblocking_filter[1] = 0;
+    lf->apply_deblocking_filter[VERT_EDGE] = 0;
+    lf->apply_deblocking_filter[HORZ_EDGE] = 0;
     lf->apply_deblocking_filter_u = lf->apply_deblocking_filter_v = 0;
   } else if (method >= LPF_PICK_FROM_Q) {
     // TODO(chengchen): retrain the model for Y, U, V filter levels
-    lf->apply_deblocking_filter[0] = lf->apply_deblocking_filter[1] = 1;
+    lf->apply_deblocking_filter[VERT_EDGE] = 1;
+    lf->apply_deblocking_filter[HORZ_EDGE] = 1;
     if (num_planes > 1) {
       lf->apply_deblocking_filter_u = lf->apply_deblocking_filter_v = 1;
     } else {
       lf->apply_deblocking_filter_u = lf->apply_deblocking_filter_v = 0;
     }
-    lf->delta_q_luma[0] = lf->delta_q_luma[1] = lf->delta_q_u = lf->delta_q_v =
-        0;
-    lf->delta_side_luma[0] = lf->delta_side_luma[1] = lf->delta_side_u =
-        lf->delta_side_v = 0;
+    lf->delta_q_luma[VERT_EDGE] = 0;
+    lf->delta_q_luma[HORZ_EDGE] = 0;
+    lf->delta_q_u = 0;
+    lf->delta_q_v = 0;
+    lf->delta_side_luma[VERT_EDGE] = 0;
+    lf->delta_side_luma[HORZ_EDGE] = 0;
+    lf->delta_side_u = 0;
+    lf->delta_side_v = 0;
   } else {
     double no_deblocking_cost[MAX_MB_PLANE] = { DBL_MAX, DBL_MAX, DBL_MAX };
 
@@ -316,56 +320,71 @@ void av2_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
         cpi->td.mb.rdmult, 0, no_deblocking_sse, cm->seq_params.bit_depth);
 
     // To make sure the df filters are run
-    lf->apply_deblocking_filter[0] = 1;
-    lf->apply_deblocking_filter[1] = 1;
+    lf->apply_deblocking_filter[VERT_EDGE] = 1;
+    lf->apply_deblocking_filter[HORZ_EDGE] = 1;
     if (num_planes > 1) {
       lf->apply_deblocking_filter_u = lf->apply_deblocking_filter_v = 1;
     } else {
       lf->apply_deblocking_filter_u = lf->apply_deblocking_filter_v = 0;
     }
     // TODO(anyone): What are good initial levels for keyframes?
-    lf->delta_q_luma[0] = lf->delta_q_luma[1] = lf->delta_q_u = lf->delta_q_v =
-        0;
-    lf->delta_side_luma[0] = lf->delta_side_luma[1] = lf->delta_side_u =
-        lf->delta_side_v = 0;
-    int last_frame_offsets[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+    lf->delta_q_luma[VERT_EDGE] = 0;
+    lf->delta_q_luma[HORZ_EDGE] = 0;
+    lf->delta_q_u = 0;
+    lf->delta_q_v = 0;
+    lf->delta_side_luma[VERT_EDGE] = 0;
+    lf->delta_side_luma[HORZ_EDGE] = 0;
+    lf->delta_side_u = 0;
+    lf->delta_side_v = 0;
 
+    int last_frame_offsets[8] = { 0 };
+    int best_single_offsets[4] = { 0 };
     double best_single_cost = DBL_MAX;
     double best_dual_cost = DBL_MAX;
-    int best_single_offsets[4] = { 0, 0, 0, 0 };
 
     // luma
-    last_frame_offsets[1] = last_frame_offsets[3] = lf->delta_side_luma[0] =
-        lf->delta_side_luma[1] = search_filter_offsets(
-            sd, cpi, method == LPF_PICK_FROM_SUBIMAGE, last_frame_offsets,
-            &best_single_cost, 0, 1, 2);
-    last_frame_offsets[0] = last_frame_offsets[2] = lf->delta_q_luma[0] =
-        lf->delta_q_luma[1] = lf->delta_side_luma[0];
+    last_frame_offsets[1] = last_frame_offsets[3] =
+        lf->delta_side_luma[VERT_EDGE] = lf->delta_side_luma[HORZ_EDGE] =
+            search_filter_offsets(sd, cpi, method == LPF_PICK_FROM_SUBIMAGE,
+                                  last_frame_offsets, &best_single_cost, 0,
+                                  1 /* search_side_offset */, 2 /* dir */);
+    last_frame_offsets[0] = last_frame_offsets[2] =
+        lf->delta_q_luma[VERT_EDGE] = lf->delta_q_luma[HORZ_EDGE] =
+            lf->delta_side_luma[VERT_EDGE];
     best_single_offsets[0] = last_frame_offsets[0];
     best_single_offsets[1] = last_frame_offsets[1];
     best_single_offsets[2] = last_frame_offsets[2];
     best_single_offsets[3] = last_frame_offsets[3];
 
-    last_frame_offsets[1] = lf->delta_side_luma[0] =
+    last_frame_offsets[1] = lf->delta_side_luma[VERT_EDGE] =
         search_filter_offsets(sd, cpi, method == LPF_PICK_FROM_SUBIMAGE,
-                              last_frame_offsets, &best_dual_cost, 0, 1, 0);
-    last_frame_offsets[0] = lf->delta_q_luma[0] = lf->delta_side_luma[0];
+                              last_frame_offsets, &best_dual_cost, AVM_PLANE_Y,
+                              1 /* search_side_offset */, VERT_EDGE);
+    last_frame_offsets[0] = lf->delta_q_luma[VERT_EDGE] =
+        lf->delta_side_luma[VERT_EDGE];
 
-    last_frame_offsets[3] = lf->delta_side_luma[1] =
+    last_frame_offsets[3] = lf->delta_side_luma[HORZ_EDGE] =
         search_filter_offsets(sd, cpi, method == LPF_PICK_FROM_SUBIMAGE,
-                              last_frame_offsets, &best_dual_cost, 0, 1, 1);
-    last_frame_offsets[2] = lf->delta_q_luma[1] = lf->delta_side_luma[1];
+                              last_frame_offsets, &best_dual_cost, AVM_PLANE_Y,
+                              1 /* search_side_offset */, HORZ_EDGE);
+    last_frame_offsets[2] = lf->delta_q_luma[HORZ_EDGE] =
+        lf->delta_side_luma[HORZ_EDGE];
 
-    if (no_deblocking_cost[0] < AVMMIN(best_single_cost, best_dual_cost)) {
-      lf->apply_deblocking_filter[0] = 0;
-      lf->apply_deblocking_filter[1] = 0;
-      lf->delta_q_luma[0] = lf->delta_side_luma[0] = lf->delta_q_luma[1] =
-          lf->delta_side_luma[1] = 0;
+    if (no_deblocking_cost[AVM_PLANE_Y] <
+        AVMMIN(best_single_cost, best_dual_cost)) {
+      lf->apply_deblocking_filter[VERT_EDGE] = 0;
+      lf->apply_deblocking_filter[HORZ_EDGE] = 0;
+      lf->delta_q_luma[VERT_EDGE] = lf->delta_side_luma[VERT_EDGE] =
+          lf->delta_q_luma[HORZ_EDGE] = lf->delta_side_luma[HORZ_EDGE] = 0;
     } else if (best_single_cost < best_dual_cost) {
-      lf->delta_q_luma[0] = last_frame_offsets[0] = best_single_offsets[0];
-      lf->delta_side_luma[0] = last_frame_offsets[1] = best_single_offsets[1];
-      lf->delta_q_luma[1] = last_frame_offsets[2] = best_single_offsets[2];
-      lf->delta_side_luma[1] = last_frame_offsets[3] = best_single_offsets[3];
+      lf->delta_q_luma[VERT_EDGE] = last_frame_offsets[0] =
+          best_single_offsets[0];
+      lf->delta_side_luma[VERT_EDGE] = last_frame_offsets[1] =
+          best_single_offsets[1];
+      lf->delta_q_luma[HORZ_EDGE] = last_frame_offsets[2] =
+          best_single_offsets[2];
+      lf->delta_side_luma[HORZ_EDGE] = last_frame_offsets[3] =
+          best_single_offsets[3];
     }
 
     // Switch off filters if offsets are zero.
@@ -393,34 +412,34 @@ void av2_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
       double best_cost_u = DBL_MAX;
       double best_cost_v = DBL_MAX;
       // Cb
-      last_frame_offsets[5] = lf->delta_side_u =
-          search_filter_offsets(sd, cpi, method == LPF_PICK_FROM_SUBIMAGE,
-                                last_frame_offsets, &best_cost_u, 1, 1, dir);
+      last_frame_offsets[5] = lf->delta_side_u = search_filter_offsets(
+          sd, cpi, method == LPF_PICK_FROM_SUBIMAGE, last_frame_offsets,
+          &best_cost_u, AVM_PLANE_U, 1 /* search_side_offset */, dir);
 
       last_frame_offsets[4] = lf->delta_q_u = lf->delta_side_u;
 
-      last_frame_offsets[5] = lf->delta_side_u =
-          search_filter_offsets(sd, cpi, method == LPF_PICK_FROM_SUBIMAGE,
-                                last_frame_offsets, &best_cost_u, 1, 1, dir);
+      last_frame_offsets[5] = lf->delta_side_u = search_filter_offsets(
+          sd, cpi, method == LPF_PICK_FROM_SUBIMAGE, last_frame_offsets,
+          &best_cost_u, AVM_PLANE_U, 1 /* search_side_offset */, dir);
 
       last_frame_offsets[4] = lf->delta_q_u = lf->delta_side_u;
 
-      if (no_deblocking_cost[1] < best_cost_u) {
+      if (no_deblocking_cost[AVM_PLANE_U] < best_cost_u) {
         lf->apply_deblocking_filter_u = 0;
         lf->delta_q_u = lf->delta_side_u = 0;
       }
 
       // Cr
-      last_frame_offsets[7] = lf->delta_side_v =
-          search_filter_offsets(sd, cpi, method == LPF_PICK_FROM_SUBIMAGE,
-                                last_frame_offsets, &best_cost_v, 2, 1, dir);
+      last_frame_offsets[7] = lf->delta_side_v = search_filter_offsets(
+          sd, cpi, method == LPF_PICK_FROM_SUBIMAGE, last_frame_offsets,
+          &best_cost_v, AVM_PLANE_V, 1 /* search_side_offset */, dir);
       last_frame_offsets[6] = lf->delta_q_v = lf->delta_side_v;
-      last_frame_offsets[7] = lf->delta_side_v =
-          search_filter_offsets(sd, cpi, method == LPF_PICK_FROM_SUBIMAGE,
-                                last_frame_offsets, &best_cost_v, 2, 1, dir);
+      last_frame_offsets[7] = lf->delta_side_v = search_filter_offsets(
+          sd, cpi, method == LPF_PICK_FROM_SUBIMAGE, last_frame_offsets,
+          &best_cost_v, AVM_PLANE_V, 1 /* search_side_offset */, dir);
       last_frame_offsets[6] = lf->delta_q_v = lf->delta_side_v;
 
-      if (no_deblocking_cost[2] < best_cost_v) {
+      if (no_deblocking_cost[AVM_PLANE_V] < best_cost_v) {
         lf->apply_deblocking_filter_v = 0;
         lf->delta_q_v = lf->delta_side_v = 0;
       }
