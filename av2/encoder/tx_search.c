@@ -3357,6 +3357,11 @@ static void select_tx_partition_type(
       if (type >= TX_PARTITION_HORZ4 && !is_rect) {
         continue;
       }
+
+      if (cpi->sf.tx_sf.restrict_tx_partition_type_search >= 3 &&
+          type >= TX_PARTITION_HORZ) {
+        continue;
+      }
     }
 
     RD_STATS partition_rd_stats;
@@ -3691,6 +3696,11 @@ static void choose_tx_size_type_from_rd(const AV2_COMP *const cpi,
       }
 
       if (type >= TX_PARTITION_HORZ4 && !is_rect) {
+        continue;
+      }
+
+      if (cpi->sf.tx_sf.restrict_tx_partition_type_search >= 3 &&
+          type >= TX_PARTITION_HORZ) {
         continue;
       }
     }
