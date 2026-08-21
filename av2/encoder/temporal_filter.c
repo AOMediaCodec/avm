@@ -695,6 +695,39 @@ void av2_highbd_apply_temporal_filter_c(
   const int half_window = TF_WINDOW_LENGTH >> 1;
 
   // Handle planes in sequence.
+  const double inv_factor = 1.0 / ((TF_WINDOW_BLOCK_BALANCE_WEIGHT + 1) *
+                                   TF_SEARCH_ERROR_NORM_WEIGHT);
+  const double weight_factor =
+      (double)TF_WINDOW_BLOCK_BALANCE_WEIGHT * inv_factor;
+
+  // Decay factors for non-local mean approach.
+  double decay_factor[MAX_MB_PLANE] = { 0 };
+  // Smaller q -> smaller filtering weight.
+  const double q_decay =
+      CLIP(pow((double)q_factor / TF_Q_DECAY_THRESHOLD, 2), 1e-5, 1);
+
+  // Smaller strength -> smaller filtering weight.
+  const double s_decay =
+      CLIP(pow((double)filter_strength / TF_STRENGTH_THRESHOLD, 2), 1e-5, 1);
+
+  for (int plane = 0; plane < num_planes; plane++) {
+    // Larger noise -> larger filtering weight.
+    const double n_decay = 0.5 + log(2 * noise_levels[plane] + 5.0);
+    decay_factor[plane] = 1.0 / (n_decay * q_decay * s_decay);
+  }
+
+  // Figure out each 16x16 block's d_factor beforehand.
+  // Number of 16x16 blocks within one 64x64 TF block is 16.
+  double d_factor[16] = { 0 };
+  for (int subblock_idx = 0; subblock_idx < 16; subblock_idx++) {
+    // Larger motion vector -> smaller filtering weight.
+    const MV mv = subblock_mvs[subblock_idx];
+    const double distance = sqrt(pow(mv.row, 2) + pow(mv.col, 2));
+    const double distance_threshold =
+        (double)AVMMAX(min_frame_size * TF_SEARCH_DISTANCE_THRESHOLD, 1);
+    d_factor[subblock_idx] = AVMMAX(distance / distance_threshold, 1);
+  }
+
   plane_offset = 0;
   for (int plane = 0; plane < num_planes; ++plane) {
     const int subsampling_y = mbd->plane[plane].subsampling_y;
@@ -750,28 +783,11 @@ void av2_highbd_apply_temporal_filter_c(
         const int subblock_idx = (y32 * 2 + x32) * 4 + (y16 * 2 + x16);
         const double block_error = (double)subblock_mses[subblock_idx];
         const double combined_error =
-            (TF_WINDOW_BLOCK_BALANCE_WEIGHT * window_error + block_error) /
-            (TF_WINDOW_BLOCK_BALANCE_WEIGHT + 1) / TF_SEARCH_ERROR_NORM_WEIGHT;
-
-        // Decay factors for non-local mean approach.
-        // Larger noise -> larger filtering weight.
-        const double n_decay = 0.5 + log(2 * noise_levels[plane] + 5.0);
-        // Smaller q -> smaller filtering weight.
-        const double q_decay =
-            CLIP(pow((double)q_factor / TF_Q_DECAY_THRESHOLD, 2), 1e-5, 1);
-        // Smaller strength -> smaller filtering weight.
-        const double s_decay = CLIP(
-            pow((double)filter_strength / TF_STRENGTH_THRESHOLD, 2), 1e-5, 1);
-        // Larger motion vector -> smaller filtering weight.
-        const MV mv = subblock_mvs[subblock_idx];
-        const double distance = sqrt(pow(mv.row, 2) + pow(mv.col, 2));
-        const double distance_threshold =
-            (double)AVMMAX(min_frame_size * TF_SEARCH_DISTANCE_THRESHOLD, 1);
-        const double d_factor = AVMMAX(distance / distance_threshold, 1);
+            weight_factor * window_error + block_error * inv_factor;
 
         // Compute filter weight.
-        const double scaled_error =
-            AVMMIN(combined_error * d_factor / n_decay / q_decay / s_decay, 7);
+        const double scaled_error = AVMMIN(
+            combined_error * d_factor[subblock_idx] * decay_factor[plane], 7);
         const int weight = (int)(exp(-scaled_error) * TF_WEIGHT_SCALE);
 
         const int idx = plane_offset + pred_idx;  // Index with plane shift.
