@@ -3145,6 +3145,110 @@ static AVM_INLINE int skip_tx_partition_by_eval_type(
 }
 
 // Search for the best tx partition type for a given luma block.
+// Number of strips the residual is divided into along each axis when testing
+// whether it is stationary.
+#define TX_PART_STRIPS_LOG2 2
+#define TX_PART_STRIPS (1 << TX_PART_STRIPS_LOG2)
+
+// The residual counts as stationary along an axis when its strongest strip
+// exceeds the average strip by at most 1/TX_PART_STATIONARITY_MARGIN, so the
+// strip energies must agree to within (1 + 1/MARGIN).
+// MARGIN = 2 --> 1.5X
+#define TX_PART_STATIONARITY_MARGIN 2
+
+// Tests whether the prediction residual of a transform block is stationary
+// along each axis.
+//
+// Splitting a transform block trades away the coding gain of one large
+// transform in exchange for describing the pieces separately, and pays the rate
+// of signalling the split on top. That trade can only pay off when the residual
+// is non stationary along the split axis: if its energy is spread evenly across
+// the block then every piece sees the same statistics the whole block did, so
+// the split gives up transform gain and buys nothing back.
+//
+// The residual is divided into TX_PART_STRIPS strips along each axis and the
+// strip energies are compared against their mean. Horizontal partitions cut the
+// block into strips stacked vertically, so they are governed by the variation
+// across rows, and vertical partitions by the variation across columns. The
+// measurement is subsampled on larger blocks, which costs a small fraction of a
+// single partition trial.
+static AVM_INLINE void measure_residual_stationarity(
+    const MACROBLOCK *x, BLOCK_SIZE plane_bsize, int blk_row, int blk_col,
+    TX_SIZE max_tx_size, int *stationary_rows, int *stationary_cols) {
+  *stationary_rows = 0;
+  *stationary_cols = 0;
+
+  const int txw = tx_size_wide[max_tx_size];
+  const int txh = tx_size_high[max_tx_size];
+  // Below two samples per strip the measurement is meaningless.
+  if (txw < TX_PART_STRIPS * 2 || txh < TX_PART_STRIPS * 2) return;
+
+  const struct macroblock_plane *const p = &x->plane[0];
+  const int diff_stride = block_size_wide[plane_bsize];
+  const int16_t *const diff =
+      &p->src_diff[(blk_row * diff_stride + blk_col) << MI_SIZE_LOG2];
+  const int step_y = txh >= 16 ? 2 : 1;
+  const int step_x = txw >= 16 ? 2 : 1;
+  const int strip_h = txh >> TX_PART_STRIPS_LOG2;
+  const int strip_w = txw >> TX_PART_STRIPS_LOG2;
+
+  uint64_t row_energy[TX_PART_STRIPS] = { 0 };
+  uint64_t col_energy[TX_PART_STRIPS] = { 0 };
+  uint64_t total = 0;
+
+  for (int i = 0; i < txh; i += step_y) {
+    const int16_t *const row = diff + (ptrdiff_t)i * diff_stride;
+    const int strip_i = i / strip_h;
+    assert(strip_i < TX_PART_STRIPS);
+    for (int j = 0; j < txw; j += step_x) {
+      const uint64_t magnitude = (uint64_t)abs((int)row[j]);
+      row_energy[strip_i] += magnitude;
+      const int strip_j = j / strip_w;
+      assert(strip_j < TX_PART_STRIPS);
+      col_energy[strip_j] += magnitude;
+      total += magnitude;
+    }
+  }
+  if (total == 0) {
+    // A residual that is identically zero is trivially stationary: no split can
+    // describe it any better than the whole block does.
+    *stationary_rows = 1;
+    *stationary_cols = 1;
+    return;
+  }
+
+  const uint64_t mean = total >> TX_PART_STRIPS_LOG2;
+  uint64_t max_row = 0;
+  uint64_t max_col = 0;
+  for (int s = 0; s < TX_PART_STRIPS; ++s) {
+    if (row_energy[s] > max_row) max_row = row_energy[s];
+    if (col_energy[s] > max_col) max_col = col_energy[s];
+  }
+
+  // max <= mean * (1 + 1/margin), written without division.
+  const uint64_t bound = mean * (TX_PART_STATIONARITY_MARGIN + 1);
+  *stationary_rows = (max_row * TX_PART_STATIONARITY_MARGIN <= bound);
+  *stationary_cols = (max_col * TX_PART_STATIONARITY_MARGIN <= bound);
+}
+
+// True when `type` cuts the block along an axis the residual is stationary on,
+// so that the split cannot describe the residual any better than
+// TX_PARTITION_NONE already does.
+static AVM_INLINE int tx_partition_cuts_stationary_axis(TX_PARTITION_TYPE type,
+                                                        int stationary_rows,
+                                                        int stationary_cols) {
+  switch (type) {
+    case TX_PARTITION_HORZ:
+    case TX_PARTITION_HORZ4:
+    case TX_PARTITION_HORZ5: return stationary_rows;
+    case TX_PARTITION_VERT:
+    case TX_PARTITION_VERT4:
+    case TX_PARTITION_VERT5: return stationary_cols;
+    case TX_PARTITION_SPLIT: return stationary_rows && stationary_cols;
+    default: return 0;
+  }
+}
+
 static void select_tx_partition_type(
     const AV2_COMP *cpi, MACROBLOCK *x, int blk_row, int blk_col, int block,
     BLOCK_SIZE plane_bsize, ENTROPY_CONTEXT *ta, ENTROPY_CONTEXT *tl,
@@ -3191,6 +3295,12 @@ static void select_tx_partition_type(
   TX_TYPE best_partition_tx_types[MAX_TX_PARTITIONS] = { 0 };
   uint8_t full_blk_skip[MAX_TX_PARTITIONS] = { 0 };
 
+  // Axes along which this block's residual carries no structure a split could
+  // exploit. Measured lazily -- see the call site below for why.
+  int stationary_rows = 0;
+  int stationary_cols = 0;
+  int stationarity_valid = 0;
+
   for (TX_PARTITION_TYPE type = 0; type < TX_PARTITION_TYPES; ++type) {
     if (cpi->oxcf.txfm_cfg.reduced_tx_part_set && type > TX_PARTITION_VERT) {
       break;
@@ -3210,6 +3320,19 @@ static void select_tx_partition_type(
         (type == TX_PARTITION_VERT4 &&
          best_tx_partition == TX_PARTITION_HORZ)) {
       continue;
+    }
+
+    if (cpi->sf.tx_sf.prune_tx_part_stationarity && type != TX_PARTITION_NONE) {
+      if (!stationarity_valid) {
+        measure_residual_stationarity(x, plane_bsize, blk_row, blk_col,
+                                      max_tx_size, &stationary_rows,
+                                      &stationary_cols);
+        stationarity_valid = 1;
+      }
+      if (tx_partition_cuts_stationary_axis(type, stationary_rows,
+                                            stationary_cols)) {
+        continue;
+      }
     }
 
     if (cpi->sf.tx_sf.restrict_tx_partition_type_search) {
