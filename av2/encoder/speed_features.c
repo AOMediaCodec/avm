@@ -410,6 +410,10 @@ static void set_good_speed_features_framesize_independent(
     // Predictive single-ref NEWMV reuse across the DRL.
     sf->mv_sf.predict_repeated_newmv = 1;
     sf->inter_sf.enable_six_param_warp_in_winner_mode = 1;
+
+    // Cap the DRL depth for a fresh single-ref NEWMV search; reuse the
+    // nearest searched result beyond the cap.
+    sf->mv_sf.newmv_drl_search_limit = 2;
     sf->inter_sf.prune_amvd_newmv = 1;
 
     sf->tx_sf.tx_type_search.skip_tx_search = 1;
@@ -431,17 +435,8 @@ static void set_good_speed_features_framesize_independent(
     sf->part_sf.partition_pruning_with_mlp = 1;
     sf->part_sf.partition_pruning_with_mlp_none_thresh = 3.5f;
     sf->lpf_sf.enable_deblock_for_partition_search = 1;
-    // Cap the DRL depth for a fresh single-ref NEWMV search; reuse the
-    // nearest searched result beyond the cap.
-    sf->inter_sf.reduce_max_drl_refmvs = 1;
-    sf->mv_sf.newmv_drl_search_limit = 2;
     if (!allow_screen_content_tools) {
-      // When reduce_max_drl_refmvs is enabled, the DRL candidate list is
-      // reduced. Keep newmv_drl_search_limit at 2 to search both ref_mv_idx 0
-      // and 1 before reusing results, preserving motion vector predictor
-      // diversity and mitigating coding loss.
-      sf->mv_sf.newmv_drl_search_limit =
-          (sf->inter_sf.reduce_max_drl_refmvs || boosted) ? 2 : 1;
+      sf->mv_sf.newmv_drl_search_limit = boosted ? 2 : 1;
     }
     sf->mv_sf.reduce_search_range = 1;
     sf->mv_sf.subpel_search_type = boosted ? USE_8_TAPS : USE_4_TAPS;
@@ -484,10 +479,10 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.skip_repeated_newmv = 1;
     sf->inter_sf.reduce_max_drl_refmvs = 1;
     if (!allow_screen_content_tools) {
-      // Re-evaluate newmv_drl_search_limit now that reduce_max_drl_refmvs is
-      // set to 1, ensuring both ref_mv_idx 0 and 1 are searched.
-      sf->mv_sf.newmv_drl_search_limit =
-          (sf->inter_sf.reduce_max_drl_refmvs || boosted) ? 2 : 1;
+      // When reduce_max_drl_refmvs is enabled, keep newmv_drl_search_limit at 2
+      // to search both ref_mv_idx 0 and 1 before reusing results, preserving
+      // motion vector predictor diversity and mitigating coding loss.
+      sf->mv_sf.newmv_drl_search_limit = 2;
     }
 
     sf->intra_sf.prune_palette_search_level = 1;
