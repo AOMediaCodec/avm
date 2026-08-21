@@ -296,7 +296,9 @@ static void set_good_speed_features_framesize_independent(
   sf->gm_sf.disable_gm_search_based_on_stats = 1;
 
   sf->part_sf.less_rectangular_check_level = 1;
-  sf->part_sf.simple_motion_search_prune_rect = 1;
+  // This speed feature is currently not implemented. See comment in
+  // av2_simple_motion_search_prune_rect() function.
+  sf->part_sf.simple_motion_search_prune_rect = 0;
 
   sf->inter_sf.disable_wedge_search_var_thresh = 0;
   // TODO(debargha): Test, tweak and turn on either 1 or 2
