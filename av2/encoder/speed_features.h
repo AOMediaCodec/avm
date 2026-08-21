@@ -930,7 +930,11 @@ typedef struct TX_SPEED_FEATURES {
   // or equal to BLOCK_16X16.
   bool use_largest_tx_size_for_small_bsize;
 
-  // tx_type search pruning at low qp and resolution >= 1080p
+  // Restrict transform partition type search:
+  // 0: no restriction
+  // 1: prune HORZ4/VERT4 unless HORZ/VERT is best
+  // 2: prune HORZ5/VERT5 unless HORZ4/VERT4 is best
+  // 3: disallow all but NONE and SPLIT.
   int restrict_tx_partition_type_search;
 
   // Prune RD evaluation of transform block using RD Cost of NONE transform
