@@ -9168,6 +9168,113 @@ static bool has_searched_rect_subblock(MACROBLOCK *x, int mi_row, int mi_col,
   return false;
 }
 
+// Prepare inter_cost and intra_cost from TPL stats, which are used as ML
+// features in intra mode pruning.
+static AVM_INLINE void calculate_cost_from_tpl_data(
+    const AV2_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize, int mi_row,
+    int mi_col, int64_t *inter_cost, int64_t *intra_cost) {
+  const AV2_COMMON *const cm = &cpi->common;
+  // Only consider full SB.
+  const BLOCK_SIZE sb_size = cm->sb_size;
+  const int tpl_bsize_1d = cpi->tpl_data.tpl_bsize_1d;
+  const int len = (block_size_wide[sb_size] / tpl_bsize_1d) *
+                  (block_size_high[sb_size] / tpl_bsize_1d);
+  SuperBlockEnc *sb_enc = &x->sb_enc;
+  if (sb_enc->tpl_data_count == len) {
+    const BLOCK_SIZE tpl_bsize = convert_length_to_bsize(tpl_bsize_1d);
+    const int tpl_stride = sb_enc->tpl_stride;
+    const int tplw = mi_size_wide[tpl_bsize];
+    const int tplh = mi_size_high[tpl_bsize];
+    const int nw = mi_size_wide[bsize] / tplw;
+    const int nh = mi_size_high[bsize] / tplh;
+    if (nw >= 1 && nh >= 1) {
+      const int of_h = mi_row % mi_size_high[sb_size];
+      const int of_w = mi_col % mi_size_wide[sb_size];
+      const int start = of_h / tplh * tpl_stride + of_w / tplw;
+
+      for (int k = 0; k < nh; ++k) {
+        for (int l = 0; l < nw; ++l) {
+          *inter_cost += sb_enc->tpl_inter_cost[start + k * tpl_stride + l];
+          *intra_cost += sb_enc->tpl_intra_cost[start + k * tpl_stride + l];
+        }
+      }
+      *inter_cost /= nw * nh;
+      *intra_cost /= nw * nh;
+    }
+  }
+}
+
+// Tries intrabc prediction as a final candidate after the inter/intra mode
+// search.
+static void try_intrabc_after_inter_search(
+    AV2_COMP *cpi, MACROBLOCK *x, PICK_MODE_CONTEXT *ctx, BLOCK_SIZE bsize,
+    unsigned int intra_ref_frame_cost, int is_intra_mode_allowed,
+    InterModeSearchState *search_state, RD_STATS *rd_cost) {
+  if (search_state->best_skip2 != 0) return;
+
+  const AV2_COMMON *const cm = &cpi->common;
+  MACROBLOCKD *const xd = &x->e_mbd;
+  MB_MODE_INFO *const mbmi = xd->mi[0];
+
+  const int try_intrabc =
+      cpi->oxcf.kf_cfg.enable_intrabc && cpi->oxcf.kf_cfg.enable_intrabc_ext &&
+      !cpi->sf.inter_sf.skip_eval_intrabc_in_inter_frame &&
+      av2_allow_intrabc(cm, xd, bsize) && (xd->tree_type != CHROMA_PART);
+  if (!(try_intrabc && is_intra_mode_allowed)) return;
+
+  RD_STATS this_rd_cost;
+  this_rd_cost.rdcost = INT64_MAX;
+  mbmi->ref_frame[0] = INTRA_FRAME;
+  mbmi->ref_frame[1] = NONE_FRAME;
+  mbmi->use_intrabc[xd->tree_type == CHROMA_PART] = 0;
+  mbmi->mv[0].as_int = 0;
+  mbmi->skip_mode = 0;
+  mbmi->mode = DC_PRED;
+  mbmi->motion_mode = SIMPLE_TRANSLATION;
+  mbmi->warp_ref_idx = 0;
+  mbmi->max_num_warp_candidates = 0;
+  mbmi->warpmv_with_mvd_flag = 0;
+  mbmi->morph_pred = 0;
+  mbmi->six_param_warp_model_flag = 0;
+  mbmi->warp_precision_idx = 0;
+  mbmi->warp_inter_intra = 0;
+
+  int skip_interintra_cost = intra_ref_frame_cost;
+  if (is_skip_mode_allowed(cm, xd)) {
+    // Compare the use of skip_mode with the best intra/inter mode obtained.
+    const int skip_mode_ctx = av2_get_skip_mode_context(xd);
+    skip_interintra_cost += x->mode_costs.skip_mode_cost[skip_mode_ctx][0];
+  }
+
+  rd_pick_intrabc_mode_sb(cpi, x, ctx, &this_rd_cost, bsize, INT64_MAX,
+                          skip_interintra_cost);
+
+  if (this_rd_cost.rdcost >= search_state->best_rd) return;
+
+  rd_cost->rate = this_rd_cost.rate;
+  rd_cost->dist = this_rd_cost.dist;
+  rd_cost->rdcost = this_rd_cost.rdcost;
+
+  search_state->best_rd = rd_cost->rdcost;
+  search_state->best_mbmode = *mbmi;
+  search_state->best_skip2 = mbmi->skip_txfm[xd->tree_type == CHROMA_PART];
+  search_state->best_mode_skippable =
+      mbmi->skip_txfm[xd->tree_type == CHROMA_PART];
+
+  const int num_planes = av2_num_planes(cm);
+  TxfmSearchInfo *const txfm_info = &x->txfm_search_info;
+  for (int i = 0; i < num_planes; ++i) {
+    const int num_blk_plane =
+        (i == AVM_PLANE_Y) ? ctx->num_4x4_blk : ctx->num_4x4_blk_chroma;
+    memcpy(ctx->blk_skip[i], txfm_info->blk_skip[i],
+           sizeof(*txfm_info->blk_skip[i]) * num_blk_plane);
+  }
+  av2_copy_array(ctx->tx_type_map, xd->tx_type_map, ctx->num_4x4_blk);
+  av2_copy_array(ctx->cctx_type_map, xd->cctx_type_map,
+                 ctx->num_4x4_blk_chroma);
+  ctx->rd_stats.skip_txfm = mbmi->skip_txfm[xd->tree_type == CHROMA_PART];
+}
+
 // TODO(chiyotsai@google.com): See the todo for av2_rd_pick_intra_mode_sb.
 void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
                                struct TileDataEnc *tile_data,
@@ -9384,34 +9491,8 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
   const int do_pruning =
       (AVMMIN(cm->width, cm->height) > 480 && cpi->speed <= 2) ? 0 : 1;
   if (do_pruning && sf->intra_sf.skip_intra_in_interframe) {
-    // Only consider full SB.
-    const BLOCK_SIZE sb_size = cm->sb_size;
-    const int tpl_bsize_1d = cpi->tpl_data.tpl_bsize_1d;
-    const int len = (block_size_wide[sb_size] / tpl_bsize_1d) *
-                    (block_size_high[sb_size] / tpl_bsize_1d);
-    SuperBlockEnc *sb_enc = &x->sb_enc;
-    if (sb_enc->tpl_data_count == len) {
-      const BLOCK_SIZE tpl_bsize = convert_length_to_bsize(tpl_bsize_1d);
-      const int tpl_stride = sb_enc->tpl_stride;
-      const int tplw = mi_size_wide[tpl_bsize];
-      const int tplh = mi_size_high[tpl_bsize];
-      const int nw = mi_size_wide[bsize] / tplw;
-      const int nh = mi_size_high[bsize] / tplh;
-      if (nw >= 1 && nh >= 1) {
-        const int of_h = mi_row % mi_size_high[sb_size];
-        const int of_w = mi_col % mi_size_wide[sb_size];
-        const int start = of_h / tplh * tpl_stride + of_w / tplw;
-
-        for (int k = 0; k < nh; k++) {
-          for (int l = 0; l < nw; l++) {
-            inter_cost += sb_enc->tpl_inter_cost[start + k * tpl_stride + l];
-            intra_cost += sb_enc->tpl_intra_cost[start + k * tpl_stride + l];
-          }
-        }
-        inter_cost /= nw * nh;
-        intra_cost /= nw * nh;
-      }
-    }
+    calculate_cost_from_tpl_data(cpi, x, bsize, mi_row, mi_col, &inter_cost,
+                                 &intra_cost);
   }
 
   // Initialize best mode stats for winner mode processing
@@ -9802,67 +9883,8 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
     rd_pick_skip_mode(&search_state, cpi, x, bsize, yv12_mb, ctx, rd_cost);
   }
 
-  if (search_state.best_skip2 == 0) {
-    const int try_intrabc = cpi->oxcf.kf_cfg.enable_intrabc &&
-                            cpi->oxcf.kf_cfg.enable_intrabc_ext &&
-                            !sf->inter_sf.skip_eval_intrabc_in_inter_frame &&
-                            av2_allow_intrabc(cm, xd, bsize
-
-                                              ) &&
-                            (xd->tree_type != CHROMA_PART);
-    if (try_intrabc && is_intra_mode_allowed) {
-      RD_STATS this_rd_cost;
-      this_rd_cost.rdcost = INT64_MAX;
-      mbmi->ref_frame[0] = INTRA_FRAME;
-      mbmi->ref_frame[1] = NONE_FRAME;
-      mbmi->use_intrabc[xd->tree_type == CHROMA_PART] = 0;
-      mbmi->mv[0].as_int = 0;
-      mbmi->skip_mode = 0;
-      mbmi->mode = 0;
-      mbmi->motion_mode = SIMPLE_TRANSLATION;
-      mbmi->warp_ref_idx = 0;
-      mbmi->max_num_warp_candidates = 0;
-      mbmi->warpmv_with_mvd_flag = 0;
-      mbmi->morph_pred = 0;
-      mbmi->six_param_warp_model_flag = 0;
-      mbmi->warp_precision_idx = 0;
-
-      mbmi->warp_inter_intra = 0;
-
-      int skip_interintra_cost = intra_ref_frame_cost;
-      if (is_skip_mode_allowed(cm, xd)) {
-        // Compare the use of skip_mode with the best intra/inter mode obtained.
-        const int skip_mode_ctx = av2_get_skip_mode_context(xd);
-        skip_interintra_cost += x->mode_costs.skip_mode_cost[skip_mode_ctx][0];
-      }
-
-      rd_pick_intrabc_mode_sb(cpi, x, ctx, &this_rd_cost, bsize, INT64_MAX,
-                              skip_interintra_cost);
-
-      if (this_rd_cost.rdcost < search_state.best_rd) {
-        rd_cost->rate = this_rd_cost.rate;
-        rd_cost->dist = this_rd_cost.dist;
-        rd_cost->rdcost = this_rd_cost.rdcost;
-
-        search_state.best_rd = rd_cost->rdcost;
-        search_state.best_mbmode = *mbmi;
-        search_state.best_skip2 = mbmi->skip_txfm[xd->tree_type == CHROMA_PART];
-        search_state.best_mode_skippable =
-            mbmi->skip_txfm[xd->tree_type == CHROMA_PART];
-
-        for (i = 0; i < num_planes; ++i) {
-          const int num_blk_plane =
-              (i == AVM_PLANE_Y) ? ctx->num_4x4_blk : ctx->num_4x4_blk_chroma;
-          memcpy(ctx->blk_skip[i], txfm_info->blk_skip[i],
-                 sizeof(*txfm_info->blk_skip[i]) * num_blk_plane);
-        }
-        av2_copy_array(ctx->tx_type_map, xd->tx_type_map, ctx->num_4x4_blk);
-        av2_copy_array(ctx->cctx_type_map, xd->cctx_type_map,
-                       ctx->num_4x4_blk_chroma);
-        ctx->rd_stats.skip_txfm = mbmi->skip_txfm[xd->tree_type == CHROMA_PART];
-      }
-    }
-  }
+  try_intrabc_after_inter_search(cpi, x, ctx, bsize, intra_ref_frame_cost,
+                                 is_intra_mode_allowed, &search_state, rd_cost);
 
   // Make sure that the ref_mv_idx is only nonzero when we're
   // using a mode which can support ref_mv_idx
