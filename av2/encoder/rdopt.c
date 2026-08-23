@@ -9558,14 +9558,20 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
       sf->inter_sf.prune_compound_using_single_ref;
   const int motion_mode_winner =
       cpi->sf.winner_mode_sf.motion_mode_for_winner_cand;
-  const int reference_mode_select =
-      cm->current_frame.reference_mode == REFERENCE_MODE_SELECT;
+  const int reference_mode = cm->current_frame.reference_mode;
+  const int reference_mode_select = reference_mode == REFERENCE_MODE_SELECT;
 
   const int num_total_refs = cm->ref_frames_info.num_total_refs;
+  const int num_same_ref_compound = cm->ref_frames_info.num_same_ref_compound;
+  const int has_both_sides_refs = cm->has_both_sides_refs;
+  const int ref_frame_flags = cm->ref_frame_flags;
+  const int enable_joint_mvd = cm->seq_params.enable_joint_mvd;
+  const int enable_adaptive_mvd = cm->seq_params.enable_adaptive_mvd;
+  const int bru_enabled = cm->bru.enabled;
+  const int bru_update_ref_idx = cm->bru.update_ref_idx;
   const int tip_allowed = is_tip_allowed(cm, xd);
   const int comp_ref_allowed =
-      cm->current_frame.reference_mode != SINGLE_REFERENCE &&
-      is_comp_ref_allowed(bsize);
+      reference_mode != SINGLE_REFERENCE && is_comp_ref_allowed(bsize);
   const int warpmv_allowed =
       (cm->features.enabled_motion_modes & (1 << WARP_DELTA)) != 0 &&
       cm->features.allow_warpmv_mode && is_warpmv_allowed_bsize(bsize);
@@ -9581,10 +9587,11 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
       cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
       !frame_is_sframe(cm) && !thin_4xn_nx4;
 
-  for (int mode_refs_pair_idx = 0;
-       mode_refs_pair_idx < ref_frame_centric_eval_order_num;
+  const int num_mode_ref_pairs =
+      (bsize == BLOCK_4X4) ? 0 : ref_frame_centric_eval_order_num;
+
+  for (int mode_refs_pair_idx = 0; mode_refs_pair_idx < num_mode_ref_pairs;
        ++mode_refs_pair_idx) {
-    if (bsize == BLOCK_4X4) break;
     const PREDICTION_MODE this_mode =
         ref_frame_centric_eval_order[mode_refs_pair_idx].mode;
     const MV_REFERENCE_FRAME ref_frame =
@@ -9606,7 +9613,7 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
       if ((int)second_ref_frame >= num_total_refs) continue;
       // Same-ref compound only when permitted at runtime.
       if (ref_frame == second_ref_frame &&
-          (int)ref_frame >= cm->ref_frames_info.num_same_ref_compound)
+          (int)ref_frame >= num_same_ref_compound)
         continue;
     }
 
@@ -9636,35 +9643,31 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
     // top same_ref_compound_rank_cap ranks are kept.
     if (apply_dry_pass_shortcuts && is_comp_mode &&
         ref_frame == second_ref_frame &&
-        (cm->has_both_sides_refs ||
+        (has_both_sides_refs ||
          ref_frame > dry_pass_cfg.same_ref_compound_rank_cap))
       continue;
     if (this_mode == WARPMV && !warpmv_allowed) continue;
     if (this_mode == WARP_NEWMV && (!warpmv_allowed || !warp_newmv_allowed))
       continue;
     if (this_mode >= NEAR_NEARMV_OPTFLOW && !opfl_modes_allowed) continue;
-    if (is_joint_mvd_coding_mode(this_mode) &&
-        cm->seq_params.enable_joint_mvd == 0)
-      continue;
+    if (is_joint_mvd_coding_mode(this_mode) && enable_joint_mvd == 0) continue;
 
     const int num_amvd_modes =
-        1 + (cm->seq_params.enable_adaptive_mvd && allow_amvd_mode(this_mode));
+        1 + (enable_adaptive_mvd && allow_amvd_mode(this_mode));
     // Asymmetric NEAR/NEW compound modes default to AMVD on, invert the flag
     const int amvd_inverted =
         (this_mode == NEW_NEARMV || this_mode == NEAR_NEWMV ||
          this_mode == NEAR_NEWMV_OPTFLOW || this_mode == NEW_NEARMV_OPTFLOW);
 
-    if (cm->bru.enabled) {
+    if (bru_enabled) {
       assert(xd->sbi->sb_active_mode == BRU_ACTIVE_SB);
-      if (xd->sbi->sb_active_mode == BRU_ACTIVE_SB) {
-        if (cm->bru.update_ref_idx == ref_frame) continue;
-        if (second_ref_frame != NONE_FRAME &&
-            cm->bru.update_ref_idx == second_ref_frame)
-          continue;
-      }
+      if (xd->sbi->sb_active_mode == BRU_ACTIVE_SB &&
+          (ref_frame == bru_update_ref_idx ||
+           (is_comp_mode && second_ref_frame == bru_update_ref_idx)))
+        continue;
     }
 
-    if (comp_pred && !(cm->ref_frame_flags & (1 << second_ref_frame))) continue;
+    if (comp_pred && !(ref_frame_flags & (1 << second_ref_frame))) continue;
 
     if (comp_pred && prune_comp_ref_by_priority(&sf->inter_sf, this_mode,
                                                 ref_frame, second_ref_frame)) {
@@ -9797,8 +9800,7 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
           continue;
         }
 
-        assert(IMPLIES(comp_pred,
-                       cm->current_frame.reference_mode != SINGLE_REFERENCE));
+        assert(IMPLIES(comp_pred, reference_mode != SINGLE_REFERENCE));
         update_search_state(&search_state, rd_cost, ctx, &rd_stats, &rd_stats_y,
                             &rd_stats_uv, this_mode, x, do_tx_search, cm);
         if (do_tx_search) search_state.best_skip_rd[0] = skip_rd[0];
@@ -9811,8 +9813,8 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
       }
 
       /* keep record of best compound/single-only prediction */
-      record_best_compound(cm->current_frame.reference_mode, &rd_stats,
-                           comp_pred, x->rdmult, &search_state, compmode_cost);
+      record_best_compound(reference_mode, &rd_stats, comp_pred, x->rdmult,
+                           &search_state, compmode_cost);
     }  // end of use_amvd mode loop
   }  // end of LUT entry loop
 
