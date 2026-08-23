@@ -9142,6 +9142,36 @@ static_assert(sizeof(ref_frame_centric_eval_order) /
                   210,
               "ref_frame_centric_eval_order size changed; audit callers.");
 
+// Returns true if any rectangular (HORZ or VERT) sub-block of `bsize` at
+// (mi_row, mi_col) has a previously searched partition recorded.
+static bool has_searched_rect_subblock(MACROBLOCK *x, int mi_row, int mi_col,
+                                       BLOCK_SIZE bsize, BLOCK_SIZE sb_size,
+                                       int8_t region_type) {
+  for (RECT_PART_TYPE rect_type = HORZ; rect_type < NUM_RECT_PARTS;
+       ++rect_type) {
+    const PARTITION_TYPE part =
+        (rect_type == HORZ) ? PARTITION_HORZ : PARTITION_VERT;
+    const BLOCK_SIZE subsize = get_partition_subsize(bsize, part);
+    if (subsize == BLOCK_INVALID) continue;
+
+    const int limit =
+        (rect_type == HORZ) ? mi_size_high[bsize] / 2 : mi_size_wide[bsize] / 2;
+    // Extended ratio blocks (1:4, 4:1) step through every mi offset (step =
+    // 1). Standard 1:2 / 2:1 and square blocks step directly to the two
+    // sub-block origins (step = limit).
+    const int step = (bsize > BLOCK_LARGEST) ? 1 : AVMMAX(1, limit);
+
+    for (int offset = 0; offset <= limit; offset += step) {
+      const int r = (rect_type == HORZ) ? offset : 0;
+      const int c = (rect_type == HORZ) ? 0 : offset;
+      const PARTITION_TYPE prev_part = av2_get_prev_partition(
+          x, mi_row + r, mi_col + c, subsize, sb_size, region_type);
+      if (prev_part != PARTITION_INVALID) return true;
+    }
+  }
+  return false;
+}
+
 // TODO(chiyotsai@google.com): See the todo for av2_rd_pick_intra_mode_sb.
 void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
                                struct TileDataEnc *tile_data,
@@ -9263,69 +9293,13 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
   // Ref frames that are selected by square partition blocks.
   uint64_t picked_ref_frames_mask = 0;
   if (cpi->sf.inter_sf.prune_ref_frames && !x->inter_mode_cache[0]) {
-    bool prune_ref_frames = false;
     assert(should_reuse_mode(x, REUSE_PARTITION_MODE_FLAG));
 
     // Prune reference frames if we are either a 1:4 block, or if we are a 1:2
     // block, and we have searched any of the rectangular subblock.
-    if (!is_partition_point(bsize)) {
-      prune_ref_frames = true;
-    } else if (bsize > BLOCK_LARGEST) {
-      // Check horz sub-blocks at different row offsets.
-      BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_HORZ);
-      if (subsize != BLOCK_INVALID) {
-        for (int r = 0; r <= mi_size_high[bsize] / 2; ++r) {
-          const PARTITION_TYPE prev_part =
-              av2_get_prev_partition(x, xd->mi_row + r, xd->mi_col, subsize,
-                                     cm->sb_size, (int8_t)mbmi->region_type);
-          if (prev_part != PARTITION_INVALID) {
-            prune_ref_frames = true;
-            break;
-          }
-        }
-      }
-      // Check vert sub-blocks at different col offsets.
-      subsize = get_partition_subsize(bsize, PARTITION_VERT);
-      if (subsize != BLOCK_INVALID) {
-        for (int c = 0; c <= mi_size_wide[bsize] / 2; ++c) {
-          const PARTITION_TYPE prev_part =
-              av2_get_prev_partition(x, xd->mi_row, xd->mi_col + c, subsize,
-                                     cm->sb_size, (int8_t)mbmi->region_type);
-          if (prev_part != PARTITION_INVALID) {
-            prune_ref_frames = true;
-            break;
-          }
-        }
-      }
-    } else {
-      for (RECT_PART_TYPE rect_type = HORZ; rect_type < NUM_RECT_PARTS;
-           rect_type++) {
-        const int mi_pos_rect[NUM_RECT_PARTS][SUB_PARTITIONS_RECT][2] = {
-          { { xd->mi_row, xd->mi_col },
-            { xd->mi_row + mi_size_high[bsize] / 2, xd->mi_col } },
-          { { xd->mi_row, xd->mi_col },
-            { xd->mi_row, xd->mi_col + mi_size_wide[bsize] / 2 } }
-        };
-        const PARTITION_TYPE part =
-            (rect_type == HORZ) ? PARTITION_HORZ : PARTITION_VERT;
-        const BLOCK_SIZE subsize = get_partition_subsize(bsize, part);
-        if (subsize == BLOCK_INVALID) {
-          continue;
-        }
-        for (int sub_idx = 0; sub_idx < 2; sub_idx++) {
-          const PARTITION_TYPE prev_part = av2_get_prev_partition(
-              x, mi_pos_rect[rect_type][sub_idx][0],
-              mi_pos_rect[rect_type][sub_idx][1], subsize, cm->sb_size,
-              (int8_t)mbmi->region_type);
-          if (prev_part != PARTITION_INVALID) {
-            prune_ref_frames = true;
-            break;
-          }
-        }
-      }
-    }
-
-    if (prune_ref_frames) {
+    if (!is_partition_point(bsize) ||
+        has_searched_rect_subblock(x, xd->mi_row, xd->mi_col, bsize,
+                                   cm->sb_size, (int8_t)mbmi->region_type)) {
       picked_ref_frames_mask =
           fetch_picked_ref_frames_mask(x, bsize, cm->mib_size);
     }
