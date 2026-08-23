@@ -621,6 +621,9 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Enable fast warp delta search for 4 param and 6 param models
   int fast_warp_delta_decoupled_search;
 
+  // Early terminate warp delta refinement when RD cost improvements diminish.
+  bool early_term_warp_delta_refine;
+
   // When 1, prune single-ref NEWMV / WARP_NEWMV for a given ref frame
   // when the best RD seen so far for that ref (taken from a prior mode
   // such as NEARMV, NEWMV[amvd=0], or WARPMV) is far from the best RD
