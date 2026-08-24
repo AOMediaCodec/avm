@@ -798,12 +798,13 @@ int av2_get_cdef_context(const AV2_COMMON *const cm,
   const int block_mask = ~(cdef_size - 1);
 
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
+  const TileInfo *const tile = &xd->tile;
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
 
   const int left_cdef_mi_col = mi_col - cdef_size;
   MB_MODE_INFO *neighbor0 = NULL;
-  if (left_cdef_mi_col >= 0) {
+  if (left_cdef_mi_col >= tile->mi_col_start) {
     const int left_grid_idx = get_mi_grid_idx(mi_params, mi_row & block_mask,
                                               left_cdef_mi_col & block_mask);
     neighbor0 = mi_params->mi_grid_base[left_grid_idx];
@@ -811,8 +812,9 @@ int av2_get_cdef_context(const AV2_COMMON *const cm,
 
   const int above_cdef_mi_row = mi_row - cdef_size;
   MB_MODE_INFO *neighbor1 = NULL;
-  if (above_cdef_mi_row >= 0 && (mi_row >> cm->mib_size_log2) ==
-                                    (above_cdef_mi_row >> cm->mib_size_log2)) {
+  if (above_cdef_mi_row >= tile->mi_row_start &&
+      (mi_row >> cm->mib_size_log2) ==
+          (above_cdef_mi_row >> cm->mib_size_log2)) {
     const int above_grid_idx = get_mi_grid_idx(
         mi_params, above_cdef_mi_row & block_mask, mi_col & block_mask);
     neighbor1 = mi_params->mi_grid_base[above_grid_idx];

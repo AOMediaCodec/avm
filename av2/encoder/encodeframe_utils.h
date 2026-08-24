@@ -198,8 +198,9 @@ static AVM_INLINE void av2_set_two_pass_flags(
     x->inter_mode_prune_top = 4;
   } else {
     // Full pool.
-    x->intra_mode_prune_top =
-        cpi->sf.intra_sf.intra_pruning_with_mlp ? 4 : TOP_INTRA_MODEL_COUNT;
+    x->intra_mode_prune_top = cpi->sf.intra_sf.intra_pruning_with_mlp
+                                  ? cpi->sf.intra_sf.intra_mode_prune_top
+                                  : TOP_INTRA_MODEL_COUNT;
     x->inter_mode_prune_top = TOP_MOTION_MODE_MODEL_COUNT;
   }
 }
