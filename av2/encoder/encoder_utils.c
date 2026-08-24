@@ -379,7 +379,7 @@ void av2_set_size_dependent_vars(AV2_COMP *cpi, int *q, int *bottom_index,
                                   cpi->gf_group.index, bottom_index, top_index);
 }
 
-static void reset_film_grain_chroma_params(avm_film_grain_t *pars) {
+void reset_film_grain_chroma_params(avm_film_grain_t *pars) {
   pars->fgm_points[2] = 0;
   pars->cr_mult = 0;
   pars->cr_luma_mult = 0;
