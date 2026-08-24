@@ -370,6 +370,7 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.prune_interintra_by_ref_idx = 1;
     sf->inter_sf.prune_warp_delta_by_ref_idx = 1;
     sf->intra_sf.intra_pruning_with_mlp = 1;
+    sf->intra_sf.intra_mode_prune_top = 4;
     sf->inter_sf.prune_comp_mode_eval_using_est_rd = true;
     sf->inter_sf.prune_warp_newmv_ref_mv_idx = true;
 
@@ -551,6 +552,7 @@ static void set_good_speed_features_framesize_independent(
     // sf->intra_sf.disable_smooth_intra =
     //    !frame_is_intra_only(&cpi->common) || (cpi->rc.frames_to_key != 1);
     sf->intra_sf.prune_palette_search_level = 2;
+    sf->intra_sf.intra_mode_prune_top = 3;
 
     sf->tpl_sf.prune_ref_frames_in_tpl = 1;
     sf->tpl_sf.skip_alike_starting_mv = 2;
@@ -925,6 +927,7 @@ static AVM_INLINE void init_intra_sf(INTRA_MODE_SPEED_FEATURES *intra_sf) {
   intra_sf->skip_intra_in_interframe = 1;
   intra_sf->intra_pruning_with_hog = 0;
   intra_sf->intra_pruning_with_mlp = 0;
+  intra_sf->intra_mode_prune_top = TOP_INTRA_MODEL_COUNT;
   intra_sf->src_var_thresh_intra_skip = 1;
   intra_sf->prune_palette_search_level = 0;
   intra_sf->reuse_uv_mode_rd_info = false;
