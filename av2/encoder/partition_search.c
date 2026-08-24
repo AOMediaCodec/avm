@@ -479,6 +479,69 @@ void av2_set_offsets(const AV2_COMP *const cpi, const TileInfo *const tile,
   }
 }
 
+// Percent the dry-pass rdcost is inflated by before the wet pass uses it as an
+// initial rd limit, to absorb the context drift between the passes.
+#define TWO_PASS_WARMSTART_MARGIN_PCT 4
+
+// Dense index into unit_dry_rd's size dimension, biased by 1 so 0 means "no
+// slot". Only sizes with both sides >= TWO_PASS_DRY_RD_MIN_1D are listed; the
+// dry pass cannot produce the rest.
+static const int8_t dry_rd_bsize_idx[BLOCK_SIZES_ALL] = {
+  [BLOCK_16X16] = 1,    [BLOCK_16X32] = 2,    [BLOCK_32X16] = 3,
+  [BLOCK_32X32] = 4,    [BLOCK_32X64] = 5,    [BLOCK_64X32] = 6,
+  [BLOCK_64X64] = 7,    [BLOCK_64X128] = 8,   [BLOCK_128X64] = 9,
+  [BLOCK_128X128] = 10, [BLOCK_16X64] = 11,   [BLOCK_64X16] = 12,
+  [BLOCK_128X256] = 13, [BLOCK_256X128] = 14, [BLOCK_256X256] = 15,
+};
+
+// Slot for a block in the dry-pass rd grid, or -1 if the dry pass cannot have
+// recorded it. The size is checked first, so blocks below the floor cost one
+// table lookup.
+static AVM_INLINE int dry_pass_rd_slot(BLOCK_SIZE sb_size, int mi_row,
+                                       int mi_col, BLOCK_SIZE bsize) {
+  if (bsize >= BLOCK_SIZES_ALL) return -1;
+  const int size_idx = dry_rd_bsize_idx[bsize] - 1;
+  // The table must agree with the real block dimensions.
+  assert((size_idx >= 0) == (block_size_wide[bsize] >= TWO_PASS_DRY_RD_MIN_1D &&
+                             block_size_high[bsize] >= TWO_PASS_DRY_RD_MIN_1D));
+  assert(size_idx < TWO_PASS_DRY_RD_BSIZES);
+  if (size_idx < 0) return -1;
+  const int gr =
+      (mi_row & (mi_size_high[sb_size] - 1)) >> TWO_PASS_DRY_RD_UNIT_LOG2;
+  const int gc =
+      (mi_col & (mi_size_wide[sb_size] - 1)) >> TWO_PASS_DRY_RD_UNIT_LOG2;
+  if (gr >= TWO_PASS_DRY_RD_SIDE || gc >= TWO_PASS_DRY_RD_SIDE) return -1;
+  return (gr * TWO_PASS_DRY_RD_SIDE + gc) * TWO_PASS_DRY_RD_BSIZES + size_idx;
+}
+
+// Record the dry pass's best rdcost for this block. Keyed by position and by
+// exact block size: rd cost scales with block area, so a smaller block's rdcost
+// is not a valid bound for a larger one.
+static AVM_INLINE void record_dry_pass_rd(MACROBLOCK *x, BLOCK_SIZE sb_size,
+                                          int mi_row, int mi_col,
+                                          BLOCK_SIZE bsize, int64_t rdcost) {
+  if (rdcost <= 0 || rdcost == INT64_MAX) return;
+  const int slot_idx = dry_pass_rd_slot(sb_size, mi_row, mi_col, bsize);
+  if (slot_idx < 0) return;
+  int64_t *const slot = &x->unit_dry_rd[slot_idx];
+  if (*slot == 0 || rdcost < *slot) *slot = rdcost;
+}
+
+// The wet pass's initial rd limit for this block: the dry pass's rdcost plus a
+// margin, or 0 when the dry pass has no record for it.
+static AVM_INLINE int64_t dry_pass_rd_bound(const MACROBLOCK *x,
+                                            BLOCK_SIZE sb_size, int mi_row,
+                                            int mi_col, BLOCK_SIZE bsize) {
+  if (!x->consume_dry_pass_info) return 0;
+  const int slot_idx = dry_pass_rd_slot(sb_size, mi_row, mi_col, bsize);
+  if (slot_idx < 0) return 0;
+  const int64_t rd = x->unit_dry_rd[slot_idx];
+  if (rd <= 0) return 0;
+  // Guard the multiply against overflow on very large rd values.
+  if (rd > INT64_MAX / (100 + TWO_PASS_WARMSTART_MARGIN_PCT)) return 0;
+  return rd * (100 + TWO_PASS_WARMSTART_MARGIN_PCT) / 100;
+}
+
 /*!\brief Interface for AV2 mode search for an individual coding block
  *
  * \ingroup partition_search
@@ -665,8 +728,27 @@ static void pick_sb_modes(AV2_COMP *const cpi, ThreadData *td,
       av2_rd_pick_inter_mode_sb_seg_skip(cpi, tile_data, x, mi_row, mi_col,
                                          rd_cost, bsize, ctx, best_rd.rdcost);
     } else {
-      av2_rd_pick_inter_mode_sb(cpi, tile_data, x, rd_cost, bsize, ctx,
-                                best_rd.rdcost);
+      // Wet pass: start from the dry pass's rd for this block plus a margin, so
+      // pruning bites from the first candidate. The bound can be violated
+      // because the two passes see different contexts, so if it leaves the
+      // block with no valid mode the search is re-run once with the original
+      // limit.
+      const int64_t warmstart_bound =
+          dry_pass_rd_bound(x, cm->sb_size, mi_row, mi_col, bsize);
+      const bool warmstart_applied =
+          warmstart_bound > 0 && warmstart_bound < best_rd.rdcost;
+      av2_rd_pick_inter_mode_sb(
+          cpi, tile_data, x, rd_cost, bsize, ctx,
+          warmstart_applied ? warmstart_bound : best_rd.rdcost);
+      if (warmstart_applied && rd_cost->rate == INT_MAX) {
+        av2_rd_pick_inter_mode_sb(cpi, tile_data, x, rd_cost, bsize, ctx,
+                                  best_rd.rdcost);
+      }
+    }
+    // Dry pass: record the rd it achieved, to bound the wet pass on this block.
+    if (x->apply_dry_pass_shortcuts && rd_cost->rate != INT_MAX) {
+      record_dry_pass_rd(x, cm->sb_size, mi_row, mi_col, bsize,
+                         rd_cost->rdcost);
     }
 #if CONFIG_COLLECT_COMPONENT_TIMING
     end_timing(cpi, av2_rd_pick_inter_mode_sb_time);
