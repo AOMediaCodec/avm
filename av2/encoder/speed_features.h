@@ -894,6 +894,9 @@ typedef struct INTRA_MODE_SPEED_FEATURES {
   bool include_dip_for_top_n_model_rd_pruning;
 
   bool skip_intra_dip_search;
+
+  // Number of top intra mode candidates to keep during model RD pruning.
+  int intra_mode_prune_top;
 } INTRA_MODE_SPEED_FEATURES;
 
 typedef struct TX_SPEED_FEATURES {
