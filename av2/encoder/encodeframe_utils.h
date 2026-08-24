@@ -185,6 +185,7 @@ static AVM_INLINE void av2_set_two_pass_flags(
   const bool fast_two_pass = av2_two_pass_part_is_fast(&cpi->sf.part_sf);
   x->apply_dry_pass_shortcuts =
       fast_two_pass && (multi_pass_mode == SB_DRY_PASS);
+  x->consume_dry_pass_info = fast_two_pass && (multi_pass_mode == SB_WET_PASS);
   const bool is_wet_pass_reuse =
       (fast_two_pass && multi_pass_mode == SB_WET_PASS && part_search_state &&
        part_search_state->forced_partition != PARTITION_INVALID);
