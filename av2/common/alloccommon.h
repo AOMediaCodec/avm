@@ -27,6 +27,7 @@ struct CommonContexts;
 struct CommonModeInfoParams;
 struct AV2CdefWorker;
 struct AV2CdefSyncData;
+struct RestorationLineBuffers;
 
 void av2_remove_common(struct AV2Common *cm);
 
@@ -55,6 +56,11 @@ void av2_alloc_restoration_buffers(struct AV2Common *cm);
 void av2_alloc_restoration_boundary_buffers(struct AV2Common *cm,
                                             int num_planes);
 void av2_free_restoration_buffers(struct AV2Common *cm);
+
+void av2_alloc_restoration_line_buffers(
+    struct AV2Common *const cm, struct RestorationLineBuffers **rlbs_ptr);
+
+void av2_free_restoration_line_buffers(struct RestorationLineBuffers *rlbs);
 
 int av2_get_MBs(int width, int height);
 
