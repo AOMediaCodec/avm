@@ -1671,6 +1671,11 @@ static AVM_INLINE void refine_winner_intra_mode_tx(
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
 
+  // Dry pass ranks partition shapes only, so winner-mode TX refinement is
+  // wasted precision: the dry-pass overrides re-collapse the search back to
+  // MODE_EVAL-quality anyway. See refine_winner_mode_tx() for the inter path.
+  if (x->apply_dry_pass_shortcuts) return;
+
   // If previous searches use only the default tx type/no R-D optimization of
   // quantized coeffs, do an extra search for the best tx type/better R-D
   // optimization of quantized coeffs.

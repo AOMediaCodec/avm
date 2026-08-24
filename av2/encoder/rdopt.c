@@ -7388,6 +7388,12 @@ static AVM_INLINE void refine_winner_mode_tx(
   if (!is_winner_mode_processing_enabled(cpi, best_mbmode, best_mbmode->mode))
     return;
 
+  // Dry pass ranks partition shapes only, so winner-mode TX refinement is
+  // wasted precision: the dry-pass overrides would re-collapse the search
+  // back to MODE_EVAL-quality anyway, and the prediction/residual/tx-size
+  // rebuild it performs first is pure overhead.
+  if (x->apply_dry_pass_shortcuts) return;
+
   // Set params for winner mode evaluation
   set_mode_eval_params(cpi, x, WINNER_MODE_EVAL);
 
