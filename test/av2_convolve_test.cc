@@ -387,6 +387,11 @@ INSTANTIATE_TEST_SUITE_P(AVX2, AV2ConvolveXHighbdTest,
                          BuildHighbdParams(av2_highbd_convolve_x_sr_avx2));
 #endif
 
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(NEON, AV2ConvolveXHighbdTest,
+                         BuildHighbdParams(av2_highbd_convolve_x_sr_neon));
+#endif
+
 /////////////////////////////////////////////////////////
 // Single reference convolve-y functions (high bit-depth)
 /////////////////////////////////////////////////////////
@@ -438,6 +443,11 @@ INSTANTIATE_TEST_SUITE_P(SSSE3, AV2ConvolveYHighbdTest,
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(AVX2, AV2ConvolveYHighbdTest,
                          BuildHighbdParams(av2_highbd_convolve_y_sr_avx2));
+#endif
+
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(NEON, AV2ConvolveYHighbdTest,
+                         BuildHighbdParams(av2_highbd_convolve_y_sr_neon));
 #endif
 
 ///////////////////////////////////////////////////////////////
@@ -596,6 +606,11 @@ INSTANTIATE_TEST_SUITE_P(SSSE3, AV2Convolve2DHighbdTest,
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(AVX2, AV2Convolve2DHighbdTest,
                          BuildHighbdParams(av2_highbd_convolve_2d_sr_avx2));
+#endif
+
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(NEON, AV2Convolve2DHighbdTest,
+                         BuildHighbdParams(av2_highbd_convolve_2d_sr_neon));
 #endif
 
 //////////////////////////
