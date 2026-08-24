@@ -679,6 +679,9 @@ static AVM_INLINE void perform_two_pass_partition_search(
   // The dry pass does not go below 16x16: it only needs a rough shape, and it
   // scores blocks with a reduced set of tools.
   x->sb_enc.min_partition_size = BLOCK_16X16;
+  // Drop the previous superblock's dry-pass rd records. The recorded rdcosts
+  // are in the dry pass's rdmult units, which the wet pass must not recompute.
+  if (fast_two_pass) av2_zero(x->unit_dry_rd);
   perform_one_partition_pass(cpi, td, tile_data, tp, tp_chroma, mi_row, mi_col,
                              SB_DRY_PASS, NULL);
   PARTITION_TREE *part_ref = xd->sbi->ptree_root[0];
