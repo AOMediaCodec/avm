@@ -598,13 +598,13 @@ static AVM_INLINE void perform_two_partition_passes(
  *
  * \ingroup partition_search
  *
- * The wet pass trusts the dry-pass shape for large blocks and searches the
- * small ones again. This walks the dry-pass tree and clears the shape of every
- * node smaller than min_bsize so the wet pass is free to choose its own.
+ * Clears the shape of every node smaller than min_bsize so the wet pass is
+ * free to choose its own. If resplit_max_side_px > 0, also clears unsplit
+ * blocks up to that pixel size; 0 disables the re-split step.
  */
 static AVM_INLINE void set_min_none_to_invalid(PARTITION_TREE *part_tree,
                                                BLOCK_SIZE min_bsize,
-                                               bool allow_none_resplit) {
+                                               int resplit_max_side_px) {
   if (!part_tree) return;
   const BLOCK_SIZE bsize = part_tree->bsize;
   const PARTITION_TYPE part_type = part_tree->partition;
@@ -617,14 +617,11 @@ static AVM_INLINE void set_min_none_to_invalid(PARTITION_TREE *part_tree,
     return;
   }
 
-  // Large blocks the dry pass left unsplit: re-split them in the wet pass
-  // (only on the fast level, guarded by allow_none_resplit). The conservative
-  // level keeps its pre-PR semantics.
-  if (allow_none_resplit && part_type == PARTITION_NONE) {
-    // Only do this for blocks up to 128 px. Bigger unsplit blocks are usually
-    // genuinely flat, so searching them again costs a lot of time for little
-    // gain.
-    if (AVMMAX(block_size_wide[bsize], block_size_high[bsize]) <= 128) {
+  // Re-split unsplit blocks up to the cutoff. Bigger unsplit blocks are
+  // usually flat, so re-searching them rarely pays.
+  if (resplit_max_side_px > 0 && part_type == PARTITION_NONE) {
+    if (AVMMAX(block_size_wide[bsize], block_size_high[bsize]) <=
+        resplit_max_side_px) {
       part_tree->partition = PARTITION_INVALID;
     }
     return;
@@ -649,17 +646,41 @@ static AVM_INLINE void set_min_none_to_invalid(PARTITION_TREE *part_tree,
 
   for (int idx = 0; idx < num_subtrees; idx++) {
     set_min_none_to_invalid(part_tree->sub_tree[idx], min_bsize,
-                            allow_none_resplit);
+                            resplit_max_side_px);
   }
+}
+
+// 8-bit-equivalent qindex: strips the bit-depth offset so the threshold
+// below matches the command-line --qp regardless of input bit depth.
+static AVM_INLINE int two_pass_qindex_8bit_equiv(int base_qindex,
+                                                 int bit_depth) {
+  const int qindex_8b = base_qindex - (bit_depth - AVM_BITS_8) * MAXQ_OFFSET;
+  assert(qindex_8b >= 0);
+  return qindex_8b;
+}
+
+// Above this qindex the schedule uses a larger dry-pass floor and a
+// smaller wet-pass re-split cutoff.
+#define TWO_PASS_QP_SCHEDULE_HIGH_QP_THRESH 200
+
+// Dry-pass floor. 32x32 at high QP, 16x16 otherwise.
+static AVM_INLINE BLOCK_SIZE two_pass_dry_pass_floor(int qindex_8b) {
+  return qindex_8b >= TWO_PASS_QP_SCHEDULE_HIGH_QP_THRESH ? BLOCK_32X32
+                                                          : BLOCK_16X16;
+}
+
+// Wet-pass re-split cutoff in pixels. 64 at high QP, 128 otherwise.
+static AVM_INLINE int two_pass_resplit_max_side_px(int qindex_8b) {
+  return qindex_8b >= TWO_PASS_QP_SCHEDULE_HIGH_QP_THRESH ? 64 : 128;
 }
 
 /*!\brief Performs partition search in two passes.
  *
  * \ingroup partition_search
- * In the first pass, partition search is performed with the
- * minimum bsize set to BLOCK_16X16. In the second pass, partition search is
- * performed with the same partition tree from the first pass, but partition
- * search is allowed to search recursively starting from BLOCK_32X32.
+ * First pass picks a rough shape with a reduced-tool RD; second pass
+ * refines it. Minimum bsize is BLOCK_16X16 (BLOCK_32X32 at high QP on the
+ * fast level); the second pass recurses from BLOCK_32X32 (BLOCK_64X64 at
+ * high QP on the fast level). Conservative level uses the low-QP values.
  */
 static AVM_INLINE void perform_two_pass_partition_search(
     AV2_COMP *cpi, ThreadData *td, TileDataEnc *tile_data, TokenExtra **tp,
@@ -673,12 +694,20 @@ static AVM_INLINE void perform_two_pass_partition_search(
   const BLOCK_SIZE sb_size = cm->sb_size;
   assert(!frame_is_intra_only(cm));
 
+  // QP schedule is fast-only. Conservative uses 16x16 floor and 0 (skip
+  // re-split), leaving its behavior unchanged.
+  const int qindex_8b = two_pass_qindex_8bit_equiv(cm->quant_params.base_qindex,
+                                                   cm->seq_params.bit_depth);
+  const BLOCK_SIZE dry_floor =
+      fast_two_pass ? two_pass_dry_pass_floor(qindex_8b) : BLOCK_16X16;
+  const int resplit_max_side =
+      fast_two_pass ? two_pass_resplit_max_side_px(qindex_8b) : 0;
+
   // First pass to estimate partition structures
   SB_FIRST_PASS_STATS sb_fp_stats;
   av2_backup_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
-  // The dry pass does not go below 16x16: it only needs a rough shape, and it
-  // scores blocks with a reduced set of tools.
-  x->sb_enc.min_partition_size = BLOCK_16X16;
+  // Dry pass: rough shape only, floor at dry_floor.
+  x->sb_enc.min_partition_size = dry_floor;
   // Drop the previous superblock's dry-pass rd records. The recorded rdcosts
   // are in the dry pass's rdmult units, which the wet pass must not recompute.
   if (fast_two_pass) av2_zero(x->unit_dry_rd);
@@ -687,9 +716,10 @@ static AVM_INLINE void perform_two_pass_partition_search(
   PARTITION_TREE *part_ref = xd->sbi->ptree_root[0];
   // Set this to NULL otherwise part_ref will get freed in the second pass.
   xd->sbi->ptree_root[0] = NULL;
-  // Trust the dry-pass shape for >=32x32 blocks; re-search smaller ones.
-  set_min_none_to_invalid(part_ref, get_larger_sqr_bsize(BLOCK_16X16),
-                          fast_two_pass);
+  // Trust the dry-pass shape for >= (dry_floor << 1) blocks; re-search
+  // smaller ones. The trust boundary moves with the dry-pass floor.
+  set_min_none_to_invalid(part_ref, get_larger_sqr_bsize(dry_floor),
+                          resplit_max_side);
 
   // Second pass
   RD_STATS dummy_rdc;

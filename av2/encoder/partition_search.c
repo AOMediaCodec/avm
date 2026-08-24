@@ -590,7 +590,7 @@ static AVM_INLINE void record_dry_pass_rd(MACROBLOCK *x, BLOCK_SIZE sb_size,
 static AVM_INLINE int64_t dry_pass_rd_bound(const MACROBLOCK *x,
                                             BLOCK_SIZE sb_size, int mi_row,
                                             int mi_col, BLOCK_SIZE bsize) {
-  if (!x->consume_dry_pass_info) return 0;
+  if (!x->may_consume_dry_pass_info) return 0;
   const int slot_idx = dry_pass_rd_slot(sb_size, mi_row, mi_col, bsize);
   if (slot_idx < 0) return 0;
   const int64_t rd = x->unit_dry_rd[slot_idx];
@@ -3664,6 +3664,7 @@ static void prune_rect_partitions(AV2_COMP *const cpi, ThreadData *td,
   const BLOCK_SIZE bsize = blk_params->bsize;
 
   if (cpi->sf.part_sf.partition_pruning_with_mlp &&
+      av2_partition_ml_pruning_active(x, part_search_state->forced_partition) &&
       part_search_state->partition_allowed[PARTITION_NONE] &&
       part_search_state->forced_partition == PARTITION_INVALID &&
       block_size_wide[bsize] >= 32 && block_size_high[bsize] >= 32 &&
@@ -3957,6 +3958,7 @@ static void prune_partitions_after_none(AV2_COMP *const cpi, MACROBLOCK *x,
   // decision on early terminating at PARTITION_NONE.
   bool is_early_term_allowed =
       cpi->sf.part_sf.simple_motion_search_early_term_none &&
+      av2_partition_ml_pruning_active(x, part_search_state->forced_partition) &&
       !frame_is_intra_only(cm) && bsize >= BLOCK_16X16 &&
       blk_params->mi_row_edge < mi_params->mi_rows &&
       blk_params->mi_col_edge < mi_params->mi_cols &&
