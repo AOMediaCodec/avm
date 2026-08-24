@@ -30,6 +30,19 @@
 extern "C" {
 #endif
 
+/*! \brief Granularity of the dry-pass rd grid, in mi units (log2): 16x16 px. */
+#define TWO_PASS_DRY_RD_UNIT_LOG2 2
+/*! \brief Side of the dry-pass rd grid, in units. */
+#define TWO_PASS_DRY_RD_SIDE (MAX_MIB_SIZE >> TWO_PASS_DRY_RD_UNIT_LOG2)
+/*! \brief Number of positions in the dry-pass rd grid. */
+#define TWO_PASS_DRY_RD_GRID (TWO_PASS_DRY_RD_SIDE * TWO_PASS_DRY_RD_SIDE)
+/*! \brief Smallest side, in pixels, the dry pass can produce. */
+#define TWO_PASS_DRY_RD_MIN_1D 16
+/*! \brief Number of block sizes the dry pass can record. */
+#define TWO_PASS_DRY_RD_BSIZES 15
+/*! \brief Number of slots in the dry-pass rd grid. */
+#define TWO_PASS_DRY_RD_SLOTS (TWO_PASS_DRY_RD_GRID * TWO_PASS_DRY_RD_BSIZES)
+
 //! Minimum linear dimension of a tpl block
 #define MIN_TPL_BSIZE_1D 16
 //! Maximum number of tpl block in a super block
@@ -1659,6 +1672,14 @@ typedef struct macroblock {
   /*! \brief True during the dry pass of the SB-level two-pass partition
    * search; gates the block-level dry-pass shortcuts. */
   bool apply_dry_pass_shortcuts;
+
+  /*! \brief The dry pass's best rdcost per block, or 0 when absent. Indexed by
+   * dry_pass_rd_slot(). Reset per superblock. */
+  int64_t unit_dry_rd[TWO_PASS_DRY_RD_SLOTS];
+
+  /*! \brief True during the wet pass of the SB-level two-pass partition
+   * search; gates consumption of any dry-pass side information. */
+  bool consume_dry_pass_info;
 
   /*! \brief Cap on top intra Y candidates for full RD. */
   int intra_mode_prune_top;
