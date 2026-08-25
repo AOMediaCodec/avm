@@ -93,16 +93,17 @@ static int32_t xx_mask_and_hadd(__m128i vsum1, __m128i vsum2, int i) {
 static void highbd_apply_temporal_filter(
     const uint16_t *frame1, const unsigned int stride, const uint16_t *frame2,
     const unsigned int stride2, const int block_width, const int block_height,
-    const int min_frame_size, const double sigma, const MV *subblock_mvs,
-    const int *subblock_mses, const int q_factor, const int filter_strength,
-    unsigned int *accumulator, uint16_t *count, uint32_t *luma_sq_error,
-    uint32_t *chroma_sq_error, int plane, int ss_x_shift, int ss_y_shift,
-    int bd) {
-  assert(((block_width == 32) && (block_height == 32)) ||
-         ((block_width == 16) && (block_height == 16)));
+    const double inv_factor, const double weight_factor,
+    const double decay_factor, const double *d_factor,
+    const double *block_error, unsigned int *accumulator, uint16_t *count,
+    uint32_t *luma_sq_error, uint32_t *chroma_sq_error, int plane,
+    int ss_x_shift, int ss_y_shift, int bd) {
+  assert(block_width <= BW && block_height <= BH);
+  assert((block_width % 4) == 0);
+  assert(block_width >= 8 && block_height >= 8);
   if (plane > PLANE_TYPE_Y) assert(chroma_sq_error != NULL);
 
-  uint32_t acc_5x5_sse[BH][BW];
+  uint32_t acc_5x5_sse[BH][BW] = { 0 };
   uint32_t *frame_sse =
       (plane == PLANE_TYPE_Y) ? luma_sq_error : chroma_sq_error;
 
@@ -110,12 +111,6 @@ static void highbd_apply_temporal_filter(
                     frame_sse, SSE_STRIDE);
 
   __m128i vsrc[5][2];
-
-  const double n_decay = 0.5 + log(2 * sigma + 5.0);
-  const double q_decay =
-      CLIP(pow((double)q_factor / TF_Q_DECAY_THRESHOLD, 2), 1e-5, 1);
-  const double s_decay =
-      CLIP(pow((double)filter_strength / TF_STRENGTH_THRESHOLD, 2), 1e-5, 1);
 
   // Traverse 4 columns at a time
   // First and last columns will require padding
@@ -216,21 +211,16 @@ static void highbd_apply_temporal_filter(
       diff_sse >>= ((bd - 8) * 2);
 
       const double window_error = (double)(diff_sse) / num_ref_pixels;
-      const int subblock_idx =
-          (i >= block_height / 2) * 2 + (j >= block_width / 2);
-      const double block_error = (double)subblock_mses[subblock_idx];
+      const int y32 = i / (block_height / 2);
+      const int x32 = j / (block_width / 2);
+      const int y16 = (i % (block_height / 2)) / (block_height / 4);
+      const int x16 = (j % (block_width / 2)) / (block_width / 4);
+      const int subblock_idx = (y32 * 2 + x32) * 4 + (y16 * 2 + x16);
       const double combined_error =
-          (TF_WINDOW_BLOCK_BALANCE_WEIGHT * window_error + block_error) /
-          (TF_WINDOW_BLOCK_BALANCE_WEIGHT + 1) / TF_SEARCH_ERROR_NORM_WEIGHT;
-
-      const MV mv = subblock_mvs[subblock_idx];
-      const double distance = sqrt(pow(mv.row, 2) + pow(mv.col, 2));
-      const double distance_threshold =
-          (double)AVMMAX(min_frame_size * TF_SEARCH_DISTANCE_THRESHOLD, 1);
-      const double d_factor = AVMMAX(distance / distance_threshold, 1);
+          weight_factor * window_error + block_error[subblock_idx] * inv_factor;
 
       const double scaled_error =
-          AVMMIN(combined_error * d_factor / n_decay / q_decay / s_decay, 7);
+          AVMMIN(combined_error * d_factor[subblock_idx] * decay_factor, 7);
       const int weight = (int)(exp(-scaled_error) * TF_WEIGHT_SCALE);
 
       count[k] += weight;
@@ -245,8 +235,8 @@ void av2_highbd_apply_temporal_filter_sse2(
     const int num_planes, const double *noise_levels, const MV *subblock_mvs,
     const int *subblock_mses, const int q_factor, const int filter_strength,
     const uint16_t *pred, uint32_t *accum, uint16_t *count) {
-  assert(block_size == BLOCK_32X32 && "Only support 32x32 block with avx2!");
-  assert(TF_WINDOW_LENGTH == 5 && "Only support window length 5 with avx2!");
+  assert(block_size == BLOCK_64X64 && "Only support 64x64 block with sse2!");
+  assert(TF_WINDOW_LENGTH == 5 && "Only support window length 5 with sse2!");
   assert(num_planes >= 1 && num_planes <= MAX_MB_PLANE);
 
   const int mb_height = block_size_high[block_size];
@@ -255,6 +245,33 @@ void av2_highbd_apply_temporal_filter_sse2(
   const int frame_height = frame_to_filter->y_crop_height;
   const int frame_width = frame_to_filter->y_crop_width;
   const int min_frame_size = AVMMIN(frame_height, frame_width);
+
+  const double inv_factor = 1.0 / ((TF_WINDOW_BLOCK_BALANCE_WEIGHT + 1) *
+                                   TF_SEARCH_ERROR_NORM_WEIGHT);
+  const double weight_factor =
+      (double)TF_WINDOW_BLOCK_BALANCE_WEIGHT * inv_factor;
+  const double q_decay =
+      CLIP(pow((double)q_factor / TF_Q_DECAY_THRESHOLD, 2), 1e-5, 1);
+  const double s_decay =
+      CLIP(pow((double)filter_strength / TF_STRENGTH_THRESHOLD, 2), 1e-5, 1);
+
+  double decay_factor[MAX_MB_PLANE];
+  for (int plane = 0; plane < num_planes; ++plane) {
+    const double n_decay = 0.5 + log(2 * noise_levels[plane] + 5.0);
+    decay_factor[plane] = 1.0 / (n_decay * q_decay * s_decay);
+  }
+
+  const double distance_threshold =
+      (double)AVMMAX(min_frame_size * TF_SEARCH_DISTANCE_THRESHOLD, 1);
+  double d_factor[16];
+  double block_error[16];
+  for (int subblock_idx = 0; subblock_idx < 16; ++subblock_idx) {
+    const MV mv = subblock_mvs[subblock_idx];
+    const double distance = sqrt(pow(mv.row, 2) + pow(mv.col, 2));
+    d_factor[subblock_idx] = AVMMAX(distance / distance_threshold, 1);
+    block_error[subblock_idx] = (double)subblock_mses[subblock_idx];
+  }
+
   uint32_t luma_sq_error[SSE_STRIDE * BH];
   uint32_t *chroma_sq_error =
       (num_planes > 0)
@@ -274,10 +291,9 @@ void av2_highbd_apply_temporal_filter_sse2(
 
     highbd_apply_temporal_filter(
         ref, frame_stride, pred + mb_pels * plane, plane_w, plane_w, plane_h,
-        min_frame_size, noise_levels[plane], subblock_mvs, subblock_mses,
-        q_factor, filter_strength, accum + mb_pels * plane,
-        count + mb_pels * plane, luma_sq_error, chroma_sq_error, plane,
-        ss_x_shift, ss_y_shift, mbd->bd);
+        inv_factor, weight_factor, decay_factor[plane], d_factor, block_error,
+        accum + mb_pels * plane, count + mb_pels * plane, luma_sq_error,
+        chroma_sq_error, plane, ss_x_shift, ss_y_shift, mbd->bd);
   }
   if (chroma_sq_error != NULL) avm_free(chroma_sq_error);
 }
