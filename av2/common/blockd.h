@@ -2331,7 +2331,8 @@ typedef struct macroblockd {
   /*! \brief Flag to decide whether CFL is allowed for a particular chroma
    * block as passed down from the parent tree */
   CFL_ALLOWED_FOR_SDP_TYPE is_cfl_allowed_in_sdp;
-  /*! \brief Flag to indicate whether reduced transform partition mode is on */
+  /*! \brief Flag to indicate whether reduced transform partition mode is on and
+   * is the same as `cm->seq_params.reduced_tx_part_set` */
   int reduced_tx_part_set;
 } MACROBLOCKD;
 
