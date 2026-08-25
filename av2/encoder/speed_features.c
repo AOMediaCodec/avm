@@ -477,6 +477,13 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.reuse_inter_intra_mode = 1;
     sf->inter_sf.selective_ref_frame = 2;
     sf->inter_sf.skip_repeated_newmv = 1;
+    sf->inter_sf.reduce_max_drl_refmvs = 1;
+    if (!allow_screen_content_tools) {
+      // When reduce_max_drl_refmvs is enabled, keep newmv_drl_search_limit at 2
+      // to search both ref_mv_idx 0 and 1 before reusing results, preserving
+      // motion vector predictor diversity and mitigating coding loss.
+      sf->mv_sf.newmv_drl_search_limit = 2;
+    }
 
     sf->intra_sf.prune_palette_search_level = 1;
 
@@ -871,6 +878,7 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->alt_ref_search_fp = 0;
   inter_sf->disable_switchable_refinemv = 0;
   inter_sf->reduce_comp_refs = 0;
+  inter_sf->reduce_max_drl_refmvs = 0;
   inter_sf->selective_ref_frame = 0;
   inter_sf->prune_newmv_modes_using_prior_rd = 0;
   inter_sf->share_motion_mode_prune_pool = 0;
@@ -1305,6 +1313,12 @@ void av2_set_speed_features_framesize_independent(AV2_COMP *cpi, int speed) {
 
     if (sf->intra_sf.skip_intra_dip_search) {
       cpi->common.seq_params.enable_intra_dip = 0;
+    }
+
+    if (oxcf->tool_cfg.max_drl_refmvs == 0 &&
+        !cpi->common.seq_params.single_picture_header_flag &&
+        sf->inter_sf.reduce_max_drl_refmvs) {
+      cpi->common.seq_params.allow_frame_max_drl_bits = 1;
     }
     // Disable tcq modes in sequence header when cpu-used >= 2
     if (sf->rd_sf.disable_tcq) {
