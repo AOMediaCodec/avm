@@ -958,6 +958,13 @@ typedef struct TX_SPEED_FEATURES {
 
   // Enable txfm partition search
   bool enable_tx_partition;
+
+  // Skip the full pixel-domain distortion calculation for a tx candidate when
+  // a lightweight transform-domain RD estimate is already worse than best_rd
+  // and ref_best_rd. Avoids the more expensive pixel-domain reconstruction path
+  // for candidates that are unlikely to improve the best RD.
+  bool skip_pixel_dist_calc_using_tx_dist;
+
   // Enable adaptive tx search level
   bool enable_adaptive_tx_search_level;
   // Enable adaptive TCQ threshold:
