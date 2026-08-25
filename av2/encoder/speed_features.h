@@ -474,6 +474,10 @@ typedef struct PARTITION_SPEED_FEATURES {
   // winning partition type (NONE/HORZ/VERT/SPLIT) from block features.
   int partition_pruning_with_mlp;
 
+  // Unified SMS pre-screener: MLP trained on SMS motion-search
+  // features. 0=off, 1=on.
+  int sms_unified_prune;
+
   // Logit margin (winner logit - best non-NONE logit) required to prune rect
   // partitions when the MLP predicts NONE.
   float partition_pruning_with_mlp_none_thresh;
