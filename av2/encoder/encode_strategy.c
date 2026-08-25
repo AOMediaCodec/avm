@@ -1191,9 +1191,10 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
     adjust_frame_rate(cpi, source->ts_start, source->ts_end);
   if (!frame_params.duplicate_existing_frame) {
     if (cpi->film_grain_table) {
-      cm->seq_params.film_grain_params_present = avm_film_grain_table_lookup(
-          cpi->film_grain_table, *time_stamp, *time_end, 0 /* =erase */,
-          &cm->film_grain_params);
+      // film_grain_params_present is sequence level and is written once in the
+      // sequence header, so it must not be re-derived per frame here.
+      avm_film_grain_table_lookup(cpi->film_grain_table, *time_stamp, *time_end,
+                                  0 /* =erase */, &cm->film_grain_params);
     }
     // only one operating point supported now
     const int64_t pts64 = ticks_to_timebase_units(timestamp_ratio, *time_stamp);
