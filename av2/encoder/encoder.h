@@ -49,6 +49,7 @@
 #include "av2/encoder/speed_features.h"
 #include "av2/encoder/tokenize.h"
 #include "av2/encoder/tpl_model.h"
+#include "av2/encoder/pickccso.h"
 #include "av2/encoder/av2_noise_estimate.h"
 #include "av2/common/banding_metadata.h"
 
@@ -3133,6 +3134,14 @@ typedef struct AV2_COMP {
    * Flag indicating if banding metadata is available for the current frame
    */
   int band_metadata_present;
+
+  // Persistent CCSO encoder buffers. Allocated on first use, freed at close.
+  CcsoCtx ccso_ctx;
+  uint16_t *ccso_ext_rec_y;
+  size_t ccso_ext_rec_y_size;
+  uint16_t *ccso_rec_uv[CCSO_NUM_COMPONENTS];
+  uint16_t *ccso_org_uv[CCSO_NUM_COMPONENTS];
+  size_t ccso_uv_size[CCSO_NUM_COMPONENTS];
 } AV2_COMP;
 
 /*!
