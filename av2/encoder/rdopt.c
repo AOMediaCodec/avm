@@ -2654,7 +2654,8 @@ static AVM_INLINE int handle_warp_delta_mode(
       valid = av2_pick_warp_delta(
           cm, xd, mbmi, &ms_params, &x->mode_costs, prev_best_models,
           mbmi_ext->warp_param_stack[av2_ref_frame_type(mbmi->ref_frame)],
-          cpi->sf.inter_sf.fast_warp_delta_decoupled_search);
+          cpi->sf.inter_sf.fast_warp_delta_decoupled_search,
+          cpi->sf.inter_sf.early_term_warp_delta_refine);
     }
   }
 
