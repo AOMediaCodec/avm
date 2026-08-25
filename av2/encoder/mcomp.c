@@ -5202,13 +5202,11 @@ static AVM_INLINE void search_warp_delta_params(
 // search functions, due to the way that it alternates MV and warp parameter
 // refinement. Need to revisit this function in phase 2 and revisit whether
 // there is a good way to do something similar.
-int av2_pick_warp_delta(const AV2_COMMON *const cm, MACROBLOCKD *xd,
-                        MB_MODE_INFO *mbmi,
-                        const SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
-                        const ModeCosts *mode_costs,
-                        warp_mode_info_array *prev_best_models,
-                        WARP_CANDIDATE *warp_param_stack,
-                        const int fast_decoupled_search) {
+int av2_pick_warp_delta(
+    const AV2_COMMON *const cm, MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
+    const SUBPEL_MOTION_SEARCH_PARAMS *ms_params, const ModeCosts *mode_costs,
+    warp_mode_info_array *prev_best_models, WARP_CANDIDATE *warp_param_stack,
+    const int fast_decoupled_search, bool early_term_warp_delta_refine) {
   WarpedMotionParams *params = &mbmi->wm_params[0];
   const BLOCK_SIZE bsize = mbmi->sb_type[PLANE_TYPE_Y];
   int mi_row = xd->mi_row;
@@ -5356,6 +5354,7 @@ int av2_pick_warp_delta(const AV2_COMMON *const cm, MACROBLOCKD *xd,
   // Refine model, by making a few passes through the available
   // parameters and trying to increase/decrease them
   if (!fast_decoupled_search) {
+    uint64_t best_rd_prev = best_rd;
     for (int iter = 0; iter < number_of_iterations; iter++) {
       int center_best_so_far = 1;
 
@@ -5459,9 +5458,15 @@ int av2_pick_warp_delta(const AV2_COMMON *const cm, MACROBLOCKD *xd,
         }
       }
 
-      if (center_best_so_far) {
+      const int early_terminate_refine =
+          center_best_so_far ||
+          (early_term_warp_delta_refine && best_rd > 0.95 * best_rd_prev);
+
+      if (early_terminate_refine) {
         break;
       }
+
+      best_rd_prev = best_rd;
     }
   } else {
     search_warp_translational_params(
