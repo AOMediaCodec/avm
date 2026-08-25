@@ -132,6 +132,8 @@ static int frame_is_boosted(const AV2_COMP *cpi) {
 static void set_good_speed_feature_framesize_dependent(
     const AV2_COMP *const cpi, SPEED_FEATURES *const sf, int speed) {
   const AV2_COMMON *const cm = &cpi->common;
+  const int is_270p_or_lesser =
+      AVMMIN(cpi->common.width, cpi->common.height) <= 270;
   const int is_480p_or_larger = AVMMIN(cm->width, cm->height) >= 480;
   const int is_720p_or_larger = AVMMIN(cm->width, cm->height) >= 720;
   const int is_1080p_or_larger = AVMMIN(cm->width, cm->height) >= 1080;
@@ -182,6 +184,9 @@ static void set_good_speed_feature_framesize_dependent(
   if (speed >= 1) {
     if (!is_4k_or_larger) {
       sf->mv_sf.prune_mesh_search = 1;
+    }
+    if (!is_270p_or_lesser) {
+      sf->part_sf.disable_uneven_4way_partitions = true;
     }
   }
 
