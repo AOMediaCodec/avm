@@ -846,6 +846,10 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Prune the evaluation of ref_mv_idx > 0 for WARP_NEWMV modes based on RD
   // Cost of ref_mv_idx = 0 and best mode so far.
   bool prune_warp_newmv_ref_mv_idx;
+  // Histogram based frame level on/off decision for BAWP
+  // 0: no frame level on/off decision
+  // 1: enable histogram based frame level on/off
+  int enable_fast_bawp;
 } INTER_MODE_SPEED_FEATURES;
 
 typedef struct INTERP_FILTER_SPEED_FEATURES {
