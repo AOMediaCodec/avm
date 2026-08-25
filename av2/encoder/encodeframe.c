@@ -1870,6 +1870,75 @@ static AVM_INLINE void av2_enc_setup_tip_frame(AV2_COMP *cpi) {
   }
 }
 
+static void get_histogram(int32_t *hist, const YV12_BUFFER_CONFIG *buf,
+                          int width, int height) {
+  uint16_t *y_buf = buf->y_buffer;
+  int stride = buf->y_stride;
+  const int step = 2;
+  for (int i = 0; i < height; i += step) {
+    for (int j = 0; j < width; j += step) {
+      hist[y_buf[j]]++;
+    }
+    y_buf += stride;
+  }
+}
+
+static int av2_set_on_bawp_picture_level(AV2_COMP *const cpi) {
+  int enable_curr_pic_bawp = 0;
+  assert(cpi->sf.inter_sf.enable_fast_bawp == 1);
+  AV2_COMMON *const cm = &cpi->common;
+  const YV12_BUFFER_CONFIG *source = cpi->source;
+
+  const int num_values = 1 << cm->seq_params.bit_depth;
+
+  int32_t *curr_hist;
+  int32_t *ref_hist;
+  CHECK_MEM_ERROR(cm, curr_hist, avm_calloc(num_values, sizeof(int32_t)));
+  CHECK_MEM_ERROR(cm, ref_hist, avm_calloc(num_values, sizeof(int32_t)));
+
+  const int width = source->y_width;
+  const int height = source->y_height;
+  const int step = 2;
+  const int num_samples = width * height / (step * step);
+
+  //----- get histogram diff threshold -----
+  const double sample_thres =
+      cm->features.allow_screen_content_tools ? 0.075 : 0.1;
+  const int32_t hist_diff_thres = (int32_t)(sample_thres * num_samples);
+
+  // get histogram of the current picture
+  get_histogram(curr_hist, source, width, height);
+
+  for (MV_REFERENCE_FRAME rf = 0; rf < cm->ref_frames_info.num_total_refs;
+       ++rf) {
+    const RefCntBuffer *ref_buf = get_ref_frame_buf(cm, rf);
+    if (ref_buf != NULL) {
+      int ref_width = ref_buf->mi_cols * MI_SIZE;
+      int ref_height = ref_buf->mi_rows * MI_SIZE;
+
+      if (width == ref_width && height == ref_height) {
+        memset(ref_hist, 0, sizeof(int32_t) * num_values);
+        // get histogram of the reference picture
+        get_histogram(ref_hist, &ref_buf->buf, width, height);
+
+        // get SAD of delta histogram
+        int32_t diff_hist = 0;
+        for (int i = 0; i < num_values; i++) {
+          diff_hist += abs(curr_hist[i] - ref_hist[i]);
+        }
+
+        if (diff_hist > hist_diff_thres) {
+          enable_curr_pic_bawp = 1;
+          break;
+        }
+      }
+    }
+  }
+  avm_free(curr_hist);
+  avm_free(ref_hist);
+  return enable_curr_pic_bawp;
+}
+
 /*!\brief Set the lossless flags for a frame before encoding it
  *
  * \ingroup high_level_algo
@@ -2147,6 +2216,10 @@ static AVM_INLINE void encode_frame_internal(AV2_COMP *cpi) {
   start_timing(cpi, av2_compute_global_motion_time);
 #endif
   av2_compute_global_motion_facade(cpi);
+
+  if (features->enable_bawp && cpi->sf.inter_sf.enable_fast_bawp)
+    features->enable_bawp = av2_set_on_bawp_picture_level(cpi);
+
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, av2_compute_global_motion_time);
 #endif
