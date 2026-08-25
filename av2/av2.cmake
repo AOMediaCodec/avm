@@ -598,15 +598,15 @@ function(setup_av2_targets)
     endif()
 
     if(AVM_AV2_COMMON_INTRIN_AVX512)
-      add_intrinsics_object_library("${AVM_AVX512_FLAG}" "avx512"
-                                    "avm_av2_common"
-                                    "AVM_AV2_COMMON_INTRIN_AVX512")
+      add_intrinsics_object_library(
+        "${AVM_AVX512_FLAG}" "avx512" "avm_av2_common"
+        "AVM_AV2_COMMON_INTRIN_AVX512")
     endif()
 
     if(CONFIG_AV2_ENCODER AND AVM_AV2_ENCODER_INTRIN_AVX512)
-      add_intrinsics_object_library("${AVM_AVX512_FLAG}" "avx512"
-                                    "avm_av2_encoder"
-                                    "AVM_AV2_ENCODER_INTRIN_AVX512")
+      add_intrinsics_object_library(
+        "${AVM_AVX512_FLAG}" "avx512" "avm_av2_encoder"
+        "AVM_AV2_ENCODER_INTRIN_AVX512")
     endif()
   endif()
 

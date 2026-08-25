@@ -45,8 +45,7 @@ set_avm_detect_var(HAVE_VSX 0 "Enables VSX optimizations.")
 # x86 / x86_64 feature flags.
 set_avm_detect_var(HAVE_AVX 0 "Enables AVX optimizations.")
 set_avm_detect_var(HAVE_AVX2 0 "Enables AVX2 optimizations.")
-set_avm_detect_var(HAVE_AVX512 0
-                   "Enables AVX-512 (F/DQ/BW/VL) optimizations.")
+set_avm_detect_var(HAVE_AVX512 0 "Enables AVX-512 (F/DQ/BW/VL) optimizations.")
 set_avm_detect_var(HAVE_MMX 0 "Enables MMX optimizations. ")
 set_avm_detect_var(HAVE_SSE 0 "Enables SSE optimizations.")
 set_avm_detect_var(HAVE_SSE2 0 "Enables SSE2 optimizations.")

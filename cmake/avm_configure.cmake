@@ -358,7 +358,8 @@ endif()
 # Optional whole-program micro-architecture target (measurement knob).
 set(AVM_TARGET_MARCH
     ""
-    CACHE STRING "Whole-program -march=<value> target (e.g. znver5). Empty=off.")
+    CACHE STRING
+          "Whole-program -march=<value> target (e.g. znver5). Empty=off.")
 if(NOT "${AVM_TARGET_MARCH}" STREQUAL "")
   if(MSVC)
     message(

@@ -32,7 +32,8 @@ function(get_msvc_intrinsic_flag flag translated_flag)
         PARENT_SCOPE)
   else()
 
-    # MSVC does not need flags for intrinsics flavors other than AVX/AVX2/AVX512.
+    # MSVC does not need flags for intrinsics flavors other than
+    # AVX/AVX2/AVX512.
     unset(${translated_flag} PARENT_SCOPE)
   endif()
 endfunction()
