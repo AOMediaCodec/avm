@@ -2512,7 +2512,8 @@ static AVM_INLINE int handle_warp_causal_mode(
       av2_refine_warped_mv(
           xd, cm, &ms_params, bsize, pts0, pts_inref0, total_samples0, 0,
           get_warp_search_method(cpi, eval_motion_mode, mbmi->ref_frame[0]),
-          cpi->sf.mv_sf.warp_search_iters);
+          cpi->sf.mv_sf.warp_search_iters,
+          cpi->sf.mv_sf.warp_mv_refine_early_term);
       if (mv0.as_int != mbmi->mv[0].as_int) {
         if (mbmi->mode == NEW_NEWMV) {
           int tmp_rate_mv0 = av2_mv_bit_cost(
@@ -2543,7 +2544,8 @@ static AVM_INLINE int handle_warp_causal_mode(
       av2_refine_warped_mv(
           xd, cm, &ms_params, bsize, pts1, pts_inref1, total_samples1, 1,
           get_warp_search_method(cpi, eval_motion_mode, mbmi->ref_frame[1]),
-          cpi->sf.mv_sf.warp_search_iters);
+          cpi->sf.mv_sf.warp_search_iters,
+          cpi->sf.mv_sf.warp_mv_refine_early_term);
 
       if (mv1.as_int != mbmi->mv[1].as_int) {
         int tmp_rate_mv1 = av2_mv_bit_cost(
@@ -2641,7 +2643,8 @@ static AVM_INLINE int handle_warp_delta_mode(
       valid = av2_refine_mv_for_base_param_warp_model(
           cm, xd, mbmi, mbmi_ext, &ms_params,
           get_warp_search_method(cpi, eval_motion_mode, mbmi->ref_frame[0]),
-          cpi->sf.mv_sf.warp_search_iters);
+          cpi->sf.mv_sf.warp_search_iters,
+          cpi->sf.mv_sf.warp_mv_refine_early_term);
   } else {
     mbmi->six_param_warp_model_flag = get_default_six_param_flag(cm, mbmi);
     const int six_param_enabled_by_tid =
@@ -2759,7 +2762,7 @@ static AVM_INLINE int handle_warp_extend_mode(
   av2_refine_mv_for_warp_extend(
       cm, xd, &ms_params, neighbor_is_above, bsize, &neighbor_params,
       get_warp_search_method(cpi, eval_motion_mode, mbmi->ref_frame[0]),
-      cpi->sf.mv_sf.warp_search_iters);
+      cpi->sf.mv_sf.warp_search_iters, cpi->sf.mv_sf.warp_mv_refine_early_term);
 
   // If we changed the MV, update costs
   if (mv0.as_int != mbmi->mv[0].as_int) {
