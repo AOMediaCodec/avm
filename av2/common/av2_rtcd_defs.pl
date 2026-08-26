@@ -246,6 +246,8 @@ if (avm_config("CONFIG_AV2_ENCODER") eq "yes") {
   specialize qw/av2_get_coeff_ctx avx2/;
   add_proto qw/void av2_update_nbr_diagonal/, "struct tcq_ctx_t *tcq_ctx, int row, int col, int bwl";
   specialize qw/av2_update_nbr_diagonal avx2/;
+  add_proto qw/void av2_trellis_loop_diagonal_st8/, "const struct tcq_param_t *p, int scan_hi, int scan_lo, struct tcq_ctx_t *tcq_ctx, struct tcq_node_t *trellis";
+  specialize qw/av2_trellis_loop_diagonal_st8 avx2/;
 
   # fdct functions
 
