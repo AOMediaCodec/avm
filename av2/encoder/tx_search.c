@@ -2309,6 +2309,50 @@ static AVM_INLINE RD_STATS get_tx_blk_distortion(
   return this_rd_stats;
 }
 
+// Lightweight pre-distortion RD gate used inside search_tx_type's inner loop.
+// Computes an approximate RD cost using transform-domain distortion and returns
+// true when the candidate should be skipped (pruned).
+static INLINE bool prune_tx_type_rd_calc_using_tx_domain_dist(
+    MACROBLOCK *x, const uint16_t *eobs_ptr, int64_t block_sse,
+    int64_t sec_tx_sse_to_be_coded, int64_t best_rd, int64_t ref_best_rd,
+    int plane, int block, int stx, int rate_cost,
+    int use_transform_domain_distortion, TX_SIZE tx_size,
+    bool skip_pixel_dist_calc_using_tx_dist) {
+  if (!skip_pixel_dist_calc_using_tx_dist || eobs_ptr[block] == 0 ||
+      best_rd == INT64_MAX || use_transform_domain_distortion)
+    return false;
+
+  // sec_tx_sse_to_be_coded is the residual SSE after the forward
+  // secondary transform, set by the prune_tx_rd_eval_sec_tx_sse filter earlier
+  // in the loop. When available, block_sse - sec_tx_sse_to_be_coded is the
+  // minimum distortion. If even this optimistic estimate exceeds best_rd or
+  // ref_best_rd, there is no need to run the more expensive
+  // dist_block_tx_domain() call below.
+  if (sec_tx_sse_to_be_coded != INT64_MAX) {
+    int64_t tmp_rd = RDCOST(x->rdmult, rate_cost,
+                            AVMMAX((block_sse - sec_tx_sse_to_be_coded), 0));
+    if (tmp_rd > AVMMIN(best_rd, ref_best_rd)) return true;
+  }
+
+  // Compute the tx-domain distortion. For 64x64 blocks or when a secondary
+  // transform (stx) is applied, the coded coefficients cover only part of the
+  // transform domain, so the residual energy (block_sse - coded_sse) is added
+  // as a correction. Prune if the resulting RD exceeds the threshold.
+  RD_STATS this_rd_stats;
+  dist_block_tx_domain(x, plane, block, tx_size, &this_rd_stats.dist,
+                       &this_rd_stats.sse);
+  int64_t tx_domain_dist;
+  if (stx != 0 || txsize_sqr_up_map[tx_size] == TX_64X64)
+    tx_domain_dist =
+        this_rd_stats.dist + AVMMAX((block_sse - this_rd_stats.sse), 0);
+  else
+    tx_domain_dist = this_rd_stats.dist;
+  const int64_t tx_domain_rd = RDCOST(x->rdmult, rate_cost, tx_domain_dist);
+  if (tx_domain_rd > AVMMIN(best_rd, ref_best_rd)) return true;
+
+  return false;
+}
+
 // Search for the best transform type for a given transform block.
 // This function can be used for both inter and intra, both luma and chroma.
 static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
@@ -2658,6 +2702,13 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
         // terminate early.
         if (RDCOST(x->rdmult, rate_cost, 0) > best_rd) continue;
 
+        if (prune_tx_type_rd_calc_using_tx_domain_dist(
+                x, eobs_ptr, block_sse, sec_tx_sse_to_be_coded, best_rd,
+                ref_best_rd, plane, block, stx, rate_cost,
+                use_transform_domain_distortion, tx_size,
+                tx_sf->skip_pixel_dist_calc_using_tx_dist)) {
+          continue;
+        }
         RD_STATS this_rd_stats = get_tx_blk_distortion(
             cpi, x, plane, block, blk_row, blk_col, tx_size, block_sse,
             eobs_ptr[block], dc_only_blk, fsc_mode_in,
