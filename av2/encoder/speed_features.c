@@ -385,6 +385,7 @@ static void set_good_speed_features_framesize_independent(
     sf->intra_sf.include_dip_for_top_n_model_rd_pruning = true;
 
     sf->tx_sf.adaptive_tx_type_search_idx = 4;
+    sf->tx_sf.skip_pixel_dist_calc_using_tx_dist = true;
     sf->tx_sf.adaptive_tx_partition_type_search_idx = 4;
     sf->tx_sf.enable_adaptive_tx_search_level = true;
 
@@ -973,6 +974,7 @@ static AVM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
   tx_sf->tx_type_search.prune_tx_type_est_rd = 0;
   tx_sf->tx_type_search.winner_mode_tx_type_pruning = 0;
   tx_sf->txb_split_cap = 1;
+  tx_sf->skip_pixel_dist_calc_using_tx_dist = false;
   tx_sf->adaptive_tx_type_search_idx = 0;
   tx_sf->adaptive_tx_partition_type_search_idx = 0;
   tx_sf->use_inter_txb_hash = 1;
