@@ -7319,7 +7319,7 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
       return AVM_CODEC_ERROR;
     }
 
-    if (saved_wb_first_tg.bit_buffer)
+    if (saved_wb_first_tg.bit_buffer && tg_idx == 0)
       saved_wb_first_tg.bit_buffer += length_field_size;
     data += obu_header_size + obu_payload_size + length_field_size;
 
