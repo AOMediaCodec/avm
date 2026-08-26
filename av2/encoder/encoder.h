@@ -3135,12 +3135,30 @@ typedef struct AV2_COMP {
    */
   int band_metadata_present;
 
-  // Persistent CCSO encoder buffers. Allocated on first use, freed at close.
+  /*!
+   * CCSO search context holding persistent buffers (allocated on first use,
+   * freed at encoder close).
+   */
   CcsoCtx ccso_ctx;
+  /*!
+   * Extended luma reconstruction buffer for CCSO search.
+   */
   uint16_t *ccso_ext_rec_y;
+  /*!
+   * Allocated size of ccso_ext_rec_y in elements.
+   */
   size_t ccso_ext_rec_y_size;
+  /*!
+   * Per-plane chroma reconstruction buffers for CCSO search.
+   */
   uint16_t *ccso_rec_uv[CCSO_NUM_COMPONENTS];
+  /*!
+   * Per-plane chroma original sample buffers for CCSO search.
+   */
   uint16_t *ccso_org_uv[CCSO_NUM_COMPONENTS];
+  /*!
+   * Allocated sizes of ccso_rec_uv / ccso_org_uv in elements.
+   */
   size_t ccso_uv_size[CCSO_NUM_COMPONENTS];
 } AV2_COMP;
 
