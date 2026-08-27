@@ -19,6 +19,7 @@
 #include "av2/common/entropymv.h"
 #include "av2/common/entropy.h"
 #include "av2/common/enums.h"
+#include "av2/common/intra_dip.h"
 #include "av2/common/mvref_common.h"
 
 #include "av2/encoder/enc_enums.h"
@@ -1712,6 +1713,10 @@ typedef struct macroblock {
    * which are used for pruning compound modes in inter mode
    * evaluation. */
   int64_t top_comp_est_rd[TOP_COMP_EST_RD_COUNT];
+#if CONFIG_DIP_EXT_PRUNING
+  /*! \brief Holds DIP related features used in ML based pruning. */
+  struct DipMlInfo dip_ml_feature;
+#endif  // CONFIG_DIP_EXT_PRUNING
 } MACROBLOCK;
 #undef SINGLE_REF_MODES
 
