@@ -20,6 +20,20 @@ extern "C" {
 #define INTRA_DIP_MODE_CNT 6
 #define INTRA_DIP_HAS_TRANSPOSE 1
 
+#if CONFIG_DIP_EXT_PRUNING
+/*! \brief Extra features passed to DIP pruning model. */
+typedef struct DipMlInfo {
+  /*! \brief Whether any intra mode beats best_rd passed to intra search. */
+  int beat_best_rd;
+  /*! \brief RD cost of the DC mode. */
+  int64_t dc_mode_rd;
+  /*! \brief The best_rd passed to intra search. */
+  int64_t orig_best_rd;
+  /*! \brief Best non-DIP mode found during intra search. */
+  int best_mode;
+} DipMlInfo;
+#endif  // CONFIG_DIP_EXT_PRUNING
+
 static INLINE int av2_intra_dip_modes(BLOCK_SIZE bsize) {
   (void)bsize;
   return INTRA_DIP_MODE_CNT;
