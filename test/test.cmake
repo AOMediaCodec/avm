@@ -399,6 +399,11 @@ function(setup_avm_test_targets)
     add_intrinsics_source_to_target("-mavx2" "test_libavm"
                                     "AVM_UNIT_TEST_COMMON_INTRIN_AVX2")
   endif()
+  if(HAVE_AVX512 AND AVM_UNIT_TEST_COMMON_INTRIN_AVX512)
+    add_intrinsics_source_to_target(
+      "-mavx512f -mavx512dq -mavx512bw -mavx512vl" "test_libavm"
+      "AVM_UNIT_TEST_COMMON_INTRIN_AVX512")
+  endif()
   if(HAVE_NEON)
     add_intrinsics_source_to_target("${AVM_NEON_INTRIN_FLAG}" "test_libavm"
                                     "AVM_UNIT_TEST_COMMON_INTRIN_NEON")
