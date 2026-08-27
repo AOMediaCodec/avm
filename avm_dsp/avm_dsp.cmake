@@ -393,6 +393,23 @@ function(setup_avm_dsp_targets)
     endif()
   endif()
 
+  if(HAVE_AVX512)
+    set(AVM_AVX512_FLAG "-mavx512f -mavx512dq -mavx512bw -mavx512vl")
+    add_intrinsics_object_library(
+      "${AVM_AVX512_FLAG}" "avx512" "avm_dsp_common"
+      "AVM_DSP_COMMON_INTRIN_AVX512")
+    if(CONFIG_AV2_DECODER)
+      add_intrinsics_object_library(
+        "${AVM_AVX512_FLAG}" "avx512" "avm_dsp_decoder"
+        "AVM_DSP_DECODER_INTRIN_AVX512")
+    endif()
+    if(CONFIG_AV2_ENCODER)
+      add_intrinsics_object_library(
+        "${AVM_AVX512_FLAG}" "avx512" "avm_dsp_encoder"
+        "AVM_DSP_ENCODER_INTRIN_AVX512")
+    endif()
+  endif()
+
   if(HAVE_NEON)
     add_intrinsics_object_library("${AVM_NEON_INTRIN_FLAG}" "neon"
                                   "avm_dsp_common" "AVM_DSP_COMMON_INTRIN_NEON")
