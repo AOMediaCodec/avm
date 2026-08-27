@@ -427,6 +427,9 @@ typedef struct PARTITION_SPEED_FEATURES {
   //    1080p; 4k uses level 1 at speeds >= 5)
   int prune_rect_with_split_depth;
 
+  // prune inter mode in binary partitions based on none part
+  int prune_inter_modes_by_none_part;
+
   // Search horizontal and vertical split before PARTITION_NONE if the neighbor
   // blocks are much smaller than the current block size.
   int adaptive_partition_search_order;

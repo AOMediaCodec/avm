@@ -9800,6 +9800,8 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
         (has_both_sides_refs ||
          ref_frame > dry_pass_cfg.same_ref_compound_rank_cap))
       continue;
+    if (x->skip_inter_modes_by_none_part && is_intermode_selected(this_mode))
+      continue;
     if (this_mode == WARPMV && !warpmv_allowed) continue;
     if (this_mode == WARP_NEWMV && (!warpmv_allowed || !warp_newmv_allowed))
       continue;

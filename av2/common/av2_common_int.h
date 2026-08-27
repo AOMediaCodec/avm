@@ -5643,6 +5643,11 @@ static INLINE bool is_warp_mode(MOTION_MODE motion_mode) {
   return (motion_mode >= WARP_CAUSAL);
 }
 
+static INLINE int is_intermode_selected(PREDICTION_MODE this_mode) {
+  return this_mode == NEW_NEWMV || this_mode == NEAR_NEARMV ||
+         this_mode == WARPMV || this_mode == WARP_NEWMV;
+}
+
 // Returns whether warp causal is allowed
 // by checking only four neighboring blocks.
 // It does not check all the neighboring blocks used
