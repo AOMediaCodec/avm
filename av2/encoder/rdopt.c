@@ -9690,9 +9690,14 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
 
     const int ref_frame_index = COMPACT_INDEX0_NRS(ref_frame);
     const int sec_ref_frame_index = COMPACT_INDEX1_NRS(second_ref_frame);
+    // ref_frame_index < MAX_COMPOUND_REF_INDEX is added to silence a warning
+    // about array out of bounds access. It is never false when comp_pred is
+    // set, because ref_frame_index only reaches TIP_FRAME_INDEX for TIP and
+    // TIP is single reference only.
     const int ref_frame_cost =
-        comp_pred ? ref_costs_comp[ref_frame_index][sec_ref_frame_index]
-                  : ref_costs_single[ref_frame_index];
+        (comp_pred && ref_frame_index < MAX_COMPOUND_REF_INDEX)
+            ? ref_costs_comp[ref_frame_index][sec_ref_frame_index]
+            : ref_costs_single[ref_frame_index];
     const int compmode_cost = (comp_ref_allowed && !is_tip_ref_frame(ref_frame))
                                   ? comp_inter_cost[comp_pred]
                                   : 0;
