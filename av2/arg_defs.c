@@ -897,7 +897,7 @@ const av2_codec_arg_definitions_t g_av2_codec_arg_defs = {
       ARG_DEF(NULL, "enable-mfh-obu-signaling", 1,
               "Enable MFH OBU signaling (0: false (default), 1: true)"),
   .operating_points_count = ARG_DEF(NULL, "operating-points-count", 1,
-                                    "Number of operating points (1-31)."),
+                                    "Number of operating points (1-7)."),
   .cross_frame_cdf_init_mode =
       ARG_DEF(NULL, "cross-frame-cdf-init-mode", 1,
               "Cross frame CDF for context initialization "

@@ -1208,7 +1208,7 @@ typedef struct AV2EncoderConfig {
   // Configuration related to layering information.
   LayerCfg layer_cfg;
 
-  // 0-31 = manually set operating_points_cnt_minus_1
+  // Number of operating points per OPS, in the range 0 to MAX_OPS_COUNT (7).
   int operating_points_count;
   /*!\endcond */
 } AV2EncoderConfig;

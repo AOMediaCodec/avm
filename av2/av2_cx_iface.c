@@ -770,6 +770,8 @@ static avm_codec_err_t validate_config(avm_codec_alg_priv_t *ctx,
   RANGE_CHECK_HI(cfg, frame_hash_metadata, 3);
   RANGE_CHECK_HI(cfg, frame_hash_per_plane, 1);
 
+  RANGE_CHECK(extra_cfg, operating_points_count, 0, MAX_OPS_COUNT);
+
   RANGE_CHECK(extra_cfg, dpb_size, 1, 16);
   RANGE_CHECK(extra_cfg, color_primaries, AVM_CICP_CP_BT_709,
               AVM_CICP_CP_EBU_3213);  // Need to check range more precisely to
