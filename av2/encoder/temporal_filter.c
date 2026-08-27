@@ -1008,7 +1008,7 @@ static FRAME_DIFF tf_do_filtering(AV2_COMP *cpi, YV12_BUFFER_CONFIG **frames,
           // only supports 32x32 block size, 5x5 filtering window, 8-bit
           // encoding, and the case when the video is not with `YUV 4:2:2`
           // format.
-          if (!is_yuv422_format && TF_BLOCK_SIZE == BLOCK_32X32 &&
+          if (!is_yuv422_format && TF_BLOCK_SIZE == BLOCK_64X64 &&
               TF_WINDOW_LENGTH == 5) {
             av2_highbd_apply_temporal_filter(
                 frame_to_filter, mbd, block_size, mb_row, mb_col, num_planes,
