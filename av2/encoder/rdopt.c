@@ -4969,16 +4969,6 @@ static void evaluate_inter_predictor(AV2_COMP *const cpi,
   av2_init_rd_stats(rd_stats_y);
   av2_init_rd_stats(rd_stats_uv);
 
-  // Initialize compound mode data
-  mbmi->interinter_comp.type = COMPOUND_AVERAGE;
-  mbmi->comp_group_idx = 0;
-  if (mbmi->ref_frame[1] == INTRA_FRAME) mbmi->ref_frame[1] = NONE_FRAME;
-
-  mbmi->num_proj_ref[0] = mbmi->num_proj_ref[1] = 0;
-  mbmi->motion_mode = SIMPLE_TRANSLATION;
-  mbmi->ref_mv_idx[0] = ref_mv_idx[0];
-  mbmi->ref_mv_idx[1] = ref_mv_idx[1];
-
   // Compute cost for signalling this DRL index
   rd_stats->rate = base_rate;
   rd_stats->rate += flex_mv_cost[mbmi->pb_mv_precision];
@@ -5269,6 +5259,8 @@ static INLINE void reset_inter_mode_info(inter_mode_info *info, int drl_cost) {
   info->mv.as_int = INVALID_MV;
   info->rd = INT64_MAX;
   info->drl_cost = drl_cost;
+  info->rate_mv = 0;
+  info->full_mv_rate = 0;
 }
 
 // Handles single inter prediction search for a given mode and precision.
@@ -5307,6 +5299,7 @@ static void handle_single_inter_prediction(
   mbmi->num_proj_ref[1] = 0;
   mbmi->motion_mode = SIMPLE_TRANSLATION;
   set_mv_precision(mbmi, precision_def->precision[precision_dx]);
+  const MB_MODE_INFO base_template = *mbmi;
 
   const int has_newmv = have_newmv_in_inter_mode(this_mode);
   const int skip_repeated_ref_mv = cpi->sf.inter_sf.skip_repeated_ref_mv;
@@ -5315,10 +5308,6 @@ static void handle_single_inter_prediction(
       cost_prediction_mode(mode_costs, this_mode, cm, mbmi, xd, mode_ctx);
   const int base_rate =
       args->ref_frame_cost + args->single_comp_cost + prediction_mode_cost;
-  const int jmvd_scale_mode_cost = get_jmvd_scale_mode_cost(mbmi, mode_costs);
-
-  int single_cwp_mask[MAX_CWP_NUM] = { 0 };
-  single_cwp_mask[0] = 1;
 
   int bawp_enabled = cm->features.enable_bawp &&
                      av2_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col);
@@ -5331,6 +5320,7 @@ static void handle_single_inter_prediction(
       (bawp_enabled == 0) ? 1 : (1 + 2 * bawp_enabled);
 
   for (int ref_mv_idx0 = 0; ref_mv_idx0 < ref_set[0]; ++ref_mv_idx0) {
+    *mbmi = base_template;
     if (prune_ref_mv_idx_for_warp_newmv(
             mbmi, *search_state->best_rd, env->best_mode_rd_so_far,
             env->is_best_mode_warp, ref_mv_idx0,
@@ -5343,9 +5333,8 @@ static void handle_single_inter_prediction(
     const int drl_cost =
         get_drl_cost(cm->features.max_drl_bits, mbmi, mbmi_ext, x);
 
-    const int rate_so_far = base_rate + drl_cost +
-                            flex_mv_cost[mbmi->pb_mv_precision] +
-                            jmvd_scale_mode_cost;
+    const int rate_so_far =
+        base_rate + drl_cost + flex_mv_cost[mbmi->pb_mv_precision];
     if (cpi->sf.inter_sf.skip_mode_eval_based_on_rate_cost &&
         *search_state->ref_best_rd != INT64_MAX &&
         RDCOST(x->rdmult, rate_so_far, 0) > *search_state->ref_best_rd) {
@@ -5442,8 +5431,8 @@ static void handle_single_inter_prediction(
       PredictorIterationContext it_ctx;
       init_predictor_iteration_context(
           &it_ctx, bsize, ref_mv_idx[0], ref_mv_idx[1], precision_dx, bawp_flag,
-          ref_mv_idx_type, 0, single_cwp_mask, this_mode, refs, flex_mv_cost,
-          drl_cost, jmvd_scale_mode_cost, base_rate, cur_mv, rate_mv,
+          ref_mv_idx_type, 0, NULL, this_mode, refs, flex_mv_cost,
+          drl_cost, 0, base_rate, cur_mv, rate_mv,
           &base_mbmi, 0, num_planes, args->skip_motion_mode);
       it_ctx.refinemv_loop = 0;
       evaluate_inter_predictor(cpi, tile_data, x, env, &it_ctx, search_state,
@@ -5946,12 +5935,7 @@ static int64_t handle_inter_mode(
         const int idx = has_two_drls
                             ? ref_mv_id_1 * MAX_REF_MV_SEARCH + ref_mv_id_0
                             : ref_mv_id_0;
-        mode_info[bawp][prec][idx].full_search_mv.as_int = INVALID_MV;
-        mode_info[bawp][prec][idx].mv.as_int = INVALID_MV;
-        mode_info[bawp][prec][idx].rd = INT64_MAX;
-        mode_info[bawp][prec][idx].drl_cost = 0;
-        mode_info[bawp][prec][idx].rate_mv = 0;
-        mode_info[bawp][prec][idx].full_mv_rate = 0;
+        reset_inter_mode_info(&mode_info[bawp][prec][idx], 0);
       }
     }
   }
