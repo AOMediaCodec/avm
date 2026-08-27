@@ -164,8 +164,10 @@ static INLINE uint64_t xgetbv(void) {
 #define HAS_AVX 0x40
 #define HAS_AVX2 0x80
 #define HAS_SSE4_2 0x100
+#define HAS_AVX512 0x200
+#define HAS_AVX512_VNNI 0x400
 #ifndef BIT
-#define BIT(n) (1 << n)
+#define BIT(n) (1u << (n))
 #endif
 
 static INLINE int x86_simd_caps(void) {
@@ -215,6 +217,16 @@ static INLINE int x86_simd_caps(void) {
         cpuid(7, 0, reg_eax, reg_ebx, reg_ecx, reg_edx);
 
         if (reg_ebx & BIT(5)) flags |= HAS_AVX2;
+
+        /* AVX-512 needs OS opmask/ZMM state saved: XCR0 bits 1,2,5,6,7. */
+        if ((xgetbv() & 0xe6) == 0xe6) {
+          const unsigned int avx512_mask =
+              BIT(16) | BIT(17) | BIT(30) | BIT(31);
+          if ((reg_ebx & avx512_mask) == avx512_mask) {
+            flags |= HAS_AVX512;
+            if (reg_ecx & BIT(11)) flags |= HAS_AVX512_VNNI;
+          }
+        }
       }
     }
   }

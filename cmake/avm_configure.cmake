@@ -355,6 +355,24 @@ else()
   add_compiler_flag_if_supported("-D_FILE_OFFSET_BITS=64")
 endif()
 
+# Optional whole-program micro-architecture target (measurement knob).
+set(AVM_TARGET_MARCH
+    ""
+    CACHE STRING
+          "Whole-program -march=<value> target (e.g. znver5). Empty=off.")
+if(NOT "${AVM_TARGET_MARCH}" STREQUAL "")
+  if(MSVC)
+    message(
+      WARNING
+        "AVM_TARGET_MARCH=${AVM_TARGET_MARCH} ignored: use /arch: flags on MSVC."
+    )
+  else()
+    message(
+      "--- avm_configure: whole-program target: -march=${AVM_TARGET_MARCH}")
+    require_compiler_flag_nomsvc("-march=${AVM_TARGET_MARCH}" YES)
+  endif()
+endif()
+
 set(AVM_LIB_LINK_TYPE PUBLIC)
 if(EMSCRIPTEN)
 
