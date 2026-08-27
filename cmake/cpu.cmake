@@ -130,6 +130,13 @@ elseif("${AVM_TARGET_CPU}" MATCHES "^x86")
   endif()
 
   set(X86_FLAVORS "MMX;SSE;SSE2;SSE3;SSSE3;SSE4_1;SSE4_2;AVX;AVX2")
+  # AVX-512 is x86_64 only; append after AVX2 to inherit the disable cascade.
+  if("${AVM_TARGET_CPU}" STREQUAL "x86_64")
+    list(APPEND X86_FLAVORS "AVX512")
+  else()
+    set(HAVE_AVX512 0)
+    set(AVM_RTCD_FLAGS ${AVM_RTCD_FLAGS} --disable-avx512)
+  endif()
   foreach(flavor ${X86_FLAVORS})
     if(ENABLE_${flavor} AND NOT disable_remaining_flavors)
       set(HAVE_${flavor} 1)
