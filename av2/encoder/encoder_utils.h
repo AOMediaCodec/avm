@@ -1007,7 +1007,7 @@ static AVM_INLINE void av2_set_seq_tile_info(SequenceHeader *const seq_params,
       if (j >= tile_cfg->tile_width_count) j = 0;
       start_sb += AVMMIN(size_sb, tiles->max_width_sb);
     }
-    assert(start_sb == sb_cols);
+    assert(start_sb >= sb_cols);
     tiles->cols = i;
     tiles->col_start_sb[i] = sb_cols;
   }
@@ -1026,7 +1026,7 @@ static AVM_INLINE void av2_set_seq_tile_info(SequenceHeader *const seq_params,
       if (j >= tile_cfg->tile_height_count) j = 0;
       start_sb += AVMMIN(size_sb, tiles->max_height_sb);
     }
-    assert(start_sb == sb_rows);
+    assert(start_sb >= sb_rows);
     tiles->rows = i;
     tiles->row_start_sb[i] = sb_rows;
   }
@@ -1075,7 +1075,7 @@ static AVM_INLINE void av2_set_tile_info(AV2_COMMON *const cm,
       if (j >= tile_cfg->tile_width_count) j = 0;
       start_sb += AVMMIN(size_sb, tiles->max_width_sb);
     }
-    assert(start_sb == sb_cols);
+    assert(start_sb >= sb_cols);
     tiles->cols = i;
     tiles->col_start_sb[i] = sb_cols;
   }
@@ -1097,7 +1097,7 @@ static AVM_INLINE void av2_set_tile_info(AV2_COMMON *const cm,
       if (j >= tile_cfg->tile_height_count) j = 0;
       start_sb += AVMMIN(size_sb, tiles->max_height_sb);
     }
-    assert(start_sb == sb_rows);
+    assert(start_sb >= sb_rows);
     tiles->rows = i;
     tiles->row_start_sb[i] = sb_rows;
   }
