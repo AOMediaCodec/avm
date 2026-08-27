@@ -8007,6 +8007,11 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     cm->implicit_output_picture = 0;
     cm->cur_frame->immediate_output_picture = 1;
     cm->cur_frame->implicit_output_picture = 0;
+    if (obu_type != OBU_CLOSED_LOOP_KEY) {
+      avm_internal_error(
+          &cm->error, AVM_CODEC_CORRUPT_FRAME,
+          "Still pictures must be coded as closed loop keyframes");
+    }
     current_frame->frame_type = KEY_FRAME;
     pbi->decoding_first_frame = 1;
     reset_frame_buffers(cm);
