@@ -2014,6 +2014,8 @@ void av2_remove_compressor(AV2_COMP *cpi) {
 
   free_bru_info(cm);
 
+  av2_ccso_ctx_free(cpi);
+
   av2_remove_common(cm);
   av2_free_ref_frame_buffers(cm->buffer_pool);
 
@@ -3088,9 +3090,16 @@ static void cdef_restoration_frame(AV2_COMP *cpi, AV2_COMMON *cm,
     const int ccso_height = xd->plane[AVM_PLANE_Y].dst.height;
     const int ccso_stride_ext = ccso_stride + (CCSO_PADDING_SIZE << 1);
     const int ccso_height_ext = ccso_height + (CCSO_PADDING_SIZE << 1);
-    CHECK_MEM_ERROR(
-        cm, ext_rec_y,
-        avm_malloc(sizeof(*ext_rec_y) * ccso_stride_ext * ccso_height_ext));
+    const size_t ext_rec_y_size = (size_t)ccso_stride_ext * ccso_height_ext;
+    if (ext_rec_y_size > cpi->ccso_ext_rec_y_size) {
+      cpi->ccso_ext_rec_y_size = 0;
+      avm_free(cpi->ccso_ext_rec_y);
+      CHECK_MEM_ERROR(
+          cm, cpi->ccso_ext_rec_y,
+          avm_malloc(sizeof(*cpi->ccso_ext_rec_y) * ext_rec_y_size));
+      cpi->ccso_ext_rec_y_size = ext_rec_y_size;
+    }
+    ext_rec_y = cpi->ccso_ext_rec_y;
 
     const int pic_height = cm->cur_frame->buf.y_height;
     const int pic_width = cm->cur_frame->buf.y_width;
@@ -3157,23 +3166,28 @@ static void cdef_restoration_frame(AV2_COMP *cpi, AV2_COMMON *cm,
     av2_setup_dst_planes(xd->plane, &cm->cur_frame->buf, 0, 0, 0, num_planes,
                          NULL);
 
-    uint16_t *rec_uv[CCSO_NUM_COMPONENTS];
-    uint16_t *org_uv[CCSO_NUM_COMPONENTS];
     const int ccso_stride = xd->plane[AVM_PLANE_Y].dst.width;
-    const int ccso_height = xd->plane[AVM_PLANE_Y].dst.height;
     for (int plane = AVM_PLANE_Y; plane < num_planes; ++plane) {
-      CHECK_MEM_ERROR(
-          cm, rec_uv[plane],
-          avm_malloc(sizeof(*rec_uv[plane]) * ccso_height * ccso_stride));
-      CHECK_MEM_ERROR(
-          cm, org_uv[plane],
-          avm_malloc(sizeof(*org_uv[plane]) * ccso_height * ccso_stride));
+      const size_t plane_size =
+          (size_t)xd->plane[plane].dst.height * ccso_stride;
+      if (plane_size > cpi->ccso_uv_size[plane]) {
+        cpi->ccso_uv_size[plane] = 0;
+        avm_free(cpi->ccso_rec_uv[plane]);
+        CHECK_MEM_ERROR(
+            cm, cpi->ccso_rec_uv[plane],
+            avm_malloc(sizeof(*cpi->ccso_rec_uv[plane]) * plane_size));
+        avm_free(cpi->ccso_org_uv[plane]);
+        CHECK_MEM_ERROR(
+            cm, cpi->ccso_org_uv[plane],
+            avm_malloc(sizeof(*cpi->ccso_org_uv[plane]) * plane_size));
+        cpi->ccso_uv_size[plane] = plane_size;
+      }
 
-      // Reading original and reconstructed chroma samples as input
+      // Copy original and reconstructed samples for this plane.
       const YV12_BUFFER_CONFIG *src = cpi->source;
       uint16_t *rec_buffer = xd->plane[plane].dst.buf;
-      uint16_t *src_cpy = org_uv[plane];
-      uint16_t *rec_cpy = rec_uv[plane];
+      uint16_t *src_cpy = cpi->ccso_org_uv[plane];
+      uint16_t *rec_cpy = cpi->ccso_rec_uv[plane];
       const int pic_height = xd->plane[plane].dst.height;
       const int pic_width = xd->plane[plane].dst.width;
       const int rec_stride = xd->plane[plane].dst.stride;
@@ -3191,24 +3205,19 @@ static void cdef_restoration_frame(AV2_COMP *cpi, AV2_COMMON *cm,
         src_cpy += ccso_stride;
       }
     }
-    av2_ccso_search(cm, xd, cpi->td.mb.rdmult, ext_rec_y, rec_uv, org_uv,
-                    cpi->error_resilient_frame_seen
+    av2_ccso_search(cm, xd, cpi->td.mb.rdmult, ext_rec_y, cpi->ccso_rec_uv,
+                    cpi->ccso_org_uv, cpi->error_resilient_frame_seen
 #if CONFIG_ENTROPY_STATS
                     ,
                     &cpi->td
 #endif
                     ,
                     cpi->sf.lpf_sf.early_terminate_ccso_search_by_cost,
-                    cpi->sf.lpf_sf.ccso_chroma_dep);
+                    cpi->sf.lpf_sf.ccso_chroma_dep, &cpi->ccso_ctx);
     ccso_frame(&cm->cur_frame->buf, cm, xd, ext_rec_y);
 #if CONFIG_MISMATCH_DEBUG
     mismatch_record_frame(&cm->cur_frame->buf, num_planes, 2);
 #endif
-    avm_free(ext_rec_y);
-    for (int plane = AVM_PLANE_Y; plane < num_planes; ++plane) {
-      avm_free(rec_uv[plane]);
-      avm_free(org_uv[plane]);
-    }
   }
 
   if (use_gdf) {
