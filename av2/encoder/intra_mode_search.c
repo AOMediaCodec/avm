@@ -26,6 +26,10 @@
 #include "av2/encoder/intra_dip_mode_prune_tflite.h"
 #endif  // CONFIG_DIP_EXT_PRUNING
 
+static AVM_INLINE int get_intra_dip_mode(int transpose, int ml_mode) {
+  return (transpose << 4) + ml_mode;
+}
+
 #if CONFIG_DIP_EXT_PRUNING
 // Check if the mode is found in the modelrd list
 static uint8_t skip_this_dip_mode(
@@ -41,6 +45,77 @@ static uint8_t skip_this_dip_mode(
   return !mode_found;
 }
 
+/*! \brief Determine whether to keep DIP mode search based on pruning model.
+ * \param[in/out] td                    ThreadData structure with pruning
+ *                                      model.
+ * \param[in]     x                     MACROBLOCK structure.
+ * \param[in]     bsize                 Block size.
+ * \param[in]     intra_dip_features    DIP features array.
+ * \param[in]     dip_mode_model_log_rd Log RD values for DIP modes.
+ * \param[in]     best_rd               Best rate-distortion found so far.
+ * \param[in]     best_model_rd         Best model rate-distortion found.
+ * \param[in]     base_y_dc_delta_q     Base delta Q value of DC for luma plane.
+ * \return Returns true if DIP mode search should proceed, false otherwise.
+ */
+static bool keep_intra_dip_mode(ThreadData *const td, const MACROBLOCK *const x,
+                                BLOCK_SIZE bsize,
+                                const uint16_t intra_dip_features[11],
+                                const float dip_mode_model_log_rd[12],
+                                int64_t best_rd, int64_t best_model_rd,
+                                int8_t base_y_dc_delta_q) {
+  const MACROBLOCKD *const xd = &x->e_mbd;
+  const DipMlInfo *const dip_ml_feature = &x->dip_ml_feature;
+  const int adjusted_qindex = x->qindex - MAXQ_OFFSET * (xd->bd - AVM_BITS_8);
+  const int dip_model_index =
+      intra_dip_mode_prune_get_model_index(adjusted_qindex);
+  if (dip_model_index == -1) return true;
+
+  const int dc_q = av2_dc_quant_QTX(x->qindex, 0, base_y_dc_delta_q, xd->bd) >>
+                   (xd->bd - AVM_BITS_8);
+
+  // Clamp all RD values to a minimum of 1 to avoid arithmetic exceptions.
+  const float log_best_rd = log10f((float)AVMMAX(best_rd, 1));
+  const float log_best_model_rd = log10f((float)AVMMAX(best_model_rd, 1));
+  const float log_dc_mode_rd =
+      log10f((float)AVMMAX(dip_ml_feature->dc_mode_rd, 1));
+  const float log_orig_best_rd =
+      log10f((float)AVMMAX(dip_ml_feature->orig_best_rd, 1));
+
+  dip_pruning_inputs *const dip_pruning_in =
+      intra_dip_mode_prune_get_inputs(&td->dip_pruning_model, adjusted_qindex);
+
+  dip_pruning_in->inputs[0].values[0] = log_best_model_rd;
+  dip_pruning_in->inputs[0].values[1] = log_best_rd;
+  dip_pruning_in->inputs[0].values[2] = log10f((float)dc_q);
+  dip_pruning_in->inputs[0].values[3] = log_dc_mode_rd;
+  dip_pruning_in->inputs[0].values[4] = log_orig_best_rd;
+  for (int i = 0; i < 13; ++i) {
+    dip_pruning_in->inputs[0].values[5 + i] =
+        (float)(dip_ml_feature->best_mode == i);
+  }
+  dip_pruning_in->inputs[0].values[18] = (float)dip_ml_feature->beat_best_rd;
+  intra_dip_mode_prune_normalize_and_resize_8x8(
+      x->plane[0].src.buf, x->plane[0].src.stride, xd->bd,
+      block_size_wide[bsize], block_size_high[bsize],
+      &dip_pruning_in->inputs[1].values[0]);
+
+  const float norm = (float)((1 << xd->bd) - 1);
+  for (int i = 0; i < 11; ++i) {
+    dip_pruning_in->inputs[2].values[i] = (float)intra_dip_features[i] / norm;
+  }
+  dip_pruning_in->inputs[3].values[0] = log2f((float)block_size_wide[bsize]);
+  dip_pruning_in->inputs[3].values[1] = log2f((float)block_size_high[bsize]);
+  for (int i = 0; i < 12; ++i) {
+    dip_pruning_in->inputs[4].values[i] = dip_mode_model_log_rd[i];
+  }
+  float dip_prune_output = -1.0;
+  intra_dip_mode_prune_tflite(&td->dip_pruning_model, &dip_prune_output,
+                              adjusted_qindex);
+  const float dip_prune_threshold = DIP_PRUNING_THRESHOLDS[dip_model_index];
+
+  return dip_prune_output >= dip_prune_threshold;
+}
+
 static void rd_pick_intra_dip_sby_modelrd(
     const AV2_COMP *const cpi, MACROBLOCK *x, BLOCK_SIZE bsize, int mode_cost,
     DIPModeRDInfo intra_model_rds[TOP_DIP_INTRA_MODEL_COUNT],
@@ -52,22 +127,22 @@ static void rd_pick_intra_dip_sby_modelrd(
   int has_transpose = av2_intra_dip_has_transpose(bsize);
   int num_transpose = has_transpose ? 2 : 1;
 
-  for (int i = 0; i < TOP_DIP_INTRA_MODEL_COUNT; i++) {
+  for (int i = 0; i < TOP_DIP_INTRA_MODEL_COUNT; ++i) {
     intra_model_rds[i].modelrd = INT64_MAX;
   }
 
-  for (int transpose = 0; transpose < num_transpose; transpose++) {
-    for (int ml_mode = 0; ml_mode < num_modes; ml_mode++) {
-      int mode = (transpose << 4) + ml_mode;
+  for (int transpose = 0; transpose < num_transpose; ++transpose) {
+    for (int ml_mode = 0; ml_mode < num_modes; ++ml_mode) {
+      int mode = get_intra_dip_mode(transpose, ml_mode);
       int dip_index = ml_mode + transpose * num_modes;
       mbmi->intra_dip_mode = mode;
       const int64_t this_model_rd = intra_model_yrd(cpi, x, bsize, mode_cost);
       dip_mode_model_log_rd[dip_index] =
           log10f((float)AVMMAX(this_model_rd, 1));
 
-      for (int i = 0; i < TOP_DIP_INTRA_MODEL_COUNT; i++) {
+      for (int i = 0; i < TOP_DIP_INTRA_MODEL_COUNT; ++i) {
         if (this_model_rd < intra_model_rds[i].modelrd) {
-          for (int j = TOP_DIP_INTRA_MODEL_COUNT - 1; j > i; j--) {
+          for (int j = TOP_DIP_INTRA_MODEL_COUNT - 1; j > i; --j) {
             intra_model_rds[j] = intra_model_rds[j - 1];
           }
           intra_model_rds[i].modelrd = this_model_rd;
@@ -78,51 +153,17 @@ static void rd_pick_intra_dip_sby_modelrd(
     }
   }
 }
-/*! \brief Extra features passed to DIP pruning model. */
-struct extra_dip_info {
-  /*! \brief Whether any intra mode beats best_rd passed to intra search. */
-  int beat_best_rd;
-  /*! \brief RD cost of the DC mode. */
-  int64_t dc_mode_rd;
-  /*! \brief The best_rd passed to intra search. */
-  int64_t orig_best_rd;
-  /*! \brief Best non-DIP mode found during intra search. */
-  int best_mode;
-};
 #endif  // CONFIG_DIP_EXT_PRUNING
 
-/*!\brief Search for the best intra_dip mode when coding intra frame.
+/*! \brief Initialize macroblock mode info fields for intra DIP search.
  *
- * \ingroup intra_mode_search
- * \callergraph
- * This function loops through all intra_dip modes to find the best one.
- *
- * \return Returns 1 if a new intra_dip mode is selected; 0 otherwise.
- */
-static int rd_pick_intra_dip_sby(const AV2_COMP *const cpi, ThreadData *td,
-                                 MACROBLOCK *x, int *rate, int *rate_tokenonly,
-                                 int64_t *distortion, int *skippable,
-                                 BLOCK_SIZE bsize, int mode_cost,
-                                 int64_t *best_rd, int64_t *best_model_rd,
-                                 PICK_MODE_CONTEXT *ctx
-#if CONFIG_DIP_EXT_PRUNING
-                                 ,
-                                 struct extra_dip_info *extra
-#endif  // CONFIG_DIP_EXT_PRUNING
-) {
-  MACROBLOCKD *const xd = &x->e_mbd;
-  MB_MODE_INFO *mbmi = xd->mi[0];
-  int intra_dip_selected_flag = 0;
-  int best_ml_mode = 0;
-  TX_SIZE best_tx_size = TX_8X8;
-  TX_PARTITION_TYPE best_tx_partition = TX_PARTITION_NONE;
-  TX_TYPE best_tx_type_map[MAX_MIB_SIZE * MAX_MIB_SIZE];
-  (void)ctx;
-  mbmi->use_intra_dip = 1;
+ * \param[out]  mbmi  Pointer to macroblock mode info structure to initialize.
+ * \param[in]   xd    Pointer to macroblock decoder context containing segment
+                      info.
+*/
+static AVM_INLINE void init_mbmi_for_intra_dip(MB_MODE_INFO *mbmi,
+                                               const MACROBLOCKD *xd) {
   mbmi->mode = DC_PRED;
-  mbmi->palette_mode_info.palette_size[0] = 0;
-  mbmi->mrl_index = 0;
-  mbmi->multi_line_mrl = 0;
   if (xd->lossless[mbmi->segment_id]) {
     mbmi->use_dpcm_y = 0;
     mbmi->dpcm_mode_y = 0;
@@ -138,6 +179,35 @@ static int rd_pick_intra_dip_sby(const AV2_COMP *const cpi, ThreadData *td,
 
   mbmi->angle_delta[PLANE_TYPE_Y] = 0;
   mbmi->angle_delta[PLANE_TYPE_UV] = 0;
+}
+
+/*! \brief Search for the best intra_dip mode when coding intra frame.
+ *
+ * \ingroup intra_mode_search
+ * \callergraph
+ * This function loops through all intra_dip modes to find the best one.
+ *
+ * \return Returns 1 if a new intra_dip mode is selected; 0 otherwise.
+ */
+static bool rd_pick_intra_dip_sby(const AV2_COMP *const cpi, ThreadData *td,
+                                  MACROBLOCK *x, int *rate, int *rate_tokenonly,
+                                  int64_t *distortion, int *skippable,
+                                  BLOCK_SIZE bsize, int mode_cost,
+                                  int64_t *best_rd, int64_t *best_model_rd,
+                                  PICK_MODE_CONTEXT *ctx) {
+  MACROBLOCKD *const xd = &x->e_mbd;
+  MB_MODE_INFO *mbmi = xd->mi[0];
+  bool intra_dip_selected = false;
+  int best_ml_mode = 0;
+  TX_SIZE best_tx_size = TX_8X8;
+  TX_PARTITION_TYPE best_tx_partition = TX_PARTITION_NONE;
+  TX_TYPE best_tx_type_map[MAX_MIB_SIZE * MAX_MIB_SIZE];
+  mbmi->use_intra_dip = 1;
+  mbmi->palette_mode_info.palette_size[PLANE_TYPE_Y] = 0;
+  mbmi->mrl_index = 0;
+  mbmi->multi_line_mrl = 0;
+  init_mbmi_for_intra_dip(mbmi, xd);
+
   int num_modes = av2_intra_dip_modes(bsize);
   int has_transpose = av2_intra_dip_has_transpose(bsize);
   int num_transpose = has_transpose ? 2 : 1;
@@ -145,141 +215,88 @@ static int rd_pick_intra_dip_sby(const AV2_COMP *const cpi, ThreadData *td,
 #if CONFIG_DIP_EXT_PRUNING
   float dip_mode_model_log_rd[12] = { 0.0f };
 
+  // Save baseline MB_MODE_INFO state since model RD evaluation modifies mbmi
+  // fields.
   MB_MODE_INFO base_mbmi = *mbmi;
   DIPModeRDInfo intra_model_rds[TOP_DIP_INTRA_MODEL_COUNT];
 
   rd_pick_intra_dip_sby_modelrd(cpi, x, bsize, mode_cost, intra_model_rds,
                                 dip_mode_model_log_rd);
-  int16_t intra_dip_features[11];
-  for (int i = 0; i < 11; i++) {
-    intra_dip_features[i] = mbmi->intra_dip_features[i];
-  }
 
+  // Evaluate pruning decision using intra_dip_features computed by modelrd
+  // pass.
+  const bool pred_keep = keep_intra_dip_mode(
+      td, x, bsize, mbmi->intra_dip_features, dip_mode_model_log_rd, *best_rd,
+      *best_model_rd, cpi->common.seq_params.base_y_dc_delta_q);
+
+  // Restore baseline mode info after ML pruning evaluation.
   *mbmi = base_mbmi;
-  const int dc_q =
-      av2_dc_quant_QTX(x->qindex, 0, cpi->common.seq_params.base_y_dc_delta_q,
-                       xd->bd) >>
-      (xd->bd - 8);
 
-  // Clamp all RD values to a minimum of 1 to avoid arithmetic exceptions.
-  const float log_best_rd = log10f((float)AVMMAX(*best_rd, 1));
-  const float log_best_model_rd = log10f((float)AVMMAX(*best_model_rd, 1));
-  const float log_dc_mode_rd = log10f((float)AVMMAX(extra->dc_mode_rd, 1));
-  const float log_orig_best_rd = log10f((float)AVMMAX(extra->orig_best_rd, 1));
-  bool pred_keep = true;
-  int adjusted_qindex = x->qindex - MAXQ_OFFSET * (xd->bd - 8);
-  int dip_model_index = intra_dip_mode_prune_get_model_index(adjusted_qindex);
-  if (dip_model_index != -1) {
-    dip_pruning_inputs *dip_pruning_in = intra_dip_mode_prune_get_inputs(
-        &td->dip_pruning_model, adjusted_qindex);
-
-    dip_pruning_in->inputs[0].values[0] = log_best_model_rd;
-    dip_pruning_in->inputs[0].values[1] = log_best_rd;
-    dip_pruning_in->inputs[0].values[2] = log10f(dc_q);
-    dip_pruning_in->inputs[0].values[3] = log_dc_mode_rd;
-    dip_pruning_in->inputs[0].values[4] = log_orig_best_rd;
-    for (int i = 0; i < 13; i++) {
-      dip_pruning_in->inputs[0].values[5 + i] = (float)(extra->best_mode == i);
-    }
-    dip_pruning_in->inputs[0].values[18] = extra->beat_best_rd;
-    intra_dip_mode_prune_normalize_and_resize_8x8(
-        x->plane[0].src.buf, x->plane[0].src.stride, xd->bd,
-        block_size_wide[bsize], block_size_high[bsize],
-        &dip_pruning_in->inputs[1].values[0]);
-    float norm = (float)((1 << xd->bd) - 1);
-    for (int i = 0; i < 11; i++) {
-      dip_pruning_in->inputs[2].values[i] = (float)intra_dip_features[i] / norm;
-    }
-    dip_pruning_in->inputs[3].values[0] = log2f((float)block_size_wide[bsize]);
-    dip_pruning_in->inputs[3].values[1] = log2f((float)block_size_high[bsize]);
-    for (int i = 0; i < 12; i++) {
-      dip_pruning_in->inputs[4].values[i] = dip_mode_model_log_rd[i];
-    }
-    float dip_prune_output = -1.0;
-    intra_dip_mode_prune_tflite(&td->dip_pruning_model, &dip_prune_output,
-                                adjusted_qindex);
-    float dip_prune_threshold = DIP_PRUNING_THRESHOLDS[dip_model_index];
-    pred_keep = dip_prune_output >= dip_prune_threshold;
+  if (!pred_keep) {
+    mbmi->use_intra_dip = 0;
+    return false;
   }
-  if (pred_keep) {
 #else
   (void)td;
 #endif  // CONFIG_DIP_EXT_PRUNING
-    for (int transpose = 0; transpose < num_transpose; transpose++) {
-      for (int ml_mode = 0; ml_mode < num_modes; ml_mode++) {
-        int mode = (transpose << 4) + ml_mode;
-        mbmi->intra_dip_mode = mode;
+
+  for (int transpose = 0; transpose < num_transpose; ++transpose) {
+    for (int ml_mode = 0; ml_mode < num_modes; ++ml_mode) {
+      int mode = get_intra_dip_mode(transpose, ml_mode);
+      mbmi->intra_dip_mode = mode;
 #if CONFIG_DIP_EXT_PRUNING
-        if (skip_this_dip_mode(intra_model_rds, mbmi->intra_dip_mode)) continue;
+      if (skip_this_dip_mode(intra_model_rds, mbmi->intra_dip_mode)) continue;
 #else
       if (model_intra_yrd_and_prune(cpi, x, bsize, mode_cost, best_model_rd)) {
         continue;
       }
 #endif  // CONFIG_DIP_EXT_PRUNING
 
-        int64_t this_rd;
-        RD_STATS tokenonly_rd_stats;
-        av2_pick_uniform_tx_size_type_yrd(cpi, x, &tokenonly_rd_stats, bsize,
-                                          *best_rd);
-        if (tokenonly_rd_stats.rate != INT_MAX) {
-          const int this_rate =
-              tokenonly_rd_stats.rate +
-              intra_mode_info_cost_y(cpi, x, mbmi, bsize, mode_cost);
-          this_rd = RDCOST(x->rdmult, this_rate, tokenonly_rd_stats.dist);
-          // Collect mode stats for multiwinner mode processing
-          const int txfm_search_done = 1;
-          const MV_REFERENCE_FRAME refs[2] = { -1, -1 };
-          store_winner_mode_stats(&cpi->common, x, mbmi, NULL, NULL, NULL, refs,
-                                  0, NULL, bsize, this_rd,
-                                  cpi->sf.winner_mode_sf.multi_winner_mode_type,
-                                  txfm_search_done);
-          if (this_rd < *best_rd) {
-            *best_rd = this_rd;
-            best_tx_size = mbmi->tx_size;
-            best_tx_partition = mbmi->tx_partition_type[0];
-            av2_copy_array(best_tx_type_map, xd->tx_type_map, ctx->num_4x4_blk);
-            memcpy(ctx->blk_skip[AVM_PLANE_Y],
-                   x->txfm_search_info.blk_skip[AVM_PLANE_Y],
-                   sizeof(*x->txfm_search_info.blk_skip[AVM_PLANE_Y]) *
-                       ctx->num_4x4_blk);
-            *rate = this_rate;
-            *rate_tokenonly = tokenonly_rd_stats.rate;
-            *distortion = tokenonly_rd_stats.dist;
-            *skippable = tokenonly_rd_stats.skip_txfm;
-            intra_dip_selected_flag = 1;
-            best_ml_mode = mode;
-          }
+      RD_STATS tokenonly_rd_stats;
+      av2_pick_uniform_tx_size_type_yrd(cpi, x, &tokenonly_rd_stats, bsize,
+                                        *best_rd);
+      if (tokenonly_rd_stats.rate != INT_MAX) {
+        const int this_rate =
+            tokenonly_rd_stats.rate +
+            intra_mode_info_cost_y(cpi, x, mbmi, bsize, mode_cost);
+        int64_t this_rd = RDCOST(x->rdmult, this_rate, tokenonly_rd_stats.dist);
+        // Collect mode stats for multiwinner mode processing.
+        const int txfm_search_done = 1;
+        const MV_REFERENCE_FRAME refs[2] = { NONE_FRAME, NONE_FRAME };
+        store_winner_mode_stats(&cpi->common, x, mbmi, NULL, NULL, NULL, refs,
+                                0, NULL, bsize, this_rd,
+                                cpi->sf.winner_mode_sf.multi_winner_mode_type,
+                                txfm_search_done);
+        if (this_rd < *best_rd) {
+          *best_rd = this_rd;
+          best_tx_size = mbmi->tx_size;
+          best_tx_partition = mbmi->tx_partition_type[0];
+          av2_copy_array(best_tx_type_map, xd->tx_type_map, ctx->num_4x4_blk);
+          memcpy(ctx->blk_skip[AVM_PLANE_Y],
+                 x->txfm_search_info.blk_skip[AVM_PLANE_Y],
+                 sizeof(*x->txfm_search_info.blk_skip[AVM_PLANE_Y]) *
+                     ctx->num_4x4_blk);
+          *rate = this_rate;
+          *rate_tokenonly = tokenonly_rd_stats.rate;
+          *distortion = tokenonly_rd_stats.dist;
+          *skippable = tokenonly_rd_stats.skip_txfm;
+          intra_dip_selected = true;
+          best_ml_mode = mode;
         }
       }
     }
-#if CONFIG_DIP_EXT_PRUNING
   }
-#endif  // CONFIG_DIP_EXT_PRUNING
 
-  if (intra_dip_selected_flag) {
+  if (intra_dip_selected) {
     mbmi->intra_dip_mode = best_ml_mode;
-    mbmi->mode = DC_PRED;
     mbmi->tx_size = best_tx_size;
-    mbmi->tx_partition_type[0] = best_tx_partition;
+    mbmi->tx_partition_type[PLANE_TYPE_Y] = best_tx_partition;
     av2_copy_array(ctx->tx_type_map, best_tx_type_map, ctx->num_4x4_blk);
-    mbmi->joint_y_mode_delta_angle = DC_PRED;
-    mbmi->y_mode_idx = DC_PRED;
-    mbmi->angle_delta[PLANE_TYPE_Y] = 0;
-    mbmi->angle_delta[PLANE_TYPE_UV] = 0;
-    if (xd->lossless[mbmi->segment_id]) {
-      mbmi->use_dpcm_y = 0;
-      mbmi->dpcm_mode_y = 0;
-      mbmi->use_dpcm_uv = 0;
-      mbmi->dpcm_mode_uv = 0;
-    }
-    mbmi->fsc_mode[PLANE_TYPE_Y] = 0;
-    mbmi->fsc_mode[PLANE_TYPE_UV] = 0;
-    mbmi->use_intrabc[0] = 0;
-    mbmi->use_intrabc[1] = 0;
-    return 1;
+    init_mbmi_for_intra_dip(mbmi, xd);
+    return true;
   } else {
     mbmi->use_intra_dip = 0;
-    return 0;
+    return false;
   }
 }
 
@@ -1715,11 +1732,11 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
 
 #if CONFIG_DIP_EXT_PRUNING
   // Collect RD features for DIP ML pruning.
-  struct extra_dip_info extra_dip;
-  extra_dip.beat_best_rd = 0;
-  extra_dip.dc_mode_rd = INT64_MAX;
-  extra_dip.orig_best_rd = best_rd_so_far;
-  extra_dip.best_mode = 0;
+  DipMlInfo *dip_ml_feature = &x->dip_ml_feature;
+  dip_ml_feature->beat_best_rd = 0;
+  dip_ml_feature->dc_mode_rd = INT64_MAX;
+  dip_ml_feature->orig_best_rd = best_rd_so_far;
+  dip_ml_feature->best_mode = 0;
 #endif  // CONFIG_DIP_EXT_PRUNING
   // Flag to check rd of any intra mode is better than best_rd_so_far passed to
   // this function.
@@ -1888,7 +1905,7 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
                 RDCOST(x->rdmult, this_rate, this_distortion);
 #if CONFIG_DIP_EXT_PRUNING
             if (!fsc_mode && mbmi->mode == DC_PRED) {
-              extra_dip.dc_mode_rd = this_rd;
+              dip_ml_feature->dc_mode_rd = this_rd;
             }
 #endif  // CONFIG_DIP_EXT_PRUNING
         // Collect mode stats for multiwinner mode processing.
@@ -1923,8 +1940,8 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
                 // than best_rd_so_far passed to this function.
                 beat_best_rd = 1;
 #if CONFIG_DIP_EXT_PRUNING
-                extra_dip.beat_best_rd = 1;
-                extra_dip.best_mode = mbmi->mode;
+                dip_ml_feature->beat_best_rd = 1;
+                dip_ml_feature->best_mode = mbmi->mode;
 #endif  // CONFIG_DIP_EXT_PRUNING
                 av2_copy_array(ctx->tx_type_map, xd->tx_type_map,
                                ctx->num_4x4_blk);
@@ -1984,12 +2001,7 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
   if (try_intra_dip) {
     if (rd_pick_intra_dip_sby(cpi, td, x, rate, rate_tokenonly, distortion,
                               skippable, bsize, mode_cost, &best_rd_so_far,
-                              &best_model_rd, ctx
-#if CONFIG_DIP_EXT_PRUNING
-                              ,
-                              &extra_dip
-#endif  // CONFIG_DIP_EXT_PRUNING
-                              )) {
+                              &best_model_rd, ctx)) {
       best_mbmi = *mbmi;
     }
   }
