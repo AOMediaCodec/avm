@@ -55,8 +55,10 @@ class HBDTemporalFilterTest
   virtual void SetUp() {
     params_ = GET_PARAM(0);
     rnd_.Reset(ACMRandom::DeterministicSeed());
-    src1_ = reinterpret_cast<uint16_t *>(avm_memalign(16, 256 * 256));
-    src2_ = reinterpret_cast<uint16_t *>(avm_memalign(16, 256 * 256));
+    src1_ = reinterpret_cast<uint16_t *>(
+        avm_memalign(16, 256 * 256 * sizeof(uint16_t)));
+    src2_ = reinterpret_cast<uint16_t *>(
+        avm_memalign(16, 256 * 256 * sizeof(uint16_t)));
 
     ASSERT_TRUE(src1_ != NULL);
     ASSERT_TRUE(src2_ != NULL);
@@ -69,40 +71,20 @@ class HBDTemporalFilterTest
   }
   void RunTest(int isRandom, int width, int height, int run_times, int bd);
 
-  void GenRandomData(int width, int height, int stride, int stride2, int bd) {
-    if (bd == 10) {
-      for (int ii = 0; ii < height; ii++) {
-        for (int jj = 0; jj < width; jj++) {
-          src1_[ii * stride + jj] = rnd_.Rand16() & 0x3FF;
-          src2_[ii * stride2 + jj] = rnd_.Rand16() & 0x3FF;
-        }
-      }
-    } else {
-      for (int ii = 0; ii < height; ii++) {
-        for (int jj = 0; jj < width; jj++) {
-          src1_[ii * stride + jj] = rnd_.Rand16() & 0xFFF;
-          src2_[ii * stride2 + jj] = rnd_.Rand16() & 0xFFF;
-        }
-      }
+  void GenRandomData(int num_samples, int bd) {
+    const uint16_t mask = (bd == 10) ? 0x3FF : 0xFFF;
+    for (int ii = 0; ii < num_samples; ii++) {
+      src1_[ii] = rnd_.Rand16() & mask;
+      src2_[ii] = rnd_.Rand16() & mask;
     }
   }
 
-  void GenExtremeData(int width, int height, int stride, uint16_t *data,
-                      int stride2, uint16_t *data2, uint16_t val, int bd) {
-    if (bd == 10) {
-      for (int ii = 0; ii < height; ii++) {
-        for (int jj = 0; jj < width; jj++) {
-          data[ii * stride + jj] = val;
-          data2[ii * stride2 + jj] = (1023 - val);
-        }
-      }
-    } else {
-      for (int ii = 0; ii < height; ii++) {
-        for (int jj = 0; jj < width; jj++) {
-          data[ii * stride + jj] = val;
-          data2[ii * stride2 + jj] = (4095 - val);
-        }
-      }
+  void GenExtremeData(int num_samples, uint16_t *data, uint16_t *data2,
+                      uint16_t val, int bd) {
+    const uint16_t max_val = (bd == 10) ? 1023 : 4095;
+    for (int ii = 0; ii < num_samples; ii++) {
+      data[ii] = val;
+      data2[ii] = (max_val - val);
     }
   }
 
@@ -119,52 +101,67 @@ void HBDTemporalFilterTest::RunTest(int isRandom, int width, int height,
                                     int run_times, int BD) {
   avm_usec_timer ref_timer, test_timer;
   for (int k = 0; k < 3; k++) {
-    const int stride = width;
-    const int stride2 = width;
+    const int total_samples = 4096 * 3;
     if (isRandom) {
-      GenRandomData(width, height, stride, stride2, BD);
+      GenRandomData(total_samples, BD);
     } else {
       const int msb = BD;
       const uint16_t limit = (1 << msb) - 1;
       if (k == 0) {
-        GenExtremeData(width, height, stride, src1_, stride2, src2_, limit, BD);
+        GenExtremeData(total_samples, src1_, src2_, limit, BD);
       } else {
-        GenExtremeData(width, height, stride, src1_, stride2, src2_, 0, BD);
+        GenExtremeData(total_samples, src1_, src2_, 0, BD);
       }
     }
-    double sigma[1] = { 2.1002103677063437 };
-    DECLARE_ALIGNED(16, unsigned int, accumulator_ref[1024 * 3]);
-    DECLARE_ALIGNED(16, uint16_t, count_ref[1024 * 3]);
-    memset(accumulator_ref, 0, 1024 * 3 * sizeof(accumulator_ref[0]));
-    memset(count_ref, 0, 1024 * 3 * sizeof(count_ref[0]));
-    DECLARE_ALIGNED(16, unsigned int, accumulator_mod[1024 * 3]);
-    DECLARE_ALIGNED(16, uint16_t, count_mod[1024 * 3]);
-    memset(accumulator_mod, 0, 1024 * 3 * sizeof(accumulator_mod[0]));
-    memset(count_mod, 0, 1024 * 3 * sizeof(count_mod[0]));
+    double sigma[3] = { 2.1002103677063437, 2.1002103677063437,
+                        2.1002103677063437 };
+    DECLARE_ALIGNED(16, unsigned int, accumulator_ref[4096 * 3]);
+    DECLARE_ALIGNED(16, uint16_t, count_ref[4096 * 3]);
+    memset(accumulator_ref, 0, 4096 * 3 * sizeof(accumulator_ref[0]));
+    memset(count_ref, 0, 4096 * 3 * sizeof(count_ref[0]));
+    DECLARE_ALIGNED(16, unsigned int, accumulator_mod[4096 * 3]);
+    DECLARE_ALIGNED(16, uint16_t, count_mod[4096 * 3]);
+    memset(accumulator_mod, 0, 4096 * 3 * sizeof(accumulator_mod[0]));
+    memset(count_mod, 0, 4096 * 3 * sizeof(count_mod[0]));
 
-    assert(width == 32 && height == 32);
-    const BLOCK_SIZE block_size = BLOCK_32X32;
-    const MV subblock_mvs[4] = { { 0, 0 }, { 5, 5 }, { 7, 8 }, { 2, 10 } };
-    const int subblock_mses[4] = { 15, 16, 17, 18 };
+    assert(width == 64 && height == 64);
+    const BLOCK_SIZE block_size = BLOCK_64X64;
+    const MV subblock_mvs[16] = {
+      { 0, 0 },   { 1, 2 },   { 2, 1 },  { 3, 3 }, { 5, 5 }, { 4, 6 },
+      { 6, 4 },   { 7, 7 },   { 7, 8 },  { 8, 7 }, { 9, 6 }, { 6, 9 },
+      { 32, 30 }, { 50, 42 }, { 11, 4 }, { 4, 11 }
+    };
+    const int subblock_mses[16] = { 15, 16, 17, 18, 19, 20, 21, 22,
+                                    23, 24, 25, 26, 27, 28, 29, 30 };
     const int q_factor = 12;
     const int filter_strength = 5;
     const int mb_row = 0;
     const int mb_col = 0;
-    const int num_planes = 1;
+    const int num_planes = 3;
     YV12_BUFFER_CONFIG *ref_frame =
         (YV12_BUFFER_CONFIG *)malloc(sizeof(YV12_BUFFER_CONFIG));
+    memset(ref_frame, 0, sizeof(YV12_BUFFER_CONFIG));
     ref_frame->y_crop_height = 360;
     ref_frame->y_crop_width = 540;
-    ref_frame->heights[0] = height;
-    ref_frame->strides[0] = stride;
-    DECLARE_ALIGNED(16, uint16_t, src[1024 * 3]);
+    ref_frame->heights[0] = 64;
+    ref_frame->strides[0] = 64;
+    ref_frame->heights[1] = 32;
+    ref_frame->strides[1] = 32;
+    DECLARE_ALIGNED(16, uint16_t, src[4096 * 3]);
     ref_frame->buffer_alloc = (uint8_t *)src;
     ref_frame->buffers[0] = src;
-    memcpy(src, src1_, 1024 * 3 * sizeof(uint16_t));
+    ref_frame->buffers[1] = src + 4096;
+    ref_frame->buffers[2] = src + 4096 + 1024;
+    memcpy(src, src1_, 4096 * 3 * sizeof(uint16_t));
 
     MACROBLOCKD *mbd = (MACROBLOCKD *)malloc(sizeof(MACROBLOCKD));
+    memset(mbd, 0, sizeof(MACROBLOCKD));
     mbd->plane[0].subsampling_y = 0;
     mbd->plane[0].subsampling_x = 0;
+    mbd->plane[1].subsampling_y = 1;
+    mbd->plane[1].subsampling_x = 1;
+    mbd->plane[2].subsampling_y = 1;
+    mbd->plane[2].subsampling_x = 1;
     mbd->bd = BD;
 
     params_.ref_func(ref_frame, mbd, block_size, mb_row, mb_col, num_planes,
@@ -182,7 +179,7 @@ void HBDTemporalFilterTest::RunTest(int isRandom, int width, int height,
                          filter_strength, src2_, accumulator_ref, count_ref);
       }
       avm_usec_timer_mark(&ref_timer);
-      const int elapsed_time_c =
+      const int elapsed_time_ref =
           static_cast<int>(avm_usec_timer_elapsed(&ref_timer));
 
       avm_usec_timer_start(&test_timer);
@@ -192,26 +189,50 @@ void HBDTemporalFilterTest::RunTest(int isRandom, int width, int height,
                          filter_strength, src2_, accumulator_mod, count_mod);
       }
       avm_usec_timer_mark(&test_timer);
-      const int elapsed_time_simd =
+      const int elapsed_time_tst =
           static_cast<int>(avm_usec_timer_elapsed(&test_timer));
 
       printf(
-          "c_time=%d \t simd_time=%d \t "
-          "gain=%f\t width=%d\t height=%d \n",
-          elapsed_time_c, elapsed_time_simd,
-          (float)((float)elapsed_time_c / (float)elapsed_time_simd), width,
-          height);
+          "ref_time=%d us \t tst_time=%d us \t "
+          "gain=%.2fx (%.1f%% reduction)\t width=%d\t height=%d \n",
+          elapsed_time_ref, elapsed_time_tst,
+          (float)elapsed_time_ref / (float)elapsed_time_tst,
+          (1.0f - (float)elapsed_time_tst / (float)elapsed_time_ref) * 100.0f,
+          width, height);
 
     } else {
-      for (int i = 0, l = 0; i < height; i++) {
-        for (int j = 0; j < width; j++, l++) {
-          EXPECT_EQ(accumulator_ref[l], accumulator_mod[l])
-              << "Error:" << k << " SSE Sum Test [" << width << "x" << height
-              << "] C accumulator does not match optimized accumulator.";
-          EXPECT_EQ(count_ref[l], count_mod[l])
-              << "Error:" << k << " SSE Sum Test [" << width << "x" << height
-              << "] C count does not match optimized count.";
-        }
+      // Check Plane 0 (Y: 64x64 = 4096 pixels)
+      for (int l = 0; l < 4096; l++) {
+        EXPECT_EQ(accumulator_ref[l], accumulator_mod[l])
+            << "Error:" << k << " SSE Sum Test [" << width << "x" << height
+            << "] Ref accumulator does not match Test accumulator at plane 0 "
+               "index "
+            << l;
+        EXPECT_EQ(count_ref[l], count_mod[l])
+            << "Error:" << k << " SSE Sum Test [" << width << "x" << height
+            << "] Ref count does not match Test count at plane 0 index " << l;
+      }
+      // Check Plane 1 (U: 32x32 = 1024 pixels)
+      for (int l = 4096; l < 4096 + 1024; l++) {
+        EXPECT_EQ(accumulator_ref[l], accumulator_mod[l])
+            << "Error:" << k << " SSE Sum Test [" << width << "x" << height
+            << "] Ref accumulator does not match Test accumulator at plane 1 "
+               "index "
+            << l;
+        EXPECT_EQ(count_ref[l], count_mod[l])
+            << "Error:" << k << " SSE Sum Test [" << width << "x" << height
+            << "] Ref count does not match Test count at plane 1 index " << l;
+      }
+      // Check Plane 2 (V: 32x32 = 1024 pixels)
+      for (int l = 8192; l < 8192 + 1024; l++) {
+        EXPECT_EQ(accumulator_ref[l], accumulator_mod[l])
+            << "Error:" << k << " SSE Sum Test [" << width << "x" << height
+            << "] Ref accumulator does not match Test accumulator at plane 2 "
+               "index "
+            << l;
+        EXPECT_EQ(count_ref[l], count_mod[l])
+            << "Error:" << k << " SSE Sum Test [" << width << "x" << height
+            << "] Ref count does not match Test count at plane 2 index " << l;
       }
     }
 
@@ -221,20 +242,20 @@ void HBDTemporalFilterTest::RunTest(int isRandom, int width, int height,
 }
 
 TEST_P(HBDTemporalFilterTest, OperationCheck) {
-  for (int height = 32; height <= 32; height = height * 2) {
-    RunTest(1, height, height, 1, 10);  // GenRandomData
-  }
+  RunTest(1, 64, 64, 1, 10);  // GenRandomData
 }
 
-TEST_P(HBDTemporalFilterTest, ExtremeValues) {
-  for (int height = 32; height <= 32; height = height * 2) {
-    RunTest(0, height, height, 1, 10);
-  }
-}
+TEST_P(HBDTemporalFilterTest, ExtremeValues) { RunTest(0, 64, 64, 1, 10); }
 
-TEST_P(HBDTemporalFilterTest, DISABLED_Speed) {
-  for (int height = 32; height <= 32; height = height * 2) {
-    RunTest(1, height, height, 100000, 10);
-  }
-}
+TEST_P(HBDTemporalFilterTest, DISABLED_Speed) { RunTest(1, 64, 64, 10000, 10); }
+
+#if HAVE_SSE2
+INSTANTIATE_TEST_SUITE_P(
+    SSE2, HBDTemporalFilterTest,
+    ::testing::Values(HBDTemporalFilterWithParam(
+        HBDTemporalFilterFuncParam(&av2_highbd_apply_temporal_filter_c,
+                                   &av2_highbd_apply_temporal_filter_sse2),
+        10)));
+#endif  // HAVE_SSE2
+
 }  // namespace
