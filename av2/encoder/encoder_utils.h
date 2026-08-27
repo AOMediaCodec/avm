@@ -945,6 +945,8 @@ static AVM_INLINE void update_subgop_ref_stats(
 void av2_update_film_grain_parameters(struct AV2_COMP *cpi,
                                       const AV2EncoderConfig *oxcf);
 
+void reset_film_grain_chroma_params(avm_film_grain_t *pars);
+
 void av2_scale_references(AV2_COMP *cpi, const InterpFilter filter,
                           const int phase, const int use_optimized_scaler);
 

@@ -5313,6 +5313,12 @@ static int apply_denoise_2d(AV2_COMP *cpi, YV12_BUFFER_CONFIG *sd,
     if (cm->film_grain_params.apply_grain) {
       cm->film_grain_params.block_size =
           cpi->oxcf.tune_cfg.film_grain_block_size;
+      // For monochrome sequence, drop the chroma estimates
+      // here so the model that gets written matches what the decoder parses;
+      // otherwise the chroma AR coefficients are written but never read and
+      // the bitstream desynchronises.
+      if (cm->seq_params.monochrome)
+        reset_film_grain_chroma_params(&cm->film_grain_params);
       avm_film_grain_table_append(cpi->film_grain_table, time_stamp, end_time,
                                   &cm->film_grain_params);
     }
