@@ -11,6 +11,7 @@
  */
 
 #include <math.h>
+#include <stddef.h>
 #include <string.h>
 #include <float.h>
 
@@ -25,61 +26,17 @@
 #include "av2/encoder/encoder.h"
 #include "av2/encoder/pickccso.h"
 
-typedef struct {
-  uint8_t final_band_log2;
-  int8_t best_filter_offset[CCSO_BAND_NUM * 16];
-  int8_t final_filter_offset[CCSO_BAND_NUM * 16];
-  bool best_filter_enabled;
-  bool final_filter_enabled;
-  uint8_t final_ext_filter_support;
-  int final_reuse_ccso;
-  int final_sb_reuse_ccso;
-  uint8_t final_scale_idx;
-  uint8_t final_quant_idx;
-  uint8_t final_ccso_bo_only;
-
-  uint16_t *temp_rec_uv_buf;
-  uint8_t *src_cls0;
-  uint8_t *src_cls1;
-  int chroma_error[CCSO_BAND_NUM * 16];
-  int chroma_count[CCSO_BAND_NUM * 16];
-  int *total_class_err[CCSO_INPUT_INTERVAL][CCSO_INPUT_INTERVAL][CCSO_BAND_NUM];
-  int *total_class_cnt[CCSO_INPUT_INTERVAL][CCSO_INPUT_INTERVAL][CCSO_BAND_NUM];
-  int *total_class_err_bo[CCSO_BAND_NUM];
-  int *total_class_cnt_bo[CCSO_BAND_NUM];
-  int ccso_stride;
-  int ccso_stride_ext;
-  bool *filter_control;
-  bool *best_filter_control;
-  bool *final_filter_control;
-  uint64_t unfiltered_dist_frame;
-  uint64_t filtered_dist_frame;
-  uint64_t *unfiltered_dist_block;
-  uint64_t *training_dist_block;
-  int *reuse_total_class_err[CCSO_INPUT_INTERVAL][CCSO_INPUT_INTERVAL]
-                            [CCSO_BAND_NUM];
-  int *reuse_total_class_cnt[CCSO_INPUT_INTERVAL][CCSO_INPUT_INTERVAL]
-                            [CCSO_BAND_NUM];
-
-  // Single backing allocations of arrays above.
-  int *class_err_slab;        // backs total_class_err
-  int *class_cnt_slab;        // backs total_class_cnt
-  int *class_err_bo_slab;     // backs total_class_err
-  int *class_cnt_bo_slab;     // backs total_class_cnt
-  int *reuse_class_err_slab;  // backs reuse_total_class_err
-  int *reuse_class_cnt_slab;  // backs reuse_total_class_cnt
-} CcsoCtx;
-
-// Number of (d0, d1, band) combinations spanned by total_class_err/cnt and
-// reuse_total_class_err/cnt.
-#define CCSO_CLASS_STATS_ENTRIES \
-  (CCSO_INPUT_INTERVAL * CCSO_INPUT_INTERVAL * CCSO_BAND_NUM)
-
 const int ccso_offset[8] = { -10, -7, -3, -1, 0, 1, 3, 7 };
 const int ccso_scale[4] = { 1, 2, 3, 4 };
 
 static INLINE bool reuse_ccso_class_info(const AV2_COMMON *cm) {
   return !(cm->bru.enabled);
+}
+
+// Resets per-frame state in a persistent CcsoCtx while preserving all
+// allocated buffer pointers and size-tracking fields.
+static void ccso_ctx_reset(CcsoCtx *ctx) {
+  memset(ctx, 0, offsetof(CcsoCtx, class_err_slab));
 }
 
 void ccso_derive_src_block_c(const uint16_t *src_y, uint8_t *const src_cls0,
@@ -1100,21 +1057,94 @@ static void derive_lut_offset(int8_t *temp_filter_offset, int scale_idx,
 // Allocates buffers required for ccso parameter rdo search
 static void ccso_alloc_search_buffers(AV2_COMMON *cm, MACROBLOCKD *xd,
                                       CcsoCtx *ctx, int sb_count) {
-  int *p;
+  const size_t luma_size =
+      (size_t)xd->plane[AVM_PLANE_Y].dst.height * ctx->ccso_stride;
 
-  CHECK_MEM_ERROR(cm, ctx->class_err_slab,
-                  avm_malloc(sizeof(*ctx->class_err_slab) *
-                             CCSO_CLASS_STATS_ENTRIES * sb_count));
-  p = ctx->class_err_slab;
+  if (sb_count > ctx->alloc_sb_count) {
+    ctx->alloc_sb_count = 0;
+    avm_free(ctx->class_err_slab);
+    CHECK_MEM_ERROR(cm, ctx->class_err_slab,
+                    avm_malloc(sizeof(*ctx->class_err_slab) *
+                               CCSO_CLASS_STATS_ENTRIES * sb_count));
+
+    avm_free(ctx->class_cnt_slab);
+    CHECK_MEM_ERROR(cm, ctx->class_cnt_slab,
+                    avm_malloc(sizeof(*ctx->class_cnt_slab) *
+                               CCSO_CLASS_STATS_ENTRIES * sb_count));
+
+    avm_free(ctx->class_err_bo_slab);
+    CHECK_MEM_ERROR(
+        cm, ctx->class_err_bo_slab,
+        avm_malloc(sizeof(*ctx->class_err_bo_slab) * CCSO_BAND_NUM * sb_count));
+
+    avm_free(ctx->class_cnt_bo_slab);
+    CHECK_MEM_ERROR(
+        cm, ctx->class_cnt_bo_slab,
+        avm_malloc(sizeof(*ctx->class_cnt_bo_slab) * CCSO_BAND_NUM * sb_count));
+
+    avm_free(ctx->unfiltered_dist_block);
+    CHECK_MEM_ERROR(cm, ctx->unfiltered_dist_block,
+                    avm_malloc(sb_count * sizeof(*ctx->unfiltered_dist_block)));
+
+    avm_free(ctx->training_dist_block);
+    CHECK_MEM_ERROR(cm, ctx->training_dist_block,
+                    avm_malloc(sb_count * sizeof(*ctx->training_dist_block)));
+
+    avm_free(ctx->filter_control);
+    CHECK_MEM_ERROR(cm, ctx->filter_control,
+                    avm_malloc(sb_count * sizeof(*ctx->filter_control)));
+
+    avm_free(ctx->best_filter_control);
+    CHECK_MEM_ERROR(cm, ctx->best_filter_control,
+                    avm_malloc(sb_count * sizeof(*ctx->best_filter_control)));
+
+    avm_free(ctx->final_filter_control);
+    CHECK_MEM_ERROR(cm, ctx->final_filter_control,
+                    avm_malloc(sb_count * sizeof(*ctx->final_filter_control)));
+
+    ctx->alloc_sb_count = sb_count;
+  }
+
+  if (reuse_ccso_class_info(cm) && sb_count > ctx->alloc_reuse_sb_count) {
+    ctx->alloc_reuse_sb_count = 0;
+    avm_free(ctx->reuse_class_err_slab);
+    CHECK_MEM_ERROR(cm, ctx->reuse_class_err_slab,
+                    avm_malloc(sizeof(*ctx->reuse_class_err_slab) *
+                               CCSO_CLASS_STATS_ENTRIES * sb_count));
+
+    avm_free(ctx->reuse_class_cnt_slab);
+    CHECK_MEM_ERROR(cm, ctx->reuse_class_cnt_slab,
+                    avm_malloc(sizeof(*ctx->reuse_class_cnt_slab) *
+                               CCSO_CLASS_STATS_ENTRIES * sb_count));
+
+    ctx->alloc_reuse_sb_count = sb_count;
+  }
+
+  if (luma_size > ctx->alloc_luma_size) {
+    ctx->alloc_luma_size = 0;
+    avm_free(ctx->temp_rec_uv_buf);
+    CHECK_MEM_ERROR(cm, ctx->temp_rec_uv_buf,
+                    avm_malloc(luma_size * sizeof(*ctx->temp_rec_uv_buf)));
+
+    avm_free(ctx->src_cls0);
+    CHECK_MEM_ERROR(cm, ctx->src_cls0,
+                    avm_malloc(luma_size * sizeof(*ctx->src_cls0)));
+
+    avm_free(ctx->src_cls1);
+    CHECK_MEM_ERROR(cm, ctx->src_cls1,
+                    avm_malloc(luma_size * sizeof(*ctx->src_cls1)));
+
+    ctx->alloc_luma_size = luma_size;
+  }
+
+  // Re-establish internal pointer layout (depends on current sb_count).
+  int *p = ctx->class_err_slab;
   for (int d0 = 0; d0 < CCSO_INPUT_INTERVAL; ++d0)
     for (int d1 = 0; d1 < CCSO_INPUT_INTERVAL; ++d1)
       for (int band_num = 0; band_num < CCSO_BAND_NUM;
            ++band_num, p += sb_count)
         ctx->total_class_err[d0][d1][band_num] = p;
 
-  CHECK_MEM_ERROR(cm, ctx->class_cnt_slab,
-                  avm_malloc(sizeof(*ctx->class_cnt_slab) *
-                             CCSO_CLASS_STATS_ENTRIES * sb_count));
   p = ctx->class_cnt_slab;
   for (int d0 = 0; d0 < CCSO_INPUT_INTERVAL; ++d0)
     for (int d1 = 0; d1 < CCSO_INPUT_INTERVAL; ++d1)
@@ -1122,24 +1152,15 @@ static void ccso_alloc_search_buffers(AV2_COMMON *cm, MACROBLOCKD *xd,
            ++band_num, p += sb_count)
         ctx->total_class_cnt[d0][d1][band_num] = p;
 
-  CHECK_MEM_ERROR(
-      cm, ctx->class_err_bo_slab,
-      avm_malloc(sizeof(*ctx->class_err_bo_slab) * CCSO_BAND_NUM * sb_count));
   p = ctx->class_err_bo_slab;
   for (int band_num = 0; band_num < CCSO_BAND_NUM; ++band_num, p += sb_count)
     ctx->total_class_err_bo[band_num] = p;
 
-  CHECK_MEM_ERROR(
-      cm, ctx->class_cnt_bo_slab,
-      avm_malloc(sizeof(*ctx->class_cnt_bo_slab) * CCSO_BAND_NUM * sb_count));
   p = ctx->class_cnt_bo_slab;
   for (int band_num = 0; band_num < CCSO_BAND_NUM; ++band_num, p += sb_count)
     ctx->total_class_cnt_bo[band_num] = p;
 
   if (reuse_ccso_class_info(cm)) {
-    CHECK_MEM_ERROR(cm, ctx->reuse_class_err_slab,
-                    avm_malloc(sizeof(*ctx->reuse_class_err_slab) *
-                               CCSO_CLASS_STATS_ENTRIES * sb_count));
     p = ctx->reuse_class_err_slab;
     for (int d0 = 0; d0 < CCSO_INPUT_INTERVAL; ++d0)
       for (int d1 = 0; d1 < CCSO_INPUT_INTERVAL; ++d1)
@@ -1147,9 +1168,6 @@ static void ccso_alloc_search_buffers(AV2_COMMON *cm, MACROBLOCKD *xd,
              ++band_num, p += sb_count)
           ctx->reuse_total_class_err[d0][d1][band_num] = p;
 
-    CHECK_MEM_ERROR(cm, ctx->reuse_class_cnt_slab,
-                    avm_malloc(sizeof(*ctx->reuse_class_cnt_slab) *
-                               CCSO_CLASS_STATS_ENTRIES * sb_count));
     p = ctx->reuse_class_cnt_slab;
     for (int d0 = 0; d0 < CCSO_INPUT_INTERVAL; ++d0)
       for (int d1 = 0; d1 < CCSO_INPUT_INTERVAL; ++d1)
@@ -1157,32 +1175,12 @@ static void ccso_alloc_search_buffers(AV2_COMMON *cm, MACROBLOCKD *xd,
              ++band_num, p += sb_count)
           ctx->reuse_total_class_cnt[d0][d1][band_num] = p;
   }
-
-  CHECK_MEM_ERROR(cm, ctx->unfiltered_dist_block,
-                  avm_malloc(sb_count * sizeof(*ctx->unfiltered_dist_block)));
-  CHECK_MEM_ERROR(cm, ctx->training_dist_block,
-                  avm_malloc(sb_count * sizeof(*ctx->training_dist_block)));
-
-  CHECK_MEM_ERROR(cm, ctx->filter_control,
-                  avm_malloc(sb_count * sizeof(*ctx->filter_control)));
-  CHECK_MEM_ERROR(cm, ctx->best_filter_control,
-                  avm_malloc(sb_count * sizeof(*ctx->best_filter_control)));
-  CHECK_MEM_ERROR(cm, ctx->final_filter_control,
-                  avm_malloc(sb_count * sizeof(*ctx->final_filter_control)));
-
-  CHECK_MEM_ERROR(cm, ctx->temp_rec_uv_buf,
-                  avm_malloc(xd->plane[AVM_PLANE_Y].dst.height *
-                             ctx->ccso_stride * sizeof(*ctx->temp_rec_uv_buf)));
-  CHECK_MEM_ERROR(cm, ctx->src_cls0,
-                  avm_malloc(xd->plane[AVM_PLANE_Y].dst.height *
-                             ctx->ccso_stride * sizeof(*ctx->src_cls0)));
-  CHECK_MEM_ERROR(cm, ctx->src_cls1,
-                  avm_malloc(xd->plane[AVM_PLANE_Y].dst.height *
-                             ctx->ccso_stride * sizeof(*ctx->src_cls1)));
 }
 
-// Frees ccso rdo search buffers.
-static void ccso_free_search_buffers(CcsoCtx *ctx) {
+// Frees all persistent CCSO encoder buffers (pixel buffers + RDO scratch).
+// Call once at encoder close via av2_remove_compressor.
+void av2_ccso_ctx_free(AV2_COMP *cpi) {
+  CcsoCtx *ctx = &cpi->ccso_ctx;
   avm_free(ctx->class_err_slab);
   avm_free(ctx->class_cnt_slab);
   avm_free(ctx->class_err_bo_slab);
@@ -1197,6 +1195,11 @@ static void ccso_free_search_buffers(CcsoCtx *ctx) {
   avm_free(ctx->temp_rec_uv_buf);
   avm_free(ctx->src_cls0);
   avm_free(ctx->src_cls1);
+  avm_free(cpi->ccso_ext_rec_y);
+  for (int plane = 0; plane < CCSO_NUM_COMPONENTS; ++plane) {
+    avm_free(cpi->ccso_rec_uv[plane]);
+    avm_free(cpi->ccso_org_uv[plane]);
+  }
 }
 
 // Writes val into the MB_MODE_INFO field that stores CCSO's per-block
@@ -1550,7 +1553,8 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV2_COMMON *cm, const int plane,
                         }
                         memcpy(ctx->temp_rec_uv_buf, rec_uv,
                                sizeof(*ctx->temp_rec_uv_buf) *
-                                   xd->plane[0].dst.height * ctx->ccso_stride);
+                                   xd->plane[plane].dst.height *
+                                   ctx->ccso_stride);
                         if (plane > 0)
                           ccso_try_chroma_filter(
                               ctx, cm, xd, plane, ext_rec_y,
@@ -1814,7 +1818,6 @@ exit_loops:
           ref_frame_ccso_info->reuse_root_ref[plane];
     }
   }
-  ccso_free_search_buffers(ctx);
 }
 
 /* Derive the look-up table for a frame */
@@ -1827,7 +1830,8 @@ void av2_ccso_search(AV2_COMMON *cm, MACROBLOCKD *xd, int rdmult,
                      ThreadData *td
 #endif
                      ,
-                     int early_terminate_ccso_search, int ccso_chroma_dep) {
+                     int early_terminate_ccso_search, int ccso_chroma_dep,
+                     CcsoCtx *ctx) {
   const int num_planes = av2_num_planes(cm);
   const int rdmult_weight = clamp(cm->quant_params.base_qindex >> 3, 1, 37);
   int rdmult_orig = rdmult;
@@ -1843,8 +1847,8 @@ void av2_ccso_search(AV2_COMMON *cm, MACROBLOCKD *xd, int rdmult,
   if ((int64_t)rdmult * rdmult_weight >= INT_MAX) {
     return;
   } else {
-    CcsoCtx *ctx;
-    CHECK_MEM_ERROR(cm, ctx, avm_calloc(1, sizeof(*ctx)));
+    ccso_ctx_reset(ctx);
+
     av2_setup_dst_planes(xd->plane, &cm->cur_frame->buf, 0, 0, 0, num_planes,
                          NULL);
     ctx->ccso_stride = xd->plane[AVM_PLANE_Y].dst.width;
@@ -1877,6 +1881,5 @@ void av2_ccso_search(AV2_COMMON *cm, MACROBLOCKD *xd, int rdmult,
                          early_terminate_ccso_search);
       cm->ccso_info.ccso_frame_flag |= cm->ccso_info.ccso_enable[0];
     }
-    avm_free(ctx);
   }
 }
