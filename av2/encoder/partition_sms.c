@@ -9,10 +9,10 @@
 #include "av2/encoder/partition_sms_weights.h"
 
 #include "av2/common/pred_common.h"
+#include "av2/encoder/ml.h"
 #include "avm_ports/system_state.h"
 
 #include <assert.h>
-#include <math.h>
 
 /* Per-bsize HORZ threshold LUT: [bsize_slot]
  * bsize_slot: 0=128x128, 1=64x64, 2=32x32, 3=16x16, 4=8x8 */
@@ -205,46 +205,45 @@ static void extract_sms_features(const AV2_COMP *cpi, const MACROBLOCK *x,
 }
 
 /* -------------------------------------------------------------------
- * MLP forward pass (2 hidden layers, ReLU)
- * Weights absorb LayerNorm and z-score normalization (see export script).
+ * Per-bsize NN configs — weight arrays live in partition_sms_weights.h
  * ------------------------------------------------------------------- */
 
-static void mlp_forward(const float *in, int in_dim, const float *w1,
-                        const float *b1, int h1, const float *w2,
-                        const float *b2, int h2, const float *w3,
-                        const float *b3, int out_dim, float *out) {
-  float buf1[SMS_UNIFIED_H1_DIM], buf2[SMS_UNIFIED_H2_DIM];
-  for (int i = 0; i < h1; ++i) {
-    float a = b1[i];
-    const float *row = w1 + i * in_dim;
-    for (int j = 0; j < in_dim; ++j) a += row[j] * in[j];
-    buf1[i] = a > 0.0f ? a : 0.0f;
-  }
-  for (int i = 0; i < h2; ++i) {
-    float a = b2[i];
-    const float *row = w2 + i * h1;
-    for (int j = 0; j < h1; ++j) a += row[j] * buf1[j];
-    buf2[i] = a > 0.0f ? a : 0.0f;
-  }
-  for (int i = 0; i < out_dim; ++i) {
-    float a = b3[i];
-    const float *row = w3 + i * h2;
-    for (int j = 0; j < h2; ++j) a += row[j] * buf2[j];
-    out[i] = a;
-  }
-}
-
-static void softmax_inplace(float *x, int n) {
-  float mx = x[0];
-  for (int i = 1; i < n; ++i)
-    if (x[i] > mx) mx = x[i];
-  float s = 0.0f;
-  for (int i = 0; i < n; ++i) {
-    x[i] = expf(x[i] - mx);
-    s += x[i];
-  }
-  for (int i = 0; i < n; ++i) x[i] /= s;
-}
+static const NN_CONFIG sms_nn_configs[SMS_N_BSIZE_SLOTS] = {
+  /* 128x128 */ { SMS_UNIFIED_IN_DIM,
+                  SMS_UNIFIED_N_CLASSES,
+                  2,
+                  { SMS_UNIFIED_H1_DIM, SMS_UNIFIED_H2_DIM },
+                  { sms_w1_128, sms_w2_128, sms_w3_128 },
+                  { sms_b1_128, sms_b2_128, sms_b3_128 } },
+  /* 64x64   */
+  { SMS_UNIFIED_IN_DIM,
+    SMS_UNIFIED_N_CLASSES,
+    2,
+    { SMS_UNIFIED_H1_DIM, SMS_UNIFIED_H2_DIM },
+    { sms_w1_64, sms_w2_64, sms_w3_64 },
+    { sms_b1_64, sms_b2_64, sms_b3_64 } },
+  /* 32x32   */
+  { SMS_UNIFIED_IN_DIM,
+    SMS_UNIFIED_N_CLASSES,
+    2,
+    { SMS_UNIFIED_H1_DIM, SMS_UNIFIED_H2_DIM },
+    { sms_w1_32, sms_w2_32, sms_w3_32 },
+    { sms_b1_32, sms_b2_32, sms_b3_32 } },
+  /* 16x16   */
+  { SMS_UNIFIED_IN_DIM,
+    SMS_UNIFIED_N_CLASSES,
+    2,
+    { SMS_UNIFIED_H1_DIM, SMS_UNIFIED_H2_DIM },
+    { sms_w1_16, sms_w2_16, sms_w3_16 },
+    { sms_b1_16, sms_b2_16, sms_b3_16 } },
+  /* 8x8     */
+  { SMS_UNIFIED_IN_DIM,
+    SMS_UNIFIED_N_CLASSES,
+    2,
+    { SMS_UNIFIED_H1_DIM, SMS_UNIFIED_H2_DIM },
+    { sms_w1_8, sms_w2_8, sms_w3_8 },
+    { sms_b1_8, sms_b2_8, sms_b3_8 } },
+};
 
 /* -------------------------------------------------------------------
  * Public API — Step 1: compute and cache MLP output
@@ -259,35 +258,16 @@ void av2_sms_unified_compute(AV2_COMP *const cpi, MACROBLOCK *x,
 
   avm_clear_system_state();
 
-  /* Select per-bsize weights (dims are shared across all bsizes) */
-  const int in_dim = SMS_UNIFIED_IN_DIM;
-  const int h1 = SMS_UNIFIED_H1_DIM;
-  const int h2 = SMS_UNIFIED_H2_DIM;
-  const float *w1, *b1, *w2, *b2, *w3, *b3;
-  switch (bsize) {
-#define SMS_WEIGHTS(SFX) \
-  w1 = sms_w1_##SFX;     \
-  b1 = sms_b1_##SFX;     \
-  w2 = sms_w2_##SFX;     \
-  b2 = sms_b2_##SFX;     \
-  w3 = sms_w3_##SFX;     \
-  b3 = sms_b3_##SFX;     \
-  break;
-    case BLOCK_128X128: SMS_WEIGHTS(128)
-    case BLOCK_64X64: SMS_WEIGHTS(64)
-    case BLOCK_32X32: SMS_WEIGHTS(32)
-    case BLOCK_16X16: SMS_WEIGHTS(16)
-    case BLOCK_8X8: SMS_WEIGHTS(8)
-#undef SMS_WEIGHTS
-    default: return;
-  }
+  const int slot = sms_bsize_slot(bsize);
+  if (slot < 0) return;
+  const NN_CONFIG *nn_config = &sms_nn_configs[slot];
 
   float feat[SMS_FEAT_DIM];
   extract_sms_features(cpi, x, sms_tree, mi_row, mi_col, bsize, feat);
 
-  mlp_forward(feat, in_dim, w1, b1, h1, w2, b2, h2, w3, b3,
-              SMS_UNIFIED_N_CLASSES, sms_tree->sms_unified_probs);
-  softmax_inplace(sms_tree->sms_unified_probs, SMS_UNIFIED_N_CLASSES);
+  av2_nn_predict(feat, nn_config, 0, sms_tree->sms_unified_probs);
+  av2_nn_softmax(sms_tree->sms_unified_probs, sms_tree->sms_unified_probs,
+                 SMS_UNIFIED_N_CLASSES);
   sms_tree->sms_unified_valid = 1;
 }
 
