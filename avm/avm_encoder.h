@@ -1064,6 +1064,13 @@ typedef struct avm_codec_enc_cfg {
    */
   unsigned int sframe_type;
 
+  /*!\brief sframe_replace_kf
+   *
+   * Number of consecutive keyframes to replace with S-frames between actual
+   * keyframes. 0: disabled, 1: K-S-K-S, 2: K-S-S-K-S-S, etc.
+   */
+  unsigned int sframe_replace_kf;
+
   /*!\brief Monochrome mode
    *
    * If this is nonzero, the encoder will generate a monochrome stream
