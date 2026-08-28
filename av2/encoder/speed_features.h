@@ -582,6 +582,10 @@ typedef struct MV_SPEED_FEATURES {
   // Maximum number of iterations in WARP_CAUSAL refinement search
   int warp_search_iters;
 
+  // Early-terminate warp MV refinement when the RD improvement over the
+  // previous iteration is less than ~5%. Enabled for speed >= 3.
+  bool warp_mv_refine_early_term;
+
   // Use faster motion search settings for partition blocks with at least one
   // dimension that's >= 256
   int fast_motion_estimation_on_block_256;

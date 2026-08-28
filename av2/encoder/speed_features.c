@@ -535,6 +535,7 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.full_pixel_search_level = 1;
     sf->mv_sf.simple_motion_subpel_force_stop = QUARTER_PEL;
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED;
+    sf->mv_sf.warp_mv_refine_early_term = true;
 
     sf->gm_sf.num_refinement_steps = 0;
 
@@ -866,6 +867,7 @@ static AVM_INLINE void init_mv_sf(MV_SPEED_FEATURES *mv_sf) {
   mv_sf->warp_search_method = WARP_SEARCH_SQUARE;
   mv_sf->warp_search_method_sec_ref = WARP_SEARCH_SQUARE;
   mv_sf->warp_search_iters = 8;
+  mv_sf->warp_mv_refine_early_term = false;
   mv_sf->fast_motion_estimation_on_block_256 = 0;
 }
 
