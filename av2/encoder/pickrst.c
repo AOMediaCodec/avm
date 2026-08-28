@@ -142,6 +142,7 @@ typedef struct {
 
   int luma_stride;
 
+  RestorationLineBuffers *rlbs;
   // Temporary storage used by *wienerns_filter* functions.
   double *wienerns_tmpbuf;
 
@@ -325,9 +326,7 @@ static int64_t try_restoration_unit(const RestSearchCtxt *rsc,
   const int plane = rsc->plane;
   const int is_uv = plane > 0;
   const RestorationInfo *rsi = &cm->rst_info[plane];
-  RestorationLineBuffers *rlbs = avm_malloc(sizeof(RestorationLineBuffers));
-  if (rlbs == NULL)
-    fprintf(stderr, "rlbs buffer does not allocate successfully\n");
+  RestorationLineBuffers *rlbs = rsc->rlbs;
   const int bit_depth = cm->seq_params.bit_depth;
 
   const YV12_BUFFER_CONFIG *fts = &cm->cur_frame->buf;
@@ -342,7 +341,6 @@ static int64_t try_restoration_unit(const RestSearchCtxt *rsc,
       rsc->plane_width, cm->seq_params.disable_loopfilters_across_tiles,
       optimized_lr);
 
-  if (rlbs != NULL) avm_free(rlbs);
   return sse_restoration_unit(limits, rsc->src, rsc->dst, plane);
 }
 
@@ -3845,6 +3843,9 @@ void av2_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV2_COMP *cpi) {
   uint16_t *luma_virtual = NULL;
   uint16_t *luma_virtual_buf;
 
+  rsc.rlbs = NULL;
+  av2_alloc_restoration_line_buffers(cm, &rsc.rlbs);
+
   luma_virtual_buf = wienerns_copy_luma_with_virtual_lines(cm, &luma_virtual);
   rsc.luma = luma_virtual;
 
@@ -4027,6 +4028,7 @@ void av2_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV2_COMP *cpi) {
   avm_free(rusi);
   free(luma_buf);
   free(luma_virtual_buf);
+  av2_free_restoration_line_buffers(rsc.rlbs);
   avm_free(rsc.wienerns_tmpbuf);
   avm_vector_destroy(&wienerns_stats);
   avm_vector_destroy(&unit_stack);
