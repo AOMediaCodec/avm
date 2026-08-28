@@ -881,8 +881,10 @@ void av2_prune_partitions_before_search(
   // for NONE partition.
   const int try_split_only =
       !cpi->is_screen_content_type &&
-      cpi->sf.part_sf.simple_motion_search_split && *do_square_split &&
-      bsize >= BLOCK_8X8 &&
+      cpi->sf.part_sf.simple_motion_search_split &&
+      av2_partition_ml_pruning_active(
+          x, partition_search_state->forced_partition) &&
+      *do_square_split && bsize >= BLOCK_8X8 &&
       mi_row + mi_size_high[bsize] <= mi_params->mi_rows &&
       bsize < BLOCK_256X256 &&
       mi_col + mi_size_wide[bsize] <= mi_params->mi_cols &&
