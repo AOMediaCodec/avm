@@ -498,6 +498,20 @@ int av2_calc_pframe_target_size_one_pass_cbr(
  */
 int av2_calc_iframe_target_size_one_pass_cbr(const struct AV2_COMP *cpi);
 
+/*!\brief Setup the rate control parameters for 1 pass real-time mode.
+ *
+ * \ingroup rate_control
+ * \param[in,out]   cpi          Top level encoder structure
+ * \param[out]      frame_type   Encoder frame type
+ * \param[in]       frame_flags  Encoder frame flags
+ *
+ * \remark Nothing is returned. Instead the settings computed in this
+ * function are set in: \c frame_type, \c cpi->common, \c cpi->rc.
+ */
+void av2_get_one_pass_rt_params(struct AV2_COMP *cpi,
+                                FRAME_TYPE *const frame_type,
+                                unsigned int frame_flags);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

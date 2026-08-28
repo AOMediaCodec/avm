@@ -170,6 +170,10 @@ static INLINE void update_frames_till_gf_update(AV2_COMP *cpi) {
 }
 
 static INLINE void update_gf_group_index(AV2_COMP *cpi) {
+  if (cpi->oxcf.mode == REALTIME && cpi->oxcf.gf_cfg.lag_in_frames == 0) {
+    cpi->gf_group.index = 0;
+    return;
+  }
   // Increment the gf group index ready for the next frame. If this is
   // a show_existing_frame with a source other than altref, or if it is not
   // a displayed forward keyframe, the index was incremented when it was
@@ -1223,8 +1227,13 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
   // Work out some encoding parameters specific to the pass:
 
   if (has_no_stats_stage(cpi)) {
-    if (*frame_flags & FRAMEFLAGS_KEY) {
-      frame_params.frame_type = KEY_FRAME;
+    if (cpi->oxcf.gf_cfg.lag_in_frames == 0 && cpi->oxcf.mode == REALTIME) {
+      av2_get_one_pass_rt_params(cpi, &frame_params.frame_type, *frame_flags);
+      frame_update_type = get_frame_update_type(gf_group);
+    } else {
+      if (*frame_flags & FRAMEFLAGS_KEY) {
+        frame_params.frame_type = KEY_FRAME;
+      }
     }
     if (oxcf->q_cfg.aq_mode == CYCLIC_REFRESH_AQ) {
       av2_cyclic_refresh_update_parameters(cpi, frame_params.frame_type);
