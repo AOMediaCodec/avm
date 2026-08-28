@@ -67,7 +67,7 @@ class EncodeTxbTest : public ::testing::TestWithParam<GetNzMapContextsFunc> {
     int result = 0;
     for (int plane = 0; plane < 3; ++plane) {
       for (int is_inter = 0; is_inter < 2; ++is_inter) {
-        for (int tx_type = DCT_DCT; tx_type < TX_TYPES; ++tx_type) {
+        for (int tx_type = DCT_DCT; tx_type < PRIM_TX_TYPES; ++tx_type) {
           const TX_CLASS tx_class = tx_type_to_class[tx_type];
           for (int tx_size = TX_4X4; tx_size < TX_SIZES_ALL; ++tx_size) {
             const int bwl = get_txb_bwl((TX_SIZE)tx_size);

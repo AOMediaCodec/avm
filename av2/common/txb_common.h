@@ -49,7 +49,7 @@ typedef struct txb_ctx {
   int dc_sign_ctx;
 } TXB_CTX;
 
-static const TX_CLASS tx_type_to_class[TX_TYPES] = {
+static const TX_CLASS tx_type_to_class[PRIM_TX_TYPES] = {
   TX_CLASS_2D,     // DCT_DCT
   TX_CLASS_2D,     // ADST_DCT
   TX_CLASS_2D,     // DCT_ADST

@@ -2361,7 +2361,7 @@ static INLINE uint8_t *get_buf_by_bd(const MACROBLOCKD *xd, uint8_t *buf16) {
 */
 
 /* allowed transform types with parity hiding of DC term */
-static const int ph_allowed_tx_types[TX_TYPES] = {
+static const int ph_allowed_tx_types[PRIM_TX_TYPES] = {
   1,  // DCT in both horizontal and vertical
   1,  // ADST in vertical, DCT in horizontal
   1,  // DCT in vertical, ADST in horizontal
@@ -2428,7 +2428,7 @@ static const int av2_num_reduced_tx_set[EXT_TX_SETS_INTRA] = { 2, 1, 2 };
 static const int av2_num_ext_tx_set[EXT_TX_SET_TYPES] = { 1, 2,  7,  12, 5,
                                                           7, 12, 16, -1, 4 };
 
-static const int av2_ext_tx_used[EXT_TX_SET_TYPES][TX_TYPES] = {
+static const int av2_ext_tx_used[EXT_TX_SET_TYPES][PRIM_TX_TYPES] = {
   { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
   { 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0 },
   { 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0 },
@@ -2894,7 +2894,7 @@ static INLINE TX_TYPE get_primary_tx_type(TX_TYPE tx_type) {
 // Maps tx type to the indices.
 //[0: EXT_TX_SET_LONG_SIDE_32, 1: EXT_TX_SET_LONG_SIDE_64][0:
 // is_long_side_dct==true, 1:is_long_side_dct==false][tx_type]
-static const int ext_tx_type_to_index_large_txfm[2][2][TX_TYPES] = {
+static const int ext_tx_type_to_index_large_txfm[2][2][PRIM_TX_TYPES] = {
   {
       // EXT_TX_SET_LONG_SIDE_32
       { // is_long_side_dct = true
@@ -2917,7 +2917,7 @@ static INLINE int get_idx_from_txtype_for_large_txfm(
                                         [!is_long_side_dct][tx_type];
 }
 
-static const int is_dct_type_large_txfm[2][TX_TYPES] = {
+static const int is_dct_type_large_txfm[2][PRIM_TX_TYPES] = {
   { // txw == 32
     1, 1, -1, -1, 1, -1, -1, -1, -1, 0, 0, 1, 0, -1, 0, -1 },
   { // txw != 32
@@ -3099,7 +3099,7 @@ static INLINE TX_TYPE av2_get_tx_type(const MACROBLOCKD *xd,
   }
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
   if (xd->lossless[mbmi->segment_id]) {
-    TX_TYPE lossless_inter_tx_type = TX_TYPES;
+    TX_TYPE lossless_inter_tx_type = PRIM_TX_TYPES;
     const bool fsc_flag = xd->mi[0]->fsc_mode[PLANE_TYPE_Y];
     if (!is_inter && plane_type == PLANE_TYPE_Y) {
       return DCT_DCT;

@@ -1806,7 +1806,7 @@ const SCAN_ORDER av2_default_scan_orders[TX_SIZES] = {
   { default_scan_32x32, av2_default_iscan_32x32 },
 };
 
-const SCAN_ORDER av2_scan_orders[TX_SIZES_ALL][TX_TYPES] = {
+const SCAN_ORDER av2_scan_orders[TX_SIZES_ALL][PRIM_TX_TYPES] = {
   {
       // TX_4X4
       { default_scan_4x4, av2_default_iscan_4x4 },

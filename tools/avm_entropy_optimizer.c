@@ -801,20 +801,20 @@ int main(int argc, const char **argv) {
   /* tx type */
   cts_each_dim[0] = EXT_TX_SETS_INTRA;
   cts_each_dim[1] = EXT_TX_SIZES;
-  cts_each_dim[2] = TX_TYPES;
+  cts_each_dim[2] = PRIM_TX_TYPES;
   int intra_ext_tx_types_each_ctx[EXT_TX_SETS_INTRA] = { 0, INTRA_TX_SET1,
                                                          INTRA_TX_SET2 };
   optimize_cdf_table_var_modes_3d(
       &fc.intra_ext_tx[0][0][0], probsfile, 3, cts_each_dim,
       intra_ext_tx_types_each_ctx,
       "static const avm_cdf_prob default_intra_ext_tx_cdf[EXT_TX_SETS_INTRA]"
-      "[EXT_TX_SIZES][CDF_SIZE(TX_TYPES)]",
+      "[EXT_TX_SIZES][CDF_SIZE(PRIM_TX_TYPES)]",
       0, &total_count, mem_wanted, "Transforms");
 
   cts_each_dim[0] = EXT_TX_SETS_INTER;
   cts_each_dim[1] = EOB_TX_CTXS;
   cts_each_dim[2] = EXT_TX_SIZES;
-  cts_each_dim[3] = TX_TYPES;
+  cts_each_dim[3] = PRIM_TX_TYPES;
   int inter_ext_tx_types_each_ctx[EXT_TX_SETS_INTER] = {
     0, INTER_TX_SET1, INTER_TX_SET2, INTER_TX_SET3, INTER_TX_SET4,
   };
@@ -823,7 +823,7 @@ int main(int argc, const char **argv) {
       inter_ext_tx_types_each_ctx,
       "static const avm_cdf_prob "
       "default_inter_ext_tx_cdf[EXT_TX_SETS_INTER][EOB_TX_CTXS]"
-      "[EXT_TX_SIZES][CDF_SIZE(TX_TYPES)]",
+      "[EXT_TX_SIZES][CDF_SIZE(PRIM_TX_TYPES)]",
       0, &total_count, mem_wanted, "Transforms");
 
   cts_each_dim[0] = 2;

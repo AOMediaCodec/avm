@@ -101,7 +101,7 @@ TEST(Av2ScanTest, Dependency) {
     const int org_cols = tx_size_wide[(TX_SIZE)tx_size];
     const int rows = get_txb_high((TX_SIZE)tx_size);
     const int cols = get_txb_wide((TX_SIZE)tx_size);
-    for (int tx_type = 0; tx_type < TX_TYPES; ++tx_type) {
+    for (int tx_type = 0; tx_type < PRIM_TX_TYPES; ++tx_type) {
       if (libavm_test::IsTxSizeTypeValid(static_cast<TX_SIZE>(tx_size),
                                          static_cast<TX_TYPE>(tx_type)) ==
           false) {

@@ -1237,7 +1237,7 @@ typedef struct {
    * frames. If tx_type_probs[i][j][k] < thresh, then transform search for that
    * type is pruned.
    */
-  int tx_type_probs[FRAME_UPDATE_TYPES][TX_SIZES_ALL][TX_TYPES];
+  int tx_type_probs[FRAME_UPDATE_TYPES][TX_SIZES_ALL][PRIM_TX_TYPES];
 } FrameProbInfo;
 
 #if CONFIG_ENTROPY_STATS
@@ -1484,8 +1484,8 @@ typedef struct FRAME_COUNTS {
   unsigned int inter_tx_type_offset_1[EOB_TX_CTXS][INTER_TX_TYPE_OFFSET1_COUNT];
   unsigned int inter_tx_type_offset_2[EOB_TX_CTXS][INTER_TX_TYPE_OFFSET2_COUNT];
   unsigned int inter_ext_tx[EXT_TX_SETS_INTER][EOB_TX_CTXS][EXT_TX_SIZES]
-                           [TX_TYPES];
-  unsigned int intra_ext_tx[EXT_TX_SETS_INTRA][EXT_TX_SIZES][TX_TYPES];
+                           [PRIM_TX_TYPES];
+  unsigned int intra_ext_tx[EXT_TX_SETS_INTRA][EXT_TX_SIZES][PRIM_TX_TYPES];
   unsigned int tx_ext_32[2][2];
   unsigned int intra_ext_tx_short_side[EXT_TX_SIZES][4];
   unsigned int inter_ext_tx_short_side[EOB_TX_CTXS][EXT_TX_SIZES][4];
@@ -1703,7 +1703,7 @@ typedef struct RD_COUNTS {
   int64_t comp_pred_diff[REFERENCE_MODES];
   int compound_ref_used_flag;
   int skip_mode_used_flag;
-  int tx_type_used[TX_SIZES_ALL][TX_TYPES];
+  int tx_type_used[TX_SIZES_ALL][PRIM_TX_TYPES];
   int warped_used[2];
 } RD_COUNTS;
 

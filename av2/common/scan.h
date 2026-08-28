@@ -34,7 +34,7 @@ enum {
 } UENUM1BYTE(SCAN_MODE);
 
 extern const SCAN_ORDER av2_default_scan_orders[TX_SIZES];
-extern const SCAN_ORDER av2_scan_orders[TX_SIZES_ALL][TX_TYPES];
+extern const SCAN_ORDER av2_scan_orders[TX_SIZES_ALL][PRIM_TX_TYPES];
 
 static INLINE const SCAN_ORDER *get_default_scan(TX_SIZE tx_size,
                                                  TX_TYPE tx_type) {

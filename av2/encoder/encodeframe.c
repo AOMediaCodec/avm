@@ -2326,10 +2326,10 @@ static AVM_INLINE void encode_frame_internal(AV2_COMP *cpi) {
       int j;
       int left = 1024;
 
-      for (j = 0; j < TX_TYPES; j++)
+      for (j = 0; j < PRIM_TX_TYPES; j++)
         sum += cpi->td.rd_counts.tx_type_used[i][j];
 
-      for (j = TX_TYPES - 1; j >= 0; j--) {
+      for (j = PRIM_TX_TYPES - 1; j >= 0; j--) {
         const int new_prob =
             sum ? 1024 * cpi->td.rd_counts.tx_type_used[i][j] / sum
                 : (j ? 0 : 1024);

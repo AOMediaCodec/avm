@@ -1056,9 +1056,9 @@ typedef struct {
   int inter_tx_type_offset_2_cost[EOB_TX_CTXS][INTER_TX_TYPE_OFFSET2_COUNT];
   //! inter_tx_type_costs
   int inter_tx_type_costs[EXT_TX_SETS_INTER][EOB_TX_CTXS][EXT_TX_SIZES]
-                         [TX_TYPES];
+                         [PRIM_TX_TYPES];
   //! intra_tx_type_costs
-  int intra_tx_type_costs[EXT_TX_SETS_INTRA][EXT_TX_SIZES][TX_TYPES];
+  int intra_tx_type_costs[EXT_TX_SETS_INTRA][EXT_TX_SIZES][PRIM_TX_TYPES];
   //! tx_type_cost_for_length32_side
   int tx_ext_32_costs[2][2];
   //! intra_tx_type_cost_of_short_side_for_large_txfm_blocks
