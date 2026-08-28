@@ -267,7 +267,7 @@ void av2_sms_unified_compute(AV2_COMP *const cpi, MACROBLOCK *x,
   float feat[SMS_FEAT_DIM];
   extract_sms_features(cpi, x, sms_tree, mi_row, mi_col, bsize, feat);
 
-  av2_nn_predict(feat, nn_config, 1, sms_tree->sms_unified_probs);
+  av2_nn_predict(feat, nn_config, 0, sms_tree->sms_unified_probs);
   av2_nn_softmax(sms_tree->sms_unified_probs, sms_tree->sms_unified_probs,
                  SMS_UNIFIED_N_CLASSES);
   sms_tree->sms_unified_valid = 1;
