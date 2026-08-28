@@ -185,7 +185,8 @@ static AVM_INLINE void av2_set_two_pass_flags(
   const bool fast_two_pass = av2_two_pass_part_is_fast(&cpi->sf.part_sf);
   x->apply_dry_pass_shortcuts =
       fast_two_pass && (multi_pass_mode == SB_DRY_PASS);
-  x->consume_dry_pass_info = fast_two_pass && (multi_pass_mode == SB_WET_PASS);
+  x->may_consume_dry_pass_info =
+      fast_two_pass && (multi_pass_mode == SB_WET_PASS);
   const bool is_wet_pass_reuse =
       (fast_two_pass && multi_pass_mode == SB_WET_PASS && part_search_state &&
        part_search_state->forced_partition != PARTITION_INVALID);
@@ -204,6 +205,22 @@ static AVM_INLINE void av2_set_two_pass_flags(
                                   : TOP_INTRA_MODEL_COUNT;
     x->inter_mode_prune_top = TOP_MOTION_MODE_MODEL_COUNT;
   }
+}
+
+// True when partition-level ML and fast-pruning heuristics should run.
+//   * FAST dry pass:               false -- dry pass is already fast, and
+//                                   the models expect full-tool RD inputs.
+//   * FAST wet pass, forced shape: false -- shape is fixed by the dry pass,
+//                                   so the model output is discarded.
+//   * FAST wet pass, reopened:     true  -- block is genuinely searched.
+//   * CONSERVATIVE / one-pass:     true  -- both flags stay false here.
+static AVM_INLINE bool av2_partition_ml_pruning_active(
+    const MACROBLOCK *x, PARTITION_TYPE forced_partition) {
+  if (x->apply_dry_pass_shortcuts) return false;
+  if (x->may_consume_dry_pass_info && forced_partition != PARTITION_INVALID) {
+    return false;
+  }
+  return true;
 }
 
 static AVM_INLINE void update_wedge_mode_cdf(FRAME_CONTEXT *fc,

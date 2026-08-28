@@ -1678,9 +1678,9 @@ typedef struct macroblock {
    * dry_pass_rd_slot(). Reset per superblock. */
   int64_t unit_dry_rd[TWO_PASS_DRY_RD_SLOTS];
 
-  /*! \brief True during the wet pass of the SB-level two-pass partition
-   * search; gates consumption of any dry-pass side information. */
-  bool consume_dry_pass_info;
+  /*! \brief True during the wet pass of the fast SB-level two-pass partition
+   * search; a block on this path may consume the dry-pass template. */
+  bool may_consume_dry_pass_info;
 
   /*! \brief Cap on top intra Y candidates for full RD. */
   int intra_mode_prune_top;
