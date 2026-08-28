@@ -1665,13 +1665,6 @@ uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV2Common *cm,
   int height_y = frame_buf->heights[AVM_PLANE_Y];
   int width_uv = frame_buf->widths[1];
   int height_uv = frame_buf->heights[1];
-
-  if (width_y > RESTORATION_LINEBUFFER_WIDTH)
-    avm_internal_error(
-        &cm->error, AVM_CODEC_ERROR,
-        "picture width is larger than 8192 * 8, need to disable "
-        "cross-component wienerns in this software implementation");
-
   int in_stride = frame_buf->strides[AVM_PLANE_Y];
   int border = WIENERNS_UV_BRD;
   int resized_luma_stride = width_uv + 2 * WIENERNS_UV_BRD;

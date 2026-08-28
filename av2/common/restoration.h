@@ -260,23 +260,12 @@ typedef struct {
 #define RESTORATION_LINEBUFFER_WIDTH \
   (MAX_SUPPORTED_PIC_WIDTH_IN_CCALF_IMP * 3 / 2 + 2 * RESTORATION_BORDER_HORZ)
 
-// Similarly, the column buffers (used when we're at a vertical tile edge
-// that we can't filter across) need space for one processing unit's worth
-// of pixels, plus the top/bottom border width
-#define RESTORATION_COLBUFFER_HEIGHT \
-  (RESTORATION_PROC_UNIT_SIZE + 2 * RESTORATION_BORDER_VERT)
-
-typedef struct {
+typedef struct RestorationLineBuffers {
   // Temporary buffers to save/restore 3 lines above/below the restoration
   // stripe.
-  uint16_t tmp_save_above[2][RESTORATION_BORDER_VERT]
-                         [RESTORATION_LINEBUFFER_WIDTH];
-  uint16_t tmp_save_below[2][RESTORATION_BORDER_VERT]
-                         [RESTORATION_LINEBUFFER_WIDTH];
-  uint16_t tmp_save_left[2][RESTORATION_COLBUFFER_HEIGHT]
-                        [RESTORATION_BORDER_HORZ];
-  uint16_t tmp_save_right[2][RESTORATION_COLBUFFER_HEIGHT]
-                         [RESTORATION_BORDER_HORZ];
+  uint16_t *tmp_save_above[PLANE_TYPES][RESTORATION_BORDER_VERT];
+  uint16_t *tmp_save_below[PLANE_TYPES][RESTORATION_BORDER_VERT];
+  int line_stride[PLANE_TYPES];
 } RestorationLineBuffers;
 /*!\endcond */
 
