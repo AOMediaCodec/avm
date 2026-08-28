@@ -52,6 +52,64 @@
 #include "av2/encoder/partition_ml.h"
 #endif
 
+static double get_partition_size_multiplier(BLOCK_SIZE bsize) {
+  switch (bsize) {
+    case BLOCK_128X128:
+    case BLOCK_128X64:
+    case BLOCK_64X128: return 1.0;
+    case BLOCK_64X64:
+    case BLOCK_64X32:
+    case BLOCK_32X64: return 1.005;  // 0.5% penalty
+    case BLOCK_32X32:
+    case BLOCK_32X16:
+    case BLOCK_16X32:
+    case BLOCK_16X64:
+    case BLOCK_64X16:
+    case BLOCK_8X64:
+    case BLOCK_64X8: return 1.01;  // 1% penalty
+    case BLOCK_16X16:
+    case BLOCK_16X8:
+    case BLOCK_8X16:
+    case BLOCK_8X32:
+    case BLOCK_32X8:
+    case BLOCK_4X32:
+    case BLOCK_32X4: return 1.02;  // 2% penalty
+    case BLOCK_8X8:
+    case BLOCK_8X4:
+    case BLOCK_4X8:
+    case BLOCK_4X16:
+    case BLOCK_16X4: return 1.04;  // 4% penalty
+    case BLOCK_4X4: return 1.08;   // 8% penalty
+    default: return 1.0;
+  }
+}
+
+static inline int allow_partition_size_bias(const AV2_COMP *const cpi) {
+  return cpi->sf.lc_sf.enable_partition_size_bias &&
+         cpi->common.current_frame.frame_type == INTER_FRAME;
+}
+
+static void apply_partition_size_bias(RD_STATS *rdc, BLOCK_SIZE bsize,
+                                      bool found_partition) {
+  if (found_partition && rdc->rdcost < INT64_MAX && rdc->rate < INT_MAX &&
+      rdc->dist < INT64_MAX) {
+    const double mult = get_partition_size_multiplier(bsize);
+    if (mult > 1.0) {
+      rdc->rate = (rdc->rate * mult > (double)INT_MAX)
+                      ? INT_MAX
+                      : (int)(rdc->rate * mult);
+      // Since (double)INT64_MAX rounds up to 2^63, any double greater than OR
+      // EQUAL to it is an overflow.
+      rdc->dist = (rdc->dist * mult >= (double)INT64_MAX)
+                      ? INT64_MAX
+                      : (int64_t)(rdc->dist * mult);
+      rdc->rdcost = (rdc->rdcost * mult >= (double)INT64_MAX)
+                        ? INT64_MAX
+                        : (int64_t)(rdc->rdcost * mult);
+    }
+  }
+}
+
 static void update_partition_cdfs_and_counts(MACROBLOCKD *xd, int blk_col,
                                              int blk_row, TX_SIZE max_tx_size,
                                              int allow_update_cdf,
@@ -5788,7 +5846,11 @@ BEGIN_PARTITION_SEARCH:
                           none_rd, &part_none_rd, &level_banks, ptree_luma,
                           multi_pass_mode);
   }
+
   if (is_intra_child_of_mixed_region(pc_tree) && xd->tree_type == CHROMA_PART) {
+    if (allow_partition_size_bias(cpi))
+      apply_partition_size_bias(&best_rdc, bsize,
+                                part_search_state.found_best_partition);
     *rd_cost = best_rdc;
     x->rdmult = orig_rdmult;
     return part_search_state.found_best_partition;
@@ -5952,6 +6014,9 @@ BEGIN_PARTITION_SEARCH:
   }
 
   // Store the final rd cost
+  if (allow_partition_size_bias(cpi))
+    apply_partition_size_bias(&best_rdc, bsize,
+                              part_search_state.found_best_partition);
   *rd_cost = best_rdc;
   xd->ref_mv_bank = level_banks.best_level_bank;
   xd->warp_param_bank = level_banks.best_level_warp_bank;
