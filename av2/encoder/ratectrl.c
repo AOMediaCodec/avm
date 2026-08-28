@@ -1771,7 +1771,9 @@ void av2_rc_postencode_update(AV2_COMP *cpi, uint64_t bytes_used) {
     rc->avg_frame_qindex[KEY_FRAME] =
         ROUND_POWER_OF_TWO(3 * rc->avg_frame_qindex[KEY_FRAME] + qindex, 2);
   } else {
-    if ((!rc->is_src_frame_alt_ref && !(level <= 1 || is_intrnl_arf))) {
+    if (!rc->is_src_frame_alt_ref &&
+        (((cpi->oxcf.mode == REALTIME && cpi->oxcf.gf_cfg.lag_in_frames == 0) ||
+          !(level <= 1 || is_intrnl_arf)))) {
       rc->last_q[INTER_FRAME] = qindex;
       rc->avg_frame_qindex[INTER_FRAME] =
           ROUND_POWER_OF_TWO(3 * rc->avg_frame_qindex[INTER_FRAME] + qindex, 2);
@@ -2124,4 +2126,58 @@ int av2_calc_iframe_target_size_one_pass_cbr(const AV2_COMP *cpi) {
     target = ((16 + kf_boost) * rc->avg_frame_bandwidth) >> 4;
   }
   return av2_rc_clamp_iframe_target_size(cpi, target);
+}
+
+#define DEFAULT_KF_BOOST_RT 2000
+
+static inline int set_key_frame(AV2_COMP *cpi, unsigned int frame_flags) {
+  RATE_CONTROL *const rc = &cpi->rc;
+  AV2_COMMON *const cm = &cpi->common;
+  // Very first frame has to be key frame.
+  if (cm->current_frame.frame_number == 0) return 1;
+  // Set key frame if forced by frame flags.
+  if (frame_flags & FRAMEFLAGS_KEY) return 1;
+  if (cpi->oxcf.kf_cfg.auto_key && rc->frames_to_key == 0) return 1;
+  return 0;
+}
+
+void av2_get_one_pass_rt_params(AV2_COMP *cpi, FRAME_TYPE *const frame_type,
+                                unsigned int frame_flags) {
+  RATE_CONTROL *const rc = &cpi->rc;
+  AV2_COMMON *const cm = &cpi->common;
+  cpi->gf_group.index = 0;
+  cpi->gf_group.size = 1;
+  GF_GROUP *const gf_group = &cpi->gf_group;
+  int target;
+  // Set frame type.
+  if (set_key_frame(cpi, frame_flags)) {
+    *frame_type = KEY_FRAME;
+    rc->this_key_frame_forced =
+        cm->current_frame.frame_number != 0 && rc->frames_to_key == 0;
+    rc->frames_to_key = cpi->oxcf.kf_cfg.key_freq_max;
+    rc->kf_boost = DEFAULT_KF_BOOST_RT;
+    gf_group->update_type[gf_group->index] = KF_UPDATE;
+  } else {
+    *frame_type = INTER_FRAME;
+    gf_group->update_type[gf_group->index] = LF_UPDATE;
+  }
+  // Set target size.
+  if (cpi->oxcf.rc_cfg.mode == AVM_CBR) {
+    if (*frame_type == KEY_FRAME || *frame_type == INTRA_ONLY_FRAME) {
+      target = av2_calc_iframe_target_size_one_pass_cbr(cpi);
+    } else {
+      target = av2_calc_pframe_target_size_one_pass_cbr(
+          cpi, gf_group->update_type[gf_group->index]);
+    }
+  } else {
+    if (*frame_type == KEY_FRAME || *frame_type == INTRA_ONLY_FRAME) {
+      target = av2_calc_iframe_target_size_one_pass_vbr(cpi);
+    } else {
+      target = av2_calc_pframe_target_size_one_pass_vbr(
+          cpi, gf_group->update_type[gf_group->index]);
+    }
+  }
+  av2_rc_set_frame_target(cpi, target, cm->width, cm->height);
+  rc->base_frame_target = target;
+  cm->current_frame.frame_type = *frame_type;
 }
