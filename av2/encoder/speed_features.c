@@ -1511,12 +1511,6 @@ static AVM_INLINE void set_two_pass_partition_level(AV2_COMP *cpi) {
   // TODO(Yeqing): Extend to intra/key frames.
   if (frame_is_intra_only(cm)) return;
 
-  // The fast level takes precedence: it is the speed >= 3 regime, and
-  // av2_select_sb_size() keys the superblock size off the same config-time
-  // predicate, so the size and the level have to agree. Note that this
-  // predicate is GOOD-only, which is what keeps the fast level out of REALTIME
-  // mode even though set_rt_speed_features_framesize_independent() runs the
-  // GOOD setters.
   if (av2_wants_two_pass_partition(&cpi->oxcf)) {
     *level = TWO_PASS_PART_FAST;
     return;
