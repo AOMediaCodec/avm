@@ -4719,13 +4719,25 @@ static const warp_search_config warp_search_info[WARP_SEARCH_METHODS] = {
   },
 };
 
+// Checks if the warped motion vector refinement search can be terminated early.
+static AVM_INLINE bool early_terminate_refine_warped_mv(
+    uint64_t best_rd, uint64_t best_rd_prev, bool center_best_so_far,
+    bool do_early_terminate) {
+  if (center_best_so_far) return true;
+
+  if (do_early_terminate && (best_rd > 0.95 * best_rd_prev)) return true;
+
+  return false;
+}
+
 // Refines MV in a small range
 unsigned int av2_refine_warped_mv(MACROBLOCKD *xd, const AV2_COMMON *const cm,
                                   const SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
                                   BLOCK_SIZE bsize, const int *pts0,
                                   const int *pts_inref0, int total_samples,
                                   int8_t ref, WARP_SEARCH_METHOD search_method,
-                                  int num_iterations) {
+                                  int num_iterations,
+                                  bool warp_mv_refine_early_term) {
   MB_MODE_INFO *mbmi = xd->mi[0];
 
   const MV *neighbors = warp_search_info[search_method].neighbors;
@@ -4752,6 +4764,7 @@ unsigned int av2_refine_warped_mv(MACROBLOCKD *xd, const AV2_COMMON *const cm,
 
   // First iteration always scans all neighbors
   uint8_t valid_neighbors = UINT8_MAX;
+  unsigned int bestmse_prev = bestmse;
 
   for (int ite = 0; ite < num_iterations; ++ite) {
     int best_idx = -1;
@@ -4792,13 +4805,17 @@ unsigned int av2_refine_warped_mv(MACROBLOCKD *xd, const AV2_COMMON *const cm,
       }
     }
 
-    if (best_idx == -1) break;
-
     if (best_idx >= 0) {
       best_mv->row += neighbors[best_idx].row * (1 << mv_shift);
       best_mv->col += neighbors[best_idx].col * (1 << mv_shift);
       valid_neighbors = neighbor_mask[best_idx];
     }
+
+    if (early_terminate_refine_warped_mv(
+            bestmse, bestmse_prev, (best_idx == -1), warp_mv_refine_early_term))
+      break;
+
+    bestmse_prev = bestmse;
   }
 
   mbmi->wm_params[ref] = best_wm_params;
@@ -5356,7 +5373,7 @@ int av2_pick_warp_delta(
   if (!fast_decoupled_search) {
     uint64_t best_rd_prev = best_rd;
     for (int iter = 0; iter < number_of_iterations; iter++) {
-      int center_best_so_far = 1;
+      bool center_best_so_far = true;
 
       if (can_refine_mv && !skip_mv_search) {
         *params = best_wm_params;
@@ -5440,29 +5457,27 @@ int av2_pick_warp_delta(
             // Decreasing is best
             best_wm_params = dec_params;
             best_rd = dec_rd;
-            center_best_so_far = 0;
+            center_best_so_far = false;
           } else {
             // Increasing is best
             best_wm_params = inc_params;
             best_rd = inc_rd;
-            center_best_so_far = 0;
+            center_best_so_far = false;
           }
         } else if (dec_rd < best_rd) {
           // Decreasing is best
           best_wm_params = dec_params;
           best_rd = dec_rd;
-          center_best_so_far = 0;
+          center_best_so_far = false;
         } else {
           // Current is best
           // No need to change anything
         }
       }
 
-      const int early_terminate_refine =
-          center_best_so_far ||
-          (early_term_warp_delta_refine && best_rd > 0.95 * best_rd_prev);
-
-      if (early_terminate_refine) {
+      if (early_terminate_refine_warped_mv(best_rd, best_rd_prev,
+                                           center_best_so_far,
+                                           early_term_warp_delta_refine)) {
         break;
       }
 
@@ -5517,7 +5532,8 @@ int av2_refine_mv_for_base_param_warp_model(
     const AV2_COMMON *const cm, MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
     const MB_MODE_INFO_EXT *mbmi_ext,
     const SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
-    WARP_SEARCH_METHOD search_method, int num_iterations) {
+    WARP_SEARCH_METHOD search_method, int num_iterations,
+    bool warp_mv_refine_early_term) {
   WarpedMotionParams *params = &mbmi->wm_params[0];
   const BLOCK_SIZE bsize = mbmi->sb_type[PLANE_TYPE_Y];
   int mi_row = xd->mi_row;
@@ -5566,6 +5582,7 @@ int av2_refine_mv_for_base_param_warp_model(
 
   // First iteration always scans all neighbors
   uint8_t valid_neighbors = UINT8_MAX;
+  uint64_t best_rd_prev = best_rd;
 
   for (int ite = 0; ite < num_iterations; ++ite) {
     int best_idx = -1;
@@ -5603,7 +5620,7 @@ int av2_refine_mv_for_base_param_warp_model(
         }
       }
     }
-    if (best_idx == -1) break;
+
     if (best_idx >= 0) {
       // Commit to this motion vector
       best_mv->row += neighbors[best_idx].row * (1 << mv_shift);
@@ -5611,6 +5628,12 @@ int av2_refine_mv_for_base_param_warp_model(
       center_mv.as_mv = *best_mv;
       valid_neighbors = neighbor_mask[best_idx];
     }
+
+    if (early_terminate_refine_warped_mv(
+            best_rd, best_rd_prev, (best_idx == -1), warp_mv_refine_early_term))
+      break;
+
+    best_rd_prev = best_rd;
   }
 
   mbmi->wm_params[0] = best_wm_params;
@@ -5627,7 +5650,8 @@ void av2_refine_mv_for_warp_extend(const AV2_COMMON *cm, MACROBLOCKD *xd,
                                    bool neighbor_is_above, BLOCK_SIZE bsize,
                                    const WarpedMotionParams *neighbor_params,
                                    WARP_SEARCH_METHOD search_method,
-                                   int num_iterations) {
+                                   int num_iterations,
+                                   bool warp_mv_refine_early_term) {
   MB_MODE_INFO *mbmi = xd->mi[0];
 
   const MV *neighbors = warp_search_info[search_method].neighbors;
@@ -5654,6 +5678,7 @@ void av2_refine_mv_for_warp_extend(const AV2_COMMON *cm, MACROBLOCKD *xd,
 
   // First iteration always scans all neighbors
   uint8_t valid_neighbors = UINT8_MAX;
+  unsigned int bestmse_prev = bestmse;
 
   for (int ite = 0; ite < num_iterations; ++ite) {
     int best_idx = -1;
@@ -5690,13 +5715,17 @@ void av2_refine_mv_for_warp_extend(const AV2_COMMON *cm, MACROBLOCKD *xd,
       }
     }
 
-    if (best_idx == -1) break;
-
     if (best_idx >= 0) {
       best_mv->row += neighbors[best_idx].row * (1 << mv_shift);
       best_mv->col += neighbors[best_idx].col * (1 << mv_shift);
       valid_neighbors = neighbor_mask[best_idx];
     }
+
+    if (early_terminate_refine_warped_mv(
+            bestmse, bestmse_prev, (best_idx == -1), warp_mv_refine_early_term))
+      break;
+
+    bestmse_prev = bestmse;
   }
 
   mbmi->wm_params[0] = best_wm_params;
