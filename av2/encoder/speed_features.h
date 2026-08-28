@@ -1099,6 +1099,11 @@ typedef struct REALTIME_SPEED_FEATURES {
   bool use_only_dc_intra_interframe;
 } REALTIME_SPEED_FEATURES;
 
+typedef struct LC_DEC_SPEED_FEATURES {
+  // Bias towards large partitions.
+  int enable_partition_size_bias;
+} LC_DEC_SPEED_FEATURES;
+
 typedef struct FLEXMV_PRECISION_SPEED_FEATURES {
   // Do not search 8-pel precision
   int do_not_search_8_pel_precision;
@@ -1204,6 +1209,10 @@ typedef struct SPEED_FEATURES {
    */
   REALTIME_SPEED_FEATURES rt_sf;
 
+  /*!
+   * Low complexity decode mode speed features:
+   */
+  LC_DEC_SPEED_FEATURES lc_sf;
 } SPEED_FEATURES;
 /*!\cond */
 

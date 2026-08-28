@@ -712,13 +712,23 @@ static void set_good_speed_features_framesize_independent(
 // Define frame size independent speed features for low complexity decoding
 // mode.
 static void set_good_speed_features_lc_dec_framesize_independent(
-    AV2_COMP *cpi) {
+    AV2_COMP *cpi, SPEED_FEATURES *const sf) {
+  const AV2_COMMON *const cm = &cpi->common;
+
   // Standard low-complexity level
   cpi->oxcf.tool_cfg.enable_mv_traj = 0;
   cpi->oxcf.tool_cfg.enable_gdf = 0;
   cpi->oxcf.tool_cfg.enable_pc_wiener = 0;
   cpi->oxcf.tool_cfg.enable_tip_refinemv = 0;
   cpi->oxcf.tool_cfg.reduced_ref_frame_mvs_mode = 1;
+
+  // TODO(yunqing): extend this SF to other resolutions.
+  const int is_2k_or_larger = AVMMIN(cm->width, cm->height) >= 2160;
+  const int qindex_offset = MAXQ_OFFSET * (cm->seq_params.bit_depth - 8);
+  const int qindex_thresh = 112 + qindex_offset;
+  sf->lc_sf.enable_partition_size_bias =
+      (is_2k_or_larger && cm->quant_params.base_qindex >= qindex_thresh) ? 1
+                                                                         : 0;
 
   // Aggressive low-complexity level
   if (cpi->oxcf.enable_low_complexity_decode > 1) {
@@ -1068,6 +1078,10 @@ static void av2_disable_ml_based_partition_sf(
   }
 }
 
+static AVM_INLINE void init_lc_sf(LC_DEC_SPEED_FEATURES *lc_sf) {
+  lc_sf->enable_partition_size_bias = 0;
+}
+
 static AVM_INLINE void set_erp_speed_features_framesize_dependent(
     AV2_COMP *cpi) {
   SPEED_FEATURES *const sf = &cpi->sf;
@@ -1280,6 +1294,7 @@ void av2_set_speed_features_framesize_independent(AV2_COMP *cpi, int speed) {
   init_winner_mode_sf(&sf->winner_mode_sf);
   init_lpf_sf(&sf->lpf_sf);
   init_flexmv_sf(&sf->flexmv_sf);
+  init_lc_sf(&sf->lc_sf);
 
   if (oxcf->mode == GOOD) {
     set_good_speed_features_framesize_independent(cpi, sf, speed);
@@ -1289,7 +1304,7 @@ void av2_set_speed_features_framesize_independent(AV2_COMP *cpi, int speed) {
 
   if (oxcf->mode == GOOD && cpi->oxcf.enable_low_complexity_decode) {
     // TODO (yunqingwang): LC speed features are added below.
-    set_good_speed_features_lc_dec_framesize_independent(cpi);
+    set_good_speed_features_lc_dec_framesize_independent(cpi, sf);
 
     // Adjust sequence flags for LC decode mode.
     if (!cpi->seq_params_locked) {
