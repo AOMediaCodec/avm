@@ -17,7 +17,7 @@
 /* Per-bsize HORZ threshold LUT: [bsize_slot]
  * bsize_slot: 0=128x128, 1=64x64, 2=32x32, 3=16x16, 4=8x8 */
 #define SMS_N_BSIZE_SLOTS 5
-#define SMS_N_SPLIT_PARTS 4  // matches SIMPLE_MOTION_DATA_TREE::split[4]
+#define SMS_N_SPLIT_PARTS 4
 
 static const float sms_horz_thresh[SMS_N_BSIZE_SLOTS] = {
   /* 128x128 */ 0.40f,
