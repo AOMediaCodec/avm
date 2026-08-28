@@ -959,15 +959,19 @@ void av2_scale_references(AV2_COMP *cpi, const InterpFilter filter,
 
 void av2_setup_frame(AV2_COMP *cpi);
 
-// Config-time part of the TWO_PASS_PART_FAST predicate: GOOD mode at speed >= 3
-// on configs that produce inter frames. Kept config-only (no cm state) because
-// av2_select_sb_size() also keys off it, and the superblock size must not
-// change between the two passes.
+// Config-time part of the TWO_PASS_PART_FAST predicate.
 // TODO(Yeqing): Extend to intra/key frames and drop the all_intra guard.
 static INLINE bool av2_wants_two_pass_partition(const AV2EncoderConfig *oxcf) {
   const int all_intra =
       oxcf->kf_cfg.key_freq_max == 0 && oxcf->kf_cfg.key_freq_min == 0;
-  return oxcf->mode == GOOD && oxcf->speed >= 3 && !all_intra;
+  if (oxcf->mode != GOOD || all_intra) return false;
+  if (oxcf->speed >= 3) return true;
+  if (oxcf->speed == 2) {
+    const int is_2160p_or_larger =
+        AVMMIN(oxcf->frm_dim_cfg.width, oxcf->frm_dim_cfg.height) >= 2160;
+    return is_2160p_or_larger;
+  }
+  return false;
 }
 
 BLOCK_SIZE av2_select_sb_size(const AV2_COMP *const cpi);
