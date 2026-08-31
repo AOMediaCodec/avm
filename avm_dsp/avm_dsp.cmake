@@ -113,6 +113,9 @@ list(
   "${AVM_ROOT}/avm_dsp/x86/avg_intrin_avx2.c"
   "${AVM_ROOT}/avm_dsp/x86/bitdepth_conversion_avx2.h")
 
+list(APPEND AVM_DSP_COMMON_INTRIN_AVX512
+     "${AVM_ROOT}/avm_dsp/x86/highbd_convolve_avx512.c")
+
 list(APPEND AVM_DSP_DECODER_INTRIN_AVX2 "${AVM_ROOT}/avm_dsp/x86/entdec_avx2.c")
 
 list(

@@ -440,6 +440,10 @@ INSTANTIATE_TEST_SUITE_P(AVX2, AV2ConvolveXHighbdTest,
 INSTANTIATE_TEST_SUITE_P(NEON, AV2ConvolveXHighbdTest,
                          BuildHighbdParams(av2_highbd_convolve_x_sr_neon));
 #endif
+#if HAVE_AVX512
+INSTANTIATE_TEST_SUITE_P(AVX512, AV2ConvolveXHighbdTest,
+                         BuildHighbdParams(av2_highbd_convolve_x_sr_avx512));
+#endif
 
 /////////////////////////////////////////////////////////
 // Single reference convolve-y functions (high bit-depth)
