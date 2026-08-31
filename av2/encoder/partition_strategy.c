@@ -39,6 +39,8 @@
 #include "av2/encoder/partition_ml.h"
 #endif  // CONFIG_ML_PART_SPLIT
 
+#include "av2/encoder/partition_sms.h"
+
 static AVM_INLINE void simple_motion_search_prune_part_features(
     AV2_COMP *const cpi, MACROBLOCK *x, SIMPLE_MOTION_DATA_TREE *sms_tree,
     int mi_row, int mi_col, BLOCK_SIZE bsize, float *features,
@@ -848,6 +850,18 @@ int av2_ml_predict_breakout(const AV2_COMP *const cpi, BLOCK_SIZE bsize,
 }
 #undef FEATURES
 
+void av2_sms_run_motion_search(AV2_COMP *const cpi, MACROBLOCK *x,
+                               SIMPLE_MOTION_DATA_TREE *sms_tree, int mi_row,
+                               int mi_col, BLOCK_SIZE bsize) {
+  if (!sms_tree || sms_tree->sms_none_valid) return;
+  if (frame_is_intra_only(&cpi->common)) return;
+  if (cpi->is_screen_content_type) return;
+  if (!is_square_block(bsize) || bsize == BLOCK_256X256) return;
+  simple_motion_search_prune_part_features(cpi, x, sms_tree, mi_row, mi_col,
+                                           bsize, NULL,
+                                           FEATURE_SMS_PRUNE_PART_FLAG);
+}
+
 void av2_prune_partitions_before_search(
     AV2_COMP *const cpi, MACROBLOCK *const x, int mi_row, int mi_col,
     BLOCK_SIZE bsize, SIMPLE_MOTION_DATA_TREE *const sms_tree,
@@ -857,6 +871,17 @@ void av2_prune_partitions_before_search(
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   MACROBLOCKD *const xd = &x->e_mbd;
   if (!bru_is_sb_active(cm, mi_col, mi_row)) return;
+
+  if (cpi->sf.part_sf.sms_unified_prune && sms_tree &&
+      !sms_tree->sms_unified_valid && !frame_is_intra_only(cm) &&
+      !cpi->is_screen_content_type && is_square_block(bsize) &&
+      bsize >= BLOCK_8X8) {
+    av2_sms_unified_compute(cpi, x, sms_tree, mi_row, mi_col, bsize);
+  }
+
+  if (cpi->sf.part_sf.sms_unified_prune && sms_tree) {
+    av2_sms_unified_prune_rect(cpi, sms_tree, partition_search_state);
+  }
 
   // A CNN-based speed feature pruning out either split or all non-split
   // partition in INTRA frame coding.

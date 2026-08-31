@@ -254,6 +254,8 @@ list(
   "${AVM_ROOT}/av2/encoder/partition_search.c"
   "${AVM_ROOT}/av2/encoder/partition_mlp.h"
   "${AVM_ROOT}/av2/encoder/partition_mlp.c"
+  "${AVM_ROOT}/av2/encoder/partition_sms.h"
+  "${AVM_ROOT}/av2/encoder/partition_sms.c"
   "${AVM_ROOT}/av2/encoder/partition_strategy.h"
   "${AVM_ROOT}/av2/encoder/partition_strategy.c"
   "${AVM_ROOT}/av2/encoder/pass2_strategy.h"
