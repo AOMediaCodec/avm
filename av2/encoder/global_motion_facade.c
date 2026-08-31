@@ -285,11 +285,15 @@ static AVM_INLINE void update_valid_ref_frames_for_gm(
         (ref_disabled && cpi->sf.hl_sf.recode_loop != DISALLOW_RECODE)) {
       continue;
     } else {
-      // Get the scaled buffer
-      if (av2_is_scaled(get_ref_scale_factors(cm, frame)))
+      // Get the scaled buffer. av2_scale_references() leaves scaled_ref_buf[]
+      // NULL for a disabled reference, which the check above can let through,
+      // so skip rather than dereference NULL.
+      if (av2_is_scaled(get_ref_scale_factors(cm, frame))) {
+        if (cpi->scaled_ref_buf[frame] == NULL) continue;
         ref_buf[frame] = &cpi->scaled_ref_buf[frame]->buf;
-      else
+      } else {
         ref_buf[frame] = &buf->buf;
+      }
     }
 
     int prune_ref_frames =
