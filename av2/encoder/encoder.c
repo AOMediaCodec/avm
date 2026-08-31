@@ -2501,6 +2501,40 @@ static void init_ref_frame_bufs(AV2_COMP *cpi) {
   }
 }
 
+void av2_validate_crop_window_chroma_alignment(AV2_COMP *cpi, int frame_width,
+                                               int frame_height) {
+  AV2_COMMON *const cm = &cpi->common;
+  const SequenceHeader *const seq_params = &cm->seq_params;
+  const struct CropWindow *const conf = &seq_params->conf;
+  if (!conf->conf_win_enabled_flag) return;
+
+  const int SubX = seq_params->subsampling_x + 1;
+  const int SubY = seq_params->subsampling_y + 1;
+  const int LeftPosX =
+      (conf->conf_win_left_offset * frame_width) / seq_params->max_frame_width;
+  const int TopPosY =
+      (conf->conf_win_top_offset * frame_height) / seq_params->max_frame_height;
+
+  // Conformance requirement 1: LeftPosX == SubX * (LeftPosX/Subx)
+  if (!seq_params->monochrome && SubX > 1 &&
+      LeftPosX != SubX * (LeftPosX / SubX)) {
+    avm_internal_error(&cm->error, AVM_CODEC_INVALID_PARAM,
+                       "crop_win_left_offset puts the conformance window left "
+                       "position %d off the chroma grid at coded width %d: it "
+                       "must be a multiple of SubX=%d",
+                       LeftPosX, frame_width, SubX);
+  }
+  // Conformance requirement 2: TopPosY == SubY * (TopPosY / SubY)
+  if (!seq_params->monochrome && SubY > 1 &&
+      TopPosY != SubY * (TopPosY / SubY)) {
+    avm_internal_error(&cm->error, AVM_CODEC_INVALID_PARAM,
+                       "crop_win_top_offset puts the conformance window top "
+                       "position %d off the chroma grid at coded height %d: it "
+                       "must be a multiple of SubY=%d",
+                       TopPosY, frame_height, SubY);
+  }
+}
+
 void av2_check_initial_width(AV2_COMP *cpi, int subsampling_x,
                              int subsampling_y) {
   AV2_COMMON *const cm = &cpi->common;
@@ -2616,6 +2650,9 @@ void av2_set_frame_size(AV2_COMP *cpi, int width, int height) {
 
     av2_noise_estimate_init(&cpi->noise_estimate, cm->width, cm->height);
   }
+
+  av2_validate_crop_window_chroma_alignment(cpi, cm->width, cm->height);
+
   if (cm->bridge_frame_info.is_bridge_frame) {
     cm->bridge_frame_info.bridge_frame_max_height = cm->height;
     cm->bridge_frame_info.bridge_frame_max_width = cm->width;
