@@ -621,6 +621,12 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Enable six parameter warp in winner mode by tid. If set to 1, enable six
   // parameter warp in winner mode by tid threshold.
   int enable_six_param_warp_in_winner_mode_by_tid;
+
+  // Disable the 4 parameter warp delta refinement during initial mode search
+  // and enable the same during motion mode evaluation for winner candidates.
+  // Enabled for speed >= 3.
+  int enable_four_param_warp_in_winner_mode;
+
   // Drop less likely to be picked reference frames in the RD search.
   // Has five levels for now: 0, 1, 2, 3 and 4, where higher levels prune more
   // aggressively than lower ones. (0 means no pruning).
