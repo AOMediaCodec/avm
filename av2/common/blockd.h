@@ -2862,34 +2862,6 @@ static INLINE CctxType av2_get_cctx_type(const MACROBLOCKD *xd, int blk_row,
 // primary tx, secondary tx set, and secondary tx kernel
 #define SECONDARY_TX_SET_BITS 4  // # of bits for secondary tx set
 #define SECONDARY_TX_BITS 2      // # of bits for secondary tx kernel
-// Bit masks to keep only wanted info
-#define SECONDARY_TX_SET_MASK ((1 << SECONDARY_TX_SET_BITS) - 1)
-#define SECONDARY_TX_MASK ((1 << SECONDARY_TX_BITS) - 1)
-
-/*
- * If secondary transform is enabled (IST) :
- * Bits 6~9 of tx_type stores secondary tx_set
- * Bits 4~5 of tx_type stores secondary tx_type
- * Bits 0~3 of tx_type stores primary tx_type
- *
- * This function masks secondary transform type used by the transform block
- *
- */
-static INLINE void disable_secondary_tx_type(uint16_t *tx_type) {
-  *tx_type &= 0x000f;
-}
-/*
- * This function masks primary transform type used by the transform block
- */
-static INLINE void disable_primary_tx_type(uint16_t *tx_type) {
-  *tx_type &= 0xfff0;
-}
-/*
- * This function returns primary transform type used by the transform block
- */
-static INLINE PRIM_TX_TYPE get_primary_tx_type(uint16_t tx_type) {
-  return (PRIM_TX_TYPE)(tx_type & 0x000f);
-}
 
 // Maps tx type to the indices.
 //[0: EXT_TX_SET_LONG_SIDE_32, 1: EXT_TX_SET_LONG_SIDE_64][0:
@@ -2985,35 +2957,6 @@ get_txtype_from_idx_for_large_txfm(TX_SIZE tx_size, const TxSetType tx_set_type,
   return ext_index_to_tx_type_large_txfm[tx_set_type == EXT_TX_SET_LONG_SIDE_64]
                                         [!is_long_side_dct][!is_rect_horz]
                                         [short_side_idx];
-}
-
-/*
- * This function returns secondary transform type used by the transform block
- */
-static INLINE SEC_TX_TYPE get_secondary_tx_type(uint16_t tx_type) {
-  return (SEC_TX_TYPE)((tx_type >> PRIMARY_TX_BITS) & SECONDARY_TX_MASK);
-}
-
-static INLINE void set_secondary_tx_type(uint16_t *tx_type,
-                                         SEC_TX_TYPE stx_flag) {
-  *tx_type |= (stx_flag << PRIMARY_TX_BITS);
-}
-
-/*
- * This function returns secondary transform set used by the transform block
- */
-static INLINE SEC_TX_SET get_secondary_tx_set(uint16_t tx_type) {
-  return (SEC_TX_SET)((tx_type >> (PRIMARY_TX_BITS + SECONDARY_TX_BITS)) &
-                      SECONDARY_TX_SET_MASK);
-}
-
-/*
- * This function sets the 'secondary transform set' info on the input 'tx_type'
- * parameter
- */
-static INLINE void set_secondary_tx_set(uint16_t *tx_type,
-                                        SEC_TX_SET stx_set_flag) {
-  *tx_type |= (stx_set_flag << (PRIMARY_TX_BITS + SECONDARY_TX_BITS));
 }
 
 /*
