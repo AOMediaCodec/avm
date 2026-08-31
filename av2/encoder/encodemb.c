@@ -344,7 +344,7 @@ int av2_optimize_b(const struct AV2_COMP *cpi, MACROBLOCK *x, int plane,
                                      cctx_type);
     return eob;
   }
-  const TX_CLASS tx_class = tx_type_to_class[get_primary_tx_type(tx_type)];
+  const TX_CLASS tx_class = tx_type_to_class[tx_type.primary_tx];
   int use_tcq = tcq_enable(cpi->common.features.tcq_mode,
                            xd->lossless[segment_id], plane, tx_class);
   if (use_tcq) {
@@ -373,9 +373,8 @@ void parity_hiding_trellis_off(const struct AV2_COMP *cpi, MACROBLOCK *mb,
   MACROBLOCKD *xd = &mb->e_mbd;
   const struct macroblock_plane *const p = &mb->plane[plane_type];
   const int32_t *dequant = p->dequant_QTX;
-  const qm_val_t *iqmatrix =
-      av2_get_iqmatrix(&cpi->common.quant_params, xd, plane_type, tx_size,
-                       get_primary_tx_type(tx_type));
+  const qm_val_t *iqmatrix = av2_get_iqmatrix(
+      &cpi->common.quant_params, xd, plane_type, tx_size, tx_type.primary_tx);
   const int shift = av2_get_tx_scale(tx_size);
   tran_low_t *const qcoeff = p->qcoeff + BLOCK_OFFSET(block);
   tran_low_t *const dqcoeff = p->dqcoeff + BLOCK_OFFSET(block);
@@ -386,8 +385,7 @@ void parity_hiding_trellis_off(const struct AV2_COMP *cpi, MACROBLOCK *mb,
     return;
   }
 
-  const SCAN_ORDER *const scan_order =
-      get_scan(tx_size, get_primary_tx_type(tx_type));
+  const SCAN_ORDER *const scan_order = get_scan(tx_size, tx_type.primary_tx);
   const int16_t *const scan = scan_order->scan;
 
   int nz = 0, sum_abs1 = 0;
@@ -491,8 +489,7 @@ void av2_dropout_qcoeff(MACROBLOCK *mb, int plane, int block, TX_SIZE tx_size,
   const int tx_width = tx_size_wide[tx_size];
   const int tx_height = tx_size_high[tx_size];
   const int max_eob = av2_get_max_eob(tx_size);
-  const SCAN_ORDER *const scan_order =
-      get_scan(tx_size, get_primary_tx_type(tx_type));
+  const SCAN_ORDER *const scan_order = get_scan(tx_size, tx_type.primary_tx);
 
   // Early return if `qindex` is out of range.
   if (qindex > DROPOUT_Q_MAX || qindex < DROPOUT_Q_MIN) {
@@ -772,7 +769,7 @@ void av2_setup_xform(const AV2_COMMON *cm, MACROBLOCK *x, int plane,
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
 
-  txfm_param->primary_tx_type = get_primary_tx_type(tx_type);
+  txfm_param->primary_tx_type = tx_type.primary_tx;
   txfm_param->sec_tx_set = 0;
   txfm_param->sec_tx_set_idx = 0;
   txfm_param->sec_tx_type = 0;
@@ -788,7 +785,7 @@ void av2_setup_xform(const AV2_COMMON *cm, MACROBLOCK *x, int plane,
               cm->seq_params.enable_ist));
   if (mode_dependent_condition && !xd->lossless[mbmi->segment_id] &&
       !(mbmi->fsc_mode[xd->tree_type == CHROMA_PART])) {
-    txfm_param->sec_tx_set = get_secondary_tx_set(tx_type);
+    txfm_param->sec_tx_set = tx_type.sec_set;
     txfm_param->sec_tx_set_idx = txfm_param->sec_tx_set;
     if (!is_inter_block(xd->mi[0], xd->tree_type)) {
       int intra_stx_mode =
@@ -806,7 +803,7 @@ void av2_setup_xform(const AV2_COMMON *cm, MACROBLOCK *x, int plane,
       }
       txfm_param->sec_tx_set_idx = stx_idx;
     }
-    txfm_param->sec_tx_type = get_secondary_tx_type(tx_type);
+    txfm_param->sec_tx_type = tx_type.sec_tx;
   }
   txfm_param->cctx_type = cctx_type;
   txfm_param->use_ddt =
@@ -892,7 +889,7 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
     const BLOCK_SIZE plane_block_size =
         get_mb_plane_block_size(xd, mbmi, i, ss_x, ss_y);
     av2_subtract_txb(x, i, plane_block_size, blk_col, blk_row, tx_size,
-                     cm->width, cm->height, get_primary_tx_type(plane_tx_type));
+                     cm->width, cm->height, plane_tx_type.primary_tx);
   }
   CctxType cctx_type =
       plane ? av2_get_cctx_type(xd, blk_row, blk_col) : CCTX_NONE;
@@ -909,7 +906,7 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
         ((cm->seq_params.enable_fsc &&
           mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
           plane == PLANE_TYPE_Y) ||
-         use_inter_fsc(cm, plane, get_primary_tx_type(tx_type), is_inter));
+         use_inter_fsc(cm, plane, tx_type.primary_tx, is_inter));
     const int use_trellis = is_trellis_used(args->enable_optimize_b, dry_run);
     int quant_idx;
     if (use_trellis)
@@ -920,8 +917,8 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
     av2_setup_xform(cm, x, plane, tx_size, tx_type, cctx_type, &txfm_param);
     av2_setup_quant(tx_size, use_trellis, quant_idx,
                     cpi->oxcf.q_cfg.quant_b_adapt, &quant_param);
-    av2_setup_qmatrix(&cm->quant_params, xd, plane, tx_size,
-                      get_primary_tx_type(tx_type), &quant_param);
+    av2_setup_qmatrix(&cm->quant_params, xd, plane, tx_size, tx_type.primary_tx,
+                      &quant_param);
     // Settings for optimization type. NOTE: To set optimization type for all
     // intra frames, both `KEY_BLOCK_OPT_TYPE` and `INTRA_BLOCK_OPT_TYPE` should
     // be set.
@@ -932,7 +929,7 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
     // default if trellis optimization is on for inter frames.)
     OPT_TYPE INTER_BLOCK_OPT_TYPE = TRELLIS_DROPOUT_OPT;
 
-    const TX_CLASS tx_class = tx_type_to_class[get_primary_tx_type(tx_type)];
+    const TX_CLASS tx_class = tx_type_to_class[tx_type.primary_tx];
     int use_tcq = tcq_enable(cm->features.tcq_mode,
                              xd->lossless[mbmi->segment_id], plane, tx_class);
     if (use_tcq) {
@@ -958,8 +955,7 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
 
     bool enable_parity_hiding =
         cm->features.allow_parity_hiding && !xd->lossless[mbmi->segment_id] &&
-        plane == PLANE_TYPE_Y &&
-        ph_allowed_tx_types[get_primary_tx_type(tx_type)] &&
+        plane == PLANE_TYPE_Y && ph_allowed_tx_types[tx_type.primary_tx] &&
         (p->eobs[block] > PHTHRESH);
 
     if (quant_param.use_optimize_b && do_trellis) {
@@ -988,17 +984,17 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
     // (1) Secondary tx type is disabled when eob doesn't allow it.
     // (2) make sure cctx_type is always CCTX_NONE when eob of U is 0.
     // See similar logic in `search_tx_type` and `search_cctx_type`.
-    const PRIMARY_TX_TYPE primary_tx_type = get_primary_tx_type(tx_type);
-    const SEC_TX_TYPE stx = get_secondary_tx_type(tx_type);
+    const PRIMARY_TX_TYPE primary_tx_type = tx_type.primary_tx;
+    const SEC_TX_TYPE stx = tx_type.sec_tx;
     if (p->eobs[block] == 1 && plane == PLANE_TYPE_Y && !is_inter) {
-      if (tx_type != DCT_DCT || (stx && primary_tx_type)) {
-        update_txk_array(xd, blk_row, blk_col, tx_size, DCT_DCT);
-        tx_type = DCT_DCT;
+      if (tx_type.primary_tx != DCT_DCT || stx > 0) {
+        tx_type = MAKE_TX_TYPE_FROM_PRIMARY_TX_TYPE(DCT_DCT);
+        update_txk_array(xd, blk_row, blk_col, tx_size, tx_type);
       }
     }
     if (p->eobs[block] <= 3 && plane == PLANE_TYPE_Y && is_inter && stx) {
-      update_txk_array(xd, blk_row, blk_col, tx_size, primary_tx_type);
-      tx_type = primary_tx_type;
+      tx_type = MAKE_TX_TYPE_FROM_PRIMARY_TX_TYPE(primary_tx_type);
+      update_txk_array(xd, blk_row, blk_col, tx_size, tx_type);
     }
     if (is_cctx_allowed(cm, xd) && plane == AVM_PLANE_U &&
         (p->eobs[block] == 0 || skip_cctx)) {
@@ -1064,7 +1060,8 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
   }
 
   if (p->eobs[block] == 0 && plane == 0) {
-    update_txk_array(xd, blk_row, blk_col, tx_size, DCT_DCT);
+    update_txk_array(xd, blk_row, blk_col, tx_size,
+                     MAKE_TX_TYPE_FROM_PRIMARY_TX_TYPE(DCT_DCT));
   }
   if (dry_run == OUTPUT_ENABLED && plane == AVM_PLANE_V &&
       is_cctx_allowed(cm, xd) && x->plane[AVM_PLANE_U].eobs[block] == 0) {
@@ -1218,7 +1215,9 @@ static void encode_block_pass1(int plane, int block, int blk_row, int blk_col,
   TxfmParam txfm_param;
   QUANT_PARAM quant_param;
 
-  av2_setup_xform(cm, x, plane, tx_size, DCT_DCT, CCTX_NONE, &txfm_param);
+  av2_setup_xform(cm, x, plane, tx_size,
+                  MAKE_TX_TYPE_FROM_PRIMARY_TX_TYPE(DCT_DCT), CCTX_NONE,
+                  &txfm_param);
   av2_setup_quant(tx_size, 0, AV2_XFORM_QUANT_B, cpi->oxcf.q_cfg.quant_b_adapt,
                   &quant_param);
   av2_setup_qmatrix(&cm->quant_params, xd, plane, tx_size, DCT_DCT,
@@ -1385,7 +1384,7 @@ void av2_encode_block_intra(int plane, int block, int blk_row, int blk_col,
   }
 #endif  // CONFIG_MISMATCH_DEBUG
 
-  TX_TYPE tx_type = DCT_DCT;
+  TX_TYPE tx_type = MAKE_TX_TYPE_FROM_PRIMARY_TX_TYPE(DCT_DCT);
   const int bw = mi_size_wide[plane_bsize];
 
   if (plane == 0 && is_blk_skip(x->txfm_search_info.blk_skip[plane],
@@ -1400,7 +1399,7 @@ void av2_encode_block_intra(int plane, int block, int blk_row, int blk_col,
     tx_type = av2_get_tx_type(xd, plane_type, blk_row, blk_col, tx_size,
                               is_reduced_tx_set_used(cm, plane_type));
     PRIMARY_TX_TYPE primary_tx_type =
-        is_stat_generation_stage(cpi) ? DCT_DCT : get_primary_tx_type(tx_type);
+        is_stat_generation_stage(cpi) ? DCT_DCT : tx_type.primary_tx;
     av2_subtract_txb(x, plane, plane_bsize, blk_col, blk_row, tx_size,
                      cm->width, cm->height, primary_tx_type);
 
@@ -1410,7 +1409,7 @@ void av2_encode_block_intra(int plane, int block, int blk_row, int blk_col,
         ((cm->seq_params.enable_fsc &&
           mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
           plane == PLANE_TYPE_Y) ||
-         use_inter_fsc(cm, plane, get_primary_tx_type(tx_type), is_inter));
+         use_inter_fsc(cm, plane, tx_type.primary_tx, is_inter));
     const int use_trellis =
         is_trellis_used(args->enable_optimize_b, args->dry_run);
     int quant_idx;
@@ -1423,8 +1422,8 @@ void av2_encode_block_intra(int plane, int block, int blk_row, int blk_col,
     av2_setup_xform(cm, x, plane, tx_size, tx_type, CCTX_NONE, &txfm_param);
     av2_setup_quant(tx_size, use_trellis, quant_idx,
                     cpi->oxcf.q_cfg.quant_b_adapt, &quant_param);
-    av2_setup_qmatrix(&cm->quant_params, xd, plane, tx_size,
-                      get_primary_tx_type(tx_type), &quant_param);
+    av2_setup_qmatrix(&cm->quant_params, xd, plane, tx_size, tx_type.primary_tx,
+                      &quant_param);
 
     // Settings for optimization type. NOTE: To set optimization type for all
     // intra frames, both `KEY_BLOCK_OPT_TYPE` and `INTRA_BLOCK_OPT_TYPE` should
@@ -1436,7 +1435,7 @@ void av2_encode_block_intra(int plane, int block, int blk_row, int blk_col,
     // Blocks of intra frames (key frames EXCLUSIVE).
     OPT_TYPE INTRA_BLOCK_OPT_TYPE = TRELLIS_DROPOUT_OPT;
 
-    const TX_CLASS tx_class = tx_type_to_class[get_primary_tx_type(tx_type)];
+    const TX_CLASS tx_class = tx_type_to_class[tx_type.primary_tx];
     int use_tcq = tcq_enable(cm->features.tcq_mode,
                              xd->lossless[mbmi->segment_id], plane, tx_class);
     if (use_tcq) {
@@ -1471,8 +1470,8 @@ void av2_encode_block_intra(int plane, int block, int blk_row, int blk_col,
 
     bool enable_parity_hiding =
         cm->features.allow_parity_hiding && !xd->lossless[mbmi->segment_id] &&
-        plane == PLANE_TYPE_Y &&
-        ph_allowed_tx_types[get_primary_tx_type(tx_type)] && (*eob > PHTHRESH);
+        plane == PLANE_TYPE_Y && ph_allowed_tx_types[tx_type.primary_tx] &&
+        (*eob > PHTHRESH);
 
     if (quant_param.use_optimize_b && do_trellis) {
       TXB_CTX txb_ctx;
@@ -1492,17 +1491,19 @@ void av2_encode_block_intra(int plane, int block, int blk_row, int blk_col,
                          cm->quant_params.base_qindex);
     }
     // make sure recon is correct at the encoder
-    if (*eob == 1 && tx_type != 0 && plane == 0) {
-      xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col] = DCT_DCT;
+    if (*eob == 1 && (tx_type.primary_tx != DCT_DCT || tx_type.sec_tx > 0) &&
+        plane == 0) {
+      xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col] =
+          MAKE_TX_TYPE_FROM_PRIMARY_TX_TYPE(DCT_DCT);
       tx_type = av2_get_tx_type(xd, plane_type, blk_row, blk_col, tx_size,
                                 is_reduced_tx_set_used(cm, plane_type));
       av2_subtract_txb(x, plane, plane_bsize, blk_col, blk_row, tx_size,
-                       cm->width, cm->height, get_primary_tx_type(tx_type));
+                       cm->width, cm->height, tx_type.primary_tx);
       av2_setup_xform(cm, x, plane, tx_size, tx_type, CCTX_NONE, &txfm_param);
       av2_setup_quant(tx_size, use_trellis, quant_idx,
                       cpi->oxcf.q_cfg.quant_b_adapt, &quant_param);
       av2_setup_qmatrix(&cm->quant_params, xd, plane, tx_size,
-                        get_primary_tx_type(tx_type), &quant_param);
+                        tx_type.primary_tx, &quant_param);
       av2_xform_quant(use_tcq_deadzone_boost, cm, x, plane, block, blk_row,
                       blk_col, plane_bsize, &txfm_param, &quant_param);
       if (quant_param.use_optimize_b && do_trellis) {
@@ -1536,7 +1537,8 @@ void av2_encode_block_intra(int plane, int block, int blk_row, int blk_col,
   }
 
   if (*eob == 0 && plane == 0) {
-    update_txk_array(xd, blk_row, blk_col, tx_size, DCT_DCT);
+    update_txk_array(xd, blk_row, blk_col, tx_size,
+                     MAKE_TX_TYPE_FROM_PRIMARY_TX_TYPE(DCT_DCT));
   }
 
   if (*eob == 0 && args->dry_run == OUTPUT_ENABLED) {
@@ -1708,9 +1710,9 @@ void av2_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
   CctxType cctx_type = av2_get_cctx_type(xd, blk_row, blk_col);
 
   av2_subtract_txb(x, AVM_PLANE_U, plane_bsize, blk_col, blk_row, tx_size,
-                   cm->width, cm->height, get_primary_tx_type(tx_type));
+                   cm->width, cm->height, tx_type.primary_tx);
   av2_subtract_txb(x, AVM_PLANE_V, plane_bsize, blk_col, blk_row, tx_size,
-                   cm->width, cm->height, get_primary_tx_type(tx_type));
+                   cm->width, cm->height, tx_type.primary_tx);
 
   TxfmParam txfm_param;
   QUANT_PARAM quant_param;
@@ -1737,7 +1739,7 @@ void av2_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
       av2_setup_xform(cm, x, AVM_PLANE_U, tx_size, tx_type, cctx_type,
                       &txfm_param);
       av2_setup_qmatrix(&cm->quant_params, xd, AVM_PLANE_U, tx_size,
-                        get_primary_tx_type(tx_type), &quant_param);
+                        tx_type.primary_tx, &quant_param);
       av2_xform_quant(0, cm, x, AVM_PLANE_U, block, blk_row, blk_col,
                       plane_bsize, &txfm_param, &quant_param);
       if (quant_param.use_optimize_b) {
@@ -1752,8 +1754,8 @@ void av2_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
       }
     }
 
-    av2_setup_qmatrix(&cm->quant_params, xd, plane, tx_size,
-                      get_primary_tx_type(tx_type), &quant_param);
+    av2_setup_qmatrix(&cm->quant_params, xd, plane, tx_size, tx_type.primary_tx,
+                      &quant_param);
     av2_xform_quant(0, cm, x, plane, block, blk_row, blk_col, plane_bsize,
                     &txfm_param, &quant_param);
 

@@ -14,6 +14,7 @@
 #define AVM_AV2_COMMON_ENUMS_H_
 
 #include <assert.h>
+#include <stdbool.h>
 
 #include "config/avm_config.h"
 
@@ -710,9 +711,7 @@ enum {
   H_FLIPADST,         // Identity in vertical, FLIPADST in horizontal
   PRIMARY_TX_TYPES,
   DCT_ADST_TX_MASK = 0x000F,  // Either DCT or ADST in each direction
-} UENUM2BYTE(PRIMARY_TX_TYPE);
-
-typedef PRIMARY_TX_TYPE TX_TYPE;
+} UENUM1BYTE(PRIMARY_TX_TYPE);
 
 // Secondary Transform Types / Kernels
 enum {
@@ -734,6 +733,61 @@ enum {
   SEC_TX_SET_6,
   SEC_TX_SET_COUNT,
 } UENUM1BYTE(SEC_TX_SET);
+
+/*
+ * Unified transform type.
+ *
+ * Access the components through the named fields:
+ *   .primary_tx  primary transform type                (PRIMARY_TX_TYPE)
+ *   .sec_set  secondary transform set,   IST only   (SEC_TX_SET)
+ *   .sec_tx   secondary transform type,  IST only   (SEC_TX_TYPE)
+ * .sec_tx and .sec_set are SEC_TX_NONE / SEC_TX_SET_0 when IST is disabled.
+ *
+ * packed_tx_type aliases all three. It exists only for zero-initialisation
+ * and the size/range asserts. Its layout follows the field order below:
+ * Bits 8~9 of packed_tx_type stores secondary tx_type
+ * Bits 4~7 of packed_tx_type stores secondary tx_set
+ * Bits 0~3 of packed_tx_type stores primary tx_type
+ */
+typedef union {
+  uint16_t packed_tx_type;
+  struct {
+    PRIMARY_TX_TYPE primary_tx : 4;
+    SEC_TX_SET sec_set : 4;
+    SEC_TX_TYPE sec_tx : 2;
+  };
+} TX_TYPE;
+
+static_assert(sizeof(TX_TYPE) == sizeof(uint16_t),
+              "TX_TYPE size must exactly be sizeof(uint16_t)");
+
+static AVM_INLINE TX_TYPE pack_tx_type(PRIMARY_TX_TYPE primary_tx,
+                                       SEC_TX_TYPE sec_tx, SEC_TX_SET sec_set) {
+  TX_TYPE tx;
+  tx.packed_tx_type = 0;
+  tx.primary_tx = primary_tx;
+  tx.sec_tx = sec_tx;
+  tx.sec_set = sec_set;
+  return tx;
+}
+
+#define MAKE_TX_TYPE_FROM_PRIMARY_TX_TYPE(primary_tx) \
+  pack_tx_type((primary_tx), SEC_TX_NONE, SEC_TX_SET_0)
+
+/*
+ * Returns Ture if the transform type components are within their valid ranges.
+ */
+static AVM_INLINE bool av2_tx_type_in_range(PRIMARY_TX_TYPE primary_tx,
+                                            SEC_TX_TYPE sec_tx,
+                                            SEC_TX_SET sec_set, int tx_w,
+                                            int tx_h) {
+  const int max_sec_set = (primary_tx != ADST_ADST) ? SEC_TX_SET_COUNT
+                          : (tx_w >= 8 && tx_h >= 8)
+                              ? SEC_TX_SET_COUNT + IST_REDUCED_SET_SIZE
+                              : SEC_TX_SET_COUNT + IST_SET_SIZE;
+  return primary_tx < PRIMARY_TX_TYPES && sec_tx < SEC_TX_TYPES_COUNT &&
+         sec_set < max_sec_set;
+}
 
 enum {
   DCT2,

@@ -180,8 +180,8 @@ const qm_val_t *av2_iqmatrix(const CommonQuantParams *quant_params, int qmlevel,
   return quant_params->giqmatrix[qmlevel][plane][tx_size];
 }
 
-// Returns true if the tx_type corresponds to non-identity transform in both
-// horizontal and vertical directions.
+// Returns true if the primary_tx_type corresponds to non-identity transform in
+// both horizontal and vertical directions.
 static INLINE bool is_2d_transform(PRIMARY_TX_TYPE primary_tx_type) {
   return (primary_tx_type < IDTX);
 }
