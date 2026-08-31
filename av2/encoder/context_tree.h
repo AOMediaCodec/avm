@@ -108,6 +108,11 @@ typedef struct SIMPLE_MOTION_DATA_TREE {
   unsigned int sms_rect_feat[8];
   int sms_none_valid;
   int sms_rect_valid;
+
+  // Unified SMS pre-screener: computed once per block and reused at each
+  // pruning gate.
+  float sms_unified_probs[ALL_PARTITION_TYPES];
+  int sms_unified_valid;
 } SIMPLE_MOTION_DATA_TREE;
 
 PC_TREE *av2_look_for_counterpart_block(PC_TREE *pc_tree);

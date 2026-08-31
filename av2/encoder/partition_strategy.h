@@ -106,6 +106,16 @@ void av2_prune_partitions_before_search(
     struct PartitionSearchState *partition_search_state, bool *do_square_split,
     const PC_TREE *pc_tree);
 
+// Run SMS motion search for a square block and populate sms_tree features.
+// Safe to call from av2_prune_partitions_before_search() (before any RD
+// search). Used by the unified SMS pre-screener to populate features
+// independently of the anchor SMS gate flags
+// (disable_ml_partition_speed_features etc.). No-op if sms_none_valid is
+// already set, or if block is intra/screen/256x256.
+void av2_sms_run_motion_search(AV2_COMP *const cpi, MACROBLOCK *x,
+                               SIMPLE_MOTION_DATA_TREE *sms_tree, int mi_row,
+                               int mi_col, BLOCK_SIZE bsize);
+
 // Prune out partitions that lead to coding block sizes outside the min and max
 // bsizes set by the encoder. Max and min square partition levels are defined as
 // the partition nodes that the recursive function rd_pick_partition() can
@@ -206,6 +216,7 @@ static INLINE void init_simple_motion_search_mvs(
   av2_zero(sms_tree->sms_rect_feat);
   av2_zero(sms_tree->sms_none_valid);
   av2_zero(sms_tree->sms_rect_valid);
+  sms_tree->sms_unified_valid = 0;
 
   if (sms_tree->block_size >= BLOCK_8X8) {
     init_simple_motion_search_mvs(sms_tree->split[0]);

@@ -17,6 +17,7 @@
 #include "avm_ports/avm_timer.h"
 
 #include "av2/encoder/partition_mlp.h"
+#include "av2/encoder/partition_sms.h"
 
 #include "av2/common/av2_common_int.h"
 #include "av2/common/av2_loopfilter.h"
