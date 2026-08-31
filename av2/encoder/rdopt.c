@@ -5533,8 +5533,6 @@ static void handle_compound_inter_prediction(
 
       for (int cwp_search_idx = 0; cwp_search_idx < cwp_loop_num;
            cwp_search_idx++) {
-        mbmi->ref_mv_idx[1] = ref_mv_idx[1];
-        mbmi->ref_mv_idx[0] = ref_mv_idx[0];
         mbmi->interinter_comp.type = COMPOUND_AVERAGE;
         mbmi->comp_group_idx = 0;
         mbmi->motion_mode = SIMPLE_TRANSLATION;
@@ -5798,6 +5796,10 @@ static int64_t handle_inter_mode(
   if (has_two_drls) {
     ref_set[1] = get_drl_refmv_count(cm->features.max_drl_bits, x,
                                      mbmi->ref_frame, this_mode, 1);
+    if (cpi->sf.inter_sf.reduce_max_drl_refmvs) {
+      if (ref_set[0] > 1) ref_set[0]--;
+      if (ref_set[1] > 1) ref_set[1]--;
+    }
   }
   // Dry pass: look at no more than 2 reference MV candidates per reference.
   if (x->apply_dry_pass_shortcuts) {
