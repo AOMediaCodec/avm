@@ -2642,8 +2642,11 @@ static AVM_INLINE int handle_warp_delta_mode(
         mbmi->mv[0].as_int = previous_mvs[mbmi->warp_ref_idx].as_int;
       }
     }
-    if (!cpi->sf.inter_sf.enable_six_param_warp_in_winner_mode ||
-        !eval_motion_mode)
+    // `eval_motion_mode` is 1 when `mbmi->mode == WARP_NEWMV`,
+    // `mbmi->motion_mode == WARP_DELTA` and `mbmi->warp_ref_idx` is 2 or 3.
+    // In this case, skip the evaluation since it has already been done
+    // when `eval_motion_mode` is 0.
+    if (!eval_motion_mode)
       valid = av2_refine_mv_for_base_param_warp_model(
           cm, xd, mbmi, mbmi_ext, &ms_params,
           get_warp_search_method(cpi, eval_motion_mode, mbmi->ref_frame[0]),
@@ -2651,13 +2654,14 @@ static AVM_INLINE int handle_warp_delta_mode(
           cpi->sf.mv_sf.warp_mv_refine_early_term);
   } else {
     mbmi->six_param_warp_model_flag = get_default_six_param_flag(cm, mbmi);
-    const int six_param_enabled_by_tid =
-        mbmi->six_param_warp_model_flag &&
-        cpi->sf.inter_sf.enable_six_param_warp_in_winner_mode_by_tid;
-    const bool use_six_param_in_winner =
-        (eval_motion_mode == six_param_enabled_by_tid);
-    if (use_six_param_in_winner ||
-        !cpi->sf.inter_sf.enable_six_param_warp_in_winner_mode) {
+    const int warp_delta_in_winner =
+        mbmi->six_param_warp_model_flag
+            ? cpi->sf.inter_sf.enable_six_param_warp_in_winner_mode_by_tid
+            : cpi->sf.inter_sf.enable_four_param_warp_in_winner_mode;
+    // When warp delta search (4-param / 6-param) is enabled in winner mode,
+    // skip the search when `eval_motion_mode` is 0.
+    const bool do_pick_warp_delta = (eval_motion_mode == warp_delta_in_winner);
+    if (do_pick_warp_delta) {
       valid = av2_pick_warp_delta(
           cm, xd, mbmi, &ms_params, &x->mode_costs, prev_best_models,
           mbmi_ext->warp_param_stack[av2_ref_frame_type(mbmi->ref_frame)],
@@ -3336,8 +3340,9 @@ static int64_t motion_mode_rd(
   for (int mode_index = SIMPLE_TRANSLATION; mode_index < mode_index_end;
        mode_index++) {
     if ((modes_to_search & (1 << mode_index)) == 0) continue;
-    if (cpi->sf.inter_sf.enable_six_param_warp_in_winner_mode &&
-        eval_motion_mode &&
+    assert(IMPLIES(eval_motion_mode,
+                   enable_warp_search_in_winner_mode(&cpi->sf.inter_sf)));
+    if (eval_motion_mode &&
         (mode_index == WARP_CAUSAL || mode_index == WARP_EXTEND))
       continue;
     int warp_ref_idx_limit =
@@ -8832,7 +8837,7 @@ static const unsigned int num_winner_motion_modes[3] = { 0, 10, 6 };
 static AVM_INLINE int is_check_in_winner(const AV2_COMP *cpi,
                                          const MB_MODE_INFO *const mbmi) {
   PREDICTION_MODE this_mode = mbmi->mode;
-  if (cpi->sf.inter_sf.enable_six_param_warp_in_winner_mode) {
+  if (enable_warp_search_in_winner_mode(&cpi->sf.inter_sf)) {
     if (this_mode == WARP_NEWMV) return 1;
   }
   if (cpi->sf.inter_sf.enable_warp_inter_intra_in_winner) {
