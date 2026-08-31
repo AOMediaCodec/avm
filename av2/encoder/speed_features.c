@@ -455,11 +455,6 @@ static void set_good_speed_features_framesize_independent(
     sf->lpf_sf.early_terminate_ccso_search_by_cost = 1;
     sf->part_sf.partition_pruning_with_mlp_none_thresh = 2.5f;
     sf->part_sf.intra_cnn_split = 0;
-    sf->part_sf.simple_motion_search_early_term_none = 1;
-    // TODO(Venkat): Clean-up frame type dependency for
-    // simple_motion_search_split in partition search function and set the
-    // speed feature accordingly
-    sf->part_sf.simple_motion_search_split = allow_screen_content_tools ? 1 : 2;
 
     sf->part_sf.disable_uneven_4way_partitions = true;
     sf->part_sf.disable_ext_partitions = true;
@@ -523,6 +518,11 @@ static void set_good_speed_features_framesize_independent(
     sf->part_sf.allow_partition_search_skip = 1;
     sf->part_sf.less_rectangular_check_level = 2;
     sf->part_sf.simple_motion_search_prune_agg = 1;
+    sf->part_sf.simple_motion_search_early_term_none = 1;
+    // TODO(Venkat): Clean-up frame type dependency for
+    // simple_motion_search_split in partition search function and set the
+    // speed feature accordingly
+    sf->part_sf.simple_motion_search_split = allow_screen_content_tools ? 1 : 2;
 
     sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 3 : 4;
 
@@ -1146,7 +1146,7 @@ static AVM_INLINE void set_erp_speed_features_framesize_dependent(
     }
   }
 
-  if (cpi->speed >= 2) {
+  if (cpi->speed >= 3) {
     sf->part_sf.simple_motion_search_early_term_none = 1;
   }
 }
@@ -1255,6 +1255,8 @@ static AVM_INLINE void set_erp_speed_features(AV2_COMP *cpi) {
 
   if (cpi->speed >= 2) {
     sf->part_sf.ext_recur_depth_level = 2;
+  }
+  if (cpi->speed >= 3) {
     sf->part_sf.simple_motion_search_split = 1;
     sf->part_sf.simple_motion_search_early_term_none = 1;
   }
