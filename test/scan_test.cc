@@ -101,14 +101,15 @@ TEST(Av2ScanTest, Dependency) {
     const int org_cols = tx_size_wide[(TX_SIZE)tx_size];
     const int rows = get_txb_high((TX_SIZE)tx_size);
     const int cols = get_txb_wide((TX_SIZE)tx_size);
-    for (int tx_type = 0; tx_type < PRIMARY_TX_TYPES; ++tx_type) {
-      if (libavm_test::IsTxSizeTypeValid(static_cast<TX_SIZE>(tx_size),
-                                         static_cast<TX_TYPE>(tx_type)) ==
-          false) {
+    for (int primary_tx_type = 0; primary_tx_type < PRIMARY_TX_TYPES;
+         ++primary_tx_type) {
+      if (libavm_test::IsTxSizeTypeValid(
+              static_cast<TX_SIZE>(tx_size),
+              static_cast<PRIMARY_TX_TYPE>(primary_tx_type)) == false) {
         continue;
       }
       SCAN_MODE scan_mode;
-      TX_CLASS tx_class = tx_type_to_class[(TX_TYPE)tx_type];
+      TX_CLASS tx_class = tx_type_to_class[(PRIMARY_TX_TYPE)primary_tx_type];
       if (tx_class == TX_CLASS_2D) {
         scan_mode = SCAN_MODE_COL_DIAG;
       } else if (tx_class == TX_CLASS_VERT) {
@@ -118,11 +119,12 @@ TEST(Av2ScanTest, Dependency) {
         scan_mode = SCAN_MODE_COL_1D;
       }
       const SCAN_ORDER *scan_order =
-          get_default_scan((TX_SIZE)tx_size, (TX_TYPE)tx_type);
+          get_default_scan(static_cast<TX_SIZE>(tx_size),
+                           static_cast<PRIMARY_TX_TYPE>(primary_tx_type));
       ASSERT_EQ(scan_order_test(scan_order, cols, rows, scan_mode), 0)
-          << "scan mismatch tx_class " << tx_class << " tx_type " << tx_type
-          << " tx_w " << org_cols << " tx_h " << org_rows << " scan_mode "
-          << scan_mode << "\n";
+          << "scan mismatch tx_class " << tx_class << " primary_tx_type "
+          << primary_tx_type << " tx_w " << org_cols << " tx_h " << org_rows
+          << " scan_mode " << scan_mode << "\n";
     }
   }
 }

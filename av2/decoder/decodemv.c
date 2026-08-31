@@ -1248,10 +1248,10 @@ static void read_secondary_tx_set(MACROBLOCKD *xd, FRAME_CONTEXT *ec_ctx,
                                   avm_reader *r, MB_MODE_INFO *mbmi,
                                   TX_SIZE tx_size, TX_TYPE *tx_type) {
   const int inter_block = is_inter_block(mbmi, xd->tree_type);
-  TX_TYPE stx_set_flag = DC_PRED;
+  SEC_TX_SET stx_set_flag = SEC_TX_SET_0;
   if (!inter_block) {
     uint8_t intra_mode = get_intra_mode(mbmi, AVM_PLANE_Y);
-    TX_TYPE reordered_stx_set_flag;
+    SEC_TX_SET reordered_stx_set_flag;
     if (get_primary_tx_type(*tx_type) == ADST_ADST &&
         tx_size_wide[tx_size] >= 8 && tx_size_high[tx_size] >= 8) {
       reordered_stx_set_flag = avm_read_symbol(
@@ -1295,10 +1295,11 @@ void av2_read_sec_tx_type(const AV2_COMMON *const cm, MACROBLOCKD *xd,
       1) {
     FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
     const TX_SIZE square_tx_size = txsize_sqr_map[tx_size];
-    if (block_signals_sec_tx_type(xd, tx_size, *tx_type, *eob)) {
-      const uint8_t stx_flag =
-          avm_read_symbol(r, ec_ctx->stx_cdf[inter_block][square_tx_size],
-                          STX_TYPES, ACCT_INFO("stx_flag"));
+    if (block_signals_sec_tx_type(xd, tx_size, get_primary_tx_type(*tx_type),
+                                  *eob)) {
+      const SEC_TX_TYPE stx_flag = (SEC_TX_TYPE)avm_read_symbol(
+          r, ec_ctx->stx_cdf[inter_block][square_tx_size], STX_TYPES,
+          ACCT_INFO("stx_flag"));
       *tx_type |= (stx_flag << PRIMARY_TX_BITS);
       if (stx_flag > 0)
         read_secondary_tx_set(xd, ec_ctx, r, mbmi, tx_size, tx_type);
@@ -1316,7 +1317,8 @@ void av2_read_sec_tx_type(const AV2_COMMON *const cm, MACROBLOCKD *xd,
   } else {
     FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
     const TX_SIZE square_tx_size = txsize_sqr_map[tx_size];
-    if (block_signals_sec_tx_type(xd, tx_size, *tx_type, *eob)) {
+    if (block_signals_sec_tx_type(xd, tx_size, get_primary_tx_type(*tx_type),
+                                  *eob)) {
       const uint8_t stx_flag =
           avm_read_symbol(r, ec_ctx->stx_cdf[inter_block][square_tx_size],
                           STX_TYPES, ACCT_INFO("stx_flag"));
