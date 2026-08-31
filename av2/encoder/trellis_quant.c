@@ -935,10 +935,12 @@ static AVM_INLINE int get_diag_ctx(int lf, int blk_pos, int scan_pos, int bwl) {
   return diag_ctx;
 }
 
-// TCQ 8-state for a 2D luma block.
-static void trellis_loop_diagonal_st8(const tcq_param_t *p, int scan_hi,
-                                      int scan_lo, tcq_ctx_t *tcq_ctx,
-                                      tcq_node_t *trellis) {
+// TCQ 8-state for a 2D luma block. Dispatch this whole loop once per block so
+// SIMD implementations do not pay indirect-call overhead for every kernel at
+// every coefficient.
+void av2_trellis_loop_diagonal_st8_c(const tcq_param_t *p, int scan_hi,
+                                     int scan_lo, tcq_ctx_t *tcq_ctx,
+                                     tcq_node_t *trellis) {
   int plane = p->plane;
   int log_scale = p->log_scale;
   int try_eob = p->sharpness == 0;
@@ -985,35 +987,35 @@ static void trellis_loop_diagonal_st8(const tcq_param_t *p, int scan_hi,
 
       // Get coeff contexts
       tcq_coeff_ctx_t coeff_ctx;
-      av2_get_coeff_ctx(tcq_ctx, col, &coeff_ctx);
+      av2_get_coeff_ctx_c(tcq_ctx, col, &coeff_ctx);
       coeff_ctx.coef_eob = get_lower_levels_ctx_eob(bwl, height, scan_pos);
       int eob_rate = block_eob_rate[scan_pos];
       tcq_rate_t rd;
 
       if (pqData.orig_qIdx < 2) {
-        av2_pre_quant_q1(tcoeff[blk_pos], &pqData, quant, tempdqv, log_scale,
-                         scan_pos);
-        av2_get_rate_dist_def_luma_q1(p, &pqData, &coeff_ctx, blk_pos, diag_ctx,
-                                      eob_rate, &rd);
-        av2_decide_states_q1(prev_decision, &rd, &pqData, lf, try_eob, rdmult,
-                             decision);
+        av2_pre_quant_q1_c(tcoeff[blk_pos], &pqData, quant, tempdqv, log_scale,
+                           scan_pos);
+        av2_get_rate_dist_def_luma_q1_c(p, &pqData, &coeff_ctx, blk_pos,
+                                        diag_ctx, eob_rate, &rd);
+        av2_decide_states_q1_c(prev_decision, &rd, &pqData, lf, try_eob, rdmult,
+                               decision);
       } else {
-        av2_pre_quant(tcoeff[blk_pos], &pqData, quant, tempdqv, log_scale,
-                      scan_pos);
-        av2_get_rate_dist_def_luma(p, &pqData, &coeff_ctx, blk_pos, diag_ctx,
-                                   eob_rate, &rd);
+        av2_pre_quant_c(tcoeff[blk_pos], &pqData, quant, tempdqv, log_scale,
+                        scan_pos);
+        av2_get_rate_dist_def_luma_c(p, &pqData, &coeff_ctx, blk_pos, diag_ctx,
+                                     eob_rate, &rd);
 
-        av2_decide_states(prev_decision, &rd, &pqData, lf, try_eob, rdmult,
-                          decision);
+        av2_decide_states_c(prev_decision, &rd, &pqData, lf, try_eob, rdmult,
+                            decision);
       }
 
-      av2_update_states(decision, col, tcq_ctx);
+      av2_update_states_c(decision, col, tcq_ctx);
 
       blk_pos += blk_pos_inc;
       col--;
       row++;
     }
-    av2_update_nbr_diagonal(tcq_ctx, row - 1, col + 1, bwl);
+    av2_update_nbr_diagonal_c(tcq_ctx, row - 1, col + 1, bwl);
     scan_hi = scan_lo - 1;
   }
   // Handle LF region.
@@ -1041,36 +1043,36 @@ static void trellis_loop_diagonal_st8(const tcq_param_t *p, int scan_hi,
 
       // Get coeff contexts
       tcq_coeff_ctx_t coeff_ctx;
-      av2_get_coeff_ctx(tcq_ctx, col, &coeff_ctx);
+      av2_get_coeff_ctx_c(tcq_ctx, col, &coeff_ctx);
       coeff_ctx.coef_eob = get_lower_levels_ctx_eob(bwl, height, scan_pos);
       int eob_rate = block_eob_rate[scan_pos];
       tcq_rate_t rd;
 
       if (pqData.orig_qIdx < 2) {
-        av2_pre_quant_q1(tcoeff[blk_pos], &pqData, quant, tempdqv, log_scale,
-                         scan_pos);
-        av2_get_rate_dist_lf_luma_q1(p, &pqData, &coeff_ctx, blk_pos, diag_ctx,
-                                     eob_rate, dc_coeff_sign, &rd);
-        av2_decide_states_q1(prev_decision, &rd, &pqData, lf, try_eob, rdmult,
-                             decision);
+        av2_pre_quant_q1_c(tcoeff[blk_pos], &pqData, quant, tempdqv, log_scale,
+                           scan_pos);
+        av2_get_rate_dist_lf_luma_q1_c(p, &pqData, &coeff_ctx, blk_pos,
+                                       diag_ctx, eob_rate, dc_coeff_sign, &rd);
+        av2_decide_states_q1_c(prev_decision, &rd, &pqData, lf, try_eob, rdmult,
+                               decision);
       } else {
         // Calculate rate and distortion.
-        av2_pre_quant(tcoeff[blk_pos], &pqData, quant, tempdqv, log_scale,
-                      scan_pos);
-        av2_get_rate_dist_lf_luma(p, &pqData, &coeff_ctx, blk_pos, diag_ctx,
-                                  eob_rate, dc_coeff_sign, &rd);
-        av2_decide_states(prev_decision, &rd, &pqData, lf, try_eob, rdmult,
-                          decision);
+        av2_pre_quant_c(tcoeff[blk_pos], &pqData, quant, tempdqv, log_scale,
+                        scan_pos);
+        av2_get_rate_dist_lf_luma_c(p, &pqData, &coeff_ctx, blk_pos, diag_ctx,
+                                    eob_rate, dc_coeff_sign, &rd);
+        av2_decide_states_c(prev_decision, &rd, &pqData, lf, try_eob, rdmult,
+                            decision);
       }
 
-      av2_update_states(decision, col, tcq_ctx);
+      av2_update_states_c(decision, col, tcq_ctx);
 
       blk_pos += blk_pos_inc;
       col--;
       row++;
     }
     if (scan_hi != 0) {
-      av2_update_nbr_diagonal(tcq_ctx, row - 1, col + 1, bwl);
+      av2_update_nbr_diagonal_c(tcq_ctx, row - 1, col + 1, bwl);
     }
     scan_hi = scan_lo - 1;
   }
@@ -1353,7 +1355,7 @@ int av2_trellis_quant(const struct AV2_COMP *cpi, MACROBLOCK *x, int plane,
   // Speed-up version for 2D Luma by exploiting parallelism
   // Process coeffs diagonal-by-diagonal.
   if (scan_hi >= 0) {
-    trellis_loop_diagonal_st8(&param, scan_hi, 0, &tcq_ctx, trellis);
+    av2_trellis_loop_diagonal_st8(&param, scan_hi, 0, &tcq_ctx, trellis);
   }
 
   // find best path

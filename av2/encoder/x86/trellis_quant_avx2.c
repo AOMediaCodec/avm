@@ -75,11 +75,10 @@ static const uint8_t kConst[4][16] = {
   { 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7 },
 };
 
-void av2_decide_states_avx2(const struct tcq_node_t *prev,
-                            const struct tcq_rate_t *rd,
-                            const struct prequant_t *pq, int limits,
-                            int try_eob, int64_t rdmult,
-                            struct tcq_node_t *decision) {
+static AVM_FORCE_INLINE void decide_states_avx2_impl(
+    const struct tcq_node_t *prev, const struct tcq_rate_t *rd,
+    const struct prequant_t *pq, int limits, int try_eob, int64_t rdmult,
+    struct tcq_node_t *decision) {
   (void)limits;
   assert((rdmult >> 32) == 0);
   static_assert(sizeof(tcq_node_t) == 16, "");
@@ -198,11 +197,10 @@ void av2_decide_states_avx2(const struct tcq_node_t *prev,
   }
 }
 
-void av2_decide_states_q1_avx2(const struct tcq_node_t *prev,
-                               const struct tcq_rate_t *rd,
-                               const struct prequant_t *pq, int limits,
-                               int try_eob, int64_t rdmult,
-                               struct tcq_node_t *decision) {
+static AVM_FORCE_INLINE void decide_states_q1_avx2_impl(
+    const struct tcq_node_t *prev, const struct tcq_rate_t *rd,
+    const struct prequant_t *pq, int limits, int try_eob, int64_t rdmult,
+    struct tcq_node_t *decision) {
   (void)limits;
   assert((rdmult >> 32) == 0);
 
@@ -368,8 +366,8 @@ void av2_pre_quant_q1_avx2(tran_low_t tqc, struct prequant_t *pqData,
   _mm_storeu_si128((__m128i *)&pqData->deltaDist[1], deltaDist);
 }
 
-void av2_update_states_avx2(const tcq_node_t *decision, int col,
-                            struct tcq_ctx_t *tcq_ctx) {
+static AVM_FORCE_INLINE void update_states_avx2_impl(
+    const tcq_node_t *decision, int col, struct tcq_ctx_t *tcq_ctx) {
   // Extract prevId, absLevel from decision[]
   __m256i dec01 = _mm256_lddqu_si256((__m256i *)&decision[0]);
   __m256i dec23 = _mm256_lddqu_si256((__m256i *)&decision[2]);
@@ -454,11 +452,10 @@ static int get_mid_cost_lf_dc(tran_low_t abs_qc, int sign, int coeff_ctx,
   return cost;
 }
 
-void av2_get_rate_dist_def_luma_avx2(const struct tcq_param_t *p,
-                                     const struct prequant_t *pq,
-                                     const struct tcq_coeff_ctx_t *coeff_ctx,
-                                     int blk_pos, int diag_ctx, int eob_rate,
-                                     struct tcq_rate_t *rd) {
+static AVM_FORCE_INLINE void get_rate_dist_def_luma_avx2_impl(
+    const struct tcq_param_t *p, const struct prequant_t *pq,
+    const struct tcq_coeff_ctx_t *coeff_ctx, int blk_pos, int diag_ctx,
+    int eob_rate, struct tcq_rate_t *rd) {
   const LV_MAP_COEFF_COST *txb_costs = p->txb_costs;
   (void)blk_pos;
   const int32_t(*cost_zero)[SIG_COEF_CONTEXTS] = txb_costs->base_cost_zero;
@@ -606,11 +603,10 @@ void av2_get_rate_dist_def_luma_avx2(const struct tcq_param_t *p,
   }
 }
 
-void av2_get_rate_dist_def_luma_q1_avx2(const struct tcq_param_t *p,
-                                        const struct prequant_t *pq,
-                                        const struct tcq_coeff_ctx_t *coeff_ctx,
-                                        int blk_pos, int diag_ctx, int eob_rate,
-                                        struct tcq_rate_t *rd) {
+static AVM_FORCE_INLINE void get_rate_dist_def_luma_q1_avx2_impl(
+    const struct tcq_param_t *p, const struct prequant_t *pq,
+    const struct tcq_coeff_ctx_t *coeff_ctx, int blk_pos, int diag_ctx,
+    int eob_rate, struct tcq_rate_t *rd) {
   const LV_MAP_COEFF_COST *txb_costs = p->txb_costs;
   (void)blk_pos;
   (void)pq;
@@ -773,11 +769,10 @@ void av2_update_nbr_diagonal_avx2(struct tcq_ctx_t *tcq_ctx, int row, int col,
   }
 }
 
-void av2_get_rate_dist_lf_luma_avx2(const struct tcq_param_t *p,
-                                    const struct prequant_t *pq,
-                                    const struct tcq_coeff_ctx_t *coeff_ctx,
-                                    int blk_pos, int diag_ctx, int eob_rate,
-                                    int coeff_sign, struct tcq_rate_t *rd) {
+static AVM_FORCE_INLINE void get_rate_dist_lf_luma_avx2_impl(
+    const struct tcq_param_t *p, const struct prequant_t *pq,
+    const struct tcq_coeff_ctx_t *coeff_ctx, int blk_pos, int diag_ctx,
+    int eob_rate, int coeff_sign, struct tcq_rate_t *rd) {
   const LV_MAP_COEFF_COST *txb_costs = p->txb_costs;
   static const int8_t kShuf[2][32] = {
     { 0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15,
@@ -947,11 +942,10 @@ void av2_get_rate_dist_lf_luma_avx2(const struct tcq_param_t *p,
   }
 }
 
-void av2_get_rate_dist_lf_luma_q1_avx2(const struct tcq_param_t *p,
-                                       const struct prequant_t *pq,
-                                       const struct tcq_coeff_ctx_t *coeff_ctx,
-                                       int blk_pos, int diag_ctx, int eob_rate,
-                                       int coeff_sign, struct tcq_rate_t *rd) {
+static AVM_FORCE_INLINE void get_rate_dist_lf_luma_q1_avx2_impl(
+    const struct tcq_param_t *p, const struct prequant_t *pq,
+    const struct tcq_coeff_ctx_t *coeff_ctx, int blk_pos, int diag_ctx,
+    int eob_rate, int coeff_sign, struct tcq_rate_t *rd) {
   (void)pq;
   const LV_MAP_COEFF_COST *txb_costs = p->txb_costs;
   static const int8_t kShuf[2][32] = {
@@ -1047,6 +1041,66 @@ void av2_get_rate_dist_lf_luma_q1_avx2(const struct tcq_param_t *p,
     rate_eob = _mm_add_epi32(rate_eob, v_dc_cost);
   }
   _mm_storeu_si64(&rd->rate_eob[0], rate_eob);
+}
+
+// Keep the RTCD entry points for unit tests and non-fused callers. The block
+// loop below uses the inline implementations so its per-coefficient kernels
+// can be optimized together.
+void av2_decide_states_avx2(const struct tcq_node_t *prev,
+                            const struct tcq_rate_t *rd,
+                            const struct prequant_t *pq, int limits,
+                            int try_eob, int64_t rdmult,
+                            struct tcq_node_t *decision) {
+  decide_states_avx2_impl(prev, rd, pq, limits, try_eob, rdmult, decision);
+}
+
+void av2_decide_states_q1_avx2(const struct tcq_node_t *prev,
+                               const struct tcq_rate_t *rd,
+                               const struct prequant_t *pq, int limits,
+                               int try_eob, int64_t rdmult,
+                               struct tcq_node_t *decision) {
+  decide_states_q1_avx2_impl(prev, rd, pq, limits, try_eob, rdmult, decision);
+}
+
+void av2_update_states_avx2(const tcq_node_t *decision, int col,
+                            struct tcq_ctx_t *tcq_ctx) {
+  update_states_avx2_impl(decision, col, tcq_ctx);
+}
+
+void av2_get_rate_dist_def_luma_avx2(const struct tcq_param_t *p,
+                                     const struct prequant_t *pq,
+                                     const struct tcq_coeff_ctx_t *coeff_ctx,
+                                     int blk_pos, int diag_ctx, int eob_rate,
+                                     struct tcq_rate_t *rd) {
+  get_rate_dist_def_luma_avx2_impl(p, pq, coeff_ctx, blk_pos, diag_ctx,
+                                   eob_rate, rd);
+}
+
+void av2_get_rate_dist_def_luma_q1_avx2(const struct tcq_param_t *p,
+                                        const struct prequant_t *pq,
+                                        const struct tcq_coeff_ctx_t *coeff_ctx,
+                                        int blk_pos, int diag_ctx, int eob_rate,
+                                        struct tcq_rate_t *rd) {
+  get_rate_dist_def_luma_q1_avx2_impl(p, pq, coeff_ctx, blk_pos, diag_ctx,
+                                      eob_rate, rd);
+}
+
+void av2_get_rate_dist_lf_luma_avx2(const struct tcq_param_t *p,
+                                    const struct prequant_t *pq,
+                                    const struct tcq_coeff_ctx_t *coeff_ctx,
+                                    int blk_pos, int diag_ctx, int eob_rate,
+                                    int coeff_sign, struct tcq_rate_t *rd) {
+  get_rate_dist_lf_luma_avx2_impl(p, pq, coeff_ctx, blk_pos, diag_ctx, eob_rate,
+                                  coeff_sign, rd);
+}
+
+void av2_get_rate_dist_lf_luma_q1_avx2(const struct tcq_param_t *p,
+                                       const struct prequant_t *pq,
+                                       const struct tcq_coeff_ctx_t *coeff_ctx,
+                                       int blk_pos, int diag_ctx, int eob_rate,
+                                       int coeff_sign, struct tcq_rate_t *rd) {
+  get_rate_dist_lf_luma_q1_avx2_impl(p, pq, coeff_ctx, blk_pos, diag_ctx,
+                                     eob_rate, coeff_sign, rd);
 }
 
 // Pre-calculate eob bits (rate) for each EOB candidate position from 1
@@ -1173,9 +1227,9 @@ int av2_find_best_path_avx2(const struct tcq_node_t *trellis,
     for (; prev_id >= 0; scan_pos++) {
       const int32_t *decision =
           (int32_t *)&trellis[(scan_pos << TCQ_N_STATES_LOG) + prev_id];
-      __m128i info = _mm_loadu_si64(&decision[3]);
+      __m128i info = _mm_cvtsi32_si128(decision[3]);
       int blk_pos = scan[scan_pos];
-      __m128i sign = _mm_loadu_si64(&tcoeff[blk_pos]);
+      __m128i sign = _mm_cvtsi32_si128(tcoeff[blk_pos]);
       sign = _mm_srai_epi32(sign, 31);
       __m128i abs_lev = _mm_slli_epi32(info, 8);
       __m128i abs_lev2 = _mm_srli_epi32(abs_lev, 7);
@@ -1230,4 +1284,144 @@ int av2_find_best_path_avx2(const struct tcq_node_t *trellis,
   *min_rate = trel_min_rate;
   *min_cost = min_path_cost;
   return eob;
+}
+
+static AVM_INLINE int get_diag_ctx_avx2(int lf, int blk_pos, int scan_pos,
+                                        int bwl) {
+  int diag_ctx;
+  if (lf) {
+    diag_ctx = get_nz_map_ctx_from_stats_lf(0, blk_pos, bwl, TX_CLASS_2D);
+    if (scan_pos > 0) diag_ctx += 7 << 8;
+  } else {
+    diag_ctx = get_nz_map_ctx_from_stats(0, blk_pos, bwl, TX_CLASS_2D, 0);
+  }
+  return diag_ctx;
+}
+
+// Keep runtime dispatch outside the coefficient loops. Each call below is the
+// same AVX2 kernel selected by RTCD before this change, but it is now a direct
+// call that the compiler can schedule with the surrounding loop.
+void av2_trellis_loop_diagonal_st8_avx2(const tcq_param_t *p, int scan_hi,
+                                        int scan_lo, tcq_ctx_t *tcq_ctx,
+                                        tcq_node_t *trellis) {
+  const int log_scale = p->log_scale;
+  const int try_eob = p->sharpness == 0;
+  const int64_t rdmult = p->rdmult;
+  const int16_t *scan = p->scan;
+  const tran_low_t *tcoeff = p->tcoeff;
+  const int32_t *quant = p->quant;
+  const int32_t *dequant = p->dequant;
+  const qm_val_t *iqmatrix = p->iqmatrix;
+  const uint16_t *block_eob_rate = p->block_eob_rate;
+  const int bwl = p->bwl;
+  const int height = p->txb_height;
+  assert(p->plane == 0);
+  assert(p->tx_class == TX_CLASS_2D);
+
+  const int dc_coeff_sign = tcoeff[0] < 0;
+  const int blk_pos_inc = (1 << bwl) - 1;
+  const int shift = 16 - log_scale + QUANT_FP_BITS;
+  int blk_pos, row, col;
+
+  while (scan_hi >= 10) {
+    blk_pos = scan[scan_hi];
+    row = blk_pos >> bwl;
+    col = blk_pos - (row << bwl);
+    const int inc = AVMMIN(height - 1 - row, col);
+    scan_lo = scan_hi - inc;
+    const int lf = 0;
+    const int diag_ctx = get_diag_ctx_avx2(lf, blk_pos, scan_lo, bwl);
+    assert(scan_lo >= 0);
+
+    for (int scan_pos = scan_hi; scan_pos >= scan_lo; --scan_pos) {
+      tcq_node_t *decision = &trellis[scan_pos << TCQ_N_STATES_LOG];
+      const tcq_node_t *prev_decision = &decision[TCQ_N_STATES];
+      prequant_t pq_data;
+      const int temp_dqv = get_dqv(dequant, scan[scan_pos], iqmatrix);
+      pq_data.orig_qIdx =
+          (tran_low_t)(((int64_t)abs(tcoeff[blk_pos]) * quant[scan_pos != 0]) >>
+                       shift);
+
+      tcq_coeff_ctx_t coeff_ctx;
+      av2_get_coeff_ctx_avx2(tcq_ctx, col, &coeff_ctx);
+      coeff_ctx.coef_eob = get_lower_levels_ctx_eob(bwl, height, scan_pos);
+      const int eob_rate = block_eob_rate[scan_pos];
+      tcq_rate_t rd;
+
+      if (pq_data.orig_qIdx < 2) {
+        av2_pre_quant_q1_avx2(tcoeff[blk_pos], &pq_data, quant, temp_dqv,
+                              log_scale, scan_pos);
+        get_rate_dist_def_luma_q1_avx2_impl(p, &pq_data, &coeff_ctx, blk_pos,
+                                            diag_ctx, eob_rate, &rd);
+        decide_states_q1_avx2_impl(prev_decision, &rd, &pq_data, lf, try_eob,
+                                   rdmult, decision);
+      } else {
+        av2_pre_quant_avx2(tcoeff[blk_pos], &pq_data, quant, temp_dqv,
+                           log_scale, scan_pos);
+        get_rate_dist_def_luma_avx2_impl(p, &pq_data, &coeff_ctx, blk_pos,
+                                         diag_ctx, eob_rate, &rd);
+        decide_states_avx2_impl(prev_decision, &rd, &pq_data, lf, try_eob,
+                                rdmult, decision);
+      }
+      update_states_avx2_impl(decision, col, tcq_ctx);
+
+      blk_pos += blk_pos_inc;
+      --col;
+      ++row;
+    }
+    av2_update_nbr_diagonal_avx2(tcq_ctx, row - 1, col + 1, bwl);
+    scan_hi = scan_lo - 1;
+  }
+
+  while (scan_hi >= 0) {
+    blk_pos = scan[scan_hi];
+    row = blk_pos >> bwl;
+    col = blk_pos - (row << bwl);
+    const int inc = AVMMIN(height - 1 - row, col);
+    scan_lo = scan_hi - inc;
+    const int lf = 1;
+    const int diag_ctx = get_diag_ctx_avx2(lf, blk_pos, scan_lo, bwl);
+    assert(scan_lo >= 0);
+
+    for (int scan_pos = scan_hi; scan_pos >= scan_lo; --scan_pos) {
+      tcq_node_t *decision = &trellis[scan_pos << TCQ_N_STATES_LOG];
+      const tcq_node_t *prev_decision = &decision[TCQ_N_STATES];
+      prequant_t pq_data;
+      const int temp_dqv = get_dqv(dequant, scan[scan_pos], iqmatrix);
+      pq_data.orig_qIdx =
+          (tran_low_t)(((int64_t)abs(tcoeff[blk_pos]) * quant[scan_pos != 0]) >>
+                       shift);
+
+      tcq_coeff_ctx_t coeff_ctx;
+      av2_get_coeff_ctx_avx2(tcq_ctx, col, &coeff_ctx);
+      coeff_ctx.coef_eob = get_lower_levels_ctx_eob(bwl, height, scan_pos);
+      const int eob_rate = block_eob_rate[scan_pos];
+      tcq_rate_t rd;
+
+      if (pq_data.orig_qIdx < 2) {
+        av2_pre_quant_q1_avx2(tcoeff[blk_pos], &pq_data, quant, temp_dqv,
+                              log_scale, scan_pos);
+        get_rate_dist_lf_luma_q1_avx2_impl(p, &pq_data, &coeff_ctx, blk_pos,
+                                           diag_ctx, eob_rate, dc_coeff_sign,
+                                           &rd);
+        decide_states_q1_avx2_impl(prev_decision, &rd, &pq_data, lf, try_eob,
+                                   rdmult, decision);
+      } else {
+        av2_pre_quant_avx2(tcoeff[blk_pos], &pq_data, quant, temp_dqv,
+                           log_scale, scan_pos);
+        get_rate_dist_lf_luma_avx2_impl(p, &pq_data, &coeff_ctx, blk_pos,
+                                        diag_ctx, eob_rate, dc_coeff_sign, &rd);
+        decide_states_avx2_impl(prev_decision, &rd, &pq_data, lf, try_eob,
+                                rdmult, decision);
+      }
+      update_states_avx2_impl(decision, col, tcq_ctx);
+
+      blk_pos += blk_pos_inc;
+      --col;
+      ++row;
+    }
+    if (scan_hi != 0)
+      av2_update_nbr_diagonal_avx2(tcq_ctx, row - 1, col + 1, bwl);
+    scan_hi = scan_lo - 1;
+  }
 }
