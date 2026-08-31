@@ -5316,8 +5316,7 @@ static void handle_single_inter_prediction(
   // Dry pass: cap BAWP flag (0 => BAWP off).
   if (x->apply_dry_pass_shortcuts)
     bawp_enabled = AVMMIN(bawp_enabled, cfg->bawp_cap);
-  const int total_bawp_iters =
-      (bawp_enabled == 0) ? 1 : (1 + 2 * bawp_enabled);
+  const int total_bawp_iters = (bawp_enabled == 0) ? 1 : (1 + 2 * bawp_enabled);
 
   for (int ref_mv_idx0 = 0; ref_mv_idx0 < ref_set[0]; ++ref_mv_idx0) {
     *mbmi = base_template;
@@ -5431,9 +5430,9 @@ static void handle_single_inter_prediction(
       PredictorIterationContext it_ctx;
       init_predictor_iteration_context(
           &it_ctx, bsize, ref_mv_idx[0], ref_mv_idx[1], precision_dx, bawp_flag,
-          ref_mv_idx_type, 0, NULL, this_mode, refs, flex_mv_cost,
-          drl_cost, 0, base_rate, cur_mv, rate_mv,
-          &base_mbmi, 0, num_planes, args->skip_motion_mode);
+          ref_mv_idx_type, 0, NULL, this_mode, refs, flex_mv_cost, drl_cost, 0,
+          base_rate, cur_mv, rate_mv, &base_mbmi, 0, num_planes,
+          args->skip_motion_mode);
       it_ctx.refinemv_loop = 0;
       evaluate_inter_predictor(cpi, tile_data, x, env, &it_ctx, search_state,
                                best_precision_so_far, best_precision_dx_so_far,
@@ -5491,8 +5490,8 @@ static void handle_compound_inter_prediction(
 
   const int prediction_mode_cost =
       cost_prediction_mode(mode_costs, this_mode, cm, mbmi, xd, mode_ctx);
-  const int base_rate = args->ref_frame_cost + args->single_comp_cost +
-                        prediction_mode_cost;
+  const int base_rate =
+      args->ref_frame_cost + args->single_comp_cost + prediction_mode_cost;
   const int jmvd_scale_mode_cost = get_jmvd_scale_mode_cost(mbmi, mode_costs);
 
   const int total_ref_mv_idx = ref_set[1] * ref_set[0];
@@ -5549,8 +5548,7 @@ static void handle_compound_inter_prediction(
     reset_inter_mode_info(cur_mode_info, drl_cost);
 
     if (mbmi->mode != WARPMV && !mbmi->refinemv_flag &&
-        !mask_check_bit(idx_mask[0][mbmi->pb_mv_precision],
-                        ref_mv_idx_type)) {
+        !mask_check_bit(idx_mask[0][mbmi->pb_mv_precision], ref_mv_idx_type)) {
       continue;
     }
 
@@ -5577,13 +5575,12 @@ static void handle_compound_inter_prediction(
     PredictorIterationContext it_ctx;
     init_predictor_iteration_context(
         &it_ctx, bsize, ref_mv_idx[0], ref_mv_idx[1], precision_dx, 0,
-        ref_mv_idx_type, 0, cwp_search_mask, this_mode, refs,
-        flex_mv_cost, drl_cost, jmvd_scale_mode_cost, base_rate, cur_mv,
-        rate_mv, &base_mbmi, 0, num_planes, args->skip_motion_mode);
+        ref_mv_idx_type, 0, cwp_search_mask, this_mode, refs, flex_mv_cost,
+        drl_cost, jmvd_scale_mode_cost, base_rate, cur_mv, rate_mv, &base_mbmi,
+        0, num_planes, args->skip_motion_mode);
     it_ctx.refinemv_loop = 0;
-    evaluate_inter_predictor(cpi, tile_data, x, env, &it_ctx,
-                             search_state, best_precision_so_far,
-                             best_precision_dx_so_far,
+    evaluate_inter_predictor(cpi, tile_data, x, env, &it_ctx, search_state,
+                             best_precision_so_far, best_precision_dx_so_far,
                              best_precision_rd_so_far);
 
     // =========================================================================
@@ -5597,9 +5594,8 @@ static void handle_compound_inter_prediction(
           !(base_mbmi.ref_frame[0] == 0 && base_mbmi.ref_frame[1] == 1));
     if (eval_refinemv) {
       it_ctx.refinemv_loop = 1;
-      evaluate_inter_predictor(cpi, tile_data, x, env, &it_ctx,
-                               search_state, best_precision_so_far,
-                               best_precision_dx_so_far,
+      evaluate_inter_predictor(cpi, tile_data, x, env, &it_ctx, search_state,
+                               best_precision_so_far, best_precision_dx_so_far,
                                best_precision_rd_so_far);
     }
 
@@ -5662,9 +5658,9 @@ static void handle_compound_inter_prediction(
       PredictorIterationContext cwp_it_ctx;
       init_predictor_iteration_context(
           &cwp_it_ctx, bsize, ref_mv_idx[0], ref_mv_idx[1], precision_dx, 0,
-          ref_mv_idx_type, 0, cwp_search_mask, this_mode, refs,
-          flex_mv_cost, drl_cost, jmvd_scale_mode_cost, base_rate, cwp_cur_mv,
-          rate_mv_cwp, &cwp_mbmi, 0, num_planes, args->skip_motion_mode);
+          ref_mv_idx_type, 0, cwp_search_mask, this_mode, refs, flex_mv_cost,
+          drl_cost, jmvd_scale_mode_cost, base_rate, cwp_cur_mv, rate_mv_cwp,
+          &cwp_mbmi, 0, num_planes, args->skip_motion_mode);
       cwp_it_ctx.refinemv_loop = 0;
       evaluate_inter_predictor(cpi, tile_data, x, env, &cwp_it_ctx,
                                search_state, best_precision_so_far,
@@ -5704,7 +5700,8 @@ static void handle_compound_inter_prediction(
                                      jmvd_scale_mode_cost_scaled;
       if (cpi->sf.inter_sf.skip_mode_eval_based_on_rate_cost &&
           *search_state->ref_best_rd != INT64_MAX &&
-          RDCOST(x->rdmult, rate_so_far_scaled, 0) > *search_state->ref_best_rd) {
+          RDCOST(x->rdmult, rate_so_far_scaled, 0) >
+              *search_state->ref_best_rd) {
         continue;
       }
 
@@ -5717,8 +5714,8 @@ static void handle_compound_inter_prediction(
       }
 
       int_mv scaled_cur_mv[2];
-      if (mbmi->mode != WARPMV &&
-          !build_cur_mv(scaled_cur_mv, this_mode, cm, x, skip_repeated_ref_mv)) {
+      if (mbmi->mode != WARPMV && !build_cur_mv(scaled_cur_mv, this_mode, cm, x,
+                                                skip_repeated_ref_mv)) {
         continue;
       }
       if (mbmi->mode == WARPMV) {
