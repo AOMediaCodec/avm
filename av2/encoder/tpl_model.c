@@ -120,7 +120,7 @@ static AVM_INLINE void tpl_fwd_txfm(const int16_t *src_diff, int bw,
                                     tran_low_t *coeff, TX_SIZE tx_size,
                                     int bit_depth) {
   TxfmParam txfm_param;
-  txfm_param.tx_type = DCT_DCT;
+  txfm_param.prim_tx_type = DCT_DCT;
   txfm_param.sec_tx_type = 0;
   txfm_param.tx_size = tx_size;
   txfm_param.lossless = 0;

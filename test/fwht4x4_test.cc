@@ -38,7 +38,8 @@ typedef void (*IdctFunc)(const tran_low_t *in, uint16_t *out, int stride);
 
 using libavm_test::FhtFunc;
 
-typedef std::tuple<FdctFunc, IdctFunc, TX_TYPE, avm_bit_depth_t, int, FdctFunc>
+typedef std::tuple<FdctFunc, IdctFunc, PRIM_TX_TYPE, avm_bit_depth_t, int,
+                   FdctFunc>
     Dct4x4Param;
 
 void fwht4x4_ref(const int16_t *in, tran_low_t *out, int stride,

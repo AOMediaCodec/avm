@@ -84,7 +84,7 @@ void av2_update_trellisq(int use_optimize_b, int xform_quant_idx,
 
 void av2_setup_qmatrix(const CommonQuantParams *quant_params,
                        const MACROBLOCKD *xd, int plane, TX_SIZE tx_size,
-                       TX_TYPE tx_type, QUANT_PARAM *qparam);
+                       PRIM_TX_TYPE prim_tx_type, QUANT_PARAM *qparam);
 
 void av2_xform_dc_only(MACROBLOCK *x, int plane, int block,
                        TxfmParam *txfm_param, int64_t per_px_mean);
@@ -102,7 +102,7 @@ void forward_cross_chroma_transform(MACROBLOCK *x, int block, TX_SIZE tx_size,
 
 // This function sets the first position index in a TU.
 void set_bob(MACROBLOCK *x, int plane, int block, TX_SIZE tx_size,
-             TX_TYPE tx_type);
+             PRIM_TX_TYPE prim_tx_type);
 void av2_quant(const int use_tcq_deadzone_boost, MACROBLOCK *x, int plane,
                int block, TxfmParam *txfm_param, QUANT_PARAM *qparam);
 
@@ -150,7 +150,7 @@ void av2_subtract_block(const MACROBLOCKD *xd, int rows, int cols,
                         const uint16_t *src, ptrdiff_t src_stride,
                         const uint16_t *pred, ptrdiff_t pred_stride, int plane,
                         int blk_col, int blk_row, int frame_width,
-                        int frame_height, TX_TYPE tx_type);
+                        int frame_height, PRIM_TX_TYPE prim_tx_type);
 
 void av2_subtract_block_dpcm(const MACROBLOCKD *xd, int rows, int cols,
                              int16_t *diff, ptrdiff_t diff_stride,
@@ -158,7 +158,7 @@ void av2_subtract_block_dpcm(const MACROBLOCKD *xd, int rows, int cols,
                              const uint16_t *pred, ptrdiff_t pred_stride,
                              int plane, int blk_col, int blk_row,
                              int frame_width, int frame_height,
-                             TX_TYPE tx_type);
+                             PRIM_TX_TYPE prim_tx_type);
 
 void av2_subtract_block_vert(const MACROBLOCKD *xd, int rows, int cols,
                              int16_t *diff, ptrdiff_t diff_stride,
@@ -172,7 +172,8 @@ void av2_subtract_block_horz(const MACROBLOCKD *xd, int rows, int cols,
 
 void av2_subtract_txb(MACROBLOCK *x, int plane, BLOCK_SIZE plane_bsize,
                       int blk_col, int blk_row, TX_SIZE tx_size,
-                      int frame_width, int frame_height, TX_TYPE tx_type);
+                      int frame_width, int frame_height,
+                      PRIM_TX_TYPE prim_tx_type);
 
 void av2_subtract_plane(MACROBLOCK *x, BLOCK_SIZE plane_bsize, int plane,
                         int frame_width, int frame_height);

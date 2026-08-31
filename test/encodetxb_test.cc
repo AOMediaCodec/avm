@@ -67,15 +67,17 @@ class EncodeTxbTest : public ::testing::TestWithParam<GetNzMapContextsFunc> {
     int result = 0;
     for (int plane = 0; plane < 3; ++plane) {
       for (int is_inter = 0; is_inter < 2; ++is_inter) {
-        for (int tx_type = DCT_DCT; tx_type < PRIM_TX_TYPES; ++tx_type) {
-          const TX_CLASS tx_class = tx_type_to_class[tx_type];
+        for (int prim_tx_type = DCT_DCT; prim_tx_type < PRIM_TX_TYPES;
+             ++prim_tx_type) {
+          const TX_CLASS tx_class = tx_type_to_class[prim_tx_type];
           for (int tx_size = TX_4X4; tx_size < TX_SIZES_ALL; ++tx_size) {
             const int bwl = get_txb_bwl((TX_SIZE)tx_size);
             const int width = get_txb_wide((TX_SIZE)tx_size);
             const int height = get_txb_high((TX_SIZE)tx_size);
             const int real_width = tx_size_wide[tx_size];
             const int real_height = tx_size_high[tx_size];
-            const int16_t *const scan = av2_scan_orders[tx_size][tx_type].scan;
+            const int16_t *const scan =
+                av2_scan_orders[tx_size][prim_tx_type].scan;
 
             levels_ = set_levels(levels_buf_, width);
             for (int i = 0; i < kNumTests && !result; ++i) {
@@ -112,9 +114,9 @@ class EncodeTxbTest : public ::testing::TestWithParam<GetNzMapContextsFunc> {
       const int height = get_txb_high((TX_SIZE)tx_size);
       const int real_width = tx_size_wide[tx_size];
       const int real_height = tx_size_high[tx_size];
-      const TX_TYPE tx_type = DCT_DCT;
-      const TX_CLASS tx_class = tx_type_to_class[tx_type];
-      const int16_t *const scan = av2_scan_orders[tx_size][tx_type].scan;
+      const PRIM_TX_TYPE prim_tx_type = DCT_DCT;
+      const TX_CLASS tx_class = tx_type_to_class[prim_tx_type];
+      const int16_t *const scan = av2_scan_orders[tx_size][prim_tx_type].scan;
       const int eob = width * height;
       const int numTests = kNumTests;
 

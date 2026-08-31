@@ -137,11 +137,11 @@ const qm_val_t *av2_qmatrix(const struct CommonQuantParams *quant_params,
 // Get either local / global dequant matrix as appropriate.
 const qm_val_t *av2_get_iqmatrix(const struct CommonQuantParams *quant_params,
                                  const struct macroblockd *xd, int plane,
-                                 TX_SIZE tx_size, TX_TYPE tx_type);
+                                 TX_SIZE tx_size, PRIM_TX_TYPE prim_tx_type);
 // Get either local / global quant matrix as appropriate.
 const qm_val_t *av2_get_qmatrix(const struct CommonQuantParams *quant_params,
                                 const struct macroblockd *xd, int plane,
-                                TX_SIZE tx_size, TX_TYPE tx_type);
+                                TX_SIZE tx_size, PRIM_TX_TYPE prim_tx_type);
 
 extern const qm_val_t predefined_iwt_matrix_ref[NUM_QM_LEVELS - 1][2]
                                                [QM_TOTAL_SIZE];

@@ -5202,16 +5202,16 @@ void fwd_txfm_avx2(const int16_t *resi, tran_low_t *coeff, int diff_stride,
   const uint32_t tx_wide_index = tx_size_wide_log2[tx_size] - 2;
   const uint32_t tx_high_index = tx_size_high_log2[tx_size] - 2;
 
-  TX_TYPE tx_type = txfm_param->tx_type;
+  PRIM_TX_TYPE prim_tx_type = txfm_param->prim_tx_type;
 
   if (txfm_param->lossless) {
-    assert(tx_type == DCT_DCT);
+    assert(prim_tx_type == DCT_DCT);
     av2_highbd_fwht4x4(resi, coeff, diff_stride);
     return;
   }
 
-  int tx_type_row = g_hor_tx_type[tx_type];
-  int tx_type_col = g_ver_tx_type[tx_type];
+  int tx_type_row = g_hor_tx_type[prim_tx_type];
+  int tx_type_col = g_ver_tx_type[prim_tx_type];
 
   if (txfm_param->use_ddt) {
     const int use_ddt_row = (width == 4 && REPLACE_ADST4) ||

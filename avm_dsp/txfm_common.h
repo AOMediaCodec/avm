@@ -26,16 +26,16 @@
 typedef struct txfm_param {
   // for both forward and inverse transforms
   // Primary transform set used for the current tx block.
-  TX_TYPE tx_type;
+  PRIM_TX_TYPE prim_tx_type;
   // for both forward and inverse secondary transforms
   // mapping of sec_tx_set to an index
-  TX_TYPE sec_tx_set_idx;
+  uint8_t sec_tx_set_idx;
   // for both forward and inverse secondary transforms
   // Secondary transform set used for the current tx block.
-  TX_TYPE sec_tx_set;
+  SEC_TX_SET sec_tx_set;
   // for both forward and inverse secondary transforms
   // Secondary transform type used for the current tx block.
-  TX_TYPE sec_tx_type;
+  SEC_TX_TYPE sec_tx_type;
   // intra prediction mode used for the current tx block
   PREDICTION_MODE intra_mode;
   int is_inter;

@@ -556,14 +556,15 @@ uint8_t av2_read_coeffs_txb_skip(const AV2_COMMON *const cm,
   const TX_TYPE tx_type =
       av2_get_tx_type(xd, plane_type, blk_row, blk_col, tx_size,
                       is_reduced_tx_set_used(cm, plane_type));
-  const qm_val_t *iqmatrix =
-      av2_get_iqmatrix(&cm->quant_params, xd, plane, tx_size, tx_type);
+  const qm_val_t *iqmatrix = av2_get_iqmatrix(
+      &cm->quant_params, xd, plane, tx_size, get_primary_tx_type(tx_type));
 #if CONFIG_INSPECTION
   for (int c = 0; c < width * height; c++) {
     dequant_values[c] = get_dqv(dequant, c, iqmatrix);
   }
 #endif  // CONFIG_INSPECTION
-  const SCAN_ORDER *const scan_order = get_scan(tx_size, tx_type);
+  const SCAN_ORDER *const scan_order =
+      get_scan(tx_size, get_primary_tx_type(tx_type));
   const int16_t *const scan = scan_order->scan;
   const TX_SIZE txs_ctx = get_txsize_entropy_ctx(tx_size);
   const int size_ctx = AVMMIN(txs_ctx, TX_16X16);
@@ -700,14 +701,15 @@ uint8_t av2_read_coeffs_txb(const AV2_COMMON *const cm, DecoderCodingBlock *dcb,
       av2_get_tx_type(xd, plane_type, blk_row, blk_col, tx_size,
                       is_reduced_tx_set_used(cm, plane_type));
   const TX_CLASS tx_class = tx_type_to_class[get_primary_tx_type(tx_type)];
-  const qm_val_t *iqmatrix =
-      av2_get_iqmatrix(&cm->quant_params, xd, plane, tx_size, tx_type);
+  const qm_val_t *iqmatrix = av2_get_iqmatrix(
+      &cm->quant_params, xd, plane, tx_size, get_primary_tx_type(tx_type));
 #if CONFIG_INSPECTION
   for (int c = 0; c < width * height; c++) {
     dequant_values[c] = get_dqv(dequant, c, iqmatrix);
   }
 #endif  // CONFIG_INSPECTION
-  const SCAN_ORDER *const scan_order = get_scan(tx_size, tx_type);
+  const SCAN_ORDER *const scan_order =
+      get_scan(tx_size, get_primary_tx_type(tx_type));
   const int16_t *const scan = scan_order->scan;
 
   // read  sec_tx_type here
@@ -1009,7 +1011,7 @@ void av2_read_coeffs_txb_facade(const AV2_COMMON *const cm,
     if (((cm->seq_params.enable_fsc &&
           mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
           get_primary_tx_type(tx_type) == IDTX && plane == PLANE_TYPE_Y) ||
-         use_inter_fsc(cm, plane, tx_type, is_inter))) {
+         use_inter_fsc(cm, plane, get_primary_tx_type(tx_type), is_inter))) {
       cul_level =
           av2_read_coeffs_txb_skip(cm, dcb, r, row, col, plane, tx_size);
     } else {

@@ -18,7 +18,7 @@
 
 void av2_highbd_inv_txfm_add_sse4_1(const tran_low_t *input, uint16_t *dest,
                                     int stride, const TxfmParam *txfm_param) {
-  assert(av2_ext_tx_used[txfm_param->tx_set_type][txfm_param->tx_type]);
+  assert(av2_ext_tx_used[txfm_param->tx_set_type][txfm_param->prim_tx_type]);
   inv_txfm_c(input, dest, stride, txfm_param);
 }
 

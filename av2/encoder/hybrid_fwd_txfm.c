@@ -957,16 +957,16 @@ void fwd_txfm_c(const int16_t *resi, tran_low_t *coeff, int diff_stride,
   const uint32_t tx_wide_index = tx_size_wide_log2[tx_size] - 2;
   const uint32_t tx_high_index = tx_size_high_log2[tx_size] - 2;
 
-  TX_TYPE tx_type = txfm_param->tx_type;
+  PRIM_TX_TYPE prim_tx_type = txfm_param->prim_tx_type;
 
   if (txfm_param->lossless) {
-    assert(tx_type == DCT_DCT);
+    assert(prim_tx_type == DCT_DCT);
     av2_highbd_fwht4x4(resi, coeff, diff_stride);
     return;
   }
 
-  int tx_type_row = g_hor_tx_type[tx_type];
-  int tx_type_col = g_ver_tx_type[tx_type];
+  int tx_type_row = g_hor_tx_type[prim_tx_type];
+  int tx_type_col = g_ver_tx_type[prim_tx_type];
 
   if (txfm_param->use_ddt) {
     const int use_ddt_row = (width == 4 && REPLACE_ADST4) ||
@@ -1023,7 +1023,7 @@ void fwd_txfm_c(const int16_t *resi, tran_low_t *coeff, int diff_stride,
 void av2_fwd_txfm(const int16_t *src_diff, tran_low_t *coeff, int diff_stride,
                   TxfmParam *txfm_param) {
   if (txfm_param->lossless) {
-    if (txfm_param->tx_type == IDTX) {
+    if (txfm_param->prim_tx_type == IDTX) {
       av2_lossless_fwd_idtx(src_diff, coeff, diff_stride, txfm_param);
       return;
     }
@@ -1056,7 +1056,7 @@ void av2_fwd_cross_chroma_tx_block_c(tran_low_t *coeff_c1, tran_low_t *coeff_c2,
 
 void av2_fwd_stxfm(tran_low_t *coeff, TxfmParam *txfm_param,
                    int64_t *sec_tx_sse) {
-  const TX_TYPE stx_type = txfm_param->sec_tx_type;
+  const SEC_TX_TYPE stx_type = txfm_param->sec_tx_type;
 
   const int width = tx_size_wide[txfm_param->tx_size] <= 32
                         ? tx_size_wide[txfm_param->tx_size]
@@ -1074,7 +1074,7 @@ void av2_fwd_stxfm(tran_low_t *coeff, TxfmParam *txfm_param,
     const int16_t *scan_order_in;
     // Align scan order of IST with primary transform scan order
     const SCAN_ORDER *scan_order_out =
-        get_scan(txfm_param->tx_size, txfm_param->tx_type);
+        get_scan(txfm_param->tx_size, txfm_param->prim_tx_type);
     const int16_t *const scan = scan_order_out->scan;
     tran_low_t buf0[64] = { 0 }, buf1[64] = { 0 };
     tran_low_t *tmp = buf0;
@@ -1093,8 +1093,8 @@ void av2_fwd_stxfm(tran_low_t *coeff, TxfmParam *txfm_param,
     fprintf(stderr,
             "[fwd stx] inter %d ptx %d txs %dx%d tp %d stx_set %d stx_type %d\n"
             "(ptx coeff)\n",
-            txfm_param->is_inter, get_primary_tx_type(txfm_param->tx_type),
-            width, height, transpose, txfm_param->sec_tx_set, stx_type);
+            txfm_param->is_inter, txfm_param->prim_tx_type, width, height,
+            transpose, txfm_param->sec_tx_set, stx_type);
     for (int i = 0; i < height; i++) {
       for (int j = 0; j < width; j++) {
         fprintf(stderr, "%d,", coeff[i * width + j]);
@@ -1121,9 +1121,10 @@ void av2_fwd_stxfm(tran_low_t *coeff, TxfmParam *txfm_param,
       tmp++;
     }
     const int st_size_class =
-        (width == 8 && height == 8 && txfm_param->tx_type == DCT_DCT) ? 1
-        : (width >= 8 && height >= 8) ? (txfm_param->tx_type == DCT_DCT ? 2 : 3)
-                                      : 0;
+        (width == 8 && height == 8 && txfm_param->prim_tx_type == DCT_DCT) ? 1
+        : (width >= 8 && height >= 8)
+            ? (txfm_param->prim_tx_type == DCT_DCT ? 2 : 3)
+            : 0;
     fwd_stxfm(buf0, buf1, mode_t, stx_type - 1, st_size_class, txfm_param->bd);
     if (sec_tx_sse != NULL) {
       const int reduced_height =
