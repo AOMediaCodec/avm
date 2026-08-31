@@ -482,6 +482,8 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.reuse_inter_intra_mode = 1;
     sf->inter_sf.selective_ref_frame = 2;
     sf->inter_sf.skip_repeated_newmv = 1;
+    sf->inter_sf.skip_eval_intrabc_in_inter_frame =
+        cm->features.allow_screen_content_tools ? 0 : 1;
     sf->inter_sf.reduce_max_drl_refmvs = 1;
     if (!allow_screen_content_tools) {
       // When reduce_max_drl_refmvs is enabled, keep newmv_drl_search_limit at 2
