@@ -60,7 +60,9 @@ void compute_residual_stats(AV2_COMP *const cpi, ThreadData *td, MACROBLOCK *x,
   TxfmParam txfm_param;
   QUANT_PARAM quant_param;
 
-  av2_setup_xform(cm, x, plane, tx_size, DCT_DCT, CCTX_NONE, &txfm_param);
+  av2_setup_xform(cm, x, plane, tx_size,
+                  MAKE_TX_TYPE_FROM_PRIM_TX_TYPE(DCT_DCT), CCTX_NONE,
+                  &txfm_param);
   av2_setup_quant(tx_size, 0, AV2_XFORM_QUANT_B, cpi->oxcf.q_cfg.quant_b_adapt,
                   &quant_param);
   av2_setup_qmatrix(&cm->quant_params, xd, plane, tx_size, DCT_DCT,

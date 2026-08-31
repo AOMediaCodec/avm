@@ -917,18 +917,15 @@ static INLINE void recon_intra(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
                           : AV2_XFORM_QUANT_FP,
                       cpi->oxcf.q_cfg.quant_b_adapt, &quant_param_intra);
       av2_setup_qmatrix(&cm->quant_params, xd, plane, tx_size,
-                        get_primary_tx_type(best_tx_type), &quant_param_intra);
+                        best_tx_type.prim_tx, &quant_param_intra);
       av2_subtract_txb(x, plane, plane_bsize, blk_col, blk_row, tx_size,
-                       cm->width, cm->height,
-                       get_primary_tx_type(best_tx_type));
+                       cm->width, cm->height, best_tx_type.prim_tx);
       const uint8_t fsc_mode =
           ((cm->seq_params.enable_fsc &&
             xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
             plane == PLANE_TYPE_Y) ||
-           use_inter_fsc(cm, plane, get_primary_tx_type(best_tx_type),
-                         0 /*is_inter*/));
-      const TX_CLASS tx_class =
-          tx_type_to_class[get_primary_tx_type(best_tx_type)];
+           use_inter_fsc(cm, plane, best_tx_type.prim_tx, 0 /*is_inter*/));
+      const TX_CLASS tx_class = tx_type_to_class[best_tx_type.prim_tx];
       int use_tcq =
           tcq_enable(cpi->common.features.tcq_mode,
                      xd->lossless[x->e_mbd.mi[0]->segment_id], plane, tx_class);
@@ -951,7 +948,7 @@ static INLINE void recon_intra(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
         bool enable_parity_hiding =
             cm->features.allow_parity_hiding &&
             !xd->lossless[xd->mi[0]->segment_id] && plane == PLANE_TYPE_Y &&
-            ph_allowed_tx_types[get_primary_tx_type(best_tx_type)] &&
+            ph_allowed_tx_types[best_tx_type.prim_tx] &&
             (x->plane[AVM_PLANE_Y].eobs[block] > PHTHRESH);
         if (enable_parity_hiding)
           parity_hiding_trellis_off(cpi, x, plane, block, tx_size,
@@ -994,12 +991,15 @@ static INLINE void recon_intra(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
     // table is non-zero, but the real eob is zero. We need to make sure tx_type
     // is DCT_DCT in this case.
     if (plane == 0 && x->plane[plane].eobs[block] == 0 &&
-        best_tx_type != DCT_DCT) {
-      update_txk_array(xd, blk_row, blk_col, tx_size, DCT_DCT);
+        (best_tx_type.prim_tx != DCT_DCT || best_tx_type.sec_tx > 0)) {
+      update_txk_array(xd, blk_row, blk_col, tx_size,
+                       MAKE_TX_TYPE_FROM_PRIM_TX_TYPE(DCT_DCT));
     }
     if (plane == 0 && x->plane[plane].eobs[block] == 1 &&
-        best_tx_type != DCT_DCT && !is_inter) {
-      update_txk_array(xd, blk_row, blk_col, tx_size, DCT_DCT);
+        (best_tx_type.prim_tx != DCT_DCT || best_tx_type.sec_tx > 0) &&
+        !is_inter) {
+      update_txk_array(xd, blk_row, blk_col, tx_size,
+                       MAKE_TX_TYPE_FROM_PRIM_TX_TYPE(DCT_DCT));
     }
   }
 }
@@ -1248,7 +1248,9 @@ uint16_t prune_txk_type_separ(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
 
   QUANT_PARAM quant_param;
   TxfmParam txfm_param;
-  av2_setup_xform(cm, x, plane, tx_size, DCT_DCT, CCTX_NONE, &txfm_param);
+  av2_setup_xform(cm, x, plane, tx_size,
+                  MAKE_TX_TYPE_FROM_PRIM_TX_TYPE(DCT_DCT), CCTX_NONE,
+                  &txfm_param);
   av2_setup_quant(tx_size, 1, AV2_XFORM_QUANT_B, cpi->oxcf.q_cfg.quant_b_adapt,
                   &quant_param);
   PRIM_TX_TYPE prim_tx_type;
@@ -1267,9 +1269,10 @@ uint16_t prune_txk_type_separ(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
                     &txfm_param, &quant_param);
     dist_block_tx_domain(x, plane, block, tx_size, &dist, &sse);
 
-    rate_cost = av2_cost_coeffs_txb_laplacian(cm, x, plane, block, tx_size,
-                                              prim_tx_type, CCTX_NONE, txb_ctx,
-                                              reduced_tx_set_used, 0);
+    rate_cost = av2_cost_coeffs_txb_laplacian(
+        cm, x, plane, block, tx_size,
+        MAKE_TX_TYPE_FROM_PRIM_TX_TYPE(prim_tx_type), CCTX_NONE, txb_ctx,
+        reduced_tx_set_used, 0);
 
     rds_h[idx] = RDCOST(x->rdmult, rate_cost, dist);
 
@@ -1297,9 +1300,10 @@ uint16_t prune_txk_type_separ(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
 
     dist_block_tx_domain(x, plane, block, tx_size, &dist, &sse);
 
-    rate_cost = av2_cost_coeffs_txb_laplacian(cm, x, plane, block, tx_size,
-                                              prim_tx_type, CCTX_NONE, txb_ctx,
-                                              reduced_tx_set_used, 0);
+    rate_cost = av2_cost_coeffs_txb_laplacian(
+        cm, x, plane, block, tx_size,
+        MAKE_TX_TYPE_FROM_PRIM_TX_TYPE(prim_tx_type), CCTX_NONE, txb_ctx,
+        reduced_tx_set_used, 0);
 
     rds_v[idx] = RDCOST(x->rdmult, rate_cost, dist);
 
@@ -1361,7 +1365,9 @@ uint16_t prune_txk_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
 
   TxfmParam txfm_param;
   QUANT_PARAM quant_param;
-  av2_setup_xform(cm, x, plane, tx_size, DCT_DCT, CCTX_NONE, &txfm_param);
+  av2_setup_xform(cm, x, plane, tx_size,
+                  MAKE_TX_TYPE_FROM_PRIM_TX_TYPE(DCT_DCT), CCTX_NONE,
+                  &txfm_param);
   av2_setup_quant(tx_size, 1, AV2_XFORM_QUANT_B, cpi->oxcf.q_cfg.quant_b_adapt,
                   &quant_param);
 
@@ -1380,9 +1386,10 @@ uint16_t prune_txk_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
     av2_xform_quant(0, cm, x, plane, block, blk_row, blk_col, plane_bsize,
                     &txfm_param, &quant_param);
     // estimate rate cost
-    rate_cost = av2_cost_coeffs_txb_laplacian(cm, x, plane, block, tx_size,
-                                              prim_tx_type, CCTX_NONE, txb_ctx,
-                                              reduced_tx_set_used, 0);
+    rate_cost = av2_cost_coeffs_txb_laplacian(
+        cm, x, plane, block, tx_size,
+        MAKE_TX_TYPE_FROM_PRIM_TX_TYPE(prim_tx_type), CCTX_NONE, txb_ctx,
+        reduced_tx_set_used, 0);
     // tx domain dist
     dist_block_tx_domain(x, plane, block, tx_size, &dist, &sse);
 
@@ -1754,7 +1761,7 @@ get_tx_mask(const AV2_COMP *cpi, MACROBLOCK *x, int plane, int block,
     const TX_TYPE uv_tx_type =
         av2_get_tx_type(xd, get_plane_type(plane), blk_row, blk_col, tx_size,
                         is_reduced_tx_set_used(cm, get_plane_type(plane)));
-    uv_prim_tx_type = txk_allowed = get_primary_tx_type(uv_tx_type);
+    uv_prim_tx_type = txk_allowed = uv_tx_type.prim_tx;
   }
   uint16_t ext_tx_used_flag =
       cpi->sf.tx_sf.tx_type_search.use_reduced_intra_txset &&
@@ -1918,10 +1925,10 @@ get_tx_mask(const AV2_COMP *cpi, MACROBLOCK *x, int plane, int block,
         txk_allowed = PRIM_TX_TYPES;
         allowed_tx_mask = (1 << DCT_DCT) | (1 << IDTX);
       } else if (tx_size == TX_4X4 && plane) {
-        txk_allowed = av2_get_tx_type(
+        const TX_TYPE plane_tx_type = av2_get_tx_type(
             xd, get_plane_type(plane), blk_row, blk_col, tx_size,
             is_reduced_tx_set_used(cm, get_plane_type(plane)));
-        txk_allowed = get_primary_tx_type(txk_allowed);
+        txk_allowed = plane_tx_type.prim_tx;
         allowed_tx_mask = 1 << txk_allowed;
       }
     }
@@ -2145,12 +2152,14 @@ static AVM_INLINE bool prune_tx_search_by_eob(
     const bool kill =
         (eob == 1) ? (primary_tx_type != DCT_DCT || stx > 0) : (stx > 0);
     if (kill) {
-      update_txk_array(xd, blk_row, blk_col, tx_size, DCT_DCT);
+      update_txk_array(xd, blk_row, blk_col, tx_size,
+                       MAKE_TX_TYPE_FROM_PRIM_TX_TYPE(DCT_DCT));
       return true;
     }
   }
   if (eob <= 3 && plane == AVM_PLANE_Y && is_inter && stx) {
-    update_txk_array(xd, blk_row, blk_col, tx_size, primary_tx_type);
+    update_txk_array(xd, blk_row, blk_col, tx_size,
+                     MAKE_TX_TYPE_FROM_PRIM_TX_TYPE(primary_tx_type));
     return true;
   }
   return false;
@@ -2217,8 +2226,7 @@ static AVM_INLINE bool prune_rectangular_tx_type(
     *primary_tx_type = is_rect_horz ? txk_map_rect_horz_32[tx_idx]
                                     : txk_map_rect_vert_32[tx_idx];
 
-    if (tx_idx == 2)
-      *best_long_side_tx_type = get_primary_tx_type(best_tx_type);
+    if (tx_idx == 2) *best_long_side_tx_type = best_tx_type.prim_tx;
 
     if (tx_idx >= 2) {
       if (!(ALLOW_TX_MASK(*primary_tx_type) & allowed_tx_mask)) return true;
@@ -2238,12 +2246,10 @@ static AVM_INLINE bool prune_rectangular_tx_type(
 
   if (tx_set_type == EXT_TX_SET_LONG_SIDE_64 ||
       tx_set_type == EXT_TX_SET_LONG_SIDE_32) {
-    if (*primary_tx_type == DCT_FLIPADST &&
-        get_primary_tx_type(best_tx_type) == DCT_ADST) {
+    if (*primary_tx_type == DCT_FLIPADST && best_tx_type.prim_tx == DCT_ADST) {
       return true;
     }
-    if (*primary_tx_type == FLIPADST_DCT &&
-        get_primary_tx_type(best_tx_type) == ADST_DCT) {
+    if (*primary_tx_type == FLIPADST_DCT && best_tx_type.prim_tx == ADST_DCT) {
       return true;
     }
   }
@@ -2373,7 +2379,7 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
   const bool is_lossless = xd->lossless[mbmi->segment_id];
   int64_t best_rd = INT64_MAX;
   uint16_t best_eob = 0;
-  TX_TYPE best_tx_type = DCT_DCT;
+  TX_TYPE best_tx_type = MAKE_TX_TYPE_FROM_PRIM_TX_TYPE(DCT_DCT);
   int rate_cost = 0;
   // The buffer used to swap dqcoeff in macroblockd_plane so we can keep dqcoeff
   // of the best tx_type.
@@ -2430,7 +2436,8 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
     if (best_rd_stats->skip_txfm == 1) {
       // Ensure that xd->tx_type_map is initialized.
       if (plane == AVM_PLANE_Y)
-        update_txk_array(xd, blk_row, blk_col, tx_size, DCT_DCT);
+        update_txk_array(xd, blk_row, blk_col, tx_size,
+                         MAKE_TX_TYPE_FROM_PRIM_TX_TYPE(DCT_DCT));
       return;
     }
   } else {
@@ -2493,7 +2500,9 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
   TxfmParam txfm_param;
   QUANT_PARAM quant_param;
   int skip_trellis_based_on_satd[PRIM_TX_TYPES] = { 0 };
-  av2_setup_xform(cm, x, plane, tx_size, DCT_DCT, CCTX_NONE, &txfm_param);
+  av2_setup_xform(cm, x, plane, tx_size,
+                  MAKE_TX_TYPE_FROM_PRIM_TX_TYPE(DCT_DCT), CCTX_NONE,
+                  &txfm_param);
 
   const int xform_quant_b =
       USE_B_QUANT_NO_TRELLIS ? AV2_XFORM_QUANT_B : AV2_XFORM_QUANT_FP;
@@ -2568,29 +2577,21 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
         if (eob_found) skip_stx = true;
         if (skip_stx && stx) continue;
 
-        TX_TYPE packed_tx_type = primary_tx_type;
-        set_secondary_tx_type(&packed_tx_type, stx);
-        txfm_param.prim_tx_type = primary_tx_type;
-        txfm_param.sec_tx_type = stx;
-
         const uint16_t stx_set = (primary_tx_type == ADST_ADST && stx)
                                      ? set_id + IST_SET_SIZE
                                      : set_id;
-        set_secondary_tx_set(&packed_tx_type, stx_set);
+        TX_TYPE tx_type = pack_tx_type(primary_tx_type, stx, stx_set);
+        txfm_param.prim_tx_type = primary_tx_type;
+        txfm_param.sec_tx_type = stx;
         txfm_param.sec_tx_set = stx_set;
 
-        if (txw < 8 || txh < 8)
-          assert(txfm_param.sec_tx_set < IST_4x4_SET_SIZE);
-        else
-          assert(txfm_param.sec_tx_set < IST_8x8_SET_SIZE);
-        assert(packed_tx_type < (1 << (PRIMARY_TX_BITS + SECONDARY_TX_BITS +
-                                       SECONDARY_TX_SET_BITS)));
+        assert(av2_tx_type_in_range(tx_type.prim_tx, tx_type.sec_tx,
+                                    tx_type.sec_set, txw, txh));
         if (av2_use_qmatrix(&cm->quant_params, xd, mbmi->segment_id)) {
           av2_setup_qmatrix(&cm->quant_params, xd, plane, tx_size,
-                            primary_tx_type, &quant_param);
+                            tx_type.prim_tx, &quant_param);
         }
-        if (plane == AVM_PLANE_Y)
-          xd->tx_type_map[tx_type_map_idx] = packed_tx_type;
+        if (plane == AVM_PLANE_Y) xd->tx_type_map[tx_type_map_idx] = tx_type;
         int64_t sec_tx_sse_to_be_coded = INT64_MAX;
         int64_t *const sec_tx_sse_ptr =
             tx_sf->prune_tx_rd_eval_sec_tx_sse ? &sec_tx_sse_to_be_coded : NULL;
@@ -2623,7 +2624,8 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
             mb_plane->eobs[block] = 0;
             if (primary_tx_type == DCT_DCT) eob_found = true;
             if (primary_tx_type != DCT_DCT) {
-              update_txk_array(xd, blk_row, blk_col, tx_size, DCT_DCT);
+              update_txk_array(xd, blk_row, blk_col, tx_size,
+                               MAKE_TX_TYPE_FROM_PRIM_TX_TYPE(DCT_DCT));
               continue;
             }
           }
@@ -2633,9 +2635,9 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
         const bool use_tcq = tcq_enable(cpi->common.features.tcq_mode,
                                         is_lossless, plane, tx_class);
         if (use_tcq) {
-          skip_trellis_based_on_satd[txfm_param.prim_tx_type] = skip_trellis;
+          skip_trellis_based_on_satd[primary_tx_type] = skip_trellis;
         } else {
-          skip_trellis_based_on_satd[txfm_param.prim_tx_type] =
+          skip_trellis_based_on_satd[primary_tx_type] =
               skip_trellis_opt_based_on_satd(
                   x, &quant_param, plane, block, tx_size,
                   cpi->oxcf.q_cfg.quant_b_adapt, qstep,
@@ -2645,7 +2647,7 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
 
         uint8_t fsc_mode_in =
             ((cm->seq_params.enable_fsc && is_fsc && plane == AVM_PLANE_Y) ||
-             use_inter_fsc(cm, plane, primary_tx_type, is_inter));
+             use_inter_fsc(cm, plane, tx_type.prim_tx, is_inter));
         const int use_tcq_deadzone_boost =
             use_tcq && quant_param.use_optimize_b && !fsc_mode_in &&
             tx_sf->enable_adaptive_tcq_threshold &&
@@ -2672,23 +2674,22 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
           continue;
         }
         if (fsc_mode_in && quant_param.use_optimize_b) {
-          av2_optimize_fsc(cpi, x, plane, block, tx_size, packed_tx_type,
-                           txb_ctx, &rate_cost);
+          av2_optimize_fsc(cpi, x, plane, block, tx_size, tx_type, txb_ctx,
+                           &rate_cost);
         } else if (quant_param.use_optimize_b) {
-          av2_optimize_b(cpi, x, plane, block, tx_size, packed_tx_type,
-                         CCTX_NONE, txb_ctx, &rate_cost);
+          av2_optimize_b(cpi, x, plane, block, tx_size, tx_type, CCTX_NONE,
+                         txb_ctx, &rate_cost);
         } else {
           const bool enable_parity_hiding =
               cm->features.allow_parity_hiding && !is_lossless &&
               plane == AVM_PLANE_Y && ph_allowed_tx_types[primary_tx_type] &&
               (mb_plane->eobs[block] > PHTHRESH);
           if (enable_parity_hiding)
-            parity_hiding_trellis_off(cpi, x, plane, block, tx_size,
-                                      packed_tx_type);
+            parity_hiding_trellis_off(cpi, x, plane, block, tx_size, tx_type);
 
           rate_cost =
-              cost_coeffs(cm, x, plane, block, tx_size, packed_tx_type,
-                          CCTX_NONE, txb_ctx, cm->features.reduced_tx_set_used);
+              cost_coeffs(cm, x, plane, block, tx_size, tx_type, CCTX_NONE,
+                          txb_ctx, cm->features.reduced_tx_set_used);
         }
         // Post-trellis safety net: re-apply the same eob == 0 / eob == 1
         // pre-skip logic in case trellis (RDOQ) adjusted the eob across
@@ -2727,7 +2728,7 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
         if (rd < best_rd) {
           best_rd = rd;
           *best_rd_stats = this_rd_stats;
-          best_tx_type = packed_tx_type;
+          best_tx_type = tx_type;
           best_txb_ctx = mb_plane->txb_entropy_ctx[block];
           best_eob = mb_plane->eobs[block];
           // Swap dqcoeff buffers.
@@ -2739,13 +2740,13 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
 #if CONFIG_COLLECT_RD_STATS == 1
         if (plane == AVM_PLANE_Y) {
           PrintTransformUnitStats(cpi, x, &this_rd_stats, blk_row, blk_col,
-                                  plane_bsize, tx_size, packed_tx_type, rd);
+                                  plane_bsize, tx_size, tx_type.prim_tx, rd);
         }
 #endif  // CONFIG_COLLECT_RD_STATS == 1
 
 #if COLLECT_TX_SIZE_DATA
         collect_tx_size_data(x, plane, blk_row, blk_col, plane_bsize, tx_size,
-                             packed_tx_type, rd);
+                             tx_type.prim_tx, rd);
 #endif  // COLLECT_TX_SIZE_DATA
 
         assert(tx_sf->adaptive_tx_type_search_idx < 6);
@@ -2785,11 +2786,11 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
     if (skip_idx) break;
   }
 
-  if (((best_eob == 1 && get_primary_tx_type(best_tx_type) != DCT_DCT &&
+  if (((best_eob == 1 && best_tx_type.prim_tx != DCT_DCT &&
         plane == AVM_PLANE_Y) ||
        best_rd == INT64_MAX) &&
       !is_inter) {
-    best_tx_type = DCT_DCT;
+    best_tx_type = MAKE_TX_TYPE_FROM_PRIM_TX_TYPE(DCT_DCT);
   }
 
   best_rd_stats->skip_txfm = best_eob == 0;
@@ -2797,7 +2798,7 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
     update_txk_array(xd, blk_row, blk_col, tx_size, best_tx_type);
   mb_plane->txb_entropy_ctx[block] = best_txb_ctx;
   mb_plane->eobs[block] = best_eob;
-  skip_trellis = skip_trellis_based_on_satd[get_primary_tx_type(best_tx_type)];
+  skip_trellis = skip_trellis_based_on_satd[best_tx_type.prim_tx];
 
   // Point dqcoeff to the quantized coefficients corresponding to the best
   // transform type, then we can skip transform and quantization, e.g. in the
@@ -2811,7 +2812,7 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
   }
 
   if (plane == AVM_PLANE_Y && best_eob == 1 &&
-      get_primary_tx_type(best_tx_type) != DCT_DCT && !is_inter) {
+      best_tx_type.prim_tx != DCT_DCT && !is_inter) {
     av2_invalid_rd_stats(best_rd_stats);
   }
 
@@ -2848,7 +2849,7 @@ static void search_cctx_type(const AV2_COMP *cpi, MACROBLOCK *x, int block,
                       is_reduced_tx_set_used(cm, PLANE_TYPE_UV));
   for (int plane = AVM_PLANE_U; plane <= AVM_PLANE_V; plane++) {
     av2_subtract_txb(x, plane, plane_bsize, blk_col, blk_row, tx_size,
-                     cm->width, cm->height, get_primary_tx_type(tx_type));
+                     cm->width, cm->height, tx_type.prim_tx);
   }
   TxfmParam txfm_param;
   av2_setup_xform(cm, x, AVM_PLANE_U, tx_size, tx_type, CCTX_NONE, &txfm_param);
@@ -2867,11 +2868,11 @@ static void search_cctx_type(const AV2_COMP *cpi, MACROBLOCK *x, int block,
               0, NULL);
     if (av2_use_qmatrix(&cm->quant_params, xd, mbmi->segment_id))
       av2_setup_qmatrix(&cm->quant_params, xd, AVM_PLANE_U, tx_size,
-                        get_primary_tx_type(tx_type), &quant_param);
+                        tx_type.prim_tx, &quant_param);
     av2_quant(0, x, AVM_PLANE_U, block, &txfm_param, &quant_param);
     if (av2_use_qmatrix(&cm->quant_params, xd, mbmi->segment_id))
       av2_setup_qmatrix(&cm->quant_params, xd, AVM_PLANE_V, tx_size,
-                        get_primary_tx_type(tx_type), &quant_param);
+                        tx_type.prim_tx, &quant_param);
     av2_quant(0, x, AVM_PLANE_V, block, &txfm_param, &quant_param);
   }
 
@@ -2925,7 +2926,7 @@ static void search_cctx_type(const AV2_COMP *cpi, MACROBLOCK *x, int block,
     for (int plane = AVM_PLANE_U; plane <= AVM_PLANE_V; plane++) {
       if (av2_use_qmatrix(&cm->quant_params, xd, mbmi->segment_id))
         av2_setup_qmatrix(&cm->quant_params, xd, plane, tx_size,
-                          get_primary_tx_type(tx_type), &quant_param);
+                          tx_type.prim_tx, &quant_param);
       av2_quant(0, x, plane, block, &txfm_param, &quant_param);
 
       skip_cctx_eval = skip_cctx_eval_based_on_eob(
@@ -2933,11 +2934,10 @@ static void search_cctx_type(const AV2_COMP *cpi, MACROBLOCK *x, int block,
       if (skip_cctx_eval) break;
 
       // Calculate rate cost of quantized coefficients.
-      uint8_t fsc_mode =
-          ((cm->seq_params.enable_fsc &&
-            mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
-            plane == PLANE_TYPE_Y) ||
-           use_inter_fsc(cm, plane, get_primary_tx_type(tx_type), is_inter));
+      uint8_t fsc_mode = ((cm->seq_params.enable_fsc &&
+                           mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
+                           plane == PLANE_TYPE_Y) ||
+                          use_inter_fsc(cm, plane, tx_type.prim_tx, is_inter));
       if (quant_param.use_optimize_b) {
         if (fsc_mode)
           av2_optimize_fsc(cpi, x, plane, block, tx_size, tx_type,
@@ -3118,7 +3118,8 @@ static AVM_INLINE void try_tx_block_no_split(
     rd_stats->dist = rd_stats->sse;
     p->eobs[block] = 0;
     p->bobs[block] = 0;
-    update_txk_array(xd, blk_row, blk_col, tx_size, DCT_DCT);
+    update_txk_array(xd, blk_row, blk_col, tx_size,
+                     MAKE_TX_TYPE_FROM_PRIM_TX_TYPE(DCT_DCT));
   }
   rd_stats->skip_txfm = pick_skip_txfm;
   set_blk_skip(x->txfm_search_info.blk_skip[0], blk_row * bw + blk_col,
@@ -3460,7 +3461,7 @@ static void select_tx_partition_type(
       const int offsetc = blk_col + txb_pos.col_offset[txb_idx];
       if (offsetr >= max_blocks_high || offsetc >= max_blocks_wide) continue;
       // Try tx size and compute rd cost
-      TxCandidateInfo no_split = { INT64_MAX, 0, PRIM_TX_TYPES };
+      TxCandidateInfo no_split = { INT64_MAX, 0, { PRIM_TX_TYPES } };
       try_tx_block_no_split(cpi, x, offsetr, offsetc, cur_block, sub_tx, 0,
                             plane_bsize, cur_ta, cur_tl, -1, &this_rd_stats,
                             ref_best_rd - tmp_rd, ftxs_mode, &no_split,

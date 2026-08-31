@@ -879,7 +879,7 @@ static void init_txfm_param(const MACROBLOCKD *xd, int plane, TX_SIZE tx_size,
                             int use_ddt, TxfmParam *txfm_param) {
   (void)plane;
   MB_MODE_INFO *const mbmi = xd->mi[0];
-  txfm_param->prim_tx_type = get_primary_tx_type(tx_type);
+  txfm_param->prim_tx_type = tx_type.prim_tx;
   txfm_param->sec_tx_set = 0;
   txfm_param->sec_tx_type = 0;
   txfm_param->intra_mode = get_intra_mode(mbmi, plane);
@@ -892,8 +892,8 @@ static void init_txfm_param(const MACROBLOCKD *xd, int plane, TX_SIZE tx_size,
                             : txfm_param->intra_mode < PAETH_PRED);
   if (mode_dependent_condition && !xd->lossless[mbmi->segment_id]) {
     // updated EOB condition
-    txfm_param->sec_tx_type = get_secondary_tx_type(tx_type);
-    txfm_param->sec_tx_set = get_secondary_tx_set(tx_type);
+    txfm_param->sec_tx_type = tx_type.sec_tx;
+    txfm_param->sec_tx_set = tx_type.sec_set;
   }
   txfm_param->tx_size = tx_size;
   // EOB needs to adjusted after inverse IST
@@ -1009,10 +1009,9 @@ void av2_inverse_transform_block(const MACROBLOCKD *xd,
   init_txfm_param(xd, plane, tx_size, tx_type, eob, reduced_tx_set, use_ddt,
                   &txfm_param);
   assert(av2_ext_tx_used[txfm_param.tx_set_type][txfm_param.prim_tx_type]);
-  assert(
-      IMPLIES(txfm_param.sec_tx_type,
-              block_signals_sec_tx_type(
-                  xd, tx_size, get_primary_tx_type(tx_type), txfm_param.eob)));
+  assert(IMPLIES(
+      txfm_param.sec_tx_type,
+      block_signals_sec_tx_type(xd, tx_size, tx_type.prim_tx, txfm_param.eob)));
 
   // Work buffer for secondary transform
   DECLARE_ALIGNED(32, tran_low_t, temp_dqcoeff[MAX_TX_SQUARE]);
@@ -1123,10 +1122,9 @@ void av2_inv_stxfm(tran_low_t *coeff, TxfmParam *txfm_param) {
     }
 #endif  // STX_COEFF_DEBUG
     mode_t = txfm_param->sec_tx_set;
-    if (sb_size == 8)
-      assert(mode_t < IST_8x8_SET_SIZE);
-    else
-      assert(mode_t < IST_4x4_SET_SIZE);
+    assert(av2_tx_type_in_range(txfm_param->prim_tx_type,
+                                txfm_param->sec_tx_type, txfm_param->sec_tx_set,
+                                width, height));
     if (transpose) {
       scan_order_out = (sb_size == 4)
                            ? stx_scan_orders_transpose_4x4[log2width - 2]

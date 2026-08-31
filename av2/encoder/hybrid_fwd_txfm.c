@@ -1085,10 +1085,9 @@ void av2_fwd_stxfm(tran_low_t *coeff, TxfmParam *txfm_param,
         (mode == SMOOTH_H_PRED))
       transpose = 1;
     mode_t = txfm_param->sec_tx_set;
-    if (sb_size == 8)
-      assert(mode_t < IST_8x8_SET_SIZE);
-    else
-      assert(mode_t < IST_4x4_SET_SIZE);
+    assert(av2_tx_type_in_range(txfm_param->prim_tx_type,
+                                txfm_param->sec_tx_type, txfm_param->sec_tx_set,
+                                width, height));
 #if STX_COEFF_DEBUG
     fprintf(stderr,
             "[fwd stx] inter %d ptx %d txs %dx%d tp %d stx_set %d stx_type %d\n"

@@ -2875,19 +2875,19 @@ static INLINE CctxType av2_get_cctx_type(const MACROBLOCKD *xd, int blk_row,
  * This function masks secondary transform type used by the transform block
  *
  */
-static INLINE void disable_secondary_tx_type(TX_TYPE *tx_type) {
+static INLINE void disable_secondary_tx_type(uint16_t *tx_type) {
   *tx_type &= 0x000f;
 }
 /*
  * This function masks primary transform type used by the transform block
  */
-static INLINE void disable_primary_tx_type(TX_TYPE *tx_type) {
+static INLINE void disable_primary_tx_type(uint16_t *tx_type) {
   *tx_type &= 0xfff0;
 }
 /*
  * This function returns primary transform type used by the transform block
  */
-static INLINE PRIM_TX_TYPE get_primary_tx_type(TX_TYPE tx_type) {
+static INLINE PRIM_TX_TYPE get_primary_tx_type(uint16_t tx_type) {
   return (PRIM_TX_TYPE)(tx_type & 0x000f);
 }
 
@@ -2990,11 +2990,11 @@ get_txtype_from_idx_for_large_txfm(TX_SIZE tx_size, const TxSetType tx_set_type,
 /*
  * This function returns secondary transform type used by the transform block
  */
-static INLINE SEC_TX_TYPE get_secondary_tx_type(TX_TYPE tx_type) {
+static INLINE SEC_TX_TYPE get_secondary_tx_type(uint16_t tx_type) {
   return (SEC_TX_TYPE)((tx_type >> PRIMARY_TX_BITS) & SECONDARY_TX_MASK);
 }
 
-static INLINE void set_secondary_tx_type(TX_TYPE *tx_type,
+static INLINE void set_secondary_tx_type(uint16_t *tx_type,
                                          SEC_TX_TYPE stx_flag) {
   *tx_type |= (stx_flag << PRIMARY_TX_BITS);
 }
@@ -3002,7 +3002,7 @@ static INLINE void set_secondary_tx_type(TX_TYPE *tx_type,
 /*
  * This function returns secondary transform set used by the transform block
  */
-static INLINE SEC_TX_SET get_secondary_tx_set(TX_TYPE tx_type) {
+static INLINE SEC_TX_SET get_secondary_tx_set(uint16_t tx_type) {
   return (SEC_TX_SET)((tx_type >> (PRIMARY_TX_BITS + SECONDARY_TX_BITS)) &
                       SECONDARY_TX_SET_MASK);
 }
@@ -3011,7 +3011,7 @@ static INLINE SEC_TX_SET get_secondary_tx_set(TX_TYPE tx_type) {
  * This function sets the 'secondary transform set' info on the input 'tx_type'
  * parameter
  */
-static INLINE void set_secondary_tx_set(TX_TYPE *tx_type,
+static INLINE void set_secondary_tx_set(uint16_t *tx_type,
                                         SEC_TX_SET stx_set_flag) {
   *tx_type |= (stx_set_flag << (PRIMARY_TX_BITS + SECONDARY_TX_BITS));
 }
@@ -3079,13 +3079,10 @@ static INLINE void adjust_ext_tx_used_flag(TX_SIZE tx_size,
     }
   }
 }
+
 /*
- * This function returns the tx_type used by the transform block
- *
- * If secondary transform is enabled (IST) :
- * Bits 6~9 of tx_type stores secondary tx_set
- * Bits 4~5 of tx_type stores secondary tx_type
- * Bits 0~3 of tx_type stores primary tx_type
+ * Returns the transform union used by the transform block.
+ * Refer to the TX_TYPE enum in enums.h for details of bit layout.
  */
 static INLINE TX_TYPE av2_get_tx_type(const MACROBLOCKD *xd,
                                       PLANE_TYPE plane_type, int blk_row,
@@ -3096,29 +3093,29 @@ static INLINE TX_TYPE av2_get_tx_type(const MACROBLOCKD *xd,
                       !is_inter_block(mbmi, xd->tree_type) &&
                       plane_type == PLANE_TYPE_Y;
   if (is_fsc) {
-    return IDTX;
+    return MAKE_TX_TYPE_FROM_PRIM_TX_TYPE(IDTX);
   }
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
   if (xd->lossless[mbmi->segment_id]) {
-    TX_TYPE lossless_inter_tx_type = PRIM_TX_TYPES;
+    TX_TYPE lossless_inter_tx_type = MAKE_TX_TYPE_FROM_PRIM_TX_TYPE(DCT_DCT);
     const bool fsc_flag = xd->mi[0]->fsc_mode[PLANE_TYPE_Y];
     if (!is_inter && plane_type == PLANE_TYPE_Y) {
-      return DCT_DCT;
+      return MAKE_TX_TYPE_FROM_PRIM_TX_TYPE(DCT_DCT);
     } else if (!is_inter && plane_type == PLANE_TYPE_UV) {
       if (fsc_flag)
-        return IDTX;
+        return MAKE_TX_TYPE_FROM_PRIM_TX_TYPE(IDTX);
       else
-        return DCT_DCT;
+        return MAKE_TX_TYPE_FROM_PRIM_TX_TYPE(DCT_DCT);
     } else if (is_inter && plane_type == PLANE_TYPE_Y) {
       if (tx_size != TX_4X4) {
-        return IDTX;
+        return MAKE_TX_TYPE_FROM_PRIM_TX_TYPE(IDTX);
       } else {
         lossless_inter_tx_type =
             xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col];
       }
     } else if (is_inter && plane_type == PLANE_TYPE_UV) {
       if (mbmi->tx_size != TX_4X4) {
-        return IDTX;
+        return MAKE_TX_TYPE_FROM_PRIM_TX_TYPE(IDTX);
       } else {
         blk_row <<= xd->plane[plane_type].subsampling_y;
         blk_col <<= xd->plane[plane_type].subsampling_x;
@@ -3132,9 +3129,9 @@ static INLINE TX_TYPE av2_get_tx_type(const MACROBLOCKD *xd,
       }
     }
     // Secondary transforms are disabled for chroma
-    lossless_inter_tx_type = get_primary_tx_type(lossless_inter_tx_type);
-    assert(lossless_inter_tx_type == DCT_DCT || lossless_inter_tx_type == IDTX);
-    return lossless_inter_tx_type;
+    PRIM_TX_TYPE prim_tx_type = lossless_inter_tx_type.prim_tx;
+    assert(prim_tx_type == DCT_DCT || prim_tx_type == IDTX);
+    return MAKE_TX_TYPE_FROM_PRIM_TX_TYPE(prim_tx_type);
   }
 
   TX_TYPE tx_type;
@@ -3142,7 +3139,7 @@ static INLINE TX_TYPE av2_get_tx_type(const MACROBLOCKD *xd,
     tx_type = xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col];
   } else {
     if (reduced_tx_set) {
-      tx_type = DCT_DCT;
+      tx_type = MAKE_TX_TYPE_FROM_PRIM_TX_TYPE(DCT_DCT);
     } else {
       if (is_inter_block(mbmi, xd->tree_type)) {
         // scale back to y plane's coordinate
@@ -3151,38 +3148,40 @@ static INLINE TX_TYPE av2_get_tx_type(const MACROBLOCKD *xd,
         blk_col <<= pd->subsampling_x;
         tx_type = xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col];
         // Secondary transforms are disabled for chroma
-        disable_secondary_tx_type(&tx_type);
+        tx_type.sec_tx = SEC_TX_NONE;
+        tx_type.sec_set = SEC_TX_SET_0;
       } else {
         // In intra mode, uv planes don't share the same prediction mode as y
         // plane, so the tx_type should not be shared
-        tx_type = intra_mode_to_tx_type(mbmi, PLANE_TYPE_UV);
+        tx_type = MAKE_TX_TYPE_FROM_PRIM_TX_TYPE(
+            intra_mode_to_tx_type(mbmi, PLANE_TYPE_UV));
       }
       const TxSetType tx_set_type = av2_get_ext_tx_set_type(
           tx_size, is_inter_block(mbmi, xd->tree_type), reduced_tx_set);
-      if (!av2_ext_tx_used[tx_set_type][get_primary_tx_type(tx_type)])
-        tx_type = DCT_DCT;
+      if (!av2_ext_tx_used[tx_set_type][tx_type.prim_tx])
+        tx_type = MAKE_TX_TYPE_FROM_PRIM_TX_TYPE(DCT_DCT);
       if (tx_set_type == EXT_TX_SET_LONG_SIDE_64 ||
           tx_set_type == EXT_TX_SET_LONG_SIDE_32) {
         uint16_t ext_tx_used_flag = av2_ext_tx_used_flag[tx_set_type];
         adjust_ext_tx_used_flag(tx_size, tx_set_type, &ext_tx_used_flag);
 
-        if (!(ext_tx_used_flag & (1 << get_primary_tx_type(tx_type)))) {
-          tx_type = DCT_DCT;
+        if (!(ext_tx_used_flag & (1 << tx_type.prim_tx))) {
+          tx_type = MAKE_TX_TYPE_FROM_PRIM_TX_TYPE(DCT_DCT);
         }
       }
     }
   }
   assert(av2_ext_tx_used[av2_get_ext_tx_set_type(
       tx_size, is_inter_block(mbmi, xd->tree_type), reduced_tx_set)]
-                        [get_primary_tx_type(tx_type)]);
+                        [tx_type.prim_tx]);
   if (txsize_sqr_up_map[tx_size] > TX_32X32 &&
       txsize_sqr_map[tx_size] >= TX_32X32) {
     // secondary transforms are enabled for txsize_sqr_up_map[tx_size] >
     // TX_32X32 while tx_type is by default DCT_DCT.
-    disable_primary_tx_type(&tx_type);
+    tx_type.prim_tx = DCT_DCT;
   }
-  assert(tx_type <
-         (1 << (PRIMARY_TX_BITS + SECONDARY_TX_BITS + SECONDARY_TX_SET_BITS)));
+  assert(av2_tx_type_in_range(tx_type.prim_tx, tx_type.sec_tx, tx_type.sec_set,
+                              tx_size_wide[tx_size], tx_size_high[tx_size]));
   return tx_type;
 }
 
