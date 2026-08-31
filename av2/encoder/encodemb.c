@@ -817,7 +817,6 @@ void av2_setup_xform(const AV2_COMMON *cm, MACROBLOCK *x, int plane,
 void av2_setup_quant(TX_SIZE tx_size, int use_optimize_b, int xform_quant_idx,
                      int use_quant_b_adapt, QUANT_PARAM *qparam) {
   qparam->log_scale = av2_get_tx_scale(tx_size);
-  qparam->tx_size = tx_size;
 
   qparam->use_quant_b_adapt = use_quant_b_adapt;
 
@@ -1258,8 +1257,8 @@ void av2_encode_sb(const struct AV2_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
 
   struct optimize_ctx ctx;
   struct encode_b_args arg = {
-    cpi,  x,    &ctx,    &mbmi->skip_txfm[xd->tree_type == CHROMA_PART],
-    NULL, NULL, dry_run, cpi->optimize_seg_arr[mbmi->segment_id]
+    cpi,  x,       &mbmi->skip_txfm[xd->tree_type == CHROMA_PART], NULL,
+    NULL, dry_run, cpi->optimize_seg_arr[mbmi->segment_id]
   };
 
   for (int plane = plane_start; plane < plane_end; ++plane) {
@@ -1575,8 +1574,8 @@ void av2_encode_intra_block_plane(const struct AV2_COMP *cpi, MACROBLOCK *x,
   ENTROPY_CONTEXT tl[MAX_MIB_SIZE] = { 0 };
   int8_t *skip_txfm = &(xd->mi[0]->skip_txfm[xd->tree_type == CHROMA_PART]);
 
-  struct encode_b_args arg = { cpi, x,  NULL,    skip_txfm,
-                               ta,  tl, dry_run, enable_optimize_b };
+  struct encode_b_args arg = { cpi, x,       skip_txfm,        ta,
+                               tl,  dry_run, enable_optimize_b };
   const BLOCK_SIZE plane_bsize =
       get_mb_plane_block_size(xd, xd->mi[0], plane, ss_x, ss_y);
   (void)bsize;
@@ -1851,8 +1850,13 @@ void av2_encode_intra_block_joint_uv(const struct AV2_COMP *cpi, MACROBLOCK *x,
   ENTROPY_CONTEXT ta[MAX_MIB_SIZE * 2] = { 0 };
   ENTROPY_CONTEXT tl[MAX_MIB_SIZE * 2] = { 0 };
   struct encode_b_args arg = {
-    cpi, x,  NULL,    &(xd->mi[0]->skip_txfm[xd->tree_type == CHROMA_PART]),
-    ta,  tl, dry_run, enable_optimize_b
+    cpi,
+    x,
+    &(xd->mi[0]->skip_txfm[xd->tree_type == CHROMA_PART]),
+    ta,
+    tl,
+    dry_run,
+    enable_optimize_b
   };
   const BLOCK_SIZE plane_bsize =
       get_mb_plane_block_size(xd, xd->mi[0], AVM_PLANE_U, ss_x, ss_y);

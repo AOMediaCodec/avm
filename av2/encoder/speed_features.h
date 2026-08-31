@@ -253,8 +253,6 @@ typedef struct HIGH_LEVEL_SPEED_FEATURES {
 
 /*!\cond */
 typedef struct TPL_SPEED_FEATURES {
-  // Enable/disable GOP length adaptive decision.
-  int disable_gop_length_decision;
   // Prune the intra modes search by tpl.
   // If set to 0, we will search all intra modes from DC_PRED to PAETH_PRED.
   // If set to 1, we only search DC_PRED, V_PRED, and H_PRED.
@@ -940,10 +938,6 @@ typedef struct TX_SPEED_FEATURES {
   // 0: no pruning
   // 1-2: progressively increasing aggressiveness of pruning
   int model_based_prune_tx_search_level;
-
-  // Use hash table to store inter txb transform search results
-  // to avoid repeated search on the same residue signal.
-  int use_inter_txb_hash;
 
   // Prune RD evaluation of secondary transform using the SSE of secondary
   // transform output.

@@ -195,8 +195,6 @@ typedef struct {
   int max_frame_bandwidth;  // Maximum burst rate allowed for a frame.
   int prev_avg_frame_bandwidth;
 
-  int ni_av_qi;
-  int ni_tot_qi;
   int ni_frames;
   int avg_frame_qindex[FRAME_TYPES];
   double tot_q;
@@ -213,14 +211,10 @@ typedef struct {
   int rolling_target_bits;
   int rolling_actual_bits;
 
-  int long_rolling_target_bits;
-  int long_rolling_actual_bits;
-
   int rate_error_estimate;
 
   int64_t total_actual_bits;
   int64_t total_target_bits;
-  int64_t total_target_vs_actual;
 
   /*!\endcond */
   /*!
@@ -272,7 +266,6 @@ typedef struct {
   int active_best_quality[MAX_ARF_LAYERS + 1];
 
   /*!\cond */
-  int base_layer_qp;
 
   // Total number of stats used only for kf_boost calculation.
   int num_stats_used_for_kf_boost;

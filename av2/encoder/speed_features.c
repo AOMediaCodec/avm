@@ -690,7 +690,6 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.simple_motion_subpel_force_stop = FULL_PEL;
     sf->mv_sf.use_bsize_dependent_search_method = 1;
 
-    sf->tpl_sf.disable_gop_length_decision = 1;
     sf->tpl_sf.subpel_force_stop = FULL_PEL;
     sf->tpl_sf.disable_filtered_key_tpl = 1;
 
@@ -771,7 +770,6 @@ static AVM_INLINE void init_hl_sf(HIGH_LEVEL_SPEED_FEATURES *hl_sf) {
 }
 
 static AVM_INLINE void init_tpl_sf(TPL_SPEED_FEATURES *tpl_sf) {
-  tpl_sf->disable_gop_length_decision = 0;
   tpl_sf->prune_intra_modes = 0;
   tpl_sf->prune_starting_mv = 0;
   tpl_sf->reduce_first_step_size = 0;
@@ -989,7 +987,6 @@ static AVM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
   tx_sf->skip_pixel_dist_calc_using_tx_dist = false;
   tx_sf->adaptive_tx_type_search_idx = 0;
   tx_sf->adaptive_tx_partition_type_search_idx = 0;
-  tx_sf->use_inter_txb_hash = 1;
   tx_sf->prune_tx_rd_eval_sec_tx_sse = false;
   tx_sf->use_largest_tx_size_for_small_bsize = false;
   tx_sf->restrict_tx_partition_type_search = 0;

@@ -465,7 +465,7 @@ static INLINE void init_encode_rd_sb(AV2_COMP *cpi, ThreadData *td,
   }
 
   // Reset hash state for transform/mode rd hash information
-  reset_hash_records(&x->txfm_search_info, cpi->sf.tx_sf.use_inter_txb_hash);
+  reset_hash_records(&x->txfm_search_info);
   av2_zero(x->picked_ref_frames_mask);
   av2_invalid_rd_stats(rd_cost);
   if (sf->part_sf.partition_search_type != VAR_BASED_PARTITION &&
@@ -546,7 +546,7 @@ static AVM_INLINE void perform_one_partition_pass(
         (intra_sdp_enabled && xd->tree_type == CHROMA_PART) ? tp_chroma : tp,
         mi_row, mi_col, sb_size, PARTITION_NONE, &dummy_rdc, dummy_rdc, pc_root,
         xd->tree_type == CHROMA_PART ? xd->sbi->ptree_root[0] : NULL,
-        template_tree, INT_MAX, sms_root, NULL, multi_pass_mode, NULL
+        template_tree, INT_MAX, sms_root, NULL, multi_pass_mode
 #if CONFIG_ML_PART_SPLIT
         ,
         force_prune_flags
@@ -1709,9 +1709,6 @@ static AVM_INLINE void set_rel_frame_dist(
     const AV2_COMMON *const cm, RefFrameDistanceInfo *const ref_frame_dist_info,
     const int ref_frame_flags) {
   MV_REFERENCE_FRAME ref_frame;
-  int min_past_dist = INT32_MAX, min_future_dist = INT32_MAX;
-  ref_frame_dist_info->nearest_past_ref = NONE_FRAME;
-  ref_frame_dist_info->nearest_future_ref = NONE_FRAME;
   for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ++ref_frame) {
     ref_frame_dist_info->ref_relative_dist[ref_frame] = 0;
     if (ref_frame_flags & (1 << ref_frame)) {
@@ -1720,16 +1717,6 @@ static AVM_INLINE void set_rel_frame_dist(
           cm->cur_frame->ref_display_order_hint[ref_frame],
           cm->current_frame.display_order_hint);
       ref_frame_dist_info->ref_relative_dist[ref_frame] = dist;
-      // Get the nearest ref_frame in the past
-      if (abs(dist) < min_past_dist && dist < 0) {
-        ref_frame_dist_info->nearest_past_ref = ref_frame;
-        min_past_dist = abs(dist);
-      }
-      // Get the nearest ref_frame in the future
-      if (dist < min_future_dist && dist > 0) {
-        ref_frame_dist_info->nearest_future_ref = ref_frame;
-        min_future_dist = dist;
-      }
     }
   }
 }

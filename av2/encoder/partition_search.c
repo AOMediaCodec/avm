@@ -3396,12 +3396,6 @@ static void init_partition_search_state_params(
     part_search_state->region_type_cost = x->mode_costs.region_type_cost[ctx];
   }
 
-  // Initialize HORZ and VERT win flags as true for all split partitions.
-  for (int i = 0; i < SUB_PARTITIONS_SPLIT; i++) {
-    part_search_state->split_part_rect_win[i].rect_part_win[HORZ] = true;
-    part_search_state->split_part_rect_win[i].rect_part_win[VERT] = true;
-  }
-
   // Initialize the rd cost.
   av2_init_rd_stats(&part_search_state->this_rdc);
 
@@ -3479,8 +3473,7 @@ static AVM_INLINE int rd_try_subblock_partition(
     AV2_COMP *const cpi, ThreadData *td, TileDataEnc *tile_data,
     TokenExtra **tp, RDO_PICK_SB_ARGS *rdo_args, RD_STATS *this_rdc,
     RD_STATS *sum_rdc, RD_STATS best_rdcost, int64_t *none_rd,
-    int max_recursion_depth, SB_MULTI_PASS_MODE multi_pass_mode,
-    RD_RECT_PART_WIN_INFO *rect_part_win_info, bool *skippable
+    int max_recursion_depth, SB_MULTI_PASS_MODE multi_pass_mode, bool *skippable
 #if CONFIG_ML_PART_SPLIT
     ,
     int force_prune_flags[MAX_PRUNE_TYPES]
@@ -3503,8 +3496,7 @@ static AVM_INLINE int rd_try_subblock_partition(
                              rdo_args->parent_partition, this_rdc,
                              rdcost_remaining, rdo_args->pc_tree,
                              rdo_args->ptree_luma, rdo_args->template_tree,
-                             max_recursion_depth, NULL, none_rd,
-                             multi_pass_mode, rect_part_win_info
+                             max_recursion_depth, NULL, none_rd, multi_pass_mode
 #if CONFIG_ML_PART_SPLIT
                              ,
                              force_prune_flags
@@ -3723,8 +3715,7 @@ static void rectangular_partition_search(
     PartitionSearchState *part_search_state, RD_STATS *best_rdc,
     SB_MULTI_PASS_MODE multi_pass_mode, const PARTITION_TREE *ptree_luma,
     const PARTITION_TREE *template_tree, int max_recursion_depth,
-    RD_RECT_PART_WIN_INFO *rect_part_win_info, LevelBanksRDO *level_banks,
-    PARTITION_TYPE parent_partition
+    LevelBanksRDO *level_banks, PARTITION_TYPE parent_partition
 #if CONFIG_ML_PART_SPLIT
     ,
     int next_force_prune_flags[NUM_RECT_PARTS][MAX_PRUNE_TYPES]
@@ -3829,7 +3820,7 @@ static void rectangular_partition_search(
       RD_STATS this_rdc;
       if (!rd_try_subblock_partition(
               cpi, td, tile_data, tp, &rdo_args, &this_rdc, sum_rdc, *best_rdc,
-              NULL, max_recursion_depth, multi_pass_mode, NULL, &skippable
+              NULL, max_recursion_depth, multi_pass_mode, &skippable
 #if CONFIG_ML_PART_SPLIT
               ,
               next_force_prune_flags[rect_type]
@@ -3848,10 +3839,6 @@ static void rectangular_partition_search(
       part_search_state->found_best_partition = true;
       pc_tree->partitioning = partition_type;
       pc_tree->skippable = skippable;
-    } else {
-      // Update HORZ / VERT win flag.
-      if (rect_part_win_info != NULL)
-        rect_part_win_info->rect_part_win[rect_type] = false;
     }
 #if CONFIG_COLLECT_PARTITION_STATS
     end_partition_block_timer(part_timing_stats, partition_type,
@@ -4430,8 +4417,7 @@ static void split_partition_search(
     if (!rd_try_subblock_partition(
             cpi, td, tile_data, tp, &rdo_args, &part_search_state->this_rdc,
             &sum_rdc, *best_rdc, &part_search_state->split_rd[sub_idx],
-            max_recursion_depth, multi_pass_mode,
-            &part_search_state->split_part_rect_win[sub_idx], &skippable
+            max_recursion_depth, multi_pass_mode, &skippable
 #if CONFIG_ML_PART_SPLIT
             ,
             force_prune_flags
@@ -4852,7 +4838,7 @@ static INLINE void search_intra_region_partitioning(
     if (!rd_try_subblock_partition(cpi, td, tile_data, tp, &rdo_args,
                                    &part_search_state->this_rdc, sum_rdc,
                                    *best_rdc, NULL, max_recursion_depth,
-                                   multi_pass_mode, NULL, &skippable
+                                   multi_pass_mode, &skippable
 #if CONFIG_ML_PART_SPLIT
                                    ,
                                    force_prune_flags
@@ -5242,7 +5228,7 @@ static void search_extended_partition(
     if (!rd_try_subblock_partition(cpi, td, tile_data, tp, &rdo_args,
                                    &search_state->this_rdc, &sum_rdc, *best_rdc,
                                    NULL, max_recursion_depth, multi_pass_mode,
-                                   NULL, &skippable
+                                   &skippable
 #if CONFIG_ML_PART_SPLIT
                                    ,
                                    force_prune_flags
@@ -5577,9 +5563,6 @@ static void prune_partitions_using_ml_results(
  * \param[in,out] none_rd             Pointer to the rd cost in the case of
  *                                    not splitting the current block
  * \param[in]     multi_pass_mode     SB_SINGLE_PASS/SB_DRY_PASS/SB_WET_PASS
- * \param[in,out] rect_part_win_info  Pointer to struct storing whether
- *                                    horz/vert partition outperforms
- *                                    previously tested partitions
  * \param[in]     force_prune_flags   Prune partitions based on ML results
  *                                    [Only if CONFIG_ML_PART_SPLIT is
  *                                    defined].
@@ -5596,8 +5579,7 @@ bool av2_rd_pick_partition(
     PC_TREE *pc_tree, const PARTITION_TREE *ptree_luma,
     const PARTITION_TREE *template_tree, const int max_recursion_depth,
     SIMPLE_MOTION_DATA_TREE *sms_tree, int64_t *none_rd,
-    const SB_MULTI_PASS_MODE multi_pass_mode,
-    RD_RECT_PART_WIN_INFO *rect_part_win_info
+    const SB_MULTI_PASS_MODE multi_pass_mode
 #if CONFIG_ML_PART_SPLIT
     ,
     int force_prune_flags[MAX_PRUNE_TYPES]
@@ -5900,7 +5882,7 @@ BEGIN_PARTITION_SEARCH:
   rectangular_partition_search(
       cpi, td, tile_data, tp, pc_tree, &x_ctx, &part_search_state, &best_rdc,
       multi_pass_mode, ptree_luma, template_tree, eff_max_recursion_depth - 1,
-      rect_part_win_info, &level_banks, parent_partition
+      &level_banks, parent_partition
 #if CONFIG_ML_PART_SPLIT
       ,
       next_force_prune_flags

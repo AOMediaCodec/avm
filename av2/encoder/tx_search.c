@@ -43,11 +43,6 @@ typedef struct {
   TX_TYPE tx_type;
 } TxCandidateInfo;
 
-typedef struct tx_size_rd_info_node {
-  TXB_RD_INFO *rd_info_array;  // Points to array of size TX_TYPES.
-  struct tx_size_rd_info_node *children[4];
-} TXB_RD_INFO_NODE;
-
 // Mapping of index to IST kernel set (for encoder search only)
 static const uint8_t ist_intra_stx_mapping[IST_SET_SIZE][IST_SET_SIZE] = {
   { 6, 1, 0, 5, 4, 3, 2 },  // DC_PRED
@@ -3056,10 +3051,7 @@ static AVM_INLINE void tx_type_rd(const AV2_COMP *cpi, MACROBLOCK *x,
                                   int block, int plane_bsize, TXB_CTX *txb_ctx,
                                   RD_STATS *rd_stats,
                                   FAST_TX_SEARCH_MODE ftxs_mode,
-                                  int64_t ref_rdcost,
-                                  TXB_RD_INFO *rd_info_array) {
-  (void)rd_info_array;
-
+                                  int64_t ref_rdcost) {
   av2_subtract_txb(x, AVM_PLANE_Y, plane_bsize, blk_col, blk_row, tx_size,
                    cpi->common.width, cpi->common.height, DCT_DCT);
   RD_STATS this_rd_stats;
@@ -3081,8 +3073,8 @@ static AVM_INLINE void try_tx_block_no_split(
     TX_SIZE tx_size, int depth, BLOCK_SIZE plane_bsize,
     const ENTROPY_CONTEXT *ta, const ENTROPY_CONTEXT *tl,
     int txfm_partition_ctx, RD_STATS *rd_stats, int64_t ref_best_rd,
-    FAST_TX_SEARCH_MODE ftxs_mode, TXB_RD_INFO_NODE *rd_info_node,
-    TxCandidateInfo *no_split, const AV2_COMMON *cm) {
+    FAST_TX_SEARCH_MODE ftxs_mode, TxCandidateInfo *no_split,
+    const AV2_COMMON *cm) {
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   struct macroblock_plane *const p = &x->plane[0];
@@ -3102,8 +3094,7 @@ static AVM_INLINE void try_tx_block_no_split(
           .txb_skip_cost[pred_mode_ctx][txb_ctx.txb_skip_ctx][1];
   rd_stats->zero_rate = zero_blk_rate;
   tx_type_rd(cpi, x, tx_size, blk_row, blk_col, block, plane_bsize, &txb_ctx,
-             rd_stats, ftxs_mode, ref_best_rd,
-             rd_info_node ? rd_info_node->rd_info_array : NULL);
+             rd_stats, ftxs_mode, ref_best_rd);
   assert(rd_stats->rate < INT_MAX);
 
   const int pick_skip_txfm =
@@ -3305,7 +3296,7 @@ static void select_tx_partition_type(
     BLOCK_SIZE plane_bsize, ENTROPY_CONTEXT *ta, ENTROPY_CONTEXT *tl,
     TXFM_CONTEXT *tx_above, TXFM_CONTEXT *tx_left, RD_STATS *rd_stats,
     int64_t ref_best_rd, int *is_cost_valid, FAST_TX_SEARCH_MODE ftxs_mode,
-    TXB_RD_INFO_NODE *rd_info_node, int blk_idx) {
+    int blk_idx) {
   av2_init_rd_stats(rd_stats);
   if (ref_best_rd < 0) {
     *is_cost_valid = 0;
@@ -3465,8 +3456,8 @@ static void select_tx_partition_type(
       TxCandidateInfo no_split = { INT64_MAX, 0, TX_TYPES };
       try_tx_block_no_split(cpi, x, offsetr, offsetc, cur_block, sub_tx, 0,
                             plane_bsize, cur_ta, cur_tl, -1, &this_rd_stats,
-                            ref_best_rd - tmp_rd, ftxs_mode, rd_info_node,
-                            &no_split, &cpi->common);
+                            ref_best_rd - tmp_rd, ftxs_mode, &no_split,
+                            &cpi->common);
       partition_entropy_ctxs[txb_idx] = no_split.txb_entropy_ctx;
       partition_tx_types[txb_idx] = no_split.tx_type;
       this_blk_skip[txb_idx] = this_rd_stats.skip_txfm;
@@ -4094,8 +4085,7 @@ void av2_txfm_rd_joint_uv(MACROBLOCK *x, const AV2_COMP *cpi,
 // will be saved in rd_stats. The returned value is the corresponding RD cost.
 static int64_t select_tx_size_and_type(const AV2_COMP *cpi, MACROBLOCK *x,
                                        RD_STATS *rd_stats, BLOCK_SIZE bsize,
-                                       int64_t ref_best_rd,
-                                       TXB_RD_INFO_NODE *rd_info_tree) {
+                                       int64_t ref_best_rd) {
   MACROBLOCKD *const xd = &x->e_mbd;
   const TxfmSearchParams *txfm_params = &x->txfm_search_params;
   assert(is_inter_block(xd->mi[0], xd->tree_type));
@@ -4140,8 +4130,7 @@ static int64_t select_tx_size_and_type(const AV2_COMP *cpi, MACROBLOCK *x,
           get_plane_block_size(bsize, pd->subsampling_x, pd->subsampling_y);
       select_tx_partition_type(cpi, x, idy, idx, block, plane_bsize, ctxa, ctxl,
                                tx_above, tx_left, &pn_rd_stats, best_rd_sofar,
-                               &is_cost_valid, ftxs_mode, rd_info_tree,
-                               blk_idx);
+                               &is_cost_valid, ftxs_mode, blk_idx);
       blk_idx++;
       if (!is_cost_valid || pn_rd_stats.rate == INT_MAX) {
         av2_invalid_rd_stats(rd_stats);
@@ -4154,7 +4143,6 @@ static int64_t select_tx_size_and_type(const AV2_COMP *cpi, MACROBLOCK *x,
       no_skip_txfm_rd =
           RDCOST(x->rdmult, rd_stats->rate + no_skip_txfm_cost, rd_stats->dist);
       block += step;
-      if (rd_info_tree != NULL) rd_info_tree += 1;
     }
   }
 
@@ -4260,15 +4248,8 @@ void av2_pick_recursive_tx_size_type_yrd(const AV2_COMP *cpi, MACROBLOCK *x,
   ++x->txfm_search_info.tx_search_count;
 #endif  // CONFIG_SPEED_STATS
 
-  // Pre-compute residue hashes (transform block level) and find existing or
-  // add new RD records to store and reuse rate and distortion values to speed
-  // up TX size/type search.
-  TXB_RD_INFO_NODE matched_rd_info[4 + 16 + 64];
-  int found_rd_info = 0;
-
   const int64_t rd =
-      select_tx_size_and_type(cpi, x, rd_stats, bsize, ref_best_rd,
-                              found_rd_info ? matched_rd_info : NULL);
+      select_tx_size_and_type(cpi, x, rd_stats, bsize, ref_best_rd);
 
   if (rd == INT64_MAX) {
     // We should always find at least one candidate unless ref_best_rd is less

@@ -103,7 +103,6 @@ typedef struct tcq_param_t {
   const int32_t *dequant;
   const qm_val_t *iqmatrix;
   const uint16_t *block_eob_rate;
-  const TXB_CTX *txb_ctx;
   const LV_MAP_COEFF_COST *txb_costs;
 } tcq_param_t;
 

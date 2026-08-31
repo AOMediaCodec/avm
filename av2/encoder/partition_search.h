@@ -44,8 +44,7 @@ bool av2_rd_pick_partition(
     PC_TREE *pc_tree, const PARTITION_TREE *ptree_luma,
     const PARTITION_TREE *template_tree, const int max_recursion_depth,
     SIMPLE_MOTION_DATA_TREE *sms_tree, int64_t *none_rd,
-    const SB_MULTI_PASS_MODE multi_pass_mode,
-    RD_RECT_PART_WIN_INFO *rect_part_win_info
+    const SB_MULTI_PASS_MODE multi_pass_mode
 #if CONFIG_ML_PART_SPLIT
     ,
     int prune_rect_flags[3]
