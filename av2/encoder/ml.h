@@ -20,7 +20,7 @@ extern "C" {
 #include "config/av2_rtcd.h"
 
 #define NN_MAX_HIDDEN_LAYERS 10
-#define NN_MAX_NODES_PER_LAYER 128
+#define NN_MAX_NODES_PER_LAYER 256
 
 struct NN_CONFIG {
   int num_inputs;         // Number of input nodes, i.e. features.
