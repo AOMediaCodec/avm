@@ -5296,10 +5296,19 @@ static AVM_INLINE void write_uncompressed_header(
             "Bridge frame frame_number is not equal to ref_buf order_hint");
       }
     } else {
+      // The size the decoder infers when frame_size_override_flag is 0. Must
+      // stay in sync with decodeframe.c:setup_frame_size().
+      int inferred_width = seq_params->max_frame_width;
+      int inferred_height = seq_params->max_frame_height;
+      if (cm->cur_mfh_id != 0 &&
+          cm->mfh_params[cm->cur_mfh_id].mfh_frame_size_present_flag) {
+        inferred_width = cm->mfh_params[cm->cur_mfh_id].mfh_frame_width;
+        inferred_height = cm->mfh_params[cm->cur_mfh_id].mfh_frame_height;
+      }
       frame_size_override_flag =
-          frame_is_sframe(cm) ? 1
-                              : (cm->width != seq_params->max_frame_width ||
-                                 cm->height != seq_params->max_frame_height);
+          frame_is_sframe(cm)
+              ? 1
+              : (cm->width != inferred_width || cm->height != inferred_height);
       if (!frame_is_sframe(cm)) avm_wb_write_bit(wb, frame_size_override_flag);
       avm_wb_write_literal(
           wb, current_frame->order_hint,
