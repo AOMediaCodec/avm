@@ -25,12 +25,10 @@ struct DipContext {
   int model_index = -1;
 };
 
-std::mutex dip_prune_mutex;
-
 static void create_interpreter(DipContext *context,
                                const unsigned char *model_def, int model_len) {
-  std::lock_guard<std::mutex> lock(dip_prune_mutex);
-  tflite::LoggerOptions::SetMinimumLogSeverity(tflite::TFLITE_LOG_ERROR);
+  std::lock_guard<std::mutex> lock(avm_tflite_mutex());
+  avm_tflite_set_log_severity_error();
   std::unique_ptr<tflite::FlatBufferModel> model =
       tflite::FlatBufferModel::BuildFromBuffer((const char *)model_def,
                                                model_len);
