@@ -1106,6 +1106,11 @@ typedef struct REALTIME_SPEED_FEATURES {
 typedef struct LC_DEC_SPEED_FEATURES {
   // Bias towards large partitions.
   int enable_partition_size_bias;
+
+  // Only allow CDEF when the improvement is significant.
+  // 0: no bias for CDEF use.
+  // 1: bias against CDEF during RD decision..
+  int bias_against_cdef;
 } LC_DEC_SPEED_FEATURES;
 
 typedef struct FLEXMV_PRECISION_SPEED_FEATURES {
