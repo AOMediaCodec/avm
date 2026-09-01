@@ -3184,9 +3184,7 @@ static AVM_INLINE void init_allowed_partitions(
     part_search_state->partition_allowed[PARTITION_HORZ] = false;
     part_search_state->partition_allowed[PARTITION_VERT] = false;
     part_search_state->found_best_partition = true;
-#if CONFIG_ML_PART_SPLIT
-    part_search_state->prune_partition_split = false;
-#endif  // CONFIG_ML_PART_SPLIT
+    part_search_state->prune_partition[PARTITION_SPLIT] = false;
     return;
   }
 
@@ -3409,12 +3407,9 @@ static void init_partition_search_state_params(
   part_search_state->prune_partition[PARTITION_NONE] = false;
   const bool prune_partition = max_recursion_depth == 0;
   for (PARTITION_TYPE partition_type = PARTITION_HORZ;
-       partition_type < EXT_PARTITION_TYPES; ++partition_type) {
+       partition_type < ALL_PARTITION_TYPES; ++partition_type) {
     part_search_state->prune_partition[partition_type] = prune_partition;
   }
-#if CONFIG_ML_PART_SPLIT
-  part_search_state->prune_partition_split = prune_partition;
-#endif  // CONFIG_ML_PART_SPLIT
   part_search_state->partition_boundaries = NULL;
 
   const bool ss_x = cm->seq_params.subsampling_x;
@@ -3861,9 +3856,7 @@ static void rectangular_partition_search(
       else
         part_search_state->partition_allowed[PARTITION_HORZ] = false;
       part_search_state->found_best_partition = true;
-#if CONFIG_ML_PART_SPLIT
-      part_search_state->prune_partition_split = false;
-#endif  // CONFIG_ML_PART_SPLIT
+      part_search_state->prune_partition[PARTITION_SPLIT] = false;
     }
 
     if (sum_rdc->rdcost < INT64_MAX && skippable && !frame_is_intra_only(cm)) {
@@ -3969,9 +3962,7 @@ static void prune_partitions_after_none(AV2_COMP *const cpi, MACROBLOCK *x,
     part_search_state->partition_allowed[PARTITION_HORZ] = false;
     part_search_state->partition_allowed[PARTITION_VERT] = false;
     part_search_state->found_best_partition = true;
-#if CONFIG_ML_PART_SPLIT
-    part_search_state->prune_partition_split = false;
-#endif  // CONFIG_ML_PART_SPLIT
+    part_search_state->prune_partition[PARTITION_SPLIT] = false;
   }
 }
 
@@ -4135,9 +4126,7 @@ static void none_partition_search(
   // Timer start for partition None.
   PartitionTimingStats *part_timing_stats =
       &part_search_state->part_timing_stats;
-  if (best_remain_rdcost.rdcost >= 0) {
-    start_partition_block_timer(part_timing_stats, PARTITION_NONE);
-  }
+  start_partition_block_timer(part_timing_stats, PARTITION_NONE);
 #endif  // CONFIG_COLLECT_PARTITION_STATS
 
   RD_STATS partition_rdcost;
@@ -4325,9 +4314,7 @@ static void split_partition_search(
   if (!is_square_split_eligible(bsize, cm->sb_size)) return;
   if (is_part_pruned_by_forced_partition(part_search_state, PARTITION_SPLIT))
     return;
-#if CONFIG_ML_PART_SPLIT
-  if (part_search_state->prune_partition_split) return;
-#endif  // CONFIG_ML_PART_SPLIT
+  if (part_search_state->prune_partition[PARTITION_SPLIT]) return;
   if (max_recursion_depth < 0) return;
 
   const int part_rate = part_search_state->partition_cost[PARTITION_SPLIT];
@@ -4462,9 +4449,7 @@ static void split_partition_search(
     part_search_state->partition_allowed[PARTITION_NONE] = false;
     part_search_state->partition_allowed[PARTITION_VERT] = false;
     part_search_state->partition_allowed[PARTITION_HORZ] = false;
-#if CONFIG_ML_PART_SPLIT
-    part_search_state->prune_partition_split = false;
-#endif  // CONFIG_ML_PART_SPLIT
+    part_search_state->prune_partition[PARTITION_SPLIT] = false;
   }
 }
 
@@ -5512,7 +5497,7 @@ static void prune_partitions_using_ml_results(
       }
       if (prune_list[PT_SPLIT]) {
         if (is_square_split_eligible(bsize, cm->sb_size)) {
-          part_search_state->prune_partition_split = true;
+          prune_partition[PARTITION_SPLIT] = true;
         } else {
           next_force_prune_flags[HORZ][PRUNE_VERT] = true;
           next_force_prune_flags[VERT][PRUNE_HORZ] = true;
@@ -5799,7 +5784,7 @@ BEGIN_PARTITION_SEARCH:
     part_search_state.prune_partition[PARTITION_HORZ] = false;
     part_search_state.prune_partition[PARTITION_VERT] = false;
     part_search_state.prune_partition[PARTITION_NONE] = false;
-    part_search_state.prune_partition_split = false;
+    part_search_state.prune_partition[PARTITION_SPLIT] = false;
 #endif  // CONFIG_ML_PART_SPLIT
   }
 
