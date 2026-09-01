@@ -1427,7 +1427,9 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
       sf->winner_mode_sf.multi_winner_mode_type = MULTI_WINNER_MODE_OFF;
   }
 
-  set_erp_speed_features(cpi);
-  set_erp_speed_features_framesize_dependent(cpi);
-  set_erp_speed_features_qindex_dependent(cpi);
+  if (cpi->oxcf.mode == GOOD) {
+    set_erp_speed_features(cpi);
+    set_erp_speed_features_framesize_dependent(cpi);
+    set_erp_speed_features_qindex_dependent(cpi);
+  }
 }
