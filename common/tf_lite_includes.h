@@ -45,4 +45,19 @@
 #pragma clang diagnostic pop
 #endif
 
+#include <mutex>
+
+// Thread-safe helper functions for TFLite initialization across modules.
+inline std::mutex &avm_tflite_mutex() {
+  static std::mutex mtx;
+  return mtx;
+}
+
+inline void avm_tflite_set_log_severity_error() {
+  static std::once_flag flag;
+  std::call_once(flag, []() {
+    tflite::LoggerOptions::SetMinimumLogSeverity(tflite::TFLITE_LOG_ERROR);
+  });
+}
+
 #endif  // AVM_COMMON_TF_LITE_INCLUDES_H_

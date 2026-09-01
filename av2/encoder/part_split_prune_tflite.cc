@@ -45,12 +45,10 @@ struct PartSplitContext {
   std::vector<TfLiteDelegateType> to_delete;
 };
 
-std::mutex tfliteMutex;
-
 static std::unique_ptr<tflite::Interpreter> create_interpreter(
     unsigned char *model_def, std::vector<TfLiteDelegateType> &to_delete) {
-  std::lock_guard<std::mutex> lock(tfliteMutex);
-  tflite::LoggerOptions::SetMinimumLogSeverity(tflite::TFLITE_LOG_ERROR);
+  std::lock_guard<std::mutex> lock(avm_tflite_mutex());
+  avm_tflite_set_log_severity_error();
   tflite::Model *model = (tflite::Model *)tflite::GetModel(model_def);
 
   const int num_threads = 1;
