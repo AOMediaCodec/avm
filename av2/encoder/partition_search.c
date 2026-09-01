@@ -3356,6 +3356,11 @@ static void init_partition_search_state_params(
     tree_type = SHARED_PART;
   }
 
+  // The source structure profiles are measured lazily, per block.
+  part_search_state->src_var_valid = false;
+  part_search_state->src_var_rows = 0;
+  part_search_state->src_var_cols = 0;
+
   // Initialization of block size related parameters.
   blk_params->mi_step = mi_size_wide[bsize] / 2;
   blk_params->mi_step_h = mi_size_high[bsize] / 2;
@@ -3649,6 +3654,141 @@ static void prune_rect_with_mlp(const AV2_COMP *cpi, MACROBLOCK *x,
   }
 }
 
+// How much stronger the structure along one axis must be than along the other
+// before partitions cutting across it are pruned. The plain rectangular
+// partitions carry far more of the coding gain than the extended ones, so they
+// demand markedly stronger evidence before being dropped.
+#define EXT_PART_ANISOTROPY 4
+#define RECT_PART_ANISOTROPY 8
+// Largest number of samples taken along each axis when profiling a block.
+#define PART_PROFILE_SAMPLES 32
+static AVM_INLINE uint64_t orientation_anisotropy_for_bsize(BLOCK_SIZE bsize,
+                                                            uint64_t base) {
+  const int dim = AVMMAX(block_size_wide[bsize], block_size_high[bsize]);
+  if (dim >= 64) return base * 4;
+  if (dim >= 32) return base * 2;
+  return base;
+}
+static AVM_INLINE uint64_t
+orientation_anisotropy_for_frame(const AV2_COMP *const cpi, uint64_t base) {
+  const GF_GROUP *const gf_group = &cpi->gf_group;
+  const int layer_depth = gf_group->layer_depth[gf_group->index];
+  if (layer_depth <= 0) return 0;
+  if (layer_depth == 1) return base * 4;
+  if (layer_depth == 2) return base * 2;
+  return base;
+}
+
+// Measures how much the source block varies along each axis at partition scale.
+//
+// Per pixel gradients are a poor guide here: fine texture excites the
+// horizontal and the vertical gradient about equally, so on ordinary detailed
+// content their ratio stays near one no matter how the block is actually
+// structured. What a partition can exploit is variation at the scale of its own
+// sub-blocks, and that is exactly what the mean profiles capture. Averaging
+// each row collapses the horizontal detail and leaves the top-to-bottom
+// structure a horizontal cut could separate; averaging each column leaves the
+// left-to-right structure a vertical cut could separate. The variance of the
+// two profiles, both normalised to per pixel means so they are directly
+// comparable, is the measurement stored here.
+//
+// The block is sampled on a lattice of at most 32x32 points, so the cost is
+// negligible next to a single partition RD trial.
+static AVM_INLINE void compute_source_profile_variance(
+    const MACROBLOCK *x, BLOCK_SIZE bsize,
+    PartitionSearchState *part_search_state) {
+  const struct buf_2d *const src = &x->plane[AVM_PLANE_Y].src;
+  const int bw = block_size_wide[bsize];
+  const int bh = block_size_high[bsize];
+  const int step_x = AVMMAX(1, bw / PART_PROFILE_SAMPLES);
+  const int step_y = AVMMAX(1, bh / PART_PROFILE_SAMPLES);
+  const int num_x = AVMMIN(PART_PROFILE_SAMPLES, bw / step_x);
+  const int num_y = AVMMIN(PART_PROFILE_SAMPLES, bh / step_y);
+  const int stride = src->stride;
+
+  int64_t row_sum[PART_PROFILE_SAMPLES] = { 0 };
+  int64_t col_sum[PART_PROFILE_SAMPLES] = { 0 };
+  int64_t total = 0;
+
+  for (int si = 0; si < num_y; ++si) {
+    const uint16_t *const row = src->buf + (ptrdiff_t)si * step_y * stride;
+    for (int sj = 0; sj < num_x; ++sj) {
+      const int64_t value = row[sj * step_x];
+      row_sum[si] += value;
+      col_sum[sj] += value;
+    }
+    total += row_sum[si];
+  }
+
+  const int64_t mean = total / ((int64_t)num_x * num_y);
+  int64_t var_rows = 0;
+  for (int si = 0; si < num_y; ++si) {
+    const int64_t diff = row_sum[si] / num_x - mean;
+    var_rows += diff * diff;
+  }
+  int64_t var_cols = 0;
+  for (int sj = 0; sj < num_x; ++sj) {
+    const int64_t diff = col_sum[sj] / num_y - mean;
+    var_cols += diff * diff;
+  }
+
+  // Variation a horizontal cut can separate, and the vertical cut counterpart.
+  part_search_state->src_var_rows = (uint64_t)(var_rows / num_y);
+  part_search_state->src_var_cols = (uint64_t)(var_cols / num_x);
+  part_search_state->src_var_valid = true;
+}
+
+// Prunes the partitions whose cuts run across the dominant orientation of the
+// source structure.
+//
+// A vertical cut can only pay off when the block content actually changes from
+// left to right, and a horizontal cut only when it changes from top to bottom.
+// The two profile variances give a cheap, prediction independent test for
+// exactly that. When one direction carries nearly all of the block scale
+// variation, the partitions splitting along the other one are spending full RD
+// trials on cuts that have nothing to separate, so they are dropped.
+//
+// `anisotropy` is how many times larger one variance must be than the other
+// before the pruning applies; callers pass a higher value for the plain
+// rectangular partitions, which are more valuable and therefore need stronger
+// evidence than the extended ones. The test is deliberately one sided: when the
+// two variances are comparable (including the degenerate all-zero case of a
+// flat block) nothing is pruned, so only clearly directional content is
+// affected.
+static AVM_INLINE void prune_partitions_by_structure_orientation(
+    const MACROBLOCK *x, PartitionSearchState *part_search_state,
+    const PARTITION_TYPE *horz_parts, const PARTITION_TYPE *vert_parts,
+    int num_parts, uint64_t base_anisotropy, const AV2_COMP *const cpi) {
+  if (!cpi->sf.part_sf.prune_by_struct_orient) return;
+  if (part_search_state->forced_partition != PARTITION_INVALID) return;
+
+  const BLOCK_SIZE bsize = part_search_state->part_blk_params.bsize;
+  // Below 16x16 the sampled profiles are too short for the ratio to be
+  // meaningful, and the partitions are cheap to evaluate anyway.
+  if (block_size_wide[bsize] < 16 || block_size_high[bsize] < 16) return;
+
+  const uint64_t frame_scaled = orientation_anisotropy_for_frame(cpi, 1);
+  if (frame_scaled == 0) return;
+  const uint64_t anisotropy =
+      orientation_anisotropy_for_bsize(bsize, base_anisotropy) * frame_scaled;
+
+  if (!part_search_state->src_var_valid)
+    compute_source_profile_variance(x, bsize, part_search_state);
+
+  const uint64_t var_rows = part_search_state->src_var_rows;
+  const uint64_t var_cols = part_search_state->src_var_cols;
+
+  if (var_cols * anisotropy < var_rows) {
+    // Structure is essentially top-to-bottom only: nothing for a vertical cut
+    // to separate.
+    for (int i = 0; i < num_parts; ++i)
+      part_search_state->prune_partition[vert_parts[i]] = true;
+  } else if (var_rows * anisotropy < var_cols) {
+    for (int i = 0; i < num_parts; ++i)
+      part_search_state->prune_partition[horz_parts[i]] = true;
+  }
+}
+
 // Prune rectangular partition types based on mlp. One of the features of mlp is
 // partition none rdcost. It is possible that none rd might not be evaluated by
 // now if adaptive_partition_search_order is enabled. In this case default none
@@ -3703,6 +3843,13 @@ static void prune_rect_partitions(AV2_COMP *const cpi, ThreadData *td,
     av2_erp_prune_rect(bsize, is_hd, ml_features,
                        &part_search_state->prune_partition[PARTITION_HORZ],
                        &part_search_state->prune_partition[PARTITION_VERT]);
+  }
+
+  {
+    static const PARTITION_TYPE horz[] = { PARTITION_HORZ };
+    static const PARTITION_TYPE vert[] = { PARTITION_VERT };
+    prune_partitions_by_structure_orientation(x, part_search_state, horz, vert,
+                                              1, RECT_PART_ANISOTROPY, cpi);
   }
 
   if (cpi->sf.part_sf.prune_rect_with_none_rd &&
@@ -4673,7 +4820,7 @@ static AVM_INLINE void prune_part_4_with_partition_boundary(
 /*!\brief Pruning logic for PARTITION_HORZ_3 and PARTITION_VERT_3 based on
  * non-ext partitions search results. */
 static AVM_INLINE void prune_ext_partitions_3way(
-    AV2_COMP *const cpi, PC_TREE *pc_tree,
+    AV2_COMP *const cpi, const MACROBLOCK *x, PC_TREE *pc_tree,
     PartitionSearchState *part_search_state, bool *partition_boundaries) {
   const AV2_COMMON *const cm = &cpi->common;
   const PARTITION_SPEED_FEATURES *part_sf = &cpi->sf.part_sf;
@@ -4682,6 +4829,13 @@ static AVM_INLINE void prune_ext_partitions_3way(
 
   if (part_search_state->forced_partition != PARTITION_INVALID) {
     return;
+  }
+
+  {
+    static const PARTITION_TYPE horz3[] = { PARTITION_HORZ_3 };
+    static const PARTITION_TYPE vert3[] = { PARTITION_VERT_3 };
+    prune_partitions_by_structure_orientation(
+        x, part_search_state, horz3, vert3, 1, EXT_PART_ANISOTROPY, cpi);
   }
 
   // Prune horz 3 with speed features
@@ -4884,12 +5038,21 @@ static INLINE void search_intra_region_partitioning(
 /*!\brief Pruning logic for PARTITION_HORZ_4A/B and PARTITION_VERT_4A/B based on
  * non-ext and 3 way partitions search results.*/
 static AVM_INLINE void prune_ext_partitions_4way(
-    AV2_COMP *const cpi, PC_TREE *pc_tree,
+    AV2_COMP *const cpi, const MACROBLOCK *x, PC_TREE *pc_tree,
     PartitionSearchState *part_search_state, bool *partition_boundaries) {
   const AV2_COMMON *const cm = &cpi->common;
   const PARTITION_SPEED_FEATURES *part_sf = &cpi->sf.part_sf;
   const PARTITION_TYPE forced_partition = part_search_state->forced_partition;
   const int cur_region_type = pc_tree->region_type;
+
+  {
+    static const PARTITION_TYPE horz4[] = { PARTITION_HORZ_4A,
+                                            PARTITION_HORZ_4B };
+    static const PARTITION_TYPE vert4[] = { PARTITION_VERT_4A,
+                                            PARTITION_VERT_4B };
+    prune_partitions_by_structure_orientation(
+        x, part_search_state, horz4, vert4, 2, EXT_PART_ANISOTROPY, cpi);
+  }
 
   // Prune HORZ 4A with speed features
   if (part_search_state->partition_allowed[PARTITION_HORZ_4A] &&
@@ -5921,7 +6084,7 @@ BEGIN_PARTITION_SEARCH:
       &cpi->sf.part_sf, bsize, eff_max_recursion_depth, false);
   bool partition_boundaries[MAX_MIB_SQUARE] = { 0 };
 
-  prune_ext_partitions_3way(cpi, pc_tree, &part_search_state,
+  prune_ext_partitions_3way(cpi, x, pc_tree, &part_search_state,
                             partition_boundaries);
   for (PARTITION_TYPE partition_type = PARTITION_HORZ_3;
        partition_type <= PARTITION_VERT_3; ++partition_type) {
@@ -5935,7 +6098,7 @@ BEGIN_PARTITION_SEARCH:
     const int uneven_4way_recur_depth = get_ext_partitions_recur_depth(
         &cpi->sf.part_sf, bsize, eff_max_recursion_depth, true);
 
-    prune_ext_partitions_4way(cpi, pc_tree, &part_search_state,
+    prune_ext_partitions_4way(cpi, x, pc_tree, &part_search_state,
                               partition_boundaries);
     for (PARTITION_TYPE partition_type = PARTITION_HORZ_4A;
          partition_type <= PARTITION_VERT_4B; ++partition_type) {

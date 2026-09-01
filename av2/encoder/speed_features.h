@@ -488,6 +488,8 @@ typedef struct PARTITION_SPEED_FEATURES {
 
   // Force the max partition-block aspect ratio
   unsigned int force_max_pb_aspect_ratio;
+
+  bool prune_by_struct_orient;
 } PARTITION_SPEED_FEATURES;
 
 // True when the two-pass superblock partition search runs at all.

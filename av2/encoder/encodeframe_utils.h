@@ -168,6 +168,14 @@ typedef struct PartitionSearchState {
   int ss_x;
   int ss_y;
 
+  // Block scale directional structure of the source block, filled in lazily the
+  // first time the orientation based partition pruning needs it.
+  // src_var_rows is the variance of the row mean profile,
+  // src_var_cols that of the column mean profile.
+  uint64_t src_var_rows;
+  uint64_t src_var_cols;
+  bool src_var_valid;
+
   // This flag will be set if best partition is found from the search.
   bool found_best_partition;
 
