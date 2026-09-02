@@ -174,6 +174,41 @@ avmdec_random_access_kf2() {
   avmdec_random_access_common 2
 }
 
+avmdec_decoder_model_every_rap_option() {
+  if [ "$(avmdec_can_decode_av2)" = "yes" ]; then
+    local decoder="$(avm_tool_path avmdec)"
+    local file="${AV2_OBU_FILE}"
+    local omitted_log="${AVM_TEST_OUTPUT_DIR}/decoder_model_off_omitted.log"
+    local zero_log="${AVM_TEST_OUTPUT_DIR}/decoder_model_off_zero.log"
+    local one_log="${AVM_TEST_OUTPUT_DIR}/decoder_model_off_one.log"
+    if [ ! -e "${file}" ]; then
+      encode_yuv_raw_input_av2 "${file}" --obu || return 1
+    fi
+    "${decoder}" --help 2>&1 | grep -q -- \
+      "--check-conformance-every-rap" || return 1
+    eval "${AVM_TEST_PREFIX}" "${decoder}" "${file}" --noblit \
+      --check-conformance=off >"${omitted_log}" 2>&1 || return 1
+    eval "${AVM_TEST_PREFIX}" "${decoder}" "${file}" --noblit \
+      --check-conformance=off --check-conformance-every-rap=0 \
+      >"${zero_log}" 2>&1 || return 1
+    eval "${AVM_TEST_PREFIX}" "${decoder}" "${file}" --noblit \
+      --check-conformance=off --check-conformance-every-rap=1 \
+      >"${one_log}" 2>&1 || return 1
+    if grep -q "AV2_DECODER_MODEL_" "${omitted_log}" "${zero_log}" \
+      "${one_log}"; then
+      return 1
+    fi
+    if avmdec "${file}" --noblit --check-conformance=off \
+      --check-conformance-every-rap=2; then
+      return 1
+    fi
+    if avmdec "${file}" --noblit --check-conformance=off \
+      --check-conformance-every-rap=-1; then
+      return 1
+    fi
+  fi
+}
+
 
 
 avmdec_tests="avmdec_av2_ivf
@@ -183,7 +218,8 @@ avmdec_tests="avmdec_av2_ivf
               avmdec_av2_webm
               avmdec_random_access_kf0
               avmdec_random_access_kf1
-              avmdec_random_access_kf2"
+              avmdec_random_access_kf2
+              avmdec_decoder_model_every_rap_option"
 
 if [ "$(avm_multithread_available)" = "yes" ]; then
   avmdec_tests="${avmdec_tests}

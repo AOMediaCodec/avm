@@ -340,39 +340,42 @@ int av2_check_profile_interop_conformance(
  */
 /* clang-format on */
 
-// Returns the row index used to look up a profile's factors in the
-// PicSize/Bitrate factor tables (see bitrate_profile_factor_table[] and
-// picture_size_profile_factor_table[] in level.c, and bitrate_profile_factor[]
-// in timing.c).
-//
-// NOTE: This is a table row index, NOT the spec's ProfileScalingFactor from
-// Table A.2. The two coincide for profiles 0..4 (0, 0, 0, 1, 2), but profile
-// MAIN_444C_12_IP2 (idc 5) has spec ProfileScalingFactor 2 -- the same as
-// profile MAIN_444_10_IP1 (idc 4) -- while requiring DIFFERENT PicSize and
-// Bitrate factors (36 / 3.0 vs 30 / 2.5). Since one ProfileScalingFactor value
-// cannot select two different factor rows, profile 5 is given its own row
-// index (3) here.
-int get_profile_factor_table_row_index(int seq_profile_idc) {
-  if (seq_profile_idc == MAIN_420_10_IP0 ||
-      seq_profile_idc == MAIN_420_10_IP1 ||
-      seq_profile_idc == MAIN_420_10_IP2) {
-    return 0;
-  }
+static const AV2ProfileLevelFactors profile_level_factors[] = {
+  { 15, 1, 1 },       { 15, 1, 1 }, { 15, 1, 1 },
+  { 20, 1667, 1000 }, { 30, 5, 2 }, { 36, 3, 1 },
+};
 
-  if (seq_profile_idc == MAIN_422_10_IP1) {
-    return 1;
-  }
+_Static_assert(sizeof(profile_level_factors) /
+                       sizeof(profile_level_factors[0]) ==
+                   6,
+               "Annex A profile factor table must cover profiles 0 through 5");
 
-  if (seq_profile_idc == MAIN_444_10_IP1) {
-    return 2;
+bool av2_get_profile_level_factors(int seq_profile_idc,
+                                   AV2ProfileLevelFactors *factors) {
+  if (factors == NULL || seq_profile_idc < 0 ||
+      seq_profile_idc >= (int)(sizeof(profile_level_factors) /
+                               sizeof(profile_level_factors[0]))) {
+    return false;
   }
+  *factors = profile_level_factors[seq_profile_idc];
+  return true;
+}
 
-#if CONFIG_12BIT_PROFILE
-  if (seq_profile_idc == MAIN_444C_12_IP2) {
-    return 3;
+bool av2_obu_counts_toward_compressed_size(OBU_TYPE obu_type) {
+  switch (obu_type) {
+    case OBU_CLOSED_LOOP_KEY:
+    case OBU_OPEN_LOOP_KEY:
+    case OBU_LEADING_TILE_GROUP:
+    case OBU_REGULAR_TILE_GROUP:
+    case OBU_METADATA_SHORT:
+    case OBU_METADATA_GROUP:
+    case OBU_SWITCH:
+    case OBU_LEADING_SEF:
+    case OBU_REGULAR_SEF:
+    case OBU_LEADING_TIP:
+    case OBU_REGULAR_TIP:
+    case OBU_BRIDGE_FRAME:
+    case OBU_RAS_FRAME: return true;
+    default: return false;
   }
-#endif  // CONFIG_12BIT_PROFILE
-
-  // Default for invalid combinations and Configurable profile
-  return 0;
 }
