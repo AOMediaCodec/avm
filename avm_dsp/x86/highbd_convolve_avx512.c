@@ -17,9 +17,10 @@
 
 #include "avm_dsp/x86/convolve.h"
 #include "avm_dsp/x86/convolve_avx512.h"
+#include "avm_dsp/x86/highbd_convolve_x_sr.h"
 #include "avm_dsp/x86/synonyms.h"
 
-static void highbd_convolve_x_sr_avx512_shuffle(
+void highbd_convolve_x_sr_avx512_shuffle(
     const uint16_t *src, int src_stride, uint16_t *dst, int dst_stride, int w,
     int h, const InterpFilterParams *filter_params_x, const int subpel_x_qn,
     ConvolveParams *conv_params, int bd) {
@@ -108,13 +109,21 @@ static void highbd_convolve_x_sr_avx512_shuffle(
 
   // Handle the tail rows.
   if (i < h) {
-    av2_highbd_convolve_x_sr_avx2(
-        src + i * src_stride, src_stride, dst + i * dst_stride, dst_stride, w,
-        h - i, filter_params_x, subpel_x_qn, conv_params, bd);
+    const uint16_t *const src_tail = src + i * src_stride;
+    uint16_t *const dst_tail = dst + i * dst_stride;
+    const int h_tail = h - i;
+    if (w >= 16)
+      highbd_convolve_x_sr_avx2_loadonly(src_tail, src_stride, dst_tail,
+                                         dst_stride, w, h_tail, filter_params_x,
+                                         subpel_x_qn, conv_params, bd);
+    else
+      highbd_convolve_x_sr_avx2_shuffle(src_tail, src_stride, dst_tail,
+                                        dst_stride, w, h_tail, filter_params_x,
+                                        subpel_x_qn, conv_params, bd);
   }
 }
 
-static void highbd_convolve_x_sr_avx512_loadonly(
+void highbd_convolve_x_sr_avx512_loadonly(
     const uint16_t *src, int src_stride, uint16_t *dst, int dst_stride, int w,
     int h, const InterpFilterParams *filter_params_x, const int subpel_x_qn,
     ConvolveParams *conv_params, int bd) {
@@ -179,33 +188,4 @@ static void highbd_convolve_x_sr_avx512_loadonly(
       _mm512_storeu_si512((__m512i *)&dst[i * dst_stride + j], res);
     }
   }
-}
-
-void av2_highbd_convolve_x_sr_avx512(const uint16_t *src, int src_stride,
-                                     uint16_t *dst, int dst_stride, int w,
-                                     int h,
-                                     const InterpFilterParams *filter_params_x,
-                                     const int subpel_x_qn,
-                                     ConvolveParams *conv_params, int bd) {
-  if (w >= 32) {
-    highbd_convolve_x_sr_avx512_loadonly(src, src_stride, dst, dst_stride, w, h,
-                                         filter_params_x, subpel_x_qn,
-                                         conv_params, bd);
-    return;
-  }
-  if (w <= 8 && h <= 4) {
-    av2_highbd_convolve_x_sr_avx2(src, src_stride, dst, dst_stride, w, h,
-                                  filter_params_x, subpel_x_qn, conv_params,
-                                  bd);
-    return;
-  }
-  if (w == 16) {
-    av2_highbd_convolve_x_sr_avx2(src, src_stride, dst, dst_stride, w, h,
-                                  filter_params_x, subpel_x_qn, conv_params,
-                                  bd);
-    return;
-  }
-  highbd_convolve_x_sr_avx512_shuffle(src, src_stride, dst, dst_stride, w, h,
-                                      filter_params_x, subpel_x_qn, conv_params,
-                                      bd);
 }

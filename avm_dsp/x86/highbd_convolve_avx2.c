@@ -16,6 +16,7 @@
 
 #include "avm_dsp/x86/convolve.h"
 #include "avm_dsp/x86/convolve_avx2.h"
+#include "avm_dsp/x86/highbd_convolve_x_sr.h"
 #include "avm_dsp/x86/synonyms.h"
 
 // -----------------------------------------------------------------------------
@@ -169,7 +170,7 @@ void av2_highbd_convolve_y_sr_avx2(const uint16_t *src, int src_stride,
   }
 }
 
-static void highbd_convolve_x_sr_avx2_shuffle(
+void highbd_convolve_x_sr_avx2_shuffle(
     const uint16_t *src, int src_stride, uint16_t *dst, int dst_stride, int w,
     int h, const InterpFilterParams *filter_params_x, const int subpel_x_qn,
     ConvolveParams *conv_params, int bd) {
@@ -263,7 +264,7 @@ static void highbd_convolve_x_sr_avx2_shuffle(
   }
 }
 
-static void highbd_convolve_x_sr_avx2_loadonly(
+void highbd_convolve_x_sr_avx2_loadonly(
     const uint16_t *src, int src_stride, uint16_t *dst, int dst_stride, int w,
     int h, const InterpFilterParams *filter_params_x, const int subpel_x_qn,
     ConvolveParams *conv_params, int bd) {
