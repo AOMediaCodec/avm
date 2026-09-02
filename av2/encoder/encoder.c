@@ -5372,7 +5372,6 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
         if (cm->bridge_frame_info.bridge_frame_ref_idx == INVALID_IDX) {
           avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
                              "Cannot find bridge frame reference frame");
-          return AVM_CODEC_ERROR;
         }
         cm->bridge_frame_info.bridge_frame_overwrite_flag = 1;
         cm->current_frame.refresh_frame_flags =
@@ -5418,7 +5417,6 @@ static int apply_denoise_2d(AV2_COMP *cpi, YV12_BUFFER_CONFIG *sd,
     if (!cpi->denoise_and_model) {
       avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
                          "Error allocating denoise and model");
-      return -1;
     }
   }
   if (!cpi->film_grain_table) {
@@ -5426,7 +5424,6 @@ static int apply_denoise_2d(AV2_COMP *cpi, YV12_BUFFER_CONFIG *sd,
     if (!cpi->film_grain_table) {
       avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
                          "Error allocating grain table");
-      return -1;
     }
     memset(cpi->film_grain_table, 0, sizeof(*cpi->film_grain_table));
   }
