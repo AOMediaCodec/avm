@@ -392,7 +392,7 @@ typedef struct {
   /*!
    * reference picture index for frame level filter prediction
    */
-  uint8_t rst_ref_pic_idx;
+  int8_t rst_ref_pic_idx;
 } RestorationInfo;
 
 /*!\cond */

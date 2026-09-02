@@ -136,8 +136,9 @@ typedef struct {
   int num_wiener_nonsep;  // debug: number of RESTORE_WIENER_NONSEP RUs.
 
   const uint16_t *luma;
+  uint16_t *luma_buf;
   const uint16_t *luma_stat;
-
+  uint16_t *luma_stat_buf;
   int luma_stride;
 
   RestorationLineBuffers *rlbs;
@@ -156,7 +157,7 @@ typedef struct {
   // whether frame filter is predicted from a reference picture
   uint8_t temporal_pred_flag;
   // reference picture index for frame level filter prediction
-  uint8_t rst_ref_pic_idx;
+  int8_t rst_ref_pic_idx;
   WienerNonsepInfo frame_filters;
   AV2PixelRect tile_rect;
 } RestSearchCtxt;
@@ -276,41 +277,32 @@ static AVM_INLINE void reset_rsc(RestSearchCtxt *rsc) {
   avm_vector_clear(rsc->unit_indices);
 }
 
-static AVM_INLINE void init_rsc(const YV12_BUFFER_CONFIG *src,
-                                const AV2_COMMON *cm, const MACROBLOCK *x,
-                                const LOOP_FILTER_SPEED_FEATURES *lpf_sf,
-                                int plane, RestUnitSearchInfo *rusi,
-                                Vector *unit_stack, Vector *unit_indices,
-                                YV12_BUFFER_CONFIG *dst, RestSearchCtxt *rsc) {
-  rsc->src = src;
-  rsc->dst = dst;
-  rsc->cm = cm;
-  rsc->x = x;
-  rsc->plane = plane;
-  rsc->rusi = rusi;
-  rsc->lpf_sf = lpf_sf;
-
+static AVM_INLINE void init_rsc(RestSearchCtxt *rsc, int plane) {
+  const AV2_COMMON *cm = rsc->cm;
+  const YV12_BUFFER_CONFIG *src = rsc->src;
   const YV12_BUFFER_CONFIG *dgd = &cm->cur_frame->buf;
   const int is_uv = plane != AVM_PLANE_Y;
+
+  rsc->plane = plane;
   rsc->plane_width = src->widths[is_uv];
   rsc->plane_height = src->heights[is_uv];
-  rsc->src_buffer = src->buffers[plane];
-  rsc->src_stride = src->strides[is_uv];
   rsc->dgd_buffer = dgd->buffers[plane];
   rsc->dgd_stride = dgd->strides[is_uv];
-  rsc->tile_rect = av2_whole_frame_rect(cm, is_uv);
+  rsc->src_buffer = src->buffers[plane];
+  rsc->src_stride = src->strides[is_uv];
   assert(src->widths[is_uv] == dgd->widths[is_uv]);
   assert(src->heights[is_uv] == dgd->heights[is_uv]);
-  rsc->unit_stack = unit_stack;
-  rsc->unit_indices = unit_indices;
+  rsc->classification_is_buffered = 0;
+  rsc->adjust_switchable_for_frame_filters = 0;
   rsc->num_stats_classes = default_num_classes(plane);
   rsc->num_filter_classes = rsc->num_stats_classes;
   rsc->best_num_filter_classes = rsc->num_filter_classes;
   rsc->frame_filters_on = 0;
   rsc->num_wiener_nonsep = 0;
   rsc->tskip_zero_flag = 0;
-  rsc->classification_is_buffered = 0;
-  rsc->adjust_switchable_for_frame_filters = 0;
+  rsc->temporal_pred_flag = 0;
+  rsc->rst_ref_pic_idx = -1;
+  rsc->tile_rect = av2_whole_frame_rect(cm, is_uv);
   reset_all_banks(rsc);
 }
 
@@ -2812,11 +2804,9 @@ static void finalize_frame_and_unit_info(RestorationType frame_rtype,
   rsi->frame_filters_on = rsc->frame_filters_on;
   rsi->frame_filters_initialized = 0;
   rsi->num_filter_classes = rsc->num_filter_classes;
-  rsi->frame_filters = rsc->frame_filter_bank.filter[0];
   rsi->frame_filters = rsc->frame_filters;
   rsi->temporal_pred_flag = rsc->temporal_pred_flag;
   rsi->rst_ref_pic_idx = rsc->rst_ref_pic_idx;
-
   if (frame_rtype != RESTORE_NONE) {
     process_by_rutile(rsc, copy_unit_info_visitor);
   }
@@ -3613,255 +3603,318 @@ static int replace_with_frame_filters(RestSearchCtxt *rsc, double *best_cost) {
   return final_r;
 }
 
-void av2_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV2_COMP *cpi) {
+typedef struct {
+  RestorationType r_type;
+  double cost;
+  int ru_size;
+  int8_t frame_filters_on;
+  int8_t temp_pred_flag;
+  int8_t temp_ref_idx;
+} PlaneSearchBest;
+
+static void search_restoration_type(AV2_COMMON *const cm, RestSearchCtxt *rsc,
+                                    PlaneSearchBest *best,
+                                    RestorationType r_type,
+                                    WienerNonsepInfoBank *frame_filter_dict,
+                                    double *frame_filter_cost) {
+  const uint8_t lr_disable_mask =
+      rsc->cm->features.lr_tools_disable_mask[rsc->plane != AVM_PLANE_Y];
+  const bool frame_filters_configured =
+      (lr_disable_mask & (1 << RESTORE_WIENER_NONSEP)) ? 0 : 1;
+
+  gather_stats_rest_type(rsc, r_type);
+
+  if (r_type == RESTORE_WIENER_NONSEP) {
+    rsc->num_filter_classes = default_num_classes(rsc->plane);
+  }
+
+  if (r_type == RESTORE_WIENER_NONSEP && !rsc->cm->bru.enabled &&
+      frame_filters_configured) {
+    // Find RDO-num_classes and frame-level filters. After this call
+    // multiclass stats collapse to a single class. If that is not
+    // desired make a copy of stats.
+    rsc->frame_filters_on = 1;
+
+    find_optimal_num_classes_and_frame_filters(rsc);
+
+    // Store for later copy into SWITCHABLE.
+    *frame_filter_dict = rsc->frame_filter_bank;
+    *frame_filter_cost = rsc->frame_filter_cost;
+  }
+
+  if (r_type == RESTORE_SWITCHABLE && !rsc->cm->bru.enabled &&
+      frame_filters_configured) {
+    assert(RESTORE_WIENER_NONSEP < RESTORE_SWITCHABLE);
+    rsc->frame_filter_bank = *frame_filter_dict;
+    rsc->frame_filter_cost = *frame_filter_cost;
+  }
+
+  rsc->frame_filters_on = 0;
+  rsc->num_filter_classes = 1;
+  if (r_type == RESTORE_WIENER_NONSEP || r_type == RESTORE_SWITCHABLE) {
+    rsc->num_wiener_nonsep = 0;
+  }
+
+  double cost = search_rest_type(rsc, r_type);
+  int real_r_type = r_type;
+  if (r_type == RESTORE_SWITCHABLE && !rsc->cm->bru.enabled &&
+      frame_filters_configured && cost > rsc->frame_filters_total_cost &&
+      best->cost > rsc->frame_filters_total_cost) {
+    real_r_type = replace_with_frame_filters(rsc, &cost);
+  }
+  assert(RESTORE_PC_WIENER < RESTORE_WIENER_NONSEP);
+  if (r_type == RESTORE_PC_WIENER && frame_filters_configured) {
+    rsc->classification_is_buffered = 1;  // Buffer is set.
+  }
+  int invalid_result = 0;
+  if (r_type == RESTORE_PC_WIENER && rsc->plane != AVM_PLANE_Y) {
+    invalid_result = 1;
+    assert(cost >= best->cost);
+  }
+  const int found_best = cost < best->cost && !invalid_result;
+  if (found_best) {
+    RestorationInfo *rsi = &cm->rst_info[rsc->plane];
+
+    best->cost = cost;
+    best->r_type = real_r_type;
+    best->ru_size = rsi->restoration_unit_size;
+    if (frame_filters_configured) {
+      best->frame_filters_on = rsc->frame_filters_on;
+      if (rsc->frame_filters_on) {
+        best->temp_pred_flag = rsc->temporal_pred_flag;
+        best->temp_ref_idx = rsc->rst_ref_pic_idx;
+      } else {
+        best->temp_pred_flag = 0;
+        best->temp_ref_idx = -1;
+      }
+    }
+  }
+  if (!frame_filters_configured) {
+    assert(best->temp_ref_idx == -1);
+    assert(best->temp_pred_flag == 0);
+    assert(best->frame_filters_on == 0);
+  }
+}
+
+static void search_unit_size(AV2_COMMON *const cm, RestSearchCtxt *rsc,
+                             PlaneSearchBest *best, int ru_size) {
+  RestorationInfo *rsi = &cm->rst_info[rsc->plane];
+
+  assert(rsc->adjust_switchable_for_frame_filters == 0);
+  avm_vector_clear(rsc->wienerns_stats);
+  rsi->restoration_unit_size = ru_size;
+  av2_reset_restoration_struct(cm, rsi, rsc->plane != AVM_PLANE_Y);
+
+  const int ru_count = rest_tiles_in_plane(cm, rsc->plane);
+  const RestorationType r_types =
+      (ru_count > 1) ? RESTORE_TYPES : RESTORE_SWITCHABLE_TYPES;
+  const uint8_t lr_disable_mask =
+      rsc->cm->features.lr_tools_disable_mask[rsc->plane != AVM_PLANE_Y];
+  WienerNonsepInfoBank frame_filter_dict;
+  double frame_filter_cost = DBL_MAX;
+  for (RestorationType r_type = 0; r_type < r_types; ++r_type) {
+    // Need classification and related stats. Run search_pc_wiener_visitor
+    // without any filtering. (Follow pcwiener_disabled.)
+    if ((r_type != RESTORE_PC_WIENER) && (lr_disable_mask & (1 << r_type))) {
+      continue;
+    }
+    search_restoration_type(cm, rsc, best, r_type, &frame_filter_dict,
+                            &frame_filter_cost);
+  }
+  rsc->classification_is_buffered = 0;  // Buffer is consumed.
+  rsc->frame_filters_on = best->frame_filters_on;
+  rsc->temporal_pred_flag = best->temp_pred_flag;
+  rsc->rst_ref_pic_idx = best->temp_ref_idx;
+}
+
+static void search_plane_restoration(AV2_COMP *const cpi, RestSearchCtxt *rsc,
+                                     int plane) {
+  AV2_COMMON *const cm = &cpi->common;
+  RestorationInfo *rsi = &cm->rst_info[plane];
+  const LOOP_FILTER_SPEED_FEATURES *const sf = rsc->lpf_sf;
+
+  init_rsc(rsc, plane);
+
+  // disable search
+  const bool frame_inactive =
+      cm->current_frame.frame_type != KEY_FRAME && cm->bru.frame_inactive_flag;
+  if (frame_inactive || (sf->disable_loop_restoration_chroma &&
+                         (plane == AVM_PLANE_U || plane == AVM_PLANE_V))) {
+    finalize_frame_and_unit_info(RESTORE_NONE, rsi, rsc);
+    return;
+  }
+
+  av2_extend_frame(rsc->dgd_buffer, rsc->plane_width, rsc->plane_height,
+                   rsc->dgd_stride, RESTORATION_BORDER_HORZ,
+                   RESTORATION_BORDER_VERT);
+
+  int min_ru_size = rsi->min_restoration_unit_size;
+  int max_ru_size = rsi->max_restoration_unit_size;
+  // Trim the RU-size search window by pyramid level: drop the largest at
+  // level >= 3, and also drop the smallest at level >= 5 when drop_low is
+  // set.
+  if (sf->reduce_lr_unit_size_by_pyr) {
+    int level = rsc->cm->current_frame.pyramid_level;
+    int drop_high = level >= 3;
+    int drop_low = (sf->reduce_lr_unit_size_by_pyr_drop_low && level >= 5);
+    int hi_unit_size = max_ru_size >> drop_high;
+    int lo_unit_size = min_ru_size << drop_low;
+    hi_unit_size = AVMMAX(hi_unit_size, min_ru_size);
+    if (lo_unit_size > hi_unit_size) lo_unit_size = min_ru_size;
+    min_ru_size = lo_unit_size;
+    max_ru_size = hi_unit_size;
+  }
+
+  PlaneSearchBest best = { .r_type = RESTORE_NONE,
+                           .cost = DBL_MAX,
+                           .ru_size = min_ru_size,
+                           .frame_filters_on = 0,
+                           .temp_pred_flag = 0,
+                           .temp_ref_idx = -1 };
+  for (int ru_size = min_ru_size; ru_size <= max_ru_size; ru_size <<= 1) {
+    // ru_size can be not smaller than stripe size, this process could only be
+    // triggered for 422 coding.
+    if (plane != AVM_PLANE_Y &&
+        ru_size < (64 >> rsc->cm->seq_params.subsampling_y)) {
+      continue;
+    }
+    // chroma planes share ru size
+    if (plane == AVM_PLANE_V &&
+        ru_size != rsc->cm->rst_info[AVM_PLANE_U].restoration_unit_size) {
+      continue;
+    }
+
+    search_unit_size(cm, rsc, &best, ru_size);
+
+    if (rsi->restoration_unit_size == min_ru_size ||
+        rsi->restoration_unit_size == best.ru_size) {
+      finalize_frame_and_unit_info(best.r_type, rsi, rsc);
+    }
+  }
+  assert(IMPLIES(cm->features.lr_tools_count[plane] < 2,
+                 rsi->frame_restoration_type != RESTORE_SWITCHABLE));
+  rsi->restoration_unit_size = best.ru_size;
+  av2_reset_restoration_struct(cm, rsi, plane != AVM_PLANE_Y);
+  int ru_num = rest_tiles_in_plane(cm, plane != AVM_PLANE_Y);
+  adjust_frame_rtype(rsi, ru_num, rsc, &cpi->oxcf.tool_cfg);
+}
+
+static RestSearchCtxt *alloc_rst_search_context(AV2_COMP *const cpi,
+                                                const YV12_BUFFER_CONFIG *src,
+                                                int max_ru_count) {
   AV2_COMMON *const cm = &cpi->common;
   MACROBLOCK *const x = &cpi->td.mb;
-  const int num_planes = av2_num_planes(cm);
-  assert(!cm->features.all_lossless);
+  const bool is_mono = cm->seq_params.monochrome;
 
-  av2_fill_lr_rates(&x->mode_costs, x->e_mbd.tile_ctx);
-
-  int ntiles[2];
-  for (int is_uv = 0; is_uv < 2; ++is_uv) {
-    cm->rst_info[is_uv].restoration_unit_size =
-        cm->rst_info[is_uv].min_restoration_unit_size;
-    av2_reset_restoration_struct(cm, &cm->rst_info[is_uv], is_uv);
-    ntiles[is_uv] = rest_tiles_in_plane(cm, is_uv);
-  }
-  int max_ntile = AVMMAX(ntiles[0], ntiles[1]);
-  RestUnitSearchInfo *rusi =
-      (RestUnitSearchInfo *)avm_memalign(16, sizeof(*rusi) * max_ntile);
-
+  RestUnitSearchInfo *rusi;
   // If the restoration unit dimensions are not multiples of
   // rsi->restoration_unit_size then some elements of the rusi array may be
   // left uninitialised when we reach copy_unit_info(...). This is not a
   // problem, as these elements are ignored later, but in order to quiet
   // Valgrind's warnings we initialise the array below.
-  memset(rusi, 0, sizeof(*rusi) * max_ntile);
-  x->rdmult = cpi->rd.RDMULT;
+  CHECK_MEM_ERROR(cm, rusi, avm_calloc(max_ru_count, sizeof(*rusi)));
 
-  Vector unit_stack;
-  avm_vector_setup(&unit_stack,
-                   1,                                // resizable capacity
-                   sizeof(struct RstUnitSnapshot));  // element size
-  Vector unit_indices;
-  avm_vector_setup(&unit_indices,
-                   1,             // resizable capacity
-                   sizeof(int));  // element size
+  Vector *unit_stack;
+  CHECK_MEM_ERROR(cm, unit_stack, avm_memalign(16, sizeof(*unit_stack)));
+  avm_vector_setup(unit_stack, /*capacity=*/1,
+                   /*element_size=*/sizeof(struct RstUnitSnapshot));
 
-  RestSearchCtxt rsc;
-  const int plane_start = AVM_PLANE_Y;
-  const int plane_end = num_planes > 1 ? AVM_PLANE_V : AVM_PLANE_Y;
+  Vector *unit_indices;
+  CHECK_MEM_ERROR(cm, unit_indices, avm_memalign(16, sizeof(*unit_indices)));
+  avm_vector_setup(unit_indices, /*capacity=*/1, /*element_size=*/sizeof(int));
 
-  Vector wienerns_stats;
-  avm_vector_setup(&wienerns_stats,
-                   1,                             // resizable capacity
-                   sizeof(struct RstUnitStats));  // element size
-  rsc.wienerns_stats = &wienerns_stats;
-  WienerNonsepInfoBank frame_filter_dict;
-  double frame_filter_cost = DBL_MAX;
-  int best_frame_filters_state = 0;
-  int8_t best_temp_pred_flag = 0;
-  int8_t best_temp_ref_idx = -1;
+  Vector *wienerns_stats;
+  CHECK_MEM_ERROR(cm, wienerns_stats,
+                  avm_memalign(16, sizeof(*wienerns_stats)));
+  avm_vector_setup(wienerns_stats, /*capacity=*/1,
+                   /*element_size=*/sizeof(struct RstUnitStats));
 
   uint16_t *luma = NULL;
-  uint16_t *luma_buf;
-  const YV12_BUFFER_CONFIG *dgd = &cpi->common.cur_frame->buf;
-  rsc.luma_stride = dgd->widths[1] + 2 * WIENERNS_UV_BRD;
-  luma_buf = wienerns_copy_luma_highbd(
-      cm, dgd->buffers[AVM_PLANE_Y], dgd->heights[AVM_PLANE_Y],
-      dgd->widths[AVM_PLANE_Y], dgd->strides[AVM_PLANE_Y], &luma,
-      dgd->heights[AVM_PLANE_U], dgd->widths[AVM_PLANE_U], WIENERNS_UV_BRD,
-      rsc.luma_stride);
-  assert(luma_buf != NULL);
-
-  rsc.luma_stat = luma;
-
+  uint16_t *luma_buf = NULL;
   uint16_t *luma_virtual = NULL;
-  uint16_t *luma_virtual_buf;
+  uint16_t *luma_virtual_buf = NULL;
+  int ns_luma_stride = 0;
+  if (!is_mono) {
+    const YV12_BUFFER_CONFIG *dgd = &cm->cur_frame->buf;
 
-  rsc.rlbs = NULL;
-  av2_alloc_restoration_line_buffers(cm, &rsc.rlbs);
+    ns_luma_stride = dgd->widths[AVM_PLANE_U] + 2 * WIENERNS_UV_BRD;
+    luma_buf = wienerns_copy_luma_highbd(
+        cm, dgd->buffers[AVM_PLANE_Y], dgd->heights[AVM_PLANE_Y],
+        dgd->widths[AVM_PLANE_Y], dgd->strides[AVM_PLANE_Y], &luma,
+        dgd->heights[AVM_PLANE_U], dgd->widths[AVM_PLANE_U], WIENERNS_UV_BRD,
+        ns_luma_stride);
 
-  luma_virtual_buf = wienerns_copy_luma_with_virtual_lines(cm, &luma_virtual);
-  rsc.luma = luma_virtual;
-
-  rsc.wienerns_tmpbuf =
-      (double *)avm_malloc(WIENERNS_TMPBUF_SIZE * sizeof(*rsc.wienerns_tmpbuf));
-
-  for (int plane = plane_start; plane <= plane_end; ++plane) {
-    init_rsc(src, &cpi->common, x, &cpi->sf.lpf_sf, plane, rusi, &unit_stack,
-             &unit_indices, &cpi->trial_frame_rst, &rsc);
-
-    const int plane_ntiles = ntiles[plane > 0];
-    const RestorationType num_rtypes =
-        (plane_ntiles > 1) ? RESTORE_TYPES : RESTORE_SWITCHABLE_TYPES;
-
-    double best_cost = DBL_MAX;
-    RestorationType best_rtype = RESTORE_NONE;
-    best_frame_filters_state = 0;
-    best_temp_pred_flag = 0;
-    best_temp_ref_idx = -1;
-    rsc.temporal_pred_flag = 0;
-    const int frame_filters_configured =
-        cpi->common.features.lr_tools_disable_mask[plane > 0] &
-                (1 << RESTORE_WIENER_NONSEP)
-            ? 0
-            : 1;
-    RestorationInfo *rsi = &cm->rst_info[plane];
-    int max_unit_size = rsi->max_restoration_unit_size;
-    int min_unit_size = rsi->min_restoration_unit_size;
-
-    int best_unit_size = min_unit_size;
-
-    if (cpi->sf.lpf_sf.reduce_lr_unit_size_by_pyr) {
-      // Trim the RU-size search window by pyramid level: drop the largest at
-      // level>=3, and also drop the smallest at level>=5 when drop_low is set.
-      const int pyr_level = cm->current_frame.pyramid_level;
-      const int drop_high = (pyr_level >= 3);
-      const int drop_low =
-          (cpi->sf.lpf_sf.reduce_lr_unit_size_by_pyr_drop_low &&
-           pyr_level >= 5);
-      int hi_unit_size = max_unit_size >> drop_high;
-      int lo_unit_size = min_unit_size << drop_low;
-      if (hi_unit_size < min_unit_size) hi_unit_size = min_unit_size;
-      if (lo_unit_size > hi_unit_size) lo_unit_size = min_unit_size;
-      min_unit_size = lo_unit_size;
-      max_unit_size = hi_unit_size;
-    }
-
-    for (int unit_size = min_unit_size; unit_size <= max_unit_size;
-         unit_size <<= 1) {
-      // ru_size can be not smaller than stripe size, this process could only be
-      // triggered for 422 coding.
-      if (plane > 0 && unit_size < (64 >> cm->seq_params.subsampling_y)) {
-        continue;
-      }
-
-      if (plane == 2 && unit_size != cm->rst_info[1].restoration_unit_size) {
-        continue;
-      }
-      avm_vector_clear(&wienerns_stats);
-
-      rsi->restoration_unit_size = unit_size;
-
-      av2_reset_restoration_struct(cm, rsi, plane > 0);
-      if (!cpi->sf.lpf_sf.disable_loop_restoration_chroma || !plane) {
-        av2_extend_frame(rsc.dgd_buffer, rsc.plane_width, rsc.plane_height,
-                         rsc.dgd_stride, RESTORATION_BORDER_HORZ,
-                         RESTORATION_BORDER_VERT);
-
-        assert(rsc.adjust_switchable_for_frame_filters == 0);
-        for (RestorationType r = 0; r < num_rtypes; ++r) {
-          if (
-              // Need classification and related stats. Run
-              // search_pc_wiener_visitor without any filtering. (Follow
-              // pcwiener_disabled.)
-              (r != RESTORE_PC_WIENER) &&
-              cpi->common.features.lr_tools_disable_mask[plane > 0] & (1 << r))
-            continue;
-
-          gather_stats_rest_type(&rsc, r);
-
-          if (r == RESTORE_WIENER_NONSEP) {
-            rsc.num_filter_classes = default_num_classes(rsc.plane);
-          }
-
-          if (r == RESTORE_WIENER_NONSEP && !cm->bru.enabled &&
-              frame_filters_configured) {
-            // Find RDO-num_classes and frame-level filters. After this call
-            // multiclass stats collapse to a single class. If that is not
-            // desired make a copy of stats.
-
-            rsc.frame_filters_on = 1;
-            find_optimal_num_classes_and_frame_filters(&rsc);
-
-            // Store for later copy into SWITCHABLE.
-            frame_filter_dict = rsc.frame_filter_bank;
-            frame_filter_cost = rsc.frame_filter_cost;
-          }
-          if (r == RESTORE_SWITCHABLE && frame_filters_configured) {
-            assert(RESTORE_WIENER_NONSEP < RESTORE_SWITCHABLE);
-            rsc.frame_filter_bank = frame_filter_dict;
-            rsc.frame_filter_cost = frame_filter_cost;
-          }
-          rsc.frame_filters_on = 0;
-          rsc.num_filter_classes = 1;
-          if (r == RESTORE_WIENER_NONSEP || r == RESTORE_SWITCHABLE)
-            rsc.num_wiener_nonsep = 0;
-          // If the full frame is skipped, no need to search other type
-          if (cm->current_frame.frame_type != KEY_FRAME &&
-              cm->bru.frame_inactive_flag && r != 0)
-            continue;
-
-          double cost = search_rest_type(&rsc, r);
-          int real_r = r;
-          if (r == RESTORE_SWITCHABLE && !cm->bru.enabled &&
-              frame_filters_configured && cost > rsc.frame_filters_total_cost &&
-              best_cost > rsc.frame_filters_total_cost) {
-            real_r = replace_with_frame_filters(&rsc, &cost);
-          }
-          assert(RESTORE_PC_WIENER < RESTORE_WIENER_NONSEP);
-          if (r == RESTORE_PC_WIENER && frame_filters_configured) {
-            rsc.classification_is_buffered = 1;  // Buffer is set.
-          }
-          int invalid_result = 0;
-          if (r == RESTORE_PC_WIENER && plane != AVM_PLANE_Y) {
-            invalid_result = 1;
-            assert(cost >= best_cost);
-          }
-          const int found_best = cost < best_cost && !invalid_result;
-          if (found_best) {
-            best_cost = cost;
-            best_rtype = real_r;
-            best_unit_size = unit_size;
-            if (frame_filters_configured) {
-              best_frame_filters_state = rsc.frame_filters_on;
-              if (rsc.frame_filters_on) {
-                best_temp_pred_flag = rsc.temporal_pred_flag;
-                best_temp_ref_idx = rsc.rst_ref_pic_idx;
-              } else {
-                best_temp_pred_flag = 0;
-                best_temp_ref_idx = -1;
-              }
-            }
-          }
-        }
-        rsc.classification_is_buffered = 0;  // Buffer is consumed.
-      }
-      rsc.frame_filters_on = best_frame_filters_state;
-      rsc.temporal_pred_flag = best_temp_pred_flag;
-      rsc.rst_ref_pic_idx = best_temp_ref_idx;
-      if (!frame_filters_configured) {
-        assert(best_temp_ref_idx == -1);
-        assert(best_temp_pred_flag == 0);
-        assert(best_frame_filters_state == 0);
-      }
-      if (rsi->restoration_unit_size == min_unit_size ||
-          best_unit_size == rsi->restoration_unit_size) {
-        finalize_frame_and_unit_info(best_rtype, &cm->rst_info[plane], &rsc);
-      }
-    }
-    assert(IMPLIES(
-        cm->features.lr_tools_count[plane] < 2,
-        cm->rst_info[plane].frame_restoration_type != RESTORE_SWITCHABLE));
-    rsi->restoration_unit_size = best_unit_size;
-    av2_reset_restoration_struct(cm, rsi, plane > 0);
-    int ru_num = rest_tiles_in_plane(cm, plane > 0);
-    adjust_frame_rtype(&cm->rst_info[plane], ru_num, &rsc, &cpi->oxcf.tool_cfg);
-    /*
-    printf("[Frame %d][%d]: unit_size %d best_frame_filters_state %d(%d)\n",
-           cm->current_frame.order_hint, plane, best_unit_size,
-           best_frame_filters_state, rsc.best_num_filter_classes);
-           */
+    luma_virtual_buf = wienerns_copy_luma_with_virtual_lines(cm, &luma_virtual);
   }
 
-  avm_free(rusi);
-  avm_free(luma_buf);
-  avm_free(luma_virtual_buf);
-  av2_free_restoration_line_buffers(rsc.rlbs);
-  avm_free(rsc.wienerns_tmpbuf);
-  avm_vector_destroy(&wienerns_stats);
-  avm_vector_destroy(&unit_stack);
-  avm_vector_destroy(&unit_indices);
+  RestorationLineBuffers *rlbs = NULL;
+  av2_alloc_restoration_line_buffers(cm, &rlbs);
+
+  double *wienerns_tmpbuf;
+  CHECK_MEM_ERROR(cm, wienerns_tmpbuf,
+                  avm_malloc(WIENERNS_TMPBUF_SIZE * sizeof(*wienerns_tmpbuf)));
+
+  RestSearchCtxt *rsc;
+  CHECK_MEM_ERROR(cm, rsc, avm_malloc(sizeof(*rsc)));
+  rsc->src = src;
+  rsc->dst = &cpi->trial_frame_rst;
+  rsc->cm = cm;
+  rsc->x = x;
+  rsc->rusi = rusi;
+  rsc->lpf_sf = &cpi->sf.lpf_sf;
+  rsc->wienerns_stats = wienerns_stats;
+  rsc->luma = luma_virtual;
+  rsc->luma_buf = luma_virtual_buf;
+  rsc->luma_stat = luma;
+  rsc->luma_stat_buf = luma_buf;
+  rsc->luma_stride = ns_luma_stride;
+  rsc->rlbs = rlbs;
+  rsc->wienerns_tmpbuf = wienerns_tmpbuf;
+  rsc->unit_stack = unit_stack;
+  rsc->unit_indices = unit_indices;
+
+  return rsc;
+}
+
+static void free_rst_search_context(RestSearchCtxt *rsc) {
+  avm_free(rsc->rusi);
+  avm_free(rsc->luma_stat_buf);
+  avm_free(rsc->luma_buf);
+  av2_free_restoration_line_buffers(rsc->rlbs);
+  avm_free(rsc->wienerns_tmpbuf);
+  avm_vector_destroy(rsc->wienerns_stats);
+  avm_free(rsc->wienerns_stats);
+  avm_vector_destroy(rsc->unit_stack);
+  avm_free(rsc->unit_stack);
+  avm_vector_destroy(rsc->unit_indices);
+  avm_free(rsc->unit_indices);
+  avm_free(rsc);
+}
+
+void av2_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV2_COMP *cpi) {
+  AV2_COMMON *const cm = &cpi->common;
+  MACROBLOCK *const x = &cpi->td.mb;
+  const int is_mono = cm->seq_params.monochrome;
+
+  assert(!cm->features.all_lossless);
+
+  av2_fill_lr_rates(&x->mode_costs, x->e_mbd.tile_ctx);
+  x->rdmult = cpi->rd.RDMULT;
+
+  int ntiles[2];
+  int max_ntile = 0;
+  for (int is_uv = 0; is_uv <= (is_mono ? 0 : 1); ++is_uv) {
+    cm->rst_info[is_uv].restoration_unit_size =
+        cm->rst_info[is_uv].min_restoration_unit_size;
+    av2_reset_restoration_struct(cm, &cm->rst_info[is_uv], is_uv);
+    ntiles[is_uv] = rest_tiles_in_plane(cm, is_uv);
+    max_ntile = AVMMAX(max_ntile, ntiles[is_uv]);
+  }
+
+  RestSearchCtxt *rsc = alloc_rst_search_context(cpi, src, max_ntile);
+  for (int plane = AVM_PLANE_Y; plane <= (is_mono ? AVM_PLANE_Y : AVM_PLANE_V);
+       ++plane) {
+    search_plane_restoration(cpi, rsc, plane);
+  }
+  free_rst_search_context(rsc);
 }
