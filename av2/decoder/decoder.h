@@ -411,6 +411,10 @@ typedef struct AV2Decoder {
   DecOperatingPointParams dec_op_params;
   // Sub-bitstream extraction state (Annex F)
   SubBitstreamExtractionState sbe_state;
+  struct Av2DecoderModelVerifier *decoder_model_verifier;
+  int decoder_model_check_mode;
+  bool decoder_model_verifier_allocation_failed;
+  bool decoder_model_verifier_allocation_reported;
   int seen_frame_header;
   // The expected start_tile (tg_start syntax element) of the next tile group.
   int next_start_tile;

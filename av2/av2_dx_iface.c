@@ -34,6 +34,7 @@
 
 #include "av2/decoder/decoder.h"
 #include "av2/decoder/decodeframe.h"
+#include "av2/decoder/decoder_model.h"
 #include "av2/decoder/obu.h"
 
 #include "avm_dsp/bitwriter_buffer.h"
@@ -62,6 +63,9 @@ struct avm_codec_alg_priv {
   int local_ops_selections[MAX_NUM_XLAYERS - 1][3];
   int num_local_ops_selections;
   int output_all_layers;
+  avm_decoder_model_check_mode_t decoder_model_check_mode;
+  int compressed_input_started;
+  int decoder_model_fatal_latched;
 
   AVxWorker *frame_worker;
 
@@ -116,6 +120,7 @@ static avm_codec_err_t decoder_init(avm_codec_ctx_t *ctx) {
     priv->random_access_point_index = 0;
     priv->enable_sub_bitstream_extraction = 0;
     priv->num_local_ops_selections = 0;
+    priv->decoder_model_check_mode = AVM_DECODER_MODEL_CHECK_OFF;
 
     init_ibp_info(ctx->priv->ibp_directional_weights);
   }
@@ -401,6 +406,10 @@ static int frame_worker_hook(void *arg1, void *arg2) {
 
   if (result != 0) {
     // Check decode result in serial decode.
+    if (frame_worker_data->pbi->decoder_model_verifier != NULL &&
+        !av2_decoder_model_verifier_should_stop(frame_worker_data->pbi)) {
+      av2_decoder_model_verifier_on_recovery_reset(frame_worker_data->pbi);
+    }
     frame_worker_data->pbi->need_resync = 1;
   }
   return !result;
@@ -473,6 +482,11 @@ static avm_codec_err_t init_decoder(avm_codec_alg_priv_t *ctx) {
     }
   }
   frame_worker_data->pbi->output_all_layers = ctx->output_all_layers;
+  frame_worker_data->pbi->decoder_model_check_mode =
+      ctx->decoder_model_check_mode;
+  if (ctx->decoder_model_check_mode != AVM_DECODER_MODEL_CHECK_OFF) {
+    av2_decoder_model_verifier_init(frame_worker_data->pbi);
+  }
   frame_worker_data->pbi->row_mt = ctx->row_mt;
   frame_worker_data->pbi->is_fwd_kf_present = 0;
   frame_worker_data->pbi->enable_subgop_stats = ctx->enable_subgop_stats;
@@ -578,6 +592,10 @@ static avm_codec_err_t decoder_inspect(avm_codec_alg_priv_t *ctx,
   frame_worker_data->pbi->inspect_tip_cb = ctx->inspect_tip_cb;
   frame_worker_data->pbi->inspect_ctx = ctx->inspect_ctx;
   res = av2_receive_compressed_data(frame_worker_data->pbi, data_sz, &data);
+  if (res != AVM_CODEC_OK && pbi->decoder_model_verifier != NULL &&
+      !av2_decoder_model_verifier_should_stop(frame_worker_data->pbi)) {
+    av2_decoder_model_verifier_on_recovery_reset(frame_worker_data->pbi);
+  }
   check_resync(ctx, frame_worker_data->pbi);
 
   if (ctx->frame_worker->had_error)
@@ -909,7 +927,26 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
 
 #if CONFIG_INSPECTION
   if (user_priv != 0) {
-    return decoder_inspect(ctx, data, data_sz, user_priv);
+    if (data != NULL && data_sz != 0) {
+      ctx->compressed_input_started = 1;
+      if (ctx->decoder_model_fatal_latched) {
+        set_error_detail(ctx, "Decoder model conformance violation");
+        return AVM_CODEC_UNSUP_BITSTREAM;
+      }
+    }
+    res = decoder_inspect(ctx, data, data_sz, user_priv);
+    if (ctx->frame_worker != NULL) {
+      FrameWorkerData *const frame_worker_data =
+          (FrameWorkerData *)ctx->frame_worker->data1;
+      AV2Decoder *const pbi = frame_worker_data->pbi;
+      if (av2_decoder_model_verifier_should_stop(pbi)) {
+        av2_decoder_model_verifier_finish(pbi);
+        ctx->decoder_model_fatal_latched = 1;
+        set_error_detail(ctx, "Decoder model conformance violation");
+        return AVM_CODEC_UNSUP_BITSTREAM;
+      }
+    }
+    return res;
   }
 #endif
 
@@ -944,6 +981,15 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
     if (data == NULL && data_sz == 0) {
       AV2_COMMON *const cm = &pbi->common;
       avm_codec_err_t err = flush_all_xlayer_frames(pbi, cm, false);
+      if (pbi->decoder_model_verifier != NULL ||
+          pbi->decoder_model_verifier_allocation_failed) {
+        av2_decoder_model_verifier_finish(pbi);
+      }
+      if (av2_decoder_model_verifier_should_stop(pbi)) {
+        ctx->decoder_model_fatal_latched = 1;
+        set_error_detail(ctx, "Decoder model conformance violation");
+        return AVM_CODEC_UNSUP_BITSTREAM;
+      }
 
       bool global_lcr_present = false;
       bool local_lcr_present = false;
@@ -974,6 +1020,12 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
     return AVM_CODEC_OK;
   }
   if (data == NULL || data_sz == 0) return AVM_CODEC_INVALID_PARAM;
+
+  ctx->compressed_input_started = 1;
+  if (ctx->decoder_model_fatal_latched) {
+    set_error_detail(ctx, "Decoder model conformance violation");
+    return AVM_CODEC_UNSUP_BITSTREAM;
+  }
 
   // Reset flushed when receiving a valid frame.
   ctx->flushed = 0;
@@ -1104,6 +1156,14 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
 
     // Decode in serial mode.
 
+    // This boundary is established by the raw pre-scan, before Annex F can
+    // remove a frame unit. It therefore remains unique even when consecutive
+    // source frames are not decoded.
+    if (pbi->decoder_model_verifier != NULL) {
+      av2_decoder_model_verifier_on_source_frame_unit_start(
+          pbi, xlayer_id, mlayer_id, tlayer_id);
+    }
+
     res = decode_one(ctx, &data_start, frame_unit_size, user_priv);
 
     if (res != AVM_CODEC_OK) {
@@ -1114,7 +1174,15 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
 
     set_last_frame_unit(frame_worker_data->pbi);
     free(frame_worker_data->pbi->obu_list);
+    frame_worker_data->pbi->obu_list = NULL;
     frame_worker_data->pbi->num_obus_with_frame_unit = 0;
+
+    if (av2_decoder_model_verifier_should_stop(pbi)) {
+      av2_decoder_model_verifier_finish(pbi);
+      ctx->decoder_model_fatal_latched = 1;
+      set_error_detail(ctx, "Decoder model conformance violation");
+      return AVM_CODEC_UNSUP_BITSTREAM;
+    }
   }
 
   if (data_start != data_end) {
@@ -1977,6 +2045,30 @@ static avm_codec_err_t ctrl_set_output_all_layers(avm_codec_alg_priv_t *ctx,
   return AVM_CODEC_OK;
 }
 
+static avm_codec_err_t ctrl_set_decoder_model_check_mode(
+    avm_codec_alg_priv_t *ctx, va_list args) {
+  const int raw_mode = va_arg(args, int);
+  if (raw_mode < AVM_DECODER_MODEL_CHECK_OFF ||
+      raw_mode > AVM_DECODER_MODEL_CHECK_WARN ||
+      ctx->compressed_input_started) {
+    return AVM_CODEC_INVALID_PARAM;
+  }
+  const avm_decoder_model_check_mode_t mode =
+      (avm_decoder_model_check_mode_t)raw_mode;
+  ctx->decoder_model_check_mode = mode;
+  if (ctx->frame_worker != NULL) {
+    FrameWorkerData *const frame_worker_data =
+        (FrameWorkerData *)ctx->frame_worker->data1;
+    AV2Decoder *const pbi = frame_worker_data->pbi;
+    av2_decoder_model_verifier_destroy(pbi);
+    pbi->decoder_model_check_mode = mode;
+    if (mode != AVM_DECODER_MODEL_CHECK_OFF) {
+      av2_decoder_model_verifier_init(pbi);
+    }
+  }
+  return AVM_CODEC_OK;
+}
+
 static avm_codec_err_t ctrl_set_sub_bitstream_extraction(
     avm_codec_alg_priv_t *ctx, va_list args) {
   ctx->enable_sub_bitstream_extraction = va_arg(args, int);
@@ -2042,6 +2134,7 @@ static avm_codec_ctrl_fn_map_t decoder_ctrl_maps[] = {
   { AV2D_SET_SKIP_FILM_GRAIN, ctrl_set_skip_film_grain },
   { AV2D_SET_RANDOM_ACCESS, ctrl_set_random_access },
   { AV2D_SET_BRU_OPT_MODE, ctrl_set_bru_opt_mode },
+  { AV2D_SET_DECODER_MODEL_CHECK_MODE, ctrl_set_decoder_model_check_mode },
   { AV2D_ENABLE_SUBGOP_STATS, ctrl_enable_subgop_stats },
 
   // Getters
