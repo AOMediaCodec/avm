@@ -981,9 +981,6 @@ typedef struct OperatingPoint {
   int ops_embedded_ops_id[MAX_NUM_XLAYERS];
   int ops_embedded_op_index[MAX_NUM_XLAYERS];
 
-  int XCount;
-  int OpsxLayerID[MAX_NUM_XLAYERS];
-
   OpsColorInfo color_info;
   OpsDecoderModelInfo decoder_model_info;
   OpsMLayerInfo mlayer_info;
