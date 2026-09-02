@@ -5243,6 +5243,7 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
                                                cm->ref_frame_map[i]->mlayer_id,
                                                cm->mlayer_id)) {
             cm->ref_frame_map[i]->is_restricted = true;
+            cm->ref_frame_map[i]->display_order_hint = REF_RESTRICTED_DOH;
           }
         }
       }
