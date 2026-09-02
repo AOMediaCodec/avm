@@ -18,9 +18,9 @@
 #include "av2/common/filter.h"
 #include "avm_dsp/x86/synonyms.h"
 
-static INLINE void prepare_coeffs(const InterpFilterParams *const filter_params,
-                                  const int subpel_q4,
-                                  __m512i *const coeffs /* [4] */) {
+static INLINE void prepare_coeffs_avx512(
+    const InterpFilterParams *const filter_params, const int subpel_q4,
+    __m512i *const coeffs /* [4] */) {
   const int16_t *filter = av2_get_interp_filter_subpel_kernel(
       filter_params, subpel_q4 & SUBPEL_MASK);
   const __m128i coeff_8 = _mm_loadu_si128((__m128i *)filter);
@@ -31,7 +31,8 @@ static INLINE void prepare_coeffs(const InterpFilterParams *const filter_params,
   coeffs[3] = _mm512_shuffle_epi32(coeff, 0xff);  // 6 7 6 7 ...
 }
 
-static INLINE __m512i convolve(const __m512i *const s, const __m512i *const c) {
+static INLINE __m512i convolve_avx512(const __m512i *const s,
+                                      const __m512i *const c) {
   const __m512i r0 = _mm512_madd_epi16(s[0], c[0]);
   const __m512i r1 = _mm512_madd_epi16(s[1], c[1]);
   const __m512i r2 = _mm512_madd_epi16(s[2], c[2]);

@@ -212,7 +212,7 @@ static void highbd_convolve_x_sr_avx2_shuffle(
       const __m256i r1 = _mm256_permute2x128_si256(row0, row1, 0x31);
 
       // even pixels
-      s[0] = _mm256_alignr_epi8(r1, r0, 0);
+      s[0] = r0;
       s[1] = _mm256_alignr_epi8(r1, r0, 4);
       s[2] = _mm256_alignr_epi8(r1, r0, 8);
       s[3] = _mm256_alignr_epi8(r1, r0, 12);

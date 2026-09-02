@@ -44,7 +44,7 @@ static void highbd_convolve_x_sr_avx512_shuffle(
 
   assert(bits >= 0);
 
-  prepare_coeffs(filter_params_x, subpel_x_qn, coeffs_x);
+  prepare_coeffs_avx512(filter_params_x, subpel_x_qn, coeffs_x);
 
   for (; i + 4 <= h; i += 4) {
     for (int j = 0; j < w; j += 8) {
@@ -52,12 +52,12 @@ static void highbd_convolve_x_sr_avx512_shuffle(
       load_4rows(&src_ptr[i * src_stride], src_stride, j, &r0, &r1);
 
       // Even output pixels.
-      s[0] = _mm512_alignr_epi8(r1, r0, 0);
+      s[0] = r0;
       s[1] = _mm512_alignr_epi8(r1, r0, 4);
       s[2] = _mm512_alignr_epi8(r1, r0, 8);
       s[3] = _mm512_alignr_epi8(r1, r0, 12);
 
-      __m512i res_even = convolve(s, coeffs_x);
+      __m512i res_even = convolve_avx512(s, coeffs_x);
       res_even = _mm512_sra_epi32(_mm512_add_epi32(res_even, round_const_x),
                                   round_shift_x);
 
@@ -67,7 +67,7 @@ static void highbd_convolve_x_sr_avx512_shuffle(
       s[2] = _mm512_alignr_epi8(r1, r0, 10);
       s[3] = _mm512_alignr_epi8(r1, r0, 14);
 
-      __m512i res_odd = convolve(s, coeffs_x);
+      __m512i res_odd = convolve_avx512(s, coeffs_x);
       res_odd = _mm512_sra_epi32(_mm512_add_epi32(res_odd, round_const_x),
                                  round_shift_x);
 
@@ -140,7 +140,7 @@ static void highbd_convolve_x_sr_avx512_loadonly(
   assert((FILTER_BITS - conv_params->round_1) >= 0 ||
          ((conv_params->round_0 + conv_params->round_1) == 2 * FILTER_BITS));
 
-  prepare_coeffs(filter_params_x, subpel_x_qn, coeffs_x);
+  prepare_coeffs_avx512(filter_params_x, subpel_x_qn, coeffs_x);
 
   for (int i = 0; i < h; ++i) {
     for (int jc = 0; jc < w; jc += 32) {
@@ -152,7 +152,7 @@ static void highbd_convolve_x_sr_avx512_loadonly(
       s[1] = _mm512_loadu_si512((const __m512i *)(p + 2));
       s[2] = _mm512_loadu_si512((const __m512i *)(p + 4));
       s[3] = _mm512_loadu_si512((const __m512i *)(p + 6));
-      __m512i res_even = convolve(s, coeffs_x);
+      __m512i res_even = convolve_avx512(s, coeffs_x);
       res_even = _mm512_sra_epi32(_mm512_add_epi32(res_even, round_const_x),
                                   round_shift_x);
 
@@ -161,7 +161,7 @@ static void highbd_convolve_x_sr_avx512_loadonly(
       s[1] = _mm512_loadu_si512((const __m512i *)(p + 3));
       s[2] = _mm512_loadu_si512((const __m512i *)(p + 5));
       s[3] = _mm512_loadu_si512((const __m512i *)(p + 7));
-      __m512i res_odd = convolve(s, coeffs_x);
+      __m512i res_odd = convolve_avx512(s, coeffs_x);
       res_odd = _mm512_sra_epi32(_mm512_add_epi32(res_odd, round_const_x),
                                  round_shift_x);
 
@@ -193,7 +193,13 @@ void av2_highbd_convolve_x_sr_avx512(const uint16_t *src, int src_stride,
                                          conv_params, bd);
     return;
   }
-  if (w > 8 && w <= 16) {
+  if (w <= 8 && h <= 4) {
+    av2_highbd_convolve_x_sr_avx2(src, src_stride, dst, dst_stride, w, h,
+                                  filter_params_x, subpel_x_qn, conv_params,
+                                  bd);
+    return;
+  }
+  if (w == 16) {
     av2_highbd_convolve_x_sr_avx2(src, src_stride, dst, dst_stride, w, h,
                                   filter_params_x, subpel_x_qn, conv_params,
                                   bd);
