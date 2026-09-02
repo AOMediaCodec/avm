@@ -117,11 +117,6 @@ static INLINE const WienernsFilterParameters *get_wienerns_parameters(
   return is_uv ? &wienerns_filter_uv : &wienerns_filter_y;
 }
 
-static inline int is_frame_filters_enabled(int plane) {
-  (void)plane;
-  return 1;
-}
-
 // Returns the alternate plane whose reference-frame-filters can be used to
 // augment those for plane.
 static inline int alternate_ref_plane(int plane) {
