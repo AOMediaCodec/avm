@@ -90,7 +90,6 @@ static void read_wienerns_framefilters_hdr(AV2_COMMON *cm, int plane,
 void copy_frame_filters_to_runits_if_needed(AV2_COMMON *cm) {
   const int num_planes = av2_num_planes(cm);
   for (int plane = 0; plane < num_planes; plane++) {
-    if (!is_frame_filters_enabled(plane)) continue;
     RestorationInfo *rsi = &cm->rst_info[plane];
     if ((rsi->frame_restoration_type == RESTORE_WIENER_NONSEP ||
          rsi->frame_restoration_type == RESTORE_SWITCHABLE) &&
@@ -2390,65 +2389,59 @@ static AVM_INLINE void decode_restoration_mode(AV2_COMMON *cm,
         rsi->frame_restoration_type == RESTORE_SWITCHABLE;
     if (is_wiener_nonsep_possible) {
       rsi->frame_filters_initialized = 0;
-      if (is_frame_filters_enabled(p)) {
-        rsi->frame_filters_on = avm_rb_read_bit(rb);
-        rsi->rst_ref_pic_idx = 0;
-        rsi->temporal_pred_flag = 0;
-        if (rsi->frame_filters_on) {
-          const int num_ref_frames =
-              (frame_is_intra_only(cm) || frame_is_sframe(cm))
-                  ? 0
-                  : cm->ref_frames_info.num_total_refs;
+      rsi->frame_filters_on = avm_rb_read_bit(rb);
+      rsi->rst_ref_pic_idx = 0;
+      rsi->temporal_pred_flag = 0;
+      if (rsi->frame_filters_on) {
+        const int num_ref_frames =
+            (frame_is_intra_only(cm) || frame_is_sframe(cm))
+                ? 0
+                : cm->ref_frames_info.num_total_refs;
 
-          if (num_ref_frames > 0) rsi->temporal_pred_flag = avm_rb_read_bit(rb);
-          int num_ref_frames_available = 0;
-          for (int i = 0; i < num_ref_frames; i++) {
-            if (cm->ref_frame_map[cm->remapped_ref_idx[i]] != NULL)
-              num_ref_frames_available +=
-                  !cm->ref_frame_map[cm->remapped_ref_idx[i]]->is_restricted;
-          }
-          if (num_ref_frames_available == 0)
-            assert(rsi->temporal_pred_flag == 0);
-          if (rsi->temporal_pred_flag && num_ref_frames > 1) {
-            rsi->rst_ref_pic_idx = avm_rb_read_literal(
-                rb,
-                avm_ceil_log2(num_ref_frames));  // read_lr_reference_idx
-            if (get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)->is_restricted) {
-              avm_internal_error(
-                  &cm->error, AVM_CODEC_ERROR,
-                  "Invalid rst_ref_pic_idx: restricted reference buffer");
-            }
-          }
+        if (num_ref_frames > 0) rsi->temporal_pred_flag = avm_rb_read_bit(rb);
+        int num_ref_frames_available = 0;
+        for (int i = 0; i < num_ref_frames; i++) {
+          if (cm->ref_frame_map[cm->remapped_ref_idx[i]] != NULL)
+            num_ref_frames_available +=
+                !cm->ref_frame_map[cm->remapped_ref_idx[i]]->is_restricted;
         }
-
-        if (rsi->temporal_pred_flag) {
-          RestorationInfo tmp_rsi =
-              get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)->rst_info[p];
-          if (!tmp_rsi.frame_filters_on) {
-            const int alternate_plane = alternate_ref_plane(p);
-            assert(alternate_plane != -1);
-            tmp_rsi = get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)
-                          ->rst_info[alternate_plane];
-          }
-          if (!tmp_rsi.frame_filters_on) {
+        if (num_ref_frames_available == 0) assert(rsi->temporal_pred_flag == 0);
+        if (rsi->temporal_pred_flag && num_ref_frames > 1) {
+          rsi->rst_ref_pic_idx = avm_rb_read_literal(
+              rb,
+              avm_ceil_log2(num_ref_frames));  // read_lr_reference_idx
+          if (get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)->is_restricted) {
             avm_internal_error(
                 &cm->error, AVM_CODEC_ERROR,
-                "Invalid rst_ref_pic_idx: ref frame frame filter disabled");
+                "Invalid rst_ref_pic_idx: restricted reference buffer");
           }
-          av2_copy_rst_frame_filters(rsi, &tmp_rsi);
-          rsi->frame_filters_initialized = 1;
-
-          av2_copy_rst_frame_filters(&cm->cur_frame->rst_info[p], rsi);
-        } else {
-          if (rsi->frame_filters_on && max_num_classes(p) > 1) {
-            rsi->num_filter_classes = decode_num_filter_classes(
-                avm_rb_read_literal(rb, NUM_FILTER_CLASSES_BITS));
-          } else
-            rsi->num_filter_classes = 1;
         }
+      }
+
+      if (rsi->temporal_pred_flag) {
+        RestorationInfo tmp_rsi =
+            get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)->rst_info[p];
+        if (!tmp_rsi.frame_filters_on) {
+          const int alternate_plane = alternate_ref_plane(p);
+          assert(alternate_plane != -1);
+          tmp_rsi = get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)
+                        ->rst_info[alternate_plane];
+        }
+        if (!tmp_rsi.frame_filters_on) {
+          avm_internal_error(
+              &cm->error, AVM_CODEC_ERROR,
+              "Invalid rst_ref_pic_idx: ref frame frame filter disabled");
+        }
+        av2_copy_rst_frame_filters(rsi, &tmp_rsi);
+        rsi->frame_filters_initialized = 1;
+
+        av2_copy_rst_frame_filters(&cm->cur_frame->rst_info[p], rsi);
       } else {
-        rsi->frame_filters_on = 0;
-        rsi->num_filter_classes = NUM_WIENERNS_CLASS_INIT_CHROMA;
+        if (rsi->frame_filters_on && max_num_classes(p) > 1) {
+          rsi->num_filter_classes = decode_num_filter_classes(
+              avm_rb_read_literal(rb, NUM_FILTER_CLASSES_BITS));
+        } else
+          rsi->num_filter_classes = 1;
       }
     }
     assert(IMPLIES(!rsi->frame_filters_on, !rsi->temporal_pred_flag));
@@ -2563,8 +2556,7 @@ static AVM_INLINE void decode_restoration_mode(AV2_COMMON *cm,
   }
 
   for (int p = 0; p < num_planes; ++p) {
-    if (is_frame_filters_enabled(p) &&
-        to_readwrite_framefilters(&cm->rst_info[p], 0, 0)) {
+    if (to_readwrite_framefilters(&cm->rst_info[p], 0, 0)) {
       read_wienerns_framefilters_hdr(cm, p, rb);
     }
   }
@@ -2634,7 +2626,6 @@ static void read_wienerns_framefilters_hdr(AV2_COMMON *cm, int plane,
   const int is_uv = plane != AVM_PLANE_Y;
   const int nopcw = disable_pcwiener_filters_in_framefilters(&cm->seq_params);
   RestorationInfo *rsi = &cm->rst_info[plane];
-  assert(is_frame_filters_enabled(plane));
   assert(rsi->frame_filters_on && !rsi->frame_filters_initialized);
   if (cm->frame_filter_dictionary == NULL) {
     allocate_frame_filter_dictionary(cm);
