@@ -1227,7 +1227,7 @@ static void foreach_rest_unit_in_planes_mt(AV2LrStruct *lr_ctxt,
   for (i = 0; i < num_workers; ++i) {
     winterface->sync(&workers[i]);
   }
-  if (luma_buf != NULL) free(luma_buf);
+  avm_free(luma_buf);
 }
 
 void av2_loop_restoration_filter_frame_mt(YV12_BUFFER_CONFIG *frame,

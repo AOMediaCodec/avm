@@ -364,6 +364,24 @@ static void initialize_rui_for_nonsep_search(const RestSearchCtxt *rsc,
   rui->skip_pcwiener_filtering = 0;
 }
 
+// Populates the mode-info of rui
+static AVM_INLINE void set_rui_mbmi_index(const RestSearchCtxt *rsc,
+                                          const RestorationTileLimits *limits,
+                                          RestorationUnitInfo *rui) {
+  const int ss_x = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_x;
+  const int ss_y = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_y;
+  const int start_mi_x = limits->h_start >> (MI_SIZE_LOG2 - ss_x);
+  const int start_mi_y = limits->v_start >> (MI_SIZE_LOG2 - ss_y);
+  const int mbmi_idx =
+      get_mi_grid_idx(&rsc->cm->mi_params, start_mi_y, start_mi_x);
+  rui->mbmi_ptr = rsc->cm->mi_params.mi_grid_base + mbmi_idx;
+  rui->ss_x = ss_x;
+  rui->ss_y = ss_y;
+  rui->mi_stride = rsc->cm->mi_params.mi_stride;
+  rui->lossless_segment = rsc->cm->features.lossless_segment;
+  rui->cm = rsc->cm;
+}
+
 static int count_pc_wiener_bits() {
   // No side-information for now.
   return 0;
@@ -409,18 +427,7 @@ static AVM_INLINE void search_pc_wiener_visitor(
 
   RestorationUnitInfo rui;
   initialize_rui_for_nonsep_search(rsc, &rui);
-  const int ss_x = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_x;
-  const int ss_y = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_y;
-  const int start_mi_x = limits->h_start >> (MI_SIZE_LOG2 - ss_x);
-  const int start_mi_y = limits->v_start >> (MI_SIZE_LOG2 - ss_y);
-  const int mbmi_idx =
-      get_mi_grid_idx(&rsc->cm->mi_params, start_mi_y, start_mi_x);
-  rui.mbmi_ptr = rsc->cm->mi_params.mi_grid_base + mbmi_idx;
-  rui.ss_x = ss_x;
-  rui.ss_y = ss_y;
-  rui.mi_stride = rsc->cm->mi_params.mi_stride;
-  rui.lossless_segment = rsc->cm->features.lossless_segment;
-  rui.cm = rsc->cm;
+  set_rui_mbmi_index(rsc, limits, &rui);
   // Only need the classification if running for frame filters.
   rui.skip_pcwiener_filtering = pcwiener_disabled ? 1 : 0;
 
@@ -460,18 +467,7 @@ static int64_t calc_finer_tile_search_error(const RestSearchCtxt *rsc,
                                             RestorationUnitInfo *rui) {
   int64_t err = 0;
   if (limits != NULL) {
-    const int ss_x = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_x;
-    const int ss_y = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_y;
-    const int start_mi_x = limits->h_start >> (MI_SIZE_LOG2 - ss_x);
-    const int start_mi_y = limits->v_start >> (MI_SIZE_LOG2 - ss_y);
-    const int mbmi_idx =
-        get_mi_grid_idx(&rsc->cm->mi_params, start_mi_y, start_mi_x);
-    rui->mbmi_ptr = rsc->cm->mi_params.mi_grid_base + mbmi_idx;
-    rui->ss_x = ss_x;
-    rui->ss_y = ss_y;
-    rui->mi_stride = rsc->cm->mi_params.mi_stride;
-    rui->lossless_segment = rsc->cm->features.lossless_segment;
-    rui->cm = rsc->cm;
+    set_rui_mbmi_index(rsc, limits, rui);
     err = try_restoration_unit(rsc, limits, tile, rui);
   } else {
     Vector *current_unit_stack = rsc->unit_stack;
@@ -481,20 +477,7 @@ static int64_t calc_finer_tile_search_error(const RestSearchCtxt *rsc,
     VECTOR_FOR_EACH(current_unit_stack, listed_unit) {
       RstUnitSnapshot *old_unit = (RstUnitSnapshot *)(listed_unit.pointer);
       if (old_unit->rest_unit_idx == idx && !rsc->rusi[idx].bru_unit_skipped) {
-        const int ss_x = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_x;
-        const int ss_y = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_y;
-        const int start_mi_x =
-            old_unit->limits.h_start >> (MI_SIZE_LOG2 - ss_x);
-        const int start_mi_y =
-            old_unit->limits.v_start >> (MI_SIZE_LOG2 - ss_y);
-        const int mbmi_idx =
-            get_mi_grid_idx(&rsc->cm->mi_params, start_mi_y, start_mi_x);
-        rui->mbmi_ptr = rsc->cm->mi_params.mi_grid_base + mbmi_idx;
-        rui->ss_x = ss_x;
-        rui->ss_y = ss_y;
-        rui->mi_stride = rsc->cm->mi_params.mi_stride;
-        rui->lossless_segment = rsc->cm->features.lossless_segment;
-        rui->cm = rsc->cm;
+        set_rui_mbmi_index(rsc, &old_unit->limits, rui);
         err += try_restoration_unit(rsc, &old_unit->limits, tile, rui);
         n++;
         if (n >= (int)current_unit_indices->size) break;
@@ -535,20 +518,7 @@ static int64_t reset_unit_stack_dst_buffers(const RestSearchCtxt *rsc,
           // Revert to old unit's filters.
           copy_nsfilter_taps(&rui->wienerns_info, &old_rusi->wienerns_info);
         }
-        const int ss_x = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_x;
-        const int ss_y = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_y;
-        const int start_mi_x =
-            old_unit->limits.h_start >> (MI_SIZE_LOG2 - ss_x);
-        const int start_mi_y =
-            old_unit->limits.v_start >> (MI_SIZE_LOG2 - ss_y);
-        const int mbmi_idx =
-            get_mi_grid_idx(&rsc->cm->mi_params, start_mi_y, start_mi_x);
-        rui->mbmi_ptr = rsc->cm->mi_params.mi_grid_base + mbmi_idx;
-        rui->ss_x = ss_x;
-        rui->ss_y = ss_y;
-        rui->mi_stride = rsc->cm->mi_params.mi_stride;
-        rui->lossless_segment = rsc->cm->features.lossless_segment;
-        rui->cm = rsc->cm;
+        set_rui_mbmi_index(rsc, &old_unit->limits, rui);
         err += try_restoration_unit(rsc, &old_unit->limits, tile, rui);
         n++;
         if (n >= (int)current_unit_indices->size) break;
@@ -766,6 +736,61 @@ static int get_subset_from_nsfilter(
   return -1;
 }
 
+typedef struct {
+  int64_t *best_err;
+  double *best_cost;
+  WienerNonsepInfo *best;
+  WienerNonsepInfoBank **ref_bank_ptr;
+  WienerNonsepInfoBank **cur_bank_ptr;
+  int *reset_dict;
+} FinerSearchState;
+
+static int eval_wienerns_candidate(
+    const RestSearchCtxt *rsc, const RestorationTileLimits *limits,
+    const AV2PixelRect *tile_rect, RestorationUnitInfo *rui,
+    const WienernsFilterParameters *nsfilter_params, int wiener_class_id,
+    int c_id, FinerSearchState *st) {
+  const MACROBLOCK *const x = rsc->x;
+  const int64_t err = calc_finer_tile_search_error(rsc, limits, tile_rect, rui);
+  if (rsc->frame_filters_on) {
+    initialize_bank_with_best_frame_filter_match(
+        rsc, &rui->wienerns_info, *st->cur_bank_ptr, *st->reset_dict);
+    *st->reset_dict = 0;
+  }
+  const int c_id_for_bits =
+      wiener_class_id == ALL_WIENERNS_CLASSES ? ALL_WIENERNS_CLASSES : c_id;
+  const int64_t bits = count_wienerns_bits_set(
+      rsc->plane, &x->mode_costs, &rui->wienerns_info, *st->cur_bank_ptr,
+      nsfilter_params, c_id_for_bits);
+  const double cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+      x->rdmult, bits >> 4, err, rsc->cm->seq_params.bit_depth);
+  if (cost >= *st->best_cost) return 0;
+  *st->best_err = err;
+  *st->best_cost = cost;
+  copy_nsfilter_taps_for_class(st->best, &rui->wienerns_info, c_id);
+  if (rsc->frame_filters_on) {
+    WienerNonsepInfoBank *tmp_ptr = *st->ref_bank_ptr;
+    *st->ref_bank_ptr = *st->cur_bank_ptr;
+    *st->cur_bank_ptr = tmp_ptr;
+  }
+  return 1;
+}
+
+// After a per-class refinement pass, restore class c_id's taps to the best
+// found and recompute dst so it reflects the winning filter. No-op unless more
+// than one class is in play and a class restriction is active.
+static void finer_reestablish_dst(const RestSearchCtxt *rsc,
+                                  const RestorationTileLimits *limits,
+                                  const AV2PixelRect *tile_rect,
+                                  RestorationUnitInfo *rui,
+                                  const WienerNonsepInfo *best, int c_id,
+                                  int c_id_begin, int c_id_end) {
+  if (c_id_end - c_id_begin > 1 && rui->wiener_class_id_restrict != -1) {
+    copy_nsfilter_taps_for_class(&rui->wienerns_info, best, c_id);
+    calc_finer_tile_search_error(rsc, limits, tile_rect, rui);
+  }
+}
+
 static int64_t finer_tile_search_wienerns(
     const RestSearchCtxt *rsc, const RestorationTileLimits *limits,
     const AV2PixelRect *tile_rect, RestorationUnitInfo *rui,
@@ -817,6 +842,8 @@ static int64_t finer_tile_search_wienerns(
   (void)ncoeffs;
 
   int reset_dict = 1;
+  FinerSearchState st = { &best_err,     &best_cost,    &best,
+                          &ref_bank_ptr, &cur_bank_ptr, &reset_dict };
   if (rsc->frame_filters_on) {
     assert(wiener_class_id == ALL_WIENERNS_CLASSES);
     copy_nsfilter_taps(&rui->wienerns_info, &best);
@@ -828,24 +855,8 @@ static int64_t finer_tile_search_wienerns(
           av2_constref_from_wienerns_bank(ref_bank_ptr, bank_ref, c_id), c_id);
       rui->wiener_class_id_restrict = c_id;
 
-      const int64_t err =
-          calc_finer_tile_search_error(rsc, limits, tile_rect, rui);
-      initialize_bank_with_best_frame_filter_match(rsc, &rui->wienerns_info,
-                                                   cur_bank_ptr, reset_dict);
-      reset_dict = 0;
-      const int64_t bits = count_wienerns_bits_set(
-          rsc->plane, &x->mode_costs, &rui->wienerns_info, cur_bank_ptr,
-          nsfilter_params, ALL_WIENERNS_CLASSES);
-      const double cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-          x->rdmult, bits >> 4, err, rsc->cm->seq_params.bit_depth);
-      if (cost < best_cost) {
-        best_err = err;
-        best_cost = cost;
-        copy_nsfilter_taps_for_class(&best, &rui->wienerns_info, c_id);
-        WienerNonsepInfoBank *tmp_ptr = ref_bank_ptr;
-        ref_bank_ptr = cur_bank_ptr;
-        cur_bank_ptr = tmp_ptr;
-      } else {
+      if (!eval_wienerns_candidate(rsc, limits, tile_rect, rui, nsfilter_params,
+                                   wiener_class_id, c_id, &st)) {
         copy_nsfilter_taps_for_class(&rui->wienerns_info, &best, c_id);
         // Re-establish dst.
         if (c_id_end - c_id_begin > 1 && rui->wiener_class_id_restrict != -1) {
@@ -913,34 +924,11 @@ static int64_t finer_tile_search_wienerns(
           for (int ci = cmin; ci < cmax; ++ci) {
             rui_wienerns_info_nsfilter[i] = ci;
             rui_wienerns_info_nsfilter[i + 1] = ci;
-            const int64_t err =
-                calc_finer_tile_search_error(rsc, limits, tile_rect, rui);
-            if (rsc->frame_filters_on) {
-              initialize_bank_with_best_frame_filter_match(
-                  rsc, &rui->wienerns_info, cur_bank_ptr, reset_dict);
-              reset_dict = 0;
-            }
-            const int c_id_for_bits = wiener_class_id == ALL_WIENERNS_CLASSES
-                                          ? ALL_WIENERNS_CLASSES
-                                          : c_id;
-            const int64_t bits = count_wienerns_bits_set(
-                rsc->plane, &x->mode_costs, &rui->wienerns_info, cur_bank_ptr,
-                nsfilter_params, c_id_for_bits);
-            const double cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-                x->rdmult, bits >> 4, err, rsc->cm->seq_params.bit_depth);
-            if (cost < best_cost) {
+            if (eval_wienerns_candidate(rsc, limits, tile_rect, rui,
+                                        nsfilter_params, wiener_class_id, c_id,
+                                        &st))
               no_improv = 0;
-              best_err = err;
-              best_cost = cost;
-              copy_nsfilter_taps_for_class(&best, &rui->wienerns_info, c_id);
-              if (rsc->frame_filters_on) {
-                WienerNonsepInfoBank *tmp_ptr = ref_bank_ptr;
-                ref_bank_ptr = cur_bank_ptr;
-                cur_bank_ptr = tmp_ptr;
-              }
-            }
           }
-          // copy_nsfilter_taps_for_class(&curr, &best, c_id);
           rui_wienerns_info_nsfilter[i] = best_nsfilter[i];
           rui_wienerns_info_nsfilter[i + 1] = best_nsfilter[i + 1];
           i++;
@@ -974,34 +962,11 @@ static int64_t finer_tile_search_wienerns(
             continue;
           }
           rui_wienerns_info_nsfilter[i] = ci;
-          const int64_t err =
-              calc_finer_tile_search_error(rsc, limits, tile_rect, rui);
-          if (rsc->frame_filters_on) {
-            initialize_bank_with_best_frame_filter_match(
-                rsc, &rui->wienerns_info, cur_bank_ptr, reset_dict);
-            reset_dict = 0;
-          }
-          const int c_id_for_bits = wiener_class_id == ALL_WIENERNS_CLASSES
-                                        ? ALL_WIENERNS_CLASSES
-                                        : c_id;
-          const int64_t bits = count_wienerns_bits_set(
-              rsc->plane, &x->mode_costs, &rui->wienerns_info, cur_bank_ptr,
-              nsfilter_params, c_id_for_bits);
-          const double cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-              x->rdmult, bits >> 4, err, rsc->cm->seq_params.bit_depth);
-          if (cost < best_cost) {
+          if (eval_wienerns_candidate(rsc, limits, tile_rect, rui,
+                                      nsfilter_params, wiener_class_id, c_id,
+                                      &st))
             no_improv = 0;
-            best_err = err;
-            best_cost = cost;
-            copy_nsfilter_taps_for_class(&best, &rui->wienerns_info, c_id);
-            if (rsc->frame_filters_on) {
-              WienerNonsepInfoBank *tmp_ptr = ref_bank_ptr;
-              ref_bank_ptr = cur_bank_ptr;
-              cur_bank_ptr = tmp_ptr;
-            }
-          }
         }
-        // copy_nsfilter_taps_for_class(&curr, &best, c_id);
         rui_wienerns_info_nsfilter[i] = best_nsfilter[i];
       }
       if (no_improv) {
@@ -1010,12 +975,9 @@ static int64_t finer_tile_search_wienerns(
       copy_nsfilter_taps_for_class(&rui->wienerns_info, &best, c_id);
       // copy_nsfilter_taps_for_class(&curr, &rui->wienerns_info, c_id);
     }
-    // Re-establish dst.
-    if (refine_iters && c_id_end - c_id_begin > 1 &&
-        rui->wiener_class_id_restrict != -1) {
-      copy_nsfilter_taps_for_class(&rui->wienerns_info, &best, c_id);
-      calc_finer_tile_search_error(rsc, limits, tile_rect, rui);
-    }
+    if (refine_iters)
+      finer_reestablish_dst(rsc, limits, tile_rect, rui, &best, c_id,
+                            c_id_begin, c_id_end);
   }
   copy_nsfilter_taps(&rui->wienerns_info, &best);
   if (rsc->frame_filters_on) {
@@ -1050,37 +1012,12 @@ static int64_t finer_tile_search_wienerns(
         rui_wienerns_info_nsfilter[i + 1] = avg;
         i++;
       }
-      const int64_t err =
-          calc_finer_tile_search_error(rsc, limits, tile_rect, rui);
-      if (rsc->frame_filters_on) {
-        initialize_bank_with_best_frame_filter_match(rsc, &rui->wienerns_info,
-                                                     cur_bank_ptr, reset_dict);
-        reset_dict = 0;
-      }
-      const int c_id_for_bits =
-          wiener_class_id == ALL_WIENERNS_CLASSES ? ALL_WIENERNS_CLASSES : c_id;
-      const int64_t bits = count_wienerns_bits_set(
-          rsc->plane, &x->mode_costs, &rui->wienerns_info, cur_bank_ptr,
-          nsfilter_params, c_id_for_bits);
-      const double cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-          x->rdmult, bits >> 4, err, rsc->cm->seq_params.bit_depth);
-      if (cost < best_cost) {
-        best_err = err;
-        best_cost = cost;
-        copy_nsfilter_taps_for_class(&best, &rui->wienerns_info, c_id);
-        if (rsc->frame_filters_on) {
-          WienerNonsepInfoBank *tmp_ptr = ref_bank_ptr;
-          ref_bank_ptr = cur_bank_ptr;
-          cur_bank_ptr = tmp_ptr;
-        }
-      } else {
+      if (!eval_wienerns_candidate(rsc, limits, tile_rect, rui, nsfilter_params,
+                                   wiener_class_id, c_id, &st)) {
         copy_nsfilter_taps_for_class(&rui->wienerns_info, &best, c_id);
       }
-      // Re-establish dst.
-      if (c_id_end - c_id_begin > 1 && rui->wiener_class_id_restrict != -1) {
-        copy_nsfilter_taps_for_class(&rui->wienerns_info, &best, c_id);
-        calc_finer_tile_search_error(rsc, limits, tile_rect, rui);
-      }
+      finer_reestablish_dst(rsc, limits, tile_rect, rui, &best, c_id,
+                            c_id_begin, c_id_end);
     }
     copy_nsfilter_taps(&rui->wienerns_info, &best);
     if (rsc->frame_filters_on) {
@@ -1099,44 +1036,19 @@ static int64_t finer_tile_search_wienerns(
         get_subset_from_nsfilter(nsfilter_params, rui_wienerns_info_nsfilter);
     assert(subset != -1);
     rui->wiener_class_id_restrict = c_id;
-    const int c_id_for_bits =
-        wiener_class_id == ALL_WIENERNS_CLASSES ? ALL_WIENERNS_CLASSES : c_id;
 
     for (int s = 0; s < subset; ++s) {
       for (int i = beg_feat; i < end_feat; ++i) {
         if (!nsfilter_params->subset_config[s][i])
           rui_wienerns_info_nsfilter[i] = 0;
       }
-      const int64_t err =
-          calc_finer_tile_search_error(rsc, limits, tile_rect, rui);
-      if (rsc->frame_filters_on) {
-        initialize_bank_with_best_frame_filter_match(rsc, &rui->wienerns_info,
-                                                     cur_bank_ptr, reset_dict);
-        reset_dict = 0;
-      }
-      const int64_t bits = count_wienerns_bits_set(
-          rsc->plane, &x->mode_costs, &rui->wienerns_info, cur_bank_ptr,
-          nsfilter_params, c_id_for_bits);
-      const double cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-          x->rdmult, bits >> 4, err, rsc->cm->seq_params.bit_depth);
-      if (cost < best_cost) {
-        best_err = err;
-        best_cost = cost;
-        copy_nsfilter_taps_for_class(&best, &rui->wienerns_info, c_id);
-        if (rsc->frame_filters_on) {
-          WienerNonsepInfoBank *tmp_ptr = ref_bank_ptr;
-          ref_bank_ptr = cur_bank_ptr;
-          cur_bank_ptr = tmp_ptr;
-        }
-      } else {
+      if (!eval_wienerns_candidate(rsc, limits, tile_rect, rui, nsfilter_params,
+                                   wiener_class_id, c_id, &st)) {
         copy_nsfilter_taps_for_class(&rui->wienerns_info, &best, c_id);
       }
     }
-    // Re-establish dst.
-    if (c_id_end - c_id_begin > 1 && rui->wiener_class_id_restrict != -1) {
-      copy_nsfilter_taps_for_class(&rui->wienerns_info, &best, c_id);
-      calc_finer_tile_search_error(rsc, limits, tile_rect, rui);
-    }
+    finer_reestablish_dst(rsc, limits, tile_rect, rui, &best, c_id, c_id_begin,
+                          c_id_end);
   }
   copy_nsfilter_taps(&rui->wienerns_info, &best);
   if (rsc->frame_filters_on) {
@@ -1179,34 +1091,11 @@ static int64_t finer_tile_search_wienerns(
             copy_nsfilter_taps_for_class(&rui->wienerns_info, &best, c_id);
             continue;
           }
-          const int64_t err =
-              calc_finer_tile_search_error(rsc, limits, tile_rect, rui);
-          if (rsc->frame_filters_on) {
-            initialize_bank_with_best_frame_filter_match(
-                rsc, &rui->wienerns_info, cur_bank_ptr, reset_dict);
-            reset_dict = 0;
-          }
-          const int c_id_for_bits = wiener_class_id == ALL_WIENERNS_CLASSES
-                                        ? ALL_WIENERNS_CLASSES
-                                        : c_id;
-          const int64_t bits = count_wienerns_bits_set(
-              rsc->plane, &x->mode_costs, &rui->wienerns_info, cur_bank_ptr,
-              nsfilter_params, c_id_for_bits);
-          const double cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-              x->rdmult, bits >> 4, err, rsc->cm->seq_params.bit_depth);
-          if (cost < best_cost) {
+          if (eval_wienerns_candidate(rsc, limits, tile_rect, rui,
+                                      nsfilter_params, wiener_class_id, c_id,
+                                      &st))
             no_improv = 0;
-            best_err = err;
-            best_cost = cost;
-            copy_nsfilter_taps_for_class(&best, &rui->wienerns_info, c_id);
-            if (rsc->frame_filters_on) {
-              WienerNonsepInfoBank *tmp_ptr = ref_bank_ptr;
-              ref_bank_ptr = cur_bank_ptr;
-              cur_bank_ptr = tmp_ptr;
-            }
-          }
         }
-        // copy_nsfilter_taps_for_class(&curr, &best, c_id);
         rui_wienerns_info_nsfilter[i] = best_nsfilter[i];
         rui_wienerns_info_nsfilter[i + 1] = best_nsfilter[i + 1];
       }
@@ -1214,13 +1103,9 @@ static int64_t finer_tile_search_wienerns(
         break;
       }
       copy_nsfilter_taps_for_class(&rui->wienerns_info, &best, c_id);
-      // copy_nsfilter_taps_for_class(&curr, &rui->wienerns_info, c_id);
     }
-    // Re-establish dst.
-    if (c_id_end - c_id_begin > 1 && rui->wiener_class_id_restrict != -1) {
-      copy_nsfilter_taps_for_class(&rui->wienerns_info, &best, c_id);
-      calc_finer_tile_search_error(rsc, limits, tile_rect, rui);
-    }
+    finer_reestablish_dst(rsc, limits, tile_rect, rui, &best, c_id, c_id_begin,
+                          c_id_end);
   }
 
   copy_nsfilter_taps(&rui->wienerns_info, &best);
@@ -2032,18 +1917,7 @@ static void gather_stats_wienerns(const RestorationTileLimits *limits,
       rsc->cm->quant_params.base_qindex, rsc->plane != AVM_PLANE_Y);
   assert(rsc->num_filter_classes == rsc->wienerns_bank.filter[0].num_classes);
 
-  const int ss_x = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_x;
-  const int ss_y = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_y;
-  const int start_mi_x = limits->h_start >> (MI_SIZE_LOG2 - ss_x);
-  const int start_mi_y = limits->v_start >> (MI_SIZE_LOG2 - ss_y);
-  const int mbmi_idx =
-      get_mi_grid_idx(&rsc->cm->mi_params, start_mi_y, start_mi_x);
-  rui.mbmi_ptr = rsc->cm->mi_params.mi_grid_base + mbmi_idx;
-  rui.ss_x = ss_x;
-  rui.ss_y = ss_y;
-  rui.mi_stride = rsc->cm->mi_params.mi_stride;
-  rui.lossless_segment = rsc->cm->features.lossless_segment;
-  rui.cm = rsc->cm;
+  set_rui_mbmi_index(rsc, limits, &rui);
   // Calculate and save this RU's stats.
   RstUnitStats unit_stats;
   memset(&unit_stats, 0, sizeof(unit_stats));
@@ -2172,18 +2046,7 @@ static void search_wienerns_visitor(const RestorationTileLimits *limits,
 
   RestorationUnitInfo rui;
   initialize_rui_for_nonsep_search(rsc, &rui);
-  const int ss_x = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_x;
-  const int ss_y = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_y;
-  const int start_mi_x = limits->h_start >> (MI_SIZE_LOG2 - ss_x);
-  const int start_mi_y = limits->v_start >> (MI_SIZE_LOG2 - ss_y);
-  const int mbmi_idx =
-      get_mi_grid_idx(&rsc->cm->mi_params, start_mi_y, start_mi_x);
-  rui.mbmi_ptr = rsc->cm->mi_params.mi_grid_base + mbmi_idx;
-  rui.ss_x = ss_x;
-  rui.ss_y = ss_y;
-  rui.mi_stride = rsc->cm->mi_params.mi_stride;
-  rui.lossless_segment = rsc->cm->features.lossless_segment;
-  rui.cm = rsc->cm;
+  set_rui_mbmi_index(rsc, limits, &rui);
 
   // Classification has already been calculated by search_pc_wiener_visitor().
   rui.compute_classification = 0;
@@ -3263,20 +3126,6 @@ static RdResults update_cost_and_weights_wienerns(RestSearchCtxt *rsc,
     int64_t distortion = INT64_MAX;
     int64_t distortion_none = 0;
     if (!rsc->rusi[unit_stats_ptr->ru_idx].bru_unit_skipped) {
-      const int ss_x = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_x;
-      const int ss_y = (rsc->plane > 0) && rsc->cm->seq_params.subsampling_y;
-      const int start_mi_x =
-          unit_stats_ptr->limits.h_start >> (MI_SIZE_LOG2 - ss_x);
-      const int start_mi_y =
-          unit_stats_ptr->limits.v_start >> (MI_SIZE_LOG2 - ss_y);
-      const int mbmi_idx =
-          get_mi_grid_idx(&rsc->cm->mi_params, start_mi_y, start_mi_x);
-      rui->lossless_segment = rsc->cm->features.lossless_segment;
-      rui->cm = rsc->cm;
-      rui->mbmi_ptr = rsc->cm->mi_params.mi_grid_base + mbmi_idx;
-      rui->ss_x = ss_x;
-      rui->ss_y = ss_y;
-      rui->mi_stride = rsc->cm->mi_params.mi_stride;
       distortion = calc_finer_tile_search_error(rsc, &unit_stats_ptr->limits,
                                                 &rsc->tile_rect, rui);
       distortion_none = unit_stats_ptr->real_sse;
@@ -3820,15 +3669,10 @@ void av2_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV2_COMP *cpi) {
   const YV12_BUFFER_CONFIG *dgd = &cpi->common.cur_frame->buf;
   rsc.luma_stride = dgd->widths[1] + 2 * WIENERNS_UV_BRD;
   luma_buf = wienerns_copy_luma_highbd(
-      dgd->buffers[AVM_PLANE_Y], dgd->heights[AVM_PLANE_Y],
+      cm, dgd->buffers[AVM_PLANE_Y], dgd->heights[AVM_PLANE_Y],
       dgd->widths[AVM_PLANE_Y], dgd->strides[AVM_PLANE_Y], &luma,
-      dgd->heights[1], dgd->widths[1], WIENERNS_UV_BRD, rsc.luma_stride,
-      cm->seq_params.bit_depth
-#if WIENERNS_CROSS_FILT_LUMA_TYPE == 2
-      ,
-      cm->seq_params.cfl_ds_filter_index
-#endif
-  );
+      dgd->heights[AVM_PLANE_U], dgd->widths[AVM_PLANE_U], WIENERNS_UV_BRD,
+      rsc.luma_stride);
   assert(luma_buf != NULL);
 
   rsc.luma_stat = luma;
@@ -4013,8 +3857,8 @@ void av2_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV2_COMP *cpi) {
   }
 
   avm_free(rusi);
-  free(luma_buf);
-  free(luma_virtual_buf);
+  avm_free(luma_buf);
+  avm_free(luma_virtual_buf);
   av2_free_restoration_line_buffers(rsc.rlbs);
   avm_free(rsc.wienerns_tmpbuf);
   avm_vector_destroy(&wienerns_stats);
