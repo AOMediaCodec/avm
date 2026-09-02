@@ -440,19 +440,14 @@ static INLINE void set_default_wienerns_fromparams(
 // 0: Skip luma pixels to scale down to chroma (simplest)
 // 1: Average 4 or 2 luma pixels to scale down to chroma
 // 2: Average 2 (top and down) luma pixels to scale down to chroma for 420,
-// could be based on the luma downsampling type from CFL tool 3: Use 8-tap
-// downsampling filter
+//    could be based on the luma downsampling type from CFL tool
+// 3: Use 8-tap downsampling filter
 #define WIENERNS_CROSS_FILT_LUMA_TYPE 2
 
-uint16_t *wienerns_copy_luma_highbd(const uint16_t *dgd, int height_y,
-                                    int width_y, int in_stride, uint16_t **luma,
-                                    int height_uv, int width_uv, int border,
-                                    int out_stride, int bd
-#if WIENERNS_CROSS_FILT_LUMA_TYPE == 2
-                                    ,
-                                    int ds_type
-#endif
-);
+uint16_t *wienerns_copy_luma_highbd(struct AV2Common *cm, const uint16_t *dgd,
+                                    int height_y, int width_y, int in_stride,
+                                    uint16_t **luma_hbd, int height_uv,
+                                    int width_uv, int border, int out_stride);
 
 typedef struct {
   int h_start, h_end, v_start, v_end;
