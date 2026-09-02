@@ -364,6 +364,7 @@ static int firstpass_intra_prediction(
   xd->mi[0]->mode = DC_PRED;
   xd->mi[0]->tx_size =
       use_dc_pred ? (bsize >= fp_block_size ? TX_16X16 : TX_8X8) : TX_4X4;
+  xd->tx_type_map[0] = DCT_DCT;
 
   av2_encode_intra_block_plane(cpi, x, bsize, 0, DRY_RUN_NORMAL, 0);
   int this_intra_error = avm_get_mb_ss(x->plane[0].src_diff);
