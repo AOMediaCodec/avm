@@ -393,11 +393,9 @@ static AVM_INLINE void search_pc_wiener_visitor(
   // handling frame filters with rtype = RESTORE_WIENER_NONSEP.
   // (i) Run the full pc-wiener, i.e., don't skip, if pc-wiener is not disabled.
   // (Disabling can be accomplished by config or the plane being chroma.)
-  // (ii) If disabled, skip only if frame-filters are off or the number of
-  // filter classes for frame filters is one.
-  bool skip_search =
-      pcwiener_disabled &&
-      (!is_frame_filters_enabled(rsc->plane) || rsc->num_filter_classes == 1);
+  // (ii) If disabled, skip only if the number of filter classes for frame
+  // filters is one.
+  bool skip_search = pcwiener_disabled && rsc->num_filter_classes == 1;
   if (rusi->bru_unit_skipped) {
     skip_search = true;
   }
@@ -1291,7 +1289,6 @@ static void find_best_match_for_filter(const RestSearchCtxt *rsc,
                                        int base_qindex,
                                        int16_t *frame_filter_dictionary,
                                        int dict_stride) {
-  is_frame_filters_enabled(rsc->plane);
   const int is_uv = rsc->plane > 0;
   const int nopcw =
       disable_pcwiener_filters_in_framefilters(&rsc->cm->seq_params);
@@ -2190,12 +2187,8 @@ static void search_wienerns_visitor(const RestorationTileLimits *limits,
 
   // Classification has already been calculated by search_pc_wiener_visitor().
   rui.compute_classification = 0;
-  if (is_frame_filters_enabled(rsc->plane)) {
-    // Ensure search_pc_wiener_visitor was done and classification was computed.
-    assert(rsc->classification_is_buffered);
-  } else {
-    assert(!rsc->classification_is_buffered);
-  }
+  // Ensure search_pc_wiener_visitor was done and classification was computed.
+  assert(rsc->classification_is_buffered);
 
   rui.restoration_type = RESTORE_WIENER_NONSEP;
   const WienernsFilterParameters *nsfilter_params = get_wienerns_parameters(
@@ -2209,8 +2202,7 @@ static void search_wienerns_visitor(const RestorationTileLimits *limits,
   assert(unit_stats->plane == rsc->plane);
   assert(rusi->sse[RESTORE_NONE] == unit_stats->real_sse);
 
-  if (rsc->frame_filters_on && is_frame_filters_enabled(rsc->plane) &&
-      !rusi->bru_unit_skipped) {
+  if (rsc->frame_filters_on && !rusi->bru_unit_skipped) {
     // Pick the best filter for this RU.
     rusi->sse[RESTORE_WIENER_NONSEP] = evaluate_frame_filter(rsc, limits, &rui);
 
@@ -2603,10 +2595,8 @@ static int64_t count_switchable_bits(int rest_type, RestSearchCtxt *rsc,
 
   // Ensure search_switchable does not punish frame level filters.
   const WienerNonsepInfoBank *bank_to_use =
-      rsc->adjust_switchable_for_frame_filters &&
-              is_frame_filters_enabled(rsc->plane)
-          ? &rsc->frame_filter_bank
-          : &rsc->wienerns_bank;
+      rsc->adjust_switchable_for_frame_filters ? &rsc->frame_filter_bank
+                                               : &rsc->wienerns_bank;
 
   if (rest_type > RESTORE_NONE) {
     if (rusi->best_rtype[rest_type - 1] == RESTORE_NONE)
@@ -2628,7 +2618,6 @@ static int64_t count_switchable_bits(int rest_type, RestSearchCtxt *rsc,
   }
 
   if (rsc->adjust_switchable_for_frame_filters &&
-      is_frame_filters_enabled(rsc->plane) &&
       rest_type == RESTORE_WIENER_NONSEP &&
       rsc->frame_filter_bank.bank_size_for_class[0] == 1) {
     coeff_bits = 0;
@@ -2665,7 +2654,6 @@ static void search_switchable_visitor(const RestorationTileLimits *limits,
   }
 
   if (!rsc->adjust_switchable_for_frame_filters && rsc->frame_filters_on &&
-      is_frame_filters_enabled(rsc->plane) &&
       rsc->wienerns_bank.bank_size_for_class[0] == 1) {
     assert(rsc->cm->frame_filter_dictionary != NULL);
     assert(rsc->cm->translated_pcwiener_filters != NULL);
@@ -2963,10 +2951,8 @@ static void finalize_frame_and_unit_info(RestorationType frame_rtype,
   rsi->num_filter_classes = rsc->num_filter_classes;
   rsi->frame_filters = rsc->frame_filter_bank.filter[0];
   rsi->frame_filters = rsc->frame_filters;
-  if (is_frame_filters_enabled(rsc->plane)) {
-    rsi->temporal_pred_flag = rsc->temporal_pred_flag;
-    rsi->rst_ref_pic_idx = rsc->rst_ref_pic_idx;
-  }
+  rsi->temporal_pred_flag = rsc->temporal_pred_flag;
+  rsi->rst_ref_pic_idx = rsc->rst_ref_pic_idx;
 
   if (frame_rtype != RESTORE_NONE) {
     process_by_rutile(rsc, copy_unit_info_visitor);
@@ -3938,7 +3924,7 @@ void av2_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV2_COMP *cpi) {
           }
 
           if (r == RESTORE_WIENER_NONSEP && !cm->bru.enabled &&
-              is_frame_filters_enabled(rsc.plane) && frame_filters_configured) {
+              frame_filters_configured) {
             // Find RDO-num_classes and frame-level filters. After this call
             // multiclass stats collapse to a single class. If that is not
             // desired make a copy of stats.
@@ -3950,8 +3936,7 @@ void av2_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV2_COMP *cpi) {
             frame_filter_dict = rsc.frame_filter_bank;
             frame_filter_cost = rsc.frame_filter_cost;
           }
-          if (r == RESTORE_SWITCHABLE && is_frame_filters_enabled(rsc.plane) &&
-              frame_filters_configured) {
+          if (r == RESTORE_SWITCHABLE && frame_filters_configured) {
             assert(RESTORE_WIENER_NONSEP < RESTORE_SWITCHABLE);
             rsc.frame_filter_bank = frame_filter_dict;
             rsc.frame_filter_cost = frame_filter_cost;
@@ -3967,15 +3952,13 @@ void av2_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV2_COMP *cpi) {
 
           double cost = search_rest_type(&rsc, r);
           int real_r = r;
-          if (r == RESTORE_SWITCHABLE && is_frame_filters_enabled(plane) &&
-              !cm->bru.enabled && frame_filters_configured &&
-              cost > rsc.frame_filters_total_cost &&
+          if (r == RESTORE_SWITCHABLE && !cm->bru.enabled &&
+              frame_filters_configured && cost > rsc.frame_filters_total_cost &&
               best_cost > rsc.frame_filters_total_cost) {
             real_r = replace_with_frame_filters(&rsc, &cost);
           }
           assert(RESTORE_PC_WIENER < RESTORE_WIENER_NONSEP);
-          if (r == RESTORE_PC_WIENER && is_frame_filters_enabled(plane) &&
-              frame_filters_configured) {
+          if (r == RESTORE_PC_WIENER && frame_filters_configured) {
             rsc.classification_is_buffered = 1;  // Buffer is set.
           }
           int invalid_result = 0;
@@ -3988,8 +3971,7 @@ void av2_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV2_COMP *cpi) {
             best_cost = cost;
             best_rtype = real_r;
             best_unit_size = unit_size;
-            if (is_frame_filters_enabled(rsc.plane) &&
-                frame_filters_configured) {
+            if (frame_filters_configured) {
               best_frame_filters_state = rsc.frame_filters_on;
               if (rsc.frame_filters_on) {
                 best_temp_pred_flag = rsc.temporal_pred_flag;
@@ -4003,15 +3985,13 @@ void av2_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV2_COMP *cpi) {
         }
         rsc.classification_is_buffered = 0;  // Buffer is consumed.
       }
-      if (is_frame_filters_enabled(rsc.plane)) {
-        rsc.frame_filters_on = best_frame_filters_state;
-        rsc.temporal_pred_flag = best_temp_pred_flag;
-        rsc.rst_ref_pic_idx = best_temp_ref_idx;
-        if (!frame_filters_configured) {
-          assert(best_temp_ref_idx == -1);
-          assert(best_temp_pred_flag == 0);
-          assert(best_frame_filters_state == 0);
-        }
+      rsc.frame_filters_on = best_frame_filters_state;
+      rsc.temporal_pred_flag = best_temp_pred_flag;
+      rsc.rst_ref_pic_idx = best_temp_ref_idx;
+      if (!frame_filters_configured) {
+        assert(best_temp_ref_idx == -1);
+        assert(best_temp_pred_flag == 0);
+        assert(best_frame_filters_state == 0);
       }
       if (rsi->restoration_unit_size == min_unit_size ||
           best_unit_size == rsi->restoration_unit_size) {
