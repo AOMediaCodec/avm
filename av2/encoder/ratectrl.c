@@ -321,20 +321,15 @@ void av2_rc_init(const AV2EncoderConfig *oxcf, int pass, RATE_CONTROL *rc) {
 
   rc->rolling_target_bits = rc->avg_frame_bandwidth;
   rc->rolling_actual_bits = rc->avg_frame_bandwidth;
-  rc->long_rolling_target_bits = rc->avg_frame_bandwidth;
-  rc->long_rolling_actual_bits = rc->avg_frame_bandwidth;
 
   rc->total_actual_bits = 0;
   rc->total_target_bits = 0;
-  rc->total_target_vs_actual = 0;
 
   rc->frames_since_key = 8;  // Sensible default for first frame.
   rc->this_key_frame_forced = 0;
   rc->next_key_frame_forced = 0;
 
   rc->frames_till_gf_update_due = 0;
-  rc->ni_av_qi = rc_cfg->worst_allowed_q;
-  rc->ni_tot_qi = 0;
   rc->ni_frames = 0;
 
   rc->tot_q = 0.0;
@@ -1780,10 +1775,6 @@ void av2_rc_postencode_update(AV2_COMP *cpi, uint64_t bytes_used) {
       rc->ni_frames++;
       rc->tot_q += av2_convert_qindex_to_q(qindex, cm->seq_params.bit_depth);
       rc->avg_q = rc->tot_q / rc->ni_frames;
-      // Calculate the average Q for normal inter frames (not key or GFU
-      // frames).
-      rc->ni_tot_qi += qindex;
-      rc->ni_av_qi = rc->ni_tot_qi / rc->ni_frames;
     }
   }
 
@@ -1813,18 +1804,12 @@ void av2_rc_postencode_update(AV2_COMP *cpi, uint64_t bytes_used) {
         rc->rolling_target_bits * 3 + rc->this_frame_target, 2);
     rc->rolling_actual_bits = (int)ROUND_POWER_OF_TWO_64(
         rc->rolling_actual_bits * 3 + rc->projected_frame_size, 2);
-    rc->long_rolling_target_bits = (int)ROUND_POWER_OF_TWO_64(
-        rc->long_rolling_target_bits * 31 + rc->this_frame_target, 5);
-    rc->long_rolling_actual_bits = (int)ROUND_POWER_OF_TWO_64(
-        rc->long_rolling_actual_bits * 31 + rc->projected_frame_size, 5);
   }
 
   // Actual bits spent
   rc->total_actual_bits += rc->projected_frame_size;
   rc->total_target_bits +=
       cm->immediate_output_picture ? rc->avg_frame_bandwidth : 0;
-
-  rc->total_target_vs_actual = rc->total_actual_bits - rc->total_target_bits;
 
   if (is_altref_enabled(cpi->oxcf.gf_cfg.lag_in_frames,
                         cpi->oxcf.gf_cfg.enable_auto_arf) &&
