@@ -112,7 +112,7 @@ typedef struct {
   // sse and bits are initialised by reset_rsc in search_rest_type
   int64_t sse;
   int64_t bits;
-  int tile_y0, tile_stripe0;
+  int tile_stripe0;
   // Helps convert tile-localized RU indices to frame RU indices.
   int ru_idx_base;
   // Number of RUs in tile

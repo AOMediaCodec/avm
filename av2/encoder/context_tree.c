@@ -143,8 +143,6 @@ PICK_MODE_CONTEXT *av2_alloc_pmc(const AV2_COMMON *cm, TREE_TYPE tree_type,
 
   AVM_CHECK_MEM_ERROR(&error, ctx, avm_calloc(1, sizeof(*ctx)));
   ctx->rd_mode_is_ready = 0;
-  ctx->parent = parent;
-  ctx->index = index;
   set_chroma_ref_info(tree_type, mi_row, mi_col, index, bsize,
                       &ctx->chroma_ref_info,
                       parent ? &parent->chroma_ref_info : NULL,
