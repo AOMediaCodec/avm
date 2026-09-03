@@ -32,6 +32,8 @@
 
 // Macros for common video resolutions: width x height
 // For example, 720p represents video resolution of 1280x720 pixels.
+#define RESOLUTION_180P (320 * 180)
+#define RESOLUTION_240P (320 * 240)
 #define RESOLUTION_288P (352 * 288)
 #define RESOLUTION_360P (640 * 360)
 #define RESOLUTION_480P (640 * 480)
@@ -280,10 +282,14 @@ static int set_vt_partitioning(AV2_COMP *cpi, MACROBLOCKD *const xd,
   return 0;
 }
 
-static inline void fill_variance_8x8avg_highbd(
-    const uint16_t *src_buf, int src_stride, const uint16_t *dst_buf,
-    int dst_stride, int x16_idx, int y16_idx, VP16x16 *vst, int pixels_wide,
-    int pixels_high) {
+// Obtain parameters required to calculate variance (such as sum, sse, etc,.)
+// at 8x8 sub-block level for a given 16x16 block.
+// The function can be called only when is_key_frame is false since sum is
+// computed between source and reference frames.
+static inline void fill_variance_8x8avg(const uint16_t *src_buf, int src_stride,
+                                        const uint16_t *dst_buf, int dst_stride,
+                                        int x16_idx, int y16_idx, VP16x16 *vst,
+                                        int pixels_wide, int pixels_high) {
   for (int idx = 0; idx < 4; idx++) {
     const int x8_idx = x16_idx + GET_BLK_IDX_X(idx, 3);
     const int y8_idx = y16_idx + GET_BLK_IDX_Y(idx, 3);
@@ -300,18 +306,6 @@ static inline void fill_variance_8x8avg_highbd(
     }
     fill_variance(sse, sum, 0, &vst->split[idx].part_variances.none);
   }
-}
-
-// Obtain parameters required to calculate variance (such as sum, sse, etc,.)
-// at 8x8 sub-block level for a given 16x16 block.
-// The function can be called only when is_key_frame is false since sum is
-// computed between source and reference frames.
-static inline void fill_variance_8x8avg(const uint16_t *src_buf, int src_stride,
-                                        const uint16_t *dst_buf, int dst_stride,
-                                        int x16_idx, int y16_idx, VP16x16 *vst,
-                                        int pixels_wide, int pixels_high) {
-  fill_variance_8x8avg_highbd(src_buf, src_stride, dst_buf, dst_stride, x16_idx,
-                              y16_idx, vst, pixels_wide, pixels_high);
 }
 
 // Function to compute average and variance of 4x4 sub-block.
@@ -338,49 +332,125 @@ static inline void fill_variance_4x4avg(const uint16_t *src_buf, int src_stride,
   }
 }
 
+static inline PART_EVAL_STATUS get_part_eval_based_on_sub_blk_var(
+    VP16x16 *var_16x16_info, int64_t threshold_base, int current_qindex,
+    bool is_lowres, bool is_screen) {
+  int max_8x8_var = 0, min_8x8_var = INT_MAX;
+  for (int split_idx = 0; split_idx < 4; split_idx++) {
+    get_variance(&var_16x16_info->split[split_idx].part_variances.none);
+    int this_8x8_var =
+        var_16x16_info->split[split_idx].part_variances.none.variance;
+    max_8x8_var = AVMMAX(this_8x8_var, max_8x8_var);
+    min_8x8_var = AVMMIN(this_8x8_var, min_8x8_var);
+  }
+  const int diff = max_8x8_var - min_8x8_var;
+  if (is_screen) {
+    if (current_qindex > 115) {
+      return (diff > (threshold_base << 1)) ? PART_EVAL_ONLY_SPLIT
+                                            : PART_EVAL_ALL;
+    }
+    return (diff > (threshold_base >> 1)) ? PART_EVAL_ONLY_SPLIT
+                                          : PART_EVAL_ALL;
+  }
+  if (is_lowres) {
+    if (current_qindex > 130) {
+      return (diff > (threshold_base << 1)) ? PART_EVAL_ONLY_SPLIT
+                                            : PART_EVAL_ONLY_NONE;
+    }
+    return (diff > (threshold_base >> 1)) ? PART_EVAL_ONLY_SPLIT
+                                          : PART_EVAL_ALL;
+  }
+  if (current_qindex <= 110) {
+    if (diff > (threshold_base << 1)) return PART_EVAL_ONLY_SPLIT;
+    if (diff > (threshold_base >> 1)) return PART_EVAL_ALL;
+    return PART_EVAL_ONLY_NONE;
+  }
+  return (diff > (threshold_base << 1)) ? PART_EVAL_ONLY_SPLIT
+                                        : PART_EVAL_ONLY_NONE;
+}
+
+static inline int64_t interpolate_threshold(int64_t low_val, int64_t high_val,
+                                            int q, int q_low, int q_high) {
+  if (q <= q_low) return low_val;
+  if (q >= q_high) return high_val;
+  return (int64_t)((q - q_low) * high_val + (q_high - q) * low_val) /
+         (q_high - q_low);
+}
+
 static inline void tune_thresh_based_on_resolution(AV2_COMP *cpi,
                                                    int64_t thresholds[],
                                                    int64_t threshold_base,
                                                    int current_qindex,
                                                    int num_pixels) {
+  const bool is_screen = (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN);
   if (num_pixels >= RESOLUTION_720P) thresholds[4] = thresholds[4] << 1;
   if (num_pixels <= RESOLUTION_288P) {
-    const int qindex_low_thr = 200;
-    const int qindex_high_thr = 220;
-    if (current_qindex >= qindex_high_thr) {
-      threshold_base = (5 * threshold_base) >> 1;
-      thresholds[2] = threshold_base >> 3;
-      thresholds[3] = threshold_base << 2;
-      thresholds[4] = threshold_base << 5;
-    } else if (current_qindex < qindex_low_thr) {
-      thresholds[2] = threshold_base >> 3;
-      thresholds[3] = threshold_base >> 1;
-      thresholds[4] = threshold_base << 3;
+    const int q_low = 110;
+    const int q_high = 135;
+    thresholds[2] = threshold_base >> 3;
+    if (num_pixels <= RESOLUTION_180P) {
+      thresholds[3] = interpolate_threshold((3 * threshold_base) >> 3,
+                                            (7 * threshold_base) >> 3,
+                                            current_qindex, q_low, q_high);
+      thresholds[4] =
+          interpolate_threshold(threshold_base << 2, threshold_base << 4,
+                                current_qindex, q_low, q_high);
+    } else if (num_pixels <= RESOLUTION_240P) {
+      thresholds[3] = interpolate_threshold((7 * threshold_base) >> 4,
+                                            (7 * threshold_base) >> 3,
+                                            current_qindex, q_low, q_high);
+      thresholds[4] =
+          interpolate_threshold(threshold_base << 2, threshold_base << 4,
+                                current_qindex, q_low, q_high);
     } else {
-      int64_t qi_diff_low = current_qindex - qindex_low_thr;
-      int64_t qi_diff_high = qindex_high_thr - current_qindex;
-      int64_t threshold_diff = qindex_high_thr - qindex_low_thr;
-      int64_t threshold_base_high = (5 * threshold_base) >> 1;
-
-      threshold_diff = threshold_diff > 0 ? threshold_diff : 1;
-      threshold_base =
-          (qi_diff_low * threshold_base_high + qi_diff_high * threshold_base) /
-          threshold_diff;
-      thresholds[2] = threshold_base >> 3;
-      thresholds[3] = ((qi_diff_low * threshold_base) +
-                       qi_diff_high * (threshold_base >> 1)) /
-                      threshold_diff;
-      thresholds[4] = ((qi_diff_low * (threshold_base << 5)) +
-                       qi_diff_high * (threshold_base << 3)) /
-                      threshold_diff;
+      thresholds[3] =
+          interpolate_threshold(threshold_base, (9 * threshold_base) >> 2,
+                                current_qindex, q_low, q_high);
+      thresholds[4] =
+          interpolate_threshold(threshold_base << 3, threshold_base << 4,
+                                current_qindex, q_low, q_high);
+    }
+  } else if (num_pixels <= RESOLUTION_360P) {
+    thresholds[2] = threshold_base;
+    thresholds[3] = (3 * threshold_base) >> 1;
+    thresholds[4] = threshold_base << 5;
+    if (current_qindex > 115) {
+      const int q_diff = current_qindex - 115;
+      thresholds[2] = thresholds[2] + ((q_diff * thresholds[2]) >> 5);
+      thresholds[3] = thresholds[3] + ((q_diff * thresholds[3]) >> 4);
+    }
+    if (current_qindex > 135) {
+      thresholds[4] = INT64_MAX;
     }
   } else if (num_pixels < RESOLUTION_720P) {
     thresholds[3] = (3 * threshold_base) >> 1;
+    if (current_qindex > 115) {
+      const int q_diff = current_qindex - 115;
+      thresholds[2] = thresholds[2] + ((q_diff * thresholds[2]) >> 5);
+      thresholds[3] = thresholds[3] + ((q_diff * thresholds[3]) >> 4);
+    }
+    if (current_qindex > 135) {
+      thresholds[4] = INT64_MAX;
+    }
   } else if (num_pixels < RESOLUTION_1080P) {
-    thresholds[3] = threshold_base << 1;
+    thresholds[3] =
+        is_screen ? ((5 * threshold_base) >> 1) : (threshold_base << 1);
+    if (current_qindex > 115) {
+      const int q_diff = current_qindex - 115;
+      thresholds[1] = thresholds[1] + ((q_diff * thresholds[1]) >> 5);
+      thresholds[2] = thresholds[2] + ((q_diff * thresholds[2]) >> 5);
+      if (is_screen) {
+        thresholds[3] = thresholds[3] + ((q_diff * thresholds[3]) >> 5);
+      } else {
+        thresholds[3] = thresholds[3] + ((q_diff * 3 * thresholds[3]) >> 6);
+      }
+    }
+    if (current_qindex > 135) {
+      thresholds[4] = INT64_MAX;
+    }
   } else {
     // num_pixels >= RESOLUTION_1080P
-    if (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN) {
+    if (is_screen) {
       if (num_pixels < RESOLUTION_1440P) {
         thresholds[3] = (5 * threshold_base) >> 1;
       } else {
@@ -390,6 +460,15 @@ static inline void tune_thresh_based_on_resolution(AV2_COMP *cpi,
       if (cpi->oxcf.speed > 7) {
         thresholds[3] = threshold_base << 2;
       }
+    }
+    if (current_qindex > 115) {
+      const int q_diff = current_qindex - 115;
+      thresholds[1] = thresholds[1] + ((q_diff * thresholds[1]) >> 5);
+      thresholds[2] = thresholds[2] + ((q_diff * thresholds[2]) >> 5);
+      thresholds[3] = thresholds[3] + ((q_diff * thresholds[3]) >> 5);
+    }
+    if (current_qindex > 135) {
+      thresholds[4] = INT64_MAX;
     }
   }
 }
@@ -435,8 +514,19 @@ static inline void set_vbp_thresholds(AV2_COMP *cpi, int64_t thresholds[],
   AV2_COMMON *const cm = &cpi->common;
   const int is_key_frame = frame_is_intra_only(cm);
   const int threshold_multiplier = is_key_frame ? 120 : 1;
-  const int ac_q = av2_ac_quant_QTX(qindex, 0, 0, cm->seq_params.bit_depth);
-  int64_t threshold_base = (int64_t)(threshold_multiplier * ac_q) >> 3;
+  // In AV2, qindex is linear in dB (exponential step size 2^(q/24)), whereas
+  // AV1 had a linear quantizer table. We compute threshold_base directly as a
+  // function of qindex to account for the exponential range in AV2 vs linear in
+  // AV1.
+  int64_t threshold_base;
+  if (qindex <= 65) {
+    threshold_base = 12;
+  } else {
+    const int64_t q_offset = qindex - 65;
+    threshold_base = 12 + ((q_offset * (qindex + 15)) / 40);
+  }
+  threshold_base *= threshold_multiplier;
+
   const int current_qindex = cm->quant_params.base_qindex;
   const int threshold_left_shift = 7;
   const int num_pixels = cm->width * cm->height;
@@ -458,6 +548,27 @@ static inline void set_vbp_thresholds(AV2_COMP *cpi, int64_t thresholds[],
                                   current_qindex, num_pixels);
 }
 
+static inline void force_split_ancestors(PART_EVAL_STATUS *force_split,
+                                         int offset_64x64, int offset_32x32,
+                                         int blk64_idx, int lvl1_idx) {
+  const int blk64_scale_idx = blk64_idx << 2;
+  force_split[offset_32x32 + blk64_scale_idx + lvl1_idx] = PART_EVAL_ONLY_SPLIT;
+  force_split[blk64_idx + offset_64x64] = PART_EVAL_ONLY_SPLIT;
+  force_split[0] = PART_EVAL_ONLY_SPLIT;
+}
+
+static inline bool check_128x128_split(int var_128x128, int avg_64x64,
+                                       int min_var_64x64, int max_var_64x64,
+                                       int64_t threshold_128) {
+  const int set_avg_64x64 = (9 * avg_64x64) >> 5;
+  if (var_128x128 > set_avg_64x64) return true;
+  if ((max_var_64x64 - min_var_64x64) > 3 * (threshold_128 >> 3) &&
+      max_var_64x64 > (threshold_128 >> 1)) {
+    return true;
+  }
+  return false;
+}
+
 /*!\brief Populates the leaf nodes of the variance tree and initializes
  * partition search flags.
  *
@@ -473,6 +584,7 @@ static inline void set_vbp_thresholds(AV2_COMP *cpi, int64_t thresholds[],
  * so, updates `force_split` flags to force splitting down to 8x8 for that 16x16
  * block and its ancestors.
  *
+ * \param[in]     cpi           Top level encoder structure
  * \param[in]     x             Pointer to MACROBLOCK structure
  * \param[in,out] vt            Pointer to the top-level variance tree
  * (VP128x128 array)
@@ -494,14 +606,12 @@ static inline void set_vbp_thresholds(AV2_COMP *cpi, int64_t thresholds[],
  * \param[in]     sb_size       Superblock size (BLOCK_64X64, BLOCK_128X128, or
  * BLOCK_256X256)
  */
-static void fill_variance_tree_leaves(MACROBLOCK *x, VP128x128 *vt,
-                                      PART_EVAL_STATUS *force_split,
-                                      int avg_16x16[][4], int maxvar_16x16[][4],
-                                      int minvar_16x16[][4],
-                                      int64_t *thresholds,
-                                      const uint16_t *src_buf, int src_stride,
-                                      const uint16_t *dst_buf, int dst_stride,
-                                      bool is_key_frame, BLOCK_SIZE sb_size) {
+static void fill_variance_tree_leaves(
+    AV2_COMP *cpi, MACROBLOCK *x, VP128x128 *vt, PART_EVAL_STATUS *force_split,
+    int avg_16x16[][4], int maxvar_16x16[][4], int minvar_16x16[][4],
+    int64_t *thresholds, const uint16_t *src_buf, int src_stride,
+    const uint16_t *dst_buf, int dst_stride, bool is_key_frame,
+    BLOCK_SIZE sb_size) {
   MACROBLOCKD *xd = &x->e_mbd;
   const int num_64x64_blocks = (sb_size == BLOCK_64X64)     ? 1
                                : (sb_size == BLOCK_128X128) ? 4
@@ -518,6 +628,9 @@ static void fill_variance_tree_leaves(MACROBLOCK *x, VP128x128 *vt,
   const int offset_64x64 = offsets.offset_64x64;
   const int offset_32x32 = offsets.offset_32x32;
   const int offset_16x16 = offsets.offset_16x16;
+  const bool is_lowres =
+      (cpi->common.width * cpi->common.height <= RESOLUTION_288P);
+  const bool is_screen = (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN);
   for (int blk64_idx = 0; blk64_idx < num_64x64_blocks; blk64_idx++) {
     int x64_idx, y64_idx;
     VP64x64 *vt64;
@@ -571,14 +684,14 @@ static void fill_variance_tree_leaves(MACROBLOCK *x, VP128x128 *vt,
           maxvar_16x16[blk64_idx][lvl1_idx] =
               AVMMAX(maxvar_16x16[blk64_idx][lvl1_idx], val_none_var);
           if (val_none_var > thresholds[4]) {
-            // 16X16 variance is above threshold for split, so force split to
-            // 8x8 for this 16x16 block (this also forces splits for upper
-            // levels).
-            force_split[split_index] = PART_EVAL_ONLY_SPLIT;
-            force_split[offset_32x32 + blk64_scale_idx + lvl1_idx] =
-                PART_EVAL_ONLY_SPLIT;
-            force_split[blk64_idx + offset_64x64] = PART_EVAL_ONLY_SPLIT;
-            force_split[0] = PART_EVAL_ONLY_SPLIT;
+            // 16X16 variance is above threshold for split, so evaluate
+            // split based on sub-block variance variation (this also forces
+            // splits for upper levels).
+            const int current_qindex = cpi->common.quant_params.base_qindex;
+            force_split[split_index] = get_part_eval_based_on_sub_blk_var(
+                vst, thresholds[2], current_qindex, is_lowres, is_screen);
+            force_split_ancestors(force_split, offset_64x64, offset_32x32,
+                                  blk64_idx, lvl1_idx);
           }
         }
       }
@@ -587,10 +700,8 @@ static void fill_variance_tree_leaves(MACROBLOCK *x, VP128x128 *vt,
 }
 
 static void setup_planes(AV2_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
-                         int mi_row, int mi_col, bool is_small_sb,
-                         bool scaled_ref_last) {
+                         int mi_row, int mi_col, bool scaled_ref_last) {
   AV2_COMMON *const cm = &cpi->common;
-  (void)is_small_sb;
   MACROBLOCKD *xd = &x->e_mbd;
   const int num_planes = av2_num_planes(cm);
   BLOCK_SIZE bsize = cm->sb_size;
@@ -684,7 +795,6 @@ void av2_choose_var_based_partitioning(AV2_COMP *cpi,
                                        int mi_row, int mi_col) {
   AV2_COMMON *const cm = &cpi->common;
   MACROBLOCKD *xd = &x->e_mbd;
-  const int64_t *const vbp_thresholds = cpi->vbp_info.thresholds;
   // Flat array representing quadtree nodes up to 16x16 level for 256x256 SB
   PART_EVAL_STATUS force_split[VBP_FORCE_SPLIT_NODES] = { PART_EVAL_ALL };
   int avg_64x64;
@@ -714,10 +824,7 @@ void av2_choose_var_based_partitioning(AV2_COMP *cpi,
 
   unsigned int y_sad = UINT_MAX;
 
-  int64_t thresholds[6] = { vbp_thresholds[0], vbp_thresholds[1],
-                            vbp_thresholds[2], vbp_thresholds[3],
-                            vbp_thresholds[4], vbp_thresholds[5] };
-
+  int64_t thresholds[6];
   const int qindex = cm->quant_params.base_qindex;
 
   set_vbp_thresholds(cpi, thresholds, qindex);
@@ -726,7 +833,7 @@ void av2_choose_var_based_partitioning(AV2_COMP *cpi,
   int src_stride = x->plane[AVM_PLANE_Y].src.stride;
 
   if (!is_key_frame) {
-    setup_planes(cpi, x, &y_sad, mi_row, mi_col, is_small_sb, scaled_ref_last);
+    setup_planes(cpi, x, &y_sad, mi_row, mi_col, scaled_ref_last);
 
     MB_MODE_INFO *mi = xd->mi[0];
     // Use reference SB directly for zero mv.
@@ -744,10 +851,10 @@ void av2_choose_var_based_partitioning(AV2_COMP *cpi,
 
   // TODO(jianj-g, marpan-max): add chroma check/adjustments.
   // TODO(jianj-g, marpan-max): check for early exits.
-  const int num_128x128_blocks =
-      (cm->seq_params.sb_size == BLOCK_256X256) ? 4 : 1;
   VP128x128 *vt;
+  VP128x128 vt_local;
   if (cm->seq_params.sb_size == BLOCK_256X256) {
+    const int num_128x128_blocks = 4;
     if (td->vt128x128 == NULL) {
       AVM_CHECK_MEM_ERROR(
           xd->error_info, td->vt128x128,
@@ -755,7 +862,7 @@ void av2_choose_var_based_partitioning(AV2_COMP *cpi,
     }
     vt = td->vt128x128;
   } else {
-    AVM_CHECK_MEM_ERROR(xd->error_info, vt, avm_malloc(sizeof(*vt)));
+    vt = &vt_local;
   }
   if (td->vt64x64 == NULL) {
     AVM_CHECK_MEM_ERROR(xd->error_info, td->vt64x64,
@@ -771,7 +878,7 @@ void av2_choose_var_based_partitioning(AV2_COMP *cpi,
 
   // Fill in the entire tree of 8x8 (for inter frames) or 4x4 (for key frames)
   // variances for splits.
-  fill_variance_tree_leaves(x, vt, force_split, avg_16x16, maxvar_16x16,
+  fill_variance_tree_leaves(cpi, x, vt, force_split, avg_16x16, maxvar_16x16,
                             minvar_16x16, thresholds, src_buf, src_stride,
                             dst_buf, dst_stride, is_key_frame,
                             cm->seq_params.sb_size);
@@ -780,6 +887,8 @@ void av2_choose_var_based_partitioning(AV2_COMP *cpi,
   const int offset_64x64 = offsets.offset_64x64;
   const int offset_32x32 = offsets.offset_32x32;
   const int offset_16x16 = offsets.offset_16x16;
+  const bool is_lowres = (cm->width * cm->height <= RESOLUTION_288P);
+  const bool is_screen = (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN);
 
   avg_64x64 = 0;
   for (int blk64_idx = 0; blk64_idx < num_64x64_blocks; ++blk64_idx) {
@@ -802,11 +911,11 @@ void av2_choose_var_based_partitioning(AV2_COMP *cpi,
         get_variance(&vtemp->part_variances.none);
         if (vtemp->part_variances.none.variance > thresholds[4]) {
           const int split_index = offset_16x16 + lvl1_scale_idx + lvl2_idx;
-          force_split[split_index] = PART_EVAL_ONLY_SPLIT;
-          force_split[offset_32x32 + blk64_scale_idx + lvl1_idx] =
-              PART_EVAL_ONLY_SPLIT;
-          force_split[blk64_idx + offset_64x64] = PART_EVAL_ONLY_SPLIT;
-          force_split[0] = PART_EVAL_ONLY_SPLIT;
+          const int current_qindex = cm->quant_params.base_qindex;
+          force_split[split_index] = get_part_eval_based_on_sub_blk_var(
+              vtemp, thresholds[2], current_qindex, is_lowres, is_screen);
+          force_split_ancestors(force_split, offset_64x64, offset_32x32,
+                                blk64_idx, lvl1_idx);
         }
       }
       fill_variance_tree(&vt64->split[lvl1_idx], BLOCK_32X32);
@@ -826,20 +935,21 @@ void av2_choose_var_based_partitioning(AV2_COMP *cpi,
         if (var_32x32 > thresholds[3] ||
             (!is_key_frame && var_32x32 > (thresholds[3] >> 1) &&
              var_32x32 > (avg_16x16[blk64_idx][lvl1_idx] >> 1))) {
-          force_split[offset_32x32 + blk64_scale_idx + lvl1_idx] =
-              PART_EVAL_ONLY_SPLIT;
-          force_split[blk64_idx + offset_64x64] = PART_EVAL_ONLY_SPLIT;
-          force_split[0] = PART_EVAL_ONLY_SPLIT;
-        } else if (!is_key_frame && is_360p_or_smaller &&
-                   ((max_min_var_16X16_diff > (thresholds[3] >> 1) &&
-                     maxvar_16x16[blk64_idx][lvl1_idx] > thresholds[3]) ||
-                    (maxvar_16x16[blk64_idx][lvl1_idx] > (thresholds[3] >> 4) &&
-                     maxvar_16x16[blk64_idx][lvl1_idx] >
-                         (minvar_16x16[blk64_idx][lvl1_idx] << 2)))) {
-          force_split[offset_32x32 + blk64_scale_idx + lvl1_idx] =
-              PART_EVAL_ONLY_SPLIT;
-          force_split[blk64_idx + offset_64x64] = PART_EVAL_ONLY_SPLIT;
-          force_split[0] = PART_EVAL_ONLY_SPLIT;
+          force_split_ancestors(force_split, offset_64x64, offset_32x32,
+                                blk64_idx, lvl1_idx);
+        } else if (!is_key_frame && !is_screen &&
+                   ((is_360p_or_smaller &&
+                     ((max_min_var_16X16_diff > (thresholds[3] >> 1) &&
+                       maxvar_16x16[blk64_idx][lvl1_idx] > thresholds[3]) ||
+                      (maxvar_16x16[blk64_idx][lvl1_idx] >
+                           (thresholds[3] >> 4) &&
+                       maxvar_16x16[blk64_idx][lvl1_idx] >
+                           (minvar_16x16[blk64_idx][lvl1_idx] << 2)))) ||
+                    (!is_360p_or_smaller &&
+                     (max_min_var_16X16_diff > (thresholds[3] >> 1) &&
+                      maxvar_16x16[blk64_idx][lvl1_idx] > thresholds[3])))) {
+          force_split_ancestors(force_split, offset_64x64, offset_32x32,
+                                blk64_idx, lvl1_idx);
         }
       }
     }
@@ -851,13 +961,14 @@ void av2_choose_var_based_partitioning(AV2_COMP *cpi,
       min_var_64x64 = AVMMIN(var_64x64, min_var_64x64);
       // If the difference of the max-min variances of sub-blocks or max
       // variance of a sub-block is above some threshold of then force this
-      // block to split. Only checking this for noise level >= medium, if
-      // encoder is in SVC or if we already forced large blocks.
+      // block to split.
       const int max_min_var_32x32_diff =
           max_var_32x32[blk64_idx] - min_var_32x32[blk64_idx];
+      const int check_max_var = max_var_32x32[blk64_idx] > (thresholds[2] >> 1);
       const int64_t set_threshold = 3 * (thresholds[2] >> 3);
 
-      if (!is_key_frame && max_min_var_32x32_diff > set_threshold) {
+      if (!is_key_frame && max_min_var_32x32_diff > set_threshold &&
+          check_max_var) {
         force_split[offset_64x64 + blk64_idx] = PART_EVAL_ONLY_SPLIT;
         force_split[0] = PART_EVAL_ONLY_SPLIT;
       }
@@ -870,14 +981,11 @@ void av2_choose_var_based_partitioning(AV2_COMP *cpi,
       cm->seq_params.sb_size != BLOCK_256X256) {
     fill_variance_tree(vt, BLOCK_128X128);
     get_variance(&vt->part_variances.none);
-    const int set_avg_64x64 = (9 * avg_64x64) >> 5;
-    if (!is_key_frame && vt->part_variances.none.variance > set_avg_64x64)
-      force_split[0] = PART_EVAL_ONLY_SPLIT;
-
     if (!is_key_frame &&
-        (max_var_64x64 - min_var_64x64) > 3 * (thresholds[1] >> 3) &&
-        max_var_64x64 > thresholds[1] >> 1)
+        check_128x128_split(vt->part_variances.none.variance, avg_64x64,
+                            min_var_64x64, max_var_64x64, thresholds[1])) {
       force_split[0] = PART_EVAL_ONLY_SPLIT;
+    }
   }
 
   if (cm->seq_params.sb_size == BLOCK_256X256) {
@@ -908,15 +1016,10 @@ void av2_choose_var_based_partitioning(AV2_COMP *cpi,
           max_var_64x64_128 = AVMMAX(v64, max_var_64x64_128);
           min_var_64x64_128 = AVMMIN(v64, min_var_64x64_128);
         }
-        const int set_avg_64x64 = (9 * avg_64x64_128) >> 5;
         if (!is_key_frame &&
-            vt[blk128_idx].part_variances.none.variance > set_avg_64x64) {
-          force_split_128[blk128_idx] = PART_EVAL_ONLY_SPLIT;
-        }
-        if (!is_key_frame &&
-            (max_var_64x64_128 - min_var_64x64_128) >
-                3 * (thresholds[1] >> 3) &&
-            max_var_64x64_128 > thresholds[1] >> 1) {
+            check_128x128_split(vt[blk128_idx].part_variances.none.variance,
+                                avg_64x64_128, min_var_64x64_128,
+                                max_var_64x64_128, thresholds[1])) {
           force_split_128[blk128_idx] = PART_EVAL_ONLY_SPLIT;
         }
       }
@@ -960,8 +1063,5 @@ void av2_choose_var_based_partitioning(AV2_COMP *cpi,
                                   offsets);
       }
     }
-  }
-  if (cm->seq_params.sb_size != BLOCK_256X256) {
-    avm_free(vt);
   }
 }
