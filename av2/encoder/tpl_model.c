@@ -1260,8 +1260,6 @@ void av2_tpl_setup_stats(AV2_COMP *cpi, int gop_eval,
   init_gop_frames_for_tpl(cpi, frame_params, gf_group, gop_eval,
                           &tpl_gf_group_frames, frame_input, &pframe_qindex);
 
-  cpi->rc.base_layer_qp = pframe_qindex;
-
   av2_init_tpl_stats(tpl_data);
 
   tpl_row_mt->sync_read_ptr = av2_tpl_row_mt_sync_read_dummy;

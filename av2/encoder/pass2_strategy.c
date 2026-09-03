@@ -2746,7 +2746,6 @@ static void process_first_pass_stats(AV2_COMP *cpi,
         section_target_bandwidth, DEFAULT_GRP_WEIGHT);
 
     rc->active_worst_quality = tmp_q;
-    rc->ni_av_qi = tmp_q;
     rc->last_q[INTER_FRAME] = tmp_q;
     rc->avg_q = av2_convert_qindex_to_q(tmp_q, cm->seq_params.bit_depth);
     rc->avg_frame_qindex[INTER_FRAME] = tmp_q;

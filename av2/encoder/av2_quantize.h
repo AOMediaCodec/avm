@@ -28,7 +28,6 @@ extern "C" {
 
 typedef struct QUANT_PARAM {
   int log_scale;
-  TX_SIZE tx_size;
   const qm_val_t *qmatrix;
   const qm_val_t *iqmatrix;
   int use_quant_b_adapt;

@@ -62,8 +62,6 @@ typedef struct PICK_MODE_CONTEXT {
   int rd_mode_is_ready;  // Flag to indicate whether rd pick mode decision has
                          // been made.
   CHROMA_REF_INFO chroma_ref_info;
-  struct PC_TREE *parent;
-  int index;
 } PICK_MODE_CONTEXT;
 
 typedef struct PC_TREE {
