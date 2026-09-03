@@ -234,28 +234,16 @@ typedef struct LV_MAP_COEFF_COST {
   //! Quick access to precomputed base costs for optimized access.
   //! Cost for encoding coeff_base Y zero coeff.
   int32_t base_cost_zero[TCQ_CTXS][SIG_COEF_CONTEXTS];
-  //! Cost for encoding coeff_base UV zero coeff.
-  int32_t base_cost_uv_zero[SIG_COEF_CONTEXTS];
   //! Cost for encoding coeff base + mid Y values.
   uint16_t base_cost_low_tbl[5][SIG_COEF_CONTEXTS][TCQ_CTXS][2];
-  //! Cost for encoding coeff base + mid UV values.
-  uint16_t base_cost_uv_low_tbl[5][SIG_COEF_CONTEXTS][2];
   //! Cost for encoding coeff_base Y zero value (LF region).
   uint16_t base_lf_cost_zero[TCQ_CTXS][LF_SIG_COEF_CONTEXTS];
-  //! Cost for encoding coeff_base UV zero value (LF region).
-  uint16_t base_lf_cost_uv_zero[LF_SIG_COEF_CONTEXTS];
   //! Cost for encoding coeff base + mid Y values (LF region).
   uint16_t base_lf_cost_low_tbl[9][LF_SIG_COEF_CONTEXTS][TCQ_CTXS][2];
-  //! Cost for encoding coeff base + mid UV values (LF region).
-  uint16_t base_lf_cost_uv_low_tbl[9][LF_SIG_COEF_CONTEXTS][2];
   //! Cost for encoding eob position.
   uint16_t base_eob_cost_tbl[5][SIG_COEF_CONTEXTS_EOB][2];
-  //! Cost for encoding eob position (UV).
-  uint16_t base_eob_cost_uv_tbl[5][SIG_COEF_CONTEXTS_EOB][2];
   //! Cost for encoding eob position (LF region).
   uint16_t base_lf_eob_cost_tbl[9][SIG_COEF_CONTEXTS_EOB][2];
-  //! Cost for encoding eob position (YV, LF region).
-  uint16_t base_lf_eob_cost_uv_tbl[9][SIG_COEF_CONTEXTS_EOB][2];
   //! Quick access to mid (br) costs for optimized access.
   uint16_t mid_cost_tbl[11][LEVEL_CONTEXTS][TCQ_CTXS][2];
   //! Quick access to mid (br) costs for optimized access (LF region).
@@ -370,16 +358,12 @@ typedef struct {
 typedef struct {
   //! Txfm size used if the current mode is intra mode.
   TX_SIZE tx_size;
-  //! Txfm sizes used if the current mode is inter mode.
-  TX_SIZE inter_tx_size[INTER_TX_SIZE_BUF_LEN];
   //! Txfm partitions used if the current mode is inter mode.
   TX_PARTITION_TYPE tx_partition_type[TX_PARTITION_BUF];
   //! Map showing which txfm block skips the txfm process.
   uint8_t blk_skip[MAX_MIB_SIZE * MAX_MIB_SIZE];
   //! Map showing the txfm types for each blcok.
   TX_TYPE tx_type_map[MAX_MIB_SIZE * MAX_MIB_SIZE];
-  //! Map showing the cctx types for each block.
-  CctxType cctx_type_map[MAX_MIB_SIZE * MAX_MIB_SIZE];
   //! Rd_stats for the whole partition block.
   RD_STATS rd_stats;
   //! Hash value of the current record.
@@ -391,53 +375,13 @@ typedef struct {
 typedef struct {
   //! Circular buffer that stores the txfm search results.
   MB_RD_INFO tx_rd_info[RD_RECORD_BUFFER_LEN];  // Circular buffer.
-  //! Index to insert the newest \ref TXB_RD_INFO.
+  //! Index to insert the newest \ref MB_RD_INFO.
   int index_start;
   //! Number of info stored in this record.
   int num;
   //! Hash function
   CRC32C crc_calculator;
 } MB_RD_RECORD;
-
-/*! \brief Txfm search results for a tx block.
- */
-typedef struct {
-  //! Distortion after the txfm process
-  int64_t dist;
-  //! SSE of the prediction before the txfm process
-  int64_t sse;
-  //! Rate used to encode the txfm.
-  int rate;
-  //! Location of the end of non-zero entries.
-  uint16_t eob;
-  //! Location of the first of non-zero entries.
-  uint16_t bob;
-  //! Transform type used on the current block.
-  TX_TYPE tx_type;
-  //! Unknown usage
-  uint16_t entropy_context;
-  //! Context used to code the coefficients.
-  uint8_t txb_entropy_ctx;
-  //! Whether the current info block contains  valid info
-  uint8_t valid;
-  //! Unused
-  uint8_t fast;
-  //! Whether trellis optimization is done.
-  uint8_t perform_block_coeff_opt;
-} TXB_RD_INFO;
-
-/*! \brief Hash records of txfm search result for each tx block.
- */
-typedef struct {
-  //! The hash values.
-  uint32_t hash_vals[TX_SIZE_RD_RECORD_BUFFER_LEN];
-  //! The txfm search results
-  TXB_RD_INFO tx_rd_info[TX_SIZE_RD_RECORD_BUFFER_LEN];
-  //! Index to insert the newest \ref TXB_RD_INFO.
-  int index_start;
-  //! Number of info stored in this record.
-  int num;
-} TXB_RD_RECORD;
 
 //! Number of compound rd stats
 #define MAX_COMP_RD_STATS 64
@@ -555,7 +499,6 @@ typedef struct {
 /*! \brief Contains data for simple motion
  */
 typedef struct SimpleMotionData {
-  MV mv_ref;                         /*!< mv reference */
   MV fullmv;                         /*!< mv full */
   MV submv;                          /*!< mv subpel */
   unsigned int sse;                  /*!< sse */
@@ -647,12 +590,6 @@ typedef struct SimpleMotionDataBufs {
   MAKE_SM_DATA_BUF(64, 8, 0);
   MAKE_SM_DATA_BUF(32, 4, 0);
 
-  // 1:16 blocks
-  MAKE_SM_DATA_BUF(4, 64, 0);
-
-  // 16:1 blocks
-  MAKE_SM_DATA_BUF(64, 4, 0);
-
   // Square blocks
   MAKE_SM_DATA_BUF(256, 256, 1);
   MAKE_SM_DATA_BUF(128, 128, 1);
@@ -695,12 +632,6 @@ typedef struct SimpleMotionDataBufs {
   // 8:1 blocks
   MAKE_SM_DATA_BUF(64, 8, 1);
   MAKE_SM_DATA_BUF(32, 4, 1);
-
-  // 1:16 blocks
-  MAKE_SM_DATA_BUF(4, 64, 1);
-
-  // 16:1 blocks
-  MAKE_SM_DATA_BUF(64, 4, 1);
   /*!\endcond */
 } SimpleMotionDataBufs;
 
@@ -723,21 +654,6 @@ typedef struct {
   float cnn_buffer[CNN_OUT_BUF_SIZE];
   //! log of the quantization parameter of the ancestor BLOCK_64X64.
   float log_q;
-
-  /*! \brief Variance of the subblocks in the superblock.
-   *
-   * This is used by rt mode for variance based partitioning.
-   * The indices corresponds to the following block sizes:
-   * -   0    - 128x128
-   * -  1-2   - 128x64
-   * -  3-4   -  64x128
-   * -  5-8   -  64x64
-   * -  9-16  -  64x32
-   * - 17-24  -  32x64
-   * - 25-40  -  32x32
-   * - 41-104 -  16x16
-   */
-  uint8_t variance_low[105];
 } PartitionSearchInfo;
 
 /*! \brief Defines the parameters used to perform txfm search.
@@ -804,13 +720,6 @@ typedef struct {
   int eval_mode_type;
 } TxfmSearchParams;
 
-/*!\cond */
-#define MAX_NUM_8X8_TXBS ((MAX_MIB_SIZE >> 1) * (MAX_MIB_SIZE >> 1))
-#define MAX_NUM_16X16_TXBS ((MAX_MIB_SIZE >> 2) * (MAX_MIB_SIZE >> 2))
-#define MAX_NUM_32X32_TXBS ((MAX_MIB_SIZE >> 3) * (MAX_MIB_SIZE >> 3))
-#define MAX_NUM_64X64_TXBS ((MAX_MIB_SIZE >> 4) * (MAX_MIB_SIZE >> 4))
-/*!\endcond */
-
 /*! \brief Stores various encoding/search decisions related to txfm search.
  *
  * This struct contains a cache of previous txfm results, and some buffers for
@@ -851,25 +760,9 @@ typedef struct {
    * - MB_RD_RECORD: records a whole *partition block*'s inter-mode txfm result.
    *   Since this operates on the partition block level, this can give us a
    *   whole txfm partition tree.
-   * - TXB_RD_RECORD: records a txfm search result within a transform blcok
-   *   itself. This operates on txb level only and onlyt appplies to square
-   *   txfms.
    */
-  /**@{*/
   //! Txfm hash record for the whole coding block.
   MB_RD_RECORD mb_rd_record;
-
-  //! Inter mode txfm hash record for TX_8X8 blocks.
-  TXB_RD_RECORD txb_rd_record_8X8[MAX_NUM_8X8_TXBS];
-  //! Inter mode txfm hash record for TX_16X16 blocks.
-  TXB_RD_RECORD txb_rd_record_16X16[MAX_NUM_16X16_TXBS];
-  //! Inter mode txfm hash record for TX_32X32 blocks.
-  TXB_RD_RECORD txb_rd_record_32X32[MAX_NUM_32X32_TXBS];
-  //! Inter mode txfm hash record for TX_64X64 blocks.
-  TXB_RD_RECORD txb_rd_record_64X64[MAX_NUM_64X64_TXBS];
-  //! Intra mode txfm hash record for square tx blocks.
-  TXB_RD_RECORD txb_rd_record_intra;
-  /**@}*/
 
   /*! \brief Number of txb splits.
    *
@@ -887,10 +780,6 @@ typedef struct {
   unsigned int tx_search_count;
 #endif  // CONFIG_SPEED_STATS
 } TxfmSearchInfo;
-#undef MAX_NUM_8X8_TXBS
-#undef MAX_NUM_16X16_TXBS
-#undef MAX_NUM_32X32_TXBS
-#undef MAX_NUM_64X64_TXBS
 
 /*! \brief Holds the entropy costs for various modes sent to the bitstream.
  *
@@ -924,15 +813,10 @@ typedef struct {
   /**@{*/
   //! Luma mode cost for inter frame.
   int mbmode_cost[BLOCK_SIZE_GROUPS][INTRA_MODES];
-  //! Luma mode cost for intra frame.
-  int y_mode_costs[INTRA_MODES][INTRA_MODES][INTRA_MODES];
   //! intra_dip_cost
   int intra_dip_cost[DIP_CTXS][2];
   //! intra_dip_mode_cost
   int intra_dip_mode_cost[16];
-  //! angle_delta_cost
-  int angle_delta_cost[PARTITION_STRUCTURE_NUM][DIRECTIONAL_MODES]
-                      [2 * MAX_ANGLE_DELTA + 1];
 
   //! mrl_index_cost
   int mrl_index_cost[MRL_INDEX_CONTEXTS][MRL_LINE_NUMBER];
@@ -944,8 +828,6 @@ typedef struct {
   int cfl_mhccp_cost[CFL_MHCCP_SWITCH_NUM];
   //! Cost of signaling the cfl mode
   int cfl_index_cost[CFL_TYPE_COUNT - 1];
-  //! Cost of signaling the cfl mode when mhccp is not applicable
-  int cfl_index_mhccp0_cost[CFL_TYPE_COUNT - 2];
   //! cost of signaling filter direction
   int filter_dir_cost[MHCCP_CONTEXT_GROUP_SIZE][MHCCP_MODE_NUM];
 
@@ -981,8 +863,6 @@ typedef struct {
   int intrabc_cost[INTRABC_CONTEXTS][2];
   //! intrabc_mode_cost
   int intrabc_mode_cost[2];
-  //! intrabc_drl_idx_cost
-  int intrabc_drl_idx_cost[MAX_REF_BV_STACK_SIZE - 1][2];
   //! intrabc_bv_precision_cost
   int intrabc_bv_precision_cost[NUM_BV_PRECISION_CONTEXTS]
                                [NUM_ALLOWED_BV_PRECISIONS];
@@ -1460,8 +1340,8 @@ typedef struct macroblock {
 
   //! The rate needed to encode a new block vector to the bitstream and some
   //! multipliers for motion search.
-
   IntraBCMvCosts dv_costs;
+
   //! The rate needed to signal the txfm coefficients to the bitstream.
   CoeffCosts coeff_costs;
   /**@}*/
@@ -1539,14 +1419,6 @@ typedef struct macroblock {
    * \name Prediction Mode Search
    ****************************************************************************/
   /**@{*/
-  /*! \brief Inter skip mode.
-   *
-   * Skip mode tries to use the closest forward and backward references for
-   * inter prediction. Skip here means to skip transmitting the reference
-   * frames, not to be confused with skip_txfm.
-   */
-  int skip_mode;
-
   /*! \brief Factors used for rd-thresholding.
    *
    * Determines a rd threshold to determine whether to continue searching the

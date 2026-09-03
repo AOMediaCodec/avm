@@ -393,7 +393,6 @@ typedef struct TXB_POS_INFO {
   int n_partitions;                   // number of txfm partitions
 } TXB_POS_INFO;
 
-#define INTER_TX_SIZE_BUF_LEN 64
 #define TXK_TYPE_BUF_LEN 64
 #define TX_PARTITION_BUF 16
 /*!\endcond */

@@ -872,8 +872,6 @@ typedef struct {
   bool enable_joint_mvd;
   // Indicates if refineMV mode should be enabled.
   bool enable_refinemv;
-  // Indicates if cfl should be enabled.
-  bool enable_cfl_intra;
   // Indicates if mvd sign derivation should be enabled.
   bool enable_mvd_sign_derive;
   // enable temporal interpolated prediction
@@ -1210,9 +1208,6 @@ typedef struct AV2EncoderConfig {
 
   // Configuration related to layering information.
   LayerCfg layer_cfg;
-
-  // Number of operating points per OPS, in the range 0 to MAX_OPS_COUNT (7).
-  int operating_points_count;
 
   // Enable the low complexity decode mode.
   unsigned int enable_low_complexity_decode;
@@ -2165,14 +2160,6 @@ typedef struct {
    * True relative distance of reference frames w.r.t. the current frame.
    */
   int ref_relative_dist[INTER_REFS_PER_FRAME];
-  /*!
-   * The nearest reference w.r.t. current frame in the past.
-   */
-  int8_t nearest_past_ref;
-  /*!
-   * The nearest reference w.r.t. current frame in the future.
-   */
-  int8_t nearest_future_ref;
 } RefFrameDistanceInfo;
 
 /*!
@@ -2271,11 +2258,6 @@ typedef struct {
   ExtRefreshFrameFlagsInfo refresh_frame;
 
   /*!
-   * Flag to enable CDF initialization with cross frame contexts at the
-   * beginning of a frame decode.
-   */
-  bool cross_frame_context;
-  /*!
    * Flag to enable temporal MV prediction.
    */
   bool use_ref_frame_mvs;
@@ -2323,15 +2305,6 @@ typedef struct {
   // Whether the current struct contains valid data
   int valid;
 } MV_STATS;
-
-typedef struct {
-  struct loopfilter lf;
-  CdefInfo cdef_info;
-  YV12_BUFFER_CONFIG copy_buffer;
-  RATE_CONTROL rc;
-  MV_STATS mv_stats;
-  FeatureFlags features;
-} CODING_CONTEXT;
 
 typedef struct {
   int frame_width;
@@ -3193,7 +3166,6 @@ typedef struct EncodeFrameParams {
   FRAME_TYPE frame_type;
 
   /*!\cond */
-  int primary_ref_frame;
   int order_offset;
 
   /*!\endcond */

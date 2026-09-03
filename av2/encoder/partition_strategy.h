@@ -41,11 +41,6 @@
 // Number of sub-partitions in split partition type.
 #define SUB_PARTITIONS_SPLIT 4
 
-// Structure to keep win flags for HORZ and VERT partition evaluations.
-typedef struct {
-  int rect_part_win[NUM_RECT_PARTS];
-} RD_RECT_PART_WIN_INFO;
-
 struct PartitionSearchState;
 
 void av2_intra_mode_cnn_partition(
