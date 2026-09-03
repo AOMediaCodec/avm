@@ -1447,12 +1447,6 @@ void av2_encode_block_intra(int plane, int block, int blk_row, int blk_col,
                             (!frame_is_intra_only(cm) &&
                              (INTRA_BLOCK_OPT_TYPE == TRELLIS_OPT ||
                               INTRA_BLOCK_OPT_TYPE == TRELLIS_DROPOUT_OPT));
-    const bool do_dropout = (frame_is_intra_only(cm) &&
-                             (KEY_BLOCK_OPT_TYPE == DROPOUT_OPT ||
-                              KEY_BLOCK_OPT_TYPE == TRELLIS_DROPOUT_OPT)) ||
-                            (!frame_is_intra_only(cm) &&
-                             (INTRA_BLOCK_OPT_TYPE == DROPOUT_OPT ||
-                              INTRA_BLOCK_OPT_TYPE == TRELLIS_DROPOUT_OPT));
     const int use_tcq_deadzone_boost =
         use_tcq && quant_param.use_optimize_b && do_trellis && !fsc_mode &&
         cpi->sf.tx_sf.enable_adaptive_tcq_threshold &&
@@ -1479,41 +1473,8 @@ void av2_encode_block_intra(int plane, int block, int blk_row, int blk_col,
                        &txb_ctx, &dummy_rate_cost);
     }
 
-    if (do_dropout && !fsc_mode && !enable_parity_hiding) {
-      av2_dropout_qcoeff(x, plane, block, tx_size, tx_type,
-                         cm->quant_params.base_qindex);
-    }
-    // make sure recon is correct at the encoder
-    if (*eob == 1 && tx_type != 0 && plane == 0) {
-      xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col] = DCT_DCT;
-      tx_type = av2_get_tx_type(xd, plane_type, blk_row, blk_col, tx_size,
-                                is_reduced_tx_set_used(cm, plane_type));
-      av2_subtract_txb(x, plane, plane_bsize, blk_col, blk_row, tx_size,
-                       cm->width, cm->height, get_primary_tx_type(tx_type));
-      av2_setup_xform(cm, x, plane, tx_size, tx_type, CCTX_NONE, &txfm_param);
-      av2_setup_quant(tx_size, use_trellis, quant_idx,
-                      cpi->oxcf.q_cfg.quant_b_adapt, &quant_param);
-      av2_setup_qmatrix(&cm->quant_params, xd, plane, tx_size, tx_type,
-                        &quant_param);
-      av2_xform_quant(use_tcq_deadzone_boost, cm, x, plane, block, blk_row,
-                      blk_col, plane_bsize, &txfm_param, &quant_param);
-      if (quant_param.use_optimize_b && do_trellis) {
-        TXB_CTX txb_ctx;
-        get_txb_ctx(plane_bsize, tx_size, plane, a, l, &txb_ctx,
-                    mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
-                        cm->seq_params.enable_fsc);
-        if (fsc_mode)
-          av2_optimize_fsc(args->cpi, x, plane, block, tx_size, tx_type,
-                           &txb_ctx, &dummy_rate_cost);
-        else
-          av2_optimize_b(args->cpi, x, plane, block, tx_size, tx_type,
-                         CCTX_NONE, &txb_ctx, &dummy_rate_cost);
-      }
-      if (do_dropout && !fsc_mode && !enable_parity_hiding) {
-        av2_dropout_qcoeff(x, plane, block, tx_size, tx_type,
-                           cm->quant_params.base_qindex);
-      }
-    }
+    if (*eob == 1 && plane == 0) assert(tx_type == DCT_DCT);
+
     if (!quant_param.use_optimize_b && enable_parity_hiding) {
       parity_hiding_trellis_off(cpi, x, plane, block, tx_size, tx_type);
     }
