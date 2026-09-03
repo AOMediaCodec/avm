@@ -1105,6 +1105,9 @@ typedef struct REALTIME_SPEED_FEATURES {
 
   // Flag to disable all but DC intra mode for inter frame prediction.
   bool use_only_dc_intra_interframe;
+
+  // Compute source sad metrics for superblock.
+  int source_metrics_sb;
 } REALTIME_SPEED_FEATURES;
 
 typedef struct LC_DEC_SPEED_FEATURES {
