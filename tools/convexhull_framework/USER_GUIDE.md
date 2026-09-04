@@ -1514,7 +1514,7 @@ perceptual_metrics:
   color_conversion:
     sdr_matrix: "bt709"       # "bt601" to match the image codec study
     hdr_matrix: "bt2020nc"
-    default_range: "tv"       # only when the y4m has no XCOLORRANGE tag
+    default_range: "pc"       # full range; only when no XCOLORRANGE tag
 ```
 
 With `enabled: false` the framework behaves exactly as before and never imports torch, so
@@ -1550,7 +1550,7 @@ invocation matches the one used by the AI image codec evaluation study, so resul
 the two frameworks are produced the same way:
 
 ```
-ffmpeg -i in.y4m -vf "scale=in_color_matrix=bt709:in_range=tv\
+ffmpeg -i in.y4m -vf "scale=in_color_matrix=bt709:in_range=pc\
 :out_color_matrix=bt709:out_range=pc\
 :flags=lanczos+accurate_rnd+full_chroma_int:sws_dither=none:param0=5,format=rgb24" \
   -pix_fmt rgb24 -f rawvideo -
@@ -1563,13 +1563,14 @@ configurable under `perceptual_metrics.color_conversion`:
 |---------|---------|-------|
 | `sdr_matrix` | `bt709` | Correct for CTC video. The image codec study uses `bt601` for its PNG-derived still images — set that here to reproduce it exactly. |
 | `hdr_matrix` | `bt2020nc` | Applied to the `hdr_classes` clips. |
-| `default_range` | `tv` | Used **only** when the y4m has no `XCOLORRANGE` tag. |
+| `default_range` | `pc` (full) | Used **only** when the y4m has no `XCOLORRANGE` tag. Matches the AV2 CTC sequences and the image codec study, which reads them with `in_range=pc`. Set `tv` for limited-range content. |
 
 **Range is detected, not assumed.** y4m can carry `XCOLORRANGE=FULL` / `LIMITED`, and a
 tagged file always wins over `default_range`. Files produced by
 `ffmpeg … -color_range pc` (as in the image codec study's PNG → y4m step) are tagged
-`FULL`; standard CTC sequences are usually untagged and fall back to `tv`. Which value was
-used, and why, is recorded in the output JSON as `in_range_ref` / `in_range_dist`.
+`FULL`; the CTC sequences are usually untagged and fall back to `default_range`. Which
+value was used, and why, is recorded in the output JSON as `in_range_ref` /
+`in_range_dist` — check those fields if scores look off.
 
 Two flags are load-bearing rather than cosmetic. `accurate_rnd`: without it swscale's
 limited-to-full expansion falls ~2/255 short across the whole range (Y=235 maps to 253
