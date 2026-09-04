@@ -573,9 +573,10 @@ def DrawIndividualRDCurve(records, pdf):
 def CalcOneBDRate(qty, br_anchor, qty_anchor, br_test, qty_test):
     """BD-rate for one metric, handling polarity and missing values.
 
-    BD_RATE assumes higher quality is better. LPIPS and DISTS are the
-    opposite, so their values are negated first; the resulting BD-rate then
-    keeps the usual convention that negative means a bitrate saving.
+    LPIPS and DISTS improve as their value falls, so BD_RATE is told which
+    direction to expect; its monotonicity check would otherwise reject every
+    well behaved curve for those metrics. The sign convention is unaffected:
+    a negative BD-rate means a bitrate saving for every metric.
 
     A metric that was not computed (NaN) yields an error code so the caller
     records 0.0 rather than fabricating a comparison from missing data.
@@ -583,11 +584,10 @@ def CalcOneBDRate(qty, br_anchor, qty_anchor, br_test, qty_test):
     if any(v is None or math.isnan(v) for v in list(qty_anchor) + list(qty_test)):
         return (-1, "metric not available")
 
-    if qty in LOWER_IS_BETTER_QTYS:
-        qty_anchor = [-v for v in qty_anchor]
-        qty_test = [-v for v in qty_test]
-
-    return BD_RATE(qty, br_anchor, qty_anchor, br_test, qty_test)
+    return BD_RATE(
+        qty, br_anchor, qty_anchor, br_test, qty_test,
+        lower_is_better=(qty in LOWER_IS_BETTER_QTYS),
+    )
 
 
 def GetQty(record, key, qty):
