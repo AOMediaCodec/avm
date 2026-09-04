@@ -310,7 +310,6 @@ static void set_good_speed_features_framesize_independent(
   sf->gm_sf.prune_ref_frame_for_gm_search = boosted ? 0 : 1;
   sf->gm_sf.disable_gm_search_based_on_stats = 1;
 
-  sf->part_sf.less_rectangular_check_level = 1;
   // This speed feature is currently not implemented. See comment in
   // av2_simple_motion_search_prune_rect() function.
   sf->part_sf.simple_motion_search_prune_rect = 0;
@@ -325,7 +324,6 @@ static void set_good_speed_features_framesize_independent(
   sf->inter_sf.prune_motion_mode_level = 1;
   sf->inter_sf.prune_ref_frames = 0;
   sf->inter_sf.prune_wedge_pred_diff_based = 1;
-  sf->inter_sf.reduce_inter_modes = 1;
   sf->inter_sf.selective_ref_frame = 1;
   sf->inter_sf.skip_mode_eval_based_on_rate_cost = 1;
   sf->inter_sf.skip_eval_intrabc_in_inter_frame =
@@ -478,7 +476,6 @@ static void set_good_speed_features_framesize_independent(
         (frame_is_intra_only(&cpi->common) || (allow_screen_content_tools))
             ? 0
             : (boosted ? 1 : 2);
-    sf->inter_sf.reduce_inter_modes = boosted ? 1 : 2;
     sf->inter_sf.reuse_inter_intra_mode = 1;
     sf->inter_sf.selective_ref_frame = 2;
     sf->inter_sf.skip_repeated_newmv = 1;
@@ -521,7 +518,6 @@ static void set_good_speed_features_framesize_independent(
     sf->hl_sf.recode_loop = ALLOW_RECODE_KFARFGF;
 
     sf->part_sf.allow_partition_search_skip = 1;
-    sf->part_sf.less_rectangular_check_level = 2;
     sf->part_sf.simple_motion_search_prune_agg = 1;
     sf->part_sf.simple_motion_search_early_term_none = 1;
     // TODO(Venkat): Clean-up frame type dependency for
@@ -791,7 +787,6 @@ static AVM_INLINE void init_gm_sf(GLOBAL_MOTION_SPEED_FEATURES *gm_sf) {
 
 static AVM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->partition_search_type = SEARCH_PARTITION;
-  part_sf->less_rectangular_check_level = 0;
   part_sf->use_square_partition_only_threshold = BLOCK_128X128;
   part_sf->auto_max_partition_based_on_simple_motion = NOT_IN_USE;
   part_sf->default_max_partition_size = BLOCK_LARGEST;
@@ -896,7 +891,6 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->model_based_post_interp_filter_breakout = 0;
   inter_sf->skip_temporary_pred_for_opfl = 0;
   inter_sf->enable_warp_inter_intra_in_winner = 0;
-  inter_sf->reduce_inter_modes = 0;
   inter_sf->alt_ref_search_fp = 0;
   inter_sf->disable_switchable_refinemv = 0;
   inter_sf->reduce_comp_refs = 0;

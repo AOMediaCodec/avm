@@ -115,8 +115,6 @@ typedef struct {
   int tile_stripe0;
   // Helps convert tile-localized RU indices to frame RU indices.
   int ru_idx_base;
-  // Number of RUs in tile
-  int num_rus_in_tile;
 
   WienerNonsepInfoBank wienerns_bank;
 
@@ -269,8 +267,6 @@ static AVM_INLINE void rsc_on_tile(void *priv, int idx_base, int tile_row,
   int ru_col_start, ru_col_end;
   get_ru_limits_in_tile(rsc->cm, rsc->plane, tile_row, tile_col, &ru_row_start,
                         &ru_row_end, &ru_col_start, &ru_col_end);
-  rsc->num_rus_in_tile =
-      (ru_row_end - ru_row_start) * (ru_col_end - ru_col_start);
 }
 
 static AVM_INLINE void reset_rsc(RestSearchCtxt *rsc) {
