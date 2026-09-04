@@ -447,6 +447,130 @@ def parseY4MHeader(y4m):
     return (w, h, fps_num, fps_denom, fps, fmt, bit_depth)
 
 
+######################################
+# y4m -> RGB conversion
+#
+# Used by the perceptual metrics (LPIPS / DISTS / ColorVideoVDP), which all
+# consume display-encoded RGB. The ffmpeg invocation mirrors the one in the
+# "Evaluation Report for AI-based Image Codecs" study so results from the two
+# frameworks are produced the same way.
+######################################
+
+# scaler flags, matching the image codec evaluation study:
+#   lanczos          - resampling kernel
+#   accurate_rnd     - without it swscale's range expansion lands ~2/255 short
+#                      (Y=235 -> 253 instead of 255)
+#   full_chroma_int  - full chroma interpolation when upsampling 4:2:0
+#   sws_dither=none  - no dithering, so the conversion is deterministic
+#   param0=5         - lanczos parameter
+Y4M_TO_RGB_SWS_FLAGS = "lanczos+accurate_rnd+full_chroma_int"
+Y4M_TO_RGB_SWS_EXTRA = "sws_dither=none:param0=5"
+
+
+def GetY4MColorRange(y4m):
+    """Return 'pc', 'tv' or None from a y4m header's XCOLORRANGE tag.
+
+    y4m files can carry XCOLORRANGE=FULL / XCOLORRANGE=LIMITED. Files produced
+    by `ffmpeg ... -color_range pc` (as in the image codec study's PNG -> y4m
+    step) are tagged FULL. Standard CTC video sequences are usually untagged,
+    in which case the caller falls back to its configured default rather than
+    guessing.
+    """
+    with open(y4m, "rb") as f:
+        line = f.readline().decode("utf-8", errors="replace")
+    m = re.search(r"XCOLORRANGE=(\w+)", line)
+    if not m:
+        return None
+    return "pc" if m.group(1).upper().startswith("FUL") else "tv"
+
+
+def GetY4MInfo(y4m):
+    """parseY4MHeader plus the colour range tag, as a dict."""
+    w, h, fps_num, fps_denom, fps, fmt, bit_depth = parseY4MHeader(y4m)
+    return {
+        "width": w,
+        "height": h,
+        "fps_num": fps_num,
+        "fps_denom": fps_denom,
+        "fps": float(fps_num) / float(fps_denom) if fps_denom else 0.0,
+        "fmt": fmt,
+        "bit_depth": bit_depth,
+        "color_range": GetY4MColorRange(y4m),
+    }
+
+
+def BuildY4MToRGBCmd(ffmpeg, src, matrix, in_range, out_pix_fmt):
+    """ffmpeg command converting a y4m to packed RGB on stdout.
+
+    Every colour parameter is stated explicitly rather than inferred: CTC y4m
+    files generally carry no colorimetry tags, so ffmpeg would silently assume
+    BT.709 and mis-convert BT.2020 content.
+    """
+    vf = (
+        "scale=in_color_matrix=%s:in_range=%s"
+        ":out_color_matrix=%s:out_range=pc"
+        ":flags=%s:%s,format=%s"
+        % (matrix, in_range, matrix, Y4M_TO_RGB_SWS_FLAGS,
+           Y4M_TO_RGB_SWS_EXTRA, out_pix_fmt)
+    )
+    return [
+        ffmpeg, "-nostdin", "-loglevel", "error",
+        "-i", src,
+        "-vf", vf,
+        "-pix_fmt", out_pix_fmt,
+        "-f", "rawvideo", "-",
+    ]
+
+
+def DecodeY4MToRGB(ffmpeg, src, info, matrix, in_range, tmpdir, tag):
+    """Decode a y4m to raw RGB in a temp file and return a read-only memmap.
+
+    Held on disk rather than in RAM: a 130-frame 2160p RGB sequence is several
+    GB, and ColorVideoVDP iterates the frames independently of LPIPS/DISTS, so
+    the data is read more than once.
+
+    Returns (memmap[frames, h, w, 3], command string, frame count).
+    """
+    # 8-bit sources stay 8-bit; anything deeper goes to 16-bit so the extra
+    # precision the codec was evaluated at is not truncated.
+    if info["bit_depth"] > 8:
+        pix_fmt, dtype, nbytes = "rgb48le", np.uint16, 6
+    else:
+        pix_fmt, dtype, nbytes = "rgb24", np.uint8, 3
+
+    cmd = BuildY4MToRGBCmd(ffmpeg, src, matrix, in_range, pix_fmt)
+    raw_path = os.path.join(tmpdir, "%s.rgb" % tag)
+    frame_bytes = info["width"] * info["height"] * nbytes
+
+    with open(raw_path, "wb") as out:
+        proc = subprocess.Popen(cmd, stdout=out, stderr=subprocess.PIPE)
+        _, err = proc.communicate()
+    if proc.returncode != 0:
+        raise RuntimeError(
+            "ffmpeg failed on %s (exit %d)\ncommand: %s\n%s"
+            % (src, proc.returncode, " ".join(cmd),
+               err.decode("utf-8", "replace"))
+        )
+
+    total = os.path.getsize(raw_path)
+    if frame_bytes == 0 or total % frame_bytes != 0:
+        raise RuntimeError(
+            "decoded size %d is not a whole number of %d-byte frames for %s"
+            % (total, frame_bytes, src)
+        )
+    n_frames = total // frame_bytes
+
+    mm = np.memmap(raw_path, dtype=dtype, mode="r",
+                   shape=(n_frames, info["height"], info["width"], 3))
+    return mm, " ".join(cmd), n_frames
+
+
+def ToUnitFloat(frame_u):
+    """uint8/uint16 HWC -> float32 HWC in [0,1]."""
+    max_val = 255.0 if frame_u.dtype == np.uint8 else 65535.0
+    return np.asarray(frame_u, dtype=np.float32) / max_val
+
+
 def CreateClipList(test_cfg):
     clip_list = []
     test_set = []
