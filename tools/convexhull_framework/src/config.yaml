@@ -230,10 +230,10 @@ perceptual_metrics:
     # Matrix for the hdr_classes above.
     hdr_matrix: "bt2020nc"
     # Input range when the y4m carries no XCOLORRANGE tag. A tagged file always
-    # wins over this setting. "tv" (limited) is the norm for CTC video
-    # sequences; set "pc" for full-range content such as the y4m files the
-    # image codec study generates from PNG with -color_range pc.
-    default_range: "tv"
+    # wins over this setting. "pc" (full range) matches the AV2 CTC y4m test
+    # sequences and the image codec study, which reads them with in_range=pc.
+    # Set "tv" only for limited-range content.
+    default_range: "pc"
 
 # =============================================================================
 # Extended Chroma Format (ECF) Configuration

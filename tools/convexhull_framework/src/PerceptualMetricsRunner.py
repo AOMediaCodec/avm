@@ -311,10 +311,11 @@ def ParseArguments(raw_args):
     parser.add_argument("--hdr-matrix", dest="HDRMatrix", type=str,
                         default="bt2020nc",
                         help="YUV->RGB matrix for HDR input")
-    parser.add_argument("--in-range", dest="InRange", type=str, default="tv",
+    parser.add_argument("--in-range", dest="InRange", type=str, default="pc",
                         choices=["tv", "pc"],
                         help="input colour range used when the y4m carries no "
-                             "XCOLORRANGE tag; a tagged file overrides this")
+                             "XCOLORRANGE tag; a tagged file overrides this "
+                             "(default pc = full range)")
     parser.add_argument("--ffmpeg", dest="FFmpeg", type=str, default="ffmpeg",
                         help="path to the ffmpeg binary")
     return parser.parse_args(raw_args[1:])

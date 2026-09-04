@@ -115,7 +115,7 @@ CVVDPDisplayMap = _perceptual_config.get(
 _color_conv = _perceptual_config.get("color_conversion", {})
 PerceptualSDRMatrix = _color_conv.get("sdr_matrix", "bt709")
 PerceptualHDRMatrix = _color_conv.get("hdr_matrix", "bt2020nc")
-PerceptualDefaultRange = _color_conv.get("default_range", "tv")
+PerceptualDefaultRange = _color_conv.get("default_range", "pc")
 
 ######################################
 # Test configuration (depends on EnableSubjectiveTest and EnableECF)
