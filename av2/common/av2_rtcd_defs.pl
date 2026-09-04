@@ -417,7 +417,11 @@ if (avm_config("CONFIG_AV2_ENCODER") eq "yes") {
                         const int y_uv_hscale, const int y_uv_vscale, const int qstep,
                         const int neg_qstep, const int *src_loc, const int blk_size_x,
                         const int blk_size_y, const int edge_clf";
-  specialize qw/ccso_derive_src_block avx2/
+  specialize qw/ccso_derive_src_block avx2/;
+
+  # WienerNS filter stats accumulation
+  add_proto qw/void av2_accumulate_wienerns_correlation/, "double *A_base, double *b_base, const int16_t *buf, int16_t y, int num_feat";
+  specialize qw/av2_accumulate_wienerns_correlation sse4_1 avx2/;
 }
 
 # WARPED_MOTION / GLOBAL_MOTION functions
