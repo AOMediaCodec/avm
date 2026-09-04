@@ -45,6 +45,33 @@ def check_monotonicity(RDPoints, lower_is_better=False):
     br_monotonic = non_increasing(br) if lower_is_better else non_decreasing(br)
     return br_monotonic and non_decreasing(qty)
 
+# Every name a VMAF metric can arrive under, and the only place they are
+# listed. The metric is spelled differently per layer, and none of the three
+# can simply be renamed to match the others:
+#
+#   VMAF_Y, VMAF_Y-NEG  RD CSV columns (Config.QualityList). This is libvmaf's
+#                       own naming and is baked into the committed result CSVs
+#                       under ctc_result/, which AV2CTCProgress still reads.
+#   vmaf, vmaf_neg      BD-rate keys (AV2CTCProgress.qtys), which become the
+#                       Bdrate-Summary column names.
+#   vmaf_y_neg          Utils.Record attribute; "-" is not a valid identifier.
+#
+# Note there is no "vmaf-neg". That spelling used to be matched here and is
+# produced by nothing, which is why VMAF-NEG silently skipped the saturation
+# filter on the AV2CTCProgress path.
+VMAF_METRIC_NAMES = frozenset({
+    'VMAF_Y',      # RD CSV column
+    'VMAF_Y-NEG',  # RD CSV column
+    'vmaf',        # BD-rate key
+    'vmaf_neg',    # BD-rate key
+})
+
+def is_vmaf_metric(qty_type):
+    '''
+    Is this a VMAF variant, and therefore subject to the saturation filter?
+    '''
+    return qty_type in VMAF_METRIC_NAMES
+
 def filter_vmaf_non_monotonic(br_qty_pairs):
     '''
     To solve the problem with VMAF non-monotonicity in a flat (saturated)
@@ -89,7 +116,7 @@ def BD_RATE(qty_type, br1, qtyMtrc1, br2, qtyMtrc2, lower_is_better=False):
         if (br2[i] != '' and qtyMtrc2[i] != ''):
             brqtypairs2.append((br2[i], qtyMtrc2[i]))
 
-    if (qty_type == 'VMAF_Y' or qty_type == 'VMAF_Y-NEG' or qty_type == 'vmaf' or qty_type == 'vmaf-neg'):
+    if is_vmaf_metric(qty_type):
         brqtypairs1 = filter_vmaf_non_monotonic(brqtypairs1)
         brqtypairs2 = filter_vmaf_non_monotonic(brqtypairs2)
 
