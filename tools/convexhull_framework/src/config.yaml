@@ -13,12 +13,14 @@ ctc_version: "9.0"
 # Path Configuration
 # =============================================================================
 paths:
-  # Root path relative to the src directory (or use absolute path)
-  root: "/Users/ryanlei/ryanlei/Data/AVM/avm-ctc/tools/convexhull_framework/"
+  # Root path, relative to the src directory (or use an absolute path).
+  # ".." resolves to the convexhull_framework directory when scripts are run
+  # from src/, which is how the workflows in USER_GUIDE.md invoke them.
+  root: ".."
   # Path to bin directory (optional, defaults to {root}/bin if not specified)
-  bin: "/Users/ryanlei/ryanlei/Data/AVM/avm-ctc/tools/convexhull_framework/bin"
+  # bin: "/absolute/path/to/bin"
   # Path to work directory (optional, defaults to {root}/test if not specified)
-  work: "/Users/ryanlei/ryanlei/Data/AVM/avm-ctc/tools/convexhull_framework/test"
+  # work: "/absolute/path/to/test"
   # Path to video content for testing
   content: "<...>"
   # Path to subjective test content (used when enable_subjective_test is true)
@@ -91,8 +93,9 @@ encoding:
   sub_gop_size: 16
   gop_size: 65
 
-  # QP values for each test configuration
-  # These are for CTC versions 2.0-8.0
+  # QP values for each test configuration.
+  # Used for CTC versions 2.0-9.0. Older versions fall back to the legacy QP
+  # values hardcoded in Config.py.
   qps:
     LD: [110, 135, 160, 185, 210, 235]
     RA: [110, 135, 160, 185, 210, 235]
@@ -118,14 +121,16 @@ subjective_qps:
 # Frame Count Configuration
 # =============================================================================
 frame_counts:
-  # Standard frame counts for each configuration
+  # Standard frame counts for each configuration. Also used as the verification
+  # test config frame counts (enable_verification_test_config: true).
   LD: 130
   RA: 130
   AI: 30
   AS: 130
   STILL: 1
 
-# Verification test config frame counts (AI uses 30 instead of 15)
+# NOTE: currently unused by Config.py -- the verification-test frame counts come
+# from `frame_counts` above. Kept for reference only.
 frame_counts_verification:
   LD: 130
   RA: 130
@@ -133,7 +138,8 @@ frame_counts_verification:
   AS: 130
   STILL: 1
 
-# Non-verification test config frame counts for CTC 7.0/8.0
+# Non-verification test config frame counts for CTC 7.0/8.0/9.0
+# (used when enable_verification_test_config is false)
 frame_counts_non_verification:
   LD: 130
   RA: 130
@@ -178,6 +184,56 @@ quality:
   apsnr_v_weight: 1.0
   # Number of interpolation pieces for BD-rate calculation
   interpolate_pieces: 8
+
+# =============================================================================
+# Perceptual Quality Metrics (LPIPS, DISTS, ColorVideoVDP)
+# =============================================================================
+# These are OPTIONAL and OFF by default. They are not part of the AOM CTC
+# mandatory metric set; they are intended for evaluating AI / learned coding
+# tools, where pixel-fidelity metrics correlate poorly with perceived quality.
+#
+# Enabling them requires the optional extras:
+#     pip install -r requirements-perceptual.txt
+# See USER_GUIDE.md for offline/cluster setup (model weight caching).
+perceptual_metrics:
+  # Master switch. When false the framework behaves exactly as before and
+  # never imports torch.
+  enabled: false
+  # Subset of LPIPS, DISTS, CVVDP to compute.
+  metrics: ["LPIPS", "DISTS", "CVVDP"]
+  # Evaluate every Nth frame. 1 = every frame. Ignored by CVVDP, which needs
+  # contiguous frames for its temporal model.
+  frame_step: 1
+  # auto | cpu | cuda | cuda:N | mps
+  device: "auto"
+  # LPIPS backbone: alex (best forward scores), vgg, or squeeze
+  lpips_net: "alex"
+  # Video classes treated as HDR. LPIPS/DISTS are trained on 8-bit SDR content
+  # and are out of distribution on PQ/BT.2020, so only CVVDP runs on these.
+  hdr_classes: ["G1", "G2", "ECF-3", "ECF-4"]
+  # ColorVideoVDP display preset, selected by coded resolution. The preset
+  # models the DISPLAY, not the image: judging 1080p content against a 4K
+  # preset assumes the image fills only the centre quarter of the screen.
+  cvvdp_display:
+    "2160p": "standard_4k"
+    "1080p": "standard_fhd"
+    "default": "standard_fhd"
+    "hdr": "standard_hdr_pq"
+  # y4m -> RGB colour conversion. All three metrics consume display-encoded
+  # RGB, and the ffmpeg invocation matches the one used by the AI image codec
+  # evaluation study (lanczos+accurate_rnd+full_chroma_int, sws_dither=none,
+  # param0=5, explicit in/out matrix).
+  color_conversion:
+    # YUV->RGB matrix for SDR content. The image codec study uses "bt601" for
+    # its PNG-derived still images; "bt709" is correct for CTC video.
+    sdr_matrix: "bt709"
+    # Matrix for the hdr_classes above.
+    hdr_matrix: "bt2020nc"
+    # Input range when the y4m carries no XCOLORRANGE tag. A tagged file always
+    # wins over this setting. "pc" (full range) matches the AV2 CTC y4m test
+    # sequences and the image codec study, which reads them with in_range=pc.
+    # Set "tv" only for limited-range content.
+    default_range: "pc"
 
 # =============================================================================
 # Extended Chroma Format (ECF) Configuration

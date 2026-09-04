@@ -1,0 +1,33 @@
+# AVM CTC Framework - OPTIONAL perceptual metric dependencies
+#
+# These are only needed when perceptual_metrics.enabled is true in
+# src/config.yaml (LPIPS, DISTS, ColorVideoVDP). A normal CTC run does not
+# need any of them and never imports torch.
+#
+# Install with:
+#   pip install -r requirements-perceptual.txt
+# or:
+#   ./setup_env.sh --perceptual
+#
+# NOTE: deliberately NOT hash-pinned, unlike requirements.txt. torch ships
+# platform-specific wheels, so a lock generated on one platform (e.g. macOS
+# arm64) cannot be installed on another (e.g. the Linux cluster). Keeping
+# these separate means the main requirements.txt stays hash-pinned and
+# reproducible for everyone who does not need the perceptual metrics.
+#
+# LICENCE NOTE: pyiqa is PolyForm Noncommercial 1.0.0 + NTU S-Lab, i.e. it is
+# NOT licensed for commercial use. It is used here for AOM standards-group
+# work. If this framework is reused in a product context, replace it with
+# torchmetrics[image] (Apache-2.0), which provides both LPIPS and DISTS and
+# ships LPIPS weights identical to the reference implementation.
+
+# Deep learning runtime. Install a CUDA build from https://pytorch.org for GPU
+# nodes; the default wheel is CPU-only on Linux and MPS-capable on macOS.
+torch>=2.0
+torchvision>=0.15
+
+# LPIPS and DISTS
+pyiqa==0.1.16
+
+# ColorVideoVDP (MIT). Also requires a working ffmpeg binary on PATH.
+cvvdp==0.5.7

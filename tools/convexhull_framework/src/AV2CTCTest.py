@@ -12,13 +12,18 @@
 __author__ = "maggie.sun@intel.com, ryanlei@meta.com"
 
 import argparse
+import math
 import os
 import subprocess
 import sys
 
 import Utils
 from CalcQtyWithVmafTool import GetVMAFLogFile
-from CalculateQualityMetrics import CalculateQualityMetric, GatherQualityMetrics
+from CalculateQualityMetrics import (
+    CalculateQualityMetric,
+    GatherPerceptualMetrics,
+    GatherQualityMetrics,
+)
 from Config import (
     CodecNames,
     EnableMD5,
@@ -28,6 +33,7 @@ from Config import (
     LoggerName,
     LogLevels,
     Path_RDResults,
+    PerceptualQualityList,
     QPs,
     QualityList,
     SUFFIX,
@@ -232,6 +238,7 @@ def Run_Encode_Test(test_cfg, clip, codec, method, preset, LogCmdOnly=False):
             path_quality_log,
             path_vmaf_log,
             LogCmdOnly,
+            clip=clip,
         )
         if SaveMemory:
             DeleteFile(decodedYUV, LogCmdOnly)
@@ -400,6 +407,7 @@ def Run_Decode_Test(test_cfg, clip, codec, method, preset, LogCmdOnly=False):
                 path_quality_log,
                 path_vmaf_log,
                 LogCmdOnly,
+                clip=clip,
             )
             if SaveMemory:
                 DeleteFile(decodedYUV, LogCmdOnly)
@@ -503,6 +511,13 @@ def GenerateSummaryRDDataFile(
     csv.write("Bitrate(kbps)")
     for qty in QualityList:
         csv.write("," + qty)
+    # Perceptual metrics sit with the other quality metrics, before the timing
+    # columns. This shifts EncT/DecT/instr/cycles/MD5 right by the number of
+    # enabled perceptual metrics; AV2CTCProgress.WriteSheet compensates by
+    # dropping these columns before writing the CTC .xlsm templates, which are
+    # laid out by absolute column index.
+    for qty in PerceptualQualityList:
+        csv.write("," + qty)
     csv.write(",EncT[s],DecT[s]")
     if UsePerfUtil:
         csv.write(",EncInstr,DecInstr,EncCycles,DecCycles")
@@ -523,6 +538,8 @@ def GenerateSummaryRDDataFile(
             and not qty.startswith("APSNR")
         ):
             perframe_csv.write("," + qty)
+    for qty in PerceptualQualityList:
+        perframe_csv.write("," + qty)
     perframe_csv.write("\n")
 
     QPSet = QPs[test_cfg]
@@ -572,6 +589,10 @@ def GenerateSummaryRDDataFile(
                 missing.write(f"'{JobName}',\n")
                 continue
 
+            perceptual, perframe_perceptual_log = GatherPerceptualMetrics(
+                dec, path_quality_log, frame_num
+            )
+
             if frame_num < total_frame:
                 print(f"'{JobName}',")
                 missing.write(f"'{JobName}',\n")
@@ -606,6 +627,12 @@ def GenerateSummaryRDDataFile(
 
             for qty in quality:
                 csv.write(",%f" % qty)
+
+            # Written here, with the other quality metrics, to match the header.
+            # NaN means the metric was deliberately not run (e.g. LPIPS on HDR
+            # content); write an empty cell so it is not confused with 0.0.
+            for qty in perceptual:
+                csv.write(",") if math.isnan(qty) else csv.write(",%f" % qty)
 
             if UsePerfUtil:
                 if test_cfg == "RA" and EnableParallelGopEncoding:
@@ -657,6 +684,7 @@ def GenerateSummaryRDDataFile(
                         enc_log,
                         perframe_csv,
                         perframe_vmaf_log,
+                        perframe_perceptual_log,
                     )
     csv.close()
     perframe_csv.close()

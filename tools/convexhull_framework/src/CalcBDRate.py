@@ -24,15 +24,53 @@ logger = logging.getLogger(loggername)
 def non_decreasing(L):
     return all(x<=y for x, y in zip(L, L[1:]))
 
-def check_monotonicity(RDPoints):
+def non_increasing(L):
+    return all(x>=y for x, y in zip(L, L[1:]))
+
+def check_monotonicity(RDPoints, lower_is_better=False):
     '''
     check if the input list of RD points are monotonic, assuming the input
-    has been sorted in the quality value non-decreasing order. expect the bit
-    rate should also be in the non-decreasing order
+    has been sorted in the quality value non-decreasing order.
+
+    For a normal (higher is better) metric, spending more bits raises the
+    quality value, so the bit rate should also be in non-decreasing order.
+
+    For a lower-is-better metric such as LPIPS or DISTS, spending more bits
+    LOWERS the quality value, so sorting by quality ascending puts the highest
+    bit rate first and the bit rate must be non-increasing instead. Checking
+    for non-decreasing there would reject every well behaved RD curve.
     '''
     br = [RDPoints[i][0] for i in range(len(RDPoints))]
     qty = [RDPoints[i][1] for i in range(len(RDPoints))]
-    return non_decreasing(br) and non_decreasing(qty)
+    br_monotonic = non_increasing(br) if lower_is_better else non_decreasing(br)
+    return br_monotonic and non_decreasing(qty)
+
+# Every name a VMAF metric can arrive under, and the only place they are
+# listed. The metric is spelled differently per layer, and none of the three
+# can simply be renamed to match the others:
+#
+#   VMAF_Y, VMAF_Y-NEG  RD CSV columns (Config.QualityList). This is libvmaf's
+#                       own naming and is baked into the committed result CSVs
+#                       under ctc_result/, which AV2CTCProgress still reads.
+#   vmaf, vmaf_neg      BD-rate keys (AV2CTCProgress.qtys), which become the
+#                       Bdrate-Summary column names.
+#   vmaf_y_neg          Utils.Record attribute; "-" is not a valid identifier.
+#
+# Note there is no "vmaf-neg". That spelling used to be matched here and is
+# produced by nothing, which is why VMAF-NEG silently skipped the saturation
+# filter on the AV2CTCProgress path.
+VMAF_METRIC_NAMES = frozenset({
+    'VMAF_Y',      # RD CSV column
+    'VMAF_Y-NEG',  # RD CSV column
+    'vmaf',        # BD-rate key
+    'vmaf_neg',    # BD-rate key
+})
+
+def is_vmaf_metric(qty_type):
+    '''
+    Is this a VMAF variant, and therefore subject to the saturation filter?
+    '''
+    return qty_type in VMAF_METRIC_NAMES
 
 def filter_vmaf_non_monotonic(br_qty_pairs):
     '''
@@ -59,7 +97,17 @@ def filter_vmaf_non_monotonic(br_qty_pairs):
 # BJONTEGAARD    Bjontegaard metric
 # Calculation is adapted from Google implementation
 # PCHIP method - Piecewise Cubic Hermite Interpolating Polynomial interpolation
-def BD_RATE(qty_type, br1, qtyMtrc1, br2, qtyMtrc2):
+def BD_RATE(qty_type, br1, qtyMtrc1, br2, qtyMtrc2, lower_is_better=False):
+    '''
+    Bjontegaard delta rate between an anchor (1) and a test (2) RD curve.
+
+    lower_is_better: set for metrics where a smaller value means better
+    quality (LPIPS, DISTS). It only affects the monotonicity check; the rest
+    of the calculation is direction agnostic, because the result is a
+    difference of log-bit-rate integrals taken at matched quality, and
+    reversing the quality axis reorders the samples without changing the sign.
+    A negative result therefore still means a bit rate saving for every metric.
+    '''
     brqtypairs1 = []; brqtypairs2 = []
     for i in range(min(len(qtyMtrc1), len(br1))):
         if (br1[i] != '' and qtyMtrc1[i] != ''):
@@ -68,7 +116,7 @@ def BD_RATE(qty_type, br1, qtyMtrc1, br2, qtyMtrc2):
         if (br2[i] != '' and qtyMtrc2[i] != ''):
             brqtypairs2.append((br2[i], qtyMtrc2[i]))
 
-    if (qty_type == 'VMAF_Y' or qty_type == 'VMAF_Y-NEG' or qty_type == 'vmaf' or qty_type == 'vmaf-neg'):
+    if is_vmaf_metric(qty_type):
         brqtypairs1 = filter_vmaf_non_monotonic(brqtypairs1)
         brqtypairs2 = filter_vmaf_non_monotonic(brqtypairs2)
 
@@ -77,8 +125,8 @@ def BD_RATE(qty_type, br1, qtyMtrc1, br2, qtyMtrc2):
     brqtypairs1.sort(key = itemgetter(1, 0))
     brqtypairs2.sort(key = itemgetter(1, 0))
 
-    rd1_monotonic = check_monotonicity(brqtypairs1)
-    rd2_monotonic = check_monotonicity(brqtypairs2)
+    rd1_monotonic = check_monotonicity(brqtypairs1, lower_is_better)
+    rd2_monotonic = check_monotonicity(brqtypairs2, lower_is_better)
     if (rd1_monotonic == False or rd2_monotonic == False):
         return (-1, "Error: Non-monotonic")
 

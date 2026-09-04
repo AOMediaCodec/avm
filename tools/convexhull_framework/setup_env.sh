@@ -6,8 +6,11 @@
 # dependencies for the AVM CTC testing framework.
 #
 # Usage:
-#   ./setup_env.sh              # Create venv in default location (./venv)
-#   ./setup_env.sh /path/to/env # Create venv in custom location
+#   ./setup_env.sh                    # Create venv in default location (./venv)
+#   ./setup_env.sh /path/to/env       # Create venv in custom location
+#   ./setup_env.sh --perceptual       # Also install the optional perceptual
+#                                     # metric extras (LPIPS/DISTS/ColorVideoVDP)
+#   ./setup_env.sh /path/to/env --perceptual
 #
 # After running this script, activate the environment with:
 #   source venv/bin/activate    # Linux/macOS
@@ -26,8 +29,26 @@ NC='\033[0m' # No Color
 # Get script directory
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-# Virtual environment path (default or custom)
-VENV_PATH="${1:-$SCRIPT_DIR/venv}"
+# Parse arguments: an optional venv path and an optional --perceptual flag,
+# in either order.
+INSTALL_PERCEPTUAL=false
+VENV_PATH=""
+for arg in "$@"; do
+    case "$arg" in
+        --perceptual) INSTALL_PERCEPTUAL=true ;;
+        -h|--help)
+            grep '^#' "$0" | sed -n '2,25p' | sed 's/^# \{0,1\}//'
+            exit 0
+            ;;
+        -*)
+            echo "Unknown option: $arg" >&2
+            echo "Usage: $0 [/path/to/venv] [--perceptual]" >&2
+            exit 1
+            ;;
+        *) VENV_PATH="$arg" ;;
+    esac
+done
+VENV_PATH="${VENV_PATH:-$SCRIPT_DIR/venv}"
 
 # Minimum Python version required
 MIN_PYTHON_VERSION="3.8"
@@ -108,6 +129,33 @@ install_dependencies() {
     fi
 }
 
+# Install the optional perceptual metric extras (LPIPS, DISTS, ColorVideoVDP).
+# Kept separate from the hash-pinned core requirements because torch ships
+# platform-specific wheels that cannot share a portable hashed lock.
+install_perceptual() {
+    echo -e "\n${YELLOW}Installing optional perceptual metric dependencies...${NC}"
+    PERCEPTUAL_FILE="$SCRIPT_DIR/requirements-perceptual.txt"
+
+    if [ ! -f "$PERCEPTUAL_FILE" ]; then
+        echo -e "${RED}Error: requirements-perceptual.txt not found at $PERCEPTUAL_FILE${NC}"
+        exit 1
+    fi
+
+    echo -e "${YELLOW}Note: pyiqa is PolyForm Noncommercial licensed (non-commercial use only).${NC}"
+    echo -e "${YELLOW}      This pulls in torch and may download >1 GB.${NC}"
+
+    # Not --require-hashes: see the header of requirements-perceptual.txt.
+    pip install -r "$PERCEPTUAL_FILE"
+
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}Perceptual metric dependencies installed.${NC}"
+        echo -e "${YELLOW}Enable them with 'perceptual_metrics.enabled: true' in src/config.yaml${NC}"
+    else
+        echo -e "${RED}Failed to install perceptual metric dependencies.${NC}"
+        exit 1
+    fi
+}
+
 # Print summary and instructions
 print_summary() {
     echo -e "\n${GREEN}==============================================================================${NC}"
@@ -124,6 +172,13 @@ print_summary() {
     echo -e "\nFor ECF (Extended Chroma Format) testing:"
     echo -e "  Set ${YELLOW}ecf.enabled: true${NC} in ${YELLOW}src/config.yaml${NC}"
     echo -e "  See ${YELLOW}USER_GUIDE.md${NC} for ECF configuration details"
+    if [ "$INSTALL_PERCEPTUAL" = true ]; then
+        echo -e "\nFor perceptual metrics (LPIPS / DISTS / ColorVideoVDP):"
+        echo -e "  Set ${YELLOW}perceptual_metrics.enabled: true${NC} in ${YELLOW}src/config.yaml${NC}"
+    else
+        echo -e "\nPerceptual metrics (LPIPS / DISTS / ColorVideoVDP) were NOT installed."
+        echo -e "  Re-run with ${YELLOW}--perceptual${NC} if you need them."
+    fi
     echo -e "\n${GREEN}==============================================================================${NC}"
 }
 
@@ -131,4 +186,7 @@ print_summary() {
 check_python
 create_venv
 install_dependencies
+if [ "$INSTALL_PERCEPTUAL" = true ]; then
+    install_perceptual
+fi
 print_summary
