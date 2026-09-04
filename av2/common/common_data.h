@@ -476,13 +476,13 @@ static const TX_SIZE lossless_max_txsize_lookup[BLOCK_SIZES_ALL] = {
       TX_8X32,   TX_32X8,
 };
 
-static const TX_TYPE_1D vtx_tab[TX_TYPES] = {
+static const TX_TYPE_1D vtx_tab[PRIM_TX_TYPES] = {
   DCT_1D,      ADST_1D, DCT_1D,      ADST_1D,
   FLIPADST_1D, DCT_1D,  FLIPADST_1D, ADST_1D, FLIPADST_1D, IDTX_1D,
   DCT_1D,      IDTX_1D, ADST_1D,     IDTX_1D, FLIPADST_1D, IDTX_1D,
 };
 
-static const TX_TYPE_1D htx_tab[TX_TYPES] = {
+static const TX_TYPE_1D htx_tab[PRIM_TX_TYPES] = {
   DCT_1D,  DCT_1D,      ADST_1D,     ADST_1D,
   DCT_1D,  FLIPADST_1D, FLIPADST_1D, FLIPADST_1D, ADST_1D, IDTX_1D,
   IDTX_1D, DCT_1D,      IDTX_1D,     ADST_1D,     IDTX_1D, FLIPADST_1D,
@@ -858,7 +858,7 @@ static const int inv_tx_shift[TX_SIZES_ALL][2] = {
   { 6, 13 },  // TX_64X4,   // 64x4 transform
 };
 
-static const int g_hor_tx_type[TX_TYPES] = {
+static const int g_hor_tx_type[PRIM_TX_TYPES] = {
   DCT2,  // DCT_DCT,            // DCT in both horizontal and vertical
   DCT2,  // ADST_DCT,           // ADST in vertical, DCT in horizontal
   DST7,  // DCT_ADST,           // DCT in vertical, ADST in horizontal
@@ -877,7 +877,7 @@ static const int g_hor_tx_type[TX_TYPES] = {
   DCT8,  // H_FLIPADST,         // Identity in vertical, FLIPADST in horizontal
 };
 
-static const int g_ver_tx_type[TX_TYPES] = {
+static const int g_ver_tx_type[PRIM_TX_TYPES] = {
   DCT2,  // DCT_DCT,            // DCT in both horizontal and vertical
   DST7,  // ADST_DCT,           // ADST in vertical, DCT in horizontal
   DCT2,  // DCT_ADST,           // DCT in vertical, ADST in horizontal

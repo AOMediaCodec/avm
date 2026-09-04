@@ -1253,8 +1253,7 @@ int av2_trellis_quant(const struct AV2_COMP *cpi, MACROBLOCK *x, int plane,
   MACROBLOCKD *xd = &x->e_mbd;
   const struct macroblock_plane *p = &x->plane[plane];
 
-  const SCAN_ORDER *scan_order =
-      get_scan(tx_size, get_primary_tx_type(tx_type));
+  const SCAN_ORDER *scan_order = get_scan(tx_size, tx_type.prim_tx);
 
   const int16_t *scan = scan_order->scan;
   int eob = p->eobs[block];
@@ -1262,8 +1261,8 @@ int av2_trellis_quant(const struct AV2_COMP *cpi, MACROBLOCK *x, int plane,
   const int32_t *dequant = p->dequant_QTX;
   const int32_t *quant = p->quant_fp_QTX;  // quant_QTX
 
-  const qm_val_t *iqmatrix =
-      av2_get_iqmatrix(&cpi->common.quant_params, xd, plane, tx_size, tx_type);
+  const qm_val_t *iqmatrix = av2_get_iqmatrix(&cpi->common.quant_params, xd,
+                                              plane, tx_size, tx_type.prim_tx);
   const int block_offset = BLOCK_OFFSET(block);
   tran_low_t *qcoeff = p->qcoeff + block_offset;
   tran_low_t *dqcoeff = p->dqcoeff + block_offset;
@@ -1277,7 +1276,7 @@ int av2_trellis_quant(const struct AV2_COMP *cpi, MACROBLOCK *x, int plane,
   const PLANE_TYPE plane_type = get_plane_type(plane);
   const TX_SIZE txs_ctx = get_txsize_entropy_ctx(tx_size);
 
-  const TX_CLASS tx_class = tx_type_to_class[get_primary_tx_type(tx_type)];
+  const TX_CLASS tx_class = tx_type_to_class[tx_type.prim_tx];
 
   const MB_MODE_INFO *mbmi = xd->mi[0];
   const int bwl = get_txb_bwl(tx_size);
@@ -1286,10 +1285,11 @@ int av2_trellis_quant(const struct AV2_COMP *cpi, MACROBLOCK *x, int plane,
 
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
   const int bob_code = p->bobs[block];
-  const int is_fsc = ((cm->seq_params.enable_fsc &&
-                       xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
-                       plane == PLANE_TYPE_Y) ||
-                      use_inter_fsc(&cpi->common, plane, tx_type, is_inter));
+  const int is_fsc =
+      ((cm->seq_params.enable_fsc &&
+        xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
+        plane == PLANE_TYPE_Y) ||
+       use_inter_fsc(&cpi->common, plane, tx_type.prim_tx, is_inter));
   const LV_MAP_COEFF_COST *txb_costs =
       &coeff_costs->coeff_costs[txs_ctx][plane_type];
 
@@ -1375,7 +1375,7 @@ int av2_trellis_quant(const struct AV2_COMP *cpi, MACROBLOCK *x, int plane,
   skip_cost = txb_costs->txb_skip_cost[pred_mode_ctx][txb_skip_ctx][1];
 
   int accu_rate = 0;
-  set_bob(x, plane, block, tx_size, tx_type);
+  set_bob(x, plane, block, tx_size, tx_type.prim_tx);
 
   assert(eob > 0);
   const int tx_type_cost =

@@ -349,9 +349,9 @@ typedef struct frame_contexts {
   avm_cdf_prob delta_q_cdf[CDF_SIZE(DELTA_Q_PROBS + 1)];
 
   avm_cdf_prob intra_ext_tx_cdf[EXT_TX_SETS_INTRA][EXT_TX_SIZES]
-                               [CDF_SIZE(TX_TYPES)];
+                               [CDF_SIZE(PRIM_TX_TYPES)];
   avm_cdf_prob inter_ext_tx_cdf[EXT_TX_SETS_INTER][EOB_TX_CTXS][EXT_TX_SIZES]
-                               [CDF_SIZE(TX_TYPES)];
+                               [CDF_SIZE(PRIM_TX_TYPES)];
   /* Inter TX_TYPE signaling for EXT_TX_SET_ALL16, EXT_TX_SET_DTT9_IDTX_1DDCT
     1)	tx_set_idx (with symbol size 2) is decoded
     2)	If tx_set_idx == 0 , tx_type_idx (with symbol size 8) is decoded
@@ -386,7 +386,7 @@ typedef struct frame_contexts {
   int initialized;
 } FRAME_CONTEXT;
 
-static const int av2_ext_tx_ind[EXT_TX_SET_TYPES][TX_TYPES] = {
+static const int av2_ext_tx_ind[EXT_TX_SET_TYPES][PRIM_TX_TYPES] = {
   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
   { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
   { 0, 1, 2, 0, 3, 4, 0, 0, 0, 0, 5, 6, 0, 0, 0, 0 },
@@ -399,7 +399,7 @@ static const int av2_ext_tx_ind[EXT_TX_SET_TYPES][TX_TYPES] = {
   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 1, 2, 0, 0, 0, 0 },
 };
 
-static const int av2_ext_tx_inv[EXT_TX_SET_TYPES][TX_TYPES] = {
+static const int av2_ext_tx_inv[EXT_TX_SET_TYPES][PRIM_TX_TYPES] = {
   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
   { 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
   { 0, 1, 2, 4, 5, 10, 11, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
@@ -412,7 +412,7 @@ static const int av2_ext_tx_inv[EXT_TX_SET_TYPES][TX_TYPES] = {
   { 0, 10, 11, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
 };
 
-static const int av2_md_type2idx[EXT_TX_SIZES][INTRA_MODES][TX_TYPES] = {
+static const int av2_md_type2idx[EXT_TX_SIZES][INTRA_MODES][PRIM_TX_TYPES] = {
   {
       { 0, 2, 3, 1, 0, 0, 0, 4, 5, 0, 0, 0, 0, 6, 0, 0 },  // mode_class: 0
       { 0, 2, 3, 1, 0, 0, 0, 4, 0, 0, 5, 0, 6, 0, 0, 0 },  // mode_class: 1

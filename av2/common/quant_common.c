@@ -186,34 +186,34 @@ const qm_val_t *av2_qmatrix(const CommonQuantParams *quant_params, int qmlevel,
   return quant_params->gqmatrix[qmlevel][plane][tx_size];
 }
 
-// Returns true if the tx_type corresponds to non-identity transform in both
-// horizontal and vertical directions.
-static INLINE bool is_2d_transform(TX_TYPE tx_type) {
-  return (get_primary_tx_type(tx_type) < IDTX);
+// Returns true if the prim_tx_type corresponds to non-identity transform in
+// both horizontal and vertical directions.
+static INLINE bool is_2d_transform(PRIM_TX_TYPE prim_tx_type) {
+  return (prim_tx_type < IDTX);
 }
 
 const qm_val_t *av2_get_iqmatrix(const CommonQuantParams *quant_params,
                                  const MACROBLOCKD *xd, int plane,
-                                 TX_SIZE tx_size, TX_TYPE tx_type) {
+                                 TX_SIZE tx_size, PRIM_TX_TYPE prim_tx_type) {
   const struct macroblockd_plane *const pd = &xd->plane[plane];
   const MB_MODE_INFO *const mbmi = xd->mi[0];
   const int seg_id = mbmi->segment_id;
   const TX_SIZE qm_tx_size = av2_get_adjusted_tx_size(tx_size);
   // Use a flat matrix (i.e. no weighting) for 1D and Identity transforms
-  return is_2d_transform(tx_type)
+  return is_2d_transform(prim_tx_type)
              ? pd->seg_iqmatrix[seg_id][qm_tx_size]
              : quant_params->giqmatrix[NUM_QM_LEVELS - 1][0][qm_tx_size];
 }
 
 const qm_val_t *av2_get_qmatrix(const CommonQuantParams *quant_params,
                                 const MACROBLOCKD *xd, int plane,
-                                TX_SIZE tx_size, TX_TYPE tx_type) {
+                                TX_SIZE tx_size, PRIM_TX_TYPE prim_tx_type) {
   const struct macroblockd_plane *const pd = &xd->plane[plane];
   const MB_MODE_INFO *const mbmi = xd->mi[0];
   const int seg_id = mbmi->segment_id;
   const TX_SIZE qm_tx_size = av2_get_adjusted_tx_size(tx_size);
   // Use a flat matrix (i.e. no weighting) for 1D and Identity transforms
-  return is_2d_transform(tx_type)
+  return is_2d_transform(prim_tx_type)
              ? pd->seg_qmatrix[seg_id][qm_tx_size]
              : quant_params->gqmatrix[NUM_QM_LEVELS - 1][0][qm_tx_size];
 }

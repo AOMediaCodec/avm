@@ -745,10 +745,9 @@ typedef struct {
    * allocates the memory for MACROBLOCKD::tx_type_map during rdopt on the
    * partition block. So if we need to save memory, we could move the allocation
    * to pick_sb_mode instead.
-   * If secondary transform in enabled (IST) each element of the array
-   * stores both primary and secondary transform types as shown below: Bits 4~5
-   * of each element stores secondary tx_type Bits 0~3 of each element stores
-   * primary tx_type
+   * If secondary transform in enabled (IST) each element of the array is union
+   * of transform types. Refer to the TX_TYPE enum in enums.h for details of bit
+   * layout.
    */
   TX_TYPE tx_type_map_[MAX_MIB_SIZE * MAX_MIB_SIZE];
   //! \brief CCTX types inside the partition block.
@@ -1056,9 +1055,9 @@ typedef struct {
   int inter_tx_type_offset_2_cost[EOB_TX_CTXS][INTER_TX_TYPE_OFFSET2_COUNT];
   //! inter_tx_type_costs
   int inter_tx_type_costs[EXT_TX_SETS_INTER][EOB_TX_CTXS][EXT_TX_SIZES]
-                         [TX_TYPES];
+                         [PRIM_TX_TYPES];
   //! intra_tx_type_costs
-  int intra_tx_type_costs[EXT_TX_SETS_INTRA][EXT_TX_SIZES][TX_TYPES];
+  int intra_tx_type_costs[EXT_TX_SETS_INTRA][EXT_TX_SIZES][PRIM_TX_TYPES];
   //! tx_type_cost_for_length32_side
   int tx_ext_32_costs[2][2];
   //! intra_tx_type_cost_of_short_side_for_large_txfm_blocks

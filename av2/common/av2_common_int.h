@@ -1661,10 +1661,9 @@ struct CommonModeInfoParams {
    * Number of allocated elements is same as 'mi_grid_size', and stride is
    * same as 'mi_grid_size'. So, indexing into 'tx_type_map' is same as that of
    * 'mi_grid_base'.
-   * If secondary transform in enabled (IST) each element of the array
-   * stores both primary and secondary transform types as shown below: Bits 4~5
-   * of each element stores secondary tx_type Bits 0~3 of each element stores
-   * primary tx_type
+   * If secondary transform in enabled (IST) each element of the array is union
+   * of transform types. Refer to the TX_TYPE enum in enums.h for details of bit
+   * layout.
    */
   TX_TYPE *tx_type_map;
   /*!

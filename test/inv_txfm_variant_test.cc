@@ -29,7 +29,7 @@ namespace {
 
 struct InvTxfmParam {
   TX_SIZE tx_size;
-  TX_TYPE tx_type;
+  PRIM_TX_TYPE prim_tx_type;
   int bd;
   int seed;
   int use_ddt;
@@ -69,7 +69,7 @@ TEST_P(InvTxfmVariantTest, BitExact) {
   TxfmParam txfm_param;
   memset(&txfm_param, 0, sizeof(txfm_param));
   txfm_param.tx_size = p.tx_size;
-  txfm_param.tx_type = p.tx_type;
+  txfm_param.prim_tx_type = p.prim_tx_type;
   txfm_param.bd = p.bd;
   txfm_param.lossless = 0;
   txfm_param.use_ddt = p.use_ddt;
@@ -81,13 +81,13 @@ TEST_P(InvTxfmVariantTest, BitExact) {
     for (int x = 0; x < txw; x++) {
       ASSERT_EQ(ref_dest[y * stride + x], opt_dest[y * stride + x])
           << "mismatch at (" << x << "," << y << ")" << " tx_size=" << p.tx_size
-          << " tx_type=" << p.tx_type << " bd=" << p.bd << " seed=" << p.seed
-          << " use_ddt=" << p.use_ddt;
+          << " tx_type=" << p.prim_tx_type << " bd=" << p.bd
+          << " seed=" << p.seed << " use_ddt=" << p.use_ddt;
     }
   }
 }
 
-static bool is_valid_inv_txfm_combo(TX_SIZE sz, TX_TYPE ty) {
+static bool is_valid_inv_txfm_combo(TX_SIZE sz, PRIM_TX_TYPE ty) {
   if (ty == DCT_DCT || ty == IDTX) return true;
   const int w = tx_size_wide[sz];
   const int h = tx_size_high[sz];
@@ -104,7 +104,7 @@ static std::vector<InvTxfmParam> GenerateParams() {
   const int bds[] = { 8, 10, 12 };
   const TX_SIZE sizes[] = { TX_4X4, TX_8X8,  TX_16X16, TX_32X32, TX_4X8,
                             TX_8X4, TX_8X16, TX_16X8,  TX_16X32, TX_32X16 };
-  const TX_TYPE types[] = { DCT_DCT, ADST_DCT, DCT_ADST, ADST_ADST, IDTX };
+  const PRIM_TX_TYPE types[] = { DCT_DCT, ADST_DCT, DCT_ADST, ADST_ADST, IDTX };
 
   for (int use_ddt = 0; use_ddt <= 1; use_ddt++)
     for (auto bd : bds)
@@ -144,7 +144,7 @@ TEST(InvTxfmVariantExtreme, AllZero) {
       TxfmParam txfm_param;
       memset(&txfm_param, 0, sizeof(txfm_param));
       txfm_param.tx_size = sz;
-      txfm_param.tx_type = DCT_DCT;
+      txfm_param.prim_tx_type = DCT_DCT;
       txfm_param.bd = bd;
 
       inv_txfm_c(input, ref_dest, stride, &txfm_param);
@@ -184,7 +184,7 @@ TEST(InvTxfmVariantExtreme, DcOnly) {
       TxfmParam txfm_param;
       memset(&txfm_param, 0, sizeof(txfm_param));
       txfm_param.tx_size = sz;
-      txfm_param.tx_type = DCT_DCT;
+      txfm_param.prim_tx_type = DCT_DCT;
       txfm_param.bd = bd;
 
       inv_txfm_c(input, ref_dest, stride, &txfm_param);

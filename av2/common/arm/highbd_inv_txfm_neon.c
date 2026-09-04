@@ -929,7 +929,7 @@ static int neon_path_supported(int tx_type_row, int tx_type_col,
 void inv_txfm_neon(const tran_low_t *input, uint16_t *dest, int stride,
                    const TxfmParam *txfm_param) {
   const TX_SIZE tx_size = txfm_param->tx_size;
-  const TX_TYPE tx_type = txfm_param->tx_type;
+  const PRIM_TX_TYPE prim_tx_type = txfm_param->prim_tx_type;
 
   // Lossless: delegate to C (uses WHT, not DCT).
   if (txfm_param->lossless) {
@@ -944,8 +944,8 @@ void inv_txfm_neon(const tran_low_t *input, uint16_t *dest, int stride,
   const uint32_t tx_high_index =
       AVMMIN(MAX_TX_SIZE_LOG2 - 1, tx_size_high_log2[tx_size]) - 2;
 
-  int tx_type_row = g_hor_tx_type[tx_type];
-  int tx_type_col = g_ver_tx_type[tx_type];
+  int tx_type_row = g_hor_tx_type[prim_tx_type];
+  int tx_type_col = g_ver_tx_type[prim_tx_type];
 
   // Apply DDT substitution (same logic as inv_txfm_c).
   if (txfm_param->use_ddt) {
@@ -1082,6 +1082,6 @@ void inv_txfm_neon(const tran_low_t *input, uint16_t *dest, int stride,
 
 void av2_highbd_inv_txfm_add_neon(const tran_low_t *input, uint16_t *dest,
                                   int stride, const TxfmParam *txfm_param) {
-  assert(av2_ext_tx_used[txfm_param->tx_set_type][txfm_param->tx_type]);
+  assert(av2_ext_tx_used[txfm_param->tx_set_type][txfm_param->prim_tx_type]);
   inv_txfm_neon(input, dest, stride, txfm_param);
 }

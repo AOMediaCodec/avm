@@ -30,7 +30,8 @@
 #include "av2/common/enums.h"
 
 namespace libavm_test {
-static INLINE bool IsTxSizeTypeValid(TX_SIZE tx_size, TX_TYPE tx_type) {
+static INLINE bool IsTxSizeTypeValid(TX_SIZE tx_size,
+                                     PRIM_TX_TYPE prim_tx_type) {
   const TX_SIZE tx_size_sqr_up = txsize_sqr_up_map[tx_size];
   const TX_SIZE tx_size_sqr = txsize_sqr_map[tx_size];
   TxSetType tx_set_type;
@@ -48,13 +49,13 @@ static INLINE bool IsTxSizeTypeValid(TX_SIZE tx_size, TX_TYPE tx_type) {
     uint16_t ext_tx_used_flag = av2_ext_tx_used_flag[tx_set_type];
     adjust_ext_tx_used_flag(tx_size, tx_set_type, &ext_tx_used_flag);
 
-    if (!(ext_tx_used_flag & (1 << get_primary_tx_type(tx_type)))) {
+    if (!(ext_tx_used_flag & (1 << prim_tx_type))) {
       return 0;
     } else {
       return 1;
     }
   }
-  return av2_ext_tx_used[tx_set_type][tx_type] != 0;
+  return av2_ext_tx_used[tx_set_type][prim_tx_type] != 0;
 }
 }  // namespace libavm_test
 #endif  // AVM_TEST_AV2_TXFM_TEST_H_

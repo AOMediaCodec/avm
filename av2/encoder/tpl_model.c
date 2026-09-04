@@ -120,7 +120,7 @@ static AVM_INLINE void tpl_fwd_txfm(const int16_t *src_diff, int bw,
                                     tran_low_t *coeff, TX_SIZE tx_size,
                                     int bit_depth) {
   TxfmParam txfm_param;
-  txfm_param.tx_type = DCT_DCT;
+  txfm_param.prim_tx_type = DCT_DCT;
   txfm_param.sec_tx_type = 0;
   txfm_param.tx_size = tx_size;
   txfm_param.lossless = 0;
@@ -186,8 +186,9 @@ static AVM_INLINE void txfm_quant_rdcost(
 
   *rate_cost = rate_estimator(qcoeff, eob, tx_size);
 
-  av2_inverse_transform_block(xd, dqcoeff, 0, DCT_DCT, tx_size, dst, dst_stride,
-                              eob, 0, 0);
+  av2_inverse_transform_block(xd, dqcoeff, 0,
+                              MAKE_TX_TYPE_FROM_PRIM_TX_TYPE(DCT_DCT), tx_size,
+                              dst, dst_stride, eob, 0, 0);
 }
 
 static uint32_t motion_estimation(AV2_COMP *cpi, MACROBLOCK *x,

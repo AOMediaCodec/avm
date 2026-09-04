@@ -154,8 +154,8 @@ add_proto qw/void av2_highbd_iwht4x4_1_vert_add/, "const tran_low_t *input, uint
 add_proto qw/void av2_highbd_iwht4x4_16_vert_add/, "const tran_low_t *input, uint16_t *dest, int dest_stride, int bd";
 add_proto qw/void av2_highbd_iwht4x4_1_horz_add/, "const tran_low_t *input, uint16_t *dest, int dest_stride, int bd";
 add_proto qw/void av2_highbd_iwht4x4_16_horz_add/, "const tran_low_t *input, uint16_t *dest, int dest_stride, int bd";
-add_proto qw/void av2_inv_idfm2d_add_4x4_vert/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
-add_proto qw/void av2_inv_idfm2d_add_4x4_horz/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
+add_proto qw/void av2_inv_idfm2d_add_4x4_vert/, "const int32_t *input, uint16_t *output, int stride, PRIM_TX_TYPE prim_tx_type, int bd";
+add_proto qw/void av2_inv_idfm2d_add_4x4_horz/, "const int32_t *input, uint16_t *output, int stride, PRIM_TX_TYPE prim_tx_type, int bd";
 
 if (avm_config("CONFIG_AV2_ENCODER") eq "yes") {
   add_proto qw/void av2_lossless_fwd_idtx/, "const int16_t *src_diff, tran_low_t *coeff, int diff_stride, TxfmParam *txfm_param";

@@ -111,10 +111,10 @@ static INLINE int allow_fsc_intra(const AV2_COMMON *const cm, BLOCK_SIZE bs,
 }
 
 static INLINE int use_inter_fsc(const AV2_COMMON *const cm,
-                                PLANE_TYPE plane_type, TX_TYPE tx_type,
-                                int is_inter) {
+                                PLANE_TYPE plane_type,
+                                PRIM_TX_TYPE prim_tx_type, int is_inter) {
   bool allow_fsc = cm->seq_params.enable_fsc && plane_type == PLANE_TYPE_Y &&
-                   is_inter && tx_type == IDTX;
+                   is_inter && prim_tx_type == IDTX;
   return allow_fsc;
 }
 

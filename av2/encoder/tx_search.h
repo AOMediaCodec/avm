@@ -38,7 +38,7 @@ static AVM_INLINE void collect_tx_size_data(const MACROBLOCK *x, int plane,
                                             int blk_row, int blk_col,
                                             BLOCK_SIZE plane_bsize,
                                             TX_SIZE tx_size,
-                                            TX_TYPE packed_tx_type,
+                                            PRIM_TX_TYPE prim_tx_type,
                                             int64_t rd) {
   // Generate small sample to restrict output size.
   static unsigned int seed = 21743;
@@ -76,7 +76,7 @@ static AVM_INLINE void collect_tx_size_data(const MACROBLOCK *x, int plane,
         src_diff += diff_stride;
       }
 
-      fprintf(fp, "%d,%d,%d,%" PRId64, txb_w, txb_h, packed_tx_type, rd);
+      fprintf(fp, "%d,%d,%d,%" PRId64, txb_w, txb_h, prim_tx_type, rd);
       fprintf(fp, "\n");
       fclose(fp);
     }
