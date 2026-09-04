@@ -141,10 +141,7 @@ typedef struct PartitionSearchState {
 
   // Flags to prune/skip particular partition size evaluation.
   bool terminate_partition_search;
-  bool prune_partition[EXT_PARTITION_TYPES];
-#if CONFIG_ML_PART_SPLIT
-  bool prune_partition_split;
-#endif  // CONFIG_ML_PART_SPLIT
+  bool prune_partition[ALL_PARTITION_TYPES];
 
   // Pointer to an array that traces out the current best partition boundary.
   // Used by prune_part_h_with_partition_boundary and
