@@ -1584,16 +1584,18 @@ python PerceptualMetricsRunner.py --ref orig.y4m --dist recon.y4m \
 
 ### Output
 
-Three columns are appended to `RDResults_*.csv`, **after** `DecMD5`:
+Three columns are added to `RDResults_*.csv`, grouped with the other quality metrics —
+after `CAMBI` and before the timing columns:
 
 ```
-...,EncMD5,DecMD5,LPIPS,DISTS,CVVDP
+...,APSNR_V,CAMBI,LPIPS,DISTS,CVVDP,EncT[s],DecT[s],...
 ```
 
-They are appended at the end rather than grouped with the other quality columns on
-purpose: `AV2CTCProgress.py` copies the RD CSV into the CTC `.xlsm` templates by absolute
-column index, so inserting columns mid-row would shift the timing and MD5 fields and
-corrupt every generated workbook.
+> **Note**: this shifts `EncT[s]`, `DecT[s]`, the instruction/cycle columns and both MD5
+> columns right by the number of enabled perceptual metrics. `AV2CTCProgress.WriteSheet`
+> compensates by dropping the perceptual columns before filling a CTC `.xlsm` template,
+> which is laid out by absolute column index. If you consume the RD CSV with your own
+> tooling, read it by **column name** rather than position.
 
 Per-frame values are appended to `Perframe_RDResults_*.csv` in the same way. A raw
 `<clip>_perceptual.json` log is written to `qualityLogs/<cfg>/` containing the aggregate

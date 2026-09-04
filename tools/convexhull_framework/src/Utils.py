@@ -39,6 +39,7 @@ from Config import (
     InterpolatePieces,
     LogLevels,
     Path_RDResults,
+    PerceptualQualityList,
     Platform,
     PSNR_U_WEIGHT,
     PSNR_V_WEIGHT,
@@ -683,10 +684,18 @@ def GatherPerframeStat(
                 perframe_vmaf_log[i],
             )
         )
-        # Perceptual per-frame columns, appended after the VMAF ones to match
-        # the header. Short or absent when the feature is off.
-        if perframe_perceptual_log and i < len(perframe_perceptual_log):
-            perframe_csv.write("," + perframe_perceptual_log[i])
+        # Perceptual per-frame columns, written directly after the VMAF quality
+        # columns to match the header. The per-frame CSV has no timing or MD5
+        # columns, so this is the end of the row.
+        #
+        # Always emit exactly len(PerceptualQualityList) fields when the feature
+        # is on: a short perceptual log would otherwise produce ragged rows that
+        # silently misalign when the CSV is parsed.
+        if PerceptualQualityList:
+            if perframe_perceptual_log and i < len(perframe_perceptual_log):
+                perframe_csv.write("," + perframe_perceptual_log[i])
+            else:
+                perframe_csv.write("," * len(PerceptualQualityList))
         perframe_csv.write("\n")
 
 
