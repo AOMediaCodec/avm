@@ -51,6 +51,8 @@ list(
   "${AVM_ROOT}/avm_dsp/subtract.c"
   "${AVM_ROOT}/avm_dsp/txfm_common.h"
   "${AVM_ROOT}/avm_dsp/x86/convolve_common_intrin.h"
+  "${AVM_ROOT}/avm_dsp/x86/highbd_convolve_x_sr.h"
+  "${AVM_ROOT}/avm_dsp/x86/highbd_convolve_x_sr_avx512_dispatch.c"
   "${AVM_ROOT}/avm_dsp/avg.c")
 
 list(
@@ -112,6 +114,10 @@ list(
   "${AVM_ROOT}/avm_dsp/x86/blend_a64_mask_avx2.c"
   "${AVM_ROOT}/avm_dsp/x86/avg_intrin_avx2.c"
   "${AVM_ROOT}/avm_dsp/x86/bitdepth_conversion_avx2.h")
+
+list(APPEND AVM_DSP_COMMON_INTRIN_AVX512
+     "${AVM_ROOT}/avm_dsp/x86/convolve_avx512.h"
+     "${AVM_ROOT}/avm_dsp/x86/highbd_convolve_avx512.c")
 
 list(APPEND AVM_DSP_DECODER_INTRIN_AVX2 "${AVM_ROOT}/avm_dsp/x86/entdec_avx2.c")
 
