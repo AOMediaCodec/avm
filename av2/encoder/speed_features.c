@@ -161,9 +161,9 @@ static void set_good_speed_feature_framesize_dependent(
     sf->part_sf.auto_max_partition_based_on_simple_motion = DIRECT_PRED;
   }
 
-  if (is_4k_or_larger) {
-    sf->part_sf.default_min_partition_size = BLOCK_8X8;
-  }
+  // 8x8 partition floor at 4k, and at 1080p from speed 1.
+  sf->part_sf.default_min_partition_size =
+      av2_enc_partition_floor(speed, cm->width, cm->height);
 
   // TODO(huisu@google.com): train models for 720P and above.
   if (!is_720p_or_larger) {
@@ -256,10 +256,6 @@ static void set_good_speed_feature_framesize_dependent(
       sf->part_sf.auto_max_partition_based_on_simple_motion = NOT_IN_USE;
     } else if (is_480p_or_larger) {
       sf->part_sf.auto_max_partition_based_on_simple_motion = DIRECT_PRED;
-    }
-
-    if (is_1080p_or_larger) {
-      sf->part_sf.default_min_partition_size = BLOCK_8X8;
     }
 
     if (is_720p_or_larger) {
