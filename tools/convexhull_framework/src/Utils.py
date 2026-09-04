@@ -184,6 +184,11 @@ class Record:
         apsnr_u,
         apsnr_v,
         cambi,
+        # Perceptual metrics, in the same position as in the RD CSV: with the
+        # other quality metrics, before the timing columns.
+        lpips,
+        dists,
+        cvvdp,
         enc_time,
         dec_time,
         enc_instr,
@@ -191,9 +196,6 @@ class Record:
         enc_cycle,
         dec_cycle,
         ignore_perf,
-        lpips="",
-        dists="",
-        cvvdp="",
     ):
 
         self.test_cfg = test_cfg
@@ -262,6 +264,14 @@ class Record:
 
 
 def ParseCSVFile(csv_file, IgnorePerf=False):
+    """Read an RD CSV into records[clip_name][<CodedRes>_<QP>] -> Record.
+
+    Columns are looked up by name via DictReader, so the physical column order
+    in the CSV does not matter here. What must stay in step is the order of the
+    arguments below and the Record.__init__ signature -- they are matched
+    positionally. Both are kept in RD CSV order so the three are easy to
+    compare by eye.
+    """
     records = {}
     with open(csv_file, "r") as f:
         list_of_data = list(DictReader(f))
@@ -294,6 +304,12 @@ def ParseCSVFile(csv_file, IgnorePerf=False):
                 data["APSNR_U"],
                 data["APSNR_V"],
                 data["CAMBI"],
+                # .get() rather than [] : these columns are absent from every
+                # CSV written before the perceptual metrics were added, and
+                # from any run with the feature disabled.
+                data.get("LPIPS", ""),
+                data.get("DISTS", ""),
+                data.get("CVVDP", ""),
                 data["EncT[s]"],
                 data["DecT[s]"],
                 data["EncInstr"],
@@ -301,12 +317,6 @@ def ParseCSVFile(csv_file, IgnorePerf=False):
                 data["EncCycles"],
                 data["DecCycles"],
                 IgnorePerf,
-                # .get() rather than [] : these columns are absent from every
-                # CSV written before the perceptual metrics were added, and
-                # from any run with the feature disabled.
-                data.get("LPIPS", ""),
-                data.get("DISTS", ""),
-                data.get("CVVDP", ""),
             )
 
             if name not in records.keys():
