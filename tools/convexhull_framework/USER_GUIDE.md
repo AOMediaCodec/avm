@@ -16,8 +16,9 @@ This guide provides instructions for running AV2 Common Test Conditions (CTC) (h
 8. [Distributed Cluster Execution (Launch.py)](#distributed-cluster-execution-launchpy)
 9. [Analyzing Results (AV2CTCProgress.py)](#analyzing-results-av2ctcprogresspy)
 10. [Output Structure](#output-structure)
-11. [Common Workflows](#common-workflows)
-12. [Troubleshooting](#troubleshooting)
+11. [Perceptual Metrics (LPIPS, DISTS, ColorVideoVDP)](#perceptual-metrics-lpips-dists-colorvideovdp)
+12. [Common Workflows](#common-workflows)
+13. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -30,6 +31,7 @@ The AVM CTC Testing Framework is a Python-based test harness for evaluating vide
 - **Multiple codecs**: AV1, AV2, HEVC
 - **Multiple encoders**: aomenc/avmenc, SVT-AV1, HM (HEVC)
 - **Quality metrics**: PSNR, SSIM, MS-SSIM, VMAF, PSNR-HVS, CIEDE2000, CAMBI
+- **Perceptual metrics** (optional, off by default): LPIPS, DISTS, ColorVideoVDP — for evaluating AI/learned coding tools, where pixel-fidelity metrics correlate poorly with perceived quality
 - **Parallel GOP encoding**: For RA and AS configurations to speed up encoding
 - **BD-rate calculation**: For comparing codec efficiency
 
@@ -282,6 +284,15 @@ pip install --require-hashes -r requirements.txt
 | PyYAML | YAML configuration parsing |
 | tabulate | Table formatting for terminal output |
 
+**Optional** (only with `perceptual_metrics.enabled: true`, installed from
+`requirements-perceptual.txt` — see [Perceptual Metrics](#perceptual-metrics-lpips-dists-colorvideovdp)):
+
+| Package | Purpose |
+|---------|---------|
+| torch, torchvision | Runtime for the learned metrics |
+| pyiqa | LPIPS and DISTS (non-commercial licence) |
+| cvvdp | ColorVideoVDP |
+
 ---
 
 ## Configuration
@@ -520,6 +531,8 @@ avm-ctc/tools/convexhull_framework/
 │   ├── EncDecUpscale.py    # Encode-decode-upscale pipeline
 │   ├── CalculateQualityMetrics.py  # Quality metric calculation
 │   ├── CalcQtyWithVmafTool.py      # VMAF tool invocation and log parsing
+│   ├── CalcPerceptualMetrics.py    # LPIPS/DISTS/ColorVideoVDP (optional)
+│   ├── PerceptualMetricsRunner.py  # Subprocess runner for the above
 │   ├── CalcBDRate.py       # BD-Rate computation
 │   ├── CheckEncoding.py    # Check encoding status
 │   ├── AV2CTCVideo.py      # Test sequence definitions (CTC + ECF)
@@ -557,6 +570,8 @@ avm-ctc/tools/convexhull_framework/
 ├── ctc_result/             # CTC progress analysis outputs
 ├── requirements.in         # Dependency source file (pip-compile input)
 ├── requirements.txt        # Pinned Python dependencies (with hashes)
+├── requirements-perceptual.in   # Optional perceptual metric deps (source)
+├── requirements-perceptual.txt  # Optional perceptual metric deps (not hashed)
 ├── setup_env.sh            # Environment setup script
 └── USER_GUIDE.md           # This user guide
 ```
@@ -1104,6 +1119,14 @@ The script calculates BD-Rate for the following metrics:
 | `ciede2k` | CIEDE2000 color difference |
 | `apsnr_y/u/v` | Arithmetic PSNR for Y/U/V channels |
 | `overall_apsnr` | Weighted overall Arithmetic PSNR |
+| `lpips` | LPIPS — optional, **lower is better** (negated before BD-rate) |
+| `dists` | DISTS — optional, **lower is better** (negated before BD-rate) |
+| `cvvdp` | ColorVideoVDP JOD — optional, higher is better |
+
+> **Note**: `cambi` is written to the RD CSV but is not included in the BD-rate set. The
+> three perceptual metrics are only present when `perceptual_metrics.enabled: true`;
+> results from runs without them are excluded from those metrics' BD-rate rather than
+> being counted as zero, so old and new result sets can be mixed safely.
 
 ### Basic Usage
 
@@ -1410,6 +1433,192 @@ test/
 
 ---
 
+## Perceptual Metrics (LPIPS, DISTS, ColorVideoVDP)
+
+The framework can optionally compute three perceptual quality metrics alongside the
+standard CTC set. They exist to support evaluation of **AI / learned coding tools**, where
+PSNR-style pixel-fidelity metrics correlate poorly with what viewers actually see — a tool
+can improve perceived quality without improving PSNR, or improve PSNR without looking
+better.
+
+> **Important**: These are **not** part of the AOM CTC mandatory metric set.
+> `CWG-G082_AV2_CTC_v9` requires PSNR-Y, weighted PSNR-YUV, PSNR-HVS, SSIM, MS-SSIM,
+> CIEDE2000, VMAF and CAMBI, all computed by libvmaf. Report the perceptual metrics as
+> supplementary evidence, not as a substitute.
+
+### The three metrics
+
+| Metric | Type | Direction | Notes |
+|--------|------|-----------|-------|
+| **LPIPS** | Per-frame image | **Lower is better** | Learned perceptual similarity (Zhang et al., CVPR 2018). AlexNet backbone by default. |
+| **DISTS** | Per-frame image | **Lower is better** | Deep Image Structure and Texture Similarity (Ding et al., TPAMI 2020). Strongly resolution-dependent. |
+| **ColorVideoVDP** | **Video** | **Higher is better** | JOD scale, 10 = indistinguishable, can go below 0. Models colour *and* motion (Mantiuk et al., SIGGRAPH 2024). |
+
+LPIPS and DISTS are image metrics with no temporal modelling; they are applied per frame
+and averaged, which is the de facto convention but not a standard. ColorVideoVDP is a true
+video metric and is the only one of the three that sees temporal artifacts such as flicker
+or pumping. That is a reason to read them together rather than picking one.
+
+> **Caveat worth knowing before you rely on LPIPS.** A 30-participant subjective study over
+> AV1, VVC and DCVC at up to 4K (arXiv 2511.00969) found LPIPS the *worst*-correlating
+> full-reference metric tested (PCC 0.646) against VMAF's 0.886. Treat LPIPS as one signal
+> among several, not as a decision metric.
+
+### Installation
+
+The metrics need PyTorch and are therefore kept out of the main dependency set:
+
+```bash
+./setup_env.sh --perceptual
+```
+
+or, into an existing environment:
+
+```bash
+pip install -r requirements-perceptual.txt
+```
+
+For CUDA nodes, install torch from the PyTorch index first so you get a GPU build:
+
+```bash
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+pip install -r requirements-perceptual.txt
+```
+
+| File | Purpose |
+|------|---------|
+| `requirements-perceptual.in` | Source list for the optional extras |
+| `requirements-perceptual.txt` | Install list. **Not** hash-pinned — torch ships platform-specific wheels, so a hashed lock is not portable between macOS and the Linux cluster. The core `requirements.txt` stays hash-pinned and unaffected. |
+
+> **Licence**: `pyiqa` (which provides LPIPS and DISTS) is **PolyForm Noncommercial 1.0.0 +
+> NTU S-Lab** — non-commercial use only. It is used here for AOM standards-group work. If
+> this framework is reused in a product context, swap it for `torchmetrics[image]`
+> (Apache-2.0), which provides both metrics and ships LPIPS weights identical to the
+> reference implementation. `cvvdp` is MIT and has no such restriction.
+
+### Configuration
+
+```yaml
+perceptual_metrics:
+  enabled: false                # master switch
+  metrics: ["LPIPS", "DISTS", "CVVDP"]
+  frame_step: 1                 # 1 = every frame; ignored by CVVDP
+  device: "auto"                # auto | cpu | cuda | cuda:N | mps
+  lpips_net: "alex"             # alex | vgg | squeeze
+  hdr_classes: ["G1", "G2", "ECF-3", "ECF-4"]
+  cvvdp_display:
+    "2160p": "standard_4k"
+    "1080p": "standard_fhd"
+    "default": "standard_fhd"
+    "hdr": "standard_hdr_pq"
+```
+
+With `enabled: false` the framework behaves exactly as before and never imports torch, so
+a normal CTC run is unaffected and needs none of the extras installed.
+
+### HDR content
+
+LPIPS and DISTS were trained on 8-bit SDR content and are out of distribution on PQ /
+BT.2020 material, so **only ColorVideoVDP runs on the HDR classes** (`G1`, `G2`, `ECF-3`,
+`ECF-4` by default). Their CSV cells are left empty for those clips — an empty cell means
+"not computed", which is deliberately distinct from a `0.0`.
+
+### ColorVideoVDP display presets
+
+ColorVideoVDP models a **display**, not just an image. Judging 1080p content against a 4K
+preset tells the metric the image occupies only the centre quarter of the screen, which
+silently changes the score. The framework therefore picks the preset from the coded
+resolution via the `cvvdp_display` map above.
+
+| Preset | Resolution | Peak | Use |
+|--------|-----------|------|-----|
+| `standard_4k` | 3840x2160 | 200 cd/m² | 2160p SDR (A1, B, E) |
+| `standard_fhd` | 1920x1080 | 200 cd/m² | 1080p and below |
+| `standard_hdr_pq` | 3840x2160 | 1500 cd/m² | HDR PQ / BT.2020 |
+
+Run `cvvdp --display ?` to list every available preset.
+
+### Colour conversion
+
+All three metrics consume display-encoded RGB, so the framework converts each `.y4m` with
+an explicit ffmpeg pipeline rather than letting any tool infer the colorimetry — CTC `.y4m`
+files carry no colour tags, and an inferred conversion would apply BT.709 to BT.2020
+content:
+
+```
+ffmpeg -i in.y4m -vf "scale=in_color_matrix=bt709:in_range=tv:out_range=pc\
+:flags=accurate_rnd+full_chroma_int" -pix_fmt rgb24 -f rawvideo -
+```
+
+BT.709 is used for SDR and BT.2020 non-constant luminance for the HDR classes. The
+`accurate_rnd` flag is not cosmetic: without it swscale's limited-to-full expansion falls
+about 2/255 short across the whole range (Y=235 maps to 253 instead of 255).
+`full_chroma_int` gives proper chroma interpolation when upsampling 4:2:0. With both, the
+conversion is exact on a greyscale ramp and within 1/255 on the primaries.
+
+8-bit sources are converted to `rgb24`; anything deeper goes to `rgb48le` so the extra
+precision survives. The exact command used is recorded in every output log.
+
+### Running
+
+No new commands — the metrics are computed as part of the normal quality step, in the same
+place VMAF is, and against the same source/reconstruction pair (including the upscaled
+output for AS tests). They are written into the per-job shell scripts like any other
+command, so cluster execution works unchanged:
+
+```bash
+cd src
+# Set perceptual_metrics.enabled: true in config.yaml first
+python AV2CTCTest.py -f encode -c av2 -m aom -p 0 --LogCmdOnly 1
+python Launch.py AV2CTC_TestCmd.log
+python AV2CTCTest.py -f summary -c av2 -m aom -p 0
+```
+
+The measurement itself is done by `PerceptualMetricsRunner.py`, invoked as a subprocess.
+You can run it standalone to check a single pair:
+
+```bash
+python PerceptualMetricsRunner.py --ref orig.y4m --dist recon.y4m \
+    --metrics LPIPS,DISTS,CVVDP --cvvdp-display standard_fhd --out result.json
+```
+
+### Output
+
+Three columns are appended to `RDResults_*.csv`, **after** `DecMD5`:
+
+```
+...,EncMD5,DecMD5,LPIPS,DISTS,CVVDP
+```
+
+They are appended at the end rather than grouped with the other quality columns on
+purpose: `AV2CTCProgress.py` copies the RD CSV into the CTC `.xlsm` templates by absolute
+column index, so inserting columns mid-row would shift the timing and MD5 fields and
+corrupt every generated workbook.
+
+Per-frame values are appended to `Perframe_RDResults_*.csv` in the same way. A raw
+`<clip>_perceptual.json` log is written to `qualityLogs/<cfg>/` containing the aggregate
+and per-frame values, the ffmpeg command used, package versions, and ColorVideoVDP's
+signature string.
+
+> **Note**: ColorVideoVDP's aggregate JOD is an L*p* norm over frames, not a mean, so the
+> per-frame series will not average to the reported aggregate.
+
+BD-rate is computed for all three in `AV2CTCProgress.py`. LPIPS and DISTS are negated
+first, so a negative BD-rate keeps its usual meaning of "bitrate saving" for every metric.
+Encodes where a metric was not computed are excluded rather than counted as zero.
+
+### Offline and cluster nodes
+
+- **ColorVideoVDP** downloads nothing at runtime; all its parameters ship in the package.
+- **LPIPS and DISTS** fetch ImageNet backbone weights (AlexNet, and VGG16 at ~528 MB) from
+  `download.pytorch.org` on first use. On nodes without internet, pre-populate
+  `$TORCH_HOME/hub/checkpoints` and export `TORCH_HOME` in the job environment.
+- A real `ffmpeg` binary is required on every node.
+- Set `device: "cpu"` if the nodes have no GPU. It works, but is substantially slower on
+  large sequences; `frame_step` gives you a faster approximate signal for LPIPS/DISTS.
+
+---
+
 ## Common Workflows
 
 ### Workflow 1: Full RA Test Run (local execution)
@@ -1607,6 +1816,49 @@ executables:
 # Check for incomplete bitstreams
 ls -la test/bitstreams/AS/
 ```
+
+### Perceptual Metric Issues
+
+#### "torch is not installed" / "pyiqa is not installed"
+
+The perceptual metrics are enabled but their optional dependencies are not present:
+
+```bash
+./setup_env.sh --perceptual
+# or
+pip install -r requirements-perceptual.txt
+```
+
+Set `perceptual_metrics.enabled: false` in `config.yaml` if you did not intend to run them.
+
+#### LPIPS/DISTS columns are empty for some clips
+
+Expected for the HDR classes (`G1`, `G2`, `ECF-3`, `ECF-4`). Those metrics are trained on
+8-bit SDR content and are out of distribution on PQ/BT.2020, so only ColorVideoVDP is run
+there. An empty cell means "not computed" and is distinct from `0.0`.
+
+#### Model weight download fails on cluster nodes
+
+LPIPS and DISTS fetch ImageNet backbones on first use. On nodes without internet, populate
+the cache on a connected machine and ship it:
+
+```bash
+export TORCH_HOME=/shared/torch_cache
+python -c "import pyiqa; pyiqa.create_metric('lpips'); pyiqa.create_metric('dists')"
+# then export the same TORCH_HOME in the cluster job environment
+```
+
+#### Out of memory during ColorVideoVDP
+
+It processes blocks of frames on the GPU. Use `device: "cpu"` or reduce the resolution
+under test. Note `frame_step` does **not** help here — ColorVideoVDP needs contiguous
+frames for its temporal model and ignores that setting.
+
+#### Scores are implausible or do not move with QP
+
+Check the `ffmpeg_ref` / `ffmpeg_dist` fields in `qualityLogs/<cfg>/<clip>_perceptual.json`
+to confirm the colour conversion. A BT.709 matrix applied to BT.2020 content produces
+plausible-looking but wrong numbers.
 
 ### Debug Mode
 

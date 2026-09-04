@@ -186,6 +186,41 @@ quality:
   interpolate_pieces: 8
 
 # =============================================================================
+# Perceptual Quality Metrics (LPIPS, DISTS, ColorVideoVDP)
+# =============================================================================
+# These are OPTIONAL and OFF by default. They are not part of the AOM CTC
+# mandatory metric set; they are intended for evaluating AI / learned coding
+# tools, where pixel-fidelity metrics correlate poorly with perceived quality.
+#
+# Enabling them requires the optional extras:
+#     pip install -r requirements-perceptual.txt
+# See USER_GUIDE.md for offline/cluster setup (model weight caching).
+perceptual_metrics:
+  # Master switch. When false the framework behaves exactly as before and
+  # never imports torch.
+  enabled: false
+  # Subset of LPIPS, DISTS, CVVDP to compute.
+  metrics: ["LPIPS", "DISTS", "CVVDP"]
+  # Evaluate every Nth frame. 1 = every frame. Ignored by CVVDP, which needs
+  # contiguous frames for its temporal model.
+  frame_step: 1
+  # auto | cpu | cuda | cuda:N | mps
+  device: "auto"
+  # LPIPS backbone: alex (best forward scores), vgg, or squeeze
+  lpips_net: "alex"
+  # Video classes treated as HDR. LPIPS/DISTS are trained on 8-bit SDR content
+  # and are out of distribution on PQ/BT.2020, so only CVVDP runs on these.
+  hdr_classes: ["G1", "G2", "ECF-3", "ECF-4"]
+  # ColorVideoVDP display preset, selected by coded resolution. The preset
+  # models the DISPLAY, not the image: judging 1080p content against a 4K
+  # preset assumes the image fills only the centre quarter of the screen.
+  cvvdp_display:
+    "2160p": "standard_4k"
+    "1080p": "standard_fhd"
+    "default": "standard_fhd"
+    "hdr": "standard_hdr_pq"
+
+# =============================================================================
 # Extended Chroma Format (ECF) Configuration
 # =============================================================================
 ecf:

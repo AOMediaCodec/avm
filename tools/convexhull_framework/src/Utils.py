@@ -104,6 +104,16 @@ def _get_ecf_psnr_weights(file_name):
     return psnr_yw, psnr_uw, psnr_vw, psnr_yw, psnr_uw, psnr_vw
 
 
+def _opt_float(value):
+    """Parse an optional numeric CSV cell, mapping blank/missing/bad to NaN."""
+    if value is None or value == "":
+        return float("nan")
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return float("nan")
+
+
 class Record:
     test_cfg = ""
     encode_mode = ""
@@ -139,6 +149,12 @@ class Record:
     enc_cycle = 0.0
     dec_cycle = 0.0
     ignore_perf = False
+    # Optional perceptual metrics. NaN by default so that CSVs written before
+    # these columns existed, or with the feature disabled, parse unchanged and
+    # are simply excluded from perceptual BD-rate.
+    lpips = float("nan")
+    dists = float("nan")
+    cvvdp = float("nan")
 
     def __init__(
         self,
@@ -174,6 +190,9 @@ class Record:
         enc_cycle,
         dec_cycle,
         ignore_perf,
+        lpips="",
+        dists="",
+        cvvdp="",
     ):
 
         self.test_cfg = test_cfg
@@ -227,6 +246,11 @@ class Record:
             )
         )
         self.cambi = float(cambi)
+        # An absent or blank cell means the metric was not computed for this
+        # encode (feature off, or skipped as out-of-distribution on HDR).
+        self.lpips = _opt_float(lpips)
+        self.dists = _opt_float(dists)
+        self.cvvdp = _opt_float(cvvdp)
         if not ignore_perf:
             self.enc_time = float(enc_time)
             self.dec_time = float(dec_time)
@@ -276,6 +300,12 @@ def ParseCSVFile(csv_file, IgnorePerf=False):
                 data["EncCycles"],
                 data["DecCycles"],
                 IgnorePerf,
+                # .get() rather than [] : these columns are absent from every
+                # CSV written before the perceptual metrics were added, and
+                # from any run with the feature disabled.
+                data.get("LPIPS", ""),
+                data.get("DISTS", ""),
+                data.get("CVVDP", ""),
             )
 
             if name not in records.keys():
@@ -603,6 +633,7 @@ def GatherPerframeStat(
     enc_log,
     perframe_csv,
     perframe_vmaf_log,
+    perframe_perceptual_log=None,
 ):
     enc_list = [""] * len(perframe_vmaf_log)
     flog = open(enc_log, "r")
@@ -636,7 +667,7 @@ def GatherPerframeStat(
     for i in range(len(enc_list)):
         # "TestCfg,EncodeMethod,CodecName,EncodePreset,Class,Name,Res,FPS,BitDepth,QP,POC,FrameType,Level,qindex,FrameSize")
         perframe_csv.write(
-            "%s,%s,%s,%s,%s,%s,%s,%s,%d,%d,%s,%s\n"
+            "%s,%s,%s,%s,%s,%s,%s,%s,%d,%d,%s,%s"
             % (
                 test_cfg,
                 EncodeMethod,
@@ -652,6 +683,11 @@ def GatherPerframeStat(
                 perframe_vmaf_log[i],
             )
         )
+        # Perceptual per-frame columns, appended after the VMAF ones to match
+        # the header. Short or absent when the feature is off.
+        if perframe_perceptual_log and i < len(perframe_perceptual_log):
+            perframe_csv.write("," + perframe_perceptual_log[i])
+        perframe_csv.write("\n")
 
 
 def plot_rd_curve(
