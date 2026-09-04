@@ -328,11 +328,6 @@ typedef struct PARTITION_SPEED_FEATURES {
   // 1 - 2 increasing aggressiveness in order.
   int ml_early_term_after_part_split_level;
 
-  // Skip rectangular partition test when partition type none gives better
-  // rd than partition type split. Can take values 0 - 2, 0 referring to no
-  // skipping, and 1 - 2 increasing aggressiveness of skipping in order.
-  int less_rectangular_check_level;
-
   // Use square partition only beyond this block size.
   BLOCK_SIZE use_square_partition_only_threshold;
 
@@ -604,9 +599,6 @@ typedef struct INTER_MODE_SPEED_FEATURES {
 
   // Bypass transform search based on skip rd
   int txfm_rd_gate_level;
-
-  // Limit the inter mode tested in the RD loop
-  int reduce_inter_modes;
 
   // This variable is used to cap the maximum number of times we skip testing a
   // mode to be evaluated. A high value means we will be faster.

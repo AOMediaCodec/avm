@@ -4430,7 +4430,6 @@ static void split_partition_search(
     part_search_state->found_best_partition = true;
     pc_tree->partitioning = PARTITION_SPLIT;
     pc_tree->skippable = skippable;
-  } else if (cpi->sf.part_sf.less_rectangular_check_level > 0) {
   }
 #if CONFIG_COLLECT_PARTITION_STATS
   end_partition_block_timer(part_timing_stats, PARTITION_SPLIT, sum_rdc.rdcost);
