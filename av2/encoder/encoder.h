@@ -2278,7 +2278,6 @@ typedef struct {
 
 typedef struct {
   // Some misc info
-  int high_prec;
   int q;
   int order;
 

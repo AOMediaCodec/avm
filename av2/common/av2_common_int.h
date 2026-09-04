@@ -521,8 +521,6 @@ typedef struct {
   int cdef_on_skip_txfm_frame_enable;
   //! CDEF on/off for current frame
   int cdef_frame_enable;
-  //! Number of CDEF strength values in bits
-  int cdef_bits;
   //! Number of rows in the frame in 4 pixel
   int allocated_mi_rows;
   //! Number of CDEF workers
@@ -710,7 +708,6 @@ typedef struct {
   // unit
   int brt_from_leading;
   int br_ops_dependent_flag;
-  int ops_id;
   int br_ops_id;
   int br_ops_cnt[MAX_NUM_OPS_ID];
   int br_decoder_model_present_op_flag[MAX_NUM_OPS_ID][MAX_OPS_COUNT];
@@ -724,10 +721,6 @@ typedef struct CroppingWindow {
   int crop_win_right_offset;
   int crop_win_top_offset;
   int crop_win_bottom_offset;
-
-  int crop_info_seq_flag;
-  int crop_max_width;
-  int crop_max_height;
 } CroppingWindow;
 
 typedef struct RepresentationInfo {
@@ -811,21 +804,18 @@ typedef struct GlobalLayerConfigurationRecord {
   int lcr_global_payload_present_flag;
   int lcr_seq_profile_tier_level_info_present_flag;
   int lcr_global_atlas_id_present_flag;
-  int lcr_reserved_zero_2bits;
   int lcr_global_atlas_id;
   int lcr_reserved_zero_3bits;
   int lcr_reserved_zero_5bits;
-  int lcr_data_size_present_flag;
   int lcr_global_purpose_id;
   int lcr_dependent_xlayers_flag;
 
   // Derived
-  int LcrMaxNumXLayerCount;  // NUmber of xlauers in this global LCR
+  int LcrMaxNumXLayerCount;  // number of xlayers in this global LCR
   int LcrXLayerID[31];       // number of xlayers in this global LCR
 
   int lcr_doh_constraint_flag;
   int lcr_enforce_tile_alignment_flag;
-  int lcr_reserved_zero_6bits;
   uint32_t lcr_data_size[MAX_NUM_XLAYERS];
   uint32_t lcr_num_dependent_xlayer_map[MAX_NUM_XLAYERS];
   // Xlayer infor for each extended layer in this global LCR
@@ -1259,7 +1249,6 @@ typedef struct SequenceHeader {
   CropWindow conf;
   uint8_t seq_seg_info_present_flag;
   SegmentationInfoSyntax seg_params;
-  int allow_seg_info_change;
   int seq_extension_present_flag;
   // IMPORTANT: the op_params member must be at the end of the struct so that
   // are_seq_headers_consistent() can be implemented with a memcmp() call.
@@ -1296,7 +1285,6 @@ typedef struct {
   int xlayer_id;
   SkipModeInfo skip_mode_info;
   int refresh_frame_flags;  // Which ref frames are overwritten by this frame
-  bool tile_info_present_in_frame_header;
 } CurrentFrame;
 
 /*!\endcond */
@@ -1537,10 +1525,6 @@ typedef struct MultiFrameHeader {
    * Frame Height of frames that reference this multi-frame header
    */
   int mfh_frame_height;
-  /*!
-   * Render size present flag
-   */
-  int mfh_render_size_present_flag;
   /*!
    * Presence of deblocking loop filter levels in this multi-frame header
    */
