@@ -13,6 +13,8 @@
 #ifndef AVM_AV2_COMMON_CONVOLVE_H_
 #define AVM_AV2_COMMON_CONVOLVE_H_
 #include "av2/common/filter.h"
+#include "avm_dsp/avm_dsp_common.h"
+#include <string.h>
 
 #ifdef __cplusplus
 extern "C" {
