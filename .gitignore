@@ -26,3 +26,15 @@ build/
 *.swo
 
 tools/convexhull_framework/ctc_result/**/Perframe_*
+
+# Python virtual environments
+venv/
+
+# Generated reports. AV2CTCProgress.py writes its PDF charts and filled-in
+# CTC workbooks into ctc_result/; they are outputs, not inputs.
+*.pdf
+*.xlsm
+
+# ...but the CTC Excel templates in bin/ are required inputs -- Config.py
+# selects one of these per ctc_version. Keep them tracked.
+!tools/convexhull_framework/bin/*.xlsm
