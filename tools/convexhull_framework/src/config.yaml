@@ -13,12 +13,14 @@ ctc_version: "9.0"
 # Path Configuration
 # =============================================================================
 paths:
-  # Root path relative to the src directory (or use absolute path)
-  root: "/Users/ryanlei/ryanlei/Data/AVM/avm-ctc/tools/convexhull_framework/"
+  # Root path, relative to the src directory (or use an absolute path).
+  # ".." resolves to the convexhull_framework directory when scripts are run
+  # from src/, which is how the workflows in USER_GUIDE.md invoke them.
+  root: ".."
   # Path to bin directory (optional, defaults to {root}/bin if not specified)
-  bin: "/Users/ryanlei/ryanlei/Data/AVM/avm-ctc/tools/convexhull_framework/bin"
+  # bin: "/absolute/path/to/bin"
   # Path to work directory (optional, defaults to {root}/test if not specified)
-  work: "/Users/ryanlei/ryanlei/Data/AVM/avm-ctc/tools/convexhull_framework/test"
+  # work: "/absolute/path/to/test"
   # Path to video content for testing
   content: "<...>"
   # Path to subjective test content (used when enable_subjective_test is true)
@@ -91,8 +93,9 @@ encoding:
   sub_gop_size: 16
   gop_size: 65
 
-  # QP values for each test configuration
-  # These are for CTC versions 2.0-8.0
+  # QP values for each test configuration.
+  # Used for CTC versions 2.0-9.0. Older versions fall back to the legacy QP
+  # values hardcoded in Config.py.
   qps:
     LD: [110, 135, 160, 185, 210, 235]
     RA: [110, 135, 160, 185, 210, 235]
@@ -118,14 +121,16 @@ subjective_qps:
 # Frame Count Configuration
 # =============================================================================
 frame_counts:
-  # Standard frame counts for each configuration
+  # Standard frame counts for each configuration. Also used as the verification
+  # test config frame counts (enable_verification_test_config: true).
   LD: 130
   RA: 130
   AI: 30
   AS: 130
   STILL: 1
 
-# Verification test config frame counts (AI uses 30 instead of 15)
+# NOTE: currently unused by Config.py -- the verification-test frame counts come
+# from `frame_counts` above. Kept for reference only.
 frame_counts_verification:
   LD: 130
   RA: 130
@@ -133,7 +138,8 @@ frame_counts_verification:
   AS: 130
   STILL: 1
 
-# Non-verification test config frame counts for CTC 7.0/8.0
+# Non-verification test config frame counts for CTC 7.0/8.0/9.0
+# (used when enable_verification_test_config is false)
 frame_counts_non_verification:
   LD: 130
   RA: 130
