@@ -1089,6 +1089,10 @@ typedef struct LOOP_FILTER_SPEED_FEATURES {
   // size at deep pyramid levels. Default 0 keeps the smallest size available.
   int reduce_lr_unit_size_by_pyr_drop_low;
 
+  // If set, use fast search for WIENER_NONSEP frame-level filters: 1 iteration
+  // with all RUs, bypassing percentage subsets and qsort.
+  int wienerns_fast_frame_filter_opt;
+
   // bypass ccso luma plane check
   int ccso_chroma_dep;
 } LOOP_FILTER_SPEED_FEATURES;
