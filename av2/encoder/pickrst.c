@@ -1640,6 +1640,17 @@ static int compute_wienerns_filter_select_master(
   return 1;
 }
 
+void av2_accumulate_wienerns_correlation_c(double *A_base, double *b_base,
+                                           const int16_t *buf, int16_t y,
+                                           int num_feat) {
+  for (int k = 0; k < num_feat; ++k) {
+    for (int l = 0; l <= k; ++l) {
+      A_base[k * num_feat + l] += (double)buf[k] * (double)buf[l];
+    }
+    b_base[k] += (double)buf[k] * (double)y;
+  }
+}
+
 static int64_t compute_stats_for_wienerns_filter(
     const uint16_t *dgd_hbd, const uint16_t *src_hbd,
     const RestorationTileLimits *limits, int dgd_stride, int src_stride,
@@ -1722,13 +1733,8 @@ static int64_t compute_stats_for_wienerns_filter(
         }
         int16_t y;
         y = ((int64_t)src_hbd[src_id] - dgd_hbd[dgd_id]);
-        for (int k = 0; k < num_feat; ++k) {
-          for (int l = 0; l <= k; ++l) {
-            A[k * num_feat + l + c_id * stride_A] +=
-                (double)buf[k] * (double)buf[l];
-          }
-          b[k + c_id * stride_b] += (double)buf[k] * (double)y;
-        }
+        av2_accumulate_wienerns_correlation(
+            A + c_id * stride_A, b + c_id * stride_b, buf, y, num_feat);
         real_sse += (int64_t)y * (int64_t)y;
         ++num_pixels_in_class[c_id];
       }
@@ -3378,8 +3384,13 @@ static double optimize_frame_filters_for_target_classes(
   double fraction_rus_to_include[][2] = { { .9, .0 }, { .8, .0 }, { .7, .0 },
                                           { .6, .0 }, { .5, .0 }, { .4, .0 },
                                           { .3, .0 }, { .2, .0 }, { .1, 0 } };
-  const int num_ru_perc_to_try =
-      sizeof(fraction_rus_to_include) / sizeof(*fraction_rus_to_include);
+  int num_ru_perc_to_try =
+      (int)(sizeof(fraction_rus_to_include) / sizeof(*fraction_rus_to_include));
+  int max_iterations = num_ru_perc_to_try + 2;
+  if (rsc->lpf_sf->wienerns_fast_frame_filter_opt) {
+    num_ru_perc_to_try = 0;
+    max_iterations = 1;
+  }
   const int solve_iterations = 1;
   double best_cost = DBL_MAX;
 
@@ -3396,7 +3407,7 @@ static double optimize_frame_filters_for_target_classes(
   // num_ru_perc_to_try times. Then a final round to better optimize the best
   // filter.
   int cnt = 0;
-  while (cnt < num_ru_perc_to_try + 2) {
+  while (cnt < max_iterations) {
     ++cnt;
     RdResults rd_results = { 0 };
     for (int n = 0; n < solve_iterations; ++n) {
