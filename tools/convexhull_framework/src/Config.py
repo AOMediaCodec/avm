@@ -91,6 +91,29 @@ ECF_PSNR_YUV_Weights = _ecf_config.get(
 ECF_Template = _ecf_config.get("template", "")
 
 ######################################
+# Perceptual metrics (LPIPS, DISTS, ColorVideoVDP) configuration
+# Optional and off by default; see requirements-perceptual.txt
+######################################
+_perceptual_config = _config.get("perceptual_metrics", {})
+EnablePerceptualMetrics = _perceptual_config.get("enabled", False)
+PerceptualMetricsList = _perceptual_config.get("metrics", ["LPIPS", "DISTS", "CVVDP"])
+PerceptualFrameStep = _perceptual_config.get("frame_step", 1)
+PerceptualDevice = _perceptual_config.get("device", "auto")
+PerceptualLpipsNet = _perceptual_config.get("lpips_net", "alex")
+PerceptualHDRClasses = _perceptual_config.get(
+    "hdr_classes", ["G1", "G2", "ECF-3", "ECF-4"]
+)
+CVVDPDisplayMap = _perceptual_config.get(
+    "cvvdp_display",
+    {
+        "2160p": "standard_4k",
+        "1080p": "standard_fhd",
+        "default": "standard_fhd",
+        "hdr": "standard_hdr_pq",
+    },
+)
+
+######################################
 # Test configuration (depends on EnableSubjectiveTest and EnableECF)
 ######################################
 if EnableSubjectiveTest:
@@ -236,6 +259,18 @@ QualityList = [
     "APSNR_V",
     "CAMBI",
 ]
+
+# Perceptual metric columns, appended AFTER the MD5 columns in the RD CSV.
+# Deliberately not part of QualityList: AV2CTCProgress.WriteSheet copies the
+# CSV into the CTC .xlsm templates by absolute column index, so inserting
+# these into QualityList would shift EncT/DecT/Instr/Cycles/MD5 rightward and
+# corrupt every generated workbook.
+if EnablePerceptualMetrics:
+    PerceptualQualityList = [
+        m for m in ["LPIPS", "DISTS", "CVVDP"] if m in PerceptualMetricsList
+    ]
+else:
+    PerceptualQualityList = []
 
 InterpolatePieces = _config["quality"]["interpolate_pieces"]
 

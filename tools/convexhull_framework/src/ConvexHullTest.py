@@ -12,13 +12,18 @@
 __author__ = "maggie.sun@intel.com, ryanlei@meta.com"
 
 import argparse
+import math
 import os
 import subprocess
 import sys
 
 import Utils
 from CalcQtyWithVmafTool import GetVMAFLogFile
-from CalculateQualityMetrics import CalculateQualityMetric, GatherQualityMetrics
+from CalculateQualityMetrics import (
+    CalculateQualityMetric,
+    GatherPerceptualMetrics,
+    GatherQualityMetrics,
+)
 from Config import (
     AS_DOWNSCALE_ON_THE_FLY,
     CodecNames,
@@ -33,6 +38,7 @@ from Config import (
     LoggerName,
     LogLevels,
     Path_RDResults,
+    PerceptualQualityList,
     QPs,
     QualityList,
     ScaleMethods,
@@ -246,6 +252,7 @@ def Run_ConvexHull_Test(clip, dnScalAlgo, upScalAlgo, ScaleMethod, LogCmdOnly=Fa
                 path_quality_log,
                 path_vmaf_log,
                 LogCmdOnly,
+                clip=clip,
             )
             if SaveMemory:
                 DeleteFile(reconyuv, LogCmdOnly)
@@ -491,6 +498,10 @@ def SaveConvexHullResults(
                     missing.write("\n%s quality metrics is missing" % bs)
                     continue
 
+                perceptual, perframe_perceptual_log = GatherPerceptualMetrics(
+                    reconyuv, path_quality_log, frame_num
+                )
+
                 filesize = os.path.getsize(bs)
                 bitrate = round(
                     (
@@ -558,6 +569,12 @@ def SaveConvexHullResults(
                     enc_md5 = md5(bs)
                     dec_md5 = md5(reconyuv)
                     csv.write("%s,%s" % (enc_md5, dec_md5))
+
+                # NaN means the metric was deliberately not run (e.g. LPIPS on
+                # HDR content); write an empty cell, not a misleading 0.0.
+                for qty in perceptual:
+                    csv.write(",") if math.isnan(qty) else csv.write(",%f" % qty)
+
                 csv.write("\n")
 
                 if (EncodeMethod == "aom") and not EnableParallelGopEncoding:
@@ -575,6 +592,7 @@ def SaveConvexHullResults(
                         enc_log,
                         perframe_csv,
                         perframe_vmaf_log,
+                        perframe_perceptual_log,
                     )
 
     missing.close()
@@ -806,6 +824,7 @@ def Run_AS_Decode_Test(
                     path_quality_log,
                     path_vmaf_log,
                     LogCmdOnly,
+                    clip=clip,
                 )
                 if SaveMemory:
                     DeleteFile(upscaledYUV, LogCmdOnly)
@@ -1052,6 +1071,11 @@ if __name__ == "__main__":
             csv.write(",EncInstr,DecInstr,EncCycles,DecCycles")
         if EnableMD5:
             csv.write(",EncMD5,DecMD5")
+        # Perceptual metrics go last, after MD5, so the column indices of every
+        # pre-existing field are unchanged. AV2CTCProgress.WriteSheet copies
+        # this CSV into the CTC .xlsm templates by absolute column number.
+        for qty in PerceptualQualityList:
+            csv.write("," + qty)
 
         csv.write("\n")
 
@@ -1063,6 +1087,8 @@ if __name__ == "__main__":
         for qty in QualityList:
             if not qty.startswith("APSNR"):
                 perframe_csv.write("," + qty)
+        for qty in PerceptualQualityList:
+            perframe_csv.write("," + qty)
         perframe_csv.write("\n")
 
         for clip in clip_list:

@@ -12,6 +12,7 @@
 __author__ = "maggie.sun@intel.com, ryanlei@meta.com"
 
 import csv
+import math
 import os
 import re
 import shutil
@@ -60,7 +61,15 @@ qtys = [
     "apsnr_u",
     "apsnr_v",
     "overall_apsnr",
+    "lpips",
+    "dists",
+    "cvvdp",
 ]
+
+# Metrics where a LOWER score means better quality. BD_RATE assumes the
+# opposite, so these are negated before it is called; without that a genuine
+# improvement would be reported with the wrong sign.
+LOWER_IS_BETTER_QTYS = {"lpips", "dists"}
 
 csv_paths = {
     "v01.0.0": [
@@ -538,6 +547,26 @@ def DrawIndividualRDCurve(records, pdf):
                     plt.close()
 
 
+def CalcOneBDRate(qty, br_anchor, qty_anchor, br_test, qty_test):
+    """BD-rate for one metric, handling polarity and missing values.
+
+    BD_RATE assumes higher quality is better. LPIPS and DISTS are the
+    opposite, so their values are negated first; the resulting BD-rate then
+    keeps the usual convention that negative means a bitrate saving.
+
+    A metric that was not computed (NaN) yields an error code so the caller
+    records 0.0 rather than fabricating a comparison from missing data.
+    """
+    if any(v is None or math.isnan(v) for v in list(qty_anchor) + list(qty_test)):
+        return (-1, "metric not available")
+
+    if qty in LOWER_IS_BETTER_QTYS:
+        qty_anchor = [-v for v in qty_anchor]
+        qty_test = [-v for v in qty_test]
+
+    return BD_RATE(qty, br_anchor, qty_anchor, br_test, qty_test)
+
+
 def GetQty(record, key, qty):
     if qty == "psnr_y":
         q = record[key].psnr_y
@@ -567,6 +596,12 @@ def GetQty(record, key, qty):
         q = record[key].apsnr_v
     elif qty == "overall_apsnr":
         q = record[key].overall_apsnr
+    elif qty == "lpips":
+        q = record[key].lpips
+    elif qty == "dists":
+        q = record[key].dists
+    elif qty == "cvvdp":
+        q = record[key].cvvdp
     else:
         assert 0
     return q
@@ -597,7 +632,9 @@ def CalcBDRate(tag, cfg, cls, video, anchor, test):
     bdrate["video"] = video
 
     for qty in qtys:
-        (err, bd) = BD_RATE(qty, br_anchor, anchor_qty[qty], br_test, test_qty[qty])
+        (err, bd) = CalcOneBDRate(
+            qty, br_anchor, anchor_qty[qty], br_test, test_qty[qty]
+        )
         if err == 0:
             bdrate[qty] = bd
         else:
@@ -623,6 +660,15 @@ def CalcConvexHull(record):
             quality[res][q].append(GetQty(record, key, q))
 
     for q in qtys:
+        # A metric that was never computed is all-NaN. Interpolating and hulling
+        # NaN does not raise, it silently yields a meaningless hull, so skip it
+        # here and let the caller record "not available".
+        if all(
+            math.isnan(v) for res in br.keys() for v in quality[res][q]
+        ):
+            cvx_hull[q] = []
+            continue
+
         Int_RDPoints = []
         for res in br.keys():
             rdpnts = [(brt, qty) for brt, qty in zip(br[res], quality[res][q])]
@@ -656,12 +702,19 @@ def CalcASBDRate(tag, cfg, cls, video, anchor, test):
     bdrate["video"] = video
 
     for q in qtys:
+        # Empty hull means the metric was not computed for this content.
+        if not convex_hull["anchor"][q] or not convex_hull["test"][q]:
+            bdrate[q] = 0.0
+            continue
+
         br_anchor = list(zip(*convex_hull["anchor"][q]))[0]
         br_test = list(zip(*convex_hull["test"][q]))[0]
         quality_anchor = list(zip(*convex_hull["anchor"][q]))[1]
         quality_test = list(zip(*convex_hull["test"][q]))[1]
 
-        (err, bd) = BD_RATE(q, br_anchor, quality_anchor, br_test, quality_test)
+        (err, bd) = CalcOneBDRate(
+            q, br_anchor, quality_anchor, br_test, quality_test
+        )
         if err == 0:
             bdrate[q] = bd
         else:
@@ -785,45 +838,33 @@ def write_bdrate(bdrate, bdrate_csv):
             )
 
 
+def MeanAggFields(df):
+    """Metric columns to average, in `qtys` order.
+
+    Restricted to columns actually present, so a bdrate CSV produced before the
+    perceptual metrics existed still aggregates instead of raising KeyError.
+    """
+    return [q for q in qtys if q in df.columns]
+
+
+def MeanAggSpec(df):
+    """pandas .agg() spec taking the mean of every metric column present."""
+    return {q: ["mean"] for q in MeanAggFields(df)}
+
+
 def write_avg_bdrate(
     bdrate_csv, avg_bdrate_by_tag_csv, avg_bdrate_by_tag_class_csv, per_video_bdrate_csv
 ):
     df = pd.read_csv(bdrate_csv)
     average_bdrate_by_tag_class = df.groupby(["tag", "cfg", "class"]).agg(
-        {
-            "psnr_y": ["mean"],
-            "psnr_u": ["mean"],
-            "psnr_v": ["mean"],
-            "overall_psnr": ["mean"],
-            "ssim_y": ["mean"],
-            "ms_ssim_y": ["mean"],
-            "vmaf": ["mean"],
-            "vmaf_neg": ["mean"],
-            "psnr_hvs": ["mean"],
-            "ciede2k": ["mean"],
-            "apsnr_y": ["mean"],
-            "apsnr_u": ["mean"],
-            "apsnr_v": ["mean"],
-            "overall_apsnr": ["mean"],
-        }
+        MeanAggSpec(df)
     )
 
-    fields_name = [
-        "psnr_y",
-        "psnr_u",
-        "psnr_v",
-        "overall_psnr",
-        "ssim_y",
-        "ms_ssim_y",
-        "vmaf",
-        "vmaf_neg",
-        "psnr_hvs",
-        "ciede2k",
-        "apsnr_y",
-        "apsnr_u",
-        "apsnr_v",
-        "overall_apsnr",
-    ]
+    # Derived from the same source as the aggregation spec, and in the same
+    # order, so the two cannot drift apart. They are matched positionally
+    # (`.columns = fields_name`), so a mismatch would silently mislabel every
+    # metric column.
+    fields_name = MeanAggFields(df)
     # print(average_bdrate_by_tag_class)
     # print(tabulate(average_bdrate_by_tag_class, headers='keys', tablefmt='psql'))
 
@@ -833,22 +874,7 @@ def write_avg_bdrate(
     average_bdrate_by_tag_class.to_csv(avg_bdrate_by_tag_class_csv, index=False)
 
     average_bdrate_by_tag = df.groupby(["tag", "cfg"]).agg(
-        {
-            "psnr_y": ["mean"],
-            "psnr_u": ["mean"],
-            "psnr_v": ["mean"],
-            "overall_psnr": ["mean"],
-            "ssim_y": ["mean"],
-            "ms_ssim_y": ["mean"],
-            "vmaf": ["mean"],
-            "vmaf_neg": ["mean"],
-            "psnr_hvs": ["mean"],
-            "ciede2k": ["mean"],
-            "apsnr_y": ["mean"],
-            "apsnr_u": ["mean"],
-            "apsnr_v": ["mean"],
-            "overall_apsnr": ["mean"],
-        }
+        MeanAggSpec(df)
     )
 
     # print(average_bdrate_by_tag)
@@ -859,22 +885,7 @@ def write_avg_bdrate(
     average_bdrate_by_tag.to_csv(avg_bdrate_by_tag_csv, index=False)
 
     average_bdrate_by_video = df.groupby(["cfg", "class", "video", "tag"]).agg(
-        {
-            "psnr_y": ["mean"],
-            "psnr_u": ["mean"],
-            "psnr_v": ["mean"],
-            "overall_psnr": ["mean"],
-            "ssim_y": ["mean"],
-            "ms_ssim_y": ["mean"],
-            "vmaf": ["mean"],
-            "vmaf_neg": ["mean"],
-            "psnr_hvs": ["mean"],
-            "ciede2k": ["mean"],
-            "apsnr_y": ["mean"],
-            "apsnr_u": ["mean"],
-            "apsnr_v": ["mean"],
-            "overall_apsnr": ["mean"],
-        }
+        MeanAggSpec(df)
     )
 
     average_bdrate_by_video.columns = fields_name

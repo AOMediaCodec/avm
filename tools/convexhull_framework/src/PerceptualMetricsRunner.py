@@ -1,0 +1,501 @@
+#!/usr/bin/env python
+## Copyright (c) 2021, Alliance for Open Media. All rights reserved
+##
+## This source code is subject to the terms of the BSD 3-Clause Clear License and the
+## Alliance for Open Media Patent License 1.0. If the BSD 3-Clause Clear License was
+## not distributed with this source code in the LICENSE file, you can obtain it
+## at aomedia.org/license/software-license/bsd-3-c-c/.  If the Alliance for Open Media Patent
+## License 1.0 was not distributed with this source code in the PATENTS file, you
+## can obtain it at aomedia.org/license/patent-license/.
+##
+"""
+Standalone runner for the perceptual quality metrics (LPIPS, DISTS, ColorVideoVDP).
+
+This is invoked as a subprocess by CalcPerceptualMetrics.py rather than being
+imported, for two reasons:
+
+  1. It is the only part of the framework that needs torch. Keeping it in a
+     separate process means a normal CTC run never imports torch, and the
+     perceptual extras stay optional.
+  2. The framework dispatches work to a compute cluster by writing shell
+     commands into per-job .sh scripts (see Utils.ExecuteCmd). Only commands
+     that go through ExecuteCmd reach the cluster; in-process Python would run
+     on the submitting host instead.
+
+Usage:
+    python PerceptualMetricsRunner.py --ref orig.y4m --dist recon.y4m \
+        --metrics LPIPS,DISTS,CVVDP --frame-step 1 --device auto \
+        --cvvdp-display standard_fhd --out <path>/clip_perceptual.json
+"""
+__author__ = "maggie.sun@intel.com, ryanlei@meta.com"
+
+import argparse
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+
+import numpy as np
+
+# All metrics consume display-encoded RGB in [0,1]. For ColorVideoVDP this is
+# required rather than incidental: video_source_array is documented as taking
+# "display-encoded (gamma-encoded) content that will be processed by a display
+# model to produce linear absolute luminance", so the EOTF is applied by the
+# --display model, not by us. Feeding absolute luminance here would be wrong.
+SUPPORTED_METRICS = ["LPIPS", "DISTS", "CVVDP"]
+
+# Metrics where a lower score means better quality. Used to keep BD-rate signs
+# consistent downstream; recorded in the JSON so the consumer need not hardcode it.
+LOWER_IS_BETTER = {"LPIPS": True, "DISTS": True, "CVVDP": False}
+
+
+class RunnerError(Exception):
+    """Fatal, user-actionable error. Reported without a traceback."""
+
+
+######################################
+# y4m inspection and RGB conversion
+######################################
+def probe_y4m(path):
+    """Read width, height, frame rate, chroma format and bit depth from a y4m header.
+
+    Deliberately duplicates Utils.parseY4MHeader rather than importing it: this
+    module runs as a standalone subprocess and importing Utils would pull in
+    Config, which requires a populated config.yaml that a bare runner
+    invocation should not depend on.
+    """
+    import re
+
+    if not os.path.exists(path):
+        raise RunnerError("input file not found: %s" % path)
+
+    with open(path, "rb") as f:
+        header = f.readline().decode("ascii", errors="replace")
+
+    if not header.startswith("YUV4MPEG2"):
+        raise RunnerError("not a y4m file (bad magic): %s" % path)
+
+    m = re.search(r"W([0-9]+) H([0-9]+) F([0-9]+)\:([0-9]+)", header)
+    if not m:
+        raise RunnerError("could not parse resolution/frame rate from %s" % path)
+    width, height = int(m.group(1)), int(m.group(2))
+    fps_num, fps_denom = int(m.group(3)), int(m.group(4))
+
+    # C420p10 / C444p12 / C422 / C420 ...
+    fmt, bit_depth = "420", 8
+    m = re.search(r"C([0-9]+)p([0-9]+)", header)
+    if m:
+        fmt, bit_depth = m.group(1), int(m.group(2))
+    else:
+        m = re.search(r"C([0-9]+)", header)
+        if m:
+            fmt = m.group(1)
+
+    return {
+        "width": width,
+        "height": height,
+        "fps": float(fps_num) / float(fps_denom) if fps_denom else 0.0,
+        "fmt": fmt,
+        "bit_depth": bit_depth,
+    }
+
+
+def build_ffmpeg_cmd(ffmpeg, src, info, hdr, out_pix_fmt):
+    """Build the y4m -> packed RGB command.
+
+    The colour matrix and range are stated explicitly rather than left to
+    ffmpeg's inference. CTC y4m files carry no colorimetry tags, so an inferred
+    conversion would silently apply BT.709 to BT.2020 content.
+
+    `accurate_rnd` matters: without it swscale's limited->full expansion lands
+    about 2/255 short across the whole range (235 maps to 253 rather than 255).
+    `full_chroma_int` gives proper chroma interpolation when upsampling 4:2:0.
+    Verified exact against a synthetic Y ramp; see USER_GUIDE.md.
+    """
+    in_matrix = "bt2020nc" if hdr else "bt709"
+    vf = ("scale=in_color_matrix=%s:in_range=tv:out_range=pc"
+          ":flags=accurate_rnd+full_chroma_int" % in_matrix)
+    return [
+        ffmpeg, "-nostdin", "-loglevel", "error",
+        "-i", src,
+        "-vf", vf,
+        "-pix_fmt", out_pix_fmt,
+        "-f", "rawvideo", "-",
+    ]
+
+
+def decode_to_rgb_memmap(ffmpeg, src, info, hdr, tmpdir, tag):
+    """Decode a y4m to raw RGB in a temp file and return a read-only memmap.
+
+    Held on disk rather than in RAM: a 130-frame 2160p RGB sequence is several
+    GB, and ColorVideoVDP needs to iterate the frames independently of
+    LPIPS/DISTS, so the data is read more than once.
+    """
+    # 8-bit sources stay 8-bit; anything deeper goes to 16-bit to avoid
+    # truncating the extra precision the codec was evaluated at.
+    if info["bit_depth"] > 8:
+        pix_fmt, dtype, nbytes = "rgb48le", np.uint16, 6
+    else:
+        pix_fmt, dtype, nbytes = "rgb24", np.uint8, 3
+
+    cmd = build_ffmpeg_cmd(ffmpeg, src, info, hdr, pix_fmt)
+    raw_path = os.path.join(tmpdir, "%s.rgb" % tag)
+    frame_bytes = info["width"] * info["height"] * nbytes
+
+    with open(raw_path, "wb") as out:
+        proc = subprocess.Popen(cmd, stdout=out, stderr=subprocess.PIPE)
+        _, err = proc.communicate()
+    if proc.returncode != 0:
+        raise RunnerError(
+            "ffmpeg failed on %s (exit %d)\ncommand: %s\n%s"
+            % (src, proc.returncode, " ".join(cmd), err.decode("utf-8", "replace"))
+        )
+
+    total = os.path.getsize(raw_path)
+    if frame_bytes == 0 or total % frame_bytes != 0:
+        raise RunnerError(
+            "decoded size %d is not a whole number of %d-byte frames for %s"
+            % (total, frame_bytes, src)
+        )
+    n_frames = total // frame_bytes
+
+    mm = np.memmap(raw_path, dtype=dtype, mode="r",
+                   shape=(n_frames, info["height"], info["width"], 3))
+    return mm, " ".join(cmd), n_frames
+
+
+def to_unit_float(frame_u):
+    """uint8/uint16 HWC -> float32 HWC in [0,1]."""
+    max_val = 255.0 if frame_u.dtype == np.uint8 else 65535.0
+    return np.asarray(frame_u, dtype=np.float32) / max_val
+
+
+######################################
+# LPIPS / DISTS
+######################################
+def run_lpips_dists(metrics, ref_mm, dist_mm, frame_indices, device, lpips_net):
+    """Per-frame LPIPS/DISTS, averaged over the evaluated frames.
+
+    Returns {metric: {"aggregate": float, "per_frame": {idx: value}, "lower_better": bool}}
+    """
+    import torch
+    import pyiqa
+
+    handles = {}
+    for name in metrics:
+        # pyiqa names are lowercase; 'lpips' honours the net_type argument.
+        if name == "LPIPS":
+            handles[name] = pyiqa.create_metric("lpips", device=device, net=lpips_net)
+        else:
+            handles[name] = pyiqa.create_metric("dists", device=device)
+
+    out = {}
+    for name, handle in handles.items():
+        # pyiqa exposes polarity per metric; prefer it over our own table so a
+        # package-side change cannot silently invert a BD-rate.
+        lower = bool(getattr(handle, "lower_better", LOWER_IS_BETTER[name]))
+        out[name] = {"per_frame": {}, "lower_better": lower}
+
+    with torch.no_grad():
+        for idx in frame_indices:
+            ref = to_unit_float(ref_mm[idx]).transpose(2, 0, 1)[None, ...]
+            dis = to_unit_float(dist_mm[idx]).transpose(2, 0, 1)[None, ...]
+            ref_t = torch.from_numpy(ref).to(device)
+            dis_t = torch.from_numpy(dis).to(device)
+            for name, handle in handles.items():
+                # pyiqa convention is (distorted, reference).
+                val = float(handle(dis_t, ref_t).item())
+                out[name]["per_frame"][int(idx)] = val
+
+    for name in out:
+        vals = list(out[name]["per_frame"].values())
+        out[name]["aggregate"] = float(np.mean(vals)) if vals else float("nan")
+    return out
+
+
+######################################
+# ColorVideoVDP
+######################################
+class _MemmapVideoSource(object):
+    """Feeds ColorVideoVDP from our memmapped RGB frames.
+
+    Subclasses cvvdp's display-model video source so the chosen --display
+    preset still applies its EOTF and photometry; we only replace where the
+    frames come from, so the metric sees exactly the same pixels as LPIPS/DISTS.
+    """
+
+    def __new__(cls, *args, **kwargs):
+        from pycvvdp.video_source import video_source_dm
+
+        # Built dynamically because the base class lives in an optional package.
+        if not hasattr(cls, "_specialised"):
+            cls._specialised = type("MemmapVideoSource", (video_source_dm,), dict(
+                __init__=cls._init,
+                get_frames_per_second=cls._fps,
+                get_video_size=cls._size,
+                get_test_frame=cls._test_frame,
+                get_reference_frame=cls._ref_frame,
+            ))
+        return cls._specialised(*args, **kwargs)
+
+    @staticmethod
+    def _init(self, test_mm, ref_mm, fps, display_photometry):
+        from pycvvdp.video_source import video_source_dm
+
+        video_source_dm.__init__(self, display_photometry=display_photometry)
+        self.test_mm = test_mm
+        self.ref_mm = ref_mm
+        self.fps = fps
+
+    @staticmethod
+    def _fps(self):
+        return self.fps
+
+    @staticmethod
+    def _size(self):
+        return (self.test_mm.shape[1], self.test_mm.shape[2], self.test_mm.shape[0])
+
+    @staticmethod
+    def _frame(self, mm, frame, device, colorspace):
+        import torch
+
+        # BCFHW, display-encoded, [0,1]; the display model converts to cd/m^2.
+        arr = to_unit_float(mm[frame])
+        t = torch.from_numpy(arr.transpose(2, 0, 1)[None, :, None, :, :]).to(device)
+        return self.apply_dm_and_color_transform(t, colorspace)
+
+    @staticmethod
+    def _test_frame(self, frame, device, colorspace):
+        return _MemmapVideoSource._frame(self, self.test_mm, frame, device, colorspace)
+
+    @staticmethod
+    def _ref_frame(self, frame, device, colorspace):
+        return _MemmapVideoSource._frame(self, self.ref_mm, frame, device, colorspace)
+
+
+def run_cvvdp(ref_mm, dist_mm, fps, device, display):
+    """Aggregate JOD plus a per-frame JOD series.
+
+    cvvdp pools Q_per_ch over spatial bands, then channels, then frames. We
+    reuse the metric's own pooling for the first two and stop before the frame
+    pooling, which yields a per-frame JOD in the same units.
+
+    The aggregate is an Lp norm over frames, NOT an average, so the per-frame
+    series will not have the aggregate as its mean.
+    """
+    import torch
+    import pycvvdp
+
+    metric = pycvvdp.cvvdp(display_name=display, device=torch.device(device), quiet=True)
+    vs = _MemmapVideoSource(dist_mm, ref_mm, fps, metric.display_photometry)
+    jod, stats = metric.predict_video_source(vs)
+
+    per_frame = []
+    try:
+        Q_per_ch = torch.as_tensor(stats["Q_per_ch"], device=metric.device)
+        no_channels, no_bands = Q_per_ch.shape[1], Q_per_ch.shape[3]
+
+        per_ch_w = metric.get_ch_weights(no_channels)
+        per_sband_w = torch.ones((1, no_channels, 1, no_bands),
+                                 dtype=torch.float32, device=metric.device)
+        per_sband_w[:, :, 0, -1] = metric.baseband_weight[0:no_channels]
+
+        # Same two pooling steps as do_pooling_and_jods, minus the frame pooling.
+        Q_sc = metric.lp_norm(Q_per_ch * per_ch_w * per_sband_w,
+                              metric.beta_sch, dim=3, normalize=False)
+        Q_tc = metric.lp_norm(Q_sc, metric.beta_tch, dim=1, normalize=False)
+        per_frame = [float(v) for v in metric.met2jod(Q_tc.squeeze()).flatten().tolist()]
+    except Exception as e:  # noqa: BLE001 - per-frame is best-effort
+        sys.stderr.write("warning: could not derive per-frame JOD: %s\n" % e)
+
+    return {
+        "aggregate": float(jod),
+        "per_frame": {i: v for i, v in enumerate(per_frame)},
+        "lower_better": False,
+        "signature": metric.short_name() if hasattr(metric, "short_name") else "",
+    }
+
+
+######################################
+# main
+######################################
+def pick_device(requested):
+    try:
+        import torch
+    except ImportError:
+        raise RunnerError(
+            "torch is not installed. The perceptual metrics need the optional "
+            "extras:\n    pip install -r requirements-perceptual.txt"
+        )
+    if requested != "auto":
+        return requested
+    if torch.cuda.is_available():
+        return "cuda"
+    if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        return "mps"
+    return "cpu"
+
+
+def package_versions(metrics):
+    versions = {}
+    try:
+        import torch
+        versions["torch"] = torch.__version__
+    except ImportError:
+        pass
+    if {"LPIPS", "DISTS"} & set(metrics):
+        try:
+            import pyiqa
+            versions["pyiqa"] = getattr(pyiqa, "__version__", "unknown")
+        except ImportError:
+            raise RunnerError(
+                "pyiqa is not installed but LPIPS/DISTS were requested.\n"
+                "    pip install -r requirements-perceptual.txt"
+            )
+    if "CVVDP" in metrics:
+        try:
+            import pycvvdp
+            versions["cvvdp"] = getattr(pycvvdp, "__version__", "unknown")
+        except ImportError:
+            raise RunnerError(
+                "cvvdp is not installed but CVVDP was requested.\n"
+                "    pip install -r requirements-perceptual.txt"
+            )
+    return versions
+
+
+def ParseArguments(raw_args):
+    parser = argparse.ArgumentParser(
+        prog="PerceptualMetricsRunner.py", usage="%(prog)s [options]",
+        description="Compute LPIPS / DISTS / ColorVideoVDP for a y4m pair.",
+    )
+    parser.add_argument("--ref", dest="Ref", type=str, required=True,
+                        help="reference (original) y4m file")
+    parser.add_argument("--dist", dest="Dist", type=str, required=True,
+                        help="distorted (reconstructed) y4m file")
+    parser.add_argument("--out", dest="Out", type=str, required=True,
+                        help="output JSON log path")
+    parser.add_argument("--metrics", dest="Metrics", type=str, default="LPIPS,DISTS,CVVDP",
+                        help="comma separated subset of LPIPS,DISTS,CVVDP")
+    parser.add_argument("--frame-step", dest="FrameStep", type=int, default=1,
+                        help="evaluate every Nth frame (1 = every frame)")
+    parser.add_argument("--device", dest="Device", type=str, default="auto",
+                        help="auto, cpu, cuda, cuda:N or mps")
+    parser.add_argument("--cvvdp-display", dest="CVVDPDisplay", type=str,
+                        default="standard_fhd", help="ColorVideoVDP display preset")
+    parser.add_argument("--lpips-net", dest="LpipsNet", type=str, default="alex",
+                        choices=["alex", "vgg", "squeeze"],
+                        help="LPIPS backbone; alex gives the best forward scores")
+    parser.add_argument("--hdr", dest="HDR", action="store_true",
+                        help="treat input as BT.2020/PQ instead of BT.709")
+    parser.add_argument("--ffmpeg", dest="FFmpeg", type=str, default="ffmpeg",
+                        help="path to the ffmpeg binary")
+    return parser.parse_args(raw_args[1:])
+
+
+def main(raw_args):
+    args = ParseArguments(raw_args)
+
+    metrics = [m.strip().upper() for m in args.Metrics.split(",") if m.strip()]
+    unknown = [m for m in metrics if m not in SUPPORTED_METRICS]
+    if unknown:
+        raise RunnerError("unknown metric(s): %s (supported: %s)"
+                          % (", ".join(unknown), ", ".join(SUPPORTED_METRICS)))
+    if not metrics:
+        raise RunnerError("no metrics requested")
+    if args.FrameStep < 1:
+        raise RunnerError("--frame-step must be >= 1")
+    # The framework resolves executables against its bin/ directory, but ffmpeg
+    # is very often only on PATH. Fall back rather than failing, and say so.
+    ffmpeg = args.FFmpeg
+    if shutil.which(ffmpeg) is None and not os.path.exists(ffmpeg):
+        fallback = shutil.which("ffmpeg")
+        if fallback is None:
+            raise RunnerError(
+                "ffmpeg not found at %s and not on PATH. Put it in the bin/ "
+                "directory, set executables.ffmpeg in config.yaml to an "
+                "absolute path, or install ffmpeg." % ffmpeg
+            )
+        sys.stderr.write(
+            "note: %s not found, using %s from PATH\n" % (ffmpeg, fallback))
+        ffmpeg = fallback
+
+    device = pick_device(args.Device)
+    versions = package_versions(metrics)
+
+    ref_info = probe_y4m(args.Ref)
+    dist_info = probe_y4m(args.Dist)
+    for key in ("width", "height"):
+        if ref_info[key] != dist_info[key]:
+            raise RunnerError(
+                "reference and distorted differ in %s (%s vs %s); the perceptual "
+                "metrics need matching geometry"
+                % (key, ref_info[key], dist_info[key])
+            )
+
+    tmpdir = tempfile.mkdtemp(prefix="perceptual_")
+    try:
+        ref_mm, ref_cmd, ref_n = decode_to_rgb_memmap(
+            ffmpeg, args.Ref, ref_info, args.HDR, tmpdir, "ref")
+        dist_mm, dist_cmd, dist_n = decode_to_rgb_memmap(
+            ffmpeg, args.Dist, dist_info, args.HDR, tmpdir, "dist")
+
+        n_frames = min(ref_n, dist_n)
+        if n_frames == 0:
+            raise RunnerError("no frames decoded")
+        if ref_n != dist_n:
+            sys.stderr.write(
+                "warning: frame count differs (ref %d, dist %d); using %d\n"
+                % (ref_n, dist_n, n_frames))
+
+        frame_indices = list(range(0, n_frames, args.FrameStep))
+
+        results = {}
+        image_metrics = [m for m in metrics if m in ("LPIPS", "DISTS")]
+        if image_metrics:
+            results.update(run_lpips_dists(
+                image_metrics, ref_mm, dist_mm, frame_indices, device, args.LpipsNet))
+
+        if "CVVDP" in metrics:
+            # ColorVideoVDP models motion, so it always sees the full sequence;
+            # frame_step would corrupt its temporal filter.
+            if args.FrameStep != 1:
+                sys.stderr.write(
+                    "note: --frame-step is ignored for CVVDP, which needs "
+                    "contiguous frames for its temporal model\n")
+            results["CVVDP"] = run_cvvdp(
+                ref_mm[:n_frames], dist_mm[:n_frames],
+                ref_info["fps"], device, args.CVVDPDisplay)
+
+        payload = {
+            "ref": os.path.abspath(args.Ref),
+            "dist": os.path.abspath(args.Dist),
+            "n_frames": n_frames,
+            "frame_step": args.FrameStep,
+            "device": device,
+            "hdr": bool(args.HDR),
+            "cvvdp_display": args.CVVDPDisplay if "CVVDP" in metrics else "",
+            "source": ref_info,
+            "ffmpeg_ref": ref_cmd,
+            "ffmpeg_dist": dist_cmd,
+            "versions": versions,
+            "metrics": results,
+        }
+
+        os.makedirs(os.path.dirname(os.path.abspath(args.Out)), exist_ok=True)
+        with open(args.Out, "w") as f:
+            json.dump(payload, f, indent=2, sort_keys=True)
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main(sys.argv))
+    except RunnerError as e:
+        sys.stderr.write("PerceptualMetricsRunner: %s\n" % e)
+        sys.exit(1)
