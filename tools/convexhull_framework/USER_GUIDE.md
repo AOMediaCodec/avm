@@ -272,26 +272,51 @@ pip install --require-hashes -r requirements.txt
 
 ### Python Dependencies
 
-| Package | Purpose |
-|---------|---------|
-| numpy | Numerical computing |
-| pandas | Data processing and analysis |
-| scipy | Scientific computing, interpolation |
-| matplotlib | Plotting and visualization |
-| openpyxl | Excel 2010+ file handling (.xlsx) |
-| xlrd | Legacy Excel file reading (.xls) |
-| xlsxwriter | Excel file writing |
-| PyYAML | YAML configuration parsing |
-| tabulate | Table formatting for terminal output |
+Everything the framework imports, and where each is used:
+
+| Package | Purpose | Used by |
+|---------|---------|---------|
+| numpy | Numerical computing | `Utils`, `CalcBDRate`, `AV2CTCProgress`, `PerceptualMetricsRunner` |
+| pandas | BD-rate aggregation (CSV only, no Excel I/O) | `AV2CTCProgress` |
+| scipy | PCHIP interpolation for BD-rate | `CalcBDRate`, `Utils` |
+| matplotlib | RD curves and trend charts | `AV2CTCProgress`, `Utils` |
+| openpyxl | Reads and writes the `.xlsm` CTC templates | `AV2CTCProgress` |
+| PyYAML | Parses `config.yaml` | `Config`, `AV2CTCVideo` |
+| tabulate | Terminal table formatting | `AV2CTCProgress` |
+
+> **Note**: `requirements.txt` also pins `xlrd` and `xlsxwriter`, which nothing
+> in `src/` imports — `openpyxl` does all the Excel work and pandas is used only
+> for CSV. They are harmless but can be dropped the next time the lock is
+> regenerated.
 
 **Optional** (only with `perceptual_metrics.enabled: true`, installed from
 `requirements-perceptual.txt` — see [Perceptual Metrics](#perceptual-metrics-lpips-dists-colorvideovdp)):
 
-| Package | Purpose |
-|---------|---------|
-| torch, torchvision | Runtime for the learned metrics |
-| pyiqa | LPIPS and DISTS (non-commercial licence) |
-| cvvdp | ColorVideoVDP |
+| Package | Purpose | Used by |
+|---------|---------|---------|
+| torch, torchvision | Runtime for the learned metrics | `PerceptualMetricsRunner` |
+| pyiqa | LPIPS and DISTS (non-commercial licence) | `PerceptualMetricsRunner` |
+| cvvdp | ColorVideoVDP | `PerceptualMetricsRunner` |
+
+### External Tools (not installable with pip)
+
+`requirements.txt` covers **Python packages only**. The framework also shells out
+to these, which must be in the `bin/` directory or on `PATH` — see
+[Prerequisites](#prerequisites) for where to get them:
+
+| Tool | Needed for | Required? |
+|------|-----------|-----------|
+| `vmaf` | All the standard CTC quality metrics | Yes |
+| `avmenc` / `avmdec` | AV2 encode and decode | Yes, for AV2 |
+| `ffmpeg` | Scaling, and the y4m→RGB step for perceptual metrics | Yes |
+| `HDRConvert` | HDRTools scaling (`-t hdrtool`) | AS tests |
+| `lanczos_resample_y4m` | AOM scaler (`-t aom`) | AS tests with `-t aom` |
+| `SvtAv1EncApp` | SVT-AV1 encoding (`-m svt`) | Only for `-m svt` |
+| `TAppEncoderStatic` | HM/HEVC encoding (`-m hm`) | Only for `-m hm` |
+| `perf` (Linux) / `gtime` (macOS) / `ptime` (Windows) | Timing capture | If `enable_timing_info` |
+
+> **Note**: `gtime` is GNU time, installed on macOS with `brew install coreutils`.
+> On Linux, `perf` is used when `use_perf_util: true` and `/usr/bin/time` otherwise.
 
 ---
 
@@ -573,6 +598,7 @@ avm-ctc/tools/convexhull_framework/
 ├── requirements-perceptual.in   # Optional perceptual metric deps (source)
 ├── requirements-perceptual.txt  # Optional perceptual metric deps (not hashed)
 ├── setup_env.sh            # Environment setup script
+├── CLAUDE.md               # Maintainer notes: invariants and gotchas
 └── USER_GUIDE.md           # This user guide
 ```
 

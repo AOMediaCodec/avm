@@ -21,8 +21,13 @@ scipy>=1.7.0
 
 # Excel file handling
 openpyxl>=3.0.0      # Read/write Excel 2010+ xlsx/xlsm files
-xlrd>=2.0.0          # Read Excel files (xls format)
-xlsxwriter>=3.0.0    # Write Excel xlsx files
+# NOTE: xlrd and xlsxwriter are not imported anywhere in src/, and pandas is
+# only used for CSV here, so they are not needed as its Excel engines either.
+# openpyxl does all the .xlsm reading and writing. Kept for now because
+# dropping them means regenerating the hash-pinned requirements.txt, which is
+# not worth the churn; remove them the next time it is regenerated anyway.
+xlrd>=2.0.0          # (unused) Read Excel files (xls format)
+xlsxwriter>=3.0.0    # (unused) Write Excel xlsx files
 
 # Visualization
 matplotlib>=3.4.0
