@@ -219,6 +219,21 @@ perceptual_metrics:
     "1080p": "standard_fhd"
     "default": "standard_fhd"
     "hdr": "standard_hdr_pq"
+  # y4m -> RGB colour conversion. All three metrics consume display-encoded
+  # RGB, and the ffmpeg invocation matches the one used by the AI image codec
+  # evaluation study (lanczos+accurate_rnd+full_chroma_int, sws_dither=none,
+  # param0=5, explicit in/out matrix).
+  color_conversion:
+    # YUV->RGB matrix for SDR content. The image codec study uses "bt601" for
+    # its PNG-derived still images; "bt709" is correct for CTC video.
+    sdr_matrix: "bt709"
+    # Matrix for the hdr_classes above.
+    hdr_matrix: "bt2020nc"
+    # Input range when the y4m carries no XCOLORRANGE tag. A tagged file always
+    # wins over this setting. "tv" (limited) is the norm for CTC video
+    # sequences; set "pc" for full-range content such as the y4m files the
+    # image codec study generates from PNG with -color_range pc.
+    default_range: "tv"
 
 # =============================================================================
 # Extended Chroma Format (ECF) Configuration

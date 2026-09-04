@@ -1511,6 +1511,10 @@ perceptual_metrics:
     "1080p": "standard_fhd"
     "default": "standard_fhd"
     "hdr": "standard_hdr_pq"
+  color_conversion:
+    sdr_matrix: "bt709"       # "bt601" to match the image codec study
+    hdr_matrix: "bt2020nc"
+    default_range: "tv"       # only when the y4m has no XCOLORRANGE tag
 ```
 
 With `enabled: false` the framework behaves exactly as before and never imports torch, so
@@ -1541,23 +1545,44 @@ Run `cvvdp --display ?` to list every available preset.
 ### Colour conversion
 
 All three metrics consume display-encoded RGB, so the framework converts each `.y4m` with
-an explicit ffmpeg pipeline rather than letting any tool infer the colorimetry — CTC `.y4m`
-files carry no colour tags, and an inferred conversion would apply BT.709 to BT.2020
-content:
+an explicit ffmpeg pipeline rather than letting any tool infer the colorimetry. The
+invocation matches the one used by the AI image codec evaluation study, so results from
+the two frameworks are produced the same way:
 
 ```
-ffmpeg -i in.y4m -vf "scale=in_color_matrix=bt709:in_range=tv:out_range=pc\
-:flags=accurate_rnd+full_chroma_int" -pix_fmt rgb24 -f rawvideo -
+ffmpeg -i in.y4m -vf "scale=in_color_matrix=bt709:in_range=tv\
+:out_color_matrix=bt709:out_range=pc\
+:flags=lanczos+accurate_rnd+full_chroma_int:sws_dither=none:param0=5,format=rgb24" \
+  -pix_fmt rgb24 -f rawvideo -
 ```
 
-BT.709 is used for SDR and BT.2020 non-constant luminance for the HDR classes. The
-`accurate_rnd` flag is not cosmetic: without it swscale's limited-to-full expansion falls
-about 2/255 short across the whole range (Y=235 maps to 253 instead of 255).
-`full_chroma_int` gives proper chroma interpolation when upsampling 4:2:0. With both, the
-conversion is exact on a greyscale ramp and within 1/255 on the primaries.
+The scaler flags are fixed (`Utils.Y4M_TO_RGB_SWS_FLAGS`); the matrix and range are
+configurable under `perceptual_metrics.color_conversion`:
+
+| Setting | Default | Notes |
+|---------|---------|-------|
+| `sdr_matrix` | `bt709` | Correct for CTC video. The image codec study uses `bt601` for its PNG-derived still images — set that here to reproduce it exactly. |
+| `hdr_matrix` | `bt2020nc` | Applied to the `hdr_classes` clips. |
+| `default_range` | `tv` | Used **only** when the y4m has no `XCOLORRANGE` tag. |
+
+**Range is detected, not assumed.** y4m can carry `XCOLORRANGE=FULL` / `LIMITED`, and a
+tagged file always wins over `default_range`. Files produced by
+`ffmpeg … -color_range pc` (as in the image codec study's PNG → y4m step) are tagged
+`FULL`; standard CTC sequences are usually untagged and fall back to `tv`. Which value was
+used, and why, is recorded in the output JSON as `in_range_ref` / `in_range_dist`.
+
+Two flags are load-bearing rather than cosmetic. `accurate_rnd`: without it swscale's
+limited-to-full expansion falls ~2/255 short across the whole range (Y=235 maps to 253
+instead of 255). `full_chroma_int`: proper chroma interpolation when upsampling 4:2:0.
+With them the conversion is **exact on a greyscale ramp** and within 1/255 on the BT.709
+primaries — that residual is 4:2:0 chroma round-trip quantisation.
 
 8-bit sources are converted to `rgb24`; anything deeper goes to `rgb48le` so the extra
 precision survives. The exact command used is recorded in every output log.
+
+> The conversion helpers (`GetY4MInfo`, `GetY4MColorRange`, `BuildY4MToRGBCmd`,
+> `DecodeY4MToRGB`, `ToUnitFloat`) live in `Utils.py`, so the framework has a single
+> y4m → RGB path.
 
 ### Running
 

@@ -29,11 +29,14 @@ from Config import (
     CVVDPDisplayMap,
     FFMPEG,
     LoggerName,
+    PerceptualDefaultRange,
     PerceptualDevice,
     PerceptualFrameStep,
     PerceptualHDRClasses,
+    PerceptualHDRMatrix,
     PerceptualLpipsNet,
     PerceptualMetricsList,
+    PerceptualSDRMatrix,
 )
 from Utils import ExecuteCmd, GetShortContentName
 
@@ -123,6 +126,9 @@ def Perceptual_CalQualityMetrics(
     args += " --device %s" % PerceptualDevice
     args += " --cvvdp-display %s" % display
     args += " --lpips-net %s" % PerceptualLpipsNet
+    args += " --matrix %s" % PerceptualSDRMatrix
+    args += " --hdr-matrix %s" % PerceptualHDRMatrix
+    args += " --in-range %s" % PerceptualDefaultRange
     args += " --ffmpeg %s" % FFMPEG
     if is_hdr:
         args += " --hdr"
