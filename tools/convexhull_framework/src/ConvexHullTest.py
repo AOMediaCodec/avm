@@ -538,6 +538,12 @@ def SaveConvexHullResults(
                 for qty in quality:
                     csv.write(",%f" % qty)
 
+                # Written here, with the other quality metrics, to match the
+                # header. NaN means the metric was deliberately not run (e.g.
+                # LPIPS on HDR content); write an empty cell, not a 0.0.
+                for qty in perceptual:
+                    csv.write(",") if math.isnan(qty) else csv.write(",%f" % qty)
+
                 if EnableTimingInfo and not EnableParallelGopEncoding:
                     if UsePerfUtil:
                         (
@@ -569,11 +575,6 @@ def SaveConvexHullResults(
                     enc_md5 = md5(bs)
                     dec_md5 = md5(reconyuv)
                     csv.write("%s,%s" % (enc_md5, dec_md5))
-
-                # NaN means the metric was deliberately not run (e.g. LPIPS on
-                # HDR content); write an empty cell, not a misleading 0.0.
-                for qty in perceptual:
-                    csv.write(",") if math.isnan(qty) else csv.write(",%f" % qty)
 
                 csv.write("\n")
 
@@ -1066,16 +1067,18 @@ if __name__ == "__main__":
         )
         for qty in QualityList:
             csv.write("," + qty)
+        # Perceptual metrics sit with the other quality metrics, before the
+        # timing columns, matching AV2CTCTest.py. This shifts EncT/DecT/instr/
+        # cycles/MD5 right by the number of enabled perceptual metrics;
+        # AV2CTCProgress.WriteSheet compensates by dropping these columns before
+        # writing the CTC .xlsm templates, which use absolute column indices.
+        for qty in PerceptualQualityList:
+            csv.write("," + qty)
         csv.write(",EncT[s],DecT[s]")
         if UsePerfUtil:
             csv.write(",EncInstr,DecInstr,EncCycles,DecCycles")
         if EnableMD5:
             csv.write(",EncMD5,DecMD5")
-        # Perceptual metrics go last, after MD5, so the column indices of every
-        # pre-existing field are unchanged. AV2CTCProgress.WriteSheet copies
-        # this CSV into the CTC .xlsm templates by absolute column number.
-        for qty in PerceptualQualityList:
-            csv.write("," + qty)
 
         csv.write("\n")
 

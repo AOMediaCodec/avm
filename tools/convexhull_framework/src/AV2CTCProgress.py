@@ -71,6 +71,10 @@ qtys = [
 # improvement would be reported with the wrong sign.
 LOWER_IS_BETTER_QTYS = {"lpips", "dists"}
 
+# RD CSV column headers for the perceptual metrics. The CWG .xlsm templates
+# have no columns for these, so WriteSheet strips them before filling a sheet.
+PerceptualMetricNames = {"LPIPS", "DISTS", "CVVDP"}
+
 csv_paths = {
     "v01.0.0": [
         "v01.0.0",
@@ -357,20 +361,39 @@ def populate_stats_files():
 
 
 def WriteSheet(csv_file, sht, start_row):
+    """Copy an RD CSV into a CTC template sheet.
+
+    The templates are laid out by absolute column index (Bitrate in 12, the
+    quality metrics from 13, EncT[s] in 26, ...), so the CSV columns must line
+    up exactly. The perceptual metrics are written into the CSV alongside the
+    other quality metrics but have no column in the CWG templates, so they are
+    dropped here; keeping them would shift every timing and MD5 column right
+    and silently corrupt the workbook.
+    """
     csv = open(csv_file, "rt")
     row = start_row
+    drop_idx = []
     for line in csv:
-        if not line.startswith("TestCfg"):
-            words = re.split(",", line.strip())
-            col = 1
-            for word in words:
-                mycell = sht.cell(row=row, column=col)
-                if col >= 12 and col <= 30 and word != "":
-                    mycell.value = float(word)
-                else:
-                    mycell.value = word
-                col += 1
-            row += 1
+        if line.startswith("TestCfg"):
+            header = re.split(",", line.strip())
+            drop_idx = [
+                i for i, name in enumerate(header)
+                if name in PerceptualMetricNames
+            ]
+            continue
+
+        words = re.split(",", line.strip())
+        if drop_idx:
+            words = [w for i, w in enumerate(words) if i not in drop_idx]
+        col = 1
+        for word in words:
+            mycell = sht.cell(row=row, column=col)
+            if col >= 12 and col <= 30 and word != "":
+                mycell.value = float(word)
+            else:
+                mycell.value = word
+            col += 1
+        row += 1
     csv.close()
 
 
