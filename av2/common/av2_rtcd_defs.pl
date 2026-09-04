@@ -448,7 +448,7 @@ specialize qw/av2_highbd_cwp_convolve_x sse4_1 avx2/;
 specialize qw/av2_highbd_cwp_convolve_y sse4_1 avx2/;
 specialize qw/av2_highbd_cwp_convolve_2d_copy sse4_1 avx2/;
 specialize qw/av2_highbd_convolve_2d_sr ssse3 avx2 neon/;
-specialize qw/av2_highbd_convolve_x_sr ssse3 avx2 neon/;
+specialize qw/av2_highbd_convolve_x_sr ssse3 avx2 avx512 neon/;
 specialize qw/av2_highbd_convolve_y_sr ssse3 avx2 neon/;
 specialize qw/av2_highbd_convolve_2d_scale sse4_1/;
 
