@@ -357,6 +357,11 @@ static void set_good_speed_features_framesize_independent(
 
   if (speed >= 1) {
     sf->lpf_sf.wienerns_refine_iters = 0;
+    sf->lpf_sf.wienerns_fast_frame_filter_opt = 1;
+    // Trim the RU-size candidate set by pyramid level (policy in pickrst.c).
+    // drop_low is disabled later for small resolutions.
+    sf->lpf_sf.reduce_lr_unit_size_by_pyr = 1;
+    sf->lpf_sf.reduce_lr_unit_size_by_pyr_drop_low = 1;
 
     sf->flexmv_sf.prune_non_one_pel_mv_using_best_mv_prec = 1;
     sf->inter_sf.selective_ref_frame = 2;
@@ -647,10 +652,6 @@ static void set_good_speed_features_framesize_independent(
     sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch = 0;
 
     sf->lpf_sf.lpf_pick = LPF_PICK_FROM_FULL_IMAGE_NON_DUAL;
-    // Trim the RU-size candidate set by pyramid level (policy in pickrst.c).
-    // drop_low is disabled later for small resolutions.
-    sf->lpf_sf.reduce_lr_unit_size_by_pyr = 1;
-    sf->lpf_sf.reduce_lr_unit_size_by_pyr_drop_low = 1;
 
     sf->mv_sf.reduce_search_range = 1;
     sf->mv_sf.warp_search_method = WARP_SEARCH_DIAMOND;
@@ -1051,6 +1052,8 @@ static AVM_INLINE void init_lpf_sf(LOOP_FILTER_SPEED_FEATURES *lpf_sf) {
   lpf_sf->early_terminate_ccso_search_by_cost = 0;
   // Off by default: keep full RU-size search for all pyramid levels.
   lpf_sf->reduce_lr_unit_size_by_pyr = 0;
+  lpf_sf->reduce_lr_unit_size_by_pyr_drop_low = 0;
+  lpf_sf->wienerns_fast_frame_filter_opt = 0;
   lpf_sf->ccso_chroma_dep = 0;
 }
 
