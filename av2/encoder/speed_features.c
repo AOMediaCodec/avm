@@ -755,6 +755,7 @@ static void set_rt_speed_features_framesize_independent(
     sf->rd_sf.tx_domain_dist_thres_level = 2;
     sf->rt_sf.use_nonrd_partition = 1;
     sf->rt_sf.use_only_dc_intra_interframe = true;
+    sf->rt_sf.source_metrics_sb = 1;
     sf->winner_mode_sf.tx_size_search_level = USE_FAST_RD;
     sf->tx_sf.restrict_tx_partition_type_search = 3;
   }
@@ -1084,6 +1085,12 @@ static AVM_INLINE void init_lc_sf(LC_DEC_SPEED_FEATURES *lc_sf) {
   lc_sf->enable_partition_size_bias = 0;
 }
 
+static AVM_INLINE void init_rt_sf(REALTIME_SPEED_FEATURES *rt_sf) {
+  rt_sf->use_nonrd_partition = 0;
+  rt_sf->use_only_dc_intra_interframe = false;
+  rt_sf->source_metrics_sb = 0;
+}
+
 static AVM_INLINE void set_erp_speed_features_framesize_dependent(
     AV2_COMP *cpi) {
   SPEED_FEATURES *const sf = &cpi->sf;
@@ -1299,6 +1306,7 @@ void av2_set_speed_features_framesize_independent(AV2_COMP *cpi, int speed) {
   init_lpf_sf(&sf->lpf_sf);
   init_flexmv_sf(&sf->flexmv_sf);
   init_lc_sf(&sf->lc_sf);
+  init_rt_sf(&sf->rt_sf);
 
   if (oxcf->mode == GOOD) {
     set_good_speed_features_framesize_independent(cpi, sf, speed);
