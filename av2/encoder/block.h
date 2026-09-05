@@ -811,8 +811,6 @@ typedef struct {
    * \name Intra Costs: General
    ****************************************************************************/
   /**@{*/
-  //! Luma mode cost for inter frame.
-  int mbmode_cost[BLOCK_SIZE_GROUPS][INTRA_MODES];
   //! intra_dip_cost
   int intra_dip_cost[DIP_CTXS][2];
   //! intra_dip_mode_cost
