@@ -399,6 +399,14 @@ static INLINE bool prune_curr_mv_precision_eval(
 int get_drl_cost(int max_drl_bits, const MB_MODE_INFO *mbmi,
                  const MB_MODE_INFO_EXT *mbmi_ext, const MACROBLOCK *x);
 
+// Returns true if either 4-parameter or 6-parameter warp delta search
+// is enabled in winner mode.
+static INLINE bool enable_warp_search_in_winner_mode(
+    const INTER_MODE_SPEED_FEATURES *inter_sf) {
+  return (inter_sf->enable_six_param_warp_in_winner_mode ||
+          inter_sf->enable_four_param_warp_in_winner_mode);
+}
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
