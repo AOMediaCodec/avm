@@ -566,6 +566,8 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.reuse_compound_type_data = 0;
     sf->inter_sf.txfm_rd_gate_level =
         boosted ? 0 : (is_boosted_arf2_bwd_type ? 1 : 2);
+    sf->inter_sf.enable_four_param_warp_in_winner_mode =
+        cm->current_frame.pyramid_level >= 3;
 
     // TODO(any): disable_smooth_intra does not have speed up while introducing
     // coding loss. Disable  it before it is improved.
@@ -702,8 +704,10 @@ static void set_good_speed_features_framesize_independent(
     sf->winner_mode_sf.multi_winner_mode_type = MULTI_WINNER_MODE_OFF;
   }
 
-  if (sf->inter_sf.enable_six_param_warp_in_winner_mode) {
+  if (enable_warp_search_in_winner_mode(&sf->inter_sf))
     sf->winner_mode_sf.motion_mode_for_winner_cand = 2;
+
+  if (sf->inter_sf.enable_six_param_warp_in_winner_mode) {
     sf->inter_sf.enable_six_param_warp_in_winner_mode_by_tid =
         cm->current_frame.pyramid_level >= 3 ? 1 : 0;
   }
@@ -889,6 +893,7 @@ static AVM_INLINE void init_flexmv_sf(
 static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->enable_six_param_warp_in_winner_mode = 0;
   inter_sf->enable_six_param_warp_in_winner_mode_by_tid = 0;
+  inter_sf->enable_four_param_warp_in_winner_mode = 0;
   inter_sf->fast_warp_delta_decoupled_search = 0;
   inter_sf->early_term_warp_delta_refine = false;
   inter_sf->comp_inter_joint_search_thresh = BLOCK_4X4;
