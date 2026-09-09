@@ -461,6 +461,12 @@ INSTANTIATE_TEST_SUITE_P(
     AVX2, AV2OptFlowBiCubicGradHighbdTest,
     BuildOptFlowHighbdParams(av2_bicubic_grad_interpolation_highbd_avx2));
 #endif
+
+#if HAVE_AVX512
+INSTANTIATE_TEST_SUITE_P(
+    AVX512, AV2OptFlowBiCubicGradHighbdTest,
+    BuildOptFlowHighbdParams(av2_bicubic_grad_interpolation_highbd_avx512));
+#endif
 #endif  // OPFL_BICUBIC_GRAD
 
 typedef int (*opfl_mv_refinement)(const int16_t *pdiff, int pstride,
@@ -677,6 +683,12 @@ INSTANTIATE_TEST_SUITE_P(
     BuildOptFlowHighbdParams(av2_opfl_mv_refinement_nxn_avx2));
 #endif
 
+#if HAVE_AVX512
+INSTANTIATE_TEST_SUITE_P(
+    AVX512, AV2OptFlowRefineTest,
+    BuildOptFlowHighbdParams(av2_opfl_mv_refinement_nxn_avx512));
+#endif
+
 #if OPFL_BILINEAR_GRAD || OPFL_BICUBIC_GRAD
 typedef void (*pred_buffer_copy_highbd)(const uint16_t *src1,
                                         const uint16_t *src2, int src_stride,
@@ -692,16 +704,18 @@ class AV2OptFlowCopyPredHighbdTest
     const int bw = block.Width();
     const int bh = block.Height();
 
-    src_buf1_ = (uint16_t *)avm_memalign(16, bw * bh * sizeof(*src_buf1_));
-    src_buf2_ = (uint16_t *)avm_memalign(16, bw * bh * sizeof(*src_buf2_));
+    // 32-byte alignment matches production (reconinter.c DECLARE_ALIGNED(32))
+    // and satisfies the AVX2 aligned 256-bit loads/stores.
+    src_buf1_ = (uint16_t *)avm_memalign(32, bw * bh * sizeof(*src_buf1_));
+    src_buf2_ = (uint16_t *)avm_memalign(32, bw * bh * sizeof(*src_buf2_));
     dst_buf1_ref_ =
-        (int16_t *)avm_memalign(16, bw * bh * sizeof(*dst_buf1_ref_));
+        (int16_t *)avm_memalign(32, bw * bh * sizeof(*dst_buf1_ref_));
     dst_buf2_ref_ =
-        (int16_t *)avm_memalign(16, bw * bh * sizeof(*dst_buf2_ref_));
+        (int16_t *)avm_memalign(32, bw * bh * sizeof(*dst_buf2_ref_));
     dst_buf1_test_ =
-        (int16_t *)avm_memalign(16, bw * bh * sizeof(*dst_buf1_test_));
+        (int16_t *)avm_memalign(32, bw * bh * sizeof(*dst_buf1_test_));
     dst_buf2_test_ =
-        (int16_t *)avm_memalign(16, bw * bh * sizeof(*dst_buf2_test_));
+        (int16_t *)avm_memalign(32, bw * bh * sizeof(*dst_buf2_test_));
 
     memset(dst_buf2_ref_, 0, bw * bh * sizeof(*dst_buf2_ref_));
     memset(dst_buf2_test_, 0, bw * bh * sizeof(*dst_buf2_test_));
@@ -857,6 +871,18 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
     SSE4_1, AV2OptFlowCopyPredHighbdTest,
     BuildOptFlowHighbdParams(av2_copy_pred_array_highbd_sse4_1));
+#endif
+
+#if HAVE_AVX2
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, AV2OptFlowCopyPredHighbdTest,
+    BuildOptFlowHighbdParams(av2_copy_pred_array_highbd_avx2));
+#endif
+
+#if HAVE_AVX512
+INSTANTIATE_TEST_SUITE_P(
+    AVX512, AV2OptFlowCopyPredHighbdTest,
+    BuildOptFlowHighbdParams(av2_copy_pred_array_highbd_avx512));
 #endif
 #endif  // OPFL_BILINEAR_GRAD || OPFL_BICUBIC_GRAD
 }  // namespace
