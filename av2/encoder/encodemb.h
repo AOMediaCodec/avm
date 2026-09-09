@@ -86,8 +86,6 @@ void av2_setup_qmatrix(const CommonQuantParams *quant_params,
                        const MACROBLOCKD *xd, int plane, TX_SIZE tx_size,
                        PRIMARY_TX_TYPE primary_tx_type, QUANT_PARAM *qparam);
 
-void av2_xform_dc_only(MACROBLOCK *x, int plane, int block,
-                       TxfmParam *txfm_param, int64_t per_px_mean);
 void av2_xform_quant(const int use_tcq_deadzone_boost, const AV2_COMMON *cm,
                      MACROBLOCK *x, int plane, int block, int blk_row,
                      int blk_col, BLOCK_SIZE plane_bsize, TxfmParam *txfm_param,

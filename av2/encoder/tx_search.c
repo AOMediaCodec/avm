@@ -189,39 +189,6 @@ static INLINE int64_t pixel_diff_dist(const AV2_COMMON *cm, const MACROBLOCK *x,
   return sse;
 }
 
-// Computes the residual block's SSE and mean on all visible 4x4s in the
-// transform block
-static INLINE int64_t pixel_diff_stats(
-    MACROBLOCK *x, int plane, int blk_row, int blk_col,
-    const BLOCK_SIZE plane_bsize, const TX_SIZE tx_size,
-    unsigned int *block_mse_q8, int64_t *per_px_mean, uint64_t *block_var) {
-  int visible_rows, visible_cols;
-  const MACROBLOCKD *xd = &x->e_mbd;
-  get_txb_dimensions(xd, plane, plane_bsize, blk_row, blk_col,
-                     tx_size_wide[tx_size], tx_size_high[tx_size], NULL, NULL,
-                     &visible_cols, &visible_rows);
-  const int diff_stride = block_size_wide[plane_bsize];
-  const int16_t *diff = x->plane[plane].src_diff;
-
-  diff += ((blk_row * diff_stride + blk_col) << MI_SIZE_LOG2);
-  uint64_t sse = 0;
-  int sum = 0;
-  sse = avm_sum_sse_2d_i16(diff, diff_stride, visible_cols, visible_rows, &sum);
-  if (visible_cols > 0 && visible_rows > 0) {
-    avm_clear_system_state();
-    double norm_factor = 1.0 / (visible_cols * visible_rows);
-    int sign_sum = sum > 0 ? 1 : -1;
-    // Conversion to transform domain
-    *per_px_mean = (int64_t)(norm_factor * abs(sum)) << 7;
-    *per_px_mean = sign_sum * (*per_px_mean);
-    *block_mse_q8 = (unsigned int)(norm_factor * (256 * sse));
-    *block_var = (uint64_t)(sse - (uint64_t)(norm_factor * sum * sum));
-  } else {
-    *block_mse_q8 = UINT_MAX;
-  }
-  return sse;
-}
-
 // Uses simple features on top of DCT coefficients to quickly predict
 // whether optimal RD decision is to skip encoding the residual.
 // The sse value is stored in dist.
@@ -2022,86 +1989,6 @@ static int skip_trellis_opt_based_on_satd(MACROBLOCK *x,
   return skip_block_trellis;
 }
 
-// Predict DC only blocks if the residual variance is below a qstep based
-// threshold.For such blocks, transform type search is bypassed.
-static INLINE void predict_dc_only_block(
-    MACROBLOCK *x, int plane, BLOCK_SIZE plane_bsize, TX_SIZE tx_size,
-    int block, int blk_row, int blk_col, RD_STATS *best_rd_stats,
-    int64_t *block_sse, unsigned int *block_mse_q8, int64_t *per_px_mean,
-    int *dc_only_blk, const AV2_COMMON *cm) {
-  MACROBLOCKD *xd = &x->e_mbd;
-  MB_MODE_INFO *mbmi = xd->mi[0];
-  const int dequant_shift = xd->bd - 5;
-
-  const int qstep =
-      ROUND_POWER_OF_TWO(x->plane[plane].dequant_QTX[1], QUANT_TABLE_BITS) >>
-      dequant_shift;
-  const int dc_qstep =
-      ROUND_POWER_OF_TWO(x->plane[plane].dequant_QTX[0], QUANT_TABLE_BITS) >>
-      dequant_shift;
-
-  uint64_t block_var = UINT64_MAX;
-  *block_sse = pixel_diff_stats(x, plane, blk_row, blk_col, plane_bsize,
-                                tx_size, block_mse_q8, per_px_mean, &block_var);
-  assert((*block_mse_q8) != UINT_MAX);
-  uint64_t var_threshold = (uint64_t)(1.8 * qstep * qstep);
-  block_var = ROUND_POWER_OF_TWO(block_var, (xd->bd - 8) * 2);
-  // Early prediction of skip block if residual mean and variance are less
-  // than qstep based threshold
-  if ((((llabs(*per_px_mean) * dc_coeff_scale[tx_size]) < (dc_qstep << 12)) &&
-       (block_var < var_threshold)) &&
-      (!xd->lossless[xd->mi[0]->segment_id] || *block_sse == 0)) {
-    // If the normalized mean of residual block is less than the dc qstep and
-    // the  normalized block variance is less than ac qstep, then the block is
-    // assumed to be a skip block and its rdcost is updated accordingly.
-    best_rd_stats->skip_txfm = 1;
-
-    x->plane[plane].eobs[block] = 0;
-    x->plane[plane].bobs[block] = 0;
-
-    *block_sse = ROUND_POWER_OF_TWO((*block_sse), (xd->bd - 8) * 2);
-
-    best_rd_stats->dist = (*block_sse) << 4;
-    best_rd_stats->sse = best_rd_stats->dist;
-
-    ENTROPY_CONTEXT ctxa[MAX_MIB_SIZE];
-    ENTROPY_CONTEXT ctxl[MAX_MIB_SIZE];
-    av2_get_entropy_contexts(plane_bsize, &xd->plane[plane], ctxa, ctxl);
-    ENTROPY_CONTEXT *ta = ctxa;
-    ENTROPY_CONTEXT *tl = ctxl;
-    const TX_SIZE txs_ctx = get_txsize_entropy_ctx(tx_size);
-    TXB_CTX txb_ctx_tmp;
-    const PLANE_TYPE plane_type = get_plane_type(plane);
-    get_txb_ctx(plane_bsize, tx_size, plane, ta, tl, &txb_ctx_tmp,
-                mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
-                    cm->seq_params.enable_fsc);
-    int zero_blk_rate = 0;
-    if (plane == AVM_PLANE_Y || plane == AVM_PLANE_U) {
-      const int is_inter = is_inter_block(mbmi, xd->tree_type);
-      const int pred_mode_ctx =
-          (is_inter || mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) ? 1 : 0;
-      zero_blk_rate =
-          x->coeff_costs.coeff_costs[txs_ctx][plane_type]
-              .txb_skip_cost[pred_mode_ctx][txb_ctx_tmp.txb_skip_ctx][1];
-    } else {
-      zero_blk_rate = x->coeff_costs.coeff_costs[txs_ctx][plane_type]
-                          .v_txb_skip_cost[txb_ctx_tmp.txb_skip_ctx][1];
-    }
-    best_rd_stats->rate = zero_blk_rate;
-
-    best_rd_stats->rdcost =
-        RDCOST(x->rdmult, best_rd_stats->rate, best_rd_stats->sse);
-
-    x->plane[plane].txb_entropy_ctx[block] = 0;
-  } else if (block_var < var_threshold &&
-             (!xd->lossless[xd->mi[0]->segment_id] || *block_sse == 0)) {
-    // Predict DC only blocks based on residual variance.
-    // For chroma plane, this early prediction is disabled for intra blocks.
-    if ((plane == 0) || (plane > 0 && is_inter_block(mbmi, xd->tree_type)))
-      *dc_only_blk = 1;
-  }
-}
-
 // Prune the RD evaluation of secondary transform using the partial rd computed
 // based on minimum distortion after secondary transform
 static bool prune_sec_txfm_rd_eval(int64_t sec_tx_sse_to_be_coded,
@@ -2432,25 +2319,9 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
   int64_t block_sse;
   unsigned int block_mse_q8;
   int dc_only_blk = 0;
-  const bool predict_dc_block =
-      txfm_params->predict_dc_level && txw != 64 && txh != 64;
-  int64_t per_px_mean = INT64_MAX;
-  if (predict_dc_block) {
-    predict_dc_only_block(x, plane, plane_bsize, tx_size, block, blk_row,
-                          blk_col, best_rd_stats, &block_sse, &block_mse_q8,
-                          &per_px_mean, &dc_only_blk, cm);
-    if (best_rd_stats->skip_txfm == 1) {
-      // Ensure that xd->tx_type_map is initialized.
-      if (plane == AVM_PLANE_Y)
-        update_txk_array(xd, blk_row, blk_col, tx_size,
-                         MAKE_TX_TYPE_FROM_PRIMARY_TX_TYPE(DCT_DCT));
-      return;
-    }
-  } else {
-    block_sse = pixel_diff_dist(cm, x, plane, blk_row, blk_col, plane_bsize,
-                                txw, txh, &block_mse_q8);
-    assert(block_mse_q8 != UINT_MAX);
-  }
+  block_sse = pixel_diff_dist(cm, x, plane, blk_row, blk_col, plane_bsize, txw,
+                              txh, &block_mse_q8);
+  assert(block_mse_q8 != UINT_MAX);
 
   // Bit mask to indicate which transform types are allowed in the RD search.
   const uint16_t allowed_tx_mask = get_tx_mask(
@@ -2488,9 +2359,8 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
       (txsize_sqr_up_map[tx_size] != TX_64X64) &&
       // Use pixel domain distortion for IST
       // TODO(any): Make IST compatible with tx domain distortion
-      !(cm->seq_params.enable_ist || cm->seq_params.enable_inter_ist) &&
-      // Use pixel domain distortion for DC only blocks
-      !dc_only_blk;
+      !(cm->seq_params.enable_ist || cm->seq_params.enable_inter_ist);
+
   // Flag to indicate if an extra calculation of distortion in the pixel domain
   // should be performed at the end, after the best transform type has been
   // decided.
@@ -2565,7 +2435,7 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
          plane != AVM_PLANE_Y ||
          (is_inter ? (primary_tx_type != DCT_DCT || txw < 16 || txh < 16)
                    : intra_mode >= PAETH_PRED) ||
-         dc_only_blk || (eob_found) || !xd->enable_ist);
+         (eob_found) || !xd->enable_ist);
 
     bool skip_idx = false;
     const int max_set_id =
@@ -2601,11 +2471,10 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
         int64_t sec_tx_sse_to_be_coded = INT64_MAX;
         int64_t *const sec_tx_sse_ptr =
             tx_sf->prune_tx_rd_eval_sec_tx_sse ? &sec_tx_sse_to_be_coded : NULL;
-        if (!dc_only_blk)
-          av2_xform(x, plane, block, blk_row, blk_col, plane_bsize, &txfm_param,
-                    1, sec_tx_sse_ptr);
-        else
-          av2_xform_dc_only(x, plane, block, &txfm_param, per_px_mean);
+
+        av2_xform(x, plane, block, blk_row, blk_col, plane_bsize, &txfm_param,
+                  1, sec_tx_sse_ptr);
+
         if (prune_sec_txfm_rd_eval(sec_tx_sse_to_be_coded, block_sse, best_rd,
                                    x->rdmult,
                                    tx_sf->prune_tx_rd_eval_sec_tx_sse)) {
@@ -2619,7 +2488,7 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
         // the post-quant eob == 1 gate below. Scoped to intra Y, stx == 0,
         // non-DC-only, IST-enabled, non-QM blocks.
         if (tx_sf->prune_intra_ist_stx_by_zero_eob && plane == PLANE_TYPE_Y &&
-            !is_inter && stx == 0 && !dc_only_blk && xd->enable_ist &&
+            !is_inter && stx == 0 && xd->enable_ist &&
             !av2_use_qmatrix(&cm->quant_params, xd, mbmi->segment_id)) {
           const int tr_w = AVMMIN(txw, 32);
           const int tr_h = AVMMIN(txh, 32);

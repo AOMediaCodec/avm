@@ -312,8 +312,6 @@ static INLINE void set_mode_eval_params(const struct AV2_COMP *cpi,
       txfm_params->use_default_intra_tx_type = 0;
       txfm_params->skip_txfm_level =
           winner_mode_params->skip_txfm_level[DEFAULT_EVAL];
-      txfm_params->predict_dc_level =
-          winner_mode_params->predict_dc_level[DEFAULT_EVAL];
       // Set default transform domain distortion type
       set_tx_domain_dist_params(winner_mode_params, txfm_params, 0, 0);
 
@@ -336,8 +334,6 @@ static INLINE void set_mode_eval_params(const struct AV2_COMP *cpi,
           cpi->sf.tx_sf.tx_type_search.fast_inter_tx_type_search;
       txfm_params->skip_txfm_level =
           winner_mode_params->skip_txfm_level[MODE_EVAL];
-      txfm_params->predict_dc_level =
-          winner_mode_params->predict_dc_level[MODE_EVAL];
       // Set transform domain distortion type for mode evaluation
       set_tx_domain_dist_params(
           winner_mode_params, txfm_params,
@@ -367,8 +363,6 @@ static INLINE void set_mode_eval_params(const struct AV2_COMP *cpi,
       txfm_params->use_default_intra_tx_type = 0;
       txfm_params->skip_txfm_level =
           winner_mode_params->skip_txfm_level[WINNER_MODE_EVAL];
-      txfm_params->predict_dc_level =
-          winner_mode_params->predict_dc_level[WINNER_MODE_EVAL];
       txfm_params->eval_mode_type = WINNER_MODE_EVAL;
       // Set transform domain distortion type for winner mode evaluation
       set_tx_domain_dist_params(
