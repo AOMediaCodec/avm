@@ -137,7 +137,7 @@ specialize qw/av2_copy_pred_array_highbd sse4_1 avx2/;
 
 #inv txfm
 add_proto qw/void inv_stxfm/ , "tran_low_t *src, tran_low_t *dst, const PREDICTION_MODE mode, const uint8_t stx_idx, const int size, const int bd";
-specialize qw/inv_stxfm sse4_1 avx2/;
+specialize qw/inv_stxfm sse4_1 avx2 neon/;
 add_proto qw/void av2_highbd_inv_txfm_add/, "const tran_low_t *input, uint16_t *dest, int stride, const TxfmParam *txfm_param";
 specialize qw/av2_highbd_inv_txfm_add sse4_1 avx2 neon/;
 
@@ -251,7 +251,7 @@ if (avm_config("CONFIG_AV2_ENCODER") eq "yes") {
 
   #fwd txfm
   add_proto qw/void fwd_stxfm/ , "tran_low_t *src, tran_low_t *dst, const PREDICTION_MODE mode, const uint8_t stx_idx, const int size, const int bd";
-  specialize qw/fwd_stxfm sse4_1 avx2/;
+  specialize qw/fwd_stxfm sse4_1 avx2 neon/;
 
   add_proto qw/void fwd_txfm/,  "const int16_t *resi, tran_low_t *coeff, int diff_stride, TxfmParam *txfm_param";
   specialize qw/fwd_txfm avx2/;

@@ -87,6 +87,7 @@ if(NOT BUILD_SHARED_LIBS)
     APPEND
     AVM_UNIT_TEST_COMMON_SOURCES
     "${AVM_ROOT}/test/av2_common_int_test.cc"
+    "${AVM_ROOT}/test/av2_inv_stxfm_test.cc"
     "${AVM_ROOT}/test/bawp_test.cc"
     "${AVM_ROOT}/test/bitwriter_buffer_test.cc"
     "${AVM_ROOT}/test/cdef_test.cc"
@@ -265,6 +266,8 @@ if(NOT BUILD_SHARED_LIBS)
   endif()
 
   list(APPEND AVM_UNIT_TEST_ENCODER_SOURCES "${AVM_ROOT}/test/trellis_test.cc")
+  list(APPEND AVM_UNIT_TEST_ENCODER_SOURCES
+       "${AVM_ROOT}/test/av2_fwd_txfm2d_test.cc")
 
 endif()
 
