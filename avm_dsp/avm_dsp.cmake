@@ -51,8 +51,7 @@ list(
   "${AVM_ROOT}/avm_dsp/subtract.c"
   "${AVM_ROOT}/avm_dsp/txfm_common.h"
   "${AVM_ROOT}/avm_dsp/x86/convolve_common_intrin.h"
-  "${AVM_ROOT}/avm_dsp/x86/highbd_convolve_x_sr.h"
-  "${AVM_ROOT}/avm_dsp/x86/highbd_convolve_x_sr_avx512_dispatch.c"
+  "${AVM_ROOT}/avm_dsp/x86/highbd_convolve_avx512_dispatch.c"
   "${AVM_ROOT}/avm_dsp/avg.c")
 
 list(
