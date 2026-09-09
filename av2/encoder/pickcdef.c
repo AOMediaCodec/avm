@@ -420,7 +420,8 @@ void av2_cdef_search(const YV12_BUFFER_CONFIG *frame,
 #if CONFIG_ENTROPY_STATS
                      ThreadData *td,
 #endif  // CONFIG_ENTROPY_STATS
-                     CDEF_PICK_METHOD pick_method, int rdmult) {
+                     CDEF_PICK_METHOD pick_method, int rdmult,
+                     int bias_against_cdef) {
   if (cm->seq_params.enable_cdef_on_skip_txfm == CDEF_ON_SKIP_TXFM_DISABLED) {
     cm->cdef_info.cdef_on_skip_txfm_frame_enable = 0;
   } else {
@@ -742,8 +743,14 @@ void av2_cdef_search(const YV12_BUFFER_CONFIG *frame,
   }
 
   if (best_cdef_on) {
-    const uint64_t unfiltered_rd =
+    uint64_t unfiltered_rd =
         RDCOST(rdmult, av2_cost_literal(1), unfiltered_mse * 16);
+
+    if (unfiltered_rd < INT64_MAX && bias_against_cdef) {
+      const double bias_against_cdef_thr = 0.9;
+      unfiltered_rd = (int64_t)(unfiltered_rd * bias_against_cdef_thr);
+    }
+
     if (unfiltered_rd < best_rd) {
       best_nb_strength = 1;
       cm->cdef_info.cdef_frame_enable = 0;

@@ -3137,7 +3137,8 @@ static void cdef_restoration_frame(AV2_COMP *cpi, AV2_COMMON *cm,
 #if CONFIG_ENTROPY_STATS
                     &cpi->td,
 #endif  // CONFIG_ENTROPY_STATS
-                    cpi->sf.lpf_sf.cdef_pick_method, cpi->td.mb.rdmult);
+                    cpi->sf.lpf_sf.cdef_pick_method, cpi->td.mb.rdmult,
+                    cpi->sf.lc_sf.bias_against_cdef);
 
     // Apply the filter
     if (cm->cdef_info.cdef_frame_enable)
