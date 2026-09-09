@@ -8,6 +8,7 @@
 #include "av2/encoder/partition_sms.h"
 #include "av2/encoder/partition_sms_weights.h"
 
+#include "av2/common/mv.h"
 #include "av2/common/pred_common.h"
 #include "av2/encoder/ml.h"
 #include "avm_ports/system_state.h"

@@ -10,7 +10,6 @@
 #include "av2/encoder/encoder.h"
 #include "av2/encoder/encodeframe_utils.h"
 #include "av2/encoder/partition_strategy.h"
-#include "av2/common/mv.h"
 
 #ifdef __cplusplus
 extern "C" {
