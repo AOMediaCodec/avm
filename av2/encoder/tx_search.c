@@ -2381,6 +2381,11 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
 
   skip_trellis |=
       !is_trellis_used(cpi->optimize_seg_arr[mbmi->segment_id], DRY_RUN_NORMAL);
+  // Skip RDOQ in the dry pass, except under TCQ whose state-machine dequant
+  // needs trellis-quantized coefficients for correct distortion.
+  skip_trellis |=
+      x->apply_dry_pass_shortcuts &&
+      !tcq_enable(cm->features.tcq_mode, is_lossless, plane, TX_CLASS_2D);
 
   uint8_t best_txb_ctx = 0;
   // txk_allowed = TX_TYPES: >1 tx types are allowed.
@@ -3575,8 +3580,10 @@ static AVM_INLINE void choose_largest_tx_size(const AV2_COMP *const cpi,
   const int64_t no_skip_txfm_rd = is_inter_block(mbmi, xd->tree_type)
                                       ? RDCOST(x->rdmult, no_skip_txfm_rate, 0)
                                       : 0;
-  // Dry pass: skip trellis (no RDOQ) — light quant only.
-  const int skip_trellis = x->apply_dry_pass_shortcuts ? 1 : 0;
+  // Trellis is decided centrally inside search_tx_type() (reached transitively
+  // via av2_txfm_rd_in_plane -> block_rd_txfm), which OR-s in the dry-pass
+  // skip regardless of what the caller passes here.
+  const int skip_trellis = 0;
   av2_txfm_rd_in_plane(x, cpi, rd_stats, ref_best_rd,
                        AVMMIN(no_skip_txfm_rd, skip_txfm_rd), AVM_PLANE_Y, bs,
                        FTXS_NONE, skip_trellis);
@@ -4357,7 +4364,10 @@ int av2_txfm_uvrd(const AV2_COMP *const cpi, MACROBLOCK *x, RD_STATS *rd_stats,
   const BLOCK_SIZE plane_bsize = get_mb_plane_block_size(
       xd, mbmi, AVM_PLANE_U, pd->subsampling_x, pd->subsampling_y);
 
-  const int skip_trellis = 0;
+  // Skip RDOQ in the dry pass for chroma; also flows into search_cctx_type().
+  // No TCQ guard needed here: TCQ is luma-only per the finalized AV2 spec
+  // (tcq_enable() gates on plane == 0).
+  const int skip_trellis = x->apply_dry_pass_shortcuts;
   int is_cost_valid = 1;
   if (is_cctx_allowed(&cpi->common, xd)) {
     RD_STATS this_rd_stats;
