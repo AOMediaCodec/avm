@@ -1204,6 +1204,13 @@ typedef struct {
 } CoeffCosts;
 
 /*!\cond */
+typedef enum {
+  kZeroSad = 0,
+  kVeryLowSad = 1,
+  kLowSad = 2,
+  kMedSad = 3,
+  kHighSad = 4
+} SOURCE_SAD;
 #define SINGLE_REF_MODES ((REF_FRAMES - 1) * 4)
 /*!\endcond */
 struct inter_modes_info;
@@ -1531,6 +1538,10 @@ typedef struct macroblock {
   /**@{*/
   //! Variance of the source frame.
   unsigned int source_variance;
+  //! Superblock source SAD.
+  unsigned int source_sad;
+  //! Superblock source SAD level.
+  SOURCE_SAD source_sad_level;
   //! SSE of the current predictor.
   unsigned int pred_sse[SINGLE_REF_FRAMES];
   /*! Simple motion search buffers. */

@@ -179,6 +179,53 @@ static BLOCK_SIZE get_rd_var_based_fixed_partition(AV2_COMP *cpi, MACROBLOCK *x,
     return BLOCK_8X8;
 }
 
+static unsigned int get_sb_source_sad(const AV2_COMP *cpi, const MACROBLOCK *x,
+                                      int mi_row, int mi_col) {
+  if (cpi->last_source == NULL || cpi->source == NULL) return UINT_MAX;
+  if (frame_is_intra_only(&cpi->common)) return UINT_MAX;
+  if (cpi->last_source->y_width != cpi->source->y_width ||
+      cpi->last_source->y_height != cpi->source->y_height)
+    return UINT_MAX;
+
+  const BLOCK_SIZE sb_size = cpi->common.seq_params.sb_size;
+  const int block_width = mi_size_wide[sb_size];
+  const int block_height = mi_size_high[sb_size];
+  // Avoid border superblocks as sdf reads extended border padding.
+  if (mi_row + block_height > cpi->common.mi_params.mi_rows ||
+      mi_col + block_width > cpi->common.mi_params.mi_cols)
+    return UINT_MAX;
+
+  const uint16_t *src_y = x->plane[AVM_PLANE_Y].src.buf;
+  const int src_stride = x->plane[AVM_PLANE_Y].src.stride;
+  const int last_src_offset =
+      (mi_row * MI_SIZE) * cpi->last_source->y_stride + (mi_col * MI_SIZE);
+  const uint16_t *last_src_y = cpi->last_source->y_buffer + last_src_offset;
+  const int last_src_stride = cpi->last_source->y_stride;
+
+  return cpi->fn_ptr[sb_size].sdf(src_y, src_stride, last_src_y,
+                                  last_src_stride);
+}
+
+static SOURCE_SAD get_source_sad_level(unsigned int sb_source_sad,
+                                       BLOCK_SIZE sb_size, int bit_depth) {
+  if (sb_source_sad == UINT_MAX) return kMedSad;
+  if (sb_source_sad == 0) return kZeroSad;
+
+  const int num_64x64 = (sb_size == BLOCK_256X256)   ? 16
+                        : (sb_size == BLOCK_128X128) ? 4
+                                                     : 1;
+  unsigned int avg_64x64_sad = (sb_source_sad + (num_64x64 >> 1)) / num_64x64;
+
+  if (bit_depth > 8) {
+    avg_64x64_sad >>= (bit_depth - 8);
+  }
+
+  if (avg_64x64_sad < 8000) return kVeryLowSad;
+  if (avg_64x64_sad < 25000) return kLowSad;
+  if (avg_64x64_sad > 50000) return kHighSad;
+  return kMedSad;
+}
+
 void av2_setup_src_planes(MACROBLOCK *x, const YV12_BUFFER_CONFIG *src,
                           int mi_row, int mi_col, const int num_planes,
                           const CHROMA_REF_INFO *chroma_ref_info) {
@@ -840,7 +887,15 @@ static AVM_INLINE void encode_rd_sb(AV2_COMP *cpi, ThreadData *td,
     xd->tree_type = SHARED_PART;
   } else if (sf->part_sf.partition_search_type == VAR_BASED_PARTITION) {
     av2_set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size, NULL);
-    av2_choose_var_based_partitioning(cpi, tile_info, td, x, mi_row, mi_col);
+    unsigned int source_sad = UINT_MAX;
+    if (cpi->sf.rt_sf.source_metrics_sb) {
+      source_sad = get_sb_source_sad(cpi, x, mi_row, mi_col);
+    }
+    x->source_sad = source_sad;
+    x->source_sad_level = get_source_sad_level(
+        source_sad, sb_size, cpi->common.seq_params.bit_depth);
+    av2_choose_var_based_partitioning(cpi, tile_info, td, x, mi_row, mi_col,
+                                      source_sad);
     for (int loop_idx = 0; loop_idx < total_loop_num; loop_idx++) {
       xd->tree_type =
           (total_loop_num == 1 ? SHARED_PART
@@ -1371,6 +1426,8 @@ static AVM_INLINE void encode_sb_row(AV2_COMP *cpi, ThreadData *td,
 
     xd->cur_frame_force_integer_mv = cm->features.cur_frame_force_integer_mv;
     x->source_variance = UINT_MAX;
+    x->source_sad = UINT_MAX;
+    x->source_sad_level = kMedSad;
     td->mb.cb_coef_buff = av2_get_cb_coeff_buffer(cpi, mi_row, mi_col);
 
     av2_reset_refmv_bank(cm, xd, tile_info, mi_row, mi_col);
