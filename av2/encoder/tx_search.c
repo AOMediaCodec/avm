@@ -1939,6 +1939,13 @@ get_tx_mask(const AV2_COMP *cpi, MACROBLOCK *x, int plane, int block,
     allowed_tx_mask = (1 << txk_allowed);
   }
 
+  // Restrict tx type search to DCT_DCT only
+  if (x->apply_dry_pass_shortcuts &&
+      cpi->sf.tx_sf.tx_type_search.dry_pass_use_dct_only && plane == 0 &&
+      txk_allowed == PRIMARY_TX_TYPES) {
+    allowed_tx_mask &= (1 << DCT_DCT);
+  }
+
   assert(IMPLIES(txk_allowed < PRIMARY_TX_TYPES,
                  allowed_tx_mask == 1 << txk_allowed));
   *allowed_txk_types = txk_allowed;

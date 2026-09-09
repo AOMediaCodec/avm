@@ -168,6 +168,9 @@ typedef struct {
   // Prune tx type search using estimated RDcost
   int prune_tx_type_est_rd;
 
+  // Use DCT_DCT only at dry pass
+  bool dry_pass_use_dct_only;
+
   // Flag used to control the winner mode processing for tx type pruning for
   // inter blocks. It enables further tx type mode pruning based on ML model for
   // mode evaluation and disables tx type mode pruning for winner mode

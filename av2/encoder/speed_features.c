@@ -642,6 +642,7 @@ static void set_good_speed_features_framesize_independent(
     sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 1;
     sf->tx_sf.tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_2;
     sf->tx_sf.tx_type_search.prune_tx_type_est_rd = 1;
+    sf->tx_sf.tx_type_search.dry_pass_use_dct_only = true;
 
     sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 3 : 5;
     sf->rd_sf.tx_domain_dist_thres_level = 1;
@@ -982,6 +983,7 @@ static AVM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
   tx_sf->tx_type_search.skip_tx_search_max_eob = 1024;
   tx_sf->tx_type_search.prune_tx_type_using_stats = 0;
   tx_sf->tx_type_search.prune_tx_type_est_rd = 0;
+  tx_sf->tx_type_search.dry_pass_use_dct_only = false;
   tx_sf->tx_type_search.winner_mode_tx_type_pruning = 0;
   tx_sf->txb_split_cap = 1;
   tx_sf->skip_pixel_dist_calc_using_tx_dist = false;
