@@ -187,6 +187,24 @@ static TX_MODE select_tx_mode(
     return TX_MODE_SELECT;
   }
 }
+
+// Restrict transform type and size search in the dry pass of the fast two-pass
+// partition search, which only needs a rough shape ranking.
+static INLINE void set_dry_pass_txfm_params(const AV2_COMMON *cm,
+                                            MACROBLOCK *x) {
+  if (!x->apply_dry_pass_shortcuts) return;
+  TxfmSearchParams *txfm_params = &x->txfm_search_params;
+  txfm_params->use_default_intra_tx_type = 1;
+  txfm_params->use_default_inter_tx_type = 1;
+  // Preserve USE_LARGESTALL: it already routes through the fast
+  // choose_largest_tx_size() path, so demoting to USE_FAST_RD would be a
+  // regression. USE_FULL_RD -> USE_FAST_RD relaxes the recursive size search.
+  if (txfm_params->tx_size_search_method != USE_LARGESTALL)
+    txfm_params->tx_size_search_method = USE_FAST_RD;
+  txfm_params->tx_mode_search_type =
+      select_tx_mode(cm, txfm_params->tx_size_search_method);
+}
+
 // Checks the conditions to enable winner mode processing
 static INLINE int is_winner_mode_processing_enabled(
     const struct AV2_COMP *cpi, MB_MODE_INFO *const mbmi,
@@ -386,6 +404,9 @@ static INLINE void set_mode_eval_params(const struct AV2_COMP *cpi,
       break;
     default: assert(0);
   }
+
+  // Applied last so the dry-pass overrides win over per-stage defaults.
+  set_dry_pass_txfm_params(cm, x);
 }
 
 // Similar to store_cfl_required(), but for use during the RDO process,
