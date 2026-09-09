@@ -60,7 +60,9 @@ void compute_residual_stats(AV2_COMP *const cpi, ThreadData *td, MACROBLOCK *x,
   TxfmParam txfm_param;
   QUANT_PARAM quant_param;
 
-  av2_setup_xform(cm, x, plane, tx_size, DCT_DCT, CCTX_NONE, &txfm_param);
+  av2_setup_xform(cm, x, plane, tx_size,
+                  MAKE_TX_TYPE_FROM_PRIMARY_TX_TYPE(DCT_DCT), CCTX_NONE,
+                  &txfm_param);
   // These stats are ML features for partition pruning and are not used for
   // coding, so always use the lossy full-size DCT_DCT. For lossless segments,
   // av2_setup_xform() sets lossless = 1, which selects the 4x4 WHT that only
