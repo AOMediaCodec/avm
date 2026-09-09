@@ -78,8 +78,8 @@ class CCSOFilterTest : public FunctionEquivalenceTest<F> {
     filter_sup_ = this->rng_(7);
     derive_ccso_sample_pos(src_loc_, src_y_stride_, filter_sup_);
 
-    const uint8_t quant_sz[4] = { 16, 8, 32, 64 };
-    thr_ = quant_sz[this->rng_(4)];
+    const uint8_t quant_sz[5] = { 16, 8, 32, 64, 0 };
+    thr_ = quant_sz[this->rng_(5)];
     neg_thr_ = -1 * thr_;
 
     const uint8_t shift_bits_a[2] = { 8, 10 };
@@ -120,23 +120,32 @@ class CCSOFilterTest : public FunctionEquivalenceTest<F> {
 class CCSOWOBUFTest : public CCSOFilterTest<CCSO_WO_BUF> {
  protected:
   void Execute() {
-    const int max_band_log2 = 3;
-    shift_bits_ = isSingleBand_ ? shift_bits_ : shift_bits_ - max_band_log2;
-    params_.ref_func(src_y_, dst_ref_, 0, 0, pic_width_, pic_height_, src_cls_,
-                     offset_buf_, src_y_stride_, dst_stride_, y_uv_hscale_,
-                     y_uv_vscale_, thr_, neg_thr_, src_loc_, max_val_,
-                     CCSO_BLK_SIZE_PARAMS(blk_size_, blk_size_), isSingleBand_,
-                     shift_bits_, edge_clf_, 0);
+    const int cur_bit_depth = 10;
+    max_val_ = (1 << cur_bit_depth) - 1;
+    // Test for number of bands = 1, 2, 4, 8.
+    for (int num_bands_log2 = 0; num_bands_log2 < 4; num_bands_log2++) {
+      const bool isSingleBand = (num_bands_log2 == 0);
+      shift_bits_ = cur_bit_depth - num_bands_log2;
+      params_.ref_func(src_y_, dst_ref_, 0, 0, pic_width_, pic_height_,
+                       src_cls_, offset_buf_, src_y_stride_, dst_stride_,
+                       y_uv_hscale_, y_uv_vscale_, thr_, neg_thr_, src_loc_,
+                       max_val_, CCSO_BLK_SIZE_PARAMS(blk_size_, blk_size_),
+                       isSingleBand, shift_bits_, edge_clf_, 0);
 
-    ASM_REGISTER_STATE_CHECK(params_.tst_func(
-        src_y_, dst_tst_, 0, 0, pic_width_, pic_height_, src_cls_, offset_buf_,
-        src_y_stride_, dst_stride_, y_uv_hscale_, y_uv_vscale_, thr_, neg_thr_,
-        src_loc_, max_val_, CCSO_BLK_SIZE_PARAMS(blk_size_, blk_size_),
-        isSingleBand_, shift_bits_, edge_clf_, 0));
+      ASM_REGISTER_STATE_CHECK(
+          params_.tst_func(src_y_, dst_tst_, 0, 0, pic_width_, pic_height_,
+                           src_cls_, offset_buf_, src_y_stride_, dst_stride_,
+                           y_uv_hscale_, y_uv_vscale_, thr_, neg_thr_, src_loc_,
+                           max_val_, CCSO_BLK_SIZE_PARAMS(blk_size_, blk_size_),
+                           isSingleBand, shift_bits_, edge_clf_, 0));
 
-    for (int r = 0; r < blk_size_; ++r) {
-      for (int c = 0; c < blk_size_; ++c) {
-        ASSERT_EQ(dst_ref_[r * dst_stride_ + c], dst_tst_[r * dst_stride_ + c]);
+      for (int r = 0; r < blk_size_; ++r) {
+        for (int c = 0; c < blk_size_; ++c) {
+          ASSERT_EQ(dst_ref_[r * dst_stride_ + c],
+                    dst_tst_[r * dst_stride_ + c])
+              << "num_bands=" << (1 << num_bands_log2) << " r=" << r
+              << " c=" << c;
+        }
       }
     }
   }
@@ -153,20 +162,23 @@ class CCSOWOBUFTest : public CCSOFilterTest<CCSO_WO_BUF> {
     thr_ = quant_sz[this->rng_(4)];
     neg_thr_ = -1 * thr_;
 
-    const int max_band_log2 = 3;
-    const uint8_t bit_depth[2] = { 8, 10 };
-    const uint8_t cur_bit_depth = bit_depth[this->rng_(2)];
+    // src_y_ is filled with rng_(1 << 10), so the bit depth has to be 10
+    // for the samples to stay within max_val_.
+    const uint8_t cur_bit_depth = 10;
     max_val_ = (1 << cur_bit_depth) - 1;
     int num_planes = 2;
 
     for (int plane = 0; plane < num_planes; plane++) {
-      for (int isSingleBand = 0; isSingleBand < 2; isSingleBand++) {
-        shift_bits_ =
-            isSingleBand ? cur_bit_depth : cur_bit_depth - max_band_log2;
-        y_uv_hscale_ = y_uv_vscale_ = plane;
-        pic_width_ = (MAX_SB_SIZE) >> y_uv_hscale_;
-        pic_height_ = (MAX_SB_SIZE) >> y_uv_vscale_;
-        blk_size_ = pic_width_;
+      y_uv_hscale_ = y_uv_vscale_ = plane;
+      pic_width_ = (MAX_SB_SIZE) >> y_uv_hscale_;
+      pic_height_ = (MAX_SB_SIZE) >> y_uv_vscale_;
+      blk_size_ = pic_width_;
+
+      // 1, 2, 4 and 8 bands.
+      for (int num_bands_log2 = 0; num_bands_log2 < 4; num_bands_log2++) {
+        const int num_bands = 1 << num_bands_log2;
+        const bool isSingleBand = (num_bands == 1);
+        shift_bits_ = cur_bit_depth - num_bands_log2;
 
         avm_usec_timer timer;
         avm_usec_timer_start(&timer);
@@ -197,10 +209,10 @@ class CCSOWOBUFTest : public CCSOFilterTest<CCSO_WO_BUF> {
                                    (kSpeedIterations * blk_size_ * blk_size_);
         float scaling = c_time_per_pixel / opt_time_per_pixel;
         printf(
-            "%3dx%-3d: plane=%d, isSingleBand=%d "
+            "%3dx%-3d: plane=%d, num_bands=%d "
             "c_time_per_pixel=%10.5f, "
             "opt_time_per_pixel=%10.5f,  scaling=%f \n",
-            blk_size_, blk_size_, plane, isSingleBand, c_time_per_pixel,
+            blk_size_, blk_size_, plane, num_bands, c_time_per_pixel,
             opt_time_per_pixel, scaling);
       }
     }
@@ -552,6 +564,65 @@ class CCSODeriveSrcTest : public CCSOFilterTest<CCSO_Derive_Src> {
       }
     }
   }
+
+  void RunSpeedTest() {
+    src_y_stride_ =
+        this->rng_(kMaxWidth + 1 - 32) + 32 + (CCSO_PADDING_SIZE << 1);
+    ccso_stride_ = src_y_stride_ - (CCSO_PADDING_SIZE << 1);
+
+    const uint8_t quant_sz[4] = { 16, 8, 32, 64 };
+    thr_ = quant_sz[this->rng_(4)];
+    neg_thr_ = -1 * thr_;
+
+    const int num_planes = 2;
+
+    for (int plane = 0; plane < num_planes; plane++) {
+      for (int edge_clf = 0; edge_clf < 2; edge_clf++) {
+        filter_sup_ = this->rng_(7);
+        derive_ccso_sample_pos(src_loc_, src_y_stride_, filter_sup_);
+        y_uv_hscale_ = y_uv_vscale_ = plane;
+        pic_width_ = (MAX_SB_SIZE) >> y_uv_hscale_;
+        pic_height_ = (MAX_SB_SIZE) >> y_uv_vscale_;
+        blk_size_ = pic_width_;
+
+        avm_usec_timer timer;
+        avm_usec_timer_start(&timer);
+        for (int i = 0; i < kSpeedIterations; ++i) {
+          params_.ref_func(src_y_, src_cls0_ref, src_cls1_ref, src_y_stride_,
+                           ccso_stride_, 0, 0, pic_width_, pic_height_,
+                           y_uv_hscale_, y_uv_vscale_, thr_, neg_thr_, src_loc_,
+                           CCSO_BLK_SIZE_PARAMS(blk_size_, blk_size_),
+                           edge_clf);
+        }
+        avm_usec_timer_mark(&timer);
+        auto elapsed_time_c = avm_usec_timer_elapsed(&timer);
+
+        avm_usec_timer_start(&timer);
+        for (int i = 0; i < kSpeedIterations; ++i) {
+          params_.tst_func(src_y_, src_cls0_tst, src_cls1_tst, src_y_stride_,
+                           ccso_stride_, 0, 0, pic_width_, pic_height_,
+                           y_uv_hscale_, y_uv_vscale_, thr_, neg_thr_, src_loc_,
+                           CCSO_BLK_SIZE_PARAMS(blk_size_, blk_size_),
+                           edge_clf);
+        }
+        avm_usec_timer_mark(&timer);
+        auto elapsed_time_opt = avm_usec_timer_elapsed(&timer);
+
+        float c_time_per_pixel = (float)1000.0 * elapsed_time_c /
+                                 (kSpeedIterations * blk_size_ * blk_size_);
+        float opt_time_per_pixel = (float)1000.0 * elapsed_time_opt /
+                                   (kSpeedIterations * blk_size_ * blk_size_);
+        float scaling = c_time_per_pixel / opt_time_per_pixel;
+        printf(
+            "%3dx%-3d: plane=%d, edge_clf=%d "
+            "c_time_per_pixel=%10.5f, "
+            "opt_time_per_pixel=%10.5f, scaling=%f\n",
+            blk_size_, blk_size_, plane, edge_clf, c_time_per_pixel,
+            opt_time_per_pixel, scaling);
+      }
+    }
+  }
+
   uint8_t src_cls0_ref[kBufSize];
   uint8_t src_cls1_ref[kBufSize];
   uint8_t src_cls0_tst[kBufSize];
@@ -574,6 +645,18 @@ TEST_P(CCSODeriveSrcTest, RandomValues) {
 
     Common();
   }
+}
+
+TEST_P(CCSODeriveSrcTest, DISABLED_Speed) {
+  const int hi = 1 << 10;
+  for (int i = 0; i < kBufSize; ++i) {
+    src_cls0_ref[i] = 0;
+    src_cls1_ref[i] = 0;
+    src_cls0_tst[i] = 0;
+    src_cls1_tst[i] = 0;
+    src_y_[i] = rng_(hi);
+  }
+  RunSpeedTest();
 }
 
 //////////////////////////////////////////////////////////////////////////////
