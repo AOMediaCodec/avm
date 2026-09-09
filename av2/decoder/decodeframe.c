@@ -4482,9 +4482,8 @@ static AVM_INLINE void decode_tile(AV2Decoder *pbi, ThreadData *const td,
       BruActiveMode sb_active_mode = BRU_ACTIVE_SB;
       av2_set_sb_info(cm, xd, mi_row, mi_col, sb_active_mode);
       set_cb_buffer(pbi, dcb, &td->cb_buffer_base, num_planes, 0, 0);
-      // td->ref_mv_bank is initialized as xd->ref_mv_bank, and used
-      // for MV referencing during decoding the tile.
-      // xd->ref_mv_bank is updated as decoding goes.
+      // xd->ref_mv_bank is used for MV referencing during decoding the tile,
+      // and is updated as decoding goes.
       av2_reset_refmv_bank(cm, xd, &tile_info, mi_row, mi_col);
 
       decode_partition_sb(pbi, td, mi_row, mi_col, td->bit_reader, cm->sb_size,

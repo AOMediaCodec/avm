@@ -179,12 +179,6 @@ const qm_val_t *av2_iqmatrix(const CommonQuantParams *quant_params, int qmlevel,
          qmlevel == NUM_QM_LEVELS - 1);
   return quant_params->giqmatrix[qmlevel][plane][tx_size];
 }
-const qm_val_t *av2_qmatrix(const CommonQuantParams *quant_params, int qmlevel,
-                            int plane, TX_SIZE tx_size) {
-  assert(quant_params->gqmatrix[qmlevel][plane][tx_size] != NULL ||
-         qmlevel == NUM_QM_LEVELS - 1);
-  return quant_params->gqmatrix[qmlevel][plane][tx_size];
-}
 
 // Returns true if the tx_type corresponds to non-identity transform in both
 // horizontal and vertical directions.
@@ -388,52 +382,6 @@ void av2_qm_init(CommonQuantParams *quant_params, int num_planes) {
               &predefined_iwt_matrix_ref[q][c >= 1][current];
           current += size;
         }
-      }
-    }
-  }
-}
-void av2_qm_replace_level(CommonQuantParams *quant_params, int level,
-                          int num_planes, qm_val_t ***fund_matrices) {
-  const int q = level;
-  for (int c = 0; c < num_planes; ++c) {
-    // Generate matrices for each tx size
-    int current = 0;
-    for (int t = 0; t < TX_SIZES_ALL; ++t) {
-      const int size = tx_size_2d[t];
-      const int qm_tx_size = av2_get_adjusted_tx_size(t);
-      if (q == NUM_QM_LEVELS - 1) {
-        assert(quant_params->gqmatrix[q][c][t] == NULL);
-        assert(quant_params->giqmatrix[q][c][t] == NULL);
-      } else if (t != qm_tx_size) {  // Reuse matrices for 'qm_tx_size'
-        assert(t > qm_tx_size);
-        assert(quant_params->gqmatrix[q][c][t] ==
-               quant_params->gqmatrix[q][c][qm_tx_size]);
-        assert(quant_params->giqmatrix[q][c][t] ==
-               quant_params->giqmatrix[q][c][qm_tx_size]);
-      } else if (t <= TX_8X8 || t == TX_4X8 || t == TX_8X4) {
-        // Use user-defined matrix for 8x8/4x8/8x4.
-        // Downscale 8x8 to 4x4 in the case of user-defined matrices.
-        assert(current + size <= QM_TOTAL_SIZE);
-        // Generate the iwt and wt matrices from the base matrices.
-        const int plane = c;
-        scale_tx(t, plane, &quant_params->iwt_matrix_ref[q][plane][current],
-                 fund_matrices);
-        calc_wt_matrix(t, &quant_params->iwt_matrix_ref[q][plane][current],
-                       &quant_params->wt_matrix_ref[q][plane][current]);
-
-        assert(quant_params->gqmatrix[q][c][t] ==
-               &quant_params->wt_matrix_ref[q][plane][current]);
-        assert(quant_params->giqmatrix[q][c][t] ==
-               &quant_params->iwt_matrix_ref[q][plane][current]);
-        current += size;
-      } else {
-        // Sizes larger than 8x8 use the pre-defined matrices.
-        assert(current + size <= QM_TOTAL_SIZE);
-        quant_params->gqmatrix[q][c][t] =
-            &predefined_wt_matrix_ref[q][c >= 1][current];
-        quant_params->giqmatrix[q][c][t] =
-            &predefined_iwt_matrix_ref[q][c >= 1][current];
-        current += size;
       }
     }
   }
