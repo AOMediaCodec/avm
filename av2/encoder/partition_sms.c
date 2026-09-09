@@ -51,8 +51,8 @@ static int sms_bsize_slot(BLOCK_SIZE bsize) {
  * smaller than the TMVP granularity (e.g. 4×4 quadrants of an 8×8 block, where
  * mi_h = mi_w = 1 < step = 2) the loop still executes once, reading the TMVP
  * entry at the top-left corner of the sub-block. */
-MV av2_get_tmvp_mv_avg(const AV2_COMMON *cm, int mi_row, int mi_col, int mi_h,
-                       int mi_w) {
+static MV get_tmvp_mv_avg(const AV2_COMMON *cm, int mi_row, int mi_col,
+                          int mi_h, int mi_w) {
   MV avg = { 0, 0 };
   if (!cm->features.allow_ref_frame_mvs || !cm->tpl_mvs_rows) return avg;
 
@@ -132,10 +132,10 @@ static void extract_sms_features(const AV2_COMP *cpi, const MACROBLOCK *x,
   const int qc[SMS_N_SPLIT_PARTS] = { mi_col, mi_col + half_w, mi_col,
                                       mi_col + half_w };
 
-  const MV tmvp_whole = av2_get_tmvp_mv_avg(cm, mi_row, mi_col, blk_h, blk_w);
+  const MV tmvp_whole = get_tmvp_mv_avg(cm, mi_row, mi_col, blk_h, blk_w);
   MV tmvp_quad[SMS_N_SPLIT_PARTS];
   for (int i = 0; i < SMS_N_SPLIT_PARTS; ++i)
-    tmvp_quad[i] = av2_get_tmvp_mv_avg(cm, qr[i], qc[i], half_h, half_w);
+    tmvp_quad[i] = get_tmvp_mv_avg(cm, qr[i], qc[i], half_h, half_w);
 
   feat[f++] = (float)tmvp_whole.row / 128.0f;
   for (int i = 0; i < SMS_N_SPLIT_PARTS; ++i)
