@@ -327,7 +327,6 @@ void av2_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
         lf->delta_side_v = 0;
     int last_frame_offsets[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 
-    int dir = 0;
     double best_single_cost = DBL_MAX;
     double best_dual_cost = DBL_MAX;
     int best_single_offsets[4] = { 0, 0, 0, 0 };
@@ -367,6 +366,7 @@ void av2_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
     }
 
     if (num_planes > 1) {
+      const int dir = 2;
       double best_cost_u = DBL_MAX;
       double best_cost_v = DBL_MAX;
       // Cb
