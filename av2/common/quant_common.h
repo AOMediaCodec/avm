@@ -123,16 +123,11 @@ void av2_qm_frame_update(struct CommonQuantParams *quant_params, int num_planes,
                          int qm_id, qm_val_t ***matrix_set);
 void av2_qm_init(struct CommonQuantParams *quant_params, int num_planes);
 
-void av2_qm_replace_level(struct CommonQuantParams *quant_params, int level,
-                          int num_planes, qm_val_t ***fund_matrices);
 void scale_tx(const int txsize, const int plane, qm_val_t *output,
               qm_val_t ***fund_matrices);
 // Get global dequant matrix.
 const qm_val_t *av2_iqmatrix(const struct CommonQuantParams *quant_params,
                              int qmlevel, int plane, TX_SIZE tx_size);
-// Get global quant matrix.
-const qm_val_t *av2_qmatrix(const struct CommonQuantParams *quant_params,
-                            int qmlevel, int plane, TX_SIZE tx_size);
 
 // Get either local / global dequant matrix as appropriate.
 const qm_val_t *av2_get_iqmatrix(const struct CommonQuantParams *quant_params,
