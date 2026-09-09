@@ -735,6 +735,9 @@ static void set_good_speed_features_lc_dec_framesize_independent(
     cpi->oxcf.tool_cfg.enable_opfl_refine = 0;
     cpi->oxcf.intra_mode_cfg.enable_mhccp = 0;
     cpi->oxcf.tool_cfg.enable_lf_sub_pu = 0;
+    cpi->oxcf.tool_cfg.enable_cdef_on_skip_txfm = 0;
+
+    sf->lc_sf.bias_against_cdef = cm->current_frame.pyramid_level > 1;
   }
 }
 
@@ -1081,6 +1084,7 @@ static void av2_disable_ml_based_partition_sf(
 
 static AVM_INLINE void init_lc_sf(LC_DEC_SPEED_FEATURES *lc_sf) {
   lc_sf->enable_partition_size_bias = 0;
+  lc_sf->bias_against_cdef = 0;
 }
 
 static AVM_INLINE void set_erp_speed_features_framesize_dependent(
@@ -1324,6 +1328,8 @@ void av2_set_speed_features_framesize_independent(AV2_COMP *cpi, int speed) {
           cpi->oxcf.intra_mode_cfg.enable_mhccp;
       cpi->common.seq_params.enable_lf_sub_pu =
           cpi->oxcf.tool_cfg.enable_lf_sub_pu;
+      cpi->common.seq_params.enable_cdef_on_skip_txfm =
+          cpi->oxcf.tool_cfg.enable_cdef_on_skip_txfm;
     }
   }
 
