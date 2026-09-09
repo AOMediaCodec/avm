@@ -22,6 +22,93 @@
 #include "av2/encoder/rdopt_utils.h"
 #include "av2/encoder/tx_prune_model_weights.h"
 #include "av2/encoder/tx_search.h"
+#include "av2/encoder/tx_cache.h"
+
+// Transform search result cache, see av2/encoder/tx_cache.h.
+
+static AVM_INLINE uint64_t tx_cache_fold(uint64_t h, uint64_t v) {
+  h ^= v;
+  h *= 1099511628211ULL;
+  return h;
+}
+
+// FNV-1a over the residual, the quantizer and the entropy contexts.
+static AVM_INLINE uint64_t tx_cache_hash(const int16_t *residual, int stride,
+                                         int tx_w, int tx_h, int qindex,
+                                         int txb_skip_ctx, int dc_sign_ctx) {
+  assert(stride >= tx_w);  // else rows overlap and distinct residuals alias
+  uint64_t h = 1469598103934665603ULL;
+  for (int r = 0; r < tx_h; ++r) {
+    const int16_t *row = residual + (size_t)r * stride;
+    for (int c = 0; c < tx_w; ++c) {
+      // uint16_t first: same width, but stops sign extension smearing bits.
+      h = tx_cache_fold(h, (uint64_t)(uint16_t)row[c]);
+    }
+  }
+  h = tx_cache_fold(h, ((uint64_t)qindex << 32) |
+                           ((uint64_t)txb_skip_ctx << 16) |
+                           (uint64_t)dc_sign_ctx);
+  return tx_cache_fold(h, ((uint64_t)tx_w << 32) | (uint64_t)tx_h);
+}
+
+// Fold in the rest of the state that can flip which candidate wins. Only
+// bounded fields are bit-packed; unbounded ones are folded separately so they
+// cannot alias. The superblock coordinates are zero: the key is frame-scoped.
+static AVM_INLINE uint64_t tx_cache_mix(uint64_t h, uint32_t sb_row,
+                                        uint32_t sb_col, int is_inter,
+                                        int is_fsc, int intra_mode,
+                                        int rd_model, int skip_trellis,
+                                        uint32_t tx_set_type, int use_qmatrix,
+                                        int rdmult) {
+  const uint64_t flags = ((uint64_t)(is_inter ? 1u : 0u) << 0) |
+                         ((uint64_t)(is_fsc ? 1u : 0u) << 1) |
+                         ((uint64_t)(skip_trellis ? 1u : 0u) << 2) |
+                         ((uint64_t)(use_qmatrix ? 1u : 0u) << 3) |
+                         ((uint64_t)(rd_model & 0xF) << 4) |
+                         ((uint64_t)(intra_mode & 0x3F) << 8) |
+                         ((uint64_t)(tx_set_type & 0xFF) << 16);
+  h = tx_cache_fold(h, flags);
+  h = tx_cache_fold(h, (uint64_t)(uint32_t)rdmult);
+  h = tx_cache_fold(h, ((uint64_t)sb_row << 32) | (uint64_t)sb_col);
+  h ^= h >> 31;
+  return h ? h : 1;
+}
+
+// Cached winning tx_type for this frame, or -1 on a miss. A never-written slot
+// (tag 0) ends the probe: no store for this frame can have walked past it.
+static AVM_INLINE int tx_cache_lookup(const TxCache *cache, uint64_t key,
+                                      uint32_t frame) {
+  const uint32_t tag = frame + 1;
+  const uint32_t idx = (uint32_t)key & TX_CACHE_MASK;
+  for (int p = 0; p < TX_CACHE_PROBE; ++p) {
+    const TxCacheEntry *e = &cache->entries[(idx + p) & TX_CACHE_MASK];
+    if (e->tag == 0) return -1;
+    if (e->tag == tag && e->key == key) return (int)e->winner;
+  }
+  return -1;
+}
+
+// Takes the first slot in the window that is free, stale, or already this key.
+static AVM_INLINE void tx_cache_store(TxCache *cache, uint64_t key, int winner,
+                                      uint32_t frame) {
+  const uint32_t tag = frame + 1;
+  const uint32_t idx = (uint32_t)key & TX_CACHE_MASK;
+  for (int p = 0; p < TX_CACHE_PROBE; ++p) {
+    TxCacheEntry *e = &cache->entries[(idx + p) & TX_CACHE_MASK];
+    if (e->tag != tag || e->key == key) {
+      e->key = key;
+      e->winner = (uint16_t)winner;
+      e->tag = tag;
+      return;
+    }
+  }
+  // Window full of this frame's entries: overwrite the first so it never
+  // stalls.
+  TxCacheEntry *e = &cache->entries[idx];
+  e->key = key;
+  e->winner = (uint16_t)winner;
+  e->tag = tag;
+}
 
 struct rdcost_block_args {
   const AV2_COMP *cpi;
@@ -2453,7 +2540,7 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
   }
 
   // Bit mask to indicate which transform types are allowed in the RD search.
-  const uint16_t allowed_tx_mask = get_tx_mask(
+  uint16_t allowed_tx_mask = get_tx_mask(
       cpi, x, plane, block, blk_row, blk_col, plane_bsize, tx_size, txb_ctx,
       ftxs_mode, ref_best_rd, dc_only_blk, &txk_allowed, txk_map);
 
@@ -2527,6 +2614,46 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
                              : cm->seq_params.enable_ist) &&
                    !is_fsc && !is_lossless;
 
+  // Transform search result cache.  Deliberately placed here: it is after
+  // skip_trellis is final and after the block above that turns off
+  // transform-domain distortion when `allowed_tx_mask == 0x0001`, so
+  // restricting the mask cannot change any earlier decision.
+  TxCache *tx_cache = NULL;
+  uint64_t tx_cache_key = 0;
+  int tx_cache_hit = 0;
+  TX_TYPE tx_cache_winner = DCT_DCT;
+  if (tx_sf->use_tx_result_cache && plane == AVM_PLANE_Y && !dc_only_blk) {
+    tx_cache = &x->txfm_search_info.tx_result_cache;
+    const int diff_stride = block_size_wide[plane_bsize];
+    const int16_t *const residual =
+        x->plane[AVM_PLANE_Y].src_diff +
+        (((blk_row * diff_stride) + blk_col) << MI_SIZE_LOG2);
+    const uint64_t base =
+        tx_cache_hash(residual, diff_stride, txw, txh, (int)x->qindex,
+                      txb_ctx ? txb_ctx->txb_skip_ctx : 0,
+                      txb_ctx ? txb_ctx->dc_sign_ctx : 0) ^
+        ((uint64_t)tx_size << 1);
+    tx_cache_key = tx_cache_mix(
+        base, 0u, 0u, is_inter, is_fsc, (int)intra_mode, (int)x->rd_model,
+        skip_trellis,
+        (uint32_t)av2_get_ext_tx_set_type(tx_size, is_inter,
+                                          cm->features.reduced_tx_set_used),
+        av2_use_qmatrix(&cm->quant_params, xd, mbmi->segment_id), x->rdmult);
+    const int cached = tx_cache_lookup(
+        tx_cache, tx_cache_key, (uint32_t)cm->current_frame.frame_number);
+    if (cached >= 0) {
+      tx_cache_hit = 1;
+      tx_cache_winner = (TX_TYPE)cached;
+      const uint16_t winner_bit =
+          (uint16_t)(1u << get_primary_tx_type(tx_cache_winner));
+      // Keep DCT_DCT in the mask: the prune gates inside the loop can reject
+      // the winner, and a single-candidate mask would then leave the search
+      // with nothing evaluated.
+      if (allowed_tx_mask & winner_bit)
+        allowed_tx_mask &= (uint16_t)(winner_bit | 1u);
+    }
+  }
+
   const int max_eob = av2_get_max_eob(tx_size);
   // Iterate through all transform type candidates.
   for (int tx_idx = 0; tx_idx < PRIMARY_TX_TYPES; ++tx_idx) {
@@ -2590,6 +2717,12 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
         txfm_param.primary_tx_type = primary_tx_type;
         txfm_param.sec_tx_type = stx;
         txfm_param.sec_tx_set = stx_set;
+        // On a cache hit, evaluate only the cached secondary transform,
+        // keeping the no-IST candidate as a baseline.
+        if (tx_cache_hit && packed_tx_type != tx_cache_winner &&
+            !(set_idx == 0 && stx == 0)) {
+          continue;
+        }
 
         assert(av2_tx_type_in_range(tx_type.primary_tx, tx_type.sec_tx,
                                     tx_type.sec_set, txw, txh));
@@ -2797,6 +2930,13 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
        best_rd == INT64_MAX) &&
       !is_inter) {
     best_tx_type = MAKE_TX_TYPE_FROM_PRIMARY_TX_TYPE(DCT_DCT);
+  }
+
+  if (tx_cache != NULL && best_rd != INT64_MAX &&
+      !(best_eob == 1 && get_primary_tx_type(best_tx_type) != DCT_DCT &&
+        !is_inter)) {
+    tx_cache_store(tx_cache, tx_cache_key, (int)best_tx_type,
+                   (uint32_t)cm->current_frame.frame_number);
   }
 
   best_rd_stats->skip_txfm = best_eob == 0;
