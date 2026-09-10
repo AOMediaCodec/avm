@@ -119,9 +119,10 @@ static unsigned int predict_skip_levels[3][MODE_EVAL_TYPES] = { { 0, 0, 0 },
 // Values indicate the aggressiveness of skip flag prediction.
 // 0 : no early DC block prediction
 // 1 : Early DC block prediction based on error variance
-static unsigned int predict_dc_levels[3][MODE_EVAL_TYPES] = { { 0, 0, 0 },
-                                                              { 1, 1, 0 },
-                                                              { 1, 1, 1 } };
+// 2 : Same as 1, but disable skip prediction
+static unsigned int predict_dc_levels[4][MODE_EVAL_TYPES] = {
+  { 0, 0, 0 }, { 1, 1, 0 }, { 1, 1, 1 }, { 2, 2, 0 }
+};
 
 // Intra only frames, golden frames (except alt ref overlays) and
 // alt ref frames tend to be coded at a higher than ambient quality
@@ -1643,4 +1644,15 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
   }
 
   set_two_pass_partition_level(cpi);
+
+  // Set the predict_dc level to { 2, 2, 0 } at speed 2 for high qindex frames.
+  if (speed == 2 && sf->winner_mode_sf.dc_blk_pred_level == 0) {
+    const int dc_blk_pred_qmin =
+        113 + MAXQ_OFFSET * (cm->seq_params.bit_depth - 8);
+    if (cm->quant_params.base_qindex > dc_blk_pred_qmin) {
+      sf->winner_mode_sf.dc_blk_pred_level = 3;
+      memcpy(winner_mode_params->predict_dc_level, predict_dc_levels[3],
+             sizeof(winner_mode_params->predict_dc_level));
+    }
+  }
 }
