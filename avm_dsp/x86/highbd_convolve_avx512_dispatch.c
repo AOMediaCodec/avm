@@ -16,7 +16,28 @@
 
 #if HAVE_AVX512
 
-#include "avm_dsp/x86/highbd_convolve_x_sr.h"
+#include "config/av2_rtcd.h"
+
+void highbd_convolve_x_sr_avx2_shuffle(
+    const uint16_t *src, int src_stride, uint16_t *dst, int dst_stride, int w,
+    int h, const InterpFilterParams *filter_params_x, const int subpel_x_qn,
+    ConvolveParams *conv_params, int bd);
+void highbd_convolve_x_sr_avx2_loadonly(
+    const uint16_t *src, int src_stride, uint16_t *dst, int dst_stride, int w,
+    int h, const InterpFilterParams *filter_params_x, const int subpel_x_qn,
+    ConvolveParams *conv_params, int bd);
+void highbd_convolve_x_sr_avx512_shuffle(
+    const uint16_t *src, int src_stride, uint16_t *dst, int dst_stride, int w,
+    int h, const InterpFilterParams *filter_params_x, const int subpel_x_qn,
+    ConvolveParams *conv_params, int bd);
+void highbd_convolve_x_sr_avx512_loadonly(
+    const uint16_t *src, int src_stride, uint16_t *dst, int dst_stride, int w,
+    int h, const InterpFilterParams *filter_params_x, const int subpel_x_qn,
+    ConvolveParams *conv_params, int bd);
+void highbd_convolve_y_sr_avx512(const uint16_t *src, int src_stride,
+                                 uint16_t *dst, int dst_stride, int w, int h,
+                                 const InterpFilterParams *filter_params_y,
+                                 const int subpel_y_qn, int bd);
 
 void av2_highbd_convolve_x_sr_avx512(const uint16_t *src, int src_stride,
                                      uint16_t *dst, int dst_stride, int w,
@@ -48,6 +69,20 @@ void av2_highbd_convolve_x_sr_avx512(const uint16_t *src, int src_stride,
                                         filter_params_x, subpel_x_qn,
                                         conv_params, bd);
   }
+}
+
+void av2_highbd_convolve_y_sr_avx512(const uint16_t *src, int src_stride,
+                                     uint16_t *dst, int dst_stride, int w,
+                                     int h,
+                                     const InterpFilterParams *filter_params_y,
+                                     const int subpel_y_qn, int bd) {
+  if (w >= 16) {
+    highbd_convolve_y_sr_avx512(src, src_stride, dst, dst_stride, w, h,
+                                filter_params_y, subpel_y_qn, bd);
+    return;
+  }
+  av2_highbd_convolve_y_sr_avx2(src, src_stride, dst, dst_stride, w, h,
+                                filter_params_y, subpel_y_qn, bd);
 }
 
 #endif  // HAVE_AVX512

@@ -465,6 +465,8 @@ class AV2ConvolveYHighbdTest : public AV2ConvolveTest<highbd_convolve_y_func> {
     }
   }
 
+  void SpeedTest() { TestConvolveSpeed(EIGHTTAP_REGULAR, 8, 20000); }
+
  private:
   void TestConvolve(const int sub_y, const InterpFilter filter) {
     const int width = GetParam().Block().Width();
@@ -481,9 +483,42 @@ class AV2ConvolveYHighbdTest : public AV2ConvolveTest<highbd_convolve_y_func> {
                               filter_params_y, sub_y, bit_depth);
     AssertOutputBufferEq(reference, test, width, height);
   }
+
+  void TestConvolveSpeed(const InterpFilter filter, const int sub_y,
+                         const int num_iters) {
+    const int width = GetParam().Block().Width();
+    const int height = GetParam().Block().Height();
+    const int bit_depth = GetParam().BitDepth();
+    const InterpFilterParams *filter_params_y =
+        av2_get_interp_filter_params_with_block_size(filter, height);
+    const uint16_t *input = FirstRandomInput12(GetParam());
+    DECLARE_ALIGNED(32, uint16_t, reference[MAX_SB_SQUARE]);
+    DECLARE_ALIGNED(32, uint16_t, test[MAX_SB_SQUARE]);
+
+    avm_usec_timer timer;
+    avm_usec_timer_start(&timer);
+    for (int i = 0; i < num_iters; ++i) {
+      av2_highbd_convolve_y_sr_c(input, width, reference, kOutputStride, width,
+                                 height, filter_params_y, sub_y, bit_depth);
+    }
+    avm_usec_timer_mark(&timer);
+    const int time1 = static_cast<int>(avm_usec_timer_elapsed(&timer));
+
+    avm_usec_timer_start(&timer);
+    for (int i = 0; i < num_iters; ++i) {
+      GetParam().TestFunction()(input, width, test, kOutputStride, width,
+                                height, filter_params_y, sub_y, bit_depth);
+    }
+    avm_usec_timer_mark(&timer);
+    const int time2 = static_cast<int>(avm_usec_timer_elapsed(&timer));
+
+    printf("f%d %3dx%-3d bd: %d ref: %d mod: %d (%3.2f)\n", filter, width,
+           height, bit_depth, time1, time2, (double)time1 / time2);
+  }
 };
 
 TEST_P(AV2ConvolveYHighbdTest, RunTest) { RunTest(); }
+TEST_P(AV2ConvolveYHighbdTest, DISABLED_Speed) { SpeedTest(); }
 
 INSTANTIATE_TEST_SUITE_P(C, AV2ConvolveYHighbdTest,
                          BuildHighbdParams(av2_highbd_convolve_y_sr_c));
@@ -501,6 +536,10 @@ INSTANTIATE_TEST_SUITE_P(AVX2, AV2ConvolveYHighbdTest,
 #if HAVE_NEON
 INSTANTIATE_TEST_SUITE_P(NEON, AV2ConvolveYHighbdTest,
                          BuildHighbdParams(av2_highbd_convolve_y_sr_neon));
+#endif
+#if HAVE_AVX512
+INSTANTIATE_TEST_SUITE_P(AVX512, AV2ConvolveYHighbdTest,
+                         BuildHighbdParams(av2_highbd_convolve_y_sr_avx512));
 #endif
 
 ///////////////////////////////////////////////////////////////
