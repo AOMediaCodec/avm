@@ -430,6 +430,7 @@ static AVM_FORCE_INLINE void copy_pred_store32(__m512i s1, __m512i s2,
                                                __m512i mul_val, int bd,
                                                int centered, int16_t *out1,
                                                int16_t *out2) {
+  assert(bd <= 12);
   const __m512i reg1 = _mm512_unpacklo_epi16(s1, s2);
   const __m512i reg2 = _mm512_unpackhi_epi16(s1, s2);
   __m512i r = _mm512_packs_epi32(_mm512_madd_epi16(reg1, mul_val),
