@@ -1665,22 +1665,33 @@ void av2_bicubic_grad_interpolation_highbd_avx2(const int16_t *pred_src,
 #endif  // OPFL_BICUBIC_GRAD
 }
 
-static AVM_FORCE_INLINE void multiply(const __m256i a, const __m256i b,
-                                      __m256i *t1, __m256i *t2) {
-  const __m256i lo = _mm256_mullo_epi16(a, b);
-  const __m256i hi = _mm256_mulhi_epi16(a, b);
-  *t1 = _mm256_unpacklo_epi16(lo, hi);
-  *t2 = _mm256_unpackhi_epi16(lo, hi);
+// Pairwise int16 multiply-add into an int32 accumulator. Assumes grad_bits==0
+// (the C ref hard-codes it): products are summed exactly.
+static AVM_FORCE_INLINE __m256i madd_acc_256(__m256i acc, __m256i a,
+                                             __m256i b) {
+  return _mm256_add_epi32(acc, _mm256_madd_epi16(a, b));
 }
 
-static AVM_FORCE_INLINE void xx256_storel_32(int32_t *store_lo,
-                                             int32_t *store_hi, const __m256i a,
-                                             const __m256i b) {
-  __m256i sum = _mm256_add_epi32(a, b);
-  sum = _mm256_add_epi32(sum, _mm256_srli_si256(sum, 8));
-  sum = _mm256_add_epi32(sum, _mm256_srli_si256(sum, 4));
-  *store_lo = _mm256_extract_epi32(sum, 0);
-  *store_hi = _mm256_extract_epi32(sum, 4);
+// Sum one 128-bit lane (4 int32) to a scalar.
+static AVM_FORCE_INLINE int32_t hsum128_epi32(__m128i v) {
+  const __m128i s8 = _mm_add_epi32(v, _mm_srli_si128(v, 8));
+  const __m128i s4 = _mm_add_epi32(s8, _mm_srli_si128(s8, 4));
+  return _mm_cvtsi128_si32(s4);
+}
+
+// One 8x8 subblock: both 128-bit halves hold rows of the same subblock, so the
+// sum is over all 8 int32 lanes.
+static AVM_FORCE_INLINE int32_t reduce_1sb_256(__m256i v) {
+  return hsum128_epi32(
+      _mm_add_epi32(_mm256_castsi256_si128(v), _mm256_extracti128_si256(v, 1)));
+}
+
+// Two adjacent 8x8 subblocks: vpmaddwd keeps each 8-wide subblock in its own
+// 128-bit lane, so lanes 0-3 are subblock 0 and lanes 4-7 subblock 1.
+static AVM_FORCE_INLINE void reduce_2sb_256(__m256i v, int32_t *s0,
+                                            int32_t *s1) {
+  *s0 = hsum128_epi32(_mm256_castsi256_si128(v));
+  *s1 = hsum128_epi32(_mm256_extracti128_si256(v, 1));
 }
 
 static void opfl_mv_refinement_16x8_avx2(const int16_t *pdiff, int pstride,
@@ -1689,60 +1700,34 @@ static void opfl_mv_refinement_16x8_avx2(const int16_t *pdiff, int pstride,
                                          int grad_prec_bits, int mv_prec_bits,
                                          int *vx0, int *vy0, int *vx1,
                                          int *vy1) {
-  int bHeight = 8;
-  int step_size = 1;
   const int rls_alpha = 4 * OPFL_RLS_PARAM;
   const int bits = mv_prec_bits + grad_prec_bits;
-  __m256i u2_0, v2_0, uv_0, uw_0, vw_0;
-  __m256i u2_1, v2_1, uv_1, uw_1, vw_1;
-  int32_t su2_hi = 0;
-  int32_t sv2_hi = 0;
-  int32_t suv_hi = 0;
-  int32_t suw_hi = 0;
-  int32_t svw_hi = 0;
-  int32_t su2_lo = 0;
-  int32_t sv2_lo = 0;
-  int32_t suv_lo = 0;
-  int32_t suw_lo = 0;
-  int32_t svw_lo = 0;
-  do {
-    __m256i gradX = _mm256_loadu_si256((const __m256i *)gx);
-    __m256i gradY = _mm256_loadu_si256((const __m256i *)gy);
-    __m256i pred = _mm256_loadu_si256((const __m256i *)pdiff);
-
-    multiply(gradX, gradX, &u2_0, &u2_1);
-    multiply(gradY, gradY, &v2_0, &v2_1);
-    multiply(gradX, gradY, &uv_0, &uv_1);
-    multiply(gradX, pred, &uw_0, &uw_1);
-    multiply(gradY, pred, &vw_0, &vw_1);
-
-    int32_t temp_lo, temp_hi;
-    xx256_storel_32(&temp_lo, &temp_hi, u2_0, u2_1);
-    su2_lo += temp_lo;
-    su2_hi += temp_hi;
-    xx256_storel_32(&temp_lo, &temp_hi, v2_0, v2_1);
-    sv2_lo += temp_lo;
-    sv2_hi += temp_hi;
-    xx256_storel_32(&temp_lo, &temp_hi, uv_0, uv_1);
-    suv_lo += temp_lo;
-    suv_hi += temp_hi;
-    xx256_storel_32(&temp_lo, &temp_hi, uw_0, uw_1);
-    suw_lo += temp_lo;
-    suw_hi += temp_hi;
-    xx256_storel_32(&temp_lo, &temp_hi, vw_0, vw_1);
-    svw_lo += temp_lo;
-    svw_hi += temp_hi;
-
-    gx += gstride * step_size;
-    gy += gstride * step_size;
-    pdiff += pstride * step_size;
-    bHeight -= step_size;
-
-  } while (bHeight != 0);
-  calc_mv_process(su2_lo, sv2_lo, suv_lo, suw_lo, svw_lo, d0, d1, bits,
-                  rls_alpha, vx0, vy0, vx1, vy1);
-  calc_mv_process(su2_hi, sv2_hi, suv_hi, suw_hi, svw_hi, d0, d1, bits,
-                  rls_alpha, vx0 + 1, vy0 + 1, vx1 + 1, vy1 + 1);
+  __m256i au2 = _mm256_setzero_si256();
+  __m256i av2 = _mm256_setzero_si256();
+  __m256i auv = _mm256_setzero_si256();
+  __m256i auw = _mm256_setzero_si256();
+  __m256i avw = _mm256_setzero_si256();
+  for (int r = 0; r < 8; ++r) {
+    const __m256i gX = _mm256_loadu_si256((const __m256i *)(gx + r * gstride));
+    const __m256i gY = _mm256_loadu_si256((const __m256i *)(gy + r * gstride));
+    const __m256i pd =
+        _mm256_loadu_si256((const __m256i *)(pdiff + r * pstride));
+    au2 = madd_acc_256(au2, gX, gX);
+    av2 = madd_acc_256(av2, gY, gY);
+    auv = madd_acc_256(auv, gX, gY);
+    auw = madd_acc_256(auw, gX, pd);
+    avw = madd_acc_256(avw, gY, pd);
+  }
+  int32_t su2_0, su2_1, sv2_0, sv2_1, suv_0, suv_1, suw_0, suw_1, svw_0, svw_1;
+  reduce_2sb_256(au2, &su2_0, &su2_1);
+  reduce_2sb_256(av2, &sv2_0, &sv2_1);
+  reduce_2sb_256(auv, &suv_0, &suv_1);
+  reduce_2sb_256(auw, &suw_0, &suw_1);
+  reduce_2sb_256(avw, &svw_0, &svw_1);
+  calc_mv_process(su2_0, sv2_0, suv_0, suw_0, svw_0, d0, d1, bits, rls_alpha,
+                  vx0, vy0, vx1, vy1);
+  calc_mv_process(su2_1, sv2_1, suv_1, suw_1, svw_1, d0, d1, bits, rls_alpha,
+                  vx0 + 1, vy0 + 1, vx1 + 1, vy1 + 1);
 }
 
 // Function to compute optical flow refinement offsets for a 8x8 block by
@@ -1752,59 +1737,40 @@ void opfl_mv_refinement_8x8_2rows_avx2(const int16_t *pdiff, int pstride,
                                        int gstride, int d0, int d1,
                                        int grad_prec_bits, int mv_prec_bits,
                                        int *vx0, int *vy0, int *vx1, int *vy1) {
-  int bHeight = 8;
   const int rls_alpha = 4 * OPFL_RLS_PARAM;
   const int bits = mv_prec_bits + grad_prec_bits;
-  int32_t su2 = 0;
-  int32_t sv2 = 0;
-  int32_t suv = 0;
-  int32_t suw = 0;
-  int32_t svw = 0;
-  __m256i u2_0, v2_0, uv_0, uw_0, vw_0;
-  __m256i u2_1, v2_1, uv_1, uw_1, vw_1;
-  do {
-    const __m128i gradX_0 = _mm_loadu_si128((const __m128i *)gx);
-    const __m128i gradY_0 = _mm_loadu_si128((const __m128i *)gy);
-    const __m128i pred_0 = _mm_loadu_si128((const __m128i *)pdiff);
-    const __m128i gradX_1 = _mm_loadu_si128((const __m128i *)(gx + gstride));
-    const __m128i gradY_1 = _mm_loadu_si128((const __m128i *)(gy + gstride));
-    const __m128i pred_1 = _mm_loadu_si128((const __m128i *)(pdiff + pstride));
-
-    const __m256i gradX =
-        _mm256_inserti128_si256(_mm256_castsi128_si256(gradX_0), gradX_1, 1);
-    const __m256i gradY =
-        _mm256_inserti128_si256(_mm256_castsi128_si256(gradY_0), gradY_1, 1);
-    const __m256i pred =
-        _mm256_inserti128_si256(_mm256_castsi128_si256(pred_0), pred_1, 1);
-
-    multiply(gradX, gradX, &u2_0, &u2_1);
-    multiply(gradY, gradY, &v2_0, &v2_1);
-    multiply(gradX, gradY, &uv_0, &uv_1);
-    multiply(gradX, pred, &uw_0, &uw_1);
-    multiply(gradY, pred, &vw_0, &vw_1);
-
-    int32_t temp_lo, temp_hi;
-    xx256_storel_32(&temp_lo, &temp_hi, u2_0, u2_1);
-    su2 += temp_lo;
-    su2 += temp_hi;
-    xx256_storel_32(&temp_lo, &temp_hi, v2_0, v2_1);
-    sv2 += temp_lo;
-    sv2 += temp_hi;
-    xx256_storel_32(&temp_lo, &temp_hi, uv_0, uv_1);
-    suv += temp_lo;
-    suv += temp_hi;
-    xx256_storel_32(&temp_lo, &temp_hi, uw_0, uw_1);
-    suw += temp_lo;
-    suw += temp_hi;
-    xx256_storel_32(&temp_lo, &temp_hi, vw_0, vw_1);
-    svw += temp_lo;
-    svw += temp_hi;
-
-    gx += gstride * 2;
-    gy += gstride * 2;
-    pdiff += pstride * 2;
-    bHeight -= 2;
-  } while (bHeight != 0);
+  __m256i au2 = _mm256_setzero_si256();
+  __m256i av2 = _mm256_setzero_si256();
+  __m256i auv = _mm256_setzero_si256();
+  __m256i auw = _mm256_setzero_si256();
+  __m256i avw = _mm256_setzero_si256();
+  for (int r = 0; r < 8; r += 2) {
+    const __m128i gX0 = _mm_loadu_si128((const __m128i *)(gx + r * gstride));
+    const __m128i gY0 = _mm_loadu_si128((const __m128i *)(gy + r * gstride));
+    const __m128i pd0 = _mm_loadu_si128((const __m128i *)(pdiff + r * pstride));
+    const __m128i gX1 =
+        _mm_loadu_si128((const __m128i *)(gx + (r + 1) * gstride));
+    const __m128i gY1 =
+        _mm_loadu_si128((const __m128i *)(gy + (r + 1) * gstride));
+    const __m128i pd1 =
+        _mm_loadu_si128((const __m128i *)(pdiff + (r + 1) * pstride));
+    const __m256i gX =
+        _mm256_inserti128_si256(_mm256_castsi128_si256(gX0), gX1, 1);
+    const __m256i gY =
+        _mm256_inserti128_si256(_mm256_castsi128_si256(gY0), gY1, 1);
+    const __m256i pd =
+        _mm256_inserti128_si256(_mm256_castsi128_si256(pd0), pd1, 1);
+    au2 = madd_acc_256(au2, gX, gX);
+    av2 = madd_acc_256(av2, gY, gY);
+    auv = madd_acc_256(auv, gX, gY);
+    auw = madd_acc_256(auw, gX, pd);
+    avw = madd_acc_256(avw, gY, pd);
+  }
+  const int32_t su2 = reduce_1sb_256(au2);
+  const int32_t sv2 = reduce_1sb_256(av2);
+  const int32_t suv = reduce_1sb_256(auv);
+  const int32_t suw = reduce_1sb_256(auw);
+  const int32_t svw = reduce_1sb_256(avw);
   calc_mv_process(su2, sv2, suv, suw, svw, d0, d1, bits, rls_alpha, vx0, vy0,
                   vx1, vy1);
 }
