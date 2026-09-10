@@ -16,7 +16,6 @@
 
 #include "avm_dsp/x86/convolve.h"
 #include "avm_dsp/x86/convolve_avx2.h"
-#include "avm_dsp/x86/highbd_convolve_x_sr.h"
 #include "avm_dsp/x86/synonyms.h"
 
 // -----------------------------------------------------------------------------
