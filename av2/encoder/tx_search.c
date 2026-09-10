@@ -2679,6 +2679,21 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
                                    tx_sf->prune_intra_ist_stx_by_zero_eob)) {
           continue;
         }
+        if (cpi->oxcf.speed >= 5) {
+          const int is_4k_or_larger = AVMMIN(cm->width, cm->height) >= 2160;
+          if (is_4k_or_larger && quant_param.use_optimize_b && !fsc_mode_in &&
+              *eob != 0 && best_rd != INT64_MAX && txw != 64 && txh != 64) {
+            const int pre_rate =
+                cost_coeffs(cm, x, plane, block, tx_size, tx_type, CCTX_NONE,
+                            txb_ctx, cm->features.reduced_tx_set_used);
+            int64_t pre_dist, pre_sse;
+            dist_block_tx_domain(x, plane, block, tx_size, &pre_dist, &pre_sse);
+            const int64_t pre_rd = RDCOST(x->rdmult, pre_rate, pre_dist);
+            if (pre_rd - (pre_rd >> 3) > best_rd) {
+              continue;
+            }
+          }
+        }
         if (fsc_mode_in && quant_param.use_optimize_b) {
           av2_optimize_fsc(cpi, x, plane, block, tx_size, tx_type, txb_ctx,
                            &rate_cost);
