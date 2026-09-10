@@ -600,9 +600,10 @@ int av2_alloc_superblock_info_buffers(AV2_COMMON *cm) {
   return alloc_sbi(sbi_params);
 }
 
-int av2_alloc_context_buffers(AV2_COMMON *cm, int width, int height) {
+int av2_alloc_context_buffers(AV2_COMMON *cm, int width, int height,
+                              int speed) {
   CommonModeInfoParams *const mi_params = &cm->mi_params;
-  mi_params->set_mb_mi(mi_params, width, height);
+  mi_params->set_mb_mi(mi_params, width, height, speed);
   if (alloc_mi(mi_params, cm, height)) goto fail;
 
   if (av2_alloc_superblock_info_buffers(cm)) goto fail;
@@ -611,7 +612,7 @@ int av2_alloc_context_buffers(AV2_COMMON *cm, int width, int height) {
 
 fail:
   // clear the mi_* values to force a realloc on resync
-  mi_params->set_mb_mi(mi_params, 0, 0);
+  mi_params->set_mb_mi(mi_params, 0, 0, speed);
   av2_free_context_buffers(cm);
   return 1;
 }
