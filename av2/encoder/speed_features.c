@@ -689,6 +689,7 @@ static void set_good_speed_features_framesize_independent(
 
     sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 2;
     sf->tx_sf.tx_type_search.prune_tx_type_est_rd = 0;
+    sf->tx_sf.enable_tx_partition = 0;
 
     sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 4 : 6;
 
