@@ -36,7 +36,8 @@ int av2_alloc_above_context_buffers(struct CommonContexts *above_contexts,
                                     int num_planes);
 void av2_free_above_context_buffers(struct CommonContexts *above_contexts);
 int av2_alloc_superblock_info_buffers(struct AV2Common *cm);
-int av2_alloc_context_buffers(struct AV2Common *cm, int width, int height);
+int av2_alloc_context_buffers(struct AV2Common *cm, int width, int height,
+                              int speed);
 void av2_init_mi_buffers(struct CommonModeInfoParams *mi_params);
 void av2_free_context_buffers(struct AV2Common *cm);
 

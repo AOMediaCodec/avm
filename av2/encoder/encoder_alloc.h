@@ -65,7 +65,7 @@ static AVM_INLINE void alloc_compressor_data(AV2_COMP *cpi) {
   TokenInfo *token_info = &cpi->token_info;
   cpi->alloc_width = cm->width;
   cpi->alloc_height = cm->height;
-  if (av2_alloc_context_buffers(cm, cm->width, cm->height)) {
+  if (av2_alloc_context_buffers(cm, cm->width, cm->height, cpi->oxcf.speed)) {
     avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
                        "Failed to allocate context buffers");
   }
