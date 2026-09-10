@@ -2621,7 +2621,7 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
   TxCache *tx_cache = NULL;
   uint64_t tx_cache_key = 0;
   int tx_cache_hit = 0;
-  TX_TYPE tx_cache_winner = DCT_DCT;
+  TX_TYPE tx_cache_winner = MAKE_TX_TYPE_FROM_PRIMARY_TX_TYPE(DCT_DCT);
   if (tx_sf->use_tx_result_cache && plane == AVM_PLANE_Y && !dc_only_blk) {
     tx_cache = &x->txfm_search_info.tx_result_cache;
     const int diff_stride = block_size_wide[plane_bsize];
@@ -2643,14 +2643,20 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
         tx_cache, tx_cache_key, (uint32_t)cm->current_frame.frame_number);
     if (cached >= 0) {
       tx_cache_hit = 1;
-      tx_cache_winner = (TX_TYPE)cached;
-      const uint16_t winner_bit =
-          (uint16_t)(1u << get_primary_tx_type(tx_cache_winner));
+      tx_cache_winner.packed_tx_type = (uint16_t)cached;
+      const uint16_t winner_bit = (uint16_t)(1u << tx_cache_winner.primary_tx);
       // Keep DCT_DCT in the mask: the prune gates inside the loop can reject
       // the winner, and a single-candidate mask would then leave the search
       // with nothing evaluated.
-      if (allowed_tx_mask & winner_bit)
+      if (allowed_tx_mask & winner_bit) {
         allowed_tx_mask &= (uint16_t)(winner_bit | 1u);
+      } else {
+        // The cached winner is not a candidate here, so drop the hit: leaving
+        // it set would make every secondary transform mismatch it and skip the
+        // whole IST search.
+        tx_cache_hit = 0;
+        tx_cache_winner = MAKE_TX_TYPE_FROM_PRIMARY_TX_TYPE(DCT_DCT);
+      }
     }
   }
 
@@ -2719,7 +2725,8 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
         txfm_param.sec_tx_set = stx_set;
         // On a cache hit, evaluate only the cached secondary transform,
         // keeping the no-IST candidate as a baseline.
-        if (tx_cache_hit && packed_tx_type != tx_cache_winner &&
+        if (tx_cache_hit &&
+            tx_type.packed_tx_type != tx_cache_winner.packed_tx_type &&
             !(set_idx == 0 && stx == 0)) {
           continue;
         }
@@ -2933,9 +2940,8 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
   }
 
   if (tx_cache != NULL && best_rd != INT64_MAX &&
-      !(best_eob == 1 && get_primary_tx_type(best_tx_type) != DCT_DCT &&
-        !is_inter)) {
-    tx_cache_store(tx_cache, tx_cache_key, (int)best_tx_type,
+      !(best_eob == 1 && best_tx_type.primary_tx != DCT_DCT && !is_inter)) {
+    tx_cache_store(tx_cache, tx_cache_key, (int)best_tx_type.packed_tx_type,
                    (uint32_t)cm->current_frame.frame_number);
   }
 
