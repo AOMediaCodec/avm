@@ -2558,11 +2558,11 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
       tx_cache_hit = 1;
       tx_cache_winner.packed_tx_type = (uint16_t)cached;
       const uint16_t winner_bit = 1 << tx_cache_winner.primary_tx;
-      const uint16_t dct_bit = 1 << DCT_DCT;
       if (allowed_tx_mask & winner_bit) {
         // Keep DCT_DCT in the mask: the prune gates inside the loop can reject
         // the winner, and a single-candidate mask would then leave the search
         // with nothing evaluated.
+        const uint16_t dct_bit = 1 << DCT_DCT;
         allowed_tx_mask &= winner_bit | dct_bit;
       } else {
         // The cached winner is not a candidate here, so drop the hit: leaving
