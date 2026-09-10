@@ -854,9 +854,9 @@ int av2_search_palette_mode(IntraModeSearchState *intra_search_state,
   MB_MODE_INFO best_mbmi_palette = *mbmi;
   uint8_t best_blk_skip[MAX_MIB_SIZE * MAX_MIB_SIZE];
   TX_TYPE best_tx_type_map[MAX_MIB_SIZE * MAX_MIB_SIZE];
-  const ModeCosts *mode_costs = &x->mode_costs;
-  const int *const intra_mode_cost =
-      mode_costs->mbmode_cost[size_group_lookup[bsize]];
+  const int context = get_y_mode_idx_ctx(xd);
+  int mode_cost = x->mode_costs.y_primary_flag_cost[DC_PRED];
+  mode_cost += x->mode_costs.y_mode_idx_costs[context][DC_PRED];
   const int rows = block_size_high[bsize];
   const int cols = block_size_wide[bsize];
 
@@ -886,11 +886,11 @@ int av2_search_palette_mode(IntraModeSearchState *intra_search_state,
 
   RD_STATS rd_stats_y;
   av2_invalid_rd_stats(&rd_stats_y);
-  av2_rd_pick_palette_intra_sby(
-      cpi, x, bsize, intra_mode_cost[DC_PRED], &best_mbmi_palette,
-      best_palette_color_map, &best_rd_palette, &best_model_rd_palette,
-      &rd_stats_y.rate, NULL, &rd_stats_y.dist, &rd_stats_y.skip_txfm, NULL,
-      ctx, best_blk_skip, best_tx_type_map);
+  av2_rd_pick_palette_intra_sby(cpi, x, bsize, mode_cost, &best_mbmi_palette,
+                                best_palette_color_map, &best_rd_palette,
+                                &best_model_rd_palette, &rd_stats_y.rate, NULL,
+                                &rd_stats_y.dist, &rd_stats_y.skip_txfm, NULL,
+                                ctx, best_blk_skip, best_tx_type_map);
   if (rd_stats_y.rate == INT_MAX || pmi->palette_size[0] == 0) {
     return 0;
   }
