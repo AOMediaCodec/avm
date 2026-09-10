@@ -3602,7 +3602,7 @@ static AVM_INLINE void resize_context_buffers(AV2_COMMON *cm, int width,
     // dimensions as well as the overall size.
     if (new_mi_cols > cm->mi_params.mi_cols ||
         new_mi_rows > cm->mi_params.mi_rows) {
-      if (av2_alloc_context_buffers(cm, width, height)) {
+      if (av2_alloc_context_buffers(cm, width, height, 0)) {
         // The cm->mi_* values have been cleared and any existing context
         // buffers have been freed. Clear cm->width and cm->height to be
         // consistent and to force a realloc next time.
@@ -3612,7 +3612,7 @@ static AVM_INLINE void resize_context_buffers(AV2_COMMON *cm, int width,
                            "Failed to allocate context buffers");
       }
     } else {
-      cm->mi_params.set_mb_mi(&cm->mi_params, width, height);
+      cm->mi_params.set_mb_mi(&cm->mi_params, width, height, 0);
     }
     av2_init_mi_buffers(&cm->mi_params);
     cm->width = width;
