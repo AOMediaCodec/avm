@@ -254,6 +254,9 @@ static void set_good_speed_feature_framesize_dependent(
     } else if (is_480p_or_larger) {
       sf->inter_sf.prune_warped_prob_thresh = 8;
     }
+    if (is_4k_or_larger) {
+      sf->part_sf.prune_by_struct_orient = true;
+    }
   }
 
   if (speed >= 6) {
@@ -869,6 +872,7 @@ static AVM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
 
   part_sf->disable_extended_sdp = false;
   part_sf->force_max_pb_aspect_ratio = 0;
+  part_sf->prune_by_struct_orient = false;
 }
 
 static AVM_INLINE void init_mv_sf(MV_SPEED_FEATURES *mv_sf) {
