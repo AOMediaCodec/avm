@@ -96,16 +96,28 @@ static AVM_INLINE void enc_free_mi(CommonModeInfoParams *mi_params) {
   av2_dealloc_class_id_array(mi_params);
 }
 
+// The smallest block the encoder's partition search may produce: 8x8 at 4k,
+// and at 1080p from speed 1; 4x4 otherwise. Shared by enc_set_mb_mi(), which
+// sizes the mode-info grid, and set_good_speed_feature_framesize_dependent(),
+// which sets default_min_partition_size -- the two must agree.
+static AVM_INLINE BLOCK_SIZE av2_enc_partition_floor(int speed, int width,
+                                                     int height) {
+  const int min_dim = AVMMIN(width, height);
+  if (min_dim >= 2160) return BLOCK_8X8;
+  if (min_dim >= 1080 && speed >= 1) return BLOCK_8X8;
+  return BLOCK_4X4;
+}
+
 static AVM_INLINE void enc_set_mb_mi(CommonModeInfoParams *mi_params, int width,
-                                     int height) {
-  const int is_4k_or_larger = AVMMIN(width, height) >= 2160;
-  mi_params->mi_alloc_bsize = is_4k_or_larger ? BLOCK_8X8 : BLOCK_4X4;
+                                     int height, int speed) {
+  mi_params->mi_alloc_bsize = av2_enc_partition_floor(speed, width, height);
 
   set_mb_mi(mi_params, width, height);
 }
 
 static AVM_INLINE void stat_stage_set_mb_mi(CommonModeInfoParams *mi_params,
-                                            int width, int height) {
+                                            int width, int height, int speed) {
+  (void)speed;
   mi_params->mi_alloc_bsize = BLOCK_16X16;
 
   set_mb_mi(mi_params, width, height);

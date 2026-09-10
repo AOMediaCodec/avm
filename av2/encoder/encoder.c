@@ -246,7 +246,7 @@ static void update_frame_size(AV2_COMP *cpi) {
 
   // We need to reallocate the context buffers here in case we need more mis or
   // if we need more superblocks.
-  if (av2_alloc_context_buffers(cm, cm->width, cm->height)) {
+  if (av2_alloc_context_buffers(cm, cm->width, cm->height, cpi->oxcf.speed)) {
     avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
                        "Failed to allocate context buffers");
   }
