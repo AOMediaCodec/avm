@@ -8,6 +8,7 @@
 #include "av2/encoder/partition_sms.h"
 #include "av2/encoder/partition_sms_weights.h"
 
+#include "av2/common/mv.h"
 #include "av2/common/pred_common.h"
 #include "av2/encoder/ml.h"
 #include "avm_ports/system_state.h"
@@ -20,11 +21,11 @@
 #define SMS_N_SPLIT_PARTS 4
 
 static const float sms_horz_thresh[SMS_N_BSIZE_SLOTS] = {
-  /* 128x128 */ 0.40f,
-  /* 64x64   */ 0.00f,
-  /* 32x32   */ 0.40f,
-  /* 16x16   */ 0.40f,
-  /* 8x8     */ 0.40f,
+  /* 128x128 */ 0.55f,
+  /* 64x64   */ 0.20f,
+  /* 32x32   */ 0.55f,
+  /* 16x16   */ 0.55f,
+  /* 8x8     */ 0.55f,
 };
 
 /* Map BLOCK_SIZE → bsize_slot (0=128x128 .. 4=8x8). Returns -1 if not tracked.
@@ -44,11 +45,46 @@ static int sms_bsize_slot(BLOCK_SIZE bsize) {
  * Feature extraction
  * ------------------------------------------------------------------- */
 
+/* Average TMVP MVs over a rectangular region (mi_row, mi_col, mi_h×mi_w).
+ * Returns zero MV when TMVP is unavailable or all sampled entries are invalid.
+ * TMVP is stored at 8×8-pixel (TMVP_SHIFT_BITS MI-unit) granularity; the loop
+ * steps by that stride so each entry is sampled at most once.  For sub-blocks
+ * smaller than the TMVP granularity (e.g. 4×4 quadrants of an 8×8 block, where
+ * mi_h = mi_w = 1 < step = 2) the loop still executes once, reading the TMVP
+ * entry at the top-left corner of the sub-block. */
+static MV get_tmvp_mv_avg(const AV2_COMMON *cm, int mi_row, int mi_col,
+                          int mi_h, int mi_w) {
+  MV avg = { 0, 0 };
+  if (!cm->features.allow_ref_frame_mvs || !cm->tpl_mvs_rows) return avg;
+
+  const int tpl_rows = cm->mi_params.mi_rows >> TMVP_SHIFT_BITS;
+  const int tpl_cols = cm->mi_params.mi_cols >> TMVP_SHIFT_BITS;
+  const int step = 1 << TMVP_SHIFT_BITS;
+
+  int sum_row = 0, sum_col = 0, count = 0;
+  for (int r = mi_row; r < mi_row + mi_h; r += step) {
+    for (int c = mi_col; c < mi_col + mi_w; c += step) {
+      const int tr = r >> TMVP_SHIFT_BITS;
+      const int tc = c >> TMVP_SHIFT_BITS;
+      if (tr < 0 || tr >= tpl_rows || tc < 0 || tc >= tpl_cols) continue;
+      const TPL_MV_REF *tpl = &cm->tpl_mvs_rows[tr][tc];
+      if (tpl->mfmv0.as_int == INVALID_MV) continue;
+      sum_row += tpl->mfmv0.as_mv.row;
+      sum_col += tpl->mfmv0.as_mv.col;
+      count++;
+    }
+  }
+  if (count > 0) {
+    avg.row = sum_row / count;
+    avg.col = sum_col / count;
+  }
+  return avg;
+}
+
 /* Features: block/sub-block/rect-half SSE and variance, whole-block and
- * sub-block motion vectors, above/left neighbor context, resolution and
- * pyramid level, boundary split indicators, and derived terms (dc_q,
- * SSE spread, SSE/variance asymmetry, MV std-dev, MV split interactions). */
-#define SMS_FEAT_DIM 52
+ * sub-block TMVP motion vectors, above/left neighbor context, resolution and
+ * pyramid level, and derived terms (dc_q, SSE spread, SSE/variance asymmetry,
+ * MV std-dev, MV split interactions). */
 
 static void extract_sms_features(const AV2_COMP *cpi, const MACROBLOCK *x,
                                  const SIMPLE_MOTION_DATA_TREE *sms_tree,
@@ -57,8 +93,6 @@ static void extract_sms_features(const AV2_COMP *cpi, const MACROBLOCK *x,
   const AV2_COMMON *const cm = &cpi->common;
   const MACROBLOCKD *const xd = &x->e_mbd;
   int f = 0;
-
-  const int ref = get_closest_pastcur_ref_or_ref0(cm);
 
   /* Gather sub-block pointers */
   const SIMPLE_MOTION_DATA_TREE *q[SMS_N_SPLIT_PARTS];
@@ -90,13 +124,27 @@ static void extract_sms_features(const AV2_COMP *cpi, const MACROBLOCK *x,
   feat[f++] = log1pf(rect_var[2]);
   feat[f++] = log1pf(rect_var[3]);
 
-  feat[f++] = (float)sms_tree->start_mvs[ref].row / 128.0f;
-  for (int i = 0; i < SMS_N_SPLIT_PARTS; ++i)
-    feat[f++] = q[i] ? (float)q[i]->start_mvs[ref].row / 128.0f : 0.0f;
+  const int blk_h = mi_size_high[bsize];
+  const int blk_w = mi_size_wide[bsize];
+  const int half_h = blk_h / 2;
+  const int half_w = blk_w / 2;
+  const int qr[SMS_N_SPLIT_PARTS] = { mi_row, mi_row, mi_row + half_h,
+                                      mi_row + half_h };
+  const int qc[SMS_N_SPLIT_PARTS] = { mi_col, mi_col + half_w, mi_col,
+                                      mi_col + half_w };
 
-  feat[f++] = (float)sms_tree->start_mvs[ref].col / 128.0f;
+  const MV tmvp_whole = get_tmvp_mv_avg(cm, mi_row, mi_col, blk_h, blk_w);
+  MV tmvp_quad[SMS_N_SPLIT_PARTS];
   for (int i = 0; i < SMS_N_SPLIT_PARTS; ++i)
-    feat[f++] = q[i] ? (float)q[i]->start_mvs[ref].col / 128.0f : 0.0f;
+    tmvp_quad[i] = get_tmvp_mv_avg(cm, qr[i], qc[i], half_h, half_w);
+
+  feat[f++] = (float)tmvp_whole.row / 128.0f;
+  for (int i = 0; i < SMS_N_SPLIT_PARTS; ++i)
+    feat[f++] = (float)tmvp_quad[i].row / 128.0f;
+
+  feat[f++] = (float)tmvp_whole.col / 128.0f;
+  for (int i = 0; i < SMS_N_SPLIT_PARTS; ++i)
+    feat[f++] = (float)tmvp_quad[i].col / 128.0f;
 
   const int has_above = !!xd->above_mbmi;
   const int has_left = !!xd->left_mbmi;
@@ -115,30 +163,6 @@ static void extract_sms_features(const AV2_COMP *cpi, const MACROBLOCK *x,
   feat[f++] = (float)((min_dim >= 480) + (min_dim >= 720));
 
   feat[f++] = (float)cm->cur_frame->pyramid_level;
-
-  const int half_h = mi_size_high[bsize] / 2;
-  int left_mid_horz = 0;
-  if (xd->left_available && half_h > 0 &&
-      mi_row + half_h < cm->mi_params.mi_rows) {
-    const MB_MODE_INFO *m_top = xd->mi[(half_h - 1) * xd->mi_stride - 1];
-    const MB_MODE_INFO *m_bot = xd->mi[half_h * xd->mi_stride - 1];
-    if (m_top && m_bot)
-      left_mid_horz = (m_top->mi_row_start != m_bot->mi_row_start ||
-                       m_top->mi_col_start != m_bot->mi_col_start);
-  }
-  feat[f++] = (float)left_mid_horz;
-
-  const int half_w = mi_size_wide[bsize] / 2;
-  int above_mid_vert = 0;
-  if (xd->up_available && half_w > 0 &&
-      mi_col + half_w < cm->mi_params.mi_cols) {
-    const MB_MODE_INFO *m_left = xd->mi[-xd->mi_stride + half_w - 1];
-    const MB_MODE_INFO *m_right = xd->mi[-xd->mi_stride + half_w];
-    if (m_left && m_right)
-      above_mid_vert = (m_left->mi_row_start != m_right->mi_row_start ||
-                        m_left->mi_col_start != m_right->mi_col_start);
-  }
-  feat[f++] = (float)above_mid_vert;
 
   const float eps = 1.0f;
 
@@ -201,9 +225,7 @@ static void extract_sms_features(const AV2_COMP *cpi, const MACROBLOCK *x,
 
   feat[f++] = (var_v0 - var_v1) / (var_w + eps);
 
-  assert(f == SMS_FEAT_DIM && "Feature count mismatch");
-  (void)mi_row;
-  (void)mi_col;
+  assert(f == SMS_UNIFIED_IN_DIM && "Feature count mismatch");
 }
 
 /* -------------------------------------------------------------------
@@ -264,10 +286,10 @@ void av2_sms_unified_compute(AV2_COMP *const cpi, MACROBLOCK *x,
   if (slot < 0) return;
   const NN_CONFIG *nn_config = &sms_nn_configs[slot];
 
-  float feat[SMS_FEAT_DIM];
+  float feat[SMS_UNIFIED_IN_DIM];
   extract_sms_features(cpi, x, sms_tree, mi_row, mi_col, bsize, feat);
 
-  av2_nn_predict(feat, nn_config, 0, sms_tree->sms_unified_probs);
+  av2_nn_predict(feat, nn_config, 1, sms_tree->sms_unified_probs);
   av2_nn_softmax(sms_tree->sms_unified_probs, sms_tree->sms_unified_probs,
                  SMS_UNIFIED_N_CLASSES);
   sms_tree->sms_unified_valid = 1;
