@@ -17,8 +17,70 @@
 
 #include "avm_dsp/x86/convolve.h"
 #include "avm_dsp/x86/convolve_avx512.h"
-#include "avm_dsp/x86/highbd_convolve_x_sr.h"
 #include "avm_dsp/x86/synonyms.h"
+
+void highbd_convolve_x_sr_avx2_shuffle(
+    const uint16_t *src, int src_stride, uint16_t *dst, int dst_stride, int w,
+    int h, const InterpFilterParams *filter_params_x, const int subpel_x_qn,
+    ConvolveParams *conv_params, int bd);
+void highbd_convolve_x_sr_avx2_loadonly(
+    const uint16_t *src, int src_stride, uint16_t *dst, int dst_stride, int w,
+    int h, const InterpFilterParams *filter_params_x, const int subpel_x_qn,
+    ConvolveParams *conv_params, int bd);
+
+void highbd_convolve_y_sr_avx512(const uint16_t *src, int src_stride,
+                                 uint16_t *dst, int dst_stride, int w, int h,
+                                 const InterpFilterParams *filter_params_y,
+                                 const int subpel_y_qn, int bd) {
+  int i, jc;
+  const int fo_vert = filter_params_y->taps / 2 - 1;
+  const uint16_t *const src_ptr = src - fo_vert * src_stride;
+
+  __m512i signal[9], coeffs_y[4];
+
+  const int bits = FILTER_BITS;
+
+  const __m128i round_shift_bits = _mm_cvtsi32_si128(bits);
+  const __m512i round_const_bits = _mm512_set1_epi32((1 << bits) >> 1);
+  const __m512i clip_pixel =
+      _mm512_set1_epi16(bd == 10 ? 1023 : (bd == 12 ? 4095 : 255));
+  const __m512i zero = _mm512_setzero_si512();
+
+  prepare_coeffs_avx512(filter_params_y, subpel_y_qn, coeffs_y);
+
+  for (jc = 0; jc < w; jc += 16) {
+    const int j = (jc + 16 <= w) ? jc : (w - 16);
+    const uint16_t *data = &src_ptr[j];
+    /* Vertical filter */
+    {
+      pack_16x9_init(data, src_stride, signal);
+
+      for (i = 0; i < h; i += 2) {
+        data = &src_ptr[i * src_stride + j];
+        pack_16x9_pixels(data, src_stride, signal);
+
+        const __m512i res_a = convolve_avx512(signal, coeffs_y);
+        __m512i res_a_round = _mm512_sra_epi32(
+            _mm512_add_epi32(res_a, round_const_bits), round_shift_bits);
+
+        const __m512i res_b = convolve_avx512(signal + 4, coeffs_y);
+        __m512i res_b_round = _mm512_sra_epi32(
+            _mm512_add_epi32(res_b, round_const_bits), round_shift_bits);
+
+        __m512i res_16bit = _mm512_packs_epi32(res_a_round, res_b_round);
+        res_16bit = _mm512_min_epi16(res_16bit, clip_pixel);
+        res_16bit = _mm512_max_epi16(res_16bit, zero);
+
+        _mm256_storeu_si256((__m256i *)&dst[i * dst_stride + j],
+                            _mm512_castsi512_si256(res_16bit));
+        _mm256_storeu_si256((__m256i *)&dst[i * dst_stride + j + dst_stride],
+                            _mm512_extracti64x4_epi64(res_16bit, 1));
+
+        update_pixels_16x9(signal);
+      }
+    }
+  }
+}
 
 void highbd_convolve_x_sr_avx512_shuffle(
     const uint16_t *src, int src_stride, uint16_t *dst, int dst_stride, int w,
