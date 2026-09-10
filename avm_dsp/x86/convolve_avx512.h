@@ -40,6 +40,55 @@ static INLINE __m512i convolve_avx512(const __m512i *const s,
   return _mm512_add_epi32(_mm512_add_epi32(r0, r1), _mm512_add_epi32(r2, r3));
 }
 
+static INLINE __m512i pack_rows256(const __m256i row_a, const __m256i row_b) {
+  return _mm512_inserti64x4(_mm512_castsi256_si512(row_a), row_b, 1);
+}
+
+// Vertical 8-tap: 16 columns, sliding 9-row window (512-bit sig layout).
+static INLINE void pack_16x9_init(const uint16_t *src, ptrdiff_t pitch,
+                                  __m512i *sig) {
+  const __m256i r0 = _mm256_loadu_si256((const __m256i *)(src + 0 * pitch));
+  const __m256i r1 = _mm256_loadu_si256((const __m256i *)(src + 1 * pitch));
+  const __m256i r2 = _mm256_loadu_si256((const __m256i *)(src + 2 * pitch));
+  const __m256i r3 = _mm256_loadu_si256((const __m256i *)(src + 3 * pitch));
+  const __m256i r4 = _mm256_loadu_si256((const __m256i *)(src + 4 * pitch));
+  const __m256i r5 = _mm256_loadu_si256((const __m256i *)(src + 5 * pitch));
+  const __m256i r6 = _mm256_loadu_si256((const __m256i *)(src + 6 * pitch));
+
+  const __m512i s01 = pack_rows256(r0, r1);
+  const __m512i s12 = pack_rows256(r1, r2);
+  const __m512i s23 = pack_rows256(r2, r3);
+  const __m512i s34 = pack_rows256(r3, r4);
+  const __m512i s45 = pack_rows256(r4, r5);
+  const __m512i s56 = pack_rows256(r5, r6);
+
+  sig[0] = _mm512_unpacklo_epi16(s01, s12);
+  sig[4] = _mm512_unpackhi_epi16(s01, s12);
+  sig[1] = _mm512_unpacklo_epi16(s23, s34);
+  sig[5] = _mm512_unpackhi_epi16(s23, s34);
+  sig[2] = _mm512_unpacklo_epi16(s45, s56);
+  sig[6] = _mm512_unpackhi_epi16(s45, s56);
+  sig[8] = _mm512_castsi256_si512(r6);
+}
+
+static INLINE void pack_16x9_pixels(const uint16_t *src, ptrdiff_t pitch,
+                                    __m512i *sig) {
+  const __m256i s7 = _mm256_loadu_si256((const __m256i *)(src + 7 * pitch));
+  const __m256i s8 = _mm256_loadu_si256((const __m256i *)(src + 8 * pitch));
+  const __m512i s2 = _mm512_inserti64x4(sig[8], s7, 1);
+  const __m512i s3 = pack_rows256(s7, s8);
+  sig[3] = _mm512_unpacklo_epi16(s2, s3);
+  sig[7] = _mm512_unpackhi_epi16(s2, s3);
+  sig[8] = _mm512_castsi256_si512(s8);
+}
+
+static INLINE void update_pixels_16x9(__m512i *sig) {
+  for (int i = 0; i < 3; ++i) {
+    sig[i] = sig[i + 1];
+    sig[i + 4] = sig[i + 5];
+  }
+}
+
 static INLINE void load_4rows(const uint16_t *src_ptr, int src_stride, int off,
                               __m512i *r0, __m512i *r1) {
   const __m128i a0 = _mm_loadu_si128((__m128i *)&src_ptr[0 * src_stride + off]);
