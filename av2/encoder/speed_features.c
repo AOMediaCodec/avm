@@ -469,6 +469,8 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.prune_comp_type_by_comp_avg = 1;
     sf->inter_sf.prune_comp_type_by_model_rd = boosted ? 0 : 1;
     sf->inter_sf.prune_motion_mode_level = 2;
+    sf->inter_sf.enable_four_param_warp_in_winner_mode =
+        cm->current_frame.pyramid_level >= 4;
     sf->inter_sf.prune_ref_frames =
         (frame_is_intra_only(&cpi->common) || (allow_screen_content_tools))
             ? 0
