@@ -7906,10 +7906,10 @@ static uint64_t fetch_picked_ref_frames_mask(const MACROBLOCK *const x,
   const MACROBLOCKD *const xd = &x->e_mbd;
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
-  const int mi_row_in_sb = mi_row & sb_size_mask;
-  const int mi_col_in_sb = mi_col & sb_size_mask;
   const int mi_w = mi_size_wide[bsize];
   const int mi_h = mi_size_high[bsize];
+  const int mi_row_in_sb = (mi_h >= mib_size) ? 0 : (mi_row & sb_size_mask);
+  const int mi_col_in_sb = (mi_w >= mib_size) ? 0 : (mi_col & sb_size_mask);
   uint64_t picked_ref_frames_mask = 0;
   for (int i = mi_row_in_sb; i < mi_row_in_sb + mi_h; ++i) {
     for (int j = mi_col_in_sb; j < mi_col_in_sb + mi_w; ++j) {
@@ -8114,6 +8114,18 @@ static int inter_mode_search_order_independent_skip(
       skip_motion_mode = (ref_type < INTER_REFS_PER_FRAME &&
                           x->inter_mode_cache[0]->ref_frame[1] != INTRA_FRAME);
     }
+
+    if (cpi->sf.inter_sf.prune_ref_frames >= 3 && ref_type > 0) {
+      if (search_state->best_rd != INT64_MAX) {
+        // Prune secondary references if ref 0 already produced a skippable mode
+        // (zero residual). If ref 0 match was not skippable, do not prune: allow
+        // evaluating secondary references for this block.
+        if (!search_state->best_mode_skippable) {
+          skip_ref = 0;
+        }
+      }
+    }
+
     if (skip_ref) return 1;
   }
 
@@ -9525,15 +9537,28 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
   // Ref frames that are selected by square partition blocks.
   uint64_t picked_ref_frames_mask = 0;
   if (inter_sf->prune_ref_frames && !x->inter_mode_cache[0]) {
-    assert(should_reuse_mode(x, REUSE_PARTITION_MODE_FLAG));
-
-    // Prune reference frames if we are either a 1:4 block, or if we are a 1:2
-    // block, and we have searched any of the rectangular subblock.
-    if (!is_partition_point(bsize) ||
-        has_searched_rect_subblock(x, xd->mi_row, xd->mi_col, bsize,
-                                   cm->sb_size, (int8_t)mbmi->region_type)) {
-      picked_ref_frames_mask =
-          fetch_picked_ref_frames_mask(x, bsize, cm->mib_size);
+    if (cpi->sf.rt_sf.use_nonrd_partition) {
+      // In non-RD partition mode (realtime variance-based partitioning):
+      // Prune references for sub-blocks (< sb_size) based on reference frames
+      // picked by earlier sub-blocks in this superblock.
+      if (cpi->sf.inter_sf.prune_ref_frames >= 3 && bsize < cm->sb_size) {
+        picked_ref_frames_mask =
+            fetch_picked_ref_frames_mask(x, cm->sb_size, cm->mib_size);
+        if (picked_ref_frames_mask) {
+          // Always ensure the primary reference (ref 0) is tested.
+          picked_ref_frames_mask |= (1ULL << 0);
+        }
+      }
+    } else {
+      assert(should_reuse_mode(x, REUSE_PARTITION_MODE_FLAG));
+      // Prune reference frames if we are either a 1:4 block, or if we are a 1:2
+      // block, and we have searched any of the rectangular subblock.
+      if (!is_partition_point(bsize) ||
+          has_searched_rect_subblock(x, xd->mi_row, xd->mi_col, bsize,
+                                     cm->sb_size, (int8_t)mbmi->region_type)) {
+        picked_ref_frames_mask =
+            fetch_picked_ref_frames_mask(x, bsize, cm->mib_size);
+      }
     }
   }
 

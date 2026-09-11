@@ -2646,6 +2646,14 @@ void av2_nonrd_use_partition(AV2_COMP *cpi, ThreadData *td,
                     bsize, ctx_none, best_rdc, SB_SINGLE_PASS, NULL);
       encode_b(cpi, tile_data, td, tp, mi_row, mi_col, OUTPUT_ENABLED, subsize,
                partition, ctx_none, &rate);
+      // Record picked ref frame in the superblock mask to allow subsequent
+      // sub-blocks to prune unselected reference frames in non-RD mode.
+      if (cpi->sf.inter_sf.prune_ref_frames >= 3 &&
+          xd->tree_type != CHROMA_PART) {
+        const int ref_type = av2_ref_frame_type(ctx_none->mic.ref_frame);
+        av2_update_picked_ref_frames_mask(x, ref_type, bsize, cm->mib_size,
+                                          mi_row, mi_col);
+      }
       break;
     case PARTITION_HORZ:
       if (!pc_tree->horizontal[cur_region_type][0]) {

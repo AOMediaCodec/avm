@@ -646,6 +646,8 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // 0 implies no pruning
   // 1 implies prune for extended partition
   // 2 implies prune horiz, vert and extended partition
+  // 3: prune for all sub-blocks (< sb_size) based on superblock mask gated
+  //    by best_mode_skippable
   int prune_ref_frames;
 
   // When set to N>0, this flag limits the maximum number of compound
