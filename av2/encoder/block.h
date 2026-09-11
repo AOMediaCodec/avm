@@ -1289,7 +1289,7 @@ typedef struct macroblock {
    * Points to a buffer that is used to hold temporary prediction results. This
    * is used to pingpong the prediction in handle_inter_mode.
    */
-  uint16_t *tmp_pred_bufs[2];
+  uint16_t *tmp_pred_bufs;
 
   /*!
    *  Buffer used for upsampled prediction.
