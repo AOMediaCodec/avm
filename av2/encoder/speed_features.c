@@ -186,7 +186,7 @@ static void set_good_speed_feature_framesize_dependent(
     if (!is_4k_or_larger) {
       sf->mv_sf.prune_mesh_search = 1;
     }
-    if (!is_270p_or_lesser) {
+    if (!is_270p_or_lesser && !cm->features.allow_screen_content_tools) {
       sf->part_sf.disable_uneven_4way_partitions = true;
     }
     sf->inter_sf.prune_ref_mv_idx_search = 1;
@@ -1189,6 +1189,12 @@ void av2_set_speed_features_framesize_dependent(AV2_COMP *cpi, int speed) {
       cpi->common.seq_params.max_pb_aspect_ratio_log2_m1 =
           new_max_ratio == 2 ? 0 : (new_max_ratio == 4 ? 1 : 2);
     }
+  }
+
+  if (!cpi->seq_params_locked) {
+    cpi->common.seq_params.enable_uneven_4way_partitions =
+        oxcf->part_cfg.enable_uneven_4way_partitions &&
+        !sf->part_sf.disable_uneven_4way_partitions;
   }
 }
 
