@@ -1116,8 +1116,14 @@ typedef struct LC_DEC_SPEED_FEATURES {
 
   // Only allow CDEF when the improvement is significant.
   // 0: no bias for CDEF use.
-  // 1: bias against CDEF during RD decision..
+  // 1: bias against CDEF during RD decision.
   int bias_against_cdef;
+
+  // Skip the loop filter when the percentage of SSE improvement over the
+  // unfiltered frame is lower than a threshold.
+  // 0: no loop filter skipping.
+  // 1: loop filter skipping based on a threshold.
+  int skip_loop_filter_based_on_error;
 } LC_DEC_SPEED_FEATURES;
 
 typedef struct FLEXMV_PRECISION_SPEED_FEATURES {
