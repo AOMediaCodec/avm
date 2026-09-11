@@ -608,8 +608,10 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   int prune_inter_modes_if_skippable;
   // Enable six param warp in winner mode
   int enable_six_param_warp_in_winner_mode;
+
   // Enable six parameter warp in winner mode by tid. If set to 1, enable six
-  // parameter warp in winner mode by tid threshold.
+  // parameter warp in winner mode by tid threshold for speed >= 1.
+  // Enable six param in winner all tid level for speed 6
   int enable_six_param_warp_in_winner_mode_by_tid;
 
   // Disable the 4 parameter warp delta refinement during initial mode search

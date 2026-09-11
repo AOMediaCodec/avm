@@ -8849,7 +8849,7 @@ static void tx_search_best_inter_candidates(
 }
 
 // Indicates number of winner simple translation modes to be used
-static const unsigned int num_winner_motion_modes[3] = { 0, 10, 6 };
+static const unsigned int num_winner_motion_modes[4] = { 0, 10, 6, 3 };
 
 // Returns true if a mode is added to the winner mode check.
 static AVM_INLINE int is_check_in_winner(const AV2_COMP *cpi,
