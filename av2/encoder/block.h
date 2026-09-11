@@ -26,6 +26,7 @@
 #include "av2/encoder/hash.h"
 #include "av2/encoder/hash_motion.h"
 #include "av2/encoder/partition_cnn_weights.h"
+#include "av2/encoder/tx_cache.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -762,6 +763,14 @@ typedef struct {
    */
   //! Txfm hash record for the whole coding block.
   MB_RD_RECORD mb_rd_record;
+
+  /*! \brief Transform search result cache.
+   *
+   * Frame-scoped table of winning transform types, see tx_cache.h. Held by
+   * value so that it is per-thread and has this struct's lifetime; gated by
+   * TX_SPEED_FEATURES::use_tx_result_cache.
+   */
+  TxCache tx_result_cache;
 
   /*! \brief Number of txb splits.
    *
