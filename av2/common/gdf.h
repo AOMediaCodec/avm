@@ -38,7 +38,7 @@ void init_gdf_test(GdfInfo *gi, int mib_size, int rec_height, int rec_width);
 /*!\brief Function to allocate memory storing block's expected coding error of
  * GDF
  */
-void alloc_gdf_buffers(GdfInfo *gi);
+void alloc_gdf_buffers(GdfInfo *gi, int frame_width);
 
 /*!\brief Function to free memory storing block's expected coding error of GDF
  */
