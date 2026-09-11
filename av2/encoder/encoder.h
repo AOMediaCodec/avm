@@ -1727,7 +1727,7 @@ typedef struct ThreadData {
   // Temporary buffers used to store intermediate prediction data calculated
   // during the OPFL/SMVR.
   uint16_t *opfl_dst_bufs;
-  uint16_t *tmp_pred_bufs[2];
+  uint16_t *tmp_pred_bufs;
   // Buffer used for upsampled prediction.
   uint16_t *upsample_pred;
   int intrabc_used;
