@@ -735,6 +735,17 @@ static void set_good_speed_features_lc_dec_framesize_independent(
     cpi->oxcf.tool_cfg.enable_cdef_on_skip_txfm = 0;
 
     sf->lc_sf.bias_against_cdef = cm->current_frame.pyramid_level > 1;
+
+    const GF_GROUP *const gf_group = &cpi->gf_group;
+    const FRAME_UPDATE_TYPE update_type =
+        gf_group->update_type[gf_group->index];
+    // TODO(yunqing): adjust condition/threshold for 4k videos.
+    sf->lc_sf.skip_loop_filter_based_on_error =
+        (update_type != OVERLAY_UPDATE && update_type != INTNL_OVERLAY_UPDATE &&
+         update_type != KFFLT_OVERLAY_UPDATE &&
+         cm->current_frame.pyramid_level > 1 && !is_2k_or_larger)
+            ? 1
+            : 0;
   }
 }
 
@@ -1084,6 +1095,7 @@ static void av2_disable_ml_based_partition_sf(
 static AVM_INLINE void init_lc_sf(LC_DEC_SPEED_FEATURES *lc_sf) {
   lc_sf->enable_partition_size_bias = 0;
   lc_sf->bias_against_cdef = 0;
+  lc_sf->skip_loop_filter_based_on_error = 0;
 }
 
 static AVM_INLINE void set_erp_speed_features_framesize_dependent(
