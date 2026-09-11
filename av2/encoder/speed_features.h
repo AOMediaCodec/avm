@@ -614,7 +614,8 @@ typedef struct INTER_MODE_SPEED_FEATURES {
 
   // Disable the 4 parameter warp delta refinement during initial mode search
   // and enable the same during motion mode evaluation for winner candidates.
-  // Enabled for speed >= 3.
+  // For speed = 2, enabled for frames with pyramid_level >= 4.
+  // For speed >= 3, enabled for frames with pyramid_level >= 3.
   int enable_four_param_warp_in_winner_mode;
 
   // Drop less likely to be picked reference frames in the RD search.
