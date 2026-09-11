@@ -1647,8 +1647,7 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
 
   // Set the predict_dc level to { 2, 2, 0 } at speed 2 for high qindex frames.
   if (speed == 2 && sf->winner_mode_sf.dc_blk_pred_level == 0) {
-    const int dc_blk_pred_qmin =
-        113 + MAXQ_OFFSET * (cm->seq_params.bit_depth - 8);
+    const int dc_blk_pred_qmin = 113 + qindex_offset;
     if (cm->quant_params.base_qindex > dc_blk_pred_qmin) {
       sf->winner_mode_sf.dc_blk_pred_level = 3;
       memcpy(winner_mode_params->predict_dc_level, predict_dc_levels[3],
