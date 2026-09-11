@@ -290,6 +290,8 @@ list(
   "${AVM_ROOT}/av2/encoder/tokenize.h"
   "${AVM_ROOT}/av2/encoder/tpl_model.c"
   "${AVM_ROOT}/av2/encoder/tpl_model.h"
+  "${AVM_ROOT}/av2/encoder/tx_cache.c"
+  "${AVM_ROOT}/av2/encoder/tx_cache.h"
   "${AVM_ROOT}/av2/encoder/tx_search.c"
   "${AVM_ROOT}/av2/encoder/tx_search.h"
   "${AVM_ROOT}/av2/encoder/intra_mode_search.c"

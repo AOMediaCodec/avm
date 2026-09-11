@@ -22,6 +22,7 @@
 #include "av2/encoder/rdopt_utils.h"
 #include "av2/encoder/tx_prune_model_weights.h"
 #include "av2/encoder/tx_search.h"
+#include "av2/encoder/tx_cache.h"
 
 struct rdcost_block_args {
   const AV2_COMP *cpi;
@@ -2453,7 +2454,7 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
   }
 
   // Bit mask to indicate which transform types are allowed in the RD search.
-  const uint16_t allowed_tx_mask = get_tx_mask(
+  uint16_t allowed_tx_mask = get_tx_mask(
       cpi, x, plane, block, blk_row, blk_col, plane_bsize, tx_size, txb_ctx,
       ftxs_mode, ref_best_rd, dc_only_blk, &txk_allowed, txk_map);
 
@@ -2527,6 +2528,52 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
                              : cm->seq_params.enable_ist) &&
                    !is_fsc && !is_lossless;
 
+  // Transform search result cache.  Deliberately placed here: it is after
+  // skip_trellis is final and after the block above that turns off
+  // transform-domain distortion when `allowed_tx_mask == 0x0001`, so
+  // restricting the mask cannot change any earlier decision.
+  TxCache *tx_cache = NULL;
+  uint64_t tx_cache_key = 0;
+  int tx_cache_hit = 0;
+  TX_TYPE tx_cache_winner = MAKE_TX_TYPE_FROM_PRIMARY_TX_TYPE(DCT_DCT);
+  if (tx_sf->use_tx_result_cache && plane == AVM_PLANE_Y && !dc_only_blk) {
+    tx_cache = &x->txfm_search_info.tx_result_cache;
+    const int diff_stride = block_size_wide[plane_bsize];
+    const int16_t *const residual =
+        x->plane[AVM_PLANE_Y].src_diff +
+        (((blk_row * diff_stride) + blk_col) << MI_SIZE_LOG2);
+    const uint64_t base =
+        av2_tx_cache_hash(residual, diff_stride, txw, txh, x->qindex,
+                          txb_ctx ? txb_ctx->txb_skip_ctx : 0,
+                          txb_ctx ? txb_ctx->dc_sign_ctx : 0) ^
+        (tx_size << 1);
+    tx_cache_key = av2_tx_cache_mix(
+        base, 0u, 0u, is_inter, is_fsc, intra_mode, x->rd_model, skip_trellis,
+        av2_get_ext_tx_set_type(tx_size, is_inter,
+                                cm->features.reduced_tx_set_used),
+        av2_use_qmatrix(&cm->quant_params, xd, mbmi->segment_id), x->rdmult);
+    const int cached = av2_tx_cache_lookup(tx_cache, tx_cache_key,
+                                           cm->current_frame.frame_number);
+    if (cached >= 0) {
+      tx_cache_hit = 1;
+      tx_cache_winner.packed_tx_type = (uint16_t)cached;
+      const uint16_t winner_bit = 1 << tx_cache_winner.primary_tx;
+      if (allowed_tx_mask & winner_bit) {
+        // Keep DCT_DCT in the mask: the prune gates inside the loop can reject
+        // the winner, and a single-candidate mask would then leave the search
+        // with nothing evaluated.
+        const uint16_t dct_bit = 1 << DCT_DCT;
+        allowed_tx_mask &= winner_bit | dct_bit;
+      } else {
+        // The cached winner is not a candidate here, so drop the hit: leaving
+        // it set would make every secondary transform mismatch it and skip the
+        // whole IST search.
+        tx_cache_hit = 0;
+        tx_cache_winner = MAKE_TX_TYPE_FROM_PRIMARY_TX_TYPE(DCT_DCT);
+      }
+    }
+  }
+
   const int max_eob = av2_get_max_eob(tx_size);
   // Iterate through all transform type candidates.
   for (int tx_idx = 0; tx_idx < PRIMARY_TX_TYPES; ++tx_idx) {
@@ -2590,6 +2637,13 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
         txfm_param.primary_tx_type = primary_tx_type;
         txfm_param.sec_tx_type = stx;
         txfm_param.sec_tx_set = stx_set;
+        // On a cache hit, evaluate only the cached secondary transform,
+        // keeping the no-IST candidate as a baseline.
+        if (tx_cache_hit &&
+            tx_type.packed_tx_type != tx_cache_winner.packed_tx_type &&
+            !(set_idx == 0 && stx == 0)) {
+          continue;
+        }
 
         assert(av2_tx_type_in_range(tx_type.primary_tx, tx_type.sec_tx,
                                     tx_type.sec_set, txw, txh));
@@ -2797,6 +2851,12 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
        best_rd == INT64_MAX) &&
       !is_inter) {
     best_tx_type = MAKE_TX_TYPE_FROM_PRIMARY_TX_TYPE(DCT_DCT);
+  }
+
+  if (tx_cache != NULL && best_rd != INT64_MAX &&
+      !(best_eob == 1 && best_tx_type.primary_tx != DCT_DCT && !is_inter)) {
+    av2_tx_cache_store(tx_cache, tx_cache_key, best_tx_type.packed_tx_type,
+                       cm->current_frame.frame_number);
   }
 
   best_rd_stats->skip_txfm = best_eob == 0;

@@ -976,6 +976,7 @@ static AVM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
   tx_sf->tx_type_search.use_skip_flag_prediction = 1;
   tx_sf->tx_type_search.use_reduced_intra_txset = 0;
   tx_sf->tx_type_search.fast_inter_tx_type_search = 0;
+  tx_sf->use_tx_result_cache = 0;
   tx_sf->tx_type_search.skip_tx_search = 0;
   tx_sf->tx_type_search.eob_adapt_skip_tx_search = false;
   tx_sf->tx_type_search.skip_tx_search_max_eob = 1024;
@@ -1544,6 +1545,11 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
 
   const int qindex_offset = MAXQ_OFFSET * (cm->seq_params.bit_depth - 8);
   const int qindex_thresh3 = 195 + qindex_offset;
+
+  // Speed 1 and fine quantizers only; assigned, not cleared, because this
+  // function runs per frame while the framesize-independent pass does not.
+  sf->tx_sf.use_tx_result_cache = (cpi->oxcf.mode == GOOD && speed == 1 &&
+                                   cpi->oxcf.rc_cfg.qp < 210 + qindex_offset);
 
   if (cpi->oxcf.mode == GOOD && speed == 0) {
     const int qindex_thresh = 124 + qindex_offset;
