@@ -2118,29 +2118,6 @@ static bool prune_sec_txfm_rd_eval(int64_t sec_tx_sse_to_be_coded,
   return false;
 }
 
-// Return 1 if primary FP-quant is guaranteed to produce eob = 0 across the
-// IST window, 0 otherwise. Uses an L-infinity scan of the post-primary
-// coefficients against the FP quantizer's kill threshold
-//   abs(coeff) < min(dequant[0], dequant[1]) >> (4 + log_scale)
-// which upper-bounds the per-position quantizer kill rule
-// (av2_highbd_quantize_fp_facade in av2_quantize.c).
-static INLINE int check_primary_quant_all_zero(const tran_low_t *coeff,
-                                               const int32_t dequant_QTX[2],
-                                               int width, int height,
-                                               int log_scale) {
-  const int shift = 4 + log_scale;
-  const int32_t deq_min = AVMMIN(dequant_QTX[0], dequant_QTX[1]);
-  const int32_t thr = deq_min >> shift;
-  if (thr <= 0) return 0;
-  const uint32_t uthr = (uint32_t)thr;
-  const int n = width * height;
-  for (int i = 0; i < n; ++i) {
-    const int32_t a = (coeff[i] < 0) ? -coeff[i] : coeff[i];
-    if ((uint32_t)a >= uthr) return 0;
-  }
-  return 1;
-}
-
 // Prune transform type search based on EOB count and block properties.
 static AVM_INLINE bool prune_tx_search_by_eob(
     MACROBLOCKD *const xd, int blk_row, int blk_col, TX_SIZE tx_size, int eob,
@@ -2666,30 +2643,6 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
           continue;
         }
         *coeffs_available = 1;
-
-        // Pre-IST quant-zero gate. Predict primary FP-quant eob = 0 from the
-        // post-primary coefficients and, if so, skip av2_quant / trellis /
-        // cost_coeffs and propagate the same eob_found / DCT_DCT handling as
-        // the post-quant eob == 1 gate below. Scoped to intra Y, stx == 0,
-        // non-DC-only, IST-enabled, non-QM blocks.
-        if (tx_sf->prune_intra_ist_stx_by_zero_eob && plane == PLANE_TYPE_Y &&
-            !is_inter && stx == 0 && !dc_only_blk && xd->enable_ist &&
-            !av2_use_qmatrix(&cm->quant_params, xd, mbmi->segment_id)) {
-          const int tr_w = AVMMIN(txw, 32);
-          const int tr_h = AVMMIN(txh, 32);
-          const int log_scale = av2_get_tx_scale(tx_size);
-          if (check_primary_quant_all_zero(
-                  mb_plane->coeff + BLOCK_OFFSET(block),
-                  x->plane[plane].dequant_QTX, tr_w, tr_h, log_scale)) {
-            mb_plane->eobs[block] = 0;
-            if (primary_tx_type == DCT_DCT) eob_found = true;
-            if (primary_tx_type != DCT_DCT) {
-              update_txk_array(xd, blk_row, blk_col, tx_size,
-                               MAKE_TX_TYPE_FROM_PRIMARY_TX_TYPE(DCT_DCT));
-              continue;
-            }
-          }
-        }
 
         const TX_CLASS tx_class = tx_type_to_class[primary_tx_type];
         const bool use_tcq = tcq_enable(cpi->common.features.tcq_mode,
