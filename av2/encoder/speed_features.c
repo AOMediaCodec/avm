@@ -620,9 +620,6 @@ static void set_good_speed_features_framesize_independent(
     // Disabling it until it is fixed.
     // sf->inter_sf.prune_comp_using_best_single_mode_ref = 2;
 
-    sf->intra_sf.intra_uv_mode_mask[TX_16X16] = UV_INTRA_DC_H_V_CFL;
-    sf->intra_sf.intra_uv_mode_mask[TX_32X32] = UV_INTRA_DC_H_V_CFL;
-    sf->intra_sf.intra_uv_mode_mask[TX_64X64] = UV_INTRA_DC_H_V_CFL;
     sf->intra_sf.intra_y_mode_mask[TX_16X16] = INTRA_DC_H_V;
     sf->intra_sf.intra_y_mode_mask[TX_32X32] = INTRA_DC_H_V;
     sf->intra_sf.intra_y_mode_mask[TX_64X64] = INTRA_DC_H_V;
