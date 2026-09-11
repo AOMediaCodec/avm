@@ -193,7 +193,6 @@ static INLINE int64_t interpolation_filter_rd(
 
   (void)tile_data;
 
-  assert(skip_pred != 2);
   assert((rd_stats_luma->rate >= 0) && (rd_stats->rate >= 0));
   assert((rd_stats_luma->dist >= 0) && (rd_stats->dist >= 0));
   assert((rd_stats_luma->sse >= 0) && (rd_stats->sse >= 0));
@@ -213,11 +212,16 @@ static INLINE int64_t interpolation_filter_rd(
       (skip_pred == interp_search_flags->default_interp_skip_flags)
           ? INTERP_SKIP_LUMA_SKIP_CHROMA
           : skip_pred;
+  assert(IMPLIES(tmp_skip_pred == INTERP_EVAL_LUMA_SKIP_CHROMA,
+                 cpi->sf.interp_sf.skip_model_rd_uv));
 
-  switch (tmp_skip_pred) {
-    case INTERP_EVAL_LUMA_EVAL_CHROMA:
-      // skip_pred = 0: Evaluate both luma and chroma.
-      // Luma MC
+  if (tmp_skip_pred == INTERP_SKIP_LUMA_SKIP_CHROMA) {
+    // Both luma and chroma evaluations are skipped.
+    this_rd_stats = *rd_stats;
+  } else {
+    // Evaluate Luma
+    if (tmp_skip_pred == INTERP_EVAL_LUMA_EVAL_CHROMA ||
+        tmp_skip_pred == INTERP_EVAL_LUMA_SKIP_CHROMA) {
       interp_model_rd_eval(x, cpi, bsize, orig_dst, AVM_PLANE_Y, AVM_PLANE_Y,
                            &this_rd_stats_luma, 0);
       this_rd_stats = this_rd_stats_luma;
@@ -227,10 +231,10 @@ static INLINE int64_t interpolation_filter_rd(
                                           INT64_MAX);
       PrintPredictionUnitStats(cpi, tile_data, x, &rd_stats_y, bsize);
 #endif  // CONFIG_COLLECT_RD_STATS == 3
-      AVM_FALLTHROUGH_INTENDED;
-    case INTERP_SKIP_LUMA_EVAL_CHROMA:
-      // skip_pred = 1: skip luma evaluation (retain previous best luma stats)
-      // and do chroma evaluation.
+    }
+    // Evaluate Chroma
+    if (tmp_skip_pred == INTERP_EVAL_LUMA_EVAL_CHROMA ||
+        tmp_skip_pred == INTERP_SKIP_LUMA_EVAL_CHROMA) {
       for (int plane = 1; plane < num_planes; ++plane) {
         int64_t tmp_rd =
             RDCOST(x->rdmult, tmp_rs + this_rd_stats.rate, this_rd_stats.dist);
@@ -241,13 +245,7 @@ static INLINE int64_t interpolation_filter_rd(
         interp_model_rd_eval(x, cpi, bsize, orig_dst, plane, plane,
                              &this_rd_stats, 0);
       }
-      break;
-    case INTERP_SKIP_LUMA_SKIP_CHROMA:
-      // both luma and chroma evaluation is skipped
-      this_rd_stats = *rd_stats;
-      break;
-    case INTERP_EVAL_INVALID:
-    default: assert(0); return 0;
+    }
   }
   int64_t tmp_rd =
       RDCOST(x->rdmult, tmp_rs + this_rd_stats.rate, this_rd_stats.dist);
@@ -344,6 +342,13 @@ static INLINE void calc_interp_skip_pred_flag(MACROBLOCK *const x,
     assert(mbmi->comp_group_idx == 1);
     if (*skip_hor == 0 && *skip_ver == 1) *skip_ver = 0;
   }
+
+  // Configure flags to skip chroma RD evaluation when skip_model_rd_uv is
+  // enabled
+  if (cpi->sf.interp_sf.skip_model_rd_uv && num_planes > 1) {
+    *skip_hor |= INTERP_EVAL_LUMA_SKIP_CHROMA;
+    *skip_ver |= INTERP_EVAL_LUMA_SKIP_CHROMA;
+  }
 }
 
 /*!\brief AV2 interpolation filter search
@@ -368,7 +373,7 @@ static INLINE void calc_interp_skip_pred_flag(MACROBLOCK *const x,
  * \param[in,out] switchable_rate   The rate associated with using a SWITCHABLE
  *                                  filter mode.
  * \param[in,out] skip_build_pred   Indicates whether or not to build the inter
- *                                  predictor. If this is 0, the inter predictor
+ *                                  predictor. If this is 3, the inter predictor
  *                                  has already been built and thus we can avoid
  *                                  repeating computation.
  * \param[in]     args              HandleInterModeArgs struct holding
@@ -396,6 +401,7 @@ int64_t av2_interpolation_filter_search(
   MB_MODE_INFO *const mbmi = xd->mi[0];
   const int need_search = av2_is_interp_needed(cm, xd);
   const int ref_frame = COMPACT_INDEX0_NRS(xd->mi[0]->ref_frame[0]);
+  const int skip_model_rd_uv = cpi->sf.interp_sf.skip_model_rd_uv;
   RD_STATS rd_stats_luma, rd_stats;
 
   if (mbmi->mode == WARPMV) return 0;
@@ -415,6 +421,7 @@ int64_t av2_interpolation_filter_search(
     *rd = args->interp_filter_stats[match_found_idx].rd;
     x->pred_sse[ref_frame] =
         args->interp_filter_stats[match_found_idx].pred_sse;
+    *skip_build_pred = INTERP_EVAL_LUMA_EVAL_CHROMA;
     return 0;
   }
 
@@ -436,11 +443,13 @@ int64_t av2_interpolation_filter_search(
   PrintPredictionUnitStats(cpi, tile_data, x, &rd_stats_y, bsize);
 #endif  // CONFIG_COLLECT_RD_STATS == 3
   // Chroma MC
-  if (num_planes > 1) {
+  if (num_planes > 1 && !skip_model_rd_uv) {
     interp_model_rd_eval(x, cpi, bsize, orig_dst, AVM_PLANE_U, AVM_PLANE_V,
                          &rd_stats, *skip_build_pred);
   }
-  *skip_build_pred = 1;
+  *skip_build_pred = num_planes > 1 && skip_model_rd_uv
+                         ? INTERP_SKIP_LUMA_EVAL_CHROMA
+                         : INTERP_SKIP_LUMA_SKIP_CHROMA;
 
   av2_merge_rd_stats(&rd_stats, &rd_stats_luma);
 
@@ -489,8 +498,8 @@ int64_t av2_interpolation_filter_search(
   // Setting 0th flag corresonds to skipping luma MC and setting 1st bt
   // corresponds to skipping chroma MC  skip_flag=0 corresponds to "Don't skip
   // luma and chroma MC"  Skip flag=1 corresponds to "Skip Luma MC only"
-  // Skip_flag=2 is not a valid case
-  // skip_flag=3 corresponds to "Skip both luma and chroma MC"
+  // Skip_flag=2 corresponds to "Skip chroma MC only". This is valid only when
+  // skip_model_rd_uv speed feature is enabled
   int skip_hor = interp_search_flags->default_interp_skip_flags;
   int skip_ver = interp_search_flags->default_interp_skip_flags;
   calc_interp_skip_pred_flag(x, cpi, &skip_hor, &skip_ver);

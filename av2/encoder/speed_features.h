@@ -864,6 +864,10 @@ typedef struct INTERP_FILTER_SPEED_FEATURES {
   // Check mv and ref_frames before search, if they are very close with previous
   // saved results, filter search can be skipped.
   int use_interp_filter;
+
+  // Skip model RD evaluation of chroma planes during interpolation filter
+  // search. Enabled for speed >= 1.
+  int skip_model_rd_uv;
 } INTERP_FILTER_SPEED_FEATURES;
 
 typedef struct INTRA_MODE_SPEED_FEATURES {
