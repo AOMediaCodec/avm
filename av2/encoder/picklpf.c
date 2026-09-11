@@ -119,7 +119,8 @@ static int search_filter_offsets(
     const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi, int partial_frame,
     const int last_frame_q_offsets[MAX_MB_PLANE][NUM_EDGE_DIRS],
     const int last_frame_side_offsets[MAX_MB_PLANE][NUM_EDGE_DIRS],
-    double *best_cost_ret, int plane, int search_side_offset, int dir) {
+    double *best_cost_ret, int plane, int search_side_offset, int dir,
+    int64_t *best_filter_sse) {
   const AV2_COMMON *const cm = &cpi->common;
   MACROBLOCK *x = &cpi->td.mb;
   const uint8_t df_par_bits = cm->seq_params.df_par_bits_minus2 + 2;
@@ -246,6 +247,9 @@ static int search_filter_offsets(
                                      start_err, cm->seq_params.bit_depth);
 
   if (best_cost_ret) *best_cost_ret = AVMMIN(best_cost, start_cost);
+  if (best_filter_sse) {
+    *best_filter_sse = best_cost < start_cost ? best_err : start_err;
+  }
 
   return best_cost < start_cost ? offset_best : offsets[search_side_offset];
 }
@@ -289,9 +293,12 @@ void av2_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
     const int bit_depth = cm->seq_params.bit_depth;
     const int base_qindex = cm->quant_params.base_qindex;
     double no_deblocking_cost[MAX_MB_PLANE] = { DBL_MAX, DBL_MAX, DBL_MAX };
+    int64_t zero_filter_sse[MAX_MB_PLANE] = { 0 };
+    int64_t best_filter_sse[MAX_MB_PLANE] = { 0 };
 
     int64_t no_deblocking_sse =
         get_sse_plane_active_region(cm, sd, &cm->cur_frame->buf, AVM_PLANE_Y);
+    zero_filter_sse[AVM_PLANE_Y] = no_deblocking_sse;
     no_deblocking_cost[AVM_PLANE_Y] = RDCOST_DBL_WITH_NATIVE_BD_DIST(
         cpi->td.mb.rdmult, 0, no_deblocking_sse, bit_depth);
 
@@ -320,13 +327,15 @@ void av2_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
     int last_frame_delta_side[MAX_MB_PLANE][NUM_EDGE_DIRS] = { { 0 } };
     double best_single_cost = DBL_MAX;
     double best_dual_cost = DBL_MAX;
+    int64_t best_single_sse = 0;
+    int64_t best_dual_sse = 0;
 
     // luma
     // both directions same offset
     int offset = search_filter_offsets(
         sd, cpi, method == LPF_PICK_FROM_SUBIMAGE, last_frame_delta_q,
         last_frame_delta_side, &best_single_cost, AVM_PLANE_Y,
-        search_side_offset, /*dir=*/2);
+        search_side_offset, /*dir=*/2, &best_single_sse);
     for (EDGE_DIR dir = VERT_EDGE; dir < NUM_EDGE_DIRS; ++dir) {
       last_frame_delta_side[AVM_PLANE_Y][dir] = offset;
       lf->delta_side_luma[dir] = offset;
@@ -342,7 +351,7 @@ void av2_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
       offset = search_filter_offsets(sd, cpi, method == LPF_PICK_FROM_SUBIMAGE,
                                      last_frame_delta_q, last_frame_delta_side,
                                      &best_dual_cost, AVM_PLANE_Y,
-                                     search_side_offset, dir);
+                                     search_side_offset, dir, &best_dual_sse);
       last_frame_delta_side[AVM_PLANE_Y][dir] = offset;
       lf->delta_side_luma[dir] = offset;
 
@@ -356,6 +365,7 @@ void av2_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
         lf->delta_q_luma[dir] = 0;
         lf->delta_side_luma[dir] = 0;
       }
+      best_filter_sse[AVM_PLANE_Y] = zero_filter_sse[AVM_PLANE_Y];
     } else if (best_single_cost < best_dual_cost) {
       for (EDGE_DIR dir = VERT_EDGE; dir < NUM_EDGE_DIRS; ++dir) {
         last_frame_delta_q[AVM_PLANE_Y][dir] = best_single_delta_q[dir];
@@ -363,6 +373,9 @@ void av2_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
         last_frame_delta_side[AVM_PLANE_Y][dir] = best_single_delta_side[dir];
         lf->delta_side_luma[dir] = best_single_delta_side[dir];
       }
+      best_filter_sse[AVM_PLANE_Y] = best_single_sse;
+    } else {
+      best_filter_sse[AVM_PLANE_Y] = best_dual_sse;
     }
     // Switch off filters if offsets are zero.
     for (EDGE_DIR dir = VERT_EDGE; dir < NUM_EDGE_DIRS; ++dir) {
@@ -372,6 +385,10 @@ void av2_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
         cm->lf.delta_q_luma[dir] = 0;
         cm->lf.delta_side_luma[dir] = 0;
       }
+    }
+    if (lf->apply_deblocking_filter[VERT_EDGE] == 0 &&
+        lf->apply_deblocking_filter[HORZ_EDGE] == 0) {
+      best_filter_sse[AVM_PLANE_Y] = zero_filter_sse[AVM_PLANE_Y];
     }
 
     // chroma
@@ -388,6 +405,7 @@ void av2_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
       for (int plane = AVM_PLANE_U; plane < num_planes; ++plane) {
         no_deblocking_sse =
             get_sse_plane_active_region(cm, sd, &cm->cur_frame->buf, plane);
+        zero_filter_sse[plane] = no_deblocking_sse;
         no_deblocking_cost[plane] = RDCOST_DBL_WITH_NATIVE_BD_DIST(
             cpi->td.mb.rdmult * CHROMA_LAMBDA_MULT, 0, no_deblocking_sse,
             bit_depth);
@@ -395,7 +413,7 @@ void av2_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
           offset = search_filter_offsets(
               sd, cpi, method == LPF_PICK_FROM_SUBIMAGE, last_frame_delta_q,
               last_frame_delta_side, &best_cost[plane], plane,
-              search_side_offset, dir);
+              search_side_offset, dir, &best_filter_sse[plane]);
           last_frame_delta_side[plane][0] = offset;
           *delta_side[plane] = offset;
           last_frame_delta_q[plane][0] = offset;
@@ -411,6 +429,7 @@ void av2_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
           *apply_filter[plane] = 0;
           *delta_q[plane] = 0;
           *delta_side[plane] = 0;
+          best_filter_sse[plane] = zero_filter_sse[plane];
         }
       }
     } else {
@@ -420,6 +439,39 @@ void av2_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
       cm->lf.delta_side_u = 0;
       cm->lf.delta_q_v = 0;
       cm->lf.delta_side_v = 0;
+    }
+
+    if ((lf->apply_deblocking_filter[VERT_EDGE] != 0 ||
+         lf->apply_deblocking_filter[HORZ_EDGE] != 0) &&
+        cpi->sf.lc_sf.skip_loop_filter_based_on_error > 0) {
+      const double pct_improvement_thresh = 2.0;
+      bool reset_filter_level = true;
+
+      // Calculate the percentage improvement in SSE for each plane. This
+      // measures the relative reduction in error when applying the filter
+      // compared to no filtering.
+      for (int plane = 0; plane < num_planes; plane++) {
+        if (zero_filter_sse[plane] > 0) {
+          const double pct_improvement_sse =
+              ((zero_filter_sse[plane] - best_filter_sse[plane]) * 100.0) /
+              zero_filter_sse[plane];
+          reset_filter_level &= pct_improvement_sse < pct_improvement_thresh;
+        }
+      }
+
+      if (reset_filter_level) {
+        for (EDGE_DIR dir = VERT_EDGE; dir < NUM_EDGE_DIRS; ++dir) {
+          lf->apply_deblocking_filter[dir] = 0;
+          cm->lf.delta_q_luma[dir] = 0;
+          cm->lf.delta_side_luma[dir] = 0;
+        }
+        lf->apply_deblocking_filter_u = 0;
+        lf->apply_deblocking_filter_v = 0;
+        cm->lf.delta_q_u = 0;
+        cm->lf.delta_side_u = 0;
+        cm->lf.delta_q_v = 0;
+        cm->lf.delta_side_v = 0;
+      }
     }
   }
 }
