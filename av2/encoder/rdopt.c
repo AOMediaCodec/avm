@@ -4490,26 +4490,18 @@ static INLINE bool prune_comp_eval_using_est_rd(
  *                                  done in the motion mode search.
  * \param[in,out] rd_stats          Struct to keep track of the overall RD
  *                                  information.
- * \param[in,out] skip_rd           An array of length 2 where skip_rd[0] is
- the
+ * \param[in,out] skip_rd           An array of length 2 where skip_rd[0] is the
  *                                  best total RD for a skip mode so far, and
- *                                  skip_rd[1] is the best RD for a skip mode
- so
- *                                  far in luma. This is used as a speed
- feature
- *                                  to skip the transform search if the
- computed
+ *                                  skip_rd[1] is the best RD for a skip mode so
+ *                                  far in luma. This is used as a speed feature
+ *                                  to skip the transform search if the computed
  *                                  skip RD for the current mode is not better
  *                                  than the best skip_rd so far.
- * \param[in,out] skip_build_pred   Indicates whether or not to build the
- inter
- *                                  predictor. If this is 0, the inter
- predictor
- *                                  has already been built and thus we can
- avoid
- *                                  repeating computation.
- * \return Returns 1 if this mode is worse than one already seen and 0 if it
- is
+ * \param[out] skip_build_pred      Indicates whether or not to build the inter
+ *                                  predictor during/after interpolation
+ *                                  filter search.
+
+ * \return Returns 1 if this mode is worse than one already seen and 0 if it is
  * a viable candidate.
  */
 static int process_compound_inter_mode(
@@ -4587,7 +4579,7 @@ static int process_compound_inter_mode(
       av2_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst, bsize,
                                     AVM_PLANE_U, num_planes - 1);
     }
-    *skip_build_pred = 1;
+    *skip_build_pred = INTERP_SKIP_LUMA_SKIP_CHROMA;
   }
   return 0;
 }
@@ -5023,7 +5015,9 @@ static void evaluate_inter_predictor(AV2_COMP *const cpi,
                               mbmi, cpi->sf.inter_sf.prune_ref_mv_idx_search))
     return;
 
-  int skip_build_pred = 0;
+  // Flag to indicate whether to skip av1_enc_build_inter_predictor() after
+  // interpolation filter search
+  int skip_build_pred = INTERP_EVAL_LUMA_EVAL_CHROMA;
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
 
@@ -5104,15 +5098,24 @@ static void evaluate_inter_predictor(AV2_COMP *const cpi,
     }
   }
   rd_stats->rate += compmode_interinter_cost;
-  if ((skip_build_pred != 1 && (mbmi->mode != WARPMV)) || is_comp_pred) {
-    // Build this inter predictor if it has not been
-    // previously built
+  if ((skip_build_pred != INTERP_SKIP_LUMA_SKIP_CHROMA &&
+       (mbmi->mode != WARPMV)) ||
+      is_comp_pred) {
+    // Chroma plane of COMPOUND_DIFFWTD mode shares the segment mask of luma
+    // which is stored in xd->seg_mask. Hence, the predictor is populated for
+    // all planes. This should avoid usage of incorrect segment mask when the
+    // call is made only for chroma.
+    const int skip_luma_plane =
+        skip_build_pred == INTERP_SKIP_LUMA_EVAL_CHROMA &&
+        mbmi->interinter_comp.type != COMPOUND_DIFFWTD;
+    const int start_plane = skip_luma_plane ? AVM_PLANE_U : AVM_PLANE_Y;
     av2_enc_build_inter_predictor(cm, xd, mi_row, mi_col, env->orig_dst, bsize,
-                                  0, av2_num_planes(cm) - 1);
+                                  start_plane, av2_num_planes(cm) - 1);
   }
 
   // So far we did not make prediction for WARPMV mode
-  assert(IMPLIES(mbmi->mode == WARPMV, skip_build_pred != 1));
+  assert(IMPLIES(mbmi->mode == WARPMV,
+                 skip_build_pred == INTERP_EVAL_LUMA_EVAL_CHROMA));
 
   int rate2_nocoeff = rd_stats->rate;
   assert(IMPLIES(mbmi->mode == WARPMV,
