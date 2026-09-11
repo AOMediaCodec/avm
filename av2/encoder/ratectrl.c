@@ -302,16 +302,12 @@ int av2_rc_get_default_max_gf_interval(double framerate, int min_gf_interval) {
 void av2_rc_init(const AV2EncoderConfig *oxcf, int pass, RATE_CONTROL *rc) {
   const RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
   int i;
+  (void)pass;
 
-  if (pass == 0 && rc_cfg->mode == AVM_CBR) {
-    rc->avg_frame_qindex[KEY_FRAME] = rc_cfg->worst_allowed_q;
-    rc->avg_frame_qindex[INTER_FRAME] = rc_cfg->worst_allowed_q;
-  } else {
-    rc->avg_frame_qindex[KEY_FRAME] =
-        (rc_cfg->worst_allowed_q + rc_cfg->best_allowed_q) / 2;
-    rc->avg_frame_qindex[INTER_FRAME] =
-        (rc_cfg->worst_allowed_q + rc_cfg->best_allowed_q) / 2;
-  }
+  rc->avg_frame_qindex[KEY_FRAME] =
+      (rc_cfg->worst_allowed_q + rc_cfg->best_allowed_q) / 2;
+  rc->avg_frame_qindex[INTER_FRAME] =
+      (rc_cfg->worst_allowed_q + rc_cfg->best_allowed_q) / 2;
 
   rc->last_q[KEY_FRAME] = rc_cfg->best_allowed_q;
   rc->last_q[INTER_FRAME] = rc_cfg->worst_allowed_q;
@@ -421,6 +417,9 @@ static int adjust_q_cbr(const AV2_COMP *cpi, int q, int active_worst_quality) {
     }
     // Limit the decrease in Q from previous frame.
     if (rc->q_1_frame - q > max_delta) q = rc->q_1_frame - max_delta;
+    if (rc->buffer_level > (rc->optimal_buffer_level >> 3)) {
+      if (q - rc->q_1_frame > max_delta) q = rc->q_1_frame + max_delta;
+    }
   }
   // For single spatial layer: if resolution has increased push q closer
   // to the active_worst to avoid excess overshoot.
@@ -803,8 +802,7 @@ static int calc_active_worst_quality_no_stats_cbr(const AV2_COMP *cpi) {
   active_worst_quality = AVMMIN(rc->worst_quality, ambient_qp * 5 / 4);
   if (rc->buffer_level > rc->optimal_buffer_level) {
     // Adjust down.
-    // Maximum limit for down adjustment, ~30%.
-    int max_adjustment_down = active_worst_quality / 3;
+    int max_adjustment_down = (active_worst_quality - rc->best_quality) / 2;
     if (max_adjustment_down) {
       buff_lvl_step = ((rc->maximum_buffer_size - rc->optimal_buffer_level) /
                        max_adjustment_down);
@@ -818,7 +816,9 @@ static int calc_active_worst_quality_no_stats_cbr(const AV2_COMP *cpi) {
     if (critical_level) {
       buff_lvl_step = (rc->optimal_buffer_level - critical_level);
       if (buff_lvl_step) {
-        adjustment = (int)((rc->worst_quality - ambient_qp) *
+        int max_adjustment_up =
+            AVMMIN(32, (rc->worst_quality - ambient_qp) / 2);
+        adjustment = (int)(max_adjustment_up *
                            (rc->optimal_buffer_level - rc->buffer_level) /
                            buff_lvl_step);
       }
@@ -891,6 +891,19 @@ static int calc_active_best_quality_no_stats_cbr(const AV2_COMP *cpi,
       active_best_quality = rtc_minq[rc->avg_frame_qindex[frame_type]];
     else
       active_best_quality = rtc_minq[active_worst_quality];
+  }
+  if (rc->buffer_level > rc->optimal_buffer_level) {
+    int max_adjustment_down = (active_best_quality - rc->best_quality) / 2;
+    if (max_adjustment_down) {
+      int64_t buff_lvl_step =
+          ((rc->maximum_buffer_size - rc->optimal_buffer_level) /
+           max_adjustment_down);
+      if (buff_lvl_step) {
+        int adjustment = (int)((rc->buffer_level - rc->optimal_buffer_level) /
+                               buff_lvl_step);
+        active_best_quality -= adjustment;
+      }
+    }
   }
   return active_best_quality;
 }
@@ -2083,7 +2096,7 @@ int av2_calc_pframe_target_size_one_pass_cbr(
     // Increase the target bandwidth for this frame.
     const int pct_high =
         (int)AVMMIN(-diff / one_pct_bits, rc_cfg->over_shoot_pct);
-    target += (target * pct_high) / 200;
+    target += (target * pct_high) / 100;
   }
   if (rc_cfg->max_inter_bitrate_pct) {
     const int max_rate =
@@ -2097,9 +2110,8 @@ int av2_calc_iframe_target_size_one_pass_cbr(const AV2_COMP *cpi) {
   const RATE_CONTROL *rc = &cpi->rc;
   int target;
   if (cpi->common.current_frame.frame_number == 0) {
-    target = ((rc->starting_buffer_level / 2) > INT_MAX)
-                 ? INT_MAX
-                 : (int)(rc->starting_buffer_level / 2);
+    const int64_t initial_target = rc->starting_buffer_level * 7 / 2;
+    target = (initial_target > INT_MAX) ? INT_MAX : (int)initial_target;
   } else {
     int kf_boost = 32;
     double framerate = cpi->framerate;
