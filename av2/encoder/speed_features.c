@@ -753,6 +753,7 @@ static void set_rt_speed_features_framesize_independent(
     sf->rt_sf.use_only_dc_intra_interframe = true;
     sf->winner_mode_sf.tx_size_search_level = USE_FAST_RD;
     sf->tx_sf.restrict_tx_partition_type_search = 3;
+    sf->tx_sf.enable_tx_partition = true;
   }
 }
 
