@@ -662,6 +662,7 @@ static void set_good_speed_features_framesize_independent(
   }
 
   if (speed >= 5) {
+    sf->intra_sf.intra_mode_prune_top = 2;
     sf->part_sf.simple_motion_search_prune_agg = 3;
     sf->inter_sf.disable_interinter_wedge = 1;
     sf->inter_sf.prune_inter_modes_if_skippable = 1;
