@@ -113,6 +113,9 @@ static const arg_def_t verifyarg =
     ARG_DEF(NULL, "verify", 1,
             "Use Decoded Frame Hash Metadata to verify integrity of decoded "
             "frames (off, fatal, warn)");
+static const arg_def_t checkconformancearg =
+    ARG_DEF(NULL, "check-conformance", 1,
+            "Check decoder-model conformance (off, warn, fatal)");
 static const arg_def_t framestatsarg =
     ARG_DEF(NULL, "framestats", 1, "Output per-frame stats (.csv format)");
 static const arg_def_t outbitdeptharg =
@@ -159,6 +162,7 @@ static const arg_def_t *all_args[] = { &help,
                                        &fb_arg,
                                        &md5arg,
                                        &verifyarg,
+                                       &checkconformancearg,
                                        &framestatsarg,
                                        &continuearg,
                                        &outbitdeptharg,
@@ -654,6 +658,8 @@ static int main_loop(int argc, const char **argv_) {
   int frame_in = 0, frame_out = 0, flipuv = 0, noblit = 0;
   int do_md5 = 0, progress = 0;
   int do_verify = 0, error_on_verify = 0;
+  avm_decoder_model_check_mode_t decoder_model_check_mode =
+      AVM_DECODER_MODEL_CHECK_OFF;
   int stop_after = 0, summary = 0, quiet = 1;
   int arg_skip = 0;
   int num_streams = 1;
@@ -812,6 +818,16 @@ static int main_loop(int argc, const char **argv_) {
         error_on_verify = 1;
       } else if (strcmp(arg.val, "off"))
         die("Error: Invalid argument for --verify (%s).\n", arg.val);
+    } else if (arg_match(&arg, &checkconformancearg, argi)) {
+      if (!strcmp(arg.val, "warn")) {
+        decoder_model_check_mode = AVM_DECODER_MODEL_CHECK_WARN;
+      } else if (!strcmp(arg.val, "fatal")) {
+        decoder_model_check_mode = AVM_DECODER_MODEL_CHECK_FATAL;
+      } else if (!strcmp(arg.val, "off")) {
+        decoder_model_check_mode = AVM_DECODER_MODEL_CHECK_OFF;
+      } else {
+        die("Error: Invalid argument for --check-conformance (%s).\n", arg.val);
+      }
     } else if (arg_match(&arg, &framestatsarg, argi)) {
       framestats_file = fopen(arg.val, "w");
       if (!framestats_file) {
@@ -1004,6 +1020,13 @@ static int main_loop(int argc, const char **argv_) {
 
   if (!quiet) fprintf(stderr, "%s\n", decoder.name);
 
+  if (AVM_CODEC_CONTROL_TYPECHECKED(&decoder, AV2D_SET_DECODER_MODEL_CHECK_MODE,
+                                    decoder_model_check_mode)) {
+    fprintf(stderr, "Failed to set decoder-model conformance mode: %s\n",
+            avm_codec_error(&decoder));
+    goto fail;
+  }
+
   // Only set selected OPS when explicitly requested via --select-ops.
   // Setting it to 0,0 by default enables sub-bitstream extraction (SBE),
   // which can incorrectly filter out frame OBUs in multi-layer bitstreams
@@ -1096,13 +1119,19 @@ static int main_loop(int argc, const char **argv_) {
 
         avm_usec_timer_start(&timer);
 
-        if (avm_codec_decode(&decoder, buf, bytes_in_buffer, NULL)) {
+        const avm_codec_err_t decode_status =
+            avm_codec_decode(&decoder, buf, bytes_in_buffer, NULL);
+        if (decode_status != AVM_CODEC_OK) {
           const char *detail = avm_codec_error_detail(&decoder);
           warn("Failed to decode frame %d: %s", frame_in,
                avm_codec_error(&decoder));
 
           if (detail) warn("Additional information: %s", detail);
-          if (!keep_going) goto fail;
+          if (!keep_going ||
+              (detail != NULL &&
+               !strcmp(detail, "Decoder model conformance violation"))) {
+            goto fail;
+          }
         }
 
         if (framestats_file) {

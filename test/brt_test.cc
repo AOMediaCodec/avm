@@ -16,6 +16,7 @@
 
 #include "av2/encoder/brt_syntax.h"
 #include "av2/decoder/decoder.h"
+#include "av2/decoder/decoder_model.h"
 #include "av2/decoder/decodeframe.h"
 extern "C" {
 #include "av2/decoder/obu.h"
@@ -59,6 +60,8 @@ class BrtTest : public ::testing::Test {
 };
 
 TEST_F(BrtTest, NonOpsDependent) {
+  av2_decoder_model_verifier_init(pbi_);
+  ASSERT_NE(pbi_->decoder_model_verifier, nullptr);
   BufferRemovalTimingInfo src;
   memset(&src, 0, sizeof(src));
   src.br_ops_dependent_flag = 0;
@@ -74,6 +77,11 @@ TEST_F(BrtTest, NonOpsDependent) {
 
   EXPECT_EQ(pbi_->common.brt_info.br_ops_dependent_flag, 0);
   EXPECT_EQ(pbi_->common.brt_info.br_time, 42);
+
+  Av2DmVerifierStats stats;
+  ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
+  EXPECT_EQ(stats.event_count, 1u);
+  av2_decoder_model_verifier_destroy(pbi_);
 }
 
 TEST_F(BrtTest, OpsDependentWithModel) {

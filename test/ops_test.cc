@@ -16,6 +16,7 @@
 
 #include "av2/encoder/ops_syntax.h"
 #include "av2/decoder/decoder.h"
+#include "av2/decoder/decoder_model.h"
 #include "av2/decoder/decodeframe.h"
 #include "avm_dsp/bitwriter_buffer.h"
 #include "avm_dsp/bitreader_buffer.h"
@@ -63,6 +64,8 @@ class OpsTest : public ::testing::Test {
 };
 
 TEST_F(OpsTest, LocalOpsRoundtrip) {
+  av2_decoder_model_verifier_init(pbi_);
+  ASSERT_NE(pbi_->decoder_model_verifier, nullptr);
   const int xlayer_id = 0;
   OperatingPointSet src;
   av2_set_ops_params(&src, xlayer_id, 0, 1);
@@ -98,6 +101,40 @@ TEST_F(OpsTest, LocalOpsRoundtrip) {
   EXPECT_EQ(dop->ops_mlayer_count[xlayer_id], 2);
   EXPECT_EQ(dop->mlayer_info.ops_mlayer_map[xlayer_id], 0x3);
   EXPECT_EQ(dop->mlayer_info.OPMLayerCount[xlayer_id], 2);
+
+  Av2DmVerifierStats stats;
+  ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
+  EXPECT_EQ(stats.contexts, 1u);
+  av2_decoder_model_verifier_destroy(pbi_);
+}
+
+TEST_F(OpsTest, DecoderModelLevelPairRoundtripsThroughOpsSyntax) {
+  const int xlayer_id = 0;
+  const int levels[] = { SEQ_LEVEL_3_0, SEQ_LEVEL_2_1 };
+
+  for (int ops_id = 0; ops_id < 2; ++ops_id) {
+    OperatingPointSet src;
+    av2_set_ops_params(&src, xlayer_id, ops_id, 1);
+    src.ops_ptl_present_flag = 1;
+    OperatingPoint *const op = &src.op[0];
+    op->ops_seq_profile_idc[xlayer_id] = MAIN_420_10_IP0;
+    op->ops_level_idx[xlayer_id] = levels[ops_id];
+    op->ops_mlayer_count[xlayer_id] = 1;
+    op->mlayer_info.ops_mlayer_map[xlayer_id] = 1;
+    op->mlayer_info.ops_tlayer_map[xlayer_id][0] = 1;
+
+    memset(buf_, 0, sizeof(buf_));
+    const uint32_t written = write_ops_obu(&src, xlayer_id, buf_);
+    ASSERT_GT(written, 0u);
+    struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
+                                      rb_error_handler };
+    ASSERT_EQ(av2_read_operating_point_set_obu(pbi_, xlayer_id, &rb), written);
+
+    const OperatingPointSet *const parsed = &pbi_->ops_list[xlayer_id][ops_id];
+    ASSERT_TRUE(parsed->valid);
+    ASSERT_EQ(parsed->ops_cnt, 1);
+    EXPECT_EQ(parsed->op[0].ops_level_idx[xlayer_id], levels[ops_id]);
+  }
 }
 
 TEST_F(OpsTest, LocalOpsDefaultParams) {
@@ -119,6 +156,7 @@ TEST_F(OpsTest, LocalOpsDefaultParams) {
   EXPECT_EQ(dst->ops_cnt, 1);
   EXPECT_EQ(dst->ops_ptl_present_flag, 0);
   EXPECT_EQ(dst->ops_color_info_present_flag, 0);
+  EXPECT_FALSE(dst->op[0].ops_initial_display_delay_present_flag);
   EXPECT_EQ(dst->op[0].ops_initial_display_delay, BUFFER_POOL_MAX_SIZE);
 }
 
@@ -165,6 +203,7 @@ TEST_F(OpsTest, LocalOpsDisplayDelay) {
   ASSERT_EQ(read, written);
 
   const OperatingPointSet *dst = &pbi_->ops_list[xlayer_id][0];
+  EXPECT_TRUE(dst->op[0].ops_initial_display_delay_present_flag);
   EXPECT_EQ(dst->op[0].ops_initial_display_delay, 4);
 }
 
