@@ -38,3 +38,8 @@ venv/
 # ...but the CTC Excel templates in bin/ are required inputs -- Config.py
 # selects one of these per ctc_version. Keep them tracked.
 !tools/convexhull_framework/bin/*.xlsm
+
+# Local AI-assistant context files. Keep these out of the repository.
+CLAUDE.md
+AGENTS.md
+.claude/

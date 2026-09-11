@@ -19,6 +19,7 @@ This guide provides instructions for running AV2 Common Test Conditions (CTC) (h
 11. [Perceptual Metrics (LPIPS, DISTS, ColorVideoVDP)](#perceptual-metrics-lpips-dists-colorvideovdp)
 12. [Common Workflows](#common-workflows)
 13. [Troubleshooting](#troubleshooting)
+14. [Notes for Maintainers](#notes-for-maintainers)
 
 ---
 
@@ -1940,6 +1941,76 @@ need to be re-run.
 > **Important**: `CheckEncoding.py` reads its paths from module-level constants at the top
 > of the file (`root_path`, `decoder`, and the `*_cmd_log_file` names), **not** from
 > `config.yaml`. Edit those constants to match your test run before using it.
+
+---
+
+## Notes for Maintainers
+
+This section covers things that are easy to get wrong when *changing* the framework
+rather than using it. Everything above describes normal operation.
+
+### `AV2CTCProgress.WriteSheet` maps CSV to `.xlsm` by absolute column index
+
+`WriteSheet` copies the RD CSV into the CWG workbook positionally (`if col >= 12 and
+col <= 30`), and the template layout is fixed: `Bitrate` is column 12, the quality
+metrics start at 13, and `EncT[s]` is column 26. **Inserting a column into the RD CSV
+shifts every later field and silently corrupts the workbooks** — no error is raised.
+
+The perceptual metrics sit mid-row, so `WriteSheet` strips them before filling a sheet.
+If you add another column, either append it after `DecMD5` or add it to that strip list.
+
+Regression check: generate a workbook and confirm `EncT[s]` is still in column 26.
+
+### `BD_RATE` assumes higher is better
+
+`CalcBDRate.BD_RATE` sorts by quality ascending and requires bitrate to be
+non-decreasing. For a lower-is-better metric (LPIPS, DISTS) you must pass
+`lower_is_better=True`, which flips that check. Without it the curve is rejected and
+the BD-rate is silently recorded as `0.0` — it does not raise.
+
+`AV2CTCProgress.qtys` and `GetQty` must stay in step; `GetQty` ends in `assert 0`, so
+an unmapped metric name is a hard failure.
+
+### VMAF has three naming layers for the same metric
+
+| Name | Where it is used |
+|------|------------------|
+| `VMAF_Y-NEG` | RD CSV column — libvmaf's own naming, baked into the committed `ctc_result/` data |
+| `vmaf_neg` | BD-rate key and `Bdrate-Summary` column |
+| `vmaf_y_neg` | `Record` attribute |
+
+These cannot be unified: the first is pinned by committed data and the last by Python
+identifier rules. `CalcBDRate.VMAF_METRIC_NAMES` is the single place that lists them.
+
+### New CSV columns must be read with `data.get(name, "")`
+
+`ParseCSVFile` uses `DictReader`, so column order in the CSV does not affect parsing.
+What does matter is that the argument order in the `Record(...)` call matches
+`Record.__init__` — both are kept in RD CSV order so they can be compared by eye, so do
+not reorder one without the other.
+
+Use `data.get(name, "")` rather than `data[name]` for any newly added column: the 20
+committed result directories under `ctc_result/` predate recent columns and will raise
+a `KeyError` otherwise.
+
+### Verifying a change
+
+There is no automated test suite. What actually catches regressions:
+
+1. **No-op check.** With a feature disabled, the generated CSV header must be
+   byte-identical to a committed one under `ctc_result/`.
+2. **BD-rate regression.** Recompute over the real `ctc_result` data and diff per
+   column; pre-existing metrics should be bit-identical. The BD-rate stage alone takes
+   ~1 min; the full script takes ~10 min because of PDF rendering.
+3. **Excel column check.** `EncT[s]` in column 26 of a generated `.xlsm`.
+4. **Cluster shape.** Run with `--LogCmdOnly 1` and confirm the command appears in
+   `test/cmdLogs/<cfg>/<job>.sh`. Work implemented as direct in-process Python runs on
+   the submitting host during command generation and never reaches the cluster —
+   anything expensive must go through `Utils.ExecuteCmd`.
+
+`AV2CTCProgress.py` rewrites files in `ctc_result/`, which is tracked. Revert them
+(`git checkout -- ctc_result/`) after a verification run unless the new numbers are the
+point.
 
 ---
 
