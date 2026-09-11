@@ -3003,7 +3003,7 @@ static AVM_INLINE void setup_gdf(AV2_COMMON *cm,
     cm->gdf_info.gdf_mode = avm_rb_read_bit(rb);
   }
   if (cm->gdf_info.gdf_mode > 0) {
-    alloc_gdf_buffers(&cm->gdf_info);
+    alloc_gdf_buffers(&cm->gdf_info, cm->cur_frame->buf.y_width);
     if (cm->gdf_info.gdf_block_num > 1) {
       cm->gdf_info.gdf_mode += avm_rb_read_bit(rb);
     }
