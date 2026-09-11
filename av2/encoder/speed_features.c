@@ -419,6 +419,8 @@ static void set_good_speed_features_framesize_independent(
     // Predictive single-ref NEWMV reuse across the DRL.
     sf->mv_sf.predict_repeated_newmv = 1;
     sf->inter_sf.enable_six_param_warp_in_winner_mode = 1;
+    sf->inter_sf.enable_six_param_warp_in_winner_mode_by_tid =
+        cm->current_frame.pyramid_level >= 3 ? 1 : 0;
 
     // Cap the DRL depth for a fresh single-ref NEWMV search; reuse the
     // nearest searched result beyond the cap.
@@ -699,14 +701,14 @@ static void set_good_speed_features_framesize_independent(
     sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 4 : 6;
 
     sf->winner_mode_sf.multi_winner_mode_type = MULTI_WINNER_MODE_OFF;
+
+    sf->inter_sf.enable_four_param_warp_in_winner_mode = 1;
+    sf->inter_sf.enable_six_param_warp_in_winner_mode_by_tid = 1;
   }
 
-  if (enable_warp_search_in_winner_mode(&sf->inter_sf))
+  if (enable_warp_search_in_winner_mode(&sf->inter_sf)) {
     sf->winner_mode_sf.motion_mode_for_winner_cand = 2;
-
-  if (sf->inter_sf.enable_six_param_warp_in_winner_mode) {
-    sf->inter_sf.enable_six_param_warp_in_winner_mode_by_tid =
-        cm->current_frame.pyramid_level >= 3 ? 1 : 0;
+    if (speed == 6) sf->winner_mode_sf.motion_mode_for_winner_cand = 3;
   }
 }
 
