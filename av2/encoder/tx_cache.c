@@ -11,41 +11,72 @@
  */
 
 #include <assert.h>
+#include <string.h>
 
 #include "avm/avm_integer.h"
 #include "av2/encoder/tx_cache.h"
 
-static AVM_INLINE uint64_t tx_cache_fold(uint64_t h, uint64_t v) {
+#if defined(__clang__) && defined(__has_attribute)
+#if __has_attribute(no_sanitize)
+#define AVM_NO_UNSIGNED_OVERFLOW_CHECK \
+  __attribute__((no_sanitize("unsigned-integer-overflow")))
+#endif
+#endif
+
+#ifndef AVM_NO_UNSIGNED_OVERFLOW_CHECK
+#define AVM_NO_UNSIGNED_OVERFLOW_CHECK
+#endif
+
+AVM_NO_UNSIGNED_OVERFLOW_CHECK static AVM_INLINE uint64_t
+tx_cache_fold(uint64_t h, uint64_t v) {
   h ^= v;
   h *= 1099511628211ULL;
   return h;
 }
 
-// FNV-1a over the residual, the quantizer and the entropy contexts.
-uint64_t av2_tx_cache_hash(const int16_t *residual, int stride, int tx_w,
-                           int tx_h, int qindex, int txb_skip_ctx,
-                           int dc_sign_ctx) {
+static AVM_INLINE uint32_t crc32c_u64_c(uint32_t crc, uint64_t v) {
+  for (int i = 0; i < 64; ++i) {
+    const uint32_t bit = (crc ^ (uint32_t)v) & 1u;
+    crc >>= 1;
+    if (bit) crc ^= 0x82F63B78u;
+    v >>= 1;
+  }
+  return crc;
+}
+
+// Dual-stream CRC-32C over the residual, the quantizer and the entropy
+// contexts.
+uint64_t av2_tx_cache_hash_c(const int16_t *residual, int stride, int tx_w,
+                             int tx_h, int qindex, int txb_skip_ctx,
+                             int dc_sign_ctx) {
   assert(stride >= tx_w);  // else rows overlap and distinct residuals alias
-  uint64_t h = 1469598103934665603ULL;
+  assert((tx_w & 3) == 0);
+  uint32_t crc_lo = 0xFFFFFFFFu;
+  uint32_t crc_hi = 0x9E3779B9u;
   for (int r = 0; r < tx_h; ++r) {
     const int16_t *row = residual + (size_t)r * stride;
-    for (int c = 0; c < tx_w; ++c) {
-      // uint16_t first: same width, but stops sign extension smearing bits.
-      h = tx_cache_fold(h, (uint64_t)(uint16_t)row[c]);
+    for (int c = 0; c < tx_w; c += 4) {
+      uint64_t v;
+      memcpy(&v, &row[c], sizeof(v));
+      crc_lo = crc32c_u64_c(crc_lo, v);
+      crc_hi = crc32c_u64_c(crc_hi, v ^ 0xA5A5A5A5A5A5A5A5ULL);
     }
   }
-  h = tx_cache_fold(h, ((uint64_t)qindex << 32) |
-                           ((uint64_t)txb_skip_ctx << 16) | dc_sign_ctx);
-  return tx_cache_fold(h, ((uint64_t)tx_w << 32) | tx_h);
+  const uint64_t meta0 = ((uint64_t)qindex << 32) |
+                         ((uint64_t)txb_skip_ctx << 16) | (uint32_t)dc_sign_ctx;
+  const uint64_t meta1 = ((uint64_t)tx_w << 32) | (uint32_t)tx_h;
+  crc_lo = crc32c_u64_c(crc_lo, meta0);
+  crc_hi = crc32c_u64_c(crc_hi, meta1);
+  return ((uint64_t)crc_hi << 32) | crc_lo;
 }
 
 // Fold in the rest of the state that can flip which candidate wins. Only
 // bounded fields are bit-packed; unbounded ones are folded separately so they
 // cannot alias. The superblock coordinates are zero: the key is frame-scoped.
-uint64_t av2_tx_cache_mix(uint64_t h, uint32_t sb_row, uint32_t sb_col,
-                          int is_inter, int is_fsc, int intra_mode,
-                          int rd_model, int skip_trellis, int tx_set_type,
-                          int use_qmatrix, int rdmult) {
+AVM_NO_UNSIGNED_OVERFLOW_CHECK uint64_t
+av2_tx_cache_mix(uint64_t h, uint32_t sb_row, uint32_t sb_col, int is_inter,
+                 int is_fsc, int intra_mode, int rd_model, int skip_trellis,
+                 int tx_set_type, int use_qmatrix, int rdmult) {
   const uint32_t flags = ((is_inter != 0) << 0) | ((is_fsc != 0) << 1) |
                          ((skip_trellis != 0) << 2) |
                          ((use_qmatrix != 0) << 3) | ((rd_model & 0xF) << 4) |
@@ -57,6 +88,8 @@ uint64_t av2_tx_cache_mix(uint64_t h, uint32_t sb_row, uint32_t sb_col,
   h ^= h >> 31;
   return h ? h : 1;
 }
+
+#undef AVM_NO_UNSIGNED_OVERFLOW_CHECK
 
 // Cached winning tx_type for this frame, or -1 on a miss. A never-written slot
 // (tag 0) ends the probe: no store for this frame can have walked past it.

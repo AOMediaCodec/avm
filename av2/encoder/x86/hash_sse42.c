@@ -10,8 +10,13 @@
  * aomedia.org/license/patent-license/.
  */
 
+#include <assert.h>
 #include <stdint.h>
+#include <string.h>
 #include <smmintrin.h>
+
+#include "avm/avm_integer.h"
+#include "config/av2_rtcd.h"
 
 // Byte-boundary alignment issues
 #define ALIGN_SIZE 8
@@ -49,4 +54,37 @@ uint32_t av2_get_crc32c_value_sse4_2(void *crc_calculator, uint8_t *p,
   CALC_CRC(_mm_crc32_u16, crc, uint16_t, buf, len);
   CALC_CRC(_mm_crc32_u8, crc, uint8_t, buf, len);
   return (crc ^ 0xFFFFFFFF);
+}
+
+static AVM_INLINE uint32_t crc32c_u64_sse42(uint32_t crc, uint64_t v) {
+#ifdef __x86_64__
+  return (uint32_t)_mm_crc32_u64(crc, v);
+#else
+  crc = _mm_crc32_u32(crc, (uint32_t)v);
+  return _mm_crc32_u32(crc, (uint32_t)(v >> 32));
+#endif
+}
+
+uint64_t av2_tx_cache_hash_sse4_2(const int16_t *residual, int stride, int tx_w,
+                                  int tx_h, int qindex, int txb_skip_ctx,
+                                  int dc_sign_ctx) {
+  assert(stride >= tx_w);
+  assert((tx_w & 3) == 0);
+  uint32_t crc_lo = 0xFFFFFFFFu;
+  uint32_t crc_hi = 0x9E3779B9u;
+  for (int r = 0; r < tx_h; ++r) {
+    const int16_t *row = residual + (size_t)r * stride;
+    for (int c = 0; c < tx_w; c += 4) {
+      uint64_t v;
+      memcpy(&v, &row[c], sizeof(v));
+      crc_lo = crc32c_u64_sse42(crc_lo, v);
+      crc_hi = crc32c_u64_sse42(crc_hi, v ^ 0xA5A5A5A5A5A5A5A5ULL);
+    }
+  }
+  const uint64_t meta0 = ((uint64_t)qindex << 32) |
+                         ((uint64_t)txb_skip_ctx << 16) | (uint32_t)dc_sign_ctx;
+  const uint64_t meta1 = ((uint64_t)tx_w << 32) | (uint32_t)tx_h;
+  crc_lo = crc32c_u64_sse42(crc_lo, meta0);
+  crc_hi = crc32c_u64_sse42(crc_hi, meta1);
+  return ((uint64_t)crc_hi << 32) | crc_lo;
 }

@@ -1547,8 +1547,7 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
 
   // Speed 1 and fine quantizers only; assigned, not cleared, because this
   // function runs per frame while the framesize-independent pass does not.
-  sf->tx_sf.use_tx_result_cache = (cpi->oxcf.mode == GOOD && speed == 1 &&
-                                   cpi->oxcf.rc_cfg.qp < 210 + qindex_offset);
+  sf->tx_sf.use_tx_result_cache = cpi->oxcf.mode == GOOD && speed >= 1;
 
   if (cpi->oxcf.mode == GOOD && speed == 0) {
     const int qindex_thresh = 124 + qindex_offset;

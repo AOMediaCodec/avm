@@ -20,6 +20,8 @@
 
 #include <stdint.h>
 
+#include "config/av2_rtcd.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -44,13 +46,6 @@ typedef struct {
 typedef struct {
   TxCacheEntry entries[TX_CACHE_SIZE];
 } TxCache;
-
-/*! Hashes the residual, the quantizer and the entropy contexts into the seed
- *  of a cache key.
- */
-uint64_t av2_tx_cache_hash(const int16_t *residual, int stride, int tx_w,
-                           int tx_h, int qindex, int txb_skip_ctx,
-                           int dc_sign_ctx);
 
 /*! Folds the remaining state that can flip which candidate wins into the seed
  *  \c h and returns the final, never-zero cache key.
