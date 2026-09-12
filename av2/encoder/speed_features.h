@@ -482,7 +482,12 @@ typedef struct PARTITION_SPEED_FEATURES {
   // Force the max partition-block aspect ratio
   unsigned int force_max_pb_aspect_ratio;
 
-  bool prune_by_struct_orient;
+  // Prune rectangular and extended partitions based on structure orientation
+  // of the source signal.
+  // 0: disabled
+  // 1: standard (size-graded anisotropy with GOP temporal layer protection)
+  // 2: unblunted (prunes across all GOP temporal layers for 4K at speed >= 6)
+  int prune_by_struct_orient;
 } PARTITION_SPEED_FEATURES;
 
 // True when the two-pass superblock partition search runs at all.

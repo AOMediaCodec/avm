@@ -3755,10 +3755,17 @@ static AVM_INLINE void prune_partitions_by_structure_orientation(
   // meaningful, and the partitions are cheap to evaluate anyway.
   if (block_size_wide[bsize] < 16 || block_size_high[bsize] < 16) return;
 
-  const uint64_t frame_scaled = orientation_anisotropy_for_frame(cpi, 1);
-  if (frame_scaled == 0) return;
-  const uint64_t anisotropy =
-      orientation_anisotropy_for_bsize(bsize, base_anisotropy) * frame_scaled;
+  uint64_t anisotropy;
+  if (cpi->sf.part_sf.prune_by_struct_orient >= 2) {
+    // Level 2 (unblunted mode for 4K at speed >= 6): prune across all frames
+    // regardless of temporal layer depth (patch 0006d).
+    anisotropy = base_anisotropy;
+  } else {
+    const uint64_t frame_scaled = orientation_anisotropy_for_frame(cpi, 1);
+    if (frame_scaled == 0) return;
+    anisotropy =
+        orientation_anisotropy_for_bsize(bsize, base_anisotropy) * frame_scaled;
+  }
 
   if (!part_search_state->src_var_valid)
     compute_source_profile_variance(x, bsize, part_search_state);
