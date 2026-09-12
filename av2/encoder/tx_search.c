@@ -2048,8 +2048,10 @@ static INLINE void predict_dc_only_block(
   uint64_t var_threshold = (uint64_t)(1.8 * qstep * qstep);
   block_var = ROUND_POWER_OF_TWO(block_var, (xd->bd - 8) * 2);
   // Early prediction of skip block if residual mean and variance are less
-  // than qstep based threshold
-  if ((((llabs(*per_px_mean) * dc_coeff_scale[tx_size]) < (dc_qstep << 12)) &&
+  // than qstep based threshold. Skip prediction is disabled at level 2.
+  const bool allow_skip_txfm = x->txfm_search_params.predict_dc_level != 2;
+  if (allow_skip_txfm &&
+      (((llabs(*per_px_mean) * dc_coeff_scale[tx_size]) < (dc_qstep << 12)) &&
        (block_var < var_threshold)) &&
       (!xd->lossless[xd->mi[0]->segment_id] || *block_sse == 0)) {
     // If the normalized mean of residual block is less than the dc qstep and
