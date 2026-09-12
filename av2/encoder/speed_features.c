@@ -660,6 +660,7 @@ static void set_good_speed_features_framesize_independent(
   }
 
   if (speed >= 5) {
+    sf->part_sf.prune_by_struct_orient = true;
     sf->part_sf.simple_motion_search_prune_agg = 3;
     sf->inter_sf.disable_interinter_wedge = 1;
     sf->inter_sf.prune_inter_modes_if_skippable = 1;
@@ -843,6 +844,7 @@ static AVM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
 
   part_sf->disable_extended_sdp = false;
   part_sf->force_max_pb_aspect_ratio = 0;
+  part_sf->prune_by_struct_orient = false;
 }
 
 static AVM_INLINE void init_mv_sf(MV_SPEED_FEATURES *mv_sf) {
