@@ -3839,8 +3839,7 @@ static RestSearchCtxt *alloc_rst_search_context(AV2_COMP *const cpi,
 
     ns_luma_stride = dgd->widths[AVM_PLANE_U] + 2 * WIENERNS_UV_BRD;
     luma_buf = wienerns_copy_luma_highbd(
-        cm, dgd->buffers[AVM_PLANE_Y], dgd->heights[AVM_PLANE_Y],
-        dgd->widths[AVM_PLANE_Y], dgd->strides[AVM_PLANE_Y], &luma,
+        cm, dgd->buffers[AVM_PLANE_Y], dgd->strides[AVM_PLANE_Y], &luma,
         dgd->heights[AVM_PLANE_U], dgd->widths[AVM_PLANE_U], WIENERNS_UV_BRD,
         ns_luma_stride);
 
