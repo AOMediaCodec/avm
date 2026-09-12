@@ -274,6 +274,10 @@ static void set_good_speed_feature_framesize_dependent(
     if (is_720p_or_larger) {
       sf->inter_sf.prune_ref_mv_idx_search = 2;
     }
+
+    if (is_4k_or_larger) {
+      sf->part_sf.prune_by_struct_orient = 2;
+    }
   }
   sf->part_sf.use_square_partition_only_threshold = BLOCK_LARGEST;
 }
