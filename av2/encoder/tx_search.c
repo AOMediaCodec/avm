@@ -3246,7 +3246,8 @@ static AVM_INLINE int skip_tx_partition_by_eval_type(
 // single partition trial.
 static AVM_INLINE void measure_residual_stationarity(
     const MACROBLOCK *x, BLOCK_SIZE plane_bsize, int blk_row, int blk_col,
-    TX_SIZE max_tx_size, int *stationary_rows, int *stationary_cols) {
+    TX_SIZE max_tx_size, int margin, int *stationary_rows,
+    int *stationary_cols) {
   *stationary_rows = 0;
   *stationary_cols = 0;
 
@@ -3298,9 +3299,9 @@ static AVM_INLINE void measure_residual_stationarity(
   }
 
   // max <= mean * (1 + 1/margin), written without division.
-  const uint64_t bound = mean * (TX_PART_STATIONARITY_MARGIN + 1);
-  *stationary_rows = (max_row * TX_PART_STATIONARITY_MARGIN <= bound);
-  *stationary_cols = (max_col * TX_PART_STATIONARITY_MARGIN <= bound);
+  const uint64_t bound = mean * (margin + 1);
+  *stationary_rows = (max_row * margin <= bound);
+  *stationary_cols = (max_col * margin <= bound);
 }
 
 // True when `type` cuts the block along an axis the residual is stationary on,
@@ -3396,8 +3397,10 @@ static void select_tx_partition_type(
 
     if (cpi->sf.tx_sf.prune_tx_part_stationarity && type != TX_PARTITION_NONE) {
       if (!stationarity_valid) {
+        const int margin =
+            cpi->oxcf.speed >= 5 ? 1 : TX_PART_STATIONARITY_MARGIN;
         measure_residual_stationarity(x, plane_bsize, blk_row, blk_col,
-                                      max_tx_size, &stationary_rows,
+                                      max_tx_size, margin, &stationary_rows,
                                       &stationary_cols);
         stationarity_valid = 1;
       }
