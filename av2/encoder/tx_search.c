@@ -2048,8 +2048,10 @@ static INLINE void predict_dc_only_block(
   uint64_t var_threshold = (uint64_t)(1.8 * qstep * qstep);
   block_var = ROUND_POWER_OF_TWO(block_var, (xd->bd - 8) * 2);
   // Early prediction of skip block if residual mean and variance are less
-  // than qstep based threshold
-  if ((((llabs(*per_px_mean) * dc_coeff_scale[tx_size]) < (dc_qstep << 12)) &&
+  // than qstep based threshold. Skip prediction is disabled at level 2.
+  const bool allow_skip_txfm = x->txfm_search_params.predict_dc_level != 2;
+  if (allow_skip_txfm &&
+      (((llabs(*per_px_mean) * dc_coeff_scale[tx_size]) < (dc_qstep << 12)) &&
        (block_var < var_threshold)) &&
       (!xd->lossless[xd->mi[0]->segment_id] || *block_sse == 0)) {
     // If the normalized mean of residual block is less than the dc qstep and
@@ -2685,6 +2687,21 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
                                    is_inter, primary_tx_type, stx, &eob_found,
                                    tx_sf->prune_intra_ist_stx_by_zero_eob)) {
           continue;
+        }
+        if (cpi->oxcf.speed >= 5) {
+          const int is_4k_or_larger = AVMMIN(cm->width, cm->height) >= 2160;
+          if (is_4k_or_larger && quant_param.use_optimize_b && !fsc_mode_in &&
+              *eob != 0 && best_rd != INT64_MAX && txw != 64 && txh != 64) {
+            const int pre_rate =
+                cost_coeffs(cm, x, plane, block, tx_size, tx_type, CCTX_NONE,
+                            txb_ctx, cm->features.reduced_tx_set_used);
+            int64_t pre_dist, pre_sse;
+            dist_block_tx_domain(x, plane, block, tx_size, &pre_dist, &pre_sse);
+            const int64_t pre_rd = RDCOST(x->rdmult, pre_rate, pre_dist);
+            if (pre_rd - (pre_rd >> 3) > best_rd) {
+              continue;
+            }
+          }
         }
         if (fsc_mode_in && quant_param.use_optimize_b) {
           av2_optimize_fsc(cpi, x, plane, block, tx_size, tx_type, txb_ctx,

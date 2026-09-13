@@ -1654,64 +1654,6 @@ static INLINE void make_wienerns_ds_luma(const uint16_t *src, int src_stride,
   }
 }
 
-static void wienerns_fill_luma_from_dgd(struct AV2Common *cm,
-                                        const uint16_t *dgd, int dgd_stride,
-                                        uint16_t *dst, int dst_stride,
-                                        int height_y, int width_y,
-                                        int height_uv, int width_uv) {
-  (void)height_y;
-  (void)width_y;
-  const int ss_y = cm->seq_params.subsampling_y;
-  const int ss_x = cm->seq_params.subsampling_x;
-#if WIENERNS_CROSS_FILT_LUMA_TYPE == 2
-  const int ds_type = cm->seq_params.cfl_ds_filter_index;
-#endif
-
-#if WIENERNS_CROSS_FILT_LUMA_TYPE == 0
-  for (int r = 0; r < height_uv; ++r) {
-    for (int c = 0; c < width_uv; ++c) {
-      dst[r * dst_stride + c] =
-          dgd[(1 + ss_y) * r * dgd_stride + (1 + ss_x) * c];
-    }
-  }
-#elif WIENERNS_CROSS_FILT_LUMA_TYPE == 1
-  if (ss_x && ss_y) {  // 420
-    for (int r = 0; r < height_uv; ++r) {
-      for (int c = 0; c < width_uv; ++c) {
-        dst[r * dst_stride + c] =
-            (dgd[2 * r * dgd_stride + 2 * c] +
-             dgd[2 * r * dgd_stride + 2 * c + 1] +
-             dgd[(2 * r + 1) * dgd_stride + 2 * c] +
-             dgd[(2 * r + 1) * dgd_stride + 2 * c + 1] + 2) >>
-            2;
-      }
-    }
-  } else if (ss_x && !ss_y) {  // 422
-    for (int r = 0; r < height_uv; ++r) {
-      for (int c = 0; c < width_uv; ++c) {
-        dst[r * dst_stride + c] = (dgd[r * dgd_stride + 2 * c] +
-                                   dgd[r * dgd_stride + 2 * c + 1] + 1) >>
-                                  1;
-      }
-    }
-  } else if (!ss_x && !ss_y) {  // 444
-    for (int r = 0; r < height_uv; ++r) {
-      for (int c = 0; c < width_uv; ++c) {
-        dst[r * dst_stride + c] = dgd[r * dgd_stride + c];
-      }
-    }
-  } else {
-    assert(0 && "Invalid subsampling format");
-  }
-#elif WIENERNS_CROSS_FILT_LUMA_TYPE == 2
-  make_wienerns_ds_luma(dgd, dgd_stride, dst, dst_stride, ds_type, height_uv,
-                        width_uv, ss_x, ss_y);
-#else
-  av2_highbd_resize_plane(dgd, height_y, width_y, dgd_stride, dst, height_uv,
-                          width_uv, dst_stride, cm->seq_params.bit_depth);
-#endif  // WIENERNS_CROSS_FILT_LUMA_TYPE
-}
-
 uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV2Common *cm,
                                                 uint16_t **luma_hbd) {
   const RestorationInfo *rsi = &cm->rst_info[AVM_PLANE_Y];
@@ -1780,9 +1722,10 @@ uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV2Common *cm,
           cm->rlbs, copy_above, copy_below, rsi->optimized_lr, 0);
       if (y0 > 0) curr_dgd -= WIENERNS_UV_BRD * in_stride << ss_y;
 
-      wienerns_fill_luma_from_dgd(
-          cm, curr_dgd, in_stride, curr_luma, resized_luma_stride,
-          h + (internal_rows << ss_y), width_y, h_uv, width_uv);
+      make_wienerns_ds_luma(curr_dgd, in_stride, curr_luma, resized_luma_stride,
+                            cm->seq_params.cfl_ds_filter_index, h_uv, width_uv,
+                            cm->seq_params.subsampling_x,
+                            cm->seq_params.subsampling_y);
 
       restore_processing_stripe_boundary(&remaining_stripes, cm->rlbs, h, dgd,
                                          in_stride, copy_above, copy_below,
@@ -1802,17 +1745,19 @@ uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV2Common *cm,
 }
 
 uint16_t *wienerns_copy_luma_highbd(struct AV2Common *cm, const uint16_t *dgd,
-                                    int height_y, int width_y, int in_stride,
-                                    uint16_t **luma_hbd, int height_uv,
-                                    int width_uv, int border, int out_stride) {
+                                    int in_stride, uint16_t **luma_hbd,
+                                    int height_uv, int width_uv, int border,
+                                    int out_stride) {
   uint16_t *ext_luma;
 
   CHECK_MEM_ERROR(cm, ext_luma,
                   avm_memalign(16, sizeof(uint16_t) * (width_uv + 2 * border) *
                                        (height_uv + 2 * border)));
   *luma_hbd = ext_luma + border * out_stride + border;
-  wienerns_fill_luma_from_dgd(cm, dgd, in_stride, *luma_hbd, out_stride,
-                              height_y, width_y, height_uv, width_uv);
+  make_wienerns_ds_luma(dgd, in_stride, *luma_hbd, out_stride,
+                        cm->seq_params.cfl_ds_filter_index, height_uv, width_uv,
+                        cm->seq_params.subsampling_x,
+                        cm->seq_params.subsampling_y);
   av2_extend_frame(*luma_hbd, width_uv, height_uv, out_stride, border, border);
 
   return ext_luma;

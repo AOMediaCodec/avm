@@ -119,9 +119,10 @@ static unsigned int predict_skip_levels[3][MODE_EVAL_TYPES] = { { 0, 0, 0 },
 // Values indicate the aggressiveness of skip flag prediction.
 // 0 : no early DC block prediction
 // 1 : Early DC block prediction based on error variance
-static unsigned int predict_dc_levels[3][MODE_EVAL_TYPES] = { { 0, 0, 0 },
-                                                              { 1, 1, 0 },
-                                                              { 1, 1, 1 } };
+// 2 : Same as 1, but disable skip prediction
+static unsigned int predict_dc_levels[4][MODE_EVAL_TYPES] = {
+  { 0, 0, 0 }, { 1, 1, 0 }, { 1, 1, 1 }, { 2, 2, 0 }
+};
 
 // Intra only frames, golden frames (except alt ref overlays) and
 // alt ref frames tend to be coded at a higher than ambient quality
@@ -185,7 +186,7 @@ static void set_good_speed_feature_framesize_dependent(
     if (!is_4k_or_larger) {
       sf->mv_sf.prune_mesh_search = 1;
     }
-    if (!is_270p_or_lesser) {
+    if (!is_270p_or_lesser && !cm->features.allow_screen_content_tools) {
       sf->part_sf.disable_uneven_4way_partitions = true;
     }
     sf->inter_sf.prune_ref_mv_idx_search = 1;
@@ -620,9 +621,6 @@ static void set_good_speed_features_framesize_independent(
     // Disabling it until it is fixed.
     // sf->inter_sf.prune_comp_using_best_single_mode_ref = 2;
 
-    sf->intra_sf.intra_uv_mode_mask[TX_16X16] = UV_INTRA_DC_H_V_CFL;
-    sf->intra_sf.intra_uv_mode_mask[TX_32X32] = UV_INTRA_DC_H_V_CFL;
-    sf->intra_sf.intra_uv_mode_mask[TX_64X64] = UV_INTRA_DC_H_V_CFL;
     sf->intra_sf.intra_y_mode_mask[TX_16X16] = INTRA_DC_H_V;
     sf->intra_sf.intra_y_mode_mask[TX_32X32] = INTRA_DC_H_V;
     sf->intra_sf.intra_y_mode_mask[TX_64X64] = INTRA_DC_H_V;
@@ -756,6 +754,7 @@ static void set_rt_speed_features_framesize_independent(
     sf->rt_sf.use_only_dc_intra_interframe = true;
     sf->winner_mode_sf.tx_size_search_level = USE_FAST_RD;
     sf->tx_sf.restrict_tx_partition_type_search = 3;
+    sf->tx_sf.enable_tx_partition = true;
   }
 }
 
@@ -1190,6 +1189,12 @@ void av2_set_speed_features_framesize_dependent(AV2_COMP *cpi, int speed) {
       cpi->common.seq_params.max_pb_aspect_ratio_log2_m1 =
           new_max_ratio == 2 ? 0 : (new_max_ratio == 4 ? 1 : 2);
     }
+  }
+
+  if (!cpi->seq_params_locked) {
+    cpi->common.seq_params.enable_uneven_4way_partitions =
+        oxcf->part_cfg.enable_uneven_4way_partitions &&
+        !sf->part_sf.disable_uneven_4way_partitions;
   }
 }
 
@@ -1644,4 +1649,14 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
   }
 
   set_two_pass_partition_level(cpi);
+
+  // Set the predict_dc level to { 2, 2, 0 } at speed 2 for high qindex frames.
+  if (speed == 2 && sf->winner_mode_sf.dc_blk_pred_level == 0) {
+    const int dc_blk_pred_qmin = 113 + qindex_offset;
+    if (cm->quant_params.base_qindex > dc_blk_pred_qmin) {
+      sf->winner_mode_sf.dc_blk_pred_level = 3;
+      memcpy(winner_mode_params->predict_dc_level, predict_dc_levels[3],
+             sizeof(winner_mode_params->predict_dc_level));
+    }
+  }
 }
