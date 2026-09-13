@@ -133,8 +133,8 @@ void test_gdf(int iterations, int height, int width, int depth, int qp_idx,
     for (uint16_t &i : rec) {
       i = clamp(rnd.Rand16() & ((1 << depth) - 1), 0, (1 << depth) - 1);
     }
-    alloc_gdf_buffers(&gi);
-    alloc_gdf_buffers(&ref_gi);
+    alloc_gdf_buffers(&gi, width);
+    alloc_gdf_buffers(&ref_gi, width);
     int top_buf = GDF_TEST_EXTRA_VER_BORDER;
     int bot_buf = GDF_TEST_EXTRA_VER_BORDER;
     const int rec_height = height;

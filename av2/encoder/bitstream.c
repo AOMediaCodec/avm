@@ -3076,55 +3076,46 @@ static AVM_INLINE void encode_restoration_mode(
         rsi->frame_restoration_type == RESTORE_SWITCHABLE;
     if (is_wiener_nonsep_possible) {
       rsi->frame_filters_initialized = 0;
-      if (is_frame_filters_enabled(p)) {
-        const int write_frame_filters_on_off = 1;
-        if (write_frame_filters_on_off) {
-          avm_wb_write_literal(wb, rsi->frame_filters_on, 1);
-          if (rsi->frame_filters_on) {
-            const int num_ref_frames =
-                (frame_is_intra_only(cm) || frame_is_sframe(cm))
-                    ? 0
-                    // NOTE: at the encoder num_total_refs may not include
-                    // restricted references
-                    : cm->ref_frames_info.num_valid_refs_with_restricted_ref;
+      avm_wb_write_literal(wb, rsi->frame_filters_on, 1);
+      if (rsi->frame_filters_on) {
+        const int num_ref_frames =
+            (frame_is_intra_only(cm) || frame_is_sframe(cm))
+                ? 0
+                // NOTE: at the encoder num_total_refs may not include
+                // restricted references
+                : cm->ref_frames_info.num_valid_refs_with_restricted_ref;
 
-            if (num_ref_frames > 0)
-              avm_wb_write_bit(wb, rsi->temporal_pred_flag);
-            if (rsi->temporal_pred_flag) {
-              assert(cm->ref_frames_info.num_total_refs > 0);
-            }
-            if (rsi->temporal_pred_flag && num_ref_frames > 1)
-              avm_wb_write_literal(
-                  wb, rsi->rst_ref_pic_idx,
-                  avm_ceil_log2(num_ref_frames));  // write_lr_reference_idx
-          }
-          if (!rsi->temporal_pred_flag) {
-            if (rsi->frame_filters_on && max_num_classes(p) > 1) {
-              avm_wb_write_literal(
-                  wb, encode_num_filter_classes(rsi->num_filter_classes),
-                  NUM_FILTER_CLASSES_BITS);
-            }
-          }
-          if (rsi->frame_filters_on)
-            av2_copy_rst_frame_filters(&cm->cur_frame->rst_info[p], rsi);
-          if (rsi->temporal_pred_flag) {
-            rsi->frame_filters_initialized = 1;
-            if (!get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)
-                     ->rst_info[p]
-                     .frame_filters_on) {
-              // Frame filters are on but no ref for plane p. Must be using
-              // filters from alternate plane.
-              const int alternate_plane = alternate_ref_plane(p);
-              (void)alternate_plane;
-              assert(get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)
-                         ->rst_info[alternate_plane]
-                         .frame_filters_on);
-            }
-          }
+        if (num_ref_frames > 0) avm_wb_write_bit(wb, rsi->temporal_pred_flag);
+        if (rsi->temporal_pred_flag) {
+          assert(cm->ref_frames_info.num_total_refs > 0);
         }
-      } else {
-        assert(rsi->frame_filters_on == 0);
-        assert(rsi->num_filter_classes == NUM_WIENERNS_CLASS_INIT_CHROMA);
+        if (rsi->temporal_pred_flag && num_ref_frames > 1)
+          avm_wb_write_literal(
+              wb, rsi->rst_ref_pic_idx,
+              avm_ceil_log2(num_ref_frames));  // write_lr_reference_idx
+      }
+      if (!rsi->temporal_pred_flag) {
+        if (rsi->frame_filters_on && max_num_classes(p) > 1) {
+          avm_wb_write_literal(
+              wb, encode_num_filter_classes(rsi->num_filter_classes),
+              NUM_FILTER_CLASSES_BITS);
+        }
+      }
+      if (rsi->frame_filters_on)
+        av2_copy_rst_frame_filters(&cm->cur_frame->rst_info[p], rsi);
+      if (rsi->temporal_pred_flag) {
+        rsi->frame_filters_initialized = 1;
+        if (!get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)
+                 ->rst_info[p]
+                 .frame_filters_on) {
+          // Frame filters are on but no ref for plane p. Must be using
+          // filters from alternate plane.
+          const int alternate_plane = alternate_ref_plane(p);
+          (void)alternate_plane;
+          assert(get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)
+                     ->rst_info[alternate_plane]
+                     .frame_filters_on);
+        }
       }
     } else {
       rsi->temporal_pred_flag = 0;
@@ -3163,8 +3154,7 @@ static AVM_INLINE void encode_restoration_mode(
            cm->rst_info[1].restoration_unit_size);
   }
   for (int p = 0; p < num_planes; ++p) {
-    if (is_frame_filters_enabled(p) &&
-        to_readwrite_framefilters(&cm->rst_info[p], 0, 0)) {
+    if (to_readwrite_framefilters(&cm->rst_info[p], 0, 0)) {
       write_wienerns_framefilters_hdr(cm, p, wb);
     }
   }
@@ -3276,7 +3266,6 @@ static AVM_INLINE void write_wienerns_framefilters_hdr(
 
   rsi->frame_filters.num_ref_filters = *cm->num_ref_filters;
   assert(rsi->frame_filters_on && !rsi->frame_filters_initialized);
-  assert(is_frame_filters_enabled(plane));
   const WienernsFilterParameters *nsfilter_params =
       get_wienerns_parameters(base_qindex, plane != AVM_PLANE_Y);
   int skip_filter_write_for_class[WIENERNS_MAX_CLASSES] = { 0 };

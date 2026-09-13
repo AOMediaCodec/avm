@@ -9575,7 +9575,7 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
   inter_modes_info->num = 0;
 
   // Temporary buffers used by handle_inter_mode().
-  uint16_t *const tmp_buf = x->tmp_pred_bufs[0];
+  uint16_t *const tmp_buf = x->tmp_pred_bufs;
 
   // The best RD found for the reference frame, among single reference modes.
   // Read by in_single_ref_cutoff() to check whether either ref of a compound

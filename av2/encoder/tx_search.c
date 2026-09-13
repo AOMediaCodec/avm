@@ -22,6 +22,7 @@
 #include "av2/encoder/rdopt_utils.h"
 #include "av2/encoder/tx_prune_model_weights.h"
 #include "av2/encoder/tx_search.h"
+#include "av2/encoder/tx_cache.h"
 
 struct rdcost_block_args {
   const AV2_COMP *cpi;
@@ -2047,8 +2048,10 @@ static INLINE void predict_dc_only_block(
   uint64_t var_threshold = (uint64_t)(1.8 * qstep * qstep);
   block_var = ROUND_POWER_OF_TWO(block_var, (xd->bd - 8) * 2);
   // Early prediction of skip block if residual mean and variance are less
-  // than qstep based threshold
-  if ((((llabs(*per_px_mean) * dc_coeff_scale[tx_size]) < (dc_qstep << 12)) &&
+  // than qstep based threshold. Skip prediction is disabled at level 2.
+  const bool allow_skip_txfm = x->txfm_search_params.predict_dc_level != 2;
+  if (allow_skip_txfm &&
+      (((llabs(*per_px_mean) * dc_coeff_scale[tx_size]) < (dc_qstep << 12)) &&
        (block_var < var_threshold)) &&
       (!xd->lossless[xd->mi[0]->segment_id] || *block_sse == 0)) {
     // If the normalized mean of residual block is less than the dc qstep and
@@ -2115,29 +2118,6 @@ static bool prune_sec_txfm_rd_eval(int64_t sec_tx_sse_to_be_coded,
     return true;
   }
   return false;
-}
-
-// Return 1 if primary FP-quant is guaranteed to produce eob = 0 across the
-// IST window, 0 otherwise. Uses an L-infinity scan of the post-primary
-// coefficients against the FP quantizer's kill threshold
-//   abs(coeff) < min(dequant[0], dequant[1]) >> (4 + log_scale)
-// which upper-bounds the per-position quantizer kill rule
-// (av2_highbd_quantize_fp_facade in av2_quantize.c).
-static INLINE int check_primary_quant_all_zero(const tran_low_t *coeff,
-                                               const int32_t dequant_QTX[2],
-                                               int width, int height,
-                                               int log_scale) {
-  const int shift = 4 + log_scale;
-  const int32_t deq_min = AVMMIN(dequant_QTX[0], dequant_QTX[1]);
-  const int32_t thr = deq_min >> shift;
-  if (thr <= 0) return 0;
-  const uint32_t uthr = (uint32_t)thr;
-  const int n = width * height;
-  for (int i = 0; i < n; ++i) {
-    const int32_t a = (coeff[i] < 0) ? -coeff[i] : coeff[i];
-    if ((uint32_t)a >= uthr) return 0;
-  }
-  return 1;
 }
 
 // Prune transform type search based on EOB count and block properties.
@@ -2453,7 +2433,7 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
   }
 
   // Bit mask to indicate which transform types are allowed in the RD search.
-  const uint16_t allowed_tx_mask = get_tx_mask(
+  uint16_t allowed_tx_mask = get_tx_mask(
       cpi, x, plane, block, blk_row, blk_col, plane_bsize, tx_size, txb_ctx,
       ftxs_mode, ref_best_rd, dc_only_blk, &txk_allowed, txk_map);
 
@@ -2527,6 +2507,52 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
                              : cm->seq_params.enable_ist) &&
                    !is_fsc && !is_lossless;
 
+  // Transform search result cache.  Deliberately placed here: it is after
+  // skip_trellis is final and after the block above that turns off
+  // transform-domain distortion when `allowed_tx_mask == 0x0001`, so
+  // restricting the mask cannot change any earlier decision.
+  TxCache *tx_cache = NULL;
+  uint64_t tx_cache_key = 0;
+  int tx_cache_hit = 0;
+  TX_TYPE tx_cache_winner = MAKE_TX_TYPE_FROM_PRIMARY_TX_TYPE(DCT_DCT);
+  if (tx_sf->use_tx_result_cache && plane == AVM_PLANE_Y && !dc_only_blk) {
+    tx_cache = &x->txfm_search_info.tx_result_cache;
+    const int diff_stride = block_size_wide[plane_bsize];
+    const int16_t *const residual =
+        x->plane[AVM_PLANE_Y].src_diff +
+        (((blk_row * diff_stride) + blk_col) << MI_SIZE_LOG2);
+    const uint64_t base =
+        av2_tx_cache_hash(residual, diff_stride, txw, txh, x->qindex,
+                          txb_ctx ? txb_ctx->txb_skip_ctx : 0,
+                          txb_ctx ? txb_ctx->dc_sign_ctx : 0) ^
+        (tx_size << 1);
+    tx_cache_key = av2_tx_cache_mix(
+        base, 0u, 0u, is_inter, is_fsc, intra_mode, x->rd_model, skip_trellis,
+        av2_get_ext_tx_set_type(tx_size, is_inter,
+                                cm->features.reduced_tx_set_used),
+        av2_use_qmatrix(&cm->quant_params, xd, mbmi->segment_id), x->rdmult);
+    const int cached = av2_tx_cache_lookup(tx_cache, tx_cache_key,
+                                           cm->current_frame.frame_number);
+    if (cached >= 0) {
+      tx_cache_hit = 1;
+      tx_cache_winner.packed_tx_type = (uint16_t)cached;
+      const uint16_t winner_bit = 1 << tx_cache_winner.primary_tx;
+      if (allowed_tx_mask & winner_bit) {
+        // Keep DCT_DCT in the mask: the prune gates inside the loop can reject
+        // the winner, and a single-candidate mask would then leave the search
+        // with nothing evaluated.
+        const uint16_t dct_bit = 1 << DCT_DCT;
+        allowed_tx_mask &= winner_bit | dct_bit;
+      } else {
+        // The cached winner is not a candidate here, so drop the hit: leaving
+        // it set would make every secondary transform mismatch it and skip the
+        // whole IST search.
+        tx_cache_hit = 0;
+        tx_cache_winner = MAKE_TX_TYPE_FROM_PRIMARY_TX_TYPE(DCT_DCT);
+      }
+    }
+  }
+
   const int max_eob = av2_get_max_eob(tx_size);
   // Iterate through all transform type candidates.
   for (int tx_idx = 0; tx_idx < PRIMARY_TX_TYPES; ++tx_idx) {
@@ -2590,6 +2616,13 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
         txfm_param.primary_tx_type = primary_tx_type;
         txfm_param.sec_tx_type = stx;
         txfm_param.sec_tx_set = stx_set;
+        // On a cache hit, evaluate only the cached secondary transform,
+        // keeping the no-IST candidate as a baseline.
+        if (tx_cache_hit &&
+            tx_type.packed_tx_type != tx_cache_winner.packed_tx_type &&
+            !(set_idx == 0 && stx == 0)) {
+          continue;
+        }
 
         assert(av2_tx_type_in_range(tx_type.primary_tx, tx_type.sec_tx,
                                     tx_type.sec_set, txw, txh));
@@ -2612,30 +2645,6 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
           continue;
         }
         *coeffs_available = 1;
-
-        // Pre-IST quant-zero gate. Predict primary FP-quant eob = 0 from the
-        // post-primary coefficients and, if so, skip av2_quant / trellis /
-        // cost_coeffs and propagate the same eob_found / DCT_DCT handling as
-        // the post-quant eob == 1 gate below. Scoped to intra Y, stx == 0,
-        // non-DC-only, IST-enabled, non-QM blocks.
-        if (tx_sf->prune_intra_ist_stx_by_zero_eob && plane == PLANE_TYPE_Y &&
-            !is_inter && stx == 0 && !dc_only_blk && xd->enable_ist &&
-            !av2_use_qmatrix(&cm->quant_params, xd, mbmi->segment_id)) {
-          const int tr_w = AVMMIN(txw, 32);
-          const int tr_h = AVMMIN(txh, 32);
-          const int log_scale = av2_get_tx_scale(tx_size);
-          if (check_primary_quant_all_zero(
-                  mb_plane->coeff + BLOCK_OFFSET(block),
-                  x->plane[plane].dequant_QTX, tr_w, tr_h, log_scale)) {
-            mb_plane->eobs[block] = 0;
-            if (primary_tx_type == DCT_DCT) eob_found = true;
-            if (primary_tx_type != DCT_DCT) {
-              update_txk_array(xd, blk_row, blk_col, tx_size,
-                               MAKE_TX_TYPE_FROM_PRIMARY_TX_TYPE(DCT_DCT));
-              continue;
-            }
-          }
-        }
 
         const TX_CLASS tx_class = tx_type_to_class[primary_tx_type];
         const bool use_tcq = tcq_enable(cpi->common.features.tcq_mode,
@@ -2812,6 +2821,12 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
        best_rd == INT64_MAX) &&
       !is_inter) {
     best_tx_type = MAKE_TX_TYPE_FROM_PRIMARY_TX_TYPE(DCT_DCT);
+  }
+
+  if (tx_cache != NULL && best_rd != INT64_MAX &&
+      !(best_eob == 1 && best_tx_type.primary_tx != DCT_DCT && !is_inter)) {
+    av2_tx_cache_store(tx_cache, tx_cache_key, best_tx_type.packed_tx_type,
+                       cm->current_frame.frame_number);
   }
 
   best_rd_stats->skip_txfm = best_eob == 0;

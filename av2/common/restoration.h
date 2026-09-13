@@ -117,11 +117,6 @@ static INLINE const WienernsFilterParameters *get_wienerns_parameters(
   return is_uv ? &wienerns_filter_uv : &wienerns_filter_y;
 }
 
-static inline int is_frame_filters_enabled(int plane) {
-  (void)plane;
-  return 1;
-}
-
 // Returns the alternate plane whose reference-frame-filters can be used to
 // augment those for plane.
 static inline int alternate_ref_plane(int plane) {
@@ -250,15 +245,6 @@ typedef struct {
 } RestorationUnitInfo;
 
 /*!\cond */
-
-// A restoration line buffer needs space for two lines plus a horizontal filter
-// margin of RESTORATION_BORDER_HORZ on each side.
-// The maximum picture width is 8192 * 8 for LR to work properly in this
-// software implementation. This is one quick implementation, the buffer size
-// should be allocated based on picture width
-#define MAX_SUPPORTED_PIC_WIDTH_IN_CCALF_IMP (8192 * 8)
-#define RESTORATION_LINEBUFFER_WIDTH \
-  (MAX_SUPPORTED_PIC_WIDTH_IN_CCALF_IMP * 3 / 2 + 2 * RESTORATION_BORDER_HORZ)
 
 typedef struct RestorationLineBuffers {
   // Temporary buffers to save/restore 3 lines above/below the restoration
@@ -397,7 +383,7 @@ typedef struct {
   /*!
    * reference picture index for frame level filter prediction
    */
-  uint8_t rst_ref_pic_idx;
+  int8_t rst_ref_pic_idx;
 } RestorationInfo;
 
 /*!\cond */
@@ -442,22 +428,10 @@ static INLINE void set_default_wienerns_fromparams(
   }
 }
 
-// 0: Skip luma pixels to scale down to chroma (simplest)
-// 1: Average 4 or 2 luma pixels to scale down to chroma
-// 2: Average 2 (top and down) luma pixels to scale down to chroma for 420,
-// could be based on the luma downsampling type from CFL tool 3: Use 8-tap
-// downsampling filter
-#define WIENERNS_CROSS_FILT_LUMA_TYPE 2
-
-uint16_t *wienerns_copy_luma_highbd(const uint16_t *dgd, int height_y,
-                                    int width_y, int in_stride, uint16_t **luma,
+uint16_t *wienerns_copy_luma_highbd(struct AV2Common *cm, const uint16_t *dgd,
+                                    int in_stride, uint16_t **luma_hbd,
                                     int height_uv, int width_uv, int border,
-                                    int out_stride, int bd
-#if WIENERNS_CROSS_FILT_LUMA_TYPE == 2
-                                    ,
-                                    int ds_type
-#endif
-);
+                                    int out_stride);
 
 typedef struct {
   int h_start, h_end, v_start, v_end;

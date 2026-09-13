@@ -937,6 +937,12 @@ typedef struct TX_SPEED_FEATURES {
   // 1-2: progressively increasing aggressiveness of pruning
   int model_based_prune_tx_search_level;
 
+  /*!
+   * Reuse the winning transform type of an identical earlier transform block to
+   * narrow the transform type and IST search (av2/encoder/tx_cache.h).
+   */
+  int use_tx_result_cache;
+
   // Prune RD evaluation of secondary transform using the SSE of secondary
   // transform output.
   bool prune_tx_rd_eval_sec_tx_sse;

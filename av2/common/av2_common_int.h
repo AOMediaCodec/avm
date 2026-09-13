@@ -433,12 +433,10 @@ typedef struct BufferPool {
  */
 typedef struct {
   uint16_t
-      gdf_save_above[GDF_TEST_EXTRA_VER_BORDER]
-                    [RESTORATION_LINEBUFFER_WIDTH]; /*!< GDF temporary buffer to
+      *gdf_save_above[GDF_TEST_EXTRA_VER_BORDER]; /*!< GDF temporary buffer to
                                                      save/restore above */
   uint16_t
-      gdf_save_below[GDF_TEST_EXTRA_VER_BORDER]
-                    [RESTORATION_LINEBUFFER_WIDTH]; /*!< GDF temporary buffer to
+      *gdf_save_below[GDF_TEST_EXTRA_VER_BORDER]; /*!< GDF temporary buffer to
                                                      save/restore below */
 } GDFLineBuffers;
 

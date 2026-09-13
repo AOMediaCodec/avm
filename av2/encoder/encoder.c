@@ -1331,12 +1331,10 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
     x->e_mbd.opfl_dst_bufs = x->opfl_dst_bufs;
   }
 
-  for (int i = 0; i < 2; ++i) {
-    if (x->tmp_pred_bufs[i] == NULL) {
-      CHECK_MEM_ERROR(cm, x->tmp_pred_bufs[i],
-                      avm_memalign(32, 2 * MAX_MB_PLANE * MAX_SB_SQUARE *
-                                           sizeof(*x->tmp_pred_bufs[i])));
-    }
+  if (x->tmp_pred_bufs == NULL) {
+    CHECK_MEM_ERROR(cm, x->tmp_pred_bufs,
+                    avm_memalign(32, MAX_MB_PLANE * MAX_SB_SQUARE *
+                                         sizeof(*x->tmp_pred_bufs)));
   }
 
   av2_reset_segment_features(cm);
@@ -1801,9 +1799,7 @@ static AVM_INLINE void free_thread_data(AV2_COMP *cpi) {
     avm_free(thread_data->td->opfl_gxy_bufs);
     avm_free(thread_data->td->opfl_dst_bufs);
     release_compound_type_rd_buffers(&thread_data->td->comp_rd_buffer);
-    for (int j = 0; j < 2; ++j) {
-      avm_free(thread_data->td->tmp_pred_bufs[j]);
-    }
+    avm_free(thread_data->td->tmp_pred_bufs);
     avm_free(thread_data->td->mb.inter_modes_info);
     for (int x = 0; x < 2; x++) {
       for (int y = 0; y < 2; y++) {
@@ -3039,7 +3035,7 @@ void gdf_optimizer(AV2_COMP *cpi, AV2_COMMON *cm) {
  */
 void gdf_optimize_frame(AV2_COMP *cpi, AV2_COMMON *cm) {
   init_gdf(cm);
-  alloc_gdf_buffers(&cm->gdf_info);
+  alloc_gdf_buffers(&cm->gdf_info, cm->cur_frame->buf.y_width);
   gdf_optimizer(cpi, cm);
 #if GDF_VERBOSE
   gdf_print_info(cm, "ENC", cm->current_frame.absolute_poc);

@@ -645,12 +645,10 @@ static AVM_INLINE void create_enc_workers(AV2_COMP *cpi, int num_workers) {
           avm_memalign(16, ((MAX_SB_SIZE + 16) + 16) * MAX_SB_SIZE *
                                sizeof(*thread_data->td->upsample_pred)));
 
-      for (int j = 0; j < 2; ++j) {
-        CHECK_MEM_ERROR(
-            cm, thread_data->td->tmp_pred_bufs[j],
-            avm_memalign(32, 2 * MAX_MB_PLANE * MAX_SB_SQUARE *
-                                 sizeof(*thread_data->td->tmp_pred_bufs[j])));
-      }
+      CHECK_MEM_ERROR(
+          cm, thread_data->td->tmp_pred_bufs,
+          avm_memalign(32, MAX_MB_PLANE * MAX_SB_SQUARE *
+                               sizeof(*thread_data->td->tmp_pred_bufs)));
 
       CHECK_MEM_ERROR(
           cm, thread_data->td->mbmi_ext,
@@ -874,12 +872,7 @@ static AVM_INLINE void prepare_enc_workers(AV2_COMP *cpi, AVxWorkerHook hook,
       thread_data->td->mb.opfl_vxy_bufs = thread_data->td->opfl_vxy_bufs;
       thread_data->td->mb.opfl_gxy_bufs = thread_data->td->opfl_gxy_bufs;
       thread_data->td->mb.opfl_dst_bufs = thread_data->td->opfl_dst_bufs;
-
-      for (int j = 0; j < 2; ++j) {
-        thread_data->td->mb.tmp_pred_bufs[j] =
-            thread_data->td->tmp_pred_bufs[j];
-      }
-
+      thread_data->td->mb.tmp_pred_bufs = thread_data->td->tmp_pred_bufs;
       thread_data->td->mb.e_mbd.tmp_conv_dst = thread_data->td->mb.tmp_conv_dst;
       thread_data->td->mb.e_mbd.tmp_upsample_pred =
           thread_data->td->mb.upsample_pred;
