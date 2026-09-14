@@ -302,7 +302,6 @@ int av2_rc_get_default_max_gf_interval(double framerate, int min_gf_interval) {
 void av2_rc_init(const AV2EncoderConfig *oxcf, int pass, RATE_CONTROL *rc) {
   const RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
   int i;
-  (void)pass;
 
   rc->avg_frame_qindex[KEY_FRAME] =
       (rc_cfg->worst_allowed_q + rc_cfg->best_allowed_q) / 2;
@@ -417,9 +416,9 @@ static int adjust_q_cbr(const AV2_COMP *cpi, int q, int active_worst_quality) {
     }
     // Limit the decrease in Q from previous frame.
     if (rc->q_1_frame - q > max_delta) q = rc->q_1_frame - max_delta;
-    if (rc->buffer_level > (rc->optimal_buffer_level >> 3)) {
-      if (q - rc->q_1_frame > max_delta) q = rc->q_1_frame + max_delta;
-    }
+    if (rc->buffer_level > (rc->optimal_buffer_level >> 3) &&
+        q - rc->q_1_frame > max_delta)
+      q = rc->q_1_frame + max_delta;
   }
   // For single spatial layer: if resolution has increased push q closer
   // to the active_worst to avoid excess overshoot.
