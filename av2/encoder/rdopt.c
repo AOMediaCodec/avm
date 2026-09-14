@@ -8118,8 +8118,8 @@ static int inter_mode_search_order_independent_skip(
     if (cpi->sf.inter_sf.prune_ref_frames >= 3 && ref_type > 0) {
       if (search_state->best_rd != INT64_MAX) {
         // Prune secondary references if ref 0 already produced a skippable mode
-        // (zero residual). If ref 0 match was not skippable, do not prune: allow
-        // evaluating secondary references for this block.
+        // (zero residual). If ref 0 match was not skippable, do not prune:
+        // allow evaluating secondary references for this block.
         if (!search_state->best_mode_skippable) {
           skip_ref = 0;
         }
