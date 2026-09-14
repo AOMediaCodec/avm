@@ -299,7 +299,7 @@ int av2_rc_get_default_max_gf_interval(double framerate, int min_gf_interval) {
   return AVMMAX(interval, min_gf_interval);
 }
 
-void av2_rc_init(const AV2EncoderConfig *oxcf, int pass, RATE_CONTROL *rc) {
+void av2_rc_init(const AV2EncoderConfig *oxcf, RATE_CONTROL *rc) {
   const RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
   int i;
 
