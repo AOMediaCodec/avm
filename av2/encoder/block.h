@@ -1659,6 +1659,33 @@ static AVM_INLINE bool is_bsize_gt(BLOCK_SIZE bsize1, BLOCK_SIZE bsize2) {
          block_size_high[bsize1] > block_size_high[bsize2];
 }
 
+/*!\brief Reset the winner-mode bookkeeping without clearing the palette map.
+ *
+ * `av2_zero(x->winner_mode_stats)` clears 132,480 bytes, of which 131,072
+ * Zeroing them costs 128 KB of memory traffic per mode search, at both call
+ * sites, to initialise storage that is written before it is read.
+ *
+ * Every other field is still cleared, field by field rather than by a span, so
+ * that adding a member to WinnerModeStats produces a compile-time reminder
+ * rather than a silently uninitialised field.
+ */
+static INLINE void av2_reset_winner_mode_stats(MACROBLOCK *x) {
+  const int n =
+      (int)(sizeof(x->winner_mode_stats) / sizeof(x->winner_mode_stats[0]));
+  for (int i = 0; i < n; ++i) {
+    WinnerModeStats *const ws = &x->winner_mode_stats[i];
+    av2_zero(ws->mbmi);
+    av2_zero(ws->rd_cost);
+    ws->rd = 0;
+    ws->rate_y = 0;
+    ws->rate_uv = 0;
+    ws->mode = 0;
+    ws->refs[0] = 0;
+    ws->refs[1] = 0;
+    // ws->color_index_map is deliberately NOT cleared
+  }
+}
+
 static INLINE void set_blk_skip(uint8_t txb_skip[], int blk_idx, int skip) {
   if (skip)
     txb_skip[blk_idx] |= 1UL;
