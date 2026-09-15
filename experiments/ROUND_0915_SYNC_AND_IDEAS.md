@@ -292,8 +292,26 @@ guards function-local stack buffers, so nothing can observe the skipped writes;
 `xd->mv_refined` is `MACROBLOCKD` state that persists across blocks, so the
 claim rests on a reading of the call tree. The case that would break it is a
 block whose chroma pass evaluates the predicate true while its luma pass
-evaluated it false. Treat the bit-exactness sweep as the evidence here, not as
-a formality, and **add an SDP + OPFL configuration before landing it.**
+evaluated it false — and SDP is what makes luma and chroma trees separable.
+
+So the sweep here is the evidence, not a formality, and it is the widest of the
+three: **13/13**. Six configurations of clip x preset x qindex with 6-10 frame
+runs so OPFL and TIP actually fire, plus a seven-configuration SDP x OPFL
+stress sweep that drives both tools to their extremes rather than leaving OPFL
+at its default switchable-per-block setting:
+
+```
+OPFL in ALL blocks + SDP on key and inter frames   speeds 2, 5, and 360p speed 3
+OPFL OFF entirely (skip path on every block)       speeds 2, 5
+OPFL everywhere, TIP refinemv off                  speed 2
+OPFL everywhere, SDP off                           speed 2
+```
+
+That covers the skip path at both extremes — taken on every block, and on none
+of them while the reader path runs as hard as the encoder allows. The graded
+configurations in the first sweep, where OPFL is switchable per block so both
+paths occur within the same frame, are where a disagreement in between would
+show.
 
 Worth noting that today's memset does not protect against cross-block staleness
 either — it is itself gated on `plane == AVM_PLANE_Y`, so a chroma call whose mi

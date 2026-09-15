@@ -104,10 +104,19 @@ default "switchable per block".
 | `--enable-opfl-refine=2 --enable-sdp=1 --enable-extended-sdp=1`, speed 2 | OPFL in **all** blocks, SDP on both key and inter frames | MATCH `cc37a5a73b6235a5d92556e999aedb94` |
 | same, speed 5 | ditto at a different preset | MATCH `f66c9c02dab60b213a00859c3b9c04c9` |
 | same, 640x360 speed 3 | ditto at a different resolution | MATCH `e915ffb35584957f2a885e8ee3153816` |
-| `--enable-opfl-refine=0`, speed 2 | OPFL **off** — the skip path is taken on every block | (running) |
-| `--enable-opfl-refine=0`, speed 5 | ditto | (running) |
-| `--enable-opfl-refine=2 --enable-tip-refinemv=0` | the forced-on TIP branch under a different TIP config | (running) |
-| `--enable-opfl-refine=2 --enable-sdp=0 --enable-extended-sdp=0` | OPFL everywhere, SDP off — isolates OPFL from SDP | (running) |
+| `--enable-opfl-refine=0`, speed 2 | OPFL **off** — the skip path is taken on every block | MATCH `b2978dfe9e8c110894f5714f88acec3e` |
+| `--enable-opfl-refine=0`, speed 5 | ditto | MATCH `2a7c3541736ea440186550fc12f972fa` |
+| `--enable-opfl-refine=2 --enable-tip-refinemv=0` | the forced-on TIP branch under a different TIP config | MATCH `1a5d4701a7b8030eb2a1f3ed6070b29b` |
+| `--enable-opfl-refine=2 --enable-sdp=0 --enable-extended-sdp=0` | OPFL everywhere, SDP off — isolates OPFL from SDP | MATCH `81df627b254b9cc181f6636b29ff36e5` |
+
+**7/7.** Combined with sweep 1, **13/13** for patch 0037.
+
+The two sweeps cover the skip path at both extremes: `opfl_off_*` takes it on
+every block in the sequence, and `sdp_opfl_all_*` takes it on none of them
+while driving the reader path as hard as the encoder allows. If the guard
+disagreed with the readers anywhere in between, the graded configurations in
+sweep 1 — where OPFL is switchable per block, so both paths occur within the
+same frame — are where that would show.
 
 ---
 
