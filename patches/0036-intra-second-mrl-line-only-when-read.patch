@@ -1,0 +1,229 @@
+Subject: [PATCH 0036] intra: only prepare the second MRL reference line when it is read
+
+av2_build_intra_predictors_high() maintains two independent neighbour
+reference lines:
+
+    above_row_1st / left_col_1st   the ordinary reference line
+    above_row_2nd / left_col_2nd   the second line, for multi-line MRL
+
+The _2nd pair is consumed at exactly two call sites, both inside the
+directional-mode branch, and both guarded by the same predicate:
+
+    xd->mi[0]->multi_line_mrl && mrl_index && (tx_size != TX_4X4)
+
+Everything that produces the _2nd buffers, however, runs unconditionally:
+
+  * two avm_memset16() calls of NUM_INTRA_NEIGHBOUR_PIXELS (192 uint16 =
+    384 bytes) each, at the top of the function;
+  * the left-column copy loops and their edge-extension memset16;
+  * the above-row memcpy of n_top_px (plus n_topright_px) and its
+    edge-extension memset16;
+  * the above-left corner writes.
+
+mrl_index is 0 for the large majority of blocks, so in the common case all
+of that is written and never read.
+
+This patch hoists the predicate to the top of the function as
+need_2nd_line and guards every _2nd producer with it. The two consumers are
+rewritten to test need_2nd_line rather than re-deriving the predicate, so
+the "written iff read" invariant is syntactically enforced rather than
+maintained by hand in two places.
+
+WHY THIS IS BIT-EXACT
+
+It removes writes to buffers that are provably never read on the paths
+where the writes are skipped. The predicate at the producers is the same
+expression, on the same variables, as the predicate at the consumers --
+mbmi is xd->mi[0], and mrl_index and tx_size are function parameters, none
+of which change between the two points. No value that reaches the
+bitstream is computed differently.
+
+Note the _2nd buffers are function-local DECLARE_ALIGNED stack arrays, so
+skipping the memset cannot leak state across calls into anything that is
+read: the only readers are the two guarded call sites.
+
+SIZE OF THE EFFECT
+
+From a callgrind profile of the current tip (320x192, 3 frames, 1 thread),
+avm_memset16 reached through av2_build_intra_predictors_high is
+
+    cpu-used=5   1.00% of retired instructions
+    cpu-used=2   0.81% of retired instructions
+
+Half of that is the two unconditional _2nd memsets, and the _2nd copy
+loops and memcpy add more on top -- they land in the 0.62%-0.76% self cost
+of av2_build_intra_predictors_high and in the memcpy lines.
+
+MEASURING IT
+
+Use retired-instruction counts under callgrind, not wall clock. The local
+wall-clock noise floor is several percent and has repeatedly produced
+sign-disagreeing reps on changes of this size. The work removed is memory
+traffic, so instruction counts understate the real saving.
+
+VERIFICATION
+
+Bit-exactness was checked by comparing .obu md5 against the unpatched
+build across clip x preset x qindex, including low-speed presets where MRL
+is actually exercised (the path on which the _2nd buffers ARE read, so the
+guard must let the work through).
+
+diff --git a/av2/common/reconintra.c b/av2/common/reconintra.c
+index 0dd4606..ebe0575 100644
+--- a/av2/common/reconintra.c
++++ b/av2/common/reconintra.c
+@@ -1112,14 +1112,24 @@ void av2_build_intra_predictors_high(
+   const int is_dr_mode = av2_is_directional_mode(mode);
+   const int use_intra_dip = mbmi->use_intra_dip && plane == PLANE_TYPE_Y;
+   int base = 128 << (xd->bd - 8);
++  // The second reference line (above_row_2nd / left_col_2nd) is consumed by
++  // exactly one pair of call sites below -- the multi-line MRL blend -- both
++  // guarded by this same predicate. When it is false the _2nd buffers are
++  // written and never read, so preparing them is pure overhead. mrl_index is
++  // 0 for the large majority of blocks, so this is the common case.
++  const int is_multi_line_mrls_allowed_blk_sz = (tx_size == TX_4X4) ? 0 : 1;
++  const int need_2nd_line =
++      mbmi->multi_line_mrl && mrl_index && is_multi_line_mrls_allowed_blk_sz;
+   // The left_data, above_data buffers must be zeroed to fix some intermittent
+   // valgrind errors. Uninitialized reads in intra pred modules (e.g. width =
+   // 4 path in av2_highbd_dr_prediction_z2_avx2()) from left_data, above_data
+   // are seen to be the potential reason for this issue.
+   avm_memset16(left_data_1st, base + 1, NUM_INTRA_NEIGHBOUR_PIXELS);
+   avm_memset16(above_data_1st, base - 1, NUM_INTRA_NEIGHBOUR_PIXELS);
+-  avm_memset16(left_data_2nd, base + 1, NUM_INTRA_NEIGHBOUR_PIXELS);
+-  avm_memset16(above_data_2nd, base - 1, NUM_INTRA_NEIGHBOUR_PIXELS);
++  if (need_2nd_line) {
++    avm_memset16(left_data_2nd, base + 1, NUM_INTRA_NEIGHBOUR_PIXELS);
++    avm_memset16(above_data_2nd, base - 1, NUM_INTRA_NEIGHBOUR_PIXELS);
++  }
+ 
+   // The default values if ref pixels are not available:
+   // base   base-1 base-1 .. base-1 base-1 base-1 base-1 base-1 base-1
+@@ -1183,24 +1193,26 @@ void av2_build_intra_predictors_high(
+     if (n_left_px > 0) {
+       for (; i < n_left_px; i++) {
+         left_col_1st[i] = left_ref_1st[i * ref_stride];
+-        left_col_2nd[i] = left_ref_2nd[i * ref_stride];
++        if (need_2nd_line) left_col_2nd[i] = left_ref_2nd[i * ref_stride];
+       }
+       if (need_bottom && n_bottomleft_px > 0) {
+         assert(i == txhpx);
+         for (; i < txhpx + n_bottomleft_px; i++) {
+           left_col_1st[i] = left_ref_1st[i * ref_stride];
+-          left_col_2nd[i] = left_ref_2nd[i * ref_stride];
++          if (need_2nd_line) left_col_2nd[i] = left_ref_2nd[i * ref_stride];
+         }
+       }
+       if (i < num_left_pixels_needed) {
+         avm_memset16(&left_col_1st[i], left_col_1st[i - 1],
+                      num_left_pixels_needed - i);
+-        avm_memset16(&left_col_2nd[i], left_col_2nd[i - 1],
+-                     num_left_pixels_needed - i);
++        if (need_2nd_line)
++          avm_memset16(&left_col_2nd[i], left_col_2nd[i - 1],
++                       num_left_pixels_needed - i);
+       }
+     } else if (n_top_px > 0) {
+       avm_memset16(left_col_1st, above_ref_1st[0], num_left_pixels_needed);
+-      avm_memset16(left_col_2nd, above_ref_2nd[0], num_left_pixels_needed);
++      if (need_2nd_line)
++        avm_memset16(left_col_2nd, above_ref_2nd[0], num_left_pixels_needed);
+     }
+   }
+ 
+@@ -1218,25 +1230,30 @@ void av2_build_intra_predictors_high(
+     }
+     if (n_top_px > 0) {
+       memcpy(above_row_1st, above_ref_1st, n_top_px * sizeof(above_ref_1st[0]));
+-      memcpy(above_row_2nd, above_ref_2nd, n_top_px * sizeof(above_ref_2nd[0]));
++      if (need_2nd_line)
++        memcpy(above_row_2nd, above_ref_2nd,
++               n_top_px * sizeof(above_ref_2nd[0]));
+       i = n_top_px;
+       if (need_right && n_topright_px > 0) {
+         assert(n_top_px == txwpx);
+         memcpy(above_row_1st + txwpx, above_ref_1st + txwpx,
+                n_topright_px * sizeof(above_ref_1st[0]));
+-        memcpy(above_row_2nd + txwpx, above_ref_2nd + txwpx,
+-               n_topright_px * sizeof(above_ref_2nd[0]));
++        if (need_2nd_line)
++          memcpy(above_row_2nd + txwpx, above_ref_2nd + txwpx,
++                 n_topright_px * sizeof(above_ref_2nd[0]));
+         i += n_topright_px;
+       }
+       if (i < num_top_pixels_needed) {
+         avm_memset16(&above_row_1st[i], above_row_1st[i - 1],
+                      num_top_pixels_needed - i);
+-        avm_memset16(&above_row_2nd[i], above_row_2nd[i - 1],
+-                     num_top_pixels_needed - i);
++        if (need_2nd_line)
++          avm_memset16(&above_row_2nd[i], above_row_2nd[i - 1],
++                       num_top_pixels_needed - i);
+       }
+     } else if (n_left_px > 0) {
+       avm_memset16(above_row_1st, left_ref_1st[0], num_top_pixels_needed);
+-      avm_memset16(above_row_2nd, left_ref_2nd[0], num_top_pixels_needed);
++      if (need_2nd_line)
++        avm_memset16(above_row_2nd, left_ref_2nd[0], num_top_pixels_needed);
+     }
+   }
+ 
+@@ -1244,23 +1261,25 @@ void av2_build_intra_predictors_high(
+     for (i = 1; i <= mrl_index + 1; i++) {
+       if (n_top_px > 0 && n_left_px > 0) {
+         above_row_1st[-i] = above_ref_1st[-i];
+-        above_row_2nd[-i] = above_ref_2nd[-i];
++        if (need_2nd_line) above_row_2nd[-i] = above_ref_2nd[-i];
+         if (is_sb_boundary) {
+           left_col_1st[-i] = left_ref_1st[-ref_stride];
+-          left_col_2nd[-i] = left_ref_2nd[-ref_stride];
++          if (need_2nd_line) left_col_2nd[-i] = left_ref_2nd[-ref_stride];
+         } else {
+           left_col_1st[-i] = left_ref_1st[-i * ref_stride];
+-          left_col_2nd[-i] = left_ref_2nd[-i * ref_stride];
++          if (need_2nd_line) left_col_2nd[-i] = left_ref_2nd[-i * ref_stride];
+         }
+       } else if (n_top_px > 0) {
+         above_row_1st[-i] = left_col_1st[-i] = above_ref_1st[0];
+-        above_row_2nd[-i] = left_col_2nd[-i] = above_ref_2nd[0];
++        if (need_2nd_line)
++          above_row_2nd[-i] = left_col_2nd[-i] = above_ref_2nd[0];
+       } else if (n_left_px > 0) {
+         above_row_1st[-i] = left_col_1st[-i] = left_ref_1st[0];
+-        above_row_2nd[-i] = left_col_2nd[-i] = left_ref_2nd[0];
++        if (need_2nd_line)
++          above_row_2nd[-i] = left_col_2nd[-i] = left_ref_2nd[0];
+       } else {
+         above_row_1st[-i] = left_col_1st[-i] = base;
+-        above_row_2nd[-i] = left_col_2nd[-i] = base;
++        if (need_2nd_line) above_row_2nd[-i] = left_col_2nd[-i] = base;
+       }
+     }
+   }
+@@ -1316,13 +1335,13 @@ void av2_build_intra_predictors_high(
+         }
+       }
+     }
+-    const int is_multi_line_mrls_allowed_blk_sz = (tx_size == TX_4X4) ? 0 : 1;
+     if (plane == AVM_PLANE_Y) {
+       highbd_dr_predictor_idif(dst, dst_stride, tx_size, above_row_1st,
+                                left_col_1st, p_angle, xd->bd, mrl_index);
+ 
+-      if (xd->mi[0]->multi_line_mrl && mrl_index &&
+-          is_multi_line_mrls_allowed_blk_sz) {
++      // need_2nd_line is this same predicate, hoisted to the top of the
++      // function so the _2nd buffers are only prepared when read here.
++      if (need_2nd_line) {
+         highbd_dr_predictor_idif(dst_mrl_line_0, txwpx, tx_size, above_row_2nd,
+                                  left_col_2nd, p_angle, xd->bd, 0);
+ 
+@@ -1338,8 +1357,7 @@ void av2_build_intra_predictors_high(
+     } else {
+       highbd_dr_predictor(dst, dst_stride, tx_size, above_row_1st, left_col_1st,
+                           p_angle, xd->bd, mrl_index);
+-      if (xd->mi[0]->multi_line_mrl && mrl_index &&
+-          is_multi_line_mrls_allowed_blk_sz) {
++      if (need_2nd_line) {
+         highbd_dr_predictor(dst_mrl_line_0, txwpx, tx_size, above_row_2nd,
+                             left_col_2nd, p_angle, xd->bd, 0);
+ 

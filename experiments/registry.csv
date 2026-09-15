@@ -1,0 +1,11 @@
+patch,round,title,class,status,anchor,ctc_a1_ratio,ctc_a2_ratio,notes
+0001-0024,<=0820,(various; files lost with the deleted branch),mixed,superseded,,,,"See avm-patches/Claude/ for copies. Findings carried forward in DECISIONS.md."
+0025,0821,trellis / dry-pass shortcut work,approximation,evaluated,,,,"Evaluated by user; see eda_report_patch_0025.md"
+0026,0824,partial approximation in tx search,approximation,rejected,,,,"Failed: approximation applied to part of a comparison set corrupts ordering (trap #5)"
+0027,0825,pre-trellis RD gate,approximation,LANDED,,101.5,,"Upstream d4ad634, 2026-09-10, speed>=5 + 4K only. A1: +4.06% speed / +0.04% BD"
+0028-0030,0826,speed-2 gap analysis arms,analysis,evaluated,,,,
+0031,0826,speed-feature struct dumper (218 fields/frame),instrumentation,used,,,,"Exposed the multi-writer ordering bug; upstream db16baa confirms the same class"
+0032,0828,SMS flag ablation,analysis,evaluated,,,,"Basis of D4 attribution"
+0033,0828,SMS pincer (two arms),approximation,PENDING RE-RUN,,,,"Premise predates the 720e889 SMS retrain -- re-measure on current anchor first"
+0034,0915,winner_mode_stats: skip the palette map,bit-exact,READY,7368e76,,,"Bit-exact on 4 configs: a271350b93a4a028 / 4073825a8e6d892f / 5713e61f499d46d2 / d434144611e1e035"
+0035,0915,pre-trellis gate self-calibrated,approximation,READY,7368e76,,,"Refactor proven exact with AVM_TX_GATE_CALIBRATE=0 on 3 configs: 63802d27c9d898a5 / b7174767a48dd3bf / 2ef026d2c926744d"

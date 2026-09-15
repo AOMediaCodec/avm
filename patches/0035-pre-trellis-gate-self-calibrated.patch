@@ -1,0 +1,239 @@
+Patch 35: give the shipped pre-trellis gate a self-calibrated threshold, so it
+can be widened beyond 4K and beyond speed 5.
+
+Against anchor 7368e76. Independent of patch 0034.
+
+WHAT IS ALREADY UPSTREAM. Commit d4ad634 ("Skip trellis based on an estimated
+rdcost") added the gate to search_tx_type, scoped to speed >= 5 AND 4K-or-
+larger, where it measured:
+
+    A1 (4K), RA, speed 5:   +4.06% speedup / +0.04% BD   ratio 101.5
+
+That is the mechanism working extremely well in the place it was enabled.
+
+WHY IT IS SCOPED SO NARROWLY, AND WHAT THAT COSTS. Earlier CTC runs of the same
+gate at Speed 3 gave:
+
+    A1 (4K)    +3.79% / +0.09% BD   ratio 42.1   PASS
+    A2 (1080p) +3.03% / +0.15% BD   ratio 20.2   miss (bar 25)
+
+A1 passed comfortably; A2 did not. So the gate is live on one class at one
+preset, and off for 1080p at every preset and for speeds 0-4 everywhere.
+
+THE REASON A2 BEHAVES DIFFERENTLY IS STRUCTURAL, NOT INCIDENTAL. The gate
+compares an UNTRELLISED estimate of a candidate against best_rd, which is a
+TRELLISED figure. The estimate is biased high by however much the trellis would
+have lowered it, and the fixed 1/8 margin is a constant pad for that bias. But
+the bias is not constant -- it depends on qindex, coefficient density,
+transform block size and content. **A bias that differs by 2x between A1 and A2
+cannot be paid for by one constant**, and that is exactly what the 42.1 / 20.2
+split looks like.
+
+THE CORRECTION IS ALREADY IN HAND. Every candidate that passes the gate has its
+pre-trellis estimate computed by the gate, and its true post-trellis RD
+computed a few statements below. Accumulating both over the candidates of the
+transform block currently being searched gives
+
+    alpha = sum(rd_post) / sum(pre_rd)
+
+the trellis's realised RD reduction measured on exactly the population the gate
+is applied to. The gate then compares like with like: alpha * pre_rd against
+best_rd.
+
+Because de-biasing makes the estimate smaller, calibration makes the gate SAFER
+at a fixed margin, not faster. The point is to spend that safety on a wider
+scope and a smaller margin.
+
+THE REFACTOR IS EXACT, AND THAT IS CHECKED, NOT ASSERTED. Built with
+-DAVM_TX_GATE_CALIBRATE=0 and run against the shipped gate (both with the 4K
+test relaxed so the gate fires on a testable clip), the two produce
+byte-identical bitstreams:
+
+    320x192 cpu-used=5 qp160   63802d27c9d898a5 == 63802d27c9d898a5
+    320x192 cpu-used=5 qp110   b7174767a48dd3bf == b7174767a48dd3bf
+    640x360 cpu-used=6 qp185   2ef026d2c926744d == 2ef026d2c926744d
+
+So -DAVM_TX_GATE_CALIBRATE=0 reproduces today's encoder exactly, and every
+difference measured against it is attributable to calibration alone.
+
+KNOBS. Defaults preserve the shipped behaviour except for turning calibration
+on, so the default build is the smallest possible change from today:
+
+    -DAVM_TX_GATE_MIN_SPEED=N    lowest preset the gate runs at   (default 5)
+    -DAVM_TX_GATE_MIN_DIM=N      min(w,h) for the gate to run     (default 2160)
+    -DAVM_TX_GATE_MARGIN64=N     residual margin in 64ths          (default 8 = 1/8)
+    -DAVM_TX_GATE_CALIBRATE=0/1  calibration off/on                (default 1)
+    -DAVM_TX_GATE_CALIB_MIN=N    samples before alpha is trusted   (default 2)
+    -DAVM_TX_GATE_ALPHA_MIN_Q12  floor on alpha, 2048 == 0.5
+
+DETERMINISM. The accumulators are locals in search_tx_type, scoped to one
+transform block's candidate loop, deliberately not carried in MACROBLOCK. The
+gate then depends only on the candidates of the block being searched -- never on
+tile decomposition, thread count or encode history. Same input, same output, at
+any thread count. Overflow is handled by scaling both sums down until the Q12
+shift is provably safe rather than by assuming a bound on RD magnitudes; alpha
+is clamped to (0.5, 1.0], because above 1.0 the gate would become more
+aggressive than its own uncalibrated estimate and below the floor it would
+quietly switch itself off.
+
+ARMS TO RUN. The interesting question is whether calibration lets the gate be
+widened, so the arms should widen it:
+
+    1  -DAVM_TX_GATE_MIN_DIM=0                      4K gate extended to A2, speed 5
+    2  -DAVM_TX_GATE_MIN_DIM=0 -DAVM_TX_GATE_MIN_SPEED=3   ... and down to speed 3
+    3  -DAVM_TX_GATE_MIN_DIM=0 -DAVM_TX_GATE_MARGIN64=4    ... with a tighter margin
+
+Arm 1 is the decisive one: A2 at speed 5 with calibration, against A2 at speed 5
+without the gate at all (today's encoder). Arm 2 re-asks the Speed-3 question
+that produced 42.1 / 20.2, with the bias removed.
+
+LOCAL MEASUREMENT, AND WHY IT IS NOT QUOTED AS A SPEEDUP. Paired wall clock on
+the development machine gave -0.5% (margin 8) and +0.9% (margin 4) against the
+shipped gate, with reps disagreeing in sign. That is inside the noise floor and
+is therefore no measurement at all. It is also the expected shape: at a fixed
+margin calibration prunes LESS, so margin 8 should be slightly slower and the
+gain has to come from widening the scope -- which local clips cannot test,
+because the gate is 4K-only today.
+
+WHAT WOULD FALSIFY IT. If arm 1 shows A2 still below its bar with calibration
+on, then the A1/A2 split is not driven by the estimator's bias, and this whole
+approach is wrong; the gate should stay 4K-only and the remaining work is to
+find why 1080p responds differently. If arm 1 passes, arm 2 is the prize --
+extending a ratio-100 mechanism from one class at one preset to both classes
+across several.
+
+diff --git a/av2/encoder/tx_search.c b/av2/encoder/tx_search.c
+index 4c482ec..a055c7b 100644
+--- a/av2/encoder/tx_search.c
++++ b/av2/encoder/tx_search.c
+@@ -2359,6 +2359,12 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
+   const bool is_inter = is_inter_block(mbmi, xd->tree_type);
+   const bool is_lossless = xd->lossless[mbmi->segment_id];
+   int64_t best_rd = INT64_MAX;
++  // Pre-trellis gate self-calibration state. Locals, scoped to this transform
++  // block's candidate loop -- deliberately not carried in MACROBLOCK, so the
++  // gate depends only on the candidates of the block being searched and is
++  // independent of tile decomposition and thread count.
++  int64_t gate_pre_sum = 0, gate_post_sum = 0;
++  int gate_n = 0;
+   uint16_t best_eob = 0;
+   TX_TYPE best_tx_type = MAKE_TX_TYPE_FROM_PRIMARY_TX_TYPE(DCT_DCT);
+   int rate_cost = 0;
+@@ -2688,18 +2694,92 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
+                                    tx_sf->prune_intra_ist_stx_by_zero_eob)) {
+           continue;
+         }
+-        if (cpi->oxcf.speed >= 5) {
+-          const int is_4k_or_larger = AVMMIN(cm->width, cm->height) >= 2160;
+-          if (is_4k_or_larger && quant_param.use_optimize_b && !fsc_mode_in &&
+-              *eob != 0 && best_rd != INT64_MAX && txw != 64 && txh != 64) {
++        // Pre-trellis RD gate, self-calibrated.
++        //
++        // The shipped gate compares an UNTRELLISED estimate of this candidate
++        // against best_rd, which is a TRELLISED figure. The estimate is biased
++        // high by however much the trellis would have lowered it, and the
++        // fixed 1/8 margin is a constant pad for a bias that is not constant:
++        // it depends on qindex, coefficient density, block size and content.
++        // That is visible in the CTC data -- at Speed 3 the same margin gave
++        // ratio 42.1 on A1 (4K) but only 20.2 on A2 (1080p). A bias that
++        // differs 2x between classes cannot be paid for by one constant, which
++        // is why the shipped gate is restricted to 4K.
++        //
++        // The correction is already in hand. Every candidate that passes the
++        // gate has its pre-trellis estimate computed here and its true
++        // post-trellis RD computed a few statements below. Accumulating both
++        // over this transform block's own candidates gives
++        //
++        //     alpha = sum(rd_post) / sum(pre_rd)
++        //
++        // the trellis's realised RD reduction measured on exactly the
++        // population the gate is applied to, so the gate can compare like with
++        // like: alpha * pre_rd against best_rd.
++        //
++        // De-biasing makes the estimate smaller, so calibration makes the gate
++        // SAFER at a fixed margin rather than faster. The point is to spend
++        // that safety on a smaller margin and on a wider scope.
++#ifndef AVM_TX_GATE_MIN_SPEED
++#define AVM_TX_GATE_MIN_SPEED 5
++#endif
++#ifndef AVM_TX_GATE_MIN_DIM        // 2160 = shipped (4K only); 0 = all sizes
++#define AVM_TX_GATE_MIN_DIM 2160
++#endif
++#ifndef AVM_TX_GATE_MARGIN64       // residual margin in 64ths; 8 == the shipped 1/8
++#define AVM_TX_GATE_MARGIN64 8
++#endif
++#ifndef AVM_TX_GATE_CALIBRATE      // 0 reproduces the shipped gate exactly
++#define AVM_TX_GATE_CALIBRATE 1
++#endif
++#ifndef AVM_TX_GATE_CALIB_MIN      // samples before alpha is trusted
++#define AVM_TX_GATE_CALIB_MIN 2
++#endif
++#ifndef AVM_TX_GATE_ALPHA_MIN_Q12  // floor on alpha; 2048 == 0.5
++#define AVM_TX_GATE_ALPHA_MIN_Q12 2048
++#endif
++        int64_t this_pre_rd = -1;
++        if (cpi->oxcf.speed >= AVM_TX_GATE_MIN_SPEED) {
++          const int size_ok = AVMMIN(cm->width, cm->height) >= AVM_TX_GATE_MIN_DIM;
++          if (size_ok && quant_param.use_optimize_b && !fsc_mode_in &&
++              *eob != 0 && txw != 64 && txh != 64) {
+             const int pre_rate =
+                 cost_coeffs(cm, x, plane, block, tx_size, tx_type, CCTX_NONE,
+                             txb_ctx, cm->features.reduced_tx_set_used);
+             int64_t pre_dist, pre_sse;
+             dist_block_tx_domain(x, plane, block, tx_size, &pre_dist, &pre_sse);
+             const int64_t pre_rd = RDCOST(x->rdmult, pre_rate, pre_dist);
+-            if (pre_rd - (pre_rd >> 3) > best_rd) {
+-              continue;
++            this_pre_rd = pre_rd;
++            if (best_rd != INT64_MAX) {
++              // pre_rd is an RD cost for a single transform block and is
++              // bounded well below INT64_MAX/64, so this cannot overflow.
++              int64_t effective =
++                  pre_rd - ((pre_rd * AVM_TX_GATE_MARGIN64) >> 6);
++#if AVM_TX_GATE_CALIBRATE
++              if (gate_n >= AVM_TX_GATE_CALIB_MIN && gate_pre_sum > 0) {
++                // Scale both sums down until the Q12 shift is provably safe,
++                // rather than assuming a bound on RD magnitudes.
++                int64_t ps = gate_pre_sum, qs = gate_post_sum;
++                while (qs > ((int64_t)1 << 50)) {
++                  qs >>= 1;
++                  ps >>= 1;
++                }
++                if (ps > 0) {
++                  int64_t alpha_q12 = (qs << 12) / ps;
++                  // alpha > 1 would make the gate more aggressive than its own
++                  // uncalibrated estimate, which is never intended; below the
++                  // floor it would quietly switch the gate off.
++                  if (alpha_q12 > 4096) alpha_q12 = 4096;
++                  if (alpha_q12 < AVM_TX_GATE_ALPHA_MIN_Q12)
++                    alpha_q12 = AVM_TX_GATE_ALPHA_MIN_Q12;
++                  effective = (pre_rd * alpha_q12) >> 12;
++                  effective -= (effective * AVM_TX_GATE_MARGIN64) >> 6;
++                }
++              }
++#endif  // AVM_TX_GATE_CALIBRATE
++              if (effective > best_rd) {
++                continue;
++              }
+             }
+           }
+         }
+@@ -2751,6 +2831,18 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
+         const int64_t rd =
+             RDCOST(x->rdmult, this_rd_stats.rate, this_rd_stats.dist);
+ 
++#if AVM_TX_GATE_CALIBRATE
++        // Feed the gate's own estimate and the outcome it was estimating back
++        // into the calibration. Only candidates the gate actually costed
++        // contribute, so alpha is measured over exactly the population the
++        // gate is applied to.
++        if (this_pre_rd > 0 && rd > 0) {
++          gate_pre_sum += this_pre_rd;
++          gate_post_sum += rd;
++          gate_n++;
++        }
++#endif  // AVM_TX_GATE_CALIBRATE
++
+         if (is_lossless) {
+           assert(this_rd_stats.dist == 0);
+         }
