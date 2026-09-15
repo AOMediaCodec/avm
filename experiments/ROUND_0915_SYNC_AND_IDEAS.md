@@ -204,11 +204,23 @@ branch was deleted; the code is unchanged upstream. Re-verified **bit-exact on
 four configurations** here (`a271350b93a4a028`, `4073825a8e6d892f`,
 `5713e61f499d46d2`, `d434144611e1e035`) — two clips, three presets, two QPs.
 
-Bit-exact ⇒ ΔBD = 0 ⇒ unbounded ratio ⇒ cannot fail the bar at any preset. The
-cheapest arm on the board.
+**Measured**, retired instructions under callgrind, same clip and settings as
+the profile:
 
-**Do not measure it with wall clock**; instruction counts are the instrument,
-and they understate it, because the work removed is memory traffic.
+```
+unpatched   176,252,929,353
+patched     171,545,473,002
+removed       4,707,456,351   =  2.67%
+```
+
+**2.67% of the encoder's instructions for 0.00% BD-rate.** Bit-exact ⇒ ΔBD = 0
+⇒ unbounded ratio ⇒ cannot fail the bar at any preset. The cheapest arm on the
+board, and it is no longer a speculative one.
+
+Instruction counts probably *understate* the wall-time gain here — the work
+removed is memory traffic, and a vectorised memset retires few instructions per
+byte written. Treat 2.67% as a floor. **Do not try to confirm it with local
+wall clock**; the noise floor is several percent.
 
 ---
 

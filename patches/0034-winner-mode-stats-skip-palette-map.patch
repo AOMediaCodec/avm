@@ -51,13 +51,22 @@ these paths, not on all paths. A CTC run reporting 0.00% BD-rate on every
 metric is the check to insist on -- which is exactly what a bit-exact patch
 should return, and what the temporal-filter SSE2 patch did return.
 
+MEASURED. Retired instructions under callgrind, same clip and settings as the
+profile above (320x192, 3 frames, cpu-used=5, qp=160, 1 thread):
+
+    unpatched   176,252,929,353
+    patched     171,545,473,002
+    removed       4,707,456,351   =  2.67%
+
+Bit-exact, so this is 2.67% of the encoder's instructions for 0.00% BD-rate.
+
 ON MEASURING THE SPEEDUP. Do not use wall clock for this. On the machine it was
 developed on the noise floor is several percent, far above what this change
 produces, and two configurations disagreed in sign. Retired-instruction counts
 under callgrind are deterministic to well under 0.1% and are the right
-instrument. One caveat on reading them: the work removed is memory traffic, and
-a vectorised memset retires few instructions per byte written, so instruction
-counts probably UNDERSTATE the wall-time gain. Treat the figure as a floor.
+instrument. One caveat on reading the 2.67%: the work removed is memory
+traffic, and a vectorised memset retires few instructions per byte written, so
+instruction counts probably UNDERSTATE the wall-time gain. Treat it as a floor.
 
 WHAT TO RUN. One arm at any preset -- the change is preset-independent and the
 question ("is it still 0.00% BD at CTC scale?") is the same everywhere. The
