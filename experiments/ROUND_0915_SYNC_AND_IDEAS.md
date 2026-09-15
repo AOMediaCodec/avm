@@ -248,11 +248,13 @@ compiler rather than by hand in two places.
 Bit-exact by construction — it removes writes to function-local stack buffers
 that are provably never read on the paths where the writes are skipped.
 
-Profile: `avm_memset16` via `av2_build_intra_predictors_high` is 1.00% (Speed 5)
-/ 0.81% (Speed 2); roughly half is the two `_2nd` memsets, and the `_2nd` copy
-loops add more on top inside the 0.62-0.76% self cost and the memcpy lines.
+**Measured: −0.42%** of retired instructions (176,252,929,353 →
+175,514,192,652). Bit-exact **6/6**, presets 0 through 5.
 
-Verification status is in §9.
+Worth saying plainly: 0.42% is not much. It is carried because it is bit-exact
+and the argument is a clean locality property, so it costs nothing to hold. If
+only one of the three memory-traffic patches gets a CTC slot, it is not this
+one.
 
 ---
 
@@ -312,6 +314,18 @@ of them while the reader path runs as hard as the encoder allows. The graded
 configurations in the first sweep, where OPFL is switchable per block so both
 paths occur within the same frame, are where a disagreement in between would
 show.
+
+**Measured: −4.24%** of retired instructions (176,252,929,353 →
+168,772,589,892) — the largest single saving in this round, against a profiled
+4.28% for that memset, so essentially all of it is gone.
+
+**And that is also the caveat.** Removing ~all of it means OPFL is off for very
+nearly every inter block on this clip. The saving *is* the fraction of inter
+blocks where OPFL is disabled, so unlike 0034's it is content- and
+configuration-dependent and shrinks toward zero on material where OPFL fires
+often. Read 4.24% as the value on a clip where OPFL rarely fires, not as a CTC
+prediction. It cannot be slower than baseline either way — one predicate
+against an 8192-byte memset.
 
 Worth noting that today's memset does not protect against cross-block staleness
 either — it is itself gated on `plane == AVM_PLANE_Y`, so a chroma call whose mi

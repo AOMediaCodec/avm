@@ -68,10 +68,29 @@ clip x preset x qindex, with 6-10 frame runs rather than the usual 2-4 so
 that inter prediction, OPFL and TIP actually fire. Results are recorded in
 experiments/registry.csv.
 
-MEASURING THE SPEEDUP
+MEASURED
 
-Retired-instruction counts under callgrind, not wall clock -- the local
-noise floor is several percent. Instruction counts understate this one,
+Retired instructions under callgrind, same clip and settings as the profile
+(320x192, 3 frames, cpu-used=5, qp=160, 1 thread):
+
+    unpatched   176,252,929,353
+    patched     168,772,589,892
+    removed       7,480,339,461   =  4.24%
+
+The profile attributed 4.28% to this memset, so essentially all of it is
+gone -- which also says that on this clip OPFL is off for very nearly every
+inter block.
+
+THAT LAST POINT IS THE CAVEAT. The size of this saving is exactly the
+fraction of inter blocks for which OPFL is disabled, so it is content- and
+configuration-dependent in a way that 0034's is not. On material where OPFL
+fires often the memset is still needed and the saving shrinks toward zero.
+Read 4.24% as the value on a clip where OPFL rarely fires, not as a CTC
+prediction. The patch cannot be slower than baseline in any case -- the
+guard costs one predicate against an 8192-byte memset.
+
+Use retired-instruction counts, not wall clock -- the local noise floor is
+several percent. Instruction counts understate the wall-time gain here,
 because the work removed is memory traffic.
 
 diff --git a/av2/common/reconinter.c b/av2/common/reconinter.c

@@ -33,6 +33,30 @@ removed       4,707,456,351   =  2.67%
 
 ---
 
+## Measured instruction counts, all three bit-exact patches
+
+Same clip and settings throughout: 320x192, 3 frames, cpu-used=5, qp=160,
+1 thread. Baseline 176,252,929,353.
+
+| patch | patched count | removed | share |
+|---|---|---|---|
+| 0034 `winner_mode_stats` | 171,545,473,002 | 4,707,456,351 | **2.67%** |
+| 0036 intra 2nd MRL line | 175,514,192,652 | 738,736,701 | **0.42%** |
+| 0037 `mv_refined` | 168,772,589,892 | 7,480,339,461 | **4.24%** |
+
+0037's 4.24% against a profiled 4.28% for that memset means essentially the
+whole thing is gone -- which also says OPFL is off for very nearly every inter
+block on this clip. **That is the caveat on 0037**: its saving is exactly the
+fraction of inter blocks where OPFL is disabled, so unlike 0034's it is
+content- and configuration-dependent, and shrinks toward zero on material
+where OPFL fires often. It cannot be slower than baseline either way -- one
+predicate against an 8192-byte memset.
+
+0036's 0.42% is small, and it is carried because it is bit-exact and cheap to
+reason about, not because it is worth a CTC slot of its own.
+
+---
+
 ## Patch 0035 — pre-trellis gate, self-calibrated
 
 This patch is an **approximation**, so it is not expected to be bit-exact. What

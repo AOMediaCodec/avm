@@ -54,12 +54,29 @@ Half of that is the two unconditional _2nd memsets, and the _2nd copy
 loops and memcpy add more on top -- they land in the 0.62%-0.76% self cost
 of av2_build_intra_predictors_high and in the memcpy lines.
 
+MEASURED
+
+Retired instructions under callgrind, same clip and settings:
+
+    unpatched   176,252,929,353
+    patched     175,514,192,652
+    removed         738,736,701   =  0.42%
+
+This is the smallest of the three memory-traffic patches in this round
+(0034 is 2.67%, 0037 is 4.24%), and it is worth being clear that 0.42% is
+not much. It is included because it is bit-exact and because the argument
+is a clean locality property rather than a judgement call -- so it costs
+nothing to carry and cannot fail the ratio bar at any preset. If only one
+of the three is worth a CTC slot, it is not this one.
+
 MEASURING IT
 
 Use retired-instruction counts under callgrind, not wall clock. The local
 wall-clock noise floor is several percent and has repeatedly produced
-sign-disagreeing reps on changes of this size. The work removed is memory
-traffic, so instruction counts understate the real saving.
+sign-disagreeing reps on changes of this size -- a 0.42% change is roughly
+an order of magnitude below what wall clock can resolve here. The work
+removed is memory traffic, so instruction counts understate the real
+saving.
 
 VERIFICATION
 
