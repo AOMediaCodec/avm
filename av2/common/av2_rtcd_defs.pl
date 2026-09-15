@@ -233,7 +233,6 @@ if (avm_config("CONFIG_AV2_ENCODER") eq "yes") {
   add_proto qw/void av2_calc_block_eob_rate/, "struct macroblock *x, int plane, TX_SIZE tx_size, int eob, uint16_t *block_eob_rate";
   specialize qw/av2_calc_block_eob_rate avx2/;
   add_proto qw/int av2_find_best_path/, "const struct tcq_node_t *trellis, const int16_t *scan, const int32_t *dequant, const qm_val_t *iqmatrix, const tran_low_t *tcoeff, int first_scan_pos, int log_scale, tran_low_t *qcoeff, tran_low_t *dqcoeff, int *min_rate, int64_t *min_cost";
-  specialize qw/av2_find_best_path avx2/;
   add_proto qw/void av2_get_coeff_ctx/, "const struct tcq_ctx_t *tcq_ctx, int col, struct tcq_coeff_ctx_t *coeff_ctx";
   specialize qw/av2_get_coeff_ctx avx2/;
   add_proto qw/void av2_update_nbr_diagonal/, "struct tcq_ctx_t *tcq_ctx, int row, int col, int bwl";

@@ -470,6 +470,394 @@ class TcqUpdateNbrDiagonalTest
 
 TEST_P(TcqUpdateNbrDiagonalTest, RandomValues) { RunTest(); }
 
+// ============================================================
+// FindBestPath: invariant test (permanent)
+//
+// Verifies av2_find_best_path output against independently computed
+// invariants derived from the TCQ spec. Covers both iqmatrix paths.
+// No ISA dependency -- runs on all platforms.
+// ============================================================
+
+class FindBestPathInvariantTest : public ::testing::Test {
+ protected:
+  static const int kIterations = 5000;
+  static const int kMaxEob = 64;
+  ACMRandom rng_;
+
+  FindBestPathInvariantTest() : rng_(ACMRandom::DeterministicSeed()) {}
+
+  struct TrellisFixture {
+    tcq_node_t trellis[MAX_TRELLIS * TCQ_MAX_STATES];
+    tran_low_t tcoeff[MAX_TRELLIS];
+    int32_t dequant[2];
+    qm_val_t iqmatrix[MAX_TRELLIS];
+    int16_t scan[MAX_TRELLIS];
+    int eob_length;
+    int first_scan_pos;
+    int log_scale;
+  };
+
+  void GenerateTrellis(TrellisFixture *f, int eob_length, bool use_iqmatrix) {
+    f->eob_length = eob_length;
+    f->first_scan_pos = eob_length - 1 + rng_(8);
+    f->log_scale = 1 + (rng_.Rand8() & 1);
+    f->dequant[0] = (1 << QUANT_TABLE_BITS) << (f->log_scale - 1);
+    f->dequant[1] = 4 + rng_(200);
+
+    for (int i = 0; i < MAX_TRELLIS; i++) {
+      f->scan[i] = i;
+      f->tcoeff[i] = (tran_low_t)((rng_.Rand16() % 2048) - 1024);
+    }
+
+    if (use_iqmatrix) {
+      for (int i = 0; i < MAX_TRELLIS; i++)
+        f->iqmatrix[i] = 16 + (rng_.Rand8() % 16);
+    }
+
+    memset(f->trellis, 0, sizeof(tcq_node_t) * MAX_TRELLIS * TCQ_MAX_STATES);
+
+    if (eob_length == 0) return;
+
+    int path_states[kMaxEob] = {};
+    for (int i = 0; i < eob_length; i++)
+      path_states[i] = rng_.Rand8() % TCQ_N_STATES;
+
+    for (int sp = 0; sp < eob_length; sp++) {
+      int base = sp * TCQ_N_STATES;
+      for (int st = 0; st < TCQ_N_STATES; st++) {
+        tcq_node_t *n = &f->trellis[base + st];
+        n->rdCost = (int64_t)(rng_(1 << 20)) + 1;
+        n->rate = rng_(1 << 16);
+        n->absLevel = rng_.Rand8() % 32;
+        if (sp < eob_length - 1)
+          n->prevId = rng_.Rand8() % TCQ_N_STATES;
+        else
+          n->prevId = -1;
+      }
+    }
+
+    tcq_node_t *best = &f->trellis[path_states[0]];
+    best->rdCost = 1;
+  }
+
+  static int get_dqv_ref(const int32_t *dequant, int coeff_idx,
+                         const qm_val_t *iqmatrix) {
+    int dqv = dequant[!!coeff_idx];
+    if (iqmatrix != NULL)
+      dqv = ((iqmatrix[coeff_idx] * dqv) + (1 << (AVM_QM_BITS - 1))) >>
+            AVM_QM_BITS;
+    return dqv;
+  }
+
+  void VerifyInvariants(const TrellisFixture *f, const qm_val_t *iqm,
+                        const tran_low_t *qcoeff, const tran_low_t *dqcoeff,
+                        int eob, int min_rate, int64_t min_cost) {
+    // Invariant A: min_cost/min_rate match best initial state
+    int64_t best_cost = INT64_MAX;
+    int best_state = -2;
+    int best_rate = 0;
+    for (int s = 0; s < TCQ_N_STATES; s++) {
+      if (f->trellis[s].rdCost < best_cost) {
+        best_cost = f->trellis[s].rdCost;
+        best_state = s;
+        best_rate = f->trellis[s].rate;
+      }
+    }
+    ASSERT_EQ(min_cost, best_cost) << "min_cost mismatch";
+    ASSERT_EQ(min_rate, best_rate) << "min_rate mismatch";
+
+    if (best_state < 0) {
+      ASSERT_EQ(eob, 0) << "eob should be 0 when no valid state";
+      return;
+    }
+
+    // Invariant F: path length == eob
+    int path_len = 0;
+    int state = best_state;
+    for (int sp = 0; state >= 0 && sp < MAX_TRELLIS; sp++) {
+      const tcq_node_t *node = &f->trellis[sp * TCQ_N_STATES + state];
+      state = node->prevId;
+      path_len++;
+    }
+    ASSERT_EQ(eob, path_len) << "eob does not match path length";
+
+    // Walk path again to verify B, C, D
+    state = best_state;
+    for (int sp = 0; sp < eob; sp++) {
+      const tcq_node_t *node = &f->trellis[sp * TCQ_N_STATES + state];
+      int abs_level = node->absLevel;
+      int next_state = node->prevId;
+      int blk_pos = f->scan[sp];
+
+      // Invariant B: |qcoeff| == absLevel
+      ASSERT_EQ(abs(qcoeff[blk_pos]), abs_level)
+          << "qcoeff magnitude mismatch at scan_pos=" << sp;
+
+      // Invariant C: sign consistency
+      if (abs_level > 0) {
+        bool coeff_neg = f->tcoeff[blk_pos] < 0;
+        bool q_neg = qcoeff[blk_pos] < 0;
+        ASSERT_EQ(q_neg, coeff_neg)
+            << "qcoeff sign mismatch at scan_pos=" << sp;
+      } else {
+        ASSERT_EQ(qcoeff[blk_pos], 0)
+            << "qcoeff should be 0 when absLevel=0 at scan_pos=" << sp;
+      }
+
+      // Invariant D: dqcoeff matches independent dequant formula
+      int dqv = get_dqv_ref(f->dequant, blk_pos, iqm);
+      int q_i = (next_state >= 0) ? (bool)(next_state & 2) : 0;
+      int qc = (abs_level == 0) ? 0 : (2 * abs_level - q_i);
+      int expected_dqc = (tran_low_t)ROUND_POWER_OF_TWO_64(
+                             (tran_high_t)qc * dqv, QUANT_TABLE_BITS) >>
+                         f->log_scale;
+      if (f->tcoeff[blk_pos] < 0) expected_dqc = -expected_dqc;
+
+      ASSERT_EQ(dqcoeff[blk_pos], expected_dqc)
+          << "dqcoeff mismatch at scan_pos=" << sp << " absLevel=" << abs_level
+          << " q_i=" << q_i << " dqv=" << dqv << " qc=" << qc;
+
+      state = next_state;
+    }
+
+    // Invariant E: zero padding beyond eob
+    for (int sp = eob; sp <= f->first_scan_pos; sp++) {
+      int blk_pos = f->scan[sp];
+      ASSERT_EQ(qcoeff[blk_pos], 0) << "qcoeff not zeroed at scan_pos=" << sp;
+      ASSERT_EQ(dqcoeff[blk_pos], 0) << "dqcoeff not zeroed at scan_pos=" << sp;
+    }
+  }
+
+  void RunInvariantTest(bool use_iqmatrix) {
+    for (int iter = 0; iter < kIterations && !HasFatalFailure(); ++iter) {
+      int eob_length = 1 + rng_(kMaxEob - 1);
+      TrellisFixture f;
+      GenerateTrellis(&f, eob_length, use_iqmatrix);
+
+      tran_low_t qcoeff[MAX_TRELLIS] = { 0 };
+      tran_low_t dqcoeff[MAX_TRELLIS] = { 0 };
+      int min_rate = 0;
+      int64_t min_cost = INT64_MAX;
+      const qm_val_t *iqm = use_iqmatrix ? f.iqmatrix : NULL;
+
+      int eob = av2_find_best_path(f.trellis, f.scan, f.dequant, iqm, f.tcoeff,
+                                   f.first_scan_pos, f.log_scale, qcoeff,
+                                   dqcoeff, &min_rate, &min_cost);
+      VerifyInvariants(&f, iqm, qcoeff, dqcoeff, eob, min_rate, min_cost);
+    }
+  }
+};
+
+TEST_F(FindBestPathInvariantTest, NoIqmatrix) { RunInvariantTest(false); }
+
+TEST_F(FindBestPathInvariantTest, WithIqmatrix) { RunInvariantTest(true); }
+
+TEST_F(FindBestPathInvariantTest, SingleCoeff) {
+  for (int iter = 0; iter < 500 && !HasFatalFailure(); ++iter) {
+    TrellisFixture f;
+    GenerateTrellis(&f, 1, iter % 2 == 0);
+
+    tran_low_t qcoeff[MAX_TRELLIS] = { 0 };
+    tran_low_t dqcoeff[MAX_TRELLIS] = { 0 };
+    int min_rate = 0;
+    int64_t min_cost = INT64_MAX;
+    const qm_val_t *iqm = (iter % 2 == 0) ? f.iqmatrix : NULL;
+
+    int eob = av2_find_best_path(f.trellis, f.scan, f.dequant, iqm, f.tcoeff,
+                                 f.first_scan_pos, f.log_scale, qcoeff, dqcoeff,
+                                 &min_rate, &min_cost);
+    ASSERT_EQ(eob, 1) << "single-coeff path should have eob=1";
+    VerifyInvariants(&f, iqm, qcoeff, dqcoeff, eob, min_rate, min_cost);
+  }
+}
+
+TEST_F(FindBestPathInvariantTest, AllZeroAbsLevel) {
+  for (int iter = 0; iter < 500 && !HasFatalFailure(); ++iter) {
+    int eob_length = 2 + rng_(16);
+    TrellisFixture f;
+    GenerateTrellis(&f, eob_length, false);
+
+    for (int sp = 0; sp < eob_length; sp++) {
+      for (int st = 0; st < TCQ_N_STATES; st++)
+        f.trellis[sp * TCQ_N_STATES + st].absLevel = 0;
+    }
+
+    tran_low_t qcoeff[MAX_TRELLIS] = { 0 };
+    tran_low_t dqcoeff[MAX_TRELLIS] = { 0 };
+    int min_rate = 0;
+    int64_t min_cost = INT64_MAX;
+
+    int eob = av2_find_best_path(f.trellis, f.scan, f.dequant, NULL, f.tcoeff,
+                                 f.first_scan_pos, f.log_scale, qcoeff, dqcoeff,
+                                 &min_rate, &min_cost);
+    VerifyInvariants(&f, NULL, qcoeff, dqcoeff, eob, min_rate, min_cost);
+
+    for (int sp = 0; sp < eob; sp++) {
+      int blk_pos = f.scan[sp];
+      ASSERT_EQ(qcoeff[blk_pos], 0);
+      ASSERT_EQ(dqcoeff[blk_pos], 0);
+    }
+  }
+}
+
+// ============================================================
+// FindBestPath: regression test (temporary)
+//
+// Compares the optimized av2_find_best_path against a frozen copy of
+// the pre-optimization C implementation. This is a safety net that
+// can be removed once the optimized code has been validated across
+// multiple CTC cycles.
+// ============================================================
+
+static int find_best_path_reference(const tcq_node_t *trellis,
+                                    const int16_t *scan, const int32_t *dequant,
+                                    const qm_val_t *iqmatrix,
+                                    const tran_low_t *tcoeff,
+                                    int first_scan_pos, int log_scale,
+                                    tran_low_t *qcoeff, tran_low_t *dqcoeff,
+                                    int *min_rate, int64_t *min_cost) {
+  int64_t min_path_cost = INT64_MAX;
+  int trel_min_rate = 0;
+  int prev_id = -2;
+  for (int state = 0; state < TCQ_N_STATES; state++) {
+    const tcq_node_t *decision = &trellis[state];
+    if (decision->rdCost < min_path_cost) {
+      prev_id = state;
+      min_path_cost = decision->rdCost;
+      trel_min_rate = decision->rate;
+    }
+  }
+
+  int scan_pos = 0;
+  if (!iqmatrix) {
+    int dqv = dequant[0];
+    int dqv_ac = dequant[1];
+    for (; prev_id >= 0; scan_pos++) {
+      const tcq_node_t *decision =
+          &trellis[(scan_pos << TCQ_N_STATES_LOG) + prev_id];
+      prev_id = decision->prevId;
+      int abs_level = decision->absLevel;
+      int blk_pos = scan[scan_pos];
+      int sign = -(tcoeff[blk_pos] < 0);
+      int q_i = prev_id >= 0 ? (bool)(prev_id & 2) : 0;
+      int qc = (abs_level == 0) ? 0 : (2 * abs_level - q_i);
+      int dqc = (tran_low_t)ROUND_POWER_OF_TWO_64((tran_high_t)qc * dqv,
+                                                  QUANT_TABLE_BITS) >>
+                log_scale;
+      qcoeff[blk_pos] = (abs_level ^ sign) - sign;
+      dqcoeff[blk_pos] = (dqc ^ sign) - sign;
+      dqv = dqv_ac;
+    }
+  } else {
+    for (; prev_id >= 0; scan_pos++) {
+      const tcq_node_t *decision =
+          &trellis[(scan_pos << TCQ_N_STATES_LOG) + prev_id];
+      prev_id = decision->prevId;
+      int abs_level = decision->absLevel;
+      int blk_pos = scan[scan_pos];
+      int sign = -(tcoeff[blk_pos] < 0);
+      qcoeff[blk_pos] = (abs_level ^ sign) - sign;
+      int dqv = dequant[!!blk_pos];
+      dqv =
+          ((iqmatrix[blk_pos] * dqv) + (1 << (AVM_QM_BITS - 1))) >> AVM_QM_BITS;
+      int q_i = prev_id >= 0 ? (bool)(prev_id & 2) : 0;
+      int qc = (abs_level == 0) ? 0 : (2 * abs_level - q_i);
+      int dqc = (tran_low_t)ROUND_POWER_OF_TWO_64((tran_high_t)qc * dqv,
+                                                  QUANT_TABLE_BITS) >>
+                log_scale;
+      dqcoeff[blk_pos] = (dqc ^ sign) - sign;
+    }
+  }
+  int eob = scan_pos;
+
+  for (; scan_pos <= first_scan_pos; scan_pos++) {
+    int blk_pos = scan[scan_pos];
+    qcoeff[blk_pos] = 0;
+    dqcoeff[blk_pos] = 0;
+  }
+
+  *min_rate = trel_min_rate;
+  *min_cost = min_path_cost;
+  return eob;
+}
+
+class FindBestPathRegressionTest : public ::testing::Test {
+ protected:
+  static const int kIterations = 5000;
+  static const int kMaxEob = 64;
+  ACMRandom rng_;
+
+  FindBestPathRegressionTest() : rng_(ACMRandom::DeterministicSeed()) {}
+
+  void RunRegressionTest(bool use_iqmatrix) {
+    for (int iter = 0; iter < kIterations && !HasFatalFailure(); ++iter) {
+      int eob_length = 1 + rng_(kMaxEob - 1);
+      int first_scan_pos = eob_length - 1 + rng_(8);
+      int log_scale = 1 + (rng_.Rand8() & 1);
+      int32_t dequant[2];
+      dequant[0] = (1 << QUANT_TABLE_BITS) << (log_scale - 1);
+      dequant[1] = 4 + rng_(200);
+
+      int16_t scan[MAX_TRELLIS];
+      tran_low_t tcoeff[MAX_TRELLIS];
+      for (int i = 0; i < MAX_TRELLIS; i++) {
+        scan[i] = i;
+        tcoeff[i] = (tran_low_t)((rng_.Rand16() % 2048) - 1024);
+      }
+
+      qm_val_t iqmatrix[MAX_TRELLIS];
+      if (use_iqmatrix) {
+        for (int i = 0; i < MAX_TRELLIS; i++)
+          iqmatrix[i] = 16 + (rng_.Rand8() % 16);
+      }
+      const qm_val_t *iqm = use_iqmatrix ? iqmatrix : NULL;
+
+      tcq_node_t trellis[MAX_TRELLIS * TCQ_MAX_STATES];
+      memset(trellis, 0, sizeof(trellis));
+
+      for (int sp = 0; sp < eob_length; sp++) {
+        for (int st = 0; st < TCQ_N_STATES; st++) {
+          tcq_node_t *n = &trellis[sp * TCQ_N_STATES + st];
+          n->rdCost = (int64_t)(rng_(1 << 20)) + 1;
+          n->rate = rng_(1 << 16);
+          n->absLevel = rng_.Rand8() % 32;
+          n->prevId =
+              (sp < eob_length - 1) ? (rng_.Rand8() % TCQ_N_STATES) : -1;
+        }
+      }
+      trellis[rng_.Rand8() % TCQ_N_STATES].rdCost = 1;
+
+      tran_low_t qcoeff_ref[MAX_TRELLIS] = { 0 };
+      tran_low_t dqcoeff_ref[MAX_TRELLIS] = { 0 };
+      tran_low_t qcoeff_tst[MAX_TRELLIS] = { 0 };
+      tran_low_t dqcoeff_tst[MAX_TRELLIS] = { 0 };
+      int rate_ref = 0, rate_tst = 0;
+      int64_t cost_ref = INT64_MAX, cost_tst = INT64_MAX;
+
+      int eob_ref = find_best_path_reference(
+          trellis, scan, dequant, iqm, tcoeff, first_scan_pos, log_scale,
+          qcoeff_ref, dqcoeff_ref, &rate_ref, &cost_ref);
+      int eob_tst = av2_find_best_path(trellis, scan, dequant, iqm, tcoeff,
+                                       first_scan_pos, log_scale, qcoeff_tst,
+                                       dqcoeff_tst, &rate_tst, &cost_tst);
+
+      ASSERT_EQ(eob_ref, eob_tst) << "eob mismatch at iter=" << iter;
+      ASSERT_EQ(rate_ref, rate_tst) << "rate mismatch at iter=" << iter;
+      ASSERT_EQ(cost_ref, cost_tst) << "cost mismatch at iter=" << iter;
+      for (int i = 0; i < MAX_TRELLIS; i++) {
+        ASSERT_EQ(qcoeff_ref[i], qcoeff_tst[i])
+            << "qcoeff mismatch at pos=" << i << " iter=" << iter;
+        ASSERT_EQ(dqcoeff_ref[i], dqcoeff_tst[i])
+            << "dqcoeff mismatch at pos=" << i << " iter=" << iter;
+      }
+    }
+  }
+};
+
+TEST_F(FindBestPathRegressionTest, NoIqmatrix) { RunRegressionTest(false); }
+
+TEST_F(FindBestPathRegressionTest, WithIqmatrix) { RunRegressionTest(true); }
+
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
     AVX2, TcqRateLumaTest,
