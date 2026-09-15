@@ -55,6 +55,35 @@ predicate against an 8192-byte memset.
 0036's 0.42% is small, and it is carried because it is bit-exact and cheap to
 reason about, not because it is worth a CTC slot of its own.
 
+### Composition — the three applied together
+
+Built as one binary and re-measured, rather than assuming the savings add:
+
+```
+baseline          176,252,929,353
+0034+0036+0037    163,333,254,859
+removed            12,919,674,494   =  7.33%
+
+sum of the three measured individually     12,926,532,513   =  7.33%
+difference                                      6,858,019   =  0.004%
+```
+
+**Exactly additive**, which is what three memsets in three different functions
+should be, but is now measured rather than assumed.
+
+Combined bit-exactness, 4 configurations spanning presets 1-5 and three
+resolutions:
+
+| config | result |
+|---|---|
+| 320x192 speed 5 qp 160 | MATCH `5d7efbacc3729635fd4c90e3af471296` |
+| 320x192 speed 2 qp 110, 10 frames | MATCH `4b7c45d8dd9814df7aa9dd9da109ec21` |
+| 640x360 speed 1 qp 90 | MATCH `dde00f88ac03ed37c4b702a086e8ec11` |
+| 1280x720 speed 4 qp 150 | MATCH `17413d53011b31e0f1b410eb951d9bdf` |
+
+**4/4**, and each md5 equals the one the corresponding single-patch run
+produced, so the three do not interact.
+
 ---
 
 ## Patch 0035 — pre-trellis gate, self-calibrated

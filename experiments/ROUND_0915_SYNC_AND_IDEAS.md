@@ -333,6 +333,30 @@ had no luma call already sees whatever the previous block left behind.
 
 ---
 
+## 5c. The three bit-exact patches together: −7.33%, measured
+
+Built as one binary rather than assuming the savings add:
+
+```
+baseline          176,252,929,353
+0034+0036+0037    163,333,254,859
+removed            12,919,674,494   =  7.33%   at 0.00% BD-rate
+
+sum measured individually                      7.33%
+difference                                     0.004%
+```
+
+**Exactly additive** — which is what three memsets in three different functions
+should be, but is measured rather than asserted. Combined bit-exactness is 4/4
+across presets 1-5 and three resolutions, each md5 equal to the single-patch
+result, so they do not interact.
+
+7.33% of the encoder's retired instructions for zero BD-rate. Unbounded ratio:
+it cannot fail the bar at any preset. Remember the 0037 caveat above — its
+share of that 7.33% is content-dependent.
+
+---
+
 ## 6. Idea 5 — the chroma intra mode search copies `MB_MODE_INFO` repeatedly
 
 **Identified, unbuilt, and the largest unexplored memcpy.** 2.40% of
@@ -416,11 +440,16 @@ because temporal filtering does not run on a 3-frame clip.
 
 | priority | arm | why |
 |---|---|---|
-| 1 | `0035` arm 2 (`MIN_DIM=0 MIN_SPEED=2`) | ratio-101 mechanism at the preset where its target is 40% of the encoder |
-| 2 | `0035` arm 1 (`MIN_DIM=0`) | cheap decisive test that calibration closed the A1/A2 gap; run alongside arm 2 |
-| 3 | `0034` at any preset | bit-exact, cannot fail the bar, cheapest arm |
-| 4 | `0036` at any preset | bit-exact, same reasoning, smaller |
-| 5 | `0033` re-run, both arms | its premise predates the SMS retrain |
+| 1 | `0034`+`0036`+`0037` as one arm | **−7.33% instructions, measured, bit-exact.** One CTC run confirms 0.00% BD at scale for all three. They compose exactly. |
+| 2 | `0035` arm 2 (`MIN_DIM=0 MIN_SPEED=2`) | ratio-101 mechanism at the preset where its target is 40% of the encoder |
+| 3 | `0035` arm 1 (`MIN_DIM=0`) | cheap decisive test that calibration closed the A1/A2 gap; run alongside arm 2 |
+| 4 | `0033` re-run, both arms | its premise predates the SMS retrain |
+
+I have put the three bit-exact patches first because they are now *measured*
+rather than argued: 7.33% of retired instructions for zero BD-rate, verified
+exact on 23 configurations between them. One arm settles all three. `0035` arm
+2 is the larger prize but it is a real approximation and needs its own BD
+number; the bit-exact stack does not.
 
 Verification status of what is in `patches/`:
 
