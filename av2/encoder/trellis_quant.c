@@ -24,6 +24,12 @@
 #include "av2/encoder/rdopt.h"
 #include "av2/encoder/tokenize.h"
 
+#if defined(__GNUC__) || defined(__clang__)
+#define AVM_PREFETCH(p) __builtin_prefetch((p), 0, 3)
+#else
+#define AVM_PREFETCH(p) ((void)0)
+#endif
+
 static AVM_INLINE void init_tcq_decision(tcq_node_t *decision) {
   static const tcq_node_t def = { INT64_MAX >> 10, 0, -1, -2 };
   for (int state = 0; state < TCQ_N_STATES; state++) {
@@ -877,7 +883,6 @@ void av2_calc_block_eob_rate_c(struct macroblock *x, int plane, TX_SIZE tx_size,
   }
 }
 
-// Determine the best quantization option for each coeff from DC to EOB
 int av2_find_best_path_c(const struct tcq_node_t *trellis, const int16_t *scan,
                          const int32_t *dequant, const qm_val_t *iqmatrix,
                          const tran_low_t *tcoeff, int first_scan_pos,
@@ -895,43 +900,68 @@ int av2_find_best_path_c(const struct tcq_node_t *trellis, const int16_t *scan,
     }
   }
 
-  // Backtrack to reconstruct qcoeff / dqcoeff blocks.
   int scan_pos = 0;
+  const tcq_node_t *row = trellis;
   if (!iqmatrix) {
-    int dqv = dequant[0];
-    int dqv_ac = dequant[1];
-    for (; prev_id >= 0; scan_pos++) {
-      const tcq_node_t *decision =
-          &trellis[(scan_pos << TCQ_N_STATES_LOG) + prev_id];
-      prev_id = decision->prevId;
-      int abs_level = decision->absLevel;
+    int32_t dqv_val = dequant[0];
+    const int32_t dqv_ac = dequant[1];
+    const int shift = QUANT_TABLE_BITS + log_scale;
+    const int64_t dq_round = (int64_t)1 << (QUANT_TABLE_BITS - 1);
+
+    if (LIKELY(prev_id >= 0)) {
+      const tcq_node_t *dec = &row[prev_id];
+      int abs_level = dec->absLevel;
+      prev_id = dec->prevId;
+      row += TCQ_N_STATES;
+
+      while (LIKELY(prev_id >= 0)) {
+        AVM_PREFETCH(row + TCQ_N_STATES);
+        const tcq_node_t *next_dec = &row[prev_id];
+        int next_abs = next_dec->absLevel;
+        int next_prev = next_dec->prevId;
+
+        int blk_pos = scan[scan_pos];
+        int sign = -(tcoeff[blk_pos] < 0);
+        qcoeff[blk_pos] = (abs_level ^ sign) - sign;
+        int q_i = (prev_id >> 1) & 1;
+        int qc = 2 * abs_level - q_i;
+        qc = qc > 0 ? qc : 0;
+        int64_t dqc64 = ((int64_t)qc * dqv_val + dq_round) >> shift;
+        dqcoeff[blk_pos] = ((int)dqc64 ^ sign) - sign;
+        dqv_val = dqv_ac;
+
+        abs_level = next_abs;
+        prev_id = next_prev;
+        row += TCQ_N_STATES;
+        scan_pos++;
+      }
+
       int blk_pos = scan[scan_pos];
       int sign = -(tcoeff[blk_pos] < 0);
-      int q_i = prev_id >= 0 ? tcq_quant(prev_id) : 0;
-      int qc = (abs_level == 0) ? 0 : (2 * abs_level - q_i);
-      int dqc = (tran_low_t)ROUND_POWER_OF_TWO_64((tran_high_t)qc * dqv,
-                                                  QUANT_TABLE_BITS) >>
-                log_scale;
       qcoeff[blk_pos] = (abs_level ^ sign) - sign;
-      dqcoeff[blk_pos] = (dqc ^ sign) - sign;
-      dqv = dqv_ac;
+      int qc = 2 * abs_level;
+      int64_t dqc64 = ((int64_t)qc * dqv_val + dq_round) >> shift;
+      dqcoeff[blk_pos] = ((int)dqc64 ^ sign) - sign;
+      scan_pos++;
     }
   } else {
-    for (; prev_id >= 0; scan_pos++) {
-      const tcq_node_t *decision =
-          &trellis[(scan_pos << TCQ_N_STATES_LOG) + prev_id];
-      prev_id = decision->prevId;
-      int abs_level = decision->absLevel;
+    for (; LIKELY(prev_id >= 0); scan_pos++) {
+      AVM_PREFETCH(row + TCQ_N_STATES);
+      const tcq_node_t *dec = &row[prev_id];
+      int next_prev = dec->prevId;
+      int abs_level = dec->absLevel;
       int blk_pos = scan[scan_pos];
-      int sign = tcoeff[blk_pos] < 0;
-      qcoeff[blk_pos] = sign ? -abs_level : abs_level;
-      int dqv = get_dqv(dequant, blk_pos, iqmatrix);
-      int q_i = prev_id >= 0 ? tcq_quant(prev_id) : 0;
+      int sign = -(tcoeff[blk_pos] < 0);
+      qcoeff[blk_pos] = (abs_level ^ sign) - sign;
+      int dqv_val = get_dqv(dequant, blk_pos, iqmatrix);
+      int q_i = next_prev >= 0 ? ((next_prev >> 1) & 1) : 0;
       int qc = (abs_level == 0) ? 0 : (2 * abs_level - q_i);
-      int dqc = (tran_low_t)ROUND_POWER_OF_TWO_64((tran_high_t)qc * dqv,
+      int dqc = (tran_low_t)ROUND_POWER_OF_TWO_64((tran_high_t)qc * dqv_val,
                                                   QUANT_TABLE_BITS) >>
                 log_scale;
-      dqcoeff[blk_pos] = sign ? -dqc : dqc;
+      dqcoeff[blk_pos] = (dqc ^ sign) - sign;
+      prev_id = next_prev;
+      row += TCQ_N_STATES;
     }
   }
   int eob = scan_pos;
