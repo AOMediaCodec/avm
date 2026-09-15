@@ -12,6 +12,10 @@
 
 #include <arm_neon.h>
 
+#include "config/av2_rtcd.h"
+
+#include "av2/common/av2_txfm.h"
+#include "av2/common/enums.h"
 #include "avm_dsp/txfm_common.h"
 
 static void transpose4x4(int16x8_t in[2], int16x4_t out[4]) {
@@ -81,4 +85,54 @@ void av2_fwht4x4_neon(const int16_t *input, tran_low_t *output, int stride) {
 void av2_highbd_fwht4x4_neon(const int16_t *input, tran_low_t *output,
                              int stride) {
   av2_fwht4x4_neon(input, output, stride);
+}
+
+static INLINE int32x4_t round_power_of_two_signed_neon(int32x4_t v, int bits) {
+  const int32x4_t bias = vdupq_n_s32((1 << bits) >> 1);
+  const int32x4_t sign = vshrq_n_s32(v, 31);
+  return vshlq_s32(vaddq_s32(vaddq_s32(v, bias), sign), vdupq_n_s32(-bits));
+}
+
+void av2_fwd_cross_chroma_tx_block_neon(tran_low_t *coeff_c1,
+                                        tran_low_t *coeff_c2, TX_SIZE tx_size,
+                                        CctxType cctx_type, const int bd) {
+  if (cctx_type == CCTX_NONE) return;
+  assert(bd <= 14);
+  const int ncoeffs = av2_get_max_eob(tx_size);
+  int32_t *src_c1 = (int32_t *)coeff_c1;
+  int32_t *src_c2 = (int32_t *)coeff_c2;
+
+  const int angle_idx = cctx_type - CCTX_START;
+  const int32x4_t cos_t = vdupq_n_s32(cctx_mtx[angle_idx][0]);
+  const int32x4_t sin_t = vdupq_n_s32(cctx_mtx[angle_idx][1]);
+  const int32x4_t max_val = vdupq_n_s32((1 << (7 + bd)) - 1);
+  const int32x4_t min_val = vdupq_n_s32(-(1 << (7 + bd)));
+
+  int i = 0;
+  for (; i + 4 <= ncoeffs; i += 4) {
+    const int32x4_t c1 = vld1q_s32(&src_c1[i]);
+    const int32x4_t c2 = vld1q_s32(&src_c2[i]);
+
+    const int32x4_t t0 = vaddq_s32(vmulq_s32(cos_t, c1), vmulq_s32(sin_t, c2));
+    const int32x4_t t1 = vsubq_s32(vmulq_s32(cos_t, c2), vmulq_s32(sin_t, c1));
+
+    int32x4_t r0 = round_power_of_two_signed_neon(t0, CCTX_PREC_BITS);
+    int32x4_t r1 = round_power_of_two_signed_neon(t1, CCTX_PREC_BITS);
+
+    r0 = vminq_s32(vmaxq_s32(r0, min_val), max_val);
+    r1 = vminq_s32(vmaxq_s32(r1, min_val), max_val);
+
+    vst1q_s32(&src_c1[i], r0);
+    vst1q_s32(&src_c2[i], r1);
+  }
+  for (; i < ncoeffs; i++) {
+    int64_t tmp0 = (int64_t)cctx_mtx[angle_idx][0] * (int64_t)src_c1[i] +
+                   (int64_t)cctx_mtx[angle_idx][1] * (int64_t)src_c2[i];
+    int64_t tmp1 = (int64_t)-cctx_mtx[angle_idx][1] * (int64_t)src_c1[i] +
+                   (int64_t)cctx_mtx[angle_idx][0] * (int64_t)src_c2[i];
+    src_c1[i] = (int32_t)ROUND_POWER_OF_TWO_SIGNED_64(tmp0, CCTX_PREC_BITS);
+    src_c2[i] = (int32_t)ROUND_POWER_OF_TWO_SIGNED_64(tmp1, CCTX_PREC_BITS);
+    src_c1[i] = clamp_value(src_c1[i], 8 + bd);
+    src_c2[i] = clamp_value(src_c2[i], 8 + bd);
+  }
 }
