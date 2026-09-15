@@ -463,8 +463,7 @@ void av2_update_nbr_diagonal_c(struct tcq_ctx_t *tcq_ctx, int row, int col,
 
   int max1 = diag < 5 ? 5 : 3;
   int max2 = diag < 6 ? 5 : 3;
-  static const int8_t max_tbl[4] = { 0, 8, 6, 4 };
-  int base_max = max_tbl[AVMMIN(diag, 3)];
+  int base_max = kTcqBaseMaxTbl[AVMMIN(diag, 3)];
 
   int state_arr[MAX_DIAG + 8][TCQ_MAX_STATES];
 
