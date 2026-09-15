@@ -1112,14 +1112,21 @@ void av2_build_intra_predictors_high(
   const int is_dr_mode = av2_is_directional_mode(mode);
   const int use_intra_dip = mbmi->use_intra_dip && plane == PLANE_TYPE_Y;
   int base = 128 << (xd->bd - 8);
+  // The second reference line is not always needed. Use |need_2nd_line| to
+  // guard whether memset is necessary.
+  const int is_multi_line_mrls_allowed_blk_sz = (tx_size == TX_4X4) ? 0 : 1;
+  const int need_2nd_line =
+      mbmi->multi_line_mrl && mrl_index && is_multi_line_mrls_allowed_blk_sz;
   // The left_data, above_data buffers must be zeroed to fix some intermittent
   // valgrind errors. Uninitialized reads in intra pred modules (e.g. width =
   // 4 path in av2_highbd_dr_prediction_z2_avx2()) from left_data, above_data
   // are seen to be the potential reason for this issue.
   avm_memset16(left_data_1st, base + 1, NUM_INTRA_NEIGHBOUR_PIXELS);
   avm_memset16(above_data_1st, base - 1, NUM_INTRA_NEIGHBOUR_PIXELS);
-  avm_memset16(left_data_2nd, base + 1, NUM_INTRA_NEIGHBOUR_PIXELS);
-  avm_memset16(above_data_2nd, base - 1, NUM_INTRA_NEIGHBOUR_PIXELS);
+  if (need_2nd_line) {
+    avm_memset16(left_data_2nd, base + 1, NUM_INTRA_NEIGHBOUR_PIXELS);
+    avm_memset16(above_data_2nd, base - 1, NUM_INTRA_NEIGHBOUR_PIXELS);
+  }
 
   // The default values if ref pixels are not available:
   // base   base-1 base-1 .. base-1 base-1 base-1 base-1 base-1 base-1
@@ -1183,24 +1190,26 @@ void av2_build_intra_predictors_high(
     if (n_left_px > 0) {
       for (; i < n_left_px; i++) {
         left_col_1st[i] = left_ref_1st[i * ref_stride];
-        left_col_2nd[i] = left_ref_2nd[i * ref_stride];
+        if (need_2nd_line) left_col_2nd[i] = left_ref_2nd[i * ref_stride];
       }
       if (need_bottom && n_bottomleft_px > 0) {
         assert(i == txhpx);
         for (; i < txhpx + n_bottomleft_px; i++) {
           left_col_1st[i] = left_ref_1st[i * ref_stride];
-          left_col_2nd[i] = left_ref_2nd[i * ref_stride];
+          if (need_2nd_line) left_col_2nd[i] = left_ref_2nd[i * ref_stride];
         }
       }
       if (i < num_left_pixels_needed) {
         avm_memset16(&left_col_1st[i], left_col_1st[i - 1],
                      num_left_pixels_needed - i);
-        avm_memset16(&left_col_2nd[i], left_col_2nd[i - 1],
-                     num_left_pixels_needed - i);
+        if (need_2nd_line)
+          avm_memset16(&left_col_2nd[i], left_col_2nd[i - 1],
+                       num_left_pixels_needed - i);
       }
     } else if (n_top_px > 0) {
       avm_memset16(left_col_1st, above_ref_1st[0], num_left_pixels_needed);
-      avm_memset16(left_col_2nd, above_ref_2nd[0], num_left_pixels_needed);
+      if (need_2nd_line)
+        avm_memset16(left_col_2nd, above_ref_2nd[0], num_left_pixels_needed);
     }
   }
 
@@ -1218,25 +1227,30 @@ void av2_build_intra_predictors_high(
     }
     if (n_top_px > 0) {
       memcpy(above_row_1st, above_ref_1st, n_top_px * sizeof(above_ref_1st[0]));
-      memcpy(above_row_2nd, above_ref_2nd, n_top_px * sizeof(above_ref_2nd[0]));
+      if (need_2nd_line)
+        memcpy(above_row_2nd, above_ref_2nd,
+               n_top_px * sizeof(above_ref_2nd[0]));
       i = n_top_px;
       if (need_right && n_topright_px > 0) {
         assert(n_top_px == txwpx);
         memcpy(above_row_1st + txwpx, above_ref_1st + txwpx,
                n_topright_px * sizeof(above_ref_1st[0]));
-        memcpy(above_row_2nd + txwpx, above_ref_2nd + txwpx,
-               n_topright_px * sizeof(above_ref_2nd[0]));
+        if (need_2nd_line)
+          memcpy(above_row_2nd + txwpx, above_ref_2nd + txwpx,
+                 n_topright_px * sizeof(above_ref_2nd[0]));
         i += n_topright_px;
       }
       if (i < num_top_pixels_needed) {
         avm_memset16(&above_row_1st[i], above_row_1st[i - 1],
                      num_top_pixels_needed - i);
-        avm_memset16(&above_row_2nd[i], above_row_2nd[i - 1],
-                     num_top_pixels_needed - i);
+        if (need_2nd_line)
+          avm_memset16(&above_row_2nd[i], above_row_2nd[i - 1],
+                       num_top_pixels_needed - i);
       }
     } else if (n_left_px > 0) {
       avm_memset16(above_row_1st, left_ref_1st[0], num_top_pixels_needed);
-      avm_memset16(above_row_2nd, left_ref_2nd[0], num_top_pixels_needed);
+      if (need_2nd_line)
+        avm_memset16(above_row_2nd, left_ref_2nd[0], num_top_pixels_needed);
     }
   }
 
@@ -1244,23 +1258,25 @@ void av2_build_intra_predictors_high(
     for (i = 1; i <= mrl_index + 1; i++) {
       if (n_top_px > 0 && n_left_px > 0) {
         above_row_1st[-i] = above_ref_1st[-i];
-        above_row_2nd[-i] = above_ref_2nd[-i];
+        if (need_2nd_line) above_row_2nd[-i] = above_ref_2nd[-i];
         if (is_sb_boundary) {
           left_col_1st[-i] = left_ref_1st[-ref_stride];
-          left_col_2nd[-i] = left_ref_2nd[-ref_stride];
+          if (need_2nd_line) left_col_2nd[-i] = left_ref_2nd[-ref_stride];
         } else {
           left_col_1st[-i] = left_ref_1st[-i * ref_stride];
-          left_col_2nd[-i] = left_ref_2nd[-i * ref_stride];
+          if (need_2nd_line) left_col_2nd[-i] = left_ref_2nd[-i * ref_stride];
         }
       } else if (n_top_px > 0) {
         above_row_1st[-i] = left_col_1st[-i] = above_ref_1st[0];
-        above_row_2nd[-i] = left_col_2nd[-i] = above_ref_2nd[0];
+        if (need_2nd_line)
+          above_row_2nd[-i] = left_col_2nd[-i] = above_ref_2nd[0];
       } else if (n_left_px > 0) {
         above_row_1st[-i] = left_col_1st[-i] = left_ref_1st[0];
-        above_row_2nd[-i] = left_col_2nd[-i] = left_ref_2nd[0];
+        if (need_2nd_line)
+          above_row_2nd[-i] = left_col_2nd[-i] = left_ref_2nd[0];
       } else {
         above_row_1st[-i] = left_col_1st[-i] = base;
-        above_row_2nd[-i] = left_col_2nd[-i] = base;
+        if (need_2nd_line) above_row_2nd[-i] = left_col_2nd[-i] = base;
       }
     }
   }
@@ -1316,13 +1332,11 @@ void av2_build_intra_predictors_high(
         }
       }
     }
-    const int is_multi_line_mrls_allowed_blk_sz = (tx_size == TX_4X4) ? 0 : 1;
     if (plane == AVM_PLANE_Y) {
       highbd_dr_predictor_idif(dst, dst_stride, tx_size, above_row_1st,
                                left_col_1st, p_angle, xd->bd, mrl_index);
 
-      if (xd->mi[0]->multi_line_mrl && mrl_index &&
-          is_multi_line_mrls_allowed_blk_sz) {
+      if (need_2nd_line) {
         highbd_dr_predictor_idif(dst_mrl_line_0, txwpx, tx_size, above_row_2nd,
                                  left_col_2nd, p_angle, xd->bd, 0);
 
@@ -1338,8 +1352,7 @@ void av2_build_intra_predictors_high(
     } else {
       highbd_dr_predictor(dst, dst_stride, tx_size, above_row_1st, left_col_1st,
                           p_angle, xd->bd, mrl_index);
-      if (xd->mi[0]->multi_line_mrl && mrl_index &&
-          is_multi_line_mrls_allowed_blk_sz) {
+      if (need_2nd_line) {
         highbd_dr_predictor(dst_mrl_line_0, txwpx, tx_size, above_row_2nd,
                             left_col_2nd, p_angle, xd->bd, 0);
 
