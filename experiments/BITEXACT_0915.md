@@ -64,7 +64,9 @@ through there, not just skip it.
 | s1q90_360 | 640x360 | 1 | 90 | 3 | MATCH `dde00f88ac03ed37c4b702a086e8ec11` |
 | s3q200_360 | 640x360 | 3 | 200 | 4 | MATCH `08e5f7bbf2a98e1a15a938fe40aa8714` |
 | s4q150_720 | 1280x720 | 4 | 150 | 2 | MATCH `17413d53011b31e0f1b410eb951d9bdf` |
-| s0q60_192 | 320x192 | 0 | 60 | 2 | (running) |
+| s0q60_192 | 320x192 | 0 | 60 | 2 | MATCH `7c3c118aa166c8382984a07449e68dc2` |
+
+**6/6**, presets 0 through 5, three resolutions, QPs 60-200.
 
 ---
 
@@ -99,9 +101,9 @@ default "switchable per block".
 
 | config | what it stresses | result |
 |---|---|---|
-| `--enable-opfl-refine=2 --enable-sdp=1 --enable-extended-sdp=1`, speed 2 | OPFL in **all** blocks, SDP on both key and inter frames | (running) |
-| same, speed 5 | ditto at a different preset | (running) |
-| same, 640x360 speed 3 | ditto at a different resolution | (running) |
+| `--enable-opfl-refine=2 --enable-sdp=1 --enable-extended-sdp=1`, speed 2 | OPFL in **all** blocks, SDP on both key and inter frames | MATCH `cc37a5a73b6235a5d92556e999aedb94` |
+| same, speed 5 | ditto at a different preset | MATCH `f66c9c02dab60b213a00859c3b9c04c9` |
+| same, 640x360 speed 3 | ditto at a different resolution | MATCH `e915ffb35584957f2a885e8ee3153816` |
 | `--enable-opfl-refine=0`, speed 2 | OPFL **off** — the skip path is taken on every block | (running) |
 | `--enable-opfl-refine=0`, speed 5 | ditto | (running) |
 | `--enable-opfl-refine=2 --enable-tip-refinemv=0` | the forced-on TIP branch under a different TIP config | (running) |
