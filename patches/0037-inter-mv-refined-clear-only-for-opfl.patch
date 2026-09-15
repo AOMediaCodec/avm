@@ -1,0 +1,116 @@
+Subject: [PATCH 0037] inter: only clear xd->mv_refined when optical flow can read it
+
+av2_build_inter_predictors() opens with
+
+    if (plane == AVM_PLANE_Y)
+      memset(xd->mv_refined, 0, 2 * N_OF_OFFSETS * sizeof(int_mv));
+
+xd->mv_refined is 2 * N_OF_OFFSETS int_mv = 8192 bytes, sized for the
+optical-flow subblock grid of a whole 256x256 superblock. It is cleared on
+every luma call, so an 8x8 inter block pays all 8192 bytes.
+
+This is the single largest memset in the encoder. From callgrind on the
+current tip (320x192, 3 frames, 1 thread, qp=160):
+
+    cpu-used=5   4.28% of retired instructions
+    cpu-used=2   4.65% of retired instructions   (2nd largest line overall)
+
+WHAT READS IT
+
+Inside this function's call tree, every reader of xd->mv_refined sits under
+use_optflow_refinement, computed in
+build_inter_predictors_8x8_and_bigger_facade() as
+
+    is_optflow_refinement_enabled(cm, xd, mi, plane, tip_ref_frame)
+
+together with the TIP writes at plane 0. The other branch of this function,
+build_inter_predictors_sub8x8(), does not reference mv_refined at all.
+
+So the guard is that predicate, hoisted to the entry point:
+
+  * Non-TIP: is_optflow_refinement_enabled() reduces to
+    opfl_allowed_cur_pred_mode(cm, xd, mi), which does NOT depend on plane.
+    Its value at AVM_PLANE_Y is therefore the value the chroma passes of the
+    same mi will compute, so clearing at plane 0 under the plane-0 value of
+    the predicate covers every reader of that block.
+
+  * TIP: the predicate does depend on plane (it returns ... && plane == 0),
+    and av2/common/tip.c additionally carries xd->mv_refined[0..1] across
+    call boundaries of its own. Rather than reason about that, the guard
+    forces the memset on whenever is_tip_ref_frame(mi->ref_frame[0]), which
+    is conservative and leaves the TIP path exactly as it is today.
+
+WHAT THIS DOES NOT CLAIM
+
+This is a "written iff read" argument, and it is weaker than patch 0036's.
+0036 guards function-local stack buffers, so nothing can observe the skipped
+writes. xd->mv_refined is MACROBLOCKD state that persists across blocks, so
+the argument depends on the claim that no reader runs with the predicate
+false. That claim is made from reading the call tree, and the case that
+would break it is a block whose chroma pass evaluates the predicate true
+while its luma pass evaluated it false -- which the non-TIP plane
+independence and the TIP force-on are intended to exclude.
+
+Note that today's memset does not protect against cross-block staleness
+either: a chroma call whose mi had no plane-0 call already sees whatever the
+previous block left behind, since the memset is itself gated on
+plane == AVM_PLANE_Y.
+
+Because the argument is a reading of the code rather than a locality
+property, treat the empirical bit-exactness sweep as the evidence, not as a
+formality, and widen it before landing. In particular a configuration
+mixing SDP (semi-decoupled partitioning) with OPFL is the one to add.
+
+VERIFICATION
+
+Bit-exactness was checked by .obu md5 against the unpatched build over
+clip x preset x qindex, with 6-10 frame runs rather than the usual 2-4 so
+that inter prediction, OPFL and TIP actually fire. Results are recorded in
+experiments/registry.csv.
+
+MEASURING THE SPEEDUP
+
+Retired-instruction counts under callgrind, not wall clock -- the local
+noise floor is several percent. Instruction counts understate this one,
+because the work removed is memory traffic.
+
+diff --git a/av2/common/reconinter.c b/av2/common/reconinter.c
+index a753ed9..0f42250 100644
+--- a/av2/common/reconinter.c
++++ b/av2/common/reconinter.c
+@@ -3762,8 +3762,33 @@ void av2_build_inter_predictors(const AV2_COMMON *cm, MACROBLOCKD *xd,
+                                 int build_for_decode, int bw, int bh, int mi_x,
+                                 int mi_y, uint16_t **mc_buf,
+                                 CalcSubpelParamsFunc calc_subpel_params_func) {
+-  if (plane == AVM_PLANE_Y)
+-    memset(xd->mv_refined, 0, 2 * N_OF_OFFSETS * sizeof(int_mv));
++  // xd->mv_refined is 2 * N_OF_OFFSETS int_mv = 8192 bytes, sized for a whole
++  // 256x256 superblock's optical-flow subblock grid. Clearing it on every luma
++  // call is the single largest memset in the encoder (4.28% of retired
++  // instructions at cpu-used=5, 4.65% at cpu-used=2), and an 8x8 inter block
++  // pays all 8192 bytes of it.
++  //
++  // Every reader of xd->mv_refined inside this function's call tree sits under
++  // use_optflow_refinement, computed in
++  // build_inter_predictors_8x8_and_bigger_facade() as
++  //
++  //     is_optflow_refinement_enabled(cm, xd, mi, plane, tip_ref_frame)
++  //
++  // plus the TIP writes at plane 0. build_inter_predictors_sub8x8() -- the
++  // other branch below -- never touches it.
++  //
++  // For the non-TIP case that predicate reduces to opfl_allowed_cur_pred_mode(),
++  // which does not depend on plane, so its value at AVM_PLANE_Y is the value
++  // the chroma passes will see. For the TIP case it is forced true here rather
++  // than reasoned about, because tip.c also carries xd->mv_refined[0..1] across
++  // calls.
++  if (plane == AVM_PLANE_Y) {
++    const int tip_ref_frame = is_tip_ref_frame(mi->ref_frame[0]);
++    if (tip_ref_frame ||
++        is_optflow_refinement_enabled(cm, xd, mi, AVM_PLANE_Y, tip_ref_frame)) {
++      memset(xd->mv_refined, 0, 2 * N_OF_OFFSETS * sizeof(int_mv));
++    }
++  }
+   // just for debugging purpose
+   // Can be removed later on
+   if (mi->mode == WARPMV) {

@@ -1,4 +1,4 @@
-# Round 0915: sync, a profile that changes the Speed-2 plan, and seven ideas
+# Round 0915: sync, a profile that changes the Speed-2 plan, and eight ideas
 
 Anchor `7368e76` (2026-09-14). First session since 2026-08-28.
 
@@ -244,7 +244,52 @@ Verification status is in §9.
 
 ---
 
-## 6. Idea 4 — the chroma intra mode search copies `MB_MODE_INFO` repeatedly
+## 5b. Idea 4 — only clear `mv_refined` when optical flow can read it (patch `0037`, NEW, built)
+
+The **second-largest line in the entire Speed-2 profile** is a memset:
+
+```
+4.65% (speed 2) / 4.28% (speed 5)   __memset_avx2 via av2_build_inter_predictors
+```
+
+```c
+if (plane == AVM_PLANE_Y)
+  memset(xd->mv_refined, 0, 2 * N_OF_OFFSETS * sizeof(int_mv));   // 8192 bytes
+```
+
+`xd->mv_refined` is sized for the optical-flow subblock grid of a whole
+256×256 superblock. It is cleared on every luma call, so **an 8×8 inter block
+pays all 8192 bytes.**
+
+I parked this in August because `make_inter_pred_of_nxn` indexes one past the
+range the caller initializes and another site uses a TIP-specific offset — so
+*narrowing* the memset to the block's own range is not safe. This patch does
+something different and much simpler: it **skips the memset entirely when no
+reader can run.**
+
+Every reader inside this function's call tree sits under
+`use_optflow_refinement`, and `build_inter_predictors_sub8x8` — the other
+branch — never touches `mv_refined` at all. For the non-TIP case the predicate
+reduces to `opfl_allowed_cur_pred_mode()`, which does **not** depend on `plane`,
+so its value at luma is the value the chroma passes will compute. For TIP the
+guard is forced on rather than reasoned about, because `tip.c` carries
+`xd->mv_refined[0..1]` across call boundaries of its own.
+
+**This argument is weaker than 0036's and I want to say so plainly.** 0036
+guards function-local stack buffers, so nothing can observe the skipped writes;
+`xd->mv_refined` is `MACROBLOCKD` state that persists across blocks, so the
+claim rests on a reading of the call tree. The case that would break it is a
+block whose chroma pass evaluates the predicate true while its luma pass
+evaluated it false. Treat the bit-exactness sweep as the evidence here, not as
+a formality, and **add an SDP + OPFL configuration before landing it.**
+
+Worth noting that today's memset does not protect against cross-block staleness
+either — it is itself gated on `plane == AVM_PLANE_Y`, so a chroma call whose mi
+had no luma call already sees whatever the previous block left behind.
+
+---
+
+## 6. Idea 5 — the chroma intra mode search copies `MB_MODE_INFO` repeatedly
 
 **Identified, unbuilt, and the largest unexplored memcpy.** 2.40% of
 instructions at Speed 5 (1.25% at Speed 2) is `memcpy` reached through
@@ -278,7 +323,7 @@ decides whether it is worth the risk. I have not built it.
 
 ---
 
-## 7. Idea 5 — re-measure the Speed-2 attribution, because the model changed
+## 7. Idea 6 — re-measure the Speed-2 attribution, because the model changed
 
 Last round's finding was that `simple_motion_search_split` and
 `simple_motion_search_early_term_none` jointly cost **1.64% BD on A1 at ratio
@@ -299,7 +344,7 @@ space is not where the Speed-2 money is.
 
 ---
 
-## 8. Ideas 6 and 7 — two small bit-exact SIMD gaps
+## 8. Ideas 7 and 8 — two small bit-exact SIMD gaps
 
 **`av2_get_nz_map_contexts_skip` has no SIMD, and is not even dispatched.**
 Its sibling `av2_get_nz_map_contexts` has `sse2`; the skip variant has an
