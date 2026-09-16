@@ -279,7 +279,8 @@ TEST_P(FwdTxfmVariantTest, BitExact) {
 
   const int max_resi = (1 << p.bd) - 1;
   for (int k = 0; k < txw * txh; k++) {
-    input[k] = (int16_t)((rng.Rand31() % (2 * max_resi + 1)) - max_resi);
+    input[k] =
+        (int16_t)((int32_t)(rng.Rand31() % (2 * max_resi + 1)) - max_resi);
   }
   memset(ref_coeff, 0, sizeof(ref_coeff));
   memset(opt_coeff, 0, sizeof(opt_coeff));
@@ -394,7 +395,8 @@ TEST(FwdTxfmVariantExtreme, StrideMismatch) {
       for (int y = 0; y < txh; y++)
         for (int x = 0; x < stride; x++)
           input[y * stride + x] =
-              (int16_t)((rng.Rand31() % (2 * max_resi + 1)) - max_resi);
+              (int16_t)((int32_t)(rng.Rand31() % (2 * max_resi + 1)) -
+                        max_resi);
       memset(ref_coeff, 0, sizeof(ref_coeff));
       memset(opt_coeff, 0, sizeof(opt_coeff));
 
