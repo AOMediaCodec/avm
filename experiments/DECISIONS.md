@@ -84,3 +84,33 @@ gate already evaluates. See `ROUND_0915_SYNC_AND_IDEAS.md` §4.
 Repeatedly demonstrated; the calibrated-gate paired timing gave −0.5% and +0.9%
 with reps disagreeing in sign. Use callgrind instruction counts for sizing and
 the cluster for deciding. Never quote a local wall-clock delta as a speedup.
+
+## D11 — Three memory/transform leads investigated and closed. (negative results)
+
+Recorded so they are not re-opened:
+
+- **IST / secondary transform (~3.1% at Speed 2) is not wasted work.**
+  `prune_sec_txfm_rd_eval` consumes `sec_tx_sse_to_be_coded`, which is produced
+  by the `av2_xform` call that would be skipped. The transform computes its own
+  pruning signal. Both IST pruning features are also already on at Speed 2
+  (`prune_tx_rd_eval_sec_tx_sse` unconditionally for every preset,
+  `prune_intra_ist_stx_by_zero_eob` under `speed >= 1`).
+- **The inverse transform in the tx search is already guarded.**
+  `get_tx_blk_distortion` routes to `dist_block_tx_domain` under
+  `use_transform_domain_distortion`, and `prune_tx_type_rd_calc_using_tx_domain_dist`
+  skips even that when an optimistic estimate already loses.
+- **`MB_MODE_INFO` has no fat member to hoist out.** 632 bytes total; the
+  largest member is `wm_params` at 88 (14%), then `palette_mode_info` at 50.
+  Splitting the struct does not produce a quick win for the chroma copies.
+
+## D12 — The chroma `MB_MODE_INFO` copy is the last item in the memset/memcpy seam, and the hardest. (open)
+
+The struct copies dominate the 2.40% memcpy line arithmetically: ~3 x 632 bytes
+against `num_4x4_blk_chroma` (pixels/16) bytes for the `av2_copy_array` calls.
+A grep of `av2_rd_pick_intra_sbuv_mode` gives a short field list, but the
+function calls into the RD machinery and the chroma palette search, which write
+`mbmi` fields that never appear textually in it. **An incomplete field list
+fails silently.** Needs a callee audit, a `sizeof` static assert to force
+re-audit on struct changes, and a load-bearing sweep. Not worth doing before
+patch 0035 has been answered.
+

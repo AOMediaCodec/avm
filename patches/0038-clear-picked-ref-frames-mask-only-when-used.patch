@@ -1,0 +1,90 @@
+Subject: [PATCH 0038] encoder: clear picked_ref_frames_mask only when it is used
+
+init_encode_rd_sb() clears x->picked_ref_frames_mask once per superblock:
+
+    av2_zero(x->picked_ref_frames_mask);
+
+The array is MAX_MIB_SIZE * MAX_MIB_SIZE uint64 = 64 * 64 * 8 = 32,768
+bytes. From callgrind on the current tip, __memset_avx2 reached through
+init_encode_rd_sb is 0.53% of retired instructions at cpu-used=2.
+
+BOTH ACCESSORS ARE GATED ON ONE SPEED FEATURE, THE CLEAR IS NOT
+
+  * writer -- av2_update_picked_ref_frames_mask() is called from
+    partition_search.c under
+
+        if (cpi->sf.inter_sf.prune_ref_frames && xd->tree_type != CHROMA_PART)
+
+  * reader -- fetch_picked_ref_frames_mask() is reached from rdopt.c under
+
+        if (inter_sf->prune_ref_frames && !x->inter_mode_cache[0])
+
+With inter_sf.prune_ref_frames == 0 the array is neither written nor read,
+so clearing it is pure overhead. That is not a rare case: the flag is
+initialised to 0, set conditionally in two places, and forced back to 0 in
+two others, so several presets never use the array at all.
+
+This patch guards the clear with the same flag.
+
+WHY THIS IS BIT-EXACT
+
+It skips a write to storage that, on the paths where the write is skipped,
+has no reader -- the reader is behind the identical condition.
+
+The flag is resolved per frame (one of its terms is the frame's boost
+state), so the guard is re-evaluated for every superblock against the
+current frame's speed features. A superblock in a frame where the flag is
+on still clears the array at its own start, and nothing is carried over
+from a frame where the clear was skipped: the array's only consumer reads
+it only in frames where it was cleared and written.
+
+Note the clear is already per-superblock rather than per-frame, so this
+patch does not change the lifetime of the data, only whether the clear
+happens at all.
+
+SIZE
+
+Smaller than the other memory-traffic patches in this series (0034 is
+-2.67%, 0037 is -4.24%, 0036 is -0.42%), because it is per-superblock
+rather than per-block. Included on the same reasoning as 0036: bit-exact,
+a one-line guard, and a clean "written iff read" argument, so it costs
+nothing to carry.
+
+VERIFICATION
+
+Bit-exactness by .obu md5 against the unpatched build over clip x preset x
+qindex. The sweep spans QP 40-200 because prune_ref_frames has qindex- and
+boost-dependent terms, uses 6-10 frame runs so both boosted and
+non-boosted frames occur, and includes a --tune-content=screen run because
+the flag also has an allow_screen_content_tools term.
+
+MEASURING IT
+
+Retired-instruction counts under callgrind, not wall clock. A change this
+size is an order of magnitude below what local wall clock can resolve.
+
+diff --git a/av2/encoder/encodeframe.c b/av2/encoder/encodeframe.c
+index c20b6ba..21dd806 100644
+--- a/av2/encoder/encodeframe.c
++++ b/av2/encoder/encodeframe.c
+@@ -466,7 +466,19 @@ static INLINE void init_encode_rd_sb(AV2_COMP *cpi, ThreadData *td,
+ 
+   // Reset hash state for transform/mode rd hash information
+   reset_hash_records(&x->txfm_search_info);
+-  av2_zero(x->picked_ref_frames_mask);
++  // picked_ref_frames_mask is MAX_MIB_SIZE^2 uint64 = 32 KB, cleared once per
++  // superblock. Both of its accessors are gated on the same speed feature:
++  // av2_update_picked_ref_frames_mask() writes it only under
++  // sf.inter_sf.prune_ref_frames (partition_search.c), and
++  // fetch_picked_ref_frames_mask() is reached only under the same flag
++  // (rdopt.c). With the flag off the array is neither written nor read, so
++  // clearing it is pure overhead -- and the flag is 0 by default and forced to
++  // 0 in several presets.
++  //
++  // The flag is resolved per frame, so a superblock in a frame where it is on
++  // still clears the array at its own start; nothing carries over from a frame
++  // where the clear was skipped.
++  if (sf->inter_sf.prune_ref_frames) av2_zero(x->picked_ref_frames_mask);
+   av2_invalid_rd_stats(rd_cost);
+   if (sf->part_sf.partition_search_type != VAR_BASED_PARTITION &&
+       sf->part_sf.partition_search_type != FIXED_PARTITION) {
