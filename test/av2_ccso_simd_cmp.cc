@@ -401,9 +401,8 @@ class CCSOWITHBUFTest : public CCSOFilterTest<CCSO_With_BUF> {
     for (int band_log2 = 0; band_log2 < 4; band_log2++) {
       shift_bits_ = cur_bit_depth - band_log2;
       params_.ref_func(src_y_, dst_ref_, src_cls0_, src_cls1_, src_y_stride_,
-                       dst_stride_, ccso_stride_, 0, 0, pic_width_,
-                       pic_height_, offset_buf_,
-                       CCSO_BLK_SIZE_PARAMS(blk_size_, blk_size_),
+                       dst_stride_, ccso_stride_, 0, 0, pic_width_, pic_height_,
+                       offset_buf_, CCSO_BLK_SIZE_PARAMS(blk_size_, blk_size_),
                        y_uv_hscale_, y_uv_vscale_, max_val_, shift_bits_, 0);
 
       ASM_REGISTER_STATE_CHECK(params_.tst_func(
@@ -667,7 +666,8 @@ typedef uint64_t (*CCSO_Dist_Block)(const uint16_t *org, const int org_stride,
                                     const int x, const int y,
                                     const int log2_filter_unit_size_y,
                                     const int log2_filter_unit_size_x,
-                                    const int height, const int width);
+                                    const int height, const int width,
+                                    const int bd);
 
 typedef libavm_test::FuncParam<CCSO_Dist_Block> TestFuncsCCSO_Dist_Block;
 
@@ -682,16 +682,65 @@ class CCSODistBlockTest : public CCSOFilterTest<CCSO_Dist_Block> {
     log2_filter_unit_size_x_ = 1 - y_uv_hscale_ + 7;
     height_ = pic_height_;
     width_ = pic_width_;
-    uint64_t ref = params_.ref_func(org_, org_stride_, rec16_, rec_stride_, 0,
-                                    0, log2_filter_unit_size_y_,
-                                    log2_filter_unit_size_x_, height_, width_);
+    const int bd = 10;
+    uint64_t ref = params_.ref_func(
+        org_, org_stride_, rec16_, rec_stride_, 0, 0, log2_filter_unit_size_y_,
+        log2_filter_unit_size_x_, height_, width_, bd);
     uint64_t tst;
     ASM_REGISTER_STATE_CHECK(
         tst = params_.tst_func(org_, org_stride_, rec16_, rec_stride_, 0, 0,
                                log2_filter_unit_size_y_,
-                               log2_filter_unit_size_x_, height_, width_));
+                               log2_filter_unit_size_x_, height_, width_, bd));
     ASSERT_EQ(ref, tst);
   }
+
+  void RunSpeedTest() {
+    const int bd = 10;
+    org_ = src_y_;
+    rec16_ = dst_ref_;
+    org_stride_ = kMaxWidth;
+    rec_stride_ = kMaxWidth;
+    pic_width_ = (MAX_SB_SIZE * 2);
+    pic_height_ = (MAX_SB_SIZE * 2);
+
+    // Test for 32x32, 64x64, 128x128, 256x256.
+    for (int log2_proc_unit_size = MIN_SB_SIZE_LOG2 - 1;
+         log2_proc_unit_size <= MAX_SB_SIZE_LOG2; ++log2_proc_unit_size) {
+      const int proc_unit_size = 1 << log2_proc_unit_size;
+      const int pixels = proc_unit_size * proc_unit_size;
+
+      avm_usec_timer timer;
+      avm_usec_timer_start(&timer);
+      for (int i = 0; i < kSpeedIterations; ++i) {
+        params_.ref_func(org_, org_stride_, rec16_, rec_stride_, 0, 0,
+                         log2_proc_unit_size, log2_proc_unit_size, pic_height_,
+                         pic_width_, bd);
+      }
+      avm_usec_timer_mark(&timer);
+      const auto elapsed_time_c = avm_usec_timer_elapsed(&timer);
+
+      avm_usec_timer_start(&timer);
+      for (int i = 0; i < kSpeedIterations; ++i) {
+        params_.tst_func(org_, org_stride_, rec16_, rec_stride_, 0, 0,
+                         log2_proc_unit_size, log2_proc_unit_size, pic_height_,
+                         pic_width_, bd);
+      }
+      avm_usec_timer_mark(&timer);
+      const auto elapsed_time_opt = avm_usec_timer_elapsed(&timer);
+
+      const float c_time_per_pixel =
+          (float)1000.0 * elapsed_time_c / (kSpeedIterations * pixels);
+      const float opt_time_per_pixel =
+          (float)1000.0 * elapsed_time_opt / (kSpeedIterations * pixels);
+      const float scaling = c_time_per_pixel / opt_time_per_pixel;
+      printf(
+          "%3dx%-3d: c_time_per_pixel=%10.5f, "
+          "opt_time_per_pixel=%10.5f,  scaling=%f \n",
+          proc_unit_size, proc_unit_size, c_time_per_pixel, opt_time_per_pixel,
+          scaling);
+    }
+  }
+
   uint16_t *org_;
   int org_stride_;
   uint16_t *rec16_;
@@ -712,6 +761,15 @@ TEST_P(CCSODistBlockTest, RandomValues) {
 
     Common();
   }
+}
+
+TEST_P(CCSODistBlockTest, DISABLED_Speed) {
+  const int hi = 1 << 10;
+  for (int i = 0; i < kBufSize; ++i) {
+    dst_ref_[i] = rng_(hi);
+    src_y_[i] = rng_(hi);
+  }
+  RunSpeedTest();
 }
 
 #if HAVE_AVX2
