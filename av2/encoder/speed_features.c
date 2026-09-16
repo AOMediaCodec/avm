@@ -1283,6 +1283,8 @@ static AVM_INLINE void set_erp_speed_features(AV2_COMP *cpi) {
   }
 
   if (cpi->speed >= 1) {
+    sf->part_sf.ext_recur_depth_level =
+        cm->current_frame.pyramid_level > 3 ? 1 : 0;
     sf->part_sf.ml_early_term_after_part_split_level = 2;
     sf->part_sf.prune_part_with_neighbor_boundaries = 1;
   }
