@@ -2118,7 +2118,7 @@ static int get_lcr_global_interop(struct AV2Decoder *pbi) {
       if (glcr->lcr_seq_profile_tier_level_info_present_flag &&
           glcr->LcrMaxNumXLayerCount > 0)
         return av2_get_interop_from_profile(
-            glcr->seq_ptl[glcr->LcrXLayerID[0]].lcr_seq_profile_idc);
+            glcr->seq_ptl[0].lcr_seq_profile_idc);
     }
   }
   return INTEROP_2;  // Fallback
