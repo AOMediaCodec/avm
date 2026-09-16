@@ -617,7 +617,9 @@ uint64_t compute_distortion_block_c(const uint16_t *org, const int org_stride,
                                     const int x, const int y,
                                     const int log2_filter_unit_size_y,
                                     const int log2_filter_unit_size_x,
-                                    const int height, const int width) {
+                                    const int height, const int width,
+                                    const int bd) {
+  (void)bd;
   int err;
   uint64_t ssd = 0;
   int y_offset;
@@ -695,9 +697,10 @@ static void compute_distortion(const AV2_COMMON *cm, const CcsoCtx *ctx,
             continue;
           }
           // skip if unit skip
-          sb_ssd += compute_distortion_block(
-              org_unit, org_stride, rec_unit, rec_stride, x + unit_x,
-              y + unit_y, unit_log2_y, unit_log2_x, height, width);
+          sb_ssd += compute_distortion_block(org_unit, org_stride, rec_unit,
+                                             rec_stride, x + unit_x, y + unit_y,
+                                             unit_log2_y, unit_log2_x, height,
+                                             width, cm->seq_params.bit_depth);
         }
         // offset org, rec16 here
         org_unit += (org_stride << unit_log2_x);

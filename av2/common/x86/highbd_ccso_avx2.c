@@ -914,36 +914,32 @@ void ccso_filter_block_hbd_with_buf_avx2(
 #undef CCSO_FILTER_BLOCK
 }
 
-static INLINE int SquareDifference(__m256i a, __m256i b) {
-  const __m256i Z = _mm256_setzero_si256();
-
-  const __m256i alo = _mm256_unpacklo_epi16(a, Z);
-  const __m256i blo = _mm256_unpacklo_epi16(b, Z);
-  const __m256i dlo = _mm256_sub_epi32(alo, blo);
-
-  const __m256i ahi = _mm256_unpackhi_epi16(a, Z);
-  const __m256i bhi = _mm256_unpackhi_epi16(b, Z);
-  const __m256i dhi = _mm256_sub_epi32(ahi, bhi);
-
-  const __m256i dloSq = _mm256_mullo_epi32(dlo, dlo);
-  const __m256i dhiSq = _mm256_mullo_epi32(dhi, dhi);
-
-  const __m256i dlhSq = _mm256_add_epi32(dloSq, dhiSq);
-  const __m256i masksub2 = _mm256_set_epi32(0, 0, 0, 0, 5, 4, 1, 0);
-
-  __m256i dloSum = _mm256_hadd_epi32(dlhSq, dlhSq);
-  dloSum = _mm256_permutevar8x32_epi32(dloSum, masksub2);
-  dloSum = _mm256_hadd_epi32(dloSum, dloSum);
-  dloSum = _mm256_hadd_epi32(dloSum, dloSum);
-
-  return (_mm_cvtsi128_si32(_mm256_castsi256_si128(dloSum)));
+// Horizontal sum of eight non-negative 32 bit values, widened to 64 bit so
+// the result will not overflow.
+static INLINE uint64_t hsum_epi32_to_u64_avx2(__m256i v) {
+  const __m256i zero = _mm256_setzero_si256();
+  const __m256i lo = _mm256_unpacklo_epi32(v, zero);
+  const __m256i hi = _mm256_unpackhi_epi32(v, zero);
+  const __m256i sum64 = _mm256_add_epi64(lo, hi);
+  __m128i s = _mm_add_epi64(_mm256_castsi256_si128(sum64),
+                            _mm256_extracti128_si256(sum64, 1));
+  s = _mm_add_epi64(s, _mm_srli_si128(s, 8));
+#if ARCH_X86_64
+  return (uint64_t)_mm_cvtsi128_si64(s);
+#else
+  {
+    uint64_t tmp;
+    _mm_storel_epi64((__m128i *)&tmp, s);
+    return tmp;
+  }
+#endif
 }
 
 uint64_t compute_distortion_block_avx2(
     const uint16_t *org, const int org_stride, const uint16_t *rec16,
     const int rec_stride, const int x, const int y,
     const int log2_filter_unit_size_y, const int log2_filter_unit_size_x,
-    const int height, const int width) {
+    const int height, const int width, const int bd) {
   const int blk_size_y = 1 << log2_filter_unit_size_y;
   const int blk_size_x = 1 << log2_filter_unit_size_x;
   int y_offset;
@@ -963,6 +959,21 @@ uint64_t compute_distortion_block_avx2(
   }
   uint64_t sum = 0;
 
+  // The look-up table below holds the mask which is used to decide the nth row
+  // upto which the values can be accumulated without overflowing 32-bit
+  // unsigned lane.The maximum possible sum accumulated per row is(blk_size_x /
+  // 16)* 2*(2 ^ bd - 1)^2.
+  //
+  // Columns of the table correspond to block sizes 32x32, 64x64, 128x128,
+  // and 256x256.
+  static const int max_rows_to_sum_lut[3][4] = {
+    { 16383, 8191, 4095, 2047 },  // bd 8
+    { 1023, 511, 255, 127 },      // bd 10
+    { 63, 31, 15, 7 },            // bd 12
+  };
+  const int max_rows_to_sum = max_rows_to_sum_lut[(bd - 8) >> 1][AVMMAX(
+      0, log2_filter_unit_size_x - 5)];
+  __m256i acc = _mm256_setzero_si256();
   for (int yOff = 0; yOff < y_offset; yOff++) {
     const uint16_t *org2 = org + (yOff * org_stride + x);
     const uint16_t *rec2 = rec16 + (yOff * rec_stride + x);
@@ -971,10 +982,15 @@ uint64_t compute_distortion_block_avx2(
           _mm256_loadu_si256((const __m256i *)(org2 + xOff));
       const __m256i rec_cur =
           _mm256_loadu_si256((const __m256i *)(rec2 + xOff));
-      int err = SquareDifference(org_cur, rec_cur);
-      sum += err;
+      const __m256i diff = _mm256_sub_epi16(org_cur, rec_cur);
+      acc = _mm256_add_epi32(acc, _mm256_madd_epi16(diff, diff));
+    }
+    if ((yOff & max_rows_to_sum) == max_rows_to_sum) {
+      sum += hsum_epi32_to_u64_avx2(acc);
+      acc = _mm256_setzero_si256();
     }
   }
+  sum += hsum_epi32_to_u64_avx2(acc);
 
   // process remaining irregular block to avoid scalar processing for every row
   for (int yOff = 0; yOff < y_offset; yOff++) {
