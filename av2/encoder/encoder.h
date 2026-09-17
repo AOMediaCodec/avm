@@ -3520,7 +3520,7 @@ static INLINE BLOCK_SIZE find_partition_size(BLOCK_SIZE bsize, int rows_left,
     for (; int_size > 0; int_size -= 3) {
       *bh = mi_size_high[int_size];
       *bw = mi_size_wide[int_size];
-      if ((*bh <= rows_left) && (*bw <= cols_left)) {
+      if (((*bh >> 1) < rows_left) && ((*bw >> 1) < cols_left)) {
         break;
       }
     }
