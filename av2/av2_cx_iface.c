@@ -5206,12 +5206,12 @@ static const avm_codec_enc_cfg_t encoder_usage_cfg[] = {
       256,          // rc_target_bandwidth
       0,            // rc_min_quantizer
       255,          // rc_max_quantizer
-      25,           // rc_undershoot_pct
-      25,           // rc_overshoot_pct
+      50,           // rc_undershoot_pct
+      50,           // rc_overshoot_pct
 
-      6000,  // rc_max_buffer_size
-      4000,  // rc_buffer_initial_size
-      5000,  // rc_buffer_optimal_size
+      1000,  // rc_max_buffer_size
+      600,   // rc_buffer_initial_size
+      600,   // rc_buffer_optimal_size
 
       0,     // rc_two_pass_vbrmin_section
       2000,  // rc_two_pass_vbrmax_section
