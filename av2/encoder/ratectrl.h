@@ -292,8 +292,7 @@ typedef struct {
 struct AV2_COMP;
 struct AV2EncoderConfig;
 
-void av2_rc_init(const struct AV2EncoderConfig *oxcf, int pass,
-                 RATE_CONTROL *rc);
+void av2_rc_init(const struct AV2EncoderConfig *oxcf, RATE_CONTROL *rc);
 
 int av2_estimate_bits_at_q(FRAME_TYPE frame_kind, int q, int mbs,
                            double correction_factor, avm_bit_depth_t bit_depth,
