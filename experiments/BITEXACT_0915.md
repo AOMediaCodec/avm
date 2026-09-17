@@ -181,3 +181,30 @@ configuration space. For 0034 and 0036 the code argument carries most of the
 weight and the sweep confirms it. For 0037 the sweep carries most of the
 weight, which is why it is the widest of the three — and why the patch header
 says to widen it further rather than treating a green sweep as closure.
+
+---
+
+## Patch 0038 — clear `picked_ref_frames_mask` only when it is used
+
+Same "written iff read" shape as 0036/0037: both accessors of the array are
+gated on `sf.inter_sf.prune_ref_frames`, the clear was not.
+
+The sweep spans QP 40-200 because `prune_ref_frames` has qindex- and
+boost-dependent terms, uses 6-10 frame runs so both boosted and non-boosted
+frames occur, and includes a `--tune-content=screen` run because the flag also
+carries an `allow_screen_content_tools` term.
+
+| config | clip | preset | qp | frames | result |
+|---|---|---|---|---|---|
+| s5q160_10f | 320x192 | 5 | 160 | 10 | MATCH `747f49b354982d0077d761f3dddc09a6` |
+| s2q110_10f | 320x192 | 2 | 110 | 10 | MATCH `4b7c45d8dd9814df7aa9dd9da109ec21` |
+| s1q60_8f | 320x192 | 1 | 60 | 8 | MATCH `bdd08b92c8c065ed3ab2ac8f4be0ace7` |
+| s0q90_6f | 320x192 | 0 | 90 | 6 | MATCH `45f82e3ac3aabbe26a10a6ee9837b2df` |
+| s3q200_360 | 640x360 | 3 | 200 | 8 | MATCH `d01f250ac17c19677078436f3e50e8af` |
+| s4q40_360 | 640x360 | 4 | 40 | 8 | MATCH `c87c375368ad5b42e8fd2209f0a7069c` |
+| s5q150_720 | 1280x720 | 5 | 150 | 6 | MATCH `3d580dabf9948d5ebf9c6c4094898d9d` |
+| scc_s2 | 320x192 screen | 2 | 110 | 8 | MATCH `11d2492d1a37e1e76529e3d1af8c3b15` |
+
+**8/8**, presets 0 through 5, three resolutions, QP 40-200, plus the screen
+content path.
+
