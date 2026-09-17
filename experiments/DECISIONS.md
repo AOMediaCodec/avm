@@ -114,3 +114,49 @@ fails silently.** Needs a callee audit, a `sizeof` static assert to force
 re-audit on struct changes, and a load-bearing sweep. Not worth doing before
 patch 0035 has been answered.
 
+## D13 — At speeds 0-3, intra blocks get no cost-based transform-type pruning. (measured)
+
+`get_tx_mask()` picks between two regimes on `prune_tx_type_est_rd`:
+
+```
+if (num_allowed > 2 && prune_tx_type_est_rd)  prune_txk_type()   <- intra AND inter
+else if (prune_2d_txfm_mode >= PRUNE_1 && is_inter && ...)  prune_tx_2D()  <- inter ONLY
+```
+
+Resolved values dumped from an instrumented build at the point of use:
+
+| speed | `prune_tx_type_est_rd` | `prune_2d_txfm_mode` | `winner_mode_tx_type_pruning` |
+|---|---|---|---|
+| 0, 1 | 0 | 1 | 0 |
+| 2, 3 | 0 | 2 | 0 |
+| 4, 5 | 1 | 4 | 1 |
+| 6 | 0 | 5 | 2 |
+
+Three tx-type pruning mechanisms switch on together in the 3 -> 4 step. Because
+the else branch requires `is_inter`, intra blocks at speeds 0-3 fall through
+with no cost-based prune at all, and every survivor pays a full TCQ trellis.
+Patch 0039 exposes the flag as an arm. Not free: `prune_txk_type` calls
+`av2_cost_coeffs_txb_laplacian` (1.09% of instructions at speed 5), so it
+trades estimate cost for trellis calls and will move BD-rate.
+
+## D14 — The speed-feature setter's first call does not carry the configured preset. (measured, trap)
+
+`set_good_speed_features_framesize_independent` is called more than once per
+encode, and the **first call reports `speed=0` whatever `--cpu-used` says**. A
+print-once diagnostic latches onto that call and reports the wrong preset --
+the same "you measured the value you did not mean" failure that instrumentation
+exists to prevent. Dump on change, and print `cpi->oxcf.speed` alongside the
+setter's own parameter.
+
+Related: the value of a field at the end of one setter is not its value at the
+point of use. `prune_2d_txfm_mode` reads 2 at the end of the framesize-independent
+setter at speed 4, but 4 at the use site in `tx_search.c`, because a later
+setter in the chain raises it. **Always dump at the use site.**
+
+## D15 — Callgrind instruction counts drift ~0.002% across container restarts. (measured)
+
+Baseline on the same binary and clip: 176,252,929,353 before a container
+restart, 176,249,501,877 after. 0.0019%. Far below any effect being measured,
+but it means a baseline from a previous container should be re-measured rather
+than reused when comparing arms.
+

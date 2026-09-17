@@ -1,0 +1,170 @@
+Subject: [PATCH 0039] tx: allow estimated-RD transform-type pruning below speed 4
+
+THE FINDING
+
+get_tx_mask() chooses between two transform-type pruning regimes:
+
+    if (num_allowed > 2 && sf->tx_sf.tx_type_search.prune_tx_type_est_rd) {
+        prune_txk_type() / prune_txk_type_separ()     <- intra AND inter
+    } else {
+        if (prune_2d_txfm_mode >= TX_TYPE_PRUNE_1 && is_inter && ...)
+            prune_tx_2D()                             <- inter ONLY
+    }
+
+prune_tx_type_est_rd is 0 at speeds 0-3. At those presets INTRA blocks take
+the else branch, fail its is_inter test, and receive NO cost-based
+transform-type pruning at all. They get set reduction
+(use_reduced_intra_txset) but nothing that ranks candidates by estimated
+cost.
+
+Every candidate that survives then pays a full 8-state TCQ trellis in
+av2_optimize_b, and under TCQ that trellis cannot be skipped -- the
+dequantizer is a state machine driven by coefficient parity, so
+coefficients that did not come out of the trellis dequantize incorrectly.
+A callgrind profile of the current tip puts the TCQ trellis at roughly 40%
+of retired instructions at cpu-used=2 (29.96% in
+av2_trellis_loop_diagonal_st8_avx2 alone), which makes the number of
+surviving transform-type candidates the dominant cost driver at that
+preset.
+
+The mechanism proposed here is not new or speculative: it is already in
+production at speeds 4 and 5.
+
+MEASURED, NOT READ
+
+The resolved values at the point of use, dumped from an instrumented build
+(320x192, --limit=2, qp=110):
+
+    speed  prune_tx_type_est_rd  prune_2d_txfm_mode  winner_mode_tx_type_pruning
+      0            0                    1                      0
+      1            0                    1                      0
+      2            0                    2                      0
+      3            0                    2                      0
+      4            1                    4                      1
+      5            1                    4                      1
+      6            0                    5                      2
+
+Three separate transform-type pruning mechanisms all switch on together in
+the speed 3 -> 4 step.
+
+WHY THE OVERRIDE IS PLACED LAST
+
+prune_tx_type_est_rd is assigned in two other places in this same function
+(= 1 under speed >= 4, = 0 under speed >= 6). The encoder has a documented
+history of speed-feature edits that a later writer silently overwrites --
+upstream db16baa fixed exactly that for uneven 4-way partitions, where an
+earlier attempt "was not working as intended" because the field was set
+elsewhere. Assigning at the very end of the setter makes this override the
+last writer by construction rather than by reading the file and hoping.
+
+Build with -DAVM_DUMP_TX_SF=1 and the encoder prints the RESOLVED value, so
+the arm can be checked rather than assumed. Note the first call to this
+setter does not carry the configured preset -- it reports speed=0 whatever
+--cpu-used says -- so the dump prints on change and reports both
+cpi->oxcf.speed and the setter's parameter. A print-once diagnostic latches
+onto that first call and reports the wrong thing.
+
+ARMS
+
+    (default, no flags)                  identical to today's encoder;
+                                         the override block compiles out
+    -DAVM_TX_EST_RD_MIN_SPEED=3          adds the estimated-RD regime at speed 3
+    -DAVM_TX_EST_RD_MIN_SPEED=2          ... and at speed 2   <- the arm of interest
+
+Speed 6 turns the flag back off upstream and the override preserves that.
+That is consistent rather than contradictory: by speed 6 the candidate set
+is usually small enough that the num_allowed > 2 test fails, so the
+estimate stops repaying its own cost.
+
+THIS IS AN APPROXIMATION, NOT A FREE WIN
+
+prune_txk_type() calls av2_cost_coeffs_txb_laplacian, which is itself 1.09%
+of retired instructions at speed 5 in the profile. The patch buys fewer
+trellis calls by paying for a cheaper estimate, so it has a real cost as
+well as a real saving and it will move BD-rate. It is a ratio question --
+speedup% / BD-rate% against the speed-2 bar of 30 -- which only CTC can
+answer.
+
+It is also orthogonal to the pre-trellis RD gate (patches 0027 / 0035):
+that gate prunes AFTER quantization, this prunes BEFORE the forward
+transform. They can be run together or separately.
+
+VERIFICATION
+
+The default build must be byte-identical to the unpatched encoder, since
+the override compiles out entirely. That is checked by .obu md5 across
+preset x qindex and recorded in experiments/registry.csv.
+
+diff --git a/av2/encoder/speed_features.c b/av2/encoder/speed_features.c
+index 546b318..0361631 100644
+--- a/av2/encoder/speed_features.c
++++ b/av2/encoder/speed_features.c
+@@ -702,6 +702,68 @@ static void set_good_speed_features_framesize_independent(
+     sf->inter_sf.enable_six_param_warp_in_winner_mode_by_tid =
+         cm->current_frame.pyramid_level >= 3 ? 1 : 0;
+   }
++
++  // ---------------------------------------------------------------------
++  // Experiment: extend estimated-RD transform-type pruning below speed 4.
++  //
++  // get_tx_mask() picks between two pruning regimes:
++  //
++  //   if (num_allowed > 2 && prune_tx_type_est_rd)
++  //       prune_txk_type() / prune_txk_type_separ()   <- intra AND inter
++  //   else if (prune_2d_txfm_mode >= TX_TYPE_PRUNE_1 && is_inter && ...)
++  //       prune_tx_2D()                                <- inter ONLY
++  //
++  // prune_tx_type_est_rd is 0 at speeds 0-3, so at those presets INTRA blocks
++  // reach the else branch, fail its is_inter test, and get no cost-based
++  // transform-type pruning at all. Every surviving candidate then pays a full
++  // 8-state TCQ trellis, and the trellis is ~40% of retired instructions at
++  // speed 2.
++  //
++  // This block is placed at the very end of the setter deliberately. The flag
++  // is written in two other places in this function (= 1 under speed >= 4,
++  // = 0 under speed >= 6), and the encoder has a history of speed-feature
++  // edits that a later writer silently overwrites -- see upstream db16baa for
++  // the same bug class. Assigning last makes the override the last writer by
++  // construction rather than by reading the file.
++  //
++  // Set AVM_TX_EST_RD_MIN_SPEED to the lowest preset that should use the
++  // estimated-RD regime. 4 reproduces today's encoder exactly.
++#ifndef AVM_TX_EST_RD_MIN_SPEED
++#define AVM_TX_EST_RD_MIN_SPEED 4
++#endif
++#if AVM_TX_EST_RD_MIN_SPEED < 4
++  // Speed 6 turns the flag back off upstream; preserve that.
++  if (speed >= AVM_TX_EST_RD_MIN_SPEED && speed < 6)
++    sf->tx_sf.tx_type_search.prune_tx_type_est_rd = 1;
++#endif
++
++  // Self-check for the multi-writer trap: build with -DAVM_DUMP_TX_SF=1 and the
++  // encoder prints the RESOLVED value once per run. Confirm it reads 1 at the
++  // preset under test before trusting any timing number from this arm.
++#if defined(AVM_DUMP_TX_SF) && AVM_DUMP_TX_SF
++  {
++    // This setter is called more than once per encode, and the FIRST call does
++    // not carry the configured preset -- it reports speed=0 whatever
++    // --cpu-used says. A print-once diagnostic latches onto that call and
++    // reports the wrong thing, which is the same "you measured the value you
++    // did not mean" failure this dump exists to prevent. So print on change,
++    // and print the configured preset alongside the parameter.
++    static int last_speed = -1, last_flag = -1;
++    if (speed != last_speed ||
++        sf->tx_sf.tx_type_search.prune_tx_type_est_rd != last_flag) {
++      last_speed = speed;
++      last_flag = sf->tx_sf.tx_type_search.prune_tx_type_est_rd;
++      fprintf(stderr,
++              "[AVM_TX_SF] oxcf.speed=%d setter_speed=%d "
++              "prune_tx_type_est_rd=%d prune_2d_txfm_mode=%d "
++              "winner_mode_tx_type_pruning=%d\n",
++              cpi->oxcf.speed, speed,
++              sf->tx_sf.tx_type_search.prune_tx_type_est_rd,
++              (int)sf->tx_sf.tx_type_search.prune_2d_txfm_mode,
++              sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning);
++    }
++  }
++#endif
+ }
+ 
+ // Define frame size independent speed features for low complexity decoding
