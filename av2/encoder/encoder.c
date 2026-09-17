@@ -1275,7 +1275,7 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
 
   // Need to call av2_rc_init() whenever any QP, lossless or related config
   // is changed after compressor creation.
-  av2_rc_init(&cpi->oxcf, 0, rc);
+  av2_rc_init(&cpi->oxcf, rc);
   rc->baseline_gf_interval = (MIN_GF_INTERVAL + MAX_GF_INTERVAL) / 2;
 
   cm->features.cross_frame_context =
@@ -1577,7 +1577,7 @@ AV2_COMP *av2_create_compressor(AV2EncoderConfig *oxcf, BufferPool *const pool,
 
   cpi->frames_left = cpi->oxcf.input_cfg.limit;
 
-  av2_rc_init(&cpi->oxcf, 0, &cpi->rc);
+  av2_rc_init(&cpi->oxcf, &cpi->rc);
 
   // For two pass and lag_in_frames > 33 in LAP.
   cpi->rc.enable_scenecut_detection = ENABLE_SCENECUT_MODE_2;
