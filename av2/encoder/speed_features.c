@@ -432,6 +432,8 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.skip_temporary_pred_for_opfl = 1;
     sf->inter_sf.enable_warp_inter_intra_in_winner = 1;
 
+    sf->interp_sf.skip_model_rd_uv = 1;
+
     // Enable the optimized inter-SDP fast method (requires >=1 intra coded
     // block, prunes when inter-mode ratio exceeds 50%, and early skips when
     // the current best partitioning is PARTITION_NONE).
@@ -964,6 +966,7 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
 
 static AVM_INLINE void init_interp_sf(INTERP_FILTER_SPEED_FEATURES *interp_sf) {
   interp_sf->use_interp_filter = 0;
+  interp_sf->skip_model_rd_uv = 0;
 }
 
 static AVM_INLINE void init_intra_sf(INTRA_MODE_SPEED_FEATURES *intra_sf) {
