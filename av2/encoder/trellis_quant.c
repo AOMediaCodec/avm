@@ -877,7 +877,7 @@ void av2_calc_block_eob_rate_c(struct macroblock *x, int plane, TX_SIZE tx_size,
   }
 }
 
-int av2_find_best_path_c(const struct tcq_node_t *trellis, const int16_t *scan,
+int av2_find_best_path(const struct tcq_node_t *trellis, const int16_t *scan,
                          const int32_t *dequant, const qm_val_t *iqmatrix,
                          const tran_low_t *tcoeff, int first_scan_pos,
                          int log_scale, tran_low_t *qcoeff, tran_low_t *dqcoeff,
