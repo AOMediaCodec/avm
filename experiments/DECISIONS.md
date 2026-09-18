@@ -217,3 +217,50 @@ later reads, since stale payload would otherwise leak between superblocks;
 the `valid` gate; (c) the CONFIG_ML_PART_SPLIT `residual_stats_valid` flag
 handled alongside `valid`.
 
+## D18 — Patch 0039 at speed 2: large speedup, but BD-rate flips sign with content. (screened locally)
+
+Local screen, cpu-used=2, 10 frames, 4 QPs (80/120/160/200), Bjontegaard on
+PSNR-Y against bitrate:
+
+| clip | BD-rate | speedup | implied ratio |
+|---|---|---|---|
+| nat192 (320x192) | **-0.57%** | 8.27% | n/a -- BD *improves* |
+| nat360 (640x360) | **+1.44%** | 8.27% | **5.7** |
+| mean of the two | +0.43% | 8.27% | 19.0 |
+
+Speed-2 bar is 30, so at 8.27% speedup the arm needs **BD <= 0.276%**. The
+larger clip is 5x over that.
+
+Three things matter more than the averages:
+
+1. **The sign flips.** Opposite directions on two clips is the signature of a
+   mechanism whose cost depends on content, and the bar requires A1 and A2 to
+   pass *independently*. This is the same failure shape as the pre-trellis gate
+   at speed 3 (A1 42.1 pass / A2 20.2 miss, D9) -- a per-class spread that no
+   single operating point can pay for.
+2. **The larger clip did worse**, and CTC runs at 1080p and 4K, far larger than
+   either screen clip. The trend points the wrong way for extrapolation.
+3. The -8.27% instruction count is solid and unaffected; it is the BD side that
+   fails.
+
+**Recommendation: do not spend a CTC slot on MIN_SPEED=2 as it stands.** Better
+next steps, in order: (a) MIN_SPEED=3, where the bar is 25 and the candidate
+set is closer to speed 4 where this mechanism is already proven in production;
+(b) understand the resolution/content dependence before widening.
+
+**Caveats, stated plainly:** 2 synthetic clips, 10 frames, 4 QP points, PSNR-only
+BD on short sequences. This is a screen, not a CTC substitute, and the absolute
+BD numbers should not be quoted. The *spread* is the finding, not the values.
+
+## D19 — CORRECTION: a single-QP rate delta is not a BD-rate estimate. (method)
+
+I reported patch 0039 as "+0.55% bitstream at fixed QP, crude ratio ~15, below
+the bar". That came from ONE QP point on 3 frames of one clip. Across 8 points
+the fixed-QP rate delta ranges -0.99% to +2.35% with no stable sign, and the
+4-point BD-rate came out -0.57% / +1.44% -- neither near +0.55%.
+
+**Treat a single-point rate delta the way single-rep wall clock is treated
+(D10): not evidence.** Rate at fixed QP also moves with distortion, so its sign
+alone says nothing about quality. Compute BD-rate over >= 4 QPs with PSNR, or
+report nothing.
+
