@@ -321,10 +321,10 @@ static std::vector<FwdTxfmParam> GenerateFwdParams() {
   std::vector<FwdTxfmParam> params;
   const int seeds[] = { 1, 42, 100, 255, 1000, 2023, 3141, 5678, 7777, 9999 };
   const int bds[] = { 8, 10, 12 };
-  const TX_SIZE sizes[] = { TX_4X4,  TX_8X8,  TX_16X16, TX_32X32, TX_4X8,
-                            TX_8X4,  TX_8X16, TX_16X8,  TX_16X32, TX_32X16,
-                            TX_4X16, TX_16X4, TX_8X32,  TX_32X8,  TX_4X32,
-                            TX_32X4 };
+  const TX_SIZE sizes[] = { TX_4X4,   TX_8X8,   TX_16X16, TX_32X32,
+                            TX_4X8,   TX_8X4,   TX_8X16,  TX_16X8,
+                            TX_16X32, TX_32X16, TX_4X16,  TX_16X4,
+                            TX_8X32,  TX_32X8,  TX_4X32,  TX_32X4 };
   const TX_TYPE types[] = {
     DCT_DCT,      ADST_DCT,          DCT_ADST, ADST_ADST, FLIPADST_DCT,
     DCT_FLIPADST, FLIPADST_FLIPADST, IDTX,     V_DCT,     H_DCT

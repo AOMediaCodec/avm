@@ -84,7 +84,7 @@ void av2_highbd_fwht4x4_neon(const int16_t *input, tran_low_t *output,
 }
 
 static INLINE int32x4_t round_power_of_two_signed_cctx_neon(int32x4_t v,
-                                                             int32x4_t bias) {
+                                                            int32x4_t bias) {
   int32x4_t round = vsraq_n_s32(bias, v, 31);
   return vshrq_n_s32(vaddq_s32(round, v), CCTX_PREC_BITS);
 }
