@@ -160,3 +160,60 @@ restart, 176,249,501,877 after. 0.0019%. Far below any effect being measured,
 but it means a baseline from a previous container should be re-measured rather
 than reused when comparing arms.
 
+## D16 — CORRECTION: patch 0038 was built on a misattributed profile line. (measured)
+
+I attributed the 0.53% `__memset_avx2 via init_encode_rd_sb` line to
+`x->picked_ref_frames_mask` and built patch 0038 to guard it. **That was wrong.**
+
+```
+sizeof(picked_ref_frames_mask)  =      32,768 bytes   <- what 0038 guards
+sizeof(SimpleMotionDataBufs)    =  15,687,312 bytes   <- what dominates the line
+```
+
+`init_encode_rd_sb` also calls `av2_init_sms_data_bufs()`, which is a flat
+`memset(data_bufs, 0, sizeof(*data_bufs))` over **15.0 MB**, 479x larger. The
+third clear in that function, `reset_hash_records`, is two integer assignments.
+
+Patch 0038 is correct and bit-exact (8/8) but removes ~0.2% of that line:
+**measured -0.0010%**, against a container-restart drift of 0.0019% on the same
+binary (D15). It is below the measurement floor. Downgraded to
+"verified, negligible" -- carry it or drop it, but do not spend a CTC slot.
+
+**The check that caught it, and the rule:** 32 KB x ~6 superblocks is ~6,000
+instructions; the profile line was 1.65 *billion*. Those cannot be the same
+thing. **Before attributing a profile line to a specific buffer, multiply
+size x call count and confirm it reaches the observed magnitude.** A caller
+name in a callgrind chain identifies the function, not which of its several
+memsets is the expensive one.
+
+## D17 — The SMS data buffer clear is the largest single memset in the encoder. (sized, unbuilt)
+
+`av2_init_sms_data_bufs()` clears **15,687,312 bytes** (103,206 entries x 152)
+per call, from `init_encode_rd_sb`, which has seven call sites in
+`encodeframe.c` (multi-pass superblock encoding), so it runs many times per
+superblock.
+
+`av2_get_sms_data()` gates entirely on one field:
+
+```c
+SimpleMotionData *cur_block = av2_get_sms_data_entry(...);
+if (!cur_block->valid) compute_sms_data(...);
+```
+
+So the clear's only job is `valid == 0` on every entry -- 4 bytes, not 152:
+
+```
+full clear   15,687,312 bytes
+flags only      412,824 bytes     38x reduction
+```
+
+Same shape as patch 0034 (clear the bookkeeping, not the payload), which
+measured -2.67%.
+
+**Do not build this from the sizing alone** -- that is the mistake D16 records.
+It needs: (a) an audit that `compute_sms_data` writes every field any consumer
+later reads, since stale payload would otherwise leak between superblocks;
+(b) a check that nothing reaches `av2_get_sms_data_entry` directly, bypassing
+the `valid` gate; (c) the CONFIG_ML_PART_SPLIT `residual_stats_valid` flag
+handled alongside `valid`.
+
