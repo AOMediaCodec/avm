@@ -228,6 +228,10 @@ static void set_good_speed_feature_framesize_dependent(
     if (is_480p_or_larger) {
       sf->tx_sf.tx_type_search.prune_tx_type_using_stats = 1;
     }
+
+    if (is_4k_or_larger) {
+      sf->tx_sf.tx_type_search.prune_tx_type_est_rd = 1;
+    }
   }
 
   if (speed >= 4) {
