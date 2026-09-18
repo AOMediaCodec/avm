@@ -204,7 +204,7 @@ if (avm_config("CONFIG_AV2_ENCODER") eq "yes"){
     specialize qw/avm_fdct4x4_lp neon sse2/;
 
     add_proto qw/void avm_highbd_fdct8x8/, "const int16_t *input, tran_low_t *output, int stride";
-    specialize qw/avm_highbd_fdct8x8 sse2/;
+    specialize qw/avm_highbd_fdct8x8 sse2 neon/;
 
     # FFT/IFFT (float) only used for denoising (and noise power spectral density estimation)
     add_proto qw/void avm_fft2x2_float/, "const float *input, float *temp, float *output";

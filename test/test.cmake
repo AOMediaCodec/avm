@@ -243,7 +243,8 @@ if(NOT BUILD_SHARED_LIBS)
     "${AVM_ROOT}/test/palette_test.cc")
 
   list(APPEND AVM_UNIT_TEST_ENCODER_SOURCES
-       "${AVM_ROOT}/test/lossless_idtx_test.cc")
+       "${AVM_ROOT}/test/lossless_idtx_test.cc"
+       "${AVM_ROOT}/test/txfm_misc_test.cc")
 
   list(
     APPEND AVM_UNIT_TEST_ENCODER_INTRIN_SSE4_1

@@ -247,14 +247,14 @@ if (avm_config("CONFIG_AV2_ENCODER") eq "yes") {
   # fwd cctx
   add_proto qw/void av2_fwd_cross_chroma_tx_block/, "tran_low_t *coeff_c1, tran_low_t *coeff_c2,
                          TX_SIZE tx_size, CctxType cctx_type, const int bd";
-  specialize qw/av2_fwd_cross_chroma_tx_block avx2/;
+  specialize qw/av2_fwd_cross_chroma_tx_block avx2 neon/;
 
   #fwd txfm
   add_proto qw/void fwd_stxfm/ , "tran_low_t *src, tran_low_t *dst, const PREDICTION_MODE mode, const uint8_t stx_idx, const int size, const int bd";
   specialize qw/fwd_stxfm sse4_1 avx2 neon/;
 
   add_proto qw/void fwd_txfm/,  "const int16_t *resi, tran_low_t *coeff, int diff_stride, TxfmParam *txfm_param";
-  specialize qw/fwd_txfm avx2/;
+  specialize qw/fwd_txfm avx2 neon/;
 
   #
   # Motion search

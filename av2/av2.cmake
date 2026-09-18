@@ -439,6 +439,7 @@ list(
   "${AVM_ROOT}/av2/encoder/arm/neon/rdopt_neon.c"
   "${AVM_ROOT}/av2/encoder/arm/neon/encodetxb_neon.c"
   "${AVM_ROOT}/av2/encoder/arm/neon/fwd_stxfm_neon.c"
+  "${AVM_ROOT}/av2/encoder/arm/neon/highbd_fwd_txfm_neon.c"
   "${AVM_ROOT}/av2/encoder/arm/neon/hybrid_fwd_txfm_neon.c"
   "${AVM_ROOT}/av2/encoder/arm/neon/trellis_quant_neon.c")
 
