@@ -192,6 +192,12 @@ static INLINE int get_br_cost_tcq(tran_low_t level, const int *coeff_lps) {
   return coeff_lps[base_range] + get_golomb_cost_tcq(level, 0);
 }
 
+int av2_find_best_path(const struct tcq_node_t *trellis, const int16_t *scan,
+                       const int32_t *dequant, const qm_val_t *iqmatrix,
+                       const tran_low_t *tcoeff, int first_scan_pos,
+                       int log_scale, tran_low_t *qcoeff, tran_low_t *dqcoeff,
+                       int *min_rate, int64_t *min_cost);
+
 /*!\brief Adjust the magnitude of quantized coefficients to achieve better
  * rate-distortion (RD) trade-off with trellis coded quant techology.
  *
@@ -225,12 +231,6 @@ static INLINE int get_br_cost_tcq(tran_low_t level, const int *coeff_lps) {
  coefficients
  * and therefore preserve the sharpness of the reconstructed block.
  */
-int av2_find_best_path(const struct tcq_node_t *trellis, const int16_t *scan,
-                       const int32_t *dequant, const qm_val_t *iqmatrix,
-                       const tran_low_t *tcoeff, int first_scan_pos,
-                       int log_scale, tran_low_t *qcoeff, tran_low_t *dqcoeff,
-                       int *min_rate, int64_t *min_cost);
-
 int av2_trellis_quant(const struct AV2_COMP *cpi, MACROBLOCK *x, int plane,
                       int block, TX_SIZE tx_size, TX_TYPE tx_type,
                       CctxType cctx_type, const TXB_CTX *const txb_ctx,
