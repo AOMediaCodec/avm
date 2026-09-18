@@ -510,26 +510,50 @@ static void set_vbp_thresholds_key_frame(int64_t thresholds[],
  * threshold
  */
 static inline void set_vbp_thresholds(AV2_COMP *cpi, int64_t thresholds[],
-                                      int qindex) {
+                                      int qindex, SOURCE_SAD source_sad_level) {
   AV2_COMMON *const cm = &cpi->common;
   const int is_key_frame = frame_is_intra_only(cm);
   const int threshold_multiplier = is_key_frame ? 120 : 1;
   // In AV2, qindex is linear in dB (exponential step size 2^(q/24)), whereas
-  // AV1 had a linear quantizer table. We compute threshold_base directly as a
-  // function of qindex to account for the exponential range in AV2 vs linear in
-  // AV1.
-  int64_t threshold_base;
-  if (qindex <= 65) {
-    threshold_base = 12;
+  // AV1 had a linear quantizer table. We compute threshold_base as a function
+  // of qindex and source_sad_level to account for the exponential range in AV2.
+  const int num_pixels = cm->width * cm->height;
+  const int32_t ac_q = av2_ac_quant_QTX(qindex, 0, 0, cm->seq_params.bit_depth);
+  const int64_t q_offset = qindex - 65;
+  const int64_t poly_base =
+      (qindex <= 65) ? 12 : (12 + ((q_offset * (qindex + 15)) / 40));
+
+  int64_t quant_base;
+  if (num_pixels <= RESOLUTION_240P) {
+    if (source_sad_level == kZeroSad) {
+      quant_base = ac_q >> 2;
+    } else {
+      quant_base = poly_base;
+    }
+  } else if (num_pixels <= RESOLUTION_288P) {
+    if (source_sad_level <= kVeryLowSad) {
+      quant_base = ac_q >> 2;
+    } else if (source_sad_level <= kLowSad) {
+      quant_base = (3 * ac_q) >> 4;
+    } else {
+      quant_base = poly_base;
+    }
   } else {
-    const int64_t q_offset = qindex - 65;
-    threshold_base = 12 + ((q_offset * (qindex + 15)) / 40);
+    quant_base = ac_q >> 2;
+  }
+
+  int64_t threshold_base;
+  if (qindex <= 80) {
+    threshold_base = poly_base;
+  } else if (qindex >= 120) {
+    threshold_base = quant_base;
+  } else {
+    threshold_base =
+        interpolate_threshold(poly_base, quant_base, qindex, 80, 120);
   }
   threshold_base *= threshold_multiplier;
 
-  const int current_qindex = cm->quant_params.base_qindex;
   const int threshold_left_shift = 7;
-  const int num_pixels = cm->width * cm->height;
 
   if (is_key_frame) {
     set_vbp_thresholds_key_frame(thresholds, threshold_base, num_pixels);
@@ -544,8 +568,57 @@ static inline void set_vbp_thresholds(AV2_COMP *cpi, int64_t thresholds[],
   thresholds[4] = threshold_base << threshold_left_shift;
   thresholds[5] = INT64_MAX;
 
-  tune_thresh_based_on_resolution(cpi, thresholds, threshold_base,
-                                  current_qindex, num_pixels);
+  tune_thresh_based_on_resolution(cpi, thresholds, threshold_base, qindex,
+                                  num_pixels);
+
+  const bool is_screen = (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN);
+  if (is_screen) {
+    if (source_sad_level == kZeroSad) {
+      thresholds[1] = (2 * thresholds[1]);
+      thresholds[2] = (2 * thresholds[2]);
+      thresholds[3] = (2 * thresholds[3]);
+      thresholds[4] = INT64_MAX;
+    } else if (source_sad_level <= kVeryLowSad) {
+      thresholds[1] = (3 * thresholds[1]) >> 1;
+      thresholds[2] = (3 * thresholds[2]) >> 1;
+      thresholds[3] = (3 * thresholds[3]) >> 1;
+    } else if (source_sad_level <= kLowSad) {
+      thresholds[1] = (5 * thresholds[1]) >> 2;
+      thresholds[2] = (5 * thresholds[2]) >> 2;
+      thresholds[3] = (5 * thresholds[3]) >> 2;
+    }
+  } else {
+    if (num_pixels <= RESOLUTION_288P) {
+      if (source_sad_level == kZeroSad) {
+        thresholds[2] = thresholds[2] << 2;
+        thresholds[3] = thresholds[3] << 1;
+        thresholds[4] = INT64_MAX;
+      } else if (source_sad_level <= kVeryLowSad && qindex >= 100) {
+        thresholds[2] = (3 * thresholds[2]) >> 1;
+        thresholds[3] = (5 * thresholds[3]) >> 2;
+      } else if (source_sad_level <= kLowSad && qindex >= 110) {
+        thresholds[2] = (5 * thresholds[2]) >> 2;
+        thresholds[3] = (9 * thresholds[3]) >> 3;
+      }
+    } else {
+      if (source_sad_level == kZeroSad && qindex >= 100) {
+        thresholds[1] = (7 * thresholds[1]) >> 2;
+        if (num_pixels > RESOLUTION_360P) {
+          thresholds[2] = (3 * thresholds[2]) >> 1;
+        }
+      } else if (source_sad_level <= kVeryLowSad && qindex >= 100) {
+        thresholds[1] = (3 * thresholds[1]) >> 1;
+        if (num_pixels > RESOLUTION_360P) {
+          thresholds[2] = (5 * thresholds[2]) >> 2;
+        }
+      } else if (source_sad_level <= kLowSad && qindex >= 100) {
+        thresholds[1] = (5 * thresholds[1]) >> 2;
+        if (num_pixels > RESOLUTION_360P) {
+          thresholds[2] = (9 * thresholds[2]) >> 3;
+        }
+      }
+    }
+  }
 }
 
 static inline void force_split_ancestors(PART_EVAL_STATUS *force_split,
@@ -792,7 +865,8 @@ static void set_vt_partitioning_64x64(AV2_COMP *cpi, MACROBLOCKD *xd,
 void av2_choose_var_based_partitioning(AV2_COMP *cpi,
                                        const TileInfo *const tile,
                                        ThreadData *td, MACROBLOCK *x,
-                                       int mi_row, int mi_col) {
+                                       int mi_row, int mi_col,
+                                       unsigned int source_sad) {
   AV2_COMMON *const cm = &cpi->common;
   MACROBLOCKD *xd = &x->e_mbd;
   // Flat array representing quadtree nodes up to 16x16 level for 256x256 SB
@@ -813,6 +887,8 @@ void av2_choose_var_based_partitioning(AV2_COMP *cpi,
   bool is_key_frame = frame_is_intra_only(cm);
   bool scaled_ref_last = false;
   const int is_360p_or_smaller = cm->width * cm->height <= RESOLUTION_360P;
+  const SOURCE_SAD source_sad_level = x->source_sad_level;
+  const bool is_screen = (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN);
 
   assert(cm->seq_params.sb_size == BLOCK_64X64 ||
          cm->seq_params.sb_size == BLOCK_128X128 ||
@@ -827,7 +903,7 @@ void av2_choose_var_based_partitioning(AV2_COMP *cpi,
   int64_t thresholds[6];
   const int qindex = cm->quant_params.base_qindex;
 
-  set_vbp_thresholds(cpi, thresholds, qindex);
+  set_vbp_thresholds(cpi, thresholds, qindex, source_sad_level);
 
   src_buf = x->plane[AVM_PLANE_Y].src.buf;
   int src_stride = x->plane[AVM_PLANE_Y].src.stride;
@@ -843,6 +919,18 @@ void av2_choose_var_based_partitioning(AV2_COMP *cpi,
     } else {
       dst_buf = xd->plane[AVM_PLANE_Y].pre[0].buf;
       dst_stride = xd->plane[AVM_PLANE_Y].pre[0].stride;
+    }
+
+    const int block_width = mi_size_wide[cm->seq_params.sb_size];
+    const int block_height = mi_size_high[cm->seq_params.sb_size];
+    if (source_sad == 0 && mi_col + block_width <= tile->mi_col_end &&
+        mi_row + block_height <= tile->mi_row_end) {
+      if (y_sad == 0 ||
+          (is_screen &&
+           y_sad < (unsigned int)(block_width * block_height * 2))) {
+        set_block_size(cpi, mi_row, mi_col, cm->seq_params.sb_size);
+        return;
+      }
     }
   } else {
     dst_buf = NULL;
@@ -888,7 +976,6 @@ void av2_choose_var_based_partitioning(AV2_COMP *cpi,
   const int offset_32x32 = offsets.offset_32x32;
   const int offset_16x16 = offsets.offset_16x16;
   const bool is_lowres = (cm->width * cm->height <= RESOLUTION_288P);
-  const bool is_screen = (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN);
 
   avg_64x64 = 0;
   for (int blk64_idx = 0; blk64_idx < num_64x64_blocks; ++blk64_idx) {
