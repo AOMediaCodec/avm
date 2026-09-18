@@ -478,11 +478,7 @@ TEST_P(TcqUpdateNbrDiagonalTest, IdentityOrigSt) {
   for (int iter = 0; iter < kIterations && !HasFatalFailure(); ++iter) {
     int bwl = 2 + (rng_.Rand8() & 3);
     int max_diag = (1 << bwl) * 2 - 2;
-    int diag;
-    if ((iter & 3) == 0 && max_diag >= 5)
-      diag = 5;
-    else
-      diag = (max_diag <= 6) ? max_diag : 6 + rng_.Rand8() % (max_diag - 5);
+    int diag = ((iter & 3) == 0) ? 5 : (rng_.Rand8() % (max_diag + 1));
     RunOneIteration(bwl, diag, true);
   }
 }
