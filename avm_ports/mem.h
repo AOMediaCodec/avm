@@ -35,10 +35,6 @@
 #define UNINITIALIZED_IS_SAFE(x) x
 #endif
 
-#if HAVE_NEON && defined(_MSC_VER)
-#define __builtin_prefetch(x)
-#endif
-
 #if defined(__GNUC__) || defined(__clang__)
 #define AVM_PREFETCH(p) __builtin_prefetch((p), 0, 3)
 #else
