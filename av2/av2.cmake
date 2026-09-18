@@ -440,7 +440,8 @@ list(
   "${AVM_ROOT}/av2/encoder/arm/neon/encodetxb_neon.c"
   "${AVM_ROOT}/av2/encoder/arm/neon/fwd_stxfm_neon.c"
   "${AVM_ROOT}/av2/encoder/arm/neon/highbd_fwd_txfm_neon.c"
-  "${AVM_ROOT}/av2/encoder/arm/neon/hybrid_fwd_txfm_neon.c")
+  "${AVM_ROOT}/av2/encoder/arm/neon/hybrid_fwd_txfm_neon.c"
+  "${AVM_ROOT}/av2/encoder/arm/neon/trellis_quant_neon.c")
 
 list(APPEND AVM_AV2_ENCODER_INTRIN_MSA
      "${AVM_ROOT}/av2/encoder/mips/msa/fdct4x4_msa.c"

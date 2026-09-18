@@ -119,6 +119,8 @@ static AVM_FORCE_INLINE int get_base_ctx(int coeff_ctx) {
   return coeff_ctx & 15;
 }
 
+static const int8_t kTcqBaseMaxTbl[4] = { 0, 8, 6, 4 };
+
 // Extract mid/base diagonal context.
 // (context offset based on row + col)
 // Packed format:

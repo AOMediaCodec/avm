@@ -237,7 +237,7 @@ if (avm_config("CONFIG_AV2_ENCODER") eq "yes") {
   add_proto qw/void av2_get_coeff_ctx/, "const struct tcq_ctx_t *tcq_ctx, int col, struct tcq_coeff_ctx_t *coeff_ctx";
   specialize qw/av2_get_coeff_ctx avx2/;
   add_proto qw/void av2_update_nbr_diagonal/, "struct tcq_ctx_t *tcq_ctx, int row, int col, int bwl";
-  specialize qw/av2_update_nbr_diagonal avx2/;
+  specialize qw/av2_update_nbr_diagonal avx2 neon/;
 
   # fdct functions
 
