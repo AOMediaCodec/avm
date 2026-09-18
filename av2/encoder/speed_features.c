@@ -754,7 +754,7 @@ static void set_rt_speed_features_framesize_independent(
   // Set this good features as default for now.
   set_good_speed_features_framesize_independent(cpi, sf, speed);
   if (speed >= 6) {
-    sf->inter_sf.prune_ref_frames = 0;
+    sf->inter_sf.prune_ref_frames = 3;
     sf->intra_sf.intra_pruning_with_mlp = 0;
     sf->hl_sf.frame_parameter_update = 0;
     sf->hl_sf.recode_loop = DISALLOW_RECODE;
