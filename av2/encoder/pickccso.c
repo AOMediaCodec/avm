@@ -682,29 +682,35 @@ static void compute_distortion(const AV2_COMMON *cm, const CcsoCtx *ctx,
       }
       // All unified into pixel size
       uint64_t sb_ssd = 0;
-      const uint16_t *org_unit = org;
-      const uint16_t *rec_unit = rec16;
-      const int y_end = AVMMIN(height - y, blk_size_y);
-      const int x_end = AVMMIN(width - x, blk_size_x);
-      for (int unit_y = 0; unit_y < y_end; unit_y += unit_size_y) {
-        for (int unit_x = 0; unit_x < x_end; unit_x += unit_size_x) {
-          // skip if unit skip
-          const int mbmi_idx = get_mi_grid_idx(
-              &cm->mi_params, (y + unit_y) >> v_scale, (x + unit_x) >> h_scale);
-          if (cm->bru.enabled &&
-              cm->mi_params.mi_grid_base[mbmi_idx]->sb_active_mode !=
-                  BRU_ACTIVE_SB) {
-            continue;
+      if (cm->bru.enabled) {
+        const uint16_t *org_unit = org;
+        const uint16_t *rec_unit = rec16;
+        const int y_end = AVMMIN(height - y, blk_size_y);
+        const int x_end = AVMMIN(width - x, blk_size_x);
+        for (int unit_y = 0; unit_y < y_end; unit_y += unit_size_y) {
+          for (int unit_x = 0; unit_x < x_end; unit_x += unit_size_x) {
+            // skip if unit skip
+            const int mbmi_idx =
+                get_mi_grid_idx(&cm->mi_params, (y + unit_y) >> v_scale,
+                                (x + unit_x) >> h_scale);
+            if (cm->mi_params.mi_grid_base[mbmi_idx]->sb_active_mode !=
+                BRU_ACTIVE_SB) {
+              continue;
+            }
+            // skip if unit skip
+            sb_ssd += compute_distortion_block(
+                org_unit, org_stride, rec_unit, rec_stride, x + unit_x,
+                y + unit_y, unit_log2_y, unit_log2_x, height, width,
+                cm->seq_params.bit_depth);
           }
-          // skip if unit skip
-          sb_ssd += compute_distortion_block(org_unit, org_stride, rec_unit,
-                                             rec_stride, x + unit_x, y + unit_y,
-                                             unit_log2_y, unit_log2_x, height,
-                                             width, cm->seq_params.bit_depth);
+          // offset org, rec16 here
+          org_unit += (org_stride << unit_log2_x);
+          rec_unit += (rec_stride << unit_log2_x);
         }
-        // offset org, rec16 here
-        org_unit += (org_stride << unit_log2_x);
-        rec_unit += (rec_stride << unit_log2_x);
+      } else {
+        sb_ssd = compute_distortion_block(org, org_stride, rec16, rec_stride, x,
+                                          y, blk_log2_y, blk_log2_x, height,
+                                          width, cm->seq_params.bit_depth);
       }
       distortion_buf[(y >> blk_log2_y) * distortion_buf_stride +
                      (x >> blk_log2_x)] = sb_ssd;
