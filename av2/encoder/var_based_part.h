@@ -99,7 +99,8 @@ extern "C" {
 void av2_choose_var_based_partitioning(AV2_COMP *cpi,
                                        const TileInfo *const tile,
                                        ThreadData *td, MACROBLOCK *x,
-                                       int mi_row, int mi_col);
+                                       int mi_row, int mi_col,
+                                       unsigned int source_sad);
 
 #ifdef __cplusplus
 }  // extern "C"
