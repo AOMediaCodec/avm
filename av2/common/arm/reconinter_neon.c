@@ -46,8 +46,8 @@ void av2_build_compound_diffwtd_mask_d16_neon(
       src0_1 = src0;
       src1_1 = src1;
       for (int j = 0; j < w; j += 8) {
-        __builtin_prefetch(src0_1);
-        __builtin_prefetch(src1_1);
+        AVM_PREFETCH(src0_1);
+        AVM_PREFETCH(src1_1);
         diff_q = vabdq_u16(vld1q_u16(src0_1), vld1q_u16(src1_1));
         diff_q = vrshlq_u16(diff_q, dup_round);
         diff_d = vshrn_n_u16(diff_q, DIFF_FACTOR_LOG2);
@@ -65,10 +65,10 @@ void av2_build_compound_diffwtd_mask_d16_neon(
     for (int i = 0; i < h; i += 2) {
       src0_1 = src0;
       src1_1 = src1;
-      __builtin_prefetch(src0_1 + 0 * src0_stride);
-      __builtin_prefetch(src0_1 + 1 * src0_stride);
-      __builtin_prefetch(src1_1 + 0 * src1_stride);
-      __builtin_prefetch(src1_1 + 1 * src1_stride);
+      AVM_PREFETCH(src0_1 + 0 * src0_stride);
+      AVM_PREFETCH(src0_1 + 1 * src0_stride);
+      AVM_PREFETCH(src1_1 + 0 * src1_stride);
+      AVM_PREFETCH(src1_1 + 1 * src1_stride);
       tmp0 = vcombine_u16(vld1_u16(src0_1 + (0 * src0_stride)),
                           vld1_u16(src0_1 + (1 * src0_stride)));
       tmp1 = vcombine_u16(vld1_u16(src1_1 + (0 * src1_stride)),
