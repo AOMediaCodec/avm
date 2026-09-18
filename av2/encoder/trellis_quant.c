@@ -24,12 +24,6 @@
 #include "av2/encoder/rdopt.h"
 #include "av2/encoder/tokenize.h"
 
-#if defined(__GNUC__) || defined(__clang__)
-#define AVM_PREFETCH(p) __builtin_prefetch((p), 0, 3)
-#else
-#define AVM_PREFETCH(p) ((void)0)
-#endif
-
 static AVM_INLINE void init_tcq_decision(tcq_node_t *decision) {
   static const tcq_node_t def = { INT64_MAX >> 10, 0, -1, -2 };
   for (int state = 0; state < TCQ_N_STATES; state++) {

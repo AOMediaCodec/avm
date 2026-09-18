@@ -39,6 +39,12 @@
 #define __builtin_prefetch(x)
 #endif
 
+#if defined(__GNUC__) || defined(__clang__)
+#define AVM_PREFETCH(p) __builtin_prefetch((p), 0, 3)
+#else
+#define AVM_PREFETCH(p) ((void)0)
+#endif
+
 /* Shift down with rounding for use when n >= 0, value >= 0 */
 #define ROUND_POWER_OF_TWO(value, n) (((value) + (((1 << (n)) >> 1))) >> (n))
 
