@@ -321,8 +321,10 @@ static std::vector<FwdTxfmParam> GenerateFwdParams() {
   std::vector<FwdTxfmParam> params;
   const int seeds[] = { 1, 42, 100, 255, 1000, 2023, 3141, 5678, 7777, 9999 };
   const int bds[] = { 8, 10, 12 };
-  const TX_SIZE sizes[] = { TX_4X4, TX_8X8,  TX_16X16, TX_32X32, TX_4X8,
-                            TX_8X4, TX_8X16, TX_16X8,  TX_16X32, TX_32X16 };
+  const TX_SIZE sizes[] = { TX_4X4,  TX_8X8,  TX_16X16, TX_32X32, TX_4X8,
+                            TX_8X4,  TX_8X16, TX_16X8,  TX_16X32, TX_32X16,
+                            TX_4X16, TX_16X4, TX_8X32,  TX_32X8,  TX_4X32,
+                            TX_32X4 };
   const TX_TYPE types[] = {
     DCT_DCT,      ADST_DCT,          DCT_ADST, ADST_ADST, FLIPADST_DCT,
     DCT_FLIPADST, FLIPADST_FLIPADST, IDTX,     V_DCT,     H_DCT
@@ -412,6 +414,43 @@ TEST(FwdTxfmVariantExtreme, StrideMismatch) {
       for (int k = 0; k < txw * txh; k++) {
         ASSERT_EQ(ref_coeff[k], opt_coeff[k])
             << "stride mismatch at " << k << " sz=" << sz << " bd=" << bd;
+      }
+    }
+  }
+}
+
+TEST(FwdTxfmVariantExtreme, MaxResidualNonSquare) {
+  const TX_SIZE sizes[] = { TX_4X8,  TX_8X4,  TX_8X16, TX_16X8,
+                            TX_4X16, TX_16X4, TX_8X32, TX_32X8 };
+  const int bds[] = { 8, 10, 12 };
+
+  for (auto bd : bds) {
+    const int max_resi = (1 << bd) - 1;
+    for (auto sz : sizes) {
+      const int txw = tx_size_wide[sz];
+      const int txh = tx_size_high[sz];
+
+      DECLARE_ALIGNED(32, int16_t, input[64 * 64]);
+      DECLARE_ALIGNED(32, tran_low_t, ref_coeff[64 * 64]);
+      DECLARE_ALIGNED(32, tran_low_t, opt_coeff[64 * 64]);
+
+      for (int k = 0; k < txw * txh; k++)
+        input[k] = (k & 1) ? max_resi : -max_resi;
+      memset(ref_coeff, 0, sizeof(ref_coeff));
+      memset(opt_coeff, 0, sizeof(opt_coeff));
+
+      TxfmParam txfm_param;
+      memset(&txfm_param, 0, sizeof(txfm_param));
+      txfm_param.tx_size = sz;
+      txfm_param.tx_type = DCT_DCT;
+      txfm_param.bd = bd;
+
+      fwd_txfm_c(input, ref_coeff, txw, &txfm_param);
+      fwd_txfm(input, opt_coeff, txw, &txfm_param);
+
+      for (int k = 0; k < txw * txh; k++) {
+        ASSERT_EQ(ref_coeff[k], opt_coeff[k])
+            << "max-resi mismatch at " << k << " sz=" << sz << " bd=" << bd;
       }
     }
   }

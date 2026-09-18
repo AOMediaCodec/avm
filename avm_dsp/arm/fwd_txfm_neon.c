@@ -289,25 +289,6 @@ static void fdct8_pass_neon(const int32x4_t *in_lo, const int32x4_t *in_hi,
                            vrshrn_n_s64(w3, DCT_CONST_BITS));
 }
 
-// Transpose a 4x8 block of int32x4_t values.
-// Input: in[0..7], each 4-wide.
-// Output: out[0..3] = cols 0-3 from rows 0-3,
-//         out[4..7] = cols 0-3 from rows 4-7.
-static void transpose_4x8_s32(const int32x4_t *in, int32x4_t *out) {
-  int32x4x2_t r01 = vtrnq_s32(in[0], in[1]);
-  int32x4x2_t r23 = vtrnq_s32(in[2], in[3]);
-  int32x4x2_t r45 = vtrnq_s32(in[4], in[5]);
-  int32x4x2_t r67 = vtrnq_s32(in[6], in[7]);
-  out[0] = vcombine_s32(vget_low_s32(r01.val[0]), vget_low_s32(r23.val[0]));
-  out[1] = vcombine_s32(vget_low_s32(r01.val[1]), vget_low_s32(r23.val[1]));
-  out[2] = vcombine_s32(vget_high_s32(r01.val[0]), vget_high_s32(r23.val[0]));
-  out[3] = vcombine_s32(vget_high_s32(r01.val[1]), vget_high_s32(r23.val[1]));
-  out[4] = vcombine_s32(vget_low_s32(r45.val[0]), vget_low_s32(r67.val[0]));
-  out[5] = vcombine_s32(vget_low_s32(r45.val[1]), vget_low_s32(r67.val[1]));
-  out[6] = vcombine_s32(vget_high_s32(r45.val[0]), vget_high_s32(r67.val[0]));
-  out[7] = vcombine_s32(vget_high_s32(r45.val[1]), vget_high_s32(r67.val[1]));
-}
-
 void avm_highbd_fdct8x8_neon(const int16_t *input, tran_low_t *final_output,
                              int stride) {
   // Pass 1: column DCT. Load 8x8 input, multiply by 4, transform columns.
@@ -325,22 +306,11 @@ void avm_highbd_fdct8x8_neon(const int16_t *input, tran_low_t *final_output,
   // After pass 1: tmp_lo[vfreq] has cols 0-3, tmp_hi[vfreq] has cols 4-7.
   // For pass 2 (row DCT), we need in[col] indexed by column, with lanes
   // holding different vfreqs. This requires transposing both halves.
-  int32x4_t tr_lo[8], tr_hi[8];
-  transpose_4x8_s32(tmp_lo, tr_lo);
-  transpose_4x8_s32(tmp_hi, tr_hi);
-
-  // Recombine: tr_lo[i] (i<4) = vfreqs 0-3 for col i,
-  //            tr_lo[i+4] = vfreqs 4-7 for col i.
-  // For pass 2: in[col], lo half = vfreqs 0-3, hi half = vfreqs 4-7.
   int32x4_t in2_lo[8], in2_hi[8];
-  for (int i = 0; i < 4; i++) {
-    in2_lo[i] = tr_lo[i];
-    in2_hi[i] = tr_lo[i + 4];
-  }
-  for (int i = 0; i < 4; i++) {
-    in2_lo[i + 4] = tr_hi[i];
-    in2_hi[i + 4] = tr_hi[i + 4];
-  }
+  transpose_arrays_s32_4x4(tmp_lo, in2_lo);
+  transpose_arrays_s32_4x4(tmp_lo + 4, in2_hi);
+  transpose_arrays_s32_4x4(tmp_hi, in2_lo + 4);
+  transpose_arrays_s32_4x4(tmp_hi + 4, in2_hi + 4);
 
   int32x4_t res_lo[8], res_hi[8];
   fdct8_pass_neon(in2_lo, in2_hi, res_lo, res_hi);
@@ -349,8 +319,10 @@ void avm_highbd_fdct8x8_neon(const int16_t *input, tran_low_t *final_output,
   //               res_hi[hfreq] has lanes = vfreqs 4-7.
   // Need to store as final_output[vfreq*8 + hfreq], so transpose output.
   int32x4_t fin_lo[8], fin_hi[8];
-  transpose_4x8_s32(res_lo, fin_lo);
-  transpose_4x8_s32(res_hi, fin_hi);
+  transpose_arrays_s32_4x4(res_lo, fin_lo);
+  transpose_arrays_s32_4x4(res_lo + 4, fin_lo + 4);
+  transpose_arrays_s32_4x4(res_hi, fin_hi);
+  transpose_arrays_s32_4x4(res_hi + 4, fin_hi + 4);
 
   // fin_lo[vf] (vf<4) = hfreqs 0-3 for vfreq vf
   // fin_lo[vf+4] = hfreqs 4-7 for vfreq vf

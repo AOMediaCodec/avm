@@ -16,20 +16,8 @@
 
 #include "av2/common/av2_txfm.h"
 #include "av2/common/enums.h"
+#include "avm_dsp/arm/transpose_neon.h"
 #include "avm_dsp/txfm_common.h"
-
-static void transpose4x4(int16x8_t in[2], int16x4_t out[4]) {
-  int32x4x2_t b0 =
-      vtrnq_s32(vreinterpretq_s32_s16(in[0]), vreinterpretq_s32_s16(in[1]));
-  int16x4x2_t c0 = vtrn_s16(vreinterpret_s16_s32(vget_low_s32(b0.val[0])),
-                            vreinterpret_s16_s32(vget_high_s32(b0.val[0])));
-  int16x4x2_t c1 = vtrn_s16(vreinterpret_s16_s32(vget_low_s32(b0.val[1])),
-                            vreinterpret_s16_s32(vget_high_s32(b0.val[1])));
-  out[0] = c0.val[0];
-  out[1] = c0.val[1];
-  out[2] = c1.val[0];
-  out[3] = c1.val[1];
-}
 
 void av2_fwht4x4_neon(const int16_t *input, tran_low_t *output, int stride) {
   // Load the 4x4 source in transposed form.
@@ -55,7 +43,11 @@ void av2_fwht4x4_neon(const int16_t *input, tran_low_t *output, int stride) {
   x[1] = vcombine_s16(d1, b1);
 
   int16x4_t s[4];
-  transpose4x4(x, s);
+  s[0] = vget_low_s16(x[0]);
+  s[1] = vget_high_s16(x[0]);
+  s[2] = vget_low_s16(x[1]);
+  s[3] = vget_high_s16(x[1]);
+  transpose_elems_inplace_s16_4x4(&s[0], &s[1], &s[2], &s[3]);
 
   a1 = s[0];
   b1 = s[1];
@@ -74,7 +66,11 @@ void av2_fwht4x4_neon(const int16_t *input, tran_low_t *output, int stride) {
   x[0] = vcombine_s16(a1, c1);
   x[1] = vcombine_s16(d1, b1);
 
-  transpose4x4(x, s);
+  s[0] = vget_low_s16(x[0]);
+  s[1] = vget_high_s16(x[0]);
+  s[2] = vget_low_s16(x[1]);
+  s[3] = vget_high_s16(x[1]);
+  transpose_elems_inplace_s16_4x4(&s[0], &s[1], &s[2], &s[3]);
 
   vst1q_s32(&output[0], vshll_n_s16(s[0], UNIT_QUANT_SHIFT));
   vst1q_s32(&output[4], vshll_n_s16(s[1], UNIT_QUANT_SHIFT));
