@@ -645,7 +645,6 @@ TEST_F(OpsTest, GlobalOpsNonContiguousXlayerMap) {
 
   const OperatingPoint *dop = &pbi_->ops_list[xlayer_id][0].op[0];
   EXPECT_EQ(dop->ops_xlayer_map, 0x15);
-  EXPECT_EQ(dop->XCount, 3);
   EXPECT_EQ(dop->mlayer_info.OPMLayerCount[0], 1);
   EXPECT_EQ(dop->mlayer_info.OPMLayerCount[2], 1);
   EXPECT_EQ(dop->mlayer_info.OPMLayerCount[4], 1);

@@ -180,12 +180,8 @@ uint32_t av2_read_operating_point_set_obu(struct AV2Decoder *pbi,
 
       if (obu_xlayer_id == GLOBAL_XLAYER_ID) {
         op->ops_xlayer_map = avm_rb_read_literal(rb, MAX_NUM_XLAYERS - 1);
-        int k = 0;
         for (int j = 0; j < MAX_NUM_XLAYERS - 1; j++) {
           if ((op->ops_xlayer_map & (1 << j))) {
-            op->OpsxLayerID[k] = j;
-            k++;
-
             if (ops->ops_ptl_present_flag) {
               op->ops_seq_profile_idc[j] =
                   avm_rb_read_literal(rb, PROFILE_BITS);
@@ -245,10 +241,7 @@ uint32_t av2_read_operating_point_set_obu(struct AV2Decoder *pbi,
             }
           }
         }
-        op->XCount = k;
       } else {
-        op->XCount = 1;
-        op->OpsxLayerID[0] = obu_xlayer_id;
         assert(ops->ops_mlayer_info_idc == 1);
         read_ops_mlayer_info(obu_xlayer_id, &op->mlayer_info, rb);
       }
