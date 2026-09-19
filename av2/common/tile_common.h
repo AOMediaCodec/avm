@@ -59,6 +59,8 @@ AV2PixelRect av2_get_tile_rect(const TileInfo *tile_info,
 // The minimum tile width or height is fixed at one superblock
 #define MAX_TILE_WIDTH (4096)        // Max Tile width in pixels
 #define MAX_TILE_AREA (4096 * 2304)  // Maximum tile area in pixels
+// 3840 * 2160 * 60 * 1.1, used by the Annex A tile-rate constraint.
+#define MAX_TILE_SIZE_HEADER_RATE_PRODUCT 547430400
 
 // Tile width scaling factors for different levels and tiers
 // [tier][lev] - values are multiplied by MAX_TILE_WIDTH and divided by 4

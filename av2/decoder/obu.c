@@ -31,8 +31,27 @@
 #include "av2/common/enums.h"
 #include "av2/common/annexA.h"
 #include "av2/decoder/annexF.h"
+#include "av2/decoder/decoder_model.h"
 
 static uint32_t read_temporal_delimiter_obu() { return 0; }
+
+static void decoder_model_record_obu(AV2Decoder *pbi,
+                                     const ObuHeader *obu_header,
+                                     size_t header_bytes,
+                                     size_t payload_bytes) {
+  if (pbi->decoder_model_verifier == NULL) return;
+  const uint64_t max_obu_bytes = UINT64_MAX / 8;
+  if (header_bytes > max_obu_bytes ||
+      payload_bytes > max_obu_bytes - header_bytes) {
+    av2_decoder_model_verifier_on_accounting_failure(pbi);
+    return;
+  }
+  const uint64_t obu_bits =
+      ((uint64_t)header_bytes + (uint64_t)payload_bytes) * 8;
+  av2_decoder_model_verifier_record_obu(
+      pbi, obu_header->type, obu_header->obu_xlayer_id,
+      obu_header->obu_mlayer_id, obu_header->obu_tlayer_id, obu_bits);
+}
 
 // Returns a boolean that indicates success.
 static int read_bitstream_level(AV2_LEVEL *seq_level_idx,
@@ -458,11 +477,15 @@ static uint32_t read_multi_stream_decoder_operation_obu(
 
   const int multistream_even_allocation_flag =
       avm_rb_read_bit(rb);  // read multistream_even_allocation_flag
+  int multistream_large_picture_idc = 0;
 
   if (!multistream_even_allocation_flag) {
-    const int multistream_large_picture_idc =
+    multistream_large_picture_idc =
         avm_rb_read_literal(rb, 3);  // read multistream_large_picture_idc
-    (void)multistream_large_picture_idc;
+  }
+  if (pbi->decoder_model_verifier != NULL) {
+    av2_decoder_model_verifier_on_multistream_configuration(
+        pbi, multistream_even_allocation_flag, multistream_large_picture_idc);
   }
 
   for (int i = 0; i < num_streams; i++) {
@@ -490,7 +513,18 @@ static uint32_t read_multi_stream_decoder_operation_obu(
 
   // Flush remaining frames from all active streams before switching config
   if (pbi->stream_info != NULL && config_changed) {
+    av2_decoder_model_verifier_before_final_output(pbi, UINT64_MAX, false);
+    if (av2_decoder_model_verifier_should_stop(pbi)) {
+      av2_decoder_model_verifier_finish(pbi);
+      avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+                         "Decoder model conformance violation");
+    }
     flush_all_xlayer_frames(pbi, cm, true);
+    if (pbi->decoder_model_verifier != NULL) {
+      // The temporal delimiter and new MSDO have already been recorded and
+      // belong to the first DFG of the replacement configuration.
+      av2_decoder_model_verifier_on_stream_configuration_change(pbi, true);
+    }
     avm_free(pbi->stream_info);
     pbi->stream_info = NULL;
     pbi->glcr_stream_info_num_allocated = 0;
@@ -718,6 +752,10 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi, int xlayer_id,
     // cm->error.error_code is already set.
     return 0;
   }
+  if (pbi->decoder_model_verifier != NULL) {
+    av2_decoder_model_verifier_on_sequence_header(pbi, xlayer_id,
+                                                  (int)seq_header_id);
+  }
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }
 
@@ -788,6 +826,9 @@ static uint32_t read_tilegroup_obu(AV2Decoder *pbi,
     if (av2_check_trailing_bits(pbi, rb) != 0) {
       // cm->error.error_code is already set.
       return 0;
+    }
+    if (pbi->decoder_model_verifier != NULL) {
+      av2_decoder_model_verifier_on_frame_wrapup_start(pbi);
     }
     header_size = (int32_t)avm_rb_bytes_read(rb);
   } else {
@@ -1083,6 +1124,11 @@ static void read_metadata_temporal_point_info(AV2Decoder *const pbi,
   AV2_COMMON *const cm = &pbi->common;
   cm->temporal_point_info_metadata.mtpi_frame_presentation_time =
       avm_rb_read_uleb(rb);
+  cm->temporal_point_info_present = true;
+  if (pbi->decoder_model_verifier != NULL) {
+    av2_decoder_model_verifier_on_temporal_point(
+        pbi, cm->temporal_point_info_metadata.mtpi_frame_presentation_time);
+  }
   uint8_t payload[1];
   payload[0] =
       (cm->temporal_point_info_metadata.mtpi_frame_presentation_time & 0XFF);
@@ -2381,6 +2427,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
   int frame_decoding_finished = 0;
   ObuHeader obu_header;
   memset(&obu_header, 0, sizeof(obu_header));
+  cm->temporal_point_info_present = false;
 
   // Enable is_multistream if multiple extended layers are present.
   // Enable multistream_decoder_mode only when an MSDO OBU is present.
@@ -2410,7 +2457,20 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
       if (!pbi->prescan_glcr_will_activate) {
         // Flush and reset like a config change
         if (pbi->stream_info != NULL) {
+          av2_decoder_model_verifier_before_final_output(pbi, UINT64_MAX,
+                                                         false);
+          if (av2_decoder_model_verifier_should_stop(pbi)) {
+            av2_decoder_model_verifier_finish(pbi);
+            avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+                               "Decoder model conformance violation");
+          }
           flush_all_xlayer_frames(pbi, cm, true);
+          if (pbi->decoder_model_verifier != NULL) {
+            // This transition is detected before the current frame unit's
+            // OBUs are parsed, so any retained OBU working set is stale.
+            av2_decoder_model_verifier_on_stream_configuration_change(pbi,
+                                                                      false);
+          }
           avm_free(pbi->stream_info);
           pbi->stream_info = NULL;
           pbi->glcr_stream_info_num_allocated = 0;
@@ -2533,6 +2593,8 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
       return -1;
     }
 
+    decoder_model_record_obu(pbi, &obu_header, bytes_read, payload_size);
+
     // Annex F: Sub-bitstream extraction.
     // When extraction is enabled, trigger retention map construction when
     // transitioning from structural OBUs to non-structural OBUs, then
@@ -2547,6 +2609,9 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         if (!av2_sbe_should_retain_obu(
                 &pbi->sbe_state, obu_header.type, obu_header.obu_xlayer_id,
                 obu_header.obu_mlayer_id, obu_header.obu_tlayer_id)) {
+          if (pbi->decoder_model_verifier != NULL) {
+            av2_decoder_model_verifier_on_obu_filtered(pbi);
+          }
           pbi->sbe_state.obus_removed++;
           data += payload_size;
           continue;
@@ -3118,6 +3183,8 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
       cm->error.error_code = AVM_CODEC_CORRUPT_FRAME;
       return -1;
     }
+
+    decoder_model_record_obu(pbi, &obu_header, bytes_read, payload_size);
 
     if (obu_header.type == OBU_PADDING) {
       decoded_payload_size = read_padding(cm, data, payload_size);
