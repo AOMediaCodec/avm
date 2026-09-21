@@ -5789,6 +5789,40 @@ static void handle_compound_inter_prediction(
   }
 }
 
+/*!
+ * \brief Limits ref_set[0] for compound inter modes based on block size.
+ *
+ * When limit_max_ref_mv_idx is true and the mode is a single-DRL compound
+ * prediction, caps ref_set[0] based on the block area using inline thresholds.
+ *
+ * \param[in,out] ref_set              Array of reference set sizes;
+ *                                     ref_set[0] may be reduced by this
+ *                                     function.
+ * \param[in]     has_two_drls         Whether the current mode uses two DRL
+ *                                     indices.
+ * \param[in]     is_comp_pred         Whether the current mode is a compound
+ *                                     prediction.
+ * \param[in]     bsize                Current block size.
+ * \param[in]     limit_max_ref_mv_idx Whether the speed feature is enabled.
+ */
+static INLINE void cap_ref_mv_count_by_bsize(int *ref_set, int has_two_drls,
+                                             int is_comp_pred, BLOCK_SIZE bsize,
+                                             bool limit_max_ref_mv_idx) {
+  if (has_two_drls || !is_comp_pred || !limit_max_ref_mv_idx) return;
+
+  // Caps the maximum number of reference MVs (ref_set[0]) searched for
+  // single-DRL compound prediction modes based on block area. Larger blocks
+  // receive a tighter cap as MV cost contributes less to total RD cost. Blocks
+  // smaller than 32x64 are not capped.
+  const int b_pels_log2 = num_pels_log2_lookup[bsize];
+  if (b_pels_log2 >= 15)  // 256x128, 128x256, 256x256
+    ref_set[0] = AVMMIN(ref_set[0], 1);
+  else if (b_pels_log2 >= 13)  // 64x128, 128x64, 128x128
+    ref_set[0] = AVMMIN(ref_set[0], 2);
+  else if (b_pels_log2 >= 11)  // 32x64, 64x32, 64x64
+    ref_set[0] = AVMMIN(ref_set[0], 3);
+}
+
 /*!\brief AV2 inter mode RD computation
  *
  * \ingroup inter_mode_search
@@ -5927,6 +5961,8 @@ static int64_t handle_inter_mode(
     ref_set[0] = AVMMIN(ref_set[0], cfg->ref_mv_set_cap);
     ref_set[1] = AVMMIN(ref_set[1], cfg->ref_mv_set_cap);
   }
+  cap_ref_mv_count_by_bsize(ref_set, has_two_drls, is_comp_pred, bsize,
+                            cpi->sf.inter_sf.limit_max_ref_mv_idx);
 
   inter_mode_info mode_info[BAWP_OPTION_CNT][NUM_MV_PRECISIONS]
                            [MAX_REF_MV_SQUARE];

@@ -859,6 +859,11 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // 0: no frame level on/off decision
   // 1: enable histogram based frame level on/off
   int enable_fast_bawp;
+
+  // Limit the maximum number of reference MVs searched for single-DRL compound
+  // prediction modes. The cap is applicable for larger blocks and is not
+  // applied on key/golden/arf frames.
+  bool limit_max_ref_mv_idx;
 } INTER_MODE_SPEED_FEATURES;
 
 typedef struct INTERP_FILTER_SPEED_FEATURES {
