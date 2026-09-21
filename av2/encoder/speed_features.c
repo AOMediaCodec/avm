@@ -725,7 +725,6 @@ static void set_good_speed_features_lc_dec_framesize_independent(
   cpi->oxcf.tool_cfg.enable_tip_refinemv = 0;
   cpi->oxcf.tool_cfg.reduced_ref_frame_mvs_mode = 1;
 
-  // TODO(yunqing): extend this SF to other resolutions.
   const int is_2k_or_larger = AVMMIN(cm->width, cm->height) >= 2160;
   const int qindex_offset = MAXQ_OFFSET * (cm->seq_params.bit_depth - 8);
   const int qindex_thresh = 112 + qindex_offset;
@@ -752,6 +751,9 @@ static void set_good_speed_features_lc_dec_framesize_independent(
          cm->current_frame.pyramid_level > 1 && !is_2k_or_larger)
             ? 1
             : 0;
+
+    sf->lc_sf.enable_partition_size_bias =
+        (cm->quant_params.base_qindex >= qindex_thresh) ? 1 : 0;
   }
 }
 
