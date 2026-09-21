@@ -3412,8 +3412,9 @@ static void select_tx_partition_type(
 
     if (cpi->sf.tx_sf.prune_tx_part_stationarity && type != TX_PARTITION_NONE) {
       if (!stationarity_valid) {
-        const int margin =
-        (cpi->oxcf.mode == GOOD && cpi->oxcf.speed >= 5) ? 1 : TX_PART_STATIONARITY_MARGIN;
+        const int margin = (cpi->oxcf.mode == GOOD && cpi->oxcf.speed >= 5)
+                               ? 1
+                               : TX_PART_STATIONARITY_MARGIN;
         measure_residual_stationarity(x, plane_bsize, blk_row, blk_col,
                                       max_tx_size, margin, &stationary_rows,
                                       &stationary_cols);
