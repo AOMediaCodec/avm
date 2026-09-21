@@ -218,18 +218,6 @@ SIMD_INLINE v256 v256_unpacklo_s8_s16(v256 a) {
 SIMD_INLINE v256 v256_unpackhi_s8_s16(v256 a) {
   return c_v256_unpackhi_s8_s16(a);
 }
-SIMD_INLINE v256 v256_pack_s32_s16(v256 a, v256 b) {
-  return c_v256_pack_s32_s16(a, b);
-}
-SIMD_INLINE v256 v256_pack_s32_u16(v256 a, v256 b) {
-  return c_v256_pack_s32_u16(a, b);
-}
-SIMD_INLINE v256 v256_pack_s16_u8(v256 a, v256 b) {
-  return c_v256_pack_s16_u8(a, b);
-}
-SIMD_INLINE v256 v256_pack_s16_s8(v256 a, v256 b) {
-  return c_v256_pack_s16_s8(a, b);
-}
 SIMD_INLINE v256 v256_unpack_u16_s32(v128 a) {
   return c_v256_unpack_u16_s32(a);
 }

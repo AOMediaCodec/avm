@@ -632,26 +632,6 @@ SIMD_INLINE c_v256 c_v256_unpackhi_s8_s16(c_v256 a) {
                           c_v128_unpacklo_s8_s16(a.v128[1]));
 }
 
-SIMD_INLINE c_v256 c_v256_pack_s32_s16(c_v256 a, c_v256 b) {
-  return c_v256_from_v128(c_v128_pack_s32_s16(a.v128[1], a.v128[0]),
-                          c_v128_pack_s32_s16(b.v128[1], b.v128[0]));
-}
-
-SIMD_INLINE c_v256 c_v256_pack_s32_u16(c_v256 a, c_v256 b) {
-  return c_v256_from_v128(c_v128_pack_s32_u16(a.v128[1], a.v128[0]),
-                          c_v128_pack_s32_u16(b.v128[1], b.v128[0]));
-}
-
-SIMD_INLINE c_v256 c_v256_pack_s16_u8(c_v256 a, c_v256 b) {
-  return c_v256_from_v128(c_v128_pack_s16_u8(a.v128[1], a.v128[0]),
-                          c_v128_pack_s16_u8(b.v128[1], b.v128[0]));
-}
-
-SIMD_INLINE c_v256 c_v256_pack_s16_s8(c_v256 a, c_v256 b) {
-  return c_v256_from_v128(c_v128_pack_s16_s8(a.v128[1], a.v128[0]),
-                          c_v128_pack_s16_s8(b.v128[1], b.v128[0]));
-}
-
 SIMD_INLINE c_v256 c_v256_unpack_u16_s32(c_v128 a) {
   return c_v256_from_v128(c_v128_unpackhi_u16_s32(a),
                           c_v128_unpacklo_u16_s32(a));
