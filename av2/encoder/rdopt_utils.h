@@ -112,8 +112,8 @@ static AVM_INLINE int get_visible_dimensions(const MACROBLOCKD *xd, int plane,
 
   const int mi_x = x + (blk_col << MI_SIZE_LOG2);
   const int mi_y = y + (blk_row << MI_SIZE_LOG2);
-  const int plane_frame_width = frame_width >> ss_x;
-  const int plane_frame_height = frame_height >> ss_y;
+  const int plane_frame_width = (frame_width + ss_x) >> ss_x;
+  const int plane_frame_height = (frame_height + ss_y) >> ss_y;
   int valid_cols, valid_rows;
 
   if (mi_x + cols <= plane_frame_width) {
