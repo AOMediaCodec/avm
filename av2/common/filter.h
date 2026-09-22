@@ -51,7 +51,8 @@ enum {
 enum {
   INTERP_EVAL_LUMA_EVAL_CHROMA = 0,
   INTERP_SKIP_LUMA_EVAL_CHROMA,
-  INTERP_EVAL_INVALID,
+  INTERP_EVAL_LUMA_SKIP_CHROMA,  // Valid only when skip_model_rd_uv speed
+                                 // feature is enabled
   INTERP_SKIP_LUMA_SKIP_CHROMA,
 } UENUM1BYTE(INTERP_EVAL_PLANE);
 
