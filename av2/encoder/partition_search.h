@@ -63,6 +63,9 @@ void av2_ml_early_term_after_split(AV2_COMP *const cpi, MACROBLOCK *const x,
 void av2_build_partition_tree_fixed_partitioning(
     AV2_COMMON *const cm, TREE_TYPE tree_type, int mi_row, int mi_col,
     PARTITION_TREE *ptree, const PARTITION_TREE *ptree_luma);
+void av2_build_partition_tree_var_based_partitioning(
+    AV2_COMMON *const cm, TREE_TYPE tree_type, int mi_row, int mi_col,
+    PARTITION_TREE *ptree, const PARTITION_TREE *ptree_luma);
 void setup_block_rdmult(const AV2_COMP *const cpi, MACROBLOCK *const x,
                         int mi_row, int mi_col, BLOCK_SIZE bsize,
                         AQ_MODE aq_mode, MB_MODE_INFO *mbmi);

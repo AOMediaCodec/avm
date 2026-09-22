@@ -798,7 +798,7 @@ static AVM_INLINE void encode_rd_sb(AV2_COMP *cpi, ThreadData *td,
           xd->tree_type, mi_row, mi_col, cm->sb_size, sb_size, NULL,
           PARTITION_NONE, 0, 1, ss_x, ss_y);
       av2_reset_ptree_in_sbi(xd->sbi, xd->tree_type);
-      av2_build_partition_tree_fixed_partitioning(
+      av2_build_partition_tree_var_based_partitioning(
           cm, xd->tree_type, mi_row, mi_col,
           xd->sbi->ptree_root[av2_get_sdp_idx(xd->tree_type)],
           xd->tree_type == CHROMA_PART ? xd->sbi->ptree_root[0] : NULL);

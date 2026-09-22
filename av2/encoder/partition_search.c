@@ -2270,6 +2270,14 @@ void av2_build_partition_tree_fixed_partitioning(
                        ptree_luma);
 }
 
+void av2_build_partition_tree_var_based_partitioning(
+    AV2_COMMON *const cm, TREE_TYPE tree_type, int mi_row, int mi_col,
+    PARTITION_TREE *ptree, const PARTITION_TREE *ptree_luma) {
+  const BLOCK_SIZE sb_size = cm->sb_size;
+  build_one_split_tree(cm, tree_type, mi_row, mi_col, sb_size, ptree,
+                       ptree_luma);
+}
+
 static PARTITION_TYPE get_preset_partition(const AV2_COMMON *cm,
                                            TREE_TYPE tree_type, int mi_row,
                                            int mi_col, BLOCK_SIZE bsize,
