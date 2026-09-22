@@ -918,6 +918,8 @@ typedef struct INTRA_MODE_SPEED_FEATURES {
   // colors to remaining colors) and terminate the search if current number of
   // palette colors is not the winner.
   int prune_palette_search_level;
+  // Disable palette for speed >= 5 preset when it is not screen content.
+  bool disable_palette;
   // Reuse chroma mode rate and distortion info during intra modes evaluation
   // in inter frames.
   // False: No reuse

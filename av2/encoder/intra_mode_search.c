@@ -811,6 +811,18 @@ int64_t av2_rd_pick_intra_sbuv_mode(const AV2_COMP *const cpi, MACROBLOCK *x,
   return best_rd;
 }
 
+// Shared palette-mode gate used at the several palette-search entry points.
+static AVM_INLINE bool should_try_palette(const AV2_COMP *const cpi,
+                                          const MB_MODE_INFO *const mbmi,
+                                          int plane_type) {
+  const FeatureFlags *const features = &cpi->common.features;
+  return cpi->oxcf.tool_cfg.enable_palette &&
+         !(cpi->sf.intra_sf.disable_palette &&
+           !features->is_scc_content_by_detector) &&
+         av2_allow_palette(plane_type, features->allow_screen_content_tools,
+                           mbmi->sb_type[PLANE_TYPE_Y]);
+}
+
 // Searches palette mode for luma channel in inter frame.
 int av2_search_palette_mode(IntraModeSearchState *intra_search_state,
                             const AV2_COMP *cpi, MACROBLOCK *x,
@@ -822,15 +834,12 @@ int av2_search_palette_mode(IntraModeSearchState *intra_search_state,
   if (!is_intra_mode_allowed) return 0;
 
   const AV2_COMMON *const cm = &cpi->common;
-  const FeatureFlags *const features = &cm->features;
   MB_MODE_INFO *const mbmi = x->e_mbd.mi[0];
 
   // Only try palette mode when the best mode so far is an intra mode.
-  int search_palette_mode =
-      cpi->oxcf.tool_cfg.enable_palette &&
-      av2_allow_palette(PLANE_TYPE_Y, features->allow_screen_content_tools,
-                        mbmi->sb_type[PLANE_TYPE_Y]) &&
-      !is_inter_mode(best_mbmode->mode) && rd_cost->rate < INT_MAX;
+  int search_palette_mode = should_try_palette(cpi, mbmi, PLANE_TYPE_Y) &&
+                            !is_inter_mode(best_mbmode->mode) &&
+                            rd_cost->rate < INT_MAX;
   const MB_MODE_INFO *cached_mode = x->inter_mode_cache[0];
   if (should_reuse_mode(x, REUSE_INTRA_MODE_IN_INTERFRAME_FLAG) &&
       cached_mode &&
@@ -1300,14 +1309,8 @@ int64_t av2_handle_intra_mode(IntraModeSearchState *intra_search_state,
   av2_init_rd_stats(rd_stats_uv);
   const int num_planes = av2_num_planes(cm);
   if (num_planes > 1) {
-    // TODO(chiyotsai@google.com): Consolidate the chroma search code here
-    // with the one in av2_search_palette_mode.
     PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
-    const int try_palette =
-        cpi->oxcf.tool_cfg.enable_palette &&
-        av2_allow_palette(PLANE_TYPE_UV,
-                          cm->features.allow_screen_content_tools,
-                          mbmi->sb_type[PLANE_TYPE_Y]);
+    const int try_palette = should_try_palette(cpi, mbmi, PLANE_TYPE_UV);
     // If no good uv-predictor had been found, search for it.
     const int rate_y = rd_stats_y->rate;
     const int64_t rdy =
@@ -1747,10 +1750,7 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
   // this function.
   int beat_best_rd = 0;
   PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
-  const bool try_palette =
-      cpi->oxcf.tool_cfg.enable_palette &&
-      av2_allow_palette(PLANE_TYPE_Y, cm->features.allow_screen_content_tools,
-                        mbmi->sb_type[PLANE_TYPE_Y]);
+  const bool try_palette = should_try_palette(cpi, mbmi, PLANE_TYPE_Y);
   uint8_t *best_palette_color_map =
       try_palette ? x->palette_buffer->best_palette_color_map : NULL;
   const int context = get_y_mode_idx_ctx(xd);
