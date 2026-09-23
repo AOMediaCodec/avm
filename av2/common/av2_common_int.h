@@ -3026,6 +3026,25 @@ typedef struct AV2Common {
    */
   bool restricted_prediction_switch;
 
+  /*!
+   * Set to 1 for a frame that is within the "risk window" opened by a coded
+   * frame with obu_type equal to OBU_SWITCH (the switch frame itself, and
+   * every following frame up to the next random access point). Used to
+   * enforce the bitstream conformance requirement constraining BAWP/IBC
+   * around switch frames.
+   */
+  bool in_switch_risk_window;
+  /*!
+   * The mlayer_id of the OBU_SWITCH frame that opened the current
+   * in_switch_risk_window. Only meaningful when in_switch_risk_window is 1.
+   */
+  int switch_risk_window_mlayer_id;
+  /*!
+   * The tlayer_id of the OBU_SWITCH frame that opened the current
+   * in_switch_risk_window. Only meaningful when in_switch_risk_window is 1.
+   */
+  int switch_risk_window_tlayer_id;
+
 } AV2_COMMON;
 
 /*!\cond */

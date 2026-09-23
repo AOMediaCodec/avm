@@ -426,6 +426,13 @@ typedef struct {
   int sframe_type;
 
   /*!
+   * Selects how the encoder satisfies the AV2 bitstream-conformance
+   * requirement constraining BAWP/IBC/OPFL/RefineMV around OBU_SWITCH
+   * frames. Only has an effect when enable_sframe is on.
+   */
+  int sframe_conformance_option;
+
+  /*!
    * Indicates if encoder should autodetect cut scenes and set the keyframes.
    */
   bool auto_key;
