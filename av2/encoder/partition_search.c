@@ -4263,6 +4263,12 @@ static void none_partition_search(
   const REGION_TYPE region_type = pc_tree->region_type;
   assert(bsize < BLOCK_SIZES_ALL);
 
+  // Skip the deblock-aware distortion refinement in the fast dry pass, which
+  // only ranks shapes. Derived from multi_pass_mode because
+  // x->apply_dry_pass_shortcuts is not yet set at the rd-bound site below.
+  const bool is_fast_dry_pass = av2_two_pass_part_is_fast(&cpi->sf.part_sf) &&
+                                multi_pass_mode == SB_DRY_PASS;
+
   // Check if partition none is allowed.
   const int bw = block_size_wide[bsize];
   const int bh = block_size_high[bsize];
@@ -4311,7 +4317,7 @@ static void none_partition_search(
   RD_STATS best_remain_rdcost;
   av2_rd_stats_subtraction(x->rdmult, best_rdc, &partition_rdcost,
                            &best_remain_rdcost);
-  if (best_rdc->rdcost != INT64_MAX &&
+  if (best_rdc->rdcost != INT64_MAX && !is_fast_dry_pass &&
       cpi->sf.lpf_sf.enable_deblock_for_partition_search &&
       !cpi->is_screen_content_type) {
     // increase the remaining best cost which could have be reduced by deblock
@@ -4365,7 +4371,7 @@ static void none_partition_search(
     av2_add_mode_search_context_to_cache(sms_data, *ctx_none);
   }
 
-  if (cpi->sf.lpf_sf.enable_deblock_for_partition_search &&
+  if (!is_fast_dry_pass && cpi->sf.lpf_sf.enable_deblock_for_partition_search &&
       cm->lf.apply_deblocking_filter[0] && this_rdc->rate != INT_MAX &&
       xd->tree_type != CHROMA_PART && !cpi->is_screen_content_type) {
     const int64_t distortion_offset = get_dist_offset_by_deblock(
