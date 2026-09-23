@@ -50,6 +50,7 @@ list(
 list(
   APPEND
   AVM_UNIT_TEST_DECODER_SOURCES
+  "${AVM_ROOT}/test/assertion_test.cc"
   "${AVM_ROOT}/test/decode_api_test.cc"
   "${AVM_ROOT}/test/external_frame_buffer_test.cc"
   "${AVM_ROOT}/test/invalid_file_test.cc"

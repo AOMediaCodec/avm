@@ -7626,8 +7626,9 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   }
 
   // SH activation
-  if (obu_type == OBU_CLOSED_LOOP_KEY ||
-      (obu_type == OBU_OPEN_LOOP_KEY && pbi->random_accessed)) {
+  if (keyframe_unit_in_tu &&
+      (obu_type == OBU_CLOSED_LOOP_KEY ||
+       (obu_type == OBU_OPEN_LOOP_KEY && pbi->random_accessed))) {
     pbi->active_seq[xlayer_id] = *seq_from_uch;
     // Reset malyer_id_map
     for (int i = 0; i < MAX_NUM_MLAYERS; i++)
@@ -7646,33 +7647,13 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
                          "Sequence Header changed at %s",
                          avm_obu_type_to_string(obu_type));
     }
-    return;
-  }
-
-  // NOTE: at this point, the current obu is first CLK/OLK in the temporal unit
-  // cm->seq_params is the currently active sequence header
-  assert(obu_type == OBU_CLOSED_LOOP_KEY || obu_type == OBU_OPEN_LOOP_KEY ||
-         obu_type == OBU_RAS_FRAME);
-
-  if (obu_type == OBU_OPEN_LOOP_KEY && !pbi->random_accessed) {
+  } else if (obu_type == OBU_OPEN_LOOP_KEY && !pbi->random_accessed) {
     if (!are_seq_headers_consistent(&cm->seq_params, seq_from_uch)) {
       avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
                          "Sequence Header changed at OBU_OPEN_LOOP_KEY when "
                          "pbi->random_accessed %d",
                          pbi->random_accessed);
       return;
-    }
-  }
-
-  // Empty referece list
-  // NOTE: Should olk + random access reset reference list? It will be
-  // redundant but will it harm?
-  if (obu_type == OBU_CLOSED_LOOP_KEY) {
-    reset_ref_frame_map(cm);
-    for (int layer = 0; layer < MAX_NUM_MLAYERS; layer++) {
-      cm->olk_refresh_frame_flags[layer] = -1;
-      cm->olk_co_vcl_refresh_frame_flags[layer] = -1;
-      cm->prev_olk_co_vcl_refresh_frame_flags[layer] = -1;
     }
   }
 
@@ -7694,6 +7675,27 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
         "mlayer_id is "
         "%d, yet max_mlayer_id in the sequence header is %d.",
         cm->mlayer_id, cm->seq_params.max_mlayer_id);
+  }
+
+  if (!keyframe_unit_in_tu) {
+    return;
+  }
+
+  // NOTE: at this point, the current obu is first CLK/OLK in the temporal unit
+  // cm->seq_params is the currently active sequence header
+  assert(obu_type == OBU_CLOSED_LOOP_KEY || obu_type == OBU_OPEN_LOOP_KEY ||
+         obu_type == OBU_RAS_FRAME);
+
+  // Empty reference list
+  // NOTE: Should olk + random access reset reference list? It will be
+  // redundant but will it harm?
+  if (obu_type == OBU_CLOSED_LOOP_KEY) {
+    reset_ref_frame_map(cm);
+    for (int layer = 0; layer < MAX_NUM_MLAYERS; layer++) {
+      cm->olk_refresh_frame_flags[layer] = -1;
+      cm->olk_co_vcl_refresh_frame_flags[layer] = -1;
+      cm->prev_olk_co_vcl_refresh_frame_flags[layer] = -1;
+    }
   }
 
   // When OBU_CONTENT_INTERPRETATION is not accompanied with the current obu
