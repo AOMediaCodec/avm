@@ -786,7 +786,7 @@ static void set_rt_speed_features_framesize_independent(
     sf->tx_sf.enable_tx_partition = true;
     sf->intra_sf.skip_intra_in_interframe = 2;
     sf->rt_sf.prune_intra_mode_in_interframe = 2;
-    if (cm->features.allow_screen_content_tools) {
+    if (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN) {
       sf->intra_sf.skip_intra_in_interframe = 1;
       sf->rt_sf.prune_intra_mode_in_interframe = 1;
     }
