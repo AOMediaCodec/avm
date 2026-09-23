@@ -1255,6 +1255,13 @@ enum avme_enc_control_id {
    * (g_usage == AVM_USAGE_GOOD_QUALITY) enables this mode.
    */
   AV2E_SET_ENABLE_LOW_COMPLEXITY_DECODE = 186,
+
+  /*!\brief Codec control function to select how the encoder satisfies the
+   * bitstream-conformance requirement constraining BAWP/IBC/OPFL/RefineMV
+   * around OBU_SWITCH frames, unsigned int parameter. Only has an effect
+   * when S-Frame encoding is enabled.
+   */
+  AV2E_SET_SFRAME_CONFORMANCE_OPTION = 187,
 };
 
 /*!\brief avm 1-D scaling mode
@@ -1606,6 +1613,9 @@ AVM_CTRL_USE_TYPE(AV2E_SET_ENABLE_CDF_AVERAGING, int)
 
 AVM_CTRL_USE_TYPE(AV2E_SET_ENABLE_SFRAME, int)
 #define AVM_CTRL_AV2E_SET_ENABLE_SFRAME
+
+AVM_CTRL_USE_TYPE(AV2E_SET_SFRAME_CONFORMANCE_OPTION, unsigned int)
+#define AVM_CTRL_AV2E_SET_SFRAME_CONFORMANCE_OPTION
 
 AVM_CTRL_USE_TYPE(AV2E_SET_AQ_MODE, unsigned int)
 #define AVM_CTRL_AV2E_SET_AQ_MODE
