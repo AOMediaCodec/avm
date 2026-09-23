@@ -668,6 +668,9 @@ void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
                      seq->base_uv_dc_delta_q == seq->base_uv_ac_delta_q));
 
   seq->enable_refmvbank = tool_cfg->enable_refmvbank;
+  // Bitstream conformance: a coded video sequence containing an OBU_SWITCH
+  // frame must satisfy one of the BAWP/IBC/OPFL/RefineMV constraints in the
+  // spec
   seq->enable_drl_reorder = tool_cfg->enable_drl_reorder;
 
   seq->conf.conf_win_enabled_flag = oxcf->tool_cfg.enable_cropping_window;
@@ -4712,6 +4715,35 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size, uint8_t *dest,
   features->allow_warpmv_mode = features->enabled_motion_modes;
   // temporal set of frame level enable_bawp flag.
   features->enable_bawp = seq_params->enable_bawp;
+  // Bitstream conformance around OBU_SWITCH frames: force BAWP (and, when
+  // the reference-MV bank is on, IntraBC for inter frames) off for the
+  // switch frame and for every following frame, up to the next random
+  // access point, whose embedded/temporal layer depends on the switch
+  // frame's own layer. Skipped when OPFL refinement and RefineMV are
+  // already off sequence-wide, since that alone satisfies conformance
+  // In a single-layer encode the layer scoping always evaluates true within the risk window, since mlayer_id/tlayer_id are
+  // both 0 and trivially match the switch frame's own layer.
+  const bool switch_frame_layer_dependent =
+      cm->in_switch_risk_window &&
+      !(seq_params->enable_opfl_refine == REFINE_NONE &&
+        seq_params->enable_refinemv == 0) &&
+      is_mlayer_transitively_dependent(seq_params, cm->mlayer_id,
+                                       cm->switch_risk_window_mlayer_id) &&
+      (cm->tlayer_id == cm->switch_risk_window_tlayer_id ||
+       seq_params->tlayer_dependency_map[cm->mlayer_id][cm->tlayer_id]
+                                        [cm->switch_risk_window_tlayer_id]);
+  if (switch_frame_layer_dependent) {
+    // The switch frame itself (frame_type == S_FRAME) is excluded from the
+    // BAWP and IntraBC constraints, matching the spec text ("every frame
+    // ... that follows that frame"); only later dependent inter frames are
+    // covered.
+    if (current_frame->frame_type == INTER_FRAME) {
+      features->enable_bawp = 0;
+      if (seq_params->enable_refmvbank) {
+        features->allow_intrabc = 0;
+      }
+    }
+  }
   features->enable_intra_bawp = seq_params->enable_bawp;
   features->enable_cwp = seq_params->enable_cwp;
 
@@ -5230,6 +5262,31 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
       (cpi->oxcf.kf_cfg.sframe_replace_kf > 0 &&
        cpi->oxcf.kf_cfg.sframe_mode == 0) ||
       cpi->oxcf.tool_cfg.g_error_resilient_mode;
+
+  // A CLK, or an OBU_RAS_FRAME (frame_type == S_FRAME with is_ras_frame ==
+  // 1), is a random access point that closes any risk window opened by a
+  // prior OBU_SWITCH frame immediately. An OLK is weaker: being open-loop,
+  // it does not by itself guarantee the same drift-free reconstruction a
+  // CLK does, and its leading pictures (and any immediately following
+  // forward-KF overlay/successor frame) can still reference content from
+  // before the OLK's own refresh. So the window only closes once we are
+  // clearly past that span, mirroring the codebase's own olk_encountered
+  // lifecycle (see bitstream.c). A OBU_SWITCH(frame_type == S_FRAME + !OBU_RAS) (re)opens the risk window for its own layer.
+  const bool past_olk_leading_span =
+      current_frame->display_order_hint >= cm->last_olk_disp_order_hint &&
+      cpi->gf_group.update_type[cpi->gf_group.index] != FWD_KF_OVERLAY_UPDATE &&
+      cpi->gf_group.update_type[cpi->gf_group.index] != FWD_KF_SUCCESSOR_UPDATE;
+  if (current_frame->cm_obu_type == OBU_CLOSED_LOOP_KEY ||
+      (cpi->olk_encountered && current_frame->frame_type != KEY_FRAME &&
+       past_olk_leading_span) ||
+      (current_frame->frame_type == S_FRAME && cpi->is_ras_frame == 1)) {
+    cm->in_switch_risk_window = false;
+  } else if (current_frame->frame_type == S_FRAME) {
+    cm->in_switch_risk_window = true;
+    cm->switch_risk_window_mlayer_id = cm->mlayer_id;
+    cm->switch_risk_window_tlayer_id = cm->tlayer_id;
+  }
+
   if (current_frame->frame_type == KEY_FRAME) {
     for (int i = 0; i < cm->seq_params.ref_frames; i++) {
       if (cm->ref_frame_map[i] != NULL)

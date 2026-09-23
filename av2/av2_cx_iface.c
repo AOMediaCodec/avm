@@ -1411,6 +1411,13 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
 
   tool_cfg->enable_joint_mvd = extra_cfg->enable_joint_mvd;
   tool_cfg->enable_refinemv = extra_cfg->enable_refinemv;
+  if (cfg->enable_sframe && cfg->sframe_conformance_option == 2) {
+    // Option 3: disable RefineMV sequence-wide, applied at the point
+    // tool_cfg->enable_refinemv is derived (matching the enable_opfl_refine
+    // override below).
+    tool_cfg->enable_refinemv = 0;
+    extra_cfg->enable_refinemv = 0;
+  }
   tool_cfg->enable_mvd_sign_derive = extra_cfg->enable_mvd_sign_derive;
   // Turn off BRU if LA, AI or resize mode
   tool_cfg->enable_bru = extra_cfg->enable_bru;
@@ -1463,6 +1470,24 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   tool_cfg->max_drl_refmvs = extra_cfg->max_drl_refmvs;
   tool_cfg->max_drl_refbvs = extra_cfg->max_drl_refbvs;
   tool_cfg->enable_refmvbank = extra_cfg->enable_refmvbank;
+  if (cfg->enable_sframe) {
+    switch (cfg->sframe_conformance_option) {
+      case 1:
+        // Option 2: keep the reference-MV bank on sequence-wide.
+        tool_cfg->enable_refmvbank = 1;
+        extra_cfg->enable_refmvbank = 1;
+        break;
+      case 2:
+        // Option 3 doesn't touch enable_refmvbank.
+        break;
+      case 0:
+      default:
+        // Option 1 (default): disable the reference-MV bank sequence-wide.
+        tool_cfg->enable_refmvbank = 0;
+        extra_cfg->enable_refmvbank = 0;
+        break;
+    }
+  }
   tool_cfg->enable_cropping_window = extra_cfg->enable_cropping_window;
   tool_cfg->crop_win_left_offset = extra_cfg->crop_win_left_offset;
   tool_cfg->crop_win_right_offset = extra_cfg->crop_win_right_offset;
@@ -1505,6 +1530,13 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   tool_cfg->enable_high_motion = extra_cfg->enable_high_motion;
 
   tool_cfg->enable_opfl_refine = extra_cfg->enable_opfl_refine;
+  if (cfg->enable_sframe && cfg->sframe_conformance_option == 2) {
+    // Option 3: disable OPFL refinement sequence-wide, applied at the point
+    // tool_cfg->enable_opfl_refine is derived (matching the enable_refinemv
+    // override above).
+    tool_cfg->enable_opfl_refine = 0;
+    extra_cfg->enable_opfl_refine = 0;
+  }
   if (tool_cfg->enable_opfl_refine) {
     if (cfg->g_lag_in_frames == 0) {
       tool_cfg->enable_opfl_refine = 0;
@@ -1596,6 +1628,7 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   kf_cfg->sframe_type = cfg->sframe_type;
   kf_cfg->sframe_refresh_all = cfg->sframe_refresh_all;
   kf_cfg->sframe_replace_kf = cfg->sframe_replace_kf;
+  kf_cfg->sframe_conformance_option = cfg->sframe_conformance_option;
   oxcf->unit_test_cfg.insert_sframe = extra_cfg->enable_sframe;
 
   kf_cfg->enable_keyframe_filtering = extra_cfg->enable_keyframe_filtering;
@@ -2527,6 +2560,18 @@ static avm_codec_err_t ctrl_set_enable_sframe(avm_codec_alg_priv_t *ctx,
                                               va_list args) {
   struct av2_extracfg extra_cfg = ctx->extra_cfg;
   extra_cfg.enable_sframe = CAST(AV2E_SET_ENABLE_SFRAME, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+
+static avm_codec_err_t ctrl_set_sframe_conformance_option(
+    avm_codec_alg_priv_t *ctx, va_list args) {
+  struct av2_extracfg extra_cfg = ctx->extra_cfg;
+  // sframe_conformance_option lives in avm_codec_enc_cfg_t, not in
+  // av2_extracfg, so set it directly on ctx->cfg; set_encoder_config()
+  // reads it from there into kf_cfg. update_extra_cfg() still runs to
+  // re-validate and re-apply the full configuration.
+  ctx->cfg.sframe_conformance_option =
+      CAST(AV2E_SET_SFRAME_CONFORMANCE_OPTION, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
@@ -4736,6 +4781,7 @@ static avm_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV2E_SET_FRAME_PARALLEL_DECODING, ctrl_set_frame_parallel_decoding_mode },
   { AV2E_SET_ENABLE_CDF_AVERAGING, ctrl_set_enable_cdf_averaging },
   { AV2E_SET_ENABLE_SFRAME, ctrl_set_enable_sframe },
+  { AV2E_SET_SFRAME_CONFORMANCE_OPTION, ctrl_set_sframe_conformance_option },
   { AV2E_SET_ENABLE_RECT_PARTITIONS, ctrl_set_enable_rect_partitions },
   { AV2E_SET_ENABLE_1TO4_PARTITIONS, ctrl_set_enable_uneven_4way_partitions },
   { AV2E_SET_MIN_PARTITION_SIZE, ctrl_set_min_partition_size },
@@ -4887,6 +4933,7 @@ static const avm_codec_enc_cfg_t encoder_usage_cfg[] = {
       0,                           // sframe_type
       0,                           // sframe_refresh_all
       0,                           // sframe_replace_kf
+      0,                           // sframe_conformance_option
       0,                           // monochrome
       0,                           // full_still_picture_hdr
       1,                           // enable_tcq
@@ -5025,6 +5072,7 @@ static const avm_codec_enc_cfg_t encoder_usage_cfg[] = {
       0,                           // sframe_type
       0,                           // sframe_refresh_all
       0,                           // sframe_replace_kf
+      0,                           // sframe_conformance_option
       0,                           // monochrome
       0,                           // full_still_picture_hdr
       0,                           // enable_tcq
