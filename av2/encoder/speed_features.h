@@ -33,22 +33,6 @@ typedef struct MESH_PATTERN {
 } MESH_PATTERN;
 
 enum {
-  INTRA_ALL = (1 << DC_PRED) | (1 << V_PRED) | (1 << H_PRED) | (1 << D45_PRED) |
-              (1 << D135_PRED) | (1 << D113_PRED) | (1 << D157_PRED) |
-              (1 << D203_PRED) | (1 << D67_PRED) | (1 << SMOOTH_PRED) |
-              (1 << SMOOTH_V_PRED) | (1 << SMOOTH_H_PRED) | (1 << PAETH_PRED),
-  UV_INTRA_ALL =
-      (1 << UV_DC_PRED) | (1 << UV_V_PRED) | (1 << UV_H_PRED) |
-      (1 << UV_D45_PRED) | (1 << UV_D135_PRED) | (1 << UV_D113_PRED) |
-      (1 << UV_D157_PRED) | (1 << UV_D203_PRED) | (1 << UV_D67_PRED) |
-      (1 << UV_SMOOTH_PRED) | (1 << UV_SMOOTH_V_PRED) |
-      (1 << UV_SMOOTH_H_PRED) | (1 << UV_PAETH_PRED) | (1 << UV_CFL_PRED),
-  UV_INTRA_DC_H_V_CFL = (1 << UV_DC_PRED) | (1 << UV_V_PRED) |
-                        (1 << UV_H_PRED) | (1 << UV_CFL_PRED),
-  INTRA_DC_H_V = (1 << DC_PRED) | (1 << V_PRED) | (1 << H_PRED),
-};
-
-enum {
   INTER_ALL = (1 << NEARMV) | (1 << GLOBALMV) | (1 << NEWMV) |
               (1 << WARP_NEWMV) | (1 << NEAR_NEARMV) | (1 << NEW_NEWMV) |
               (1 << NEAR_NEWMV) | (1 << NEW_NEARMV) | (1 << GLOBAL_GLOBALMV),
@@ -375,11 +359,6 @@ typedef struct PARTITION_SPEED_FEATURES {
   // single_motion_search (assuming no other speed features). Otherwise, reduce
   // the number of steps by the value contained in this variable.
   int simple_motion_search_reduce_search_steps;
-
-  // This variable controls the maximum block size where intra blocks can be
-  // used in inter frames.
-  // TODO(aconverse): Fold this into one of the other many mode skips
-  BLOCK_SIZE max_intra_bsize;
 
   // Use CNN with luma pixels on source frame on each of the 64x64 subblock to
   // perform split/no_split decision on intra-frames.
@@ -885,11 +864,6 @@ typedef struct INTERP_FILTER_SPEED_FEATURES {
 } INTERP_FILTER_SPEED_FEATURES;
 
 typedef struct INTRA_MODE_SPEED_FEATURES {
-  // These bit masks allow you to enable or disable intra modes for each
-  // transform size separately.
-  int intra_y_mode_mask[TX_SIZES];
-  int intra_uv_mode_mask[TX_SIZES];
-
   // flag to allow skipping intra mode for inter frame prediction
   int skip_intra_in_interframe;
 
