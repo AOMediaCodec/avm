@@ -765,6 +765,7 @@ static void set_good_speed_features_lc_dec_framesize_independent(
 
 static void set_rt_speed_features_framesize_independent(
     const AV2_COMP *const cpi, SPEED_FEATURES *const sf, int speed) {
+  const AV2_COMMON *const cm = &cpi->common;
   // Set this good features as default for now.
   set_good_speed_features_framesize_independent(cpi, sf, speed);
   if (speed >= 6) {
@@ -779,11 +780,16 @@ static void set_rt_speed_features_framesize_independent(
     sf->part_sf.partition_search_type = VAR_BASED_PARTITION;
     sf->rd_sf.tx_domain_dist_thres_level = 2;
     sf->rt_sf.use_nonrd_partition = 1;
-    sf->rt_sf.use_only_dc_intra_interframe = true;
     sf->rt_sf.source_metrics_sb = 1;
     sf->winner_mode_sf.tx_size_search_level = USE_FAST_RD;
     sf->tx_sf.restrict_tx_partition_type_search = 3;
     sf->tx_sf.enable_tx_partition = true;
+    sf->intra_sf.skip_intra_in_interframe = 2;
+    sf->rt_sf.prune_intra_mode_in_interframe = 2;
+    if (cm->features.allow_screen_content_tools) {
+      sf->intra_sf.skip_intra_in_interframe = 1;
+      sf->rt_sf.prune_intra_mode_in_interframe = 1;
+    }
   }
 }
 
@@ -1113,7 +1119,7 @@ static AVM_INLINE void init_lc_sf(LC_DEC_SPEED_FEATURES *lc_sf) {
 
 static AVM_INLINE void init_rt_sf(REALTIME_SPEED_FEATURES *rt_sf) {
   rt_sf->use_nonrd_partition = 0;
-  rt_sf->use_only_dc_intra_interframe = false;
+  rt_sf->prune_intra_mode_in_interframe = 0;
   rt_sf->source_metrics_sb = 0;
 }
 

@@ -8999,10 +8999,19 @@ static void av2_evaluate_intra_modes_in_inter_frame(
       av2_nn_softmax(scores, probs, 2);
 
       if (probs[1] > 0.8) search_state->intra_search_state.skip_intra_modes = 1;
-    } else if ((search_state->best_mbmode
-                    .skip_txfm[xd->tree_type == CHROMA_PART]) &&
-               (sf->intra_sf.skip_intra_in_interframe >= 2)) {
-      search_state->intra_search_state.skip_intra_modes = 1;
+    } else if (search_state->best_mbmode
+                   .skip_txfm[xd->tree_type == CHROMA_PART]) {
+      if (sf->intra_sf.skip_intra_in_interframe == 1 &&
+          cpi->oxcf.mode == REALTIME) {
+        const int num_pixels = block_size_wide[bsize] * block_size_high[bsize];
+        const int shift = (xd->bd - 8) * 2;
+        const int64_t dist_thresh = ((int64_t)num_pixels * 5000) << shift;
+        if (rd_cost->dist <= dist_thresh) {
+          search_state->intra_search_state.skip_intra_modes = 1;
+        }
+      } else if (sf->intra_sf.skip_intra_in_interframe >= 2) {
+        search_state->intra_search_state.skip_intra_modes = 1;
+      }
     }
   }
 
@@ -9035,6 +9044,7 @@ static void av2_evaluate_intra_modes_in_inter_frame(
       search_state->intra_search_state.dir_mode_skip_mask_ready = 1;
     }
   }
+
   for (int dpcm_idx = 0; dpcm_idx < dpcm_loop_num; dpcm_idx++) {
     // Dry pass: cap DPCM index.
     if (apply_dry_pass_shortcuts && dpcm_idx > dry_pass_cfg->intra_dpcm_cap)
@@ -9079,7 +9089,10 @@ static void av2_evaluate_intra_modes_in_inter_frame(
                 mode_idx >= AVMMIN((int)mbmi->num_y_intra_mpm,
                                    dry_pass_cfg->intra_mpm_cap))
               break;
-            if (sf->rt_sf.use_only_dc_intra_interframe && mode_idx != DC_PRED)
+            if ((sf->rt_sf.prune_intra_mode_in_interframe == 2 ||
+                 (sf->rt_sf.prune_intra_mode_in_interframe == 1 &&
+                  bsize > BLOCK_16X16)) &&
+                mode_idx != DC_PRED)
               continue;
             if (sf->intra_sf.skip_intra_in_interframe &&
                 search_state->intra_search_state.skip_intra_modes)
@@ -9088,6 +9101,12 @@ static void av2_evaluate_intra_modes_in_inter_frame(
             mbmi->joint_y_mode_delta_angle = mbmi->y_intra_mode_list[mode_idx];
             av2_set_y_mode_and_delta_angle(mbmi->joint_y_mode_delta_angle,
                                            mbmi);
+            if (sf->rt_sf.prune_intra_mode_in_interframe == 1) {
+              if (mbmi->mode != DC_PRED && mbmi->mode != V_PRED &&
+                  mbmi->mode != H_PRED)
+                continue;
+              if (mbmi->angle_delta[PLANE_TYPE_Y] != 0) continue;
+            }
             if ((!cpi->oxcf.intra_mode_cfg.enable_smooth_intra ||
                  cpi->sf.intra_sf.disable_smooth_intra) &&
                 (mbmi->mode == SMOOTH_PRED || mbmi->mode == SMOOTH_H_PRED ||

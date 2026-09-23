@@ -1100,8 +1100,11 @@ typedef struct REALTIME_SPEED_FEATURES {
   // Use non-rd partition instead of rd partition.
   int use_nonrd_partition;
 
-  // Flag to disable all but DC intra mode for inter frame prediction.
-  bool use_only_dc_intra_interframe;
+  // Prune intra mode search in inter frames:
+  // 0: Search all intra modes
+  // 1: Test only DC, V, and H modes
+  // 2: Test only DC mode
+  int prune_intra_mode_in_interframe;
 
   // Compute source sad metrics for superblock.
   int source_metrics_sb;
