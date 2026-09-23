@@ -765,7 +765,6 @@ static void set_good_speed_features_lc_dec_framesize_independent(
 
 static void set_rt_speed_features_framesize_independent(
     const AV2_COMP *const cpi, SPEED_FEATURES *const sf, int speed) {
-  const AV2_COMMON *const cm = &cpi->common;
   // Set this good features as default for now.
   set_good_speed_features_framesize_independent(cpi, sf, speed);
   if (speed >= 6) {
