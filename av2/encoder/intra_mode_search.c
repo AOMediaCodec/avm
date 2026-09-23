@@ -577,7 +577,7 @@ int64_t av2_rd_pick_intra_sbuv_mode(const AV2_COMP *const cpi, MACROBLOCK *x,
                                     int *rate, int *rate_tokenonly,
                                     int64_t *distortion, int *skippable,
                                     const PICK_MODE_CONTEXT *ctx,
-                                    BLOCK_SIZE bsize, TX_SIZE max_tx_size,
+                                    BLOCK_SIZE bsize,
                                     ModeRDInfoUV *mode_rd_info_uv) {
   const AV2_COMMON *const cm = &cpi->common;
   MACROBLOCKD *xd = &x->e_mbd;
@@ -707,10 +707,7 @@ int64_t av2_rd_pick_intra_sbuv_mode(const AV2_COMP *const cpi, MACROBLOCK *x,
       }
       int this_rate;
       RD_STATS tokenonly_rd_stats;
-      if (!(cpi->sf.intra_sf
-                .intra_uv_mode_mask[txsize_sqr_up_map[max_tx_size]] &
-            (1 << mode)))
-        continue;
+
       if (!intra_mode_cfg->enable_smooth_intra && mode >= UV_SMOOTH_PRED &&
           mode <= UV_SMOOTH_H_PRED)
         continue;
@@ -907,12 +904,10 @@ int av2_search_palette_mode(IntraModeSearchState *intra_search_state,
   if (num_planes > 1) {
     {
       // We have not found any good uv mode yet, so we need to search for it.
-      TX_SIZE uv_tx = av2_get_tx_size(AVM_PLANE_U, xd);
-      av2_rd_pick_intra_sbuv_mode(cpi, x, &intra_search_state->rate_uv_intra,
-                                  &intra_search_state->rate_uv_tokenonly,
-                                  &intra_search_state->dist_uvs,
-                                  &intra_search_state->skip_uvs, ctx, bsize,
-                                  uv_tx, NULL /*ModeRDInfoUV*/
+      av2_rd_pick_intra_sbuv_mode(
+          cpi, x, &intra_search_state->rate_uv_intra,
+          &intra_search_state->rate_uv_tokenonly, &intra_search_state->dist_uvs,
+          &intra_search_state->skip_uvs, ctx, bsize, NULL /*ModeRDInfoUV*/
       );
       intra_search_state->mode_uv = mbmi->uv_mode;
       if (xd->lossless[mbmi->segment_id]) {
@@ -1316,11 +1311,10 @@ int64_t av2_handle_intra_mode(IntraModeSearchState *intra_search_state,
       intra_search_state->skip_intra_modes = 1;
       return INT64_MAX;
     }
-    const TX_SIZE uv_tx = av2_get_tx_size(AVM_PLANE_U, xd);
     av2_rd_pick_intra_sbuv_mode(
         cpi, x, &intra_search_state->rate_uv_intra,
         &intra_search_state->rate_uv_tokenonly, &intra_search_state->dist_uvs,
-        &intra_search_state->skip_uvs, ctx, bsize, uv_tx,
+        &intra_search_state->skip_uvs, ctx, bsize,
         sf->intra_sf.reuse_uv_mode_rd_info ? mode_rd_info_uv : NULL);
     intra_search_state->mode_uv = mbmi->uv_mode;
     if (xd->lossless[mbmi->segment_id]) {
