@@ -521,10 +521,9 @@ void av2_update_nbr_diagonal_avx2(struct tcq_ctx_t *tcq_ctx, int row, int col,
   orig_st = _mm256_or_si256(orig_st, mask8);
 
   // Update upcoming context and coeff magnitudes.
-  static const int8_t max_tbl[4] = { 0, 8, 6, 4 };
   int max1 = diag < 5 ? 5 : 3;
   int max2 = diag < 6 ? 5 : 3;
-  int base_max = max_tbl[AVMMIN(diag, 3)];
+  int base_max = kTcqBaseMaxTbl[AVMMIN(diag, 3)];
   int idx0 = AVMMAX(idx_start - 2, 0);
   __m128i state_id = _mm_lddqu_si128((__m128i *)kConst[2]);
   _mm_storeu_si64(&tcq_ctx->orig_st, state_id);
