@@ -4726,7 +4726,7 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size, uint8_t *dest,
   // switch frame's own layer.
   const bool switch_frame_layer_dependent =
       cm->in_switch_risk_window &&
-      !(seq_params->enable_opfl_refine == REFINE_NONE &&
+      !(seq_params->enable_opfl_refine == AVM_OPFL_REFINE_NONE &&
         seq_params->enable_refinemv == 0) &&
       is_mlayer_transitively_dependent(seq_params, cm->mlayer_id,
                                        cm->switch_risk_window_mlayer_id) &&

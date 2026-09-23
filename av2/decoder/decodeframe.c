@@ -6788,7 +6788,7 @@ static INLINE void read_intrabc_params(AV2_COMMON *const cm,
   if (features->allow_intrabc && cm->in_switch_risk_window &&
       current_frame->frame_type == INTER_FRAME &&
       cm->seq_params.enable_refmvbank &&
-      !(cm->seq_params.enable_opfl_refine == REFINE_NONE &&
+      !(cm->seq_params.enable_opfl_refine == AVM_OPFL_REFINE_NONE &&
         cm->seq_params.enable_refinemv == 0) &&
       is_mlayer_transitively_dependent(&cm->seq_params, cm->mlayer_id,
                                        cm->switch_risk_window_mlayer_id) &&
@@ -9352,7 +9352,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   // RefineMV are not both off sequence-wide, then BAWP must be off here.
   if (features->enable_bawp && cm->in_switch_risk_window &&
       current_frame->frame_type == INTER_FRAME &&
-      !(seq_params->enable_opfl_refine == REFINE_NONE &&
+      !(seq_params->enable_opfl_refine == AVM_OPFL_REFINE_NONE &&
         seq_params->enable_refinemv == 0) &&
       is_mlayer_transitively_dependent(seq_params, cm->mlayer_id,
                                        cm->switch_risk_window_mlayer_id) &&
