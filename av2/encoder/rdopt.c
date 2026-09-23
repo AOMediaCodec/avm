@@ -7024,10 +7024,9 @@ void av2_rd_pick_intra_mode_sb(const struct AV2_COMP *cpi, ThreadData *td,
                sizeof(*txfm_info->blk_skip[AVM_PLANE_Y]) * ctx->num_4x4_blk);
         av2_copy_array(xd->tx_type_map, ctx->tx_type_map, ctx->num_4x4_blk);
       }
-      const TX_SIZE max_uv_tx_size = av2_get_tx_size(AVM_PLANE_U, xd);
       av2_rd_pick_intra_sbuv_mode(cpi, x, &rate_uv, &rate_uv_tokenonly,
                                   &dist_uv, &uv_skip_txfm, ctx, bsize,
-                                  max_uv_tx_size, NULL /*ModeRDInfoUV*/
+                                  NULL /*ModeRDInfoUV*/
       );
       av2_copy_array(ctx->cctx_type_map, xd->cctx_type_map,
                      ctx->num_4x4_blk_chroma);
@@ -7635,8 +7634,7 @@ static AVM_INLINE void default_skip_mask(mode_skip_mask_t *mask,
 }
 
 static AVM_INLINE void init_mode_skip_mask(mode_skip_mask_t *mask,
-                                           const AV2_COMP *cpi, MACROBLOCK *x,
-                                           BLOCK_SIZE bsize) {
+                                           const AV2_COMP *cpi, MACROBLOCK *x) {
   const AV2_COMMON *const cm = &cpi->common;
   const SPEED_FEATURES *const sf = &cpi->sf;
   REF_SET ref_set = REF_SET_FULL;
@@ -7691,13 +7689,6 @@ static AVM_INLINE void init_mode_skip_mask(mode_skip_mask_t *mask,
       }
     }
   }
-
-  if (bsize > sf->part_sf.max_intra_bsize) {
-    disable_reference(INTRA_FRAME, mask->ref_combo);
-  }
-
-  mask->pred_modes[INTRA_FRAME_INDEX] |=
-      ~(sf->intra_sf.intra_y_mode_mask[max_txsize_lookup[bsize]]);
 }
 
 static AVM_INLINE int prune_ref_frame(const AV2_COMP *cpi, const MACROBLOCK *x,
@@ -7814,7 +7805,7 @@ static AVM_INLINE void set_params_rd_pick_inter_mode(
     }
   }
 
-  init_mode_skip_mask(mode_skip_mask, cpi, x, bsize);
+  init_mode_skip_mask(mode_skip_mask, cpi, x);
 
   // Set params for mode evaluation
   set_mode_eval_params(cpi, x, MODE_EVAL);
