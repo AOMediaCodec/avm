@@ -1193,6 +1193,12 @@ typedef struct LC_DEC_SPEED_FEATURES {
   // 0: no loop filter skipping.
   // 1: loop filter skipping based on a threshold.
   int skip_loop_filter_based_on_error;
+
+  // Skip the plane level CCSO when the adjusted unfiltered_cost is lower than
+  // filtered_cost.
+  // 0: no rdcost adjustment.
+  // 1: apply an adjustment to rdcost.
+  int skip_plane_ccso;
 } LC_DEC_SPEED_FEATURES;
 
 typedef struct FLEXMV_PRECISION_SPEED_FEATURES {
