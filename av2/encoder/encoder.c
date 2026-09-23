@@ -4721,8 +4721,9 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size, uint8_t *dest,
   // access point, whose embedded/temporal layer depends on the switch
   // frame's own layer. Skipped when OPFL refinement and RefineMV are
   // already off sequence-wide, since that alone satisfies conformance
-  // In a single-layer encode the layer scoping always evaluates true within the risk window, since mlayer_id/tlayer_id are
-  // both 0 and trivially match the switch frame's own layer.
+  // In a single-layer encode the layer scoping always evaluates true within the
+  // risk window, since mlayer_id/tlayer_id are both 0 and trivially match the
+  // switch frame's own layer.
   const bool switch_frame_layer_dependent =
       cm->in_switch_risk_window &&
       !(seq_params->enable_opfl_refine == REFINE_NONE &&
@@ -5271,7 +5272,8 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
   // forward-KF overlay/successor frame) can still reference content from
   // before the OLK's own refresh. So the window only closes once we are
   // clearly past that span, mirroring the codebase's own olk_encountered
-  // lifecycle (see bitstream.c). A OBU_SWITCH(frame_type == S_FRAME + !OBU_RAS) (re)opens the risk window for its own layer.
+  // lifecycle (see bitstream.c). A OBU_SWITCH(frame_type == S_FRAME + !OBU_RAS)
+  // (re)opens the risk window for its own layer.
   const bool past_olk_leading_span =
       current_frame->display_order_hint >= cm->last_olk_disp_order_hint &&
       cpi->gf_group.update_type[cpi->gf_group.index] != FWD_KF_OVERLAY_UPDATE &&
