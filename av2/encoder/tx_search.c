@@ -2358,6 +2358,9 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
   const PREDICTION_MODE intra_mode = get_intra_mode(mbmi, plane);
   const bool is_inter = is_inter_block(mbmi, xd->tree_type);
   const bool is_lossless = xd->lossless[mbmi->segment_id];
+  const uint8_t txw = tx_size_wide[tx_size];
+  const uint8_t txh = tx_size_high[tx_size];
+
   int64_t best_rd = INT64_MAX;
   uint16_t best_eob = 0;
   TX_TYPE best_tx_type = MAKE_TX_TYPE_FROM_PRIMARY_TX_TYPE(DCT_DCT);
@@ -2371,6 +2374,10 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
   const int tx_type_map_idx =
       plane ? 0 : blk_row * xd->tx_type_map_stride + blk_col;
   av2_invalid_rd_stats(best_rd_stats);
+
+  if (is_fsc && (txw > FSC_MAXWIDTH || txh > FSC_MAXHEIGHT) &&
+      plane == AVM_PLANE_Y)
+    return;
 
   skip_trellis |=
       !is_trellis_used(cpi->optimize_seg_arr[mbmi->segment_id], DRY_RUN_NORMAL);
@@ -2407,8 +2414,6 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
       ROUND_POWER_OF_TWO(mb_plane->dequant_QTX[1], QUANT_TABLE_BITS) >>
       dequant_shift;
 
-  const uint8_t txw = tx_size_wide[tx_size];
-  const uint8_t txh = tx_size_high[tx_size];
   int64_t block_sse;
   unsigned int block_mse_q8;
   int dc_only_blk = 0;
@@ -2556,11 +2561,6 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
   const int max_eob = av2_get_max_eob(tx_size);
   // Iterate through all transform type candidates.
   for (int tx_idx = 0; tx_idx < PRIMARY_TX_TYPES; ++tx_idx) {
-    if (is_fsc && (txw > FSC_MAXWIDTH || txh > FSC_MAXHEIGHT) &&
-        plane == AVM_PLANE_Y) {
-      break;
-    }
-
     PRIMARY_TX_TYPE primary_tx_type = txk_map[tx_idx];
     if (prune_rectangular_tx_type(tx_idx, txfm_param.tx_set_type, plane, is_fsc,
                                   is_rect_horz, allowed_tx_mask, best_tx_type,
