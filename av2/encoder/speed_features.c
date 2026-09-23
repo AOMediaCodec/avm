@@ -220,7 +220,6 @@ static void set_good_speed_feature_framesize_dependent(
       sf->part_sf.partition_search_breakout_dist_thr = (1 << 25);
       sf->part_sf.partition_search_breakout_rate_thr = 200;
     } else {
-      sf->part_sf.max_intra_bsize = BLOCK_32X32;
       sf->part_sf.partition_search_breakout_dist_thr = (1 << 23);
       sf->part_sf.partition_search_breakout_rate_thr = 120;
     }
@@ -639,9 +638,6 @@ static void set_good_speed_features_framesize_independent(
     // Disabling it until it is fixed.
     // sf->inter_sf.prune_comp_using_best_single_mode_ref = 2;
 
-    sf->intra_sf.intra_y_mode_mask[TX_16X16] = INTRA_DC_H_V;
-    sf->intra_sf.intra_y_mode_mask[TX_32X32] = INTRA_DC_H_V;
-    sf->intra_sf.intra_y_mode_mask[TX_64X64] = INTRA_DC_H_V;
     // TODO(any): Experiment with this speed feature set to 2 for higher quality
     // presets as well
     sf->intra_sf.skip_intra_in_interframe = 2;
@@ -827,7 +823,6 @@ static AVM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->default_max_partition_size = BLOCK_LARGEST;
   part_sf->default_min_partition_size = BLOCK_4X4;
   part_sf->allow_partition_search_skip = 0;
-  part_sf->max_intra_bsize = BLOCK_LARGEST;
   // This setting only takes effect when partition_search_type is set
   // to FIXED_PARTITION.
   part_sf->fixed_partition_size = BLOCK_16X16;
@@ -998,10 +993,6 @@ static AVM_INLINE void init_intra_sf(INTRA_MODE_SPEED_FEATURES *intra_sf) {
   intra_sf->include_dip_for_top_n_model_rd_pruning = false;
   intra_sf->skip_intra_dip_search = false;
 
-  for (int i = 0; i < TX_SIZES; i++) {
-    intra_sf->intra_y_mode_mask[i] = INTRA_ALL;
-    intra_sf->intra_uv_mode_mask[i] = UV_INTRA_ALL;
-  }
   intra_sf->disable_smooth_intra = 0;
 }
 

@@ -328,7 +328,6 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
  *                                  copy the tx_type and txfm_skip arrays.
  * \param[in]    mode_rd_info_uv    Buffer to hold UV modes RD information.
  * \param[in]    bsize              Current partition block size.
- * \param[in]    max_tx_size        The maximum tx_size available
  *
  * \return Returns the rd_cost of the best uv mode found. This also updates the
  * mbmi, the rate and distortion, distortion.
@@ -337,7 +336,7 @@ int64_t av2_rd_pick_intra_sbuv_mode(const AV2_COMP *const cpi, MACROBLOCK *x,
                                     int *rate, int *rate_tokenonly,
                                     int64_t *distortion, int *skippable,
                                     const PICK_MODE_CONTEXT *ctx,
-                                    BLOCK_SIZE bsize, TX_SIZE max_tx_size,
+                                    BLOCK_SIZE bsize,
                                     ModeRDInfoUV *mode_rd_info_uv);
 
 /*! \brief Return the number of colors in src. Used by palette mode.
