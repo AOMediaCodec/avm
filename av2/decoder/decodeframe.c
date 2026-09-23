@@ -6795,7 +6795,7 @@ static INLINE void read_intrabc_params(AV2_COMMON *const cm,
       (cm->tlayer_id == cm->switch_risk_window_tlayer_id ||
        cm->seq_params
            .tlayer_dependency_map[cm->mlayer_id][cm->tlayer_id]
-                                  [cm->switch_risk_window_tlayer_id])) {
+                                 [cm->switch_risk_window_tlayer_id])) {
     avm_internal_error(
         &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
         "allow_intrabc must be 0 for an inter frame depending on the layer "
