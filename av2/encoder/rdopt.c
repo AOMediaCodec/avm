@@ -7122,7 +7122,9 @@ static AVM_INLINE void rd_pick_skip_mode(
   assert(second_ref_frame != NONE_FRAME);
   const PREDICTION_MODE this_mode = NEAR_NEARMV;
 
-  if (!cpi->oxcf.ref_frm_cfg.enable_onesided_comp && cpi->all_one_sided_refs) {
+  if ((!cpi->oxcf.ref_frm_cfg.enable_onesided_comp ||
+       cpi->sf.inter_sf.disable_onesided_comp) &&
+      cpi->all_one_sided_refs) {
     return;
   }
 
@@ -7707,7 +7709,8 @@ static AVM_INLINE int prune_ref_frame(const AV2_COMP *cpi, const MACROBLOCK *x,
   av2_set_ref_frame(rf, ref_frame);
   const int comp_pred = is_inter_ref_frame(rf[1]);
   if (comp_pred) {
-    if (!cpi->oxcf.ref_frm_cfg.enable_onesided_comp) {
+    if (!cpi->oxcf.ref_frm_cfg.enable_onesided_comp ||
+        cpi->sf.inter_sf.disable_onesided_comp) {
       // Disable all compound references
       if (cpi->all_one_sided_refs) return 1;
       // If both references are on the same side prune

@@ -682,6 +682,7 @@ static void set_good_speed_features_framesize_independent(
     sf->intra_sf.disable_palette = true;
     sf->part_sf.simple_motion_search_prune_agg = 3;
     sf->inter_sf.disable_interinter_wedge = 1;
+    sf->inter_sf.disable_onesided_comp = true;
     sf->inter_sf.prune_inter_modes_if_skippable = 1;
 
     // TODO(any): Extend multi-winner mode processing support for inter frames
@@ -966,6 +967,7 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->prune_comp_type_by_model_rd = 0;
   inter_sf->perform_best_rd_based_gating_for_chroma = 0;
   inter_sf->disable_interinter_wedge = 0;
+  inter_sf->disable_onesided_comp = false;
   inter_sf->prune_ref_mv_idx_search = 0;
   inter_sf->prune_warped_prob_thresh = 0;
   inter_sf->reuse_compound_type_data = 0;
