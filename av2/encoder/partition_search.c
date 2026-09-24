@@ -41,7 +41,6 @@
 #include "av2/encoder/tokenize.h"
 #include "av2/encoder/tx_search.h"
 #include "av2/common/reconinter.h"
-#include "av2/encoder/erp_ml.h"
 
 #include "avm_util/debug_util.h"
 
@@ -3795,7 +3794,6 @@ static AVM_INLINE void prune_partitions_by_structure_orientation(
 // now if adaptive_partition_search_order is enabled. In this case default none
 // rdc which is INT64_MAX is passed to the model where it is mapped to zero.
 static void prune_rect_partitions(AV2_COMP *const cpi, ThreadData *td,
-                                  TileDataEnc *tile_data, PC_TREE *pc_tree,
                                   PartitionSearchState *part_search_state,
                                   unsigned int *pb_source_variance,
                                   int64_t part_none_rd) {
@@ -3813,37 +3811,6 @@ static void prune_rect_partitions(AV2_COMP *const cpi, ThreadData *td,
       bsize <= BLOCK_256X256 && !x->must_find_valid_partition) {
     prune_rect_with_mlp(cpi, x, bsize, mi_row, mi_col, av2_num_planes(cm),
                         pb_source_variance, part_search_state);
-  }
-
-  const bool is_whole_block_inside =
-      (mi_row + mi_size_high[bsize] < cm->mi_params.mi_rows) &&
-      (mi_col + mi_size_wide[bsize] < cm->mi_params.mi_cols);
-  const bool try_prune_with_ml =
-      cpi->sf.part_sf.prune_rect_with_ml && !frame_is_intra_only(cm) &&
-      part_search_state->forced_partition == PARTITION_INVALID &&
-      is_whole_block_inside && part_none_rd < INT64_MAX &&
-      (is_rect_part_allowed(cpi, part_search_state, PARTITION_HORZ) ||
-       is_rect_part_allowed(cpi, part_search_state, PARTITION_VERT));
-
-  if (try_prune_with_ml && bsize != BLOCK_4X8 && bsize != BLOCK_8X4 &&
-      is_partition_point(bsize)) {
-    // mi_pos_rect[rect_type][sub_idx][0]: mi_row position
-    // mi_pos_rect[rect_type][sub_idx][1]: mi_col position
-    const int mi_pos_rect[NUM_RECT_PARTS][SUB_PARTITIONS_RECT][2] = {
-      { { blk_params->mi_row, blk_params->mi_col },
-        { blk_params->mi_row_edge, blk_params->mi_col } },
-      { { blk_params->mi_row, blk_params->mi_col },
-        { blk_params->mi_row, blk_params->mi_col_edge } }
-    };
-    const bool is_hd = AVMMIN(cm->width, cm->height) >= 1080;
-    float ml_features[19];
-
-    av2_gather_erp_rect_features(ml_features, cpi, x, &tile_data->tile_info,
-                                 pc_tree, part_search_state, part_none_rd,
-                                 mi_pos_rect);
-    av2_erp_prune_rect(bsize, is_hd, ml_features,
-                       &part_search_state->prune_partition[PARTITION_HORZ],
-                       &part_search_state->prune_partition[PARTITION_VERT]);
   }
 
   {
@@ -5922,7 +5889,7 @@ BEGIN_PARTITION_SEARCH:
                           multi_pass_mode);
   }
 
-  prune_rect_partitions(cpi, td, tile_data, pc_tree, &part_search_state,
+  prune_rect_partitions(cpi, td, &part_search_state,
                         &pb_source_variance, part_none_rd);
   // Search partitions horz and vert.
   rectangular_partition_search(

@@ -819,7 +819,6 @@ static AVM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->prune_part_4_with_part_3 = 0;
   part_sf->prune_part_4b_with_part_4a = 0;
   part_sf->two_pass_partition_search = TWO_PASS_PART_OFF;
-  part_sf->prune_rect_with_ml = 0;
   part_sf->partition_pruning_with_mlp = 0;
   part_sf->partition_pruning_with_mlp_none_thresh = 0.0f;
   part_sf->sms_unified_prune = 0;
@@ -1266,7 +1265,6 @@ static AVM_INLINE void set_erp_speed_features(AV2_COMP *cpi) {
     sf->part_sf.simple_motion_search_split = 1;
     sf->part_sf.simple_motion_search_early_term_none = 1;
   }
-  sf->part_sf.prune_rect_with_ml = cpi->oxcf.part_cfg.use_ml_erp_pruning & 1;
 #if CONFIG_ML_PART_SPLIT
   // Don't work for the screen content
   if (!cm->features.allow_screen_content_tools) {
