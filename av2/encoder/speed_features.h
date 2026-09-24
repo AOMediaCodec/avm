@@ -566,7 +566,10 @@ typedef struct MV_SPEED_FEATURES {
   int warp_search_iters;
 
   // Early-terminate warp MV refinement when the RD improvement over the
-  // previous iteration is less than ~5%. Enabled for speed >= 3.
+  // previous iteration is less than ~5%.
+  // For speed = 1, enabled for frames with pyramid_level >= 3.
+  // For speed = 2, enabled for frames with pyramid_level >= 2.
+  // For speed >= 3, enabled for all frames.
   bool warp_mv_refine_early_term;
 
   // Use faster motion search settings for partition blocks with at least one
