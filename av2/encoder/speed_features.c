@@ -469,7 +469,6 @@ static void set_good_speed_features_framesize_independent(
 
     sf->lpf_sf.early_terminate_ccso_search_by_cost = 1;
     sf->part_sf.partition_pruning_with_mlp_none_thresh = 2.5f;
-    sf->part_sf.intra_cnn_split = 0;
 
     sf->part_sf.disable_uneven_4way_partitions = true;
     sf->part_sf.disable_ext_partitions = true;
@@ -843,7 +842,6 @@ static AVM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->simple_motion_search_split = 0;
   part_sf->simple_motion_search_early_term_none = 0;
   part_sf->simple_motion_search_reduce_search_steps = 0;
-  part_sf->intra_cnn_split = 0;
   part_sf->prune_rect_with_none_rd = 0;
   part_sf->prune_ext_part_with_part_none = 0;
   part_sf->prune_ext_part_with_part_rect = 0;
@@ -1094,7 +1092,6 @@ static void av2_disable_ml_based_partition_sf(
     PARTITION_SPEED_FEATURES *const part_sf) {
   part_sf->ml_early_term_after_part_split_level = 0;
   part_sf->auto_max_partition_based_on_simple_motion = NOT_IN_USE;
-  part_sf->intra_cnn_split = 0;
   part_sf->simple_motion_search_split = 0;
   part_sf->simple_motion_search_early_term_none = 0;
 #if CONFIG_ML_PART_SPLIT

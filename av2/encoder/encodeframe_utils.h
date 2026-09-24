@@ -107,9 +107,6 @@ typedef struct PartitionTimingStats {
 
 // Structure holding state variables for partition search.
 typedef struct PartitionSearchState {
-  // Intra partitioning related info.
-  PartitionSearchInfo *intra_part_info;
-
   // Parameters related to partition block size.
   PartitionBlkParams part_blk_params;
 

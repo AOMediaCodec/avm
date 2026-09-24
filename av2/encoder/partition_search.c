@@ -3395,14 +3395,6 @@ static void init_partition_search_state_params(
   part_search_state->ss_x = xd->plane[AVM_PLANE_U].subsampling_x;
   part_search_state->ss_y = xd->plane[AVM_PLANE_U].subsampling_y;
 
-  // Update intra partitioning related info.
-  part_search_state->intra_part_info = &x->part_search_info;
-  // Prepare for segmentation CNN-based partitioning for intra-frame.
-  if (frame_is_intra_only(cm) && bsize == BLOCK_64X64) {
-    part_search_state->intra_part_info->quad_tree_idx = 0;
-    part_search_state->intra_part_info->cnn_output_valid = 0;
-  }
-
   // Partition cost buffer update
   init_partition_costs(
       cm, x, tree_type,
@@ -4557,14 +4549,6 @@ static void split_partition_search(
       continue;
     }
 
-    int curr_quad_tree_idx = 0;
-    bool try_intra_cnn_split = frame_is_intra_only(cm) && bsize <= BLOCK_64X64;
-    if (try_intra_cnn_split) {
-      curr_quad_tree_idx = part_search_state->intra_part_info->quad_tree_idx;
-      part_search_state->intra_part_info->quad_tree_idx =
-          4 * curr_quad_tree_idx + sub_idx + 1;
-    }
-
     RDO_PICK_SB_ARGS rdo_args = {
       child_nodes[sub_idx],
       track_ptree_luma ? get_partition_subtree_const(ptree_luma, sub_idx)
@@ -4586,13 +4570,7 @@ static void split_partition_search(
 #endif
             )) {
       av2_invalid_rd_stats(&sum_rdc);
-      if (try_intra_cnn_split) {
-        part_search_state->intra_part_info->quad_tree_idx = curr_quad_tree_idx;
-      }
       break;
-    }
-    if (try_intra_cnn_split) {
-      part_search_state->intra_part_info->quad_tree_idx = curr_quad_tree_idx;
     }
   }
 

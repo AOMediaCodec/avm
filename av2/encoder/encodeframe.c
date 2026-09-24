@@ -525,7 +525,6 @@ static INLINE void init_encode_rd_sb(AV2_COMP *cpi, ThreadData *td,
   (void)sbi;
   init_ref_frame_space(cpi, td, mi_row, mi_col);
   x->sb_energy_level = 0;
-  x->part_search_info.cnn_output_valid = 0;
   if (gather_tpl_data) {
     if (cm->delta_q_info.delta_q_present_flag && xd->tree_type != CHROMA_PART) {
       const int num_planes = av2_num_planes(cm);
