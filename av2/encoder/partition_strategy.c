@@ -363,7 +363,6 @@ void av2_simple_motion_search_early_term_none(
   }
 }
 
-
 void av2_sms_run_motion_search(AV2_COMP *const cpi, MACROBLOCK *x,
                                SIMPLE_MOTION_DATA_TREE *sms_tree, int mi_row,
                                int mi_col, BLOCK_SIZE bsize) {
@@ -720,19 +719,6 @@ static void compute_sms_data(AV2_COMP *const cpi, const TileInfo *const tile,
   mbmi->sb_type[0] = mbmi->sb_type[1] = bsize;
   mbmi->chroma_ref_info.bsize_base = bsize;
   mbmi->chroma_ref_info.is_chroma_ref = 1;
-#if CONFIG_ML_PART_SPLIT
-  // only if NONE part pruning is enabled
-  if (cpi->sf.part_sf.prune_none_with_ml) {
-    mbmi->interinter_comp.type = COMPOUND_AVERAGE;
-    mbmi->motion_mode = SIMPLE_TRANSLATION;
-    mbmi->comp_group_idx = 0;
-    mbmi->use_intrabc[0] = 0;
-    mbmi->use_intrabc[1] = 0;
-    mbmi->interp_fltr = MULTITAP_SHARP;
-    mbmi->bawp_flag[0] = 0;
-    mbmi->cwp_idx = CWP_EQUAL;
-  }
-#endif  // CONFIG_ML_PART_SPLIT
   mbmi->use_amvd = 0;
   setup_block_rdmult(cpi, x, mi_row, mi_col, bsize, aq_mode, mbmi);
   // Set error per bit for current rdmult
@@ -1019,4 +1005,3 @@ void av2_ml_early_term_after_split(AV2_COMP *const cpi, MACROBLOCK *const x,
   }
 }
 #undef FEATURES
-

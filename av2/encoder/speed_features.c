@@ -831,7 +831,6 @@ static AVM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->prune_part_with_neighbor_boundaries = 0;
 #if CONFIG_ML_PART_SPLIT
   part_sf->prune_split_with_ml = 0;
-  part_sf->prune_none_with_ml = 0;
   part_sf->prune_split_ml_level = -2;  // default pruning
   part_sf->prune_split_ml_level_inter = -1;
   part_sf->remove_qp_restriction_with_ml = 0;
@@ -1063,7 +1062,6 @@ static void av2_disable_ml_based_partition_sf(
   part_sf->simple_motion_search_early_term_none = 0;
 #if CONFIG_ML_PART_SPLIT
   part_sf->prune_split_with_ml = 0;
-  part_sf->prune_none_with_ml = 0;
   part_sf->prune_split_ml_level = -1;
   part_sf->prune_split_ml_level_inter = -1;
 #endif
@@ -1113,12 +1111,9 @@ static AVM_INLINE void set_erp_speed_features_framesize_dependent(
         sf->part_sf.prune_split_ml_level = 1;
       } else if (is_720p_or_larger) {
         sf->part_sf.prune_split_ml_level = 0;
-        sf->part_sf.prune_none_with_ml = 0;
       } else {
-        sf->part_sf.prune_none_with_ml = 0;
       }
-      sf->part_sf.prune_split_ml_level_inter =
-          sf->part_sf.prune_none_with_ml ? -1 : 0;
+      sf->part_sf.prune_split_ml_level_inter = 0;
 #endif  // CONFIG_ML_PART_SPLIT
       AVM_FALLTHROUGH_INTENDED;
     case 4: AVM_FALLTHROUGH_INTENDED;
@@ -1270,12 +1265,7 @@ static AVM_INLINE void set_erp_speed_features(AV2_COMP *cpi) {
   if (!cm->features.allow_screen_content_tools) {
     sf->part_sf.prune_split_with_ml =
         !!(cpi->oxcf.part_cfg.use_ml_erp_pruning & 2);
-    // Only using NONE-pruning in RA
-    sf->part_sf.prune_none_with_ml =
-        !!(cpi->oxcf.part_cfg.use_ml_erp_pruning & 4) &&
-        cpi->oxcf.gf_cfg.lag_in_frames > 0;
-    if (!sf->part_sf.prune_none_with_ml)
-      sf->part_sf.prune_split_ml_level_inter = 0;
+    sf->part_sf.prune_split_ml_level_inter = 0;
   }
 #endif  // CONFIG_ML_PART_SPLIT
 }

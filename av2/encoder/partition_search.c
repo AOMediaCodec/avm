@@ -5889,8 +5889,8 @@ BEGIN_PARTITION_SEARCH:
                           multi_pass_mode);
   }
 
-  prune_rect_partitions(cpi, td, &part_search_state,
-                        &pb_source_variance, part_none_rd);
+  prune_rect_partitions(cpi, td, &part_search_state, &pb_source_variance,
+                        part_none_rd);
   // Search partitions horz and vert.
   rectangular_partition_search(
       cpi, td, tile_data, tp, pc_tree, &x_ctx, &part_search_state, &best_rdc,

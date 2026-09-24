@@ -60,9 +60,6 @@ void av2_simple_motion_search_early_term_none(
     int mi_row, int mi_col, BLOCK_SIZE bsize, const RD_STATS *none_rdc,
     bool *early_terminate);
 
-
-
-
 // The first round of partition pruning determined before any partition
 // has been tested. The decisions will be updated and passed back
 // to the partition search function.
