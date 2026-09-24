@@ -290,6 +290,18 @@ const av2_codec_arg_definitions_t g_av2_codec_arg_defs = {
       ARG_DEF(NULL, "sframe-mode", 1, "S-Frame insertion mode (0..2)"),
   .sframe_type = ARG_DEF(NULL, "sframe-type", 1,
                          "(0: Regular S-Frame (default), 1: RAS frame)"),
+  .sframe_refresh_all =
+      ARG_DEF(NULL, "sframe-refresh-all", 1,
+              "S-Frame refreshes all ref slots (0: off (default), 1: on)"),
+  .sframe_replace_kf =
+      ARG_DEF(NULL, "sframe-replace-kf", 1,
+              "Replace N consecutive keyframes with S-frames (0: off)"),
+  .sframe_conformance_option = ARG_DEF(
+      NULL, "sframe-conformance-option", 1,
+      "How to satisfy the BAWP/IBC/OPFL/RefineMV bitstream-conformance "
+      "requirement around switch frames (0: disable refmvbank (default), "
+      "1: keep refmvbank, disable BAWP/IntraBC after switch, "
+      "2: disable OPFL refinement and RefineMV)"),
   .enable_lcr =
       ARG_DEF(NULL, "enable-lcr", 1,
               "Enable layer config record (LCR) OBU (0: off (default), 1: on)"),
