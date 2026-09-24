@@ -1391,6 +1391,10 @@ typedef struct macroblock {
 
   /**@}*/
 
+  /*****************************************************************************
+   * \name Partition Search
+   ****************************************************************************/
+  /**@{*/
   /*! \brief Whether to disable some features to force a mode in current block.
    *
    * In some cases, our speed features can be overly aggressive and remove all
