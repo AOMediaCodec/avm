@@ -55,14 +55,6 @@ void av2_simple_motion_search_based_split(
     int mi_row, int mi_col, BLOCK_SIZE bsize,
     struct PartitionSearchState *partition_search_state, bool *do_square_split);
 
-// Performs a simple_motion_search with two reference frames and extract
-// the variance of residues. Then use the features to determine whether we want
-// to prune some partitions.
-void av2_simple_motion_search_prune_rect(
-    AV2_COMP *const cpi, MACROBLOCK *x, SIMPLE_MOTION_DATA_TREE *sms_tree,
-    int mi_row, int mi_col, BLOCK_SIZE bsize,
-    struct PartitionSearchState *partition_search_state);
-
 // Early terminates PARTITION_NONE using simple_motion_search features and the
 // rate, distortion, and rdcost of PARTITION_NONE. This is only called when:
 //  - The frame is a show frame
