@@ -845,7 +845,6 @@ static AVM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->prune_rect_with_none_rd = 0;
   part_sf->prune_ext_part_with_part_none = 0;
   part_sf->prune_ext_part_with_part_rect = 0;
-  part_sf->prune_part_4_with_partition_boundary = 0;
   part_sf->prune_part_4_horz_or_vert = 0;
   part_sf->prune_part_4_with_part_3 = 0;
   part_sf->prune_part_4b_with_part_4a = 0;

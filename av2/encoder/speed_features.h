@@ -411,11 +411,6 @@ typedef struct PARTITION_SPEED_FEATURES {
   // the current best partition's boundary after searching NONE, HORZ, and VERT.
   int prune_part_h_with_partition_boundary;
 
-  // Prune r-way partition types if their resulting boundary does not agree with
-  // the current best partition's boundary after searching NONE, HORZ, VERT, and
-  // H-parts.
-  int prune_part_4_with_partition_boundary;
-
   // Controls the early termination fast method for inter-SDP (search of intra
   // region partitioning in inter frames).
   // 0: Use the original fast method that early-terminates inter-SDP when more
