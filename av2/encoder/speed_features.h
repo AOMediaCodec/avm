@@ -330,7 +330,6 @@ typedef struct PARTITION_SPEED_FEATURES {
   int partition_search_breakout_rate_thr;
 
   // Thresholds for ML based partition search breakout.
-  int ml_partition_search_breakout_thresh[PARTITION_BLOCK_SIZES];
 
   // Allow skipping partition search for still image frame
   int allow_partition_search_skip;
