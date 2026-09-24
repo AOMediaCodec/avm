@@ -1160,7 +1160,6 @@ static AVM_INLINE void set_erp_speed_features_framesize_dependent(
         sf->part_sf.prune_split_ml_level = 0;
         sf->part_sf.prune_none_with_ml = 0;
       } else {
-        sf->part_sf.prune_split_with_ml = 1;
         sf->part_sf.prune_none_with_ml = 0;
       }
       sf->part_sf.prune_split_ml_level_inter =
