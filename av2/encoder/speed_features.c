@@ -461,11 +461,15 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.reduce_search_range = 1;
     sf->mv_sf.subpel_search_type = boosted ? USE_8_TAPS : USE_4_TAPS;
     sf->mv_sf.subpel_iters_per_step = boosted ? 2 : 1;
+    sf->mv_sf.warp_mv_refine_early_term =
+        (cm->current_frame.pyramid_level >= 3);
+
     sf->lpf_sf.ccso_chroma_dep = 1;
   }
 
   if (speed >= 2) {
     sf->mv_sf.warp_search_method_sec_ref = WARP_SEARCH_DIAMOND;
+    sf->mv_sf.warp_mv_refine_early_term = boosted ? false : true;
 
     sf->lpf_sf.early_terminate_ccso_search_by_cost = 1;
     sf->part_sf.partition_pruning_with_mlp_none_thresh = 2.5f;
