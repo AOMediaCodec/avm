@@ -147,6 +147,9 @@ typedef struct {
   // Maximum block size used for skip tx search
   int skip_tx_search_max_eob;
 
+  // Disable inter IST
+  bool disable_inter_ist;
+
   // Prune tx type search using previous frame stats.
   int prune_tx_type_using_stats;
   // Prune tx type search using estimated RDcost
@@ -1000,14 +1003,15 @@ typedef struct TX_SPEED_FEATURES {
   // stationarity along horizontal and vertical axis.
   bool prune_tx_part_stationarity;
 
+  // Skip cctx search at dry pass
+  bool disable_cctx_dry_pass;
   // Enable the early-exit pre-RD pruning gate inside the tx-type search loop.
   // When set, a lightweight RD Cost estimate is computed before the full
   // trellis / av2_optimize_b path and the candidate is skipped when its
   // predicted RD Cost exceeds the current best by more than 1/8.
   // Set at speed >= 3 for non-boosted frames, and
   // unconditionally for all frames at speed >= 5.
-  bool prune_tx_search_by_pre_rd;
-} TX_SPEED_FEATURES;
+  bool prune_tx_search_by_pre_rd;} TX_SPEED_FEATURES;
 
 typedef struct RD_CALC_SPEED_FEATURES {
   // Fast approximation of av2_model_rd_from_var_lapndz
