@@ -171,13 +171,6 @@ enum {
 } UENUM1BYTE(PARTITION_SEARCH_TYPE);
 
 enum {
-  NOT_IN_USE,
-  DIRECT_PRED,
-  RELAXED_PRED,
-  ADAPT_PRED
-} UENUM1BYTE(MAX_PART_PRED_MODE);
-
-enum {
   LAST_MV_DATA,
   CURRENT_Q,
   QTR_ONLY,
@@ -314,11 +307,6 @@ typedef struct PARTITION_SPEED_FEATURES {
 
   // Use square partition only beyond this block size.
   BLOCK_SIZE use_square_partition_only_threshold;
-
-  // Sets min and max square partition levels for this superblock based on
-  // motion vector and prediction error distribution produced from 16x16
-  // simple motion search
-  MAX_PART_PRED_MODE auto_max_partition_based_on_simple_motion;
 
   // Min and max square partition size we enable (block_size) as per auto
   // min max, but also used by adjust partitioning, and pick_partitioning.

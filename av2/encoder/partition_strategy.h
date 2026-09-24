@@ -23,8 +23,6 @@
 #define FEATURE_SIZE_SMS_PRUNE_PART 25
 #define FEATURE_SIZE_SMS_TERM_NONE 28
 #define FEATURE_SIZE_FP_SMS_TERM_NONE 20
-#define FEATURE_SIZE_MAX_MIN_PART_PRED 13
-#define MAX_NUM_CLASSES_MAX_MIN_PART_PRED 4
 
 #define FEATURE_SMS_NONE_FLAG 1
 #define FEATURE_SMS_SPLIT_FLAG (1 << 1)
@@ -62,17 +60,7 @@ void av2_simple_motion_search_early_term_none(
     int mi_row, int mi_col, BLOCK_SIZE bsize, const RD_STATS *none_rdc,
     bool *early_terminate);
 
-// Get the features for selecting the max and min partition size. Currently this
-// performs simple_motion_search on 16X16 subblocks of the current superblock,
-// and then extract the statistics of sse and motion vectors as features.
-void av2_get_max_min_partition_features(AV2_COMP *const cpi, MACROBLOCK *x,
-                                        int mi_row, int mi_col,
-                                        float *features);
 
-// Predict the maximum BLOCK_SIZE to be used to encoder the current superblock.
-BLOCK_SIZE av2_predict_max_partition(const AV2_COMP *const cpi,
-                                     const MACROBLOCK *const x,
-                                     const float *features);
 
 // ML-based partition search breakout after PARTITION_NONE.
 int av2_ml_predict_breakout(const AV2_COMP *const cpi, BLOCK_SIZE bsize,
@@ -254,23 +242,4 @@ static INLINE int is_full_sb(const CommonModeInfoParams *const mi_params,
          (mi_col + sb_mi_wide) <= mi_params->mi_cols;
 }
 
-// Do not use this criteria for screen content videos.
-// Since screen content videos could often find good predictors and the largest
-// block size is likely to be used.
-static INLINE int use_auto_max_partition(const AV2_COMP *const cpi,
-                                         BLOCK_SIZE sb_size, int mi_row,
-                                         int mi_col) {
-  assert(IMPLIES(cpi->gf_group.size > 0,
-                 cpi->gf_group.index < cpi->gf_group.size));
-  const AV2_COMMON *const cm = &cpi->common;
-  return !frame_is_intra_only(cm) && !cpi->is_screen_content_type &&
-         cpi->sf.part_sf.auto_max_partition_based_on_simple_motion !=
-             NOT_IN_USE &&
-         sb_size == BLOCK_128X128 &&
-         is_full_sb(&cm->mi_params, mi_row, mi_col, sb_size) &&
-         cpi->gf_group.update_type[cpi->gf_group.index] != OVERLAY_UPDATE &&
-         cpi->gf_group.update_type[cpi->gf_group.index] !=
-             KFFLT_OVERLAY_UPDATE &&
-         cpi->gf_group.update_type[cpi->gf_group.index] != INTNL_OVERLAY_UPDATE;
-}
 #endif  // AVM_AV2_ENCODER_PARTITION_STRATEGY_H_

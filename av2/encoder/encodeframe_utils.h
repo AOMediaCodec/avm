@@ -284,10 +284,8 @@ static BLOCK_SIZE dim_to_size(int dim) {
 }
 
 static AVM_INLINE void set_max_min_partition_size(SuperBlockEnc *sb_enc,
-                                                  AV2_COMP *cpi, MACROBLOCK *x,
-                                                  const SPEED_FEATURES *sf,
-                                                  BLOCK_SIZE sb_size,
-                                                  int mi_row, int mi_col) {
+                                                  AV2_COMP *cpi,
+                                                  const SPEED_FEATURES *sf) {
   const AV2_COMMON *cm = &cpi->common;
 
   sb_enc->max_partition_size =
@@ -298,17 +296,6 @@ static AVM_INLINE void set_max_min_partition_size(SuperBlockEnc *sb_enc,
              dim_to_size(cpi->oxcf.part_cfg.min_partition_size));
   sb_enc->max_partition_size = AVMMIN(sb_enc->max_partition_size, cm->sb_size);
   sb_enc->min_partition_size = AVMMIN(sb_enc->min_partition_size, cm->sb_size);
-  if (!bru_is_sb_active(cm, mi_col, mi_row)) return;
-
-  if (use_auto_max_partition(cpi, sb_size, mi_row, mi_col)) {
-    float features[FEATURE_SIZE_MAX_MIN_PART_PRED] = { 0.0f };
-
-    av2_get_max_min_partition_features(cpi, x, mi_row, mi_col, features);
-    sb_enc->max_partition_size =
-        AVMMAX(AVMMIN(av2_predict_max_partition(cpi, x, features),
-                      sb_enc->max_partition_size),
-               sb_enc->min_partition_size);
-  }
 }
 
 // Allocates memory for 'InterModesInfo' buffer, which is used during the

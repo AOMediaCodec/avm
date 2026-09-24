@@ -994,7 +994,7 @@ static AVM_INLINE void encode_rd_sb(AV2_COMP *cpi, ThreadData *td,
 
     // Estimate the maximum square partition block size, which will be used
     // as the starting block size for partitioning the sb
-    set_max_min_partition_size(sb_enc, cpi, x, sf, sb_size, mi_row, mi_col);
+    set_max_min_partition_size(sb_enc, cpi, sf);
 
     // Sets the sb_mv_precision
     x->e_mbd.sbi->sb_mv_precision = cm->features.fr_mv_precision;

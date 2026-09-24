@@ -151,16 +151,7 @@ static void set_good_speed_feature_framesize_dependent(
     if (!is_480p_or_larger) sf->flexmv_sf.do_not_search_4_pel_precision = 1;
   }
 
-  if (is_480p_or_larger) {
-    sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
-    if (is_720p_or_larger)
-      sf->part_sf.auto_max_partition_based_on_simple_motion = ADAPT_PRED;
-    else
-      sf->part_sf.auto_max_partition_based_on_simple_motion = RELAXED_PRED;
-  } else {
-    sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
-    sf->part_sf.auto_max_partition_based_on_simple_motion = DIRECT_PRED;
-  }
+  sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
 
   // 8x8 partition floor at 4k, and at 1080p from speed 1.
   sf->part_sf.default_min_partition_size =
@@ -259,12 +250,6 @@ static void set_good_speed_feature_framesize_dependent(
   }
 
   if (speed >= 6) {
-    if (is_720p_or_larger) {
-      sf->part_sf.auto_max_partition_based_on_simple_motion = NOT_IN_USE;
-    } else if (is_480p_or_larger) {
-      sf->part_sf.auto_max_partition_based_on_simple_motion = DIRECT_PRED;
-    }
-
     if (is_720p_or_larger) {
       sf->inter_sf.disable_masked_comp = 1;
     }
@@ -823,7 +808,6 @@ static AVM_INLINE void init_gm_sf(GLOBAL_MOTION_SPEED_FEATURES *gm_sf) {
 static AVM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->partition_search_type = SEARCH_PARTITION;
   part_sf->use_square_partition_only_threshold = BLOCK_128X128;
-  part_sf->auto_max_partition_based_on_simple_motion = NOT_IN_USE;
   part_sf->default_max_partition_size = BLOCK_LARGEST;
   part_sf->default_min_partition_size = BLOCK_4X4;
   part_sf->allow_partition_search_skip = 0;
@@ -1090,7 +1074,6 @@ static void av2_disable_ml_based_transform_sf(TX_SPEED_FEATURES *const tx_sf) {
 static void av2_disable_ml_based_partition_sf(
     PARTITION_SPEED_FEATURES *const part_sf) {
   part_sf->ml_early_term_after_part_split_level = 0;
-  part_sf->auto_max_partition_based_on_simple_motion = NOT_IN_USE;
   part_sf->simple_motion_search_split = 0;
   part_sf->simple_motion_search_early_term_none = 0;
 #if CONFIG_ML_PART_SPLIT
