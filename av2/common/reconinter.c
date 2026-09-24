@@ -1972,7 +1972,6 @@ void av2_build_one_bawp_inter_predictor(
     avm_internal_error(
         (struct avm_internal_error_info *)&cm->error, AVM_CODEC_ERROR,
         "Inter BAWP template cannot outside the valid reference range");
-    return;
   } else {
     uint16_t *recon_buf = xd->plane[plane].dst.buf;
     int recon_stride = xd->plane[plane].dst.stride;
