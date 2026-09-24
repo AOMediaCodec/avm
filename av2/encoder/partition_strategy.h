@@ -74,7 +74,6 @@ BLOCK_SIZE av2_predict_max_partition(const AV2_COMP *const cpi,
                                      const MACROBLOCK *const x,
                                      const float *features);
 
-
 // The first round of partition pruning determined before any partition
 // has been tested. The decisions will be updated and passed back
 // to the partition search function.
