@@ -762,8 +762,14 @@ int av2_get_refresh_frame_flags(
     return (1 << cpi->common.seq_params.ref_frames) - 1;
   }
 
+  // sframe_refresh_all only gates real OBU_SWITCH frames; RAS frames
+  // (sframe_type == RAS_FRAME) always refresh all RPL slots, since they are
+  // random access points. cpi->is_ras_frame is not used here because it is
+  // only valid for the frame currently being encoded, not reliably for
+  // every call site reachable from this function.
   if ((frame_params->frame_type == S_FRAME &&
-       cpi->oxcf.kf_cfg.sframe_refresh_all) ||
+       (cpi->oxcf.kf_cfg.sframe_refresh_all ||
+        cpi->oxcf.kf_cfg.sframe_type == RAS_FRAME)) ||
       frame_params->frame_type == KEY_FRAME) {
     AV2_COMMON *const cm = &cpi->common;
     int refresh_frame_flags = (1 << cpi->common.seq_params.ref_frames) - 1;
