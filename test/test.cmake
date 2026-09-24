@@ -122,7 +122,6 @@ if(NOT BUILD_SHARED_LIBS)
       "${AVM_ROOT}/test/boolcoder_test.cc"
       "${AVM_ROOT}/test/brt_test.cc"
       "${AVM_ROOT}/test/ci_test.cc"
-      "${AVM_ROOT}/test/cnn_test.cc"
       "${AVM_ROOT}/test/divu_small_test.cc"
       "${AVM_ROOT}/test/dr_prediction_test.cc"
       "${AVM_ROOT}/test/ec_test.cc"
