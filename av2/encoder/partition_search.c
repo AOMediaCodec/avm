@@ -5813,17 +5813,15 @@ bool av2_rd_pick_partition(
   // motion search results to prune out unlikely partitions.
   if (part_search_state.forced_partition == PARTITION_INVALID &&
       is_bsize_gt(bsize, x->sb_enc.min_partition_size)) {
-    bool do_square_split = true;
     av2_prune_partitions_before_search(cpi, x, mi_row, mi_col, bsize, sms_tree,
-                                       &part_search_state, &do_square_split,
-                                       pc_tree);
+                                       &part_search_state, pc_tree);
   }
 
   // Pruning: eliminating partition types leading to coding block sizes
   // outside the min and max bsize limitations set from the encoder.
   av2_prune_partitions_by_max_min_bsize(
       &x->sb_enc, bsize, blk_params->has_rows && blk_params->has_cols,
-      &part_search_state, NULL);
+      &part_search_state);
 
   // Partition search
 BEGIN_PARTITION_SEARCH:

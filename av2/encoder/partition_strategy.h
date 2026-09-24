@@ -47,7 +47,7 @@ struct PartitionSearchState;
 void av2_simple_motion_search_based_split(
     AV2_COMP *const cpi, MACROBLOCK *x, SIMPLE_MOTION_DATA_TREE *sms_tree,
     int mi_row, int mi_col, BLOCK_SIZE bsize,
-    struct PartitionSearchState *partition_search_state, bool *do_square_split);
+    struct PartitionSearchState *partition_search_state);
 
 // Early terminates PARTITION_NONE using simple_motion_search features and the
 // rate, distortion, and rdcost of PARTITION_NONE. This is only called when:
@@ -69,7 +69,7 @@ void av2_simple_motion_search_early_term_none(
 void av2_prune_partitions_before_search(
     AV2_COMP *const cpi, MACROBLOCK *const x, int mi_row, int mi_col,
     BLOCK_SIZE bsize, SIMPLE_MOTION_DATA_TREE *const sms_tree,
-    struct PartitionSearchState *partition_search_state, bool *do_square_split,
+    struct PartitionSearchState *partition_search_state,
     const PC_TREE *pc_tree);
 
 // Run SMS motion search for a square block and populate sms_tree features.
@@ -88,7 +88,7 @@ void av2_sms_run_motion_search(AV2_COMP *const cpi, MACROBLOCK *x,
 // reach.
 void av2_prune_partitions_by_max_min_bsize(
     SuperBlockEnc *sb_enc, BLOCK_SIZE bsize, int is_not_edge_block,
-    struct PartitionSearchState *partition_search_state, bool *do_square_split);
+    struct PartitionSearchState *partition_search_state);
 
 SimpleMotionData *av2_get_sms_data_entry(SimpleMotionDataBufs *sms_bufs,
                                          int mi_row, int mi_col,

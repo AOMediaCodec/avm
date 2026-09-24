@@ -58,7 +58,7 @@ static INLINE int convert_bsize_to_idx(BLOCK_SIZE bsize) {
 void av2_simple_motion_search_based_split(
     AV2_COMP *const cpi, MACROBLOCK *x, SIMPLE_MOTION_DATA_TREE *sms_tree,
     int mi_row, int mi_col, BLOCK_SIZE bsize,
-    PartitionSearchState *partition_search_state, bool *do_square_split) {
+    PartitionSearchState *partition_search_state) {
   avm_clear_system_state();
 
   const AV2_COMMON *const cm = &cpi->common;
@@ -79,8 +79,6 @@ void av2_simple_motion_search_based_split(
 
   const float split_only_thresh =
       av2_simple_motion_search_split_thresh[agg][res_idx][bsize_idx];
-  const float no_split_thresh =
-      av2_simple_motion_search_no_split_thresh[agg][res_idx][bsize_idx];
 
   float features[FEATURE_SIZE_SMS_SPLIT] = { 0.0f };
   simple_motion_search_prune_part_features(cpi, x, sms_tree, mi_row, mi_col,
@@ -97,11 +95,6 @@ void av2_simple_motion_search_based_split(
 
   if (score > split_only_thresh) {
     partition_search_state->partition_allowed[PARTITION_NONE] = false;
-  }
-
-  if (cpi->sf.part_sf.simple_motion_search_split >= 2 &&
-      score < no_split_thresh) {
-    *do_square_split = false;
   }
 }
 
@@ -386,8 +379,7 @@ void av2_sms_run_motion_search(AV2_COMP *const cpi, MACROBLOCK *x,
 void av2_prune_partitions_before_search(
     AV2_COMP *const cpi, MACROBLOCK *const x, int mi_row, int mi_col,
     BLOCK_SIZE bsize, SIMPLE_MOTION_DATA_TREE *const sms_tree,
-    PartitionSearchState *partition_search_state, bool *do_square_split,
-    const PC_TREE *pc_tree) {
+    PartitionSearchState *partition_search_state, const PC_TREE *pc_tree) {
   const AV2_COMMON *const cm = &cpi->common;
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   if (!bru_is_sb_active(cm, mi_col, mi_row)) return;
@@ -413,7 +405,7 @@ void av2_prune_partitions_before_search(
       cpi->sf.part_sf.simple_motion_search_split &&
       av2_partition_ml_pruning_active(
           x, partition_search_state->forced_partition) &&
-      *do_square_split && bsize >= BLOCK_8X8 &&
+      bsize >= BLOCK_8X8 &&
       mi_row + mi_size_high[bsize] <= mi_params->mi_rows &&
       bsize < BLOCK_256X256 &&
       mi_col + mi_size_wide[bsize] <= mi_params->mi_cols &&
@@ -422,8 +414,7 @@ void av2_prune_partitions_before_search(
 
   if (try_split_only) {
     av2_simple_motion_search_based_split(cpi, x, sms_tree, mi_row, mi_col,
-                                         bsize, partition_search_state,
-                                         do_square_split);
+                                         bsize, partition_search_state);
     if (!partition_search_state->partition_allowed[PARTITION_NONE]) {
       av2_cache_best_partition(x->sms_bufs, mi_row, mi_col, bsize, cm->sb_size,
                                PARTITION_HORZ, (int8_t)pc_tree->region_type);
@@ -442,7 +433,7 @@ void av2_prune_partitions_before_search(
 
 void av2_prune_partitions_by_max_min_bsize(
     SuperBlockEnc *sb_enc, BLOCK_SIZE bsize, int is_not_edge_block,
-    PartitionSearchState *partition_search_state, bool *do_square_split) {
+    PartitionSearchState *partition_search_state) {
   if (!is_partition_point(bsize) ||
       partition_search_state->forced_partition != PARTITION_INVALID) {
     // Special case. We can't enforce min/max constraints here.
@@ -460,7 +451,6 @@ void av2_prune_partitions_by_max_min_bsize(
   const int is_le_min_sq_part = is_bsize_geq(sb_enc->min_partition_size, bsize);
   const int is_gt_max_sq_part = (block_height > max_partition_size_1d) ||
                                 (block_width > max_partition_size_1d);
-  (void)do_square_split;
   (void)is_not_edge_block;
 
   if (is_gt_max_sq_part) {  // current block size is larger than max size.
