@@ -43,10 +43,6 @@
 
 struct PartitionSearchState;
 
-void av2_intra_mode_cnn_partition(
-    const AV2_COMMON *const cm, MACROBLOCK *x, BLOCK_SIZE bsize, int label_idx,
-    struct PartitionSearchState *partition_search_state, bool *do_square_split);
-
 // Performs a simple_motion_search with a single reference frame and extract
 // the variance of residues. Then use the features to determine whether we want
 // to go straight to splitting without trying PARTITION_NONE

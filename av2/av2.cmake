@@ -193,8 +193,6 @@ list(
   "${AVM_ROOT}/av2/encoder/bitstream_ci.c"
   "${AVM_ROOT}/av2/encoder/bitstream.h"
   "${AVM_ROOT}/av2/encoder/block.h"
-  "${AVM_ROOT}/av2/encoder/cnn.c"
-  "${AVM_ROOT}/av2/encoder/cnn.h"
   "${AVM_ROOT}/av2/encoder/compound_type.c"
   "${AVM_ROOT}/av2/encoder/compound_type.h"
   "${AVM_ROOT}/av2/encoder/context_tree.c"
