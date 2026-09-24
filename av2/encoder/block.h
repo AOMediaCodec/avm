@@ -25,7 +25,6 @@
 #include "av2/encoder/enc_enums.h"
 #include "av2/encoder/hash.h"
 #include "av2/encoder/hash_motion.h"
-#include "av2/encoder/partition_cnn_weights.h"
 #include "av2/encoder/tx_cache.h"
 
 #ifdef __cplusplus
@@ -637,25 +636,6 @@ typedef struct SimpleMotionDataBufs {
 } SimpleMotionDataBufs;
 
 #undef MAKE_SM_DATA_BUF
-
-/*! \brief Holds some parameters related to partitioning schemes in AV2.
- */
-// TODO(chiyotsai@google.com): Consolidate this with SIMPLE_MOTION_DATA_TREE
-typedef struct {
-  // The following 4 parameters are used for cnn-based partitioning on intra
-  // frame.
-  /*! \brief Current index on the partition block quad tree.
-   *
-   * Used to index into the cnn buffer for partition decision.
-   */
-  int quad_tree_idx;
-  //! Whether the CNN buffer contains valid output.
-  int cnn_output_valid;
-  //! A buffer used by our segmentation CNN for intra-frame partitioning.
-  float cnn_buffer[CNN_OUT_BUF_SIZE];
-  //! log of the quantization parameter of the ancestor BLOCK_64X64.
-  float log_q;
-} PartitionSearchInfo;
 
 /*! \brief Defines the parameters used to perform txfm search.
  *
@@ -1410,13 +1390,6 @@ typedef struct macroblock {
   uint64_t picked_ref_frames_mask[MAX_MIB_SIZE * MAX_MIB_SIZE];
 
   /**@}*/
-
-  /*****************************************************************************
-   * \name Partition Search
-   ****************************************************************************/
-  /**@{*/
-  //! Stores some partition-search related buffers.
-  PartitionSearchInfo part_search_info;
 
   /*! \brief Whether to disable some features to force a mode in current block.
    *
