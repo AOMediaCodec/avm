@@ -341,7 +341,6 @@ typedef struct PARTITION_SPEED_FEATURES {
 
   // Perform simple_motion_search on each possible subblock and use it to prune
   // PARTITION_HORZ and PARTITION_VERT.
-  int simple_motion_search_prune_rect;
 
   // Perform simple motion search before none_partition to decide if we
   // want to remove all partitions other than PARTITION_SPLIT. If set to 0, this

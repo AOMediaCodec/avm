@@ -514,7 +514,6 @@ static INLINE void init_encode_rd_sb(AV2_COMP *cpi, ThreadData *td,
   const SPEED_FEATURES *sf = &cpi->sf;
   const int use_simple_motion_search =
       (sf->part_sf.simple_motion_search_split ||
-       sf->part_sf.simple_motion_search_prune_rect ||
        sf->part_sf.simple_motion_search_early_term_none ||
        sf->part_sf.ml_early_term_after_part_split_level) &&
       !frame_is_intra_only(cm);
