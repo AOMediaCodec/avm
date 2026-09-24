@@ -74,11 +74,6 @@ BLOCK_SIZE av2_predict_max_partition(const AV2_COMP *const cpi,
                                      const MACROBLOCK *const x,
                                      const float *features);
 
-// ML-based partition search breakout after PARTITION_NONE.
-int av2_ml_predict_breakout(const AV2_COMP *const cpi, BLOCK_SIZE bsize,
-                            const MACROBLOCK *const x,
-                            const RD_STATS *const rd_stats,
-                            unsigned int pb_source_variance);
 
 // The first round of partition pruning determined before any partition
 // has been tested. The decisions will be updated and passed back
