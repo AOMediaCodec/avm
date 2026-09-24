@@ -4047,8 +4047,7 @@ static void prune_partitions_after_none(AV2_COMP *const cpi, MACROBLOCK *x,
                                         SIMPLE_MOTION_DATA_TREE *sms_tree,
                                         PICK_MODE_CONTEXT *ctx_none,
                                         PartitionSearchState *part_search_state,
-                                        RD_STATS *best_rdc,
-                                        unsigned int *pb_source_variance) {
+                                        RD_STATS *best_rdc) {
   const AV2_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
   const PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
@@ -4061,16 +4060,6 @@ static void prune_partitions_after_none(AV2_COMP *const cpi, MACROBLOCK *x,
 
   if (!frame_is_intra_only(cm) && part_search_state->do_rectangular_split &&
       !xd->lossless[xd->mi[0]->segment_id] && ctx_none->skippable) {
-    const int use_ml_based_breakout =
-        bsize <= cpi->sf.part_sf.use_square_partition_only_threshold &&
-        is_square_block(bsize) && bsize > BLOCK_4X4 && xd->bd == 8;
-    if (use_ml_based_breakout) {
-      if (av2_ml_predict_breakout(cpi, bsize, x, this_rdc,
-                                  *pb_source_variance)) {
-        part_search_state->do_rectangular_split = false;
-      }
-    }
-
     // Adjust dist breakout threshold according to the partition size.
     const int right_shift =
         ((2 * (BLOCK_128_MI_SIZE_LOG2)) -
@@ -4399,8 +4388,7 @@ static void none_partition_search(
         // Disable split and rectangular partition search based on
         // PARTITION_NONE cost.
         prune_partitions_after_none(cpi, x, sms_tree, *ctx_none,
-                                    part_search_state, best_rdc,
-                                    pb_source_variance);
+                                    part_search_state, best_rdc);
       }
     }
     // Record picked ref frame to prune ref frames for other partition types.

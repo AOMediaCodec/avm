@@ -159,11 +159,6 @@ static void set_good_speed_feature_framesize_dependent(
 
   // TODO(huisu@google.com): train models for 720P and above.
   if (!is_720p_or_larger) {
-    sf->part_sf.ml_partition_search_breakout_thresh[0] = 200;  // BLOCK_8X8
-    sf->part_sf.ml_partition_search_breakout_thresh[1] = 250;  // BLOCK_16X16
-    sf->part_sf.ml_partition_search_breakout_thresh[2] = 300;  // BLOCK_32X32
-    sf->part_sf.ml_partition_search_breakout_thresh[3] = 500;  // BLOCK_64X64
-    sf->part_sf.ml_partition_search_breakout_thresh[4] = -1;   // BLOCK_128X128
     sf->part_sf.ml_early_term_after_part_split_level = 1;
   }
 
@@ -193,11 +188,6 @@ static void set_good_speed_feature_framesize_dependent(
     }
 
     if (!is_720p_or_larger) {
-      sf->part_sf.ml_partition_search_breakout_thresh[0] = 200;  // BLOCK_8X8
-      sf->part_sf.ml_partition_search_breakout_thresh[1] = 250;  // BLOCK_16X16
-      sf->part_sf.ml_partition_search_breakout_thresh[2] = 300;  // BLOCK_32X32
-      sf->part_sf.ml_partition_search_breakout_thresh[3] = 300;  // BLOCK_64X64
-      sf->part_sf.ml_partition_search_breakout_thresh[4] = -1;  // BLOCK_128X128
     }
     sf->part_sf.ml_early_term_after_part_split_level = 2;
   }
@@ -818,10 +808,6 @@ static AVM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->partition_search_breakout_dist_thr = 0;
   part_sf->partition_search_breakout_rate_thr = 0;
   part_sf->ml_early_term_after_part_split_level = 0;
-  for (int i = 0; i < PARTITION_BLOCK_SIZES; ++i) {
-    part_sf->ml_partition_search_breakout_thresh[i] =
-        -1;  // -1 means not enabled.
-  }
   part_sf->simple_motion_search_prune_agg = 0;
   part_sf->simple_motion_search_split = 0;
   part_sf->simple_motion_search_early_term_none = 0;
@@ -1082,9 +1068,6 @@ static void av2_disable_ml_based_partition_sf(
   part_sf->prune_split_ml_level = -1;
   part_sf->prune_split_ml_level_inter = -1;
 #endif
-  for (int i = 0; i < PARTITION_BLOCK_SIZES; ++i) {
-    part_sf->ml_partition_search_breakout_thresh[i] = -1;
-  }
 }
 
 static AVM_INLINE void init_lc_sf(LC_DEC_SPEED_FEATURES *lc_sf) {
