@@ -502,69 +502,6 @@ static AVM_INLINE void simple_motion_search_prune_part_features(
   features[f_idx++] = (float)mi_size_high_log2[left_bsize];
 }
 
-void av2_simple_motion_search_prune_rect(
-    AV2_COMP *const cpi, MACROBLOCK *x, SIMPLE_MOTION_DATA_TREE *sms_tree,
-    int mi_row, int mi_col, BLOCK_SIZE bsize,
-    PartitionSearchState *partition_search_state) {
-  // TODO(urvang): Need to change for uneven 4-way partition support.
-  assert(0 && "Not implemented");
-  avm_clear_system_state();
-  const AV2_COMMON *const cm = &cpi->common;
-  const int bsize_idx = convert_bsize_to_idx(bsize);
-  const int is_720p_or_larger = AVMMIN(cm->width, cm->height) >= 720;
-  const int is_480p_or_larger = AVMMIN(cm->width, cm->height) >= 480;
-  // res_idx is 0 for lowres, 1 for 48p, 2 for 720p+
-  const int res_idx = is_480p_or_larger + is_720p_or_larger;
-
-  // Get model parameters
-  const NN_CONFIG *nn_config =
-      av2_simple_motion_search_prune_rect_nn_config[bsize_idx];
-  const float *ml_mean = av2_simple_motion_search_prune_rect_mean[bsize_idx],
-              *ml_std = av2_simple_motion_search_prune_rect_std[bsize_idx];
-
-  const int agg = cpi->sf.part_sf.simple_motion_search_prune_agg;
-  const float prune_thresh =
-      av2_simple_motion_search_prune_rect_thresh[agg][res_idx][bsize_idx];
-
-  // If there is no valid threshold, return immediately.
-  if (!nn_config || prune_thresh == 0.0f) {
-    return;
-  }
-
-  // Get features
-  float features[FEATURE_SIZE_SMS_PRUNE_PART] = { 0.0f };
-  simple_motion_search_prune_part_features(cpi, x, sms_tree, mi_row, mi_col,
-                                           bsize, features,
-                                           FEATURE_SMS_PRUNE_PART_FLAG);
-  for (int f_idx = 0; f_idx < FEATURE_SIZE_SMS_PRUNE_PART; f_idx++) {
-    features[f_idx] = (features[f_idx] - ml_mean[f_idx]) / ml_std[f_idx];
-  }
-
-  // Get probabilities
-  float scores[EXT_PARTITION_TYPES] = { 0.0f },
-        probs[EXT_PARTITION_TYPES] = { 0.0f };
-  const int num_classes = (bsize == BLOCK_128X128 || bsize == BLOCK_8X8)
-                              ? PARTITION_TYPES
-                              : EXT_PARTITION_TYPES;
-
-  av2_nn_predict(features, nn_config, 1, scores);
-  avm_clear_system_state();
-
-  av2_nn_softmax(scores, probs, num_classes);
-
-  // Determine if we should prune rectangular partitions.
-  if (cpi->sf.part_sf.simple_motion_search_prune_rect &&
-      !frame_is_intra_only(cm) &&
-      (partition_search_state->partition_allowed[PARTITION_HORZ] ||
-       partition_search_state->partition_allowed[PARTITION_VERT]) &&
-      bsize >= BLOCK_8X8) {
-    partition_search_state->prune_partition[PARTITION_HORZ] =
-        probs[PARTITION_HORZ] <= prune_thresh;
-    partition_search_state->prune_partition[PARTITION_VERT] =
-        probs[PARTITION_VERT] <= prune_thresh;
-  }
-}
-
 // Early terminates PARTITION_NONE using simple_motion_search features and the
 // rate, distortion, and rdcost of PARTITION_NONE. This is only called when:
 //  - The frame is a show frame
@@ -933,27 +870,6 @@ void av2_prune_partitions_before_search(
                                (int8_t)pc_tree->region_type);
     }
     (void)pc_tree;
-  }
-
-  // Use simple motion search to prune out rectangular partition in some
-  // direction. The results are stored in prune_horz and prune_vert in order to
-  // bypass future related pruning checks if a pruning decision has been made.
-  const int try_prune_rect =
-      !cpi->is_screen_content_type &&
-      cpi->sf.part_sf.simple_motion_search_prune_rect &&
-      !frame_is_intra_only(cm) &&
-      partition_search_state->do_rectangular_split &&
-      (*do_square_split ||
-       partition_search_state->partition_allowed[PARTITION_NONE] ||
-       (partition_search_state->prune_partition[PARTITION_HORZ] &&
-        partition_search_state->prune_partition[PARTITION_VERT])) &&
-      (partition_search_state->partition_allowed[PARTITION_HORZ] ||
-       partition_search_state->partition_allowed[PARTITION_VERT]) &&
-      bsize >= BLOCK_8X8;
-
-  if (try_prune_rect) {
-    av2_simple_motion_search_prune_rect(cpi, x, sms_tree, mi_row, mi_col, bsize,
-                                        partition_search_state);
   }
 }
 

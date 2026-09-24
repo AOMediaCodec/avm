@@ -317,10 +317,6 @@ static void set_good_speed_features_framesize_independent(
   sf->gm_sf.prune_ref_frame_for_gm_search = boosted ? 0 : 1;
   sf->gm_sf.disable_gm_search_based_on_stats = 1;
 
-  // This speed feature is currently not implemented. See comment in
-  // av2_simple_motion_search_prune_rect() function.
-  sf->part_sf.simple_motion_search_prune_rect = 0;
-
   sf->inter_sf.disable_wedge_search_var_thresh = 0;
   // TODO(debargha): Test, tweak and turn on either 1 or 2
 
@@ -845,7 +841,6 @@ static AVM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   }
   part_sf->simple_motion_search_prune_agg = 0;
   part_sf->simple_motion_search_split = 0;
-  part_sf->simple_motion_search_prune_rect = 0;
   part_sf->simple_motion_search_early_term_none = 0;
   part_sf->simple_motion_search_reduce_search_steps = 0;
   part_sf->intra_cnn_split = 0;
@@ -1101,7 +1096,6 @@ static void av2_disable_ml_based_partition_sf(
   part_sf->auto_max_partition_based_on_simple_motion = NOT_IN_USE;
   part_sf->intra_cnn_split = 0;
   part_sf->simple_motion_search_split = 0;
-  part_sf->simple_motion_search_prune_rect = 0;
   part_sf->simple_motion_search_early_term_none = 0;
 #if CONFIG_ML_PART_SPLIT
   part_sf->prune_split_with_ml = 0;
