@@ -361,7 +361,6 @@ typedef struct PARTITION_SPEED_FEATURES {
 
   // Use CNN with luma pixels on source frame on each of the 64x64 subblock to
   // perform split/no_split decision on intra-frames.
-  int intra_cnn_split;
 
   // Prunes PARTITION_3 if PARTITION_NONE is used instead of PARTITION_HORZ|VERT
   int prune_rect_with_none_rd;
