@@ -495,11 +495,16 @@ static void fill_sms_buf(SimpleMotionDataBufs *data_buf,
 }
 
 // This function initializes the stats for encode_rd_sb.
+//
+// preserve_sms_cache is set for the wet pass of a fast two-pass superblock, to
+// keep the dry pass's simple-motion-search results. See
+// av2_reset_sms_cross_pass_state().
 static INLINE void init_encode_rd_sb(AV2_COMP *cpi, ThreadData *td,
                                      const TileDataEnc *tile_data,
                                      SIMPLE_MOTION_DATA_TREE *sms_root,
                                      RD_STATS *rd_cost, int mi_row, int mi_col,
-                                     int gather_tpl_data) {
+                                     int gather_tpl_data,
+                                     int preserve_sms_cache) {
   const AV2_COMMON *cm = &cpi->common;
   const TileInfo *tile_info = &tile_data->tile_info;
   MACROBLOCK *x = &td->mb;
@@ -513,10 +518,11 @@ static INLINE void init_encode_rd_sb(AV2_COMP *cpi, ThreadData *td,
        sf->part_sf.simple_motion_search_early_term_none ||
        sf->part_sf.ml_early_term_after_part_split_level) &&
       !frame_is_intra_only(cm);
-  if (use_simple_motion_search) {
+  // Tree-level valid flags gate the motion search, so they must reset with the
+  // buffers.
+  if (use_simple_motion_search && !preserve_sms_cache) {
     init_simple_motion_search_mvs(sms_root);
   }
-
   (void)sbi;
   init_ref_frame_space(cpi, td, mi_row, mi_col);
   x->sb_energy_level = 0;
@@ -540,7 +546,13 @@ static INLINE void init_encode_rd_sb(AV2_COMP *cpi, ThreadData *td,
   if (sf->part_sf.partition_search_type != VAR_BASED_PARTITION &&
       sf->part_sf.partition_search_type != FIXED_PARTITION) {
     SimpleMotionDataBufs *data_bufs = x->sms_bufs;
-    av2_init_sms_data_bufs(data_bufs);
+    // Full reset also separates one superblock from the next, so narrow rather
+    // than drop when carrying state across passes.
+    if (preserve_sms_cache) {
+      av2_reset_sms_cross_pass_state(data_bufs);
+    } else {
+      av2_init_sms_data_bufs(data_bufs);
+    }
     fill_sms_buf(data_bufs, sms_root, mi_row, mi_col, cm->sb_size, cm->sb_size,
                  0);
     fill_sms_buf(data_bufs, sms_root, mi_row, mi_col, cm->sb_size, cm->sb_size,
@@ -571,7 +583,7 @@ static AVM_INLINE void perform_one_partition_pass(
     AV2_COMP *cpi, ThreadData *td, TileDataEnc *tile_data, TokenExtra **tp,
     TokenExtra **tp_chroma, const int mi_row, const int mi_col,
     const SB_MULTI_PASS_MODE multi_pass_mode,
-    const SbMultiPassParams *multi_pass_params) {
+    const SbMultiPassParams *multi_pass_params, const int preserve_sms_cache) {
   const AV2_COMMON *const cm = &cpi->common;
   MACROBLOCK *const x = &td->mb;
   MACROBLOCKD *const xd = &x->e_mbd;
@@ -592,7 +604,7 @@ static AVM_INLINE void perform_one_partition_pass(
         (total_loop_num == 1 ? SHARED_PART
                              : (loop_idx == 0 ? LUMA_PART : CHROMA_PART));
     init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row, mi_col,
-                      1);
+                      1, preserve_sms_cache);
     PC_TREE *const pc_root =
         av2_alloc_pc_tree_node(xd->tree_type, mi_row, mi_col, cm->sb_size,
                                sb_size, NULL, PARTITION_NONE, 0, 1, ss_x, ss_y);
@@ -647,11 +659,12 @@ static AVM_INLINE void perform_two_partition_passes(
   REF_MV_BANK stored_mv_bank = td->mb.e_mbd.ref_mv_bank;
   WARP_PARAM_BANK stored_warp_bank = td->mb.e_mbd.warp_param_bank;
   perform_one_partition_pass(cpi, td, tile_data, tp, tp_chroma, mi_row, mi_col,
-                             SB_DRY_PASS, NULL);
+                             SB_DRY_PASS, NULL, 0);
 
-  // Second pass
+  // Second pass -- clean re-run (this helper proves SB_FIRST_PASS_STATS can
+  // reproduce a superblock).
   RD_STATS dummy_rdc;
-  init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row, mi_col,
+  init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row, mi_col, 0,
                     0);
   av2_reset_mbmi(&cm->mi_params, sb_size, mi_row, mi_col);
   av2_reset_simple_motion_tree_partition(sms_root, sb_size);
@@ -660,7 +673,7 @@ static AVM_INLINE void perform_two_partition_passes(
   td->mb.e_mbd.ref_mv_bank = stored_mv_bank;
   td->mb.e_mbd.warp_param_bank = stored_warp_bank;
   perform_one_partition_pass(cpi, td, tile_data, tp, tp_chroma, mi_row, mi_col,
-                             SB_WET_PASS, NULL);
+                             SB_WET_PASS, NULL, 0);
 }
 
 /*!\brief Mark the small nodes of the dry-pass tree as "search again".
@@ -781,7 +794,7 @@ static AVM_INLINE void perform_two_pass_partition_search(
   // are in the dry pass's rdmult units, which the wet pass must not recompute.
   if (fast_two_pass) av2_zero(x->unit_dry_rd);
   perform_one_partition_pass(cpi, td, tile_data, tp, tp_chroma, mi_row, mi_col,
-                             SB_DRY_PASS, NULL);
+                             SB_DRY_PASS, NULL, 0);
   PARTITION_TREE *part_ref = xd->sbi->ptree_root[0];
   // Set this to NULL otherwise part_ref will get freed in the second pass.
   xd->sbi->ptree_root[0] = NULL;
@@ -790,17 +803,18 @@ static AVM_INLINE void perform_two_pass_partition_search(
   set_min_none_to_invalid(part_ref, get_larger_sqr_bsize(dry_floor),
                           resplit_max_side);
 
-  // Second pass
+  // Second pass. Fast reuses the dry pass's simple motion searches;
+  // conservative starts clean.
   RD_STATS dummy_rdc;
-  init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row, mi_col,
-                    0);
+  init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row, mi_col, 0,
+                    fast_two_pass);
   av2_reset_mbmi(&cm->mi_params, sb_size, mi_row, mi_col);
   av2_reset_simple_motion_tree_partition(sms_root, sb_size);
 
   SbMultiPassParams multi_pass_params = { part_ref };
   av2_restore_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
   perform_one_partition_pass(cpi, td, tile_data, tp, tp_chroma, mi_row, mi_col,
-                             SB_WET_PASS, &multi_pass_params);
+                             SB_WET_PASS, &multi_pass_params, fast_two_pass);
 
   av2_free_ptree_recursive(part_ref);
 }
@@ -839,8 +853,8 @@ static AVM_INLINE void encode_rd_sb(AV2_COMP *cpi, ThreadData *td,
 
   x->sms_bufs = td->sms_bufs;
   x->reuse_inter_mode_cache_type = cpi->sf.inter_sf.reuse_erp_mode_flag;
-  init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row, mi_col,
-                    1);
+  init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row, mi_col, 1,
+                    0);
   const int intra_sdp_enabled = is_sdp_enabled_in_keyframe(cm);
 
   // Encode the superblock
@@ -856,7 +870,7 @@ static AVM_INLINE void encode_rd_sb(AV2_COMP *cpi, ThreadData *td,
           (total_loop_num == 1 ? SHARED_PART
                                : (loop_idx == 0 ? LUMA_PART : CHROMA_PART));
       init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row,
-                        mi_col, 1);
+                        mi_col, 1, 0);
       av2_reset_ptree_in_sbi(xd->sbi, xd->tree_type);
       av2_build_partition_tree_fixed_partitioning(
           cm, xd->tree_type, mi_row, mi_col,
@@ -888,7 +902,7 @@ static AVM_INLINE void encode_rd_sb(AV2_COMP *cpi, ThreadData *td,
           (total_loop_num == 1 ? SHARED_PART
                                : (loop_idx == 0 ? LUMA_PART : CHROMA_PART));
       init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row,
-                        mi_col, 1);
+                        mi_col, 1, 0);
       PC_TREE *const pc_root = av2_alloc_pc_tree_node(
           xd->tree_type, mi_row, mi_col, cm->sb_size, sb_size, NULL,
           PARTITION_NONE, 0, 1, ss_x, ss_y);
@@ -925,7 +939,7 @@ static AVM_INLINE void encode_rd_sb(AV2_COMP *cpi, ThreadData *td,
       const int plane_end = get_partition_plane_end(xd->tree_type, num_planes);
       const BLOCK_SIZE min_partition_size = x->sb_enc.min_partition_size;
       init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row,
-                        mi_col, 1);
+                        mi_col, 1, 0);
       PC_TREE *pc_root;
       if (cpi->sf.rt_sf.use_nonrd_partition) {
         if (!td->pc_root) {
@@ -1001,7 +1015,7 @@ static AVM_INLINE void encode_rd_sb(AV2_COMP *cpi, ThreadData *td,
           av2_two_pass_part_is_fast(&sf->part_sf));
     } else {
       perform_one_partition_pass(cpi, td, tile_data, tp, tp_chroma, mi_row,
-                                 mi_col, SB_SINGLE_PASS, NULL);
+                                 mi_col, SB_SINGLE_PASS, NULL, 0);
     }
 
     // Reset to 0 so that it wouldn't be used elsewhere mistakenly.

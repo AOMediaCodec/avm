@@ -229,6 +229,27 @@ static INLINE void av2_init_sms_data_bufs(SimpleMotionDataBufs *data_bufs) {
   memset(data_bufs, 0, sizeof(*data_bufs));
 }
 
+// Boundary reset between the two passes of the fast two-pass partition search.
+// Preserves the motion-search results (MVs, sse/var, rate/dist/rdcost,
+// start_mv_list, ref_frame, rdmult, and ML residual stats -- all pass-invariant
+// functions of source + reference + geometry) so the wet pass reuses them, and
+// clears only what must not cross the pass boundary (mode_cache, old_sms,
+// prev_partition).
+static INLINE void av2_reset_sms_cross_pass_state(
+    SimpleMotionDataBufs *data_bufs) {
+  static_assert(sizeof(SimpleMotionDataBufs) % sizeof(SimpleMotionData) == 0,
+                "SimpleMotionDataBufs must hold a whole number of entries");
+  SimpleMotionData *const entries = (SimpleMotionData *)data_bufs;
+  const size_t num_entries = sizeof(*data_bufs) / sizeof(SimpleMotionData);
+  for (size_t i = 0; i < num_entries; i++) {
+    SimpleMotionData *const entry = &entries[i];
+    av2_zero(entry->mode_cache);
+    entry->old_sms = NULL;
+    entry->has_prev_partition = 0;
+    entry->prev_partition = (PARTITION_TYPE)0;
+  }
+}
+
 struct PartitionSearchState;
 void av2_gather_erp_rect_features(
     float *ml_features, AV2_COMP *cpi, MACROBLOCK *x, const TileInfo *tile_info,
