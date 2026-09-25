@@ -293,6 +293,7 @@ static void set_good_speed_features_framesize_independent(
     const AV2_COMP *const cpi, SPEED_FEATURES *const sf, int speed) {
   const AV2_COMMON *const cm = &cpi->common;
   const int is_480p_or_larger = AVMMIN(cm->width, cm->height) >= 480;
+  const int is_1080p_or_larger = AVMMIN(cm->width, cm->height) >= 1080;
   const GF_GROUP *const gf_group = &cpi->gf_group;
   const int boosted = frame_is_boosted(cpi);
   const int is_boosted_arf2_bwd_type =
@@ -623,7 +624,8 @@ static void set_good_speed_features_framesize_independent(
   }
 
   if (speed >= 4) {
-    sf->part_sf.sms_unified_prune = is_480p_or_larger ? 1 : 0;
+    sf->part_sf.sms_unified_prune_horz = is_480p_or_larger ? 1 : 0;
+    sf->part_sf.sms_unified_prune_vert = is_1080p_or_larger ? 1 : 0;
 
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
 
@@ -860,7 +862,8 @@ static AVM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->prune_rect_with_ml = 0;
   part_sf->partition_pruning_with_mlp = 0;
   part_sf->partition_pruning_with_mlp_none_thresh = 0.0f;
-  part_sf->sms_unified_prune = 0;
+  part_sf->sms_unified_prune_horz = 0;
+  part_sf->sms_unified_prune_vert = 0;
   part_sf->end_part_search_after_consec_failures = 0;
   part_sf->ext_recur_depth_level = 0;
   part_sf->uneven_4way_recur_depth_level = 0;
