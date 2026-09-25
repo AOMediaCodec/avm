@@ -25,8 +25,6 @@
 #include "av2/encoder/simple_intrapred_tflite_model_32x32.h"
 #include "av2/encoder/simple_intrapred_tflite_model_64x64.h"
 #include "av2/encoder/sms_part_split_prune_tflite_model.h"
-#include "av2/encoder/sms_part_none_prune_tflite_model.h"
-#include "av2/encoder/sms_part_none_prune_rect_tflite_model.h"
 
 #if HAVE_FEXCEPT
 #ifndef _GNU_SOURCE
@@ -98,10 +96,6 @@ struct ModelDef {
   { data,      sizeof(data), { false, NULL, NULL, NULL },          \
     type,      #data,        #type,                                \
     part_type, n_features,   model_version }
-#define MODELDEF_NORM(data, type, part_type, n_features, model_version)         \
-  { data,      sizeof(data), { true, data##_mean, data##_std, data##_std_inv }, \
-    type,      #data,        #type,                                             \
-    part_type, n_features,   model_version }
 // clang-format on
 
 const ModelDef models[] = {
@@ -114,42 +108,6 @@ const ModelDef models[] = {
            37, 0),
   MODELDEF(a3_qp96_128_160_luma_BLOCK_16X16_intra_tflite, MODEL_16X16, PT_SPLIT,
            37, 0),
-  MODELDEF_NORM(sms_part_none_prune_tflite_model_bs12_110,
-                MODEL_INTER_NONE_64X64_110, PT_NONE, 66, 6),
-  MODELDEF_NORM(sms_part_none_prune_tflite_model_bs12_135,
-                MODEL_INTER_NONE_64X64_135, PT_NONE, 66, 6),
-  MODELDEF_NORM(sms_part_none_prune_tflite_model_bs9_110,
-                MODEL_INTER_NONE_32X32_110, PT_NONE, 66, 6),
-  MODELDEF_NORM(sms_part_none_prune_tflite_model_bs9_135,
-                MODEL_INTER_NONE_32X32_135, PT_NONE, 66, 6),
-  MODELDEF_NORM(sms_part_none_prune_tflite_model_bs6_110,
-                MODEL_INTER_NONE_16X16_110, PT_NONE, 66, 6),
-  MODELDEF_NORM(sms_part_none_prune_tflite_model_bs6_135,
-                MODEL_INTER_NONE_16X16_135, PT_NONE, 66, 6),
-  MODELDEF_NORM(sms_part_none_prune_tflite_model_bs11_110,
-                MODEL_INTER_NONE_BS11_110, PT_NONE, 66, 6),
-  MODELDEF_NORM(sms_part_none_prune_tflite_model_bs11_135,
-                MODEL_INTER_NONE_BS11_135, PT_NONE, 66, 6),
-  MODELDEF_NORM(sms_part_none_prune_tflite_model_bs10_110,
-                MODEL_INTER_NONE_BS10_110, PT_NONE, 66, 6),
-  MODELDEF_NORM(sms_part_none_prune_tflite_model_bs10_135,
-                MODEL_INTER_NONE_BS10_135, PT_NONE, 66, 6),
-  MODELDEF_NORM(sms_part_none_prune_tflite_model_bs8_110,
-                MODEL_INTER_NONE_BS8_110, PT_NONE, 66, 6),
-  MODELDEF_NORM(sms_part_none_prune_tflite_model_bs8_135,
-                MODEL_INTER_NONE_BS8_135, PT_NONE, 66, 6),
-  MODELDEF_NORM(sms_part_none_prune_tflite_model_bs7_110,
-                MODEL_INTER_NONE_BS7_110, PT_NONE, 66, 6),
-  MODELDEF_NORM(sms_part_none_prune_tflite_model_bs7_135,
-                MODEL_INTER_NONE_BS7_135, PT_NONE, 66, 6),
-  MODELDEF_NORM(sms_part_none_prune_tflite_model_bs5_110,
-                MODEL_INTER_NONE_BS5_110, PT_NONE, 66, 6),
-  MODELDEF_NORM(sms_part_none_prune_tflite_model_bs5_135,
-                MODEL_INTER_NONE_BS5_135, PT_NONE, 66, 6),
-  MODELDEF_NORM(sms_part_none_prune_tflite_model_bs4_110,
-                MODEL_INTER_NONE_BS4_110, PT_NONE, 66, 6),
-  MODELDEF_NORM(sms_part_none_prune_tflite_model_bs4_135,
-                MODEL_INTER_NONE_BS4_135, PT_NONE, 66, 6),
   MODELDEF(sms_part_split_prune_tflite_model_bs12, MODEL_INTER_SPLIT_64X64,
            PT_SPLIT, 31, 0),
   MODELDEF(sms_part_split_prune_tflite_model_bs9, MODEL_INTER_SPLIT_32X32,

@@ -171,13 +171,6 @@ enum {
 } UENUM1BYTE(PARTITION_SEARCH_TYPE);
 
 enum {
-  NOT_IN_USE,
-  DIRECT_PRED,
-  RELAXED_PRED,
-  ADAPT_PRED
-} UENUM1BYTE(MAX_PART_PRED_MODE);
-
-enum {
   LAST_MV_DATA,
   CURRENT_Q,
   QTR_ONLY,
@@ -315,11 +308,6 @@ typedef struct PARTITION_SPEED_FEATURES {
   // Use square partition only beyond this block size.
   BLOCK_SIZE use_square_partition_only_threshold;
 
-  // Sets min and max square partition levels for this superblock based on
-  // motion vector and prediction error distribution produced from 16x16
-  // simple motion search
-  MAX_PART_PRED_MODE auto_max_partition_based_on_simple_motion;
-
   // Min and max square partition size we enable (block_size) as per auto
   // min max, but also used by adjust partitioning, and pick_partitioning.
   BLOCK_SIZE default_min_partition_size;
@@ -329,19 +317,12 @@ typedef struct PARTITION_SPEED_FEATURES {
   int64_t partition_search_breakout_dist_thr;
   int partition_search_breakout_rate_thr;
 
-  // Thresholds for ML based partition search breakout.
-  int ml_partition_search_breakout_thresh[PARTITION_BLOCK_SIZES];
-
   // Allow skipping partition search for still image frame
   int allow_partition_search_skip;
 
   // The aggressiveness of pruning with simple_motion_search.
   // Currently 0 is the lowest, and 2 the highest.
   int simple_motion_search_prune_agg;
-
-  // Perform simple_motion_search on each possible subblock and use it to prune
-  // PARTITION_HORZ and PARTITION_VERT.
-  int simple_motion_search_prune_rect;
 
   // Perform simple motion search before none_partition to decide if we
   // want to remove all partitions other than PARTITION_SPLIT. If set to 0, this
@@ -359,10 +340,6 @@ typedef struct PARTITION_SPEED_FEATURES {
   // single_motion_search (assuming no other speed features). Otherwise, reduce
   // the number of steps by the value contained in this variable.
   int simple_motion_search_reduce_search_steps;
-
-  // Use CNN with luma pixels on source frame on each of the 64x64 subblock to
-  // perform split/no_split decision on intra-frames.
-  int intra_cnn_split;
 
   // Prunes PARTITION_3 if PARTITION_NONE is used instead of PARTITION_HORZ|VERT
   int prune_rect_with_none_rd;
@@ -392,9 +369,6 @@ typedef struct PARTITION_SPEED_FEATURES {
   // and av2_two_pass_part_is_fast().
   int two_pass_partition_search;
 
-  // Prunes rect partition with ml model
-  int prune_rect_with_ml;
-
   // End partition search if the grandparent, parent, and current block all
   // failed PARTITION_NONE
   int end_part_search_after_consec_failures;
@@ -419,11 +393,6 @@ typedef struct PARTITION_SPEED_FEATURES {
   // the current best partition's boundary after searching NONE, HORZ, and VERT.
   int prune_part_h_with_partition_boundary;
 
-  // Prune r-way partition types if their resulting boundary does not agree with
-  // the current best partition's boundary after searching NONE, HORZ, VERT, and
-  // H-parts.
-  int prune_part_4_with_partition_boundary;
-
   // Controls the early termination fast method for inter-SDP (search of intra
   // region partitioning in inter frames).
   // 0: Use the original fast method that early-terminates inter-SDP when more
@@ -438,7 +407,6 @@ typedef struct PARTITION_SPEED_FEATURES {
   int prune_split_with_ml;
   int prune_split_ml_level;
   int prune_split_ml_level_inter;
-  int prune_none_with_ml;
   int remove_qp_restriction_with_ml;
 #endif  // CONFIG_ML_PART_SPLIT
 

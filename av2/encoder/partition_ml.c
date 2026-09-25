@@ -383,80 +383,7 @@ static void get_model_type(bool intra, BLOCK_SIZE bsize, int harsh_level,
                            int *num_models) {
   *num_models = 0;
 
-  // CWG-E158
   //        intra? lvl sz  model                       low    high  qp_l qp_h
-  TRY_MODEL(false, 1, 12, MODEL_INTER_NONE_64X64_110, 0.15f, 0.55f, 75, 110)
-  TRY_MODEL(false, 0, 12, MODEL_INTER_NONE_64X64_110, 0.10f, 0.68f, 75, 110)
-  TRY_MODEL(false, -1, 12, MODEL_INTER_NONE_64X64_110, 0.07f, 0.76f, 75, 110)
-  TRY_MODEL(false, -2, 12, MODEL_INTER_NONE_64X64_110, 0.05f, 0.85f, 75, 110)
-  TRY_MODEL(false, 1, 12, MODEL_INTER_NONE_64X64_135, 0.17f, 0.57f, 111, 135)
-  TRY_MODEL(false, 0, 12, MODEL_INTER_NONE_64X64_135, 0.10f, 0.70f, 111, 135)
-  TRY_MODEL(false, -1, 12, MODEL_INTER_NONE_64X64_135, 0.07f, 0.78f, 111, 135)
-  TRY_MODEL(false, -2, 12, MODEL_INTER_NONE_64X64_135, 0.05f, 0.87f, 111, 135)
-  TRY_MODEL(false, 1, 11, MODEL_INTER_NONE_BS11_110, 0.17f, 0.62f, 75, 110)
-  TRY_MODEL(false, 0, 11, MODEL_INTER_NONE_BS11_110, 0.12f, 0.73f, 75, 110)
-  TRY_MODEL(false, -1, 11, MODEL_INTER_NONE_BS11_110, 0.09f, 0.80f, 75, 110)
-  TRY_MODEL(false, -2, 11, MODEL_INTER_NONE_BS11_110, 0.06f, 0.88f, 75, 110)
-  TRY_MODEL(false, 1, 11, MODEL_INTER_NONE_BS11_135, 0.09f, 0.49f, 111, 135)
-  TRY_MODEL(false, 0, 11, MODEL_INTER_NONE_BS11_135, 0.05f, 0.62f, 111, 135)
-  TRY_MODEL(false, -1, 11, MODEL_INTER_NONE_BS11_135, 0.05f, 0.72f, 111, 135)
-  TRY_MODEL(false, -2, 11, MODEL_INTER_NONE_BS11_135, 0.05f, 0.84f, 111, 135)
-  TRY_MODEL(false, 1, 10, MODEL_INTER_NONE_BS10_110, 0.18f, 0.60f, 75, 110)
-  TRY_MODEL(false, 0, 10, MODEL_INTER_NONE_BS10_110, 0.12f, 0.72f, 75, 110)
-  TRY_MODEL(false, -1, 10, MODEL_INTER_NONE_BS10_110, 0.09f, 0.79f, 75, 110)
-  TRY_MODEL(false, -2, 10, MODEL_INTER_NONE_BS10_110, 0.06f, 0.88f, 75, 110)
-  TRY_MODEL(false, 1, 10, MODEL_INTER_NONE_BS10_135, 0.19f, 0.63f, 111, 135)
-  TRY_MODEL(false, 0, 10, MODEL_INTER_NONE_BS10_135, 0.12f, 0.74f, 111, 135)
-  TRY_MODEL(false, -1, 10, MODEL_INTER_NONE_BS10_135, 0.09f, 0.82f, 111, 135)
-  TRY_MODEL(false, -2, 10, MODEL_INTER_NONE_BS10_135, 0.05f, 0.90f, 111, 135)
-  TRY_MODEL(false, 1, 9, MODEL_INTER_NONE_32X32_110, 0.18f, 0.71f, 75, 110)
-  TRY_MODEL(false, 0, 9, MODEL_INTER_NONE_32X32_110, 0.12f, 0.80f, 75, 110)
-  TRY_MODEL(false, -1, 9, MODEL_INTER_NONE_32X32_110, 0.08f, 0.85f, 75, 110)
-  TRY_MODEL(false, -2, 9, MODEL_INTER_NONE_32X32_110, 0.05f, 0.91f, 75, 110)
-  TRY_MODEL(false, 1, 9, MODEL_INTER_NONE_32X32_135, 0.16f, 0.61f, 111, 135)
-  TRY_MODEL(false, 0, 9, MODEL_INTER_NONE_32X32_135, 0.11f, 0.71f, 111, 135)
-  TRY_MODEL(false, -1, 9, MODEL_INTER_NONE_32X32_135, 0.08f, 0.78f, 111, 135)
-  TRY_MODEL(false, -2, 9, MODEL_INTER_NONE_32X32_135, 0.05f, 0.87f, 111, 135)
-  TRY_MODEL(false, 1, 8, MODEL_INTER_NONE_BS8_110, 0.14f, 0.69f, 75, 110)
-  TRY_MODEL(false, 0, 8, MODEL_INTER_NONE_BS8_110, 0.11f, 0.77f, 75, 110)
-  TRY_MODEL(false, -1, 8, MODEL_INTER_NONE_BS8_110, 0.10f, 0.82f, 111, 135)
-  TRY_MODEL(false, -2, 8, MODEL_INTER_NONE_BS8_110, 0.07f, 0.88f, 111, 135)
-  TRY_MODEL(false, 1, 8, MODEL_INTER_NONE_BS8_135, 0.21f, 0.74f, 111, 135)
-  TRY_MODEL(false, 0, 8, MODEL_INTER_NONE_BS8_135, 0.14f, 0.82f, 111, 135)
-  TRY_MODEL(false, -1, 8, MODEL_INTER_NONE_BS8_135, 0.10f, 0.88f, 111, 135)
-  TRY_MODEL(false, -2, 8, MODEL_INTER_NONE_BS8_135, 0.05f, 0.94f, 111, 135)
-  TRY_MODEL(false, 1, 7, MODEL_INTER_NONE_BS7_110, 0.15f, 0.70f, 75, 110)
-  TRY_MODEL(false, 0, 7, MODEL_INTER_NONE_BS7_110, 0.11f, 0.78f, 75, 110)
-  TRY_MODEL(false, -1, 7, MODEL_INTER_NONE_BS7_110, 0.09f, 0.83f, 75, 110)
-  TRY_MODEL(false, -2, 7, MODEL_INTER_NONE_BS7_110, 0.06f, 0.89f, 75, 110)
-  TRY_MODEL(false, 1, 7, MODEL_INTER_NONE_BS7_135, 0.21f, 0.73f, 111, 135)
-  TRY_MODEL(false, 0, 7, MODEL_INTER_NONE_BS7_135, 0.14f, 0.80f, 111, 135)
-  TRY_MODEL(false, -1, 7, MODEL_INTER_NONE_BS7_135, 0.10f, 0.84f, 111, 135)
-  TRY_MODEL(false, -2, 7, MODEL_INTER_NONE_BS7_135, 0.05f, 0.91f, 111, 135)
-  TRY_MODEL(false, 1, 6, MODEL_INTER_NONE_16X16_110, 0.22f, 0.85f, 75, 110)
-  TRY_MODEL(false, 0, 6, MODEL_INTER_NONE_16X16_110, 0.15f, 0.90f, 75, 110)
-  TRY_MODEL(false, -1, 6, MODEL_INTER_NONE_16X16_110, 0.12f, 0.93f, 75, 110)
-  TRY_MODEL(false, -2, 6, MODEL_INTER_NONE_16X16_110, 0.08f, 0.96f, 75, 110)
-  TRY_MODEL(false, 1, 6, MODEL_INTER_NONE_16X16_135, 0.25f, 0.77f, 111, 135)
-  TRY_MODEL(false, 0, 6, MODEL_INTER_NONE_16X16_135, 0.15f, 0.84f, 111, 135)
-  TRY_MODEL(false, -1, 6, MODEL_INTER_NONE_16X16_135, 0.09f, 0.87f, 111, 135)
-  TRY_MODEL(false, -2, 6, MODEL_INTER_NONE_16X16_135, 0.05f, 0.92f, 111, 135)
-  TRY_MODEL(false, 1, 5, MODEL_INTER_NONE_BS5_110, 0.17f, 0.82f, 75, 110)
-  TRY_MODEL(false, 0, 5, MODEL_INTER_NONE_BS5_110, 0.11f, 0.87f, 75, 110)
-  TRY_MODEL(false, -1, 5, MODEL_INTER_NONE_BS5_110, 0.08f, 0.90f, 75, 110)
-  TRY_MODEL(false, -2, 5, MODEL_INTER_NONE_BS5_110, 0.06f, 0.93f, 75, 110)
-  TRY_MODEL(false, 1, 5, MODEL_INTER_NONE_BS5_135, 0.18f, 0.84f, 111, 135)
-  TRY_MODEL(false, 0, 5, MODEL_INTER_NONE_BS5_135, 0.12f, 0.89f, 111, 135)
-  TRY_MODEL(false, -1, 5, MODEL_INTER_NONE_BS5_135, 0.10f, 0.92f, 111, 135)
-  TRY_MODEL(false, -2, 5, MODEL_INTER_NONE_BS5_135, 0.07f, 0.96f, 111, 135)
-  TRY_MODEL(false, 1, 4, MODEL_INTER_NONE_BS4_110, 0.18f, 0.80f, 75, 110)
-  TRY_MODEL(false, 0, 4, MODEL_INTER_NONE_BS4_110, 0.12f, 0.86f, 75, 110)
-  TRY_MODEL(false, -1, 4, MODEL_INTER_NONE_BS4_110, 0.09f, 0.89f, 75, 110)
-  TRY_MODEL(false, -2, 4, MODEL_INTER_NONE_BS4_110, 0.06f, 0.93f, 75, 110)
-  TRY_MODEL(false, 1, 4, MODEL_INTER_NONE_BS4_135, 0.19f, 0.84f, 111, 135)
-  TRY_MODEL(false, 0, 4, MODEL_INTER_NONE_BS4_135, 0.13f, 0.88f, 111, 135)
-  TRY_MODEL(false, -1, 4, MODEL_INTER_NONE_BS4_135, 0.11f, 0.91f, 111, 135)
-  TRY_MODEL(false, -2, 4, MODEL_INTER_NONE_BS4_135, 0.09f, 0.94f, 111, 135)
   // CWG-E070
   TRY_MODEL(true, -2, 15, MODEL_128X128, 0.3f, 0.98f, 60, 116)
   TRY_MODEL(true, -2, 12, MODEL_64X64, 0.03f, 0.7f, 60, 116)
@@ -529,8 +456,6 @@ static void av2_ml_part_split_features_inter(
 
   BLOCK_SIZE subsize_sq = get_partition_subsize(
       get_partition_subsize(bsize, PARTITION_HORZ), PARTITION_VERT);
-  BLOCK_SIZE subsize_hor = get_partition_subsize(bsize, PARTITION_HORZ);
-  BLOCK_SIZE subsize_ver = get_partition_subsize(bsize, PARTITION_VERT);
   if (subsize_sq == BLOCK_INVALID) {
     subsize_sq = get_partition_subsize(
         get_partition_subsize(bsize, PARTITION_VERT), PARTITION_HORZ);
@@ -571,49 +496,6 @@ static void av2_ml_part_split_features_inter(
       blk_features(out_features, FEATURE_INTER_SQ_3_PSNR,
                    FEATURE_INTER_SQ_3_LOG_MAG, FEATURE_INTER_SQ_3_LOG_SATDQ,
                    FEATURE_INTER_SQ_3_LOG_SATD, blk_sq_3, blk_area);
-    }
-  }
-
-  // The horizontal and vertical features are only used by the partition NONE
-  // pruning models. When partition NONE is disabled, do not calculate them
-  // this is because the SMS will cache the block statistics the first time
-  // it encounters it, and the partitions below introduce a different order
-  // of iterating those blocks, which creates the occasional stats mismatch
-  // when the NONE partitions are turned off.
-  if (subsize_hor != BLOCK_INVALID && cpi->sf.part_sf.prune_none_with_ml) {
-    int h_sub_mi = mi_size_high[subsize_hor];
-    SimpleMotionData *blk_hor_0 = av2_get_sms_data(
-        cpi, tile_info, x, mi_row, mi_col, subsize_hor, td, true, 1);
-    SimpleMotionData *blk_hor_1 = av2_get_sms_data(
-        cpi, tile_info, x, mi_row + h_sub_mi, mi_col, subsize_hor, td, true, 1);
-
-    if (out_features) {
-      int blk_area = block_size_wide[bsize] * block_size_high[bsize];
-      blk_features(out_features, FEATURE_INTER_HOR_0_PSNR,
-                   FEATURE_INTER_HOR_0_LOG_MAG, FEATURE_INTER_HOR_0_LOG_SATDQ,
-                   FEATURE_INTER_HOR_0_LOG_SATD, blk_hor_0, blk_area);
-      blk_features(out_features, FEATURE_INTER_HOR_1_PSNR,
-                   FEATURE_INTER_HOR_1_LOG_MAG, FEATURE_INTER_HOR_1_LOG_SATDQ,
-                   FEATURE_INTER_HOR_1_LOG_SATD, blk_hor_1, blk_area);
-    }
-  }
-
-  if (subsize_ver != BLOCK_INVALID && cpi->sf.part_sf.prune_none_with_ml) {
-    int w_sub_mi = mi_size_wide[subsize_ver];
-    SimpleMotionData *blk_ver_0 = av2_get_sms_data(
-        cpi, tile_info, x, mi_row, mi_col, subsize_ver, td, true, 1);
-    SimpleMotionData *blk_ver_1 = av2_get_sms_data(
-        cpi, tile_info, x, mi_row, mi_col + w_sub_mi, subsize_ver, td, true, 1);
-
-    if (out_features) {
-      int blk_area = block_size_wide[bsize] * block_size_high[bsize];
-
-      blk_features(out_features, FEATURE_INTER_VER_0_PSNR,
-                   FEATURE_INTER_VER_0_LOG_MAG, FEATURE_INTER_VER_0_LOG_SATDQ,
-                   FEATURE_INTER_VER_0_LOG_SATD, blk_ver_0, blk_area);
-      blk_features(out_features, FEATURE_INTER_VER_1_PSNR,
-                   FEATURE_INTER_VER_1_LOG_MAG, FEATURE_INTER_VER_1_LOG_SATDQ,
-                   FEATURE_INTER_VER_1_LOG_SATD, blk_ver_1, blk_area);
     }
   }
 
@@ -666,8 +548,6 @@ int av2_ml_part_split_infer(AV2_COMP *const cpi, MACROBLOCK *x, int mi_row,
                                ? 0
                                : (qp > (params.qp_high + qp_offset) ||
                                   qp < (params.qp_low + qp_offset)));
-    model_disabled |= get_model_part_type(model_type) == PT_NONE &&
-                      !cpi->sf.part_sf.prune_none_with_ml;
     if (model_disabled) continue;
 
     if (!has_features) {

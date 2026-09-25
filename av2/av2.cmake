@@ -116,9 +116,6 @@ list(APPEND AVM_AV2_COMMON_INTRIN_AVX2
      "${AVM_ROOT}/av2/common/x86/intra_matrix_avx2.c")
 
 if(CONFIG_AV2_ENCODER)
-  list(APPEND AVM_AV2_COMMON_SOURCES "${AVM_ROOT}/av2/encoder/erp_ml.c"
-       "${AVM_ROOT}/av2/encoder/erp_ml.h")
-
   if(CONFIG_TENSORFLOW_LITE)
     list(APPEND AVM_AV2_COMMON_SOURCES
          "${AVM_ROOT}/av2/tflite_models/op_registrations.cc"
@@ -193,8 +190,6 @@ list(
   "${AVM_ROOT}/av2/encoder/bitstream_ci.c"
   "${AVM_ROOT}/av2/encoder/bitstream.h"
   "${AVM_ROOT}/av2/encoder/block.h"
-  "${AVM_ROOT}/av2/encoder/cnn.c"
-  "${AVM_ROOT}/av2/encoder/cnn.h"
   "${AVM_ROOT}/av2/encoder/compound_type.c"
   "${AVM_ROOT}/av2/encoder/compound_type.h"
   "${AVM_ROOT}/av2/encoder/context_tree.c"

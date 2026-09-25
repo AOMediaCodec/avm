@@ -151,16 +151,7 @@ static void set_good_speed_feature_framesize_dependent(
     if (!is_480p_or_larger) sf->flexmv_sf.do_not_search_4_pel_precision = 1;
   }
 
-  if (is_480p_or_larger) {
-    sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
-    if (is_720p_or_larger)
-      sf->part_sf.auto_max_partition_based_on_simple_motion = ADAPT_PRED;
-    else
-      sf->part_sf.auto_max_partition_based_on_simple_motion = RELAXED_PRED;
-  } else {
-    sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
-    sf->part_sf.auto_max_partition_based_on_simple_motion = DIRECT_PRED;
-  }
+  sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
 
   // 8x8 partition floor at 4k, and at 1080p from speed 1.
   sf->part_sf.default_min_partition_size =
@@ -168,11 +159,6 @@ static void set_good_speed_feature_framesize_dependent(
 
   // TODO(huisu@google.com): train models for 720P and above.
   if (!is_720p_or_larger) {
-    sf->part_sf.ml_partition_search_breakout_thresh[0] = 200;  // BLOCK_8X8
-    sf->part_sf.ml_partition_search_breakout_thresh[1] = 250;  // BLOCK_16X16
-    sf->part_sf.ml_partition_search_breakout_thresh[2] = 300;  // BLOCK_32X32
-    sf->part_sf.ml_partition_search_breakout_thresh[3] = 500;  // BLOCK_64X64
-    sf->part_sf.ml_partition_search_breakout_thresh[4] = -1;   // BLOCK_128X128
     sf->part_sf.ml_early_term_after_part_split_level = 1;
   }
 
@@ -202,11 +188,6 @@ static void set_good_speed_feature_framesize_dependent(
     }
 
     if (!is_720p_or_larger) {
-      sf->part_sf.ml_partition_search_breakout_thresh[0] = 200;  // BLOCK_8X8
-      sf->part_sf.ml_partition_search_breakout_thresh[1] = 250;  // BLOCK_16X16
-      sf->part_sf.ml_partition_search_breakout_thresh[2] = 300;  // BLOCK_32X32
-      sf->part_sf.ml_partition_search_breakout_thresh[3] = 300;  // BLOCK_64X64
-      sf->part_sf.ml_partition_search_breakout_thresh[4] = -1;  // BLOCK_128X128
     }
     sf->part_sf.ml_early_term_after_part_split_level = 2;
   }
@@ -260,12 +241,6 @@ static void set_good_speed_feature_framesize_dependent(
 
   if (speed >= 6) {
     if (is_720p_or_larger) {
-      sf->part_sf.auto_max_partition_based_on_simple_motion = NOT_IN_USE;
-    } else if (is_480p_or_larger) {
-      sf->part_sf.auto_max_partition_based_on_simple_motion = DIRECT_PRED;
-    }
-
-    if (is_720p_or_larger) {
       sf->inter_sf.disable_masked_comp = 1;
     }
 
@@ -316,10 +291,6 @@ static void set_good_speed_features_framesize_independent(
   sf->gm_sf.max_ref_frames = 2;
   sf->gm_sf.prune_ref_frame_for_gm_search = boosted ? 0 : 1;
   sf->gm_sf.disable_gm_search_based_on_stats = 1;
-
-  // This speed feature is currently not implemented. See comment in
-  // av2_simple_motion_search_prune_rect() function.
-  sf->part_sf.simple_motion_search_prune_rect = 0;
 
   sf->inter_sf.disable_wedge_search_var_thresh = 0;
   // TODO(debargha): Test, tweak and turn on either 1 or 2
@@ -473,7 +444,6 @@ static void set_good_speed_features_framesize_independent(
 
     sf->lpf_sf.early_terminate_ccso_search_by_cost = 1;
     sf->part_sf.partition_pruning_with_mlp_none_thresh = 2.5f;
-    sf->part_sf.intra_cnn_split = 0;
 
     sf->part_sf.disable_uneven_4way_partitions = true;
     sf->part_sf.disable_ext_partitions = true;
@@ -828,7 +798,6 @@ static AVM_INLINE void init_gm_sf(GLOBAL_MOTION_SPEED_FEATURES *gm_sf) {
 static AVM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->partition_search_type = SEARCH_PARTITION;
   part_sf->use_square_partition_only_threshold = BLOCK_128X128;
-  part_sf->auto_max_partition_based_on_simple_motion = NOT_IN_USE;
   part_sf->default_max_partition_size = BLOCK_LARGEST;
   part_sf->default_min_partition_size = BLOCK_4X4;
   part_sf->allow_partition_search_skip = 0;
@@ -839,25 +808,17 @@ static AVM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->partition_search_breakout_dist_thr = 0;
   part_sf->partition_search_breakout_rate_thr = 0;
   part_sf->ml_early_term_after_part_split_level = 0;
-  for (int i = 0; i < PARTITION_BLOCK_SIZES; ++i) {
-    part_sf->ml_partition_search_breakout_thresh[i] =
-        -1;  // -1 means not enabled.
-  }
   part_sf->simple_motion_search_prune_agg = 0;
   part_sf->simple_motion_search_split = 0;
-  part_sf->simple_motion_search_prune_rect = 0;
   part_sf->simple_motion_search_early_term_none = 0;
   part_sf->simple_motion_search_reduce_search_steps = 0;
-  part_sf->intra_cnn_split = 0;
   part_sf->prune_rect_with_none_rd = 0;
   part_sf->prune_ext_part_with_part_none = 0;
   part_sf->prune_ext_part_with_part_rect = 0;
-  part_sf->prune_part_4_with_partition_boundary = 0;
   part_sf->prune_part_4_horz_or_vert = 0;
   part_sf->prune_part_4_with_part_3 = 0;
   part_sf->prune_part_4b_with_part_4a = 0;
   part_sf->two_pass_partition_search = TWO_PASS_PART_OFF;
-  part_sf->prune_rect_with_ml = 0;
   part_sf->partition_pruning_with_mlp = 0;
   part_sf->partition_pruning_with_mlp_none_thresh = 0.0f;
   part_sf->sms_unified_prune = 0;
@@ -870,7 +831,6 @@ static AVM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->prune_part_with_neighbor_boundaries = 0;
 #if CONFIG_ML_PART_SPLIT
   part_sf->prune_split_with_ml = 0;
-  part_sf->prune_none_with_ml = 0;
   part_sf->prune_split_ml_level = -2;  // default pruning
   part_sf->prune_split_ml_level_inter = -1;
   part_sf->remove_qp_restriction_with_ml = 0;
@@ -1098,20 +1058,13 @@ static void av2_disable_ml_based_transform_sf(TX_SPEED_FEATURES *const tx_sf) {
 static void av2_disable_ml_based_partition_sf(
     PARTITION_SPEED_FEATURES *const part_sf) {
   part_sf->ml_early_term_after_part_split_level = 0;
-  part_sf->auto_max_partition_based_on_simple_motion = NOT_IN_USE;
-  part_sf->intra_cnn_split = 0;
   part_sf->simple_motion_search_split = 0;
-  part_sf->simple_motion_search_prune_rect = 0;
   part_sf->simple_motion_search_early_term_none = 0;
 #if CONFIG_ML_PART_SPLIT
   part_sf->prune_split_with_ml = 0;
-  part_sf->prune_none_with_ml = 0;
   part_sf->prune_split_ml_level = -1;
   part_sf->prune_split_ml_level_inter = -1;
 #endif
-  for (int i = 0; i < PARTITION_BLOCK_SIZES; ++i) {
-    part_sf->ml_partition_search_breakout_thresh[i] = -1;
-  }
 }
 
 static AVM_INLINE void init_lc_sf(LC_DEC_SPEED_FEATURES *lc_sf) {
@@ -1158,12 +1111,9 @@ static AVM_INLINE void set_erp_speed_features_framesize_dependent(
         sf->part_sf.prune_split_ml_level = 1;
       } else if (is_720p_or_larger) {
         sf->part_sf.prune_split_ml_level = 0;
-        sf->part_sf.prune_none_with_ml = 0;
       } else {
-        sf->part_sf.prune_none_with_ml = 0;
       }
-      sf->part_sf.prune_split_ml_level_inter =
-          sf->part_sf.prune_none_with_ml ? -1 : 0;
+      sf->part_sf.prune_split_ml_level_inter = 0;
 #endif  // CONFIG_ML_PART_SPLIT
       AVM_FALLTHROUGH_INTENDED;
     case 4: AVM_FALLTHROUGH_INTENDED;
@@ -1310,18 +1260,12 @@ static AVM_INLINE void set_erp_speed_features(AV2_COMP *cpi) {
     sf->part_sf.simple_motion_search_split = 1;
     sf->part_sf.simple_motion_search_early_term_none = 1;
   }
-  sf->part_sf.prune_rect_with_ml = cpi->oxcf.part_cfg.use_ml_erp_pruning & 1;
 #if CONFIG_ML_PART_SPLIT
   // Don't work for the screen content
   if (!cm->features.allow_screen_content_tools) {
     sf->part_sf.prune_split_with_ml =
         !!(cpi->oxcf.part_cfg.use_ml_erp_pruning & 2);
-    // Only using NONE-pruning in RA
-    sf->part_sf.prune_none_with_ml =
-        !!(cpi->oxcf.part_cfg.use_ml_erp_pruning & 4) &&
-        cpi->oxcf.gf_cfg.lag_in_frames > 0;
-    if (!sf->part_sf.prune_none_with_ml)
-      sf->part_sf.prune_split_ml_level_inter = 0;
+    sf->part_sf.prune_split_ml_level_inter = 0;
   }
 #endif  // CONFIG_ML_PART_SPLIT
 }

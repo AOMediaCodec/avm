@@ -514,7 +514,6 @@ static INLINE void init_encode_rd_sb(AV2_COMP *cpi, ThreadData *td,
   const SPEED_FEATURES *sf = &cpi->sf;
   const int use_simple_motion_search =
       (sf->part_sf.simple_motion_search_split ||
-       sf->part_sf.simple_motion_search_prune_rect ||
        sf->part_sf.simple_motion_search_early_term_none ||
        sf->part_sf.ml_early_term_after_part_split_level) &&
       !frame_is_intra_only(cm);
@@ -526,7 +525,6 @@ static INLINE void init_encode_rd_sb(AV2_COMP *cpi, ThreadData *td,
   (void)sbi;
   init_ref_frame_space(cpi, td, mi_row, mi_col);
   x->sb_energy_level = 0;
-  x->part_search_info.cnn_output_valid = 0;
   if (gather_tpl_data) {
     if (cm->delta_q_info.delta_q_present_flag && xd->tree_type != CHROMA_PART) {
       const int num_planes = av2_num_planes(cm);
@@ -996,7 +994,7 @@ static AVM_INLINE void encode_rd_sb(AV2_COMP *cpi, ThreadData *td,
 
     // Estimate the maximum square partition block size, which will be used
     // as the starting block size for partitioning the sb
-    set_max_min_partition_size(sb_enc, cpi, x, sf, sb_size, mi_row, mi_col);
+    set_max_min_partition_size(sb_enc, cpi, sf);
 
     // Sets the sb_mv_precision
     x->e_mbd.sbi->sb_mv_precision = cm->features.fr_mv_precision;
