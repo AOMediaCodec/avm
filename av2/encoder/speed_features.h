@@ -448,7 +448,8 @@ typedef struct PARTITION_SPEED_FEATURES {
 
   // Unified SMS pre-screener: MLP trained on SMS motion-search
   // features. 0=off, 1=on.
-  int sms_unified_prune;
+  int sms_unified_prune_horz;
+  int sms_unified_prune_vert;
 
   // Logit margin (winner logit - best non-NONE logit) required to prune rect
   // partitions when the MLP predicts NONE.

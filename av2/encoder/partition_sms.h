@@ -29,7 +29,13 @@ void av2_sms_unified_compute(AV2_COMP *const cpi, MACROBLOCK *x,
 /* Prune HORZ partition using the probabilities computed by
  * av2_sms_unified_compute. Sets part_search_state->prune_horz if the HORZ
  * probability is below the per-bsize threshold. */
-void av2_sms_unified_prune_rect(const AV2_COMP *cpi,
+void av2_sms_unified_prune_horz(const AV2_COMP *cpi,
+                                SIMPLE_MOTION_DATA_TREE *sms_tree,
+                                PartitionSearchState *part_search_state);
+
+/* Prune VERT partition using the probabilities computed by
+ * av2_sms_unified_compute. */
+void av2_sms_unified_prune_vert(const AV2_COMP *cpi, const MACROBLOCK *x,
                                 SIMPLE_MOTION_DATA_TREE *sms_tree,
                                 PartitionSearchState *part_search_state);
 
