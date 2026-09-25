@@ -152,13 +152,11 @@ static void set_good_speed_feature_framesize_dependent(
   }
 
   if (is_480p_or_larger) {
-    sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
     if (is_720p_or_larger)
       sf->part_sf.auto_max_partition_based_on_simple_motion = ADAPT_PRED;
     else
       sf->part_sf.auto_max_partition_based_on_simple_motion = RELAXED_PRED;
   } else {
-    sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
     sf->part_sf.auto_max_partition_based_on_simple_motion = DIRECT_PRED;
   }
 
@@ -193,14 +191,6 @@ static void set_good_speed_feature_framesize_dependent(
   }
 
   if (speed >= 2) {
-    if (is_720p_or_larger) {
-      sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
-    } else if (is_480p_or_larger) {
-      sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
-    } else {
-      sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
-    }
-
     if (!is_720p_or_larger) {
       sf->part_sf.ml_partition_search_breakout_thresh[0] = 200;  // BLOCK_8X8
       sf->part_sf.ml_partition_search_breakout_thresh[1] = 250;  // BLOCK_16X16
@@ -212,8 +202,6 @@ static void set_good_speed_feature_framesize_dependent(
   }
 
   if (speed >= 3) {
-    sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
-
     sf->part_sf.ml_early_term_after_part_split_level = 0;
 
     if (is_720p_or_larger) {
@@ -267,20 +255,10 @@ static void set_good_speed_feature_framesize_dependent(
       sf->inter_sf.disable_masked_comp = 1;
     }
 
-    // TODO(yunqing): use BLOCK_32X32 for >= 4k.
-    if (is_4k_or_larger) {
-      sf->part_sf.use_square_partition_only_threshold = BLOCK_64X64;
-    } else if (is_720p_or_larger) {
-      sf->part_sf.use_square_partition_only_threshold = BLOCK_32X32;
-    } else {
-      sf->part_sf.use_square_partition_only_threshold = BLOCK_16X16;
-    }
-
     if (is_720p_or_larger) {
       sf->inter_sf.prune_ref_mv_idx_search = 2;
     }
   }
-  sf->part_sf.use_square_partition_only_threshold = BLOCK_LARGEST;
 }
 
 static void set_good_speed_features_framesize_independent(
@@ -1162,6 +1140,7 @@ static AVM_INLINE void set_erp_speed_features_framesize_dependent(
     default: assert(0 && "Invalid ERP pruning level.");
   }
 
+  const int is_2160p_or_larger = AVMMIN(cm->width, cm->height) >= 2160;
   if (cpi->speed >= 1) {
     if (is_720p_or_lesser && !cm->features.allow_screen_content_tools) {
       sf->part_sf.simple_motion_search_early_term_none =
@@ -1178,8 +1157,23 @@ static AVM_INLINE void set_erp_speed_features_framesize_dependent(
     }
   }
 
+  if (cpi->speed == 2) {
+    if (is_1080p_or_larger) {
+      sf->part_sf.prune_rect_with_split_depth = 2;
+    }
+  }
+
   if (cpi->speed >= 3) {
+    if (is_1080p_or_larger && (!is_2160p_or_larger || cpi->speed == 4)) {
+      sf->part_sf.prune_rect_with_split_depth = 3;
+    }
     sf->part_sf.simple_motion_search_early_term_none = 1;
+  }
+
+  if (cpi->speed >= 5) {
+    if (is_1080p_or_larger && !is_2160p_or_larger) {
+      sf->part_sf.prune_rect_with_split_depth = 4;
+    }
   }
 }
 
