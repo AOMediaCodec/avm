@@ -2341,6 +2341,28 @@ static INLINE bool prune_tx_type_rd_calc_using_tx_domain_dist(
   return false;
 }
 
+// Cap on tx-partition-type sweep in the fast two-pass dry pass. Value 2 =
+// TX_PARTITION_NONE + TX_PARTITION_SPLIT.
+#define DRY_PASS_ALLOWED_MAX_TX_PARTITION_TYPES 2
+
+// True when the fast two-pass dry pass should cap its inner tx-search loops
+// (IST set / stx sweep and tx-partition-type sweep). Gated on speed >= 4.
+static AVM_INLINE bool dry_pass_caps_tx_search(const MACROBLOCK *x,
+                                               const AV2_COMP *cpi) {
+  return x->apply_dry_pass_shortcuts && cpi->oxcf.speed >= 4;
+}
+
+// True when the caller's winner-mode evaluation has already picked a
+// tx-partition in mbmi->tx_partition_type[] for the current block, so a
+// tx-partition search should defer to it instead of re-evaluating from scratch.
+static AVM_INLINE bool winner_mode_tx_partition_preselected(
+    const TxfmSearchParams *txfm_params, const MB_MODE_INFO *mbmi,
+    const AV2_COMP *cpi) {
+  return txfm_params->eval_mode_type == WINNER_MODE_EVAL &&
+         mbmi->region_type == MIXED_INTER_INTRA_REGION &&
+         cpi->sf.winner_mode_sf.disable_multiway_tx_part_in_rough_mode;
+}
+
 // Search for the best transform type for a given transform block.
 // This function can be used for both inter and intra, both luma and chroma.
 static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
@@ -2594,8 +2616,11 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
          dc_only_blk || (eob_found) || !xd->enable_ist);
 
     bool skip_idx = false;
+    // Fast dry pass ranks shapes only; force the (set_idx=0, stx=0) baseline.
     const int max_set_id =
-        get_ist_max_set_id(skip_stx, is_inter, txw, txh, primary_tx_type);
+        dry_pass_caps_tx_search(x, cpi)
+            ? 1
+            : get_ist_max_set_id(skip_stx, is_inter, txw, txh, primary_tx_type);
     assert(max_set_id < IST_SET_SIZE);
 
     for (int set_idx = 0; set_idx < max_set_id; ++set_idx) {
@@ -2603,7 +2628,10 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
       const uint8_t set_id = get_ist_set_id(set_idx, is_inter, intra_mode, txw,
                                             txh, primary_tx_type);
 
-      const int max_stx = xd->enable_ist && !(eob_found) ? STX_TYPES : 1;
+      const int max_stx =
+          (xd->enable_ist && !(eob_found) && !dry_pass_caps_tx_search(x, cpi))
+              ? STX_TYPES
+              : 1;
       const int init_stx = (set_idx > 0) ? 1 : 0;
       for (int stx = init_stx; stx < max_stx; ++stx) {
         if (eob_found) skip_stx = true;
@@ -3373,12 +3401,11 @@ static void select_tx_partition_type(
       is_inter_block(mbmi, xd->tree_type)
           ? av2_get_txb_size_index(plane_bsize, blk_row, blk_col)
           : 0;
+  const bool tx_partition_preselected =
+      winner_mode_tx_partition_preselected(txfm_params, mbmi, cpi);
   TX_PARTITION_TYPE best_tx_partition =
-      txfm_params->eval_mode_type == WINNER_MODE_EVAL &&
-              mbmi->region_type == MIXED_INTER_INTRA_REGION &&
-              cpi->sf.winner_mode_sf.disable_multiway_tx_part_in_rough_mode
-          ? mbmi->tx_partition_type[txb_size_index]
-          : TX_PARTITION_INVALID;
+      tx_partition_preselected ? mbmi->tx_partition_type[txb_size_index]
+                               : TX_PARTITION_INVALID;
   uint8_t best_partition_entropy_ctxs[MAX_TX_PARTITIONS] = { 0 };
   TX_TYPE best_partition_tx_types[MAX_TX_PARTITIONS] = { 0 };
   uint8_t full_blk_skip[MAX_TX_PARTITIONS] = { 0 };
@@ -3389,7 +3416,16 @@ static void select_tx_partition_type(
   int stationary_cols = 0;
   int stationarity_valid = 0;
 
-  for (TX_PARTITION_TYPE type = 0; type < TX_PARTITION_TYPES; ++type) {
+  // Fast dry pass ranks shapes only; cap to NONE + SPLIT (NONE alone
+  // under-ranks blocks that want a split). Skip the cap when the caller has
+  // pre-selected a multiway partition via WINNER_MODE_EVAL, so we do not
+  // silently discard it.
+  const int max_tx_part_type =
+      (dry_pass_caps_tx_search(x, cpi) && !tx_partition_preselected)
+          ? DRY_PASS_ALLOWED_MAX_TX_PARTITION_TYPES
+          : TX_PARTITION_TYPES;
+
+  for (TX_PARTITION_TYPE type = 0; type < max_tx_part_type; ++type) {
     if (cpi->oxcf.txfm_cfg.reduced_tx_part_set && type > TX_PARTITION_VERT) {
       break;
     }
@@ -3728,17 +3764,21 @@ static void choose_tx_size_type_from_rd(const AV2_COMP *const cpi,
   int is_wide_angle_mapped[MAX_TX_PARTITIONS] = { 0 };
   int mapped_wide_angle[MAX_TX_PARTITIONS] = { 0 };
   assert(!is_inter_block(mbmi, xd->tree_type));
+  const bool tx_partition_preselected =
+      winner_mode_tx_partition_preselected(txfm_params, mbmi, cpi);
   TX_PARTITION_TYPE best_tx_partition_type =
-      txfm_params->eval_mode_type == WINNER_MODE_EVAL &&
-              mbmi->region_type == MIXED_INTER_INTRA_REGION &&
-              cpi->sf.winner_mode_sf.disable_multiway_tx_part_in_rough_mode
-          ? mbmi->tx_partition_type[0]
-          : TX_PARTITION_NONE;
+      tx_partition_preselected ? mbmi->tx_partition_type[0] : TX_PARTITION_NONE;
   int64_t best_rd = INT64_MAX;
   x->rd_model = FULL_TXFM_RD;
   int64_t cur_rd = INT64_MAX;
   const bool is_rect = is_rect_tx(max_tx_size);
-  for (TX_PARTITION_TYPE type = 0; type < TX_PARTITION_TYPES; ++type) {
+  // Same NONE+SPLIT cap (and WINNER_MODE_EVAL escape) as in
+  // select_tx_partition_type().
+  const int max_tx_part_type =
+      (dry_pass_caps_tx_search(x, cpi) && !tx_partition_preselected)
+          ? DRY_PASS_ALLOWED_MAX_TX_PARTITION_TYPES
+          : TX_PARTITION_TYPES;
+  for (TX_PARTITION_TYPE type = 0; type < max_tx_part_type; ++type) {
     if (cpi->oxcf.txfm_cfg.reduced_tx_part_set && type > TX_PARTITION_VERT) {
       break;
     }
