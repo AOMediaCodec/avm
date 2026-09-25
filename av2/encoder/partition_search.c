@@ -4652,7 +4652,7 @@ static AVM_INLINE bool node_uses_vert(const PC_TREE *pc_tree) {
  * The actual values stored is a bitmask, with 1 << HORZ means that there is a
  * horizontal boundary, and 1 << VERT means that there is a vertical boundary.
  * */
-static AVM_INLINE void trace_partition_boundary(bool *partition_boundaries,
+static AVM_INLINE void trace_partition_boundary(uint8_t *partition_boundaries,
                                                 const PC_TREE *pc_tree,
                                                 int mi_row, int mi_col,
                                                 BLOCK_SIZE bsize) {
@@ -4693,7 +4693,7 @@ static AVM_INLINE void trace_partition_boundary(bool *partition_boundaries,
  * Scans partition_boundaries[row][col, col + width) for `bit`.
  */
 static AVM_INLINE bool is_boundary_bit_set_in_row(
-    const bool *partition_boundaries, int row, int col, int width, int bit) {
+    const uint8_t *partition_boundaries, int row, int col, int width, int bit) {
   for (int c = 0; c < width; c++) {
     if (partition_boundaries[row * MAX_MIB_SIZE + col + c] & bit) return true;
   }
@@ -4706,7 +4706,8 @@ static AVM_INLINE bool is_boundary_bit_set_in_row(
  * Scans partition_boundaries[row, row + height)[col] for `bit`.
  */
 static AVM_INLINE bool is_boundary_bit_set_in_col(
-    const bool *partition_boundaries, int row, int col, int height, int bit) {
+    const uint8_t *partition_boundaries, int row, int col, int height,
+    int bit) {
   for (int r = 0; r < height; r++) {
     if (partition_boundaries[(row + r) * MAX_MIB_SIZE + col] & bit) return true;
   }
@@ -4725,7 +4726,7 @@ static AVM_INLINE void prune_part_3_with_partition_boundary(
   const int mi_height = mi_size_high[bsize];
   const int masked_mi_row = mi_row & MAX_MIB_MASK;
   const int masked_mi_col = mi_col & MAX_MIB_MASK;
-  const bool *partition_boundaries = part_search_state->partition_boundaries;
+  const uint8_t *partition_boundaries = part_search_state->partition_boundaries;
   if (can_search_horz) {
     const bool keep_horz_3 =
         is_boundary_bit_set_in_row(partition_boundaries,
@@ -4760,9 +4761,10 @@ static AVM_INLINE void prune_part_3_with_partition_boundary(
  * partition boundaries, then they are pruned from the search.
  */
 static AVM_INLINE void prune_part_4_with_partition_boundary(
-    PartitionSearchState *part_search_state, const bool *partition_boundaries,
-    BLOCK_SIZE bsize, int mi_row, int mi_col, bool can_search_horz_4a,
-    bool can_search_horz_4b, bool can_search_vert_4a, bool can_search_vert_4b) {
+    PartitionSearchState *part_search_state,
+    const uint8_t *partition_boundaries, BLOCK_SIZE bsize, int mi_row,
+    int mi_col, bool can_search_horz_4a, bool can_search_horz_4b,
+    bool can_search_vert_4a, bool can_search_vert_4b) {
   const int mi_width = mi_size_wide[bsize];
   const int mi_height = mi_size_high[bsize];
   const int masked_mi_row = mi_row & MAX_MIB_MASK;
@@ -4819,7 +4821,7 @@ static AVM_INLINE void prune_part_4_with_partition_boundary(
  * non-ext partitions search results. */
 static AVM_INLINE void prune_ext_partitions_3way(
     AV2_COMP *const cpi, const MACROBLOCK *x, PC_TREE *pc_tree,
-    PartitionSearchState *part_search_state, bool *partition_boundaries) {
+    PartitionSearchState *part_search_state, uint8_t *partition_boundaries) {
   const AV2_COMMON *const cm = &cpi->common;
   const PARTITION_SPEED_FEATURES *part_sf = &cpi->sf.part_sf;
   const PARTITION_TYPE forced_partition = part_search_state->forced_partition;
@@ -5037,7 +5039,7 @@ static INLINE void search_intra_region_partitioning(
  * non-ext and 3 way partitions search results.*/
 static AVM_INLINE void prune_ext_partitions_4way(
     AV2_COMP *const cpi, const MACROBLOCK *x, PC_TREE *pc_tree,
-    PartitionSearchState *part_search_state, bool *partition_boundaries) {
+    PartitionSearchState *part_search_state, uint8_t *partition_boundaries) {
   const AV2_COMMON *const cm = &cpi->common;
   const PARTITION_SPEED_FEATURES *part_sf = &cpi->sf.part_sf;
   const PARTITION_TYPE forced_partition = part_search_state->forced_partition;
@@ -6076,7 +6078,9 @@ BEGIN_PARTITION_SEARCH:
   // Search extended partitions.
   const int ext_recur_depth = get_ext_partitions_recur_depth(
       &cpi->sf.part_sf, bsize, eff_max_recursion_depth, false);
-  bool partition_boundaries[MAX_MIB_SQUARE] = { 0 };
+  // Bitmask of (1 << HORZ) | (1 << VERT); must not be bool, which would fold
+  // (1 << VERT) into (1 << HORZ).
+  uint8_t partition_boundaries[MAX_MIB_SQUARE] = { 0 };
 
   prune_ext_partitions_3way(cpi, x, pc_tree, &part_search_state,
                             partition_boundaries);
