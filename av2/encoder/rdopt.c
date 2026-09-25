@@ -7094,6 +7094,57 @@ void av2_rd_pick_intra_mode_sb(const struct AV2_COMP *cpi, ThreadData *td,
   av2_copy_array(ctx->tx_type_map, xd->tx_type_map, ctx->num_4x4_blk);
 }
 
+static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE curr_mode,
+                             const MV_REFERENCE_FRAME *ref_frames,
+                             const AV2_COMMON *cm, MACROBLOCKD *const xd,
+                             const SB_INFO *sbi) {
+  PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
+  mbmi->ref_mv_idx[0] = 0;
+  mbmi->ref_mv_idx[1] = 0;
+  mbmi->mode = curr_mode;
+  mbmi->uv_mode = UV_DC_PRED;
+  mbmi->ref_frame[0] = ref_frames[0];
+  mbmi->ref_frame[1] = ref_frames[1];
+  pmi->palette_size[0] = 0;
+  pmi->palette_size[1] = 0;
+  mbmi->use_intra_dip = 0;
+  mbmi->mv[0].as_int = mbmi->mv[1].as_int = 0;
+  mbmi->cwp_idx = CWP_EQUAL;
+  mbmi->motion_mode = SIMPLE_TRANSLATION;
+  mbmi->interintra_mode = (INTERINTRA_MODE)(II_DC_PRED - 1);
+  mbmi->refinemv_flag = 0;
+  for (int i = 0; i < MAX_TX_PARTITIONS; ++i) {
+    mbmi->is_wide_angle[0][i] = 0;
+    mbmi->is_wide_angle[1][i] = 0;
+    mbmi->mapped_intra_mode[0][i] = DC_PRED;
+    mbmi->mapped_intra_mode[1][i] = DC_PRED;
+  }
+  set_default_interp_filters(mbmi, cm, xd, cm->features.interp_filter);
+  mbmi->use_intrabc[xd->tree_type == CHROMA_PART] = 0;
+  mbmi->use_intrabc[xd->tree_type != CHROMA_PART] = 0;
+  mbmi->morph_pred = 0;
+  mbmi->local_rest_type = 1;
+  mbmi->local_ccso_blk_flag = 1;
+  mbmi->local_gdf_mode = 1;
+
+  set_default_max_mv_precision(mbmi, sbi->sb_mv_precision);
+  set_mv_precision(mbmi, mbmi->max_mv_precision);
+  set_default_precision_set(cm, mbmi, mbmi->sb_type[PLANE_TYPE_Y]);
+  set_most_probable_mv_precision(cm, mbmi, mbmi->sb_type[PLANE_TYPE_Y]);
+
+  mbmi->warp_ref_idx = 0;
+  mbmi->max_num_warp_candidates = 0;
+  mbmi->warpmv_with_mvd_flag = 0;
+  mbmi->six_param_warp_model_flag = 0;
+  mbmi->warp_precision_idx = 0;
+  mbmi->warp_inter_intra = 0;
+  mbmi->bawp_flag[0] = 0;
+  mbmi->bawp_flag[1] = 0;
+  mbmi->jmvd_scale_mode = 0;
+  mbmi->comp_group_idx = 0;
+  mbmi->interinter_comp.type = COMPOUND_AVERAGE;
+}
+
 /*!\brief Search for the best skip mode
  *
  * \ingroup inter_mode_search
@@ -7143,53 +7194,10 @@ static AVM_INLINE void rd_pick_skip_mode(
     return;
   }
 
-  mbmi->mode = this_mode;
-  mbmi->ref_mv_idx[0] = 0;
-  mbmi->ref_mv_idx[1] = 0;
-  mbmi->uv_mode = UV_DC_PRED;
-  mbmi->ref_frame[0] = ref_frame;
-  mbmi->ref_frame[1] = second_ref_frame;
-  mbmi->cwp_idx = CWP_EQUAL;
-  mbmi->use_intrabc[xd->tree_type == CHROMA_PART] = 0;
-  mbmi->warp_ref_idx = 0;
-  mbmi->max_num_warp_candidates = 0;
-  mbmi->warpmv_with_mvd_flag = 0;
-  mbmi->six_param_warp_model_flag = 0;
-
-  mbmi->warp_precision_idx = 0;
-  mbmi->warp_inter_intra = 0;
-
-  mbmi->refinemv_flag = 0;
-  mbmi->morph_pred = 0;
-
-  assert(this_mode == NEAR_NEARMV);
-
-  mbmi->fsc_mode[xd->tree_type == CHROMA_PART] = 0;
-  mbmi->bawp_flag[0] = 0;
-  mbmi->bawp_flag[1] = 0;
-  mbmi->use_intra_dip = 0;
-  mbmi->interintra_mode = (INTERINTRA_MODE)(II_DC_PRED - 1);
-  mbmi->comp_group_idx = 0;
-  mbmi->interinter_comp.type = COMPOUND_AVERAGE;
-  mbmi->motion_mode = SIMPLE_TRANSLATION;
-  mbmi->ref_mv_idx[0] = 0;
-  mbmi->ref_mv_idx[1] = 0;
   mbmi->skip_mode = mbmi->skip_txfm[xd->tree_type == CHROMA_PART] = 1;
-
-  set_default_max_mv_precision(mbmi, xd->sbi->sb_mv_precision);
-  set_mv_precision(mbmi, mbmi->max_mv_precision);  // initialize to max
-  set_default_precision_set(cm, mbmi, mbmi->sb_type[PLANE_TYPE_Y]);
-  set_most_probable_mv_precision(cm, mbmi, mbmi->sb_type[PLANE_TYPE_Y]);
-
-  mbmi->warp_ref_idx = 0;
-  mbmi->max_num_warp_candidates = 0;
-  mbmi->warpmv_with_mvd_flag = 0;
-  mbmi->six_param_warp_model_flag = 0;
-
-  mbmi->warp_precision_idx = 0;
-  mbmi->warp_inter_intra = 0;
-
-  set_default_interp_filters(mbmi, cm, xd, cm->features.interp_filter);
+  init_mbmi(mbmi, this_mode, ref_frames, cm, xd, xd->sbi);
+  mbmi->fsc_mode[PLANE_TYPE_Y] = 0;
+  mbmi->fsc_mode[PLANE_TYPE_UV] = 0;
 
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
@@ -7221,8 +7229,6 @@ static AVM_INLINE void rd_pick_skip_mode(
 
   // mbmi_ext->weight[ref_frame][4] inside av2_find_mv_refs.
   av2_copy_usable_ref_mv_stack_and_weight(xd, mbmi_ext, ref_frame_type);
-
-  mbmi->mode = this_mode;
 
   // loop of ref_mv_idx
   assert(!has_second_drl(mbmi));
@@ -7302,20 +7308,7 @@ static AVM_INLINE void rd_pick_skip_mode(
         (!xd->lossless[mbmi->segment_id] || skip_mode_rd_stats.dist == 0)) {
       assert(mbmi->skip_txfm[xd->tree_type == CHROMA_PART] ==
              skip_mode_rd_stats.skip_txfm);
-      search_state->best_mbmode.skip_mode = 1;
       search_state->best_mbmode = *mbmi;
-      search_state->best_mbmode.skip_txfm[xd->tree_type == CHROMA_PART] =
-          mbmi->skip_txfm[xd->tree_type == CHROMA_PART];
-
-      search_state->best_mbmode.fsc_mode[xd->tree_type == CHROMA_PART] = 0;
-
-      search_state->best_mbmode.mode = NEAR_NEARMV;
-      search_state->best_mbmode.ref_frame[0] = mbmi->ref_frame[0];
-      search_state->best_mbmode.ref_frame[1] = mbmi->ref_frame[1];
-      search_state->best_mbmode.mv[0].as_int = mbmi->mv[0].as_int;
-      search_state->best_mbmode.mv[1].as_int = mbmi->mv[1].as_int;
-      search_state->best_mbmode.ref_mv_idx[0] = mbmi->ref_mv_idx[0];
-      search_state->best_mbmode.ref_mv_idx[1] = mbmi->ref_mv_idx[1];
 
       // Set up tx_size related variables for skip-specific loop filtering.
       if (search_state->best_mbmode.skip_txfm[xd->tree_type == CHROMA_PART]) {
@@ -7349,23 +7342,6 @@ static AVM_INLINE void rd_pick_skip_mode(
             x->mode_costs.skip_txfm_cost[av2_get_skip_txfm_context(xd)][0];
         search_state->best_rate_uv = skip_mode_rd_stats_uv.rate;
       }
-
-      // Set up color-related variables for skip mode.
-      search_state->best_mbmode.uv_mode = UV_DC_PRED;
-      search_state->best_mbmode.palette_mode_info.palette_size[0] = 0;
-      search_state->best_mbmode.palette_mode_info.palette_size[1] = 0;
-
-      search_state->best_mbmode.comp_group_idx = 0;
-      search_state->best_mbmode.interinter_comp.type = COMPOUND_AVERAGE;
-      search_state->best_mbmode.motion_mode = SIMPLE_TRANSLATION;
-
-      search_state->best_mbmode.interintra_mode =
-          (INTERINTRA_MODE)(II_DC_PRED - 1);
-      search_state->best_mbmode.use_intra_dip = 0;
-
-      set_default_interp_filters(&search_state->best_mbmode, cm, xd,
-                                 cm->features.interp_filter);
-      search_state->best_mbmode.refinemv_flag = mbmi->refinemv_flag;
 
       // Update rd_cost
       best_rd_cost->rate = skip_mode_rd_stats.rate;
@@ -8181,56 +8157,6 @@ static int inter_mode_search_order_independent_skip(
   if (skip_motion_mode) return 2;
 
   return 0;
-}
-
-static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE curr_mode,
-                             const MV_REFERENCE_FRAME *ref_frames,
-                             const AV2_COMMON *cm, MACROBLOCKD *const xd,
-                             const SB_INFO *sbi) {
-  PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
-  mbmi->ref_mv_idx[0] = 0;
-  mbmi->ref_mv_idx[1] = 0;
-  mbmi->mode = curr_mode;
-  mbmi->uv_mode = UV_DC_PRED;
-  mbmi->ref_frame[0] = ref_frames[0];
-  mbmi->ref_frame[1] = ref_frames[1];
-  pmi->palette_size[0] = 0;
-  pmi->palette_size[1] = 0;
-  mbmi->use_intra_dip = 0;
-  mbmi->mv[0].as_int = mbmi->mv[1].as_int = 0;
-  mbmi->cwp_idx = CWP_EQUAL;
-  mbmi->motion_mode = SIMPLE_TRANSLATION;
-  mbmi->interintra_mode = (INTERINTRA_MODE)(II_DC_PRED - 1);
-  mbmi->refinemv_flag = 0;
-  for (int i = 0; i < MAX_TX_PARTITIONS; ++i) {
-    mbmi->is_wide_angle[0][i] = 0;
-    mbmi->is_wide_angle[1][i] = 0;
-    mbmi->mapped_intra_mode[0][i] = DC_PRED;
-    mbmi->mapped_intra_mode[1][i] = DC_PRED;
-  }
-  set_default_interp_filters(mbmi, cm, xd, cm->features.interp_filter);
-  mbmi->use_intrabc[xd->tree_type == CHROMA_PART] = 0;
-  mbmi->use_intrabc[xd->tree_type != CHROMA_PART] = 0;
-  mbmi->morph_pred = 0;
-  mbmi->local_rest_type = 1;
-  mbmi->local_ccso_blk_flag = 1;
-  mbmi->local_gdf_mode = 1;
-
-  set_default_max_mv_precision(mbmi, sbi->sb_mv_precision);
-  set_mv_precision(mbmi, mbmi->max_mv_precision);
-  set_default_precision_set(cm, mbmi, mbmi->sb_type[PLANE_TYPE_Y]);
-  set_most_probable_mv_precision(cm, mbmi, mbmi->sb_type[PLANE_TYPE_Y]);
-
-  mbmi->warp_ref_idx = 0;
-  mbmi->max_num_warp_candidates = 0;
-  mbmi->warpmv_with_mvd_flag = 0;
-  mbmi->six_param_warp_model_flag = 0;
-  mbmi->warp_precision_idx = 0;
-  mbmi->warp_inter_intra = 0;
-  mbmi->bawp_flag[0] = 0;
-  mbmi->bawp_flag[1] = 0;
-  mbmi->jmvd_scale_mode = 0;
-  mbmi->interinter_comp.type = COMPOUND_AVERAGE;
 }
 
 static AVM_INLINE void collect_single_states(const AV2_COMMON *const cm,
