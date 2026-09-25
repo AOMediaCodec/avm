@@ -1162,8 +1162,11 @@ static AVM_INLINE void set_erp_speed_features_framesize_dependent(
       } else {
         sf->part_sf.prune_none_with_ml = 0;
       }
+      const bool use_harsh_inter_ml =
+          (is_2k_or_larger && (cpi->speed == 2 || cpi->speed == 4)) ||
+          (is_1080p_or_larger && (cpi->speed >= 1 && cpi->speed <= 3));
       sf->part_sf.prune_split_ml_level_inter =
-          sf->part_sf.prune_none_with_ml ? -1 : 0;
+          sf->part_sf.prune_none_with_ml ? -1 : (use_harsh_inter_ml ? 1 : 0);
 #endif  // CONFIG_ML_PART_SPLIT
       AVM_FALLTHROUGH_INTENDED;
     case 4: AVM_FALLTHROUGH_INTENDED;
@@ -1180,9 +1183,7 @@ static AVM_INLINE void set_erp_speed_features_framesize_dependent(
           cm->current_frame.pyramid_level > 4 ? 1 : 0;
     }
 #if CONFIG_ML_PART_SPLIT
-    if (is_720p_or_lesser) {
-      sf->part_sf.remove_qp_restriction_with_ml = 1;
-    }
+    sf->part_sf.remove_qp_restriction_with_ml = 1;
 #endif  // CONFIG_ML_PART_SPLIT
     if (is_270p_or_lesser) {
       // For small resolutions, this speed feature has a large coding loss.
