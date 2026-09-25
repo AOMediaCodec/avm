@@ -1221,6 +1221,12 @@ INSTANTIATE_TEST_SUITE_P(
     BuildHighbdLumaParams(av2_highbd_cwp_convolve_2d_avx2));
 #endif
 
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(
+    NEON, AV2Convolve2DHighbdCompoundTestLarge,
+    BuildHighbdLumaParams(av2_highbd_cwp_convolve_2d_neon));
+#endif
+
 //////////////////////////////////////////////////////////
 // Nonseparable convolve-2d functions (high bit-depth)
 //////////////////////////////////////////////////////////
