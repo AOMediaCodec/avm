@@ -290,7 +290,7 @@ static void set_good_speed_feature_framesize_dependent(
 }
 
 static void set_good_speed_features_framesize_independent(
-    const AV2_COMP *const cpi, SPEED_FEATURES *const sf, int speed) {
+    AV2_COMP *const cpi, SPEED_FEATURES *const sf, int speed) {
   const AV2_COMMON *const cm = &cpi->common;
   const int is_480p_or_larger = AVMMIN(cm->width, cm->height) >= 480;
   const GF_GROUP *const gf_group = &cpi->gf_group;
@@ -679,8 +679,11 @@ static void set_good_speed_features_framesize_independent(
 
   if (speed >= 5) {
     sf->intra_sf.intra_mode_prune_top = 2;
+    sf->intra_sf.disable_palette = true;
     sf->part_sf.simple_motion_search_prune_agg = 3;
     sf->inter_sf.disable_interinter_wedge = 1;
+    sf->inter_sf.disable_onesided_comp = true;
+    cpi->oxcf.tool_cfg.enable_tip_refinemv = 0;
     sf->inter_sf.prune_inter_modes_if_skippable = 1;
 
     // TODO(any): Extend multi-winner mode processing support for inter frames
@@ -768,7 +771,7 @@ static void set_good_speed_features_lc_dec_framesize_independent(
 }
 
 static void set_rt_speed_features_framesize_independent(
-    const AV2_COMP *const cpi, SPEED_FEATURES *const sf, int speed) {
+    AV2_COMP *const cpi, SPEED_FEATURES *const sf, int speed) {
   // Set this good features as default for now.
   set_good_speed_features_framesize_independent(cpi, sf, speed);
   if (speed >= 6) {
@@ -969,6 +972,7 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->prune_comp_type_by_model_rd = 0;
   inter_sf->perform_best_rd_based_gating_for_chroma = 0;
   inter_sf->disable_interinter_wedge = 0;
+  inter_sf->disable_onesided_comp = false;
   inter_sf->prune_ref_mv_idx_search = 0;
   inter_sf->prune_warped_prob_thresh = 0;
   inter_sf->reuse_compound_type_data = 0;
@@ -998,6 +1002,7 @@ static AVM_INLINE void init_intra_sf(INTRA_MODE_SPEED_FEATURES *intra_sf) {
   intra_sf->intra_mode_prune_top = TOP_INTRA_MODEL_COUNT;
   intra_sf->src_var_thresh_intra_skip = 1;
   intra_sf->prune_palette_search_level = 0;
+  intra_sf->disable_palette = false;
   intra_sf->reuse_uv_mode_rd_info = false;
   intra_sf->include_dip_for_top_n_model_rd_pruning = false;
   intra_sf->skip_intra_dip_search = false;
@@ -1380,6 +1385,8 @@ void av2_set_speed_features_framesize_independent(AV2_COMP *cpi, int speed) {
   }
 
   if (!cpi->seq_params_locked) {
+    cpi->common.seq_params.enable_tip_refinemv =
+        cpi->oxcf.tool_cfg.enable_tip_refinemv;
     cpi->common.seq_params.enable_restoration &= !sf->lpf_sf.disable_lr_filter;
 
     cpi->common.seq_params.enable_masked_compound &=

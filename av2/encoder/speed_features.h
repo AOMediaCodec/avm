@@ -785,6 +785,9 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Disable interinter_wedge
   int disable_interinter_wedge;
 
+  // Disable one-sided compound at the speed >= 5 preset.
+  bool disable_onesided_comp;
+
   // Whether to override and disable sb level coeff cost updates, if
   // cpi->oxcf.cost_upd_freq.coeff = COST_UPD_SB (i.e. set at SB level)
   int disable_sb_level_coeff_cost_upd;
@@ -895,6 +898,8 @@ typedef struct INTRA_MODE_SPEED_FEATURES {
   // colors to remaining colors) and terminate the search if current number of
   // palette colors is not the winner.
   int prune_palette_search_level;
+  // Disable palette for speed >= 5 preset when it is not screen content.
+  bool disable_palette;
   // Reuse chroma mode rate and distortion info during intra modes evaluation
   // in inter frames.
   // False: No reuse
