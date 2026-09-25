@@ -2349,6 +2349,16 @@ void av2_set_downsample_filter_options(AV2_COMP *cpi) {
 
 void av2_set_screen_content_options(AV2_COMP *cpi, FeatureFlags *features) {
   const AV2_COMMON *const cm = &cpi->common;
+  if (cpi->oxcf.mode == REALTIME) {
+    features->allow_screen_content_tools =
+        cm->seq_params.force_screen_content_tools == 2
+            ? (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN)
+            : cm->seq_params.force_screen_content_tools;
+    features->allow_intrabc =
+        features->allow_screen_content_tools && cpi->oxcf.kf_cfg.enable_intrabc;
+    features->is_scc_content_by_detector = features->allow_screen_content_tools;
+    return;
+  }
   // Estimate if the source frame is screen content, based on the portion of
   // blocks that have few luma colors.
   const uint16_t *src = cpi->unfiltered_source->y_buffer;
