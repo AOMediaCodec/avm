@@ -408,7 +408,14 @@ typedef struct PARTITION_SPEED_FEATURES {
   // Reduce the recursion depth for uneven 4way partitions based on block size
   int uneven_4way_recur_depth_level;
 
-  // Prune rect partitions if PARTITION_SPLIT goes deep.
+  // Prune rectangular partitions and redundant half-splits at square-split-
+  // eligible block sizes (256x256 and 128x128) based on PARTITION_SPLIT child
+  // depths and PARTITION_NONE vs PARTITION_SPLIT RD comparison:
+  // 0: disabled
+  // 1: prune HORZ and VERT only when min_depth > 4
+  // 2: conservative directional half-pair depth
+  // 3: moderate directional half-pair depth
+  // 4: aggressive directional half-pair depth
   int prune_rect_with_split_depth;
 
   // Search horizontal and vertical split before PARTITION_NONE if the neighbor

@@ -152,13 +152,11 @@ static void set_good_speed_feature_framesize_dependent(
   }
 
   if (is_480p_or_larger) {
-    sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
     if (is_720p_or_larger)
       sf->part_sf.auto_max_partition_based_on_simple_motion = ADAPT_PRED;
     else
       sf->part_sf.auto_max_partition_based_on_simple_motion = RELAXED_PRED;
   } else {
-    sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
     sf->part_sf.auto_max_partition_based_on_simple_motion = DIRECT_PRED;
   }
 
@@ -193,14 +191,6 @@ static void set_good_speed_feature_framesize_dependent(
   }
 
   if (speed >= 2) {
-    if (is_720p_or_larger) {
-      sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
-    } else if (is_480p_or_larger) {
-      sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
-    } else {
-      sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
-    }
-
     if (!is_720p_or_larger) {
       sf->part_sf.ml_partition_search_breakout_thresh[0] = 200;  // BLOCK_8X8
       sf->part_sf.ml_partition_search_breakout_thresh[1] = 250;  // BLOCK_16X16
@@ -212,8 +202,6 @@ static void set_good_speed_feature_framesize_dependent(
   }
 
   if (speed >= 3) {
-    sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
-
     sf->part_sf.ml_early_term_after_part_split_level = 0;
 
     if (is_720p_or_larger) {
@@ -269,15 +257,6 @@ static void set_good_speed_feature_framesize_dependent(
       sf->inter_sf.disable_masked_comp = 1;
     }
 
-    // TODO(yunqing): use BLOCK_32X32 for >= 4k.
-    if (is_4k_or_larger) {
-      sf->part_sf.use_square_partition_only_threshold = BLOCK_64X64;
-    } else if (is_720p_or_larger) {
-      sf->part_sf.use_square_partition_only_threshold = BLOCK_32X32;
-    } else {
-      sf->part_sf.use_square_partition_only_threshold = BLOCK_16X16;
-    }
-
     if (is_720p_or_larger) {
       sf->inter_sf.prune_ref_mv_idx_search = 2;
     }
@@ -286,7 +265,6 @@ static void set_good_speed_feature_framesize_dependent(
       sf->part_sf.prune_by_struct_orient = 2;
     }
   }
-  sf->part_sf.use_square_partition_only_threshold = BLOCK_LARGEST;
 }
 
 static void set_good_speed_features_framesize_independent(
@@ -1174,6 +1152,7 @@ static AVM_INLINE void set_erp_speed_features_framesize_dependent(
     default: assert(0 && "Invalid ERP pruning level.");
   }
 
+  const int is_2160p_or_larger = AVMMIN(cm->width, cm->height) >= 2160;
   if (cpi->speed >= 1) {
     if (is_720p_or_lesser && !cm->features.allow_screen_content_tools) {
       sf->part_sf.simple_motion_search_early_term_none =
@@ -1190,8 +1169,23 @@ static AVM_INLINE void set_erp_speed_features_framesize_dependent(
     }
   }
 
+  if (cpi->speed == 2) {
+    if (is_1080p_or_larger) {
+      sf->part_sf.prune_rect_with_split_depth = 2;
+    }
+  }
+
   if (cpi->speed >= 3) {
+    if (is_1080p_or_larger && (!is_2160p_or_larger || cpi->speed == 4)) {
+      sf->part_sf.prune_rect_with_split_depth = 3;
+    }
     sf->part_sf.simple_motion_search_early_term_none = 1;
+  }
+
+  if (cpi->speed >= 5) {
+    if (is_1080p_or_larger && !is_2160p_or_larger) {
+      sf->part_sf.prune_rect_with_split_depth = 4;
+    }
   }
 }
 
@@ -1700,6 +1694,47 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
       sf->winner_mode_sf.dc_blk_pred_level = 3;
       memcpy(winner_mode_params->predict_dc_level, predict_dc_levels[3],
              sizeof(winner_mode_params->predict_dc_level));
+    }
+  }
+
+  // Configure use_square_partition_only_threshold across Speeds 1..6 (A1..A5)
+  // retaining only the (Resolution, Speed) cells that pass per-speed
+  // qualification bars.
+  const int is_360p_or_larger = AVMMIN(cm->width, cm->height) >= 360;
+  const int qindex_le_185 = cm->quant_params.base_qindex <= 185 + qindex_offset;
+  const int qindex_ge_160 = cm->quant_params.base_qindex >= 160 + qindex_offset;
+
+  if (speed >= 1 && speed <= 6) {
+    sf->part_sf.use_square_partition_only_threshold = BLOCK_LARGEST;
+    if (speed == 1) {
+      if (is_2160p_or_larger && !boosted && qindex_le_185) {
+        sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
+      }
+    } else if (speed == 3) {
+      if (is_2160p_or_larger) {
+        sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
+      } else if (!is_720p_or_larger && !boosted) {
+        sf->part_sf.use_square_partition_only_threshold = BLOCK_64X64;
+      }
+    } else if (speed == 4) {
+      if (!is_1080p_or_larger && is_720p_or_larger) {
+        if (!boosted && qindex_ge_160) {
+          sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
+        }
+      } else if (!is_720p_or_larger && !boosted) {
+        sf->part_sf.use_square_partition_only_threshold = BLOCK_64X64;
+      }
+    } else if (speed == 5) {
+      if (!is_720p_or_larger && (is_360p_or_larger || !boosted)) {
+        sf->part_sf.use_square_partition_only_threshold = BLOCK_64X64;
+      }
+    } else if (speed >= 6) {
+      if (!is_1080p_or_larger && is_720p_or_larger) {
+        sf->part_sf.use_square_partition_only_threshold =
+            boosted ? BLOCK_128X128 : BLOCK_64X64;
+      } else if (!is_720p_or_larger && !boosted) {
+        sf->part_sf.use_square_partition_only_threshold = BLOCK_64X64;
+      }
     }
   }
 }
