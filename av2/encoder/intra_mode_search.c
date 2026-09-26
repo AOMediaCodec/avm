@@ -400,6 +400,7 @@ static int cfl_rd_pick_alpha(MACROBLOCK *const x, const AV2_COMP *const cpi,
 
   const int skip_trellis = 0;
   int8_t best_joint_sign = -1;
+  int cfl_u_key = -1;
   // process CFL_PRED_U
   RD_STATS rd_stats;
   av2_init_rd_stats(&rd_stats);
@@ -416,8 +417,11 @@ static int cfl_rd_pick_alpha(MACROBLOCK *const x, const AV2_COMP *const cpi,
         PLANE_SIGN_TO_JOINT_SIGN(CFL_PRED_U, CFL_SIGN_ZERO, i);
     mbmi->cfl_alpha_idx = 0;
     mbmi->cfl_alpha_signs = joint_sign;
-    av2_txfm_rd_in_plane(x, cpi, &rd_stats, best_rd, 0, 1, plane_bsize,
-                         FTXS_NONE, skip_trellis);
+    if (cfl_u_key != 0) {
+      av2_txfm_rd_in_plane(x, cpi, &rd_stats, best_rd, 0, 1, plane_bsize,
+                           FTXS_NONE, skip_trellis);
+      cfl_u_key = 0;
+    }
     if (rd_stats.rate == INT_MAX) break;
     const int alpha_rate = mode_costs->cfl_cost[joint_sign][CFL_PRED_U][0];
     best_rd_uv[joint_sign][CFL_PRED_U] =
@@ -435,8 +439,11 @@ static int cfl_rd_pick_alpha(MACROBLOCK *const x, const AV2_COMP *const cpi,
             PLANE_SIGN_TO_JOINT_SIGN(CFL_PRED_U, pn_sign, i);
         mbmi->cfl_alpha_idx = (c << CFL_ALPHABET_SIZE_LOG2) + c;
         mbmi->cfl_alpha_signs = joint_sign;
-        av2_txfm_rd_in_plane(x, cpi, &rd_stats, best_rd, 0, 1, plane_bsize,
-                             FTXS_NONE, skip_trellis);
+        if (i == 0) {
+          av2_txfm_rd_in_plane(x, cpi, &rd_stats, best_rd, 0, 1, plane_bsize,
+                               FTXS_NONE, skip_trellis);
+          cfl_u_key = 1 + (pn_sign - 1) * CFL_ALPHABET_SIZE + c;
+        }
         if (rd_stats.rate == INT_MAX) break;
         const int alpha_rate = mode_costs->cfl_cost[joint_sign][CFL_PRED_U][c];
         int64_t this_rd =
@@ -465,12 +472,21 @@ static int cfl_rd_pick_alpha(MACROBLOCK *const x, const AV2_COMP *const cpi,
     for (int c = 0; c < CFL_ALPHABET_SIZE; c++) {
       int flag = 0;
       if (c > 2 && progress < c) break;
+      if (c > 0 && CFL_SIGN_V(joint_sign) == CFL_SIGN_ZERO) break;
       av2_init_rd_stats(&rd_stats);
       mbmi->cfl_alpha_idx =
           (best_c[joint_sign][CFL_PRED_U] << CFL_ALPHABET_SIZE_LOG2) + c;
       mbmi->cfl_alpha_signs = joint_sign;
-      av2_txfm_rd_in_plane(x, cpi, &rd_stats, best_rd, 0, 1, plane_bsize,
-                           FTXS_NONE, skip_trellis);
+      const int u_sign = CFL_SIGN_U(joint_sign);
+      const int u_key = u_sign == CFL_SIGN_ZERO
+                            ? 0
+                            : 1 + (u_sign - 1) * CFL_ALPHABET_SIZE +
+                                  best_c[joint_sign][CFL_PRED_U];
+      if (u_key != cfl_u_key) {
+        av2_txfm_rd_in_plane(x, cpi, &rd_stats, best_rd, 0, 1, plane_bsize,
+                             FTXS_NONE, skip_trellis);
+        cfl_u_key = u_key;
+      }
       av2_txfm_rd_in_plane(x, cpi, &rd_stats, best_rd, 0, 2, plane_bsize,
                            FTXS_NONE, skip_trellis);
       if (rd_stats.rate == INT_MAX) break;
@@ -1245,8 +1261,10 @@ int64_t av2_handle_intra_mode(IntraModeSearchState *intra_search_state,
 
   const int is_directional_mode = av2_is_directional_mode(mode);
   if (is_directional_mode && cpi->oxcf.intra_mode_cfg.enable_angle_delta) {
+    // The mask is read only for y_mode_idx >= FIRST_MODE_COUNT.
     if (sf->intra_sf.intra_pruning_with_hog &&
-        !intra_search_state->dir_mode_skip_mask_ready) {
+        !intra_search_state->dir_mode_skip_mask_ready &&
+        mbmi->y_mode_idx >= FIRST_MODE_COUNT) {
       prune_intra_mode_with_hog(x, bsize,
                                 cpi->sf.intra_sf.intra_pruning_with_hog_thresh,
                                 intra_search_state->directional_mode_skip_mask);
