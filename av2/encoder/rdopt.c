@@ -9032,18 +9032,7 @@ static void av2_evaluate_intra_modes_in_inter_frame(
   uint8_t mlp_mode_mask[INTRA_MODES] = { 0 };
   int mlp_fallback = !sf->intra_sf.intra_pruning_with_mlp;
   uint8_t mlp_dir_skip_mask[INTRA_MODES] = { 0 };
-  if (sf->intra_sf.intra_pruning_with_mlp && is_intra_mode_allowed) {
-    av2_intra_mlp_compute_mode_mask(cpi, x, bsize, mlp_mode_mask, &mlp_fallback,
-                                    mlp_dir_skip_mask);
-    // mlp_dir_skip_mask is only populated (via prune_intra_mode_with_hog) when
-    // mlp_fallback is set. Seed av2_handle_intra_mode's lazy HOG cache with it
-    // so that call doesn't redundantly recompute the identical HOG mask.
-    if (mlp_fallback) {
-      memcpy(search_state->intra_search_state.directional_mode_skip_mask,
-             mlp_dir_skip_mask, sizeof(mlp_dir_skip_mask));
-      search_state->intra_search_state.dir_mode_skip_mask_ready = 1;
-    }
-  }
+  int mlp_mask_ready = 0;
 
   for (int dpcm_idx = 0; dpcm_idx < dpcm_loop_num; dpcm_idx++) {
     // Dry pass: cap DPCM index.
@@ -9163,6 +9152,29 @@ static void av2_evaluate_intra_modes_in_inter_frame(
                 (mbmi->mode == V_PRED || mbmi->mode == H_PRED) &&
                 mbmi->angle_delta[0] == 0) {
               mbmi->dpcm_mode_y = mbmi->mode - 1;
+            }
+            // The MLP mask is read only for y_mode_idx >= FIRST_MODE_COUNT,
+            // so compute it on first reaching such a mode. Its inputs are
+            // fixed for this call, so the mask is the same as computing it up
+            // front.
+            if (!mlp_mask_ready && mbmi->y_mode_idx >= FIRST_MODE_COUNT) {
+              mlp_mask_ready = 1;
+              if (sf->intra_sf.intra_pruning_with_mlp &&
+                  is_intra_mode_allowed) {
+                av2_intra_mlp_compute_mode_mask(cpi, x, bsize, mlp_mode_mask,
+                                                &mlp_fallback,
+                                                mlp_dir_skip_mask);
+                // mlp_dir_skip_mask is only populated (via
+                // prune_intra_mode_with_hog) when mlp_fallback is set. Seed
+                // av2_handle_intra_mode's lazy HOG cache with it so that call
+                // doesn't redundantly recompute the identical HOG mask.
+                if (mlp_fallback) {
+                  memcpy(search_state->intra_search_state
+                             .directional_mode_skip_mask,
+                         mlp_dir_skip_mask, sizeof(mlp_dir_skip_mask));
+                  search_state->intra_search_state.dir_mode_skip_mask_ready = 1;
+                }
+              }
             }
             if (!mlp_fallback && mbmi->y_mode_idx >= FIRST_MODE_COUNT &&
                 !mlp_mode_mask[mbmi->mode])
