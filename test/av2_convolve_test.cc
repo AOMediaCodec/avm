@@ -786,12 +786,17 @@ std::vector<CompoundParam> GetCompoundParams() {
                                      quant_dist_lookup_table[l][1 - k]));
     }
   }
+  // CWP and TIP weights can go negative (e.g., {20,-4}, {18,-2}).
+  result.push_back(CompoundParam(20, -4));
+  result.push_back(CompoundParam(-4, 20));
+  result.push_back(CompoundParam(18, -2));
+  result.push_back(CompoundParam(-2, 18));
   return result;
 }
 
 TEST_F(AV2ConvolveParametersTest, GetCompoundParams) {
   auto v = GetCompoundParams();
-  ASSERT_EQ(9U, v.size());
+  ASSERT_EQ(13U, v.size());
   ASSERT_FALSE(v[0].UseWtdCompAvg());
   for (size_t i = 1; i < v.size(); ++i) {
     ASSERT_TRUE(v[i].UseWtdCompAvg());
@@ -1219,6 +1224,12 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
     AVX2, AV2Convolve2DHighbdCompoundTestLarge,
     BuildHighbdLumaParams(av2_highbd_cwp_convolve_2d_avx2));
+#endif
+
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(
+    NEON, AV2Convolve2DHighbdCompoundTestLarge,
+    BuildHighbdLumaParams(av2_highbd_cwp_convolve_2d_neon));
 #endif
 
 //////////////////////////////////////////////////////////
