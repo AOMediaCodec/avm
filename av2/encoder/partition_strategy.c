@@ -872,15 +872,20 @@ void av2_prune_partitions_before_search(
   MACROBLOCKD *const xd = &x->e_mbd;
   if (!bru_is_sb_active(cm, mi_col, mi_row)) return;
 
-  if (cpi->sf.part_sf.sms_unified_prune && sms_tree &&
-      !sms_tree->sms_unified_valid && !frame_is_intra_only(cm) &&
+  if ((cpi->sf.part_sf.sms_unified_prune_horz ||
+       cpi->sf.part_sf.sms_unified_prune_vert) &&
+      sms_tree && !sms_tree->sms_unified_valid && !frame_is_intra_only(cm) &&
       !cpi->is_screen_content_type && is_square_block(bsize) &&
       bsize >= BLOCK_8X8) {
     av2_sms_unified_compute(cpi, x, sms_tree, mi_row, mi_col, bsize);
   }
 
-  if (cpi->sf.part_sf.sms_unified_prune && sms_tree) {
-    av2_sms_unified_prune_rect(cpi, sms_tree, partition_search_state);
+  if (cpi->sf.part_sf.sms_unified_prune_horz && sms_tree) {
+    av2_sms_unified_prune_horz(cpi, sms_tree, partition_search_state);
+  }
+
+  if (cpi->sf.part_sf.sms_unified_prune_vert && sms_tree) {
+    av2_sms_unified_prune_vert(cpi, x, sms_tree, partition_search_state);
   }
 
   // A CNN-based speed feature pruning out either split or all non-split

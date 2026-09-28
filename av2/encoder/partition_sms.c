@@ -10,6 +10,7 @@
 
 #include "av2/common/mv.h"
 #include "av2/common/pred_common.h"
+#include "av2/common/quant_common.h"
 #include "av2/encoder/ml.h"
 #include "avm_ports/system_state.h"
 
@@ -300,7 +301,7 @@ void av2_sms_unified_compute(AV2_COMP *const cpi, MACROBLOCK *x,
  * Called at the rect gate, before HORZ RD search.
  * ------------------------------------------------------------------- */
 
-void av2_sms_unified_prune_rect(const AV2_COMP *cpi,
+void av2_sms_unified_prune_horz(const AV2_COMP *cpi,
                                 SIMPLE_MOTION_DATA_TREE *sms_tree,
                                 PartitionSearchState *part_search_state) {
   if (!sms_tree || !sms_tree->sms_unified_valid) return;
@@ -316,4 +317,56 @@ void av2_sms_unified_prune_rect(const AV2_COMP *cpi,
       part_search_state->partition_allowed[PARTITION_HORZ];
 
   if (horz_qualifies) part_search_state->prune_partition[PARTITION_HORZ] = true;
+}
+
+// Per-bsize VERT pruning thresholds (2 res buckets × 3 QP buckets × 5 bsize
+// slots). Res: 0=min-side<2160, 1=min-side>=2160. QP: 0=qindex<=160,
+// 1=qindex<=210, 2=qindex>210. Cols: 0=128x128, 1=64x64, 2=32x32, 3=16x16,
+// 4=8x8.
+static const float sms_vert_thresh[2][3][5] = {
+  // 1080p
+  {
+      { 0.30f, 0.00f, 0.00f, 0.55f, 0.00f },
+      { 0.30f, 0.00f, 0.00f, 0.55f, 0.00f },
+      { 0.30f, 0.00f, 0.00f, 0.55f, 0.00f },
+  },
+  // 4K
+  {
+      { 0.30f, 0.00f, 0.15f, 0.55f, 0.00f },
+      { 0.00f, 0.00f, 0.00f, 0.00f, 0.00f },
+      { 0.00f, 0.00f, 0.00f, 0.00f, 0.00f },
+  },
+};
+
+static int sms_qp_bucket(int qindex, int bit_depth) {
+  const int offset = MAXQ_OFFSET * (bit_depth - 8);
+  if (qindex <= 160 + offset) return 0;
+  if (qindex <= 210 + offset) return 1;
+  return 2;
+}
+
+static int sms_res_bucket(const AV2_COMMON *cm) {
+  return (AVMMIN(cm->width, cm->height) >= 2160) ? 1 : 0;
+}
+
+void av2_sms_unified_prune_vert(const AV2_COMP *cpi, const MACROBLOCK *x,
+                                SIMPLE_MOTION_DATA_TREE *sms_tree,
+                                PartitionSearchState *part_search_state) {
+  if (!sms_tree || !sms_tree->sms_unified_valid) return;
+  if (cpi->is_screen_content_type) return;
+
+  const float *probs = sms_tree->sms_unified_probs;
+  const int slot = sms_bsize_slot(sms_tree->block_size);
+  if (slot < 0) return;
+
+  const int rbucket = sms_res_bucket(&cpi->common);
+  const int qbucket =
+      sms_qp_bucket(x->qindex, cpi->common.seq_params.bit_depth);
+  const float thresh = sms_vert_thresh[rbucket][qbucket][slot];
+
+  const bool vert_qualifies =
+      thresh > 0.0f && probs[PARTITION_VERT] < thresh &&
+      part_search_state->partition_allowed[PARTITION_VERT];
+
+  if (vert_qualifies) part_search_state->prune_partition[PARTITION_VERT] = true;
 }
