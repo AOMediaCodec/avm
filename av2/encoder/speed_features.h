@@ -994,6 +994,14 @@ typedef struct TX_SPEED_FEATURES {
   // Prune transform partition type search by the analysis of signal
   // stationarity along horizontal and vertical axis.
   bool prune_tx_part_stationarity;
+
+  // Enable the early-exit pre-RD pruning gate inside the tx-type search loop.
+  // When set, a lightweight RD Cost estimate is computed before the full
+  // trellis / av2_optimize_b path and the candidate is skipped when its
+  // predicted RD Cost exceeds the current best by more than 1/8.
+  // Set at speed >= 3 for non-boosted frames, and
+  // unconditionally for all frames at speed >= 5.
+  bool prune_tx_search_by_pre_rd;
 } TX_SPEED_FEATURES;
 
 typedef struct RD_CALC_SPEED_FEATURES {

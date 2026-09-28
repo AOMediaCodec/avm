@@ -601,6 +601,10 @@ static void set_good_speed_features_framesize_independent(
     sf->tx_sf.adaptive_tx_type_search_idx = boosted ? 4 : 5;
     sf->tx_sf.adaptive_tx_partition_type_search_idx = boosted ? 4 : 5;
     sf->tx_sf.tx_type_search.use_skip_flag_prediction = 2;
+    // Enable the pre-RD gate for non-boosted frames at
+    // speed >= 3; boosted frames are excluded to protect quality. At speed >= 5
+    // this is overridden to cover all frame types.
+    sf->tx_sf.prune_tx_search_by_pre_rd = !boosted;
 
     // TODO(any): Refactor the code related to following winner mode speed
     // features
@@ -686,6 +690,9 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.disable_onesided_comp = true;
     cpi->oxcf.tool_cfg.enable_tip_refinemv = 0;
     sf->inter_sf.prune_inter_modes_if_skippable = 1;
+    // Unconditionally enable the pre-RD gate at speed >= 5: apply to all
+    // frame types including boosted (KF/GF/ARF) frames.
+    sf->tx_sf.prune_tx_search_by_pre_rd = true;
 
     // TODO(any): Extend multi-winner mode processing support for inter frames
     sf->winner_mode_sf.multi_winner_mode_type =
@@ -1036,6 +1043,7 @@ static AVM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
   tx_sf->enable_adaptive_tx_search_level = false;
   tx_sf->prune_intra_ist_stx_by_zero_eob = false;
   tx_sf->prune_tx_part_stationarity = false;
+  tx_sf->prune_tx_search_by_pre_rd = false;
 }
 
 static AVM_INLINE void init_rd_sf(RD_CALC_SPEED_FEATURES *rd_sf,
