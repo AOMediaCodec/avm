@@ -487,8 +487,10 @@ static int cost_prediction_mode(const ModeCosts *const mode_costs,
                                 const MACROBLOCKD *xd, int16_t mode_context) {
   int amvd_index = amvd_mode_to_index(mbmi->mode);
   int amvd_ctx = get_amvd_context(xd);
+  // The AMVD flag is coded for every mode allow_amvd_mode() accepts, including
+  // same-ref compound and TIP modes, so each return below must include it.
   int amvd_mode_cost =
-      allow_amvd_mode(mbmi->mode)
+      cm->seq_params.enable_adaptive_mvd && allow_amvd_mode(mbmi->mode)
           ? mode_costs->amvd_mode_cost[amvd_index][amvd_ctx][mbmi->use_amvd]
           : 0;
 
@@ -507,7 +509,7 @@ static int cost_prediction_mode(const ModeCosts *const mode_costs,
     if (is_new_nearmv_pred_mode_disallowed(mbmi)) {
       const int signal_mode_idx =
           comp_mode_idx_to_mode_signal_idx[comp_mode_idx];
-      return use_optical_flow_cost +
+      return use_optical_flow_cost + amvd_mode_cost +
              mode_costs->inter_compound_mode_same_refs_cost[mode_context]
                                                            [signal_mode_idx];
     } else {
@@ -531,7 +533,7 @@ static int cost_prediction_mode(const ModeCosts *const mode_costs,
   if (is_tip_ref_frame(mbmi->ref_frame[0])) {
     const int tip_pred_index =
         tip_pred_mode_to_index[mode - SINGLE_INTER_MODE_START];
-    return mode_costs->tip_mode_cost[tip_pred_index];
+    return mode_costs->tip_mode_cost[tip_pred_index] + amvd_mode_cost;
   }
 
   int warp_mode_cost = 0;
