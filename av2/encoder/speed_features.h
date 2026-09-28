@@ -1136,6 +1136,10 @@ typedef struct REALTIME_SPEED_FEATURES {
 
   // Compute source sad metrics for superblock.
   int source_metrics_sb;
+
+  // Disable searching for the best primary_ref_frame by trial-packing the
+  // bitstream across candidate reference frames.
+  int disable_primary_ref_frame_search;
 } REALTIME_SPEED_FEATURES;
 
 typedef struct LC_DEC_SPEED_FEATURES {
