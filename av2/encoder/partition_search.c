@@ -3575,7 +3575,8 @@ static AVM_INLINE bool is_rect_part_allowed(
 
 static AVM_INLINE void prune_rect_with_none_rd(
     PartitionSearchState *part_search_state, BLOCK_SIZE bsize, int q_index,
-    int rdmult, int64_t part_none_rd, const int *is_not_edge_block) {
+    int bit_depth, int rdmult, int64_t part_none_rd,
+    const int *is_not_edge_block) {
   for (RECT_PART_TYPE rect = 0; rect < NUM_RECT_PARTS; ++rect) {
     // Disable pruning on the boundary
     if (!is_not_edge_block[rect]) continue;
@@ -3584,7 +3585,7 @@ static AVM_INLINE void prune_rect_with_none_rd(
     if (part_search_state->prune_partition[partition_type]) continue;
 
     float discount_factor = 1.1f;
-    const int q_thresh = 180;
+    const int q_thresh = 180 + MAXQ_OFFSET * (bit_depth - AVM_BITS_8);
     if (q_index < q_thresh) {
       discount_factor -= 0.025f;
     }
@@ -3867,8 +3868,9 @@ static void prune_rect_partitions(AV2_COMP *const cpi, ThreadData *td,
     const int is_not_edge_block[NUM_RECT_PARTS] = { blk_params->has_rows,
                                                     blk_params->has_cols };
 
-    prune_rect_with_none_rd(part_search_state, bsize, x->qindex, x->rdmult,
-                            part_none_rd, is_not_edge_block);
+    prune_rect_with_none_rd(part_search_state, bsize, x->qindex,
+                            cm->seq_params.bit_depth, x->rdmult, part_none_rd,
+                            is_not_edge_block);
   }
 }
 
