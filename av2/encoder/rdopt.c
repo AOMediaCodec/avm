@@ -4916,6 +4916,24 @@ static AVM_INLINE void update_predictor_search_state(
   motion_mode_cand->rate2_nocoeff = rate2_nocoeff;
 }
 
+// Returns true if compound type evaluation is needed for this candidate,
+// i.e. process_compound_inter_mode() should be called.
+static AVM_INLINE int needs_comp_type_eval(const AV2_COMP *cpi,
+                                           const MB_MODE_INFO *mbmi,
+                                           int is_comp_pred, int is_opfl_mode) {
+  const AV2_COMMON *cm = &cpi->common;
+  // Not a compound prediction; nothing to evaluate.
+  if (!is_comp_pred) return 0;
+  // OPFL modes bypass compound processing unless RD pruning is active.
+  if (is_opfl_mode && !cpi->sf.inter_sf.prune_comp_mode_eval_using_est_rd)
+    return 0;
+  // Joint AMVD modes handle compound cost separately.
+  if (is_joint_amvd_coding_mode(mbmi->mode, mbmi->use_amvd)) return 0;
+  // RefineMV switchable modes defer compound processing.
+  if (mbmi->refinemv_flag && switchable_refinemv_flag(cm, mbmi)) return 0;
+  return 1;
+}
+
 // Evaluates a single inter predictor candidate.
 // This function performs the core RD evaluation for a given predictor,
 // including interpolation filter search, motion mode search, and updating
@@ -5037,9 +5055,7 @@ static void evaluate_inter_predictor(AV2_COMP *const cpi,
           : 0;
   // Handle a compound predictor, continue if it is determined
   // this cannot be the best compound mode
-  if (!is_opfl_mode && is_comp_pred &&
-      !is_joint_amvd_coding_mode(mbmi->mode, mbmi->use_amvd) &&
-      (!mbmi->refinemv_flag || !switchable_refinemv_flag(cm, mbmi))) {
+  if (needs_comp_type_eval(cpi, mbmi, is_comp_pred, is_opfl_mode)) {
     const int not_best_mode = process_compound_inter_mode(
         cpi, x, env->args, *search_state->ref_best_rd, tmp_cur_mv, bsize,
         &compmode_interinter_cost, env->rd_buffers, env->orig_dst, env->tmp_dst,
