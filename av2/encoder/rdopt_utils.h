@@ -436,6 +436,23 @@ static AVM_INLINE void init_sbuv_mode(MB_MODE_INFO *const mbmi) {
   mbmi->palette_mode_info.palette_size[1] = 0;
 }
 
+// Copies one winner-mode entry. The 64 KB palette colour map is copied only
+// for palette entries: it is read for nothing else.
+static INLINE void copy_winner_mode_stat(WinnerModeStats *dst,
+                                         const WinnerModeStats *src) {
+  dst->mbmi = src->mbmi;
+  dst->rd_cost = src->rd_cost;
+  dst->rd = src->rd;
+  dst->rate_y = src->rate_y;
+  dst->rate_uv = src->rate_uv;
+  dst->mode = src->mode;
+  dst->refs[0] = src->refs[0];
+  dst->refs[1] = src->refs[1];
+  if (src->mbmi.palette_mode_info.palette_size[PLANE_TYPE_Y] > 0)
+    memcpy(dst->color_index_map, src->color_index_map,
+           sizeof(dst->color_index_map));
+}
+
 // Store best mode stats for winner mode processing
 static INLINE void store_winner_mode_stats(
     const AV2_COMMON *const cm, MACROBLOCK *x, const MB_MODE_INFO *mbmi,
@@ -473,9 +490,8 @@ static INLINE void store_winner_mode_stats(
       return;
     } else if (mode_idx < max_winner_mode_count - 1) {
       // Create a slot for current mode and move others to the next slot
-      memmove(
-          &winner_mode_stats[mode_idx + 1], &winner_mode_stats[mode_idx],
-          (max_winner_mode_count - mode_idx - 1) * sizeof(*winner_mode_stats));
+      for (int i = max_winner_mode_count - 1; i > mode_idx; i--)
+        copy_winner_mode_stat(&winner_mode_stats[i], &winner_mode_stats[i - 1]);
     }
   }
   // Add a mode stat for winner mode processing
