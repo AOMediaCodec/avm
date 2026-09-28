@@ -73,15 +73,15 @@ uint64_t av2_tx_cache_hash_c(const int16_t *residual, int stride, int tx_w,
 // Fold in the rest of the state that can flip which candidate wins. Only
 // bounded fields are bit-packed; unbounded ones are folded separately so they
 // cannot alias. The superblock coordinates are zero: the key is frame-scoped.
-AVM_NO_UNSIGNED_OVERFLOW_CHECK uint64_t
-av2_tx_cache_mix(uint64_t h, uint32_t sb_row, uint32_t sb_col, int is_inter,
-                 int is_fsc, int intra_mode, int rd_model, int skip_trellis,
-                 int tx_set_type, int use_qmatrix, int rdmult) {
-  const uint32_t flags = ((is_inter != 0) << 0) | ((is_fsc != 0) << 1) |
-                         ((skip_trellis != 0) << 2) |
-                         ((use_qmatrix != 0) << 3) | ((rd_model & 0xF) << 4) |
-                         ((intra_mode & 0x3F) << 8) |
-                         ((tx_set_type & 0xFF) << 16);
+AVM_NO_UNSIGNED_OVERFLOW_CHECK uint64_t av2_tx_cache_mix(
+    uint64_t h, uint32_t sb_row, uint32_t sb_col, int is_inter, int is_fsc,
+    int intra_mode, int rd_model, int skip_trellis, int tx_set_type,
+    int use_qmatrix, int rdmult, int is_dry_pass) {
+  const uint32_t flags =
+      ((is_inter != 0) << 0) | ((is_fsc != 0) << 1) |
+      ((skip_trellis != 0) << 2) | ((use_qmatrix != 0) << 3) |
+      ((rd_model & 0xF) << 4) | ((intra_mode & 0x3F) << 8) |
+      ((is_dry_pass != 0) << 14) | ((tx_set_type & 0xFF) << 16);
   h = tx_cache_fold(h, flags);
   h = tx_cache_fold(h, (uint32_t)rdmult);
   h = tx_cache_fold(h, ((uint64_t)sb_row << 32) | sb_col);
