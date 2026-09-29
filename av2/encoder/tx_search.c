@@ -2144,6 +2144,34 @@ static AVM_INLINE bool prune_tx_search_by_eob(
   return false;
 }
 
+// Pre-RD gate inside the tx-type search loop: computes a lightweight
+// RD Cost estimate before the expensive trellis /
+// av2_optimize_b path and prunes the candidate when its predicted RD exceeds
+// the current best by more than 1/8. Returns true when the candidate should
+// be skipped. Returns false immediately when prune_tx_search_by_pre_rd is
+// false.
+static AVM_INLINE bool prune_tx_search_by_pre_rd_check(
+    const AV2_COMMON *cm, MACROBLOCK *x, const TXB_CTX *txb_ctx,
+    int64_t best_rd, int64_t block_sse, int stx, int plane, int block, int txw,
+    int txh, uint16_t eob, TX_SIZE tx_size, TX_TYPE tx_type, bool fsc_mode_in,
+    bool use_optimize_b, bool prune_tx_search_by_pre_rd) {
+  if (!prune_tx_search_by_pre_rd || !use_optimize_b || fsc_mode_in ||
+      eob == 0 || best_rd == INT64_MAX || txw == 64 || txh == 64)
+    return false;
+
+  const int pre_rate =
+      cost_coeffs(cm, x, plane, block, tx_size, tx_type, CCTX_NONE, txb_ctx,
+                  cm->features.reduced_tx_set_used);
+  int64_t pre_dist, pre_sse;
+  dist_block_tx_domain(x, plane, block, tx_size, &pre_dist, &pre_sse);
+  // When STX is active, dist_block_tx_domain() only sees the coded primary
+  // coefficients. Add the uncoded residual energy (block_sse - pre_sse) so
+  // the distortion estimate covers the full block.
+  if (stx != 0) pre_dist = pre_dist + AVMMAX((block_sse - pre_sse), 0);
+  const int64_t pre_rd = RDCOST(x->rdmult, pre_rate, pre_dist);
+  return pre_rd - (pre_rd >> 3) > best_rd;
+}
+
 // Returns the maximum number of IST set candidates to evaluate based on block
 // properties.
 static AVM_INLINE int get_ist_max_set_id(bool skip_stx, bool is_inter, int txw,
@@ -2716,20 +2744,11 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
                                    tx_sf->prune_intra_ist_stx_by_zero_eob)) {
           continue;
         }
-        if (cpi->oxcf.speed >= 5) {
-          const int is_4k_or_larger = AVMMIN(cm->width, cm->height) >= 2160;
-          if (is_4k_or_larger && quant_param.use_optimize_b && !fsc_mode_in &&
-              *eob != 0 && best_rd != INT64_MAX && txw != 64 && txh != 64) {
-            const int pre_rate =
-                cost_coeffs(cm, x, plane, block, tx_size, tx_type, CCTX_NONE,
-                            txb_ctx, cm->features.reduced_tx_set_used);
-            int64_t pre_dist, pre_sse;
-            dist_block_tx_domain(x, plane, block, tx_size, &pre_dist, &pre_sse);
-            const int64_t pre_rd = RDCOST(x->rdmult, pre_rate, pre_dist);
-            if (pre_rd - (pre_rd >> 3) > best_rd) {
-              continue;
-            }
-          }
+        if (prune_tx_search_by_pre_rd_check(
+                cm, x, txb_ctx, best_rd, block_sse, stx, plane, block, txw, txh,
+                *eob, tx_size, tx_type, fsc_mode_in, quant_param.use_optimize_b,
+                tx_sf->prune_tx_search_by_pre_rd)) {
+          continue;
         }
         if (fsc_mode_in && quant_param.use_optimize_b) {
           av2_optimize_fsc(cpi, x, plane, block, tx_size, tx_type, txb_ctx,
