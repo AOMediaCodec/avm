@@ -2122,25 +2122,16 @@ static bool prune_sec_txfm_rd_eval(int64_t sec_tx_sse_to_be_coded,
 
 // Prune transform type search based on EOB count and block properties.
 static AVM_INLINE bool prune_tx_search_by_eob(
-    MACROBLOCKD *const xd, int blk_row, int blk_col, TX_SIZE tx_size, int eob,
-    int plane, bool is_inter, PRIMARY_TX_TYPE primary_tx_type, int stx,
-    bool *const eob_found, bool prune_intra_ist_stx_by_zero_eob) {
+    int eob, int plane, bool is_inter, PRIMARY_TX_TYPE primary_tx_type,
+    int stx, bool *const eob_found, bool prune_intra_ist_stx_by_zero_eob) {
   if (plane == AVM_PLANE_Y && !is_inter &&
       (eob == 1 || (prune_intra_ist_stx_by_zero_eob && eob == 0))) {
     if (primary_tx_type == DCT_DCT && stx == 0) *eob_found = true;
     const bool kill =
         (eob == 1) ? (primary_tx_type != DCT_DCT || stx > 0) : (stx > 0);
-    if (kill) {
-      update_txk_array(xd, blk_row, blk_col, tx_size,
-                       MAKE_TX_TYPE_FROM_PRIMARY_TX_TYPE(DCT_DCT));
-      return true;
-    }
+    if (kill) return true;
   }
-  if (eob <= 3 && plane == AVM_PLANE_Y && is_inter && stx) {
-    update_txk_array(xd, blk_row, blk_col, tx_size,
-                     MAKE_TX_TYPE_FROM_PRIMARY_TX_TYPE(primary_tx_type));
-    return true;
-  }
+  if (eob <= 3 && plane == AVM_PLANE_Y && is_inter && stx) return true;
   return false;
 }
 
@@ -2407,6 +2398,38 @@ static AVM_INLINE bool winner_mode_tx_partition_preselected(
          cpi->sf.winner_mode_sf.disable_multiway_tx_part_in_rough_mode;
 }
 
+// Margin added to the IST input energy bound to cover the rounding of the
+// secondary transform kernels, as a right shift of the energy.
+#define IST_INPUT_ENERGY_MARGIN_SHIFT 5
+
+// Returns an upper bound of the energy any secondary transform (IST) kernel can
+// keep, computed from the primary coefficients cached in temp_coeff by the
+// primary trial. The IST only takes coefficients from the top-left 4x4 or 8x8
+// low-frequency region of the primary coefficients, and the IST kernels are
+// close to orthonormal, so the energy of that region bounds the energy any IST
+// kernel can keep. Scaled the same way as sec_tx_sse in av2_fwd_stxfm().
+static AVM_INLINE int64_t get_ist_input_energy_bound(const MACROBLOCK *x,
+                                                     TX_SIZE tx_size, int bd) {
+  const int32_t *const coeff = x->plane[AVM_PLANE_Y].temp_coeff;
+  const int width = AVMMIN(tx_size_wide[tx_size], 32);
+  const int height = AVMMIN(tx_size_high[tx_size], 32);
+  const int sb_size = (width >= 8 && height >= 8) ? 8 : 4;
+  uint64_t energy = 0;
+  for (int r = 0; r < sb_size; ++r) {
+    for (int c = 0; c < sb_size; ++c) {
+      const int64_t v = coeff[r * width + c];
+      energy += (uint64_t)(v * v);
+    }
+  }
+  const int bd_shift = 2 * (bd - 8);
+  const int rounding = bd_shift > 0 ? 1 << (bd_shift - 1) : 0;
+  energy = (energy + rounding) >> bd_shift;
+  const int tx_shift = (MAX_TX_SCALE - av2_get_tx_scale(tx_size)) * 2;
+  energy = RIGHT_SIGNED_SHIFT(energy, tx_shift);
+  energy += energy >> IST_INPUT_ENERGY_MARGIN_SHIFT;
+  return (int64_t)energy;
+}
+
 typedef struct {
   const AV2_COMP *cpi;
   MACROBLOCK *x;
@@ -2515,9 +2538,8 @@ static AVM_FORCE_INLINE void evaluate_tx_candidate(
   // stx == 0 that quantized to all-zero can still win via skip
   // coding (bitstream signals the tx_type and elides the
   // coefficients).
-  if (prune_tx_search_by_eob(xd, ctx->blk_row, ctx->blk_col, ctx->tx_size, *eob,
-                             ctx->plane, ctx->is_inter, primary_tx_type, stx,
-                             eob_found,
+  if (prune_tx_search_by_eob(*eob, ctx->plane, ctx->is_inter, primary_tx_type,
+                             stx, eob_found,
                              tx_sf->prune_intra_ist_stx_by_zero_eob)) {
     return;
   }
@@ -2550,9 +2572,8 @@ static AVM_FORCE_INLINE void evaluate_tx_candidate(
   // Post-trellis safety net: re-apply the same eob == 0 / eob == 1
   // pre-skip logic in case trellis (RDOQ) adjusted the eob across
   // the threshold.
-  if (prune_tx_search_by_eob(xd, ctx->blk_row, ctx->blk_col, ctx->tx_size, *eob,
-                             ctx->plane, ctx->is_inter, primary_tx_type, stx,
-                             eob_found,
+  if (prune_tx_search_by_eob(*eob, ctx->plane, ctx->is_inter, primary_tx_type,
+                             stx, eob_found,
                              tx_sf->prune_intra_ist_stx_by_zero_eob)) {
     return;
   }
@@ -2941,6 +2962,18 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
     if (tx_cache_hit && (tx_cache_winner.primary_tx != primary_tx_type ||
                          tx_cache_winner.sec_tx == 0)) {
       continue;
+    }
+
+    // Skip all IST trials of this primary type with one check. Any IST kernel
+    // keeps at most the energy of the low-frequency region of the primary
+    // coefficients, and everything else becomes distortion. If even this lower
+    // bound of the distortion (with zero rate) exceeds best_rd, every IST trial
+    // would be pruned by prune_sec_txfm_rd_eval(), so only check it together
+    // with that speed feature.
+    if (tx_sf->prune_tx_rd_eval_sec_tx_sse && best_rd != INT64_MAX) {
+      const int64_t ist_energy = get_ist_input_energy_bound(x, tx_size, xd->bd);
+      if (RDCOST(x->rdmult, 0, AVMMAX(block_sse - ist_energy, 0)) > best_rd)
+        continue;
     }
 
     // Secondary transform (IST) search (stx > 0).
