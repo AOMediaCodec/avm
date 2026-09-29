@@ -431,7 +431,6 @@ void av2_decide_states_q1_c(const struct tcq_node_t *prev,
   const int32_t *rate_eob = rd->rate_eob;
   int64_t rdCost[2 * TCQ_MAX_STATES];
   int64_t rdCost_zero[TCQ_MAX_STATES];
-  int64_t rdCost_eob[2];
 
   // Init to 0 to avoid ASAN uninitialization warnings
   memset(rdCost, 0, sizeof(rdCost));
@@ -451,8 +450,6 @@ void av2_decide_states_q1_c(const struct tcq_node_t *prev,
           prev[i].rdCost + RDCOST(rdmult, rate[2 * i + 1], pq->deltaDist[a1]);
     }
   }
-  rdCost_eob[0] = RDCOST(rdmult, rate_eob[0], pq->deltaDist[0]);
-  rdCost_eob[1] = RDCOST(rdmult, rate_eob[1], pq->deltaDist[2]);
 
   update_node_q1(rdCost[1], rdCost_zero[0], rate[1], rate_zero[0],
                  pq->absLevel[2], limits, prev[0].rate, 0, &decision[0],
@@ -480,8 +477,9 @@ void av2_decide_states_q1_c(const struct tcq_node_t *prev,
                  &decision[7]);
 
   if (try_eob) {
-    if (rdCost_eob[1] < decision[4].rdCost) {
-      decision[4].rdCost = rdCost_eob[1];
+    const int64_t rdCost_eob = RDCOST(rdmult, rate_eob[1], pq->deltaDist[2]);
+    if (rdCost_eob < decision[4].rdCost) {
+      decision[4].rdCost = rdCost_eob;
       decision[4].rate = rate_eob[1];
       decision[4].prevId = -1;
       decision[4].absLevel = pq->absLevel[2];
