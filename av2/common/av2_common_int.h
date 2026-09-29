@@ -3075,8 +3075,7 @@ av2_get_chroma_format_idc(int subsampling_x, int subsampling_y, int monochrome,
   return AVM_CODEC_OK;
 }
 
-int get_ccso_unit_size_log2_adaptive_tile(const AV2_COMMON *cm,
-                                          int sb_size_log2, int unit_size_log2);
+int get_ccso_unit_size_log2_adaptive_tile(const AV2_COMMON *cm);
 
 // TODO(hkuang): Don't need to lock the whole pool after implementing atomic
 // frame reference count.
