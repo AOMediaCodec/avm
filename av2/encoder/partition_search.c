@@ -16,6 +16,7 @@
 #include "av2/common/bru.h"
 #include "avm_ports/avm_timer.h"
 
+#include "av2/encoder/partition_et.h"
 #include "av2/encoder/partition_mlp.h"
 #include "av2/encoder/partition_sms.h"
 
@@ -3540,40 +3541,6 @@ static AVM_INLINE int rd_try_subblock_partition(
 static const int rect_partition_type[NUM_RECT_PARTS] = { PARTITION_HORZ,
                                                          PARTITION_VERT };
 
-static AVM_INLINE bool is_part_pruned_by_forced_partition(
-    const PartitionSearchState *part_state, PARTITION_TYPE partition) {
-  const PARTITION_TYPE forced_partition = part_state->forced_partition;
-  return forced_partition != PARTITION_INVALID && forced_partition != partition;
-}
-
-// Checks if HORZ / VERT partition search is allowed.
-static AVM_INLINE bool is_rect_part_allowed(
-    const AV2_COMP *cpi, PartitionSearchState *part_search_state,
-    PARTITION_TYPE partition_type) {
-  const PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
-  const int mi_row = blk_params->mi_row, mi_col = blk_params->mi_col;
-  const BLOCK_SIZE bsize = blk_params->bsize;
-  assert(partition_type >= PARTITION_HORZ && partition_type <= PARTITION_VERT);
-
-  if (part_search_state->terminate_partition_search) return false;
-  if (!part_search_state->partition_allowed[partition_type]) return false;
-  if (part_search_state->prune_partition[partition_type]) return false;
-  if (!is_partition_valid(bsize, partition_type)) return false;
-  if (is_part_pruned_by_forced_partition(part_search_state, partition_type))
-    return false;
-  const RECT_PART_TYPE rect_type = get_rect_part_type(partition_type);
-  if (rect_type == HORZ) {
-    if (!(part_search_state->do_rectangular_split ||
-          av2_active_h_edge(cpi, mi_row, blk_params->mi_step_h)))
-      return false;
-  } else {
-    if (!(part_search_state->do_rectangular_split ||
-          av2_active_v_edge(cpi, mi_col, blk_params->mi_step_w)))
-      return false;
-  }
-  return true;
-}
-
 static AVM_INLINE void prune_rect_with_none_rd(
     PartitionSearchState *part_search_state, BLOCK_SIZE bsize, int q_index,
     int bit_depth, int rdmult, int64_t part_none_rd,
@@ -5417,24 +5384,6 @@ static void search_extended_partition(
   restore_level_banks(&x->e_mbd, level_banks);
 }
 
-static AVM_INLINE int get_partition_depth(const PC_TREE *pc_tree,
-                                          int curr_depth) {
-  if (pc_tree == NULL) return curr_depth;
-  const PARTITION_TYPE partition = pc_tree->partitioning;
-  if (partition == PARTITION_NONE) return curr_depth;
-
-  int num_sub_parts = 0;
-  PC_TREE *const *child_nodes = get_child_pc_trees(
-      pc_tree, partition, pc_tree->region_type, &num_sub_parts);
-  const int depth_inc = (partition == PARTITION_SPLIT) ? 2 : 1;
-  int max_depth = curr_depth;
-  for (int sub_idx = 0; sub_idx < num_sub_parts; ++sub_idx) {
-    max_depth = AVMMAX(max_depth, get_partition_depth(child_nodes[sub_idx],
-                                                      curr_depth + depth_inc));
-  }
-  return max_depth;
-}
-
 static AVM_INLINE bool try_none_after_rect(
     const MACROBLOCKD *xd, const CommonModeInfoParams *mi_params,
     BLOCK_SIZE bsize, int mi_row, int mi_col) {
@@ -6117,6 +6066,14 @@ BEGIN_PARTITION_SEARCH:
 
   prune_partitions_after_split(cpi, x, pc_tree, &part_search_state,
                                part_none_rd, part_split_rd);
+  // Learned early termination after NONE (+ SPLIT at 128/256): skips the
+  // rectangular, late-NONE and extended partition searches of this node.
+  if (av2_partition_et_after_none_and_split(
+          cpi, x, pc_tree, &part_search_state, &best_rdc, part_none_rd,
+          part_split_rd, &pb_source_variance, multi_pass_mode,
+          search_none_after_rect, sms_tree, parent_partition)) {
+    part_search_state.terminate_partition_search = true;
+  }
   prune_rect_partitions(cpi, td, &part_search_state, &pb_source_variance,
                         part_none_rd);
   // Search partitions horz and vert.
