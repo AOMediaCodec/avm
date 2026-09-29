@@ -1017,6 +1017,13 @@ typedef struct TX_SPEED_FEATURES {
   // Set at speed >= 3 for non-boosted frames, and
   // unconditionally for all frames at speed >= 5.
   bool prune_tx_search_by_pre_rd;
+
+  // Prune secondary transform (IST) trials by best_rd:
+  // - Skip the IST trials of ADST_ADST if its primary trial is worse than
+  //   best_rd by more than a margin.
+  // - For intra blocks, skip IST sets 2 and 3 if the best IST trial of sets 0
+  //   and 1 is worse than best_rd by more than a margin.
+  bool prune_ist_by_best_rd;
 } TX_SPEED_FEATURES;
 
 typedef struct RD_CALC_SPEED_FEATURES {
