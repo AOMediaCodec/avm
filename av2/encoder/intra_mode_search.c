@@ -2028,6 +2028,7 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
                               skippable, bsize, mode_cost, &best_rd_so_far,
                               &best_model_rd, ctx)) {
       best_mbmi = *mbmi;
+      beat_best_rd = 1;
     }
   }
 
