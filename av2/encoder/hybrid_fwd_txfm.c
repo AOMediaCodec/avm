@@ -283,65 +283,92 @@ void fwd_txfm_dct2_size64_c(const int *src, int *dst, int shift, int line,
     i[1] = g[1] + g[2];
     u[1] = g[1] - g[2];
 
-    dst[0] = (tx_mat[0 * 64 + 0] * i[0] + tx_mat[0 * 64 + 1] * i[1] + offset) >>
-             shift;
-    dst[16] =
-        (tx_mat[16 * 64 + 0] * u[0] + tx_mat[16 * 64 + 1] * u[1] + offset) >>
-        shift;
+    dst[0] = (int)(((int64_t)tx_mat[0 * 64 + 0] * i[0] +
+                    (int64_t)tx_mat[0 * 64 + 1] * i[1] + offset) >>
+                   shift);
+    dst[16] = (int)(((int64_t)tx_mat[16 * 64 + 0] * u[0] +
+                     (int64_t)tx_mat[16 * 64 + 1] * u[1] + offset) >>
+                    shift);
 
     if (!zo) {
-      dst[32] =
-          (tx_mat[32 * 64 + 0] * i[0] + tx_mat[32 * 64 + 1] * i[1] + offset) >>
-          shift;
-      dst[48] =
-          (tx_mat[48 * 64 + 0] * u[0] + tx_mat[48 * 64 + 1] * u[1] + offset) >>
-          shift;
+      dst[32] = (int)(((int64_t)tx_mat[32 * 64 + 0] * i[0] +
+                       (int64_t)tx_mat[32 * 64 + 1] * i[1] + offset) >>
+                      shift);
+      dst[48] = (int)(((int64_t)tx_mat[48 * 64 + 0] * u[0] +
+                       (int64_t)tx_mat[48 * 64 + 1] * u[1] + offset) >>
+                      shift);
     }
     for (k = 8; k < (zo ? 32 : 64); k += 16) {
-      dst[k] =
-          (tx_mat[k * 64 + 0] * h[0] + tx_mat[k * 64 + 1] * h[1] +
-           tx_mat[k * 64 + 2] * h[2] + tx_mat[k * 64 + 3] * h[3] + offset) >>
-          shift;
+      dst[k] = (int)(((int64_t)tx_mat[k * 64 + 0] * h[0] +
+                      (int64_t)tx_mat[k * 64 + 1] * h[1] +
+                      (int64_t)tx_mat[k * 64 + 2] * h[2] +
+                      (int64_t)tx_mat[k * 64 + 3] * h[3] + offset) >>
+                     shift);
     }
     for (k = 4; k < (zo ? 32 : 64); k += 8) {
-      dst[k] =
-          (tx_mat[k * 64 + 0] * f[0] + tx_mat[k * 64 + 1] * f[1] +
-           tx_mat[k * 64 + 2] * f[2] + tx_mat[k * 64 + 3] * f[3] +
-           tx_mat[k * 64 + 4] * f[4] + tx_mat[k * 64 + 5] * f[5] +
-           tx_mat[k * 64 + 6] * f[6] + tx_mat[k * 64 + 7] * f[7] + offset) >>
-          shift;
+      dst[k] = (int)(((int64_t)tx_mat[k * 64 + 0] * f[0] +
+                      (int64_t)tx_mat[k * 64 + 1] * f[1] +
+                      (int64_t)tx_mat[k * 64 + 2] * f[2] +
+                      (int64_t)tx_mat[k * 64 + 3] * f[3] +
+                      (int64_t)tx_mat[k * 64 + 4] * f[4] +
+                      (int64_t)tx_mat[k * 64 + 5] * f[5] +
+                      (int64_t)tx_mat[k * 64 + 6] * f[6] +
+                      (int64_t)tx_mat[k * 64 + 7] * f[7] + offset) >>
+                     shift);
     }
     for (k = 2; k < (zo ? 32 : 64); k += 4) {
-      dst[k] = (tx_mat[k * 64 + 0] * d[0] + tx_mat[k * 64 + 1] * d[1] +
-                tx_mat[k * 64 + 2] * d[2] + tx_mat[k * 64 + 3] * d[3] +
-                tx_mat[k * 64 + 4] * d[4] + tx_mat[k * 64 + 5] * d[5] +
-                tx_mat[k * 64 + 6] * d[6] + tx_mat[k * 64 + 7] * d[7] +
-                tx_mat[k * 64 + 8] * d[8] + tx_mat[k * 64 + 9] * d[9] +
-                tx_mat[k * 64 + 10] * d[10] + tx_mat[k * 64 + 11] * d[11] +
-                tx_mat[k * 64 + 12] * d[12] + tx_mat[k * 64 + 13] * d[13] +
-                tx_mat[k * 64 + 14] * d[14] + tx_mat[k * 64 + 15] * d[15] +
-                offset) >>
-               shift;
+      dst[k] = (int)(((int64_t)tx_mat[k * 64 + 0] * d[0] +
+                      (int64_t)tx_mat[k * 64 + 1] * d[1] +
+                      (int64_t)tx_mat[k * 64 + 2] * d[2] +
+                      (int64_t)tx_mat[k * 64 + 3] * d[3] +
+                      (int64_t)tx_mat[k * 64 + 4] * d[4] +
+                      (int64_t)tx_mat[k * 64 + 5] * d[5] +
+                      (int64_t)tx_mat[k * 64 + 6] * d[6] +
+                      (int64_t)tx_mat[k * 64 + 7] * d[7] +
+                      (int64_t)tx_mat[k * 64 + 8] * d[8] +
+                      (int64_t)tx_mat[k * 64 + 9] * d[9] +
+                      (int64_t)tx_mat[k * 64 + 10] * d[10] +
+                      (int64_t)tx_mat[k * 64 + 11] * d[11] +
+                      (int64_t)tx_mat[k * 64 + 12] * d[12] +
+                      (int64_t)tx_mat[k * 64 + 13] * d[13] +
+                      (int64_t)tx_mat[k * 64 + 14] * d[14] +
+                      (int64_t)tx_mat[k * 64 + 15] * d[15] + offset) >>
+                     shift);
     }
     for (k = 1; k < (zo ? 32 : 64); k += 2) {
-      dst[k] = (tx_mat[k * 64 + 0] * b[0] + tx_mat[k * 64 + 1] * b[1] +
-                tx_mat[k * 64 + 2] * b[2] + tx_mat[k * 64 + 3] * b[3] +
-                tx_mat[k * 64 + 4] * b[4] + tx_mat[k * 64 + 5] * b[5] +
-                tx_mat[k * 64 + 6] * b[6] + tx_mat[k * 64 + 7] * b[7] +
-                tx_mat[k * 64 + 8] * b[8] + tx_mat[k * 64 + 9] * b[9] +
-                tx_mat[k * 64 + 10] * b[10] + tx_mat[k * 64 + 11] * b[11] +
-                tx_mat[k * 64 + 12] * b[12] + tx_mat[k * 64 + 13] * b[13] +
-                tx_mat[k * 64 + 14] * b[14] + tx_mat[k * 64 + 15] * b[15] +
-                tx_mat[k * 64 + 16] * b[16] + tx_mat[k * 64 + 17] * b[17] +
-                tx_mat[k * 64 + 18] * b[18] + tx_mat[k * 64 + 19] * b[19] +
-                tx_mat[k * 64 + 20] * b[20] + tx_mat[k * 64 + 21] * b[21] +
-                tx_mat[k * 64 + 22] * b[22] + tx_mat[k * 64 + 23] * b[23] +
-                tx_mat[k * 64 + 24] * b[24] + tx_mat[k * 64 + 25] * b[25] +
-                tx_mat[k * 64 + 26] * b[26] + tx_mat[k * 64 + 27] * b[27] +
-                tx_mat[k * 64 + 28] * b[28] + tx_mat[k * 64 + 29] * b[29] +
-                tx_mat[k * 64 + 30] * b[30] + tx_mat[k * 64 + 31] * b[31] +
-                offset) >>
-               shift;
+      dst[k] = (int)(((int64_t)tx_mat[k * 64 + 0] * b[0] +
+                      (int64_t)tx_mat[k * 64 + 1] * b[1] +
+                      (int64_t)tx_mat[k * 64 + 2] * b[2] +
+                      (int64_t)tx_mat[k * 64 + 3] * b[3] +
+                      (int64_t)tx_mat[k * 64 + 4] * b[4] +
+                      (int64_t)tx_mat[k * 64 + 5] * b[5] +
+                      (int64_t)tx_mat[k * 64 + 6] * b[6] +
+                      (int64_t)tx_mat[k * 64 + 7] * b[7] +
+                      (int64_t)tx_mat[k * 64 + 8] * b[8] +
+                      (int64_t)tx_mat[k * 64 + 9] * b[9] +
+                      (int64_t)tx_mat[k * 64 + 10] * b[10] +
+                      (int64_t)tx_mat[k * 64 + 11] * b[11] +
+                      (int64_t)tx_mat[k * 64 + 12] * b[12] +
+                      (int64_t)tx_mat[k * 64 + 13] * b[13] +
+                      (int64_t)tx_mat[k * 64 + 14] * b[14] +
+                      (int64_t)tx_mat[k * 64 + 15] * b[15] +
+                      (int64_t)tx_mat[k * 64 + 16] * b[16] +
+                      (int64_t)tx_mat[k * 64 + 17] * b[17] +
+                      (int64_t)tx_mat[k * 64 + 18] * b[18] +
+                      (int64_t)tx_mat[k * 64 + 19] * b[19] +
+                      (int64_t)tx_mat[k * 64 + 20] * b[20] +
+                      (int64_t)tx_mat[k * 64 + 21] * b[21] +
+                      (int64_t)tx_mat[k * 64 + 22] * b[22] +
+                      (int64_t)tx_mat[k * 64 + 23] * b[23] +
+                      (int64_t)tx_mat[k * 64 + 24] * b[24] +
+                      (int64_t)tx_mat[k * 64 + 25] * b[25] +
+                      (int64_t)tx_mat[k * 64 + 26] * b[26] +
+                      (int64_t)tx_mat[k * 64 + 27] * b[27] +
+                      (int64_t)tx_mat[k * 64 + 28] * b[28] +
+                      (int64_t)tx_mat[k * 64 + 29] * b[29] +
+                      (int64_t)tx_mat[k * 64 + 30] * b[30] +
+                      (int64_t)tx_mat[k * 64 + 31] * b[31] + offset) >>
+                     shift);
     }
     src++;
     dst += tx1d_size;
