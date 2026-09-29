@@ -849,6 +849,10 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // AMVD on top of these modes is unlikely to win over the non-AMVD best mode.
   int prune_amvd_newmv;
 
+  // Prune AMVD at speed >= 6: disables compound mode AMVD search entirely and
+  // disables all AMVD for pyramid level >= 3 (non-reference B-frames).
+  bool prune_amvd;
+
   // Prune further evaluation of compound mode using estimated RD Cost of best
   // compound type chosen.
   bool prune_comp_mode_eval_using_est_rd;
