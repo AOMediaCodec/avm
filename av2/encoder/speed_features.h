@@ -1162,6 +1162,12 @@ typedef struct LC_DEC_SPEED_FEATURES {
   // 1: bias against CDEF during RD decision.
   int bias_against_cdef;
 
+  // In LC mode, mostly WIENER_NONSEP is used. Here enable less LR is used
+  // based on rd cost..
+  // 0: this feature is disabled.
+  // 1: Enable less LR during RD decision.
+  int use_less_lr;
+
   // Skip the loop filter when the percentage of SSE improvement over the
   // unfiltered frame is lower than a threshold.
   // 0: no loop filter skipping.

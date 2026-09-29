@@ -730,6 +730,7 @@ static void set_good_speed_features_lc_dec_framesize_independent(
     cpi->oxcf.tool_cfg.enable_cdef_on_skip_txfm = 0;
 
     sf->lc_sf.bias_against_cdef = cm->current_frame.pyramid_level > 1;
+    sf->lc_sf.use_less_lr = cm->current_frame.pyramid_level > 1;
 
     const GF_GROUP *const gf_group = &cpi->gf_group;
     const FRAME_UPDATE_TYPE update_type =
@@ -1094,6 +1095,7 @@ static void av2_disable_ml_based_partition_sf(
 static AVM_INLINE void init_lc_sf(LC_DEC_SPEED_FEATURES *lc_sf) {
   lc_sf->enable_partition_size_bias = 0;
   lc_sf->bias_against_cdef = 0;
+  lc_sf->use_less_lr = 0;
   lc_sf->skip_loop_filter_based_on_error = 0;
 }
 
