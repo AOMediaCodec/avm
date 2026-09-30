@@ -2585,7 +2585,8 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
         base, 0u, 0u, is_inter, is_fsc, intra_mode, x->rd_model, skip_trellis,
         av2_get_ext_tx_set_type(tx_size, is_inter,
                                 cm->features.reduced_tx_set_used),
-        av2_use_qmatrix(&cm->quant_params, xd, mbmi->segment_id), x->rdmult);
+        av2_use_qmatrix(&cm->quant_params, xd, mbmi->segment_id), x->rdmult,
+        x->apply_dry_pass_shortcuts);
     const int cached = av2_tx_cache_lookup(tx_cache, tx_cache_key,
                                            cm->current_frame.frame_number);
     if (cached >= 0) {

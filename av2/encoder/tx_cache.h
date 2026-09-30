@@ -48,12 +48,13 @@ typedef struct {
 } TxCache;
 
 /*! Folds the remaining state that can flip which candidate wins into the seed
- *  \c h and returns the final, never-zero cache key.
+ *  \c h and returns the final, never-zero cache key. \c is_dry_pass keeps the
+ *  fast two-pass dry pass, which searches fewer tx types, apart from the rest.
  */
 uint64_t av2_tx_cache_mix(uint64_t h, uint32_t sb_row, uint32_t sb_col,
                           int is_inter, int is_fsc, int intra_mode,
                           int rd_model, int skip_trellis, int tx_set_type,
-                          int use_qmatrix, int rdmult);
+                          int use_qmatrix, int rdmult, int is_dry_pass);
 
 /*! Returns the winning tx_type cached for \c key in \c frame, or -1 on a miss.
  */
