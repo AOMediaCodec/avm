@@ -7073,6 +7073,11 @@ void av2_rd_pick_intra_mode_sb(const struct AV2_COMP *cpi, ThreadData *td,
   }
   int skip_ibc_search =
       !cm->features.allow_screen_content_tools && all_intra && (nz <= 0);
+  if (should_reuse_mode(x, REUSE_INTRA_MODE_IN_INTERFRAME_FLAG) &&
+      x->inter_mode_cache[0] &&
+      !x->inter_mode_cache[0]->use_intrabc[xd->tree_type == CHROMA_PART]) {
+    skip_ibc_search = 1;
+  }
   if (!skip_ibc_search) {
     if (rd_pick_intrabc_mode_sb(cpi, x, ctx, rd_cost, bsize, best_rd, 0) <
         best_rd) {
