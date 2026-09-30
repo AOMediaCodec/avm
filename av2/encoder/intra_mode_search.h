@@ -360,6 +360,18 @@ bool prune_intra_y_mode(int64_t this_model_rd, int64_t *best_model_rd,
                         int64_t top_intra_model_rd[], int prune_top,
                         int lossless, uint8_t use_dpcm_y);
 
+/*! \brief Returns the cached intra mode info if intra mode cache reuse is
+ * active and the cached mode is an intra mode, or NULL otherwise.
+ */
+static AVM_INLINE const MB_MODE_INFO *get_reusable_intra_mode_cache(
+    const MACROBLOCK *x) {
+  if (!should_reuse_mode(x, REUSE_INTRA_MODE_IN_INTERFRAME_FLAG)) return NULL;
+  const MB_MODE_INFO *const cached_mode = x->inter_mode_cache[0];
+  return (cached_mode != NULL && !is_inter_mode(cached_mode->mode))
+             ? cached_mode
+             : NULL;
+}
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
