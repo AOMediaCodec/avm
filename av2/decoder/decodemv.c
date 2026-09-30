@@ -143,8 +143,7 @@ static void span_ccso(AV2_COMMON *cm, MACROBLOCKD *const xd, int pli,
   const BLOCK_SIZE bsize = xd->mi[0]->sb_type[PLANE_TYPE_Y];
   const int bw = mi_size_wide[bsize];
   const int bh = mi_size_high[bsize];
-  const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(
-      cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
+  const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(cm);
   const int log2_w = ccso_blk_size;
   const int log2_h = ccso_blk_size;
   const int f_w = 1 << log2_w >> MI_SIZE_LOG2;
@@ -163,8 +162,7 @@ void read_ccso(AV2_COMMON *cm, avm_reader *r, MACROBLOCKD *const xd) {
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
-  const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(
-      cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
+  const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(cm);
   const int blk_size_y = (1 << (ccso_blk_size - MI_SIZE_LOG2)) - 1;
   const int blk_size_x = (1 << (ccso_blk_size - MI_SIZE_LOG2)) - 1;
   int blk_idc;

@@ -3106,8 +3106,7 @@ static AVM_INLINE void setup_ccso(AV2_COMMON *cm,
     }
   }
   if (cm->ccso_info.ccso_frame_flag) {
-    const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(
-        cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
+    const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(cm);
     cm->ccso_info.ccso_blk_size = ccso_blk_size;
     cm->cur_frame->ccso_info.ccso_blk_size = ccso_blk_size;
     for (int plane = 0; plane < av2_num_planes(cm); plane++) {
