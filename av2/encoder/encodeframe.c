@@ -1705,6 +1705,11 @@ void av2_encode_sb_row(AV2_COMP *cpi, ThreadData *td, int tile_row,
                             cm->mib_size_log2 + MI_SIZE_LOG2, 1);
   tplist[sb_row_in_tile].start_chroma = tok_chroma;
 
+  // The transform search result cache is per-thread, so it must not carry
+  // results across superblock rows: which rows a given thread encodes depends
+  // on the number of threads, which would make the output depend on it too.
+  av2_tx_cache_new_scope(&td->mb.txfm_search_info.tx_result_cache);
+
   encode_sb_row(cpi, td, this_tile, mi_row, &tok, &tok_chroma);
 
   tplist[sb_row_in_tile].count =
