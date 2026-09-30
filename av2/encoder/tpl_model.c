@@ -131,6 +131,31 @@ static AVM_INLINE void tpl_fwd_txfm(const int16_t *src_diff, int bw,
   av2_fwd_txfm(src_diff, coeff, bw, &txfm_param);
 }
 
+// Inverse of tpl_fwd_txfm(): always a lossy DCT_DCT with no secondary
+// transform. This intentionally does not go through
+// av2_inverse_transform_block(), because that derives lossless / DPCM behavior
+// from xd->lossless[] and xd->mi[0], which are not set up for TPL (they hold
+// stale state left over from encoding a previous frame). E.g. if the previous
+// frame was lossless, it would wrongly apply a 4x4 WHT (or a DPCM inverse) to
+// the TPL block.
+static AVM_INLINE void tpl_inv_txfm(const tran_low_t *dqcoeff, uint16_t *dst,
+                                    int dst_stride, TX_SIZE tx_size, int eob,
+                                    int bit_depth) {
+  if (!eob) return;
+  TxfmParam txfm_param;
+  memset(&txfm_param, 0, sizeof(txfm_param));
+  txfm_param.primary_tx_type = DCT_DCT;
+  txfm_param.sec_tx_type = 0;
+  txfm_param.intra_mode = DC_PRED;
+  txfm_param.tx_size = tx_size;
+  txfm_param.lossless = 0;
+  txfm_param.tx_set_type = EXT_TX_SET_ALL16;
+  txfm_param.use_ddt = 0;
+  txfm_param.eob = eob;
+  txfm_param.bd = bit_depth;
+  av2_highbd_inv_txfm_add(dqcoeff, dst, dst_stride, &txfm_param);
+}
+
 static AVM_INLINE void tpl_subtract_block(
     const MACROBLOCKD *xd, int rows, int cols, int16_t *diff,
     ptrdiff_t diff_stride, const uint16_t *src, ptrdiff_t src_stride,
@@ -186,9 +211,7 @@ static AVM_INLINE void txfm_quant_rdcost(
 
   *rate_cost = rate_estimator(qcoeff, eob, tx_size);
 
-  av2_inverse_transform_block(xd, dqcoeff, 0,
-                              MAKE_TX_TYPE_FROM_PRIMARY_TX_TYPE(DCT_DCT),
-                              tx_size, dst, dst_stride, eob, 0, 0);
+  tpl_inv_txfm(dqcoeff, dst, dst_stride, tx_size, eob, xd->bd);
 }
 
 static uint32_t motion_estimation(AV2_COMP *cpi, MACROBLOCK *x,
