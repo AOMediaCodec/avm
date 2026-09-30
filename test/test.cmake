@@ -267,6 +267,8 @@ if(NOT BUILD_SHARED_LIBS)
   endif()
 
   list(APPEND AVM_UNIT_TEST_ENCODER_SOURCES "${AVM_ROOT}/test/trellis_test.cc")
+  list(APPEND AVM_UNIT_TEST_ENCODER_SOURCES
+       "${AVM_ROOT}/test/av2_sec_txfm_test.cc")
 
 endif()
 
