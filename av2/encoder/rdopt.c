@@ -4054,6 +4054,43 @@ static int ref_mv_idx_to_search(AV2_COMP *const cpi, MACROBLOCK *x,
   return result;
 }
 
+// Computes the ref_mv_idx pre-screening masks (see ref_mv_idx_to_search()) of
+// the current MV precision (mbmi->pb_mv_precision) for BAWP off and, when BAWP
+// is allowed, for every BAWP option. This is called lazily, i.e. only for MV
+// precisions that are actually evaluated. The MB mode info is saved and
+// restored so that the mask evaluation does not alter the state seen by the
+// subsequent predictor search.
+static AVM_INLINE void compute_ref_mv_idx_masks(
+    AV2_COMP *const cpi, MACROBLOCK *x, RD_STATS *rd_stats,
+    HandleInterModeArgs *const args, int64_t ref_best_rd,
+    inter_mode_info (*mode_info)[NUM_MV_PRECISIONS][MAX_REF_MV_SQUARE],
+    BLOCK_SIZE bsize, const int *ref_set, const int flex_mv_cost,
+    int idx_mask[BAWP_OPTION_CNT][NUM_MV_PRECISIONS]) {
+  const AV2_COMMON *const cm = &cpi->common;
+  MACROBLOCKD *const xd = &x->e_mbd;
+  MB_MODE_INFO *const mbmi = xd->mi[0];
+  const MvSubpelPrecision pb_mv_precision = mbmi->pb_mv_precision;
+  const MB_MODE_INFO mbmi_backup = *mbmi;
+
+  mbmi->bawp_flag[0] = 0;
+  mbmi->bawp_flag[1] = 0;
+  idx_mask[0][pb_mv_precision] = ref_mv_idx_to_search(
+      cpi, x, rd_stats, args, ref_best_rd, mode_info[0][pb_mv_precision], bsize,
+      ref_set, flex_mv_cost);
+
+  if (cm->features.enable_bawp &&
+      av2_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col)) {
+    for (int bawp = 1; bawp < BAWP_OPTION_CNT; bawp++) {
+      mbmi->bawp_flag[0] = bawp;
+      idx_mask[bawp][pb_mv_precision] = ref_mv_idx_to_search(
+          cpi, x, rd_stats, args, ref_best_rd, mode_info[bawp][pb_mv_precision],
+          bsize, ref_set, flex_mv_cost);
+    }
+  }
+
+  *mbmi = mbmi_backup;
+}
+
 /*!\brief Motion mode information for inter mode search speedup.
  *
  * Used in a speed feature to search motion modes other than
@@ -6046,7 +6083,12 @@ static int64_t handle_inter_mode(
   }
 
   int flex_mv_cost[NUM_MV_PRECISIONS] = { 0, 0, 0, 0, 0, 0, 0 };
+  // The ref_mv_idx pre-screening masks (idx_mask) are computed lazily inside
+  // the MV precision loop below, only for the precisions that are evaluated.
   int idx_mask[BAWP_OPTION_CNT][NUM_MV_PRECISIONS] = { 0 };
+  // RD threshold at the entry of this function. Used by the ref_mv_idx
+  // pre-screening when ref_mv_idx_mask_use_best_rd is off.
+  const int64_t entry_ref_best_rd = ref_best_rd;
   if (is_pb_mv_prec_active) {
     const int down_ctx = av2_get_pb_mv_precision_down_context(cm, xd);
     const int mpp_flag_context = av2_get_mpp_flag_context(cm, xd);
@@ -6064,45 +6106,10 @@ static int64_t handle_inter_mode(
       flex_mv_cost[pb_mv_precision] = cost_mv_precision(
           mode_costs, mbmi->max_mv_precision, pb_mv_precision, down_ctx,
           mbmi->most_probable_pb_mv_precision, mpp_flag_context, mbmi);
-      mbmi->bawp_flag[0] = 0;
-      mbmi->bawp_flag[1] = 0;
-
-      idx_mask[0][pb_mv_precision] = ref_mv_idx_to_search(
-          cpi, x, rd_stats, args, ref_best_rd, mode_info[0][pb_mv_precision],
-          bsize, ref_set, flex_mv_cost[pb_mv_precision]);
-
-      if (cm->features.enable_bawp &&
-          av2_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col)) {
-        for (int bawp = 1; bawp < BAWP_OPTION_CNT; bawp++) {
-          mbmi->bawp_flag[0] = bawp;
-          idx_mask[bawp][pb_mv_precision] =
-              ref_mv_idx_to_search(cpi, x, rd_stats, args, ref_best_rd,
-                                   mode_info[bawp][pb_mv_precision], bsize,
-                                   ref_set, flex_mv_cost[pb_mv_precision]);
-        }
-        mbmi->bawp_flag[0] = 0;
-      }
-    }
-  } else {
-    set_mv_precision(mbmi, mbmi->max_mv_precision);
-    mbmi->bawp_flag[0] = 0;
-    mbmi->bawp_flag[1] = 0;
-
-    idx_mask[0][mbmi->max_mv_precision] = ref_mv_idx_to_search(
-        cpi, x, rd_stats, args, ref_best_rd,
-        mode_info[0][mbmi->max_mv_precision], bsize, ref_set, 0);
-
-    if (cm->features.enable_bawp &&
-        av2_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col)) {
-      for (int bawp = 1; bawp < BAWP_OPTION_CNT; bawp++) {
-        mbmi->bawp_flag[0] = bawp;
-        idx_mask[bawp][mbmi->max_mv_precision] = ref_mv_idx_to_search(
-            cpi, x, rd_stats, args, ref_best_rd,
-            mode_info[bawp][mbmi->max_mv_precision], bsize, ref_set, 0);
-      }
-      mbmi->bawp_flag[0] = 0;
     }
   }
+  mbmi->bawp_flag[0] = 0;
+  mbmi->bawp_flag[1] = 0;
   set_mv_precision(mbmi, mbmi->max_mv_precision);
 
   // Setup search environment and state for evaluating inter prediction
@@ -6174,6 +6181,14 @@ static int64_t handle_inter_mode(
       }
     }
 
+    // Lazily compute the ref_mv_idx pre-screening masks for this precision
+    // only. With ref_mv_idx_mask_use_best_rd, the best RD found so far (which
+    // may have been improved by previously evaluated precisions) is used as
+    // the pruning threshold.
+    const int64_t mask_ref_best_rd =
+        cpi->sf.inter_sf.ref_mv_idx_mask_use_best_rd ? ref_best_rd
+                                                     : entry_ref_best_rd;
+
     if (!is_comp_pred) {
       const MV_REFERENCE_FRAME refs[2] = {
         COMPACT_INDEX0_NRS(mbmi->ref_frame[0]),
@@ -6190,12 +6205,20 @@ static int64_t handle_inter_mode(
       }
       if (cur_ref_set[0] == 0) continue;
 
+      compute_ref_mv_idx_masks(cpi, x, rd_stats, args, mask_ref_best_rd,
+                               mode_info, bsize, ref_set,
+                               flex_mv_cost[pb_mv_precision], idx_mask);
+
       handle_single_inter_prediction(
           cpi, tile_data, x, &env, &search_state, this_mode, bsize, cur_ref_set,
           precision_dx, precision_def, &best_precision_so_far,
           &best_precision_dx_so_far, &best_precision_rd_so_far, mode_ctx, args,
           flex_mv_cost, idx_mask);
     } else {
+      compute_ref_mv_idx_masks(cpi, x, rd_stats, args, mask_ref_best_rd,
+                               mode_info, bsize, ref_set,
+                               flex_mv_cost[pb_mv_precision], idx_mask);
+
       handle_compound_inter_prediction(
           cpi, tile_data, x, &env, &search_state, this_mode, bsize, cur_ref_set,
           precision_dx, precision_def, &best_precision_so_far,
