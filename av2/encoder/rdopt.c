@@ -7080,6 +7080,11 @@ void av2_rd_pick_intra_mode_sb(const struct AV2_COMP *cpi, ThreadData *td,
   }
   int skip_ibc_search =
       !cm->features.allow_screen_content_tools && all_intra && (nz <= 0);
+  const MB_MODE_INFO *const cached_mode = get_reusable_intra_mode_cache(x);
+  if (cached_mode != NULL &&
+      !cached_mode->use_intrabc[xd->tree_type == CHROMA_PART]) {
+    skip_ibc_search = 1;
+  }
   if (!skip_ibc_search) {
     if (rd_pick_intrabc_mode_sb(cpi, x, ctx, rd_cost, bsize, best_rd, 0) <
         best_rd) {
