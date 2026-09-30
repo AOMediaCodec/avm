@@ -638,15 +638,28 @@ static AVM_INLINE void perform_one_partition_pass(
   x->is_whole_sb = 0;
 }
 
+static AVM_INLINE void perform_two_pass_partition_search(
+    AV2_COMP *cpi, ThreadData *td, TileDataEnc *tile_data, TokenExtra **tp,
+    TokenExtra **tp_chroma, const int mi_row, const int mi_col,
+    bool fast_two_pass);
+
 /*!\brief Perform partition search twice (for unit testing only).
  *
  * \ingroup partition_search
  * This function is mostly used to unit tests to make sure that
  * SB_FIRST_PASS_STATS caches the correct statistics to recode the superblock.
+ *
+ * The superblock is searched once, its state is restored, and then it is
+ * searched again; only the second search is kept. Both searches must be the
+ * same search that encode_rd_sb() would do without the unit test, so that the
+ * result can be compared bit-exactly against a normal encode: that is the
+ * two-pass partition search when use_two_pass_search is set, or a single
+ * partition pass otherwise.
  */
 static AVM_INLINE void perform_two_partition_passes(
     AV2_COMP *cpi, ThreadData *td, TileDataEnc *tile_data, TokenExtra **tp,
-    TokenExtra **tp_chroma, const int mi_row, const int mi_col) {
+    TokenExtra **tp_chroma, const int mi_row, const int mi_col,
+    bool use_two_pass_search, bool fast_two_pass) {
   SIMPLE_MOTION_DATA_TREE *const sms_root = td->sms_root;
   AV2_COMMON *const cm = &cpi->common;
   const BLOCK_SIZE sb_size = cm->sb_size;
@@ -656,8 +669,22 @@ static AVM_INLINE void perform_two_partition_passes(
   av2_backup_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
   REF_MV_BANK stored_mv_bank = td->mb.e_mbd.ref_mv_bank;
   WARP_PARAM_BANK stored_warp_bank = td->mb.e_mbd.warp_param_bank;
-  perform_one_partition_pass(cpi, td, tile_data, tp, tp_chroma, mi_row, mi_col,
-                             SB_DRY_PASS, NULL, 0);
+  // The transform search result cache is updated by the first pass too, which
+  // would then narrow the search of the second pass. It is too large for
+  // SB_FIRST_PASS_STATS, so back it up separately here (unit test only).
+  TxCache *const tx_cache = &td->mb.txfm_search_info.tx_result_cache;
+  TxCache *tx_cache_backup = NULL;
+  if (cpi->sf.tx_sf.use_tx_result_cache) {
+    CHECK_MEM_ERROR(cm, tx_cache_backup, avm_malloc(sizeof(*tx_cache_backup)));
+    memcpy(tx_cache_backup, tx_cache, sizeof(*tx_cache_backup));
+  }
+  if (use_two_pass_search) {
+    perform_two_pass_partition_search(cpi, td, tile_data, tp, tp_chroma, mi_row,
+                                      mi_col, fast_two_pass);
+  } else {
+    perform_one_partition_pass(cpi, td, tile_data, tp, tp_chroma, mi_row,
+                               mi_col, SB_DRY_PASS, NULL, 0);
+  }
 
   // Second pass -- clean re-run (this helper proves SB_FIRST_PASS_STATS can
   // reproduce a superblock).
@@ -670,8 +697,17 @@ static AVM_INLINE void perform_two_partition_passes(
   av2_restore_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
   td->mb.e_mbd.ref_mv_bank = stored_mv_bank;
   td->mb.e_mbd.warp_param_bank = stored_warp_bank;
-  perform_one_partition_pass(cpi, td, tile_data, tp, tp_chroma, mi_row, mi_col,
-                             SB_WET_PASS, NULL, 0);
+  if (tx_cache_backup) {
+    memcpy(tx_cache, tx_cache_backup, sizeof(*tx_cache));
+    avm_free(tx_cache_backup);
+  }
+  if (use_two_pass_search) {
+    perform_two_pass_partition_search(cpi, td, tile_data, tp, tp_chroma, mi_row,
+                                      mi_col, fast_two_pass);
+  } else {
+    perform_one_partition_pass(cpi, td, tile_data, tp, tp_chroma, mi_row,
+                               mi_col, SB_WET_PASS, NULL, 0);
+  }
 }
 
 /*!\brief Mark the small nodes of the dry-pass tree as "search again".
@@ -999,18 +1035,19 @@ static AVM_INLINE void encode_rd_sb(AV2_COMP *cpi, ThreadData *td,
     // Sets the sb_mv_precision
     x->e_mbd.sbi->sb_mv_precision = cm->features.fr_mv_precision;
 
+    const bool use_two_pass_search = !frame_is_intra_only(cm) &&
+                                     bru_is_sb_active(cm, mi_col, mi_row) &&
+                                     av2_two_pass_part_enabled(&sf->part_sf);
+    // Only the fast level opts into the extra re-split of unsplit blocks.
+    const bool fast_two_pass = av2_two_pass_part_is_fast(&sf->part_sf);
     if (cpi->oxcf.unit_test_cfg.sb_multipass_unit_test) {
       perform_two_partition_passes(cpi, td, tile_data, tp, tp_chroma, mi_row,
-                                   mi_col);
-    } else if (!frame_is_intra_only(cm) &&
-               bru_is_sb_active(cm, mi_col, mi_row) &&
-               av2_two_pass_part_enabled(&sf->part_sf)) {
+                                   mi_col, use_two_pass_search, fast_two_pass);
+    } else if (use_two_pass_search) {
       // TODO(Yeqing): Add an SB-level heuristic to skip the second pass on
       // SBs where a single pass is good enough, to reduce encoding time.
-      // Only the fast level opts into the extra re-split of unsplit blocks.
-      perform_two_pass_partition_search(
-          cpi, td, tile_data, tp, tp_chroma, mi_row, mi_col,
-          av2_two_pass_part_is_fast(&sf->part_sf));
+      perform_two_pass_partition_search(cpi, td, tile_data, tp, tp_chroma,
+                                        mi_row, mi_col, fast_two_pass);
     } else {
       perform_one_partition_pass(cpi, td, tile_data, tp, tp_chroma, mi_row,
                                  mi_col, SB_SINGLE_PASS, NULL, 0);
