@@ -1011,7 +1011,8 @@ typedef struct TX_SPEED_FEATURES {
   // predicted RD Cost exceeds the current best by more than 1/8.
   // Set at speed >= 3 for non-boosted frames, and
   // unconditionally for all frames at speed >= 5.
-  bool prune_tx_search_by_pre_rd;} TX_SPEED_FEATURES;
+  bool prune_tx_search_by_pre_rd;
+} TX_SPEED_FEATURES;
 
 typedef struct RD_CALC_SPEED_FEATURES {
   // Fast approximation of av2_model_rd_from_var_lapndz
