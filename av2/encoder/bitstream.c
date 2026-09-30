@@ -1373,8 +1373,7 @@ static AVM_INLINE void write_ccso(const AV2_COMMON *cm, MACROBLOCKD *const xd,
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
-  const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(
-      cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
+  const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(cm);
   const int blk_size_y = (1 << (ccso_blk_size - MI_SIZE_LOG2)) - 1;
   const int blk_size_x = (1 << (ccso_blk_size - MI_SIZE_LOG2)) - 1;
   const MB_MODE_INFO *mbmi =

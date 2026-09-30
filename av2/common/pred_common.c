@@ -674,8 +674,7 @@ bool av2_check_ccso_mbmi_inside_tile(const AV2_COMMON *cm,
                                      const MACROBLOCKD *xd,
                                      const MB_MODE_INFO *const mbmi) {
   const TileInfo *const tile = &xd->tile;
-  const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(
-      cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
+  const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(cm);
   const int blk_log2 = ccso_blk_size;
   const int blk_size_y = (1 << (blk_log2 - MI_SIZE_LOG2)) - 1;
   const int blk_size_x = (1 << (blk_log2 - MI_SIZE_LOG2)) - 1;
@@ -713,8 +712,7 @@ int av2_get_ccso_context(const AV2_COMMON *cm, const MACROBLOCKD *xd,
         av2_check_ccso_mbmi_inside_tile(cm, xd, neighbor1);
   }
 
-  const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(
-      cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
+  const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(cm);
   const int blk_log2 = ccso_blk_size;
   const int blk_size_y = (1 << (blk_log2 - MI_SIZE_LOG2)) - 1;
   const int blk_size_x = (1 << (blk_log2 - MI_SIZE_LOG2)) - 1;

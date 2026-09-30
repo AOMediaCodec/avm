@@ -1677,8 +1677,7 @@ static void derive_ccso_filter(AV2_COMP *cpi, const int plane,
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   const int ss_x = xd->plane[plane].subsampling_x;
   const int ss_y = xd->plane[plane].subsampling_y;
-  const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(
-      cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
+  const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(cm);
   cm->ccso_info.ccso_blk_size = ccso_blk_size;
   const int log2_filter_unit_size_y = ccso_blk_size - ss_y;
   const int log2_filter_unit_size_x = ccso_blk_size - ss_x;

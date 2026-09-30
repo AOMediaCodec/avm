@@ -509,15 +509,13 @@ static void enqueue_ccso_jobs(AV2CcsoSync *ccso_sync, AV2_COMMON *cm,
   ccso_sync->jobs_dequeued = 0;
   const int num_planes = av2_num_planes(cm);
   const int inc_row = 1 << CCSO_PROC_BLK_LOG2;
-  const int blk_size = 1 << get_ccso_unit_size_log2_adaptive_tile(
-                           cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
+  const int blk_size = 1 << get_ccso_unit_size_log2_adaptive_tile(cm);
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
 
   for (int plane = 0; plane < num_planes; plane++) {
     const int pic_height = xd->plane[plane].dst.height;
     const int pic_width = xd->plane[plane].dst.width;
-    const int blk_log2 = get_ccso_unit_size_log2_adaptive_tile(
-        cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
+    const int blk_log2 = get_ccso_unit_size_log2_adaptive_tile(cm);
     int blk_log2_x = blk_log2;
     int blk_log2_y = blk_log2;
     if (plane != 0) {
@@ -578,8 +576,7 @@ static INLINE void process_ccso_rows(AV2_COMMON *const cm, MACROBLOCKD *xd,
   int src_cls[2];
   int src_loc[2];
   const int ccso_ext_stride = xd->plane[0].dst.width + (CCSO_PADDING_SIZE << 1);
-  const int blk_log2 = get_ccso_unit_size_log2_adaptive_tile(
-      cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
+  const int blk_log2 = get_ccso_unit_size_log2_adaptive_tile(cm);
 
   while (1) {
     AV2CCSOMTInfo *cur_job_info = get_ccso_job_info(ccso_sync);
