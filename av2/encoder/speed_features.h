@@ -1005,6 +1005,7 @@ typedef struct TX_SPEED_FEATURES {
 
   // Skip cctx search at dry pass
   bool disable_cctx_dry_pass;
+
   // Enable the early-exit pre-RD pruning gate inside the tx-type search loop.
   // When set, a lightweight RD Cost estimate is computed before the full
   // trellis / av2_optimize_b path and the candidate is skipped when its
