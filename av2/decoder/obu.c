@@ -234,6 +234,8 @@ void av2_store_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm, int xlayer_id) {
     pbi->stream_info[stream_idx].qm_protected_buf[i] = pbi->qm_protected[i];
   }
   pbi->stream_info[stream_idx].olk_encountered_buf = pbi->olk_encountered;
+  memcpy(pbi->stream_info[stream_idx].switch_risk_window_buf,
+         cm->switch_risk_window, sizeof(cm->switch_risk_window));
   pbi->stream_info[stream_idx].random_access_point_index_buf =
       pbi->random_access_point_index;
   pbi->stream_info[stream_idx].random_access_point_count_buf =
@@ -304,6 +306,9 @@ void av2_restore_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
     pbi->qm_protected[i] = pbi->stream_info[stream_idx].qm_protected_buf[i];
   }
   pbi->olk_encountered = pbi->stream_info[stream_idx].olk_encountered_buf;
+  memcpy(cm->switch_risk_window,
+         pbi->stream_info[stream_idx].switch_risk_window_buf,
+         sizeof(cm->switch_risk_window));
   pbi->random_access_point_index =
       pbi->stream_info[stream_idx].random_access_point_index_buf;
   pbi->random_access_point_count =
@@ -339,6 +344,8 @@ void av2_restore_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
 
 static void init_stream_info(StreamInfo *stream_info) {
   stream_info->olk_encountered_buf = 0;
+  memset(stream_info->switch_risk_window_buf, 0,
+         sizeof(stream_info->switch_risk_window_buf));
   stream_info->random_access_point_index_buf = -1;
   stream_info->random_access_point_count_buf = 0;
   for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
