@@ -3955,6 +3955,16 @@ static INLINE bool allow_tip_direct_output(AV2_COMMON *const cm) {
   return false;
 }
 
+// Early termination of the TIP direct output search
+// (hl_sf.early_term_tip_direct_output_search). Once the TIP frame is built with
+// the zero global offset, the rest of the search is skipped if the direct
+// output would not have a lower RD cost than the normally coded frame even with
+// TIP_OUTPUT_MIN_BITS as its rate, about the size of a TIP direct output frame,
+// and its distortion divided by 1 + TIP_OUTPUT_EARLY_TERM_MARGIN_PCT / 100 to
+// allow for the gain of the offset and interpolation filter searches.
+#define TIP_OUTPUT_EARLY_TERM_MARGIN_PCT 20
+#define TIP_OUTPUT_MIN_BITS 40
+
 static INLINE int compute_tip_direct_output_mode_RD(AV2_COMP *cpi,
                                                     uint8_t *dest, size_t *size,
                                                     int64_t *sse, int64_t *rate,
@@ -3962,6 +3972,28 @@ static INLINE int compute_tip_direct_output_mode_RD(AV2_COMP *cpi,
   AV2_COMMON *const cm = &cpi->common;
 
   if (allow_tip_direct_output(cm)) {
+    const bool early_term = cpi->sf.hl_sf.early_term_tip_direct_output_search;
+    // Size and distortion of the normally coded frame, for the early
+    // termination.
+    size_t coded_size = 0;
+    int64_t coded_sse = 0;
+    if (early_term) {
+      int coded_largest_tile_id = 0;
+      av2_finalize_encoded_frame(cpi);
+      if (av2_pack_bitstream(cpi, dest, &coded_size, &coded_largest_tile_id) !=
+          AVM_CODEC_OK)
+        return AVM_CODEC_ERROR;
+      coded_sse = avm_highbd_get_y_sse(cpi->source, &cm->cur_frame->buf);
+      coded_sse += avm_highbd_sse(
+          cpi->source->u_buffer, cpi->source->uv_stride,
+          cm->cur_frame->buf.u_buffer, cm->cur_frame->buf.uv_stride,
+          cpi->source->uv_width, cpi->source->uv_height);
+      coded_sse += avm_highbd_sse(
+          cpi->source->v_buffer, cpi->source->uv_stride,
+          cm->cur_frame->buf.v_buffer, cm->cur_frame->buf.uv_stride,
+          cpi->source->uv_width, cpi->source->uv_height);
+    }
+
     cm->features.tip_frame_mode = TIP_FRAME_AS_OUTPUT;
 
     // These two variables must be false when using TIP_FRAME_AS_OUTPUT.
@@ -4035,6 +4067,25 @@ static INLINE int compute_tip_direct_output_mode_RD(AV2_COMP *cpi,
         avm_highbd_sse(cpi->source->v_buffer, cpi->source->uv_stride,
                        tip_frame_buf->v_buffer, tip_frame_buf->uv_stride,
                        cpi->source->uv_width, cpi->source->uv_height);
+
+    if (early_term) {
+      const int64_t coded_bits = (coded_size << 3);
+      const double coded_rdcost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+          rdmult, coded_bits << 5, coded_sse, cm->seq_params.bit_depth);
+      const double tip_rdcost_bound = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+          rdmult, TIP_OUTPUT_MIN_BITS << 5,
+          best_sse * 100 / (100 + TIP_OUTPUT_EARLY_TERM_MARGIN_PCT),
+          cm->seq_params.bit_depth);
+      if (tip_rdcost_bound >= coded_rdcost) {
+        *sse = INT64_MAX;
+        *rate = INT64_MAX;
+        cm->features.coded_lossless = backup_coded_lossless;
+        cm->features.all_lossless = backup_all_lossless;
+        cm->features.tip_frame_mode = TIP_FRAME_AS_REF;
+        return AVM_CODEC_OK;
+      }
+    }
+
     int_mv ref_mv;
     ref_mv.as_int = 0;
 
