@@ -691,6 +691,8 @@ static void set_good_speed_features_framesize_independent(
     sf->winner_mode_sf.multi_winner_mode_type = MULTI_WINNER_MODE_OFF;
 
     sf->inter_sf.enable_six_param_warp_in_winner_mode_by_tid = 1;
+
+    sf->inter_sf.prune_amvd = true;
   }
 
   if (enable_warp_search_in_winner_mode(&sf->inter_sf)) {
@@ -952,6 +954,7 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->reuse_erp_mode_flag = 0;
   inter_sf->prune_warpmv_prob_thresh = 32;
   inter_sf->prune_amvd_newmv = 0;
+  inter_sf->prune_amvd = false;
   inter_sf->enable_enhanced_inter_mode_cache_reuse = 0;
   inter_sf->prune_comp_mode_eval_using_est_rd = false;
   inter_sf->prune_warp_newmv_ref_mv_idx = false;
