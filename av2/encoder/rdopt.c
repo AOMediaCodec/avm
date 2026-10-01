@@ -1192,6 +1192,8 @@ static int64_t handle_newmv(const AV2_COMP *const cpi, MACROBLOCK *const x,
                                        COMPACT_INDEX1_NRS(mbmi->ref_frame[1]) };
 
   const MvSubpelPrecision pb_mv_precision = mbmi->pb_mv_precision;
+  const bool enable_amvd_compound_search =
+      cm->seq_params.enable_adaptive_mvd && !cpi->sf.inter_sf.prune_amvd;
 
   if (is_comp_pred) {
     int valid_mv0_found = 0;
@@ -1277,7 +1279,7 @@ static int64_t handle_newmv(const AV2_COMP *const cpi, MACROBLOCK *const x,
 
         clamp_mv_in_range(x, &cur_mv[1], 1, pb_mv_precision);
       }
-      if (cm->seq_params.enable_adaptive_mvd) {
+      if (enable_amvd_compound_search) {
         if (reuse_comp_mv_for_opfl(cm, x, args, cur_mv, rate_mv)) {
           return 0;
         }
@@ -1355,7 +1357,7 @@ static int64_t handle_newmv(const AV2_COMP *const cpi, MACROBLOCK *const x,
         lower_mv_precision(&cur_mv[0].as_mv, pb_mv_precision);
         clamp_mv_in_range(x, &cur_mv[0], 0, pb_mv_precision);
       }
-      if (cm->seq_params.enable_adaptive_mvd) {
+      if (enable_amvd_compound_search) {
         av2_compound_single_motion_search_interinter(cpi, x, bsize, cur_mv,
                                                      NULL, 0, rate_mv, 0);
         if (cur_mv->as_int == INVALID_MV) return INT64_MAX;
@@ -9711,7 +9713,10 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
   const int has_both_sides_refs = cm->has_both_sides_refs;
   const int ref_frame_flags = cm->ref_frame_flags;
   const int enable_joint_mvd = cm->seq_params.enable_joint_mvd;
-  const int enable_adaptive_mvd = cm->seq_params.enable_adaptive_mvd;
+  const bool amvd_pyr_allowed =
+      !inter_sf->prune_amvd || cm->current_frame.pyramid_level < 3;
+  const int enable_adaptive_mvd =
+      cm->seq_params.enable_adaptive_mvd && amvd_pyr_allowed;
   const int bru_enabled = cm->bru.enabled;
   const int bru_update_ref_idx = cm->bru.update_ref_idx;
   const int tip_allowed = is_tip_allowed(cm, xd);
@@ -9861,8 +9866,13 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
     args.single_comp_cost = real_compmode_cost;
     args.ref_frame_cost = ref_frame_cost;
 
+    const bool amvd_suppressed_for_mode =
+        inter_sf->prune_amvd &&
+        (this_mode == NEAR_NEWMV || this_mode == NEAR_NEWMV_OPTFLOW ||
+         this_mode == NEW_NEARMV || this_mode == NEW_NEARMV_OPTFLOW);
     const int num_amvd_modes =
-        1 + (enable_adaptive_mvd && allow_amvd_mode(this_mode));
+        1 + (enable_adaptive_mvd && allow_amvd_mode(this_mode) &&
+             !amvd_suppressed_for_mode);
     const int amvd_inverted = is_amvd_inverted_mode(this_mode);
 
     for (int use_amvd_mode = 0; use_amvd_mode < num_amvd_modes;
