@@ -4151,9 +4151,13 @@ static AVM_INLINE void block_rd_txfm_joint_uv(int dummy_plane, int block,
   }
 
   if (!rd_stats_uv[0].skip_txfm || !rd_stats_uv[1].skip_txfm) {
-    search_cctx_type(cpi, x, block, blk_row, blk_col, plane_bsize, tx_size,
-                     uv_coeffs_available[0] && uv_coeffs_available[1],
-                     txb_ctx_uv, args->skip_trellis, &rd_stats_joint_uv);
+    const bool skip_cctx_for_dry_pass =
+        x->apply_dry_pass_shortcuts && cpi->sf.tx_sf.disable_cctx_dry_pass;
+    if (!skip_cctx_for_dry_pass) {
+      search_cctx_type(cpi, x, block, blk_row, blk_col, plane_bsize, tx_size,
+                       uv_coeffs_available[0] && uv_coeffs_available[1],
+                       txb_ctx_uv, args->skip_trellis, &rd_stats_joint_uv);
+    }
   }
   av2_merge_rd_stats(&args->rd_stats, &rd_stats_joint_uv);
 }
