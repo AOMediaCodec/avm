@@ -746,9 +746,9 @@ typedef struct {
 
   /*! \brief Transform search result cache.
    *
-   * Frame-scoped table of winning transform types, see tx_cache.h. Held by
-   * value so that it is per-thread and has this struct's lifetime; gated by
-   * TX_SPEED_FEATURES::use_tx_result_cache.
+   * Superblock-row-scoped table of winning transform types, see tx_cache.h.
+   * Held by value so that it is per-thread and has this struct's lifetime;
+   * gated by TX_SPEED_FEATURES::use_tx_result_cache.
    */
   TxCache tx_result_cache;
 
