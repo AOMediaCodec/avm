@@ -342,6 +342,8 @@ static void set_good_speed_features_framesize_independent(
   sf->rd_sf.perform_coeff_opt = 1;
 
   if (speed >= 1) {
+    sf->hl_sf.early_term_tip_direct_output_search = true;
+
     sf->lpf_sf.wienerns_refine_iters = 0;
     sf->lpf_sf.wienerns_fast_frame_filter_opt = 1;
     // Trim the RU-size candidate set by pyramid level (policy in pickrst.c).
@@ -801,6 +803,7 @@ static AVM_INLINE void init_hl_sf(HIGH_LEVEL_SPEED_FEATURES *hl_sf) {
   // Recode loop tolerance %.
   hl_sf->recode_tolerance = 25;
   hl_sf->high_precision_mv_usage = LAST_MV_DATA;
+  hl_sf->early_term_tip_direct_output_search = false;
 }
 
 static AVM_INLINE void init_tpl_sf(TPL_SPEED_FEATURES *tpl_sf) {
