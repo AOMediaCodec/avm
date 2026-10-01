@@ -86,7 +86,7 @@ void av2_fwd_cross_chroma_tx_block_avx2(tran_low_t *coeff_c1,
 void fwd_stxfm_avx2(tran_low_t *src, tran_low_t *dst,
                     const PREDICTION_MODE mode, const uint8_t stx_idx,
                     const int size, const int bd) {
-  assert(stx_idx < 4);
+  assert(stx_idx < STX_TYPES - 1);
   // Secondary transform kernels are stored as 32-bit integers to match SIMD
   // processing needs. This avoids on-the-fly conversion from int16_t to int32_t
   // during execution by letting SIMD variants directly load the pre-converted
