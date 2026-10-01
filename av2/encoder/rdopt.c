@@ -9804,6 +9804,10 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
     if (this_mode == WARP_NEWMV && (!warpmv_allowed || !warp_newmv_allowed))
       continue;
     if (this_mode >= NEAR_NEARMV_OPTFLOW && !opfl_modes_allowed) continue;
+    if (inter_sf->prune_opfl &&
+        (this_mode == NEAR_NEWMV_OPTFLOW || this_mode == NEW_NEARMV_OPTFLOW ||
+         this_mode == JOINT_NEWMV_OPTFLOW))
+      continue;
     if (is_joint_mvd_coding_mode(this_mode) && enable_joint_mvd == 0) continue;
 
     if (bru_enabled) {
@@ -9837,6 +9841,20 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
     if (this_mode >= NEAR_NEARMV_OPTFLOW &&
         !opfl_allowed_cur_refs_bsize(cm, xd, mbmi))
       continue;
+
+    // Skip OPFL when refs are highly asymmetric in temporal distance.
+    if (this_mode >= NEAR_NEARMV_OPTFLOW && inter_sf->prune_opfl) {
+      const RefCntBuffer *const r0 = get_ref_frame_buf(cm, ref_frame);
+      const RefCntBuffer *const r1 = get_ref_frame_buf(cm, second_ref_frame);
+      if (r0 && r1) {
+        const unsigned int cur_idx = cm->cur_frame->display_order_hint;
+        const int ad0 = abs(get_relative_dist(&cm->seq_params.order_hint_info,
+                                              cur_idx, r0->display_order_hint));
+        const int ad1 = abs(get_relative_dist(&cm->seq_params.order_hint_info,
+                                              cur_idx, r1->display_order_hint));
+        if (AVMMAX(ad0, ad1) > 4 * AVMMIN(ad0, ad1)) continue;
+      }
+    }
 
     set_ref_ptrs(cm, xd, ref_frame, second_ref_frame);
 

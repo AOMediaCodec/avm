@@ -817,6 +817,10 @@ typedef struct INTER_MODE_SPEED_FEATURES {
 
   // skip temporary predictions for opfl modes
   int skip_temporary_pred_for_opfl;
+  // At speed >= 6, skip NEAR_NEWMV_OPTFLOW, NEW_NEARMV_OPTFLOW, and
+  // JOINT_NEWMV_OPTFLOW (rarely chosen at this speed), and skip all OPFL
+  // modes when refs are highly asymmetric in temporal distance.
+  bool prune_opfl;
   // Enable warp inter intra in winner mode.
   int enable_warp_inter_intra_in_winner;
   // Reuse compound type rd decision when exact match is found
