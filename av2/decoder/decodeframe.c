@@ -6785,17 +6785,11 @@ static INLINE void read_intrabc_params(AV2_COMMON *const cm,
   // is excluded from this particular constraint). When enable_refmvbank is
   // 1 and OPFL refinement/RefineMV are not both off sequence-wide,
   // allow_intrabc must be 0 here.
-  if (features->allow_intrabc && cm->in_switch_risk_window &&
+  if (features->allow_intrabc && in_switch_risk_window(cm) &&
       current_frame->frame_type == INTER_FRAME &&
       cm->seq_params.enable_refmvbank &&
       !(cm->seq_params.enable_opfl_refine == AVM_OPFL_REFINE_NONE &&
-        cm->seq_params.enable_refinemv == 0) &&
-      is_mlayer_transitively_dependent(&cm->seq_params, cm->mlayer_id,
-                                       cm->switch_risk_window_mlayer_id) &&
-      (cm->tlayer_id == cm->switch_risk_window_tlayer_id ||
-       cm->seq_params
-           .tlayer_dependency_map[cm->mlayer_id][cm->tlayer_id]
-                                 [cm->switch_risk_window_tlayer_id])) {
+        cm->seq_params.enable_refinemv == 0)) {
     avm_internal_error(
         &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
         "allow_intrabc must be 0 for an inter frame depending on the layer "
@@ -8108,11 +8102,9 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     // OBU_RAS_FRAME is a random access point, which closes any risk window
     // opened by a prior OBU_SWITCH frame.
     if (current_frame->frame_type == KEY_FRAME || obu_type == OBU_RAS_FRAME) {
-      cm->in_switch_risk_window = false;
+      close_switch_risk_windows(cm);
     } else if (obu_type == OBU_SWITCH) {
-      cm->in_switch_risk_window = true;
-      cm->switch_risk_window_mlayer_id = cm->mlayer_id;
-      cm->switch_risk_window_tlayer_id = cm->tlayer_id;
+      open_switch_risk_window(cm);
     }
 
     current_frame->long_term_id = -1;
@@ -9350,15 +9342,10 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   // frame that follows it (the switch frame itself, frame_type == S_FRAME,
   // is excluded from this particular constraint). If OPFL refinement and
   // RefineMV are not both off sequence-wide, then BAWP must be off here.
-  if (features->enable_bawp && cm->in_switch_risk_window &&
+  if (features->enable_bawp && in_switch_risk_window(cm) &&
       current_frame->frame_type == INTER_FRAME &&
       !(seq_params->enable_opfl_refine == AVM_OPFL_REFINE_NONE &&
-        seq_params->enable_refinemv == 0) &&
-      is_mlayer_transitively_dependent(seq_params, cm->mlayer_id,
-                                       cm->switch_risk_window_mlayer_id) &&
-      (cm->tlayer_id == cm->switch_risk_window_tlayer_id ||
-       seq_params->tlayer_dependency_map[cm->mlayer_id][cm->tlayer_id]
-                                        [cm->switch_risk_window_tlayer_id])) {
+        seq_params->enable_refinemv == 0)) {
     avm_internal_error(
         &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
         "enable_bawp must be 0 for an inter frame depending on the layer of "

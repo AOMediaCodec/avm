@@ -3027,23 +3027,13 @@ typedef struct AV2Common {
   bool restricted_prediction_switch;
 
   /*!
-   * Set to 1 for a frame that is within the "risk window" opened by a coded
-   * frame with obu_type equal to OBU_SWITCH (the switch frame itself, and
-   * every following frame up to the next random access point). Used to
-   * enforce the bitstream conformance requirement constraining BAWP/IBC
-   * around switch frames.
+   * switch_risk_window[ m ][ t ] is 1 when a frame with embedded layer ID m
+   * and temporal layer ID t depends on the layer of a preceding coded frame
+   * with obu_type equal to OBU_SWITCH, and no random access point has
+   * occurred since. Used to enforce the bitstream conformance requirement
+   * constraining BAWP/IBC around switch frames.
    */
-  bool in_switch_risk_window;
-  /*!
-   * The mlayer_id of the OBU_SWITCH frame that opened the current
-   * in_switch_risk_window. Only meaningful when in_switch_risk_window is 1.
-   */
-  int switch_risk_window_mlayer_id;
-  /*!
-   * The tlayer_id of the OBU_SWITCH frame that opened the current
-   * in_switch_risk_window. Only meaningful when in_switch_risk_window is 1.
-   */
-  int switch_risk_window_tlayer_id;
+  bool switch_risk_window[MAX_NUM_MLAYERS][MAX_NUM_TLAYERS];
 
 } AV2_COMMON;
 
@@ -3350,6 +3340,32 @@ static INLINE int is_mlayer_transitively_dependent(
     }
   }
   return 0;
+}
+
+// Opens the switch risk window for every (embedded layer, temporal layer)
+// that depends on the layer of the current frame, which must be an
+// OBU_SWITCH frame. Windows opened by earlier switch frames stay open.
+static INLINE void open_switch_risk_window(AV2_COMMON *const cm) {
+  const SequenceHeader *const seq = &cm->seq_params;
+  for (int m = 0; m < MAX_NUM_MLAYERS; m++) {
+    if (!is_mlayer_transitively_dependent(seq, m, cm->mlayer_id)) continue;
+    for (int t = 0; t < MAX_NUM_TLAYERS; t++) {
+      if (t == cm->tlayer_id || seq->tlayer_dependency_map[m][t][cm->tlayer_id])
+        cm->switch_risk_window[m][t] = true;
+    }
+  }
+}
+
+// A random access point closes the windows opened by all earlier switch
+// frames.
+static INLINE void close_switch_risk_windows(AV2_COMMON *const cm) {
+  memset(cm->switch_risk_window, 0, sizeof(cm->switch_risk_window));
+}
+
+// Returns true if the current frame depends on the layer of a preceding
+// OBU_SWITCH frame, with no random access point in between.
+static INLINE bool in_switch_risk_window(const AV2_COMMON *const cm) {
+  return cm->switch_risk_window[cm->mlayer_id][cm->tlayer_id];
 }
 
 static INLINE void get_secondary_reference_frame_idx(const AV2_COMMON *const cm,

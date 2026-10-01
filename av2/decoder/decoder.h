@@ -304,6 +304,7 @@ typedef struct {
   struct quantization_matrix_set qm_list_buf[NUM_CUSTOM_QMS];
   int qm_protected_buf[NUM_CUSTOM_QMS];
   int olk_encountered_buf;
+  bool switch_risk_window_buf[MAX_NUM_MLAYERS][MAX_NUM_TLAYERS];
   uint64_t random_access_point_index_buf;
   uint64_t random_access_point_count_buf;
   struct film_grain_model fgm_list_buf[MAX_FGM_NUM];

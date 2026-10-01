@@ -4725,14 +4725,9 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size, uint8_t *dest,
   // risk window, since mlayer_id/tlayer_id are both 0 and trivially match the
   // switch frame's own layer.
   const bool switch_frame_layer_dependent =
-      cm->in_switch_risk_window &&
+      in_switch_risk_window(cm) &&
       !(seq_params->enable_opfl_refine == AVM_OPFL_REFINE_NONE &&
-        seq_params->enable_refinemv == 0) &&
-      is_mlayer_transitively_dependent(seq_params, cm->mlayer_id,
-                                       cm->switch_risk_window_mlayer_id) &&
-      (cm->tlayer_id == cm->switch_risk_window_tlayer_id ||
-       seq_params->tlayer_dependency_map[cm->mlayer_id][cm->tlayer_id]
-                                        [cm->switch_risk_window_tlayer_id]);
+        seq_params->enable_refinemv == 0);
   if (switch_frame_layer_dependent) {
     // The switch frame itself (frame_type == S_FRAME) is excluded from the
     // BAWP and IntraBC constraints, matching the spec text ("every frame
@@ -5282,11 +5277,9 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
       (cpi->olk_encountered && current_frame->frame_type != KEY_FRAME &&
        past_olk_leading_span) ||
       (current_frame->frame_type == S_FRAME && cpi->is_ras_frame == 1)) {
-    cm->in_switch_risk_window = false;
+    close_switch_risk_windows(cm);
   } else if (current_frame->frame_type == S_FRAME) {
-    cm->in_switch_risk_window = true;
-    cm->switch_risk_window_mlayer_id = cm->mlayer_id;
-    cm->switch_risk_window_tlayer_id = cm->tlayer_id;
+    open_switch_risk_window(cm);
   }
 
   if (current_frame->frame_type == KEY_FRAME) {
