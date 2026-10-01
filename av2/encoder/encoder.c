@@ -3468,6 +3468,29 @@ static void set_primary_ref_frame_for_error_resilient(AV2_COMP *cpi) {
   }
 }
 
+// Select the last encoded inter reference frame as primary_ref_frame,
+// falling back to the first valid inter reference frame.
+static int get_last_encoded_inter_ref(const AV2_COMP *cpi) {
+  const AV2_COMMON *const cm = &cpi->common;
+  int first_valid_inter_ref = PRIMARY_REF_NONE;
+  for (int i = 0; i < cm->ref_frames_info.num_total_refs; ++i) {
+    const RefFrameMapPair ref_i =
+        cm->ref_frame_map_pairs[get_ref_frame_map_idx(cm, i)];
+    if (ref_i.ref_frame_restricted || ref_i.ref_frame_for_inference == -1 ||
+        ref_i.frame_type != INTER_FRAME ||
+        (cm->bru.enabled && cm->bru.update_ref_idx == i)) {
+      continue;
+    }
+    if (first_valid_inter_ref == PRIMARY_REF_NONE) {
+      first_valid_inter_ref = i;
+    }
+    if (ref_i.disp_order == cpi->last_encoded_frame_order_hint) {
+      return i;
+    }
+  }
+  return first_valid_inter_ref;
+}
+
 /*!\brief Set the primary reference frame before encoding a frame.
  *
  * \ingroup high_level_algo
@@ -3483,6 +3506,13 @@ static void set_primary_ref_frame(AV2_COMP *cpi) {
   // The primary_ref_frame can be set to other refs other than the derived
   // one. If that is needed, disable primary_ref_frame search.
   cm->features.primary_ref_frame = cm->features.derived_primary_ref_frame;
+  if (cpi->sf.rt_sf.disable_primary_ref_frame_search &&
+      cm->features.derived_primary_ref_frame != PRIMARY_REF_NONE) {
+    const int ref = get_last_encoded_inter_ref(cpi);
+    if (ref != PRIMARY_REF_NONE) {
+      cm->features.primary_ref_frame = ref;
+    }
+  }
   if (cpi->ext_flags.use_primary_ref_none) {
     cm->features.primary_ref_frame = PRIMARY_REF_NONE;
   }
@@ -3490,8 +3520,8 @@ static void set_primary_ref_frame(AV2_COMP *cpi) {
   // Set primary reference frame while the error resilience mode is turned on.
   set_primary_ref_frame_for_error_resilient(cpi);
 
-  if (cm->features.primary_ref_frame == PRIMARY_REF_NONE &&
-      cm->features.derived_primary_ref_frame != PRIMARY_REF_NONE) {
+  if (cm->features.primary_ref_frame !=
+      cm->features.derived_primary_ref_frame) {
     cpi->signal_primary_ref_frame = 1;
     choose_primary_secondary_ref_frame(cm, tmp_ref_frame, 1);
     cm->features.derived_primary_ref_frame = tmp_ref_frame[0];
@@ -4404,7 +4434,8 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
                  cm->features.derived_primary_ref_frame == PRIMARY_REF_NONE));
 
   if (cm->features.primary_ref_frame != PRIMARY_REF_NONE &&
-      !cpi->error_resilient_frame_seen) {
+      !cpi->error_resilient_frame_seen &&
+      !cpi->sf.rt_sf.disable_primary_ref_frame_search) {
     const int n_refs = cm->ref_frames_info.num_total_refs;
     //    int frame_size[REF_FRAMES];
     int best_ref_idx = -1;
