@@ -7660,7 +7660,9 @@ static AVM_INLINE void rd_pick_skip_mode(
   const PREDICTION_MODE this_mode = NEAR_NEARMV;
 
   if ((!cpi->oxcf.ref_frm_cfg.enable_onesided_comp ||
-       cpi->sf.inter_sf.disable_onesided_comp) &&
+       ((!cpi->sf.inter_sf.enable_skip_mode_wet_pass_ld ||
+         x->apply_dry_pass_shortcuts || cpi->oxcf.gf_cfg.lag_in_frames != 0) &&
+        cpi->sf.inter_sf.disable_onesided_comp)) &&
       cpi->all_one_sided_refs) {
     return;
   }
