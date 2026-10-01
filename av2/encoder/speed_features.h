@@ -147,6 +147,9 @@ typedef struct {
   // Maximum block size used for skip tx search
   int skip_tx_search_max_eob;
 
+  // Disable inter IST
+  bool disable_inter_ist;
+
   // Prune tx type search using previous frame stats.
   int prune_tx_type_using_stats;
   // Prune tx type search using estimated RDcost
@@ -999,6 +1002,9 @@ typedef struct TX_SPEED_FEATURES {
   // Prune transform partition type search by the analysis of signal
   // stationarity along horizontal and vertical axis.
   bool prune_tx_part_stationarity;
+
+  // Skip cctx search at dry pass
+  bool disable_cctx_dry_pass;
 
   // Enable the early-exit pre-RD pruning gate inside the tx-type search loop.
   // When set, a lightweight RD Cost estimate is computed before the full

@@ -680,8 +680,10 @@ static void set_good_speed_features_framesize_independent(
     sf->tpl_sf.subpel_force_stop = FULL_PEL;
     sf->tpl_sf.disable_filtered_key_tpl = 1;
 
+    sf->tx_sf.tx_type_search.disable_inter_ist = true;
     sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 2;
     sf->tx_sf.tx_type_search.prune_tx_type_est_rd = 0;
+    sf->tx_sf.disable_cctx_dry_pass = true;
     sf->tx_sf.enable_tx_partition = false;
 
     sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 4 : 6;
@@ -986,6 +988,7 @@ static AVM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
   tx_sf->tx_type_search.skip_tx_search = 0;
   tx_sf->tx_type_search.eob_adapt_skip_tx_search = false;
   tx_sf->tx_type_search.skip_tx_search_max_eob = 1024;
+  tx_sf->tx_type_search.disable_inter_ist = false;
   tx_sf->tx_type_search.prune_tx_type_using_stats = 0;
   tx_sf->tx_type_search.prune_tx_type_est_rd = 0;
   tx_sf->tx_type_search.winner_mode_tx_type_pruning = 0;
@@ -1001,6 +1004,7 @@ static AVM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
   tx_sf->enable_adaptive_tx_search_level = false;
   tx_sf->prune_intra_ist_stx_by_zero_eob = false;
   tx_sf->prune_tx_part_stationarity = false;
+  tx_sf->disable_cctx_dry_pass = false;
   tx_sf->prune_tx_search_by_pre_rd = false;
 }
 
@@ -1393,6 +1397,11 @@ void av2_set_speed_features_framesize_independent(AV2_COMP *cpi, int speed) {
         sf->inter_sf.reduce_max_drl_refmvs) {
       cpi->common.seq_params.allow_frame_max_drl_bits = 1;
     }
+
+    if (sf->tx_sf.tx_type_search.disable_inter_ist) {
+      cpi->common.seq_params.enable_inter_ist = 0;
+    }
+
     // Disable tcq modes in sequence header when cpu-used >= 2
     if (sf->rd_sf.disable_tcq) {
       cpi->common.seq_params.enable_tcq = TCQ_DISABLE;
