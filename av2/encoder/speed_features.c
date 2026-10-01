@@ -653,6 +653,7 @@ static void set_good_speed_features_framesize_independent(
     sf->part_sf.simple_motion_search_prune_agg = 3;
     sf->inter_sf.disable_interinter_wedge = 1;
     sf->inter_sf.disable_onesided_comp = true;
+    sf->inter_sf.enable_onesided_comp_wet_pass_ld = true;
     cpi->oxcf.tool_cfg.enable_tip_refinemv = 0;
     sf->inter_sf.prune_inter_modes_if_skippable = 1;
     // Unconditionally enable the pre-RD gate at speed >= 5: apply to all
@@ -691,7 +692,7 @@ static void set_good_speed_features_framesize_independent(
     sf->winner_mode_sf.multi_winner_mode_type = MULTI_WINNER_MODE_OFF;
 
     sf->inter_sf.enable_six_param_warp_in_winner_mode_by_tid = 1;
-
+    sf->inter_sf.enable_onesided_comp_wet_pass_ld = false;
     sf->inter_sf.prune_amvd = true;
   }
 
@@ -944,6 +945,7 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->perform_best_rd_based_gating_for_chroma = 0;
   inter_sf->disable_interinter_wedge = 0;
   inter_sf->disable_onesided_comp = false;
+  inter_sf->enable_onesided_comp_wet_pass_ld = false;
   inter_sf->prune_ref_mv_idx_search = 0;
   inter_sf->prune_warped_prob_thresh = 0;
   inter_sf->reuse_compound_type_data = 0;
