@@ -72,7 +72,8 @@ uint64_t av2_tx_cache_hash_c(const int16_t *residual, int stride, int tx_w,
 
 // Fold in the rest of the state that can flip which candidate wins. Only
 // bounded fields are bit-packed; unbounded ones are folded separately so they
-// cannot alias. The superblock coordinates are zero: the key is frame-scoped.
+// cannot alias. The superblock coordinates are zero: the key is scoped by the
+// table's scope instead (see tx_cache.h).
 AVM_NO_UNSIGNED_OVERFLOW_CHECK uint64_t av2_tx_cache_mix(
     uint64_t h, uint32_t sb_row, uint32_t sb_col, int is_inter, int is_fsc,
     int intra_mode, int rd_model, int skip_trellis, int tx_set_type,
@@ -91,10 +92,21 @@ AVM_NO_UNSIGNED_OVERFLOW_CHECK uint64_t av2_tx_cache_mix(
 
 #undef AVM_NO_UNSIGNED_OVERFLOW_CHECK
 
-// Cached winning tx_type for this frame, or -1 on a miss. A never-written slot
-// (tag 0) ends the probe: no store for this frame can have walked past it.
-int av2_tx_cache_lookup(const TxCache *cache, uint64_t key, uint32_t frame) {
-  const uint32_t tag = frame + 1;
+void av2_tx_cache_new_scope(TxCache *cache) {
+  ++cache->scope;
+  if (cache->scope + 1 == 0) {
+    // The tag (scope + 1) would wrap to 0, which means "never written", and
+    // would also start reusing old tags: clear the table and start over.
+    memset(cache->entries, 0, sizeof(cache->entries));
+    cache->scope = 0;
+  }
+}
+
+// Cached winning tx_type for the current scope, or -1 on a miss. A
+// never-written slot (tag 0) ends the probe: no store for this scope can have
+// walked past it.
+int av2_tx_cache_lookup(const TxCache *cache, uint64_t key) {
+  const uint32_t tag = cache->scope + 1;
   const uint32_t idx = (uint32_t)key & TX_CACHE_MASK;
   for (int p = 0; p < TX_CACHE_PROBE; ++p) {
     const TxCacheEntry *e = &cache->entries[(idx + p) & TX_CACHE_MASK];
@@ -105,9 +117,8 @@ int av2_tx_cache_lookup(const TxCache *cache, uint64_t key, uint32_t frame) {
 }
 
 // Takes the first slot in the window that is free, stale, or already this key.
-void av2_tx_cache_store(TxCache *cache, uint64_t key, uint16_t winner,
-                        uint32_t frame) {
-  const uint32_t tag = frame + 1;
+void av2_tx_cache_store(TxCache *cache, uint64_t key, uint16_t winner) {
+  const uint32_t tag = cache->scope + 1;
   const uint32_t idx = (uint32_t)key & TX_CACHE_MASK;
   for (int p = 0; p < TX_CACHE_PROBE; ++p) {
     TxCacheEntry *e = &cache->entries[(idx + p) & TX_CACHE_MASK];
@@ -118,7 +129,7 @@ void av2_tx_cache_store(TxCache *cache, uint64_t key, uint16_t winner,
       return;
     }
   }
-  // Window full of this frame's entries: overwrite the first so it never
+  // Window full of this scope's entries: overwrite the first so it never
   // stalls.
   TxCacheEntry *e = &cache->entries[idx];
   e->key = key;

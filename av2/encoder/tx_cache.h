@@ -11,9 +11,17 @@
  */
 
 // Transform search result cache.  An entry holds the transform type that won
-// for a key, plus the frame it was produced in so that entries from earlier
-// frames are ignored and recycled instead of cleared.  The table is embedded
+// for a key, plus the scope it was produced in so that entries from earlier
+// scopes are ignored and recycled instead of cleared.  The table is embedded
 // in TxfmSearchInfo, so it is per-thread and needs no allocation.
+//
+// A scope is one superblock row of a tile (see av2_encode_sb_row()). It must
+// not be wider: each thread has its own table, and a superblock row is the
+// largest unit that is always encoded by a single thread, in the same order,
+// regardless of the number of threads or of tile / row multi-threading. With
+// a wider (e.g. frame) scope, hits would depend on which blocks the same
+// thread happened to encode earlier, making the output depend on the thread
+// count.
 
 #ifndef AVM_AV2_ENCODER_TX_CACHE_H_
 #define AVM_AV2_ENCODER_TX_CACHE_H_
@@ -32,19 +40,20 @@ extern "C" {
 #define TX_CACHE_PROBE 8  // linear probe depth
 
 /*! Cache slot: a fully mixed key, the transform type that won for it, and the
- *  frame it belongs to.
+ *  scope it belongs to.
  */
 typedef struct {
   uint64_t key;     // hash of the residual and all state that picks the winner
   uint16_t winner;  // full tx_type: primary | secondary | secondary set
-  uint32_t tag;     // frame_number + 1; 0 means never written, stale = recycled
+  uint32_t tag;     // scope + 1; 0 means never written, stale = recycled
 } TxCacheEntry;
 
-/*! Transform search result cache. Entries are scoped to the frame they were
- *  produced in, so the table is never cleared.
+/*! Transform search result cache. Entries are scoped to the scope they were
+ *  produced in, so the table is never cleared (except on scope wrap-around).
  */
 typedef struct {
   TxCacheEntry entries[TX_CACHE_SIZE];
+  uint32_t scope;  // current scope; bumped by av2_tx_cache_new_scope()
 } TxCache;
 
 /*! Folds the remaining state that can flip which candidate wins into the seed
@@ -56,13 +65,16 @@ uint64_t av2_tx_cache_mix(uint64_t h, uint32_t sb_row, uint32_t sb_col,
                           int rd_model, int skip_trellis, int tx_set_type,
                           int use_qmatrix, int rdmult, int is_dry_pass);
 
-/*! Returns the winning tx_type cached for \c key in \c frame, or -1 on a miss.
- */
-int av2_tx_cache_lookup(const TxCache *cache, uint64_t key, uint32_t frame);
+/*! Starts a new scope: all entries stored so far become invisible. */
+void av2_tx_cache_new_scope(TxCache *cache);
 
-/*! Stores \c winner as the result for \c key in \c frame. */
-void av2_tx_cache_store(TxCache *cache, uint64_t key, uint16_t winner,
-                        uint32_t frame);
+/*! Returns the winning tx_type cached for \c key in the current scope, or -1
+ *  on a miss.
+ */
+int av2_tx_cache_lookup(const TxCache *cache, uint64_t key);
+
+/*! Stores \c winner as the result for \c key in the current scope. */
+void av2_tx_cache_store(TxCache *cache, uint64_t key, uint16_t winner);
 
 #ifdef __cplusplus
 }  // extern "C"
