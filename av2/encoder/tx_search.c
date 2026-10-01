@@ -2122,8 +2122,8 @@ static bool prune_sec_txfm_rd_eval(int64_t sec_tx_sse_to_be_coded,
 
 // Prune transform type search based on EOB count and block properties.
 static AVM_INLINE bool prune_tx_search_by_eob(
-    int eob, int plane, bool is_inter, PRIMARY_TX_TYPE primary_tx_type,
-    int stx, bool *const eob_found, bool prune_intra_ist_stx_by_zero_eob) {
+    int eob, int plane, bool is_inter, PRIMARY_TX_TYPE primary_tx_type, int stx,
+    bool *const eob_found, bool prune_intra_ist_stx_by_zero_eob) {
   if (plane == AVM_PLANE_Y && !is_inter &&
       (eob == 1 || (prune_intra_ist_stx_by_zero_eob && eob == 0))) {
     if (primary_tx_type == DCT_DCT && stx == 0) *eob_found = true;
