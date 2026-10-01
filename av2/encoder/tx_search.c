@@ -2587,8 +2587,7 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
                                 cm->features.reduced_tx_set_used),
         av2_use_qmatrix(&cm->quant_params, xd, mbmi->segment_id), x->rdmult,
         x->apply_dry_pass_shortcuts);
-    const int cached = av2_tx_cache_lookup(tx_cache, tx_cache_key,
-                                           cm->current_frame.frame_number);
+    const int cached = av2_tx_cache_lookup(tx_cache, tx_cache_key);
     if (cached >= 0) {
       tx_cache_hit = 1;
       tx_cache_winner.packed_tx_type = (uint16_t)cached;
@@ -2873,8 +2872,7 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
 
   if (tx_cache != NULL && best_rd != INT64_MAX &&
       !(best_eob == 1 && best_tx_type.primary_tx != DCT_DCT && !is_inter)) {
-    av2_tx_cache_store(tx_cache, tx_cache_key, best_tx_type.packed_tx_type,
-                       cm->current_frame.frame_number);
+    av2_tx_cache_store(tx_cache, tx_cache_key, best_tx_type.packed_tx_type);
   }
 
   best_rd_stats->skip_txfm = best_eob == 0;
