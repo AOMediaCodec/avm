@@ -3342,6 +3342,33 @@ static INLINE int is_mlayer_transitively_dependent(
   return 0;
 }
 
+// Returns true if tlayer `layer_a` of embedded layer `mlayer_id` transitively
+// depends on tlayer `layer_b`. Also returns true if both layer IDs are the
+// same. Otherwise, returns false.
+static INLINE int is_tlayer_transitively_dependent(
+    const SequenceHeader *const seq, int mlayer_id, int layer_a, int layer_b) {
+  if (layer_a == layer_b) return 1;
+
+  int visited[MAX_NUM_TLAYERS] = { 0 };
+  int queue[MAX_NUM_TLAYERS];
+  int head = 0, tail = 0;
+
+  queue[tail++] = layer_a;
+  visited[layer_a] = 1;
+
+  while (head < tail) {
+    int layer = queue[head++];
+    if (layer == layer_b) return 1;
+    for (int i = 0; i <= seq->max_tlayer_id; i++) {
+      if (seq->tlayer_dependency_map[mlayer_id][layer][i] && !visited[i]) {
+        visited[i] = 1;
+        queue[tail++] = i;
+      }
+    }
+  }
+  return 0;
+}
+
 // Opens the switch risk window for every (embedded layer, temporal layer)
 // that depends on the layer of the current frame, which must be an
 // OBU_SWITCH frame. Windows opened by earlier switch frames stay open.
@@ -3350,7 +3377,7 @@ static INLINE void open_switch_risk_window(AV2_COMMON *const cm) {
   for (int m = 0; m < MAX_NUM_MLAYERS; m++) {
     if (!is_mlayer_transitively_dependent(seq, m, cm->mlayer_id)) continue;
     for (int t = 0; t < MAX_NUM_TLAYERS; t++) {
-      if (t == cm->tlayer_id || seq->tlayer_dependency_map[m][t][cm->tlayer_id])
+      if (is_tlayer_transitively_dependent(seq, m, t, cm->tlayer_id))
         cm->switch_risk_window[m][t] = true;
     }
   }
