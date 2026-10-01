@@ -1043,7 +1043,7 @@ void av2_inverse_transform_block(const MACROBLOCKD *xd,
 // Inverse secondary transform
 void inv_stxfm_c(tran_low_t *src, tran_low_t *dst, const PREDICTION_MODE mode,
                  const uint8_t stx_idx, const int size, const int bd) {
-  assert(stx_idx < 4);
+  assert(stx_idx < STX_TYPES - 1);
   const int16_t *kernel = (size == 0) ? ist_4x4_kernel[mode][stx_idx][0]
                                       : ist_8x8_kernel[mode][stx_idx][0];
   int *out = dst;
