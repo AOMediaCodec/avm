@@ -27,7 +27,6 @@ extern const int tx_kernel_dct2_size4[TXFM_DIRECTIONS][4][4];
 extern const int tx_kernel_dct2_size8[TXFM_DIRECTIONS][8][8];
 extern const int tx_kernel_dct2_size16[TXFM_DIRECTIONS][16][16];
 extern const int tx_kernel_dct2_size32[TXFM_DIRECTIONS][32][32];
-extern const int tx_kernel_dct2_size64[TXFM_DIRECTIONS][64][64];
 
 // ADST
 extern const int tx_kernel_adst_size4[TXFM_DIRECTIONS][4][4];
