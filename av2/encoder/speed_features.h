@@ -236,6 +236,14 @@ typedef struct HIGH_LEVEL_SPEED_FEATURES {
    */
   bool disable_unequal_scale_refs;
   /*!\endcond */
+
+  /*!
+   * Stop the TIP direct output search of a frame once the TIP frame is built
+   * with the zero global offset, if the direct output is unlikely to have a
+   * lower RD cost than the normally coded frame. See
+   * compute_tip_direct_output_mode_RD().
+   */
+  bool early_term_tip_direct_output_search;
 } HIGH_LEVEL_SPEED_FEATURES;
 
 /*!\cond */
