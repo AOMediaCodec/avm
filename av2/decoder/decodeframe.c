@@ -7169,7 +7169,12 @@ static int read_show_existing_frame(AV2Decoder *pbi, bool is_regular_obu,
       // are always shown).
       pbi->last_olk_tu_display_order_hint = current_frame->display_order_hint;
     }
-    if (pbi->this_is_first_vcl_obu_in_tu) pbi->olk_encountered = 0;
+    if (pbi->this_is_first_vcl_obu_in_tu) {
+      // This SEF is the first regular frame after the OLK's temporal unit,
+      // which ends the risk window (see read_uncompressed_header()).
+      close_switch_risk_windows(cm);
+      pbi->olk_encountered = 0;
+    }
   }
 
   lock_buffer_pool(pool);
@@ -8098,12 +8103,20 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     // enforce the bitstream conformance requirement constraining BAWP/IBC
     // around switch frames (decoder state derived from reconstructed
     // samples can diverge across bitstreams spliced at the switch frame
-    // even though parsing stays deterministic). A CLK/OLK or an
-    // OBU_RAS_FRAME is a random access point, which closes any risk window
-    // opened by a prior OBU_SWITCH frame.
-    if (current_frame->frame_type == KEY_FRAME || obu_type == OBU_RAS_FRAME) {
+    // even though parsing stays deterministic). A CLK or an OBU_RAS_FRAME
+    // closes any risk window opened by a prior OBU_SWITCH frame. An OLK does
+    // not: its leading frames may reference frames that precede it, so the
+    // window stays open until the first regular frame that follows the
+    // temporal unit of the OLK, which is also where olk_encountered is
+    // cleared below.
+    const bool olk_leading_span_ended = pbi->olk_encountered &&
+                                        av2_is_regular_non_olk_obu(obu_type) &&
+                                        pbi->this_is_first_vcl_obu_in_tu;
+    if (obu_type == OBU_CLOSED_LOOP_KEY || obu_type == OBU_RAS_FRAME ||
+        olk_leading_span_ended) {
       close_switch_risk_windows(cm);
-    } else if (obu_type == OBU_SWITCH) {
+    }
+    if (obu_type == OBU_SWITCH) {
       open_switch_risk_window(cm);
     }
 
