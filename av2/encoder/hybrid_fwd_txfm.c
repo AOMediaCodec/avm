@@ -240,154 +240,6 @@ void fwd_txfm_dct2_size32_c(const int *src, int *dst, int shift, int line,
   }
 }
 
-void fwd_txfm_dct2_size64_c(const int *src, int *dst, int shift, int line,
-                            int skip_line, int zero_line) {
-  int offset = shift > 0 ? 1 << (shift - 1) : 0;
-
-  const int tx1d_size = 64;
-  const int *tx_mat = tx_kernel_dct2_size64[FWD_TXFM][0];
-
-  int j, k;
-  int a[32], b[32];
-  int c[16], d[16];
-  int e[8], f[8];
-  int g[4], h[4];
-  int i[2], u[2];
-  int *tmp = dst;
-
-  bool zo = zero_line != 0;
-
-  for (j = 0; j < line - skip_line; j++) {
-    for (k = 0; k < 32; k++) {
-      a[k] = src[k * line] + src[(63 - k) * line];
-      b[k] = src[k * line] - src[(63 - k) * line];
-    }
-
-    for (k = 0; k < 16; k++) {
-      c[k] = a[k] + a[31 - k];
-      d[k] = a[k] - a[31 - k];
-    }
-
-    for (k = 0; k < 8; k++) {
-      e[k] = c[k] + c[15 - k];
-      f[k] = c[k] - c[15 - k];
-    }
-
-    for (k = 0; k < 4; k++) {
-      g[k] = e[k] + e[7 - k];
-      h[k] = e[k] - e[7 - k];
-    }
-
-    i[0] = g[0] + g[3];
-    u[0] = g[0] - g[3];
-    i[1] = g[1] + g[2];
-    u[1] = g[1] - g[2];
-
-    dst[0] = (int)(((int64_t)tx_mat[0 * 64 + 0] * i[0] +
-                    (int64_t)tx_mat[0 * 64 + 1] * i[1] + offset) >>
-                   shift);
-    dst[16] = (int)(((int64_t)tx_mat[16 * 64 + 0] * u[0] +
-                     (int64_t)tx_mat[16 * 64 + 1] * u[1] + offset) >>
-                    shift);
-
-    if (!zo) {
-      dst[32] = (int)(((int64_t)tx_mat[32 * 64 + 0] * i[0] +
-                       (int64_t)tx_mat[32 * 64 + 1] * i[1] + offset) >>
-                      shift);
-      dst[48] = (int)(((int64_t)tx_mat[48 * 64 + 0] * u[0] +
-                       (int64_t)tx_mat[48 * 64 + 1] * u[1] + offset) >>
-                      shift);
-    }
-    for (k = 8; k < (zo ? 32 : 64); k += 16) {
-      dst[k] = (int)(((int64_t)tx_mat[k * 64 + 0] * h[0] +
-                      (int64_t)tx_mat[k * 64 + 1] * h[1] +
-                      (int64_t)tx_mat[k * 64 + 2] * h[2] +
-                      (int64_t)tx_mat[k * 64 + 3] * h[3] + offset) >>
-                     shift);
-    }
-    for (k = 4; k < (zo ? 32 : 64); k += 8) {
-      dst[k] = (int)(((int64_t)tx_mat[k * 64 + 0] * f[0] +
-                      (int64_t)tx_mat[k * 64 + 1] * f[1] +
-                      (int64_t)tx_mat[k * 64 + 2] * f[2] +
-                      (int64_t)tx_mat[k * 64 + 3] * f[3] +
-                      (int64_t)tx_mat[k * 64 + 4] * f[4] +
-                      (int64_t)tx_mat[k * 64 + 5] * f[5] +
-                      (int64_t)tx_mat[k * 64 + 6] * f[6] +
-                      (int64_t)tx_mat[k * 64 + 7] * f[7] + offset) >>
-                     shift);
-    }
-    for (k = 2; k < (zo ? 32 : 64); k += 4) {
-      dst[k] = (int)(((int64_t)tx_mat[k * 64 + 0] * d[0] +
-                      (int64_t)tx_mat[k * 64 + 1] * d[1] +
-                      (int64_t)tx_mat[k * 64 + 2] * d[2] +
-                      (int64_t)tx_mat[k * 64 + 3] * d[3] +
-                      (int64_t)tx_mat[k * 64 + 4] * d[4] +
-                      (int64_t)tx_mat[k * 64 + 5] * d[5] +
-                      (int64_t)tx_mat[k * 64 + 6] * d[6] +
-                      (int64_t)tx_mat[k * 64 + 7] * d[7] +
-                      (int64_t)tx_mat[k * 64 + 8] * d[8] +
-                      (int64_t)tx_mat[k * 64 + 9] * d[9] +
-                      (int64_t)tx_mat[k * 64 + 10] * d[10] +
-                      (int64_t)tx_mat[k * 64 + 11] * d[11] +
-                      (int64_t)tx_mat[k * 64 + 12] * d[12] +
-                      (int64_t)tx_mat[k * 64 + 13] * d[13] +
-                      (int64_t)tx_mat[k * 64 + 14] * d[14] +
-                      (int64_t)tx_mat[k * 64 + 15] * d[15] + offset) >>
-                     shift);
-    }
-    for (k = 1; k < (zo ? 32 : 64); k += 2) {
-      dst[k] = (int)(((int64_t)tx_mat[k * 64 + 0] * b[0] +
-                      (int64_t)tx_mat[k * 64 + 1] * b[1] +
-                      (int64_t)tx_mat[k * 64 + 2] * b[2] +
-                      (int64_t)tx_mat[k * 64 + 3] * b[3] +
-                      (int64_t)tx_mat[k * 64 + 4] * b[4] +
-                      (int64_t)tx_mat[k * 64 + 5] * b[5] +
-                      (int64_t)tx_mat[k * 64 + 6] * b[6] +
-                      (int64_t)tx_mat[k * 64 + 7] * b[7] +
-                      (int64_t)tx_mat[k * 64 + 8] * b[8] +
-                      (int64_t)tx_mat[k * 64 + 9] * b[9] +
-                      (int64_t)tx_mat[k * 64 + 10] * b[10] +
-                      (int64_t)tx_mat[k * 64 + 11] * b[11] +
-                      (int64_t)tx_mat[k * 64 + 12] * b[12] +
-                      (int64_t)tx_mat[k * 64 + 13] * b[13] +
-                      (int64_t)tx_mat[k * 64 + 14] * b[14] +
-                      (int64_t)tx_mat[k * 64 + 15] * b[15] +
-                      (int64_t)tx_mat[k * 64 + 16] * b[16] +
-                      (int64_t)tx_mat[k * 64 + 17] * b[17] +
-                      (int64_t)tx_mat[k * 64 + 18] * b[18] +
-                      (int64_t)tx_mat[k * 64 + 19] * b[19] +
-                      (int64_t)tx_mat[k * 64 + 20] * b[20] +
-                      (int64_t)tx_mat[k * 64 + 21] * b[21] +
-                      (int64_t)tx_mat[k * 64 + 22] * b[22] +
-                      (int64_t)tx_mat[k * 64 + 23] * b[23] +
-                      (int64_t)tx_mat[k * 64 + 24] * b[24] +
-                      (int64_t)tx_mat[k * 64 + 25] * b[25] +
-                      (int64_t)tx_mat[k * 64 + 26] * b[26] +
-                      (int64_t)tx_mat[k * 64 + 27] * b[27] +
-                      (int64_t)tx_mat[k * 64 + 28] * b[28] +
-                      (int64_t)tx_mat[k * 64 + 29] * b[29] +
-                      (int64_t)tx_mat[k * 64 + 30] * b[30] +
-                      (int64_t)tx_mat[k * 64 + 31] * b[31] + offset) >>
-                     shift);
-    }
-    src++;
-    dst += tx1d_size;
-  }
-
-  const int nz_line = line - skip_line;
-  const int cutoff = tx1d_size - zero_line;
-  if (skip_line) {
-    memset(dst, 0, sizeof(int) * 64 * skip_line);
-  }
-  if (zero_line) {
-    dst = tmp + cutoff;
-    for (j = 0; j < nz_line; j++) {
-      memset(dst, 0, sizeof(int) * zero_line);
-      dst += tx1d_size;
-    }
-  }
-}
-
 // ********************************** DST-VII **********************************
 void fwd_txfm_idtx_size4_c(const int *src, int *dst, int shift, int line,
                            int skip_line, int zero_line) {
@@ -962,14 +814,6 @@ void fwd_transform_1d_c(const int *src, int *dst, int shift, int line,
         default: assert(0); break;
       }
       break;
-    case 4:
-      switch (tx_type_index) {
-        case 0:
-          fwd_txfm_dct2_size64_c(src, dst, shift, line, skip_line, zero_line);
-          break;
-        default: assert(0); break;
-      }
-      break;
     default: assert(0); break;
   }
 }
@@ -980,9 +824,6 @@ void fwd_txfm_c(const int16_t *resi, tran_low_t *coeff, int diff_stride,
 
   const int width = tx_size_wide[tx_size];
   const int height = tx_size_high[tx_size];
-
-  const uint32_t tx_wide_index = tx_size_wide_log2[tx_size] - 2;
-  const uint32_t tx_high_index = tx_size_high_log2[tx_size] - 2;
 
   PRIMARY_TX_TYPE primary_tx_type = txfm_param->primary_tx_type;
 
@@ -1010,38 +851,33 @@ void fwd_txfm_c(const int16_t *resi, tran_low_t *coeff, int diff_stride,
     }
   }
 
-  int skipWidth = width > 32 ? width - 32 : 0;
-  int skipHeight = height > 32 ? height - 32 : 0;
-
   int buf[MAX_TX_SQUARE];
   assert(width >= 4 && height >= 4);
 
-  for (int y = 0; y < height; y++) {
-    for (int x = 0; x < width; x++) {
-      coeff[(y * width) + x] = resi[(y * diff_stride) + x];
-    }
-  }
+  // For 64-length dimensions, downsample the residual by 2 along such
+  // dimensions, then apply 32-point kernels.
+  int w, h;
+  av2_fwd_txfm_downsample_input(resi, diff_stride, tx_size, coeff, &w, &h);
+  const uint32_t tx_wide_index =
+      AVMMIN(MAX_TX_SIZE_LOG2 - 1, tx_size_wide_log2[tx_size]) - 2;
+  const uint32_t tx_high_index =
+      AVMMIN(MAX_TX_SIZE_LOG2 - 1, tx_size_high_log2[tx_size]) - 2;
 
+  // Note: Shifts are still based on the original tx_size (see comment in
+  // av2_fwd_txfm_downsample_input()).
   const int shift_1st = fwd_tx_shift[tx_size][0];
   const int shift_2nd = fwd_tx_shift[tx_size][1];
 
-  fwd_transform_1d_c(coeff, buf, shift_1st, width, 0, skipHeight, tx_type_col,
+  fwd_transform_1d_c(coeff, buf, shift_1st, w, 0, 0, tx_type_col,
                      tx_high_index);
-  fwd_transform_1d_c(buf, coeff, shift_2nd, height, skipHeight, skipWidth,
-                     tx_type_row, tx_wide_index);
-
-  // Re-pack non-zero coeffs in the first 32x32 indices.
-  if (skipWidth) {
-    for (int row = 1; row < height; ++row) {
-      memcpy(coeff + row * 32, coeff + row * width, 32 * sizeof(*coeff));
-    }
-  }
+  fwd_transform_1d_c(buf, coeff, shift_2nd, h, 0, 0, tx_type_row,
+                     tx_wide_index);
 
   const int log2width = tx_size_wide_log2[tx_size];
   const int log2height = tx_size_high_log2[tx_size];
   const int sqrt2 = ((log2width + log2height) & 1) ? 1 : 0;
   if (sqrt2) {
-    for (int i = 0; i < AVMMIN(1024, width * height); i++) {
+    for (int i = 0; i < w * h; i++) {
       coeff[i] = round_shift((int64_t)coeff[i] * NewSqrt2, NewSqrt2Bits);
     }
   }

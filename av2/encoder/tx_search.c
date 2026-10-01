@@ -2152,11 +2152,11 @@ static AVM_INLINE bool prune_tx_search_by_eob(
 // false.
 static AVM_INLINE bool prune_tx_search_by_pre_rd_check(
     const AV2_COMMON *cm, MACROBLOCK *x, const TXB_CTX *txb_ctx,
-    int64_t best_rd, int64_t block_sse, int stx, int plane, int block, int txw,
-    int txh, uint16_t eob, TX_SIZE tx_size, TX_TYPE tx_type, bool fsc_mode_in,
+    int64_t best_rd, int64_t block_sse, int stx, int plane, int block,
+    uint16_t eob, TX_SIZE tx_size, TX_TYPE tx_type, bool fsc_mode_in,
     bool use_optimize_b, bool prune_tx_search_by_pre_rd) {
   if (!prune_tx_search_by_pre_rd || !use_optimize_b || fsc_mode_in ||
-      eob == 0 || best_rd == INT64_MAX || txw == 64 || txh == 64)
+      eob == 0 || best_rd == INT64_MAX)
     return false;
 
   const int pre_rate =
@@ -2165,9 +2165,13 @@ static AVM_INLINE bool prune_tx_search_by_pre_rd_check(
   int64_t pre_dist, pre_sse;
   dist_block_tx_domain(x, plane, block, tx_size, &pre_dist, &pre_sse);
   // When STX is active, dist_block_tx_domain() only sees the coded primary
-  // coefficients. Add the uncoded residual energy (block_sse - pre_sse) so
-  // the distortion estimate covers the full block.
-  if (stx != 0) pre_dist = pre_dist + AVMMAX((block_sse - pre_sse), 0);
+  // coefficients. Similarly, for 64-length transforms, only the coefficients of
+  // the 2x downsampled residue are coded (see get_tx_blk_distortion()). In both
+  // cases, add the uncoded residual energy (block_sse - pre_sse) so the
+  // distortion estimate covers the full block.
+  if (stx != 0 || txsize_sqr_up_map[tx_size] == TX_64X64) {
+    pre_dist = pre_dist + AVMMAX((block_sse - pre_sse), 0);
+  }
   const int64_t pre_rd = RDCOST(x->rdmult, pre_rate, pre_dist);
   return pre_rd - (pre_rd >> 3) > best_rd;
 }
@@ -2285,6 +2289,16 @@ static AVM_INLINE RD_STATS get_tx_blk_distortion(
   } else if (use_transform_domain_distortion) {
     dist_block_tx_domain(x, plane, block, tx_size, &this_rd_stats.dist,
                          &this_rd_stats.sse);
+    if (txsize_sqr_up_map[tx_size] == TX_64X64) {
+      // For 64-length transforms, only a 2x downsampled (32-length) version
+      // of the residue is coded. As the forward transform is the orthogonal
+      // projection onto the (2x replicated) 32-point basis functions, the
+      // pixel domain distortion is the sum of the quantization error of the
+      // coded coefficients and the energy lost by the downsampling, i.e.
+      // (block_sse - coded_sse).
+      this_rd_stats.dist += AVMMAX(block_sse - this_rd_stats.sse, 0);
+      this_rd_stats.sse = block_sse;
+    }
   } else {
     int64_t sse_diff = INT64_MAX;
     // high_energy threshold assumes that every pixel within a txfm block
@@ -2294,12 +2308,14 @@ static AVM_INLINE RD_STATS get_tx_blk_distortion(
         ((int64_t)128 * 128 * tx_size_2d[tx_size]);
     const int is_high_energy = (block_sse >= high_energy_thresh);
     if (tx_size == TX_64X64 || is_high_energy) {
-      // Because 3 out 4 quadrants of transform coefficients are forced to
-      // zero, the inverse transform has a tendency to overflow. sse_diff
-      // is effectively the energy of those 3 quadrants, here we use it
-      // to decide if we should do pixel domain distortion. If the energy
-      // is mostly in first quadrant, then it is unlikely that we have
-      // overflow issue in inverse transform.
+      // For 64-length transforms, only a downsampled (32-length) version of
+      // the residue is coded (the decoder upsamples the 32-point inverse
+      // transform output by 2x replication), so the inverse transform has a
+      // tendency to overflow. sse_diff is effectively the energy lost by
+      // that downsampling, here we use it to decide if we should do pixel
+      // domain distortion. If the energy is mostly captured by the coded
+      // coefficients, then it is unlikely that we have overflow issue in
+      // inverse transform.
       dist_block_tx_domain(x, plane, block, tx_size, &this_rd_stats.dist,
                            &this_rd_stats.sse);
       sse_diff = block_sse - this_rd_stats.sse;
@@ -2517,10 +2533,8 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
   int use_transform_domain_distortion =
       (txfm_params->use_transform_domain_distortion > 0) &&
       (block_mse_q8 >= txfm_params->tx_domain_dist_threshold) &&
-      // Any 64-pt transforms only preserves half the coefficients.
-      // Therefore transform domain distortion is not valid for these
-      // transform sizes.
-      (txsize_sqr_up_map[tx_size] != TX_64X64) &&
+      // Note: 64-length transforms are allowed too: see the correction for
+      // the downsampling loss in get_tx_blk_distortion().
       // Use pixel domain distortion for IST
       // TODO(any): Make IST compatible with tx domain distortion
       !(cm->seq_params.enable_ist || cm->seq_params.enable_inter_ist) &&
@@ -2745,8 +2759,8 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
           continue;
         }
         if (prune_tx_search_by_pre_rd_check(
-                cm, x, txb_ctx, best_rd, block_sse, stx, plane, block, txw, txh,
-                *eob, tx_size, tx_type, fsc_mode_in, quant_param.use_optimize_b,
+                cm, x, txb_ctx, best_rd, block_sse, stx, plane, block, *eob,
+                tx_size, tx_type, fsc_mode_in, quant_param.use_optimize_b,
                 tx_sf->prune_tx_search_by_pre_rd)) {
           continue;
         }
