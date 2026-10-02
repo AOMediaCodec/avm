@@ -655,6 +655,13 @@ int64_t av2_rd_pick_intra_sbuv_mode(const AV2_COMP *const cpi, MACROBLOCK *x,
   if (xd->lossless[mbmi->segment_id]) {
     dpcm_uv_loop_num = 2;  // dpcm is only applied for lossless mode
   }
+  const MB_MODE_INFO *const cached_mode =
+      should_reuse_mode(x, REUSE_INTRA_MODE_IN_INTERFRAME_FLAG)
+          ? x->inter_mode_cache[0]
+          : NULL;
+  const bool reuse_cached_uv = cached_mode != NULL &&
+                               !is_inter_mode(cached_mode->mode) &&
+                               xd->tree_type == SHARED_PART;
   for (int dpcm_uv_index = 0; dpcm_uv_index < dpcm_uv_loop_num;
        ++dpcm_uv_index) {
     mbmi->use_dpcm_uv = dpcm_uv_index;
@@ -709,6 +716,10 @@ int64_t av2_rd_pick_intra_sbuv_mode(const AV2_COMP *const cpi, MACROBLOCK *x,
       else
         mbmi->angle_delta[PLANE_TYPE_UV] = 0;
       UV_PREDICTION_MODE mode = mbmi->uv_mode;
+      if (reuse_cached_uv && !is_reevaluation && mode != cached_mode->uv_mode &&
+          mode != UV_DC_PRED) {
+        continue;
+      }
       if (dpcm_uv_index > 0 && ((mode != V_PRED && mode != H_PRED))) {
         continue;
       }
@@ -1802,11 +1813,21 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
   x->winner_mode_count = 0;
   mbmi->dpcm_mode_y = 0;
 
+  const MB_MODE_INFO *const cached_mode =
+      should_reuse_mode(x, REUSE_INTRA_MODE_IN_INTERFRAME_FLAG)
+          ? x->inter_mode_cache[0]
+          : NULL;
+  const bool reuse_cached_intra =
+      cached_mode != NULL && !is_inter_mode(cached_mode->mode);
+
   //  Searches the intra-modes except for intrabc, palette, and filter_intra.
   const int fsc_loop_num = allow_fsc_intra(cm, bsize, mbmi) ? FSC_MODES : 1;
 
   for (int fsc_mode = 0; fsc_mode < fsc_loop_num; ++fsc_mode) {
     if (fsc_mode == 1 && !beat_best_rd) break;
+    if (reuse_cached_intra &&
+        fsc_mode != cached_mode->fsc_mode[xd->tree_type == CHROMA_PART])
+      continue;
 
     FscBestParams fsc_best;
     init_fsc_best_params(&fsc_best, &best_mbmi, mbmi);
@@ -1836,6 +1857,9 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
       for (int mrl_iter = 0; mrl_iter < mrl_loop_num; ++mrl_iter) {
         const int mrl_idx =
             (fsc_mode && mrl_iter > 0) ? best_mbmi.mrl_index : mrl_iter;
+        if (reuse_cached_intra && mrl_idx != cached_mode->mrl_index &&
+            mrl_idx != 0)
+          continue;
         mbmi->mrl_index = mrl_idx;
         const int ml_mrl_loop_num = mrl_idx ? 2 : 1;
         for (int ml_mrl_iter = 0; ml_mrl_iter < ml_mrl_loop_num;
@@ -1852,6 +1876,17 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
             // The below function changes the mbmi->mode based on the mode_idx.
             av2_set_y_mode_and_delta_angle(mbmi->joint_y_mode_delta_angle,
                                            mbmi);
+            if (reuse_cached_intra) {
+              if (mbmi->mode != cached_mode->mode && mbmi->mode != DC_PRED) {
+                continue;
+              }
+              if (mbmi->mode == cached_mode->mode &&
+                  mbmi->angle_delta[PLANE_TYPE_Y] !=
+                      cached_mode->angle_delta[PLANE_TYPE_Y] &&
+                  mbmi->angle_delta[PLANE_TYPE_Y] != 0) {
+                continue;
+              }
+            }
             // During FSC search, prune secondary directional modes that differ
             // in angle delta from the best non-FSC mode.
             if (fsc_mode && (mbmi->y_mode_idx >= FIRST_MODE_COUNT &&
@@ -2012,7 +2047,9 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
   // Searches palette.
   int mode_cost = mode_costs->y_primary_flag_cost[DC_PRED];
   mode_cost += mode_costs->y_mode_idx_costs[context][DC_PRED];
-  if (try_palette) {
+  if (try_palette &&
+      !(reuse_cached_intra &&
+        cached_mode->palette_mode_info.palette_size[PLANE_TYPE_Y] == 0)) {
     av2_rd_pick_palette_intra_sby(cpi, x, bsize, mode_cost, &best_mbmi,
                                   best_palette_color_map, &best_rd_so_far,
                                   &best_model_rd, rate, rate_tokenonly,
@@ -2021,8 +2058,10 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
   }
 
   // Try Intra ML prediction (within intra frame).
-  const bool try_intra_dip = !intra_sf->skip_intra_dip_search &&
-                             av2_intra_dip_allowed_bsize(cm, bsize);
+  const bool try_intra_dip =
+      !intra_sf->skip_intra_dip_search &&
+      av2_intra_dip_allowed_bsize(cm, bsize) &&
+      !(reuse_cached_intra && !cached_mode->use_intra_dip);
   if (try_intra_dip) {
     if (rd_pick_intra_dip_sby(cpi, td, x, rate, rate_tokenonly, distortion,
                               skippable, bsize, mode_cost, &best_rd_so_far,
