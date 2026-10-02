@@ -2122,25 +2122,16 @@ static bool prune_sec_txfm_rd_eval(int64_t sec_tx_sse_to_be_coded,
 
 // Prune transform type search based on EOB count and block properties.
 static AVM_INLINE bool prune_tx_search_by_eob(
-    MACROBLOCKD *const xd, int blk_row, int blk_col, TX_SIZE tx_size, int eob,
-    int plane, bool is_inter, PRIMARY_TX_TYPE primary_tx_type, int stx,
+    int eob, int plane, bool is_inter, PRIMARY_TX_TYPE primary_tx_type, int stx,
     bool *const eob_found, bool prune_intra_ist_stx_by_zero_eob) {
   if (plane == AVM_PLANE_Y && !is_inter &&
       (eob == 1 || (prune_intra_ist_stx_by_zero_eob && eob == 0))) {
     if (primary_tx_type == DCT_DCT && stx == 0) *eob_found = true;
     const bool kill =
         (eob == 1) ? (primary_tx_type != DCT_DCT || stx > 0) : (stx > 0);
-    if (kill) {
-      update_txk_array(xd, blk_row, blk_col, tx_size,
-                       MAKE_TX_TYPE_FROM_PRIMARY_TX_TYPE(DCT_DCT));
-      return true;
-    }
+    if (kill) return true;
   }
-  if (eob <= 3 && plane == AVM_PLANE_Y && is_inter && stx) {
-    update_txk_array(xd, blk_row, blk_col, tx_size,
-                     MAKE_TX_TYPE_FROM_PRIMARY_TX_TYPE(primary_tx_type));
-    return true;
-  }
+  if (eob <= 3 && plane == AVM_PLANE_Y && is_inter && stx) return true;
   return false;
 }
 
@@ -2407,6 +2398,38 @@ static AVM_INLINE bool winner_mode_tx_partition_preselected(
          cpi->sf.winner_mode_sf.disable_multiway_tx_part_in_rough_mode;
 }
 
+// Margin added to the IST input energy bound to cover the rounding of the
+// secondary transform kernels, as a right shift of the energy.
+#define IST_INPUT_ENERGY_MARGIN_SHIFT 5
+
+// Returns an upper bound of the energy any secondary transform (IST) kernel can
+// keep, computed from the primary coefficients cached in temp_coeff by the
+// primary trial. The IST only takes coefficients from the top-left 4x4 or 8x8
+// low-frequency region of the primary coefficients, and the IST kernels are
+// close to orthonormal, so the energy of that region bounds the energy any IST
+// kernel can keep. Scaled the same way as sec_tx_sse in av2_fwd_stxfm().
+static AVM_INLINE int64_t get_ist_input_energy_bound(const MACROBLOCK *x,
+                                                     TX_SIZE tx_size, int bd) {
+  const int32_t *const coeff = x->plane[AVM_PLANE_Y].temp_coeff;
+  const int width = AVMMIN(tx_size_wide[tx_size], 32);
+  const int height = AVMMIN(tx_size_high[tx_size], 32);
+  const int sb_size = (width >= 8 && height >= 8) ? 8 : 4;
+  uint64_t energy = 0;
+  for (int r = 0; r < sb_size; ++r) {
+    for (int c = 0; c < sb_size; ++c) {
+      const int64_t v = coeff[r * width + c];
+      energy += (uint64_t)(v * v);
+    }
+  }
+  const int bd_shift = 2 * (bd - 8);
+  const int rounding = bd_shift > 0 ? 1 << (bd_shift - 1) : 0;
+  energy = (energy + rounding) >> bd_shift;
+  const int tx_shift = (MAX_TX_SCALE - av2_get_tx_scale(tx_size)) * 2;
+  energy = RIGHT_SIGNED_SHIFT(energy, tx_shift);
+  energy += energy >> IST_INPUT_ENERGY_MARGIN_SHIFT;
+  return (int64_t)energy;
+}
+
 typedef struct {
   const AV2_COMP *cpi;
   MACROBLOCK *x;
@@ -2433,7 +2456,8 @@ typedef struct {
 } TxSearchCtx;
 
 // Evaluates one transform type candidate and updates the best candidate.
-static AVM_FORCE_INLINE void evaluate_tx_candidate(
+// Returns the RD cost of the candidate, or INT64_MAX if it is pruned.
+static AVM_FORCE_INLINE int64_t evaluate_tx_candidate(
     const TxSearchCtx *ctx, PRIMARY_TX_TYPE primary_tx_type, int stx,
     uint16_t stx_set, TxfmParam *txfm_param, QUANT_PARAM *quant_param,
     int skip_trellis, int skip_trellis_in, int *skip_trellis_based_on_satd,
@@ -2473,7 +2497,7 @@ static AVM_FORCE_INLINE void evaluate_tx_candidate(
     av2_xform_dc_only(x, ctx->plane, ctx->block, txfm_param, ctx->per_px_mean);
   if (prune_sec_txfm_rd_eval(sec_tx_sse_to_be_coded, ctx->block_sse, *best_rd,
                              x->rdmult, tx_sf->prune_tx_rd_eval_sec_tx_sse)) {
-    return;
+    return INT64_MAX;
   }
   *coeffs_available = 1;
 
@@ -2515,17 +2539,16 @@ static AVM_FORCE_INLINE void evaluate_tx_candidate(
   // stx == 0 that quantized to all-zero can still win via skip
   // coding (bitstream signals the tx_type and elides the
   // coefficients).
-  if (prune_tx_search_by_eob(xd, ctx->blk_row, ctx->blk_col, ctx->tx_size, *eob,
-                             ctx->plane, ctx->is_inter, primary_tx_type, stx,
-                             eob_found,
+  if (prune_tx_search_by_eob(*eob, ctx->plane, ctx->is_inter, primary_tx_type,
+                             stx, eob_found,
                              tx_sf->prune_intra_ist_stx_by_zero_eob)) {
-    return;
+    return INT64_MAX;
   }
   if (prune_tx_search_by_pre_rd_check(
           cm, x, ctx->txb_ctx, *best_rd, ctx->block_sse, stx, ctx->plane,
           ctx->block, *eob, ctx->tx_size, tx_type, fsc_mode_in,
           quant_param->use_optimize_b, tx_sf->prune_tx_search_by_pre_rd)) {
-    return;
+    return INT64_MAX;
   }
   int rate_cost = 0;
   if (fsc_mode_in && quant_param->use_optimize_b) {
@@ -2550,23 +2573,22 @@ static AVM_FORCE_INLINE void evaluate_tx_candidate(
   // Post-trellis safety net: re-apply the same eob == 0 / eob == 1
   // pre-skip logic in case trellis (RDOQ) adjusted the eob across
   // the threshold.
-  if (prune_tx_search_by_eob(xd, ctx->blk_row, ctx->blk_col, ctx->tx_size, *eob,
-                             ctx->plane, ctx->is_inter, primary_tx_type, stx,
-                             eob_found,
+  if (prune_tx_search_by_eob(*eob, ctx->plane, ctx->is_inter, primary_tx_type,
+                             stx, eob_found,
                              tx_sf->prune_intra_ist_stx_by_zero_eob)) {
-    return;
+    return INT64_MAX;
   }
 
   // If rd cost based on coeff rate alone is already more than best_rd,
   // terminate early.
-  if (RDCOST(x->rdmult, rate_cost, 0) > *best_rd) return;
+  if (RDCOST(x->rdmult, rate_cost, 0) > *best_rd) return INT64_MAX;
 
   if (prune_tx_type_rd_calc_using_tx_domain_dist(
           x, eobs_ptr, ctx->block_sse, sec_tx_sse_to_be_coded, *best_rd,
           ctx->ref_best_rd, ctx->plane, ctx->block, stx, rate_cost,
           ctx->use_transform_domain_distortion, ctx->tx_size,
           tx_sf->skip_pixel_dist_calc_using_tx_dist)) {
-    return;
+    return INT64_MAX;
   }
   RD_STATS this_rd_stats = get_tx_blk_distortion(
       cpi, x, ctx->plane, ctx->block, ctx->blk_row, ctx->blk_col, ctx->tx_size,
@@ -2636,7 +2658,14 @@ static AVM_FORCE_INLINE void evaluate_tx_candidate(
        ctx->max_eob <= cpi->sf.tx_sf.tx_type_search.skip_tx_search_max_eob)) {
     *early_term = true;
   }
+
+  return rd;
 }
+
+// With the prune_ist_by_best_rd speed feature, the IST trials are pruned when
+// the RD cost of related trials is worse than best_rd by more than
+// 1 / 2^IST_BEST_RD_MARGIN_SHIFT.
+#define IST_BEST_RD_MARGIN_SHIFT 2
 
 // Search for the best transform type for a given transform block.
 // This function can be used for both inter and intra, both luma and chroma.
@@ -2925,16 +2954,24 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
     txfm_param.sec_tx_set_idx = 0;
     const uint8_t set_id_0 =
         get_ist_set_id(0, is_inter, intra_mode, txw, txh, primary_tx_type);
-    evaluate_tx_candidate(&ctx, primary_tx_type, 0, set_id_0, &txfm_param,
-                          &quant_param, skip_trellis, skip_trellis_in,
-                          skip_trellis_based_on_satd, coeffs_available,
-                          &eob_found, &best_rd, best_rd_stats, &best_tx_type,
-                          &best_txb_ctx, &best_eob, &best_dqcoeff, &skip_idx);
+    const int64_t primary_tx_rd = evaluate_tx_candidate(
+        &ctx, primary_tx_type, 0, set_id_0, &txfm_param, &quant_param,
+        skip_trellis, skip_trellis_in, skip_trellis_based_on_satd,
+        coeffs_available, &eob_found, &best_rd, best_rd_stats, &best_tx_type,
+        &best_txb_ctx, &best_eob, &best_dqcoeff, &skip_idx);
     if (skip_idx) break;
 
     // Only the DCT_DCT primary trial (stx == 0) can set eob_found, so it
     // cannot change during the IST trials below.
     if (skip_stx || eob_found) continue;
+
+    // Skip the IST trials of ADST_ADST if its primary trial (stx == 0) is
+    // worse than best_rd by more than 1 / 2^IST_BEST_RD_MARGIN_SHIFT.
+    if (tx_sf->prune_ist_by_best_rd && primary_tx_type == ADST_ADST &&
+        (best_rd == INT64_MAX ||
+         primary_tx_rd > best_rd + (best_rd >> IST_BEST_RD_MARGIN_SHIFT))) {
+      continue;
+    }
 
     // On a cache hit, evaluate only the cached secondary transform, keeping
     // the no-IST candidate above as a baseline.
@@ -2943,7 +2980,21 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
       continue;
     }
 
+    // Skip all IST trials of this primary type with one check. Any IST kernel
+    // keeps at most the energy of the low-frequency region of the primary
+    // coefficients, and everything else becomes distortion. If even this lower
+    // bound of the distortion (with zero rate) exceeds best_rd, every IST trial
+    // would be pruned by prune_sec_txfm_rd_eval(), so only check it together
+    // with that speed feature.
+    if (tx_sf->prune_tx_rd_eval_sec_tx_sse && best_rd != INT64_MAX) {
+      const int64_t ist_energy = get_ist_input_energy_bound(x, tx_size, xd->bd);
+      if (RDCOST(x->rdmult, 0, AVMMAX(block_sse - ist_energy, 0)) > best_rd)
+        continue;
+    }
+
     // Secondary transform (IST) search (stx > 0).
+    // Lowest RD cost among the IST trials of sets 0 and 1.
+    int64_t best_set01_rd = INT64_MAX;
     for (int set_idx = 0; set_idx < max_set_id && !skip_idx; ++set_idx) {
       txfm_param.sec_tx_set_idx = set_idx;
       const uint8_t set_id = get_ist_set_id(set_idx, is_inter, intra_mode, txw,
@@ -2956,11 +3007,20 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
                 tx_cache_winner.packed_tx_type) {
           continue;
         }
-        evaluate_tx_candidate(
+        const int64_t ist_rd = evaluate_tx_candidate(
             &ctx, primary_tx_type, stx, stx_set, &txfm_param, &quant_param,
             skip_trellis, skip_trellis_in, skip_trellis_based_on_satd,
             coeffs_available, &eob_found, &best_rd, best_rd_stats,
             &best_tx_type, &best_txb_ctx, &best_eob, &best_dqcoeff, &skip_idx);
+        if (set_idx <= 1) best_set01_rd = AVMMIN(best_set01_rd, ist_rd);
+      }
+      // For intra blocks, skip the remaining IST sets (sets 2 and 3) if the
+      // best IST trial of sets 0 and 1 is worse than best_rd by more than
+      // 1 / 2^IST_BEST_RD_MARGIN_SHIFT.
+      if (tx_sf->prune_ist_by_best_rd && !is_inter && set_idx == 1 &&
+          (best_rd == INT64_MAX ||
+           best_set01_rd > best_rd + (best_rd >> IST_BEST_RD_MARGIN_SHIFT))) {
+        break;
       }
     }
     if (skip_idx) break;
