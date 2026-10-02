@@ -694,6 +694,7 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.enable_six_param_warp_in_winner_mode_by_tid = 1;
 
     sf->inter_sf.prune_amvd = true;
+    sf->inter_sf.prune_opfl = true;
   }
 
   if (enable_warp_search_in_winner_mode(&sf->inter_sf)) {
@@ -907,6 +908,7 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->adaptive_rd_thresh = 0;
   inter_sf->model_based_post_interp_filter_breakout = 0;
   inter_sf->skip_temporary_pred_for_opfl = 0;
+  inter_sf->prune_opfl = false;
   inter_sf->enable_warp_inter_intra_in_winner = 0;
   inter_sf->alt_ref_search_fp = 0;
   inter_sf->disable_switchable_refinemv = 0;
