@@ -524,6 +524,7 @@ static void set_good_speed_features_framesize_independent(
 
     sf->gm_sf.num_refinement_steps = 0;
 
+    sf->inter_sf.disable_interintra = true;
     // TODO(chiyotsai@google.com): We can get 10% speed up if we move
     // adaptive_rd_thresh to speed 2. But currently it performs poorly on some
     // clips (e.g. 5% loss on dinner_1080p). We need to examine the sequence a
@@ -531,7 +532,6 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.adaptive_rd_thresh = 1;
     sf->inter_sf.comp_inter_joint_search_thresh = BLOCK_SIZES_ALL;
     sf->inter_sf.disable_wedge_search_var_thresh = 100;
-    sf->inter_sf.fast_interintra_wedge_search = 1;
     sf->inter_sf.prune_comp_type_by_comp_avg = 2;
     sf->inter_sf.disable_sb_level_mv_cost_upd = 1;
     // TODO(any): Experiment with the early exit mechanism for speeds 0, 1 and 2
@@ -935,13 +935,13 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->skip_compound_prune_top_refs_num_ref1 = 0;
   inter_sf->prune_refinemv_by_ref_idx = 0;
   inter_sf->prune_interintra_by_ref_idx = 0;
+  inter_sf->disable_interintra = false;
   inter_sf->prune_warp_delta_by_ref_idx = 0;
   inter_sf->prune_comp_using_best_single_mode_ref = 0;
   inter_sf->prune_mode_search_simple_translation = 0;
   inter_sf->prune_comp_type_by_comp_avg = 0;
   inter_sf->disable_interinter_wedge_newmv_search = 0;
   inter_sf->prune_motion_mode_level = 0;
-  inter_sf->fast_interintra_wedge_search = 0;
   inter_sf->prune_comp_type_by_model_rd = 0;
   inter_sf->perform_best_rd_based_gating_for_chroma = 0;
   inter_sf->disable_interinter_wedge = 0;
@@ -1409,6 +1409,10 @@ void av2_set_speed_features_framesize_independent(AV2_COMP *cpi, int speed) {
 
     if (sf->tx_sf.tx_type_search.disable_inter_ist) {
       cpi->common.seq_params.enable_inter_ist = 0;
+    }
+
+    if (sf->inter_sf.disable_interintra) {
+      cpi->common.seq_params.seq_enabled_motion_modes &= ~(1 << INTERINTRA);
     }
 
     // Disable tcq modes in sequence header when cpu-used >= 2
