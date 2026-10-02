@@ -568,54 +568,19 @@ static int handle_wedge_inter_intra_mode(
   assert(IMPLIES(mbmi->warp_inter_intra, mbmi->motion_mode >= WARP_CAUSAL));
   assert(mbmi->ref_frame[1] == NONE_FRAME);
 
-  if (!cpi->sf.inter_sf.fast_interintra_wedge_search) {
-    // Exhaustive search of all wedge and mode combinations.
-    int best_mode = 0;
-    int best_wedge_index = 0;
-    int best_boundary_index = 0;
-    *best_rd = compute_best_wedge_interintra(
-        cpi, mbmi, xd, x, interintra_mode_cost, orig_dst, intrapred_, tmp_buf_,
-        &best_mode, &best_wedge_index, &best_boundary_index, bsize);
-    mbmi->interintra_mode = best_mode;
-    mbmi->interintra_wedge_index = best_wedge_index;
-    mbmi->wedge_boundary_index = best_boundary_index;
-    if (best_mode != INTERINTRA_MODES - 1) {
-      av2_build_intra_predictors_for_interintra(cm, xd, 0, orig_dst, intrapred,
-                                                bw);
-    }
-  } else if (!try_smooth_interintra) {
-    if (*best_interintra_mode == INTERINTRA_MODES) {
-      mbmi->interintra_mode = INTERINTRA_MODES - 1;
-      *best_interintra_mode = INTERINTRA_MODES - 1;
-      av2_build_intra_predictors_for_interintra(cm, xd, 0, orig_dst, intrapred,
-                                                bw);
-      // Pick wedge mask based on INTERINTRA_MODES - 1.
-      *best_rd = pick_interintra_wedge(cpi, x, bsize, intrapred_, tmp_buf_);
-      // Find the best interintra mode for the chosen wedge mask
-      for (INTERINTRA_MODE cur_mode = 0; cur_mode < INTERINTRA_MODES;
-           ++cur_mode) {
-        compute_best_interintra_mode(
-            cpi, mbmi, xd, x, interintra_mode_cost, orig_dst, intrapred,
-            tmp_buf, best_interintra_mode, best_rd, cur_mode, bsize);
-      }
-      args->inter_intra_mode[mbmi->ref_frame[0]] = *best_interintra_mode;
-      mbmi->interintra_mode = *best_interintra_mode;
-
-      // Recompute prediction if required.
-      if (*best_interintra_mode != INTERINTRA_MODES - 1) {
-        av2_build_intra_predictors_for_interintra(cm, xd, 0, orig_dst,
-                                                  intrapred, bw);
-      }
-    } else {
-      // Pick wedge mask for the best interintra mode (reused).
-      mbmi->interintra_mode = *best_interintra_mode;
-      av2_build_intra_predictors_for_interintra(cm, xd, 0, orig_dst, intrapred,
-                                                bw);
-      *best_rd = pick_interintra_wedge(cpi, x, bsize, intrapred_, tmp_buf_);
-    }
-  } else {
-    // Pick wedge mask for the best interintra mode from smooth_interintra.
-    *best_rd = pick_interintra_wedge(cpi, x, bsize, intrapred_, tmp_buf_);
+  // Exhaustive search of all wedge and mode combinations.
+  int best_mode = 0;
+  int best_wedge_index = 0;
+  int best_boundary_index = 0;
+  *best_rd = compute_best_wedge_interintra(
+      cpi, mbmi, xd, x, interintra_mode_cost, orig_dst, intrapred_, tmp_buf_,
+      &best_mode, &best_wedge_index, &best_boundary_index, bsize);
+  mbmi->interintra_mode = best_mode;
+  mbmi->interintra_wedge_index = best_wedge_index;
+  mbmi->wedge_boundary_index = best_boundary_index;
+  if (best_mode != INTERINTRA_MODES - 1) {
+    av2_build_intra_predictors_for_interintra(cm, xd, 0, orig_dst, intrapred,
+                                              bw);
   }
 
   *rate_overhead = interintra_mode_cost[mbmi->interintra_mode] +

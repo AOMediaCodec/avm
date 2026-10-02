@@ -779,9 +779,6 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Prune warpmv with mvd search using previous frame stats.
   int prune_warpmv_prob_thresh;
 
-  // De-couple wedge and mode search during interintra RDO.
-  int fast_interintra_wedge_search;
-
   // Only enable wedge search if the variance is above this threshold.
   unsigned int disable_wedge_search_var_thresh;
 
