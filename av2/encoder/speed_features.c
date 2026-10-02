@@ -259,6 +259,20 @@ static void set_good_speed_feature_framesize_dependent(
   sf->part_sf.use_square_partition_only_threshold = BLOCK_LARGEST;
 }
 
+static void set_rt_speed_feature_framesize_dependent(AV2_COMP *const cpi,
+                                                     SPEED_FEATURES *const sf,
+                                                     int speed) {
+  const AV2_COMMON *const cm = &cpi->common;
+  if (speed >= 6) {
+    if (cm->width * cm->height >= 640 * 360) {
+      sf->rd_sf.tx_domain_dist_thres_level = 1;
+      memcpy(cpi->winner_mode_params.tx_domain_dist_threshold,
+             tx_domain_dist_thresholds[sf->rd_sf.tx_domain_dist_thres_level],
+             sizeof(cpi->winner_mode_params.tx_domain_dist_threshold));
+    }
+  }
+}
+
 static void set_good_speed_features_framesize_independent(
     AV2_COMP *const cpi, SPEED_FEATURES *const sf, int speed) {
   const AV2_COMMON *const cm = &cpi->common;
@@ -1203,6 +1217,8 @@ void av2_set_speed_features_framesize_dependent(AV2_COMP *cpi, int speed) {
 
   if (oxcf->mode == GOOD) {
     set_good_speed_feature_framesize_dependent(cpi, sf, speed);
+  } else if (oxcf->mode == REALTIME) {
+    set_rt_speed_feature_framesize_dependent(cpi, sf, speed);
   }
 
   // This is only used in motion vector unit test.
