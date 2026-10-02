@@ -1209,6 +1209,11 @@ typedef struct REALTIME_SPEED_FEATURES {
   // Flag to indicate process for handling overshoot on slide/scene change,
   // for real-time CBR mode.
   OVERSHOOT_DETECTION_CBR overshoot_detection_cbr;
+
+  // Estimate superblock motion for variance-based partitioning:
+  // 0: Disabled (always use zero MV)
+  // 1: Use integral projection motion estimation and neighbor MV evaluation
+  int estimate_motion_for_var_based_partition;
 } REALTIME_SPEED_FEATURES;
 
 typedef struct LC_DEC_SPEED_FEATURES {
