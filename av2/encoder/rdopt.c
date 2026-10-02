@@ -4955,7 +4955,6 @@ static void evaluate_inter_predictor(AV2_COMP *const cpi,
   const BLOCK_SIZE bsize = it_ctx->bsize;
   int ref_mv_idx[2] = { it_ctx->ref_mv_idx[0], it_ctx->ref_mv_idx[1] };
   const int precision_dx = it_ctx->precision_dx;
-  const int bawp_flag = it_ctx->bawp_flag;
   const int ref_mv_idx_type = it_ctx->ref_mv_idx_type;
   const int scale_index = it_ctx->scale_index;
   int *cwp_search_mask = it_ctx->cwp_search_mask;
@@ -5160,6 +5159,7 @@ static void evaluate_inter_predictor(AV2_COMP *const cpi,
       *best_precision_rd_so_far = tmp_rd;
     }
 
+    const int bawp_flag = mbmi->bawp_flag[0];
     if (tmp_rd < (*search_state->mode_info)[bawp_flag][mbmi->pb_mv_precision]
                                            [ref_mv_idx_type]
                                                .rd) {
