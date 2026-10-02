@@ -623,6 +623,7 @@ static void set_good_speed_features_framesize_independent(
     sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 1;
     sf->tx_sf.tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_2;
     sf->tx_sf.tx_type_search.prune_tx_type_est_rd = 1;
+    sf->tx_sf.tx_type_search.disable_inter_ist = true;
     sf->tx_sf.prune_ist_by_best_rd = true;
 
     sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 3 : 5;
@@ -681,7 +682,6 @@ static void set_good_speed_features_framesize_independent(
     sf->tpl_sf.subpel_force_stop = FULL_PEL;
     sf->tpl_sf.disable_filtered_key_tpl = 1;
 
-    sf->tx_sf.tx_type_search.disable_inter_ist = true;
     sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 2;
     sf->tx_sf.tx_type_search.prune_tx_type_est_rd = 0;
     sf->tx_sf.disable_cctx_dry_pass = true;
