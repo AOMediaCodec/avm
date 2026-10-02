@@ -99,6 +99,7 @@ typedef struct {
 
   // Speed features
   const LOOP_FILTER_SPEED_FEATURES *lpf_sf;
+  const LC_DEC_SPEED_FEATURES *lc_sf;
 
   uint16_t *dgd_buffer;
   int dgd_stride;
@@ -3656,6 +3657,9 @@ static void search_restoration_type(AV2_COMMON *const cm, RestSearchCtxt *rsc,
   }
 
   double cost = search_rest_type(rsc, r_type);
+  if (rsc->lc_sf->use_less_lr && r_type == RESTORE_NONE && cost < DBL_MAX) {
+    cost *= 0.97;
+  }
   int real_r_type = r_type;
   if (r_type == RESTORE_SWITCHABLE && !rsc->cm->bru.enabled &&
       frame_filters_configured && cost > rsc->frame_filters_total_cost &&
@@ -3861,6 +3865,7 @@ static RestSearchCtxt *alloc_rst_search_context(AV2_COMP *const cpi,
   rsc->x = x;
   rsc->rusi = rusi;
   rsc->lpf_sf = &cpi->sf.lpf_sf;
+  rsc->lc_sf = &cpi->sf.lc_sf;
   rsc->wienerns_stats = wienerns_stats;
   rsc->luma = luma_virtual;
   rsc->luma_buf = luma_virtual_buf;
