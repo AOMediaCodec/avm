@@ -730,11 +730,11 @@ static void set_good_speed_features_lc_dec_framesize_independent(
   cpi->oxcf.tool_cfg.enable_tip_refinemv = 0;
   cpi->oxcf.tool_cfg.reduced_ref_frame_mvs_mode = 1;
 
-  const int is_2k_or_larger = AVMMIN(cm->width, cm->height) >= 2160;
+  const int is_4k_or_larger = AVMMIN(cm->width, cm->height) >= 2160;
   const int qindex_offset = MAXQ_OFFSET * (cm->seq_params.bit_depth - 8);
   const int qindex_thresh = 112 + qindex_offset;
   sf->lc_sf.enable_partition_size_bias =
-      (is_2k_or_larger && cm->quant_params.base_qindex >= qindex_thresh) ? 1
+      (is_4k_or_larger && cm->quant_params.base_qindex >= qindex_thresh) ? 1
                                                                          : 0;
 
   // Aggressive low-complexity level
@@ -754,7 +754,7 @@ static void set_good_speed_features_lc_dec_framesize_independent(
     sf->lc_sf.skip_loop_filter_based_on_error =
         (update_type != OVERLAY_UPDATE && update_type != INTNL_OVERLAY_UPDATE &&
          update_type != KFFLT_OVERLAY_UPDATE &&
-         cm->current_frame.pyramid_level > 1 && !is_2k_or_larger)
+         cm->current_frame.pyramid_level > 1 && !is_4k_or_larger)
             ? 1
             : 0;
 
@@ -1127,7 +1127,7 @@ static AVM_INLINE void set_erp_speed_features_framesize_dependent(
   SPEED_FEATURES *const sf = &cpi->sf;
   const AV2_COMMON *const cm = &cpi->common;
 #if CONFIG_ML_PART_SPLIT
-  const int is_2k_or_larger = AVMMIN(cm->width, cm->height) >= 2160;
+  const int is_4k_or_larger = AVMMIN(cm->width, cm->height) >= 2160;
 #endif  // CONFIG_ML_PART_SPLIT
   const int is_1080p_or_larger = AVMMIN(cm->width, cm->height) >= 1080;
   const unsigned int erp_pruning_level = cpi->oxcf.part_cfg.erp_pruning_level;
@@ -1148,7 +1148,7 @@ static AVM_INLINE void set_erp_speed_features_framesize_dependent(
       }
       sf->part_sf.partition_search_breakout_rate_thr = 100;
 #if CONFIG_ML_PART_SPLIT
-      if (is_2k_or_larger) {
+      if (is_4k_or_larger) {
         sf->part_sf.prune_split_ml_level = 1;
       } else if (is_1080p_or_larger) {
         sf->part_sf.prune_split_ml_level = 1;
@@ -1159,8 +1159,8 @@ static AVM_INLINE void set_erp_speed_features_framesize_dependent(
         sf->part_sf.prune_none_with_ml = 0;
       }
       const bool use_harsh_inter_ml =
-          (is_2k_or_larger && (cpi->speed == 2 || cpi->speed == 4)) ||
-          (is_1080p_or_larger && !is_2k_or_larger &&
+          (is_4k_or_larger && (cpi->speed == 2 || cpi->speed == 4)) ||
+          (is_1080p_or_larger && !is_4k_or_larger &&
            (cpi->speed >= 1 && cpi->speed <= 3));
       sf->part_sf.prune_split_ml_level_inter =
           sf->part_sf.prune_none_with_ml ? -1 : (use_harsh_inter_ml ? 1 : 0);
