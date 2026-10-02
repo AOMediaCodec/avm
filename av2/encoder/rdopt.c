@@ -3029,7 +3029,8 @@ static AVM_INLINE int evaluate_motion_mode_trial(
       return -1;
   } else if (mbmi->motion_mode == INTERINTRA) {
     if (cpi->sf.inter_sf.disable_interintra ||
-        (cpi->sf.inter_sf.prune_interintra_by_ref_idx && mbmi->ref_frame[0] > 1))
+        (cpi->sf.inter_sf.prune_interintra_by_ref_idx &&
+         mbmi->ref_frame[0] > 1))
       return -1;
     if (av2_handle_inter_intra_mode(cpi, x, bsize, mbmi, args, *ref_best_rd,
                                     &tmp_rate_mv, &tmp_rate2, orig_dst) < 0)

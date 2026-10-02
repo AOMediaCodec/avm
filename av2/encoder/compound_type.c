@@ -549,19 +549,16 @@ static int handle_smooth_inter_intra_mode(
 
 static int handle_wedge_inter_intra_mode(
     const AV2_COMP *const cpi, MACROBLOCK *const x, BLOCK_SIZE bsize,
-    MB_MODE_INFO *mbmi, int *rate_mv, INTERINTRA_MODE *best_interintra_mode,
-    int64_t *best_rd, const BUFFER_SET *orig_dst, uint16_t *tmp_buf_,
-    uint16_t *tmp_buf, uint16_t *intrapred_, uint16_t *intrapred,
-    HandleInterModeArgs *args, int *tmp_rate_mv, int *rate_overhead,
-    int_mv *tmp_mv, int64_t best_rd_no_wedge) {
+    MB_MODE_INFO *mbmi, int *rate_mv, int64_t *best_rd,
+    const BUFFER_SET *orig_dst, uint16_t *tmp_buf_, uint16_t *tmp_buf,
+    uint16_t *intrapred_, uint16_t *intrapred, int *tmp_rate_mv,
+    int *rate_overhead, int_mv *tmp_mv, int64_t best_rd_no_wedge) {
   MACROBLOCKD *xd = &x->e_mbd;
   const ModeCosts *mode_costs = &x->mode_costs;
   const int *const interintra_mode_cost =
       mode_costs->interintra_mode_cost[size_group_lookup[bsize]];
   const AV2_COMMON *const cm = &cpi->common;
   const int bw = block_size_wide[bsize];
-  const int try_smooth_interintra =
-      cpi->oxcf.comp_type_cfg.enable_smooth_interintra;
 
   mbmi->use_wedge_interintra = 1;
   assert(IMPLIES(!mbmi->warp_inter_intra, mbmi->motion_mode == INTERINTRA));
@@ -711,10 +708,9 @@ int av2_handle_inter_intra_mode(const AV2_COMP *const cpi, MACROBLOCK *const x,
   int rate_overhead = 0;
   if (try_wedge_interintra) {
     int ret = handle_wedge_inter_intra_mode(
-        cpi, x, bsize, mbmi, rate_mv, &best_interintra_mode,
-        &best_interintra_rd_wedge, orig_dst, tmp_buf, tmp_buf, intrapred,
-        intrapred, args, &tmp_rate_mv, &rate_overhead, &tmp_mv,
-        best_interintra_rd_nowedge);
+        cpi, x, bsize, mbmi, rate_mv, &best_interintra_rd_wedge, orig_dst,
+        tmp_buf, tmp_buf, intrapred, intrapred, &tmp_rate_mv, &rate_overhead,
+        &tmp_mv, best_interintra_rd_nowedge);
     if (ret == IGNORE_MODE) {
       return IGNORE_MODE;
     }
