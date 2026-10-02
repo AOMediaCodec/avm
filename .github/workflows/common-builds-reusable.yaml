@@ -220,6 +220,7 @@ jobs:
       runner: ${{ inputs.runner }}
       container-image: ${{ inputs.container-image }}
       show-github-context: true
+      artifact-paths: /installroot
       extra-env-vars: |
         EXTRA_CMAKE_FLAGS=-DCONFIG_ML_PART_SPLIT=0 -DCONFIG_DIP_EXT_PRUNING=0 -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/x86-mingw-gcc.cmake
     strategy:
@@ -245,6 +246,7 @@ jobs:
       runner: ${{ inputs.runner }}
       container-image: ${{ inputs.container-image }}
       show-github-context: true
+      artifact-paths: /installroot
       extra-env-vars: |
         EXTRA_CMAKE_FLAGS=-DCONFIG_ML_PART_SPLIT=0 -DCONFIG_DIP_EXT_PRUNING=0 -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/x86_64-mingw-gcc.cmake
     strategy:
