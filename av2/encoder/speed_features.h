@@ -750,6 +750,9 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // speed >= 1.
   int prune_interintra_by_ref_idx;
 
+  // Disable INTERINTRA motion mode and warp interintra search.
+  bool disable_interintra;
+
   // Skip WARP_DELTA motion mode when ref_frame[0] > 2. Enabled at
   // speed >= 1.
   int prune_warp_delta_by_ref_idx;
@@ -775,9 +778,6 @@ typedef struct INTER_MODE_SPEED_FEATURES {
 
   // Prune warpmv with mvd search using previous frame stats.
   int prune_warpmv_prob_thresh;
-
-  // De-couple wedge and mode search during interintra RDO.
-  int fast_interintra_wedge_search;
 
   // Only enable wedge search if the variance is above this threshold.
   unsigned int disable_wedge_search_var_thresh;
