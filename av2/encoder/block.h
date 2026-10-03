@@ -1583,6 +1583,9 @@ typedef struct macroblock {
   /*! \brief Holds DIP related features used in ML based pruning. */
   struct DipMlInfo dip_ml_feature;
 #endif  // CONFIG_DIP_EXT_PRUNING
+  /*! \brief Skip inter modes in binary partitions inter frames when skipped by
+   * none partition. */
+  int skip_inter_modes_by_none_part;
 } MACROBLOCK;
 #undef SINGLE_REF_MODES
 
