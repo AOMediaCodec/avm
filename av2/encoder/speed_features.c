@@ -688,6 +688,8 @@ static void set_good_speed_features_framesize_independent(
   }
 
   if (speed >= 6) {
+    sf->part_sf.prune_inter_modes_by_none_part = 1;
+
     sf->hl_sf.disable_unequal_scale_refs = true;
 
     sf->gm_sf.downsample_level = 2;
@@ -862,6 +864,7 @@ static AVM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->prune_part_h_with_partition_boundary = 0;
   part_sf->inter_sdp_fast_method_level = 0;
   part_sf->prune_part_with_neighbor_boundaries = 0;
+  part_sf->prune_inter_modes_by_none_part = 0;
 #if CONFIG_ML_PART_SPLIT
   part_sf->prune_split_with_ml = 0;
   part_sf->prune_none_with_ml = 0;
