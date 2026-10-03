@@ -808,6 +808,9 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Disable one-sided compound at the speed >= 5 preset.
   bool disable_onesided_comp;
 
+  // Enable one sided compound mode in wet pass
+  bool enable_onesided_comp_wet_pass_ld;
+
   // Whether to override and disable sb level coeff cost updates, if
   // cpi->oxcf.cost_upd_freq.coeff = COST_UPD_SB (i.e. set at SB level)
   int disable_sb_level_coeff_cost_upd;
