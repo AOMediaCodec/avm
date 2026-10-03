@@ -3028,7 +3028,9 @@ static AVM_INLINE int evaluate_motion_mode_trial(
                                 &tmp_rate2, eval_motion_mode) < 0)
       return -1;
   } else if (mbmi->motion_mode == INTERINTRA) {
-    if (cpi->sf.inter_sf.prune_interintra_by_ref_idx && mbmi->ref_frame[0] > 1)
+    if (cpi->sf.inter_sf.disable_interintra ||
+        (cpi->sf.inter_sf.prune_interintra_by_ref_idx &&
+         mbmi->ref_frame[0] > 1))
       return -1;
     if (av2_handle_inter_intra_mode(cpi, x, bsize, mbmi, args, *ref_best_rd,
                                     &tmp_rate_mv, &tmp_rate2, orig_dst) < 0)
@@ -3374,7 +3376,8 @@ static int64_t motion_mode_rd(
       ctx.previous_mvs = previous_mvs;
       const int is_low_delay_enc = (cpi->oxcf.gf_cfg.lag_in_frames == 0);
       int warp_inter_intra_limit =
-          1 + (allow_warp_inter_intra(&base_mbmi) && !is_low_delay_enc);
+          1 + (!cpi->sf.inter_sf.disable_interintra &&
+               allow_warp_inter_intra(&base_mbmi) && !is_low_delay_enc);
       int warpmv_with_mvd_limit = 2;
       // Dry pass: try only the first option of each extra warp choice.
       if (x->apply_dry_pass_shortcuts) {
@@ -4955,7 +4958,6 @@ static void evaluate_inter_predictor(AV2_COMP *const cpi,
   const BLOCK_SIZE bsize = it_ctx->bsize;
   int ref_mv_idx[2] = { it_ctx->ref_mv_idx[0], it_ctx->ref_mv_idx[1] };
   const int precision_dx = it_ctx->precision_dx;
-  const int bawp_flag = it_ctx->bawp_flag;
   const int ref_mv_idx_type = it_ctx->ref_mv_idx_type;
   const int scale_index = it_ctx->scale_index;
   int *cwp_search_mask = it_ctx->cwp_search_mask;
@@ -5160,6 +5162,7 @@ static void evaluate_inter_predictor(AV2_COMP *const cpi,
       *best_precision_rd_so_far = tmp_rd;
     }
 
+    const int bawp_flag = mbmi->bawp_flag[0];
     if (tmp_rd < (*search_state->mode_info)[bawp_flag][mbmi->pb_mv_precision]
                                            [ref_mv_idx_type]
                                                .rd) {
@@ -9801,10 +9804,16 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
         (has_both_sides_refs ||
          ref_frame > dry_pass_cfg.same_ref_compound_rank_cap))
       continue;
+    if (x->skip_inter_modes_by_none_part && is_intermode_selected(this_mode))
+      continue;
     if (this_mode == WARPMV && !warpmv_allowed) continue;
     if (this_mode == WARP_NEWMV && (!warpmv_allowed || !warp_newmv_allowed))
       continue;
     if (this_mode >= NEAR_NEARMV_OPTFLOW && !opfl_modes_allowed) continue;
+    if (inter_sf->prune_opfl &&
+        (this_mode == NEAR_NEWMV_OPTFLOW || this_mode == NEW_NEARMV_OPTFLOW ||
+         this_mode == JOINT_NEWMV_OPTFLOW))
+      continue;
     if (is_joint_mvd_coding_mode(this_mode) && enable_joint_mvd == 0) continue;
 
     if (bru_enabled) {
@@ -9838,6 +9847,20 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
     if (this_mode >= NEAR_NEARMV_OPTFLOW &&
         !opfl_allowed_cur_refs_bsize(cm, xd, mbmi))
       continue;
+
+    // Skip OPFL when refs are highly asymmetric in temporal distance.
+    if (this_mode >= NEAR_NEARMV_OPTFLOW && inter_sf->prune_opfl) {
+      const RefCntBuffer *const r0 = get_ref_frame_buf(cm, ref_frame);
+      const RefCntBuffer *const r1 = get_ref_frame_buf(cm, second_ref_frame);
+      if (r0 && r1) {
+        const unsigned int cur_idx = cm->cur_frame->display_order_hint;
+        const int ad0 = abs(get_relative_dist(&cm->seq_params.order_hint_info,
+                                              cur_idx, r0->display_order_hint));
+        const int ad1 = abs(get_relative_dist(&cm->seq_params.order_hint_info,
+                                              cur_idx, r1->display_order_hint));
+        if (AVMMAX(ad0, ad1) > 4 * AVMMIN(ad0, ad1)) continue;
+      }
+    }
 
     set_ref_ptrs(cm, xd, ref_frame, second_ref_frame);
 

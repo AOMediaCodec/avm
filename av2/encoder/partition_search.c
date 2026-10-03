@@ -3945,7 +3945,6 @@ static void rectangular_partition_search(
         child_nodes[sub_idx]->is_cfl_allowed_for_this_chroma =
             pc_tree->is_cfl_allowed_for_this_chroma |
             is_cfl_allowed_for_this_chroma_partition;
-
       const int this_mi_row = mi_rows[sub_idx];
       const int this_mi_col = mi_cols[sub_idx];
 
@@ -4541,7 +4540,6 @@ static void split_partition_search(
       child_nodes[sub_idx]->is_cfl_allowed_for_this_chroma =
           pc_tree->is_cfl_allowed_for_this_chroma |
           is_cfl_allowed_for_this_chroma_partition;
-
     if (this_mi_row >= cm->mi_params.mi_rows ||
         this_mi_col >= cm->mi_params.mi_cols) {
       av2_mark_block_as_pseudo_coded(xd, this_mi_row, this_mi_col, subsize,
@@ -6040,7 +6038,15 @@ BEGIN_PARTITION_SEARCH:
     }
   }
 #endif  // CONFIG_ML_PART_SPLIT
-
+  x->skip_inter_modes_by_none_part =
+      cpi->sf.part_sf.prune_inter_modes_by_none_part && pc_tree->parent &&
+              pc_tree->parent->none[pc_tree->parent->region_type] &&
+              pc_tree->parent->none[pc_tree->parent->region_type]
+                      ->mic.sb_type[0] <= BLOCK_32X32 &&
+              !is_intermode_selected(
+                  pc_tree->parent->none[pc_tree->parent->region_type]->mic.mode)
+          ? 1
+          : 0;
   // Search partition none.
   bool partition_none_allowed =
       part_search_state.partition_allowed[PARTITION_NONE];

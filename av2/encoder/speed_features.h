@@ -236,6 +236,14 @@ typedef struct HIGH_LEVEL_SPEED_FEATURES {
    */
   bool disable_unequal_scale_refs;
   /*!\endcond */
+
+  /*!
+   * Stop the TIP direct output search of a frame once the TIP frame is built
+   * with the zero global offset, if the direct output is unlikely to have a
+   * lower RD cost than the normally coded frame. See
+   * compute_tip_direct_output_mode_RD().
+   */
+  bool early_term_tip_direct_output_search;
 } HIGH_LEVEL_SPEED_FEATURES;
 
 /*!\cond */
@@ -418,6 +426,9 @@ typedef struct PARTITION_SPEED_FEATURES {
   // 4: aggressive directional half-pair depth (enabled at speeds >= 5 for
   //    1080p; 4k uses level 1 at speeds >= 5)
   int prune_rect_with_split_depth;
+
+  // prune inter mode in binary partitions based on none part
+  int prune_inter_modes_by_none_part;
 
   // Search horizontal and vertical split before PARTITION_NONE if the neighbor
   // blocks are much smaller than the current block size.
@@ -750,6 +761,9 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // speed >= 1.
   int prune_interintra_by_ref_idx;
 
+  // Disable INTERINTRA motion mode and warp interintra search.
+  bool disable_interintra;
+
   // Skip WARP_DELTA motion mode when ref_frame[0] > 2. Enabled at
   // speed >= 1.
   int prune_warp_delta_by_ref_idx;
@@ -775,9 +789,6 @@ typedef struct INTER_MODE_SPEED_FEATURES {
 
   // Prune warpmv with mvd search using previous frame stats.
   int prune_warpmv_prob_thresh;
-
-  // De-couple wedge and mode search during interintra RDO.
-  int fast_interintra_wedge_search;
 
   // Only enable wedge search if the variance is above this threshold.
   unsigned int disable_wedge_search_var_thresh;
@@ -820,6 +831,10 @@ typedef struct INTER_MODE_SPEED_FEATURES {
 
   // skip temporary predictions for opfl modes
   int skip_temporary_pred_for_opfl;
+  // At speed >= 6, skip NEAR_NEWMV_OPTFLOW, NEW_NEARMV_OPTFLOW, and
+  // JOINT_NEWMV_OPTFLOW (rarely chosen at this speed), and skip all OPFL
+  // modes when refs are highly asymmetric in temporal distance.
+  bool prune_opfl;
   // Enable warp inter intra in winner mode.
   int enable_warp_inter_intra_in_winner;
   // Reuse compound type rd decision when exact match is found
@@ -1020,6 +1035,13 @@ typedef struct TX_SPEED_FEATURES {
   // Set at speed >= 3 for non-boosted frames, and
   // unconditionally for all frames at speed >= 5.
   bool prune_tx_search_by_pre_rd;
+
+  // Prune secondary transform (IST) trials by best_rd:
+  // - Skip the IST trials of ADST_ADST if its primary trial is worse than
+  //   best_rd by more than a margin.
+  // - For intra blocks, skip IST sets 2 and 3 if the best IST trial of sets 0
+  //   and 1 is worse than best_rd by more than a margin.
+  bool prune_ist_by_best_rd;
 } TX_SPEED_FEATURES;
 
 typedef struct RD_CALC_SPEED_FEATURES {
@@ -1157,6 +1179,12 @@ typedef struct LC_DEC_SPEED_FEATURES {
   // 0: no bias for CDEF use.
   // 1: bias against CDEF during RD decision.
   int bias_against_cdef;
+
+  // In LC mode, mostly WIENER_NONSEP is used. Here enable less LR is used
+  // based on rd cost..
+  // 0: this feature is disabled.
+  // 1: Enable less LR during RD decision.
+  int use_less_lr;
 
   // Skip the loop filter when the percentage of SSE improvement over the
   // unfiltered frame is lower than a threshold.
