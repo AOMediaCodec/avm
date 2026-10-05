@@ -896,7 +896,7 @@ class TcqLoopDiagonalSt8Test
   void InitParam(TX_SIZE tx_size, tcq_param_t *param,
                  LV_MAP_COEFF_COST *txb_costs, tran_low_t *tcoeff,
                  int32_t *tmp_sign, int32_t *quant, int32_t *dequant,
-                 uint16_t *block_eob_rate) {
+                 uint16_t *block_eob_rate, qm_val_t *iqmatrix = NULL) {
     const int bwl = get_txb_bwl(tx_size);
     const int height = get_txb_high(tx_size);
     const int width = 1 << bwl;
@@ -920,7 +920,6 @@ class TcqLoopDiagonalSt8Test
     param->tcoeff = tcoeff;
     param->quant = quant;
     param->dequant = dequant;
-    param->iqmatrix = NULL;
     param->block_eob_rate = block_eob_rate;
     param->txb_costs = txb_costs;
 
@@ -928,6 +927,14 @@ class TcqLoopDiagonalSt8Test
     quant[1] = 1 << shift;
     dequant[0] = (1 << QUANT_TABLE_BITS) << (log_scale - 1);
     dequant[1] = (1 << QUANT_TABLE_BITS) << (log_scale - 1);
+
+    if (iqmatrix && (rng_.Rand8() & 1)) {
+      for (int i = 0; i < num_coeffs; i++)
+        iqmatrix[i] = (qm_val_t)(1 + rng_(1 << AVM_QM_BITS));
+      param->iqmatrix = iqmatrix;
+    } else {
+      param->iqmatrix = NULL;
+    }
 
     generate_random_cost_tables(&rng_, txb_costs);
 
@@ -1015,9 +1022,10 @@ class TcqLoopDiagonalSt8Test
       int32_t quant[2];
       int32_t dequant[2];
       uint16_t block_eob_rate[MAX_TRELLIS];
+      qm_val_t iqmatrix[MAX_TRELLIS];
 
       InitParam(tx_size, &param, &txb_costs, tcoeff, tmp_sign, quant, dequant,
-                block_eob_rate);
+                block_eob_rate, iqmatrix);
 
       const int width = 1 << param.bwl;
       const int height = param.txb_height;
@@ -1302,9 +1310,10 @@ class TcqLoopDiagonalSt8Test
       int32_t quant[2];
       int32_t dequant[2];
       uint16_t block_eob_rate[MAX_TRELLIS];
+      qm_val_t iqmatrix[MAX_TRELLIS];
 
       InitParam(tx_size, &param, &txb_costs, tcoeff, tmp_sign, quant, dequant,
-                block_eob_rate);
+                block_eob_rate, iqmatrix);
 
       tcq_ctx_t tcq_ctx_c, tcq_ctx_opt;
       tcq_node_t trellis_c[MAX_TRELLIS * TCQ_MAX_STATES];
@@ -1431,6 +1440,13 @@ INSTANTIATE_TEST_SUITE_P(AVX2, TcqLoopDiagonalSt8Test,
                              av2_trellis_loop_diagonal_st8_c,
                              av2_trellis_loop_diagonal_st8_avx2)));
 #endif  // HAVE_AVX2
+
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(NEON, TcqLoopDiagonalSt8Test,
+                         ::testing::Values(TcqLoopDiagonalSt8TestFuncs(
+                             av2_trellis_loop_diagonal_st8_c,
+                             av2_trellis_loop_diagonal_st8_neon)));
+#endif  // HAVE_NEON
 
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(TcqDecideStatesTest);
 

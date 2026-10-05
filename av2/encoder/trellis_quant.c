@@ -64,15 +64,6 @@ static AVM_INLINE void init_tcq_ctx(struct tcq_ctx_t *tcq_ctx,
   }
 }
 
-static AVM_FORCE_INLINE int get_dqv(const int32_t *dequant, int coeff_idx,
-                                    const qm_val_t *iqmatrix) {
-  int dqv = dequant[!!coeff_idx];
-  if (iqmatrix != NULL)
-    dqv =
-        ((iqmatrix[coeff_idx] * dqv) + (1 << (AVM_QM_BITS - 1))) >> AVM_QM_BITS;
-  return dqv;
-}
-
 static AVM_FORCE_INLINE int64_t get_coeff_dist(tran_low_t tcoeff,
                                                tran_low_t dqcoeff, int shift) {
   const int64_t diff = (tcoeff - dqcoeff) * (1 << shift);
@@ -917,20 +908,6 @@ void av2_get_coeff_ctx_c(const struct tcq_ctx_t *tcq_ctx, int col,
     int orig_st = tcq_ctx->orig_st[i];
     coeff_ctx->coef[i] = orig_st == -1 ? 0 : tcq_ctx->ctx[col][orig_st];
   }
-}
-
-// Get diagonal context for 2D luma block
-static AVM_INLINE int get_diag_ctx(int lf, int blk_pos, int scan_pos, int bwl) {
-  int diag_ctx;
-  if (lf) {
-    diag_ctx = get_nz_map_ctx_from_stats_lf(0, blk_pos, bwl, TX_CLASS_2D);
-    if (scan_pos > 0) {
-      diag_ctx += 7 << 8;
-    }
-  } else {
-    diag_ctx = get_nz_map_ctx_from_stats(0, blk_pos, bwl, TX_CLASS_2D, 0);
-  }
-  return diag_ctx;
 }
 
 // TCQ 8-state for a 2D luma block. Dispatch this whole loop once per block so

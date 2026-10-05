@@ -1189,15 +1189,6 @@ void av2_calc_block_eob_rate_avx2(struct macroblock *x, int plane,
   }
 }
 
-static AVM_FORCE_INLINE int get_dqv(const int32_t *dequant, int coeff_idx,
-                                    const qm_val_t *iqmatrix) {
-  int dqv = dequant[!!coeff_idx];
-  if (iqmatrix != NULL)
-    dqv =
-        ((iqmatrix[coeff_idx] * dqv) + (1 << (AVM_QM_BITS - 1))) >> AVM_QM_BITS;
-  return dqv;
-}
-
 int av2_find_best_path_avx2(const struct tcq_node_t *trellis,
                             const int16_t *scan, const int32_t *dequant,
                             const qm_val_t *iqmatrix, const tran_low_t *tcoeff,
@@ -1286,18 +1277,6 @@ int av2_find_best_path_avx2(const struct tcq_node_t *trellis,
   return eob;
 }
 
-static AVM_INLINE int get_diag_ctx_avx2(int lf, int blk_pos, int scan_pos,
-                                        int bwl) {
-  int diag_ctx;
-  if (lf) {
-    diag_ctx = get_nz_map_ctx_from_stats_lf(0, blk_pos, bwl, TX_CLASS_2D);
-    if (scan_pos > 0) diag_ctx += 7 << 8;
-  } else {
-    diag_ctx = get_nz_map_ctx_from_stats(0, blk_pos, bwl, TX_CLASS_2D, 0);
-  }
-  return diag_ctx;
-}
-
 // Keep runtime dispatch outside the coefficient loops. Each call below is the
 // same AVX2 kernel selected by RTCD before this change, but it is now a direct
 // call that the compiler can schedule with the surrounding loop.
@@ -1330,7 +1309,7 @@ void av2_trellis_loop_diagonal_st8_avx2(const tcq_param_t *p, int scan_hi,
     const int inc = AVMMIN(height - 1 - row, col);
     scan_lo = scan_hi - inc;
     const int lf = 0;
-    const int diag_ctx = get_diag_ctx_avx2(lf, blk_pos, scan_lo, bwl);
+    const int diag_ctx = get_diag_ctx(lf, blk_pos, scan_lo, bwl);
     assert(scan_lo >= 0);
 
     for (int scan_pos = scan_hi; scan_pos >= scan_lo; --scan_pos) {
@@ -1380,7 +1359,7 @@ void av2_trellis_loop_diagonal_st8_avx2(const tcq_param_t *p, int scan_hi,
     const int inc = AVMMIN(height - 1 - row, col);
     scan_lo = scan_hi - inc;
     const int lf = 1;
-    const int diag_ctx = get_diag_ctx_avx2(lf, blk_pos, scan_lo, bwl);
+    const int diag_ctx = get_diag_ctx(lf, blk_pos, scan_lo, bwl);
     assert(scan_lo >= 0);
 
     for (int scan_pos = scan_hi; scan_pos >= scan_lo; --scan_pos) {
