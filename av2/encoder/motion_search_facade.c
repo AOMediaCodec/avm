@@ -1408,7 +1408,7 @@ int_mv av2_simple_motion_search(AV2_COMP *const cpi, MACROBLOCK *x, int mi_row,
 
   // Get a copy of the prediction output
   av2_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
-                                AVM_PLANE_Y, AVM_PLANE_Y);
+                                AVM_PLANE_Y, AVM_PLANE_Y, x->tip_unit_hooks);
 
   avm_clear_system_state();
 
@@ -1556,7 +1556,7 @@ int_mv av2_simple_motion_search_ext(AV2_COMP *const cpi,
 
   // Get a copy of the prediction output
   av2_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
-                                AVM_PLANE_Y, AVM_PLANE_Y);
+                                AVM_PLANE_Y, AVM_PLANE_Y, x->tip_unit_hooks);
 
   avm_clear_system_state();
 

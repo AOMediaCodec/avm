@@ -27,16 +27,20 @@ extern "C" {
 
 // Build single or compound reference inter predictors for all planes.
 // Can build inter-intra predictors, masked predictors etc as well.
+// tip_unit_hooks: the TIP unit cache hooks of the superblock being encoded
+// (MACROBLOCK::tip_unit_hooks), or NULL.
 void av2_enc_build_inter_predictor(const AV2_COMMON *cm, MACROBLOCKD *xd,
                                    int mi_row, int mi_col,
                                    const BUFFER_SET *ctx, BLOCK_SIZE bsize,
-                                   int plane_from, int plane_to);
+                                   int plane_from, int plane_to,
+                                   const TipUnitHooks *tip_unit_hooks);
 
 void enc_build_inter_predictors(const AV2_COMMON *cm, MACROBLOCKD *xd,
                                 int plane, MB_MODE_INFO *mi,
                                 const BUFFER_SET *ctx,
                                 int build_for_refine_mv_only, int bw, int bh,
-                                int mi_x, int mi_y);
+                                int mi_x, int mi_y,
+                                const TipUnitHooks *tip_unit_hooks);
 
 // Build one inter predictor. It is called for building predictor for single
 // reference case, or just the 1st or 2nd reference in compound reference case.

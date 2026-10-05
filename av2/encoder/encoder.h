@@ -1730,6 +1730,9 @@ typedef struct ThreadData {
   uint16_t *tmp_pred_bufs;
   // Buffer used for upsampled prediction.
   uint16_t *upsample_pred;
+  // TIP unit memo of this thread (see tip_memo.h), allocated on first use; its
+  // cache is set in mb.tip_unit_hooks while a superblock is encoded.
+  struct TipUnitMemo *tip_memo;
   int intrabc_used;
   int deltaq_used;
   FRAME_CONTEXT *tctx;

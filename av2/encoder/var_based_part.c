@@ -809,7 +809,7 @@ static void setup_planes(AV2_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
     set_ref_ptrs(cm, xd, mi->ref_frame[0], mi->ref_frame[1]);
     av2_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL,
                                   cm->seq_params.sb_size, AVM_PLANE_Y,
-                                  num_planes - 1);
+                                  num_planes - 1, x->tip_unit_hooks);
   }
 }
 

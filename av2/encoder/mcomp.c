@@ -4609,7 +4609,7 @@ static INLINE unsigned int compute_motion_cost(
 
   set_default_interp_filters(xd->mi[0], cm, xd, cm->features.interp_filter);
   av2_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
-                                AVM_PLANE_Y, AVM_PLANE_Y);
+                                AVM_PLANE_Y, AVM_PLANE_Y, NULL);
 
   const SUBPEL_SEARCH_VAR_PARAMS *var_params = &ms_params->var_params;
   const MSBuffers *ms_buffers = &var_params->ms_buffers;

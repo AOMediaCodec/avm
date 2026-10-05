@@ -258,6 +258,8 @@ static AVM_INLINE void dealloc_compressor_data(AV2_COMP *cpi) {
   avm_free(cpi->td.mb.opfl_gxy_bufs);
   avm_free(cpi->td.mb.opfl_dst_bufs);
   avm_free(cpi->td.mb.tmp_pred_bufs);
+  avm_free(cpi->td.tip_memo);
+  cpi->td.tip_memo = NULL;
 
 #if CONFIG_DENOISE
   if (cpi->denoise_and_model) {

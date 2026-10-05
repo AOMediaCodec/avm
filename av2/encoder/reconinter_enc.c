@@ -146,16 +146,19 @@ void enc_build_inter_predictors(const AV2_COMMON *cm, MACROBLOCKD *xd,
                                 int plane, MB_MODE_INFO *mi,
                                 const BUFFER_SET *ctx,
                                 int build_for_refine_mv_only, int bw, int bh,
-                                int mi_x, int mi_y) {
+                                int mi_x, int mi_y,
+                                const TipUnitHooks *tip_unit_hooks) {
   av2_build_inter_predictors(cm, xd, plane, mi, ctx, build_for_refine_mv_only,
                              0 /* build_for_decode */, bw, bh, mi_x, mi_y,
-                             NULL /* mc_buf */, av2_enc_calc_subpel_params);
+                             NULL /* mc_buf */, av2_enc_calc_subpel_params,
+                             tip_unit_hooks);
 }
 
 void av2_enc_build_inter_predictor(const AV2_COMMON *cm, MACROBLOCKD *xd,
                                    int mi_row, int mi_col,
                                    const BUFFER_SET *ctx, BLOCK_SIZE bsize,
-                                   int plane_from, int plane_to) {
+                                   int plane_from, int plane_to,
+                                   const TipUnitHooks *tip_unit_hooks) {
   MB_MODE_INFO *mbmi = xd->mi[0];
 
   const int mi_luma_x = mi_col * MI_SIZE;
@@ -222,9 +225,9 @@ void av2_enc_build_inter_predictor(const AV2_COMMON *cm, MACROBLOCKD *xd,
     // if luma build is not available, we need to get refinemv based on luma
     // need to search SMVR here based on luma plane
     if (plane_from != 0) {
-      enc_build_inter_predictors(cm, xd, 0, xd->mi[0], ctx, 1,
-                                 xd->plane[0].width, xd->plane[0].height,
-                                 mi_col * MI_SIZE, mi_row * MI_SIZE);
+      enc_build_inter_predictors(
+          cm, xd, 0, xd->mi[0], ctx, 1, xd->plane[0].width, xd->plane[0].height,
+          mi_col * MI_SIZE, mi_row * MI_SIZE, tip_unit_hooks);
     }
   }
 
@@ -235,7 +238,7 @@ void av2_enc_build_inter_predictor(const AV2_COMMON *cm, MACROBLOCKD *xd,
 
     enc_build_inter_predictors(cm, xd, plane, xd->mi[0], ctx, 0,
                                xd->plane[plane].width, xd->plane[plane].height,
-                               mi_x, mi_y);
+                               mi_x, mi_y, tip_unit_hooks);
 
     assert(IMPLIES(!is_interintra_allowed(xd->mi[0]),
                    xd->mi[0]->motion_mode != INTERINTRA));
