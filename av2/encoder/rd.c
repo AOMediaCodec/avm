@@ -337,10 +337,11 @@ void av2_fill_mode_rates(AV2_COMMON *const cm, ModeCosts *mode_costs,
       for (s = 1; s < EXT_TX_SETS_INTER; ++s) {
         if (cm->features.reduced_tx_set_used ||
             use_inter_ext_tx_for_txsize[s][i]) {
-          av2_cost_tokens_from_cdf(
-              mode_costs->inter_tx_type_costs[s][k][i],
-              fc->inter_ext_tx_cdf[s][k][i], PRIMARY_TX_TYPES,
-              av2_ext_tx_inv[av2_ext_tx_set_idx_to_type[1][s]]);
+          const TxSetType tx_set_type = av2_ext_tx_set_idx_to_type[1][s];
+          av2_cost_tokens_from_cdf(mode_costs->inter_tx_type_costs[s][k][i],
+                                   fc->inter_ext_tx_cdf[s][k][i],
+                                   av2_num_ext_tx_set[tx_set_type],
+                                   av2_ext_tx_inv[tx_set_type]);
         }
       }
     }
