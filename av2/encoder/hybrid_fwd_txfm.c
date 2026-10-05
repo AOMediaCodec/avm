@@ -917,8 +917,55 @@ void av2_fwd_cross_chroma_tx_block_c(tran_low_t *coeff_c1, tran_low_t *coeff_c2,
   }
 }
 
-void av2_fwd_stxfm(tran_low_t *coeff, TxfmParam *txfm_param,
-                   int64_t *sec_tx_sse) {
+// Returns the ist_input_buf slot index [0..IST_INPUT_BUF_SLOTS-1] for the
+// given (set, stx_type) pair. Always returns 0 for 4x4 blocks (single slot).
+static inline int ist_input_buf_index(const TxfmParam *txfm_param,
+                                      SEC_TX_TYPE stx_type, int sb_size) {
+  return sb_size == 8
+             ? coeff8x8_mapping_idx[txfm_param->sec_tx_set * (STX_TYPES - 1) +
+                                    (stx_type - 1)]
+             : 0;
+}
+
+// Gather-reorder primary transform coefficients from |src| into the IST input
+// layout and store the result in |dst|. Skips the work if the slot identified
+// by |ist_slot_idx| has already been filled (|ist_buf_filled[ist_slot_idx]| !=
+// 0).
+static void ist_build_input_buf(const tran_low_t *src, tran_low_t *dst,
+                                int sb_size, int log2width,
+                                const PREDICTION_MODE intra_mode,
+                                int reduced_width, int ist_slot_idx,
+                                int *ist_buf_filled) {
+  if (ist_buf_filled != NULL && ist_buf_filled[ist_slot_idx] != 0) return;
+
+  PREDICTION_MODE mode = AVMMIN(intra_mode, SMOOTH_H_PRED);
+  const int8_t transpose = (mode == H_PRED || mode == D157_PRED ||
+                            mode == D67_PRED || mode == SMOOTH_H_PRED);
+
+  const int16_t *scan_order_in;
+  if (transpose) {
+    scan_order_in = (sb_size == 4)
+                        ? stx_scan_orders_transpose_4x4[log2width - 2]
+                        : stx_scan_orders_transpose_8x8[log2width - 2];
+  } else {
+    scan_order_in = (sb_size == 4) ? stx_scan_orders_4x4[log2width - 2]
+                                   : stx_scan_orders_8x8[log2width - 2];
+  }
+  // ist_slot_idx already names the ordering this (set, stx_type) pair uses.
+  const int16_t *sup_reg_mapping =
+      sb_size == 8 ? coeff8x8_mapping[ist_slot_idx] : NULL;
+
+  tran_low_t *out = dst;
+  for (int r = 0; r < reduced_width; r++) {
+    *out++ = sb_size == 8 ? src[scan_order_in[sup_reg_mapping[r]]]
+                          : src[scan_order_in[r]];
+  }
+  if (ist_buf_filled != NULL) ist_buf_filled[ist_slot_idx] = 1;
+}
+
+void av2_fwd_stxfm(struct macroblock_plane *p, tran_low_t *coeff,
+                   TxfmParam *txfm_param, int64_t *sec_tx_sse,
+                   int *ist_buf_filled) {
   const SEC_TX_TYPE stx_type = txfm_param->sec_tx_type;
 
   const int width = tx_size_wide[txfm_param->tx_size] <= 32
@@ -931,27 +978,26 @@ void av2_fwd_stxfm(tran_low_t *coeff, TxfmParam *txfm_param,
   if ((width >= 4 && height >= 4) && stx_type) {
     const PREDICTION_MODE intra_mode =
         (txfm_param->is_inter ? DC_PRED : txfm_param->intra_mode);
-    PREDICTION_MODE mode = 0, mode_t = 0;
+    PREDICTION_MODE mode_t = 0;
     const int log2width = tx_size_wide_log2[txfm_param->tx_size];
     const int sb_size = (width >= 8 && height >= 8) ? 8 : 4;
-    const int16_t *scan_order_in;
-    // Align scan order of IST with primary transform scan order
+    // Align scan order of IST output with primary transform scan order
     const SCAN_ORDER *scan_order_out =
         get_scan(txfm_param->tx_size, txfm_param->primary_tx_type);
     const int16_t *const scan = scan_order_out->scan;
-    tran_low_t buf0[64] = { 0 }, buf1[64] = { 0 };
-    tran_low_t *tmp = buf0;
-    tran_low_t *src = coeff;
-    int8_t transpose = 0;
-    mode = AVMMIN(intra_mode, SMOOTH_H_PRED);
-    if ((mode == H_PRED) || (mode == D157_PRED) || (mode == D67_PRED) ||
-        (mode == SMOOTH_H_PRED))
-      transpose = 1;
+    const tran_low_t *src = p->temp_coeff;
+    const int reduced_width = sb_size == 8 ? IST_8x8_WIDTH : IST_4x4_WIDTH;
+
     mode_t = txfm_param->sec_tx_set;
     assert(av2_tx_type_in_range(txfm_param->primary_tx_type,
                                 txfm_param->sec_tx_type, txfm_param->sec_tx_set,
                                 width, height));
 #if STX_COEFF_DEBUG
+    int8_t transpose = 0;
+    PREDICTION_MODE mode = AVMMIN(intra_mode, SMOOTH_H_PRED);
+    if ((mode == H_PRED) || (mode == D157_PRED) || (mode == D67_PRED) ||
+        (mode == SMOOTH_H_PRED))
+      transpose = 1;
     fprintf(stderr,
             "[fwd stx] inter %d ptx %d txs %dx%d tp %d stx_set %d stx_type %d\n"
             "(ptx coeff)\n",
@@ -959,42 +1005,30 @@ void av2_fwd_stxfm(tran_low_t *coeff, TxfmParam *txfm_param,
             transpose, txfm_param->sec_tx_set, stx_type);
     for (int i = 0; i < height; i++) {
       for (int j = 0; j < width; j++) {
-        fprintf(stderr, "%d,", coeff[i * width + j]);
+        fprintf(stderr, "%d,", p->temp_coeff[i * width + j]);
       }
       fprintf(stderr, "\n");
     }
 #endif  // STX_COEFF_DEBUG
-    if (transpose) {
-      scan_order_in = (sb_size == 4)
-                          ? stx_scan_orders_transpose_4x4[log2width - 2]
-                          : stx_scan_orders_transpose_8x8[log2width - 2];
-    } else {
-      scan_order_in = (sb_size == 4) ? stx_scan_orders_4x4[log2width - 2]
-                                     : stx_scan_orders_8x8[log2width - 2];
-    }
-    int reduced_width = sb_size == 8 ? IST_8x8_WIDTH : IST_4x4_WIDTH;
-    const int16_t *sup_reg_mapping =
-        sb_size == 8
-            ? &coeff8x8_mapping[txfm_param->sec_tx_set * 3 + stx_type - 1][0]
-            : NULL;
-    for (int r = 0; r < reduced_width; r++) {
-      *tmp = sb_size == 8 ? src[scan_order_in[sup_reg_mapping[r]]]
-                          : src[scan_order_in[r]];
-      tmp++;
-    }
+    const int ist_slot_idx = ist_input_buf_index(txfm_param, stx_type, sb_size);
+    ist_build_input_buf(src, p->ist_input_buf[ist_slot_idx], sb_size, log2width,
+                        intra_mode, reduced_width, ist_slot_idx,
+                        ist_buf_filled);
     const int st_size_class =
         (width == 8 && height == 8 && txfm_param->primary_tx_type == DCT_DCT)
             ? 1
         : (width >= 8 && height >= 8)
             ? (txfm_param->primary_tx_type == DCT_DCT ? 2 : 3)
             : 0;
-    fwd_stxfm(buf0, buf1, mode_t, stx_type - 1, st_size_class, txfm_param->bd);
+    tran_low_t buf1[32] = { 0 };
+    fwd_stxfm(p->ist_input_buf[ist_slot_idx], buf1, mode_t, stx_type - 1,
+              st_size_class, txfm_param->bd);
+    const int reduced_height =
+        (st_size_class == 0) ? IST_4x4_HEIGHT
+        : (st_size_class == 1)
+            ? IST_8x8_HEIGHT_RED
+            : ((st_size_class == 3) ? IST_ADST_NZ_CNT : IST_8x8_HEIGHT);
     if (sec_tx_sse != NULL) {
-      const int reduced_height =
-          (st_size_class == 0) ? IST_4x4_HEIGHT
-          : (st_size_class == 1)
-              ? IST_8x8_HEIGHT_RED
-              : ((st_size_class == 3) ? IST_ADST_NZ_CNT : IST_8x8_HEIGHT);
       // SIMD implementation of avm_sum_squares_i32() only supports if n value
       // is multiple of 16. Hence, the n value is ensured to be at least 16
       // since the remaining elements of buf1[] are initialized with zero.
@@ -1009,8 +1043,8 @@ void av2_fwd_stxfm(tran_low_t *coeff, TxfmParam *txfm_param,
       *sec_tx_sse = sec_tx_coeff_energy;
     }
     memset(coeff, 0, width * height * sizeof(tran_low_t));
-    tmp = buf1;
-    for (int i = 0; i < reduced_width; i++) {
+    tran_low_t *tmp = buf1;
+    for (int i = 0; i < reduced_height; i++) {
       // Align scan order of IST with primary transform scan order
       coeff[scan[i]] = *tmp++;
     }
