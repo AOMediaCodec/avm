@@ -3650,7 +3650,7 @@ static void build_inter_predictors_8x8_and_bigger_facade(
     const AV2_COMMON *cm, MACROBLOCKD *xd, int plane, MB_MODE_INFO *mi,
     const BUFFER_SET *dst_orig, int build_for_decode, int bw, int bh, int mi_x,
     int mi_y, uint16_t **mc_buf, CalcSubpelParamsFunc calc_subpel_params_func,
-    int build_for_refine_mv_only) {
+    int build_for_refine_mv_only, const TipUnitHooks *hooks) {
   const int tip_ref_frame = is_tip_ref_frame(mi->ref_frame[0]);
   bool ext_warp_used = false;
 
@@ -3669,6 +3669,13 @@ static void build_inter_predictors_8x8_and_bigger_facade(
     int blk_width = unit_blk_size;
     const int end_pixel_row = mi_y + height;
     const int end_pixel_col = mi_x + width;
+    // The hooks (encoder-only; decoder passes NULL) decide per block/plane
+    // whether they apply.
+    if (hooks != NULL &&
+        !hooks->begin(hooks->ctx, cm, xd, plane, mi,
+                      is_mv_refine_allowed(cm, mi, AVM_PLANE_Y), unit_blk_size,
+                      build_for_refine_mv_only))
+      hooks = NULL;
 
     for (int pixel_row = mi_y; pixel_row < end_pixel_row;
          pixel_row += unit_blk_size) {
@@ -3733,6 +3740,15 @@ static void build_inter_predictors_8x8_and_bigger_facade(
                        ((row_offset << TMVP_MI_SZ_LOG2) >> ss_y) * dst_stride +
                        ((col_offset << TMVP_MI_SZ_LOG2) >> ss_x);
 
+        if (hooks != NULL) {
+          if (hooks->lookup(hooks->ctx, xd, plane, pixel_col, pixel_row, tip_mv,
+                            bw, bh, dst_buf->buf, dst_stride, 8 >> ss_x,
+                            8 >> ss_y, &xd->mv_refined[tip_mv_offset],
+                            &xd->refinemv_subinfo[refinemv_offset],
+                            &xd->opfl_vxy_bufs[opfl_vxy_offset]))
+            continue;
+        }
+
         build_inter_predictors_8x8_and_bigger(
             cm, xd, plane, mi, dst_orig, build_for_decode, blk_width,
             unit_blk_size, pixel_col, pixel_row, mc_buf, tip_mv,
@@ -3741,6 +3757,7 @@ static void build_inter_predictors_8x8_and_bigger_facade(
             &xd->mv_refined[tip_mv_offset],
             &xd->refinemv_subinfo[refinemv_offset],
             &xd->opfl_vxy_bufs[opfl_vxy_offset]);
+        if (hooks != NULL) hooks->store(hooks->ctx, xd, plane);
       }
     }
 
@@ -3761,7 +3778,8 @@ void av2_build_inter_predictors(const AV2_COMMON *cm, MACROBLOCKD *xd,
                                 int build_for_refine_mv_only,
                                 int build_for_decode, int bw, int bh, int mi_x,
                                 int mi_y, uint16_t **mc_buf,
-                                CalcSubpelParamsFunc calc_subpel_params_func) {
+                                CalcSubpelParamsFunc calc_subpel_params_func,
+                                const TipUnitHooks *tip_unit_hooks) {
   // xd->mv_refined is 2 * N_OF_OFFSETS int_mv = 8192 bytes, sized for a whole
   // 256x256 superblock's optical-flow subblock grid. It is a large memset
   // in the encoder. Only memeset it when necessary.
@@ -3786,7 +3804,8 @@ void av2_build_inter_predictors(const AV2_COMMON *cm, MACROBLOCKD *xd,
   } else {
     build_inter_predictors_8x8_and_bigger_facade(
         cm, xd, plane, mi, dst_orig, build_for_decode, bw, bh, mi_x, mi_y,
-        mc_buf, calc_subpel_params_func, build_for_refine_mv_only);
+        mc_buf, calc_subpel_params_func, build_for_refine_mv_only,
+        tip_unit_hooks);
   }
 }
 

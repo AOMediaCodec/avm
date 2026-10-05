@@ -758,10 +758,10 @@ static void dec_build_inter_predictors(const AV2_COMMON *cm,
                                        MB_MODE_INFO *mi, int bw, int bh,
                                        int mi_x, int mi_y,
                                        int build_for_refine_mv_only) {
-  av2_build_inter_predictors(cm, &dcb->xd, plane, mi, NULL,
-                             build_for_refine_mv_only, 1 /* build_for_decode */,
-                             bw, bh, mi_x, mi_y, dcb->mc_buf,
-                             dec_calc_subpel_params_and_extend);
+  av2_build_inter_predictors(
+      cm, &dcb->xd, plane, mi, NULL, build_for_refine_mv_only,
+      1 /* build_for_decode */, bw, bh, mi_x, mi_y, dcb->mc_buf,
+      dec_calc_subpel_params_and_extend, NULL /* tip_unit_hooks */);
 }
 
 static AVM_INLINE void dec_build_inter_predictor(const AV2_COMMON *cm,

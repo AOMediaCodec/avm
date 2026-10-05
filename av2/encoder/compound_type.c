@@ -603,7 +603,8 @@ static int handle_wedge_inter_intra_mode(
       const int mi_row = xd->mi_row;
       const int mi_col = xd->mi_col;
       av2_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst, bsize,
-                                    AVM_PLANE_Y, AVM_PLANE_Y);
+                                    AVM_PLANE_Y, AVM_PLANE_Y,
+                                    x->tip_unit_hooks);
       mbmi->motion_mode = INTERINTRA;
       av2_combine_interintra(xd, bsize, 0, xd->plane[AVM_PLANE_Y].dst.buf,
                              xd->plane[AVM_PLANE_Y].dst.stride, intrapred, bw);
@@ -665,7 +666,7 @@ int av2_handle_inter_intra_mode(const AV2_COMP *const cpi, MACROBLOCK *const x,
   xd->plane[AVM_PLANE_Y].dst.buf = tmp_buf;
   xd->plane[AVM_PLANE_Y].dst.stride = bw;
   av2_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst, bsize,
-                                AVM_PLANE_Y, AVM_PLANE_Y);
+                                AVM_PLANE_Y, AVM_PLANE_Y, x->tip_unit_hooks);
   const int num_planes = av2_num_planes(cm);
 
   // Restore the buffers for intra prediction.
@@ -737,14 +738,16 @@ int av2_handle_inter_intra_mode(const AV2_COMP *const cpi, MACROBLOCK *const x,
     mbmi->mv[0].as_int = mv0.as_int;
     if (!mbmi->warp_inter_intra) {
       av2_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst, bsize,
-                                    AVM_PLANE_Y, AVM_PLANE_Y);
+                                    AVM_PLANE_Y, AVM_PLANE_Y,
+                                    x->tip_unit_hooks);
     }
   }
   *tmp_rate2 += best_mode_rate;
 
   if (num_planes > 1 && !mbmi->warp_inter_intra) {
     av2_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst, bsize,
-                                  AVM_PLANE_U, num_planes - 1);
+                                  AVM_PLANE_U, num_planes - 1,
+                                  x->tip_unit_hooks);
   }
   return 0;
 }
@@ -1023,7 +1026,8 @@ static int64_t masked_compound_type_rd(
       const int mi_row = xd->mi_row;
       const int mi_col = xd->mi_col;
       av2_enc_build_inter_predictor(cm, xd, mi_row, mi_col, ctx, bsize,
-                                    AVM_PLANE_Y, AVM_PLANE_Y);
+                                    AVM_PLANE_Y, AVM_PLANE_Y,
+                                    x->tip_unit_hooks);
     } else {
       *out_rate_mv = rate_mv;
       av2_build_wedge_inter_predictor_from_buf_y(xd, bsize, pred0, stride,
@@ -1192,7 +1196,8 @@ int av2_compound_type_rd(const AV2_COMP *const cpi, MACROBLOCK *x,
       const CompTypeRdStats *const cur_stats = &comp_stats[cur_type];
       if (cur_stats->rate == INT32_MAX) {
         av2_enc_build_inter_predictor(cm, xd, xd->mi_row, xd->mi_col, orig_dst,
-                                      bsize, AVM_PLANE_Y, AVM_PLANE_Y);
+                                      bsize, AVM_PLANE_Y, AVM_PLANE_Y,
+                                      x->tip_unit_hooks);
         *is_luma_interp_done = 1;
 
         // Compute RD cost.

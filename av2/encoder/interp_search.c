@@ -141,7 +141,7 @@ static INLINE void interp_model_rd_eval(
     const int mi_row = xd->mi_row;
     const int mi_col = xd->mi_col;
     av2_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst, bsize,
-                                  plane_from, plane_to);
+                                  plane_from, plane_to, x->tip_unit_hooks);
   }
 
   // The chroma can have different bsize than luma, so they need to taken care
@@ -520,7 +520,7 @@ int64_t av2_interpolation_filter_search(
     const int mi_row = xd->mi_row;
     const int mi_col = xd->mi_col;
     av2_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst, bsize,
-                                  AVM_PLANE_Y, AVM_PLANE_Y);
+                                  AVM_PLANE_Y, AVM_PLANE_Y, x->tip_unit_hooks);
   }
   x->pred_sse[ref_frame] = (unsigned int)(rd_stats_luma.sse >> 4);
 

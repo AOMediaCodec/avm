@@ -1235,6 +1235,13 @@ typedef struct macroblock {
    */
   MACROBLOCKD e_mbd;
 
+  /*! \brief The TIP unit cache of the superblock being encoded.
+   *
+   * Set by encode_sb_row() (see tip_memo.h) and NULL otherwise; passed to
+   * av2_enc_build_inter_predictor().
+   */
+  const struct TipUnitHooks *tip_unit_hooks;
+
   /*! \brief Derived coding information.
    *
    * Contains extra information not transmitted in the bitstream but are

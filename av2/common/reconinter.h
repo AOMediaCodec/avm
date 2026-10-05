@@ -495,13 +495,28 @@ void av2_build_one_inter_predictor(
     InterPredParams *inter_pred_params, MACROBLOCKD *xd, int mi_x, int mi_y,
     int ref, uint16_t **mc_buf, CalcSubpelParamsFunc calc_subpel_params_func);
 
+// Optional hooks for the 8x8 unit builds of TIP blocks; set by the encoder
+// (av2/encoder/tip_memo.c), NULL in the decoder.
+typedef struct TipUnitHooks {
+  void *ctx;
+  int (*begin)(void *ctx, const AV2_COMMON *cm, const MACROBLOCKD *xd,
+               int plane, const MB_MODE_INFO *mi, int refine_y,
+               int unit_blk_size, int build_for_refine_mv_only);
+  int (*lookup)(void *ctx, const MACROBLOCKD *xd, int plane, int x, int y,
+                const MV tip_mv[2], int pu_width, int pu_height, uint16_t *dst,
+                int dst_stride, int unit_w, int unit_h, int_mv *mv_refined,
+                REFINEMV_SUBMB_INFO *refinemv_subinfo, int *opfl_vxy);
+  void (*store)(void *ctx, const MACROBLOCKD *xd, int plane);
+} TipUnitHooks;
+
 void av2_build_inter_predictors(const AV2_COMMON *cm, MACROBLOCKD *xd,
                                 int plane, MB_MODE_INFO *mi,
                                 const BUFFER_SET *dst_orig,
                                 int build_for_refine_mv_only,
                                 int build_for_decode, int bw, int bh, int mi_x,
                                 int mi_y, uint16_t **mc_buf,
-                                CalcSubpelParamsFunc calc_subpel_params_func);
+                                CalcSubpelParamsFunc calc_subpel_params_func,
+                                const TipUnitHooks *tip_unit_hooks);
 
 // Precision of refined MV returned, 0 being integer pel. For now, only 1/8 or
 // 1/16-pel can be used.
