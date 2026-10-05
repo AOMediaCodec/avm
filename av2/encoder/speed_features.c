@@ -378,6 +378,8 @@ static void set_good_speed_features_framesize_independent(
     sf->tx_sf.skip_pixel_dist_calc_using_tx_dist = true;
     sf->tx_sf.adaptive_tx_partition_type_search_idx = 4;
     sf->tx_sf.enable_adaptive_tx_search_level = true;
+    // Effective at speeds 1-3 only; inter IST is disabled at speed >= 4.
+    sf->tx_sf.prune_inter_ist_by_dct_rd = true;
 
     sf->tx_sf.prune_intra_ist_stx_by_zero_eob = true;
 
@@ -1035,6 +1037,7 @@ static AVM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
   tx_sf->disable_cctx_dry_pass = false;
   tx_sf->prune_tx_search_by_pre_rd = false;
   tx_sf->prune_ist_by_best_rd = false;
+  tx_sf->prune_inter_ist_by_dct_rd = false;
 }
 
 static AVM_INLINE void init_rd_sf(RD_CALC_SPEED_FEATURES *rd_sf,
