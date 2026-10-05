@@ -705,6 +705,11 @@ INSTANTIATE_TEST_SUITE_P(NEON, AV2Convolve2DHighbdTest,
                          BuildHighbdParams(av2_highbd_convolve_2d_sr_neon));
 #endif
 
+#if HAVE_AVX512
+INSTANTIATE_TEST_SUITE_P(AVX512, AV2Convolve2DHighbdTest,
+                         BuildHighbdParams(av2_highbd_convolve_2d_sr_avx512));
+#endif
+
 //////////////////////////
 // Compound Convolve Tests
 //////////////////////////
