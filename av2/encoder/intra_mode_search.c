@@ -1403,10 +1403,9 @@ int64_t av2_handle_intra_mode(IntraModeSearchState *intra_search_state,
     rd_stats_y->rate -= tx_size_cost(x, bsize, mbmi->tx_size);
   }
   if (num_planes > 1 && xd->is_chroma_ref) {
-    const int uv_mode_cost = get_uv_mode_cost(
-        mbmi, x->mode_costs, xd,
-        is_cfl_allowed(cm->seq_params.enable_cfl_intra, xd), mbmi->uv_mode_idx);
-    rd_stats->rate += rd_stats_uv->rate + uv_mode_cost;
+    // rate_uv_intra is the chroma token rate plus the complete chroma mode
+    // cost, including the CFL alpha, cfl_idx and MHCCP direction bits.
+    rd_stats->rate += intra_search_state->rate_uv_intra;
   }
 
   // Intra block is always coded as non-skip
