@@ -2965,6 +2965,20 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
     // cannot change during the IST trials below.
     if (skip_stx || eob_found) continue;
 
+    // Skip the IST trials for inter DCT_DCT if its primary trial (stx == 0)
+    // is not promising compared to the reference RD or skip RD.
+    if (tx_sf->prune_inter_ist_by_dct_rd && is_inter &&
+        primary_tx_type == DCT_DCT) {
+      const int skip_ctx = av2_get_skip_txfm_context(xd);
+      const int64_t skip_rd = RDCOST(
+          x->rdmult, x->mode_costs.skip_txfm_cost[skip_ctx][1], block_sse);
+      const int64_t rd_limit =
+          (ref_best_rd != INT64_MAX && ref_best_rd > 0) ? ref_best_rd : skip_rd;
+      if (primary_tx_rd > rd_limit) {
+        continue;
+      }
+    }
+
     // Skip the IST trials of ADST_ADST if its primary trial (stx == 0) is
     // worse than best_rd by more than 1 / 2^IST_BEST_RD_MARGIN_SHIFT.
     if (tx_sf->prune_ist_by_best_rd && primary_tx_type == ADST_ADST &&

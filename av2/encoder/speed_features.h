@@ -1039,6 +1039,11 @@ typedef struct TX_SPEED_FEATURES {
   // - For intra blocks, skip IST sets 2 and 3 if the best IST trial of sets 0
   //   and 1 is worse than best_rd by more than a margin.
   bool prune_ist_by_best_rd;
+
+  // Skip the IST trials of inter DCT_DCT if its primary trial (stx == 0) RD
+  // is already worse than ref_best_rd (or the skip RD when ref_best_rd is not
+  // available).
+  bool prune_inter_ist_by_dct_rd;
 } TX_SPEED_FEATURES;
 
 typedef struct RD_CALC_SPEED_FEATURES {
