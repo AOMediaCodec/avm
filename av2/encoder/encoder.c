@@ -1798,6 +1798,7 @@ static AVM_INLINE void free_thread_data(AV2_COMP *cpi) {
     avm_free(thread_data->td->opfl_vxy_bufs);
     avm_free(thread_data->td->opfl_gxy_bufs);
     avm_free(thread_data->td->opfl_dst_bufs);
+    avm_free(thread_data->td->tip_memo);
     release_compound_type_rd_buffers(&thread_data->td->comp_rd_buffer);
     avm_free(thread_data->td->tmp_pred_bufs);
     avm_free(thread_data->td->mb.inter_modes_info);

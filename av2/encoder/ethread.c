@@ -884,6 +884,9 @@ static AVM_INLINE void prepare_enc_workers(AV2_COMP *cpi, AVxWorkerHook hook,
       thread_data->td->mb.e_mbd.opfl_dst_bufs =
           thread_data->td->mb.opfl_dst_bufs;
     }
+    // Each thread installs its own TIP unit cache (see encode_sb_row()), so a
+    // worker's copy of cpi->td.mb must not carry the master thread's.
+    thread_data->td->mb.tip_unit_hooks = NULL;
     av2_zero(thread_data->td->mb.e_mbd.ref_mv_bank);
     av2_zero(thread_data->td->mb.e_mbd.warp_param_bank);
   }

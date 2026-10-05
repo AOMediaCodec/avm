@@ -315,7 +315,8 @@ static void encode_superblock(const AV2_COMP *const cpi, TileDataEnc *tile_data,
       { p[0].dst.stride, p[1].dst.stride, p[2].dst.stride },
     };
     av2_enc_build_inter_predictor(cm, xd, mi_row, mi_col, &orig_dst, bsize,
-                                  start_plane, av2_num_planes(cm) - 1);
+                                  start_plane, av2_num_planes(cm) - 1,
+                                  x->tip_unit_hooks);
 
 #if CONFIG_MISMATCH_DEBUG
     if (dry_run == OUTPUT_ENABLED) {

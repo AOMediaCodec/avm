@@ -57,6 +57,7 @@
 #include "av2/encoder/encodemb.h"
 #include "av2/encoder/encodemv.h"
 #include "av2/encoder/encodetxb.h"
+#include "av2/encoder/tip_memo.h"
 #include "av2/encoder/ethread.h"
 #include "av2/encoder/extend.h"
 #include "av2/encoder/ml.h"
@@ -1173,7 +1174,7 @@ static AVM_INLINE void bridge_frame_predict_inter_block(AV2_COMMON *const cm,
 
     enc_build_inter_predictors(cm, xd, plane, xd->mi[0], &orig_dst, 0,
                                xd->plane[plane].width, xd->plane[plane].height,
-                               mi_x, mi_y);
+                               mi_x, mi_y, NULL);
   }
 }
 
@@ -1585,10 +1586,15 @@ static AVM_INLINE void encode_sb_row(AV2_COMP *cpi, ThreadData *td,
         }
         av2_reset_entropy_context(xd, cm->seq_params.sb_size,
                                   av2_num_planes(cm));
-      } else
-        // encode the superblock
+      } else {
+        // Encode the superblock. The TIP unit memo lives for this superblock
+        // only; bridge frames and inactive BRU superblocks build no TIP units.
+        x->tip_unit_hooks =
+            av2_tip_memo_sb_begin(cm, xd->error_info, &td->tip_memo);
         encode_rd_sb(cpi, td, tile_data, tp, tp_chroma, mi_row, mi_col,
                      seg_skip);
+        x->tip_unit_hooks = NULL;
+      }
 
     // Update the top-right context in row_mt coding
     if (tile_data->allow_update_cdf && row_mt_enabled &&
