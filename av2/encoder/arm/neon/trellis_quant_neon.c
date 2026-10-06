@@ -227,16 +227,12 @@ static AVM_FORCE_INLINE void decide_states_neon_impl(
   const int64_t *ds = pq->deltaDist;
 
   for (int i = 0; i < 8; i += 2) {
-    int a0_0 = (i & 2) ? 1 : 0;
-    int a0_1 = ((i + 1) & 2) ? 1 : 0;
+    int a0 = (i & 2) ? 1 : 0;
 
-    uint32x2_t r_ev = vcreate_u32(
-        (uint32_t)rate[2 * i] | ((uint64_t)(uint32_t)rate[2 * (i + 1)] << 32));
-    uint32x2_t r_od =
-        vcreate_u32((uint32_t)rate[2 * i + 1] |
-                    ((uint64_t)(uint32_t)rate[2 * (i + 1) + 1] << 32));
-    uint32x2_t r_zr =
-        vcreate_u32((uint32_t)rz[i] | ((uint64_t)(uint32_t)rz[i + 1] << 32));
+    uint32x2x2_t r_pair = vld2_u32((const uint32_t *)&rate[2 * i]);
+    uint32x2_t r_ev = r_pair.val[0];
+    uint32x2_t r_od = r_pair.val[1];
+    uint32x2_t r_zr = vld1_u32((const uint32_t *)&rz[i]);
 
     int64x2_t c_ev = vreinterpretq_s64_u64(vshrq_n_u64(
         vaddq_u64(vmull_u32(r_ev, v_rdm), v_rnd), AV2_PROB_COST_SHIFT));
@@ -245,9 +241,8 @@ static AVM_FORCE_INLINE void decide_states_neon_impl(
     int64x2_t c_zr = vreinterpretq_s64_u64(vshrq_n_u64(
         vaddq_u64(vmull_u32(r_zr, v_rdm), v_rnd), AV2_PROB_COST_SHIFT));
 
-    int64x2_t d_ev = vcombine_s64(vcreate_s64(ds[a0_0]), vcreate_s64(ds[a0_1]));
-    int64x2_t d_od =
-        vcombine_s64(vcreate_s64(ds[a0_0 + 2]), vcreate_s64(ds[a0_1 + 2]));
+    int64x2_t d_ev = vdupq_n_s64(ds[a0]);
+    int64x2_t d_od = vdupq_n_s64(ds[a0 + 2]);
 
     c_ev = vaddq_s64(c_ev, d_ev);
     c_od = vaddq_s64(c_od, d_od);
@@ -320,8 +315,7 @@ static AVM_FORCE_INLINE void decide_states_q1_neon_impl(
   int64_t rc[16];
   int64_t rcz[8];
   for (int i = 0; i < 8; i += 2) {
-    uint32x2_t r_zr =
-        vcreate_u32((uint32_t)rz[i] | ((uint64_t)(uint32_t)rz[i + 1] << 32));
+    uint32x2_t r_zr = vld1_u32((const uint32_t *)&rz[i]);
     int64x2_t c_zr = vreinterpretq_s64_u64(vshrq_n_u64(
         vaddq_u64(vmull_u32(r_zr, v_rdm), v_rnd), AV2_PROB_COST_SHIFT));
     int64x2_t prd = vcombine_s64(vcreate_s64(prev[i].rdCost),
@@ -408,57 +402,25 @@ static const uint8_t kGolombExp0Bits[256] = {
 };
 // clang-format on
 
-static AVM_FORCE_INLINE void load_unpack_lf_base_cost(
-    const uint16_t (*tbl)[LF_SIG_COEF_CONTEXTS][TCQ_CTXS][2], int idx, int ctx0,
-    int ctx1, int ctx2, int ctx3, uint32_t *out_0123, uint32_t *out_4567) {
-  uint32x2_t p02 = vdup_n_u32(0);
-  p02 = vld1_lane_u32((const uint32_t *)&tbl[idx][ctx0][0], p02, 0);
-  p02 = vld1_lane_u32((const uint32_t *)&tbl[idx][ctx1][0], p02, 1);
-  uint32x2_t p46 = vdup_n_u32(0);
-  p46 = vld1_lane_u32((const uint32_t *)&tbl[idx][ctx2][1], p46, 0);
-  p46 = vld1_lane_u32((const uint32_t *)&tbl[idx][ctx3][1], p46, 1);
-  vst1q_u32(out_0123, vmovl_u16(vreinterpret_u16_u32(p02)));
-  vst1q_u32(out_4567, vmovl_u16(vreinterpret_u16_u32(p46)));
-}
+#define DEFINE_LOAD_UNPACK_COST(name, CTX_DIM)                                 \
+  static AVM_FORCE_INLINE void name(                                           \
+      const uint16_t(*tbl)[CTX_DIM][TCQ_CTXS][2], int idx, int ctx0,          \
+      int ctx1, int ctx2, int ctx3, uint32_t *out_0123,                        \
+      uint32_t *out_4567) {                                                    \
+    uint32x2_t p02 = vdup_n_u32(0);                                            \
+    p02 = vld1_lane_u32((const uint32_t *)&tbl[idx][ctx0][0], p02, 0);         \
+    p02 = vld1_lane_u32((const uint32_t *)&tbl[idx][ctx1][0], p02, 1);         \
+    uint32x2_t p46 = vdup_n_u32(0);                                            \
+    p46 = vld1_lane_u32((const uint32_t *)&tbl[idx][ctx2][1], p46, 0);         \
+    p46 = vld1_lane_u32((const uint32_t *)&tbl[idx][ctx3][1], p46, 1);         \
+    vst1q_u32(out_0123, vmovl_u16(vreinterpret_u16_u32(p02)));                 \
+    vst1q_u32(out_4567, vmovl_u16(vreinterpret_u16_u32(p46)));                 \
+  }
 
-static AVM_FORCE_INLINE void load_unpack_lf_mid_cost(
-    const uint16_t (*tbl)[LF_LEVEL_CONTEXTS][TCQ_CTXS][2], int idx, int ctx0,
-    int ctx1, int ctx2, int ctx3, uint32_t *out_0123, uint32_t *out_4567) {
-  uint32x2_t p02 = vdup_n_u32(0);
-  p02 = vld1_lane_u32((const uint32_t *)&tbl[idx][ctx0][0], p02, 0);
-  p02 = vld1_lane_u32((const uint32_t *)&tbl[idx][ctx1][0], p02, 1);
-  uint32x2_t p46 = vdup_n_u32(0);
-  p46 = vld1_lane_u32((const uint32_t *)&tbl[idx][ctx2][1], p46, 0);
-  p46 = vld1_lane_u32((const uint32_t *)&tbl[idx][ctx3][1], p46, 1);
-  vst1q_u32(out_0123, vmovl_u16(vreinterpret_u16_u32(p02)));
-  vst1q_u32(out_4567, vmovl_u16(vreinterpret_u16_u32(p46)));
-}
-
-static AVM_FORCE_INLINE void load_unpack_base_cost(
-    const uint16_t (*tbl)[SIG_COEF_CONTEXTS][TCQ_CTXS][2], int idx, int ctx0,
-    int ctx1, int ctx2, int ctx3, uint32_t *out_0123, uint32_t *out_4567) {
-  uint32x2_t p02 = vdup_n_u32(0);
-  p02 = vld1_lane_u32((const uint32_t *)&tbl[idx][ctx0][0], p02, 0);
-  p02 = vld1_lane_u32((const uint32_t *)&tbl[idx][ctx1][0], p02, 1);
-  uint32x2_t p46 = vdup_n_u32(0);
-  p46 = vld1_lane_u32((const uint32_t *)&tbl[idx][ctx2][1], p46, 0);
-  p46 = vld1_lane_u32((const uint32_t *)&tbl[idx][ctx3][1], p46, 1);
-  vst1q_u32(out_0123, vmovl_u16(vreinterpret_u16_u32(p02)));
-  vst1q_u32(out_4567, vmovl_u16(vreinterpret_u16_u32(p46)));
-}
-
-static AVM_FORCE_INLINE void load_unpack_mid_cost(
-    const uint16_t (*tbl)[LEVEL_CONTEXTS][TCQ_CTXS][2], int idx, int ctx0,
-    int ctx1, int ctx2, int ctx3, uint32_t *out_0123, uint32_t *out_4567) {
-  uint32x2_t p02 = vdup_n_u32(0);
-  p02 = vld1_lane_u32((const uint32_t *)&tbl[idx][ctx0][0], p02, 0);
-  p02 = vld1_lane_u32((const uint32_t *)&tbl[idx][ctx1][0], p02, 1);
-  uint32x2_t p46 = vdup_n_u32(0);
-  p46 = vld1_lane_u32((const uint32_t *)&tbl[idx][ctx2][1], p46, 0);
-  p46 = vld1_lane_u32((const uint32_t *)&tbl[idx][ctx3][1], p46, 1);
-  vst1q_u32(out_0123, vmovl_u16(vreinterpret_u16_u32(p02)));
-  vst1q_u32(out_4567, vmovl_u16(vreinterpret_u16_u32(p46)));
-}
+DEFINE_LOAD_UNPACK_COST(load_unpack_lf_base_cost, LF_SIG_COEF_CONTEXTS)
+DEFINE_LOAD_UNPACK_COST(load_unpack_lf_mid_cost, LF_LEVEL_CONTEXTS)
+DEFINE_LOAD_UNPACK_COST(load_unpack_base_cost, SIG_COEF_CONTEXTS)
+DEFINE_LOAD_UNPACK_COST(load_unpack_mid_cost, LEVEL_CONTEXTS)
 
 static AVM_FORCE_INLINE void get_rate_dist_def_luma_q1_neon_impl(
     const struct tcq_param_t *p, const struct tcq_coeff_ctx_t *coeff_ctx,
@@ -488,13 +450,8 @@ static AVM_FORCE_INLINE void get_rate_dist_def_luma_q1_neon_impl(
     const uint16_t(*cost_eob_tbl)[SIG_COEF_CONTEXTS_EOB][2] =
         txb_costs->base_eob_cost_tbl;
     int eob_ctx = coeff_ctx->coef_eob;
-    uint32_t eob_packed;
-    memcpy(&eob_packed, &cost_eob_tbl[idx][eob_ctx][0], 4);
-    uint32x4_t eob_wide =
-        vmovl_u16(vreinterpret_u16_u32(vcreate_u32(eob_packed)));
-    int32x2_t rate_eob = vadd_s32(vget_low_s32(vreinterpretq_s32_u32(eob_wide)),
-                                  vdup_n_s32(eob_rate));
-    vst1_s32(&rd->rate_eob[0], rate_eob);
+    rd->rate_eob[1] =
+        (int32_t)cost_eob_tbl[idx][eob_ctx][1] + eob_rate;
   }
 }
 
@@ -696,16 +653,11 @@ static AVM_FORCE_INLINE void get_rate_dist_lf_luma_q1_neon_impl(
     const uint16_t(*cost_eob_tbl)[SIG_COEF_CONTEXTS_EOB][2] =
         txb_costs->base_lf_eob_cost_tbl;
     int eob_ctx = coeff_ctx->coef_eob;
-    uint32_t eob_packed;
-    memcpy(&eob_packed, &cost_eob_tbl[idx][eob_ctx][0], 4);
-    uint32x4_t eob_wide =
-        vmovl_u16(vreinterpret_u16_u32(vcreate_u32(eob_packed)));
-    int32x2_t rate_eob = vadd_s32(vget_low_s32(vreinterpretq_s32_u32(eob_wide)),
-                                  vdup_n_s32(eob_rate));
+    rd->rate_eob[1] =
+        (int32_t)cost_eob_tbl[idx][eob_ctx][1] + eob_rate;
     if (is_dc) {
-      rate_eob = vadd_s32(rate_eob, vdup_n_s32(dc_cost));
+      rd->rate_eob[1] += dc_cost;
     }
-    vst1_s32(&rd->rate_eob[0], rate_eob);
   }
 }
 
@@ -1007,7 +959,7 @@ void av2_trellis_loop_diagonal_st8_neon(const struct tcq_param_t *p,
       }
       tcq_rate_t rd;
 
-      if (UNLIKELY(pq_data.orig_qIdx < 2)) {
+      if (pq_data.orig_qIdx < 2) {
         pre_quant_q1_neon(tcoeff[blk_pos], &pq_data, temp_dqv, log_scale);
         get_rate_dist_def_luma_q1_neon_impl(p, &coeff_ctx, diag_ctx, eob_rate,
                                             try_eob, &rd);
@@ -1061,7 +1013,7 @@ void av2_trellis_loop_diagonal_st8_neon(const struct tcq_param_t *p,
       }
       tcq_rate_t rd;
 
-      if (UNLIKELY(pq_data.orig_qIdx < 2)) {
+      if (pq_data.orig_qIdx < 2) {
         pre_quant_q1_neon(tcoeff[blk_pos], &pq_data, temp_dqv, log_scale);
         get_rate_dist_lf_luma_q1_neon_impl(p, &coeff_ctx, blk_pos, diag_ctx,
                                            eob_rate, dc_coeff_sign, try_eob,
