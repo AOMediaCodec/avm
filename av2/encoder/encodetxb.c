@@ -1861,9 +1861,12 @@ static AVM_FORCE_INLINE int warehouse_efficients_txb(
   // c == 0 after previous loop
   int num_nz = 0;
   hr_level_avg = 0;
-  for (c = eob - 1; c > 0; --c) {
-    const int pos = scan[c];
-    num_nz += !!qcoeff[pos];
+  // num_nz is only needed to decide whether parity hiding applies.
+  if (enable_parity_hiding) {
+    for (c = eob - 1; c > 0; --c) {
+      const int pos = scan[c];
+      num_nz += !!qcoeff[pos];
+    }
   }
   c = 0;
   if (num_nz >= PHTHRESH && enable_parity_hiding) {
