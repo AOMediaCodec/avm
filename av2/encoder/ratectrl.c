@@ -2109,7 +2109,9 @@ int av2_calc_iframe_target_size_one_pass_cbr(const AV2_COMP *cpi) {
   const RATE_CONTROL *rc = &cpi->rc;
   int target;
   if (cpi->common.current_frame.frame_number == 0) {
-    const int64_t initial_target = rc->starting_buffer_level * 7 / 2;
+    const int64_t initial_target = (cpi->oxcf.mode == REALTIME)
+                                       ? rc->starting_buffer_level * 7 / 2
+                                       : rc->starting_buffer_level / 2;
     target = (initial_target > INT_MAX) ? INT_MAX : (int)initial_target;
   } else {
     int kf_boost = 32;
