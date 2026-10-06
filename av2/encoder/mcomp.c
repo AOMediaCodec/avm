@@ -436,6 +436,9 @@ static INLINE int get_vq_mvd_cost(const MV mv_diff,
   if (is_adaptive_mvd) {
     return get_vq_amvd_cost(mv_diff, mv_costs);
   }
+  // DV cost tables are only built for the IntraBC precision set.
+  assert(IMPLIES(is_ibc_cost, av2_intraBc_precision_to_index[pb_mv_precision] <
+                                  NUM_ALLOWED_BV_PRECISIONS));
   int total_cost = 0;
   int start_lsb = (MV_PRECISION_ONE_EIGHTH_PEL - pb_mv_precision);
   const MV scaled_mv_diff = { abs(mv_diff.row) >> start_lsb,
