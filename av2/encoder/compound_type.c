@@ -495,6 +495,9 @@ static int handle_smooth_inter_intra_mode(
 
   mbmi->use_wedge_interintra = 0;
 
+  // Interintra mode whose prediction is currently in 'intrapred' and in the
+  // dst buffer (INTERINTRA_MODES if none).
+  INTERINTRA_MODE last_built_mode = INTERINTRA_MODES;
   if (cpi->sf.inter_sf.reuse_inter_intra_mode == 0 ||
       *best_interintra_mode == INTERINTRA_MODES) {
     int64_t best_interintra_rd = INT64_MAX;
@@ -507,15 +510,15 @@ static int handle_smooth_inter_intra_mode(
       compute_best_interintra_mode(
           cpi, mbmi, xd, x, interintra_mode_cost, orig_dst, intrapred, tmp_buf,
           best_interintra_mode, &best_interintra_rd, cur_mode, bsize);
+      last_built_mode = cur_mode;
     }
     args->inter_intra_mode[mbmi->ref_frame[0]] = *best_interintra_mode;
   }
   assert(IMPLIES(!cpi->oxcf.comp_type_cfg.enable_smooth_interintra,
                  *best_interintra_mode != II_SMOOTH_PRED));
-  // Recompute prediction if required.
-  bool interintra_mode_reuse = cpi->sf.inter_sf.reuse_inter_intra_mode ||
-                               *best_interintra_mode != INTERINTRA_MODES;
-  if (interintra_mode_reuse || *best_interintra_mode != INTERINTRA_MODES - 1) {
+  // Recompute prediction if required, i.e. unless the best mode was the last
+  // one built in the search above.
+  if (*best_interintra_mode != last_built_mode) {
     mbmi->interintra_mode = *best_interintra_mode;
     av2_build_intra_predictors_for_interintra(cm, xd, 0, orig_dst, intrapred,
                                               bw);
