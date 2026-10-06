@@ -186,6 +186,15 @@ enum {
   QTR_ONLY,
 } UENUM1BYTE(MV_PREC_LOGIC);
 
+enum {
+  // No reaction to rate control on a detected slide/scene change.
+  NO_DETECTION = 0,
+
+  // Set to larger Q based only on the detected slide/scene change and
+  // current/past Q.
+  FAST_DETECTION_MAXQ = 1,
+} UENUM1BYTE(OVERSHOOT_DETECTION_CBR);
+
 /*!\endcond */
 /*! \brief Used with \ref MACROBLOCK::reuse_inter_mode_cache_type to determine
  * whether partition mode is reused. */
@@ -1171,6 +1180,13 @@ typedef struct REALTIME_SPEED_FEATURES {
   // Disable searching for the best primary_ref_frame by trial-packing the
   // bitstream across candidate reference frames.
   int disable_primary_ref_frame_search;
+
+  // Check for scene/content change detection on every frame before encoding.
+  int check_scene_detection;
+
+  // Flag to indicate process for handling overshoot on slide/scene change,
+  // for real-time CBR mode.
+  OVERSHOOT_DETECTION_CBR overshoot_detection_cbr;
 } REALTIME_SPEED_FEATURES;
 
 typedef struct LC_DEC_SPEED_FEATURES {

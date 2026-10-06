@@ -189,6 +189,8 @@ typedef struct {
 
   int high_source_sad;
   uint64_t avg_source_sad;
+  uint64_t prev_avg_source_sad;
+  uint64_t frame_source_sad;
 
   int avg_frame_bandwidth;  // Average frame size target for clip
   int min_frame_bandwidth;  // Minimum allocation used for any frame
@@ -490,11 +492,23 @@ int av2_calc_pframe_target_size_one_pass_cbr(
  */
 int av2_calc_iframe_target_size_one_pass_cbr(const struct AV2_COMP *cpi);
 
+struct EncodeFrameInput;
+
+/*!\brief Run scene/slide detection for 1 pass real-time mode.
+ *
+ * \ingroup rate_control
+ * \param[in,out]   cpi          Top level encoder structure
+ * \param[in]       frame_input  Input frame pointers
+ */
+void av2_rc_scene_detection_onepass_rt(
+    struct AV2_COMP *cpi, const struct EncodeFrameInput *frame_input);
+
 /*!\brief Setup the rate control parameters for 1 pass real-time mode.
  *
  * \ingroup rate_control
  * \param[in,out]   cpi          Top level encoder structure
  * \param[out]      frame_type   Encoder frame type
+ * \param[in]       frame_input  Input frame pointers
  * \param[in]       frame_flags  Encoder frame flags
  *
  * \remark Nothing is returned. Instead the settings computed in this
@@ -502,7 +516,10 @@ int av2_calc_iframe_target_size_one_pass_cbr(const struct AV2_COMP *cpi);
  */
 void av2_get_one_pass_rt_params(struct AV2_COMP *cpi,
                                 FRAME_TYPE *const frame_type,
+                                const struct EncodeFrameInput *frame_input,
                                 unsigned int frame_flags);
+
+int av2_encodedframe_overshoot_cbr(struct AV2_COMP *cpi, int *q);
 
 #ifdef __cplusplus
 }  // extern "C"

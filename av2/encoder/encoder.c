@@ -3631,6 +3631,14 @@ static int encode_without_recode(AV2_COMP *cpi) {
   if (!frame_is_intra_only(cm))
     av2_scale_references(cpi, filter_scaler, phase_scaler, 1);
 
+  // Check if this high_source_sad (scene/slide change) frame should be
+  // encoded at high/max QP, and if so, set the q and adjust some rate
+  // control parameters.
+  if (cpi->sf.rt_sf.overshoot_detection_cbr == FAST_DETECTION_MAXQ &&
+      cpi->rc.high_source_sad) {
+    av2_encodedframe_overshoot_cbr(cpi, &q);
+  }
+
   av2_set_quantizer(cpi, q_cfg->qm_minlevel, q_cfg->qm_maxlevel, q,
                     q_cfg->enable_chroma_deltaq);
 
