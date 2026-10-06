@@ -1840,12 +1840,14 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
   av2_reset_winner_mode_stats(x);
   x->winner_mode_count = 0;
   mbmi->dpcm_mode_y = 0;
+  const bool intra_dry_pass =
+      frame_is_intra_only(cm) && x->apply_dry_pass_shortcuts;
 
   const MB_MODE_INFO *const cached_mode = get_reusable_intra_mode_cache(x);
   const bool reuse_cached_intra = cached_mode != NULL;
 
   //  Searches the intra-modes except for intrabc, palette, and filter_intra.
-  const bool try_fsc = allow_fsc_intra(cm, bsize, mbmi) &&
+  const bool try_fsc = !intra_dry_pass && allow_fsc_intra(cm, bsize, mbmi) &&
                        !(reuse_cached_intra &&
                          !cached_mode->fsc_mode[xd->tree_type == CHROMA_PART]);
   const int fsc_loop_num = try_fsc ? FSC_MODES : 1;
@@ -1867,7 +1869,9 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
 
     const uint8_t enable_mrls_flag = cm->seq_params.enable_mrls;
     int mrl_loop_num;
-    if (fsc_mode) {
+    if (intra_dry_pass) {
+      mrl_loop_num = 1;
+    } else if (fsc_mode) {
       mrl_loop_num = (enable_mrls_flag && best_mbmi.mrl_index) ? 2 : 1;
     } else {
       mrl_loop_num = enable_mrls_flag ? MRL_LINE_NUMBER : 1;
@@ -2071,7 +2075,7 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
   // Searches palette.
   int mode_cost = mode_costs->y_primary_flag_cost[DC_PRED];
   mode_cost += mode_costs->y_mode_idx_costs[context][DC_PRED];
-  if (try_palette &&
+  if (try_palette && !intra_dry_pass &&
       !(reuse_cached_intra &&
         cached_mode->palette_mode_info.palette_size[PLANE_TYPE_Y] == 0)) {
     av2_rd_pick_palette_intra_sby(cpi, x, bsize, mode_cost, &best_mbmi,
@@ -2083,7 +2087,7 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
 
   // Try Intra ML prediction (within intra frame).
   const bool try_intra_dip =
-      !intra_sf->skip_intra_dip_search &&
+      !intra_dry_pass && !intra_sf->skip_intra_dip_search &&
       av2_intra_dip_allowed_bsize(cm, bsize) &&
       !(reuse_cached_intra && !cached_mode->use_intra_dip);
   if (try_intra_dip) {

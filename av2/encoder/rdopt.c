@@ -7153,18 +7153,21 @@ void av2_rd_pick_intra_mode_sb(const struct AV2_COMP *cpi, ThreadData *td,
 
   if (rd_cost->rate != INT_MAX && rd_cost->rdcost < best_rd)
     best_rd = rd_cost->rdcost;
-  int all_intra = (cpi->oxcf.kf_cfg.key_freq_max == 0) &&
-                  (cpi->oxcf.kf_cfg.key_freq_min == 0);
-  int nz = 0;
-  if (all_intra) {
-    struct macroblock_plane *const p = &x->plane[0];
-    tran_low_t *const qcoeff = p->qcoeff + BLOCK_OFFSET(0);
-    for (int i = 0; i < av2_get_max_eob(mbmi->tx_size); ++i) {
-      if (qcoeff[i] > 0) nz++;
+  int skip_ibc_search = frame_is_intra_only(cm) && x->apply_dry_pass_shortcuts;
+  if (!skip_ibc_search) {
+    int all_intra = (cpi->oxcf.kf_cfg.key_freq_max == 0) &&
+                    (cpi->oxcf.kf_cfg.key_freq_min == 0);
+    int nz = 0;
+    if (all_intra) {
+      struct macroblock_plane *const p = &x->plane[0];
+      tran_low_t *const qcoeff = p->qcoeff + BLOCK_OFFSET(0);
+      for (int i = 0; i < av2_get_max_eob(mbmi->tx_size); ++i) {
+        if (qcoeff[i] > 0) nz++;
+      }
     }
+    skip_ibc_search =
+        !cm->features.allow_screen_content_tools && all_intra && (nz <= 0);
   }
-  int skip_ibc_search =
-      !cm->features.allow_screen_content_tools && all_intra && (nz <= 0);
   const MB_MODE_INFO *const cached_mode = get_reusable_intra_mode_cache(x);
   if (cached_mode != NULL &&
       !cached_mode->use_intrabc[xd->tree_type == CHROMA_PART]) {

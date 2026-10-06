@@ -415,6 +415,14 @@ static INLINE bool enable_motion_mode_search_in_winner_mode(
           inter_sf->enable_interintra_in_winner_mode);
 }
 
+// 8-bit-equivalent qindex: strips the bit-depth offset so the threshold
+// below matches the command-line --qp regardless of input bit depth.
+static AVM_INLINE int get_qindex_8bit_equiv(int base_qindex, int bit_depth) {
+  const int qindex_8b = base_qindex - (bit_depth - AVM_BITS_8) * MAXQ_OFFSET;
+  assert(qindex_8b >= 0);
+  return qindex_8b;
+}
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

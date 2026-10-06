@@ -2382,10 +2382,21 @@ static INLINE bool prune_tx_type_rd_calc_using_tx_domain_dist(
 #define DRY_PASS_ALLOWED_MAX_TX_PARTITION_TYPES 2
 
 // True when the fast two-pass dry pass should cap its inner tx-search loops
-// (IST set / stx sweep and tx-partition-type sweep). Gated on speed >= 4.
+// (IST set / stx sweep and tx-partition-type sweep). Gated on speed >= 4 and
+// inter frames only: on intra frames the capped dry pass mis-ranks shapes.
 static AVM_INLINE bool dry_pass_caps_tx_search(const MACROBLOCK *x,
                                                const AV2_COMP *cpi) {
-  return x->apply_dry_pass_shortcuts && cpi->oxcf.speed >= 4;
+  return x->apply_dry_pass_shortcuts && cpi->oxcf.speed >= 4 &&
+         !frame_is_intra_only(&cpi->common);
+}
+
+// True when the fast two-pass dry pass should cap its tx-partition-type sweep
+// to NONE + SPLIT. Enabled on intra frames whenever dry-pass shortcuts apply,
+// and on inter frames at speed >= 4.
+static AVM_INLINE bool dry_pass_caps_tx_part(const MACROBLOCK *x,
+                                             const AV2_COMP *cpi) {
+  return x->apply_dry_pass_shortcuts &&
+         (cpi->oxcf.speed >= 4 || frame_is_intra_only(&cpi->common));
 }
 
 // Effective disable_multiway_tx_part_in_rough_mode for the current block.
@@ -3666,7 +3677,7 @@ static void select_tx_partition_type(
   // pre-selected a multiway partition via WINNER_MODE_EVAL, so we do not
   // silently discard it.
   const int max_tx_part_type =
-      (dry_pass_caps_tx_search(x, cpi) && !tx_partition_preselected)
+      (dry_pass_caps_tx_part(x, cpi) && !tx_partition_preselected)
           ? DRY_PASS_ALLOWED_MAX_TX_PARTITION_TYPES
           : TX_PARTITION_TYPES;
 
@@ -4020,7 +4031,7 @@ static void choose_tx_size_type_from_rd(const AV2_COMP *const cpi,
   // Same NONE+SPLIT cap (and WINNER_MODE_EVAL escape) as in
   // select_tx_partition_type().
   const int max_tx_part_type =
-      (dry_pass_caps_tx_search(x, cpi) && !tx_partition_preselected)
+      (dry_pass_caps_tx_part(x, cpi) && !tx_partition_preselected)
           ? DRY_PASS_ALLOWED_MAX_TX_PARTITION_TYPES
           : TX_PARTITION_TYPES;
   for (TX_PARTITION_TYPE type = 0; type < max_tx_part_type; ++type) {

@@ -132,6 +132,9 @@ typedef struct PartitionSearchState {
 
   // Allowed partition types for the partition block.
   PARTITION_TYPE forced_partition;
+  // When set, PARTITION_NONE is also evaluated even though forced_partition
+  // is a split type (intra-frame wet pass, see av2_rd_pick_partition()).
+  bool try_none_with_forced_split;
   bool is_block_splittable;
   bool do_rectangular_split;
   bool partition_allowed[ALL_PARTITION_TYPES];
@@ -185,8 +188,12 @@ static AVM_INLINE void av2_set_two_pass_flags(
     x->intra_mode_prune_top = 1;
     x->inter_mode_prune_top = 2;
   } else if (is_wet_pass_reuse) {
+    const bool is_intra_only = frame_is_intra_only(&cpi->common);
+    const int full_intra_prune_top = cpi->sf.intra_sf.intra_pruning_with_mlp
+                                         ? cpi->sf.intra_sf.intra_mode_prune_top
+                                         : TOP_INTRA_MODEL_COUNT;
     // Wet pass reusing the dry-pass shape.
-    x->intra_mode_prune_top = 2;
+    x->intra_mode_prune_top = is_intra_only ? full_intra_prune_top : 2;
     x->inter_mode_prune_top = 4;
   } else {
     // Full pool.

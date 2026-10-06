@@ -154,6 +154,8 @@ static INLINE PARTITION_TYPE get_partition(const AV2_COMMON *const cm,
 static AVM_INLINE bool is_part_pruned_by_forced_partition(
     const PartitionSearchState *part_state, PARTITION_TYPE partition) {
   const PARTITION_TYPE forced_partition = part_state->forced_partition;
+  if (partition == PARTITION_NONE && part_state->try_none_with_forced_split)
+    return false;
   return forced_partition != PARTITION_INVALID && forced_partition != partition;
 }
 

@@ -183,12 +183,29 @@ static void set_good_speed_feature_framesize_dependent(
       sf->part_sf.disable_uneven_4way_partitions = true;
     }
     sf->inter_sf.prune_ref_mv_idx_search = 1;
+    if (is_1080p_or_larger && !is_4k_or_larger) {
+      sf->part_sf.intra_two_pass_max_qindex = 75;
+    } else if (is_720p_or_larger && !is_1080p_or_larger) {
+      sf->part_sf.intra_two_pass_max_qindex = 150;
+    } else if (is_480p_or_larger && !is_720p_or_larger) {
+      sf->part_sf.intra_two_pass_max_qindex = 255;
+    } else {
+      sf->part_sf.intra_two_pass_max_qindex = 95;
+    }
   }
 
   if (speed >= 2) {
     if (!is_720p_or_larger) {
     }
     sf->part_sf.ml_early_term_after_part_split_level = 2;
+    if (is_4k_or_larger) {
+      sf->part_sf.intra_two_pass_max_qindex = 95;
+    } else if ((is_720p_or_larger && !is_1080p_or_larger) ||
+               is_270p_or_lesser) {
+      sf->part_sf.intra_two_pass_max_qindex = 125;
+    } else {
+      sf->part_sf.intra_two_pass_max_qindex = 75;
+    }
   }
 
   if (speed >= 3) {
@@ -209,6 +226,16 @@ static void set_good_speed_feature_framesize_dependent(
     if (is_4k_or_larger) {
       sf->tx_sf.tx_type_search.prune_tx_type_est_rd = 1;
     }
+
+    if (is_4k_or_larger) {
+      sf->part_sf.intra_two_pass_max_qindex = 95;
+    } else if (is_720p_or_larger && !is_1080p_or_larger) {
+      sf->part_sf.intra_two_pass_max_qindex = 150;
+    } else if (is_480p_or_larger && !is_720p_or_larger) {
+      sf->part_sf.intra_two_pass_max_qindex = 255;
+    } else {
+      sf->part_sf.intra_two_pass_max_qindex = 75;
+    }
   }
 
   if (speed >= 4) {
@@ -223,6 +250,8 @@ static void set_good_speed_feature_framesize_dependent(
     if (AVMMIN(cm->width, cm->height) <= 360) {
       sf->lpf_sf.reduce_lr_unit_size_by_pyr_drop_low = 0;
     }
+
+    sf->part_sf.intra_two_pass_max_qindex = is_4k_or_larger ? 150 : 255;
   }
 
   if (speed >= 5) {
@@ -234,6 +263,7 @@ static void set_good_speed_feature_framesize_dependent(
     if (is_4k_or_larger) {
       sf->part_sf.prune_by_struct_orient = 1;
     }
+    sf->part_sf.intra_two_pass_max_qindex = 255;
   }
 
   if (speed >= 5) {
@@ -258,6 +288,8 @@ static void set_good_speed_feature_framesize_dependent(
     if (is_4k_or_larger) {
       sf->part_sf.prune_by_struct_orient = 2;
     }
+
+    sf->part_sf.intra_two_pass_max_qindex = is_270p_or_lesser ? 95 : 255;
   }
   // Speeds 1-6 override this in av2_set_speed_features_qindex_dependent().
   sf->part_sf.use_square_partition_only_threshold = BLOCK_LARGEST;
@@ -471,6 +503,8 @@ static void set_good_speed_features_framesize_independent(
 
     sf->lpf_sf.ccso_chroma_dep = 1;
     sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL1;
+    sf->part_sf.intra_two_pass_partition_search = TWO_PASS_PART_FAST;
+    sf->part_sf.intra_two_pass_max_qindex = 95;
   }
 
   if (speed >= 2) {
@@ -637,6 +671,9 @@ static void set_good_speed_features_framesize_independent(
     sf->lpf_sf.skip_wienerns_frame_filter_rounding = 1;
     if (cm->current_frame.pyramid_level >= 4)
       sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL3;
+
+    sf->part_sf.intra_two_pass_partition_search = TWO_PASS_PART_FAST;
+    sf->part_sf.intra_two_pass_max_qindex = 255;
 
     sf->part_sf.sms_unified_prune_horz = is_480p_or_larger ? 1 : 0;
     sf->part_sf.sms_unified_prune_vert = is_1080p_or_larger ? 1 : 0;
@@ -825,6 +862,7 @@ static void set_rt_speed_features_framesize_independent(
     AV2_COMP *const cpi, SPEED_FEATURES *const sf, int speed) {
   // Set this good features as default for now.
   set_good_speed_features_framesize_independent(cpi, sf, speed);
+  sf->part_sf.intra_two_pass_partition_search = TWO_PASS_PART_OFF;
   if (speed >= 6) {
     sf->inter_sf.prune_ref_frames = 3;
     sf->intra_sf.intra_pruning_with_mlp = 0;
@@ -916,6 +954,8 @@ static AVM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->prune_part_4b_with_part_4a = 0;
   part_sf->two_pass_partition_search = TWO_PASS_PART_OFF;
   part_sf->wet_pass_keep_skip_none_min_side = 0;
+  part_sf->intra_two_pass_partition_search = TWO_PASS_PART_OFF;
+  part_sf->intra_two_pass_max_qindex = 0;
   part_sf->partition_pruning_with_mlp = 0;
   part_sf->partition_pruning_with_mlp_none_thresh = 0.0f;
   part_sf->sms_unified_prune_horz = 0;
@@ -1691,9 +1731,14 @@ static AVM_INLINE void set_two_pass_partition_level(AV2_COMP *cpi) {
   int *const level = &cpi->sf.part_sf.two_pass_partition_search;
 
   *level = TWO_PASS_PART_OFF;
-  // Both regimes only ever run on inter frames.
-  // TODO(Yeqing): Extend to intra/key frames.
-  if (frame_is_intra_only(cm)) return;
+  if (frame_is_intra_only(cm)) {
+    const int qindex_8b = get_qindex_8bit_equiv(cm->quant_params.base_qindex,
+                                                cm->seq_params.bit_depth);
+    if (qindex_8b <= cpi->sf.part_sf.intra_two_pass_max_qindex) {
+      *level = cpi->sf.part_sf.intra_two_pass_partition_search;
+    }
+    return;
+  }
 
   if (av2_wants_two_pass_partition(&cpi->oxcf)) {
     *level = TWO_PASS_PART_FAST;
