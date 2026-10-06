@@ -498,6 +498,8 @@ static AVM_FORCE_INLINE void get_rate_dist_def_luma_avx2_impl(
   __m256i base_ctx = _mm256_slli_epi16(ctx16, 12);
   base_ctx = _mm256_srli_epi16(base_ctx, 12);
   base_ctx = _mm256_add_epi16(base_ctx, diag);
+  // Keep the rates in registers and store them to 'rd' only once at the end.
+  __m128i rate_lo[TCQ_N_STATES >> 2], rate_hi[TCQ_N_STATES >> 2];
   for (int i = 0; i < (TCQ_N_STATES >> 2); i++) {
     int ctx0 = _mm256_extract_epi16(base_ctx, 0);
     int ctx1 = _mm256_extract_epi16(base_ctx, 1);
@@ -510,10 +512,8 @@ static AVM_FORCE_INLINE void get_rate_dist_def_luma_avx2_impl(
     __m128i rate_67 = _mm_loadu_si64(&cost_low_tbl[idx][ctx3][1]);
     __m128i rate_0123 = _mm_unpacklo_epi32(rate_01, rate_23);
     __m128i rate_4567 = _mm_unpacklo_epi32(rate_45, rate_67);
-    rate_0123 = _mm_unpacklo_epi16(rate_0123, c_zero);
-    rate_4567 = _mm_unpacklo_epi16(rate_4567, c_zero);
-    _mm_storeu_si128((__m128i *)&rd->rate[8 * i], rate_0123);
-    _mm_storeu_si128((__m128i *)&rd->rate[8 * i + 4], rate_4567);
+    rate_lo[i] = _mm_unpacklo_epi16(rate_0123, c_zero);
+    rate_hi[i] = _mm_unpacklo_epi16(rate_4567, c_zero);
   }
 
   // Calc coeff/eob cost.
@@ -522,7 +522,6 @@ static AVM_FORCE_INLINE void get_rate_dist_def_luma_avx2_impl(
   rate_eob_coef = _mm_unpacklo_epi16(rate_eob_coef, c_zero);
   __m128i rate_eob_position = _mm_set1_epi32(eob_rate);
   __m128i rate_eob = _mm_add_epi32(rate_eob_coef, rate_eob_position);
-  _mm_storeu_si64(&rd->rate_eob[0], rate_eob);
 
   // Calc coeff mid and high range cost.
   if (qIdx > 1) {
@@ -532,7 +531,6 @@ static AVM_FORCE_INLINE void get_rate_dist_def_luma_avx2_impl(
         _mm_loadu_si64(&txb_costs->mid_cost_tbl[mid_idx][0][0][0]);
     mid_rate_eob = _mm_unpacklo_epi16(mid_rate_eob, c_zero);
     rate_eob = _mm_add_epi32(rate_eob, mid_rate_eob);
-    _mm_storeu_si64(&rd->rate_eob[0], rate_eob);
     __m256i mid_ctx = _mm256_srli_epi16(ctx16, 4);
     __m256i mid_diag = _mm256_set1_epi16(mid_diag_ctx);
     mid_ctx = _mm256_add_epi16(mid_ctx, mid_diag);
@@ -550,12 +548,8 @@ static AVM_FORCE_INLINE void get_rate_dist_def_luma_avx2_impl(
       __m128i mid_rate_4567 = _mm_unpacklo_epi32(mid_rate_45, mid_rate_67);
       mid_rate_0123 = _mm_unpacklo_epi16(mid_rate_0123, c_zero);
       mid_rate_4567 = _mm_unpacklo_epi16(mid_rate_4567, c_zero);
-      __m128i rate_0123 = _mm_lddqu_si128((__m128i *)&rd->rate[8 * i]);
-      __m128i rate_4567 = _mm_lddqu_si128((__m128i *)&rd->rate[8 * i + 4]);
-      rate_0123 = _mm_add_epi32(rate_0123, mid_rate_0123);
-      rate_4567 = _mm_add_epi32(rate_4567, mid_rate_4567);
-      _mm_storeu_si128((__m128i *)&rd->rate[8 * i], rate_0123);
-      _mm_storeu_si128((__m128i *)&rd->rate[8 * i + 4], rate_4567);
+      rate_lo[i] = _mm_add_epi32(rate_lo[i], mid_rate_0123);
+      rate_hi[i] = _mm_add_epi32(rate_hi[i], mid_rate_4567);
     }
     if (qIdx >= 6) {
       if (qIdx - 5 <= 248) {
@@ -570,15 +564,9 @@ static AVM_FORCE_INLINE void get_rate_dist_def_luma_avx2_impl(
           __m128i rate_hr_0123 = _mm_unpacklo_epi64(rate_hr, rate_hr);
           __m128i rate_hr_4567 = _mm_unpackhi_epi64(rate_hr, rate_hr);
           rate_eob = _mm_add_epi32(rate_eob, rate_hr_0123);
-          _mm_storeu_si64(&rd->rate_eob[0], rate_eob);
           for (int i = 0; i < (TCQ_N_STATES >> 2); i++) {
-            __m128i rate_0123 = _mm_lddqu_si128((__m128i *)&rd->rate[8 * i]);
-            __m128i rate_4567 =
-                _mm_lddqu_si128((__m128i *)&rd->rate[8 * i + 4]);
-            rate_0123 = _mm_add_epi32(rate_0123, rate_hr_0123);
-            rate_4567 = _mm_add_epi32(rate_4567, rate_hr_4567);
-            _mm_storeu_si128((__m128i *)&rd->rate[8 * i], rate_0123);
-            _mm_storeu_si128((__m128i *)&rd->rate[8 * i + 4], rate_4567);
+            rate_lo[i] = _mm_add_epi32(rate_lo[i], rate_hr_0123);
+            rate_hi[i] = _mm_add_epi32(rate_hi[i], rate_hr_4567);
           }
         }
       } else {  // qIdx - 5 > 248
@@ -586,21 +574,23 @@ static AVM_FORCE_INLINE void get_rate_dist_def_luma_avx2_impl(
         int mid_cost1 = get_golomb_cost_tcq(absLevel[1], 0);
         int mid_cost2 = get_golomb_cost_tcq(absLevel[2], 0);
         int mid_cost3 = get_golomb_cost_tcq(absLevel[3], 0);
+        const __m128i mid_cost_0202 =
+            _mm_setr_epi32(mid_cost0, mid_cost2, mid_cost0, mid_cost2);
+        const __m128i mid_cost_1313 =
+            _mm_setr_epi32(mid_cost1, mid_cost3, mid_cost1, mid_cost3);
         for (int i = 0; i < (TCQ_N_STATES >> 2); i++) {
-          rd->rate[8 * i] += mid_cost0;
-          rd->rate[8 * i + 1] += mid_cost2;
-          rd->rate[8 * i + 2] += mid_cost0;
-          rd->rate[8 * i + 3] += mid_cost2;
-          rd->rate[8 * i + 4] += mid_cost1;
-          rd->rate[8 * i + 5] += mid_cost3;
-          rd->rate[8 * i + 6] += mid_cost1;
-          rd->rate[8 * i + 7] += mid_cost3;
+          rate_lo[i] = _mm_add_epi32(rate_lo[i], mid_cost_0202);
+          rate_hi[i] = _mm_add_epi32(rate_hi[i], mid_cost_1313);
         }
-        rd->rate_eob[0] += mid_cost0;
-        rd->rate_eob[1] += mid_cost2;
+        rate_eob = _mm_add_epi32(rate_eob, mid_cost_0202);
       }
     }
   }
+  for (int i = 0; i < (TCQ_N_STATES >> 2); i++) {
+    _mm_storeu_si128((__m128i *)&rd->rate[8 * i], rate_lo[i]);
+    _mm_storeu_si128((__m128i *)&rd->rate[8 * i + 4], rate_hi[i]);
+  }
+  _mm_storeu_si64(&rd->rate_eob[0], rate_eob);
 }
 
 static AVM_FORCE_INLINE void get_rate_dist_def_luma_q1_avx2_impl(
@@ -822,6 +812,8 @@ static AVM_FORCE_INLINE void get_rate_dist_lf_luma_avx2_impl(
   __m128i c_zero = _mm256_castsi256_si128(zero);
   __m256i base_diag = _mm256_set1_epi8(base_diag_ctx);
   base_ctx = _mm256_add_epi8(base_ctx, base_diag);
+  // Keep the rates in registers and store them to 'rd' only once.
+  __m128i rate_lo[TCQ_N_STATES >> 2], rate_hi[TCQ_N_STATES >> 2];
   for (int i = 0; i < (TCQ_N_STATES >> 2); i++) {
     int ctx0 = _mm256_extract_epi8(base_ctx, 0);
     int ctx1 = _mm256_extract_epi8(base_ctx, 1);
@@ -834,10 +826,8 @@ static AVM_FORCE_INLINE void get_rate_dist_lf_luma_avx2_impl(
     __m128i rate_67 = _mm_loadu_si64(&cost_low_tbl[idx][ctx3][1]);
     __m128i rate_0123 = _mm_unpacklo_epi32(rate_01, rate_23);
     __m128i rate_4567 = _mm_unpacklo_epi32(rate_45, rate_67);
-    rate_0123 = _mm_unpacklo_epi16(rate_0123, c_zero);
-    rate_4567 = _mm_unpacklo_epi16(rate_4567, c_zero);
-    _mm_storeu_si128((__m128i *)&rd->rate[8 * i], rate_0123);
-    _mm_storeu_si128((__m128i *)&rd->rate[8 * i + 4], rate_4567);
+    rate_lo[i] = _mm_unpacklo_epi16(rate_0123, c_zero);
+    rate_hi[i] = _mm_unpacklo_epi16(rate_4567, c_zero);
   }
 
   // Calc coeff/eob cost.
@@ -846,10 +836,16 @@ static AVM_FORCE_INLINE void get_rate_dist_lf_luma_avx2_impl(
   rate_eob_coef = _mm_unpacklo_epi16(rate_eob_coef, c_zero);
   __m128i rate_eob_position = _mm_set1_epi32(eob_rate);
   __m128i rate_eob = _mm_add_epi32(rate_eob_coef, rate_eob_position);
-  _mm_storeu_si64(&rd->rate_eob[0], rate_eob);
 
   const bool is_dc_coeff = (blk_pos == 0);
   if (is_dc_coeff) {
+    // The DC coefficient adds per-state costs in scalar code, so store the
+    // base rates first.
+    for (int i = 0; i < (TCQ_N_STATES >> 2); i++) {
+      _mm_storeu_si128((__m128i *)&rd->rate[8 * i], rate_lo[i]);
+      _mm_storeu_si128((__m128i *)&rd->rate[8 * i + 4], rate_hi[i]);
+    }
+    _mm_storeu_si64(&rd->rate_eob[0], rate_eob);
     for (int i = 0; i < TCQ_N_STATES; i++) {
       int a0 = i & 2 ? 1 : 0;
       int a1 = a0 + 2;
@@ -866,7 +862,9 @@ static AVM_FORCE_INLINE void get_rate_dist_lf_luma_avx2_impl(
                                          dc_sign_ctx, txb_costs);
     rd->rate_eob[0] += eob_mid_cost0;
     rd->rate_eob[1] += eob_mid_cost1;
-  } else if (qIdx > 5) {
+    return;
+  }
+  if (qIdx > 5) {
     // Estimate mid range coef bits.
     int mid_idx = AVMMIN(qIdx - 1, 14);
     int br_ctx_eob = 7;
@@ -874,7 +872,6 @@ static AVM_FORCE_INLINE void get_rate_dist_lf_luma_avx2_impl(
         _mm_loadu_si64(&txb_costs->mid_lf_cost_tbl[mid_idx][br_ctx_eob][0][0]);
     mid_rate_eob = _mm_unpacklo_epi16(mid_rate_eob, c_zero);
     rate_eob = _mm_add_epi32(rate_eob, mid_rate_eob);
-    _mm_storeu_si64(&rd->rate_eob[0], rate_eob);
     __m256i mid_ctx = _mm256_unpacklo_epi8(ctx, zero);
     mid_ctx = _mm256_srli_epi16(mid_ctx, 4);
     __m256i mid_diag = _mm256_set1_epi16(mid_diag_ctx);
@@ -893,12 +890,8 @@ static AVM_FORCE_INLINE void get_rate_dist_lf_luma_avx2_impl(
       __m128i mid_rate_4567 = _mm_unpacklo_epi32(mid_rate_45, mid_rate_67);
       mid_rate_0123 = _mm_unpacklo_epi16(mid_rate_0123, c_zero);
       mid_rate_4567 = _mm_unpacklo_epi16(mid_rate_4567, c_zero);
-      __m128i rate_0123 = _mm_lddqu_si128((__m128i *)&rd->rate[8 * i]);
-      __m128i rate_4567 = _mm_lddqu_si128((__m128i *)&rd->rate[8 * i + 4]);
-      rate_0123 = _mm_add_epi32(rate_0123, mid_rate_0123);
-      rate_4567 = _mm_add_epi32(rate_4567, mid_rate_4567);
-      _mm_storeu_si128((__m128i *)&rd->rate[8 * i], rate_0123);
-      _mm_storeu_si128((__m128i *)&rd->rate[8 * i + 4], rate_4567);
+      rate_lo[i] = _mm_add_epi32(rate_lo[i], mid_rate_0123);
+      rate_hi[i] = _mm_add_epi32(rate_hi[i], mid_rate_4567);
     }
     if (qIdx >= 10) {
       // Add high range (golomb) bits.
@@ -911,35 +904,32 @@ static AVM_FORCE_INLINE void get_rate_dist_lf_luma_avx2_impl(
         __m128i rate_hr_0123 = _mm_unpacklo_epi64(rate_hr, rate_hr);
         __m128i rate_hr_4567 = _mm_unpackhi_epi64(rate_hr, rate_hr);
         rate_eob = _mm_add_epi32(rate_eob, rate_hr_0123);
-        _mm_storeu_si64(&rd->rate_eob[0], rate_eob);
         for (int i = 0; i < (TCQ_N_STATES >> 2); i++) {
-          __m128i rate_0123 = _mm_lddqu_si128((__m128i *)&rd->rate[8 * i]);
-          __m128i rate_4567 = _mm_lddqu_si128((__m128i *)&rd->rate[8 * i + 4]);
-          rate_0123 = _mm_add_epi32(rate_0123, rate_hr_0123);
-          rate_4567 = _mm_add_epi32(rate_4567, rate_hr_4567);
-          _mm_storeu_si128((__m128i *)&rd->rate[8 * i], rate_0123);
-          _mm_storeu_si128((__m128i *)&rd->rate[8 * i + 4], rate_4567);
+          rate_lo[i] = _mm_add_epi32(rate_lo[i], rate_hr_0123);
+          rate_hi[i] = _mm_add_epi32(rate_hi[i], rate_hr_4567);
         }
       } else {  // qIdx - 9 > 248
         int mid_cost0 = get_golomb_cost_tcq(absLevel[0], 1);
         int mid_cost1 = get_golomb_cost_tcq(absLevel[1], 1);
         int mid_cost2 = get_golomb_cost_tcq(absLevel[2], 1);
         int mid_cost3 = get_golomb_cost_tcq(absLevel[3], 1);
+        const __m128i mid_cost_0202 =
+            _mm_setr_epi32(mid_cost0, mid_cost2, mid_cost0, mid_cost2);
+        const __m128i mid_cost_1313 =
+            _mm_setr_epi32(mid_cost1, mid_cost3, mid_cost1, mid_cost3);
         for (int i = 0; i < (TCQ_N_STATES >> 2); i++) {
-          rd->rate[8 * i] += mid_cost0;
-          rd->rate[8 * i + 1] += mid_cost2;
-          rd->rate[8 * i + 2] += mid_cost0;
-          rd->rate[8 * i + 3] += mid_cost2;
-          rd->rate[8 * i + 4] += mid_cost1;
-          rd->rate[8 * i + 5] += mid_cost3;
-          rd->rate[8 * i + 6] += mid_cost1;
-          rd->rate[8 * i + 7] += mid_cost3;
+          rate_lo[i] = _mm_add_epi32(rate_lo[i], mid_cost_0202);
+          rate_hi[i] = _mm_add_epi32(rate_hi[i], mid_cost_1313);
         }
-        rd->rate_eob[0] += mid_cost0;
-        rd->rate_eob[1] += mid_cost2;
+        rate_eob = _mm_add_epi32(rate_eob, mid_cost_0202);
       }
     }
   }
+  for (int i = 0; i < (TCQ_N_STATES >> 2); i++) {
+    _mm_storeu_si128((__m128i *)&rd->rate[8 * i], rate_lo[i]);
+    _mm_storeu_si128((__m128i *)&rd->rate[8 * i + 4], rate_hi[i]);
+  }
+  _mm_storeu_si64(&rd->rate_eob[0], rate_eob);
 }
 
 static AVM_FORCE_INLINE void get_rate_dist_lf_luma_q1_avx2_impl(
