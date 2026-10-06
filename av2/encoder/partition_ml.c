@@ -169,7 +169,8 @@ static AVM_INLINE void av2_ml_part_split_features_square(AV2_COMP *const cpi,
 
         for (PREDICTION_MODE intra_sub_mode = INTRA_MODE_START;
              intra_sub_mode < INTRA_MODE_END; ++intra_sub_mode) {
-          memset(intrapred, 0, sizeof(intrapred));
+          // No need to clear 'intrapred': av2_predict_intra_block() writes
+          // the full tx_sub_size block, which is all that is read below.
           xd->up_available = (mi_row + row_off) > 0;
           xd->left_available = (mi_col + col_off) > 0;
           av2_predict_intra_block(
@@ -240,7 +241,8 @@ static AVM_INLINE void av2_ml_part_split_features_none(AV2_COMP *const cpi,
   for (PREDICTION_MODE intra_mode = INTRA_MODE_START;
        intra_mode < INTRA_MODE_END; ++intra_mode) {
     unsigned int curr_sse = 0, curr_var = 0;
-    memset(intrapred, 0, sizeof(intrapred));
+    // No need to clear 'intrapred': each tx block below is fully written by
+    // av2_predict_intra_block() before it is read.
     for (int row_off = 0; row_off < h_mi; row_off += tx_h) {
       for (int col_off = 0; col_off < w_mi; col_off += tx_w) {
         int src_off = (row_off << 2) * x->plane[0].src.stride + (col_off << 2);
