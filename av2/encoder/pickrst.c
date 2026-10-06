@@ -1556,60 +1556,64 @@ static int64_t compute_stats_for_wienerns_filter(
   const int num_feat = nsfilter_params->ncoeffs;
 
   int64_t real_sse = 0;  // for debuggung purposes
-  for (int c_id = 0; c_id < num_classes; ++c_id) {
-    for (int i = limits->v_start; i < limits->v_end; ++i) {
-      for (int j = limits->h_start; j < limits->h_end; ++j) {
-        int dgd_id = i * dgd_stride + j;
-        int src_id = i * src_stride + j;
+  // Single raster pass: each pixel only contributes to the statistics of its
+  // own class. The per-class accumulation order is the same raster order as
+  // a separate pass per class, so the results are identical.
+  for (int i = limits->v_start; i < limits->v_end; ++i) {
+    for (int j = limits->h_start; j < limits->h_end; ++j) {
+      int dgd_id = i * dgd_stride + j;
+      int src_id = i * src_stride + j;
 
-        // Skip pixel if not of sub_class_id.
-        if (num_classes > 1) {
-          const int full_class_id =
-              rui->wiener_class_id[(i >> MI_SIZE_LOG2) *
-                                       rui->wiener_class_id_stride +
-                                   (j >> MI_SIZE_LOG2)];
-          const int sub_class_id = pc_wiener_sub_classify[full_class_id];
-          if (c_id != sub_class_id) continue;
-        }
-
-        int luma_id = i * rui->luma_stride + j;
-        memset(buf, 0, sizeof(buf));
-        for (int k = 0; k < end_pixel; ++k) {
-          const int cross =
-              (is_uv && k >= nsfilter_params->nsfilter_config.num_pixels);
-
-          if (!cross) {
-            const int pos = wienerns_config[k][WIENERNS_BUF_POS];
-            const int r = wienerns_config[k][WIENERNS_ROW_ID];
-            const int c = wienerns_config[k][WIENERNS_COL_ID];
-            if (r == 0 && c == 0) {
-              buf[pos] += 1;
-              continue;
-            }
-            buf[pos] +=
-                clip_base((int16_t)dgd_hbd[(i + r) * dgd_stride + (j + c)] -
-                              (int16_t)dgd_hbd[dgd_id],
-                          bit_depth);
-          } else {
-            const int k2 = k - nsfilter_params->nsfilter_config.num_pixels;
-            const int pos = wienerns_config2[k2][WIENERNS_BUF_POS];
-            const int r = wienerns_config2[k2][WIENERNS_ROW_ID];
-            const int c = wienerns_config2[k2][WIENERNS_COL_ID];
-
-            buf[pos] += clip_base(
-                (int16_t)luma_hbd[(i + r) * rui->luma_stride + (j + c)] -
-                    (int16_t)luma_hbd[luma_id],
-                bit_depth);
-          }
-        }
-        int16_t y;
-        y = ((int64_t)src_hbd[src_id] - dgd_hbd[dgd_id]);
-        av2_accumulate_wienerns_correlation(
-            A + c_id * stride_A, b + c_id * stride_b, buf, y, num_feat);
-        real_sse += (int64_t)y * (int64_t)y;
-        ++num_pixels_in_class[c_id];
+      int c_id = 0;
+      if (num_classes > 1) {
+        const int full_class_id =
+            rui->wiener_class_id[(i >> MI_SIZE_LOG2) *
+                                     rui->wiener_class_id_stride +
+                                 (j >> MI_SIZE_LOG2)];
+        c_id = pc_wiener_sub_classify[full_class_id];
+        // Skip pixels not belonging to any of the classes.
+        if (c_id >= num_classes) continue;
       }
+
+      int luma_id = i * rui->luma_stride + j;
+      memset(buf, 0, sizeof(buf));
+      for (int k = 0; k < end_pixel; ++k) {
+        const int cross =
+            (is_uv && k >= nsfilter_params->nsfilter_config.num_pixels);
+
+        if (!cross) {
+          const int pos = wienerns_config[k][WIENERNS_BUF_POS];
+          const int r = wienerns_config[k][WIENERNS_ROW_ID];
+          const int c = wienerns_config[k][WIENERNS_COL_ID];
+          if (r == 0 && c == 0) {
+            buf[pos] += 1;
+            continue;
+          }
+          buf[pos] +=
+              clip_base((int16_t)dgd_hbd[(i + r) * dgd_stride + (j + c)] -
+                            (int16_t)dgd_hbd[dgd_id],
+                        bit_depth);
+        } else {
+          const int k2 = k - nsfilter_params->nsfilter_config.num_pixels;
+          const int pos = wienerns_config2[k2][WIENERNS_BUF_POS];
+          const int r = wienerns_config2[k2][WIENERNS_ROW_ID];
+          const int c = wienerns_config2[k2][WIENERNS_COL_ID];
+
+          buf[pos] += clip_base(
+              (int16_t)luma_hbd[(i + r) * rui->luma_stride + (j + c)] -
+                  (int16_t)luma_hbd[luma_id],
+              bit_depth);
+        }
+      }
+      int16_t y;
+      y = ((int64_t)src_hbd[src_id] - dgd_hbd[dgd_id]);
+      av2_accumulate_wienerns_correlation(
+          A + c_id * stride_A, b + c_id * stride_b, buf, y, num_feat);
+      real_sse += (int64_t)y * (int64_t)y;
+      ++num_pixels_in_class[c_id];
     }
+  }
+  for (int c_id = 0; c_id < num_classes; ++c_id) {
     for (int k = 0; k < num_feat; ++k) {
       for (int l = k + 1; l < num_feat; ++l) {
         A[k * num_feat + l + c_id * stride_A] =
