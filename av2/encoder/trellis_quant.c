@@ -361,9 +361,8 @@ void av2_decide_states_c(const struct tcq_node_t *prev,
   int64_t rdCost_zero[TCQ_MAX_STATES];
   int64_t rdCost_eob[2];
 
-  // Init to 0 to avoid ASAN uninitialization warnings
-  memset(rdCost, 0, sizeof(rdCost));
-  memset(rdCost_zero, 0, sizeof(rdCost_zero));
+  // No need to clear rdCost/rdCost_zero: every entry is written below before
+  // it is read.
   init_tcq_decision(decision);
 
   for (int i = 0; i < TCQ_N_STATES; i++) {
@@ -423,9 +422,8 @@ void av2_decide_states_q1_c(const struct tcq_node_t *prev,
   int64_t rdCost[2 * TCQ_MAX_STATES];
   int64_t rdCost_zero[TCQ_MAX_STATES];
 
-  // Init to 0 to avoid ASAN uninitialization warnings
-  memset(rdCost, 0, sizeof(rdCost));
-  memset(rdCost_zero, 0, sizeof(rdCost_zero));
+  // No need to clear rdCost/rdCost_zero: rdCost_zero is fully written below,
+  // and only the rdCost entries written below are read.
   init_tcq_decision(decision);
 
   for (int i = 0; i < TCQ_N_STATES; i++) {
