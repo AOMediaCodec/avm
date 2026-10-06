@@ -1144,9 +1144,13 @@ void av2_inv_stxfm(tran_low_t *coeff, TxfmParam *txfm_param) {
     tmp = buf1;
     src = coeff;
     memset(src, 0, width * height * sizeof(tran_low_t));
+    // coeff8x8_mapping holds only the distinct orderings; coeff8x8_mapping_idx
+    // selects the one this (set, stx_type) pair uses.
     const int16_t *sup_reg_mapping =
         sb_size == 8
-            ? &coeff8x8_mapping[txfm_param->sec_tx_set * 3 + stx_type - 1][0]
+            ? coeff8x8_mapping[coeff8x8_mapping_idx[txfm_param->sec_tx_set *
+                                                        (STX_TYPES - 1) +
+                                                    (stx_type - 1)]]
             : NULL;
     for (int r = 0; r < reduced_width; r++) {
       if (sb_size == 8)
