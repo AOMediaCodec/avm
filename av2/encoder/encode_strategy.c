@@ -1229,7 +1229,8 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
 
   if (has_no_stats_stage(cpi)) {
     if (cpi->oxcf.gf_cfg.lag_in_frames == 0 && cpi->oxcf.mode == REALTIME) {
-      av2_get_one_pass_rt_params(cpi, &frame_params.frame_type, *frame_flags);
+      av2_get_one_pass_rt_params(cpi, &frame_params.frame_type, &frame_input,
+                                 *frame_flags);
       frame_update_type = get_frame_update_type(gf_group);
     } else {
       if (*frame_flags & FRAMEFLAGS_KEY) {
