@@ -120,7 +120,7 @@ static int search_filter_offsets(
     const int last_frame_q_offsets[MAX_MB_PLANE][NUM_EDGE_DIRS],
     const int last_frame_side_offsets[MAX_MB_PLANE][NUM_EDGE_DIRS],
     double *best_cost_ret, int plane, int search_side_offset, int dir,
-    int64_t *best_filter_sse) {
+    int64_t *best_filter_sse, int64_t known_start_err) {
   const AV2_COMMON *const cm = &cpi->common;
   MACROBLOCK *x = &cpi->td.mb;
   const uint8_t df_par_bits = cm->seq_params.df_par_bits_minus2 + 2;
@@ -162,10 +162,16 @@ static int search_filter_offsets(
   int64_t ss_err[MAX_DF_OFFSETS + 1];
   memset(ss_err, 0xFF, sizeof(ss_err));  // Set each entry to -1
 
-  yv12_copy_plane(&cm->cur_frame->buf, &cpi->last_frame_uf, plane);
-
-  start_err = best_err = try_filter_frame(sd, cpi, offset_mid, offset_mid,
-                                          partial_frame, plane, dir);
+  if (known_start_err >= 0) {
+    // The caller already evaluated this exact filter configuration, and
+    // cpi->last_frame_uf already holds the unfiltered plane (every
+    // try_filter_frame() call restores the plane from it).
+    start_err = best_err = known_start_err;
+  } else {
+    yv12_copy_plane(&cm->cur_frame->buf, &cpi->last_frame_uf, plane);
+    start_err = best_err = try_filter_frame(sd, cpi, offset_mid, offset_mid,
+                                            partial_frame, plane, dir);
+  }
   ss_err[offset_mid + ZERO_DF_OFFSET] = best_err;
   offset_best = offset_mid;
 
@@ -335,7 +341,8 @@ void av2_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
     int offset = search_filter_offsets(
         sd, cpi, method == LPF_PICK_FROM_SUBIMAGE, last_frame_delta_q,
         last_frame_delta_side, &best_single_cost, AVM_PLANE_Y,
-        search_side_offset, /*dir=*/2, &best_single_sse);
+        search_side_offset, /*dir=*/2, &best_single_sse,
+        /*known_start_err=*/-1);
     for (EDGE_DIR dir = VERT_EDGE; dir < NUM_EDGE_DIRS; ++dir) {
       last_frame_delta_side[AVM_PLANE_Y][dir] = offset;
       lf->delta_side_luma[dir] = offset;
@@ -348,10 +355,16 @@ void av2_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
     }
     // both directions different offset
     for (EDGE_DIR dir = VERT_EDGE; dir < NUM_EDGE_DIRS; ++dir) {
-      offset = search_filter_offsets(sd, cpi, method == LPF_PICK_FROM_SUBIMAGE,
-                                     last_frame_delta_q, last_frame_delta_side,
-                                     &best_dual_cost, AVM_PLANE_Y,
-                                     search_side_offset, dir, &best_dual_sse);
+      // The starting state of this search (this direction at the offset
+      // chosen so far for it, and the other direction at its current
+      // offset) is the final state of the previous search, whose SSE is
+      // known: best_single_sse for VERT_EDGE, best_dual_sse for HORZ_EDGE.
+      const int64_t known_start_err =
+          (dir == VERT_EDGE) ? best_single_sse : best_dual_sse;
+      offset = search_filter_offsets(
+          sd, cpi, method == LPF_PICK_FROM_SUBIMAGE, last_frame_delta_q,
+          last_frame_delta_side, &best_dual_cost, AVM_PLANE_Y,
+          search_side_offset, dir, &best_dual_sse, known_start_err);
       last_frame_delta_side[AVM_PLANE_Y][dir] = offset;
       lf->delta_side_luma[dir] = offset;
 
@@ -410,10 +423,15 @@ void av2_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
             cpi->td.mb.rdmult * CHROMA_LAMBDA_MULT, 0, no_deblocking_sse,
             bit_depth);
         for (int pass = 0; pass < 2; ++pass) {
+          // Pass 1 starts from the offset returned by pass 0, whose SSE is
+          // already in best_filter_sse[plane].
+          const int64_t known_start_err =
+              (pass == 0) ? -1 : best_filter_sse[plane];
           offset = search_filter_offsets(
               sd, cpi, method == LPF_PICK_FROM_SUBIMAGE, last_frame_delta_q,
               last_frame_delta_side, &best_cost[plane], plane,
-              search_side_offset, dir, &best_filter_sse[plane]);
+              search_side_offset, dir, &best_filter_sse[plane],
+              known_start_err);
           last_frame_delta_side[plane][0] = offset;
           *delta_side[plane] = offset;
           last_frame_delta_q[plane][0] = offset;
