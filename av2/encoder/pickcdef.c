@@ -568,13 +568,15 @@ void av2_cdef_search(const YV12_BUFFER_CONFIG *frame,
                           CDEF_HBORDER * (fbc + hb_step < nhfb) + xoff;
         const int row = fbr * MI_SIZE_64X64 << mi_high_l2[pli];
         const int col = fbc * MI_SIZE_64X64 << mi_wide_l2[pli];
+        // The input window does not depend on the strength, and
+        // av2_cdef_filter_fb() does not modify 'in', so copy it only once.
+        copy_fn(&in[(-yoff * CDEF_BSTRIDE - xoff)], CDEF_BSTRIDE,
+                xd->plane[pli].dst.buf, row - yoff, col - xoff,
+                xd->plane[pli].dst.stride, ysize, xsize);
         for (int gi = 0; gi < total_strengths; gi++) {
           int pri_strength, sec_strength;
           get_cdef_filter_strengths(pick_method, &pri_strength, &sec_strength,
                                     gi);
-          copy_fn(&in[(-yoff * CDEF_BSTRIDE - xoff)], CDEF_BSTRIDE,
-                  xd->plane[pli].dst.buf, row - yoff, col - xoff,
-                  xd->plane[pli].dst.stride, ysize, xsize);
           av2_cdef_filter_fb(
               NULL, tmp_dst, CDEF_BSTRIDE, in, xdec[pli], ydec[pli], dir,
               &dirinit, var, pli, dlist, cdef_count, pri_strength,
