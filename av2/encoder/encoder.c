@@ -5058,7 +5058,8 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size, uint8_t *dest,
   // For 1 pass CBR, check if we are dropping this frame.
   // Never drop on key frame.
   if (has_no_stats_stage(cpi) && oxcf->rc_cfg.mode == AVM_CBR &&
-      current_frame->frame_type != KEY_FRAME) {
+      current_frame->frame_type != KEY_FRAME &&
+      cpi->oxcf.gf_cfg.lag_in_frames == 0) {
     if (av2_rc_drop_frame(cpi)) {
       av2_setup_frame_size(cpi);
       av2_rc_postencode_update_drop_frame(cpi);
