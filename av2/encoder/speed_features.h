@@ -253,6 +253,14 @@ typedef struct HIGH_LEVEL_SPEED_FEATURES {
    * compute_tip_direct_output_mode_RD().
    */
   bool early_term_tip_direct_output_search;
+
+  /*!
+   * Margin of the early termination of the TIP direct output search, in
+   * percent: the zero-offset TIP distortion is divided by 1 + margin / 100 to
+   * allow for the gain of the offset and interpolation filter searches. A
+   * smaller margin stops more searches.
+   */
+  int tip_direct_output_early_term_margin_pct;
 } HIGH_LEVEL_SPEED_FEATURES;
 
 /*!\cond */
