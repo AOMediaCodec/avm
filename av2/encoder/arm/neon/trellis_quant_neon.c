@@ -404,9 +404,8 @@ static const uint8_t kGolombExp0Bits[256] = {
 
 #define DEFINE_LOAD_UNPACK_COST(name, CTX_DIM)                                 \
   static AVM_FORCE_INLINE void name(                                           \
-      const uint16_t(*tbl)[CTX_DIM][TCQ_CTXS][2], int idx, int ctx0,          \
-      int ctx1, int ctx2, int ctx3, uint32_t *out_0123,                        \
-      uint32_t *out_4567) {                                                    \
+      const uint16_t(*tbl)[CTX_DIM][TCQ_CTXS][2], int idx, int ctx0, int ctx1, \
+      int ctx2, int ctx3, uint32_t *out_0123, uint32_t *out_4567) {            \
     uint32x2_t p02 = vdup_n_u32(0);                                            \
     p02 = vld1_lane_u32((const uint32_t *)&tbl[idx][ctx0][0], p02, 0);         \
     p02 = vld1_lane_u32((const uint32_t *)&tbl[idx][ctx1][0], p02, 1);         \
@@ -450,8 +449,7 @@ static AVM_FORCE_INLINE void get_rate_dist_def_luma_q1_neon_impl(
     const uint16_t(*cost_eob_tbl)[SIG_COEF_CONTEXTS_EOB][2] =
         txb_costs->base_eob_cost_tbl;
     int eob_ctx = coeff_ctx->coef_eob;
-    rd->rate_eob[1] =
-        (int32_t)cost_eob_tbl[idx][eob_ctx][1] + eob_rate;
+    rd->rate_eob[1] = (int32_t)cost_eob_tbl[idx][eob_ctx][1] + eob_rate;
   }
 }
 
@@ -653,8 +651,7 @@ static AVM_FORCE_INLINE void get_rate_dist_lf_luma_q1_neon_impl(
     const uint16_t(*cost_eob_tbl)[SIG_COEF_CONTEXTS_EOB][2] =
         txb_costs->base_lf_eob_cost_tbl;
     int eob_ctx = coeff_ctx->coef_eob;
-    rd->rate_eob[1] =
-        (int32_t)cost_eob_tbl[idx][eob_ctx][1] + eob_rate;
+    rd->rate_eob[1] = (int32_t)cost_eob_tbl[idx][eob_ctx][1] + eob_rate;
     if (is_dc) {
       rd->rate_eob[1] += dc_cost;
     }
