@@ -595,9 +595,13 @@ static AVM_INLINE void perform_one_partition_pass(
   av2_invalid_rd_stats(&dummy_rdc);
   const int intra_sdp_enabled = is_sdp_enabled_in_keyframe(cm);
   const int total_loop_num = intra_sdp_enabled ? 2 : 1;
+  // During the dry pass, skip the key-frame chroma SDP pass (CHROMA_PART);
+  // chroma partitioning depends on the final wet-pass luma partition tree.
+  const int pass_loop_num =
+      (multi_pass_mode == SB_DRY_PASS) ? 1 : total_loop_num;
   x->is_whole_sb = mi_row + mi_size_high[sb_size] <= cm->mi_params.mi_rows &&
                    mi_col + mi_size_wide[sb_size] <= cm->mi_params.mi_cols;
-  for (int loop_idx = 0; loop_idx < total_loop_num; loop_idx++) {
+  for (int loop_idx = 0; loop_idx < pass_loop_num; loop_idx++) {
     const BLOCK_SIZE min_partition_size = sb_enc->min_partition_size;
     xd->tree_type =
         (total_loop_num == 1 ? SHARED_PART
@@ -613,11 +617,12 @@ static AVM_INLINE void perform_one_partition_pass(
       pc_root->region_type = INTRA_REGION;
     }
 
-    const PARTITION_TREE *template_tree =
-        multi_pass_params ? multi_pass_params->template_tree : NULL;
-    assert(IMPLIES(template_tree, total_loop_num == 1) &&
-           "perform_one_partition_pass cannot handle fixed partitioning for "
-           "erp yet.");
+    av2_set_two_pass_flags(cpi, x, multi_pass_mode, NULL);
+    // Only the luma/shared pass (loop_idx == 0) uses the dry-pass template
+    // tree; the chroma SDP pass (loop_idx == 1) uses ptree_luma instead.
+    const PARTITION_TREE *template_tree = (loop_idx == 0 && multi_pass_params)
+                                              ? multi_pass_params->template_tree
+                                              : NULL;
 #if CONFIG_ML_PART_SPLIT
     int force_prune_flags[3] = { 0, 0, 0 };
 #endif  // CONFIG_ML_PART_SPLIT
@@ -643,6 +648,16 @@ static AVM_INLINE void perform_two_pass_partition_search(
     AV2_COMP *cpi, ThreadData *td, TileDataEnc *tile_data, TokenExtra **tp,
     TokenExtra **tp_chroma, const int mi_row, const int mi_col,
     bool fast_two_pass);
+
+/*!
+ * \brief A helper struct that stores the FRAME_CONTEXT and TxCache.
+ */
+typedef struct {
+  /*!\brief Tile entropy context backup. */
+  FRAME_CONTEXT tctx;
+  /*!\brief Transform search result cache backup. */
+  TxCache tx_cache;
+} BackupCtx;
 
 /*!\brief Perform partition search twice (for unit testing only).
  *
@@ -670,14 +685,22 @@ static AVM_INLINE void perform_two_partition_passes(
   av2_backup_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
   REF_MV_BANK stored_mv_bank = td->mb.e_mbd.ref_mv_bank;
   WARP_PARAM_BANK stored_warp_bank = td->mb.e_mbd.warp_param_bank;
+
+  BackupCtx *backup_ctx = NULL;
+  CHECK_MEM_ERROR(cm, backup_ctx, avm_malloc(sizeof(*backup_ctx)));
+  backup_ctx->tctx = tile_data->tctx;
+  TokenExtra *const stored_tp = *tp;
+  TokenExtra *const stored_tp_chroma = *tp_chroma;
+  const int stored_palette_pixels = td->mb.palette_pixels;
+  const int stored_intrabc_used = td->intrabc_used;
+  const int stored_deltaq_used = td->deltaq_used;
+  const int stored_base_qindex = td->mb.e_mbd.current_base_qindex;
   // The transform search result cache is updated by the first pass too, which
   // would then narrow the search of the second pass. It is too large for
   // SB_FIRST_PASS_STATS, so back it up separately here (unit test only).
   TxCache *const tx_cache = &td->mb.txfm_search_info.tx_result_cache;
-  TxCache *tx_cache_backup = NULL;
   if (cpi->sf.tx_sf.use_tx_result_cache) {
-    CHECK_MEM_ERROR(cm, tx_cache_backup, avm_malloc(sizeof(*tx_cache_backup)));
-    memcpy(tx_cache_backup, tx_cache, sizeof(*tx_cache_backup));
+    memcpy(&backup_ctx->tx_cache, tx_cache, sizeof(backup_ctx->tx_cache));
   }
   if (use_two_pass_search) {
     perform_two_pass_partition_search(cpi, td, tile_data, tp, tp_chroma, mi_row,
@@ -698,10 +721,15 @@ static AVM_INLINE void perform_two_partition_passes(
   av2_restore_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
   td->mb.e_mbd.ref_mv_bank = stored_mv_bank;
   td->mb.e_mbd.warp_param_bank = stored_warp_bank;
-  if (tx_cache_backup) {
-    memcpy(tx_cache, tx_cache_backup, sizeof(*tx_cache));
-    avm_free(tx_cache_backup);
-  }
+  tile_data->tctx = backup_ctx->tctx;
+  *tp = stored_tp;
+  *tp_chroma = stored_tp_chroma;
+  td->mb.palette_pixels = stored_palette_pixels;
+  td->intrabc_used = stored_intrabc_used;
+  td->deltaq_used = stored_deltaq_used;
+  td->mb.e_mbd.current_base_qindex = stored_base_qindex;
+  memcpy(tx_cache, &backup_ctx->tx_cache, sizeof(*tx_cache));
+  avm_free(backup_ctx);
   if (use_two_pass_search) {
     perform_two_pass_partition_search(cpi, td, tile_data, tp, tp_chroma, mi_row,
                                       mi_col, fast_two_pass);
@@ -799,18 +827,11 @@ static AVM_INLINE void set_min_none_to_invalid(PARTITION_TREE *part_tree,
   }
 }
 
-// 8-bit-equivalent qindex: strips the bit-depth offset so the threshold
-// below matches the command-line --qp regardless of input bit depth.
-static AVM_INLINE int two_pass_qindex_8bit_equiv(int base_qindex,
-                                                 int bit_depth) {
-  const int qindex_8b = base_qindex - (bit_depth - AVM_BITS_8) * MAXQ_OFFSET;
-  assert(qindex_8b >= 0);
-  return qindex_8b;
-}
-
 // Above this qindex the schedule uses a larger dry-pass floor and a
 // smaller wet-pass re-split cutoff.
 #define TWO_PASS_QP_SCHEDULE_HIGH_QP_THRESH 200
+#define TWO_PASS_KF_HIGH_QP_THRESH_RA 150
+#define TWO_PASS_KF_HIGH_QP_THRESH_AI 210
 
 // Lowest pyramid level at which the wet-pass keep of skipped NONE blocks
 // applies.
@@ -827,6 +848,15 @@ static AVM_INLINE int two_pass_resplit_max_side_px(int qindex_8b) {
   return qindex_8b >= TWO_PASS_QP_SCHEDULE_HIGH_QP_THRESH ? 64 : 128;
 }
 
+static AVM_INLINE int intra_resplit_max_side(AV2_COMP *cpi, int qindex_8b) {
+  const bool is_all_intra_mode =
+      cpi->oxcf.kf_cfg.key_freq_max == 0 && cpi->oxcf.kf_cfg.key_freq_min == 0;
+  const int kf_high_qp_thresh = is_all_intra_mode
+                                    ? TWO_PASS_KF_HIGH_QP_THRESH_AI
+                                    : TWO_PASS_KF_HIGH_QP_THRESH_RA;
+  return (qindex_8b < kf_high_qp_thresh) ? 32 : 0;
+}
+
 /*!\brief Performs partition search in two passes.
  *
  * \ingroup partition_search
@@ -834,6 +864,7 @@ static AVM_INLINE int two_pass_resplit_max_side_px(int qindex_8b) {
  * refines it. Minimum bsize is BLOCK_16X16 (BLOCK_32X32 at high QP on the
  * fast level); the second pass recurses from BLOCK_32X32 (BLOCK_64X64 at
  * high QP on the fast level). Conservative level uses the low-QP values.
+ * Intra frames always use the 16x16 floor and re-split up to 32x32.
  */
 static AVM_INLINE void perform_two_pass_partition_search(
     AV2_COMP *cpi, ThreadData *td, TileDataEnc *tile_data, TokenExtra **tp,
@@ -845,16 +876,21 @@ static AVM_INLINE void perform_two_pass_partition_search(
   MACROBLOCKD *const xd = &x->e_mbd;
 
   const BLOCK_SIZE sb_size = cm->sb_size;
-  assert(!frame_is_intra_only(cm));
+  const bool is_intra_only = frame_is_intra_only(cm);
 
   // QP schedule is fast-only. Conservative uses 16x16 floor and 0 (skip
   // re-split), leaving its behavior unchanged.
-  const int qindex_8b = two_pass_qindex_8bit_equiv(cm->quant_params.base_qindex,
-                                                   cm->seq_params.bit_depth);
-  const BLOCK_SIZE dry_floor =
-      fast_two_pass ? two_pass_dry_pass_floor(qindex_8b) : BLOCK_16X16;
-  const int resplit_max_side =
-      fast_two_pass ? two_pass_resplit_max_side_px(qindex_8b) : 0;
+  const int qindex_8b = get_qindex_8bit_equiv(cm->quant_params.base_qindex,
+                                              cm->seq_params.bit_depth);
+  BLOCK_SIZE dry_floor = BLOCK_16X16;
+  int resplit_max_side = 0;
+  if (is_intra_only && fast_two_pass) {
+    resplit_max_side = intra_resplit_max_side(cpi, qindex_8b);
+  } else {
+    if (fast_two_pass) dry_floor = two_pass_dry_pass_floor(qindex_8b);
+    if (fast_two_pass)
+      resplit_max_side = two_pass_resplit_max_side_px(qindex_8b);
+  }
 
   // First pass to estimate partition structures
   SB_FIRST_PASS_STATS sb_fp_stats;
@@ -1079,8 +1115,7 @@ static AVM_INLINE void encode_rd_sb(AV2_COMP *cpi, ThreadData *td,
     // Sets the sb_mv_precision
     x->e_mbd.sbi->sb_mv_precision = cm->features.fr_mv_precision;
 
-    const bool use_two_pass_search = !frame_is_intra_only(cm) &&
-                                     bru_is_sb_active(cm, mi_col, mi_row) &&
+    const bool use_two_pass_search = bru_is_sb_active(cm, mi_col, mi_row) &&
                                      av2_two_pass_part_enabled(&sf->part_sf);
     // Only the fast level opts into the extra re-split of unsplit blocks.
     const bool fast_two_pass = av2_two_pass_part_is_fast(&sf->part_sf);
