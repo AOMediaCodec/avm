@@ -15,6 +15,7 @@
 #include "av2/common/reconintra.h"
 #include "av2/encoder/block.h"
 #include "av2/encoder/encodetxb.h"
+#include "av2/encoder/encodemb.h"
 #include "av2/encoder/hybrid_fwd_txfm.h"
 #include "av2/common/idct.h"
 #include "av2/encoder/model_rd.h"
@@ -2463,7 +2464,8 @@ static AVM_FORCE_INLINE int64_t evaluate_tx_candidate(
     int skip_trellis, int skip_trellis_in, int *skip_trellis_based_on_satd,
     int *coeffs_available, bool *eob_found, int64_t *best_rd,
     RD_STATS *best_rd_stats, TX_TYPE *best_tx_type, uint8_t *best_txb_ctx,
-    uint16_t *best_eob, tran_low_t **best_dqcoeff, bool *early_term) {
+    uint16_t *best_eob, tran_low_t **best_dqcoeff, bool *early_term,
+    int *ist_buf_filled) {
   const AV2_COMP *const cpi = ctx->cpi;
   const AV2_COMMON *const cm = &cpi->common;
   const TX_SPEED_FEATURES *const tx_sf = &cpi->sf.tx_sf;
@@ -2492,7 +2494,7 @@ static AVM_FORCE_INLINE int64_t evaluate_tx_candidate(
       tx_sf->prune_tx_rd_eval_sec_tx_sse ? &sec_tx_sse_to_be_coded : NULL;
   if (!ctx->dc_only_blk)
     av2_xform(x, ctx->plane, ctx->block, ctx->blk_row, ctx->blk_col,
-              ctx->plane_bsize, txfm_param, 1, sec_tx_sse_ptr);
+              ctx->plane_bsize, txfm_param, 1, sec_tx_sse_ptr, ist_buf_filled);
   else
     av2_xform_dc_only(x, ctx->plane, ctx->block, txfm_param, ctx->per_px_mean);
   if (prune_sec_txfm_rd_eval(sec_tx_sse_to_be_coded, ctx->block_sse, *best_rd,
@@ -2949,6 +2951,7 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
     const int max_set_id =
         get_ist_max_set_id(skip_stx, is_inter, txw, txh, primary_tx_type);
     assert(max_set_id < IST_SET_SIZE);
+    int ist_buf_filled[IST_INPUT_BUF_SLOTS] = { 0 };
 
     // Primary transform search (stx = 0).
     txfm_param.sec_tx_set_idx = 0;
@@ -2958,7 +2961,7 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
         &ctx, primary_tx_type, 0, set_id_0, &txfm_param, &quant_param,
         skip_trellis, skip_trellis_in, skip_trellis_based_on_satd,
         coeffs_available, &eob_found, &best_rd, best_rd_stats, &best_tx_type,
-        &best_txb_ctx, &best_eob, &best_dqcoeff, &skip_idx);
+        &best_txb_ctx, &best_eob, &best_dqcoeff, &skip_idx, ist_buf_filled);
     if (skip_idx) break;
 
     // Only the DCT_DCT primary trial (stx == 0) can set eob_found, so it
@@ -3025,7 +3028,8 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
             &ctx, primary_tx_type, stx, stx_set, &txfm_param, &quant_param,
             skip_trellis, skip_trellis_in, skip_trellis_based_on_satd,
             coeffs_available, &eob_found, &best_rd, best_rd_stats,
-            &best_tx_type, &best_txb_ctx, &best_eob, &best_dqcoeff, &skip_idx);
+            &best_tx_type, &best_txb_ctx, &best_eob, &best_dqcoeff, &skip_idx,
+            ist_buf_filled);
         if (set_idx <= 1) best_set01_rd = AVMMIN(best_set01_rd, ist_rd);
       }
       // For intra blocks, skip the remaining IST sets (sets 2 and 3) if the
@@ -3122,9 +3126,9 @@ static void search_cctx_type(const AV2_COMP *cpi, MACROBLOCK *x, int block,
 
   if (!uv_coeffs_available) {
     av2_xform(x, AVM_PLANE_U, block, blk_row, blk_col, plane_bsize, &txfm_param,
-              0, NULL);
+              0, NULL, NULL);
     av2_xform(x, AVM_PLANE_V, block, blk_row, blk_col, plane_bsize, &txfm_param,
-              0, NULL);
+              0, NULL, NULL);
     if (av2_use_qmatrix(&cm->quant_params, xd, mbmi->segment_id))
       av2_setup_qmatrix(&cm->quant_params, xd, AVM_PLANE_U, tx_size,
                         tx_type.primary_tx, &quant_param);

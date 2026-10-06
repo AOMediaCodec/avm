@@ -610,17 +610,17 @@ void av2_xform_quant(const int use_tcq_deadzone_boost, const AV2_COMMON *cm,
     // channel.
     if (plane != AVM_PLANE_V) {
       av2_xform(x, plane, block, blk_row, blk_col, plane_bsize, txfm_param, 0,
-                NULL);
+                NULL, NULL);
     }
     if (plane == AVM_PLANE_U) {
       av2_xform(x, AVM_PLANE_V, block, blk_row, blk_col, plane_bsize,
-                txfm_param, 0, NULL);
+                txfm_param, 0, NULL, NULL);
       forward_cross_chroma_transform(x, block, txfm_param->tx_size,
                                      txfm_param->cctx_type);
     }
   } else {
     av2_xform(x, plane, block, blk_row, blk_col, plane_bsize, txfm_param, 0,
-              NULL);
+              NULL, NULL);
   }
   const uint8_t fsc_mode =
       ((cm->seq_params.enable_fsc &&
@@ -637,8 +637,8 @@ void av2_xform_quant(const int use_tcq_deadzone_boost, const AV2_COMMON *cm,
 }
 
 void av2_xform(MACROBLOCK *x, int plane, int block, int blk_row, int blk_col,
-               BLOCK_SIZE plane_bsize, TxfmParam *txfm_param, const int reuse,
-               int64_t *sec_tx_sse) {
+               BLOCK_SIZE plane_bsize, TxfmParam *txfm_param, int reuse,
+               int64_t *sec_tx_sse, int *ist_buf_filled) {
   struct macroblock_plane *const p = &x->plane[plane];
   const int block_offset = BLOCK_OFFSET(block);
   tran_low_t *const coeff = p->coeff + block_offset;
@@ -646,28 +646,22 @@ void av2_xform(MACROBLOCK *x, int plane, int block, int blk_row, int blk_col,
 
   const int src_offset = (blk_row * diff_stride + blk_col);
   const int16_t *src_diff = &p->src_diff[src_offset << MI_SIZE_LOG2];
+  const int tr_width = tx_size_wide[txfm_param->tx_size] <= 32
+                           ? tx_size_wide[txfm_param->tx_size]
+                           : 32;
+  const int tr_height = tx_size_high[txfm_param->tx_size] <= 32
+                            ? tx_size_high[txfm_param->tx_size]
+                            : 32;
 
-  if (reuse == 0) {
+  // perform fwd tx only once (and save the result in temp buff) during the
+  // search loop for IST Set (IST_SET_SIZE sets) and its kenerls (3 tx kernels
+  // per set) Set 0 ~ IST_SET_SIZE-1 for DCT_DCT, and Set IST_SET_SIZE ~
+  // IST_SET_SIZE+IST_REDUCED_SET_SIZE-1 for ADST_ADST
+  if (reuse == 0 ||
+      (txfm_param->sec_tx_type == 0 && txfm_param->sec_tx_set_idx == 0)) {
     av2_fwd_txfm(src_diff, coeff, diff_stride, txfm_param);
-  } else {
-    const int tr_width = tx_size_wide[txfm_param->tx_size] <= 32
-                             ? tx_size_wide[txfm_param->tx_size]
-                             : 32;
-    const int tr_height = tx_size_high[txfm_param->tx_size] <= 32
-                              ? tx_size_high[txfm_param->tx_size]
-                              : 32;
-    // perform fwd tx only once (and save the result in temp buff) during the
-    // search loop for IST Set (IST_SET_SIZE sets) and its kenerls (3 tx kernels
-    // per set) Set 0 ~ IST_SET_SIZE-1 for DCT_DCT, and Set IST_SET_SIZE ~
-    // IST_SET_SIZE+IST_REDUCED_SET_SIZE-1 for ADST_ADST
-    if (txfm_param->sec_tx_type == 0 && txfm_param->sec_tx_set_idx == 0) {
-      av2_fwd_txfm(src_diff, coeff, diff_stride, txfm_param);
-      if (plane == 0) {
-        memcpy(p->temp_coeff, coeff, tr_width * tr_height * sizeof(tran_low_t));
-      }
-    } else {
-      if (plane == 0)
-        memcpy(coeff, p->temp_coeff, tr_width * tr_height * sizeof(tran_low_t));
+    if (plane == 0) {
+      memcpy(p->temp_coeff, coeff, tr_width * tr_height * sizeof(tran_low_t));
     }
   }
   MACROBLOCKD *const xd = &x->e_mbd;
@@ -676,7 +670,7 @@ void av2_xform(MACROBLOCK *x, int plane, int block, int blk_row, int blk_col,
   if (!is_inter_block(mbmi, xd->tree_type))
     assert((intra_mode >= PAETH_PRED && txfm_param->sec_tx_type) == 0);
   (void)intra_mode;
-  av2_fwd_stxfm(coeff, txfm_param, sec_tx_sse);
+  av2_fwd_stxfm(p, coeff, txfm_param, sec_tx_sse, ist_buf_filled);
 }
 
 // Facade function for forward cross chroma component transform

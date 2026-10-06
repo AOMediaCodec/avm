@@ -21,6 +21,7 @@
 #include "av2/common/enums.h"
 #include "av2/common/intra_dip.h"
 #include "av2/common/mvref_common.h"
+#include "av2/common/secondary_tx.h"
 
 #include "av2/encoder/enc_enums.h"
 #include "av2/encoder/hash.h"
@@ -142,6 +143,12 @@ typedef struct macroblock_plane {
   DECLARE_ALIGNED(32, int16_t, src_diff[MAX_SB_SQUARE]);
   //! Temporary buffer for primary transform coeffs
   DECLARE_ALIGNED(32, int32_t, temp_coeff[4096]);
+  //! Pre-reordered IST input buffer; one slot per unique coeff8x8_mapping_idx
+  //! value (IST_INPUT_BUF_SLOTS slots), cached across the STX kernel search
+  //! loop to avoid redundant coefficient reordering for kernels sharing the
+  //! same mapping.
+  DECLARE_ALIGNED(32, int32_t,
+                  ist_input_buf[IST_INPUT_BUF_SLOTS][IST_8x8_WIDTH]);
   //! Dequantized coefficients
   tran_low_t *dqcoeff;
   //! Quantized coefficients

@@ -94,8 +94,8 @@ void av2_xform_quant(const int use_tcq_deadzone_boost, const AV2_COMMON *cm,
                      QUANT_PARAM *qparam);
 
 void av2_xform(MACROBLOCK *x, int plane, int block, int blk_row, int blk_col,
-               BLOCK_SIZE plane_bsize, TxfmParam *txfm_param, const int reuse,
-               int64_t *sec_tx_sse);
+               BLOCK_SIZE plane_bsize, TxfmParam *txfm_param, int reuse,
+               int64_t *sec_tx_sse, int *ist_buf_filled);
 
 void forward_cross_chroma_transform(MACROBLOCK *x, int block, TX_SIZE tx_size,
                                     CctxType cctx_type);

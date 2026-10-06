@@ -14,6 +14,7 @@
 #define AVM_AV2_ENCODER_HYBRID_FWD_TXFM_H_
 
 #include "config/avm_config.h"
+#include "av2/encoder/block.h"
 
 #include "av2/common/av2_txfm.h"
 
@@ -67,8 +68,9 @@ static INLINE void av2_fwd_txfm_downsample_input(const int16_t *resi,
 void av2_fwd_txfm(const int16_t *src_diff, tran_low_t *coeff, int diff_stride,
                   TxfmParam *txfm_param);
 
-void av2_fwd_stxfm(tran_low_t *coeff, TxfmParam *txfm_param,
-                   int64_t *sec_tx_sse);
+void av2_fwd_stxfm(struct macroblock_plane *p, tran_low_t *coeff,
+                   TxfmParam *txfm_param, int64_t *sec_tx_sse,
+                   int *ist_buf_filled);
 
 #ifdef __cplusplus
 }  // extern "C"
