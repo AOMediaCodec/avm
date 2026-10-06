@@ -1770,8 +1770,9 @@ static void derive_ccso_filter(AV2_COMP *cpi, const int plane,
                      &unfiltered_dist_frame);
   unfiltered_dist_frame =
       ROUND_POWER_OF_TWO(unfiltered_dist_frame, (xd->bd - 8) * 2);
-  const uint64_t best_unfiltered_cost =
-      RDCOST(rdmult, av2_cost_literal(1), unfiltered_dist_frame * 16);
+  const uint64_t best_unfiltered_cost = adjust_unfiltered_plane_rdcost(
+      RDCOST(rdmult, av2_cost_literal(1), unfiltered_dist_frame * 16),
+      cpi->sf.lc_sf.skip_plane_ccso);
 
   for (uint8_t scale_idx = 0; scale_idx < total_scale_idx; ++scale_idx) {
     for (uint8_t search_idx = 0; search_idx < 2; search_idx++) {

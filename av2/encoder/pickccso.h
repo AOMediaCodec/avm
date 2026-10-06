@@ -20,6 +20,12 @@
 extern "C" {
 #endif
 
+static INLINE uint64_t adjust_unfiltered_plane_rdcost(uint64_t rd,
+                                                      int skip_plane_ccso) {
+  if (!skip_plane_ccso || rd == INT64_MAX) return rd;
+  return (uint64_t)((double)rd * 0.9);
+}
+
 #define CCSO_MAX_ITERATIONS 15
 
 // Number of (d0, d1, band) combinations spanned by total_class_err/cnt.

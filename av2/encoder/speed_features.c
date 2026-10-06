@@ -766,6 +766,8 @@ static void set_good_speed_features_lc_dec_framesize_independent(
 
     sf->lc_sf.enable_partition_size_bias =
         (cm->quant_params.base_qindex >= qindex_thresh) ? 1 : 0;
+
+    sf->lc_sf.skip_plane_ccso = cm->current_frame.pyramid_level > 2;
   }
 }
 
@@ -1122,6 +1124,7 @@ static AVM_INLINE void init_lc_sf(LC_DEC_SPEED_FEATURES *lc_sf) {
   lc_sf->bias_against_cdef = 0;
   lc_sf->use_less_lr = 0;
   lc_sf->skip_loop_filter_based_on_error = 0;
+  lc_sf->skip_plane_ccso = 0;
 }
 
 static AVM_INLINE void init_rt_sf(REALTIME_SPEED_FEATURES *rt_sf) {
