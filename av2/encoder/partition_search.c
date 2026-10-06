@@ -543,6 +543,10 @@ void av2_set_offsets(const AV2_COMP *const cpi, const TileInfo *const tile,
 // initial rd limit, to absorb the context drift between the passes.
 #define TWO_PASS_WARMSTART_MARGIN_PCT 4
 
+// Minimum block side (pixels) at which the intra-frame wet pass also evaluates
+// PARTITION_NONE on blocks the dry pass split.
+#define INTRA_WET_PASS_NONE_MIN_SIDE 32
+
 // Dense index into unit_dry_rd's size dimension, biased by 1 so 0 means "no
 // slot". Only sizes with both sides >= TWO_PASS_DRY_RD_MIN_1D are listed; the
 // dry pass cannot produce the rest.
@@ -3100,9 +3104,38 @@ static AVM_INLINE PARTITION_TYPE get_forced_partition_type(
     return derived_partition;
   }
 
+  if (x->must_find_valid_partition) return PARTITION_INVALID;
+
   // Partition types forced by speed_features.
-  if (template_tree) {
+  if (template_tree && template_tree->partition != PARTITION_INVALID &&
+      partition_allowed[template_tree->partition]) {
     return template_tree->partition;
+  }
+
+  if (frame_is_intra_only(cm) && xd->tree_type == CHROMA_PART &&
+      x->may_consume_dry_pass_info && partition_allowed[PARTITION_NONE]) {
+    if (ptree_luma && ptree_luma->partition == PARTITION_NONE) {
+      return PARTITION_NONE;
+    }
+    const int bw = mi_size_wide[bsize];
+    const int bh = mi_size_high[bsize];
+    const int r_end = AVMMIN(mi_row + bh, cm->mi_params.mi_rows) - 1;
+    const int c_end = AVMMIN(mi_col + bw, cm->mi_params.mi_cols) - 1;
+    if (r_end >= mi_row && c_end >= mi_col) {
+      const MB_MODE_INFO *const mbmi_tl =
+          cm->mi_params
+              .mi_grid_base[get_mi_grid_idx(&cm->mi_params, mi_row, mi_col)];
+      const MB_MODE_INFO *const mbmi_br =
+          cm->mi_params
+              .mi_grid_base[get_mi_grid_idx(&cm->mi_params, r_end, c_end)];
+      if (mbmi_tl && mbmi_br) {
+        const BLOCK_SIZE bsize_tl = mbmi_tl->sb_type[PLANE_TYPE_Y];
+        const BLOCK_SIZE bsize_br = mbmi_br->sb_type[PLANE_TYPE_Y];
+        if (is_bsize_geq(bsize_tl, bsize) && is_bsize_geq(bsize_br, bsize)) {
+          return PARTITION_NONE;
+        }
+      }
+    }
   }
 
   if (should_reuse_mode(x, REUSE_PARTITION_MODE_FLAG) &&
@@ -3445,6 +3478,7 @@ static void init_partition_search_state_params(
   part_search_state->forced_partition = get_forced_partition_type(
       cm, x, mi_row, mi_col, bsize, ptree_luma, template_tree,
       pc_tree->region_type, partition_allowed);
+  part_search_state->try_none_with_forced_split = false;
   init_allowed_partitions(
       part_search_state, &cpi->oxcf.part_cfg,
       is_bru_not_active_and_not_on_partial_border(cm, mi_col, mi_row, bsize),
@@ -5697,6 +5731,21 @@ static void prune_partitions_using_ml_results(
       }
     }
   }
+  const bool intra_two_pass =
+      frame_is_intra_only(cm) && av2_two_pass_part_enabled(&cpi->sf.part_sf);
+  if (intra_two_pass && part_search_state->partition_allowed[PARTITION_NONE] &&
+      prune_partition[PARTITION_NONE]) {
+    const bool any_split_viable =
+        (part_search_state->partition_allowed[PARTITION_SPLIT] &&
+         !prune_partition[PARTITION_SPLIT]) ||
+        (part_search_state->partition_allowed[PARTITION_HORZ] &&
+         !prune_partition[PARTITION_HORZ]) ||
+        (part_search_state->partition_allowed[PARTITION_VERT] &&
+         !prune_partition[PARTITION_VERT]);
+    if (!any_split_viable) {
+      prune_partition[PARTITION_NONE] = false;
+    }
+  }
 }
 #endif  // CONFIG_ML_PART_SPLIT
 
@@ -5804,6 +5853,21 @@ bool av2_rd_pick_partition(
   init_partition_search_state_params(
       x, cpi, &part_search_state, pc_tree, ptree_luma, template_tree,
       eff_max_recursion_depth, mi_row, mi_col, bsize);
+
+  // Intra-frame wet pass: the reduced-tool dry pass over-splits large blocks
+  // (it misses tools such as FSC/MRL/DIP/IntraBC that make big blocks cheap).
+  // On blocks of at least INTRA_WET_PASS_NONE_MIN_SIDE pixels whose dry-pass
+  // shape is a split, also evaluate PARTITION_NONE with the full tool set.
+  const PARTITION_TYPE forced_partition = part_search_state.forced_partition;
+  if (frame_is_intra_only(cm) && multi_pass_mode == SB_WET_PASS &&
+      template_tree && xd->tree_type != CHROMA_PART &&
+      forced_partition != PARTITION_INVALID &&
+      forced_partition != PARTITION_NONE &&
+      AVMMIN(block_size_wide[bsize], block_size_high[bsize]) >=
+          INTRA_WET_PASS_NONE_MIN_SIDE &&
+      part_search_state.partition_allowed[PARTITION_NONE]) {
+    part_search_state.try_none_with_forced_split = true;
+  }
 
   set_sms_tree_partitioning(sms_tree, PARTITION_NONE);
 
@@ -5968,6 +6032,10 @@ BEGIN_PARTITION_SEARCH:
         partition_allowed, cm, xd->tree_type,
         (pc_tree->parent ? pc_tree->parent->region_type : INTRA_REGION), mi_row,
         mi_col, ss_x, ss_y, bsize, &pc_tree->chroma_ref_info);
+    part_search_state.forced_partition = get_forced_partition_type(
+        cm, x, mi_row, mi_col, bsize, ptree_luma, template_tree,
+        pc_tree->region_type, partition_allowed);
+    part_search_state.try_none_with_forced_split = false;
     init_allowed_partitions(
         &part_search_state, &cpi->oxcf.part_cfg,
         is_bru_not_active_and_not_on_partial_border(cm, mi_col, mi_row, bsize),
@@ -5985,15 +6053,22 @@ BEGIN_PARTITION_SEARCH:
   // Don't prune if this is the second attempt to find a valid partition.
   if (part_search_state.forced_partition == PARTITION_INVALID &&
       !x->must_find_valid_partition && is_partition_point(bsize)) {
-    // Pruning: forced by the parent block, from its ML results or from
-    // prune_rect_with_split_depth.
-    apply_force_prune_flags(force_prune_flags,
-                            part_search_state.prune_partition);
-    // Pruning: using ML results.
-    if (cpi->sf.part_sf.prune_split_with_ml) {
-      prune_partitions_using_ml_results(
-          cpi, td, tile_data, mi_row, mi_col, bsize, &part_search_state,
-          search_none_after_rect, force_prune_flags, next_force_prune_flags);
+    const bool intra_two_pass =
+        frame_is_intra_only(cm) && av2_two_pass_part_enabled(&cpi->sf.part_sf);
+    if (!intra_two_pass ||
+        part_search_state.partition_allowed[PARTITION_SPLIT] ||
+        part_search_state.partition_allowed[PARTITION_HORZ] ||
+        part_search_state.partition_allowed[PARTITION_VERT]) {
+      // Pruning: forced by the parent block, from its ML results or from
+      // prune_rect_with_split_depth.
+      apply_force_prune_flags(force_prune_flags,
+                              part_search_state.prune_partition);
+      // Pruning: using ML results.
+      if (cpi->sf.part_sf.prune_split_with_ml) {
+        prune_partitions_using_ml_results(
+            cpi, td, tile_data, mi_row, mi_col, bsize, &part_search_state,
+            search_none_after_rect, force_prune_flags, next_force_prune_flags);
+      }
     }
   }
 #endif  // CONFIG_ML_PART_SPLIT
@@ -6160,7 +6235,10 @@ BEGIN_PARTITION_SEARCH:
   // forcing violation still has found_best_partition set and is still caught.
   if (part_search_state.found_best_partition && template_tree &&
       template_tree->partition != PARTITION_INVALID &&
-      pc_tree->partitioning != template_tree->partition) {
+      part_search_state.forced_partition != PARTITION_INVALID &&
+      pc_tree->partitioning != part_search_state.forced_partition &&
+      !(part_search_state.try_none_with_forced_split &&
+        pc_tree->partitioning == PARTITION_NONE)) {
     printf(
         "Mismatch with template at fr: %d, mi: (%d, %d), BLOCK_%dX%d: "
         "template %d, chose %d\n",

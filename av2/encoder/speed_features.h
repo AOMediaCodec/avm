@@ -422,6 +422,16 @@ typedef struct PARTITION_SPEED_FEATURES {
   // skip, instead of re-searching them. 0 disables.
   int wet_pass_keep_skip_none_min_side;
 
+  // Controls two-pass superblock partition search on intra-only/key frames:
+  // TWO_PASS_PART_OFF (0), TWO_PASS_PART_CONSERVATIVE (1), or
+  // TWO_PASS_PART_FAST (2).
+  int intra_two_pass_partition_search;
+
+  // Maximum 8-bit-equivalent base qindex at which
+  // intra_two_pass_partition_search is applied. The dry pass loses more at
+  // high qindex, where larger blocks win on tools the dry pass skips.
+  int intra_two_pass_max_qindex;
+
   // Prunes rect partition with ml model
 
   // End partition search if the grandparent, parent, and current block all
