@@ -118,6 +118,15 @@ static int cost_and_tokenize_map(Av2ColorMapParam *param, TokenExtra **t,
           this_rate += (*identity_row_cost)[ctx][identity_row_flag];
         }
       } else {
+        const int code_color_idx =
+            !line_copy_flag && (!(identity_row_flag == 1) || ax1 == 0);
+        if (calc_rate && !code_color_idx) {
+          // The color index is not coded, so its context is not needed.
+          if (ax1 == 0) {
+            this_rate += (*identity_row_cost)[ctx][identity_row_flag];
+          }
+          continue;
+        }
         int color_new_idx;
         const int y = direction ? ax1 : ax2;
         const int x = direction ? ax2 : ax1;
@@ -129,10 +138,9 @@ static int cost_and_tokenize_map(Av2ColorMapParam *param, TokenExtra **t,
           if (ax1 == 0) {
             this_rate += (*identity_row_cost)[ctx][identity_row_flag];
           }
-          if (!line_copy_flag && (!(identity_row_flag == 1) || ax1 == 0)) {
-            this_rate +=
-                (*color_cost)[palette_size_idx][color_ctx][color_new_idx];
-          }
+          assert(code_color_idx);
+          this_rate +=
+              (*color_cost)[palette_size_idx][color_ctx][color_new_idx];
         } else {
           (*t)->token = color_new_idx;
           (*t)->color_map_palette_size_idx = palette_size_idx;
@@ -206,14 +214,15 @@ int av2_cost_color_map(const MACROBLOCK *const x, int plane, BLOCK_SIZE bsize,
   Av2ColorMapParam color_map_params;
   get_color_map_params(x, plane, bsize, tx_size, type, &color_map_params);
 
-  int dir0 =
+  const int dir0 =
       cost_and_tokenize_map(&color_map_params, NULL, plane, 1, 0, NULL, 0);
-  int dir1 =
-      cost_and_tokenize_map(&color_map_params, NULL, plane, 1, 0, NULL, 1);
-  if (color_map_params.plane_width < 64 && color_map_params.plane_height < 64) {
-  } else {
-    dir1 = dir0;
+  // Direction 1 is only allowed for blocks smaller than 64 in both dimensions.
+  if (color_map_params.plane_width >= 64 ||
+      color_map_params.plane_height >= 64) {
+    return dir0;
   }
+  const int dir1 =
+      cost_and_tokenize_map(&color_map_params, NULL, plane, 1, 0, NULL, 1);
   return AVMMIN(dir0, dir1);
 }
 
@@ -224,15 +233,15 @@ void av2_tokenize_color_map(const MACROBLOCK *const x, int plane,
   assert(plane == 0 || plane == 1);
   Av2ColorMapParam color_map_params;
   get_color_map_params(x, plane, bsize, tx_size, type, &color_map_params);
-  int cost_dir0 =
-      cost_and_tokenize_map(&color_map_params, NULL, plane, 1, 0, NULL, 0);
-  int cost_dir1 =
-      cost_and_tokenize_map(&color_map_params, NULL, plane, 1, 0, NULL, 1);
-  int direction;
+  int direction = 0;
+  // Direction 1 is only allowed for blocks smaller than 64 in both dimensions,
+  // so the costs are only needed to choose the direction in that case.
   if (color_map_params.plane_width < 64 && color_map_params.plane_height < 64) {
+    const int cost_dir0 =
+        cost_and_tokenize_map(&color_map_params, NULL, plane, 1, 0, NULL, 0);
+    const int cost_dir1 =
+        cost_and_tokenize_map(&color_map_params, NULL, plane, 1, 0, NULL, 1);
     direction = (cost_dir0 < cost_dir1) ? 0 : 1;
-  } else {
-    direction = 0;
   }
   cost_and_tokenize_map(&color_map_params, t, plane, 0, allow_update_cdf,
                         counts, direction);
