@@ -1214,8 +1214,12 @@ void av2_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
 
 void fill_dv_costs(IntraBCMvCosts *dv_costs, const FRAME_CONTEXT *fc,
                    MvCosts *mv_costs) {
-  for (MvSubpelPrecision pb_mv_precision = 0;
-       pb_mv_precision < NUM_MV_PRECISIONS; pb_mv_precision++) {
+  // IntraBC only uses the precisions in av2_intraBc_precision_sets, so only
+  // build the DV cost tables for those.
+  for (int prec_idx = 0; prec_idx < av2_intraBc_precision_sets.num_precisions;
+       prec_idx++) {
+    const MvSubpelPrecision pb_mv_precision =
+        av2_intraBc_precision_sets.precision[prec_idx];
     av2_build_vq_nmv_cost_table(NULL, &fc->ndvc, pb_mv_precision, dv_costs, 1);
     // Copy values from the dv_costs to the mv_costs
     mv_costs->dv_joint_shell_cost[pb_mv_precision] =
