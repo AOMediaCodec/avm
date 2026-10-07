@@ -252,6 +252,7 @@ static AVM_INLINE void dealloc_compressor_data(AV2_COMP *cpi) {
   avm_free(cpi->td.mb.tmp_conv_dst);
   avm_free(cpi->td.mb.upsample_pred);
   avm_free(cpi->td.mb.coef_info);
+  avm_free(cpi->td.mb.dqcoeff_buf);
 
   // Temporary buffers used during the SMVR and OPFL processing.
   avm_free(cpi->td.mb.opfl_vxy_bufs);
