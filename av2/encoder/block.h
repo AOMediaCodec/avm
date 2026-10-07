@@ -1576,6 +1576,13 @@ typedef struct macroblock {
    * if the coefficient was quantized up and if it can be further adjusted.
    */
   coeff_info *coef_info;
+  /*! \brief Scratch dqcoeff buffer used by search_tx_type().
+   *
+   * This buffer is used by search_tx_type() to swap dqcoeff in
+   * macroblockd_plane so that we can keep dqcoeff of the best tx_type. Keeping
+   * it here instead of on the function stack avoids a 256 kB stack allocation.
+   */
+  tran_low_t *dqcoeff_buf;
   /*!\brief Number of pixels in current thread that choose palette mode in the
    * fast encoding stage for screen content tool detemination.
    */

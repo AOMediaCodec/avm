@@ -2695,7 +2695,7 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
   int rate_cost = 0;
   // The buffer used to swap dqcoeff in macroblockd_plane so we can keep dqcoeff
   // of the best tx_type.
-  DECLARE_ALIGNED(32, tran_low_t, this_dqcoeff[MAX_SB_SQUARE]);
+  tran_low_t *const this_dqcoeff = x->dqcoeff_buf;
   struct macroblock_plane *const mb_plane = &x->plane[plane];
   tran_low_t *orig_dqcoeff = mb_plane->dqcoeff;
   tran_low_t *best_dqcoeff = this_dqcoeff;

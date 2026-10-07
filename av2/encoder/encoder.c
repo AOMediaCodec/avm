@@ -1311,6 +1311,11 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
                     avm_malloc(MAX_TX_SQUARE * sizeof(*x->coef_info)));
   }
 
+  if (x->dqcoeff_buf == NULL) {
+    CHECK_MEM_ERROR(cm, x->dqcoeff_buf,
+                    avm_memalign(32, MAX_SB_SQUARE * sizeof(*x->dqcoeff_buf)));
+  }
+
   // Temporary buffers used during the SMVR and OPFL processing.
   if (x->opfl_vxy_bufs == NULL) {
     CHECK_MEM_ERROR(
@@ -1793,6 +1798,7 @@ static AVM_INLINE void free_thread_data(AV2_COMP *cpi) {
     avm_free(thread_data->td->tmp_conv_dst);
     avm_free(thread_data->td->upsample_pred);
     avm_free(thread_data->td->coef_info);
+    avm_free(thread_data->td->dqcoeff_buf);
 
     // Temporary buffers used during the SMVR and OPFL processing.
     avm_free(thread_data->td->opfl_vxy_bufs);
