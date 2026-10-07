@@ -787,6 +787,13 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Based on previous ref_mv_idx search result, prune the following search.
   int prune_ref_mv_idx_search;
 
+  // The ref_mv_idx pre-screening mask (ref_mv_idx_to_search()) is computed
+  // lazily for each MV precision that is actually evaluated. When this flag is
+  // set, the mask uses the best RD found so far in handle_inter_mode() (i.e.
+  // updated by the previously evaluated MV precisions) instead of the RD
+  // threshold at the entry of handle_inter_mode().
+  bool ref_mv_idx_mask_use_best_rd;
+
   // Prune/gate motion mode evaluation based on token based rd
   // during transform search for inter blocks
   // Values are 0 (not used) , 1 - 3 with progressively increasing
