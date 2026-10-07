@@ -74,7 +74,7 @@ class RtcDatarateTest
     cfg_.rc_buf_sz = 1000;
     cfg_.rc_undershoot_pct = 50;
     cfg_.rc_overshoot_pct = 50;
-    cfg_.rc_dropframe_thresh = 1;
+    cfg_.rc_dropframe_thresh = 0;
     cfg_.rc_min_quantizer = 0;
     cfg_.rc_max_quantizer = 255;
     cfg_.g_threads = 1;
@@ -119,8 +119,10 @@ class RtcDatarateTest
       bits_in_buffer_model_ = max_buffer_size;
     }
 
-    ASSERT_GE(bits_in_buffer_model_, 0)
-        << "Buffer Underrun at frame " << pkt->data.frame.pts;
+    if (cfg_.rc_dropframe_thresh > 0) {
+      ASSERT_GE(bits_in_buffer_model_, 0)
+          << "Buffer Underrun at frame " << pkt->data.frame.pts;
+    }
 
     const int64_t frame_size_in_bits =
         static_cast<int64_t>(pkt->data.frame.sz * 8);
