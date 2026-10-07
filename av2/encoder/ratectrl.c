@@ -2351,10 +2351,8 @@ int av2_encodedframe_overshoot_cbr(AV2_COMP *cpi, int *q) {
   // Adjust avg_frame_qindex, buffer_level, and rate correction factors, as
   // these parameters will affect QP selection for subsequent frames.
   rc->avg_frame_qindex[INTER_FRAME] = *q;
-  if (rc->buffer_level > rc->optimal_buffer_level) {
-    rc->buffer_level = rc->optimal_buffer_level;
-    rc->bits_off_target = rc->optimal_buffer_level;
-  }
+  rc->buffer_level = rc->optimal_buffer_level;
+  rc->bits_off_target = rc->optimal_buffer_level;
   rc->rc_1_frame = 0;
   rc->rc_2_frame = 0;
   // Adjust rate correction factor.
