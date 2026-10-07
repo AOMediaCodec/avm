@@ -371,6 +371,7 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.prune_warp_newmv_ref_mv_idx = true;
     sf->inter_sf.early_term_warp_delta_refine = true;
     sf->inter_sf.limit_max_ref_mv_idx = boosted ? false : true;
+    sf->inter_sf.ref_mv_idx_mask_use_best_rd = true;
 
     sf->intra_sf.include_dip_for_top_n_model_rd_pruning = true;
 
@@ -979,6 +980,7 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->disable_interinter_wedge = 0;
   inter_sf->disable_onesided_comp = false;
   inter_sf->prune_ref_mv_idx_search = 0;
+  inter_sf->ref_mv_idx_mask_use_best_rd = false;
   inter_sf->prune_warped_prob_thresh = 0;
   inter_sf->reuse_compound_type_data = 0;
   inter_sf->txfm_rd_gate_level = 0;
