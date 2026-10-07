@@ -6818,8 +6818,14 @@ static int64_t rd_pick_intrabc_mode_sb(const AV2_COMP *cpi, MACROBLOCK *x,
       best_bv.as_int = 0;
       best_ref_bv.as_int = dv_ref.as_int;
 
-      if (rd_pick_ref_bv_sub_pel(cpi, x, bsize, fullms_params_init, &best_bv,
-                                 &best_ref_bv_cost)) {
+      const int prune_intrabc_me =
+          !frame_is_intra_only(cm) &&
+          cpi->sf.inter_sf.skip_eval_intrabc_in_inter_frame == 2;
+      if (prune_intrabc_me) {
+        mbmi->intrabc_mode = 0;
+        mbmi->intrabc_drl_idx = 0;
+      } else if (rd_pick_ref_bv_sub_pel(cpi, x, bsize, fullms_params_init,
+                                        &best_bv, &best_ref_bv_cost)) {
         fullms_params = fullms_params_init;
         best_ref_bv = mbmi_ext->ref_mv_stack[INTRA_FRAME][0].this_mv;
         av2_init_ref_mv(&fullms_params.mv_cost_params, &best_ref_bv.as_mv);
@@ -6859,7 +6865,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV2_COMP *cpi, MACROBLOCK *x,
                                         &fullms_params.mv_cost_params);
 
       const int use_subpel_search =
-          bestsme < INT_MAX &&
+          !prune_intrabc_me && bestsme < INT_MAX &&
           !cpi->common.features.cur_frame_force_integer_mv &&
           mbmi->pb_mv_precision > MV_PRECISION_ONE_PEL &&
           is_bv_valid(&best_full_pel_mv, cm, xd, mi_row, mi_col, bsize,
@@ -9580,10 +9586,18 @@ static void try_intrabc_after_inter_search(
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
 
-  const int try_intrabc =
-      cpi->oxcf.kf_cfg.enable_intrabc && cpi->oxcf.kf_cfg.enable_intrabc_ext &&
-      !cpi->sf.inter_sf.skip_eval_intrabc_in_inter_frame &&
-      av2_allow_intrabc(cm, xd, bsize) && (xd->tree_type != CHROMA_PART);
+  // When skip_eval_intrabc_in_inter_frame == 2, only evaluate IntraBC on
+  // non-skippable small blocks (<= 16x16) with high source variance.
+  const unsigned int var_thresh = 50;
+  const int skip_intrabc =
+      (cpi->sf.inter_sf.skip_eval_intrabc_in_inter_frame == 1) ||
+      (cpi->sf.inter_sf.skip_eval_intrabc_in_inter_frame == 2 &&
+       !(search_state->best_mode_skippable == 0 && bsize <= BLOCK_16X16 &&
+         x->source_variance > var_thresh));
+  const int try_intrabc = cpi->oxcf.kf_cfg.enable_intrabc &&
+                          cpi->oxcf.kf_cfg.enable_intrabc_ext &&
+                          !skip_intrabc && av2_allow_intrabc(cm, xd, bsize) &&
+                          (xd->tree_type != CHROMA_PART);
   if (!(try_intrabc && is_intra_mode_allowed)) return;
 
   RD_STATS this_rd_cost;

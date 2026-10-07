@@ -943,6 +943,15 @@ static void set_rt_speed_features_framesize_independent(
     if (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN) {
       sf->intra_sf.skip_intra_in_interframe = 1;
       sf->rt_sf.prune_intra_mode_in_interframe = 1;
+      // For screen content with --enable-intrabc-ext, selectively enable
+      // pruned IntraBC evaluation on high-SAD delta frames (scene/slide
+      // changes) when scene detection is active, or on all delta frames when
+      // scene detection is disabled.
+      if (cpi->oxcf.kf_cfg.enable_intrabc_ext) {
+        sf->inter_sf.skip_eval_intrabc_in_inter_frame =
+            (!sf->rt_sf.check_scene_detection || cpi->rc.high_source_sad) ? 2
+                                                                          : 1;
+      }
     }
   }
 }

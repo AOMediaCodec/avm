@@ -792,7 +792,12 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // flag to skip NEWMV mode in drl if the motion search result is the same
   int skip_repeated_newmv;
 
-  // flag to skip the evaulation of intrabc mode in inter frame
+  // Flag to skip the evaluation of intrabc mode in inter frame:
+  // 0: Do not skip
+  // 1: Skip intrabc evaluation in inter frame completely
+  // 2: Skip intrabc evaluation in inter frame unless the block is
+  //    non-skippable, block size <= 16x16, and block source_variance
+  //    above threshold. And skip subpel searches.
   int skip_eval_intrabc_in_inter_frame;
 
   // flag to early terminate jmvd scaling factors

@@ -2335,9 +2335,15 @@ static AVM_INLINE void encode_frame_internal(AV2_COMP *cpi) {
          (size_t)cpi->sb256_map_rows * cpi->sb256_map_stride);
 
   features->allow_intrabc &= (oxcf->kf_cfg.enable_intrabc);
-  if (!frame_is_intra_only(cm) &&
-      (!oxcf->kf_cfg.enable_intrabc_ext ||
-       cpi->sf.inter_sf.skip_eval_intrabc_in_inter_frame == 1)) {
+  if (frame_is_intra_only(cm)) {
+    // In real-time mode when global IntraBC is enabled on keyframes, skip the
+    // second (local) IntraBC search pass on keyframes.
+    if (cpi->sf.inter_sf.skip_eval_intrabc_in_inter_frame >= 1 &&
+        features->allow_global_intrabc) {
+      features->allow_local_intrabc = 0;
+    }
+  } else if (!oxcf->kf_cfg.enable_intrabc_ext ||
+             cpi->sf.inter_sf.skip_eval_intrabc_in_inter_frame == 1) {
     features->allow_intrabc = 0;
     features->allow_local_intrabc = 0;
   }
@@ -2404,7 +2410,11 @@ static AVM_INLINE void encode_frame_internal(AV2_COMP *cpi) {
                                       block_hash_values[0], is_block_same[0]);
     // Hash data generated for screen contents is used for intraBC ME
     const int min_alloc_size = block_size_wide[mi_params->mi_alloc_bsize];
-    const int max_sb_size = (1 << (cm->mib_size_log2 + MI_SIZE_LOG2));
+    const int max_sb_size =
+        (!frame_is_intra_only(cm) &&
+         cpi->sf.inter_sf.skip_eval_intrabc_in_inter_frame == 2)
+            ? block_size_wide[BLOCK_16X16]
+            : (1 << (cm->mib_size_log2 + MI_SIZE_LOG2));
     int src_idx = 0;
     for (int size = 4; size <= max_sb_size; size *= 2, src_idx = !src_idx) {
       const int dst_idx = !src_idx;
