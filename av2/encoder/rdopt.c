@@ -4070,7 +4070,8 @@ static AVM_INLINE void compute_ref_mv_idx_masks(
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   const MvSubpelPrecision pb_mv_precision = mbmi->pb_mv_precision;
-  const MB_MODE_INFO mbmi_backup = *mbmi;
+  const int saved_bawp0 = mbmi->bawp_flag[0];
+  const int saved_bawp1 = mbmi->bawp_flag[1];
 
   mbmi->bawp_flag[0] = 0;
   mbmi->bawp_flag[1] = 0;
@@ -4088,7 +4089,8 @@ static AVM_INLINE void compute_ref_mv_idx_masks(
     }
   }
 
-  *mbmi = mbmi_backup;
+  mbmi->bawp_flag[0] = saved_bawp0;
+  mbmi->bawp_flag[1] = saved_bawp1;
 }
 
 /*!\brief Motion mode information for inter mode search speedup.
