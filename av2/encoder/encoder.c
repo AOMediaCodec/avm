@@ -1538,6 +1538,9 @@ AV2_COMP *av2_create_compressor(AV2EncoderConfig *oxcf, BufferPool *const pool,
   if (!cm) return NULL;
 
   av2_zero(*cpi);
+  // Unknown until the first level-1 or level-2 frame is coded
+  // (sf->inter_sf.prune_bawp_by_gop_usage).
+  cpi->bawp_gop_usage[0] = cpi->bawp_gop_usage[1] = -1.0;
 
   // The jmp_buf is valid only for the duration of the function that calls
   // setjmp(). Therefore, this function must reset the 'setjmp' field to 0
