@@ -581,6 +581,163 @@ class TcqRateLfLumaQ1Test : public FunctionEquivalenceTest<TcqRateLfLuma> {
 
 TEST_P(TcqRateLfLumaQ1Test, RandomValues) { RunTest(); }
 
+// Frozen-reference tests for the q1 rate C optimization.
+// The C functions rate_def_luma_q1_c and rate_lf_luma_q1_c were rewritten from
+// calling get_coeff_cost_def/get_coeff_cost (generic paths) to reading
+// pre-packed tables directly. These tests verify the pre-packed table path
+// against the original generic-path semantics frozen here as reference logic.
+// If the generic cost functions are deprecated, these frozen references
+// preserve the correctness oracle for the q1 specialization.
+
+TEST(TcqRateDefLumaQ1FrozenRef, MatchesGenericPath) {
+  const int kIterations = 100000;
+  libavm_test::ACMRandom rng(libavm_test::ACMRandom::DeterministicSeed());
+  LV_MAP_COEFF_COST txb_costs;
+  tcq_param_t param;
+  prequant_t pq;
+  tcq_coeff_ctx_t coeff_ctx;
+
+  for (int iter = 0; iter < kIterations; ++iter) {
+    int log_scale = 1;
+    int shift = 16 - log_scale + QUANT_FP_BITS;
+    const int32_t quant[2] = { 1 << shift, 1 << shift };
+    int dqv = 1 << QUANT_TABLE_BITS;
+
+    int bwl = 3 + (rng.Rand8() & 2);
+    int max = (1 << bwl) - 1;
+    int r0 = (int)(rng.Rand8() & max);
+    int c0 = (int)(rng.Rand8() & max);
+    int row = AVMMAX(r0, 4);
+    int col = AVMMAX(c0, 4);
+    int blk_pos = (row << bwl) + col;
+    int scan_pos = blk_pos;
+    int diag_ctx = get_nz_map_ctx_from_stats(0, blk_pos, bwl, TX_CLASS_2D, 0);
+
+    param.bwl = bwl;
+    param.txb_height = 1 << bwl;
+    param.tx_class = (TX_CLASS)0;
+    param.txb_costs = &txb_costs;
+
+    generate_random_cost_tables(&rng, &txb_costs);
+    av2_pre_quant_q1(0, &pq, quant, dqv, log_scale, scan_pos);
+    int eob_rate = rng(512 * 4);
+
+    for (int i = 0; i < 8; i++) {
+      coeff_ctx.coef[i] = (rng(4) << 4) + rng(4);
+    }
+    coeff_ctx.coef_eob = get_lower_levels_ctx_eob(bwl, 1 << bwl, scan_pos);
+    coeff_ctx.pad[0] = coeff_ctx.pad[1] = coeff_ctx.pad[2] = 0;
+
+    tcq_rate_t rd;
+    memset(&rd, 0, sizeof(rd));
+    av2_get_rate_dist_def_luma_q1_c(&param, &pq, &coeff_ctx, blk_pos, diag_ctx,
+                                    eob_rate, &rd);
+
+    int base_diag_ctx = diag_ctx & 255;
+    for (int i = 0; i < TCQ_N_STATES; i++) {
+      int q_i = (i & 2) ? 1 : 0;
+      int ctx = base_diag_ctx + (coeff_ctx.coef[i] & 0xF);
+      int exp_zero = txb_costs.base_cost[ctx][q_i][0];
+      ASSERT_EQ(rd.rate_zero[i], exp_zero)
+          << "rate_zero[" << i << "] iter=" << iter;
+      if (q_i == 1) {
+        int exp = txb_costs.base_cost[ctx][1][1] + av2_cost_literal(1);
+        ASSERT_EQ(rd.rate[2 * i], exp) << "rate[" << 2 * i << "] iter=" << iter;
+      } else {
+        int exp = txb_costs.base_cost[ctx][0][1] + av2_cost_literal(1);
+        ASSERT_EQ(rd.rate[2 * i + 1], exp)
+            << "rate[" << (2 * i + 1) << "] iter=" << iter;
+      }
+    }
+    int eob_ctx = coeff_ctx.coef_eob;
+    int exp_eob =
+        eob_rate + txb_costs.base_eob_cost[eob_ctx][0] + av2_cost_literal(1);
+    ASSERT_EQ(rd.rate_eob[1], exp_eob) << "rate_eob[1] iter=" << iter;
+  }
+}
+
+TEST(TcqRateLfLumaQ1FrozenRef, MatchesGenericPath) {
+  const int kIterations = 100000;
+  libavm_test::ACMRandom rng(libavm_test::ACMRandom::DeterministicSeed());
+  LV_MAP_COEFF_COST txb_costs;
+  tcq_param_t param;
+  prequant_t pq;
+  tcq_coeff_ctx_t coeff_ctx;
+  int32_t tmp_sign[1024];
+
+  for (int iter = 0; iter < kIterations; ++iter) {
+    int log_scale = 1;
+    int shift = 16 - log_scale + QUANT_FP_BITS;
+    const int32_t quant[2] = { 1 << shift, 1 << shift };
+    int dqv = 1 << QUANT_TABLE_BITS;
+
+    int bwl = 2 + (rng.Rand8() & 3);
+    int height = 1 << bwl;
+    int diag = rng.Rand8() & 3;
+    int row = rng.Rand8() % (diag + 1);
+    int col = diag - row;
+    int blk_pos = (row << bwl) + col;
+    int scan_pos = blk_pos;
+    int diag_ctx = get_nz_map_ctx_from_stats_lf(0, blk_pos, bwl, TX_CLASS_2D);
+    if (scan_pos > 0) diag_ctx += 7 << 8;
+
+    int coeff_sign = rng.Rand8() & 1;
+    param.bwl = bwl;
+    param.txb_height = height;
+    param.tx_class = (TX_CLASS)0;
+    param.txb_costs = &txb_costs;
+    param.tmp_sign = tmp_sign;
+    param.dc_sign_ctx = rng.Rand8() % DC_SIGN_CONTEXTS;
+    tmp_sign[blk_pos] = rng.Rand8() % CROSS_COMPONENT_CONTEXTS;
+
+    generate_random_cost_tables(&rng, &txb_costs);
+    av2_pre_quant_q1(0, &pq, quant, dqv, log_scale, scan_pos);
+    int eob_rate = rng(512 * 4);
+
+    for (int i = 0; i < 8; i++) {
+      coeff_ctx.coef[i] = (rng(4) << 4) + rng(4);
+    }
+    coeff_ctx.coef_eob = get_lower_levels_ctx_eob(bwl, height, scan_pos);
+    coeff_ctx.pad[0] = coeff_ctx.pad[1] = coeff_ctx.pad[2] = 0;
+
+    tcq_rate_t rd;
+    memset(&rd, 0, sizeof(rd));
+    av2_get_rate_dist_lf_luma_q1_c(&param, &pq, &coeff_ctx, blk_pos, diag_ctx,
+                                   eob_rate, coeff_sign, &rd);
+
+    int base_diag_ctx = diag_ctx & 255;
+    int is_dc = (blk_pos == 0);
+    int dc_cost_add = 0;
+    if (is_dc) {
+      dc_cost_add = txb_costs.dc_sign_cost[0][param.dc_sign_ctx][coeff_sign] -
+                    av2_cost_literal(1);
+    }
+
+    for (int i = 0; i < TCQ_N_STATES; i++) {
+      int q_i = (i & 2) ? 1 : 0;
+      int ctx = base_diag_ctx + (coeff_ctx.coef[i] & 0xF);
+      int exp_zero = txb_costs.base_lf_cost[ctx][q_i][0];
+      ASSERT_EQ(rd.rate_zero[i], exp_zero)
+          << "rate_zero[" << i << "] iter=" << iter;
+      if (q_i == 1) {
+        int exp = txb_costs.base_lf_cost[ctx][1][1] + av2_cost_literal(1) +
+                  dc_cost_add;
+        ASSERT_EQ(rd.rate[2 * i], exp) << "rate[" << 2 * i << "] iter=" << iter;
+      } else {
+        int exp = txb_costs.base_lf_cost[ctx][0][1] + av2_cost_literal(1) +
+                  dc_cost_add;
+        ASSERT_EQ(rd.rate[2 * i + 1], exp)
+            << "rate[" << (2 * i + 1) << "] iter=" << iter;
+      }
+    }
+    int eob_ctx = coeff_ctx.coef_eob;
+    int exp_eob =
+        eob_rate + txb_costs.base_lf_eob_cost[eob_ctx][0] + av2_cost_literal(1);
+    if (is_dc) exp_eob += dc_cost_add;
+    ASSERT_EQ(rd.rate_eob[1], exp_eob) << "rate_eob[1] iter=" << iter;
+  }
+}
+
 typedef void (*TcqUpdateNbrDiagonalFunc)(struct tcq_ctx_t *tcq_ctx, int row,
                                          int col, int bwl);
 typedef libavm_test::FuncParam<TcqUpdateNbrDiagonalFunc>
@@ -833,31 +990,31 @@ class TcqDecideStatesQ1Test
     for (int iter = 0; iter < kIterations && !HasFatalFailure(); ++iter) {
       for (int i = 0; i < TCQ_N_STATES; i++) {
         prev_[i].rdCost = rng_(1 << 20);
-        prev_[i].rate = rng_(1 << 16);
+        prev_[i].rate = rng_(1 << 30);
         prev_[i].absLevel = rng_.Rand8() % 16;
         prev_[i].prevId = rng_.Rand8() % 8;
       }
       for (int i = 0; i < 2 * TCQ_MAX_STATES; i++) {
-        rd_.rate[i] = rng_(1 << 16);
+        rd_.rate[i] = rng_(1 << 30);
       }
       for (int i = 0; i < TCQ_MAX_STATES; i++) {
-        rd_.rate_zero[i] = rng_(1 << 16);
+        rd_.rate_zero[i] = rng_(1 << 30);
       }
-      rd_.rate_eob[0] = rng_(1 << 16);
-      rd_.rate_eob[1] = rng_(1 << 16);
+      rd_.rate_eob[0] = rng_(1 << 30);
+      rd_.rate_eob[1] = rng_(1 << 30);
 
       pq_.absLevel[0] = 0;
       pq_.absLevel[1] = 1;
       pq_.absLevel[2] = 1;
       pq_.absLevel[3] = 0;
-      pq_.deltaDist[0] = (int64_t)rng_(1 << 20);
-      pq_.deltaDist[1] = (int64_t)rng_(1 << 20);
-      pq_.deltaDist[2] = (int64_t)rng_(1 << 20);
-      pq_.deltaDist[3] = (int64_t)rng_(1 << 20);
+      pq_.deltaDist[0] = (int64_t)rng_(1 << 20) - (1 << 19);
+      pq_.deltaDist[1] = (int64_t)rng_(1 << 20) - (1 << 19);
+      pq_.deltaDist[2] = (int64_t)rng_(1 << 20) - (1 << 19);
+      pq_.deltaDist[3] = (int64_t)rng_(1 << 20) - (1 << 19);
       pq_.qIdx = 1;
       limits_ = 0;
       try_eob_ = rng_.Rand8() & 1;
-      rdmult_ = rng_(1 << 16);
+      rdmult_ = rng_(1 << 30);
 
       tcq_node_t ref[TCQ_N_STATES], tst[TCQ_N_STATES];
       Execute(ref, tst);
@@ -1446,6 +1603,13 @@ INSTANTIATE_TEST_SUITE_P(NEON, TcqLoopDiagonalSt8Test,
                          ::testing::Values(TcqLoopDiagonalSt8TestFuncs(
                              av2_trellis_loop_diagonal_st8_c,
                              av2_trellis_loop_diagonal_st8_neon)));
+#endif  // HAVE_NEON
+
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(
+    NEON, TcqDecideStatesQ1Test,
+    ::testing::Values(TcqDecideStatesTestFuncs(av2_decide_states_q1_c,
+                                               av2_decide_states_q1_neon)));
 #endif  // HAVE_NEON
 
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(TcqDecideStatesTest);
