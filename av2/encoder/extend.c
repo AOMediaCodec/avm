@@ -10,6 +10,8 @@
  * aomedia.org/license/patent-license/.
  */
 
+#include <assert.h>
+
 #include "avm_dsp/avm_dsp_common.h"
 #include "avm_mem/avm_mem.h"
 #include "avm_ports/mem.h"
@@ -46,6 +48,7 @@ static void highbd_copy_and_extend_plane(const uint16_t *src, int src_pitch,
   dst_ptr1 = dst + dst_pitch * (-extend_top) - extend_left;
   dst_ptr2 = dst + dst_pitch * (h)-extend_left;
   linesize = extend_left + extend_right + w;
+  assert(linesize <= dst_pitch);
 
   for (i = 0; i < extend_top; i++) {
     memcpy(dst_ptr1, src_ptr1, linesize * sizeof(src_ptr1[0]));
@@ -69,8 +72,8 @@ void av2_copy_and_extend_frame(const YV12_BUFFER_CONFIG *src,
   const int eb_y = AVMMAX(src->y_height + dst->border,
                           ALIGN_POWER_OF_TWO(src->y_height, 6)) -
                    src->y_crop_height;
-  const int uv_width_subsampling = (src->uv_width != src->y_width);
-  const int uv_height_subsampling = (src->uv_height != src->y_height);
+  const int uv_width_subsampling = src->subsampling_x;
+  const int uv_height_subsampling = src->subsampling_y;
   const int et_uv = et_y >> uv_height_subsampling;
   const int el_uv = el_y >> uv_width_subsampling;
   const int eb_uv = eb_y >> uv_height_subsampling;
