@@ -833,6 +833,8 @@ static void alloc_read_metadata(AV2Decoder *const pbi,
     avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
                        "Error allocating metadata");
   }
+  metadata->mlayer_id = (uint8_t)cm->mlayer_id;
+  metadata->tlayer_id = (uint8_t)cm->tlayer_id;
   avm_metadata_t **metadata_array =
       (avm_metadata_t **)realloc(pbi->metadata->metadata_array,
                                  (pbi->metadata->sz + 1) * sizeof(metadata));
@@ -844,6 +846,40 @@ static void alloc_read_metadata(AV2Decoder *const pbi,
   pbi->metadata->metadata_array = metadata_array;
   pbi->metadata->metadata_array[pbi->metadata->sz] = metadata;
   pbi->metadata->sz++;
+}
+
+// Clears the persistent metadata unit of type 'type', if any.
+static void clear_persistent_metadata(AV2Decoder *const pbi,
+                                      OBU_METADATA_TYPE type) {
+  if (type < NUM_OBU_METADATA_TYPES) {
+    avm_img_metadata_free(pbi->persistent_metadata[type]);
+    pbi->persistent_metadata[type] = NULL;
+  }
+}
+
+// Records 'src' as the persistent metadata unit of its type.
+static void store_persistent_metadata(AV2Decoder *const pbi,
+                                      const avm_metadata_t *src) {
+  if (src->persistence_idc == AVM_NO_PERSISTENCE) return;
+  if (src->type >= NUM_OBU_METADATA_TYPES) return;
+
+  avm_metadata_t *const copy =
+      avm_img_metadata_alloc(src->type, src->payload, src->sz,
+                             src->insert_flag);
+  if (!copy) return;
+  copy->is_suffix = src->is_suffix;
+  copy->necessity_idc = src->necessity_idc;
+  copy->application_id = src->application_id;
+  copy->priority = src->priority;
+  copy->persistence_idc = src->persistence_idc;
+  copy->layer_idc = src->layer_idc;
+  copy->xlayer_map = src->xlayer_map;
+  memcpy(copy->mlayer_map, src->mlayer_map, sizeof(copy->mlayer_map));
+  copy->mlayer_id = src->mlayer_id;
+  copy->tlayer_id = src->tlayer_id;
+
+  avm_img_metadata_free(pbi->persistent_metadata[src->type]);
+  pbi->persistent_metadata[src->type] = copy;
 }
 
 // On failure, calls avm_internal_error() and does not return.
@@ -1413,7 +1449,9 @@ static size_t read_metadata_obu(AV2Decoder *pbi, const uint8_t *data, size_t sz,
       return 0;
     }
     bytes_read += muh_size;
-    if (!metadata.cancel_flag) {
+    if (metadata.cancel_flag) {
+      clear_persistent_metadata(pbi, (OBU_METADATA_TYPE)metadata.type);
+    } else {
       if (sz - bytes_read < metadata.sz) {
         cm->error.error_code = AVM_CODEC_CORRUPT_FRAME;
         return 0;
@@ -1421,6 +1459,20 @@ static size_t read_metadata_obu(AV2Decoder *pbi, const uint8_t *data, size_t sz,
       const size_t mup_size =
           read_metadata_unit_payload(pbi, data + bytes_read, &metadata);
       bytes_read += mup_size;
+
+      if (pbi->metadata && pbi->metadata->sz > 0) {
+        avm_metadata_t *const last_metadata =
+            pbi->metadata->metadata_array[pbi->metadata->sz - 1];
+        if (last_metadata && last_metadata->type == metadata.type) {
+          last_metadata->layer_idc = metadata.layer_idc;
+          last_metadata->persistence_idc = metadata.persistence_idc;
+          last_metadata->priority = metadata.priority;
+          last_metadata->xlayer_map = metadata.xlayer_map;
+          memcpy(last_metadata->mlayer_map, metadata.mlayer_map,
+                 sizeof(last_metadata->mlayer_map));
+          store_persistent_metadata(pbi, last_metadata);
+        }
+      }
     }
   }
 
@@ -1470,7 +1522,10 @@ static size_t read_metadata_short(AV2Decoder *pbi, const uint8_t *data,
   // Increase the type_length by 1 byte since there is one prefix byte added
   // before the type
   ++type_length;
-  if (muh_cancel_flag) return sz;
+  if (muh_cancel_flag) {
+    clear_persistent_metadata(pbi, metadata_type);
+    return sz;
+  }
 
   // Update the metadata with the header fields we read
   if (pbi->metadata && pbi->metadata->sz > 0) {
@@ -1481,6 +1536,7 @@ static size_t read_metadata_short(AV2Decoder *pbi, const uint8_t *data,
       last_metadata->layer_idc = muh_layer_idc;
       last_metadata->cancel_flag = muh_cancel_flag;
       last_metadata->persistence_idc = muh_persistence_idc;
+      store_persistent_metadata(pbi, last_metadata);
     }
   }
 
@@ -1508,6 +1564,7 @@ static size_t read_metadata_short(AV2Decoder *pbi, const uint8_t *data,
         last_metadata->layer_idc = muh_layer_idc;
         last_metadata->cancel_flag = muh_cancel_flag;
         last_metadata->persistence_idc = muh_persistence_idc;
+        store_persistent_metadata(pbi, last_metadata);
       }
     }
     return sz;
@@ -1528,6 +1585,7 @@ static size_t read_metadata_short(AV2Decoder *pbi, const uint8_t *data,
         last_metadata->layer_idc = muh_layer_idc;
         last_metadata->cancel_flag = muh_cancel_flag;
         last_metadata->persistence_idc = muh_persistence_idc;
+        store_persistent_metadata(pbi, last_metadata);
       }
     }
     return sz;
@@ -1548,6 +1606,7 @@ static size_t read_metadata_short(AV2Decoder *pbi, const uint8_t *data,
         last_metadata->layer_idc = muh_layer_idc;
         last_metadata->cancel_flag = muh_cancel_flag;
         last_metadata->persistence_idc = muh_persistence_idc;
+        store_persistent_metadata(pbi, last_metadata);
       }
     }
     return sz;
@@ -1595,6 +1654,7 @@ static size_t read_metadata_short(AV2Decoder *pbi, const uint8_t *data,
         last_metadata->layer_idc = muh_layer_idc;
         last_metadata->cancel_flag = muh_cancel_flag;
         last_metadata->persistence_idc = muh_persistence_idc;
+        store_persistent_metadata(pbi, last_metadata);
       }
     }
   } else if (metadata_type == OBU_METADATA_TYPE_ICC_PROFILE) {
