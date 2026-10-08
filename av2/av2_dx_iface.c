@@ -1185,6 +1185,54 @@ static void move_decoder_metadata_to_img(AV2Decoder *pbi, avm_image_t *img) {
   }
 }
 
+// Appends persistent metadata that applies to this frame's
+// embedded/temporal layer onto 'img'.
+static void apply_persistent_metadata_to_img(AV2Decoder *pbi,
+                                              avm_image_t *img) {
+  const SequenceHeader *const seq = &pbi->common.seq_params;
+  const int m = img->mlayer_id;
+  const int c = img->tlayer_id;
+  const int x = img->xlayer_id;
+
+  for (int type = 0; type < NUM_OBU_METADATA_TYPES; type++) {
+    const avm_metadata_t *const persisted = pbi->persistent_metadata[type];
+    if (!persisted) continue;
+
+    const int k = persisted->mlayer_id;
+    const int t = persisted->tlayer_id;
+    int applies;
+    if (m == k) {
+      // Temporal persistence.
+      applies = is_tlayer_transitively_dependent(seq, k, c, t);
+    } else if (m > k && persisted->layer_idc == AVM_LAYER_VALUES &&
+               x < 31 && (persisted->mlayer_map[x] >> (k + 1)) != 0 &&
+               is_mlayer_scalable_and_dependent(seq, m, k)) {
+      // Multi-layer persistence gates Combined persistence.
+      applies = is_tlayer_transitively_dependent(seq, m, c, t);
+    } else {
+      applies = 0;
+    }
+    if (!applies) continue;
+
+    if (avm_img_add_metadata(img, persisted->type, persisted->payload,
+                             persisted->sz, persisted->insert_flag) == 0) {
+      avm_metadata_t *const copy =
+          img->metadata->metadata_array[img->metadata->sz - 1];
+      copy->is_suffix = persisted->is_suffix;
+      copy->necessity_idc = persisted->necessity_idc;
+      copy->application_id = persisted->application_id;
+      copy->priority = persisted->priority;
+      copy->persistence_idc = persisted->persistence_idc;
+      copy->layer_idc = persisted->layer_idc;
+      copy->xlayer_map = persisted->xlayer_map;
+      memcpy(copy->mlayer_map, persisted->mlayer_map,
+             sizeof(copy->mlayer_map));
+      copy->mlayer_id = persisted->mlayer_id;
+      copy->tlayer_id = persisted->tlayer_id;
+    }
+  }
+}
+
 static void copy_frame_hash_metadata_to_img(
     avm_image_t *img, RefCntBuffer *const output_frame_buf) {
   // Note that `av2_num_planes()` may return an obsolete value if stream
@@ -1250,6 +1298,7 @@ static avm_image_t *decoder_get_frame_(avm_codec_alg_priv_t *ctx,
         img->mlayer_id = output_frame_buf->mlayer_id;
         img->xlayer_id = output_frame_buf->xlayer_id;
         img->stream_id = output_frame_buf->stream_id;
+        apply_persistent_metadata_to_img(pbi, img);
 
         if (pbi->skip_film_grain) grain_params->apply_grain = 0;
         avm_image_t *res =
