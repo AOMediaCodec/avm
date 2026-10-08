@@ -6778,6 +6778,25 @@ static INLINE void read_intrabc_params(AV2_COMMON *const cm,
   FeatureFlags *const features = &cm->features;
   features->allow_intrabc = avm_rb_read_bit(rb);
 
+  // Bitstream conformance: for a coded video sequence containing an
+  // OBU_SWITCH frame, at least one of the BAWP/IBC/OPFL/RefineMV
+  // constraints must hold for the switch frame and every dependent inter
+  // frame that follows it (the switch frame itself, frame_type == S_FRAME,
+  // is excluded from this particular constraint). When enable_refmvbank is
+  // 1 and OPFL refinement/RefineMV are not both off sequence-wide,
+  // allow_intrabc must be 0 here.
+  if (features->allow_intrabc && in_switch_risk_window(cm) &&
+      current_frame->frame_type == INTER_FRAME &&
+      cm->seq_params.enable_refmvbank &&
+      !(cm->seq_params.enable_opfl_refine == AVM_OPFL_REFINE_NONE &&
+        cm->seq_params.enable_refinemv == 0)) {
+    avm_internal_error(
+        &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+        "allow_intrabc must be 0 for an inter frame depending on the layer "
+        "of a preceding OBU_SWITCH frame when enable_refmvbank is 1, unless "
+        "enable_opfl_refine is REFINE_NONE and enable_refinemv is 0");
+  }
+
   if (features->allow_intrabc) {
     if (current_frame->frame_type == KEY_FRAME ||
         current_frame->frame_type == INTRA_ONLY_FRAME) {
@@ -7150,7 +7169,12 @@ static int read_show_existing_frame(AV2Decoder *pbi, bool is_regular_obu,
       // are always shown).
       pbi->last_olk_tu_display_order_hint = current_frame->display_order_hint;
     }
-    if (pbi->this_is_first_vcl_obu_in_tu) pbi->olk_encountered = 0;
+    if (pbi->this_is_first_vcl_obu_in_tu) {
+      // This SEF is the first regular frame after the OLK's temporal unit,
+      // which ends the risk window (see read_uncompressed_header()).
+      close_switch_risk_windows(cm);
+      pbi->olk_encountered = 0;
+    }
   }
 
   lock_buffer_pool(pool);
@@ -8074,6 +8098,28 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       current_frame->frame_type =
           avm_rb_read_bit(rb) ? INTER_FRAME : INTRA_ONLY_FRAME;
     }
+
+    // Track the "risk window" opened by an OBU_SWITCH frame, used below to
+    // enforce the bitstream conformance requirement constraining BAWP/IBC
+    // around switch frames (decoder state derived from reconstructed
+    // samples can diverge across bitstreams spliced at the switch frame
+    // even though parsing stays deterministic). A CLK or an OBU_RAS_FRAME
+    // closes any risk window opened by a prior OBU_SWITCH frame. An OLK does
+    // not: its leading frames may reference frames that precede it, so the
+    // window stays open until the first regular frame that follows the
+    // temporal unit of the OLK, which is also where olk_encountered is
+    // cleared below.
+    const bool olk_leading_span_ended = pbi->olk_encountered &&
+                                        av2_is_regular_non_olk_obu(obu_type) &&
+                                        pbi->this_is_first_vcl_obu_in_tu;
+    if (obu_type == OBU_CLOSED_LOOP_KEY || obu_type == OBU_RAS_FRAME ||
+        olk_leading_span_ended) {
+      close_switch_risk_windows(cm);
+    }
+    if (obu_type == OBU_SWITCH) {
+      open_switch_risk_window(cm);
+    }
+
     current_frame->long_term_id = -1;
     if (current_frame->frame_type == KEY_FRAME) {
       const int long_term_id_plus_1 =
@@ -9302,6 +9348,23 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     features->enable_bawp = avm_rb_read_bit(rb);
   else
     features->enable_bawp = 0;
+
+  // Bitstream conformance: for a coded video sequence containing an
+  // OBU_SWITCH frame, at least one of the BAWP/IBC/OPFL/RefineMV
+  // constraints must hold for the switch frame and every dependent inter
+  // frame that follows it (the switch frame itself, frame_type == S_FRAME,
+  // is excluded from this particular constraint). If OPFL refinement and
+  // RefineMV are not both off sequence-wide, then BAWP must be off here.
+  if (features->enable_bawp && in_switch_risk_window(cm) &&
+      current_frame->frame_type == INTER_FRAME &&
+      !(seq_params->enable_opfl_refine == AVM_OPFL_REFINE_NONE &&
+        seq_params->enable_refinemv == 0)) {
+    avm_internal_error(
+        &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+        "enable_bawp must be 0 for an inter frame depending on the layer of "
+        "a preceding OBU_SWITCH frame, unless enable_opfl_refine is "
+        "REFINE_NONE and enable_refinemv is 0");
+  }
 
   features->enable_intra_bawp = seq_params->enable_bawp;
 
