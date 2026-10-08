@@ -1035,3 +1035,114 @@ void av2_trellis_loop_diagonal_st8_neon(const struct tcq_param_t *p,
     scan_hi = scan_lo - 1;
   }
 }
+
+// ---- decide_states_q1 (RTCD-dispatched, non-diagonal path) ------------------
+// Full NEON output path: rdcost compute, comparison, info packing, and store
+// all stay in NEON registers. Uses saturating subtract + arithmetic shift for
+// 64-bit comparison (armv7-safe alternative to vcgtq_s64).
+
+static AVM_FORCE_INLINE int64x2_t rdcost_q1_neon(uint32x2_t rate,
+                                                 uint32x2_t rdm,
+                                                 int64x2_t dist_shifted) {
+  int64x2_t product = vreinterpretq_s64_u64(vmull_u32(rate, rdm));
+  return vrsraq_n_s64(dist_shifted, product, AV2_PROB_COST_SHIFT);
+}
+
+void av2_decide_states_q1_neon(const struct tcq_node_t *prev,
+                               const struct tcq_rate_t *rd,
+                               const struct prequant_t *pq, int limits,
+                               int try_eob, int64_t rdmult,
+                               struct tcq_node_t *decision) {
+  (void)limits;
+  static_assert(sizeof(tcq_node_t) == 16, "");
+  assert((rdmult >> 32) == 0);
+  const int32_t *rate = rd->rate;
+  const int32_t *rate_zero = rd->rate_zero;
+
+  const uint32x2_t v_rdm = vdup_n_u32((uint32_t)rdmult);
+  const int64x2_t v_dist1 = vdupq_n_s64(pq->deltaDist[1] * (1 << RDDIV_BITS));
+  const int64x2_t v_dist2 = vdupq_n_s64(pq->deltaDist[2] * (1 << RDDIV_BITS));
+  const int64x2_t v_zero = vdupq_n_s64(0);
+
+  static const uint64_t kPidInfo[16] __attribute__((aligned(32))) = {
+    0,
+    1ULL << 56,
+    (1ULL << 32),
+    (1ULL << 32) | (1ULL << 56),
+    (2ULL << 56),
+    (3ULL << 56),
+    (1ULL << 32) | (2ULL << 56),
+    (1ULL << 32) | (3ULL << 56),
+    (4ULL << 56),
+    (5ULL << 56),
+    (1ULL << 32) | (4ULL << 56),
+    (1ULL << 32) | (5ULL << 56),
+    (6ULL << 56),
+    (7ULL << 56),
+    (1ULL << 32) | (6ULL << 56),
+    (1ULL << 32) | (7ULL << 56),
+  };
+
+  static const int kDstA[4] = { 0, 1, 6, 7 };
+  static const int kDstB[4] = { 4, 5, 2, 3 };
+
+  for (int p = 0; p < 4; p++) {
+    const int i = p * 2;
+    const int q = p & 1;
+    const int da = kDstA[p];
+    const int db = kDstB[p];
+    const int64x2_t dist_v = q ? v_dist1 : v_dist2;
+
+    uint64x2_t pid = vld1q_u64(&kPidInfo[p * 4]);
+    uint64x2_t abs_pid = vld1q_u64(&kPidInfo[p * 4 + 2]);
+
+    int64x2_t n0 = vld1q_s64((const int64_t *)&prev[i]);
+    int64x2_t n1 = vld1q_s64((const int64_t *)&prev[i + 1]);
+    int64x2_t prev_rd = vcombine_s64(vget_low_s64(n0), vget_low_s64(n1));
+    int64x2_t prev_info = vcombine_s64(vget_high_s64(n0), vget_high_s64(n1));
+    int32x2_t prev_rate = vmovn_s64(prev_info);
+
+    uint32x2_t rz = vreinterpret_u32_s32(vld1_s32(&rate_zero[i]));
+    int64x2_t rdc_z = vaddq_s64(rdcost_q1_neon(rz, v_rdm, v_zero), prev_rd);
+
+    int32x4_t r4 = vld1q_s32(&rate[2 * i]);
+    int32x2_t lo = vget_low_s32(r4);
+    int32x2_t hi = vget_high_s32(r4);
+    int32x2x2_t uzp = vuzp_s32(lo, hi);
+    int32x2_t r_odd_s = q ? uzp.val[0] : uzp.val[1];
+    uint32x2_t r_odd = vreinterpret_u32_s32(r_odd_s);
+    int64x2_t rdc_o = vaddq_s64(rdcost_q1_neon(r_odd, v_rdm, dist_v), prev_rd);
+
+    int64x2_t rdc_o_x = vextq_s64(rdc_o, rdc_o, 1);
+    int64x2_t diff = vqsubq_s64(rdc_o_x, rdc_z);
+    uint64x2_t mask = vreinterpretq_u64_s64(vshrq_n_s64(diff, 63));
+
+    int64x2_t win_rd = vreinterpretq_s64_u64(vbslq_u64(
+        mask, vreinterpretq_u64_s64(rdc_o_x), vreinterpretq_u64_s64(rdc_z)));
+
+    int32x2_t rz_sum = vadd_s32(vreinterpret_s32_u32(rz), prev_rate);
+    int32x2_t ro_sum = vadd_s32(r_odd_s, prev_rate);
+
+    uint64x2_t info_z = vaddw_u32(pid, vreinterpret_u32_s32(rz_sum));
+    uint64x2_t info_o = vaddw_u32(abs_pid, vreinterpret_u32_s32(ro_sum));
+
+    uint64x2_t info_o_x = vextq_u64(info_o, info_o, 1);
+    uint64x2_t win_info = vbslq_u64(mask, info_o_x, info_z);
+
+    int64x2_t wi = vreinterpretq_s64_u64(win_info);
+    vst1q_s64((int64_t *)&decision[da],
+              vcombine_s64(vget_low_s64(win_rd), vget_low_s64(wi)));
+    vst1q_s64((int64_t *)&decision[db],
+              vcombine_s64(vget_high_s64(win_rd), vget_high_s64(wi)));
+  }
+
+  if (try_eob) {
+    int64_t rdcost_eob1 = RDCOST(rdmult, rd->rate_eob[1], pq->deltaDist[2]);
+    if (rdcost_eob1 < decision[4].rdCost) {
+      decision[4].rdCost = rdcost_eob1;
+      decision[4].rate = rd->rate_eob[1];
+      decision[4].prevId = -1;
+      decision[4].absLevel = pq->absLevel[2];
+    }
+  }
+}
