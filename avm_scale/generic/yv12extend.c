@@ -25,6 +25,7 @@ static void extend_plane_high(uint16_t *const src, int src_stride, int width,
                               int extend_bottom, int extend_right) {
   int i;
   const int linesize = extend_left + extend_right + width;
+  assert(linesize <= src_stride);
 
   /* copy the left and right most columns out */
   uint16_t *src_ptr1 = src;
@@ -62,8 +63,8 @@ static void extend_plane_high(uint16_t *const src, int src_stride, int width,
 
 static void extend_frame(YV12_BUFFER_CONFIG *const ybf, int ext_size,
                          const int num_planes) {
-  const int ss_x = ybf->uv_width < ybf->y_width;
-  const int ss_y = ybf->uv_height < ybf->y_height;
+  const int ss_x = ybf->subsampling_x;
+  const int ss_y = ybf->subsampling_y;
 
   assert(ybf->y_height - ybf->y_crop_height < 16);
   assert(ybf->y_width - ybf->y_crop_width < 16);

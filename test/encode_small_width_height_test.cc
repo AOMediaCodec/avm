@@ -16,6 +16,9 @@
 // (<= one AV2 superblock) with multiple threads. avm_codec_encode() should
 // not crash.
 
+#include <cstring>
+#include <memory>
+
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
 #include "avm/avmcx.h"
@@ -133,6 +136,56 @@ TEST(EncodeSmallWidthHeight, SmallHeightMultiThreadedSpeed0) {
   avm_codec_ctx_t enc;
   EXPECT_EQ(AVM_CODEC_OK, avm_codec_enc_init(&enc, iface, &cfg, 0));
   EXPECT_EQ(AVM_CODEC_OK, avm_codec_control(&enc, AVME_SET_CPUUSED, 0));
+  EXPECT_EQ(AVM_CODEC_OK, avm_codec_encode(&enc, &img, 0, 1, 0));
+  EXPECT_EQ(AVM_CODEC_OK, avm_codec_encode(&enc, NULL, 0, 0, 0));
+  EXPECT_EQ(AVM_CODEC_OK, avm_codec_destroy(&enc));
+}
+
+// A reproducer test for aomedia:3113. The test should complete without any
+// memory errors.
+TEST(EncodeSmallWidthHeight, 1x1) {
+  constexpr int kWidth = 1;
+  constexpr int kHeight = 1;
+
+  // This test cannot use avm_img_alloc() or avm_img_wrap() because they call
+  // align_image_dimension() to align img.w and img.h to the next even number
+  // (2). In this test it is important to set img.w and img.h to 1. Therefore we
+  // set up img manually.
+  avm_image_t img;
+  memset(&img, 0, sizeof(img));
+  img.fmt = AVM_IMG_FMT_I420;
+  img.bit_depth = 8;
+  img.w = kWidth;
+  img.h = kHeight;
+  img.d_w = kWidth;
+  img.d_h = kHeight;
+  img.x_chroma_shift = 1;
+  img.y_chroma_shift = 1;
+  img.bps = 12;
+  int y_stride = kWidth;
+  int uv_stride = (kWidth + 1) >> 1;
+  int y_height = kHeight;
+  int uv_height = (kHeight + 1) >> 1;
+  img.stride[AVM_PLANE_Y] = y_stride;
+  img.stride[AVM_PLANE_U] = img.stride[AVM_PLANE_V] = uv_stride;
+  std::unique_ptr<unsigned char[]> y_plane(
+      new unsigned char[y_height * y_stride]());
+  std::unique_ptr<unsigned char[]> u_plane(
+      new unsigned char[uv_height * uv_stride]());
+  std::unique_ptr<unsigned char[]> v_plane(
+      new unsigned char[uv_height * uv_stride]());
+  img.planes[AVM_PLANE_Y] = y_plane.get();
+  img.planes[AVM_PLANE_U] = u_plane.get();
+  img.planes[AVM_PLANE_V] = v_plane.get();
+
+  avm_codec_iface_t *iface = avm_codec_av2_cx();
+  avm_codec_enc_cfg_t cfg;
+  EXPECT_EQ(AVM_CODEC_OK, avm_codec_enc_config_default(iface, &cfg, 0));
+  cfg.g_w = kWidth;
+  cfg.g_h = kHeight;
+  avm_codec_ctx_t enc;
+  EXPECT_EQ(AVM_CODEC_OK, avm_codec_enc_init(&enc, iface, &cfg, 0));
+  EXPECT_EQ(AVM_CODEC_OK, avm_codec_control(&enc, AVME_SET_CPUUSED, 5));
   EXPECT_EQ(AVM_CODEC_OK, avm_codec_encode(&enc, &img, 0, 1, 0));
   EXPECT_EQ(AVM_CODEC_OK, avm_codec_encode(&enc, NULL, 0, 0, 0));
   EXPECT_EQ(AVM_CODEC_OK, avm_codec_destroy(&enc));
