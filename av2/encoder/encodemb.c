@@ -356,16 +356,6 @@ int av2_optimize_b(const struct AV2_COMP *cpi, MACROBLOCK *x, int plane,
                                 cpi->oxcf.algo_cfg.sharpness);
 }
 
-// This function returns the multiplier of dequantization for current position.
-static INLINE int get_dqv(const int32_t *dequant, int coeff_idx,
-                          const qm_val_t *iqmatrix) {
-  int dqv = dequant[!!coeff_idx];
-  if (iqmatrix != NULL)
-    dqv =
-        ((iqmatrix[coeff_idx] * dqv) + (1 << (AVM_QM_BITS - 1))) >> AVM_QM_BITS;
-  return dqv;
-}
-
 // This function tunes the coefficients when trellis quantization is off.
 void parity_hiding_trellis_off(const struct AV2_COMP *cpi, MACROBLOCK *mb,
                                const int plane_type, int block, TX_SIZE tx_size,
