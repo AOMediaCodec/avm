@@ -1813,6 +1813,15 @@ static void encode_b(const AV2_COMP *const cpi, TileDataEnc *tile_data,
     }
 
     if (tile_data->allow_update_cdf) update_stats(&cpi->common, td);
+    if (cpi->sf.inter_sf.prune_bawp_by_gop_usage && !frame_is_intra_only(cm) &&
+        xd->tree_type != CHROMA_PART && is_inter_block(mbmi, xd->tree_type) &&
+        !is_intrabc_block(mbmi, xd->tree_type) && cm->features.enable_bawp &&
+        av2_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col)) {
+      const BLOCK_SIZE bs = mbmi->sb_type[PLANE_TYPE_Y];
+      const int64_t area = (block_size_wide[bs] * block_size_high[bs]) >> 4;
+      td->rd_counts.bawp_eligible_area += area;
+      if (mbmi->bawp_flag[0]) td->rd_counts.bawp_used_area += area;
+    }
 
     // Gather warped motion count to update the probability.
     if (cpi->sf.inter_sf.prune_warped_prob_thresh > 0 ||

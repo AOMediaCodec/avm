@@ -623,6 +623,7 @@ static void set_good_speed_features_framesize_independent(
 
     sf->inter_sf.alt_ref_search_fp = 1;
     sf->inter_sf.txfm_rd_gate_level = boosted ? 0 : 4;
+    sf->inter_sf.prune_bawp_by_gop_usage = 1;
     sf->inter_sf.fast_warp_delta_decoupled_search = 1;
 
     sf->inter_sf.prune_inter_modes_based_on_tpl = boosted ? 0 : 3;
@@ -996,6 +997,7 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->prune_comp_mode_eval_using_est_rd = false;
   inter_sf->prune_warp_newmv_ref_mv_idx = false;
   inter_sf->enable_fast_bawp = 0;
+  inter_sf->prune_bawp_by_gop_usage = 0;
   inter_sf->limit_max_ref_mv_idx = false;
 }
 

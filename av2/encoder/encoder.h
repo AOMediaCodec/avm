@@ -1705,6 +1705,10 @@ typedef struct RD_COUNTS {
   int skip_mode_used_flag;
   int tx_type_used[TX_SIZES_ALL][PRIMARY_TX_TYPES];
   int warped_used[2];
+  // Luma area (in 4x4 units) of the final coded blocks that may use BAWP, and
+  // of those that use it. Used by sf->inter_sf.prune_bawp_by_gop_usage.
+  int64_t bawp_eligible_area;
+  int64_t bawp_used_area;
 } RD_COUNTS;
 
 typedef struct ThreadData {
@@ -2512,6 +2516,13 @@ typedef struct AV2_COMP {
    * content is screen.
    */
   YV12_BUFFER_CONFIG *unfiltered_source;
+
+  /*!
+   * BAWP share of the BAWP-eligible area on the current GOP's level-1 and
+   * level-2 frames, or -1 while unknown. Used by
+   * sf->inter_sf.prune_bawp_by_gop_usage.
+   */
+  double bawp_gop_usage[2];
 
   /*!
    * Parameters related to tpl.
