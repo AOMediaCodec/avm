@@ -69,13 +69,14 @@ static const int use_intra_ext_tx_for_txsize[EXT_TX_SETS_INTRA]
                                                                { 1, 1, 1, 0 },
                                                                { 1, 1, 1, 1 } };
 
-static const int use_inter_ext_tx_for_txsize[EXT_TX_SETS_INTER]
-                                            [EXT_TX_SIZES] = {
-                                              { 1, 1, 1, 1 },  // unused
-                                              { 1, 1, 0, 0 },
-                                              { 0, 0, 1, 0 },
-                                              { 0, 1, 1, 1 },
-                                            };
+static const int
+    use_inter_ext_tx_for_txsize[EXT_TX_SETS_INTER][EXT_TX_SIZES] = {
+      { 1, 1, 1, 1 },  // unused
+      { 1, 1, 0, 0 },  // EXT_TX_SET_ALL16
+      { 0, 0, 1, 0 },  // EXT_TX_SET_DTT9_IDTX_1DDCT
+      { 0, 1, 1, 1 },  // EXT_TX_SET_DCT_IDTX
+      { 0, 0, 0, 0 },  // EXT_TX_SET_DCT_IDTX_IDDCT (for reduced set only)
+    };
 
 static const int av2_ext_tx_set_idx_to_type[2][AVMMAX(EXT_TX_SETS_INTRA,
                                                       EXT_TX_SETS_INTER)] = {
