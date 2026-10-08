@@ -2038,6 +2038,22 @@ static void get_histogram(int32_t *hist, const YV12_BUFFER_CONFIG *buf,
   }
 }
 
+// GOP-level BAWP pruning (sf->inter_sf.prune_bawp_by_gop_usage). Returns 1 if
+// BAWP is to be turned off for the current frame: a frame at pyramid level
+// >= 3 whose GOP's level-1 and level-2 frames used BAWP on average on at most
+// half of their BAWP-eligible area. Intra and level-1 frames start a new GOP.
+static int should_prune_bawp_by_gop_usage(AV2_COMP *const cpi) {
+  const AV2_COMMON *const cm = &cpi->common;
+  const unsigned int level = cm->current_frame.pyramid_level;
+  if (frame_is_intra_only(cm) || level == 1) {
+    cpi->bawp_gop_usage[0] = cpi->bawp_gop_usage[1] = -1;
+    return 0;
+  }
+  if (level < 3) return 0;
+  if (cpi->bawp_gop_usage[0] < 0 || cpi->bawp_gop_usage[1] < 0) return 0;
+  return cpi->bawp_gop_usage[0] + cpi->bawp_gop_usage[1] <= 1.0;
+}
+
 static int av2_set_on_bawp_picture_level(AV2_COMP *const cpi) {
   int enable_curr_pic_bawp = 0;
   assert(cpi->sf.inter_sf.enable_fast_bawp == 1);
@@ -2214,6 +2230,8 @@ static AVM_INLINE void encode_frame_internal(AV2_COMP *cpi) {
   av2_zero(rdc->comp_pred_diff);
   av2_zero(rdc->tx_type_used);
   av2_zero(rdc->warped_used);
+  rdc->bawp_eligible_area = 0;
+  rdc->bawp_used_area = 0;
 
   for (i = 0; i < CCSO_NUM_COMPONENTS; ++i) {
     cm->ccso_info.ccso_frame_flag = 0;
@@ -2372,6 +2390,10 @@ static AVM_INLINE void encode_frame_internal(AV2_COMP *cpi) {
 #endif
   av2_compute_global_motion_facade(cpi);
 
+  // Called for every frame, so that the GOP state follows the coded frames.
+  if (cpi->sf.inter_sf.prune_bawp_by_gop_usage &&
+      should_prune_bawp_by_gop_usage(cpi))
+    features->enable_bawp = 0;
   if (features->enable_bawp && cpi->sf.inter_sf.enable_fast_bawp)
     features->enable_bawp = av2_set_on_bawp_picture_level(cpi);
 
@@ -2436,6 +2458,18 @@ static AVM_INLINE void encode_frame_internal(AV2_COMP *cpi) {
       encode_tiles(cpi);
       av2_free_pc_tree_recursive(cpi->td.pc_root, av2_num_planes(cm), 0, 0);
       cpi->td.pc_root = NULL;
+    }
+  }
+
+  // BAWP usage of the GOP's level-1 and level-2 frames, for its later frames.
+  // A frame coded with BAWP off has no eligible area and counts as 0.
+  if (cpi->sf.inter_sf.prune_bawp_by_gop_usage && !frame_is_intra_only(cm)) {
+    const unsigned int level = cm->current_frame.pyramid_level;
+    if (level == 1 || level == 2) {
+      cpi->bawp_gop_usage[level - 1] =
+          rdc->bawp_eligible_area > 0
+              ? (double)rdc->bawp_used_area / (double)rdc->bawp_eligible_area
+              : 0.0;
     }
   }
 

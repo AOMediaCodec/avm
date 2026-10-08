@@ -904,6 +904,13 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // 1: enable histogram based frame level on/off
   int enable_fast_bawp;
 
+  // GOP-level BAWP pruning: turn the frame-level BAWP flag off on frames at
+  // pyramid level >= 3 when, on the GOP's level-1 and level-2 frames, BAWP
+  // covered on average at most half of the BAWP-eligible area.
+  // 0: off
+  // 1: on
+  int prune_bawp_by_gop_usage;
+
   // Limit the maximum number of reference MVs searched for single-DRL compound
   // prediction modes. The cap is applicable for larger blocks and is not
   // applied on key/golden/arf frames.
