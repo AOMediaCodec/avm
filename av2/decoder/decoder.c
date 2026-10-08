@@ -446,6 +446,9 @@ void av2_decoder_remove(AV2Decoder *pbi) {
   av2_free_mc_tmp_buf(&pbi->td);
   av2_free_opfl_tmp_bufs(&pbi->td);
   avm_img_metadata_array_free(pbi->metadata);
+  for (i = 0; i < NUM_OBU_METADATA_TYPES; i++) {
+    avm_img_metadata_free(pbi->persistent_metadata[i]);
+  }
 
 #if CONFIG_PARAKIT_COLLECT_DATA
   for (int f = 0; f < MAX_NUM_CTX_GROUPS; f++) {
