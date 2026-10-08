@@ -19,10 +19,10 @@
 #include <cstring>
 #include <memory>
 
-#include "third_party/googletest/src/googletest/include/gtest/gtest.h"
-
 #include "avm/avmcx.h"
 #include "avm/avm_encoder.h"
+#include "config/avm_config.h"
+#include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
 namespace {
 
@@ -53,7 +53,7 @@ TEST(EncodeSmallWidthHeight, SmallWidthMultiThreaded) {
   EXPECT_EQ(AVM_CODEC_OK, avm_codec_enc_init(&enc, iface, &cfg, 0));
   EXPECT_EQ(AVM_CODEC_OK, avm_codec_control(&enc, AVME_SET_CPUUSED, 5));
   EXPECT_EQ(AVM_CODEC_OK, avm_codec_encode(&enc, &img, 0, 1, 0));
-  EXPECT_EQ(AVM_CODEC_OK, avm_codec_encode(&enc, NULL, 0, 0, 0));
+  EXPECT_EQ(AVM_CODEC_OK, avm_codec_encode(&enc, nullptr, 0, 0, 0));
   EXPECT_EQ(AVM_CODEC_OK, avm_codec_destroy(&enc));
 }
 
@@ -81,7 +81,7 @@ TEST(EncodeSmallWidthHeight, SmallWidthMultiThreadedSpeed0) {
   EXPECT_EQ(AVM_CODEC_OK, avm_codec_enc_init(&enc, iface, &cfg, 0));
   EXPECT_EQ(AVM_CODEC_OK, avm_codec_control(&enc, AVME_SET_CPUUSED, 0));
   EXPECT_EQ(AVM_CODEC_OK, avm_codec_encode(&enc, &img, 0, 1, 0));
-  EXPECT_EQ(AVM_CODEC_OK, avm_codec_encode(&enc, NULL, 0, 0, 0));
+  EXPECT_EQ(AVM_CODEC_OK, avm_codec_encode(&enc, nullptr, 0, 0, 0));
   EXPECT_EQ(AVM_CODEC_OK, avm_codec_destroy(&enc));
 }
 
@@ -109,7 +109,7 @@ TEST(EncodeSmallWidthHeight, SmallHeightMultiThreaded) {
   EXPECT_EQ(AVM_CODEC_OK, avm_codec_enc_init(&enc, iface, &cfg, 0));
   EXPECT_EQ(AVM_CODEC_OK, avm_codec_control(&enc, AVME_SET_CPUUSED, 5));
   EXPECT_EQ(AVM_CODEC_OK, avm_codec_encode(&enc, &img, 0, 1, 0));
-  EXPECT_EQ(AVM_CODEC_OK, avm_codec_encode(&enc, NULL, 0, 0, 0));
+  EXPECT_EQ(AVM_CODEC_OK, avm_codec_encode(&enc, nullptr, 0, 0, 0));
   EXPECT_EQ(AVM_CODEC_OK, avm_codec_destroy(&enc));
 }
 
@@ -137,7 +137,7 @@ TEST(EncodeSmallWidthHeight, SmallHeightMultiThreadedSpeed0) {
   EXPECT_EQ(AVM_CODEC_OK, avm_codec_enc_init(&enc, iface, &cfg, 0));
   EXPECT_EQ(AVM_CODEC_OK, avm_codec_control(&enc, AVME_SET_CPUUSED, 0));
   EXPECT_EQ(AVM_CODEC_OK, avm_codec_encode(&enc, &img, 0, 1, 0));
-  EXPECT_EQ(AVM_CODEC_OK, avm_codec_encode(&enc, NULL, 0, 0, 0));
+  EXPECT_EQ(AVM_CODEC_OK, avm_codec_encode(&enc, nullptr, 0, 0, 0));
   EXPECT_EQ(AVM_CODEC_OK, avm_codec_destroy(&enc));
 }
 
@@ -162,18 +162,21 @@ TEST(EncodeSmallWidthHeight, 1x1) {
   img.x_chroma_shift = 1;
   img.y_chroma_shift = 1;
   img.bps = 12;
-  int y_stride = kWidth;
-  int uv_stride = (kWidth + 1) >> 1;
-  int y_height = kHeight;
-  int uv_height = (kHeight + 1) >> 1;
+  const int y_stride = kWidth;
+  const int uv_stride = (kWidth + 1) >> 1;
+  const int y_height = kHeight;
+  const int uv_height = (kHeight + 1) >> 1;
   img.stride[AVM_PLANE_Y] = y_stride;
   img.stride[AVM_PLANE_U] = img.stride[AVM_PLANE_V] = uv_stride;
   std::unique_ptr<unsigned char[]> y_plane(
       new unsigned char[y_height * y_stride]());
+  ASSERT_NE(y_plane, nullptr);
   std::unique_ptr<unsigned char[]> u_plane(
       new unsigned char[uv_height * uv_stride]());
+  ASSERT_NE(u_plane, nullptr);
   std::unique_ptr<unsigned char[]> v_plane(
       new unsigned char[uv_height * uv_stride]());
+  ASSERT_NE(v_plane, nullptr);
   img.planes[AVM_PLANE_Y] = y_plane.get();
   img.planes[AVM_PLANE_U] = u_plane.get();
   img.planes[AVM_PLANE_V] = v_plane.get();
@@ -187,7 +190,7 @@ TEST(EncodeSmallWidthHeight, 1x1) {
   EXPECT_EQ(AVM_CODEC_OK, avm_codec_enc_init(&enc, iface, &cfg, 0));
   EXPECT_EQ(AVM_CODEC_OK, avm_codec_control(&enc, AVME_SET_CPUUSED, 5));
   EXPECT_EQ(AVM_CODEC_OK, avm_codec_encode(&enc, &img, 0, 1, 0));
-  EXPECT_EQ(AVM_CODEC_OK, avm_codec_encode(&enc, NULL, 0, 0, 0));
+  EXPECT_EQ(AVM_CODEC_OK, avm_codec_encode(&enc, nullptr, 0, 0, 0));
   EXPECT_EQ(AVM_CODEC_OK, avm_codec_destroy(&enc));
 }
 
