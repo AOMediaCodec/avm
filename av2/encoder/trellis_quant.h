@@ -192,6 +192,27 @@ static INLINE int get_br_cost_tcq(tran_low_t level, const int *coeff_lps) {
   return coeff_lps[base_range] + get_golomb_cost_tcq(level, 0);
 }
 
+static AVM_FORCE_INLINE int get_dqv(const int32_t *dequant, int coeff_idx,
+                                    const qm_val_t *iqmatrix) {
+  int dqv = dequant[!!coeff_idx];
+  if (iqmatrix != NULL)
+    dqv =
+        ((iqmatrix[coeff_idx] * dqv) + (1 << (AVM_QM_BITS - 1))) >> AVM_QM_BITS;
+  return dqv;
+}
+
+static AVM_FORCE_INLINE int get_diag_ctx(int lf, int blk_pos, int scan_pos,
+                                         int bwl) {
+  int diag_ctx;
+  if (lf) {
+    diag_ctx = get_nz_map_ctx_from_stats_lf(0, blk_pos, bwl, TX_CLASS_2D);
+    if (scan_pos > 0) diag_ctx += 7 << 8;
+  } else {
+    diag_ctx = get_nz_map_ctx_from_stats(0, blk_pos, bwl, TX_CLASS_2D, 0);
+  }
+  return diag_ctx;
+}
+
 /*!\brief Adjust the magnitude of quantized coefficients to achieve better
  * rate-distortion (RD) trade-off with trellis coded quant techology.
  *
