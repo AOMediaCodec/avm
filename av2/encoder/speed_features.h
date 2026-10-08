@@ -1178,6 +1178,11 @@ typedef struct LOOP_FILTER_SPEED_FEATURES {
   // size at deep pyramid levels. Default 0 keeps the smallest size available.
   int reduce_lr_unit_size_by_pyr_drop_low;
 
+  // If set, skip the rounding refinement of the WIENER_NONSEP frame-level
+  // filters (optimize_frame_filters_with_rounding() in pickrst.c) and keep the
+  // filters found by the class-count search.
+  int skip_wienerns_frame_filter_rounding;
+
   // If set, use fast search for WIENER_NONSEP frame-level filters: 1 iteration
   // with all RUs, bypassing percentage subsets and qsort.
   int wienerns_fast_frame_filter_opt;
