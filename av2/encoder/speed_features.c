@@ -674,7 +674,7 @@ static void set_good_speed_features_framesize_independent(
     sf->part_sf.simple_motion_search_prune_agg = 3;
     sf->inter_sf.disable_interinter_wedge = 1;
     sf->inter_sf.disable_onesided_comp = true;
-    cpi->oxcf.tool_cfg.enable_tip_refinemv = 0;
+    sf->hl_sf.tip_direct_output_early_term_margin_pct = 0;
     sf->inter_sf.prune_inter_modes_if_skippable = 1;
     // Unconditionally enable the pre-RD gate at speed >= 5: apply to all
     // frame types including boosted (KF/GF/ARF) frames.
@@ -817,6 +817,7 @@ static AVM_INLINE void init_hl_sf(HIGH_LEVEL_SPEED_FEATURES *hl_sf) {
   hl_sf->recode_tolerance = 25;
   hl_sf->high_precision_mv_usage = LAST_MV_DATA;
   hl_sf->early_term_tip_direct_output_search = false;
+  hl_sf->tip_direct_output_early_term_margin_pct = 20;
 }
 
 static AVM_INLINE void init_tpl_sf(TPL_SPEED_FEATURES *tpl_sf) {

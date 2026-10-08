@@ -3975,9 +3975,8 @@ static INLINE bool allow_tip_direct_output(AV2_COMMON *const cm) {
 // the zero global offset, the rest of the search is skipped if the direct
 // output would not have a lower RD cost than the normally coded frame even with
 // TIP_OUTPUT_MIN_BITS as its rate, about the size of a TIP direct output frame,
-// and its distortion divided by 1 + TIP_OUTPUT_EARLY_TERM_MARGIN_PCT / 100 to
-// allow for the gain of the offset and interpolation filter searches.
-#define TIP_OUTPUT_EARLY_TERM_MARGIN_PCT 20
+// and its distortion divided by 1 + tip_direct_output_early_term_margin_pct /
+// 100 to allow for the gain of the offset and interpolation filter searches.
 #define TIP_OUTPUT_MIN_BITS 40
 
 static INLINE int compute_tip_direct_output_mode_RD(AV2_COMP *cpi,
@@ -4089,7 +4088,8 @@ static INLINE int compute_tip_direct_output_mode_RD(AV2_COMP *cpi,
           rdmult, coded_bits << 5, coded_sse, cm->seq_params.bit_depth);
       const double tip_rdcost_bound = RDCOST_DBL_WITH_NATIVE_BD_DIST(
           rdmult, TIP_OUTPUT_MIN_BITS << 5,
-          best_sse * 100 / (100 + TIP_OUTPUT_EARLY_TERM_MARGIN_PCT),
+          best_sse * 100 /
+              (100 + cpi->sf.hl_sf.tip_direct_output_early_term_margin_pct),
           cm->seq_params.bit_depth);
       if (tip_rdcost_bound >= coded_rdcost) {
         *sse = INT64_MAX;
