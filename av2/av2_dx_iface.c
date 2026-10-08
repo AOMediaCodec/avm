@@ -1206,7 +1206,7 @@ static void apply_persistent_metadata_to_img(AV2Decoder *pbi,
       applies = is_tlayer_transitively_dependent(seq, k, c, t);
     } else if (m > k && persisted->layer_idc == AVM_LAYER_VALUES &&
                x < 31 && (persisted->mlayer_map[x] >> (k + 1)) != 0 &&
-               is_mlayer_scalable_and_dependent(seq, m, k)) {
+               is_mlayer_transitively_dependent(seq, m, k)) {
       // Multi-layer persistence gates Combined persistence.
       applies = is_tlayer_transitively_dependent(seq, m, c, t);
     } else {
