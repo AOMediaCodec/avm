@@ -794,6 +794,7 @@ int av2_get_refresh_frame_flags(
           // been output yet and whose DOH is at least the current
           // frame's DOH. (DOH requirement)
           if (cm->ref_frame_map[i] != NULL &&
+              !cm->ref_frame_map[i]->is_restricted &&
               cm->ref_frame_map[i]->implicit_output_picture &&
               !cm->ref_frame_map[i]->frame_output_done &&
               (int)cm->ref_frame_map[i]->display_order_hint >= cur_disp_order) {
@@ -847,7 +848,7 @@ int av2_get_refresh_frame_flags(
   // at least the current frame's DOH. (DOH requirement)
   for (int i = 0; i < cpi->common.seq_params.ref_frames; i++) {
     const RefCntBuffer *const buf = cpi->common.ref_frame_map[i];
-    if (buf != NULL && buf->implicit_output_picture &&
+    if (buf != NULL && !buf->is_restricted && buf->implicit_output_picture &&
         !buf->frame_output_done &&
         (int)buf->display_order_hint >= cur_disp_order) {
       olk_flags_to_keep |= (1 << i);
