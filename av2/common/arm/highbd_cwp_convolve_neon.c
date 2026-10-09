@@ -2654,27 +2654,20 @@ static inline void cwp_highbd_convolve_x_8_6tap_sym_raw(const int16_t *s,
 
 // Post-filter rounding macro for convolve_x: replaces 4 ops (vadd, vshl,
 // vshl, vadd) with 2 ops (vrshr_n, vadd) when ROUND0 is a compile-time
-// constant 3 or 5 and BITS is 0. Falls back to the original 4-op sequence
-// for non-standard values.
-// Captures round_const, round_shift, bits_shift from enclosing scope.
-#define CWP_X_POST_FILTER(sum, ROUND0, BITS, offset) \
-  do {                                               \
-    if ((ROUND0) == 3) {                             \
-      (sum) = vrshrq_n_s32((sum), 3);                \
-    } else if ((ROUND0) == 5) {                      \
-      (sum) = vrshrq_n_s32((sum), 5);                \
-    } else {                                         \
-      (sum) = vaddq_s32((sum), round_const);         \
-      (sum) = vshlq_s32((sum), round_shift);         \
-    }                                                \
-    if ((BITS) == 4) {                               \
-      (sum) = vshlq_n_s32((sum), 4);                 \
-    } else if ((BITS) == 3) {                        \
-      (sum) = vshlq_n_s32((sum), 3);                 \
-    } else if ((BITS) > 0) {                         \
-      (sum) = vshlq_s32((sum), bits_shift);          \
-    }                                                \
-    (sum) = vaddq_s32((sum), (offset));              \
+// constant 3 or 5. Falls back to the original 4-op sequence for
+// non-standard values.
+// Captures round_const, round_shift from enclosing scope.
+#define CWP_X_POST_FILTER(sum, ROUND0, offset) \
+  do {                                         \
+    if ((ROUND0) == 3) {                       \
+      (sum) = vrshrq_n_s32((sum), 3);          \
+    } else if ((ROUND0) == 5) {                \
+      (sum) = vrshrq_n_s32((sum), 5);          \
+    } else {                                   \
+      (sum) = vaddq_s32((sum), round_const);   \
+      (sum) = vshlq_s32((sum), round_shift);   \
+    }                                          \
+    (sum) = vaddq_s32((sum), (offset));        \
   } while (0)
 
 static inline void cwp_highbd_convolve_x_8_2tap(
@@ -2893,7 +2886,7 @@ void av2_highbd_cwp_convolve_x_neon(const uint16_t *src, int src_stride,
       s += src_stride;                                                       \
     }                                                                        \
   } while (0)
-#define CONV_X_2TAP_4_RAW(MODE, RBITS, R0, XBITS)                    \
+#define CONV_X_2TAP_4_RAW(MODE, RBITS, R0)                           \
   do {                                                               \
     uint16_t *d = dst;                                               \
     CONV_BUF_TYPE *d16 = dst16;                                      \
@@ -2901,30 +2894,30 @@ void av2_highbd_cwp_convolve_x_neon(const uint16_t *src, int src_stride,
     for (int y = 0; y < h; y++) {                                    \
       int32x4_t res;                                                 \
       cwp_highbd_convolve_x_4_2tap_raw((const int16_t *)s, f, &res); \
-      CWP_X_POST_FILTER(res, R0, XBITS, offset_v);                   \
+      CWP_X_POST_FILTER(res, R0, offset_v);                          \
       CWP_1D_FINISH_ROW_4(res, MODE, RBITS);                         \
       s += src_stride;                                               \
     }                                                                \
   } while (0)
       if (!do_average) {
         if (conv_params->round_0 == 3) {
-          CONV_X_2TAP_4_RAW(0, 0, 3, 0);
+          CONV_X_2TAP_4_RAW(0, 0, 3);
         } else if (conv_params->round_0 == 5) {
-          CONV_X_2TAP_4_RAW(0, 0, 5, 0);
+          CONV_X_2TAP_4_RAW(0, 0, 5);
         } else {
-          CONV_X_2TAP_4_RAW(0, 0, 0, 0);
+          CONV_X_2TAP_4_RAW(0, 0, 0);
         }
       } else if (round_bits == 4) {
         if (use_wtd_comp_avg) {
-          CONV_X_2TAP_4_RAW(2, 4, 3, 0);
+          CONV_X_2TAP_4_RAW(2, 4, 3);
         } else {
-          CONV_X_2TAP_4_RAW(1, 4, 3, 0);
+          CONV_X_2TAP_4_RAW(1, 4, 3);
         }
       } else if (round_bits == 2) {
         if (use_wtd_comp_avg) {
-          CONV_X_2TAP_4_RAW(2, 2, 5, 0);
+          CONV_X_2TAP_4_RAW(2, 2, 5);
         } else {
-          CONV_X_2TAP_4_RAW(1, 2, 5, 0);
+          CONV_X_2TAP_4_RAW(1, 2, 5);
         }
       } else {
         if (use_wtd_comp_avg) {
@@ -2958,7 +2951,7 @@ void av2_highbd_cwp_convolve_x_neon(const uint16_t *src, int src_stride,
       s += src_stride;                                                         \
     }                                                                          \
   } while (0)
-#define CONV_X_2TAP_8_RAW(MODE, RBITS, R0, XBITS)                              \
+#define CONV_X_2TAP_8_RAW(MODE, RBITS, R0)                                     \
   do {                                                                         \
     uint16_t *d = dst;                                                         \
     CONV_BUF_TYPE *d16 = dst16;                                                \
@@ -2969,8 +2962,8 @@ void av2_highbd_cwp_convolve_x_neon(const uint16_t *src, int src_stride,
         int32x4_t res_lo, res_hi;                                              \
         cwp_highbd_convolve_x_8_2tap_raw((const int16_t *)(s + x), f, &res_lo, \
                                          &res_hi);                             \
-        CWP_X_POST_FILTER(res_lo, R0, XBITS, offset_v);                        \
-        CWP_X_POST_FILTER(res_hi, R0, XBITS, offset_v);                        \
+        CWP_X_POST_FILTER(res_lo, R0, offset_v);                               \
+        CWP_X_POST_FILTER(res_hi, R0, offset_v);                               \
         CWP_1D_FINISH_ROW_8(res_lo, res_hi, MODE, RBITS);                      \
         d += 8 - dst_stride;                                                   \
         d16 += 8 - dst16_stride;                                               \
@@ -2983,23 +2976,23 @@ void av2_highbd_cwp_convolve_x_neon(const uint16_t *src, int src_stride,
   } while (0)
       if (!do_average) {
         if (conv_params->round_0 == 3) {
-          CONV_X_2TAP_8_RAW(0, 0, 3, 0);
+          CONV_X_2TAP_8_RAW(0, 0, 3);
         } else if (conv_params->round_0 == 5) {
-          CONV_X_2TAP_8_RAW(0, 0, 5, 0);
+          CONV_X_2TAP_8_RAW(0, 0, 5);
         } else {
-          CONV_X_2TAP_8_RAW(0, 0, 0, 0);
+          CONV_X_2TAP_8_RAW(0, 0, 0);
         }
       } else if (round_bits == 4) {
         if (use_wtd_comp_avg) {
-          CONV_X_2TAP_8_RAW(2, 4, 3, 0);
+          CONV_X_2TAP_8_RAW(2, 4, 3);
         } else {
-          CONV_X_2TAP_8_RAW(1, 4, 3, 0);
+          CONV_X_2TAP_8_RAW(1, 4, 3);
         }
       } else if (round_bits == 2) {
         if (use_wtd_comp_avg) {
-          CONV_X_2TAP_8_RAW(2, 2, 5, 0);
+          CONV_X_2TAP_8_RAW(2, 2, 5);
         } else {
-          CONV_X_2TAP_8_RAW(1, 2, 5, 0);
+          CONV_X_2TAP_8_RAW(1, 2, 5);
         }
       } else {
         if (use_wtd_comp_avg) {
@@ -3028,7 +3021,7 @@ void av2_highbd_cwp_convolve_x_neon(const uint16_t *src, int src_stride,
       s += src_stride;                                                       \
     }                                                                        \
   } while (0)
-#define CONV_X_4TAP_4_RAW(MODE, RBITS, R0, XBITS)                      \
+#define CONV_X_4TAP_4_RAW(MODE, RBITS, R0)                             \
   do {                                                                 \
     uint16_t *d = dst;                                                 \
     CONV_BUF_TYPE *d16 = dst16;                                        \
@@ -3036,30 +3029,30 @@ void av2_highbd_cwp_convolve_x_neon(const uint16_t *src, int src_stride,
     for (int y = 0; y < h; y++) {                                      \
       int32x4_t res;                                                   \
       cwp_highbd_convolve_x_4_4tap_raw((const int16_t *)s, xf4, &res); \
-      CWP_X_POST_FILTER(res, R0, XBITS, offset_v);                     \
+      CWP_X_POST_FILTER(res, R0, offset_v);                            \
       CWP_1D_FINISH_ROW_4(res, MODE, RBITS);                           \
       s += src_stride;                                                 \
     }                                                                  \
   } while (0)
       if (!do_average) {
         if (conv_params->round_0 == 3) {
-          CONV_X_4TAP_4_RAW(0, 0, 3, 0);
+          CONV_X_4TAP_4_RAW(0, 0, 3);
         } else if (conv_params->round_0 == 5) {
-          CONV_X_4TAP_4_RAW(0, 0, 5, 0);
+          CONV_X_4TAP_4_RAW(0, 0, 5);
         } else {
-          CONV_X_4TAP_4_RAW(0, 0, 0, 0);
+          CONV_X_4TAP_4_RAW(0, 0, 0);
         }
       } else if (round_bits == 4) {
         if (use_wtd_comp_avg) {
-          CONV_X_4TAP_4_RAW(2, 4, 3, 0);
+          CONV_X_4TAP_4_RAW(2, 4, 3);
         } else {
-          CONV_X_4TAP_4_RAW(1, 4, 3, 0);
+          CONV_X_4TAP_4_RAW(1, 4, 3);
         }
       } else if (round_bits == 2) {
         if (use_wtd_comp_avg) {
-          CONV_X_4TAP_4_RAW(2, 2, 5, 0);
+          CONV_X_4TAP_4_RAW(2, 2, 5);
         } else {
-          CONV_X_4TAP_4_RAW(1, 2, 5, 0);
+          CONV_X_4TAP_4_RAW(1, 2, 5);
         }
       } else {
         if (use_wtd_comp_avg) {
@@ -3093,7 +3086,7 @@ void av2_highbd_cwp_convolve_x_neon(const uint16_t *src, int src_stride,
       s += src_stride;                                                     \
     }                                                                      \
   } while (0)
-#define CONV_X_4TAP_8_RAW(MODE, RBITS, R0, XBITS)                       \
+#define CONV_X_4TAP_8_RAW(MODE, RBITS, R0)                              \
   do {                                                                  \
     uint16_t *d = dst;                                                  \
     CONV_BUF_TYPE *d16 = dst16;                                         \
@@ -3104,8 +3097,8 @@ void av2_highbd_cwp_convolve_x_neon(const uint16_t *src, int src_stride,
         int32x4_t res_lo, res_hi;                                       \
         cwp_highbd_convolve_x_8_4tap_raw((const int16_t *)(s + x), xf4, \
                                          &res_lo, &res_hi);             \
-        CWP_X_POST_FILTER(res_lo, R0, XBITS, offset_v);                 \
-        CWP_X_POST_FILTER(res_hi, R0, XBITS, offset_v);                 \
+        CWP_X_POST_FILTER(res_lo, R0, offset_v);                        \
+        CWP_X_POST_FILTER(res_hi, R0, offset_v);                        \
         CWP_1D_FINISH_ROW_8(res_lo, res_hi, MODE, RBITS);               \
         d += 8 - dst_stride;                                            \
         d16 += 8 - dst16_stride;                                        \
@@ -3118,23 +3111,23 @@ void av2_highbd_cwp_convolve_x_neon(const uint16_t *src, int src_stride,
   } while (0)
       if (!do_average) {
         if (conv_params->round_0 == 3) {
-          CONV_X_4TAP_8_RAW(0, 0, 3, 0);
+          CONV_X_4TAP_8_RAW(0, 0, 3);
         } else if (conv_params->round_0 == 5) {
-          CONV_X_4TAP_8_RAW(0, 0, 5, 0);
+          CONV_X_4TAP_8_RAW(0, 0, 5);
         } else {
-          CONV_X_4TAP_8_RAW(0, 0, 0, 0);
+          CONV_X_4TAP_8_RAW(0, 0, 0);
         }
       } else if (round_bits == 4) {
         if (use_wtd_comp_avg) {
-          CONV_X_4TAP_8_RAW(2, 4, 3, 0);
+          CONV_X_4TAP_8_RAW(2, 4, 3);
         } else {
-          CONV_X_4TAP_8_RAW(1, 4, 3, 0);
+          CONV_X_4TAP_8_RAW(1, 4, 3);
         }
       } else if (round_bits == 2) {
         if (use_wtd_comp_avg) {
-          CONV_X_4TAP_8_RAW(2, 2, 5, 0);
+          CONV_X_4TAP_8_RAW(2, 2, 5);
         } else {
-          CONV_X_4TAP_8_RAW(1, 2, 5, 0);
+          CONV_X_4TAP_8_RAW(1, 2, 5);
         }
       } else {
         if (use_wtd_comp_avg) {
@@ -3160,7 +3153,7 @@ void av2_highbd_cwp_convolve_x_neon(const uint16_t *src, int src_stride,
                                        x_filter_ptr[3], 0 };
       const int16x4_t xf6_sym = vld1_s16(xf6_sym_arr);
 
-#define CONV_X_6TAP_SYM_8(MODE, RBITS, R0, XBITS)                        \
+#define CONV_X_6TAP_SYM_8(MODE, RBITS, R0)                               \
   do {                                                                   \
     uint16_t *d = dst;                                                   \
     CONV_BUF_TYPE *d16 = dst16;                                          \
@@ -3171,8 +3164,8 @@ void av2_highbd_cwp_convolve_x_neon(const uint16_t *src, int src_stride,
         int32x4_t res_lo, res_hi;                                        \
         cwp_highbd_convolve_x_8_6tap_sym_raw((const int16_t *)(s + x),   \
                                              xf6_sym, &res_lo, &res_hi); \
-        CWP_X_POST_FILTER(res_lo, R0, XBITS, offset_v);                  \
-        CWP_X_POST_FILTER(res_hi, R0, XBITS, offset_v);                  \
+        CWP_X_POST_FILTER(res_lo, R0, offset_v);                         \
+        CWP_X_POST_FILTER(res_hi, R0, offset_v);                         \
         CWP_1D_FINISH_ROW_8(res_lo, res_hi, MODE, RBITS);                \
         d += 8 - dst_stride;                                             \
         d16 += 8 - dst16_stride;                                         \
@@ -3189,32 +3182,32 @@ void av2_highbd_cwp_convolve_x_neon(const uint16_t *src, int src_stride,
         // For bd=10: round_0=3 -> vrshrq_n_s32(,3) + vadd (2 ops vs 4).
         // For bd=12: round_0=5 -> vrshrq_n_s32(,5) + vadd (2 ops vs 4).
         if (conv_params->round_0 == 3) {
-          CONV_X_6TAP_SYM_8(0, 0, 3, 0);
+          CONV_X_6TAP_SYM_8(0, 0, 3);
         } else if (conv_params->round_0 == 5) {
-          CONV_X_6TAP_SYM_8(0, 0, 5, 0);
+          CONV_X_6TAP_SYM_8(0, 0, 5);
         } else {
-          CONV_X_6TAP_SYM_8(0, 0, 0, 0);
+          CONV_X_6TAP_SYM_8(0, 0, 0);
         }
       } else if (round_bits == 4) {
         // round_bits==4 <-> bd=10 <-> round_0=3. Specialize R0 for
         // compile-time immediate shift in CWP_X_POST_FILTER.
         if (use_wtd_comp_avg) {
-          CONV_X_6TAP_SYM_8(2, 4, 3, 0);
+          CONV_X_6TAP_SYM_8(2, 4, 3);
         } else {
-          CONV_X_6TAP_SYM_8(1, 4, 3, 0);
+          CONV_X_6TAP_SYM_8(1, 4, 3);
         }
       } else if (round_bits == 2) {
         // round_bits==2 <-> bd=12 <-> round_0=5.
         if (use_wtd_comp_avg) {
-          CONV_X_6TAP_SYM_8(2, 2, 5, 0);
+          CONV_X_6TAP_SYM_8(2, 2, 5);
         } else {
-          CONV_X_6TAP_SYM_8(1, 2, 5, 0);
+          CONV_X_6TAP_SYM_8(1, 2, 5);
         }
       } else {
         if (use_wtd_comp_avg) {
-          CONV_X_6TAP_SYM_8(2, 0, 0, 0);
+          CONV_X_6TAP_SYM_8(2, 0, 0);
         } else {
-          CONV_X_6TAP_SYM_8(1, 0, 0, 0);
+          CONV_X_6TAP_SYM_8(1, 0, 0);
         }
       }
 #undef CONV_X_6TAP_SYM_8
@@ -3224,7 +3217,7 @@ void av2_highbd_cwp_convolve_x_neon(const uint16_t *src, int src_stride,
       const int16_t xf6_hi_arr[4] = { x_filter_ptr[5], x_filter_ptr[6], 0, 0 };
       const int16x4_t xf6_hi = vld1_s16(xf6_hi_arr);
 
-#define CONV_X_6TAP_8(MODE, RBITS, R0, XBITS)                              \
+#define CONV_X_6TAP_8(MODE, RBITS, R0)                                     \
   do {                                                                     \
     uint16_t *d = dst;                                                     \
     CONV_BUF_TYPE *d16 = dst16;                                            \
@@ -3235,8 +3228,8 @@ void av2_highbd_cwp_convolve_x_neon(const uint16_t *src, int src_stride,
         int32x4_t res_lo, res_hi;                                          \
         cwp_highbd_convolve_x_8_6tap_raw((const int16_t *)(s + x), xf6_lo, \
                                          xf6_hi, &res_lo, &res_hi);        \
-        CWP_X_POST_FILTER(res_lo, R0, XBITS, offset_v);                    \
-        CWP_X_POST_FILTER(res_hi, R0, XBITS, offset_v);                    \
+        CWP_X_POST_FILTER(res_lo, R0, offset_v);                           \
+        CWP_X_POST_FILTER(res_hi, R0, offset_v);                           \
         CWP_1D_FINISH_ROW_8(res_lo, res_hi, MODE, RBITS);                  \
         d += 8 - dst_stride;                                               \
         d16 += 8 - dst16_stride;                                           \
@@ -3249,29 +3242,29 @@ void av2_highbd_cwp_convolve_x_neon(const uint16_t *src, int src_stride,
   } while (0)
       if (!do_average) {
         if (conv_params->round_0 == 3) {
-          CONV_X_6TAP_8(0, 0, 3, 0);
+          CONV_X_6TAP_8(0, 0, 3);
         } else if (conv_params->round_0 == 5) {
-          CONV_X_6TAP_8(0, 0, 5, 0);
+          CONV_X_6TAP_8(0, 0, 5);
         } else {
-          CONV_X_6TAP_8(0, 0, 0, 0);
+          CONV_X_6TAP_8(0, 0, 0);
         }
       } else if (round_bits == 4) {
         if (use_wtd_comp_avg) {
-          CONV_X_6TAP_8(2, 4, 3, 0);
+          CONV_X_6TAP_8(2, 4, 3);
         } else {
-          CONV_X_6TAP_8(1, 4, 3, 0);
+          CONV_X_6TAP_8(1, 4, 3);
         }
       } else if (round_bits == 2) {
         if (use_wtd_comp_avg) {
-          CONV_X_6TAP_8(2, 2, 5, 0);
+          CONV_X_6TAP_8(2, 2, 5);
         } else {
-          CONV_X_6TAP_8(1, 2, 5, 0);
+          CONV_X_6TAP_8(1, 2, 5);
         }
       } else {
         if (use_wtd_comp_avg) {
-          CONV_X_6TAP_8(2, 0, 0, 0);
+          CONV_X_6TAP_8(2, 0, 0);
         } else {
-          CONV_X_6TAP_8(1, 0, 0, 0);
+          CONV_X_6TAP_8(1, 0, 0);
         }
       }
 #undef CONV_X_6TAP_8
@@ -3283,7 +3276,7 @@ void av2_highbd_cwp_convolve_x_neon(const uint16_t *src, int src_stride,
     const int16x4_t xf12_2 = vld1_s16(x_filter_ptr + 8);
 
     if (w == 4) {
-#define CONV_X_12TAP_4(MODE, RBITS, R0, XBITS)                              \
+#define CONV_X_12TAP_4(MODE, RBITS, R0)                                     \
   do {                                                                      \
     uint16_t *d = dst;                                                      \
     CONV_BUF_TYPE *d16 = dst16;                                             \
@@ -3292,41 +3285,41 @@ void av2_highbd_cwp_convolve_x_neon(const uint16_t *src, int src_stride,
       int32x4_t res;                                                        \
       cwp_highbd_convolve_x_4_12tap_raw((const int16_t *)s, xf12_0, xf12_1, \
                                         xf12_2, &res);                      \
-      CWP_X_POST_FILTER(res, R0, XBITS, offset_v);                          \
+      CWP_X_POST_FILTER(res, R0, offset_v);                                 \
       CWP_1D_FINISH_ROW_4(res, MODE, RBITS);                                \
       s += src_stride;                                                      \
     }                                                                       \
   } while (0)
       if (!do_average) {
         if (conv_params->round_0 == 3) {
-          CONV_X_12TAP_4(0, 0, 3, 0);
+          CONV_X_12TAP_4(0, 0, 3);
         } else if (conv_params->round_0 == 5) {
-          CONV_X_12TAP_4(0, 0, 5, 0);
+          CONV_X_12TAP_4(0, 0, 5);
         } else {
-          CONV_X_12TAP_4(0, 0, 0, 0);
+          CONV_X_12TAP_4(0, 0, 0);
         }
       } else if (round_bits == 4) {
         if (use_wtd_comp_avg) {
-          CONV_X_12TAP_4(2, 4, 3, 0);
+          CONV_X_12TAP_4(2, 4, 3);
         } else {
-          CONV_X_12TAP_4(1, 4, 3, 0);
+          CONV_X_12TAP_4(1, 4, 3);
         }
       } else if (round_bits == 2) {
         if (use_wtd_comp_avg) {
-          CONV_X_12TAP_4(2, 2, 5, 0);
+          CONV_X_12TAP_4(2, 2, 5);
         } else {
-          CONV_X_12TAP_4(1, 2, 5, 0);
+          CONV_X_12TAP_4(1, 2, 5);
         }
       } else {
         if (use_wtd_comp_avg) {
-          CONV_X_12TAP_4(2, 0, 0, 0);
+          CONV_X_12TAP_4(2, 0, 0);
         } else {
-          CONV_X_12TAP_4(1, 0, 0, 0);
+          CONV_X_12TAP_4(1, 0, 0);
         }
       }
 #undef CONV_X_12TAP_4
     } else {
-#define CONV_X_12TAP_8(MODE, RBITS, R0, XBITS)                               \
+#define CONV_X_12TAP_8(MODE, RBITS, R0)                                      \
   do {                                                                       \
     uint16_t *d = dst;                                                       \
     CONV_BUF_TYPE *d16 = dst16;                                              \
@@ -3337,8 +3330,8 @@ void av2_highbd_cwp_convolve_x_neon(const uint16_t *src, int src_stride,
         int32x4_t res_lo, res_hi;                                            \
         cwp_highbd_convolve_x_8_12tap_raw((const int16_t *)(s + x), xf12_0,  \
                                           xf12_1, xf12_2, &res_lo, &res_hi); \
-        CWP_X_POST_FILTER(res_lo, R0, XBITS, offset_v);                      \
-        CWP_X_POST_FILTER(res_hi, R0, XBITS, offset_v);                      \
+        CWP_X_POST_FILTER(res_lo, R0, offset_v);                             \
+        CWP_X_POST_FILTER(res_hi, R0, offset_v);                             \
         CWP_1D_FINISH_ROW_8(res_lo, res_hi, MODE, RBITS);                    \
         d += 8 - dst_stride;                                                 \
         d16 += 8 - dst16_stride;                                             \
@@ -3351,29 +3344,29 @@ void av2_highbd_cwp_convolve_x_neon(const uint16_t *src, int src_stride,
   } while (0)
       if (!do_average) {
         if (conv_params->round_0 == 3) {
-          CONV_X_12TAP_8(0, 0, 3, 0);
+          CONV_X_12TAP_8(0, 0, 3);
         } else if (conv_params->round_0 == 5) {
-          CONV_X_12TAP_8(0, 0, 5, 0);
+          CONV_X_12TAP_8(0, 0, 5);
         } else {
-          CONV_X_12TAP_8(0, 0, 0, 0);
+          CONV_X_12TAP_8(0, 0, 0);
         }
       } else if (round_bits == 4) {
         if (use_wtd_comp_avg) {
-          CONV_X_12TAP_8(2, 4, 3, 0);
+          CONV_X_12TAP_8(2, 4, 3);
         } else {
-          CONV_X_12TAP_8(1, 4, 3, 0);
+          CONV_X_12TAP_8(1, 4, 3);
         }
       } else if (round_bits == 2) {
         if (use_wtd_comp_avg) {
-          CONV_X_12TAP_8(2, 2, 5, 0);
+          CONV_X_12TAP_8(2, 2, 5);
         } else {
-          CONV_X_12TAP_8(1, 2, 5, 0);
+          CONV_X_12TAP_8(1, 2, 5);
         }
       } else {
         if (use_wtd_comp_avg) {
-          CONV_X_12TAP_8(2, 0, 0, 0);
+          CONV_X_12TAP_8(2, 0, 0);
         } else {
-          CONV_X_12TAP_8(1, 0, 0, 0);
+          CONV_X_12TAP_8(1, 0, 0);
         }
       }
 #undef CONV_X_12TAP_8
@@ -3399,7 +3392,7 @@ void av2_highbd_cwp_convolve_x_neon(const uint16_t *src, int src_stride,
                                        x_filter_ptr[2], x_filter_ptr[3] };
       const int16x4_t xf8_sym = vld1_s16(xf8_sym_arr);
 
-#define CONV_X_8TAP_SYM_8(MODE, RBITS, R0, XBITS)                        \
+#define CONV_X_8TAP_SYM_8(MODE, RBITS, R0)                               \
   do {                                                                   \
     uint16_t *d = dst;                                                   \
     CONV_BUF_TYPE *d16 = dst16;                                          \
@@ -3410,8 +3403,8 @@ void av2_highbd_cwp_convolve_x_neon(const uint16_t *src, int src_stride,
         int32x4_t res_lo, res_hi;                                        \
         cwp_highbd_convolve_x_8_8tap_sym_raw((const int16_t *)(s + x),   \
                                              xf8_sym, &res_lo, &res_hi); \
-        CWP_X_POST_FILTER(res_lo, R0, XBITS, offset_v);                  \
-        CWP_X_POST_FILTER(res_hi, R0, XBITS, offset_v);                  \
+        CWP_X_POST_FILTER(res_lo, R0, offset_v);                         \
+        CWP_X_POST_FILTER(res_hi, R0, offset_v);                         \
         CWP_1D_FINISH_ROW_8(res_lo, res_hi, MODE, RBITS);                \
         d += 8 - dst_stride;                                             \
         d16 += 8 - dst16_stride;                                         \
@@ -3424,29 +3417,29 @@ void av2_highbd_cwp_convolve_x_neon(const uint16_t *src, int src_stride,
   } while (0)
       if (!do_average) {
         if (conv_params->round_0 == 3) {
-          CONV_X_8TAP_SYM_8(0, 0, 3, 0);
+          CONV_X_8TAP_SYM_8(0, 0, 3);
         } else if (conv_params->round_0 == 5) {
-          CONV_X_8TAP_SYM_8(0, 0, 5, 0);
+          CONV_X_8TAP_SYM_8(0, 0, 5);
         } else {
-          CONV_X_8TAP_SYM_8(0, 0, 0, 0);
+          CONV_X_8TAP_SYM_8(0, 0, 0);
         }
       } else if (round_bits == 4) {
         if (use_wtd_comp_avg) {
-          CONV_X_8TAP_SYM_8(2, 4, 3, 0);
+          CONV_X_8TAP_SYM_8(2, 4, 3);
         } else {
-          CONV_X_8TAP_SYM_8(1, 4, 3, 0);
+          CONV_X_8TAP_SYM_8(1, 4, 3);
         }
       } else if (round_bits == 2) {
         if (use_wtd_comp_avg) {
-          CONV_X_8TAP_SYM_8(2, 2, 5, 0);
+          CONV_X_8TAP_SYM_8(2, 2, 5);
         } else {
-          CONV_X_8TAP_SYM_8(1, 2, 5, 0);
+          CONV_X_8TAP_SYM_8(1, 2, 5);
         }
       } else {
         if (use_wtd_comp_avg) {
-          CONV_X_8TAP_SYM_8(2, 0, 0, 0);
+          CONV_X_8TAP_SYM_8(2, 0, 0);
         } else {
-          CONV_X_8TAP_SYM_8(1, 0, 0, 0);
+          CONV_X_8TAP_SYM_8(1, 0, 0);
         }
       }
 #undef CONV_X_8TAP_SYM_8
@@ -3454,7 +3447,7 @@ void av2_highbd_cwp_convolve_x_neon(const uint16_t *src, int src_stride,
       // Asymmetric 8-tap fallback
       const int16x8_t xf8 = vld1q_s16(x_filter_ptr);
 
-#define CONV_X_8TAP_8(MODE, RBITS, R0, XBITS)                           \
+#define CONV_X_8TAP_8(MODE, RBITS, R0)                                  \
   do {                                                                  \
     uint16_t *d = dst;                                                  \
     CONV_BUF_TYPE *d16 = dst16;                                         \
@@ -3465,8 +3458,8 @@ void av2_highbd_cwp_convolve_x_neon(const uint16_t *src, int src_stride,
         int32x4_t res_lo, res_hi;                                       \
         cwp_highbd_convolve_x_8_8tap_raw((const int16_t *)(s + x), xf8, \
                                          &res_lo, &res_hi);             \
-        CWP_X_POST_FILTER(res_lo, R0, XBITS, offset_v);                 \
-        CWP_X_POST_FILTER(res_hi, R0, XBITS, offset_v);                 \
+        CWP_X_POST_FILTER(res_lo, R0, offset_v);                        \
+        CWP_X_POST_FILTER(res_hi, R0, offset_v);                        \
         CWP_1D_FINISH_ROW_8(res_lo, res_hi, MODE, RBITS);               \
         d += 8 - dst_stride;                                            \
         d16 += 8 - dst16_stride;                                        \
@@ -3479,29 +3472,29 @@ void av2_highbd_cwp_convolve_x_neon(const uint16_t *src, int src_stride,
   } while (0)
       if (!do_average) {
         if (conv_params->round_0 == 3) {
-          CONV_X_8TAP_8(0, 0, 3, 0);
+          CONV_X_8TAP_8(0, 0, 3);
         } else if (conv_params->round_0 == 5) {
-          CONV_X_8TAP_8(0, 0, 5, 0);
+          CONV_X_8TAP_8(0, 0, 5);
         } else {
-          CONV_X_8TAP_8(0, 0, 0, 0);
+          CONV_X_8TAP_8(0, 0, 0);
         }
       } else if (round_bits == 4) {
         if (use_wtd_comp_avg) {
-          CONV_X_8TAP_8(2, 4, 3, 0);
+          CONV_X_8TAP_8(2, 4, 3);
         } else {
-          CONV_X_8TAP_8(1, 4, 3, 0);
+          CONV_X_8TAP_8(1, 4, 3);
         }
       } else if (round_bits == 2) {
         if (use_wtd_comp_avg) {
-          CONV_X_8TAP_8(2, 2, 5, 0);
+          CONV_X_8TAP_8(2, 2, 5);
         } else {
-          CONV_X_8TAP_8(1, 2, 5, 0);
+          CONV_X_8TAP_8(1, 2, 5);
         }
       } else {
         if (use_wtd_comp_avg) {
-          CONV_X_8TAP_8(2, 0, 0, 0);
+          CONV_X_8TAP_8(2, 0, 0);
         } else {
-          CONV_X_8TAP_8(1, 0, 0, 0);
+          CONV_X_8TAP_8(1, 0, 0);
         }
       }
 #undef CONV_X_8TAP_8
@@ -3969,8 +3962,6 @@ void av2_highbd_cwp_convolve_y_neon(const uint16_t *src, int src_stride,
                                     const int subpel_y_qn,
                                     ConvolveParams *conv_params, int bd) {
   const int tap_y = get_filter_tap(filter_params_y, subpel_y_qn);
-
-  (void)tap_y;
 
   CONV_BUF_TYPE *dst16 = conv_params->dst;
   const int dst16_stride = conv_params->dst_stride;
@@ -4748,54 +4739,73 @@ void av2_highbd_cwp_convolve_y_neon(const uint16_t *src, int src_stride,
     const int16x4_t f2 = vld1_s16(y_filter_ptr + 8);
 
     if (w == 4) {
-#define CONV_Y_12TAP_4(MODE, RBITS)                                      \
-  do {                                                                   \
-    const int16_t *s = (const int16_t *)src_vert;                        \
-    uint16_t *d = dst;                                                   \
-    CONV_BUF_TYPE *d16 = dst16;                                          \
-    int16x4_t s0 = vld1_s16(s);                                          \
-    s += src_stride;                                                     \
-    int16x4_t s1 = vld1_s16(s);                                          \
-    s += src_stride;                                                     \
-    int16x4_t s2 = vld1_s16(s);                                          \
-    s += src_stride;                                                     \
-    int16x4_t s3 = vld1_s16(s);                                          \
-    s += src_stride;                                                     \
-    int16x4_t s4 = vld1_s16(s);                                          \
-    s += src_stride;                                                     \
-    int16x4_t s5 = vld1_s16(s);                                          \
-    s += src_stride;                                                     \
-    int16x4_t s6 = vld1_s16(s);                                          \
-    s += src_stride;                                                     \
-    int16x4_t s7 = vld1_s16(s);                                          \
-    s += src_stride;                                                     \
-    int16x4_t s8 = vld1_s16(s);                                          \
-    s += src_stride;                                                     \
-    int16x4_t s9 = vld1_s16(s);                                          \
-    s += src_stride;                                                     \
-    int16x4_t s10 = vld1_s16(s);                                         \
-    s += src_stride;                                                     \
-    int height = h;                                                      \
-    do {                                                                 \
-      int16x4_t s11 = vld1_s16(s);                                       \
-      s += src_stride;                                                   \
-      int32x4_t res = cwp_convolve_y_12tap_raw_4(                        \
-          s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, f0, f1, f2); \
-      CWP_Y_POST_FILTER(res, (RBITS) ? (7 - (RBITS)) : 0, offset_v);     \
-      CWP_1D_FINISH_ROW_4(res, MODE, RBITS);                             \
-      s0 = s1;                                                           \
-      s1 = s2;                                                           \
-      s2 = s3;                                                           \
-      s3 = s4;                                                           \
-      s4 = s5;                                                           \
-      s5 = s6;                                                           \
-      s6 = s7;                                                           \
-      s7 = s8;                                                           \
-      s8 = s9;                                                           \
-      s9 = s10;                                                          \
-      s10 = s11;                                                         \
-      height--;                                                          \
-    } while (height > 0);                                                \
+#define CONV_Y_12TAP_4(MODE, RBITS)                                            \
+  do {                                                                         \
+    const int16_t *s = (const int16_t *)src_vert;                              \
+    uint16_t *d = dst;                                                         \
+    CONV_BUF_TYPE *d16 = dst16;                                                \
+    int16x4_t s0 = vld1_s16(s);                                                \
+    s += src_stride;                                                           \
+    int16x4_t s1 = vld1_s16(s);                                                \
+    s += src_stride;                                                           \
+    int16x4_t s2 = vld1_s16(s);                                                \
+    s += src_stride;                                                           \
+    int16x4_t s3 = vld1_s16(s);                                                \
+    s += src_stride;                                                           \
+    int16x4_t s4 = vld1_s16(s);                                                \
+    s += src_stride;                                                           \
+    int16x4_t s5 = vld1_s16(s);                                                \
+    s += src_stride;                                                           \
+    int16x4_t s6 = vld1_s16(s);                                                \
+    s += src_stride;                                                           \
+    int16x4_t s7 = vld1_s16(s);                                                \
+    s += src_stride;                                                           \
+    int16x4_t s8 = vld1_s16(s);                                                \
+    s += src_stride;                                                           \
+    int16x4_t s9 = vld1_s16(s);                                                \
+    s += src_stride;                                                           \
+    int16x4_t s10 = vld1_s16(s);                                               \
+    s += src_stride;                                                           \
+    int height = h;                                                            \
+    do {                                                                       \
+      int16x4_t s11 = vld1_s16(s);                                             \
+      s += src_stride;                                                         \
+      int16x4_t s12 = vld1_s16(s);                                             \
+      s += src_stride;                                                         \
+      int16x4_t s13 = vld1_s16(s);                                             \
+      s += src_stride;                                                         \
+      int16x4_t s14 = vld1_s16(s);                                             \
+      s += src_stride;                                                         \
+      int32x4_t res;                                                           \
+      res = cwp_convolve_y_12tap_raw_4(s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, \
+                                       s10, s11, f0, f1, f2);                  \
+      CWP_Y_POST_FILTER(res, (RBITS) ? (7 - (RBITS)) : 0, offset_v);           \
+      CWP_1D_FINISH_ROW_4(res, MODE, RBITS);                                   \
+      res = cwp_convolve_y_12tap_raw_4(s1, s2, s3, s4, s5, s6, s7, s8, s9,     \
+                                       s10, s11, s12, f0, f1, f2);             \
+      CWP_Y_POST_FILTER(res, (RBITS) ? (7 - (RBITS)) : 0, offset_v);           \
+      CWP_1D_FINISH_ROW_4(res, MODE, RBITS);                                   \
+      res = cwp_convolve_y_12tap_raw_4(s2, s3, s4, s5, s6, s7, s8, s9, s10,    \
+                                       s11, s12, s13, f0, f1, f2);             \
+      CWP_Y_POST_FILTER(res, (RBITS) ? (7 - (RBITS)) : 0, offset_v);           \
+      CWP_1D_FINISH_ROW_4(res, MODE, RBITS);                                   \
+      res = cwp_convolve_y_12tap_raw_4(s3, s4, s5, s6, s7, s8, s9, s10, s11,   \
+                                       s12, s13, s14, f0, f1, f2);             \
+      CWP_Y_POST_FILTER(res, (RBITS) ? (7 - (RBITS)) : 0, offset_v);           \
+      CWP_1D_FINISH_ROW_4(res, MODE, RBITS);                                   \
+      s0 = s4;                                                                 \
+      s1 = s5;                                                                 \
+      s2 = s6;                                                                 \
+      s3 = s7;                                                                 \
+      s4 = s8;                                                                 \
+      s5 = s9;                                                                 \
+      s6 = s10;                                                                \
+      s7 = s11;                                                                \
+      s8 = s12;                                                                \
+      s9 = s13;                                                                \
+      s10 = s14;                                                               \
+      height -= 4;                                                             \
+    } while (height > 0);                                                      \
   } while (0)
       if (!do_average) {
         if (round_bits == 4) {
@@ -4828,57 +4838,85 @@ void av2_highbd_cwp_convolve_y_neon(const uint16_t *src, int src_stride,
     } else {
       int col = w;
       do {
-#define CONV_Y_12TAP_8(MODE, RBITS)                                      \
-  do {                                                                   \
-    const int16_t *s = (const int16_t *)(src_vert + (w - col));          \
-    uint16_t *d = dst + (w - col);                                       \
-    CONV_BUF_TYPE *d16 = dst16 + (w - col);                              \
-    int16x8_t s0 = vld1q_s16(s);                                         \
-    s += src_stride;                                                     \
-    int16x8_t s1 = vld1q_s16(s);                                         \
-    s += src_stride;                                                     \
-    int16x8_t s2 = vld1q_s16(s);                                         \
-    s += src_stride;                                                     \
-    int16x8_t s3 = vld1q_s16(s);                                         \
-    s += src_stride;                                                     \
-    int16x8_t s4 = vld1q_s16(s);                                         \
-    s += src_stride;                                                     \
-    int16x8_t s5 = vld1q_s16(s);                                         \
-    s += src_stride;                                                     \
-    int16x8_t s6 = vld1q_s16(s);                                         \
-    s += src_stride;                                                     \
-    int16x8_t s7 = vld1q_s16(s);                                         \
-    s += src_stride;                                                     \
-    int16x8_t s8 = vld1q_s16(s);                                         \
-    s += src_stride;                                                     \
-    int16x8_t s9 = vld1q_s16(s);                                         \
-    s += src_stride;                                                     \
-    int16x8_t s10 = vld1q_s16(s);                                        \
-    s += src_stride;                                                     \
-    int height = h;                                                      \
-    do {                                                                 \
-      int16x8_t s11 = vld1q_s16(s);                                      \
-      s += src_stride;                                                   \
-      int32x4_t lo = cwp_convolve_y_12tap_raw_lo(                        \
-          s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, f0, f1, f2); \
-      int32x4_t hi = cwp_convolve_y_12tap_raw_hi(                        \
-          s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, f0, f1, f2); \
-      CWP_Y_POST_FILTER(lo, (RBITS) ? (7 - (RBITS)) : 0, offset_v);      \
-      CWP_Y_POST_FILTER(hi, (RBITS) ? (7 - (RBITS)) : 0, offset_v);      \
-      CWP_1D_FINISH_ROW_8(lo, hi, MODE, RBITS);                          \
-      s0 = s1;                                                           \
-      s1 = s2;                                                           \
-      s2 = s3;                                                           \
-      s3 = s4;                                                           \
-      s4 = s5;                                                           \
-      s5 = s6;                                                           \
-      s6 = s7;                                                           \
-      s7 = s8;                                                           \
-      s8 = s9;                                                           \
-      s9 = s10;                                                          \
-      s10 = s11;                                                         \
-      height--;                                                          \
-    } while (height > 0);                                                \
+#define CONV_Y_12TAP_8(MODE, RBITS)                                            \
+  do {                                                                         \
+    const int16_t *s = (const int16_t *)(src_vert + (w - col));                \
+    uint16_t *d = dst + (w - col);                                             \
+    CONV_BUF_TYPE *d16 = dst16 + (w - col);                                    \
+    int16x8_t s0 = vld1q_s16(s);                                               \
+    s += src_stride;                                                           \
+    int16x8_t s1 = vld1q_s16(s);                                               \
+    s += src_stride;                                                           \
+    int16x8_t s2 = vld1q_s16(s);                                               \
+    s += src_stride;                                                           \
+    int16x8_t s3 = vld1q_s16(s);                                               \
+    s += src_stride;                                                           \
+    int16x8_t s4 = vld1q_s16(s);                                               \
+    s += src_stride;                                                           \
+    int16x8_t s5 = vld1q_s16(s);                                               \
+    s += src_stride;                                                           \
+    int16x8_t s6 = vld1q_s16(s);                                               \
+    s += src_stride;                                                           \
+    int16x8_t s7 = vld1q_s16(s);                                               \
+    s += src_stride;                                                           \
+    int16x8_t s8 = vld1q_s16(s);                                               \
+    s += src_stride;                                                           \
+    int16x8_t s9 = vld1q_s16(s);                                               \
+    s += src_stride;                                                           \
+    int16x8_t s10 = vld1q_s16(s);                                              \
+    s += src_stride;                                                           \
+    int height = h;                                                            \
+    do {                                                                       \
+      int16x8_t s11 = vld1q_s16(s);                                            \
+      s += src_stride;                                                         \
+      int16x8_t s12 = vld1q_s16(s);                                            \
+      s += src_stride;                                                         \
+      int16x8_t s13 = vld1q_s16(s);                                            \
+      s += src_stride;                                                         \
+      int16x8_t s14 = vld1q_s16(s);                                            \
+      s += src_stride;                                                         \
+      int32x4_t lo, hi;                                                        \
+      lo = cwp_convolve_y_12tap_raw_lo(s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, \
+                                       s10, s11, f0, f1, f2);                  \
+      hi = cwp_convolve_y_12tap_raw_hi(s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, \
+                                       s10, s11, f0, f1, f2);                  \
+      CWP_Y_POST_FILTER(lo, (RBITS) ? (7 - (RBITS)) : 0, offset_v);            \
+      CWP_Y_POST_FILTER(hi, (RBITS) ? (7 - (RBITS)) : 0, offset_v);            \
+      CWP_1D_FINISH_ROW_8(lo, hi, MODE, RBITS);                                \
+      lo = cwp_convolve_y_12tap_raw_lo(s1, s2, s3, s4, s5, s6, s7, s8, s9,     \
+                                       s10, s11, s12, f0, f1, f2);             \
+      hi = cwp_convolve_y_12tap_raw_hi(s1, s2, s3, s4, s5, s6, s7, s8, s9,     \
+                                       s10, s11, s12, f0, f1, f2);             \
+      CWP_Y_POST_FILTER(lo, (RBITS) ? (7 - (RBITS)) : 0, offset_v);            \
+      CWP_Y_POST_FILTER(hi, (RBITS) ? (7 - (RBITS)) : 0, offset_v);            \
+      CWP_1D_FINISH_ROW_8(lo, hi, MODE, RBITS);                                \
+      lo = cwp_convolve_y_12tap_raw_lo(s2, s3, s4, s5, s6, s7, s8, s9, s10,    \
+                                       s11, s12, s13, f0, f1, f2);             \
+      hi = cwp_convolve_y_12tap_raw_hi(s2, s3, s4, s5, s6, s7, s8, s9, s10,    \
+                                       s11, s12, s13, f0, f1, f2);             \
+      CWP_Y_POST_FILTER(lo, (RBITS) ? (7 - (RBITS)) : 0, offset_v);            \
+      CWP_Y_POST_FILTER(hi, (RBITS) ? (7 - (RBITS)) : 0, offset_v);            \
+      CWP_1D_FINISH_ROW_8(lo, hi, MODE, RBITS);                                \
+      lo = cwp_convolve_y_12tap_raw_lo(s3, s4, s5, s6, s7, s8, s9, s10, s11,   \
+                                       s12, s13, s14, f0, f1, f2);             \
+      hi = cwp_convolve_y_12tap_raw_hi(s3, s4, s5, s6, s7, s8, s9, s10, s11,   \
+                                       s12, s13, s14, f0, f1, f2);             \
+      CWP_Y_POST_FILTER(lo, (RBITS) ? (7 - (RBITS)) : 0, offset_v);            \
+      CWP_Y_POST_FILTER(hi, (RBITS) ? (7 - (RBITS)) : 0, offset_v);            \
+      CWP_1D_FINISH_ROW_8(lo, hi, MODE, RBITS);                                \
+      s0 = s4;                                                                 \
+      s1 = s5;                                                                 \
+      s2 = s6;                                                                 \
+      s3 = s7;                                                                 \
+      s4 = s8;                                                                 \
+      s5 = s9;                                                                 \
+      s6 = s10;                                                                \
+      s7 = s11;                                                                \
+      s8 = s12;                                                                \
+      s9 = s13;                                                                \
+      s10 = s14;                                                               \
+      height -= 4;                                                             \
+    } while (height > 0);                                                      \
   } while (0)
         if (!do_average) {
           if (round_bits == 4) {
