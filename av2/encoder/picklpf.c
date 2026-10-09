@@ -115,6 +115,22 @@ static int64_t try_filter_frame(const YV12_BUFFER_CONFIG *sd,
   return filt_err;
 }
 
+// Bits for one deblocking offset, as written by encode_loopfilter(): a flag,
+// and the offset itself when it differs from the reference value.
+static INLINE int get_df_offset_bits(const int offset, const int ref,
+                                     const int df_par_bits) {
+  return 1 + (offset != ref ? df_par_bits : 0);
+}
+
+// Bits for the luma offsets. The vertical offset is coded against 0 and the
+// horizontal offset against the vertical one. Assumes both directions are on.
+static INLINE int get_df_luma_offset_bits(const int vert_offset,
+                                          const int horz_offset,
+                                          const int df_par_bits) {
+  return get_df_offset_bits(vert_offset, 0, df_par_bits) +
+         get_df_offset_bits(horz_offset, vert_offset, df_par_bits);
+}
+
 static int search_filter_offsets(
     const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi, int partial_frame,
     const int last_frame_q_offsets[MAX_MB_PLANE][NUM_EDGE_DIRS],
@@ -231,25 +247,40 @@ static int search_filter_offsets(
   int chroma_lambda_mult = plane ? CHROMA_LAMBDA_MULT : 1;
   int best_bits = 0;
   int start_bits = 0;
-  if (dir == 2) {
-    // relative to zero
-    start_bits = offsets[search_side_offset] ? df_par_bits : 0;
-    best_bits = offset_best ? df_par_bits : 0;
-  } else {
-    // relative to other edge direction
-    int offset = search_side_offset ? last_frame_side_offsets[plane][1 - dir]
-                                    : last_frame_q_offsets[plane][1 - dir];
-    int bits = offset ? df_par_bits : 0;
+  if (plane != AVM_PLANE_Y) {
     start_bits =
-        bits + (offsets[search_side_offset] == offset ? 0 : df_par_bits);
-    best_bits = bits + (offset_best == offset ? 0 : df_par_bits);
+        get_df_offset_bits(offsets[search_side_offset], 0, df_par_bits);
+    best_bits = get_df_offset_bits(offset_best, 0, df_par_bits);
+  } else if (dir == 2) {
+    // Both directions use the same offset.
+    start_bits = get_df_luma_offset_bits(
+        offsets[search_side_offset], offsets[search_side_offset], df_par_bits);
+    best_bits = get_df_luma_offset_bits(offset_best, offset_best, df_par_bits);
+  } else {
+    // The other direction keeps its offset from the previous search.
+    const int other = search_side_offset
+                          ? last_frame_side_offsets[plane][1 - dir]
+                          : last_frame_q_offsets[plane][1 - dir];
+    if (dir == VERT_EDGE) {
+      start_bits = get_df_luma_offset_bits(offsets[search_side_offset], other,
+                                           df_par_bits);
+      best_bits = get_df_luma_offset_bits(offset_best, other, df_par_bits);
+    } else {
+      start_bits = get_df_luma_offset_bits(other, offsets[search_side_offset],
+                                           df_par_bits);
+      best_bits = get_df_luma_offset_bits(other, offset_best, df_par_bits);
+    }
   }
 
+  // The distortion here is the plain SSE, not SSE << 4 as RDCOST expects, so
+  // the rate is scaled down by 16 to keep the same balance.
+  const int best_rate = av2_cost_literal(best_bits) >> 4;
+  const int start_rate = av2_cost_literal(start_bits) >> 4;
   double best_cost =
-      RDCOST_DBL_WITH_NATIVE_BD_DIST(x->rdmult * chroma_lambda_mult, best_bits,
+      RDCOST_DBL_WITH_NATIVE_BD_DIST(x->rdmult * chroma_lambda_mult, best_rate,
                                      best_err, cm->seq_params.bit_depth);
   double start_cost =
-      RDCOST_DBL_WITH_NATIVE_BD_DIST(x->rdmult * chroma_lambda_mult, start_bits,
+      RDCOST_DBL_WITH_NATIVE_BD_DIST(x->rdmult * chroma_lambda_mult, start_rate,
                                      start_err, cm->seq_params.bit_depth);
 
   if (best_cost_ret) *best_cost_ret = AVMMIN(best_cost, start_cost);
