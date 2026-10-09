@@ -611,6 +611,7 @@ static void set_good_speed_features_framesize_independent(
   }
 
   if (speed >= 4) {
+    sf->lpf_sf.skip_wienerns_frame_filter_rounding = 1;
     sf->part_sf.sms_unified_prune_horz = is_480p_or_larger ? 1 : 0;
     sf->part_sf.sms_unified_prune_vert = is_1080p_or_larger ? 1 : 0;
 
@@ -1109,6 +1110,7 @@ static AVM_INLINE void init_lpf_sf(LOOP_FILTER_SPEED_FEATURES *lpf_sf) {
   // Off by default: keep full RU-size search for all pyramid levels.
   lpf_sf->reduce_lr_unit_size_by_pyr = 0;
   lpf_sf->reduce_lr_unit_size_by_pyr_drop_low = 0;
+  lpf_sf->skip_wienerns_frame_filter_rounding = 0;
   lpf_sf->wienerns_fast_frame_filter_opt = 0;
   lpf_sf->ccso_chroma_dep = 0;
 }
