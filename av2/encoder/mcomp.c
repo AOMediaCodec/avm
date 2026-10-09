@@ -2235,6 +2235,254 @@ static int full_pixel_exhaustive(const FULLPEL_MV start_mv,
   return bestsme;
 }
 
+static AVM_INLINE int16_t vector_match(const int16_t *ref, const int16_t *src,
+                                       int bwl, int search_size_top,
+                                       int search_size_bottom, int full_search,
+                                       int *sad) {
+  int best_sad = INT_MAX;
+  int this_sad;
+  int d;
+  int center, offset = 0;
+  int bw = search_size_top + search_size_bottom;
+
+  if (full_search) {
+    for (d = 0; d <= bw; d++) {
+      this_sad = avm_vector_var(&ref[d], src, bwl);
+      if (this_sad < best_sad) {
+        best_sad = this_sad;
+        offset = d;
+      }
+    }
+    center = offset;
+    *sad = best_sad;
+    return (int16_t)(center - search_size_top);
+  }
+
+  for (d = 0; d <= bw; d += 16) {
+    this_sad = avm_vector_var(&ref[d], src, bwl);
+    if (this_sad < best_sad) {
+      best_sad = this_sad;
+      offset = d;
+    }
+  }
+  center = offset;
+
+  for (d = -8; d <= 8; d += 16) {
+    int this_pos = offset + d;
+    if (this_pos < 0 || this_pos > bw) continue;
+    this_sad = avm_vector_var(&ref[this_pos], src, bwl);
+    if (this_sad < best_sad) {
+      best_sad = this_sad;
+      center = this_pos;
+    }
+  }
+  offset = center;
+
+  for (d = -4; d <= 4; d += 8) {
+    int this_pos = offset + d;
+    if (this_pos < 0 || this_pos > bw) continue;
+    this_sad = avm_vector_var(&ref[this_pos], src, bwl);
+    if (this_sad < best_sad) {
+      best_sad = this_sad;
+      center = this_pos;
+    }
+  }
+  offset = center;
+
+  for (d = -2; d <= 2; d += 4) {
+    int this_pos = offset + d;
+    if (this_pos < 0 || this_pos > bw) continue;
+    this_sad = avm_vector_var(&ref[this_pos], src, bwl);
+    if (this_sad < best_sad) {
+      best_sad = this_sad;
+      center = this_pos;
+    }
+  }
+  offset = center;
+
+  for (d = -1; d <= 1; d += 2) {
+    int this_pos = offset + d;
+    if (this_pos < 0 || this_pos > bw) continue;
+    this_sad = avm_vector_var(&ref[this_pos], src, bwl);
+    if (this_sad < best_sad) {
+      best_sad = this_sad;
+      center = this_pos;
+    }
+  }
+  *sad = best_sad;
+  return (int16_t)(center - search_size_top);
+}
+
+// A fast fullpel motion search method based on integral projection:
+// 2D block matching problem is converted to two 1-D vector matching steps, one
+// along the horizontal direction and the other along the vertical direction.
+unsigned int av2_int_pro_motion_estimation(const AV2_COMP *cpi, MACROBLOCK *x,
+                                           BLOCK_SIZE bsize, int mi_row,
+                                           int mi_col, const MV *ref_mv,
+                                           unsigned int *y_sad_zero,
+                                           int me_search_size_col,
+                                           int me_search_size_row) {
+  const AV2_COMMON *const cm = &cpi->common;
+  MACROBLOCKD *xd = &x->e_mbd;
+  MB_MODE_INFO *mi = xd->mi[0];
+  struct macroblockd_plane *const pd = &xd->plane[0];
+  int_mv *best_mv = &mi->mv[0];
+  unsigned int best_sad, tmp_sad, this_sad[4];
+  int best_sad_col, best_sad_row;
+  const uint16_t *src_buf = x->plane[0].src.buf;
+  const int src_stride = x->plane[0].src.stride;
+  const int ref_stride = pd->pre[0].stride;
+  const int bw = block_size_wide[bsize];
+  const int bh = block_size_high[bsize];
+  const int is_screen = cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN;
+  const int full_search = is_screen;
+  // Keep border a multiple of 16.
+  const int border = (cpi->oxcf.border_in_pixels >> 4) << 4;
+  int search_size_width_left = me_search_size_col;
+  int search_size_width_right = me_search_size_col;
+  int search_size_height_top = me_search_size_row;
+  int search_size_height_bottom = me_search_size_row;
+
+  search_size_width_left =
+      AVMMIN(search_size_width_left, (mi_col << MI_SIZE_LOG2) + border);
+  search_size_width_right =
+      AVMMIN(search_size_width_right,
+             cm->width + border - (mi_col << MI_SIZE_LOG2) - bw);
+  search_size_height_top =
+      AVMMIN(search_size_height_top, (mi_row << MI_SIZE_LOG2) + border);
+  search_size_height_bottom =
+      AVMMIN(search_size_height_bottom,
+             cm->height + border - (mi_row << MI_SIZE_LOG2) - bh);
+
+  // Make search_size_width/height_left/right/top/bottom multiple of 16.
+  search_size_width_left &= ~15;
+  search_size_width_right &= ~15;
+  search_size_height_top &= ~15;
+  search_size_height_bottom &= ~15;
+
+  const int width_ref_buf =
+      search_size_width_left + search_size_width_right + bw;
+  const int height_ref_buf =
+      search_size_height_top + search_size_height_bottom + bh;
+  assert(width_ref_buf <= 1024 && height_ref_buf <= 1024);
+
+  DECLARE_ALIGNED(32, int16_t, hbuf[1024]);
+  DECLARE_ALIGNED(32, int16_t, vbuf[1024]);
+  DECLARE_ALIGNED(32, int16_t, src_hbuf[256]);
+  DECLARE_ALIGNED(32, int16_t, src_vbuf[256]);
+
+  // Dynamic range of projection after shift is [0, 511] (9 bits).
+  const int row_norm_factor = mi_size_high_log2[bsize] + 1 + (xd->bd - 8);
+  const int col_norm_factor = mi_size_wide_log2[bsize] + 1 + (xd->bd - 8);
+
+  // Set up prediction 1-D reference set for rows.
+  const uint16_t *ref_buf = pd->pre[0].buf - search_size_width_left;
+  avm_int_pro_row(hbuf, ref_buf, ref_stride, width_ref_buf, bh,
+                  row_norm_factor);
+
+  // Set up prediction 1-D reference set for cols.
+  ref_buf = pd->pre[0].buf - search_size_height_top * ref_stride;
+  avm_int_pro_col(vbuf, ref_buf, ref_stride, bw, height_ref_buf,
+                  col_norm_factor);
+
+  // Set up src 1-D reference set.
+  avm_int_pro_row(src_hbuf, src_buf, src_stride, bw, bh, row_norm_factor);
+  avm_int_pro_col(src_vbuf, src_buf, src_stride, bw, bh, col_norm_factor);
+
+  // Find the best match per 1-D search.
+  FULLPEL_MV best_full_mv = {
+    vector_match(vbuf, src_vbuf, mi_size_high_log2[bsize],
+                 search_size_height_top, search_size_height_bottom, full_search,
+                 &best_sad_row),
+    vector_match(hbuf, src_hbuf, mi_size_wide_log2[bsize],
+                 search_size_width_left, search_size_width_right, full_search,
+                 &best_sad_col),
+  };
+
+  // For screen: select between horiz or vert motion.
+  if (is_screen) {
+    if (best_sad_col < best_sad_row)
+      best_full_mv.row = 0;
+    else
+      best_full_mv.col = 0;
+  }
+
+  FULLPEL_MV this_mv = best_full_mv;
+  clamp_fullmv(&this_mv, &x->mv_limits);
+  best_full_mv = this_mv;
+  ref_buf = get_buf_from_fullmv(&pd->pre[0], &this_mv);
+  best_sad = cpi->fn_ptr[bsize].sdf(src_buf, src_stride, ref_buf, ref_stride);
+
+  // Evaluate zero MV if found MV is non-zero.
+  if (best_full_mv.row != 0 || best_full_mv.col != 0) {
+    tmp_sad = (*y_sad_zero != UINT_MAX)
+                  ? *y_sad_zero
+                  : cpi->fn_ptr[bsize].sdf(src_buf, src_stride, pd->pre[0].buf,
+                                           ref_stride);
+    *y_sad_zero = tmp_sad;
+    if (tmp_sad < best_sad) {
+      best_full_mv = kZeroFullMv;
+      this_mv = best_full_mv;
+      ref_buf = pd->pre[0].buf;
+      best_sad = tmp_sad;
+    }
+  } else {
+    *y_sad_zero = best_sad;
+  }
+
+  static const MV search_pos[4] = {
+    { -1, 0 },
+    { 0, -1 },
+    { 0, 1 },
+    { 1, 0 },
+  };
+  const uint16_t *const pos[4] = {
+    ref_buf - ref_stride,
+    ref_buf - 1,
+    ref_buf + 1,
+    ref_buf + ref_stride,
+  };
+  cpi->fn_ptr[bsize].sdx4df(src_buf, src_stride, pos, ref_stride, this_sad);
+
+  for (int idx = 0; idx < 4; ++idx) {
+    if (this_sad[idx] < best_sad) {
+      best_sad = this_sad[idx];
+      best_full_mv.row = search_pos[idx].row + this_mv.row;
+      best_full_mv.col = search_pos[idx].col + this_mv.col;
+    }
+  }
+
+  if (this_sad[0] < this_sad[3])
+    this_mv.row -= 1;
+  else
+    this_mv.row += 1;
+
+  if (this_sad[1] < this_sad[2])
+    this_mv.col -= 1;
+  else
+    this_mv.col += 1;
+
+  ref_buf = get_buf_from_fullmv(&pd->pre[0], &this_mv);
+  tmp_sad = cpi->fn_ptr[bsize].sdf(src_buf, src_stride, ref_buf, ref_stride);
+  if (best_sad > tmp_sad) {
+    best_full_mv = this_mv;
+    best_sad = tmp_sad;
+  }
+
+  const MvSubpelPrecision pb_mv_precision =
+      cpi->common.features.fr_mv_precision;
+  FullMvLimits mv_limits = x->mv_limits;
+  av2_set_mv_search_range(&mv_limits, ref_mv, pb_mv_precision);
+  clamp_fullmv(&best_full_mv, &mv_limits);
+
+  MV best_subpel_mv = get_mv_from_fullmv(&best_full_mv);
+  if (pb_mv_precision < MV_PRECISION_ONE_PEL) {
+    lower_mv_precision(&best_subpel_mv, pb_mv_precision);
+  }
+  best_mv->as_mv = best_subpel_mv;
+  return best_sad;
+}
+
 // This function is called when we do joint motion search in comp_inter_inter
 // mode, or when searching for one component of an ext-inter compound mode.
 int av2_refining_search_8p_c(const FULLPEL_MOTION_SEARCH_PARAMS *ms_params,

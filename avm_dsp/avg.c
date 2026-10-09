@@ -224,7 +224,39 @@ int avm_satd_lp_c(const int16_t *coeff, int length) {
   return satd;
 }
 
-// bwl: {2, 3, 4, 5}
+void avm_int_pro_row_c(int16_t *hbuf, const uint16_t *ref, const int ref_stride,
+                       const int width, const int height, int norm_factor) {
+  int idx;
+  assert(width > 0);
+  assert(height > 0);
+  for (idx = 0; idx < width; ++idx) {
+    int i;
+    int32_t sum = 0;
+    const uint16_t *ref_tmp = ref + idx;
+    for (i = 0; i < height; ++i) {
+      sum += *ref_tmp;
+      ref_tmp += ref_stride;
+    }
+    hbuf[idx] = (int16_t)(sum >> norm_factor);
+  }
+}
+
+void avm_int_pro_col_c(int16_t *vbuf, const uint16_t *ref, const int ref_stride,
+                       const int width, const int height, int norm_factor) {
+  int idx, ht;
+  assert(width > 0);
+  assert(height > 0);
+  for (ht = 0; ht < height; ++ht) {
+    int32_t sum = 0;
+    for (idx = 0; idx < width; ++idx) {
+      sum += ref[idx];
+    }
+    vbuf[ht] = (int16_t)(sum >> norm_factor);
+    ref += ref_stride;
+  }
+}
+
+// bwl: {2, 3, 4, 5, 6}
 int avm_vector_var_c(const int16_t *ref, const int16_t *src, const int bwl) {
   int i;
   int width = 4 << bwl;
@@ -237,8 +269,8 @@ int avm_vector_var_c(const int16_t *ref, const int16_t *src, const int bwl) {
     sse += diff * diff;
   }
 
-  // (mean * mean): dynamic range 32 bits - can be stored in uint32_t
-  const uint32_t meansq = (uint32_t)abs(mean) * (uint32_t)abs(mean);
-  var = sse - (int)(meansq >> (bwl + 2));
+  // (mean * mean): dynamic range up to 34 bits for bwl=6 - store in uint64_t
+  const uint64_t meansq = (uint64_t)abs(mean) * (uint64_t)abs(mean);
+  var = sse - (uint32_t)(meansq >> (bwl + 2));
   return var;
 }

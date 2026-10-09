@@ -23,6 +23,7 @@
 
 #include "av2/encoder/encodeframe.h"
 #include "av2/encoder/encodeframe_utils.h"
+#include "av2/encoder/mcomp.h"
 #include "av2/encoder/var_based_part.h"
 #include "av2/encoder/reconinter_enc.h"
 #include "av2/encoder/rdopt_utils.h"
@@ -772,6 +773,103 @@ static void fill_variance_tree_leaves(
   }
 }
 
+static AVM_INLINE int mv_distance(const FULLPEL_MV *mv0,
+                                  const FULLPEL_MV *mv1) {
+  return abs(mv0->row - mv1->row) + abs(mv0->col - mv1->col);
+}
+
+static AVM_INLINE void evaluate_neighbour_mvs(AV2_COMP *cpi, MACROBLOCK *x,
+                                              unsigned int *y_sad) {
+  AV2_COMMON *const cm = &cpi->common;
+  MACROBLOCKD *xd = &x->e_mbd;
+  MB_MODE_INFO *mi = xd->mi[0];
+  const BLOCK_SIZE bsize = cm->seq_params.sb_size;
+  const MV_REFERENCE_FRAME last_frame = mi->ref_frame[0];
+
+  unsigned int above_y_sad = UINT_MAX;
+  unsigned int left_y_sad = UINT_MAX;
+  FULLPEL_MV above_mv = kZeroFullMv;
+  FULLPEL_MV left_mv = kZeroFullMv;
+  SubpelMvLimits subpel_mv_limits;
+  const MV dummy_mv = { 0, 0 };
+  av2_set_subpel_mv_search_range(&subpel_mv_limits, &x->mv_limits, &dummy_mv,
+                                 cm->features.fr_mv_precision);
+
+  // Current best MV
+  FULLPEL_MV best_mv = get_fullmv_from_mv(&mi->mv[0].as_mv);
+
+  // Use the MV from above SB if available.
+  if (xd->up_available && xd->above_mbmi) {
+    const MB_MODE_INFO *above_mbmi = xd->above_mbmi;
+    if (above_mbmi->mode >= SINGLE_INTER_MODE_START &&
+        above_mbmi->ref_frame[0] == last_frame &&
+        above_mbmi->mv[0].as_int != INVALID_MV) {
+      MV temp = above_mbmi->mv[0].as_mv;
+      clamp_mv(&temp, &subpel_mv_limits);
+      above_mv = get_fullmv_from_mv(&temp);
+
+      if (!CHECK_MV_EQUAL(above_mv, kZeroFullMv) &&
+          mv_distance(&best_mv, &above_mv) > 0) {
+        const uint16_t *ref_buf =
+            xd->plane[AVM_PLANE_Y].pre[0].buf +
+            above_mv.row * xd->plane[AVM_PLANE_Y].pre[0].stride + above_mv.col;
+        above_y_sad = cpi->fn_ptr[bsize].sdf(
+            x->plane[AVM_PLANE_Y].src.buf, x->plane[AVM_PLANE_Y].src.stride,
+            ref_buf, xd->plane[AVM_PLANE_Y].pre[0].stride);
+      }
+    }
+  }
+
+  // Use the MV from left SB if available.
+  if (xd->left_available && xd->left_mbmi) {
+    const MB_MODE_INFO *left_mbmi = xd->left_mbmi;
+    if (left_mbmi->mode >= SINGLE_INTER_MODE_START &&
+        left_mbmi->ref_frame[0] == last_frame &&
+        left_mbmi->mv[0].as_int != INVALID_MV) {
+      MV temp = left_mbmi->mv[0].as_mv;
+      clamp_mv(&temp, &subpel_mv_limits);
+      left_mv = get_fullmv_from_mv(&temp);
+
+      if (!CHECK_MV_EQUAL(left_mv, kZeroFullMv) &&
+          mv_distance(&best_mv, &left_mv) > 0 &&
+          mv_distance(&above_mv, &left_mv) > 0) {
+        const uint16_t *ref_buf =
+            xd->plane[AVM_PLANE_Y].pre[0].buf +
+            left_mv.row * xd->plane[AVM_PLANE_Y].pre[0].stride + left_mv.col;
+        left_y_sad = cpi->fn_ptr[bsize].sdf(
+            x->plane[AVM_PLANE_Y].src.buf, x->plane[AVM_PLANE_Y].src.stride,
+            ref_buf, xd->plane[AVM_PLANE_Y].pre[0].stride);
+      }
+    }
+  }
+
+  if (above_y_sad < *y_sad && above_y_sad <= left_y_sad) {
+    *y_sad = above_y_sad;
+    mi->mv[0].as_mv = get_mv_from_fullmv(&above_mv);
+  } else if (left_y_sad < *y_sad && left_y_sad < above_y_sad) {
+    *y_sad = left_y_sad;
+    mi->mv[0].as_mv = get_mv_from_fullmv(&left_mv);
+  }
+}
+
+static AVM_INLINE void do_int_pro_motion_estimation(AV2_COMP *cpi,
+                                                    MACROBLOCK *x,
+                                                    unsigned int *y_sad,
+                                                    int mi_row, int mi_col) {
+  AV2_COMMON *const cm = &cpi->common;
+  const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
+  int me_search_size_col = block_size_wide[sb_size] >> 1;
+  int me_search_size_row = block_size_high[sb_size] >> 1;
+  if (cm->width * cm->height >= RESOLUTION_4K) {
+    me_search_size_row <<= 1;
+    me_search_size_col <<= 1;
+  }
+  unsigned int y_sad_zero = *y_sad;
+  *y_sad = av2_int_pro_motion_estimation(
+      cpi, x, sb_size, mi_row, mi_col, &kZeroMv, &y_sad_zero,
+      me_search_size_col, me_search_size_row);
+}
+
 static void setup_planes(AV2_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
                          int mi_row, int mi_col, bool scaled_ref_last) {
   AV2_COMMON *const cm = &cpi->common;
@@ -793,24 +891,35 @@ static void setup_planes(AV2_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
     mi->sb_type[PLANE_TYPE_UV] = cm->seq_params.sb_size;
     mi->mv[0].as_int = 0;
 
+    const int est_motion =
+        cpi->sf.rt_sf.estimate_motion_for_var_based_partition;
+    if (!scaled_ref_last && est_motion == 1 && xd->mb_to_right_edge >= 0 &&
+        xd->mb_to_bottom_edge >= 0 && x->source_sad_level > kVeryLowSad) {
+      if (x->source_variance == UINT_MAX) {
+        x->source_variance = av2_high_get_sby_perpixel_variance(
+            cpi, &x->plane[AVM_PLANE_Y].src, bsize, xd->bd);
+      }
+      if (x->source_variance > 100) {
+        do_int_pro_motion_estimation(cpi, x, y_sad, mi_row, mi_col);
+      }
+    }
+
     if (*y_sad == UINT_MAX) {
       *y_sad = cpi->fn_ptr[bsize].sdf(x->plane[AVM_PLANE_Y].src.buf,
                                       x->plane[AVM_PLANE_Y].src.stride,
                                       xd->plane[AVM_PLANE_Y].pre[0].buf,
                                       xd->plane[AVM_PLANE_Y].pre[0].stride);
     }
+
+    // Evaluate if neighbours' MVs give better predictions. Zero MV is tested
+    // already, so only non-zero MVs are tested here. Here the neighbour blocks
+    // are the first block above or left to this superblock.
+    if (!scaled_ref_last && est_motion == 1 &&
+        (xd->up_available || xd->left_available)) {
+      evaluate_neighbour_mvs(cpi, x, y_sad);
+    }
   }
   // TODO(jianj-g, marpan-max): consider other references.
-
-  // TODO(jianj-g, marpan-max): add superblock motion estimation.
-
-  // Only calculate the predictor for non-zero MV.
-  if (mi->mv[0].as_int != 0) {
-    set_ref_ptrs(cm, xd, mi->ref_frame[0], mi->ref_frame[1]);
-    av2_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL,
-                                  cm->seq_params.sb_size, AVM_PLANE_Y,
-                                  num_planes - 1, x->tip_unit_hooks);
-  }
 }
 
 static void set_vt_partitioning_64x64(AV2_COMP *cpi, MACROBLOCKD *xd,
@@ -912,14 +1021,11 @@ void av2_choose_var_based_partitioning(AV2_COMP *cpi,
     setup_planes(cpi, x, &y_sad, mi_row, mi_col, scaled_ref_last);
 
     MB_MODE_INFO *mi = xd->mi[0];
-    // Use reference SB directly for zero mv.
-    if (mi->mv[0].as_int != 0) {
-      dst_buf = xd->plane[AVM_PLANE_Y].dst.buf;
-      dst_stride = xd->plane[AVM_PLANE_Y].dst.stride;
-    } else {
-      dst_buf = xd->plane[AVM_PLANE_Y].pre[0].buf;
-      dst_stride = xd->plane[AVM_PLANE_Y].pre[0].stride;
-    }
+    // Use reference SB directly (offset by full-pel MV when non-zero).
+    const FULLPEL_MV full_mv = get_fullmv_from_mv(&mi->mv[0].as_mv);
+    dst_stride = xd->plane[AVM_PLANE_Y].pre[0].stride;
+    dst_buf = xd->plane[AVM_PLANE_Y].pre[0].buf + full_mv.row * dst_stride +
+              full_mv.col;
 
     const int block_width = mi_size_wide[cm->seq_params.sb_size];
     const int block_height = mi_size_high[cm->seq_params.sb_size];

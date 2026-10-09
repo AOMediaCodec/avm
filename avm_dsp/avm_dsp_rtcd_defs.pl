@@ -549,10 +549,14 @@ if (avm_config("CONFIG_AV2_ENCODER") eq "yes") {
   add_proto qw/unsigned int avm_highbd_avg_4x4/, "const uint16_t *, int p";
   add_proto qw/void avm_highbd_minmax_8x8/, "const uint16_t *s, int p, const uint16_t *d, int dp, int *min, int *max";
 
+  add_proto qw/void avm_int_pro_row/, "int16_t *hbuf, const uint16_t *ref, const int ref_stride, const int width, const int height, int norm_factor";
+  specialize qw/avm_int_pro_row avx2 sse2 neon/;
+
+  add_proto qw/void avm_int_pro_col/, "int16_t *vbuf, const uint16_t *ref, const int ref_stride, const int width, const int height, int norm_factor";
+  specialize qw/avm_int_pro_col avx2 sse2 neon/;
+
   add_proto qw/int avm_vector_var/, "const int16_t *ref, const int16_t *src, const int bwl";
-  specialize qw/avm_vector_var neon/;
-  # TODO(kyslov@) bring back SSE2 by extending it to 128 block size
-  #specialize qw/avm_vector_var neon sse2/;
+  specialize qw/avm_vector_var neon sse2 avx2/;
 
   #
   # hamadard transform and satd for implmenting temporal dependency model

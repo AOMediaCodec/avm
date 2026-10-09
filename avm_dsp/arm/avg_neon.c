@@ -67,20 +67,74 @@ int avm_satd_neon(const tran_low_t *coeff, int length) {
 #endif  // __aarch64__
 }
 
-int avm_vector_var_neon(const int16_t *ref, const int16_t *src, const int bwl) {
-  int32x4_t v_mean = vdupq_n_s32(0);
-  int32x4_t v_sse = v_mean;
-  int16x8_t v_ref, v_src;
-  int16x4_t v_low;
+void avm_int_pro_row_neon(int16_t *hbuf, const uint16_t *ref,
+                          const int ref_stride, const int width,
+                          const int height, int norm_factor) {
+  assert(width % 8 == 0);
+  assert(height % 4 == 0);
+  const int32x4_t norm = vdupq_n_s32(-norm_factor);
 
-  int i, width = 4 << bwl;
-  for (i = 0; i < width; i += 8) {
-    v_ref = vld1q_s16(&ref[i]);
-    v_src = vld1q_s16(&src[i]);
+  for (int idx = 0; idx < width; idx += 8) {
+    uint32x4_t s0 = vdupq_n_u32(0);
+    uint32x4_t s1 = vdupq_n_u32(0);
+    const uint16_t *ref_tmp = ref + idx;
+    for (int y = 0; y < height; y += 4) {
+      const uint16x8_t r0 = vld1q_u16(ref_tmp);
+      const uint16x8_t r1 = vld1q_u16(ref_tmp + ref_stride);
+      const uint16x8_t r2 = vld1q_u16(ref_tmp + 2 * ref_stride);
+      const uint16x8_t r3 = vld1q_u16(ref_tmp + 3 * ref_stride);
+      const uint16x8_t r0123 = vaddq_u16(vaddq_u16(r0, r1), vaddq_u16(r2, r3));
+      s0 = vaddw_u16(s0, vget_low_u16(r0123));
+      s1 = vaddw_u16(s1, vget_high_u16(r0123));
+      ref_tmp += 4 * ref_stride;
+    }
+    s0 = vshlq_u32(s0, norm);
+    s1 = vshlq_u32(s1, norm);
+    const int16x8_t res =
+        vreinterpretq_s16_u16(vcombine_u16(vmovn_u32(s0), vmovn_u32(s1)));
+    vst1q_s16(hbuf + idx, res);
+  }
+}
+
+void avm_int_pro_col_neon(int16_t *vbuf, const uint16_t *ref,
+                          const int ref_stride, const int width,
+                          const int height, int norm_factor) {
+  assert(width % 8 == 0);
+  assert(height % 4 == 0);
+  const int32x4_t norm = vdupq_n_s32(-norm_factor);
+
+  for (int ht = 0; ht < height; ht += 4) {
+    const uint16_t *r0 = ref;
+    const uint16_t *r1 = r0 + ref_stride;
+    const uint16_t *r2 = r1 + ref_stride;
+    const uint16_t *r3 = r2 + ref_stride;
+    uint32x4_t acc[4] = { vdupq_n_u32(0), vdupq_n_u32(0), vdupq_n_u32(0),
+                          vdupq_n_u32(0) };
+    for (int idx = 0; idx < width; idx += 8) {
+      acc[0] = vpadalq_u16(acc[0], vld1q_u16(r0 + idx));
+      acc[1] = vpadalq_u16(acc[1], vld1q_u16(r1 + idx));
+      acc[2] = vpadalq_u16(acc[2], vld1q_u16(r2 + idx));
+      acc[3] = vpadalq_u16(acc[3], vld1q_u16(r3 + idx));
+    }
+    const uint32x4_t sum4 = vshlq_u32(horizontal_add_4d_u32x4(acc), norm);
+    vst1_s16(vbuf + ht, vreinterpret_s16_u16(vmovn_u32(sum4)));
+    ref += 4 * ref_stride;
+  }
+}
+
+int avm_vector_var_neon(const int16_t *ref, const int16_t *src, const int bwl) {
+  assert(bwl >= 2 && bwl <= 6);
+  int16x8_t v_mean16 = vdupq_n_s16(0);
+  int32x4_t v_sse = vdupq_n_s32(0);
+
+  const int width = 4 << bwl;
+  for (int i = 0; i < width; i += 8) {
+    const int16x8_t v_ref = vld1q_s16(&ref[i]);
+    const int16x8_t v_src = vld1q_s16(&src[i]);
     const int16x8_t diff = vsubq_s16(v_ref, v_src);
-    // diff: dynamic range [-510, 510], 10 bits.
-    v_mean = vpadalq_s16(v_mean, diff);
-    v_low = vget_low_s16(diff);
+    // diff: dynamic range [-511, 511], max 32 iterations -> [-16352, 16352].
+    v_mean16 = vaddq_s16(v_mean16, diff);
+    const int16x4_t v_low = vget_low_s16(diff);
     v_sse = vmlal_s16(v_sse, v_low, v_low);
 #if defined(__aarch64__)
     v_sse = vmlal_high_s16(v_sse, diff, diff);
@@ -89,15 +143,10 @@ int avm_vector_var_neon(const int16_t *ref, const int16_t *src, const int bwl) {
     v_sse = vmlal_s16(v_sse, v_high, v_high);
 #endif
   }
-#if defined(__aarch64__)
-  const int mean = vaddvq_s32(v_mean);
-  const uint32_t sse = (uint32_t)vaddvq_s32(v_sse);
-#else
-  const int mean = horizontal_add_s32x4(v_mean);
+  const int mean = horizontal_add_s16x8(v_mean16);
   const uint32_t sse = (uint32_t)horizontal_add_s32x4(v_sse);
-#endif
-  // (mean * mean): dynamic range 32 bits - can be stored in uint32_t
-  const uint32_t meansq = (uint32_t)abs(mean) * (uint32_t)abs(mean);
-  const int var = sse - (int)(meansq >> (bwl + 2));
+  // (mean * mean): dynamic range up to 34 bits for bwl=6 - store in uint64_t
+  const uint64_t meansq = (uint64_t)abs(mean) * (uint64_t)abs(mean);
+  const int var = sse - (uint32_t)(meansq >> (bwl + 2));
   return var;
 }
