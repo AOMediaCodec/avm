@@ -386,8 +386,23 @@ static void set_good_speed_features_framesize_independent(
 
     sf->inter_sf.prune_comp_search_by_single_result = boosted ? 2 : 1;
 
+    // Levels of disable_multiway_tx_part_in_rough_mode:
+    // - Speeds 1-4: level 3 on non-boosted frames at pyramid level >= 3,
+    //   level 2 on the other frames.
+    // - Speed >= 5: level 1. Multi-winner mode is off for inter frames, so
+    //   deferred intra splits are rarely searched, and other speed features
+    //   already leave little intra tx partition search time to save.
+    // - Screen content: level 0.
+    // av2_set_speed_features_qindex_dependent() then adjusts 2160p frames:
+    // - Level 1 on boosted frames (levels 2 and 3 only).
+    // - Level 0 when base_qindex >= qindex_thresh3.
+    int rough_mode_tx_part_level = 1;
+    if (speed <= 4) {
+      rough_mode_tx_part_level =
+          (!boosted && cm->current_frame.pyramid_level >= 3) ? 3 : 2;
+    }
     sf->winner_mode_sf.disable_multiway_tx_part_in_rough_mode =
-        allow_screen_content_tools ? 0 : 1;
+        allow_screen_content_tools ? 0 : rough_mode_tx_part_level;
     if (!frame_is_intra_only(cm) &&
         sf->winner_mode_sf.disable_multiway_tx_part_in_rough_mode) {
       sf->winner_mode_sf.multi_winner_mode_type = MULTI_WINNER_MODE_DEFAULT;
@@ -1731,6 +1746,12 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
       }
       sf->tx_sf.prune_inter_tx_part_rd_eval = true;
     }
+  }
+
+  // On 4K, boosted frames do not defer intra tx partition splits.
+  if (is_2160p_or_larger && boosted && !frame_is_intra_only(cm) &&
+      sf->winner_mode_sf.disable_multiway_tx_part_in_rough_mode >= 2) {
+    sf->winner_mode_sf.disable_multiway_tx_part_in_rough_mode = 1;
   }
 
   if (is_2160p_or_larger && cm->quant_params.base_qindex >= qindex_thresh3 &&
