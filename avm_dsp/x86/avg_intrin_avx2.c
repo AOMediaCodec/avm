@@ -261,3 +261,111 @@ int avm_satd_lp_avx2(const int16_t *coeff, int length) {
     return _mm_cvtsi128_si32(accum_128);
   }
 }
+
+void avm_int_pro_row_avx2(int16_t *hbuf, const uint16_t *ref,
+                          const int ref_stride, const int width,
+                          const int height, int norm_factor) {
+  assert(width % 16 == 0);
+  assert(height % 4 == 0);
+  const __m256i one = _mm256_set1_epi16(1);
+  const __m128i norm = _mm_cvtsi32_si128(norm_factor);
+
+  for (int idx = 0; idx < width; idx += 16) {
+    __m256i s0 = _mm256_setzero_si256();
+    __m256i s1 = _mm256_setzero_si256();
+    const uint16_t *ref_tmp = ref + idx;
+    for (int y = 0; y < height; y += 4) {
+      const __m256i r0 = _mm256_loadu_si256((const __m256i *)ref_tmp);
+      const __m256i r1 =
+          _mm256_loadu_si256((const __m256i *)(ref_tmp + ref_stride));
+      const __m256i r2 =
+          _mm256_loadu_si256((const __m256i *)(ref_tmp + 2 * ref_stride));
+      const __m256i r3 =
+          _mm256_loadu_si256((const __m256i *)(ref_tmp + 3 * ref_stride));
+      const __m256i r01 = _mm256_add_epi16(r0, r1);
+      const __m256i r23 = _mm256_add_epi16(r2, r3);
+      s0 = _mm256_add_epi32(
+          s0, _mm256_madd_epi16(_mm256_unpacklo_epi16(r01, r23), one));
+      s1 = _mm256_add_epi32(
+          s1, _mm256_madd_epi16(_mm256_unpackhi_epi16(r01, r23), one));
+      ref_tmp += 4 * ref_stride;
+    }
+    s0 = _mm256_sra_epi32(s0, norm);
+    s1 = _mm256_sra_epi32(s1, norm);
+    const __m256i res = _mm256_packs_epi32(s0, s1);
+    _mm256_storeu_si256((__m256i *)(hbuf + idx), res);
+  }
+}
+
+void avm_int_pro_col_avx2(int16_t *vbuf, const uint16_t *ref,
+                          const int ref_stride, const int width,
+                          const int height, int norm_factor) {
+  assert(width % 16 == 0);
+  assert(height % 4 == 0);
+  const __m256i one = _mm256_set1_epi16(1);
+  const __m128i norm = _mm_cvtsi32_si128(norm_factor);
+
+  for (int ht = 0; ht < height; ht += 4) {
+    const uint16_t *r0 = ref;
+    const uint16_t *r1 = r0 + ref_stride;
+    const uint16_t *r2 = r1 + ref_stride;
+    const uint16_t *r3 = r2 + ref_stride;
+    __m256i acc0 = _mm256_setzero_si256();
+    __m256i acc1 = _mm256_setzero_si256();
+    __m256i acc2 = _mm256_setzero_si256();
+    __m256i acc3 = _mm256_setzero_si256();
+
+    for (int idx = 0; idx < width; idx += 16) {
+      acc0 = _mm256_add_epi32(
+          acc0, _mm256_madd_epi16(
+                    _mm256_loadu_si256((const __m256i *)(r0 + idx)), one));
+      acc1 = _mm256_add_epi32(
+          acc1, _mm256_madd_epi16(
+                    _mm256_loadu_si256((const __m256i *)(r1 + idx)), one));
+      acc2 = _mm256_add_epi32(
+          acc2, _mm256_madd_epi16(
+                    _mm256_loadu_si256((const __m256i *)(r2 + idx)), one));
+      acc3 = _mm256_add_epi32(
+          acc3, _mm256_madd_epi16(
+                    _mm256_loadu_si256((const __m256i *)(r3 + idx)), one));
+    }
+
+    const __m256i t01 = _mm256_hadd_epi32(acc0, acc1);
+    const __m256i t23 = _mm256_hadd_epi32(acc2, acc3);
+    const __m256i t0123 = _mm256_hadd_epi32(t01, t23);
+    __m128i sum4 = _mm_add_epi32(_mm256_castsi256_si128(t0123),
+                                 _mm256_extracti128_si256(t0123, 1));
+    sum4 = _mm_sra_epi32(sum4, norm);
+    const __m128i packed = _mm_packs_epi32(sum4, sum4);
+    _mm_storel_epi64((__m128i *)(vbuf + ht), packed);
+    ref += 4 * ref_stride;
+  }
+}
+
+int avm_vector_var_avx2(const int16_t *ref, const int16_t *src, const int bwl) {
+  assert(bwl >= 2 && bwl <= 6);
+  const int width = 4 << bwl;
+  const __m256i one = _mm256_set1_epi16(1);
+  __m256i v_mean16 = _mm256_setzero_si256();
+  __m256i v_sse = _mm256_setzero_si256();
+
+  for (int i = 0; i < width; i += 16) {
+    const __m256i v_ref = _mm256_loadu_si256((const __m256i *)(ref + i));
+    const __m256i v_src = _mm256_loadu_si256((const __m256i *)(src + i));
+    const __m256i diff = _mm256_sub_epi16(v_ref, v_src);
+    v_mean16 = _mm256_add_epi16(v_mean16, diff);
+    v_sse = _mm256_add_epi32(v_sse, _mm256_madd_epi16(diff, diff));
+  }
+
+  const __m256i v_mean = _mm256_madd_epi16(v_mean16, one);
+  const __m256i t_mean_sse = _mm256_hadd_epi32(v_mean, v_sse);
+  const __m256i t_mean_sse2 = _mm256_hadd_epi32(t_mean_sse, t_mean_sse);
+  const __m128i sum_128 =
+      _mm_add_epi32(_mm256_castsi256_si128(t_mean_sse2),
+                    _mm256_extracti128_si256(t_mean_sse2, 1));
+  const int mean = _mm_cvtsi128_si32(sum_128);
+  const uint32_t sse = (uint32_t)_mm_extract_epi32(sum_128, 1);
+
+  const uint64_t meansq = (uint64_t)abs(mean) * (uint64_t)abs(mean);
+  return sse - (uint32_t)(meansq >> (bwl + 2));
+}

@@ -791,6 +791,7 @@ static void set_rt_speed_features_framesize_independent(
     sf->rt_sf.use_nonrd_partition = 1;
     sf->rt_sf.source_metrics_sb = 1;
     sf->rt_sf.disable_primary_ref_frame_search = 1;
+    sf->rt_sf.estimate_motion_for_var_based_partition = 1;
     sf->winner_mode_sf.tx_size_search_level = USE_FAST_RD;
     sf->tx_sf.restrict_tx_partition_type_search = 3;
     sf->tx_sf.enable_tx_partition = true;
@@ -1145,6 +1146,7 @@ static AVM_INLINE void init_rt_sf(REALTIME_SPEED_FEATURES *rt_sf) {
   rt_sf->disable_primary_ref_frame_search = 0;
   rt_sf->check_scene_detection = 0;
   rt_sf->overshoot_detection_cbr = NO_DETECTION;
+  rt_sf->estimate_motion_for_var_based_partition = 0;
 }
 
 static AVM_INLINE void set_erp_speed_features_framesize_dependent(

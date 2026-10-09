@@ -204,6 +204,7 @@ if(NOT BUILD_SHARED_LIBS)
     APPEND
     AVM_UNIT_TEST_ENCODER_SOURCES
     "${AVM_ROOT}/test/arf_freq_test.cc"
+    "${AVM_ROOT}/test/avg_test.cc"
     "${AVM_ROOT}/test/av2_convolve_test.cc"
     "${AVM_ROOT}/test/av2_nn_predict_test.cc"
     "${AVM_ROOT}/test/av2_intra_mlp_layer_test.cc"
