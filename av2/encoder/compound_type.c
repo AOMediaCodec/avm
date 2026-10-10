@@ -803,11 +803,9 @@ static AVM_INLINE int compute_valid_comp_types(
 // and CWP signaling costs. When refine mv is enabled, only CWP cost for
 // COMPOUND_AVERAGE is initialized as masked types are not searched in that
 // case.
-static AVM_INLINE void calc_comp_type_cost(const AV2_COMP *cpi,
-                                           const MACROBLOCK *x,
-                                           int masked_compound_used,
-                                           bool is_refinemv_mode,
-                                           int *comp_type_cost) {
+static AVM_INLINE void calc_comp_type_cost(
+    const AV2_COMP *cpi, const MACROBLOCK *x, BLOCK_SIZE bsize,
+    int masked_compound_used, bool is_refinemv_mode, int *comp_type_cost) {
   const AV2_COMMON *const cm = &cpi->common;
   const MACROBLOCKD *const xd = &x->e_mbd;
   const MB_MODE_INFO *const mbmi = xd->mi[0];
@@ -825,9 +823,12 @@ static AVM_INLINE void calc_comp_type_cost(const AV2_COMP *cpi,
       comp_type_cost[COMPOUND_DIFFWTD] = comp_type_cost[COMPOUND_WEDGE];
     }
 
-    // Compute the cost to signal compound index/type.
-    comp_type_cost[COMPOUND_WEDGE] += mode_costs->compound_type_cost[0];
-    comp_type_cost[COMPOUND_DIFFWTD] += mode_costs->compound_type_cost[1];
+    // Compute the cost to signal compound index/type. The type is only coded
+    // when wedge is allowed for this block size; otherwise DIFFWTD is implied.
+    if (is_interinter_compound_used(COMPOUND_WEDGE, bsize)) {
+      comp_type_cost[COMPOUND_WEDGE] += mode_costs->compound_type_cost[0];
+      comp_type_cost[COMPOUND_DIFFWTD] += mode_costs->compound_type_cost[1];
+    }
   }
 
   // Add CWP index signaling cost for compound average.
@@ -1156,7 +1157,7 @@ int av2_compound_type_rd(const AV2_COMP *const cpi, MACROBLOCK *x,
   // different compound types. Group index and mask type costs are only added
   // when refine mv is disabled. CWP cost for COMPOUND_AVERAGE is always added.
   int comp_type_cost[COMPOUND_TYPES] = { 0 };
-  calc_comp_type_cost(cpi, x, masked_compound_used, is_refinemv_mode,
+  calc_comp_type_cost(cpi, x, bsize, masked_compound_used, is_refinemv_mode,
                       comp_type_cost);
 
   const int prune_idx = inter_sf->prune_comp_type_by_comp_avg;
