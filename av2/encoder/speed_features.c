@@ -893,6 +893,7 @@ static AVM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->disable_extended_sdp = false;
   part_sf->force_max_pb_aspect_ratio = 0;
   part_sf->prune_by_struct_orient = 0;
+  part_sf->ml_post_none_early_term_thresh = 0;
 }
 
 static AVM_INLINE void init_mv_sf(MV_SPEED_FEATURES *mv_sf) {
@@ -1636,6 +1637,15 @@ static AVM_INLINE void set_two_pass_partition_level(AV2_COMP *cpi) {
   }
 }
 
+// Learned partition early termination after PARTITION_NONE. Set after the
+// ERP overrides so that the per-speed thresholds (P x 1000) are kept.
+static AVM_INLINE void set_post_none_early_term_level(AV2_COMP *cpi,
+                                                      int speed) {
+  static const int thresh_by_speed[7] = { 0, 2, 3, 4, 5, 10, 14 };
+  cpi->sf.part_sf.ml_post_none_early_term_thresh =
+      cpi->oxcf.mode == GOOD ? thresh_by_speed[AVMMIN(speed, 6)] : 0;
+}
+
 // Override some speed features based on qindex
 void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
   AV2_COMMON *const cm = &cpi->common;
@@ -1747,6 +1757,7 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
   }
 
   set_two_pass_partition_level(cpi);
+  set_post_none_early_term_level(cpi, speed);
 
   // Set the predict_dc level to { 2, 2, 0 } at speed 2 for high qindex frames.
   if (speed == 2 && sf->winner_mode_sf.dc_blk_pred_level == 0) {

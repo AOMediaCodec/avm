@@ -504,6 +504,13 @@ typedef struct PARTITION_SPEED_FEATURES {
   // 1: standard (size-graded anisotropy with GOP temporal layer protection)
   // 2: unblunted (prunes across all GOP temporal layers for 4K at speed >= 6)
   int prune_by_struct_orient;
+
+  // Learned early termination after PARTITION_NONE (and PARTITION_SPLIT at
+  // 128x128 / 256x256): an MLP trained on the AV2 partition tree predicts the
+  // probability that any later partition type (HORZ/VERT, late NONE, extended
+  // types) improves the node. The remaining search is skipped when that
+  // probability, in units of 1/1000, is below this threshold. 0: disabled.
+  int ml_post_none_early_term_thresh;
 } PARTITION_SPEED_FEATURES;
 
 // True when the two-pass superblock partition search runs at all.
