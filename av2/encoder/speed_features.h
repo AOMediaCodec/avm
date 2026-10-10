@@ -873,6 +873,12 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   int prune_opfl;
   // Enable warp inter intra in winner mode.
   int enable_warp_inter_intra_in_winner;
+  // Prune the CWP weight search.
+  // 0: search the top 2 weights (ranked by the masked-compound model RD cost)
+  //    for every candidate.
+  // 1: search only the top weight, and no CWP weights (CWP_EQUAL only) for
+  //    JOINT_NEWMV modes or for candidates with a non-zero ref_mv_idx.
+  int prune_cwp_search;
   // Reuse compound type rd decision when exact match is found
   // 0: No reuse
   // 1: Reuse the compound type rd data
