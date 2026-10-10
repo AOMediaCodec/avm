@@ -4792,7 +4792,7 @@ static void set_cwp_search_mask(const AV2_COMP *const cpi, MACROBLOCK *const x,
     }
   }
 
-  int th = 2;
+  const int th = cpi->sf.inter_sf.prune_cwp_search ? 1 : 2;
   for (int i = 0; i < MAX_CWP_NUM; i++) {
     if (i < th) {
       mask[idx_list[i]] = 1;
@@ -4833,6 +4833,8 @@ typedef struct {
   int ref_mv_idx_type;
   int scale_index;
   int *cwp_search_mask;
+  // Whether evaluate_inter_predictor() must (re)compute cwp_search_mask.
+  int compute_cwp_mask;
   PREDICTION_MODE eval_mode;
   const MV_REFERENCE_FRAME *refs;
   const int *flex_mv_cost;
@@ -4886,6 +4888,7 @@ static AVM_INLINE void init_predictor_iteration_context(
   it_ctx->ref_mv_idx_type = ref_mv_idx_type;
   it_ctx->scale_index = scale_index;
   it_ctx->cwp_search_mask = cwp_search_mask;
+  it_ctx->compute_cwp_mask = 1;
   it_ctx->eval_mode = eval_mode;
   it_ctx->refs = refs;
   it_ctx->flex_mv_cost = flex_mv_cost;
@@ -5026,6 +5029,7 @@ static void evaluate_inter_predictor(AV2_COMP *const cpi,
   const int ref_mv_idx_type = it_ctx->ref_mv_idx_type;
   const int scale_index = it_ctx->scale_index;
   int *cwp_search_mask = it_ctx->cwp_search_mask;
+  const int compute_cwp_mask = it_ctx->compute_cwp_mask;
   const PREDICTION_MODE eval_mode = it_ctx->eval_mode;
   const MV_REFERENCE_FRAME *refs = it_ctx->refs;
   const int *flex_mv_cost = it_ctx->flex_mv_cost;
@@ -5109,7 +5113,7 @@ static void evaluate_inter_predictor(AV2_COMP *const cpi,
   const int mi_col = xd->mi_col;
 
   // set cwp_search_mask
-  if (is_cwp_allowed(mbmi) && mbmi->cwp_idx == CWP_EQUAL) {
+  if (compute_cwp_mask && is_cwp_allowed(mbmi) && mbmi->cwp_idx == CWP_EQUAL) {
     set_cwp_search_mask(cpi, x, bsize, env->rd_buffers->pred0,
                         env->rd_buffers->pred1, env->rd_buffers->residual1,
                         env->rd_buffers->diff10, block_size_wide[bsize],
@@ -5540,6 +5544,25 @@ static void handle_single_inter_prediction(
   }
 }
 
+// Returns the number of CWP indices to search (1 => CWP_EQUAL only).
+static AVM_INLINE int get_cwp_loop_num(const AV2_COMP *cpi, const MACROBLOCK *x,
+                                       const DryPassCfg *cfg,
+                                       PREDICTION_MODE this_mode,
+                                       const PredictorSearchState *search_state,
+                                       int is_cwp_cand,
+                                       int nonzero_ref_mv_idx) {
+  if (x->apply_dry_pass_shortcuts) return cfg->cwp_loop_cap;
+  if (!is_cwp_cand) return 1;
+  // CWP is only allowed for NEAR_NEARMV and the joint MVD modes.
+  const int is_joint_mvd = is_joint_mvd_coding_mode(this_mode);
+  if (this_mode != NEAR_NEARMV && !is_joint_mvd) return 1;
+  if (cpi->sf.inter_sf.prune_cwp_search && (nonzero_ref_mv_idx || is_joint_mvd))
+    return 1;
+  if (search_state->best_cwp_idxs[0] == CWP_EQUAL && nonzero_ref_mv_idx)
+    return 1;
+  return MAX_CWP_NUM;
+}
+
 // Handles compound inter prediction search for a given mode and precision.
 // Iterates over candidate combinations of reference MVs (ref_mv_idx[0],
 // ref_mv_idx[1]), JMVD scaling factors, CWP indices, and refinement modes,
@@ -5678,6 +5701,12 @@ static void handle_compound_inter_prediction(
         drl_cost, jmvd_scale_mode_cost, base_rate, cur_mv, rate_mv, &base_mbmi,
         0, num_planes, args->skip_motion_mode);
     it_ctx.refinemv_loop = 0;
+    // cwp_search_mask is only read by the CWP loop below (or by a later
+    // ref_mv_idx iteration, whose CWP loop can only run if this one runs).
+    const int nonzero_ref_mv_idx = ref_mv_idx[0] > 0 || ref_mv_idx[1] > 0;
+    const int cwp_loop_num_pre = get_cwp_loop_num(
+        cpi, x, cfg, this_mode, search_state, is_cwp_cand, nonzero_ref_mv_idx);
+    it_ctx.compute_cwp_mask = cwp_loop_num_pre > 1;
     evaluate_inter_predictor(cpi, tile_data, x, env, &it_ctx, search_state,
                              best_precision_so_far, best_precision_dx_so_far,
                              best_precision_rd_so_far);
@@ -5701,11 +5730,12 @@ static void handle_compound_inter_prediction(
     // =========================================================================
     // 3. CWP (Compound Weighted Prediction) Search (scale_index = 0, CWP != EQ)
     // =========================================================================
-    int cwp_loop_num = is_cwp_cand ? MAX_CWP_NUM : 1;
-    if (search_state->best_cwp_idxs[0] == CWP_EQUAL &&
-        (ref_mv_idx[0] > 0 || ref_mv_idx[1] > 0))
+    // Reuse the count from above. The evaluation above can make CWP_EQUAL the
+    // best candidate, which stops the search for non-zero ref_mv_idx.
+    int cwp_loop_num = cwp_loop_num_pre;
+    if (!x->apply_dry_pass_shortcuts && nonzero_ref_mv_idx &&
+        search_state->best_cwp_idxs[0] == CWP_EQUAL)
       cwp_loop_num = 1;
-    if (x->apply_dry_pass_shortcuts) cwp_loop_num = cfg->cwp_loop_cap;
 
     for (int cwp_search_idx = 1; cwp_search_idx < cwp_loop_num;
          cwp_search_idx++) {
