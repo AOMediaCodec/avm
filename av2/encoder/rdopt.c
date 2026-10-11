@@ -6083,6 +6083,12 @@ static int64_t handle_inter_mode(
   }
   cap_ref_mv_count_by_bsize(ref_set, has_two_drls, is_comp_pred, bsize,
                             cpi->sf.inter_sf.limit_max_ref_mv_idx);
+  // Cap the number of DRL candidates for single-reference modes (WARPMV
+  // already searches only index 0). The DRL index signalling is unchanged.
+  if (!is_comp_pred && this_mode != WARPMV &&
+      cpi->sf.inter_sf.limit_single_ref_mv_idx > 0) {
+    ref_set[0] = AVMMIN(ref_set[0], cpi->sf.inter_sf.limit_single_ref_mv_idx);
+  }
 
   inter_mode_info mode_info[BAWP_OPTION_CNT][NUM_MV_PRECISIONS]
                            [MAX_REF_MV_SQUARE];
