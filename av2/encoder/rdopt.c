@@ -9565,7 +9565,9 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
       .inter_mode_mask = (1u << NEWMV) | (1u << NEW_NEWMV) | (1u << NEARMV) |
                          (1u << NEAR_NEARMV) | (1u << WARPMV) |
                          (1u << WARP_NEWMV),
-      .precisions_from_top = 3,
+      .precisions_from_top = cpi->sf.inter_sf.dry_pass_mv_prec_from_top
+                                 ? cpi->sf.inter_sf.dry_pass_mv_prec_from_top
+                                 : 3,
       .intra_mpm_cap = 13,
     };
     // Keep the normal distortion measure; a cheaper one made the partition
