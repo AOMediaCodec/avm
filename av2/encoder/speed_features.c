@@ -414,6 +414,7 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.enable_six_param_warp_in_winner_mode = 1;
     sf->inter_sf.enable_six_param_warp_in_winner_mode_by_tid =
         cm->current_frame.pyramid_level >= 3 ? 1 : 0;
+    sf->inter_sf.enable_interintra_in_winner_mode = 1;
 
     // Cap the DRL depth for a fresh single-ref NEWMV search; reuse the
     // nearest searched result beyond the cap.
@@ -720,7 +721,7 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.prune_opfl = true;
   }
 
-  if (enable_warp_search_in_winner_mode(&sf->inter_sf)) {
+  if (enable_motion_mode_search_in_winner_mode(&sf->inter_sf)) {
     sf->winner_mode_sf.motion_mode_for_winner_cand = 2;
     if (speed == 6) sf->winner_mode_sf.motion_mode_for_winner_cand = 3;
   }
@@ -938,6 +939,7 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->enable_six_param_warp_in_winner_mode = 0;
   inter_sf->enable_six_param_warp_in_winner_mode_by_tid = 0;
   inter_sf->enable_four_param_warp_in_winner_mode = 0;
+  inter_sf->enable_interintra_in_winner_mode = 0;
   inter_sf->fast_warp_delta_decoupled_search = 0;
   inter_sf->early_term_warp_delta_refine = false;
   inter_sf->comp_inter_joint_search_thresh = BLOCK_4X4;

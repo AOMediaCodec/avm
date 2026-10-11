@@ -653,6 +653,11 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // For speed >= 3, enabled for all frames.
   int enable_four_param_warp_in_winner_mode;
 
+  // Disable the interintra motion mode evaluation during initial mode search
+  // and enable the same during motion mode evaluation for winner candidates.
+  // Enabled for speed >= 1.
+  int enable_interintra_in_winner_mode;
+
   // Drop less likely to be picked reference frames in the RD search.
   // Has five levels for now: 0, 1, 2, 3 and 4, where higher levels prune more
   // aggressively than lower ones. (0 means no pruning).
