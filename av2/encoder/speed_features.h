@@ -701,6 +701,9 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // 0: default (DEF_MAX_DRL_REFMVS - 1)
   // 1: reduce by 1 (DEF_MAX_DRL_REFMVS - 2)
   int reduce_max_drl_refmvs;
+  // Number of top MV precisions searched in the dry pass (0: default, 3).
+  // Dry pass: top-1 MV precision on non-boosted frames at pyramid level >= 2.
+  int dry_pass_mv_prec_from_top;
 
   // Prune reference frames for ALTREF
   int alt_ref_search_fp;
