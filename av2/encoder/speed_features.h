@@ -357,6 +357,14 @@ typedef struct PARTITION_SPEED_FEATURES {
   int64_t partition_search_breakout_dist_thr;
   int partition_search_breakout_rate_thr;
 
+  // When nonzero, skip PARTITION_SPLIT after a skippable PARTITION_NONE whose
+  // dist is below (partition_search_breakout_dist_thr << thr_shift), for
+  // square blocks with width >= skip_split_after_none_min_dim. Independent of
+  // the rectangular-breakout test. Default 0 (off).
+  int skip_split_after_none;
+  int skip_split_after_none_thr_shift;
+  int skip_split_after_none_min_dim;
+
   // Thresholds for ML based partition search breakout.
 
   // Allow skipping partition search for still image frame
