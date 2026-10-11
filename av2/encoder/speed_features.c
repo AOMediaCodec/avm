@@ -236,6 +236,10 @@ static void set_good_speed_feature_framesize_dependent(
     }
   }
 
+  if (speed >= 5) {
+    sf->part_sf.wet_pass_keep_skip_none_min_side = is_4k_or_larger ? 128 : 32;
+  }
+
   if (speed >= 6) {
     if (is_720p_or_larger) {
       sf->part_sf.auto_max_partition_based_on_simple_motion = NOT_IN_USE;
@@ -894,6 +898,7 @@ static AVM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->prune_part_4_with_part_3 = 0;
   part_sf->prune_part_4b_with_part_4a = 0;
   part_sf->two_pass_partition_search = TWO_PASS_PART_OFF;
+  part_sf->wet_pass_keep_skip_none_min_side = 0;
   part_sf->partition_pruning_with_mlp = 0;
   part_sf->partition_pruning_with_mlp_none_thresh = 0.0f;
   part_sf->sms_unified_prune_horz = 0;
