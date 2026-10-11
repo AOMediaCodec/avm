@@ -2913,6 +2913,29 @@ static AVM_INLINE int get_warp_ref_idx_limit(MACROBLOCKD *xd,
   return valid_num_candidates;
 }
 
+// Check if the inter-intra motion mode search should be deferred to winner
+// mode.
+static INLINE bool enable_interintra_search_in_winner_mode(
+    int enable_interintra_in_winner_mode, BLOCK_SIZE bsize) {
+  return (enable_interintra_in_winner_mode && (bsize > BLOCK_32X32));
+}
+
+// Check if the inter-intra motion mode search should be pruned.
+static INLINE bool prune_interintra_search(
+    const INTER_MODE_SPEED_FEATURES *inter_sf, MV_REFERENCE_FRAME ref_frame,
+    BLOCK_SIZE bsize, int eval_motion_mode) {
+  if (inter_sf->disable_interintra ||
+      (inter_sf->prune_interintra_by_ref_idx && ref_frame > 1))
+    return true;
+
+  if (!eval_motion_mode &&
+      enable_interintra_search_in_winner_mode(
+          inter_sf->enable_interintra_in_winner_mode, bsize))
+    return true;
+
+  return false;
+}
+
 /*!\brief Best-trial state for motion mode search.
  *
  * Tracks the best motion-mode trial seen so far for the current
@@ -3029,9 +3052,8 @@ static AVM_INLINE int evaluate_motion_mode_trial(
                                 &tmp_rate2, eval_motion_mode) < 0)
       return -1;
   } else if (mbmi->motion_mode == INTERINTRA) {
-    if (cpi->sf.inter_sf.disable_interintra ||
-        (cpi->sf.inter_sf.prune_interintra_by_ref_idx &&
-         mbmi->ref_frame[0] > 1))
+    if (prune_interintra_search(&cpi->sf.inter_sf, mbmi->ref_frame[0], bsize,
+                                eval_motion_mode))
       return -1;
     if (av2_handle_inter_intra_mode(cpi, x, bsize, mbmi, args, *ref_best_rd,
                                     &tmp_rate_mv, &tmp_rate2, orig_dst) < 0)
@@ -3345,8 +3367,8 @@ static int64_t motion_mode_rd(
   for (int mode_index = SIMPLE_TRANSLATION; mode_index < mode_index_end;
        mode_index++) {
     if ((modes_to_search & (1 << mode_index)) == 0) continue;
-    assert(IMPLIES(eval_motion_mode,
-                   enable_warp_search_in_winner_mode(&cpi->sf.inter_sf)));
+    assert(IMPLIES(eval_motion_mode, enable_motion_mode_search_in_winner_mode(
+                                         &cpi->sf.inter_sf)));
     if (eval_motion_mode &&
         (mode_index == WARP_CAUSAL || mode_index == WARP_EXTEND))
       continue;
@@ -8868,13 +8890,24 @@ static const unsigned int num_winner_motion_modes[4] = { 0, 10, 6, 3 };
 
 // Returns true if a mode is added to the winner mode check.
 static AVM_INLINE int is_check_in_winner(const AV2_COMP *cpi,
-                                         const MB_MODE_INFO *const mbmi) {
+                                         const MB_MODE_INFO *const mbmi,
+                                         bool apply_dry_pass_shortcuts) {
+  const INTER_MODE_SPEED_FEATURES *inter_sf = &cpi->sf.inter_sf;
   PREDICTION_MODE this_mode = mbmi->mode;
-  if (enable_warp_search_in_winner_mode(&cpi->sf.inter_sf)) {
+  if (enable_warp_search_in_winner_mode(inter_sf)) {
     if (this_mode == WARP_NEWMV) return 1;
   }
-  if (cpi->sf.inter_sf.enable_warp_inter_intra_in_winner) {
+  if (inter_sf->enable_warp_inter_intra_in_winner) {
     if (this_mode == WARPMV && mbmi->warp_inter_intra) return 1;
+  }
+  bool interintra_allowed =
+      cpi->common.current_frame.reference_mode != COMPOUND_REFERENCE &&
+      is_interintra_allowed(mbmi);
+  if (!apply_dry_pass_shortcuts && interintra_allowed &&
+      enable_interintra_search_in_winner_mode(
+          inter_sf->enable_interintra_in_winner_mode,
+          mbmi->sb_type[PLANE_TYPE_Y])) {
+    return 1;
   }
   return 0;
 }
@@ -10021,7 +10054,8 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
         if (do_tx_search) search_state.best_skip_rd[0] = skip_rd[0];
         search_state.best_skip_rd[1] = skip_rd[1];
       }
-      if (motion_mode_winner && is_check_in_winner(cpi, mbmi)) {
+      if (motion_mode_winner &&
+          is_check_in_winner(cpi, mbmi, apply_dry_pass_shortcuts)) {
         handle_winner_cand(mbmi, &best_motion_mode_cands,
                            max_winner_motion_mode_cand, this_rd,
                            &motion_mode_cand, args.skip_motion_mode);
