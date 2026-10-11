@@ -711,6 +711,27 @@ static AVM_INLINE void perform_two_partition_passes(
   }
 }
 
+// Whether the dry pass coded this unsplit node as one inter block of the same
+// size with no residual (or skip mode).
+static AVM_INLINE int is_dry_pass_skip_none(const AV2_COMMON *cm,
+                                            const PARTITION_TREE *part_tree,
+                                            int min_side_px) {
+  const BLOCK_SIZE bsize = part_tree->bsize;
+  if (AVMMAX(block_size_wide[bsize], block_size_high[bsize]) < min_side_px) {
+    return 0;
+  }
+  const CommonModeInfoParams *const mi_params = &cm->mi_params;
+  if (part_tree->mi_row >= mi_params->mi_rows ||
+      part_tree->mi_col >= mi_params->mi_cols) {
+    return 0;
+  }
+  const MB_MODE_INFO *const mbmi = mi_params->mi_grid_base[get_mi_grid_idx(
+      mi_params, part_tree->mi_row, part_tree->mi_col)];
+  if (!mbmi || mbmi->sb_type[PLANE_TYPE_Y] != bsize) return 0;
+  if (!is_inter_ref_frame(mbmi->ref_frame[0])) return 0;
+  return mbmi->skip_txfm[PLANE_TYPE_Y] || mbmi->skip_mode;
+}
+
 /*!\brief Mark the small nodes of the dry-pass tree as "search again".
  *
  * \ingroup partition_search
@@ -718,10 +739,17 @@ static AVM_INLINE void perform_two_partition_passes(
  * Clears the shape of every node smaller than min_bsize so the wet pass is
  * free to choose its own. If resplit_max_side_px > 0, also clears unsplit
  * blocks up to that pixel size; 0 disables the re-split step.
+ *
+ * If keep_skip_cm is non-NULL, unsplit blocks of at least
+ * keep_skip_min_side_px pixels that the dry pass coded as inter blocks with
+ * no residual (or skip mode) of the same size are left as is, so the wet pass
+ * does not re-search them. The dry-pass mi grid must still be populated.
  */
 static AVM_INLINE void set_min_none_to_invalid(PARTITION_TREE *part_tree,
                                                BLOCK_SIZE min_bsize,
-                                               int resplit_max_side_px) {
+                                               int resplit_max_side_px,
+                                               const AV2_COMMON *keep_skip_cm,
+                                               int keep_skip_min_side_px) {
   if (!part_tree) return;
   const BLOCK_SIZE bsize = part_tree->bsize;
   const PARTITION_TYPE part_type = part_tree->partition;
@@ -737,6 +765,9 @@ static AVM_INLINE void set_min_none_to_invalid(PARTITION_TREE *part_tree,
   // Re-split unsplit blocks up to the cutoff. Bigger unsplit blocks are
   // usually flat, so re-searching them rarely pays.
   if (resplit_max_side_px > 0 && part_type == PARTITION_NONE) {
+    if (keep_skip_cm &&
+        is_dry_pass_skip_none(keep_skip_cm, part_tree, keep_skip_min_side_px))
+      return;
     if (AVMMAX(block_size_wide[bsize], block_size_high[bsize]) <=
         resplit_max_side_px) {
       part_tree->partition = PARTITION_INVALID;
@@ -763,7 +794,8 @@ static AVM_INLINE void set_min_none_to_invalid(PARTITION_TREE *part_tree,
 
   for (int idx = 0; idx < num_subtrees; idx++) {
     set_min_none_to_invalid(part_tree->sub_tree[idx], min_bsize,
-                            resplit_max_side_px);
+                            resplit_max_side_px, keep_skip_cm,
+                            keep_skip_min_side_px);
   }
 }
 
@@ -779,6 +811,10 @@ static AVM_INLINE int two_pass_qindex_8bit_equiv(int base_qindex,
 // Above this qindex the schedule uses a larger dry-pass floor and a
 // smaller wet-pass re-split cutoff.
 #define TWO_PASS_QP_SCHEDULE_HIGH_QP_THRESH 200
+
+// Lowest pyramid level at which the wet-pass keep of skipped NONE blocks
+// applies.
+#define WET_PASS_KEEP_SKIP_MIN_PYRAMID_LEVEL 2
 
 // Dry-pass floor. 32x32 at high QP, 16x16 otherwise.
 static AVM_INLINE BLOCK_SIZE two_pass_dry_pass_floor(int qindex_8b) {
@@ -833,10 +869,17 @@ static AVM_INLINE void perform_two_pass_partition_search(
   PARTITION_TREE *part_ref = xd->sbi->ptree_root[0];
   // Set this to NULL otherwise part_ref will get freed in the second pass.
   xd->sbi->ptree_root[0] = NULL;
+  // Optionally keep dry-pass skipped NONE blocks of deeper-pyramid frames.
+  const AV2_COMMON *const keep_skip_cm =
+      (fast_two_pass && cpi->sf.part_sf.wet_pass_keep_skip_none_min_side > 0 &&
+       cm->current_frame.pyramid_level >= WET_PASS_KEEP_SKIP_MIN_PYRAMID_LEVEL)
+          ? cm
+          : NULL;
   // Trust the dry-pass shape for >= (dry_floor << 1) blocks; re-search
   // smaller ones. The trust boundary moves with the dry-pass floor.
   set_min_none_to_invalid(part_ref, get_larger_sqr_bsize(dry_floor),
-                          resplit_max_side);
+                          resplit_max_side, keep_skip_cm,
+                          cpi->sf.part_sf.wet_pass_keep_skip_none_min_side);
 
   // Second pass. Fast reuses the dry pass's simple motion searches;
   // conservative starts clean.
