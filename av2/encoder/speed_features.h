@@ -417,6 +417,11 @@ typedef struct PARTITION_SPEED_FEATURES {
   // and av2_two_pass_part_is_fast().
   int two_pass_partition_search;
 
+  // Two-pass search only: the wet pass keeps dry-pass unsplit blocks whose
+  // longest side is at least this many pixels and that were coded as inter
+  // skip, instead of re-searching them. 0 disables.
+  int wet_pass_keep_skip_none_min_side;
+
   // Prunes rect partition with ml model
 
   // End partition search if the grandparent, parent, and current block all
