@@ -407,6 +407,14 @@ static INLINE bool enable_warp_search_in_winner_mode(
           inter_sf->enable_four_param_warp_in_winner_mode);
 }
 
+// Check if any motion mode search is deferred to winner mode.
+static INLINE bool enable_motion_mode_search_in_winner_mode(
+    const INTER_MODE_SPEED_FEATURES *inter_sf) {
+  return (enable_warp_search_in_winner_mode(inter_sf) ||
+          inter_sf->enable_warp_inter_intra_in_winner ||
+          inter_sf->enable_interintra_in_winner_mode);
+}
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
