@@ -169,10 +169,10 @@ static void highbd_vfilter8(const int16_t *src, int src_stride, uint16_t *dst,
           _mm_sra_epi32(_mm_add_epi32(conv, round_shift_add), round_shift);
 
       uint16_t *dst_x = dst + y * dst_stride + x;
-      CONV_BUF_TYPE *dst_16_x = dst16 + y * dst16_stride + x;
 
       __m128i result;
       if (conv_params->is_compound) {
+        CONV_BUF_TYPE *dst_16_x = dst16 + y * dst16_stride + x;
         if (conv_params->do_average) {
           __m128i p_32 =
               _mm_cvtepu16_epi32(_mm_loadl_epi64((__m128i *)dst_16_x));
