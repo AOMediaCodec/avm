@@ -167,7 +167,7 @@ const av2_codec_arg_definitions_t g_av2_codec_arg_defs = {
   .use_i422 = ARG_DEF(NULL, "i422", 0, "Input file is I422"),
   .use_i444 = ARG_DEF(NULL, "i444", 0, "Input file is I444"),
   .codecarg = ARG_DEF(NULL, "codec", 1, "Codec to use"),
-  .passes = ARG_DEF("p", "passes", 1, "Number of passes (must be 1)"),
+  .passes = ARG_DEF("p", "passes", 1, "Number of passes (1/2)"),
   .pass_arg =
       ARG_DEF(NULL, "pass", 1,
               "Pass to execute (0/1). 0 (default) indicates all passes"),
