@@ -2388,15 +2388,29 @@ static AVM_INLINE bool dry_pass_caps_tx_search(const MACROBLOCK *x,
   return x->apply_dry_pass_shortcuts && cpi->oxcf.speed >= 4;
 }
 
+// Effective disable_multiway_tx_part_in_rough_mode for the current block.
+// Levels 2 and 3 (defer intra splits to winner mode) apply to intra blocks
+// only; inter blocks use level 1 (defer multiway splits only).
+static AVM_INLINE int get_tx_part_rough_mode_level(const AV2_COMP *cpi,
+                                                   const MB_MODE_INFO *mbmi,
+                                                   int tree_type) {
+  const int level =
+      cpi->sf.winner_mode_sf.disable_multiway_tx_part_in_rough_mode;
+  if (level >= 2 && is_inter_block(mbmi, tree_type)) return 1;
+  return level;
+}
+
 // True when the caller's winner-mode evaluation has already picked a
 // tx-partition in mbmi->tx_partition_type[] for the current block, so a
 // tx-partition search should defer to it instead of re-evaluating from scratch.
+// Only level 1 reuses it; with levels 2 and 3, winner mode searches all tx
+// partitions of intra blocks.
 static AVM_INLINE bool winner_mode_tx_partition_preselected(
     const TxfmSearchParams *txfm_params, const MB_MODE_INFO *mbmi,
-    const AV2_COMP *cpi) {
+    int tree_type, const AV2_COMP *cpi) {
   return txfm_params->eval_mode_type == WINNER_MODE_EVAL &&
          mbmi->region_type == MIXED_INTER_INTRA_REGION &&
-         cpi->sf.winner_mode_sf.disable_multiway_tx_part_in_rough_mode;
+         get_tx_part_rough_mode_level(cpi, mbmi, tree_type) == 1;
 }
 
 // Margin added to the IST input energy bound to cover the rounding of the
@@ -3447,6 +3461,16 @@ static AVM_INLINE int skip_tx_partition_by_eval_type(
     int disable_multiway_tx_part_in_rough_mode) {
   if (!disable_multiway_tx_part_in_rough_mode) return 0;
 
+  if (disable_multiway_tx_part_in_rough_mode >= 2) {
+    const TX_PARTITION_TYPE max_rough_type =
+        disable_multiway_tx_part_in_rough_mode == 2 ? TX_PARTITION_SPLIT
+                                                    : TX_PARTITION_NONE;
+    if (eval_mode_type == MODE_EVAL &&
+        region_type == MIXED_INTER_INTRA_REGION && type > max_rough_type)
+      return 1;
+    return 0;
+  }
+
   if (eval_mode_type == MODE_EVAL && region_type == MIXED_INTER_INTRA_REGION &&
       type > TX_PARTITION_VERT)
     return 1;
@@ -3600,8 +3624,8 @@ static void select_tx_partition_type(
       is_inter_block(mbmi, xd->tree_type)
           ? av2_get_txb_size_index(plane_bsize, blk_row, blk_col)
           : 0;
-  const bool tx_partition_preselected =
-      winner_mode_tx_partition_preselected(txfm_params, mbmi, cpi);
+  const bool tx_partition_preselected = winner_mode_tx_partition_preselected(
+      txfm_params, mbmi, xd->tree_type, cpi);
   TX_PARTITION_TYPE best_tx_partition =
       tx_partition_preselected ? mbmi->tx_partition_type[txb_size_index]
                                : TX_PARTITION_INVALID;
@@ -3631,7 +3655,7 @@ static void select_tx_partition_type(
 
     if (skip_tx_partition_by_eval_type(
             type, txfm_params->eval_mode_type, mbmi->region_type,
-            cpi->sf.winner_mode_sf.disable_multiway_tx_part_in_rough_mode))
+            get_tx_part_rough_mode_level(cpi, mbmi, xd->tree_type)))
       continue;
 
     // Skip any illegal partitions for this block size
@@ -3963,8 +3987,8 @@ static void choose_tx_size_type_from_rd(const AV2_COMP *const cpi,
   int is_wide_angle_mapped[MAX_TX_PARTITIONS] = { 0 };
   int mapped_wide_angle[MAX_TX_PARTITIONS] = { 0 };
   assert(!is_inter_block(mbmi, xd->tree_type));
-  const bool tx_partition_preselected =
-      winner_mode_tx_partition_preselected(txfm_params, mbmi, cpi);
+  const bool tx_partition_preselected = winner_mode_tx_partition_preselected(
+      txfm_params, mbmi, xd->tree_type, cpi);
   TX_PARTITION_TYPE best_tx_partition_type =
       tx_partition_preselected ? mbmi->tx_partition_type[0] : TX_PARTITION_NONE;
   int64_t best_rd = INT64_MAX;
@@ -3984,7 +4008,7 @@ static void choose_tx_size_type_from_rd(const AV2_COMP *const cpi,
 
     if (skip_tx_partition_by_eval_type(
             type, txfm_params->eval_mode_type, mbmi->region_type,
-            cpi->sf.winner_mode_sf.disable_multiway_tx_part_in_rough_mode))
+            get_tx_part_rough_mode_level(cpi, mbmi, xd->tree_type)))
       continue;
 
     // Skip any illegal partitions for this block size
@@ -4068,6 +4092,17 @@ static void choose_tx_size_type_from_rd(const AV2_COMP *const cpi,
           cur_rd > x->top_tx_part_rd[TOP_TX_PART_COUNT - 1])
         break;
     }
+  }
+
+  // With intra splits deferred to winner mode, a winner that still picks
+  // TX_PARTITION_NONE gains little over its rough-mode result: return invalid
+  // stats so the caller keeps the rough-mode result.
+  if (txfm_params->eval_mode_type == WINNER_MODE_EVAL &&
+      mbmi->region_type == MIXED_INTER_INTRA_REGION &&
+      get_tx_part_rough_mode_level(cpi, mbmi, xd->tree_type) >= 2 &&
+      best_tx_partition_type == TX_PARTITION_NONE) {
+    av2_invalid_rd_stats(rd_stats);
+    return;
   }
 
   if (rd_stats->rate != INT_MAX) {
