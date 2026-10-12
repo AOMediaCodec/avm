@@ -387,8 +387,8 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.prune_comp_search_by_single_result = boosted ? 2 : 1;
 
     // Levels of disable_multiway_tx_part_in_rough_mode:
-    // - Speeds 1-4: level 3 on non-boosted frames at pyramid level >= 3,
-    //   level 2 on the other frames.
+    // - Speeds 1-4: level 3 on frames at pyramid level >= 3, level 2 on the
+    //   other frames.
     // - Speed >= 5: level 1. Multi-winner mode is off for inter frames, so
     //   deferred intra splits are rarely searched, and other speed features
     //   already leave little intra tx partition search time to save.
@@ -398,8 +398,7 @@ static void set_good_speed_features_framesize_independent(
     // - Level 0 when base_qindex >= qindex_thresh3.
     int rough_mode_tx_part_level = 1;
     if (speed <= 4) {
-      rough_mode_tx_part_level =
-          (!boosted && cm->current_frame.pyramid_level >= 3) ? 3 : 2;
+      rough_mode_tx_part_level = cm->current_frame.pyramid_level >= 3 ? 3 : 2;
     }
     sf->winner_mode_sf.disable_multiway_tx_part_in_rough_mode =
         allow_screen_content_tools ? 0 : rough_mode_tx_part_level;
