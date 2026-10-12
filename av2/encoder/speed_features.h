@@ -261,6 +261,15 @@ typedef struct HIGH_LEVEL_SPEED_FEATURES {
    * smaller margin stops more searches.
    */
   int tip_direct_output_early_term_margin_pct;
+
+  /*!
+   * If > 0, the TIP direct output search ranks the global offsets on one band
+   * of 16 luma rows out of this many, without the TIP frame loop filter. Only
+   * the best offset is built on the whole frame, where the interpolation
+   * filter is chosen.
+   * 0: every offset and filter is built on the whole frame.
+   */
+  int tip_direct_output_rank_band_period;
 } HIGH_LEVEL_SPEED_FEATURES;
 
 /*!\cond */
