@@ -150,4 +150,24 @@ TEST(TxCacheHashTest, CheckOutputSSE42MatchesC) {
 }
 #endif
 
+#if HAVE_NEON
+TEST(TxCacheHashTest, CheckOutputNeonMatchesC) {
+  libavm_test::ACMRandom rnd(libavm_test::ACMRandom::DeterministicSeed());
+  int16_t residual[64 * 64];
+  for (int i = 0; i < 64 * 64; ++i) {
+    residual[i] = static_cast<int16_t>(rnd.Rand16());
+  }
+  const int sizes[] = { 4, 8, 16, 32, 64 };
+  for (int tx_w : sizes) {
+    for (int tx_h : sizes) {
+      const uint64_t h_c =
+          av2_tx_cache_hash_c(residual, 64, tx_w, tx_h, 135, 2, 1);
+      const uint64_t h_neon =
+          av2_tx_cache_hash_neon(residual, 64, tx_w, tx_h, 135, 2, 1);
+      ASSERT_EQ(h_c, h_neon) << "Mismatch at size " << tx_w << "x" << tx_h;
+    }
+  }
+}
+#endif
+
 }  // namespace
