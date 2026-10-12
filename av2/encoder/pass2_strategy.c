@@ -62,6 +62,36 @@ static double calculate_active_area(const FRAME_INFO *frame_info,
   return fclamp(active_pct, MIN_ACTIVE_AREA, MAX_ACTIVE_AREA);
 }
 
+// Get the average error for the frame after modulating it with the non-linear
+// exponent and bounding based on min and max values using two pass.
+// Note that the mechanism has no meaning in one pass as both the total error
+// and the error in the current packet is missing.
+#define ERR_DIVISOR 96.0
+static double calculate_modified_err(const FRAME_INFO *frame_info,
+                                     const TWO_PASS *twopass,
+                                     const AV2EncoderConfig *oxcf,
+                                     const FIRSTPASS_STATS *this_frame) {
+  if (oxcf->pass != 2) return 0.0;
+  const FIRSTPASS_STATS *const stats = twopass->stats_buf_ctx->total_stats;
+  if (stats->coded_error == 0.0) return 0.0;
+  const double av_weight = stats->weight / stats->count;
+  const double av_err = (stats->coded_error * av_weight) / stats->count;
+  double modified_error =
+      av_err * pow(this_frame->coded_error * this_frame->weight /
+                       DOUBLE_DIVIDE_CHECK(av_err),
+                   oxcf->rc_cfg.vbrbias / 100.0);
+
+  // Correction for active area. Frames with a reduced active area
+  // (eg due to formatting bars) have a higher error per mb for the
+  // remaining active MBs. The correction here assumes that coding
+  // 0.5N blocks of complexity 2X is a little easier than coding N
+  // blocks of complexity X.
+  modified_error *= pow(calculate_active_area(frame_info, this_frame), 0.5);
+
+  return fclamp(modified_error, twopass->modified_error_min,
+                twopass->modified_error_max);
+}
+
 // Resets the first pass file to the given position using a relative seek from
 // the current position.
 static void reset_fpf_position(TWO_PASS *p, const FIRSTPASS_STATS *position) {
@@ -1678,7 +1708,8 @@ static void define_gf_group(AV2_COMP *cpi, FIRSTPASS_STATS *this_frame,
   const int can_disable_arf = !gf_cfg->gf_min_pyr_height;
 
   // Load stats for the current frame.
-  double mod_frame_err = 0.0;
+  double mod_frame_err =
+      calculate_modified_err(frame_info, twopass, oxcf, this_frame);
 
   // Note the error of the frame at the start of the group. This will be
   // the GF frame error if we code a normal gf.
@@ -1697,7 +1728,8 @@ static void define_gf_group(AV2_COMP *cpi, FIRSTPASS_STATS *this_frame,
   while (i <= rc->gf_intervals[rc->cur_gf_index]) {
     ++i;
     // Accumulate error score of frames in this gf group.
-    mod_frame_err = 0.0;
+    mod_frame_err =
+        calculate_modified_err(frame_info, twopass, oxcf, this_frame);
     // accumulate stats for this frame
     accumulate_this_frame_stats(this_frame, mod_frame_err, &gf_stats);
 
@@ -2216,6 +2248,10 @@ static int define_kf_interval(AV2_COMP *cpi, FIRSTPASS_STATS *this_frame,
     // Accumulate total number of stats available till next key frame
     num_stats_used_for_kf_boost++;
 
+    // Accumulate kf group error.
+    *kf_group_err +=
+        calculate_modified_err(frame_info, twopass, oxcf, this_frame);
+
     // Load the next frame's stats.
     last_frame = *this_frame;
     input_stats(twopass, this_frame);
@@ -2453,6 +2489,7 @@ static void find_next_key_frame(AV2_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   TWO_PASS *const twopass = &cpi->twopass;
   GF_GROUP *const gf_group = &cpi->gf_group;
   AV2_COMMON *const cm = &cpi->common;
+  const FRAME_INFO *const frame_info = &cpi->frame_info;
   CurrentFrame *const current_frame = &cm->current_frame;
   const AV2EncoderConfig *const oxcf = &cpi->oxcf;
   const KeyFrameCfg *const kf_cfg = &oxcf->kf_cfg;
@@ -2506,7 +2543,7 @@ static void find_next_key_frame(AV2_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   twopass->kf_group_error_left = 0;  // Group modified error score.
 
   kf_raw_err = this_frame->intra_error;
-  kf_mod_err = 0.0;
+  kf_mod_err = calculate_modified_err(frame_info, twopass, oxcf, this_frame);
 
   frames_to_key =
       define_kf_interval(cpi, this_frame, &kf_group_err, kf_cfg->key_freq_max);
@@ -2534,11 +2571,15 @@ static void find_next_key_frame(AV2_COMP *cpi, FIRSTPASS_STATS *this_frame) {
 
     // Rescan to get the correct error data for the forced kf group.
     for (i = 0; i < rc->frames_to_key; ++i) {
+      kf_group_err +=
+          calculate_modified_err(frame_info, twopass, oxcf, &tmp_frame);
       if (EOF == input_stats(twopass, &tmp_frame)) break;
     }
     rc->next_key_frame_forced = 1;
 
-  } else if (rc->frames_to_key >= kf_cfg->key_freq_max) {
+  } else if ((twopass->stats_in == twopass->stats_buf_ctx->stats_in_end &&
+              is_stat_consumption_stage_twopass(cpi)) ||
+             rc->frames_to_key >= kf_cfg->key_freq_max) {
     rc->next_key_frame_forced = 1;
   } else {
     rc->next_key_frame_forced = 0;
@@ -2549,6 +2590,8 @@ static void find_next_key_frame(AV2_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   // Special case for the last key frame of the file.
   if (twopass->stats_in >= twopass->stats_buf_ctx->stats_in_end) {
     // Accumulate kf group error.
+    kf_group_err +=
+        calculate_modified_err(frame_info, twopass, oxcf, this_frame);
   }
 
   // Calculate the number of bits that should be assigned to the kf group.
@@ -3096,6 +3139,70 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
       frame_params->frame_type = S_FRAME;
   }
   setup_target_rate(cpi);
+}
+
+void av2_init_second_pass(AV2_COMP *cpi) {
+  const AV2EncoderConfig *const oxcf = &cpi->oxcf;
+  const FRAME_INFO *const frame_info = &cpi->frame_info;
+  TWO_PASS *const twopass = &cpi->twopass;
+  double frame_rate;
+  FIRSTPASS_STATS *stats;
+
+  av2_zero(*twopass->stats_buf_ctx->total_stats);
+  av2_zero(*twopass->stats_buf_ctx->total_left_stats);
+
+  if (!twopass->stats_buf_ctx->stats_in_end) return;
+
+  stats = twopass->stats_buf_ctx->total_stats;
+
+  *stats = *twopass->stats_buf_ctx->stats_in_end;
+  *twopass->stats_buf_ctx->total_left_stats = *stats;
+
+  frame_rate = 10000000.0 * stats->count / stats->duration;
+  // Each frame can have a different duration, as the frame rate in the source
+  // isn't guaranteed to be constant. The frame rate prior to the first frame
+  // encoded in the second pass is a guess. However, the sum duration is not.
+  // Its calculated based on the actual durations of all frames from the
+  // first pass.
+  av2_new_framerate(cpi, frame_rate);
+  twopass->bits_left =
+      (int64_t)(stats->duration * oxcf->rc_cfg.target_bandwidth / 10000000.0);
+
+  // This variable monitors how far behind the second ref update is lagging.
+  twopass->sr_update_lag = 1;
+
+  // Scan the first pass file and calculate a modified total error based upon
+  // the bias/power function used to allocate bits.
+  {
+    const double avg_error =
+        stats->coded_error / DOUBLE_DIVIDE_CHECK(stats->count);
+    const FIRSTPASS_STATS *s = twopass->stats_in;
+    double modified_error_total = 0.0;
+    twopass->modified_error_min =
+        (avg_error * oxcf->rc_cfg.vbrmin_section) / 100;
+    twopass->modified_error_max =
+        (avg_error * oxcf->rc_cfg.vbrmax_section) / 100;
+    while (s < twopass->stats_buf_ctx->stats_in_end) {
+      modified_error_total +=
+          calculate_modified_err(frame_info, twopass, oxcf, s);
+      ++s;
+    }
+    twopass->modified_error_left = modified_error_total;
+  }
+
+  // Reset the vbr bits off target counters
+  cpi->rc.vbr_bits_off_target = 0;
+  cpi->rc.vbr_bits_off_target_fast = 0;
+
+  cpi->rc.rate_error_estimate = 0;
+
+  // Static sequence monitor variables.
+  twopass->kf_zeromotion_pct = 100;
+  twopass->last_kfgroup_zeromotion_pct = 100;
+
+  if (oxcf->resize_cfg.resize_mode != RESIZE_NONE) {
+    av2_init_single_pass_lap(cpi);
+  }
 }
 
 void av2_init_single_pass_lap(AV2_COMP *cpi) {
