@@ -757,8 +757,9 @@ static void parse_global_config(struct AvxEncoderConfig *global, char ***argv) {
     }
   }
 
-  if (global->passes != 1)
+  if (global->passes < 1 || global->passes > 2)
     die("Error: Invalid number of passes (%d)\n", global->passes);
+  global->passes = 1;
   if (global->pass < 0 || global->pass > 1)
     die("Error: Invalid pass selected (%d)\n", global->pass);
 
@@ -1161,14 +1162,8 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
       config->cfg.rc_buf_optimal_sz = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &g_av2_codec_arg_defs.minsection_pct, argi)) {
       config->cfg.rc_2pass_vbr_minsection_pct = arg_parse_uint(&arg);
-
-      if (global->passes < 2)
-        warn("option %s ignored in one-pass mode.\n", arg.name);
     } else if (arg_match(&arg, &g_av2_codec_arg_defs.maxsection_pct, argi)) {
       config->cfg.rc_2pass_vbr_maxsection_pct = arg_parse_uint(&arg);
-
-      if (global->passes < 2)
-        warn("option %s ignored in one-pass mode.\n", arg.name);
     } else if (arg_match(&arg, &g_av2_codec_arg_defs.fwd_kf_enabled, argi)) {
       config->cfg.fwd_kf_enabled = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &g_av2_codec_arg_defs.kf_min_dist, argi)) {
