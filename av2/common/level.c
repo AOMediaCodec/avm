@@ -553,7 +553,7 @@ static double get_max_frame_symbol_count(const AV2LevelSpec *const level_spec,
   double scale = multi_stream_scaling_x == 0 ? 1 : multi_stream_scaling_x;
   double max_frame_symbol_count =
       frame_parsing_time * (level_spec->max_decode_rate / scale) *
-      picture_size_profile_factor * (8 / (9 * min_comp_basis) + 1 / 48);
+      picture_size_profile_factor * (8 / (9 * min_comp_basis) + 1.0 / 48);
   return max_frame_symbol_count;
 }
 
