@@ -899,6 +899,11 @@ INSTANTIATE_TEST_SUITE_P(AVX2, AV2ConvolveXHighbdCompoundTest,
                          BuildHighbdLumaParams(av2_highbd_cwp_convolve_x_avx2));
 #endif
 
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(NEON, AV2ConvolveXHighbdCompoundTest,
+                         BuildHighbdLumaParams(av2_highbd_cwp_convolve_x_neon));
+#endif
+
 /////////////////////////////////////////////////
 // Compound convolve-y functions (high bit-depth)
 /////////////////////////////////////////////////
@@ -928,6 +933,11 @@ INSTANTIATE_TEST_SUITE_P(
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(AVX2, AV2ConvolveYHighbdCompoundTest,
                          BuildHighbdLumaParams(av2_highbd_cwp_convolve_y_avx2));
+#endif
+
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(NEON, AV2ConvolveYHighbdCompoundTest,
+                         BuildHighbdLumaParams(av2_highbd_cwp_convolve_y_neon));
 #endif
 
 ///////////////////////////////////////////////////////
@@ -1059,6 +1069,12 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
     AVX2, AV2Convolve2DCopyHighbdCompoundTest,
     BuildHighbdLumaParams(av2_highbd_cwp_convolve_2d_copy_avx2));
+#endif
+
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(
+    NEON, AV2Convolve2DCopyHighbdCompoundTest,
+    BuildHighbdLumaParams(av2_highbd_cwp_convolve_2d_copy_neon));
 #endif
 
 //////////////////////////////////////////////////
