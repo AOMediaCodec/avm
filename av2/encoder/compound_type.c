@@ -911,7 +911,6 @@ static INLINE void calc_masked_type_cost(const ModeCosts *mode_costs,
                                          int comp_group_idx_ctx,
                                          int masked_compound_used,
                                          int *masked_type_cost) {
-  (void)bsize;
   av2_zero_array(masked_type_cost, COMPOUND_TYPES);
   // Account for group index cost when wedge and/or diffwtd prediction are
   // enabled
@@ -924,9 +923,12 @@ static INLINE void calc_masked_type_cost(const ModeCosts *mode_costs,
     masked_type_cost[COMPOUND_DIFFWTD] += masked_type_cost[COMPOUND_WEDGE];
   }
 
-  // Compute the cost to signal compound index/type
-  masked_type_cost[COMPOUND_WEDGE] += mode_costs->compound_type_cost[0];
-  masked_type_cost[COMPOUND_DIFFWTD] += mode_costs->compound_type_cost[1];
+  // Compound type (WEDGE vs DIFFWTD) is only signalled when wedge is allowed
+  // for this block size; otherwise DIFFWTD is implied and costs no bits.
+  if (is_interinter_compound_used(COMPOUND_WEDGE, bsize)) {
+    masked_type_cost[COMPOUND_WEDGE] += mode_costs->compound_type_cost[0];
+    masked_type_cost[COMPOUND_DIFFWTD] += mode_costs->compound_type_cost[1];
+  }
 }
 
 // Updates mbmi structure with the relevant compound type info
