@@ -47,9 +47,12 @@ class AV2FwdSecTxfmTest : public FunctionEquivalenceTest<FwdSTxfmFunc> {
   void AV2FwdSecTxfmMatchTest() {
     av2_init_stxfm_kernels();
     const int bd = params_.bit_depth;
-    for (int set_id = 0; set_id < IST_SET_SIZE; ++set_id) {
-      for (uint8_t stx = 0; stx < STX_TYPES - 1; ++stx) {
-        for (int sb_size = 0; sb_size < 4; ++sb_size) {
+    // sb_size 0: 4x4 kernels; 1: 8x8 DCT_DCT reduced; 2: 8x8 DCT; 3: 8x8 ADST.
+    // The ADST_ADST kernels live in the sets after the first IST_SET_SIZE.
+    for (int sb_size = 0; sb_size < 4; ++sb_size) {
+      const int num_sets = (sb_size == 0) ? IST_4x4_SET_SIZE : IST_8x8_SET_SIZE;
+      for (int set_id = 0; set_id < num_sets; ++set_id) {
+        for (uint8_t stx = 0; stx < STX_TYPES - 1; ++stx) {
           DECLARE_ALIGNED(32, tran_low_t, input[IST_8x8_WIDTH]) = { 0 };
           DECLARE_ALIGNED(32, tran_low_t, output[IST_8x8_HEIGHT]) = { 0 };
           DECLARE_ALIGNED(32, tran_low_t, ref_output[IST_8x8_HEIGHT]) = { 0 };
@@ -77,7 +80,8 @@ class AV2FwdSecTxfmTest : public FunctionEquivalenceTest<FwdSTxfmFunc> {
                                               : IST_8x8_HEIGHT;
             for (int r = 0; r < check_rows; ++r) {
               ASSERT_EQ(ref_output[r], output[r])
-                  << "[" << r << "] cnt:" << cnt
+                  << "[" << r << "] cnt:" << cnt << " set_id:" << set_id
+                  << " stx:" << static_cast<int>(stx) << " sb_size:" << sb_size
                   << " ref_output: " << ref_output[r]
                   << " mod_output: " << output[r];
             }

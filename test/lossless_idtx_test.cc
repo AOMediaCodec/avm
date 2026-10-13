@@ -84,7 +84,11 @@ TEST_P(LosslessIdtxTest, MemCheck) { RunMemCheck(); }
 
 TEST_P(LosslessIdtxTest, InvAccuracyCheck) { RunInvAccuracyCheck(0); }
 
-constexpr TX_SIZE kTxSizes[] = { TX_4X4, TX_8X8 };
+// Every size lossless_max_txsize_lookup can pick for a large lossless tx.
+constexpr TX_SIZE kTxSizes[] = { TX_4X4,   TX_8X8,   TX_16X16, TX_32X32,
+                                 TX_4X8,   TX_8X4,   TX_8X16,  TX_16X8,
+                                 TX_16X32, TX_32X16, TX_4X16,  TX_16X4,
+                                 TX_8X32,  TX_32X8,  TX_4X32,  TX_32X4 };
 
 INSTANTIATE_TEST_SUITE_P(
     C, LosslessIdtxTest,

@@ -138,24 +138,37 @@ void fwd_txfm_dct2_size16_c(const int *src, int *dst, int shift, int line,
     e[1] = c[1] + c[2];
     f[1] = c[1] - c[2];
 
-    dst[0] = (tx_mat[0] * e[0] + tx_mat[1] * e[1] + add) >> shift;
-    dst[8] = (tx_mat[8 * 16] * e[0] + tx_mat[8 * 16 + 1] * e[1] + add) >> shift;
-    dst[4] = (tx_mat[4 * 16] * f[0] + tx_mat[4 * 16 + 1] * f[1] + add) >> shift;
-    dst[12] =
-        (tx_mat[12 * 16] * f[0] + tx_mat[12 * 16 + 1] * f[1] + add) >> shift;
+    dst[0] =
+        (int)(((int64_t)tx_mat[0] * e[0] + (int64_t)tx_mat[1] * e[1] + add) >>
+              shift);
+    dst[8] = (int)(((int64_t)tx_mat[8 * 16] * e[0] +
+                    (int64_t)tx_mat[8 * 16 + 1] * e[1] + add) >>
+                   shift);
+    dst[4] = (int)(((int64_t)tx_mat[4 * 16] * f[0] +
+                    (int64_t)tx_mat[4 * 16 + 1] * f[1] + add) >>
+                   shift);
+    dst[12] = (int)(((int64_t)tx_mat[12 * 16] * f[0] +
+                     (int64_t)tx_mat[12 * 16 + 1] * f[1] + add) >>
+                    shift);
 
     for (k = 2; k < 16; k += 4) {
-      dst[k] = (tx_mat[k * 16] * d[0] + tx_mat[k * 16 + 1] * d[1] +
-                tx_mat[k * 16 + 2] * d[2] + tx_mat[k * 16 + 3] * d[3] + add) >>
-               shift;
+      dst[k] = (int)(((int64_t)tx_mat[k * 16] * d[0] +
+                      (int64_t)tx_mat[k * 16 + 1] * d[1] +
+                      (int64_t)tx_mat[k * 16 + 2] * d[2] +
+                      (int64_t)tx_mat[k * 16 + 3] * d[3] + add) >>
+                     shift);
     }
 
     for (k = 1; k < 16; k += 2) {
-      dst[k] = (tx_mat[k * 16] * b[0] + tx_mat[k * 16 + 1] * b[1] +
-                tx_mat[k * 16 + 2] * b[2] + tx_mat[k * 16 + 3] * b[3] +
-                tx_mat[k * 16 + 4] * b[4] + tx_mat[k * 16 + 5] * b[5] +
-                tx_mat[k * 16 + 6] * b[6] + tx_mat[k * 16 + 7] * b[7] + add) >>
-               shift;
+      dst[k] = (int)(((int64_t)tx_mat[k * 16] * b[0] +
+                      (int64_t)tx_mat[k * 16 + 1] * b[1] +
+                      (int64_t)tx_mat[k * 16 + 2] * b[2] +
+                      (int64_t)tx_mat[k * 16 + 3] * b[3] +
+                      (int64_t)tx_mat[k * 16 + 4] * b[4] +
+                      (int64_t)tx_mat[k * 16 + 5] * b[5] +
+                      (int64_t)tx_mat[k * 16 + 6] * b[6] +
+                      (int64_t)tx_mat[k * 16 + 7] * b[7] + add) >>
+                     shift);
     }
 
     src++;
@@ -198,38 +211,55 @@ void fwd_txfm_dct2_size32_c(const int *src, int *dst, int shift, int line,
     g[1] = e[1] + e[2];
     h[1] = e[1] - e[2];
 
-    dst[0] =
-        (tx_mat[0 * 32 + 0] * g[0] + tx_mat[0 * 32 + 1] * g[1] + add) >> shift;
-    dst[16] = (tx_mat[16 * 32 + 0] * g[0] + tx_mat[16 * 32 + 1] * g[1] + add) >>
-              shift;
-    dst[8] =
-        (tx_mat[8 * 32 + 0] * h[0] + tx_mat[8 * 32 + 1] * h[1] + add) >> shift;
-    dst[24] = (tx_mat[24 * 32 + 0] * h[0] + tx_mat[24 * 32 + 1] * h[1] + add) >>
-              shift;
+    dst[0] = (int)(((int64_t)tx_mat[0 * 32 + 0] * g[0] +
+                    (int64_t)tx_mat[0 * 32 + 1] * g[1] + add) >>
+                   shift);
+    dst[16] = (int)(((int64_t)tx_mat[16 * 32 + 0] * g[0] +
+                     (int64_t)tx_mat[16 * 32 + 1] * g[1] + add) >>
+                    shift);
+    dst[8] = (int)(((int64_t)tx_mat[8 * 32 + 0] * h[0] +
+                    (int64_t)tx_mat[8 * 32 + 1] * h[1] + add) >>
+                   shift);
+    dst[24] = (int)(((int64_t)tx_mat[24 * 32 + 0] * h[0] +
+                     (int64_t)tx_mat[24 * 32 + 1] * h[1] + add) >>
+                    shift);
     for (k = 4; k < 32; k += 8) {
-      dst[k] = (tx_mat[k * 32 + 0] * f[0] + tx_mat[k * 32 + 1] * f[1] +
-                tx_mat[k * 32 + 2] * f[2] + tx_mat[k * 32 + 3] * f[3] + add) >>
-               shift;
+      dst[k] = (int)(((int64_t)tx_mat[k * 32 + 0] * f[0] +
+                      (int64_t)tx_mat[k * 32 + 1] * f[1] +
+                      (int64_t)tx_mat[k * 32 + 2] * f[2] +
+                      (int64_t)tx_mat[k * 32 + 3] * f[3] + add) >>
+                     shift);
     }
     for (k = 2; k < 32; k += 4) {
-      dst[k] = (tx_mat[k * 32 + 0] * d[0] + tx_mat[k * 32 + 1] * d[1] +
-                tx_mat[k * 32 + 2] * d[2] + tx_mat[k * 32 + 3] * d[3] +
-                tx_mat[k * 32 + 4] * d[4] + tx_mat[k * 32 + 5] * d[5] +
-                tx_mat[k * 32 + 6] * d[6] + tx_mat[k * 32 + 7] * d[7] + add) >>
-               shift;
+      dst[k] = (int)(((int64_t)tx_mat[k * 32 + 0] * d[0] +
+                      (int64_t)tx_mat[k * 32 + 1] * d[1] +
+                      (int64_t)tx_mat[k * 32 + 2] * d[2] +
+                      (int64_t)tx_mat[k * 32 + 3] * d[3] +
+                      (int64_t)tx_mat[k * 32 + 4] * d[4] +
+                      (int64_t)tx_mat[k * 32 + 5] * d[5] +
+                      (int64_t)tx_mat[k * 32 + 6] * d[6] +
+                      (int64_t)tx_mat[k * 32 + 7] * d[7] + add) >>
+                     shift);
     }
 
     for (k = 1; k < 32; k += 2) {
-      dst[k] =
-          (tx_mat[k * 32 + 0] * b[0] + tx_mat[k * 32 + 1] * b[1] +
-           tx_mat[k * 32 + 2] * b[2] + tx_mat[k * 32 + 3] * b[3] +
-           tx_mat[k * 32 + 4] * b[4] + tx_mat[k * 32 + 5] * b[5] +
-           tx_mat[k * 32 + 6] * b[6] + tx_mat[k * 32 + 7] * b[7] +
-           tx_mat[k * 32 + 8] * b[8] + tx_mat[k * 32 + 9] * b[9] +
-           tx_mat[k * 32 + 10] * b[10] + tx_mat[k * 32 + 11] * b[11] +
-           tx_mat[k * 32 + 12] * b[12] + tx_mat[k * 32 + 13] * b[13] +
-           tx_mat[k * 32 + 14] * b[14] + tx_mat[k * 32 + 15] * b[15] + add) >>
-          shift;
+      dst[k] = (int)(((int64_t)tx_mat[k * 32 + 0] * b[0] +
+                      (int64_t)tx_mat[k * 32 + 1] * b[1] +
+                      (int64_t)tx_mat[k * 32 + 2] * b[2] +
+                      (int64_t)tx_mat[k * 32 + 3] * b[3] +
+                      (int64_t)tx_mat[k * 32 + 4] * b[4] +
+                      (int64_t)tx_mat[k * 32 + 5] * b[5] +
+                      (int64_t)tx_mat[k * 32 + 6] * b[6] +
+                      (int64_t)tx_mat[k * 32 + 7] * b[7] +
+                      (int64_t)tx_mat[k * 32 + 8] * b[8] +
+                      (int64_t)tx_mat[k * 32 + 9] * b[9] +
+                      (int64_t)tx_mat[k * 32 + 10] * b[10] +
+                      (int64_t)tx_mat[k * 32 + 11] * b[11] +
+                      (int64_t)tx_mat[k * 32 + 12] * b[12] +
+                      (int64_t)tx_mat[k * 32 + 13] * b[13] +
+                      (int64_t)tx_mat[k * 32 + 14] * b[14] +
+                      (int64_t)tx_mat[k * 32 + 15] * b[15] + add) >>
+                     shift);
     }
     src++;
     dst += 32;
@@ -401,11 +431,11 @@ void fwd_txfm_adst_size16_c(const int *src, int *dst, int shift, int line,
     coef = dst + (i * tx1d_size);
     const int *tx_mat = tx_kernel_adst_size16[FWD_TXFM][0];
     for (int j = 0; j < tx1d_size; j++) {
-      int iSum = 0;
+      int64_t iSum = 0;
       for (int k = 0; k < tx1d_size; k++) {
-        iSum += src[k * line] * tx_mat[k];
+        iSum += (int64_t)src[k * line] * tx_mat[k];
       }
-      coef[j] = (iSum + offset) >> shift;
+      coef[j] = (int)((iSum + offset) >> shift);
       tx_mat += tx1d_size;
     }
     src++;
@@ -485,11 +515,11 @@ void fwd_txfm_fdst_size16_c(const int *src, int *dst, int shift, int line,
     coef = dst + (i * tx1d_size);
     const int *tx_mat = tx_kernel_fdst_size16[FWD_TXFM][0];
     for (int j = 0; j < tx1d_size; j++) {
-      int iSum = 0;
+      int64_t iSum = 0;
       for (int k = 0; k < tx1d_size; k++) {
-        iSum += src[k * line] * tx_mat[k];
+        iSum += (int64_t)src[k * line] * tx_mat[k];
       }
-      coef[j] = (iSum + offset) >> shift;
+      coef[j] = (int)((iSum + offset) >> shift);
       tx_mat += tx1d_size;
     }
     src++;
@@ -569,11 +599,11 @@ void fwd_txfm_ddtx_size16_c(const int *src, int *dst, int shift, int line,
     coef = dst + (i * tx1d_size);
     const int *tx_mat = tx_kernel_ddtx_size16[FWD_TXFM][0];
     for (int j = 0; j < tx1d_size; j++) {
-      int iSum = 0;
+      int64_t iSum = 0;
       for (int k = 0; k < tx1d_size; k++) {
-        iSum += src[k * line] * tx_mat[k];
+        iSum += (int64_t)src[k * line] * tx_mat[k];
       }
-      coef[j] = (iSum + offset) >> shift;
+      coef[j] = (int)((iSum + offset) >> shift);
       tx_mat += tx1d_size;
     }
     src++;
@@ -653,11 +683,11 @@ void fwd_txfm_fddt_size16_c(const int *src, int *dst, int shift, int line,
     coef = dst + (i * tx1d_size);
     const int *tx_mat = tx_kernel_ddtx_size16[FWD_TXFM][0];
     for (int j = 0; j < tx1d_size; j++) {
-      int iSum = 0;
+      int64_t iSum = 0;
       for (int k = 0; k < tx1d_size; k++) {
-        iSum += src[k * line] * tx_mat[tx1d_size - 1 - k];
+        iSum += (int64_t)src[k * line] * tx_mat[tx1d_size - 1 - k];
       }
-      coef[j] = (iSum + offset) >> shift;
+      coef[j] = (int)((iSum + offset) >> shift);
       tx_mat += tx1d_size;
     }
     src++;
