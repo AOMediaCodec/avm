@@ -1410,8 +1410,7 @@ static void get_intra_q_and_bounds(const AV2_COMP *cpi, int width, int height,
     last_boosted_q = av2_convert_qindex_to_q(qindex, bit_depth);
     delta_qindex = av2_compute_qdelta(
         rc, last_boosted_q,
-        last_boosted_q *
-            (is_stat_consumption_stage_twopass(cpi) ? 0.75 : 0.50),
+        last_boosted_q * (is_stat_consumption_stage_twopass(cpi) ? 0.75 : 0.50),
         bit_depth);
     active_best_quality = AVMMAX(qindex + delta_qindex, rc->best_quality);
   } else {

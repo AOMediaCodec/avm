@@ -73,6 +73,7 @@ static double calculate_modified_err(const FRAME_INFO *frame_info,
                                      const FIRSTPASS_STATS *this_frame) {
   if (oxcf->pass != 2) return 0.0;
   const FIRSTPASS_STATS *const stats = twopass->stats_buf_ctx->total_stats;
+  if (stats->count <= 0) return 0.0;
   if (stats->coded_error == 0.0) return 0.0;
   const double av_weight = stats->weight / stats->count;
   const double av_err = (stats->coded_error * av_weight) / stats->count;
@@ -3148,9 +3149,6 @@ void av2_init_second_pass(AV2_COMP *cpi) {
   double frame_rate;
   FIRSTPASS_STATS *stats;
 
-  av2_zero(*twopass->stats_buf_ctx->total_stats);
-  av2_zero(*twopass->stats_buf_ctx->total_left_stats);
-
   if (!twopass->stats_buf_ctx->stats_in_end) return;
 
   stats = twopass->stats_buf_ctx->total_stats;
@@ -3158,6 +3156,7 @@ void av2_init_second_pass(AV2_COMP *cpi) {
   *stats = *twopass->stats_buf_ctx->stats_in_end;
   *twopass->stats_buf_ctx->total_left_stats = *stats;
 
+  assert(stats->duration > 0.0);
   frame_rate = 10000000.0 * stats->count / stats->duration;
   // Each frame can have a different duration, as the frame rate in the source
   // isn't guaranteed to be constant. The frame rate prior to the first frame
@@ -3200,9 +3199,12 @@ void av2_init_second_pass(AV2_COMP *cpi) {
   twopass->kf_zeromotion_pct = 100;
   twopass->last_kfgroup_zeromotion_pct = 100;
 
-  if (oxcf->resize_cfg.resize_mode != RESIZE_NONE) {
-    av2_init_single_pass_lap(cpi);
-  }
+  // Initialize bits per macro_block estimate correction factor.
+  twopass->bpm_factor = 1.0;
+  // Initialize actual and target bits counters for ARF groups so that
+  // at the start we have a neutral bpm adjustment.
+  twopass->rolling_arf_group_target_bits = 1;
+  twopass->rolling_arf_group_actual_bits = 1;
 }
 
 void av2_init_single_pass_lap(AV2_COMP *cpi) {

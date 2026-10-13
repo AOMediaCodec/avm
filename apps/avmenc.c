@@ -789,6 +789,7 @@ static void parse_global_config(struct AvxEncoderConfig *global, char ***argv) {
   if (global->usage == AVM_USAGE_REALTIME && global->passes > 1) {
     warn("Enforcing one-pass encoding in realtime mode\n");
     global->passes = 1;
+    global->pass = 0;
   }
 }
 
@@ -1394,7 +1395,7 @@ static void show_stream_config(struct stream_state *stream,
   fprintf(stdout, "Input file                     : %s\n", input->filename);
   fprintf(stdout, "Output file                    : %s\n",
           stream->config.out_fn);
-  if (global->passes > 1) {
+  if (global->passes > 1 && stream->config.stats_fn) {
     fprintf(stdout, "Stats file                     : %s\n",
             stream->config.stats_fn);
   }

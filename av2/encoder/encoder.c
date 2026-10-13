@@ -1558,9 +1558,8 @@ AV2_COMP *av2_create_compressor(AV2EncoderConfig *oxcf, BufferPool *const pool,
   CommonModeInfoParams *const mi_params = &cm->mi_params;
   mi_params->free_mi = enc_free_mi;
   mi_params->setup_mi = enc_setup_mi;
-  mi_params->set_mb_mi = (oxcf->pass == 1 || cpi->compressor_stage == LAP_STAGE)
-                             ? stat_stage_set_mb_mi
-                             : enc_set_mb_mi;
+  mi_params->set_mb_mi =
+      is_stat_generation_stage(cpi) ? stat_stage_set_mb_mi : enc_set_mb_mi;
 
   mi_params->mi_alloc_bsize = BLOCK_4X4;
   cm->frame_filter_dictionary_stride = 0;
@@ -1675,6 +1674,7 @@ AV2_COMP *av2_create_compressor(AV2EncoderConfig *oxcf, BufferPool *const pool,
 
   if (is_stat_consumption_stage(cpi)) {
     if (!cpi->lap_enabled) {
+      // Prepare first pass file.
       const size_t packet_sz = sizeof(FIRSTPASS_STATS);
       const int packets = (int)(oxcf->twopass_stats_in.sz / packet_sz);
 
