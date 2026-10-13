@@ -1942,6 +1942,7 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
 #endif  // CONFIG_DIP_EXT_PRUNING
                               )) {
       best_mbmi = *mbmi;
+      beat_best_rd = 1;
     }
   }
 
