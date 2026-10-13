@@ -971,6 +971,38 @@ static void set_vt_partitioning_64x64(AV2_COMP *cpi, MACROBLOCKD *xd,
   }
 }
 
+static inline bool is_chroma_var_high(const AV2_COMP *cpi, const MACROBLOCK *x,
+                                      const MACROBLOCKD *xd, BLOCK_SIZE bsize,
+                                      int y_row, int y_col, FULLPEL_MV full_mv,
+                                      int64_t threshold) {
+  if (av2_num_planes(&cpi->common) <= 1) return false;
+  const int ss_x = xd->plane[AVM_PLANE_U].subsampling_x;
+  const int ss_y = xd->plane[AVM_PLANE_U].subsampling_y;
+  const BLOCK_SIZE uv_bsize = get_plane_block_size(bsize, ss_x, ss_y);
+  if (uv_bsize >= BLOCK_SIZES_ALL) return false;
+  const int uv_row = y_row >> ss_y;
+  const int uv_col = y_col >> ss_x;
+  const int uv_mv_row = full_mv.row >> ss_y;
+  const int uv_mv_col = full_mv.col >> ss_x;
+  const unsigned int uv_thresh = (unsigned int)AVMMAX(4, threshold >> 3);
+  for (int plane = AVM_PLANE_U; plane <= AVM_PLANE_V; ++plane) {
+    const int src_stride = x->plane[plane].src.stride;
+    const int dst_stride = xd->plane[plane].pre[0].stride;
+    const uint16_t *src_uv =
+        x->plane[plane].src.buf + uv_row * src_stride + uv_col;
+    const uint16_t *dst_uv = xd->plane[plane].pre[0].buf +
+                             (uv_row + uv_mv_row) * dst_stride +
+                             (uv_col + uv_mv_col);
+    unsigned int sse = 0;
+    const unsigned int var =
+        cpi->fn_ptr[uv_bsize].vf(src_uv, src_stride, dst_uv, dst_stride, &sse);
+    const unsigned int pp_var =
+        ROUND_POWER_OF_TWO(var, num_pels_log2_lookup[uv_bsize]);
+    if (pp_var > uv_thresh) return true;
+  }
+  return false;
+}
+
 void av2_choose_var_based_partitioning(AV2_COMP *cpi,
                                        const TileInfo *const tile,
                                        ThreadData *td, MACROBLOCK *x,
@@ -1016,13 +1048,14 @@ void av2_choose_var_based_partitioning(AV2_COMP *cpi,
 
   src_buf = x->plane[AVM_PLANE_Y].src.buf;
   int src_stride = x->plane[AVM_PLANE_Y].src.stride;
+  FULLPEL_MV full_mv = kZeroFullMv;
 
   if (!is_key_frame) {
     setup_planes(cpi, x, &y_sad, mi_row, mi_col, scaled_ref_last);
 
     MB_MODE_INFO *mi = xd->mi[0];
     // Use reference SB directly (offset by full-pel MV when non-zero).
-    const FULLPEL_MV full_mv = get_fullmv_from_mv(&mi->mv[0].as_mv);
+    full_mv = get_fullmv_from_mv(&mi->mv[0].as_mv);
     dst_stride = xd->plane[AVM_PLANE_Y].pre[0].stride;
     dst_buf = xd->plane[AVM_PLANE_Y].pre[0].buf + full_mv.row * dst_stride +
               full_mv.col;
@@ -1034,8 +1067,11 @@ void av2_choose_var_based_partitioning(AV2_COMP *cpi,
       if (y_sad == 0 ||
           (is_screen &&
            y_sad < (unsigned int)(block_width * block_height * 2))) {
-        set_block_size(cpi, mi_row, mi_col, cm->seq_params.sb_size);
-        return;
+        if (!is_chroma_var_high(cpi, x, xd, cm->seq_params.sb_size, 0, 0,
+                                full_mv, thresholds[1])) {
+          set_block_size(cpi, mi_row, mi_col, cm->seq_params.sb_size);
+          return;
+        }
       }
     }
   } else {
@@ -1043,7 +1079,6 @@ void av2_choose_var_based_partitioning(AV2_COMP *cpi,
     dst_stride = 0;
   }
 
-  // TODO(jianj-g, marpan-max): add chroma check/adjustments.
   // TODO(jianj-g, marpan-max): check for early exits.
   VP128x128 *vt;
   VP128x128 vt_local;
@@ -1082,6 +1117,12 @@ void av2_choose_var_based_partitioning(AV2_COMP *cpi,
   const int offset_32x32 = offsets.offset_32x32;
   const int offset_16x16 = offsets.offset_16x16;
   const bool is_lowres = (cm->width * cm->height <= RESOLUTION_288P);
+  const int block_width = mi_size_wide[cm->seq_params.sb_size];
+  const int block_height = mi_size_high[cm->seq_params.sb_size];
+  const bool check_chroma =
+      !is_key_frame &&
+      (source_sad == 0 || y_sad == 0 ||
+       (is_screen && y_sad < (unsigned int)(block_width * block_height * 4)));
 
   avg_64x64 = 0;
   for (int blk64_idx = 0; blk64_idx < num_64x64_blocks; ++blk64_idx) {
@@ -1164,6 +1205,20 @@ void av2_choose_var_based_partitioning(AV2_COMP *cpi,
           check_max_var) {
         force_split[offset_64x64 + blk64_idx] = PART_EVAL_ONLY_SPLIT;
         force_split[0] = PART_EVAL_ONLY_SPLIT;
+      } else if (check_chroma) {
+        const int x64_idx = (cm->seq_params.sb_size == BLOCK_256X256)
+                                ? ((blk64_idx & 3) << 6)
+                                : GET_BLK_IDX_X(blk64_idx, 6);
+        const int y64_idx = (cm->seq_params.sb_size == BLOCK_256X256)
+                                ? ((blk64_idx >> 2) << 6)
+                                : GET_BLK_IDX_Y(blk64_idx, 6);
+        if (mi_col + (x64_idx >> 2) + 16 <= tile->mi_col_end &&
+            mi_row + (y64_idx >> 2) + 16 <= tile->mi_row_end &&
+            is_chroma_var_high(cpi, x, xd, BLOCK_64X64, y64_idx, x64_idx,
+                               full_mv, thresholds[2])) {
+          force_split[offset_64x64 + blk64_idx] = PART_EVAL_ONLY_SPLIT;
+          force_split[0] = PART_EVAL_ONLY_SPLIT;
+        }
       }
       avg_64x64 += var_64x64;
     }

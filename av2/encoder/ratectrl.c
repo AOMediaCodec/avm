@@ -2336,14 +2336,11 @@ int av2_encodedframe_overshoot_cbr(AV2_COMP *cpi, int *q) {
   RATE_CONTROL *const rc = &cpi->rc;
   const int max_qp = AVMMIN(rc->worst_quality, 160);
   if (*q >= max_qp) return 0;
-  // Blend current q with max_qp: use a milder 50/50 blend on >= 720p when the
-  // buffer is healthy and prior scene motion was low, otherwise weight max_qp
-  // by 3/4.
+  // Blend current q with max_qp: use a milder 50/50 blend on >= 720p when
+  // prior scene motion was low, otherwise weight max_qp by 3/4.
   const int bd_shift = cm->seq_params.bit_depth - 8;
   const uint64_t sad_thr = (uint64_t)(64 * 64 * 32) << bd_shift;
-  if (cm->width * cm->height >= 1280 * 720 &&
-      (rc->buffer_level > (rc->optimal_buffer_level >> 1)) &&
-      rc->avg_source_sad < sad_thr) {
+  if (cm->width * cm->height >= 1280 * 720 && rc->avg_source_sad < sad_thr) {
     *q = (*q + max_qp) >> 1;
   } else {
     *q = (3 * max_qp + *q) >> 2;
