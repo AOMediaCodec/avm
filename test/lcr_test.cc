@@ -841,44 +841,63 @@ TEST_F(LcrTest, ConformanceCheckMsdoConfigurable) {
   EXPECT_TRUE(conformance_check_msdo_lcr(pbi_, false, false));
 }
 
+// The interoperability point comes from the aggregate PTL of the activated
+// global LCR, which the decoder reads from cm->lcr_params.
 TEST_F(LcrTest, ConformanceCheckGlobalLcrMaxInterop) {
   pbi_->xlayer_id_map[0] = 1;
   pbi_->mlayer_id_map[0][0] = 1;
-  pbi_->lcr_list[GLOBAL_XLAYER_ID][1].valid = 1;
-  pbi_->lcr_list[GLOBAL_XLAYER_ID][1].is_global = true;
-  pbi_->lcr_list[GLOBAL_XLAYER_ID][1]
-      .global_lcr.lcr_aggregate_info_present_flag = 1;
-  pbi_->lcr_list[GLOBAL_XLAYER_ID][1].global_lcr.aggregate_ptl.lcr_max_interop =
-      INTEROP_MAX;
+  LayerConfigurationRecord *active = &pbi_->common.lcr_params;
+  active->valid = 1;
+  active->is_global = true;
+  active->global_lcr.lcr_aggregate_info_present_flag = 1;
+  active->global_lcr.aggregate_ptl.lcr_max_interop = INTEROP_MAX;
   EXPECT_TRUE(conformance_check_msdo_lcr(pbi_, true, false));
 }
 
-// A global LCR without an aggregate PTL falls back to the seq PTL, which
-// signals a profile_idc; CONFIGURABLE has no interoperability point.
-TEST_F(LcrTest, ConformanceCheckGlobalLcrConfigurableSeqPtl) {
+TEST_F(LcrTest, ConformanceCheckUsesActivatedGlobalLcr) {
   pbi_->xlayer_id_map[0] = 1;
+  pbi_->xlayer_id_map[1] = 1;
   pbi_->mlayer_id_map[0][0] = 1;
-  pbi_->lcr_list[GLOBAL_XLAYER_ID][1].valid = 1;
-  pbi_->lcr_list[GLOBAL_XLAYER_ID][1].is_global = true;
-  pbi_->lcr_list[GLOBAL_XLAYER_ID][1]
-      .global_lcr.lcr_aggregate_info_present_flag = 0;
-  pbi_->lcr_list[GLOBAL_XLAYER_ID][1]
-      .global_lcr.lcr_seq_profile_tier_level_info_present_flag = 1;
-  pbi_->lcr_list[GLOBAL_XLAYER_ID][1].global_lcr.LcrMaxNumXLayerCount = 1;
-  pbi_->lcr_list[GLOBAL_XLAYER_ID][1].global_lcr.LcrXLayerID[0] = 0;
-  pbi_->lcr_list[GLOBAL_XLAYER_ID][1]
-      .global_lcr.seq_ptl[0]
-      .lcr_seq_profile_idc = CONFIGURABLE;
+
+  // A permissive global LCR that is present but not activated.
+  LayerConfigurationRecord *first = &pbi_->lcr_list[GLOBAL_XLAYER_ID][1];
+  first->valid = 1;
+  first->is_global = true;
+  first->global_lcr.lcr_aggregate_info_present_flag = 1;
+  first->global_lcr.aggregate_ptl.lcr_max_interop = INTEROP_2;
+
+  // The activated global LCR is the restrictive one.
+  LayerConfigurationRecord *active = &pbi_->common.lcr_params;
+  active->valid = 1;
+  active->is_global = true;
+  active->global_lcr.lcr_aggregate_info_present_flag = 1;
+  active->global_lcr.aggregate_ptl.lcr_max_interop = INTEROP_0;
+
+  EXPECT_FALSE(conformance_check_msdo_lcr(pbi_, true, false));
+}
+
+// When aggregate info is not present, lcr_max_interop is inferred to be the
+// maximum interoperability point, which places no constraint on the OBU
+// requirements of Annex A.
+TEST_F(LcrTest, ConformanceCheckGlobalLcrInferredMaxInterop) {
+  pbi_->xlayer_id_map[0] = 1;
+  pbi_->xlayer_id_map[1] = 1;
+  pbi_->mlayer_id_map[0][0] = 1;
+  LayerConfigurationRecord *active = &pbi_->common.lcr_params;
+  active->valid = 1;
+  active->is_global = true;
+  active->global_lcr.lcr_aggregate_info_present_flag = 0;
   EXPECT_TRUE(conformance_check_msdo_lcr(pbi_, true, false));
 }
 
+// A local LCR governs a single extended layer, so the interoperability point
+// comes from the activated sequence header's seq_profile_idc.
 TEST_F(LcrTest, ConformanceCheckLocalLcrConfigurable) {
   pbi_->xlayer_id_map[0] = 1;
   pbi_->mlayer_id_map[0][0] = 1;
+  pbi_->common.seq_params.seq_profile_idc = CONFIGURABLE;
   pbi_->lcr_list[0][1].valid = 1;
   pbi_->lcr_list[0][1].is_global = false;
-  pbi_->lcr_list[0][1].local_lcr.lcr_profile_tier_level_info_present_flag = 1;
-  pbi_->lcr_list[0][1].local_lcr.seq_ptl.lcr_seq_profile_idc = CONFIGURABLE;
   EXPECT_TRUE(conformance_check_msdo_lcr(pbi_, false, true));
 }
 
@@ -891,14 +910,15 @@ TEST_F(LcrTest, ConformanceCheckMultiXlayerMsdo) {
   EXPECT_TRUE(conformance_check_msdo_lcr(pbi_, false, false));
 }
 
+// Multiple embedded layers in a single extended layer require IOP 1 or above,
+// taken from the activated sequence header's seq_profile_idc.
 TEST_F(LcrTest, ConformanceCheckMultiMlayerLocalLcr) {
   pbi_->xlayer_id_map[0] = 1;
   pbi_->mlayer_id_map[0][0] = 1;
   pbi_->mlayer_id_map[0][1] = 1;
+  pbi_->common.seq_params.seq_profile_idc = MAIN_420_10_IP1;
   pbi_->lcr_list[0][1].valid = 1;
   pbi_->lcr_list[0][1].is_global = false;
-  pbi_->lcr_list[0][1].local_lcr.lcr_profile_tier_level_info_present_flag = 1;
-  pbi_->lcr_list[0][1].local_lcr.seq_ptl.lcr_seq_profile_idc = MAIN_420_10_IP1;
   EXPECT_TRUE(conformance_check_msdo_lcr(pbi_, false, true));
 }
 
@@ -939,10 +959,9 @@ TEST_F(LcrTest, ConformanceCheckMultiMlayerLocalLcr12Bit) {
   pbi_->xlayer_id_map[0] = 1;
   pbi_->mlayer_id_map[0][0] = 1;
   pbi_->mlayer_id_map[0][1] = 1;
+  pbi_->common.seq_params.seq_profile_idc = MAIN_444C_12_IP2;
   pbi_->lcr_list[0][1].valid = 1;
   pbi_->lcr_list[0][1].is_global = false;
-  pbi_->lcr_list[0][1].local_lcr.lcr_profile_tier_level_info_present_flag = 1;
-  pbi_->lcr_list[0][1].local_lcr.seq_ptl.lcr_seq_profile_idc = MAIN_444C_12_IP2;
   EXPECT_TRUE(conformance_check_msdo_lcr(pbi_, false, true));
 }
 
@@ -1233,7 +1252,9 @@ TEST_F(LcrTest, CrossObuLcrAtlasConsistency) {
 }
 
 // Exercises (num_xlayers==1, num_mlayers>1, local_lcr+IP1) conformance branch
-// with real LCR data in decoder state rather than manually set fields.
+// with real LCR data in decoder state rather than manually set fields. The
+// interoperability point of the single extended layer comes from the activated
+// sequence header's seq_profile_idc.
 TEST_F(LcrTest, ConformanceIntegrationOpsAndLcr) {
   LayerConfigurationRecord lcr_src;
   memset(&lcr_src, 0, sizeof(lcr_src));
@@ -1265,6 +1286,7 @@ TEST_F(LcrTest, ConformanceIntegrationOpsAndLcr) {
   pbi_->xlayer_id_map[0] = 1;
   pbi_->mlayer_id_map[0][0] = 1;
   pbi_->mlayer_id_map[0][1] = 1;
+  pbi_->common.seq_params.seq_profile_idc = MAIN_420_10_IP1;
 
   EXPECT_TRUE(conformance_check_msdo_lcr(pbi_, false, true));
 }

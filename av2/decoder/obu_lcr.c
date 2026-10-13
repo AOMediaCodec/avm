@@ -14,6 +14,7 @@
 
 #include "config/avm_config.h"
 #include "avm_dsp/bitreader_buffer.h"
+#include "av2/common/annexA.h"
 #include "av2/common/common.h"
 #include "av2/common/obu_util.h"
 #include "av2/common/timing.h"
@@ -256,8 +257,12 @@ static void read_lcr_global_info(struct AV2Decoder *pbi,
     glcr->lcr_reserved_zero_3bits = avm_rb_read_literal(rb, 3);
   glcr->lcr_reserved_zero_5bits = avm_rb_read_literal(rb, 5);
 
-  if (glcr->lcr_aggregate_info_present_flag)
+  if (glcr->lcr_aggregate_info_present_flag) {
     read_lcr_aggregate_info(&glcr->aggregate_ptl, rb);
+  } else {
+    memset(&glcr->aggregate_ptl, 0, sizeof(glcr->aggregate_ptl));
+    glcr->aggregate_ptl.lcr_max_interop = INTEROP_MAX;
+  }
 
   if (glcr->lcr_seq_profile_tier_level_info_present_flag) {
     for (int i = 0; i < glcr->LcrMaxNumXLayerCount; i++) {

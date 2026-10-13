@@ -2104,41 +2104,23 @@ static int get_msdo_interop(struct AV2Decoder *pbi) {
 }
 
 static int get_lcr_global_interop(struct AV2Decoder *pbi) {
-  // Return the interoperability point of the first valid global LCR.
-  // lcr_max_interop in the aggregate PTL is already an interoperability point,
-  // so it is used directly; the seq PTL fallback signals a profile instead and
-  // must be mapped through Table A.1.
-  for (int j = 0; j < MAX_NUM_LCR; j++) {
-    if (pbi->lcr_list[GLOBAL_XLAYER_ID][j].valid) {
-      const struct GlobalLayerConfigurationRecord *glcr =
-          &pbi->lcr_list[GLOBAL_XLAYER_ID][j].global_lcr;
-      if (glcr->lcr_aggregate_info_present_flag)
-        return glcr->aggregate_ptl.lcr_max_interop;
-      // Fall back to the first seq PTL if aggregate PTL is not present.
-      if (glcr->lcr_seq_profile_tier_level_info_present_flag &&
-          glcr->LcrMaxNumXLayerCount > 0)
-        return av2_get_interop_from_profile(
-            glcr->seq_ptl[0].lcr_seq_profile_idc);
-    }
-  }
-  return INTEROP_2;  // Fallback
+  // Use the activated global LCR (not just any valid one), and only its
+  // aggregate PTL; lcr_seq_profile_idc is not an Annex A IOP source.
+  const AV2_COMMON *const cm = &pbi->common;
+  const struct GlobalLayerConfigurationRecord *glcr =
+      (cm->lcr_params.valid && cm->lcr_params.is_global)
+          ? &cm->lcr_params.global_lcr
+          : (cm->global_lcr_params.valid ? &cm->global_lcr_params.global_lcr
+                                         : NULL);
+  if (glcr != NULL && glcr->lcr_aggregate_info_present_flag)
+    return glcr->aggregate_ptl.lcr_max_interop;
+  // lcr_max_interop is inferred to be the maximum when absent.
+  return INTEROP_MAX;
 }
 
 static int get_lcr_local_interop(struct AV2Decoder *pbi) {
-  // Return the interoperability point of the first valid local LCR, mapped
-  // from its lcr_seq_profile_idc.
-  for (int i = 0; i < GLOBAL_XLAYER_ID; i++) {
-    for (int j = 0; j < MAX_NUM_LCR; j++) {
-      if (pbi->lcr_list[i][j].valid) {
-        const struct LocalLayerConfigurationRecord *llcr =
-            &pbi->lcr_list[i][j].local_lcr;
-        if (llcr->lcr_profile_tier_level_info_present_flag)
-          return av2_get_interop_from_profile(
-              llcr->seq_ptl.lcr_seq_profile_idc);
-      }
-    }
-  }
-  return INTEROP_2;  // Fallback
+  // A local LCR governs a single extended layer; use its own seq_profile_idc.
+  return av2_get_interop_from_profile(pbi->common.seq_params.seq_profile_idc);
 }
 
 // Returns true if the Annex A OBU requirements table does not constrain this
