@@ -466,6 +466,7 @@ static void set_good_speed_features_framesize_independent(
         (cm->current_frame.pyramid_level >= 3);
 
     sf->lpf_sf.ccso_chroma_dep = 1;
+    sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL1;
   }
 
   if (speed >= 2) {
@@ -519,8 +520,6 @@ static void set_good_speed_features_framesize_independent(
     sf->rd_sf.tx_domain_dist_level = boosted ? 1 : 2;
     sf->rd_sf.tx_domain_dist_thres_level = 1;
 
-    sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL1;
-
     // TODO(any, yunqing): move this feature to speed 0.
     sf->tpl_sf.skip_alike_starting_mv = 1;
   }
@@ -534,6 +533,10 @@ static void set_good_speed_features_framesize_independent(
     // --- End ---
 
     sf->hl_sf.recode_loop = ALLOW_RECODE_KFARFGF;
+
+    if (cm->current_frame.pyramid_level >= 3) {
+      sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL2;
+    }
 
     sf->part_sf.allow_partition_search_skip = 1;
     sf->part_sf.simple_motion_search_prune_agg = 1;
