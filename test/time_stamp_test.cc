@@ -101,6 +101,6 @@ TEST_P(TimestampTest, TestAv2Rollover) {
 }
 
 AV2_INSTANTIATE_TEST_SUITE(TimestampTest,
-                           ::testing::Values(::libavm_test::kOnePassGood));
+                           ::testing::Values(::libavm_test::kTwoPassGood));
 
 }  // namespace

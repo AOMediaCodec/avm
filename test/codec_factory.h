@@ -43,7 +43,8 @@ class CodecFactory {
                                  const avm_codec_flags_t flags) const = 0;
 
   virtual Encoder *CreateEncoder(avm_codec_enc_cfg_t cfg,
-                                 const avm_codec_flags_t init_flags) const = 0;
+                                 const avm_codec_flags_t init_flags,
+                                 TwopassStatsStore *stats) const = 0;
 
   virtual avm_codec_err_t DefaultEncoderConfig(avm_codec_enc_cfg_t *cfg,
                                                unsigned int usage) const = 0;
@@ -106,8 +107,9 @@ class AV2Decoder : public Decoder {
 
 class AV2Encoder : public Encoder {
  public:
-  AV2Encoder(avm_codec_enc_cfg_t cfg, const avm_codec_flags_t init_flags)
-      : Encoder(cfg, init_flags) {}
+  AV2Encoder(avm_codec_enc_cfg_t cfg, const avm_codec_flags_t init_flags,
+             TwopassStatsStore *stats)
+      : Encoder(cfg, init_flags, stats) {}
 
  protected:
   virtual avm_codec_iface_t *CodecInterface() const {
@@ -139,12 +141,14 @@ class AV2CodecFactory : public CodecFactory {
   }
 
   virtual Encoder *CreateEncoder(avm_codec_enc_cfg_t cfg,
-                                 const avm_codec_flags_t init_flags) const {
+                                 const avm_codec_flags_t init_flags,
+                                 TwopassStatsStore *stats) const {
 #if CONFIG_AV2_ENCODER
-    return new AV2Encoder(cfg, init_flags);
+    return new AV2Encoder(cfg, init_flags, stats);
 #else
     (void)cfg;
     (void)init_flags;
+    (void)stats;
     return NULL;
 #endif
   }

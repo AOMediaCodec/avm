@@ -56,6 +56,8 @@ TEST_P(BordersTestLarge, TestEncodeHighBitrate) {
   // the encoder to producing lots of big partitions which will likely
   // extend into the border and test the border condition.
   cfg_.g_lag_in_frames = 25;
+  cfg_.rc_2pass_vbr_minsection_pct = 5;
+  cfg_.rc_2pass_vbr_maxsection_pct = 2000;
   cfg_.rc_target_bitrate = 2000;
   cfg_.rc_max_quantizer = 40;
 
@@ -69,6 +71,8 @@ TEST_P(BordersTestLarge, TestLowBitrate) {
   // lots of small partitions which might will test the other condition.
 
   cfg_.g_lag_in_frames = 25;
+  cfg_.rc_2pass_vbr_minsection_pct = 5;
+  cfg_.rc_2pass_vbr_maxsection_pct = 2000;
   cfg_.rc_target_bitrate = 200;
   cfg_.rc_min_quantizer = 160;
 
@@ -79,5 +83,5 @@ TEST_P(BordersTestLarge, TestLowBitrate) {
 }
 
 AV2_INSTANTIATE_TEST_SUITE(BordersTestLarge,
-                           ::testing::Values(::libavm_test::kOnePassGood));
+                           ::testing::Values(::libavm_test::kTwoPassGood));
 }  // namespace

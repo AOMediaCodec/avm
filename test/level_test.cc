@@ -144,6 +144,6 @@ TEST_P(LevelTestLarge, TestTargetLevel0) {
 }
 
 AV2_INSTANTIATE_TEST_SUITE(LevelTestLarge,
-                           ::testing::Values(::libavm_test::kOnePassGood),
+                           ::testing::Values(::libavm_test::kTwoPassGood),
                            ::testing::ValuesIn(kCpuUsedVectors));
 }  // namespace

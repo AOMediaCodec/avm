@@ -87,7 +87,7 @@ class AVxEncoderParmsGetToDecoder
 
   virtual void SetUp() {
     InitializeConfig();
-    SetMode(::libavm_test::kOnePassGood);
+    SetMode(::libavm_test::kTwoPassGood);
     cfg_.g_lag_in_frames = 25;
     test_video_ = kAV2ParamPassingTestVector;
     cfg_.rc_end_usage = AVM_Q;

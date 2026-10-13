@@ -45,10 +45,13 @@ class AV2SBMultipassTestLarge
 
   virtual void SetUp() {
     InitializeConfig();
-    SetMode(::libavm_test::kOnePassGood);
+    SetMode(::libavm_test::kTwoPassGood);
 
     cfg_.g_lag_in_frames = 2;
     cfg_.rc_end_usage = AVM_Q;
+    cfg_.rc_2pass_vbr_minsection_pct = 5;
+    cfg_.rc_2pass_vbr_maxsection_pct = 2000;
+
     cfg_.rc_max_quantizer = 224;
     cfg_.rc_min_quantizer = 0;
   }

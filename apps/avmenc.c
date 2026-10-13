@@ -2299,7 +2299,7 @@ int main(int argc, const char **argv_) {
     FOREACH_STREAM(stream, streams) { setup_pass(stream, &global, pass); }
     FOREACH_STREAM(stream, streams) { initialize_encoder(stream, &global); }
 
-    if (global.verbose && pass == 0) {
+    if (global.verbose) {
       FOREACH_STREAM(stream, streams) {
         show_stream_config(stream, &global, &input);
       }

@@ -49,6 +49,8 @@ class AVxFirstPassEncoderThreadTest
 
     cfg_.g_lag_in_frames = 35;
     cfg_.rc_end_usage = AVM_Q;
+    cfg_.rc_2pass_vbr_minsection_pct = 5;
+    cfg_.rc_2pass_vbr_maxsection_pct = 2000;
   }
 
   virtual void BeginPassHook(unsigned int /*pass*/) {
@@ -225,6 +227,8 @@ class AVxEncoderThreadTest
 
     cfg_.g_lag_in_frames = 5;
     cfg_.rc_end_usage = AVM_Q;
+    cfg_.rc_2pass_vbr_minsection_pct = 5;
+    cfg_.rc_2pass_vbr_maxsection_pct = 2000;
   }
 
   virtual void BeginPassHook(unsigned int /*pass*/) {
@@ -416,14 +420,25 @@ class AVxEncoderThreadTestLarge : public AVxEncoderThreadTest {};
 
 TEST_P(AVxEncoderThreadTestLarge, EncoderResultTest) { DoTest(); }
 
-GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AVxFirstPassEncoderThreadTest);
-GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AVxEncoderThreadTest);
+// first pass stats test
+AV2_INSTANTIATE_TEST_SUITE(AVxFirstPassEncoderThreadTest,
+                           ::testing::Values(::libavm_test::kTwoPassGood),
+                           ::testing::Range(0, 6, 2), ::testing::Range(0, 2),
+                           ::testing::Range(1, 3));
+
+// For AV2, test speed 0, 1, 2, 3, 5.
+// Only test cpu_used 2 here.
+AV2_INSTANTIATE_TEST_SUITE(AVxEncoderThreadTest,
+                           ::testing::Values(::libavm_test::kTwoPassGood),
+                           ::testing::Values(2), ::testing::Values(0, 2),
+                           ::testing::Values(0, 2), ::testing::Values(0, 1));
 
 // Test cpu_used 0, 1, 3 and 5.
 // TODO(urvang): Once https://github.com/AOMediaCodec/avm/issues/79 is fixed,
 // change last parameter back to (0, 1) to re-enable unit tests with row-mt = 1.
 AV2_INSTANTIATE_TEST_SUITE(AVxEncoderThreadTestLarge,
-                           ::testing::Values(::libavm_test::kOnePassGood),
+                           ::testing::Values(::libavm_test::kTwoPassGood,
+                                             ::libavm_test::kOnePassGood),
                            ::testing::Values(0, 1, 3, 5),
                            ::testing::Values(1, 6), ::testing::Values(1, 6),
                            ::testing::Values(0));

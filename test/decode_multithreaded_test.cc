@@ -59,7 +59,7 @@ class AV2DecodeMultiThreadedTest
 
   virtual void SetUp() {
     InitializeConfig();
-    SetMode(libavm_test::kOnePassGood);
+    SetMode(libavm_test::kTwoPassGood);
   }
 
   virtual void PreEncodeFrameHook(libavm_test::VideoSource *video,

@@ -25,6 +25,7 @@ namespace {
 
 // Encoding modes
 const libavm_test::TestMode kEncodingModeVectors[] = {
+  ::libavm_test::kTwoPassGood,
   ::libavm_test::kOnePassGood,
 };
 
