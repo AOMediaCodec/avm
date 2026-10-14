@@ -295,6 +295,8 @@ static AVM_FORCE_INLINE void decide_states_q1_neon_impl(
     int try_eob, int64_t rdmult, uint32x2_t v_rdm, tcq_node_t *decision) {
   static_assert(sizeof(tcq_node_t) == 16, "");
   assert((rdmult >> 32) == 0);
+  // kPidInfo packs absLevel 1 for the odd candidate.
+  assert(pq->absLevel[1] == 1 && pq->absLevel[2] == 1);
   const int32_t *rate = rd->rate;
   const int32_t *rate_zero = rd->rate_zero;
 
