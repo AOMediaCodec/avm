@@ -78,7 +78,8 @@ const EncodeParameters kAV2EncodeParameterSet[] = {
 
 class AVxEncoderParmsGetToDecoder
     : public ::libavm_test::EncoderTest,
-      public ::libavm_test::CodecTestWithParam<EncodeParameters> {
+      public ::libavm_test::CodecTestWith2Params<EncodeParameters,
+                                                 ::libavm_test::TestMode> {
  protected:
   AVxEncoderParmsGetToDecoder()
       : EncoderTest(GET_PARAM(0)), encode_parms(GET_PARAM(1)) {}
@@ -87,7 +88,7 @@ class AVxEncoderParmsGetToDecoder
 
   virtual void SetUp() {
     InitializeConfig();
-    SetMode(::libavm_test::kTwoPassGood);
+    SetMode(GET_PARAM(2));
     cfg_.g_lag_in_frames = 25;
     test_video_ = kAV2ParamPassingTestVector;
     cfg_.rc_end_usage = AVM_Q;
@@ -153,5 +154,6 @@ TEST_P(AVxEncoderParmsGetToDecoder, BitstreamParms) {
 }
 
 AV2_INSTANTIATE_TEST_SUITE(AVxEncoderParmsGetToDecoder,
-                           ::testing::ValuesIn(kAV2EncodeParameterSet));
+                           ::testing::ValuesIn(kAV2EncodeParameterSet),
+                           GOODQUALITY_TEST_MODES);
 }  // namespace

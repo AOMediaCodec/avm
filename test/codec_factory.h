@@ -85,6 +85,13 @@ class CodecTestWith7Params
     : public ::testing::TestWithParam<std::tuple<
           const libavm_test::CodecFactory *, T1, T2, T3, T4, T5, T6, T7> > {};
 
+template <class T1, class T2, class T3, class T4, class T5, class T6, class T7,
+          class T8>
+class CodecTestWith8Params
+    : public ::testing::TestWithParam<std::tuple<
+          const libavm_test::CodecFactory *, T1, T2, T3, T4, T5, T6, T7, T8> > {
+};
+
 /*
  * AV2 Codec Definitions
  */

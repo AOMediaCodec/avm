@@ -143,7 +143,6 @@ TEST_P(LevelTestLarge, TestTargetLevel0) {
   }
 }
 
-AV2_INSTANTIATE_TEST_SUITE(LevelTestLarge,
-                           ::testing::Values(::libavm_test::kTwoPassGood),
+AV2_INSTANTIATE_TEST_SUITE(LevelTestLarge, GOODQUALITY_TEST_MODES,
                            ::testing::ValuesIn(kCpuUsedVectors));
 }  // namespace

@@ -25,7 +25,8 @@
 
 namespace {
 class AV2SBMultipassTestLarge
-    : public ::libavm_test::CodecTestWith2Params<int, bool>,
+    : public ::libavm_test::CodecTestWith3Params<int, bool,
+                                                 ::libavm_test::TestMode>,
       public ::libavm_test::EncoderTest {
  protected:
   AV2SBMultipassTestLarge()
@@ -45,7 +46,7 @@ class AV2SBMultipassTestLarge
 
   virtual void SetUp() {
     InitializeConfig();
-    SetMode(::libavm_test::kTwoPassGood);
+    SetMode(GET_PARAM(3));
 
     cfg_.g_lag_in_frames = 2;
     cfg_.rc_end_usage = AVM_Q;
@@ -154,6 +155,6 @@ class AV2SBMultipassTestLarge
 TEST_P(AV2SBMultipassTestLarge, TwoPassMatchTest) { DoTest(); }
 
 AV2_INSTANTIATE_TEST_SUITE(AV2SBMultipassTestLarge, ::testing::Values(5),
-                           ::testing::Bool());
+                           ::testing::Bool(), GOODQUALITY_TEST_MODES);
 
 }  // namespace

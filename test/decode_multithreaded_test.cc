@@ -27,8 +27,8 @@ namespace {
 static const int kNumMultiThreadDecoders = 3;
 
 class AV2DecodeMultiThreadedTest
-    : public ::libavm_test::CodecTestWith7Params<int, int, int, int, int, int,
-                                                 int>,
+    : public ::libavm_test::CodecTestWith8Params<int, int, int, int, int, int,
+                                                 int, ::libavm_test::TestMode>,
       public ::libavm_test::EncoderTest {
  protected:
   AV2DecodeMultiThreadedTest()
@@ -59,7 +59,7 @@ class AV2DecodeMultiThreadedTest
 
   virtual void SetUp() {
     InitializeConfig();
-    SetMode(libavm_test::kTwoPassGood);
+    SetMode(GET_PARAM(8));
   }
 
   virtual void PreEncodeFrameHook(libavm_test::VideoSource *video,
@@ -147,13 +147,17 @@ TEST_P(AV2DecodeMultiThreadedTestLarge, MD5Match) { DoTest(); }
 AV2_INSTANTIATE_TEST_SUITE(AV2DecodeMultiThreadedTest, ::testing::Values(1, 2),
                            ::testing::Values(1, 2), ::testing::Values(1),
                            ::testing::Values(3), ::testing::Values(0, 1),
-                           ::testing::Values(2), ::testing::Values(210));
+                           ::testing::Values(2), ::testing::Values(210),
+                           ::testing::Values(::libavm_test::kTwoPassGood,
+                                             ::libavm_test::kOnePassGood));
 AV2_INSTANTIATE_TEST_SUITE(AV2DecodeMultiThreadedTestLarge,
                            ::testing::Values(0, 1, 2, 6),
                            ::testing::Values(0, 1, 2, 6),
                            ::testing::Values(1, 4), ::testing::Values(1),
                            ::testing::Values(0, 1), ::testing::Values(2),
-                           ::testing::Values(210));
+                           ::testing::Values(210),
+                           ::testing::Values(::libavm_test::kTwoPassGood,
+                                             ::libavm_test::kOnePassGood));
 
 // Test is configured with high QP and more frames to cover MT testing of TIP
 // direct frames.
@@ -166,10 +170,14 @@ TEST_P(AV2DecodeTIPMultiThreadedTestLarge, MD5Match) { DoTest(); }
 AV2_INSTANTIATE_TEST_SUITE(AV2DecodeTIPMultiThreadedTest, ::testing::Values(0),
                            ::testing::Values(0), ::testing::Values(1),
                            ::testing::Values(3), ::testing::Values(0, 1),
-                           ::testing::Values(8), ::testing::Values(235));
+                           ::testing::Values(8), ::testing::Values(235),
+                           ::testing::Values(::libavm_test::kTwoPassGood,
+                                             ::libavm_test::kOnePassGood));
 AV2_INSTANTIATE_TEST_SUITE(AV2DecodeTIPMultiThreadedTestLarge,
                            ::testing::Values(0), ::testing::Values(0),
                            ::testing::Values(1), ::testing::Values(1),
                            ::testing::Values(0, 1), ::testing::Values(8),
-                           ::testing::Values(235));
+                           ::testing::Values(235),
+                           ::testing::Values(::libavm_test::kTwoPassGood,
+                                             ::libavm_test::kOnePassGood));
 }  // namespace
