@@ -727,6 +727,9 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.newmv_drl_search_limit = 1;
     sf->winner_mode_sf.dc_blk_pred_level = 2;
 
+    sf->intra_sf.intrabc_max_rd_cands = 1;
+    sf->intra_sf.intrabc_skip_int_qtr_rd = true;
+
     // TODO(any): Disable these speed features because they do not have a good
     // tradeoff. Fix and evaluate them before turning them on.
     // sf->rd_sf.perform_coeff_opt_based_on_satd =
@@ -1113,6 +1116,8 @@ static AVM_INLINE void init_intra_sf(INTRA_MODE_SPEED_FEATURES *intra_sf) {
   intra_sf->uv_mode_rank_skip_cctx = false;
   intra_sf->include_dip_for_top_n_model_rd_pruning = false;
   intra_sf->skip_intra_dip_search = false;
+  intra_sf->intrabc_max_rd_cands = -1;
+  intra_sf->intrabc_skip_int_qtr_rd = false;
 
   intra_sf->disable_smooth_intra = 0;
 }

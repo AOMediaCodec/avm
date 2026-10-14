@@ -1027,6 +1027,18 @@ typedef struct INTRA_MODE_SPEED_FEATURES {
 
   // Number of top intra mode candidates to keep during model RD pruning.
   int intra_mode_prune_top;
+
+  // Number of IntraBC block vector candidates (one per search region and
+  // direction) that get a transform RD evaluation, taken in order of their
+  // block vector search cost. The block vector search itself still covers
+  // every region and direction.
+  // -1: Evaluate all candidates
+  int intrabc_max_rd_cands;
+
+  // Skip the quarter-pel RD evaluation of a new IntraBC block vector at an
+  // integer position. Its 1-pel evaluation, which refines around the same
+  // position, still runs.
+  bool intrabc_skip_int_qtr_rd;
 } INTRA_MODE_SPEED_FEATURES;
 
 typedef struct TX_SPEED_FEATURES {
