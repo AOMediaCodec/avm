@@ -1791,6 +1791,9 @@ static int diamond_search_sad(FULLPEL_MV start_mv,
     bestsad += mvsad_err_cost(*best_mv, &ms_params->mv_cost_params);
   }
 
+  // IntraBC block vectors must also pass av2_is_dv_valid().
+  const int check_dv =
+      ms_params->is_intra_mode && ms_params->cm->features.allow_local_intrabc;
   int next_step_size = tot_steps > 2 ? cfg->radius[tot_steps - 2] : 1;
   for (int step = tot_steps - 1; step >= 0; --step) {
     const search_site *site = cfg->site[step];
@@ -1809,9 +1812,9 @@ static int diamond_search_sad(FULLPEL_MV start_mv,
     all_in &= best_mv->col + (site[4].mv.col * prec_multiplier) <=
               ms_params->mv_limits.col_max;
 
-    if (ms_params->is_intra_mode &&
-        ms_params->cm->features.allow_local_intrabc) {
-      for (j = 0; j < 4; j++) {
+    // Block vector validity only matters for the sites within the limits.
+    if (all_in && check_dv) {
+      for (j = 0; j < 4 && all_in; j++) {
         MV sub_mv = {
           (MV_COMP_DATA_TYPE)GET_MV_SUBPEL(best_mv->row + site[1 + j].mv.row),
           (MV_COMP_DATA_TYPE)GET_MV_SUBPEL(best_mv->col + site[1 + j].mv.col)
@@ -1829,10 +1832,10 @@ static int diamond_search_sad(FULLPEL_MV start_mv,
         uint16_t const *block_offset[4];
         unsigned int sads[4];
 
+        // Sites 1 to 4 were already checked for all_in.
         int valid = 1;
-        for (j = 0; j < 4; j++) {
-          if (ms_params->is_intra_mode &&
-              ms_params->cm->features.allow_local_intrabc) {
+        if (check_dv && idx > 1) {
+          for (j = 0; j < 4 && valid; j++) {
             MV sub_mv = { (MV_COMP_DATA_TYPE)GET_MV_SUBPEL(
                               best_mv->row + site[idx + j].mv.row),
                           (MV_COMP_DATA_TYPE)GET_MV_SUBPEL(
