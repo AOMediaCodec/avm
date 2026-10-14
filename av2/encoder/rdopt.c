@@ -9874,7 +9874,7 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
     if (this_mode == WARP_NEWMV && (!warpmv_allowed || !warp_newmv_allowed))
       continue;
     if (this_mode >= NEAR_NEARMV_OPTFLOW && !opfl_modes_allowed) continue;
-    if (inter_sf->prune_opfl &&
+    if (inter_sf->prune_opfl >= 2 &&
         (this_mode == NEAR_NEWMV_OPTFLOW || this_mode == NEW_NEARMV_OPTFLOW ||
          this_mode == JOINT_NEWMV_OPTFLOW))
       continue;
@@ -9912,7 +9912,7 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
         !opfl_allowed_cur_refs_bsize(cm, xd, mbmi))
       continue;
 
-    // Skip OPFL when refs are highly asymmetric in temporal distance.
+    // Skip OPFL when one ref is more than twice as far as the other.
     if (this_mode >= NEAR_NEARMV_OPTFLOW && inter_sf->prune_opfl) {
       const RefCntBuffer *const r0 = get_ref_frame_buf(cm, ref_frame);
       const RefCntBuffer *const r1 = get_ref_frame_buf(cm, second_ref_frame);
@@ -9922,7 +9922,7 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
                                               cur_idx, r0->display_order_hint));
         const int ad1 = abs(get_relative_dist(&cm->seq_params.order_hint_info,
                                               cur_idx, r1->display_order_hint));
-        if (AVMMAX(ad0, ad1) > 4 * AVMMIN(ad0, ad1)) continue;
+        if (AVMMAX(ad0, ad1) > 2 * AVMMIN(ad0, ad1)) continue;
       }
     }
 
