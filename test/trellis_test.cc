@@ -986,35 +986,40 @@ class TcqDecideStatesQ1Test
         params_.tst_func(prev_, &rd_, &pq_, limits_, try_eob_, rdmult_, tst));
   }
 
-  void RunTest() {
+  // With tied_costs, tiny rates, costs and distances make zero-vs-level-1
+  // rdcost ties common, so the tie-break order (zero wins) is checked. Random
+  // 30-bit values almost never tie.
+  void RunTest(bool tied_costs) {
+    const int rate_range = tied_costs ? 3 : (1 << 30);
+    const int cost_range = tied_costs ? 3 : (1 << 20);
+    const int dist_range = tied_costs ? 3 : (1 << 20);
     for (int iter = 0; iter < kIterations && !HasFatalFailure(); ++iter) {
       for (int i = 0; i < TCQ_N_STATES; i++) {
-        prev_[i].rdCost = rng_(1 << 20);
-        prev_[i].rate = rng_(1 << 30);
+        prev_[i].rdCost = rng_(cost_range);
+        prev_[i].rate = rng_(rate_range);
         prev_[i].absLevel = rng_.Rand8() % 16;
         prev_[i].prevId = rng_.Rand8() % 8;
       }
       for (int i = 0; i < 2 * TCQ_MAX_STATES; i++) {
-        rd_.rate[i] = rng_(1 << 30);
+        rd_.rate[i] = rng_(rate_range);
       }
       for (int i = 0; i < TCQ_MAX_STATES; i++) {
-        rd_.rate_zero[i] = rng_(1 << 30);
+        rd_.rate_zero[i] = rng_(rate_range);
       }
-      rd_.rate_eob[0] = rng_(1 << 30);
-      rd_.rate_eob[1] = rng_(1 << 30);
+      rd_.rate_eob[0] = rng_(rate_range);
+      rd_.rate_eob[1] = rng_(rate_range);
 
       pq_.absLevel[0] = 0;
       pq_.absLevel[1] = 1;
       pq_.absLevel[2] = 1;
       pq_.absLevel[3] = 0;
-      pq_.deltaDist[0] = (int64_t)rng_(1 << 20) - (1 << 19);
-      pq_.deltaDist[1] = (int64_t)rng_(1 << 20) - (1 << 19);
-      pq_.deltaDist[2] = (int64_t)rng_(1 << 20) - (1 << 19);
-      pq_.deltaDist[3] = (int64_t)rng_(1 << 20) - (1 << 19);
+      for (int i = 0; i < 4; i++) {
+        pq_.deltaDist[i] = (int64_t)rng_(dist_range) - dist_range / 2;
+      }
       pq_.qIdx = 1;
       limits_ = 0;
       try_eob_ = rng_.Rand8() & 1;
-      rdmult_ = rng_(1 << 30);
+      rdmult_ = tied_costs ? 1 + rng_(2) : rng_(1 << 30);
 
       tcq_node_t ref[TCQ_N_STATES], tst[TCQ_N_STATES];
       Execute(ref, tst);
@@ -1037,7 +1042,9 @@ class TcqDecideStatesQ1Test
   int64_t rdmult_;
 };
 
-TEST_P(TcqDecideStatesQ1Test, RandomValues) { RunTest(); }
+TEST_P(TcqDecideStatesQ1Test, RandomValues) { RunTest(false); }
+
+TEST_P(TcqDecideStatesQ1Test, TiedCosts) { RunTest(true); }
 
 typedef void (*TcqLoopDiagonalSt8Func)(const struct tcq_param_t *p, int scan_hi,
                                        int scan_lo, struct tcq_ctx_t *tcq_ctx,
