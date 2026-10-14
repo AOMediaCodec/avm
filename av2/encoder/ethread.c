@@ -495,8 +495,9 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
   return 1;
 }
 
-static int enc_worker_hook(void *arg1, void *unused) {
+static int enc_worker_hook(void *arg1, void *arg2) {
   EncWorkerData *const thread_data = (EncWorkerData *)arg1;
+  const int num_workers = (int)(intptr_t)arg2;
   AV2_COMP *const cpi = thread_data->cpi;
   MACROBLOCKD *const xd = &thread_data->td->mb.e_mbd;
   struct avm_internal_error_info *const error_info = &thread_data->error_info;
@@ -504,8 +505,6 @@ static int enc_worker_hook(void *arg1, void *unused) {
   const int tile_cols = cm->tiles.cols;
   const int tile_rows = cm->tiles.rows;
   int t;
-
-  (void)unused;
 
   xd->error_info = error_info;
 
@@ -518,8 +517,7 @@ static int enc_worker_hook(void *arg1, void *unused) {
   }
   error_info->setjmp = 1;
 
-  for (t = thread_data->start; t < tile_rows * tile_cols;
-       t += cpi->mt_info.num_workers) {
+  for (t = thread_data->start; t < tile_rows * tile_cols; t += num_workers) {
     int tile_row = t / tile_cols;
     int tile_col = t % tile_cols;
 
@@ -801,7 +799,7 @@ static AVM_INLINE void prepare_enc_workers(AV2_COMP *cpi, AVxWorkerHook hook,
 
     worker->hook = hook;
     worker->data1 = thread_data;
-    worker->data2 = NULL;
+    worker->data2 = (void *)(intptr_t)num_workers;
 
     thread_data->cpi = cpi;
     if (i == 0) {
@@ -951,10 +949,9 @@ void av2_encode_tiles_mt(AV2_COMP *cpi) {
   av2_init_tile_data(cpi);
   // Only run once to create threads and allocate thread data.
   if (mt_info->num_enc_workers == 0) {
-    create_enc_workers(cpi, num_workers);
-  } else {
-    num_workers = AVMMIN(num_workers, mt_info->num_enc_workers);
+    create_enc_workers(cpi, mt_info->num_workers);
   }
+  num_workers = AVMMIN(num_workers, mt_info->num_enc_workers);
   prepare_enc_workers(cpi, enc_worker_hook, num_workers);
   launch_enc_workers(&cpi->mt_info, num_workers);
   sync_enc_workers(&cpi->mt_info, cm, num_workers);
@@ -1092,10 +1089,9 @@ void av2_encode_tiles_row_mt(AV2_COMP *cpi) {
 
   // Only run once to create threads and allocate thread data.
   if (mt_info->num_enc_workers == 0) {
-    create_enc_workers(cpi, num_workers);
-  } else {
-    num_workers = AVMMIN(num_workers, mt_info->num_enc_workers);
+    create_enc_workers(cpi, mt_info->num_workers);
   }
+  num_workers = AVMMIN(num_workers, mt_info->num_enc_workers);
   assign_tile_to_thread(thread_id_to_tile_id, tile_cols * tile_rows,
                         num_workers);
   prepare_enc_workers(cpi, enc_row_mt_worker_hook, num_workers);
@@ -1359,9 +1355,8 @@ void av2_mc_flow_dispenser_mt(AV2_COMP *cpi) {
   int num_workers = compute_num_tpl_workers(cpi);
 
   if (mt_info->num_enc_workers == 0)
-    create_enc_workers(cpi, num_workers);
-  else
-    num_workers = AVMMIN(num_workers, mt_info->num_enc_workers);
+    create_enc_workers(cpi, mt_info->num_workers);
+  num_workers = AVMMIN(num_workers, mt_info->num_enc_workers);
 
   if (mb_rows != tpl_sync->rows) {
     av2_tpl_dealloc(tpl_sync);
