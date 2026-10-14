@@ -64,6 +64,8 @@ typedef struct {
 } GF_FRAME_STATS;
 /*!\cond */
 
+void av2_init_second_pass(struct AV2_COMP *cpi);
+
 void av2_init_single_pass_lap(AV2_COMP *cpi);
 
 /*!\endcond */

@@ -100,7 +100,6 @@ TEST_P(TimestampTest, TestAv2Rollover) {
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 }
 
-AV2_INSTANTIATE_TEST_SUITE(TimestampTest,
-                           ::testing::Values(::libavm_test::kOnePassGood));
+AV2_INSTANTIATE_TEST_SUITE(TimestampTest, GOODQUALITY_TEST_MODES);
 
 }  // namespace

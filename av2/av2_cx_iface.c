@@ -893,10 +893,15 @@ static avm_codec_err_t validate_config(avm_codec_alg_priv_t *ctx,
   RANGE_CHECK(cfg, rc_end_usage, AVM_VBR, AVM_Q);
   RANGE_CHECK_HI(cfg, rc_undershoot_pct, 100);
   RANGE_CHECK_HI(cfg, rc_overshoot_pct, 100);
+  RANGE_CHECK_HI(cfg, rc_2pass_vbr_bias_pct, 100);
   RANGE_CHECK(cfg, kf_mode, AVM_KF_DISABLED, AVM_KF_AUTO);
   RANGE_CHECK_HI(cfg, rc_dropframe_thresh, 100);
-  RANGE_CHECK(cfg, g_pass, AVM_RC_ONE_PASS, AVM_RC_ONE_PASS);
-  RANGE_CHECK_HI(cfg, g_lag_in_frames, MAX_TOTAL_BUFFERS);
+  RANGE_CHECK(cfg, g_pass, AVM_RC_ONE_PASS, AVM_RC_LAST_PASS);
+  if (cfg->g_pass == AVM_RC_ONE_PASS) {
+    RANGE_CHECK_HI(cfg, g_lag_in_frames, MAX_TOTAL_BUFFERS);
+  } else {
+    RANGE_CHECK_HI(cfg, g_lag_in_frames, MAX_LAG_BUFFERS);
+  }
   RANGE_CHECK_HI(extra_cfg, min_gf_interval, MAX_LAG_BUFFERS - 1);
   RANGE_CHECK_HI(extra_cfg, max_gf_interval, MAX_LAG_BUFFERS - 1);
   if (extra_cfg->min_gf_interval > 0) {
@@ -939,6 +944,28 @@ static avm_codec_err_t validate_config(avm_codec_alg_priv_t *ctx,
   RANGE_CHECK_HI(extra_cfg, tile_rows, 6);
 
   RANGE_CHECK_HI(cfg, monochrome, 1);
+
+  if (cfg->g_pass == AVM_RC_LAST_PASS) {
+    const size_t packet_sz = sizeof(FIRSTPASS_STATS);
+    const int n_packets = (int)(cfg->rc_twopass_stats_in.sz / packet_sz);
+    const FIRSTPASS_STATS *stats;
+
+    if (cfg->rc_twopass_stats_in.buf == NULL)
+      ERROR("rc_twopass_stats_in.buf not set.");
+
+    if (cfg->rc_twopass_stats_in.sz % packet_sz)
+      ERROR("rc_twopass_stats_in.sz indicates truncated packet.");
+
+    if (cfg->rc_twopass_stats_in.sz < 2 * packet_sz)
+      ERROR("rc_twopass_stats_in requires at least two packets.");
+
+    stats =
+        (const FIRSTPASS_STATS *)cfg->rc_twopass_stats_in.buf + n_packets - 1;
+
+    if ((int)(stats->count + 0.5) != n_packets - 1)
+      ERROR("rc_twopass_stats_in missing EOS stats packet");
+  }
+
   RANGE_CHECK(extra_cfg, enable_cropping_window, 0, 1);
   RANGE_CHECK_HI(extra_cfg, crop_win_left_offset, 65535);
   RANGE_CHECK_HI(extra_cfg, crop_win_right_offset, 65535);
@@ -1039,7 +1066,7 @@ static avm_codec_err_t validate_config(avm_codec_alg_priv_t *ctx,
 
   /* Average corpus complexity is supported only in the case of single pass
    * VBR*/
-  if (cfg->rc_end_usage == AVM_VBR)
+  if (cfg->rc_end_usage == AVM_VBR && cfg->g_pass == AVM_RC_ONE_PASS)
     RANGE_CHECK_HI(extra_cfg, vbr_corpus_complexity_lap,
                    MAX_VBR_CORPUS_COMPLEXITY);
   else if (extra_cfg->vbr_corpus_complexity_lap != 0)
@@ -1514,7 +1541,7 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   input_cfg->input_bit_depth = cfg->g_input_bit_depth;
   // guess a frame rate if out of whack, use 30
   input_cfg->init_framerate = (double)cfg->g_timebase.den / cfg->g_timebase.num;
-  input_cfg->limit = cfg->g_limit;
+  input_cfg->limit = (cfg->g_pass == AVM_RC_FIRST_PASS) ? 0 : cfg->g_limit;
   input_cfg->chroma_subsampling_x = extra_cfg->chroma_subsampling_x;
   input_cfg->chroma_subsampling_y = extra_cfg->chroma_subsampling_y;
   if (input_cfg->init_framerate > 180) {
@@ -1550,6 +1577,8 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
 
   switch (cfg->g_pass) {
     case AVM_RC_ONE_PASS: oxcf->pass = 0; break;
+    case AVM_RC_FIRST_PASS: oxcf->pass = 1; break;
+    case AVM_RC_LAST_PASS: oxcf->pass = 2; break;
     default: oxcf->pass = 0; break;
   }
 
@@ -1583,6 +1612,7 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   rc_cfg->vbr_corpus_complexity_lap = extra_cfg->vbr_corpus_complexity_lap;
   rc_cfg->vbrmin_section = cfg->rc_2pass_vbr_minsection_pct;
   rc_cfg->vbrmax_section = cfg->rc_2pass_vbr_maxsection_pct;
+  rc_cfg->vbrbias = cfg->rc_2pass_vbr_bias_pct;
 
   // Set Toolset related configuration.
   tool_cfg->bit_depth = cfg->g_bit_depth;
@@ -1784,6 +1814,7 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
       resize_cfg->resize_mode ? 0 : extra_cfg->enable_tpl_model;
 
   // Set two-pass stats configuration.
+  oxcf->twopass_stats_in = cfg->rc_twopass_stats_in;
 
   // Set Key frame configuration.
   kf_cfg->fwd_kf_enabled = cfg->fwd_kf_enabled;
@@ -2039,7 +2070,7 @@ static avm_codec_err_t encoder_set_config(avm_codec_alg_priv_t *ctx,
   int force_key = 0;
 
   if (cfg->g_w != ctx->cfg.g_w || cfg->g_h != ctx->cfg.g_h) {
-    if (cfg->g_lag_in_frames > 1)
+    if (cfg->g_lag_in_frames > 1 || cfg->g_pass != AVM_RC_ONE_PASS)
       ERROR("Cannot change width or height after initialization");
     if (!valid_ref_frame_size(ctx->cfg.g_w, ctx->cfg.g_h, cfg->g_w, cfg->g_h) ||
         (initial_dimensions->width &&
@@ -3129,8 +3160,9 @@ static avm_codec_err_t encoder_init(avm_codec_ctx_t *ctx) {
           (int64_t)priv->cfg.g_timebase.num * TICKS_PER_SEC;
       reduce_ratio(&priv->timestamp_ratio);
       set_encoder_config(&priv->oxcf, &priv->cfg, &priv->extra_cfg, 0);
-      if (priv->oxcf.rc_cfg.mode != AVM_CBR && priv->oxcf.mode == GOOD) {
-        // Enable look ahead - enabled for AVM_Q, AVM_CQ, AVM_VBR
+      if (priv->oxcf.rc_cfg.mode != AVM_CBR && priv->oxcf.pass == 0 &&
+          priv->oxcf.mode == GOOD) {
+        // Enable look ahead - enabled for AVM_Q, AVM_CQ, AVM_VBR in 1-pass
         *num_lap_buffers = priv->cfg.g_lag_in_frames;
         *num_lap_buffers =
             clamp(*num_lap_buffers, 0,
@@ -3473,7 +3505,8 @@ static avm_codec_err_t encoder_encode(avm_codec_alg_priv_t *ctx,
 
   if (cpi == NULL) return AVM_CODEC_INVALID_PARAM;
 
-  if (cpi->lap_enabled && cpi_lap == NULL) return AVM_CODEC_INVALID_PARAM;
+  if (cpi->lap_enabled && cpi_lap == NULL && cpi->oxcf.pass == 0)
+    return AVM_CODEC_INVALID_PARAM;
 
   if (img != NULL) {
     res = validate_img(ctx, img);
@@ -3669,7 +3702,10 @@ static avm_codec_err_t encoder_encode(avm_codec_alg_priv_t *ctx,
     int has_no_show_keyframe = 0;
     int num_workers = 0;
 
-    num_workers = av2_compute_num_enc_workers(cpi, cpi->oxcf.max_threads);
+    if (cpi->oxcf.pass == 1)
+      num_workers = av2_fp_compute_num_enc_workers(cpi);
+    else
+      num_workers = av2_compute_num_enc_workers(cpi, cpi->oxcf.max_threads);
     if ((num_workers > 1) && (cpi->mt_info.num_workers == 0))
       av2_create_workers(cpi, num_workers);
 
@@ -5066,6 +5102,7 @@ static const avm_codec_enc_cfg_t encoder_usage_cfg[] = {
       SCALE_NUMERATOR,  // rc_resize_kf_denominator
 
       AVM_VBR,      // rc_end_usage
+      { NULL, 0 },  // rc_twopass_stats_in
       { NULL, 0 },  // rc_firstpass_mb_stats_in
       256,          // rc_target_bandwidth
       0,            // rc_min_quantizer
@@ -5077,6 +5114,7 @@ static const avm_codec_enc_cfg_t encoder_usage_cfg[] = {
       4000,  // rc_buffer_initial_size
       5000,  // rc_buffer_optimal_size
 
+      50,    // rc_two_pass_vbrbias
       0,     // rc_two_pass_vbrmin_section
       2000,  // rc_two_pass_vbrmax_section
 
@@ -5202,6 +5240,7 @@ static const avm_codec_enc_cfg_t encoder_usage_cfg[] = {
       SCALE_NUMERATOR,  // rc_resize_kf_denominator
 
       AVM_CBR,      // rc_end_usage
+      { NULL, 0 },  // rc_twopass_stats_in
       { NULL, 0 },  // rc_firstpass_mb_stats_in
       256,          // rc_target_bandwidth
       0,            // rc_min_quantizer
@@ -5213,6 +5252,7 @@ static const avm_codec_enc_cfg_t encoder_usage_cfg[] = {
       600,   // rc_buffer_initial_size
       600,   // rc_buffer_optimal_size
 
+      50,    // rc_two_pass_vbrbias
       0,     // rc_two_pass_vbrmin_section
       2000,  // rc_two_pass_vbrmax_section
 

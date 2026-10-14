@@ -33,6 +33,7 @@ void Encoder::InitEncoder(VideoSource *video) {
     cfg_.g_w = img->d_w;
     cfg_.g_h = img->d_h;
     cfg_.g_timebase = video->timebase();
+    cfg_.rc_twopass_stats_in = stats_->buf();
 
     res = avm_codec_enc_init(&encoder_, CodecInterface(), &cfg_, init_flags_);
     ASSERT_EQ(AVM_CODEC_OK, res) << EncoderError();
@@ -44,6 +45,15 @@ void Encoder::EncodeFrame(VideoSource *video, const unsigned long frame_flags) {
     EncodeFrameInternal(*video, frame_flags);
   else
     Flush();
+
+  // Handle twopass stats
+  CxDataIterator iter = GetCxData();
+
+  while (const avm_codec_cx_pkt_t *pkt = iter.Next()) {
+    if (pkt->kind != AVM_CODEC_STATS_PKT) continue;
+
+    stats_->Append(*pkt);
+  }
 }
 
 void Encoder::EncodeFrameInternal(const VideoSource &video,
@@ -81,11 +91,15 @@ void EncoderTest::InitializeConfig() {
 
 void EncoderTest::SetMode(TestMode mode) {
   switch (mode) {
-    case kOnePassGood: break;
+    case kOnePassGood:
+    case kTwoPassGood: break;
     default: ASSERT_TRUE(false) << "Unexpected mode " << mode;
   }
   mode_ = mode;
-  passes_ = 1;
+  if (mode == kTwoPassGood)
+    passes_ = 2;
+  else
+    passes_ = 1;
 }
 
 static bool compare_plane(const uint8_t *const _buf1, int stride1,
@@ -166,7 +180,9 @@ void EncoderTest::MismatchHook(const avm_image_t *img_enc,
 void EncoderTest::RunLoop(VideoSource *video) {
   avm_codec_dec_cfg_t dec_cfg = avm_codec_dec_cfg_t();
 
-  ASSERT_EQ(1, (int)passes_);
+  stats_.Reset();
+
+  ASSERT_TRUE(passes_ == 1 || passes_ == 2);
   for (unsigned int pass = 0; pass < passes_; pass++) {
     avm_codec_pts_t last_pts = 0;
 
@@ -178,7 +194,8 @@ void EncoderTest::RunLoop(VideoSource *video) {
       cfg_.g_pass = AVM_RC_LAST_PASS;
 
     BeginPassHook(pass);
-    std::unique_ptr<Encoder> encoder(codec_->CreateEncoder(cfg_, init_flags_));
+    std::unique_ptr<Encoder> encoder(
+        codec_->CreateEncoder(cfg_, init_flags_, &stats_));
     ASSERT_TRUE(encoder.get() != NULL);
 
     ASSERT_NO_FATAL_FAILURE(video->Begin());
@@ -248,6 +265,8 @@ void EncoderTest::RunLoop(VideoSource *video) {
               break;
 
             case AVM_CODEC_PSNR_PKT: PSNRPktHook(pkt); break;
+
+            case AVM_CODEC_STATS_PKT: StatsPktHook(pkt); break;
 
             default: break;
           }

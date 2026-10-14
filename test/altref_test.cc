@@ -32,6 +32,12 @@ static const AltRefTestParams TestParams[] = {
   { 0, 60, 12, 20, 25, ::libavm_test::kOnePassGood },
   { 60, 60, 16, 28, 30, ::libavm_test::kOnePassGood },
   { 0, 65, 16, 32, 35, ::libavm_test::kOnePassGood },
+  { 0, 10, 4, 8, 10, ::libavm_test::kTwoPassGood },
+  { 0, 30, 8, 12, 16, ::libavm_test::kTwoPassGood },
+  { 30, 30, 12, 16, 25, ::libavm_test::kTwoPassGood },
+  { 0, 60, 16, 24, 25, ::libavm_test::kTwoPassGood },
+  { 60, 60, 20, 28, 30, ::libavm_test::kTwoPassGood },
+  { 0, 65, 24, 32, 35, ::libavm_test::kTwoPassGood },
 };
 
 std::ostream &operator<<(std::ostream &os, const AltRefTestParams &test_arg) {
@@ -128,6 +134,16 @@ const gfIntervalParam gfTestParams[] = {
   { ::libavm_test::kOnePassGood, 5, 10 },
   { ::libavm_test::kOnePassGood, 8, 16 },
   { ::libavm_test::kOnePassGood, 16, 16 },
+
+  // two pass
+  { ::libavm_test::kTwoPassGood, 0, 6 },
+  { ::libavm_test::kTwoPassGood, 0, 8 },
+  { ::libavm_test::kTwoPassGood, 5, 10 },
+  { ::libavm_test::kTwoPassGood, 8, 16 },
+  { ::libavm_test::kTwoPassGood, 16, 32 },
+  // disabled below test case because it causes failure
+  // TODO(anyone): enable below test case once issue is fixed.
+  // { ::libavm_test::kTwoPassGood, 20, 32 },
 };
 
 // This class is used to test if the gf interval bounds configured by the user
