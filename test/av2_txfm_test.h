@@ -19,6 +19,8 @@
 #define _USE_MATH_DEFINES
 #endif
 #include <math.h>
+#include <string>
+#include <tuple>
 
 #include "config/av2_rtcd.h"
 
@@ -30,6 +32,16 @@
 #include "av2/common/enums.h"
 
 namespace libavm_test {
+// Bit depths exercised by the transform tests. Passed as a gtest parameter so
+// each depth is an independent case and a failure at one does not mask others.
+static const int kTestBd[] = { 8, 10, 12 };
+
+// Names cases "bd12" rather than "2".
+template <typename ParamType>
+std::string BdParamName(const ::testing::TestParamInfo<ParamType> &info) {
+  return "bd" + std::to_string(std::get<1>(info.param));
+}
+
 static INLINE bool IsTxSizeTypeValid(TX_SIZE tx_size,
                                      PRIMARY_TX_TYPE primary_tx_type) {
   const TX_SIZE tx_size_sqr_up = txsize_sqr_up_map[tx_size];
