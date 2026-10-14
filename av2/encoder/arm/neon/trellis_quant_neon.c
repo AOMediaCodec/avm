@@ -14,6 +14,8 @@
 #include <assert.h>
 #include <string.h>
 
+#include "config/avm_config.h"
+
 #include "avm/avm_integer.h"
 #include "avm_dsp/arm/mem_neon.h"
 #include "av2/common/av2_common_int.h"
@@ -178,27 +180,6 @@ static AVM_FORCE_INLINE void node_general(int64_t costA, int64_t costB,
   }
 }
 
-static AVM_FORCE_INLINE void node_q1(int64_t costB, int64_t cost_zero,
-                                     int32_t rateB, int32_t rate_zero,
-                                     int32_t absB, int32_t prev_rate, int pid,
-                                     tcq_node_t *d0, tcq_node_t *d1) {
-  assert(tcq_parity(absB) == 1);
-  rateB += prev_rate;
-  rate_zero += prev_rate;
-  if (cost_zero < d0->rdCost + 1) {
-    d0->rdCost = cost_zero;
-    d0->rate = rate_zero;
-    d0->prevId = pid;
-    d0->absLevel = 0;
-  }
-  if (costB < d1->rdCost) {
-    d1->rdCost = costB;
-    d1->rate = rateB;
-    d1->prevId = pid;
-    d1->absLevel = absB;
-  }
-}
-
 static AVM_FORCE_INLINE void init_decision_8(tcq_node_t *decision) {
   static const tcq_node_t def = { INT64_MAX >> 10, 0, -1, -2 };
   uint8x16_t def_vec = vld1q_u8((const uint8_t *)&def);
@@ -298,75 +279,110 @@ static AVM_FORCE_INLINE void decide_states_neon_impl(
   }
 }
 
+static AVM_FORCE_INLINE int64x2_t rdcost_q1_neon(uint32x2_t rate,
+                                                 uint32x2_t rdm,
+                                                 int64x2_t dist_shifted) {
+  int64x2_t product = vreinterpretq_s64_u64(vmull_u32(rate, rdm));
+  return vrsraq_n_s64(dist_shifted, product, AV2_PROB_COST_SHIFT);
+}
+
+// Full NEON output path: rdcost compute, comparison, info packing, and store
+// all stay in NEON registers. On armv7 the 64-bit comparison uses saturating
+// subtract + arithmetic shift in place of vcgtq_s64. pq->deltaDist[] must
+// already be scaled by (1 << RDDIV_BITS), as produced by pre_quant_q1_neon().
 static AVM_FORCE_INLINE void decide_states_q1_neon_impl(
     const tcq_node_t *prev, const tcq_rate_t *rd, const prequant_t *pq,
-    int try_eob, int64_t rdmult, uint32x2_t v_rdm, uint64x2_t v_rnd,
-    tcq_node_t *decision) {
+    int try_eob, int64_t rdmult, uint32x2_t v_rdm, tcq_node_t *decision) {
+  static_assert(sizeof(tcq_node_t) == 16, "");
   assert((rdmult >> 32) == 0);
   const int32_t *rate = rd->rate;
-  const int32_t *rz = rd->rate_zero;
-  const int32_t *re = rd->rate_eob;
-  init_decision_8(decision);
+  const int32_t *rate_zero = rd->rate_zero;
 
-  int64_t d1s = pq->deltaDist[1];
-  int64_t d2s = pq->deltaDist[2];
+  const int64x2_t v_dist1 = vdupq_n_s64(pq->deltaDist[1]);
+  const int64x2_t v_dist2 = vdupq_n_s64(pq->deltaDist[2]);
+  const int64x2_t v_zero = vdupq_n_s64(0);
 
-  int64_t rc[16];
-  int64_t rcz[8];
-  for (int i = 0; i < 8; i += 2) {
-    uint32x2_t r_zr = vld1_u32((const uint32_t *)&rz[i]);
-    int64x2_t c_zr = vreinterpretq_s64_u64(vshrq_n_u64(
-        vaddq_u64(vmull_u32(r_zr, v_rdm), v_rnd), AV2_PROB_COST_SHIFT));
-    int64x2_t prd = vcombine_s64(vcreate_s64(prev[i].rdCost),
-                                 vcreate_s64(prev[i + 1].rdCost));
-    c_zr = vaddq_s64(c_zr, prd);
-    rcz[i] = vgetq_lane_s64(c_zr, 0);
-    rcz[i + 1] = vgetq_lane_s64(c_zr, 1);
+  DECLARE_ALIGNED(32, static const uint64_t, kPidInfo[16]) = {
+    0,
+    1ULL << 56,
+    (1ULL << 32),
+    (1ULL << 32) | (1ULL << 56),
+    (2ULL << 56),
+    (3ULL << 56),
+    (1ULL << 32) | (2ULL << 56),
+    (1ULL << 32) | (3ULL << 56),
+    (4ULL << 56),
+    (5ULL << 56),
+    (1ULL << 32) | (4ULL << 56),
+    (1ULL << 32) | (5ULL << 56),
+    (6ULL << 56),
+    (7ULL << 56),
+    (1ULL << 32) | (6ULL << 56),
+    (1ULL << 32) | (7ULL << 56),
+  };
 
-    int a0 = (i & 2) ? 1 : 0;
-    int ri0, ri1;
-    int64_t dist;
-    if (a0 == 1) {
-      ri0 = 2 * i;
-      ri1 = 2 * (i + 1);
-      dist = d1s;
-    } else {
-      ri0 = 2 * i + 1;
-      ri1 = 2 * (i + 1) + 1;
-      dist = d2s;
-    }
-    uint32x2_t r_nz = vcreate_u32((uint32_t)rate[ri0] |
-                                  ((uint64_t)(uint32_t)rate[ri1] << 32));
-    int64x2_t c_nz = vreinterpretq_s64_u64(vshrq_n_u64(
-        vaddq_u64(vmull_u32(r_nz, v_rdm), v_rnd), AV2_PROB_COST_SHIFT));
-    c_nz = vaddq_s64(c_nz, vdupq_n_s64(dist));
-    c_nz = vaddq_s64(c_nz, prd);
-    rc[ri0] = vgetq_lane_s64(c_nz, 0);
-    rc[ri1] = vgetq_lane_s64(c_nz, 1);
+  static const int kDstA[4] = { 0, 1, 6, 7 };
+  static const int kDstB[4] = { 4, 5, 2, 3 };
+
+  for (int p = 0; p < 4; p++) {
+    const int i = p * 2;
+    const int q = p & 1;
+    const int da = kDstA[p];
+    const int db = kDstB[p];
+    const int64x2_t dist_v = q ? v_dist1 : v_dist2;
+
+    uint64x2_t pid = vld1q_u64(&kPidInfo[p * 4]);
+    uint64x2_t abs_pid = vld1q_u64(&kPidInfo[p * 4 + 2]);
+
+    int64x2_t n0 = vld1q_s64((const int64_t *)&prev[i]);
+    int64x2_t n1 = vld1q_s64((const int64_t *)&prev[i + 1]);
+    int64x2_t prev_rd = vcombine_s64(vget_low_s64(n0), vget_low_s64(n1));
+    int64x2_t prev_info = vcombine_s64(vget_high_s64(n0), vget_high_s64(n1));
+    int32x2_t prev_rate = vmovn_s64(prev_info);
+
+    uint32x2_t rz = vreinterpret_u32_s32(vld1_s32(&rate_zero[i]));
+    int64x2_t rdc_z = vaddq_s64(rdcost_q1_neon(rz, v_rdm, v_zero), prev_rd);
+
+    int32x4_t r4 = vld1q_s32(&rate[2 * i]);
+    int32x2_t lo = vget_low_s32(r4);
+    int32x2_t hi = vget_high_s32(r4);
+    int32x2x2_t uzp = vuzp_s32(lo, hi);
+    int32x2_t r_odd_s = q ? uzp.val[0] : uzp.val[1];
+    uint32x2_t r_odd = vreinterpret_u32_s32(r_odd_s);
+    int64x2_t rdc_o = vaddq_s64(rdcost_q1_neon(r_odd, v_rdm, dist_v), prev_rd);
+
+    int64x2_t rdc_o_x = vextq_s64(rdc_o, rdc_o, 1);
+#if AVM_ARCH_AARCH64
+    uint64x2_t mask = vcgtq_s64(rdc_z, rdc_o_x);
+#else
+    int64x2_t diff = vqsubq_s64(rdc_o_x, rdc_z);
+    uint64x2_t mask = vreinterpretq_u64_s64(vshrq_n_s64(diff, 63));
+#endif
+
+    int64x2_t win_rd = vreinterpretq_s64_u64(vbslq_u64(
+        mask, vreinterpretq_u64_s64(rdc_o_x), vreinterpretq_u64_s64(rdc_z)));
+
+    int32x2_t rz_sum = vadd_s32(vreinterpret_s32_u32(rz), prev_rate);
+    int32x2_t ro_sum = vadd_s32(r_odd_s, prev_rate);
+
+    uint64x2_t info_z = vaddw_u32(pid, vreinterpret_u32_s32(rz_sum));
+    uint64x2_t info_o = vaddw_u32(abs_pid, vreinterpret_u32_s32(ro_sum));
+
+    uint64x2_t info_o_x = vextq_u64(info_o, info_o, 1);
+    uint64x2_t win_info = vbslq_u64(mask, info_o_x, info_z);
+
+    int64x2_t wi = vreinterpretq_s64_u64(win_info);
+    vst1q_s64((int64_t *)&decision[da],
+              vcombine_s64(vget_low_s64(win_rd), vget_low_s64(wi)));
+    vst1q_s64((int64_t *)&decision[db],
+              vcombine_s64(vget_high_s64(win_rd), vget_high_s64(wi)));
   }
 
-  node_q1(rc[1], rcz[0], rate[1], rz[0], pq->absLevel[2], prev[0].rate, 0,
-          &decision[0], &decision[4]);
-  node_q1(rc[3], rcz[1], rate[3], rz[1], pq->absLevel[2], prev[1].rate, 1,
-          &decision[4], &decision[0]);
-  node_q1(rc[4], rcz[2], rate[4], rz[2], pq->absLevel[1], prev[2].rate, 2,
-          &decision[1], &decision[5]);
-  node_q1(rc[6], rcz[3], rate[6], rz[3], pq->absLevel[1], prev[3].rate, 3,
-          &decision[5], &decision[1]);
-  node_q1(rc[9], rcz[4], rate[9], rz[4], pq->absLevel[2], prev[4].rate, 4,
-          &decision[6], &decision[2]);
-  node_q1(rc[11], rcz[5], rate[11], rz[5], pq->absLevel[2], prev[5].rate, 5,
-          &decision[2], &decision[6]);
-  node_q1(rc[12], rcz[6], rate[12], rz[6], pq->absLevel[1], prev[6].rate, 6,
-          &decision[7], &decision[3]);
-  node_q1(rc[14], rcz[7], rate[14], rz[7], pq->absLevel[1], prev[7].rate, 7,
-          &decision[3], &decision[7]);
-
   if (try_eob) {
-    int64_t re1 = rdcost1(rdmult, re[1]) + pq->deltaDist[2];
+    int64_t re1 = rdcost1(rdmult, rd->rate_eob[1]) + pq->deltaDist[2];
     if (re1 < decision[4].rdCost) {
       decision[4].rdCost = re1;
-      decision[4].rate = re[1];
+      decision[4].rate = rd->rate_eob[1];
       decision[4].prevId = -1;
       decision[4].absLevel = pq->absLevel[2];
     }
@@ -960,7 +976,7 @@ void av2_trellis_loop_diagonal_st8_neon(const struct tcq_param_t *p,
         get_rate_dist_def_luma_q1_neon_impl(p, &coeff_ctx, diag_ctx, eob_rate,
                                             try_eob, &rd);
         decide_states_q1_neon_impl(prev_decision, &rd, &pq_data, try_eob,
-                                   rdmult, v_rdm, v_rnd, decision);
+                                   rdmult, v_rdm, decision);
       } else {
         pre_quant_neon(tcoeff[blk_pos], &pq_data, temp_dqv, log_scale);
         get_rate_dist_def_luma_neon_impl(p, &pq_data, &coeff_ctx, diag_ctx,
@@ -1015,7 +1031,7 @@ void av2_trellis_loop_diagonal_st8_neon(const struct tcq_param_t *p,
                                            eob_rate, dc_coeff_sign, try_eob,
                                            &rd);
         decide_states_q1_neon_impl(prev_decision, &rd, &pq_data, try_eob,
-                                   rdmult, v_rdm, v_rnd, decision);
+                                   rdmult, v_rdm, decision);
       } else {
         pre_quant_neon(tcoeff[blk_pos], &pq_data, temp_dqv, log_scale);
         get_rate_dist_lf_luma_neon_impl(p, &pq_data, &coeff_ctx, blk_pos,
@@ -1035,113 +1051,16 @@ void av2_trellis_loop_diagonal_st8_neon(const struct tcq_param_t *p,
   }
 }
 
-// ---- decide_states_q1 (RTCD-dispatched, non-diagonal path) ------------------
-// Full NEON output path: rdcost compute, comparison, info packing, and store
-// all stay in NEON registers. Uses saturating subtract + arithmetic shift for
-// 64-bit comparison (armv7-safe alternative to vcgtq_s64).
-
-static AVM_FORCE_INLINE int64x2_t rdcost_q1_neon(uint32x2_t rate,
-                                                 uint32x2_t rdm,
-                                                 int64x2_t dist_shifted) {
-  int64x2_t product = vreinterpretq_s64_u64(vmull_u32(rate, rdm));
-  return vrsraq_n_s64(dist_shifted, product, AV2_PROB_COST_SHIFT);
-}
-
 void av2_decide_states_q1_neon(const struct tcq_node_t *prev,
                                const struct tcq_rate_t *rd,
                                const struct prequant_t *pq, int limits,
                                int try_eob, int64_t rdmult,
                                struct tcq_node_t *decision) {
   (void)limits;
-  static_assert(sizeof(tcq_node_t) == 16, "");
-  assert((rdmult >> 32) == 0);
-  const int32_t *rate = rd->rate;
-  const int32_t *rate_zero = rd->rate_zero;
-
-  const uint32x2_t v_rdm = vdup_n_u32((uint32_t)rdmult);
-  const int64x2_t v_dist1 = vdupq_n_s64(pq->deltaDist[1] * (1 << RDDIV_BITS));
-  const int64x2_t v_dist2 = vdupq_n_s64(pq->deltaDist[2] * (1 << RDDIV_BITS));
-  const int64x2_t v_zero = vdupq_n_s64(0);
-
-  static const uint64_t kPidInfo[16] __attribute__((aligned(32))) = {
-    0,
-    1ULL << 56,
-    (1ULL << 32),
-    (1ULL << 32) | (1ULL << 56),
-    (2ULL << 56),
-    (3ULL << 56),
-    (1ULL << 32) | (2ULL << 56),
-    (1ULL << 32) | (3ULL << 56),
-    (4ULL << 56),
-    (5ULL << 56),
-    (1ULL << 32) | (4ULL << 56),
-    (1ULL << 32) | (5ULL << 56),
-    (6ULL << 56),
-    (7ULL << 56),
-    (1ULL << 32) | (6ULL << 56),
-    (1ULL << 32) | (7ULL << 56),
-  };
-
-  static const int kDstA[4] = { 0, 1, 6, 7 };
-  static const int kDstB[4] = { 4, 5, 2, 3 };
-
-  for (int p = 0; p < 4; p++) {
-    const int i = p * 2;
-    const int q = p & 1;
-    const int da = kDstA[p];
-    const int db = kDstB[p];
-    const int64x2_t dist_v = q ? v_dist1 : v_dist2;
-
-    uint64x2_t pid = vld1q_u64(&kPidInfo[p * 4]);
-    uint64x2_t abs_pid = vld1q_u64(&kPidInfo[p * 4 + 2]);
-
-    int64x2_t n0 = vld1q_s64((const int64_t *)&prev[i]);
-    int64x2_t n1 = vld1q_s64((const int64_t *)&prev[i + 1]);
-    int64x2_t prev_rd = vcombine_s64(vget_low_s64(n0), vget_low_s64(n1));
-    int64x2_t prev_info = vcombine_s64(vget_high_s64(n0), vget_high_s64(n1));
-    int32x2_t prev_rate = vmovn_s64(prev_info);
-
-    uint32x2_t rz = vreinterpret_u32_s32(vld1_s32(&rate_zero[i]));
-    int64x2_t rdc_z = vaddq_s64(rdcost_q1_neon(rz, v_rdm, v_zero), prev_rd);
-
-    int32x4_t r4 = vld1q_s32(&rate[2 * i]);
-    int32x2_t lo = vget_low_s32(r4);
-    int32x2_t hi = vget_high_s32(r4);
-    int32x2x2_t uzp = vuzp_s32(lo, hi);
-    int32x2_t r_odd_s = q ? uzp.val[0] : uzp.val[1];
-    uint32x2_t r_odd = vreinterpret_u32_s32(r_odd_s);
-    int64x2_t rdc_o = vaddq_s64(rdcost_q1_neon(r_odd, v_rdm, dist_v), prev_rd);
-
-    int64x2_t rdc_o_x = vextq_s64(rdc_o, rdc_o, 1);
-    int64x2_t diff = vqsubq_s64(rdc_o_x, rdc_z);
-    uint64x2_t mask = vreinterpretq_u64_s64(vshrq_n_s64(diff, 63));
-
-    int64x2_t win_rd = vreinterpretq_s64_u64(vbslq_u64(
-        mask, vreinterpretq_u64_s64(rdc_o_x), vreinterpretq_u64_s64(rdc_z)));
-
-    int32x2_t rz_sum = vadd_s32(vreinterpret_s32_u32(rz), prev_rate);
-    int32x2_t ro_sum = vadd_s32(r_odd_s, prev_rate);
-
-    uint64x2_t info_z = vaddw_u32(pid, vreinterpret_u32_s32(rz_sum));
-    uint64x2_t info_o = vaddw_u32(abs_pid, vreinterpret_u32_s32(ro_sum));
-
-    uint64x2_t info_o_x = vextq_u64(info_o, info_o, 1);
-    uint64x2_t win_info = vbslq_u64(mask, info_o_x, info_z);
-
-    int64x2_t wi = vreinterpretq_s64_u64(win_info);
-    vst1q_s64((int64_t *)&decision[da],
-              vcombine_s64(vget_low_s64(win_rd), vget_low_s64(wi)));
-    vst1q_s64((int64_t *)&decision[db],
-              vcombine_s64(vget_high_s64(win_rd), vget_high_s64(wi)));
-  }
-
-  if (try_eob) {
-    int64_t rdcost_eob1 = RDCOST(rdmult, rd->rate_eob[1], pq->deltaDist[2]);
-    if (rdcost_eob1 < decision[4].rdCost) {
-      decision[4].rdCost = rdcost_eob1;
-      decision[4].rate = rd->rate_eob[1];
-      decision[4].prevId = -1;
-      decision[4].absLevel = pq->absLevel[2];
-    }
-  }
+  // The impl takes deltaDist pre-scaled by RDDIV_BITS (see pre_quant_q1_neon).
+  prequant_t pq_scaled = *pq;
+  pq_scaled.deltaDist[1] *= (1 << RDDIV_BITS);
+  pq_scaled.deltaDist[2] *= (1 << RDDIV_BITS);
+  decide_states_q1_neon_impl(prev, rd, &pq_scaled, try_eob, rdmult,
+                             vdup_n_u32((uint32_t)rdmult), decision);
 }
