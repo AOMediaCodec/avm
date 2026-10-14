@@ -264,7 +264,7 @@ if(NOT BUILD_SHARED_LIBS)
          "${AVM_ROOT}/test/intra_edge_test.cc")
   endif()
 
-  if(HAVE_SSE4_2)
+  if(HAVE_SSE4_2 OR HAVE_NEON)
     list(APPEND AVM_UNIT_TEST_ENCODER_SOURCES "${AVM_ROOT}/test/hash_test.cc")
   endif()
 
