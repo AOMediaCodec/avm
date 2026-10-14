@@ -994,6 +994,15 @@ typedef struct INTRA_MODE_SPEED_FEATURES {
   // True: Reuse UV mode RD info.
   bool reuse_uv_mode_rd_info;
 
+  // Rank the chroma intra modes (CFL, MHCCP and the UV mode list) without the
+  // cross-chroma-component transform (CCTX) search, i.e. with CCTX_NONE for all
+  // transform blocks, then re-evaluate only the winning mode with the CCTX
+  // search. Not applied when the CCTX search is already skipped (dry pass),
+  // when CCTX is not allowed, or for lossless blocks.
+  // False: Full CCTX search for every chroma mode candidate
+  // True: CCTX search only for the winning chroma mode
+  bool uv_mode_rank_skip_cctx;
+
   // Use model RD cost of DIP modes to build top N model RD cost table for
   // better pruning. This logic is applied to mixed inter intra regions.
   // False: Do not use model RD cost of DIP modes

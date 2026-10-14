@@ -658,6 +658,17 @@ int64_t av2_rd_pick_intra_sbuv_mode(const AV2_COMP *const cpi, MACROBLOCK *x,
   const MB_MODE_INFO *const cached_mode = get_reusable_intra_mode_cache(x);
   const bool reuse_cached_uv =
       cached_mode != NULL && xd->tree_type == SHARED_PART;
+  // Rank the modes with CCTX_NONE only and run the CCTX search for the winner
+  // alone. Not needed when the CCTX search is already skipped in the dry pass
+  // or when CCTX is not applicable.
+  const bool rank_without_cctx =
+      cpi->sf.intra_sf.uv_mode_rank_skip_cctx &&
+      !xd->lossless[mbmi->segment_id] && is_cctx_allowed(cm, xd) &&
+      !(x->apply_dry_pass_shortcuts && cpi->sf.tx_sf.disable_cctx_dry_pass);
+  // True if the RD stats of 'best_mbmi' were obtained with the CCTX search.
+  bool best_has_cctx_search = !rank_without_cctx;
+  // Mode cost (excluding the token rate) of 'best_mbmi'.
+  int best_mode_cost = 0;
   for (int dpcm_uv_index = 0; dpcm_uv_index < dpcm_uv_loop_num;
        ++dpcm_uv_index) {
     mbmi->use_dpcm_uv = dpcm_uv_index;
@@ -673,6 +684,8 @@ int64_t av2_rd_pick_intra_sbuv_mode(const AV2_COMP *const cpi, MACROBLOCK *x,
         if (best_uv_mode_idx == -1) continue;
         mode_idx = best_uv_mode_idx;
       }
+      // The re-evaluation of the best mode always includes the CCTX search.
+      x->skip_cctx_search = rank_without_cctx && !is_reevaluation;
       if (!xd->lossless[mbmi->segment_id] && dpcm_uv_index > 0) {
         continue;
       }
@@ -818,6 +831,8 @@ int64_t av2_rd_pick_intra_sbuv_mode(const AV2_COMP *const cpi, MACROBLOCK *x,
         // map across the chroma modes.
         av2_copy_array(tmp_cctx_type_map, xd->cctx_type_map,
                        ctx->num_4x4_blk_chroma);
+        best_mode_cost = mode_cost;
+        best_has_cctx_search = !x->skip_cctx_search;
         best_rd = this_rd;
         *rate = this_rate;
         *rate_tokenonly = tokenonly_rd_stats.rate;
@@ -827,6 +842,24 @@ int64_t av2_rd_pick_intra_sbuv_mode(const AV2_COMP *const cpi, MACROBLOCK *x,
       // Break the loop so that no further modes are evaluated after the best
       // mode reevaulation.
       if (is_reevaluation) break;
+    }
+  }
+  x->skip_cctx_search = false;
+
+  if (!best_has_cctx_search && best_rd < INT64_MAX) {
+    // Run the CCTX search for the winning mode. If it fails to produce a valid
+    // result, keep the CCTX_NONE result and its (all CCTX_NONE) cctx map.
+    *mbmi = best_mbmi;
+    RD_STATS cctx_rd_stats;
+    if (av2_txfm_uvrd(cpi, x, &cctx_rd_stats, INT64_MAX)) {
+      const int this_rate = cctx_rd_stats.rate + best_mode_cost;
+      best_rd = RDCOST(x->rdmult, this_rate, cctx_rd_stats.dist);
+      av2_copy_array(tmp_cctx_type_map, xd->cctx_type_map,
+                     ctx->num_4x4_blk_chroma);
+      *rate = this_rate;
+      *rate_tokenonly = cctx_rd_stats.rate;
+      *distortion = cctx_rd_stats.dist;
+      *skippable = cctx_rd_stats.skip_txfm;
     }
   }
 
