@@ -1558,9 +1558,8 @@ AV2_COMP *av2_create_compressor(AV2EncoderConfig *oxcf, BufferPool *const pool,
   CommonModeInfoParams *const mi_params = &cm->mi_params;
   mi_params->free_mi = enc_free_mi;
   mi_params->setup_mi = enc_setup_mi;
-  mi_params->set_mb_mi = (cpi->compressor_stage == LAP_STAGE)
-                             ? stat_stage_set_mb_mi
-                             : enc_set_mb_mi;
+  mi_params->set_mb_mi =
+      is_stat_generation_stage(cpi) ? stat_stage_set_mb_mi : enc_set_mb_mi;
 
   mi_params->mi_alloc_bsize = BLOCK_4X4;
   cm->frame_filter_dictionary_stride = 0;
@@ -1674,7 +1673,19 @@ AV2_COMP *av2_create_compressor(AV2EncoderConfig *oxcf, BufferPool *const pool,
   cpi->twopass.stats_in = cpi->twopass.stats_buf_ctx->stats_in_start;
 
   if (is_stat_consumption_stage(cpi)) {
-    av2_init_single_pass_lap(cpi);
+    if (!cpi->lap_enabled) {
+      // Prepare first pass file.
+      const size_t packet_sz = sizeof(FIRSTPASS_STATS);
+      const int packets = (int)(oxcf->twopass_stats_in.sz / packet_sz);
+
+      cpi->twopass.stats_buf_ctx->stats_in_start = oxcf->twopass_stats_in.buf;
+      cpi->twopass.stats_in = cpi->twopass.stats_buf_ctx->stats_in_start;
+      cpi->twopass.stats_buf_ctx->stats_in_end =
+          &cpi->twopass.stats_buf_ctx->stats_in_start[packets - 1];
+      av2_init_second_pass(cpi);
+    } else {
+      av2_init_single_pass_lap(cpi);
+    }
   }
 
   int sb_mi_size = av2_get_sb_mi_size(cm);
@@ -5403,7 +5414,7 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
   }
   if (is_stat_generation_stage(cpi)) {
     av2_first_pass(cpi, frame_input->ts_duration);
-  } else {
+  } else if (cpi->oxcf.pass == 0 || cpi->oxcf.pass == 2) {
 #if CONFIG_BITSTREAM_DEBUG
     assert(cpi->oxcf.max_threads <= 1 &&
            "bitstream debug tool does not support multithreading");

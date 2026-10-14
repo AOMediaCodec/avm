@@ -215,7 +215,8 @@ list(
   "${AVM_ROOT}/examples/encoder_util.h"
   "${AVM_ROOT}/examples/encoder_util.c")
 
-list(APPEND AVM_ENCODER_STATS_SOURCES "${AVM_ROOT}/stats/rate_hist.c"
+list(APPEND AVM_ENCODER_STATS_SOURCES "${AVM_ROOT}/stats/avmstats.c"
+     "${AVM_ROOT}/stats/avmstats.h" "${AVM_ROOT}/stats/rate_hist.c"
      "${AVM_ROOT}/stats/rate_hist.h")
 
 list(APPEND AVM_VERSION_SOURCES "${AVM_CONFIG_DIR}/config/avm_version.h")

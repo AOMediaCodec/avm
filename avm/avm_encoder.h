@@ -892,6 +892,13 @@ typedef struct avm_codec_enc_cfg {
    */
   enum avm_rc_mode rc_end_usage;
 
+  /*!\brief Two-pass stats buffer.
+   *
+   * A buffer containing all of the stats packets produced in the first
+   * pass, concatenated.
+   */
+  avm_fixed_buf_t rc_twopass_stats_in;
+
   /*!\brief first pass mb stats buffer.
    *
    * A buffer containing all of the first pass mb stats packets produced
@@ -987,6 +994,16 @@ typedef struct avm_codec_enc_cfg {
   /*
    * 2 pass rate control parameters
    */
+
+  /*!\brief Two-pass mode CBR/VBR bias
+   *
+   * Bias, expressed on a scale of 0 to 100, for determining target size
+   * for the current frame. The value 0 indicates the optimal CBR mode
+   * value should be used. The value 100 indicates the optimal VBR mode
+   * value should be used. Values in between indicate which way the
+   * encoder should "lean."
+   */
+  unsigned int rc_2pass_vbr_bias_pct;
 
   /*!\brief Two-pass mode per-GOP minimum bitrate
    *

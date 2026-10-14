@@ -47,6 +47,7 @@
 
 #include "common/y4minput.h"
 #include "examples/encoder_util.h"
+#include "stats/avmstats.h"
 #include "stats/rate_hist.h"
 
 #if CONFIG_LIBYUV
@@ -208,6 +209,7 @@ const arg_def_t *rc_args[] = { &g_av2_codec_arg_defs.dropframe_thresh,
                                &g_av2_codec_arg_defs.buf_sz,
                                &g_av2_codec_arg_defs.buf_initial_sz,
                                &g_av2_codec_arg_defs.buf_optimal_sz,
+                               &g_av2_codec_arg_defs.bias_pct,
                                &g_av2_codec_arg_defs.minsection_pct,
                                &g_av2_codec_arg_defs.maxsection_pct,
                                NULL };
@@ -475,6 +477,7 @@ struct stream_config {
   struct avm_codec_enc_cfg cfg;
   const char *out_fn;
   const char *recon_fn;
+  const char *stats_fn;
   stereo_format_t stereo_fmt;
   int arg_ctrls[ARG_CTRL_CNT_MAX][2];
   int arg_ctrl_cnt;
@@ -508,6 +511,7 @@ struct stream_state {
   unsigned int frames_out;
   uint64_t cx_time;
   size_t nbytes;
+  stats_io_t stats;
   struct avm_image *img;
   avm_codec_ctx_t decoder;
   int mismatch_seen;
@@ -759,9 +763,17 @@ static void parse_global_config(struct AvxEncoderConfig *global, char ***argv) {
 
   if (global->passes < 1 || global->passes > 2)
     die("Error: Invalid number of passes (%d)\n", global->passes);
-  global->passes = 1;
-  if (global->pass < 0 || global->pass > 1)
+  if (global->pass < 0 || global->pass > 2)
     die("Error: Invalid pass selected (%d)\n", global->pass);
+
+  if (global->pass) {
+    /* DWIM: Assume the user meant passes=2 if pass=2 is specified */
+    if (global->pass > global->passes) {
+      warn("Assuming --pass=%d implies --passes=%d\n", global->pass,
+           global->pass);
+      global->passes = global->pass;
+    }
+  }
 
   /* Validate global config */
   if (global->passes == 0) {
@@ -772,6 +784,12 @@ static void parse_global_config(struct AvxEncoderConfig *global, char ***argv) {
 #else
     global->passes = 1;
 #endif  // CONFIG_AV2_ENCODER
+  }
+
+  if (global->usage == AVM_USAGE_REALTIME && global->passes > 1) {
+    warn("Enforcing one-pass encoding in realtime mode\n");
+    global->passes = 1;
+    global->pass = 0;
   }
 }
 
@@ -1059,6 +1077,8 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
           config->write_ivf = 0;
         }
       }
+    } else if (arg_match(&arg, &g_av2_codec_arg_defs.fpf_name, argi)) {
+      config->stats_fn = arg.val;
     } else if (arg_match(&arg, &g_av2_codec_arg_defs.use_webm, argi)) {
 #if CONFIG_WEBM_IO
       config->write_webm = 1;
@@ -1160,6 +1180,10 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
       config->cfg.rc_buf_initial_sz = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &g_av2_codec_arg_defs.buf_optimal_sz, argi)) {
       config->cfg.rc_buf_optimal_sz = arg_parse_uint(&arg);
+    } else if (arg_match(&arg, &g_av2_codec_arg_defs.bias_pct, argi)) {
+      config->cfg.rc_2pass_vbr_bias_pct = arg_parse_uint(&arg);
+      if (global->passes < 2)
+        warn("option %s ignored in one-pass mode.\n", arg.name);
     } else if (arg_match(&arg, &g_av2_codec_arg_defs.minsection_pct, argi)) {
       config->cfg.rc_2pass_vbr_minsection_pct = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &g_av2_codec_arg_defs.maxsection_pct, argi)) {
@@ -1294,6 +1318,15 @@ static void validate_stream_config(const struct stream_state *stream,
         fatal("Stream %d: duplicate output file (from stream %d)",
               streami->index, stream->index);
     }
+
+    /* Check for two streams sharing a stats file. */
+    if (streami != stream) {
+      const char *a = stream->config.stats_fn;
+      const char *b = streami->config.stats_fn;
+      if (a && b && !strcmp(a, b))
+        fatal("Stream %d: duplicate stats file (from stream %d)",
+              streami->index, stream->index);
+    }
   }
 }
 
@@ -1362,6 +1395,10 @@ static void show_stream_config(struct stream_state *stream,
   fprintf(stdout, "Input file                     : %s\n", input->filename);
   fprintf(stdout, "Output file                    : %s\n",
           stream->config.out_fn);
+  if (global->passes > 1 && stream->config.stats_fn) {
+    fprintf(stdout, "Stats file                     : %s\n",
+            stream->config.stats_fn);
+  }
   fprintf(stdout,
           "Input format                   : %s, %s, %dx%d, %3.1f FPS, %d bit\n",
           file_type_to_string(input->file_type),
@@ -1634,11 +1671,20 @@ static void close_output_file(struct stream_state *stream,
 
 static void setup_pass(struct stream_state *stream,
                        struct AvxEncoderConfig *global, int pass) {
-  (void)global;
-  (void)pass;
-  assert(pass == 0);
+  if (stream->config.stats_fn) {
+    if (!stats_open_file(&stream->stats, stream->config.stats_fn, pass))
+      fatal("Failed to open statistics store");
+  } else {
+    if (!stats_open_mem(&stream->stats, pass))
+      fatal("Failed to open statistics store");
+  }
 
-  stream->config.cfg.g_pass = AVM_RC_ONE_PASS;
+  stream->config.cfg.g_pass = global->passes == 2
+                                  ? pass ? AVM_RC_LAST_PASS : AVM_RC_FIRST_PASS
+                                  : AVM_RC_ONE_PASS;
+  if (pass) {
+    stream->config.cfg.rc_twopass_stats_in = stats_get(&stream->stats);
+  }
 
   stream->cx_time = 0;
   stream->nbytes = 0;
@@ -1898,6 +1944,12 @@ static void get_cx_data(struct stream_state *stream,
 #endif
         break;
 
+      case AVM_CODEC_STATS_PKT:
+        stream->frames_out++;
+        stats_write(&stream->stats, pkt->data.twopass_stats.buf,
+                    pkt->data.twopass_stats.sz);
+        stream->nbytes += pkt->data.raw.sz;
+        break;
       case AVM_CODEC_PSNR_PKT:
         if (global->show_psnr >= 1) {
           int i;
@@ -2087,6 +2139,17 @@ int main(int argc, const char **argv_) {
           "Specify stream dimensions with --width (-w) "
           " and --height (-h)");
 
+    /* Ifstream configuration for the stats file is not specified when
+     * single-pass of a multi-pass encoding is run, fatal error.
+     */
+    if (global.pass && global.passes == 2) {
+      FOREACH_STREAM(stream, streams) {
+        if (!stream->config.stats_fn)
+          fatal("Stream %d: Must specify --fpf when --pass=%d", stream->index,
+                global.pass);
+      }
+    }
+
     /* If input file does not specify bit-depth but input-bit-depth parameter
      * exists, assume that to be the input bit-depth. However, if the
      * input-bit-depth paramter does not exist, assume the input bit-depth
@@ -2219,17 +2282,19 @@ int main(int argc, const char **argv_) {
       stream->config.cfg.g_timebase.num = global.framerate.den;
     }
 
-    if (input.file_type == FILE_TYPE_Y4M)
-      /*The Y4M reader does its own allocation.
-        Just initialize this here to avoid problems if we never read any
-        frames.*/
-      memset(&raw, 0, sizeof(raw));
-    else
-      avm_img_alloc(&raw, input.fmt, input.width, input.height, 32);
+    if (pass == (global.pass ? global.pass - 1 : 0)) {
+      if (input.file_type == FILE_TYPE_Y4M)
+        /*The Y4M reader does its own allocation.
+          Just initialize this here to avoid problems if we never read any
+          frames.*/
+        memset(&raw, 0, sizeof(raw));
+      else
+        avm_img_alloc(&raw, input.fmt, input.width, input.height, 32);
 
-    FOREACH_STREAM(stream, streams) {
-      stream->rate_hist =
-          init_rate_histogram(&stream->config.cfg, &global.framerate);
+      FOREACH_STREAM(stream, streams) {
+        stream->rate_hist =
+            init_rate_histogram(&stream->config.cfg, &global.framerate);
+      }
     }
 
     FOREACH_STREAM(stream, streams) { setup_pass(stream, &global, pass); }
@@ -2416,6 +2481,10 @@ int main(int argc, const char **argv_) {
     }
     FOREACH_STREAM(stream, streams) {
       close_output_file(stream, get_fourcc_by_avm_encoder(global.codec));
+    }
+
+    FOREACH_STREAM(stream, streams) {
+      stats_close(&stream->stats, global.passes - 1);
     }
 
     if (global.pass) break;

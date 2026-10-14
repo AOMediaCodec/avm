@@ -30,14 +30,16 @@ class CodecFactory;
 class VideoSource;
 class DxDataIterator;
 
-enum TestMode { kOnePassGood };
-#define ALL_TEST_MODES ::testing::Values(::libavm_test::kOnePassGood)
+enum TestMode { kOnePassGood, kTwoPassGood };
+#define ALL_TEST_MODES \
+  ::testing::Values(::libavm_test::kOnePassGood, ::libavm_test::kTwoPassGood)
 
 #define ONE_PASS_TEST_MODES ::testing::Values(::libavm_test::kOnePassGood)
 
-#define TWO_PASS_TEST_MODES ::testing::Values()
+#define TWO_PASS_TEST_MODES ::testing::Values(::libavm_test::kTwoPassGood)
 
-#define GOODQUALITY_TEST_MODES ::testing::Values(::libavm_test::kOnePassGood)
+#define GOODQUALITY_TEST_MODES \
+  ::testing::Values(::libavm_test::kOnePassGood, ::libavm_test::kTwoPassGood)
 
 // Provides an object to handle the libavm get_cx_data() iteration pattern
 class CxDataIterator {
@@ -80,8 +82,9 @@ class TwopassStatsStore {
 // level of abstraction will be fleshed out as more tests are written.
 class Encoder {
  public:
-  Encoder(avm_codec_enc_cfg_t cfg, const avm_codec_flags_t init_flags)
-      : cfg_(cfg), init_flags_(init_flags) {
+  Encoder(avm_codec_enc_cfg_t cfg, const avm_codec_flags_t init_flags,
+          TwopassStatsStore *stats)
+      : cfg_(cfg), init_flags_(init_flags), stats_(stats) {
     memset(&encoder_, 0, sizeof(encoder_));
   }
 
@@ -167,6 +170,7 @@ class Encoder {
   avm_codec_ctx_t encoder_;
   avm_codec_enc_cfg_t cfg_;
   avm_codec_flags_t init_flags_;
+  TwopassStatsStore *stats_;
 };
 
 // Common test functionality for all Encoder tests.
@@ -269,6 +273,7 @@ class EncoderTest {
   bool abort_;
   avm_codec_enc_cfg_t cfg_;
   unsigned int passes_;
+  TwopassStatsStore stats_;
   avm_codec_flags_t init_flags_;
   unsigned long frame_flags_;
   TestMode mode_;

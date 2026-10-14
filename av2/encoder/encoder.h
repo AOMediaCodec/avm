@@ -544,6 +544,13 @@ typedef struct {
    */
   enum avm_rc_mode mode;
   /*!
+   * Indicates the bias (expressed on a scale of 0 to 100) for determining
+   * target size for the current frame. The value 0 indicates the optimal CBR
+   * mode value should be used, and 100 indicates the optimal VBR mode value
+   * should be used.
+   */
+  int vbrbias;
+  /*!
    * Indicates the minimum bitrate to be used for a single frame as a percentage
    * of the target bitrate.
    */
@@ -1113,6 +1120,9 @@ typedef struct AV2EncoderConfig {
 
   // Internal frame size scaling.
   ResizeCfg resize_cfg;
+
+  // Buffer storing the stats for the first pass.
+  avm_fixed_buf_t twopass_stats_in;
 
   // SubGOP config.
   const char *subgop_config_str;
@@ -3442,12 +3452,19 @@ static INLINE int is_altref_enabled(int lag_in_frames, bool enable_auto_arf) {
 static INLINE int is_stat_generation_stage(const AV2_COMP *const cpi) {
   assert(IMPLIES(cpi->compressor_stage == LAP_STAGE,
                  cpi->oxcf.pass == 0 && cpi->lap_enabled));
-  return (cpi->compressor_stage == LAP_STAGE);
+  return (cpi->oxcf.pass == 1 || (cpi->compressor_stage == LAP_STAGE));
+}
+
+// Check if statistics consumption stage for two pass
+static INLINE int is_stat_consumption_stage_twopass(const AV2_COMP *const cpi) {
+  return (cpi->oxcf.pass == 2);
 }
 
 // Check if statistics consumption stage
 static INLINE int is_stat_consumption_stage(const AV2_COMP *const cpi) {
-  return (cpi->compressor_stage == ENCODE_STAGE && cpi->lap_enabled);
+  return (is_stat_consumption_stage_twopass(cpi) ||
+          (cpi->oxcf.pass == 0 && (cpi->compressor_stage == ENCODE_STAGE) &&
+           cpi->lap_enabled));
 }
 
 /*!\endcond */
@@ -3461,7 +3478,7 @@ static INLINE int is_stat_consumption_stage(const AV2_COMP *const cpi) {
  */
 static INLINE int has_no_stats_stage(const AV2_COMP *const cpi) {
   assert(IMPLIES(!cpi->lap_enabled, cpi->compressor_stage == ENCODE_STAGE));
-  return (!cpi->lap_enabled);
+  return (cpi->oxcf.pass == 0 && !cpi->lap_enabled);
 }
 /*!\cond */
 

@@ -23,7 +23,8 @@
 
 namespace {
 class TileIndependenceTest
-    : public ::libavm_test::CodecTestWith3Params<int, int, int>,
+    : public ::libavm_test::CodecTestWith4Params<int, int, int,
+                                                 ::libavm_test::TestMode>,
       public ::libavm_test::EncoderTest {
  protected:
   TileIndependenceTest()
@@ -47,7 +48,7 @@ class TileIndependenceTest
 
   virtual void SetUp() {
     InitializeConfig();
-    SetMode(libavm_test::kOnePassGood);
+    SetMode(GET_PARAM(4));
   }
 
   virtual void PreEncodeFrameHook(libavm_test::VideoSource *video,
@@ -129,7 +130,9 @@ class TileIndependenceTestLarge : public TileIndependenceTest {
 TEST_P(TileIndependenceTestLarge, MD5Match) { DoTest(); }
 
 AV2_INSTANTIATE_TEST_SUITE(TileIndependenceTest, ::testing::Values(0, 1),
-                           ::testing::Values(0, 1), ::testing::Values(1, 2, 4));
+                           ::testing::Values(0, 1), ::testing::Values(1, 2, 4),
+                           GOODQUALITY_TEST_MODES);
 AV2_INSTANTIATE_TEST_SUITE(TileIndependenceTestLarge, ::testing::Values(0, 1),
-                           ::testing::Values(0, 1), ::testing::Values(1, 2, 4));
+                           ::testing::Values(0, 1), ::testing::Values(1, 2, 4),
+                           GOODQUALITY_TEST_MODES);
 }  // namespace

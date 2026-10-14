@@ -58,8 +58,9 @@ const TestVideoParam kTestVectors[] = {
 };
 
 const TestEncodeParam kEncodeVectors[] = {
-  { ::libavm_test::kOnePassGood, 2 },
-  { ::libavm_test::kOnePassGood, 5 },
+  { ::libavm_test::kOnePassGood, 2 }, { ::libavm_test::kOnePassGood, 5 },
+  { ::libavm_test::kTwoPassGood, 1 }, { ::libavm_test::kTwoPassGood, 2 },
+  { ::libavm_test::kTwoPassGood, 5 },
 };
 
 const int kMinArfVectors[] = {

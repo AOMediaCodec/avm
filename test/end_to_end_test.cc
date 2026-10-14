@@ -88,6 +88,7 @@ const TestVideoParam kTestVectors[] = {
 
 // Encoding modes tested
 const libavm_test::TestMode kEncodingModeVectors[] = {
+  ::libavm_test::kTwoPassGood,
   ::libavm_test::kOnePassGood,
 };
 
@@ -138,7 +139,11 @@ class EndToEndTest
       encoder->Control(AV2E_SET_FRAME_PARALLEL_DECODING, 1);
       encoder->Control(AV2E_SET_TILE_COLUMNS, 4);
       encoder->Control(AVME_SET_CPUUSED, cpu_used_);
-      encoder->Control(AV2E_SET_TUNE_CONTENT, AVM_CONTENT_DEFAULT);
+      // Test screen coding tools at cpu_used = 1 && encoding mode is two-pass.
+      if (cpu_used_ == 1 && encoding_mode_ == ::libavm_test::kTwoPassGood)
+        encoder->Control(AV2E_SET_TUNE_CONTENT, AVM_CONTENT_SCREEN);
+      else
+        encoder->Control(AV2E_SET_TUNE_CONTENT, AVM_CONTENT_DEFAULT);
       encoder->Control(AVME_SET_ENABLEAUTOALTREF, 1);
       encoder->Control(AVME_SET_ARNR_MAXFRAMES, 7);
       encoder->Control(AVME_SET_ARNR_STRENGTH, 5);

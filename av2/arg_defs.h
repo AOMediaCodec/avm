@@ -99,6 +99,7 @@ typedef struct av2_codec_arg_definitions {
   arg_def_t buf_sz;
   arg_def_t buf_initial_sz;
   arg_def_t buf_optimal_sz;
+  arg_def_t bias_pct;
   arg_def_t minsection_pct;
   arg_def_t maxsection_pct;
   arg_def_t fwd_kf_enabled;

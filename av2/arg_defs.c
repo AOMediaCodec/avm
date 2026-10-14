@@ -170,7 +170,7 @@ const av2_codec_arg_definitions_t g_av2_codec_arg_defs = {
   .passes = ARG_DEF("p", "passes", 1, "Number of passes (1/2)"),
   .pass_arg =
       ARG_DEF(NULL, "pass", 1,
-              "Pass to execute (0/1). 0 (default) indicates all passes"),
+              "Pass to execute (0/1/2), 0 (default) indicates all passes"),
   .fpf_name = ARG_DEF(NULL, "fpf", 1, "First pass statistics file name"),
   .limit = ARG_DEF(NULL, "limit", 1, "Stop encoding after n input frames"),
   .skip = ARG_DEF(NULL, "skip", 1, "Skip the first n input frames"),
@@ -273,6 +273,7 @@ const av2_codec_arg_definitions_t g_av2_codec_arg_defs = {
       ARG_DEF(NULL, "buf-initial-sz", 1, "Client initial buffer size (ms)"),
   .buf_optimal_sz =
       ARG_DEF(NULL, "buf-optimal-sz", 1, "Client optimal buffer size (ms)"),
+  .bias_pct = ARG_DEF(NULL, "bias-pct", 1, "CBR/VBR bias (0=CBR, 100=VBR)"),
   .minsection_pct =
       ARG_DEF(NULL, "minsection-pct", 1, "GOP min bitrate (% of target)"),
   .maxsection_pct =
