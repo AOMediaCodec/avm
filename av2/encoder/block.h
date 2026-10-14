@@ -1539,6 +1539,13 @@ typedef struct macroblock {
   unsigned int source_sad;
   //! Superblock source SAD level.
   SOURCE_SAD source_sad_level;
+  //! Flag to indicate superblock ME in variance partitioning is reliable
+  //! (scroll detected: high MV, low SAD) so the superblock MV will be tested
+  //! as a candidate in NEWMV motion search.
+  uint8_t sb_me_partition;
+  //! Superblock MV derived from int_pro motion estimation in variance
+  //! partitioning.
+  int_mv sb_me_mv;
   //! SSE of the current predictor.
   unsigned int pred_sse[SINGLE_REF_FRAMES];
   /*! Simple motion search buffers. */
