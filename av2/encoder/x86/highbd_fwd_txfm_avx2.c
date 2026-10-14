@@ -3088,6 +3088,139 @@ void fwd_transform_1d_avx2(const int *src, int *dst, int shift, int line,
   }
 }
 
+// (sum_k in[k] * coef[k] + offset) >> shift for 8 lines, with 64-bit sums.
+// in_odd[k] holds the odd lanes of in[k] in the low halves.
+// The result fits in 32 bits and shift <= 32, so the logical 64-bit shift is
+// exact.
+static INLINE __m256i dot_round_shift_64_avx2(const __m256i *in,
+                                              const __m256i *in_odd,
+                                              const int *coef, int n,
+                                              __m256i v_offset, int shift) {
+  __m256i sum_even = v_offset;
+  __m256i sum_odd = v_offset;
+  for (int k = 0; k < n; k++) {
+    const __m256i c = _mm256_set1_epi32(coef[k]);
+    sum_even = _mm256_add_epi64(sum_even, _mm256_mul_epi32(in[k], c));
+    sum_odd = _mm256_add_epi64(sum_odd, _mm256_mul_epi32(in_odd[k], c));
+  }
+  sum_even = _mm256_srli_epi64(sum_even, shift);
+  sum_odd = _mm256_slli_epi64(_mm256_srli_epi64(sum_odd, shift), 32);
+  return _mm256_blend_epi32(sum_even, sum_odd, 0xAA);
+}
+
+// DCT2 with one even/odd butterfly stage, exact since the kernel rows are
+// symmetric or antisymmetric.
+// Only the first size - zero_line outputs are computed.
+static void fwd_txfm_dct2_64bit_avx2(const int *src, int *dst, int shift,
+                                     int line, int skip_line, int zero_line,
+                                     int size) {
+  const int *tx_mat = size == 16 ? tx_kernel_dct2_size16[FWD_TXFM][0]
+                                 : tx_kernel_dct2_size32[FWD_TXFM][0];
+  const int half = size >> 1;
+  const int num_out = size - zero_line;
+  const int nz_line = line - skip_line;
+  const __m256i v_offset = _mm256_set1_epi64x(shift > 0 ? 1 << (shift - 1) : 0);
+  __m256i even[16], even_odd[16], odd[16], odd_odd[16], out[32];
+  assert(size == 16 || size == 32);
+  assert((nz_line & 7) == 0);
+
+  for (int j = 0; j < nz_line; j += 8) {
+    for (int n = 0; n < half; n++) {
+      const __m256i s0 = _mm256_loadu_si256((const __m256i *)&src[n * line]);
+      const __m256i s1 =
+          _mm256_loadu_si256((const __m256i *)&src[(size - 1 - n) * line]);
+      even[n] = _mm256_add_epi32(s0, s1);
+      odd[n] = _mm256_sub_epi32(s0, s1);
+      even_odd[n] = _mm256_srli_epi64(even[n], 32);
+      odd_odd[n] = _mm256_srli_epi64(odd[n], 32);
+    }
+    for (int r = 0; r < num_out; r++) {
+      out[r] = (r & 1)
+                   ? dot_round_shift_64_avx2(odd, odd_odd, tx_mat + r * size,
+                                             half, v_offset, shift)
+                   : dot_round_shift_64_avx2(even, even_odd, tx_mat + r * size,
+                                             half, v_offset, shift);
+    }
+    for (int r = 0; r < num_out; r += 8) {
+      transpose_store_8x8_avx2(out + r, dst + r, size);
+    }
+    src += 8;
+    dst += size * 8;
+  }
+}
+
+// Full 16x16 matrix product, with flip reversing the inputs (FDDT).
+static void fwd_txfm_matrix16_64bit_avx2(const int *src, int *dst, int shift,
+                                         int line, int skip_line,
+                                         const int *tx_mat, int flip) {
+  const int nz_line = line - skip_line;
+  const __m256i v_offset = _mm256_set1_epi64x(shift > 0 ? 1 << (shift - 1) : 0);
+  __m256i in[16], in_odd[16], out[16];
+  assert((nz_line & 7) == 0);
+
+  for (int j = 0; j < nz_line; j += 8) {
+    for (int k = 0; k < 16; k++) {
+      const int idx = flip ? 15 - k : k;
+      in[k] = _mm256_loadu_si256((const __m256i *)&src[idx * line]);
+      in_odd[k] = _mm256_srli_epi64(in[k], 32);
+    }
+    for (int r = 0; r < 16; r++) {
+      out[r] = dot_round_shift_64_avx2(in, in_odd, tx_mat + r * 16, 16,
+                                       v_offset, shift);
+    }
+    transpose_store_8x8_avx2(out, dst, 16);
+    transpose_store_8x8_avx2(out + 8, dst + 8, 16);
+    src += 8;
+    dst += 16 * 8;
+  }
+}
+
+// Row pass with 64-bit sums, for the sizes in row_pass_needs_64bit()
+#ifdef __GNUC__
+__attribute__((noinline))
+#endif
+static void
+fwd_transform_1d_64bit_avx2(const int *src, int *dst, int shift, int line,
+                            int skip_line, int zero_line,
+                            const int tx_type_index, const int size_index) {
+  const int size = 4 << size_index;
+  assert(tx_type_index == DCT2 || tx_type_index == IDT || size == 16);
+  switch (tx_type_index) {
+    case DCT2:
+      fwd_txfm_dct2_64bit_avx2(src, dst, shift, line, skip_line, zero_line,
+                               size);
+      break;
+    case DST7:
+      fwd_txfm_matrix16_64bit_avx2(src, dst, shift, line, skip_line,
+                                   tx_kernel_adst_size16[FWD_TXFM][0], 0);
+      break;
+    case DCT8:
+      fwd_txfm_matrix16_64bit_avx2(src, dst, shift, line, skip_line,
+                                   tx_kernel_fdst_size16[FWD_TXFM][0], 0);
+      break;
+    case DDTX:
+      fwd_txfm_matrix16_64bit_avx2(src, dst, shift, line, skip_line,
+                                   tx_kernel_ddtx_size16[FWD_TXFM][0], 0);
+      break;
+    case FDDT:
+      fwd_txfm_matrix16_64bit_avx2(src, dst, shift, line, skip_line,
+                                   tx_kernel_ddtx_size16[FWD_TXFM][0], 1);
+      break;
+    default:
+      // IDT stays within 32 bits.
+      fwd_transform_1d_avx2(src, dst, shift, line, skip_line, zero_line,
+                            tx_type_index, size_index);
+      break;
+  }
+}
+
+// At 12 bits the row-pass sums of these sizes exceed 32 bits.
+static INLINE int row_pass_needs_64bit(TX_SIZE tx_size, int bd) {
+  if (bd <= 10) return 0;
+  return tx_size == TX_64X64 || tx_size == TX_64X32 || tx_size == TX_32X64 ||
+         tx_size == TX_16X64;
+}
+
 void fwd_txfm_avx2(const int16_t *resi, tran_low_t *coeff, int diff_stride,
                    TxfmParam *txfm_param) {
   const TX_SIZE tx_size = txfm_param->tx_size;
@@ -3168,8 +3301,13 @@ void fwd_txfm_avx2(const int16_t *resi, tran_low_t *coeff, int diff_stride,
     fwd_transform_1d_avx2(coeff, buf, shift_1st, w, 0, 0, tx_type_col,
                           tx_high_index);
 
-    fwd_transform_1d_avx2(buf, coeff, shift_2nd, h, 0, 0, tx_type_row,
-                          tx_wide_index);
+    if (row_pass_needs_64bit(tx_size, txfm_param->bd)) {
+      fwd_transform_1d_64bit_avx2(buf, coeff, shift_2nd, h, 0, 0, tx_type_row,
+                                  tx_wide_index);
+    } else {
+      fwd_transform_1d_avx2(buf, coeff, shift_2nd, h, 0, 0, tx_type_row,
+                            tx_wide_index);
+    }
   }
 
   const int log2width = tx_size_wide_log2[tx_size];
