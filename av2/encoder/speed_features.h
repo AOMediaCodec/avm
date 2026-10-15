@@ -1226,6 +1226,22 @@ typedef struct LOOP_FILTER_SPEED_FEATURES {
 
   // bypass ccso luma plane check
   int ccso_chroma_dep;
+
+  // Prune the QP-model candidates of the GDF frame search in gdf_optimizer().
+  // 0: search all GDF_RDO_QP_NUM candidates; 1: search only the two
+  // highest-index candidates; 2: search only the highest-index candidate.
+  int gdf_prune_qp_cands;
+
+  // If nonzero, the CCSO search of a plane stops after this many
+  // (filter candidate, max_band_log2) evaluations and keeps the best found.
+  // 0 means no limit.
+  int ccso_max_band_candidates;
+
+  // If set, the CCSO band-offset-only search gathers its per-block class
+  // statistics once per plane at the finest band count and derives every
+  // coarser band count by summing adjacent bins, instead of one pixel pass per
+  // (scale_idx, max_band_log2) candidate. Bit-exact.
+  int ccso_reuse_bo_class_stats;
 } LOOP_FILTER_SPEED_FEATURES;
 
 typedef struct REALTIME_SPEED_FEATURES {
