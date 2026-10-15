@@ -762,7 +762,18 @@ int av2_get_refresh_frame_flags(
     return (1 << cpi->common.seq_params.ref_frames) - 1;
   }
 
-  if (frame_params->frame_type == S_FRAME ||
+  // sframe_refresh_all only gates real, restricted OBU_SWITCH frames
+  // (restricted_prediction_switch, i.e. sframe_mode == 0). RAS frames
+  // (sframe_type == RAS_FRAME) and non-restricted switch frames always
+  // refresh all RPL slots: RAS frames are random access points, and a
+  // non-restricted switch frame retains no is_restricted old references to
+  // make partial refresh meaningful. cpi->is_ras_frame is not used here
+  // because it is only valid for the frame currently being encoded, not
+  // reliably for every call site reachable from this function.
+  if ((frame_params->frame_type == S_FRAME &&
+       (cpi->oxcf.kf_cfg.sframe_refresh_all ||
+        cpi->oxcf.kf_cfg.sframe_type == RAS_FRAME ||
+        !cpi->common.restricted_prediction_switch)) ||
       frame_params->frame_type == KEY_FRAME) {
     AV2_COMMON *const cm = &cpi->common;
     int refresh_frame_flags = (1 << cpi->common.seq_params.ref_frames) - 1;
@@ -794,6 +805,7 @@ int av2_get_refresh_frame_flags(
           // been output yet and whose DOH is at least the current
           // frame's DOH. (DOH requirement)
           if (cm->ref_frame_map[i] != NULL &&
+              !cm->ref_frame_map[i]->is_restricted &&
               cm->ref_frame_map[i]->implicit_output_picture &&
               !cm->ref_frame_map[i]->frame_output_done &&
               (int)cm->ref_frame_map[i]->display_order_hint >= cur_disp_order) {
@@ -847,7 +859,7 @@ int av2_get_refresh_frame_flags(
   // at least the current frame's DOH. (DOH requirement)
   for (int i = 0; i < cpi->common.seq_params.ref_frames; i++) {
     const RefCntBuffer *const buf = cpi->common.ref_frame_map[i];
-    if (buf != NULL && buf->implicit_output_picture &&
+    if (buf != NULL && !buf->is_restricted && buf->implicit_output_picture &&
         !buf->frame_output_done &&
         (int)buf->display_order_hint >= cur_disp_order) {
       olk_flags_to_keep |= (1 << i);
@@ -1278,6 +1290,8 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
 
   cm->restricted_prediction_switch =
       (cpi->oxcf.kf_cfg.enable_sframe && cpi->oxcf.kf_cfg.sframe_mode == 0) ||
+      (cpi->oxcf.kf_cfg.sframe_replace_kf > 0 &&
+       cpi->oxcf.kf_cfg.sframe_mode == 0) ||
       cpi->oxcf.tool_cfg.g_error_resilient_mode;
 
   av2_configure_buffer_updates(cpi, frame_update_type);
