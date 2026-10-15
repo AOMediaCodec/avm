@@ -23,9 +23,11 @@ static INLINE int is_interp_filter_good_match(
   const int is_comp = has_second_ref(mi);
   int i;
 
-  for (i = 0; i < 1 + is_comp; ++i) {
+  for (i = 0; i < 2; ++i) {
     if (st->ref_frames[i] != mi->ref_frame[i]) return INT_MAX;
+    if (st->bawp_flag[i] != mi->bawp_flag[i]) return INT_MAX;
   }
+  if (is_comp && st->cwp_idx != mi->cwp_idx) return INT_MAX;
 
   if (skip_level == 1 && is_comp) {
     if (st->comp_type != mi->interinter_comp.type) return INT_MAX;
@@ -44,13 +46,16 @@ static INLINE int save_interp_filter_search_stat(
     INTERPOLATION_FILTER_STATS *interp_filter_stats,
     int interp_filter_stats_idx) {
   if (interp_filter_stats_idx < MAX_INTERP_FILTER_STATS) {
-    INTERPOLATION_FILTER_STATS stat = { mbmi->interp_fltr,
-                                        { mbmi->mv[0], mbmi->mv[1] },
-                                        { mbmi->ref_frame[0],
-                                          mbmi->ref_frame[1] },
-                                        mbmi->interinter_comp.type,
-                                        rd,
-                                        pred_sse };
+    INTERPOLATION_FILTER_STATS stat = {
+      mbmi->interp_fltr,
+      { mbmi->mv[0], mbmi->mv[1] },
+      { mbmi->ref_frame[0], mbmi->ref_frame[1] },
+      mbmi->interinter_comp.type,
+      { mbmi->bawp_flag[0], mbmi->bawp_flag[1] },
+      mbmi->cwp_idx,
+      rd,
+      pred_sse
+    };
     interp_filter_stats[interp_filter_stats_idx] = stat;
     interp_filter_stats_idx++;
   }
