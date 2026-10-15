@@ -635,6 +635,9 @@ static void set_good_speed_features_framesize_independent(
 
   if (speed >= 4) {
     sf->lpf_sf.skip_wienerns_frame_filter_rounding = 1;
+    if (cm->current_frame.pyramid_level >= 4)
+      sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL3;
+
     sf->part_sf.sms_unified_prune_horz = is_480p_or_larger ? 1 : 0;
     sf->part_sf.sms_unified_prune_vert = is_1080p_or_larger ? 1 : 0;
 
@@ -677,6 +680,10 @@ static void set_good_speed_features_framesize_independent(
     sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch = 0;
 
     sf->lpf_sf.lpf_pick = LPF_PICK_FROM_FULL_IMAGE_NON_DUAL;
+    sf->lpf_sf.gdf_prune_qp_cands =
+        cm->current_frame.pyramid_level >= 4 ? 1 : 0;
+    sf->lpf_sf.ccso_max_band_candidates = 32;
+    sf->lpf_sf.ccso_reuse_bo_class_stats = 1;
 
     sf->mv_sf.reduce_search_range = 1;
     sf->mv_sf.warp_search_method = WARP_SEARCH_DIAMOND;
@@ -1148,6 +1155,9 @@ static AVM_INLINE void init_lpf_sf(LOOP_FILTER_SPEED_FEATURES *lpf_sf) {
   lpf_sf->skip_wienerns_frame_filter_rounding = 0;
   lpf_sf->wienerns_fast_frame_filter_opt = 0;
   lpf_sf->ccso_chroma_dep = 0;
+  lpf_sf->gdf_prune_qp_cands = 0;
+  lpf_sf->ccso_max_band_candidates = 0;
+  lpf_sf->ccso_reuse_bo_class_stats = 0;
 }
 
 static void av2_disable_ml_based_transform_sf(TX_SPEED_FEATURES *const tx_sf) {
