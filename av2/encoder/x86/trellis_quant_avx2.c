@@ -109,7 +109,7 @@ static AVM_FORCE_INLINE void decide_states_avx2_impl(
     // Calc rate-distortion costs for each pair of even/odd quant.
     // Separate candidates into even and odd quant decisions
     // Even indexes: { 0, 2, 5, 7 }. Odd: { 1, 3, 4, 6 }.
-    __m256i rates = _mm256_lddqu_si256((__m256i *)&rd->rate[8 * i]);
+    __m256i rates = _mm256_load_si256((__m256i *)&rd->rate[8 * i]);
     __m256i permute_mask = _mm256_lddqu_si256((__m256i *)kShuffle);
     __m256i rate02135746 = _mm256_permutevar8x32_epi32(rates, permute_mask);
     __m256i rate0257 = _mm256_unpacklo_epi32(rate02135746, c_zero);
@@ -125,7 +125,7 @@ static AVM_FORCE_INLINE void decide_states_avx2_impl(
 
     // Calc rd-cost for zero quant.
     __m256i ratezero = _mm256_castsi128_si256(
-        _mm_lddqu_si128((__m128i *)&rd->rate_zero[4 * i]));
+        _mm_load_si128((__m128i *)&rd->rate_zero[4 * i]));
     ratezero = _mm256_permute4x64_epi64(ratezero, 0x50);
     ratezero = _mm256_unpacklo_epi32(ratezero, c_zero);
     __m256i rdcostzero = _mm256_mul_epu32(c_rdmult, ratezero);
@@ -230,7 +230,7 @@ static AVM_FORCE_INLINE void decide_states_q1_avx2_impl(
     __m256i prev_rate_odd = _mm256_shuffle_epi32(prev_rate_zero, 0x4E);
 
     // Calc rd-cost for zero quant.
-    __m128i ratezero_128 = _mm_lddqu_si128((__m128i *)&rd->rate_zero[4 * i]);
+    __m128i ratezero_128 = _mm_load_si128((__m128i *)&rd->rate_zero[4 * i]);
     __m256i ratezero = _mm256_cvtepu32_epi64(ratezero_128);
     __m256i rdcost_zero = _mm256_mul_epu32(c_rdmult, ratezero);
     rdcost_zero = _mm256_add_epi64(rdcost_zero, c_round);
@@ -238,7 +238,7 @@ static AVM_FORCE_INLINE void decide_states_q1_avx2_impl(
     rdcost_zero = _mm256_add_epi64(rdcost_zero, prev_rd_zero);
 
     // Calc rd-cost for odd quant.
-    __m256i rates = _mm256_lddqu_si256((__m256i *)&rd->rate[8 * i]);
+    __m256i rates = _mm256_load_si256((__m256i *)&rd->rate[8 * i]);
     __m256i permute_mask = _mm256_lddqu_si256((__m256i *)kShuffleOdd);
     __m256i rate_odd_32 = _mm256_permutevar8x32_epi32(rates, permute_mask);
     __m256i rate_odd =
