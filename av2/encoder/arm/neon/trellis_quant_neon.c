@@ -15,6 +15,7 @@
 #include <string.h>
 
 #include "avm/avm_integer.h"
+#include "avm_dsp/arm/mem_neon.h"
 #include "av2/common/av2_common_int.h"
 #include "av2/common/cost.h"
 #include "av2/common/quant_common.h"
@@ -110,13 +111,11 @@ static AVM_FORCE_INLINE void update_states_neon(const tcq_node_t *decision,
                                                 int col,
                                                 struct tcq_ctx_t *tcq_ctx) {
   _Static_assert(sizeof(tcq_node_t) == 16, "update_states_neon layout");
-  const int32_t *d = (const int32_t *)decision;
-  int32x4_t info_lo = vcombine_s32(
-      vcreate_s32((uint32_t)d[3] | ((uint64_t)(uint32_t)d[7] << 32)),
-      vcreate_s32((uint32_t)d[11] | ((uint64_t)(uint32_t)d[15] << 32)));
-  int32x4_t info_hi = vcombine_s32(
-      vcreate_s32((uint32_t)d[19] | ((uint64_t)(uint32_t)d[23] << 32)),
-      vcreate_s32((uint32_t)d[27] | ((uint64_t)(uint32_t)d[31] << 32)));
+  const uint8_t *info = (const uint8_t *)decision + 12;
+  const int stride = sizeof(tcq_node_t);
+  int32x4_t info_lo = vreinterpretq_s32_u8(load_unaligned_u8q(info, stride));
+  int32x4_t info_hi =
+      vreinterpretq_s32_u8(load_unaligned_u8q(info + 4 * stride, stride));
 
   int32x4_t abs_lo = vandq_s32(info_lo, vdupq_n_s32(0x00FFFFFF));
   int32x4_t abs_hi = vandq_s32(info_hi, vdupq_n_s32(0x00FFFFFF));

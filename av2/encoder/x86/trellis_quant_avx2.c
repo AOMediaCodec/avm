@@ -1206,9 +1206,9 @@ int av2_find_best_path_avx2(const struct tcq_node_t *trellis,
     __m128i round = _mm_set1_epi64x(1 << (QUANT_TABLE_BITS - 1));
     int shift = QUANT_TABLE_BITS + log_scale;
     for (; prev_id >= 0; scan_pos++) {
-      const int32_t *decision =
-          (int32_t *)&trellis[(scan_pos << TCQ_N_STATES_LOG) + prev_id];
-      __m128i info = _mm_cvtsi32_si128(decision[3]);
+      const uint8_t *decision =
+          (const uint8_t *)&trellis[(scan_pos << TCQ_N_STATES_LOG) + prev_id];
+      __m128i info = xx_loadl_32(decision + 12);
       int blk_pos = scan[scan_pos];
       __m128i sign = _mm_cvtsi32_si128(tcoeff[blk_pos]);
       sign = _mm_srai_epi32(sign, 31);
