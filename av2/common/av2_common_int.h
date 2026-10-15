@@ -3266,6 +3266,35 @@ static INLINE int is_tlayer_scalable_and_dependent(
   }
 }
 
+// Returns true if, within embedded layer `mlayer_id`, tlayer `layer_a`
+// transitively depends on tlayer `layer_b`. Also returns true if both
+// layer IDs are the same. Otherwise, returns false.
+static INLINE int is_tlayer_transitively_dependent(
+    const SequenceHeader *const seq, int mlayer_id, int layer_a,
+    int layer_b) {
+  if (layer_a == layer_b) return 1;
+  if (!seq->tlayer_dependency_present_flag) return layer_a > layer_b;
+
+  int visited[MAX_NUM_TLAYERS] = { 0 };
+  int queue[MAX_NUM_TLAYERS];
+  int head = 0, tail = 0;
+
+  queue[tail++] = layer_a;
+  visited[layer_a] = 1;
+
+  while (head < tail) {
+    int layer = queue[head++];
+    if (layer == layer_b) return 1;
+    for (int i = 0; i <= seq->max_tlayer_id; i++) {
+      if (seq->tlayer_dependency_map[mlayer_id][layer][i] && !visited[i]) {
+        visited[i] = 1;
+        queue[tail++] = i;
+      }
+    }
+  }
+  return 0;
+}
+
 static INLINE void setup_default_embedded_layer_dependency_structure(
     SequenceHeader *const seq) {
   const int max_layer_id = seq->max_mlayer_id;
