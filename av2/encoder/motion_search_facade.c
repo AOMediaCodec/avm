@@ -133,8 +133,19 @@ void av2_single_motion_search(const AV2_COMP *const cpi, MACROBLOCK *x,
   int cnt = 1;
   int total_weight = 0;
 
-  if (!cpi->sf.mv_sf.full_pixel_search_level && !is_tip_ref_frame(ref) &&
-      mbmi->motion_mode == SIMPLE_TRANSLATION) {
+  if (cpi->sf.rt_sf.estimate_motion_for_var_based_partition &&
+      x->sb_me_partition && mbmi->motion_mode == SIMPLE_TRANSLATION &&
+      ref == get_closest_pastcur_ref_or_ref0(cm)) {
+    FULLPEL_MV sb_fmv = get_fullmv_from_mv(&x->sb_me_mv.as_mv);
+    clamp_fullmv(&sb_fmv, &x->mv_limits);
+    full_pel_lower_mv_precision(&sb_fmv, mbmi->pb_mv_precision);
+    if (sb_fmv.row != start_mv.row || sb_fmv.col != start_mv.col) {
+      cand[cnt].fmv = sb_fmv;
+      cand[cnt].weight = 0;
+      cnt++;
+    }
+  } else if (!cpi->sf.mv_sf.full_pixel_search_level && !is_tip_ref_frame(ref) &&
+             mbmi->motion_mode == SIMPLE_TRANSLATION) {
     SuperBlockEnc *sb_enc = &x->sb_enc;
     if (sb_enc->tpl_data_count) {
       const BLOCK_SIZE tpl_bsize =

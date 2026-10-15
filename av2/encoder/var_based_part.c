@@ -857,9 +857,18 @@ static AVM_INLINE void do_int_pro_motion_estimation(AV2_COMP *cpi,
                                                     unsigned int *y_sad,
                                                     int mi_row, int mi_col) {
   AV2_COMMON *const cm = &cpi->common;
+  MACROBLOCKD *const xd = &x->e_mbd;
+  MB_MODE_INFO *const mi = xd->mi[0];
   const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
-  int me_search_size_col = block_size_wide[sb_size] >> 1;
-  int me_search_size_row = block_size_high[sb_size] >> 1;
+  const bool is_screen = cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN;
+  const SOURCE_SAD source_sad_level = x->source_sad_level;
+  const bool increase_col_sw = source_sad_level > kMedSad;
+  int me_search_size_col = is_screen ? (increase_col_sw ? 512 : 96)
+                                     : (block_size_wide[sb_size] >> 1);
+  // For screen use larger search size row motion to capture vertical scroll,
+  // which can be larger motion.
+  int me_search_size_row = is_screen ? (source_sad_level > kMedSad ? 512 : 192)
+                                     : (block_size_high[sb_size] >> 1);
   if (cm->width * cm->height >= RESOLUTION_4K) {
     me_search_size_row <<= 1;
     me_search_size_col <<= 1;
@@ -868,6 +877,24 @@ static AVM_INLINE void do_int_pro_motion_estimation(AV2_COMP *cpi,
   *y_sad = av2_int_pro_motion_estimation(
       cpi, x, sb_size, mi_row, mi_col, &kZeroMv, &y_sad_zero,
       me_search_size_col, me_search_size_row);
+  // Select whether the motion estimated in av2_int_pro_motion_estimation()
+  // is reliable (scroll / coherent motion with low SAD) and should be tested
+  // as a candidate in NEWMV motion search. Only do this for screen for now.
+  if (is_screen) {
+    const unsigned int base_thresh_sad = (sb_size == BLOCK_256X256)   ? 200000
+                                         : (sb_size == BLOCK_128X128) ? 50000
+                                                                      : 20000;
+    const unsigned int thresh_sad = base_thresh_sad << (xd->bd - 8);
+    if (*y_sad < (y_sad_zero >> 1) && *y_sad < thresh_sad) {
+      x->sb_me_partition = 1;
+      x->sb_me_mv.as_int = mi->mv[0].as_int;
+    } else {
+      x->sb_me_partition = 0;
+      // Fall back to using zero motion.
+      *y_sad = y_sad_zero;
+      mi->mv[0].as_int = 0;
+    }
+  }
 }
 
 static void setup_planes(AV2_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
@@ -1040,6 +1067,8 @@ void av2_choose_var_based_partitioning(AV2_COMP *cpi,
                                                                            : 16;
 
   unsigned int y_sad = UINT_MAX;
+  x->sb_me_partition = 0;
+  x->sb_me_mv.as_int = 0;
 
   int64_t thresholds[6];
   const int qindex = cm->quant_params.base_qindex;

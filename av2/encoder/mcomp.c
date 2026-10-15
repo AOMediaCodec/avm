@@ -2364,10 +2364,12 @@ unsigned int av2_int_pro_motion_estimation(const AV2_COMP *cpi, MACROBLOCK *x,
       search_size_width_left + search_size_width_right + bw;
   const int height_ref_buf =
       search_size_height_top + search_size_height_bottom + bh;
-  assert(width_ref_buf <= 1024 && height_ref_buf <= 1024);
+  // 2304 supports a search window of up to +/-1024 pixels (e.g., 512 << 1 at
+  // 4K) with superblock size up to 256x256 (1024 + 1024 + 256 = 2304).
+  assert(width_ref_buf <= 2304 && height_ref_buf <= 2304);
 
-  DECLARE_ALIGNED(32, int16_t, hbuf[1024]);
-  DECLARE_ALIGNED(32, int16_t, vbuf[1024]);
+  DECLARE_ALIGNED(32, int16_t, hbuf[2304]);
+  DECLARE_ALIGNED(32, int16_t, vbuf[2304]);
   DECLARE_ALIGNED(32, int16_t, src_hbuf[256]);
   DECLARE_ALIGNED(32, int16_t, src_vbuf[256]);
 
