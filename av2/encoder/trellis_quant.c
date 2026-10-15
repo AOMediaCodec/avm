@@ -728,41 +728,51 @@ void av2_get_rate_dist_lf_luma_q1_c(const struct tcq_param_t *p,
                                     const struct tcq_coeff_ctx_t *coeff_ctx,
                                     int blk_pos, int diag_ctx, int eob_rate,
                                     int coeff_sign, struct tcq_rate_t *rd) {
-  const tran_low_t *absLevel = pq->absLevel;
+  assert(pq->qIdx == 1);
+  (void)pq;
   const LV_MAP_COEFF_COST *txb_costs = p->txb_costs;
-  const int32_t *tmp_sign = p->tmp_sign;
   TX_CLASS tx_class = p->tx_class;
   int bwl = p->bwl;
   int dc_sign_ctx = p->dc_sign_ctx;
-  int t_sign = tmp_sign[blk_pos];
-  int plane = 0;
+  int base_diag_ctx = get_base_diag_ctx(diag_ctx);
+
+  const uint16_t(*cost_zero)[LF_SIG_COEF_CONTEXTS] =
+      txb_costs->base_lf_cost_zero;
+  const uint16_t(*cost_low_tbl)[LF_SIG_COEF_CONTEXTS][TCQ_CTXS][2] =
+      txb_costs->base_lf_cost_low_tbl;
+  const uint16_t(*cost_eob_tbl)[SIG_COEF_CONTEXTS_EOB][2] =
+      txb_costs->base_lf_eob_cost_tbl;
+  const int idx = 0;
+
+  const int row = blk_pos >> bwl;
+  const int col = blk_pos - (row << bwl);
+  const int is_dc_coeff = (blk_pos == 0) ||
+                          ((col == 0) && tx_class == TX_CLASS_HORIZ) ||
+                          ((row == 0) && tx_class == TX_CLASS_VERT);
+  int dc_cost_add = 0;
+  if (is_dc_coeff) {
+    const int dc_ph_group = 0;
+    dc_cost_add =
+        txb_costs->dc_sign_cost[dc_ph_group][dc_sign_ctx][coeff_sign] -
+        av2_cost_literal(1);
+  }
 
   for (int i = 0; i < TCQ_N_STATES; i++) {
-    int q_i = tcq_quant(i);
-    int base_ctx =
-        get_base_diag_ctx(diag_ctx) + get_base_ctx(coeff_ctx->coef[i]);
-    int mid_ctx = get_mid_diag_ctx(diag_ctx) + get_mid_ctx(coeff_ctx->coef[i]);
-
-    rd->rate_zero[i] = txb_costs->base_lf_cost[base_ctx][q_i][0];
-
+    int q_i = (i & 2) ? 1 : 0;
+    int ctx = base_diag_ctx + (coeff_ctx->coef[i] & 0xF);
+    rd->rate_zero[i] = cost_zero[q_i][ctx];
     if (q_i == 1) {
-      int a0 = q_i;  // 1
-      int cost0 = get_coeff_cost(blk_pos, absLevel[a0], coeff_sign, base_ctx,
-                                 mid_ctx, dc_sign_ctx, txb_costs, bwl, tx_class,
-                                 tmp_sign, plane, 1, q_i);
-      rd->rate[2 * i] = cost0;
+      rd->rate[2 * i] = cost_low_tbl[idx][ctx][1][0] + dc_cost_add;
     } else {
-      int a1 = q_i + 2;
-      int cost1 = get_coeff_cost(blk_pos, absLevel[a1], coeff_sign, base_ctx,
-                                 mid_ctx, dc_sign_ctx, txb_costs, bwl, tx_class,
-                                 tmp_sign, plane, 1, q_i);
-      rd->rate[2 * i + 1] = cost1;
+      rd->rate[2 * i + 1] = cost_low_tbl[idx][ctx][0][1] + dc_cost_add;
     }
   }
-  rd->rate_eob[1] =
-      eob_rate + get_coeff_cost_eob(blk_pos, absLevel[2], coeff_sign,
-                                    coeff_ctx->coef_eob, dc_sign_ctx, txb_costs,
-                                    bwl, tx_class, t_sign, plane);
+
+  int eob_ctx = coeff_ctx->coef_eob;
+  rd->rate_eob[1] = cost_eob_tbl[idx][eob_ctx][1] + eob_rate;
+  if (is_dc_coeff) {
+    rd->rate_eob[1] += dc_cost_add;
+  }
 }
 
 void av2_get_rate_dist_def_luma_q1_c(const struct tcq_param_t *p,
@@ -770,38 +780,32 @@ void av2_get_rate_dist_def_luma_q1_c(const struct tcq_param_t *p,
                                      const struct tcq_coeff_ctx_t *coeff_ctx,
                                      int blk_pos, int diag_ctx, int eob_rate,
                                      struct tcq_rate_t *rd) {
+  assert(blk_pos != 0 && "def region never contains DC");
+  assert(pq->qIdx == 1);
+  (void)blk_pos;
+  (void)pq;
   const LV_MAP_COEFF_COST *txb_costs = p->txb_costs;
-  TX_CLASS tx_class = p->tx_class;
-  int bwl = p->bwl;
-  const int plane = 0;
-  const int t_sign = 0;
-  const int sign = 0;
-  const int dc_sign_ctx = 0;
-  const tran_low_t *absLevel = pq->absLevel;
+  const int32_t(*cost_zero)[SIG_COEF_CONTEXTS] = txb_costs->base_cost_zero;
+  const uint16_t(*cost_low_tbl)[SIG_COEF_CONTEXTS][TCQ_CTXS][2] =
+      txb_costs->base_cost_low_tbl;
+  const uint16_t(*cost_eob_tbl)[SIG_COEF_CONTEXTS_EOB][2] =
+      txb_costs->base_eob_cost_tbl;
+  int base_diag_ctx = get_base_diag_ctx(diag_ctx);
+  const int idx = 0;
 
   for (int i = 0; i < TCQ_N_STATES; i++) {
-    int q_i = tcq_quant(i);
-    int base_ctx =
-        get_base_diag_ctx(diag_ctx) + get_base_ctx(coeff_ctx->coef[i]);
-
-    rd->rate_zero[i] = txb_costs->base_cost[base_ctx][q_i][0];
-
+    int q_i = (i & 2) ? 1 : 0;
+    int ctx = base_diag_ctx + (coeff_ctx->coef[i] & 0xF);
+    rd->rate_zero[i] = cost_zero[q_i][ctx];
     if (q_i == 1) {
-      int a0 = q_i;  // 1
-      int cost0 = get_coeff_cost_def(absLevel[a0], coeff_ctx->coef[i], diag_ctx,
-                                     plane, txb_costs, q_i, t_sign, sign);
-      rd->rate[2 * i] = cost0;
+      rd->rate[2 * i] = cost_low_tbl[idx][ctx][1][0];
     } else {
-      int a1 = q_i + 2;  // 1
-      int cost1 = get_coeff_cost_def(absLevel[a1], coeff_ctx->coef[i], diag_ctx,
-                                     plane, txb_costs, q_i, t_sign, sign);
-      rd->rate[2 * i + 1] = cost1;
+      rd->rate[2 * i + 1] = cost_low_tbl[idx][ctx][0][1];
     }
   }
-  rd->rate_eob[1] =
-      eob_rate + get_coeff_cost_eob(blk_pos, absLevel[2], sign,
-                                    coeff_ctx->coef_eob, dc_sign_ctx, txb_costs,
-                                    bwl, tx_class, t_sign, plane);
+
+  int eob_ctx = coeff_ctx->coef_eob;
+  rd->rate_eob[1] = cost_eob_tbl[idx][eob_ctx][1] + eob_rate;
 }
 
 void av2_get_rate_dist_def_luma_c(const struct tcq_param_t *p,
