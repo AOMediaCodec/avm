@@ -3139,12 +3139,13 @@ typedef struct AV2_COMP {
   /*!
    * Gradual Decoder Refresh per-frame state.
    */
-  int gdr_last_sframe_num;         /*!< frame_number of last GDR S-frame; -1 = none */
-  int gdr_stripe_start_mi;         /*!< first MI col of forced-intra region; -1 = off */
-  int gdr_stripe_end_mi;           /*!< exclusive MI end including loop-filter overlap */
-  int gdr_deterministic_right_mi;  /*!< logical stripe end; drives the dirty test */
-  int gdr_stripe_active;           /*!< stripe exists this frame (offset [0,N-1]) */
-  int gdr_is_end_frame;            /*!< window end frame (offset N-1) */
+  int gdr_last_sframe_num; /*!< frame_number of last GDR S-frame; -1 = none */
+  int gdr_stripe_start_mi; /*!< first MI col of forced-intra region; -1 = off */
+  int gdr_stripe_end_mi; /*!< exclusive MI end including loop-filter overlap */
+  int gdr_deterministic_right_mi; /*!< logical stripe end; drives the dirty test
+                                   */
+  int gdr_stripe_active; /*!< stripe exists this frame (offset [0,N-1]) */
+  int gdr_is_end_frame;  /*!< window end frame (offset N-1) */
 } AV2_COMP;
 
 /*!

@@ -1825,7 +1825,8 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
           if (!cpi->oxcf.intra_mode_cfg.enable_paeth_intra &&
               mbmi->mode == PAETH_PRED)
             continue;
-          // GDR: reject modes that read above-right samples from the dirty area.
+          // GDR: reject modes that read above-right samples from the dirty
+          // area.
           if (x->gdr_tr_into_dirty && gdr_mode_uses_above_right(mbmi->mode))
             continue;
           is_directional_mode = av2_is_directional_mode(mbmi->mode);

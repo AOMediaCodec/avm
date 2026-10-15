@@ -253,8 +253,9 @@ static INLINE int prune_ref_by_selective_ref_frame(
   }
 
   // Never prune a restricted reference: at a GDR/switch point the dirty region
-  // must still be able to inter-predict from pre-switch (restricted) references,
-  // otherwise it falls back to intra and the switch point becomes a full refresh.
+  // must still be able to inter-predict from pre-switch (restricted)
+  // references, otherwise it falls back to intra and the switch point becomes a
+  // full refresh.
   RefCntBuffer *ref0_buf = get_ref_frame_buf(cm, ref_frame[0]);
   if (ref0_buf)
     if (ref0_buf->is_restricted) return 0;

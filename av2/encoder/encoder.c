@@ -2803,11 +2803,11 @@ void av2_gdr_setup_stripe(AV2_COMP *cpi) {
   const int logical_end = AVMMIN(raw_start + stripe_w, mi_cols);
   // The force-intra region is SB-aligned on both edges so no superblock is
   // partly intra and partly inter (which would break sub-8x8 chroma, shared
-  // across luma sub-blocks). The deterministic boundary stays at the (unaligned)
-  // logical end.
+  // across luma sub-blocks). The deterministic boundary stays at the
+  // (unaligned) logical end.
   const int stripe_start = (raw_start / mib) * mib;
-  const int extended_end =
-      AVMMIN(((logical_end + GDR_LF_OVERLAP_MI + mib - 1) / mib) * mib, mi_cols);
+  const int extended_end = AVMMIN(
+      ((logical_end + GDR_LF_OVERLAP_MI + mib - 1) / mib) * mib, mi_cols);
   cpi->gdr_stripe_start_mi = stripe_start;
   cpi->gdr_stripe_end_mi = extended_end;
   cpi->gdr_deterministic_right_mi = logical_end;
@@ -5298,7 +5298,8 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
   current_frame->mlayer_id = cm->mlayer_id;
   cm->restricted_prediction_switch =
       (cpi->oxcf.kf_cfg.enable_sframe && cpi->oxcf.kf_cfg.sframe_mode == 0) ||
-      cpi->oxcf.tool_cfg.g_error_resilient_mode || cpi->oxcf.kf_cfg.gdr_mode > 0;
+      cpi->oxcf.tool_cfg.g_error_resilient_mode ||
+      cpi->oxcf.kf_cfg.gdr_mode > 0;
   if (current_frame->frame_type == KEY_FRAME) {
     for (int i = 0; i < cm->seq_params.ref_frames; i++) {
       if (cm->ref_frame_map[i] != NULL)

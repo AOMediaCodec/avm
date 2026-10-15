@@ -432,15 +432,14 @@ void av2_set_offsets_without_segment_id(
                          gdr_intra_tr_into_dirty(cpi, mi_row, mi_col, mi_width);
   x->gdr_enforce_mv_range = 0;
 
-  // GDR: clamp the MV search so a clean-area inter block's reference block, plus
-  // the sub-pel interpolation filter reach, stays left of every reference's
-  // dirty region. Applies to every block in the current frame's clean area
-  // (left of the deterministic boundary); for a block past the references'
-  // minimum clean boundary the clamp turns negative, forcing a leftward MV into
-  // the clean region (or intra). RefineMV/OPFL/TIP are disabled for GDR, so only
-  // the interpolation filter width is guarded.
-  if (cpi->gdr_stripe_active &&
-      mi_col < cpi->gdr_deterministic_right_mi) {
+  // GDR: clamp the MV search so a clean-area inter block's reference block,
+  // plus the sub-pel interpolation filter reach, stays left of every
+  // reference's dirty region. Applies to every block in the current frame's
+  // clean area (left of the deterministic boundary); for a block past the
+  // references' minimum clean boundary the clamp turns negative, forcing a
+  // leftward MV into the clean region (or intra). RefineMV/OPFL/TIP are
+  // disabled for GDR, so only the interpolation filter width is guarded.
+  if (cpi->gdr_stripe_active && mi_col < cpi->gdr_deterministic_right_mi) {
     int min_det_right = cm->mi_params.mi_cols;
     for (int ref = 0; ref < INTER_REFS_PER_FRAME; ref++) {
       const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref);
@@ -451,8 +450,9 @@ void av2_set_offsets_without_segment_id(
     if (min_det_right < cm->mi_params.mi_cols) {
       // Trailing reach of the sub-pel interpolation filter past the reference
       // block, in luma pixels. Chroma runs the same filter on its own grid, so
-      // its reach is AVM_INTERP_EXTEND chroma samples; scaling by the horizontal
-      // subsampling gives the luma-pixel span this column clamp must reserve.
+      // its reach is AVM_INTERP_EXTEND chroma samples; scaling by the
+      // horizontal subsampling gives the luma-pixel span this column clamp must
+      // reserve.
       const int guard_px = AVM_INTERP_EXTEND << cm->seq_params.subsampling_x;
       const int gdr_col_max =
           (min_det_right - mi_col - mi_width) * MI_SIZE - guard_px;

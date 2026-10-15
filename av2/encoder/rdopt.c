@@ -6268,9 +6268,9 @@ static int64_t rd_pick_intrabc_mode_sb(const AV2_COMP *cpi, MACROBLOCK *x,
         best_full_pel_mv = get_fullmv_from_mv(&best_subpel_mv.as_mv);
       }
 
-      if (bestsme != INT_MAX && is_bv_valid(&best_full_pel_mv, cm, xd, mi_row,
-                                            mi_col, bsize, gdr_right_px,
-                                            fullms_params)) {
+      if (bestsme != INT_MAX &&
+          is_bv_valid(&best_full_pel_mv, cm, xd, mi_row, mi_col, bsize,
+                      gdr_right_px, fullms_params)) {
         int cur_ref_bv_cost = bestsme;
         int cur_intrabc_mode = 0;
         int cur_intrabc_drl_idx = 0;

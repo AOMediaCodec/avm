@@ -873,8 +873,7 @@ static avm_codec_err_t validate_config(avm_codec_alg_priv_t *ctx,
       ERROR("Only --enable_chroma_deltaq=0 can be used with --lossless=1.");
   }
   if (cfg->enable_gdr) {
-    if (!cfg->enable_sframe)
-      ERROR("--enable-gdr requires --enable-sframe=1.");
+    if (!cfg->enable_sframe) ERROR("--enable-gdr requires --enable-sframe=1.");
     if (cfg->sframe_dist == 0)
       ERROR("--enable-gdr requires --sframe-dist > 0.");
     if (cfg->g_lag_in_frames != 0)

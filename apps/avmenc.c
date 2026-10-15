@@ -1189,7 +1189,8 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
       config->cfg.sframe_type = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &g_av2_codec_arg_defs.enable_gdr, argi)) {
       config->cfg.enable_gdr = arg_parse_uint(&arg);
-    } else if (arg_match(&arg, &g_av2_codec_arg_defs.gdr_refresh_period, argi)) {
+    } else if (arg_match(&arg, &g_av2_codec_arg_defs.gdr_refresh_period,
+                         argi)) {
       config->cfg.gdr_refresh_period = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &g_av2_codec_arg_defs.enable_lcr, argi)) {
       config->cfg.enable_lcr = arg_parse_uint(&arg);
