@@ -323,6 +323,15 @@ contributor agreements are signed for the AOMedia Project.
 
 Follow the pull request page to check the status of the changes, review comments etc.
 
+## Branches
+
+- `main` branch is the default and stable branch.
+- `av2-enc` is an active development branch for encoder optimization work. It
+  is generally ahead of main branch containing more recent optimizations but
+  maybe less stable.
+
+Changes are brought in from `av2-enc` branch to `main` branch periodicaly after
+more thorough testing.
 
 ## Support
 
