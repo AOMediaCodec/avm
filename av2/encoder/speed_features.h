@@ -1341,6 +1341,22 @@ typedef struct LOOP_FILTER_SPEED_FEATURES {
   // bypass ccso luma plane check
   int ccso_chroma_dep;
 
+  // Switches for the multithreaded CDEF and CCSO encoder stages. They exist
+  // only to A/B test each multithreaded path against its single-threaded path
+  // while the encoder baseline is still changing, because the fixed cost of
+  // multithreading can cancel its gain for light stages. Once av2-enc is stable
+  // each multithreaded stage is re-evaluated: the switch is removed where
+  // multithreading helps, and the multithreaded code of the stage is removed
+  // where it does not. The output is the same with or without them.
+
+  // Run the CDEF strength search and the CDEF filtering on the encoder worker
+  // threads when there are several. 0: single thread.
+  int enable_cdef_mt;
+
+  // Run the CCSO filtering on the encoder worker threads when there are
+  // several. 0: single thread.
+  int enable_ccso_mt;
+
   // Prune the QP-model candidates of the GDF frame search in gdf_optimizer().
   // 0: search all GDF_RDO_QP_NUM candidates; 1: search only the two
   // highest-index candidates; 2: search only the highest-index candidate.
