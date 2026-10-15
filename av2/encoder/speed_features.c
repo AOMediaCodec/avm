@@ -1196,6 +1196,13 @@ static AVM_INLINE void init_rt_sf(REALTIME_SPEED_FEATURES *rt_sf) {
   rt_sf->estimate_motion_for_var_based_partition = 0;
 }
 
+// Speed >= 6 partition search breakout tuning: left shift applied to the
+// distortion threshold and the (absolute) rate threshold.
+#define PART_BREAKOUT_SF_DIST_SHIFT 1
+// Rate threshold for 4K and above, and for resolutions below 4K.
+#define PART_BREAKOUT_SF_RATE_THR_4K 150
+#define PART_BREAKOUT_SF_RATE_THR 550
+
 static AVM_INLINE void set_erp_speed_features_framesize_dependent(
     AV2_COMP *cpi) {
   SPEED_FEATURES *const sf = &cpi->sf;
@@ -1280,6 +1287,18 @@ static AVM_INLINE void set_erp_speed_features_framesize_dependent(
     if (is_1080p_or_larger && !is_2160p_or_larger) {
       sf->part_sf.prune_rect_with_split_depth = 4;
     }
+  }
+
+  // At speed >= 6, relax the partition search breakout thresholds set by the
+  // ERP level above (dist_thr and rate_thr were assigned afresh in the switch
+  // above, so this is not cumulative across frames).
+  if (cpi->speed >= 6 && erp_pruning_level >= 5 &&
+      !cpi->is_screen_content_type) {
+    sf->part_sf.partition_search_breakout_dist_thr <<=
+        PART_BREAKOUT_SF_DIST_SHIFT;
+    sf->part_sf.partition_search_breakout_rate_thr =
+        is_2160p_or_larger ? PART_BREAKOUT_SF_RATE_THR_4K
+                           : PART_BREAKOUT_SF_RATE_THR;
   }
 }
 
