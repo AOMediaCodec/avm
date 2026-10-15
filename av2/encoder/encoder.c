@@ -2784,6 +2784,10 @@ void gdf_optimizer(AV2_COMP *cpi, AV2_COMMON *cm) {
 
   int ref_dst_idx = gdf_get_ref_dst_idx(cm);
   int qp_idx_base = gdf_get_qp_idx_base(cm);
+  // QP-model candidates below qp_idx_start are not searched.
+  static const int kGdfQpIdxStart[3] = { 0, GDF_RDO_QP_NUM - 2,
+                                         GDF_RDO_QP_NUM - 1 };
+  const int qp_idx_start = kGdfQpIdxStart[cpi->sf.lpf_sf.gdf_prune_qp_cands];
 
   // init to zero
   int *bru_skip_blk =
@@ -2915,7 +2919,8 @@ void gdf_optimizer(AV2_COMP *cpi, AV2_COMMON *cm) {
                     cm->gdf_info.lap_stride, cm->gdf_info.cls_ptr,
                     cm->gdf_info.cls_stride);
               }
-              for (int qp_idx = 0; qp_idx < GDF_RDO_QP_NUM; qp_idx++) {
+              for (int qp_idx = qp_idx_start; qp_idx < GDF_RDO_QP_NUM;
+                   qp_idx++) {
                 if (use_gdf_local) {
                   gdf_inference_unit(
                       i_min, i_max, j_min, j_max, qp_idx + qp_idx_base,
@@ -2933,7 +2938,7 @@ void gdf_optimizer(AV2_COMP *cpi, AV2_COMMON *cm) {
                     int err_loc =
                         (i - i_min) * cm->gdf_info.err_stride + (j - j_min);
 
-                    if (qp_idx == 0) {
+                    if (qp_idx == qp_idx_start) {
                       int64_t tmp_err = rec_pnt[rec_loc] - org_pnt[org_loc];
                       rec_pic_error[blk_idx] += tmp_err * tmp_err;
                     }
@@ -2993,7 +2998,7 @@ void gdf_optimizer(AV2_COMP *cpi, AV2_COMMON *cm) {
   for (int gdf_mode = cm->bru.enabled ? 2 : 1; gdf_mode < gdf_enable_max_plus_1;
        gdf_mode++) {
     for (int scale_idx = 0; scale_idx < GDF_RDO_SCALE_NUM; scale_idx++) {
-      for (int qp_idx = 0; qp_idx < GDF_RDO_QP_NUM; qp_idx++) {
+      for (int qp_idx = qp_idx_start; qp_idx < GDF_RDO_QP_NUM; qp_idx++) {
         slice_rate = (1 + gdf_block_enable_bit + GDF_RDO_QP_NUM_LOG2 +
                       GDF_RDO_SCALE_NUM_LOG2)
                      << AV2_PROB_COST_SHIFT;

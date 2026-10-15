@@ -51,6 +51,8 @@ typedef struct {
   int check_ccso;
   int num_ref_frames;
   int early_terminate_ccso_search;
+  int max_band_candidates;
+  int reuse_bo_class_stats;
 } CcsoCtxCommon;
 
 typedef struct {
@@ -96,6 +98,9 @@ typedef struct {
   int shift_bits;
   int init_shift_bits;
   uint64_t last_best_cost;
+  // Number of (filter candidate, max_band_log2) evaluations done for this
+  // plane.
+  int num_band_candidates;
   unsigned int checked_reuse_ref[2][7];
   int checked_reuse_ref_idx[2];
   int8_t filter_offset[CCSO_BAND_NUM * 16];
@@ -112,6 +117,9 @@ typedef struct {
                             [CCSO_BAND_NUM];
   int *reuse_total_class_cnt[CCSO_INPUT_INTERVAL][CCSO_INPUT_INTERVAL]
                             [CCSO_BAND_NUM];
+  // True once bo_fine_class_err/cnt hold this plane's band-offset statistics
+  // at the finest band count.
+  bool bo_fine_stats_ready;
 
   // Persistent fields — survive across frames; ccso_ctx_reset zeros everything
   // above this boundary via offsetof(CcsoCtx, class_err_slab).
@@ -123,6 +131,8 @@ typedef struct {
   int *class_cnt_bo_slab;     // backs total_class_cnt_bo
   int *reuse_class_err_slab;  // backs reuse_total_class_err
   int *reuse_class_cnt_slab;  // backs reuse_total_class_cnt
+  int *bo_fine_class_err;     // BO error at CCSO_BAND_NUM bands, per block
+  int *bo_fine_class_cnt;     // BO count at CCSO_BAND_NUM bands, per block
   uint64_t *training_dist_block;
   bool *filter_control;
   bool *best_filter_control;

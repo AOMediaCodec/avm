@@ -26,6 +26,9 @@
 #include "av2/encoder/encoder.h"
 #include "av2/encoder/pickccso.h"
 
+// log2 of CCSO_BAND_NUM, the finest band count of the band-offset-only search.
+#define CCSO_BO_FINE_BAND_LOG2 6
+
 const int ccso_offset[8] = { -10, -7, -3, -1, 0, 1, 3, 7 };
 const int ccso_scale[4] = { 1, 2, 3, 4 };
 
@@ -284,12 +287,12 @@ static void ccso_pre_compute_class_err(const AV2_COMMON *cm, CcsoCtx *ctx,
   }
 }
 
-// pre compute classes for band offset only option
-static void ccso_pre_compute_class_err_bo(const AV2_COMMON *cm, CcsoCtx *ctx,
-                                          MACROBLOCKD *xd) {
+// Gathers the band-offset-only class statistics for max_band bands, where
+// band_num = luma >> shift_bits.
+static void ccso_bo_class_stats_pass(const AV2_COMMON *cm, CcsoCtx *ctx,
+                                     MACROBLOCKD *xd, const uint8_t shift_bits,
+                                     const int max_band) {
   CcsoCtxCommon *s = &ctx->ccso_cm;
-  const uint8_t shift_bits = ctx->shift_bits;
-  const int max_band = 1 << ctx->max_band_log2;
   const int pic_height = xd->plane[s->plane].dst.height;
   const int pic_width = xd->plane[s->plane].dst.width;
   const int y_uv_hscale = xd->plane[s->plane].subsampling_x;
@@ -364,6 +367,52 @@ static void ccso_pre_compute_class_err_bo(const AV2_COMMON *cm, CcsoCtx *ctx,
     ref += (ctx->ccso_stride << blk_log2_y);
     dst += (ctx->ccso_stride << blk_log2_y);
     src_y += (ctx->ccso_stride_ext << (blk_log2_y + y_uv_vscale));
+  }
+}
+
+// pre compute classes for band offset only option
+static void ccso_pre_compute_class_err_bo(const AV2_COMMON *cm, CcsoCtx *ctx,
+                                          MACROBLOCKD *xd) {
+  CcsoCtxCommon *s = &ctx->ccso_cm;
+  const int max_band = 1 << ctx->max_band_log2;
+  if (!s->reuse_bo_class_stats || !reuse_ccso_class_info(cm)) {
+    ccso_bo_class_stats_pass(cm, ctx, xd, ctx->shift_bits, max_band);
+    return;
+  }
+
+  // The statistics do not depend on scale_idx, and the bins of a coarser band
+  // count are unions of adjacent bins of a finer one, so gather them once per
+  // plane at CCSO_BAND_NUM bands and sum.
+  const int sb_count = s->sb_count;
+  if (!ctx->bo_fine_stats_ready) {
+    ccso_bo_class_stats_pass(cm, ctx, xd,
+                             cm->seq_params.bit_depth - CCSO_BO_FINE_BAND_LOG2,
+                             CCSO_BAND_NUM);
+    av2_copy_array(ctx->bo_fine_class_err, ctx->total_class_err_bo[0],
+                   CCSO_BAND_NUM * sb_count);
+    av2_copy_array(ctx->bo_fine_class_cnt, ctx->total_class_cnt_bo[0],
+                   CCSO_BAND_NUM * sb_count);
+    ctx->bo_fine_stats_ready = true;
+  }
+  assert(max_band <= CCSO_BAND_NUM);
+  const int bins_per_band = CCSO_BAND_NUM / max_band;
+  for (int band_num = 0; band_num < max_band; band_num++) {
+    int *err = ctx->total_class_err_bo[band_num];
+    int *cnt = ctx->total_class_cnt_bo[band_num];
+    const int *fine_err =
+        ctx->bo_fine_class_err + band_num * bins_per_band * sb_count;
+    const int *fine_cnt =
+        ctx->bo_fine_class_cnt + band_num * bins_per_band * sb_count;
+    av2_copy_array(err, fine_err, sb_count);
+    av2_copy_array(cnt, fine_cnt, sb_count);
+    for (int bin = 1; bin < bins_per_band; bin++) {
+      fine_err += sb_count;
+      fine_cnt += sb_count;
+      for (int fb_idx = 0; fb_idx < sb_count; fb_idx++) {
+        err[fb_idx] += fine_err[fb_idx];
+        cnt[fb_idx] += fine_cnt[fb_idx];
+      }
+    }
   }
 }
 
@@ -1110,6 +1159,16 @@ void av2_ccso_alloc_search_buffers(AV2_COMMON *cm, CcsoCtx *ctx,
                     avm_malloc(sizeof(*ctx->reuse_class_cnt_slab) *
                                CCSO_CLASS_STATS_ENTRIES * sb_count));
 
+    avm_free(ctx->bo_fine_class_err);
+    CHECK_MEM_ERROR(
+        cm, ctx->bo_fine_class_err,
+        avm_malloc(sizeof(*ctx->bo_fine_class_err) * CCSO_BAND_NUM * sb_count));
+
+    avm_free(ctx->bo_fine_class_cnt);
+    CHECK_MEM_ERROR(
+        cm, ctx->bo_fine_class_cnt,
+        avm_malloc(sizeof(*ctx->bo_fine_class_cnt) * CCSO_BAND_NUM * sb_count));
+
     ctx->alloc_reuse_sb_count = sb_count;
   }
 
@@ -1180,6 +1239,8 @@ void av2_ccso_ctx_free(AV2_COMP *cpi) {
   avm_free(ctx->class_cnt_bo_slab);
   avm_free(ctx->reuse_class_err_slab);
   avm_free(ctx->reuse_class_cnt_slab);
+  avm_free(ctx->bo_fine_class_err);
+  avm_free(ctx->bo_fine_class_cnt);
   avm_free(ctx->training_dist_block);
   avm_free(ctx->filter_control);
   avm_free(ctx->best_filter_control);
@@ -1459,6 +1520,10 @@ static AVM_INLINE bool search_max_band_log2(AV2_COMMON *cm, CcsoCtx *ctx,
     if (s->early_terminate_ccso_search &&
         ctx->final.filtered_cost != UINT64_MAX &&
         1.001 * ctx->final.filtered_cost > ctx->last_best_cost) {
+      return true;
+    }
+    if (s->max_band_candidates &&
+        ++ctx->num_band_candidates >= s->max_band_candidates) {
       return true;
     }
   }
@@ -1759,6 +1824,8 @@ static void derive_ccso_filter(AV2_COMP *cpi, const int plane,
   ccso_cm->check_ccso = check_ccso;
   ccso_cm->num_ref_frames = num_ref_frames;
   ccso_cm->early_terminate_ccso_search = early_terminate_ccso_search;
+  ccso_cm->max_band_candidates = cpi->sf.lpf_sf.ccso_max_band_candidates;
+  ccso_cm->reuse_bo_class_stats = cpi->sf.lpf_sf.ccso_reuse_bo_class_stats;
 
   ctx->final.filtered_cost = UINT64_MAX;
   ctx->final.ref_idx = -1;
