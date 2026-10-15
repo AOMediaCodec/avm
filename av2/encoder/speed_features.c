@@ -1237,6 +1237,8 @@ static AVM_INLINE void init_lpf_sf(LOOP_FILTER_SPEED_FEATURES *lpf_sf) {
   lpf_sf->skip_wienerns_frame_filter_rounding = 0;
   lpf_sf->wienerns_fast_frame_filter_opt = 0;
   lpf_sf->ccso_chroma_dep = 0;
+  lpf_sf->enable_cdef_mt = 1;
+  lpf_sf->enable_ccso_mt = 1;
   lpf_sf->gdf_prune_qp_cands = 0;
   lpf_sf->ccso_max_band_candidates = 0;
   lpf_sf->ccso_reuse_bo_class_stats = 0;

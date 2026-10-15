@@ -688,8 +688,8 @@ int av2_run_workers(AVxWorker *workers, int num_workers, AVxWorkerHook hook,
     worker->data2 = data2 ? (uint8_t *)data2 + i * data2_size : NULL;
     worker->had_error = 0;
   }
-  // av2_create_workers() started a thread for every worker but the first,
-  // which runs on the calling thread.
+  // av2_create_workers() started a thread for every worker; the first one
+  // runs on the calling thread.
   for (int i = 1; i < num_workers; ++i) {
 #if CONFIG_MULTITHREAD
     assert(workers[i].impl_ != NULL);
@@ -737,10 +737,12 @@ void av2_create_workers(AV2_COMP *cpi, int num_workers) {
   }
 
   // Start all the threads here, so every later multi-threaded step can count
-  // on them and a failure is reported once. The first worker runs on the
-  // calling thread. Done after the loop above, so the encoder teardown ends
-  // every started thread if one fails.
-  for (int i = 1; i < num_workers; ++i) {
+  // on them and a failure is reported once. The first worker also gets a
+  // thread, as the frame level stages (loop filter, CDEF, CCSO, loop
+  // restoration) launch all their workers; the tile encoding and
+  // av2_run_workers() run it on the calling thread. Done after the loop above,
+  // so the encoder teardown ends every started thread if one fails.
+  for (int i = 0; i < num_workers; ++i) {
     if (!winterface->reset(&mt_info->workers[i]))
       avm_internal_error(&cm->error, AVM_CODEC_ERROR,
                          "Tile encoder thread creation failed");

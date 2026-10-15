@@ -21,6 +21,7 @@
 #include "av2/common/av2_common_int.h"
 #include "av2/common/reconinter.h"
 #include "av2/encoder/encoder.h"
+#include "av2/encoder/ethread.h"
 #include "av2/encoder/pickcdef.h"
 
 #define REDUCED_PRI_STRENGTHS_LVL1 8
@@ -414,6 +415,143 @@ static AVM_INLINE void reset_frame_mi_cdef_strength(AV2_COMMON *cm) {
   }
 }
 
+// One filter block of the CDEF search, in raster order.
+typedef struct {
+  int fbr;
+  int fbc;
+  BLOCK_SIZE bs;
+  int nhb;
+  int nvb;
+  int hb_step;
+  int vb_step;
+} CdefSearchJob;
+
+// Read-only inputs of the CDEF search shared by all threads, plus the job
+// counter and the per-filter-block output (mse).
+typedef struct {
+  const AV2_COMMON *cm;
+  const MACROBLOCKD *xd;
+  const CdefSearchJob *jobs;
+  int num_jobs;
+  int next_job;  // Protected by job_mutex.
+#if CONFIG_MULTITHREAD
+  pthread_mutex_t job_mutex;
+#endif                                  // CONFIG_MULTITHREAD
+  uint64_t (*mse[2])[TOTAL_STRENGTHS];  // Written at distinct job indices.
+  int num_planes;
+  int nvfb;
+  int nhfb;
+  int damping;
+  int coeff_shift;
+  int total_strengths;
+  CDEF_PICK_METHOD pick_method;
+  int bsize[3];
+  int mi_wide_l2[3];
+  int mi_high_l2[3];
+  int xdec[3];
+  int ydec[3];
+  uint16_t *ref_buffer[3];
+  int ref_stride[3];
+} CdefSearchCtx;
+
+// Per-thread scratch buffers and partial results of the CDEF search.
+typedef struct {
+  DECLARE_ALIGNED(32, uint16_t, inbuf[CDEF_INBUF_SIZE]);
+  DECLARE_ALIGNED(32, uint16_t, tmp_dst[1 << (MAX_SB_SIZE_LOG2 * 2)]);
+  cdef_list dlist[MI_SIZE_256X256 * MI_SIZE_256X256];
+  int dir[CDEF_NBLOCKS][CDEF_NBLOCKS];
+  int var[CDEF_NBLOCKS][CDEF_NBLOCKS];
+  uint64_t unfiltered_mse;  // Integer sum, independent of the job order.
+} CdefSearchScratch;
+
+// Returns the next unprocessed job index, or -1 if all jobs are taken.
+static int get_cdef_search_job(CdefSearchCtx *ctx) {
+  int job_idx = -1;
+#if CONFIG_MULTITHREAD
+  pthread_mutex_lock(&ctx->job_mutex);
+#endif  // CONFIG_MULTITHREAD
+  if (ctx->next_job < ctx->num_jobs) job_idx = ctx->next_job++;
+#if CONFIG_MULTITHREAD
+  pthread_mutex_unlock(&ctx->job_mutex);
+#endif  // CONFIG_MULTITHREAD
+  return job_idx;
+}
+
+// Computes the mse of every strength for one filter block and all planes.
+static void cdef_search_filter_block(const CdefSearchCtx *ctx,
+                                     CdefSearchScratch *scratch, int job_idx) {
+  const AV2_COMMON *const cm = ctx->cm;
+  const CommonModeInfoParams *const mi_params = &cm->mi_params;
+  const CdefSearchJob *const job = &ctx->jobs[job_idx];
+  const int fbr = job->fbr;
+  const int fbc = job->fbc;
+  const int nhb = job->nhb;
+  const int nvb = job->nvb;
+  const int nvfb = ctx->nvfb;
+  const int nhfb = ctx->nhfb;
+  uint16_t *const inbuf = scratch->inbuf;
+  uint16_t *const in = inbuf + CDEF_VBORDER * CDEF_BSTRIDE + CDEF_HBORDER;
+
+  const int cdef_count = av2_cdef_compute_sb_list(
+      cm, mi_params, fbr * MI_SIZE_64X64, fbc * MI_SIZE_64X64, scratch->dlist,
+      job->bs, ctx->num_planes);
+
+  const int yoff = CDEF_VBORDER * (fbr != 0);
+  const int xoff = CDEF_HBORDER * (fbc != 0);
+  int dirinit = 0;
+  for (int pli = 0; pli < ctx->num_planes; pli++) {
+    for (int i = 0; i < CDEF_INBUF_SIZE; i++) inbuf[i] = CDEF_VERY_LARGE;
+    /* We avoid filtering the pixels for which some of the pixels to
+       average are outside the frame. We could change the filter instead,
+       but it would add special cases for any future vectorization. */
+    const int ysize = (nvb << ctx->mi_high_l2[pli]) +
+                      CDEF_VBORDER * (fbr + job->vb_step < nvfb) + yoff;
+    const int xsize = (nhb << ctx->mi_wide_l2[pli]) +
+                      CDEF_HBORDER * (fbc + job->hb_step < nhfb) + xoff;
+    const int row = fbr * MI_SIZE_64X64 << ctx->mi_high_l2[pli];
+    const int col = fbc * MI_SIZE_64X64 << ctx->mi_wide_l2[pli];
+    // The input window does not depend on the strength, and
+    // av2_cdef_filter_fb() does not modify 'in', so copy it only once.
+    copy_sb16_16_highbd(&in[(-yoff * CDEF_BSTRIDE - xoff)], CDEF_BSTRIDE,
+                        ctx->xd->plane[pli].dst.buf, row - yoff, col - xoff,
+                        ctx->xd->plane[pli].dst.stride, ysize, xsize);
+    for (int gi = 0; gi < ctx->total_strengths; gi++) {
+      int pri_strength, sec_strength;
+      get_cdef_filter_strengths(ctx->pick_method, &pri_strength, &sec_strength,
+                                gi);
+      av2_cdef_filter_fb(NULL, scratch->tmp_dst, CDEF_BSTRIDE, in,
+                         ctx->xdec[pli], ctx->ydec[pli], scratch->dir, &dirinit,
+                         scratch->var, pli, scratch->dlist, cdef_count,
+                         pri_strength, sec_strength + (sec_strength == 3),
+                         ctx->damping, ctx->coeff_shift);
+      const uint64_t curr_mse =
+          compute_cdef_dist_highbd(ctx->ref_buffer[pli], ctx->ref_stride[pli],
+                                   scratch->tmp_dst, scratch->dlist, cdef_count,
+                                   ctx->bsize[pli], ctx->coeff_shift, row, col);
+      if (gi == 0) {
+        scratch->unfiltered_mse += curr_mse;
+      }
+      if (pli < 2)
+        ctx->mse[pli][job_idx][gi] = curr_mse;
+      else
+        ctx->mse[1][job_idx][gi] += curr_mse;
+    }
+  }
+}
+
+// Worker hook of the CDEF search: processes filter blocks until none is left.
+static int cdef_search_worker_hook(void *arg1, void *arg2) {
+  CdefSearchCtx *const ctx = (CdefSearchCtx *)arg1;
+  CdefSearchScratch *const scratch = (CdefSearchScratch *)arg2;
+  av2_zero(scratch->dir);
+  av2_zero(scratch->var);
+  int job_idx;
+  while ((job_idx = get_cdef_search_job(ctx)) >= 0) {
+    cdef_search_filter_block(ctx, scratch, job_idx);
+  }
+  return 1;
+}
+
 void av2_cdef_search(const YV12_BUFFER_CONFIG *frame,
                      const YV12_BUFFER_CONFIG *ref, AV2_COMMON *cm,
                      MACROBLOCKD *xd,
@@ -421,7 +559,8 @@ void av2_cdef_search(const YV12_BUFFER_CONFIG *frame,
                      ThreadData *td,
 #endif  // CONFIG_ENTROPY_STATS
                      CDEF_PICK_METHOD pick_method, int rdmult,
-                     int bias_against_cdef) {
+                     int bias_against_cdef, AVxWorker *workers,
+                     int num_workers) {
   if (cm->seq_params.enable_cdef_on_skip_txfm == CDEF_ON_SKIP_TXFM_DISABLED) {
     cm->cdef_info.cdef_on_skip_txfm_frame_enable = 0;
   } else {
@@ -440,9 +579,6 @@ void av2_cdef_search(const YV12_BUFFER_CONFIG *frame,
   av2_copy(cdef_strength_index0_cdf, cm->fc->cdef_strength_index0_cdf);
   av2_copy(cdef_cdf, cm->fc->cdef_cdf);
 
-  cdef_list dlist[MI_SIZE_256X256 * MI_SIZE_256X256];
-  int dir[CDEF_NBLOCKS][CDEF_NBLOCKS] = { { 0 } };
-  int var[CDEF_NBLOCKS][CDEF_NBLOCKS] = { { 0 } };
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   const int nvfb = (mi_params->mi_rows + MI_SIZE_64X64 - 1) / MI_SIZE_64X64;
   const int nhfb = (mi_params->mi_cols + MI_SIZE_64X64 - 1) / MI_SIZE_64X64;
@@ -459,13 +595,11 @@ void av2_cdef_search(const YV12_BUFFER_CONFIG *frame,
   const int fast = (pick_method >= CDEF_FAST_SEARCH_LVL1 &&
                     pick_method <= CDEF_FAST_SEARCH_LVL3);
   const int total_strengths = nb_cdef_strengths[pick_method];
-  DECLARE_ALIGNED(32, uint16_t, tmp_dst[1 << (MAX_SB_SIZE_LOG2 * 2)]);
   const int num_planes = av2_num_planes(cm);
   av2_setup_dst_planes(xd->plane, frame, 0, 0, 0, num_planes, NULL);
   uint64_t(*mse[2])[TOTAL_STRENGTHS];
   mse[0] = avm_malloc(sizeof(**mse) * nvfb * nhfb);
   mse[1] = avm_malloc(sizeof(**mse) * nvfb * nhfb);
-  uint64_t unfiltered_mse = 0;
 
   int bsize[3];
   int mi_wide_l2[3];
@@ -484,15 +618,12 @@ void av2_cdef_search(const YV12_BUFFER_CONFIG *frame,
     mi_high_l2[pli] = MI_SIZE_LOG2 - xd->plane[pli].subsampling_y;
   }
 
-  copy_fn_t copy_fn;
-  compute_cdef_dist_t compute_cdef_dist_fn;
-
-  copy_fn = copy_sb16_16_highbd;
-  compute_cdef_dist_fn = compute_cdef_dist_highbd;
-
-  DECLARE_ALIGNED(32, uint16_t, inbuf[CDEF_INBUF_SIZE]);
-  uint16_t *const in = inbuf + CDEF_VBORDER * CDEF_BSTRIDE + CDEF_HBORDER;
   const int coeff_shift = AVMMAX(cm->seq_params.bit_depth - 8, 0);
+  // Collect the filter blocks to search in raster order. The mse of a filter
+  // block is stored at its position in this list, so the result does not
+  // depend on which thread processes which block.
+  CdefSearchJob *jobs;
+  CHECK_MEM_ERROR(cm, jobs, avm_malloc(nvfb * nhfb * sizeof(*jobs)));
   int sb_count = 0;
   for (int fbr = 0; fbr < nvfb; ++fbr) {
     for (int fbc = 0; fbc < nhfb; ++fbc) {
@@ -550,52 +681,73 @@ void av2_cdef_search(const YV12_BUFFER_CONFIG *frame,
         bs = BLOCK_64X64;
       }
 
-      const int cdef_count =
-          av2_cdef_compute_sb_list(cm, mi_params, fbr * MI_SIZE_64X64,
-                                   fbc * MI_SIZE_64X64, dlist, bs, num_planes);
-
-      const int yoff = CDEF_VBORDER * (fbr != 0);
-      const int xoff = CDEF_HBORDER * (fbc != 0);
-      int dirinit = 0;
-      for (int pli = 0; pli < num_planes; pli++) {
-        for (int i = 0; i < CDEF_INBUF_SIZE; i++) inbuf[i] = CDEF_VERY_LARGE;
-        /* We avoid filtering the pixels for which some of the pixels to
-           average are outside the frame. We could change the filter instead,
-           but it would add special cases for any future vectorization. */
-        const int ysize = (nvb << mi_high_l2[pli]) +
-                          CDEF_VBORDER * (fbr + vb_step < nvfb) + yoff;
-        const int xsize = (nhb << mi_wide_l2[pli]) +
-                          CDEF_HBORDER * (fbc + hb_step < nhfb) + xoff;
-        const int row = fbr * MI_SIZE_64X64 << mi_high_l2[pli];
-        const int col = fbc * MI_SIZE_64X64 << mi_wide_l2[pli];
-        // The input window does not depend on the strength, and
-        // av2_cdef_filter_fb() does not modify 'in', so copy it only once.
-        copy_fn(&in[(-yoff * CDEF_BSTRIDE - xoff)], CDEF_BSTRIDE,
-                xd->plane[pli].dst.buf, row - yoff, col - xoff,
-                xd->plane[pli].dst.stride, ysize, xsize);
-        for (int gi = 0; gi < total_strengths; gi++) {
-          int pri_strength, sec_strength;
-          get_cdef_filter_strengths(pick_method, &pri_strength, &sec_strength,
-                                    gi);
-          av2_cdef_filter_fb(
-              NULL, tmp_dst, CDEF_BSTRIDE, in, xdec[pli], ydec[pli], dir,
-              &dirinit, var, pli, dlist, cdef_count, pri_strength,
-              sec_strength + (sec_strength == 3), damping, coeff_shift);
-          const uint64_t curr_mse = compute_cdef_dist_fn(
-              ref_buffer[pli], ref_stride[pli], tmp_dst, dlist, cdef_count,
-              bsize[pli], coeff_shift, row, col);
-          if (gi == 0) {
-            unfiltered_mse += curr_mse;
-          }
-          if (pli < 2)
-            mse[pli][sb_count][gi] = curr_mse;
-          else
-            mse[1][sb_count][gi] += curr_mse;
-        }
-      }
+      CdefSearchJob *const job = &jobs[sb_count];
+      job->fbr = fbr;
+      job->fbc = fbc;
+      job->bs = bs;
+      job->nhb = nhb;
+      job->nvb = nvb;
+      job->hb_step = hb_step;
+      job->vb_step = vb_step;
       sb_index[sb_count++] =
           MI_SIZE_64X64 * fbr * mi_params->mi_stride + MI_SIZE_64X64 * fbc;
     }
+  }
+
+  CdefSearchCtx search_ctx;
+  search_ctx.cm = cm;
+  search_ctx.xd = xd;
+  search_ctx.jobs = jobs;
+  search_ctx.num_jobs = sb_count;
+  search_ctx.next_job = 0;
+  search_ctx.mse[0] = mse[0];
+  search_ctx.mse[1] = mse[1];
+  search_ctx.num_planes = num_planes;
+  search_ctx.nvfb = nvfb;
+  search_ctx.nhfb = nhfb;
+  search_ctx.damping = damping;
+  search_ctx.coeff_shift = coeff_shift;
+  search_ctx.total_strengths = total_strengths;
+  search_ctx.pick_method = pick_method;
+  for (int pli = 0; pli < num_planes; pli++) {
+    search_ctx.bsize[pli] = bsize[pli];
+    search_ctx.mi_wide_l2[pli] = mi_wide_l2[pli];
+    search_ctx.mi_high_l2[pli] = mi_high_l2[pli];
+    search_ctx.xdec[pli] = xdec[pli];
+    search_ctx.ydec[pli] = ydec[pli];
+    search_ctx.ref_buffer[pli] = ref_buffer[pli];
+    search_ctx.ref_stride[pli] = ref_stride[pli];
+  }
+#if CONFIG_MULTITHREAD
+  pthread_mutex_init(&search_ctx.job_mutex, NULL);
+#endif  // CONFIG_MULTITHREAD
+
+  const int use_mt = num_workers > 1 && sb_count > 1;
+  const int num_scratch = use_mt ? num_workers : 1;
+  CdefSearchScratch *scratch;
+  CHECK_MEM_ERROR(cm, scratch,
+                  avm_memalign(32, num_scratch * sizeof(*scratch)));
+  for (int i = 0; i < num_scratch; i++) {
+    scratch[i].unfiltered_mse = 0;
+  }
+  // With one thread av2_run_workers() calls the hook directly.
+  const int had_error = !av2_run_workers(workers, use_mt ? num_workers : 1,
+                                         cdef_search_worker_hook, &search_ctx,
+                                         scratch, sizeof(*scratch));
+  uint64_t unfiltered_mse = 0;
+  for (int i = 0; i < num_scratch; i++) {
+    unfiltered_mse += scratch[i].unfiltered_mse;
+  }
+#if CONFIG_MULTITHREAD
+  pthread_mutex_destroy(&search_ctx.job_mutex);
+#endif  // CONFIG_MULTITHREAD
+  avm_free(scratch);
+  avm_free(jobs);
+  if (had_error) {
+    avm_free(mse[0]);
+    avm_free(mse[1]);
+    avm_free(sb_index);
+    avm_internal_error(&cm->error, AVM_CODEC_ERROR, "Failed to search cdef");
   }
 
   /* Search for different number of signalling bits. */
