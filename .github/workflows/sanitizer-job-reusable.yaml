@@ -232,4 +232,5 @@ jobs:
         if: ${{ always() }}
         with:
           name: sanitizer-${{ inputs.avm-sanitizer-type }}-logs
+          retention-days: 1
           path: sanitizer.*.log
