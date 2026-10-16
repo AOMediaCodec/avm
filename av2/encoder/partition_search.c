@@ -4099,8 +4099,7 @@ static void prune_partitions_after_none(AV2_COMP *const cpi, MACROBLOCK *x,
       !frame_is_intra_only(cm) && !xd->lossless[xd->mi[0]->segment_id] &&
       ctx_none->skippable &&
       part_search_state->forced_partition == PARTITION_INVALID &&
-      !x->must_find_valid_partition &&
-      block_size_wide[bsize] >= cpi->sf.part_sf.skip_split_after_none_min_dim) {
+      !x->must_find_valid_partition) {
     // Skip the recursive PARTITION_SPLIT search when the skippable
     // PARTITION_NONE has small distortion. Never applied to forced nodes
     // (wet-pass templates, normative) or when a valid partition must be found.
