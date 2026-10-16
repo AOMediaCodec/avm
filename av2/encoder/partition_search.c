@@ -4068,6 +4068,15 @@ static void rectangular_partition_search(
   }
 }
 
+// Scales a distortion breakout threshold, defined for a 128x128 block, to the
+// size of bsize.
+static AVM_INLINE int64_t scaled_breakout_dist_thr(int64_t base_thr,
+                                                   BLOCK_SIZE bsize) {
+  const int shift = ((2 * (BLOCK_128_MI_SIZE_LOG2)) -
+                     (mi_size_wide_log2[bsize] + mi_size_high_log2[bsize]));
+  return (shift >= 0) ? (base_thr >> shift) : (base_thr << (-shift));
+}
+
 // Skip other partitions based on PARTITION_NONE rd cost.
 static void prune_partitions_after_none(AV2_COMP *const cpi, MACROBLOCK *x,
                                         SIMPLE_MOTION_DATA_TREE *sms_tree,
@@ -4084,18 +4093,29 @@ static void prune_partitions_after_none(AV2_COMP *const cpi, MACROBLOCK *x,
 
   (void)sms_tree;
 
+  if (cpi->sf.part_sf.skip_split_after_none &&
+      part_search_state->partition_allowed[PARTITION_SPLIT] &&
+      !part_search_state->prune_partition[PARTITION_SPLIT] &&
+      !frame_is_intra_only(cm) && !xd->lossless[xd->mi[0]->segment_id] &&
+      ctx_none->skippable &&
+      part_search_state->forced_partition == PARTITION_INVALID &&
+      !x->must_find_valid_partition) {
+    // Skip the recursive PARTITION_SPLIT search when the skippable
+    // PARTITION_NONE has small distortion. Never applied to forced nodes
+    // (wet-pass templates, normative) or when a valid partition must be found.
+    const int64_t thr = scaled_breakout_dist_thr(
+        cpi->sf.part_sf.partition_search_breakout_dist_thr, bsize);
+    if (best_rdc->dist <
+        (thr << cpi->sf.part_sf.skip_split_after_none_thr_shift)) {
+      part_search_state->prune_partition[PARTITION_SPLIT] = true;
+    }
+  }
+
   if (!frame_is_intra_only(cm) && part_search_state->do_rectangular_split &&
       !xd->lossless[xd->mi[0]->segment_id] && ctx_none->skippable) {
     // Adjust dist breakout threshold according to the partition size.
-    const int right_shift =
-        ((2 * (BLOCK_128_MI_SIZE_LOG2)) -
-         (mi_size_wide_log2[bsize] + mi_size_high_log2[bsize]));
-    const int64_t dist_breakout_thr =
-        (right_shift >= 0)
-            ? (cpi->sf.part_sf.partition_search_breakout_dist_thr >>
-               right_shift)
-            : (cpi->sf.part_sf.partition_search_breakout_dist_thr
-               << (-right_shift));
+    const int64_t dist_breakout_thr = scaled_breakout_dist_thr(
+        cpi->sf.part_sf.partition_search_breakout_dist_thr, bsize);
     const int rate_breakout_thr =
         cpi->sf.part_sf.partition_search_breakout_rate_thr *
         num_pels_log2_lookup[bsize];

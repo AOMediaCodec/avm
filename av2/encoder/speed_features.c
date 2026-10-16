@@ -779,6 +779,14 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.limit_single_ref_mv_idx =
         cm->current_frame.pyramid_level >= 4 ? 2 : 0;
 
+    // Skip PARTITION_SPLIT after a skippable, small-distortion PARTITION_NONE
+    // on deep-pyramid frames (dist threshold doubled). Only fires when
+    // partition_allowed[PARTITION_SPLIT] is true (i.e. 128x128/256x256 SBs).
+    if (cm->current_frame.pyramid_level >= 4) {
+      sf->part_sf.skip_split_after_none = 1;
+      sf->part_sf.skip_split_after_none_thr_shift = 1;
+    }
+
     sf->hl_sf.disable_unequal_scale_refs = true;
 
     sf->gm_sf.downsample_level = 2;
@@ -940,6 +948,8 @@ static AVM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   // Recode loop tolerance %.
   part_sf->partition_search_breakout_dist_thr = 0;
   part_sf->partition_search_breakout_rate_thr = 0;
+  part_sf->skip_split_after_none = 0;
+  part_sf->skip_split_after_none_thr_shift = 0;
   part_sf->ml_early_term_after_part_split_level = 0;
   part_sf->simple_motion_search_prune_agg = 0;
   part_sf->simple_motion_search_split = 0;
