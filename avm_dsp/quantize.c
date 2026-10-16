@@ -72,7 +72,7 @@ void avm_highbd_quantize_b_adaptive_helper_c(
           (dequant_ptr[rc != 0] * iwt + (1 << (AVM_QM_BITS - 1))) >>
           AVM_QM_BITS;
       const tran_low_t abs_dqcoeff =
-          (tran_low_t)ROUND_POWER_OF_TWO_64(abs_qcoeff * dequant,
+          (tran_low_t)ROUND_POWER_OF_TWO_64((tran_high_t)abs_qcoeff * dequant,
                                             QUANT_TABLE_BITS) >>
           log_scale;
       dqcoeff_ptr[rc] = (tran_low_t)((abs_dqcoeff ^ coeff_sign) - coeff_sign);
@@ -156,7 +156,7 @@ void avm_highbd_quantize_b_helper_c(
     dequant =
         (dequant_ptr[rc != 0] * iwt + (1 << (AVM_QM_BITS - 1))) >> AVM_QM_BITS;
     const tran_low_t abs_dqcoeff =
-        (tran_low_t)ROUND_POWER_OF_TWO_64(abs_qcoeff * dequant,
+        (tran_low_t)ROUND_POWER_OF_TWO_64((tran_high_t)abs_qcoeff * dequant,
                                           QUANT_TABLE_BITS) >>
         log_scale;
     dqcoeff_ptr[rc] = (tran_low_t)((abs_dqcoeff ^ coeff_sign) - coeff_sign);
