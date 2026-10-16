@@ -3809,6 +3809,10 @@ static void prune_rect_partitions(AV2_COMP *const cpi, ThreadData *td,
                                   PartitionSearchState *part_search_state,
                                   unsigned int *pb_source_variance,
                                   int64_t part_none_rd) {
+  // If previous pruning determines terminating partition search,
+  // no need to run the pruning logic here.
+  if (part_search_state->terminate_partition_search) return;
+
   const AV2_COMMON *const cm = &cpi->common;
   MACROBLOCK *const x = &td->mb;
   const PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
