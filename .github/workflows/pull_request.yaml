@@ -277,6 +277,7 @@ jobs:
         if: ${{ always() }}
         with:
           name: example-test-logs
+          retention-days: 1
           path: example.test.*.log
 
   linux-sanitizer-test:
@@ -483,6 +484,7 @@ jobs:
         if: ${{ always() }}
         with:
           name: encdec-${{ matrix.avm-enc-output }}
+          retention-days: 1
           path: ${{ matrix.avm-enc-output }}.*
 
       - name: Compare hashes
@@ -604,7 +606,7 @@ jobs:
         with:
           name: analyzer-${{ matrix.analyzer-mode }}
           path: analyzer-${{ matrix.analyzer-mode }}
-          retention-days: 14
+          retention-days: 1
 
     strategy:
       fail-fast: false

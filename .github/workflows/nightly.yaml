@@ -201,6 +201,7 @@ jobs:
         if: ${{ always() }}
         with:
           name: unit-test-logs
+          retention-days: 1
           path: unittest.*.log
 
       - name: Merge coverage GCDA into working directory
@@ -332,6 +333,7 @@ jobs:
         if: always()
         with:
           name: coverage-html
+          retention-days: 3
           path: |
             coverage-html
 
@@ -340,6 +342,7 @@ jobs:
         if: always()
         with:
           name: unit-test-junit-reports
+          retention-days: 3
           path: |
             avm_nightly_build/report.*.xml
 
@@ -424,6 +427,7 @@ jobs:
         if: ${{ always() }}
         with:
           name: ${{ github.job }}-${{ matrix.avm-optim-level }}-logs
+          retention-days: 1
           path: ${{ github.job }}.${{ matrix.avm-optim-level }}.*.log
 
       - name: Publish Junit Test Report
@@ -439,6 +443,7 @@ jobs:
         if: always()
         with:
           name: ${{ github.job }}-${{ matrix.avm-optim-level }}-junit-report
+          retention-days: 1
           path: |
             avm_nightly_build/report.*.xml
 
