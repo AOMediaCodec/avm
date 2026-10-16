@@ -526,19 +526,25 @@ void av2_free_sms_bufs(ThreadData *td) {
 PC_TREE *counterpart_from_different_partition(PC_TREE *pc_tree,
                                               const PC_TREE *target);
 
+// Returns true if two PC_TREE nodes cover the same block size and share
+// identical chroma reference info.
+// Note: Checking bsize_base in chroma_ref_info would suffice due to
+// partitioning constraints, but we compare the full struct for safety across
+// partition schemes.
+static AVM_INLINE bool is_same_counterpart_geometry(const PC_TREE *a,
+                                                    const PC_TREE *b) {
+  return a != NULL && b != NULL && a->block_size == b->block_size &&
+         memcmp(&a->chroma_ref_info, &b->chroma_ref_info,
+                sizeof(a->chroma_ref_info)) == 0;
+}
+
 static PC_TREE *look_for_counterpart_helper(PC_TREE *cur,
                                             const PC_TREE *target) {
   if (cur == NULL || cur == target) return NULL;
 
   const BLOCK_SIZE current_bsize = cur->block_size;
   const BLOCK_SIZE target_bsize = target->block_size;
-  // Note: To find the counterpart block, we don't actually need to check the
-  // whole chroma_ref_info -- checking bsize_base should suffice due to
-  // constraints in the partitioning scheme. However, we are checking the whole
-  // struct for now as we are still experimenting with new partition schemes.
-  if (current_bsize == target_bsize &&
-      memcmp(&cur->chroma_ref_info, &target->chroma_ref_info,
-             sizeof(cur->chroma_ref_info)) == 0) {
+  if (is_same_counterpart_geometry(cur, target)) {
     return cur;
   } else {
     if (mi_size_wide[current_bsize] >= mi_size_wide[target_bsize] &&
@@ -559,14 +565,99 @@ PC_TREE *counterpart_from_different_partition(PC_TREE *pc_tree,
   PC_TREE *result;
   REGION_TYPE cur_region_type = pc_tree->region_type;
 
+  // Iterate over partition types in enum order (PARTITION_HORZ = 1, ...,
+  // PARTITION_SPLIT = 9). Because an earlier partition trial (such as
+  // PARTITION_HORZ -> PARTITION_VERT) may have allocated child_nodes[0] and
+  // then aborted due to exceeding the remaining RD budget (leaving
+  // rd_cost.rate == INT_MAX), prefer returning a fully evaluated candidate
+  // (e.g., from PARTITION_SPLIT) over an aborted node.
+  PC_TREE *fallback = NULL;
   for (PARTITION_TYPE partition_type = PARTITION_HORZ;
        partition_type < ALL_PARTITION_TYPES; ++partition_type) {
     int num_sub_parts = 0;
     PC_TREE **child_nodes = (PC_TREE **)get_child_pc_trees(
         pc_tree, partition_type, cur_region_type, &num_sub_parts);
     result = look_for_counterpart_helper(child_nodes[0], target);
-    if (result) return result;
+    if (result) {
+      if (av2_is_pc_tree_evaluated(result)) return result;
+      if (!fallback) fallback = result;
+    }
   }
+  return fallback;
+}
+
+/*! \brief Checks whether a non-zero quadrant (Q01, Q10, or Q11) inside a
+ * HORZ -> VERT sub-partition search can reuse the corresponding quadrant from
+ * a preceding PARTITION_SPLIT search on the same 128x128 or 256x256 ancestor.
+ *
+ * Fast-encoding trigger criteria:
+ *   When a grandparent square block evaluates PARTITION_SPLIT (Q00 -> Q01 ->
+ *   Q10 -> Q11) and later evaluates PARTITION_HORZ (H0, H1) where H0 and/or H1
+ *   evaluate PARTITION_VERT, both paths visit the four quadrants in the exact
+ *   same raster order (Q00 -> Q01 -> Q10 -> Q11). A non-zero quadrant in
+ *   HORZ -> VERT has the exact same causal context (reconstructed neighbor
+ *   pixels, mi_grid_base, ref_mv_bank, and warp_param_bank) as its
+ *   PARTITION_SPLIT counterpart if and only if all preceding quadrants in
+ *   raster order produced the exact same RDO decisions:
+ *     - Case 1 (Q01 = H0->vertical[r][1]): Reuse split[r][1] when Q00
+ *       (H0->vertical[r][0]) matches split[r][0].
+ *     - Case 2 (Q10 = H1->vertical[r][0]): Reuse split[r][2] when H0 chose
+ *       PARTITION_VERT and both Q00 and Q01 match split[r][0..1].
+ *     - Case 3 (Q11 = H1->vertical[r][1]): Reuse split[r][3] when Case 2 holds
+ *       and Q10 (H1->vertical[r][0]) also matches split[r][2].
+ */
+static PC_TREE *look_for_split_vs_horz_vert_counterpart(
+    const PC_TREE *pc_tree) {
+  const PC_TREE *parent = pc_tree ? pc_tree->parent : NULL;
+  const PC_TREE *grandparent = parent ? parent->parent : NULL;
+  if (!grandparent) return NULL;
+
+  const REGION_TYPE r = grandparent->region_type;
+  if (parent->region_type != r || pc_tree->region_type != r) return NULL;
+
+  PC_TREE *const *split_quads = grandparent->split[r];
+
+  // Case 1: Target is Q01 (second vertical child of top half H0).
+  if (parent == grandparent->horizontal[r][0] &&
+      pc_tree == parent->vertical[r][1]) {
+    PC_TREE *q01_split = split_quads[1];
+    if (av2_have_matching_rdo_decision(parent->vertical[r][0],
+                                       split_quads[0]) &&
+        av2_is_pc_tree_evaluated(q01_split) &&
+        is_same_counterpart_geometry(q01_split, pc_tree)) {
+      return q01_split;
+    }
+    return NULL;
+  }
+
+  // Cases 2 & 3: Target is Q10 or Q11 (vertical child of bottom half H1).
+  if (parent == grandparent->horizontal[r][1] &&
+      (pc_tree == parent->vertical[r][0] ||
+       pc_tree == parent->vertical[r][1])) {
+    const PC_TREE *h0 = grandparent->horizontal[r][0];
+    if (!h0 || h0->partitioning != PARTITION_VERT) return NULL;
+
+    // Both top quadrants (Q00 and Q01) must match the SPLIT path.
+    if (!av2_have_matching_rdo_decision(h0->vertical[r][0], split_quads[0]) ||
+        !av2_have_matching_rdo_decision(h0->vertical[r][1], split_quads[1])) {
+      return NULL;
+    }
+
+    const int split_idx = (pc_tree == parent->vertical[r][0]) ? 2 : 3;
+    PC_TREE *q_split = split_quads[split_idx];
+    if (!av2_is_pc_tree_evaluated(q_split) ||
+        !is_same_counterpart_geometry(q_split, pc_tree)) {
+      return NULL;
+    }
+
+    // For Q11 (split_idx == 3), Q10 must also match split_quads[2].
+    if (split_idx == 3 && !av2_have_matching_rdo_decision(
+                              parent->vertical[r][0], split_quads[2])) {
+      return NULL;
+    }
+    return q_split;
+  }
+
   return NULL;
 }
 
@@ -575,12 +666,21 @@ PC_TREE *counterpart_from_different_partition(PC_TREE *pc_tree,
 PC_TREE *av2_look_for_counterpart_block(PC_TREE *pc_tree) {
   if (!pc_tree) return 0;
 
-  // Find the highest possible common parent node
+  // 1. Standard index-0 ancestor search: walk up while index == 0 to find the
+  // highest ancestor that starts at the same top-left corner, then search
+  // alternative partition branches from that ancestor.
   PC_TREE *current = pc_tree;
   while (current->index == 0 && current->parent) {
     current = current->parent;
   }
+  PC_TREE *counterpart = counterpart_from_different_partition(current, pc_tree);
+  if (counterpart && counterpart->rd_cost.rate != INT_MAX) return counterpart;
 
-  // Search from the highest common ancestor
-  return counterpart_from_different_partition(current, pc_tree);
+  // 2. Non-zero sub-block index extension: check if pc_tree is Q01, Q10, or Q11
+  // inside a HORZ -> VERT split whose preceding quadrants match
+  // PARTITION_SPLIT.
+  PC_TREE *split_counterpart = look_for_split_vs_horz_vert_counterpart(pc_tree);
+  if (split_counterpart) return split_counterpart;
+
+  return counterpart;
 }
