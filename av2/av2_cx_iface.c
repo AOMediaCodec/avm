@@ -579,7 +579,7 @@ static struct av2_extracfg default_extra_cfg = {
 };
 
 static struct av2_extracfg default_extra_cfg_rt = {
-  .cpu_used = 6,
+  .cpu_used = AVM_MIN_SPEED_REALTIME,
   .enable_auto_alt_ref = 0,
   .enable_auto_bwd_ref = 0,
   .noise_sensitivity = 0,
@@ -2200,8 +2200,29 @@ static avm_codec_err_t ctrl_get_enc_frame_info(avm_codec_alg_priv_t *ctx,
   return AVM_CODEC_OK;
 }
 
+static void clamp_cpu_used(const avm_codec_enc_cfg_t *cfg,
+                           struct av2_extracfg *extra_cfg) {
+  if (cfg->g_usage == AVM_USAGE_GOOD_QUALITY &&
+      extra_cfg->cpu_used > AVM_MAX_SPEED_GOOD_QUALITY) {
+    fprintf(stderr,
+            "Warning: cpu-used > %d is not supported in good mode... "
+            "setting cpu-used=%d\n",
+            AVM_MAX_SPEED_GOOD_QUALITY, AVM_MAX_SPEED_GOOD_QUALITY);
+    extra_cfg->cpu_used = AVM_MAX_SPEED_GOOD_QUALITY;
+  } else if (cfg->g_usage == AVM_USAGE_REALTIME &&
+             (extra_cfg->cpu_used >= 0 &&
+              extra_cfg->cpu_used < AVM_MIN_SPEED_REALTIME)) {
+    fprintf(stderr,
+            "Warning: cpu-used < %d is not supported in realtime mode... "
+            "setting cpu-used=%d\n",
+            AVM_MIN_SPEED_REALTIME, AVM_MIN_SPEED_REALTIME);
+    extra_cfg->cpu_used = AVM_MIN_SPEED_REALTIME;
+  }
+}
+
 static avm_codec_err_t update_extra_cfg(avm_codec_alg_priv_t *ctx,
                                         struct av2_extracfg *extra_cfg) {
+  clamp_cpu_used(&ctx->cfg, extra_cfg);
   const avm_codec_err_t res = validate_config(ctx, &ctx->cfg, extra_cfg);
   if (res == AVM_CODEC_OK) {
     ctx->extra_cfg = *extra_cfg;
@@ -2219,6 +2240,14 @@ static avm_codec_err_t ctrl_set_cpuused(avm_codec_alg_priv_t *ctx,
   struct av2_extracfg extra_cfg = ctx->extra_cfg;
   extra_cfg.cpu_used = CAST(AVME_SET_CPUUSED, args);
   return update_extra_cfg(ctx, &extra_cfg);
+}
+
+static avm_codec_err_t ctrl_get_cpuused(avm_codec_alg_priv_t *ctx,
+                                        va_list args) {
+  int *const arg = va_arg(args, int *);
+  if (arg == NULL) return AVM_CODEC_INVALID_PARAM;
+  *arg = ctx->oxcf.speed;
+  return AVM_CODEC_OK;
 }
 
 static avm_codec_err_t ctrl_set_enable_auto_alt_ref(avm_codec_alg_priv_t *ctx,
@@ -5070,6 +5099,7 @@ static avm_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV2E_GET_SUB_GOP_CONFIG, ctrl_get_enc_sub_gop_config },
   { AV2E_GET_FRAME_TYPE, ctrl_get_frame_type },
   { AV2E_GET_FRAME_INFO, ctrl_get_enc_frame_info },
+  { AV2E_GET_CPUUSED, ctrl_get_cpuused },
   CTRL_MAP_END,
 };
 

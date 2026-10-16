@@ -123,6 +123,78 @@ INSTANTIATE_TEST_SUITE_P(KeyValAPI, EncValidTest,
 
 INSTANTIATE_TEST_SUITE_P(KeyValAPI, EncInvalidTest,
                          testing::ValuesIn(enc_invalid_params));
+
+TEST_F(BaseKeyValAPI, CpuUsedGoodQualityClamping) {
+  int speed = -1;
+  EXPECT_EQ(AVM_CODEC_OK, avm_codec_control(&enc_, AV2E_GET_CPUUSED, &speed));
+  EXPECT_EQ(0, speed);
+
+  EXPECT_EQ(AVM_CODEC_OK, avm_codec_control(&enc_, AVME_SET_CPUUSED,
+                                            AVM_MAX_SPEED_GOOD_QUALITY - 1));
+  EXPECT_EQ(AVM_CODEC_OK, avm_codec_control(&enc_, AV2E_GET_CPUUSED, &speed));
+  EXPECT_EQ(AVM_MAX_SPEED_GOOD_QUALITY - 1, speed);
+
+  EXPECT_EQ(AVM_CODEC_OK, avm_codec_control(&enc_, AVME_SET_CPUUSED,
+                                            AVM_MAX_SPEED_GOOD_QUALITY));
+  EXPECT_EQ(AVM_CODEC_OK, avm_codec_control(&enc_, AV2E_GET_CPUUSED, &speed));
+  EXPECT_EQ(AVM_MAX_SPEED_GOOD_QUALITY, speed);
+
+  // In good quality mode, cpu_used > AVM_MAX_SPEED_GOOD_QUALITY should be
+  // clamped to AVM_MAX_SPEED_GOOD_QUALITY.
+  for (int s = AVM_MAX_SPEED_GOOD_QUALITY + 1; s <= 9; ++s) {
+    EXPECT_EQ(AVM_CODEC_OK, avm_codec_control(&enc_, AVME_SET_CPUUSED, s));
+    EXPECT_EQ(AVM_CODEC_OK, avm_codec_control(&enc_, AV2E_GET_CPUUSED, &speed));
+    EXPECT_EQ(AVM_MAX_SPEED_GOOD_QUALITY, speed);
+  }
+
+  // Test setting via key-value option
+  EXPECT_EQ(AVM_CODEC_OK, avm_codec_set_option(&enc_, "cpu-used", "5"));
+  EXPECT_EQ(AVM_CODEC_OK, avm_codec_control(&enc_, AV2E_GET_CPUUSED, &speed));
+  EXPECT_EQ(5, speed);
+
+  EXPECT_EQ(AVM_CODEC_OK, avm_codec_set_option(&enc_, "cpu-used", "7"));
+  EXPECT_EQ(AVM_CODEC_OK, avm_codec_control(&enc_, AV2E_GET_CPUUSED, &speed));
+  EXPECT_EQ(AVM_MAX_SPEED_GOOD_QUALITY, speed);
+}
+
+TEST(KeyValAPIRtc, CpuUsedRealtimeClamping) {
+  avm_codec_iface_t *iface_cx = avm_codec_av2_cx();
+  avm_codec_enc_cfg_t enc_cfg;
+  avm_codec_ctx_t enc;
+
+  EXPECT_EQ(AVM_CODEC_OK, avm_codec_enc_config_default(iface_cx, &enc_cfg,
+                                                       AVM_USAGE_REALTIME));
+  EXPECT_EQ(AVM_CODEC_OK, avm_codec_enc_init(&enc, iface_cx, &enc_cfg, 0));
+
+  int speed = -1;
+  EXPECT_EQ(AVM_CODEC_OK, avm_codec_control(&enc, AV2E_GET_CPUUSED, &speed));
+  EXPECT_EQ(AVM_MIN_SPEED_REALTIME, speed);
+
+  // In realtime mode, speeds < AVM_MIN_SPEED_REALTIME should be clamped.
+  for (int i = 0; i < AVM_MIN_SPEED_REALTIME; ++i) {
+    EXPECT_EQ(AVM_CODEC_OK, avm_codec_control(&enc, AVME_SET_CPUUSED, i));
+    EXPECT_EQ(AVM_CODEC_OK, avm_codec_control(&enc, AV2E_GET_CPUUSED, &speed));
+    EXPECT_EQ(AVM_MIN_SPEED_REALTIME, speed);
+  }
+
+  // In realtime mode, speeds >= AVM_MIN_SPEED_REALTIME should not be clamped.
+  for (int i = AVM_MIN_SPEED_REALTIME; i <= 9; ++i) {
+    EXPECT_EQ(AVM_CODEC_OK, avm_codec_control(&enc, AVME_SET_CPUUSED, i));
+    EXPECT_EQ(AVM_CODEC_OK, avm_codec_control(&enc, AV2E_GET_CPUUSED, &speed));
+    EXPECT_EQ(i, speed);
+  }
+
+  // Test setting via key-value option
+  EXPECT_EQ(AVM_CODEC_OK, avm_codec_set_option(&enc, "cpu-used", "3"));
+  EXPECT_EQ(AVM_CODEC_OK, avm_codec_control(&enc, AV2E_GET_CPUUSED, &speed));
+  EXPECT_EQ(AVM_MIN_SPEED_REALTIME, speed);
+
+  EXPECT_EQ(AVM_CODEC_OK, avm_codec_set_option(&enc, "cpu-used", "8"));
+  EXPECT_EQ(AVM_CODEC_OK, avm_codec_control(&enc, AV2E_GET_CPUUSED, &speed));
+  EXPECT_EQ(8, speed);
+
+  EXPECT_EQ(AVM_CODEC_OK, avm_codec_destroy(&enc));
+}
 #endif  // CONFIG_AV2_ENCODER
 
 }  // namespace

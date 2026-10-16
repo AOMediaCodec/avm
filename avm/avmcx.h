@@ -1255,6 +1255,11 @@ enum avme_enc_control_id {
    * (g_usage == AVM_USAGE_GOOD_QUALITY) enables this mode.
    */
   AV2E_SET_ENABLE_LOW_COMPLEXITY_DECODE = 186,
+
+  /*!\brief Codec control function to get the encoder speed setting (cpu-used),
+   * int *parameter.
+   */
+  AV2E_GET_CPUUSED = 187,
 };
 
 /*!\brief avm 1-D scaling mode
@@ -1785,6 +1790,9 @@ AVM_CTRL_USE_TYPE(AV2E_SET_FORCE_DEFERRED_FRAMES_FOR_RAS_TEST, int)
 
 AVM_CTRL_USE_TYPE(AV2E_SET_ENABLE_LOW_COMPLEXITY_DECODE, unsigned int)
 #define AVME_CTRL_AV2E_SET_ENABLE_LOW_COMPLEXITY_DECODE
+
+AVM_CTRL_USE_TYPE(AV2E_GET_CPUUSED, int *)
+#define AVME_CTRL_AV2E_GET_CPUUSED
 /*!\endcond */
 /*! @} - end defgroup avm_encoder */
 #ifdef __cplusplus
