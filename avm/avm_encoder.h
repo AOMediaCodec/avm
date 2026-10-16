@@ -1352,6 +1352,11 @@ avm_fixed_buf_t *avm_codec_get_global_headers(avm_codec_ctx_t *ctx);
 /*!\brief usage parameter analogous to AV2 REALTIME mode. */
 #define AVM_USAGE_REALTIME (1)
 
+/*!\brief Maximum speed setting in GOOD QUALITY mode. */
+#define AVM_MAX_SPEED_GOOD_QUALITY 6
+/*!\brief Minimum speed setting in REALTIME mode. */
+#define AVM_MIN_SPEED_REALTIME 6
+
 /*!\brief Encode a frame
  *
  * Encodes a video frame at the given "presentation time." The presentation
