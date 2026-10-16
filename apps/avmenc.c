@@ -1019,6 +1019,23 @@ static void set_config_arg_key_vals(struct stream_config *config,
       warn("auto-alt-ref > 1 is deprecated... setting auto-alt-ref=1\n");
       config->arg_key_vals[j][1] = "1";
     }
+  } else if (strcmp(name, g_av2_codec_arg_defs.cpu_used_av2.long_name) == 0) {
+    int cpu_used = arg_parse_int(arg);
+    if (config->cfg.g_usage == AVM_USAGE_GOOD_QUALITY &&
+        cpu_used > AVM_MAX_SPEED_GOOD_QUALITY) {
+      warn(
+          "cpu-used > %d is not supported in good mode... setting "
+          "cpu-used=%d\n",
+          AVM_MAX_SPEED_GOOD_QUALITY, AVM_MAX_SPEED_GOOD_QUALITY);
+      config->arg_key_vals[j][1] = "6";
+    } else if (config->cfg.g_usage == AVM_USAGE_REALTIME &&
+               cpu_used < AVM_MIN_SPEED_REALTIME) {
+      warn(
+          "cpu-used < %d is not supported in realtime mode... setting "
+          "cpu-used=%d\n",
+          AVM_MIN_SPEED_REALTIME, AVM_MIN_SPEED_REALTIME);
+      config->arg_key_vals[j][1] = "6";
+    }
   }
 
   if (j == config->arg_key_val_cnt) config->arg_key_val_cnt++;
