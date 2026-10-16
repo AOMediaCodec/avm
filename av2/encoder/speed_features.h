@@ -944,6 +944,10 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // prediction modes. The cap is applicable for larger blocks and is not
   // applied on key/golden/arf frames.
   bool limit_max_ref_mv_idx;
+
+  // Maximum number of ref_mv_idx candidates searched for single-reference
+  // modes (excluding WARPMV) in the full (non-dry) pass. 0: no cap.
+  int limit_single_ref_mv_idx;
 } INTER_MODE_SPEED_FEATURES;
 
 typedef struct INTERP_FILTER_SPEED_FEATURES {
