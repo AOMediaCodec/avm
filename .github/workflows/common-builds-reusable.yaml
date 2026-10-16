@@ -315,7 +315,7 @@ jobs:
         if: success()
         with:
           name: documentation
-          retention-days: 7
+          retention-days: 1
           path: avm_docs_build/docs/
 
   build-linux-sanitizers-x86_64-clang:
