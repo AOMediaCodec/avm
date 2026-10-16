@@ -380,6 +380,9 @@ typedef struct RefCntBuffer {
   // 1 if this frame is a switch frame with restricted_prediction_switch set.
   // Used to reset DOH epoch tracking at output time.
   int is_restricted_switch_frame;
+  // Logical right boundary (MI col) of the GDR clean region of this frame;
+  // future frames may only reference columns left of it. mi_cols = fully clean.
+  int gdr_deterministic_right_mi;
 } RefCntBuffer;
 
 // Store the characteristics related to each reference frame, which can be used
@@ -3176,6 +3179,7 @@ static INLINE RefCntBuffer *assign_cur_frame_new_fb(AV2_COMMON *const cm) {
   av2_zero(cm->cur_frame->interp_filter_selected);
   av2_zero(cm->cur_frame->raw_frame_hash);
   av2_zero(cm->cur_frame->grain_frame_hash);
+  cm->cur_frame->gdr_deterministic_right_mi = cm->mi_params.mi_cols;
   return cm->cur_frame;
 }
 

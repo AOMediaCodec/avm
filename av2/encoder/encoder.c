@@ -66,6 +66,7 @@
 #include "av2/encoder/encodetxb.h"
 #include "av2/encoder/ethread.h"
 #include "av2/encoder/firstpass.h"
+#include "av2/encoder/gdr_utils.h"
 #include "av2/encoder/hash_motion.h"
 #include "av2/encoder/intra_mode_search.h"
 #include "av2/encoder/mv_prec.h"
@@ -715,6 +716,26 @@ void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
       seq->single_picture_header_flag || (oxcf->kf_cfg.sframe_type == RAS_FRAME)
           ? 0
           : tool_cfg->enable_short_refresh_frame_flags;
+  if (oxcf->kf_cfg.gdr_mode > 0) {
+    // Tools that leak across the GDR clean/dirty boundary via indirect
+    // winner-shifts are disabled for the sequence. A full reference refresh on
+    // the window end frame also requires the long refresh_frame_flags syntax.
+    seq->enable_extended_sdp = 0;
+    seq->enable_mrls = 0;
+    seq->enable_ibp = 0;
+    seq->enable_fsc = 0;
+    seq->enable_idtx_intra = oxcf->intra_mode_cfg.enable_idtx_intra;
+    seq->enable_short_refresh_frame_flags = 0;
+    // RefineMV, OPFL refinement and TIP each need two motion vectors per block
+    // from opposite directions, which never occurs in the low-delay
+    // configuration GDR requires. Disabled for good measure to avoid BAWP ref
+    // out of bounds issues
+    seq->enable_refinemv = 0;
+    seq->enable_opfl_refine = AVM_OPFL_REFINE_NONE;
+    seq->enable_tip = 0;
+    seq->enable_tip_hole_fill = 0;
+    seq->enable_tip_refinemv = 0;
+  }
   // Use 3 bits to signal long_term_id only if RAS frames are enabled and NOT a
   // single picture.
   seq->number_of_bits_for_lt_frame_id =
@@ -2741,6 +2762,56 @@ void av2_set_frame_size(AV2_COMP *cpi, int width, int height) {
 
   set_ref_ptrs(cm, xd, 0, 0);
   realloc_bru_info(cm);
+}
+
+void av2_gdr_update_window_state(AV2_COMP *cpi) {
+  const AV2_COMMON *const cm = &cpi->common;
+  const int n = cpi->oxcf.kf_cfg.gdr_mode;
+  cpi->gdr_stripe_active = 0;
+  cpi->gdr_is_end_frame = 0;
+  if (n <= 0 || cm->current_frame.frame_type == KEY_FRAME) {
+    cpi->gdr_last_sframe_num = -1;
+    return;
+  }
+  if (frame_is_sframe(cm)) {
+    cpi->gdr_last_sframe_num = (int)cm->current_frame.frame_number;
+  }
+  if (cpi->gdr_last_sframe_num < 0) return;
+  const int offset =
+      (int)cm->current_frame.frame_number - cpi->gdr_last_sframe_num;
+  if (offset < 0 || offset >= n) return;
+  cpi->gdr_stripe_active = 1;
+  cpi->gdr_is_end_frame = offset == n - 1;
+}
+
+void av2_gdr_setup_stripe(AV2_COMP *cpi) {
+  AV2_COMMON *const cm = &cpi->common;
+  const int mi_cols = cm->mi_params.mi_cols;
+  if (!cpi->gdr_stripe_active) {
+    cpi->gdr_stripe_start_mi = -1;
+    cpi->gdr_stripe_end_mi = mi_cols;
+    cpi->gdr_deterministic_right_mi = mi_cols;
+    if (cm->cur_frame) cm->cur_frame->gdr_deterministic_right_mi = mi_cols;
+    return;
+  }
+  const int n = cpi->oxcf.kf_cfg.gdr_mode;
+  const int offset =
+      (int)cm->current_frame.frame_number - cpi->gdr_last_sframe_num;
+  const int stripe_w = (mi_cols + n - 1) / n;
+  const int mib = cm->mib_size;
+  const int raw_start = offset * stripe_w;
+  const int logical_end = AVMMIN(raw_start + stripe_w, mi_cols);
+  // The force-intra region is SB-aligned on both edges so no superblock is
+  // partly intra and partly inter (which would break sub-8x8 chroma, shared
+  // across luma sub-blocks). The deterministic boundary stays at the
+  // (unaligned) logical end.
+  const int stripe_start = (raw_start / mib) * mib;
+  const int extended_end = AVMMIN(
+      ((logical_end + GDR_LF_OVERLAP_MI + mib - 1) / mib) * mib, mi_cols);
+  cpi->gdr_stripe_start_mi = stripe_start;
+  cpi->gdr_stripe_end_mi = extended_end;
+  cpi->gdr_deterministic_right_mi = logical_end;
+  if (cm->cur_frame) cm->cur_frame->gdr_deterministic_right_mi = logical_end;
 }
 
 /*!\brief Function to perform rate-distortion optimization for GDF
@@ -5227,7 +5298,8 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
   current_frame->mlayer_id = cm->mlayer_id;
   cm->restricted_prediction_switch =
       (cpi->oxcf.kf_cfg.enable_sframe && cpi->oxcf.kf_cfg.sframe_mode == 0) ||
-      cpi->oxcf.tool_cfg.g_error_resilient_mode;
+      cpi->oxcf.tool_cfg.g_error_resilient_mode ||
+      cpi->oxcf.kf_cfg.gdr_mode > 0;
   if (current_frame->frame_type == KEY_FRAME) {
     for (int i = 0; i < cm->seq_params.ref_frames; i++) {
       if (cm->ref_frame_map[i] != NULL)
@@ -5243,6 +5315,7 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
                                                cm->ref_frame_map[i]->mlayer_id,
                                                cm->mlayer_id)) {
             cm->ref_frame_map[i]->is_restricted = true;
+            cm->ref_frame_map[i]->display_order_hint = REF_RESTRICTED_DOH;
           }
         }
       }
