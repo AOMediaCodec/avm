@@ -274,7 +274,7 @@ jobs:
 
       - name: Upload logs
         uses: actions/upload-artifact@v7
-        if: ${{ always() }}
+        if: ${{ failure() }}
         with:
           name: example-test-logs
           retention-days: 1
@@ -479,14 +479,6 @@ jobs:
             fi
           done
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v7
-        if: ${{ always() }}
-        with:
-          name: encdec-${{ matrix.avm-enc-output }}
-          retention-days: 1
-          path: ${{ matrix.avm-enc-output }}.*
-
       - name: Compare hashes
         run: |
           ALLOW_FAIL=0
@@ -524,6 +516,14 @@ jobs:
             echo "      was found in any of the commits added in this MR!"
             exit 1
           fi
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        if: ${{ failure() }}
+        with:
+          name: encdec-${{ matrix.avm-enc-output }}
+          retention-days: 1
+          path: ${{ matrix.avm-enc-output }}.*
 
     strategy:
       fail-fast: false
