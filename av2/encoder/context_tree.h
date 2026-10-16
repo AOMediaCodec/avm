@@ -115,6 +115,22 @@ typedef struct SIMPLE_MOTION_DATA_TREE {
 
 PC_TREE *av2_look_for_counterpart_block(PC_TREE *pc_tree);
 
+// Returns true if a PC_TREE node has completed RDO with a valid RD cost and
+// partition decision (i.e., was not aborted due to budget exhaustion).
+static AVM_INLINE bool av2_is_pc_tree_evaluated(const PC_TREE *node) {
+  return node != NULL && node->rd_cost.rate != INT_MAX &&
+         node->partitioning != PARTITION_INVALID;
+}
+
+// Returns true if two PC_TREE nodes have both completed RDO and selected the
+// exact same partition type and RD cost.
+static AVM_INLINE bool av2_have_matching_rdo_decision(const PC_TREE *a,
+                                                      const PC_TREE *b) {
+  return av2_is_pc_tree_evaluated(a) && av2_is_pc_tree_evaluated(b) &&
+         a->partitioning == b->partitioning &&
+         a->rd_cost.rdcost == b->rd_cost.rdcost;
+}
+
 void av2_setup_shared_coeff_buffer(AV2_COMMON *cm,
                                    PC_TREE_SHARED_BUFFERS *shared_bufs);
 void av2_free_shared_coeff_buffer(PC_TREE_SHARED_BUFFERS *shared_bufs);

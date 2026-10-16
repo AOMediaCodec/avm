@@ -5749,6 +5749,31 @@ static void prune_partitions_using_ml_results(
 }
 #endif  // CONFIG_ML_PART_SPLIT
 
+// Returns true if `counterpart_block` can be reused for `pc_tree` without
+// re-running partition search:
+//   - Both nodes must have the same `region_type`.
+//   - In inter frames, INTRA_REGION subtrees depend on the SDP luma partition
+//     and are not reused across different luma partition trials.
+//   - For CHROMA_PART in intra frames, chroma is only reused when non-SDP; in
+//     inter frames, CHROMA_PART can be reused when both `pc_tree` and its
+//     parent are index-0 sub-blocks (`Q00`) sharing identical top-left context.
+static AVM_INLINE bool can_reuse_counterpart_block(
+    const AV2_COMMON *cm, const PC_TREE *pc_tree,
+    const PC_TREE *counterpart_block, TREE_TYPE tree_type) {
+  if (!counterpart_block ||
+      pc_tree->region_type != counterpart_block->region_type) {
+    return false;
+  }
+  if (pc_tree->region_type == INTRA_REGION && !frame_is_intra_only(cm)) {
+    return false;
+  }
+  if (tree_type == CHROMA_PART) {
+    return !frame_is_intra_only(cm) && pc_tree->index == 0 &&
+           (!pc_tree->parent || pc_tree->parent->index == 0);
+  }
+  return true;
+}
+
 /*!\brief AV2 block partition search (full search).
  *
  * \ingroup partition_search
@@ -5882,14 +5907,24 @@ bool av2_rd_pick_partition(
   int bru_blk_active = bru_is_sb_active(cm, mi_col, mi_row);
   if (bru_blk_active) {
     PC_TREE *counterpart_block = av2_look_for_counterpart_block(pc_tree);
-    if (counterpart_block &&
-        (pc_tree->region_type == counterpart_block->region_type &&
-         (pc_tree->region_type != INTRA_REGION || frame_is_intra_only(cm))) &&
-        (xd->tree_type != CHROMA_PART || !frame_is_intra_only(cm))) {
+    if (can_reuse_counterpart_block(cm, pc_tree, counterpart_block,
+                                    xd->tree_type)) {
       if (counterpart_block->rd_cost.rate != INT_MAX) {
+        // Fast-encoding criterion: if the counterpart's RD cost already
+        // exceeds the remaining RD budget `best_rdc.rdcost` passed down by the
+        // parent partition search, `rd_try_subblock_partition` is guaranteed
+        // to reject this sub-block. Abort immediately without copying the
+        // PC_TREE subtree or running `encode_sb(DRY_RUN_NORMAL)`.
+        if (best_rdc.rdcost < INT64_MAX && !x->must_find_valid_partition &&
+            av2_calculate_rd_cost(x->rdmult, counterpart_block->rd_cost.rate,
+                                  counterpart_block->rd_cost.dist) >
+                best_rdc.rdcost) {
+          av2_invalid_rd_stats(rd_cost);
+          return false;
+        }
         av2_copy_pc_tree_recursive(
-            xd, cm, pc_tree, counterpart_block, part_search_state.ss_x,
-            part_search_state.ss_y, &td->shared_coeff_buf, xd->tree_type,
+            xd, cm, pc_tree, counterpart_block, xd->plane[1].subsampling_x,
+            xd->plane[1].subsampling_y, &td->shared_coeff_buf, xd->tree_type,
             num_planes);
         *rd_cost = pc_tree->rd_cost;
         assert(bsize != cm->sb_size);
