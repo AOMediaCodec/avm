@@ -577,7 +577,7 @@ void av2_prune_partitions_before_search(
     if (!partition_search_state->partition_allowed[PARTITION_NONE]) {
       av2_cache_best_partition(x->sms_bufs, mi_row, mi_col, bsize, cm->sb_size,
                                PARTITION_HORZ, (int8_t)pc_tree->region_type);
-      const int mi_step = block_size_high[bsize] / 2;
+      const int mi_step = mi_size_high[bsize] / 2;
       BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_HORZ);
       av2_cache_best_partition(x->sms_bufs, mi_row, mi_col, subsize,
                                cm->sb_size, PARTITION_VERT,
