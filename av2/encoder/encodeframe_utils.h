@@ -172,6 +172,7 @@ static AVM_INLINE void av2_set_two_pass_flags(
     const AV2_COMP *cpi, MACROBLOCK *x, SB_MULTI_PASS_MODE multi_pass_mode,
     const PartitionSearchState *part_search_state) {
   const bool fast_two_pass = av2_two_pass_part_is_fast(&cpi->sf.part_sf);
+  x->skip_cctx_search = false;
   x->apply_dry_pass_shortcuts =
       fast_two_pass && (multi_pass_mode == SB_DRY_PASS);
   x->may_consume_dry_pass_info =
