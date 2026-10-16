@@ -290,6 +290,13 @@ static void set_good_speed_feature_framesize_dependent(
     }
 
     sf->part_sf.intra_two_pass_max_qindex = is_270p_or_lesser ? 95 : 255;
+
+    // At 4K, raise the min block dimension for skip_split_after_none from 32
+    // to 64 (pyramid_level 4 only; level 5 keeps 16 set in framesize_indep.).
+    if (is_4k_or_larger && sf->part_sf.skip_split_after_none &&
+        cm->current_frame.pyramid_level == 4) {
+      sf->part_sf.skip_split_after_none_min_dim = 64;
+    }
   }
   // Speeds 1-6 override this in av2_set_speed_features_qindex_dependent().
   sf->part_sf.use_square_partition_only_threshold = BLOCK_LARGEST;
@@ -780,15 +787,14 @@ static void set_good_speed_features_framesize_independent(
         cm->current_frame.pyramid_level >= 4 ? 2 : 0;
 
     // Skip PARTITION_SPLIT after a skippable, small-distortion PARTITION_NONE
-    // on deep-pyramid non-boosted frames (dist threshold doubled; 16x16
-    // blocks allowed in the leaf pyramid level 5).
-    if (!boosted && cm->current_frame.pyramid_level >= 4) {
+    // on deep-pyramid frames (dist threshold doubled; 16x16 blocks allowed in
+    // the leaf pyramid level 5). 4K min_dim is raised to 64 in
+    // set_good_speed_feature_framesize_dependent().
+    if (cm->current_frame.pyramid_level >= 4) {
       sf->part_sf.skip_split_after_none = 1;
       sf->part_sf.skip_split_after_none_thr_shift = 1;
       sf->part_sf.skip_split_after_none_min_dim =
-          cm->current_frame.pyramid_level >= 5
-              ? 16
-              : (AVMMIN(cm->width, cm->height) >= 2160 ? 64 : 32);
+          cm->current_frame.pyramid_level >= 5 ? 16 : 32;
     }
 
     sf->hl_sf.disable_unequal_scale_refs = true;

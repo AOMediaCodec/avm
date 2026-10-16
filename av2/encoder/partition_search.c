@@ -4093,12 +4093,13 @@ static void prune_partitions_after_none(AV2_COMP *const cpi, MACROBLOCK *x,
 
   (void)sms_tree;
 
-  if (cpi->sf.part_sf.skip_split_after_none && !frame_is_intra_only(cm) &&
-      !xd->lossless[xd->mi[0]->segment_id] && ctx_none->skippable &&
+  if (cpi->sf.part_sf.skip_split_after_none &&
+      part_search_state->partition_allowed[PARTITION_SPLIT] &&
+      !part_search_state->prune_partition[PARTITION_SPLIT] &&
+      !frame_is_intra_only(cm) && !xd->lossless[xd->mi[0]->segment_id] &&
+      ctx_none->skippable &&
       part_search_state->forced_partition == PARTITION_INVALID &&
-      !x->must_find_valid_partition && blk_params->has_rows &&
-      blk_params->has_cols &&
-      block_size_wide[bsize] == block_size_high[bsize] &&
+      !x->must_find_valid_partition &&
       block_size_wide[bsize] >= cpi->sf.part_sf.skip_split_after_none_min_dim) {
     // Skip the recursive PARTITION_SPLIT search when the skippable
     // PARTITION_NONE has small distortion. Never applied to forced nodes
