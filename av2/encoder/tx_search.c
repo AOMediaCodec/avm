@@ -3329,6 +3329,28 @@ static void search_cctx_type(const AV2_COMP *cpi, MACROBLOCK *x, int block,
   avm_free(orig_coeff_c2);
 }
 
+// Reconstruct a chroma transform block with CCTX_NONE from the quantized
+// coefficients left in dqcoeff by search_tx_type(), for use when the CCTX
+// search is skipped. This matches the reconstruction at the end of
+// search_cctx_type() when CCTX_NONE wins.
+static void recon_intra_uv_cctx_none(const AV2_COMP *cpi, MACROBLOCK *x,
+                                     int block, int blk_row, int blk_col,
+                                     BLOCK_SIZE plane_bsize, TX_SIZE tx_size,
+                                     const TXB_CTX *const txb_ctx_v,
+                                     const int skip_trellis) {
+  const AV2_COMMON *cm = &cpi->common;
+  MACROBLOCKD *xd = &x->e_mbd;
+  const TX_TYPE tx_type =
+      av2_get_tx_type(xd, PLANE_TYPE_UV, blk_row, blk_col, tx_size,
+                      is_reduced_tx_set_used(cm, PLANE_TYPE_UV));
+  int rate_cost = 0;
+  const uint16_t max_eob = AVMMAX(x->plane[AVM_PLANE_U].eobs[block],
+                                  x->plane[AVM_PLANE_V].eobs[block]);
+  recon_intra(cpi, x, AVM_PLANE_V, block, blk_row, blk_col, plane_bsize,
+              tx_size, txb_ctx_v, skip_trellis, tx_type, 0, &rate_cost,
+              max_eob);
+}
+
 // Pick transform type for a luma transform block of tx_size. Note this function
 // is used only for inter-predicted blocks.
 static AVM_INLINE void tx_type_rd(const AV2_COMP *cpi, MACROBLOCK *x,
@@ -4368,9 +4390,17 @@ static AVM_INLINE void block_rd_txfm_joint_uv(int dummy_plane, int block,
     const bool skip_cctx_for_dry_pass =
         x->apply_dry_pass_shortcuts && cpi->sf.tx_sf.disable_cctx_dry_pass;
     if (!skip_cctx_for_dry_pass) {
-      search_cctx_type(cpi, x, block, blk_row, blk_col, plane_bsize, tx_size,
-                       uv_coeffs_available[0] && uv_coeffs_available[1],
-                       txb_ctx_uv, args->skip_trellis, &rd_stats_joint_uv);
+      if (x->skip_cctx_search) {
+        // Keep CCTX_NONE (set above) and only reconstruct the block, which
+        // search_cctx_type() would otherwise do for the next transform blocks'
+        // intra prediction.
+        recon_intra_uv_cctx_none(cpi, x, block, blk_row, blk_col, plane_bsize,
+                                 tx_size, &txb_ctx_uv[1], args->skip_trellis);
+      } else {
+        search_cctx_type(cpi, x, block, blk_row, blk_col, plane_bsize, tx_size,
+                         uv_coeffs_available[0] && uv_coeffs_available[1],
+                         txb_ctx_uv, args->skip_trellis, &rd_stats_joint_uv);
+      }
     }
   }
   av2_merge_rd_stats(&args->rd_stats, &rd_stats_joint_uv);

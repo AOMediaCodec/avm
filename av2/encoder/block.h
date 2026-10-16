@@ -1561,6 +1561,13 @@ typedef struct macroblock {
    * search; gates the block-level dry-pass shortcuts. */
   bool apply_dry_pass_shortcuts;
 
+  /*! \brief True while the chroma intra mode search ranks UV modes without the
+   * cross-chroma-component transform (CCTX) search: block_rd_txfm_joint_uv()
+   * keeps CCTX_NONE for every transform block (but still reconstructs it). Set
+   * only inside av2_rd_pick_intra_sbuv_mode() (and reset by
+   * av2_set_two_pass_flags()). */
+  bool skip_cctx_search;
+
   /*! \brief The dry pass's best rdcost per block, or 0 when absent. Indexed by
    * dry_pass_rd_slot(). Reset per superblock. */
   int64_t unit_dry_rd[TWO_PASS_DRY_RD_SLOTS];
