@@ -554,6 +554,18 @@ typedef struct PARTITION_SPEED_FEATURES {
   // types) improves the node. The remaining search is skipped when that
   // probability, in units of 1/1000, is below this threshold. 0: disabled.
   int ml_post_none_early_term_thresh;
+
+  // Quadrant-pair RD estimate in rectangular_partition_search(): before a
+  // rectangular half of a square block tests its perpendicular split into two
+  // square quadrants, estimate the RD cost of that split from the same
+  // quadrants as evaluated by an earlier trial of the square block
+  // and skip the split if the estimate cannot beat the best RD cost.
+  // Intra frames always use safety margins.
+  // 0: off.
+  // 1: the second half of the square block keeps a safety margin of 1/128 in
+  //    inter frames.
+  // 2: no margin in inter frames.
+  int prune_rect_split_by_rd;
 } PARTITION_SPEED_FEATURES;
 
 // True when the two-pass superblock partition search runs at all.
