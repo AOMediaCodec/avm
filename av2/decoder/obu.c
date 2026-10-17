@@ -122,8 +122,13 @@ static void av2_validate_seq_conformance_window(
 //   appears except for the contents of operating_parameters_info.
 int are_seq_headers_consistent(const SequenceHeader *seq_params_old,
                                const SequenceHeader *seq_params_new) {
-  return !memcmp(seq_params_old, seq_params_new,
-                 offsetof(SequenceHeader, op_params));
+  // 'sh_from_leading' is decoder bookkeeping, not sequence header syntax.
+  const size_t flag_begin = offsetof(SequenceHeader, sh_from_leading);
+  const size_t flag_end = flag_begin + sizeof(seq_params_old->sh_from_leading);
+  return !memcmp(seq_params_old, seq_params_new, flag_begin) &&
+         !memcmp((const uint8_t *)seq_params_old + flag_end,
+                 (const uint8_t *)seq_params_new + flag_end,
+                 offsetof(SequenceHeader, op_params) - flag_end);
 }
 
 void av2_read_color_info(int *color_description_idc, int *color_primaries,
