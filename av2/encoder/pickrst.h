@@ -22,6 +22,12 @@ extern "C" {
 struct yv12_buffer_config;
 struct AV2_COMP;
 
+// Most pixels passed to one av2_wienerns_stats_batch() call.
+#define WIENERNS_STATS_BATCH 64
+// The SIMD versions of av2_wienerns_stats_batch() need every input to be
+// below this in absolute value.
+#define WIENERNS_STATS_MAX_ABS (1 << 13)
+
 static INLINE int check_wienerns_eq(const WienerNonsepInfo *info,
                                     const WienerNonsepInfo *ref, int num_coeffs,
                                     int wiener_class_id) {

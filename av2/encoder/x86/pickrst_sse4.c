@@ -11,47 +11,73 @@
  */
 
 #include <assert.h>
-#include <emmintrin.h>
-#include "avm_dsp/x86/synonyms.h"
+#include <smmintrin.h>
 
 #include "config/av2_rtcd.h"
-#include "av2/common/restoration.h"
 #include "av2/encoder/pickrst.h"
+#include "avm_dsp/x86/synonyms.h"
 
-void av2_accumulate_wienerns_correlation_sse4_1(double *A_base, double *b_base,
-                                                const int16_t *buf, int16_t y,
-                                                int num_feat) {
-  double buf_d[WIENERNS_TAPS_MAX];
-  for (int k = 0; k < num_feat; ++k) {
-    buf_d[k] = (double)buf[k];
-  }
-  const double yd = (double)y;
-  const __m128d vyd = _mm_set1_pd(yd);
+static_assert(WIENERNS_STATS_BATCH / 2 * (int64_t)(WIENERNS_STATS_MAX_ABS - 1) *
+                      (WIENERNS_STATS_MAX_ABS - 1) <=
+                  INT32_MAX,
+              "Two int32 lanes must hold their sum of products");
 
-  int k = 0;
-  for (; k + 1 < num_feat; k += 2) {
-    __m128d vb = _mm_loadu_pd(b_base + k);
-    __m128d vbuf = _mm_loadu_pd(buf_d + k);
-    vb = _mm_add_pd(vb, _mm_mul_pd(vbuf, vyd));
-    _mm_storeu_pd(b_base + k, vb);
-  }
-  for (; k < num_feat; ++k) {
-    b_base[k] += buf_d[k] * yd;
-  }
+// Returns { sum of the lanes of a, sum of the lanes of b } in 64 bits. Two
+// lanes are added in 32 bits first, see below for why it cannot overflow.
+static INLINE __m128i add_lanes_pair_epi32(const __m128i a, const __m128i b) {
+  const __m128i pair =
+      _mm_add_epi32(_mm_unpacklo_epi32(a, b), _mm_unpackhi_epi32(a, b));
+  return _mm_add_epi64(_mm_cvtepi32_epi64(pair),
+                       _mm_cvtepi32_epi64(_mm_srli_si128(pair, 8)));
+}
 
-  for (int i = 0; i < num_feat; ++i) {
-    double *A_row = A_base + i * num_feat;
-    const double bi = buf_d[i];
-    const __m128d vbi = _mm_set1_pd(bi);
-    int j = 0;
-    for (; j + 1 <= i; j += 2) {
-      __m128d vA = _mm_loadu_pd(A_row + j);
-      __m128d vbj = _mm_loadu_pd(buf_d + j);
-      vA = _mm_add_pd(vA, _mm_mul_pd(vbi, vbj));
-      _mm_storeu_pd(A_row + j, vA);
+// Returns the sum of the lanes of a in 64 bits, adding two lanes in 32 bits
+// first like add_lanes_pair_epi32().
+static INLINE int64_t add_lanes_epi32(const __m128i a) {
+  const __m128i pair = _mm_add_epi32(a, _mm_srli_si128(a, 8));
+  return (int64_t)_mm_cvtsi128_si32(pair) + _mm_extract_epi32(pair, 1);
+}
+
+// Each int32 lane sums n / 4 <= 16 products. The values are below 2^13 in
+// absolute value, so each product is at most (2^13 - 1)^2 and 2 lanes sum at
+// most 32 * (2^13 - 1)^2 < 2^31. The rest is added in 64 bits.
+void av2_wienerns_stats_batch_sse4_1(int64_t *A, const int16_t *feat,
+                                     int feat_stride, int n, int dim) {
+  if (n == 0) return;
+  assert(n % 8 == 0 && n <= WIENERNS_STATS_BATCH);
+  for (int k = 0; k < dim; ++k) {
+    const int16_t *feat_k = feat + k * feat_stride;
+    int64_t *A_k = A + k * dim;
+    int l = 0;
+    for (; l + 3 <= k; l += 4) {
+      const int16_t *f0 = feat + l * feat_stride;
+      const int16_t *f1 = f0 + feat_stride;
+      const int16_t *f2 = f1 + feat_stride;
+      const int16_t *f3 = f2 + feat_stride;
+      __m128i sum0 = _mm_setzero_si128(), sum1 = _mm_setzero_si128();
+      __m128i sum2 = _mm_setzero_si128(), sum3 = _mm_setzero_si128();
+      for (int x = 0; x < n; x += 8) {
+        const __m128i a = xx_loadu_128(feat_k + x);
+        sum0 = _mm_add_epi32(sum0, _mm_madd_epi16(a, xx_loadu_128(f0 + x)));
+        sum1 = _mm_add_epi32(sum1, _mm_madd_epi16(a, xx_loadu_128(f1 + x)));
+        sum2 = _mm_add_epi32(sum2, _mm_madd_epi16(a, xx_loadu_128(f2 + x)));
+        sum3 = _mm_add_epi32(sum3, _mm_madd_epi16(a, xx_loadu_128(f3 + x)));
+      }
+      __m128i *dst01 = (__m128i *)(A_k + l);
+      __m128i *dst23 = (__m128i *)(A_k + l + 2);
+      _mm_storeu_si128(dst01, _mm_add_epi64(_mm_loadu_si128(dst01),
+                                            add_lanes_pair_epi32(sum0, sum1)));
+      _mm_storeu_si128(dst23, _mm_add_epi64(_mm_loadu_si128(dst23),
+                                            add_lanes_pair_epi32(sum2, sum3)));
     }
-    for (; j <= i; ++j) {
-      A_row[j] += bi * buf_d[j];
+    for (; l <= k; ++l) {
+      const int16_t *f = feat + l * feat_stride;
+      __m128i sum = _mm_setzero_si128();
+      for (int x = 0; x < n; x += 8) {
+        sum = _mm_add_epi32(
+            sum, _mm_madd_epi16(xx_loadu_128(feat_k + x), xx_loadu_128(f + x)));
+      }
+      A_k[l] += add_lanes_epi32(sum);
     }
   }
 }
