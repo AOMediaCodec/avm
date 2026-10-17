@@ -1076,13 +1076,12 @@ typedef struct DecOperatingPointParams {
 // Note: All syntax elements of sequence_header_obu that need to be
 // bit-identical across multiple sequence headers must be part of this struct,
 // so that consistency is checked by are_seq_headers_consistent() function.
-// One exception is the last member 'op_params' that is ignored by
-// are_seq_headers_consistent() function.
+// The exceptions are 'op_params' and the decoder-only members after it, which
+// are ignored by are_seq_headers_consistent() function.
 typedef struct SequenceHeader {
   int seq_header_id;
 
   int seq_lcr_id;
-  int sh_from_leading;
 
   int num_bits_width;
   int num_bits_height;
@@ -1261,10 +1260,15 @@ typedef struct SequenceHeader {
   SegmentationInfoSyntax seg_params;
   int allow_seg_info_change;
   int seq_extension_present_flag;
-  // IMPORTANT: the op_params member must be at the end of the struct so that
+  // IMPORTANT: the op_params member must be the last syntax member so that
   // are_seq_headers_consistent() can be implemented with a memcmp() call.
   // TODO(urvang): We probably don't need the +1 here.
   avm_dec_model_op_parameters_t op_params[MAX_NUM_OPERATING_POINTS + 1];
+
+  // Decoder-side bookkeeping, not part of the sequence header syntax. It is
+  // placed after 'op_params' so that it is excluded from the memcmp() in
+  // are_seq_headers_consistent().
+  int sh_from_leading;
 } SequenceHeader;
 
 typedef struct {
