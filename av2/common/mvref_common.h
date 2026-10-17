@@ -859,6 +859,31 @@ static INLINE int av2_is_dv_in_local_range(const AV2_COMMON *cm, const MV dv,
   return 1;
 }
 
+// Number of 64x64 columns by which the global IntraBC reference area advances
+// per superblock row above the current one (see av2_is_dv_valid()).
+static INLINE int av2_intrabc_wavefront_gradient(int sb_size) {
+  return 1 + INTRABC_DELAY_SB64 + (sb_size > block_size_wide[BLOCK_64X64]) +
+         2 * (sb_size > block_size_wide[BLOCK_128X128]);
+}
+
+// Number of superblocks by which each superblock row must be ahead of the row
+// below it so that every source area allowed for global IntraBC by
+// av2_is_dv_valid() has been reconstructed before it can be referenced.
+//
+// For a block in superblock column c, the rightmost 64x64 column allowed as
+// the bottom-right of a source k superblock rows up is
+//   n64 * c + (n64 - 2 - INTRABC_DELAY_SB64) + gradient * k
+// with n64 the number of 64x64 columns per superblock. A lead of N
+// superblocks per row covers this for all k >= 1 if
+//   N * n64 * k >= (n64 - 2 - INTRABC_DELAY_SB64) + gradient * k.
+static INLINE int av2_intrabc_wavefront_sb_lead(int mib_size_log2) {
+  const int sb_size = MI_SIZE << mib_size_log2;
+  const int n64 = sb_size / block_size_wide[BLOCK_64X64];
+  const int c0 = n64 - 2 - INTRABC_DELAY_SB64;
+  const int gradient = av2_intrabc_wavefront_gradient(sb_size);
+  return (gradient + AVMMAX(c0, 0) + n64 - 1) / n64;
+}
+
 static INLINE int av2_is_dv_valid(const MV dv, const AV2_COMMON *cm,
                                   const MACROBLOCKD *xd, int mi_row, int mi_col,
                                   BLOCK_SIZE bsize, int mib_size_log2) {
@@ -982,9 +1007,7 @@ static INLINE int av2_is_dv_valid(const MV dv, const AV2_COMMON *cm,
   if (src_sb64 >= active_sb64 - INTRABC_DELAY_SB64 - sb_64_residual) return 0;
 
   // Wavefront constraint: use only top left area of frame for reference.
-  const int gradient = 1 + INTRABC_DELAY_SB64 +
-                       (sb_size > block_size_wide[BLOCK_64X64]) +
-                       2 * (sb_size > block_size_wide[BLOCK_128X128]);
+  const int gradient = av2_intrabc_wavefront_gradient(sb_size);
   const int wf_offset = gradient * (active_sb_row - src_sb_row);
   if (src_sb_row > active_sb_row ||
       src_sb64_col >=
