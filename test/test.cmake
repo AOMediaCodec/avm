@@ -105,6 +105,7 @@ if(NOT BUILD_SHARED_LIBS)
     "${AVM_ROOT}/test/simd_cmp_impl.h"
     "${AVM_ROOT}/test/simd_impl.h"
     "${AVM_ROOT}/test/gdf_test.cc"
+    "${AVM_ROOT}/test/wienerns_convolve_test.cc"
     "${AVM_ROOT}/test/inv_txfm_variant_test.cc"
     "${AVM_ROOT}/test/av2_inv_txfm2d_test.cc")
 
