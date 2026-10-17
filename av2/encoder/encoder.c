@@ -2033,6 +2033,7 @@ void av2_remove_compressor(AV2_COMP *cpi) {
     free_thread_data(cpi);
   }
 
+  av2_free_lr_search_bufs(cpi);
   free_gdf_stripe_bufs(cpi);
 
   MultiThreadInfo *const mt_info = &cpi->mt_info;

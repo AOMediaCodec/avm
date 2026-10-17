@@ -3247,6 +3247,14 @@ static AVM_INLINE void convolve_symmetric_highbd_16tap9x9_blk8x8_avx2(
                        (__m128i *)(dst + dst_id + (6 * dst_stride)), out_r6_r7);
 }
 
+// Returns 1 if the first num entries of config are the same as those of
+// simd_config.
+static INLINE int same_config(const int (*simd_config)[3],
+                              const int (*config)[3], int num) {
+  return config == simd_config ||
+         !memcmp(simd_config, config, num * sizeof(config[0]));
+}
+
 // SIMD implementation to convolve a block of pixels with origin-symmetric, pc
 // wiener filter corresponds to CONFIG_PC_WIENER loop restoration. DIAMOND shape
 // with 16-tap (16 symmetric+1) or 13-tap (12 symmetric+1) or 7-tap (6 symmetric
@@ -3269,11 +3277,9 @@ void av2_convolve_symmetric_highbd_avx2(const uint16_t *dgd, int stride,
   // and block size. If none are applicable, fall back to C
   // TODO(rachelbarker): Add plumbing logic to adjust_filter_and_config so that
   // the 6-tap branch here can actually be used for reduced-length filters
-  if (num_rows == 4 && num_cols == 4 &&
-      (filter_config->config == wienerns_simd_large_config_y ||
-       !memcmp(wienerns_simd_large_config_y, filter_config->config,
-               filter_config->num_pixels * 3 *
-                   sizeof(filter_config->config[0][0])))) {
+  if (num_rows == 4 && num_cols == 4 && filter_config->num_pixels == 33 &&
+      same_config(wienerns_simd_large_config_y, filter_config->config,
+                  filter_config->num_pixels)) {
     if (filter[12] == 0 && filter[13] == 0 && filter[14] == 0 &&
         filter[15] == 0) {
       int16_t filter_[13];
@@ -3298,20 +3304,15 @@ void av2_convolve_symmetric_highbd_avx2(const uint16_t *dgd, int stride,
     }
     return;
   }
-  if (num_rows == 4 && num_cols == 4 &&
-      (filter_config->config == wienerns_simd_config_y ||
-       !memcmp(wienerns_simd_config_y, filter_config->config,
-               filter_config->num_pixels * 3 *
-                   sizeof(filter_config->config[0][0])))) {
+  if (num_rows == 4 && num_cols == 4 && filter_config->num_pixels == 25 &&
+      same_config(wienerns_simd_config_y, filter_config->config,
+                  filter_config->num_pixels)) {
     convolve_symmetric_highbd_13tap_avx2(dgd, stride, filter_config, filter,
                                          dst, dst_stride, bit_depth,
                                          block_row_begin, block_col_begin);
   } else if (num_rows == 4 && num_cols == 4 && num_sym_taps == 6 &&
-             (filter_config->config == wienerns_simd_config_uv_from_uvonly ||
-              !memcmp(wienerns_simd_config_uv_from_uvonly,
-                      filter_config->config,
-                      filter_config->num_pixels * 3 *
-                          sizeof(filter_config->config[0][0])))) {
+             same_config(wienerns_simd_config_uv_from_uvonly,
+                         filter_config->config, filter_config->num_pixels)) {
     convolve_symmetric_highbd_7tap_avx2(dgd, stride, filter_config, filter, dst,
                                         dst_stride, bit_depth, block_row_begin,
                                         block_col_begin);
@@ -3336,11 +3337,9 @@ void av2_convolve_symmetric_blk8x8_highbd_avx2(
   const int num_rows = block_row_end - block_row_begin;
   const int num_cols = block_col_end - block_col_begin;
 
-  if (num_rows == 8 && num_cols == 8 &&
-      (filter_config->config == wienerns_simd_large_config_y ||
-       !memcmp(wienerns_simd_large_config_y, filter_config->config,
-               filter_config->num_pixels * 3 *
-                   sizeof(filter_config->config[0][0])))) {
+  if (num_rows == 8 && num_cols == 8 && filter_config->num_pixels == 33 &&
+      same_config(wienerns_simd_large_config_y, filter_config->config,
+                  filter_config->num_pixels)) {
     if (filter[12] == 0 && filter[13] == 0 && filter[14] == 0 &&
         filter[15] == 0) {
       int16_t filter_[13];
@@ -3355,20 +3354,19 @@ void av2_convolve_symmetric_blk8x8_highbd_avx2(
                                                   0,
                                                   0,
                                                   0 };
-      convolve_symmetric_highbd_13tap_blk8x8_avx2(dgd, stride, &filter_config_,
-                                                  filter_, dst, dst_stride,
-                                                  bit_depth, 0, 0);
+      convolve_symmetric_highbd_13tap_blk8x8_avx2(
+          dgd, stride, &filter_config_, filter_, dst, dst_stride, bit_depth,
+          block_row_begin, block_col_begin);
     } else {
       convolve_symmetric_highbd_16tap9x9_blk8x8_avx2(
-          dgd, stride, filter_config, filter, dst, dst_stride, bit_depth, 0, 0);
+          dgd, stride, filter_config, filter, dst, dst_stride, bit_depth,
+          block_row_begin, block_col_begin);
     }
     return;
   }
-  if (num_rows == 8 && num_cols == 8 &&
-      (filter_config->config == wienerns_simd_config_y ||
-       !memcmp(wienerns_simd_config_y, filter_config->config,
-               filter_config->num_pixels * 3 *
-                   sizeof(filter_config->config[0][0])))) {
+  if (num_rows == 8 && num_cols == 8 && filter_config->num_pixels == 25 &&
+      same_config(wienerns_simd_config_y, filter_config->config,
+                  filter_config->num_pixels)) {
     convolve_symmetric_highbd_13tap_blk8x8_avx2(
         dgd, stride, filter_config, filter, dst, dst_stride, bit_depth,
         block_row_begin, block_col_begin);
@@ -4191,18 +4189,14 @@ void av2_convolve_symmetric_subtract_center_highbd_avx2(
   // Dispatch to the appropriate SIMD function for the selected filter shape
   // and block size. If none are applicable, fall back to C
   if (num_rows == 4 && num_cols == 4 && num_sym_taps == 6 &&
-      (filter_config->config == wienerns_simd_config_uv_from_uv ||
-       !memcmp(wienerns_simd_config_uv_from_uv, filter_config->config,
-               filter_config->num_pixels * 3 *
-                   sizeof(filter_config->config[0][0])))) {
+      same_config(wienerns_simd_config_uv_from_uv, filter_config->config,
+                  filter_config->num_pixels)) {
     av2_convolve_symmetric_subtract_center_highbd_6tap_avx2(
         dgd, stride, filter_config, filter, dst, dst_stride, bit_depth,
         block_row_begin, block_col_begin);
   } else if (num_rows == 4 && num_cols == 4 && num_sym_taps == 12 &&
-             (filter_config->config == wienerns_simd_config_y ||
-              !memcmp(wienerns_simd_config_y, filter_config->config,
-                      filter_config->num_pixels * 3 *
-                          sizeof(filter_config->config[0][0])))) {
+             same_config(wienerns_simd_config_y, filter_config->config,
+                         filter_config->num_pixels)) {
     av2_convolve_symmetric_subtract_center_highbd_12tap_avx2(
         dgd, stride, filter_config, filter, dst, dst_stride, bit_depth,
         block_row_begin, block_col_begin);
@@ -4375,14 +4369,9 @@ void av2_convolve_symmetric_dual_highbd_avx2(
   // and block size. If none are applicable, fall back to C
   // TODO(rachelbarker): Add fast path for reduced-length filters which don't
   // use any cross-plane filtering
-  if ((wienerns_simd_config_uv_from_uv == filter_config->config &&
-       wienerns_simd_config_uv_from_y == filter_config->config2) ||
-      (!memcmp(wienerns_simd_config_uv_from_uv, filter_config->config,
-               filter_config->num_pixels * 3 *
-                   sizeof(filter_config->config[0][0])) &&
-       !memcmp(wienerns_simd_config_uv_from_y, filter_config->config,
-               filter_config->num_pixels2 * 3 *
-                   sizeof(filter_config->config2[0][0])))) {
+  if (filter_config->num_pixels == 13 && filter_config->num_pixels2 == 13 &&
+      same_config(wienerns_simd_config_uv_from_uv, filter_config->config, 13) &&
+      same_config(wienerns_simd_config_uv_from_y, filter_config->config2, 13)) {
     av2_convolve_symmetric_dual_highbd_7plus13tap_avx2(
         dgd, dgd_stride, dgd_dual, dgd_dual_stride, filter_config, filter, dst,
         dst_stride, bit_depth, block_row_begin, block_col_begin);
@@ -4504,21 +4493,14 @@ void av2_convolve_symmetric_dual_subtract_center_highbd_avx2(
 
   const int num_rows = block_row_end - block_row_begin;
   const int num_cols = block_col_end - block_col_begin;
-  const int num_sym_taps = filter_config->num_pixels / 2;
   const int num_taps_dual = filter_config->num_pixels2;
 
   // Dispatch to the appropriate SIMD function for the selected filter shape
   // and block size. If none are applicable, fall back to C
-  if (num_rows == 4 && num_cols == 4 && num_sym_taps == 6 &&
+  if (num_rows == 4 && num_cols == 4 && filter_config->num_pixels == 12 &&
       num_taps_dual == 12 &&
-      (filter_config->config == wienerns_simd_config_uv_from_uv ||
-       !memcmp(wienerns_simd_config_uv_from_uv, filter_config->config,
-               filter_config->num_pixels * 3 *
-                   sizeof(filter_config->config[0][0]))) &&
-      (filter_config->config == wienerns_simd_config_uv_from_y ||
-       !memcmp(wienerns_simd_config_uv_from_y, filter_config->config2,
-               filter_config->num_pixels2 * 3 *
-                   sizeof(filter_config->config2[0][0])))) {
+      same_config(wienerns_simd_config_uv_from_uv, filter_config->config, 12) &&
+      same_config(wienerns_simd_config_uv_from_y, filter_config->config2, 12)) {
     av2_convolve_symmetric_dual_subtract_center_highbd_6plus12tap_avx2(
         dgd, dgd_stride, dgd_dual, dgd_dual_stride, filter_config, filter, dst,
         dst_stride, bit_depth, block_row_begin, block_col_begin);

@@ -517,6 +517,8 @@ void av2_extend_frame(uint16_t *data, int width, int height, int stride,
  * \param[in] disable_loopfilters_across_tiles Whether loop filter can across
  *                           tile boundary
  * \param[in]  optimized_lr  Whether to use fast optimized Loop Restoration
+ * \param[in]  stripe_buf    Optional scratch buffer of MAX_LRU_STRIPE_BUF_SIZE
+ *                           samples. If set, \c data is only read.
  *
  * Nothing is returned. Instead, the filtered unit is output in \c dst
  * at the proper restoration unit offset.
@@ -526,7 +528,8 @@ void av2_loop_restoration_filter_unit(
     const RestorationStripeBoundaries *rsb, RestorationLineBuffers *rlbs,
     const AV2PixelRect *tile_rect, int tile_stripe0, int ss_x, int ss_y,
     int bit_depth, uint16_t *data, int stride, uint16_t *dst, int dst_stride,
-    int plane_width, int disable_loopfilters_across_tiles, int optimized_lr);
+    int plane_width, int disable_loopfilters_across_tiles, int optimized_lr,
+    uint16_t *stripe_buf);
 
 /*!\brief Function for applying loop restoration filter to a frame
  *
