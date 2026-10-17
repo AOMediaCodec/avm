@@ -15,6 +15,7 @@
 
 #include "config/avm_config.h"
 
+#include "avm_ports/mem.h"
 #include "av2/common/av2_common_int.h"
 #include "av2/common/blockd.h"
 #include "av2/common/hr_coding.h"
@@ -74,7 +75,8 @@ typedef struct prequant_t {
 } prequant_t;
 
 typedef struct tcq_rate_t {
-  int32_t rate[2 * TCQ_MAX_STATES];
+  // 64B align whole struct: cacheline-split-free SIMD rate[]/rate_zero[] loads.
+  DECLARE_ALIGNED(64, int32_t, rate[2 * TCQ_MAX_STATES]);
   int32_t rate_zero[TCQ_MAX_STATES];
   int32_t rate_eob[2];
 } tcq_rate_t;
