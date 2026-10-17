@@ -3848,6 +3848,151 @@ static void prune_rect_partitions(AV2_COMP *const cpi, ThreadData *td,
   }
 }
 
+// Quadrant-pair RD estimate ------------------------------------------------
+//
+// A rectangular half of a square block (H0 / H1 of PARTITION_HORZ, V0 / V1 of
+// PARTITION_VERT) can split perpendicularly into two square quadrants:
+// (Q00, Q01) / (Q10, Q11) for H0 / H1 -> VERT, (Q00, Q10) / (Q01, Q11) for
+// V0 / V1 -> HORZ. The same quadrants were usually evaluated by an earlier
+// trial of the square block. We estimate the RD cost of the perpendicular split
+// from those results and skips the split when the estimate cannot beat the
+// best RD cost of the half.
+
+// The quadrant-pair RD estimation is off for a case when the margin shift
+// is this value.
+#define QUAD_PAIR_OFF 99
+
+enum { QUAD_PRIOR_NONE = 0, QUAD_PRIOR_EXACT = 1, QUAD_PRIOR_LOWER_BOUND = 2 };
+
+// Prior knowledge of the RD cost of quadrant `i` (0: Q00, 1: Q01, 2: Q10,
+// 3: Q11) of the square block `sq` from an earlier partition trial of `sq`:
+//   - At 128x128 and 256x256 (is_square_split_eligible): the evaluated
+//     PARTITION_SPLIT child `sq->split[r][i]`.
+//   - Otherwise, and as a fallback: the result stored by the PARTITION_HORZ
+//     half `sq->horizontal[r][i >> 1]` when it evaluated its PARTITION_VERT
+//     split.
+// Returns QUAD_PRIOR_EXACT with the RD stats in `*rd`, QUAD_PRIOR_LOWER_BOUND
+// with a lower bound of the RD cost in `*lb_rdcost` (the quadrant search found
+// no partition within that RD budget), or QUAD_PRIOR_NONE.
+static int get_quadrant_prior(const AV2_COMMON *cm, const PC_TREE *sq, int i,
+                              const RD_STATS **rd, int64_t *lb_rdcost) {
+  *rd = NULL;
+  *lb_rdcost = 0;
+  const REGION_TYPE r = sq->region_type;
+  if (is_square_split_eligible(sq->block_size, cm->sb_size)) {
+    const PC_TREE *q = sq->split[r][i];
+    if (av2_is_pc_tree_evaluated(q)) {
+      *rd = &q->rd_cost;
+      return QUAD_PRIOR_EXACT;
+    }
+  }
+  const PC_TREE *h = sq->horizontal[r][i >> 1];
+  if (!h) return QUAD_PRIOR_NONE;
+  if (h->perp_split_valid[i & 1]) {
+    *rd = &h->perp_split_rd[i & 1];
+    return QUAD_PRIOR_EXACT;
+  }
+  if (h->perp_split_lb_valid[i & 1]) {
+    *lb_rdcost = h->perp_split_lb[i & 1];
+    return QUAD_PRIOR_LOWER_BOUND;
+  }
+  return QUAD_PRIOR_NONE;
+}
+
+// Prior knowledge of the two quadrants of the perpendicular split of the
+// rectangular half `pc_tree` (index k = 0: first quadrant in coding order,
+// 1: second quadrant). Unknown quadrants contribute 0, so the estimate built
+// from these values is a lower bound of the RD cost in the coding order of the
+// earlier trial.
+/*! \brief The struct holds the information of a prior quadrant pair. */
+typedef struct QuadPairPrior {
+  //! The type of the quadrant (QUAD_PRIOR_*)
+  int kind[2];
+  //! The rate for QUAD_PRIOR_EXACT, 0 for other kinds.
+  int64_t rate[2];
+  //! The dist for QUAD_PRIOR_EXACT, 0 for other kinds.
+  int64_t dist[2];
+  //! The lower bound rdcost for QUAD_PRIOR_LOWER_BOUND, 0 for other kinds.
+  int64_t lb_rdcost[2];
+} QuadPairPrior;
+
+static void get_quad_pair_prior(const AV2_COMMON *cm, const PC_TREE *pc_tree,
+                                PARTITION_TYPE parent_partition,
+                                QuadPairPrior *prior) {
+  const int idx = pc_tree->index;
+  const bool vert_then_horz = parent_partition == PARTITION_VERT;
+  const int quad_idx[2] = { vert_then_horz ? idx : idx * 2,
+                            vert_then_horz ? idx + 2 : idx * 2 + 1 };
+  av2_zero(*prior);
+  for (int k = 0; k < 2; ++k) {
+    const RD_STATS *rd;
+    prior->kind[k] = get_quadrant_prior(cm, pc_tree->parent, quad_idx[k], &rd,
+                                        &prior->lb_rdcost[k]);
+    if (prior->kind[k] == QUAD_PRIOR_EXACT) {
+      prior->rate[k] = rd->rate;
+      prior->dist[k] = rd->dist;
+    }
+  }
+}
+
+// Returns true if `pc_tree` is the first or second half (index 0 / 1) of a
+// square block split by `parent_partition` (PARTITION_HORZ / PARTITION_VERT)
+// in the same region and `rect_type` is its perpendicular split.
+static AVM_INLINE bool is_quadrant_pair_split(const PC_TREE *pc_tree,
+                                              PARTITION_TYPE parent_partition,
+                                              RECT_PART_TYPE rect_type) {
+  const PC_TREE *gp = pc_tree->parent;
+  if (!gp || !is_square_block(gp->block_size)) return false;
+  if (pc_tree->region_type != gp->region_type) return false;
+  if (pc_tree->index < 0 || pc_tree->index > 1) return false;
+  return (parent_partition == PARTITION_VERT && rect_type == HORZ) ||
+         (parent_partition == PARTITION_HORZ && rect_type == VERT);
+}
+
+// Safety margin thresholds of the quad pair as a right shift of the best RD
+// cost (0: no margin, QUAD_PAIR_OFF: no pruning). The prior quadrant RD costs
+// were measured in the coding order of the earlier trial; the perpendicular
+// split codes the same quadrants in a different order (other above-right /
+// below-left neighbors, and the second half follows the first half's final
+// decision), so their actual RD cost differs slightly. In inter frames the
+// first half uses no margin: a split whose estimate cannot even tie the best
+// RD cost is skipped. The second half's estimate is less accurate; it uses a
+// margin of 1/128 at speed feature level 1 and no margin at level 2. Intra
+// frames are more sensitive to the coding order (intra prediction edges): the
+// first half uses 1/32 at 128x128 / 256x256 parents and 1/8 below, the second
+// half 1/16 at 128x128 / 256x256 parents and is not pruned below. H0 -> VERT
+// at 128x128 / 256x256 after PARTITION_SPLIT visits Q00 and Q01 in the same
+// order with the same neighbors: no margin in any frame.
+static AVM_INLINE int quad_pair_margin_shift(const AV2_COMMON *cm,
+                                             const PC_TREE *pc_tree,
+                                             PARTITION_TYPE parent_part,
+                                             int level) {
+  // Indexed by [index != 0][128x128 or 256x256 parent].
+  static const int intra_shift[2][2] = { { 3, 5 }, { QUAD_PAIR_OFF, 4 } };
+  const int is_large_sq =
+      is_square_split_eligible(pc_tree->parent->block_size, cm->sb_size);
+  if (pc_tree->index == 0 && parent_part == PARTITION_HORZ && is_large_sq) {
+    return 0;
+  }
+  if (!frame_is_intra_only(cm)) {
+    return (pc_tree->index != 0 && level < 2) ? 7 : 0;
+  }
+  return intra_shift[pc_tree->index != 0][is_large_sq];
+}
+
+// Returns true if the estimated RD cost of the perpendicular split,
+// `RDCOST(rdmult, est_rate, est_dist) + est_lb_rdcost` (exact priors plus lower
+// bounds), cannot beat `best_rdcost` by more than the safety margin
+// `best_rdcost >> margin_shift`.
+static AVM_INLINE bool is_quad_pair_rd_uncompetitive(
+    int rdmult, int64_t est_rate, int64_t est_dist, int64_t est_lb_rdcost,
+    int64_t best_rdcost, int margin_shift) {
+  if (margin_shift == QUAD_PAIR_OFF) return false;
+  const int64_t est_rd = RDCOST(rdmult, est_rate, est_dist) + est_lb_rdcost;
+  const int64_t margin = margin_shift ? (best_rdcost >> margin_shift) : 0;
+  return best_rdcost <= est_rd - margin;
+}
+
 // Rectangular partition types search function.
 static void rectangular_partition_search(
     AV2_COMP *const cpi, ThreadData *td, TileDataEnc *tile_data,
@@ -3873,6 +4018,7 @@ static void rectangular_partition_search(
 
   // Loop over rectangular partition types.
   RD_STATS *sum_rdc = &part_search_state->sum_rdc;
+  const int prune_rect_split_by_rd = cpi->sf.part_sf.prune_rect_split_by_rd;
   for (RECT_PART_TYPE rect_type = HORZ; rect_type < NUM_RECT_PARTS;
        ++rect_type) {
     const PARTITION_TYPE partition_type = rect_partition_type[rect_type];
@@ -3884,6 +4030,56 @@ static void rectangular_partition_search(
       continue;
     }
 
+    int sum_rate = part_rate;
+    if (pc_tree->region_type == MIXED_INTER_INTRA_REGION && pc_tree->parent &&
+        is_extended_sdp_allowed(cpi->common.seq_params.enable_extended_sdp,
+                                pc_tree->parent->block_size,
+                                parent_partition) &&
+        is_bsize_allowed_for_extended_sdp(bsize, partition_type))
+      sum_rate += part_search_state->region_type_cost[MIXED_INTER_INTRA_REGION];
+    if (prune_rect_split_by_rd &&
+        RDCOST(x->rdmult, sum_rate, 0) >= best_rdc->rdcost) {
+      continue;
+    }
+
+    // Perpendicular split of a rectangular half of a square block into two
+    // square quadrants: the quadrant RD results of this trial are stored in
+    // this node (perp_split_rd / perp_split_lb) for later trials of the square
+    // block, and the results of the earlier trials are used for the
+    // quadrant-pair RD look-ahead.
+    const bool quad_pair_split =
+        is_quadrant_pair_split(pc_tree, parent_partition, rect_type);
+    if (quad_pair_split) {
+      for (int k = 0; k < 2; ++k) {
+        pc_tree->perp_split_valid[k] = false;
+        pc_tree->perp_split_lb_valid[k] = false;
+      }
+    }
+
+    // Quadrant-pair RD look-ahead, stage 1 (before sub_idx 0): estimate the
+    // RD cost of the split from the prior quadrant results and skip the trial
+    // if it cannot beat best_rdc.
+    QuadPairPrior prior;
+    av2_zero(prior);
+    int margin_shift = QUAD_PAIR_OFF;
+    if (prune_rect_split_by_rd && quad_pair_split &&
+        best_rdc->rdcost < INT64_MAX && !x->must_find_valid_partition &&
+        part_search_state->forced_partition == PARTITION_INVALID) {
+      get_quad_pair_prior(cm, pc_tree, parent_partition, &prior);
+      if (prior.kind[0] != QUAD_PRIOR_NONE ||
+          prior.kind[1] != QUAD_PRIOR_NONE) {
+        margin_shift = quad_pair_margin_shift(cm, pc_tree, parent_partition,
+                                              prune_rect_split_by_rd);
+        if (is_quad_pair_rd_uncompetitive(
+                x->rdmult, (int64_t)sum_rate + prior.rate[0] + prior.rate[1],
+                prior.dist[0] + prior.dist[1],
+                prior.lb_rdcost[0] + prior.lb_rdcost[1], best_rdc->rdcost,
+                margin_shift)) {
+          continue;
+        }
+      }
+    }
+
 #if CONFIG_COLLECT_PARTITION_STATS
     PartitionTimingStats *part_timing_stats =
         &part_search_state->part_timing_stats;
@@ -3891,14 +4087,7 @@ static void rectangular_partition_search(
 #endif  // CONFIG_COLLECT_PARTITION_STATS
 
     av2_init_rd_stats(sum_rdc);
-    sum_rdc->rate = part_search_state->partition_cost[partition_type];
-    if (pc_tree->region_type == MIXED_INTER_INTRA_REGION && pc_tree->parent &&
-        is_extended_sdp_allowed(cpi->common.seq_params.enable_extended_sdp,
-                                pc_tree->parent->block_size,
-                                parent_partition) &&
-        is_bsize_allowed_for_extended_sdp(bsize, partition_type))
-      sum_rdc->rate +=
-          part_search_state->region_type_cost[MIXED_INTER_INTRA_REGION];
+    sum_rdc->rate = sum_rate;
     sum_rdc->rdcost = RDCOST(x->rdmult, sum_rdc->rate, 0);
 
     int num_sub_parts = 0;
@@ -3944,6 +4133,18 @@ static void rectangular_partition_search(
 #endif
 
     for (int sub_idx = 0; sub_idx < num_sub_parts; ++sub_idx) {
+      // Quadrant-pair RD look-ahead, stage 2 (before sub_idx 1): combine the
+      // actual RD cost of sub_idx 0 with the prior RD cost of the second
+      // quadrant and abort the trial if it cannot beat best_rdc.
+      if (sub_idx == 1 && prior.kind[1] != QUAD_PRIOR_NONE &&
+          best_rdc->rdcost < INT64_MAX && !x->must_find_valid_partition &&
+          is_quad_pair_rd_uncompetitive(
+              x->rdmult, (int64_t)sum_rdc->rate + prior.rate[1],
+              sum_rdc->dist + prior.dist[1], prior.lb_rdcost[1],
+              best_rdc->rdcost, margin_shift)) {
+        av2_invalid_rd_stats(sum_rdc);
+        break;
+      }
       if (child_nodes[sub_idx]) {
         av2_free_pc_tree_recursive(child_nodes[sub_idx], num_planes, 0, 0);
         child_nodes[sub_idx] = NULL;
@@ -4000,14 +4201,33 @@ static void rectangular_partition_search(
       }
 #endif
       RD_STATS this_rdc;
-      if (!rd_try_subblock_partition(
-              cpi, td, tile_data, tp, &rdo_args, &this_rdc, sum_rdc, *best_rdc,
-              NULL, max_recursion_depth, multi_pass_mode, &skippable
+      // RD budget of this sub-block search (see rd_try_subblock_partition).
+      const int64_t sub_rd_budget = best_rdc->rdcost < INT64_MAX
+                                        ? best_rdc->rdcost - sum_rdc->rdcost
+                                        : INT64_MAX;
+      const int sub_ok = rd_try_subblock_partition(
+          cpi, td, tile_data, tp, &rdo_args, &this_rdc, sum_rdc, *best_rdc,
+          NULL, max_recursion_depth, multi_pass_mode, &skippable
 #if CONFIG_ML_PART_SPLIT
-              ,
-              sub_force_prune_flags
+          ,
+          sub_force_prune_flags
 #endif
-              )) {
+      );
+      // Keep the quadrant's RD result for later trials of the square block
+      // even if this trial is then aborted: the sub-block search itself was
+      // complete, only the sum exceeded best_rdc.
+      if (quad_pair_split && this_rdc.rate != INT_MAX &&
+          av2_is_pc_tree_evaluated(child_nodes[sub_idx])) {
+        pc_tree->perp_split_rd[sub_idx] = this_rdc;
+        pc_tree->perp_split_valid[sub_idx] = true;
+      } else if (quad_pair_split && this_rdc.rate == INT_MAX &&
+                 sub_rd_budget < INT64_MAX && !x->must_find_valid_partition) {
+        // No partition of the quadrant fits in the remaining RD budget: the
+        // budget is a lower bound of its RD cost.
+        pc_tree->perp_split_lb[sub_idx] = sub_rd_budget;
+        pc_tree->perp_split_lb_valid[sub_idx] = true;
+      }
+      if (!sub_ok) {
         av2_invalid_rd_stats(sum_rdc);
         break;
       }

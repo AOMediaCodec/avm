@@ -364,6 +364,12 @@ void av2_copy_pc_tree_recursive(MACROBLOCKD *xd, const AV2_COMMON *cm,
   dst->is_cfl_allowed_for_this_chroma =
       src->parent->is_cfl_allowed_for_this_chroma;
   dst->rd_cost = src->rd_cost;
+  for (int i = 0; i < 2; ++i) {
+    dst->perp_split_rd[i] = src->perp_split_rd[i];
+    dst->perp_split_valid[i] = src->perp_split_valid[i];
+    dst->perp_split_lb[i] = src->perp_split_lb[i];
+    dst->perp_split_lb_valid[i] = src->perp_split_lb_valid[i];
+  }
   dst->none_rd = src->none_rd;
   dst->skippable = src->skippable;
 
