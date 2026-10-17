@@ -880,7 +880,10 @@ void av2_highbd_cwp_convolve_2d_avx2(
     const int subpel_y_qn, ConvolveParams *conv_params, int bd) {
   const int32_t tap_x = get_filter_tap(filter_params_x, subpel_x_qn);
   const int32_t tap_y = get_filter_tap(filter_params_y, subpel_y_qn);
-  DECLARE_ALIGNED(32, int16_t, im_block[(MAX_SB_SIZE + MAX_FILTER_TAP) * 8]);
+  DECLARE_ALIGNED(32, int16_t,
+                  im_block_left[(MAX_SB_SIZE + MAX_FILTER_TAP) * 8]);
+  // The filter macros read and write through `im_block`.
+  int16_t *im_block = im_block_left;
   CONV_BUF_TYPE *dst = conv_params->dst;
   int dst_stride = conv_params->dst_stride;
   const int im_h = h + tap_y - 1;
@@ -948,7 +951,47 @@ void av2_highbd_cwp_convolve_2d_avx2(
     coeffs_y[0] = prepare_coeffs_bilinear(filter_params_y, subpel_y_qn);
   }
 
-  for (j = 0; j < w; j += 8) {
+  j = 0;
+  if (w >= 16) {
+    DECLARE_ALIGNED(32, int16_t,
+                    im_block_right[(MAX_SB_SIZE + MAX_FILTER_TAP) * 8]);
+    for (; j + 16 <= w; j += 16) {
+      highbd_convolve_horiz_16w_loadonly_avx2(
+          src_ptr, src_stride, im_h, j, im_block_left, im_block_right, tap_x,
+          coeffs_x, round_const_x, round_shift_x);
+
+      if (tap_y == 8) {
+        CONVOLVE_CWP_VERT_FILTER_8TAP
+      } else if (tap_y == 6) {
+        CONVOLVE_CWP_VERT_FILTER_6TAP
+      } else if (tap_y == 4) {
+        CONVOLVE_CWP_VERT_FILTER_4TAP
+      } else {
+        assert(tap_y == 2);
+        CONVOLVE_CWP_VERT_FILTER_2TAP
+      }
+
+      {
+        const int j_left = j;
+        j += 8;
+        im_block = im_block_right;
+        if (tap_y == 8) {
+          CONVOLVE_CWP_VERT_FILTER_8TAP
+        } else if (tap_y == 6) {
+          CONVOLVE_CWP_VERT_FILTER_6TAP
+        } else if (tap_y == 4) {
+          CONVOLVE_CWP_VERT_FILTER_4TAP
+        } else {
+          assert(tap_y == 2);
+          CONVOLVE_CWP_VERT_FILTER_2TAP
+        }
+        j = j_left;
+        im_block = im_block_left;
+      }
+    }
+  }
+
+  for (; j < w; j += 8) {
     /* Horizontal filter */
     if (w == 4) {
       assert(tap_x == 2 || tap_x == 4);
@@ -962,6 +1005,7 @@ void av2_highbd_cwp_convolve_2d_avx2(
       } else if (tap_x == 4) {
         CONVOLVE_HORIZ_FILTER_4TAP
       } else {
+        assert(tap_x == 2);
         CONVOLVE_HORIZ_FILTER_2TAP
       }
     }
@@ -974,6 +1018,7 @@ void av2_highbd_cwp_convolve_2d_avx2(
     } else if (tap_y == 4) {
       CONVOLVE_CWP_VERT_FILTER_4TAP
     } else {
+      assert(tap_y == 2);
       CONVOLVE_CWP_VERT_FILTER_2TAP
     }
   }
