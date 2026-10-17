@@ -2578,6 +2578,12 @@ typedef struct AV2_COMP {
   YV12_BUFFER_CONFIG trial_frame_rst;
 
   /*!
+   * Scratch buffers of the LR search threads. Kept from frame to frame and
+   * freed in av2_remove_compressor().
+   */
+  struct LrSearchBufs *lr_search_bufs;
+
+  /*!
    * Scratch buffers of the GDF threads, one per thread. Kept from frame to
    * frame and freed in av2_remove_compressor().
    */

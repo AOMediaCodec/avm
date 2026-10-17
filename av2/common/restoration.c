@@ -1774,13 +1774,21 @@ static const stripe_filter_fun stripe_filters[NUM_STRIPE_FILTERS] = {
   pc_wiener_stripe_highbd, wiener_nsfilter_stripe_highbd
 };
 
+static uint16_t *prepare_lru_stripe_buf(
+    const RestorationTileLimits *limits, const RestorationStripeBoundaries *rsb,
+    int rsb_row, uint16_t *data_tl, int lru_width, int stripe_h,
+    int data_stride, int border, int tile_boundary_left,
+    int tile_boundary_right, int copy_above, int copy_below, int opt,
+    uint16_t *stripe_buf, int *new_stride);
+
 // Filter one restoration unit
 void av2_loop_restoration_filter_unit(
     const RestorationTileLimits *limits, const RestorationUnitInfo *rui,
     const RestorationStripeBoundaries *rsb, RestorationLineBuffers *rlbs,
     const AV2PixelRect *tile_rect, int tile_stripe0, int ss_x, int ss_y,
     int bit_depth, uint16_t *data, int stride, uint16_t *dst, int dst_stride,
-    int plane_width, int disable_loopfilters_across_tiles, int optimized_lr) {
+    int plane_width, int disable_loopfilters_across_tiles, int optimized_lr,
+    uint16_t *stripe_buf) {
   RestorationType unit_rtype = rui->restoration_type;
 
   int unit_h = limits->v_end - limits->v_start;
@@ -1873,9 +1881,11 @@ void av2_loop_restoration_filter_unit(
       if (tile_boundary_below) copy_below = 0;
     }
 
-    setup_processing_stripe_boundary(&remaining_stripes, rsb, rsb_row, h, data,
-                                     stride, rlbs, copy_above, copy_below,
-                                     optimized_lr, rui->plane != PLANE_TYPE_Y);
+    if (!stripe_buf) {
+      setup_processing_stripe_boundary(
+          &remaining_stripes, rsb, rsb_row, h, data, stride, rlbs, copy_above,
+          copy_below, optimized_lr, rui->plane != PLANE_TYPE_Y);
+    }
 
     // cross-filter
     tmp_rui->luma =
@@ -1885,6 +1895,7 @@ void av2_loop_restoration_filter_unit(
             : NULL;
 
     uint16_t *data_stripe_tl = data_tl + i * stride;
+    int data_stripe_stride = stride;
     uint16_t *dst_stripe_tl = dst_tl + i * dst_stride;
     int tile_boundary_left =
         disable_loopfilters_across_tiles
@@ -1895,19 +1906,27 @@ void av2_loop_restoration_filter_unit(
             ? (remaining_stripes.h_end == tile_rect->right)
             : (remaining_stripes.h_end == plane_width);
     const int border = RESTORATION_BORDER_HORZ >> ss_x;
-    int backup_data_stride = 0;
     uint16_t *backup_luma = NULL;
     int backup_luma_stride = 0;
+    if (stripe_buf) {
+      // Copy the stripe and its borders into stripe_buf, so the frame in
+      // data is only read, never written.
+      data_stripe_tl = prepare_lru_stripe_buf(
+          &remaining_stripes, rsb, rsb_row, data_stripe_tl, unit_w, h, stride,
+          border, tile_boundary_left, tile_boundary_right, copy_above,
+          copy_below, optimized_lr, stripe_buf, &data_stripe_stride);
+    }
     if (tile_boundary_left || tile_boundary_right) {
-      backup_data_stride = stride;
       // Note the alloc functions below do temporary buffer allocations and
       // change the buffer data_stripe_tl and its stride, as well as
       // tmp_rui->luma and its stride in the cross filter case.
       // So we need to keep a backup and restore them after the corresponding
       // dealloc functions.
-      data_stripe_tl = alloc_processing_stripe_leftright_boundary(
-          data_stripe_tl, unit_w, h, &stride, border, tile_boundary_left,
-          tile_boundary_right);
+      if (!stripe_buf) {
+        data_stripe_tl = alloc_processing_stripe_leftright_boundary(
+            data_stripe_tl, unit_w, h, &data_stripe_stride, border,
+            tile_boundary_left, tile_boundary_right);
+      }
       if (enable_cross_buffers) {
         backup_luma = (uint16_t *)tmp_rui->luma;
         backup_luma_stride = tmp_rui->luma_stride;
@@ -1926,15 +1945,16 @@ void av2_loop_restoration_filter_unit(
                   (i >> MI_SIZE_LOG2) * rui->wiener_class_id_stride
             : NULL;
 
-    stripe_filter(tmp_rui, unit_w, h, procunit_width, data_stripe_tl, stride,
-                  dst_stripe_tl, dst_stride, bit_depth);
+    stripe_filter(tmp_rui, unit_w, h, procunit_width, data_stripe_tl,
+                  data_stripe_stride, dst_stripe_tl, dst_stride, bit_depth);
 
     if (tile_boundary_left || tile_boundary_right) {
       // Deallocate the allocated tmp buffers and reassign from backup
-      dealloc_processing_stripe_leftright_boundary(data_stripe_tl, stride,
-                                                   border, tile_boundary_left,
-                                                   tile_boundary_right);
-      stride = backup_data_stride;
+      if (!stripe_buf) {
+        dealloc_processing_stripe_leftright_boundary(
+            data_stripe_tl, data_stripe_stride, border, tile_boundary_left,
+            tile_boundary_right);
+      }
       if (enable_cross_buffers) {
         dealloc_processing_stripe_leftright_boundary(
             (uint16_t *)tmp_rui->luma, tmp_rui->luma_stride, WIENERNS_UV_BRD,
@@ -1943,9 +1963,11 @@ void av2_loop_restoration_filter_unit(
         tmp_rui->luma_stride = backup_luma_stride;
       }
     }
-    restore_processing_stripe_boundary(
-        &remaining_stripes, rlbs, h, data, stride, copy_above, copy_below,
-        optimized_lr, rui->plane != PLANE_TYPE_Y);
+    if (!stripe_buf) {
+      restore_processing_stripe_boundary(
+          &remaining_stripes, rlbs, h, data, stride, copy_above, copy_below,
+          optimized_lr, rui->plane != PLANE_TYPE_Y);
+    }
 
     i += h;
   }
@@ -1990,7 +2012,7 @@ static void filter_frame_on_unit(const RestorationTileLimits *limits,
       limits, &rsi->unit_info[rest_unit_idx], &rsi->boundaries, rlbs, tile_rect,
       ctxt->tile_stripe0, ctxt->ss_x, ctxt->ss_y, ctxt->bit_depth, ctxt->data8,
       ctxt->data_stride, ctxt->dst8, ctxt->dst_stride, ctxt->plane_width,
-      ctxt->disable_loopfilters_across_tiles, rsi->optimized_lr);
+      ctxt->disable_loopfilters_across_tiles, rsi->optimized_lr, NULL);
 }
 
 void av2_loop_restoration_filter_frame_init(AV2LrStruct *lr_ctxt,

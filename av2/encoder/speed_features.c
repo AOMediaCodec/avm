@@ -1240,6 +1240,7 @@ static AVM_INLINE void init_lpf_sf(LOOP_FILTER_SPEED_FEATURES *lpf_sf) {
   lpf_sf->gdf_prune_qp_cands = 0;
   lpf_sf->ccso_max_band_candidates = 0;
   lpf_sf->ccso_reuse_bo_class_stats = 0;
+  lpf_sf->enable_lr_mt = 1;
   lpf_sf->enable_gdf_mt = 1;
 }
 
@@ -1733,9 +1734,10 @@ void av2_set_speed_features_framesize_independent(AV2_COMP *cpi, int speed) {
       sf->gm_sf.prune_ref_frame_for_gm_search = 0;
   }
 
-  // With BRU the GDF filter can call avm_internal_error(), which is only safe
-  // on the main thread.
+  // With BRU the LR and GDF filters can call avm_internal_error(), which is
+  // only safe on the main thread.
   if (oxcf->max_threads <= 1 || oxcf->tool_cfg.enable_bru) {
+    sf->lpf_sf.enable_lr_mt = 0;
     sf->lpf_sf.enable_gdf_mt = 0;
   }
 }

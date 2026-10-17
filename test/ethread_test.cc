@@ -431,6 +431,50 @@ AV2_INSTANTIATE_TEST_SUITE(AVxEncoderThreadTest, GOODQUALITY_TEST_MODES,
                            ::testing::Values(2), ::testing::Values(0, 2),
                            ::testing::Values(0, 2), ::testing::Values(0, 1));
 
+// Checks that the LR and GDF searches give the same output on 1 to 4 threads
+// (2x2 tiles, row-mt off).
+class AVxEncoderLrGdfThreadTest : public AVxEncoderThreadTest {
+ protected:
+  void EncodeWithThreads(::libavm_test::VideoSource *video, int threads,
+                         std::vector<size_t> *size_enc,
+                         std::vector<std::string> *md5_enc,
+                         std::vector<std::string> *md5_dec) {
+    cfg_.g_threads = threads;
+    ASSERT_NO_FATAL_FAILURE(RunLoop(video));
+    *size_enc = size_enc_;
+    *md5_enc = md5_enc_;
+    *md5_dec = md5_dec_;
+    size_enc_.clear();
+    md5_enc_.clear();
+    md5_dec_.clear();
+  }
+
+  void DoLrGdfTest() {
+    ::libavm_test::YUVVideoSource video(
+        "hantro_collage_w352h288.yuv", AVM_IMG_FMT_I420, 352, 288, 30, 1, 0, 3);
+    std::vector<size_t> size_enc_1, size_enc_n;
+    std::vector<std::string> md5_enc_1, md5_enc_n;
+    std::vector<std::string> md5_dec_1, md5_dec_n;
+    ASSERT_NO_FATAL_FAILURE(
+        EncodeWithThreads(&video, 1, &size_enc_1, &md5_enc_1, &md5_dec_1));
+    ASSERT_FALSE(md5_enc_1.empty());
+    for (int threads = 2; threads <= 4; ++threads) {
+      ASSERT_NO_FATAL_FAILURE(EncodeWithThreads(&video, threads, &size_enc_n,
+                                                &md5_enc_n, &md5_dec_n));
+      ASSERT_EQ(size_enc_1, size_enc_n) << "threads " << threads;
+      ASSERT_EQ(md5_enc_1, md5_enc_n) << "threads " << threads;
+      ASSERT_EQ(md5_dec_1, md5_dec_n) << "threads " << threads;
+    }
+  }
+};
+
+TEST_P(AVxEncoderLrGdfThreadTest, EncoderResultTest) { DoLrGdfTest(); }
+
+AV2_INSTANTIATE_TEST_SUITE(AVxEncoderLrGdfThreadTest,
+                           ::testing::Values(::libavm_test::kOnePassGood),
+                           ::testing::Values(4, 5, 6), ::testing::Values(1),
+                           ::testing::Values(1), ::testing::Values(0));
+
 // Test cpu_used 0, 1, 3 and 5.
 // TODO(urvang): Once https://github.com/AOMediaCodec/avm/issues/79 is fixed,
 // change last parameter back to (0, 1) to re-enable unit tests with row-mt = 1.

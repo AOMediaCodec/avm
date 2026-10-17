@@ -32,6 +32,7 @@
 
 #include "av2/encoder/av2_quantize.h"
 #include "av2/encoder/encoder.h"
+#include "av2/encoder/ethread.h"
 #include "av2/encoder/picklpf.h"
 #include "av2/encoder/pickrst.h"
 
@@ -161,7 +162,36 @@ typedef struct {
   int8_t rst_ref_pic_idx;
   WienerNonsepInfo frame_filters;
   AV2PixelRect tile_rect;
+
+  // Scratch buffer for av2_loop_restoration_filter_unit(), shared with the LR
+  // apply, which never runs at the same time.
+  uint16_t *stripe_buf;
+  // One scratch buffer per worker, LR_STRIPE_BUF_STRIDE apart. NULL with one
+  // worker.
+  uint16_t *worker_stripe_bufs;
+  // Error of each RU in wienerns_stats with the frame filters being tried.
+  int64_t *unit_errors;
+
+  // Encoder workers used to compute RU stats in parallel.
+  AVxWorker *workers;
+  int num_workers;
+  // Worker contexts and per-tile results of the multi-thread RD search. NULL
+  // with one thread.
+  struct RdTileWorker *tile_workers;
+  int num_tile_workers;
+  struct RdTileResult *tile_results;
 } RestSearchCtxt;
+
+// Runs hook on the LR search workers. The hooks never fail and must not raise
+// errors.
+static void lr_run_workers(const RestSearchCtxt *rsc, int num_workers,
+                           AVxWorkerHook hook, void *data1, void *data2,
+                           size_t data2_size) {
+  const int ok = av2_run_workers(rsc->workers, num_workers, hook, data1, data2,
+                                 data2_size);
+  assert(ok);
+  (void)ok;
+}
 
 // RU statistics for solving Wiener filters.
 typedef struct RstUnitStats {
@@ -307,10 +337,10 @@ static AVM_INLINE void init_rsc(RestSearchCtxt *rsc, int plane) {
   reset_all_banks(rsc);
 }
 
-static int64_t try_restoration_unit(const RestSearchCtxt *rsc,
-                                    const RestorationTileLimits *limits,
-                                    const AV2PixelRect *tile_rect,
-                                    const RestorationUnitInfo *rui) {
+static int64_t try_restoration_unit_with_buf(
+    const RestSearchCtxt *rsc, const RestorationTileLimits *limits,
+    const AV2PixelRect *tile_rect, const RestorationUnitInfo *rui,
+    uint16_t *stripe_buf) {
   const AV2_COMMON *const cm = rsc->cm;
   const int plane = rsc->plane;
   const int is_uv = plane > 0;
@@ -328,9 +358,17 @@ static int64_t try_restoration_unit(const RestSearchCtxt *rsc,
       is_uv && cm->seq_params.subsampling_y, bit_depth, fts->buffers[plane],
       fts->strides[is_uv], rsc->dst->buffers[plane], rsc->dst->strides[is_uv],
       rsc->plane_width, cm->seq_params.disable_loopfilters_across_tiles,
-      optimized_lr);
+      optimized_lr, stripe_buf);
 
   return sse_restoration_unit(limits, rsc->src, rsc->dst, plane);
+}
+
+static int64_t try_restoration_unit(const RestSearchCtxt *rsc,
+                                    const RestorationTileLimits *limits,
+                                    const AV2PixelRect *tile_rect,
+                                    const RestorationUnitInfo *rui) {
+  return try_restoration_unit_with_buf(rsc, limits, tile_rect, rui,
+                                       rsc->stripe_buf);
 }
 
 static void initialize_rui_for_nonsep_search(const RestSearchCtxt *rsc,
@@ -1895,45 +1933,95 @@ double accumulate_merge_stats(const RestSearchCtxt *rsc,
   return cost_nomerge_cand;
 }
 
+// Records the RU in rsc->wienerns_stats. The stats themselves are computed
+// later by compute_wienerns_stats_mt().
 static void gather_stats_wienerns(const RestorationTileLimits *limits,
                                   const AV2PixelRect *tile_rect,
                                   int rest_unit_idx,
                                   int rest_unit_idx_in_rutile, void *priv,
                                   RestorationLineBuffers *rlbs) {
   (void)rlbs;
-  (void)rest_unit_idx_in_rutile;
   (void)tile_rect;
 
   RestSearchCtxt *rsc = (RestSearchCtxt *)priv;
-
-  RestorationUnitInfo rui;
-  initialize_rui_for_nonsep_search(rsc, &rui);
-  rui.luma = rsc->luma_stat;
-  rui.restoration_type = RESTORE_WIENER_NONSEP;
-  const WienernsFilterParameters *nsfilter_params = get_wienerns_parameters(
-      rsc->cm->quant_params.base_qindex, rsc->plane != AVM_PLANE_Y);
   assert(rsc->num_filter_classes == rsc->wienerns_bank.filter[0].num_classes);
 
-  set_rui_mbmi_index(rsc, limits, &rui);
-  // Calculate and save this RU's stats.
   RstUnitStats unit_stats;
   memset(&unit_stats, 0, sizeof(unit_stats));
-  RestUnitSearchInfo *rusi = &rsc->rusi[rest_unit_idx];
-  unit_stats.real_sse = 0;
-  if (!rusi->bru_unit_skipped) {
-    unit_stats.real_sse = compute_stats_for_wienerns_filter(
-        rsc->dgd_buffer, rsc->src_buffer, limits, rsc->dgd_stride,
-        rsc->src_stride, &rui, rsc->cm->seq_params.bit_depth, unit_stats.A,
-        unit_stats.b, unit_stats.num_pixels_in_class, nsfilter_params,
-        rsc->num_stats_classes);
-  }
   unit_stats.ru_idx = rest_unit_idx;
   unit_stats.ru_idx_in_tile = rest_unit_idx_in_rutile - rsc->ru_idx_base;
   unit_stats.limits = *limits;
   unit_stats.plane = rsc->plane;
   unit_stats.num_stats_classes = rsc->num_stats_classes;
   avm_vector_push_back(rsc->wienerns_stats, &unit_stats);
-  return;
+}
+
+// Computes the stats of one RU recorded by gather_stats_wienerns(). Only reads
+// rsc, so several RUs can be done at the same time.
+static void compute_unit_stats_wienerns(const RestSearchCtxt *rsc,
+                                        RstUnitStats *unit_stats) {
+  if (rsc->rusi[unit_stats->ru_idx].bru_unit_skipped) return;
+
+  RestorationUnitInfo rui;
+  initialize_rui_for_nonsep_search(rsc, &rui);
+  rui.luma = rsc->luma_stat;
+  rui.restoration_type = RESTORE_WIENER_NONSEP;
+  set_rui_mbmi_index(rsc, &unit_stats->limits, &rui);
+  const WienernsFilterParameters *nsfilter_params = get_wienerns_parameters(
+      rsc->cm->quant_params.base_qindex, rsc->plane != AVM_PLANE_Y);
+  unit_stats->real_sse = compute_stats_for_wienerns_filter(
+      rsc->dgd_buffer, rsc->src_buffer, &unit_stats->limits, rsc->dgd_stride,
+      rsc->src_stride, &rui, rsc->cm->seq_params.bit_depth, unit_stats->A,
+      unit_stats->b, unit_stats->num_pixels_in_class, nsfilter_params,
+      unit_stats->num_stats_classes);
+}
+
+typedef struct {
+  const RestSearchCtxt *rsc;
+  RstUnitStats *stats;
+  int num_units;
+  int next_unit;
+#if CONFIG_MULTITHREAD
+  pthread_mutex_t mutex;
+#endif
+} WienernsStatsJobs;
+
+// Computes the Wiener stats of RUs until none are left.
+static int wienerns_stats_worker(void *arg1, void *arg2) {
+  (void)arg2;
+  WienernsStatsJobs *jobs = (WienernsStatsJobs *)arg1;
+  while (1) {
+#if CONFIG_MULTITHREAD
+    pthread_mutex_lock(&jobs->mutex);
+#endif
+    const int unit = jobs->next_unit++;
+#if CONFIG_MULTITHREAD
+    pthread_mutex_unlock(&jobs->mutex);
+#endif
+    if (unit >= jobs->num_units) break;
+    compute_unit_stats_wienerns(jobs->rsc, &jobs->stats[unit]);
+  }
+  return 1;
+}
+
+// Fills in the stats of all RUs in rsc->wienerns_stats. Each RU writes only its
+// own slot, so the result does not depend on the number of workers.
+static void compute_wienerns_stats_mt(RestSearchCtxt *rsc) {
+  WienernsStatsJobs jobs;
+  jobs.rsc = rsc;
+  jobs.stats = (RstUnitStats *)rsc->wienerns_stats->data;
+  jobs.num_units = (int)rsc->wienerns_stats->size;
+  jobs.next_unit = 0;
+
+  // The worker always locks the mutex, so it is set up even for one worker.
+#if CONFIG_MULTITHREAD
+  pthread_mutex_init(&jobs.mutex, NULL);
+#endif
+  const int num_workers = AVMMIN(rsc->num_workers, jobs.num_units);
+  lr_run_workers(rsc, num_workers, wienerns_stats_worker, &jobs, NULL, 0);
+#if CONFIG_MULTITHREAD
+  pthread_mutex_destroy(&jobs.mutex);
+#endif
 }
 
 // Returns the sse of using the frame filters on the RU specified with limits.
@@ -2686,15 +2774,12 @@ static AVM_INLINE void bru_set_sru_skip(RestSearchCtxt *rsc, int rrow0,
   }
 }
 
-// Calls visitor function fun() for one specific RU in frame
-// Note that RU-tiles are different from coded tiles since the RU sizes can be
-// different from Sb sizes and also because there could be super-resolution.
-// A RU-tile is a rectangle in the upsampled domain that includes all RUs
-// that are signaled for the SBs in a given tile in the coded domain.
-// This function processes the vistor function fun() for all RUs within
-// the Ru-tile in the order in which they are signaled in the bit-stream.
-static void process_one_rutile(RestSearchCtxt *rsc, int tile_row, int tile_col,
-                               int *processed, rest_unit_visitor_t fun) {
+// Calls visitor function fun() for every RU in one RU-tile, in the order in
+// which they are signaled in the bit-stream. Sets the BRU skip flag of each RU
+// first when set_skip is 1.
+static void visit_rutile(RestSearchCtxt *rsc, int tile_row, int tile_col,
+                         int *processed, rest_unit_visitor_t fun,
+                         int set_skip) {
   const int is_uv = rsc->plane > 0;
   const int ss_y = is_uv && rsc->cm->seq_params.subsampling_y;
   const RestorationInfo *rsi = &rsc->cm->rst_info[rsc->plane];
@@ -2707,8 +2792,6 @@ static void process_one_rutile(RestSearchCtxt *rsc, int tile_row, int tile_col,
   AV2PixelRect indep_tile_rect;
   indep_tile_rect = av2_get_tile_rect(&tile_info, rsc->cm, is_uv);
 
-  reset_rsc(rsc);
-  rsc_on_tile(rsc, *processed, tile_row, tile_col);
   for (int mi_row = tile_info.mi_row_start; mi_row < tile_info.mi_row_end;
        mi_row += rsc->cm->mib_size) {
     for (int mi_col = tile_info.mi_col_start; mi_col < tile_info.mi_col_end;
@@ -2717,7 +2800,7 @@ static void process_one_rutile(RestSearchCtxt *rsc, int tile_row, int tile_col,
       if (av2_loop_restoration_corners_in_sb(rsc->cm, rsc->plane, mi_row,
                                              mi_col, rsc->cm->sb_size, &rcol0,
                                              &rcol1, &rrow0, &rrow1)) {
-        if (rsc->cm->bru.enabled) {
+        if (set_skip && rsc->cm->bru.enabled) {
           bru_set_sru_skip(rsc, rrow0, rrow1, rcol0, rcol1);
         }
         // RU domain rectangle for the coded SB
@@ -2733,6 +2816,20 @@ static void process_one_rutile(RestSearchCtxt *rsc, int tile_row, int tile_col,
   }
 }
 
+// Calls visitor function fun() for one specific RU in frame
+// Note that RU-tiles are different from coded tiles since the RU sizes can be
+// different from Sb sizes and also because there could be super-resolution.
+// A RU-tile is a rectangle in the upsampled domain that includes all RUs
+// that are signaled for the SBs in a given tile in the coded domain.
+// This function processes the vistor function fun() for all RUs within
+// the Ru-tile in the order in which they are signaled in the bit-stream.
+static void process_one_rutile(RestSearchCtxt *rsc, int tile_row, int tile_col,
+                               int *processed, rest_unit_visitor_t fun) {
+  reset_rsc(rsc);
+  rsc_on_tile(rsc, *processed, tile_row, tile_col);
+  visit_rutile(rsc, tile_row, tile_col, processed, fun, 1);
+}
+
 // Calls visitor function fun() for all RUs in frame in RUtile-by-RUtile order
 static void process_by_rutile(RestSearchCtxt *rsc, rest_unit_visitor_t fun) {
   int processed = 0;
@@ -2743,19 +2840,180 @@ static void process_by_rutile(RestSearchCtxt *rsc, rest_unit_visitor_t fun) {
   }
 }
 
+// Private state of one worker in the per-tile RD search. Holds the buffers
+// that the RD visitors write while they search one RU-tile.
+typedef struct RdTileWorker {
+  RestSearchCtxt rsc;
+  Vector unit_stack;
+  Vector unit_indices;
+  double *wienerns_tmpbuf;
+  uint16_t *stripe_buf;  // Owned by LrSearchBufs.worker_stripe_bufs.
+} RdTileWorker;
+
+// Result of the RD search on one RU-tile.
+typedef struct RdTileResult {
+  int ru_start;  // Sequential index of the first RU of the RU-tile.
+  int64_t bits;
+  int64_t sse;
+  int num_wiener_nonsep;
+} RdTileResult;
+
+// Distance between the stripe buffers of two workers. Rounded up to 32 bytes so
+// that, with the 32-byte aligned allocation, every buffer is 32-byte aligned.
+#define LR_STRIPE_BUF_STRIDE ALIGN_POWER_OF_TWO(MAX_LRU_STRIPE_BUF_SIZE, 4)
+
+// Scratch buffers of the LR search threads, kept in cpi from frame to frame.
+typedef struct LrSearchBufs {
+  uint16_t *worker_stripe_bufs;  // LR_STRIPE_BUF_STRIDE apart.
+  int num_worker_stripe_bufs;
+  RdTileWorker *tile_workers;
+  int num_tile_workers;
+  RdTileResult *tile_results;
+  int num_tile_results;
+  // Set when the last get_lr_search_bufs() call made all its buffers.
+  int complete;
+} LrSearchBufs;
+
+typedef struct {
+  const RestSearchCtxt *rsc;
+  rest_unit_visitor_t fun;
+  int num_tiles;
+  int next_tile;
+  // Worker that searched the last RU-tile.
+  RdTileWorker *last_tile_worker;
+#if CONFIG_MULTITHREAD
+  pthread_mutex_t mutex;
+#endif
+} RdTileJobs;
+
+static void count_ru_visitor(const RestorationTileLimits *limits,
+                             const AV2PixelRect *tile_rect, int rest_unit_idx,
+                             int rest_unit_idx_seq, void *priv,
+                             RestorationLineBuffers *rlbs) {
+  (void)limits;
+  (void)tile_rect;
+  (void)rest_unit_idx;
+  (void)rest_unit_idx_seq;
+  (void)priv;
+  (void)rlbs;
+}
+
+// Searches whole RU-tiles until none are left, each from a copy of the main
+// context. This matches the serial search as long as rsc_on_tile() and
+// reset_rsc() reset all the per-tile state.
+static int rd_tile_worker(void *arg1, void *arg2) {
+  RdTileJobs *jobs = (RdTileJobs *)arg1;
+  RdTileWorker *tw = (RdTileWorker *)arg2;
+  const RestSearchCtxt *rsc = jobs->rsc;
+  RestSearchCtxt *trsc = &tw->rsc;
+  const int tile_cols = rsc->cm->tiles.cols;
+  while (1) {
+#if CONFIG_MULTITHREAD
+    pthread_mutex_lock(&jobs->mutex);
+#endif
+    const int tile = jobs->next_tile++;
+#if CONFIG_MULTITHREAD
+    pthread_mutex_unlock(&jobs->mutex);
+#endif
+    if (tile >= jobs->num_tiles) break;
+
+    *trsc = *rsc;
+    trsc->unit_stack = &tw->unit_stack;
+    trsc->unit_indices = &tw->unit_indices;
+    trsc->wienerns_tmpbuf = tw->wienerns_tmpbuf;
+    trsc->stripe_buf = tw->stripe_buf;
+    trsc->num_wiener_nonsep = 0;
+
+    RdTileResult *res = &rsc->tile_results[tile];
+    int processed = res->ru_start;
+    process_one_rutile(trsc, tile / tile_cols, tile % tile_cols, &processed,
+                       jobs->fun);
+    res->bits = trsc->bits;
+    res->sse = trsc->sse;
+    res->num_wiener_nonsep = trsc->num_wiener_nonsep;
+    // The last tile is taken last, so this worker searches no other tile.
+    if (tile == jobs->num_tiles - 1) jobs->last_tile_worker = tw;
+  }
+  return 1;
+}
+
+// Runs the RD search of all RU-tiles on several threads, with the same result
+// as the serial loop in process_rd_by_rutile().
+static void process_rd_by_rutile_mt(RestSearchCtxt *rsc,
+                                    rest_unit_visitor_t fun,
+                                    int64_t *total_bits, int64_t *total_sse) {
+  const int tile_cols = rsc->cm->tiles.cols;
+  RdTileJobs jobs;
+  jobs.rsc = rsc;
+  jobs.fun = fun;
+  jobs.num_tiles = rsc->cm->tiles.rows * tile_cols;
+  jobs.next_tile = 0;
+  jobs.last_tile_worker = NULL;
+
+  // The RU index the serial loop would pass to the first RU of each RU-tile.
+  int processed = 0;
+  for (int tile = 0; tile < jobs.num_tiles; ++tile) {
+    rsc->tile_results[tile].ru_start = processed;
+    visit_rutile(rsc, tile / tile_cols, tile % tile_cols, &processed,
+                 count_ru_visitor, 0);
+  }
+
+  const int num_workers = AVMMIN(rsc->num_tile_workers, jobs.num_tiles);
+#if CONFIG_MULTITHREAD
+  pthread_mutex_init(&jobs.mutex, NULL);
+#endif
+  lr_run_workers(rsc, num_workers, rd_tile_worker, &jobs, rsc->tile_workers,
+                 sizeof(*rsc->tile_workers));
+#if CONFIG_MULTITHREAD
+  pthread_mutex_destroy(&jobs.mutex);
+#endif
+
+  int num_wiener_nonsep = rsc->num_wiener_nonsep;
+  for (int tile = 0; tile < jobs.num_tiles; ++tile) {
+    const RdTileResult *res = &rsc->tile_results[tile];
+    *total_bits += res->bits;
+    *total_sse += res->sse;
+    num_wiener_nonsep += res->num_wiener_nonsep;
+  }
+
+  // Take over the state of the last RU-tile, but keep this context's buffers.
+  RdTileWorker *tw = jobs.last_tile_worker;
+  assert(tw != NULL);
+  avm_vector_swap(rsc->unit_stack, &tw->unit_stack);
+  avm_vector_swap(rsc->unit_indices, &tw->unit_indices);
+  Vector *unit_stack = rsc->unit_stack;
+  Vector *unit_indices = rsc->unit_indices;
+  double *wienerns_tmpbuf = rsc->wienerns_tmpbuf;
+  uint16_t *stripe_buf = rsc->stripe_buf;
+  *rsc = tw->rsc;
+  rsc->unit_stack = unit_stack;
+  rsc->unit_indices = unit_indices;
+  rsc->wienerns_tmpbuf = wienerns_tmpbuf;
+  rsc->stripe_buf = stripe_buf;
+  rsc->num_wiener_nonsep = num_wiener_nonsep;
+}
+
 // Calls visitor function fun() for all RUs in frame in RUtile-by-RUtile order,
 // aggregates the bits and sse returned in rsc for each RUtile, and returns
 // the overall RD cost for the frame over all RUs in all RUtiles.
 static double process_rd_by_rutile(RestSearchCtxt *rsc,
                                    rest_unit_visitor_t fun) {
-  int processed = 0;
   int64_t total_bits = 0;
   int64_t total_sse = 0;
-  for (int tile_row = 0; tile_row < rsc->cm->tiles.rows; tile_row++) {
-    for (int tile_col = 0; tile_col < rsc->cm->tiles.cols; tile_col++) {
-      process_one_rutile(rsc, tile_row, tile_col, &processed, fun);
-      total_bits += rsc->bits;
-      total_sse += rsc->sse;
+  // This case rewrites the shared frame filter dictionary, so it stays serial.
+  const int writes_dictionary = fun == search_switchable_visitor &&
+                                rsc->frame_filters_on &&
+                                !rsc->adjust_switchable_for_frame_filters;
+  if (rsc->num_tile_workers > 1 && !writes_dictionary) {
+    process_rd_by_rutile_mt(rsc, fun, &total_bits, &total_sse);
+  } else {
+    int processed = 0;
+    for (int tile_row = 0; tile_row < rsc->cm->tiles.rows; tile_row++) {
+      for (int tile_col = 0; tile_col < rsc->cm->tiles.cols; tile_col++) {
+        process_one_rutile(rsc, tile_row, tile_col, &processed, fun);
+        total_bits += rsc->bits;
+        total_sse += rsc->sse;
+      }
     }
   }
   return RDCOST_DBL_WITH_NATIVE_BD_DIST(rsc->x->rdmult, total_bits >> 4,
@@ -2770,6 +3028,7 @@ static void gather_stats_rest_type(RestSearchCtxt *rsc, RestorationType rtype) {
   if (rtype == RESTORE_WIENER_NONSEP) avm_vector_clear(rsc->wienerns_stats);
 
   if (funs[rtype]) process_by_rutile(rsc, funs[rtype]);
+  if (rtype == RESTORE_WIENER_NONSEP) compute_wienerns_stats_mt(rsc);
 }
 
 static double search_rest_type(RestSearchCtxt *rsc, RestorationType rtype) {
@@ -3091,6 +3350,69 @@ static void solve_filters_from_stats_wienerns(const RestSearchCtxt *rsc,
 #define RU_ON_WEIGHT 1
 #define RU_OFF_WEIGHT 1e-10
 
+typedef struct {
+  const RestSearchCtxt *rsc;
+  const RestorationUnitInfo *rui;
+  const RstUnitStats *stats;
+  int num_units;
+  int next_unit;
+#if CONFIG_MULTITHREAD
+  pthread_mutex_t mutex;
+#endif
+} UnitErrorJobs;
+
+// Filters RUs with jobs->rui until none are left, and writes each error to its
+// own slot of rsc->unit_errors.
+static int unit_error_worker(void *arg1, void *arg2) {
+  UnitErrorJobs *jobs = (UnitErrorJobs *)arg1;
+  uint16_t *stripe_buf = (uint16_t *)arg2;
+  const RestSearchCtxt *rsc = jobs->rsc;
+  RestorationUnitInfo rui = *jobs->rui;
+  while (1) {
+#if CONFIG_MULTITHREAD
+    pthread_mutex_lock(&jobs->mutex);
+#endif
+    const int unit = jobs->next_unit++;
+#if CONFIG_MULTITHREAD
+    pthread_mutex_unlock(&jobs->mutex);
+#endif
+    if (unit >= jobs->num_units) break;
+    const RstUnitStats *unit_stats = &jobs->stats[unit];
+    if (rsc->rusi[unit_stats->ru_idx].bru_unit_skipped) continue;
+    set_rui_mbmi_index(rsc, &unit_stats->limits, &rui);
+    // Uses the last tile's rect for every RU, as the serial search did.
+    rsc->unit_errors[unit] = try_restoration_unit_with_buf(
+        rsc, &unit_stats->limits, &rsc->tile_rect, &rui, stripe_buf);
+  }
+  return 1;
+}
+
+// Fills rsc->unit_errors with the error of each RU filtered with rui, on
+// several threads.
+static void compute_unit_errors_mt(const RestSearchCtxt *rsc,
+                                   const RestorationUnitInfo *rui) {
+  UnitErrorJobs jobs;
+  jobs.rsc = rsc;
+  jobs.rui = rui;
+  jobs.stats = (const RstUnitStats *)rsc->wienerns_stats->data;
+  jobs.num_units = (int)rsc->wienerns_stats->size;
+  jobs.next_unit = 0;
+
+  // The worker always locks the mutex, so it is set up even for one worker.
+#if CONFIG_MULTITHREAD
+  pthread_mutex_init(&jobs.mutex, NULL);
+#endif
+  const int num_workers =
+      rsc->worker_stripe_bufs ? AVMMIN(rsc->num_workers, jobs.num_units) : 1;
+  uint16_t *const stripe_bufs =
+      num_workers > 1 ? rsc->worker_stripe_bufs : rsc->stripe_buf;
+  lr_run_workers(rsc, num_workers, unit_error_worker, &jobs, stripe_bufs,
+                 LR_STRIPE_BUF_STRIDE * sizeof(*stripe_bufs));
+#if CONFIG_MULTITHREAD
+  pthread_mutex_destroy(&jobs.mutex);
+#endif
+}
+
 // Calculates the cost of using frame-level filters on a picture by
 //   (i) determining per RU on-off mode based on R-D,
 //  (ii) calculating resulting per RU cost.
@@ -3114,6 +3436,7 @@ static RdResults update_cost_and_weights_wienerns(RestSearchCtxt *rsc,
       use_rate ? rsc->x->mode_costs.wienerns_restore_cost[1] : 0;
 
   RdResults results = { 0 };
+  compute_unit_errors_mt(rsc, rui);
   int stat_slot = -1;
   VECTOR_FOR_EACH(rsc->wienerns_stats, unit_stats) {
     stat_slot++;
@@ -3121,8 +3444,7 @@ static RdResults update_cost_and_weights_wienerns(RestSearchCtxt *rsc,
     int64_t distortion = INT64_MAX;
     int64_t distortion_none = 0;
     if (!rsc->rusi[unit_stats_ptr->ru_idx].bru_unit_skipped) {
-      distortion = calc_finer_tile_search_error(rsc, &unit_stats_ptr->limits,
-                                                &rsc->tile_rect, rui);
+      distortion = rsc->unit_errors[stat_slot];
       distortion_none = unit_stats_ptr->real_sse;
     }
 
@@ -3809,6 +4131,106 @@ static void search_plane_restoration(AV2_COMP *const cpi, RestSearchCtxt *rsc,
   adjust_frame_rtype(rsi, ru_num, rsc, &cpi->oxcf.tool_cfg);
 }
 
+static void free_worker_stripe_bufs(LrSearchBufs *bufs) {
+  avm_free(bufs->worker_stripe_bufs);
+  bufs->worker_stripe_bufs = NULL;
+  bufs->num_worker_stripe_bufs = 0;
+}
+
+static void free_tile_workers(LrSearchBufs *bufs) {
+  for (int i = 0; i < bufs->num_tile_workers; ++i) {
+    RdTileWorker *tw = &bufs->tile_workers[i];
+    avm_vector_destroy(&tw->unit_stack);
+    avm_vector_destroy(&tw->unit_indices);
+    avm_free(tw->wienerns_tmpbuf);
+  }
+  avm_free(bufs->tile_workers);
+  bufs->tile_workers = NULL;
+  bufs->num_tile_workers = 0;
+}
+
+static void free_tile_results(LrSearchBufs *bufs) {
+  avm_free(bufs->tile_results);
+  bufs->tile_results = NULL;
+  bufs->num_tile_results = 0;
+}
+
+static void free_lr_search_buf_contents(LrSearchBufs *bufs) {
+  free_worker_stripe_bufs(bufs);
+  free_tile_workers(bufs);
+  free_tile_results(bufs);
+}
+
+void av2_free_lr_search_bufs(AV2_COMP *cpi) {
+  if (cpi->lr_search_bufs == NULL) return;
+  free_lr_search_buf_contents(cpi->lr_search_bufs);
+  avm_free(cpi->lr_search_bufs);
+  cpi->lr_search_bufs = NULL;
+}
+
+// Returns the scratch buffers kept in cpi, made larger if needed for
+// num_workers threads and num_tiles RU-tiles.
+static const LrSearchBufs *get_lr_search_bufs(AV2_COMP *cpi, int num_workers,
+                                              int num_tile_workers,
+                                              int num_tiles) {
+  AV2_COMMON *const cm = &cpi->common;
+  if (cpi->lr_search_bufs == NULL) {
+    CHECK_MEM_ERROR(cm, cpi->lr_search_bufs,
+                    avm_calloc(1, sizeof(*cpi->lr_search_bufs)));
+  }
+  LrSearchBufs *bufs = cpi->lr_search_bufs;
+  if (!bufs->complete) free_lr_search_buf_contents(bufs);
+  bufs->complete = 0;
+
+  if (num_workers > 1 && bufs->num_worker_stripe_bufs < num_workers) {
+    free_worker_stripe_bufs(bufs);
+    CHECK_MEM_ERROR(
+        cm, bufs->worker_stripe_bufs,
+        avm_memalign(32, (size_t)num_workers * LR_STRIPE_BUF_STRIDE *
+                             sizeof(*bufs->worker_stripe_bufs)));
+    bufs->num_worker_stripe_bufs = num_workers;
+  }
+
+  if (num_tile_workers <= 1) {
+    bufs->complete = 1;
+    return bufs;
+  }
+
+  if (bufs->num_tile_results < num_tiles) {
+    free_tile_results(bufs);
+    CHECK_MEM_ERROR(cm, bufs->tile_results,
+                    avm_calloc(num_tiles, sizeof(*bufs->tile_results)));
+    bufs->num_tile_results = num_tiles;
+  }
+
+  if (bufs->num_tile_workers < num_tile_workers) {
+    free_tile_workers(bufs);
+    CHECK_MEM_ERROR(cm, bufs->tile_workers,
+                    avm_calloc(num_tile_workers, sizeof(*bufs->tile_workers)));
+    bufs->num_tile_workers = num_tile_workers;
+    for (int i = 0; i < num_tile_workers; ++i) {
+      RdTileWorker *tw = &bufs->tile_workers[i];
+      if (avm_vector_setup(&tw->unit_stack, /*capacity=*/1,
+                           /*element_size=*/sizeof(struct RstUnitSnapshot)) !=
+              VECTOR_SUCCESS ||
+          avm_vector_setup(&tw->unit_indices, /*capacity=*/1,
+                           /*element_size=*/sizeof(int)) != VECTOR_SUCCESS) {
+        avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
+                           "Failed to set up the LR tile worker vectors");
+      }
+      CHECK_MEM_ERROR(
+          cm, tw->wienerns_tmpbuf,
+          avm_malloc(WIENERNS_TMPBUF_SIZE * sizeof(*tw->wienerns_tmpbuf)));
+    }
+  }
+  // The stripe buffers may have been made again, so point at them each time.
+  for (int i = 0; i < num_tile_workers; ++i)
+    bufs->tile_workers[i].stripe_buf =
+        bufs->worker_stripe_bufs + (size_t)i * LR_STRIPE_BUF_STRIDE;
+  bufs->complete = 1;
+  return bufs;
+}
+
 static RestSearchCtxt *alloc_rst_search_context(AV2_COMP *const cpi,
                                                 const YV12_BUFFER_CONFIG *src,
                                                 int max_ru_count) {
@@ -3882,11 +4304,30 @@ static RestSearchCtxt *alloc_rst_search_context(AV2_COMP *const cpi,
   rsc->wienerns_tmpbuf = wienerns_tmpbuf;
   rsc->unit_stack = unit_stack;
   rsc->unit_indices = unit_indices;
+  rsc->stripe_buf = cm->lru_stripe_buf;
+  rsc->workers = cpi->mt_info.workers;
+  rsc->num_workers =
+      cpi->sf.lpf_sf.enable_lr_mt ? AVMMAX(cpi->mt_info.num_workers, 1) : 1;
+  // With BRU the search can raise errors, so it must run on one thread.
+  assert(rsc->num_workers <= 1 || !cpi->oxcf.tool_cfg.enable_bru);
+  CHECK_MEM_ERROR(cm, rsc->unit_errors,
+                  avm_malloc(max_ru_count * sizeof(*rsc->unit_errors)));
+
+  const int num_tiles = cm->tiles.rows * cm->tiles.cols;
+  const int num_tile_workers = AVMMIN(rsc->num_workers, num_tiles);
+  const LrSearchBufs *bufs =
+      get_lr_search_bufs(cpi, rsc->num_workers, num_tile_workers, num_tiles);
+  rsc->worker_stripe_bufs =
+      rsc->num_workers > 1 ? bufs->worker_stripe_bufs : NULL;
+  rsc->tile_workers = num_tile_workers > 1 ? bufs->tile_workers : NULL;
+  rsc->num_tile_workers = num_tile_workers > 1 ? num_tile_workers : 0;
+  rsc->tile_results = num_tile_workers > 1 ? bufs->tile_results : NULL;
 
   return rsc;
 }
 
 static void free_rst_search_context(RestSearchCtxt *rsc) {
+  avm_free(rsc->unit_errors);
   avm_free(rsc->rusi);
   avm_free(rsc->luma_stat_buf);
   avm_free(rsc->luma_buf);

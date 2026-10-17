@@ -102,6 +102,10 @@ static INLINE int check_wienerns_bank_eq(const WienerNonsepInfoBank *bank,
  *
  */
 void av2_pick_filter_restoration(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi);
+
+/*!\brief Frees the scratch buffers the LR search keeps in \c cpi.
+ */
+void av2_free_lr_search_bufs(AV2_COMP *cpi);
 #ifdef __cplusplus
 }  // extern "C"
 #endif
