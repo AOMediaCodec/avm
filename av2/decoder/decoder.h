@@ -22,6 +22,7 @@
 #include "avm_util/avm_thread.h"
 
 #include "av2/common/av2_common_int.h"
+#include "av2/common/gdf.h"
 #include "av2/common/thread_common.h"
 #include "av2/decoder/dthread.h"
 #if CONFIG_ACCOUNTING
@@ -690,6 +691,26 @@ typedef struct AV2Decoder {
    * Flag indicating if banding metadata is available for the current frame
    */
   int band_metadata_present;
+  /*!
+   * GDF scratch buffer, kept across frames
+   */
+  GdfStripeBuf gdf_stripe_buf;
+  /*!
+   * Guided frame stride gdf_stripe_buf was made for, 0 if not made
+   */
+  int gdf_stripe_buf_stride;
+  /*!
+   * GDF block rows of the current frame
+   */
+  GdfBlockRow *gdf_rows;
+  /*!
+   * GDF jobs of the current frame
+   */
+  GdfJob *gdf_jobs;
+  /*!
+   * Number of entries allocated in gdf_rows and gdf_jobs
+   */
+  int gdf_rows_size;
 } AV2Decoder;
 
 // Returns 0 on success. Sets pbi->common.error.error_code to a nonzero error
