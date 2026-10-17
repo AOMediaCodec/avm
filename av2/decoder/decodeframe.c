@@ -3003,7 +3003,7 @@ static AVM_INLINE void setup_gdf(AV2_COMMON *cm,
     cm->gdf_info.gdf_mode = avm_rb_read_bit(rb);
   }
   if (cm->gdf_info.gdf_mode > 0) {
-    alloc_gdf_buffers(&cm->gdf_info, cm->cur_frame->buf.y_width);
+    alloc_gdf_buffers(&cm->gdf_info);
     if (cm->gdf_info.gdf_block_num > 1) {
       cm->gdf_info.gdf_mode += avm_rb_read_bit(rb);
     }
@@ -9623,7 +9623,40 @@ void decoder_avg_tiles_cdfs(AV2Decoder *const pbi) {
   }
 }
 
-void av2_gdf_frame_dec(AV2_COMMON *cm) { gdf_filter_frame(cm); }
+// Applies GDF with scratch buffers kept in pbi. They are made again only when
+// the guided frame stride changes or more block rows are needed, and freed in
+// av2_decoder_remove().
+void av2_gdf_frame_dec(AV2Decoder *pbi) {
+  AV2_COMMON *const cm = &pbi->common;
+  if (gdf_frame_not_filtered(cm)) return;
+
+  if (pbi->gdf_stripe_buf_stride != cm->gdf_info.inp_stride) {
+    gdf_free_stripe_buf(&pbi->gdf_stripe_buf);
+    pbi->gdf_stripe_buf_stride = 0;
+    gdf_alloc_stripe_buf(cm, &pbi->gdf_stripe_buf);
+    // Set last, so the buffer is made again if an allocation failed.
+    pbi->gdf_stripe_buf_stride = cm->gdf_info.inp_stride;
+  } else {
+    gdf_clear_stripe_buf(cm, &pbi->gdf_stripe_buf);
+  }
+
+  const int max_rows = gdf_max_block_rows(cm);
+  if (pbi->gdf_rows_size < max_rows) {
+    avm_free(pbi->gdf_rows);
+    avm_free(pbi->gdf_jobs);
+    pbi->gdf_rows = NULL;
+    pbi->gdf_jobs = NULL;
+    pbi->gdf_rows_size = 0;
+    CHECK_MEM_ERROR(
+        cm, pbi->gdf_rows,
+        (GdfBlockRow *)avm_malloc(max_rows * sizeof(*pbi->gdf_rows)));
+    CHECK_MEM_ERROR(cm, pbi->gdf_jobs,
+                    (GdfJob *)avm_malloc(max_rows * sizeof(*pbi->gdf_jobs)));
+    pbi->gdf_rows_size = max_rows;
+  }
+
+  gdf_filter_frame(cm, &pbi->gdf_stripe_buf, pbi->gdf_rows, pbi->gdf_jobs);
+}
 
 void av2_decode_tg_tiles_and_wrapup(AV2Decoder *pbi, const uint8_t *data,
                                     const uint8_t *data_end,
@@ -9835,7 +9868,7 @@ void av2_decode_tg_tiles_and_wrapup(AV2Decoder *pbi, const uint8_t *data,
 #endif
       }
       if (do_gdf) {
-        av2_gdf_frame_dec(cm);
+        av2_gdf_frame_dec(pbi);
 #if CONFIG_MISMATCH_DEBUG
         mismatch_check_frame(&pbi->common.cur_frame->buf,
                              cm->current_frame.display_order_hint, num_planes,

@@ -661,10 +661,10 @@ static AVM_INLINE void create_enc_workers(AV2_COMP *cpi, int num_workers) {
           cm, thread_data->td->mbmi_ext,
           avm_calloc(sb_mi_size, sizeof(*thread_data->td->mbmi_ext)));
 
-      // Create threads
-      if (!winterface->reset(worker))
-        avm_internal_error(&cm->error, AVM_CODEC_ERROR,
-                           "Tile encoder thread creation failed");
+      // The thread was started in av2_create_workers().
+#if CONFIG_MULTITHREAD
+      assert(worker->impl_ != NULL);
+#endif
     } else {
       // Main thread acts as a worker and uses the thread data in cpi.
       thread_data->td = &cpi->td;
@@ -675,6 +675,35 @@ static AVM_INLINE void create_enc_workers(AV2_COMP *cpi, int num_workers) {
           (FRAME_CONTEXT *)avm_memalign(16, sizeof(*thread_data->td->tctx)));
     winterface->sync(worker);
   }
+}
+
+int av2_run_workers(AVxWorker *workers, int num_workers, AVxWorkerHook hook,
+                    void *data1, void *data2, size_t data2_size) {
+  if (num_workers <= 1) return hook(data1, data2);
+  const AVxWorkerInterface *const winterface = avm_get_worker_interface();
+  for (int i = 0; i < num_workers; ++i) {
+    AVxWorker *const worker = &workers[i];
+    worker->hook = hook;
+    worker->data1 = data1;
+    worker->data2 = data2 ? (uint8_t *)data2 + i * data2_size : NULL;
+    worker->had_error = 0;
+  }
+  // av2_create_workers() started a thread for every worker but the first,
+  // which runs on the calling thread.
+  for (int i = 1; i < num_workers; ++i) {
+#if CONFIG_MULTITHREAD
+    assert(workers[i].impl_ != NULL);
+#endif
+    winterface->launch(&workers[i]);
+  }
+  winterface->execute(&workers[0]);
+  // Clear the error flags so the next tile encoding sync does not see them.
+  int ok = 1;
+  for (int i = 0; i < num_workers; ++i) {
+    ok &= winterface->sync(&workers[i]);
+    workers[i].had_error = 0;
+  }
+  return ok;
 }
 
 void av2_create_workers(AV2_COMP *cpi, int num_workers) {
@@ -705,6 +734,16 @@ void av2_create_workers(AV2_COMP *cpi, int num_workers) {
       av2_setup_shared_coeff_buffer(cm, &thread_data->td->shared_coeff_buf);
     }
     ++mt_info->num_workers;
+  }
+
+  // Start all the threads here, so every later multi-threaded step can count
+  // on them and a failure is reported once. The first worker runs on the
+  // calling thread. Done after the loop above, so the encoder teardown ends
+  // every started thread if one fails.
+  for (int i = 1; i < num_workers; ++i) {
+    if (!winterface->reset(&mt_info->workers[i]))
+      avm_internal_error(&cm->error, AVM_CODEC_ERROR,
+                         "Tile encoder thread creation failed");
   }
 }
 
@@ -741,10 +780,10 @@ static AVM_INLINE void fp_create_enc_workers(AV2_COMP *cpi, int num_workers) {
           cm->seq_params.subsampling_x, cm->seq_params.subsampling_y,
           &thread_data->td->shared_coeff_buf);
 
-      // Create threads
-      if (!winterface->reset(worker))
-        avm_internal_error(&cm->error, AVM_CODEC_ERROR,
-                           "Tile encoder thread creation failed");
+      // The thread was started in av2_create_workers().
+#if CONFIG_MULTITHREAD
+      assert(worker->impl_ != NULL);
+#endif
     } else {
       // Main thread acts as a worker and uses the thread data in cpi.
       thread_data->td = &cpi->td;

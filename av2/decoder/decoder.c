@@ -440,6 +440,9 @@ void av2_decoder_remove(AV2Decoder *pbi) {
   dec_free_tip_ref_frame(&pbi->common);
 
   free_bru_info(&pbi->common);
+  gdf_free_stripe_buf(&pbi->gdf_stripe_buf);
+  avm_free(pbi->gdf_rows);
+  avm_free(pbi->gdf_jobs);
   av2_dec_free_cb_buf(pbi);
 #if CONFIG_ACCOUNTING
   avm_accounting_clear(&pbi->accounting);

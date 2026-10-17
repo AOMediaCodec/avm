@@ -428,18 +428,6 @@ typedef struct BufferPool {
 #define GDF_TEST_FRAME_BOUNDARY_SIZE 0
 #define GDF_TEST_EXTRA_HOR_BORDER 6
 #define GDF_TEST_EXTRA_VER_BORDER 6
-/*!
- * \brief Temporary buffers to save/restore lines above/below the GDF
- */
-typedef struct {
-  uint16_t
-      *gdf_save_above[GDF_TEST_EXTRA_VER_BORDER]; /*!< GDF temporary buffer to
-                                                     save/restore above */
-  uint16_t
-      *gdf_save_below[GDF_TEST_EXTRA_VER_BORDER]; /*!< GDF temporary buffer to
-                                                     save/restore below */
-} GDFLineBuffers;
-
 #define GDF_TEST_BLK_SIZE 128
 #define GDF_TEST_STRIPE_OFF 8  // GDF_TEST_STRIPE_OFF has to be multiple of 8
 #define GDF_ERR_STRIDE_MARGIN 16
@@ -468,29 +456,20 @@ typedef struct {
   int *gdf_block_flags; /*!< GDF array store block on/off flags, active if
                          gdf_mode == 2 */
 
-  int err_height; /*!< Height of GDF memory storing look-uped expected coding
-                   error */
-  int err_stride; /*!< Stride of GDF memory storing look-uped expected coding
-                   error */
-  int lap_stride; /*!< Stride of GDF memory storing laplacian values */
-  int cls_stride; /*!< Stride of GDF memory storing class values */
-  uint16_t **lap_ptr; /*!< GDF poiter to memory storing laplacian values */
-  uint32_t *cls_ptr;  /*!< GDF poiter to memory storing class values */
-  int16_t *err_ptr;  /*!< GDF poiter to memory storing look-uped expected coding
+  int err_height;    /*!< Height of GDF memory storing look-uped expected coding
                       error */
+  int err_stride;    /*!< Stride of GDF memory storing look-uped expected coding
+                      error */
+  int lap_stride;    /*!< Stride of GDF memory storing laplacian values */
+  int cls_stride;    /*!< Stride of GDF memory storing class values */
   uint16_t *inp_ptr; /*!< GDF poiter to memory storing guided frame for GDF,
                       i.e., before LF frame */
   uint16_t *inp_pad_ptr; /*!< Pointer to padded and actually allocated data
                           into which inp_ptr points */
   int inp_stride;        /*!< Stride of GDF memory storing guided frame */
-  GDFLineBuffers *glbs;  /*!< Line buffers needed by Guided detail filter */
   int gdf_vert_blks_per_tile[MAX_TILE_ROWS];    /*!< # vert blocks per tile */
   int gdf_horz_blks_per_tile[MAX_TILE_COLS];    /*!< # horz blocks per tile */
   int gdf_vert_stripes_per_tile[MAX_TILE_ROWS]; /*!< # stripes per tile */
-  uint16_t *tmp_save_left;  /*!< pointer to memory storing pixels to
-                             left of tile boundary */
-  uint16_t *tmp_save_right; /*!< pointer to memory storing pixels to
-                             right of tile boundary */
 } GdfInfo;
 
 /*!\brief Parameters related to CDEF */

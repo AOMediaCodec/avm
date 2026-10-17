@@ -1309,6 +1309,10 @@ typedef struct LOOP_FILTER_SPEED_FEATURES {
   // coarser band count by summing adjacent bins, instead of one pixel pass per
   // (scale_idx, max_band_log2) candidate. Bit-exact.
   int ccso_reuse_bo_class_stats;
+
+  // If set, the GDF search and filter run on several threads. Turned off when
+  // there is only one thread or when BRU is enabled.
+  int enable_gdf_mt;
 } LOOP_FILTER_SPEED_FEATURES;
 
 typedef struct REALTIME_SPEED_FEATURES {
