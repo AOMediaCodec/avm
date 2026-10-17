@@ -948,9 +948,15 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // 1: enhanced cache reuse logic (more modes are searched).
   int enable_enhanced_inter_mode_cache_reuse;
 
-  // When set, skip AMVD evaluation for NEWMV if the
-  // current best mode is not the same mode as the one being evaluated, because
-  // AMVD on top of these modes is unlikely to win over the non-AMVD best mode.
+  // Prune AMVD evaluation for NEWMV and compound NEWMV modes:
+  // 0: off
+  // 1: on frames at pyramid_level >= 4, skip AMVD for NEWMV, NEW_NEWMV, and
+  //    NEW_NEWMV_OPTFLOW when the current best mode is not the same mode
+  // 2: level 1, plus skip compound AMVD unless both references have index < 2,
+  //    at least one reference matches the current best mode, and the single-ref
+  //    NEWMV MVD is nonzero; also skip single-ref NEWMV AMVD for ref index >= 2
+  //    at pyramid_level >= 2 when the current best mode is not NEWMV, and reuse
+  //    single-ref NEWMV for non-AMVD NEAR_NEWMV / NEW_NEARMV evaluation
   int prune_amvd_newmv;
 
   // Prune AMVD at speed >= 6: disables compound mode AMVD search entirely and
