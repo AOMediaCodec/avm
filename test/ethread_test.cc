@@ -22,7 +22,10 @@
 #include "test/util.h"
 #include "test/y4m_video_source.h"
 #include "test/yuv_video_source.h"
+#include "av2/encoder/encoder.h"
+#include "av2/encoder/ethread.h"
 #include "av2/encoder/firstpass.h"
+#include "avm_util/avm_thread.h"
 
 namespace {
 const size_t kFirstPassStatsSz = sizeof(FIRSTPASS_STATS);
@@ -437,4 +440,47 @@ AV2_INSTANTIATE_TEST_SUITE(AVxEncoderThreadTestLarge,
                            ::testing::Values(0, 1, 3, 5),
                            ::testing::Values(1, 6), ::testing::Values(1, 6),
                            ::testing::Values(0));
+
+// Counts the calls in the int that arg2 points to.
+int CountCallsHook(void *arg1, void *arg2) {
+  (void)arg1;
+  ++*static_cast<int *>(arg2);
+  return 1;
+}
+
+int FailHook(void *arg1, void *arg2) {
+  (void)arg1;
+  (void)arg2;
+  return 0;
+}
+
+// av2_run_workers() must run the hook once on every worker. As in
+// av2_create_workers(), every worker but the first has a thread.
+TEST(AV2RunWorkersTest, RunsEveryWorker) {
+  const AVxWorkerInterface *const winterface = avm_get_worker_interface();
+  for (int num_workers : { 1, 2, 3, 8 }) {
+    std::vector<AVxWorker> workers(num_workers);
+    for (AVxWorker &worker : workers) winterface->init(&worker);
+    for (int i = 1; i < num_workers; ++i) {
+      ASSERT_TRUE(winterface->reset(&workers[i]));
+    }
+    std::vector<int> calls(num_workers, 0);
+    for (int iter = 0; iter < 3; ++iter) {
+      EXPECT_EQ(1, av2_run_workers(workers.data(), num_workers, CountCallsHook,
+                                   nullptr, calls.data(), sizeof(calls[0])));
+    }
+    for (int i = 0; i < num_workers; ++i) {
+      EXPECT_EQ(3, calls[i])
+          << "num_workers " << num_workers << " worker " << i;
+    }
+    EXPECT_EQ(0, av2_run_workers(workers.data(), num_workers, FailHook, nullptr,
+                                 nullptr, 0));
+    // The failure must not be left on the workers for a later sync to see.
+    for (int i = 0; i < num_workers; ++i) {
+      EXPECT_EQ(0, workers[i].had_error)
+          << "num_workers " << num_workers << " worker " << i;
+    }
+    for (AVxWorker &worker : workers) winterface->end(&worker);
+  }
+}
 }  // namespace

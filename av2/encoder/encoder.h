@@ -2578,6 +2578,22 @@ typedef struct AV2_COMP {
   YV12_BUFFER_CONFIG trial_frame_rst;
 
   /*!
+   * Scratch buffers of the GDF threads, one per thread. Kept from frame to
+   * frame and freed in av2_remove_compressor().
+   */
+  GdfStripeBuf *gdf_stripe_bufs;
+
+  /*!
+   * Number of buffers in \c gdf_stripe_bufs.
+   */
+  int num_gdf_stripe_bufs;
+
+  /*!
+   * Guided frame stride \c gdf_stripe_bufs were made for.
+   */
+  int gdf_stripe_buf_stride;
+
+  /*!
    * Ambient reconstruction err target for force key frames.
    */
   int64_t ambient_err;

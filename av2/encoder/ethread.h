@@ -71,6 +71,14 @@ int av2_compute_num_enc_workers(AV2_COMP *cpi, int max_workers);
 
 void av2_create_workers(AV2_COMP *cpi, int num_workers);
 
+// Runs hook(data1, data2 + i * data2_size) on workers[0..num_workers) and waits
+// for all of them; returns 0 if any call returned 0. workers[0] runs on the
+// calling thread, the others on the threads av2_create_workers() started, so
+// num_workers must not exceed mt_info.num_workers. hook must not call
+// avm_internal_error(), as it runs on other threads.
+int av2_run_workers(AVxWorker *workers, int num_workers, AVxWorkerHook hook,
+                    void *data1, void *data2, size_t data2_size);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
