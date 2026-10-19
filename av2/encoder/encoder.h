@@ -1909,6 +1909,21 @@ typedef struct {
    * Global Motion multi-threading object.
    */
   AV2GlobalMotionSync gm_sync;
+
+  /*!
+   * TIP frame build multi-threading object (row job queue).
+   */
+  AV2TipSync tip_sync;
+
+  /*!
+   * Per-thread data of the TIP frame build, allocated on first use.
+   */
+  TIPWorkerData *tip_worker_data;
+
+  /*!
+   * Number of elements of tip_worker_data.
+   */
+  int num_tip_worker_data;
 } MultiThreadInfo;
 
 /*!\cond */

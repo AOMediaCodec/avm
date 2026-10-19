@@ -10,6 +10,13 @@
  * aomedia.org/license/patent-license/.
  */
 
+#include "config/avm_dsp_rtcd.h"
+#include "config/avm_scale_rtcd.h"
+
+#include "avm_dsp/psnr.h"
+#include "av2/common/av2_loopfilter.h"
+#include "av2/common/thread_common.h"
+#include "av2/common/tip.h"
 #include "av2/common/warped_motion.h"
 
 #include "av2/encoder/encodeframe.h"
@@ -1673,4 +1680,284 @@ void av2_global_motion_estimation_mt(AV2_COMP *cpi) {
   prepare_gm_workers(cpi, gm_mt_worker_hook, num_workers);
   launch_enc_workers(&cpi->mt_info, num_workers);
   sync_enc_workers(&cpi->mt_info, &cpi->common, num_workers);
+}
+
+// Multi-threading of the TIP frame work of the encoder: the build of the TIP
+// frame, its loop filter and the SSE against the source. Each of them is split
+// into jobs that write disjoint parts of the output (rows of TIP units of the
+// frame, groups of rows or columns of the plane for the loop filter) or into
+// integer partial sums, and the job to worker assignment is static, so the
+// result does not depend on the number of threads or on their schedule.
+
+typedef enum {
+  TIP_MT_LF_VERT,
+  TIP_MT_LF_HORZ,
+  TIP_MT_SSE,
+} TipMtPhase;
+
+// Loop filter jobs: groups of rows (vertical edges) or columns (horizontal
+// edges) of a plane. Both are multiples of 4, the unit of the filters.
+#define TIP_MT_LF_STRIPE_ROWS 32
+#define TIP_MT_LF_STRIPE_COLS 64
+
+typedef struct {
+  TipMtPhase phase;
+  int num_workers;
+  // TIP frame loop filter.
+  int plane_start;
+  int plane_end;
+  uint16_t *lf_dst[MAX_MB_PLANE];
+  int lf_stride[MAX_MB_PLANE];
+  int lf_width[MAX_MB_PLANE];
+  int lf_height[MAX_MB_PLANE];
+  // SSE.
+  const YV12_BUFFER_CONFIG *src;
+  const YV12_BUFFER_CONFIG *rec;
+  int include_chroma;
+  int64_t sse_part[MAX_NUM_THREADS];
+} TipMtJob;
+
+static int tip_mt_worker_hook(void *arg1, void *arg2) {
+  TipMtJob *const job = (TipMtJob *)arg1;
+  EncWorkerData *const thread_data = (EncWorkerData *)arg2;
+  AV2_COMMON *const cm = &thread_data->cpi->common;
+  struct avm_internal_error_info *const error_info = &thread_data->error_info;
+  const int tid = thread_data->thread_id;
+  const int num_workers = job->num_workers;
+
+  // The jmp_buf is valid only for the duration of the function that calls
+  // setjmp(). Therefore, this function must reset the 'setjmp' field to 0
+  // before it returns.
+  if (setjmp(error_info->jmp)) {
+    error_info->setjmp = 0;
+    return 0;
+  }
+  error_info->setjmp = 1;
+
+  switch (job->phase) {
+    case TIP_MT_LF_VERT: {
+      int k = 0;
+      for (int plane = job->plane_start; plane < job->plane_end; ++plane) {
+        for (int row = 0; row < job->lf_height[plane];
+             row += TIP_MT_LF_STRIPE_ROWS, ++k) {
+          if (k % num_workers != tid) continue;
+          loop_filter_tip_plane_vert_rows(
+              cm, plane, job->lf_dst[plane], job->lf_stride[plane],
+              job->lf_width[plane], row,
+              AVMMIN(row + TIP_MT_LF_STRIPE_ROWS, job->lf_height[plane]));
+        }
+      }
+      break;
+    }
+    case TIP_MT_LF_HORZ: {
+      int k = 0;
+      for (int plane = job->plane_start; plane < job->plane_end; ++plane) {
+        for (int col = 0; col < job->lf_width[plane];
+             col += TIP_MT_LF_STRIPE_COLS, ++k) {
+          if (k % num_workers != tid) continue;
+          loop_filter_tip_plane_horz_cols(
+              cm, plane, job->lf_dst[plane], job->lf_stride[plane],
+              job->lf_height[plane], col,
+              AVMMIN(col + TIP_MT_LF_STRIPE_COLS, job->lf_width[plane]));
+        }
+      }
+      break;
+    }
+    case TIP_MT_SSE: {
+      const YV12_BUFFER_CONFIG *const src = job->src;
+      const YV12_BUFFER_CONFIG *const rec = job->rec;
+      int64_t sse = 0;
+      // Luma: the 16x16 blocks by rows of blocks, and the strips on the right
+      // and at the bottom that they do not cover, as in
+      // avm_highbd_get_y_sse().
+      const int block_rows = src->y_crop_height / 16;
+      sse += avm_highbd_get_sse_block_rows(
+          src->y_buffer, src->y_stride, rec->y_buffer, rec->y_stride,
+          src->y_crop_width, (int)((int64_t)block_rows * tid / num_workers),
+          (int)((int64_t)block_rows * (tid + 1) / num_workers));
+      // Each thread also takes the rows of the strip on the right that are
+      // next to its block rows, and the columns of the bottom strip.
+      const int edge_rows0 =
+          (int)((int64_t)src->y_crop_height * tid / num_workers);
+      const int edge_rows1 =
+          (int)((int64_t)src->y_crop_height * (tid + 1) / num_workers);
+      sse += avm_highbd_get_sse_right_edge(
+          src->y_buffer, src->y_stride, rec->y_buffer, rec->y_stride,
+          src->y_crop_width, edge_rows0, edge_rows1);
+      const int bottom_width = src->y_crop_width - src->y_crop_width % 16;
+      sse += avm_highbd_get_sse_bottom_edge(
+          src->y_buffer, src->y_stride, rec->y_buffer, rec->y_stride,
+          src->y_crop_height, (int)((int64_t)bottom_width * tid / num_workers),
+          (int)((int64_t)bottom_width * (tid + 1) / num_workers));
+      if (job->include_chroma) {
+        // Chroma: groups of 16 rows.
+        const int row_groups = (src->uv_height + 15) / 16;
+        const int row0 = 16 * (int)((int64_t)row_groups * tid / num_workers);
+        const int row1 =
+            AVMMIN(16 * (int)((int64_t)row_groups * (tid + 1) / num_workers),
+                   src->uv_height);
+        if (row1 > row0) {
+          sse += avm_highbd_sse(src->u_buffer + row0 * src->uv_stride,
+                                src->uv_stride,
+                                rec->u_buffer + row0 * rec->uv_stride,
+                                rec->uv_stride, src->uv_width, row1 - row0);
+          sse += avm_highbd_sse(src->v_buffer + row0 * src->uv_stride,
+                                src->uv_stride,
+                                rec->v_buffer + row0 * rec->uv_stride,
+                                rec->uv_stride, src->uv_width, row1 - row0);
+        }
+      }
+      job->sse_part[tid] = sse;
+      break;
+    }
+    default: assert(0); break;
+  }
+
+  error_info->setjmp = 0;
+  return 1;
+}
+
+// Number of threads for the TIP frame work, 1 if it is done on the main thread.
+// The worker threads and their buffers are those of the tile encoding, so they
+// exist once a frame has been encoded with them.
+static int tip_mt_num_workers(AV2_COMP *cpi) {
+#if CONFIG_MULTITHREAD
+  MultiThreadInfo *const mt_info = &cpi->mt_info;
+  if (!cpi->sf.hl_sf.enable_tip_mt) return 1;
+  if (mt_info->workers == NULL || mt_info->tile_thr_data == NULL ||
+      mt_info->num_workers <= 1 || mt_info->num_enc_workers <= 1)
+    return 1;
+  int num_workers = av2_compute_num_enc_workers(cpi, mt_info->num_workers);
+  num_workers = AVMMIN(num_workers, mt_info->num_enc_workers);
+  num_workers = AVMMIN(num_workers, MAX_NUM_THREADS);
+  return AVMMAX(num_workers, 1);
+#else
+  (void)cpi;
+  return 1;
+#endif  // CONFIG_MULTITHREAD
+}
+
+static void tip_mt_run(AV2_COMP *cpi, TipMtJob *job) {
+  MultiThreadInfo *const mt_info = &cpi->mt_info;
+  const int num_workers = job->num_workers;
+  for (int i = 0; i < num_workers; i++) {
+    EncWorkerData *const thread_data = &mt_info->tile_thr_data[i];
+    thread_data->cpi = cpi;
+    thread_data->thread_id = i;
+  }
+  if (!av2_run_workers(mt_info->workers, num_workers, tip_mt_worker_hook, job,
+                       mt_info->tile_thr_data, sizeof(*mt_info->tile_thr_data)))
+    avm_internal_error(&cpi->common.error, AVM_CODEC_ERROR,
+                       "TIP frame job failed");
+}
+
+void av2_enc_build_tip_frame(AV2_COMP *cpi, int copy_refined_mvs) {
+  AV2_COMMON *const cm = &cpi->common;
+  ThreadData *const td = &cpi->td;
+  MultiThreadInfo *const mt_info = &cpi->mt_info;
+  const int num_workers = tip_mt_num_workers(cpi);
+  if (num_workers <= 1) {
+    av2_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
+                        av2_enc_calc_subpel_params, copy_refined_mvs);
+    return;
+  }
+
+  // Each thread works on its own copy of the MACROBLOCKD, with the temporary
+  // buffers of its tile encoding thread, as the decoder does.
+  if (mt_info->num_tip_worker_data < num_workers) {
+    avm_free(mt_info->tip_worker_data);
+    mt_info->tip_worker_data = NULL;
+    mt_info->num_tip_worker_data = 0;
+    CHECK_MEM_ERROR(
+        cm, mt_info->tip_worker_data,
+        avm_memalign(32, num_workers * sizeof(*mt_info->tip_worker_data)));
+    mt_info->num_tip_worker_data = num_workers;
+  }
+  for (int i = 0; i < num_workers; ++i) {
+    TIPWorkerData *const tip_data = &mt_info->tip_worker_data[i];
+    tip_data->xd = td->mb.e_mbd;
+    tip_data->xd.error_info = &mt_info->tile_thr_data[i].error_info;
+    tip_data->mc_buf[0] = NULL;
+    tip_data->mc_buf[1] = NULL;
+    if (i == 0) {
+      tip_data->tmp_conv_dst = td->mb.tmp_conv_dst;
+    } else {
+      ThreadData *const thread_td = mt_info->tile_thr_data[i].td;
+      tip_data->tmp_conv_dst = thread_td->tmp_conv_dst;
+      tip_data->xd.tmp_conv_dst = thread_td->tmp_conv_dst;
+      tip_data->xd.opfl_vxy_bufs = thread_td->opfl_vxy_bufs;
+      tip_data->xd.opfl_gxy_bufs = thread_td->opfl_gxy_bufs;
+      tip_data->xd.opfl_dst_bufs = thread_td->opfl_dst_bufs;
+    }
+  }
+
+  av2_setup_tip_frame_mt(cm, av2_enc_calc_subpel_params, copy_refined_mvs,
+                         mt_info->workers, num_workers, &mt_info->tip_sync,
+                         mt_info->tip_worker_data);
+  avm_extend_frame_borders(&cm->tip_ref.tip_frame->buf, av2_num_planes(cm),
+                           cm->decoding);
+}
+
+void av2_enc_loop_filter_tip_frame(AV2_COMP *cpi, int plane_start,
+                                   int plane_end) {
+  AV2_COMMON *const cm = &cpi->common;
+  MACROBLOCKD *const xd = &cpi->td.mb.e_mbd;
+  // The job arrays below have MAX_MB_PLANE entries.
+  assert(plane_start >= AVM_PLANE_Y);
+  assert(plane_end <= MAX_MB_PLANE);
+  if (!cm->lf.apply_deblocking_filter_tip) return;
+  const int num_workers = tip_mt_num_workers(cpi);
+  if (num_workers <= 1) {
+    loop_filter_tip_frame(cm, xd, plane_start, plane_end);
+    return;
+  }
+
+  TipMtJob job;
+  av2_zero(job);
+  job.num_workers = num_workers;
+  job.plane_start = plane_start;
+  job.plane_end = plane_end;
+  for (int plane = plane_start; plane < plane_end; ++plane) {
+    setup_tip_dst_planes(cm, xd, plane, 0, 0);
+    const struct buf_2d *const dst_buf = &xd->tip_plane[plane].dst;
+    job.lf_dst[plane] = dst_buf->buf;
+    job.lf_stride[plane] = dst_buf->stride;
+    job.lf_width[plane] = dst_buf->width;
+    job.lf_height[plane] = dst_buf->height;
+  }
+  // The horizontal edges are filtered on the output of the vertical edges.
+  job.phase = TIP_MT_LF_VERT;
+  tip_mt_run(cpi, &job);
+  job.phase = TIP_MT_LF_HORZ;
+  tip_mt_run(cpi, &job);
+}
+
+int64_t av2_enc_tip_sse(AV2_COMP *cpi, const YV12_BUFFER_CONFIG *src,
+                        const YV12_BUFFER_CONFIG *rec, int include_chroma) {
+  const int num_workers = tip_mt_num_workers(cpi);
+  if (num_workers <= 1) {
+    int64_t sse = avm_highbd_get_y_sse(src, rec);
+    if (include_chroma) {
+      sse += avm_highbd_sse(src->u_buffer, src->uv_stride, rec->u_buffer,
+                            rec->uv_stride, src->uv_width, src->uv_height);
+      sse += avm_highbd_sse(src->v_buffer, src->uv_stride, rec->v_buffer,
+                            rec->uv_stride, src->uv_width, src->uv_height);
+    }
+    return sse;
+  }
+
+  assert(src->y_crop_width == rec->y_crop_width);
+  assert(src->y_crop_height == rec->y_crop_height);
+  TipMtJob job;
+  av2_zero(job);
+  job.phase = TIP_MT_SSE;
+  job.num_workers = num_workers;
+  job.src = src;
+  job.rec = rec;
+  job.include_chroma = include_chroma;
+  tip_mt_run(cpi, &job);
+  // The sums are integers, so their order does not matter.
+  int64_t sse = 0;
+  for (int i = 0; i < num_workers; ++i) sse += job.sse_part[i];
+  return sse;
 }
