@@ -276,6 +276,8 @@ list(
   "${AVM_ROOT}/av2/encoder/reconinter_enc.h"
   "${AVM_ROOT}/av2/encoder/tip_memo.c"
   "${AVM_ROOT}/av2/encoder/tip_memo.h"
+  "${AVM_ROOT}/av2/encoder/tip_search.c"
+  "${AVM_ROOT}/av2/encoder/tip_search.h"
   "${AVM_ROOT}/av2/encoder/scale.c"
   "${AVM_ROOT}/av2/encoder/scale.h"
   "${AVM_ROOT}/av2/encoder/segmentation.c"
