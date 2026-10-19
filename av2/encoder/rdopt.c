@@ -6514,6 +6514,51 @@ static int av2_pick_ref_bv_subpel(
   return INT_MAX;
 }
 
+/*!\cond */
+// An IntraBC block vector candidate awaiting its transform RD evaluation.
+typedef struct {
+  int search_cost;
+  int intrabc_mode;
+  int intrabc_drl_idx;
+  int_mv ref_bv;
+  MV dv;
+  FullMvLimits mv_limits;
+} IntraBcRdCand;
+/*!\endcond */
+
+// Sets the mode info of an IntraBC candidate with block vector dv.
+static void set_intrabc_mode_info(MB_MODE_INFO *mbmi, TREE_TYPE tree_type,
+                                  MV dv) {
+  memset(&mbmi->palette_mode_info, 0, sizeof(mbmi->palette_mode_info));
+  mbmi->use_intra_dip = 0;
+  mbmi->use_intrabc[tree_type == CHROMA_PART] = 1;
+  assert(tree_type != CHROMA_PART);
+  mbmi->angle_delta[PLANE_TYPE_Y] = 0;
+  mbmi->angle_delta[PLANE_TYPE_UV] = 0;
+
+  mbmi->use_dpcm_y = 0;
+  mbmi->dpcm_mode_y = 0;
+  mbmi->use_dpcm_uv = 0;
+  mbmi->dpcm_mode_uv = 0;
+
+  mbmi->fsc_mode[PLANE_TYPE_Y] = 0;
+  mbmi->fsc_mode[PLANE_TYPE_UV] = 0;
+  mbmi->mode = DC_PRED;
+  mbmi->uv_mode = UV_DC_PRED;
+  mbmi->motion_mode = SIMPLE_TRANSLATION;
+  mbmi->mv[0].as_mv = dv;
+  mbmi->interp_fltr = BILINEAR;
+  mbmi->skip_txfm[tree_type == CHROMA_PART] = 0;
+  mbmi->cwp_idx = CWP_EQUAL;
+
+  mbmi->warp_ref_idx = 0;
+  mbmi->max_num_warp_candidates = 0;
+  mbmi->warpmv_with_mvd_flag = 0;
+  mbmi->six_param_warp_model_flag = 0;
+  mbmi->warp_precision_idx = 0;
+  mbmi->warp_inter_intra = 0;
+}
+
 /*!\brief Search for the best intrabc predictor
  *
  * \ingroup intra_mode_search
@@ -6641,6 +6686,10 @@ static int64_t rd_pick_intrabc_mode_sb(const AV2_COMP *cpi, MACROBLOCK *x,
   const int ibc_loop_start =
       (frame_is_intra_only(cm) && cm->features.allow_global_intrabc) ? 0 : 1;
   const int ibc_loop_end = (cm->features.allow_local_intrabc) ? 2 : 1;
+  // The block vector search runs in every region and direction first; the
+  // transform RD evaluation of the candidates follows.
+  IntraBcRdCand rd_cands[2 * IBC_MOTION_DIRECTIONS];
+  int num_rd_cands = 0;
   for (int ibc_loop = ibc_loop_start; ibc_loop < ibc_loop_end; ++ibc_loop) {
     for (enum IntrabcMotionDirection dir = IBC_MOTION_ABOVE;
          dir < IBC_MOTION_DIRECTIONS; ++dir) {
@@ -6887,178 +6936,204 @@ static int64_t rd_pick_intrabc_mode_sb(const AV2_COMP *cpi, MACROBLOCK *x,
       dv_ref.as_mv = best_ref_bv.as_mv;
 
       is_this_mv_precision_compliant(dv, mbmi->pb_mv_precision);
-      memset(&mbmi->palette_mode_info, 0, sizeof(mbmi->palette_mode_info));
-      mbmi->use_intra_dip = 0;
-      mbmi->use_intrabc[xd->tree_type == CHROMA_PART] = 1;
-      assert(xd->tree_type != CHROMA_PART);
-      mbmi->angle_delta[PLANE_TYPE_Y] = 0;
-      mbmi->angle_delta[PLANE_TYPE_UV] = 0;
 
-      mbmi->use_dpcm_y = 0;
-      mbmi->dpcm_mode_y = 0;
-      mbmi->use_dpcm_uv = 0;
-      mbmi->dpcm_mode_uv = 0;
+      IntraBcRdCand *const rd_cand = &rd_cands[num_rd_cands++];
+      rd_cand->search_cost = best_ref_bv_cost;
+      rd_cand->intrabc_mode = best_intrabc_mode;
+      rd_cand->intrabc_drl_idx = best_intrabc_drl_idx;
+      rd_cand->ref_bv = best_ref_bv;
+      rd_cand->dv = dv;
+      rd_cand->mv_limits = fullms_params.mv_limits;
+    }
+  }
 
-      mbmi->fsc_mode[PLANE_TYPE_Y] = 0;
-      mbmi->fsc_mode[PLANE_TYPE_UV] = 0;
-      mbmi->mode = DC_PRED;
-      mbmi->uv_mode = UV_DC_PRED;
-      mbmi->motion_mode = SIMPLE_TRANSLATION;
-      mbmi->mv[0].as_mv = dv;
-      mbmi->interp_fltr = BILINEAR;
-      mbmi->skip_txfm[xd->tree_type == CHROMA_PART] = 0;
-      mbmi->cwp_idx = CWP_EQUAL;
+  // Transform RD evaluation of the candidates, limited to the ones with the
+  // lowest block vector search cost.
+  int rd_cand_mask = (1 << num_rd_cands) - 1;
+  const int max_rd_cands = cpi->sf.intra_sf.intrabc_max_rd_cands;
+  if (max_rd_cands > 0 && num_rd_cands > max_rd_cands) {
+    rd_cand_mask = 0;
+    for (int n = 0; n < max_rd_cands; ++n) {
+      int best_idx = -1;
+      for (int i = 0; i < num_rd_cands; ++i) {
+        if ((rd_cand_mask >> i) & 1) continue;
+        if (best_idx < 0 ||
+            rd_cands[i].search_cost < rd_cands[best_idx].search_cost)
+          best_idx = i;
+      }
+      rd_cand_mask |= 1 << best_idx;
+    }
+  }
+  const bool skip_int_qtr_rd = cpi->sf.intra_sf.intrabc_skip_int_qtr_rd;
+  for (int cand_idx = 0; cand_idx < num_rd_cands; ++cand_idx) {
+    if (!((rd_cand_mask >> cand_idx) & 1)) continue;
+    const IntraBcRdCand *const rd_cand = &rd_cands[cand_idx];
+    set_default_intraBC_bv_precision(cm, mbmi);
+    mbmi->intrabc_mode = rd_cand->intrabc_mode;
+    mbmi->intrabc_drl_idx = rd_cand->intrabc_drl_idx;
+    mbmi->ref_bv = rd_cand->ref_bv;
+    const MV dv = rd_cand->dv;
+    fullms_params.mv_limits = rd_cand->mv_limits;
+    set_intrabc_mode_info(mbmi, xd->tree_type, dv);
+    assert(is_this_mv_precision_compliant(mbmi->mv[0].as_mv,
+                                          mbmi->pb_mv_precision));
 
-      mbmi->warp_ref_idx = 0;
-      mbmi->max_num_warp_candidates = 0;
-      mbmi->warpmv_with_mvd_flag = 0;
-      mbmi->motion_mode = SIMPLE_TRANSLATION;
-      mbmi->six_param_warp_model_flag = 0;
-      mbmi->warp_precision_idx = 0;
-      mbmi->warp_inter_intra = 0;
+    const int_mv default_dv_ref = mbmi->ref_bv;
+    assert(mbmi->pb_mv_precision == default_mv_precision);
+    const int is_pb_mv_precision_active =
+        is_intraBC_bv_precision_active(cm, mbmi->intrabc_mode);
+    const int_mv default_best_mv = mbmi->mv[0];
+    const FullMvLimits default_full_mv_limits = fullms_params.mv_limits;
+    for (int precision_index = av2_intraBc_precision_sets.num_precisions - 1;
+         precision_index >= 0; precision_index--) {
+      // When precision is OFF only first loop will be evaluated with default
+      // MV precision
+      if (!is_pb_mv_precision_active) {
+        if (precision_index != av2_intraBc_precision_sets.num_precisions - 1)
+          continue;
+        mbmi->pb_mv_precision = default_mv_precision;
+      } else {
+        mbmi->pb_mv_precision =
+            av2_intraBc_precision_sets.precision[precision_index];
+      }
+      // Leave a new block vector at an integer position to the 1-pel
+      // evaluation, which refines it around the same position. Keep the
+      // quarter-pel evaluation if that position is not valid for the 1-pel
+      // search.
+      if (skip_int_qtr_rd && is_pb_mv_precision_active &&
+          mbmi->pb_mv_precision == default_mv_precision && !(dv.row & 7) &&
+          !(dv.col & 7)) {
+        const MvSubpelPrecision one_pel_precision =
+            av2_intraBc_precision_sets.precision[0];
+        SubpelMvLimits one_pel_limits;
+        av2_set_subpel_mv_search_range(&one_pel_limits, &default_full_mv_limits,
+                                       &default_dv_ref.as_mv,
+                                       one_pel_precision);
+        if (is_sub_pel_bv_valid(dv, cm, xd, mi_row, mi_col, bsize,
+                                &one_pel_limits, &default_full_mv_limits,
+                                one_pel_precision))
+          continue;
+      }
 
+      assert(IMPLIES(!is_pb_mv_precision_active,
+                     mbmi->pb_mv_precision == default_mv_precision));
+
+      // Do motion search refinement if the target precision is not default
+      // precision
+      if (is_pb_mv_precision_active &&
+          (mbmi->pb_mv_precision != default_mv_precision)) {
+        int not_used = 0;
+
+        SUBPEL_MOTION_SEARCH_PARAMS sub_pel_ms_params;
+        av2_make_default_subpel_ms_params(&sub_pel_ms_params, cpi, x, bsize,
+                                          &default_dv_ref.as_mv,
+                                          mbmi->pb_mv_precision, 1, NULL);
+        // TODO(yunqing): integrate this into
+        // av2_make_default_subpel_ms_params().
+        sub_pel_ms_params.forced_stop =
+            cpi->sf.mv_sf.simple_motion_subpel_force_stop;
+        av2_set_subpel_mv_search_range(
+            &sub_pel_ms_params.mv_limits, &default_full_mv_limits,
+            &default_dv_ref.as_mv, mbmi->pb_mv_precision);
+
+        MV subpel_start_mv = default_best_mv.as_mv;
+        lower_mv_precision(&subpel_start_mv, mbmi->pb_mv_precision);
+        int_mv best_low_prec_mv;
+        int this_sme = av2_refine_low_precision_intraBC_dv(
+            xd, cm, &sub_pel_ms_params, subpel_start_mv,
+            &best_low_prec_mv.as_mv, &not_used,
+            &x->pred_sse[COMPACT_INDEX0_NRS(ref_frame)],
+            &fullms_params.mv_limits, bsize);
+
+        // valid MV is not found
+        if (this_sme == INT_MAX) {
+          continue;
+        }
+
+        assert(av2_is_subpelmv_in_range(&sub_pel_ms_params.mv_limits,
+                                        best_low_prec_mv.as_mv));
+        mbmi->mv[0].as_mv = best_low_prec_mv.as_mv;
+        assert(default_dv_ref.as_int == mbmi->ref_bv.as_int);
+      }
       assert(is_this_mv_precision_compliant(mbmi->mv[0].as_mv,
                                             mbmi->pb_mv_precision));
 
-      const int_mv default_dv_ref = mbmi->ref_bv;
-      assert(mbmi->pb_mv_precision == default_mv_precision);
-      const int is_pb_mv_precision_active =
-          is_intraBC_bv_precision_active(cm, mbmi->intrabc_mode);
-      const int_mv default_best_mv = mbmi->mv[0];
-      const FullMvLimits default_full_mv_limits = fullms_params.mv_limits;
-      for (int precision_index = av2_intraBc_precision_sets.num_precisions - 1;
-           precision_index >= 0; precision_index--) {
-        // When precision is OFF only first loop will be evaluated with default
-        // MV precision
-        if (!is_pb_mv_precision_active) {
-          if (precision_index != av2_intraBc_precision_sets.num_precisions - 1)
-            continue;
-          mbmi->pb_mv_precision = default_mv_precision;
+      const IntraBCMvCosts *const dv_costs = &x->dv_costs;
+
+      int rate_mv = 0;
+      if (!mbmi->intrabc_mode)
+        rate_mv +=
+            av2_intrabc_mv_bit_cost(&dv, &default_dv_ref.as_mv, dv_costs,
+                                    MV_COST_WEIGHT_SUB, mbmi->pb_mv_precision);
+
+      if (is_pb_mv_precision_active) {
+        int index = av2_intraBc_precision_to_index[mbmi->pb_mv_precision];
+        assert(index < av2_intraBc_precision_sets.num_precisions);
+        rate_mv += x->mode_costs.intrabc_bv_precision_cost[0][index];
+      }
+
+      const int intrabc_ctx = get_intrabc_ctx(xd);
+      int rate_mode = x->mode_costs.intrabc_cost[intrabc_ctx][1];
+      rate_mode += skip_interintra_cost;
+      rate_mode += x->mode_costs.intrabc_mode_cost[mbmi->intrabc_mode];
+      rate_mode += av2_get_intrabc_drl_idx_cost(
+          cm->features.max_bvp_drl_bits + 1, mbmi->intrabc_drl_idx);
+
+      int allow_morph_pred = av2_allow_intrabc_morph_pred(cm);
+      int num_modes_to_search = 1 + allow_morph_pred;
+
+      if (num_modes_to_search > 1 &&
+          !is_bv_valid_for_morph(mbmi->mv[0].as_mv, cm, xd, mi_row, mi_col,
+                                 bsize)) {
+        num_modes_to_search = 1;
+      }
+      for (int morph_idx = 0; morph_idx < num_modes_to_search; ++morph_idx) {
+        if (morph_idx && !allow_morph_pred) continue;
+        mbmi->morph_pred = morph_idx;
+        const int morph_pred_ctx = get_morph_pred_ctx(xd);
+        const int morph_pred_cost =
+            !allow_morph_pred
+                ? 0
+                : x->mode_costs.morph_pred_cost[morph_pred_ctx][morph_idx];
+        if (morph_idx == 0) {
+          // Build intra bc predictor for yuv planes as baseline.
+          av2_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0,
+                                        av2_num_planes(cm) - 1,
+                                        x->tip_unit_hooks);
         } else {
-          mbmi->pb_mv_precision =
-              av2_intraBc_precision_sets.precision[precision_index];
+          // Build the y predictor using a linear model.
+          const bool valid =
+              av2_build_morph_pred(cm, xd, bsize, mi_row, mi_col);
+          if (!valid) break;
         }
-
-        assert(IMPLIES(!is_pb_mv_precision_active,
-                       mbmi->pb_mv_precision == default_mv_precision));
-
-        // Do motion search refinement if the target precision is not default
-        // precision
-        if (is_pb_mv_precision_active &&
-            (mbmi->pb_mv_precision != default_mv_precision)) {
-          int not_used = 0;
-
-          SUBPEL_MOTION_SEARCH_PARAMS sub_pel_ms_params;
-          av2_make_default_subpel_ms_params(&sub_pel_ms_params, cpi, x, bsize,
-                                            &default_dv_ref.as_mv,
-                                            mbmi->pb_mv_precision, 1, NULL);
-          // TODO(yunqing): integrate this into
-          // av2_make_default_subpel_ms_params().
-          sub_pel_ms_params.forced_stop =
-              cpi->sf.mv_sf.simple_motion_subpel_force_stop;
-          av2_set_subpel_mv_search_range(
-              &sub_pel_ms_params.mv_limits, &default_full_mv_limits,
-              &default_dv_ref.as_mv, mbmi->pb_mv_precision);
-
-          MV subpel_start_mv = default_best_mv.as_mv;
-          lower_mv_precision(&subpel_start_mv, mbmi->pb_mv_precision);
-          int_mv best_low_prec_mv;
-          int this_sme = av2_refine_low_precision_intraBC_dv(
-              xd, cm, &sub_pel_ms_params, subpel_start_mv,
-              &best_low_prec_mv.as_mv, &not_used,
-              &x->pred_sse[COMPACT_INDEX0_NRS(ref_frame)],
-              &fullms_params.mv_limits, bsize);
-
-          // valid MV is not found
-          if (this_sme == INT_MAX) {
-            continue;
+        RD_STATS rd_stats_yuv, rd_stats_y, rd_stats_uv;
+        if (!av2_txfm_search(
+                cpi, x, bsize, &rd_stats_yuv, &rd_stats_y, &rd_stats_uv,
+                rate_mode + rate_mv + morph_pred_cost, 1, INT64_MAX))
+          continue;
+        rd_stats_yuv.rdcost =
+            RDCOST(x->rdmult, rd_stats_yuv.rate, rd_stats_yuv.dist);
+        if (rd_stats_yuv.rdcost < best_rd) {
+          best_rd = rd_stats_yuv.rdcost;
+          best_mbmi = *mbmi;
+          best_rdstats = rd_stats_yuv;
+          for (int i = 0; i < num_planes; ++i) {
+            const int num_blk_plane =
+                (xd->plane[i].height * xd->plane[i].width) >>
+                (2 * MI_SIZE_LOG2);
+            memcpy(best_blk_skip[i], txfm_info->blk_skip[i],
+                   sizeof(*txfm_info->blk_skip[i]) * num_blk_plane);
           }
-
-          assert(av2_is_subpelmv_in_range(&sub_pel_ms_params.mv_limits,
-                                          best_low_prec_mv.as_mv));
-          mbmi->mv[0].as_mv = best_low_prec_mv.as_mv;
-          assert(default_dv_ref.as_int == mbmi->ref_bv.as_int);
+          av2_copy_array(best_tx_type_map, xd->tx_type_map,
+                         xd->height * xd->width);
+          av2_copy_array(
+              best_cctx_type_map, xd->cctx_type_map,
+              (xd->plane[1].height * xd->plane[1].width) >> (2 * MI_SIZE_LOG2));
         }
-        assert(is_this_mv_precision_compliant(mbmi->mv[0].as_mv,
-                                              mbmi->pb_mv_precision));
-
-        const IntraBCMvCosts *const dv_costs = &x->dv_costs;
-
-        int rate_mv = 0;
-        if (!mbmi->intrabc_mode)
-          rate_mv += av2_intrabc_mv_bit_cost(&dv, &default_dv_ref.as_mv,
-                                             dv_costs, MV_COST_WEIGHT_SUB,
-                                             mbmi->pb_mv_precision);
-
-        if (is_pb_mv_precision_active) {
-          int index = av2_intraBc_precision_to_index[mbmi->pb_mv_precision];
-          assert(index < av2_intraBc_precision_sets.num_precisions);
-          rate_mv += x->mode_costs.intrabc_bv_precision_cost[0][index];
-        }
-
-        const int intrabc_ctx = get_intrabc_ctx(xd);
-        int rate_mode = x->mode_costs.intrabc_cost[intrabc_ctx][1];
-        rate_mode += skip_interintra_cost;
-        rate_mode += x->mode_costs.intrabc_mode_cost[mbmi->intrabc_mode];
-        rate_mode += av2_get_intrabc_drl_idx_cost(
-            cm->features.max_bvp_drl_bits + 1, mbmi->intrabc_drl_idx);
-
-        int allow_morph_pred = av2_allow_intrabc_morph_pred(cm);
-        int num_modes_to_search = 1 + allow_morph_pred;
-
-        if (num_modes_to_search > 1 &&
-            !is_bv_valid_for_morph(mbmi->mv[0].as_mv, cm, xd, mi_row, mi_col,
-                                   bsize)) {
-          num_modes_to_search = 1;
-        }
-        for (int morph_idx = 0; morph_idx < num_modes_to_search; ++morph_idx) {
-          if (morph_idx && !allow_morph_pred) continue;
-          mbmi->morph_pred = morph_idx;
-          const int morph_pred_ctx = get_morph_pred_ctx(xd);
-          const int morph_pred_cost =
-              !allow_morph_pred
-                  ? 0
-                  : x->mode_costs.morph_pred_cost[morph_pred_ctx][morph_idx];
-          if (morph_idx == 0) {
-            // Build intra bc predictor for yuv planes as baseline.
-            av2_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
-                                          0, av2_num_planes(cm) - 1,
-                                          x->tip_unit_hooks);
-          } else {
-            // Build the y predictor using a linear model.
-            const bool valid =
-                av2_build_morph_pred(cm, xd, bsize, mi_row, mi_col);
-            if (!valid) break;
-          }
-          RD_STATS rd_stats_yuv, rd_stats_y, rd_stats_uv;
-          if (!av2_txfm_search(
-                  cpi, x, bsize, &rd_stats_yuv, &rd_stats_y, &rd_stats_uv,
-                  rate_mode + rate_mv + morph_pred_cost, 1, INT64_MAX))
-            continue;
-          rd_stats_yuv.rdcost =
-              RDCOST(x->rdmult, rd_stats_yuv.rate, rd_stats_yuv.dist);
-          if (rd_stats_yuv.rdcost < best_rd) {
-            best_rd = rd_stats_yuv.rdcost;
-            best_mbmi = *mbmi;
-            best_rdstats = rd_stats_yuv;
-            for (int i = 0; i < num_planes; ++i) {
-              const int num_blk_plane =
-                  (xd->plane[i].height * xd->plane[i].width) >>
-                  (2 * MI_SIZE_LOG2);
-              memcpy(best_blk_skip[i], txfm_info->blk_skip[i],
-                     sizeof(*txfm_info->blk_skip[i]) * num_blk_plane);
-            }
-            av2_copy_array(best_tx_type_map, xd->tx_type_map,
-                           xd->height * xd->width);
-            av2_copy_array(best_cctx_type_map, xd->cctx_type_map,
-                           (xd->plane[1].height * xd->plane[1].width) >>
-                               (2 * MI_SIZE_LOG2));
-          }
-        }
-      }  //(int index = av2_intraBc_precision_sets.num_precisions - 1; index >
-         // 0;
-         // index--)
-    }
+      }
+    }  //(int index = av2_intraBc_precision_sets.num_precisions - 1; index >
+       // 0;
+       // index--)
   }
   *mbmi = best_mbmi;
   if (mbmi->use_intrabc[xd->tree_type == CHROMA_PART]) {
