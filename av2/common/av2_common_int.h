@@ -1611,8 +1611,8 @@ struct CommonModeInfoParams {
   int mi_alloc_stride;
   /*!
    * The minimum block size that each element in 'mi_alloc' can correspond to.
-   * For decoder, always BLOCK_4X4. For encoder, BLOCK_8X8 at 4k, and at 1080p
-   * from speed 1; BLOCK_4X4 otherwise. Computed in 'enc_set_mb_mi()'.
+   * For decoder, always BLOCK_4X4. For encoder, BLOCK_8X8 at 4k, BLOCK_4X4
+   * otherwise. Computed in 'enc_set_mb_mi()'.
    */
   BLOCK_SIZE mi_alloc_bsize;
 

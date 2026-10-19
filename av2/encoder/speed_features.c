@@ -160,7 +160,7 @@ static void set_good_speed_feature_framesize_dependent(
     sf->part_sf.auto_max_partition_based_on_simple_motion = DIRECT_PRED;
   }
 
-  // 8x8 partition floor at 4k, and at 1080p from speed 1.
+  // 8x8 partition floor at 4k, 4x4 otherwise (see av2_enc_partition_floor()).
   sf->part_sf.default_min_partition_size =
       av2_enc_partition_floor(speed, cm->width, cm->height);
 

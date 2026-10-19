@@ -97,14 +97,15 @@ static AVM_INLINE void enc_free_mi(CommonModeInfoParams *mi_params) {
 }
 
 // The smallest block the encoder's partition search may produce: 8x8 at 4k,
-// and at 1080p from speed 1; 4x4 otherwise. Shared by enc_set_mb_mi(), which
-// sizes the mode-info grid, and set_good_speed_feature_framesize_dependent(),
-// which sets default_min_partition_size -- the two must agree.
+// 4x4 otherwise (at 1080p from speed 1, sub-8x8 splits are restricted to <= 8x8
+// blocks in init_allowed_partitions()). Shared by enc_set_mb_mi(), which sizes
+// the mode-info grid, and set_good_speed_feature_framesize_dependent(), which
+// sets default_min_partition_size -- the two must agree.
 static AVM_INLINE BLOCK_SIZE av2_enc_partition_floor(int speed, int width,
                                                      int height) {
+  (void)speed;
   const int min_dim = AVMMIN(width, height);
   if (min_dim >= 2160) return BLOCK_8X8;
-  if (min_dim >= 1080 && speed >= 1) return BLOCK_8X8;
   return BLOCK_4X4;
 }
 
