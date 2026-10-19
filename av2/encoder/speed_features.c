@@ -379,6 +379,7 @@ static void set_good_speed_features_framesize_independent(
 
   if (speed >= 1) {
     sf->hl_sf.early_term_tip_direct_output_search = true;
+    sf->hl_sf.tip_direct_output_rank_band_period = 8;
 
     sf->lpf_sf.wienerns_refine_iters = 0;
     sf->lpf_sf.wienerns_fast_frame_filter_opt = 1;
@@ -909,6 +910,7 @@ static AVM_INLINE void init_hl_sf(HIGH_LEVEL_SPEED_FEATURES *hl_sf) {
   hl_sf->high_precision_mv_usage = LAST_MV_DATA;
   hl_sf->early_term_tip_direct_output_search = false;
   hl_sf->tip_direct_output_early_term_margin_pct = 20;
+  hl_sf->tip_direct_output_rank_band_period = 0;
 }
 
 static AVM_INLINE void init_tpl_sf(TPL_SPEED_FEATURES *tpl_sf) {
