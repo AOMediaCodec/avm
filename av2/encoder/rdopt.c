@@ -3467,7 +3467,9 @@ static int64_t motion_mode_rd(
     }
   }
 
-  // Update RD and mbmi stats for selected motion mode
+  // Update RD and mbmi stats for selected motion mode. best_mbmi is only valid
+  // if at least one trial succeeded.
+  if (best.best_rd != INT64_MAX) *mbmi = best.best_mbmi;
   mbmi->ref_frame[1] = base_mbmi.ref_frame[1];
   *rate_mv = best.best_rate_mv;
   if (best.best_rd == INT64_MAX || !av2_check_newmv_joint_nonzero(cm, x)) {
@@ -3475,7 +3477,6 @@ static int64_t motion_mode_rd(
     restore_dst_buf(xd, *orig_dst, num_planes);
     return INT64_MAX;
   }
-  *mbmi = best.best_mbmi;
   *rd_stats = best.best_rd_stats;
   *rd_stats_y = best.best_rd_stats_y;
   if (num_planes > 1) *rd_stats_uv = best.best_rd_stats_uv;
@@ -9691,7 +9692,7 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
                                                : NULL,
     0,
     interintra_modes,
-    { { 0, { { 0 } }, { 0 }, 0, 0, 0 } },
+    { { 0, { { 0 } }, { 0 }, 0, { 0 }, 0, 0, 0 } },
     0,
     { { 0 } },
     0,
