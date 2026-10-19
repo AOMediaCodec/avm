@@ -18,12 +18,15 @@
 #include "avm/avm_integer.h"
 #include "avm_dsp/avm_dsp_common.h"
 
-// vpmax instead of vmaxvq_s16 so this also builds for ARMv7.
 static AVM_FORCE_INLINE int16_t horizontal_max_s16(int16x8_t v) {
+#if AVM_ARCH_AARCH64
+  return vmaxvq_s16(v);
+#else
   const int16x4_t v4 = vmax_s16(vget_low_s16(v), vget_high_s16(v));
   const int16x4_t v2 = vpmax_s16(v4, v4);
   const int16x4_t v1 = vpmax_s16(v2, v2);
   return vget_lane_s16(v1, 0);
+#endif
 }
 
 // Hides v from the optimizer so the ls0 dequant stays one mla.
