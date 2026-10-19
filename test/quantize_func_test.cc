@@ -311,6 +311,32 @@ TEST_P(QuantizeTest, DISABLED_Speed) {
 
 using std::make_tuple;
 
+#if HAVE_NEON
+const QuantizeParam kQParamArrayNeon[] = {
+  make_tuple(&av2_highbd_quantize_fp_c, &av2_highbd_quantize_fp_neon,
+             static_cast<TX_SIZE>(TX_16X16), TYPE_FP, AVM_BITS_8, LOGSCALE_0),
+  make_tuple(&av2_highbd_quantize_fp_c, &av2_highbd_quantize_fp_neon,
+             static_cast<TX_SIZE>(TX_16X16), TYPE_FP, AVM_BITS_10, LOGSCALE_0),
+  make_tuple(&av2_highbd_quantize_fp_c, &av2_highbd_quantize_fp_neon,
+             static_cast<TX_SIZE>(TX_16X16), TYPE_FP, AVM_BITS_12, LOGSCALE_0),
+  make_tuple(&av2_highbd_quantize_fp_c, &av2_highbd_quantize_fp_neon,
+             static_cast<TX_SIZE>(TX_32X32), TYPE_FP, AVM_BITS_8, LOGSCALE_1),
+  make_tuple(&av2_highbd_quantize_fp_c, &av2_highbd_quantize_fp_neon,
+             static_cast<TX_SIZE>(TX_32X32), TYPE_FP, AVM_BITS_10, LOGSCALE_1),
+  make_tuple(&av2_highbd_quantize_fp_c, &av2_highbd_quantize_fp_neon,
+             static_cast<TX_SIZE>(TX_32X32), TYPE_FP, AVM_BITS_12, LOGSCALE_1),
+  make_tuple(&av2_highbd_quantize_fp_c, &av2_highbd_quantize_fp_neon,
+             static_cast<TX_SIZE>(TX_64X64), TYPE_FP, AVM_BITS_8, LOGSCALE_2),
+  make_tuple(&av2_highbd_quantize_fp_c, &av2_highbd_quantize_fp_neon,
+             static_cast<TX_SIZE>(TX_64X64), TYPE_FP, AVM_BITS_10, LOGSCALE_2),
+  make_tuple(&av2_highbd_quantize_fp_c, &av2_highbd_quantize_fp_neon,
+             static_cast<TX_SIZE>(TX_64X64), TYPE_FP, AVM_BITS_12, LOGSCALE_2),
+};
+
+INSTANTIATE_TEST_SUITE_P(NEON, QuantizeTest,
+                         ::testing::ValuesIn(kQParamArrayNeon));
+#endif  // HAVE_NEON
+
 #if HAVE_AVX2
 const QuantizeParam kQParamArrayAvx2[] = {
   make_tuple(&avm_highbd_quantize_b_c, &avm_highbd_quantize_b_avx2,
