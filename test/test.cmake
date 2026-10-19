@@ -243,17 +243,17 @@ if(NOT BUILD_SHARED_LIBS)
     "${AVM_ROOT}/test/warp_filter_test_util.cc"
     "${AVM_ROOT}/test/warp_filter_test_util.h"
     "${AVM_ROOT}/test/webmenc_test.cc"
-    "${AVM_ROOT}/test/palette_test.cc")
+    "${AVM_ROOT}/test/palette_test.cc"
+    "${AVM_ROOT}/test/av2_quantize_test.cc")
 
   list(APPEND AVM_UNIT_TEST_ENCODER_SOURCES
        "${AVM_ROOT}/test/lossless_idtx_test.cc")
 
-  list(
-    APPEND AVM_UNIT_TEST_ENCODER_INTRIN_SSE4_1
-    "${AVM_ROOT}/test/av2_quantize_test.cc"
-    "${AVM_ROOT}/test/corner_match_test.cc" "${AVM_ROOT}/test/simd_cmp_sse4.cc")
+  list(APPEND AVM_UNIT_TEST_ENCODER_INTRIN_SSE4_1
+       "${AVM_ROOT}/test/corner_match_test.cc"
+       "${AVM_ROOT}/test/simd_cmp_sse4.cc")
 
-  if(NOT HAVE_SSE2)
+  if(NOT HAVE_SSE2 AND NOT HAVE_NEON)
     list(REMOVE_ITEM AVM_UNIT_TEST_ENCODER_SOURCES
          "${AVM_ROOT}/test/quantize_func_test.cc")
   endif()
