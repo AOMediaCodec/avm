@@ -286,7 +286,9 @@ static void calc_wt_matrix(const int txsize, const qm_val_t *iwt_matrix,
     // If iwt_matrix[i] <= 4, then 1024 / iwt_matrix[i] >= 256, which cannot be
     // stored in wt_matrix[i] without losing integer precision.
     assert(iwt_matrix[i] > 4);
-    wt_matrix[i] = 1024 / iwt_matrix[i];
+    // Round, as the predefined weights do, so a user-defined matrix equal to
+    // a predefined one quantizes the same way.
+    wt_matrix[i] = (1024 + iwt_matrix[i] / 2) / iwt_matrix[i];
   }
 }
 
