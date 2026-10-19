@@ -93,6 +93,19 @@ void av2_loop_filter_frame(YV12_BUFFER_CONFIG *frame, struct AV2Common *cm,
 void loop_filter_tip_plane(struct AV2Common *cm, const int plane, uint16_t *dst,
                            const int dst_stride, const int plane_w,
                            const int plane_h);
+// The two passes of loop_filter_tip_plane(). The vertical edge pass filters
+// each group of 4 rows on its own, so it can be split by rows in multiples of
+// 4. The horizontal edge pass filters each group of 4 columns on its own, so it
+// can be split by columns in multiples of 4, but it has to follow the vertical
+// edge pass over the whole plane.
+void loop_filter_tip_plane_vert(struct AV2Common *cm, const int plane,
+                                uint16_t *dst, const int dst_stride,
+                                const int plane_w, const int row_start,
+                                const int row_end);
+void loop_filter_tip_plane_horz(struct AV2Common *cm, const int plane,
+                                uint16_t *dst, const int dst_stride,
+                                const int plane_h, const int col_start,
+                                const int col_end);
 void setup_tip_dst_planes(struct AV2Common *const cm, MACROBLOCKD *xd,
                           const int plane, const int tpl_row,
                           const int tpl_col);

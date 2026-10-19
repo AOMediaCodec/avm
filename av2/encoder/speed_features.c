@@ -931,6 +931,7 @@ static AVM_INLINE void init_hl_sf(HIGH_LEVEL_SPEED_FEATURES *hl_sf) {
   hl_sf->early_term_tip_direct_output_search = false;
   hl_sf->tip_direct_output_early_term_margin_pct = 20;
   hl_sf->tip_direct_output_rank_band_period = 0;
+  hl_sf->enable_tip_mt = 1;
 }
 
 static AVM_INLINE void init_tpl_sf(TPL_SPEED_FEATURES *tpl_sf) {
