@@ -29,6 +29,8 @@ typedef struct {
   int_mv mv[2];
   int8_t ref_frames[2];
   COMPOUND_TYPE comp_type;
+  uint8_t bawp_flag[2];
+  uint8_t cwp_idx;
   int64_t rd;
   unsigned int pred_sse;
 } INTERPOLATION_FILTER_STATS;
