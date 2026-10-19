@@ -6361,9 +6361,24 @@ BEGIN_PARTITION_SEARCH:
   // Reset the PC_TREE deallocation flag.
   int pc_tree_dealloc = 0;
 
-  // If a valid partition is found and reconstruction is required for future
-  // sub-blocks in the same group.
-  if (part_search_state.found_best_partition && pc_tree->index != 3) {
+  // Reconstruct the block only if its pixels / contexts are needed later:
+  //  - the superblock root: this is the final encode of the superblock.
+  //  - a non-last sub-block: later siblings in the same partition group use
+  //    it as their spatial neighbour. The last sub-block (in coding order) has
+  //    no such consumer.
+  //  - the luma partition of an inter-frame intra region (extended SDP): the
+  //    chroma partition that follows reads the co-located luma reconstruction
+  //    from the frame buffer for CfL / MHCCP, whatever the block's position in
+  //    its parent, and runs before any ancestor re-encodes the region.
+  // Note: `is_last_subblock` is set for the root as well, hence the explicit
+  // superblock check.
+  const bool is_inter_sdp_luma_part = !frame_is_intra_only(cm) &&
+                                      xd->tree_type == LUMA_PART &&
+                                      is_intra_child_of_mixed_region(pc_tree);
+  const bool recon_needed = bsize == cm->sb_size ||
+                            !pc_tree->is_last_subblock ||
+                            is_inter_sdp_luma_part;
+  if (part_search_state.found_best_partition && recon_needed) {
     if (bsize == cm->sb_size) {
       // Encode the superblock.
       const int emit_output = multi_pass_mode != SB_DRY_PASS;
