@@ -3226,7 +3226,8 @@ static AVM_INLINE void init_allowed_partitions(
   // At 1080p from speed 1, default_min_partition_size is kept at BLOCK_4X4 so
   // <= 8x8 blocks can split to 8x4/4x8/4x4 on sharp text and synthetic edges.
   // Keep BLOCK_8X8 as the floor for extended partitions (HORZ_3..VERT_4B) and
-  // for rectangular splits on blocks larger than 8x8 (16x4, 4x16, 32x4, 4x32).
+  // for rectangular splits on blocks larger than 8x8, except allow 16x8 and
+  // 8x16 on screen content to split into leaf 16x4 and 4x16 blocks.
   const bool prune_1080p_sub8x8 =
       cpi->speed >= 1 && AVMMIN(cm->width, cm->height) >= 1080;
   const int ext_min_partition_size =
@@ -3234,7 +3235,9 @@ static AVM_INLINE void init_allowed_partitions(
                          : blk_params->min_partition_size;
   const int rect_min_partition_size =
       (prune_1080p_sub8x8 && blk_params->has_rows && blk_params->has_cols &&
-       (block_size_wide[bsize] > 8 || block_size_high[bsize] > 8))
+       (block_size_wide[bsize] > 8 || block_size_high[bsize] > 8) &&
+       !(cm->features.allow_screen_content_tools &&
+         (bsize == BLOCK_16X8 || bsize == BLOCK_8X16)))
           ? AVMMAX(min_partition_size, BLOCK_8X8)
           : min_partition_size;
 
@@ -5843,7 +5846,7 @@ bool av2_rd_pick_partition(
   // unsplit block.
   if (template_tree && template_tree->partition == PARTITION_INVALID &&
       AVMMIN(block_size_wide[bsize], block_size_high[bsize]) >= 32) {
-    const int floor_px = 8;
+    const int floor_px = cm->features.allow_screen_content_tools ? 4 : 8;
     int mind = AVMMIN(block_size_wide[bsize], block_size_high[bsize]);
     int levels = 0;
     while (mind > floor_px) {

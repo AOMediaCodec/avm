@@ -513,7 +513,9 @@ static void set_good_speed_features_framesize_independent(
     }
     sf->inter_sf.enable_fast_bawp = 1;
 
-    sf->intra_sf.prune_palette_search_level = 1;
+    if (!allow_screen_content_tools) {
+      sf->intra_sf.prune_palette_search_level = 1;
+    }
 
     sf->tx_sf.adaptive_tx_type_search_idx = 4;
     sf->tx_sf.adaptive_tx_partition_type_search_idx = 4;
@@ -594,7 +596,9 @@ static void set_good_speed_features_framesize_independent(
     // coding loss. Disable  it before it is improved.
     // sf->intra_sf.disable_smooth_intra =
     //    !frame_is_intra_only(&cpi->common) || (cpi->rc.frames_to_key != 1);
-    sf->intra_sf.prune_palette_search_level = 2;
+    if (!allow_screen_content_tools) {
+      sf->intra_sf.prune_palette_search_level = 2;
+    }
     sf->intra_sf.intra_mode_prune_top = 3;
 
     sf->tpl_sf.prune_ref_frames_in_tpl = 1;
