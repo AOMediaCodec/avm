@@ -56,7 +56,6 @@ uint32_t av2_read_buffer_removal_timing_obu(struct AV2Decoder *pbi,
           "No matching operating point set OBU found for br_ops_id = %d. "
           "Bitstream conformance requires an OPS OBU with ops_id = %d.",
           brt_info->br_ops_id, brt_info->br_ops_id);
-      return 0;
     }
     // It is a requirement of bitstream conformance that br_ops_cnt[br_ops_id]
     // when present shall be equal to the value of ops_cnt of the corresponding
@@ -69,7 +68,6 @@ uint32_t av2_read_buffer_removal_timing_obu(struct AV2Decoder *pbi,
           "OBU (%d) and Operating Point set OBU (%d).",
           brt_info->br_ops_cnt[brt_info->br_ops_id],
           pbi->ops_list[xlayer_id][brt_info->br_ops_id].ops_cnt);
-      return 0;
     }
     // decoder model
     for (int i = 0; i < brt_info->br_ops_cnt[brt_info->br_ops_id]; i++) {
