@@ -642,8 +642,8 @@ static AVM_INLINE int64_t dry_pass_rd_bound(const MACROBLOCK *x,
  *                                   state; used to derive per-block two-pass
  *                                   flags. May be NULL when not applicable.
  * \param[in]    skip_inter_modes_by_none_part Skip the inter modes selected by
-                                is_intermode_selected() (speed feature
-                                prune_inter_modes_by_none_part)
+ *                                             is_intermode_selected() for
+ *                                             prune_inter_modes_by_none_part.
  *
  * Nothing is returned. Instead, the chosen modes and contexts necessary
  * for reconstruction are stored in ctx, the rate-distortion stats are stored in
