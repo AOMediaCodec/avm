@@ -400,6 +400,13 @@ typedef struct PARTITION_SPEED_FEATURES {
   // the number of steps by the value contained in this variable.
   int simple_motion_search_reduce_search_steps;
 
+  // Also run the simple_motion_search_split model in the dry pass of the fast
+  // two-pass partition search. The model uses simple motion search features
+  // only, so it does not depend on the reduced tool set of the dry pass. When
+  // it removes PARTITION_NONE at a node, the dry pass does not search the
+  // large block and its rectangular partitions.
+  int dry_pass_simple_motion_search_split;
+
   // Use CNN with luma pixels on source frame on each of the 64x64 subblock to
   // perform split/no_split decision on intra-frames.
 
