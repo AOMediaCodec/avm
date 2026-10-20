@@ -160,7 +160,8 @@ if(NOT BUILD_SHARED_LIBS)
     if(CONFIG_MULTITHREAD)
       list(APPEND AVM_UNIT_TEST_COMMON_SOURCES
            "${AVM_ROOT}/test/decode_multithreaded_test.cc"
-           "${AVM_ROOT}/test/ethread_test.cc")
+           "${AVM_ROOT}/test/ethread_test.cc"
+           "${AVM_ROOT}/test/wedge_mask_race_test.cc")
     endif()
   endif()
 
