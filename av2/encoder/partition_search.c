@@ -4263,14 +4263,14 @@ static int64_t get_dist_offset_by_deblock(
 }
 
 // PARTITION_NONE search.
-// Returns 1 if the PARTITION_NONE search of this block may skip the inter modes
-// selected by is_intermode_selected(): the parent block is at most 32x32 and
-// its own PARTITION_NONE search chose a mode outside that set (speed feature
-// prune_inter_modes_by_none_part).
-static int skip_inter_modes_by_parent_none(const AV2_COMP *const cpi,
-                                           const PC_TREE *pc_tree) {
+// Returns true if the PARTITION_NONE search of this block may skip the inter
+// modes selected by is_intermode_selected(): the parent block is at most 32x32
+// and its own PARTITION_NONE search chose a mode outside that set (speed
+// feature prune_inter_modes_by_none_part).
+static bool skip_inter_modes_by_parent_none(const AV2_COMP *const cpi,
+                                            const PC_TREE *pc_tree) {
   if (!cpi->sf.part_sf.prune_inter_modes_by_none_part || !pc_tree->parent)
-    return 0;
+    return false;
   const PICK_MODE_CONTEXT *const parent_none =
       pc_tree->parent->none[pc_tree->parent->region_type];
   return parent_none != NULL && parent_none->rd_stats.rate != INT_MAX &&
