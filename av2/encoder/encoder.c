@@ -5293,9 +5293,15 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
       (1 << (cm->seq_params.order_hint_info.order_hint_bits_minus_1 + 1));
 
   // Note this is placed here to keep the same pyramid_level
-  if (current_frame->frame_type == S_FRAME) {
-    current_frame->display_order_hint = current_frame->order_hint;
-    current_frame->display_order_hint_restricted = current_frame->order_hint;
+  // The display order hint must follow the decoder's derivation (from the
+  // wrapped order_hint and the reference buffers), not the source timeline.
+  if (!cm->show_existing_frame) {
+    current_frame->display_order_hint = av2_derive_disp_order_hint(
+        cm, current_frame->frame_type, current_frame->order_hint);
+    if (current_frame->frame_type == S_FRAME &&
+        cm->restricted_prediction_switch) {
+      current_frame->display_order_hint_restricted = current_frame->order_hint;
+    }
   }
   if (is_stat_generation_stage(cpi)) {
     av2_first_pass(cpi, frame_input->ts_duration);

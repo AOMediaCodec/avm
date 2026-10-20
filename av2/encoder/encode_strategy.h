@@ -27,6 +27,12 @@ extern "C" {
 #include "av2/encoder/encoder.h"
 #include "av2/encoder/firstpass.h"
 
+/*!\brief Derive the display order hint of the current frame the same way as
+ * the decoder does, given the wrapped order hint.
+ */
+int av2_derive_disp_order_hint(const AV2_COMMON *cm, int frame_type,
+                               int order_hint);
+
 /*!\brief Implement high-level encode strategy
  *
  * \ingroup high_level_algo

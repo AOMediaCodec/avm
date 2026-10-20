@@ -55,6 +55,41 @@ const SubGOPStepCfg *get_subgop_step(const GF_GROUP *const gf_group,
   return &subgop_cfg->step[index - offset];
 }
 
+// Derives the display order hint of the current frame in the same way as the
+// decoder (get_disp_order_hint() in decodeframe.c), from the wrapped order
+// hint signaled in the bitstream and the display order hints of the reference
+// buffers. This must be kept in sync with the decoder.
+// NOTE: the output flags of the reference buffers are not tracked by the
+// encoder, so they are not checked here.
+int av2_derive_disp_order_hint(const AV2_COMMON *cm, int frame_type,
+                               int order_hint) {
+  if (frame_type == KEY_FRAME ||
+      (frame_type == S_FRAME && cm->restricted_prediction_switch))
+    return order_hint;
+
+  int max_disp_order_hint = 0;
+  for (int map_idx = 0; map_idx < cm->seq_params.ref_frames; map_idx++) {
+    const RefCntBuffer *const buf = cm->ref_frame_map[map_idx];
+    if (buf == NULL || buf->is_restricted ||
+        !is_tlayer_scalable_and_dependent(&cm->seq_params, cm->tlayer_id,
+                                          buf->tlayer_id, cm->mlayer_id) ||
+        !is_mlayer_scalable_and_dependent(&cm->seq_params, cm->mlayer_id,
+                                          buf->mlayer_id))
+      continue;
+    if ((int)buf->display_order_hint > max_disp_order_hint)
+      max_disp_order_hint = buf->display_order_hint;
+  }
+
+  int cur_disp_order_hint = order_hint;
+  const int factor =
+      1 << (cm->seq_params.order_hint_info.order_hint_bits_minus_1 + 1);
+  while (abs(max_disp_order_hint - cur_disp_order_hint) >= (factor >> 1)) {
+    if (cur_disp_order_hint > max_disp_order_hint) break;
+    cur_disp_order_hint += factor;
+  }
+  return cur_disp_order_hint;
+}
+
 void av2_get_ref_frames_enc(AV2_COMP *const cpi, int cur_frame_disp,
                             RefFrameMapPair *ref_frame_map_pairs) {
   AV2_COMMON *const cm = &cpi->common;
@@ -1308,7 +1343,15 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
   // Otherwise (if tlayer_id is set to 0), tlayer_id does not change the
   // reference frame list construction.
   cm->current_frame.order_hint = cur_frame_disp;
-  cm->current_frame.display_order_hint = cur_frame_disp;
+  // cur_frame_disp is the position in the source timeline. The display order
+  // hint used for reference derivation must follow the decoder's derivation,
+  // which differs from the timeline after a restricted switch frame resets the
+  // display order hint epoch.
+  const int cur_frame_doh = av2_derive_disp_order_hint(
+      cm, frame_params.frame_type,
+      cur_frame_disp %
+          (1 << (cm->seq_params.order_hint_info.order_hint_bits_minus_1 + 1)));
+  cm->current_frame.display_order_hint = cur_frame_doh;
   cm->current_frame.display_order_hint_restricted = cur_frame_disp;
   cm->current_frame.pyramid_level = get_true_pyr_level(
       cpi->gf_group.layer_depth[cpi->gf_group.index],
@@ -1384,7 +1427,7 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
         if (buf) {
           int ref_disp = (int)buf->display_order_hint;
           const int disp_diff = get_relative_dist(
-              &cm->seq_params.order_hint_info, cur_frame_disp, ref_disp);
+              &cm->seq_params.order_hint_info, cur_frame_doh, ref_disp);
           if (disp_diff < 0) {
             n_future++;
             break;
@@ -1430,14 +1473,14 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
       cm->features.tip_frame_mode = TIP_FRAME_DISABLED;
     }
     if (cm->seq_params.enable_explicit_ref_frame_map || frame_is_sframe(cm)) {
-      av2_get_ref_frames_enc(cpi, cur_frame_disp, cm->ref_frame_map_pairs);
+      av2_get_ref_frames_enc(cpi, cur_frame_doh, cm->ref_frame_map_pairs);
     } else {
       // Derive reference mapping in a resolution independent manner, to
       // generate parameters (num_total_refs_res_indep and
       // remapped_ref_idx_res_indep) needed in write_frame_size_with_refs.
-      av2_get_ref_frames(cm, cur_frame_disp, 0, 0, cm->ref_frame_map_pairs);
+      av2_get_ref_frames(cm, cur_frame_doh, 0, 0, cm->ref_frame_map_pairs);
       // Derive the reference mapping excluding frames of invalid resolutions
-      av2_get_ref_frames(cm, cur_frame_disp, 1, 0, cm->ref_frame_map_pairs);
+      av2_get_ref_frames(cm, cur_frame_doh, 1, 0, cm->ref_frame_map_pairs);
     }
     if (!cm->seq_params.enable_explicit_ref_frame_map && cm->bru.enabled) {
       const int num_past_refs = cm->ref_frames_info.num_past_refs;
