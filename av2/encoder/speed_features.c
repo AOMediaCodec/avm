@@ -277,6 +277,13 @@ static void set_good_speed_feature_framesize_dependent(
       sf->part_sf.auto_max_partition_based_on_simple_motion = DIRECT_PRED;
     }
 
+    // Below 4K, speed 6 relaxes the breakout rate threshold (see
+    // set_erp_speed_features_framesize_dependent()), and the relaxed gate is
+    // too loose to also skip PARTITION_SPLIT.
+    if (!is_4k_or_larger) {
+      sf->part_sf.partition_search_breakout_prune_split = 0;
+    }
+
     if (is_720p_or_larger) {
       sf->inter_sf.disable_masked_comp = 1;
     }
@@ -580,6 +587,7 @@ static void set_good_speed_features_framesize_independent(
     sf->part_sf.allow_partition_search_skip = 1;
     sf->part_sf.simple_motion_search_prune_agg = 1;
     sf->part_sf.simple_motion_search_early_term_none = 1;
+    sf->part_sf.partition_search_breakout_prune_split = 1;
     // TODO(Venkat): Clean-up frame type dependency for
     // simple_motion_search_split in partition search function and set the
     // speed feature accordingly
@@ -945,6 +953,7 @@ static AVM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   // Recode loop tolerance %.
   part_sf->partition_search_breakout_dist_thr = 0;
   part_sf->partition_search_breakout_rate_thr = 0;
+  part_sf->partition_search_breakout_prune_split = 0;
   part_sf->ml_early_term_after_part_split_level = 0;
   part_sf->simple_motion_search_prune_agg = 0;
   part_sf->simple_motion_search_split = 0;
