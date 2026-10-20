@@ -4107,6 +4107,11 @@ static void prune_partitions_after_none(AV2_COMP *const cpi, MACROBLOCK *x,
     if (best_rdc->dist < dist_breakout_thr &&
         best_rdc->rate < rate_breakout_thr) {
       part_search_state->do_rectangular_split = false;
+      // Optionally skip PARTITION_SPLIT as well. A skippable, cheap NONE
+      // block rarely gains from a four-way split.
+      if (cpi->sf.part_sf.partition_search_breakout_prune_split) {
+        part_search_state->prune_partition[PARTITION_SPLIT] = true;
+      }
     }
   }
 
