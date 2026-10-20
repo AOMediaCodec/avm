@@ -366,6 +366,11 @@ typedef struct PARTITION_SPEED_FEATURES {
   int64_t partition_search_breakout_dist_thr;
   int partition_search_breakout_rate_thr;
 
+  // When the PARTITION_NONE breakout happens also skip the PARTITION_SPLIT
+  // search of the block. Without this flag the breakout only skips the
+  // rectangular and extended partitions.
+  int partition_search_breakout_prune_split;
+
   // Thresholds for ML based partition search breakout.
 
   // Allow skipping partition search for still image frame
