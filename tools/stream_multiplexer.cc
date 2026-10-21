@@ -16,11 +16,21 @@
 // This is an example demonstrating how to mux multiple sub-bitstreams.
 //
 
+#include "tools/multistream_atlas_json.h"
 #include "tools/stream_mux.h"
 
 // When 1, rewrite TD with 2-byte header (extension_flag=1, xlayer_id=GLOBAL).
 // When 0, preserve the original 1-byte TD header from the input stream.
 #define REWRITE_TD_WITH_GLOBAL_XLAYER 0
+
+// Maximum number of sub-streams representable in MSDO (3-bit num_streams - 2).
+constexpr int kMaxMsdoStreams = 9;
+// Maximum index representable in 3-bit multistream_large_picture_idc.
+constexpr int kMaxLargePictureIdc = 7;
+// Maximum sum of stream buffer units across all streams.
+constexpr int kMaxStreamBufferUnits = 9;
+// Maximum encoded byte length of an AV2 LEB128 size field.
+constexpr size_t kMaxLeb128Size = 8;
 
 // This function writes a multi-stream decoder operation OBU,
 // when multiple sub-streams are merged into one bitstream.
@@ -85,6 +95,94 @@ static int write_multi_stream_decoder_operation_obu(uint8_t *const dst,
   return size;
 }
 
+// This function writes the multistream-form atlas_segment_info_obu( ) along
+// with its 2-byte OBU header, mirroring
+// write_multi_stream_decoder_operation_obu above. Returns the total number of
+// bytes written (header + payload).
+static int write_atlas_segment_info_obu(uint8_t *const dst,
+                                        const AtlasMultistreamEntry &entry) {
+  struct avm_write_bit_buffer wb = { dst, 0 };
+  int obu_type = OBU_ATLAS_SEGMENT;
+  uint32_t size = 0;
+
+  avm_wb_write_literal(&wb, 1, 1);              // obu_header_extension_flag
+  avm_wb_write_literal(&wb, (int)obu_type, 5);  // obu_type
+  avm_wb_write_literal(&wb, 0, 2);              // obu_tlayer
+  avm_wb_write_literal(&wb, 0, 3);              // obu_mlayer
+  avm_wb_write_literal(&wb, 31, 5);             // obu_xlayer
+
+  // f(3) atlas_segment_id
+  avm_wb_write_literal(&wb, entry.atlas_segment_id, ATLAS_SEG_ID_BITS);
+  // uvlc ats_atlas_segment_mode_idc
+  avm_wb_write_uvlc(&wb,
+                    entry.alpha ? MULTISTREAM_ALPHA_ATLAS : MULTISTREAM_ATLAS);
+
+  // ats_multistream_info() / ats_multistream_with_alpha_info()
+  avm_wb_write_uvlc(&wb, static_cast<uint32_t>(entry.msi_width));
+  avm_wb_write_uvlc(&wb, static_cast<uint32_t>(entry.msi_height));
+  avm_wb_write_uvlc(&wb, static_cast<uint32_t>(entry.segments.size() - 1));
+  // The alpha form signals ats_msi_alpha_segments_present_flag immediately
+  // after num_atlas_segments_minus1 and before the background flag.
+  if (entry.alpha) {
+    avm_wb_write_bit(&wb, entry.alpha_segments_present ? 1 : 0);
+  }
+  avm_wb_write_bit(&wb, entry.background_present ? 1 : 0);
+  if (entry.background_present) {
+    avm_wb_write_literal(&wb, entry.background_r, 8);
+    avm_wb_write_literal(&wb, entry.background_g, 8);
+    avm_wb_write_literal(&wb, entry.background_b, 8);
+  }
+  const size_t last_seg = entry.segments.size() - 1;
+  for (size_t i = 0; i < entry.segments.size(); ++i) {
+    const AtlasMultistreamSegment &s = entry.segments[i];
+    avm_wb_write_literal(&wb, s.input_stream_id, 5);
+    avm_wb_write_uvlc(&wb, static_cast<uint32_t>(s.top_left_pos_x));
+    avm_wb_write_uvlc(&wb, static_cast<uint32_t>(s.top_left_pos_y));
+    avm_wb_write_uvlc(&wb, static_cast<uint32_t>(s.width));
+    avm_wb_write_uvlc(&wb, static_cast<uint32_t>(s.height));
+    // Per spec, ats_msi_alpha_segment_flag is signaled for every segment except
+    // the last when alpha segments are present.
+    if (entry.alpha && entry.alpha_segments_present && i != last_seg) {
+      avm_wb_write_bit(&wb, s.alpha_segment ? 1 : 0);
+    }
+  }
+
+  // ats_label_segment_info( ): never signaled. The multistream composition
+  // process (Annex D) does not use ats_atlas_segment_id[], and the spec
+  // derives them as i when the flag is 0.
+  avm_wb_write_bit(&wb, 0);
+
+  // ats_extension_present_flag = 0
+  avm_wb_write_bit(&wb, 0);
+
+  // trailing_bits: pad to byte alignment with leading 1 then zeros.
+  if ((wb.bit_offset % CHAR_BIT) == 0) {
+    avm_wb_write_literal(&wb, 0x80, 8);
+  } else {
+    avm_wb_write_bit(&wb, 1);
+  }
+
+  size = avm_wb_bytes_written(&wb);
+  return size;
+}
+
+static void AppendAtlasSegmentObu(const AtlasMultistreamEntry &entry,
+                                  std::vector<uint8_t> *tu) {
+  // Worst-case size: <= 32 bytes fixed header/trailer + <= 258 bits (~33 bytes)
+  // per segment when all 4 UVLC geometry fields equal INT_MAX.
+  const size_t cap = 64 + entry.segments.size() * 40;
+  std::vector<uint8_t> atlas_obu(cap, 0);
+  const int atlas_obu_size =
+      write_atlas_segment_info_obu(atlas_obu.data(), entry);
+  uint8_t atlas_size_data[kMaxLeb128Size] = {};
+  size_t atlas_length_field_size = 0;
+  avm_uleb_encode(atlas_obu_size, sizeof(atlas_size_data), atlas_size_data,
+                  &atlas_length_field_size);
+  tu->insert(tu->end(), atlas_size_data,
+             atlas_size_data + atlas_length_field_size);
+  tu->insert(tu->end(), atlas_obu.begin(), atlas_obu.begin() + atlas_obu_size);
+}
+
 static void write_obu_header_with_stream_id(uint8_t *const dst,
                                             ObuHeader *obu_header,
                                             int stream_id) {
@@ -95,15 +193,6 @@ static void write_obu_header_with_stream_id(uint8_t *const dst,
   avm_wb_write_literal(&wb, obu_header->obu_mlayer_id, 3);  // obu_mlayer
   avm_wb_write_literal(&wb, stream_id, 5);                  // obu_xlayer
 }
-
-// Maximum number of sub-streams representable in MSDO (3-bit num_streams - 2).
-constexpr int kMaxMsdoStreams = 9;
-// Maximum index representable in 3-bit multistream_large_picture_idc.
-constexpr int kMaxLargePictureIdc = 7;
-// Maximum sum of stream buffer units across all streams.
-constexpr int kMaxStreamBufferUnits = 9;
-// Maximum encoded byte length of an AV2 LEB128 size field.
-constexpr size_t kMaxLeb128Size = 8;
 
 static bool TuHasKeyFrame(const uint8_t *data, int length) {
   int pos = 0;
@@ -204,7 +293,8 @@ static std::vector<uint8_t> WriteStreamOBUs(const uint8_t *data, int length,
 static std::vector<uint8_t> WriteCombinedTU(
     std::vector<std::vector<uint8_t>> &per_stream_obus,
     const int *sorted_indices, int num_streams, int *stream_ids,
-    int *stream_buffer_units, bool any_key_frame, bool redundant_msdo) {
+    int *stream_buffer_units, bool any_key_frame, bool redundant_msdo,
+    const AtlasMultistreamConfig *atlas_cfg) {
   std::vector<uint8_t> tu;
 
   // Write TD OBU
@@ -221,6 +311,7 @@ static std::vector<uint8_t> WriteCombinedTU(
 #endif
 
   // Insert MSDO if any stream has a key frame or redundant mode
+  bool msdo_present = false;
   if (redundant_msdo || any_key_frame) {
     std::vector<uint8_t> multi_stream_obu(num_streams * 2 + 16, 0);
     int multi_header_obu_size = write_multi_stream_decoder_operation_obu(
@@ -233,6 +324,14 @@ static std::vector<uint8_t> WriteCombinedTU(
               msdo_size_data + msdo_length_field_size);
     tu.insert(tu.end(), multi_stream_obu.begin(),
               multi_stream_obu.begin() + multi_header_obu_size);
+    msdo_present = true;
+  }
+
+  // Insert atlas OBU at GLOBAL_XLAYER_ID, after MSDO and before per-stream
+  // OBUs, per Section 7 ordering of OBUs in a TU.
+  if (atlas_cfg != nullptr &&
+      (atlas_cfg->emit_policy == AtlasEmitPolicy::kEveryTu || msdo_present)) {
+    AppendAtlasSegmentObu(atlas_cfg->atlas_multistream_info, &tu);
   }
 
   // Append OBUs from each stream in ascending stream_id order
@@ -250,7 +349,8 @@ static std::vector<uint8_t> WriteCombinedTU(
 std::vector<uint8_t> WriteTU(const uint8_t *data, int length,
                              int *obu_overhead_bytes, int seg_idx,
                              int num_streams, int *stream_ids,
-                             int *stream_buffer_units, bool redundant_msdo) {
+                             int *stream_buffer_units, bool redundant_msdo,
+                             const AtlasMultistreamConfig *atlas_cfg) {
   std::vector<uint8_t> tu_obus;
   const uint8_t *data_ptr = data;
   const int kObuHeaderSizeBytes = 1;
@@ -348,6 +448,7 @@ std::vector<uint8_t> WriteTU(const uint8_t *data, int length,
 #endif
 
       // Insert MSDO immediately after the TD when required.
+      bool msdo_present = false;
       if (redundant_msdo || tu_has_key_frame) {
         std::vector<uint8_t> multi_stream_obu(num_streams * 2 + 16, 0);
         int multi_header_obu_size = write_multi_stream_decoder_operation_obu(
@@ -363,6 +464,14 @@ std::vector<uint8_t> WriteTU(const uint8_t *data, int length,
             multi_header_obu_size_data + multi_header_length_field_size);
         tu_obus.insert(tu_obus.end(), multi_stream_obu.begin(),
                        multi_stream_obu.begin() + multi_header_obu_size);
+        msdo_present = true;
+      }
+
+      // Insert atlas OBU at GLOBAL_XLAYER_ID, after the optional MSDO.
+      if (atlas_cfg != nullptr &&
+          (atlas_cfg->emit_policy == AtlasEmitPolicy::kEveryTu ||
+           msdo_present)) {
+        AppendAtlasSegmentObu(atlas_cfg->atlas_multistream_info, &tu_obus);
       }
 
       data_ptr += static_cast<int>(obu_total_size) +
@@ -398,6 +507,7 @@ std::vector<uint8_t> WriteTU(const uint8_t *data, int length,
 int main(int argc, const char *argv[]) {
   bool redundant_msdo = false;
   bool separate_tu = false;
+  const char *atlas_json_path = nullptr;
   int arg_offset = 0;
 
   // Parse optional flags
@@ -408,6 +518,13 @@ int main(int argc, const char *argv[]) {
     } else if (strcmp(argv[arg_offset + 1], "--separate-tu") == 0) {
       separate_tu = true;
       ++arg_offset;
+    } else if (strcmp(argv[arg_offset + 1], "--atlas-json") == 0) {
+      if (arg_offset + 2 >= argc) {
+        fprintf(stderr, "Error: --atlas-json requires a path argument\n");
+        return -1;
+      }
+      atlas_json_path = argv[arg_offset + 2];
+      arg_offset += 2;
     } else {
       break;
     }
@@ -416,6 +533,7 @@ int main(int argc, const char *argv[]) {
   if (argc - arg_offset < 8 || (argc - arg_offset - 2) % 3) {
     fprintf(stderr,
             "command: %s [--redundant-msdo] [--separate-tu] "
+            "[--atlas-json <file>] "
             "[input file1] [stream ID 1] "
             "[unit size 1] [input "
             "file2] [stream ID 2] [unit size 2] ... [outfile]\n",
@@ -477,6 +595,36 @@ int main(int argc, const char *argv[]) {
             "%d\n",
             large_picture_idc, kMaxLargePictureIdc);
     return -1;
+  }
+
+  // Load atlas JSON config (if any) BEFORE opening input/output files, so a bad
+  // JSON file does not produce a partial output.
+  AtlasMultistreamConfig atlas_cfg_storage;
+  const AtlasMultistreamConfig *atlas_cfg = nullptr;
+  if (atlas_json_path != nullptr) {
+    std::string err;
+    if (!LoadAtlasJson(atlas_json_path, &atlas_cfg_storage, &err)) {
+      fprintf(stderr, "Error loading atlas JSON '%s': %s\n", atlas_json_path,
+              err.c_str());
+      return -1;
+    }
+    // Warn (do not fail) about JSON-referenced stream IDs not present on CLI.
+    for (const auto &s : atlas_cfg_storage.atlas_multistream_info.segments) {
+      bool found = false;
+      for (int i = 0; i < num_streams; ++i) {
+        if (atoi(argv[arg_offset + i * 3 + 2]) == s.input_stream_id) {
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        fprintf(stderr,
+                "Warning: atlas JSON references input_stream_id %d not "
+                "present in CLI streams\n",
+                s.input_stream_id);
+      }
+    }
+    atlas_cfg = &atlas_cfg_storage;
   }
 
   InputContext input_ctx[AVM_MAX_NUM_STREAMS];
@@ -587,7 +735,7 @@ int main(int argc, const char *argv[]) {
           segments =
               WriteTU(input_ctx[i].unit_buffer, static_cast<int>(unit_size),
                       &obu_overhead_current_unit, i, num_streams, stream_ids,
-                      stream_buffer_units, redundant_msdo);
+                      stream_buffer_units, redundant_msdo, atlas_cfg);
           fwrite(segments.data(), 1, segments.size(), fout);
 #if PRINT_TU_INFO
           printf("  TU overhead:    %d\n", obu_overhead_current_unit);
@@ -645,7 +793,7 @@ int main(int argc, const char *argv[]) {
       if (num_tu_read > 0) {
         segments = WriteCombinedTU(per_stream_obus, sorted_indices, num_streams,
                                    stream_ids, stream_buffer_units,
-                                   any_key_frame, redundant_msdo);
+                                   any_key_frame, redundant_msdo, atlas_cfg);
         fwrite(segments.data(), 1, segments.size(), fout);
       }
     }
