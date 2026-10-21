@@ -2401,6 +2401,18 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         for (int i = 0; i < AVM_MAX_NUM_STREAMS; i++) pbi->xlayer_id_map[i] = 0;
 
         pbi->is_multistream = 0;
+
+        // A CVS starting without an MSDO is a singlestream. Drop the persisted
+        // atlas and release the per-xlayer refs.
+        pbi->active_multistream_atlas = NULL;
+        if (cm->buffer_pool != NULL) lock_buffer_pool(cm->buffer_pool);
+        for (int x = 0; x < MAX_NUM_XLAYERS; ++x) {
+          if (pbi->annex_d_last_frame[x] != NULL) {
+            decrease_ref_count(pbi->annex_d_last_frame[x], cm->buffer_pool);
+            pbi->annex_d_last_frame[x] = NULL;
+          }
+        }
+        if (cm->buffer_pool != NULL) unlock_buffer_pool(cm->buffer_pool);
       }
       pbi->multistream_decoder_mode = 0;
     }

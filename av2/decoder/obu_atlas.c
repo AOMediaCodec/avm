@@ -352,6 +352,15 @@ uint32_t av2_read_atlas_segment_info_obu(struct AV2Decoder *pbi,
     return 0;
   }
 
+  // Persist the most-recent multistream atlas (carried at GLOBAL_XLAYER_ID) so
+  // the Annex D compose path keeps using it across temporal units even when the
+  // atlas OBU is signaled only once (e.g. in the first TU) and not repeated.
+  if ((atlas_params->atlas_segment_mode_idc == MULTISTREAM_ATLAS ||
+       atlas_params->atlas_segment_mode_idc == MULTISTREAM_ALPHA_ATLAS) &&
+      obu_xLayer_id == GLOBAL_XLAYER_ID) {
+    pbi->active_multistream_atlas = atlas_params;
+  }
+
   // Test-only: env-gated dump of parsed atlas fields. Used by the e2e harness
   // to verify that the atlas OBU written by the muxer round-trips through the
   // decoder with all field values intact. Only enabled when AVM_DUMP_ATLAS=1
