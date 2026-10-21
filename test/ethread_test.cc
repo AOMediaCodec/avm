@@ -420,11 +420,13 @@ class AVxEncoderThreadTestLarge : public AVxEncoderThreadTest {};
 
 TEST_P(AVxEncoderThreadTestLarge, EncoderResultTest) { DoTest(); }
 
-// first pass stats test
-// TODO(jingning@google.com): Need to fix the multithreading issues in
-// first pass processing, and re-activate this unit test.
-GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AVxFirstPassEncoderThreadTest);
-GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AVxEncoderThreadTest);
+AV2_INSTANTIATE_TEST_SUITE(AVxFirstPassEncoderThreadTest, TWO_PASS_TEST_MODES,
+                           ::testing::Range(1, 4, 2), ::testing::Range(0, 2),
+                           ::testing::Range(0, 2));
+
+AV2_INSTANTIATE_TEST_SUITE(AVxEncoderThreadTest, GOODQUALITY_TEST_MODES,
+                           ::testing::Values(2), ::testing::Values(0, 2),
+                           ::testing::Values(0, 2), ::testing::Values(0, 1));
 
 // Test cpu_used 0, 1, 3 and 5.
 // TODO(urvang): Once https://github.com/AOMediaCodec/avm/issues/79 is fixed,
