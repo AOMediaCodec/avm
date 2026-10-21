@@ -88,6 +88,9 @@ void av2_rd_pick_intra_mode_sb(const struct AV2_COMP *cpi, ThreadData *td,
  * \param[in]    ctx            Structure to hold snapshot of coding context
                                 during the mode picking process
  * \param[in]    best_rd_so_far Best RD seen for this block so far
+ * \param[in]    skip_inter_modes_by_none_part Skip the inter modes selected by
+                                is_intermode_selected() (speed feature
+                                prune_inter_modes_by_none_part)
  *
  * Nothing is returned. Instead, the MB_MODE_INFO struct inside x
  * is modified to store information about the best mode computed
@@ -98,7 +101,8 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
                                struct TileDataEnc *tile_data,
                                struct macroblock *x, struct RD_STATS *rd_cost,
                                BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx,
-                               int64_t best_rd_so_far);
+                               int64_t best_rd_so_far,
+                               bool skip_inter_modes_by_none_part);
 
 void av2_rd_pick_inter_mode_sb_seg_skip(
     const struct AV2_COMP *cpi, struct TileDataEnc *tile_data,

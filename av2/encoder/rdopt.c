@@ -9619,7 +9619,8 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
                                struct TileDataEnc *tile_data,
                                struct macroblock *x, struct RD_STATS *rd_cost,
                                BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx,
-                               int64_t best_rd_so_far) {
+                               int64_t best_rd_so_far,
+                               bool skip_inter_modes_by_none_part) {
   // WARNING: on the dry pass, all exits must go through dry_pass_cleanup —
   // use `goto dry_pass_cleanup;` instead of `return`.
   const bool apply_dry_pass_shortcuts = x->apply_dry_pass_shortcuts;
@@ -9987,7 +9988,7 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
         (has_both_sides_refs ||
          ref_frame > dry_pass_cfg.same_ref_compound_rank_cap))
       continue;
-    if (x->skip_inter_modes_by_none_part && is_intermode_selected(this_mode))
+    if (skip_inter_modes_by_none_part && is_intermode_selected(this_mode))
       continue;
     if (this_mode == WARPMV && !warpmv_allowed) continue;
     if (this_mode == WARP_NEWMV && (!warpmv_allowed || !warp_newmv_allowed))
