@@ -11,6 +11,8 @@
  */
 
 #include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "config/avm_config.h"
 #include "avm_dsp/bitreader_buffer.h"
@@ -349,5 +351,43 @@ uint32_t av2_read_atlas_segment_info_obu(struct AV2Decoder *pbi,
   if (av2_check_trailing_bits(pbi, rb) != 0) {
     return 0;
   }
+
+  // Test-only: env-gated dump of parsed atlas fields. Used by the e2e harness
+  // to verify that the atlas OBU written by the muxer round-trips through the
+  // decoder with all field values intact. Only enabled when AVM_DUMP_ATLAS=1
+  // is set in the environment, and only for the multistream form.
+  if ((atlas_params->atlas_segment_mode_idc == MULTISTREAM_ATLAS ||
+       atlas_params->atlas_segment_mode_idc == MULTISTREAM_ALPHA_ATLAS) &&
+      getenv("AVM_DUMP_ATLAS") != NULL) {
+    const struct AtlasBasicInfo *bi = atlas_params->ats_basic_info;
+    const int num =
+        atlas_params->ats_basic_info->ats_num_atlas_segments_minus_1 + 1;
+    printf("ATLAS_DUMP atlas_segment_id=%d\n", atlas_params->atlas_segment_id);
+    printf("ATLAS_DUMP mode_idc=%d\n", atlas_params->atlas_segment_mode_idc);
+    printf("ATLAS_DUMP msi_width=%d\n", bi->ats_atlas_width);
+    printf("ATLAS_DUMP msi_height=%d\n", bi->ats_atlas_height);
+    printf("ATLAS_DUMP num_segments=%d\n", num);
+    printf("ATLAS_DUMP background_present=%d\n",
+           bi->ats_background_info_present_flag);
+    if (bi->ats_background_info_present_flag) {
+      printf("ATLAS_DUMP background_red=%d\n", bi->ats_background_red_value);
+      printf("ATLAS_DUMP background_green=%d\n",
+             bi->ats_background_green_value);
+      printf("ATLAS_DUMP background_blue=%d\n", bi->ats_background_blue_value);
+    }
+    for (int i = 0; i < num; ++i) {
+      printf("ATLAS_DUMP segment[%d] input_stream_id=%d\n", i,
+             bi->ats_input_stream_id[i]);
+      printf("ATLAS_DUMP segment[%d] top_left_pos_x=%d\n", i,
+             bi->ats_segment_top_left_pos_x[i]);
+      printf("ATLAS_DUMP segment[%d] top_left_pos_y=%d\n", i,
+             bi->ats_segment_top_left_pos_y[i]);
+      printf("ATLAS_DUMP segment[%d] width=%d\n", i, bi->ats_segment_width[i]);
+      printf("ATLAS_DUMP segment[%d] height=%d\n", i,
+             bi->ats_segment_height[i]);
+    }
+    fflush(stdout);
+  }
+
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }
