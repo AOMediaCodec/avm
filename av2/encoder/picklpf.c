@@ -29,8 +29,6 @@
 #include "av2/encoder/encoder.h"
 #include "av2/encoder/picklpf.h"
 
-#define CHROMA_LAMBDA_MULT 6
-
 static void yv12_copy_plane(const YV12_BUFFER_CONFIG *src_bc,
                             YV12_BUFFER_CONFIG *dst_bc, int plane) {
   switch (plane) {
@@ -244,7 +242,6 @@ static int search_filter_offsets(
   // Update best error
   best_err = ss_err[offset_best + ZERO_DF_OFFSET];
 
-  int chroma_lambda_mult = plane ? CHROMA_LAMBDA_MULT : 1;
   int best_bits = 0;
   int start_bits = 0;
   if (plane != AVM_PLANE_Y) {
@@ -276,12 +273,10 @@ static int search_filter_offsets(
   // the rate is scaled down by 16 to keep the same balance.
   const int best_rate = av2_cost_literal(best_bits) >> 4;
   const int start_rate = av2_cost_literal(start_bits) >> 4;
-  double best_cost =
-      RDCOST_DBL_WITH_NATIVE_BD_DIST(x->rdmult * chroma_lambda_mult, best_rate,
-                                     best_err, cm->seq_params.bit_depth);
-  double start_cost =
-      RDCOST_DBL_WITH_NATIVE_BD_DIST(x->rdmult * chroma_lambda_mult, start_rate,
-                                     start_err, cm->seq_params.bit_depth);
+  double best_cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+      x->rdmult, best_rate, best_err, cm->seq_params.bit_depth);
+  double start_cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+      x->rdmult, start_rate, start_err, cm->seq_params.bit_depth);
 
   if (best_cost_ret) *best_cost_ret = AVMMIN(best_cost, start_cost);
   if (best_filter_sse) {
@@ -451,8 +446,7 @@ void av2_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
             get_sse_plane_active_region(cm, sd, &cm->cur_frame->buf, plane);
         zero_filter_sse[plane] = no_deblocking_sse;
         no_deblocking_cost[plane] = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-            cpi->td.mb.rdmult * CHROMA_LAMBDA_MULT, 0, no_deblocking_sse,
-            bit_depth);
+            cpi->td.mb.rdmult, 0, no_deblocking_sse, bit_depth);
         for (int pass = 0; pass < 2; ++pass) {
           // Pass 1 starts from the offset returned by pass 0, whose SSE is
           // already in best_filter_sse[plane].
@@ -526,13 +520,14 @@ void av2_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
 }
 
 static AVM_INLINE double get_tip_frame_filter_cost(
-    const YV12_BUFFER_CONFIG *sd, const YV12_BUFFER_CONFIG *tip, int rate,
+    const YV12_BUFFER_CONFIG *sd, const YV12_BUFFER_CONFIG *tip, int bits,
     int rdmult, int bit_depth, int num_planes) {
   int64_t filter_sse = 0;
 
   for (int plane = AVM_PLANE_Y; plane < num_planes; ++plane) {
     filter_sse += avm_get_sse_plane(sd, tip, plane);
   }
+  const int rate = av2_cost_literal(bits) >> 4;
   double filter_cost =
       RDCOST_DBL_WITH_NATIVE_BD_DIST(rdmult, rate, filter_sse, bit_depth);
   return filter_cost;
@@ -551,7 +546,7 @@ static double try_filter_tip_frame(AV2_COMP *const cpi, int tip_delta,
   loop_filter_tip_frame(cm, &td->mb.e_mbd, AVM_PLANE_Y, num_planes);
 
   double filter_cost = get_tip_frame_filter_cost(
-      cpi->source, tip_frame_buf, /*rate=*/3, td->mb.rdmult,
+      cpi->source, tip_frame_buf, /*bits=*/3, td->mb.rdmult,
       cm->seq_params.bit_depth, num_planes);
 
   // Re-instate the unfiltered frame
@@ -564,7 +559,9 @@ static double try_filter_tip_frame(AV2_COMP *const cpi, int tip_delta,
 // Search deblocking filter strength for TIP frame
 void search_tip_filter_level(AV2_COMP *cpi, struct AV2Common *cm) {
   YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tip_frame->buf;
-  const int num_planes = 1;
+  const int num_planes = av2_num_planes(cm);
+
+  cpi->td.mb.rdmult = cpi->rd.RDMULT;
 
   for (int plane = AVM_PLANE_Y; plane < num_planes; ++plane) {
     yv12_copy_plane(tip_frame_buf, &cpi->last_frame_uf, plane);
@@ -572,7 +569,7 @@ void search_tip_filter_level(AV2_COMP *cpi, struct AV2Common *cm) {
 
   // unfiltered cost
   double unfilter_cost = get_tip_frame_filter_cost(
-      cpi->source, tip_frame_buf, /*rate=*/1, cpi->td.mb.rdmult,
+      cpi->source, tip_frame_buf, /*bits=*/1, cpi->td.mb.rdmult,
       cm->seq_params.bit_depth, num_planes);
 
   // filtered cost
