@@ -1287,11 +1287,20 @@ static int64_t handle_newmv(const AV2_COMP *const cpi, MACROBLOCK *const x,
         }
 
         int_mv start_mv = cur_mv[1];
-
-        av2_compound_single_motion_search_interinter(cpi, x, bsize, cur_mv,
-                                                     NULL, 0, rate_mv, 1);
-
-        if (cur_mv->as_int == INVALID_MV) return INT64_MAX;
+        // When prune_amvd_newmv >= 2, reuse the single-ref NEWMV directly for
+        // non-AMVD NEAR_NEWMV* instead of running a new compound motion search.
+        if (cpi->sf.inter_sf.prune_amvd_newmv >= 2 && !mbmi->use_amvd &&
+            valid_mv1) {
+          const int_mv ref_mv = av2_get_ref_mv(x, 1);
+          update_mv_precision(ref_mv.as_mv, pb_mv_precision, &cur_mv[1].as_mv);
+          *rate_mv =
+              av2_mv_bit_cost(&cur_mv[1].as_mv, &ref_mv.as_mv, pb_mv_precision,
+                              &x->mv_costs, MV_COST_WEIGHT, 0);
+        } else {
+          av2_compound_single_motion_search_interinter(cpi, x, bsize, cur_mv,
+                                                       NULL, 0, rate_mv, 1);
+          if (cur_mv->as_int == INVALID_MV) return INT64_MAX;
+        }
         save_comp_mv_search_stat(x, args, cur_mv, start_mv);
       } else {
         // avmenc2
@@ -1360,9 +1369,20 @@ static int64_t handle_newmv(const AV2_COMP *const cpi, MACROBLOCK *const x,
         clamp_mv_in_range(x, &cur_mv[0], 0, pb_mv_precision);
       }
       if (enable_amvd_compound_search) {
-        av2_compound_single_motion_search_interinter(cpi, x, bsize, cur_mv,
-                                                     NULL, 0, rate_mv, 0);
-        if (cur_mv->as_int == INVALID_MV) return INT64_MAX;
+        // When prune_amvd_newmv >= 2, reuse the single-ref NEWMV directly for
+        // non-AMVD NEW_NEARMV* instead of running a new compound motion search.
+        if (cpi->sf.inter_sf.prune_amvd_newmv >= 2 && !mbmi->use_amvd &&
+            valid_mv0) {
+          const int_mv ref_mv = av2_get_ref_mv(x, 0);
+          update_mv_precision(ref_mv.as_mv, pb_mv_precision, &cur_mv[0].as_mv);
+          *rate_mv =
+              av2_mv_bit_cost(&cur_mv[0].as_mv, &ref_mv.as_mv, pb_mv_precision,
+                              &x->mv_costs, MV_COST_WEIGHT, 0);
+        } else {
+          av2_compound_single_motion_search_interinter(cpi, x, bsize, cur_mv,
+                                                       NULL, 0, rate_mv, 0);
+          if (cur_mv->as_int == INVALID_MV) return INT64_MAX;
+        }
         int_mv start_mv = { 0 };
         save_comp_mv_search_stat(x, args, cur_mv, start_mv);
       } else {
@@ -10093,12 +10113,17 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
              !amvd_suppressed_for_mode);
     const int amvd_inverted = is_amvd_inverted_mode(this_mode);
 
+    // Normally, NEAR_NEWMV* and NEW_NEARMV* (amvd_inverted) test use_amvd = 1
+    // first and skip use_amvd = 0 if use_amvd = 1 did not win. However, if
+    // use_amvd = 1 was not tested (either suppressed by num_amvd_modes == 1 or
+    // pruned below by prune_amvd_newmv >= 2), do not skip use_amvd = 0.
+    bool amvd_pruned = (inter_sf->prune_amvd_newmv >= 2 && num_amvd_modes == 1);
     for (int use_amvd_mode = 0; use_amvd_mode < num_amvd_modes;
          ++use_amvd_mode) {
       mbmi->use_amvd = (num_amvd_modes > 1 && amvd_inverted) ? !use_amvd_mode
                                                              : use_amvd_mode;
 
-      if (amvd_inverted && !mbmi->use_amvd &&
+      if (amvd_inverted && !mbmi->use_amvd && !amvd_pruned &&
           search_state.best_mbmode.mode != mbmi->mode) {
         continue;
       }
@@ -10110,6 +10135,55 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
           (mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV ||
            mbmi->mode == NEW_NEWMV_OPTFLOW)) {
         if (mbmi->use_amvd && search_state.best_mbmode.mode != mbmi->mode) {
+          continue;
+        }
+      }
+
+      if (inter_sf->prune_amvd_newmv >= 2 && mbmi->use_amvd) {
+        if (comp_pred) {
+          // Only evaluate compound AMVD on primary reference pairs (both ref
+          // indices < 2) where at least one reference matches the current best
+          // mode's reference frame(s).
+          if (ref_frame >= 2 || second_ref_frame >= 2) {
+            amvd_pruned = true;
+            continue;
+          }
+          const MV_REFERENCE_FRAME best_rf0 =
+              search_state.best_mbmode.ref_frame[0];
+          const MV_REFERENCE_FRAME best_rf1 =
+              search_state.best_mbmode.ref_frame[1];
+          if (search_state.best_mbmode.mode != MODE_INVALID &&
+              ref_frame != best_rf0 && ref_frame != best_rf1 &&
+              second_ref_frame != best_rf0 && second_ref_frame != best_rf1) {
+            amvd_pruned = true;
+            continue;
+          }
+          // Skip compound AMVD if neither active NEW leg has a valid single-ref
+          // NEWMV that differs from the DRL[0] reference MV (nonzero MVD).
+          const MvSubpelPrecision max_prec = mbmi->max_mv_precision;
+          const bool has_mvd0 =
+              (this_mode != NEAR_NEWMV && this_mode != NEAR_NEWMV_OPTFLOW) &&
+              args.single_newmv_valid[max_prec][0][ref_frame_index] &&
+              args.single_newmv[max_prec][0][ref_frame_index].as_int !=
+                  av2_get_ref_mv_from_stack(0, mbmi->ref_frame, 0, x->mbmi_ext,
+                                            mbmi)
+                      .as_int;
+          const bool has_mvd1 =
+              (this_mode != NEW_NEARMV && this_mode != NEW_NEARMV_OPTFLOW) &&
+              args.single_newmv_valid[max_prec][0][sec_ref_frame_index] &&
+              args.single_newmv[max_prec][0][sec_ref_frame_index].as_int !=
+                  av2_get_ref_mv_from_stack(1, mbmi->ref_frame, 0, x->mbmi_ext,
+                                            mbmi)
+                      .as_int;
+          if (!has_mvd0 && !has_mvd1) {
+            amvd_pruned = true;
+            continue;
+          }
+        } else if (ref_frame >= 2 && cm->current_frame.pyramid_level >= 2 &&
+                   search_state.best_mbmode.mode != this_mode) {
+          // For single-ref NEWMV on secondary references (ref_frame >= 2) at
+          // pyramid_level >= 2, skip AMVD unless non-AMVD NEWMV is currently
+          // the best mode.
           continue;
         }
       }
