@@ -124,6 +124,9 @@ static unsigned int predict_dc_levels[4][MODE_EVAL_TYPES] = {
   { 0, 0, 0 }, { 1, 1, 0 }, { 1, 1, 1 }, { 2, 2, 0 }
 };
 
+// Pyramid level from which the dry pass skips the warp inter modes.
+#define DRY_PASS_SKIP_WARP_MIN_PYR_LEVEL 3
+
 // Intra only frames, golden frames (except alt ref overlays) and
 // alt ref frames tend to be coded at a higher than ambient quality
 static int frame_is_boosted(const AV2_COMP *cpi) {
@@ -780,6 +783,8 @@ static void set_good_speed_features_framesize_independent(
   }
 
   if (speed >= 6) {
+    sf->inter_sf.dry_pass_skip_warp_min_pyr_level =
+        DRY_PASS_SKIP_WARP_MIN_PYR_LEVEL;
     sf->part_sf.prune_inter_modes_by_none_part = 1;
     // Dry pass MV precision cap; ranks partitions only.
     sf->inter_sf.dry_pass_mv_prec_from_top =
@@ -1101,6 +1106,7 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->skip_mode_eval_based_on_rate_cost = 0;
   inter_sf->reuse_erp_mode_flag = 0;
   inter_sf->prune_warpmv_prob_thresh = 32;
+  inter_sf->dry_pass_skip_warp_min_pyr_level = 0;
   inter_sf->prune_amvd_newmv = 0;
   inter_sf->prune_amvd = false;
   inter_sf->enable_enhanced_inter_mode_cache_reuse = 0;
