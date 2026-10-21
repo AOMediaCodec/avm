@@ -9659,6 +9659,13 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
     // Keep the normal distortion measure; a cheaper one made the partition
     // choices worse.
     x->rd_model = FULL_TXFM_RD;
+    // Optionally leave the warp inter modes to the wet pass.
+    const int skip_warp_level =
+        cpi->sf.inter_sf.dry_pass_skip_warp_min_pyr_level;
+    if (skip_warp_level > 0 &&
+        (int)cpi->common.current_frame.pyramid_level >= skip_warp_level) {
+      dry_pass_cfg.inter_mode_mask &= ~((1u << WARPMV) | (1u << WARP_NEWMV));
+    }
   }
   AV2_COMMON *const cm = &cpi->common;
   const FeatureFlags *const features = &cm->features;

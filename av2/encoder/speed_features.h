@@ -865,6 +865,11 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Prune warpmv with mvd search using previous frame stats.
   int prune_warpmv_prob_thresh;
 
+  // Skip the WARPMV and WARP_NEWMV inter modes in the partition search dry
+  // pass (the wet pass is unchanged) on frames at pyramid level >= this value.
+  // 0: off
+  int dry_pass_skip_warp_min_pyr_level;
+
   // Only enable wedge search if the variance is above this threshold.
   unsigned int disable_wedge_search_var_thresh;
 
