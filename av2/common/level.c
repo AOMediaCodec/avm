@@ -485,10 +485,6 @@ static const char *level_fail_messages[TARGET_LEVEL_FAIL_IDS] = {
   "The presentation interval is too small.",
 };
 
-static const double bitrate_profile_factor_table[] = { 1.0, 1.667, 2.5, 3.0 };
-static const double picture_size_profile_factor_table[] = { 15.0, 20.0, 30.0,
-                                                            36.0 };
-
 static const char level_string[SEQ_LEVEL_MAX + 1][9] = {
   "2.0",      "2.1",      "3.0",      "3.1",      "4.0",      "4.1",
   "5.0",      "5.1",      "5.2",      "5.3",      "6.0",      "6.1",
@@ -509,7 +505,7 @@ static double get_max_bitrate(const AV2LevelSpec *const level_spec, int tier,
       1e6;
   const int profile_factor_row = get_profile_factor_table_row_index(profile);
   double bitrate_profile_factor =
-      bitrate_profile_factor_table[profile_factor_row];
+      get_bitrate_profile_factor(profile_factor_row);
   return bitrate_basis * bitrate_profile_factor;
 }
 
@@ -524,7 +520,7 @@ static double get_max_compressed_size(const AV2LevelSpec *const level_spec,
 
   const int profile_factor_row = get_profile_factor_table_row_index(profile);
   double picture_size_profile_factor =
-      picture_size_profile_factor_table[profile_factor_row];
+      get_picture_size_profile_factor(profile_factor_row);
 
   double max_compressed_size =
       ((long long)(frame_parsing_time * level_spec->max_decode_rate *
@@ -549,7 +545,7 @@ static double get_max_frame_symbol_count(const AV2LevelSpec *const level_spec,
 
   const int profile_factor_row = get_profile_factor_table_row_index(profile);
   double picture_size_profile_factor =
-      picture_size_profile_factor_table[profile_factor_row];
+      get_picture_size_profile_factor(profile_factor_row);
   double scale = multi_stream_scaling_x == 0 ? 1 : multi_stream_scaling_x;
   double max_frame_symbol_count =
       frame_parsing_time * (level_spec->max_decode_rate / scale) *
@@ -1588,7 +1584,7 @@ double av2_get_compression_ratio(const AV2_COMMON *const cm,
 
   const int profile_factor_row = get_profile_factor_table_row_index(profile);
   const int picture_size_profile_factor =
-      (int)picture_size_profile_factor_table[profile_factor_row];
+      (int)get_picture_size_profile_factor(profile_factor_row);
   encoded_frame_size =
       (encoded_frame_size > 129 ? encoded_frame_size - 128 : 1);
   const size_t uncompressed_frame_size =
