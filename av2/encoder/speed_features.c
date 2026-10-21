@@ -262,6 +262,7 @@ static void set_good_speed_feature_framesize_dependent(
     }
     if (is_4k_or_larger) {
       sf->part_sf.prune_by_struct_orient = 1;
+      sf->part_sf.dry_pass_simple_motion_search_split = 1;
     }
     sf->part_sf.intra_two_pass_max_qindex = 255;
   }
@@ -959,6 +960,7 @@ static AVM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->simple_motion_search_split = 0;
   part_sf->simple_motion_search_early_term_none = 0;
   part_sf->simple_motion_search_reduce_search_steps = 0;
+  part_sf->dry_pass_simple_motion_search_split = 0;
   part_sf->prune_rect_with_none_rd = 0;
   part_sf->prune_ext_part_with_part_none = 0;
   part_sf->prune_ext_part_with_part_rect = 0;
