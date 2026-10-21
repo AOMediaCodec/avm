@@ -149,6 +149,7 @@ if(NOT BUILD_SHARED_LIBS)
       "${AVM_ROOT}/test/segment_binarization_sync.cc"
       "${AVM_ROOT}/test/sframe_test.cc"
       "${AVM_ROOT}/test/still_picture_test.cc"
+      "${AVM_ROOT}/test/annexD_test.cc"
       "${AVM_ROOT}/test/stream_mux_atlas_test.cc"
       "${AVM_ROOT}/test/sub_bitstream_extraction_test.cc"
       "${AVM_ROOT}/tools/multistream_atlas_json.h"
