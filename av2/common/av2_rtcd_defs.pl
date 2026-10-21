@@ -369,6 +369,8 @@ if ($opts{config} !~ /libs-x86-win32-vs.*/) {
   specialize qw/gdf_inference_unit avx2/;
   add_proto qw/void gdf_compensation_unit/, "uint16_t* rec_pnt, const int rec_stride, int16_t* err_pnt, const int err_stride, const int err_shift, const int scale, const int pxl_max, const int blk_height, const int blk_width";
   specialize qw/gdf_compensation_unit avx2/;
+  add_proto qw/void gdf_compensation_sse_unit/, "const uint16_t* rec_pnt, const int rec_stride, const uint16_t* org_pnt, const int org_stride, const int16_t* err_pnt, const int err_stride, const int err_shift, const int pxl_max, const int blk_height, const int blk_width, int64_t* sse, int64_t* rec_error";
+  specialize qw/gdf_compensation_sse_unit avx2/;
 
 add_proto qw/void refinemv_highbd_pad_mc_border/, "const uint16_t *src, int src_stride, uint16_t *dst, int dst_stride, int x0, int y0, int b_w, int b_h, const ReferenceArea *ref_area";
 specialize qw/refinemv_highbd_pad_mc_border avx2/;

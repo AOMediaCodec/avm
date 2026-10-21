@@ -571,6 +571,45 @@ void gdf_compensation_unit_c(uint16_t *rec_pnt, const int rec_stride,
   }
 }
 
+/*!\brief Function to apply every scale factor to expected coding error to
+ * generate final filtered unit. Then compute sse between original block and
+ * filtered block. The filtered unit is not written anywhere. If rec_error is
+ * not NULL, the sse between original block and reconstruction, i.e., without
+ * filtering, is added to *rec_error.
+ */
+void gdf_compensation_sse_unit_c(const uint16_t *rec_pnt, const int rec_stride,
+                                 const uint16_t *org_pnt, const int org_stride,
+                                 const int16_t *err_pnt, const int err_stride,
+                                 const int err_shift, const int pxl_max,
+                                 const int blk_height, const int blk_width,
+                                 int64_t *sse, int64_t *rec_error) {
+  const int err_shift_half = err_shift > 0 ? 1 << (err_shift - 1) : 0;
+  for (int s = 0; s < GDF_RDO_SCALE_NUM; s++) sse[s] = 0;
+  int64_t rec_sse = 0;
+  for (int i = 0; i < blk_height; i++) {
+    for (int j = 0; j < blk_width; j++) {
+      if (rec_error) {
+        const int diff = rec_pnt[j] - org_pnt[j];
+        rec_sse += (int64_t)diff * diff;
+      }
+      for (int s = 0; s < GDF_RDO_SCALE_NUM; s++) {
+        int32_t res_pxl = (s + 1) * err_pnt[j];
+        if (res_pxl > 0) {
+          res_pxl = (res_pxl + err_shift_half) >> err_shift;
+        } else {
+          res_pxl = -(((-res_pxl) + err_shift_half) >> err_shift);
+        }
+        const int diff = CLIP(res_pxl + rec_pnt[j], 0, pxl_max) - org_pnt[j];
+        sse[s] += (int64_t)diff * diff;
+      }
+    }
+    rec_pnt += rec_stride;
+    org_pnt += org_stride;
+    err_pnt += err_stride;
+  }
+  if (rec_error) *rec_error += rec_sse;
+}
+
 #define GDF_NORM_IDX(_va)                                               \
   ((((_va) > 0)                                                         \
         ? (((gdf_idx_scale) * (_va) + (gdf_shift_half)) >> (gdf_shift)) \

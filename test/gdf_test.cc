@@ -20,6 +20,7 @@
 
 #include "config/avm_config.h"
 #include "config/av2_rtcd.h"
+#include "config/avm_dsp_rtcd.h"
 
 #include "av2/common/av2_common_int.h"
 #include "avm_mem/avm_mem.h"
@@ -803,6 +804,152 @@ TEST_P(GDFCompensationTest, DISABLED_Speed) {
          ref_us, tst_us, static_cast<double>(ref_us) / tst_us);
 }
 
+typedef void (*gdf_compensation_sse_unit_func)(
+    const uint16_t *rec_pnt, const int rec_stride, const uint16_t *org_pnt,
+    const int org_stride, const int16_t *err_pnt, const int err_stride,
+    const int err_shift, const int pxl_max, const int blk_height,
+    const int blk_width, int64_t *sse, int64_t *rec_error);
+
+typedef std::tuple<gdf_compensation_sse_unit_func,
+                   gdf_compensation_sse_unit_func, int>
+    gdf_comp_sse_param_t;
+
+class GDFCompSseTest : public ::testing::TestWithParam<gdf_comp_sse_param_t> {
+ public:
+  virtual ~GDFCompSseTest() {}
+  virtual void SetUp() {
+    ref_func = GET_PARAM(0);
+    func = GET_PARAM(1);
+    bd = GET_PARAM(2);
+  }
+  virtual void TearDown() { libavm_test::ClearSystemState(); }
+
+ protected:
+  gdf_compensation_sse_unit_func ref_func;
+  gdf_compensation_sse_unit_func func;
+  int bd;
+};
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(GDFCompSseTest);
+
+TEST_P(GDFCompSseTest, MatchesC) {
+  constexpr int kMaxSize = 64;
+  constexpr int kStride = 80;
+  static const int heights[] = { 2, 4, 8, 64 };
+  static const int widths[] = { 2, 6, 8, 10, 16, 24, 30, 40, 64 };
+  const int pxl_max = (1 << bd) - 1;
+  const int err_shift = GDF_RDO_SCALE_NUM_LOG2 + GDF_TEST_INP_PREC - bd;
+  ACMRandom rnd(ACMRandom::DeterministicSeed());
+
+  uint16_t rec[kMaxSize * kStride], org[kMaxSize * kStride];
+  int16_t err[kMaxSize * kStride];
+
+  for (int iter = 0; iter < 24; iter++) {
+    const int mode = iter % 3;
+    for (int h : heights) {
+      for (int w : widths) {
+        for (int i = 0; i < h; i++) {
+          for (int j = 0; j < w; j++) {
+            const int loc = i * kStride + j;
+            const int range = pxl_max + 1;
+            int r = rnd.PseudoUniform(range);
+            int o = rnd.PseudoUniform(range);
+            int e = rnd.PseudoUniform(256) - 128;
+            if (mode == 0) {
+              o = r + rnd.PseudoUniform(17) - 8;
+              o = AVMMIN(pxl_max, AVMMAX(0, o));
+            } else if (mode == 2) {
+              r = rnd.PseudoUniform(2) ? pxl_max : 0;
+              e = rnd.PseudoUniform(2) ? 127 : -128;
+            }
+            rec[loc] = (uint16_t)r;
+            org[loc] = (uint16_t)o;
+            err[loc] = (int16_t)e;
+          }
+        }
+
+        // rec_error is added to, so start from a non zero value.
+        int64_t ref_sse[GDF_RDO_SCALE_NUM], sse[GDF_RDO_SCALE_NUM];
+        int64_t ref_rec_error = 7, rec_error = 7;
+        ref_func(rec, kStride, org, kStride, err, kStride, err_shift, pxl_max,
+                 h, w, ref_sse, &ref_rec_error);
+        func(rec, kStride, org, kStride, err, kStride, err_shift, pxl_max, h, w,
+             sse, &rec_error);
+
+        for (int s = 0; s < GDF_RDO_SCALE_NUM; s++) {
+          ASSERT_EQ(ref_sse[s], sse[s])
+              << "SIMD mismatch: scale " << s + 1 << " size " << w << "x" << h
+              << " mode " << mode;
+        }
+        ASSERT_EQ(ref_rec_error, rec_error)
+            << "SIMD mismatch: rec_error size " << w << "x" << h << " mode "
+            << mode;
+
+        // Without rec_error the scale sums must not change.
+        int64_t sse_no_rec[GDF_RDO_SCALE_NUM];
+        func(rec, kStride, org, kStride, err, kStride, err_shift, pxl_max, h, w,
+             sse_no_rec, NULL);
+        for (int s = 0; s < GDF_RDO_SCALE_NUM; s++) {
+          ASSERT_EQ(ref_sse[s], sse_no_rec[s])
+              << "SIMD mismatch without rec_error: scale " << s + 1 << " size "
+              << w << "x" << h << " mode " << mode;
+        }
+      }
+    }
+  }
+}
+
+TEST_P(GDFCompSseTest, DISABLED_Speed) {
+  constexpr int kMaxSize = 64;
+  constexpr int kStride = 64;
+  static const int sizes[][2] = { { 64, 64 }, { 64, 56 }, { 16, 16 } };
+  const int pxl_max = (1 << bd) - 1;
+  const int err_shift = GDF_RDO_SCALE_NUM_LOG2 + GDF_TEST_INP_PREC - bd;
+  ACMRandom rnd(ACMRandom::DeterministicSeed());
+
+  uint16_t rec[kMaxSize * kStride], org[kMaxSize * kStride];
+  int16_t err[kMaxSize * kStride];
+  for (int i = 0; i < kMaxSize * kStride; i++) {
+    rec[i] = (uint16_t)rnd.PseudoUniform(pxl_max + 1);
+    int o = rec[i] + rnd.PseudoUniform(17) - 8;
+    org[i] = (uint16_t)AVMMIN(pxl_max, AVMMAX(0, o));
+    err[i] = (int16_t)(rnd.PseudoUniform(256) - 128);
+  }
+
+  for (const auto &size : sizes) {
+    const int w = size[0];
+    const int h = size[1];
+    const int num_loops = (1 << 25) / (w * h);
+    int64_t sse[GDF_RDO_SCALE_NUM];
+    int64_t rec_error = 0;
+    int64_t sink = 0;
+
+    avm_usec_timer ref_timer, test_timer;
+    avm_usec_timer_start(&ref_timer);
+    for (int n = 0; n < num_loops; ++n) {
+      ref_func(rec, kStride, org, kStride, err, kStride, err_shift, pxl_max, h,
+               w, sse, &rec_error);
+      sink += sse[0];
+    }
+    avm_usec_timer_mark(&ref_timer);
+
+    avm_usec_timer_start(&test_timer);
+    for (int n = 0; n < num_loops; ++n) {
+      func(rec, kStride, org, kStride, err, kStride, err_shift, pxl_max, h, w,
+           sse, &rec_error);
+      sink += sse[0];
+    }
+    avm_usec_timer_mark(&test_timer);
+
+    const int ref_us = static_cast<int>(avm_usec_timer_elapsed(&ref_timer));
+    const int test_us = static_cast<int>(avm_usec_timer_elapsed(&test_timer));
+    printf("bd[%2d] %2dx%-2d loops=%d  C=%d us  SIMD=%d us  (%.1fx) [%lld]\n",
+           bd, w, h, num_loops, ref_us, test_us,
+           test_us > 0 ? static_cast<double>(ref_us) / test_us : 0.0,
+           static_cast<long long>(sink & 1));
+  }
+}
+
 using std::make_tuple;
 
 #if defined(_WIN64) || !defined(_MSC_VER) || defined(__clang__)
@@ -840,6 +987,12 @@ INSTANTIATE_TEST_SUITE_P(
     AVX2, GDFCompensationTest,
     ::testing::Combine(::testing::Values(&gdf_compensation_unit_c),
                        ::testing::Values(&gdf_compensation_unit_avx2),
+                       ::testing::Values(8, 10, 12)));
+
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, GDFCompSseTest,
+    ::testing::Combine(::testing::Values(&gdf_compensation_sse_unit_c),
+                       ::testing::Values(&gdf_compensation_sse_unit_avx2),
                        ::testing::Values(8, 10, 12)));
 #endif
 

@@ -209,6 +209,122 @@ void gdf_compensation_unit_avx2(uint16_t *rec_pnt, const int rec_stride,
   }
 }
 
+static AVM_FORCE_INLINE void gdf_comp_sse_accumulate_avx2(
+    __m256i err_reg, __m256i rec_reg, __m256i org_reg, __m256i half_reg,
+    __m128i shift_reg, __m256i pxl_max_reg, __m256i acc32[GDF_RDO_SCALE_NUM],
+    __m256i *acc_rec32) {
+  const __m256i zero_reg = _mm256_setzero_si256();
+  if (acc_rec32) {
+    const __m256i rec_diff_reg = _mm256_sub_epi16(rec_reg, org_reg);
+    *acc_rec32 = _mm256_add_epi32(
+        *acc_rec32, _mm256_madd_epi16(rec_diff_reg, rec_diff_reg));
+  }
+  const __m256i abs_err_reg = _mm256_abs_epi16(err_reg);
+  __m256i scaled_reg = half_reg;
+  for (int s = 0; s < GDF_RDO_SCALE_NUM; s++) {
+    scaled_reg = _mm256_add_epi16(scaled_reg, abs_err_reg);
+    __m256i res_reg = _mm256_srl_epi16(scaled_reg, shift_reg);
+    res_reg = _mm256_sign_epi16(res_reg, err_reg);
+    res_reg = _mm256_add_epi16(res_reg, rec_reg);
+    res_reg = _mm256_max_epi16(res_reg, zero_reg);
+    res_reg = _mm256_min_epi16(res_reg, pxl_max_reg);
+    const __m256i diff_reg = _mm256_sub_epi16(res_reg, org_reg);
+    acc32[s] =
+        _mm256_add_epi32(acc32[s], _mm256_madd_epi16(diff_reg, diff_reg));
+  }
+}
+
+/*!\brief Function to apply every scale factor to expected coding error to
+ * generate final filtered unit. Then compute sse between original block and
+ * filtered block. The filtered unit is not written anywhere. If rec_error is
+ * not NULL, the sse between original block and reconstruction, i.e., without
+ * filtering, is added to *rec_error.
+ */
+void gdf_compensation_sse_unit_avx2(
+    const uint16_t *rec_pnt, const int rec_stride, const uint16_t *org_pnt,
+    const int org_stride, const int16_t *err_pnt, const int err_stride,
+    const int err_shift, const int pxl_max, const int blk_height,
+    const int blk_width, int64_t *sse, int64_t *rec_error) {
+  const int err_shift_half = err_shift > 0 ? 1 << (err_shift - 1) : 0;
+  const __m256i half_reg = _mm256_set1_epi16(err_shift_half);
+  const __m256i pxl_max_reg = _mm256_set1_epi16(pxl_max);
+  const __m128i shift_reg = _mm_cvtsi32_si128(err_shift);
+  const int j_tail = (blk_width >> 3) << 3;
+  const uint16_t *const rec_base = rec_pnt;
+  const uint16_t *const org_base = org_pnt;
+  const int16_t *const err_base = err_pnt;
+
+  __m256i acc64[GDF_RDO_SCALE_NUM];
+  for (int s = 0; s < GDF_RDO_SCALE_NUM; s++) {
+    acc64[s] = _mm256_setzero_si256();
+  }
+  __m256i acc_rec64 = _mm256_setzero_si256();
+
+  for (int i = 0; i < blk_height; i++) {
+    __m256i acc32[GDF_RDO_SCALE_NUM];
+    for (int s = 0; s < GDF_RDO_SCALE_NUM; s++) {
+      acc32[s] = _mm256_setzero_si256();
+    }
+    __m256i acc_rec32 = _mm256_setzero_si256();
+    __m256i *const p_acc_rec32 = rec_error ? &acc_rec32 : NULL;
+    int j = 0;
+    for (; j + 16 <= blk_width; j += 16) {
+      gdf_comp_sse_accumulate_avx2(
+          _mm256_loadu_si256((const __m256i *)(err_pnt + j)),
+          _mm256_loadu_si256((const __m256i *)(rec_pnt + j)),
+          _mm256_loadu_si256((const __m256i *)(org_pnt + j)), half_reg,
+          shift_reg, pxl_max_reg, acc32, p_acc_rec32);
+    }
+    if (j + 8 <= blk_width) {
+      const __m256i zero_reg = _mm256_setzero_si256();
+      const __m256i err_reg = _mm256_inserti128_si256(
+          zero_reg, _mm_loadu_si128((const __m128i *)(err_pnt + j)), 0);
+      const __m256i rec_reg = _mm256_inserti128_si256(
+          zero_reg, _mm_loadu_si128((const __m128i *)(rec_pnt + j)), 0);
+      const __m256i org_reg = _mm256_inserti128_si256(
+          zero_reg, _mm_loadu_si128((const __m128i *)(org_pnt + j)), 0);
+      gdf_comp_sse_accumulate_avx2(err_reg, rec_reg, org_reg, half_reg,
+                                   shift_reg, pxl_max_reg, acc32, p_acc_rec32);
+    }
+    for (int s = 0; s < GDF_RDO_SCALE_NUM; s++) {
+      const __m256i lo =
+          _mm256_cvtepu32_epi64(_mm256_castsi256_si128(acc32[s]));
+      const __m256i hi =
+          _mm256_cvtepu32_epi64(_mm256_extracti128_si256(acc32[s], 1));
+      acc64[s] = _mm256_add_epi64(acc64[s], _mm256_add_epi64(lo, hi));
+    }
+    if (rec_error) {
+      const __m256i lo =
+          _mm256_cvtepu32_epi64(_mm256_castsi256_si128(acc_rec32));
+      const __m256i hi =
+          _mm256_cvtepu32_epi64(_mm256_extracti128_si256(acc_rec32, 1));
+      acc_rec64 = _mm256_add_epi64(acc_rec64, _mm256_add_epi64(lo, hi));
+    }
+    rec_pnt += rec_stride;
+    org_pnt += org_stride;
+    err_pnt += err_stride;
+  }
+
+  int64_t tail_sse[GDF_RDO_SCALE_NUM] = { 0 };
+  int64_t tail_rec_error = 0;
+  if (j_tail < blk_width) {
+    gdf_compensation_sse_unit_c(
+        rec_base + j_tail, rec_stride, org_base + j_tail, org_stride,
+        err_base + j_tail, err_stride, err_shift, pxl_max, blk_height,
+        blk_width - j_tail, tail_sse, rec_error ? &tail_rec_error : NULL);
+  }
+  if (rec_error) {
+    int64_t lanes[4];
+    _mm256_storeu_si256((__m256i *)lanes, acc_rec64);
+    *rec_error += lanes[0] + lanes[1] + lanes[2] + lanes[3] + tail_rec_error;
+  }
+  for (int s = 0; s < GDF_RDO_SCALE_NUM; s++) {
+    int64_t lanes[4];
+    _mm256_storeu_si256((__m256i *)lanes, acc64[s]);
+    sse[s] = lanes[0] + lanes[1] + lanes[2] + lanes[3] + tail_sse[s];
+  }
+}
+
 // Load weight register in the shape of [alpha[k]_sample[i],
 // alpha[k]_sample[i+1], .., alpha[k]_sample[i+15]]:
 //     difference between each sample i-th to the center sample is to be clipped
