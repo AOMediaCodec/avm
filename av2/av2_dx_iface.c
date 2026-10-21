@@ -1185,10 +1185,22 @@ static void move_decoder_metadata_to_img(AV2Decoder *pbi, avm_image_t *img) {
   }
 }
 
+// Returns 1 if 'img' already carries a metadata unit of type 'type'. Such a
+// unit was signaled in the current temporal unit and attached by
+// move_decoder_metadata_to_img(), so the persistent copy would duplicate it.
+static int img_has_metadata_type(const avm_image_t *img, uint32_t type) {
+  if (!img->metadata) return 0;
+  for (size_t i = 0; i < img->metadata->sz; i++) {
+    const avm_metadata_t *const unit = img->metadata->metadata_array[i];
+    if (unit && unit->type == type) return 1;
+  }
+  return 0;
+}
+
 // Appends persistent metadata that applies to this frame's
 // embedded/temporal layer onto 'img'.
 static void apply_persistent_metadata_to_img(AV2Decoder *pbi,
-                                              avm_image_t *img) {
+                                             avm_image_t *img) {
   const SequenceHeader *const seq = &pbi->common.seq_params;
   const int m = img->mlayer_id;
   const int c = img->tlayer_id;
@@ -1198,14 +1210,18 @@ static void apply_persistent_metadata_to_img(AV2Decoder *pbi,
     const avm_metadata_t *const persisted = pbi->persistent_metadata[type];
     if (!persisted) continue;
 
+    // Signaled for this frame already; don't attach the persistent copy too.
+    if (img_has_metadata_type(img, persisted->type)) continue;
+
     const int k = persisted->mlayer_id;
     const int t = persisted->tlayer_id;
     int applies;
     if (m == k) {
       // Temporal persistence.
       applies = is_tlayer_transitively_dependent(seq, k, c, t);
-    } else if (m > k && persisted->layer_idc == AVM_LAYER_VALUES &&
-               x < 31 && (persisted->mlayer_map[x] >> (k + 1)) != 0 &&
+    } else if (m > k && persisted->layer_idc == AVM_LAYER_VALUES && x >= 0 &&
+               x < GLOBAL_XLAYER_ID &&
+               (persisted->mlayer_map[x] >> (k + 1)) != 0 &&
                is_mlayer_transitively_dependent(seq, m, k)) {
       // Multi-layer persistence gates Combined persistence.
       applies = is_tlayer_transitively_dependent(seq, m, c, t);
@@ -1225,8 +1241,7 @@ static void apply_persistent_metadata_to_img(AV2Decoder *pbi,
       copy->persistence_idc = persisted->persistence_idc;
       copy->layer_idc = persisted->layer_idc;
       copy->xlayer_map = persisted->xlayer_map;
-      memcpy(copy->mlayer_map, persisted->mlayer_map,
-             sizeof(copy->mlayer_map));
+      memcpy(copy->mlayer_map, persisted->mlayer_map, sizeof(copy->mlayer_map));
       copy->mlayer_id = persisted->mlayer_id;
       copy->tlayer_id = persisted->tlayer_id;
     }

@@ -863,9 +863,8 @@ static void store_persistent_metadata(AV2Decoder *const pbi,
   if (src->persistence_idc == AVM_NO_PERSISTENCE) return;
   if (src->type >= NUM_OBU_METADATA_TYPES) return;
 
-  avm_metadata_t *const copy =
-      avm_img_metadata_alloc(src->type, src->payload, src->sz,
-                             src->insert_flag);
+  avm_metadata_t *const copy = avm_img_metadata_alloc(
+      src->type, src->payload, src->sz, src->insert_flag);
   if (!copy) return;
   copy->is_suffix = src->is_suffix;
   copy->necessity_idc = src->necessity_idc;

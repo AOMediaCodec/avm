@@ -335,7 +335,7 @@ typedef struct avm_metadata {
   uint32_t xlayer_map;                          /**< Metadata x_layer mapping */
   uint8_t mlayer_map[31];                       /**< Metadata m_layer mapping */
   uint8_t mlayer_id;                            /**< Signaled mlayer (K) */
-  uint8_t tlayer_id;                             /**< Signaled tlayer (T) */
+  uint8_t tlayer_id;                            /**< Signaled tlayer (T) */
 
 } avm_metadata_t;
 

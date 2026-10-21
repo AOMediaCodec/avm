@@ -3274,8 +3274,7 @@ static INLINE int is_tlayer_scalable_and_dependent(
 // transitively depends on tlayer `layer_b`. Also returns true if both
 // layer IDs are the same. Otherwise, returns false.
 static INLINE int is_tlayer_transitively_dependent(
-    const SequenceHeader *const seq, int mlayer_id, int layer_a,
-    int layer_b) {
+    const SequenceHeader *const seq, int mlayer_id, int layer_a, int layer_b) {
   if (layer_a == layer_b) return 1;
   if (!seq->tlayer_dependency_present_flag) return layer_a > layer_b;
 
