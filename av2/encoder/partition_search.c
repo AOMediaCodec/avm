@@ -641,6 +641,9 @@ static AVM_INLINE int64_t dry_pass_rd_bound(const MACROBLOCK *x,
  * \param[in]    part_search_state   Pointer to the current partition search
  *                                   state; used to derive per-block two-pass
  *                                   flags. May be NULL when not applicable.
+ * \param[in]    skip_inter_modes_by_none_part Skip the inter modes selected by
+ *                                             is_intermode_selected() for
+ *                                             prune_inter_modes_by_none_part.
  *
  * Nothing is returned. Instead, the chosen modes and contexts necessary
  * for reconstruction are stored in ctx, the rate-distortion stats are stored in
@@ -654,7 +657,8 @@ static void pick_sb_modes(AV2_COMP *const cpi, ThreadData *td,
                           int sb_root_partition_info, BLOCK_SIZE bsize,
                           PICK_MODE_CONTEXT *ctx, RD_STATS best_rd,
                           SB_MULTI_PASS_MODE multi_pass_mode,
-                          const PartitionSearchState *part_search_state) {
+                          const PartitionSearchState *part_search_state,
+                          bool skip_inter_modes_by_none_part) {
   if (best_rd.rdcost < 0) {
     ctx->rd_stats.rdcost = INT64_MAX;
     ctx->rd_stats.skip_txfm = 0;
@@ -803,10 +807,12 @@ static void pick_sb_modes(AV2_COMP *const cpi, ThreadData *td,
           warmstart_bound > 0 && warmstart_bound < best_rd.rdcost;
       av2_rd_pick_inter_mode_sb(
           cpi, tile_data, x, rd_cost, bsize, ctx,
-          warmstart_applied ? warmstart_bound : best_rd.rdcost);
+          warmstart_applied ? warmstart_bound : best_rd.rdcost,
+          skip_inter_modes_by_none_part);
       if (warmstart_applied && rd_cost->rate == INT_MAX) {
         av2_rd_pick_inter_mode_sb(cpi, tile_data, x, rd_cost, bsize, ctx,
-                                  best_rd.rdcost);
+                                  best_rd.rdcost,
+                                  skip_inter_modes_by_none_part);
       }
     }
     // Dry pass: record the rd it achieved, to bound the wet pass on this block.
@@ -2665,7 +2671,8 @@ void av2_nonrd_use_partition(AV2_COMP *cpi, ThreadData *td,
     case PARTITION_NONE:
       pick_sb_modes(cpi, td, tile_data, x, mi_row, mi_col, &this_rdc,
                     pc_tree->region_type, pc_tree->sb_root_partition_info,
-                    bsize, ctx_none, best_rdc, SB_SINGLE_PASS, NULL);
+                    bsize, ctx_none, best_rdc, SB_SINGLE_PASS, NULL,
+                    /*skip_inter_modes_by_none_part=*/false);
       encode_b(cpi, tile_data, td, tp, mi_row, mi_col, OUTPUT_ENABLED, subsize,
                partition, ctx_none, &rate);
       // Record picked ref frame in the superblock mask to allow subsequent
@@ -2897,7 +2904,8 @@ void av2_rd_use_partition(AV2_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
     case PARTITION_NONE:
       pick_sb_modes(cpi, td, tile_data, x, mi_row, mi_col, &last_part_rdc,
                     pc_tree->region_type, pc_tree->sb_root_partition_info,
-                    bsize, ctx_none, invalid_rdc, SB_SINGLE_PASS, NULL);
+                    bsize, ctx_none, invalid_rdc, SB_SINGLE_PASS, NULL,
+                    /*skip_inter_modes_by_none_part=*/false);
       break;
     case PARTITION_HORZ:
       pc_tree->horizontal[cur_region_type][0] = av2_alloc_pc_tree_node(
@@ -4255,6 +4263,21 @@ static int64_t get_dist_offset_by_deblock(
 }
 
 // PARTITION_NONE search.
+// Returns true if the PARTITION_NONE search of this block may skip the inter
+// modes selected by is_intermode_selected(): the parent block is at most 32x32
+// and its own PARTITION_NONE search chose a mode outside that set (speed
+// feature prune_inter_modes_by_none_part).
+static bool skip_inter_modes_by_parent_none(const AV2_COMP *const cpi,
+                                            const PC_TREE *pc_tree) {
+  if (!cpi->sf.part_sf.prune_inter_modes_by_none_part || !pc_tree->parent)
+    return false;
+  const PICK_MODE_CONTEXT *const parent_none =
+      pc_tree->parent->none[pc_tree->parent->region_type];
+  return parent_none != NULL && parent_none->rd_stats.rate != INT_MAX &&
+         parent_none->mic.sb_type[0] <= BLOCK_32X32 &&
+         !is_intermode_selected(parent_none->mic.mode);
+}
+
 static void none_partition_search(
     AV2_COMP *const cpi, ThreadData *td, TileDataEnc *tile_data,
     TokenExtra **tp, PC_TREE *pc_tree, SIMPLE_MOTION_DATA_TREE *sms_tree,
@@ -4373,7 +4396,8 @@ static void none_partition_search(
   RD_STATS *this_rdc = &part_search_state->this_rdc;
   pick_sb_modes(cpi, td, tile_data, x, mi_row, mi_col, this_rdc, region_type,
                 pc_tree->sb_root_partition_info, bsize, *ctx_none,
-                best_remain_rdcost, multi_pass_mode, part_search_state);
+                best_remain_rdcost, multi_pass_mode, part_search_state,
+                skip_inter_modes_by_parent_none(cpi, pc_tree));
 
   for (int k = 0; k < NUMBER_OF_CACHED_MODES; k++) {
     x->inter_mode_cache[k] = NULL;
@@ -6116,15 +6140,6 @@ BEGIN_PARTITION_SEARCH:
     }
   }
 #endif  // CONFIG_ML_PART_SPLIT
-  x->skip_inter_modes_by_none_part =
-      cpi->sf.part_sf.prune_inter_modes_by_none_part && pc_tree->parent &&
-              pc_tree->parent->none[pc_tree->parent->region_type] &&
-              pc_tree->parent->none[pc_tree->parent->region_type]
-                      ->mic.sb_type[0] <= BLOCK_32X32 &&
-              !is_intermode_selected(
-                  pc_tree->parent->none[pc_tree->parent->region_type]->mic.mode)
-          ? 1
-          : 0;
   // Search partition none.
   bool partition_none_allowed =
       part_search_state.partition_allowed[PARTITION_NONE];
