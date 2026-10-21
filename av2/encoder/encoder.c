@@ -2880,7 +2880,6 @@ static void gdf_search_job(const AV2_COMP *cpi, GdfStripeBuf *sb,
                         AVMMIN(cm->cur_frame->buf.bit_depth, GDF_TEST_INP_PREC);
   const int err_shift =
       GDF_RDO_SCALE_NUM_LOG2 + GDF_TEST_INP_PREC - cm->cur_frame->buf.bit_depth;
-  const int err_shift_half_pow2 = err_shift > 0 ? 1 << (err_shift - 1) : 0;
 
   const int ref_dst_idx = gdf_get_ref_dst_idx(cm);
   const int qp_idx_base = gdf_get_qp_idx_base(cm);
@@ -2964,53 +2963,28 @@ static void gdf_search_job(const AV2_COMP *cpi, GdfStripeBuf *sb,
                 gdf_stripe_ptr(gi, sb, i_min - 1, j_min - 1), gi->inp_stride,
                 bit_depth, sb->lap_ptr, gi->lap_stride, sb->cls_ptr,
                 gi->cls_stride);
-          }
-          for (int qp_idx = qp_idx_start; qp_idx < GDF_RDO_QP_NUM; qp_idx++) {
-            if (use_gdf_local) {
+
+            const int blk_h = i_max - i_min;
+            const int blk_w = j_max - j_min;
+            const uint16_t *rec_unit = rec_pnt + i_min * rec_stride + j_min;
+            const uint16_t *org_unit = org_pnt + i_min * org_stride + j_min;
+
+            for (int qp_idx = qp_idx_start; qp_idx < GDF_RDO_QP_NUM; qp_idx++) {
               gdf_inference_unit(
                   i_min, i_max, j_min, j_max, qp_idx + qp_idx_base,
                   gdf_stripe_ptr(gi, sb, i_min, j_min), gi->inp_stride,
                   sb->lap_ptr, gi->lap_stride, sb->cls_ptr, gi->cls_stride,
                   sb->err_ptr, gi->err_stride, pxl_shift, ref_dst_idx);
-            }
-            // Sum in locals to avoid false sharing with other threads.
-            int64_t rec_err = rec_pic_error[blk_idx];
-            int64_t flg_err[GDF_RDO_SCALE_NUM] = { 0 };
-            for (int i = i_min; i < i_max; i++) {
-              for (int j = j_min; j < j_max; j++) {
-                int rec_loc = i * rec_stride + j;
-                int org_loc = i * org_stride + j;
-                int err_loc = (i - i_min) * gi->err_stride + (j - j_min);
-
-                if (qp_idx == qp_idx_start) {
-                  int64_t tmp_err = rec_pnt[rec_loc] - org_pnt[org_loc];
-                  rec_err += tmp_err * tmp_err;
-                }
-
-                for (int scale_idx = 0; scale_idx < GDF_RDO_SCALE_NUM;
-                     scale_idx++) {
-                  if (!use_gdf_local) {
-                    flg_err[scale_idx] += rec_err;
-                    continue;
-                  }
-                  int32_t tmp_val = (scale_idx + 1) * sb->err_ptr[err_loc];
-                  if (tmp_val > 0) {
-                    tmp_val = (tmp_val + err_shift_half_pow2) >> err_shift;
-                  } else {
-                    tmp_val =
-                        -(((-tmp_val) + err_shift_half_pow2) >> err_shift);
-                  }
-                  tmp_val = CLIP(tmp_val + rec_pnt[rec_loc], 0, pxl_max) -
-                            org_pnt[org_loc];
-                  flg_err[scale_idx] += (int64_t)tmp_val * tmp_val;
-                }
+              int64_t scale_sse[GDF_RDO_SCALE_NUM];
+              gdf_compensation_sse_unit(
+                  rec_unit, rec_stride, org_unit, org_stride, sb->err_ptr,
+                  gi->err_stride, err_shift, pxl_max, blk_h, blk_w, scale_sse,
+                  qp_idx == qp_idx_start ? &rec_pic_error[blk_idx] : NULL);
+              for (int scale_idx = 0; scale_idx < GDF_RDO_SCALE_NUM;
+                   scale_idx++) {
+                errors->flg_pic_error[scale_idx][qp_idx][blk_idx] +=
+                    scale_sse[scale_idx];
               }
-            }
-            rec_pic_error[blk_idx] = rec_err;
-            for (int scale_idx = 0; scale_idx < GDF_RDO_SCALE_NUM;
-                 scale_idx++) {
-              errors->flg_pic_error[scale_idx][qp_idx][blk_idx] +=
-                  flg_err[scale_idx];
             }
           }
           gdf_restore_processing_stripe_leftright_boundary(
