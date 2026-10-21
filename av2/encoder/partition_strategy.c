@@ -559,12 +559,20 @@ void av2_prune_partitions_before_search(
   // smaller blocksize.
   // TODO (any) : Train the ML model for 'BLOCK_256X256' to enable optimization
   // for NONE partition.
+  // The model reads simple motion search features only, so it can also run in
+  // the dry pass of the fast two-pass partition search when
+  // dry_pass_simple_motion_search_split is set.
+  const int sms_split_ml_active = av2_partition_ml_pruning_active(
+      x, partition_search_state->forced_partition);
+  const int sms_split_dry_pass =
+      !sms_split_ml_active &&
+      cpi->sf.part_sf.dry_pass_simple_motion_search_split &&
+      x->apply_dry_pass_shortcuts &&
+      partition_search_state->forced_partition == PARTITION_INVALID;
   const int try_split_only =
       !cpi->is_screen_content_type &&
       cpi->sf.part_sf.simple_motion_search_split &&
-      av2_partition_ml_pruning_active(
-          x, partition_search_state->forced_partition) &&
-      bsize >= BLOCK_8X8 &&
+      (sms_split_ml_active || sms_split_dry_pass) && bsize >= BLOCK_8X8 &&
       mi_row + mi_size_high[bsize] <= mi_params->mi_rows &&
       bsize < BLOCK_256X256 &&
       mi_col + mi_size_wide[bsize] <= mi_params->mi_cols &&
@@ -574,7 +582,8 @@ void av2_prune_partitions_before_search(
   if (try_split_only) {
     av2_simple_motion_search_based_split(cpi, x, sms_tree, mi_row, mi_col,
                                          bsize, partition_search_state);
-    if (!partition_search_state->partition_allowed[PARTITION_NONE]) {
+    if (!partition_search_state->partition_allowed[PARTITION_NONE] &&
+        !sms_split_dry_pass) {
       av2_cache_best_partition(x->sms_bufs, mi_row, mi_col, bsize, cm->sb_size,
                                PARTITION_HORZ, (int8_t)pc_tree->region_type);
       const int mi_step = mi_size_high[bsize] / 2;
