@@ -1797,6 +1797,26 @@ static AVM_INLINE void set_post_none_early_term_level(AV2_COMP *cpi,
       cpi->oxcf.mode == GOOD ? thresh_by_speed[AVMMIN(speed, 6)] : 0;
 }
 
+// Faster inter-frame mode search at speed 6. Set after all other
+// qindex-dependent speed features. Key frames and intra-only frames do not
+// change.
+static AVM_INLINE void set_inter_frame_speed_features(AV2_COMP *cpi,
+                                                      int speed) {
+  const AV2_COMMON *const cm = &cpi->common;
+  SPEED_FEATURES *const sf = &cpi->sf;
+  if (cpi->oxcf.mode != GOOD || speed != 6 || frame_is_intra_only(cm)) return;
+
+  // Let the adaptive RD thresholds grow to 4 times the level-1 cap, and give
+  // the full transform search to the best 6 of the 11 candidates of the full
+  // mode pool.
+  sf->inter_sf.adaptive_rd_thresh = 4;
+  sf->inter_sf.full_pool_inter_mode_prune_top = 6;
+
+  // Double the post-NONE early termination threshold on frames that are not
+  // boosted.
+  if (!frame_is_boosted(cpi)) sf->part_sf.ml_post_none_early_term_thresh *= 2;
+}
+
 // Override some speed features based on qindex
 void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
   AV2_COMMON *const cm = &cpi->common;
@@ -1966,4 +1986,6 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
       }
     }
   }
+
+  set_inter_frame_speed_features(cpi, speed);
 }
