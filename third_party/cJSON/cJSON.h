@@ -105,7 +105,7 @@ char *cJSON_GetStringValue(const cJSON *item);
 double cJSON_GetNumberValue(const cJSON *item);
 
 /* Macro to iterate over array/object children */
-#define cJSON_ArrayForEach(element, array) \
+#define cJSON_ArrayForEach(element, array)                                 \
   for (element = (array != NULL) ? (array)->child : NULL; element != NULL; \
        element = element->next)
 
