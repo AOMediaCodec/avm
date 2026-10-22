@@ -138,6 +138,11 @@ specialize qw/av2_copy_pred_array_highbd sse4_1 avx2 avx512/;
 #inv txfm
 add_proto qw/void inv_stxfm/ , "tran_low_t *src, tran_low_t *dst, const PREDICTION_MODE mode, const uint8_t stx_idx, const int size, const int bd";
 specialize qw/inv_stxfm sse4_1 avx2/;
+
+# inv cctx
+add_proto qw/void av2_inv_cross_chroma_tx_block/, "tran_low_t *dqcoeff_c1, tran_low_t *dqcoeff_c2, TX_SIZE tx_size, CctxType cctx_type, const int bd";
+specialize qw/av2_inv_cross_chroma_tx_block avx2/;
+
 add_proto qw/void av2_highbd_inv_txfm_add/, "const tran_low_t *input, uint16_t *dest, int stride, const TxfmParam *txfm_param";
 specialize qw/av2_highbd_inv_txfm_add sse4_1 avx2 avx512 neon/;
 
