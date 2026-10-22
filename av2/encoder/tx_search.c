@@ -1846,6 +1846,14 @@ get_tx_mask(const AV2_COMP *cpi, MACROBLOCK *x, int plane, int block,
         if (tx_type_probs[i] < thresh) prune |= (1 << i);
       }
       if ((prune >> max_idx) & 0x01) prune &= ~(1 << max_idx);
+      // In av2_default_tx_type_probs (trained on natural video), IDTX has
+      // near-zero initial probability (< thresh), which prunes IDTX on the
+      // first frame and permanently locks it out via the per-frame EMA update.
+      // On screen content, exempt IDTX, V_DCT, and H_DCT while keeping
+      // statistical pruning for the remaining transform types.
+      if (cm->features.is_scc_content_by_detector) {
+        prune &= ~((1 << IDTX) | (1 << V_DCT) | (1 << H_DCT));
+      }
       allowed_tx_mask &= (~prune);
     }
     for (i = 0; i < PRIMARY_TX_TYPES; i++) {

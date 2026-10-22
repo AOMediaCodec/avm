@@ -250,6 +250,20 @@ bool av2_partition_et_after_none_and_split(
       !is_rect_part_allowed(cpi, pss, PARTITION_VERT) &&
       !is_any_ext_part_allowed(pss))
     return false;
+  // On screen content (B2), large blocks that are mostly flat background with
+  // a thin text line or UI edge have low average variance and RD cost, which
+  // tricks the natural-video linear model into premature early termination.
+  // Only allow early termination on screen content when PARTITION_NONE is a
+  // zero-residual skip, preserving the speedup on flat backgrounds while
+  // splitting blocks with sharp residual edges.
+  if (cpi->common.features.is_scc_content_by_detector) {
+    const PICK_MODE_CONTEXT *none_ctx = pc_tree->none[pc_tree->region_type];
+    const int sdp_idx = av2_get_sdp_idx(x->e_mbd.tree_type);
+    if (!none_ctx ||
+        (!none_ctx->mic.skip_txfm[sdp_idx] && !none_ctx->skippable)) {
+      return false;
+    }
+  }
   float features[PART_ET_NUM_FEATURES];
   compute_partition_et_features(cpi, x, pc_tree, pss, best_rdc, part_none_rd,
                                 part_split_rd, pb_source_variance,

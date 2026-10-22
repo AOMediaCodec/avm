@@ -163,9 +163,10 @@ static void set_good_speed_feature_framesize_dependent(
     sf->part_sf.auto_max_partition_based_on_simple_motion = DIRECT_PRED;
   }
 
-  // 8x8 partition floor at 4k, and at 1080p from speed 1.
-  sf->part_sf.default_min_partition_size =
-      av2_enc_partition_floor(speed, cm->width, cm->height);
+  // 8x8 partition floor at 4k, and at 1080p from speed 1 on non-screen content;
+  // 4x4 otherwise (see av2_enc_partition_floor()).
+  sf->part_sf.default_min_partition_size = av2_enc_partition_floor(
+      speed, cm->width, cm->height, cm->features.is_scc_content_by_detector);
 
   // TODO(huisu@google.com): train models for 720P and above.
   if (!is_720p_or_larger) {
@@ -560,7 +561,9 @@ static void set_good_speed_features_framesize_independent(
     }
     sf->inter_sf.enable_fast_bawp = 1;
 
-    sf->intra_sf.prune_palette_search_level = 1;
+    if (!cm->features.is_scc_content_by_detector) {
+      sf->intra_sf.prune_palette_search_level = 1;
+    }
 
     sf->tx_sf.adaptive_tx_type_search_idx = 4;
     sf->tx_sf.adaptive_tx_partition_type_search_idx = 4;
@@ -642,7 +645,9 @@ static void set_good_speed_features_framesize_independent(
     // coding loss. Disable  it before it is improved.
     // sf->intra_sf.disable_smooth_intra =
     //    !frame_is_intra_only(&cpi->common) || (cpi->rc.frames_to_key != 1);
-    sf->intra_sf.prune_palette_search_level = 2;
+    if (!cm->features.is_scc_content_by_detector) {
+      sf->intra_sf.prune_palette_search_level = 2;
+    }
     sf->intra_sf.intra_mode_prune_top = 3;
 
     sf->tpl_sf.prune_ref_frames_in_tpl = 1;
