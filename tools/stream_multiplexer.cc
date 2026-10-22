@@ -24,9 +24,9 @@
 #define REWRITE_TD_WITH_GLOBAL_XLAYER 0
 
 // Maximum number of sub-streams representable in MSDO (3-bit num_streams - 2).
-constexpr int kMaxMsdoStreams = 9;
+constexpr int kMaxMsdoStreams = 4;
 // Maximum index representable in 3-bit multistream_large_picture_idc.
-constexpr int kMaxLargePictureIdc = 7;
+constexpr int kMaxLargePictureIdc = 3;
 // Maximum sum of stream buffer units across all streams.
 constexpr int kMaxStreamBufferUnits = 9;
 // Maximum encoded byte length of an AV2 LEB128 size field.
